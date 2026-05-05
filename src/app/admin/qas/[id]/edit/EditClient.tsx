@@ -210,39 +210,35 @@ export default function EditClient({
           </span>
         </div>
 
-        {/* 영상 정보 (같은 video 공유 글에 모두 영향) */}
-        <div className="rounded-md border border-dashed border-[var(--border)] p-3">
-          <div className="mb-2 text-xs text-[var(--text-muted)]">
-            🎬 영상 정보 — 같은 영상을 공유하는 다른 글 {sameVideoQaCount}개에도 함께 적용됩니다
-          </div>
-          <div className="space-y-2">
-            <div>
-              <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-                YouTube URL
-              </label>
-              <input
-                type="url"
-                value={youtubeUrl}
-                onChange={(e) => setYoutubeUrl(e.target.value)}
-                className="w-full rounded-md border border-[var(--border)] px-3 py-1.5 text-sm outline-none focus:border-[var(--primary)]"
-                disabled={!qa.video_id}
-                placeholder={qa.video_id ? "" : "(영상 연결 없음)"}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-                영상 제목
-              </label>
-              <input
-                type="text"
-                value={videoTopic}
-                onChange={(e) => setVideoTopic(e.target.value)}
-                className="w-full rounded-md border border-[var(--border)] px-3 py-1.5 text-sm outline-none focus:border-[var(--primary)]"
-                disabled={!qa.video_id}
-                placeholder={qa.video_id ? "(없음)" : "(영상 연결 없음)"}
-              />
-            </div>
-          </div>
+        {/* 영상 정보 — 다른 input과 동일 층위 */}
+        <p className="-mb-1 text-xs text-[var(--text-muted)]">
+          🎬 영상 정보 — 같은 영상을 공유하는 다른 글 {sameVideoQaCount}개에도 함께 적용됩니다
+        </p>
+        <div>
+          <label className="mb-1 block text-sm text-[var(--text-secondary)]">
+            YouTube URL
+          </label>
+          <input
+            type="url"
+            value={youtubeUrl}
+            onChange={(e) => setYoutubeUrl(e.target.value)}
+            className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
+            disabled={!qa.video_id}
+            placeholder={qa.video_id ? "" : "(영상 연결 없음)"}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm text-[var(--text-secondary)]">
+            영상 제목
+          </label>
+          <input
+            type="text"
+            value={videoTopic}
+            onChange={(e) => setVideoTopic(e.target.value)}
+            className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
+            disabled={!qa.video_id}
+            placeholder={qa.video_id ? "(없음)" : "(영상 연결 없음)"}
+          />
         </div>
 
         <div>
