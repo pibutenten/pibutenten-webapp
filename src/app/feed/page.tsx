@@ -71,7 +71,7 @@ export default async function FeedPage() {
   const hotIds = Array.from(await getHotQaIds(20));
 
   return (
-    <section className="-mt-2 sm:-mt-1">
+    <section className="pt-1 sm:pt-2">
       {error && (
         <div className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           Q&A 불러오기 실패: {error.message}

@@ -68,7 +68,10 @@ export default async function DoctorsPage() {
               aria-label={`${d.name} 원장님 소개로 이동`}
               className="block overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5 hover:shadow-[var(--shadow)]"
             >
-              <div className="relative aspect-square w-full overflow-hidden bg-[var(--bg-soft)]">
+              <div
+                className="relative aspect-square w-full overflow-hidden"
+                style={{ background: theme.bgSoft }}
+              >
                 <Image
                   src={photo}
                   alt={`${d.name} 원장님`}

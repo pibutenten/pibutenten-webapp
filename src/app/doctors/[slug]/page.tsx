@@ -61,8 +61,14 @@ export default async function DoctorDetailPage({ params }: Props) {
 
   return (
     <section className="space-y-6">
-      {/* 원장님 hero — 좌: 멘트 + 이름·소속 / 우: 누끼 사진이 하단선 위에 서 있음 */}
-      <header className="relative mx-auto w-full max-w-[820px]">
+      {/* 원장님 hero — 좌: 멘트 + 이름·소속 / 우: 누끼 사진이 하단선 위에 서 있음
+          배경: 원장 theme bgSoft 색을 위에서 아래로 페이드아웃 (은은) */}
+      <header
+        className="relative mx-auto w-full max-w-[820px] rounded-t-[var(--radius)] overflow-hidden"
+        style={{
+          background: `linear-gradient(to bottom, ${theme.bgSoft}, transparent 95%)`,
+        }}
+      >
         <div className="flex items-end gap-1 sm:gap-2">
           {/* 좌측: 멘트(중상단) + 이름(하단) — 좌측 약간의 여백 */}
           <div className="flex flex-1 flex-col self-stretch pb-6 pl-2 pt-12 sm:pb-8 sm:pl-3 sm:pt-20">
