@@ -8,7 +8,7 @@ const TOP_N = 32;
 
 /**
  * 발행된 모든 qas의 keywords를 카운트 → 카테고리별 빈도 상위 N개.
- * 매핑 안 되는 키워드는 'other' (피부상식)에 떨어짐.
+ * 매핑 안 되는 키워드는 'knowledge' (피부상식)에 떨어짐.
  */
 export async function getPopularByCategory(): Promise<PopularByCategory> {
   const supabase = await createSupabaseServerClient();
@@ -18,7 +18,7 @@ export async function getPopularByCategory(): Promise<PopularByCategory> {
     .eq("published", true);
 
   if (error || !data) {
-    return { condition: [], lifting: [], injection: [], homecare: [], other: [] };
+    return { concerns: [], lifting: [], injectables: [], homecare: [], knowledge: [] };
   }
 
   // 키워드 카운트
@@ -32,11 +32,11 @@ export async function getPopularByCategory(): Promise<PopularByCategory> {
 
   // 카테고리 버킷
   const buckets: Record<CategorySlug, [string, number][]> = {
-    condition: [],
+    concerns: [],
     lifting: [],
-    injection: [],
+    injectables: [],
     homecare: [],
-    other: [],
+    knowledge: [],
   };
   for (const [kw, freq] of counts) {
     buckets[categorize(kw)].push([kw, freq]);
@@ -45,11 +45,11 @@ export async function getPopularByCategory(): Promise<PopularByCategory> {
   // 빈도 desc, 같으면 ko 순
   const collator = new Intl.Collator("ko");
   const result: PopularByCategory = {
-    condition: [],
+    concerns: [],
     lifting: [],
-    injection: [],
+    injectables: [],
     homecare: [],
-    other: [],
+    knowledge: [],
   };
   for (const cat of Object.keys(buckets) as CategorySlug[]) {
     buckets[cat].sort((a, b) => b[1] - a[1] || collator.compare(a[0], b[0]));
