@@ -1,12 +1,11 @@
 /**
  * Q&A 카테고리 정의.
- * 정적 사이트(pbtt-search)의 CATEGORY_SETS 색상·슬러그 그대로 계승.
  *
- * - condition  피부고민   (와인)
- * - lifting    리프팅     (파랑)
- * - injection  스킨부스터 (보라)
- * - homecare   홈케어     (머스타드)
- * - other      피부상식   (진회) — 매핑 안 되는 키워드 자동 분류
+ * - condition  피부고민   (와인 #C62828)
+ * - lifting    리프팅     (하늘색 #0288D1)
+ * - injection  스킨부스터 (핑크 #EC407A)
+ * - homecare   홈케어     (머스타드 #F57F17)
+ * - other      피부상식   (진회 #424242) — 매핑 안 되는 키워드 자동 분류
  */
 export type CategorySlug =
   | "condition"
@@ -23,8 +22,8 @@ export type Category = {
 
 export const CATEGORIES: readonly Category[] = [
   { slug: "condition", label: "피부고민",   color: "#C62828" },
-  { slug: "lifting",   label: "리프팅",     color: "#1565C0" },
-  { slug: "injection", label: "스킨부스터", color: "#6A1B9A" },
+  { slug: "lifting",   label: "리프팅",     color: "#0288D1" },
+  { slug: "injection", label: "스킨부스터", color: "#EC407A" },
   { slug: "homecare",  label: "홈케어",     color: "#F57F17" },
   { slug: "other",     label: "피부상식",   color: "#424242" },
 ] as const;
