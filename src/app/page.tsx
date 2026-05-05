@@ -10,22 +10,25 @@ export const dynamic = "force-dynamic";
 const INITIAL_PAGE_SIZE = 20;
 
 type Props = {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; boost?: string }>;
 };
 
 export default async function HomePage({ searchParams }: Props) {
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
+  const boost = (sp.boost ?? "").trim();
 
   const supabase = await createSupabaseServerClient();
 
   // q 있을 때나 없을 때 모두 RPC 사용 — 일관된 정렬 (q: 점수+노이즈 / no-q: video.upload_date desc)
+  // boost: 특정 원장 slug에 +300 가산 (원장님 단일 페이지에서 칩 클릭으로 넘어왔을 때)
   const popularByCategoryPromise = getPopularByCategory();
   const rpcRes = await supabase.rpc("search_qas_scored", {
     p_q: q,
     p_doctor_slug: null,
     p_offset: 0,
     p_limit: INITIAL_PAGE_SIZE,
+    p_boost_doctor_slug: boost || null,
   });
   const qas = (rpcRes.data ?? []) as QACardData[];
   const error = rpcRes.error;
@@ -83,7 +86,8 @@ export default async function HomePage({ searchParams }: Props) {
             initial={qas}
             pageSize={INITIAL_PAGE_SIZE}
             searchQuery={q || undefined}
-            key={q || "all"}
+            boostDoctorSlug={boost || undefined}
+            key={`${q || "all"}::${boost || ""}`}
           />
         )}
       </div>

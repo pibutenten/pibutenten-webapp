@@ -40,9 +40,11 @@ type Props = {
   qa: QACardData;
   /** 검색어 — 일치하는 키워드 칩은 카테고리 색, 본문은 노란 mark */
   activeQuery?: string;
+  /** 칩 클릭 시 검색 URL에 boost로 함께 전달 (원장님 단일 페이지에서 사용) */
+  boostDoctorSlug?: string;
 };
 
-export default function QACard({ qa, activeQuery }: Props) {
+export default function QACard({ qa, activeQuery, boostDoctorSlug }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [viewCount, setViewCount] = useState(qa.view_count);
   const [likeCount, setLikeCount] = useState(qa.like_count);
@@ -227,7 +229,9 @@ export default function QACard({ qa, activeQuery }: Props) {
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push(`/?q=${encodeURIComponent(kw)}`);
+                  const params = new URLSearchParams({ q: kw });
+                  if (boostDoctorSlug) params.set("boost", boostDoctorSlug);
+                  router.push(`/?${params.toString()}`);
                   if (typeof window !== "undefined") {
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }

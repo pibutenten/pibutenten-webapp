@@ -18,15 +18,17 @@ export async function GET(req: Request) {
   const limit = Math.min(MAX_LIMIT, Math.max(1, limitRaw));
   const q = (url.searchParams.get("q") ?? "").trim();
   const doctorSlug = (url.searchParams.get("doctor_slug") ?? "").trim();
+  const boostDoctorSlug = (url.searchParams.get("boost") ?? "").trim();
 
   const supabase = await createSupabaseServerClient();
 
-  // 항상 search_qas_scored RPC 사용 (q 비면 video.upload_date desc 정렬, 있으면 점수+노이즈)
+  // 항상 search_qas_scored RPC 사용
   const res = await supabase.rpc("search_qas_scored", {
     p_q: q,
     p_doctor_slug: doctorSlug || null,
     p_offset: offset,
     p_limit: limit,
+    p_boost_doctor_slug: boostDoctorSlug || null,
   });
   const data = res.data as unknown[] | null;
   const error = res.error;

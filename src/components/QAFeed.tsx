@@ -10,6 +10,8 @@ type Props = {
   searchQuery?: string;
   /** 특정 원장님으로 필터링. 페이지네이션 시 ?doctor_slug=... */
   doctorSlug?: string;
+  /** 검색 점수 boost 대상 원장 slug (이 원장 글에 +300). 칩 클릭 시 카드에도 전달. */
+  boostDoctorSlug?: string;
 };
 
 /**
@@ -23,22 +25,29 @@ export default function QAFeed({
   pageSize = 20,
   searchQuery,
   doctorSlug,
+  boostDoctorSlug,
 }: Props) {
   const [items, setItems] = useState<QACardData[]>(initial);
   const [hasMore, setHasMore] = useState(initial.length >= pageSize);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  // 동시 호출 방지
   const loadingRef = useRef(false);
-  // 최신 의존성 추적용
   const stateRef = useRef({
     items,
     hasMore,
     pageSize,
     searchQuery,
     doctorSlug,
+    boostDoctorSlug,
   });
-  stateRef.current = { items, hasMore, pageSize, searchQuery, doctorSlug };
+  stateRef.current = {
+    items,
+    hasMore,
+    pageSize,
+    searchQuery,
+    doctorSlug,
+    boostDoctorSlug,
+  };
 
   const loadMore = useCallback(async () => {
     if (loadingRef.current) return;
@@ -48,6 +57,7 @@ export default function QAFeed({
       pageSize: ps,
       searchQuery: sq,
       doctorSlug: ds,
+      boostDoctorSlug: bd,
     } = stateRef.current;
     if (!hm) return;
     loadingRef.current = true;
@@ -59,6 +69,7 @@ export default function QAFeed({
       });
       if (sq) params.set("q", sq);
       if (ds) params.set("doctor_slug", ds);
+      if (bd) params.set("boost", bd);
       const res = await fetch(`/api/qas?${params.toString()}`, {
         cache: "no-store",
       });
@@ -101,7 +112,12 @@ export default function QAFeed({
       {/* 모바일: 단일 칼럼 */}
       <div className="flex flex-col gap-4 min-[900px]:hidden">
         {items.map((qa) => (
-          <QACard key={qa.id} qa={qa} activeQuery={searchQuery} />
+          <QACard
+            key={qa.id}
+            qa={qa}
+            activeQuery={searchQuery}
+            boostDoctorSlug={doctorSlug}
+          />
         ))}
       </div>
 
@@ -109,12 +125,22 @@ export default function QAFeed({
       <div className="hidden grid-cols-2 items-start gap-5 min-[900px]:grid">
         <div className="flex flex-col gap-5">
           {left.map((qa) => (
-            <QACard key={qa.id} qa={qa} activeQuery={searchQuery} />
+            <QACard
+              key={qa.id}
+              qa={qa}
+              activeQuery={searchQuery}
+              boostDoctorSlug={doctorSlug}
+            />
           ))}
         </div>
         <div className="flex flex-col gap-5">
           {right.map((qa) => (
-            <QACard key={qa.id} qa={qa} activeQuery={searchQuery} />
+            <QACard
+              key={qa.id}
+              qa={qa}
+              activeQuery={searchQuery}
+              boostDoctorSlug={doctorSlug}
+            />
           ))}
         </div>
       </div>
