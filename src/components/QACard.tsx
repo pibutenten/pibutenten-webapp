@@ -45,6 +45,8 @@ type Props = {
 export default function QACard({ qa, activeQuery }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [viewCount, setViewCount] = useState(qa.view_count);
+  const [likeCount, setLikeCount] = useState(qa.like_count);
+  const [liked, setLiked] = useState(false);
   const router = useRouter();
   const doctor = qa.doctor;
   const isPick = PICK_IDS.has(qa.id);
@@ -60,6 +62,33 @@ export default function QACard({ qa, activeQuery }: Props) {
         if (typeof data === "number") setViewCount(data);
       });
   }, [expanded, qa.id]);
+
+  // 좋아요 상태 — 브라우저당 1회 제한 (localStorage)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setLiked(localStorage.getItem(`qa-liked-${qa.id}`) === "1");
+  }, [qa.id]);
+
+  function handleLike() {
+    if (typeof window === "undefined") return;
+    if (liked) return; // 한 번만
+    setLiked(true);
+    setLikeCount((c) => c + 1); // 옵티미스틱
+    localStorage.setItem(`qa-liked-${qa.id}`, "1");
+    const supabase = createSupabaseBrowserClient();
+    supabase
+      .rpc("increment_qa_like", { p_qa_id: qa.id })
+      .then(({ data, error }: { data: number | null; error: unknown }) => {
+        if (error) {
+          // 실패 시 롤백
+          setLiked(false);
+          setLikeCount((c) => Math.max(0, c - 1));
+          localStorage.removeItem(`qa-liked-${qa.id}`);
+          return;
+        }
+        if (typeof data === "number") setLikeCount(data);
+      });
+  }
   const theme = doctor ? getDoctorTheme(doctor.slug) : null;
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
   const dateLabel = formatDate(qa.video?.upload_date ?? null);
@@ -227,21 +256,30 @@ export default function QACard({ qa, activeQuery }: Props) {
           <span>{viewCount}</span>
         </span>
 
-        <span className="flex items-center gap-1.5" aria-label="좋아요">
+        <button
+          type="button"
+          onClick={handleLike}
+          aria-label={liked ? "좋아요 취소" : "좋아요"}
+          aria-pressed={liked}
+          className="flex items-center gap-1.5 transition-colors hover:text-[var(--primary)] disabled:opacity-100"
+          disabled={liked}
+          style={liked ? { color: "#E91E63" } : undefined}
+        >
           <svg
             viewBox="0 0 24 24"
-            fill="none"
+            fill={liked ? "currentColor" : "none"}
             stroke="currentColor"
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-[18px] w-[18px]"
+            className="h-[18px] w-[18px] transition-transform"
+            style={liked ? { transform: "scale(1.05)" } : undefined}
             aria-hidden
           >
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
-          <span>{qa.like_count}</span>
-        </span>
+          <span>{likeCount}</span>
+        </button>
 
         <span className="flex items-center gap-1.5" aria-label="댓글">
           <svg
@@ -292,19 +330,26 @@ async function shareQA(qa: QACardData) {
   const title = qa.question;
   const text = `${qa.doctor?.name ?? ""} 원장님 — 피부텐텐 Q&A`;
 
-  // 모바일/PWA: navigator.share
+  // 모바일에서만 native share 사용 (데스크탑 Chrome share UI는 부실해서 클립보드가 더 자연)
+  const ua = window.navigator.userAgent;
+  const isMobile =
+    /android|iphone|ipad|ipod/i.test(ua) ||
+    (navigator.maxTouchPoints > 1 && /macintosh/i.test(ua)); // iPad on iPadOS
+
   const nav = window.navigator as Navigator & {
     share?: (data: ShareData) => Promise<void>;
   };
-  if (nav.share) {
+
+  if (isMobile && nav.share) {
     try {
       await nav.share({ url, title, text });
       return;
     } catch {
-      // 사용자가 취소했거나 실패 — 클립보드 fallback
+      // 사용자 취소 / 실패 → 클립보드 fallback
     }
   }
-  // 데스크탑: 클립보드
+
+  // 데스크탑(또는 share 미지원): 클립보드 복사
   try {
     await navigator.clipboard.writeText(url);
     showToast("링크가 복사되었어요");
