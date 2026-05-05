@@ -107,7 +107,8 @@ begin
   from scored s
   left join public.doctors d on d.id = s.doctor_id
   left join public.videos  v on v.id = s.video_id
-  order by s.score desc, random(), s.id desc
+  -- 점수에 ±200 노이즈 추가 → 200 이내 차이는 자연스럽게 셔플
+  order by (s.score + (random() - 0.5) * 400) desc, s.id desc
   offset p_offset limit p_limit;
 end
 $func$;

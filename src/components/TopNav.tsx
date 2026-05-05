@@ -100,6 +100,15 @@ export default function TopNav() {
           href="/"
           aria-label="피부텐텐 홈"
           className="flex items-center gap-2 shrink-0"
+          onClick={(e) => {
+            // 같은 페이지(홈)이면 navigation이 안 일어나므로 직접 맨 위로 스크롤
+            if (pathname === "/") {
+              e.preventDefault();
+              if (typeof window !== "undefined") {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }
+          }}
         >
           <Image
             src="/logo.svg"
