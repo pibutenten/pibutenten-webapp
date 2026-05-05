@@ -54,6 +54,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
   const [viewCount, setViewCount] = useState(qa.view_count);
   const [likeCount, setLikeCount] = useState(qa.like_count);
   const [shareCount, setShareCount] = useState(qa.share_count ?? 0);
+  const [commentCount, setCommentCount] = useState(qa.comment_count ?? 0);
   const [liked, setLiked] = useState(false);
   const router = useRouter();
   const doctor = qa.doctor;
@@ -370,7 +371,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
 
         <button
           type="button"
-          onClick={() => setExpanded(true)}
+          onClick={() => setExpanded((v) => !v)}
           className="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-[var(--primary)]"
           aria-label="댓글"
         >
@@ -386,7 +387,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           >
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <span>{qa.comment_count ?? 0}</span>
+          <span>{commentCount}</span>
         </button>
 
         <button
@@ -422,14 +423,13 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
         </button>
       </div>
 
-      {/* 댓글 블록 — 펼친 상태에서만 표시 */}
-      {expanded && (
-        <CommentsBlock
-          qaId={qa.id}
-          doctorSlug={qa.doctor?.slug ?? null}
-          isPublishedQa={true}
-        />
-      )}
+      {/* 댓글 블록 — 본문 펼침 여부 무관하게 항상 표시 */}
+      <CommentsBlock
+        qaId={qa.id}
+        doctorSlug={qa.doctor?.slug ?? null}
+        isPublishedQa={true}
+        onCountChange={setCommentCount}
+      />
     </article>
   );
 }

@@ -46,6 +46,8 @@ type Props = {
   doctorSlug: string | null;
   /** 발행되지 않은 글이면 댓글 폼 숨김 */
   isPublishedQa: boolean;
+  /** 댓글 수 변경 알림 (부모 카드의 카운트 갱신용) */
+  onCountChange?: (next: number) => void;
 };
 
 type Me = {
@@ -54,7 +56,7 @@ type Me = {
   doctor_id: string | null;
 } | null;
 
-export default function CommentsBlock({ qaId, isPublishedQa }: Props) {
+export default function CommentsBlock({ qaId, isPublishedQa, onCountChange }: Props) {
   const [comments, setComments] = useState<CommentWithReplies[]>([]);
   const [totalRoot, setTotalRoot] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -131,7 +133,7 @@ export default function CommentsBlock({ qaId, isPublishedQa }: Props) {
   // qa의 doctor 본인 여부는 댓글의 권한과는 별개 (서버 RLS가 진실원). UI는 me.doctor_id로 표시 보조.
 
   // ── 표시할 댓글 (preview / expanded 토글)
-  const visibleRoots = expanded ? comments : comments.slice(0, 2);
+  const visibleRoots = expanded ? comments : comments.slice(0, 3);
 
   // ── 가시 댓글 총 수 (전체 표시용 카운트는 totalRoot + 답글 합산보다는 visible만 카운트)
   const visibleCount = useMemo(() => {
@@ -144,6 +146,11 @@ export default function CommentsBlock({ qaId, isPublishedQa }: Props) {
     }
     return c;
   }, [comments]);
+
+  // ── 부모(QACard)에 댓글 수 변경 알림
+  useEffect(() => {
+    onCountChange?.(visibleCount);
+  }, [visibleCount, onCountChange]);
 
   // ── 작성/답글 제출
   async function submitComment(parentId: number | null) {
@@ -202,11 +209,8 @@ export default function CommentsBlock({ qaId, isPublishedQa }: Props) {
       className="mt-4 border-t border-[var(--border)] pt-3 text-[14px] text-[var(--text)]"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-[14px] font-bold text-[var(--text)]">
-          댓글 {visibleCount}
-        </span>
-        {totalRoot > 2 && (
+      {totalRoot > 3 && (
+        <div className="mb-1.5 flex justify-end">
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
@@ -214,8 +218,8 @@ export default function CommentsBlock({ qaId, isPublishedQa }: Props) {
           >
             {expanded ? "접기 ▴" : `모두 보기 ▾`}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {loading && (
         <p className="text-[13px] text-[var(--text-muted)]">불러오는 중…</p>
@@ -383,16 +387,23 @@ function CommentItem({
 
   return (
     <div
-      className="rounded-md border border-[var(--border)] bg-white px-3 py-2"
-      style={dimmed ? { backgroundColor: "#F5F5F5", color: "#888" } : undefined}
+      className="rounded-md px-2 py-1.5"
+      style={
+        dimmed
+          ? { backgroundColor: "#F5F5F5", color: "#888" }
+          : undefined
+      }
     >
-      <div className="mb-1 flex items-center gap-1.5 text-[12px]">
-        <span className="font-bold text-[var(--text)]" style={dimmed ? { color: "#888" } : undefined}>
+      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[13px]">
+        <span
+          className="font-bold text-[var(--text)]"
+          style={dimmed ? { color: "#888" } : undefined}
+        >
           {displayName}
         </span>
         {isAuthorAdmin && (
           <span
-            className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+            className="rounded px-1 py-0 text-[10px] font-bold"
             style={{ backgroundColor: "#E3F2FD", color: "#1565C0" }}
           >
             관리자
@@ -400,18 +411,27 @@ function CommentItem({
         )}
         {isAuthorDoctor && (
           <span
-            className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+            className="rounded px-1 py-0 text-[10px] font-bold"
             style={{ backgroundColor: "#FFF3E0", color: "#E65100" }}
           >
             원장님
           </span>
         )}
-        <span className="text-[var(--text-muted)]">· {timeLabel}</span>
+        {/* 본문 — editing 모드 아닐 때 한 줄로 옆에 붙임 */}
+        {!editing && (
+          <span
+            className="whitespace-pre-wrap break-all leading-[1.5] text-[var(--text)]"
+            style={dimmed ? { color: "#888" } : undefined}
+          >
+            {isDeleted ? "(삭제된 댓글이에요)" : comment.body}
+          </span>
+        )}
+        <span className="text-[11px] text-[var(--text-muted)]">· {timeLabel}</span>
         {isHidden && (
-          <span className="ml-1 text-[11px] text-[var(--text-muted)]">🙈 가림 처리됨</span>
+          <span className="text-[11px] text-[var(--text-muted)]">🙈 가림</span>
         )}
         {isDeleted && (
-          <span className="ml-1 text-[11px] text-[var(--text-muted)]">🗑 삭제됨</span>
+          <span className="text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
         )}
 
         {showMenu && (
@@ -489,9 +509,14 @@ function CommentItem({
         <div className="mt-1 flex flex-col gap-1.5">
           <textarea
             value={editBody}
-            onChange={(e) => setEditBody(e.target.value)}
-            rows={3}
-            className="w-full rounded border border-[var(--border)] p-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            onChange={(e) => {
+              setEditBody(e.target.value);
+              const t = e.currentTarget;
+              t.style.height = "auto";
+              t.style.height = t.scrollHeight + "px";
+            }}
+            rows={2}
+            className="w-full resize-none overflow-hidden rounded border border-[var(--border)] p-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
           />
           <div className="flex justify-end gap-2">
             <button
@@ -514,11 +539,7 @@ function CommentItem({
             </button>
           </div>
         </div>
-      ) : (
-        <p className="whitespace-pre-wrap text-[14px] leading-[1.55]">
-          {isDeleted ? "(삭제된 댓글이에요)" : comment.body}
-        </p>
-      )}
+      ) : null}
 
       {/* 답글 버튼 (root 댓글에만) */}
       {!isReply && onReplyClick && !isDeleted && (
@@ -559,11 +580,16 @@ function CommentForm({
     <div className="flex flex-col gap-1.5">
       <textarea
         value={body}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          const t = e.currentTarget;
+          t.style.height = "auto";
+          t.style.height = t.scrollHeight + "px";
+        }}
         placeholder={placeholder ?? "댓글을 입력하세요"}
-        rows={3}
+        rows={2}
         maxLength={2000}
-        className="w-full rounded-md border border-[var(--border)] p-2.5 text-[14px] focus:border-[var(--primary)] focus:outline-none"
+        className="w-full resize-none overflow-hidden rounded-md border border-[var(--border)] p-2.5 text-[14px] focus:border-[var(--primary)] focus:outline-none"
       />
       <div className="flex items-center justify-between">
         <span className="text-[11px] text-[var(--text-muted)]">{body.length}/2000</span>
