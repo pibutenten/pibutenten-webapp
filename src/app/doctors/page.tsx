@@ -67,18 +67,16 @@ export default async function DoctorsPage() {
             >
               <div
                 className="relative aspect-square w-full overflow-hidden"
-                style={{
-                  background: `linear-gradient(180deg, ${theme.bgSoft} 0%, ${theme.bg} 100%)`,
-                }}
+                style={{ background: theme.bg }}
               >
                 <Image
                   src={photo}
                   alt={`${d.name} 원장님`}
                   fill
                   sizes="(max-width: 900px) 50vw, 360px"
-                  className="object-contain"
+                  className="object-cover"
                   style={{
-                    objectPosition: "50% 100%",
+                    objectPosition: "50% 0%",
                     transform: `translate(${theme.offsetX ?? 0}px, ${theme.offsetY ?? 0}px)`,
                   }}
                   priority={d.sort_order <= 20}
@@ -92,12 +90,12 @@ export default async function DoctorsPage() {
                 <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                   {d.title}
                 </p>
-                {(d.clinic || d.branch) && (
+                {d.branch && (
                   <p
                     className="mt-1 text-[12px] font-medium"
                     style={{ color: theme.accent }}
                   >
-                    {[d.clinic, d.branch].filter(Boolean).join(" ")}
+                    {d.branch}
                   </p>
                 )}
               </div>
