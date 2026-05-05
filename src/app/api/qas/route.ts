@@ -35,37 +35,41 @@ export async function GET(req: Request) {
     doctorIdFilter = dRow.id;
   }
 
-  let query = supabase
-    .from("qas")
-    .select(
-      `
-      id, question, answer, meta, keywords,
-      like_count, view_count,
-      doctor:doctors(slug, name, branch),
-      video:videos(youtube_id, youtube_url, topic, upload_date)
-    `,
-    )
-    .eq("published", true);
-
-  if (doctorIdFilter) {
-    query = query.eq("doctor_id", doctorIdFilter);
-  }
+  // q 가 있으면 점수 RPC, 없으면 created_at 정렬
+  let data: unknown[] | null = null;
+  let error: { message: string } | null = null;
 
   if (q) {
-    // 공백으로 분리한 모든 단어가 매칭되는 글만 (AND). 각 단어는 question/answer/keywords 중 어느 곳에든 매칭되면 통과 (OR).
-    const words = q.split(/\s+/).filter((w) => w.length > 0);
-    for (const w of words) {
-      const pattern = `%${escapeLike(w)}%`;
-      query = query.or(
-        `question.ilike.${pattern},answer.ilike.${pattern},keywords.cs.{${w}}`,
-      );
+    const res = await supabase.rpc("search_qas_scored", {
+      p_q: q,
+      p_doctor_slug: doctorSlug || null,
+      p_offset: offset,
+      p_limit: limit,
+    });
+    data = res.data as unknown[] | null;
+    error = res.error;
+  } else {
+    let query = supabase
+      .from("qas")
+      .select(
+        `
+        id, question, answer, meta, keywords,
+        like_count, view_count,
+        doctor:doctors(slug, name, branch),
+        video:videos(youtube_id, youtube_url, topic, upload_date)
+      `,
+      )
+      .eq("published", true);
+    if (doctorIdFilter) {
+      query = query.eq("doctor_id", doctorIdFilter);
     }
+    const res = await query
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + limit - 1);
+    data = res.data as unknown[] | null;
+    error = res.error;
   }
-
-  const { data, error } = await query
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range(offset, offset + limit - 1);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

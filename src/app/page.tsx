@@ -19,41 +19,59 @@ export default async function HomePage({ searchParams }: Props) {
 
   const supabase = await createSupabaseServerClient();
 
-  let qaQuery = supabase
-    .from("qas")
-    .select(
-      `
-      id, question, answer, meta, keywords,
-      like_count, view_count,
-      doctor:doctors(slug, name, branch),
-      video:videos(youtube_id, youtube_url, topic, upload_date)
-    `,
-      { count: q ? "exact" : undefined },
-    )
-    .eq("published", true);
+  // q 있으면 점수 RPC, 없으면 created_at 정렬
+  const popularByCategoryPromise = getPopularByCategory();
+  let qas: QACardData[] | null = null;
+  let error: { message: string } | null = null;
+  let count: number | null = null;
 
   if (q) {
-    // 공백 구분 다중 단어 → AND 검색 (각 단어는 question/answer/keywords 중 어디든 매칭되면 OK)
+    // 점수 기반 (search_qas_scored RPC)
+    const res = await supabase.rpc("search_qas_scored", {
+      p_q: q,
+      p_doctor_slug: null,
+      p_offset: 0,
+      p_limit: INITIAL_PAGE_SIZE,
+    });
+    qas = (res.data ?? []) as QACardData[];
+    error = res.error;
+
+    // 검색 매칭 카운트는 별도로 (PostgREST OR + count)
+    let countQuery = supabase
+      .from("qas")
+      .select("id", { count: "exact", head: true })
+      .eq("published", true);
     const words = q.split(/\s+/).filter((w) => w.length > 0);
     for (const w of words) {
       const escaped = w.replace(/[%_*]/g, "\\$&").replace(/[(),]/g, " ");
       const pattern = `%${escaped}%`;
-      qaQuery = qaQuery.or(
+      countQuery = countQuery.or(
         `question.ilike.${pattern},answer.ilike.${pattern},keywords.cs.{${w}}`,
       );
     }
-  }
-
-  const [qaResult, popularByCategory] = await Promise.all([
-    qaQuery
+    const cRes = await countQuery;
+    count = cRes.count ?? null;
+  } else {
+    const res = await supabase
+      .from("qas")
+      .select(
+        `
+        id, question, answer, meta, keywords,
+        like_count, view_count,
+        doctor:doctors(slug, name, branch),
+        video:videos(youtube_id, youtube_url, topic, upload_date)
+      `,
+      )
+      .eq("published", true)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(INITIAL_PAGE_SIZE)
-      .returns<QACardData[]>(),
-    getPopularByCategory(),
-  ]);
+      .returns<QACardData[]>();
+    qas = res.data ?? [];
+    error = res.error;
+  }
 
-  const { data: qas, error, count } = qaResult;
+  const popularByCategory = await popularByCategoryPromise;
 
   return (
     <section>
