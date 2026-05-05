@@ -1,16 +1,11 @@
-import SearchBar from "@/components/SearchBar";
+import HeroSearch from "@/components/HeroSearch";
 import CategoryTabs from "@/components/CategoryTabs";
 
 export default function HomePage() {
   return (
     <section className="space-y-6">
-      {/* Hero */}
-      <header className="space-y-4 pt-2 text-center sm:pt-6">
-        <h1 className="text-2xl font-bold text-[var(--primary)] sm:text-3xl">
-          피부가 예뻐지는 모든 이야기
-        </h1>
-        <SearchBar />
-      </header>
+      {/* Hero (타이틀 + 검색창) — 클라이언트 컴포넌트 (포커스 시 슬라이드) */}
+      <HeroSearch />
 
       {/* Category tabs */}
       <CategoryTabs />

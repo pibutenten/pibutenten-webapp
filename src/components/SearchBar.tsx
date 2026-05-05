@@ -5,9 +5,13 @@ import { useState } from "react";
 
 type Props = {
   initialValue?: string;
+  onFocusChange?: (focused: boolean) => void;
 };
 
-export default function SearchBar({ initialValue = "" }: Props) {
+export default function SearchBar({
+  initialValue = "",
+  onFocusChange,
+}: Props) {
   const [q, setQ] = useState(initialValue);
   const router = useRouter();
 
@@ -18,22 +22,31 @@ export default function SearchBar({ initialValue = "" }: Props) {
         e.preventDefault();
         const trimmed = q.trim();
         if (!trimmed) return;
+        // submit 시 모바일 키보드 내림
+        (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.blur();
         router.push(`/search?q=${encodeURIComponent(trimmed)}`);
       }}
-      className="relative mx-auto w-full max-w-xl"
+      className="relative mx-auto w-full max-w-[520px]"
     >
       <input
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
+        onFocus={() => onFocusChange?.(true)}
+        onBlur={() => {
+          // 입력값 있으면 focused 유지(원본 동작), 비어있으면 100ms 지연 후 해제
+          if (!q.trim()) {
+            setTimeout(() => onFocusChange?.(false), 100);
+          }
+        }}
         placeholder="피부과 전문의가 솔직하게 답해드립니다!"
         aria-label="Q&A 검색"
-        className="w-full rounded-full border border-[var(--border)] bg-white px-5 py-3 pr-12 text-center text-[15px] font-bold text-[var(--text)] outline-none placeholder:font-normal placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:shadow-[var(--shadow-sm)]"
+        className="h-[50px] w-full rounded-full border-2 border-[var(--secondary)] bg-white px-6 pr-14 text-center text-[15px] font-bold text-[var(--text)] outline-none shadow-[var(--shadow-sm)] transition-[border-color,box-shadow] placeholder:text-[16px] placeholder:font-normal placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:shadow-[0_0_0_4px_rgba(95,168,211,0.15)] sm:h-14 sm:text-[17px]"
       />
       <button
         type="submit"
         aria-label="검색"
-        className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)]"
+        className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)]"
       >
         <svg
           viewBox="0 0 24 24"
@@ -42,7 +55,7 @@ export default function SearchBar({ initialValue = "" }: Props) {
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="h-4 w-4"
+          className="h-[18px] w-[18px]"
           aria-hidden="true"
         >
           <circle cx="11" cy="11" r="8" />
