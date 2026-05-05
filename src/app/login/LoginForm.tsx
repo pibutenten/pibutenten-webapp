@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Props = { next?: string; error?: string };
 
 export default function LoginForm({ next, error: initialError }: Props) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(initialError ?? null);
@@ -26,7 +24,8 @@ export default function LoginForm({ next, error: initialError }: Props) {
         setError(signInErr.message || "로그인 실패");
         return;
       }
-      // 로그인 후 역할에 따라 리다이렉트 (서버 사이드 fetch)
+      // 로그인 후 역할에 따라 리다이렉트 — window.location.assign로 풀 리로드
+      // (router.refresh로는 layout의 server-side cookies가 동기화 안 되는 경우 있음)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setError("세션 확인 실패");
@@ -42,8 +41,7 @@ export default function LoginForm({ next, error: initialError }: Props) {
         role === "admin" ? "/admin" :
         role === "doctor" ? "/me" :
         next || "/";
-      router.push(dest);
-      router.refresh();
+      window.location.assign(dest);
     });
   }
 

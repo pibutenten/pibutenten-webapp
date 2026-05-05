@@ -123,8 +123,8 @@ export default function TopNav({ session }: TopNavProps) {
     startLogout(async () => {
       const supabase = createSupabaseBrowserClient();
       await supabase.auth.signOut();
-      router.push("/");
-      router.refresh();
+      // 풀 리로드 — layout의 session 캐시 확실히 비움
+      window.location.assign("/");
     });
   }
 
