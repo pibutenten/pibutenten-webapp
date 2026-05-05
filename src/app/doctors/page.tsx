@@ -55,17 +55,14 @@ export default async function DoctorsPage() {
         return (
           <article
             key={d.id}
-            className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] shadow-[var(--shadow-sm)]"
+            className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]"
           >
-            <div
-              className="flex items-center gap-4 p-4"
-              style={{
-                background: `linear-gradient(135deg, ${theme.bg} 0%, ${theme.bgSoft} 100%)`,
-              }}
-            >
+            <div className="flex items-center gap-4 p-4">
               <div
-                className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full bg-white/60"
-                style={{ boxShadow: `0 0 0 3px ${theme.ring}` }}
+                className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full"
+                style={{
+                  background: `linear-gradient(135deg, ${theme.bg} 0%, ${theme.bgSoft} 100%)`,
+                }}
               >
                 <Image
                   src={photo}
@@ -99,7 +96,7 @@ export default async function DoctorsPage() {
             </div>
 
             {d.intro && (
-              <div className="bg-white px-4 py-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
+              <div className="border-t border-[var(--border)] bg-white px-4 py-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
                 {d.intro}
               </div>
             )}
