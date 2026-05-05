@@ -118,9 +118,10 @@ begin
     -- 검색어 있으면: 점수에 ±200 노이즈 (200 이내 차이 자연 셔플)
     case when array_length(v_words, 1) is not null
          then s.score + (random() - 0.5) * 400 end desc nulls last,
-    -- 검색어 없으면(브라우즈): 영상 업로드일 최신순
-    case when array_length(v_words, 1) is null
-         then v.upload_date end desc nulls last,
+    -- 검색어 없으면(브라우즈): 영상 업로드일 + ±14일 랜덤 노이즈 (비슷한 시기 글들이 매번 다른 순서)
+    case when array_length(v_words, 1) is null and v.upload_date is not null
+         then extract(epoch from v.upload_date) + (random() - 0.5) * 60.0 * 60.0 * 24.0 * 28.0
+         end desc nulls last,
     s.id desc
   offset p_offset limit p_limit;
 end

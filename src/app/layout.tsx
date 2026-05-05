@@ -37,11 +37,13 @@ export const metadata: Metadata = {
     title: "피부텐텐",
     description: "피부가 예뻐지는 모든 이야기",
     locale: "ko_KR",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "피부텐텐" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "피부텐텐",
     description: "피부가 예뻐지는 모든 이야기",
+    images: ["/og.png"],
   },
 };
 
