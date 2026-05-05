@@ -102,13 +102,12 @@ export default function TopNav() {
           aria-label="피부텐텐 홈"
           className="flex items-center gap-2 shrink-0"
           onClick={(e) => {
-            // 홈에서 로고 클릭 시 → 맨 위 스크롤 + 서버 컴포넌트 새로고침 (F5처럼)
+            // 홈(검색어 없음)에서 로고 클릭 시 → F5와 동일한 풀 리로드
             if (pathname === "/") {
               e.preventDefault();
               if (typeof window !== "undefined") {
-                window.scrollTo({ top: 0, behavior: "smooth" });
+                window.location.assign("/");
               }
-              router.refresh();
             }
             // 다른 경로는 / 로 navigate (Next.js가 자동 스크롤)
           }}
