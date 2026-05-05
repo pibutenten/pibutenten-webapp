@@ -93,7 +93,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         <ScrollManager />
         <TopNav session={session} />
-        <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 py-4">
+        <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 py-4 sm:px-6">
           {children}
         </main>
       </body>
