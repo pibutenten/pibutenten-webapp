@@ -37,11 +37,15 @@ export default function SocialLoginButtons({ next }: Props) {
           }`
         : OAUTH_CALLBACK_PATH;
 
+      // 카카오는 비즈 앱 검수 전이라 account_email 권한이 없어서 default scope 사용 시 KOE205.
+      // 닉네임/프로필사진만 명시적 scope로 요청 (Kakao OIDC 통한 oauth flow).
+      const oauthOptions: { redirectTo: string; scopes?: string } = { redirectTo };
+      if (p.supabaseProvider === "kakao") {
+        oauthOptions.scopes = "openid profile_nickname profile_image";
+      }
       const { error: oauthErr } = await supabase.auth.signInWithOAuth({
         provider: p.supabaseProvider,
-        options: {
-          redirectTo,
-        },
+        options: oauthOptions,
       });
       if (oauthErr) {
         setError(oauthErr.message || "소셜 로그인 실패");
