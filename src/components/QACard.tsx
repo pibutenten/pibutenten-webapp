@@ -168,20 +168,20 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
       )}
       {(isPick || isHot) && (
         <div className="absolute right-3 top-3 flex gap-1">
-          {isPick && (
-            <span
-              className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider"
-              style={{ backgroundColor: "#E3F2FD", color: "#1565C0" }}
-            >
-              Pick
-            </span>
-          )}
           {isHot && (
             <span
               className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider"
               style={{ backgroundColor: "#FFEBEE", color: "#C62828" }}
             >
               HOT
+            </span>
+          )}
+          {isPick && (
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider"
+              style={{ backgroundColor: "#E3F2FD", color: "#1565C0" }}
+            >
+              Pick
             </span>
           )}
         </div>
@@ -261,7 +261,17 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             href={qa.video.youtube_url}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              // 영상 보러가기 클릭 = 조회수 +1 (펼치지 않아도 인기 신호로 카운트)
+              if (typeof window === "undefined") return;
+              const supabase = createSupabaseBrowserClient();
+              supabase
+                .rpc("increment_qa_view", { p_qa_id: qa.id })
+                .then(({ data }: { data: number | null }) => {
+                  if (typeof data === "number") setViewCount(data);
+                });
+            }}
             className="inline-flex items-center gap-1 font-medium text-[var(--text-muted)] hover:text-[var(--primary)]"
           >
             <span style={{ color: "#FF0000" }}>▶</span> 영상 보러가기
