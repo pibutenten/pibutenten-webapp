@@ -26,6 +26,7 @@ type QA = {
   keywords: string[];
   status: "draft" | "pending_review" | "published" | "archived";
   type: "qa" | "post";
+  is_pick?: boolean;
   doctor_id: string | null;
   video_id: string | null;
   like_count: number;
@@ -38,6 +39,12 @@ type QA = {
 type Props = {
   qa: QA;
   doctors: Doctor[];
+  /** 같은 doctor의 현재 Pick 개수 (5개 제한 표시용) */
+  doctorPickCount?: number;
+  /** 같은 video를 공유하는 다른 qa 개수 (영상 정보 변경 시 같이 영향받는 글) */
+  sameVideoQaCount?: number;
+  /** 댓글 개수 (Phase B 통합 후 활성) */
+  commentCount?: number;
 };
 
 const STATUS_LABELS: Record<QA["status"], string> = {
@@ -54,13 +61,22 @@ const STATUS_COLORS: Record<QA["status"], string> = {
   archived: "#616161",
 };
 
-export default function EditClient({ qa, doctors }: Props) {
+export default function EditClient({
+  qa,
+  doctors,
+  doctorPickCount = 0,
+  sameVideoQaCount = 0,
+  commentCount = 0,
+}: Props) {
   const router = useRouter();
   const [question, setQuestion] = useState(qa.question);
   const [answer, setAnswer] = useState(qa.answer);
   const [keywordsText, setKeywordsText] = useState(qa.keywords.join(", "));
   const [doctorId, setDoctorId] = useState<string | null>(qa.doctor_id);
   const [status, setStatus] = useState<QA["status"]>(qa.status);
+  const [isPick, setIsPick] = useState<boolean>(qa.is_pick ?? false);
+  const [youtubeUrl, setYoutubeUrl] = useState(qa.video?.youtube_url ?? "");
+  const [videoTopic, setVideoTopic] = useState(qa.video?.topic ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSave] = useTransition();
 
@@ -73,6 +89,7 @@ export default function EditClient({ qa, doctors }: Props) {
         .split(",")
         .map((k) => k.trim())
         .filter(Boolean);
+      // 1) qas update
       const { error: upErr } = await supabase
         .from("qas")
         .update({
@@ -81,17 +98,37 @@ export default function EditClient({ qa, doctors }: Props) {
           keywords,
           doctor_id: doctorId,
           status: finalStatus,
+          is_pick: isPick,
           published: finalStatus === "published",
         })
         .eq("id", qa.id);
       if (upErr) {
-        setError(`저장 실패: ${upErr.message}`);
+        const msg = upErr.message ?? "저장 실패";
+        if (msg.includes("PICK_LIMIT_EXCEEDED")) {
+          setError("Pick은 한 원장당 최대 5개까지 가능합니다. 다른 글의 Pick을 먼저 해제해주세요.");
+        } else {
+          setError(`저장 실패: ${msg}`);
+        }
         return;
+      }
+      // 2) videos update (youtube_url + topic — 같은 영상 공유 qas 모두 영향)
+      if (qa.video_id && (youtubeUrl !== (qa.video?.youtube_url ?? "") ||
+        videoTopic !== (qa.video?.topic ?? ""))) {
+        const { error: vErr } = await supabase
+          .from("videos")
+          .update({
+            youtube_url: youtubeUrl.trim(),
+            topic: videoTopic.trim() || null,
+          })
+          .eq("id", qa.video_id);
+        if (vErr) {
+          setError(`영상 정보 저장 실패: ${vErr.message}`);
+          return;
+        }
       }
       // 상태 반영
       setStatus(finalStatus);
       if (toStatus) {
-        // 발행/보관 등 상태 전환 시 목록으로
         router.push(`/admin/qas?status=${finalStatus}`);
       } else {
         router.refresh();
@@ -130,32 +167,21 @@ export default function EditClient({ qa, doctors }: Props) {
             </span>
           </span>
           <span>타입: {qa.type === "qa" ? "원장 Q&A" : "사용자 글"}</span>
-          <span>좋아요 {qa.like_count} · 조회 {qa.view_count}</span>
-          <span className="text-[var(--text-muted)]">
-            {new Date(qa.created_at).toLocaleString("ko-KR")}
-          </span>
+          <span>좋아요 {qa.like_count} · 조회 {qa.view_count} · 댓글 {commentCount}</span>
         </div>
-        {qa.video?.youtube_url && (
-          <div className="mt-2 text-xs">
-            영상:{" "}
-            <a
-              href={qa.video.youtube_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[var(--primary)] hover:underline"
-            >
-              {qa.video.youtube_id}
-            </a>
-            {qa.video.topic && <> · {qa.video.topic}</>}
-          </div>
-        )}
+        <div className="mt-1 flex flex-wrap gap-3 text-xs text-[var(--text-muted)]">
+          <span>생성일: {new Date(qa.created_at).toLocaleDateString("ko-KR")}</span>
+          {qa.video?.upload_date && (
+            <span>업로드일: {qa.video.upload_date}</span>
+          )}
+        </div>
       </div>
 
       {/* 편집 폼 */}
       <div className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            매칭 원장
+            원장님
           </label>
           <select
             value={doctorId ?? ""}
@@ -165,10 +191,61 @@ export default function EditClient({ qa, doctors }: Props) {
             <option value="">— 없음 —</option>
             {doctors.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.name} {d.branch ? `(${d.branch})` : ""}
+                {d.name}
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Pick 토글 */}
+        <div className="flex items-center justify-between rounded-md bg-[var(--bg-soft)] px-3 py-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={isPick}
+              onChange={(e) => setIsPick(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <span className="font-semibold">Pick (원장님 추천)</span>
+          </label>
+          <span className="text-xs text-[var(--text-muted)]">
+            현재 이 원장 Pick: {doctorPickCount} / 5
+          </span>
+        </div>
+
+        {/* 영상 정보 (같은 video 공유 글에 모두 영향) */}
+        <div className="rounded-md border border-dashed border-[var(--border)] p-3">
+          <div className="mb-2 text-xs text-[var(--text-muted)]">
+            🎬 영상 정보 — 같은 영상을 공유하는 다른 글 {sameVideoQaCount}개에도 함께 적용됩니다
+          </div>
+          <div className="space-y-2">
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+                YouTube URL
+              </label>
+              <input
+                type="url"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                className="w-full rounded-md border border-[var(--border)] px-3 py-1.5 text-sm outline-none focus:border-[var(--primary)]"
+                disabled={!qa.video_id}
+                placeholder={qa.video_id ? "" : "(영상 연결 없음)"}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+                영상 제목
+              </label>
+              <input
+                type="text"
+                value={videoTopic}
+                onChange={(e) => setVideoTopic(e.target.value)}
+                className="w-full rounded-md border border-[var(--border)] px-3 py-1.5 text-sm outline-none focus:border-[var(--primary)]"
+                disabled={!qa.video_id}
+                placeholder={qa.video_id ? "(없음)" : "(영상 연결 없음)"}
+              />
+            </div>
+          </div>
         </div>
 
         <div>

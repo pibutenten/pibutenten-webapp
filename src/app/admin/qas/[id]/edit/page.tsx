@@ -30,7 +30,7 @@ export default async function AdminEditQAPage({ params }: Props) {
   const { data: qaRaw } = await supabase
     .from("qas")
     .select(
-      `id, question, answer, meta, keywords, status, type,
+      `id, question, answer, meta, keywords, status, type, is_pick,
        doctor_id, video_id, like_count, view_count, created_at,
        doctor:doctors(id, slug, name, branch),
        video:videos(youtube_id, youtube_url, topic, upload_date)`,
@@ -51,6 +51,41 @@ export default async function AdminEditQAPage({ params }: Props) {
     .select("id, slug, name, branch")
     .order("sort_order", { ascending: true });
 
+  // 같은 doctor의 현재 Pick 개수 (5개 제한 표시)
+  let doctorPickCount = 0;
+  if (qa.doctor_id) {
+    const { count } = await supabase
+      .from("qas")
+      .select("id", { count: "exact", head: true })
+      .eq("doctor_id", qa.doctor_id)
+      .eq("is_pick", true);
+    doctorPickCount = count ?? 0;
+  }
+
+  // 같은 video를 공유하는 다른 qa 개수 (영상 정보 변경 시 영향받는 글)
+  let sameVideoQaCount = 0;
+  if (qa.video_id) {
+    const { count } = await supabase
+      .from("qas")
+      .select("id", { count: "exact", head: true })
+      .eq("video_id", qa.video_id)
+      .neq("id", qa.id);
+    sameVideoQaCount = count ?? 0;
+  }
+
+  // 댓글 수 (Phase B comments 테이블 — 없으면 0)
+  let commentCount = 0;
+  try {
+    const { count } = await supabase
+      .from("comments")
+      .select("id", { count: "exact", head: true })
+      .eq("qa_id", qa.id)
+      .eq("status", "visible");
+    commentCount = count ?? 0;
+  } catch {
+    commentCount = 0;
+  }
+
   return (
     <section className="mx-auto w-full max-w-[820px] py-6">
       <div className="mb-5 flex items-baseline justify-between">
@@ -64,7 +99,13 @@ export default async function AdminEditQAPage({ params }: Props) {
           ← 목록
         </Link>
       </div>
-      <EditClient qa={qa} doctors={doctors ?? []} />
+      <EditClient
+        qa={qa}
+        doctors={doctors ?? []}
+        doctorPickCount={doctorPickCount}
+        sameVideoQaCount={sameVideoQaCount}
+        commentCount={commentCount}
+      />
     </section>
   );
 }

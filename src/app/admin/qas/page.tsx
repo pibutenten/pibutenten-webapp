@@ -271,6 +271,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           <input type="hidden" name="status" value={statusParam} />
         )}
         <select
+          id="admin-qas-doctor-filter"
           name="doctor"
           defaultValue={doctorSlugParam}
           className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text)] focus:border-[var(--primary)] focus:outline-none"
@@ -279,10 +280,16 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           {doctors.map((d) => (
             <option key={d.id} value={d.slug}>
               {d.name}
-              {d.branch ? ` · ${d.branch}` : ""}
             </option>
           ))}
         </select>
+        {/* 원장 변경 시 자동 submit — 검색 버튼 안 눌러도 즉시 필터 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "document.getElementById('admin-qas-doctor-filter')?.addEventListener('change',function(){this.form&&this.form.submit();});",
+          }}
+        />
         <input
           type="text"
           name="q"

@@ -1,0 +1,259 @@
+/**
+ * /api/comments
+ *
+ *  GET  ?qaId=N&offset=0&limit=20  → root 댓글 + 각 root의 답글들 (트리)
+ *  POST { qaId, parentId?, body }  → 새 댓글/답글 작성 (인증 필수)
+ *
+ * RLS가 권한을 강제. 여기서는 입력 검증과 응답 정형화만.
+ */
+
+import { NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
+
+const MAX_LIMIT = 50;
+
+export type CommentRow = {
+  id: number;
+  qa_id: number;
+  author_id: string | null;
+  parent_id: number | null;
+  body: string;
+  status: "visible" | "hidden" | "deleted";
+  like_count: number;
+  created_at: string;
+  updated_at: string;
+  author: {
+    id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+    role: "admin" | "doctor" | "user";
+    doctor_id: string | null;
+  } | null;
+};
+
+export type CommentWithReplies = CommentRow & {
+  replies: CommentRow[];
+};
+
+// ─────────────────────────────────────────────────────────────
+// GET
+// ─────────────────────────────────────────────────────────────
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const qaIdRaw = url.searchParams.get("qaId");
+  if (!qaIdRaw) {
+    return NextResponse.json({ error: "qaId is required" }, { status: 400 });
+  }
+  const qaId = parseInt(qaIdRaw, 10);
+  if (!Number.isFinite(qaId) || qaId <= 0) {
+    return NextResponse.json({ error: "invalid qaId" }, { status: 400 });
+  }
+  const offset = Math.max(0, parseInt(url.searchParams.get("offset") ?? "0", 10) || 0);
+  const limitRaw = parseInt(url.searchParams.get("limit") ?? "20", 10) || 20;
+  const limit = Math.min(MAX_LIMIT, Math.max(1, limitRaw));
+
+  const supabase = await createSupabaseServerClient();
+
+  // 1) root 댓글 (parent_id is null) — 페이지네이션 + 최신순
+  const rootRes = await supabase
+    .from("comments")
+    .select("*")
+    .eq("qa_id", qaId)
+    .is("parent_id", null)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (rootRes.error) {
+    return NextResponse.json({ error: rootRes.error.message }, { status: 500 });
+  }
+
+  const rootRows = (rootRes.data ?? []) as Omit<CommentRow, "author">[];
+  const rootIds = rootRows.map((r) => r.id);
+
+  // 2) 답글 (parent_id ∈ rootIds) — 오래된 순 (대화 흐름)
+  let replyRows: Omit<CommentRow, "author">[] = [];
+  if (rootIds.length > 0) {
+    const replyRes = await supabase
+      .from("comments")
+      .select("*")
+      .eq("qa_id", qaId)
+      .in("parent_id", rootIds)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
+    if (replyRes.error) {
+      return NextResponse.json({ error: replyRes.error.message }, { status: 500 });
+    }
+    replyRows = (replyRes.data ?? []) as Omit<CommentRow, "author">[];
+  }
+
+  // 3) 작성자 프로필 — author_id 별 1회 조회
+  const authorIds = Array.from(
+    new Set(
+      [...rootRows, ...replyRows]
+        .map((r) => r.author_id)
+        .filter((v): v is string => !!v),
+    ),
+  );
+
+  type ProfileRow = {
+    id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+    role: "admin" | "doctor" | "user";
+  };
+  type DoctorAcctRow = { profile_id: string; doctor_id: string };
+
+  let profilesById = new Map<string, ProfileRow>();
+  let doctorByProfile = new Map<string, string>();
+
+  if (authorIds.length > 0) {
+    const [profRes, docRes] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url, role")
+        .in("id", authorIds),
+      supabase
+        .from("doctor_accounts")
+        .select("profile_id, doctor_id")
+        .in("profile_id", authorIds),
+    ]);
+    if (profRes.error) {
+      // profiles select RLS는 본인만 — anon 환경에선 빈 결과가 정상.
+      // 그래도 select_self 정책상 타인 프로필은 비공개. 표시명 없으면 "익명"으로.
+      // 에러여도 무시하고 진행 (목록은 성공해야 함).
+      profilesById = new Map();
+    } else {
+      profilesById = new Map(
+        ((profRes.data ?? []) as ProfileRow[]).map((p) => [p.id, p]),
+      );
+    }
+    if (!docRes.error && docRes.data) {
+      doctorByProfile = new Map(
+        (docRes.data as DoctorAcctRow[]).map((d) => [d.profile_id, d.doctor_id]),
+      );
+    }
+  }
+
+  function attachAuthor(r: Omit<CommentRow, "author">): CommentRow {
+    if (!r.author_id) return { ...r, author: null };
+    const p = profilesById.get(r.author_id);
+    return {
+      ...r,
+      author: p
+        ? {
+            id: p.id,
+            display_name: p.display_name,
+            avatar_url: p.avatar_url,
+            role: p.role,
+            doctor_id: doctorByProfile.get(p.id) ?? null,
+          }
+        : {
+            // RLS로 프로필 직접 조회 안 되는 경우 (대부분 일반 사용자) — 표시명 fallback
+            id: r.author_id,
+            display_name: null,
+            avatar_url: null,
+            role: "user",
+            doctor_id: null,
+          },
+    };
+  }
+
+  // 4) 트리 조립
+  const repliesByParent = new Map<number, CommentRow[]>();
+  for (const r of replyRows) {
+    const withAuthor = attachAuthor(r);
+    if (r.parent_id == null) continue;
+    const arr = repliesByParent.get(r.parent_id) ?? [];
+    arr.push(withAuthor);
+    repliesByParent.set(r.parent_id, arr);
+  }
+
+  const comments: CommentWithReplies[] = rootRows.map((r) => ({
+    ...attachAuthor(r),
+    replies: repliesByParent.get(r.id) ?? [],
+  }));
+
+  // 5) 전체 root 댓글 수 (페이지네이션 / 더 보기 버튼 표시용)
+  const totalRes = await supabase
+    .from("comments")
+    .select("*", { count: "exact", head: true })
+    .eq("qa_id", qaId)
+    .is("parent_id", null);
+
+  return NextResponse.json(
+    {
+      comments,
+      total_root: totalRes.count ?? comments.length,
+    },
+    { headers: { "cache-control": "no-store" } },
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// POST
+// ─────────────────────────────────────────────────────────────
+type PostBody = {
+  qaId?: unknown;
+  parentId?: unknown;
+  body?: unknown;
+};
+
+export async function POST(req: Request) {
+  let raw: PostBody;
+  try {
+    raw = (await req.json()) as PostBody;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const qaId = typeof raw.qaId === "number" ? raw.qaId : parseInt(String(raw.qaId ?? ""), 10);
+  if (!Number.isFinite(qaId) || qaId <= 0) {
+    return NextResponse.json({ error: "qaId is required" }, { status: 400 });
+  }
+
+  const parentId =
+    raw.parentId == null || raw.parentId === ""
+      ? null
+      : typeof raw.parentId === "number"
+        ? raw.parentId
+        : parseInt(String(raw.parentId), 10);
+  if (parentId !== null && (!Number.isFinite(parentId) || parentId <= 0)) {
+    return NextResponse.json({ error: "invalid parentId" }, { status: 400 });
+  }
+
+  const body = typeof raw.body === "string" ? raw.body.trim() : "";
+  if (!body) {
+    return NextResponse.json({ error: "body is required" }, { status: 400 });
+  }
+  if (body.length > 2000) {
+    return NextResponse.json({ error: "댓글은 2000자 이내로 작성해주세요." }, { status: 400 });
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  const ins = await supabase
+    .from("comments")
+    .insert({
+      qa_id: qaId,
+      parent_id: parentId,
+      body,
+      author_id: user.id,
+    })
+    .select("*")
+    .single();
+
+  if (ins.error) {
+    return NextResponse.json({ error: ins.error.message }, { status: 400 });
+  }
+
+  return NextResponse.json({ comment: ins.data }, { status: 201 });
+}

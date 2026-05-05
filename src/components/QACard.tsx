@@ -8,6 +8,7 @@ import { CATEGORIES } from "@/lib/categories";
 import { categorize } from "@/lib/category-sets";
 import { PICK_IDS } from "@/lib/picks";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import CommentsBlock from "@/components/CommentsBlock";
 
 export type QACardData = {
   id: number;
@@ -403,6 +404,15 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           </svg>
         </button>
       </div>
+
+      {/* 댓글 블록 — 펼친 상태에서만 표시 */}
+      {expanded && (
+        <CommentsBlock
+          qaId={qa.id}
+          doctorSlug={qa.doctor?.slug ?? null}
+          isPublishedQa={true}
+        />
+      )}
     </article>
   );
 }
