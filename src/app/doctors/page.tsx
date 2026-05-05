@@ -55,7 +55,7 @@ export default async function DoctorsPage() {
         </p>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 min-[900px]:gap-4">
+      <div className="grid grid-cols-2 gap-3 min-[900px]:grid-cols-4 min-[900px]:gap-4">
         {doctors.map((d) => {
           const theme = getDoctorTheme(d.slug);
           const photo = d.photo_url || getDoctorPhoto(d.slug);
@@ -90,14 +90,6 @@ export default async function DoctorsPage() {
                 <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                   {d.title}
                 </p>
-                {d.branch && (
-                  <p
-                    className="mt-1 text-[12px] font-medium"
-                    style={{ color: theme.accent }}
-                  >
-                    {d.branch}
-                  </p>
-                )}
               </div>
             </article>
           );
