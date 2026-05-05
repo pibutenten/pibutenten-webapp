@@ -49,13 +49,10 @@ export default function QACard({ qa, activeQuery }: Props) {
   const doctor = qa.doctor;
   const isPick = PICK_IDS.has(qa.id);
 
-  // 처음 펼칠 때 한 번만 조회수 +1 (브라우저당 1회)
+  // 펼칠 때마다 조회수 +1 (중복 카운트 허용 — 인기도 신호 확보)
   useEffect(() => {
     if (!expanded) return;
     if (typeof window === "undefined") return;
-    const key = `qa-viewed-${qa.id}`;
-    if (sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key, "1");
     const supabase = createSupabaseBrowserClient();
     supabase
       .rpc("increment_qa_view", { p_qa_id: qa.id })
