@@ -61,22 +61,19 @@ export const dynamic = "force-dynamic";
 async function getSessionInfo(): Promise<SessionInfo> {
   try {
     const supabase = await createSupabaseServerClient();
-    const { data: { user }, error: userErr } = await supabase.auth.getUser();
-    console.log("[layout.getSessionInfo] user:", user?.id, user?.email, "err:", userErr?.message);
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
-    const { data: profile, error: profileErr } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
       .select("role, display_name")
       .eq("id", user.id)
       .maybeSingle();
-    console.log("[layout.getSessionInfo] profile:", profile, "err:", profileErr?.message);
     if (!profile) return null;
     return {
       role: profile.role ?? "user",
       displayName: profile.display_name ?? user.email ?? "",
     };
-  } catch (e) {
-    console.error("[layout.getSessionInfo] caught:", e);
+  } catch {
     return null;
   }
 }
