@@ -38,7 +38,28 @@ export default async function AdminPage() {
         환영합니다, <b>{profile.display_name}</b> 님.
       </p>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 상태별 카운트 — 위쪽, 모바일도 4개 한 줄 */}
+      <div className="mb-5 grid grid-cols-4 gap-2 sm:gap-3">
+        {counts.map(({ status, count }) => (
+          <Link
+            key={status}
+            href={`/admin/qas?status=${status}`}
+            className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-2 text-center transition-colors hover:border-[var(--primary)] sm:p-3"
+          >
+            <div className="text-[11px] text-[var(--text-muted)] sm:text-xs">
+              {status === "draft" && "초안"}
+              {status === "pending_review" && "대기"}
+              {status === "published" && "발행"}
+              {status === "archived" && "보관"}
+            </div>
+            <div className="mt-0.5 text-lg font-bold text-[var(--text)] sm:text-xl">
+              {count}
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Link
           href="/admin/draft"
           className="group rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 transition-colors hover:border-[var(--primary)]"
@@ -92,26 +113,6 @@ export default async function AdminPage() {
         </Link>
       </div>
 
-      {/* 상태별 카운트 */}
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {counts.map(({ status, count }) => (
-          <Link
-            key={status}
-            href={`/admin/qas?status=${status}`}
-            className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 text-center transition-colors hover:border-[var(--primary)]"
-          >
-            <div className="text-xs text-[var(--text-muted)]">
-              {status === "draft" && "초안"}
-              {status === "pending_review" && "대기"}
-              {status === "published" && "발행"}
-              {status === "archived" && "보관"}
-            </div>
-            <div className="mt-1 text-xl font-bold text-[var(--text)]">
-              {count}
-            </div>
-          </Link>
-        ))}
-      </div>
     </section>
   );
 }

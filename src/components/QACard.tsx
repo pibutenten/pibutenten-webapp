@@ -55,6 +55,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
   const [likeCount, setLikeCount] = useState(qa.like_count);
   const [shareCount, setShareCount] = useState(qa.share_count ?? 0);
   const [commentCount, setCommentCount] = useState(qa.comment_count ?? 0);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [liked, setLiked] = useState(false);
   const router = useRouter();
   const doctor = qa.doctor;
@@ -399,7 +400,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
 
         <button
           type="button"
-          onClick={() => setExpanded((v) => !v)}
+          onClick={() => setCommentsOpen((v) => !v)}
           className="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-[var(--primary)]"
           aria-label="댓글"
         >
@@ -451,13 +452,13 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
         </button>
       </div>
 
-      {/* 댓글 블록 — 댓글 있거나 펼친 상태(입력 폼)일 때만 표시. CommentsBlock 자체가 빈 상태에서 null 반환 */}
+      {/* 댓글 블록 — 댓글 있거나 댓글창 열린 상태일 때만 표시 (본문 펼침과 무관) */}
       <CommentsBlock
         qaId={qa.id}
         doctorSlug={qa.doctor?.slug ?? null}
         isPublishedQa={true}
         onCountChange={setCommentCount}
-        showInput={expanded}
+        showInput={commentsOpen}
       />
     </article>
   );
