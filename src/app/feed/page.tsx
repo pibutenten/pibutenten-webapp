@@ -1,7 +1,8 @@
-import QAFeed from "@/components/QAFeed";
+import FeedWithArticles from "@/components/FeedWithArticles";
 import type { QACardData } from "@/components/QACard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
+import { loadArticleSectionCards } from "@/lib/article/load";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,7 @@ export default async function FeedPage() {
   }
 
   const hotIds = Array.from(await getHotQaIds(20));
+  const articleCards = await loadArticleSectionCards(supabase, { limit: 8 });
 
   return (
     <section className="pt-1 sm:pt-2">
@@ -83,7 +85,12 @@ export default async function FeedPage() {
         </div>
       )}
       {!error && qas.length > 0 && (
-        <QAFeed initial={qas} pageSize={INITIAL_PAGE_SIZE} hotIds={hotIds} />
+        <FeedWithArticles
+          initialQas={qas}
+          initialArticleCards={articleCards}
+          pageSize={INITIAL_PAGE_SIZE}
+          hotIds={hotIds}
+        />
       )}
     </section>
   );

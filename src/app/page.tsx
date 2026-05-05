@@ -1,10 +1,11 @@
 import HeroSearch from "@/components/HeroSearch";
 import CategoryWithChips from "@/components/CategoryWithChips";
-import QAFeed from "@/components/QAFeed";
+import FeedWithArticles from "@/components/FeedWithArticles";
 import type { QACardData } from "@/components/QACard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import { getHotQaIds } from "@/lib/hot-ids";
+import { loadArticleSectionCards } from "@/lib/article/load";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,10 @@ export default async function HomePage({ searchParams }: Props) {
 
   const popularByCategory = await popularByCategoryPromise;
   const hotIds = Array.from(await getHotQaIds(20));
+  const articleCards = await loadArticleSectionCards(supabase, {
+    limit: 8,
+    searchQuery: q || undefined,
+  });
 
   return (
     <section>
@@ -130,8 +135,9 @@ export default async function HomePage({ searchParams }: Props) {
           </div>
         )}
         {!error && qas && qas.length > 0 && (
-          <QAFeed
-            initial={qas}
+          <FeedWithArticles
+            initialQas={qas}
+            initialArticleCards={articleCards}
             pageSize={INITIAL_PAGE_SIZE}
             searchQuery={q || undefined}
             boostDoctorSlug={boost || undefined}
