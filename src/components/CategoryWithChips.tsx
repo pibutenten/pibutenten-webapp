@@ -133,7 +133,8 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
               aria-selected={isActive}
               onClick={() => {
                 setActive(c.slug);
-                setExpanded(false);
+                // expanded 상태는 유지 — 펼친 채로 탭 전환 자유롭게.
+                // 새 페이지 진입(로고/검색 등)은 컴포넌트 새 마운트라 기본값 false로 시작됨.
               }}
               className="-mb-px shrink-0 border-b-2 px-1 py-[6px] text-[13px] font-semibold transition-[color,border-color,transform] active:scale-[0.96] sm:py-[7px] sm:text-[14px]"
               style={{
