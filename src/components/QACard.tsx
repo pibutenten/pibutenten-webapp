@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
 
 export type QACardData = {
@@ -23,16 +26,13 @@ export type QACardData = {
 };
 
 /**
- * Q&A 카드 (정적 사이트 .qa-card 스펙 매칭).
- * - 상단: 원장님 아바타 + 이름 + 시술/주제 + 업로드 날짜
- * - 질문 (h2, primary 색)
- * - 답변 (5줄 trunc)
- * - 키워드 칩
- * - footer: 조회수, 좋아요 (RPC 연결은 Phase 2)
- *
- * 인터랙션(펼치기·좋아요)은 추후 client wrapper로.
+ * Q&A 카드.
+ * - 본문 클릭 → 펼치기/접기 토글
+ * - line-clamp 5 → 펼치면 전체 노출
+ * - 키워드 칩, 조회수·좋아요 footer
  */
 export default function QACard({ qa }: { qa: QACardData }) {
+  const [expanded, setExpanded] = useState(false);
   const doctor = qa.doctor;
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
   const dateLabel = formatDate(qa.video?.upload_date ?? null);
@@ -60,7 +60,7 @@ export default function QACard({ qa }: { qa: QACardData }) {
               ✓
             </span>
           </div>
-          <div className="text-[12px] text-[var(--text-muted)] truncate">
+          <div className="truncate text-[12px] text-[var(--text-muted)]">
             {qa.video?.topic ? `${qa.video.topic}` : ""}
             {dateLabel ? ` · ${dateLabel}` : ""}
           </div>
@@ -72,14 +72,31 @@ export default function QACard({ qa }: { qa: QACardData }) {
         {qa.question}
       </h2>
 
-      {/* 답변 (5줄 trunc) */}
-      <p className="mb-3.5 line-clamp-5 text-[15px] leading-[1.7] text-[var(--text)]">
-        {qa.answer}
-      </p>
+      {/* 답변 — 클릭으로 펼치기/접기 */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="block w-full cursor-pointer text-left"
+      >
+        <p
+          className={`text-[15px] leading-[1.7] text-[var(--text)] transition-colors ${
+            expanded ? "" : "line-clamp-5"
+          }`}
+        >
+          {qa.answer}
+        </p>
+        <span
+          className="mt-2 inline-block text-[12px] font-medium text-[var(--secondary)] hover:text-[var(--primary)]"
+          aria-hidden
+        >
+          {expanded ? "접기 ▴" : "더보기 ▾"}
+        </span>
+      </button>
 
       {/* 키워드 칩 */}
       {qa.keywords.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-1.5">
+        <div className="mb-3 mt-3.5 flex flex-wrap gap-1.5">
           {qa.keywords.map((kw) => (
             <span
               key={kw}
@@ -102,7 +119,6 @@ export default function QACard({ qa }: { qa: QACardData }) {
 
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
-  // YYYY-MM-DD → YY.MM.DD
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   if (!m) return iso;
   return `${m[1].slice(2)}.${m[2]}.${m[3]}`;
