@@ -52,7 +52,16 @@ export default function SearchBar({
         ref={inputRef}
         type="search"
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => {
+          const v = e.target.value;
+          setQ(v);
+          // 입력 중 자동완성 카테고리 강조용 — CategoryWithChips가 리스너로 받음
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("pbtt:search-input", { detail: v }),
+            );
+          }
+        }}
         onFocus={() => onFocusChange?.(true)}
         onBlur={() => {
           // 항상 콜백 호출 — HeroSearch가 내부에서 main reset 여부 결정

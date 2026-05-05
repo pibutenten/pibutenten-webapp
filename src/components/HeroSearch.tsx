@@ -5,16 +5,15 @@ import { useSearchParams } from "next/navigation";
 import SearchBar from "./SearchBar";
 
 const MOBILE_BP = 768;
-const TARGET_TOP = 70; // 키보드 ON 시 검색창 top px (헤더 56 + 여유 14)
+const TARGET_TOP = 30; // 키보드 ON 시 검색창 top px (헤더 56 바로 아래에 가깝게)
 
 /**
- * Hero(타이틀) + 검색창 묶음.
- * - 모바일:
- *   - focus → 원래 scrollY 기억 + 350ms 후(키보드 안정) reposition.
- *   - blur → 기억해둔 원래 scrollY로 복귀.
- *   - 칩 클릭 시엔 칩 onMouseDown preventDefault로 input blur 자체를 막아 위치 유지.
- *   - 두 번째 focus도 매번 재기억 + 재reposition.
- * - 데스크탑: h1 변화 없음, 진입 시 자동 포커스.
+ * 모바일 키보드 통합 처리:
+ *  - focus → 원래 scrollY 기억
+ *  - 키보드 ON 안정 후(350ms) form을 TARGET_TOP에 맞춰 reposition
+ *  - 키보드 OFF + window.__pbttHoldPosition !== true → 원래 자리로 복귀
+ *  - 키보드 OFF + window.__pbttHoldPosition === true (칩 클릭) → 위치 유지
+ *  - 두 번째 focus도 매번 동일 처리
  */
 export default function HeroSearch() {
   const sp = useSearchParams();
@@ -28,7 +27,6 @@ export default function HeroSearch() {
     [],
   );
 
-  /** 페이지 스크롤로 form을 정확히 TARGET_TOP에 배치 */
   const repositionPage = useCallback(() => {
     if (typeof window === "undefined") return;
     if (!isMobile()) return;
@@ -40,32 +38,26 @@ export default function HeroSearch() {
     window.scrollBy({ top: diff, behavior: "smooth" });
   }, [isMobile]);
 
-  /** focus → 원래 위치 기억 + state 갱신, blur → 원래 위치 복귀 */
   function handleFocusChange(f: boolean) {
     if (!isMobile()) {
       setFocused(false);
       return;
     }
     if (f) {
-      // 매 focus마다 원래 scrollY 갱신 (이미 위로 올라간 상태에서 두 번째 focus면 이미 위에 있음 → 변동 작음)
-      // 단, 우리 transform 적용 직전 스크롤만 기억해야 하므로, "처음" focus만 기억.
+      // 첫 focus만 원래 scrollY 기억 (재포커스 때는 이미 위로 올라간 상태)
       if (!focused) originalScrollYRef.current = window.scrollY;
       setFocused(true);
     } else {
-      // blur → 원래 위치로 복귀
-      window.scrollTo({
-        top: originalScrollYRef.current,
-        behavior: "smooth",
-      });
       setFocused(false);
+      // blur 자체에선 scroll 안 건드림 — visualViewport에서 키보드 OFF 감지 후 처리
     }
   }
 
-  /** visualViewport — 키보드 안정 후 한 번 reposition */
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
     let stableTimer: number | null = null;
+    let lastKeyboardOpen = false;
 
     const handler = () => {
       const keyboardOpen = window.innerHeight - vv.height > 100;
@@ -79,10 +71,34 @@ export default function HeroSearch() {
           stableTimer = null;
           repositionPage();
         }, 350) as unknown as number;
-      } else if (!keyboardOpen && stableTimer) {
-        window.clearTimeout(stableTimer);
-        stableTimer = null;
       }
+
+      // 키보드 OFF 감지 — 칩 클릭(holdPosition)이 아니면 원래 자리로 복귀
+      if (lastKeyboardOpen && !keyboardOpen) {
+        if (stableTimer) {
+          window.clearTimeout(stableTimer);
+          stableTimer = null;
+        }
+        // 글로벌 플래그 체크 — 칩 클릭 시 켜짐
+        const hold =
+          (window as unknown as { __pbttHoldPosition?: boolean })
+            .__pbttHoldPosition === true;
+        if (!hold) {
+          // 짧은 지연 — visualViewport 변경이 native scroll 조정과 겹치는 것 회피
+          setTimeout(() => {
+            window.scrollTo({
+              top: originalScrollYRef.current,
+              behavior: "smooth",
+            });
+          }, 100);
+        }
+        // hold 플래그는 칩 클릭 처리 후 라우터 이동되어 컴포넌트 새로 mount될 가능성 → 안전하게 reset
+        (
+          window as unknown as { __pbttHoldPosition?: boolean }
+        ).__pbttHoldPosition = false;
+      }
+
+      lastKeyboardOpen = keyboardOpen;
     };
 
     vv.addEventListener("resize", handler);

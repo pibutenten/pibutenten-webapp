@@ -71,6 +71,32 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
     if (queryCategory) setActive(queryCategory);
   }, [queryCategory]);
 
+  // 검색창 입력값에 따라 자동완성 카테고리 강조 (Enter 안 눌러도)
+  // — 모든 카테고리의 키워드를 startsWith/includes로 찾아서 단일 매칭이면 그 카테고리로 전환
+  useEffect(() => {
+    function handler(e: Event) {
+      const detail = (e as CustomEvent).detail as string;
+      const v = (detail ?? "").trim();
+      if (!v) return;
+      // 모든 카테고리의 키워드 풀에서 prefix 매칭
+      const matches: { kw: string; cat: CategorySlug }[] = [];
+      for (const c of Object.keys(popularByCategory) as CategorySlug[]) {
+        for (const kw of popularByCategory[c]) {
+          if (kw.startsWith(v) || kw.includes(v)) {
+            matches.push({ kw, cat: c });
+          }
+        }
+      }
+      // 매칭이 단일하거나, 모든 매칭이 같은 카테고리면 그 카테고리로 전환
+      if (matches.length === 0) return;
+      const firstCat = matches[0].cat;
+      const allSame = matches.every((m) => m.cat === firstCat);
+      if (allSame) setActive(firstCat);
+    }
+    window.addEventListener("pbtt:search-input", handler);
+    return () => window.removeEventListener("pbtt:search-input", handler);
+  }, [popularByCategory]);
+
   // 오버플로 측정 — 카테고리 변경/리사이즈 시 재계산
   useLayoutEffect(() => {
     if (!innerRef.current || !outerRef.current) return;
@@ -191,11 +217,20 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
                   <button
                     key={kw}
                     type="button"
-                    onMouseDown={(e) => {
-                      // 모바일/데스크 모두 input blur 방지 — 칩 클릭 시 키보드/위치 유지
-                      if (document.activeElement instanceof HTMLInputElement) {
-                        e.preventDefault();
-                      }
+                    onMouseDown={() => {
+                      // 칩 클릭 시 키보드는 닫히되 화면 스크롤은 유지하라는 글로벌 플래그
+                      (
+                        window as unknown as {
+                          __pbttHoldPosition?: boolean;
+                        }
+                      ).__pbttHoldPosition = true;
+                    }}
+                    onTouchStart={() => {
+                      (
+                        window as unknown as {
+                          __pbttHoldPosition?: boolean;
+                        }
+                      ).__pbttHoldPosition = true;
                     }}
                     onClick={() => selectChip(kw)}
                     disabled={isPending}
