@@ -34,17 +34,18 @@ export default async function HomePage({ searchParams }: Props) {
   let qas = (rpcRes.data ?? []) as QACardData[];
   const error = rpcRes.error;
 
-  // 검색 없을 때 한정: 첫 4카드는 모두 다른 원장으로 다양화
-  // (시각적 다양성 확보. 4명 다른 원장 못 채우면 가능한 만큼만 시도)
-  if (!q && qas.length > 4) {
-    const seen = new Set<string>();
+  // 첫 4카드 다양화 — 검색 없을 때: 모두 다른 원장 (max 1) / 검색 있을 때: 같은 원장 최대 2번
+  if (qas.length > 4) {
+    const maxPerDoctor = q ? 2 : 1;
+    const counts = new Map<string, number>();
     const head: QACardData[] = [];
     const tail: QACardData[] = [];
     for (const it of qas) {
       const slug = it.doctor?.slug ?? "_unknown";
-      if (head.length < 4 && !seen.has(slug)) {
+      const c = counts.get(slug) ?? 0;
+      if (head.length < 4 && c < maxPerDoctor) {
         head.push(it);
-        seen.add(slug);
+        counts.set(slug, c + 1);
       } else {
         tail.push(it);
       }
