@@ -19,24 +19,20 @@ export default async function HomePage({ searchParams }: Props) {
 
   const supabase = await createSupabaseServerClient();
 
-  // q 있으면 점수 RPC, 없으면 created_at 정렬
+  // q 있을 때나 없을 때 모두 RPC 사용 — 일관된 정렬 (q: 점수+노이즈 / no-q: video.upload_date desc)
   const popularByCategoryPromise = getPopularByCategory();
-  let qas: QACardData[] | null = null;
-  let error: { message: string } | null = null;
+  const rpcRes = await supabase.rpc("search_qas_scored", {
+    p_q: q,
+    p_doctor_slug: null,
+    p_offset: 0,
+    p_limit: INITIAL_PAGE_SIZE,
+  });
+  const qas = (rpcRes.data ?? []) as QACardData[];
+  const error = rpcRes.error;
+
+  // 검색일 때만 카운트 별도 조회
   let count: number | null = null;
-
-  if (q) {
-    // 점수 기반 (search_qas_scored RPC)
-    const res = await supabase.rpc("search_qas_scored", {
-      p_q: q,
-      p_doctor_slug: null,
-      p_offset: 0,
-      p_limit: INITIAL_PAGE_SIZE,
-    });
-    qas = (res.data ?? []) as QACardData[];
-    error = res.error;
-
-    // 검색 매칭 카운트는 별도로 (PostgREST OR + count)
+  if (q && !error) {
     let countQuery = supabase
       .from("qas")
       .select("id", { count: "exact", head: true })
@@ -51,25 +47,6 @@ export default async function HomePage({ searchParams }: Props) {
     }
     const cRes = await countQuery;
     count = cRes.count ?? null;
-  } else {
-    // 영상 업로드일 기준 최신순 (videos.upload_date desc, id desc)
-    const res = await supabase
-      .from("qas")
-      .select(
-        `
-        id, question, answer, meta, keywords,
-        like_count, view_count,
-        doctor:doctors(slug, name, branch),
-        video:videos!inner(youtube_id, youtube_url, topic, upload_date)
-      `,
-      )
-      .eq("published", true)
-      .order("upload_date", { referencedTable: "videos", ascending: false })
-      .order("id", { ascending: false })
-      .limit(INITIAL_PAGE_SIZE)
-      .returns<QACardData[]>();
-    qas = res.data ?? [];
-    error = res.error;
   }
 
   const popularByCategory = await popularByCategoryPromise;

@@ -21,55 +21,15 @@ export async function GET(req: Request) {
 
   const supabase = await createSupabaseServerClient();
 
-  // doctor_slug 필터링: doctor.slug → doctor.id 조회 후 doctor_id로 필터
-  let doctorIdFilter: string | null = null;
-  if (doctorSlug) {
-    const { data: dRow } = await supabase
-      .from("doctors")
-      .select("id")
-      .eq("slug", doctorSlug)
-      .maybeSingle();
-    if (!dRow) {
-      return NextResponse.json({ qas: [] }, { headers: { "cache-control": "no-store" } });
-    }
-    doctorIdFilter = dRow.id;
-  }
-
-  // q 가 있으면 점수 RPC, 없으면 created_at 정렬
-  let data: unknown[] | null = null;
-  let error: { message: string } | null = null;
-
-  if (q) {
-    const res = await supabase.rpc("search_qas_scored", {
-      p_q: q,
-      p_doctor_slug: doctorSlug || null,
-      p_offset: offset,
-      p_limit: limit,
-    });
-    data = res.data as unknown[] | null;
-    error = res.error;
-  } else {
-    let query = supabase
-      .from("qas")
-      .select(
-        `
-        id, question, answer, meta, keywords,
-        like_count, view_count,
-        doctor:doctors(slug, name, branch),
-        video:videos!inner(youtube_id, youtube_url, topic, upload_date)
-      `,
-      )
-      .eq("published", true);
-    if (doctorIdFilter) {
-      query = query.eq("doctor_id", doctorIdFilter);
-    }
-    const res = await query
-      .order("upload_date", { referencedTable: "videos", ascending: false })
-      .order("id", { ascending: false })
-      .range(offset, offset + limit - 1);
-    data = res.data as unknown[] | null;
-    error = res.error;
-  }
+  // 항상 search_qas_scored RPC 사용 (q 비면 video.upload_date desc 정렬, 있으면 점수+노이즈)
+  const res = await supabase.rpc("search_qas_scored", {
+    p_q: q,
+    p_doctor_slug: doctorSlug || null,
+    p_offset: offset,
+    p_limit: limit,
+  });
+  const data = res.data as unknown[] | null;
+  const error = res.error;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
