@@ -116,42 +116,26 @@ def main() -> int:
     used: set[int] = set()
     picks_by_doctor: dict[str, list[int]] = {}
 
-    # 1) 정한미·이도영 5종 주제 (각 1개씩, 두 원장 합쳐서)
-    star_topics = ["힐로웨이브", "스컬트라", "티타늄리프팅", "쥬브젠", "필러"]
-    for kw in star_topics:
-        # 두 원장 후보 중 하나에서 선택
-        pid = pick_one(["jeonghanmi", "leedoyoung"], kw, used)
-        if pid:
-            used.add(pid)
-            # 어느 원장 글인지 알아내기
-            row = fetch(
-                "qas",
-                {
-                    "id": f"eq.{pid}",
-                    "select": "id,doctor:doctors(slug)",
-                },
-            )
-            if row:
-                d_slug = row[0]["doctor"]["slug"]
-                picks_by_doctor.setdefault(d_slug, []).append(pid)
-                print(f"[star] {kw} → {d_slug} #{pid}")
+    # 1) 정한미·이도영 — 각자 5개 픽 (5종 주제 × 각 1개씩)
+    #    이도영에 쥬브젠 글 없으면 '세르프' fallback
+    star_topics_jh = ["힐로웨이브", "스컬트라", "티타늄리프팅", "쥬브젠", "필러"]
+    star_topics_ld = ["힐로웨이브", "스컬트라", "티타늄리프팅", "쥬브젠", "필러"]
+
+    for slug, topics in [("jeonghanmi", star_topics_jh), ("leedoyoung", star_topics_ld)]:
+        for kw in topics:
+            pid = pick_one([slug], kw, used)
+            # 티타늄리프팅 → 티타늄 fallback
+            if not pid and kw == "티타늄리프팅":
+                pid = pick_one([slug], "티타늄", used)
+            # 쥬브젠 → 세르프 fallback
+            if not pid and kw == "쥬브젠":
+                pid = pick_one([slug], "세르프", used)
+            if pid:
+                used.add(pid)
+                picks_by_doctor.setdefault(slug, []).append(pid)
+                print(f"[star] {slug} × {kw} → #{pid}")
             else:
-                print(f"[star] {kw} → ?? #{pid}")
-        else:
-            # 티타늄리프팅 매칭 안 되면 '티타늄'으로 재시도
-            if kw == "티타늄리프팅":
-                pid = pick_one(["jeonghanmi", "leedoyoung"], "티타늄", used)
-                if pid:
-                    used.add(pid)
-                    row = fetch(
-                        "qas",
-                        {"id": f"eq.{pid}", "select": "id,doctor:doctors(slug)"},
-                    )
-                    d_slug = row[0]["doctor"]["slug"]
-                    picks_by_doctor.setdefault(d_slug, []).append(pid)
-                    print(f"[star/티타늄] → {d_slug} #{pid}")
-                    continue
-            print(f"[star] {kw} → 매칭 없음")
+                print(f"[star] {slug} × {kw} → 매칭 없음")
 
     # 2) 권수현, 김수형, 고혜림, 김종식, 강현진 — 울쎄라·써마지·리프팅·스킨부스터 4개
     others = ["kwonsuhyun", "kimsoohyung", "gohyerim", "kimjongsik", "kanghyunjin"]

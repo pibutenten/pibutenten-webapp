@@ -52,11 +52,14 @@ export async function GET(req: Request) {
   }
 
   if (q) {
-    const pattern = `%${escapeLike(q)}%`;
-    // question/answer 본문 부분일치 OR keywords 배열에 정확 일치
-    query = query.or(
-      `question.ilike.${pattern},answer.ilike.${pattern},keywords.cs.{${q}}`,
-    );
+    // 공백으로 분리한 모든 단어가 매칭되는 글만 (AND). 각 단어는 question/answer/keywords 중 어느 곳에든 매칭되면 통과 (OR).
+    const words = q.split(/\s+/).filter((w) => w.length > 0);
+    for (const w of words) {
+      const pattern = `%${escapeLike(w)}%`;
+      query = query.or(
+        `question.ilike.${pattern},answer.ilike.${pattern},keywords.cs.{${w}}`,
+      );
+    }
   }
 
   const { data, error } = await query

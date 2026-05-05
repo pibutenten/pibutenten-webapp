@@ -5,6 +5,7 @@
 
 export const PICK_IDS_BY_DOCTOR: Record<string, number[]> = {
   jeonghanmi: [944, 1199, 882, 1061, 1095],
+  leedoyoung: [964, 1025, 864, 1144, 1187],
   kwonsuhyun: [1169, 1097, 308, 920],
   kimsoohyung: [912, 1003, 1018, 1062],
   gohyerim: [107, 751],

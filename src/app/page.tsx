@@ -33,10 +33,15 @@ export default async function HomePage({ searchParams }: Props) {
     .eq("published", true);
 
   if (q) {
-    const pattern = `%${q.replace(/[%_*]/g, "\\$&").replace(/[(),]/g, " ")}%`;
-    qaQuery = qaQuery.or(
-      `question.ilike.${pattern},answer.ilike.${pattern},keywords.cs.{${q}}`,
-    );
+    // 공백 구분 다중 단어 → AND 검색 (각 단어는 question/answer/keywords 중 어디든 매칭되면 OK)
+    const words = q.split(/\s+/).filter((w) => w.length > 0);
+    for (const w of words) {
+      const escaped = w.replace(/[%_*]/g, "\\$&").replace(/[(),]/g, " ");
+      const pattern = `%${escaped}%`;
+      qaQuery = qaQuery.or(
+        `question.ilike.${pattern},answer.ilike.${pattern},keywords.cs.{${w}}`,
+      );
+    }
   }
 
   const [qaResult, popularByCategory] = await Promise.all([

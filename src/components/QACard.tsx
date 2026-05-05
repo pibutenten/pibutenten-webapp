@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
 import { CATEGORIES } from "@/lib/categories";
 import { categorize } from "@/lib/category-sets";
+import { PICK_IDS } from "@/lib/picks";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export type QACardData = {
   id: number;
@@ -42,8 +44,25 @@ type Props = {
 
 export default function QACard({ qa, activeQuery }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [viewCount, setViewCount] = useState(qa.view_count);
   const router = useRouter();
   const doctor = qa.doctor;
+  const isPick = PICK_IDS.has(qa.id);
+
+  // 처음 펼칠 때 한 번만 조회수 +1 (브라우저당 1회)
+  useEffect(() => {
+    if (!expanded) return;
+    if (typeof window === "undefined") return;
+    const key = `qa-viewed-${qa.id}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    const supabase = createSupabaseBrowserClient();
+    supabase
+      .rpc("increment_qa_view", { p_qa_id: qa.id })
+      .then(({ data }: { data: number | null }) => {
+        if (typeof data === "number") setViewCount(data);
+      });
+  }, [expanded, qa.id]);
   const theme = doctor ? getDoctorTheme(doctor.slug) : null;
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
   const dateLabel = formatDate(qa.video?.upload_date ?? null);
@@ -60,7 +79,15 @@ export default function QACard({ qa, activeQuery }: Props) {
     : null;
 
   return (
-    <article className="fade-in-up rounded-[var(--radius)] border border-[var(--border)] bg-white p-[18px_20px] shadow-[var(--shadow-sm)]">
+    <article className="fade-in-up relative rounded-[var(--radius)] border border-[var(--border)] bg-white p-[18px_20px] shadow-[var(--shadow-sm)]" style={isPick ? { borderLeft: "3px solid #BBDEFB" } : undefined}>
+      {isPick && (
+        <span
+          className="absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider"
+          style={{ backgroundColor: "#E3F2FD", color: "#1565C0" }}
+        >
+          Pick
+        </span>
+      )}
       {/* 원장 행 — 클릭 시 원장님 소개 페이지로 이동 */}
       <button
         type="button"
@@ -112,11 +139,9 @@ export default function QACard({ qa, activeQuery }: Props) {
       </h2>
 
       {/* 답변 — 클릭으로 펼치기/접기 */}
-      <button
-        type="button"
+      <div
         onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        className="block w-full cursor-pointer text-left"
+        className="cursor-pointer"
       >
         <p
           className={`text-[15px] leading-[1.7] text-[var(--text)] ${
@@ -126,13 +151,28 @@ export default function QACard({ qa, activeQuery }: Props) {
         >
           {highlight(qa.answer, activeQuery)}
         </p>
-        <span
-          className="mt-2 inline-block text-[12px] font-medium text-[var(--secondary)] hover:text-[var(--primary)]"
-          aria-hidden
+      </div>
+      <div className="mt-2 flex items-center gap-3 text-[12px]">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="font-medium text-[var(--secondary)] hover:text-[var(--primary)]"
         >
           {expanded ? "접기 ▴" : "더보기 ▾"}
-        </span>
-      </button>
+        </button>
+        {qa.video?.youtube_url && (
+          <a
+            href={qa.video.youtube_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 font-medium text-[var(--text-muted)] hover:text-[var(--primary)]"
+          >
+            <span style={{ color: "#FF0000" }}>▶</span> 영상 보러가기
+          </a>
+        )}
+      </div>
 
       {/* 키워드 칩 — 클릭 시 검색, 활성 검색어와 일치하면 카테고리 색 */}
       {qa.keywords.length > 0 && (
@@ -190,7 +230,7 @@ export default function QACard({ qa, activeQuery }: Props) {
             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
             <circle cx="12" cy="12" r="3" />
           </svg>
-          <span>{qa.view_count}</span>
+          <span>{viewCount}</span>
         </span>
 
         <span className="flex items-center gap-1.5" aria-label="좋아요">
