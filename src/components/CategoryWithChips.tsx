@@ -191,6 +191,12 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
                   <button
                     key={kw}
                     type="button"
+                    onMouseDown={(e) => {
+                      // 모바일/데스크 모두 input blur 방지 — 칩 클릭 시 키보드/위치 유지
+                      if (document.activeElement instanceof HTMLInputElement) {
+                        e.preventDefault();
+                      }
+                    }}
                     onClick={() => selectChip(kw)}
                     disabled={isPending}
                     className="cursor-pointer rounded-full border px-3 py-1 text-[13px] transition-colors hover:shadow-sm active:scale-[0.97] disabled:cursor-wait"

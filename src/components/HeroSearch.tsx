@@ -5,15 +5,15 @@ import { useSearchParams } from "next/navigation";
 import SearchBar from "./SearchBar";
 
 const MOBILE_BP = 768;
-const TARGET_TOP = 110; // 모바일 키보드 ON 시 검색창 top px (헤더 nav ~56 + 여유 ~54)
+const TARGET_TOP = 70; // 키보드 ON 시 검색창 top px (헤더 56 + 여유 14)
 
 /**
  * Hero(타이틀) + 검색창 묶음.
- * - 모바일: 키보드 열림 감지 후 한 번만 정확히 페이지 스크롤로 form을 헤더 바로 아래에 배치.
- *   - setTimeout 다중호출 제거 (흔들림 방지).
- *   - h1 collapse + 키보드 슬라이드 완료까지 짧게 대기 후 1회 reposition.
- *   - blur 시 자동 reset 안 함 (칩 클릭 시 위치 유지).
- *   - 키보드 다시 열림도 감지 → 매번 reposition 보장.
+ * - 모바일:
+ *   - focus → 원래 scrollY 기억 + 350ms 후(키보드 안정) reposition.
+ *   - blur → 기억해둔 원래 scrollY로 복귀.
+ *   - 칩 클릭 시엔 칩 onMouseDown preventDefault로 input blur 자체를 막아 위치 유지.
+ *   - 두 번째 focus도 매번 재기억 + 재reposition.
  * - 데스크탑: h1 변화 없음, 진입 시 자동 포커스.
  */
 export default function HeroSearch() {
@@ -21,13 +21,14 @@ export default function HeroSearch() {
   const initialQ = (sp.get("q") ?? "").trim();
   const [focused, setFocused] = useState(false);
   const formWrapRef = useRef<HTMLDivElement>(null);
+  const originalScrollYRef = useRef<number>(0);
 
   const isMobile = useCallback(
     () => typeof window !== "undefined" && window.innerWidth <= MOBILE_BP,
     [],
   );
 
-  /** 페이지 스크롤로 form을 정확히 TARGET_TOP에 배치 — 한 번만, 부드럽게 */
+  /** 페이지 스크롤로 form을 정확히 TARGET_TOP에 배치 */
   const repositionPage = useCallback(() => {
     if (typeof window === "undefined") return;
     if (!isMobile()) return;
@@ -39,19 +40,28 @@ export default function HeroSearch() {
     window.scrollBy({ top: diff, behavior: "smooth" });
   }, [isMobile]);
 
-  /** focus/blur — h1 collapse용 state만 갱신, scroll은 visualViewport 핸들러에서 단일 처리 */
+  /** focus → 원래 위치 기억 + state 갱신, blur → 원래 위치 복귀 */
   function handleFocusChange(f: boolean) {
     if (!isMobile()) {
       setFocused(false);
       return;
     }
-    setFocused(f);
+    if (f) {
+      // 매 focus마다 원래 scrollY 갱신 (이미 위로 올라간 상태에서 두 번째 focus면 이미 위에 있음 → 변동 작음)
+      // 단, 우리 transform 적용 직전 스크롤만 기억해야 하므로, "처음" focus만 기억.
+      if (!focused) originalScrollYRef.current = window.scrollY;
+      setFocused(true);
+    } else {
+      // blur → 원래 위치로 복귀
+      window.scrollTo({
+        top: originalScrollYRef.current,
+        behavior: "smooth",
+      });
+      setFocused(false);
+    }
   }
 
-  /** visualViewport — 키보드 상태 변화 감지.
-   *  키보드 열림 → document.activeElement가 우리 input일 때 안정화 대기 후 reposition (한 번).
-   *  키보드 닫힘 → focused state는 건들지 않음 (실제 input.blur 시 onBlur가 자연스럽게 처리).
-   *  → 키보드 다시 열림 / focus 유지된 채 키보드만 닫혔다 다시 열림 모두 정상 처리. */
+  /** visualViewport — 키보드 안정 후 한 번 reposition */
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
@@ -63,16 +73,13 @@ export default function HeroSearch() {
       const inputFocused =
         !!ourInput && document.activeElement === ourInput;
 
-      // 키보드 열림 + 우리 input에 focus 있음 → 안정화 후 reposition
       if (keyboardOpen && inputFocused) {
         if (stableTimer) window.clearTimeout(stableTimer);
-        // 350ms = h1 collapse(300ms) + 키보드 안정 여유
         stableTimer = window.setTimeout(() => {
           stableTimer = null;
           repositionPage();
         }, 350) as unknown as number;
       } else if (!keyboardOpen && stableTimer) {
-        // 키보드 닫히는 중 - 예약된 reposition 취소
         window.clearTimeout(stableTimer);
         stableTimer = null;
       }

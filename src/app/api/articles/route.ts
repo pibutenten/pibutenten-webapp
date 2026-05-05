@@ -7,15 +7,18 @@ export const dynamic = "force-dynamic";
 
 type WriteType = "post" | "article" | "qa";
 
+type SubmitStatus = "draft" | "pending_review" | "published";
+
 type Payload = {
   type: WriteType;
+  status?: SubmitStatus; // 기본 'published'
   // post
   body?: string;
   // article
   title?: string;
   cover_image?: string | null;
   sections?: ArticleSection[];
-  // qa (admin)
+  // qa
   doctor_slug?: string;
   question?: string;
   answer?: string;
@@ -71,6 +74,23 @@ export async function POST(req: Request) {
   if (t === "qa" && role !== "admin") {
     return NextResponse.json(
       { error: "Q&A는 관리자만 직접 작성 가능합니다." },
+      { status: 403 },
+    );
+  }
+
+  // status 결정 — 클라이언트가 보낸 값 검증
+  const reqStatus: SubmitStatus = payload.status ?? "published";
+  if (
+    reqStatus !== "draft" &&
+    reqStatus !== "pending_review" &&
+    reqStatus !== "published"
+  ) {
+    return NextResponse.json({ error: "유효하지 않은 status" }, { status: 400 });
+  }
+  // pending_review는 admin이 원장 명의로 작성할 때만 의미 있음
+  if (reqStatus === "pending_review" && role !== "admin") {
+    return NextResponse.json(
+      { error: "검수 요청 권한이 없습니다." },
       { status: 403 },
     );
   }
@@ -145,7 +165,8 @@ export async function POST(req: Request) {
     }
     insert.question = body.slice(0, 80); // 첫 80자 제목 자리
     insert.answer = body;
-    insert.status = "published";
+    insert.status = reqStatus;
+    insert.published = reqStatus === "published";
     insert.doctor_id = null;
   } else if (t === "article") {
     const title = (payload.title ?? "").trim();
