@@ -133,6 +133,70 @@ export default async function MePage() {
 
   const isDoctor = profile.role === "doctor" && doctorId;
 
+  // ── 본인 활동 ── (모든 로그인 사용자)
+  type ActivityRow = {
+    id: number;
+    question: string;
+    type: "qa" | "post" | "article";
+    article_slug: string | null;
+    created_at: string;
+    doctor: { name: string } | null;
+  };
+
+  // 1) 내가 쓴 글 (author_id = me) — 최근 5
+  const { data: myPostsData } = await supabase
+    .from("qas")
+    .select(
+      "id, question, type, article_slug, created_at, doctor:doctors(name)",
+    )
+    .eq("author_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(5)
+    .returns<ActivityRow[]>();
+  const myPosts: ActivityRow[] = myPostsData ?? [];
+
+  // 2) 내가 좋아요한 글 — 최근 5
+  const { data: likedRowsData } = await supabase
+    .from("qa_likes")
+    .select(
+      "qa:qas(id, question, type, article_slug, created_at, doctor:doctors(name))",
+    )
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(5)
+    .returns<{ qa: ActivityRow | null }[]>();
+  const likedQas: ActivityRow[] = (likedRowsData ?? [])
+    .map((r) => r.qa)
+    .filter((x): x is ActivityRow => x !== null);
+
+  // 3) 내가 댓글 단 글 — 최근 5 (distinct qa_id)
+  const { data: commentRows } = await supabase
+    .from("comments")
+    .select(
+      "qa_id, created_at, qa:qas(id, question, type, article_slug, created_at, doctor:doctors(name))",
+    )
+    .eq("author_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(20)
+    .returns<{ qa_id: number; qa: ActivityRow | null }[]>();
+  const commentedSeen = new Set<number>();
+  const commentedQas: ActivityRow[] = [];
+  for (const r of commentRows ?? []) {
+    if (!r.qa) continue;
+    if (commentedSeen.has(r.qa.id)) continue;
+    commentedSeen.add(r.qa.id);
+    commentedQas.push(r.qa);
+    if (commentedQas.length >= 5) break;
+  }
+
+  const linkOf = (r: ActivityRow): string =>
+    r.type === "article" && r.article_slug
+      ? `/article/${encodeURIComponent(r.article_slug)}`
+      : `/qa/${r.id}`;
+
+  const typeLabel = (t: ActivityRow["type"]): string =>
+    t === "post" ? "포스팅" : t === "article" ? "칼럼" : "Q&A";
+
   return (
     <section className="w-full py-6">
       {/* 헤더 */}
@@ -187,6 +251,34 @@ export default async function MePage() {
           </Link>
         </div>
       )}
+
+      {/* 본인 활동 — 모든 로그인 사용자 노출 */}
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <ActivityList
+          title="내 글"
+          emoji="📝"
+          empty="아직 작성한 글이 없어요"
+          rows={myPosts}
+          linkOf={linkOf}
+          typeLabel={typeLabel}
+        />
+        <ActivityList
+          title="좋아요한 글"
+          emoji="❤️"
+          empty="좋아요한 글이 없어요"
+          rows={likedQas}
+          linkOf={linkOf}
+          typeLabel={typeLabel}
+        />
+        <ActivityList
+          title="댓글 단 글"
+          emoji="💬"
+          empty="댓글 단 글이 없어요"
+          rows={commentedQas}
+          linkOf={linkOf}
+          typeLabel={typeLabel}
+        />
+      </div>
 
       {profile.role === "doctor" && !isDoctor && (
         <div className="mt-6 rounded-[var(--radius)] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
@@ -276,6 +368,71 @@ export default async function MePage() {
 // ────────────────────────────────────────────────────────────
 // 작은 컴포넌트
 // ────────────────────────────────────────────────────────────
+
+type ActivityListRow = {
+  id: number;
+  question: string;
+  type: "qa" | "post" | "article";
+  article_slug: string | null;
+  created_at: string;
+  doctor: { name: string } | null;
+};
+
+function ActivityList({
+  title,
+  emoji,
+  empty,
+  rows,
+  linkOf,
+  typeLabel,
+}: {
+  title: string;
+  emoji: string;
+  empty: string;
+  rows: ActivityListRow[];
+  linkOf: (r: ActivityListRow) => string;
+  typeLabel: (t: ActivityListRow["type"]) => string;
+}) {
+  return (
+    <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
+      <div className="mb-2.5 flex items-center gap-1.5 text-sm font-bold text-[var(--text)]">
+        <span>{emoji}</span>
+        <span>{title}</span>
+        <span className="ml-auto text-xs font-normal text-[var(--text-muted)]">
+          {rows.length}
+        </span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="py-4 text-center text-xs text-[var(--text-muted)]">
+          {empty}
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {rows.map((r) => (
+            <li key={r.id}>
+              <Link
+                href={linkOf(r)}
+                className="group block rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--bg-soft)]/60"
+              >
+                <div className="flex items-baseline gap-1.5 text-xs text-[var(--text-muted)]">
+                  <span className="rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[10px] font-medium">
+                    {typeLabel(r.type)}
+                  </span>
+                  {r.doctor?.name && (
+                    <span className="truncate">{r.doctor.name} 원장님</span>
+                  )}
+                </div>
+                <div className="mt-0.5 line-clamp-1 text-sm text-[var(--text)] group-hover:text-[var(--primary)]">
+                  {r.question}
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function StatCard({
   label,

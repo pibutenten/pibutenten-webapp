@@ -72,50 +72,55 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
       });
   }, [expanded, qa.id]);
 
-  // 좋아요 상태 — 브라우저당 1회 제한 (localStorage)
+  // 좋아요 상태 — 로그인 사용자별 DB(qa_likes) 기반
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setLiked(localStorage.getItem(`qa-liked-${qa.id}`) === "1");
+    let alive = true;
+    (async () => {
+      const supabase = createSupabaseBrowserClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("qa_likes")
+        .select("qa_id")
+        .eq("qa_id", qa.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (alive && data) setLiked(true);
+    })();
+    return () => {
+      alive = false;
+    };
   }, [qa.id]);
 
   function handleLike() {
     if (typeof window === "undefined") return;
     const supabase = createSupabaseBrowserClient();
-    if (liked) {
-      // 좋아요 취소 (토글 off)
-      setLiked(false);
-      setLikeCount((c) => Math.max(0, c - 1));
-      localStorage.removeItem(`qa-liked-${qa.id}`);
-      supabase
-        .rpc("decrement_qa_like", { p_qa_id: qa.id })
-        .then(({ data, error }: { data: number | null; error: unknown }) => {
-          if (error) {
-            // 롤백
-            setLiked(true);
-            setLikeCount((c) => c + 1);
-            localStorage.setItem(`qa-liked-${qa.id}`, "1");
-            return;
+    // 낙관적 업데이트
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount((c) => (wasLiked ? Math.max(0, c - 1) : c + 1));
+    supabase
+      .rpc("toggle_qa_like", { p_qa_id: qa.id })
+      .then(({ data, error }: { data: { liked: boolean; like_count: number }[] | null; error: unknown }) => {
+        if (error) {
+          // 롤백
+          setLiked(wasLiked);
+          setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
+          // 로그인 안 됨이면 안내
+          const msg = (error as { message?: string }).message ?? "";
+          if (msg.includes("not authenticated")) {
+            alert("좋아요는 로그인 후 가능해요.");
           }
-          if (typeof data === "number") setLikeCount(data);
-        });
-    } else {
-      // 좋아요 (토글 on)
-      setLiked(true);
-      setLikeCount((c) => c + 1);
-      localStorage.setItem(`qa-liked-${qa.id}`, "1");
-      supabase
-        .rpc("increment_qa_like", { p_qa_id: qa.id })
-        .then(({ data, error }: { data: number | null; error: unknown }) => {
-          if (error) {
-            // 롤백
-            setLiked(false);
-            setLikeCount((c) => Math.max(0, c - 1));
-            localStorage.removeItem(`qa-liked-${qa.id}`);
-            return;
-          }
-          if (typeof data === "number") setLikeCount(data);
-        });
-    }
+          return;
+        }
+        const row = data?.[0];
+        if (row) {
+          setLiked(row.liked);
+          setLikeCount(row.like_count);
+        }
+      });
   }
   const theme = doctor ? getDoctorTheme(doctor.slug) : null;
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
