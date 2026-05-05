@@ -217,7 +217,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
       {/* 헤더 */}
       <div className="mb-5 flex items-baseline justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">Q&A 전체 목록</h1>
+          <h1 className="text-2xl font-bold text-[var(--text)]">전체 카드 목록</h1>
           <p className="mt-1 text-xs text-[var(--text-muted)]">
             관리자 전용 — 총 {total.toLocaleString()}건
           </p>
@@ -296,7 +296,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           type="text"
           name="q"
           defaultValue={qParam}
-          placeholder="질문/답변 검색"
+          placeholder="제목/본문 검색"
           className="h-9 flex-1 min-w-[180px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text)] focus:border-[var(--primary)] focus:outline-none"
         />
         <button
@@ -361,7 +361,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                   <th className="px-3 py-2 text-left font-medium">상태</th>
                   <th className="px-3 py-2 text-left font-medium">타입</th>
                   <th className="px-3 py-2 text-left font-medium">원장</th>
-                  <th className="px-3 py-2 text-left font-medium">질문</th>
+                  <th className="px-3 py-2 text-left font-medium">제목</th>
                   <th className="px-3 py-2 text-right font-medium">좋아요</th>
                   <th className="px-3 py-2 text-right font-medium">조회수</th>
                   <th className="px-3 py-2 text-right font-medium">댓글</th>

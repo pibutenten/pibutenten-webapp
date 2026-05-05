@@ -71,10 +71,23 @@ export default async function AdminPage() {
         >
           <div className="mb-2 text-2xl">📋</div>
           <div className="text-base font-bold text-[var(--text)] group-hover:text-[var(--primary)]">
-            전체 Q&A 목록
+            전체 카드 목록
           </div>
           <div className="mt-1 text-xs text-[var(--text-secondary)]">
-            검수·수정·발행·삭제
+            포스팅·Q&A·칼럼 모든 카드 — 검수·수정·발행·삭제
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/qas?type=article"
+          className="group rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 transition-colors hover:border-[var(--primary)]"
+        >
+          <div className="mb-2 text-2xl">📚</div>
+          <div className="text-base font-bold text-[var(--text)] group-hover:text-[var(--primary)]">
+            전체 칼럼 목록
+          </div>
+          <div className="mt-1 text-xs text-[var(--text-secondary)]">
+            원장님 칼럼만 모아보기
           </div>
         </Link>
       </div>
