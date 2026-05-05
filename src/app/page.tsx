@@ -53,6 +53,33 @@ export default async function HomePage({ searchParams }: Props) {
     qas = [...head, ...tail];
   }
 
+  // 같은 원장 3연속 방지 — 2연속까지만 허용, 3번째에는 다른 원장 끼워넣기
+  // (홈/검색 모두 적용. 원장 개인 페이지는 별도 라우트라 영향 없음)
+  if (qas.length >= 3) {
+    const remaining = [...qas];
+    const reordered: QACardData[] = [];
+    while (remaining.length > 0) {
+      const last = reordered[reordered.length - 1];
+      const prev = reordered[reordered.length - 2];
+      const lastTwoSameSlug =
+        last !== undefined &&
+        prev !== undefined &&
+        last.doctor?.slug !== undefined &&
+        last.doctor?.slug === prev.doctor?.slug;
+      if (lastTwoSameSlug) {
+        const idx = remaining.findIndex(
+          (it) => it.doctor?.slug !== last.doctor?.slug,
+        );
+        if (idx >= 0) {
+          reordered.push(remaining.splice(idx, 1)[0]);
+          continue;
+        }
+      }
+      reordered.push(remaining.shift() as QACardData);
+    }
+    qas = reordered;
+  }
+
   // 검색일 때만 카운트 별도 조회
   let count: number | null = null;
   if (q && !error) {
