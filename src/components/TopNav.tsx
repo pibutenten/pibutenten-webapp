@@ -218,9 +218,9 @@ export default function TopNav({ session }: TopNavProps) {
             );
           })}
 
-          {/* 로그인 / 마이페이지 */}
+          {/* 로그인 / 마이페이지 — nav gap에 그대로 정렬 (전문의·피부텐텐과 균등 간격) */}
           {session ? (
-            <div className="ml-1 flex items-center gap-1 sm:ml-2">
+            <>
               <Link
                 href={dashboardHref}
                 className="flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
@@ -235,15 +235,15 @@ export default function TopNav({ session }: TopNavProps) {
                 type="button"
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                className="rounded-md px-2 py-1 text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50"
+                className="rounded-md p-2 text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50"
               >
                 {isLoggingOut ? "..." : "로그아웃"}
               </button>
-            </div>
+            </>
           ) : (
             <Link
               href="/login"
-              className="ml-1 flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)] sm:ml-2"
+              className="flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
               title="로그인"
             >
               {UserIcon}
