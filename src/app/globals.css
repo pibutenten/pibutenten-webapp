@@ -53,6 +53,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 페이지 이동 시 콘텐츠 좌우 흔들림 방지 — 스크롤바 공간 항상 예약 */
+html {
+  scrollbar-gutter: stable;
+}
+
 /* iOS safe area 대응 */
 body {
   padding-bottom: env(safe-area-inset-bottom);
