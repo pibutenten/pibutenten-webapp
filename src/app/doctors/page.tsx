@@ -47,66 +47,64 @@ export default async function DoctorsPage() {
   }
 
   return (
-    <section className="grid grid-cols-1 gap-4 min-[900px]:grid-cols-2">
-      {doctors.map((d) => {
-        const theme = getDoctorTheme(d.slug);
-        const photo = d.photo_url || getDoctorPhoto(d.slug);
+    <section className="space-y-6">
+      <header className="text-center">
+        <h1 className="text-2xl font-bold text-[var(--text)]">피부과 전문의</h1>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          피부텐텐의 피부과 전문의들이 직접 답합니다.
+        </p>
+      </header>
 
-        return (
-          <article
-            key={d.id}
-            className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]"
-          >
-            <div className="flex items-center gap-4 p-4">
+      <div className="grid grid-cols-2 gap-3 min-[900px]:gap-4">
+        {doctors.map((d) => {
+          const theme = getDoctorTheme(d.slug);
+          const photo = d.photo_url || getDoctorPhoto(d.slug);
+
+          return (
+            <article
+              key={d.id}
+              className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]"
+            >
               <div
-                className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full"
+                className="relative aspect-square w-full overflow-hidden"
                 style={{
-                  background: `linear-gradient(135deg, ${theme.bg} 0%, ${theme.bgSoft} 100%)`,
+                  background: `linear-gradient(180deg, ${theme.bgSoft} 0%, ${theme.bg} 100%)`,
                 }}
               >
                 <Image
                   src={photo}
                   alt={`${d.name} 원장님`}
                   fill
-                  sizes="96px"
-                  className="object-cover"
+                  sizes="(max-width: 900px) 50vw, 360px"
+                  className="object-contain"
                   style={{
-                    objectPosition: "50% 15%",
+                    objectPosition: "50% 100%",
                     transform: `translate(${theme.offsetX ?? 0}px, ${theme.offsetY ?? 0}px)`,
                   }}
                   priority={d.sort_order <= 20}
                 />
               </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-1.5">
-                  <h2 className="text-lg font-bold text-[var(--text)]">
-                    {d.name}
-                  </h2>
-                  <span
-                    className="text-xs font-semibold"
-                    style={{ color: theme.accent }}
-                  >
-                    원장님
-                  </span>
-                </div>
+              <div className="px-3 py-3 text-center">
+                <h2 className="text-base font-bold text-[var(--text)]">
+                  {d.name}
+                </h2>
                 <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                   {d.title}
                 </p>
-                <p className="mt-1 text-[13px] font-medium text-[var(--text)]">
-                  {[d.clinic, d.branch].filter(Boolean).join(" ")}
-                </p>
+                {(d.clinic || d.branch) && (
+                  <p
+                    className="mt-1 text-[12px] font-medium"
+                    style={{ color: theme.accent }}
+                  >
+                    {[d.clinic, d.branch].filter(Boolean).join(" ")}
+                  </p>
+                )}
               </div>
-            </div>
-
-            {d.intro && (
-              <div className="border-t border-[var(--border)] bg-white px-4 py-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-                {d.intro}
-              </div>
-            )}
-          </article>
-        );
-      })}
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }
