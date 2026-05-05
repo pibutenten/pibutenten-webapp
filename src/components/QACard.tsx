@@ -227,22 +227,24 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           e.stopPropagation();
           if (doctor?.slug) router.push(`/doctors/${doctor.slug}`);
         }}
-        className="mb-3.5 flex w-full cursor-pointer items-center gap-3 rounded-md p-2 text-left transition-colors hover:bg-[var(--bg-soft)]/60"
+        className="mb-3.5 -ml-1 flex w-full cursor-pointer items-center gap-3 rounded-md py-2 pl-1 pr-2 text-left transition-colors hover:bg-[var(--bg-soft)]/60"
         aria-label={doctor ? `${doctor.name} 원장님 소개로 이동` : undefined}
       >
         {doctor && photo && (
           <div
-            className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full"
+            className="relative h-13 w-13 shrink-0 overflow-hidden rounded-full"
             style={{
               background: theme?.bg ?? "var(--bg-soft)",
               boxShadow: `inset 0 0 0 2px ${theme?.bgSoft ?? "var(--bg-soft)"}`,
+              height: 52,
+              width: 52,
             }}
           >
             <Image
               src={photo}
               alt={`${doctor.name} 원장님`}
               fill
-              sizes="44px"
+              sizes="52px"
               className="object-cover"
               style={{
                 objectPosition: "50% 12%",
