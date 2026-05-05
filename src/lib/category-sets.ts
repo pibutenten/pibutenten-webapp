@@ -78,9 +78,9 @@ const HOMECARE = new Set<string>([
 
 /** 키워드 → 카테고리 슬러그 (우선순위 적용). */
 export function categorize(keyword: string): CategorySlug {
-  if (INJECTION.has(keyword)) return "injection";
+  if (INJECTION.has(keyword)) return "injectables";
   if (LIFTING.has(keyword)) return "lifting";
-  if (CONDITION.has(keyword)) return "condition";
+  if (CONDITION.has(keyword)) return "concerns";
   if (HOMECARE.has(keyword)) return "homecare";
-  return "other";
+  return "knowledge";
 }
