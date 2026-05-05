@@ -18,6 +18,8 @@ export type QACardData = {
   keywords: string[];
   like_count: number;
   view_count: number;
+  share_count?: number;
+  comment_count?: number;
   doctor: {
     slug: string;
     name: string;
@@ -51,6 +53,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
   const [expanded, setExpanded] = useState(false);
   const [viewCount, setViewCount] = useState(qa.view_count);
   const [likeCount, setLikeCount] = useState(qa.like_count);
+  const [shareCount, setShareCount] = useState(qa.share_count ?? 0);
   const [liked, setLiked] = useState(false);
   const router = useRouter();
   const doctor = qa.doctor;
@@ -365,7 +368,12 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           <span>{likeCount}</span>
         </button>
 
-        <span className="flex items-center gap-1.5" aria-label="댓글">
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-[var(--primary)]"
+          aria-label="댓글"
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -378,12 +386,20 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           >
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <span>0</span>
-        </span>
+          <span>{qa.comment_count ?? 0}</span>
+        </button>
 
         <button
           type="button"
-          onClick={() => shareQA(qa)}
+          onClick={async () => {
+            await shareQA(qa);
+            // 공유 클릭 카운트 +1 (중복 허용)
+            const supabase = createSupabaseBrowserClient();
+            const { data } = await supabase.rpc("increment_qa_share", {
+              p_qa_id: qa.id,
+            });
+            if (typeof data === "number") setShareCount(data);
+          }}
           className="ml-auto flex cursor-pointer items-center gap-1.5 transition-colors hover:text-[var(--primary)]"
           aria-label="공유하기"
           title="공유하기"
@@ -402,6 +418,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             <polyline points="16 6 12 2 8 6" />
             <line x1="12" y1="2" x2="12" y2="15" />
           </svg>
+          <span>{shareCount}</span>
         </button>
       </div>
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import PickToggle from "@/components/PickToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ type MyQARow = {
   is_pick: boolean | null;
   like_count: number | null;
   view_count: number | null;
+  share_count: number | null;
   comments_count: { count: number }[] | null;
   created_at: string;
 };
@@ -174,7 +176,7 @@ export default async function MyQnasPage({ searchParams }: Props) {
   let listQuery = supabase
     .from("qas")
     .select(
-      `id, status, type, question, answer, is_pick, like_count, view_count, comments_count:comments(count), created_at`,
+      `id, status, type, question, answer, is_pick, like_count, view_count, share_count, comments_count:comments(count), created_at`,
       { count: "exact" },
     )
     .eq("doctor_id", doctorId);
@@ -368,11 +370,12 @@ export default async function MyQnasPage({ searchParams }: Props) {
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">ID</th>
                   <th className="px-3 py-2 text-left font-medium">상태</th>
-                  <th className="px-3 py-2 text-left font-medium">Pick</th>
-                  <th className="px-3 py-2 text-left font-medium">질문</th>
+                  <th className="px-3 py-2 text-center font-medium">Pick</th>
+                  <th className="px-3 py-2 text-left font-medium">제목</th>
                   <th className="px-3 py-2 text-right font-medium">좋아요</th>
                   <th className="px-3 py-2 text-right font-medium">조회수</th>
                   <th className="px-3 py-2 text-right font-medium">댓글</th>
+                  <th className="px-3 py-2 text-right font-medium">공유</th>
                   <th className="px-3 py-2 text-left font-medium">생성일</th>
                 </tr>
               </thead>
@@ -412,12 +415,8 @@ export default async function MyQnasPage({ searchParams }: Props) {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 align-top">
-                        {r.is_pick ? (
-                          <span title="원장님 Pick" aria-label="Pick">⭐</span>
-                        ) : (
-                          <span className="text-[var(--text-muted)]">—</span>
-                        )}
+                      <td className="px-3 py-2 align-top text-center">
+                        <PickToggle qaId={r.id} initial={!!r.is_pick} />
                       </td>
                       <td className="px-3 py-2 align-top text-[var(--text)]">
                         <Link
@@ -436,6 +435,9 @@ export default async function MyQnasPage({ searchParams }: Props) {
                       </td>
                       <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
                         {(r.comments_count?.[0]?.count ?? 0).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
+                        {(r.share_count ?? 0).toLocaleString()}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
                         {formatDate(r.created_at)}

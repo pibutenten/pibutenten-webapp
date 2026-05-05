@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import PickToggle from "@/components/PickToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -8,17 +9,20 @@ export const dynamic = "force-dynamic";
 // 어드민 전용 타입
 // ─────────────────────────────────────────────
 type QAStatus = "draft" | "pending_review" | "published" | "archived";
-type QAType = "qa" | "post";
+type QAType = "qa" | "post" | "article";
+type TypeFilter = QAType | "all";
 type StatusFilter = QAStatus | "all";
 
 type AdminQARow = {
   id: number;
   status: QAStatus;
   type: QAType;
+  is_pick: boolean | null;
   question: string;
   answer: string | null;
   like_count: number | null;
   view_count: number | null;
+  share_count: number | null;
   comments_count: { count: number }[] | null;
   created_at: string;
   doctor: { slug: string; name: string; branch: string | null } | null;
@@ -36,11 +40,17 @@ type StatusCounts = Record<StatusFilter, number>;
 type Props = {
   searchParams: Promise<{
     status?: string;
+    type?: string;
     q?: string;
     doctor?: string;
+    pick?: string;
     page?: string;
   }>;
 };
+
+function isTypeFilter(v: string | undefined): v is TypeFilter {
+  return v === "qa" || v === "post" || v === "article" || v === "all";
+}
 
 const PAGE_SIZE = 50;
 
@@ -115,8 +125,10 @@ export default async function AdminQAsPage({ searchParams }: Props) {
 
   // ── 쿼리 파라미터 파싱 ──
   const statusParam = isStatusFilter(sp.status) ? sp.status : "all";
+  const typeParam: TypeFilter = isTypeFilter(sp.type) ? sp.type : "all";
   const qParam = (sp.q ?? "").trim();
   const doctorSlugParam = (sp.doctor ?? "").trim();
+  const pickOnly = sp.pick === "1";
   const pageNum = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const offset = (pageNum - 1) * PAGE_SIZE;
 
@@ -170,14 +182,16 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   let listQuery = supabase
     .from("qas")
     .select(
-      `id, status, type, question, answer, like_count, view_count, created_at,
+      `id, status, type, is_pick, question, answer, like_count, view_count, share_count, created_at,
        comments_count:comments(count),
        doctor:doctors(slug, name, branch)`,
       { count: "exact" },
     );
 
   if (statusParam !== "all") listQuery = listQuery.eq("status", statusParam);
+  if (typeParam !== "all") listQuery = listQuery.eq("type", typeParam);
   if (doctorIdFilter) listQuery = listQuery.eq("doctor_id", doctorIdFilter);
+  if (pickOnly) listQuery = listQuery.eq("is_pick", true);
   if (qParam) {
     const escaped = qParam.replace(/[%_]/g, "\\$&");
     const pattern = `%${escaped}%`;
@@ -205,12 +219,21 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   const endPage = Math.min(totalPages, pageNum + 2);
   for (let p = startPage; p <= endPage; p++) pageNumbers.push(p);
 
-  // 공통 query baseline (status/doctor/q는 페이지 이동시 유지)
+  // 공통 query baseline (status/type/doctor/pick/q는 페이지 이동시 유지)
   const baseQuery = {
     status: statusParam === "all" ? undefined : statusParam,
+    type: typeParam === "all" ? undefined : typeParam,
+    pick: pickOnly ? "1" : undefined,
     q: qParam || undefined,
     doctor: doctorSlugParam || undefined,
   };
+
+  const TYPE_LIST: { key: TypeFilter; label: string }[] = [
+    { key: "all", label: "전체 타입" },
+    { key: "post", label: "포스팅" },
+    { key: "qa", label: "Q&A" },
+    { key: "article", label: "칼럼" },
+  ];
 
   return (
     <section className="w-full py-6">
@@ -262,16 +285,63 @@ export default async function AdminQAsPage({ searchParams }: Props) {
         })}
       </div>
 
+      {/* type + Pick 필터 — 좌측 type 토글, 우측 Pick 토글 */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-0.5">
+          {TYPE_LIST.map((t) => {
+            const active = t.key === typeParam;
+            const href = `/admin/qas${buildQueryString({
+              ...baseQuery,
+              type: t.key === "all" ? undefined : t.key,
+              page: undefined,
+            })}`;
+            return (
+              <Link
+                key={t.key}
+                href={href}
+                className={
+                  "rounded-[var(--radius-sm)] px-3 py-1 text-xs transition-colors " +
+                  (active
+                    ? "bg-[var(--primary)] text-white"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
+                }
+              >
+                {t.label}
+              </Link>
+            );
+          })}
+        </div>
+        <Link
+          href={`/admin/qas${buildQueryString({
+            ...baseQuery,
+            pick: pickOnly ? undefined : "1",
+            page: undefined,
+          })}`}
+          className={
+            "inline-flex items-center gap-1 rounded-[var(--radius-sm)] border px-3 py-1 text-xs transition-colors " +
+            (pickOnly
+              ? "border-amber-400 bg-amber-50 text-amber-800"
+              : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-amber-300")
+          }
+        >
+          ⭐ {pickOnly ? "Pick만 보는 중" : "Pick만 보기"}
+        </Link>
+      </div>
+
       {/* 검색 + 원장 필터 (GET form) — 모바일/데스크탑 모두 한 줄 */}
       <form
         method="get"
         action="/admin/qas"
         className="mb-4 flex items-center gap-2"
       >
-        {/* 현재 status를 hidden으로 유지 */}
+        {/* 현재 status/type/pick을 hidden으로 유지 */}
         {statusParam !== "all" && (
           <input type="hidden" name="status" value={statusParam} />
         )}
+        {typeParam !== "all" && (
+          <input type="hidden" name="type" value={typeParam} />
+        )}
+        {pickOnly && <input type="hidden" name="pick" value="1" />}
         <select
           id="admin-qas-doctor-filter"
           name="doctor"
@@ -358,6 +428,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
               <thead className="bg-[var(--bg-soft)] text-[var(--text-secondary)]">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">ID</th>
+                  <th className="px-3 py-2 text-center font-medium">Pick</th>
                   <th className="px-3 py-2 text-left font-medium">상태</th>
                   <th className="px-3 py-2 text-left font-medium">타입</th>
                   <th className="px-3 py-2 text-left font-medium">원장</th>
@@ -365,6 +436,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                   <th className="px-3 py-2 text-right font-medium">좋아요</th>
                   <th className="px-3 py-2 text-right font-medium">조회수</th>
                   <th className="px-3 py-2 text-right font-medium">댓글</th>
+                  <th className="px-3 py-2 text-right font-medium">공유</th>
                   <th className="px-3 py-2 text-left font-medium">생성일</th>
                 </tr>
               </thead>
@@ -384,6 +456,9 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                           #{r.id}
                         </Link>
                       </td>
+                      <td className="px-3 py-2 align-top text-center">
+                        <PickToggle qaId={r.id} initial={!!r.is_pick} />
+                      </td>
                       <td className="px-3 py-2 align-top">
                         <span
                           className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
@@ -396,7 +471,11 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                         </span>
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-[var(--text-secondary)]">
-                        {r.type === "post" ? "글" : "Q&A"}
+                        {r.type === "post"
+                          ? "포스팅"
+                          : r.type === "article"
+                            ? "칼럼"
+                            : "Q&A"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 align-top text-[var(--text)]">
                         {r.doctor ? (
@@ -422,6 +501,9 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                       </td>
                       <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
                         {(r.comments_count?.[0]?.count ?? 0).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
+                        {(r.share_count ?? 0).toLocaleString()}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
                         {formatDate(r.created_at)}
