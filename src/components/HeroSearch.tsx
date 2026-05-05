@@ -5,88 +5,93 @@ import { useSearchParams } from "next/navigation";
 import SearchBar from "./SearchBar";
 
 const MOBILE_BP = 768;
-const TARGET_TOP = 130; // 모바일 키보드 ON 시 검색창 top px (nav 56 + 여유 74 — 헤더에 안 가리도록 더 내림)
+const TARGET_TOP = 110; // 모바일 키보드 ON 시 검색창 top px (헤더 nav ~56 + 여유 ~54)
 
 /**
  * Hero(타이틀) + 검색창 묶음.
- * - 모바일: focus마다 main 슬라이드 업 (state 변화 없어도 매번 reposition).
- *   input blur는 main 유지(키워드 칩 클릭 시 위치 그대로). 진짜 키보드 닫힘만 reset.
- * - 데스크탑: h1/슬라이드 변화 없음, 진입 시 자동 포커스.
+ * - 모바일: 키보드 열림 감지 후 한 번만 정확히 페이지 스크롤로 form을 헤더 바로 아래에 배치.
+ *   - setTimeout 다중호출 제거 (흔들림 방지).
+ *   - h1 collapse + 키보드 슬라이드 완료까지 짧게 대기 후 1회 reposition.
+ *   - blur 시 자동 reset 안 함 (칩 클릭 시 위치 유지).
+ *   - 키보드 다시 열림도 감지 → 매번 reposition 보장.
+ * - 데스크탑: h1 변화 없음, 진입 시 자동 포커스.
  */
 export default function HeroSearch() {
   const sp = useSearchParams();
   const initialQ = (sp.get("q") ?? "").trim();
   const [focused, setFocused] = useState(false);
   const formWrapRef = useRef<HTMLDivElement>(null);
+  const focusedRef = useRef(false);
 
   const isMobile = useCallback(
     () => typeof window !== "undefined" && window.innerWidth <= MOBILE_BP,
     [],
   );
 
-  const repositionMain = useCallback(() => {
+  /** 페이지 스크롤로 form을 정확히 TARGET_TOP에 배치 — 한 번만, 부드럽게 */
+  const repositionPage = useCallback(() => {
     if (typeof window === "undefined") return;
     if (!isMobile()) return;
-    const main = document.querySelector("main");
-    if (!main) return;
     const form = formWrapRef.current?.querySelector("form");
     if (!form) return;
-    main.style.transition = "none";
-    main.style.transform = "none";
-    void (main as HTMLElement).offsetHeight;
     const rect = form.getBoundingClientRect();
-    // 양방향 시프트 — 두 번째 포커스 때 form이 위에 있으면 아래로 내림.
-    const shift = -(rect.top - TARGET_TOP);
-    main.style.transition = "transform 0.3s ease";
-    main.style.transform =
-      Math.abs(shift) < 2 ? "" : `translate3d(0, ${shift}px, 0)`;
+    const diff = rect.top - TARGET_TOP;
+    if (Math.abs(diff) < 2) return;
+    window.scrollBy({ top: diff, behavior: "smooth" });
   }, [isMobile]);
 
-  const resetMain = useCallback(() => {
-    if (typeof window === "undefined") return;
-    const main = document.querySelector("main");
-    if (!main) return;
-    main.style.transition = "transform 0.3s ease";
-    main.style.transform = "";
-  }, []);
-
-  // SearchBar focus/blur 콜백 — 데스크탑은 무시, 모바일은 매 focus마다 reposition (blur는 main 유지)
-  // 키보드 애니메이션 + visualViewport 안정화 시간 차이 때문에 여러 번 재시도
+  /** focus/blur — state만 갱신, scroll은 visualViewport 핸들러에서 단일 처리 */
   function handleFocusChange(f: boolean) {
     if (!isMobile()) {
       setFocused(false);
+      focusedRef.current = false;
       return;
     }
     setFocused(f);
-    if (f) {
-      repositionMain();
-      // 키보드 슬라이드업 진행 중에 한 번 더 — viewport 변화 반영
-      setTimeout(() => repositionMain(), 100);
-      // 키보드 완전히 자리잡은 뒤 한 번 더 — 두 번째 포커스 시에도 보정 보장
-      setTimeout(() => repositionMain(), 300);
-      setTimeout(() => repositionMain(), 600);
-    }
-    // f=false (blur) 시 main reset 안 함 → 키보드 닫혀도 위치 유지
-    // 진짜 키보드 닫힘은 visualViewport에서 감지해서 reset
+    focusedRef.current = f;
   }
 
-  // visualViewport: 진짜 키보드 닫힘 감지 → main reset
+  /** visualViewport — 키보드 상태 변화 한 곳에서 처리.
+   *  키보드 열림(또는 다시 열림) → 안정화 대기 후 한 번 reposition.
+   *  키보드 닫힘 → focused state만 해제 (scroll은 그대로 유지). */
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
+    const vv = window.visualViewport;
     let lastKeyboardOpen = false;
+    let stableTimer: number | null = null;
+
     const handler = () => {
-      const keyboardOpen =
-        window.innerHeight - window.visualViewport!.height > 100;
+      const keyboardOpen = window.innerHeight - vv.height > 100;
+
+      // 키보드 열림 상태 (또는 미세 조정 진행 중)
+      if (keyboardOpen && focusedRef.current) {
+        if (stableTimer) window.clearTimeout(stableTimer);
+        // 350ms = h1 collapse(300ms) + 키보드 안정 여유
+        stableTimer = window.setTimeout(() => {
+          stableTimer = null;
+          repositionPage();
+        }, 350) as unknown as number;
+      }
+
+      // 키보드 닫힘
       if (lastKeyboardOpen && !keyboardOpen) {
         setFocused(false);
-        resetMain();
+        focusedRef.current = false;
+        if (stableTimer) {
+          window.clearTimeout(stableTimer);
+          stableTimer = null;
+        }
       }
+
       lastKeyboardOpen = keyboardOpen;
     };
-    window.visualViewport.addEventListener("resize", handler);
-    return () =>
-      window.visualViewport?.removeEventListener("resize", handler);
-  }, [resetMain]);
+
+    vv.addEventListener("resize", handler);
+    return () => {
+      vv.removeEventListener("resize", handler);
+      if (stableTimer) window.clearTimeout(stableTimer);
+    };
+  }, [repositionPage]);
 
   return (
     <header className="text-center pt-10 sm:pt-14">
