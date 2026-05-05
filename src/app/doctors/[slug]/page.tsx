@@ -37,23 +37,22 @@ export default async function DoctorDetailPage({ params }: Props) {
 
   if (!doctor) notFound();
 
-  const { data: qas, count } = await supabase
+  // RPC로 가져와서 검색어 없을 때도 ±14일 랜덤 셔플 (홈 피드와 동일)
+  const rpcRes = await supabase.rpc("search_qas_scored", {
+    p_q: "",
+    p_doctor_slug: doctor.slug,
+    p_offset: 0,
+    p_limit: PAGE_SIZE,
+    p_boost_doctor_slug: null,
+  });
+  const qas = (rpcRes.data ?? []) as QACardData[];
+  // 카운트는 별도 쿼리
+  const cRes = await supabase
     .from("qas")
-    .select(
-      `
-      id, question, answer, meta, keywords,
-      like_count, view_count,
-      doctor:doctors(slug, name, branch),
-      video:videos(youtube_id, youtube_url, topic, upload_date)
-    `,
-      { count: "exact" },
-    )
+    .select("id", { count: "exact", head: true })
     .eq("published", true)
-    .eq("doctor_id", doctor.id)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(PAGE_SIZE)
-    .returns<QACardData[]>();
+    .eq("doctor_id", doctor.id);
+  const count = cRes.count ?? null;
 
   const theme = getDoctorTheme(doctor.slug);
   const photo = getDoctorPhoto(doctor.slug);

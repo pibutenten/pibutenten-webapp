@@ -409,7 +409,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
 
 async function shareQA(qa: QACardData) {
   if (typeof window === "undefined") return;
-  const url = `${window.location.origin}/?qa=${qa.id}`;
+  const url = `${window.location.origin}/qa/${qa.id}`;
   const title = qa.question;
   const text = `${qa.doctor?.name ?? ""} 원장님 — 피부텐텐`;
 
