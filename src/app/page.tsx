@@ -31,8 +31,26 @@ export default async function HomePage({ searchParams }: Props) {
     p_limit: INITIAL_PAGE_SIZE,
     p_boost_doctor_slug: boost || null,
   });
-  const qas = (rpcRes.data ?? []) as QACardData[];
+  let qas = (rpcRes.data ?? []) as QACardData[];
   const error = rpcRes.error;
+
+  // 검색 없을 때 한정: 첫 4카드는 모두 다른 원장으로 다양화
+  // (시각적 다양성 확보. 4명 다른 원장 못 채우면 가능한 만큼만 시도)
+  if (!q && qas.length > 4) {
+    const seen = new Set<string>();
+    const head: QACardData[] = [];
+    const tail: QACardData[] = [];
+    for (const it of qas) {
+      const slug = it.doctor?.slug ?? "_unknown";
+      if (head.length < 4 && !seen.has(slug)) {
+        head.push(it);
+        seen.add(slug);
+      } else {
+        tail.push(it);
+      }
+    }
+    qas = [...head, ...tail];
+  }
 
   // 검색일 때만 카운트 별도 조회
   let count: number | null = null;
