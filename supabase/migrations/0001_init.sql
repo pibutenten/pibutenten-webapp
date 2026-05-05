@@ -154,12 +154,12 @@ grant select on public.qas     to anon, authenticated;
 -- ---------- 7. 시드 (등록 원장 9명) ----------
 insert into public.doctors (slug, name, branch, sort_order) values
   ('jeonghanmi',  '정한미', '강남점', 10),
-  ('baejungmin',  '배정민', '강남점', 11),
-  ('kwonsuhyun',  '권수현', '수원점', 20),
-  ('kimsoohyung', '김수형', '수원점', 21),
-  ('gohyerim',    '고혜림', '수원점', 22),
-  ('kimjongsik',  '김종식', '판교점', 30),
-  ('leedoyoung',  '이도영', '건대점', 40),
-  ('kanghyunjin', '강현진', '건대점', 41),
-  ('parkhyojin',  '박효진', '대구점', 50)
+  ('leedoyoung',  '이도영', '건대점', 20),
+  ('kwonsuhyun',  '권수현', '수원점', 30),
+  ('kimjongsik',  '김종식', '판교점', 40),
+  ('parkhyojin',  '박효진', '대구점', 50),
+  ('gohyerim',    '고혜림', '수원점', 60),
+  ('kimsoohyung', '김수형', '수원점', 70),
+  ('baejungmin',  '배정민', '강남점', 80),
+  ('kanghyunjin', '강현진', '건대점', 90)
 on conflict (slug) do nothing;

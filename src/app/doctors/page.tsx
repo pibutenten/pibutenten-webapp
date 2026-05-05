@@ -70,6 +70,10 @@ export default async function DoctorsPage() {
                   fill
                   sizes="96px"
                   className="object-cover"
+                  style={{
+                    objectPosition: "50% 15%",
+                    transform: `translate(${theme.offsetX ?? 0}px, ${theme.offsetY ?? 0}px)`,
+                  }}
                   priority={d.sort_order <= 20}
                 />
               </div>
