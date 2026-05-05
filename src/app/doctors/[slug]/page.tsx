@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
@@ -61,51 +60,49 @@ export default async function DoctorDetailPage({ params }: Props) {
 
   return (
     <section className="space-y-6">
-      <Link
-        href="/doctors"
-        className="inline-flex items-center gap-1 text-[13px] text-[var(--text-secondary)] hover:text-[var(--primary)]"
+      {/* 원장님 hero — 좌: 멘트 + 이름·소속 / 우: 누끼 사진이 하단선 위에 서 있음 */}
+      <header
+        className="relative grid items-end gap-5 border-b pb-0 sm:gap-8"
+        style={{
+          gridTemplateColumns: "1fr 140px",
+          borderColor: theme.ring ?? "var(--border)",
+        }}
       >
-        ← 전문의 목록
-      </Link>
-
-      {/* 원장님 hero */}
-      <header className="grid grid-cols-[1fr_120px] items-stretch gap-5 sm:grid-cols-[1fr_180px] sm:gap-8">
-        <div className="flex flex-col justify-between space-y-3 py-2">
+        {/* 좌측: 멘트 + 이름 */}
+        <div className="flex flex-col justify-end space-y-4 pb-5 sm:pb-6">
           {doctor.intro && (
-            <p className="whitespace-pre-line text-[15px] leading-[1.6] text-[var(--text-secondary)] sm:text-[16px]">
+            <p className="whitespace-pre-line text-[14px] leading-[1.7] text-[var(--text-secondary)] sm:text-[16px]">
               {doctor.intro}
             </p>
           )}
           <div>
             <h1 className="text-2xl font-bold text-[var(--text)] sm:text-3xl">
-              {doctor.name} 원장님
+              {doctor.name} <span className="text-[var(--text-secondary)]">원장님</span>
             </h1>
-            <p className="mt-1 text-[13px] font-medium text-[var(--text-secondary)] sm:text-[14px]">
-              {doctor.title} · {affiliation}
+            <p
+              className="mt-1 text-[13px] font-medium sm:text-[14px]"
+              style={{ color: theme.accent }}
+            >
+              {affiliation}
             </p>
           </div>
         </div>
-        <div
-          className="relative aspect-[3/4] overflow-hidden rounded-[var(--radius)] sm:aspect-[3/4]"
-          style={{ background: theme.bg }}
-        >
+
+        {/* 우측: 누끼 사진 (object-bottom으로 하단선 위에 자연스럽게) */}
+        <div className="relative h-[220px] w-full sm:h-[320px]">
           <Image
             src={photo}
             alt={`${doctor.name} 원장님`}
             fill
-            sizes="(max-width: 600px) 120px, 180px"
-            className="object-cover"
-            style={{
-              objectPosition: "50% 8%",
-              transform: `translate(${theme.offsetX ?? 0}px, ${theme.offsetY ?? 0}px)`,
-            }}
+            sizes="(max-width: 600px) 140px, 220px"
+            className="object-contain object-bottom"
             priority
           />
         </div>
       </header>
 
       {/* Q&A 헤더 */}
-      <div className="flex items-baseline justify-between border-t border-[var(--border)] pt-5">
+      <div className="flex items-baseline justify-between pt-2">
         <h2 className="text-lg font-bold text-[var(--text)]">
           {doctor.name} 원장님의 Q&A
         </h2>
