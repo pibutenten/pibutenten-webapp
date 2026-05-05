@@ -35,7 +35,7 @@ export default async function AdminPage() {
     <section className="w-full py-6">
       <h1 className="mb-1 text-2xl font-bold text-[var(--text)]">관리자</h1>
       <p className="mb-6 text-sm text-[var(--text-secondary)]">
-        환영합니다, <b>{profile.display_name}</b> 님.
+        환영합니다, <b>{profile.display_name}님</b>.
       </p>
 
       {/* 상태별 카운트 — 위쪽, 모바일도 4개 한 줄 */}
