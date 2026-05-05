@@ -227,8 +227,8 @@ export default function TopNav({ session }: TopNavProps) {
                 title={session.displayName}
               >
                 {UserIcon}
-                <span className="hidden sm:inline max-w-[80px] truncate">
-                  {session.displayName}
+                <span className="hidden sm:inline">
+                  {session.role === "admin" ? "관리자" : session.displayName}
                 </span>
               </Link>
               <button

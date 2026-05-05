@@ -16,10 +16,17 @@ type DraftQA = {
   keywords: string[];
 };
 
+type MatchedDoctor = { slug: string; name: string };
+
 type GenerateResult = {
   videoId: string;
   title: string | null;
-  drafts: DraftQA[];
+  doctorSlug?: string;
+  doctorName?: string;
+  matchedDoctors?: MatchedDoctor[];
+  needsManualDoctor?: boolean;
+  message?: string;
+  drafts?: DraftQA[];
 };
 
 type Props = {
@@ -29,7 +36,8 @@ type Props = {
 export default function DraftClient({ doctors }: Props) {
   const router = useRouter();
   const [url, setUrl] = useState("");
-  const [doctorSlug, setDoctorSlug] = useState(doctors[0]?.slug ?? "");
+  // "" = 자동 매칭 시도 (서버에서 영상 제목/자막에서 원장 이름 검색)
+  const [doctorSlug, setDoctorSlug] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerateResult | null>(null);
   // 사용자가 수정 중인 drafts (생성 직후 result.drafts 복사)
@@ -57,7 +65,16 @@ export default function DraftClient({ doctors }: Props) {
           return;
         }
         setResult(data);
-        setEditing(data.drafts);
+        // 자동 매칭 결과를 select에 반영 (사용자가 변경 가능)
+        if (data.doctorSlug) setDoctorSlug(data.doctorSlug);
+        // 자동 매칭 실패 — drafts 없음, 사용자가 select 후 다시 시도
+        if (data.needsManualDoctor) {
+          setError(
+            data.message ?? "원장을 자동 매칭하지 못했습니다. 직접 선택 후 다시 시도해주세요.",
+          );
+          return;
+        }
+        setEditing(data.drafts ?? []);
       } catch (e) {
         setError(e instanceof Error ? e.message : "네트워크 오류");
       }
