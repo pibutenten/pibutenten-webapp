@@ -37,12 +37,13 @@ export const metadata: Metadata = {
     title: "피부텐텐",
     description: "피부가 예뻐지는 모든 이야기",
     locale: "ko_KR",
-    // /opengraph-image 라우트(자동 생성, Q&A 글씨 없는 logo 가운데 + 하늘색)
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "피부텐텐" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "피부텐텐",
     description: "피부가 예뻐지는 모든 이야기",
+    images: ["/og.png"],
   },
 };
 

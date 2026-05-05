@@ -19,7 +19,7 @@ export type DoctorTheme = {
 
 const THEMES: Record<string, DoctorTheme> = {
   jeonghanmi:  { bg: "#FCE7F0", bgSoft: "#FFF1F6", ring: "#F8C0D2", accent: "#B8517A" }, // 핑크
-  baejungmin:  { bg: "#FAF0D7", bgSoft: "#FCF6E5", ring: "#E8D9A8", accent: "#8A6F1F", offsetX: 6 }, // 아이보리
+  baejungmin:  { bg: "#E5E9F0", bgSoft: "#F0F3F8", ring: "#C8CFD8", accent: "#54616F", offsetX: 6 }, // 연한 회색
   kwonsuhyun:  { bg: "#EAE2F8", bgSoft: "#F4EFFA", ring: "#C8B8E5", accent: "#6648A8" }, // 라벤더
   kimsoohyung: { bg: "#FFF6CF", bgSoft: "#FFFBE6", ring: "#F2E08F", accent: "#9A7B12" }, // 노랑
   gohyerim:    { bg: "#B2DFDB", bgSoft: "#D4ECEA", ring: "#80CBC4", accent: "#00695C" }, // 진한 민트 (Teal 100)
