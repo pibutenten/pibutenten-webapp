@@ -428,12 +428,13 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
         </button>
       </div>
 
-      {/* 댓글 블록 — 본문 펼침 여부 무관하게 항상 표시 */}
+      {/* 댓글 블록 — 댓글 있거나 펼친 상태(입력 폼)일 때만 표시. CommentsBlock 자체가 빈 상태에서 null 반환 */}
       <CommentsBlock
         qaId={qa.id}
         doctorSlug={qa.doctor?.slug ?? null}
         isPublishedQa={true}
         onCountChange={setCommentCount}
+        showInput={expanded}
       />
     </article>
   );
