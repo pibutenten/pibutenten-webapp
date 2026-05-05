@@ -89,7 +89,7 @@ export default async function AdminPage() {
           >
             <div className="text-xs text-[var(--text-muted)]">
               {status === "draft" && "초안"}
-              {status === "pending_review" && "검수"}
+              {status === "pending_review" && "대기"}
               {status === "published" && "발행"}
               {status === "archived" && "보관"}
             </div>

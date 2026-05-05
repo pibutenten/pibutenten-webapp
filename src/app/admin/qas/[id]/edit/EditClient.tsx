@@ -49,7 +49,7 @@ type Props = {
 
 const STATUS_LABELS: Record<QA["status"], string> = {
   draft: "초안",
-  pending_review: "검수",
+  pending_review: "대기",
   published: "발행",
   archived: "보관",
 };

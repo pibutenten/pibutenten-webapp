@@ -217,21 +217,6 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
                   <button
                     key={kw}
                     type="button"
-                    onMouseDown={() => {
-                      // 칩 클릭 시 키보드는 닫히되 화면 스크롤은 유지하라는 글로벌 플래그
-                      (
-                        window as unknown as {
-                          __pbttHoldPosition?: boolean;
-                        }
-                      ).__pbttHoldPosition = true;
-                    }}
-                    onTouchStart={() => {
-                      (
-                        window as unknown as {
-                          __pbttHoldPosition?: boolean;
-                        }
-                      ).__pbttHoldPosition = true;
-                    }}
                     onClick={() => selectChip(kw)}
                     disabled={isPending}
                     className="cursor-pointer rounded-full border px-3 py-1 text-[13px] transition-colors hover:shadow-sm active:scale-[0.97] disabled:cursor-wait"

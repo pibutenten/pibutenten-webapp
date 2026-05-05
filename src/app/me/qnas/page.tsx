@@ -33,7 +33,7 @@ const PAGE_SIZE = 30;
 
 const STATUS_LIST: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "전체" },
-  { key: "pending_review", label: "검수" },
+  { key: "pending_review", label: "대기" },
   { key: "published", label: "발행" },
   { key: "draft", label: "초안" },
   { key: "archived", label: "보관" },
@@ -41,7 +41,7 @@ const STATUS_LIST: { key: StatusFilter; label: string }[] = [
 
 const STATUS_STYLE: Record<QAStatus, { bg: string; fg: string; label: string }> = {
   draft: { bg: "#9E9E9E", fg: "#FFFFFF", label: "초안" },
-  pending_review: { bg: "#FFA000", fg: "#FFFFFF", label: "검수" },
+  pending_review: { bg: "#FFA000", fg: "#FFFFFF", label: "대기" },
   published: { bg: "#4CAF50", fg: "#FFFFFF", label: "발행" },
   archived: { bg: "#616161", fg: "#FFFFFF", label: "보관" },
 };
