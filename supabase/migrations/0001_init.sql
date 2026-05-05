@@ -17,7 +17,8 @@ create table if not exists public.doctors (
   slug        text not null unique,
   name        text not null,
   title       text not null default '피부과 전문의',
-  branch      text,
+  clinic      text not null default '힐하우스피부과',
+  branch      text,                          -- 지점명만 (예: '강남점')
   photo_url   text,
   intro       text,
   sort_order  int  not null default 100,
@@ -89,11 +90,12 @@ create policy "qas: public read published"
 
 -- ---------- 4. updated_at 자동 갱신 트리거 ----------
 create or replace function public.set_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql as $pl$
 begin
   new.updated_at = now();
   return new;
-end $$;
+end
+$pl$;
 
 drop trigger if exists doctors_set_updated_at on public.doctors;
 create trigger doctors_set_updated_at
@@ -119,24 +121,24 @@ returns int
 language sql
 security definer
 set search_path = public
-as $$
+as $func$
   update public.qas
      set like_count = like_count + 1
    where id = p_qa_id and published = true
   returning like_count;
-$$;
+$func$;
 
 create or replace function public.increment_qa_view(p_qa_id bigint)
 returns int
 language sql
 security definer
 set search_path = public
-as $$
+as $func$
   update public.qas
      set view_count = view_count + 1
    where id = p_qa_id and published = true
   returning view_count;
-$$;
+$func$;
 
 revoke all on function public.increment_qa_like(bigint) from public;
 revoke all on function public.increment_qa_view(bigint) from public;
@@ -151,13 +153,13 @@ grant select on public.qas     to anon, authenticated;
 
 -- ---------- 7. 시드 (등록 원장 9명) ----------
 insert into public.doctors (slug, name, branch, sort_order) values
-  ('jeonghanmi',  '정한미', '강남점',          10),
-  ('baejungmin',  '배정민', '강남점',          11),
-  ('kwonsuhyun',  '권수현', '수원점',          20),
-  ('kimsoohyung', '김수형', '수원점',          21),
-  ('gohyerim',    '고혜림', '수원점',          22),
-  ('kimjongsik',  '김종식', '판교점',          30),
-  ('leedoyoung',  '이도영', '건대점 대표원장', 40),
-  ('kanghyunjin', '강현진', '건대점',          41),
-  ('parkhyojin',  '박효진', '대구점 대표원장', 50)
+  ('jeonghanmi',  '정한미', '강남점', 10),
+  ('baejungmin',  '배정민', '강남점', 11),
+  ('kwonsuhyun',  '권수현', '수원점', 20),
+  ('kimsoohyung', '김수형', '수원점', 21),
+  ('gohyerim',    '고혜림', '수원점', 22),
+  ('kimjongsik',  '김종식', '판교점', 30),
+  ('leedoyoung',  '이도영', '건대점', 40),
+  ('kanghyunjin', '강현진', '건대점', 41),
+  ('parkhyojin',  '박효진', '대구점', 50)
 on conflict (slug) do nothing;
