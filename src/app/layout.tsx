@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_KR } from "next/font/google";
 import Script from "next/script";
-import TopNav from "@/components/TopNav";
+import TopNav, { type SessionInfo } from "@/components/TopNav";
 import ScrollManager from "@/components/ScrollManager";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 const notoSansKR = Noto_Sans_KR({
@@ -54,9 +55,30 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+async function getSessionInfo(): Promise<SessionInfo> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, display_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!profile) return null;
+    return {
+      role: profile.role ?? "user",
+      displayName: profile.display_name ?? user.email ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const session = await getSessionInfo();
   return (
     <html lang="ko" className={`${notoSansKR.variable} h-full antialiased`}>
       <head>
@@ -67,7 +89,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ScrollManager />
-        <TopNav />
+        <TopNav session={session} />
         <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 py-4">
           {children}
         </main>

@@ -3,12 +3,23 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type NavItem = {
   href: string;
   label: string;
   external?: boolean;
   icon: React.ReactNode;
+};
+
+export type SessionInfo = {
+  role: "admin" | "doctor" | "user";
+  displayName: string;
+} | null;
+
+type TopNavProps = {
+  session: SessionInfo;
 };
 
 const HomeIcon = (
@@ -87,9 +98,40 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export default function TopNav() {
+const UserIcon = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-5 w-5"
+    aria-hidden="true"
+  >
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+export default function TopNav({ session }: TopNavProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [isLoggingOut, startLogout] = useTransition();
+
+  function handleLogout() {
+    startLogout(async () => {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+      router.push("/");
+      router.refresh();
+    });
+  }
+
+  const dashboardHref =
+    session?.role === "admin" ? "/admin" :
+    session?.role === "doctor" ? "/me" :
+    "/";
 
   return (
     <header
@@ -175,6 +217,39 @@ export default function TopNav() {
               </Link>
             );
           })}
+
+          {/* 로그인 / 마이페이지 */}
+          {session ? (
+            <div className="ml-1 flex items-center gap-1 sm:ml-2">
+              <Link
+                href={dashboardHref}
+                className="flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
+                title={session.displayName}
+              >
+                {UserIcon}
+                <span className="hidden sm:inline max-w-[80px] truncate">
+                  {session.displayName}
+                </span>
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="rounded-md px-2 py-1 text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50"
+              >
+                {isLoggingOut ? "..." : "로그아웃"}
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="ml-1 flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)] sm:ml-2"
+              title="로그인"
+            >
+              {UserIcon}
+              <span className="hidden sm:inline">로그인</span>
+            </Link>
+          )}
         </nav>
       </div>
     </header>
