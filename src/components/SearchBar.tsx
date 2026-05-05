@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
   initialValue?: string;
@@ -15,16 +15,25 @@ export default function SearchBar({
   const [q, setQ] = useState(initialValue);
   const router = useRouter();
 
+  // initialValue가 외부에서 바뀌면 (URL ?q=... 변경 등) 동기화
+  useEffect(() => {
+    setQ(initialValue);
+  }, [initialValue]);
+
   return (
     <form
       role="search"
       onSubmit={(e) => {
         e.preventDefault();
         const trimmed = q.trim();
-        if (!trimmed) return;
+        if (!trimmed) {
+          // 빈 검색은 홈으로 (검색 해제)
+          router.push("/");
+          return;
+        }
         // submit 시 모바일 키보드 내림
         (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.blur();
-        router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+        router.push(`/?q=${encodeURIComponent(trimmed)}`);
       }}
       className="relative mx-auto w-full max-w-[520px]"
     >
@@ -34,7 +43,6 @@ export default function SearchBar({
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => onFocusChange?.(true)}
         onBlur={() => {
-          // 입력값 있으면 focused 유지(원본 동작), 비어있으면 100ms 지연 후 해제
           if (!q.trim()) {
             setTimeout(() => onFocusChange?.(false), 100);
           }

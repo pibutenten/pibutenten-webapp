@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import SearchBar from "./SearchBar";
 
 /**
@@ -13,6 +14,8 @@ import SearchBar from "./SearchBar";
  * 정적 사이트 (pbtt-search/js/app.js의 setupSearchUX) 동작 이식.
  */
 export default function HeroSearch() {
+  const sp = useSearchParams();
+  const initialQ = (sp.get("q") ?? "").trim();
   const [focused, setFocused] = useState(false);
   const formWrapRef = useRef<HTMLDivElement>(null);
 
@@ -85,7 +88,7 @@ export default function HeroSearch() {
         피부가 예뻐지는 모든 이야기
       </h1>
       <div ref={formWrapRef}>
-        <SearchBar onFocusChange={setFocused} />
+        <SearchBar initialValue={initialQ} onFocusChange={setFocused} />
       </div>
     </header>
   );

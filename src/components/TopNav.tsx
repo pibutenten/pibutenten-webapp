@@ -78,12 +78,10 @@ const YoutubeIcon = (
 );
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "홈", icon: HomeIcon },
-  { href: "/search", label: "검색", icon: SearchIcon },
   { href: "/doctors", label: "전문의", icon: DoctorIcon },
   {
     href: "https://www.youtube.com/@pibutenten",
-    label: "유튜브",
+    label: "피부텐텐",
     external: true,
     icon: YoutubeIcon,
   },
@@ -116,7 +114,7 @@ export default function TopNav() {
           </span>
         </Link>
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-1 sm:gap-3">
           {NAV_ITEMS.map((item) => {
             const isActive =
               !item.external &&
@@ -125,10 +123,17 @@ export default function TopNav() {
                 : pathname.startsWith(item.href));
 
             const baseCls =
-              "flex items-center justify-center rounded-md p-2 transition-colors";
+              "flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium transition-colors";
             const activeCls = isActive
               ? "text-[var(--primary)]"
               : "text-[var(--text-secondary)] hover:text-[var(--primary)]";
+
+            const content = (
+              <>
+                {item.icon}
+                <span className="hidden sm:inline">{item.label}</span>
+              </>
+            );
 
             if (item.external) {
               return (
@@ -141,7 +146,7 @@ export default function TopNav() {
                   title={item.label}
                   className={`${baseCls} ${activeCls}`}
                 >
-                  {item.icon}
+                  {content}
                 </a>
               );
             }
@@ -155,7 +160,7 @@ export default function TopNav() {
                 aria-current={isActive ? "page" : undefined}
                 className={`${baseCls} ${activeCls}`}
               >
-                {item.icon}
+                {content}
               </Link>
             );
           })}

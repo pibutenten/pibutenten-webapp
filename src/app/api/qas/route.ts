@@ -17,8 +17,24 @@ export async function GET(req: Request) {
   const limitRaw = parseInt(url.searchParams.get("limit") ?? "20", 10) || 20;
   const limit = Math.min(MAX_LIMIT, Math.max(1, limitRaw));
   const q = (url.searchParams.get("q") ?? "").trim();
+  const doctorSlug = (url.searchParams.get("doctor_slug") ?? "").trim();
 
   const supabase = await createSupabaseServerClient();
+
+  // doctor_slug 필터링: doctor.slug → doctor.id 조회 후 doctor_id로 필터
+  let doctorIdFilter: string | null = null;
+  if (doctorSlug) {
+    const { data: dRow } = await supabase
+      .from("doctors")
+      .select("id")
+      .eq("slug", doctorSlug)
+      .maybeSingle();
+    if (!dRow) {
+      return NextResponse.json({ qas: [] }, { headers: { "cache-control": "no-store" } });
+    }
+    doctorIdFilter = dRow.id;
+  }
+
   let query = supabase
     .from("qas")
     .select(
@@ -31,10 +47,16 @@ export async function GET(req: Request) {
     )
     .eq("published", true);
 
+  if (doctorIdFilter) {
+    query = query.eq("doctor_id", doctorIdFilter);
+  }
+
   if (q) {
-    // PostgREST .or 의 값에 콤마/괄호가 들어가면 파싱 깨질 수 있어 escape
     const pattern = `%${escapeLike(q)}%`;
-    query = query.or(`question.ilike.${pattern},answer.ilike.${pattern}`);
+    // question/answer 본문 부분일치 OR keywords 배열에 정확 일치
+    query = query.or(
+      `question.ilike.${pattern},answer.ilike.${pattern},keywords.cs.{${q}}`,
+    );
   }
 
   const { data, error } = await query
