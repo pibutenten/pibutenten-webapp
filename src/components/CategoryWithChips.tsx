@@ -90,7 +90,16 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
   }, [active, expanded]);
 
   if (active === null) {
-    return <div className="mb-3 border-b border-[var(--border)]" />;
+    return (
+      <div
+        aria-hidden
+        className="mb-3 h-px w-full"
+        style={{
+          background:
+            "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.10) 18%, rgba(0,0,0,0.10) 82%, transparent 100%)",
+        }}
+      />
+    );
   }
 
   const cat = CATEGORIES.find((c) => c.slug === active)!;
@@ -120,7 +129,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
       <div
         role="tablist"
         aria-label="카테고리"
-        className="-mx-4 mb-3 flex justify-center gap-x-[14px] overflow-x-auto border-b border-[var(--border)] px-4 sm:mx-0 sm:mb-[14px] sm:flex-wrap sm:gap-x-7 sm:gap-y-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+        className="-mx-4 flex justify-center gap-x-[14px] overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:gap-x-7 sm:gap-y-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none" } as CSSProperties}
       >
         {CATEGORIES.map((c) => {
@@ -136,7 +145,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
                 // expanded 상태는 유지 — 펼친 채로 탭 전환 자유롭게.
                 // 새 페이지 진입(로고/검색 등)은 컴포넌트 새 마운트라 기본값 false로 시작됨.
               }}
-              className="-mb-px shrink-0 border-b-2 px-1 py-[6px] text-[13px] font-semibold transition-[color,border-color,transform] active:scale-[0.96] sm:py-[7px] sm:text-[14px]"
+              className="shrink-0 border-b-2 px-1 py-[6px] text-[13px] font-semibold transition-[color,border-color,transform] active:scale-[0.96] sm:py-[7px] sm:text-[14px]"
               style={{
                 color: isActive ? c.color : "var(--text-secondary)",
                 borderBottomColor: isActive ? c.color : "transparent",
@@ -147,6 +156,16 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
           );
         })}
       </div>
+
+      {/* 탭 ↔ 칩 사이 그라데이션 라인 (양 끝 페이드아웃) */}
+      <div
+        aria-hidden
+        className="mb-3 h-px w-full sm:mb-[14px]"
+        style={{
+          background:
+            "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.10) 18%, rgba(0,0,0,0.10) 82%, transparent 100%)",
+        }}
+      />
 
       {/* 칩 */}
       {allChips.length === 0 ? (
