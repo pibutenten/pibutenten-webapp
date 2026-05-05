@@ -55,6 +55,9 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// layout이 매 요청마다 session을 새로 읽도록 강제 (캐시 방지)
+export const dynamic = "force-dynamic";
+
 async function getSessionInfo(): Promise<SessionInfo> {
   try {
     const supabase = await createSupabaseServerClient();
