@@ -39,6 +39,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const docName = qa.doctor?.name ? `${qa.doctor.name} 원장님` : "피부텐텐";
   // 답변 앞부분 100자로 description
   const desc = (qa.answer ?? "").replace(/\s+/g, " ").trim().slice(0, 110);
+  // 원장별 미리 제작된 OG PNG 직접 사용 (satori 합성 안 거침)
+  const ogUrl = qa.doctor?.slug
+    ? `/og/${qa.doctor.slug}.png`
+    : `/og.png`;
   return {
     title: qa.question,
     description: desc,
@@ -46,11 +50,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: qa.question,
       description: `${docName} — ${desc}`,
       type: "article",
+      images: [{ url: ogUrl, width: 1200, height: 630, alt: docName }],
     },
     twitter: {
       card: "summary_large_image",
       title: qa.question,
       description: `${docName} — ${desc}`,
+      images: [ogUrl],
     },
   };
 }

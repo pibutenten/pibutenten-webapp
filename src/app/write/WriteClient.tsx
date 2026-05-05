@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { CATEGORIES } from "@/lib/categories";
@@ -27,22 +26,23 @@ type Props = {
   displayName: string;
 };
 
-const KEYWORD_SUGGESTIONS = [
-  "여드름",
-  "기미",
-  "주름",
-  "리프팅",
-  "쥬베룩",
-  "스킨부스터",
-  "보톡스",
-  "필러",
-  "레이저",
-  "홈케어",
-  "선크림",
-  "트러블",
-  "잡티",
-  "모공",
-];
+const TYPE_LABEL: Record<WriteType, string> = {
+  post: "포스팅",
+  article: "칼럼",
+  qa: "Q&A",
+};
+
+const KEYWORD_MIN: Record<WriteType, number> = {
+  post: 0,
+  article: 3,
+  qa: 0,
+};
+
+const KEYWORD_MAX: Record<WriteType, number> = {
+  post: 4,
+  article: 10,
+  qa: 8,
+};
 
 export default function WriteClient({
   role,
@@ -60,8 +60,13 @@ export default function WriteClient({
       : role === "doctor"
         ? ["post", "article"]
         : ["post"];
-  const [type, setType] = useState<WriteType>(
+  const [type, setTypeState] = useState<WriteType>(
     role === "doctor" || role === "admin" ? "article" : "post",
+  );
+
+  // 글쓴이 (원장 명의) — 모든 type에 공통 노출. ""=관리자 명의(admin), 원장 본인은 자기 slug 고정
+  const [authorDoctor, setAuthorDoctor] = useState<string>(
+    role === "doctor" ? (myDoctor?.slug ?? "") : "",
   );
 
   // post
@@ -69,18 +74,13 @@ export default function WriteClient({
 
   // article
   const [title, setTitle] = useState("");
-  const [coverImage, setCoverImage] = useState<string | null>(null);
   const [sections, setSections] = useState<Section[]>([
     { heading: "", body: "", image: null },
   ]);
 
-  // qa (admin)
-  const [qaDoctor, setQaDoctor] = useState<string>(doctors[0]?.slug ?? "");
+  // qa
   const [qaQuestion, setQaQuestion] = useState("");
   const [qaAnswer, setQaAnswer] = useState("");
-
-  // article로 쓸 doctor (admin이 본인 명의로 작성 시 비워둠 가능)
-  const [articleDoctor, setArticleDoctor] = useState<string>("");
 
   // 공통 키워드
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -88,8 +88,41 @@ export default function WriteClient({
 
   const [error, setError] = useState<string | null>(null);
 
-  const minKw = type === "article" ? 3 : 0;
-  const maxKw = type === "article" ? 6 : 3;
+  const minKw = KEYWORD_MIN[type];
+  const maxKw = KEYWORD_MAX[type];
+
+  /** 작성 중 내용이 있는지 체크 — type 전환 경고용 */
+  function hasUnsavedContent(): boolean {
+    if (type === "post" && postBody.trim()) return true;
+    if (type === "article") {
+      if (title.trim()) return true;
+      if (sections.some((s) => s.heading.trim() || s.body.trim())) return true;
+    }
+    if (type === "qa" && (qaQuestion.trim() || qaAnswer.trim())) return true;
+    if (keywords.length > 0) return true;
+    return false;
+  }
+
+  /** type 전환 — 작성 중 내용 있으면 경고, 확인 시 모두 초기화 */
+  function setType(next: WriteType) {
+    if (next === type) return;
+    if (hasUnsavedContent()) {
+      const ok = window.confirm(
+        "작성 중인 내용이 있습니다.\n타입을 변경하면 작성한 내용이 모두 사라집니다.\n계속하시겠습니까?",
+      );
+      if (!ok) return;
+      // 모든 필드 초기화
+      setPostBody("");
+      setTitle("");
+      setSections([{ heading: "", body: "", image: null }]);
+      setQaQuestion("");
+      setQaAnswer("");
+      setKeywords([]);
+      setKeywordInput("");
+      setError(null);
+    }
+    setTypeState(next);
+  }
 
   function addKeyword(k: string) {
     const v = k.trim().replace(/^#/, "");
@@ -136,26 +169,19 @@ export default function WriteClient({
     });
   }
 
-  async function uploadImage(file: File): Promise<string | null> {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: fd,
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setError(`이미지 업로드 실패: ${j?.error ?? res.status}`);
+  function validateBeforeSubmit(forStatus: SubmitStatus): string | null {
+    // 저장(draft)은 최소 검증만
+    if (forStatus === "draft") {
+      if (type === "post" && !postBody.trim()) return "내용을 입력해주세요.";
+      if (type === "article" && !title.trim()) return "제목을 입력해주세요.";
+      if (type === "qa" && !qaQuestion.trim() && !qaAnswer.trim())
+        return "질문 또는 답변을 입력해주세요.";
       return null;
     }
-    const j = (await res.json()) as { url: string; path: string };
-    return j.url;
-  }
-
-  function validateBeforeSubmit(): string | null {
+    // 발행/검수요청은 풀 검증
     if (type === "post") {
       if (!postBody.trim()) return "내용을 입력해주세요.";
-      if (postBody.length > 4000) return "post는 최대 4000자까지 가능합니다.";
+      if (postBody.length > 4000) return "포스팅은 최대 4000자까지 가능합니다.";
     } else if (type === "article") {
       if (!title.trim()) return "제목을 입력해주세요.";
       const filled = sections.filter(
@@ -165,36 +191,44 @@ export default function WriteClient({
       if (keywords.length < minKw)
         return `칼럼은 키워드를 최소 ${minKw}개 입력해주세요.`;
     } else if (type === "qa") {
-      if (!qaDoctor) return "원장을 선택해주세요.";
       if (!qaQuestion.trim()) return "질문을 입력해주세요.";
       if (!qaAnswer.trim()) return "답변을 입력해주세요.";
     }
     return null;
   }
 
-  function handleSubmit() {
+  type SubmitStatus = "draft" | "pending_review" | "published";
+
+  function handleSubmit(submitStatus: SubmitStatus) {
     setError(null);
-    const ve = validateBeforeSubmit();
+    const ve = validateBeforeSubmit(submitStatus);
     if (ve) {
       setError(ve);
       return;
     }
     startTransition(async () => {
       try {
-        const payload: Record<string, unknown> = { type, keywords };
+        const payload: Record<string, unknown> = {
+          type,
+          keywords,
+          status: submitStatus,
+        };
+        // 글쓴이 — admin이 본인 명의면 비움, 원장 명의면 slug 전달
+        if (role === "admin" && authorDoctor) {
+          payload.doctor_slug = authorDoctor;
+        }
+        // 원장은 항상 본인 명의 (myDoctor.slug)
+        if (role === "doctor" && myDoctor) {
+          payload.doctor_slug = myDoctor.slug;
+        }
         if (type === "post") {
           payload.body = postBody;
         } else if (type === "article") {
           payload.title = title;
-          payload.cover_image = coverImage;
           payload.sections = sections.filter(
             (s) => s.heading.trim() || s.body.trim(),
           );
-          if (role === "admin" && articleDoctor) {
-            payload.doctor_slug = articleDoctor;
-          }
         } else if (type === "qa") {
-          payload.doctor_slug = qaDoctor;
           payload.question = qaQuestion;
           payload.answer = qaAnswer;
         }
@@ -209,11 +243,17 @@ export default function WriteClient({
           setError(data?.error ?? `저장 실패 (${res.status})`);
           return;
         }
-        // type별 redirect
+        // 저장된 상태에 따른 redirect
+        if (submitStatus === "draft") {
+          // 저장 — 목록(검수/내 글) 또는 dashboard
+          if (role === "doctor") router.push("/me/qnas?status=draft");
+          else router.push("/admin/qas?status=draft");
+          return;
+        }
         if (data.type === "article" && data.article_slug) {
           router.push(`/article/${encodeURIComponent(data.article_slug)}`);
         } else if (data.type === "qa") {
-          router.push(`/me/qnas?status=pending_review`);
+          router.push(`/me/qnas?status=${submitStatus}`);
         } else {
           router.push(`/feed`);
         }
@@ -223,16 +263,33 @@ export default function WriteClient({
     });
   }
 
+  // "검수 요청" 활성화 조건:
+  //  - 작성자(role)와 글쓴이(authorDoctor)가 다름 (예: admin이 원장 명의로 작성)
+  //  - 일반 사용자(user)는 검수 요청 비활성 (post만 가능, 자기 명의)
+  //  - 원장 본인이 본인 글 쓰는 건 본인 발행이라 검수 요청 비활성
+  const canRequestReview =
+    role === "admin" && !!authorDoctor; // admin이 원장 명의로 쓸 때만
+
+  // "발행" 활성화 조건:
+  //  - admin이 본인 명의로 → 발행
+  //  - admin이 원장 명의로 → 발행 가능 (원장 대신 즉시 발행)
+  //  - 원장이 본인 명의로 → 발행
+  //  - user → 발행 (post 한정)
+  // 결국 모두 발행 가능. canRequestReview만 분기.
+
+  const writerLabel =
+    role === "admin"
+      ? authorDoctor
+        ? doctors.find((d) => d.slug === authorDoctor)?.name + " 원장님 명의"
+        : "관리자 명의 (피부텐텐 운영)"
+      : role === "doctor"
+        ? `${myDoctor?.name ?? displayName} 원장님 명의`
+        : `${displayName || "회원"} 명의`;
+
   return (
     <section className="w-full py-6">
       <h1 className="mb-1 text-2xl font-bold text-[var(--text)]">글쓰기</h1>
-      <p className="mb-5 text-[13px] text-[var(--text-muted)]">
-        {role === "user"
-          ? "여러분의 피부 이야기를 남겨주세요."
-          : role === "doctor"
-            ? `${myDoctor?.name ?? displayName} 원장님의 글로 작성됩니다.`
-            : "관리자: 원장 명의 Q&A / 칼럼 / 일반 글을 모두 작성할 수 있어요."}
-      </p>
+      <p className="mb-5 text-[13px] text-[var(--text-muted)]">{writerLabel}</p>
 
       {/* type 토글 (선택지 2개 이상일 때만 노출) */}
       {allowedTypes.length > 1 && (
@@ -249,7 +306,7 @@ export default function WriteClient({
                   : "text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
               }
             >
-              {t === "post" ? "일반 글" : t === "article" ? "칼럼" : "Q&A"}
+              {TYPE_LABEL[t]}
             </button>
           ))}
         </div>
@@ -257,34 +314,49 @@ export default function WriteClient({
 
       {/* 폼 본체 */}
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
+        {/* 글쓴이 선택 — 모든 type 공통, 고정 노출 (admin만 변경 가능) */}
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
+            글쓴이
+          </label>
+          {role === "admin" ? (
+            <select
+              value={authorDoctor}
+              onChange={(e) => setAuthorDoctor(e.target.value)}
+              className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+            >
+              <option value="">관리자 명의 (피부텐텐 운영)</option>
+              {doctors.map((d) => (
+                <option key={d.slug} value={d.slug}>
+                  {d.name} 원장님
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+              {writerLabel}
+            </div>
+          )}
+        </div>
+
         {type === "post" && (
           <PostForm body={postBody} onChange={setPostBody} />
         )}
 
         {type === "article" && (
           <ArticleForm
-            role={role}
-            doctors={doctors}
-            articleDoctor={articleDoctor}
-            onChangeArticleDoctor={setArticleDoctor}
             title={title}
             onTitle={setTitle}
-            coverImage={coverImage}
-            onCoverImage={setCoverImage}
             sections={sections}
             onUpdateSection={updateSection}
             onAddSection={addSection}
             onRemoveSection={removeSection}
             onMoveSection={moveSection}
-            uploadImage={uploadImage}
           />
         )}
 
         {type === "qa" && (
           <QaForm
-            doctors={doctors}
-            qaDoctor={qaDoctor}
-            onQaDoctor={setQaDoctor}
             qaQuestion={qaQuestion}
             onQaQuestion={setQaQuestion}
             qaAnswer={qaAnswer}
@@ -323,7 +395,7 @@ export default function WriteClient({
                   addKeyword(keywordInput);
                 }
               }}
-              placeholder="키워드 입력 후 Enter (예: 여드름)"
+              placeholder="키워드 입력 후 Enter"
               className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
             />
             <button
@@ -333,20 +405,6 @@ export default function WriteClient({
             >
               추가
             </button>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {KEYWORD_SUGGESTIONS.filter((k) => !keywords.includes(k))
-              .slice(0, 10)
-              .map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => addKeyword(k)}
-                  className="rounded-full border border-[var(--border)] bg-white px-2.5 py-0.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
-                >
-                  + {k}
-                </button>
-              ))}
           </div>
         </div>
 
@@ -363,8 +421,8 @@ export default function WriteClient({
           </div>
         )}
 
-        {/* 액션 */}
-        <div className="flex items-center justify-end gap-2 border-t border-[var(--border)] pt-4">
+        {/* 액션 — 취소 / 저장 / 검수 요청 / 발행 */}
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] pt-4">
           <button
             type="button"
             onClick={() => router.back()}
@@ -375,15 +433,32 @@ export default function WriteClient({
           </button>
           <button
             type="button"
-            onClick={handleSubmit}
+            onClick={() => handleSubmit("draft")}
+            disabled={pending}
+            className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm hover:bg-[var(--bg-soft)] disabled:opacity-50"
+          >
+            저장
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSubmit("pending_review")}
+            disabled={pending || !canRequestReview}
+            className="h-10 rounded-[var(--radius-sm)] border border-amber-300 bg-amber-50 px-4 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+            title={
+              canRequestReview
+                ? "원장 검수 큐로 전송"
+                : "본인 명의 글은 검수 요청 불필요"
+            }
+          >
+            검수 요청
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSubmit("published")}
             disabled={pending}
             className="h-10 rounded-[var(--radius-sm)] bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
           >
-            {pending
-              ? "저장 중…"
-              : type === "qa"
-                ? "검수 요청 (원장 발행 대기)"
-                : "발행"}
+            {pending ? "처리 중…" : "발행"}
           </button>
         </div>
       </div>
@@ -414,74 +489,34 @@ function PostForm({
         onChange={(e) => onChange(e.target.value)}
         rows={10}
         maxLength={4000}
-        placeholder="피부 고민이나 후기를 자유롭게 적어주세요."
         className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
       />
-      <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-        텍스트만 작성 가능 (이미지 첨부 불가)
-      </p>
     </div>
   );
 }
 
 // ────────────────────────────────────────────────────────────
-// ArticleForm
+// ArticleForm — 대표 이미지 제거, placeholder 예시 제거
 // ────────────────────────────────────────────────────────────
 function ArticleForm({
-  role,
-  doctors,
-  articleDoctor,
-  onChangeArticleDoctor,
   title,
   onTitle,
-  coverImage,
-  onCoverImage,
   sections,
   onUpdateSection,
   onAddSection,
   onRemoveSection,
   onMoveSection,
-  uploadImage,
 }: {
-  role: "admin" | "doctor" | "user";
-  doctors: Doctor[];
-  articleDoctor: string;
-  onChangeArticleDoctor: (s: string) => void;
   title: string;
   onTitle: (s: string) => void;
-  coverImage: string | null;
-  onCoverImage: (s: string | null) => void;
   sections: Section[];
   onUpdateSection: (i: number, patch: Partial<Section>) => void;
   onAddSection: () => void;
   onRemoveSection: (i: number) => void;
   onMoveSection: (i: number, dir: -1 | 1) => void;
-  uploadImage: (file: File) => Promise<string | null>;
 }) {
   return (
     <div className="space-y-5">
-      {/* admin이 칼럼 작성 시 원장 선택 (선택사항) */}
-      {role === "admin" && (
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-            원장 (선택사항 — 비우면 관리자 명의)
-          </label>
-          <select
-            value={articleDoctor}
-            onChange={(e) => onChangeArticleDoctor(e.target.value)}
-            className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-          >
-            <option value="">— 관리자 명의로 작성 —</option>
-            {doctors.map((d) => (
-              <option key={d.slug} value={d.slug}>
-                {d.name}
-                {d.branch ? ` · ${d.branch}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
       {/* 제목 */}
       <div>
         <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
@@ -492,41 +527,8 @@ function ArticleForm({
           value={title}
           onChange={(e) => onTitle(e.target.value)}
           maxLength={120}
-          placeholder="예) 가을철 피부, 어떻게 관리해야 할까요?"
           className="h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-base font-medium focus:border-[var(--primary)] focus:outline-none"
         />
-      </div>
-
-      {/* 대표 이미지 */}
-      <div>
-        <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-          대표 이미지 (옵션)
-        </label>
-        {coverImage ? (
-          <div className="relative inline-block">
-            <Image
-              src={coverImage}
-              alt="대표 이미지"
-              width={400}
-              height={225}
-              className="rounded-[var(--radius-sm)] border border-[var(--border)] object-cover"
-              unoptimized
-            />
-            <button
-              type="button"
-              onClick={() => onCoverImage(null)}
-              className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-black/80"
-            >
-              제거
-            </button>
-          </div>
-        ) : (
-          <ImageUploadButton
-            label="대표 이미지 업로드 (jpg/png/webp, ~8MB)"
-            onUploaded={(url) => onCoverImage(url)}
-            uploadImage={uploadImage}
-          />
-        )}
       </div>
 
       {/* 섹션 */}
@@ -588,7 +590,7 @@ function ArticleForm({
                   onUpdateSection(i, { heading: e.target.value })
                 }
                 maxLength={100}
-                placeholder="소제목 (예: 가을 피부의 특징)"
+                placeholder="소제목"
                 className="mb-2 h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-[15px] font-semibold focus:border-[var(--primary)] focus:outline-none"
               />
               <textarea
@@ -596,36 +598,9 @@ function ArticleForm({
                 onChange={(e) => onUpdateSection(i, { body: e.target.value })}
                 rows={5}
                 maxLength={2000}
-                placeholder="섹션 본문"
+                placeholder="본문"
                 className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
               />
-              <div className="mt-2">
-                {s.image ? (
-                  <div className="relative inline-block">
-                    <Image
-                      src={s.image}
-                      alt={`섹션 ${i + 1} 이미지`}
-                      width={300}
-                      height={170}
-                      className="rounded-[var(--radius-sm)] border border-[var(--border)] object-cover"
-                      unoptimized
-                    />
-                    <button
-                      type="button"
-                      onClick={() => onUpdateSection(i, { image: null })}
-                      className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-black/80"
-                    >
-                      제거
-                    </button>
-                  </div>
-                ) : (
-                  <ImageUploadButton
-                    label="섹션 이미지 (옵션)"
-                    onUploaded={(url) => onUpdateSection(i, { image: url })}
-                    uploadImage={uploadImage}
-                  />
-                )}
-              </div>
             </div>
           ))}
         </div>
@@ -635,20 +610,14 @@ function ArticleForm({
 }
 
 // ────────────────────────────────────────────────────────────
-// QaForm (admin only)
+// QaForm — 안내 박스 제거
 // ────────────────────────────────────────────────────────────
 function QaForm({
-  doctors,
-  qaDoctor,
-  onQaDoctor,
   qaQuestion,
   onQaQuestion,
   qaAnswer,
   onQaAnswer,
 }: {
-  doctors: Doctor[];
-  qaDoctor: string;
-  onQaDoctor: (s: string) => void;
   qaQuestion: string;
   onQaQuestion: (s: string) => void;
   qaAnswer: string;
@@ -656,27 +625,6 @@ function QaForm({
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-[var(--radius-sm)] border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-        Q&A는 해당 원장의 검수(pending_review) 큐로 들어갑니다. 원장이 발행을
-        해야 노출됩니다.
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-          원장
-        </label>
-        <select
-          value={qaDoctor}
-          onChange={(e) => onQaDoctor(e.target.value)}
-          className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-        >
-          {doctors.map((d) => (
-            <option key={d.slug} value={d.slug}>
-              {d.name}
-              {d.branch ? ` · ${d.branch}` : ""}
-            </option>
-          ))}
-        </select>
-      </div>
       <div>
         <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
           질문
@@ -698,7 +646,6 @@ function QaForm({
           onChange={(e) => onQaAnswer(e.target.value)}
           rows={8}
           maxLength={3000}
-          placeholder="350~450자, 두괄식으로 작성"
           className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
         />
         <p className="mt-1 text-[11px] text-[var(--text-muted)]">
@@ -706,49 +653,5 @@ function QaForm({
         </p>
       </div>
     </div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────
-// ImageUploadButton
-// ────────────────────────────────────────────────────────────
-function ImageUploadButton({
-  label,
-  onUploaded,
-  uploadImage,
-}: {
-  label: string;
-  onUploaded: (url: string) => void;
-  uploadImage: (file: File) => Promise<string | null>;
-}) {
-  const [busy, setBusy] = useState(false);
-
-  return (
-    <label
-      className={
-        "inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-white px-3 py-2 text-xs hover:border-[var(--primary)] " +
-        (busy ? "pointer-events-none opacity-60" : "")
-      }
-    >
-      <input
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={async (e) => {
-          const f = e.target.files?.[0];
-          if (!f) return;
-          setBusy(true);
-          try {
-            const url = await uploadImage(f);
-            if (url) onUploaded(url);
-          } finally {
-            setBusy(false);
-            // input reset
-            e.target.value = "";
-          }
-        }}
-      />
-      <span>{busy ? "업로드 중…" : label}</span>
-    </label>
   );
 }
