@@ -232,19 +232,19 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
       >
         {doctor && photo && (
           <div
-            className="relative h-13 w-13 shrink-0 overflow-hidden rounded-full"
+            className="relative shrink-0 overflow-hidden rounded-full"
             style={{
               background: theme?.bg ?? "var(--bg-soft)",
               boxShadow: `inset 0 0 0 2px ${theme?.bgSoft ?? "var(--bg-soft)"}`,
-              height: 52,
-              width: 52,
+              height: 60,
+              width: 60,
             }}
           >
             <Image
               src={photo}
               alt={`${doctor.name} 원장님`}
               fill
-              sizes="52px"
+              sizes="60px"
               className="object-cover"
               style={{
                 objectPosition: "50% 12%",
