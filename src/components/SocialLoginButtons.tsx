@@ -37,25 +37,7 @@ export default function SocialLoginButtons({ next }: Props) {
           }`
         : OAUTH_CALLBACK_PATH;
 
-      // 카카오는 SDK signInWithOAuth가 scope를 덮어쓰지 못함 → authorize endpoint 직접 호출로 우회.
-      if (p.supabaseProvider === "kakao") {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        if (!supabaseUrl) {
-          setError("Supabase URL 누락");
-          setPendingId(null);
-          return;
-        }
-        const params = new URLSearchParams({
-          provider: "kakao",
-          redirect_to: redirectTo,
-          scopes: "profile_nickname profile_image",
-        });
-        window.location.assign(
-          `${supabaseUrl}/auth/v1/authorize?${params.toString()}`,
-        );
-        return;
-      }
-
+      // 비즈 앱 전환 후엔 default scope 그대로 사용 가능 — SDK 정상 호출 (PKCE flow 보장)
       const { error: oauthErr } = await supabase.auth.signInWithOAuth({
         provider: p.supabaseProvider,
         options: { redirectTo },

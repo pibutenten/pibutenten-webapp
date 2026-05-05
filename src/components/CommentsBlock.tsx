@@ -48,6 +48,8 @@ type Props = {
   isPublishedQa: boolean;
   /** 댓글 수 변경 알림 (부모 카드의 카운트 갱신용) */
   onCountChange?: (next: number) => void;
+  /** 입력 폼 표시 여부 — 부모가 펼침 상태 기준으로 결정 */
+  showInput?: boolean;
 };
 
 type Me = {
@@ -56,7 +58,12 @@ type Me = {
   doctor_id: string | null;
 } | null;
 
-export default function CommentsBlock({ qaId, isPublishedQa, onCountChange }: Props) {
+export default function CommentsBlock({
+  qaId,
+  isPublishedQa,
+  onCountChange,
+  showInput = false,
+}: Props) {
   const [comments, setComments] = useState<CommentWithReplies[]>([]);
   const [totalRoot, setTotalRoot] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -204,37 +211,34 @@ export default function CommentsBlock({ qaId, isPublishedQa, onCountChange }: Pr
     await reload();
   }
 
+  // 미니멀 모드: 댓글 0개 + 입력 폼 비표시 → 자체 렌더링 안 함
+  const hasComments = visibleCount > 0;
+  if (!loading && !hasComments && !showInput) {
+    return null;
+  }
+
   return (
     <div
-      className="mt-4 border-t border-[var(--border)] pt-3 text-[14px] text-[var(--text)]"
+      className="mt-3 border-t border-[var(--border)] pt-2.5 text-[13px] text-[var(--text)]"
       onClick={(e) => e.stopPropagation()}
     >
       {totalRoot > 3 && (
-        <div className="mb-1.5 flex justify-end">
+        <div className="mb-1 flex justify-end">
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="text-[12px] font-medium text-[var(--secondary)] hover:text-[var(--primary)]"
+            className="text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)]"
           >
-            {expanded ? "접기 ▴" : `모두 보기 ▾`}
+            {expanded ? "접기" : `모두 보기 (${totalRoot})`}
           </button>
         </div>
       )}
 
-      {loading && (
-        <p className="text-[13px] text-[var(--text-muted)]">불러오는 중…</p>
-      )}
       {error && (
-        <p className="text-[13px] text-red-600">댓글을 불러오지 못했어요: {error}</p>
+        <p className="text-[12px] text-red-600">댓글을 불러오지 못했어요: {error}</p>
       )}
 
-      {!loading && !error && comments.length === 0 && (
-        <p className="text-[13px] text-[var(--text-muted)]">
-          첫 댓글을 남겨보세요.
-        </p>
-      )}
-
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-1.5">
         {visibleRoots.map((c) => (
           <li key={c.id}>
             <CommentItem
@@ -295,31 +299,28 @@ export default function CommentsBlock({ qaId, isPublishedQa, onCountChange }: Pr
         ))}
       </ul>
 
-      {/* root 댓글 입력 폼 */}
-      <div className="mt-4">
-        {isLoggedIn ? (
-          replyTarget == null && isPublishedQa ? (
-            <CommentForm
-              body={body}
-              onChange={setBody}
-              onSubmit={() => submitComment(null)}
-              submitting={submitting}
-              placeholder="댓글을 입력하세요"
-            />
-          ) : !isPublishedQa ? (
-            <p className="text-[12px] text-[var(--text-muted)]">
-              아직 발행되지 않은 글이라 댓글을 받지 않아요.
-            </p>
-          ) : null
-        ) : (
-          <p className="text-[13px] text-[var(--text-muted)]">
-            <Link href="/login" className="font-medium text-[var(--primary)] hover:underline">
-              로그인
-            </Link>{" "}
-            후 댓글을 작성할 수 있어요.
-          </p>
-        )}
-      </div>
+      {/* root 댓글 입력 폼 — showInput 시에만 노출 */}
+      {showInput && isPublishedQa && isLoggedIn && replyTarget == null && (
+        <div className="mt-3">
+          <CommentForm
+            body={body}
+            onChange={setBody}
+            onSubmit={() => submitComment(null)}
+            submitting={submitting}
+            placeholder="댓글 남기기"
+          />
+        </div>
+      )}
+      {showInput && isPublishedQa && !isLoggedIn && (
+        <div className="mt-3 text-center">
+          <Link
+            href="/login"
+            className="text-[12px] text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline"
+          >
+            로그인하고 댓글 남기기
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
