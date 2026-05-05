@@ -36,9 +36,7 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// 정적 자원 제외, 그 외 모든 라우트 적용
+// _next 정적 자원만 제외 (단순 패턴, 안전)
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|logo.svg|og.png|manifest.webmanifest|doctors/.*\\.(?:png|jpg|jpeg|webp)$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

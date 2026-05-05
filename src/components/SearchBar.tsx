@@ -1,24 +1,36 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   initialValue?: string;
   onFocusChange?: (focused: boolean) => void;
+  /** 데스크탑(>768px)에서 마운트 시 자동 포커스 (모바일에선 무시) */
+  autoFocusOnDesktop?: boolean;
 };
 
 export default function SearchBar({
   initialValue = "",
   onFocusChange,
+  autoFocusOnDesktop = false,
 }: Props) {
   const [q, setQ] = useState(initialValue);
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // initialValue가 외부에서 바뀌면 (URL ?q=... 변경 등) 동기화
   useEffect(() => {
     setQ(initialValue);
   }, [initialValue]);
+
+  // 데스크탑 자동 포커스 — preventScroll로 페이지 스크롤 일어나지 않게
+  useEffect(() => {
+    if (!autoFocusOnDesktop) return;
+    if (typeof window === "undefined") return;
+    if (window.innerWidth <= 768) return; // 모바일 안 함 (자동 키보드 OFF)
+    inputRef.current?.focus({ preventScroll: true });
+  }, [autoFocusOnDesktop]);
 
   return (
     <form
@@ -27,7 +39,6 @@ export default function SearchBar({
         e.preventDefault();
         const trimmed = q.trim();
         if (!trimmed) {
-          // 빈 검색은 홈으로 (검색 해제)
           router.push("/");
           return;
         }
@@ -38,14 +49,15 @@ export default function SearchBar({
       className="relative mx-auto w-full max-w-[520px]"
     >
       <input
+        ref={inputRef}
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => onFocusChange?.(true)}
         onBlur={() => {
-          if (!q.trim()) {
-            setTimeout(() => onFocusChange?.(false), 100);
-          }
+          // 항상 콜백 호출 — HeroSearch가 내부에서 main reset 여부 결정
+          // (blur 시에는 main 유지, 진짜 키보드 닫힘 시에만 reset)
+          onFocusChange?.(false);
         }}
         placeholder="피부과 전문의가 솔직하게 답해드립니다!"
         aria-label="Q&A 검색"
