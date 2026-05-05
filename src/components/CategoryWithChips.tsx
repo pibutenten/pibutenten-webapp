@@ -177,7 +177,11 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
           <div
             ref={outerRef}
             className="overflow-hidden transition-[max-height] duration-300"
-            style={{ maxHeight: expanded ? "1200px" : collapsedHeightCss }}
+            style={{
+              maxHeight: expanded
+                ? "var(--chips-h-expanded)"
+                : "var(--chips-h)",
+            }}
           >
             <div ref={innerRef} className="flex flex-wrap justify-center gap-1.5">
               {allChips.map((kw) => {
@@ -215,7 +219,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
           </div>
 
           {(hasOverflow || expanded) && (
-            <div className="mt-2 flex justify-center">
+            <div className="mt-2 flex justify-center sm:hidden">
               <button
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
@@ -228,14 +232,16 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
         </>
       )}
 
-      {/* 모바일 3줄 / 데스크탑 4줄 */}
+      {/* 모바일: collapsed 3줄 / expanded 7줄 — 데스크탑: 항상 3줄 (펼치기 의미 없음) */}
       <style jsx>{`
         .chips-host {
-          --chips-h: 108px;
+          --chips-h: 108px;          /* 3줄 */
+          --chips-h-expanded: 252px; /* 7줄 */
         }
         @media (min-width: 600px) {
           .chips-host {
-            --chips-h: 144px;
+            --chips-h: 108px;          /* 데스크탑도 3줄 */
+            --chips-h-expanded: 108px; /* 데스크탑은 펼쳐도 동일 (펼치기 버튼 hidden) */
           }
         }
       `}</style>

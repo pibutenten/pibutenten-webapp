@@ -4,7 +4,9 @@ import { createSupabaseServerClient } from "./supabase/server";
 
 export type PopularByCategory = Record<CategorySlug, string[]>;
 
-const TOP_N = 32;
+// 카테고리별 충분히 가져와서 화면에서 줄(line)로 잘라 보여줌.
+// (모바일 펼친 상태 7줄, 데스크탑 3줄 기준 + 여유)
+const TOP_N = 60;
 
 /**
  * 발행된 모든 qas의 keywords를 카운트 → 카테고리별 빈도 상위 N개.
