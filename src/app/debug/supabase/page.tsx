@@ -1,13 +1,14 @@
+import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
- * Supabase 연결 테스트 페이지.
- * /debug/supabase 에서 키 인증·네트워크 도달 여부를 확인할 수 있다.
- * 추후 운영 단계에서는 삭제하거나 환경변수로 게이팅 권장.
+ * Supabase 연결 테스트 페이지 (개발 전용).
+ * 운영 환경에서는 404.
  */
 export const dynamic = "force-dynamic";
 
 export default async function DebugSupabasePage() {
+  if (process.env.NODE_ENV === "production") notFound();
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
