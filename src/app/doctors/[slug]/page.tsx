@@ -66,9 +66,9 @@ export default async function DoctorDetailPage({ params }: Props) {
 
   return (
     <section className="space-y-6">
-      {/* 원장님 hero — 배경은 풀너비, 안의 글씨/이미지는 max-w-820 안에 정렬 */}
+      {/* 원장님 hero — 모바일에선 양옆/위 main padding 상쇄해서 viewport 가장자리까지 가득 */}
       <header
-        className="relative w-full rounded-t-[var(--radius)] overflow-hidden"
+        className="relative -mx-4 -mt-4 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:mt-0 sm:w-full sm:rounded-t-[var(--radius)]"
         style={{
           background: `${theme.bg}1A`,
         }}
