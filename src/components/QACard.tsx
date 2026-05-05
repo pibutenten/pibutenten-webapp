@@ -127,8 +127,10 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
     ? CATEGORIES.find((c) => c.slug === categorize(activeQuery))?.color
     : null;
 
-  // 좌측 4px 표시 — Pick은 하늘색(#BBDEFB), HOT은 따뜻한 살구색(#FFAB91)
-  // 둘 다일 때는 위 절반 Pick / 아래 절반 HOT
+  // 좌측 4px 표시
+  // - HOT: 연한 빨강 (#FFD2D6) — Pick보다 살짝 더 연하게 인지적 균형
+  // - Pick: 옅은 파랑 (#BBDEFB)
+  // - 둘 다일 때: 위 절반 HOT / 아래 절반 Pick
   const showSideBar = isPick || isHot;
 
   return (
@@ -138,27 +140,27 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           aria-hidden
           className="pointer-events-none absolute bottom-0 left-0 top-0 w-[4px]"
         >
-          {isPick && (
+          {isHot && (
             <div
               style={{
                 position: "absolute",
                 top: 0,
                 left: 0,
                 right: 0,
-                height: isHot ? "50%" : "100%",
-                background: "#BBDEFB",
+                height: isPick ? "50%" : "100%",
+                background: "#FFD2D6",
               }}
             />
           )}
-          {isHot && (
+          {isPick && (
             <div
               style={{
                 position: "absolute",
                 bottom: 0,
                 left: 0,
                 right: 0,
-                height: isPick ? "50%" : "100%",
-                background: "#FFAB91",
+                height: isHot ? "50%" : "100%",
+                background: "#BBDEFB",
               }}
             />
           )}
@@ -177,7 +179,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           {isHot && (
             <span
               className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider"
-              style={{ backgroundColor: "#FBE9E7", color: "#D84315" }}
+              style={{ backgroundColor: "#FFEBEE", color: "#C62828" }}
             >
               HOT
             </span>
