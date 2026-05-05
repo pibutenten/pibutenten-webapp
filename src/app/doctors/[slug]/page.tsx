@@ -5,6 +5,8 @@ import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
 import { getHotQaIds } from "@/lib/hot-ids";
 import QAFeed from "@/components/QAFeed";
 import type { QACardData } from "@/components/QACard";
+import ArticleCard from "@/components/ArticleCard";
+import { loadDoctorArticles } from "@/lib/article/load";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +60,9 @@ export default async function DoctorDetailPage({ params }: Props) {
   const photo = getDoctorPhoto(doctor.slug);
   const affiliation = [doctor.clinic, doctor.branch].filter(Boolean).join(" ");
   const hotIds = Array.from(await getHotQaIds(20));
+
+  // 원장 칼럼 (article)
+  const articles = await loadDoctorArticles(supabase, doctor.id, 6);
 
   return (
     <section className="space-y-6">
@@ -117,6 +122,25 @@ export default async function DoctorDetailPage({ params }: Props) {
           }}
         />
       </header>
+
+      {/* 원장 칼럼 (article) — 있을 때만 표시 */}
+      {articles.length > 0 && (
+        <div className="pt-2">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-lg font-bold text-[var(--text)]">
+              {doctor.name} 원장님의 칼럼
+            </h2>
+            <span className="text-[13px] text-[var(--text-muted)]">
+              {articles.length}편
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {articles.map((a) => (
+              <ArticleCard key={a.id} article={a} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Q&A 헤더 */}
       <div className="flex items-baseline justify-between pt-2">
