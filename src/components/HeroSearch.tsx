@@ -21,7 +21,6 @@ export default function HeroSearch() {
   const initialQ = (sp.get("q") ?? "").trim();
   const [focused, setFocused] = useState(false);
   const formWrapRef = useRef<HTMLDivElement>(null);
-  const focusedRef = useRef(false);
 
   const isMobile = useCallback(
     () => typeof window !== "undefined" && window.innerWidth <= MOBILE_BP,
@@ -40,50 +39,43 @@ export default function HeroSearch() {
     window.scrollBy({ top: diff, behavior: "smooth" });
   }, [isMobile]);
 
-  /** focus/blur — state만 갱신, scroll은 visualViewport 핸들러에서 단일 처리 */
+  /** focus/blur — h1 collapse용 state만 갱신, scroll은 visualViewport 핸들러에서 단일 처리 */
   function handleFocusChange(f: boolean) {
     if (!isMobile()) {
       setFocused(false);
-      focusedRef.current = false;
       return;
     }
     setFocused(f);
-    focusedRef.current = f;
   }
 
-  /** visualViewport — 키보드 상태 변화 한 곳에서 처리.
-   *  키보드 열림(또는 다시 열림) → 안정화 대기 후 한 번 reposition.
-   *  키보드 닫힘 → focused state만 해제 (scroll은 그대로 유지). */
+  /** visualViewport — 키보드 상태 변화 감지.
+   *  키보드 열림 → document.activeElement가 우리 input일 때 안정화 대기 후 reposition (한 번).
+   *  키보드 닫힘 → focused state는 건들지 않음 (실제 input.blur 시 onBlur가 자연스럽게 처리).
+   *  → 키보드 다시 열림 / focus 유지된 채 키보드만 닫혔다 다시 열림 모두 정상 처리. */
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
-    let lastKeyboardOpen = false;
     let stableTimer: number | null = null;
 
     const handler = () => {
       const keyboardOpen = window.innerHeight - vv.height > 100;
+      const ourInput = formWrapRef.current?.querySelector("input");
+      const inputFocused =
+        !!ourInput && document.activeElement === ourInput;
 
-      // 키보드 열림 상태 (또는 미세 조정 진행 중)
-      if (keyboardOpen && focusedRef.current) {
+      // 키보드 열림 + 우리 input에 focus 있음 → 안정화 후 reposition
+      if (keyboardOpen && inputFocused) {
         if (stableTimer) window.clearTimeout(stableTimer);
         // 350ms = h1 collapse(300ms) + 키보드 안정 여유
         stableTimer = window.setTimeout(() => {
           stableTimer = null;
           repositionPage();
         }, 350) as unknown as number;
+      } else if (!keyboardOpen && stableTimer) {
+        // 키보드 닫히는 중 - 예약된 reposition 취소
+        window.clearTimeout(stableTimer);
+        stableTimer = null;
       }
-
-      // 키보드 닫힘
-      if (lastKeyboardOpen && !keyboardOpen) {
-        setFocused(false);
-        focusedRef.current = false;
-        if (stableTimer) {
-          window.clearTimeout(stableTimer);
-          stableTimer = null;
-        }
-      }
-
-      lastKeyboardOpen = keyboardOpen;
     };
 
     vv.addEventListener("resize", handler);
