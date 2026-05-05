@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env*.example
 
+# Claude memory (Dropbox 동기화용 사본 — API key 포함이라 git push 금지)
+.claude-memory/
+
 # vercel
 .vercel
 
