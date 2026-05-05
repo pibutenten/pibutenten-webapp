@@ -65,10 +65,7 @@ export default async function DoctorsPage() {
               key={d.id}
               className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]"
             >
-              <div
-                className="relative aspect-square w-full overflow-hidden"
-                style={{ background: theme.bg }}
-              >
+              <div className="relative aspect-square w-full overflow-hidden bg-[var(--bg-soft)]">
                 <Image
                   src={photo}
                   alt={`${d.name} 원장님`}
