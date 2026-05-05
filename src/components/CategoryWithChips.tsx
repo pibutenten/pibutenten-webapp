@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useTransition,
   type CSSProperties,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -33,6 +34,13 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
   const sp = useSearchParams();
   const activeQuery = (sp.get("q") ?? "").trim();
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  // 클릭 직후 즉시 selected 표시용 (서버 round-trip 기다리지 않음)
+  const [pendingChip, setPendingChip] = useState<string | null>(null);
+  // URL이 실제로 바뀌면 pending 상태 해제
+  useEffect(() => {
+    setPendingChip(null);
+  }, [activeQuery]);
 
   // 검색어가 등록된 키워드면 그 카테고리로
   const queryCategory = useMemo<CategorySlug | null>(() => {
@@ -89,12 +97,19 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
   const allChips = popularByCategory[active] ?? [];
 
   function selectChip(kw: string) {
-    if (kw === activeQuery) {
-      router.push("/");
-    } else {
-      router.push(`/?q=${encodeURIComponent(kw)}`);
-    }
+    // 즉각 시각 피드백 — selected 상태 미리 반영
+    setPendingChip(kw === activeQuery ? "" : kw);
+    startTransition(() => {
+      if (kw === activeQuery) {
+        router.push("/");
+      } else {
+        router.push(`/?q=${encodeURIComponent(kw)}`);
+      }
+    });
   }
+
+  // 표시용 active 검색어 — 실제 URL 또는 클릭 직후 pending
+  const visibleQuery = pendingChip !== null ? pendingChip : activeQuery;
 
   // 모바일 3줄 (~108px) / 데스크탑 4줄 (~144px)
   const collapsedHeightCss = "var(--chips-h, 108px)";
@@ -146,13 +161,15 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
           >
             <div ref={innerRef} className="flex flex-wrap justify-center gap-1.5">
               {allChips.map((kw) => {
-                const selected = kw === activeQuery;
+                const selected = kw === visibleQuery;
+                const isLoadingThis = isPending && pendingChip === kw;
                 return (
                   <button
                     key={kw}
                     type="button"
                     onClick={() => selectChip(kw)}
-                    className="rounded-full border px-3 py-1 text-[13px] transition-colors active:scale-[0.97]"
+                    disabled={isPending}
+                    className="rounded-full border px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:cursor-wait"
                     style={
                       selected
                         ? {
@@ -160,6 +177,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
                             borderColor: cat.color,
                             color: cat.color,
                             fontWeight: 700,
+                            opacity: isLoadingThis ? 0.7 : 1,
                           }
                         : {
                             backgroundColor: "white",
