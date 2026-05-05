@@ -37,23 +37,28 @@ export default function SocialLoginButtons({ next }: Props) {
           }`
         : OAUTH_CALLBACK_PATH;
 
-      // 카카오는 비즈 앱 검수 전이라 account_email 권한이 없어서 default scope 사용 시 KOE205.
-      // queryParams.scope로 OAuth URL에 직접 강제 — Supabase default scope 우회.
-      type OAuthOpts = {
-        redirectTo: string;
-        scopes?: string;
-        queryParams?: Record<string, string>;
-      };
-      const oauthOptions: OAuthOpts = { redirectTo };
+      // 카카오는 SDK signInWithOAuth가 scope를 덮어쓰지 못함 → authorize endpoint 직접 호출로 우회.
       if (p.supabaseProvider === "kakao") {
-        oauthOptions.scopes = "profile_nickname profile_image";
-        oauthOptions.queryParams = {
-          scope: "profile_nickname profile_image",
-        };
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!supabaseUrl) {
+          setError("Supabase URL 누락");
+          setPendingId(null);
+          return;
+        }
+        const params = new URLSearchParams({
+          provider: "kakao",
+          redirect_to: redirectTo,
+          scopes: "profile_nickname profile_image",
+        });
+        window.location.assign(
+          `${supabaseUrl}/auth/v1/authorize?${params.toString()}`,
+        );
+        return;
       }
+
       const { error: oauthErr } = await supabase.auth.signInWithOAuth({
         provider: p.supabaseProvider,
-        options: oauthOptions,
+        options: { redirectTo },
       });
       if (oauthErr) {
         setError(oauthErr.message || "소셜 로그인 실패");
