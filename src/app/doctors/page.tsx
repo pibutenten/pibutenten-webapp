@@ -66,7 +66,7 @@ export default async function DoctorsPage() {
               >
                 <Image
                   src={photo}
-                  alt={`${d.name} 원장`}
+                  alt={`${d.name} 원장님`}
                   fill
                   sizes="96px"
                   className="object-cover"
@@ -87,7 +87,7 @@ export default async function DoctorsPage() {
                     className="text-xs font-semibold"
                     style={{ color: theme.accent }}
                   >
-                    원장
+                    원장님
                   </span>
                 </div>
                 <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
