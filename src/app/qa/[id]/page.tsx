@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import QACard, { type QACardData } from "@/components/QACard";
 import { getHotQaIds } from "@/lib/hot-ids";
@@ -63,13 +62,7 @@ export default async function SingleQaPage({ params }: Props) {
   const hotIds = Array.from(await getHotQaIds(20));
 
   return (
-    <section className="mx-auto w-full max-w-[680px] space-y-4">
-      <Link
-        href="/"
-        className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
-      >
-        ← 홈으로
-      </Link>
+    <section className="mx-auto w-full max-w-[680px]">
       <QACard qa={qa} isHot={hotIds.includes(qa.id)} />
     </section>
   );
