@@ -75,12 +75,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/signup${qs}`);
   }
 
-  // 5) role 별 redirect (LoginForm 동일 규칙)
-  const role = profile.role ?? "user";
-  let dest: string;
-  if (role === "admin") dest = "/admin";
-  else if (role === "doctor") dest = "/me";
-  else dest = next || "/feed";
-
+  // 5) 모든 role은 /feed로 (관리/내 글 페이지는 헤더 본인 아이콘으로 진입)
+  const dest = next || "/feed";
   return NextResponse.redirect(`${origin}${dest}`);
 }

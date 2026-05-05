@@ -37,11 +37,8 @@ export default function LoginForm({ next, error: initialError }: Props) {
         .select("role")
         .eq("id", user.id)
         .maybeSingle();
-      const role = profile?.role ?? "user";
-      const dest =
-        role === "admin" ? "/admin" :
-        role === "doctor" ? "/me" :
-        next || "/feed";
+      // 모든 role은 /feed로 (관리/내 글은 헤더 본인 아이콘으로 진입)
+      const dest = next || "/feed";
       window.location.assign(dest);
     });
   }

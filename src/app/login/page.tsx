@@ -19,9 +19,7 @@ export default async function LoginPage({ searchParams }: Props) {
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
-    const role = profile?.role ?? "user";
-    if (role === "admin") redirect("/admin");
-    if (role === "doctor") redirect("/me");
+    // 모든 role은 /feed로 (관리/내 글은 헤더 본인 아이콘으로 진입)
     redirect(sp.next || "/feed");
   }
 
