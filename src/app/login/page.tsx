@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }: Props) {
     const role = profile?.role ?? "user";
     if (role === "admin") redirect("/admin");
     if (role === "doctor") redirect("/me");
-    redirect(sp.next || "/");
+    redirect(sp.next || "/feed");
   }
 
   return (

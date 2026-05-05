@@ -89,6 +89,7 @@ const YoutubeIcon = (
 );
 
 const NAV_ITEMS: NavItem[] = [
+  { href: "/", label: "검색", icon: SearchIcon },
   { href: "/doctors", label: "전문의", icon: DoctorIcon },
   {
     href: "https://www.youtube.com/@pibutenten",
@@ -124,7 +125,7 @@ export default function TopNav({ session }: TopNavProps) {
       const supabase = createSupabaseBrowserClient();
       await supabase.auth.signOut();
       // 풀 리로드 — layout의 session 캐시 확실히 비움
-      window.location.assign("/");
+      window.location.assign("/feed");
     });
   }
 
@@ -140,18 +141,18 @@ export default function TopNav({ session }: TopNavProps) {
     >
       <div className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-2 py-3 pl-4 pr-5 sm:pl-6 sm:pr-8">
         <Link
-          href="/"
+          href="/feed"
           aria-label="피부텐텐 홈"
           className="flex items-center gap-2 shrink-0"
           onClick={(e) => {
-            // 홈(검색어 없음)에서 로고 클릭 시 → F5와 동일한 풀 리로드
-            if (pathname === "/") {
+            // /feed에서 로고 클릭 시 → F5와 동일한 풀 리로드
+            if (pathname === "/feed") {
               e.preventDefault();
               if (typeof window !== "undefined") {
-                window.location.assign("/");
+                window.location.assign("/feed");
               }
             }
-            // 다른 경로는 / 로 navigate (Next.js가 자동 스크롤)
+            // 다른 경로는 /feed로 navigate
           }}
         >
           <Image

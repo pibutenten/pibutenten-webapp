@@ -32,13 +32,13 @@ export default async function AdminPage() {
   );
 
   return (
-    <section className="mx-auto w-full max-w-[820px] py-6">
+    <section className="w-full py-6">
       <h1 className="mb-1 text-2xl font-bold text-[var(--text)]">관리자</h1>
       <p className="mb-6 text-sm text-[var(--text-secondary)]">
         환영합니다, <b>{profile.display_name}</b> 님.
       </p>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Link
           href="/admin/draft"
           className="group rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 transition-colors hover:border-[var(--primary)]"
@@ -49,6 +49,19 @@ export default async function AdminPage() {
           </div>
           <div className="mt-1 text-xs text-[var(--text-secondary)]">
             YouTube URL 입력하면 자막 fetch + Claude 자동 생성
+          </div>
+        </Link>
+
+        <Link
+          href="/write"
+          className="group rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 transition-colors hover:border-[var(--primary)]"
+        >
+          <div className="mb-2 text-2xl">✏️</div>
+          <div className="text-base font-bold text-[var(--text)] group-hover:text-[var(--primary)]">
+            새 글쓰기
+          </div>
+          <div className="mt-1 text-xs text-[var(--text-secondary)]">
+            관리자: 어느 원장 명의로도 작성 가능 (post / article)
           </div>
         </Link>
 

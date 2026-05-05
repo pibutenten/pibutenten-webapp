@@ -40,7 +40,7 @@ export default function LoginForm({ next, error: initialError }: Props) {
       const dest =
         role === "admin" ? "/admin" :
         role === "doctor" ? "/me" :
-        next || "/";
+        next || "/feed";
       window.location.assign(dest);
     });
   }
