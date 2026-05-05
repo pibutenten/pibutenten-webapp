@@ -171,16 +171,17 @@ export default function DraftClient({ doctors }: Props) {
         </div>
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            매칭 원장
+            원장님 <span className="text-xs text-[var(--text-muted)]">(비워두면 영상에서 자동 감지)</span>
           </label>
           <select
             value={doctorSlug}
             onChange={(e) => setDoctorSlug(e.target.value)}
             className="w-full rounded-md border border-[var(--border)] px-3 py-2 outline-none focus:border-[var(--primary)]"
           >
+            <option value="">— 자동 감지 —</option>
             {doctors.map((d) => (
               <option key={d.slug} value={d.slug}>
-                {d.name} {d.branch ? `(${d.branch})` : ""}
+                {d.name}
               </option>
             ))}
           </select>
