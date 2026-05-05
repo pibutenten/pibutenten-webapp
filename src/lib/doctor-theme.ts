@@ -19,14 +19,14 @@ export type DoctorTheme = {
 
 const THEMES: Record<string, DoctorTheme> = {
   jeonghanmi:  { bg: "#FCE7F0", bgSoft: "#FFF1F6", ring: "#F8C0D2", accent: "#B8517A" }, // 핑크
-  baejungmin:  { bg: "#FFE0CC", bgSoft: "#FFEEDF", ring: "#F5BE99", accent: "#B85A1F", offsetX: 6 }, // 복숭 (이도영과 색 중복 회피)
+  baejungmin:  { bg: "#FAF0D7", bgSoft: "#FCF6E5", ring: "#E8D9A8", accent: "#8A6F1F", offsetX: 6 }, // 아이보리
   kwonsuhyun:  { bg: "#EAE2F8", bgSoft: "#F4EFFA", ring: "#C8B8E5", accent: "#6648A8" }, // 라벤더
   kimsoohyung: { bg: "#FFF6CF", bgSoft: "#FFFBE6", ring: "#F2E08F", accent: "#9A7B12" }, // 노랑
-  gohyerim:    { bg: "#DCF5E7", bgSoft: "#EEF9F1", ring: "#A8E0BF", accent: "#2F8A56" }, // 민트
+  gohyerim:    { bg: "#B2DFDB", bgSoft: "#D4ECEA", ring: "#80CBC4", accent: "#00695C" }, // 진한 민트 (Teal 100)
   kimjongsik:  { bg: "#F4E9DA", bgSoft: "#FAF3E8", ring: "#DCC5A1", accent: "#8A6B3A" }, // 베이지
-  leedoyoung:  { bg: "#E5E9F0", bgSoft: "#F0F3F8", ring: "#C8CFD8", accent: "#54616F", offsetX: 14, offsetY: 5, avatarOffsetX: 7 }, // 연한 회색
+  leedoyoung:  { bg: "#BFD7E5", bgSoft: "#D9E7EF", ring: "#9ABFD3", accent: "#3D5A6B", offsetX: 14, offsetY: 5, avatarOffsetX: 7 }, // 연한 하늘 (이전 회색에서 변경)
   kanghyunjin: { bg: "#E8DEF6", bgSoft: "#F2EBFA", ring: "#C8B8E5", accent: "#5E4B96" }, // 라일락
-  parkhyojin:  { bg: "#D6EFEF", bgSoft: "#E8F5F5", ring: "#A0D5D5", accent: "#2C7A7A" }, // 시폼
+  parkhyojin:  { bg: "#FAD2C7", bgSoft: "#FCE3DC", ring: "#F0B0A0", accent: "#A04A30" }, // 연한 산호 (보라 3개 겹침 회피)
 };
 
 const FALLBACK: DoctorTheme = {
