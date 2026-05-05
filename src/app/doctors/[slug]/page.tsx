@@ -67,9 +67,16 @@ export default async function DoctorDetailPage({ params }: Props) {
           {/* 좌측: 멘트(중상단) + 이름(하단) — 좌측 약간의 여백 */}
           <div className="flex flex-1 flex-col self-stretch pb-6 pl-2 pt-12 sm:pb-8 sm:pl-3 sm:pt-20">
             {doctor.intro && (
-              <p className="text-[14px] leading-[1.7] text-[var(--text-secondary)] sm:text-[16px]">
-                {doctor.intro.replace(/\s*\n+\s*/g, " ")}
-              </p>
+              <>
+                {/* 모바일: \n 무시하고 페이지 폭에 맞춰 자동 wrap */}
+                <p className="block text-[14px] leading-[1.7] text-[var(--text-secondary)] sm:hidden">
+                  {doctor.intro.replace(/\s*\n+\s*/g, " ")}
+                </p>
+                {/* 데스크탑: 입력된 \n 줄바꿈 그대로 유지 */}
+                <p className="hidden whitespace-pre-line text-[16px] leading-[1.7] text-[var(--text-secondary)] sm:block">
+                  {doctor.intro}
+                </p>
+              </>
             )}
             <div className="mt-auto pt-6">
               <h1 className="text-2xl font-bold text-[var(--text)] sm:text-3xl">

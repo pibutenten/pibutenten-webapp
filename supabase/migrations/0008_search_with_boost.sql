@@ -118,9 +118,9 @@ begin
     -- 검색어 있으면: 점수에 ±400 노이즈 (랜덤 비중 ↑)
     case when array_length(v_words, 1) is not null
          then s.score + (random() - 0.5) * 800 end desc nulls last,
-    -- 검색어 없으면(브라우즈): 영상 업로드일 + ±28일 랜덤 노이즈 (한 달 단위 셔플로 최신순 편향 완화)
+    -- 검색어 없으면(브라우즈): 영상 업로드일 + ±60일 랜덤 노이즈 (2달 단위 셔플)
     case when array_length(v_words, 1) is null and v.upload_date is not null
-         then extract(epoch from v.upload_date) + (random() - 0.5) * 60.0 * 60.0 * 24.0 * 56.0
+         then extract(epoch from v.upload_date) + (random() - 0.5) * 60.0 * 60.0 * 24.0 * 120.0
          end desc nulls last,
     s.id desc
   offset p_offset limit p_limit;
