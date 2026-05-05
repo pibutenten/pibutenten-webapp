@@ -72,22 +72,27 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
       });
   }, [expanded, qa.id]);
 
-  // 좋아요 상태 — 로그인 사용자별 DB(qa_likes) 기반
+  // 좋아요 상태 초기화 — 로그인이면 qa_likes, 미로그인이면 localStorage
   useEffect(() => {
     let alive = true;
     (async () => {
+      if (typeof window === "undefined") return;
       const supabase = createSupabaseBrowserClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("qa_likes")
-        .select("qa_id")
-        .eq("qa_id", qa.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (alive && data) setLiked(true);
+      if (user) {
+        const { data } = await supabase
+          .from("qa_likes")
+          .select("qa_id")
+          .eq("qa_id", qa.id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (alive) setLiked(!!data);
+      } else {
+        if (alive)
+          setLiked(localStorage.getItem(`qa-liked-${qa.id}`) === "1");
+      }
     })();
     return () => {
       alive = false;
@@ -97,30 +102,48 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
   function handleLike() {
     if (typeof window === "undefined") return;
     const supabase = createSupabaseBrowserClient();
-    // 낙관적 업데이트
     const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => (wasLiked ? Math.max(0, c - 1) : c + 1));
-    supabase
-      .rpc("toggle_qa_like", { p_qa_id: qa.id })
-      .then(({ data, error }: { data: { liked: boolean; like_count: number }[] | null; error: unknown }) => {
+
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      // 낙관적 UI 업데이트
+      setLiked(!wasLiked);
+      setLikeCount((c) => (wasLiked ? Math.max(0, c - 1) : c + 1));
+
+      if (user) {
+        // 로그인: qa_likes 토글 (정확한 dedup)
+        const { data, error } = await supabase.rpc("toggle_qa_like", {
+          p_qa_id: qa.id,
+        });
         if (error) {
-          // 롤백
           setLiked(wasLiked);
           setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
-          // 로그인 안 됨이면 안내
-          const msg = (error as { message?: string }).message ?? "";
-          if (msg.includes("not authenticated")) {
-            alert("좋아요는 로그인 후 가능해요.");
-          }
           return;
         }
-        const row = data?.[0];
+        const row = (data as { liked: boolean; like_count: number }[] | null)?.[0];
         if (row) {
           setLiked(row.liked);
           setLikeCount(row.like_count);
+          if (row.liked) localStorage.setItem(`qa-liked-${qa.id}`, "1");
+          else localStorage.removeItem(`qa-liked-${qa.id}`);
         }
-      });
+      } else {
+        // 익명: localStorage dedup + 단순 increment/decrement
+        const rpc = wasLiked ? "decrement_qa_like" : "increment_qa_like";
+        const { data, error } = await supabase.rpc(rpc, { p_qa_id: qa.id });
+        if (error) {
+          setLiked(wasLiked);
+          setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
+          return;
+        }
+        if (typeof data === "number") setLikeCount(data);
+        if (wasLiked) localStorage.removeItem(`qa-liked-${qa.id}`);
+        else localStorage.setItem(`qa-liked-${qa.id}`, "1");
+      }
+    })();
   }
   const theme = doctor ? getDoctorTheme(doctor.slug) : null;
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
