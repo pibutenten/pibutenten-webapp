@@ -109,7 +109,7 @@ export default function TopNav() {
             priority
             className="rounded-md"
           />
-          <span className="text-[16px] font-bold leading-none text-[var(--primary)]">
+          <span className="text-[16px] font-bold leading-none text-[var(--primary)] sm:text-[19px]">
             피부텐텐
           </span>
         </Link>
