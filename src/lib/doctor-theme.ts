@@ -20,7 +20,7 @@ const THEMES: Record<string, DoctorTheme> = {
   kimsoohyung: { bg: "#FFF6CF", bgSoft: "#FFFBE6", ring: "#F2E08F", accent: "#9A7B12" }, // 노랑
   gohyerim:    { bg: "#DCF5E7", bgSoft: "#EEF9F1", ring: "#A8E0BF", accent: "#2F8A56" }, // 민트
   kimjongsik:  { bg: "#F4E9DA", bgSoft: "#FAF3E8", ring: "#DCC5A1", accent: "#8A6B3A" }, // 베이지
-  leedoyoung:  { bg: "#FFE0CC", bgSoft: "#FFEEDF", ring: "#F5BE99", accent: "#B85A1F", offsetX: 14 }, // 복숭
+  leedoyoung:  { bg: "#FFE0CC", bgSoft: "#FFEEDF", ring: "#F5BE99", accent: "#B85A1F", offsetX: 14, offsetY: 5 }, // 복숭
   kanghyunjin: { bg: "#E8DEF6", bgSoft: "#F2EBFA", ring: "#C8B8E5", accent: "#5E4B96" }, // 라일락
   parkhyojin:  { bg: "#D6EFEF", bgSoft: "#E8F5F5", ring: "#A0D5D5", accent: "#2C7A7A" }, // 시폼
 };
