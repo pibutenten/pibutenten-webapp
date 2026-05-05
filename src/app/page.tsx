@@ -72,7 +72,7 @@ export default async function HomePage({ searchParams }: Props) {
         </p>
       )}
 
-      <div className="mt-4">
+      <div className="mt-4 sm:mt-10">
         {error && (
           <div className="rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Q&A 불러오기 실패: {error.message}
