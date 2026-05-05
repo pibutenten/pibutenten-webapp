@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import SearchBar from "./SearchBar";
 
 const MOBILE_BP = 768;
-const TARGET_TOP = 100; // 모바일 키보드 ON 시 검색창 top px (nav 56 + 여유 44)
+const TARGET_TOP = 130; // 모바일 키보드 ON 시 검색창 top px (nav 56 + 여유 74 — 헤더에 안 가리도록 더 내림)
 
 /**
  * Hero(타이틀) + 검색창 묶음.
@@ -35,9 +35,11 @@ export default function HeroSearch() {
     main.style.transform = "none";
     void (main as HTMLElement).offsetHeight;
     const rect = form.getBoundingClientRect();
-    const shift = Math.min(0, -(rect.top - TARGET_TOP));
+    // 양방향 시프트 — 두 번째 포커스 때 form이 위에 있으면 아래로 내림.
+    const shift = -(rect.top - TARGET_TOP);
     main.style.transition = "transform 0.3s ease";
-    main.style.transform = shift === 0 ? "" : `translate3d(0, ${shift}px, 0)`;
+    main.style.transform =
+      Math.abs(shift) < 2 ? "" : `translate3d(0, ${shift}px, 0)`;
   }, [isMobile]);
 
   const resetMain = useCallback(() => {
@@ -49,13 +51,21 @@ export default function HeroSearch() {
   }, []);
 
   // SearchBar focus/blur 콜백 — 데스크탑은 무시, 모바일은 매 focus마다 reposition (blur는 main 유지)
+  // 키보드 애니메이션 + visualViewport 안정화 시간 차이 때문에 여러 번 재시도
   function handleFocusChange(f: boolean) {
     if (!isMobile()) {
       setFocused(false);
       return;
     }
     setFocused(f);
-    if (f) repositionMain();
+    if (f) {
+      repositionMain();
+      // 키보드 슬라이드업 진행 중에 한 번 더 — viewport 변화 반영
+      setTimeout(() => repositionMain(), 100);
+      // 키보드 완전히 자리잡은 뒤 한 번 더 — 두 번째 포커스 시에도 보정 보장
+      setTimeout(() => repositionMain(), 300);
+      setTimeout(() => repositionMain(), 600);
+    }
     // f=false (blur) 시 main reset 안 함 → 키보드 닫혀도 위치 유지
     // 진짜 키보드 닫힘은 visualViewport에서 감지해서 reset
   }
