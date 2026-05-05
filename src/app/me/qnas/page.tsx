@@ -110,7 +110,7 @@ export default async function MyQnasPage({ searchParams }: Props) {
   const doctorId = da?.doctor_id ?? null;
   if (!doctorId && profile.role === "doctor") {
     return (
-      <section className="mx-auto w-full max-w-[1080px] py-6">
+      <section className="w-full py-6">
         <div className="rounded-[var(--radius)] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
           원장 doctor 매핑이 없습니다. 관리자에게 문의해주세요.
         </div>
@@ -216,7 +216,7 @@ export default async function MyQnasPage({ searchParams }: Props) {
   const pageTitle = pickOnly ? "내 Pick" : "내 글 관리";
 
   return (
-    <section className="mx-auto w-full max-w-[1080px] py-6">
+    <section className="w-full py-6">
       {/* 헤더 */}
       <div className="mb-5 flex items-baseline justify-between gap-3">
         <div>

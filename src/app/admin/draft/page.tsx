@@ -25,7 +25,7 @@ export default async function AdminDraftPage() {
     .order("sort_order", { ascending: true });
 
   return (
-    <section className="mx-auto w-full max-w-[820px] py-6">
+    <section className="w-full py-6">
       <div className="mb-5 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold text-[var(--text)]">새 Q&A 초안</h1>
         <a

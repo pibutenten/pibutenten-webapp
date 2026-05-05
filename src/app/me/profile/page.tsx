@@ -18,7 +18,7 @@ export default async function MyProfilePage() {
   if (!profile) redirect("/login?error=프로필을 찾을 수 없습니다");
 
   return (
-    <section className="mx-auto w-full max-w-[640px] py-6">
+    <section className="w-full py-6">
       <div className="mb-5 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold text-[var(--text)]">내 정보</h1>
         <Link

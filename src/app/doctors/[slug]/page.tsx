@@ -66,14 +66,14 @@ export default async function DoctorDetailPage({ params }: Props) {
 
   return (
     <section className="space-y-6">
-      {/* 원장님 hero — 프레임 풀너비 + 매우 은은한 배경 (theme bg 10% alpha 단색) */}
+      {/* 원장님 hero — 배경은 풀너비, 안의 글씨/이미지는 max-w-820 안에 정렬 */}
       <header
         className="relative w-full rounded-t-[var(--radius)] overflow-hidden"
         style={{
           background: `${theme.bg}1A`,
         }}
       >
-        <div className="flex items-end gap-1 sm:gap-2">
+        <div className="mx-auto flex max-w-[820px] items-end gap-1 sm:gap-2">
           {/* 좌측: 멘트(중상단) + 이름(하단) — 좌측 약간의 여백 */}
           <div className="flex flex-1 flex-col self-stretch pb-6 pl-2 pt-12 sm:pb-8 sm:pl-3 sm:pt-20">
             {doctor.intro && (

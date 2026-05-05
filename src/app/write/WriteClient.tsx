@@ -224,7 +224,7 @@ export default function WriteClient({
   }
 
   return (
-    <section className="mx-auto w-full max-w-[760px] py-6">
+    <section className="w-full py-6">
       <h1 className="mb-1 text-2xl font-bold text-[var(--text)]">글쓰기</h1>
       <p className="mb-5 text-[13px] text-[var(--text-muted)]">
         {role === "user"

@@ -211,7 +211,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   };
 
   return (
-    <section className="mx-auto w-full max-w-[1080px] py-6">
+    <section className="w-full py-6">
       {/* 헤더 */}
       <div className="mb-5 flex items-baseline justify-between gap-3">
         <div>

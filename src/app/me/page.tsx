@@ -134,7 +134,7 @@ export default async function MePage() {
   const isDoctor = profile.role === "doctor" && doctorId;
 
   return (
-    <section className="mx-auto w-full max-w-[820px] py-6">
+    <section className="w-full py-6">
       {/* 헤더 */}
       <h1 className="mb-2 text-2xl font-bold text-[var(--text)]">
         {profile.display_name}{" "}
