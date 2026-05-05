@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 피부텐텐 (Pibutenten)
 
-## Getting Started
+피부과 전문의가 함께하는 피부 미용 SNS 웹앱.
 
-First, run the development server:
+- **Stack**: Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Supabase
+- **Form factor**: 모바일 우선 PWA (모바일 1단 / 데스크탑 ≥900px 2단, 최대 너비 1080px)
+- **YouTube**: https://www.youtube.com/@pibutenten
+
+## 개발
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.local.example .env.local   # Supabase URL/anon key 채우기
+npm run dev                         # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 라우트
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| 경로 | 설명 |
+|---|---|
+| `/` | 홈 피드 (인스타 스타일, 예정) |
+| `/search` | 검색 |
+| `/doctors` | 원장님 소개 |
+| 외부 | 유튜브 채널 (`@pibutenten`) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 디렉터리
 
-## Learn More
+```
+src/
+├── app/                  # App Router
+│   ├── layout.tsx        # max-w 1080 컨테이너 + Sticky TopNav
+│   ├── page.tsx
+│   ├── search/page.tsx
+│   └── doctors/page.tsx
+├── components/
+│   └── TopNav.tsx        # Sticky 상단 네비 (아이콘 onlly)
+└── lib/supabase/
+    ├── client.ts         # 브라우저용
+    └── server.ts         # 서버 컴포넌트/액션용
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 배포
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Repo**: `pibutenten/pibutenten-webapp` (Private)
+- **Hosting**: Vercel Team `pibutenten`
+- **Region**: Northeast Asia (Seoul)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 관련
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 정적 검색 사이트(legacy): https://github.com/jminbae/pbtt-search

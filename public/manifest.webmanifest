@@ -1,0 +1,20 @@
+{
+  "name": "피부텐텐",
+  "short_name": "피부텐텐",
+  "description": "피부가 예뻐지는 모든 이야기 — 피부과 전문의 SNS",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F7FA",
+  "theme_color": "#1B4965",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

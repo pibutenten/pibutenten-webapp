@@ -1,11 +1,11 @@
-export default function HomePage() {
+export default function DoctorsPage() {
   return (
     <section className="grid grid-cols-1 gap-4 min-[900px]:grid-cols-2">
       <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)] shadow-[var(--shadow-sm)]">
-        곧 인스타그램 스타일 피드가 이곳에 표시됩니다.
+        원장님 카드 자리
       </div>
       <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)] shadow-[var(--shadow-sm)]">
-        피드 카드 자리 (예시)
+        원장님 카드 자리 (예시)
       </div>
     </section>
   );
