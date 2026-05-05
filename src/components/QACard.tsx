@@ -254,10 +254,17 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[14px] font-bold text-[var(--text)]">
-            <span>{doctor?.name ?? "익명"} 원장님</span>
+          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0 text-[14px] leading-tight">
+            <span className="font-bold text-[var(--text)]">
+              {doctor?.name ?? "익명"}
+            </span>
+            {doctor && (
+              <span className="text-[12px] font-medium text-[var(--primary)]">
+                피부과 전문의
+              </span>
+            )}
           </div>
-          <div className="truncate text-[12px] text-[var(--text-muted)]">
+          <div className="mt-0.5 truncate text-[12px] text-[var(--text-muted)]">
             {qa.video?.topic ? `${qa.video.topic}` : ""}
             {dateLabel ? ` · ${dateLabel}` : ""}
           </div>
