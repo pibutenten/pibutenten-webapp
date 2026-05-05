@@ -52,6 +52,7 @@ export default async function HomePage({ searchParams }: Props) {
     const cRes = await countQuery;
     count = cRes.count ?? null;
   } else {
+    // 영상 업로드일 기준 최신순 (videos.upload_date desc, id desc)
     const res = await supabase
       .from("qas")
       .select(
@@ -59,11 +60,11 @@ export default async function HomePage({ searchParams }: Props) {
         id, question, answer, meta, keywords,
         like_count, view_count,
         doctor:doctors(slug, name, branch),
-        video:videos(youtube_id, youtube_url, topic, upload_date)
+        video:videos!inner(youtube_id, youtube_url, topic, upload_date)
       `,
       )
       .eq("published", true)
-      .order("created_at", { ascending: false })
+      .order("upload_date", { referencedTable: "videos", ascending: false })
       .order("id", { ascending: false })
       .limit(INITIAL_PAGE_SIZE)
       .returns<QACardData[]>();

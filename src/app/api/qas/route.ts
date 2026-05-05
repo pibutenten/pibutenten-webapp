@@ -56,7 +56,7 @@ export async function GET(req: Request) {
         id, question, answer, meta, keywords,
         like_count, view_count,
         doctor:doctors(slug, name, branch),
-        video:videos(youtube_id, youtube_url, topic, upload_date)
+        video:videos!inner(youtube_id, youtube_url, topic, upload_date)
       `,
       )
       .eq("published", true);
@@ -64,7 +64,7 @@ export async function GET(req: Request) {
       query = query.eq("doctor_id", doctorIdFilter);
     }
     const res = await query
-      .order("created_at", { ascending: false })
+      .order("upload_date", { referencedTable: "videos", ascending: false })
       .order("id", { ascending: false })
       .range(offset, offset + limit - 1);
     data = res.data as unknown[] | null;

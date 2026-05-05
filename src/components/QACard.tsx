@@ -119,9 +119,6 @@ export default function QACard({ qa, activeQuery }: Props) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[14px] font-bold text-[var(--text)]">
             <span>{doctor?.name ?? "익명"} 원장님</span>
-            <span className="text-[13px] text-[var(--secondary)]" aria-hidden>
-              ✓
-            </span>
           </div>
           <div className="truncate text-[12px] text-[var(--text-muted)]">
             {qa.video?.topic ? `${qa.video.topic}` : ""}

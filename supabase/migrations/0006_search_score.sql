@@ -107,8 +107,14 @@ begin
   from scored s
   left join public.doctors d on d.id = s.doctor_id
   left join public.videos  v on v.id = s.video_id
-  -- 점수에 ±200 노이즈 추가 → 200 이내 차이는 자연스럽게 셔플
-  order by (s.score + (random() - 0.5) * 400) desc, s.id desc
+  order by
+    -- 검색어 있으면: 점수에 ±200 노이즈 (200 이내 차이 자연 셔플)
+    case when array_length(v_words, 1) is not null
+         then s.score + (random() - 0.5) * 400 end desc nulls last,
+    -- 검색어 없으면(브라우즈): 영상 업로드일 최신순
+    case when array_length(v_words, 1) is null
+         then v.upload_date end desc nulls last,
+    s.id desc
   offset p_offset limit p_limit;
 end
 $func$;

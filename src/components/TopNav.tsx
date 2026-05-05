@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 type NavItem = {
   href: string;
@@ -89,6 +89,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export default function TopNav() {
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <header
@@ -101,13 +102,15 @@ export default function TopNav() {
           aria-label="피부텐텐 홈"
           className="flex items-center gap-2 shrink-0"
           onClick={(e) => {
-            // 같은 페이지(홈)이면 navigation이 안 일어나므로 직접 맨 위로 스크롤
+            // 홈에서 로고 클릭 시 → 맨 위 스크롤 + 서버 컴포넌트 새로고침 (F5처럼)
             if (pathname === "/") {
               e.preventDefault();
               if (typeof window !== "undefined") {
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }
+              router.refresh();
             }
+            // 다른 경로는 / 로 navigate (Next.js가 자동 스크롤)
           }}
         >
           <Image
