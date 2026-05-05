@@ -16,6 +16,7 @@ type MyQARow = {
   is_pick: boolean | null;
   like_count: number | null;
   view_count: number | null;
+  comments_count: { count: number }[] | null;
   created_at: string;
 };
 
@@ -32,17 +33,17 @@ const PAGE_SIZE = 30;
 
 const STATUS_LIST: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "전체" },
-  { key: "pending_review", label: "검수대기" },
-  { key: "published", label: "발행됨" },
+  { key: "pending_review", label: "검수" },
+  { key: "published", label: "발행" },
   { key: "draft", label: "초안" },
-  { key: "archived", label: "보관됨" },
+  { key: "archived", label: "보관" },
 ];
 
 const STATUS_STYLE: Record<QAStatus, { bg: string; fg: string; label: string }> = {
   draft: { bg: "#9E9E9E", fg: "#FFFFFF", label: "초안" },
-  pending_review: { bg: "#FFA000", fg: "#FFFFFF", label: "검수대기" },
-  published: { bg: "#4CAF50", fg: "#FFFFFF", label: "발행됨" },
-  archived: { bg: "#616161", fg: "#FFFFFF", label: "보관됨" },
+  pending_review: { bg: "#FFA000", fg: "#FFFFFF", label: "검수" },
+  published: { bg: "#4CAF50", fg: "#FFFFFF", label: "발행" },
+  archived: { bg: "#616161", fg: "#FFFFFF", label: "보관" },
 };
 
 function isStatusFilter(v: string | undefined): v is StatusFilter {
@@ -173,7 +174,7 @@ export default async function MyQnasPage({ searchParams }: Props) {
   let listQuery = supabase
     .from("qas")
     .select(
-      `id, status, type, question, answer, is_pick, like_count, view_count, created_at`,
+      `id, status, type, question, answer, is_pick, like_count, view_count, comments_count:comments(count), created_at`,
       { count: "exact" },
     )
     .eq("doctor_id", doctorId);
@@ -371,6 +372,7 @@ export default async function MyQnasPage({ searchParams }: Props) {
                   <th className="px-3 py-2 text-left font-medium">질문</th>
                   <th className="px-3 py-2 text-right font-medium">좋아요</th>
                   <th className="px-3 py-2 text-right font-medium">조회수</th>
+                  <th className="px-3 py-2 text-right font-medium">댓글</th>
                   <th className="px-3 py-2 text-left font-medium">생성일</th>
                 </tr>
               </thead>
@@ -431,6 +433,9 @@ export default async function MyQnasPage({ searchParams }: Props) {
                       </td>
                       <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
                         {(r.view_count ?? 0).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
+                        {(r.comments_count?.[0]?.count ?? 0).toLocaleString()}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
                         {formatDate(r.created_at)}

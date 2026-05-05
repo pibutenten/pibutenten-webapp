@@ -47,8 +47,8 @@ type Props = {
 
 const STATUS_LABELS: Record<QAStatus, string> = {
   draft: "초안",
-  pending_review: "검수 대기",
-  published: "발행됨",
+  pending_review: "검수",
+  published: "발행",
   archived: "보관",
 };
 
@@ -77,7 +77,8 @@ export default function DoctorEditClient({
   const router = useRouter();
   const [question, setQuestion] = useState(qa.question);
   const [answer, setAnswer] = useState(qa.answer);
-  const [keywordsText, setKeywordsText] = useState(qa.keywords.join(", "));
+  const [keywords, setKeywords] = useState<string[]>(qa.keywords);
+  const [keywordInput, setKeywordInput] = useState("");
   const [status, setStatus] = useState<QAStatus>(qa.status);
   const [isPick, setIsPick] = useState<boolean>(qa.is_pick ?? false);
   const [youtubeUrl, setYoutubeUrl] = useState(qa.video?.youtube_url ?? "");
@@ -110,11 +111,6 @@ export default function DoctorEditClient({
     setInfo(null);
     startSave(async () => {
       const supabase = createSupabaseBrowserClient();
-      const keywords = keywordsText
-        .split(",")
-        .map((k) => k.trim())
-        .filter(Boolean);
-
       const updatePayload: Record<string, unknown> = {
         question: question.trim(),
         answer: answer.trim(),
@@ -351,14 +347,52 @@ export default function DoctorEditClient({
 
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            키워드 (쉼표로 구분)
+            키워드
           </label>
-          <input
-            type="text"
-            value={keywordsText}
-            onChange={(e) => setKeywordsText(e.target.value)}
-            className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-          />
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {keywords.map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() =>
+                  setKeywords((prev) => prev.filter((x) => x !== k))
+                }
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--primary)] bg-[var(--primary)]/10 px-2.5 py-0.5 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary)]/20"
+              >
+                {k} <span aria-hidden>×</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const v = keywordInput.trim().replace(/^#/, "");
+                  if (!v || keywords.includes(v)) return;
+                  setKeywords((prev) => [...prev, v]);
+                  setKeywordInput("");
+                }
+              }}
+              placeholder="키워드 입력 후 Enter"
+              className="flex-1 rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const v = keywordInput.trim().replace(/^#/, "");
+                if (!v || keywords.includes(v)) return;
+                setKeywords((prev) => [...prev, v]);
+                setKeywordInput("");
+              }}
+              className="rounded-md border border-[var(--border)] px-3 text-sm hover:bg-[var(--bg-soft)]"
+            >
+              추가
+            </button>
+          </div>
         </div>
 
         <div>
