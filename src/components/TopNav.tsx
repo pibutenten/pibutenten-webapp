@@ -95,7 +95,7 @@ export default function TopNav() {
       className="sticky top-0 z-50 border-b border-[var(--border)] backdrop-blur"
       style={{ background: "rgba(255,255,255,0.92)" }}
     >
-      <div className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-2 px-4 py-3">
+      <div className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-2 py-3 pl-4 pr-5 sm:pl-6 sm:pr-8">
         <Link
           href="/"
           aria-label="피부텐텐 홈"
