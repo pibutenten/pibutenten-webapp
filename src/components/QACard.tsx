@@ -71,23 +71,42 @@ export default function QACard({ qa, activeQuery }: Props) {
 
   function handleLike() {
     if (typeof window === "undefined") return;
-    if (liked) return; // 한 번만
-    setLiked(true);
-    setLikeCount((c) => c + 1); // 옵티미스틱
-    localStorage.setItem(`qa-liked-${qa.id}`, "1");
     const supabase = createSupabaseBrowserClient();
-    supabase
-      .rpc("increment_qa_like", { p_qa_id: qa.id })
-      .then(({ data, error }: { data: number | null; error: unknown }) => {
-        if (error) {
-          // 실패 시 롤백
-          setLiked(false);
-          setLikeCount((c) => Math.max(0, c - 1));
-          localStorage.removeItem(`qa-liked-${qa.id}`);
-          return;
-        }
-        if (typeof data === "number") setLikeCount(data);
-      });
+    if (liked) {
+      // 좋아요 취소 (토글 off)
+      setLiked(false);
+      setLikeCount((c) => Math.max(0, c - 1));
+      localStorage.removeItem(`qa-liked-${qa.id}`);
+      supabase
+        .rpc("decrement_qa_like", { p_qa_id: qa.id })
+        .then(({ data, error }: { data: number | null; error: unknown }) => {
+          if (error) {
+            // 롤백
+            setLiked(true);
+            setLikeCount((c) => c + 1);
+            localStorage.setItem(`qa-liked-${qa.id}`, "1");
+            return;
+          }
+          if (typeof data === "number") setLikeCount(data);
+        });
+    } else {
+      // 좋아요 (토글 on)
+      setLiked(true);
+      setLikeCount((c) => c + 1);
+      localStorage.setItem(`qa-liked-${qa.id}`, "1");
+      supabase
+        .rpc("increment_qa_like", { p_qa_id: qa.id })
+        .then(({ data, error }: { data: number | null; error: unknown }) => {
+          if (error) {
+            // 롤백
+            setLiked(false);
+            setLikeCount((c) => Math.max(0, c - 1));
+            localStorage.removeItem(`qa-liked-${qa.id}`);
+            return;
+          }
+          if (typeof data === "number") setLikeCount(data);
+        });
+    }
   }
   const theme = doctor ? getDoctorTheme(doctor.slug) : null;
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
@@ -261,8 +280,7 @@ export default function QACard({ qa, activeQuery }: Props) {
           onClick={handleLike}
           aria-label={liked ? "좋아요 취소" : "좋아요"}
           aria-pressed={liked}
-          className="flex items-center gap-1.5 transition-colors hover:text-[var(--primary)] disabled:opacity-100"
-          disabled={liked}
+          className="flex items-center gap-1.5 transition-colors hover:text-[var(--primary)]"
           style={liked ? { color: "#E91E63" } : undefined}
         >
           <svg
@@ -359,16 +377,28 @@ async function shareQA(qa: QACardData) {
 }
 
 function showToast(msg: string) {
-  // 간단한 임시 토스트 (추후 글로벌 토스트로 교체 가능)
+  // 화면 가운데에 산뜻한 흰 배경 토스트 (페이드 인/아웃)
   const el = document.createElement("div");
   el.textContent = msg;
   el.style.cssText =
-    "position:fixed;left:50%;bottom:32px;transform:translateX(-50%);" +
-    "background:rgba(27,73,101,0.92);color:white;padding:8px 16px;" +
-    "border-radius:9999px;font-size:13px;font-weight:600;z-index:9999;" +
-    "box-shadow:0 4px 12px rgba(0,0,0,0.15);";
+    "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(0.9);" +
+    "background:#FFFFFF;color:#1B4965;padding:14px 28px;" +
+    "border:1px solid #E2E8EE;border-radius:9999px;" +
+    "font-size:15px;font-weight:700;letter-spacing:-0.2px;z-index:9999;" +
+    "box-shadow:0 12px 32px rgba(27,73,101,0.18),0 2px 6px rgba(0,0,0,0.06);" +
+    "opacity:0;transition:opacity 0.2s ease,transform 0.2s ease;" +
+    "pointer-events:none;";
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1800);
+  // 다음 프레임에서 페이드 인
+  requestAnimationFrame(() => {
+    el.style.opacity = "1";
+    el.style.transform = "translate(-50%,-50%) scale(1)";
+  });
+  setTimeout(() => {
+    el.style.opacity = "0";
+    el.style.transform = "translate(-50%,-50%) scale(0.95)";
+    setTimeout(() => el.remove(), 220);
+  }, 1500);
 }
 
 function formatDate(iso: string | null): string | null {

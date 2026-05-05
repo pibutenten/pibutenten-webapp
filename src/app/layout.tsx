@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_KR } from "next/font/google";
+import Script from "next/script";
 import TopNav from "@/components/TopNav";
+import ScrollManager from "@/components/ScrollManager";
 import "./globals.css";
 
 const notoSansKR = Noto_Sans_KR({
@@ -39,7 +41,14 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko" className={`${notoSansKR.variable} h-full antialiased`}>
+      <head>
+        {/* F5/리로드 시 브라우저 스크롤 자동복원 끄기 — 페이지 페인트 전에 실행 */}
+        <Script id="scroll-restoration" strategy="beforeInteractive">
+          {`if ('scrollRestoration' in history) history.scrollRestoration = 'manual';`}
+        </Script>
+      </head>
       <body className="min-h-full flex flex-col">
+        <ScrollManager />
         <TopNav />
         <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 py-4">
           {children}
