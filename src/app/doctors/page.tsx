@@ -76,7 +76,7 @@ export default async function DoctorsPage() {
                   sizes="(max-width: 900px) 50vw, 360px"
                   className="object-cover"
                   style={{
-                    objectPosition: "50% 0%",
+                    objectPosition: "50% 10%",
                     transform: `translate(${theme.offsetX ?? 0}px, ${theme.offsetY ?? 0}px)`,
                   }}
                   priority={d.sort_order <= 20}
