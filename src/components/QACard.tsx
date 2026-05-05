@@ -194,7 +194,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           e.stopPropagation();
           if (doctor?.slug) router.push(`/doctors/${doctor.slug}`);
         }}
-        className="mb-3.5 -m-2 flex w-full cursor-pointer items-center gap-3 rounded-md p-2 text-left transition-colors hover:bg-[var(--bg-soft)]"
+        className="mb-3.5 flex w-full cursor-pointer items-center gap-3 rounded-md p-2 text-left transition-colors hover:bg-[var(--bg-soft)]/60"
         aria-label={doctor ? `${doctor.name} 원장님 소개로 이동` : undefined}
       >
         {doctor && photo && (
@@ -253,7 +253,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className="font-medium text-[var(--secondary)] hover:text-[var(--primary)]"
+          className="cursor-pointer rounded-md px-1.5 py-0.5 font-medium text-[var(--secondary)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary)]"
         >
           {expanded ? "접기 ▴" : "더보기 ▾"}
         </button>
@@ -273,7 +273,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
                   if (typeof data === "number") setViewCount(data);
                 });
             }}
-            className="inline-flex items-center gap-1 font-medium text-[var(--text-muted)] hover:text-[var(--primary)]"
+            className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary)]"
           >
             <span style={{ color: "#FF0000" }}>▶</span> 영상 보러가기
           </a>
@@ -298,7 +298,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }
                 }}
-                className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[12px] transition-colors"
+                className="inline-flex cursor-pointer items-center rounded-full border px-2.5 py-0.5 text-[12px] transition-colors hover:shadow-sm"
                 style={
                   matched && queryCategoryColor
                     ? {
@@ -346,7 +346,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           onClick={handleLike}
           aria-label={liked ? "좋아요 취소" : "좋아요"}
           aria-pressed={liked}
-          className="flex items-center gap-1.5 transition-colors hover:text-[var(--primary)]"
+          className="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-[var(--primary)]"
           style={liked ? { color: "#E91E63" } : undefined}
         >
           <svg
@@ -384,7 +384,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
         <button
           type="button"
           onClick={() => shareQA(qa)}
-          className="ml-auto flex items-center gap-1.5 transition-colors hover:text-[var(--primary)]"
+          className="ml-auto flex cursor-pointer items-center gap-1.5 transition-colors hover:text-[var(--primary)]"
           aria-label="공유하기"
           title="공유하기"
         >
