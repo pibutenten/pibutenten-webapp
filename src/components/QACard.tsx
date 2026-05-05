@@ -194,7 +194,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           e.stopPropagation();
           if (doctor?.slug) router.push(`/doctors/${doctor.slug}`);
         }}
-        className="mb-3.5 flex w-full items-center gap-3 text-left transition-opacity hover:opacity-80"
+        className="mb-3.5 -m-2 flex w-full cursor-pointer items-center gap-3 rounded-md p-2 text-left transition-colors hover:bg-[var(--bg-soft)]"
         aria-label={doctor ? `${doctor.name} 원장님 소개로 이동` : undefined}
       >
         {doctor && photo && (

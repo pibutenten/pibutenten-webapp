@@ -145,7 +145,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
                 // expanded 상태는 유지 — 펼친 채로 탭 전환 자유롭게.
                 // 새 페이지 진입(로고/검색 등)은 컴포넌트 새 마운트라 기본값 false로 시작됨.
               }}
-              className="shrink-0 border-b-2 px-1 py-[6px] text-[13px] font-semibold transition-[color,border-color,transform] active:scale-[0.96] sm:py-[7px] sm:text-[14px]"
+              className="shrink-0 cursor-pointer border-b-2 px-1 py-[6px] text-[13px] font-semibold transition-[color,border-color,transform] hover:opacity-70 active:scale-[0.96] sm:py-[7px] sm:text-[14px]"
               style={{
                 color: isActive ? c.color : "var(--text-secondary)",
                 borderBottomColor: isActive ? c.color : "transparent",
@@ -193,7 +193,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
                     type="button"
                     onClick={() => selectChip(kw)}
                     disabled={isPending}
-                    className="rounded-full border px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:cursor-wait"
+                    className="cursor-pointer rounded-full border px-3 py-1 text-[13px] transition-colors hover:shadow-sm active:scale-[0.97] disabled:cursor-wait"
                     style={
                       selected
                         ? {
