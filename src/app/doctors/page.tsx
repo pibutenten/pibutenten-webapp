@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
 
@@ -61,9 +62,11 @@ export default async function DoctorsPage() {
           const photo = d.photo_url || getDoctorPhoto(d.slug);
 
           return (
-            <article
+            <Link
               key={d.id}
-              className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]"
+              href={`/doctors/${d.slug}`}
+              aria-label={`${d.name} 원장님 소개로 이동`}
+              className="block overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5 hover:shadow-[var(--shadow)]"
             >
               <div className="relative aspect-square w-full overflow-hidden bg-[var(--bg-soft)]">
                 <Image
@@ -88,7 +91,7 @@ export default async function DoctorsPage() {
                   {d.title}
                 </p>
               </div>
-            </article>
+            </Link>
           );
         })}
       </div>

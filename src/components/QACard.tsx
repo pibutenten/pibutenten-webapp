@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
+import { CATEGORIES } from "@/lib/categories";
+import { categorize } from "@/lib/category-sets";
 
 export type QACardData = {
   id: number;
@@ -32,7 +34,13 @@ export type QACardData = {
  * - 원장님 아바타 뒤 파스텔 배경 (식별성)
  * - fadeInUp 애니메이션
  */
-export default function QACard({ qa }: { qa: QACardData }) {
+type Props = {
+  qa: QACardData;
+  /** 검색어 — 일치하는 키워드 칩은 카테고리 색, 본문은 노란 mark */
+  activeQuery?: string;
+};
+
+export default function QACard({ qa, activeQuery }: Props) {
   const [expanded, setExpanded] = useState(false);
   const router = useRouter();
   const doctor = qa.doctor;
@@ -46,10 +54,23 @@ export default function QACard({ qa }: { qa: QACardData }) {
   const avatarTy =
     theme?.avatarOffsetY ?? (theme?.offsetY ?? 0) * 0.46;
 
+  // 검색어가 어느 카테고리에 속하는지 판정 → 칩 강조 색
+  const queryCategoryColor = activeQuery
+    ? CATEGORIES.find((c) => c.slug === categorize(activeQuery))?.color
+    : null;
+
   return (
     <article className="fade-in-up rounded-[var(--radius)] border border-[var(--border)] bg-white p-[18px_20px] shadow-[var(--shadow-sm)]">
-      {/* 원장 행 */}
-      <div className="mb-3.5 flex items-center gap-3">
+      {/* 원장 행 — 클릭 시 원장님 소개 페이지로 이동 */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (doctor?.slug) router.push(`/doctors/${doctor.slug}`);
+        }}
+        className="mb-3.5 flex w-full items-center gap-3 text-left transition-opacity hover:opacity-80"
+        aria-label={doctor ? `${doctor.name} 원장님 소개로 이동` : undefined}
+      >
         {doctor && photo && (
           <div
             className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full"
@@ -83,11 +104,11 @@ export default function QACard({ qa }: { qa: QACardData }) {
             {dateLabel ? ` · ${dateLabel}` : ""}
           </div>
         </div>
-      </div>
+      </button>
 
       {/* 질문 */}
       <h2 className="mb-3 text-[17px] font-bold leading-[1.45] tracking-[-0.3px] text-[var(--primary)]">
-        {qa.question}
+        {highlight(qa.question, activeQuery)}
       </h2>
 
       {/* 답변 — 클릭으로 펼치기/접기 */}
@@ -103,7 +124,7 @@ export default function QACard({ qa }: { qa: QACardData }) {
           }`}
           style={{ transition: "color 0.2s ease" }}
         >
-          {qa.answer}
+          {highlight(qa.answer, activeQuery)}
         </p>
         <span
           className="mt-2 inline-block text-[12px] font-medium text-[var(--secondary)] hover:text-[var(--primary)]"
@@ -113,25 +134,43 @@ export default function QACard({ qa }: { qa: QACardData }) {
         </span>
       </button>
 
-      {/* 키워드 칩 — 클릭 시 검색 */}
+      {/* 키워드 칩 — 클릭 시 검색, 활성 검색어와 일치하면 카테고리 색 */}
       {qa.keywords.length > 0 && (
         <div className="mb-3 mt-3.5 flex flex-wrap gap-1.5">
-          {qa.keywords.map((kw) => (
-            <button
-              key={kw}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push(`/?q=${encodeURIComponent(kw)}`);
-                if (typeof window !== "undefined") {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+          {qa.keywords.map((kw) => {
+            const matched = activeQuery && kw === activeQuery;
+            return (
+              <button
+                key={kw}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/?q=${encodeURIComponent(kw)}`);
+                  if (typeof window !== "undefined") {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+                className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[12px] transition-colors"
+                style={
+                  matched && queryCategoryColor
+                    ? {
+                        backgroundColor: queryCategoryColor + "1A",
+                        borderColor: queryCategoryColor,
+                        color: queryCategoryColor,
+                        fontWeight: 700,
+                      }
+                    : {
+                        backgroundColor: "white",
+                        borderColor: "var(--border)",
+                        color: "var(--text-secondary)",
+                        fontWeight: 500,
+                      }
                 }
-              }}
-              className="inline-flex items-center rounded-full border border-[var(--border)] bg-white px-2.5 py-0.5 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--secondary)] hover:text-[var(--text)]"
-            >
-              {kw}
-            </button>
-          ))}
+              >
+                {kw}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -258,4 +297,41 @@ function formatDate(iso: string | null): string | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   if (!m) return iso;
   return `${m[1].slice(2)}.${m[2]}.${m[3]}`;
+}
+
+/**
+ * 텍스트 안에서 query 부분 일치를 노란 mark로 강조 (대소문자 무시).
+ * query 비어있으면 원문 반환.
+ */
+function highlight(text: string, query?: string): ReactNode {
+  if (!query || !query.trim()) return text;
+  const q = query.trim();
+  const lower = text.toLowerCase();
+  const lq = q.toLowerCase();
+  const parts: ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+  while (i < text.length) {
+    const idx = lower.indexOf(lq, i);
+    if (idx < 0) {
+      parts.push(text.slice(i));
+      break;
+    }
+    if (idx > i) parts.push(text.slice(i, idx));
+    parts.push(
+      <mark
+        key={`m${key++}`}
+        style={{
+          backgroundColor: "#FFF3A3",
+          color: "inherit",
+          padding: "0 1px",
+          borderRadius: "2px",
+        }}
+      >
+        {text.slice(idx, idx + q.length)}
+      </mark>,
+    );
+    i = idx + q.length;
+  }
+  return <Fragment>{parts}</Fragment>;
 }

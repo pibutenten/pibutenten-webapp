@@ -49,13 +49,19 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
   const innerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
 
+  // 첫 진입 시 디폴트 카테고리 (한 번만 실행)
   useEffect(() => {
-    if (queryCategory) {
-      setActive(queryCategory);
-    } else if (active === null) {
+    if (active === null && !queryCategory) {
       setActive(pickDefaultCategory());
     }
-  }, [queryCategory, active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // queryCategory(URL ?q에서 파생)가 바뀔 때만 활성 카테고리 동기화
+  // → 사용자가 탭을 클릭한 뒤엔 active를 덮어쓰지 않음
+  useEffect(() => {
+    if (queryCategory) setActive(queryCategory);
+  }, [queryCategory]);
 
   // 오버플로 측정 — 카테고리 변경/리사이즈 시 재계산
   useLayoutEffect(() => {

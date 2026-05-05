@@ -8,6 +8,8 @@ type Props = {
   pageSize?: number;
   /** 검색어. 있으면 페이지네이션 시 ?q=...로 함께 호출 */
   searchQuery?: string;
+  /** 특정 원장님으로 필터링. 페이지네이션 시 ?doctor_slug=... */
+  doctorSlug?: string;
 };
 
 /**
@@ -20,21 +22,43 @@ export default function QAFeed({
   initial,
   pageSize = 20,
   searchQuery,
+  doctorSlug,
 }: Props) {
   const [items, setItems] = useState<QACardData[]>(initial);
   const [hasMore, setHasMore] = useState(initial.length >= pageSize);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // 동시 호출 방지
+  const loadingRef = useRef(false);
+  // 최신 의존성 추적용
+  const stateRef = useRef({
+    items,
+    hasMore,
+    pageSize,
+    searchQuery,
+    doctorSlug,
+  });
+  stateRef.current = { items, hasMore, pageSize, searchQuery, doctorSlug };
 
   const loadMore = useCallback(async () => {
-    if (loading || !hasMore) return;
+    if (loadingRef.current) return;
+    const {
+      items: cur,
+      hasMore: hm,
+      pageSize: ps,
+      searchQuery: sq,
+      doctorSlug: ds,
+    } = stateRef.current;
+    if (!hm) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        offset: String(items.length),
-        limit: String(pageSize),
+        offset: String(cur.length),
+        limit: String(ps),
       });
-      if (searchQuery) params.set("q", searchQuery);
+      if (sq) params.set("q", sq);
+      if (ds) params.set("doctor_slug", ds);
       const res = await fetch(`/api/qas?${params.toString()}`, {
         cache: "no-store",
       });
@@ -45,15 +69,16 @@ export default function QAFeed({
       const data = (await res.json()) as { qas: QACardData[] };
       const next = data.qas ?? [];
       setItems((prev) => [...prev, ...next]);
-      if (next.length < pageSize) setHasMore(false);
+      if (next.length < ps) setHasMore(false);
     } catch {
       setHasMore(false);
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
-  }, [items.length, loading, hasMore, pageSize, searchQuery]);
+  }, []);
 
-  // sentinel 관찰
+  // sentinel 관찰 — mount 시 한 번만 설정 (loadMore 안에서 ref로 최신 state 참조)
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node) return;
@@ -76,7 +101,7 @@ export default function QAFeed({
       {/* 모바일: 단일 칼럼 */}
       <div className="flex flex-col gap-4 min-[900px]:hidden">
         {items.map((qa) => (
-          <QACard key={qa.id} qa={qa} />
+          <QACard key={qa.id} qa={qa} activeQuery={searchQuery} />
         ))}
       </div>
 
@@ -84,12 +109,12 @@ export default function QAFeed({
       <div className="hidden grid-cols-2 items-start gap-5 min-[900px]:grid">
         <div className="flex flex-col gap-5">
           {left.map((qa) => (
-            <QACard key={qa.id} qa={qa} />
+            <QACard key={qa.id} qa={qa} activeQuery={searchQuery} />
           ))}
         </div>
         <div className="flex flex-col gap-5">
           {right.map((qa) => (
-            <QACard key={qa.id} qa={qa} />
+            <QACard key={qa.id} qa={qa} activeQuery={searchQuery} />
           ))}
         </div>
       </div>
