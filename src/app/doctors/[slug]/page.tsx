@@ -62,14 +62,11 @@ export default async function DoctorDetailPage({ params }: Props) {
     <section className="space-y-6">
       {/* 원장님 hero — 좌: 멘트 + 이름·소속 / 우: 누끼 사진이 하단선 위에 서 있음 */}
       <header
-        className="relative grid items-end gap-5 border-b pb-0 sm:gap-8"
-        style={{
-          gridTemplateColumns: "1fr 140px",
-          borderColor: theme.ring ?? "var(--border)",
-        }}
+        className="relative mx-auto flex w-full max-w-[720px] items-end gap-2 border-b pb-0 sm:gap-4"
+        style={{ borderColor: theme.ring ?? "var(--border)" }}
       >
         {/* 좌측: 멘트 + 이름 */}
-        <div className="flex flex-col justify-end space-y-4 pb-5 sm:pb-6">
+        <div className="flex flex-1 flex-col justify-end space-y-4 pb-6 sm:pb-8">
           {doctor.intro && (
             <p className="whitespace-pre-line text-[14px] leading-[1.7] text-[var(--text-secondary)] sm:text-[16px]">
               {doctor.intro}
@@ -77,7 +74,8 @@ export default async function DoctorDetailPage({ params }: Props) {
           )}
           <div>
             <h1 className="text-2xl font-bold text-[var(--text)] sm:text-3xl">
-              {doctor.name} <span className="text-[var(--text-secondary)]">원장님</span>
+              {doctor.name}{" "}
+              <span className="text-[var(--text-secondary)]">원장님</span>
             </h1>
             <p
               className="mt-1 text-[13px] font-medium sm:text-[14px]"
@@ -89,12 +87,12 @@ export default async function DoctorDetailPage({ params }: Props) {
         </div>
 
         {/* 우측: 누끼 사진 (object-bottom으로 하단선 위에 자연스럽게) */}
-        <div className="relative h-[220px] w-full sm:h-[320px]">
+        <div className="relative h-[260px] w-[180px] shrink-0 sm:h-[380px] sm:w-[280px]">
           <Image
             src={photo}
             alt={`${doctor.name} 원장님`}
             fill
-            sizes="(max-width: 600px) 140px, 220px"
+            sizes="(max-width: 600px) 180px, 280px"
             className="object-contain object-bottom"
             priority
           />
