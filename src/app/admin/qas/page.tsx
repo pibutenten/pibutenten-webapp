@@ -222,14 +222,14 @@ export default async function AdminQAsPage({ searchParams }: Props) {
         </div>
         <Link
           href="/admin/draft"
-          className="rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition-colors hover:bg-[var(--primary-dark)]"
+          className="whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
         >
-          + 새 초안 생성 (URL → AI)
+          + 새 초안
         </Link>
       </div>
 
-      {/* status 필터 탭 */}
-      <div className="mb-3 flex flex-wrap gap-1 border-b border-[var(--border)]">
+      {/* status 필터 탭 — 모바일에선 라벨 위 / 카운트 아래 (한 줄에 다 보이게) */}
+      <div className="mb-3 flex gap-0 border-b border-[var(--border)] overflow-x-auto sm:gap-1 [&::-webkit-scrollbar]:hidden">
         {STATUS_LIST.map((s) => {
           const active = s.key === statusParam;
           const href = `/admin/qas${buildQueryString({
@@ -242,16 +242,16 @@ export default async function AdminQAsPage({ searchParams }: Props) {
               key={s.key}
               href={href}
               className={
-                "relative px-3 py-2 text-sm transition-colors " +
+                "relative shrink-0 px-2 py-1.5 text-center text-[12px] sm:px-3 sm:py-2 sm:text-sm transition-colors " +
                 (active
                   ? "font-semibold text-[var(--primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text)]")
               }
             >
-              {s.label}
-              <span className="ml-1 text-xs text-[var(--text-muted)]">
-                ({statusCounts[s.key].toLocaleString()})
-              </span>
+              <div className="whitespace-nowrap leading-tight">{s.label}</div>
+              <div className="text-[10px] text-[var(--text-muted)] sm:inline sm:text-xs sm:ml-1 sm:align-middle">
+                {statusCounts[s.key].toLocaleString()}
+              </div>
               {active && (
                 <span className="absolute -bottom-px left-0 right-0 h-0.5 bg-[var(--primary)]" />
               )}
@@ -260,11 +260,11 @@ export default async function AdminQAsPage({ searchParams }: Props) {
         })}
       </div>
 
-      {/* 검색 + 원장 필터 (GET form) */}
+      {/* 검색 + 원장 필터 (GET form) — 모바일/데스크탑 모두 한 줄 */}
       <form
         method="get"
         action="/admin/qas"
-        className="mb-4 flex flex-wrap items-center gap-2"
+        className="mb-4 flex items-center gap-2"
       >
         {/* 현재 status를 hidden으로 유지 */}
         {statusParam !== "all" && (
@@ -395,16 +395,9 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                       <td className="px-3 py-2 align-top text-xs text-[var(--text-secondary)]">
                         {r.type === "post" ? "글" : "Q&A"}
                       </td>
-                      <td className="px-3 py-2 align-top text-[var(--text)]">
+                      <td className="whitespace-nowrap px-3 py-2 align-top text-[var(--text)]">
                         {r.doctor ? (
-                          <span>
-                            {r.doctor.name}
-                            {r.doctor.branch && (
-                              <span className="ml-1 text-xs text-[var(--text-muted)]">
-                                {r.doctor.branch}
-                              </span>
-                            )}
-                          </span>
+                          r.doctor.name
                         ) : (
                           <span className="text-[var(--text-muted)]">—</span>
                         )}
