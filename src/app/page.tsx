@@ -4,6 +4,7 @@ import QAFeed from "@/components/QAFeed";
 import type { QACardData } from "@/components/QACard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
+import { getHotQaIds } from "@/lib/hot-ids";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ export default async function HomePage({ searchParams }: Props) {
   }
 
   const popularByCategory = await popularByCategoryPromise;
+  const hotIds = Array.from(await getHotQaIds(20));
 
   return (
     <section>
@@ -87,6 +89,7 @@ export default async function HomePage({ searchParams }: Props) {
             pageSize={INITIAL_PAGE_SIZE}
             searchQuery={q || undefined}
             boostDoctorSlug={boost || undefined}
+            hotIds={hotIds}
             key={`${q || "all"}::${boost || ""}`}
           />
         )}

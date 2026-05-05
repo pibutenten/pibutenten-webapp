@@ -42,9 +42,11 @@ type Props = {
   activeQuery?: string;
   /** 칩 클릭 시 검색 URL에 boost로 함께 전달 (원장님 단일 페이지에서 사용) */
   boostDoctorSlug?: string;
+  /** 이 카드가 HOT인지 (서버에서 계산한 hot id set 기준) */
+  isHot?: boolean;
 };
 
-export default function QACard({ qa, activeQuery, boostDoctorSlug }: Props) {
+export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [viewCount, setViewCount] = useState(qa.view_count);
   const [likeCount, setLikeCount] = useState(qa.like_count);
@@ -125,15 +127,62 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug }: Props) {
     ? CATEGORIES.find((c) => c.slug === categorize(activeQuery))?.color
     : null;
 
+  // 좌측 4px 표시 — Pick은 하늘색(#BBDEFB), HOT은 따뜻한 살구색(#FFAB91)
+  // 둘 다일 때는 위 절반 Pick / 아래 절반 HOT
+  const showSideBar = isPick || isHot;
+
   return (
-    <article className="fade-in-up relative rounded-[var(--radius)] border border-[var(--border)] bg-white p-[18px_20px] shadow-[var(--shadow-sm)]" style={isPick ? { borderLeft: "3px solid #BBDEFB" } : undefined}>
-      {isPick && (
-        <span
-          className="absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider"
-          style={{ backgroundColor: "#E3F2FD", color: "#1565C0" }}
+    <article className="fade-in-up relative overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white p-[18px_20px] shadow-[var(--shadow-sm)]">
+      {showSideBar && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-0 top-0 w-[4px]"
         >
-          Pick
-        </span>
+          {isPick && (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: isHot ? "50%" : "100%",
+                background: "#BBDEFB",
+              }}
+            />
+          )}
+          {isHot && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: isPick ? "50%" : "100%",
+                background: "#FFAB91",
+              }}
+            />
+          )}
+        </div>
+      )}
+      {(isPick || isHot) && (
+        <div className="absolute right-3 top-3 flex gap-1">
+          {isPick && (
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider"
+              style={{ backgroundColor: "#E3F2FD", color: "#1565C0" }}
+            >
+              Pick
+            </span>
+          )}
+          {isHot && (
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider"
+              style={{ backgroundColor: "#FBE9E7", color: "#D84315" }}
+            >
+              HOT
+            </span>
+          )}
+        </div>
       )}
       {/* 원장 행 — 클릭 시 원장님 소개 페이지로 이동 */}
       <button

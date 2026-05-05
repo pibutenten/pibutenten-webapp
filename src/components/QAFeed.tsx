@@ -10,8 +10,10 @@ type Props = {
   searchQuery?: string;
   /** 특정 원장님으로 필터링. 페이지네이션 시 ?doctor_slug=... */
   doctorSlug?: string;
-  /** 검색 점수 boost 대상 원장 slug (이 원장 글에 +300). 칩 클릭 시 카드에도 전달. */
+  /** 검색 점수 boost 대상 원장 slug (이 원장 글에 +150). 칩 클릭 시 카드에도 전달. */
   boostDoctorSlug?: string;
+  /** HOT 카드의 ID 목록 (서버에서 계산) */
+  hotIds?: number[];
 };
 
 /**
@@ -26,7 +28,9 @@ export default function QAFeed({
   searchQuery,
   doctorSlug,
   boostDoctorSlug,
+  hotIds,
 }: Props) {
+  const hotSet = new Set(hotIds ?? []);
   const [items, setItems] = useState<QACardData[]>(initial);
   const [hasMore, setHasMore] = useState(initial.length >= pageSize);
   const [loading, setLoading] = useState(false);
@@ -117,6 +121,7 @@ export default function QAFeed({
             qa={qa}
             activeQuery={searchQuery}
             boostDoctorSlug={doctorSlug}
+            isHot={hotSet.has(qa.id)}
           />
         ))}
       </div>

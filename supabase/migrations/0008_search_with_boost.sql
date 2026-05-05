@@ -2,7 +2,7 @@
 -- 0008. 검색 RPC에 doctor_slug boost 추가
 --
 -- 사용 예: 원장님 단일 페이지에서 칩 클릭 → /?q=쥬브젠&boost=leedoyoung
--- 그 원장의 글에는 +300점 가산 (본문 100·질문 500 사이의 적당한 신호)
+-- 그 원장의 글에는 +150점 가산 (본문 100보다 약간 크고, 질문 500보다 훨씬 작아 자연스럽게 섞임)
 -- =============================================================
 
 drop function if exists public.search_qas_scored(text, text, int, int);
@@ -76,7 +76,7 @@ begin
         +
         case
           when v_boost_doctor_id is not null and q.doctor_id = v_boost_doctor_id
-          then 300
+          then 150
           else 0
         end
         +

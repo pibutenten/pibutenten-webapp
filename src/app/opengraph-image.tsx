@@ -6,9 +6,8 @@ export const contentType = "image/png";
 export const alt = "피부텐텐";
 
 /**
- * Open Graph 이미지 — 하늘색 가득 + 흰색 tt:
- * 모든 페이지의 카드 미리보기에 동일하게 사용됨.
- * 빌드 시 PNG로 자동 변환되어 /opengraph-image.png 로 노출.
+ * Open Graph 이미지 — 1200x630 하늘색 배경 + 흰색 tt: 가운데
+ * (logo.svg의 시각 형태를 1200x630 캔버스에 재현)
  */
 export default async function OGImage() {
   return new ImageResponse(
@@ -21,14 +20,22 @@ export default async function OGImage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#FFFFFF",
-          fontSize: 420,
-          fontWeight: 700,
-          letterSpacing: "-16px",
-          fontFamily: "Georgia, 'Times New Roman', serif",
         }}
       >
-        tt:
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#FFFFFF",
+            fontWeight: 700,
+            fontSize: 380,
+            letterSpacing: "-16px",
+            paddingBottom: 30,
+          }}
+        >
+          tt:
+        </div>
       </div>
     ),
     size,

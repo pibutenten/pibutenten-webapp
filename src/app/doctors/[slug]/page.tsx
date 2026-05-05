@@ -2,6 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
+import { getHotQaIds } from "@/lib/hot-ids";
 import QAFeed from "@/components/QAFeed";
 import type { QACardData } from "@/components/QACard";
 
@@ -57,6 +58,7 @@ export default async function DoctorDetailPage({ params }: Props) {
   const theme = getDoctorTheme(doctor.slug);
   const photo = getDoctorPhoto(doctor.slug);
   const affiliation = [doctor.clinic, doctor.branch].filter(Boolean).join(" ");
+  const hotIds = Array.from(await getHotQaIds(20));
 
   return (
     <section className="space-y-6">
@@ -124,6 +126,7 @@ export default async function DoctorDetailPage({ params }: Props) {
           initial={qas}
           pageSize={PAGE_SIZE}
           doctorSlug={doctor.slug}
+          hotIds={hotIds}
           key={doctor.slug}
         />
       )}
