@@ -159,9 +159,32 @@ export default async function MePage() {
         )}
       </p>
 
-      {!isDoctor && profile.role !== "doctor" && (
-        <div className="mt-6 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 text-sm text-[var(--text-secondary)]">
-          일반 사용자 마이페이지입니다. (작성한 글 / 댓글 관리는 추후 추가됩니다)
+      {!isDoctor && profile.role !== "doctor" && profile.role !== "admin" && (
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Link
+            href="/write"
+            className="group rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 transition-colors hover:border-[var(--primary)]"
+          >
+            <div className="mb-2 text-2xl">✏️</div>
+            <div className="text-base font-bold text-[var(--text)] group-hover:text-[var(--primary)]">
+              새 글쓰기
+            </div>
+            <div className="mt-1 text-xs text-[var(--text-secondary)]">
+              피부 고민·후기를 자유롭게 남겨보세요
+            </div>
+          </Link>
+          <Link
+            href="/feed"
+            className="group rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 transition-colors hover:border-[var(--primary)]"
+          >
+            <div className="mb-2 text-2xl">📰</div>
+            <div className="text-base font-bold text-[var(--text)] group-hover:text-[var(--primary)]">
+              피드 보기
+            </div>
+            <div className="mt-1 text-xs text-[var(--text-secondary)]">
+              피부텐텐 최신 글 둘러보기
+            </div>
+          </Link>
         </div>
       )}
 

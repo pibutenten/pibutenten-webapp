@@ -130,9 +130,7 @@ export default function TopNav({ session }: TopNavProps) {
   }
 
   const dashboardHref =
-    session?.role === "admin" ? "/admin" :
-    session?.role === "doctor" ? "/me" :
-    "/";
+    session?.role === "admin" ? "/admin" : "/me";
 
   return (
     <header
