@@ -1,6 +1,4 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorTheme } from "@/lib/doctor-theme";
 
@@ -10,8 +8,11 @@ export const alt = "피부텐텐";
 
 type Props = { params: { id: string } };
 
+const BASE_URL = "https://pibutenten-webapp.vercel.app";
+
 /**
- * 단일 Q&A 페이지 OG 이미지 — 원장 사진을 크게 + 우상단에 피부과 전문의 마크
+ * 단일 Q&A 페이지 OG 이미지 — 원장 사진을 메인으로, 우상단 피부과 전문의 마크.
+ * 사진/마크는 모두 absolute URL로 fetch (Vercel 런타임에서 fs 경로 불안정)
  */
 export default async function QaOG({ params }: Props) {
   const id = Number.parseInt(params.id, 10);
@@ -31,34 +32,7 @@ export default async function QaOG({ params }: Props) {
   const theme = doctor ? getDoctorTheme(doctor.slug) : null;
   const bg = theme?.bgSoft ?? "#7DC1DD";
 
-  // 원장 사진 (path.join에 leading slash 주의 — doctors/{slug}.png로 안전 작성)
-  let photoDataUrl: string | null = null;
-  if (doctor) {
-    try {
-      const photoPath = join(
-        process.cwd(),
-        "public",
-        "doctors",
-        `${doctor.slug}.png`,
-      );
-      const photoBuf = await readFile(photoPath);
-      photoDataUrl = `data:image/png;base64,${photoBuf.toString("base64")}`;
-    } catch {
-      photoDataUrl = null;
-    }
-  }
-
-  // 인증 마크 SVG → data URL
-  let certDataUrl: string | null = null;
-  try {
-    const certSvg = await readFile(
-      join(process.cwd(), "public", "derma-cert.svg"),
-      "utf-8",
-    );
-    certDataUrl = `data:image/svg+xml;base64,${Buffer.from(certSvg).toString("base64")}`;
-  } catch {
-    certDataUrl = null;
-  }
+  const photoUrl = doctor ? `${BASE_URL}/doctors/${doctor.slug}.png` : null;
 
   return new ImageResponse(
     (
@@ -73,12 +47,12 @@ export default async function QaOG({ params }: Props) {
           position: "relative",
         }}
       >
-        {/* 원장 사진 — 가운데 크게 (contain, bottom 정렬) */}
-        {photoDataUrl && (
+        {/* 원장 사진 — height 100%로 세로 가득, 가운데 */}
+        {photoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={photoDataUrl}
-            alt={doctor?.name ?? "원장님"}
+            src={photoUrl}
+            alt={doctor?.name ?? ""}
             style={{
               height: "100%",
               objectFit: "contain",
@@ -87,23 +61,69 @@ export default async function QaOG({ params }: Props) {
           />
         )}
 
-        {/* 우상단 피부과 전문의 마크 (작게, 워터마크처럼) */}
-        {certDataUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={certDataUrl}
-            width={120}
-            height={120}
-            style={{
-              position: "absolute",
-              top: 36,
-              right: 36,
-            }}
-            alt="피부과 전문의"
-          />
-        )}
+        {/* 우상단 피부과 전문의 마크 — div로 직접 그리기 (한글 폰트 satori 호환 위해) */}
+        <div
+          style={{
+            position: "absolute",
+            top: 32,
+            right: 32,
+            width: 130,
+            height: 130,
+            background: "#D8332C",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#FFFFFF",
+            fontWeight: 900,
+            fontSize: 28,
+            lineHeight: 1.05,
+            letterSpacing: "-2px",
+            borderRadius: 4,
+          }}
+        >
+          <div>피부과</div>
+          <div>전문의</div>
+        </div>
       </div>
     ),
-    size,
+    {
+      ...size,
+      // 한글 렌더링용 — Noto Sans KR Black (Google Fonts)
+      fonts: await loadKoreanFont(),
+    },
   );
+}
+
+/**
+ * Noto Sans KR Black weight를 Google Fonts에서 fetch.
+ * ImageResponse가 한글을 정확히 렌더링하려면 폰트 옵션 필수.
+ */
+async function loadKoreanFont() {
+  try {
+    // Google Fonts CSS API → ttf woff URL 추출
+    const cssUrl =
+      "https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@900&display=swap";
+    const css = await fetch(cssUrl, {
+      headers: {
+        // ttf로 받아오기 위해 옛날 user-agent
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    }).then((r) => r.text());
+    const m = css.match(/src:\s*url\(([^)]+)\)\s*format\('(?:truetype|woff2?)'\)/);
+    const fontUrl = m?.[1];
+    if (!fontUrl) return undefined;
+    const fontData = await fetch(fontUrl).then((r) => r.arrayBuffer());
+    return [
+      {
+        name: "Noto Sans KR",
+        data: fontData,
+        weight: 900 as const,
+        style: "normal" as const,
+      },
+    ];
+  } catch {
+    return undefined;
+  }
 }
