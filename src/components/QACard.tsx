@@ -350,7 +350,7 @@ async function shareQA(qa: QACardData) {
   if (typeof window === "undefined") return;
   const url = `${window.location.origin}/?qa=${qa.id}`;
   const title = qa.question;
-  const text = `${qa.doctor?.name ?? ""} 원장님 — 피부텐텐 Q&A`;
+  const text = `${qa.doctor?.name ?? ""} 원장님 — 피부텐텐`;
 
   // 모바일에서만 native share 사용 (데스크탑 Chrome share UI는 부실해서 클립보드가 더 자연)
   const ua = window.navigator.userAgent;

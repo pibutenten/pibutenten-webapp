@@ -13,7 +13,11 @@ const notoSansKR = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "피부텐텐 — 피부가 예뻐지는 모든 이야기",
+  metadataBase: new URL("https://pibutenten-webapp.vercel.app"),
+  title: {
+    default: "피부텐텐",
+    template: "%s | 피부텐텐",
+  },
   description:
     "피부과 전문의가 함께하는 피부 미용 SNS. 피드, 검색, 원장님 소개를 한 곳에서.",
   applicationName: "피부텐텐",
@@ -26,6 +30,18 @@ export const metadata: Metadata = {
     capable: true,
     title: "피부텐텐",
     statusBarStyle: "default",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "피부텐텐",
+    title: "피부텐텐",
+    description: "피부가 예뻐지는 모든 이야기",
+    locale: "ko_KR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "피부텐텐",
+    description: "피부가 예뻐지는 모든 이야기",
   },
 };
 

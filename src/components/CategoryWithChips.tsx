@@ -199,8 +199,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
               <button
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
-                className="rounded-full px-3 py-1 text-[12px] font-semibold transition-colors"
-                style={{ color: cat.color }}
+                className="rounded-full px-3 py-1 text-[12px] font-semibold text-[var(--text-muted)] transition-colors"
               >
                 {expanded ? "접기 ▴" : "더보기 ▾"}
               </button>

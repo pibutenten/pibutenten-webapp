@@ -63,11 +63,11 @@ export default async function DoctorDetailPage({ params }: Props) {
       {/* 원장님 hero — 좌: 멘트 + 이름·소속 / 우: 누끼 사진이 하단선 위에 서 있음 */}
       <header className="relative mx-auto w-full max-w-[820px]">
         <div className="flex items-end gap-1 sm:gap-2">
-          {/* 좌측: 멘트(중상단) + 이름(하단) — 약간 좌측으로 */}
-          <div className="flex flex-1 -translate-x-1 flex-col self-stretch pb-6 pt-12 sm:-translate-x-2 sm:pb-8 sm:pt-20">
+          {/* 좌측: 멘트(중상단) + 이름(하단) — 좌측 약간의 여백 */}
+          <div className="flex flex-1 flex-col self-stretch pb-6 pl-2 pt-12 sm:pb-8 sm:pl-3 sm:pt-20">
             {doctor.intro && (
-              <p className="whitespace-pre-line text-[14px] leading-[1.7] text-[var(--text-secondary)] sm:text-[16px]">
-                {doctor.intro}
+              <p className="text-[14px] leading-[1.7] text-[var(--text-secondary)] sm:text-[16px]">
+                {doctor.intro.replace(/\s*\n+\s*/g, " ")}
               </p>
             )}
             <div className="mt-auto pt-6">
