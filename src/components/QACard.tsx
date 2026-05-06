@@ -515,6 +515,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
               )}
             </div>
             <div className="min-w-0 flex-1">
+              {/* 1줄: 이름 + 피부과 전문의 */}
               <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0 leading-none">
                 <span className="text-[13px] font-bold leading-none text-[var(--text)]">
                   {authorName}
@@ -535,13 +536,16 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
                     피부과 전문의
                   </span>
                 )}
-                {(qa.video?.topic || dateLabel) && (
-                  <span className="truncate text-[11px] text-[var(--text-muted)]">
-                    · {qa.video?.topic ? qa.video.topic : ""}
-                    {dateLabel ? `${qa.video?.topic ? " · " : ""}${dateLabel}` : ""}
-                  </span>
-                )}
               </div>
+              {/* 2줄: 주제 · 날짜 (영상 글이거나 작성일이 있을 때만) */}
+              {(qa.video?.topic || dateLabel) && (
+                <div className="mt-1 truncate text-[11px] text-[var(--text-muted)]">
+                  {qa.video?.topic ? qa.video.topic : ""}
+                  {dateLabel
+                    ? `${qa.video?.topic ? " · " : ""}${dateLabel}`
+                    : ""}
+                </div>
+              )}
             </div>
           </button>
 

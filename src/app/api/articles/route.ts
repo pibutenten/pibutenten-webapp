@@ -171,7 +171,9 @@ export async function POST(req: Request) {
     insert.answer = body;
     insert.status = reqStatus;
     insert.published = reqStatus === "published";
-    insert.doctor_id = null;
+    // 원장 매핑된 사용자가 post 작성 시 → 본인 doctor_id 자동 설정
+    // (그래야 /doctors/{slug} 페이지에 본인 post도 노출됨)
+    insert.doctor_id = doctorId;
   } else if (t === "article") {
     const title = (payload.title ?? "").trim();
     const sections = (payload.sections ?? []).filter(

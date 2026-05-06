@@ -89,16 +89,32 @@ export async function POST(
     }
   }
 
-  // 1. profiles.role 업데이트
+  // 1. doctor 매핑이면 doctor 이름 미리 가져오기 (display_name 동기화용)
+  let doctorName: string | null = null;
+  if (role === "doctor" && doctorId) {
+    const { data: dInfo } = await supabase
+      .from("doctors")
+      .select("name")
+      .eq("id", doctorId)
+      .maybeSingle()
+      .returns<{ name: string } | null>();
+    doctorName = dInfo?.name ?? null;
+  }
+
+  // 2. profiles.role 업데이트 (+ doctor면 닉네임도 doctor 이름으로 동기화)
+  const profileUpdate: Record<string, unknown> = { role };
+  if (role === "doctor" && doctorName) {
+    profileUpdate.display_name = doctorName;
+  }
   const { error: updErr } = await supabase
     .from("profiles")
-    .update({ role })
+    .update(profileUpdate)
     .eq("id", id);
   if (updErr) {
     return NextResponse.json({ error: updErr.message }, { status: 500 });
   }
 
-  // 2. doctor_accounts 처리
+  // 3. doctor_accounts 처리
   if (role === "doctor" && doctorId) {
     // 기존 매핑이 있으면 doctor_id만 변경, 없으면 신규 insert
     const { data: myMapping } = await supabase
@@ -123,6 +139,23 @@ export async function POST(
         return NextResponse.json({ error: insErr.message }, { status: 500 });
       }
     }
+    // 4-A. post 백필 — author=id 인 post에 doctor_id 설정
+    //      (매핑 전 본인이 쓴 post도 doctor 페이지에 노출되도록)
+    await supabase
+      .from("qas")
+      .update({ doctor_id: doctorId })
+      .eq("author_id", id)
+      .eq("type", "post")
+      .is("doctor_id", null);
+
+    // 4-B. 기존 Q&A 백필 — doctor_id가 매핑된 doctor인데 author_id가 NULL인 글
+    //      (정한미 doctor의 영상 Q&A들이 정한미 user의 "작성한 글"로 잡히도록)
+    //      관리자/원장 본인이 이미 author로 작성한 글은 건드리지 않음 (author_id IS NULL 조건)
+    await supabase
+      .from("qas")
+      .update({ author_id: id })
+      .eq("doctor_id", doctorId)
+      .is("author_id", null);
   } else {
     // doctor가 아니면 매핑 제거
     await supabase.from("doctor_accounts").delete().eq("profile_id", id);

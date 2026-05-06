@@ -127,16 +127,23 @@ export default async function AdminUserDetailPage({ params }: Props) {
         slug: string;
         name: string;
         branch: string | null;
-        doctor_accounts: { profile_id: string }[];
+        doctor_accounts: { profile_id: string }[] | null;
       }[]
     >();
-  const doctorsForForm = (allDoctors ?? []).map((d) => ({
-    id: d.id,
-    slug: d.slug,
-    name: d.name,
-    branch: d.branch,
-    is_mapped: d.doctor_accounts.length > 0,
-  }));
+  const doctorsForForm = (allDoctors ?? []).map((d) => {
+    // doctor_accounts는 1:1 관계라 Supabase가 객체/배열/null로 반환할 수 있음 — 모두 처리
+    const da = d.doctor_accounts;
+    let isMapped = false;
+    if (Array.isArray(da)) isMapped = da.length > 0;
+    else if (da) isMapped = true;
+    return {
+      id: d.id,
+      slug: d.slug,
+      name: d.name,
+      branch: d.branch,
+      is_mapped: isMapped,
+    };
+  });
 
   const lvlColor = LEVEL_COLORS[profile.level] ?? LEVEL_COLORS[0];
   const formatDate = (s: string | null) => (s ? s.slice(0, 10) : "—");

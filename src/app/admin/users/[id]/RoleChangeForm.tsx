@@ -117,7 +117,6 @@ export default function RoleChangeForm({
               {availableDoctors.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
-                  {d.branch ? ` (${d.branch})` : ""}
                   {d.is_mapped && d.id === currentDoctorId ? " · 현재 매핑됨" : ""}
                 </option>
               ))}
