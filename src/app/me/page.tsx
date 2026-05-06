@@ -276,17 +276,6 @@ export default async function MePage() {
                   </span>
                 )}
               </h1>
-              <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
-                {ROLE_LABELS[profile.role] ?? profile.role}
-              </span>
-              {profile.role === "user" && (
-                <span
-                  className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: lvlColor.bg, color: lvlColor.fg }}
-                >
-                  {LEVEL_LABELS[profile.level] ?? "일반"}
-                </span>
-              )}
               <Link
                 href="/me/profile"
                 className="ml-auto text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"

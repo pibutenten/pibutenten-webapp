@@ -101,3 +101,8 @@ a {
 .like-pulse {
   animation: likePulse 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+
+/* ========== 플로팅 글쓰기 버튼 hover ========== */
+.floating-write:hover {
+  background-color: #4A8FB8 !important; /* primary-dark */
+}

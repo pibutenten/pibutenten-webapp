@@ -2,13 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import QACard, { type QACardData } from "@/components/QACard";
-import {
-  ROLE_LABELS,
-  LEVEL_LABELS,
-  LEVEL_COLORS,
-  type UserRole,
-  type UserLevel,
-} from "@/lib/user-grades";
+import type { UserRole, UserLevel } from "@/lib/user-grades";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +70,7 @@ export default async function PublicUserProfilePage({ params }: Props) {
     );
   }
 
-  // 사용자가 작성한 published post 가져오기
+  // 사용자가 작성한 published 글 가져오기
   const { data: posts } = await supabase
     .from("qas")
     .select(
@@ -94,15 +88,40 @@ export default async function PublicUserProfilePage({ params }: Props) {
     .limit(50)
     .returns<QACardData[]>();
 
-  const lvlColor = LEVEL_COLORS[profile.level] ?? LEVEL_COLORS[0];
   const postList = posts ?? [];
+
+  // 받은 좋아요 / 받은 댓글 합계
+  const totalLikes = postList.reduce((s, q) => s + (q.like_count ?? 0), 0);
+  // 받은 댓글 수 (자기 댓글 제외)
+  let totalComments = 0;
+  if (postList.length > 0) {
+    const ids = postList.map((q) => q.id);
+    const { count } = await supabase
+      .from("comments")
+      .select("id", { count: "exact", head: true })
+      .in("qa_id", ids)
+      .neq("author_id", profile.id)
+      .eq("status", "visible");
+    totalComments = count ?? 0;
+  }
+
+  // 가입한 지 N일
+  const daysSince = profile.created_at
+    ? Math.max(
+        0,
+        Math.floor(
+          (Date.now() - new Date(profile.created_at).getTime()) /
+            (1000 * 60 * 60 * 24),
+        ),
+      )
+    : 0;
 
   return (
     <section className="w-full py-6">
-      {/* 헤더 카드 */}
-      <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
-        <div className="flex items-start gap-4">
-          <div className="h-[64px] w-[64px] shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
+      {/* 헤더 — 큰 아바타 가운데 정렬, 인스타·미디엄 톤 */}
+      <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-6">
+        <div className="flex flex-col items-center text-center">
+          <div className="relative h-[88px] w-[88px] overflow-hidden rounded-full bg-[var(--bg-soft)] shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
             {profile.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -111,51 +130,47 @@ export default async function PublicUserProfilePage({ params }: Props) {
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-2xl text-[var(--text-muted)]">
+              <div className="flex h-full w-full items-center justify-center text-3xl text-[var(--text-muted)]">
                 👤
               </div>
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold text-[var(--text)]">
-                {profile.display_name ?? "익명"}
-              </h1>
-              <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
-                {ROLE_LABELS[profile.role] ?? profile.role}
+          <h1 className="mt-3 text-xl font-bold text-[var(--text)]">
+            {profile.display_name ?? "익명"}
+            {profile.role === "doctor" && (
+              <span className="ml-1 text-sm font-medium text-[var(--text-secondary)]">
+                원장님
               </span>
-              {profile.role === "user" && profile.level > 0 && (
-                <span
-                  className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: lvlColor.bg, color: lvlColor.fg }}
-                >
-                  {LEVEL_LABELS[profile.level]}
-                </span>
-              )}
-            </div>
-            {profile.bio && (
-              <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
-                {profile.bio}
-              </p>
             )}
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
-              <span>
-                가입일 {profile.created_at?.slice(0, 10) ?? "-"}
-              </span>
-              {profile.role === "user" && (
-                <span>활동점수 {profile.activity_score.toLocaleString()}</span>
-              )}
-              <span>작성 글 {postList.length}</span>
-            </div>
-          </div>
+          </h1>
+          {profile.bio ? (
+            <p className="mt-2 max-w-[480px] whitespace-pre-wrap text-sm leading-[1.6] text-[var(--text-secondary)]">
+              {profile.bio}
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-[var(--text-muted)]">
+              {isOwner
+                ? "프로필 소개를 추가하면 다른 사용자에게 더 잘 보여요."
+                : "아직 소개가 없어요."}
+            </p>
+          )}
+
           {isOwner && (
             <Link
               href="/me/profile"
-              className="shrink-0 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+              className="mt-3 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
             >
               내 정보 수정
             </Link>
           )}
+        </div>
+
+        {/* 통계 — 가로 4분할 (모바일 4col, 컴팩트 inline 형식) */}
+        <div className="mt-5 grid grid-cols-4 gap-2 border-t border-[var(--border)] pt-4">
+          <UserStat label="작성 글" value={postList.length} />
+          <UserStat label="받은 좋아요" value={totalLikes} />
+          <UserStat label="받은 댓글" value={totalComments} />
+          <UserStat label="가입" value={daysSince} suffix="일" />
         </div>
       </div>
 
@@ -168,8 +183,23 @@ export default async function PublicUserProfilePage({ params }: Props) {
       </h2>
 
       {postList.length === 0 ? (
-        <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-white p-8 text-center text-sm text-[var(--text-muted)]">
-          아직 작성한 글이 없어요.
+        <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-white p-10 text-center">
+          <div className="mb-3 text-4xl">📝</div>
+          <p className="text-sm text-[var(--text-secondary)]">
+            {isOwner ? (
+              <>
+                첫 글을 남겨보세요.{" "}
+                <Link
+                  href="/write"
+                  className="font-semibold text-[var(--primary)] hover:underline"
+                >
+                  글쓰기 →
+                </Link>
+              </>
+            ) : (
+              "아직 작성한 글이 없어요."
+            )}
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
@@ -179,5 +209,29 @@ export default async function PublicUserProfilePage({ params }: Props) {
         </div>
       )}
     </section>
+  );
+}
+
+function UserStat({
+  label,
+  value,
+  suffix,
+}: {
+  label: string;
+  value: number;
+  suffix?: string;
+}) {
+  return (
+    <div className="text-center">
+      <div className="text-lg font-bold tabular-nums text-[var(--text)]">
+        {value.toLocaleString()}
+        {suffix && (
+          <span className="ml-0.5 text-xs font-medium text-[var(--text-muted)]">
+            {suffix}
+          </span>
+        )}
+      </div>
+      <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">{label}</div>
+    </div>
   );
 }

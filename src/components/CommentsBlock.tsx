@@ -384,7 +384,6 @@ function CommentItem({
   // 작성자 배지
   const role = comment.author?.role;
   const isAuthorDoctor = role === "doctor";
-  const isAuthorAdmin = role === "admin";
 
   const displayName = comment.author?.display_name ?? "익명";
   const timeLabel = relativeTime(comment.created_at);
@@ -415,21 +414,16 @@ function CommentItem({
             {displayName}
           </span>
         )}
-        {isAuthorAdmin && (
-          <span
-            className="rounded px-1 py-0 text-[10px] font-bold"
-            style={{ backgroundColor: "#E3F2FD", color: "#1565C0" }}
-          >
-            관리자
-          </span>
-        )}
+        {/* 원장님은 verified ✓ 만 표시 — 관리자 배지는 미니멀 위해 생략 */}
         {isAuthorDoctor && (
-          <span
-            className="rounded px-1 py-0 text-[10px] font-bold"
-            style={{ backgroundColor: "#FFF3E0", color: "#E65100" }}
+          <svg
+            viewBox="0 0 24 24"
+            fill="#5BB0D1"
+            className="h-[12px] w-[12px]"
+            aria-label="피부과 전문의"
           >
-            원장님
-          </span>
+            <path d="M22.5 12.5l-2.7-3 .4-4-3.9-.9-2-3.5-3.7 1.9-3.7-1.9-2 3.5-3.9.8.4 4-2.7 3 2.7 3-.4 4 3.9.9 2 3.5 3.7-1.9 3.7 1.9 2-3.5 3.9-.8-.4-4 2.6-3zM10 17.5L5.5 13l1.7-1.7L10 14.1l6.7-6.7L18.4 9 10 17.5z" />
+          </svg>
         )}
         {/* 본문 — editing 모드 아닐 때 한 줄로 옆에 붙임 */}
         {!editing && (

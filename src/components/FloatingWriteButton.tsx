@@ -18,18 +18,19 @@ export default function FloatingWriteButton({ hasSession }: Props) {
     <Link
       href="/write"
       aria-label="글쓰기"
-      className="fixed z-40 flex items-center justify-center rounded-full bg-[var(--primary)] text-white shadow-[0_8px_20px_rgba(0,0,0,0.18)] transition-all hover:bg-[var(--primary-dark)] hover:shadow-[0_10px_24px_rgba(0,0,0,0.22)] active:scale-95"
+      className="floating-write fixed z-40 flex items-center justify-center rounded-full text-white shadow-[0_8px_20px_rgba(95,168,211,0.35)] transition-all hover:shadow-[0_10px_24px_rgba(95,168,211,0.45)] active:scale-95"
       style={{
         bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
         right: "20px",
         width: 56,
         height: 56,
+        backgroundColor: "#5FA8D3",
       }}
     >
       <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke="currentColor"
+        stroke="#FFFFFF"
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"

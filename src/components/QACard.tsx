@@ -464,21 +464,31 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             {highlight(qa.question, activeQuery)}
           </h2>
 
-          {/* 2. 작성자 행 — 제목 바로 아래 (원장이면 클릭 시 소개 이동) */}
+          {/* 2. 작성자 행 — 원장이면 원장 페이지, 일반 사용자면 /u/[id] 로 이동 */}
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              if (doctor?.slug) router.push(`/doctors/${doctor.slug}`);
+              if (doctor?.slug) {
+                router.push(`/doctors/${doctor.slug}`);
+              } else if (qa.author?.id) {
+                router.push(`/u/${qa.author.id}`);
+              }
             }}
-            disabled={!doctor}
+            disabled={!doctor && !qa.author?.id}
             className={
               "mb-3 -ml-1 flex w-full items-center gap-2.5 rounded-md py-1.5 pl-1 pr-2 text-left transition-colors " +
-              (doctor
+              (doctor || qa.author?.id
                 ? "cursor-pointer hover:bg-[var(--primary-soft)]"
                 : "cursor-default")
             }
-            aria-label={doctor ? `${doctor.name} 원장님 소개로 이동` : undefined}
+            aria-label={
+              doctor
+                ? `${doctor.name} 원장님 소개로 이동`
+                : qa.author?.display_name
+                  ? `${qa.author.display_name} 프로필로 이동`
+                  : undefined
+            }
           >
             <div
               className="relative shrink-0 overflow-hidden rounded-full"
@@ -726,15 +736,11 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
         </button>
 
         {/* 수정·삭제 — 본인 글이거나 관리자일 때만 직접 노출 */}
-        {canEdit && !isEditing && (
+        {canEdit && (
           <>
             <button
               type="button"
-              onClick={() => {
-                setIsEditing(true);
-                setEditTitle(qa.question);
-                setEditBody(qa.answer);
-              }}
+              onClick={() => router.push(`/qa/${qa.id}/edit`)}
               className="cursor-pointer rounded-md px-1.5 py-0.5 text-[12px] font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
             >
               수정
