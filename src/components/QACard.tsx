@@ -339,45 +339,11 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
   const authorName = doctor?.name ?? qa.author?.display_name ?? "익명";
   const authorAvatar = doctor ? photo : qa.author?.avatar_url ?? null;
 
-  // 좌측 4px 표시
-  // - HOT: 연한 빨강 (#FFD2D6) — Pick보다 살짝 더 연하게 인지적 균형
-  // - Pick: 옅은 파랑 (#BBDEFB)
-  // - 둘 다일 때: 위 절반 HOT / 아래 절반 Pick
-  const showSideBar = isPick || isHot;
-
   return (
-    <article ref={cardRef} className="fade-in-up relative overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white p-[18px_20px] shadow-[var(--shadow-sm)]">
-      {showSideBar && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-0 left-0 top-0 w-[4px]"
-        >
-          {isHot && (
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: isPick ? "50%" : "100%",
-                background: "#FFD2D6",
-              }}
-            />
-          )}
-          {isPick && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: isHot ? "50%" : "100%",
-                background: "#BBDEFB",
-              }}
-            />
-          )}
-        </div>
-      )}
+    <article
+      ref={cardRef}
+      className="fade-in-up relative rounded-[var(--radius)] bg-white p-[18px_20px]"
+    >
       {(isPick || isHot || isNew) && (
         // 카드 상단 안쪽에서 매달려 내려오는 딱지 — 카드 위로 올라가지 않음
         <div className="pointer-events-none absolute right-4 top-0 z-10 flex gap-1">
@@ -459,12 +425,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
         </div>
       ) : (
         <>
-          {/* 1. 제목 — 가장 위, 가장 큰 강조 */}
-          <h2 className="mb-2.5 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px] text-[var(--primary)]">
-            {highlight(qa.question, activeQuery)}
-          </h2>
-
-          {/* 2. 작성자 행 — 원장이면 원장 페이지, 일반 사용자면 /u/[id] 로 이동 */}
+          {/* 1. 작성자 행 — 가장 위 (원장이면 원장 페이지, 일반 사용자면 /u/[id] 로 이동) */}
           <button
             type="button"
             onClick={(e) => {
@@ -477,7 +438,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             }}
             disabled={!doctor && !qa.author?.id}
             className={
-              "mb-3 -ml-1 flex w-full items-center gap-2.5 rounded-md py-1.5 pl-1 pr-2 text-left transition-colors " +
+              "mb-3 -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2.5 rounded-md py-1.5 px-1 text-left transition-colors " +
               (doctor || qa.author?.id
                 ? "cursor-pointer hover:bg-[var(--primary-soft)]"
                 : "cursor-default")
@@ -559,6 +520,11 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             </div>
           </button>
 
+          {/* 2. 제목 — 하늘색 (브랜드 primary) */}
+          <h2 className="mb-2.5 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px] text-[var(--primary)]">
+            {highlight(qa.question, activeQuery)}
+          </h2>
+
           {/* 3. 본문 — 줄바꿈 보존, 길이 충분할 때만 클릭으로 펼침/접기 */}
           <div
             onClick={() => isLongAnswer && setExpanded((v) => !v)}
@@ -576,16 +542,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
         </>
       )}
       <div className="mt-2 flex items-center gap-3 text-[12px]">
-        {isLongAnswer && (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            aria-expanded={expanded}
-            className="cursor-pointer rounded-md px-1.5 py-0.5 font-medium text-[var(--secondary)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary)]"
-          >
-            {expanded ? "접기 ▴" : "더보기 ▾"}
-          </button>
-        )}
+        {/* 더보기 버튼 제거 — 본문 클릭으로 펼침/접기 */}
         {qa.video?.youtube_url && (
           <a
             href={qa.video.youtube_url}
@@ -627,7 +584,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
       )}
 
       {/* footer: 조회수·좋아요·댓글·공유 — 컴팩트 */}
-      <div className="flex items-center gap-3.5 border-t border-[var(--border)] pt-2.5 text-[13px] text-[var(--text-secondary)]">
+      <div className="flex items-center gap-3.5 pt-3 text-[13px] text-[var(--text-secondary)]">
         <span className="flex items-center gap-1" aria-label="조회수">
           <svg
             viewBox="0 0 24 24"
@@ -784,11 +741,10 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
 // Keywords — 컨테이너 너비에 맞춰 한 줄에 들어가는 만큼만 노출 + +N 토글
 // ────────────────────────────────────────────────────────────
 const CHIP_BASE_CLASS =
-  "inline-flex items-center rounded-full border px-2 py-[1px] text-[11px] whitespace-nowrap";
+  "inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] whitespace-nowrap";
 const CHIP_DEFAULT_STYLE: React.CSSProperties = {
-  backgroundColor: "transparent",
-  borderColor: "var(--border)",
-  color: "var(--text-muted)",
+  backgroundColor: "#F2F2F4",
+  color: "#8A95A0",
   fontWeight: 500,
 };
 
@@ -915,8 +871,8 @@ function Keywords({
               e.stopPropagation();
               setShowAll(true);
             }}
-            className="inline-flex shrink-0 cursor-pointer items-center rounded-full border border-dashed px-2 py-[1px] text-[11px] font-medium whitespace-nowrap transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
-            style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+            className="inline-flex shrink-0 cursor-pointer items-center rounded-full px-2.5 py-[3px] text-[11px] font-medium whitespace-nowrap transition-colors hover:text-[var(--primary)]"
+            style={{ backgroundColor: "#F2F2F4", color: "#8A95A0" }}
           >
             +{hidden}
           </button>
@@ -928,8 +884,8 @@ function Keywords({
               e.stopPropagation();
               setShowAll(false);
             }}
-            className="inline-flex cursor-pointer items-center rounded-full border border-dashed px-2 py-[1px] text-[11px] font-medium whitespace-nowrap transition-colors hover:text-[var(--primary)]"
-            style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+            className="inline-flex cursor-pointer items-center rounded-full px-2.5 py-[3px] text-[11px] font-medium whitespace-nowrap transition-colors hover:text-[var(--primary)]"
+            style={{ backgroundColor: "#F2F2F4", color: "#8A95A0" }}
           >
             접기
           </button>

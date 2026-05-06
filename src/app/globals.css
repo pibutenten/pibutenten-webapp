@@ -6,13 +6,13 @@
   --primary: #5FA8D3;
   --primary-dark: #4A8FB8;
   /* 부드러운 하늘색 hover/selection 톤 — 절반쯤 연하게 */
-  --primary-soft: #EAF3F9;
+  --primary-soft: #F2F8FC;
   /* 강조 텍스트용 딥 네이비 (브랜드 보조) */
   --secondary: #1B4965;
   --secondary-light: #BEE9E8;
-  /* 배경 — 따뜻함 약간 줄이고 중립 회백색으로 */
-  --bg: #F8F8F6;
-  --bg-soft: #EFEEEA;
+  /* 배경 — 중립 연한 회색 (밝기는 유지) */
+  --bg: #F4F4F6;
+  --bg-soft: #EBEBED;
   --white: #FFFFFF;
   --text: #2D3436;
   --text-secondary: #62737E;

@@ -222,7 +222,11 @@ export default function CommentsBlock({
 
   return (
     <div
-      className="mt-3 border-t border-[var(--border)] pt-2.5 text-[13px] text-[var(--text)]"
+      className={
+        "mt-3 pt-2.5 text-[13px] text-[var(--text)]" +
+        (hasComments ? " border-t" : "")
+      }
+      style={hasComments ? { borderColor: "#EEEFF1" } : undefined}
       onClick={(e) => e.stopPropagation()}
     >
       {totalRoot > 3 && (
@@ -467,7 +471,7 @@ function CommentItem({
               ⋮
             </button>
             {menuOpen && (
-              <div className="absolute right-0 z-20 mt-1 min-w-[120px] overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg">
+              <div className="absolute right-0 z-50 mt-1 min-w-[120px] overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg">
                 {canEdit && !isDeleted && (
                   <button
                     type="button"
