@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import LogoutButton from "@/components/LogoutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -265,6 +266,10 @@ export default async function AdminPage() {
         </Link>
       </div>
 
+      {/* 로그아웃 — 관리자 본인 정보 페이지 (admin이 본인 회원 정보 페이지로 사용) */}
+      <div className="mt-10 flex justify-end border-t border-[var(--border)] pt-6">
+        <LogoutButton />
+      </div>
     </section>
   );
 }

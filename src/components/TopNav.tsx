@@ -170,12 +170,12 @@ export default function TopNav({ session }: TopNavProps) {
           }}
         >
           <Image
-            src="/logo.svg"
+            src="/logo.png"
             alt="피부텐텐"
             width={32}
             height={32}
             priority
-            className="rounded-md"
+            className="rounded-full"
           />
           <span className="text-[16px] font-bold leading-none text-[var(--primary)] sm:text-[19px]">
             피부텐텐

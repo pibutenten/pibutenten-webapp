@@ -70,6 +70,7 @@ export default function CommentsBlock({
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [me, setMe] = useState<Me>(null);
+  const [meLoaded, setMeLoaded] = useState(false);
 
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -112,6 +113,7 @@ export default function CommentsBlock({
       if (!alive) return;
       if (!user) {
         setMe(null);
+        setMeLoaded(true);
         return;
       }
       // 본인 프로필 + 본인 doctor_id (RLS상 본인은 select 가능)
@@ -125,6 +127,7 @@ export default function CommentsBlock({
         role: (prof?.role as Me extends infer T ? (T extends { role: infer R } ? R : never) : never) ?? "user",
         doctor_id: (docMap?.doctor_id as string | undefined) ?? null,
       });
+      setMeLoaded(true);
     })();
     return () => {
       alive = false;
@@ -238,7 +241,7 @@ export default function CommentsBlock({
         <p className="text-[12px] text-red-600">댓글을 불러오지 못했어요: {error}</p>
       )}
 
-      <ul className="flex flex-col gap-1.5">
+      <ul className="flex flex-col">
         {visibleRoots.map((c) => (
           <li key={c.id}>
             <CommentItem
@@ -255,7 +258,7 @@ export default function CommentsBlock({
 
             {/* 답글 목록 */}
             {c.replies.length > 0 && (
-              <ul className="mt-2 flex flex-col gap-2 pl-4">
+              <ul className="flex flex-col pl-4">
                 {c.replies.map((rep) => (
                   <li key={rep.id} className="relative">
                     <span
@@ -299,8 +302,8 @@ export default function CommentsBlock({
         ))}
       </ul>
 
-      {/* root 댓글 입력 폼 — showInput 시에만 노출 */}
-      {showInput && isPublishedQa && isLoggedIn && replyTarget == null && (
+      {/* root 댓글 입력 폼 — showInput 시에만 노출, meLoaded 후에만 분기 (깜빡임 방지) */}
+      {showInput && isPublishedQa && meLoaded && isLoggedIn && replyTarget == null && (
         <div className="mt-3">
           <CommentForm
             body={body}
@@ -311,7 +314,7 @@ export default function CommentsBlock({
           />
         </div>
       )}
-      {showInput && isPublishedQa && !isLoggedIn && (
+      {showInput && isPublishedQa && meLoaded && !isLoggedIn && (
         <div className="mt-3 text-center">
           <Link
             href="/login"
@@ -388,7 +391,7 @@ function CommentItem({
 
   return (
     <div
-      className="rounded-md px-2 py-1.5"
+      className="rounded-md px-2 py-0.5"
       style={
         dimmed
           ? { backgroundColor: "#F5F5F5", color: "#888" }
@@ -396,12 +399,22 @@ function CommentItem({
       }
     >
       <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[13px]">
-        <span
-          className="font-bold text-[var(--text)]"
-          style={dimmed ? { color: "#888" } : undefined}
-        >
-          {displayName}
-        </span>
+        {comment.author?.id ? (
+          <Link
+            href={`/u/${comment.author.id}`}
+            className="font-bold text-[var(--text)] hover:text-[var(--primary)] hover:underline"
+            style={dimmed ? { color: "#888" } : undefined}
+          >
+            {displayName}
+          </Link>
+        ) : (
+          <span
+            className="font-bold text-[var(--text)]"
+            style={dimmed ? { color: "#888" } : undefined}
+          >
+            {displayName}
+          </span>
+        )}
         {isAuthorAdmin && (
           <span
             className="rounded px-1 py-0 text-[10px] font-bold"
@@ -433,6 +446,17 @@ function CommentItem({
         )}
         {isDeleted && (
           <span className="text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
+        )}
+
+        {/* 답글 버튼 — 헤더 라인에 inline (root 댓글에만) */}
+        {!isReply && onReplyClick && !isDeleted && (
+          <button
+            type="button"
+            onClick={onReplyClick}
+            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
+          >
+            · {isReplying ? "답글 취소" : "답글"}
+          </button>
         )}
 
         {showMenu && (
@@ -542,18 +566,7 @@ function CommentItem({
         </div>
       ) : null}
 
-      {/* 답글 버튼 (root 댓글에만) */}
-      {!isReply && onReplyClick && !isDeleted && (
-        <div className="mt-1.5 flex items-center gap-3 text-[12px]">
-          <button
-            type="button"
-            onClick={onReplyClick}
-            className="text-[var(--text-muted)] hover:text-[var(--primary)]"
-          >
-            💬 {isReplying ? "답글 취소" : "답글"}
-          </button>
-        </div>
-      )}
+      {/* 답글 버튼은 헤더 라인 inline으로 옮김 */}
     </div>
   );
 }
@@ -568,52 +581,92 @@ function CommentForm({
   onSubmit,
   submitting,
   placeholder,
-  onCancel,
 }: {
   body: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   submitting: boolean;
   placeholder?: string;
+  /** 더 이상 사용하지 않음 — 답글 취소는 헤더 라인의 [답글 취소] inline 토글로 대체 */
   onCancel?: () => void;
 }) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // 마운트 시 자동 포커스 — 댓글창/답글창 열림 즉시 입력 가능 (모바일 키보드 자동 활성)
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    // iOS Safari: 직접 focus만으론 키보드 안 뜰 수 있어 두 단계 시도
+    ta.focus();
+    // 다음 프레임에 한 번 더 시도 (조건부 렌더 직후 안정화 대기)
+    const id = window.setTimeout(() => {
+      ta.focus();
+      // 커서를 끝으로
+      const len = ta.value.length;
+      try {
+        ta.setSelectionRange(len, len);
+      } catch {
+        /* ignore */
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, []);
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <textarea
-        value={body}
-        onChange={(e) => {
-          onChange(e.target.value);
-          const t = e.currentTarget;
-          t.style.height = "auto";
-          t.style.height = t.scrollHeight + "px";
-        }}
-        placeholder={placeholder ?? "댓글을 입력하세요"}
-        rows={2}
-        maxLength={2000}
-        className="w-full resize-none overflow-hidden rounded-md border border-[var(--border)] p-2.5 text-[14px] focus:border-[var(--primary)] focus:outline-none"
-      />
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] text-[var(--text-muted)]">{body.length}/2000</span>
-        <div className="flex gap-2">
-          {onCancel && (
-            <button
-              type="button"
-              className="rounded px-3 py-1.5 text-[13px] text-[var(--text-muted)] hover:text-[var(--text)]"
-              onClick={onCancel}
-            >
-              취소
-            </button>
-          )}
-          <button
-            type="button"
-            className="rounded-md bg-[var(--primary)] px-4 py-1.5 text-[13px] font-bold text-white hover:opacity-90 disabled:opacity-50"
-            disabled={submitting || !body.trim()}
-            onClick={onSubmit}
+    <div className="flex items-stretch gap-1.5">
+      <div className="relative flex-1">
+        <textarea
+          ref={textareaRef}
+          autoFocus
+          value={body}
+          onChange={(e) => {
+            onChange(e.target.value);
+            const t = e.currentTarget;
+            t.style.height = "auto";
+            t.style.height = t.scrollHeight + "px";
+          }}
+          onKeyDown={(e) => {
+            // Enter → 등록 / Shift+Enter → 줄바꿈
+            // IME 조합 중(한글 입력)에는 isComposing/keyCode 229로 무시
+            if (
+              e.key === "Enter" &&
+              !e.shiftKey &&
+              !e.nativeEvent.isComposing &&
+              e.keyCode !== 229
+            ) {
+              e.preventDefault();
+              if (!submitting && body.trim()) onSubmit();
+            }
+          }}
+          placeholder={placeholder ?? "댓글을 입력하세요"}
+          rows={1}
+          maxLength={2000}
+          className={
+            "w-full resize-none overflow-hidden rounded-md border border-[var(--border)] px-2 py-1.5 text-[13px] focus:border-[var(--primary)] focus:outline-none " +
+            (body.length >= 1500 ? "pr-14 pb-4" : "")
+          }
+        />
+        {/* 글자수 카운트 — 1500자 이상부터만 노출 (한도 임박 알림) */}
+        {body.length >= 1500 && (
+          <span
+            className="pointer-events-none absolute bottom-0.5 right-1.5 text-[10px]"
+            style={{
+              color: body.length >= 1900 ? "#E91E63" : "var(--text-muted)",
+            }}
           >
-            {submitting ? "등록 중…" : "등록"}
-          </button>
-        </div>
+            {body.length}/2000
+          </span>
+        )}
       </div>
+      {/* 등록 — 텍스트 링크 스타일 (작고 차분) */}
+      <button
+        type="button"
+        className="shrink-0 self-stretch rounded-md px-2.5 text-[12px] font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)] disabled:cursor-not-allowed disabled:text-[var(--text-muted)] disabled:hover:bg-transparent"
+        disabled={submitting || !body.trim()}
+        onClick={onSubmit}
+      >
+        {submitting ? "…" : "등록"}
+      </button>
     </div>
   );
 }

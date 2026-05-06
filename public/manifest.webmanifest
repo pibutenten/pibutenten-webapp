@@ -11,10 +11,16 @@
   "lang": "ko",
   "icons": [
     {
-      "src": "/app-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/logo.png",
+      "sizes": "1200x1200",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "1200x1200",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

@@ -24,8 +24,8 @@ export const metadata: Metadata = {
   applicationName: "피부텐텐",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/logo.svg",
-    apple: "/app-icon.svg",
+    icon: "/logo.png",
+    apple: "/logo.png",
   },
   appleWebApp: {
     capable: true,

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
+import InAppBrowserNotice from "@/components/InAppBrowserNotice";
 
 type Props = { next?: string; error?: string };
 
@@ -45,6 +46,9 @@ export default function LoginForm({ next, error: initialError }: Props) {
 
   return (
     <div className="space-y-5">
+      {/* 인앱 브라우저 감지 안내 (카카오톡/페이스북 등에서 구글 OAuth 차단됨) */}
+      <InAppBrowserNotice />
+
       {/* 소셜 로그인 섹션 */}
       <section
         className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]"

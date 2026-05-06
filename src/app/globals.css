@@ -2,17 +2,25 @@
 
 /* ========== 피부텐텐 디자인 토큰 ========== */
 :root {
-  --primary: #1B4965;
-  --primary-dark: #0F2D40;
-  --secondary: #5FA8D3;
+  /* 메인 액션 — 하늘색 (남색 대신) */
+  --primary: #5FA8D3;
+  --primary-dark: #4A8FB8;
+  /* 부드러운 하늘색 hover/selection 톤 — 절반쯤 연하게 */
+  --primary-soft: #EAF3F9;
+  /* 강조 텍스트용 딥 네이비 (브랜드 보조) */
+  --secondary: #1B4965;
   --secondary-light: #BEE9E8;
-  --bg: #F5F7FA;
-  --bg-soft: #EDF2F7;
+  /* 배경 — 따뜻함 약간 줄이고 중립 회백색으로 */
+  --bg: #F8F8F6;
+  --bg-soft: #EFEEEA;
   --white: #FFFFFF;
   --text: #2D3436;
   --text-secondary: #62737E;
   --text-muted: #94A3B0;
-  --border: #E2E8EE;
+  --border: #E5E3DD;
+  /* 좋아요·하이라이트용 따뜻한 액센트 (코랄 핑크) */
+  --accent: #FF6B81;
+  --accent-soft: #FFE4E8;
   --shadow-sm: 0 1px 3px rgba(27, 73, 101, 0.06);
   --shadow: 0 2px 12px rgba(27, 73, 101, 0.08);
   --shadow-lg: 0 8px 24px rgba(27, 73, 101, 0.12);
@@ -81,4 +89,15 @@ a {
 }
 .fade-in-up {
   animation: fadeInUp 0.4s ease-out both;
+}
+
+/* ========== 좋아요 펄스 애니메이션 (눌렀을 때 살짝 통통) ========== */
+@keyframes likePulse {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.25); }
+  60% { transform: scale(0.95); }
+  100% { transform: scale(1.05); }
+}
+.like-pulse {
+  animation: likePulse 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }

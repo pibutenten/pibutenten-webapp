@@ -265,11 +265,11 @@ export default function WriteClient({
   const writerLabel =
     role === "admin"
       ? authorDoctor
-        ? doctors.find((d) => d.slug === authorDoctor)?.name + " 원장님 명의"
-        : "관리자"
+        ? `${doctors.find((d) => d.slug === authorDoctor)?.name ?? ""} 원장님 명의로`
+        : `${displayName || "관리자"} (관리자)`
       : role === "doctor"
-        ? `${myDoctor?.name ?? displayName} 원장님 명의`
-        : `${displayName || "회원"} 명의`;
+        ? `${myDoctor?.name ?? displayName} 원장님`
+        : `${displayName || "회원"}`;
 
   return (
     <section className="w-full py-6">

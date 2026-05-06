@@ -18,14 +18,15 @@ async function fetchQa(id: string): Promise<QACardData | null> {
     .from("qas")
     .select(
       `
-      id, question, answer, meta, keywords,
+      id, question, answer, meta, keywords, type, created_at,
       like_count, view_count,
       doctor:doctors(slug, name, branch),
+      author:profiles!qas_author_id_fkey(id, display_name, avatar_url),
       video:videos(youtube_id, youtube_url, topic, upload_date)
     `,
     )
     .eq("id", numId)
-    .eq("published", true)
+    .eq("status", "published")
     .maybeSingle()
     .returns<QACardData>();
   return data;

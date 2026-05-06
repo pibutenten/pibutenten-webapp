@@ -2,6 +2,13 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import LogoutButton from "@/components/LogoutButton";
+import {
+  ROLE_LABELS,
+  LEVEL_LABELS,
+  LEVEL_COLORS,
+  type UserRole,
+  type UserLevel,
+} from "@/lib/user-grades";
 
 export const dynamic = "force-dynamic";
 
@@ -40,9 +47,17 @@ export default async function MePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, display_name")
+    .select("role, display_name, level, activity_score, bio, avatar_url")
     .eq("id", user.id)
-    .maybeSingle();
+    .maybeSingle()
+    .returns<{
+      role: UserRole;
+      display_name: string | null;
+      level: UserLevel;
+      activity_score: number;
+      bio: string | null;
+      avatar_url: string | null;
+    }>();
 
   if (!profile) redirect("/login?error=프로필을 찾을 수 없습니다");
 
@@ -198,31 +213,76 @@ export default async function MePage() {
   const typeLabel = (t: ActivityRow["type"]): string =>
     t === "post" ? "포스팅" : t === "article" ? "칼럼" : "Q&A";
 
+  const lvlColor = LEVEL_COLORS[profile.level] ?? LEVEL_COLORS[0];
+
   return (
     <section className="w-full py-6">
       {/* 헤더 */}
-      <h1 className="mb-2 text-2xl font-bold text-[var(--text)]">
-        {profile.display_name}{" "}
-        {profile.role === "doctor" && (
-          <span className="text-base font-medium text-[var(--text-secondary)]">
-            원장님
-          </span>
-        )}
-      </h1>
-      <p className="text-sm text-[var(--text-muted)]">
-        역할: {profile.role === "doctor" ? "원장" : profile.role === "admin" ? "관리자" : "사용자"}
-        {profile.role === "doctor" && doctorSlug && (
-          <>
-            {" · "}
-            <Link
-              href={`/doctors/${doctorSlug}`}
-              className="text-[var(--primary)] hover:underline"
-            >
-              내 공개 페이지 →
-            </Link>
-          </>
-        )}
-      </p>
+      <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
+        <div className="flex items-start gap-4">
+          <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
+            {profile.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.avatar_url}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xl text-[var(--text-muted)]">
+                👤
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold text-[var(--text)]">
+                {profile.display_name ?? "(이름 없음)"}
+                {profile.role === "doctor" && (
+                  <span className="ml-1 text-sm font-medium text-[var(--text-secondary)]">
+                    원장님
+                  </span>
+                )}
+              </h1>
+              <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
+                {ROLE_LABELS[profile.role] ?? profile.role}
+              </span>
+              {profile.role === "user" && (
+                <span
+                  className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                  style={{ backgroundColor: lvlColor.bg, color: lvlColor.fg }}
+                >
+                  {LEVEL_LABELS[profile.level] ?? "일반"}
+                </span>
+              )}
+              <Link
+                href="/me/profile"
+                className="ml-auto text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
+              >
+                프로필 수정 ✏️
+              </Link>
+            </div>
+            {profile.bio && (
+              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
+                {profile.bio}
+              </p>
+            )}
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
+              {profile.role === "user" && (
+                <span>활동점수 {profile.activity_score.toLocaleString()}</span>
+              )}
+              {profile.role === "doctor" && doctorSlug && (
+                <Link
+                  href={`/doctors/${doctorSlug}`}
+                  className="text-[var(--primary)] hover:underline"
+                >
+                  내 공개 페이지 →
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {!isDoctor && profile.role !== "doctor" && profile.role !== "admin" && (
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -363,7 +423,7 @@ export default async function MePage() {
         </>
       )}
 
-      {/* 로그아웃 — 페이지 하단 */}
+      {/* 로그아웃 — 본인 정보 페이지 하단 */}
       <div className="mt-10 flex justify-end border-t border-[var(--border)] pt-6">
         <LogoutButton />
       </div>

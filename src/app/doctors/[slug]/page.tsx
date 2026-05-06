@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
+import { getDoctorPhoto } from "@/lib/doctor-theme";
 import { getHotQaIds } from "@/lib/hot-ids";
 import QAFeed from "@/components/QAFeed";
 import type { QACardData } from "@/components/QACard";
@@ -56,7 +56,6 @@ export default async function DoctorDetailPage({ params }: Props) {
     .eq("doctor_id", doctor.id);
   const count = cRes.count ?? null;
 
-  const theme = getDoctorTheme(doctor.slug);
   const photo = getDoctorPhoto(doctor.slug);
   const affiliation = [doctor.clinic, doctor.branch].filter(Boolean).join(" ");
   const hotIds = Array.from(await getHotQaIds(20));
@@ -67,16 +66,10 @@ export default async function DoctorDetailPage({ params }: Props) {
   return (
     <section className="space-y-6">
       {/* 원장님 hero — 모바일에선 양옆/위 main padding 상쇄해서 viewport 가장자리까지 가득 */}
-      <header
-        className="relative -mx-4 -mt-6 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:-mt-4 sm:w-full sm:rounded-t-[var(--radius)]"
-        style={{
-          // 좌우 가장자리는 투명, 중앙은 색 — 양쪽 페이드 그라데이션 (위아래는 동일 색)
-          background: `linear-gradient(to right, transparent 0%, ${theme.bg}33 12%, ${theme.bg}33 88%, transparent 100%)`,
-        }}
-      >
-        <div className="mx-auto flex max-w-[820px] items-end gap-1 sm:gap-2">
-          {/* 좌측: 멘트(중상단) + 이름(하단) — 좌측 약간의 여백 */}
-          <div className="flex flex-1 flex-col self-stretch pb-6 pl-2 pt-12 sm:pb-8 sm:pl-3 sm:pt-20">
+      <header className="relative -mx-4 -mt-6 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:-mt-4 sm:w-full sm:rounded-t-[var(--radius)]">
+        <div className="mx-auto flex max-w-[820px] items-end gap-2 pl-5 pr-3 sm:gap-3 sm:pl-5 sm:pr-3">
+          {/* 좌측: 멘트(중상단) + 이름(하단) — 좌측 여백은 부모 px-4로 일관 */}
+          <div className="flex flex-1 flex-col self-stretch pb-5 pt-10 sm:pb-8 sm:pt-16">
             {doctor.intro && (
               <>
                 {/* 모바일: \n 무시하고 페이지 폭에 맞춰 자동 wrap */}
@@ -89,7 +82,7 @@ export default async function DoctorDetailPage({ params }: Props) {
                 </p>
               </>
             )}
-            <div className="mt-auto pt-6">
+            <div className="mt-auto pt-5">
               <h1 className="text-2xl font-bold text-[var(--text)] sm:text-3xl">
                 {doctor.name}
               </h1>
@@ -99,13 +92,13 @@ export default async function DoctorDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {/* 우측: 누끼 사진 — 약간 우측으로 */}
-          <div className="relative h-[280px] w-[190px] shrink-0 translate-x-1 sm:h-[400px] sm:w-[300px] sm:translate-x-2">
+          {/* 우측: 누끼 사진 — 모바일도 시원하게, 우측 가장자리 안쪽으로 (translate 제거) */}
+          <div className="relative h-[270px] w-[195px] shrink-0 sm:h-[360px] sm:w-[270px]">
             <Image
               src={photo}
               alt={`${doctor.name} 원장님`}
               fill
-              sizes="(max-width: 600px) 190px, 300px"
+              sizes="(max-width: 600px) 195px, 270px"
               className="object-contain object-bottom"
               priority
             />
@@ -126,14 +119,12 @@ export default async function DoctorDetailPage({ params }: Props) {
       {/* 원장 칼럼 (article) — 있을 때만 표시 */}
       {articles.length > 0 && (
         <div className="pt-2">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-lg font-bold text-[var(--text)]">
-              {doctor.name} 원장님의 칼럼
-            </h2>
-            <span className="text-[13px] text-[var(--text-muted)]">
+          <h2 className="mb-3 text-lg font-bold text-[var(--text)]">
+            {doctor.name} 원장님의 칼럼{" "}
+            <span className="text-[14px] font-medium text-[var(--text-muted)]">
               {articles.length}편
             </span>
-          </div>
+          </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {articles.map((a) => (
               <ArticleCard key={a.id} article={a} />
@@ -143,14 +134,12 @@ export default async function DoctorDetailPage({ params }: Props) {
       )}
 
       {/* Q&A 헤더 */}
-      <div className="flex items-baseline justify-between pt-2">
-        <h2 className="text-lg font-bold text-[var(--text)]">
-          {doctor.name} 원장님의 Q&A
-        </h2>
-        <span className="text-[13px] text-[var(--text-muted)]">
+      <h2 className="pt-2 text-lg font-bold text-[var(--text)]">
+        {doctor.name} 원장님의 Q&A{" "}
+        <span className="text-[14px] font-medium text-[var(--text-muted)]">
           {count ?? 0}개
         </span>
-      </div>
+      </h2>
 
       {/* Q&A 피드 (해당 원장만) */}
       {!qas || qas.length === 0 ? (
