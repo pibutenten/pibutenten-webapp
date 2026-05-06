@@ -1,4 +1,5 @@
 import Image from "next/image";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
@@ -15,6 +16,40 @@ const PAGE_SIZE = 20;
 type Props = {
   params: Promise<{ slug: string }>;
 };
+
+/** 원장님 페이지 공유 시 OG 메타 — /public/og/{slug}.png 우선, 없으면 기본 og.png */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const supabase = await createSupabaseServerClient();
+  const { data: doctor } = await supabase
+    .from("doctors")
+    .select("name, title, clinic, intro")
+    .eq("slug", slug)
+    .maybeSingle()
+    .returns<{ name: string; title: string; clinic: string; intro: string | null }>();
+  if (!doctor) return {};
+  const ogImage = `/og/${slug}.png`;
+  const title = `${doctor.name} ${doctor.title} · ${doctor.clinic}`;
+  const description =
+    doctor.intro?.trim() ||
+    `${doctor.name} ${doctor.title}의 피부 Q&A와 칼럼을 만나보세요. 피부텐텐.`;
+  return {
+    title,
+    description,
+    openGraph: {
+      type: "profile",
+      title,
+      description,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: doctor.name }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
+}
 
 type Doctor = {
   id: string;
