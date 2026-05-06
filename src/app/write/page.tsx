@@ -27,10 +27,7 @@ export default async function WritePage() {
 
   const role = (profile.role ?? "user") as "admin" | "doctor" | "user";
 
-  // 일반 사용자가 추가정보(생년월일 등) 미입력 — 글쓰기 시점에 받기
-  if (role === "user" && !profile.birthdate) {
-    redirect("/onboarding");
-  }
+  // 추가정보(생년월일 등) 강제 X — /me 배너로만 자율 안내
 
   // 원장 본인 매핑
   let myDoctor: { slug: string; name: string } | null = null;

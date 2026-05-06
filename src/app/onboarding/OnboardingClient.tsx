@@ -594,7 +594,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
           disabled={pending}
           className="h-10 rounded-full bg-transparent px-7 text-[14px] font-semibold text-[var(--primary)] underline-offset-4 transition-all hover:underline disabled:opacity-50"
         >
-          {pending ? "저장 중…" : "✨ 피부 예뻐지기 시작하기 →"}
+          {pending ? "저장 중…" : "저장하고 시작하기"}
         </button>
       </div>
     </div>

@@ -111,10 +111,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/signup", request.url));
   }
 
-  // birthdate NULL → /onboarding (모든 role 공통: user / doctor / admin)
-  if (!profile.birthdate) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
-  }
+  // 온보딩 강제 게이트 비활성화 — 모든 사용자가 갇히는 문제 회피.
+  // birthdate NULL은 /me 배너로 자율적으로 안내, 글쓰기 시점에만 강제 (write/page.tsx 가드).
+  // if (!profile.birthdate) {
+  //   return NextResponse.redirect(new URL("/onboarding", request.url));
+  // }
 
   // 통과 — 캐시 쿠키 set (12시간)
   response.cookies.set(ONBOARDED_COOKIE, user.id, {
