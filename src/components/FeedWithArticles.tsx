@@ -35,7 +35,15 @@ export default function FeedWithArticles({
   hotIds,
 }: Props) {
   const hotSet = new Set(hotIds ?? []);
-  const [qaItems, setQaItems] = useState<QACardData[]>(initialQas);
+  // initialQas 자체에 동일 id가 여러 번 들어올 수 있어 mount 시 dedup
+  const [qaItems, setQaItems] = useState<QACardData[]>(() => {
+    const seen = new Set<number>();
+    return initialQas.filter((q) => {
+      if (seen.has(q.id)) return false;
+      seen.add(q.id);
+      return true;
+    });
+  });
   const [hasMore, setHasMore] = useState(initialQas.length >= pageSize);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -88,7 +96,12 @@ export default function FeedWithArticles({
       }
       const data = (await res.json()) as { qas: QACardData[] };
       const next = data.qas ?? [];
-      setQaItems((prev) => [...prev, ...next]);
+      // 중복 id 제거 — loadMore가 이미 있는 id를 또 fetch해도 react key 충돌 안 남
+      setQaItems((prev) => {
+        const seen = new Set(prev.map((q) => q.id));
+        const fresh = next.filter((q) => !seen.has(q.id));
+        return [...prev, ...fresh];
+      });
       if (next.length < ps) setHasMore(false);
     } catch {
       setHasMore(false);

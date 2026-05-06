@@ -236,30 +236,44 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             style={{
               background: theme?.bg ?? "var(--bg-soft)",
               boxShadow: `inset 0 0 0 2px ${theme?.bgSoft ?? "var(--bg-soft)"}`,
-              height: 60,
-              width: 60,
+              height: 52,
+              width: 52,
             }}
           >
             <Image
               src={photo}
               alt={`${doctor.name} 원장님`}
               fill
-              sizes="60px"
+              sizes="52px"
               className="object-cover"
               style={{
                 objectPosition: "50% 12%",
-                transform: `translate(${avatarTx}px, ${avatarTy}px)`,
+                // 아이콘 크기는 그대로, 사진만 zoom해서 얼굴이 더 크게 보이게
+                transform: `translate(${avatarTx}px, ${avatarTy}px) scale(1.18)`,
+                transformOrigin: "50% 30%",
               }}
             />
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0 text-[14px] leading-tight">
-            <span className="font-bold text-[var(--text)]">
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0 leading-none">
+            <span className="text-[14px] font-bold leading-none text-[var(--text)]">
               {doctor?.name ?? "익명"}
             </span>
             {doctor && (
-              <span className="text-[12px] font-medium text-[var(--primary)]">
+              <span
+                className="inline-flex items-center gap-1 text-[12px] font-medium leading-none"
+                style={{ color: "#5BB0D1" }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="#5BB0D1"
+                  className="h-[14px] w-[14px]"
+                  aria-hidden
+                >
+                  {/* Twitter-style verified — 별 안에 체크 */}
+                  <path d="M22.5 12.5l-2.7-3 .4-4-3.9-.9-2-3.5-3.7 1.9-3.7-1.9-2 3.5-3.9.8.4 4-2.7 3 2.7 3-.4 4 3.9.9 2 3.5 3.7-1.9 3.7 1.9 2-3.5 3.9-.8-.4-4 2.6-3zM10 17.5L5.5 13l1.7-1.7L10 14.1l6.7-6.7L18.4 9 10 17.5z" />
+                </svg>
                 피부과 전문의
               </span>
             )}

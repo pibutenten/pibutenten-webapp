@@ -88,16 +88,32 @@ const YoutubeIcon = (
   </svg>
 );
 
-const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "검색", icon: SearchIcon },
-  { href: "/doctors", label: "전문의", icon: DoctorIcon },
-  {
-    href: "https://www.youtube.com/@pibutenten",
-    label: "피부텐텐",
-    external: true,
-    icon: YoutubeIcon,
-  },
-];
+const WriteIcon = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-5 w-5"
+    aria-hidden
+  >
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+  </svg>
+);
+
+function buildNavItems(hasSession: boolean): NavItem[] {
+  const items: NavItem[] = [
+    { href: "/", label: "검색", icon: SearchIcon },
+  ];
+  if (hasSession) {
+    items.push({ href: "/write", label: "글쓰기", icon: WriteIcon });
+  }
+  items.push({ href: "/doctors", label: "전문의", icon: DoctorIcon });
+  return items;
+}
 
 const UserIcon = (
   <svg
@@ -167,7 +183,7 @@ export default function TopNav({ session }: TopNavProps) {
         </Link>
 
         <nav className="flex items-center gap-1 sm:gap-3">
-          {NAV_ITEMS.map((item) => {
+          {buildNavItems(!!session).map((item) => {
             const isActive =
               !item.external &&
               (item.href === "/"
@@ -217,28 +233,18 @@ export default function TopNav({ session }: TopNavProps) {
             );
           })}
 
-          {/* 로그인 / 마이페이지 — nav gap에 그대로 정렬 (전문의·피부텐텐과 균등 간격) */}
+          {/* 본인 대시보드 (로그인) / 로그인 — 글쓰기는 NAV에 inline, 로그아웃은 /me 안에서 */}
           {session ? (
-            <>
-              <Link
-                href={dashboardHref}
-                className="flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
-                title={session.displayName}
-              >
-                {UserIcon}
-                <span className="hidden sm:inline">
-                  {session.role === "admin" ? "관리자" : session.displayName}
-                </span>
-              </Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="rounded-md p-2 text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50"
-              >
-                {isLoggingOut ? "..." : "로그아웃"}
-              </button>
-            </>
+            <Link
+              href={dashboardHref}
+              className="flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
+              title={session.displayName}
+            >
+              {UserIcon}
+              <span className="hidden sm:inline">
+                {session.role === "admin" ? "관리자" : session.displayName}
+              </span>
+            </Link>
           ) : (
             <Link
               href="/login"

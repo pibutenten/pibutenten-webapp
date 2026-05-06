@@ -32,16 +32,17 @@ const TYPE_LABEL: Record<WriteType, string> = {
   qa: "Q&A",
 };
 
+// post는 키워드 미사용(0). qa·article은 최대 10개. (필요 시 post도 활성 가능)
 const KEYWORD_MIN: Record<WriteType, number> = {
   post: 0,
-  article: 3,
+  article: 0,
   qa: 0,
 };
 
 const KEYWORD_MAX: Record<WriteType, number> = {
-  post: 4,
+  post: 0,
   article: 10,
-  qa: 8,
+  qa: 10,
 };
 
 export default function WriteClient({
@@ -53,34 +54,27 @@ export default function WriteClient({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  // type 결정 — 일반 사용자는 post 강제
+  // type 결정 — 모든 회원 기본값은 post (인스타·페이스북 같은 일관 경험)
+  // - 일반 사용자: post 만
+  // - 원장: post / qa 선택 가능 (Q&A는 의료 답변)
+  // - 관리자: post / qa 선택 가능 (칼럼/AI URL 초안은 /admin 영역에서 별도)
   const allowedTypes: WriteType[] =
-    role === "admin"
-      ? ["post", "article", "qa"]
-      : role === "doctor"
-        ? ["post", "article"]
-        : ["post"];
-  const [type, setTypeState] = useState<WriteType>(
-    role === "doctor" || role === "admin" ? "article" : "post",
-  );
+    role === "admin" || role === "doctor" ? ["post", "qa"] : ["post"];
+  const [type, setTypeState] = useState<WriteType>("post");
 
   // 글쓴이 (원장 명의) — 모든 type에 공통 노출. ""=관리자 명의(admin), 원장 본인은 자기 slug 고정
   const [authorDoctor, setAuthorDoctor] = useState<string>(
     role === "doctor" ? (myDoctor?.slug ?? "") : "",
   );
 
-  // post
-  const [postBody, setPostBody] = useState("");
-
-  // article
+  // 통합: post + qa 공통 — 제목 / 내용 (qa는 질문 / 답변)
   const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+
+  // article 전용 (admin만)
   const [sections, setSections] = useState<Section[]>([
     { heading: "", body: "", image: null },
   ]);
-
-  // qa
-  const [qaQuestion, setQaQuestion] = useState("");
-  const [qaAnswer, setQaAnswer] = useState("");
 
   // 공통 키워드
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -93,12 +87,9 @@ export default function WriteClient({
 
   /** 작성 중 내용이 있는지 체크 — type 전환 경고용 */
   function hasUnsavedContent(): boolean {
-    if (type === "post" && postBody.trim()) return true;
-    if (type === "article") {
-      if (title.trim()) return true;
-      if (sections.some((s) => s.heading.trim() || s.body.trim())) return true;
-    }
-    if (type === "qa" && (qaQuestion.trim() || qaAnswer.trim())) return true;
+    if (title.trim()) return true;
+    if (body.trim()) return true;
+    if (type === "article" && sections.some((s) => s.heading.trim() || s.body.trim())) return true;
     if (keywords.length > 0) return true;
     return false;
   }
@@ -112,11 +103,9 @@ export default function WriteClient({
       );
       if (!ok) return;
       // 모든 필드 초기화
-      setPostBody("");
       setTitle("");
+      setBody("");
       setSections([{ heading: "", body: "", image: null }]);
-      setQaQuestion("");
-      setQaAnswer("");
       setKeywords([]);
       setKeywordInput("");
       setError(null);
@@ -170,19 +159,11 @@ export default function WriteClient({
   }
 
   function validateBeforeSubmit(forStatus: SubmitStatus): string | null {
-    // 저장(draft)은 최소 검증만
     if (forStatus === "draft") {
-      if (type === "post" && !postBody.trim()) return "내용을 입력해주세요.";
-      if (type === "article" && !title.trim()) return "제목을 입력해주세요.";
-      if (type === "qa" && !qaQuestion.trim() && !qaAnswer.trim())
-        return "질문 또는 답변을 입력해주세요.";
+      if (!title.trim() && !body.trim()) return "제목 또는 본문을 입력해주세요.";
       return null;
     }
-    // 발행/검수요청은 풀 검증
-    if (type === "post") {
-      if (!postBody.trim()) return "내용을 입력해주세요.";
-      if (postBody.length > 4000) return "포스팅은 최대 4000자까지 가능합니다.";
-    } else if (type === "article") {
+    if (type === "article") {
       if (!title.trim()) return "제목을 입력해주세요.";
       const filled = sections.filter(
         (s) => s.heading.trim() || s.body.trim(),
@@ -190,10 +171,12 @@ export default function WriteClient({
       if (filled.length === 0) return "섹션을 1개 이상 작성해주세요.";
       if (keywords.length < minKw)
         return `칼럼은 키워드를 최소 ${minKw}개 입력해주세요.`;
-    } else if (type === "qa") {
-      if (!qaQuestion.trim()) return "질문을 입력해주세요.";
-      if (!qaAnswer.trim()) return "답변을 입력해주세요.";
+      return null;
     }
+    // post / qa 공통: 제목 + 본문 필수
+    if (!title.trim()) return "제목을 입력해주세요.";
+    if (!body.trim()) return "본문을 입력해주세요.";
+    if (body.length > 4000) return "본문은 최대 4000자까지 가능합니다.";
     return null;
   }
 
@@ -221,16 +204,18 @@ export default function WriteClient({
         if (role === "doctor" && myDoctor) {
           payload.doctor_slug = myDoctor.slug;
         }
-        if (type === "post") {
-          payload.body = postBody;
-        } else if (type === "article") {
+        if (type === "article") {
           payload.title = title;
           payload.sections = sections.filter(
             (s) => s.heading.trim() || s.body.trim(),
           );
+        } else if (type === "post") {
+          // post: title을 question에, body를 answer에 통일
+          payload.title = title;
+          payload.body = body;
         } else if (type === "qa") {
-          payload.question = qaQuestion;
-          payload.answer = qaAnswer;
+          payload.question = title;
+          payload.answer = body;
         }
 
         const res = await fetch("/api/articles", {
@@ -281,7 +266,7 @@ export default function WriteClient({
     role === "admin"
       ? authorDoctor
         ? doctors.find((d) => d.slug === authorDoctor)?.name + " 원장님 명의"
-        : "관리자 명의 (피부텐텐 운영)"
+        : "관리자"
       : role === "doctor"
         ? `${myDoctor?.name ?? displayName} 원장님 명의`
         : `${displayName || "회원"} 명의`;
@@ -325,7 +310,7 @@ export default function WriteClient({
               onChange={(e) => setAuthorDoctor(e.target.value)}
               className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
             >
-              <option value="">관리자 명의 (피부텐텐 운영)</option>
+              <option value="">관리자</option>
               {doctors.map((d) => (
                 <option key={d.slug} value={d.slug}>
                   {d.name} 원장님
@@ -339,8 +324,14 @@ export default function WriteClient({
           )}
         </div>
 
-        {type === "post" && (
-          <PostForm body={postBody} onChange={setPostBody} />
+        {/* 포스팅·Q&A 통합 form — 제목 / 본문 동일 구조 */}
+        {(type === "post" || type === "qa") && (
+          <PostQaForm
+            title={title}
+            onTitle={setTitle}
+            body={body}
+            onBody={setBody}
+          />
         )}
 
         {type === "article" && (
@@ -355,16 +346,8 @@ export default function WriteClient({
           />
         )}
 
-        {type === "qa" && (
-          <QaForm
-            qaQuestion={qaQuestion}
-            onQaQuestion={setQaQuestion}
-            qaAnswer={qaAnswer}
-            onQaAnswer={setQaAnswer}
-          />
-        )}
-
-        {/* 공통: 키워드 */}
+        {/* 공통: 키워드 — maxKw=0이면 비표시 (post는 키워드 없음) */}
+        {maxKw > 0 && (
         <div>
           <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
             키워드{" "}
@@ -407,12 +390,14 @@ export default function WriteClient({
             </button>
           </div>
         </div>
+        )}
 
-        {/* 카테고리 안내 (단순 표시) */}
+        {maxKw > 0 && (
         <div className="text-[11px] text-[var(--text-muted)]">
           ⓘ 카테고리는 키워드 기반 자동 분류:{" "}
           {CATEGORIES.map((c) => c.label).join(" · ")}
         </div>
+        )}
 
         {/* 에러 */}
         {error && (
@@ -421,37 +406,29 @@ export default function WriteClient({
           </div>
         )}
 
-        {/* 액션 — 취소 / 저장 / 검수 요청 / 발행 */}
+        {/* 액션 — 일반인은 발행만, 원장/관리자는 저장 + 검수(관리자만) + 발행 */}
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] pt-4">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm hover:bg-[var(--bg-soft)]"
-            disabled={pending}
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSubmit("draft")}
-            disabled={pending}
-            className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm hover:bg-[var(--bg-soft)] disabled:opacity-50"
-          >
-            저장
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSubmit("pending_review")}
-            disabled={pending || !canRequestReview}
-            className="h-10 rounded-[var(--radius-sm)] border border-amber-300 bg-amber-50 px-4 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
-            title={
-              canRequestReview
-                ? "원장 검수 큐로 전송"
-                : "본인 명의 글은 검수 요청 불필요"
-            }
-          >
-            검수 요청
-          </button>
+          {role !== "user" && (
+            <button
+              type="button"
+              onClick={() => handleSubmit("draft")}
+              disabled={pending}
+              className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm hover:bg-[var(--bg-soft)] disabled:opacity-50"
+            >
+              저장
+            </button>
+          )}
+          {role === "admin" && canRequestReview && (
+            <button
+              type="button"
+              onClick={() => handleSubmit("pending_review")}
+              disabled={pending}
+              className="h-10 rounded-[var(--radius-sm)] border border-amber-300 bg-amber-50 px-4 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+              title="원장 검수 큐로 전송"
+            >
+              검수 요청
+            </button>
+          )}
           <button
             type="button"
             onClick={() => handleSubmit("published")}
@@ -467,31 +444,49 @@ export default function WriteClient({
 }
 
 // ────────────────────────────────────────────────────────────
-// PostForm
+// PostQaForm — 포스팅 + Q&A 공통: 제목 / 본문
 // ────────────────────────────────────────────────────────────
-function PostForm({
+function PostQaForm({
+  title,
+  onTitle,
   body,
-  onChange,
+  onBody,
 }: {
+  title: string;
+  onTitle: (s: string) => void;
   body: string;
-  onChange: (s: string) => void;
+  onBody: (s: string) => void;
 }) {
   return (
-    <div>
-      <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-        내용{" "}
-        <span className="text-xs font-normal text-[var(--text-muted)]">
-          ({body.length} / 4000)
-        </span>
-      </label>
-      <textarea
-        value={body}
-        onChange={(e) => onChange(e.target.value)}
-        rows={10}
-        maxLength={4000}
-        className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
-      />
-    </div>
+    <>
+      <div>
+        <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
+          제목
+        </label>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => onTitle(e.target.value)}
+          maxLength={200}
+          className="h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-base font-medium focus:border-[var(--primary)] focus:outline-none"
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
+          본문{" "}
+          <span className="text-xs font-normal text-[var(--text-muted)]">
+            ({body.length} / 4000)
+          </span>
+        </label>
+        <textarea
+          value={body}
+          onChange={(e) => onBody(e.target.value)}
+          rows={10}
+          maxLength={4000}
+          className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
+        />
+      </div>
+    </>
   );
 }
 
@@ -609,49 +604,4 @@ function ArticleForm({
   );
 }
 
-// ────────────────────────────────────────────────────────────
-// QaForm — 안내 박스 제거
-// ────────────────────────────────────────────────────────────
-function QaForm({
-  qaQuestion,
-  onQaQuestion,
-  qaAnswer,
-  onQaAnswer,
-}: {
-  qaQuestion: string;
-  onQaQuestion: (s: string) => void;
-  qaAnswer: string;
-  onQaAnswer: (s: string) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-          질문
-        </label>
-        <input
-          type="text"
-          value={qaQuestion}
-          onChange={(e) => onQaQuestion(e.target.value)}
-          maxLength={200}
-          className="h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-base focus:border-[var(--primary)] focus:outline-none"
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-          답변
-        </label>
-        <textarea
-          value={qaAnswer}
-          onChange={(e) => onQaAnswer(e.target.value)}
-          rows={8}
-          maxLength={3000}
-          className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
-        />
-        <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-          현재 글자 수: {qaAnswer.length}
-        </p>
-      </div>
-    </div>
-  );
-}
+// QaForm 제거됨 — PostQaForm으로 통합 (포스팅·Q&A 동일 구조)

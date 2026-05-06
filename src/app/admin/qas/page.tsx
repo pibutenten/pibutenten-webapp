@@ -302,8 +302,13 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                 className={
                   "rounded-[var(--radius-sm)] px-3 py-1 text-xs transition-colors " +
                   (active
-                    ? "bg-[var(--primary)] text-white"
+                    ? "font-semibold text-[var(--text)]"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
+                }
+                style={
+                  active
+                    ? { backgroundColor: "#7DC1DD33" }
+                    : undefined
                 }
               >
                 {t.label}
@@ -355,13 +360,6 @@ export default async function AdminQAsPage({ searchParams }: Props) {
             </option>
           ))}
         </select>
-        {/* 원장 변경 시 자동 submit — 검색 버튼 안 눌러도 즉시 필터 */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "document.getElementById('admin-qas-doctor-filter')?.addEventListener('change',function(){this.form&&this.form.submit();});",
-          }}
-        />
         <input
           type="text"
           name="q"
@@ -461,7 +459,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                       </td>
                       <td className="px-3 py-2 align-top">
                         <span
-                          className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                          className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium"
                           style={{
                             backgroundColor: style.bg,
                             color: style.fg,

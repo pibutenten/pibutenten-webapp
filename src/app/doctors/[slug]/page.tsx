@@ -68,9 +68,10 @@ export default async function DoctorDetailPage({ params }: Props) {
     <section className="space-y-6">
       {/* 원장님 hero — 모바일에선 양옆/위 main padding 상쇄해서 viewport 가장자리까지 가득 */}
       <header
-        className="relative -mx-4 -mt-4 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:mt-0 sm:w-full sm:rounded-t-[var(--radius)]"
+        className="relative -mx-4 -mt-6 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:-mt-4 sm:w-full sm:rounded-t-[var(--radius)]"
         style={{
-          background: `${theme.bg}1A`,
+          // 좌우 가장자리는 투명, 중앙은 색 — 양쪽 페이드 그라데이션 (위아래는 동일 색)
+          background: `linear-gradient(to right, transparent 0%, ${theme.bg}33 12%, ${theme.bg}33 88%, transparent 100%)`,
         }}
       >
         <div className="mx-auto flex max-w-[820px] items-end gap-1 sm:gap-2">

@@ -70,7 +70,7 @@ export default async function DoctorsPage() {
             >
               <div
                 className="relative aspect-square w-full overflow-hidden"
-                style={{ background: `${theme.bg}1A` }}
+                style={{ background: `${theme.bg}33` }}
               >
                 <Image
                   src={photo}

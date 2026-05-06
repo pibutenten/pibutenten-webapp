@@ -12,10 +12,10 @@ type SubmitStatus = "draft" | "pending_review" | "published";
 type Payload = {
   type: WriteType;
   status?: SubmitStatus; // 기본 'published'
-  // post
-  body?: string;
-  // article
+  // post: title + body 통일 (Q&A와 동일 구조)
   title?: string;
+  body?: string;
+  // article 전용
   cover_image?: string | null;
   sections?: ArticleSection[];
   // qa
@@ -153,17 +153,21 @@ export async function POST(req: Request) {
   };
 
   if (t === "post") {
+    const title = (payload.title ?? "").trim();
     const body = (payload.body ?? "").trim();
+    if (!title) {
+      return NextResponse.json({ error: "제목을 입력해주세요." }, { status: 400 });
+    }
     if (!body) {
-      return NextResponse.json({ error: "내용을 입력해주세요." }, { status: 400 });
+      return NextResponse.json({ error: "본문을 입력해주세요." }, { status: 400 });
     }
     if (body.length > 4000) {
       return NextResponse.json(
-        { error: "post는 최대 4000자까지 가능합니다." },
+        { error: "본문은 최대 4000자까지 가능합니다." },
         { status: 400 },
       );
     }
-    insert.question = body.slice(0, 80); // 첫 80자 제목 자리
+    insert.question = title;
     insert.answer = body;
     insert.status = reqStatus;
     insert.published = reqStatus === "published";

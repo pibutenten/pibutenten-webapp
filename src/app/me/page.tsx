@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import LogoutButton from "@/components/LogoutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -361,6 +362,11 @@ export default async function MePage() {
           </div>
         </>
       )}
+
+      {/* 로그아웃 — 페이지 하단 */}
+      <div className="mt-10 flex justify-end border-t border-[var(--border)] pt-6">
+        <LogoutButton />
+      </div>
     </section>
   );
 }
