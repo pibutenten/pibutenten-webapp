@@ -229,7 +229,12 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
   }
   const theme = doctor ? getDoctorTheme(doctor.slug) : null;
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
-  const dateLabel = formatDate(qa.video?.upload_date ?? null);
+  // 영상 글은 영상 업로드 날짜, post는 created_at 상대시간
+  const dateLabel = qa.video?.upload_date
+    ? formatDate(qa.video.upload_date)
+    : qa.created_at
+      ? relativeTime(qa.created_at)
+      : null;
 
   // QACard 아바타용 offset (avatarOffsetX/Y 우선, 없으면 offsetX/Y * 0.46)
   const avatarTx =
@@ -411,85 +416,6 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           )}
         </div>
       )}
-      {/* 작성자 행 — 원장이면 원장 소개 페이지로 이동, 일반 사용자 글이면 클릭 비활성 */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (doctor?.slug) router.push(`/doctors/${doctor.slug}`);
-        }}
-        disabled={!doctor}
-        className={
-          "mb-3.5 -ml-1 flex w-full items-center gap-2.5 rounded-md py-2 pl-1 pr-2 text-left transition-colors " +
-          (doctor
-            ? "cursor-pointer hover:bg-[var(--primary-soft)]"
-            : "cursor-default")
-        }
-        aria-label={doctor ? `${doctor.name} 원장님 소개로 이동` : undefined}
-      >
-        <div
-          className="relative shrink-0 overflow-hidden rounded-full"
-          style={{
-            background: theme?.bg ?? "var(--bg-soft)",
-            boxShadow: doctor
-              ? `inset 0 0 0 2px ${theme?.bgSoft ?? "var(--bg-soft)"}`
-              : undefined,
-            height: 44,
-            width: 44,
-          }}
-        >
-          {authorAvatar ? (
-            <Image
-              src={authorAvatar}
-              alt={authorName}
-              fill
-              sizes="44px"
-              className="object-cover"
-              style={
-                doctor
-                  ? {
-                      objectPosition: "50% 12%",
-                      transform: `translate(${avatarTx}px, ${avatarTy}px) scale(1.18)`,
-                      transformOrigin: "50% 30%",
-                    }
-                  : { objectPosition: "50% 50%" }
-              }
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg text-[var(--text-muted)]">
-              👤
-            </div>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0 leading-none">
-            <span className="text-[14px] font-bold leading-none text-[var(--text)]">
-              {authorName}
-            </span>
-            {doctor && (
-              <span
-                className="inline-flex items-center gap-1 text-[12px] font-medium leading-none"
-                style={{ color: "#5BB0D1" }}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="#5BB0D1"
-                  className="h-[14px] w-[14px]"
-                  aria-hidden
-                >
-                  <path d="M22.5 12.5l-2.7-3 .4-4-3.9-.9-2-3.5-3.7 1.9-3.7-1.9-2 3.5-3.9.8.4 4-2.7 3 2.7 3-.4 4 3.9.9 2 3.5 3.7-1.9 3.7 1.9 2-3.5 3.9-.8-.4-4 2.6-3zM10 17.5L5.5 13l1.7-1.7L10 14.1l6.7-6.7L18.4 9 10 17.5z" />
-                </svg>
-                피부과 전문의
-              </span>
-            )}
-          </div>
-          <div className="mt-1.5 truncate text-[12px] text-[var(--text-muted)]">
-            {qa.video?.topic ? `${qa.video.topic}` : ""}
-            {dateLabel ? `${qa.video?.topic ? " · " : ""}${dateLabel}` : ""}
-          </div>
-        </div>
-      </button>
-
       {isEditing ? (
         /* 인라인 편집 모드 */
         <div className="mb-3 space-y-2">
@@ -533,12 +459,93 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
         </div>
       ) : (
         <>
-          {/* 질문 — 줄바꿈 보존 */}
-          <h2 className="mb-3 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px] text-[var(--primary)]">
+          {/* 1. 제목 — 가장 위, 가장 큰 강조 */}
+          <h2 className="mb-2.5 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px] text-[var(--primary)]">
             {highlight(qa.question, activeQuery)}
           </h2>
 
-          {/* 답변 — 줄바꿈 보존, 길이 충분할 때만 클릭으로 펼침/접기 */}
+          {/* 2. 작성자 행 — 제목 바로 아래 (원장이면 클릭 시 소개 이동) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (doctor?.slug) router.push(`/doctors/${doctor.slug}`);
+            }}
+            disabled={!doctor}
+            className={
+              "mb-3 -ml-1 flex w-full items-center gap-2.5 rounded-md py-1.5 pl-1 pr-2 text-left transition-colors " +
+              (doctor
+                ? "cursor-pointer hover:bg-[var(--primary-soft)]"
+                : "cursor-default")
+            }
+            aria-label={doctor ? `${doctor.name} 원장님 소개로 이동` : undefined}
+          >
+            <div
+              className="relative shrink-0 overflow-hidden rounded-full"
+              style={{
+                background: theme?.bg ?? "var(--bg-soft)",
+                boxShadow: doctor
+                  ? `inset 0 0 0 2px ${theme?.bgSoft ?? "var(--bg-soft)"}`
+                  : undefined,
+                height: 36,
+                width: 36,
+              }}
+            >
+              {authorAvatar ? (
+                <Image
+                  src={authorAvatar}
+                  alt={authorName}
+                  fill
+                  sizes="36px"
+                  className="object-cover"
+                  style={
+                    doctor
+                      ? {
+                          objectPosition: "50% 12%",
+                          transform: `translate(${avatarTx}px, ${avatarTy}px) scale(1.18)`,
+                          transformOrigin: "50% 30%",
+                        }
+                      : { objectPosition: "50% 50%" }
+                  }
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-base text-[var(--text-muted)]">
+                  👤
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0 leading-none">
+                <span className="text-[13px] font-bold leading-none text-[var(--text)]">
+                  {authorName}
+                </span>
+                {doctor && (
+                  <span
+                    className="inline-flex items-center gap-1 text-[11px] font-medium leading-none"
+                    style={{ color: "#5BB0D1" }}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="#5BB0D1"
+                      className="h-[12px] w-[12px]"
+                      aria-hidden
+                    >
+                      <path d="M22.5 12.5l-2.7-3 .4-4-3.9-.9-2-3.5-3.7 1.9-3.7-1.9-2 3.5-3.9.8.4 4-2.7 3 2.7 3-.4 4 3.9.9 2 3.5 3.7-1.9 3.7 1.9 2-3.5 3.9-.8-.4-4 2.6-3zM10 17.5L5.5 13l1.7-1.7L10 14.1l6.7-6.7L18.4 9 10 17.5z" />
+                    </svg>
+                    피부과 전문의
+                  </span>
+                )}
+                {(qa.video?.topic || dateLabel) && (
+                  <span className="truncate text-[11px] text-[var(--text-muted)]">
+                    · {qa.video?.topic ? qa.video.topic : ""}
+                    {dateLabel ? `${qa.video?.topic ? " · " : ""}${dateLabel}` : ""}
+                  </span>
+                )}
+              </div>
+            </div>
+          </button>
+
+          {/* 3. 본문 — 줄바꿈 보존, 길이 충분할 때만 클릭으로 펼침/접기 */}
           <div
             onClick={() => isLongAnswer && setExpanded((v) => !v)}
             className={isLongAnswer ? "cursor-pointer" : ""}
@@ -615,7 +622,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-[15px] w-[15px]"
+            className="h-[18px] w-[18px]"
             aria-hidden
           >
             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
@@ -651,8 +658,8 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             className={
               "transition-transform " +
               (liked
-                ? "h-[17px] w-[17px] like-pulse"
-                : "h-[15px] w-[15px]")
+                ? "h-[20px] w-[20px] like-pulse"
+                : "h-[18px] w-[18px]")
             }
             aria-hidden
           >
@@ -674,7 +681,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-[15px] w-[15px]"
+            className="h-[18px] w-[18px]"
             aria-hidden
           >
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -704,7 +711,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-[15px] w-[15px]"
+            className="h-[18px] w-[18px]"
             aria-hidden
           >
             <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
@@ -986,6 +993,19 @@ function formatDate(iso: string | null): string | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   if (!m) return iso;
   return `${m[1].slice(2)}.${m[2]}.${m[3]}`;
+}
+
+/** SNS 스타일 상대시간 — 방금 전 / N분 전 / N시간 전 / N일 전 / 7일 이상은 yy.mm.dd */
+function relativeTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return null;
+  const diffSec = Math.floor((Date.now() - t) / 1000);
+  if (diffSec < 60) return "방금 전";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}시간 전`;
+  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}일 전`;
+  return formatDate(iso);
 }
 
 /**

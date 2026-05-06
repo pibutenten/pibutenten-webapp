@@ -1,8 +1,32 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { CATEGORIES } from "@/lib/categories";
+
+/** 글쓰기 페이지 진입 시 랜덤 노출 카피 20개 */
+const WRITE_PHRASES = [
+  "나의 최애 아이템을 알려주세요",
+  "나만의 피부 꿀팁을 알려주세요",
+  "오늘 발견한 피부 좋은 것!",
+  "이런 시술 받아보셨나요?",
+  "지금 가장 만족하는 화장품은?",
+  "피부 고민, 함께 나눠봐요",
+  "이 제품 진짜 효과 봤어요!",
+  "피부에 변화를 준 그것은?",
+  "오늘 클리닉에서의 경험",
+  "내 피부 루틴 자랑하기",
+  "솔직 후기, 남겨주세요",
+  "나의 피부 변신 스토리",
+  "진심을 담아 알려주세요",
+  "다른 사람에게 도움될 이야기",
+  "내가 발견한 최고의 화장품",
+  "오늘의 피부 컨디션은?",
+  "피부 관리 어떻게 하세요?",
+  "피부텐텐 식구들에게 묻고 싶은 것",
+  "나만 아는 피부 비결",
+  "이 시술 후기 들려드려요",
+];
 
 type Doctor = {
   id: string;
@@ -32,7 +56,7 @@ const TYPE_LABEL: Record<WriteType, string> = {
   qa: "Q&A",
 };
 
-// post는 키워드 미사용(0). qa·article은 최대 10개. (필요 시 post도 활성 가능)
+// 모든 type 키워드 최대 10개 (필수는 0개 — 선택)
 const KEYWORD_MIN: Record<WriteType, number> = {
   post: 0,
   article: 0,
@@ -40,7 +64,7 @@ const KEYWORD_MIN: Record<WriteType, number> = {
 };
 
 const KEYWORD_MAX: Record<WriteType, number> = {
-  post: 0,
+  post: 10,
   article: 10,
   qa: 10,
 };
@@ -66,6 +90,12 @@ export default function WriteClient({
   const [authorDoctor, setAuthorDoctor] = useState<string>(
     role === "doctor" ? (myDoctor?.slug ?? "") : "",
   );
+
+  // 페이지 진입 시 헤더 카피 랜덤 (SSR-safe — 첫 렌더는 첫 phrase)
+  const [headerPhrase, setHeaderPhrase] = useState(WRITE_PHRASES[0]);
+  useEffect(() => {
+    setHeaderPhrase(WRITE_PHRASES[Math.floor(Math.random() * WRITE_PHRASES.length)]);
+  }, []);
 
   // 통합: post + qa 공통 — 제목 / 내용 (qa는 질문 / 답변)
   const [title, setTitle] = useState("");
@@ -273,7 +303,7 @@ export default function WriteClient({
 
   return (
     <section className="w-full py-6">
-      <h1 className="mb-1 text-2xl font-bold text-[var(--text)]">글쓰기</h1>
+      <h1 className="mb-1 text-2xl font-bold text-[var(--text)]">{headerPhrase}</h1>
       <p className="mb-5 text-[13px] text-[var(--text-muted)]">{writerLabel}</p>
 
       {/* type 토글 (선택지 2개 이상일 때만 노출) */}

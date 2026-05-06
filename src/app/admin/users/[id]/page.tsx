@@ -8,6 +8,7 @@ import {
   type UserRole,
   type UserLevel,
 } from "@/lib/user-grades";
+import RoleChangeForm from "./RoleChangeForm";
 
 export const dynamic = "force-dynamic";
 
@@ -106,6 +107,37 @@ export default async function AdminUserDetailPage({ params }: Props) {
     .limit(30)
     .returns<LikeRow[]>();
 
+  // 현재 매핑된 doctor_id (있으면)
+  const { data: myMapping } = await supabase
+    .from("doctor_accounts")
+    .select("doctor_id")
+    .eq("profile_id", id)
+    .maybeSingle()
+    .returns<{ doctor_id: string } | null>();
+  const currentDoctorId = myMapping?.doctor_id ?? null;
+
+  // 매핑용 doctors 목록 (각 doctor의 매핑 상태 포함)
+  const { data: allDoctors } = await supabase
+    .from("doctors")
+    .select("id, slug, name, branch, doctor_accounts(profile_id)")
+    .order("name", { ascending: true })
+    .returns<
+      {
+        id: string;
+        slug: string;
+        name: string;
+        branch: string | null;
+        doctor_accounts: { profile_id: string }[];
+      }[]
+    >();
+  const doctorsForForm = (allDoctors ?? []).map((d) => ({
+    id: d.id,
+    slug: d.slug,
+    name: d.name,
+    branch: d.branch,
+    is_mapped: d.doctor_accounts.length > 0,
+  }));
+
   const lvlColor = LEVEL_COLORS[profile.level] ?? LEVEL_COLORS[0];
   const formatDate = (s: string | null) => (s ? s.slice(0, 10) : "—");
 
@@ -178,6 +210,14 @@ export default async function AdminUserDetailPage({ params }: Props) {
         <Stat label="댓글" value={comments?.length ?? 0} />
         <Stat label="좋아요" value={likes?.length ?? 0} />
       </div>
+
+      {/* 역할 변경 폼 */}
+      <RoleChangeForm
+        userId={profile.id}
+        currentRole={profile.role}
+        currentDoctorId={currentDoctorId}
+        doctors={doctorsForForm}
+      />
 
       {/* 작성 글 */}
       <Section title="📝 작성 글" empty="작성 글 없음">

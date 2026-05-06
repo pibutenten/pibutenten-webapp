@@ -167,19 +167,19 @@ export default function ProfileEditClient({
     <div className="space-y-5">
       {/* 닉네임 */}
       <Card title="닉네임 변경">
-        <div className="flex gap-2">
+        <div className="flex items-stretch gap-1.5">
           <input
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             maxLength={20}
-            className="h-10 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+            className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
           />
           <button
             type="button"
             onClick={saveDisplayName}
             disabled={namePending || displayName.trim() === currentDisplayName}
-            className="h-10 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-40"
+            className="h-9 shrink-0 whitespace-nowrap rounded-md border border-[var(--primary)] bg-transparent px-3 text-[12px] font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:text-[var(--text-muted)] disabled:hover:bg-transparent"
           >
             {namePending ? "저장 중…" : "저장"}
           </button>
@@ -216,14 +216,16 @@ export default function ProfileEditClient({
               className="h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
             />
           </div>
-          <button
-            type="button"
-            onClick={savePassword}
-            disabled={pwPending}
-            className="mt-3 h-10 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-40"
-          >
-            {pwPending ? "변경 중…" : "비밀번호 변경"}
-          </button>
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={savePassword}
+              disabled={pwPending}
+              className="h-9 whitespace-nowrap rounded-md border border-[var(--primary)] bg-transparent px-4 text-[12px] font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:text-[var(--text-muted)] disabled:hover:bg-transparent"
+            >
+              {pwPending ? "변경 중…" : "비밀번호 변경"}
+            </button>
+          </div>
           <Msg status={pwStatus} />
         </Card>
       )}
@@ -256,14 +258,16 @@ export default function ProfileEditClient({
         <p className="mt-2 text-xs text-[var(--text-muted)]">
           새 주소로 인증 메일이 발송됩니다. 메일 안의 링크 클릭 시 변경 완료됩니다.
         </p>
-        <button
-          type="button"
-          onClick={saveEmail}
-          disabled={emailPending}
-          className="mt-3 h-10 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-40"
-        >
-          {emailPending ? "전송 중…" : "이메일 변경"}
-        </button>
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={saveEmail}
+            disabled={emailPending}
+            className="h-9 whitespace-nowrap rounded-md border border-[var(--primary)] bg-transparent px-4 text-[12px] font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:text-[var(--text-muted)] disabled:hover:bg-transparent"
+          >
+            {emailPending ? "전송 중…" : "이메일 변경"}
+          </button>
+        </div>
         <Msg status={emailStatus} />
       </Card>
 

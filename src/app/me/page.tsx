@@ -345,14 +345,19 @@ export default async function MePage() {
             />
           </div>
 
-          {/* 받은 인정 + 내가 남긴 흔적 — 박스 없이 큰 숫자로 한 줄 (5개 inline) */}
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-x-2 gap-y-3 px-1 py-2">
-            <InlineStat label="받은 좋아요" emoji="❤️" value={myStats.likes_received} />
-            <InlineStat label="받은 댓글" emoji="💬" value={myStats.comments_received} />
-            <InlineStat label="받은 공유" emoji="🔗" value={myStats.shares_received} />
-            <span className="hidden h-8 w-px bg-[var(--border)] sm:block" aria-hidden />
-            <InlineStat label="누른 좋아요" emoji="🤍" value={myStats.likes_given} muted />
-            <InlineStat label="작성 댓글" emoji="💭" value={myStats.comments_given} muted />
+          {/* 받은 인정 + 내가 남긴 흔적 — 한 카드 안에 큰 숫자 5개, 가운데 점선으로 구분 */}
+          <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white px-3 py-4">
+            <div className="flex items-stretch justify-around gap-1">
+              <InlineStat label="받은 좋아요" emoji="❤️" value={myStats.likes_received} />
+              <InlineStat label="받은 댓글" emoji="💬" value={myStats.comments_received} />
+              <InlineStat label="받은 공유" emoji="🔗" value={myStats.shares_received} />
+              <span
+                className="mx-1 self-stretch border-l border-dashed border-[var(--border)]"
+                aria-hidden
+              />
+              <InlineStat label="누른 좋아요" emoji="🤍" value={myStats.likes_given} muted />
+              <InlineStat label="작성 댓글" emoji="💭" value={myStats.comments_given} muted />
+            </div>
           </div>
         </>
       )}

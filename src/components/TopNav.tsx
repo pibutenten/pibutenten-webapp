@@ -104,15 +104,13 @@ const WriteIcon = (
   </svg>
 );
 
-function buildNavItems(hasSession: boolean): NavItem[] {
-  const items: NavItem[] = [
+function buildNavItems(_hasSession: boolean): NavItem[] {
+  // 글쓰기는 우하단 플로팅 버튼(FloatingWriteButton)으로 이동
+  void _hasSession;
+  return [
     { href: "/", label: "검색", icon: SearchIcon },
+    { href: "/doctors", label: "전문의", icon: DoctorIcon },
   ];
-  if (hasSession) {
-    items.push({ href: "/write", label: "글쓰기", icon: WriteIcon });
-  }
-  items.push({ href: "/doctors", label: "전문의", icon: DoctorIcon });
-  return items;
 }
 
 const UserIcon = (

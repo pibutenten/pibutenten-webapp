@@ -3,6 +3,7 @@ import { Noto_Sans_KR } from "next/font/google";
 import Script from "next/script";
 import TopNav, { type SessionInfo } from "@/components/TopNav";
 import ScrollManager from "@/components/ScrollManager";
+import FloatingWriteButton from "@/components/FloatingWriteButton";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import "./globals.css";
 
@@ -100,6 +101,7 @@ export default async function RootLayout({
         <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 py-4 sm:px-6">
           {children}
         </main>
+        <FloatingWriteButton hasSession={!!session?.role} />
       </body>
     </html>
   );
