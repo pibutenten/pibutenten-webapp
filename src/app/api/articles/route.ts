@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { makeArticleSlug } from "@/lib/article/slug";
 import type { ArticleSection } from "@/lib/article/types";
+import { readPersonaServer } from "@/lib/persona-server";
 
 export const dynamic = "force-dynamic";
 
@@ -145,6 +146,9 @@ export async function POST(req: Request) {
   }
   // post는 doctor_id null
 
+  // 페르소나 컨텍스트 — post는 페르소나 따라 official/personal, qa·article은 항상 official
+  const currentPersona = await readPersonaServer();
+
   // 본문 검증 + insert payload 구성
   const insert: Record<string, unknown> = {
     type: t,
@@ -171,9 +175,9 @@ export async function POST(req: Request) {
     insert.answer = body;
     insert.status = reqStatus;
     insert.published = reqStatus === "published";
-    // 원장 매핑된 사용자가 post 작성 시 → 본인 doctor_id 자동 설정
-    // (그래야 /doctors/{slug} 페이지에 본인 post도 노출됨)
-    insert.doctor_id = doctorId;
+    insert.posted_as = currentPersona;
+    // doctor_id — 공식 모드에서만 매핑된 doctor 페이지에 노출
+    insert.doctor_id = currentPersona === "official" ? doctorId : null;
   } else if (t === "article") {
     const title = (payload.title ?? "").trim();
     const sections = (payload.sections ?? []).filter(

@@ -24,10 +24,13 @@ export type CommentRow = {
   like_count: number;
   created_at: string;
   updated_at: string;
+  posted_as?: "official" | "personal";
   author: {
     id: string;
     display_name: string | null;
     avatar_url: string | null;
+    alt_display_name: string | null;
+    alt_avatar_url: string | null;
     role: "admin" | "doctor" | "user";
     doctor_id: string | null;
   } | null;
@@ -102,6 +105,8 @@ export async function GET(req: Request) {
     id: string;
     display_name: string | null;
     avatar_url: string | null;
+    alt_display_name: string | null;
+    alt_avatar_url: string | null;
     role: "admin" | "doctor" | "user";
   };
   type DoctorAcctRow = { profile_id: string; doctor_id: string };
@@ -113,7 +118,7 @@ export async function GET(req: Request) {
     const [profRes, docRes] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, display_name, avatar_url, role")
+        .select("id, display_name, avatar_url, alt_display_name, alt_avatar_url, role")
         .in("id", authorIds),
       supabase
         .from("doctor_accounts")
@@ -147,6 +152,8 @@ export async function GET(req: Request) {
             id: p.id,
             display_name: p.display_name,
             avatar_url: p.avatar_url,
+            alt_display_name: p.alt_display_name,
+            alt_avatar_url: p.alt_avatar_url,
             role: p.role,
             doctor_id: doctorByProfile.get(p.id) ?? null,
           }
@@ -155,6 +162,8 @@ export async function GET(req: Request) {
             id: r.author_id,
             display_name: null,
             avatar_url: null,
+            alt_display_name: null,
+            alt_avatar_url: null,
             role: "user",
             doctor_id: null,
           },
@@ -240,6 +249,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
+  // 페르소나 컨텍스트 — 댓글도 현재 페르소나로 마킹
+  const { readPersonaServer } = await import("@/lib/persona-server");
+  const currentPersona = await readPersonaServer();
+
   const ins = await supabase
     .from("comments")
     .insert({
@@ -247,6 +260,7 @@ export async function POST(req: Request) {
       parent_id: parentId,
       body,
       author_id: user.id,
+      posted_as: currentPersona,
     })
     .select("*")
     .single();

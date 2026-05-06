@@ -20,12 +20,17 @@ export default async function WritePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, display_name")
+    .select("role, display_name, birthdate")
     .eq("id", user.id)
     .maybeSingle();
   if (!profile) redirect("/login?error=프로필을 찾을 수 없습니다");
 
   const role = (profile.role ?? "user") as "admin" | "doctor" | "user";
+
+  // 일반 사용자가 추가정보(생년월일 등) 미입력 — 글쓰기 시점에 받기
+  if (role === "user" && !profile.birthdate) {
+    redirect("/onboarding");
+  }
 
   // 원장 본인 매핑
   let myDoctor: { slug: string; name: string } | null = null;

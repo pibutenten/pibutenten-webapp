@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/admin");
+  if (!user) redirect("/login?next=/me");
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -19,6 +19,10 @@ export default async function AdminPage() {
   if (profile?.role !== "admin") {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
+
+  // /admin 루트는 /me 통합 대시보드로 합쳐졌습니다.
+  // 통계·운영도구 카드는 /me에서 노출되며, deep link(/admin/users 등)는 그대로 사용 가능.
+  redirect("/me");
 
   // 카운트: 글 status 별 + 회원 통계
   const statuses = ["draft", "pending_review", "published", "archived"] as const;

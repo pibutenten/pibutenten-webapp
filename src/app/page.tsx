@@ -117,14 +117,14 @@ export default async function HomePage({ searchParams }: Props) {
       </div>
 
       {q && (
-        <p className="mt-4 text-left text-sm text-[var(--text-secondary)]">
+        <p className="mt-10 text-left text-sm text-[var(--text-secondary)] sm:mt-12">
           <span className="font-bold text-[var(--primary)]">“{q}”</span>
           에 대한 <span className="font-bold">{count ?? qas?.length ?? 0}</span>
           개의 답변
         </p>
       )}
 
-      <div className="mt-4 sm:mt-14">
+      <div className={q ? "mt-5" : "mt-4 sm:mt-14"}>
         {error && (
           <div className="rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Q&A 불러오기 실패: {error.message}

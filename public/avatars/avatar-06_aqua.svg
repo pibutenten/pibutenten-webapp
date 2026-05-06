@@ -1,5 +1,22 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
-  <rect width="240" height="240" fill="#E1F5FE"/>
-  <path d="M120 60 L180 120 L120 180 L60 120 Z" fill="#4FC3F7"/><path d="M120 90 L160 120 L120 150 L80 120 Z" fill="white" opacity="0.3"/>
+  <rect width="240" height="240" fill="#D4E6E6"/>
+  <ellipse cx="120" cy="250" rx="92" ry="46" fill="#3F6E6E"/>
+  <!-- 양갈래 트윈테일 (양쪽 묶음) -->
+  <ellipse cx="58" cy="190" rx="14" ry="36" fill="#3A2818"/>
+  <ellipse cx="182" cy="190" rx="14" ry="36" fill="#3A2818"/>
+  <!-- 머리 (윗부분) -->
+  <path d="M 70 122 Q 65 160 80 180 L 160 180 Q 175 160 170 122 Q 170 60 120 58 Q 70 60 70 122 Z" fill="#3A2818"/>
+  <!-- 묶음 끈 (양쪽) -->
+  <ellipse cx="58" cy="170" rx="13" ry="4" fill="#9C5D5D"/>
+  <ellipse cx="182" cy="170" rx="13" ry="4" fill="#9C5D5D"/>
+  <!-- 목 -->
+  <path d="M 108 178 Q 108 198 102 220 L 138 220 Q 132 198 132 178 Z" fill="#F0CFAB"/>
+  <path d="M 108 195 Q 105 208 102 218" stroke="#D4B084" stroke-width="0.8" fill="none" opacity="0.5"/>
+  <!-- 갸름한 얼굴 -->
+  <path d="M 92 130 Q 92 165 102 182 Q 120 192 138 182 Q 148 165 148 130 Q 148 110 120 108 Q 92 110 92 130 Z" fill="#F0CFAB"/>
+  <!-- 앞머리 (가운데 가르마) -->
+  <path d="M 88 118 Q 105 95 120 95 Q 135 95 152 118 Q 145 100 130 102 L 122 110 L 110 102 Q 95 100 88 118 Z" fill="#3A2818"/>
+  <circle cx="108" cy="146" r="2" fill="#16161A"/>
+  <circle cx="132" cy="146" r="2" fill="#16161A"/>
+  <path d="M 116 164 Q 120 167 124 164" stroke="#3D2418" stroke-width="1.5" fill="none" stroke-linecap="round"/>
 </svg>

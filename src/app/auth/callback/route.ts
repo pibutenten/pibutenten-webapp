@@ -63,19 +63,27 @@ export async function GET(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, terms_agreed_at, display_name")
+    .select("role, terms_agreed_at, display_name, birthdate")
     .eq("id", user.id)
     .maybeSingle();
 
-  // 4) 온보딩 미완료 → /signup
-  //    (handle_new_user 트리거가 profiles row 는 자동 생성하므로 profile 자체는 존재한다.
-  //     단, terms_agreed_at 이 null 이면 약관 동의가 안 된 신규/마이그레이션 사용자.)
+  // 4) 약관 미동의 → /signup
   if (!profile || !profile.terms_agreed_at) {
     const qs = next ? `?next=${encodeURIComponent(next)}` : "";
     return NextResponse.redirect(`${origin}/signup${qs}`);
   }
 
-  // 5) 모든 role은 /feed로 (관리/내 글 페이지는 헤더 본인 아이콘으로 진입)
+  // 5) 약관 동의는 했지만 추가정보(생년월일 등) 미입력 → /onboarding
+  //    일반 사용자에게만 강제 (doctor / admin은 운영용 계정이라 스킵 가능)
+  if (
+    profile.role !== "doctor" &&
+    profile.role !== "admin" &&
+    !profile.birthdate
+  ) {
+    return NextResponse.redirect(`${origin}/onboarding`);
+  }
+
+  // 6) 모든 role은 /feed로 (관리/내 글 페이지는 헤더 본인 아이콘으로 진입)
   const dest = next || "/feed";
   return NextResponse.redirect(`${origin}${dest}`);
 }

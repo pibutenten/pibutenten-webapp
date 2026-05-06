@@ -66,13 +66,16 @@ async function getSessionInfo(): Promise<SessionInfo> {
     if (!user) return null;
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, display_name")
+      .select("role, display_name, avatar_url, alt_display_name, alt_avatar_url")
       .eq("id", user.id)
       .maybeSingle();
     if (!profile) return null;
     return {
-      role: profile.role ?? "user",
+      role: (profile.role as "admin" | "doctor" | "user") ?? "user",
       displayName: profile.display_name ?? user.email ?? "",
+      avatarUrl: (profile.avatar_url as string | null) ?? null,
+      altDisplayName: (profile.alt_display_name as string | null) ?? null,
+      altAvatarUrl: (profile.alt_avatar_url as string | null) ?? null,
     };
   } catch {
     return null;

@@ -219,20 +219,18 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
                     type="button"
                     onClick={() => selectChip(kw)}
                     disabled={isPending}
-                    className="cursor-pointer rounded-full border px-3 py-1 text-[13px] transition-colors hover:shadow-sm active:scale-[0.97] disabled:cursor-wait"
+                    className="cursor-pointer rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:cursor-wait"
                     style={
                       selected
                         ? {
                             backgroundColor: cat.color + "1A",
-                            borderColor: cat.color,
                             color: cat.color,
                             fontWeight: 700,
                             opacity: isLoadingThis ? 0.7 : 1,
                           }
                         : {
-                            backgroundColor: "white",
-                            borderColor: "var(--border)",
-                            color: "var(--text-secondary)",
+                            backgroundColor: "#E8EAEE",
+                            color: "#5C6470",
                             fontWeight: 500,
                           }
                     }
@@ -261,13 +259,13 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
       {/* 모바일: collapsed 3줄 / expanded 7줄 — 데스크탑: 항상 3줄 (펼치기 의미 없음) */}
       <style jsx>{`
         .chips-host {
-          --chips-h: 108px;          /* 3줄 */
-          --chips-h-expanded: 252px; /* 7줄 */
+          --chips-h: 100px;          /* 3줄 정확히 (4번째 줄 윗부분 안 보이게) */
+          --chips-h-expanded: 244px; /* 7줄 */
         }
         @media (min-width: 600px) {
           .chips-host {
-            --chips-h: 108px;          /* 데스크탑도 3줄 */
-            --chips-h-expanded: 108px; /* 데스크탑은 펼쳐도 동일 (펼치기 버튼 hidden) */
+            --chips-h: 100px;          /* 데스크탑도 3줄 */
+            --chips-h-expanded: 100px; /* 데스크탑은 펼쳐도 동일 (펼치기 버튼 hidden) */
           }
         }
       `}</style>

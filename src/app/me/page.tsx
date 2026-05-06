@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import LogoutButton from "@/components/LogoutButton";
+import DashboardPersonaToggle from "@/components/DashboardPersonaToggle";
+import { readPersonaServer } from "@/lib/persona-server";
 import {
   ROLE_LABELS,
   LEVEL_LABELS,
@@ -57,21 +59,37 @@ export default async function MePage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/me");
 
+  const persona = await readPersonaServer();
+  const isPersonal = persona === "personal";
+
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, display_name, level, activity_score, bio, avatar_url")
+    .select(
+      "role, display_name, alt_display_name, alt_avatar_url, alt_bio, level, activity_score, bio, avatar_url, birthdate",
+    )
     .eq("id", user.id)
     .maybeSingle()
     .returns<{
       role: UserRole;
       display_name: string | null;
+      alt_display_name: string | null;
+      alt_avatar_url: string | null;
+      alt_bio: string | null;
       level: UserLevel;
       activity_score: number;
       bio: string | null;
       avatar_url: string | null;
+      birthdate: string | null;
     }>();
 
   if (!profile) redirect("/login?error=프로필을 찾을 수 없습니다");
+
+  // 페르소나별 헤더 표시 정보
+  const headerName = isPersonal
+    ? profile.alt_display_name ?? "(개인 페르소나 미설정)"
+    : profile.display_name ?? "(이름 없음)";
+  const headerAvatar = isPersonal ? profile.alt_avatar_url : profile.avatar_url;
+  const headerBio = isPersonal ? profile.alt_bio : profile.bio;
 
   // 일일 로그인 자동 award (이미 오늘이면 no-op) — 일반 사용자만 (원장/관리자 제외)
   if (profile.role === "user") {
@@ -82,21 +100,24 @@ export default async function MePage() {
     }
   }
 
-  // 본인 종합 통계 — 일반 사용자 Hero 대시보드용
+  // 본인 종합 통계 — 일반 사용자(또는 doctor/admin의 personal 페르소나)에게 Hero 대시보드 노출
+  const showUserDashboard = profile.role === "user" || isPersonal;
   let myStats: MyStats | null = null;
-  if (profile.role === "user") {
+  if (showUserDashboard) {
     try {
-      const { data: statsData } = await supabase.rpc("get_my_stats");
+      const { data: statsData } = await supabase.rpc("get_my_stats", {
+        p_persona: persona,
+      });
       myStats = (statsData as unknown as MyStats | null) ?? null;
     } catch {
       myStats = null;
     }
   }
 
-  // doctor 매핑
+  // doctor 매핑 — official 페르소나에서만 의미
   let doctorSlug: string | null = null;
   let doctorId: string | null = null;
-  if (profile.role === "doctor") {
+  if (profile.role === "doctor" && !isPersonal) {
     const { data: da } = await supabase
       .from("doctor_accounts")
       .select("doctor_id, doctor:doctors(slug)")
@@ -107,7 +128,7 @@ export default async function MePage() {
     doctorId = da?.doctor_id ?? null;
   }
 
-  // 통계 — doctor일 때만
+  // 통계 — doctor일 때만 (official 페르소나)
   let stats: Stats = EMPTY_STATS;
   if (doctorId) {
     // status별 count + 합계
@@ -191,25 +212,27 @@ export default async function MePage() {
     doctor: { name: string } | null;
   };
 
-  // 1) 내가 쓴 글 (author_id = me) — 최근 5
+  // 1) 내가 쓴 글 (author_id = me) — 현재 페르소나로 작성한 글만 — 최근 5
   const { data: myPostsData } = await supabase
     .from("qas")
     .select(
       "id, question, type, article_slug, created_at, doctor:doctors(name)",
     )
     .eq("author_id", user.id)
+    .eq("posted_as", persona)
     .order("created_at", { ascending: false })
     .limit(5)
     .returns<ActivityRow[]>();
   const myPosts: ActivityRow[] = myPostsData ?? [];
 
-  // 2) 내가 좋아요한 글 — 최근 5
+  // 2) 내가 좋아요한 글 — 현재 페르소나로 누른 좋아요만 — 최근 5
   const { data: likedRowsData } = await supabase
     .from("qa_likes")
     .select(
       "qa:qas(id, question, type, article_slug, created_at, doctor:doctors(name))",
     )
     .eq("user_id", user.id)
+    .eq("persona", persona)
     .order("created_at", { ascending: false })
     .limit(5)
     .returns<{ qa: ActivityRow | null }[]>();
@@ -217,13 +240,14 @@ export default async function MePage() {
     .map((r) => r.qa)
     .filter((x): x is ActivityRow => x !== null);
 
-  // 3) 내가 댓글 단 글 — 최근 5 (distinct qa_id)
+  // 3) 내가 댓글 단 글 — 현재 페르소나로 작성한 댓글만 — 최근 5 (distinct qa_id)
   const { data: commentRows } = await supabase
     .from("comments")
     .select(
       "qa_id, created_at, qa:qas(id, question, type, article_slug, created_at, doctor:doctors(name))",
     )
     .eq("author_id", user.id)
+    .eq("posted_as", persona)
     .order("created_at", { ascending: false })
     .limit(20)
     .returns<{ qa_id: number; qa: ActivityRow | null }[]>();
@@ -247,16 +271,60 @@ export default async function MePage() {
 
   const lvlColor = LEVEL_COLORS[profile.level] ?? LEVEL_COLORS[0];
 
+  // 페르소나 스위치 노출 여부 — doctor / admin
+  const hasPersonaToggle =
+    profile.role === "doctor" || profile.role === "admin";
+
+  // 추가정보(생년월일 등) 미입력 → onboarding 안내 배너 노출
+  const needsOnboarding =
+    profile.role === "user" && !profile.birthdate;
+
   return (
     <section className="w-full py-6">
+      {/* 페르소나 스위치 — doctor/admin 전용. alt 미설정 시 만들기 링크 */}
+      {hasPersonaToggle && (
+        <DashboardPersonaToggle
+          officialName={profile.display_name ?? "(이름 없음)"}
+          officialAvatar={profile.avatar_url}
+          alt={
+            profile.alt_display_name
+              ? {
+                  name: profile.alt_display_name,
+                  avatar: profile.alt_avatar_url,
+                }
+              : null
+          }
+        />
+      )}
+
+      {/* 온보딩 미완료 안내 배너 — 일반 사용자에게만 */}
+      {needsOnboarding && (
+        <Link
+          href="/onboarding"
+          className="mb-4 flex items-center justify-between rounded-[var(--radius)] border border-[var(--primary)] bg-[var(--primary-soft)] px-4 py-3 transition-opacity hover:opacity-90"
+        >
+          <div>
+            <div className="text-sm font-bold text-[var(--text)]">
+              ✨ 1분만 투자하면 맞춤 추천이 더 정확해져요
+            </div>
+            <div className="mt-0.5 text-xs text-[var(--text-secondary)]">
+              피부타입·관심시술을 알려주세요. 활동점수도 함께 받을 수 있어요.
+            </div>
+          </div>
+          <span className="shrink-0 rounded-md bg-[var(--primary)] px-3 py-1.5 text-[12px] font-semibold text-white">
+            지금 입력하기 →
+          </span>
+        </Link>
+      )}
+
       {/* 헤더 */}
       <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
         <div className="flex items-start gap-4">
           <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
-            {profile.avatar_url ? (
+            {headerAvatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={profile.avatar_url}
+                src={headerAvatar}
                 alt=""
                 className="h-full w-full object-cover"
               />
@@ -269,10 +337,15 @@ export default async function MePage() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold text-[var(--text)]">
-                {profile.display_name ?? "(이름 없음)"}
-                {profile.role === "doctor" && (
+                {headerName}
+                {profile.role === "doctor" && !isPersonal && (
                   <span className="ml-1 text-sm font-medium text-[var(--text-secondary)]">
                     원장님
+                  </span>
+                )}
+                {isPersonal && (
+                  <span className="ml-1.5 align-middle text-[11px] font-medium text-[var(--text-muted)]">
+                    · 개인
                   </span>
                 )}
               </h1>
@@ -283,9 +356,9 @@ export default async function MePage() {
                 프로필 수정 ✏️
               </Link>
             </div>
-            {profile.bio && (
+            {headerBio && (
               <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
-                {profile.bio}
+                {headerBio}
               </p>
             )}
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
@@ -382,6 +455,63 @@ export default async function MePage() {
       {profile.role === "doctor" && !isDoctor && (
         <div className="mt-6 rounded-[var(--radius)] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
           원장 계정이지만 doctor 매핑이 없습니다. 관리자에게 문의해주세요.
+        </div>
+      )}
+
+      {/* ─── 모두에게 노출되는 빠른 액션 (글쓰기 + 내 정보) ─── */}
+      <div className="mt-6">
+        <h2 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
+          바로가기
+        </h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <ActionCard
+            href="/write"
+            emoji="✍️"
+            title="새 글 쓰기"
+            desc="피부 이야기·후기·꿀팁 공유하기"
+            highlight
+          />
+          <ActionCard
+            href="/me/profile"
+            emoji="👤"
+            title="회원 정보 수정"
+            desc="닉네임·아바타·소개·피부정보"
+          />
+        </div>
+      </div>
+
+      {/* ─── 관리자 전용 운영 도구 ─── */}
+      {profile.role === "admin" && (
+        <div className="mt-6">
+          <h2 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
+            관리자 도구
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <ActionCard
+              href="/admin"
+              emoji="🛠️"
+              title="관리자 대시보드"
+              desc="전체 운영 현황 한눈에 보기"
+            />
+            <ActionCard
+              href="/admin/users"
+              emoji="👥"
+              title="회원 관리"
+              desc="권한 변경·원장 매핑·계정 관리"
+            />
+            <ActionCard
+              href="/admin/qas"
+              emoji="📚"
+              title="전체 글 관리"
+              desc="모든 Q&A·포스팅·칼럼 관리"
+            />
+            <ActionCard
+              href="/admin/draft"
+              emoji="📝"
+              title="초안 / 검수 대기"
+              desc="AI 초안·원장 검수 대기 글 처리"
+            />
+          </div>
         </div>
       )}
 

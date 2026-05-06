@@ -10,9 +10,9 @@
   /* 강조 텍스트용 딥 네이비 (브랜드 보조) */
   --secondary: #1B4965;
   --secondary-light: #BEE9E8;
-  /* 배경 — 중립 연한 회색 (밝기는 유지) */
-  --bg: #F4F4F6;
-  --bg-soft: #EBEBED;
+  /* 배경 — 카드(흰색)가 잘 구분되면서도 키워드 칩(#E8EAEE) 분간되는 톤 */
+  --bg: #F4F5F7;
+  --bg-soft: #ECEEF1;
   --white: #FFFFFF;
   --text: #2D3436;
   --text-secondary: #62737E;
@@ -45,6 +45,20 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* focus outline — 브라우저 기본 검정 outline을 부드러운 primary 톤으로 */
+button:focus,
+button:focus-visible,
+a:focus,
+a:focus-visible {
+  outline: none;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 60%, transparent);
+  outline-offset: 2px;
+  border-radius: inherit;
 }
 
 html,

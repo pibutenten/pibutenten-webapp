@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <rect width="240" height="240" fill="#E8DECB"/>
+  <ellipse cx="120" cy="250" rx="92" ry="46" fill="#705038"/>
+  <!-- 남, 자연스러운 짧은 머리 (살짝 볼륨 있는 옆가르마) -->
+  <path d="M 78 116 Q 75 65 122 60 Q 168 65 162 122 Q 158 100 145 95 Q 130 92 120 95 L 105 90 Q 95 90 80 110 Z" fill="#3A2818"/>
+  <!-- 옆가르마 라인 -->
+  <path d="M 105 90 Q 110 105 115 122" stroke="#5C3D2E" stroke-width="0.8" opacity="0.7" fill="none"/>
+  <!-- 목 -->
+  <path d="M 108 178 Q 108 198 102 220 L 138 220 Q 132 198 132 178 Z" fill="#F0CFAB"/>
+  <path d="M 108 195 Q 105 208 102 218" stroke="#D4B084" stroke-width="0.8" fill="none" opacity="0.5"/>
+  <!-- 얼굴 -->
+  <ellipse cx="120" cy="146" rx="33" ry="40" fill="#F0CFAB"/>
+  <!-- 이마 (옆가르마) -->
+  <path d="M 86 116 Q 100 96 110 100 Q 130 96 154 120 L 154 110 Q 138 90 110 92 Q 95 96 86 110 Z" fill="#3A2818"/>
+  <!-- 구레나룻 (옆) -->
+  <path d="M 86 122 Q 86 138 90 145" stroke="#3A2818" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 154 122 Q 154 138 150 145" stroke="#3A2818" stroke-width="3" stroke-linecap="round"/>
+  <!-- 눈썹 (남) -->
+  <path d="M 100 134 L 114 132" stroke="#3A2818" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M 126 132 L 140 134" stroke="#3A2818" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="108" cy="146" r="2" fill="#16161A"/>
+  <circle cx="132" cy="146" r="2" fill="#16161A"/>
+  <path d="M 116 168 L 124 168" stroke="#3D2418" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

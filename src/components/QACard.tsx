@@ -30,6 +30,8 @@ export type QACardData = {
   comment_count?: number;
   type?: "qa" | "post" | "article";
   created_at?: string;
+  /** 작성 당시 페르소나 — 'personal'이면 author.alt_* 우선 표시 */
+  posted_as?: "official" | "personal";
   doctor: {
     slug: string;
     name: string;
@@ -39,6 +41,8 @@ export type QACardData = {
     id: string;
     display_name: string | null;
     avatar_url: string | null;
+    alt_display_name?: string | null;
+    alt_avatar_url?: string | null;
   } | null;
   video: {
     youtube_id: string;
@@ -335,9 +339,17 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
   const answerLines = (qa.answer ?? "").split("\n").length;
   const isLongAnswer = (qa.answer?.length ?? 0) > 250 || answerLines >= 6;
 
-  // 글쓴이 fallback — doctor 없으면 author (post type)
-  const authorName = doctor?.name ?? qa.author?.display_name ?? "익명";
-  const authorAvatar = doctor ? photo : qa.author?.avatar_url ?? null;
+  // 페르소나 — 'personal'로 작성된 글은 alt 정보 우선, doctor 뱃지/링크 숨김
+  const isPersonalPost = qa.posted_as === "personal";
+  const showAsDoctor = !!doctor && !isPersonalPost;
+  const authorName = isPersonalPost
+    ? qa.author?.alt_display_name ?? qa.author?.display_name ?? "익명"
+    : doctor?.name ?? qa.author?.display_name ?? "익명";
+  const authorAvatar = isPersonalPost
+    ? qa.author?.alt_avatar_url ?? qa.author?.avatar_url ?? null
+    : doctor
+      ? photo
+      : qa.author?.avatar_url ?? null;
 
   return (
     <article
@@ -430,32 +442,32 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              if (doctor?.slug) {
+              if (showAsDoctor && doctor?.slug) {
                 router.push(`/doctors/${doctor.slug}`);
               } else if (qa.author?.id) {
-                router.push(`/u/${qa.author.id}`);
+                // 개인모드 글이면 ?p=personal 로 personal-only 활동 표시
+                const suffix = isPersonalPost ? "?p=personal" : "";
+                router.push(`/u/${qa.author.id}${suffix}`);
               }
             }}
-            disabled={!doctor && !qa.author?.id}
+            disabled={!showAsDoctor && !qa.author?.id}
             className={
               "mb-3 -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2.5 rounded-md py-1.5 px-1 text-left transition-colors " +
-              (doctor || qa.author?.id
+              (showAsDoctor || qa.author?.id
                 ? "cursor-pointer hover:bg-[var(--primary-soft)]"
                 : "cursor-default")
             }
             aria-label={
-              doctor
-                ? `${doctor.name} 원장님 소개로 이동`
-                : qa.author?.display_name
-                  ? `${qa.author.display_name} 프로필로 이동`
-                  : undefined
+              showAsDoctor
+                ? `${authorName} 원장님 소개로 이동`
+                : `${authorName} 프로필로 이동`
             }
           >
             <div
               className="relative shrink-0 overflow-hidden rounded-full"
               style={{
-                background: theme?.bg ?? "var(--bg-soft)",
-                boxShadow: doctor
+                background: showAsDoctor ? theme?.bg ?? "var(--bg-soft)" : "var(--bg-soft)",
+                boxShadow: showAsDoctor
                   ? `inset 0 0 0 2px ${theme?.bgSoft ?? "var(--bg-soft)"}`
                   : undefined,
                 height: 36,
@@ -470,7 +482,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
                   sizes="36px"
                   className="object-cover"
                   style={
-                    doctor
+                    showAsDoctor
                       ? {
                           objectPosition: "50% 12%",
                           transform: `translate(${avatarTx}px, ${avatarTy}px) scale(1.18)`,
@@ -491,7 +503,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
                 <span className="text-[13px] font-bold leading-none text-[var(--text)]">
                   {authorName}
                 </span>
-                {doctor && (
+                {showAsDoctor && (
                   <span
                     className="inline-flex items-center gap-1 text-[11px] font-medium leading-none"
                     style={{ color: "#5BB0D1" }}
@@ -743,8 +755,8 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
 const CHIP_BASE_CLASS =
   "inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] whitespace-nowrap";
 const CHIP_DEFAULT_STYLE: React.CSSProperties = {
-  backgroundColor: "#F2F2F4",
-  color: "#8A95A0",
+  backgroundColor: "#E8EAEE",
+  color: "#5C6470",
   fontWeight: 500,
 };
 
@@ -872,7 +884,7 @@ function Keywords({
               setShowAll(true);
             }}
             className="inline-flex shrink-0 cursor-pointer items-center rounded-full px-2.5 py-[3px] text-[11px] font-medium whitespace-nowrap transition-colors hover:text-[var(--primary)]"
-            style={{ backgroundColor: "#F2F2F4", color: "#8A95A0" }}
+            style={{ backgroundColor: "#E8EAEE", color: "#5C6470" }}
           >
             +{hidden}
           </button>
@@ -885,7 +897,7 @@ function Keywords({
               setShowAll(false);
             }}
             className="inline-flex cursor-pointer items-center rounded-full px-2.5 py-[3px] text-[11px] font-medium whitespace-nowrap transition-colors hover:text-[var(--primary)]"
-            style={{ backgroundColor: "#F2F2F4", color: "#8A95A0" }}
+            style={{ backgroundColor: "#E8EAEE", color: "#5C6470" }}
           >
             접기
           </button>

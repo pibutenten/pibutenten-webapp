@@ -21,6 +21,8 @@ type Author = {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
+  alt_display_name?: string | null;
+  alt_avatar_url?: string | null;
   role: "admin" | "doctor" | "user";
   doctor_id: string | null;
 };
@@ -35,6 +37,8 @@ type CommentRow = {
   like_count: number;
   created_at: string;
   updated_at: string;
+  /** 작성 당시 페르소나 — 'personal'이면 author.alt_* 우선 표시 */
+  posted_as?: "official" | "personal";
   author: Author | null;
 };
 
@@ -260,27 +264,22 @@ export default function CommentsBlock({
               onDelete={deleteComment}
             />
 
-            {/* 답글 목록 */}
+            {/* 답글 목록 — 좌측 세로선으로 그룹 표현 (↳ 제거) */}
             {c.replies.length > 0 && (
-              <ul className="flex flex-col pl-4">
+              <ul
+                className="ml-4 mt-1 flex flex-col border-l pl-3"
+                style={{ borderColor: "#EEEFF1" }}
+              >
                 {c.replies.map((rep) => (
-                  <li key={rep.id} className="relative">
-                    <span
-                      aria-hidden
-                      className="absolute -left-0.5 top-2 select-none text-[12px] text-[var(--text-muted)]"
-                    >
-                      ↳
-                    </span>
-                    <div className="pl-4">
-                      <CommentItem
-                        comment={rep}
-                        me={me}
-                        isAdmin={isAdmin}
-                        isReply
-                        onPatch={patchComment}
-                        onDelete={deleteComment}
-                      />
-                    </div>
+                  <li key={rep.id}>
+                    <CommentItem
+                      comment={rep}
+                      me={me}
+                      isAdmin={isAdmin}
+                      isReply
+                      onPatch={patchComment}
+                      onDelete={deleteComment}
+                    />
                   </li>
                 ))}
               </ul>
@@ -385,11 +384,17 @@ function CommentItem({
   // 가림 댓글 표시: 본인 / admin / doctor RLS 통과로 응답에 포함된 경우만. 회색 처리.
   const dimmed = isHidden || isDeleted;
 
-  // 작성자 배지
+  // 작성자 배지 — personal 페르소나로 작성한 댓글은 doctor 뱃지/실명 숨김
+  const isPersonalComment = comment.posted_as === "personal";
   const role = comment.author?.role;
-  const isAuthorDoctor = role === "doctor";
+  const isAuthorDoctor = role === "doctor" && !isPersonalComment;
 
-  const displayName = comment.author?.display_name ?? "익명";
+  const displayName = isPersonalComment
+    ? comment.author?.alt_display_name ?? comment.author?.display_name ?? "익명"
+    : comment.author?.display_name ?? "익명";
+  const profileLink = comment.author?.id
+    ? `/u/${comment.author.id}${isPersonalComment ? "?p=personal" : ""}`
+    : null;
   const timeLabel = relativeTime(comment.created_at);
 
   return (
@@ -402,9 +407,9 @@ function CommentItem({
       }
     >
       <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[13px]">
-        {comment.author?.id ? (
+        {profileLink ? (
           <Link
-            href={`/u/${comment.author.id}`}
+            href={profileLink}
             className="font-bold text-[var(--text)] hover:text-[var(--primary)] hover:underline"
             style={dimmed ? { color: "#888" } : undefined}
           >

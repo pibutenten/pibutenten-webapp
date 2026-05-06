@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import PersonaSwitcher from "./PersonaSwitcher";
 
 type NavItem = {
   href: string;
@@ -16,6 +17,9 @@ type NavItem = {
 export type SessionInfo = {
   role: "admin" | "doctor" | "user";
   displayName: string;
+  avatarUrl: string | null;
+  altDisplayName: string | null;
+  altAvatarUrl: string | null;
 } | null;
 
 type TopNavProps = {
@@ -167,17 +171,13 @@ export default function TopNav({ session }: TopNavProps) {
             // 다른 경로는 /feed로 navigate
           }}
         >
-          <Image
-            src="/logo.png"
+          {/* 브랜드 로고 — tt: 아이콘 + 피부텐텐 워드마크 SVG */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand-logo.svg"
             alt="피부텐텐"
-            width={32}
-            height={32}
-            priority
-            className="rounded-full"
+            className="h-7 w-auto sm:h-8"
           />
-          <span className="text-[16px] font-bold leading-none text-[var(--primary)] sm:text-[19px]">
-            피부텐텐
-          </span>
         </Link>
 
         <nav className="flex items-center gap-1 sm:gap-3">
@@ -231,18 +231,20 @@ export default function TopNav({ session }: TopNavProps) {
             );
           })}
 
-          {/* 본인 대시보드 (로그인) / 로그인 — 글쓰기는 NAV에 inline, 로그아웃은 /me 안에서 */}
+          {/* 본인 메뉴 — 페르소나 스위치는 /me 대시보드 상단에서 처리 */}
           {session ? (
-            <Link
-              href={dashboardHref}
-              className="flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
-              title={session.displayName}
-            >
-              {UserIcon}
-              <span className="hidden sm:inline">
-                {session.role === "admin" ? "관리자" : session.displayName}
-              </span>
-            </Link>
+            <PersonaSwitcher
+              officialName={session.displayName}
+              officialAvatar={session.avatarUrl}
+              alt={
+                session.altDisplayName
+                  ? {
+                      name: session.altDisplayName,
+                      avatar: session.altAvatarUrl,
+                    }
+                  : null
+              }
+            />
           ) : (
             <Link
               href="/login"
