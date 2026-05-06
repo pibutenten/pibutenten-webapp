@@ -40,6 +40,18 @@ const EMPTY_STATS: Stats = {
   todayViews: 0,
 };
 
+type MyStats = {
+  score: number;
+  level: UserLevel;
+  streak: number;
+  posts_count: number;
+  likes_received: number;
+  comments_received: number;
+  shares_received: number;
+  likes_given: number;
+  comments_given: number;
+};
+
 export default async function MePage() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -60,6 +72,26 @@ export default async function MePage() {
     }>();
 
   if (!profile) redirect("/login?error=프로필을 찾을 수 없습니다");
+
+  // 일일 로그인 자동 award (이미 오늘이면 no-op) — 일반 사용자만 (원장/관리자 제외)
+  if (profile.role === "user") {
+    try {
+      await supabase.rpc("award_daily_login");
+    } catch {
+      // 무시: 출석 부여는 실패해도 페이지 렌더링에 영향 없음
+    }
+  }
+
+  // 본인 종합 통계 — 일반 사용자 Hero 대시보드용
+  let myStats: MyStats | null = null;
+  if (profile.role === "user") {
+    try {
+      const { data: statsData } = await supabase.rpc("get_my_stats");
+      myStats = (statsData as unknown as MyStats | null) ?? null;
+    } catch {
+      myStats = null;
+    }
+  }
 
   // doctor 매핑
   let doctorSlug: string | null = null;
@@ -284,33 +316,45 @@ export default async function MePage() {
         </div>
       </div>
 
-      {!isDoctor && profile.role !== "doctor" && profile.role !== "admin" && (
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Link
-            href="/write"
-            className="group rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 transition-colors hover:border-[var(--primary)]"
-          >
-            <div className="mb-2 text-2xl">✏️</div>
-            <div className="text-base font-bold text-[var(--text)] group-hover:text-[var(--primary)]">
-              새 글쓰기
-            </div>
-            <div className="mt-1 text-xs text-[var(--text-secondary)]">
-              피부 고민·후기를 자유롭게 남겨보세요
-            </div>
-          </Link>
-          <Link
-            href="/feed"
-            className="group rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 transition-colors hover:border-[var(--primary)]"
-          >
-            <div className="mb-2 text-2xl">📰</div>
-            <div className="text-base font-bold text-[var(--text)] group-hover:text-[var(--primary)]">
-              피드 보기
-            </div>
-            <div className="mt-1 text-xs text-[var(--text-secondary)]">
-              피부텐텐 최신 글 둘러보기
-            </div>
-          </Link>
-        </div>
+      {/* Hero Stats — 일반 사용자에게만 노출 */}
+      {profile.role === "user" && myStats && (
+        <>
+          <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatBig
+              label="활동점수"
+              emoji="🌟"
+              value={myStats.score}
+              sub={LEVEL_LABELS[myStats.level] ?? "일반"}
+              subLevel={myStats.level}
+            />
+            <StatBig
+              label="연속 출석"
+              emoji="🔥"
+              value={myStats.streak}
+              suffix="일"
+            />
+            <StatBig
+              label="받은 좋아요"
+              emoji="❤️"
+              value={myStats.likes_received}
+            />
+            <StatBig
+              label="작성한 글"
+              emoji="📝"
+              value={myStats.posts_count}
+            />
+          </div>
+
+          {/* 받은 인정 + 내가 남긴 흔적 — 박스 없이 큰 숫자로 한 줄 (5개 inline) */}
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-x-2 gap-y-3 px-1 py-2">
+            <InlineStat label="받은 좋아요" emoji="❤️" value={myStats.likes_received} />
+            <InlineStat label="받은 댓글" emoji="💬" value={myStats.comments_received} />
+            <InlineStat label="받은 공유" emoji="🔗" value={myStats.shares_received} />
+            <span className="hidden h-8 w-px bg-[var(--border)] sm:block" aria-hidden />
+            <InlineStat label="누른 좋아요" emoji="🤍" value={myStats.likes_given} muted />
+            <InlineStat label="작성 댓글" emoji="💭" value={myStats.comments_given} muted />
+          </div>
+        </>
       )}
 
       {/* 본인 활동 — 모든 로그인 사용자 노출 */}
@@ -496,6 +540,76 @@ function ActivityList({
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function StatBig({
+  label,
+  emoji,
+  value,
+  sub,
+  subLevel,
+  suffix,
+}: {
+  label: string;
+  emoji: string;
+  value: number;
+  sub?: string;
+  subLevel?: UserLevel;
+  suffix?: string;
+}) {
+  const subColor =
+    subLevel !== undefined
+      ? LEVEL_COLORS[subLevel] ?? LEVEL_COLORS[0]
+      : null;
+  return (
+    <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
+      <div className="text-2xl">{emoji}</div>
+      <div className="mt-1 text-2xl font-bold tabular-nums text-[var(--text)]">
+        {value.toLocaleString()}
+        {suffix ?? ""}
+      </div>
+      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      {sub && (
+        <div
+          className="mt-0.5 text-[11px] font-medium"
+          style={subColor ? { color: subColor.fg } : undefined}
+        >
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * InlineStat — 박스 없이 inline 표기. 큰 숫자 + 작은 라벨.
+ * `muted=true`면 회색 톤 (내가 남긴 흔적 — 받은 인정과 시각 구분)
+ */
+function InlineStat({
+  label,
+  emoji,
+  value,
+  muted = false,
+}: {
+  label: string;
+  emoji: string;
+  value: number;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex min-w-[60px] flex-col items-center text-center">
+      <div className="text-base leading-none">{emoji}</div>
+      <div
+        className={
+          "mt-1 text-2xl font-extrabold tabular-nums leading-none " +
+          (muted ? "text-[var(--text-secondary)]" : "text-[var(--text)]")
+        }
+      >
+        {value.toLocaleString()}
+      </div>
+      <div className="mt-1 text-[11px] text-[var(--text-muted)]">{label}</div>
     </div>
   );
 }

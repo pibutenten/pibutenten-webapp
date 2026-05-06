@@ -16,6 +16,7 @@ import { categorize } from "@/lib/category-sets";
 import { PICK_IDS } from "@/lib/picks";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import CommentsBlock from "@/components/CommentsBlock";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 export type QACardData = {
   id: number;
@@ -77,6 +78,8 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
   const [editTitle, setEditTitle] = useState(qa.question);
   const [editBody, setEditBody] = useState(qa.answer);
   const [editSaving, setEditSaving] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
   const router = useRouter();
@@ -90,7 +93,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
     const card = cardRef.current;
     if (!card) return;
     const key = `qa-viewed-${qa.id}`;
-    if (localStorage.getItem(key)) return;
+    if (lsGet(key)) return;
 
     let counted = false;
     const observer = new IntersectionObserver(
@@ -98,7 +101,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
         if (counted) return;
         if (entries.some((e) => e.isIntersecting && e.intersectionRatio >= 0.5)) {
           counted = true;
-          localStorage.setItem(key, "1");
+          lsSet(key, "1");
           const sb = createSupabaseBrowserClient();
           sb.rpc("increment_qa_view", { p_qa_id: qa.id }).then(
             ({ data }: { data: number | null }) => {
@@ -132,8 +135,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
           .maybeSingle();
         if (alive) setLiked(!!data);
       } else {
-        if (alive)
-          setLiked(localStorage.getItem(`qa-liked-${qa.id}`) === "1");
+        if (alive) setLiked(lsGet(`qa-liked-${qa.id}`) === "1");
       }
     })();
     return () => {
@@ -141,49 +143,87 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
     };
   }, [qa.id]);
 
+  // localStorage 안전 접근 헬퍼 (인앱 브라우저 sandbox 방어)
+  function lsGet(key: string): string | null {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+  function lsSet(key: string, val: string) {
+    try {
+      localStorage.setItem(key, val);
+    } catch {
+      /* ignore — Google/카톡 인앱 sandbox */
+    }
+  }
+  function lsRemove(key: string) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function handleLike() {
     if (typeof window === "undefined") return;
     const supabase = createSupabaseBrowserClient();
     const wasLiked = liked;
+    // 낙관적 UI 업데이트 — 인앱에서도 즉각 피드백
+    setLiked(!wasLiked);
+    setLikeCount((c) => (wasLiked ? Math.max(0, c - 1) : c + 1));
 
     (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      // auth.getUser() 가 인앱 브라우저에서 throw할 수 있어 try/catch
+      let userId: string | null = null;
+      try {
+        const { data } = await supabase.auth.getUser();
+        userId = data.user?.id ?? null;
+      } catch {
+        userId = null;
+      }
 
-      // 낙관적 UI 업데이트
-      setLiked(!wasLiked);
-      setLikeCount((c) => (wasLiked ? Math.max(0, c - 1) : c + 1));
+      // 토글 RPC 시도 (auth 가능할 때) — 실패하면 anon path로 fallback
+      let success = false;
+      if (userId) {
+        try {
+          const { data, error } = await supabase.rpc("toggle_qa_like", {
+            p_qa_id: qa.id,
+          });
+          if (!error) {
+            const row = (data as { liked: boolean; like_count: number }[] | null)?.[0];
+            if (row) {
+              setLiked(row.liked);
+              setLikeCount(row.like_count);
+              if (row.liked) lsSet(`qa-liked-${qa.id}`, "1");
+              else lsRemove(`qa-liked-${qa.id}`);
+              success = true;
+            }
+          }
+        } catch {
+          /* fallback to anon path below */
+        }
+      }
 
-      if (user) {
-        // 로그인: qa_likes 토글 (정확한 dedup)
-        const { data, error } = await supabase.rpc("toggle_qa_like", {
-          p_qa_id: qa.id,
-        });
-        if (error) {
-          setLiked(wasLiked);
-          setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
-          return;
-        }
-        const row = (data as { liked: boolean; like_count: number }[] | null)?.[0];
-        if (row) {
-          setLiked(row.liked);
-          setLikeCount(row.like_count);
-          if (row.liked) localStorage.setItem(`qa-liked-${qa.id}`, "1");
-          else localStorage.removeItem(`qa-liked-${qa.id}`);
-        }
-      } else {
-        // 익명: localStorage dedup + 단순 increment/decrement
+      // anon path — 로그인 안 됐거나 toggle 실패 시
+      if (!success) {
         const rpc = wasLiked ? "decrement_qa_like" : "increment_qa_like";
-        const { data, error } = await supabase.rpc(rpc, { p_qa_id: qa.id });
-        if (error) {
+        try {
+          const { data, error } = await supabase.rpc(rpc, { p_qa_id: qa.id });
+          if (error) {
+            // 완전 실패 — UI 롤백
+            setLiked(wasLiked);
+            setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
+            return;
+          }
+          if (typeof data === "number") setLikeCount(data);
+          if (wasLiked) lsRemove(`qa-liked-${qa.id}`);
+          else lsSet(`qa-liked-${qa.id}`, "1");
+        } catch {
           setLiked(wasLiked);
           setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
-          return;
         }
-        if (typeof data === "number") setLikeCount(data);
-        if (wasLiked) localStorage.removeItem(`qa-liked-${qa.id}`);
-        else localStorage.setItem(`qa-liked-${qa.id}`, "1");
       }
     })();
   }
@@ -262,14 +302,19 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
     }
   }
 
-  async function deleteQa() {
-    if (!confirm("정말 삭제하시겠어요? 되돌릴 수 없습니다.")) return;
-    const sb = createSupabaseBrowserClient();
-    const { error } = await sb.from("qas").delete().eq("id", qa.id);
-    if (error) {
-      alert("삭제 실패: " + error.message);
-    } else {
-      router.refresh();
+  async function performDelete() {
+    setDeleting(true);
+    try {
+      const sb = createSupabaseBrowserClient();
+      const { error } = await sb.from("qas").delete().eq("id", qa.id);
+      if (error) {
+        alert("삭제 실패: " + error.message);
+      } else {
+        setConfirmDeleteOpen(false);
+        router.refresh();
+      }
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -685,7 +730,7 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             </button>
             <button
               type="button"
-              onClick={() => void deleteQa()}
+              onClick={() => setConfirmDeleteOpen(true)}
               className="cursor-pointer rounded-md px-1.5 py-0.5 text-[12px] font-medium text-[var(--text-muted)] transition-colors hover:bg-red-50 hover:text-red-600"
             >
               삭제
@@ -701,6 +746,18 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
         isPublishedQa={true}
         onCountChange={setCommentCount}
         showInput={commentsOpen}
+      />
+
+      {/* 삭제 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="이 글을 삭제할까요?"
+        description={"삭제하면 되돌릴 수 없어요.\n댓글과 좋아요도 함께 사라집니다."}
+        confirmLabel={deleting ? "삭제 중…" : "삭제"}
+        cancelLabel="취소"
+        tone="danger"
+        onConfirm={performDelete}
+        onCancel={() => !deleting && setConfirmDeleteOpen(false)}
       />
     </article>
   );

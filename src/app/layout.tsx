@@ -83,7 +83,11 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await getSessionInfo();
   return (
-    <html lang="ko" className={`${notoSansKR.variable} h-full antialiased`}>
+    <html
+      lang="ko"
+      className={`${notoSansKR.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <head>
         {/* F5/리로드 시 브라우저 스크롤 자동복원 끄기 — 페이지 페인트 전에 실행 */}
         <Script id="scroll-restoration" strategy="beforeInteractive">
