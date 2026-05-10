@@ -292,7 +292,9 @@ export default function QACard({
     }
   }
 
-  // 평점 등록/변경 — upsert
+  // 평점 등록/변경 — upsert (qa_ratings PK = qa_id,user_id,persona)
+  // 트리거가 qas.rating_avg/rating_count를 매번 from-scratch 재계산하므로
+  // upsert 후 qas를 다시 fetch해서 정확한 값으로 sync (optimistic 누적 오류 방지).
   async function handleRate(stars: number) {
     if (typeof window === "undefined") return;
     if (stars < 1 || stars > 5) return;
@@ -306,14 +308,6 @@ export default function QACard({
     const prev = myRating;
     setMyRating(stars);
     setRatingOpen(false);
-    // 낙관적 평균 재계산
-    if (prev === 0) {
-      const newCount = ratingCount + 1;
-      setRatingAvg((ratingAvg * ratingCount + stars) / newCount);
-      setRatingCount(newCount);
-    } else if (ratingCount > 0) {
-      setRatingAvg((ratingAvg * ratingCount - prev + stars) / ratingCount);
-    }
     const { error } = await supabase.from("qa_ratings").upsert(
       {
         qa_id: qa.id,
@@ -326,6 +320,17 @@ export default function QACard({
     );
     if (error) {
       setMyRating(prev);
+      return;
+    }
+    // 트리거가 갱신한 정확한 평균·카운트 재조회 (optimistic 추정 X — 정확한 값 보장)
+    const { data: q } = await supabase
+      .from("qas")
+      .select("rating_avg, rating_count")
+      .eq("id", qa.id)
+      .maybeSingle();
+    if (q) {
+      setRatingAvg(Number((q as { rating_avg: number | string }).rating_avg ?? 0));
+      setRatingCount(Number((q as { rating_count: number }).rating_count ?? 0));
     }
   }
 
@@ -646,6 +651,51 @@ export default function QACard({
         </div>
       ) : (
         <>
+          {/* 작성자 row + 우상단 kebab (수정/삭제) — 본인/관리자만 노출 */}
+          {canEdit && (
+            <div ref={menuRef} className="absolute right-3 top-3 z-20">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen((v) => !v);
+                }}
+                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                aria-label="더보기"
+                title="더보기"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-[18px] w-[18px]" aria-hidden>
+                  <circle cx="5" cy="12" r="1.6" />
+                  <circle cx="12" cy="12" r="1.6" />
+                  <circle cx="19" cy="12" r="1.6" />
+                </svg>
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-28 overflow-hidden rounded-md border border-[var(--border)] bg-white py-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push(`/qa/${qa.id}/edit`);
+                    }}
+                    className="block w-full cursor-pointer px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-soft)]"
+                  >
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setConfirmDeleteOpen(true);
+                    }}
+                    className="block w-full cursor-pointer px-3 py-1.5 text-left text-[13px] text-red-600 hover:bg-red-50"
+                  >
+                    삭제
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {/* 1. 작성자 행 — 가장 위 (원장이면 원장 페이지, 일반 사용자면 /u/[id] 로 이동) */}
           <button
             type="button"
@@ -902,15 +952,10 @@ export default function QACard({
           aria-label={liked ? "좋아요 취소" : "좋아요"}
           aria-pressed={liked}
           className={
-            "flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 font-semibold transition-all " +
+            "flex cursor-pointer items-center gap-1 transition-colors " +
             (liked
               ? "text-[var(--accent)]"
-              : "text-[var(--text-secondary)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]")
-          }
-          style={
-            liked
-              ? { backgroundColor: "var(--accent-soft)" }
-              : undefined
+              : "text-[var(--text-secondary)] hover:text-[var(--accent)]")
           }
         >
           <svg
@@ -921,10 +966,8 @@ export default function QACard({
             strokeLinecap="round"
             strokeLinejoin="round"
             className={
-              "transition-transform " +
-              (liked
-                ? "h-[20px] w-[20px] like-pulse"
-                : "h-[18px] w-[18px]")
+              "h-[18px] w-[18px] transition-transform " +
+              (liked ? "like-pulse" : "")
             }
             aria-hidden
           >
@@ -1093,25 +1136,6 @@ export default function QACard({
           <span>{shareCount}</span>
         </button>
 
-        {/* 수정·삭제 — 본인 글이거나 관리자일 때만 직접 노출 */}
-        {canEdit && (
-          <>
-            <button
-              type="button"
-              onClick={() => router.push(`/qa/${qa.id}/edit`)}
-              className="cursor-pointer rounded-md px-1.5 py-0.5 text-[12px] font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
-            >
-              수정
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteOpen(true)}
-              className="cursor-pointer rounded-md px-1.5 py-0.5 text-[12px] font-medium text-[var(--text-muted)] transition-colors hover:bg-red-50 hover:text-red-600"
-            >
-              삭제
-            </button>
-          </>
-        )}
       </div>
 
       {/* 댓글 블록 — 댓글 있거나 댓글창 열린 상태일 때만 표시 (본문 펼침과 무관) */}
