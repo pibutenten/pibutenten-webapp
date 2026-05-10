@@ -439,11 +439,15 @@ export default function WriteClient({
           }
         }
 
-        // 저장된 상태에 따른 redirect
+        // 저장된 상태에 따른 redirect — push 후 스크롤 맨 위로 (피드 첫 카드부터 보이게)
+        const goTop = () => {
+          if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+        };
         if (submitStatus === "draft") {
           // 저장 — 목록(검수/내 글) 또는 dashboard
           if (role === "doctor") router.push("/me/qnas?status=draft");
           else router.push("/admin/qas?status=draft");
+          goTop();
           return;
         }
         if (data.type === "article" && data.article_slug) {
@@ -452,6 +456,7 @@ export default function WriteClient({
           router.push(`/me/qnas?status=${submitStatus}`);
         } else {
           router.push(`/`);
+          goTop();
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "네트워크 오류");
