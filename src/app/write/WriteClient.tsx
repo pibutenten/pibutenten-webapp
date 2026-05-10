@@ -201,6 +201,12 @@ export default function WriteClient({
     const url = externalUrl.trim();
     if (!url) return;
     setError(null);
+    // 새 URL을 시도하는 시점에 기존 채우기 결과 clear.
+    // 성공하면 새로 채워지고, 실패해도 이전 URL 결과가 남지 않음 (사용자 의도와 일치).
+    setTitle("");
+    setBody("");
+    setKeywords([]);
+    setExternalMeta(null);
     setFilling(true);
     try {
       const r = await fetch("/api/preview-link", {

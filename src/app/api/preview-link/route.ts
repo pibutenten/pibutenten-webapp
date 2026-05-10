@@ -206,6 +206,96 @@ async function fetchYoutubeOembed(
  *   4) description meta (Twitter card 등)
  */
 /**
+ * YouTube videoId 추출.
+ */
+function youtubeVideoIdFrom(rawUrl: string): string | null {
+  try {
+    const u = new URL(rawUrl);
+    if (u.hostname === "youtu.be") return u.pathname.slice(1).split("/")[0];
+    const v = u.searchParams.get("v");
+    if (v) return v;
+    const m = u.pathname.match(/\/(?:embed|shorts|v|live)\/([^/?#]+)/);
+    if (m) return m[1];
+  } catch {
+    /* invalid url */
+  }
+  return null;
+}
+
+/**
+ * YouTube Innertube /player API 호출 — videoDetails.shortDescription 직접 가져오기.
+ *
+ * 이 endpoint는 YouTube 웹/모바일 클라이언트가 내부적으로 사용. PoToken 없이도
+ * 기본 메타데이터(제목·설명·작성자·길이)는 정상 반환. HTML scrape보다 훨씬 안정적이며
+ * 데이터센터 IP에서도 작동.
+ */
+async function fetchYoutubeInnertube(
+  videoId: string,
+): Promise<{
+  title: string;
+  description: string;
+  author: string;
+  thumbnail: string | null;
+} | null> {
+  try {
+    const ctl = new AbortController();
+    const id = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const r = await fetch(
+        "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-YouTube-Client-Name": "1",
+            "X-YouTube-Client-Version": "2.20250428.00.00",
+            "User-Agent": UA,
+            Origin: "https://www.youtube.com",
+            Referer: `https://www.youtube.com/watch?v=${videoId}`,
+          },
+          signal: ctl.signal,
+          body: JSON.stringify({
+            videoId,
+            context: {
+              client: {
+                clientName: "WEB",
+                clientVersion: "2.20250428.00.00",
+                hl: "ko",
+                gl: "KR",
+              },
+            },
+          }),
+        },
+      );
+      if (!r.ok) return null;
+      const j = (await r.json()) as {
+        videoDetails?: {
+          title?: string;
+          shortDescription?: string;
+          author?: string;
+          thumbnail?: { thumbnails?: Array<{ url?: string }> };
+        };
+        playabilityStatus?: { status?: string };
+      };
+      const vd = j.videoDetails;
+      if (!vd) return null;
+      const thumbs = vd.thumbnail?.thumbnails ?? [];
+      const lastThumb = thumbs[thumbs.length - 1]?.url ?? null;
+      return {
+        title: vd.title ?? "",
+        description: vd.shortDescription ?? "",
+        author: vd.author ?? "",
+        thumbnail: lastThumb,
+      };
+    } finally {
+      clearTimeout(id);
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
  * YouTube URL을 desktop·mobile 두 가지로 fetch 시도. 데이터센터 IP에서는
  * 둘 중 하나가 더 깨끗한 응답을 주는 경우가 있어 둘 다 시도.
  */
@@ -352,24 +442,26 @@ const KOREAN_CMS_ID_PATTERNS: ReadonlyArray<RegExp> = [
 /**
  * 본문에서 항상 제거해야 할 텍스트 패턴 — HTML cut markers로 잡히지 않을 때 마지막 정리.
  * (네이버 뉴스 dic_area처럼 reporter byline·copyright·section navigation이 본문 div 안에 섞여있을 때.)
+ *
+ * 안전 원칙: 본문 시작부에 우연히 나올 수 있는 일반 단어("구독", "기사 섹션") 사용 금지.
+ * 명확한 footer 시그니처만 cut marker로 사용. 본문 길이가 100자 미만이면 cut도 적용 안 함
+ * (잘못 매칭되어 전체가 사라지는 사고 방지).
  */
 function trimNoiseTextTail(text: string): string {
-  // "기자(email@xxx)" 형식 또는 "Copyright" / "ⓒ" / "무단 전재" 첫 등장 위치에서 잘라냄
+  if (text.length < 100) return text;
   const noiseRes = [
-    /\s+[가-힣]{2,5}\s*기자\s*\([^)]*@[^)]+\)/,
+    // "최예슬 기자(email@xxx)" — email format으로만 매칭
+    /\s+[가-힣]{2,5}\s*기자\s*\([^)]{2,40}@[^)]+\)/,
+    // 저작권 표기 — Copyright/저작권자 + ⓒ/©
     /Copyright\s*[ⓒ©]/i,
     /저작권자\s*[ⓒ©]/,
-    /무단\s*전재/,
-    /이\s*기사는\s*언론사에서/,
-    /기사\s*섹션\s*분류/,
-    /기자\s*프로필/,
-    /구독\s*구독중/,
-    /언론사홈/,
+    /무단\s*전재\s*및\s*재배포/,
   ];
   let cutAt = text.length;
   for (const re of noiseRes) {
     const m = re.exec(text);
-    if (m && m.index < cutAt) cutAt = m.index;
+    // cut 위치가 너무 앞이면 (본문 50자 미만에서 cut되면) 무시 — 오작동 방지
+    if (m && m.index >= 50 && m.index < cutAt) cutAt = m.index;
   }
   return text.slice(0, cutAt).trim();
 }
@@ -587,15 +679,86 @@ async function handle(req: Request): Promise<Response> {
   const kind = detectKind(url);
 
   // ── YouTube ──
+  // 우선순위: Data API v3 (env에 키 있으면) → Innertube /player → HTML scrape → oEmbed only
   if (kind === "youtube") {
-    const yt = await fetchYoutubeOembed(url.toString());
+    const videoId = youtubeVideoIdFrom(url.toString());
+    let title = "";
     let bodyText = "";
-    const desc = await safeYoutubeBody(url.toString());
-    if (desc) bodyText = trimToSentence(desc, MAX_BODY_CHARS);
+    let image: string | null = null;
+    let channel = "";
+
+    // 1) Data API v3 — env에 YOUTUBE_API_KEY 설정되어 있을 때
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (videoId && apiKey) {
+      try {
+        const r = await fetchWithTimeout(
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${encodeURIComponent(
+            videoId,
+          )}&key=${encodeURIComponent(apiKey)}`,
+        );
+        if (r.ok) {
+          const j = (await r.json()) as {
+            items?: Array<{
+              snippet?: {
+                title?: string;
+                description?: string;
+                channelTitle?: string;
+                thumbnails?: Record<string, { url?: string } | undefined>;
+              };
+            }>;
+          };
+          const sn = j.items?.[0]?.snippet;
+          if (sn) {
+            title = sn.title ?? "";
+            bodyText = sn.description ?? "";
+            channel = sn.channelTitle ?? "";
+            image =
+              sn.thumbnails?.maxres?.url ??
+              sn.thumbnails?.standard?.url ??
+              sn.thumbnails?.high?.url ??
+              sn.thumbnails?.medium?.url ??
+              sn.thumbnails?.default?.url ??
+              null;
+          }
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+
+    // 2) Innertube /player — Data API 미설정/실패 시
+    if (!bodyText && videoId) {
+      const it = await fetchYoutubeInnertube(videoId);
+      if (it) {
+        if (!title) title = it.title;
+        if (!channel) channel = it.author;
+        if (!image) image = it.thumbnail;
+        bodyText = it.description;
+      }
+    }
+
+    // 3) HTML scrape (CONSENT cookie + mobile UA fallback) — Innertube 실패 시
+    if (!bodyText) {
+      const desc = await safeYoutubeBody(url.toString());
+      if (desc) bodyText = desc;
+    }
+
+    // 4) oEmbed — title/channel/thumbnail 보강
+    if (!title || !image) {
+      const yt = await fetchYoutubeOembed(url.toString());
+      if (yt) {
+        if (!title) title = yt.title;
+        if (!channel) channel = yt.channel;
+        if (!image) image = yt.thumbnail;
+      }
+    }
+
     return NextResponse.json({
-      title: yt?.title ?? "",
-      description: bodyText || (yt?.channel ? `${yt.channel} · YouTube` : ""),
-      image: yt?.thumbnail ?? null,
+      title,
+      description:
+        trimToSentence(bodyText, MAX_BODY_CHARS) ||
+        (channel ? `${channel} · YouTube` : ""),
+      image,
       siteName: "YouTube",
       sourceUrl: url.toString(),
       kind,
