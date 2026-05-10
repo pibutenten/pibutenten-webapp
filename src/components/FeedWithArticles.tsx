@@ -124,6 +124,18 @@ export default function FeedWithArticles({
     return () => observer.disconnect();
   }, [loadMore]);
 
+  // 카드에서 글 삭제 시 — 즉시 client state에서 제거 (router.refresh로는 useState가 갱신 안 됨)
+  useEffect(() => {
+    function onDeleted(e: Event) {
+      const id = (e as CustomEvent<{ id: number }>).detail?.id;
+      if (typeof id !== "number") return;
+      setQaItems((prev) => prev.filter((q) => q.id !== id));
+    }
+    window.addEventListener("pibutenten:qa-deleted", onDeleted);
+    return () =>
+      window.removeEventListener("pibutenten:qa-deleted", onDeleted);
+  }, []);
+
   // qa + article 섹션 카드 섞기 — 4번째 카드마다 article 섹션 1개
   const mixed: MixedItem[] = mixItems(qaItems, initialArticleCards);
 

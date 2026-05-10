@@ -350,7 +350,22 @@ export default function QACard({
         alert("삭제 실패: " + error.message);
       } else {
         setConfirmDeleteOpen(false);
-        router.refresh();
+        // 1) 피드의 client-side 리스트에 즉시 반영 (FeedWithArticles가 listen)
+        window.dispatchEvent(
+          new CustomEvent("pibutenten:qa-deleted", { detail: { id: qa.id } }),
+        );
+        // 2) 단일 포스트 페이지에서 삭제한 경우 — 메인 피드로 이동
+        //    (현재 URL이 /qa/{id} 또는 /doctors/.../{post-slug}이면 그 페이지가 사라진 상태)
+        const path = window.location.pathname;
+        if (
+          path.startsWith(`/qa/${qa.id}`) ||
+          (qa.post_slug && path.includes(`/${qa.post_slug}`))
+        ) {
+          router.push("/");
+        } else {
+          // 3) 그 외 페이지(피드/검색/대시보드 등)는 RSC 재요청
+          router.refresh();
+        }
       }
     } finally {
       setDeleting(false);

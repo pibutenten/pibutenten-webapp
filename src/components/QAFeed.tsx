@@ -107,6 +107,18 @@ export default function QAFeed({
     return () => observer.disconnect();
   }, [loadMore]);
 
+  // 카드에서 글 삭제 시 — 즉시 client state에서 제거
+  useEffect(() => {
+    function onDeleted(e: Event) {
+      const id = (e as CustomEvent<{ id: number }>).detail?.id;
+      if (typeof id !== "number") return;
+      setItems((prev) => prev.filter((q) => q.id !== id));
+    }
+    window.addEventListener("pibutenten:qa-deleted", onDeleted);
+    return () =>
+      window.removeEventListener("pibutenten:qa-deleted", onDeleted);
+  }, []);
+
   // alternating split (홀수 → 좌, 짝수 → 우) — 데스크탑 전용
   const left = items.filter((_, i) => i % 2 === 0);
   const right = items.filter((_, i) => i % 2 === 1);

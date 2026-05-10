@@ -1,6 +1,6 @@
 {
   "regions": ["icn1"],
   "git": {
-    "deploymentEnabled": false
+    "deploymentEnabled": true
   }
 }
