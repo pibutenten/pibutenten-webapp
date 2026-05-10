@@ -198,6 +198,8 @@ export default async function HandleProfilePage({ params }: Props) {
         posts={posts}
         postsCount={posts.length}
         isOwner={isOwner}
+        profileId={profile.id}
+        personaForPosts={personaForPosts}
       />
     </section>
   );

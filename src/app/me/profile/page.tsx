@@ -2,8 +2,28 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import ProfileEditClient from "./ProfileEditClient";
+import {
+  DEFAULT_VISIBILITY,
+  type FieldVisibility,
+} from "@/lib/profile-options";
 
 export const dynamic = "force-dynamic";
+
+type ProfileRow = {
+  role: "admin" | "doctor" | "user";
+  display_name: string | null;
+  marketing_email_consent: boolean | null;
+  handle: string | null;
+  birthdate: string | null;
+  gender: "male" | "female" | "other" | null;
+  face_shape: string | null;
+  skin_type: string | null;
+  skin_concerns: string[] | null;
+  interested_procedures: string[] | null;
+  liked_procedures: string[] | null;
+  bio: string | null;
+  field_visibility: FieldVisibility | null;
+};
 
 export default async function MyProfilePage() {
   const supabase = await createSupabaseServerClient();
@@ -14,21 +34,14 @@ export default async function MyProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, display_name, marketing_email_consent, handle")
+    .select(
+      "role, display_name, marketing_email_consent, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, bio, field_visibility",
+    )
     .eq("id", user.id)
     .maybeSingle()
-    .returns<{
-      role: "admin" | "doctor" | "user";
-      display_name: string | null;
-      marketing_email_consent: boolean | null;
-      handle: string | null;
-    }>();
+    .returns<ProfileRow>();
 
   if (!profile) redirect("/login?error=프로필을 찾을 수 없습니다");
-
-  // OAuth 가입자 식별 — identities 중 password provider 가 있는지
-  const identities = user.identities ?? [];
-  const hasPassword = identities.some((i) => i.provider === "email");
 
   return (
     <section className="mx-auto w-full max-w-[640px] py-6">
@@ -42,62 +55,32 @@ export default async function MyProfilePage() {
         </Link>
       </div>
 
-      {/* 기본 정보 (읽기 전용) */}
-      <div className="mb-5 space-y-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-soft)] p-4 text-sm">
-        <div className="flex justify-between">
-          <span className="text-[var(--text-muted)]">이메일</span>
-          <span className="text-[var(--text)]">{user.email ?? "-"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-[var(--text-muted)]">역할</span>
-          <span className="text-[var(--text)]">
-            {profile.role === "doctor"
-              ? "원장"
-              : profile.role === "admin"
-                ? "관리자"
-                : "회원"}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-[var(--text-muted)]">로그인 방식</span>
-          <span className="text-[var(--text)]">
-            {identities
-              .map((i) =>
-                i.provider === "email"
-                  ? "이메일"
-                  : i.provider === "google"
-                    ? "Google"
-                    : i.provider === "kakao"
-                      ? "카카오"
-                      : i.provider,
-              )
-              .join(" · ") || "-"}
-          </span>
-        </div>
-      </div>
-
       <ProfileEditClient
         userId={user.id}
         currentEmail={user.email ?? ""}
-        currentDisplayName={profile.display_name ?? ""}
-        currentMarketingConsent={!!profile.marketing_email_consent}
+        initial={{
+          displayName: profile.display_name ?? "",
+          marketingConsent: !!profile.marketing_email_consent,
+          birthdate: profile.birthdate ?? "",
+          gender: profile.gender ?? null,
+          faceShape: profile.face_shape ?? null,
+          skinType: profile.skin_type ?? null,
+          skinConcerns: profile.skin_concerns ?? [],
+          interestedProcedures: profile.interested_procedures ?? [],
+          likedProcedures: profile.liked_procedures ?? [],
+          bio: profile.bio ?? "",
+          fieldVisibility: profile.field_visibility ?? DEFAULT_VISIBILITY,
+        }}
       />
 
-      {/* 온보딩 정보 — 피부타입·관심시술·아바타·생년월일 등.
-          별도 페이지로 분리되어 있어 여기서는 진입 링크만 제공. */}
-      <div className="mt-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
-        <h2 className="mb-1 text-sm font-bold text-[var(--text)]">
-          피부 정보·아바타
-        </h2>
-        <p className="mb-3 text-[12px] text-[var(--text-muted)]">
-          피부 타입·관심 시술·생년월일·아바타 등은 온보딩 페이지에서 수정해요.
-        </p>
-        <Link
-          href="/onboarding"
-          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--primary)] px-3 py-1.5 text-[13px] font-semibold text-[var(--primary)] hover:bg-[var(--primary-soft)]"
-        >
-          ✨ 온보딩 정보 수정
+      {/* 프로필 사진은 별도 — 다음 phase에 통합 예정 */}
+      <div className="mt-5 rounded-[var(--radius)] border border-dashed border-[var(--border)] p-4 text-center text-[12px] text-[var(--text-muted)]">
+        프로필 사진은 곧 이 화면에서 직접 변경할 수 있게 됩니다.
+        지금은{" "}
+        <Link href="/onboarding" className="text-[var(--primary)] underline">
+          온보딩 페이지
         </Link>
+        에서 변경 가능해요.
       </div>
     </section>
   );
