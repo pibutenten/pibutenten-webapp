@@ -186,11 +186,16 @@ export default function WriteClient({
     // 카테고리 변경 시 의사 직함 숨김 default도 업데이트
     setHideCredential(defaultHideCredential(next));
     // share 외 카테고리로 전환 시 외부 링크·첫 댓글 초기화
-    if (next !== "news") {
+    // 새소식·Q&A 외 카테고리로 전환 시 외부 링크 초기화 (둘 다 외부 URL 사용)
+    if (next !== "news" && next !== "qa") {
       setExternalUrl("");
       setExternalMeta(null);
+    }
+    // 첫 댓글은 새소식 전용
+    if (next !== "news") {
       setFirstComment("");
     }
+    // 참고문헌은 Q&A 전용
     if (next !== "qa") {
       setReferences([""]);
     }
@@ -548,13 +553,17 @@ export default function WriteClient({
           )}
         </div>
 
-        {/* 외부 링크 — "새소식"(news) 카테고리에서만 노출. v4 spec */}
-        {category === "news" && (
+        {/* 외부 링크 — "새소식"·"Q&A" 두 카테고리에서 노출. v4 spec.
+            - 새소식: 채우기 버튼으로 제목·본문·태그 자동 추출
+            - Q&A: 영상 URL만 첨부 (제목·본문은 직접 작성). [영상 보러가기] 표시. */}
+        {(category === "news" || category === "qa") && (
         <div>
           <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-            외부 링크{" "}
+            {category === "qa" ? "영상 URL" : "외부 링크"}{" "}
             <span className="text-xs font-normal text-[var(--text-muted)]">
-              URL 입력 후 [채우기] 누르면 제목·본문·태그 자동 채움
+              {category === "qa"
+                ? "선택 — 카드에 [영상 보러가기] 버튼 노출 (시간 포함 URL: ?t=120 또는 t=2m30s)"
+                : "URL 입력 후 [채우기] 누르면 제목·본문·태그 자동 채움"}
             </span>
           </label>
           <div className="flex gap-2">
@@ -565,14 +574,16 @@ export default function WriteClient({
               placeholder="https://..."
               className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary-light)] focus:outline-none"
             />
-            <button
-              type="button"
-              onClick={fillFromUrl}
-              disabled={filling || !externalUrl.trim()}
-              className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--primary-light)] bg-[var(--primary-light)] px-3 text-sm font-semibold text-white hover:bg-[var(--primary-light-hover)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:bg-[var(--border)]"
-            >
-              {filling ? "가져오는 중…" : "채우기"}
-            </button>
+            {category === "news" && (
+              <button
+                type="button"
+                onClick={fillFromUrl}
+                disabled={filling || !externalUrl.trim()}
+                className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--primary-light)] bg-[var(--primary-light)] px-3 text-sm font-semibold text-white hover:bg-[var(--primary-light-hover)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:bg-[var(--border)]"
+              >
+                {filling ? "가져오는 중…" : "채우기"}
+              </button>
+            )}
           </div>
           {externalMeta?.title && (
             <p className="mt-1.5 text-[11.5px] text-[var(--text-muted)]">

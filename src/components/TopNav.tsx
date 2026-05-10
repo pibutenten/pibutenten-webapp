@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import PersonaSwitcher from "./PersonaSwitcher";
+// PersonaSwitcher는 v4에서 헤더에서 제거됨 — 페르소나 전환은 프로필 페이지 안에서
 
 type NavItem = {
   href: string;
@@ -369,20 +369,78 @@ export default function TopNav({ session }: TopNavProps) {
           {/* 모바일 우상단 — 앱 설치 버튼 (데스크탑은 Chrome 자체 설치 메뉴가 있어 숨김) */}
           <InstallAppButton />
 
-          {/* 본인 메뉴 — 페르소나 스위치는 /me 대시보드 상단에서 처리 */}
+          {/* 본인 메뉴 (v4 1-click) — 드롭다운 X. 아바타·닉네임 클릭 → 본인 프로필 즉시 이동.
+              관리자만 별도 [관리자] 아이콘 노출. 프로필 전환은 프로필 페이지 안 위젯에서. */}
           {session ? (
-            <PersonaSwitcher
-              officialName={session.displayName}
-              officialAvatar={session.avatarUrl}
-              alt={
-                session.altDisplayName
-                  ? {
-                      name: session.altDisplayName,
-                      avatar: session.altAvatarUrl,
-                    }
-                  : null
-              }
-            />
+            <>
+              {(() => {
+                // 진입 URL 결정
+                //  - 의사 official: /doctors/{slug}
+                //  - 의사 personal · 회원 · 관리자: /{handle 또는 alt_handle}
+                //  - handle 미설정 시 fallback /me
+                const isPersonal = session.persona === "personal";
+                const profileHref =
+                  session.role === "doctor" && !isPersonal && session.doctorSlug
+                    ? `/doctors/${session.doctorSlug}`
+                    : (isPersonal ? session.altHandle : session.handle)
+                      ? `/${isPersonal ? session.altHandle : session.handle}`
+                      : "/me";
+                const displayName = isPersonal
+                  ? session.altDisplayName ?? session.displayName
+                  : session.displayName;
+                const avatarUrl = isPersonal
+                  ? session.altAvatarUrl
+                  : session.avatarUrl;
+                return (
+                  <Link
+                    href={profileHref}
+                    aria-label="내 프로필"
+                    title="내 프로필"
+                    className="flex items-center gap-1.5 rounded-md p-1 transition-colors hover:bg-[var(--bg-soft)]"
+                  >
+                    <span className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
+                      {avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={avatarUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-[12px]">
+                          👤
+                        </span>
+                      )}
+                    </span>
+                    <span className="hidden max-w-[100px] truncate text-[13px] font-medium text-[var(--text)] sm:inline">
+                      {displayName}
+                    </span>
+                  </Link>
+                );
+              })()}
+              {/* 관리자 전용 — /admin 진입 톱니 아이콘 */}
+              {session.role === "admin" && (
+                <Link
+                  href="/admin"
+                  aria-label="관리자 대시보드"
+                  title="관리자"
+                  className="flex items-center gap-1 rounded-md p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-5 w-5"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4z" />
+                  </svg>
+                </Link>
+              )}
+            </>
           ) : (
             <Link
               href="/login"

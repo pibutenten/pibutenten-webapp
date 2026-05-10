@@ -18,6 +18,10 @@ import { PICK_IDS } from "@/lib/picks";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import CommentsBlock from "@/components/CommentsBlock";
 import { getQaUrl } from "@/lib/qa-url";
+import {
+  parseYoutubeTimestamp,
+  formatTimestamp,
+} from "@/lib/youtube-time";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 export type QACardData = {
@@ -619,39 +623,65 @@ export default function QACard({
       )}
       <div className="mt-2 flex items-center gap-3 text-[12px]">
         {/* 더보기 버튼 제거 — 본문 클릭으로 펼침/접기 */}
-        {qa.video?.youtube_url && (
-          <a
-            href={qa.video.youtube_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => {
-              e.stopPropagation();
-              // 영상 보러가기 클릭 = 조회수 +1 (펼치지 않아도 인기 신호로 카운트)
-              if (typeof window === "undefined") return;
-              const supabase = createSupabaseBrowserClient();
-              supabase
-                .rpc("increment_qa_view", { p_qa_id: qa.id })
-                .then(({ data }: { data: number | null }) => {
-                  if (typeof data === "number") setViewCount(data);
-                });
-            }}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary)]"
-          >
-            <span style={{ color: "#FF0000" }}>▶</span> 영상에서 자세히 보기
-          </a>
-        )}
-        {/* 외부 링크 [더 알아보기] — Q&A 외 카테고리에서만 노출 (Phase 3) */}
-        {qa.external_url && qa.category !== "qa" && (
-          <a
-            href={qa.external_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary-light-hover)]"
-          >
-            <span aria-hidden>↗</span> 더 알아보기
-          </a>
-        )}
+        {(() => {
+          // 영상 링크 우선순위:
+          //  1) Q&A 카테고리 + external_url(youtube) → 영상 보러가기 + timestamp
+          //  2) videos 테이블 join (legacy backfill)
+          //  3) 그 외 카테고리 + external_url → [더 알아보기]
+          const isQa = qa.category === "qa";
+          const ext = qa.external_url;
+          const isYoutubeExt =
+            ext && /(?:youtu\.be|youtube\.com|youtube-nocookie\.com)/.test(ext);
+          const videoHref =
+            isQa && isYoutubeExt
+              ? ext
+              : qa.video?.youtube_url ?? null;
+          const tsec = parseYoutubeTimestamp(videoHref);
+          if (videoHref) {
+            return (
+              <a
+                href={videoHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // 영상 보러가기 클릭 = 조회수 +1
+                  if (typeof window === "undefined") return;
+                  const supabase = createSupabaseBrowserClient();
+                  supabase
+                    .rpc("increment_qa_view", { p_qa_id: qa.id })
+                    .then(({ data }: { data: number | null }) => {
+                      if (typeof data === "number") setViewCount(data);
+                    });
+                }}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary)]"
+              >
+                <span style={{ color: "#FF0000" }}>▶</span>{" "}
+                영상에서 자세히 보기
+                {tsec !== null && (
+                  <span className="text-[11px] text-[var(--text-muted)]">
+                    {formatTimestamp(tsec)}~
+                  </span>
+                )}
+              </a>
+            );
+          }
+          // Q&A 외 카테고리 + external_url (영상 아님) → [더 알아보기]
+          if (!isQa && ext) {
+            return (
+              <a
+                href={ext}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary-light-hover)]"
+              >
+                <span aria-hidden>↗</span> 더 알아보기
+              </a>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       {/* 태그 칩 — 컴팩트 + 첫 6개만 노출, 초과 시 +N 토글 */}
