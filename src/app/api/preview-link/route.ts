@@ -205,19 +205,50 @@ async function fetchYoutubeOembed(
  *   3) og:description (consent 페이지 아니면 거의 항상 존재)
  *   4) description meta (Twitter card 등)
  */
+/**
+ * YouTube URL을 desktop·mobile 두 가지로 fetch 시도. 데이터센터 IP에서는
+ * 둘 중 하나가 더 깨끗한 응답을 주는 경우가 있어 둘 다 시도.
+ */
+async function fetchYoutubePage(rawUrl: string): Promise<string | null> {
+  const urls = [
+    rawUrl,
+    rawUrl.replace("://www.youtube.com/", "://m.youtube.com/"),
+  ];
+  const cookieHeader =
+    "CONSENT=YES+cb.20210328-17-p0.en+FX+999; SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjQwNTE0LjA3X3AwGgJrbyAEGgYIgIPPwgY; PREF=hl=ko&gl=KR";
+  // mobile UA — m.youtube.com은 모바일 UA로 받아야 정상
+  const mobileUA =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const r = await fetchWithTimeout(
+        urls[i],
+        i === 0
+          ? {
+              Cookie: cookieHeader,
+              "Sec-Fetch-Dest": "document",
+              "Sec-Fetch-Mode": "navigate",
+              "Sec-Fetch-Site": "none",
+            }
+          : {
+              Cookie: cookieHeader,
+              "User-Agent": mobileUA,
+            },
+      );
+      if (!r.ok) continue;
+      const html = await decodeHtmlResponse(r);
+      if (html.length > 1000) return html;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
 async function safeYoutubeBody(rawUrl: string): Promise<string | null> {
   try {
-    const r = await fetchWithTimeout(rawUrl, {
-      // EU/데이터센터 IP에서 consent 인터스티셜 우회
-      Cookie:
-        "CONSENT=YES+cb.20210328-17-p0.en+FX+999; SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjQwNTE0LjA3X3AwGgJrbyAEGgYIgIPPwgY",
-      // mobile UA가 Vercel IP에서는 더 잘 통하는 경우가 있음 — 그래도 desktop fallback이 default
-      "Sec-Fetch-Dest": "document",
-      "Sec-Fetch-Mode": "navigate",
-      "Sec-Fetch-Site": "none",
-    });
-    if (!r.ok) return null;
-    const html = await decodeHtmlResponse(r);
+    const html = await fetchYoutubePage(rawUrl);
+    if (!html) return null;
 
     // 패턴 1: shortDescription (가장 깨끗)
     const m1 = html.match(/"shortDescription":"((?:\\.|[^"\\])*)"/);
@@ -253,6 +284,12 @@ async function safeYoutubeBody(rawUrl: string): Promise<string | null> {
     if (og && og.trim().length > 0) return og;
     const md = extractMeta(head, "description");
     if (md && md.trim().length > 0) return md;
+
+    // 패턴 4: itemprop="description" content="…"
+    const ip = head.match(
+      /<meta[^>]+itemprop=["']description["'][^>]*content=["']([^"']*)["']/i,
+    );
+    if (ip && ip[1] && ip[1].trim().length > 0) return ip[1];
 
     return null;
   } catch {
@@ -295,6 +332,9 @@ const KOREAN_CMS_ID_PATTERNS: ReadonlyArray<RegExp> = [
   // 네이버 뉴스 (n.news.naver.com)
   /<(?:div|article|section)\b[^>]*\bid\s*=\s*["']\s*dic_area\s*["'][^>]*>/i,
   /<(?:div|article|section)\b[^>]*\bid\s*=\s*["']\s*newsct_article\s*["'][^>]*>/i,
+  // 조선일보·헬스조선
+  /<(?:div|article|section)\b[^>]*\bid\s*=\s*["']\s*news_body_id\s*["'][^>]*>/i,
+  /<(?:div|article|section)\b[^>]*\bid\s*=\s*["']\s*news_body\s*["'][^>]*>/i,
   // 네이버 모바일 뉴스 / 다음 뉴스
   /<(?:div|article|section)\b[^>]*\bclass\s*=\s*["'][^"']*\b_article_body\b[^"']*["'][^>]*>/i,
   /<(?:div|article|section)\b[^>]*\bclass\s*=\s*["'][^"']*\barticle_view\b[^"']*["'][^>]*>/i,
@@ -308,6 +348,31 @@ const KOREAN_CMS_ID_PATTERNS: ReadonlyArray<RegExp> = [
   /<(?:div|article|section)\b[^>]*\bclass\s*=\s*["'][^"']*\bview_con\b[^"']*["'][^>]*>/i,
   /<(?:div|article|section)\b[^>]*\bclass\s*=\s*["'][^"']*\barticle-veiw-body\b[^"']*["'][^>]*>/i,
 ];
+
+/**
+ * 본문에서 항상 제거해야 할 텍스트 패턴 — HTML cut markers로 잡히지 않을 때 마지막 정리.
+ * (네이버 뉴스 dic_area처럼 reporter byline·copyright·section navigation이 본문 div 안에 섞여있을 때.)
+ */
+function trimNoiseTextTail(text: string): string {
+  // "기자(email@xxx)" 형식 또는 "Copyright" / "ⓒ" / "무단 전재" 첫 등장 위치에서 잘라냄
+  const noiseRes = [
+    /\s+[가-힣]{2,5}\s*기자\s*\([^)]*@[^)]+\)/,
+    /Copyright\s*[ⓒ©]/i,
+    /저작권자\s*[ⓒ©]/,
+    /무단\s*전재/,
+    /이\s*기사는\s*언론사에서/,
+    /기사\s*섹션\s*분류/,
+    /기자\s*프로필/,
+    /구독\s*구독중/,
+    /언론사홈/,
+  ];
+  let cutAt = text.length;
+  for (const re of noiseRes) {
+    const m = re.exec(text);
+    if (m && m.index < cutAt) cutAt = m.index;
+  }
+  return text.slice(0, cutAt).trim();
+}
 
 function stripToText(snippet: string): string {
   const cleaned = snippet
@@ -323,13 +388,18 @@ function stripToText(snippet: string): string {
     )
     // iframe (광고·동영상) — 본문에 텍스트 기여 없음
     .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
+    // 네이버 뉴스 chrome — 기자 프로필·구독·관련 기사 (본문 div 안에 위치)
+    .replace(
+      /<(?:div|section|article)[^>]*\bclass\s*=\s*["'][^"']*\b(?:_article_journalist|reporter|byline|article_footer|publisher|copyright|cmt|news_end|sub_info|press_info|nbd_table_news)\b[^"']*["'][^>]*>[\s\S]*?<\/(?:div|section|article)>/gi,
+      "",
+    )
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<\/(p|div|br|li|h[1-6])>/gi, "$& ")
     .replace(/<br\s*\/?>/gi, " ")
     .replace(/<[^>]+>/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  return decodeEntities(cleaned);
+  return trimNoiseTextTail(decodeEntities(cleaned));
 }
 
 function koreanCmsBody(html: string): string {
@@ -426,6 +496,13 @@ async function safeNaverBlogBody(
       return null;
     }
     const ids = parseNaverBlogIds(u);
+    // postId 없는 블로그 홈페이지(예: blog.naver.com/{blogId}만) — 특정 글이 아니므로
+    // 본문 추출 불가. 호출자가 일반 페이지 처리로 fall through 하도록 null.
+    if (!ids) {
+      // /{blogId} 또는 /{blogId}/ 만 있는 경우
+      const seg = u.pathname.split("/").filter(Boolean);
+      if (seg.length <= 1) return null;
+    }
     // 모바일 URL로 변환 — 프레임 없이 본문 직접 옴
     const mobileUrl = ids
       ? `https://m.blog.naver.com/${ids.blogId}/${ids.logNo}`

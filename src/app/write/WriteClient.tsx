@@ -232,25 +232,13 @@ export default function WriteClient({
       // (이미 쓴 내용이 있어도 새 URL 메타로 갱신해야 직관적)
       if (meta.title) setTitle(meta.title);
       if (meta.description) setBody(meta.description);
-      // 키워드는 사전 매칭으로 추출 — 메타 + 본문 합쳐서
+      // 키워드도 항상 새로 — URL 바꿨는데 이전 키워드 남아있으면 어색함
       const { extractTagsFromText } = await import("@/lib/auto-tag");
-      const haystack = [meta.title, meta.description, body, title]
+      const haystack = [meta.title, meta.description]
         .filter((s): s is string => Boolean(s))
         .join("\n");
-      const auto = extractTagsFromText(haystack, {
-        limit: 5,
-        exclude: keywords,
-      });
-      if (auto.length > 0) {
-        setKeywords((prev) => {
-          const merged = [...prev];
-          for (const k of auto) {
-            if (merged.length >= maxKw) break;
-            if (!merged.includes(k)) merged.push(k);
-          }
-          return merged;
-        });
-      }
+      const auto = extractTagsFromText(haystack, { limit: maxKw });
+      setKeywords(auto.slice(0, maxKw));
     } catch (e) {
       setError(e instanceof Error ? e.message : "링크 처리 실패");
     } finally {
@@ -660,6 +648,25 @@ export default function WriteClient({
               검수 요청
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              if (!title.trim() && !body.trim() && keywords.length === 0 && !externalUrl.trim()) return;
+              if (!confirm("작성 중인 내용을 모두 지우고 새로 시작할까요?")) return;
+              setTitle("");
+              setBody("");
+              setKeywords([]);
+              setKeywordInput("");
+              setExternalUrl("");
+              setExternalMeta(null);
+              setFirstComment("");
+              setError(null);
+            }}
+            disabled={pending}
+            className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
+          >
+            초기화
+          </button>
           <button
             type="button"
             onClick={() => handleSubmit("published")}
