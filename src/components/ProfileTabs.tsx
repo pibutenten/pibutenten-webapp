@@ -274,58 +274,59 @@ const PROC_LABEL: Record<string, string> = {
 function SkinInfoBlock({ info }: { info: SkinInfo }) {
   const v = info.visibility ?? {};
 
-  // 얼굴형 + 피부타입 + 피부고민은 한 박스에 태그로 모음 (제목 없이)
-  const profileChips: { label: string; q?: string }[] = [];
+  // 4개 섹션 — 친근한 문구 라벨, 안에 태그만
+  const sections: { title: string; chips: { label: string; q?: string }[] }[] = [];
+
+  // 1) 내 피부는요.. (얼굴형 + 피부타입)
+  const myChips: { label: string; q?: string }[] = [];
   if (v.face_shape !== false && info.faceShape) {
     const lbl = FACE_LABEL[info.faceShape] ?? info.faceShape;
-    profileChips.push({ label: lbl, q: lbl });
+    myChips.push({ label: lbl, q: lbl });
   }
   if (v.skin_type !== false && info.skinType) {
     const lbl = SKIN_LABEL[info.skinType] ?? info.skinType;
-    profileChips.push({ label: lbl, q: lbl });
+    myChips.push({ label: lbl, q: lbl });
   }
+  if (myChips.length) sections.push({ title: "내 피부는요..", chips: myChips });
+
+  // 2) 내 피부고민은요..
   if (v.skin_concerns !== false && info.skinConcerns.length) {
-    for (const c of info.skinConcerns) {
-      const lbl = CON_LABEL[c] ?? c;
-      profileChips.push({ label: lbl, q: lbl });
-    }
+    sections.push({
+      title: "내 피부고민은요..",
+      chips: info.skinConcerns.map((c) => {
+        const lbl = CON_LABEL[c] ?? c;
+        return { label: lbl, q: lbl };
+      }),
+    });
   }
 
-  // 관심시술 / 좋아하는 시술은 별도 박스 유지
-  const procSections: { title: string; chips: { label: string; q?: string }[] }[] = [];
+  // 3) 저는 이런 시술에 관심이 있어요..
   if (v.interested_procedures !== false && info.interestedProcedures.length) {
-    procSections.push({
-      title: "관심 시술",
+    sections.push({
+      title: "저는 이런 시술에 관심이 있어요..",
       chips: info.interestedProcedures.map((p) => {
         const lbl = PROC_LABEL[p] ?? p;
         return { label: lbl, q: lbl };
       }),
     });
   }
+
+  // 4) 저는 이런 시술들을 좋아해요~
   if (v.liked_procedures !== false && info.likedProcedures.length) {
-    procSections.push({
-      title: "좋아하는 시술",
+    sections.push({
+      title: "저는 이런 시술들을 좋아해요~",
       chips: info.likedProcedures.map((l) => ({ label: l, q: l })),
     });
   }
 
   return (
     <div className="space-y-4">
-      {profileChips.length > 0 && (
-        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
-          <div className="flex flex-wrap gap-1.5">
-            {profileChips.map((c, ci) => (
-              <ChipLink key={ci} c={c} />
-            ))}
-          </div>
-        </div>
-      )}
-      {procSections.map((s, i) => (
+      {sections.map((s, i) => (
         <div
           key={i}
           className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
         >
-          <h3 className="mb-2 text-[12px] font-semibold text-[var(--text-secondary)]">
+          <h3 className="mb-2.5 text-[13px] font-medium text-[var(--text-secondary)]">
             {s.title}
           </h3>
           <div className="flex flex-wrap gap-1.5">

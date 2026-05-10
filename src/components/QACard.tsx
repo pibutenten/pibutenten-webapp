@@ -1120,6 +1120,7 @@ export default function QACard({
         isPublishedQa={true}
         onCountChange={setCommentCount}
         showInput={commentsOpen}
+        disableAutoFocus={autoExpandComments}
       />
 
       {/* 삭제 확인 다이얼로그 */}

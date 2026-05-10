@@ -55,6 +55,8 @@ type Props = {
   onCountChange?: (next: number) => void;
   /** 입력 폼 표시 여부 — 부모가 펼침 상태 기준으로 결정 */
   showInput?: boolean;
+  /** true면 입력 폼 자동 포커스 안 함 (단독 URL 자동 펼침 시 모바일 키보드 방지) */
+  disableAutoFocus?: boolean;
 };
 
 type Me = {
@@ -68,6 +70,7 @@ export default function CommentsBlock({
   isPublishedQa,
   onCountChange,
   showInput = false,
+  disableAutoFocus = false,
 }: Props) {
   const [comments, setComments] = useState<CommentWithReplies[]>([]);
   const [totalRoot, setTotalRoot] = useState(0);
@@ -315,6 +318,7 @@ export default function CommentsBlock({
             onSubmit={() => submitComment(null)}
             submitting={submitting}
             placeholder="댓글 남기기"
+            disableAutoFocus={disableAutoFocus}
           />
         </div>
       )}
@@ -616,6 +620,7 @@ function CommentForm({
   onSubmit,
   submitting,
   placeholder,
+  disableAutoFocus = false,
 }: {
   body: string;
   onChange: (v: string) => void;
@@ -624,11 +629,15 @@ function CommentForm({
   placeholder?: string;
   /** 더 이상 사용하지 않음 — 답글 취소는 헤더 라인의 [답글 취소] inline 토글로 대체 */
   onCancel?: () => void;
+  /** true면 마운트 시 자동 포커스 안 함 (단독 URL 자동 펼침에서 키보드 방지) */
+  disableAutoFocus?: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // 마운트 시 자동 포커스 — 댓글창/답글창 열림 즉시 입력 가능 (모바일 키보드 자동 활성)
+  // disableAutoFocus=true면 (단독 URL 자동 펼침 등) 포커스 생략.
   useEffect(() => {
+    if (disableAutoFocus) return;
     const ta = textareaRef.current;
     if (!ta) return;
     // iOS Safari: 직접 focus만으론 키보드 안 뜰 수 있어 두 단계 시도
@@ -645,14 +654,14 @@ function CommentForm({
       }
     }, 0);
     return () => window.clearTimeout(id);
-  }, []);
+  }, [disableAutoFocus]);
 
   return (
     <div className="flex items-stretch gap-1.5">
       <div className="relative flex-1">
         <textarea
           ref={textareaRef}
-          autoFocus
+          autoFocus={!disableAutoFocus}
           value={body}
           onChange={(e) => {
             onChange(e.target.value);
