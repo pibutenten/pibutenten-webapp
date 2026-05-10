@@ -265,6 +265,13 @@ function stripToText(snippet: string): string {
     .replace(/<figure[\s\S]*?<\/figure>/gi, "")
     .replace(/<figcaption[\s\S]*?<\/figcaption>/gi, "")
     .replace(/<aside[\s\S]*?<\/aside>/gi, "")
+    // 본문 안 광고 블록 — class="ad-…"·"ad_…"·id="AD…"
+    .replace(
+      /<div[^>]*\b(?:class\s*=\s*["'][^"']*\b(?:ad[-_])[^"']*["']|id\s*=\s*["']AD[^"']*["'])[^>]*>[\s\S]*?<\/div>/gi,
+      "",
+    )
+    // iframe (광고·동영상) — 본문에 텍스트 기여 없음
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<\/(p|div|br|li|h[1-6])>/gi, "$& ")
     .replace(/<br\s*\/?>/gi, " ")
@@ -281,17 +288,29 @@ function koreanCmsBody(html: string): string {
     const startIdx = m.index + m[0].length;
     // 본문 컨테이너는 보통 5KB ~ 50KB. 안전하게 80KB까지 잘라옴.
     let chunk = html.slice(startIdx, startIdx + 80_000);
-    // 본문 끝 표시(다음 형제 요소들) 후로는 잘라냄
+    // 본문 끝 표시(다음 형제 요소들) 후로는 잘라냄.
+    // 한국 언론사 CMS는 본문 직후 다음 블록들이 옴 — 모두 본문이 아니므로 제거:
+    //   - <article class="writer">  : 기자 바이라인 + 이메일 + "기자의 다른기사"
+    //   - <article class="article-copy">: 저작권자 © ... 무단전재 및 재배포 금지
+    //   - <ul class="tag-group">    : 본문 태그 리스트
+    //   - 댓글 섹션 (#comment-area, .comment-area, etc.)
+    //   - 관련 기사 (.relation), 광고 (.ad-...)
+    // 본문 안에 인라인 광고(class="ad-template" 등)가 있을 수 있어 광고는 cut marker가 아닌
+    // stripToText 단계에서 제거. cut marker는 진짜 본문 종료 표식만.
     const endMarkers = [
-      /<div[^>]+class=["'][^"']*(?:article-copy|article-more|tag-group|relation|article-sns|article-bottom)/i,
-      /<aside\b/i,
+      /<(?:div|article|section|ul)[^>]*\bclass\s*=\s*["'][^"']*\b(?:article-copy|article-more|article-sns|article-bottom|writer|tag-group|relation)\b[^"']*["']/i,
+      /<(?:div|article|section)[^>]*\bid\s*=\s*["'](?:comment|comment-area|cmtBody|cmtContent|article-bottom)/i,
       /<footer\b/i,
-      /<!--\s*\/?\s*article(?:[- ]end|Cont)/i,
+      /<!--\s*\/?\s*article(?:[- ]end|Cont|-bottom)/i,
+      // 명시적 텍스트 마커 (HTML 정리 누락 사이트 대비)
+      /저작권자\s*&copy;|저작권자\s*©|무단전재 및 재배포/,
     ];
+    let cutAt = chunk.length;
     for (const em of endMarkers) {
       const me = em.exec(chunk);
-      if (me) chunk = chunk.slice(0, me.index);
+      if (me && me.index < cutAt) cutAt = me.index;
     }
+    chunk = chunk.slice(0, cutAt);
     const text = stripToText(chunk);
     if (text.length >= 80) return text;
   }
