@@ -272,13 +272,16 @@ export default function WriteClient({
             : meta.description;
         setBody(desc + sourceTag);
       }
-      // 키워드도 항상 새로 — URL 바꿨는데 이전 키워드 남아있으면 어색함
+      // 키워드 자동 추출 — 채우기 시 3~7개만 자동, 사용자가 추가로 maxKw(=10)까지 가능
+      const AUTO_TAG_MIN = 3;
+      const AUTO_TAG_MAX = 7;
       const { extractTagsFromText } = await import("@/lib/auto-tag");
       const haystack = [meta.title, meta.description]
         .filter((s): s is string => Boolean(s))
         .join("\n");
-      const auto = extractTagsFromText(haystack, { limit: maxKw });
-      setKeywords(auto.slice(0, maxKw));
+      const auto = extractTagsFromText(haystack, { limit: AUTO_TAG_MAX });
+      const slice = auto.slice(0, Math.max(AUTO_TAG_MIN, Math.min(auto.length, AUTO_TAG_MAX)));
+      setKeywords(slice);
     } catch (e) {
       setError(e instanceof Error ? e.message : "링크 처리 실패");
     } finally {

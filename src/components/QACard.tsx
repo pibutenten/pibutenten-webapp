@@ -68,6 +68,8 @@ export type QACardData = {
     /** v4 — 회원 핸들 (URL용) */
     handle?: string | null;
     alt_handle?: string | null;
+    /** v4 — avatar cache buster용. profile.updated_at (avatar 변경 시 갱신) */
+    updated_at?: string | null;
   } | null;
   video: {
     youtube_id: string;
@@ -128,42 +130,56 @@ export default function QACard({
   const isPick = PICK_IDS.has(qa.id);
 
   // 조회수 +1 — 의도적인 "보기" 신호일 때만 카운트.
-  // 조건: 카드가 viewport 중앙 영역 (위/아래 35% 마진 → 중앙 30%) 에 들어오고
-  //      DWELL_MS 동안 머물러 있어야 함. 페이지 로드 직후 첫 화면에 우연히 떠있는 것만으로는 카운트 X.
-  //      스크롤 도중 빠르게 지나가는 카드도 카운트 X.
-  // 페이지 단위 dedup: 한 페이지 안에서 같은 카드 여러 번 진입해도 1회.
-  // 같은 사용자가 다시 방문(재로드)하면 새로 카운트.
+  // 조건:
+  //   1) 사용자가 페이지에서 한 번이라도 스크롤한 후 (scrollOnce)
+  //   2) 카드가 viewport 중앙 30% 영역에 진입
+  //   3) 그 위치에 DWELL_MS(1.5초) 머물러 있을 때
+  //   → 첫 화면 그대로 멈춰 있어도 카운트 X (스크롤 신호 필요)
+  //   → 스크롤 후 빠르게 지나가는 카드도 카운트 X (dwell 필요)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const card = cardRef.current;
     if (!card) return;
 
-    const DWELL_MS = 1500; // 1.5초 머물러야 의도적 보기로 인정
+    const DWELL_MS = 1500;
     let counted = false;
+    let scrolled = false;
     let dwellTimer: ReturnType<typeof setTimeout> | null = null;
+    let pendingIntersect = false;
+
+    function maybeStartDwell() {
+      if (counted || !scrolled || !pendingIntersect) return;
+      if (dwellTimer) return;
+      dwellTimer = setTimeout(() => {
+        if (counted) return;
+        counted = true;
+        const sb = createSupabaseBrowserClient();
+        sb.rpc("increment_qa_view", { p_qa_id: qa.id }).then(
+          ({ data }: { data: number | null }) => {
+            if (typeof data === "number") setViewCount(data);
+          },
+        );
+        window.dispatchEvent(new CustomEvent("pibutenten:qa-viewed"));
+        observer.disconnect();
+      }, DWELL_MS);
+    }
+
+    function onScroll() {
+      if (scrolled) return;
+      scrolled = true;
+      maybeStartDwell();
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (counted) return;
         const entry = entries[0];
         if (!entry) return;
         if (entry.isIntersecting) {
-          // 중앙 영역에 진입 → dwell 타이머 시작
-          if (dwellTimer) clearTimeout(dwellTimer);
-          dwellTimer = setTimeout(() => {
-            if (counted) return;
-            counted = true;
-            const sb = createSupabaseBrowserClient();
-            sb.rpc("increment_qa_view", { p_qa_id: qa.id }).then(
-              ({ data }: { data: number | null }) => {
-                if (typeof data === "number") setViewCount(data);
-              },
-            );
-            window.dispatchEvent(new CustomEvent("pibutenten:qa-viewed"));
-            observer.disconnect();
-          }, DWELL_MS);
+          pendingIntersect = true;
+          maybeStartDwell();
         } else {
-          // 중앙 영역을 떠남 → 타이머 취소 (의도적 보기 아님)
+          pendingIntersect = false;
           if (dwellTimer) {
             clearTimeout(dwellTimer);
             dwellTimer = null;
@@ -171,7 +187,6 @@ export default function QACard({
         }
       },
       {
-        // viewport 중앙 30% 영역만 카운트 — 위/아래 35%씩 마진으로 무시
         rootMargin: "-35% 0px -35% 0px",
         threshold: 0.01,
       },
@@ -180,6 +195,7 @@ export default function QACard({
     return () => {
       if (dwellTimer) clearTimeout(dwellTimer);
       observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
     };
   }, [qa.id]);
 
@@ -425,11 +441,20 @@ export default function QACard({
   const authorName = isPersonalPost
     ? qa.author?.alt_display_name ?? qa.author?.display_name ?? "익명"
     : doctor?.name ?? qa.author?.display_name ?? "익명";
-  const authorAvatar = isPersonalPost
+  // 회원·personal 아바타에는 cache buster (profile.updated_at) 부착 — 사진 변경 즉시 반영
+  const rawAvatar = isPersonalPost
     ? qa.author?.alt_avatar_url ?? qa.author?.avatar_url ?? null
     : doctor
       ? photo
       : qa.author?.avatar_url ?? null;
+  const authorAvatar = (() => {
+    if (!rawAvatar) return null;
+    if (doctor && !isPersonalPost) return rawAvatar; // 정적 의사 사진은 그대로
+    const ts = qa.author?.updated_at;
+    if (!ts) return rawAvatar;
+    const stamp = new Date(ts).getTime();
+    return rawAvatar + (rawAvatar.includes("?") ? "&" : "?") + "v=" + stamp;
+  })();
 
   return (
     <article
