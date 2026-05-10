@@ -208,22 +208,20 @@ export async function POST(req: Request) {
     category = t === "qa" ? "qa" : t === "article" ? "tip" : "diary";
   }
 
-  // 첫 태그에 카테고리 한글 라벨 자동 prepend (모든 카테고리, spec D-8)
-  // 사용자 입력 keywords에서 같은 라벨 중복 제거 후 맨 앞에 삽입.
-  const CATEGORY_LABEL: Record<string, string> = {
-    qa: "Q&A",
-    tip: "꿀팁",
-    diary: "피부일기",
-    ask: "물어봐요",
-    news: "새소식",
-  };
-  const categoryLabel = CATEGORY_LABEL[category];
-  if (categoryLabel) {
-    const dedupedKeywords = keywords.filter((k) => k !== categoryLabel);
-    keywords.length = 0;
-    keywords.push(categoryLabel, ...dedupedKeywords);
-    if (keywords.length > 8) keywords.length = 8;
-  }
+  // v4: 카테고리 라벨은 카드 헤더(닉네임 밑)에 표시되므로 keywords에 별도 prepend 안 함.
+  // 사용자가 카테고리 라벨을 keywords에 직접 입력했으면 중복 방지로 제거.
+  const CATEGORY_LABELS_TO_STRIP = [
+    "Q&A",
+    "꿀팁",
+    "피부일기",
+    "물어봐요",
+    "새소식",
+  ];
+  const filteredKeywords = keywords.filter(
+    (k) => !CATEGORY_LABELS_TO_STRIP.includes(k),
+  );
+  keywords.length = 0;
+  keywords.push(...filteredKeywords.slice(0, 8));
 
   // 외부 링크 — 옵션. URL 형식 검증 후 메타와 함께 저장
   const extUrlRaw = (payload.external_url ?? "").trim();

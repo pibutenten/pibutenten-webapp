@@ -22,6 +22,7 @@ import {
   parseYoutubeTimestamp,
   formatTimestamp,
 } from "@/lib/youtube-time";
+import { labelForCategory } from "@/lib/post-category";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 export type QACardData = {
@@ -599,23 +600,28 @@ export default function QACard({
                   </span>
                 )}
               </div>
-              {/* 2줄: 주제 · 날짜 (영상 글이거나 작성일이 있을 때만) */}
-              {(qa.video?.topic || dateLabel) && (
-                <div className="mt-[3px] truncate text-[11.5px] leading-[1.2] text-[var(--text-muted)]">
-                  {qa.video?.topic ? qa.video.topic : ""}
-                  {dateLabel && (
-                    <>
-                      {qa.video?.topic ? " · " : ""}
-                      <time
-                        dateTime={dateIso}
-                        title={dateAbsolute ?? undefined}
-                      >
-                        {dateLabel}
-                      </time>
-                    </>
-                  )}
-                </div>
-              )}
+              {/* 2줄: 카테고리 · 날짜 — 모든 글 동일 (의사·회원·관리자 다 동일).
+                  옛 영상 topic 표시는 v4에서 제거 (카테고리로 통일). */}
+              {(() => {
+                const catLabel = labelForCategory(qa.category);
+                if (!catLabel && !dateLabel) return null;
+                return (
+                  <div className="mt-[3px] truncate text-[11.5px] leading-[1.2] text-[var(--text-muted)]">
+                    {catLabel}
+                    {dateLabel && (
+                      <>
+                        {catLabel ? " · " : ""}
+                        <time
+                          dateTime={dateIso}
+                          title={dateAbsolute ?? undefined}
+                        >
+                          {dateLabel}
+                        </time>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </button>
 
@@ -709,10 +715,17 @@ export default function QACard({
         })()}
       </div>
 
-      {/* 태그 칩 — 컴팩트 + 첫 6개만 노출, 초과 시 +N 토글 */}
-      {qa.keywords.length > 0 && (
+      {/* 태그 칩 — 카테고리 라벨(꿀팁/피부일기/물어봐요/새소식/Q&A)은 위 헤더에 이미
+          표시되므로 태그에서는 제외. 옛 데이터 호환 위해 display 단계에서 필터. */}
+      {(() => {
+        const CATEGORY_LABELS = ["꿀팁", "피부일기", "물어봐요", "새소식", "Q&A"];
+        const visibleKeywords = qa.keywords.filter(
+          (k) => !CATEGORY_LABELS.includes(k),
+        );
+        if (visibleKeywords.length === 0) return null;
+        return (
         <Keywords
-          keywords={qa.keywords}
+          keywords={visibleKeywords}
           activeQuery={activeQuery}
           queryCategoryColor={queryCategoryColor ?? null}
           onPick={(kw) => {
@@ -725,7 +738,8 @@ export default function QACard({
             }
           }}
         />
-      )}
+        );
+      })()}
 
       {/* footer: 조회수·좋아요·댓글·공유 — 컴팩트 */}
       <div className="flex items-center gap-3.5 pt-3 text-[13px] text-[var(--text-secondary)]">
