@@ -182,7 +182,7 @@ export default function ProfileTabs({
               >
                 {TAB_LABEL[t]}
                 {count !== null && count > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 text-[10px] font-normal leading-none text-[var(--text-muted)]">
+                  <span className="ml-1 text-[11px] font-normal text-[var(--text-muted)]">
                     {count}
                   </span>
                 )}
