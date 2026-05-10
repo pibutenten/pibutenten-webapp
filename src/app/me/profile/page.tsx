@@ -84,6 +84,23 @@ export default async function MyProfilePage() {
         currentMarketingConsent={!!profile.marketing_email_consent}
         hasPassword={hasPassword}
       />
+
+      {/* 온보딩 정보 — 피부타입·관심시술·아바타·생년월일 등.
+          별도 페이지로 분리되어 있어 여기서는 진입 링크만 제공. */}
+      <div className="mt-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
+        <h2 className="mb-1 text-sm font-bold text-[var(--text)]">
+          피부 정보·아바타
+        </h2>
+        <p className="mb-3 text-[12px] text-[var(--text-muted)]">
+          피부 타입·관심 시술·생년월일·아바타 등은 온보딩 페이지에서 수정해요.
+        </p>
+        <Link
+          href="/onboarding"
+          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--primary)] px-3 py-1.5 text-[13px] font-semibold text-[var(--primary)] hover:bg-[var(--primary-soft)]"
+        >
+          ✨ 온보딩 정보 수정
+        </Link>
+      </div>
     </section>
   );
 }
