@@ -31,7 +31,7 @@ export default async function MyProfilePage() {
   const hasPassword = identities.some((i) => i.provider === "email");
 
   return (
-    <section className="w-full py-6">
+    <section className="mx-auto w-full max-w-[640px] py-6">
       <div className="mb-5 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold text-[var(--text)]">내 정보</h1>
         <Link

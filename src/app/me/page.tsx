@@ -32,6 +32,9 @@ export default async function MeRedirect() {
 
   if (!profile) redirect("/");
 
+  // 관리자 — 본인 프로필 안 만들고 대시보드로
+  if (profile.role === "admin") redirect("/admin");
+
   const persona = (await readPersonaServer()) as "official" | "personal";
 
   // 의사 official — /doctors/{slug}

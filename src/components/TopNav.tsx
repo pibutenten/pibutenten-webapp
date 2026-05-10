@@ -375,16 +375,19 @@ export default function TopNav({ session }: TopNavProps) {
             <>
               {(() => {
                 // 진입 URL 결정
+                //  - 관리자: /admin (관리자는 본인 프로필 안 만들고 대시보드만)
                 //  - 의사 official: /doctors/{slug}
-                //  - 의사 personal · 회원 · 관리자: /{handle 또는 alt_handle}
+                //  - 의사 personal · 회원: /{handle 또는 alt_handle}
                 //  - handle 미설정 시 fallback /me
                 const isPersonal = session.persona === "personal";
                 const profileHref =
-                  session.role === "doctor" && !isPersonal && session.doctorSlug
-                    ? `/doctors/${session.doctorSlug}`
-                    : (isPersonal ? session.altHandle : session.handle)
-                      ? `/${isPersonal ? session.altHandle : session.handle}`
-                      : "/me";
+                  session.role === "admin"
+                    ? "/admin"
+                    : session.role === "doctor" && !isPersonal && session.doctorSlug
+                      ? `/doctors/${session.doctorSlug}`
+                      : (isPersonal ? session.altHandle : session.handle)
+                        ? `/${isPersonal ? session.altHandle : session.handle}`
+                        : "/me";
                 const displayName = isPersonal
                   ? session.altDisplayName ?? session.displayName
                   : session.displayName;

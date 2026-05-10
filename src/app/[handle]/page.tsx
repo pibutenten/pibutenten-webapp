@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type QACardData } from "@/components/QACard";
@@ -100,7 +100,8 @@ export default async function HandleProfilePage({ params }: Props) {
   } = await supabase.auth.getUser();
   const isOwner = viewer?.id === profile.id;
 
-  // 본인일 때 role 조회 — admin이면 [관리자 대시보드] 진입 링크 노출
+  // 본인일 때 role 조회 — admin이면 본인 프로필 안 보여주고 /admin으로 redirect
+  // (관리자는 본인 명의로 글 안 씀 — 의사 명의 검수 흐름만)
   let viewerRole: "admin" | "doctor" | "user" | null = null;
   if (isOwner && viewer) {
     const { data: vp } = await supabase
@@ -110,6 +111,9 @@ export default async function HandleProfilePage({ params }: Props) {
       .maybeSingle();
     viewerRole =
       ((vp?.role as "admin" | "doctor" | "user" | undefined) ?? null) ?? null;
+    if (viewerRole === "admin") {
+      redirect("/admin");
+    }
   }
 
   const displayName = isAlt
@@ -184,14 +188,7 @@ export default async function HandleProfilePage({ params }: Props) {
             >
               ✏️ 프로필 수정
             </Link>
-            {viewerRole === "admin" && (
-              <Link
-                href="/admin"
-                className="rounded-full border border-[var(--border)] px-3 py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-              >
-                🛡 관리자
-              </Link>
-            )}
+            {/* admin은 위에서 /admin으로 redirect 되므로 여기 도달 X */}
           </div>
         )}
       </div>

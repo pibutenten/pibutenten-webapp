@@ -79,12 +79,12 @@ const STATUS_LIST: { key: StatusFilter; label: string }[] = [
   { key: "archived", label: "보관" },
 ];
 
-// status 색상 (제안 사양에 맞춤)
-const STATUS_STYLE: Record<QAStatus, { bg: string; fg: string; label: string }> = {
-  draft: { bg: "#9E9E9E", fg: "#FFFFFF", label: "초안" },
-  pending_review: { bg: "#FFA000", fg: "#FFFFFF", label: "대기" },
-  published: { bg: "#4CAF50", fg: "#FFFFFF", label: "발행" },
-  archived: { bg: "#616161", fg: "#FFFFFF", label: "보관" },
+// status 색상 — 발행은 너무 튀지 않게 외곽선·옅은 톤. 대기·보관은 강조 유지.
+const STATUS_STYLE: Record<QAStatus, { bg: string; fg: string; label: string; border?: string }> = {
+  draft: { bg: "#F3F4F6", fg: "#6B7280", label: "초안", border: "#E5E7EB" },
+  pending_review: { bg: "#FFF7E6", fg: "#B26F00", label: "대기", border: "#FFD08A" },
+  published: { bg: "transparent", fg: "#16A34A", label: "발행", border: "#BBF7D0" },
+  archived: { bg: "#F3F4F6", fg: "#4B5563", label: "보관", border: "#E5E7EB" },
 };
 
 function isStatusFilter(v: string | undefined): v is StatusFilter {
@@ -526,23 +526,22 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                       </td>
                       <td className="px-3 py-2 align-top">
                         <span
-                          className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium"
+                          className="inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium"
                           style={{
                             backgroundColor: style.bg,
                             color: style.fg,
+                            borderColor: style.border ?? "transparent",
                           }}
                         >
                           {style.label}
                         </span>
                       </td>
-                      <td className="px-3 py-2 align-top text-xs text-[var(--text-secondary)]">
-                        {/* v4: 칼럼은 표기에서 제거 (article도 포스팅으로) */}
-                        {r.type === "qa" ? "Q&A" : "포스팅"}
-                        {r.type === "post" && r.category && (
-                          <span className="ml-1.5 text-[10px] text-[var(--text-muted)]">
-                            · {labelForCategory(r.category)}
-                          </span>
-                        )}
+                      <td className="whitespace-nowrap px-3 py-2 align-top text-xs text-[var(--text-secondary)]">
+                        {/* v4: 포스팅이면 카테고리만 표기 (꿀팁/피부일기/물어봐요/새소식),
+                            Q&A이면 'Q&A'. 컬럼 가로폭 절약. */}
+                        {r.type === "qa"
+                          ? "Q&A"
+                          : labelForCategory(r.category) || "포스팅"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 align-top text-[var(--text)]">
                         {/* 글쓴이 — 의사 official 글이면 원장 이름, 그 외엔 닉네임(handle/display_name) */}

@@ -75,15 +75,9 @@ export default function ProfileTabs({ posts, isOwner, postsCount }: Props) {
         ) : (
           <QAFeed initial={posts} pageSize={20} />
         ))}
-      {tab === "comments" && (
-        <Empty msg="댓글 보기는 준비 중입니다" />
-      )}
-      {tab === "likes" && (
-        <Empty msg="좋아요한 글 보기는 준비 중입니다" />
-      )}
-      {tab === "saves" && (
-        <Empty msg="저장한 글 보기는 준비 중입니다" />
-      )}
+      {tab === "comments" && <Empty msg="작성한 댓글이 없어요" />}
+      {tab === "likes" && <Empty msg="좋아요한 글이 없어요" />}
+      {tab === "saves" && <Empty msg="저장한 글이 없어요" />}
     </div>
   );
 }

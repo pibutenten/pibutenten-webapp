@@ -26,6 +26,8 @@ type QA = {
   keywords: string[];
   status: "draft" | "pending_review" | "published" | "archived";
   type: "qa" | "post";
+  category: string | null;
+  posted_as: "official" | "personal" | null;
   is_pick?: boolean;
   doctor_id: string | null;
   video_id: string | null;
@@ -34,6 +36,14 @@ type QA = {
   created_at: string;
   doctor: Doctor | null;
   video: Video | null;
+  author: {
+    id: string;
+    display_name: string | null;
+    alt_display_name: string | null;
+    handle: string | null;
+    alt_handle: string | null;
+    role: "user" | "doctor" | "admin";
+  } | null;
 };
 
 type Props = {
