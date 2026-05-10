@@ -13,6 +13,10 @@ type Props = {
   /** 본인 보기일 때만 [좋아요][저장] 탭 노출 */
   isOwner: boolean;
   postsCount: number;
+  /** 댓글 카운트 (server-side prefetch) — 탭 미클릭 시에도 표시 */
+  commentsCount?: number;
+  likesCount?: number;
+  savesCount?: number;
   /** 댓글 fetch 대상 — profile.id (author_id) */
   profileId: string;
   /** personal/official 페르소나로 작성한 댓글만 fetch */
@@ -79,6 +83,9 @@ export default function ProfileTabs({
   posts,
   isOwner,
   postsCount,
+  commentsCount,
+  likesCount,
+  savesCount,
   profileId,
   personaForPosts,
 }: Props) {
@@ -128,8 +135,10 @@ export default function ProfileTabs({
             t === "posts"
               ? postsCount
               : t === "comments"
-                ? comments?.length ?? null
-                : 0;
+                ? comments?.length ?? commentsCount ?? 0
+                : t === "likes"
+                  ? likesCount ?? 0
+                  : savesCount ?? 0;
           return (
             <button
               key={t}
@@ -144,7 +153,7 @@ export default function ProfileTabs({
             >
               {TAB_LABEL[t]}
               <span className="ml-1 text-[11px] text-[var(--text-muted)]">
-                {count ?? "·"}
+                {count}
               </span>
               {active && (
                 <span className="absolute -bottom-px left-0 right-0 h-0.5 bg-[var(--primary)]" />

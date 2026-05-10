@@ -26,6 +26,14 @@ type ProfileRow = {
   created_at: string;
   handle: string | null;
   alt_handle: string | null;
+  birthdate: string | null;
+  gender: "male" | "female" | "other" | null;
+  face_shape: string | null;
+  skin_type: string | null;
+  skin_concerns: string[] | null;
+  interested_procedures: string[] | null;
+  liked_procedures: string[] | null;
+  field_visibility: Record<string, boolean> | null;
 };
 
 /**
@@ -48,7 +56,7 @@ async function fetchProfileByHandle(
   let { data } = await supabase
     .from("profiles")
     .select(
-      "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle",
+      "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility",
     )
     .eq("handle", handle)
     .maybeSingle()
@@ -59,7 +67,7 @@ async function fetchProfileByHandle(
   ({ data } = await supabase
     .from("profiles")
     .select(
-      "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle",
+      "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility",
     )
     .eq("alt_handle", handle)
     .maybeSingle()
@@ -146,6 +154,14 @@ export default async function HandleProfilePage({ params }: Props) {
 
   const posts = postsData ?? [];
 
+  // 댓글 카운트 prefetch (탭 미클릭 시에도 숫자 표시)
+  const { count: commentsCount } = await supabase
+    .from("comments")
+    .select("id", { count: "exact", head: true })
+    .eq("author_id", profile.id)
+    .eq("posted_as", personaForPosts)
+    .eq("status", "visible");
+
   return (
     <section className="w-full py-6">
       {/* 프로필 헤더 — 사진 가운데, 카드 wrapper 없이 */}
@@ -191,12 +207,83 @@ export default async function HandleProfilePage({ params }: Props) {
             {/* admin은 위에서 /admin으로 redirect 되므로 여기 도달 X */}
           </div>
         )}
+
+        {/* 공개된 피부 정보 — 본인이 [공개] 체크한 항목만 표시 */}
+        {(() => {
+          const v = profile.field_visibility ?? {};
+          const items: string[] = [];
+          if (v.face_shape !== false && profile.face_shape) {
+            const FACE_LABEL: Record<string, string> = {
+              oval: "달걀형", peanut: "땅콩형", oblong: "장방형",
+              square: "각진형", round: "둥근형",
+            };
+            items.push(`얼굴 ${FACE_LABEL[profile.face_shape] ?? profile.face_shape}`);
+          }
+          if (v.skin_type !== false && profile.skin_type) {
+            const SKIN_LABEL: Record<string, string> = {
+              extreme_dry: "극건성", dry: "건성", normal: "중성",
+              combination: "복합성", dehydrated_oily: "수부지",
+              oily: "지성", extreme_oily: "극지성",
+            };
+            items.push(SKIN_LABEL[profile.skin_type] ?? profile.skin_type);
+          }
+          if (v.skin_concerns !== false && profile.skin_concerns?.length) {
+            const CON_LABEL: Record<string, string> = {
+              elasticity: "탄력", volume: "볼륨", wrinkle: "주름",
+              tone: "피부톤", pores: "모공", contour: "윤곽",
+              texture: "피부결", aging: "노안", trouble: "트러블",
+              sensitive: "민감성",
+            };
+            items.push(
+              ...profile.skin_concerns
+                .slice(0, 4)
+                .map((c) => `#${CON_LABEL[c] ?? c}`),
+            );
+          }
+          if (
+            v.interested_procedures !== false &&
+            profile.interested_procedures?.length
+          ) {
+            const PROC_LABEL: Record<string, string> = {
+              lifting: "리프팅", laser: "피부레이저", booster: "스킨부스터",
+              botox: "보톡스", filler: "필러", cosmetic: "화장품",
+            };
+            items.push(
+              ...profile.interested_procedures
+                .slice(0, 4)
+                .map((p) => `${PROC_LABEL[p] ?? p}에 관심`),
+            );
+          }
+          if (v.liked_procedures !== false && profile.liked_procedures?.length) {
+            items.push(
+              ...profile.liked_procedures
+                .slice(0, 5)
+                .map((l) => `❤ ${l}`),
+            );
+          }
+          if (items.length === 0) return null;
+          return (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+              {items.map((it, i) => (
+                <span
+                  key={i}
+                  className="rounded-full bg-[var(--bg-soft)] px-2.5 py-0.5 text-[11.5px] text-[var(--text-secondary)]"
+                >
+                  {it}
+                </span>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* 탭 — 작성 글 / 댓글 / 좋아요(owner) / 저장(owner). 작성 글 탭은 2단 QAFeed. */}
       <ProfileTabs
         posts={posts}
         postsCount={posts.length}
+        commentsCount={commentsCount ?? 0}
+        likesCount={0}
+        savesCount={0}
         isOwner={isOwner}
         profileId={profile.id}
         personaForPosts={personaForPosts}
