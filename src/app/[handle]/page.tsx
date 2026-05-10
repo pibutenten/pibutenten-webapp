@@ -236,8 +236,8 @@ export default async function HandleProfilePage({ params }: Props) {
         posts={posts}
         postsCount={posts.length}
         commentsCount={commentsCount ?? 0}
-        likesCount={0}
-        savesCount={0}
+        likesCount={likesCount}
+        savesCount={savesCount}
         isOwner={isOwner}
         profileId={profile.id}
         personaForPosts={personaForPosts}

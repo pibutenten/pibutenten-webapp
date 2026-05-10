@@ -169,6 +169,7 @@ export default function ProfileEditClient({
     initial.likedProcedures,
   );
   const [likedInput, setLikedInput] = useState("");
+  const [interestedInput, setInterestedInput] = useState("");
   const [bio, setBio] = useState(initial.bio);
   const [visibility, setVisibility] = useState<FieldVisibility>(
     initial.fieldVisibility,
@@ -195,6 +196,23 @@ export default function ProfileEditClient({
     }
     setLikedProcedures([...likedProcedures, v]);
     setLikedInput("");
+  }
+  function addInterestedProcedure() {
+    const v = interestedInput.trim();
+    if (!v) return;
+    if (interestedProcedures.includes(v)) {
+      setInterestedInput("");
+      return;
+    }
+    if (interestedProcedures.length >= 10) {
+      setSkinStatus({
+        type: "err",
+        msg: "관심있는 시술은 최대 10개까지 추가할 수 있어요.",
+      });
+      return;
+    }
+    setInterestedProcedures([...interestedProcedures, v]);
+    setInterestedInput("");
   }
   // 통합 저장: 사진 + 닉네임 + 자기소개 + 피부정보 + visibility 한 번에
   function saveAll() {
@@ -497,32 +515,56 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 8. 관심시술 */}
+      {/* 8. 관심있는 시술 (자유 입력) */}
       <SectionWithVisibility
-        title="관심시술"
+        title="관심있는 시술이 있으세요?"
         visField="interested_procedures"
         visibility={visibility}
         setVisibility={setVisibility}
-        subtitle="복수 선택 가능"
+        subtitle="자유 입력 — Enter로 추가"
       >
-        <div className="flex flex-wrap gap-1.5">
-          {PROCEDURES.map((p) => (
-            <Chip
-              key={p.key}
-              active={interestedProcedures.includes(p.key)}
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {interestedProcedures.map((k) => (
+            <button
+              key={k}
+              type="button"
               onClick={() =>
-                setInterestedProcedures(toggleArr(interestedProcedures, p.key))
+                setInterestedProcedures(interestedProcedures.filter((x) => x !== k))
               }
+              style={{ backgroundColor: SELECTED, color: "#fff" }}
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1 text-[12.5px] font-medium opacity-90 hover:opacity-100"
             >
-              {p.label}
-            </Chip>
+              {k} <span aria-hidden>×</span>
+            </button>
           ))}
+        </div>
+        <div className="flex gap-1.5">
+          <input
+            type="text"
+            value={interestedInput}
+            onChange={(e) => setInterestedInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addInterestedProcedure();
+              }
+            }}
+            placeholder="예: 보톡스, 필러, 울쎄라, 써마지, 티타늄, 리쥬란 등"
+            className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={addInterestedProcedure}
+            className="h-9 rounded-md border border-[var(--border)] px-3 text-[12px] hover:bg-[var(--bg-soft)]"
+          >
+            추가
+          </button>
         </div>
       </SectionWithVisibility>
 
-      {/* 9. 본인이 좋아하는 시술 (자유 입력) */}
+      {/* 9. 좋아하는 시술 (자유 입력) */}
       <SectionWithVisibility
-        title="본인이 좋아하는 시술이 있다면?"
+        title="좋아하는 시술이 있으세요?"
         visField="liked_procedures"
         visibility={visibility}
         setVisibility={setVisibility}
@@ -536,7 +578,8 @@ export default function ProfileEditClient({
               onClick={() =>
                 setLikedProcedures(likedProcedures.filter((x) => x !== k))
               }
-              className="inline-flex items-center gap-1 rounded-full border border-[#D1D5DB] bg-[#F9FAFB] px-2.5 py-0.5 text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[#F3F4F6]"
+              style={{ backgroundColor: SELECTED, color: "#fff" }}
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1 text-[12.5px] font-medium opacity-90 hover:opacity-100"
             >
               {k} <span aria-hidden>×</span>
             </button>
