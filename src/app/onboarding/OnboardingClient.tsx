@@ -46,7 +46,7 @@ const SKIN_CONCERNS: { key: string; label: string }[] = [
 
 const PROCEDURES: { key: string; label: string }[] = [
   { key: "lifting", label: "리프팅" },
-  { key: "laser", label: "피부레이저" },
+  { key: "laser", label: "레이저" },
   { key: "booster", label: "스킨부스터" },
   { key: "botox", label: "보톡스" },
   { key: "filler", label: "필러" },

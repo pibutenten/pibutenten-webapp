@@ -334,7 +334,7 @@ const CON_LABEL: Record<string, string> = {
   sensitive: "민감성",
 };
 const PROC_LABEL: Record<string, string> = {
-  lifting: "리프팅", laser: "피부레이저", booster: "스킨부스터",
+  lifting: "리프팅", laser: "레이저", booster: "스킨부스터",
   botox: "보톡스", filler: "필러", cosmetic: "화장품",
 };
 

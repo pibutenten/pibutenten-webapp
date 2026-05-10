@@ -44,7 +44,7 @@ type Status =
   | { type: "err"; msg: string };
 
 const SELECTED = "#9CA3AF"; // 더 연한 회색
-const CHECK_ACCENT = "#9CA3AF";
+const CHECK_ACCENT = "#CBD5E1"; // 체크박스 — 더 연한 슬레이트 (눈에 덜 띄게)
 
 /** 클라이언트 리사이징 — 256x256 center-crop, JPEG 0.82 */
 async function resizeImage(file: File): Promise<Blob> {
