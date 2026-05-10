@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PickToggle from "@/components/PickToggle";
+import { labelForCategory } from "@/lib/post-category";
 
 export const dynamic = "force-dynamic";
 
@@ -10,13 +11,16 @@ export const dynamic = "force-dynamic";
 // ─────────────────────────────────────────────
 type QAStatus = "draft" | "pending_review" | "published" | "archived";
 type QAType = "qa" | "post" | "article";
-type TypeFilter = QAType | "all";
+type TypeFilter = "qa" | "post" | "all"; // v4: 칼럼(article) UI에서 제거
 type StatusFilter = QAStatus | "all";
+type CategoryFilter = "tip" | "diary" | "ask" | "news" | "all";
 
 type AdminQARow = {
   id: number;
   status: QAStatus;
   type: QAType;
+  category: string | null;
+  posted_as: "official" | "personal" | null;
   is_pick: boolean | null;
   question: string;
   answer: string | null;
@@ -26,6 +30,12 @@ type AdminQARow = {
   comments_count: { count: number }[] | null;
   created_at: string;
   doctor: { slug: string; name: string; branch: string | null } | null;
+  author: {
+    display_name: string | null;
+    alt_display_name: string | null;
+    handle: string | null;
+    alt_handle: string | null;
+  } | null;
 };
 
 type DoctorOption = {
@@ -41,6 +51,7 @@ type Props = {
   searchParams: Promise<{
     status?: string;
     type?: string;
+    category?: string;
     q?: string;
     doctor?: string;
     pick?: string;
@@ -49,7 +60,13 @@ type Props = {
 };
 
 function isTypeFilter(v: string | undefined): v is TypeFilter {
-  return v === "qa" || v === "post" || v === "article" || v === "all";
+  return v === "qa" || v === "post" || v === "all";
+}
+
+function isCategoryFilter(v: string | undefined): v is CategoryFilter {
+  return (
+    v === "tip" || v === "diary" || v === "ask" || v === "news" || v === "all"
+  );
 }
 
 const PAGE_SIZE = 50;
@@ -126,6 +143,9 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   // ── 쿼리 파라미터 파싱 ──
   const statusParam = isStatusFilter(sp.status) ? sp.status : "all";
   const typeParam: TypeFilter = isTypeFilter(sp.type) ? sp.type : "all";
+  const categoryParam: CategoryFilter = isCategoryFilter(sp.category)
+    ? sp.category
+    : "all";
   const qParam = (sp.q ?? "").trim();
   const doctorSlugParam = (sp.doctor ?? "").trim();
   const pickOnly = sp.pick === "1";
@@ -182,14 +202,17 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   let listQuery = supabase
     .from("qas")
     .select(
-      `id, status, type, is_pick, question, answer, like_count, view_count, share_count, created_at,
+      `id, status, type, category, posted_as, is_pick, question, answer, like_count, view_count, share_count, created_at,
        comments_count:comments(count),
-       doctor:doctors(slug, name, branch)`,
+       doctor:doctors(slug, name, branch),
+       author:profiles!qas_author_id_profiles_fkey(display_name, alt_display_name, handle, alt_handle)`,
       { count: "exact" },
     );
 
   if (statusParam !== "all") listQuery = listQuery.eq("status", statusParam);
   if (typeParam !== "all") listQuery = listQuery.eq("type", typeParam);
+  if (categoryParam !== "all")
+    listQuery = listQuery.eq("category", categoryParam);
   if (doctorIdFilter) listQuery = listQuery.eq("doctor_id", doctorIdFilter);
   if (pickOnly) listQuery = listQuery.eq("is_pick", true);
   if (qParam) {
@@ -219,20 +242,30 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   const endPage = Math.min(totalPages, pageNum + 2);
   for (let p = startPage; p <= endPage; p++) pageNumbers.push(p);
 
-  // 공통 query baseline (status/type/doctor/pick/q는 페이지 이동시 유지)
+  // 공통 query baseline (status/type/category/doctor/pick/q는 페이지 이동시 유지)
   const baseQuery = {
     status: statusParam === "all" ? undefined : statusParam,
     type: typeParam === "all" ? undefined : typeParam,
+    category: categoryParam === "all" ? undefined : categoryParam,
     pick: pickOnly ? "1" : undefined,
     q: qParam || undefined,
     doctor: doctorSlugParam || undefined,
   };
 
+  // v4: 칼럼(article)은 UI에서 제거. 타입은 포스팅·Q&A 두 종류.
   const TYPE_LIST: { key: TypeFilter; label: string }[] = [
     { key: "all", label: "전체 타입" },
     { key: "post", label: "포스팅" },
     { key: "qa", label: "Q&A" },
-    { key: "article", label: "칼럼" },
+  ];
+
+  // 포스팅 카테고리 — Q&A 카테고리는 type=qa이므로 제외, 포스팅 4종만
+  const CATEGORY_LIST: { key: CategoryFilter; label: string }[] = [
+    { key: "all", label: "전체 카테고리" },
+    { key: "tip", label: "꿀팁" },
+    { key: "diary", label: "피부일기" },
+    { key: "ask", label: "물어봐요" },
+    { key: "news", label: "새소식" },
   ];
 
   return (
@@ -285,14 +318,16 @@ export default async function AdminQAsPage({ searchParams }: Props) {
         })}
       </div>
 
-      {/* type + Pick 필터 — 좌측 type 토글, 우측 Pick 토글 */}
+      {/* type + 포스팅 카테고리 + Pick 필터 */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-0.5">
           {TYPE_LIST.map((t) => {
             const active = t.key === typeParam;
+            // 타입을 바꾸면 카테고리는 reset (qa로 가면 카테고리 의미 없음)
             const href = `/admin/qas${buildQueryString({
               ...baseQuery,
               type: t.key === "all" ? undefined : t.key,
+              category: t.key === "post" ? baseQuery.category : undefined,
               page: undefined,
             })}`;
             return (
@@ -306,9 +341,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
                 }
                 style={
-                  active
-                    ? { backgroundColor: "#7DC1DD33" }
-                    : undefined
+                  active ? { backgroundColor: "#7DC1DD33" } : undefined
                 }
               >
                 {t.label}
@@ -316,6 +349,37 @@ export default async function AdminQAsPage({ searchParams }: Props) {
             );
           })}
         </div>
+
+        {/* 포스팅 카테고리 — type=post 일 때만 의미. type=qa·all 일 때는 disabled 톤. */}
+        {typeParam === "post" && (
+          <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-0.5">
+            {CATEGORY_LIST.map((c) => {
+              const active = c.key === categoryParam;
+              const href = `/admin/qas${buildQueryString({
+                ...baseQuery,
+                category: c.key === "all" ? undefined : c.key,
+                page: undefined,
+              })}`;
+              return (
+                <Link
+                  key={c.key}
+                  href={href}
+                  className={
+                    "rounded-[var(--radius-sm)] px-3 py-1 text-xs transition-colors " +
+                    (active
+                      ? "font-semibold text-[var(--text)]"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
+                  }
+                  style={
+                    active ? { backgroundColor: "#A8D8B933" } : undefined
+                  }
+                >
+                  {c.label}
+                </Link>
+              );
+            })}
+          </div>
+        )}
         <Link
           href={`/admin/qas${buildQueryString({
             ...baseQuery,
@@ -345,6 +409,9 @@ export default async function AdminQAsPage({ searchParams }: Props) {
         )}
         {typeParam !== "all" && (
           <input type="hidden" name="type" value={typeParam} />
+        )}
+        {categoryParam !== "all" && (
+          <input type="hidden" name="category" value={categoryParam} />
         )}
         {pickOnly && <input type="hidden" name="pick" value="1" />}
         <select
@@ -429,7 +496,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                   <th className="px-3 py-2 text-center font-medium">Pick</th>
                   <th className="px-3 py-2 text-left font-medium">상태</th>
                   <th className="px-3 py-2 text-left font-medium">타입</th>
-                  <th className="px-3 py-2 text-left font-medium">원장</th>
+                  <th className="px-3 py-2 text-left font-medium">글쓴이</th>
                   <th className="px-3 py-2 text-left font-medium">제목</th>
                   <th className="px-3 py-2 text-right font-medium">좋아요</th>
                   <th className="px-3 py-2 text-right font-medium">조회수</th>
@@ -469,15 +536,29 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                         </span>
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-[var(--text-secondary)]">
-                        {r.type === "post"
-                          ? "포스팅"
-                          : r.type === "article"
-                            ? "칼럼"
-                            : "Q&A"}
+                        {/* v4: 칼럼은 표기에서 제거 (article도 포스팅으로) */}
+                        {r.type === "qa" ? "Q&A" : "포스팅"}
+                        {r.type === "post" && r.category && (
+                          <span className="ml-1.5 text-[10px] text-[var(--text-muted)]">
+                            · {labelForCategory(r.category)}
+                          </span>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 align-top text-[var(--text)]">
-                        {r.doctor ? (
-                          r.doctor.name
+                        {/* 글쓴이 — 의사 official 글이면 원장 이름, 그 외엔 닉네임(handle/display_name) */}
+                        {r.doctor && r.posted_as === "official" ? (
+                          <span>{r.doctor.name}</span>
+                        ) : r.author ? (
+                          <span>
+                            {r.posted_as === "personal"
+                              ? r.author.alt_display_name ??
+                                r.author.alt_handle ??
+                                r.author.handle ??
+                                "—"
+                              : r.author.display_name ??
+                                r.author.handle ??
+                                "—"}
+                          </span>
                         ) : (
                           <span className="text-[var(--text-muted)]">—</span>
                         )}

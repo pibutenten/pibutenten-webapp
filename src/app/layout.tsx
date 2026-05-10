@@ -77,16 +77,36 @@ async function getSessionInfo(): Promise<SessionInfo> {
     if (!user) return null;
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, display_name, avatar_url, alt_display_name, alt_avatar_url")
+      .select(
+        "role, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle",
+      )
       .eq("id", user.id)
       .maybeSingle();
     if (!profile) return null;
+    // doctor → 공식 doctors.slug 매핑 lookup (헤더 1-click 진입용)
+    let doctorSlug: string | null = null;
+    if (profile.role === "doctor") {
+      const { data: da } = await supabase
+        .from("doctor_accounts")
+        .select("doctor:doctors(slug)")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+      const d = da?.doctor as { slug: string } | { slug: string }[] | null;
+      doctorSlug = Array.isArray(d) ? d[0]?.slug ?? null : d?.slug ?? null;
+    }
+    // 페르소나 — 의사/관리자가 personal로 스위치한 상태 여부
+    const { readPersonaServer } = await import("@/lib/persona-server");
+    const persona = (await readPersonaServer()) as "official" | "personal";
     return {
       role: (profile.role as "admin" | "doctor" | "user") ?? "user",
       displayName: profile.display_name ?? user.email ?? "",
       avatarUrl: (profile.avatar_url as string | null) ?? null,
       altDisplayName: (profile.alt_display_name as string | null) ?? null,
       altAvatarUrl: (profile.alt_avatar_url as string | null) ?? null,
+      handle: (profile.handle as string | null) ?? null,
+      altHandle: (profile.alt_handle as string | null) ?? null,
+      doctorSlug,
+      persona,
     };
   } catch {
     return null;

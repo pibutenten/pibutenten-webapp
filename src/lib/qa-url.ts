@@ -1,31 +1,58 @@
 /**
  * Q&A 글 URL 생성 헬퍼.
  *
- * 정책 (§2 SEO 문서):
- *  - 의사 글 (doctor_id + post_year + post_slug 모두 있음):
- *      /doctors/{doctorSlug}/{year}/{postSlug} ← canonical
- *  - 그 외 (post_slug 부재 / 의사 없음 / 기타 fallback): /qa/{id}
- *  - 칼럼(article)은 별도: /article/{article_slug}
+ * v4 spec:
+ *  - 의사 official 글 (doctor + post_year + post_slug):
+ *      /doctors/{doctorSlug}/{year}/{post-slug} ← canonical (keyword slug)
+ *  - 회원 글 (author handle + post_year + shortcode):
+ *      /{handle}/{year}/{shortcode} ← canonical (8자 base58)
+ *  - 의사 personal persona 글 (alt_handle + post_year + shortcode):
+ *      /{alt_handle}/{year}/{shortcode} ← 회원 패턴과 동일
+ *  - canonical 정보 부족 (handle/slug 부재) → /qa/{id} fallback
+ *  - 칼럼(article) → /article/{article_slug}
  */
 export type QaUrlInput = {
   id: number;
   type?: "qa" | "post" | "article" | "link" | string;
+  posted_as?: "doctor" | "self" | string | null;
   article_slug?: string | null;
-  doctor?: { slug: string } | { slug: string } | null;
+  doctor?: { slug: string } | null;
   post_year?: number | null;
   post_slug?: string | null;
+  shortcode?: string | null;
+  author?: {
+    handle?: string | null;
+    alt_handle?: string | null;
+  } | null;
 };
 
 export function getQaUrl(qa: QaUrlInput): string {
-  // 칼럼은 article 라우트
+  // 1) 칼럼은 article 라우트
   if (qa.type === "article" && qa.article_slug) {
     return `/article/${encodeURIComponent(qa.article_slug)}`;
   }
-  // 의사 글 + slug + year 모두 있으면 canonical 새 URL
-  const doctorSlug = qa.doctor?.slug;
-  if (doctorSlug && qa.post_year && qa.post_slug) {
-    return `/doctors/${doctorSlug}/${qa.post_year}/${qa.post_slug}`;
+
+  // 2) 의사 official 글 — keyword slug
+  if (
+    qa.posted_as === "doctor" &&
+    qa.doctor?.slug &&
+    qa.post_year &&
+    qa.post_slug
+  ) {
+    return `/doctors/${qa.doctor.slug}/${qa.post_year}/${qa.post_slug}`;
   }
-  // fallback
+
+  // 3) 회원 글 또는 의사 personal — handle / alt_handle + shortcode
+  if (qa.shortcode && qa.post_year) {
+    const handle =
+      qa.posted_as === "self"
+        ? qa.author?.alt_handle ?? qa.author?.handle ?? null
+        : qa.author?.handle ?? null;
+    if (handle) {
+      return `/${handle}/${qa.post_year}/${qa.shortcode}`;
+    }
+  }
+
+  // 4) fallback
   return `/qa/${qa.id}`;
 }

@@ -20,6 +20,11 @@ export type SessionInfo = {
   avatarUrl: string | null;
   altDisplayName: string | null;
   altAvatarUrl: string | null;
+  /** v4 — 헤더 아바타 1-click 진입용 */
+  handle: string | null;
+  altHandle: string | null;
+  doctorSlug: string | null;
+  persona: "official" | "personal";
 } | null;
 
 type TopNavProps = {

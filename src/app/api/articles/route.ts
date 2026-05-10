@@ -248,6 +248,34 @@ export async function POST(req: Request) {
     }
   }
 
+  // shortcode 생성 — 회원 글(post) 또는 의사 personal post 일 때.
+  // doctor official 글(doctorId + post_slug 모두 있음)은 keyword slug를 쓰므로 shortcode 불필요.
+  // 충돌 시 최대 5회 재시도 (8자 base58 = ~128조 조합으로 사실상 충돌 0).
+  let shortcode: string | null = null;
+  const isDoctorOfficial =
+    t === "qa" || (t === "post" && doctorId && currentPersona === "official");
+  if (t === "post" && !isDoctorOfficial) {
+    const { generateShortcode } = await import("@/lib/shortcode");
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateShortcode();
+      const { data: existing } = await supabase
+        .from("qas")
+        .select("id")
+        .eq("shortcode", candidate)
+        .maybeSingle();
+      if (!existing) {
+        shortcode = candidate;
+        break;
+      }
+    }
+    if (!shortcode) {
+      return NextResponse.json(
+        { error: "shortcode 생성 실패 — 잠시 후 다시 시도해주세요." },
+        { status: 500 },
+      );
+    }
+  }
+
   // 본문 검증 + insert payload 구성
   const insert: Record<string, unknown> = {
     type: t,
@@ -256,6 +284,7 @@ export async function POST(req: Request) {
     keywords,
     post_year: postYear,
     post_slug: postSlug,
+    shortcode,
     hide_doctor_credential: Boolean(payload.hide_doctor_credential),
     ...extFields,
   };
@@ -323,7 +352,7 @@ export async function POST(req: Request) {
   const { data: row, error: insErr } = await supabase
     .from("qas")
     .insert(insert)
-    .select("id, type, article_slug, status, post_slug, post_year")
+    .select("id, type, article_slug, status, post_slug, post_year, shortcode")
     .single();
 
   if (insErr) {
@@ -340,5 +369,6 @@ export async function POST(req: Request) {
     article_slug: row.article_slug,
     post_slug: row.post_slug,
     post_year: row.post_year,
+    shortcode: row.shortcode,
   });
 }

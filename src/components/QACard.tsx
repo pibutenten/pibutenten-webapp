@@ -37,6 +37,8 @@ export type QACardData = {
   /** §2 SEO URL — /doctors/{slug}/{year}/{postSlug} canonical 생성용 */
   post_year?: number | null;
   post_slug?: string | null;
+  /** v4 — 회원 글 / 의사 personal 글 URL용 8자 base58 식별자 */
+  shortcode?: string | null;
   /** 외부 링크 — 모든 카테고리에서 옵션 (Phase 3). qa 카테고리 외에서는 카드에 [더 알아보기] 버튼 노출 */
   external_url?: string | null;
   external_title?: string | null;
@@ -58,6 +60,9 @@ export type QACardData = {
     avatar_url: string | null;
     alt_display_name?: string | null;
     alt_avatar_url?: string | null;
+    /** v4 — 회원 핸들 (URL용) */
+    handle?: string | null;
+    alt_handle?: string | null;
   } | null;
   video: {
     youtube_id: string;
@@ -971,11 +976,8 @@ function Keywords({
 
 async function shareQA(qa: QACardData) {
   if (typeof window === "undefined") return;
-  // §2 SEO canonical URL — 의사 글이면 새 패턴, 아니면 /qa/{id} fallback
-  const path =
-    qa.doctor?.slug && qa.post_year && qa.post_slug
-      ? `/doctors/${qa.doctor.slug}/${qa.post_year}/${encodeURIComponent(qa.post_slug)}`
-      : `/qa/${qa.id}`;
+  // v4 canonical URL — getQaUrl이 의사 official(slug)·회원/personal(handle+shortcode)·fallback 결정
+  const path = getQaUrl(qa);
   const url = `${window.location.origin}${path}`;
   const title = qa.question;
   const text = `${qa.doctor?.name ?? ""} 원장님 — 피부텐텐`;
