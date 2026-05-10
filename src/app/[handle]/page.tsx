@@ -150,7 +150,7 @@ export default async function HandleProfilePage({ params }: Props) {
     <section className="w-full py-6">
       {/* 프로필 헤더 — 사진 가운데, 카드 wrapper 없이 */}
       <div className="mb-6 flex flex-col items-center text-center">
-        <div className="h-[96px] w-[96px] overflow-hidden rounded-full bg-[var(--bg-soft)]">
+        <div className="h-[128px] w-[128px] overflow-hidden rounded-full bg-[var(--bg-soft)] sm:h-[144px] sm:w-[144px]">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -159,7 +159,7 @@ export default async function HandleProfilePage({ params }: Props) {
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-4xl text-[var(--text-muted)]">
+            <div className="flex h-full w-full items-center justify-center text-5xl text-[var(--text-muted)]">
               👤
             </div>
           )}

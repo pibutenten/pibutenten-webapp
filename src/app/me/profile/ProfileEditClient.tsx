@@ -95,6 +95,7 @@ export default function ProfileEditClient({
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initial.avatarUrl);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const cameraRef = useRef<HTMLInputElement | null>(null);
   async function uploadAvatar(file: File) {
     setUploading(true);
     try {
@@ -289,14 +290,14 @@ export default function ProfileEditClient({
 
   return (
     <div className="space-y-5">
-      {/* 1. 프로필 사진 — 가운데 큰 원, 클릭으로 업로드 */}
+      {/* 1. 프로필 사진 — 큰 원, 사진 변경 / 사진 찍기 */}
       <Card title="프로필 사진">
         <div className="flex flex-col items-center gap-3">
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="relative h-24 w-24 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--bg-soft)] transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+            className="relative h-32 w-32 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--bg-soft)] transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 sm:h-36 sm:w-36"
             aria-label="프로필 사진 변경"
           >
             {avatarUrl ? (
@@ -307,19 +308,29 @@ export default function ProfileEditClient({
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-3xl text-[var(--text-muted)]">
+              <div className="flex h-full w-full items-center justify-center text-4xl text-[var(--text-muted)]">
                 👤
               </div>
             )}
           </button>
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="rounded-md border border-[var(--border)] px-3 py-1 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
-          >
-            {uploading ? "업로드 중…" : "사진 변경"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
+            >
+              {uploading ? "업로드 중…" : "사진 변경"}
+            </button>
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              disabled={uploading}
+              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
+            >
+              📷 사진 찍기
+            </button>
+          </div>
           <input
             ref={fileRef}
             type="file"
@@ -329,6 +340,18 @@ export default function ProfileEditClient({
               const f = e.target.files?.[0];
               if (f) uploadAvatar(f);
               if (fileRef.current) fileRef.current.value = "";
+            }}
+          />
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*"
+            capture="user"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadAvatar(f);
+              if (cameraRef.current) cameraRef.current.value = "";
             }}
           />
         </div>
