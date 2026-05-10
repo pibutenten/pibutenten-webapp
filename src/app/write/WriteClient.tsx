@@ -551,25 +551,6 @@ export default function WriteClient({
         </div>
         )}
 
-        {/* 공유하기 — 첫 댓글 동시 작성. 올리기와 함께 자동 등록됨. */}
-        {category === "share" && (
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-              내 코멘트{" "}
-              <span className="text-xs font-normal text-[var(--text-muted)]">
-                선택 — 글과 동시에 첫 댓글로 등록됨
-              </span>
-            </label>
-            <textarea
-              value={firstComment}
-              onChange={(e) => setFirstComment(e.target.value)}
-              placeholder="이 콘텐츠에 대한 내 생각을 짧게 남겨보세요"
-              rows={3}
-              className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary-light)] focus:outline-none"
-            />
-          </div>
-        )}
-
         {/* 포스팅·Q&A 통합 form — 제목 / 본문 동일 구조 */}
         {(type === "post" || type === "qa") && (
           <PostQaForm
@@ -629,6 +610,25 @@ export default function WriteClient({
         )}
 
         {/* 카테고리 안내 문구 제거 — Phase 2에서 카테고리 드롭다운으로 교체 예정 */}
+
+        {/* 공유하기 — 첫 댓글 동시 작성. 위치: 태그 아래(원래 댓글이 태그 아래에 붙는 흐름과 동일). */}
+        {category === "share" && (
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
+              내 코멘트{" "}
+              <span className="text-xs font-normal text-[var(--text-muted)]">
+                선택 — 글과 동시에 첫 댓글로 등록됨
+              </span>
+            </label>
+            <textarea
+              value={firstComment}
+              onChange={(e) => setFirstComment(e.target.value)}
+              placeholder="이 콘텐츠에 대한 내 생각을 짧게 남겨보세요"
+              rows={3}
+              className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary-light)] focus:outline-none"
+            />
+          </div>
+        )}
 
         {/* 에러 */}
         {error && (

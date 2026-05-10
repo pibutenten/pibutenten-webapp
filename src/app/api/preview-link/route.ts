@@ -52,6 +52,47 @@ async function fetchWithTimeout(
   }
 }
 
+/**
+ * HTML 응답을 올바른 charset으로 디코드.
+ *
+ * 한국 사이트 일부(조선일보·일부 게시판)는 EUC-KR/CP949로 응답.
+ * fetch().text()는 UTF-8을 기본 사용하므로 한글이 깨짐.
+ *
+ * 우선순위:
+ *   1) Content-Type charset
+ *   2) HTML <meta charset="…">
+ *   3) HTML <meta http-equiv="Content-Type" content="text/html; charset=…">
+ *   4) UTF-8 (default)
+ */
+async function decodeHtmlResponse(res: Response): Promise<string> {
+  const buf = await res.arrayBuffer();
+  // 1) header
+  let charset = "";
+  const ct = res.headers.get("content-type") ?? "";
+  const ctMatch = ct.match(/charset\s*=\s*["']?([^"';\s]+)/i);
+  if (ctMatch) charset = ctMatch[1];
+  // 2)/3) meta — charset 모를 때만 ASCII 부분(처음 4KB)을 latin1으로 읽어 탐색
+  if (!charset) {
+    const head = new TextDecoder("latin1").decode(buf.slice(0, 4096));
+    const m1 = head.match(/<meta[^>]+charset\s*=\s*["']?([^"'\s/>]+)/i);
+    const m2 = head.match(
+      /<meta[^>]+http-equiv\s*=\s*["']?content-type["']?[^>]*content\s*=\s*["'][^"']*charset\s*=\s*([^"'\s;]+)/i,
+    );
+    charset = (m1?.[1] ?? m2?.[1] ?? "utf-8").toLowerCase();
+  }
+  // 알리아스 정규화
+  const norm = charset.toLowerCase();
+  const decoderName =
+    norm === "euc-kr" || norm === "ks_c_5601-1987" || norm === "cp949"
+      ? "euc-kr"
+      : norm;
+  try {
+    return new TextDecoder(decoderName, { fatal: false }).decode(buf);
+  } catch {
+    return new TextDecoder("utf-8", { fatal: false }).decode(buf);
+  }
+}
+
 function extractMeta(
   html: string,
   key:
@@ -176,7 +217,7 @@ async function safeYoutubeBody(rawUrl: string): Promise<string | null> {
       "Sec-Fetch-Site": "none",
     });
     if (!r.ok) return null;
-    const html = await r.text();
+    const html = await decodeHtmlResponse(r);
 
     // 패턴 1: shortDescription (가장 깨끗)
     const m1 = html.match(/"shortDescription":"((?:\\.|[^"\\])*)"/);
@@ -249,10 +290,20 @@ async function safeArticleBody(html: string, url: string): Promise<string> {
  * 다음 형제 element 직전까지 자른 뒤 텍스트만 추출.
  */
 const KOREAN_CMS_ID_PATTERNS: ReadonlyArray<RegExp> = [
+  // 메디소비자뉴스·NeoBoard 계열
   /<(?:div|article|section)\b[^>]*\bid\s*=\s*["']\s*article-view-content-div\s*["'][^>]*>/i,
+  // 네이버 뉴스 (n.news.naver.com)
+  /<(?:div|article|section)\b[^>]*\bid\s*=\s*["']\s*dic_area\s*["'][^>]*>/i,
+  /<(?:div|article|section)\b[^>]*\bid\s*=\s*["']\s*newsct_article\s*["'][^>]*>/i,
+  // 네이버 모바일 뉴스 / 다음 뉴스
+  /<(?:div|article|section)\b[^>]*\bclass\s*=\s*["'][^"']*\b_article_body\b[^"']*["'][^>]*>/i,
+  /<(?:div|article|section)\b[^>]*\bclass\s*=\s*["'][^"']*\barticle_view\b[^"']*["'][^>]*>/i,
+  // 옛 네이버
   /<(?:div|article|section)\b[^>]*\bid\s*=\s*["']\s*articleBodyContents\s*["'][^>]*>/i,
   /<(?:div|article|section)\b[^>]*\bid\s*=\s*["']\s*articleBody\s*["'][^>]*>/i,
+  // Schema.org
   /<(?:div|article|section)\b[^>]*\bitemprop\s*=\s*["']\s*articleBody\s*["'][^>]*>/i,
+  // 기타 한국 언론사
   /<(?:div|article|section)\b[^>]*\bclass\s*=\s*["'][^"']*\bnews-content-text\b[^"']*["'][^>]*>/i,
   /<(?:div|article|section)\b[^>]*\bclass\s*=\s*["'][^"']*\bview_con\b[^"']*["'][^>]*>/i,
   /<(?:div|article|section)\b[^>]*\bclass\s*=\s*["'][^"']*\barticle-veiw-body\b[^"']*["'][^>]*>/i,
@@ -332,6 +383,102 @@ function regexBodyFallback(html: string): string {
   return paragraphs.join(" ");
 }
 
+/**
+ * 네이버 블로그 본문 추출.
+ *
+ * 네이버 블로그는 frame 구조 — desktop(blog.naver.com)은 outer frame만 와서 본문 비어있음.
+ * 두 가지 우회:
+ *   1) m.blog.naver.com (모바일) — 프레임 없이 본문 직접 렌더
+ *   2) PostView.naver?blogId=X&logNo=Y — frame inner 직접 호출
+ *
+ * 본문 selector:
+ *   - .se-main-container       (Smart Editor 3+, 현 표준)
+ *   - #postViewArea            (구 에디터)
+ *   - #post-view{logNo}        (PostView.naver)
+ */
+function parseNaverBlogIds(
+  u: URL,
+): { blogId: string; logNo: string } | null {
+  // /{blogId}/{logNo}
+  const seg = u.pathname.split("/").filter(Boolean);
+  if (
+    seg.length === 2 &&
+    /^[A-Za-z0-9_-]+$/.test(seg[0]) &&
+    /^\d+$/.test(seg[1])
+  ) {
+    return { blogId: seg[0], logNo: seg[1] };
+  }
+  // PostView.naver?blogId=X&logNo=Y
+  const blogId = u.searchParams.get("blogId");
+  const logNo = u.searchParams.get("logNo");
+  if (blogId && logNo) return { blogId, logNo };
+  return null;
+}
+
+async function safeNaverBlogBody(
+  rawUrl: string,
+): Promise<{ title: string; body: string; image: string | null } | null> {
+  try {
+    let u: URL;
+    try {
+      u = new URL(rawUrl);
+    } catch {
+      return null;
+    }
+    const ids = parseNaverBlogIds(u);
+    // 모바일 URL로 변환 — 프레임 없이 본문 직접 옴
+    const mobileUrl = ids
+      ? `https://m.blog.naver.com/${ids.blogId}/${ids.logNo}`
+      : rawUrl.replace(/^https?:\/\/blog\.naver\.com/, "https://m.blog.naver.com");
+
+    const r = await fetchWithTimeout(mobileUrl);
+    if (!r.ok) return null;
+    const html = await decodeHtmlResponse(r);
+
+    // 제목·OG
+    const head = html.slice(0, 80_000);
+    const ogTitle = extractMeta(head, "og:title");
+    const ogImage = extractMeta(head, "og:image");
+    const titleTag = extractMeta(head, "title");
+    const ogDesc = extractMeta(head, "og:description");
+
+    // 본문 selectors — 모바일 페이지 우선순위
+    const startPatterns = [
+      /<div[^>]*\bclass\s*=\s*["'][^"']*\bse-main-container\b[^"']*["'][^>]*>/i,
+      /<div[^>]*\bid\s*=\s*["']postViewArea["'][^>]*>/i,
+      /<div[^>]*\bid\s*=\s*["']post-view\d+["'][^>]*>/i,
+      /<div[^>]*\bclass\s*=\s*["'][^"']*\bpost_ct\b[^"']*["'][^>]*>/i,
+    ];
+    let body = "";
+    for (const sp of startPatterns) {
+      const m = sp.exec(html);
+      if (!m) continue;
+      const startIdx = m.index + m[0].length;
+      const chunk = html.slice(startIdx, startIdx + 80_000);
+      // 본문 종료 — 댓글·공감·관련글 영역
+      const endRe =
+        /<div[^>]*\bclass\s*=\s*["'][^"']*\b(?:btn_post|post_btn|comment|sympathy|relate|toolbar|footer)\b[^"']*["']/i;
+      const me = endRe.exec(chunk);
+      const sliced = me ? chunk.slice(0, me.index) : chunk;
+      const text = stripToText(sliced);
+      if (text.length >= 50) {
+        body = text;
+        break;
+      }
+    }
+    // fallback: og:description (네이버는 보통 og:description 잘 채움)
+    if (!body && ogDesc) body = ogDesc;
+    if (!body) return null;
+    return {
+      title: ogTitle || titleTag || "",
+      body,
+      image: ogImage || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function handle(req: Request): Promise<Response> {
   let body: { url?: string } = {};
   try {
@@ -378,6 +525,22 @@ async function handle(req: Request): Promise<Response> {
     } satisfies PreviewResult);
   }
 
+  // ── 네이버 블로그 ── (frame 구조이므로 모바일 URL로 우회)
+  if (kind === "naverblog") {
+    const nv = await safeNaverBlogBody(url.toString());
+    if (nv) {
+      return NextResponse.json({
+        title: nv.title,
+        description: trimToSentence(nv.body, MAX_BODY_CHARS),
+        image: nv.image,
+        siteName: "네이버 블로그",
+        sourceUrl: url.toString(),
+        kind,
+      } satisfies PreviewResult);
+    }
+    // safeNaverBlogBody 실패 시 일반 페이지 처리로 fall through (적어도 og 태그는 잡힘)
+  }
+
   // ── 일반 페이지 ──
   let res: Response;
   try {
@@ -394,7 +557,7 @@ async function handle(req: Request): Promise<Response> {
       { status: 502 },
     );
   }
-  const html = await res.text();
+  const html = await decodeHtmlResponse(res);
   const headHtml = html.slice(0, 80_000);
 
   const ogTitle = extractMeta(headHtml, "og:title");
