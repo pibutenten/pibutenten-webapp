@@ -135,7 +135,7 @@ export default function WriteClient({
   const [filling, setFilling] = useState(false);
   const [autoTagging, setAutoTagging] = useState(false);
 
-  // 공유하기 — 첫 댓글 동시 작성. 공유한 콘텐츠에 본인 코멘트를 함께 남기는 흐름.
+  // 새소식 — 첫 댓글 동시 작성. 공유한 콘텐츠에 본인 코멘트를 함께 남기는 흐름.
   const [firstComment, setFirstComment] = useState("");
 
   const [error, setError] = useState<string | null>(null);
@@ -172,7 +172,7 @@ export default function WriteClient({
     // 카테고리 변경 시 의사 직함 숨김 default도 업데이트
     setHideCredential(defaultHideCredential(next));
     // share 외 카테고리로 전환 시 외부 링크·첫 댓글 초기화
-    if (next !== "share") {
+    if (next !== "news") {
       setExternalUrl("");
       setExternalMeta(null);
       setFirstComment("");
@@ -238,12 +238,12 @@ export default function WriteClient({
       // (이미 쓴 내용이 있어도 새 URL 메타로 갱신해야 직관적)
       if (meta.title) setTitle(meta.title);
       if (meta.description) {
-        // 출처 표기 — 공유하기는 누구의 콘텐츠인지 본문 끝에 명시 (저작권·예의)
+        // 출처 표기 — 새소식은 누구의 콘텐츠인지 본문 끝에 명시 (저작권·예의)
         const sourceTag = meta.siteName
           ? `\n\n(출처 = ${meta.siteName})`
           : "";
-        // 공유하기는 본문 한도 400자 — 출처 표기 자리 확보 위해 맞춰 trim
-        const limit = category === "share" ? 400 - sourceTag.length : 800;
+        // 새소식은 본문 한도 400자 — 출처 표기 자리 확보 위해 맞춰 trim
+        const limit = category === "news" ? 400 - sourceTag.length : 800;
         const desc =
           meta.description.length > limit
             ? meta.description.slice(0, limit).replace(/\s+\S*$/, "") + "…"
@@ -349,7 +349,7 @@ export default function WriteClient({
     // post / qa 공통: 제목 + 본문 필수
     if (!title.trim()) return "제목을 입력해주세요.";
     if (!body.trim()) return "본문을 입력해주세요.";
-    const bodyLimit = category === "share" ? 400 : 800;
+    const bodyLimit = category === "news" ? 400 : 800;
     if (body.length > bodyLimit)
       return `본문은 최대 ${bodyLimit}자까지 가능합니다.`;
     return null;
@@ -418,9 +418,9 @@ export default function WriteClient({
           return;
         }
 
-        // 공유하기 — 첫 댓글이 있으면 동시 등록 (실패해도 글 저장은 유지)
+        // 새소식 — 첫 댓글이 있으면 동시 등록 (실패해도 글 저장은 유지)
         if (
-          category === "share" &&
+          category === "news" &&
           firstComment.trim() &&
           submitStatus !== "draft" &&
           typeof data.id === "number"
@@ -528,8 +528,8 @@ export default function WriteClient({
           )}
         </div>
 
-        {/* 외부 링크 — "공유하기"(share) 카테고리에서만 노출. v3 spec D-6 */}
-        {category === "share" && (
+        {/* 외부 링크 — "새소식"(news) 카테고리에서만 노출. v4 spec */}
+        {category === "news" && (
         <div>
           <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
             외부 링크{" "}
@@ -571,7 +571,7 @@ export default function WriteClient({
             onTitle={setTitle}
             body={body}
             onBody={setBody}
-            bodyMax={category === "share" ? 400 : 800}
+            bodyMax={category === "news" ? 400 : 800}
           />
         )}
 
@@ -625,8 +625,8 @@ export default function WriteClient({
 
         {/* 카테고리 안내 문구 제거 — Phase 2에서 카테고리 드롭다운으로 교체 예정 */}
 
-        {/* 공유하기 — 첫 댓글 동시 작성. 위치: 태그 아래(원래 댓글이 태그 아래에 붙는 흐름과 동일). */}
-        {category === "share" && (
+        {/* 새소식 — 첫 댓글 동시 작성. 위치: 태그 아래(원래 댓글이 태그 아래에 붙는 흐름과 동일). */}
+        {category === "news" && (
           <div>
             <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
               내 코멘트{" "}
@@ -721,7 +721,7 @@ function PostQaForm({
   onTitle: (s: string) => void;
   body: string;
   onBody: (s: string) => void;
-  /** 본문 최대 글자수 — 카테고리별 다름 (공유하기는 짧게). 기본 800 */
+  /** 본문 최대 글자수 — 카테고리별 다름 (새소식은 짧게). 기본 800 */
   bodyMax?: number;
 }) {
   return (

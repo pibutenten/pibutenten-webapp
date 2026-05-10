@@ -200,7 +200,7 @@ export async function POST(req: Request) {
 
   // 카테고리 결정 — payload.category 우선, 없으면 type에서 자동 매핑.
   // v3 spec 6 카테고리: qa/tip/diary/ask/news/share
-  const VALID_CATEGORIES = ["qa", "tip", "diary", "ask", "news", "share"];
+  const VALID_CATEGORIES = ["qa", "tip", "diary", "ask", "news"];
   let category: string;
   if (payload.category && VALID_CATEGORIES.includes(payload.category)) {
     category = payload.category;
@@ -216,7 +216,6 @@ export async function POST(req: Request) {
     diary: "피부일기",
     ask: "물어봐요",
     news: "새소식",
-    share: "공유하기",
   };
   const categoryLabel = CATEGORY_LABEL[category];
   if (categoryLabel) {
