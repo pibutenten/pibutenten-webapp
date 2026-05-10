@@ -34,7 +34,7 @@ export default function EditClient({
     if (!v) return;
     if (keywords.includes(v)) return;
     if (keywords.length >= KEYWORD_MAX) {
-      setError(`키워드는 최대 ${KEYWORD_MAX}개까지 가능합니다.`);
+      setError(`태그는 최대 ${KEYWORD_MAX}개까지 가능합니다.`);
       return;
     }
     setKeywords((prev) => [...prev, v]);
@@ -111,10 +111,10 @@ export default function EditClient({
         />
       </div>
 
-      {/* 키워드 */}
+      {/* 태그 */}
       <div>
         <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-          키워드{" "}
+          태그{" "}
           <span className="text-xs font-normal text-[var(--text-muted)]">
             최대 {KEYWORD_MAX}개
           </span>
@@ -142,7 +142,7 @@ export default function EditClient({
                 addKeyword(keywordInput);
               }
             }}
-            placeholder="키워드 입력 후 Enter"
+            placeholder="태그 입력 후 Enter"
             className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
           />
           <button

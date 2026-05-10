@@ -1,19 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 type Props = {
   hasSession: boolean;
 };
 
+/** 플로팅 버튼을 숨길 경로 — 글쓰기/온보딩 본인 화면에서는 중복 노출 X */
+const HIDDEN_PREFIXES = ["/write", "/onboarding", "/signup", "/login"];
+
 /**
  * 우하단 플로팅 글쓰기 버튼 (Threads 스타일).
  * - 로그인 사용자만 노출
- * - 모든 페이지에서 항상 우하단에 떠 있음
+ * - 글쓰기/온보딩 등 자기 자신 맥락 페이지에서는 숨김
  * - iOS safe-area 대응
  */
 export default function FloatingWriteButton({ hasSession }: Props) {
+  const pathname = usePathname() || "";
   if (!hasSession) return null;
+  if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
   return (
     <Link
       href="/write"

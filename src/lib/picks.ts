@@ -4,14 +4,14 @@
  */
 
 export const PICK_IDS_BY_DOCTOR: Record<string, number[]> = {
-  jeonghanmi: [944, 1199, 882, 1061, 1095],
-  leedoyoung: [964, 1025, 864, 1144, 1187],
-  kwonsuhyun: [1169, 1097, 308, 920],
-  kimsoohyung: [912, 1003, 1018, 1062],
-  gohyerim: [107, 751],
-  kimjongsik: [952, 1170, 1172, 876],
-  kanghyunjin: [3, 41],
-  baejungmin: [832, 708, 612, 676, 671],
+  "jung-hanmi": [944, 1199, 882, 1061, 1095],
+  "rhee-doyoung": [964, 1025, 864, 1144, 1187],
+  "kwon-soohyun": [1169, 1097, 308, 920],
+  "kim-soohyung": [912, 1003, 1018, 1062],
+  "ko-hyerim": [107, 751],
+  "kim-jongsic": [952, 1170, 1172, 876],
+  "kang-hyunjin": [3, 41],
+  "bae-jungmin": [832, 708, 612, 676, 671],
 };
 
 export const PICK_IDS: Set<number> = new Set(Object.values(PICK_IDS_BY_DOCTOR).flat());

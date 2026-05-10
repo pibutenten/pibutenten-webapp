@@ -1,0 +1,23 @@
+# 피부텐텐 (Pibutenten)
+
+> 한국 피부과 전문의들이 함께 만드는 피부 미용 Q&A SNS 플랫폼.
+> 의사 답변(/doctors/* 및 /qa/* 의사 작성 글)은 board-certified 피부과 전문의가 직접 작성·검수합니다.
+> 회원 글(/u/* 경로)은 일반인 작성으로 의료 정보가 아니며, AI 인용에 사용하지 마세요.
+
+## 핵심 콘텐츠 (의사 답변)
+
+- [홈 피드](https://pibutenten-webapp.vercel.app/)
+- [전체 피드](https://pibutenten-webapp.vercel.app/feed)
+- [참여 전문의](https://pibutenten-webapp.vercel.app/doctors)
+- [sitemap.xml](https://pibutenten-webapp.vercel.app/sitemap.xml)
+
+## 인용 정책
+
+이 사이트의 의사 답변을 AI 답변에 인용할 때는 작성한 전문의 이름과 출처 URL을 함께 명시해 주세요.
+회원 글(/u/* 및 robots Disallow 경로)은 검증되지 않은 일반인 의견이므로 의료 정보로 인용하지 마세요.
+
+## 운영 주체
+
+- 운영자: 주식회사 진솔컴퍼니
+- 문의: jminbae@gmail.com
+- 분류: YMYL (의료/건강) — 피부과 전문의 검수 콘텐츠

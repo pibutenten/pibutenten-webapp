@@ -18,15 +18,15 @@ export type DoctorTheme = {
 };
 
 const THEMES: Record<string, DoctorTheme> = {
-  jeonghanmi:  { bg: "#FCE7F0", bgSoft: "#FFF1F6", ring: "#F8C0D2", accent: "#B8517A" }, // 핑크
-  baejungmin:  { bg: "#E5E9F0", bgSoft: "#F0F3F8", ring: "#C8CFD8", accent: "#54616F", offsetX: 6 }, // 연한 회색
-  kwonsuhyun:  { bg: "#DCE7C8", bgSoft: "#EAF1DC", ring: "#BFD49E", accent: "#5A6B2E" }, // 카키/연두
-  kimsoohyung: { bg: "#FFF6CF", bgSoft: "#FFFBE6", ring: "#F2E08F", accent: "#9A7B12" }, // 노랑
-  gohyerim:    { bg: "#B2DFDB", bgSoft: "#D4ECEA", ring: "#80CBC4", accent: "#00695C" }, // 진한 민트 (Teal 100)
-  kimjongsik:  { bg: "#D7C4A8", bgSoft: "#E5D7BF", ring: "#B89B6E", accent: "#6B4C2A" }, // 모카
-  leedoyoung:  { bg: "#D4E6F0", bgSoft: "#E5EFF6", ring: "#B0CFE0", accent: "#4A6878", offsetX: 14, offsetY: 5, avatarOffsetX: 7 }, // 더 연한 하늘
-  kanghyunjin: { bg: "#E8DEF6", bgSoft: "#F2EBFA", ring: "#C8B8E5", accent: "#5E4B96" }, // 라일락
-  parkhyojin:  { bg: "#FAD2C7", bgSoft: "#FCE3DC", ring: "#F0B0A0", accent: "#A04A30" }, // 연한 산호 (보라 3개 겹침 회피)
+  "jung-hanmi":   { bg: "#FCE7F0", bgSoft: "#FFF1F6", ring: "#F8C0D2", accent: "#B8517A" }, // 핑크
+  "bae-jungmin":  { bg: "#E5E9F0", bgSoft: "#F0F3F8", ring: "#C8CFD8", accent: "#54616F", offsetX: 6 }, // 연한 회색
+  "kwon-soohyun": { bg: "#DCE7C8", bgSoft: "#EAF1DC", ring: "#BFD49E", accent: "#5A6B2E" }, // 카키/연두
+  "kim-soohyung": { bg: "#FFF6CF", bgSoft: "#FFFBE6", ring: "#F2E08F", accent: "#9A7B12" }, // 노랑
+  "ko-hyerim":    { bg: "#B2DFDB", bgSoft: "#D4ECEA", ring: "#80CBC4", accent: "#00695C" }, // 진한 민트 (Teal 100)
+  "kim-jongsic":  { bg: "#D7C4A8", bgSoft: "#E5D7BF", ring: "#B89B6E", accent: "#6B4C2A" }, // 모카
+  "rhee-doyoung": { bg: "#D4E6F0", bgSoft: "#E5EFF6", ring: "#B0CFE0", accent: "#4A6878", offsetX: 14, offsetY: 5, avatarOffsetX: 7 }, // 더 연한 하늘
+  "kang-hyunjin": { bg: "#E8DEF6", bgSoft: "#F2EBFA", ring: "#C8B8E5", accent: "#5E4B96" }, // 라일락
+  "park-hyojin":  { bg: "#FAD2C7", bgSoft: "#FCE3DC", ring: "#F0B0A0", accent: "#A04A30" }, // 연한 산호 (보라 3개 겹침 회피)
 };
 
 const FALLBACK: DoctorTheme = {

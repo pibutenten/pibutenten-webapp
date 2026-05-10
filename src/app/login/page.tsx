@@ -20,7 +20,7 @@ export default async function LoginPage({ searchParams }: Props) {
       .eq("id", user.id)
       .maybeSingle();
     // 모든 role은 /feed로 (관리/내 글은 헤더 본인 아이콘으로 진입)
-    redirect(sp.next || "/feed");
+    redirect(sp.next || "/");
   }
 
   return (

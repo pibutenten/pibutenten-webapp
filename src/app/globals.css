@@ -7,10 +7,14 @@
   --primary-dark: #4A8FB8;
   /* 부드러운 하늘색 hover/selection 톤 — 절반쯤 연하게 */
   --primary-soft: #F2F8FC;
+  /* 강조 액션(카테고리 chip · 올리기 · 온보드 CTA 등)용 더 연한 하늘색
+     로고와 동일한 톤(#87C4E5)으로 가벼운 느낌 */
+  --primary-light: #87C4E5;
+  --primary-light-hover: #6FB6DC;
   /* 강조 텍스트용 딥 네이비 (브랜드 보조) */
   --secondary: #1B4965;
   --secondary-light: #BEE9E8;
-  /* 배경 — 카드(흰색)가 잘 구분되면서도 키워드 칩(#E8EAEE) 분간되는 톤 */
+  /* 배경 — 카드(흰색)가 잘 구분되면서도 태그 칩(#E8EAEE) 분간되는 톤 */
   --bg: #F4F5F7;
   --bg-soft: #ECEEF1;
   --white: #FFFFFF;

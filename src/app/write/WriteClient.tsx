@@ -2,7 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { CATEGORIES } from "@/lib/categories";
+import {
+  categoriesForRole,
+  defaultHideCredential,
+  type PostCategorySlug,
+} from "@/lib/post-category";
 
 /** 글쓰기 페이지 진입 시 랜덤 노출 카피 (꼭 공유하고 싶은 나만의 피부 비법은 베리에이션 강조) */
 const WRITE_PHRASES = [
@@ -59,7 +63,7 @@ const TYPE_LABEL: Record<WriteType, string> = {
   qa: "Q&A",
 };
 
-// 모든 type 키워드 최대 10개 (필수는 0개 — 선택)
+// 모든 type 태그 최대 10개 (필수는 0개 — 선택)
 const KEYWORD_MIN: Record<WriteType, number> = {
   post: 0,
   article: 0,
@@ -81,13 +85,14 @@ export default function WriteClient({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  // type 결정 — 모든 회원 기본값은 post (인스타·페이스북 같은 일관 경험)
-  // - 일반 사용자: post 만
-  // - 원장: post / qa 선택 가능 (Q&A는 의료 답변)
-  // - 관리자: post / qa 선택 가능 (칼럼/AI URL 초안은 /admin 영역에서 별도)
-  const allowedTypes: WriteType[] =
-    role === "admin" || role === "doctor" ? ["post", "qa"] : ["post"];
-  const [type, setTypeState] = useState<WriteType>("post");
+  // 카테고리 선택 — Phase 2부터 type 토글을 카테고리로 통합.
+  //   - user: review / daily / question / news
+  //   - doctor·admin: + qa
+  // 내부 type은 category에서 자동 파생 (qa → 'qa', 그 외 → 'post').
+  const availableCategories = categoriesForRole(role);
+  const [category, setCategory] = useState<PostCategorySlug>("diary");
+  const type: WriteType = category === "qa" ? "qa" : "post";
+  const allowedTypes: WriteType[] = []; // type 토글 UI 제거 (호환용 더미)
 
   // 글쓴이 (원장 명의) — 모든 type에 공통 노출. ""=관리자 명의(admin), 원장 본인은 자기 slug 고정
   const [authorDoctor, setAuthorDoctor] = useState<string>(
@@ -109,9 +114,26 @@ export default function WriteClient({
     { heading: "", body: "", image: null },
   ]);
 
-  // 공통 키워드
+  // 공통 태그
   const [keywords, setKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState("");
+
+  // 의사 직함 숨김 토글 — 카테고리별 default + 사용자가 토글 가능
+  const [hideCredential, setHideCredential] = useState<boolean>(
+    defaultHideCredential("diary"),
+  );
+  // 카테고리 변경 시 default 따라가도록 — changeCategory에서 처리
+
+  // 외부 링크 — 모든 카테고리에서 옵션. [채우기] 누르면 메타 fetch해서 제목/본문/태그 채움
+  const [externalUrl, setExternalUrl] = useState("");
+  const [externalMeta, setExternalMeta] = useState<{
+    title?: string;
+    description?: string;
+    image?: string | null;
+    siteName?: string;
+  } | null>(null);
+  const [filling, setFilling] = useState(false);
+  const [autoTagging, setAutoTagging] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -127,15 +149,15 @@ export default function WriteClient({
     return false;
   }
 
-  /** type 전환 — 작성 중 내용 있으면 경고, 확인 시 모두 초기화 */
-  function setType(next: WriteType) {
-    if (next === type) return;
-    if (hasUnsavedContent()) {
+  /** 카테고리 전환 — 작성 중 내용 있고 type이 바뀌면 경고 (qa ↔ 일반) */
+  function changeCategory(next: PostCategorySlug) {
+    if (next === category) return;
+    const nextType: WriteType = next === "qa" ? "qa" : "post";
+    if (nextType !== type && hasUnsavedContent()) {
       const ok = window.confirm(
-        "작성 중인 내용이 있습니다.\n타입을 변경하면 작성한 내용이 모두 사라집니다.\n계속하시겠습니까?",
+        "작성 중인 내용이 있습니다.\n카테고리를 변경하면 작성한 내용이 모두 사라집니다.\n계속하시겠습니까?",
       );
       if (!ok) return;
-      // 모든 필드 초기화
       setTitle("");
       setBody("");
       setSections([{ heading: "", body: "", image: null }]);
@@ -143,7 +165,14 @@ export default function WriteClient({
       setKeywordInput("");
       setError(null);
     }
-    setTypeState(next);
+    setCategory(next);
+    // 카테고리 변경 시 의사 직함 숨김 default도 업데이트
+    setHideCredential(defaultHideCredential(next));
+    // share 외 카테고리로 전환 시 외부 링크 초기화
+    if (next !== "share") {
+      setExternalUrl("");
+      setExternalMeta(null);
+    }
   }
 
   function addKeyword(k: string) {
@@ -151,7 +180,7 @@ export default function WriteClient({
     if (!v) return;
     if (keywords.includes(v)) return;
     if (keywords.length >= maxKw) {
-      setError(`키워드는 최대 ${maxKw}개까지 가능합니다.`);
+      setError(`태그는 최대 ${maxKw}개까지 가능합니다.`);
       return;
     }
     setKeywords((prev) => [...prev, v]);
@@ -161,6 +190,107 @@ export default function WriteClient({
 
   function removeKeyword(k: string) {
     setKeywords((prev) => prev.filter((x) => x !== k));
+  }
+
+  /** URL [채우기] — 외부 링크 메타 fetch → 제목/본문/태그 자동 채움 */
+  async function fillFromUrl() {
+    const url = externalUrl.trim();
+    if (!url) return;
+    setError(null);
+    setFilling(true);
+    try {
+      const r = await fetch("/api/preview-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      // 응답이 HTML(에러 페이지)일 수 있어 안전 파싱
+      const raw = await r.text();
+      let data: { error?: string; title?: string; description?: string; image?: string | null; siteName?: string } | null = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        setError(`링크 정보를 가져오지 못했어요 (${r.status}). 잠시 후 다시 시도해주세요.`);
+        return;
+      }
+      if (!r.ok) {
+        setError(data?.error ?? `링크 정보를 가져오지 못했어요 (${r.status}).`);
+        return;
+      }
+      const meta = data as {
+        title?: string;
+        description?: string;
+        image?: string | null;
+        siteName?: string;
+      };
+      setExternalMeta(meta);
+      // [채우기] 동작 — 사용자가 명시적으로 누른 액션이므로 항상 덮어씀
+      // (이미 쓴 내용이 있어도 새 URL 메타로 갱신해야 직관적)
+      if (meta.title) setTitle(meta.title);
+      if (meta.description) setBody(meta.description);
+      // 키워드는 사전 매칭으로 추출 — 메타 + 본문 합쳐서
+      const { extractTagsFromText } = await import("@/lib/auto-tag");
+      const haystack = [meta.title, meta.description, body, title]
+        .filter((s): s is string => Boolean(s))
+        .join("\n");
+      const auto = extractTagsFromText(haystack, {
+        limit: 5,
+        exclude: keywords,
+      });
+      if (auto.length > 0) {
+        setKeywords((prev) => {
+          const merged = [...prev];
+          for (const k of auto) {
+            if (merged.length >= maxKw) break;
+            if (!merged.includes(k)) merged.push(k);
+          }
+          return merged;
+        });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "링크 처리 실패");
+    } finally {
+      setFilling(false);
+    }
+  }
+
+  /** [태그 자동 생성] — 본문(+제목+외부 메타)에서 사전 매칭으로 태그 추출 */
+  async function autoGenerateTags() {
+    setError(null);
+    setAutoTagging(true);
+    try {
+      const { extractTagsFromText } = await import("@/lib/auto-tag");
+      const haystack = [
+        title,
+        body,
+        externalMeta?.title,
+        externalMeta?.description,
+      ]
+        .filter((s): s is string => Boolean(s))
+        .join("\n");
+      if (!haystack.trim()) {
+        setError("본문이나 제목을 먼저 입력해주세요.");
+        return;
+      }
+      const auto = extractTagsFromText(haystack, {
+        limit: maxKw,
+        exclude: keywords,
+      });
+      if (auto.length === 0) {
+        setError("매칭되는 태그가 없어요. 직접 입력해주세요.");
+        return;
+      }
+      setKeywords((prev) => {
+        const merged = [...prev];
+        for (const k of auto) {
+          if (merged.length >= maxKw) break;
+          if (!merged.includes(k)) merged.push(k);
+        }
+        return merged;
+      });
+    } finally {
+      setAutoTagging(false);
+    }
   }
 
   function updateSection(i: number, patch: Partial<Section>) {
@@ -203,13 +333,13 @@ export default function WriteClient({
       );
       if (filled.length === 0) return "섹션을 1개 이상 작성해주세요.";
       if (keywords.length < minKw)
-        return `칼럼은 키워드를 최소 ${minKw}개 입력해주세요.`;
+        return `칼럼은 태그를 최소 ${minKw}개 입력해주세요.`;
       return null;
     }
     // post / qa 공통: 제목 + 본문 필수
     if (!title.trim()) return "제목을 입력해주세요.";
     if (!body.trim()) return "본문을 입력해주세요.";
-    if (body.length > 4000) return "본문은 최대 4000자까지 가능합니다.";
+    if (body.length > 800) return "본문은 최대 800자까지 가능합니다.";
     return null;
   }
 
@@ -226,9 +356,23 @@ export default function WriteClient({
       try {
         const payload: Record<string, unknown> = {
           type,
+          category,
           keywords,
           status: submitStatus,
+          hide_doctor_credential: hideCredential,
         };
+        // 외부 링크가 있으면 메타와 함께 전송 (Phase 3)
+        if (externalUrl.trim()) {
+          payload.external_url = externalUrl.trim();
+          if (externalMeta) {
+            payload.external_meta = {
+              title: externalMeta.title,
+              description: externalMeta.description,
+              image: externalMeta.image,
+              siteName: externalMeta.siteName,
+            };
+          }
+        }
         // 글쓴이 — admin이 본인 명의면 비움, 원장 명의면 slug 전달
         if (role === "admin" && authorDoctor) {
           payload.doctor_slug = authorDoctor;
@@ -273,7 +417,7 @@ export default function WriteClient({
         } else if (data.type === "qa") {
           router.push(`/me/qnas?status=${submitStatus}`);
         } else {
-          router.push(`/feed`);
+          router.push(`/`);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "네트워크 오류");
@@ -295,67 +439,91 @@ export default function WriteClient({
   //  - user → 발행 (post 한정)
   // 결국 모두 발행 가능. canRequestReview만 분기.
 
-  const writerLabel =
-    role === "admin"
-      ? authorDoctor
-        ? `${doctors.find((d) => d.slug === authorDoctor)?.name ?? ""} 원장님 명의로`
-        : `${displayName || "관리자"} (관리자)`
-      : role === "doctor"
-        ? `${myDoctor?.name ?? displayName} 원장님`
-        : `${displayName || "회원"}`;
+  // 글쓴이 라벨은 노출하지 않음 — admin도 항상 본인 명의로 작성, 원장은 본인 doctor 고정.
+  // (다른 명의로 쓰려면 해당 계정으로 로그인하면 됨)
 
   return (
     <section className="w-full py-6">
-      <h1 className="mb-1 text-2xl font-bold text-[var(--text)]">{headerPhrase}</h1>
-      <p className="mb-5 text-[13px] text-[var(--text-muted)]">{writerLabel}</p>
-
-      {/* type 토글 (선택지 2개 이상일 때만 노출) */}
-      {allowedTypes.length > 1 && (
-        <div className="mb-5 inline-flex rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-0.5">
-          {allowedTypes.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setType(t)}
-              className={
-                "rounded-[var(--radius-sm)] px-3 py-1.5 text-sm transition-colors " +
-                (type === t
-                  ? "bg-[var(--primary)] text-white"
-                  : "text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
-              }
-            >
-              {TYPE_LABEL[t]}
-            </button>
-          ))}
-        </div>
-      )}
+      <h1 className="mb-5 text-center text-2xl font-bold text-[var(--text)]">
+        {headerPhrase}
+      </h1>
 
       {/* 폼 본체 */}
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
-        {/* 글쓴이 선택 — 모든 type 공통, 고정 노출 (admin만 변경 가능) */}
+        {/* 카테고리 선택 — 글 종류 분류. role별로 옵션 다름 */}
         <div>
-          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-            글쓴이
+          <label className="mb-1.5 block text-sm font-semibold text-[var(--text)]">
+            카테고리
           </label>
-          {role === "admin" ? (
-            <select
-              value={authorDoctor}
-              onChange={(e) => setAuthorDoctor(e.target.value)}
-              className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-            >
-              <option value="">관리자</option>
-              {doctors.map((d) => (
-                <option key={d.slug} value={d.slug}>
-                  {d.name} 원장님
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2 text-sm text-[var(--text-secondary)]">
-              {writerLabel}
-            </div>
+          <div className="flex flex-wrap gap-2">
+            {availableCategories.map((c) => {
+              const selected = c.slug === category;
+              return (
+                <button
+                  key={c.slug}
+                  type="button"
+                  onClick={() => changeCategory(c.slug)}
+                  className={
+                    "rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors " +
+                    (selected
+                      ? "border-[var(--primary-light)] bg-[var(--primary-light)] text-white"
+                      : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary-light)] hover:text-[var(--primary-light-hover)]")
+                  }
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+          {/* 의사 직함 숨김 토글 — role이 doctor·admin일 때만 노출 */}
+          {(role === "doctor" || role === "admin") && (
+            <label className="mt-3 flex cursor-pointer items-center gap-2 text-[12.5px] text-[var(--text-secondary)]">
+              <input
+                type="checkbox"
+                checked={hideCredential}
+                onChange={(e) => setHideCredential(e.target.checked)}
+                className="h-4 w-4 rounded border-[var(--border)] text-[var(--primary-light)] focus:ring-[var(--primary-light)]"
+              />
+              <span>이 글에서 &ldquo;피부과 전문의&rdquo; 직함 숨기기 <span className="text-[var(--text-muted)]">(사적 모드)</span></span>
+            </label>
           )}
         </div>
+
+        {/* 외부 링크 — "공유하기"(share) 카테고리에서만 노출. v3 spec D-6 */}
+        {category === "share" && (
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
+            외부 링크{" "}
+            <span className="text-xs font-normal text-[var(--text-muted)]">
+              URL 입력 후 [채우기] 누르면 제목·본문·태그 자동 채움
+            </span>
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={externalUrl}
+              onChange={(e) => setExternalUrl(e.target.value)}
+              placeholder="https://..."
+              className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary-light)] focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={fillFromUrl}
+              disabled={filling || !externalUrl.trim()}
+              className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--primary-light)] bg-[var(--primary-light)] px-3 text-sm font-semibold text-white hover:bg-[var(--primary-light-hover)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:bg-[var(--border)]"
+            >
+              {filling ? "가져오는 중…" : "채우기"}
+            </button>
+          </div>
+          {externalMeta?.title && (
+            <p className="mt-1.5 text-[11.5px] text-[var(--text-muted)]">
+              <span className="font-semibold">{externalMeta.siteName ?? "외부 링크"}</span>
+              <span className="mx-1.5">·</span>
+              {externalMeta.title}
+            </p>
+          )}
+        </div>
+        )}
 
         {/* 포스팅·Q&A 통합 form — 제목 / 본문 동일 구조 */}
         {(type === "post" || type === "qa") && (
@@ -367,23 +535,13 @@ export default function WriteClient({
           />
         )}
 
-        {type === "article" && (
-          <ArticleForm
-            title={title}
-            onTitle={setTitle}
-            sections={sections}
-            onUpdateSection={updateSection}
-            onAddSection={addSection}
-            onRemoveSection={removeSection}
-            onMoveSection={moveSection}
-          />
-        )}
+        {/* article(칼럼) 글쓰기 진입점은 Phase 1에서 제거됨 — 카드 포스팅으로 통일 */}
 
-        {/* 공통: 키워드 — maxKw=0이면 비표시 (post는 키워드 없음) */}
+        {/* 공통: 태그 — maxKw=0이면 비표시 (post는 태그 없음) */}
         {maxKw > 0 && (
         <div>
           <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-            키워드{" "}
+            태그{" "}
             <span className="text-xs font-normal text-[var(--text-muted)]">
               {minKw > 0 ? `${minKw}~${maxKw}개` : `최대 ${maxKw}개`}
             </span>
@@ -411,7 +569,7 @@ export default function WriteClient({
                   addKeyword(keywordInput);
                 }
               }}
-              placeholder="키워드 입력 후 Enter"
+              placeholder="태그 입력 후 Enter"
               className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
             />
             <button
@@ -425,12 +583,7 @@ export default function WriteClient({
         </div>
         )}
 
-        {maxKw > 0 && (
-        <div className="text-[11px] text-[var(--text-muted)]">
-          ⓘ 카테고리는 키워드 기반 자동 분류:{" "}
-          {CATEGORIES.map((c) => c.label).join(" · ")}
-        </div>
-        )}
+        {/* 카테고리 안내 문구 제거 — Phase 2에서 카테고리 드롭다운으로 교체 예정 */}
 
         {/* 에러 */}
         {error && (
@@ -440,7 +593,7 @@ export default function WriteClient({
         )}
 
         {/* 액션 — 일반인은 발행만, 원장/관리자는 저장 + 검수(관리자만) + 발행 */}
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] pt-4">
+        <div className="flex flex-wrap items-center justify-center gap-2 border-t border-[var(--border)] pt-4">
           {role !== "user" && (
             <button
               type="button"
@@ -466,9 +619,9 @@ export default function WriteClient({
             type="button"
             onClick={() => handleSubmit("published")}
             disabled={pending}
-            className="h-10 rounded-[var(--radius-sm)] bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+            className="h-10 rounded-[var(--radius-sm)] bg-[var(--primary-light)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
           >
-            {pending ? "처리 중…" : "발행"}
+            {pending ? "올리는 중…" : "올리기"}
           </button>
         </div>
       </div>
@@ -508,14 +661,14 @@ function PostQaForm({
         <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
           본문{" "}
           <span className="text-xs font-normal text-[var(--text-muted)]">
-            ({body.length} / 4000)
+            ({body.length} / 800)
           </span>
         </label>
         <textarea
           value={body}
           onChange={(e) => onBody(e.target.value)}
           rows={10}
-          maxLength={4000}
+          maxLength={800}
           className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
         />
       </div>

@@ -45,3 +45,6 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# editor auto-save backups (e.g. file.ts.tmp.31076.1778410620914)
+*.tmp.*

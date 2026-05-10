@@ -29,6 +29,14 @@ const STATIC_EXTENSIONS = [
 const ONBOARDED_COOKIE = "pibutenten_onboarded";
 
 /**
+ * 첫 가입자 강제 온보딩 게이트 쿠키 — signup 완료 시 set.
+ *  - 기존 가입자(birthdate NULL but 이 쿠키 없음)는 영향 없음
+ *  - 신규 가입자는 onboarding 끝낼 때까지 다른 페이지 접근 X
+ *  - onboarding 저장 시 클라이언트가 expire(Max-Age=0)
+ */
+const MUST_ONBOARD_COOKIE = "pibutenten_must_onboard";
+
+/**
  * Supabase Auth 토큰 자동 갱신 + 온보딩 가드.
  * - 비로그인 사용자: 그대로 통과
  * - 로그인 + 약관 미동의: /signup
@@ -48,7 +56,14 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // ⚡ 빠른 경로 2: onboarded 쿠키가 있으면 supabase 호출 없이 통과
+  // ⚡ 빠른 경로 2a: 첫 가입 강제 온보딩 쿠키가 있으면 무조건 /onboarding으로
+  //   supabase 호출 없이 즉시 redirect — fast path 우선
+  const mustOnboardCookie = request.cookies.get(MUST_ONBOARD_COOKIE)?.value;
+  if (mustOnboardCookie) {
+    return NextResponse.redirect(new URL("/onboarding", request.url));
+  }
+
+  // ⚡ 빠른 경로 2b: onboarded 쿠키가 있으면 supabase 호출 없이 통과
   //   (로그아웃 시 쿠키 expire되도록 별도 처리는 supabase logout이 onboarded 쿠키도 삭제할 때만 필요)
   const onboardedCookie = request.cookies.get(ONBOARDED_COOKIE)?.value;
   if (onboardedCookie) {

@@ -23,9 +23,9 @@ type Props = {
 };
 
 /**
- * 카테고리 탭 + 인기 키워드 칩.
+ * 카테고리 탭 + 인기 태그 칩.
  * - 진입 시: 디폴트 카테고리(condition/lifting/injection 중 랜덤)
- * - 검색어가 있으면: 그 키워드의 카테고리로 자동 전환
+ * - 검색어가 있으면: 그 태그의 카테고리로 자동 전환
  * - 검색어 = 칩 텍스트면 그 칩만 카테고리 색으로 강조
  * - 모바일: 3줄 / 데스크탑: 4줄까지만 보이고, 더보기 토글
  * - 칩 클릭: 같은 칩 재클릭 시 검색 해제, 다른 칩이면 /?q=...
@@ -42,7 +42,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
     setPendingChip(null);
   }, [activeQuery]);
 
-  // 검색어가 등록된 키워드면 그 카테고리로
+  // 검색어가 등록된 태그면 그 카테고리로
   const queryCategory = useMemo<CategorySlug | null>(() => {
     if (!activeQuery) return null;
     for (const c of Object.keys(popularByCategory) as CategorySlug[]) {
@@ -72,13 +72,13 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
   }, [queryCategory]);
 
   // 검색창 입력값에 따라 자동완성 카테고리 강조 (Enter 안 눌러도)
-  // — 모든 카테고리의 키워드를 startsWith/includes로 찾아서 단일 매칭이면 그 카테고리로 전환
+  // — 모든 카테고리의 태그를 startsWith/includes로 찾아서 단일 매칭이면 그 카테고리로 전환
   useEffect(() => {
     function handler(e: Event) {
       const detail = (e as CustomEvent).detail as string;
       const v = (detail ?? "").trim();
       if (!v) return;
-      // 모든 카테고리의 키워드 풀에서 prefix 매칭
+      // 모든 카테고리의 태그 풀에서 prefix 매칭
       const matches: { kw: string; cat: CategorySlug }[] = [];
       for (const c of Object.keys(popularByCategory) as CategorySlug[]) {
         for (const kw of popularByCategory[c]) {
@@ -196,7 +196,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
       {/* 칩 */}
       {allChips.length === 0 ? (
         <div className="text-center text-xs text-[var(--text-muted)]">
-          이 카테고리의 인기 키워드가 아직 없습니다.
+          이 카테고리의 인기 태그가 아직 없습니다.
         </div>
       ) : (
         <>

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Fragment,
@@ -16,6 +17,7 @@ import { categorize } from "@/lib/category-sets";
 import { PICK_IDS } from "@/lib/picks";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import CommentsBlock from "@/components/CommentsBlock";
+import { getQaUrl } from "@/lib/qa-url";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 export type QACardData = {
@@ -28,10 +30,23 @@ export type QACardData = {
   view_count: number;
   share_count?: number;
   comment_count?: number;
-  type?: "qa" | "post" | "article";
+  type?: "qa" | "post" | "article" | "link";
   created_at?: string;
   /** 작성 당시 페르소나 — 'personal'이면 author.alt_* 우선 표시 */
   posted_as?: "official" | "personal";
+  /** §2 SEO URL — /doctors/{slug}/{year}/{postSlug} canonical 생성용 */
+  post_year?: number | null;
+  post_slug?: string | null;
+  /** 외부 링크 — 모든 카테고리에서 옵션 (Phase 3). qa 카테고리 외에서는 카드에 [더 알아보기] 버튼 노출 */
+  external_url?: string | null;
+  external_title?: string | null;
+  external_description?: string | null;
+  external_image?: string | null;
+  external_site_name?: string | null;
+  /** 글 분류 카테고리 (Phase 2) */
+  category?: string | null;
+  /** 의사 직함 숨김 (Phase A.2) — true면 사적 모드, "피부과 전문의" 배지 숨김 */
+  hide_doctor_credential?: boolean | null;
   doctor: {
     slug: string;
     name: string;
@@ -60,21 +75,33 @@ export type QACardData = {
  */
 type Props = {
   qa: QACardData;
-  /** 검색어 — 일치하는 키워드 칩은 카테고리 색, 본문은 노란 mark */
+  /** 검색어 — 일치하는 태그 칩은 카테고리 색, 본문은 노란 mark */
   activeQuery?: string;
   /** 칩 클릭 시 검색 URL에 boost로 함께 전달 (원장님 단일 페이지에서 사용) */
   boostDoctorSlug?: string;
   /** 이 카드가 HOT인지 (서버에서 계산한 hot id set 기준) */
   isHot?: boolean;
+  /** 단독 페이지(/qa/[id], /doctors/{slug}/{year}/{slug})에서 사용 — 댓글 자동 열림 + 입력 포커스 */
+  autoExpandComments?: boolean;
+  /** 단독 페이지: 본문 자동 펼침 (line-clamp 해제). 짧은 글이면 영향 없음. */
+  forceExpanded?: boolean;
 };
 
-export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false }: Props) {
-  const [expanded, setExpanded] = useState(false);
+export default function QACard({
+  qa,
+  activeQuery,
+  boostDoctorSlug,
+  isHot = false,
+  autoExpandComments = false,
+  forceExpanded = false,
+}: Props) {
+  const [expanded, setExpanded] = useState(forceExpanded);
   const [viewCount, setViewCount] = useState(qa.view_count);
   const [likeCount, setLikeCount] = useState(qa.like_count);
   const [shareCount, setShareCount] = useState(qa.share_count ?? 0);
   const [commentCount, setCommentCount] = useState(qa.comment_count ?? 0);
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  // 단독 페이지에서는 댓글창 자동 열림 (autoExpandComments)
+  const [commentsOpen, setCommentsOpen] = useState(autoExpandComments);
   const [liked, setLiked] = useState(false);
   const [me, setMe] = useState<{ id: string; role: "admin" | "doctor" | "user" } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -112,6 +139,8 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
               if (typeof data === "number") setViewCount(data);
             },
           );
+          // PWA 설치 배너 트리거용 — 카드 1장당 1회 발생
+          window.dispatchEvent(new CustomEvent("pibutenten:qa-viewed"));
           observer.disconnect();
         }
       },
@@ -233,12 +262,13 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
   }
   const theme = doctor ? getDoctorTheme(doctor.slug) : null;
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
-  // 영상 글은 영상 업로드 날짜, post는 created_at 상대시간
-  const dateLabel = qa.video?.upload_date
-    ? formatDate(qa.video.upload_date)
-    : qa.created_at
-      ? relativeTime(qa.created_at)
-      : null;
+  // 모든 글 단일 시간 기준 — qas.created_at (영상 글은 backfill로 video.upload_date와 동기화됨)
+  // SNS 표준 상대시간 + 호버 시 절대 날짜
+  const dateLabel = qa.created_at ? relativeTime(qa.created_at) : null;
+  const dateAbsolute = qa.created_at
+    ? absoluteDateTimeLabel(qa.created_at)
+    : null;
+  const dateIso = qa.created_at ?? undefined;
 
   // QACard 아바타용 offset (avatarOffsetX/Y 우선, 없으면 offsetX/Y * 0.46)
   const avatarTx =
@@ -341,7 +371,9 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
 
   // 페르소나 — 'personal'로 작성된 글은 alt 정보 우선, doctor 뱃지/링크 숨김
   const isPersonalPost = qa.posted_as === "personal";
-  const showAsDoctor = !!doctor && !isPersonalPost;
+  // hide_doctor_credential — 의사가 카테고리·토글로 직함 숨긴 경우 (Phase A.2)
+  const credentialHidden = Boolean(qa.hide_doctor_credential);
+  const showAsDoctor = !!doctor && !isPersonalPost && !credentialHidden;
   const authorName = isPersonalPost
     ? qa.author?.alt_display_name ?? qa.author?.display_name ?? "익명"
     : doctor?.name ?? qa.author?.display_name ?? "익명";
@@ -498,14 +530,14 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
               )}
             </div>
             <div className="min-w-0 flex-1">
-              {/* 1줄: 이름 + 피부과 전문의 */}
-              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0 leading-none">
-                <span className="text-[13px] font-bold leading-none text-[var(--text)]">
+              {/* 1줄: 이름 + 피부과 전문의 — 글자 살짝만 키워서 아바타와 높이 균형 */}
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0 leading-[1.2]">
+                <span className="text-[13.5px] font-bold leading-[1.2] text-[var(--text)]">
                   {authorName}
                 </span>
                 {showAsDoctor && (
                   <span
-                    className="inline-flex items-center gap-1 text-[11px] font-medium leading-none"
+                    className="inline-flex items-center gap-1 text-[11.5px] font-medium leading-[1.2]"
                     style={{ color: "#5BB0D1" }}
                   >
                     <svg
@@ -522,19 +554,33 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
               </div>
               {/* 2줄: 주제 · 날짜 (영상 글이거나 작성일이 있을 때만) */}
               {(qa.video?.topic || dateLabel) && (
-                <div className="mt-1 truncate text-[11px] text-[var(--text-muted)]">
+                <div className="mt-[3px] truncate text-[11.5px] leading-[1.2] text-[var(--text-muted)]">
                   {qa.video?.topic ? qa.video.topic : ""}
-                  {dateLabel
-                    ? `${qa.video?.topic ? " · " : ""}${dateLabel}`
-                    : ""}
+                  {dateLabel && (
+                    <>
+                      {qa.video?.topic ? " · " : ""}
+                      <time
+                        dateTime={dateIso}
+                        title={dateAbsolute ?? undefined}
+                      >
+                        {dateLabel}
+                      </time>
+                    </>
+                  )}
                 </div>
               )}
             </div>
           </button>
 
-          {/* 2. 제목 — 하늘색 (브랜드 primary) */}
-          <h2 className="mb-2.5 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px] text-[var(--primary)]">
-            {highlight(qa.question, activeQuery)}
+          {/* 2. 제목 — 하늘색(브랜드 primary), 클릭 시 단독 페이지로 이동.
+              내부 링크 신호(PageRank · 앵커 텍스트) 누적 + 크롤러가 단독 URL 색인 가능. */}
+          <h2 className="mb-2.5 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px]">
+            <Link
+              href={getQaUrl(qa)}
+              className="text-[var(--primary)] hover:underline"
+            >
+              {highlight(qa.question, activeQuery)}
+            </Link>
           </h2>
 
           {/* 3. 본문 — 줄바꿈 보존, 길이 충분할 때만 클릭으로 펼침/접기 */}
@@ -573,12 +619,24 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
             }}
             className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary)]"
           >
-            <span style={{ color: "#FF0000" }}>▶</span> 영상 보러가기
+            <span style={{ color: "#FF0000" }}>▶</span> 영상에서 자세히 보기
+          </a>
+        )}
+        {/* 외부 링크 [더 알아보기] — Q&A 외 카테고리에서만 노출 (Phase 3) */}
+        {qa.external_url && qa.category !== "qa" && (
+          <a
+            href={qa.external_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary-light-hover)]"
+          >
+            <span aria-hidden>↗</span> 더 알아보기
           </a>
         )}
       </div>
 
-      {/* 키워드 칩 — 컴팩트 + 첫 6개만 노출, 초과 시 +N 토글 */}
+      {/* 태그 칩 — 컴팩트 + 첫 6개만 노출, 초과 시 +N 토글 */}
       {qa.keywords.length > 0 && (
         <Keywords
           keywords={qa.keywords}
@@ -755,8 +813,8 @@ export default function QACard({ qa, activeQuery, boostDoctorSlug, isHot = false
 const CHIP_BASE_CLASS =
   "inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] whitespace-nowrap";
 const CHIP_DEFAULT_STYLE: React.CSSProperties = {
-  backgroundColor: "#E8EAEE",
-  color: "#5C6470",
+  backgroundColor: "#F0F2F5",
+  color: "#8A8F99",
   fontWeight: 500,
 };
 
@@ -772,48 +830,53 @@ function Keywords({
   onPick: (kw: string) => void;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLDivElement>(null);
   const [showAll, setShowAll] = useState(false);
-  const [fitCount, setFitCount] = useState(keywords.length);
+  // 초기값: 모든 태그 노출(SSR HTML에는 한 번만 등장).
+  // 클라이언트에서 첫 줄 측정 후 fitCount 조정 → +N 배지 표시.
+  const [fitCount, setFitCount] = useState<number>(keywords.length);
 
-  // 측정: 자연스러운 줄바꿈(flex-wrap) 후 첫 줄에 들어간 칩 개수 검출
+  // 측정: DOM에 detached probe div를 잠깐 만들어 첫 줄에 맞는 칩 갯수 계산.
+  //  → 별도 측정 div를 마크업에 두지 않음 (검색엔진/AI 태그 스터핑 방지)
   useLayoutEffect(() => {
     if (showAll) return;
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    if (typeof document === "undefined") return;
 
     const measure = () => {
-      const measureDiv = measureRef.current;
-      if (!measureDiv) return;
-      if (measureDiv.clientWidth === 0) return;
-
-      const chips = Array.from(
-        measureDiv.querySelectorAll<HTMLElement>("[data-mchip]"),
-      );
-      if (chips.length === 0) {
-        setFitCount(0);
-        return;
+      const w = wrapper.clientWidth;
+      if (w === 0) return;
+      const probe = document.createElement("div");
+      probe.setAttribute("aria-hidden", "true");
+      probe.style.cssText = `position:absolute;left:-99999px;top:-99999px;width:${w}px;display:flex;flex-wrap:wrap;gap:4px;visibility:hidden;`;
+      for (const kw of keywords) {
+        const span = document.createElement("span");
+        span.className = CHIP_BASE_CLASS;
+        span.style.backgroundColor = "#F0F2F5";
+        span.style.color = "#8A8F99";
+        span.style.fontWeight = "500";
+        span.textContent = kw;
+        probe.appendChild(span);
       }
-
-      const firstTop = chips[0].offsetTop;
-      let firstLineCount = chips.length;
-      for (let i = 1; i < chips.length; i++) {
-        if (chips[i].offsetTop > firstTop + 2) {
-          firstLineCount = i;
-          break;
+      document.body.appendChild(probe);
+      const chips = Array.from(probe.children) as HTMLElement[];
+      let count = chips.length;
+      if (chips.length > 0) {
+        const firstTop = chips[0].offsetTop;
+        for (let i = 1; i < chips.length; i++) {
+          if (chips[i].offsetTop > firstTop + 2) {
+            count = Math.max(0, i - 1); // +N 배지 자리 확보
+            break;
+          }
         }
       }
-
-      if (firstLineCount === chips.length) {
-        // 전부 한 줄에 들어감 → +N 불필요
-        setFitCount(firstLineCount);
-      } else {
-        // 줄바꿈 발생 → +N 배지 자리 확보를 위해 마지막 칩 1개 빼기
-        setFitCount(Math.max(0, firstLineCount - 1));
-      }
+      document.body.removeChild(probe);
+      setFitCount(count);
     };
 
     measure();
     const observer = new ResizeObserver(measure);
-    if (wrapperRef.current) observer.observe(wrapperRef.current);
+    observer.observe(wrapper);
     return () => observer.disconnect();
   }, [keywords, showAll]);
 
@@ -822,26 +885,11 @@ function Keywords({
 
   return (
     <div ref={wrapperRef} className="relative mb-2 mt-2.5">
-      {/* 측정용 — 보이지 않게 모든 칩을 wrap 모드로 렌더 (offsetTop으로 줄바꿈 검출) */}
-      <div
-        ref={measureRef}
-        aria-hidden
-        className="invisible pointer-events-none absolute inset-x-0 top-0 flex flex-wrap gap-1"
-      >
-        {keywords.map((kw, i) => (
-          <span
-            key={`m-${i}`}
-            data-mchip
-            className={CHIP_BASE_CLASS}
-            style={CHIP_DEFAULT_STYLE}
-          >
-            {kw}
-          </span>
-        ))}
-      </div>
-
+      {/* 스크린리더 + LLM/검색엔진용 텍스트 — 콤마 구분으로 단어 경계 명시 (D-4) */}
+      <span className="sr-only">태그: {keywords.join(", ")}</span>
       {/* 실제 노출 — collapse 상태일 때 한 줄, 펼친 상태일 때만 wrap */}
       <div
+        aria-hidden="true"
         className={
           "flex gap-1 py-px " +
           (showAll ? "flex-wrap" : "flex-nowrap overflow-x-hidden")
@@ -884,7 +932,7 @@ function Keywords({
               setShowAll(true);
             }}
             className="inline-flex shrink-0 cursor-pointer items-center rounded-full px-2.5 py-[3px] text-[11px] font-medium whitespace-nowrap transition-colors hover:text-[var(--primary)]"
-            style={{ backgroundColor: "#E8EAEE", color: "#5C6470" }}
+            style={{ backgroundColor: "#F0F2F5", color: "#8A8F99" }}
           >
             +{hidden}
           </button>
@@ -897,7 +945,7 @@ function Keywords({
               setShowAll(false);
             }}
             className="inline-flex cursor-pointer items-center rounded-full px-2.5 py-[3px] text-[11px] font-medium whitespace-nowrap transition-colors hover:text-[var(--primary)]"
-            style={{ backgroundColor: "#E8EAEE", color: "#5C6470" }}
+            style={{ backgroundColor: "#F0F2F5", color: "#8A8F99" }}
           >
             접기
           </button>
@@ -909,7 +957,12 @@ function Keywords({
 
 async function shareQA(qa: QACardData) {
   if (typeof window === "undefined") return;
-  const url = `${window.location.origin}/qa/${qa.id}`;
+  // §2 SEO canonical URL — 의사 글이면 새 패턴, 아니면 /qa/{id} fallback
+  const path =
+    qa.doctor?.slug && qa.post_year && qa.post_slug
+      ? `/doctors/${qa.doctor.slug}/${qa.post_year}/${encodeURIComponent(qa.post_slug)}`
+      : `/qa/${qa.id}`;
+  const url = `${window.location.origin}${path}`;
   const title = qa.question;
   const text = `${qa.doctor?.name ?? ""} 원장님 — 피부텐텐`;
 
@@ -973,7 +1026,16 @@ function formatDate(iso: string | null): string | null {
   return `${m[1].slice(2)}.${m[2]}.${m[3]}`;
 }
 
-/** SNS 스타일 상대시간 — 방금 전 / N분 전 / N시간 전 / N일 전 / 7일 이상은 yy.mm.dd */
+/**
+ * SNS 표준 상대시간.
+ *  - <1분: 방금 전
+ *  - <1시간: N분 전
+ *  - <24시간: N시간 전
+ *  - <7일: N일 전
+ *  - <4주: N주 전
+ *  - <12달: N달 전
+ *  - 그 외: N년 전
+ */
 function relativeTime(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const t = new Date(iso).getTime();
@@ -983,7 +1045,25 @@ function relativeTime(iso: string | null | undefined): string | null {
   if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
   if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}시간 전`;
   if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}일 전`;
-  return formatDate(iso);
+  if (diffSec < 86400 * 28) return `${Math.floor(diffSec / (86400 * 7))}주 전`;
+  if (diffSec < 86400 * 365) return `${Math.floor(diffSec / (86400 * 30))}달 전`;
+  return `${Math.floor(diffSec / (86400 * 365))}년 전`;
+}
+
+/**
+ * 호버 절대 날짜 — title 속성용.
+ * 예: "2026년 4월 24일 14:30"
+ */
+function absoluteDateTimeLabel(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${y}년 ${m}월 ${day}일 ${hh}:${mm}`;
 }
 
 /**

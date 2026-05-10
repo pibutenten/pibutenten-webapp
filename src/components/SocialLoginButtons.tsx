@@ -21,8 +21,18 @@ export default function SocialLoginButtons({ next }: Props) {
   async function handleClick(p: OAuthProviderMeta) {
     setError(null);
 
+    // Naver 처럼 자체 OAuth 흐름 — server route로 이동
+    // (state cookie 발급 + Naver authorize URL로 redirect)
+    if (p.customStartPath) {
+      setPendingId(p.id);
+      const url = next
+        ? `${p.customStartPath}?next=${encodeURIComponent(next)}`
+        : p.customStartPath;
+      window.location.assign(url);
+      return;
+    }
+
     if (!p.supabaseProvider) {
-      // Naver 등 미지원 provider
       alert(p.disabledReason || "이 로그인은 곧 지원될 예정이에요.");
       return;
     }

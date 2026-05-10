@@ -3,6 +3,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { makeArticleSlug } from "@/lib/article/slug";
 import type { ArticleSection } from "@/lib/article/types";
 import { readPersonaServer } from "@/lib/persona-server";
+import {
+  buildSlug,
+  resolveSlugCollision,
+} from "@/data/procedure-mappings/slug-mapping";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +16,8 @@ type SubmitStatus = "draft" | "pending_review" | "published";
 
 type Payload = {
   type: WriteType;
+  /** 글 분류 카테고리 (Phase 2) — review/daily/question/news/qa. 미입력 시 type 기반 자동 매핑 */
+  category?: string;
   status?: SubmitStatus; // 기본 'published'
   // post: title + body 통일 (Q&A와 동일 구조)
   title?: string;
@@ -25,6 +31,16 @@ type Payload = {
   answer?: string;
   // shared
   keywords?: string[];
+  // 외부 링크 (Phase 3) — 모든 카테고리에서 옵션
+  external_url?: string;
+  external_meta?: {
+    title?: string;
+    description?: string;
+    image?: string | null;
+    siteName?: string;
+  };
+  /** 의사 직함 숨김 — Phase A.2. 사적 모드 카테고리 default true */
+  hide_doctor_credential?: boolean;
 };
 
 /**
@@ -149,11 +165,100 @@ export async function POST(req: Request) {
   // 페르소나 컨텍스트 — post는 페르소나 따라 official/personal, qa·article은 항상 official
   const currentPersona = await readPersonaServer();
 
+  // ── post_slug + post_year 자동 생성 (§2 SEO URL 정책) ─────────────
+  // post_year: 발행 연도 (서버 기준, KST 무관 — DB에서 EXTRACT YEAR로 동일 결과)
+  const postYear = new Date().getUTCFullYear();
+  // post_slug: 태그 첫 3개만 결합 + 50자 초과 시 단어 경계에서 자르기.
+  //  → URL 가독성 + Twitter/카톡 미리보기 잘림 방지.
+  // 같은 의사·연도 내 충돌 시 -2/-3 부여.
+  const SLUG_MAX_KEYWORDS = 3;
+  const SLUG_MAX_LEN = 50;
+  let postSlug: string | null = null;
+  if (doctorId && keywords.length > 0) {
+    const slugTags = keywords.slice(0, SLUG_MAX_KEYWORDS);
+    let baseSlug = buildSlug(slugTags);
+    if (baseSlug && !baseSlug.startsWith("untagged-")) {
+      if (baseSlug.length > SLUG_MAX_LEN) {
+        const cut = baseSlug.slice(0, SLUG_MAX_LEN);
+        const lastDash = cut.lastIndexOf("-");
+        baseSlug = lastDash > 5 ? cut.slice(0, lastDash) : cut;
+      }
+      const { data: existing } = await supabase
+        .from("qas")
+        .select("post_slug")
+        .eq("doctor_id", doctorId)
+        .eq("post_year", postYear)
+        .not("post_slug", "is", null);
+      const existingSet = new Set<string>(
+        (existing ?? [])
+          .map((r) => r.post_slug as string | null)
+          .filter((s): s is string => !!s),
+      );
+      postSlug = resolveSlugCollision(baseSlug, existingSet);
+    }
+  }
+
+  // 카테고리 결정 — payload.category 우선, 없으면 type에서 자동 매핑.
+  // v3 spec 6 카테고리: qa/tip/diary/ask/news/share
+  const VALID_CATEGORIES = ["qa", "tip", "diary", "ask", "news", "share"];
+  let category: string;
+  if (payload.category && VALID_CATEGORIES.includes(payload.category)) {
+    category = payload.category;
+  } else {
+    category = t === "qa" ? "qa" : t === "article" ? "tip" : "diary";
+  }
+
+  // 첫 태그에 카테고리 한글 라벨 자동 prepend (모든 카테고리, spec D-8)
+  // 사용자 입력 keywords에서 같은 라벨 중복 제거 후 맨 앞에 삽입.
+  const CATEGORY_LABEL: Record<string, string> = {
+    qa: "Q&A",
+    tip: "꿀팁",
+    diary: "피부일기",
+    ask: "물어봐요",
+    news: "새소식",
+    share: "공유하기",
+  };
+  const categoryLabel = CATEGORY_LABEL[category];
+  if (categoryLabel) {
+    const dedupedKeywords = keywords.filter((k) => k !== categoryLabel);
+    keywords.length = 0;
+    keywords.push(categoryLabel, ...dedupedKeywords);
+    if (keywords.length > 8) keywords.length = 8;
+  }
+
+  // 외부 링크 — 옵션. URL 형식 검증 후 메타와 함께 저장
+  const extUrlRaw = (payload.external_url ?? "").trim();
+  let extFields: Record<string, unknown> = {};
+  if (extUrlRaw) {
+    try {
+      const u = new URL(
+        extUrlRaw.startsWith("http") ? extUrlRaw : `https://${extUrlRaw}`,
+      );
+      if (u.protocol === "http:" || u.protocol === "https:") {
+        extFields = {
+          external_url: u.toString(),
+          external_title: payload.external_meta?.title ?? null,
+          external_description: payload.external_meta?.description ?? null,
+          external_image: payload.external_meta?.image ?? null,
+          external_site_name:
+            payload.external_meta?.siteName ?? u.hostname ?? null,
+        };
+      }
+    } catch {
+      /* invalid URL — 무시 (저장 안 함) */
+    }
+  }
+
   // 본문 검증 + insert payload 구성
   const insert: Record<string, unknown> = {
     type: t,
+    category,
     author_id: user.id,
     keywords,
+    post_year: postYear,
+    post_slug: postSlug,
+    hide_doctor_credential: Boolean(payload.hide_doctor_credential),
+    ...extFields,
   };
 
   if (t === "post") {
@@ -219,7 +324,7 @@ export async function POST(req: Request) {
   const { data: row, error: insErr } = await supabase
     .from("qas")
     .insert(insert)
-    .select("id, type, article_slug, status")
+    .select("id, type, article_slug, status, post_slug, post_year")
     .single();
 
   if (insErr) {
@@ -234,5 +339,7 @@ export async function POST(req: Request) {
     type: row.type,
     status: row.status,
     article_slug: row.article_slug,
+    post_slug: row.post_slug,
+    post_year: row.post_year,
   });
 }

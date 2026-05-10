@@ -1,0 +1,227 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import QACard, { type QACardData } from "@/components/QACard";
+import { getHotQaIds } from "@/lib/hot-ids";
+import { SITE_URL } from "@/lib/site";
+import { buildDoctorReference } from "@/lib/schema/doctor";
+import { keywordsToAbout } from "@/lib/schema/procedure";
+
+export const dynamic = "force-dynamic";
+
+type Props = {
+  params: Promise<{ slug: string; year: string; postSlug: string }>;
+};
+
+const SITE = SITE_URL;
+
+type QaWithModified = QACardData & { updated_at?: string | null };
+
+async function fetchQaByDoctorYearSlug(
+  doctorSlug: string,
+  year: number,
+  postSlug: string,
+): Promise<QaWithModified | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: doctor } = await supabase
+      .from("doctors")
+      .select("id")
+      .eq("slug", doctorSlug)
+      .maybeSingle();
+    if (!doctor) return null;
+    const { data } = await supabase
+      .from("qas")
+      .select(
+        `
+        id, question, answer, meta, keywords, type, created_at, updated_at, posted_as,
+        like_count, view_count, post_year, post_slug,
+        doctor:doctors(slug, name, branch),
+        author:profiles!qas_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url),
+        video:videos(youtube_id, youtube_url, topic, upload_date)
+      `,
+      )
+      .eq("doctor_id", doctor.id)
+      .eq("post_year", year)
+      .eq("post_slug", postSlug)
+      .eq("status", "published")
+      .maybeSingle()
+      .returns<QaWithModified>();
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug, year, postSlug } = await params;
+  const yearInt = Number.parseInt(year, 10);
+  if (!Number.isFinite(yearInt)) {
+    return { title: "피부텐텐", robots: { index: false } };
+  }
+  const qa = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
+  if (!qa) return { title: "피부텐텐", robots: { index: false } };
+  const docName = qa.doctor?.name ? `${qa.doctor.name} 원장님` : "피부텐텐";
+  const desc = (qa.answer ?? "").replace(/\s+/g, " ").trim().slice(0, 110);
+  const ogUrl = qa.doctor?.slug ? `/og/${qa.doctor.slug}.png` : `/og.png`;
+  const canonical = `${SITE}/doctors/${slug}/${year}/${encodeURIComponent(postSlug)}`;
+  return {
+    title: qa.question,
+    description: desc,
+    alternates: { canonical },
+    openGraph: {
+      title: qa.question,
+      description: `${docName} — ${desc}`,
+      type: "article",
+      url: canonical,
+      images: [{ url: ogUrl, width: 1200, height: 630, alt: docName }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: qa.question,
+      description: `${docName} — ${desc}`,
+      images: [ogUrl],
+    },
+  };
+}
+
+function buildJsonLd(
+  qa: QaWithModified,
+  doctorSlug: string,
+  year: number,
+  postSlug: string,
+) {
+  const url = `${SITE}/doctors/${doctorSlug}/${year}/${encodeURIComponent(postSlug)}`;
+  const created = qa.created_at ?? new Date().toISOString();
+  const modified = qa.updated_at ?? created;
+  const docName = qa.doctor?.name ?? "";
+  const answerText = (qa.answer ?? "").replace(/\s+/g, " ").trim();
+
+  const breadcrumb = {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "피부텐텐", item: `${SITE}/` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: `${docName} 원장`,
+        item: `${SITE}/doctors/${doctorSlug}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: `${year}년`,
+        item: `${SITE}/doctors/${doctorSlug}/${year}`,
+      },
+      { "@type": "ListItem", position: 4, name: qa.question },
+    ],
+  };
+
+  const physician = buildDoctorReference({
+    slug: doctorSlug,
+    name: docName,
+  });
+
+  // QAPage — 단일 질문 + 의사 검수 답변 + SNS 인터랙션 신호
+  const medicalPage = {
+    "@type": ["MedicalWebPage", "QAPage"],
+    "@id": `${url}#webpage`,
+    url,
+    name: qa.question,
+    inLanguage: "ko-KR",
+    datePublished: created,
+    dateModified: modified, // qas.updated_at 활용 (AI freshness)
+    lastReviewed: modified.slice(0, 10),
+    reviewedBy: { "@id": `${SITE}/doctors/${doctorSlug}#person` },
+    isPartOf: { "@id": `${SITE}/#website` },
+    primaryImageOfPage: {
+      "@type": "ImageObject",
+      url: `${SITE}/og/${doctorSlug}.png`,
+    },
+    mainEntity: {
+      "@type": "Question",
+      name: qa.question,
+      text: qa.question,
+      answerCount: 1,
+      upvoteCount: qa.like_count ?? 0,
+      dateCreated: created,
+      author: { "@id": `${SITE}/doctors/${doctorSlug}#person` },
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: answerText.slice(0, 4000),
+        author: { "@id": `${SITE}/doctors/${doctorSlug}#person` },
+        dateCreated: created,
+        upvoteCount: qa.like_count ?? 0,
+        url,
+      },
+    },
+    // 시술/조건/일반 자동 분류 (procedure-mappings 사전 활용)
+    about: keywordsToAbout(qa.keywords),
+    specialty: "https://schema.org/Dermatologic",
+    audience: { "@type": "MedicalAudience", audienceType: "Patient" },
+  };
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [medicalPage, physician, breadcrumb],
+  };
+}
+
+export default async function DermatologistPostPage({ params }: Props) {
+  const { slug, year, postSlug } = await params;
+  const yearInt = Number.parseInt(year, 10);
+  if (!Number.isFinite(yearInt) || yearInt < 2000 || yearInt > 2100) {
+    notFound();
+  }
+  const qa = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
+  if (!qa) {
+    return (
+      <section className="mx-auto w-full max-w-[480px] py-10">
+        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center shadow-[var(--shadow-sm)]">
+          <div className="mb-4 text-5xl">📭</div>
+          <h1 className="mb-2 text-lg font-bold text-[var(--text)]">
+            글을 찾을 수 없어요
+          </h1>
+          <p className="mb-6 text-sm leading-[1.6] text-[var(--text-secondary)]">
+            글이 삭제되었거나 비공개로 전환되었을 수 있어요.
+            <br />
+            피드에서 다른 좋은 글을 둘러보세요.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Link
+              href="/"
+              className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-dark)]"
+            >
+              피드로 가기
+            </Link>
+            <Link
+              href={`/doctors/${slug}`}
+              className="rounded-md border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+            >
+              전문의 페이지
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const hotIds = Array.from(await getHotQaIds(20));
+  const jsonLd = buildJsonLd(qa, slug, yearInt, postSlug);
+
+  return (
+    <section className="mx-auto w-full max-w-[680px]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <QACard
+        qa={qa}
+        isHot={hotIds.includes(qa.id)}
+        autoExpandComments
+        forceExpanded
+      />
+    </section>
+  );
+}

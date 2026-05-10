@@ -8,43 +8,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 // 옵션 정의 — 한글 라벨은 UI 전용, DB에는 영문 key 저장
 // ─────────────────────────────────────────────────────────────
 
-// 파스텔 톤 배경색 10개 — 옅고 부드러운 톤
-const BG_COLORS = [
-  "#FFF1F3", // 코랄
-  "#ECEFF5", // 스카이블루
-  "#E6F5EC", // 민트
-  "#FFF1E6", // 살구
-  "#EFEAF6", // 라벤더
-  "#FFFAE2", // 레몬
-  "#FFE9EC", // 핑크
-  "#E0EBEB", // 청록
-  "#F9EFE2", // 베이지
-  "#EBE7E0", // 차분 베이지
-];
-const DEFAULT_BG = "#FFF1F3";
-
-const DEFAULT_AVATARS = [
-  "/avatars/avatar-01.png",
-  "/avatars/avatar-02.png",
-  "/avatars/avatar-03.png",
-  "/avatars/avatar-04.png",
-  "/avatars/avatar-05.png",
-  "/avatars/avatar-06.png",
-  "/avatars/avatar-07.png",
-  "/avatars/avatar-08.png",
-  "/avatars/avatar-09.png",
-  "/avatars/avatar-10.png",
-  "/avatars/avatar-11.png",
-  "/avatars/avatar-12.png",
-  "/avatars/avatar-13.png",
-  "/avatars/avatar-14.png",
-  "/avatars/avatar-15.png",
-  "/avatars/avatar-16.png",
-  "/avatars/avatar-17.png",
-  "/avatars/avatar-18.png",
-  "/avatars/avatar-19.png",
-  "/avatars/avatar-20.png",
-];
 const GENDERS: { key: "male" | "female" | "other"; label: string }[] = [
   { key: "female", label: "여성" },
   { key: "male", label: "남성" },
@@ -192,11 +155,8 @@ export default function OnboardingClient({ userId, initial }: Props) {
   );
   const [bio, setBio] = useState(initial.bio);
 
-  // 아바타 — 기본 20개 중 선택 또는 직접 업로드
+  // 아바타 — SNS(구글/카카오/네이버) 프로필 이미지가 디폴트, 변경 시 직접 업로드
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initial.avatarUrl);
-  const [avatarBgColor, setAvatarBgColor] = useState<string>(
-    initial.avatarBgColor ?? DEFAULT_BG,
-  );
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -282,42 +242,38 @@ export default function OnboardingClient({ userId, initial }: Props) {
           interested_procedures: procedures,
           bio: bio.trim() || null,
           avatar_url: cleanAvatar,
-          // 누끼 PNG일 때만 배경색 저장 (직접 업로드한 사진은 색 무관)
-          avatar_bg_color:
-            cleanAvatar && cleanAvatar.startsWith("/avatars/")
-              ? avatarBgColor
-              : null,
+          // 기본 아바타 그리드 제거 → 배경색 항상 null (직접 업로드 사진은 색 무관)
+          avatar_bg_color: null,
         })
         .eq("id", userId);
       if (error) {
         setErr(`저장 실패: ${error.message}`);
         return;
       }
-      // middleware의 온보딩 가드 캐시 — 즉시 통과시키기 위해 클라이언트에서 set
+      // middleware의 온보딩 가드 캐시 — 즉시 통과시키기 위해 클라이언트에서 set.
+      // 첫 가입 강제 게이트 쿠키도 만료시켜 두 번 다시 강제 redirect 안 되게 한다.
       try {
         document.cookie = `pibutenten_onboarded=${userId}; Path=/; Max-Age=${60 * 60 * 12}; SameSite=Lax`;
+        document.cookie = `pibutenten_must_onboard=; Path=/; Max-Age=0; SameSite=Lax`;
       } catch {
         /* ignore — 인앱 sandbox */
       }
-      router.push("/me");
-      router.refresh();
+      // 온보딩 완료 → 피드 화면 (콘텐츠 보기) — 캐시 확실히 비우기 위해 풀 reload
+      window.location.assign("/");
     });
   }
 
   return (
     <div className="space-y-3 sm:space-y-4">
-      {/* 0. 프로필 사진 */}
-      <Section title="프로필 사진" hint="기본 아바타 중 선택하거나 직접 업로드">
-        <div className="flex items-start gap-4">
-          {/* 미리보기 — 누끼 PNG 위에 배경색 합성 */}
+      {/* 0. 프로필 사진 — SNS 프로필 디폴트 + 직접 업로드 옵션 */}
+      <Section
+        title="프로필 사진"
+        hint="SNS 프로필 사진 그대로 또는 직접 업로드"
+      >
+        <div className="flex items-center gap-4">
+          {/* 미리보기 — 큰 원형, OAuth 사진이거나 업로드한 사진 그대로 노출 */}
           <div
-            className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-[var(--border)]"
-            style={{
-              backgroundColor:
-                avatarUrl && avatarUrl.startsWith("/avatars/")
-                  ? avatarBgColor
-                  : "var(--bg-soft)",
-            }}
+            className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--bg-soft)]"
           >
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -334,8 +290,8 @@ export default function OnboardingClient({ userId, initial }: Props) {
           </div>
 
           <div className="min-w-0 flex-1">
-            {/* 업로드 / 사진 찍기 버튼 */}
-            <div className="mb-3 flex flex-wrap gap-2">
+            {/* 업로드 / 사진 찍기 / 선택 해제 */}
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -350,7 +306,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
                 disabled={uploading}
                 className="rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
               >
-                📷 사진 찍기
+                사진 찍기
               </button>
               {avatarUrl && (
                 <button
@@ -361,10 +317,11 @@ export default function OnboardingClient({ userId, initial }: Props) {
                   선택 해제
                 </button>
               )}
-              <span className="ml-1 self-center text-[11px] text-[var(--text-muted)]">
-                또는 기본 아바타에서 고르기
-              </span>
             </div>
+            <p className="mt-2 text-[11.5px] leading-[1.55] text-[var(--text-muted)]">
+              기본은 가입 시 사용한 SNS 프로필 사진이에요. 바꾸고 싶으면 직접
+              업로드하거나 사진을 찍으세요. (자동으로 256×256으로 줄여서 저장)
+            </p>
             <input
               ref={fileInputRef}
               type="file"
@@ -386,63 +343,6 @@ export default function OnboardingClient({ userId, initial }: Props) {
                 if (f) void handleFileUpload(f);
               }}
             />
-
-            {/* 기본 아바타 그리드 */}
-            <div className="mt-1.5 grid grid-cols-5 gap-2 sm:grid-cols-10">
-              {DEFAULT_AVATARS.map((url) => {
-                const selected = avatarUrl === url;
-                return (
-                  <button
-                    key={url}
-                    type="button"
-                    onClick={() => setAvatarUrl(url)}
-                    className={
-                      "relative aspect-square overflow-hidden rounded-full transition-all " +
-                      (selected
-                        ? "ring-2 ring-[var(--primary)] ring-offset-2"
-                        : "ring-1 ring-[var(--border)] hover:ring-[var(--primary)]/40")
-                    }
-                    style={{ backgroundColor: avatarBgColor }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={url}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* 배경색 선택 — 기본 아바타용 (직접 업로드 사진일 때만 숨김) */}
-            {(!avatarUrl || avatarUrl.startsWith("/avatars/")) && (
-              <div className="mt-3">
-                <div className="mb-1.5 text-[11px] text-[var(--text-muted)]">
-                  배경색 고르기
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {BG_COLORS.map((color) => {
-                    const sel = avatarBgColor === color;
-                    return (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setAvatarBgColor(color)}
-                        className={
-                          "h-7 w-7 rounded-full transition-all " +
-                          (sel
-                            ? "ring-2 ring-[var(--primary)] ring-offset-2"
-                            : "ring-1 ring-[var(--border)] hover:ring-[var(--primary)]/40")
-                        }
-                        style={{ backgroundColor: color }}
-                        aria-label={`배경색 ${color}`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </Section>
@@ -493,7 +393,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
           </div>
           <div>
             <Label>성별</Label>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {GENDERS.map((g) => (
                 <Chip
                   key={g.key}
@@ -510,7 +410,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
 
       {/* 2. 얼굴형 */}
       <Section title="얼굴형" required hint="택 1">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {FACE_SHAPES.map((f) => (
             <Chip
               key={f.key}
@@ -525,7 +425,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
 
       {/* 3. 피부타입 */}
       <Section title="피부타입" required hint="택 1">
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+        <div className="flex flex-wrap gap-2">
           {SKIN_TYPES.map((s) => (
             <Chip
               key={s.key}
@@ -540,7 +440,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
 
       {/* 4. 피부고민 */}
       <Section title="피부고민" hint="복수 선택">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {SKIN_CONCERNS.map((c) => (
             <Chip
               key={c.key}
@@ -555,7 +455,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
 
       {/* 5. 관심시술 */}
       <Section title="관심시술" hint="복수 선택">
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+        <div className="flex flex-wrap gap-2">
           {PROCEDURES.map((p) => (
             <Chip
               key={p.key}
@@ -592,9 +492,9 @@ export default function OnboardingClient({ userId, initial }: Props) {
           type="button"
           onClick={save}
           disabled={pending}
-          className="h-10 rounded-full bg-transparent px-7 text-[14px] font-semibold text-[var(--primary)] underline-offset-4 transition-all hover:underline disabled:opacity-50"
+          className="h-10 rounded-full bg-[var(--primary-light)] px-7 text-[14px] font-semibold text-white transition-all hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
         >
-          {pending ? "저장 중…" : "저장하고 시작하기"}
+          {pending ? "저장 중…" : "피부 예뻐지기 시작하기!"}
         </button>
       </div>
     </div>
@@ -658,7 +558,7 @@ function Chip({
       type="button"
       onClick={onClick}
       className={
-        "shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors sm:text-[12px] " +
+        "shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors sm:text-[13.5px] " +
         (active
           ? "bg-[var(--primary)] text-white"
           : "bg-[var(--bg-soft)] text-[var(--text-secondary)] hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]")

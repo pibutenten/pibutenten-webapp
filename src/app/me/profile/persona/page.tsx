@@ -5,6 +5,20 @@ import PersonaSetupClient from "./PersonaSetupClient";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * OAuth(구글/카카오/네이버) 가입 시 가져온 프로필 이미지 추출 — 페르소나 디폴트 fallback.
+ * Supabase Auth user_metadata에 provider별로 키가 다양하게 들어와서 둘 다 본다.
+ */
+function pickOauthAvatar(meta: unknown): string | null {
+  if (!meta || typeof meta !== "object") return null;
+  const m = meta as Record<string, unknown>;
+  const candidates = [m.avatar_url, m.picture];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.length > 0) return c;
+  }
+  return null;
+}
+
 export default async function PersonaSetupPage() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -70,6 +84,7 @@ export default async function PersonaSetupPage() {
         userId={user.id}
         initialName={profile.alt_display_name ?? ""}
         initialAvatar={profile.alt_avatar_url ?? null}
+        oauthAvatar={pickOauthAvatar(user.user_metadata)}
         initialBio={profile.alt_bio ?? ""}
       />
     </section>

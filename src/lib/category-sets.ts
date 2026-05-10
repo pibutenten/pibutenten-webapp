@@ -1,8 +1,8 @@
 /**
- * 키워드 → 카테고리 매핑 사전.
+ * 태그 → 카테고리 매핑 사전.
  * 정적 사이트 (pbtt-search/js/data.js) CATEGORY_SETS 그대로 이식.
  *
- * 우선순위 (한 키워드가 여러 카테고리에 걸칠 때):
+ * 우선순위 (한 태그가 여러 카테고리에 걸칠 때):
  *   스킨부스터 > 리프팅 > 피부고민 > 홈케어 > 피부상식(자동)
  */
 import type { CategorySlug } from "./categories";
@@ -76,7 +76,7 @@ const HOMECARE = new Set<string>([
   "영양제","비타민영양제","콜라겐영양제","유산균","오메가3",
 ]);
 
-/** 키워드 → 카테고리 슬러그 (우선순위 적용). */
+/** 태그 → 카테고리 슬러그 (우선순위 적용). */
 export function categorize(keyword: string): CategorySlug {
   if (INJECTION.has(keyword)) return "injectables";
   if (LIFTING.has(keyword)) return "lifting";

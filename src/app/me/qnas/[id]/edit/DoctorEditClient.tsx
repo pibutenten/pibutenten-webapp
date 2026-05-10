@@ -240,7 +240,7 @@ export default function DoctorEditClient({
             <span>업로드일: {qa.video.upload_date}</span>
           )}
           {qa.doctor && (
-            <span>원장: {qa.doctor.name}</span>
+            <span>글쓴이: {qa.doctor.name}</span>
           )}
           {reviewedAt && (
             <span className="text-green-700">
@@ -252,10 +252,10 @@ export default function DoctorEditClient({
 
       {/* 편집 폼 */}
       <div className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
-        {/* 원장 — 변경 불가 (본인 doctor 고정) */}
+        {/* 글쓴이 — 변경 불가 (본인 doctor 고정) */}
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            원장님
+            글쓴이
           </label>
           <div className="rounded-md border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2 text-sm text-[var(--text)]">
             {qa.doctor?.name ?? "—"}
@@ -343,7 +343,7 @@ export default function DoctorEditClient({
 
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            키워드
+            태그
           </label>
           <div className="mb-2 flex flex-wrap gap-1.5">
             {keywords.map((k) => (
@@ -373,7 +373,7 @@ export default function DoctorEditClient({
                   setKeywordInput("");
                 }
               }}
-              placeholder="키워드 입력 후 Enter"
+              placeholder="태그 입력 후 Enter"
               className="flex-1 rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
             />
             <button

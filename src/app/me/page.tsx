@@ -511,6 +511,12 @@ export default async function MePage() {
               title="초안 / 검수 대기"
               desc="AI 초안·원장 검수 대기 글 처리"
             />
+            <ActionCard
+              href="/admin/doctors"
+              emoji="🩺"
+              title="의사 프로필 관리"
+              desc="학력·경력·전문분야 등 확장 프로필 편집"
+            />
           </div>
         </div>
       )}

@@ -63,16 +63,30 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
       // role 별 redirect (admin/doctor 계정이 OAuth로 들어올 수도 있으므로 안전하게 분기)
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, birthdate")
         .eq("id", user.id)
         .maybeSingle();
       const role = profile?.role ?? "user";
+
+      // 일반 사용자 + 온보딩 미완료 → /onboarding 강제 게이트
+      // (admin/doctor는 운영용 계정이라 스킵)
+      if (role !== "admin" && role !== "doctor" && !profile?.birthdate) {
+        // middleware가 이 쿠키 보면 /onboarding으로 강제 redirect
+        try {
+          document.cookie = `pibutenten_must_onboard=1; Path=/; Max-Age=${60 * 60 * 24}; SameSite=Lax`;
+        } catch {
+          /* ignore */
+        }
+        window.location.assign("/onboarding");
+        return;
+      }
+
       const dest =
         role === "admin"
           ? "/admin"
           : role === "doctor"
             ? "/me"
-            : next || "/feed";
+            : next || "/";
       window.location.assign(dest);
     });
   }

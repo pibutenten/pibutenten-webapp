@@ -10,7 +10,7 @@ const TOP_N = 60;
 
 /**
  * 발행된 모든 qas의 keywords를 카운트 → 카테고리별 빈도 상위 N개.
- * 매핑 안 되는 키워드는 'knowledge' (피부상식)에 떨어짐.
+ * 매핑 안 되는 태그는 'knowledge' (피부상식)에 떨어짐.
  */
 export async function getPopularByCategory(): Promise<PopularByCategory> {
   const supabase = await createSupabaseServerClient();
@@ -23,7 +23,7 @@ export async function getPopularByCategory(): Promise<PopularByCategory> {
     return { concerns: [], lifting: [], injectables: [], homecare: [], knowledge: [] };
   }
 
-  // 키워드 카운트
+  // 태그 카운트
   const counts = new Map<string, number>();
   for (const row of data as { keywords: string[] | null }[]) {
     const ks = row.keywords ?? [];

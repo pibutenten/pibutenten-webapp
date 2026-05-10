@@ -10,7 +10,7 @@ export default function LogoutButton() {
     start(async () => {
       const sb = createSupabaseBrowserClient();
       await sb.auth.signOut();
-      window.location.assign("/feed");
+      window.location.assign("/");
     });
   }
   return (

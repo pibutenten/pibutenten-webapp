@@ -1,53 +1,115 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-
-const AVATAR_OPTIONS = [
-  "/avatars/avatar-01.png",
-  "/avatars/avatar-02.png",
-  "/avatars/avatar-03.png",
-  "/avatars/avatar-04.png",
-  "/avatars/avatar-05.png",
-  "/avatars/avatar-06.png",
-  "/avatars/avatar-07.png",
-  "/avatars/avatar-08.png",
-  "/avatars/avatar-09.png",
-  "/avatars/avatar-10.png",
-  "/avatars/avatar-11.png",
-  "/avatars/avatar-12.png",
-  "/avatars/avatar-13.png",
-  "/avatars/avatar-14.png",
-  "/avatars/avatar-15.png",
-  "/avatars/avatar-16.png",
-  "/avatars/avatar-17.png",
-  "/avatars/avatar-18.png",
-  "/avatars/avatar-19.png",
-  "/avatars/avatar-20.png",
-];
 
 type Props = {
   userId: string;
   initialName: string;
+  /** 기존에 사용자가 페르소나용으로 저장해둔 사진 (없으면 null) */
   initialAvatar: string | null;
+  /** SNS 간편로그인에서 가져온 프로필 이미지 — 디폴트 fallback */
+  oauthAvatar: string | null;
   initialBio: string;
 };
+
+/**
+ * 사진을 256×256 정사각형으로 다운스케일 (jpeg).
+ * onboarding 흐름과 동일한 압축 정책 — 페르소나 사진도 동일 규격으로 통일.
+ */
+async function resizeImage(file: File): Promise<Blob> {
+  const SIZE = 256;
+  const Q = 0.82;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("이미지 로드 실패"));
+      el.src = url;
+    });
+    const minSide = Math.min(img.width, img.height);
+    const sx = (img.width - minSide) / 2;
+    const sy = (img.height - minSide) / 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas context 생성 실패");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, SIZE, SIZE);
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("blob 생성 실패"))),
+        "image/jpeg",
+        Q,
+      );
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 export default function PersonaSetupClient({
   userId,
   initialName,
   initialAvatar,
+  oauthAvatar,
   initialBio,
 }: Props) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
-  const [avatar, setAvatar] = useState<string | null>(initialAvatar);
+  // 디폴트 우선순위: 사용자가 이전에 저장한 페르소나 아바타 → OAuth 프로필 → null
+  const [avatar, setAvatar] = useState<string | null>(
+    initialAvatar ?? oauthAvatar ?? null,
+  );
   const [bio, setBio] = useState(initialBio);
   const [pending, start] = useTransition();
+  const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(
     null,
   );
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleFileUpload(f: File) {
+    if (!f.type.startsWith("image/")) {
+      setMsg({ type: "err", text: "이미지 파일만 업로드 가능해요." });
+      return;
+    }
+    setMsg(null);
+    setUploading(true);
+    try {
+      const blob = await resizeImage(f);
+      const sb = createSupabaseBrowserClient();
+      const path = `${userId}/persona-${Date.now()}.jpg`;
+      const { error: upErr } = await sb.storage
+        .from("avatars")
+        .upload(path, blob, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: "image/jpeg",
+        });
+      if (upErr) {
+        setMsg({ type: "err", text: `업로드 실패: ${upErr.message}` });
+        return;
+      }
+      const { data } = sb.storage.from("avatars").getPublicUrl(path);
+      // 캐시 우회용 v= 쿼리 (재업로드 시 즉시 반영)
+      setAvatar(`${data.publicUrl}?v=${Date.now()}`);
+    } catch (e) {
+      setMsg({
+        type: "err",
+        text: e instanceof Error ? e.message : "업로드 실패",
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+    }
+  }
 
   function save() {
     setMsg(null);
@@ -58,11 +120,13 @@ export default function PersonaSetupClient({
     }
     start(async () => {
       const sb = createSupabaseBrowserClient();
+      // ?v= 캐시버스터는 DB에 저장하지 않음 (깔끔하게)
+      const cleanAvatar = avatar ? avatar.split("?")[0] || avatar : null;
       const { error } = await sb
         .from("profiles")
         .update({
           alt_display_name: trimmed,
-          alt_avatar_url: avatar,
+          alt_avatar_url: cleanAvatar,
           alt_bio: bio.trim() || null,
         })
         .eq("id", userId);
@@ -95,44 +159,83 @@ export default function PersonaSetupClient({
         />
       </div>
 
-      {/* 아바타 */}
+      {/* 아바타 — SNS 프로필 디폴트 + 직접 업로드 */}
       <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
         <h2 className="mb-2 text-sm font-bold text-[var(--text)]">
           개인 아바타
         </h2>
         <p className="mb-3 text-xs text-[var(--text-muted)]">
-          10개 중 마음에 드는 아바타를 선택하세요.
+          기본은 가입 시 사용한 SNS 프로필 사진이에요. 바꾸고 싶으면 직접
+          업로드하거나 사진을 찍으세요. (자동으로 256×256으로 줄여서 저장)
         </p>
-        <div className="grid grid-cols-5 gap-3 sm:grid-cols-10">
-          {AVATAR_OPTIONS.map((url) => {
-            const selected = avatar === url;
-            return (
+        <div className="flex items-center gap-4">
+          {/* 미리보기 — 큰 원형 */}
+          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--bg-soft)]">
+            {avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatar}
+                alt="페르소나 아바타 미리보기"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-3xl text-[var(--text-muted)]">
+                👤
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap gap-2">
               <button
-                key={url}
                 type="button"
-                onClick={() => setAvatar(url)}
-                className={
-                  "relative aspect-square overflow-hidden rounded-full transition-all " +
-                  (selected
-                    ? "ring-2 ring-[var(--primary)] ring-offset-2"
-                    : "ring-1 ring-[var(--border)] hover:ring-[var(--primary)]/40")
-                }
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="h-full w-full object-cover" />
+                {uploading ? "업로드 중…" : "사진 업로드"}
               </button>
-            );
-          })}
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={uploading}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
+              >
+                사진 찍기
+              </button>
+              {avatar && (
+                <button
+                  type="button"
+                  onClick={() => setAvatar(null)}
+                  className="rounded-md px-3 py-1.5 text-[12px] text-[var(--text-muted)] hover:text-red-600"
+                >
+                  선택 해제
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleFileUpload(f);
+              }}
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="user"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleFileUpload(f);
+              }}
+            />
+          </div>
         </div>
-        {avatar && (
-          <button
-            type="button"
-            onClick={() => setAvatar(null)}
-            className="mt-3 text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
-          >
-            선택 해제
-          </button>
-        )}
       </div>
 
       {/* 소개 */}

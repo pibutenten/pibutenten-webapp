@@ -128,7 +128,7 @@ export default function ArticleSectionCard({ card, activeQuery }: Props) {
         )}
       </div>
 
-      {/* 키워드 칩 */}
+      {/* 태그 칩 */}
       {card.keywords.length > 0 && (
         <div className="mb-3 mt-3.5 flex flex-wrap gap-1.5">
           {card.keywords.map((kw) => (

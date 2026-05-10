@@ -36,19 +36,44 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!code) {
+  // 2) 세션 발급 — 두 흐름 모두 지원
+  //    (a) Google/Kakao OAuth (PKCE): ?code=...
+  //    (b) Naver/Magic link (admin generateLink): ?token_hash=...&type=magiclink
+  const tokenHash = url.searchParams.get("token_hash");
+  const otpType = url.searchParams.get("type");
+
+  if (!code && !tokenHash) {
     return NextResponse.redirect(
       `${origin}/login?error=${encodeURIComponent("OAuth 콜백 파라미터 누락")}`,
     );
   }
 
-  // 2) code → session 교환
   const supabase = await createSupabaseServerClient();
-  const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
-  if (exchangeErr) {
-    return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(exchangeErr.message || "세션 발급 실패")}`,
-    );
+
+  if (code) {
+    // (a) PKCE — OAuth provider code 교환
+    const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+    if (exchangeErr) {
+      return NextResponse.redirect(
+        `${origin}/login?error=${encodeURIComponent(exchangeErr.message || "세션 발급 실패")}`,
+      );
+    }
+  } else if (tokenHash && otpType) {
+    // (b) Magic link verify — Naver 자체 OAuth 흐름의 자동 로그인 경로.
+    //   ⚠ 다른 계정으로 전환하는 경우(예: 구글 jminbae@gmail.com 세션이 살아있는 상태에서
+    //     네이버 jminbae@naver.com 시도)에 잔여 세션이 우선되어 사용자가 혼란을 겪음.
+    //     → 명시적으로 signOut 후 verifyOtp.
+    await supabase.auth.signOut();
+
+    const { data: verifyData, error: verifyErr } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: otpType as "magiclink" | "signup" | "recovery" | "invite" | "email_change" | "email",
+    });
+    if (verifyErr || !verifyData.session) {
+      return NextResponse.redirect(
+        `${origin}/login?error=${encodeURIComponent(verifyErr?.message || "토큰 검증 실패")}`,
+      );
+    }
   }
 
   // 3) 사용자/프로필 조회
@@ -63,9 +88,30 @@ export async function GET(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, terms_agreed_at, display_name, birthdate")
+    .select("role, terms_agreed_at, display_name, birthdate, avatar_url")
     .eq("id", user.id)
     .maybeSingle();
+
+  // 4-1) OAuth provider 프로필 이미지 → profiles.avatar_url 자동 채우기
+  //   Google: user_metadata.picture / Kakao: avatar_url / Naver: avatar_url (Naver 콜백에서 set)
+  //   profiles.avatar_url 비어 있을 때만 채움 (사용자가 온보딩에서 선택한 아바타는 보존)
+  if (profile && !profile.avatar_url) {
+    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const oauthAvatar =
+      (typeof meta.avatar_url === "string" && meta.avatar_url) ||
+      (typeof meta.picture === "string" && meta.picture) ||
+      null;
+    if (oauthAvatar) {
+      try {
+        await supabase
+          .from("profiles")
+          .update({ avatar_url: oauthAvatar })
+          .eq("id", user.id);
+      } catch {
+        // 실패해도 로그인 흐름은 계속 진행
+      }
+    }
+  }
 
   // 4) 약관 미동의 → /signup
   if (!profile || !profile.terms_agreed_at) {
@@ -84,6 +130,6 @@ export async function GET(request: NextRequest) {
   }
 
   // 6) 모든 role은 /feed로 (관리/내 글 페이지는 헤더 본인 아이콘으로 진입)
-  const dest = next || "/feed";
+  const dest = next || "/";
   return NextResponse.redirect(`${origin}${dest}`);
 }

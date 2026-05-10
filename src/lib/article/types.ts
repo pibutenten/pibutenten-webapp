@@ -40,7 +40,7 @@ export type ArticleSectionVirtualCard = {
   body: string;
   /** article slug — 전체 보기 링크 */
   articleSlug: string;
-  /** keywords (article 전체 키워드 동일하게 사용) */
+  /** keywords (article 전체 태그 동일하게 사용) */
   keywords: string[];
   /** like / view (article 전체 카운트 사용) */
   like_count: number;

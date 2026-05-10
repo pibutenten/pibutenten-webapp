@@ -178,7 +178,7 @@ export default function EditClient({
       <div className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            원장님
+            글쓴이
           </label>
           <select
             value={doctorId ?? ""}
@@ -267,7 +267,7 @@ export default function EditClient({
 
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            키워드
+            태그
           </label>
           <div className="mb-2 flex flex-wrap gap-1.5">
             {keywords.map((k) => (
@@ -297,7 +297,7 @@ export default function EditClient({
                   setKeywordInput("");
                 }
               }}
-              placeholder="키워드 입력 후 Enter"
+              placeholder="태그 입력 후 Enter"
               className="flex-1 rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
             />
             <button

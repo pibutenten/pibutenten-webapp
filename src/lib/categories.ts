@@ -6,7 +6,7 @@
  * - lifting      리프팅     (파스텔 하늘 #29B6F6)
  * - injectables  스킨부스터 (연핑크 #F48FB1)
  * - homecare     홈케어     (테라코타 #BF6E5C)
- * - knowledge    피부상식   (올리브 #9E9D24) — 매핑 안 되는 키워드 자동 분류
+ * - knowledge    피부상식   (올리브 #9E9D24) — 매핑 안 되는 태그 자동 분류
  */
 export type CategorySlug =
   | "concerns"

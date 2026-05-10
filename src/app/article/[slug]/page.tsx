@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ArticleSection } from "@/lib/article/types";
 import ArticleViewClient from "./ArticleViewClient";
+import { SITE_URL } from "@/lib/site";
+import { buildDoctorReference } from "@/lib/schema/doctor";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,7 @@ type ArticleFull = {
   like_count: number;
   view_count: number;
   created_at: string;
+  updated_at: string | null;
   doctor: {
     slug: string;
     name: string;
@@ -36,7 +39,7 @@ async function fetchArticle(slug: string): Promise<ArticleFull | null> {
     .from("qas")
     .select(
       `id, question, article_sections, article_cover_image, article_slug,
-       keywords, like_count, view_count, created_at,
+       keywords, like_count, view_count, created_at, updated_at,
        doctor:doctors(slug, name, branch)`,
     )
     .eq("type", "article")
@@ -55,6 +58,7 @@ async function fetchArticle(slug: string): Promise<ArticleFull | null> {
     like_count: (data.like_count ?? 0) as number,
     view_count: (data.view_count ?? 0) as number,
     created_at: data.created_at as string,
+    updated_at: (data.updated_at ?? null) as string | null,
     doctor: doctor as ArticleFull["doctor"],
   };
 }
@@ -71,6 +75,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const docName = article.doctor?.name
     ? `${article.doctor.name} 원장님`
     : "피부텐텐";
+  // OG 이미지 fallback 우선순위:
+  //   1) 칼럼 cover_image (있으면 가장 매력적)
+  //   2) 원장 OG 이미지 (/og/{slug}.png)
+  //   3) 기본 피부텐텐 OG (/og.png)
+  const ogImage =
+    article.article_cover_image ??
+    (article.doctor?.slug ? `/og/${article.doctor.slug}.png` : "/og.png");
   return {
     title: article.question,
     description: intro,
@@ -78,9 +89,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: article.question,
       description: `${docName} — ${intro}`,
       type: "article",
-      images: article.article_cover_image
-        ? [{ url: article.article_cover_image }]
-        : undefined,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: docName }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.question,
+      description: `${docName} — ${intro}`,
+      images: [ogImage],
     },
   };
 }
@@ -93,8 +108,76 @@ export default async function ArticlePage({ params }: Props) {
   const sections = article.article_sections ?? [];
   const dateLabel = formatDate(article.created_at);
 
+  // JSON-LD: MedicalWebPage(Article) + Physician + BreadcrumbList
+  const SITE = SITE_URL;
+  const articleUrl = `${SITE}/article/${encodeURIComponent(article.article_slug)}`;
+  const created = article.created_at ?? new Date().toISOString();
+  const modified = article.updated_at ?? created;
+  const bodyText = sections
+    .map((s) => `${s.heading ?? ""} ${s.body ?? ""}`)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const ldGraph: Record<string, unknown>[] = [];
+  ldGraph.push({
+    "@type": ["MedicalWebPage", "Article"],
+    "@id": `${articleUrl}#webpage`,
+    url: articleUrl,
+    headline: article.question,
+    name: article.question,
+    inLanguage: "ko-KR",
+    datePublished: created,
+    dateModified: modified, // qas.updated_at — AI freshness 신호
+    image: article.article_cover_image
+      ? [article.article_cover_image]
+      : article.doctor?.slug
+        ? [`${SITE}/og/${article.doctor.slug}.png`]
+        : [`${SITE}/og.png`],
+    isPartOf: { "@id": `${SITE}/#website` },
+    articleBody: bodyText.slice(0, 4000),
+    specialty: "https://schema.org/Dermatologic",
+    audience: { "@type": "MedicalAudience", audienceType: "Patient" },
+    author: article.doctor
+      ? { "@id": `${SITE}/doctors/${article.doctor.slug}#person` }
+      : { "@type": "Organization", name: "피부텐텐" },
+  });
+  if (article.doctor) {
+    ldGraph.push(
+      buildDoctorReference({
+        slug: article.doctor.slug,
+        name: article.doctor.name,
+      }),
+    );
+  }
+  ldGraph.push({
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "피부텐텐", item: `${SITE}/` },
+      ...(article.doctor
+        ? [
+            {
+              "@type": "ListItem",
+              position: 2,
+              name: `${article.doctor.name} 원장`,
+              item: `${SITE}/doctors/${article.doctor.slug}`,
+            },
+            {
+              "@type": "ListItem",
+              position: 3,
+              name: article.question,
+            },
+          ]
+        : [{ "@type": "ListItem", position: 2, name: article.question }]),
+    ],
+  });
+  const jsonLd = { "@context": "https://schema.org", "@graph": ldGraph };
+
   return (
     <article className="mx-auto w-full max-w-[680px] py-2">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* 칼럼 라벨 */}
       <div className="mb-3">
         <span
@@ -204,7 +287,7 @@ export default async function ArticlePage({ params }: Props) {
         ))}
       </div>
 
-      {/* 키워드 */}
+      {/* 태그 */}
       {article.keywords.length > 0 && (
         <div className="mt-10 flex flex-wrap gap-1.5">
           {article.keywords.map((k) => (

@@ -1,50 +1,48 @@
-import HeroSearch from "@/components/HeroSearch";
-import CategoryWithChips from "@/components/CategoryWithChips";
+import type { Metadata } from "next";
 import FeedWithArticles from "@/components/FeedWithArticles";
 import type { QACardData } from "@/components/QACard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getPopularByCategory } from "@/lib/popular-keywords";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { loadArticleSectionCards } from "@/lib/article/load";
+import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 const INITIAL_PAGE_SIZE = 20;
 
-type Props = {
-  searchParams: Promise<{ q?: string; boost?: string }>;
+export const metadata: Metadata = {
+  title: "최신 피드",
+  description:
+    "피부과 전문의 9명이 답하는 최신 Q&A와 칼럼. 시술·홈케어·안티에이징 관련 검수된 답변 모음.",
+  alternates: { canonical: `${SITE_URL}/` },
 };
 
-export default async function HomePage({ searchParams }: Props) {
-  const sp = await searchParams;
-  const q = (sp.q ?? "").trim();
-  const boost = (sp.boost ?? "").trim();
-
+/**
+ * 피드 페이지 — 검색창/카테고리 없이 카드만 시원하게.
+ * 로고 클릭 시 진입.
+ */
+export default async function FeedPage() {
   const supabase = await createSupabaseServerClient();
 
-  // q 있을 때나 없을 때 모두 RPC 사용 — 일관된 정렬 (q: 점수+노이즈 / no-q: video.upload_date desc)
-  // boost: 특정 원장 slug에 +300 가산 (원장님 단일 페이지에서 칩 클릭으로 넘어왔을 때)
-  const popularByCategoryPromise = getPopularByCategory();
   const rpcRes = await supabase.rpc("search_qas_scored", {
-    p_q: q,
+    p_q: "",
     p_doctor_slug: null,
     p_offset: 0,
     p_limit: INITIAL_PAGE_SIZE,
-    p_boost_doctor_slug: boost || null,
+    p_boost_doctor_slug: null,
   });
   let qas = (rpcRes.data ?? []) as QACardData[];
   const error = rpcRes.error;
 
-  // 첫 4카드 다양화 — 검색 없을 때: 모두 다른 원장 (max 1) / 검색 있을 때: 같은 원장 최대 2번
+  // 첫 4카드 다양화 (검색 없으니 모두 다른 원장)
   if (qas.length > 4) {
-    const maxPerDoctor = q ? 2 : 1;
     const counts = new Map<string, number>();
     const head: QACardData[] = [];
     const tail: QACardData[] = [];
     for (const it of qas) {
       const slug = it.doctor?.slug ?? "_unknown";
       const c = counts.get(slug) ?? 0;
-      if (head.length < 4 && c < maxPerDoctor) {
+      if (head.length < 4 && c < 1) {
         head.push(it);
         counts.set(slug, c + 1);
       } else {
@@ -54,8 +52,7 @@ export default async function HomePage({ searchParams }: Props) {
     qas = [...head, ...tail];
   }
 
-  // 같은 원장 3연속 방지 — 2연속까지만 허용, 3번째에는 다른 원장 끼워넣기
-  // (홈/검색 모두 적용. 원장 개인 페이지는 별도 라우트라 영향 없음)
+  // 같은 원장 3연속 방지
   if (qas.length >= 3) {
     const remaining = [...qas];
     const reordered: QACardData[] = [];
@@ -81,72 +78,29 @@ export default async function HomePage({ searchParams }: Props) {
     qas = reordered;
   }
 
-  // 검색일 때만 카운트 별도 조회
-  let count: number | null = null;
-  if (q && !error) {
-    let countQuery = supabase
-      .from("qas")
-      .select("id", { count: "exact", head: true })
-      .eq("published", true);
-    const words = q.split(/\s+/).filter((w) => w.length > 0);
-    for (const w of words) {
-      const escaped = w.replace(/[%_*]/g, "\\$&").replace(/[(),]/g, " ");
-      const pattern = `%${escaped}%`;
-      countQuery = countQuery.or(
-        `question.ilike.${pattern},answer.ilike.${pattern},keywords.cs.{${w}}`,
-      );
-    }
-    const cRes = await countQuery;
-    count = cRes.count ?? null;
-  }
-
-  const popularByCategory = await popularByCategoryPromise;
   const hotIds = Array.from(await getHotQaIds(20));
-  const articleCards = await loadArticleSectionCards(supabase, {
-    limit: 8,
-    searchQuery: q || undefined,
-  });
+  const articleCards = await loadArticleSectionCards(supabase, { limit: 8 });
 
   return (
-    <section>
-      <HeroSearch />
-
-      {/* 카테고리 — 데스크탑은 위 여백 더 (HeroSearch와 거리), 모바일은 그대로 */}
-      <div className="mt-6 sm:mt-12">
-        <CategoryWithChips popularByCategory={popularByCategory} />
-      </div>
-
-      {q && (
-        <p className="mt-10 text-left text-sm text-[var(--text-secondary)] sm:mt-12">
-          <span className="font-bold text-[var(--primary)]">“{q}”</span>
-          에 대한 <span className="font-bold">{count ?? qas?.length ?? 0}</span>
-          개의 답변
-        </p>
+    <section className="pt-1 sm:pt-2">
+      {error && (
+        <div className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Q&A 불러오기 실패: {error.message}
+        </div>
       )}
-
-      <div className={q ? "mt-5" : "mt-4 sm:mt-14"}>
-        {error && (
-          <div className="rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            Q&A 불러오기 실패: {error.message}
-          </div>
-        )}
-        {!error && (qas?.length ?? 0) === 0 && (
-          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">
-            {q ? "검색 결과가 없습니다." : "등록된 Q&A가 없습니다."}
-          </div>
-        )}
-        {!error && qas && qas.length > 0 && (
-          <FeedWithArticles
-            initialQas={qas}
-            initialArticleCards={articleCards}
-            pageSize={INITIAL_PAGE_SIZE}
-            searchQuery={q || undefined}
-            boostDoctorSlug={boost || undefined}
-            hotIds={hotIds}
-            key={`${q || "all"}::${boost || ""}`}
-          />
-        )}
-      </div>
+      {!error && qas.length === 0 && (
+        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">
+          등록된 Q&A가 없습니다.
+        </div>
+      )}
+      {!error && qas.length > 0 && (
+        <FeedWithArticles
+          initialQas={qas}
+          initialArticleCards={articleCards}
+          pageSize={INITIAL_PAGE_SIZE}
+          hotIds={hotIds}
+        />
+      )}
     </section>
   );
 }

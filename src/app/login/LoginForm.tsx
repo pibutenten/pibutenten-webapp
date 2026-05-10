@@ -39,7 +39,7 @@ export default function LoginForm({ next, error: initialError }: Props) {
         .eq("id", user.id)
         .maybeSingle();
       // 모든 role은 /feed로 (관리/내 글은 헤더 본인 아이콘으로 진입)
-      const dest = next || "/feed";
+      const dest = next || "/";
       window.location.assign(dest);
     });
   }

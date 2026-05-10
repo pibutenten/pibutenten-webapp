@@ -1,8 +1,8 @@
 /**
  * 소셜 로그인 Provider 메타데이터.
  *
- * Supabase Auth 가 직접 지원하는 provider 만 `supported: true`.
- * Naver 는 Supabase 비공식 → "곧 지원됩니다" 안내용으로만 노출.
+ *  - Google/Kakao: Supabase native (`signInWithOAuth`)
+ *  - Naver: Supabase 미지원 → 자체 OAuth 흐름 (`/api/auth/naver/start` 진입)
  */
 
 export type OAuthProviderId = "google" | "kakao" | "naver";
@@ -11,8 +11,10 @@ export type OAuthProviderMeta = {
   id: OAuthProviderId;
   /** 버튼에 표시되는 한국어 라벨 */
   label: string;
-  /** Supabase signInWithOAuth 가 받는 provider 키 (Naver 는 미지원) */
+  /** Supabase signInWithOAuth 가 받는 provider 키 (Naver 처럼 자체 흐름이면 null) */
   supabaseProvider: "google" | "kakao" | null;
+  /** Naver 처럼 자체 OAuth 흐름이면 시작 URL — 클릭 시 이쪽으로 이동 */
+  customStartPath?: string;
   /** 배경색 (브랜드 가이드 기준) */
   bgClass: string;
   /** 글자색 */
@@ -60,9 +62,9 @@ export const OAUTH_PROVIDERS: OAuthProviderMeta[] = [
     id: "naver",
     label: "네이버로 시작하기",
     supabaseProvider: null,
+    customStartPath: "/api/auth/naver/start",
     bgClass: "bg-[#03C75A]",
     textClass: "text-white",
-    disabledReason: "네이버 로그인은 곧 지원될 예정이에요.",
     iconSvg: `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="20" height="20">
       <path fill="#ffffff" d="M16.273 12.845L7.376 0H0v24h7.726V11.155L16.624 24H24V0h-7.727z"/>
     </svg>`,

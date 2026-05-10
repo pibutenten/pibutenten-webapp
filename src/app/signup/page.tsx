@@ -37,7 +37,7 @@ export default async function SignupPage({ searchParams }: Props) {
     const role = profile.role ?? "user";
     if (role === "admin") redirect("/admin");
     if (role === "doctor") redirect("/me");
-    redirect(next || "/feed");
+    redirect(next || "/");
   }
 
   // OAuth 메타에서 가져온 닉네임 후보

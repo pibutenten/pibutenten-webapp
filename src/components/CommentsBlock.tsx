@@ -264,10 +264,10 @@ export default function CommentsBlock({
               onDelete={deleteComment}
             />
 
-            {/* 답글 목록 — 좌측 세로선으로 그룹 표현 (↳ 제거) */}
+            {/* 답글 목록 — 좌측 세로선으로 그룹 표현. 댓글↔답글 간격은 각 item의 py-1.5로 통일 */}
             {c.replies.length > 0 && (
               <ul
-                className="ml-4 mt-1 flex flex-col border-l pl-3"
+                className="ml-2 flex flex-col border-l pl-2.5"
                 style={{ borderColor: "#EEEFF1" }}
               >
                 {c.replies.map((rep) => (
@@ -399,7 +399,7 @@ function CommentItem({
 
   return (
     <div
-      className="rounded-md px-2 py-0.5"
+      className="rounded-md px-0 py-1.5"
       style={
         dimmed
           ? { backgroundColor: "#F5F5F5", color: "#888" }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import SearchBar from "./SearchBar";
 
@@ -54,6 +54,12 @@ export default function HeroSearch() {
   }, []);
 
   function handleFocusChange(f: boolean) {
+    // h1 collapse는 모바일에서만 (키보드 올라올 때 공간 확보용).
+    // 데스크탑에선 키보드도 없고 collapse가 페이지 점프처럼 보여서 막는다.
+    if (typeof window !== "undefined" && window.innerWidth > 768) {
+      setFocused(false);
+      return;
+    }
     setFocused(f);
   }
 
