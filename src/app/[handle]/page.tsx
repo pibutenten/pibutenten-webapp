@@ -49,32 +49,87 @@ type ProfileRow = {
  * 본인 보기일 때만 [수정], [프로필 전환], [활동], [설정], [로그아웃] 노출 (다음 phase에서 추가).
  * 외부인 보기는 작성 글·댓글 탭만.
  */
+/**
+ * Lookup priority:
+ *   1) profiles.handle  (primary identity)
+ *   2) profiles.alt_handle  (legacy personal persona)
+ *   3) profile_identities.handle  (v4 multi-identity)
+ */
 async function fetchProfileByHandle(
   handle: string,
-): Promise<{ profile: ProfileRow; isAlt: boolean } | null> {
+): Promise<{
+  profile: ProfileRow;
+  isAlt: boolean;
+  /** 매칭된 multi-identity 정보 (있을 때) — display_name/avatar_url/bio override */
+  identity?: {
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+    bio: string | null;
+    kind: string;
+    doctor_id: string | null;
+  };
+} | null> {
   if (!/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(handle)) return null;
   const supabase = await createSupabaseServerClient();
-  // 1) handle 매칭
+  const select =
+    "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility";
+
+  // 1) profiles.handle
   let { data } = await supabase
     .from("profiles")
-    .select(
-      "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility",
-    )
+    .select(select)
     .eq("handle", handle)
     .maybeSingle()
     .returns<ProfileRow>();
   if (data) return { profile: data, isAlt: false };
 
-  // 2) alt_handle 매칭
+  // 2) profiles.alt_handle (legacy personal persona)
   ({ data } = await supabase
     .from("profiles")
-    .select(
-      "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility",
-    )
+    .select(select)
     .eq("alt_handle", handle)
     .maybeSingle()
     .returns<ProfileRow>());
   if (data) return { profile: data, isAlt: true };
+
+  // 3) profile_identities.handle (v4 multi-identity)
+  const { data: identity } = await supabase
+    .from("profile_identities")
+    .select("id, profile_id, display_name, avatar_url, bio, kind, doctor_id")
+    .eq("handle", handle)
+    .maybeSingle()
+    .returns<{
+      id: string;
+      profile_id: string;
+      display_name: string;
+      avatar_url: string | null;
+      bio: string | null;
+      kind: string;
+      doctor_id: string | null;
+    }>();
+  if (identity) {
+    const { data: parent } = await supabase
+      .from("profiles")
+      .select(select)
+      .eq("id", identity.profile_id)
+      .maybeSingle()
+      .returns<ProfileRow>();
+    if (parent) {
+      return {
+        profile: parent,
+        isAlt: true,
+        identity: {
+          id: identity.id,
+          display_name: identity.display_name,
+          avatar_url: identity.avatar_url,
+          bio: identity.bio,
+          kind: identity.kind,
+          doctor_id: identity.doctor_id,
+        },
+      };
+    }
+  }
 
   return null;
 }
@@ -83,11 +138,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
   const result = await fetchProfileByHandle(handle);
   if (!result) return { title: "찾을 수 없는 회원" };
-  const { profile, isAlt } = result;
-  const name = isAlt
-    ? profile.alt_display_name ?? handle
-    : profile.display_name ?? handle;
-  const bio = isAlt ? profile.alt_bio : profile.bio;
+  const { profile, isAlt, identity } = result;
+  const name = identity
+    ? identity.display_name
+    : isAlt
+      ? profile.alt_display_name ?? handle
+      : profile.display_name ?? handle;
+  const bio = identity ? identity.bio : isAlt ? profile.alt_bio : profile.bio;
   return {
     title: `${name} (@${handle})`,
     description: bio ?? `${name}의 피부텐텐 프로필`,
@@ -102,7 +159,7 @@ export default async function HandleProfilePage({ params }: Props) {
   const { handle } = await params;
   const result = await fetchProfileByHandle(handle);
   if (!result) notFound();
-  const { profile, isAlt } = result;
+  const { profile, isAlt, identity } = result;
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -126,12 +183,21 @@ export default async function HandleProfilePage({ params }: Props) {
     }
   }
 
-  const displayName = isAlt
-    ? profile.alt_display_name ?? handle
-    : profile.display_name ?? handle;
-  const avatarUrl = isAlt ? profile.alt_avatar_url : profile.avatar_url;
-  const bio = isAlt ? profile.alt_bio : profile.bio;
-  const personaForPosts = isAlt ? "personal" : "official";
+  // identity가 있으면 identity의 display_name/avatar/bio를 우선 (multi-identity)
+  const displayName = identity
+    ? identity.display_name
+    : isAlt
+      ? profile.alt_display_name ?? handle
+      : profile.display_name ?? handle;
+  const avatarUrl = identity
+    ? identity.avatar_url
+    : isAlt
+      ? profile.alt_avatar_url
+      : profile.avatar_url;
+  const bio = identity ? identity.bio : isAlt ? profile.alt_bio : profile.bio;
+  // identity가 doctor kind면 official, 아니면 personal로 글 필터
+  const personaForPosts =
+    identity?.kind === "doctor" || (!identity && !isAlt) ? "official" : "personal";
 
   // 작성 글 — 현재 페르소나로 작성한 published 글만, 최근 20개
   const { data: postsData } = await supabase

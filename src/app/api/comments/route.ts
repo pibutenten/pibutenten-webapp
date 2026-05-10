@@ -25,6 +25,8 @@ export type CommentRow = {
   created_at: string;
   updated_at: string;
   posted_as?: "official" | "personal";
+  /** v4 — viewer가 이 댓글에 좋아요 표시했는지 (server prefetch). */
+  viewer_liked?: boolean;
   author: {
     id: string;
     display_name: string | null;
@@ -170,10 +172,32 @@ export async function GET(req: Request) {
     };
   }
 
-  // 4) 트리 조립
+  // 4) viewer가 좋아요 누른 댓글 id set (server prefetch — 토글 즉시 반응)
+  const {
+    data: { user: viewer },
+  } = await supabase.auth.getUser();
+  const allCommentIds = [...rootRows, ...replyRows].map((r) => r.id);
+  let likedSet = new Set<number>();
+  if (viewer && allCommentIds.length > 0) {
+    const { data: likedRows } = await supabase
+      .from("comment_likes")
+      .select("comment_id")
+      .eq("user_id", viewer.id)
+      .in("comment_id", allCommentIds);
+    likedSet = new Set(
+      (likedRows ?? []).map((r) => (r as { comment_id: number }).comment_id),
+    );
+  }
+
+  function attachAuthorAndLike(r: Omit<CommentRow, "author">): CommentRow {
+    const withAuthor = attachAuthor(r);
+    return { ...withAuthor, viewer_liked: likedSet.has(r.id) };
+  }
+
+  // 5) 트리 조립
   const repliesByParent = new Map<number, CommentRow[]>();
   for (const r of replyRows) {
-    const withAuthor = attachAuthor(r);
+    const withAuthor = attachAuthorAndLike(r);
     if (r.parent_id == null) continue;
     const arr = repliesByParent.get(r.parent_id) ?? [];
     arr.push(withAuthor);
@@ -181,11 +205,11 @@ export async function GET(req: Request) {
   }
 
   const comments: CommentWithReplies[] = rootRows.map((r) => ({
-    ...attachAuthor(r),
+    ...attachAuthorAndLike(r),
     replies: repliesByParent.get(r.id) ?? [],
   }));
 
-  // 5) 전체 root 댓글 수 (페이지네이션 / 더 보기 버튼 표시용)
+  // 6) 전체 root 댓글 수 (페이지네이션 / 더 보기 버튼 표시용)
   const totalRes = await supabase
     .from("comments")
     .select("*", { count: "exact", head: true })

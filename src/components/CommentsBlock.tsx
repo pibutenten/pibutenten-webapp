@@ -40,6 +40,8 @@ type CommentRow = {
   updated_at: string;
   /** 작성 당시 페르소나 — 'personal'이면 author.alt_* 우선 표시 */
   posted_as?: "official" | "personal";
+  /** v4 — viewer가 이 댓글에 좋아요 표시했는지 (server prefetch) */
+  viewer_liked?: boolean;
   author: Author | null;
 };
 
@@ -365,6 +367,38 @@ function CommentItem({
   );
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(comment.body);
+  // v4 — 좋아요 (root + 답글 모두)
+  const [liked, setLiked] = useState<boolean>(!!comment.viewer_liked);
+  const [likeCount, setLikeCount] = useState<number>(comment.like_count);
+  const [likePending, setLikePending] = useState(false);
+  async function toggleLike() {
+    if (likePending) return;
+    if (!me) {
+      window.location.assign(
+        "/login?next=" + encodeURIComponent(window.location.pathname),
+      );
+      return;
+    }
+    setLikePending(true);
+    const wasLiked = liked;
+    setLiked(!wasLiked); // 낙관적
+    setLikeCount((c) => (wasLiked ? Math.max(0, c - 1) : c + 1));
+    const sb = createSupabaseBrowserClient();
+    const { data, error } = await sb.rpc("toggle_comment_like", {
+      p_comment_id: comment.id,
+    });
+    if (error) {
+      setLiked(wasLiked);
+      setLikeCount(comment.like_count);
+    } else {
+      const row = (data as { liked: boolean; like_count: number }[] | null)?.[0];
+      if (row) {
+        setLiked(row.liked);
+        setLikeCount(row.like_count);
+      }
+    }
+    setLikePending(false);
+  }
   const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -482,6 +516,35 @@ function CommentItem({
             className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
           >
             · {isReplying ? "답글 취소" : "답글"}
+          </button>
+        )}
+        {/* v4 — 좋아요 (root + 답글 모두). 미니멀 inline 하트. */}
+        {!isDeleted && (
+          <button
+            type="button"
+            onClick={toggleLike}
+            disabled={likePending}
+            aria-label={liked ? "좋아요 취소" : "좋아요"}
+            className={
+              "inline-flex items-center gap-0.5 text-[11px] transition-colors " +
+              (liked
+                ? "text-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:text-[var(--accent)]")
+            }
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill={liked ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-[12px] w-[12px]"
+              aria-hidden
+            >
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            {likeCount > 0 && <span>{likeCount}</span>}
           </button>
         )}
 
