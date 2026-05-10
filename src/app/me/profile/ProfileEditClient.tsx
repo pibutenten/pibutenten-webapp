@@ -96,6 +96,8 @@ export default function ProfileEditClient({
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cameraRef = useRef<HTMLInputElement | null>(null);
+  // 사진 변경: storage 업로드만 하고 state에 보관 — DB는 [저장하기] 버튼 누를 때 일괄 update
+  const [pendingAvatarUrl, setPendingAvatarUrl] = useState<string | null>(null);
   async function uploadAvatar(file: File) {
     setUploading(true);
     try {
@@ -113,16 +115,9 @@ export default function ProfileEditClient({
       }
       const { data: pub } = sb.storage.from("avatars").getPublicUrl(path);
       const newUrl = pub.publicUrl;
-      const { error: dbErr } = await sb
-        .from("profiles")
-        .update({ avatar_url: newUrl })
-        .eq("id", userId);
-      if (dbErr) {
-        alert("DB 저장 실패: " + dbErr.message);
-        return;
-      }
+      // preview만 — DB는 일괄 저장 시
       setAvatarUrl(newUrl);
-      router.refresh();
+      setPendingAvatarUrl(newUrl);
     } finally {
       setUploading(false);
     }
@@ -197,26 +192,43 @@ export default function ProfileEditClient({
     setLikedProcedures([...likedProcedures, v]);
     setLikedInput("");
   }
-  function saveSkinInfo() {
+  // 통합 저장: 사진 + 닉네임 + 자기소개 + 피부정보 + visibility 한 번에
+  function saveAll() {
     setSkinStatus({ type: "idle" });
     startSkin(async () => {
+      const updates: Record<string, unknown> = {
+        face_shape: faceShape,
+        skin_type: skinType,
+        skin_concerns: skinConcerns,
+        interested_procedures: interestedProcedures,
+        liked_procedures: likedProcedures,
+        bio: bio.trim() || null,
+        field_visibility: visibility,
+      };
+      // 사진이 변경된 경우만 포함
+      if (pendingAvatarUrl) updates.avatar_url = pendingAvatarUrl;
+      // 닉네임 변경된 경우만 포함 (validation 포함)
+      const trimmedName = displayName.trim();
+      if (trimmedName !== initial.displayName) {
+        if (!trimmedName || trimmedName.length < 2 || trimmedName.length > 20) {
+          setSkinStatus({
+            type: "err",
+            msg: "닉네임은 2~20자로 입력해주세요.",
+          });
+          return;
+        }
+        updates.display_name = trimmedName;
+      }
       const { error } = await sb
         .from("profiles")
-        .update({
-          face_shape: faceShape,
-          skin_type: skinType,
-          skin_concerns: skinConcerns,
-          interested_procedures: interestedProcedures,
-          liked_procedures: likedProcedures,
-          bio: bio.trim() || null,
-          field_visibility: visibility,
-        })
+        .update(updates)
         .eq("id", userId);
       if (error) {
         setSkinStatus({ type: "err", msg: error.message });
         return;
       }
-      setSkinStatus({ type: "ok", msg: "정보가 저장되었어요." });
+      setPendingAvatarUrl(null);
+      setSkinStatus({ type: "ok", msg: "저장되었어요." });
       router.refresh();
     });
   }
@@ -290,6 +302,18 @@ export default function ProfileEditClient({
 
   return (
     <div className="space-y-5">
+      {/* sticky 상단 저장하기 — 화면 어디에서든 한 번에 저장 가능 */}
+      <div className="sticky top-[60px] z-10 -mx-4 mb-2 flex justify-end gap-2 border-b border-[var(--border)] bg-white/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
+        <button
+          type="button"
+          onClick={saveAll}
+          disabled={skinPending}
+          className="h-9 rounded-md border border-[var(--primary-light)] bg-[var(--primary-light)] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
+        >
+          {skinPending ? "저장 중…" : "저장하기"}
+        </button>
+      </div>
+
       {/* 1. 프로필 사진 — 큰 원, 사진 변경 / 사진 찍기 */}
       <Card title="프로필 사진">
         <div className="flex flex-col items-center gap-3">
@@ -357,7 +381,16 @@ export default function ProfileEditClient({
         </div>
       </Card>
 
-      {/* 2. 닉네임 */}
+      {/* 2. 기본 정보 (읽기 전용 — 닉네임 위) */}
+      <Card title="기본 정보" subtitle="가입 시 입력 — 변경 불가">
+        <dl className="space-y-1.5 text-[13px]">
+          <Row label="이메일" value={currentEmail} />
+          <Row label="간편로그인" value={providerLabel} />
+          <Row label="나이·성별" value={ageGenderLabel} />
+        </dl>
+      </Card>
+
+      {/* 3. 닉네임 */}
       <Card title="닉네임">
         <div className="flex items-stretch gap-1.5">
           <input
@@ -367,21 +400,11 @@ export default function ProfileEditClient({
             maxLength={20}
             className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
           />
-          <button
-            type="button"
-            onClick={saveDisplayName}
-            disabled={
-              namePending || displayName.trim() === initial.displayName
-            }
-            className={btnPrimaryClass}
-          >
-            {namePending ? "저장 중…" : "저장"}
-          </button>
         </div>
         <Msg status={nameStatus} />
       </Card>
 
-      {/* 3. 자기소개 (닉네임 바로 밑) */}
+      {/* 4. 자기소개 */}
       <SectionWithVisibility
         title="본인을 소개해주세요!"
         visField="bio"
@@ -399,15 +422,6 @@ export default function ProfileEditClient({
           {bio.length} / 200
         </p>
       </SectionWithVisibility>
-
-      {/* 4. 기본 정보 (읽기 전용 — 공개/비공개 toggle 없음) */}
-      <Card title="기본 정보" subtitle="가입 시 입력 — 변경 불가">
-        <dl className="space-y-1.5 text-[13px]">
-          <Row label="이메일" value={currentEmail} />
-          <Row label="간편로그인" value={providerLabel} />
-          <Row label="나이·성별" value={ageGenderLabel} />
-        </dl>
-      </Card>
 
       {/* 5. 얼굴형 */}
       <SectionWithVisibility
@@ -539,15 +553,15 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 일괄 저장 */}
-      <div className="flex justify-end">
+      {/* 일괄 저장 — 가운데 큰 버튼 */}
+      <div className="flex justify-center">
         <button
           type="button"
-          onClick={saveSkinInfo}
+          onClick={saveAll}
           disabled={skinPending}
-          className={btnPrimaryClass + " px-6"}
+          className="h-11 rounded-full bg-[var(--primary-light)] px-10 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
         >
-          {skinPending ? "저장 중…" : "정보 저장"}
+          {skinPending ? "저장 중…" : "저장하기"}
         </button>
       </div>
       <Msg status={skinStatus} />

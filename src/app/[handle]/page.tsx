@@ -210,84 +210,10 @@ export default async function HandleProfilePage({ params }: Props) {
           </div>
         )}
 
-        {/* 공개된 피부 정보 — 본인이 [공개] 체크한 항목만 표시 */}
-        {(() => {
-          const v = profile.field_visibility ?? {};
-          const items: string[] = [];
-          if (v.face_shape !== false && profile.face_shape) {
-            const FACE_LABEL: Record<string, string> = {
-              oval: "달걀형", peanut: "땅콩형", oblong: "장방형",
-              square: "각진형", round: "둥근형",
-            };
-            items.push(`얼굴 ${FACE_LABEL[profile.face_shape] ?? profile.face_shape}`);
-          }
-          if (v.skin_type !== false && profile.skin_type) {
-            const SKIN_LABEL: Record<string, string> = {
-              extreme_dry: "극건성", dry: "건성", normal: "중성",
-              combination: "복합성", dehydrated_oily: "수부지",
-              oily: "지성", extreme_oily: "극지성",
-            };
-            items.push(SKIN_LABEL[profile.skin_type] ?? profile.skin_type);
-          }
-          // 클릭 시 검색으로 이동: 피부고민·관심시술·좋아하는 시술
-          type Tag = { label: string; q: string };
-          const tags: Tag[] = [];
-          if (v.skin_concerns !== false && profile.skin_concerns?.length) {
-            const CON_LABEL: Record<string, string> = {
-              elasticity: "탄력", volume: "볼륨", wrinkle: "주름",
-              tone: "피부톤", pores: "모공", contour: "윤곽",
-              texture: "피부결", aging: "노안", trouble: "트러블",
-              sensitive: "민감성",
-            };
-            for (const c of profile.skin_concerns.slice(0, 4)) {
-              const lbl = CON_LABEL[c] ?? c;
-              tags.push({ label: `#${lbl}`, q: lbl });
-            }
-          }
-          if (
-            v.interested_procedures !== false &&
-            profile.interested_procedures?.length
-          ) {
-            const PROC_LABEL: Record<string, string> = {
-              lifting: "리프팅", laser: "피부레이저", booster: "스킨부스터",
-              botox: "보톡스", filler: "필러", cosmetic: "화장품",
-            };
-            for (const p of profile.interested_procedures.slice(0, 4)) {
-              const lbl = PROC_LABEL[p] ?? p;
-              tags.push({ label: `${lbl}에 관심`, q: lbl });
-            }
-          }
-          if (v.liked_procedures !== false && profile.liked_procedures?.length) {
-            for (const l of profile.liked_procedures.slice(0, 5)) {
-              tags.push({ label: `❤ ${l}`, q: l });
-            }
-          }
-          if (items.length === 0 && tags.length === 0) return null;
-          return (
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
-              {items.map((it, i) => (
-                <span
-                  key={`d${i}`}
-                  className="rounded-full bg-[var(--bg-soft)] px-2.5 py-0.5 text-[11.5px] text-[var(--text-secondary)]"
-                >
-                  {it}
-                </span>
-              ))}
-              {tags.map((t, i) => (
-                <Link
-                  key={`t${i}`}
-                  href={`/search?q=${encodeURIComponent(t.q)}`}
-                  className="rounded-full bg-[var(--bg-soft)] px-2.5 py-0.5 text-[11.5px] text-[var(--text-secondary)] transition-colors hover:bg-[#E5E7EB] hover:text-[var(--text)]"
-                >
-                  {t.label}
-                </Link>
-              ))}
-            </div>
-          );
-        })()}
+        {/* 피부 정보는 [피부고민] 탭으로 이동됨 */}
       </div>
 
-      {/* 탭 — 작성 글 / 댓글 / 좋아요(owner) / 저장(owner). 작성 글 탭은 2단 QAFeed. */}
+      {/* 탭 — 작성 글 / 피부고민 / 댓글 / 좋아요(owner) / 저장(owner) */}
       <ProfileTabs
         posts={posts}
         postsCount={posts.length}
@@ -297,6 +223,14 @@ export default async function HandleProfilePage({ params }: Props) {
         isOwner={isOwner}
         profileId={profile.id}
         personaForPosts={personaForPosts}
+        skinInfo={{
+          faceShape: profile.face_shape,
+          skinType: profile.skin_type,
+          skinConcerns: profile.skin_concerns ?? [],
+          interestedProcedures: profile.interested_procedures ?? [],
+          likedProcedures: profile.liked_procedures ?? [],
+          visibility: (profile.field_visibility ?? {}) as Record<string, boolean>,
+        }}
       />
     </section>
   );
