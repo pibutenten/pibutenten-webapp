@@ -13,6 +13,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type CommentStatus = "visible" | "hidden" | "deleted";
@@ -355,20 +356,38 @@ function CommentItem({
   onDelete: (id: number) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(comment.body);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
 
-  // 외부 클릭 시 메뉴 닫기
+  // 외부 클릭 시 메뉴 닫기 (trigger·panel 둘 다 검사)
   useEffect(() => {
     if (!menuOpen) return;
     function onDocClick(e: MouseEvent) {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      const t = e.target as Node;
+      if (menuTriggerRef.current?.contains(t)) return;
+      if (menuPanelRef.current?.contains(t)) return;
+      setMenuOpen(false);
     }
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
   }, [menuOpen]);
+
+  // 메뉴 위치 계산 — trigger 버튼 기준 viewport 좌표 (portal로 body에 렌더되므로)
+  function openMenu() {
+    const el = menuTriggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setMenuPos({
+      top: rect.bottom + window.scrollY + 4,
+      left: rect.right + window.scrollX - 120, // min-w 120px 기준 우측 정렬
+    });
+    setMenuOpen(true);
+  }
 
   const isAuthor = !!me && comment.author_id === me.id;
   // 가림/복원/삭제는 관리자 또는 본인. (해당 글 doctor 권한은 RLS가 강제 — UI에서 버튼은 관리자/원장 본인 매칭일 때만 노출하기 위해
@@ -463,20 +482,32 @@ function CommentItem({
         )}
 
         {showMenu && (
-          <div className="relative ml-auto" ref={menuRef}>
+          <div className="ml-auto">
             <button
+              ref={menuTriggerRef}
               type="button"
               aria-label="메뉴"
               className="px-1 text-[16px] leading-none text-[var(--text-muted)] hover:text-[var(--text)]"
               onClick={(e) => {
                 e.stopPropagation();
-                setMenuOpen((v) => !v);
+                if (menuOpen) setMenuOpen(false);
+                else openMenu();
               }}
             >
               ⋮
             </button>
-            {menuOpen && (
-              <div className="absolute right-0 z-50 mt-1 min-w-[120px] overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg">
+            {menuOpen && menuPos && typeof document !== "undefined" &&
+              createPortal(
+                <div
+                  ref={menuPanelRef}
+                  style={{
+                    position: "absolute",
+                    top: menuPos.top,
+                    left: menuPos.left,
+                  }}
+                  className="z-[200] min-w-[120px] overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
                 {canEdit && !isDeleted && (
                   <button
                     type="button"
@@ -526,8 +557,9 @@ function CommentItem({
                     삭제
                   </button>
                 )}
-              </div>
-            )}
+                </div>,
+                document.body,
+              )}
           </div>
         )}
       </div>

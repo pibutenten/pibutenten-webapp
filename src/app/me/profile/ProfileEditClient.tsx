@@ -8,6 +8,7 @@ type Props = {
   userId: string;
   currentEmail: string;
   currentDisplayName: string;
+  currentHandle: string | null;
   currentMarketingConsent: boolean;
   hasPassword: boolean; // email 가입자만 true (Google/Kakao OAuth는 false)
 };
@@ -18,6 +19,7 @@ export default function ProfileEditClient({
   userId,
   currentEmail,
   currentDisplayName,
+  currentHandle,
   currentMarketingConsent,
   hasPassword,
 }: Props) {
@@ -50,6 +52,49 @@ export default function ProfileEditClient({
         return;
       }
       setNameStatus({ type: "ok", msg: "닉네임이 변경되었어요." });
+      router.refresh();
+    });
+  }
+
+  // ── 1-b. 핸들 (URL용) ──
+  const [handle, setHandle] = useState(currentHandle ?? "");
+  const [handleStatus, setHandleStatus] = useState<Status>({ type: "idle" });
+  const [handlePending, startHandle] = useTransition();
+
+  function saveHandle() {
+    setHandleStatus({ type: "idle" });
+    const v = handle.trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(v)) {
+      setHandleStatus({
+        type: "err",
+        msg: "3~30자, 영소문자·숫자·하이픈만, 양 끝은 영숫자.",
+      });
+      return;
+    }
+    if (v === currentHandle) {
+      setHandleStatus({ type: "ok", msg: "변경 없음" });
+      return;
+    }
+    startHandle(async () => {
+      const { error } = await sb
+        .from("profiles")
+        .update({ handle: v })
+        .eq("id", userId);
+      if (error) {
+        // unique constraint 또는 reserved trigger 메시지
+        const msg = /duplicate|unique/i.test(error.message)
+          ? "이미 사용 중인 핸들입니다."
+          : /reserved/i.test(error.message) ||
+              /예약/.test(error.message)
+            ? "예약된 핸들이라 사용할 수 없습니다."
+            : error.message;
+        setHandleStatus({ type: "err", msg });
+        return;
+      }
+      setHandleStatus({
+        type: "ok",
+        msg: `핸들 변경 완료 — 새 프로필 URL: /${v}`,
+      });
       router.refresh();
     });
   }
@@ -185,6 +230,42 @@ export default function ProfileEditClient({
           </button>
         </div>
         <Msg status={nameStatus} />
+      </Card>
+
+      {/* 핸들 (URL용) */}
+      <Card title="핸들 (URL)">
+        <p className="mb-1.5 text-[11.5px] text-[var(--text-muted)]">
+          내 프로필 URL — 영소문자·숫자·하이픈, 3~30자.{" "}
+          {currentHandle && (
+            <span className="text-[var(--text-secondary)]">
+              현재: <code>/{currentHandle}</code>
+            </span>
+          )}
+        </p>
+        <div className="flex items-stretch gap-1.5">
+          <span className="inline-flex h-9 items-center rounded-md border border-r-0 border-[var(--border)] bg-[var(--bg-soft)] px-2 text-[13px] text-[var(--text-muted)]">
+            /
+          </span>
+          <input
+            type="text"
+            value={handle}
+            onChange={(e) =>
+              setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
+            }
+            maxLength={30}
+            placeholder="my-handle"
+            className="h-9 flex-1 rounded-md rounded-l-none border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={saveHandle}
+            disabled={handlePending || handle.trim() === (currentHandle ?? "")}
+            className="h-9 shrink-0 whitespace-nowrap rounded-md border border-[var(--primary)] bg-transparent px-3 text-[12px] font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:text-[var(--text-muted)] disabled:hover:bg-transparent"
+          >
+            {handlePending ? "저장 중…" : "저장"}
+          </button>
+        </div>
+        <Msg status={handleStatus} />
       </Card>
 
       {/* 비밀번호 — OAuth 가입자는 숨김 */}

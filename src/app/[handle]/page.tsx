@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import QACard, { type QACardData } from "@/components/QACard";
+import { type QACardData } from "@/components/QACard";
+import QAFeed from "@/components/QAFeed";
 import { SITE_URL } from "@/lib/site";
 import type { UserRole } from "@/lib/user-grades";
 
@@ -185,7 +186,7 @@ export default async function HandleProfilePage({ params }: Props) {
         </div>
       </div>
 
-      {/* 작성 글 */}
+      {/* 작성 글 — 메인 피드와 동일한 2단(좌우) 레이아웃 */}
       <div>
         <h2 className="mb-3 text-sm font-semibold text-[var(--text-secondary)]">
           작성 글 ({posts.length})
@@ -195,11 +196,7 @@ export default async function HandleProfilePage({ params }: Props) {
             아직 작성한 글이 없어요
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
-            {posts.map((qa) => (
-              <QACard key={qa.id} qa={qa} />
-            ))}
-          </div>
+          <QAFeed initial={posts} pageSize={20} />
         )}
       </div>
     </section>

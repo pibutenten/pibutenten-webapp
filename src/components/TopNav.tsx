@@ -396,7 +396,7 @@ export default function TopNav({ session }: TopNavProps) {
                     href={profileHref}
                     aria-label="내 프로필"
                     title="내 프로필"
-                    className="flex items-center gap-1.5 rounded-md p-1 transition-colors hover:bg-[var(--bg-soft)]"
+                    className="flex items-center gap-1.5 rounded-md p-1 outline-none transition-colors hover:bg-[var(--bg-soft)] focus:outline-none focus-visible:ring-0"
                   >
                     <span className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
                       {avatarUrl ? (
@@ -418,28 +418,7 @@ export default function TopNav({ session }: TopNavProps) {
                   </Link>
                 );
               })()}
-              {/* 관리자 전용 — /admin 진입 톱니 아이콘 */}
-              {session.role === "admin" && (
-                <Link
-                  href="/admin"
-                  aria-label="관리자 대시보드"
-                  title="관리자"
-                  className="flex items-center gap-1 rounded-md p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-5 w-5"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4z" />
-                  </svg>
-                </Link>
-              )}
+              {/* 관리자 메뉴는 헤더에 없음 — /admin은 본인 프로필 페이지 안에서 진입 */}
             </>
           ) : (
             <Link

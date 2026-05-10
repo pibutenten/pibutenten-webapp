@@ -14,13 +14,14 @@ export default async function MyProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, display_name, marketing_email_consent")
+    .select("role, display_name, marketing_email_consent, handle")
     .eq("id", user.id)
     .maybeSingle()
     .returns<{
       role: "admin" | "doctor" | "user";
       display_name: string | null;
       marketing_email_consent: boolean | null;
+      handle: string | null;
     }>();
 
   if (!profile) redirect("/login?error=프로필을 찾을 수 없습니다");
@@ -79,6 +80,7 @@ export default async function MyProfilePage() {
         userId={user.id}
         currentEmail={user.email ?? ""}
         currentDisplayName={profile.display_name ?? ""}
+        currentHandle={profile.handle ?? null}
         currentMarketingConsent={!!profile.marketing_email_consent}
         hasPassword={hasPassword}
       />
