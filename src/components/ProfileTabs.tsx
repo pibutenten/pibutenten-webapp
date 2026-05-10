@@ -303,7 +303,7 @@ function SkinInfoBlock({ info }: { info: SkinInfo }) {
   // 3) 저는 이런 시술에 관심이 있어요..
   if (v.interested_procedures !== false && info.interestedProcedures.length) {
     sections.push({
-      title: "저는 이런 시술에 관심이 있어요..",
+      title: "저는 이런 시술에 관심 있어요~",
       chips: info.interestedProcedures.map((p) => {
         const lbl = PROC_LABEL[p] ?? p;
         return { label: lbl, q: lbl };
@@ -314,7 +314,7 @@ function SkinInfoBlock({ info }: { info: SkinInfo }) {
   // 4) 저는 이런 시술들을 좋아해요~
   if (v.liked_procedures !== false && info.likedProcedures.length) {
     sections.push({
-      title: "저는 이런 시술들을 좋아해요~",
+      title: "제가 좋아하는 시술은요..",
       chips: info.likedProcedures.map((l) => ({ label: l, q: l })),
     });
   }

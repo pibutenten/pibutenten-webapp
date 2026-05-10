@@ -954,17 +954,18 @@ export default function QACard({
           <span>{commentCount}</span>
         </button>
 
-        {/* v4 — 저장 (북마크) — 좋아요와 동일한 톤, 살짝 가벼운 느낌 */}
+        {/* v4 — 저장 (북마크) — 민트/세이지 (#6BBFA8) */}
         <button
           type="button"
           onClick={handleSave}
           aria-label={saved ? "저장 취소" : "저장"}
           aria-pressed={saved}
+          style={saved ? { color: "#6BBFA8" } : undefined}
           className={
             "flex cursor-pointer items-center gap-1 transition-colors " +
             (saved
-              ? "text-[var(--primary)]"
-              : "text-[var(--text-secondary)] hover:text-[var(--primary)]")
+              ? ""
+              : "text-[var(--text-secondary)] hover:text-[#6BBFA8]")
           }
           title="저장"
         >
