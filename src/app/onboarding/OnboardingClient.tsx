@@ -560,8 +560,8 @@ function Chip({
       className={
         "shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors sm:text-[13.5px] " +
         (active
-          ? "bg-[var(--primary)] text-white"
-          : "bg-[var(--bg-soft)] text-[var(--text-secondary)] hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]")
+          ? "bg-[#4B5563] text-white"
+          : "bg-[var(--bg-soft)] text-[var(--text-secondary)] hover:bg-[#E5E7EB] hover:text-[var(--text)]")
       }
     >
       {children}

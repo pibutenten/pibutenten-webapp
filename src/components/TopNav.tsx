@@ -5,13 +5,24 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-// PersonaSwitcher는 v4에서 헤더에서 제거됨 — 페르소나 전환은 프로필 페이지 안에서
+// v4 다중 identity 전환은 IdentitySwitcher로 (1개일 땐 단순 Link)
+import IdentitySwitcher from "./IdentitySwitcher";
 
 type NavItem = {
   href: string;
   label: string;
   external?: boolean;
   icon: React.ReactNode;
+};
+
+export type SessionIdentity = {
+  /** 'primary' (profiles row 자체) 또는 profile_identities.id (uuid) */
+  id: string;
+  handle: string;
+  displayName: string;
+  avatarUrl: string | null;
+  /** developer | doctor | personal | admin | other | primary */
+  kind: string;
 };
 
 export type SessionInfo = {
@@ -25,6 +36,10 @@ export type SessionInfo = {
   altHandle: string | null;
   doctorSlug: string | null;
   persona: "official" | "personal";
+  /** v4 multi-identity — 본인이 보유한 모든 identity (primary 포함). 1개일 땐 dropdown 안 보임. */
+  identities: SessionIdentity[];
+  /** 현재 활성 identity id ('primary' 또는 profile_identities.id) */
+  activeIdentityId: string;
 } | null;
 
 type TopNavProps = {
@@ -369,60 +384,17 @@ export default function TopNav({ session }: TopNavProps) {
           {/* 모바일 우상단 — 앱 설치 버튼 (데스크탑은 Chrome 자체 설치 메뉴가 있어 숨김) */}
           <InstallAppButton />
 
-          {/* 본인 메뉴 (v4 1-click) — 드롭다운 X. 아바타·닉네임 클릭 → 본인 프로필 즉시 이동.
-              관리자만 별도 [관리자] 아이콘 노출. 프로필 전환은 프로필 페이지 안 위젯에서. */}
+          {/* 본인 메뉴 (v4 multi-identity)
+              - identity 1개 → 단순 Link (본인 프로필 즉시 이동)
+              - identity 2+ → dropdown으로 활성 identity 전환 가능
+              - 관리자: 항상 /admin 직행 */}
           {session ? (
-            <>
-              {(() => {
-                // 진입 URL 결정
-                //  - 관리자: /admin (관리자는 본인 프로필 안 만들고 대시보드만)
-                //  - 의사 official: /doctors/{slug}
-                //  - 의사 personal · 회원: /{handle 또는 alt_handle}
-                //  - handle 미설정 시 fallback /me
-                const isPersonal = session.persona === "personal";
-                const profileHref =
-                  session.role === "admin"
-                    ? "/admin"
-                    : session.role === "doctor" && !isPersonal && session.doctorSlug
-                      ? `/doctors/${session.doctorSlug}`
-                      : (isPersonal ? session.altHandle : session.handle)
-                        ? `/${isPersonal ? session.altHandle : session.handle}`
-                        : "/me";
-                const displayName = isPersonal
-                  ? session.altDisplayName ?? session.displayName
-                  : session.displayName;
-                const avatarUrl = isPersonal
-                  ? session.altAvatarUrl
-                  : session.avatarUrl;
-                return (
-                  <Link
-                    href={profileHref}
-                    aria-label="내 프로필"
-                    title="내 프로필"
-                    className="flex items-center gap-1.5 rounded-md p-1 outline-none transition-colors hover:bg-[var(--bg-soft)] focus:outline-none focus-visible:ring-0"
-                  >
-                    <span className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
-                      {avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={avatarUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-[12px]">
-                          👤
-                        </span>
-                      )}
-                    </span>
-                    <span className="hidden max-w-[100px] truncate text-[13px] font-medium text-[var(--text)] sm:inline">
-                      {displayName}
-                    </span>
-                  </Link>
-                );
-              })()}
-              {/* 관리자 메뉴는 헤더에 없음 — /admin은 본인 프로필 페이지 안에서 진입 */}
-            </>
+            <IdentitySwitcher
+              identities={session.identities}
+              activeId={session.activeIdentityId}
+              doctorSlug={session.doctorSlug}
+              isAdmin={session.role === "admin"}
+            />
           ) : (
             <Link
               href="/login"

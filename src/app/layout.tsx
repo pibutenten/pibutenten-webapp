@@ -97,6 +97,52 @@ async function getSessionInfo(): Promise<SessionInfo> {
     // 페르소나 — 의사/관리자가 personal로 스위치한 상태 여부
     const { readPersonaServer } = await import("@/lib/persona-server");
     const persona = (await readPersonaServer()) as "official" | "personal";
+
+    // v4 multi-identity — primary + profile_identities 모두 가져와 dropdown 구성
+    const { data: extraIdentities } = await supabase
+      .from("profile_identities")
+      .select("id, handle, display_name, avatar_url, kind")
+      .eq("profile_id", user.id)
+      .order("created_at", { ascending: true });
+    const identities: import("@/components/TopNav").SessionIdentity[] = [];
+    if (profile.handle) {
+      identities.push({
+        id: "primary",
+        handle: profile.handle as string,
+        displayName: (profile.display_name as string | null) ?? user.email ?? "",
+        avatarUrl: (profile.avatar_url as string | null) ?? null,
+        kind:
+          profile.role === "admin"
+            ? "admin"
+            : profile.role === "doctor"
+              ? "doctor"
+              : "primary",
+      });
+    }
+    for (const ei of (extraIdentities ?? []) as Array<{
+      id: string;
+      handle: string;
+      display_name: string;
+      avatar_url: string | null;
+      kind: string;
+    }>) {
+      identities.push({
+        id: ei.id,
+        handle: ei.handle,
+        displayName: ei.display_name,
+        avatarUrl: ei.avatar_url,
+        kind: ei.kind,
+      });
+    }
+    // 활성 identity 결정 — cookie 우선, 없으면 'primary'
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const activeFromCookie = cookieStore.get("pibutenten:identity")?.value;
+    const activeIdentityId =
+      activeFromCookie && identities.some((i) => i.id === activeFromCookie)
+        ? activeFromCookie
+        : "primary";
+
     return {
       role: (profile.role as "admin" | "doctor" | "user") ?? "user",
       displayName: profile.display_name ?? user.email ?? "",
@@ -107,6 +153,8 @@ async function getSessionInfo(): Promise<SessionInfo> {
       altHandle: (profile.alt_handle as string | null) ?? null,
       doctorSlug,
       persona,
+      identities,
+      activeIdentityId,
     };
   } catch {
     return null;
