@@ -124,6 +124,7 @@ export default function QACard({
   // v4 — 저장(북마크) + 평점
   const [saved, setSaved] = useState(false);
   const [saveCount, setSaveCount] = useState(qa.save_count ?? 0);
+  const [savePending, setSavePending] = useState(false);
   const [ratingAvg, setRatingAvg] = useState<number>(Number(qa.rating_avg ?? 0));
   const [ratingCount, setRatingCount] = useState<number>(qa.rating_count ?? 0);
   const [myRating, setMyRating] = useState<number>(0);
@@ -257,13 +258,16 @@ export default function QACard({
     };
   }, [qa.id]);
 
-  // 저장 토글 — 로그인 필수
+  // 저장 토글 — 로그인 필수, 진행 중 클릭 무시 (자꾸 풀리는 문제 방지)
   async function handleSave() {
     if (typeof window === "undefined") return;
+    if (savePending) return;
+    setSavePending(true);
     const supabase = createSupabaseBrowserClient();
     const { data: u } = await supabase.auth.getUser();
     const userId = u.user?.id;
     if (!userId) {
+      setSavePending(false);
       router.push("/login?next=" + encodeURIComponent(window.location.pathname));
       return;
     }
@@ -666,7 +670,7 @@ export default function QACard({
         <>
           {/* 작성자 row + 우상단 kebab (수정/삭제) — 본인/관리자만 노출 */}
           {canEdit && (
-            <div ref={menuRef} className="absolute right-3 top-3 z-20">
+            <div ref={menuRef} className="absolute right-3 top-7 z-20">
               <button
                 type="button"
                 onClick={(e) => {
