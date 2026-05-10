@@ -469,7 +469,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
       </Section>
 
       {/* 6. 자기소개 */}
-      <Section title="간단한 자기소개">
+      <Section title="본인을 소개한다면?">
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}
@@ -494,7 +494,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
           disabled={pending}
           className="h-10 rounded-full bg-[var(--primary-light)] px-7 text-[14px] font-semibold text-white transition-all hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
         >
-          {pending ? "저장 중…" : "피부 예뻐지기 시작하기!"}
+          {pending ? "저장 중…" : "저장"}
         </button>
       </div>
     </div>
@@ -560,7 +560,7 @@ function Chip({
       className={
         "shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors sm:text-[13.5px] " +
         (active
-          ? "bg-[#4B5563] text-white"
+          ? "bg-[#6B7280] text-white"
           : "bg-[var(--bg-soft)] text-[var(--text-secondary)] hover:bg-[#E5E7EB] hover:text-[var(--text)]")
       }
     >
