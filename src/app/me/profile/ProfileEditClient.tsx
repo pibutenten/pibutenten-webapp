@@ -206,7 +206,6 @@ export default function ProfileEditClient({
         }
         confirmLabel={deletePending ? "탈퇴 처리 중…" : "탈퇴"}
         cancelLabel="취소"
-        danger
         onConfirm={performDelete}
         onCancel={() => setDeleteOpen(false)}
       />

@@ -80,9 +80,7 @@ export default async function MyProfilePage() {
         userId={user.id}
         currentEmail={user.email ?? ""}
         currentDisplayName={profile.display_name ?? ""}
-        currentHandle={profile.handle ?? null}
         currentMarketingConsent={!!profile.marketing_email_consent}
-        hasPassword={hasPassword}
       />
 
       {/* 온보딩 정보 — 피부타입·관심시술·아바타·생년월일 등.
