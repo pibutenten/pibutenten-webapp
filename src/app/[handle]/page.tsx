@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type QACardData } from "@/components/QACard";
-import QAFeed from "@/components/QAFeed";
+import ProfileTabs from "@/components/ProfileTabs";
 import { SITE_URL } from "@/lib/site";
 import type { UserRole } from "@/lib/user-grades";
 
@@ -100,6 +100,18 @@ export default async function HandleProfilePage({ params }: Props) {
   } = await supabase.auth.getUser();
   const isOwner = viewer?.id === profile.id;
 
+  // 본인일 때 role 조회 — admin이면 [관리자 대시보드] 진입 링크 노출
+  let viewerRole: "admin" | "doctor" | "user" | null = null;
+  if (isOwner && viewer) {
+    const { data: vp } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", viewer.id)
+      .maybeSingle();
+    viewerRole =
+      ((vp?.role as "admin" | "doctor" | "user" | undefined) ?? null) ?? null;
+  }
+
   const displayName = isAlt
     ? profile.alt_display_name ?? handle
     : profile.display_name ?? handle;
@@ -132,73 +144,64 @@ export default async function HandleProfilePage({ params }: Props) {
 
   return (
     <section className="w-full py-6">
-      {/* 프로필 헤더 */}
-      <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
-        <div className="flex items-start gap-4">
-          <div className="h-[64px] w-[64px] shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-2xl text-[var(--text-muted)]">
-                👤
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold text-[var(--text)]">
-                {displayName}
-              </h1>
-              <span className="text-sm text-[var(--text-muted)]">@{handle}</span>
-              {isAlt && (
-                <span className="rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
-                  개인 모드
-                </span>
-              )}
+      {/* 프로필 헤더 — 사진 가운데, 카드 wrapper 없이 */}
+      <div className="mb-6 flex flex-col items-center text-center">
+        <div className="h-[96px] w-[96px] overflow-hidden rounded-full bg-[var(--bg-soft)]">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-4xl text-[var(--text-muted)]">
+              👤
             </div>
-            {bio && (
-              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
-                {bio}
-              </p>
-            )}
-            {isOwner && (
-              <div className="mt-2.5 flex flex-wrap gap-2 text-xs">
-                <Link
-                  href="/me/profile"
-                  className="rounded border border-[var(--border)] px-2.5 py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-                >
-                  ✏️ 프로필 수정
-                </Link>
-                <Link
-                  href="/me"
-                  className="rounded border border-[var(--border)] px-2.5 py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-                >
-                  대시보드
-                </Link>
-              </div>
-            )}
-          </div>
+          )}
         </div>
-      </div>
-
-      {/* 작성 글 — 메인 피드와 동일한 2단(좌우) 레이아웃 */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-[var(--text-secondary)]">
-          작성 글 ({posts.length})
-        </h2>
-        {posts.length === 0 ? (
-          <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] p-10 text-center text-sm text-[var(--text-muted)]">
-            아직 작성한 글이 없어요
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          <h1 className="text-xl font-bold text-[var(--text)]">
+            {displayName}
+          </h1>
+          {isAlt && (
+            <span className="rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
+              개인 모드
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 text-sm text-[var(--text-muted)]">@{handle}</div>
+        {bio && (
+          <p className="mt-2 max-w-md text-sm text-[var(--text-secondary)]">
+            {bio}
+          </p>
+        )}
+        {isOwner && (
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
+            <Link
+              href="/me/profile"
+              className="rounded-full border border-[var(--border)] px-3 py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+            >
+              ✏️ 프로필 수정
+            </Link>
+            {viewerRole === "admin" && (
+              <Link
+                href="/admin"
+                className="rounded-full border border-[var(--border)] px-3 py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+              >
+                🛡 관리자
+              </Link>
+            )}
           </div>
-        ) : (
-          <QAFeed initial={posts} pageSize={20} />
         )}
       </div>
+
+      {/* 탭 — 작성 글 / 댓글 / 좋아요(owner) / 저장(owner). 작성 글 탭은 2단 QAFeed. */}
+      <ProfileTabs
+        posts={posts}
+        postsCount={posts.length}
+        isOwner={isOwner}
+      />
     </section>
   );
 }
