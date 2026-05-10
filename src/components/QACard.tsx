@@ -126,35 +126,60 @@ export default function QACard({
   const doctor = qa.doctor;
   const isPick = PICK_IDS.has(qa.id);
 
-  // 조회수 +1 — 카드가 화면에 50% 이상 노출되면 1회 (페이지 로드마다 매번 카운트)
-  // 같은 사용자가 다시 방문해도 새로 카운트됨 (인기도 신호 강화).
-  // 한 페이지 안에서 동일 카드를 여러 번 스크롤해도 1회만 — counted ref로 페이지 단위 dedup.
+  // 조회수 +1 — 의도적인 "보기" 신호일 때만 카운트.
+  // 조건: 카드가 viewport 중앙 영역 (위/아래 35% 마진 → 중앙 30%) 에 들어오고
+  //      DWELL_MS 동안 머물러 있어야 함. 페이지 로드 직후 첫 화면에 우연히 떠있는 것만으로는 카운트 X.
+  //      스크롤 도중 빠르게 지나가는 카드도 카운트 X.
+  // 페이지 단위 dedup: 한 페이지 안에서 같은 카드 여러 번 진입해도 1회.
+  // 같은 사용자가 다시 방문(재로드)하면 새로 카운트.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const card = cardRef.current;
     if (!card) return;
 
+    const DWELL_MS = 1500; // 1.5초 머물러야 의도적 보기로 인정
     let counted = false;
+    let dwellTimer: ReturnType<typeof setTimeout> | null = null;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (counted) return;
-        if (entries.some((e) => e.isIntersecting && e.intersectionRatio >= 0.5)) {
-          counted = true;
-          const sb = createSupabaseBrowserClient();
-          sb.rpc("increment_qa_view", { p_qa_id: qa.id }).then(
-            ({ data }: { data: number | null }) => {
-              if (typeof data === "number") setViewCount(data);
-            },
-          );
-          // PWA 설치 배너 트리거용 — 카드 1장당 1회 발생
-          window.dispatchEvent(new CustomEvent("pibutenten:qa-viewed"));
-          observer.disconnect();
+        const entry = entries[0];
+        if (!entry) return;
+        if (entry.isIntersecting) {
+          // 중앙 영역에 진입 → dwell 타이머 시작
+          if (dwellTimer) clearTimeout(dwellTimer);
+          dwellTimer = setTimeout(() => {
+            if (counted) return;
+            counted = true;
+            const sb = createSupabaseBrowserClient();
+            sb.rpc("increment_qa_view", { p_qa_id: qa.id }).then(
+              ({ data }: { data: number | null }) => {
+                if (typeof data === "number") setViewCount(data);
+              },
+            );
+            window.dispatchEvent(new CustomEvent("pibutenten:qa-viewed"));
+            observer.disconnect();
+          }, DWELL_MS);
+        } else {
+          // 중앙 영역을 떠남 → 타이머 취소 (의도적 보기 아님)
+          if (dwellTimer) {
+            clearTimeout(dwellTimer);
+            dwellTimer = null;
+          }
         }
       },
-      { threshold: 0.5 },
+      {
+        // viewport 중앙 30% 영역만 카운트 — 위/아래 35%씩 마진으로 무시
+        rootMargin: "-35% 0px -35% 0px",
+        threshold: 0.01,
+      },
     );
     observer.observe(card);
-    return () => observer.disconnect();
+    return () => {
+      if (dwellTimer) clearTimeout(dwellTimer);
+      observer.disconnect();
+    };
   }, [qa.id]);
 
   // 좋아요 상태 초기화 — 로그인이면 qa_likes, 미로그인이면 localStorage
