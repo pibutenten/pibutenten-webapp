@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import QAFeed from "@/components/QAFeed";
 import type { QACardData } from "@/components/QACard";
@@ -103,19 +103,6 @@ export default function ProfileTabs({
   skinInfo,
 }: Props) {
   const [tab, setTab] = useState<Tab>("posts");
-  const [sort, setSort] = useState<"latest" | "popular">("latest");
-
-  // 정렬 적용 (작성 글 — client-side. 댓글·좋아요·저장은 서버 fetch 결과 그대로 사용)
-  const sortedPosts = useMemo(() => {
-    if (sort === "popular") {
-      return [...posts].sort(
-        (a, b) =>
-          (b.like_count ?? 0) + (b.view_count ?? 0) / 100 -
-          ((a.like_count ?? 0) + (a.view_count ?? 0) / 100),
-      );
-    }
-    return posts;
-  }, [posts, sort]);
 
   // 피부고민 탭은 공개된 항목 있을 때만
   const hasSkin = !!(
@@ -128,13 +115,13 @@ export default function ProfileTabs({
       (skinInfo.visibility.liked_procedures !== false && skinInfo.likedProcedures.length))
   );
 
-  const tabs: Tab[] = useMemo(() => {
-    const base: Tab[] = ["posts"];
-    if (hasSkin) base.push("skin");
-    base.push("comments");
+  // 탭 순서: 작성 글 → 댓글 → (본인일 때 좋아요·저장) → 피부고민 (맨 우측)
+  const tabs: Tab[] = (() => {
+    const base: Tab[] = ["posts", "comments"];
     if (isOwner) base.push("likes", "saves");
+    if (hasSkin) base.push("skin");
     return base;
-  }, [isOwner, hasSkin]);
+  })();
 
   // 댓글 lazy fetch
   const [comments, setComments] = useState<CommentRow[] | null>(null);
@@ -166,7 +153,7 @@ export default function ProfileTabs({
 
   return (
     <div>
-      {/* 탭 헤더 — 좌측 탭 목록 + 우측 정렬 */}
+      {/* 탭 헤더 — 정렬 토글 제거, 최신순 고정 */}
       <div className="mb-4 flex items-center gap-1 border-b border-[var(--border)]">
         <div className="flex gap-1">
           {tabs.map((t) => {
@@ -206,38 +193,14 @@ export default function ProfileTabs({
             );
           })}
         </div>
-        {/* 정렬 — 피부고민 탭에선 의미 없음 */}
-        {tab !== "skin" && (
-          <div className="ml-auto flex gap-1 pr-1 text-[11.5px]">
-            {(["latest", "popular"] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSort(s)}
-                className={
-                  "rounded px-2 py-0.5 transition-colors " +
-                  (sort === s
-                    ? "font-semibold text-[var(--text)]"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]")
-                }
-              >
-                {s === "latest" ? "최신순" : "인기순"}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* 탭 콘텐츠 */}
       {tab === "posts" &&
-        (sortedPosts.length === 0 ? (
+        (posts.length === 0 ? (
           <Empty msg="아직 작성한 글이 없어요" />
         ) : (
-          <QAFeed
-            key={sort}
-            initial={sortedPosts}
-            pageSize={20}
-          />
+          <QAFeed initial={posts} pageSize={20} />
         ))}
 
       {tab === "skin" && skinInfo && (
@@ -310,30 +273,28 @@ const PROC_LABEL: Record<string, string> = {
 
 function SkinInfoBlock({ info }: { info: SkinInfo }) {
   const v = info.visibility ?? {};
-  const sections: { title: string; chips: { label: string; q?: string }[] }[] = [];
+
+  // 얼굴형 + 피부타입 + 피부고민은 한 박스에 태그로 모음 (제목 없이)
+  const profileChips: { label: string; q?: string }[] = [];
   if (v.face_shape !== false && info.faceShape) {
-    sections.push({
-      title: "얼굴형",
-      chips: [{ label: FACE_LABEL[info.faceShape] ?? info.faceShape }],
-    });
+    const lbl = FACE_LABEL[info.faceShape] ?? info.faceShape;
+    profileChips.push({ label: lbl, q: lbl });
   }
   if (v.skin_type !== false && info.skinType) {
-    sections.push({
-      title: "피부타입",
-      chips: [{ label: SKIN_LABEL[info.skinType] ?? info.skinType }],
-    });
+    const lbl = SKIN_LABEL[info.skinType] ?? info.skinType;
+    profileChips.push({ label: lbl, q: lbl });
   }
   if (v.skin_concerns !== false && info.skinConcerns.length) {
-    sections.push({
-      title: "피부고민",
-      chips: info.skinConcerns.map((c) => {
-        const lbl = CON_LABEL[c] ?? c;
-        return { label: lbl, q: lbl };
-      }),
-    });
+    for (const c of info.skinConcerns) {
+      const lbl = CON_LABEL[c] ?? c;
+      profileChips.push({ label: lbl, q: lbl });
+    }
   }
+
+  // 관심시술 / 좋아하는 시술은 별도 박스 유지
+  const procSections: { title: string; chips: { label: string; q?: string }[] }[] = [];
   if (v.interested_procedures !== false && info.interestedProcedures.length) {
-    sections.push({
+    procSections.push({
       title: "관심 시술",
       chips: info.interestedProcedures.map((p) => {
         const lbl = PROC_LABEL[p] ?? p;
@@ -342,14 +303,24 @@ function SkinInfoBlock({ info }: { info: SkinInfo }) {
     });
   }
   if (v.liked_procedures !== false && info.likedProcedures.length) {
-    sections.push({
+    procSections.push({
       title: "좋아하는 시술",
       chips: info.likedProcedures.map((l) => ({ label: l, q: l })),
     });
   }
+
   return (
     <div className="space-y-4">
-      {sections.map((s, i) => (
+      {profileChips.length > 0 && (
+        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
+          <div className="flex flex-wrap gap-1.5">
+            {profileChips.map((c, ci) => (
+              <ChipLink key={ci} c={c} />
+            ))}
+          </div>
+        </div>
+      )}
+      {procSections.map((s, i) => (
         <div
           key={i}
           className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
@@ -358,27 +329,30 @@ function SkinInfoBlock({ info }: { info: SkinInfo }) {
             {s.title}
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            {s.chips.map((c, ci) =>
-              c.q ? (
-                <Link
-                  key={ci}
-                  href={`/search?q=${encodeURIComponent(c.q)}`}
-                  className="rounded-full bg-[var(--bg-soft)] px-3 py-1 text-[12.5px] text-[var(--text-secondary)] transition-colors hover:bg-[#E5E7EB] hover:text-[var(--text)]"
-                >
-                  {c.label}
-                </Link>
-              ) : (
-                <span
-                  key={ci}
-                  className="rounded-full bg-[var(--bg-soft)] px-3 py-1 text-[12.5px] text-[var(--text-secondary)]"
-                >
-                  {c.label}
-                </span>
-              ),
-            )}
+            {s.chips.map((c, ci) => (
+              <ChipLink key={ci} c={c} />
+            ))}
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+function ChipLink({ c }: { c: { label: string; q?: string } }) {
+  if (c.q) {
+    return (
+      <Link
+        href={`/search?q=${encodeURIComponent(c.q)}`}
+        className="rounded-full bg-[var(--bg-soft)] px-3 py-1 text-[12.5px] text-[var(--text-secondary)] transition-colors hover:bg-[#E5E7EB] hover:text-[var(--text)]"
+      >
+        {c.label}
+      </Link>
+    );
+  }
+  return (
+    <span className="rounded-full bg-[var(--bg-soft)] px-3 py-1 text-[12.5px] text-[var(--text-secondary)]">
+      {c.label}
+    </span>
   );
 }

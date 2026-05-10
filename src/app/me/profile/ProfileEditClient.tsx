@@ -302,13 +302,13 @@ export default function ProfileEditClient({
 
   return (
     <div className="space-y-5">
-      {/* sticky 상단 저장하기 — 화면 어디에서든 한 번에 저장 가능 */}
-      <div className="sticky top-[60px] z-10 -mx-4 mb-2 flex justify-end gap-2 border-b border-[var(--border)] bg-white/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
+      {/* sticky 상단 저장하기 — 미니멀 텍스트 (← 프로필 스타일) */}
+      <div className="sticky top-[60px] z-10 -mx-4 mb-2 flex justify-end bg-white/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
         <button
           type="button"
           onClick={saveAll}
           disabled={skinPending}
-          className="h-9 rounded-md border border-[var(--primary-light)] bg-[var(--primary-light)] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
+          className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50"
         >
           {skinPending ? "저장 중…" : "저장하기"}
         </button>
@@ -553,13 +553,13 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 일괄 저장 — 가운데 큰 버튼 */}
-      <div className="flex justify-center">
+      {/* 일괄 저장 — 미니멀 텍스트 (가운데, 글자만 살짝 더 큼) */}
+      <div className="flex justify-center pt-2">
         <button
           type="button"
           onClick={saveAll}
           disabled={skinPending}
-          className="h-11 rounded-full bg-[var(--primary-light)] px-10 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
+          className="text-base font-medium text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50"
         >
           {skinPending ? "저장 중…" : "저장하기"}
         </button>
