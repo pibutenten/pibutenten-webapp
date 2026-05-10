@@ -980,7 +980,7 @@ export default function QACard({
           >
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
           </svg>
-          {saveCount > 0 && <span>{saveCount}</span>}
+          <span>{saveCount}</span>
         </button>
 
         {/* v4 — 평점 (★) — 미니멀 텍스트 + 호버 popover */}
@@ -990,7 +990,7 @@ export default function QACard({
             onClick={() => setRatingOpen((v) => !v)}
             className={
               "flex cursor-pointer items-center gap-0.5 transition-colors " +
-              (myRating > 0
+              (myRating > 0 || ratingCount > 0
                 ? "text-amber-500"
                 : "text-[var(--text-secondary)] hover:text-amber-500")
             }
