@@ -67,7 +67,7 @@ export default function ProfileEditClient({
     if (!/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(v)) {
       setHandleStatus({
         type: "err",
-        msg: "3~30자, 영소문자·숫자·하이픈만, 양 끝은 영숫자.",
+        msg: "3~30자, 영소문자·숫자·하이픈만 사용할 수 있어요.",
       });
       return;
     }
@@ -83,17 +83,17 @@ export default function ProfileEditClient({
       if (error) {
         // unique constraint 또는 reserved trigger 메시지
         const msg = /duplicate|unique/i.test(error.message)
-          ? "이미 사용 중인 핸들입니다."
+          ? "이미 사용 중인 id입니다."
           : /reserved/i.test(error.message) ||
               /예약/.test(error.message)
-            ? "예약된 핸들이라 사용할 수 없습니다."
+            ? "예약된 id라 사용할 수 없습니다."
             : error.message;
         setHandleStatus({ type: "err", msg });
         return;
       }
       setHandleStatus({
         type: "ok",
-        msg: `핸들 변경 완료 — 새 프로필 URL: /${v}`,
+        msg: `id 변경 완료 — 새 프로필 주소: /${v}`,
       });
       router.refresh();
     });
@@ -232,10 +232,10 @@ export default function ProfileEditClient({
         <Msg status={nameStatus} />
       </Card>
 
-      {/* 핸들 (URL용) */}
-      <Card title="핸들 (URL)">
+      {/* id (프로필 URL) */}
+      <Card title="id">
         <p className="mb-1.5 text-[11.5px] text-[var(--text-muted)]">
-          내 프로필 URL — 영소문자·숫자·하이픈, 3~30자.{" "}
+          내 프로필 주소 — 영소문자·숫자·하이픈, 3~30자.{" "}
           {currentHandle && (
             <span className="text-[var(--text-secondary)]">
               현재: <code>/{currentHandle}</code>
