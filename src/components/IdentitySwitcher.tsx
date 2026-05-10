@@ -52,15 +52,17 @@ export default function IdentitySwitcher({
   const active = identities.find((i) => i.id === activeId) ?? identities[0];
   if (!active) return null;
 
-  // 관리자는 /admin 직행 — dropdown 무의미
-  const profileHref = isAdmin
-    ? "/admin"
-    : active.kind === "doctor" && doctorSlug
-      ? `/doctors/${doctorSlug}`
-      : `/${active.handle}`;
+  // 활성 identity의 프로필 링크 — admin kind면 /admin, doctor면 /doctors/{slug}, 그 외 /{handle}
+  const profileHref =
+    active.kind === "admin"
+      ? "/admin"
+      : active.kind === "doctor" && doctorSlug
+        ? `/doctors/${doctorSlug}`
+        : `/${active.handle}`;
 
-  // identity 1개뿐이거나 admin이면 dropdown 비활성 — 단순 Link
-  if (identities.length === 1 || isAdmin) {
+  // identity가 1개뿐이면 dropdown 무의미 — 단순 Link
+  // (admin이어도 multi-identity가 있으면 dropdown 표시 — 배정민 케이스)
+  if (identities.length === 1) {
     return (
       <Link
         href={profileHref}
