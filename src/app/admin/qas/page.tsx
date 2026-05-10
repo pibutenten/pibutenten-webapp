@@ -256,15 +256,15 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   const TYPE_LIST: { key: TypeFilter; label: string }[] = [
     { key: "all", label: "전체 타입" },
     { key: "post", label: "포스팅" },
-    { key: "qa", label: "Q&A" },
+    { key: "qa", label: "답해드려요" },
   ];
 
   // 포스팅 카테고리 — Q&A 카테고리는 type=qa이므로 제외, 포스팅 4종만
   const CATEGORY_LIST: { key: CategoryFilter; label: string }[] = [
     { key: "all", label: "전체 카테고리" },
-    { key: "tip", label: "꿀팁" },
+    { key: "tip", label: "피부꿀팁" },
     { key: "diary", label: "피부일기" },
-    { key: "ask", label: "물어봐요" },
+    { key: "ask", label: "궁금해요" },
     { key: "news", label: "새소식" },
   ];
 
@@ -540,7 +540,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                         {/* v4: 포스팅이면 카테고리만 표기 (꿀팁/피부일기/물어봐요/새소식),
                             Q&A이면 'Q&A'. 컬럼 가로폭 절약. */}
                         {r.type === "qa"
-                          ? "Q&A"
+                          ? "답해드려요"
                           : labelForCategory(r.category) || "포스팅"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 align-top text-[var(--text)]">

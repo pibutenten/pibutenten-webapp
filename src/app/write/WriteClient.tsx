@@ -60,7 +60,7 @@ type Props = {
 const TYPE_LABEL: Record<WriteType, string> = {
   post: "포스팅",
   article: "칼럼",
-  qa: "Q&A",
+  qa: "답해드려요",
 };
 
 // 모든 type 태그 최대 10개 (필수는 0개 — 선택)

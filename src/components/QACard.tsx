@@ -718,7 +718,13 @@ export default function QACard({
       {/* 태그 칩 — 카테고리 라벨(꿀팁/피부일기/물어봐요/새소식/Q&A)은 위 헤더에 이미
           표시되므로 태그에서는 제외. 옛 데이터 호환 위해 display 단계에서 필터. */}
       {(() => {
-        const CATEGORY_LABELS = ["꿀팁", "피부일기", "물어봐요", "새소식", "Q&A"];
+        const CATEGORY_LABELS = [
+          "Q&A", "답해드려요",
+          "꿀팁", "피부꿀팁",
+          "피부일기",
+          "물어봐요", "궁금해요",
+          "새소식",
+        ];
         const visibleKeywords = qa.keywords.filter(
           (k) => !CATEGORY_LABELS.includes(k),
         );

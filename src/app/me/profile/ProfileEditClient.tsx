@@ -1,23 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import {
-  GENDERS,
   FACE_SHAPES,
   SKIN_TYPES,
   SKIN_CONCERNS,
   PROCEDURES,
-  DEFAULT_VISIBILITY,
   type FieldVisibility,
 } from "@/lib/profile-options";
 
 type Initial = {
   displayName: string;
   marketingConsent: boolean;
-  birthdate: string; // YYYY-MM-DD or ''
+  birthdate: string;
   gender: "male" | "female" | "other" | null;
   faceShape: string | null;
   skinType: string | null;
@@ -25,12 +23,15 @@ type Initial = {
   interestedProcedures: string[];
   likedProcedures: string[];
   bio: string;
+  avatarUrl: string | null;
   fieldVisibility: FieldVisibility;
 };
 
 type Props = {
   userId: string;
   currentEmail: string;
+  /** 로그인 방식 표시용 — 'email' | 'google' | 'kakao' 등 */
+  loginProviders: string[];
   initial: Initial;
 };
 
@@ -39,24 +40,94 @@ type Status =
   | { type: "ok"; msg: string }
   | { type: "err"; msg: string };
 
-/**
- * 통합 프로필 편집 페이지 — 닉네임 + 피부 정보 + 자기소개 + 마케팅 + 로그아웃·탈퇴.
- *
- * 항목별 [공개] 체크박스 (default 모두 공개).
- * '받아보고 좋았던 시술'은 자유 입력 태그 (Enter로 추가).
- *
- * id 변경·이메일 변경·비밀번호 변경은 v4에서 제거 — 가입 흐름에서만.
- * 프로필 사진 + 아바타는 별도 진입 (/onboarding)에서 (다음 phase에서 통합 예정).
- */
+const SELECTED = "#9CA3AF"; // 더 연한 회색
+const CHECK_ACCENT = "#9CA3AF";
+
+/** 클라이언트 리사이징 — 256x256 center-crop, JPEG 0.82 */
+async function resizeImage(file: File): Promise<Blob> {
+  const SIZE = 256;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("이미지 로드 실패"));
+      el.src = url;
+    });
+    const minSide = Math.min(img.width, img.height);
+    const sx = (img.width - minSide) / 2;
+    const sy = (img.height - minSide) / 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas 컨텍스트 실패");
+    ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, SIZE, SIZE);
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("blob 변환 실패"))),
+        "image/jpeg",
+        0.82,
+      ),
+    );
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+const PROVIDER_LABEL: Record<string, string> = {
+  email: "이메일",
+  google: "Google",
+  kakao: "카카오",
+  naver: "네이버",
+};
+
 export default function ProfileEditClient({
   userId,
   currentEmail,
+  loginProviders,
   initial,
 }: Props) {
   const router = useRouter();
   const sb = createSupabaseBrowserClient();
 
-  // ── 닉네임 (별도 저장) ──
+  // ── 프로필 사진 ──
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(initial.avatarUrl);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  async function uploadAvatar(file: File) {
+    setUploading(true);
+    try {
+      const blob = await resizeImage(file);
+      const path = `${userId}/${Date.now()}.jpg`;
+      const { error: upErr } = await sb.storage
+        .from("avatars")
+        .upload(path, blob, {
+          contentType: "image/jpeg",
+          upsert: false,
+        });
+      if (upErr) {
+        alert("업로드 실패: " + upErr.message);
+        return;
+      }
+      const { data: pub } = sb.storage.from("avatars").getPublicUrl(path);
+      const newUrl = pub.publicUrl;
+      const { error: dbErr } = await sb
+        .from("profiles")
+        .update({ avatar_url: newUrl })
+        .eq("id", userId);
+      if (dbErr) {
+        alert("DB 저장 실패: " + dbErr.message);
+        return;
+      }
+      setAvatarUrl(newUrl);
+      router.refresh();
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // ── 닉네임 ──
   const [displayName, setDisplayName] = useState(initial.displayName);
   const [nameStatus, setNameStatus] = useState<Status>({ type: "idle" });
   const [namePending, startName] = useTransition();
@@ -85,9 +156,7 @@ export default function ProfileEditClient({
     });
   }
 
-  // ── 피부 정보 (한 번에 저장) ──
-  const [birthdate, setBirthdate] = useState(initial.birthdate);
-  const [gender, setGender] = useState<Initial["gender"]>(initial.gender);
+  // ── 피부 정보 ──
   const [faceShape, setFaceShape] = useState<string | null>(initial.faceShape);
   const [skinType, setSkinType] = useState<string | null>(initial.skinType);
   const [skinConcerns, setSkinConcerns] = useState<string[]>(
@@ -110,7 +179,6 @@ export default function ProfileEditClient({
   function toggleArr(arr: string[], k: string): string[] {
     return arr.includes(k) ? arr.filter((x) => x !== k) : [...arr, k];
   }
-
   function addLikedProcedure() {
     const v = likedInput.trim();
     if (!v) return;
@@ -121,22 +189,19 @@ export default function ProfileEditClient({
     if (likedProcedures.length >= 10) {
       setSkinStatus({
         type: "err",
-        msg: "받아보고 좋았던 시술은 최대 10개까지 추가할 수 있어요.",
+        msg: "좋아하는 시술은 최대 10개까지 추가할 수 있어요.",
       });
       return;
     }
     setLikedProcedures([...likedProcedures, v]);
     setLikedInput("");
   }
-
   function saveSkinInfo() {
     setSkinStatus({ type: "idle" });
     startSkin(async () => {
       const { error } = await sb
         .from("profiles")
         .update({
-          birthdate: birthdate || null,
-          gender,
           face_shape: faceShape,
           skin_type: skinType,
           skin_concerns: skinConcerns,
@@ -170,7 +235,7 @@ export default function ProfileEditClient({
     });
   }
 
-  // ── 회원 탈퇴 / 로그아웃 ──
+  // ── 로그아웃 / 탈퇴 ──
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
   async function performDelete() {
@@ -199,24 +264,77 @@ export default function ProfileEditClient({
     }
   }
 
-  // ── 생년월일 분리 (YYYY/MM/DD) ──
-  const dateParts = birthdate.split("-");
-  const yyyy = dateParts[0] ?? "";
-  const mm = dateParts[1] ?? "";
-  const dd = dateParts[2] ?? "";
-  function setDate(y: string, m: string, d: string) {
-    if (y && m && d) {
-      setBirthdate(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`);
-    } else {
-      setBirthdate("");
-    }
-  }
-  const years: number[] = [];
-  for (let y = new Date().getFullYear(); y >= 1940; y--) years.push(y);
+  // 표시용 — 생년월일은 'XX대'로만, 성별과 결합 ('40대 여성')
+  const ageBucket = (() => {
+    if (!initial.birthdate) return null;
+    const y = parseInt(initial.birthdate.split("-")[0] ?? "", 10);
+    if (!Number.isFinite(y)) return null;
+    const age = new Date().getFullYear() - y;
+    if (age < 10) return "10대 미만";
+    return `${Math.floor(age / 10) * 10}대`;
+  })();
+  const genderDisplay =
+    initial.gender === "female"
+      ? "여성"
+      : initial.gender === "male"
+        ? "남성"
+        : null;
+  const ageGenderLabel =
+    [ageBucket, genderDisplay].filter(Boolean).join(" ") || "—";
+  const providerLabel =
+    loginProviders
+      .map((p) => PROVIDER_LABEL[p] ?? p)
+      .filter(Boolean)
+      .join(" · ") || "—";
 
   return (
     <div className="space-y-5">
-      {/* 닉네임 */}
+      {/* 1. 프로필 사진 — 가운데 큰 원, 클릭으로 업로드 */}
+      <Card title="프로필 사진">
+        <div className="flex flex-col items-center gap-3">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="relative h-24 w-24 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--bg-soft)] transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="프로필 사진 변경"
+          >
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-3xl text-[var(--text-muted)]">
+                👤
+              </div>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="rounded-md border border-[var(--border)] px-3 py-1 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
+          >
+            {uploading ? "업로드 중…" : "사진 변경"}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadAvatar(f);
+              if (fileRef.current) fileRef.current.value = "";
+            }}
+          />
+        </div>
+      </Card>
+
+      {/* 2. 닉네임 */}
       <Card title="닉네임">
         <div className="flex items-stretch gap-1.5">
           <input
@@ -240,77 +358,35 @@ export default function ProfileEditClient({
         <Msg status={nameStatus} />
       </Card>
 
-      {/* 기본 정보 — 생년월일·성별 */}
+      {/* 3. 자기소개 (닉네임 바로 밑) */}
       <SectionWithVisibility
-        title="기본 정보"
-        visField="birthdate"
+        title="본인을 소개해주세요!"
+        visField="bio"
         visibility={visibility}
         setVisibility={setVisibility}
       >
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-[11px] text-[var(--text-muted)]">
-              생년월일
-            </label>
-            <div className="flex gap-1">
-              <select
-                value={yyyy}
-                onChange={(e) => setDate(e.target.value, mm, dd)}
-                className={selectClass}
-              >
-                <option value="">년</option>
-                {years.map((y) => (
-                  <option key={y} value={y}>
-                    {y}년
-                  </option>
-                ))}
-              </select>
-              <select
-                value={mm}
-                onChange={(e) => setDate(yyyy, e.target.value, dd)}
-                className={selectClass}
-              >
-                <option value="">월</option>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                  <option key={m} value={String(m).padStart(2, "0")}>
-                    {m}월
-                  </option>
-                ))}
-              </select>
-              <select
-                value={dd}
-                onChange={(e) => setDate(yyyy, mm, e.target.value)}
-                className={selectClass}
-              >
-                <option value="">일</option>
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                  <option key={d} value={String(d).padStart(2, "0")}>
-                    {d}일
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-[11px] text-[var(--text-muted)]">
-              성별
-            </label>
-            <div className="flex gap-1.5">
-              {GENDERS.map((g) => (
-                <Chip
-                  key={g.key}
-                  active={gender === g.key}
-                  onClick={() => setGender(g.key)}
-                >
-                  {g.label}
-                </Chip>
-              ))}
-            </div>
-          </div>
-        </div>
+        <textarea
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          rows={3}
+          maxLength={200}
+          className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] focus:border-[var(--primary)] focus:outline-none"
+        />
+        <p className="mt-1 text-right text-[11px] text-[var(--text-muted)]">
+          {bio.length} / 200
+        </p>
       </SectionWithVisibility>
 
-      {/* 얼굴형 */}
+      {/* 4. 기본 정보 (읽기 전용 — 공개/비공개 toggle 없음) */}
+      <Card title="기본 정보" subtitle="가입 시 입력 — 변경 불가">
+        <dl className="space-y-1.5 text-[13px]">
+          <Row label="이메일" value={currentEmail} />
+          <Row label="간편로그인" value={providerLabel} />
+          <Row label="나이·성별" value={ageGenderLabel} />
+        </dl>
+      </Card>
+
+      {/* 5. 얼굴형 */}
       <SectionWithVisibility
         title="얼굴형"
         visField="face_shape"
@@ -330,7 +406,7 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 피부타입 */}
+      {/* 6. 피부타입 */}
       <SectionWithVisibility
         title="피부타입"
         visField="skin_type"
@@ -350,7 +426,7 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 피부고민 (복수) */}
+      {/* 7. 피부고민 */}
       <SectionWithVisibility
         title="피부고민"
         visField="skin_concerns"
@@ -371,7 +447,7 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 관심시술 (복수) */}
+      {/* 8. 관심시술 */}
       <SectionWithVisibility
         title="관심시술"
         visField="interested_procedures"
@@ -394,9 +470,9 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 받아보고 좋았던 시술 (자유 입력 태그) */}
+      {/* 9. 본인이 좋아하는 시술 (자유 입력) */}
       <SectionWithVisibility
-        title="받아보고 좋았던 시술"
+        title="본인이 좋아하는 시술이 있다면?"
         visField="liked_procedures"
         visibility={visibility}
         setVisibility={setVisibility}
@@ -410,7 +486,7 @@ export default function ProfileEditClient({
               onClick={() =>
                 setLikedProcedures(likedProcedures.filter((x) => x !== k))
               }
-              className="inline-flex items-center gap-1 rounded-full border border-[#9CA3AF] bg-[#F3F4F6] px-2.5 py-0.5 text-[12px] font-medium text-[var(--text)] hover:bg-[#E5E7EB]"
+              className="inline-flex items-center gap-1 rounded-full border border-[#D1D5DB] bg-[#F9FAFB] px-2.5 py-0.5 text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[#F3F4F6]"
             >
               {k} <span aria-hidden>×</span>
             </button>
@@ -427,7 +503,7 @@ export default function ProfileEditClient({
                 addLikedProcedure();
               }
             }}
-            placeholder="예: 울쎄라, 비타민 IV 등"
+            placeholder="예: 보톡스, 필러, 울쎄라, 써마지, 티타늄, 리쥬란 등"
             className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
           />
           <button
@@ -440,26 +516,7 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 자기소개 */}
-      <SectionWithVisibility
-        title="본인을 소개한다면?"
-        visField="bio"
-        visibility={visibility}
-        setVisibility={setVisibility}
-      >
-        <textarea
-          value={bio}
-          onChange={(e) => setBio(e.target.value)}
-          rows={3}
-          maxLength={200}
-          className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] focus:border-[var(--primary)] focus:outline-none"
-        />
-        <p className="mt-1 text-right text-[11px] text-[var(--text-muted)]">
-          {bio.length} / 200
-        </p>
-      </SectionWithVisibility>
-
-      {/* 피부 정보 일괄 저장 */}
+      {/* 일괄 저장 */}
       <div className="flex justify-end">
         <button
           type="button"
@@ -480,18 +537,16 @@ export default function ProfileEditClient({
             checked={marketing}
             onChange={(e) => saveMarketing(e.target.checked)}
             disabled={mktPending}
+            style={{ accentColor: CHECK_ACCENT }}
             className="h-4 w-4"
           />
           <span className="text-[var(--text-secondary)]">
-            새 글·이벤트 등의 안내를 이메일로 받을게요{" "}
-            <span className="ml-1.5 text-[11px] text-[var(--text-muted)]">
-              (현재 이메일: {currentEmail})
-            </span>
+            새 글·이벤트 등의 안내를 이메일로 받을게요
           </span>
         </label>
       </Card>
 
-      {/* 로그아웃 + 회원탈퇴 — footer 작게 */}
+      {/* 로그아웃·탈퇴 footer */}
       <div className="mt-10 border-t border-[var(--border)] pt-6">
         <div className="flex items-center justify-end gap-3 text-[12px] text-[var(--text-muted)]">
           <button
@@ -535,9 +590,6 @@ export default function ProfileEditClient({
 const btnPrimaryClass =
   "h-9 shrink-0 whitespace-nowrap rounded-md border border-[var(--primary)] bg-transparent px-3 text-[12px] font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:text-[var(--text-muted)] disabled:hover:bg-transparent";
 
-const selectClass =
-  "h-9 flex-1 min-w-0 rounded-md border border-[var(--border)] bg-white px-2 text-[13px] focus:border-[var(--primary)] focus:outline-none";
-
 function Card({
   title,
   subtitle,
@@ -556,6 +608,15 @@ function Card({
         </p>
       )}
       {children}
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-2 text-[13px]">
+      <dt className="shrink-0 text-[var(--text-muted)]">{label}</dt>
+      <dd className="truncate text-right text-[var(--text)]">{value}</dd>
     </div>
   );
 }
@@ -593,6 +654,7 @@ function SectionWithVisibility({
             onChange={(e) =>
               setVisibility({ ...visibility, [visField]: e.target.checked })
             }
+            style={{ accentColor: CHECK_ACCENT }}
             className="h-3.5 w-3.5"
           />
           공개
@@ -616,11 +678,14 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
+      style={
+        active ? { backgroundColor: SELECTED, color: "#fff" } : undefined
+      }
       className={
         "shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors " +
         (active
-          ? "bg-[#6B7280] text-white"
-          : "bg-[var(--bg-soft)] text-[var(--text-secondary)] hover:bg-[#E5E7EB] hover:text-[var(--text)]")
+          ? ""
+          : "bg-[#F3F4F6] text-[var(--text-secondary)] hover:bg-[#E5E7EB] hover:text-[var(--text)]")
       }
     >
       {children}

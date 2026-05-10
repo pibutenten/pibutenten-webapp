@@ -24,11 +24,11 @@ export type PostCategory = {
 };
 
 export const POST_CATEGORIES: readonly PostCategory[] = [
-  { slug: "tip",   label: "꿀팁",     publicForUsers: true,  defaultHideDoctorCredential: false },
-  { slug: "diary", label: "피부일기", publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "ask",   label: "물어봐요", publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "news",  label: "새소식",   publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "qa",    label: "Q&A",      publicForUsers: false, defaultHideDoctorCredential: false },
+  { slug: "tip",   label: "피부꿀팁",   publicForUsers: true,  defaultHideDoctorCredential: false },
+  { slug: "diary", label: "피부일기",   publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "ask",   label: "궁금해요",   publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "news",  label: "새소식",     publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "qa",    label: "답해드려요", publicForUsers: false, defaultHideDoctorCredential: false },
 ];
 
 const SLUG_TO_LABEL: Record<PostCategorySlug, string> = Object.fromEntries(

@@ -210,11 +210,15 @@ export async function POST(req: Request) {
 
   // v4: 카테고리 라벨은 카드 헤더(닉네임 밑)에 표시되므로 keywords에 별도 prepend 안 함.
   // 사용자가 카테고리 라벨을 keywords에 직접 입력했으면 중복 방지로 제거.
+  // 옛 라벨(Q&A/꿀팁/물어봐요)과 새 라벨(답해드려요/피부꿀팁/궁금해요) 모두 제거
   const CATEGORY_LABELS_TO_STRIP = [
     "Q&A",
+    "답해드려요",
     "꿀팁",
+    "피부꿀팁",
     "피부일기",
     "물어봐요",
+    "궁금해요",
     "새소식",
   ];
   const filteredKeywords = keywords.filter(

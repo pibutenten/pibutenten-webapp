@@ -120,28 +120,32 @@ export default function ProfileTabs({
 
   return (
     <div>
-      {/* 탭 헤더 */}
+      {/* 탭 헤더 — 모든 탭에 숫자 표시 (좋아요·저장은 0) */}
       <div className="mb-4 flex gap-1 border-b border-[var(--border)]">
         {tabs.map((t) => {
           const active = t === tab;
+          const count =
+            t === "posts"
+              ? postsCount
+              : t === "comments"
+                ? comments?.length ?? null
+                : 0;
           return (
             <button
               key={t}
               type="button"
               onClick={() => setTab(t)}
               className={
-                "relative px-4 py-2 text-sm font-medium transition-colors " +
+                "relative px-4 py-2 text-sm font-medium outline-none transition-colors focus:outline-none focus-visible:ring-0 " +
                 (active
                   ? "text-[var(--primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text)]")
               }
             >
               {TAB_LABEL[t]}
-              {t === "posts" && (
-                <span className="ml-1 text-[11px] text-[var(--text-muted)]">
-                  {postsCount}
-                </span>
-              )}
+              <span className="ml-1 text-[11px] text-[var(--text-muted)]">
+                {count ?? "·"}
+              </span>
               {active && (
                 <span className="absolute -bottom-px left-0 right-0 h-0.5 bg-[var(--primary)]" />
               )}
@@ -165,26 +169,25 @@ export default function ProfileTabs({
           ) : !comments || comments.length === 0 ? (
             <Empty msg="작성한 댓글이 없어요" />
           ) : (
-            <ul className="flex flex-col gap-2">
+            // 데스크탑 2단 / 모바일 1단. 박스 어디든 클릭 → 원본 글로 이동.
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {comments.map((c) => (
-                <li
+                <Link
                   key={c.id}
-                  className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-3"
+                  href={c.qa ? commentLink(c) : "/"}
+                  className="block rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 outline-none transition-colors hover:border-[var(--primary)] hover:bg-[var(--bg-soft)]/30 focus:outline-none focus-visible:ring-0"
                 >
                   <p className="line-clamp-3 text-[14px] text-[var(--text)]">
                     {c.body}
                   </p>
                   {c.qa && (
-                    <Link
-                      href={commentLink(c)}
-                      className="mt-1.5 block truncate text-[11.5px] text-[var(--text-muted)] hover:text-[var(--primary)]"
-                    >
+                    <p className="mt-1.5 truncate text-[11.5px] text-[var(--text-muted)]">
                       → {c.qa.question}
-                    </Link>
+                    </p>
                   )}
-                </li>
+                </Link>
               ))}
-            </ul>
+            </div>
           )}
         </>
       )}
