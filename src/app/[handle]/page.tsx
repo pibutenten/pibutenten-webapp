@@ -229,6 +229,9 @@ export default async function HandleProfilePage({ params }: Props) {
             };
             items.push(SKIN_LABEL[profile.skin_type] ?? profile.skin_type);
           }
+          // 클릭 시 검색으로 이동: 피부고민·관심시술·좋아하는 시술
+          type Tag = { label: string; q: string };
+          const tags: Tag[] = [];
           if (v.skin_concerns !== false && profile.skin_concerns?.length) {
             const CON_LABEL: Record<string, string> = {
               elasticity: "탄력", volume: "볼륨", wrinkle: "주름",
@@ -236,11 +239,10 @@ export default async function HandleProfilePage({ params }: Props) {
               texture: "피부결", aging: "노안", trouble: "트러블",
               sensitive: "민감성",
             };
-            items.push(
-              ...profile.skin_concerns
-                .slice(0, 4)
-                .map((c) => `#${CON_LABEL[c] ?? c}`),
-            );
+            for (const c of profile.skin_concerns.slice(0, 4)) {
+              const lbl = CON_LABEL[c] ?? c;
+              tags.push({ label: `#${lbl}`, q: lbl });
+            }
           }
           if (
             v.interested_procedures !== false &&
@@ -250,29 +252,35 @@ export default async function HandleProfilePage({ params }: Props) {
               lifting: "리프팅", laser: "피부레이저", booster: "스킨부스터",
               botox: "보톡스", filler: "필러", cosmetic: "화장품",
             };
-            items.push(
-              ...profile.interested_procedures
-                .slice(0, 4)
-                .map((p) => `${PROC_LABEL[p] ?? p}에 관심`),
-            );
+            for (const p of profile.interested_procedures.slice(0, 4)) {
+              const lbl = PROC_LABEL[p] ?? p;
+              tags.push({ label: `${lbl}에 관심`, q: lbl });
+            }
           }
           if (v.liked_procedures !== false && profile.liked_procedures?.length) {
-            items.push(
-              ...profile.liked_procedures
-                .slice(0, 5)
-                .map((l) => `❤ ${l}`),
-            );
+            for (const l of profile.liked_procedures.slice(0, 5)) {
+              tags.push({ label: `❤ ${l}`, q: l });
+            }
           }
-          if (items.length === 0) return null;
+          if (items.length === 0 && tags.length === 0) return null;
           return (
             <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
               {items.map((it, i) => (
                 <span
-                  key={i}
+                  key={`d${i}`}
                   className="rounded-full bg-[var(--bg-soft)] px-2.5 py-0.5 text-[11.5px] text-[var(--text-secondary)]"
                 >
                   {it}
                 </span>
+              ))}
+              {tags.map((t, i) => (
+                <Link
+                  key={`t${i}`}
+                  href={`/search?q=${encodeURIComponent(t.q)}`}
+                  className="rounded-full bg-[var(--bg-soft)] px-2.5 py-0.5 text-[11.5px] text-[var(--text-secondary)] transition-colors hover:bg-[#E5E7EB] hover:text-[var(--text)]"
+                >
+                  {t.label}
+                </Link>
               ))}
             </div>
           );

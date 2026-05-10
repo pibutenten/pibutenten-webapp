@@ -586,6 +586,7 @@ export default function QACard({
                   fill
                   sizes="36px"
                   className="object-cover"
+                  unoptimized={!doctor || isPersonalPost}
                   style={
                     showAsDoctor
                       ? {
