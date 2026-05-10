@@ -231,7 +231,19 @@ export default function WriteClient({
       // [채우기] 동작 — 사용자가 명시적으로 누른 액션이므로 항상 덮어씀
       // (이미 쓴 내용이 있어도 새 URL 메타로 갱신해야 직관적)
       if (meta.title) setTitle(meta.title);
-      if (meta.description) setBody(meta.description);
+      if (meta.description) {
+        // 출처 표기 — 공유하기는 누구의 콘텐츠인지 본문 끝에 명시 (저작권·예의)
+        const sourceTag = meta.siteName
+          ? `\n\n(출처 = ${meta.siteName})`
+          : "";
+        // 공유하기는 본문 한도 400자 — 출처 표기 자리 확보 위해 맞춰 trim
+        const limit = category === "share" ? 400 - sourceTag.length : 800;
+        const desc =
+          meta.description.length > limit
+            ? meta.description.slice(0, limit).replace(/\s+\S*$/, "") + "…"
+            : meta.description;
+        setBody(desc + sourceTag);
+      }
       // 키워드도 항상 새로 — URL 바꿨는데 이전 키워드 남아있으면 어색함
       const { extractTagsFromText } = await import("@/lib/auto-tag");
       const haystack = [meta.title, meta.description]
@@ -331,7 +343,9 @@ export default function WriteClient({
     // post / qa 공통: 제목 + 본문 필수
     if (!title.trim()) return "제목을 입력해주세요.";
     if (!body.trim()) return "본문을 입력해주세요.";
-    if (body.length > 800) return "본문은 최대 800자까지 가능합니다.";
+    const bodyLimit = category === "share" ? 400 : 800;
+    if (body.length > bodyLimit)
+      return `본문은 최대 ${bodyLimit}자까지 가능합니다.`;
     return null;
   }
 
@@ -546,6 +560,7 @@ export default function WriteClient({
             onTitle={setTitle}
             body={body}
             onBody={setBody}
+            bodyMax={category === "share" ? 400 : 800}
           />
         )}
 
@@ -689,11 +704,14 @@ function PostQaForm({
   onTitle,
   body,
   onBody,
+  bodyMax = 800,
 }: {
   title: string;
   onTitle: (s: string) => void;
   body: string;
   onBody: (s: string) => void;
+  /** 본문 최대 글자수 — 카테고리별 다름 (공유하기는 짧게). 기본 800 */
+  bodyMax?: number;
 }) {
   return (
     <>
@@ -713,14 +731,14 @@ function PostQaForm({
         <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
           본문{" "}
           <span className="text-xs font-normal text-[var(--text-muted)]">
-            ({body.length} / 800)
+            ({body.length} / {bodyMax})
           </span>
         </label>
         <textarea
           value={body}
           onChange={(e) => onBody(e.target.value)}
           rows={10}
-          maxLength={800}
+          maxLength={bodyMax}
           className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
         />
       </div>
