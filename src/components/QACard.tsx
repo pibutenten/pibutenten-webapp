@@ -117,14 +117,13 @@ export default function QACard({
   const doctor = qa.doctor;
   const isPick = PICK_IDS.has(qa.id);
 
-  // 조회수 +1 — 카드가 화면에 50% 이상 노출되면 1회 (브라우저당 dedup)
-  // 짧은 글(더보기 없음)도 동일하게 노출 기반으로 카운트
+  // 조회수 +1 — 카드가 화면에 50% 이상 노출되면 1회 (페이지 로드마다 매번 카운트)
+  // 같은 사용자가 다시 방문해도 새로 카운트됨 (인기도 신호 강화).
+  // 한 페이지 안에서 동일 카드를 여러 번 스크롤해도 1회만 — counted ref로 페이지 단위 dedup.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const card = cardRef.current;
     if (!card) return;
-    const key = `qa-viewed-${qa.id}`;
-    if (lsGet(key)) return;
 
     let counted = false;
     const observer = new IntersectionObserver(
@@ -132,7 +131,6 @@ export default function QACard({
         if (counted) return;
         if (entries.some((e) => e.isIntersecting && e.intersectionRatio >= 0.5)) {
           counted = true;
-          lsSet(key, "1");
           const sb = createSupabaseBrowserClient();
           sb.rpc("increment_qa_view", { p_qa_id: qa.id }).then(
             ({ data }: { data: number | null }) => {

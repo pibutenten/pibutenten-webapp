@@ -32,6 +32,8 @@ async function fetchQa(id: string): Promise<QaWithSlugFields | null> {
         `
         id, question, answer, meta, keywords, type, created_at, updated_at, posted_as,
         like_count, view_count, post_year, post_slug,
+        category, hide_doctor_credential,
+        external_url, external_title, external_description, external_image, external_site_name,
         doctor:doctors(slug, name, branch),
         author:profiles!qas_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url),
         video:videos(youtube_id, youtube_url, topic, upload_date)

@@ -138,10 +138,24 @@ export default function WriteClient({
   // 새소식 — 첫 댓글 동시 작성. 공유한 콘텐츠에 본인 코멘트를 함께 남기는 흐름.
   const [firstComment, setFirstComment] = useState("");
 
+  // Q&A 참고문헌 — 발행 시 본문 끝에 "\n\n참고문헌\n1. …\n2. …" 형식으로 append.
+  // 빈 항목은 제출 시 자동 필터. [+ 추가] 버튼으로 행 추가 / [×] 버튼으로 제거.
+  const [references, setReferences] = useState<string[]>([""]);
+
   const [error, setError] = useState<string | null>(null);
 
   const minKw = KEYWORD_MIN[type];
   const maxKw = KEYWORD_MAX[type];
+
+  /** 참고문헌이 있으면 본문 끝에 번호 매겨 append (Q&A 카테고리 + 비어있지 않은 항목만) */
+  function bodyWithReferences(): string {
+    if (category !== "qa") return body;
+    const filled = references.map((r) => r.trim()).filter(Boolean);
+    if (filled.length === 0) return body;
+    const refBlock =
+      "참고문헌\n" + filled.map((r, i) => `${i + 1}. ${r}`).join("\n");
+    return `${body.trimEnd()}\n\n${refBlock}`;
+  }
 
   /** 작성 중 내용이 있는지 체크 — type 전환 경고용 */
   function hasUnsavedContent(): boolean {
@@ -176,6 +190,9 @@ export default function WriteClient({
       setExternalUrl("");
       setExternalMeta(null);
       setFirstComment("");
+    }
+    if (next !== "qa") {
+      setReferences([""]);
     }
   }
 
@@ -350,8 +367,10 @@ export default function WriteClient({
     if (!title.trim()) return "제목을 입력해주세요.";
     if (!body.trim()) return "본문을 입력해주세요.";
     const bodyLimit = category === "news" ? 400 : 800;
-    if (body.length > bodyLimit)
-      return `본문은 최대 ${bodyLimit}자까지 가능합니다.`;
+    // Q&A 참고문헌까지 합친 최종 본문 기준으로 한도 체크 (DB 저장 길이)
+    const finalLen = bodyWithReferences().length;
+    if (finalLen > bodyLimit)
+      return `본문 + 참고문헌 합쳐 최대 ${bodyLimit}자까지 가능합니다. 현재 ${finalLen}자.`;
     return null;
   }
 
@@ -400,11 +419,12 @@ export default function WriteClient({
           );
         } else if (type === "post") {
           // post: title을 question에, body를 answer에 통일
+          // Q&A 카테고리면 본문 끝에 참고문헌 자동 append
           payload.title = title;
-          payload.body = body;
+          payload.body = bodyWithReferences();
         } else if (type === "qa") {
           payload.question = title;
-          payload.answer = body;
+          payload.answer = bodyWithReferences();
         }
 
         const res = await fetch("/api/articles", {
@@ -575,6 +595,57 @@ export default function WriteClient({
           />
         )}
 
+        {/* Q&A 카테고리 — 참고문헌 입력 (선택). 본문 바로 아래에 위치. */}
+        {category === "qa" && (
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
+              참고문헌{" "}
+              <span className="text-xs font-normal text-[var(--text-muted)]">
+                선택 — 본문 끝에 자동으로 추가됩니다
+              </span>
+            </label>
+            <div className="flex flex-col gap-1.5">
+              {references.map((ref, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="w-5 shrink-0 text-right text-xs text-[var(--text-muted)]">
+                    {idx + 1}.
+                  </span>
+                  <input
+                    type="text"
+                    value={ref}
+                    onChange={(e) => {
+                      const next = [...references];
+                      next[idx] = e.target.value;
+                      setReferences(next);
+                    }}
+                    placeholder="저자, 논문 제목, 학술지명, 연도 / DOI / URL 등"
+                    className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary-light)] focus:outline-none"
+                  />
+                  {references.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReferences(references.filter((_, i) => i !== idx))
+                      }
+                      className="h-9 w-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-soft)]"
+                      aria-label="이 참고문헌 제거"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setReferences([...references, ""])}
+                className="mt-1 self-start rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+              >
+                + 참고문헌 추가
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* article(칼럼) 글쓰기 진입점은 Phase 1에서 제거됨 — 카드 포스팅으로 통일 */}
 
         {/* 공통: 태그 — maxKw=0이면 비표시 (post는 태그 없음) */}
@@ -686,6 +757,7 @@ export default function WriteClient({
               setExternalUrl("");
               setExternalMeta(null);
               setFirstComment("");
+              setReferences([""]);
               setError(null);
             }}
             disabled={pending}
