@@ -35,6 +35,12 @@ export type QACardData = {
   view_count: number;
   share_count?: number;
   comment_count?: number;
+  /** v4 — 저장(북마크) 누적 수 (qas.save_count) */
+  save_count?: number;
+  /** v4 — 평점 평균 (1~5, 0이면 미평가) */
+  rating_avg?: number;
+  /** v4 — 평점 참여 수 */
+  rating_count?: number;
   type?: "qa" | "post" | "article" | "link";
   created_at?: string;
   /** 작성 당시 페르소나 — 'personal'이면 author.alt_* 우선 표시 */
@@ -115,6 +121,14 @@ export default function QACard({
   // 단독 페이지에서는 댓글창 자동 열림 (autoExpandComments)
   const [commentsOpen, setCommentsOpen] = useState(autoExpandComments);
   const [liked, setLiked] = useState(false);
+  // v4 — 저장(북마크) + 평점
+  const [saved, setSaved] = useState(false);
+  const [saveCount, setSaveCount] = useState(qa.save_count ?? 0);
+  const [ratingAvg, setRatingAvg] = useState<number>(Number(qa.rating_avg ?? 0));
+  const [ratingCount, setRatingCount] = useState<number>(qa.rating_count ?? 0);
+  const [myRating, setMyRating] = useState<number>(0);
+  const [ratingHover, setRatingHover] = useState<number>(0);
+  const [ratingOpen, setRatingOpen] = useState(false);
   const [me, setMe] = useState<{ id: string; role: "admin" | "doctor" | "user" } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -199,7 +213,7 @@ export default function QACard({
     };
   }, [qa.id]);
 
-  // 좋아요 상태 초기화 — 로그인이면 qa_likes, 미로그인이면 localStorage
+  // 좋아요 + 저장 + 평점 상태 초기화
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -209,13 +223,31 @@ export default function QACard({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
-          .from("qa_likes")
-          .select("qa_id")
-          .eq("qa_id", qa.id)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (alive) setLiked(!!data);
+        const [likeRes, saveRes, rateRes] = await Promise.all([
+          supabase
+            .from("qa_likes")
+            .select("qa_id")
+            .eq("qa_id", qa.id)
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("qa_saves")
+            .select("qa_id")
+            .eq("qa_id", qa.id)
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("qa_ratings")
+            .select("rating")
+            .eq("qa_id", qa.id)
+            .eq("user_id", user.id)
+            .maybeSingle(),
+        ]);
+        if (!alive) return;
+        setLiked(!!likeRes.data);
+        setSaved(!!saveRes.data);
+        const r = (rateRes.data as { rating: number } | null)?.rating;
+        if (typeof r === "number") setMyRating(r);
       } else {
         if (alive) setLiked(lsGet(`qa-liked-${qa.id}`) === "1");
       }
@@ -224,6 +256,78 @@ export default function QACard({
       alive = false;
     };
   }, [qa.id]);
+
+  // 저장 토글 — 로그인 필수
+  async function handleSave() {
+    if (typeof window === "undefined") return;
+    const supabase = createSupabaseBrowserClient();
+    const { data: u } = await supabase.auth.getUser();
+    const userId = u.user?.id;
+    if (!userId) {
+      router.push("/login?next=" + encodeURIComponent(window.location.pathname));
+      return;
+    }
+    const wasSaved = saved;
+    // 낙관적
+    setSaved(!wasSaved);
+    setSaveCount((c) => (wasSaved ? Math.max(0, c - 1) : c + 1));
+    if (wasSaved) {
+      const { error } = await supabase
+        .from("qa_saves")
+        .delete()
+        .eq("qa_id", qa.id)
+        .eq("user_id", userId);
+      if (error) {
+        setSaved(true);
+        setSaveCount((c) => c + 1);
+      }
+    } else {
+      const { error } = await supabase
+        .from("qa_saves")
+        .insert({ qa_id: qa.id, user_id: userId, persona: "official" });
+      if (error) {
+        setSaved(false);
+        setSaveCount((c) => Math.max(0, c - 1));
+      }
+    }
+  }
+
+  // 평점 등록/변경 — upsert
+  async function handleRate(stars: number) {
+    if (typeof window === "undefined") return;
+    if (stars < 1 || stars > 5) return;
+    const supabase = createSupabaseBrowserClient();
+    const { data: u } = await supabase.auth.getUser();
+    const userId = u.user?.id;
+    if (!userId) {
+      router.push("/login?next=" + encodeURIComponent(window.location.pathname));
+      return;
+    }
+    const prev = myRating;
+    setMyRating(stars);
+    setRatingOpen(false);
+    // 낙관적 평균 재계산
+    if (prev === 0) {
+      const newCount = ratingCount + 1;
+      setRatingAvg((ratingAvg * ratingCount + stars) / newCount);
+      setRatingCount(newCount);
+    } else if (ratingCount > 0) {
+      setRatingAvg((ratingAvg * ratingCount - prev + stars) / ratingCount);
+    }
+    const { error } = await supabase.from("qa_ratings").upsert(
+      {
+        qa_id: qa.id,
+        user_id: userId,
+        persona: "official",
+        rating: stars,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "qa_id,user_id,persona" },
+    );
+    if (error) {
+      setMyRating(prev);
+    }
+  }
 
   // localStorage 안전 접근 헬퍼 (인앱 브라우저 sandbox 방어)
   function lsGet(key: string): string | null {
@@ -849,6 +953,112 @@ export default function QACard({
           </svg>
           <span>{commentCount}</span>
         </button>
+
+        {/* v4 — 저장 (북마크) — 좋아요와 동일한 톤, 살짝 가벼운 느낌 */}
+        <button
+          type="button"
+          onClick={handleSave}
+          aria-label={saved ? "저장 취소" : "저장"}
+          aria-pressed={saved}
+          className={
+            "flex cursor-pointer items-center gap-1 transition-colors " +
+            (saved
+              ? "text-[var(--primary)]"
+              : "text-[var(--text-secondary)] hover:text-[var(--primary)]")
+          }
+          title="저장"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill={saved ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[18px] w-[18px]"
+            aria-hidden
+          >
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+          </svg>
+          {saveCount > 0 && <span>{saveCount}</span>}
+        </button>
+
+        {/* v4 — 평점 (★) — 미니멀 텍스트 + 호버 popover */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setRatingOpen((v) => !v)}
+            className={
+              "flex cursor-pointer items-center gap-0.5 transition-colors " +
+              (myRating > 0
+                ? "text-amber-500"
+                : "text-[var(--text-secondary)] hover:text-amber-500")
+            }
+            title={myRating > 0 ? `내 평점 ${myRating}점` : "평점 매기기"}
+            aria-label="평점"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill={myRating > 0 || ratingCount > 0 ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-[18px] w-[18px]"
+              aria-hidden
+            >
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            {ratingCount > 0 && (
+              <span className="tabular-nums">{ratingAvg.toFixed(1)}</span>
+            )}
+          </button>
+          {ratingOpen && (
+            <>
+              {/* outside click */}
+              <button
+                type="button"
+                aria-label="닫기"
+                onClick={() => {
+                  setRatingOpen(false);
+                  setRatingHover(0);
+                }}
+                className="fixed inset-0 z-30 cursor-default"
+              />
+              <div
+                className="absolute bottom-full left-1/2 z-40 mb-2 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-[var(--border)] bg-white px-2 py-1.5 shadow-lg"
+                onMouseLeave={() => setRatingHover(0)}
+              >
+                {[1, 2, 3, 4, 5].map((n) => {
+                  const filled = (ratingHover || myRating) >= n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onMouseEnter={() => setRatingHover(n)}
+                      onClick={() => handleRate(n)}
+                      className="cursor-pointer p-0.5 text-amber-500"
+                      aria-label={`${n}점`}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill={filled ? "currentColor" : "none"}
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-[20px] w-[20px]"
+                        aria-hidden
+                      >
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
 
         <button
           type="button"

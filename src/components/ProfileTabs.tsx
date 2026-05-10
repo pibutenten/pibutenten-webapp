@@ -174,15 +174,15 @@ export default function ProfileTabs({
                 type="button"
                 onClick={() => setTab(t)}
                 className={
-                  "relative px-4 py-2 text-sm font-medium outline-none transition-colors focus:outline-none focus-visible:ring-0 " +
+                  "relative px-2 py-2 text-sm font-medium outline-none transition-colors focus:outline-none focus-visible:ring-0 sm:px-2.5 " +
                   (active
                     ? "text-[var(--primary)]"
                     : "text-[var(--text-secondary)] hover:text-[var(--text)]")
                 }
               >
                 {TAB_LABEL[t]}
-                {count !== null && (
-                  <span className="ml-1 text-[11px] text-[var(--text-muted)]">
+                {count !== null && count > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 text-[10px] font-normal leading-none text-[var(--text-muted)]">
                     {count}
                   </span>
                 )}
