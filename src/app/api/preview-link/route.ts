@@ -28,7 +28,10 @@ const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 const MAX_BODY_CHARS = 600;
 
-async function fetchWithTimeout(url: string): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  extraHeaders: Record<string, string> = {},
+): Promise<Response> {
   const ctl = new AbortController();
   const id = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -39,6 +42,7 @@ async function fetchWithTimeout(url: string): Promise<Response> {
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.5",
+        ...extraHeaders,
       },
       redirect: "follow",
       signal: ctl.signal,
@@ -149,35 +153,67 @@ async function fetchYoutubeOembed(
  * YouTube 본문 텍스트 추출.
  *
  * 자막(captionTracks → timedtext)은 2024+ YouTube anti-bot 정책 변경으로
- * 서버 IP에서는 PoToken 없이는 빈 응답만 받음 (youtube-transcript도 동일 이유로 실패).
+ * 서버 IP에서는 PoToken 없이는 빈 응답만 받음.
  *
- * 대신 watch 페이지 HTML의 ytInitialPlayerResponse 내 `shortDescription`을 추출.
- * - 크리에이터가 작성한 정제된 영상 설명
- * - 보통 100~1000자 분량
- * - 해시태그·관련 링크·요약 포함
+ * 대신 watch 페이지 HTML 내 영상 설명을 추출. 데이터센터 IP(Vercel ICN1 등)에서는
+ * EU consent screen이 뜰 수 있어 CONSENT cookie를 미리 보내 우회.
  *
- * shortDescription이 비어있는 영상(드물게 description 빈칸)은 og:description으로 fallback.
+ * 추출 우선순위:
+ *   1) shortDescription (ytInitialPlayerResponse — 가장 깨끗한 정제 텍스트)
+ *   2) videoDetails 안의 shortDescription (다른 JSON 위치)
+ *   3) og:description (consent 페이지 아니면 거의 항상 존재)
+ *   4) description meta (Twitter card 등)
  */
 async function safeYoutubeBody(rawUrl: string): Promise<string | null> {
   try {
-    const r = await fetchWithTimeout(rawUrl);
+    const r = await fetchWithTimeout(rawUrl, {
+      // EU/데이터센터 IP에서 consent 인터스티셜 우회
+      Cookie:
+        "CONSENT=YES+cb.20210328-17-p0.en+FX+999; SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjQwNTE0LjA3X3AwGgJrbyAEGgYIgIPPwgY",
+      // mobile UA가 Vercel IP에서는 더 잘 통하는 경우가 있음 — 그래도 desktop fallback이 default
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "none",
+    });
     if (!r.ok) return null;
     const html = await r.text();
-    // shortDescription은 JSON 인코딩된 문자열 — \" 와 \n 등 escape 처리됨
-    const m = html.match(/"shortDescription":"((?:\\.|[^"\\])*)"/);
-    if (m && m[1]) {
+
+    // 패턴 1: shortDescription (가장 깨끗)
+    const m1 = html.match(/"shortDescription":"((?:\\.|[^"\\])*)"/);
+    if (m1 && m1[1]) {
       try {
-        const decoded = JSON.parse(`"${m[1]}"`) as string;
+        const decoded = JSON.parse(`"${m1[1]}"`) as string;
         if (typeof decoded === "string" && decoded.trim().length > 0) {
           return decoded;
         }
       } catch {
-        /* JSON parse 실패 → og.description fallback */
+        /* fall through */
       }
     }
-    // fallback: og:description
-    const og = extractMeta(html.slice(0, 80_000), "og:description");
-    return og || null;
+
+    // 패턴 2: videoDetails 객체 안의 shortDescription
+    const m2 = html.match(
+      /"videoDetails"\s*:\s*\{[^}]*?"shortDescription"\s*:\s*"((?:\\.|[^"\\])*)"/,
+    );
+    if (m2 && m2[1]) {
+      try {
+        const decoded = JSON.parse(`"${m2[1]}"`) as string;
+        if (typeof decoded === "string" && decoded.trim().length > 0) {
+          return decoded;
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+
+    // 패턴 3: og:description / description meta — consent 페이지 아니면 항상 있음
+    const head = html.slice(0, 80_000);
+    const og = extractMeta(head, "og:description");
+    if (og && og.trim().length > 0) return og;
+    const md = extractMeta(head, "description");
+    if (md && md.trim().length > 0) return md;
+
+    return null;
   } catch {
     return null;
   }

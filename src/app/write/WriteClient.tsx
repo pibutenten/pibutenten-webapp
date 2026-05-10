@@ -135,6 +135,9 @@ export default function WriteClient({
   const [filling, setFilling] = useState(false);
   const [autoTagging, setAutoTagging] = useState(false);
 
+  // 공유하기 — 첫 댓글 동시 작성. 공유한 콘텐츠에 본인 코멘트를 함께 남기는 흐름.
+  const [firstComment, setFirstComment] = useState("");
+
   const [error, setError] = useState<string | null>(null);
 
   const minKw = KEYWORD_MIN[type];
@@ -168,10 +171,11 @@ export default function WriteClient({
     setCategory(next);
     // 카테고리 변경 시 의사 직함 숨김 default도 업데이트
     setHideCredential(defaultHideCredential(next));
-    // share 외 카테고리로 전환 시 외부 링크 초기화
+    // share 외 카테고리로 전환 시 외부 링크·첫 댓글 초기화
     if (next !== "share") {
       setExternalUrl("");
       setExternalMeta(null);
+      setFirstComment("");
     }
   }
 
@@ -405,6 +409,28 @@ export default function WriteClient({
           setError(data?.error ?? `저장 실패 (${res.status})`);
           return;
         }
+
+        // 공유하기 — 첫 댓글이 있으면 동시 등록 (실패해도 글 저장은 유지)
+        if (
+          category === "share" &&
+          firstComment.trim() &&
+          submitStatus !== "draft" &&
+          typeof data.id === "number"
+        ) {
+          try {
+            await fetch("/api/comments", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                qaId: data.id,
+                body: firstComment.trim(),
+              }),
+            });
+          } catch {
+            /* 댓글 등록 실패 — 사용자에게 별도 안내 없이 본문만 저장 유지 */
+          }
+        }
+
         // 저장된 상태에 따른 redirect
         if (submitStatus === "draft") {
           // 저장 — 목록(검수/내 글) 또는 dashboard
@@ -523,6 +549,25 @@ export default function WriteClient({
             </p>
           )}
         </div>
+        )}
+
+        {/* 공유하기 — 첫 댓글 동시 작성. 올리기와 함께 자동 등록됨. */}
+        {category === "share" && (
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
+              내 코멘트{" "}
+              <span className="text-xs font-normal text-[var(--text-muted)]">
+                선택 — 글과 동시에 첫 댓글로 등록됨
+              </span>
+            </label>
+            <textarea
+              value={firstComment}
+              onChange={(e) => setFirstComment(e.target.value)}
+              placeholder="이 콘텐츠에 대한 내 생각을 짧게 남겨보세요"
+              rows={3}
+              className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary-light)] focus:outline-none"
+            />
+          </div>
         )}
 
         {/* 포스팅·Q&A 통합 form — 제목 / 본문 동일 구조 */}

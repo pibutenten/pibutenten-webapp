@@ -138,7 +138,8 @@ export default function ArticleSectionCard({ card, activeQuery }: Props) {
               onClick={(e) => {
                 e.stopPropagation();
                 const params = new URLSearchParams({ q: kw });
-                router.push(`/?${params.toString()}`);
+                // v3 URL 정책: 검색은 /search 로 분리됨
+                router.push(`/search?${params.toString()}`);
                 if (typeof window !== "undefined") {
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }

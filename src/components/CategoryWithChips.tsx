@@ -138,7 +138,8 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
       if (kw === activeQuery) {
         router.push("/");
       } else {
-        router.push(`/?q=${encodeURIComponent(kw)}`);
+        // v3 URL 정책: 검색은 /search 로 분리됨
+        router.push(`/search?q=${encodeURIComponent(kw)}`);
       }
     });
   }

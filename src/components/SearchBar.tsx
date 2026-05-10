@@ -44,7 +44,8 @@ export default function SearchBar({
         }
         // submit 시 모바일 키보드 내림
         (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.blur();
-        router.push(`/?q=${encodeURIComponent(trimmed)}`);
+        // v3 URL 정책: 검색은 /search 로 분리됨
+        router.push(`/search?q=${encodeURIComponent(trimmed)}`);
       }}
       className="relative mx-auto w-full max-w-[520px]"
     >
