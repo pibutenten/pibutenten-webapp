@@ -76,11 +76,11 @@ function commentLink(c: CommentRow): string {
   const isPersonal = qa.posted_as === "personal" || qa.posted_as === "self";
   if (isOfficial && qa.doctor?.slug && qa.post_year && qa.post_slug)
     return `/doctors/${qa.doctor.slug}/${qa.post_year}/${qa.post_slug}`;
-  if (qa.shortcode && qa.post_year) {
+  if (qa.shortcode) {
     const handle = isPersonal
       ? qa.author?.alt_handle ?? qa.author?.handle
       : qa.author?.handle ?? null;
-    if (handle) return `/${handle}/${qa.post_year}/${qa.shortcode}`;
+    if (handle) return `/${handle}/${qa.shortcode}`;
   }
   return `/qa/${qa.id}`;
 }

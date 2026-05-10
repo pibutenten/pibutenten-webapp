@@ -43,13 +43,13 @@ export function getQaUrl(qa: QaUrlInput): string {
     return `/doctors/${qa.doctor.slug}/${qa.post_year}/${qa.post_slug}`;
   }
 
-  // 3) 회원 글 또는 의사 personal — handle / alt_handle + shortcode
-  if (qa.shortcode && qa.post_year) {
+  // 3) 회원 글 또는 의사 personal — /{handle}/{shortcode} (year 세그먼트 제거)
+  if (qa.shortcode) {
     const handle = isPersonal
       ? qa.author?.alt_handle ?? qa.author?.handle ?? null
       : qa.author?.handle ?? null;
     if (handle) {
-      return `/${handle}/${qa.post_year}/${qa.shortcode}`;
+      return `/${handle}/${qa.shortcode}`;
     }
   }
 
