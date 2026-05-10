@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import {
@@ -32,6 +33,8 @@ type Props = {
   currentEmail: string;
   /** 로그인 방식 표시용 — 'email' | 'google' | 'kakao' 등 */
   loginProviders: string[];
+  /** 우측 상단 [← 프로필] 링크의 href — 프로필 페이지(/{handle} 또는 /) */
+  profileHref: string;
   initial: Initial;
 };
 
@@ -86,6 +89,7 @@ export default function ProfileEditClient({
   userId,
   currentEmail,
   loginProviders,
+  profileHref,
   initial,
 }: Props) {
   const router = useRouter();
@@ -302,16 +306,25 @@ export default function ProfileEditClient({
 
   return (
     <div className="space-y-5">
-      {/* sticky 상단 저장하기 — 미니멀 텍스트 (← 프로필 스타일) */}
-      <div className="sticky top-[60px] z-10 -mx-4 mb-2 flex justify-end bg-white/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
-        <button
-          type="button"
-          onClick={saveAll}
-          disabled={skinPending}
-          className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50"
-        >
-          {skinPending ? "저장 중…" : "저장하기"}
-        </button>
+      {/* 헤더 — [내 정보] [← 프로필] [저장하기] (← 프로필 / 저장하기 동일 스타일) */}
+      <div className="mb-1 flex items-baseline justify-between">
+        <h1 className="text-2xl font-bold text-[var(--text)]">내 정보</h1>
+        <div className="flex items-baseline gap-3">
+          <Link
+            href={profileHref}
+            className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
+          >
+            ← 프로필
+          </Link>
+          <button
+            type="button"
+            onClick={saveAll}
+            disabled={skinPending}
+            className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50"
+          >
+            {skinPending ? "저장 중…" : "저장하기"}
+          </button>
+        </div>
       </div>
 
       {/* 1. 프로필 사진 — 큰 원, 사진 변경 / 사진 찍기 */}
@@ -553,35 +566,33 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 일괄 저장 — 미니멀 텍스트 (가운데, 글자만 살짝 더 큼) */}
-      <div className="flex justify-center pt-2">
+      {/* 마케팅 이메일 수신 동의 — 박스 없이 마지막 박스 밑에 inline */}
+      <label className="flex items-center justify-center gap-2 px-4 pt-2 text-[13px]">
+        <input
+          type="checkbox"
+          checked={marketing}
+          onChange={(e) => saveMarketing(e.target.checked)}
+          disabled={mktPending}
+          style={{ accentColor: CHECK_ACCENT }}
+          className="h-4 w-4"
+        />
+        <span className="text-[var(--text-secondary)]">
+          새 글·이벤트 등의 안내를 이메일로 받을게요
+        </span>
+      </label>
+
+      {/* 일괄 저장 — 박스 (가운데 큰 버튼) */}
+      <div className="flex justify-center pt-3">
         <button
           type="button"
           onClick={saveAll}
           disabled={skinPending}
-          className="text-base font-medium text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50"
+          className="h-11 rounded-full bg-[var(--primary-light)] px-10 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
         >
           {skinPending ? "저장 중…" : "저장하기"}
         </button>
       </div>
       <Msg status={skinStatus} />
-
-      {/* 마케팅 동의 — 맨 밑 */}
-      <Card title="마케팅 이메일 수신 동의">
-        <label className="flex items-center gap-2 text-[13px]">
-          <input
-            type="checkbox"
-            checked={marketing}
-            onChange={(e) => saveMarketing(e.target.checked)}
-            disabled={mktPending}
-            style={{ accentColor: CHECK_ACCENT }}
-            className="h-4 w-4"
-          />
-          <span className="text-[var(--text-secondary)]">
-            새 글·이벤트 등의 안내를 이메일로 받을게요
-          </span>
-        </label>
-      </Card>
 
       {/* 로그아웃·탈퇴 footer */}
       <div className="mt-10 border-t border-[var(--border)] pt-6">

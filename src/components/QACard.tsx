@@ -885,7 +885,7 @@ export default function QACard({
                 className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary)]"
               >
                 <span style={{ color: "#FF0000" }}>▶</span>{" "}
-                전체 영상 바로가기
+                영상 보러가기
                 {tsec !== null && (
                   <span className="text-[11px] text-[var(--text-muted)]">
                     {formatTimestamp(tsec)}~

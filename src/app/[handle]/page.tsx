@@ -164,6 +164,24 @@ export default async function HandleProfilePage({ params }: Props) {
     .eq("posted_as", personaForPosts)
     .eq("status", "visible");
 
+  // 좋아요/저장 카운트 prefetch — 본인 보기일 때만 (본인만 자기 likes/saves SELECT 가능)
+  let likesCount = 0;
+  let savesCount = 0;
+  if (isOwner) {
+    const [likesRes, savesRes] = await Promise.all([
+      supabase
+        .from("qa_likes")
+        .select("qa_id", { count: "exact", head: true })
+        .eq("user_id", profile.id),
+      supabase
+        .from("qa_saves")
+        .select("qa_id", { count: "exact", head: true })
+        .eq("user_id", profile.id),
+    ]);
+    likesCount = likesRes.count ?? 0;
+    savesCount = savesRes.count ?? 0;
+  }
+
   return (
     <section className="w-full py-6">
       {/* 프로필 헤더 — 사진 가운데, 카드 wrapper 없이 */}

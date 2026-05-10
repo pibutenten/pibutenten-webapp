@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import ProfileEditClient from "./ProfileEditClient";
 import {
@@ -48,20 +47,11 @@ export default async function MyProfilePage() {
 
   return (
     <section className="mx-auto w-full max-w-[640px] py-6">
-      <div className="mb-5 flex items-baseline justify-between">
-        <h1 className="text-2xl font-bold text-[var(--text)]">내 정보</h1>
-        <Link
-          href={profile.handle ? `/${profile.handle}` : "/"}
-          className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
-        >
-          ← 프로필
-        </Link>
-      </div>
-
       <ProfileEditClient
         userId={user.id}
         currentEmail={user.email ?? ""}
         loginProviders={loginProviders}
+        profileHref={profile.handle ? `/${profile.handle}` : "/"}
         initial={{
           displayName: profile.display_name ?? "",
           marketingConsent: !!profile.marketing_email_consent,
@@ -80,3 +70,4 @@ export default async function MyProfilePage() {
     </section>
   );
 }
+

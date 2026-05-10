@@ -139,20 +139,24 @@ export default function ProfileTabs({
       const sb = createSupabaseBrowserClient();
       const table = tab === "saves" ? "qa_saves" : "qa_likes";
       // 1) 내가 저장/좋아요한 qa_id 목록
-      const { data: rows } = await sb
+      const { data: rows, error: rowsErr } = await sb
         .from(table)
         .select("qa_id, created_at")
         .eq("user_id", profileId)
         .order("created_at", { ascending: false })
         .limit(50);
+      if (rowsErr) {
+        console.error(`[${table} list]`, rowsErr);
+      }
       const ids = (rows ?? []).map((r) => (r as { qa_id: number }).qa_id);
+      console.log(`[ProfileTabs ${tab}] profileId=${profileId} ids=`, ids);
       if (ids.length === 0) {
         if (tab === "saves") setSavedPosts([]);
         else setLikedPosts([]);
         return;
       }
       // 2) qas + 작성자/원장/영상 + 모든 v4 필드 join
-      const { data: qas } = await sb
+      const { data: qas, error: qasErr } = await sb
         .from("qas")
         .select(
           `id, question, answer, meta, keywords, like_count, view_count, save_count, rating_avg, rating_count,
@@ -163,6 +167,10 @@ export default function ProfileTabs({
            author:profiles!qas_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle, updated_at)`,
         )
         .in("id", ids);
+      if (qasErr) {
+        console.error("[qas join for saves/likes]", qasErr);
+      }
+      console.log(`[ProfileTabs ${tab}] fetched qas=`, qas?.length ?? 0);
       // 저장/좋아요 시간 순서 유지
       const map = new Map<number, QACardData>();
       for (const q of qas ?? []) map.set((q as { id: number }).id, q as unknown as QACardData);
