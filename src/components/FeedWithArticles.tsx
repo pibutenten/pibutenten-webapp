@@ -9,6 +9,8 @@ type MixedItem =
   | { kind: "qa"; data: QACardData }
   | { kind: "article-section"; data: ArticleSectionVirtualCard };
 
+type ViewerState = { liked?: boolean; saved?: boolean; rating?: number };
+
 type Props = {
   initialQas: QACardData[];
   initialArticleCards: ArticleSectionVirtualCard[];
@@ -17,6 +19,8 @@ type Props = {
   doctorSlug?: string;
   boostDoctorSlug?: string;
   hotIds?: number[];
+  /** v4 — viewer의 좋아요/저장/평점 상태 (qa_id → state). server prefetch. */
+  viewerStates?: Record<number, ViewerState>;
 };
 
 /**
@@ -33,6 +37,7 @@ export default function FeedWithArticles({
   doctorSlug,
   boostDoctorSlug,
   hotIds,
+  viewerStates,
 }: Props) {
   const hotSet = new Set(hotIds ?? []);
   // initialQas 자체에 동일 id가 여러 번 들어올 수 있어 mount 시 dedup
@@ -154,6 +159,7 @@ export default function FeedWithArticles({
             activeQuery={searchQuery}
             boostDoctorSlug={doctorSlug}
             hotSet={hotSet}
+            viewerStates={viewerStates}
           />
         ))}
       </div>
@@ -168,6 +174,7 @@ export default function FeedWithArticles({
               activeQuery={searchQuery}
               boostDoctorSlug={doctorSlug}
               hotSet={hotSet}
+              viewerStates={viewerStates}
             />
           ))}
         </div>
@@ -179,6 +186,7 @@ export default function FeedWithArticles({
               activeQuery={searchQuery}
               boostDoctorSlug={doctorSlug}
               hotSet={hotSet}
+              viewerStates={viewerStates}
             />
           ))}
         </div>
@@ -204,19 +212,25 @@ function Item({
   activeQuery,
   boostDoctorSlug,
   hotSet,
+  viewerStates,
 }: {
   item: MixedItem;
   activeQuery?: string;
   boostDoctorSlug?: string;
   hotSet: Set<number>;
+  viewerStates?: Record<number, ViewerState>;
 }) {
   if (item.kind === "qa") {
+    const vs = viewerStates?.[item.data.id];
     return (
       <QACard
         qa={item.data}
         activeQuery={activeQuery}
         boostDoctorSlug={boostDoctorSlug}
         isHot={hotSet.has(item.data.id)}
+        viewerLiked={vs?.liked}
+        viewerSaved={vs?.saved}
+        viewerRating={vs?.rating}
       />
     );
   }

@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { loadArticleSectionCards } from "@/lib/article/load";
 import { SITE_URL } from "@/lib/site";
+import { fetchViewerStates } from "@/lib/viewer-states";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -83,6 +84,18 @@ export default async function FeedPage() {
   const hotIds = Array.from(await getHotQaIds(20));
   const articleCards = await loadArticleSectionCards(supabase, { limit: 8 });
 
+  // viewer prefetch — 카드 첫 렌더 시 좋아요/저장/평점 즉시 표시
+  const {
+    data: { user: viewer },
+  } = await supabase.auth.getUser();
+  const viewerStateMap = await fetchViewerStates(
+    supabase,
+    viewer?.id ?? null,
+    qas.map((q) => q.id),
+  );
+  const viewerStates: Record<number, { liked?: boolean; saved?: boolean; rating?: number }> = {};
+  for (const [id, state] of viewerStateMap) viewerStates[id] = state;
+
   return (
     <section className="pt-1 sm:pt-2">
       {error && (
@@ -101,6 +114,7 @@ export default async function FeedPage() {
           initialArticleCards={articleCards}
           pageSize={INITIAL_PAGE_SIZE}
           hotIds={hotIds}
+          viewerStates={viewerStates}
         />
       )}
     </section>

@@ -102,6 +102,19 @@ export default async function DoctorDetailPage({ params }: Props) {
     .eq("doctor_id", doctor.id);
   const count = cRes.count ?? null;
 
+  // viewer prefetch
+  const {
+    data: { user: viewer },
+  } = await supabase.auth.getUser();
+  const { fetchViewerStates } = await import("@/lib/viewer-states");
+  const vsMap = await fetchViewerStates(
+    supabase,
+    viewer?.id ?? null,
+    qas.map((q) => q.id),
+  );
+  const viewerStates: Record<number, { liked?: boolean; saved?: boolean; rating?: number }> = {};
+  for (const [id, st] of vsMap) viewerStates[id] = st;
+
   const photo = getDoctorPhoto(doctor.slug);
   const affiliation = [doctor.clinic, doctor.branch].filter(Boolean).join(" ");
   const hotIds = Array.from(await getHotQaIds(20));
@@ -224,6 +237,7 @@ export default async function DoctorDetailPage({ params }: Props) {
           pageSize={PAGE_SIZE}
           doctorSlug={doctor.slug}
           hotIds={hotIds}
+          viewerStates={viewerStates}
           key={doctor.slug}
         />
       )}

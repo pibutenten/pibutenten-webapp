@@ -103,6 +103,11 @@ type Props = {
   autoExpandComments?: boolean;
   /** 단독 페이지: 본문 자동 펼침 (line-clamp 해제). 짧은 글이면 영향 없음. */
   forceExpanded?: boolean;
+  /** v4 — viewer의 좋아요/저장/평점 초기 상태 (server prefetch).
+   * 있으면 useEffect fetch 생략 → 카드가 즉시 정확한 상태로 렌더 (2~3초 지연 제거). */
+  viewerLiked?: boolean;
+  viewerSaved?: boolean;
+  viewerRating?: number;
 };
 
 export default function QACard({
@@ -112,6 +117,9 @@ export default function QACard({
   isHot = false,
   autoExpandComments = false,
   forceExpanded = false,
+  viewerLiked,
+  viewerSaved,
+  viewerRating,
 }: Props) {
   const [expanded, setExpanded] = useState(forceExpanded);
   const [viewCount, setViewCount] = useState(qa.view_count);
@@ -120,14 +128,14 @@ export default function QACard({
   const [commentCount, setCommentCount] = useState(qa.comment_count ?? 0);
   // 단독 페이지에서는 댓글창 자동 열림 (autoExpandComments)
   const [commentsOpen, setCommentsOpen] = useState(autoExpandComments);
-  const [liked, setLiked] = useState(false);
-  // v4 — 저장(북마크) + 평점
-  const [saved, setSaved] = useState(false);
+  const [liked, setLiked] = useState(viewerLiked ?? false);
+  // v4 — 저장(북마크) + 평점 (server prefetch가 있으면 즉시 적용 → 2~3초 지연 제거)
+  const [saved, setSaved] = useState(viewerSaved ?? false);
   const [saveCount, setSaveCount] = useState(qa.save_count ?? 0);
   const [savePending, setSavePending] = useState(false);
   const [ratingAvg, setRatingAvg] = useState<number>(Number(qa.rating_avg ?? 0));
   const [ratingCount, setRatingCount] = useState<number>(qa.rating_count ?? 0);
-  const [myRating, setMyRating] = useState<number>(0);
+  const [myRating, setMyRating] = useState<number>(viewerRating ?? 0);
   const [ratingHover, setRatingHover] = useState<number>(0);
   const [ratingOpen, setRatingOpen] = useState(false);
   const [me, setMe] = useState<{ id: string; role: "admin" | "doctor" | "user" } | null>(null);
@@ -214,8 +222,12 @@ export default function QACard({
     };
   }, [qa.id]);
 
-  // 좋아요 + 저장 + 평점 상태 초기화
+  // 좋아요 + 저장 + 평점 상태 초기화 — server prefetch가 있으면 client fetch 생략.
+  // 미로그인 사용자만 localStorage에서 좋아요 기억 복원.
+  const hasViewerPrefetch =
+    viewerLiked !== undefined || viewerSaved !== undefined || viewerRating !== undefined;
   useEffect(() => {
+    if (hasViewerPrefetch) return; // 서버에서 이미 받음 → fetch 생략
     let alive = true;
     (async () => {
       if (typeof window === "undefined") return;
@@ -256,7 +268,7 @@ export default function QACard({
     return () => {
       alive = false;
     };
-  }, [qa.id]);
+  }, [qa.id, hasViewerPrefetch]);
 
   // 저장 토글 — 로그인 필수, 진행 중 클릭 무시 (자꾸 풀리는 문제 방지)
   async function handleSave() {

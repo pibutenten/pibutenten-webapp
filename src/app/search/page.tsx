@@ -138,6 +138,19 @@ export default async function HomePage({ searchParams }: Props) {
     searchQuery: q || undefined,
   });
 
+  // viewer prefetch — 좋아요/저장/평점 즉시 표시
+  const {
+    data: { user: viewer },
+  } = await supabase.auth.getUser();
+  const { fetchViewerStates } = await import("@/lib/viewer-states");
+  const vsMap = await fetchViewerStates(
+    supabase,
+    viewer?.id ?? null,
+    (qas ?? []).map((q) => q.id),
+  );
+  const viewerStates: Record<number, { liked?: boolean; saved?: boolean; rating?: number }> = {};
+  for (const [id, st] of vsMap) viewerStates[id] = st;
+
   return (
     <section>
       <HeroSearch />
@@ -174,6 +187,7 @@ export default async function HomePage({ searchParams }: Props) {
             searchQuery={q || undefined}
             boostDoctorSlug={boost || undefined}
             hotIds={hotIds}
+            viewerStates={viewerStates}
             key={`${q || "all"}::${boost || ""}`}
           />
         )}

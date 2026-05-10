@@ -182,6 +182,16 @@ export default async function HandleProfilePage({ params }: Props) {
     savesCount = savesRes.count ?? 0;
   }
 
+  // viewer prefetch — posts에 대한 좋아요/저장/평점
+  const { fetchViewerStates } = await import("@/lib/viewer-states");
+  const vsMap = await fetchViewerStates(
+    supabase,
+    viewer?.id ?? null,
+    posts.map((p) => p.id),
+  );
+  const viewerStates: Record<number, { liked?: boolean; saved?: boolean; rating?: number }> = {};
+  for (const [id, st] of vsMap) viewerStates[id] = st;
+
   return (
     <section className="w-full py-6">
       {/* 프로필 헤더 — 사진 가운데, 카드 wrapper 없이 */}
@@ -249,6 +259,7 @@ export default async function HandleProfilePage({ params }: Props) {
           likedProcedures: profile.liked_procedures ?? [],
           visibility: (profile.field_visibility ?? {}) as Record<string, boolean>,
         }}
+        viewerStates={viewerStates}
       />
     </section>
   );

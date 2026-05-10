@@ -32,6 +32,8 @@ type Props = {
   personaForPosts: "official" | "personal";
   /** 피부정보 (공개된 항목만 표시) — 비어있으면 탭 숨김 */
   skinInfo?: SkinInfo;
+  /** v4 — viewer의 좋아요/저장/평점 prefetch (posts/saves/likes 카드에 즉시 반영) */
+  viewerStates?: Record<number, { liked?: boolean; saved?: boolean; rating?: number }>;
 };
 
 const TAB_LABEL: Record<Tab, string> = {
@@ -101,6 +103,7 @@ export default function ProfileTabs({
   profileId,
   personaForPosts,
   skinInfo,
+  viewerStates,
 }: Props) {
   const [tab, setTab] = useState<Tab>("posts");
 
@@ -253,7 +256,7 @@ export default function ProfileTabs({
         (posts.length === 0 ? (
           <Empty msg="아직 작성한 글이 없어요" />
         ) : (
-          <QAFeed initial={posts} pageSize={20} />
+          <QAFeed initial={posts} pageSize={20} viewerStates={viewerStates} />
         ))}
 
       {tab === "skin" && skinInfo && (
@@ -296,7 +299,7 @@ export default function ProfileTabs({
         ) : likedPosts.length === 0 ? (
           <Empty msg="좋아요한 글이 없어요" />
         ) : (
-          <QAFeed initial={likedPosts} pageSize={20} />
+          <QAFeed initial={likedPosts} pageSize={20} viewerStates={viewerStates} />
         ))}
       {tab === "saves" &&
         (savedPosts === null ? (
@@ -304,7 +307,7 @@ export default function ProfileTabs({
         ) : savedPosts.length === 0 ? (
           <Empty msg="저장한 글이 없어요" />
         ) : (
-          <QAFeed initial={savedPosts} pageSize={20} />
+          <QAFeed initial={savedPosts} pageSize={20} viewerStates={viewerStates} />
         ))}
     </div>
   );
@@ -367,14 +370,11 @@ function SkinInfoBlock({ info }: { info: SkinInfo }) {
     });
   }
 
-  // 3) 저는 이런 시술에 관심이 있어요..
+  // 3) 저는 이런 시술에 관심이 있어요.. (자유 입력 → 한글 그대로)
   if (v.interested_procedures !== false && info.interestedProcedures.length) {
     sections.push({
       title: "저는 이런 시술에 관심 있어요~",
-      chips: info.interestedProcedures.map((p) => {
-        const lbl = PROC_LABEL[p] ?? p;
-        return { label: lbl, q: lbl };
-      }),
+      chips: info.interestedProcedures.map((p) => ({ label: p, q: p })),
     });
   }
 

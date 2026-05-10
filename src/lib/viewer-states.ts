@@ -1,0 +1,61 @@
+/**
+ * 카드 피드용 viewer state batch fetch.
+ * 서버에서 viewer의 좋아요/저장/평점 상태를 한 번에 fetch해서
+ * QACard에 props로 넘기면 클라이언트 useEffect 추가 fetch가 사라져
+ * 카드 첫 렌더가 즉시 정확한 상태로 표시됨.
+ */
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export type ViewerStateMap = Map<
+  number,
+  { liked?: boolean; saved?: boolean; rating?: number }
+>;
+
+/**
+ * 주어진 qaIds 목록에 대해 viewer의 좋아요/저장/평점을 일괄 조회.
+ * viewerId가 null이면 빈 Map 반환 (미로그인).
+ */
+export async function fetchViewerStates(
+  supabase: SupabaseClient,
+  viewerId: string | null,
+  qaIds: number[],
+): Promise<ViewerStateMap> {
+  const map: ViewerStateMap = new Map();
+  if (!viewerId || qaIds.length === 0) return map;
+  const [likes, saves, ratings] = await Promise.all([
+    supabase
+      .from("qa_likes")
+      .select("qa_id")
+      .eq("user_id", viewerId)
+      .in("qa_id", qaIds),
+    supabase
+      .from("qa_saves")
+      .select("qa_id")
+      .eq("user_id", viewerId)
+      .in("qa_id", qaIds),
+    supabase
+      .from("qa_ratings")
+      .select("qa_id, rating")
+      .eq("user_id", viewerId)
+      .in("qa_id", qaIds),
+  ]);
+  for (const r of likes.data ?? []) {
+    const id = (r as { qa_id: number }).qa_id;
+    const cur = map.get(id) ?? {};
+    cur.liked = true;
+    map.set(id, cur);
+  }
+  for (const r of saves.data ?? []) {
+    const id = (r as { qa_id: number }).qa_id;
+    const cur = map.get(id) ?? {};
+    cur.saved = true;
+    map.set(id, cur);
+  }
+  for (const r of ratings.data ?? []) {
+    const row = r as { qa_id: number; rating: number };
+    const cur = map.get(row.qa_id) ?? {};
+    cur.rating = row.rating;
+    map.set(row.qa_id, cur);
+  }
+  return map;
+}

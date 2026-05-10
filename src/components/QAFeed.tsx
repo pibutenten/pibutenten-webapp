@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import QACard, { type QACardData } from "./QACard";
 
+type ViewerState = { liked?: boolean; saved?: boolean; rating?: number };
+
 type Props = {
   initial: QACardData[];
   pageSize?: number;
@@ -14,6 +16,9 @@ type Props = {
   boostDoctorSlug?: string;
   /** HOT 카드의 ID 목록 (서버에서 계산) */
   hotIds?: number[];
+  /** v4 — viewer의 좋아요/저장/평점 상태 (qa_id → state). server prefetch.
+   * 카드별 client useEffect 호출 제거 → 첫 렌더부터 정확한 상태. */
+  viewerStates?: Record<number, ViewerState>;
 };
 
 /**
@@ -29,6 +34,7 @@ export default function QAFeed({
   doctorSlug,
   boostDoctorSlug,
   hotIds,
+  viewerStates,
 }: Props) {
   const hotSet = new Set(hotIds ?? []);
   const [items, setItems] = useState<QACardData[]>(initial);
@@ -134,6 +140,9 @@ export default function QAFeed({
             activeQuery={searchQuery}
             boostDoctorSlug={doctorSlug}
             isHot={hotSet.has(qa.id)}
+            viewerLiked={viewerStates?.[qa.id]?.liked}
+            viewerSaved={viewerStates?.[qa.id]?.saved}
+            viewerRating={viewerStates?.[qa.id]?.rating}
           />
         ))}
       </div>
@@ -147,6 +156,9 @@ export default function QAFeed({
               qa={qa}
               activeQuery={searchQuery}
               boostDoctorSlug={doctorSlug}
+              viewerLiked={viewerStates?.[qa.id]?.liked}
+              viewerSaved={viewerStates?.[qa.id]?.saved}
+              viewerRating={viewerStates?.[qa.id]?.rating}
             />
           ))}
         </div>
@@ -157,6 +169,9 @@ export default function QAFeed({
               qa={qa}
               activeQuery={searchQuery}
               boostDoctorSlug={doctorSlug}
+              viewerLiked={viewerStates?.[qa.id]?.liked}
+              viewerSaved={viewerStates?.[qa.id]?.saved}
+              viewerRating={viewerStates?.[qa.id]?.rating}
             />
           ))}
         </div>
