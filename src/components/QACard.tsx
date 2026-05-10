@@ -278,18 +278,31 @@ export default function QACard({
         .eq("qa_id", qa.id)
         .eq("user_id", userId);
       if (error) {
+        console.error("[qa_saves delete]", error);
+        alert("저장 취소 실패: " + error.message);
         setSaved(true);
         setSaveCount((c) => c + 1);
+        return;
       }
     } else {
       const { error } = await supabase
         .from("qa_saves")
         .insert({ qa_id: qa.id, user_id: userId, persona: "official" });
       if (error) {
+        console.error("[qa_saves insert]", error);
+        alert("저장 실패: " + error.message);
         setSaved(false);
         setSaveCount((c) => Math.max(0, c - 1));
+        return;
       }
     }
+    // 트리거가 갱신한 정확한 save_count 재조회
+    const { data: q } = await supabase
+      .from("qas")
+      .select("save_count")
+      .eq("id", qa.id)
+      .maybeSingle();
+    if (q) setSaveCount(Number((q as { save_count: number }).save_count ?? 0));
   }
 
   // 평점 등록/변경 — upsert (qa_ratings PK = qa_id,user_id,persona)
@@ -997,18 +1010,18 @@ export default function QACard({
           <span>{commentCount}</span>
         </button>
 
-        {/* v4 — 저장 (북마크) — 민트/세이지 (#6BBFA8) */}
+        {/* v4 — 저장 (북마크) — 민트/세이지 (#64748B) */}
         <button
           type="button"
           onClick={handleSave}
           aria-label={saved ? "저장 취소" : "저장"}
           aria-pressed={saved}
-          style={saved ? { color: "#6BBFA8" } : undefined}
+          style={saved ? { color: "#64748B" } : undefined}
           className={
             "flex cursor-pointer items-center gap-1 transition-colors " +
             (saved
               ? ""
-              : "text-[var(--text-secondary)] hover:text-[#6BBFA8]")
+              : "text-[var(--text-secondary)] hover:text-[#64748B]")
           }
           title="저장"
         >
