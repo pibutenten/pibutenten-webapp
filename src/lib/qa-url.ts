@@ -14,7 +14,8 @@
 export type QaUrlInput = {
   id: number;
   type?: "qa" | "post" | "article" | "link" | string;
-  posted_as?: "doctor" | "self" | string | null;
+  /** DB enum: 'official' | 'personal'. 옛 'doctor'/'self' 값도 backward-compat으로 매핑. */
+  posted_as?: "official" | "personal" | "doctor" | "self" | string | null;
   article_slug?: string | null;
   doctor?: { slug: string } | null;
   post_year?: number | null;
@@ -32,22 +33,21 @@ export function getQaUrl(qa: QaUrlInput): string {
     return `/article/${encodeURIComponent(qa.article_slug)}`;
   }
 
+  const isOfficial =
+    qa.posted_as === "official" || qa.posted_as === "doctor";
+  const isPersonal =
+    qa.posted_as === "personal" || qa.posted_as === "self";
+
   // 2) 의사 official 글 — keyword slug
-  if (
-    qa.posted_as === "doctor" &&
-    qa.doctor?.slug &&
-    qa.post_year &&
-    qa.post_slug
-  ) {
+  if (isOfficial && qa.doctor?.slug && qa.post_year && qa.post_slug) {
     return `/doctors/${qa.doctor.slug}/${qa.post_year}/${qa.post_slug}`;
   }
 
   // 3) 회원 글 또는 의사 personal — handle / alt_handle + shortcode
   if (qa.shortcode && qa.post_year) {
-    const handle =
-      qa.posted_as === "self"
-        ? qa.author?.alt_handle ?? qa.author?.handle ?? null
-        : qa.author?.handle ?? null;
+    const handle = isPersonal
+      ? qa.author?.alt_handle ?? qa.author?.handle ?? null
+      : qa.author?.handle ?? null;
     if (handle) {
       return `/${handle}/${qa.post_year}/${qa.shortcode}`;
     }

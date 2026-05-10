@@ -71,18 +71,15 @@ function commentLink(c: CommentRow): string {
   if (!qa) return "/";
   if (qa.type === "article" && qa.article_slug)
     return `/article/${encodeURIComponent(qa.article_slug)}`;
-  if (
-    qa.posted_as === "doctor" &&
-    qa.doctor?.slug &&
-    qa.post_year &&
-    qa.post_slug
-  )
+  // posted_as DB enum: 'official' | 'personal'. 옛 'doctor'/'self' 값도 매핑.
+  const isOfficial = qa.posted_as === "official" || qa.posted_as === "doctor";
+  const isPersonal = qa.posted_as === "personal" || qa.posted_as === "self";
+  if (isOfficial && qa.doctor?.slug && qa.post_year && qa.post_slug)
     return `/doctors/${qa.doctor.slug}/${qa.post_year}/${qa.post_slug}`;
   if (qa.shortcode && qa.post_year) {
-    const handle =
-      qa.posted_as === "self"
-        ? qa.author?.alt_handle ?? qa.author?.handle
-        : qa.author?.handle ?? null;
+    const handle = isPersonal
+      ? qa.author?.alt_handle ?? qa.author?.handle
+      : qa.author?.handle ?? null;
     if (handle) return `/${handle}/${qa.post_year}/${qa.shortcode}`;
   }
   return `/qa/${qa.id}`;
