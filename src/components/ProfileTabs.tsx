@@ -127,6 +127,51 @@ export default function ProfileTabs({
   const [comments, setComments] = useState<CommentRow[] | null>(null);
   const [commentsLoading, setCommentsLoading] = useState(false);
 
+  // v4 — 좋아요/저장 글 lazy fetch (본인 보기에서만 노출됨)
+  const [savedPosts, setSavedPosts] = useState<QACardData[] | null>(null);
+  const [likedPosts, setLikedPosts] = useState<QACardData[] | null>(null);
+
+  useEffect(() => {
+    if ((tab !== "saves" && tab !== "likes") || !isOwner) return;
+    if (tab === "saves" && savedPosts !== null) return;
+    if (tab === "likes" && likedPosts !== null) return;
+    (async () => {
+      const sb = createSupabaseBrowserClient();
+      const table = tab === "saves" ? "qa_saves" : "qa_likes";
+      // 1) 내가 저장/좋아요한 qa_id 목록
+      const { data: rows } = await sb
+        .from(table)
+        .select("qa_id, created_at")
+        .eq("user_id", profileId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const ids = (rows ?? []).map((r) => (r as { qa_id: number }).qa_id);
+      if (ids.length === 0) {
+        if (tab === "saves") setSavedPosts([]);
+        else setLikedPosts([]);
+        return;
+      }
+      // 2) qas + 작성자/원장/영상 + 모든 v4 필드 join
+      const { data: qas } = await sb
+        .from("qas")
+        .select(
+          `id, question, answer, meta, keywords, like_count, view_count, save_count, rating_avg, rating_count,
+           type, posted_as, post_year, post_slug, shortcode, category, hide_doctor_credential, created_at,
+           external_url, external_title, external_description, external_image, external_site_name,
+           doctor:doctors(slug, name, branch),
+           video:videos(youtube_id, youtube_url, topic, upload_date),
+           author:profiles!qas_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle, updated_at)`,
+        )
+        .in("id", ids);
+      // 저장/좋아요 시간 순서 유지
+      const map = new Map<number, QACardData>();
+      for (const q of qas ?? []) map.set((q as { id: number }).id, q as unknown as QACardData);
+      const ordered = ids.map((id) => map.get(id)).filter(Boolean) as QACardData[];
+      if (tab === "saves") setSavedPosts(ordered);
+      else setLikedPosts(ordered);
+    })();
+  }, [tab, isOwner, profileId, savedPosts, likedPosts]);
+
   useEffect(() => {
     if (tab !== "comments" || comments !== null) return;
     setCommentsLoading(true);
@@ -237,8 +282,22 @@ export default function ProfileTabs({
         </>
       )}
 
-      {tab === "likes" && <Empty msg="좋아요한 글이 없어요" />}
-      {tab === "saves" && <Empty msg="저장한 글이 없어요" />}
+      {tab === "likes" &&
+        (likedPosts === null ? (
+          <Empty msg="불러오는 중…" />
+        ) : likedPosts.length === 0 ? (
+          <Empty msg="좋아요한 글이 없어요" />
+        ) : (
+          <QAFeed initial={likedPosts} pageSize={20} />
+        ))}
+      {tab === "saves" &&
+        (savedPosts === null ? (
+          <Empty msg="불러오는 중…" />
+        ) : savedPosts.length === 0 ? (
+          <Empty msg="저장한 글이 없어요" />
+        ) : (
+          <QAFeed initial={savedPosts} pageSize={20} />
+        ))}
     </div>
   );
 }
