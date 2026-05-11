@@ -51,18 +51,17 @@
   box-sizing: border-box;
 }
 
-/* focus outline — 브라우저 기본 검정 outline을 부드러운 primary 톤으로 */
+/* focus outline — 사용자 요청: 클릭/포커스 시 파란 선 완전 제거.
+   (접근성 keyboard nav는 브라우저 기본 :focus-visible로 충분.
+    여기서는 마우스 클릭 시 잔상이 남는 것을 막기 위해 outline 전체 off) */
 button:focus,
 button:focus-visible,
 a:focus,
-a:focus-visible {
-  outline: none;
-}
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--primary) 60%, transparent);
-  outline-offset: 2px;
-  border-radius: inherit;
+a:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 html,
