@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import LikersDialog from "@/components/LikersDialog";
 
 type Liker = {
   user_id: string;
@@ -36,6 +37,7 @@ export default function RecentLikers({
   maxAvatars = 3,
 }: Props) {
   const [likers, setLikers] = useState<Liker[] | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     if (likeCount <= 0) {
@@ -43,7 +45,7 @@ export default function RecentLikers({
       return;
     }
     let cancelled = false;
-    (async () => {
+    async function load() {
       try {
         const sb = createSupabaseBrowserClient();
         const { data, error } = await sb.rpc("get_recent_likers", {
@@ -59,9 +61,13 @@ export default function RecentLikers({
       } catch {
         if (!cancelled) setLikers([]);
       }
-    })();
+    }
+    // 즉시 한 번 + 좋아요 INSERT 반영 위해 500ms 후 한 번 더 (idempotent refetch)
+    load();
+    const t = setTimeout(load, 500);
     return () => {
       cancelled = true;
+      clearTimeout(t);
     };
   }, [qaId, likeCount, maxAvatars]);
 
@@ -73,7 +79,7 @@ export default function RecentLikers({
   const visibleLikers = likers.slice(0, maxAvatars);
 
   return (
-    <div className="flex items-center gap-2 py-1 text-[13.5px] text-[var(--text-secondary)]">
+    <div className="flex items-center gap-2 mt-2 py-1 text-[13.5px] text-[var(--text-secondary)]">
       {/* 아바타 겹침 — 더 컴팩트 (-space-x-2.5). 맨 좌측이 z-index 가장 위.
           좌측 정렬은 카드 footer 아이콘(좋아요/댓글)과 동일하게 — padding 없음. */}
       <div className="flex -space-x-2.5">
@@ -88,22 +94,36 @@ export default function RecentLikers({
         ))}
       </div>
 
-      {/* 텍스트 — 첫 명 강조 + 외 N명 */}
+      {/* 텍스트 — 첫 명 강조 + "외 N명" 클릭 시 다이얼로그 (인스타식) */}
       <span className="leading-tight">
         <LikerName liker={likers[0]} fallback={firstName} />
         {others > 0 ? (
           <>
             {" "}
             님 외{" "}
-            <strong className="font-semibold text-[var(--text)]">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDialogOpen(true);
+              }}
+              className="font-semibold text-[var(--text)] underline-offset-2 hover:underline"
+            >
               {others}명
-            </strong>
+            </button>
             이 좋아합니다
           </>
         ) : (
           <> 님이 좋아합니다</>
         )}
       </span>
+
+      {/* 인스타식 좋아요 리스트 다이얼로그 */}
+      <LikersDialog
+        qaId={qaId}
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+      />
     </div>
   );
 }

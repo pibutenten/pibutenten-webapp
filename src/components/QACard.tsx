@@ -154,18 +154,19 @@ export default function QACard({
   const isPick = PICK_IDS.has(qa.id);
 
   // 조회수 +1 — 의도적인 "보기" 신호일 때만 카운트.
-  // 조건:
-  //   1) 사용자가 페이지에서 한 번이라도 스크롤한 후 (scrollOnce)
-  //   2) 카드가 viewport 중앙 30% 영역에 진입
-  //   3) 그 위치에 DWELL_MS(1.5초) 머물러 있을 때
-  //   → 첫 화면 그대로 멈춰 있어도 카운트 X (스크롤 신호 필요)
-  //   → 스크롤 후 빠르게 지나가는 카드도 카운트 X (dwell 필요)
+  // v5.1 정책:
+  //   - 일반 글: 카드 viewport 중앙 + 4초 머물면 카운트 (dwell)
+  //   - Q&A 글: 카드 dwell은 카운트 X — 펼치거나 단독 페이지 진입만 카운트
+  //     (인기 평가에 영향 — 가짜 조회수 막기)
+  // 공통 조건: 사용자가 페이지에서 한 번이라도 스크롤한 후 (scrollOnce)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const card = cardRef.current;
     if (!card) return;
+    // Q&A 카테고리 글은 카드 dwell로 카운트 안 함 (펼침·단독 진입만)
+    if (qa.category === "qa") return;
 
-    const DWELL_MS = 1500;
+    const DWELL_MS = 4000;
     let counted = false;
     let scrolled = false;
     let dwellTimer: ReturnType<typeof setTimeout> | null = null;
@@ -221,7 +222,7 @@ export default function QACard({
       observer.disconnect();
       window.removeEventListener("scroll", onScroll);
     };
-  }, [qa.id]);
+  }, [qa.id, qa.category]);
 
   // 좋아요 + 저장 + 평점 상태 초기화 — server prefetch가 있으면 client fetch 생략.
   // 미로그인 사용자만 localStorage에서 좋아요 기억 복원.
