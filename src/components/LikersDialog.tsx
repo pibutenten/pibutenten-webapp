@@ -140,7 +140,7 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
             </p>
           )}
           {likers && likers.length > 0 && (
-            <ul className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+            <ul className="flex flex-wrap gap-x-1 gap-y-1">
               {likers.map((l) => (
                 <LikerRow key={l.user_id} liker={l} onClose={onClose} />
               ))}
@@ -157,26 +157,24 @@ function LikerRow({ liker, onClose }: { liker: Liker; onClose: () => void }) {
   const initial = name.slice(0, 1);
   const href = liker.handle ? `/${liker.handle}` : null;
 
+  // 컴팩트 인라인 칩 — 좌측 정렬로 한 줄에 여러 명 wrap. 아바타 + 닉네임만.
   const content = (
-    <div className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--bg-soft)]">
+    <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-soft)] py-1 pl-1 pr-3 transition-colors hover:bg-[var(--primary-soft)]">
       {liker.avatar_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={liker.avatar_url}
           alt=""
-          className="h-8 w-8 shrink-0 rounded-full bg-[var(--bg-soft)] object-cover"
+          className="h-6 w-6 shrink-0 rounded-full bg-white object-cover"
         />
       ) : (
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--bg-soft)] text-[12px] font-semibold text-[var(--text-secondary)]">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-[var(--text-secondary)]">
           {initial}
         </span>
       )}
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px] font-medium text-[var(--text)]">
-          {name}
-        </div>
-        {/* v5.1: id(@handle) 노출 X — 팔로우 시스템 아니라 간소화 (아바타 + 닉네임만) */}
-      </div>
+      <span className="max-w-[100px] truncate text-[12.5px] font-medium text-[var(--text)]">
+        {name}
+      </span>
     </div>
   );
 

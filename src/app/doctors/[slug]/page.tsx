@@ -185,6 +185,35 @@ export default async function DoctorDetailPage({ params }: Props) {
     }
   }
 
+  // 본인 접속 시 — 내 글에 달린 최근 댓글 (처리해야 할 것들)
+  type RecentCommentRow = {
+    id: number;
+    qa_id: number;
+    body: string;
+    created_at: string;
+    author: {
+      display_name: string | null;
+      avatar_url: string | null;
+      handle: string | null;
+    } | null;
+    qa: { question: string; shortcode: string | null } | null;
+  };
+  let recentComments: RecentCommentRow[] = [];
+  if (isOwner) {
+    const { data: rc } = await supabase
+      .from("comments")
+      .select(
+        `id, qa_id, body, created_at,
+         author:profiles!comments_author_id_fkey(display_name, avatar_url, handle),
+         qa:qas!inner(question, shortcode, doctor_id)`,
+      )
+      .eq("qa.doctor_id", doctor.id)
+      .eq("status", "visible")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    recentComments = ((rc ?? []) as unknown) as RecentCommentRow[];
+  }
+
   // JSON-LD: Physician(풀세트, multi-typing) + BreadcrumbList — 헬퍼로 중앙화 (변경 1·2·4·6)
   const SITE = SITE_URL;
   const physicianLd = buildDoctorFull({
@@ -223,6 +252,38 @@ export default async function DoctorDetailPage({ params }: Props) {
       },
     ],
   };
+
+  // 본인 접속 시 — 외부인용 프로필 화면 모두 숨기고 대시보드만 렌더 (사용자 요청)
+  if (isOwner && ownerStats) {
+    return (
+      <section className="space-y-5 py-2">
+        <div className="mb-1">
+          <h1 className="text-2xl font-bold text-[var(--text)]">
+            {doctor.name} 원장님 대시보드
+          </h1>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
+            본인 전용 — 통계·글 관리·받은 댓글
+          </p>
+        </div>
+
+        <DoctorOwnerWidget doctorName={doctor.name} stats={ownerStats} />
+
+        {/* 받은 댓글 — 최근 10개 */}
+        <DoctorCommentsWidget comments={recentComments} doctorSlug={doctor.slug} />
+
+        {/* 공개 프로필 미리보기 링크 */}
+        <p className="text-center text-[11px] text-[var(--text-muted)]">
+          외부인이 보는 공개 프로필은{" "}
+          <Link
+            href={`/doctors/${doctor.slug}?preview=public`}
+            className="hover:text-[var(--primary)] hover:underline"
+          >
+            미리보기
+          </Link>
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-6">
@@ -275,12 +336,8 @@ export default async function DoctorDetailPage({ params }: Props) {
 
       </header>
 
-      {/* 본인 접속 시만 — 원장 대시보드 위젯 (외부인엔 노출 X) */}
-      {isOwner && ownerStats && (
-        <DoctorOwnerWidget doctorName={doctor.name} stats={ownerStats} />
-      )}
-
-      {/* 프로필 강화 섹션 — profile_data에 입력된 항목만 노출 (E-E-A-T 신뢰 신호) */}
+      {/* 프로필 강화 섹션 — profile_data에 입력된 항목만 노출 (E-E-A-T 신뢰 신호)
+          (본인 접속은 위에서 dashboard-only 화면으로 분기됨 — 여기 도달 X) */}
       <DoctorProfileSection profile={profile} />
 
       {/* 원장 칼럼 섹션은 비공개 — 카드 포스팅으로 통일.
@@ -352,7 +409,8 @@ function DoctorOwnerWidget({
         <Stat label="받은 저장" value={stats.receivedSaves} />
       </div>
 
-      {/* 빠른 작성 */}
+      {/* 빠른 작성·관리.
+          원장 프로필 자체 수정은 관리자 영역(하드코딩) — 본 페이지에서 제거. */}
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           href="/write"
@@ -364,17 +422,118 @@ function DoctorOwnerWidget({
           href="/admin/qas"
           className="rounded-full border border-[var(--border)] bg-white px-4 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
         >
-          전체 글 관리 →
-        </Link>
-        <Link
-          href="/settings/profile"
-          className="rounded-full border border-[var(--border)] bg-white px-4 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
-        >
-          ⚙ 프로필 수정
+          내 글 관리 →
         </Link>
       </div>
     </div>
   );
+}
+
+/**
+ * 받은 댓글 위젯 — 내 글에 달린 최근 댓글 10개.
+ * 본인 페이지(dashboard-only)에서만 노출.
+ */
+function DoctorCommentsWidget({
+  comments,
+  doctorSlug,
+}: {
+  comments: Array<{
+    id: number;
+    qa_id: number;
+    body: string;
+    created_at: string;
+    author: {
+      display_name: string | null;
+      avatar_url: string | null;
+      handle: string | null;
+    } | null;
+    qa: { question: string; shortcode: string | null } | null;
+  }>;
+  doctorSlug: string;
+}) {
+  if (comments.length === 0) {
+    return (
+      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
+        <h2 className="mb-2 text-[14px] font-bold text-[var(--text)]">
+          💬 받은 댓글
+        </h2>
+        <p className="text-[12px] text-[var(--text-muted)]">
+          아직 댓글이 없어요.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
+      <h2 className="mb-3 text-[14px] font-bold text-[var(--text)]">
+        💬 받은 댓글{" "}
+        <span className="text-[11px] font-medium text-[var(--text-muted)]">
+          (최근 {comments.length}개)
+        </span>
+      </h2>
+      <ul className="space-y-3">
+        {comments.map((c) => {
+          const author = c.author;
+          const name = author?.display_name ?? "익명";
+          const initial = name.slice(0, 1);
+          const target =
+            author?.handle && c.qa?.shortcode
+              ? `/${author.handle}/${c.qa.shortcode}`
+              : `/doctors/${doctorSlug}`;
+          return (
+            <li key={c.id} className="flex items-start gap-2">
+              {author?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={author.avatar_url}
+                  alt=""
+                  className="h-8 w-8 shrink-0 rounded-full bg-[var(--bg-soft)] object-cover"
+                />
+              ) : (
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--bg-soft)] text-[11px] font-semibold text-[var(--text-secondary)]">
+                  {initial}
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-[13px] font-semibold text-[var(--text)]">
+                    {name}
+                  </span>
+                  <span className="text-[11px] text-[var(--text-muted)]">
+                    {relativeTime(c.created_at)}
+                  </span>
+                </div>
+                <p className="mt-0.5 line-clamp-2 text-[13px] text-[var(--text-secondary)]">
+                  {c.body}
+                </p>
+                {c.qa?.question && (
+                  <Link
+                    href={target}
+                    className="mt-1 inline-block truncate text-[11.5px] text-[var(--text-muted)] hover:text-[var(--primary)]"
+                  >
+                    ↳ {c.qa.question.slice(0, 60)}
+                  </Link>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "방금";
+  if (m < 60) return `${m}분 전`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}시간 전`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}일 전`;
+  return new Date(iso).toLocaleDateString("ko-KR");
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
