@@ -17,19 +17,23 @@ type Props = {
   qaId: number;
   open: boolean;
   onClose: () => void;
+  /** v5.1+: 'qa'면 다이얼로그 헤더 '추천', 그 외는 '좋아요' */
+  qaType?: "qa" | "post";
 };
 
 /**
- * 인스타식 좋아요 리스트 다이얼로그.
- * - "N명이 좋아합니다"의 N명 클릭 시 열림
- * - 좋아요한 사람 전체 리스트 (최대 200명)
+ * 인스타식 좋아요/추천 리스트 다이얼로그.
+ * - "N명" 클릭 시 열림
+ * - 누른 사람 전체 리스트 (최대 200명)
  * - 각 항목 클릭 시 그 사람 프로필로 이동
  *
  * 닫기: 우상단 X · 외부 클릭 · ESC 키
  */
 const FETCH_LIMIT = 200;
 
-export default function LikersDialog({ qaId, open, onClose }: Props) {
+export default function LikersDialog({ qaId, open, onClose, qaType = "post" }: Props) {
+  const headerLabel = qaType === "qa" ? "추천" : "좋아요";
+  const emptyLabel = qaType === "qa" ? "아직 추천이 없어요." : "아직 좋아요가 없어요.";
   const [likers, setLikers] = useState<Liker[] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -77,7 +81,7 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="좋아요"
+      aria-label={headerLabel}
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       onClick={(e) => {
         // 외부(backdrop) 클릭 시 닫기
@@ -93,7 +97,7 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
         {/* Header — 항상 위에 고정 */}
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3">
           <h2 className="text-[15px] font-semibold text-[var(--text)]">
-            좋아요
+            {headerLabel}
           </h2>
           <button
             type="button"
@@ -127,7 +131,7 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
           )}
           {likers && likers.length === 0 && (
             <p className="py-6 text-center text-sm text-[var(--text-muted)]">
-              아직 좋아요가 없어요.
+              {emptyLabel}
             </p>
           )}
           {likers && likers.length > 0 && (

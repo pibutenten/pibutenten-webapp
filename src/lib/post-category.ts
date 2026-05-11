@@ -1,14 +1,15 @@
 /**
  * 글 카테고리(post category) — qas.category 컬럼과 1:1 매핑.
  *
- * v5.1 spec 5개 체계:
+ * v5.1+ spec 5개 체계:
  *   - qa     Q&A         의사 답변 (의사·관리자 전용, 인덱싱)
  *   - tip    피부꿀팁     정보·노하우·후기 (회원·의사, 인덱싱)
  *   - diary  피부일기     일상·피부 변화 (회원·의사, noindex)
  *   - ask    궁금해요     의견·고민 (회원·의사, noindex)
- *   - share  공유하기     외부 콘텐츠 큐레이션 + URL 카드 + 출처 표기 (회원·의사, noindex)
+ *   - link   공유하기     외부 콘텐츠 큐레이션 + URL 카드 + 출처 표기 (회원·의사, noindex)
+ *                         (slug는 'link'로 변경됨 — 푸터 액션 'share(공유)'와 변수명 충돌 회피)
  */
-export type PostCategorySlug = "qa" | "tip" | "diary" | "ask" | "share";
+export type PostCategorySlug = "qa" | "tip" | "diary" | "ask" | "link";
 
 export type PostCategory = {
   slug: PostCategorySlug;
@@ -27,7 +28,7 @@ export const POST_CATEGORIES: readonly PostCategory[] = [
   { slug: "tip",   label: "피부꿀팁", publicForUsers: true,  defaultHideDoctorCredential: false },
   { slug: "diary", label: "피부일기", publicForUsers: true,  defaultHideDoctorCredential: true  },
   { slug: "ask",   label: "궁금해요", publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "share", label: "공유하기", publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "link",  label: "공유하기", publicForUsers: true,  defaultHideDoctorCredential: true  },
   { slug: "qa",    label: "Q&A",     publicForUsers: false, defaultHideDoctorCredential: false },
 ];
 
@@ -57,7 +58,7 @@ export function isPostCategorySlug(
     s === "tip" ||
     s === "diary" ||
     s === "ask" ||
-    s === "share"
+    s === "link"
   );
 }
 

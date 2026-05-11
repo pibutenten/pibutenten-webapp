@@ -13,7 +13,7 @@ type QAStatus = "draft" | "pending_review" | "published" | "archived";
 type QAType = "qa" | "post" | "article";
 type TypeFilter = "qa" | "post" | "all"; // v4: 칼럼(article) UI에서 제거
 type StatusFilter = QAStatus | "all";
-type CategoryFilter = "tip" | "diary" | "ask" | "share" | "all";
+type CategoryFilter = "tip" | "diary" | "ask" | "link" | "all";
 
 type AdminQARow = {
   id: number;
@@ -65,7 +65,7 @@ function isTypeFilter(v: string | undefined): v is TypeFilter {
 
 function isCategoryFilter(v: string | undefined): v is CategoryFilter {
   return (
-    v === "tip" || v === "diary" || v === "ask" || v === "share" || v === "all"
+    v === "tip" || v === "diary" || v === "ask" || v === "link" || v === "all"
   );
 }
 
@@ -265,7 +265,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     { key: "tip", label: "피부꿀팁" },
     { key: "diary", label: "피부일기" },
     { key: "ask", label: "궁금해요" },
-    { key: "share", label: "공유하기" },
+    { key: "link", label: "공유하기" },
   ];
 
   return (

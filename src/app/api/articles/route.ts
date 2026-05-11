@@ -164,8 +164,8 @@ export async function POST(req: Request) {
   }
 
   // 카테고리 결정 — payload.category 우선, 없으면 type에서 자동 매핑.
-  // v5.1: 5개 카테고리 qa/tip/diary/ask/share (news → share 마이그레이션됨)
-  const VALID_CATEGORIES = ["qa", "tip", "diary", "ask", "share"];
+  // v5.1+: 5개 카테고리 qa/tip/diary/ask/link (share → link 슬러그 변경, 라벨 '공유하기' 유지)
+  const VALID_CATEGORIES = ["qa", "tip", "diary", "ask", "link"];
   let category: string;
   if (payload.category && VALID_CATEGORIES.includes(payload.category)) {
     category = payload.category;

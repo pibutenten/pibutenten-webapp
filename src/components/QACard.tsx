@@ -239,19 +239,24 @@ export default function QACard({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
+        // v5.1+: identity_id 기반 prefetch (qa_likes·qa_saves PK 변경 후)
+        // user_id 기반 fallback도 유지 (legacy 데이터 호환)
+        const activeIdentityId = getActiveIdentityId();
+        const likeQuery = supabase
+          .from("qa_likes")
+          .select("qa_id")
+          .eq("qa_id", qa.id);
+        const saveQuery = supabase
+          .from("qa_saves")
+          .select("qa_id")
+          .eq("qa_id", qa.id);
         const [likeRes, saveRes, rateRes] = await Promise.all([
-          supabase
-            .from("qa_likes")
-            .select("qa_id")
-            .eq("qa_id", qa.id)
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          supabase
-            .from("qa_saves")
-            .select("qa_id")
-            .eq("qa_id", qa.id)
-            .eq("user_id", user.id)
-            .maybeSingle(),
+          activeIdentityId
+            ? likeQuery.eq("identity_id", activeIdentityId).maybeSingle()
+            : likeQuery.eq("user_id", user.id).maybeSingle(),
+          activeIdentityId
+            ? saveQuery.eq("identity_id", activeIdentityId).maybeSingle()
+            : saveQuery.eq("user_id", user.id).maybeSingle(),
           supabase
             .from("qa_ratings")
             .select("rating")
@@ -974,38 +979,78 @@ export default function QACard({
         );
       })()}
 
-      {/* footer: 좋아요·댓글·저장·평점·공유 — 컴팩트
-          (v5.1: 조회수 카드 표시 제거 — SNS 표준에서 잘 안 보임. /admin 통계에는 유지) */}
+      {/* footer: 좋아요/추천 · 댓글 · 공유 · 저장 — Instagram 표준 순서
+          v5.1+:
+           - Q&A (type='qa'): 👍 ThumbsUp + 추천 + secondary navy (#1B4965)
+           - post (그 외):    ♥ Heart + 좋아요 + accent coral (#FF6B81)
+           - 저장(북마크): primary 하늘색 (#5FA8D3)
+           - 공유: 기본 회색 / hover primary */}
       <div className="flex items-center gap-4 pt-3 text-[14px] text-[var(--text-secondary)]">
-        <button
-          type="button"
-          onClick={handleLike}
-          aria-label={liked ? "좋아요 취소" : "좋아요"}
-          aria-pressed={liked}
-          className={
-            "flex cursor-pointer items-center gap-1 transition-colors " +
-            (liked
-              ? "text-[var(--accent)]"
-              : "text-[var(--text-secondary)] hover:text-[var(--accent)]")
-          }
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill={liked ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {qa.type === "qa" ? (
+          // 👍 추천 (Q&A 전용) — secondary navy
+          <button
+            type="button"
+            onClick={handleLike}
+            aria-label={liked ? "추천 취소" : "추천"}
+            aria-pressed={liked}
             className={
-              "h-[22px] w-[22px] transition-transform " +
-              (liked ? "like-pulse" : "")
+              "flex cursor-pointer items-center gap-1 transition-colors " +
+              (liked
+                ? "text-[var(--secondary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--secondary)]")
             }
-            aria-hidden
+            title={liked ? "추천 취소" : "추천"}
           >
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-          {likeCount > 0 && <span>{likeCount}</span>}
-        </button>
+            <svg
+              viewBox="0 0 24 24"
+              fill={liked ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={
+                "h-[22px] w-[22px] transition-transform " +
+                (liked ? "like-pulse" : "")
+              }
+              aria-hidden
+            >
+              <path d="M7 11v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1z" />
+              <path d="M7 11h3l-1-5a2 2 0 0 1 4-1l1 6h4a2 2 0 0 1 2 2.2l-.85 6A2 2 0 0 1 17.15 21H9a2 2 0 0 1-2-2v-8z" />
+            </svg>
+            {likeCount > 0 && <span>{likeCount}</span>}
+          </button>
+        ) : (
+          // ♥ 좋아요 (post) — accent coral
+          <button
+            type="button"
+            onClick={handleLike}
+            aria-label={liked ? "좋아요 취소" : "좋아요"}
+            aria-pressed={liked}
+            className={
+              "flex cursor-pointer items-center gap-1 transition-colors " +
+              (liked
+                ? "text-[var(--accent)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--accent)]")
+            }
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill={liked ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={
+                "h-[22px] w-[22px] transition-transform " +
+                (liked ? "like-pulse" : "")
+              }
+              aria-hidden
+            >
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            {likeCount > 0 && <span>{likeCount}</span>}
+          </button>
+        )}
 
         <button
           type="button"
@@ -1028,18 +1073,50 @@ export default function QACard({
           {commentCount > 0 && <span>{commentCount}</span>}
         </button>
 
-        {/* v4 — 저장 (북마크) — 민트/세이지 (#64748B) */}
+        {/* 공유 (모든 카드 공통) */}
+        <button
+          type="button"
+          onClick={async () => {
+            await shareQA(qa);
+            // 공유 클릭 카운트 +1 (중복 허용)
+            const supabase = createSupabaseBrowserClient();
+            const { data } = await supabase.rpc("increment_qa_share", {
+              p_qa_id: qa.id,
+            });
+            if (typeof data === "number") setShareCount(data);
+          }}
+          className="flex cursor-pointer items-center gap-1 transition-colors hover:text-[var(--primary)]"
+          aria-label="공유"
+          title="공유"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[22px] w-[22px]"
+            aria-hidden
+          >
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+            <polyline points="16 6 12 2 8 6" />
+            <line x1="12" y1="2" x2="12" y2="15" />
+          </svg>
+          {shareCount > 0 && <span>{shareCount}</span>}
+        </button>
+
+        {/* 저장(북마크) — primary 하늘색 (#5FA8D3). ml-auto로 우측 정렬 */}
         <button
           type="button"
           onClick={handleSave}
           aria-label={saved ? "저장 취소" : "저장"}
           aria-pressed={saved}
-          style={saved ? { color: "#64748B" } : undefined}
           className={
-            "flex cursor-pointer items-center gap-1 transition-colors " +
+            "ml-auto flex cursor-pointer items-center gap-1 transition-colors " +
             (saved
-              ? ""
-              : "text-[var(--text-secondary)] hover:text-[#64748B]")
+              ? "text-[var(--primary)]"
+              : "text-[var(--text-secondary)] hover:text-[var(--primary)]")
           }
           title="저장"
         >
@@ -1135,43 +1212,11 @@ export default function QACard({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={async () => {
-            await shareQA(qa);
-            // 공유 클릭 카운트 +1 (중복 허용)
-            const supabase = createSupabaseBrowserClient();
-            const { data } = await supabase.rpc("increment_qa_share", {
-              p_qa_id: qa.id,
-            });
-            if (typeof data === "number") setShareCount(data);
-          }}
-          className="ml-auto flex cursor-pointer items-center gap-1 transition-colors hover:text-[var(--primary)]"
-          aria-label="공유하기"
-          title="공유하기"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-[22px] w-[22px]"
-            aria-hidden
-          >
-            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
-          </svg>
-          {shareCount > 0 && <span>{shareCount}</span>}
-        </button>
-
       </div>
 
-      {/* 인스타식 좋아요 표시 — 구분선 아래, 댓글 블록 바로 위.
-          좋아요 1+ 일 때만 노출. 페르소나(personal)는 alt_* 사용 (RPC 처리). */}
-      <RecentLikers qaId={qa.id} likeCount={likeCount} />
+      {/* 인스타식 좋아요/추천 표시 — 구분선 아래, 댓글 블록 바로 위.
+          좋아요 1+ 일 때만 노출. type='qa'는 '추천했어요'/그 외는 '좋아합니다'. */}
+      <RecentLikers qaId={qa.id} likeCount={likeCount} qaType={qa.type === "qa" ? "qa" : "post"} />
 
       {/* 댓글 블록 — 댓글 있거나 댓글창 열린 상태일 때만 표시 (본문 펼침과 무관) */}
       <CommentsBlock

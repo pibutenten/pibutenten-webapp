@@ -16,18 +16,21 @@ type Liker = {
 
 type Props = {
   qaId: number;
-  /** 좋아요 카운트. 0이면 컴포넌트 자체 렌더링 X. 변할 때 refetch trigger. */
+  /** 좋아요/추천 카운트. 0이면 컴포넌트 자체 렌더링 X. 변할 때 refetch trigger. */
   likeCount: number;
   /** 최대 노출 아바타 수 (default 3) */
   maxAvatars?: number;
+  /** v5.1+: 글 type — 'qa'면 '추천했어요', 그 외는 '좋아합니다' */
+  qaType?: "qa" | "post";
 };
 
 /**
- * 인스타식 좋아요 표시.
+ * 인스타식 좋아요/추천 표시.
  *
- *  - 좋아요 1+: 아바타 1~3개 겹쳐서 + "○○○님이 좋아합니다" / "○○○님 외 N명이 좋아합니다"
+ *  - post (♥ 좋아요): "○○○님이 좋아합니다" / "○○○님 외 N명이 좋아합니다"
+ *  - Q&A (👍 추천):   "○○○님이 추천했어요" / "○○○님 외 N명이 추천했어요"
  *  - 페르소나 분기: qa_likes.persona='personal'이면 alt_display_name·alt_avatar·alt_handle
- *  - lazy load: 좋아요 카운트 > 0일 때만 RPC 호출, 카드 mount 시 한 번
+ *  - lazy load: 카운트 > 0일 때만 RPC 호출, 카드 mount 시 한 번
  *
  * 위치: QACard footer 구분선 아래, CommentsBlock 바로 위.
  */
@@ -35,6 +38,7 @@ export default function RecentLikers({
   qaId,
   likeCount,
   maxAvatars = 3,
+  qaType = "post",
 }: Props) {
   const [likers, setLikers] = useState<Liker[] | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -78,11 +82,16 @@ export default function RecentLikers({
 
   const visibleLikers = likers.slice(0, maxAvatars);
 
+  const isQA = qaType === "qa";
+  const tailMany = isQA ? "이 추천했어요" : "이 좋아합니다";
+  const tailOne = isQA ? "님이 추천했어요" : "님이 좋아합니다";
+
   return (
     <div className="flex items-center gap-2 mt-2 py-1 text-[13.5px] text-[var(--text-secondary)]">
-      {/* 아바타 겹침 — 더 컴팩트 (-space-x-2.5). 맨 좌측이 z-index 가장 위.
-          좌측 정렬은 카드 footer 아이콘(좋아요/댓글)과 동일하게 — padding 없음. */}
-      <div className="flex -space-x-2.5">
+      {/* 아바타 겹침 — 더 컴팩트 (-space-x-3.5). 맨 좌측이 z-index 가장 위.
+          좌측 정렬은 footer 아이콘(좋아요/추천)과 시각적으로 동일 시작 위치 — 음수 마진 -2px 보정.
+          (avatar는 border-2 흰색 외곽선 때문에 실제 이미지가 2px 안쪽에서 시작) */}
+      <div className="flex -space-x-3.5 -ml-[2px]">
         {visibleLikers.map((l, idx) => (
           <div
             key={l.user_id}
@@ -95,7 +104,8 @@ export default function RecentLikers({
       </div>
 
       {/* 텍스트 — 첫 명 강조 + "외 N명" 클릭 시 다이얼로그 (인스타식)
-          닉네임과 "님" 사이 공백 없음 (배스킨님 외 1명…) */}
+          닉네임과 "님" 사이 공백 없음 (배스킨님 외 1명…)
+          type='qa'면 '추천했어요', 그 외는 '좋아합니다' */}
       <span className="leading-tight">
         <LikerName liker={likers[0]} fallback={firstName} />
         {others > 0 ? (
@@ -111,18 +121,19 @@ export default function RecentLikers({
             >
               {others}명
             </button>
-            이 좋아합니다
+            {tailMany}
           </>
         ) : (
-          <>님이 좋아합니다</>
+          <>{tailOne}</>
         )}
       </span>
 
-      {/* 인스타식 좋아요 리스트 다이얼로그 */}
+      {/* 인스타식 리스트 다이얼로그 */}
       <LikersDialog
         qaId={qaId}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
+        qaType={qaType}
       />
     </div>
   );
