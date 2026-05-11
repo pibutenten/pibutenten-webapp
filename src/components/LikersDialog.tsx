@@ -31,9 +31,11 @@ type Props = {
  */
 const FETCH_LIMIT = 200;
 
-export default function LikersDialog({ qaId, open, onClose, qaType = "post" }: Props) {
-  const headerLabel = qaType === "qa" ? "추천" : "좋아요";
-  const emptyLabel = qaType === "qa" ? "아직 추천이 없어요." : "아직 좋아요가 없어요.";
+export default function LikersDialog({ qaId, open, onClose, qaType }: Props) {
+  // v5.1+ 사용자 결정: 좋아요로 통일. qaType prop은 호환성 유지.
+  void qaType;
+  const headerLabel = "좋아요";
+  const emptyLabel = "아직 좋아요가 없어요.";
   const [likers, setLikers] = useState<Liker[] | null>(null);
   const [loading, setLoading] = useState(false);
 

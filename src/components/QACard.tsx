@@ -239,24 +239,46 @@ export default function QACard({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        // v5.1+: identity_id 기반 prefetch (qa_likes·qa_saves PK 변경 후)
-        // user_id 기반 fallback도 유지 (legacy 데이터 호환)
-        const activeIdentityId = getActiveIdentityId();
-        const likeQuery = supabase
-          .from("qa_likes")
-          .select("qa_id")
-          .eq("qa_id", qa.id);
-        const saveQuery = supabase
-          .from("qa_saves")
-          .select("qa_id")
-          .eq("qa_id", qa.id);
+        // v5.1+ FIX: prefetch와 toggle RPC가 같은 identity_id를 봐야 토글이 정확.
+        // - activeIdentityId가 UUID면 그대로 사용
+        // - null이면 primary kind identity를 lookup (toggle RPC와 동일 로직)
+        let effectiveIdentityId = getActiveIdentityId();
+        if (!effectiveIdentityId) {
+          const { data: prim } = await supabase
+            .from("profile_identities")
+            .select("id")
+            .eq("profile_id", user.id)
+            .eq("kind", "primary")
+            .maybeSingle();
+          effectiveIdentityId = (prim as { id: string } | null)?.id ?? null;
+        }
         const [likeRes, saveRes, rateRes] = await Promise.all([
-          activeIdentityId
-            ? likeQuery.eq("identity_id", activeIdentityId).maybeSingle()
-            : likeQuery.eq("user_id", user.id).maybeSingle(),
-          activeIdentityId
-            ? saveQuery.eq("identity_id", activeIdentityId).maybeSingle()
-            : saveQuery.eq("user_id", user.id).maybeSingle(),
+          effectiveIdentityId
+            ? supabase
+                .from("qa_likes")
+                .select("qa_id")
+                .eq("qa_id", qa.id)
+                .eq("identity_id", effectiveIdentityId)
+                .maybeSingle()
+            : supabase
+                .from("qa_likes")
+                .select("qa_id")
+                .eq("qa_id", qa.id)
+                .eq("user_id", user.id)
+                .maybeSingle(),
+          effectiveIdentityId
+            ? supabase
+                .from("qa_saves")
+                .select("qa_id")
+                .eq("qa_id", qa.id)
+                .eq("identity_id", effectiveIdentityId)
+                .maybeSingle()
+            : supabase
+                .from("qa_saves")
+                .select("qa_id")
+                .eq("qa_id", qa.id)
+                .eq("user_id", user.id)
+                .maybeSingle(),
           supabase
             .from("qa_ratings")
             .select("rating")
@@ -979,78 +1001,41 @@ export default function QACard({
         );
       })()}
 
-      {/* footer: 좋아요/추천 · 댓글 · 공유 · 저장 — Instagram 표준 순서
+      {/* footer: 좋아요 · 댓글 · 저장 (좌측 묶음) — 공유 (우측)
           v5.1+:
-           - Q&A (type='qa'): 👍 ThumbsUp + 추천 + secondary navy (#1B4965)
-           - post (그 외):    ♥ Heart + 좋아요 + accent coral (#FF6B81)
-           - 저장(북마크): primary 하늘색 (#5FA8D3)
-           - 공유: 기본 회색 / hover primary */}
+           - 좋아요: ♥ Heart + accent coral (#FF6B81)
+           - 저장(북마크): 따뜻한 호박색 (#F59E0B amber-500, 톤앤매너)
+           - 공유: 우측 정렬 (ml-auto) */}
       <div className="flex items-center gap-4 pt-3 text-[14px] text-[var(--text-secondary)]">
-        {qa.type === "qa" ? (
-          // 👍 추천 (Q&A 전용) — secondary navy
-          <button
-            type="button"
-            onClick={handleLike}
-            aria-label={liked ? "추천 취소" : "추천"}
-            aria-pressed={liked}
+        <button
+          type="button"
+          onClick={handleLike}
+          aria-label={liked ? "좋아요 취소" : "좋아요"}
+          aria-pressed={liked}
+          className={
+            "flex cursor-pointer items-center gap-1 transition-colors " +
+            (liked
+              ? "text-[var(--accent)]"
+              : "text-[var(--text-secondary)] hover:text-[var(--accent)]")
+          }
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill={liked ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
             className={
-              "flex cursor-pointer items-center gap-1 transition-colors " +
-              (liked
-                ? "text-[var(--secondary)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--secondary)]")
+              "h-[22px] w-[22px] transition-transform " +
+              (liked ? "like-pulse" : "")
             }
-            title={liked ? "추천 취소" : "추천"}
+            aria-hidden
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill={liked ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={
-                "h-[22px] w-[22px] transition-transform " +
-                (liked ? "like-pulse" : "")
-              }
-              aria-hidden
-            >
-              <path d="M7 11v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1z" />
-              <path d="M7 11h3l-1-5a2 2 0 0 1 4-1l1 6h4a2 2 0 0 1 2 2.2l-.85 6A2 2 0 0 1 17.15 21H9a2 2 0 0 1-2-2v-8z" />
-            </svg>
-            {likeCount > 0 && <span>{likeCount}</span>}
-          </button>
-        ) : (
-          // ♥ 좋아요 (post) — accent coral
-          <button
-            type="button"
-            onClick={handleLike}
-            aria-label={liked ? "좋아요 취소" : "좋아요"}
-            aria-pressed={liked}
-            className={
-              "flex cursor-pointer items-center gap-1 transition-colors " +
-              (liked
-                ? "text-[var(--accent)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--accent)]")
-            }
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill={liked ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={
-                "h-[22px] w-[22px] transition-transform " +
-                (liked ? "like-pulse" : "")
-              }
-              aria-hidden
-            >
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-            {likeCount > 0 && <span>{likeCount}</span>}
-          </button>
-        )}
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+          {likeCount > 0 && <span>{likeCount}</span>}
+        </button>
 
         <button
           type="button"
@@ -1073,19 +1058,47 @@ export default function QACard({
           {commentCount > 0 && <span>{commentCount}</span>}
         </button>
 
-        {/* 공유 (모든 카드 공통) */}
+        {/* 저장(북마크) — 따뜻한 호박색 (amber-500 #F59E0B). 좌측 묶음 */}
+        <button
+          type="button"
+          onClick={handleSave}
+          aria-label={saved ? "저장 취소" : "저장"}
+          aria-pressed={saved}
+          className={
+            "flex cursor-pointer items-center gap-1 transition-colors " +
+            (saved
+              ? "text-[#F59E0B]"
+              : "text-[var(--text-secondary)] hover:text-[#F59E0B]")
+          }
+          title={saved ? "저장 취소" : "저장"}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill={saved ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-[22px] w-[22px]"
+            aria-hidden
+          >
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+          </svg>
+          {saveCount > 0 && <span>{saveCount}</span>}
+        </button>
+
+        {/* 공유 — 우측 정렬 (ml-auto) */}
         <button
           type="button"
           onClick={async () => {
             await shareQA(qa);
-            // 공유 클릭 카운트 +1 (중복 허용)
             const supabase = createSupabaseBrowserClient();
             const { data } = await supabase.rpc("increment_qa_share", {
               p_qa_id: qa.id,
             });
             if (typeof data === "number") setShareCount(data);
           }}
-          className="flex cursor-pointer items-center gap-1 transition-colors hover:text-[var(--primary)]"
+          className="ml-auto flex cursor-pointer items-center gap-1 transition-colors hover:text-[var(--primary)]"
           aria-label="공유"
           title="공유"
         >
@@ -1104,35 +1117,6 @@ export default function QACard({
             <line x1="12" y1="2" x2="12" y2="15" />
           </svg>
           {shareCount > 0 && <span>{shareCount}</span>}
-        </button>
-
-        {/* 저장(북마크) — primary 하늘색 (#5FA8D3). ml-auto로 우측 정렬 */}
-        <button
-          type="button"
-          onClick={handleSave}
-          aria-label={saved ? "저장 취소" : "저장"}
-          aria-pressed={saved}
-          className={
-            "ml-auto flex cursor-pointer items-center gap-1 transition-colors " +
-            (saved
-              ? "text-[var(--primary)]"
-              : "text-[var(--text-secondary)] hover:text-[var(--primary)]")
-          }
-          title="저장"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill={saved ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-[22px] w-[22px]"
-            aria-hidden
-          >
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-          </svg>
-          {saveCount > 0 && <span>{saveCount}</span>}
         </button>
 
         {/* v5.1: 별점 시스템 hold — 사용자 화면에서 숨김 (DB·RPC는 유지). */}
@@ -1214,9 +1198,8 @@ export default function QACard({
 
       </div>
 
-      {/* 인스타식 좋아요/추천 표시 — 구분선 아래, 댓글 블록 바로 위.
-          좋아요 1+ 일 때만 노출. type='qa'는 '추천했어요'/그 외는 '좋아합니다'. */}
-      <RecentLikers qaId={qa.id} likeCount={likeCount} qaType={qa.type === "qa" ? "qa" : "post"} />
+      {/* 인스타식 좋아요 표시 — 구분선 아래, 댓글 블록 바로 위. 좋아요 1+ 일 때만 노출. */}
+      <RecentLikers qaId={qa.id} likeCount={likeCount} />
 
       {/* 댓글 블록 — 댓글 있거나 댓글창 열린 상태일 때만 표시 (본문 펼침과 무관) */}
       <CommentsBlock

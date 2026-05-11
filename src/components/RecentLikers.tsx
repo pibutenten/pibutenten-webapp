@@ -82,9 +82,10 @@ export default function RecentLikers({
 
   const visibleLikers = likers.slice(0, maxAvatars);
 
-  const isQA = qaType === "qa";
-  const tailMany = isQA ? "이 추천했어요" : "이 좋아합니다";
-  const tailOne = isQA ? "님이 추천했어요" : "님이 좋아합니다";
+  // v5.1+ 사용자 결정: 좋아요로 통일 (추천/엄지척 폐기). qaType prop은 호환성 유지.
+  void qaType;
+  const tailMany = "이 좋아합니다";
+  const tailOne = "님이 좋아합니다";
 
   return (
     <div className="flex items-center gap-2 mt-2 py-1 text-[13.5px] text-[var(--text-secondary)]">
