@@ -89,8 +89,9 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" aria-hidden />
 
-      {/* Bottom sheet (모바일) / Centered modal (데스크탑). 인스타 표준. */}
-      <div className="relative flex max-h-[85vh] w-full max-w-[400px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-[var(--shadow-lg)] sm:rounded-[var(--radius)]">
+      {/* Bottom sheet (모바일) / Centered modal (데스크탑). 인스타 표준.
+          모바일은 화면 전체 너비 + slideUp 애니메이션으로 바닥에서 올라오는 느낌. */}
+      <div className="relative flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-[var(--shadow-lg)] animate-[likersSlideUp_280ms_cubic-bezier(0.16,1,0.3,1)] sm:max-w-[400px] sm:rounded-[var(--radius)] sm:animate-none">
         {/* 드래그 핸들 — 모바일만 (인스타식) */}
         <div className="flex shrink-0 justify-center pt-2 pb-1 sm:hidden">
           <span

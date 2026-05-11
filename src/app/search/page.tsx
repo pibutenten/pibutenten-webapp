@@ -52,6 +52,19 @@ export default async function HomePage({ searchParams }: Props) {
 
   const supabase = await createSupabaseServerClient();
 
+  // v5.1: 검색어 로그 기록 (인기 검색어 통계용) — q가 있을 때만, fire-and-forget
+  if (q && q.length <= 100) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    void supabase
+      .from("search_logs")
+      .insert({ query: q, profile_id: user?.id ?? null })
+      .then(() => {
+        /* 실패해도 검색은 진행 */
+      });
+  }
+
   // q 있을 때나 없을 때 모두 RPC 사용 — 일관된 정렬 (q: 점수+노이즈 / no-q: video.upload_date desc)
   // boost: 특정 원장 slug에 +300 가산 (원장님 단일 페이지에서 칩 클릭으로 넘어왔을 때)
   const popularByCategoryPromise = getPopularByCategory();

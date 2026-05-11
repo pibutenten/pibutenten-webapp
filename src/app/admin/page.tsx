@@ -29,7 +29,7 @@ export default async function AdminPage() {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
 
-  // 운영 통계 — 회원·글·댓글 카운트
+  // 운영 통계 — 회원·글·댓글 카운트 + 인기 검색어·태그
   const [
     { count: userCount },
     { count: doctorCount },
@@ -37,6 +37,8 @@ export default async function AdminPage() {
     { count: postPublished },
     { count: pendingReview },
     { count: totalComments },
+    topSearchRes,
+    topTagsRes,
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase
@@ -61,7 +63,17 @@ export default async function AdminPage() {
       .from("comments")
       .select("id", { count: "exact", head: true })
       .eq("status", "visible"),
+    supabase.rpc("get_top_search_queries", { p_days: 7, p_limit: 10 }),
+    supabase.rpc("get_indexable_tags", { p_min_count: 4 }),
   ]);
+  const topSearches = (topSearchRes.data ?? []) as Array<{
+    query: string;
+    cnt: number;
+  }>;
+  const topTags = ((topTagsRes.data ?? []) as Array<{
+    keyword: string;
+    cnt: number;
+  }>).slice(0, 10);
 
   return (
     <section className="w-full py-6">
@@ -151,8 +163,81 @@ export default async function AdminPage() {
         </div>
       </div>
 
+      {/* 인기 검색어 (지난 7일) */}
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
+          <h2 className="mb-3 text-sm font-bold text-[var(--text)]">
+            🔍 인기 검색어 <span className="text-[var(--text-muted)]">(지난 7일)</span>
+          </h2>
+          {topSearches.length === 0 ? (
+            <p className="text-xs text-[var(--text-muted)]">
+              검색 기록이 아직 없습니다.
+            </p>
+          ) : (
+            <ol className="space-y-1">
+              {topSearches.map((s, i) => (
+                <li
+                  key={`${s.query}-${i}`}
+                  className="flex items-center justify-between gap-2 text-[13px]"
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    <span className="w-4 text-right text-[11px] text-[var(--text-muted)]">
+                      {i + 1}
+                    </span>
+                    <Link
+                      href={`/search?q=${encodeURIComponent(s.query)}`}
+                      className="truncate hover:text-[var(--primary)] hover:underline"
+                    >
+                      {s.query}
+                    </Link>
+                  </span>
+                  <span className="tabular-nums text-[11px] text-[var(--text-muted)]">
+                    {s.cnt}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+
+        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
+          <h2 className="mb-3 text-sm font-bold text-[var(--text)]">
+            🏷 인기 태그 <span className="text-[var(--text-muted)]">(누적·의사 글 4+)</span>
+          </h2>
+          {topTags.length === 0 ? (
+            <p className="text-xs text-[var(--text-muted)]">
+              인덱싱 태그 없음.
+            </p>
+          ) : (
+            <ol className="space-y-1">
+              {topTags.map((t, i) => (
+                <li
+                  key={t.keyword}
+                  className="flex items-center justify-between gap-2 text-[13px]"
+                >
+                  <span className="flex items-center gap-2 truncate">
+                    <span className="w-4 text-right text-[11px] text-[var(--text-muted)]">
+                      {i + 1}
+                    </span>
+                    <Link
+                      href={`/tags/${encodeURIComponent(t.keyword)}`}
+                      className="truncate hover:text-[var(--primary)] hover:underline"
+                    >
+                      #{t.keyword}
+                    </Link>
+                  </span>
+                  <span className="tabular-nums text-[11px] text-[var(--text-muted)]">
+                    {t.cnt}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      </div>
+
       <p className="mt-6 text-[11px] text-[var(--text-muted)]">
-        ※ 검색어/태그 인기도 통계와 AEO/GEO 로그는 Phase E에서 추가됩니다.
+        ※ AEO/GEO manual 인용 로그는 다음 phase에서 추가됩니다.
       </p>
     </section>
   );

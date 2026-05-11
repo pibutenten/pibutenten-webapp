@@ -152,6 +152,18 @@ a {
   }
 }
 
+/* ========== Bottom sheet slide-up 애니메이션 (인스타식) ==========
+   모바일 viewport 바닥에서 위로 올라오는 느낌. easing은 fast-out으로
+   처음엔 빠르게 올라오다 끝에서 부드럽게 멈춤. */
+@keyframes likersSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 /* ========== iOS Safari zoom-in 방지 ==========
    font-size 16px 미만 input/textarea/select에 focus 시 iPhone Safari가
    자동 확대 → 등록 버튼이 viewport 밖으로 밀려나는 문제.
