@@ -22,7 +22,7 @@ const notoSansKR = Noto_Sans_KR({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "피부텐텐 | 피부과 전문의가 답하는 리프팅 · 스킨부스터 Q&A 라운지",
+    default: "피부텐텐 | 피부과 전문의가 답하는 리프팅·스킨부스터 Q&A 라운지",
     template: "피부텐텐 | %s",
   },
   description:

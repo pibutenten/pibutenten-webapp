@@ -13,7 +13,7 @@ type QAStatus = "draft" | "pending_review" | "published" | "archived";
 type QAType = "qa" | "post" | "article";
 type TypeFilter = "qa" | "post" | "all"; // v4: 칼럼(article) UI에서 제거
 type StatusFilter = QAStatus | "all";
-type CategoryFilter = "tip" | "diary" | "ask" | "news" | "all";
+type CategoryFilter = "tip" | "diary" | "ask" | "share" | "all";
 
 type AdminQARow = {
   id: number;
@@ -65,7 +65,7 @@ function isTypeFilter(v: string | undefined): v is TypeFilter {
 
 function isCategoryFilter(v: string | undefined): v is CategoryFilter {
   return (
-    v === "tip" || v === "diary" || v === "ask" || v === "news" || v === "all"
+    v === "tip" || v === "diary" || v === "ask" || v === "share" || v === "all"
   );
 }
 
@@ -256,7 +256,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   const TYPE_LIST: { key: TypeFilter; label: string }[] = [
     { key: "all", label: "전체 타입" },
     { key: "post", label: "포스팅" },
-    { key: "qa", label: "답해드려요" },
+    { key: "qa", label: "Q&A" },
   ];
 
   // 포스팅 카테고리 — Q&A 카테고리는 type=qa이므로 제외, 포스팅 4종만
@@ -265,7 +265,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     { key: "tip", label: "피부꿀팁" },
     { key: "diary", label: "피부일기" },
     { key: "ask", label: "궁금해요" },
-    { key: "news", label: "새소식" },
+    { key: "share", label: "공유하기" },
   ];
 
   return (
@@ -540,7 +540,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                         {/* v4: 포스팅이면 카테고리만 표기 (꿀팁/피부일기/물어봐요/새소식),
                             Q&A이면 'Q&A'. 컬럼 가로폭 절약. */}
                         {r.type === "qa"
-                          ? "답해드려요"
+                          ? "Q&A"
                           : labelForCategory(r.category) || "포스팅"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 align-top text-[var(--text)]">

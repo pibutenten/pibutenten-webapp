@@ -1,14 +1,14 @@
 /**
  * 글 카테고리(post category) — qas.category 컬럼과 1:1 매핑.
  *
- * v4 spec 5개 체계 (v3의 share/news 통합 — migration 0021):
- *   - qa     Q&A         의사 답변 (의사 전용, 인덱싱)
- *   - tip    꿀팁         정보·노하우·후기 (회원·의사, 인덱싱)
- *   - diary  피부일기      일상·피부 변화 (회원·의사, noindex)
- *   - ask    물어봐요      의견·고민 (회원·의사, noindex)
- *   - news   새소식        외부 콘텐츠 큐레이션 + URL 카드 + 출처 표기 (회원·의사, noindex)
+ * v5.1 spec 5개 체계:
+ *   - qa     Q&A         의사 답변 (의사·관리자 전용, 인덱싱)
+ *   - tip    피부꿀팁     정보·노하우·후기 (회원·의사, 인덱싱)
+ *   - diary  피부일기     일상·피부 변화 (회원·의사, noindex)
+ *   - ask    궁금해요     의견·고민 (회원·의사, noindex)
+ *   - share  공유하기     외부 콘텐츠 큐레이션 + URL 카드 + 출처 표기 (회원·의사, noindex)
  */
-export type PostCategorySlug = "qa" | "tip" | "diary" | "ask" | "news";
+export type PostCategorySlug = "qa" | "tip" | "diary" | "ask" | "share";
 
 export type PostCategory = {
   slug: PostCategorySlug;
@@ -17,18 +17,18 @@ export type PostCategory = {
   publicForUsers: boolean;
   /**
    * 의사 직함 표시 default — true면 카드/스키마에서 "피부과 전문의" 직함이 숨겨짐.
-   * 사적 글(피부일기·물어봐요·새소식) default true / 권위 글(Q&A·꿀팁) default false.
+   * 사적 글(피부일기·궁금해요·공유하기) default true / 권위 글(Q&A·꿀팁) default false.
    * 사용자가 글 작성 시 토글 가능 (posts.hide_doctor_credential 컬럼).
    */
   defaultHideDoctorCredential: boolean;
 };
 
 export const POST_CATEGORIES: readonly PostCategory[] = [
-  { slug: "tip",   label: "피부꿀팁",   publicForUsers: true,  defaultHideDoctorCredential: false },
-  { slug: "diary", label: "피부일기",   publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "ask",   label: "궁금해요",   publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "news",  label: "새소식",     publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "qa",    label: "답해드려요", publicForUsers: false, defaultHideDoctorCredential: false },
+  { slug: "tip",   label: "피부꿀팁", publicForUsers: true,  defaultHideDoctorCredential: false },
+  { slug: "diary", label: "피부일기", publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "ask",   label: "궁금해요", publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "share", label: "공유하기", publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "qa",    label: "Q&A",     publicForUsers: false, defaultHideDoctorCredential: false },
 ];
 
 const SLUG_TO_LABEL: Record<PostCategorySlug, string> = Object.fromEntries(
@@ -57,7 +57,7 @@ export function isPostCategorySlug(
     s === "tip" ||
     s === "diary" ||
     s === "ask" ||
-    s === "news"
+    s === "share"
   );
 }
 

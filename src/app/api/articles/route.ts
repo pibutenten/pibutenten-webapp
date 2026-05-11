@@ -164,8 +164,8 @@ export async function POST(req: Request) {
   }
 
   // 카테고리 결정 — payload.category 우선, 없으면 type에서 자동 매핑.
-  // v3 spec 6 카테고리: qa/tip/diary/ask/news/share
-  const VALID_CATEGORIES = ["qa", "tip", "diary", "ask", "news"];
+  // v5.1: 5개 카테고리 qa/tip/diary/ask/share (news → share 마이그레이션됨)
+  const VALID_CATEGORIES = ["qa", "tip", "diary", "ask", "share"];
   let category: string;
   if (payload.category && VALID_CATEGORIES.includes(payload.category)) {
     category = payload.category;
@@ -173,9 +173,9 @@ export async function POST(req: Request) {
     category = t === "qa" ? "qa" : "diary";
   }
 
-  // v4: 카테고리 라벨은 카드 헤더(닉네임 밑)에 표시되므로 keywords에 별도 prepend 안 함.
+  // v5.1: 카테고리 라벨은 카드 헤더(닉네임 밑) + 태그 칩 끝에 자동 표시.
   // 사용자가 카테고리 라벨을 keywords에 직접 입력했으면 중복 방지로 제거.
-  // 옛 라벨(Q&A/꿀팁/물어봐요)과 새 라벨(답해드려요/피부꿀팁/궁금해요) 모두 제거
+  // 옛 라벨(답해드려요/새소식 등)과 새 라벨(Q&A/공유하기) 모두 제거
   const CATEGORY_LABELS_TO_STRIP = [
     "Q&A",
     "답해드려요",
@@ -185,6 +185,7 @@ export async function POST(req: Request) {
     "물어봐요",
     "궁금해요",
     "새소식",
+    "공유하기",
   ];
   const filteredKeywords = keywords.filter(
     (k) => !CATEGORY_LABELS_TO_STRIP.includes(k),

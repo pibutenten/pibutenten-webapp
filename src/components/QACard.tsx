@@ -932,7 +932,7 @@ export default function QACard({
       </div>
 
       {/* 태그 칩 — 사용자 키워드 + 자동 카테고리 칩(맨 끝).
-          v5.1: 카테고리 라벨(답해드려요/피부꿀팁/피부일기/궁금해요/새소식)을
+          v5.1: 카테고리 라벨(Q&A/피부꿀팁/피부일기/궁금해요/공유하기)을
           모든 글의 태그 맨 끝에 자동 append. 클릭하면 /search?q=라벨 로 같은
           카테고리 글만 보임. 사용자 직접 입력은 받지 않음 (자동). */}
       {(() => {
@@ -942,7 +942,7 @@ export default function QACard({
           "꿀팁", "피부꿀팁",
           "피부일기",
           "물어봐요", "궁금해요",
-          "새소식",
+          "새소식", "공유하기",
         ];
         const userKeywords = qa.keywords.filter(
           (k) => !CATEGORY_LABELS.includes(k),
@@ -1367,8 +1367,11 @@ async function shareQA(qa: QACardData) {
     try {
       await nav.share({ url, title, text });
       return;
-    } catch {
-      // 사용자 취소 / 실패 → 클립보드 fallback
+    } catch (err) {
+      // 사용자 취소(AbortError)면 fallback 안 함 — "복사" 토스트가 의도 안 한 동작
+      const e = err as { name?: string };
+      if (e?.name === "AbortError") return;
+      // 그 외 실제 실패만 클립보드 fallback
     }
   }
 
@@ -1377,7 +1380,7 @@ async function shareQA(qa: QACardData) {
     await navigator.clipboard.writeText(url);
     showToast("링크가 복사되었어요");
   } catch {
-    showToast("복사 실패");
+    // 클립보드 실패는 보통 권한 거부 — 노이즈 토스트 띄우지 않음
   }
 }
 
