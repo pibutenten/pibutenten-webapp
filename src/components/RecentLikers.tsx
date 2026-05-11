@@ -94,12 +94,12 @@ export default function RecentLikers({
         ))}
       </div>
 
-      {/* 텍스트 — 첫 명 강조 + "외 N명" 클릭 시 다이얼로그 (인스타식) */}
+      {/* 텍스트 — 첫 명 강조 + "외 N명" 클릭 시 다이얼로그 (인스타식)
+          닉네임과 "님" 사이 공백 없음 (배스킨님 외 1명…) */}
       <span className="leading-tight">
         <LikerName liker={likers[0]} fallback={firstName} />
         {others > 0 ? (
           <>
-            {" "}
             님 외{" "}
             <button
               type="button"
@@ -114,7 +114,7 @@ export default function RecentLikers({
             이 좋아합니다
           </>
         ) : (
-          <> 님이 좋아합니다</>
+          <>님이 좋아합니다</>
         )}
       </span>
 

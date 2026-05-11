@@ -80,7 +80,7 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
       role="dialog"
       aria-modal="true"
       aria-label="좋아요"
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4"
       onClick={(e) => {
         // 외부(backdrop) 클릭 시 닫기
         if (e.target === e.currentTarget) onClose();
@@ -89,9 +89,15 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" aria-hidden />
 
-      {/* Dialog — flex column으로 header 고정 + body flex-1 스크롤.
-          max-h-[85vh]로 viewport 안에 안착, 닫기 X·헤더가 항상 보임. */}
-      <div className="relative flex max-h-[85vh] w-full max-w-[400px] flex-col overflow-hidden rounded-[var(--radius)] bg-white shadow-[var(--shadow-lg)]">
+      {/* Bottom sheet (모바일) / Centered modal (데스크탑). 인스타 표준. */}
+      <div className="relative flex max-h-[85vh] w-full max-w-[400px] flex-col overflow-hidden rounded-t-2xl bg-white shadow-[var(--shadow-lg)] sm:rounded-[var(--radius)]">
+        {/* 드래그 핸들 — 모바일만 (인스타식) */}
+        <div className="flex shrink-0 justify-center pt-2 pb-1 sm:hidden">
+          <span
+            className="h-1 w-10 rounded-full bg-[var(--border)]"
+            aria-hidden
+          />
+        </div>
         {/* Header — 항상 위에 고정 */}
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3">
           <h2 className="text-[15px] font-semibold text-[var(--text)]">
