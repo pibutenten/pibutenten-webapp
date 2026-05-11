@@ -1616,10 +1616,11 @@ function renderAnswerBody(
             </Fragment>,
           );
         }
-        // clamped일 때: 첫 단락은 line-clamp-4 md:line-clamp-5 + relative(우하단 더보기 overlay 받침) / 나머지 단락은 hidden
+        // clamped일 때: 첫 단락은 line-clamp-4 md:line-clamp-5 / 나머지 단락은 hidden.
+        // line-clamp가 자동으로 마지막 줄 끝에 '…'을 처리하므로 별도 ellipsis 표시 X.
         const clampClass = clamped
           ? isFirst
-            ? "relative line-clamp-4 md:line-clamp-5"
+            ? "line-clamp-4 md:line-clamp-5"
             : "hidden"
           : "";
         const showMore = clamped && isFirst;
@@ -1633,18 +1634,12 @@ function renderAnswerBody(
           >
             {inline}
             {showMore && (
-              // 우하단에 absolute "더보기" inline overlay — 새 줄 추가 없이 첫 단락 마지막 줄 끝에 노출.
-              // 좌측 fade로 잘린 텍스트와 자연스럽게 겹침.
+              // 인라인 "더보기" — 작고 연하게 본문 끝에 자연스럽게 붙음. "더 알아보기" 라벨 크기(12px) 매칭.
               <span
                 aria-hidden
-                className="pointer-events-none absolute right-0 bottom-0 pl-8 text-[var(--primary)]/90"
-                style={{
-                  background:
-                    "linear-gradient(to right, rgba(255,255,255,0) 0%, var(--bg-card, #ffffff) 35%)",
-                  fontWeight: 500,
-                }}
+                className="ml-1 text-[12px] font-normal text-[var(--text-muted)]/70"
               >
-                … 더보기
+                더보기
               </span>
             )}
           </p>
