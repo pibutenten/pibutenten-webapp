@@ -131,15 +131,23 @@ export default function RecentLikers({
 function LikerAvatar({ liker }: { liker: Liker }) {
   const initial = (liker.display_name ?? "?").slice(0, 1);
   const href = liker.handle ? `/${liker.handle}` : null;
+  // 사진 있는 / 없는 아바타가 동일 박스 크기 — block + shrink-0로 inline-baseline 차이 제거
+  const avatarBox =
+    "block h-7 w-7 shrink-0 rounded-full border-2 border-white bg-[var(--bg-soft)]";
   const inner = liker.avatar_url ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={liker.avatar_url}
       alt={liker.display_name ?? "회원"}
-      className="h-7 w-7 rounded-full border-2 border-white bg-[var(--bg-soft)] object-cover"
+      className={avatarBox + " object-cover"}
     />
   ) : (
-    <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[var(--bg-soft)] text-[11px] font-semibold text-[var(--text-secondary)]">
+    <span
+      className={
+        avatarBox +
+        " flex items-center justify-center text-[11px] font-semibold text-[var(--text-secondary)]"
+      }
+    >
       {initial}
     </span>
   );

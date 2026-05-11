@@ -290,35 +290,27 @@ export default function QACard({
     // 낙관적
     setSaved(!wasSaved);
     setSaveCount((c) => (wasSaved ? Math.max(0, c - 1) : c + 1));
-    if (wasSaved) {
-      const { error } = await supabase
-        .from("qa_saves")
-        .delete()
-        .eq("qa_id", qa.id)
-        .eq("user_id", userId);
+    // v5.1 옵션 X: identity 기반 RPC로 통일 (PK=(identity_id, qa_id))
+    //   - 같은 OAuth user라도 identity별로 저장 분리
+    //   - RPC가 NULL identity_id 받으면 primary identity 자동 lookup
+    {
+      const activeIdentityId = getActiveIdentityId();
+      const { data, error } = await supabase.rpc("toggle_qa_save", {
+        p_qa_id: qa.id,
+        p_identity_id: activeIdentityId,
+      });
       if (error) {
-        console.error("[qa_saves delete]", error);
-        alert("저장 취소 실패: " + error.message);
-        setSaved(true);
-        setSaveCount((c) => c + 1);
+        console.error("[toggle_qa_save]", error);
+        alert((wasSaved ? "저장 취소" : "저장") + " 실패: " + error.message);
+        // 낙관적 복원
+        setSaved(wasSaved);
+        setSaveCount((c) => (wasSaved ? c + 1 : Math.max(0, c - 1)));
         return;
       }
-    } else {
-      const activeIdentityId = getActiveIdentityId();
-      const { error } = await supabase
-        .from("qa_saves")
-        .insert({
-          qa_id: qa.id,
-          user_id: userId,
-          persona: "official",
-          identity_id: activeIdentityId,
-        });
-      if (error) {
-        console.error("[qa_saves insert]", error);
-        alert("저장 실패: " + error.message);
-        setSaved(false);
-        setSaveCount((c) => Math.max(0, c - 1));
-        return;
+      const row = (data as { saved: boolean; save_count: number }[] | null)?.[0];
+      if (row) {
+        setSaved(row.saved);
+        setSaveCount(row.save_count);
       }
     }
     // 트리거가 갱신한 정확한 save_count 재조회
