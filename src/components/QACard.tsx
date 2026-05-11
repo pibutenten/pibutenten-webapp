@@ -963,25 +963,9 @@ export default function QACard({
         );
       })()}
 
-      {/* footer: 조회수·좋아요·댓글·공유 — 컴팩트 */}
+      {/* footer: 좋아요·댓글·저장·평점·공유 — 컴팩트
+          (v5.1: 조회수 카드 표시 제거 — SNS 표준에서 잘 안 보임. /admin 통계에는 유지) */}
       <div className="flex items-center gap-3.5 pt-3 text-[13px] text-[var(--text-secondary)]">
-        <span className="flex items-center gap-1" aria-label="조회수">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-[18px] w-[18px]"
-            aria-hidden
-          >
-            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          {viewCount > 0 && <span>{viewCount}</span>}
-        </span>
-
         <button
           type="button"
           onClick={handleLike}

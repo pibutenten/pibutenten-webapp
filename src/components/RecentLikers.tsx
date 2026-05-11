@@ -70,12 +70,20 @@ export default function RecentLikers({
   const firstName = likers[0]?.display_name ?? "익명";
   const others = Math.max(0, likeCount - 1);
 
+  const visibleLikers = likers.slice(0, maxAvatars);
+
   return (
-    <div className="flex items-center gap-2 px-1 py-1.5 text-[12.5px] text-[var(--text-secondary)]">
-      {/* 아바타 겹침 — 최대 maxAvatars개 */}
-      <div className="flex -space-x-2">
-        {likers.slice(0, maxAvatars).map((l) => (
-          <LikerAvatar key={l.user_id} liker={l} />
+    <div className="flex items-center gap-1.5 px-1 py-1 text-[12.5px] text-[var(--text-secondary)]">
+      {/* 아바타 겹침 — 더 컴팩트 (-space-x-2.5). 맨 좌측이 z-index 가장 위. */}
+      <div className="flex -space-x-2.5">
+        {visibleLikers.map((l, idx) => (
+          <div
+            key={l.user_id}
+            className="relative"
+            style={{ zIndex: visibleLikers.length - idx }}
+          >
+            <LikerAvatar liker={l} />
+          </div>
         ))}
       </div>
 
