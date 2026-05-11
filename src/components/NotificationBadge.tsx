@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -50,11 +51,13 @@ export default function NotificationBadge() {
 
   const label = count > 9 ? "9+" : String(count);
   return (
-    <span
-      aria-label={`미읽 알림 ${count}개`}
-      className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-[3px] text-[10px] font-bold leading-none text-white ring-2 ring-white"
+    <Link
+      href="/notifications"
+      onClick={(e) => e.stopPropagation()}
+      aria-label={`미읽 알림 ${count}개 — 알림 보기`}
+      className="absolute -right-1 -top-1 z-10 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-[3px] text-[10px] font-bold leading-none text-white ring-2 ring-white transition-transform hover:scale-110"
     >
       {label}
-    </span>
+    </Link>
   );
 }
