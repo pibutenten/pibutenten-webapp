@@ -65,11 +65,9 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // 사용자 요청: body 스크롤 잠금 X — 팝업 떠 있어도 페이지 자유롭게 스크롤 가능
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
     };
   }, [open, onClose]);
 
