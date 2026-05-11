@@ -893,7 +893,9 @@ export default function QACard({
             </Link>
           </h2>
 
-          {/* 3. 본문 — 단락(\n\n) 분리 + **bold** 인라인 렌더링. 길이 충분할 때만 클릭으로 펼침/접기. */}
+          {/* 3. 본문 — 단락(\n\n) 분리 + **bold** 인라인(형광펜 하이라이트) 렌더링.
+              isLongAnswer && !expanded → 첫 단락만 line-clamp-4(mobile)/md:line-clamp-5(desktop)로 가림.
+              expanded → 전체 단락 + 참고문헌까지 펼침. */}
           <div
             onClick={() => isLongAnswer && setExpanded((v) => !v)}
             className={isLongAnswer ? "cursor-pointer" : ""}
@@ -901,39 +903,72 @@ export default function QACard({
             {renderAnswerBody(qa.answer, activeQuery, isLongAnswer && !expanded)}
           </div>
 
-          {/* 3a. 참고 논문 — pubmed_ref가 있을 때만 카드 본문 아래 작은 박스로 노출.
-              운영자 검수용 reasoning은 사용자 화면에 노출하지 않음. */}
-          {qa.pubmed_ref && (qa.pubmed_ref.pmid || qa.pubmed_ref.doi) && (() => {
-            const r = qa.pubmed_ref;
-            const linkHref = r.doi_url || r.pubmed_url;
-            const meta = [r.journal, r.year, r.authors_short].filter(Boolean).join(" · ");
-            return (
-              <div
-                className="mt-3 rounded-md border border-[var(--border)] bg-[var(--bg-soft)]/60 px-3 py-2 text-[12px] leading-[1.55]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="font-medium text-[var(--text-muted)]">참고 논문</div>
-                <div className="mt-0.5 text-[var(--text)]">
-                  {linkHref ? (
-                    <a
-                      href={linkHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                      style={{ color: "var(--primary)" }}
-                    >
-                      {r.title || linkHref}
-                    </a>
-                  ) : (
-                    <span>{r.title}</span>
-                  )}
-                </div>
-                {meta && (
-                  <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">{meta}</div>
-                )}
-              </div>
-            );
-          })()}
+          {/* 3a. 참고 논문 — pubmed_ref가 있을 때만 카드 본문 아래 인라인 한 줄로 자연스럽게 노출.
+              isLongAnswer && !expanded면 가림(펼쳐야 보임). 운영자 reasoning은 사용자 화면에 X. */}
+          {qa.pubmed_ref &&
+            (qa.pubmed_ref.pmid || qa.pubmed_ref.doi) &&
+            !(isLongAnswer && !expanded) &&
+            (() => {
+              const r = qa.pubmed_ref;
+              const linkHref = r.doi_url || r.pubmed_url;
+              const linkLabel = r.doi
+                ? `doi.org/${r.doi}`
+                : r.pmid
+                ? `pubmed.ncbi.nlm.nih.gov/${r.pmid}`
+                : null;
+              // 압축 한 줄: Authors, Journal (Year) — schema.org Citation/<cite> 머신 가독성
+              return (
+                <p
+                  className="mt-2 text-[13px] leading-[1.55] text-[var(--text-muted)]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <cite
+                    itemScope
+                    itemType="https://schema.org/ScholarlyArticle"
+                    className="not-italic"
+                  >
+                    {linkHref ? (
+                      <a
+                        href={linkHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline"
+                        style={{ color: "var(--primary)" }}
+                        itemProp="url"
+                      >
+                        <span itemProp="name">{r.title}</span>
+                      </a>
+                    ) : (
+                      <span itemProp="name">{r.title}</span>
+                    )}
+                    {r.authors_short && (
+                      <>
+                        {" — "}
+                        <span itemProp="author">{r.authors_short}</span>
+                      </>
+                    )}
+                    {r.journal && (
+                      <>
+                        {", "}
+                        <span itemProp="publisher">{r.journal}</span>
+                      </>
+                    )}
+                    {r.year && (
+                      <>
+                        {" ("}
+                        <span itemProp="datePublished">{r.year}</span>
+                        {")"}
+                      </>
+                    )}
+                    {linkLabel && (
+                      <span className="text-[var(--text-muted)]/80">
+                        {" "}[{linkLabel}]
+                      </span>
+                    )}
+                  </cite>
+                </p>
+              );
+            })()}
         </>
       )}
       <div className="mt-2 flex items-center gap-3 text-[12px]">
@@ -1531,10 +1566,11 @@ function absoluteDateTimeLabel(iso: string | null | undefined): string | null {
  */
 /**
  * 답안 본문 렌더링.
- * - `\n\n` 단락 분리 후 각 단락을 <p>로 출력 (단락 사이 살짝 여백, mt-2).
- * - `**bold**` 마크다운 한 가지만 인라인으로 <strong>로 변환.
+ * - `\n\n` 단락 분리 후 각 단락을 <p>로 출력 (단락 사이 살짝 여백, mt-2.5).
+ * - `**bold**` 마크다운만 인라인으로 <strong>로 변환 + 형광펜 하이라이트(투명 → 노란 alpha 0.55, 60% 지점).
  * - 검색 query 하이라이트는 plain 텍스트 부분에 highlight()로 적용.
- * - clamped=true면 마지막 단락만 line-clamp-3로 접어 보이게 (인스타식 미리보기).
+ * - clamped=true면 첫 단락만 line-clamp-4(mobile) / md:line-clamp-5(desktop)로 가리고 이후 단락은 hidden.
+ *   펼치면 전체 단락 표시. 인스타식 펼침/접기 UX.
  */
 function renderAnswerBody(
   text: string,
@@ -1546,7 +1582,6 @@ function renderAnswerBody(
     <>
       {paragraphs.map((para, pi) => {
         const isFirst = pi === 0;
-        const isLast = pi === paragraphs.length - 1;
         // 인라인 bold + 검색 하이라이트 처리
         const inline: ReactNode[] = [];
         const re = /\*\*([^*]+)\*\*/g;
@@ -1566,6 +1601,12 @@ function renderAnswerBody(
             <strong
               key={`b${pi}-${key++}`}
               className="font-semibold text-[var(--text)]"
+              style={{
+                // 하단 1/3 정도만 노란 형광펜 줄을 깐 듯한 인라인 하이라이트
+                backgroundImage:
+                  "linear-gradient(transparent 60%, rgba(255, 230, 90, 0.55) 60%)",
+                padding: "0 1px",
+              }}
             >
               {highlight(m[1], query)}
             </strong>,
@@ -1579,12 +1620,18 @@ function renderAnswerBody(
             </Fragment>,
           );
         }
+        // clamped일 때: 첫 단락은 line-clamp-4 md:line-clamp-5 / 나머지 단락은 hidden
+        const clampClass = clamped
+          ? isFirst
+            ? "line-clamp-4 md:line-clamp-5"
+            : "hidden"
+          : "";
         return (
           <p
             key={pi}
             className={`whitespace-pre-wrap text-[15px] leading-[1.7] text-[var(--text)] ${
               isFirst ? "" : "mt-2.5"
-            } ${clamped && isLast ? "line-clamp-3" : ""}`}
+            } ${clampClass}`}
             style={{ transition: "color 0.2s ease" }}
           >
             {inline}

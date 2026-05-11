@@ -156,6 +156,20 @@ function buildJsonLd(
         dateCreated: created,
         upvoteCount: qa.like_count ?? 0,
         url,
+        // 학술 인용(Schema.org Citation) — pubmed_ref 있을 때만. AI/검색엔진이 "논문 인용 붙은 의학 답변"으로 인식.
+        ...((() => {
+          const ref = (qa as { pubmed_ref?: Record<string, unknown> | null }).pubmed_ref;
+          if (!ref || (!ref.pmid && !ref.doi)) return {};
+          const citation: Record<string, unknown> = { "@type": "ScholarlyArticle" };
+          if (ref.title) citation.name = ref.title;
+          const citeUrl = (ref.doi_url as string) || (ref.pubmed_url as string) || null;
+          if (citeUrl) citation.url = citeUrl;
+          if (ref.year) citation.datePublished = ref.year;
+          if (ref.journal) citation.publisher = ref.journal;
+          if (ref.authors_short) citation.author = ref.authors_short;
+          if (ref.pmid) citation.identifier = `PMID:${ref.pmid}`;
+          return { citation };
+        })()),
       },
     },
     // 시술/조건/일반 자동 분류 (procedure-mappings 사전 활용)
