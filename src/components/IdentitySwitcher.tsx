@@ -190,7 +190,10 @@ export default function IdentitySwitcher({
 function Avatar({ src, size = 28 }: { src: string | null; size?: number }) {
   return (
     <span
-      className="shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]"
+      // ⚠️ inline-flex 필수: span은 기본 inline 요소라 width/height 인라인 스타일이 무시됨.
+      //    그러면 overflow-hidden·rounded-full도 무력화되어 원본 이미지가 그대로 노출됨.
+      //    inline-flex로 강제하면 size 적용 + 내부 img가 h-full/w-full로 정확히 채워짐.
+      className="inline-flex shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]"
       style={{ width: size, height: size }}
     >
       {src ? (
