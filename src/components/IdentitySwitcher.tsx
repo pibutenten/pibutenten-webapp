@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { SessionIdentity } from "./TopNav";
+import NotificationBadge from "./NotificationBadge";
 
 type Props = {
   identities: SessionIdentity[];
@@ -16,10 +17,10 @@ type Props = {
 const KIND_LABEL: Record<string, string> = {
   primary: "기본",
   doctor: "원장",
-  developer: "개발자",
   personal: "개인",
   admin: "관리자",
   other: "기타",
+  // v5.1: 'developer' kind 폐기 → 'admin'으로 통일 (배정민 케이스: 개발자 = 관리자)
 };
 
 /**
@@ -70,7 +71,10 @@ export default function IdentitySwitcher({
         title="내 프로필"
         className="flex items-center gap-1.5 rounded-md p-1 outline-none transition-colors hover:bg-[var(--bg-soft)] focus:outline-none focus-visible:ring-0"
       >
-        <Avatar src={active.avatarUrl} />
+        <span className="relative">
+          <Avatar src={active.avatarUrl} />
+          <NotificationBadge />
+        </span>
         <span className="hidden max-w-[100px] truncate text-[13px] font-medium text-[var(--text)] sm:inline">
           {active.displayName}
         </span>

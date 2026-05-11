@@ -178,8 +178,9 @@ export default async function HandleProfilePage({ params }: Props) {
   } = await supabase.auth.getUser();
   const isOwner = viewer?.id === profile.id;
 
-  // 본인일 때 role 조회 — admin이면 본인 프로필 안 보여주고 /admin으로 redirect
-  // (관리자는 본인 명의로 글 안 씀 — 의사 명의 검수 흐름만)
+  // 본인일 때 role 조회 — admin이 본인 1차 handle로 접근하면 /admin으로 redirect.
+  // 단 personal identity handle(예: 배스킨 jminbae)로 접근한 경우엔 회원 프로필 그대로 노출.
+  // (배정민 케이스: admin인데 배스킨으로 SNS 활동 — 그때는 일반 회원 화면이 맞음)
   let viewerRole: "admin" | "doctor" | "user" | null = null;
   if (isOwner && viewer) {
     const { data: vp } = await supabase
@@ -189,7 +190,8 @@ export default async function HandleProfilePage({ params }: Props) {
       .maybeSingle();
     viewerRole =
       ((vp?.role as "admin" | "doctor" | "user" | undefined) ?? null) ?? null;
-    if (viewerRole === "admin") {
+    // identity·alt_handle로 접근 시엔 redirect 안 함 (개인 페르소나 모드)
+    if (viewerRole === "admin" && !identity && !isAlt) {
       redirect("/admin");
     }
   }
