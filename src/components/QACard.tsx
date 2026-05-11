@@ -901,6 +901,12 @@ export default function QACard({
             className={isLongAnswer ? "cursor-pointer" : ""}
           >
             {renderAnswerBody(qa.answer, activeQuery, isLongAnswer && !expanded)}
+            {/* 더보기 — 접힌 상태에서 후속 단락·참고문헌이 더 있음을 시각적으로 알림. */}
+            {isLongAnswer && !expanded && (
+              <div className="mt-1.5 text-[13px] font-medium text-[var(--primary)]/85 hover:text-[var(--primary)] hover:underline">
+                더보기
+              </div>
+            )}
           </div>
 
           {/* 3a. 참고 논문 — pubmed_ref가 있을 때만 카드 본문 아래 인라인 한 줄로 자연스럽게 노출.
