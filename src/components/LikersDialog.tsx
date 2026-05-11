@@ -89,10 +89,11 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" aria-hidden />
 
-      {/* Dialog */}
-      <div className="relative w-full max-w-[400px] overflow-hidden rounded-[var(--radius)] bg-white shadow-[var(--shadow-lg)]">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+      {/* Dialog — flex column으로 header 고정 + body flex-1 스크롤.
+          max-h-[85vh]로 viewport 안에 안착, 닫기 X·헤더가 항상 보임. */}
+      <div className="relative flex max-h-[85vh] w-full max-w-[400px] flex-col overflow-hidden rounded-[var(--radius)] bg-white shadow-[var(--shadow-lg)]">
+        {/* Header — 항상 위에 고정 */}
+        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3">
           <h2 className="text-[15px] font-semibold text-[var(--text)]">
             좋아요
           </h2>
@@ -100,16 +101,16 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
             type="button"
             onClick={onClose}
             aria-label="닫기"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
           >
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth={2}
+              strokeWidth={2.2}
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="h-[18px] w-[18px]"
+              className="h-[20px] w-[20px]"
               aria-hidden
             >
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -118,8 +119,8 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
           </button>
         </div>
 
-        {/* Body — 최대 60vh 스크롤 */}
-        <ul className="max-h-[60vh] overflow-y-auto overscroll-contain">
+        {/* Body — 남는 공간 차지하며 내부 스크롤 */}
+        <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {loading && !likers && (
             <li className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">
               불러오는 중…

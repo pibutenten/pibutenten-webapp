@@ -378,15 +378,18 @@ export default function ProfileEditClient({
         </div>
       </div>
 
-      {/* 1. 프로필 사진 — 큰 원, 사진 변경 / 사진 찍기 */}
+      {/* 1. 프로필 사진 — 큰 원, 사진 변경 / 사진 찍기.
+          원장 1차 계정(readOnlyNameAndAvatar)은 사진 변경 비활성 — 관리자가 doctors 테이블에서 관리. */}
       <Card title="프로필 사진">
         <div className="flex flex-col items-center gap-3">
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="relative h-32 w-32 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--bg-soft)] transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50 sm:h-36 sm:w-36"
-            aria-label="프로필 사진 변경"
+            onClick={() =>
+              !readOnlyNameAndAvatar && fileRef.current?.click()
+            }
+            disabled={uploading || readOnlyNameAndAvatar}
+            className="relative h-32 w-32 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--bg-soft)] transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:opacity-100 sm:h-36 sm:w-36"
+            aria-label={readOnlyNameAndAvatar ? "사진 변경 불가" : "프로필 사진 변경"}
           >
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -401,24 +404,31 @@ export default function ProfileEditClient({
               </div>
             )}
           </button>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={uploading}
-              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
-            >
-              {uploading ? "업로드 중…" : "사진 변경"}
-            </button>
-            <button
-              type="button"
-              onClick={() => cameraRef.current?.click()}
-              disabled={uploading}
-              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
-            >
-              📷 사진 찍기
-            </button>
-          </div>
+          {readOnlyNameAndAvatar && (
+            <p className="text-[12px] text-[var(--text-muted)]">
+              원장님 공식 프로필 사진·이름은 관리자가 관리합니다
+            </p>
+          )}
+          {!readOnlyNameAndAvatar && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
+              >
+                {uploading ? "업로드 중…" : "사진 변경"}
+              </button>
+              <button
+                type="button"
+                onClick={() => cameraRef.current?.click()}
+                disabled={uploading}
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[12px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
+              >
+                📷 사진 찍기
+              </button>
+            </div>
+          )}
           <input
             ref={fileRef}
             type="file"
@@ -470,8 +480,9 @@ export default function ProfileEditClient({
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
+            disabled={readOnlyNameAndAvatar}
             maxLength={20}
-            className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:bg-[var(--bg-soft)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed"
           />
         </div>
         <Msg status={nameStatus} />

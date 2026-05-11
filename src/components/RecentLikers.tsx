@@ -139,7 +139,7 @@ function LikerAvatar({ liker }: { liker: Liker }) {
       className="h-7 w-7 rounded-full border-2 border-white bg-[var(--bg-soft)] object-cover"
     />
   ) : (
-    <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[var(--bg-soft)] text-[10px] font-semibold text-[var(--text-secondary)]">
+    <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[var(--bg-soft)] text-[11px] font-semibold text-[var(--text-secondary)]">
       {initial}
     </span>
   );
