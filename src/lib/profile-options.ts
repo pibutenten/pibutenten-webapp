@@ -1,5 +1,5 @@
 /**
- * 프로필 옵션 상수 — onboarding + /me/profile 통합 폼에서 공유.
+ * 프로필 옵션 상수 — onboarding + /settings/profile 통합 폼에서 공유.
  */
 
 export const GENDERS: { key: "male" | "female" | "other"; label: string }[] = [

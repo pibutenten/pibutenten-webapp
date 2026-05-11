@@ -24,7 +24,7 @@ export default async function PersonaSetupPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/me/profile/persona");
+  if (!user) redirect("/login?next=/settings/profile/persona");
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -50,7 +50,7 @@ export default async function PersonaSetupPage() {
             개인 페르소나 기능은 원장님·관리자에게만 제공됩니다.
           </p>
           <Link
-            href="/me"
+            href="/settings"
             className="mt-3 inline-block text-sm text-[var(--primary)] hover:underline"
           >
             마이페이지로 →
@@ -67,7 +67,7 @@ export default async function PersonaSetupPage() {
           개인 페르소나
         </h1>
         <Link
-          href="/me/profile"
+          href="/settings/profile"
           className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
         >
           ← 내 정보

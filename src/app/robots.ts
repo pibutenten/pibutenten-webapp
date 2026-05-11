@@ -15,7 +15,7 @@ import { SITE_URL } from "@/lib/site";
 const COMMON_DISALLOW = [
   "/api/",
   "/admin/",
-  "/me",
+  "/settings",
   "/onboarding",
   "/write",
   "/signup",

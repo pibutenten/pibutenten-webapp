@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: "피부텐텐",
-    template: "%s | 피부텐텐",
+    template: "피부텐텐 | %s",
   },
   description:
     "피부과 전문의가 함께하는 피부 미용 SNS. 피드, 검색, 원장님 소개를 한 곳에서.",

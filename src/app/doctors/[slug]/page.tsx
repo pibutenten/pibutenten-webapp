@@ -33,7 +33,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .returns<{ name: string; title: string; clinic: string; intro: string | null }>();
   if (!doctor) return {};
   const ogImage = `/og/${slug}.png`;
-  const title = `${doctor.name} ${doctor.title} · ${doctor.clinic}`;
+  // v5.1: 병원명 제거. 사이트명은 layout template이 prefix로 자동 추가 ("피부텐텐 | …")
+  const title = `${doctor.name} · ${doctor.title}`;
   const description =
     doctor.intro?.trim() ||
     `${doctor.name} ${doctor.title}의 피부 Q&A와 칼럼을 만나보세요. 피부텐텐.`;

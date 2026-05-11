@@ -454,19 +454,28 @@ export default function WriteClient({
         const goTop = () => {
           if (typeof window !== "undefined") window.scrollTo({ top: 0 });
         };
+        // v5.1: /me/qnas 폐기 — 원장 본인 글 관리는 /doctors/{slug} 본인 페이지 위젯에서.
+        // 일단 redirect:
+        //   - admin: /admin/qas (관리자 글 관리 페이지 그대로)
+        //   - doctor: /doctors/{my-slug} (본인 페이지에서 글 목록 확인)
+        //   - user/etc: / (메인 피드)
         if (submitStatus === "draft") {
-          // 저장 — 목록(검수/내 글) 또는 dashboard
-          if (role === "doctor") router.push("/me/qnas?status=draft");
-          else router.push("/admin/qas?status=draft");
+          if (role === "admin") router.push("/admin/qas?status=draft");
+          else if (role === "doctor" && myDoctor)
+            router.push(`/doctors/${myDoctor.slug}`);
+          else router.push("/");
           goTop();
           return;
         }
         if (data.type === "qa") {
-          router.push(`/me/qnas?status=${submitStatus}`);
+          if (role === "admin") router.push(`/admin/qas?status=${submitStatus}`);
+          else if (role === "doctor" && myDoctor)
+            router.push(`/doctors/${myDoctor.slug}`);
+          else router.push("/");
         } else {
           router.push(`/`);
-          goTop();
         }
+        goTop();
       } catch (e) {
         setError(e instanceof Error ? e.message : "네트워크 오류");
       }

@@ -17,7 +17,7 @@ export default async function MeRedirect() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/me");
+  if (!user) redirect("/login?next=/settings");
 
   const { data: profile } = await supabase
     .from("profiles")

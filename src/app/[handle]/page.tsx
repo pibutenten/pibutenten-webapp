@@ -146,7 +146,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       : profile.display_name ?? handle;
   const bio = identity ? identity.bio : isAlt ? profile.alt_bio : profile.bio;
   return {
-    title: `${name} (@${handle})`,
+    // v5.1: handle 노출 X — 닉네임만 (layout template이 "피부텐텐 | …" prefix 자동 추가)
+    title: name,
     description: bio ?? `${name}의 피부텐텐 프로필`,
     alternates: { canonical: `${SITE_URL}/${handle}` },
     robots: profile.is_public === false
@@ -157,11 +158,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function HandleProfilePage({ params }: Props) {
   const { handle } = await params;
+
+  // v5.1: handle이 의사 slug와 일치하면 → /doctors/{slug}로 308 redirect (canonical 통일)
+  // 원장 official 페이지는 /doctors/{slug}만 — /{slug}로는 진입 X
+  const supabase = await createSupabaseServerClient();
+  const { data: doctorMatch } = await supabase
+    .from("doctors")
+    .select("slug")
+    .eq("slug", handle)
+    .maybeSingle();
+  if (doctorMatch) redirect(`/doctors/${handle}`);
+
   const result = await fetchProfileByHandle(handle);
   if (!result) notFound();
   const { profile, isAlt, identity } = result;
 
-  const supabase = await createSupabaseServerClient();
   const {
     data: { user: viewer },
   } = await supabase.auth.getUser();
@@ -295,7 +306,7 @@ export default async function HandleProfilePage({ params }: Props) {
         {isOwner && (
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
             <Link
-              href="/me/profile"
+              href="/settings/profile"
               className="rounded-full border border-[var(--border)] px-3 py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
             >
               ✏️ 프로필 수정

@@ -67,7 +67,7 @@ export default async function AdminDoctorsPage() {
           </p>
         </div>
         <Link
-          href="/me"
+          href="/settings"
           className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
         >
           ← 대시보드

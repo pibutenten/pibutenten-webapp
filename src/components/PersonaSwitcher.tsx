@@ -36,7 +36,7 @@ export default function PersonaSwitcher({
 
   return (
     <Link
-      href="/me"
+      href="/settings"
       className="flex items-center gap-1.5 rounded-md p-1.5 text-[14px] font-medium transition-colors hover:bg-[var(--bg-soft)]"
       aria-label="내 페이지"
     >

@@ -85,7 +85,7 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
         role === "admin"
           ? "/admin"
           : role === "doctor"
-            ? "/me"
+            ? "/settings"
             : next || "/";
       window.location.assign(dest);
     });

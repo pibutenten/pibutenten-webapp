@@ -18,8 +18,8 @@ type Props = {
 };
 
 /**
- * 대시보드(/me) 상단의 페르소나 스위치.
- * - alt 미설정 → "+ 개인 페르소나 만들기" 링크 (/me/profile/persona)
+ * 대시보드(/settings) 상단의 페르소나 스위치.
+ * - alt 미설정 → "+ 개인 페르소나 만들기" 링크 (/settings/profile/persona)
  * - alt 있음 → 두 개의 페르소나 토글 칩 (현재 선택된 쪽 강조)
  * - 토글 시 쿠키 갱신 + router.refresh()
  */
@@ -51,7 +51,7 @@ export default function DashboardPersonaToggle({
           개인 페르소나를 만들어 일반 회원처럼 활동할 수 있어요.
         </div>
         <Link
-          href="/me/profile/persona"
+          href="/settings/profile/persona"
           className="shrink-0 rounded-md border border-[var(--primary)] bg-transparent px-3 py-1.5 text-[12px] font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)]"
         >
           + 개인 페르소나 만들기
@@ -81,7 +81,7 @@ export default function DashboardPersonaToggle({
         onClick={() => switchTo("personal")}
       />
       <Link
-        href="/me/profile/persona"
+        href="/settings/profile/persona"
         className="ml-auto text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
       >
         페르소나 설정
