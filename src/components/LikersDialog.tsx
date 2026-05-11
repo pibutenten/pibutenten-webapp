@@ -80,7 +80,7 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
       role="dialog"
       aria-modal="true"
       aria-label="좋아요"
-      className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       onClick={(e) => {
         // 외부(backdrop) 클릭 시 닫기
         if (e.target === e.currentTarget) onClose();
@@ -89,16 +89,9 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" aria-hidden />
 
-      {/* Bottom sheet (모바일) / Centered modal (데스크탑). 인스타 표준.
-          모바일은 화면 전체 너비 + slideUp 애니메이션으로 바닥에서 올라오는 느낌. */}
-      <div className="relative flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-[var(--shadow-lg)] animate-[likersSlideUp_280ms_cubic-bezier(0.16,1,0.3,1)] sm:max-w-[400px] sm:rounded-[var(--radius)] sm:animate-none">
-        {/* 드래그 핸들 — 모바일만 (인스타식) */}
-        <div className="flex shrink-0 justify-center pt-2 pb-1 sm:hidden">
-          <span
-            className="h-1 w-10 rounded-full bg-[var(--border)]"
-            aria-hidden
-          />
-        </div>
+      {/* 중앙 팝업 (모바일·데스크탑 동일) — 카드와 분리되어 화면 중앙에 뜸.
+          내부 넘치면 body 영역에서 스크롤. fade-in scale-up 애니메이션. */}
+      <div className="relative flex max-h-[80vh] w-full max-w-[400px] flex-col overflow-hidden rounded-2xl bg-white shadow-[var(--shadow-lg)] animate-[likersPop_180ms_cubic-bezier(0.16,1,0.3,1)]">
         {/* Header — 항상 위에 고정 */}
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3">
           <h2 className="text-[15px] font-semibold text-[var(--text)]">

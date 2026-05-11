@@ -152,15 +152,16 @@ a {
   }
 }
 
-/* ========== Bottom sheet slide-up 애니메이션 (인스타식) ==========
-   모바일 viewport 바닥에서 위로 올라오는 느낌. easing은 fast-out으로
-   처음엔 빠르게 올라오다 끝에서 부드럽게 멈춤. */
-@keyframes likersSlideUp {
+/* ========== 좋아요 팝업 등장 애니메이션 ==========
+   fade + 살짝 scale up. 카드와 분리되어 화면 중앙에서 부드럽게 등장. */
+@keyframes likersPop {
   from {
-    transform: translateY(100%);
+    opacity: 0;
+    transform: scale(0.96);
   }
   to {
-    transform: translateY(0);
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
