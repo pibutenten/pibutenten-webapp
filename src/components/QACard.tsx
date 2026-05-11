@@ -901,12 +901,6 @@ export default function QACard({
             className={isLongAnswer ? "cursor-pointer" : ""}
           >
             {renderAnswerBody(qa.answer, activeQuery, isLongAnswer && !expanded)}
-            {/* 더보기 — 접힌 상태에서 후속 단락·참고문헌이 더 있음을 시각적으로 알림. */}
-            {isLongAnswer && !expanded && (
-              <div className="mt-1.5 text-[13px] font-medium text-[var(--primary)]/85 hover:text-[var(--primary)] hover:underline">
-                더보기
-              </div>
-            )}
           </div>
 
           {/* 3a. 참고 논문 — pubmed_ref가 있을 때만 카드 본문 아래 인라인 한 줄로 자연스럽게 노출.
@@ -1622,12 +1616,13 @@ function renderAnswerBody(
             </Fragment>,
           );
         }
-        // clamped일 때: 첫 단락은 line-clamp-4 md:line-clamp-5 / 나머지 단락은 hidden
+        // clamped일 때: 첫 단락은 line-clamp-4 md:line-clamp-5 + relative(우하단 더보기 overlay 받침) / 나머지 단락은 hidden
         const clampClass = clamped
           ? isFirst
-            ? "line-clamp-4 md:line-clamp-5"
+            ? "relative line-clamp-4 md:line-clamp-5"
             : "hidden"
           : "";
+        const showMore = clamped && isFirst;
         return (
           <p
             key={pi}
@@ -1637,6 +1632,21 @@ function renderAnswerBody(
             style={{ transition: "color 0.2s ease" }}
           >
             {inline}
+            {showMore && (
+              // 우하단에 absolute "더보기" inline overlay — 새 줄 추가 없이 첫 단락 마지막 줄 끝에 노출.
+              // 좌측 fade로 잘린 텍스트와 자연스럽게 겹침.
+              <span
+                aria-hidden
+                className="pointer-events-none absolute right-0 bottom-0 pl-8 text-[var(--primary)]/90"
+                style={{
+                  background:
+                    "linear-gradient(to right, rgba(255,255,255,0) 0%, var(--bg-card, #ffffff) 35%)",
+                  fontWeight: 500,
+                }}
+              >
+                … 더보기
+              </span>
+            )}
           </p>
         );
       })}
