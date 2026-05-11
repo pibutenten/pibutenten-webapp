@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import HeroSearch from "@/components/HeroSearch";
 import CategoryWithChips from "@/components/CategoryWithChips";
-import FeedWithArticles from "@/components/FeedWithArticles";
+import Feed from "@/components/Feed";
 import type { QACardData } from "@/components/QACard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import { getHotQaIds } from "@/lib/hot-ids";
-import { loadArticleSectionCards } from "@/lib/article/load";
 import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -133,10 +132,6 @@ export default async function HomePage({ searchParams }: Props) {
 
   const popularByCategory = await popularByCategoryPromise;
   const hotIds = Array.from(await getHotQaIds(20));
-  const articleCards = await loadArticleSectionCards(supabase, {
-    limit: 8,
-    searchQuery: q || undefined,
-  });
 
   // viewer prefetch — 좋아요/저장/평점 즉시 표시
   const {
@@ -180,9 +175,8 @@ export default async function HomePage({ searchParams }: Props) {
           </div>
         )}
         {!error && qas && qas.length > 0 && (
-          <FeedWithArticles
-            initialQas={qas}
-            initialArticleCards={articleCards}
+          <Feed
+            initial={qas}
             pageSize={INITIAL_PAGE_SIZE}
             searchQuery={q || undefined}
             boostDoctorSlug={boost || undefined}

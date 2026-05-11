@@ -56,7 +56,6 @@ type LikeRow = {
     post_year?: number | null;
     post_slug?: string | null;
     shortcode?: string | null;
-    article_slug?: string | null;
     doctor?: { slug: string } | { slug: string }[] | null;
     author?:
       | { handle?: string | null; alt_handle?: string | null }
@@ -118,7 +117,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
   const { data: likes } = await supabase
     .from("qa_likes")
     .select(
-      `qa:qas(id, question, created_at, type, posted_as, post_year, post_slug, shortcode, article_slug,
+      `qa:qas(id, question, created_at, type, posted_as, post_year, post_slug, shortcode,
         doctor:doctors(slug),
         author:profiles!qas_author_id_profiles_fkey(handle, alt_handle))`,
     )
@@ -254,7 +253,7 @@ export default async function AdminUserDetailPage({ params }: Props) {
               <li key={q.id} className="py-2">
                 <div className="flex items-baseline justify-between gap-2 text-xs text-[var(--text-muted)]">
                   <span className="rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[10px] font-medium">
-                    {q.type === "post" ? "포스팅" : q.type === "article" ? "칼럼" : "Q&A"}
+                    {q.type === "post" ? "포스팅" : "Q&A"}
                   </span>
                   <span>{formatDate(q.created_at)}</span>
                 </div>
@@ -308,7 +307,6 @@ export default async function AdminUserDetailPage({ params }: Props) {
                       post_year: l.qa!.post_year ?? null,
                       post_slug: l.qa!.post_slug ?? null,
                       shortcode: l.qa!.shortcode ?? null,
-                      article_slug: l.qa!.article_slug ?? null,
                       doctor: Array.isArray(l.qa!.doctor)
                         ? l.qa!.doctor[0] ?? null
                         : l.qa!.doctor ?? null,

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import FeedWithArticles from "@/components/FeedWithArticles";
+import Feed from "@/components/Feed";
 import type { QACardData } from "@/components/QACard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
-import { loadArticleSectionCards } from "@/lib/article/load";
 import { SITE_URL } from "@/lib/site";
 import { fetchViewerStates } from "@/lib/viewer-states";
 
@@ -84,7 +83,6 @@ export default async function FeedPage() {
   }
 
   const hotIds = Array.from(await getHotQaIds(20));
-  const articleCards = await loadArticleSectionCards(supabase, { limit: 8 });
 
   // viewer prefetch — 카드 첫 렌더 시 좋아요/저장/평점 즉시 표시
   const {
@@ -111,9 +109,8 @@ export default async function FeedPage() {
         </div>
       )}
       {!error && qas.length > 0 && (
-        <FeedWithArticles
-          initialQas={qas}
-          initialArticleCards={articleCards}
+        <Feed
+          initial={qas}
           pageSize={INITIAL_PAGE_SIZE}
           hotIds={hotIds}
           viewerStates={viewerStates}

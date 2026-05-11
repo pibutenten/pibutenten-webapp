@@ -42,13 +42,15 @@ type Doctor = {
   branch: string | null;
 };
 
+// dead — 칼럼 폐기 후에도 ArticleEditor sub-component가 남아있어서 type만 유지
 type Section = {
   heading: string;
   body: string;
   image: string | null;
 };
 
-type WriteType = "post" | "article" | "qa";
+// v5.1: 'article'(칼럼) 폐기 — post/qa 만 지원.
+type WriteType = "post" | "qa";
 
 type Props = {
   role: "admin" | "doctor" | "user";
@@ -59,20 +61,17 @@ type Props = {
 
 const TYPE_LABEL: Record<WriteType, string> = {
   post: "포스팅",
-  article: "칼럼",
   qa: "답해드려요",
 };
 
 // 모든 type 태그 최대 10개 (필수는 0개 — 선택)
 const KEYWORD_MIN: Record<WriteType, number> = {
   post: 0,
-  article: 0,
   qa: 0,
 };
 
 const KEYWORD_MAX: Record<WriteType, number> = {
   post: 10,
-  article: 10,
   qa: 10,
 };
 
@@ -161,7 +160,6 @@ export default function WriteClient({
   function hasUnsavedContent(): boolean {
     if (title.trim()) return true;
     if (body.trim()) return true;
-    if (type === "article" && sections.some((s) => s.heading.trim() || s.body.trim())) return true;
     if (keywords.length > 0) return true;
     return false;
   }
@@ -361,17 +359,7 @@ export default function WriteClient({
       if (!title.trim() && !body.trim()) return "제목 또는 본문을 입력해주세요.";
       return null;
     }
-    if (type === "article") {
-      if (!title.trim()) return "제목을 입력해주세요.";
-      const filled = sections.filter(
-        (s) => s.heading.trim() || s.body.trim(),
-      );
-      if (filled.length === 0) return "섹션을 1개 이상 작성해주세요.";
-      if (keywords.length < minKw)
-        return `칼럼은 태그를 최소 ${minKw}개 입력해주세요.`;
-      return null;
-    }
-    // post / qa 공통: 제목 + 본문 필수
+    // post / qa 공통: 제목 + 본문 필수 (v5.1: 칼럼 폐기)
     if (!title.trim()) return "제목을 입력해주세요.";
     if (!body.trim()) return "본문을 입력해주세요.";
     const bodyLimit = category === "news" ? 400 : 800;
@@ -420,12 +408,7 @@ export default function WriteClient({
         if (role === "doctor" && myDoctor) {
           payload.doctor_slug = myDoctor.slug;
         }
-        if (type === "article") {
-          payload.title = title;
-          payload.sections = sections.filter(
-            (s) => s.heading.trim() || s.body.trim(),
-          );
-        } else if (type === "post") {
+        if (type === "post") {
           // post: title을 question에, body를 answer에 통일
           // Q&A 카테고리면 본문 끝에 참고문헌 자동 append
           payload.title = title;
@@ -478,9 +461,7 @@ export default function WriteClient({
           goTop();
           return;
         }
-        if (data.type === "article" && data.article_slug) {
-          router.push(`/article/${encodeURIComponent(data.article_slug)}`);
-        } else if (data.type === "qa") {
+        if (data.type === "qa") {
           router.push(`/me/qnas?status=${submitStatus}`);
         } else {
           router.push(`/`);

@@ -9,7 +9,6 @@ import { SITE_URL } from "@/lib/site";
  *  - 정적 라우트 (/, /doctors, /about)
  *  - 의사 9명 프로필 (/doctors/{slug})
  *  - 발행된 의사 글 (canonical: /doctors/{slug}/{year}/{post_slug})
- *  - 발행된 의사 칼럼 (/article/{article_slug})
  *  - /tags/{태그} — 의사 글 4개 이상 모인 태그 hub (AEO/GEO 자산)
  *
  * 제외 (robots에서도 차단):
@@ -17,6 +16,8 @@ import { SITE_URL } from "@/lib/site";
  *  - /me/*, /admin/*, /onboarding, /write, /signup, /login
  *  - /api, /debug
  *  - SEO URL 구성 못 하는 의사 글(post_slug/post_year 누락)도 sitemap에서 제외
+ *
+ * v5.1: 칼럼(type='article') 폐기 — /article 라우트 제거됨.
  */
 
 export const revalidate = 3600; // 1시간마다 재생성
@@ -59,7 +60,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { data: qas } = await supabase
       .from("qas")
       .select(
-        "id, type, article_slug, created_at, doctor_id, post_year, post_slug, doctor:doctors(slug)",
+        "id, created_at, doctor_id, post_year, post_slug, doctor:doctors(slug)",
       )
       .eq("status", "published")
       .not("doctor_id", "is", null);
@@ -71,17 +72,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const qaRoutes: MetadataRoute.Sitemap = (qas ?? []).flatMap((q) => {
       const lastModified = q.created_at ? new Date(q.created_at) : now;
-      // 칼럼은 /article/{slug}
-      if (q.type === "article" && q.article_slug) {
-        return [
-          {
-            url: `${SITE_URL}/article/${encodeURIComponent(q.article_slug)}`,
-            lastModified,
-            changeFrequency: "monthly" as const,
-            priority: 0.8,
-          },
-        ];
-      }
       // 의사 글 + post_year + post_slug → canonical URL
       // (Supabase nested doctors join은 1:1이지만 array로 올 수 있어 조심)
       const docRel = (q as { doctor?: { slug: string } | { slug: string }[] | null }).doctor;

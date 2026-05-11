@@ -4,10 +4,8 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
 import { getHotQaIds } from "@/lib/hot-ids";
-import QAFeed from "@/components/QAFeed";
+import Feed from "@/components/Feed";
 import type { QACardData } from "@/components/QACard";
-import ArticleCard from "@/components/ArticleCard";
-import { loadDoctorArticles } from "@/lib/article/load";
 import { SITE_URL } from "@/lib/site";
 import {
   asDoctorProfileData,
@@ -119,9 +117,6 @@ export default async function DoctorDetailPage({ params }: Props) {
   const affiliation = [doctor.clinic, doctor.branch].filter(Boolean).join(" ");
   const hotIds = Array.from(await getHotQaIds(20));
 
-  // 원장 칼럼 (article)
-  const articles = await loadDoctorArticles(supabase, doctor.id, 6);
-
   // JSON-LD: Physician(풀세트, multi-typing) + BreadcrumbList — 헬퍼로 중앙화 (변경 1·2·4·6)
   const SITE = SITE_URL;
   const physicianLd = buildDoctorFull({
@@ -232,7 +227,7 @@ export default async function DoctorDetailPage({ params }: Props) {
           아직 등록된 Q&A가 없어요.
         </div>
       ) : (
-        <QAFeed
+        <Feed
           initial={qas}
           pageSize={PAGE_SIZE}
           doctorSlug={doctor.slug}

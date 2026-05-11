@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import QAFeed from "@/components/QAFeed";
+import Feed from "@/components/Feed";
 import type { QACardData } from "@/components/QACard";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -53,7 +53,6 @@ type CommentRow = {
     id: number;
     question: string;
     type: string | null;
-    article_slug: string | null;
     post_year: number | null;
     post_slug: string | null;
     shortcode: string | null;
@@ -69,8 +68,6 @@ type CommentRow = {
 function commentLink(c: CommentRow): string {
   const qa = c.qa;
   if (!qa) return "/";
-  if (qa.type === "article" && qa.article_slug)
-    return `/article/${encodeURIComponent(qa.article_slug)}`;
   // posted_as DB enum: 'official' | 'personal'. 옛 'doctor'/'self' 값도 매핑.
   const isOfficial = qa.posted_as === "official" || qa.posted_as === "doctor";
   const isPersonal = qa.posted_as === "personal" || qa.posted_as === "self";
@@ -196,7 +193,7 @@ export default function ProfileTabs({
         .from("comments")
         .select(
           `id, body, created_at, qa_id,
-           qa:qas(id, question, type, article_slug, post_year, post_slug, shortcode, posted_as,
+           qa:qas(id, question, type, post_year, post_slug, shortcode, posted_as,
                   doctor:doctors(slug),
                   author:profiles!qas_author_id_profiles_fkey(handle, alt_handle))`,
         )
@@ -260,7 +257,7 @@ export default function ProfileTabs({
         (posts.length === 0 ? (
           <Empty msg="아직 작성한 글이 없어요" />
         ) : (
-          <QAFeed initial={posts} pageSize={20} viewerStates={viewerStates} />
+          <Feed initial={posts} pageSize={20} viewerStates={viewerStates} />
         ))}
 
       {tab === "skin" && skinInfo && (
@@ -303,7 +300,7 @@ export default function ProfileTabs({
         ) : likedPosts.length === 0 ? (
           <Empty msg="좋아요한 글이 없어요" />
         ) : (
-          <QAFeed initial={likedPosts} pageSize={20} viewerStates={viewerStates} />
+          <Feed initial={likedPosts} pageSize={20} viewerStates={viewerStates} />
         ))}
       {tab === "saves" &&
         (savedPosts === null ? (
@@ -311,7 +308,7 @@ export default function ProfileTabs({
         ) : savedPosts.length === 0 ? (
           <Empty msg="저장한 글이 없어요" />
         ) : (
-          <QAFeed initial={savedPosts} pageSize={20} viewerStates={viewerStates} />
+          <Feed initial={savedPosts} pageSize={20} viewerStates={viewerStates} />
         ))}
     </div>
   );

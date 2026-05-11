@@ -23,12 +23,14 @@ type Props = {
 };
 
 /**
- * Q&A 피드.
- * - 데스크탑(≥900px): 좌·우 두 칼럼이 독립 (마손리 느낌, 좌우좌우 alternating)
+ * 카드 피드 — 전체 카테고리(Q&A·포스팅·새소식·피부일기·물어봐요) 통합 표시.
+ * 의사 글 + 회원 글 모두 같은 컴포넌트로 렌더.
+ *
+ * - 데스크탑(≥900px): 좌·우 두 칼럼 masonry (react-masonry-css 가로 flow)
  * - 모바일: 단일 칼럼
  * - 무한 스크롤: 하단 sentinel을 IntersectionObserver로 감지 → /api/qas?offset=...
  */
-export default function QAFeed({
+export default function Feed({
   initial,
   pageSize = 20,
   searchQuery,

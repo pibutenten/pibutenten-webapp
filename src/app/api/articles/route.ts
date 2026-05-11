@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { makeArticleSlug } from "@/lib/article/slug";
-import type { ArticleSection } from "@/lib/article/types";
 import { readPersonaServer } from "@/lib/persona-server";
 import {
   buildSlug,
@@ -10,7 +8,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type WriteType = "post" | "article" | "qa";
+// v5.1: 'article'(칼럼) 폐기 — post/qa 만 지원.
+type WriteType = "post" | "qa";
 
 type SubmitStatus = "draft" | "pending_review" | "published";
 
@@ -22,9 +21,6 @@ type Payload = {
   // post: title + body 통일 (Q&A와 동일 구조)
   title?: string;
   body?: string;
-  // article 전용
-  cover_image?: string | null;
-  sections?: ArticleSection[];
   // qa
   doctor_slug?: string;
   question?: string;
@@ -48,8 +44,8 @@ type Payload = {
  *
  * 글쓰기 통합 엔드포인트.
  * - type='post' : 일반 글 (모든 로그인 유저). 즉시 published.
- * - type='article' : 원장/관리자 칼럼. 즉시 published.
- * - type='qa' : 관리자가 특정 원장 명의로 작성. status='pending_review'.
+ * - type='qa' : 관리자/원장이 작성. status='pending_review'.
+ * v5.1: 'article'(칼럼) 폐기됨.
  */
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
@@ -77,20 +73,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "잘못된 요청 형식" }, { status: 400 });
   }
   const t = payload.type;
-  if (t !== "post" && t !== "article" && t !== "qa") {
+  if (t !== "post" && t !== "qa") {
     return NextResponse.json({ error: "유효하지 않은 type" }, { status: 400 });
   }
 
-  // 권한 검증
-  if (t === "article" && role !== "doctor" && role !== "admin") {
+  // 권한 검증 — v5.1: Q&A는 원장·관리자만 작성 가능
+  if (t === "qa" && role !== "admin" && role !== "doctor") {
     return NextResponse.json(
-      { error: "칼럼은 원장 또는 관리자만 작성 가능합니다." },
-      { status: 403 },
-    );
-  }
-  if (t === "qa" && role !== "admin") {
-    return NextResponse.json(
-      { error: "Q&A는 관리자만 직접 작성 가능합니다." },
+      { error: "Q&A는 원장 또는 관리자만 작성 가능합니다." },
       { status: 403 },
     );
   }
@@ -134,31 +124,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "원장을 찾을 수 없습니다." }, { status: 400 });
     }
     doctorId = d.id;
-  } else if (t === "article" && role === "doctor") {
-    // 원장 자신의 doctor_id
-    const { data: da } = await supabase
-      .from("doctor_accounts")
-      .select("doctor_id")
-      .eq("profile_id", user.id)
-      .maybeSingle();
-    if (!da?.doctor_id) {
-      return NextResponse.json(
-        { error: "원장 매핑이 없습니다. 관리자에게 문의해주세요." },
-        { status: 400 },
-      );
-    }
-    doctorId = da.doctor_id;
-  } else if (t === "article" && role === "admin") {
-    // 관리자가 칼럼 작성 시 본인을 author_id로 두되 doctor_id는 선택 가능 (선택값 없으면 null)
-    const slug = (payload.doctor_slug ?? "").trim();
-    if (slug) {
-      const { data: d } = await supabase
-        .from("doctors")
-        .select("id")
-        .eq("slug", slug)
-        .maybeSingle();
-      if (d) doctorId = d.id;
-    }
   }
   // post는 doctor_id null
 
@@ -205,7 +170,7 @@ export async function POST(req: Request) {
   if (payload.category && VALID_CATEGORIES.includes(payload.category)) {
     category = payload.category;
   } else {
-    category = t === "qa" ? "qa" : t === "article" ? "tip" : "diary";
+    category = t === "qa" ? "qa" : "diary";
   }
 
   // v4: 카테고리 라벨은 카드 헤더(닉네임 밑)에 표시되므로 keywords에 별도 prepend 안 함.
@@ -313,29 +278,6 @@ export async function POST(req: Request) {
     insert.posted_as = currentPersona;
     // doctor_id — 공식 모드에서만 매핑된 doctor 페이지에 노출
     insert.doctor_id = currentPersona === "official" ? doctorId : null;
-  } else if (t === "article") {
-    const title = (payload.title ?? "").trim();
-    const sections = (payload.sections ?? []).filter(
-      (s) => s && (s.heading?.trim() || s.body?.trim()),
-    );
-    if (!title) {
-      return NextResponse.json({ error: "제목을 입력해주세요." }, { status: 400 });
-    }
-    if (sections.length === 0) {
-      return NextResponse.json(
-        { error: "섹션을 1개 이상 입력해주세요." },
-        { status: 400 },
-      );
-    }
-    insert.question = title;
-    insert.answer = sections
-      .map((s) => `${s.heading ?? ""}\n${s.body ?? ""}`)
-      .join("\n\n");
-    insert.article_sections = sections;
-    insert.article_cover_image = (payload.cover_image ?? "").trim() || null;
-    insert.article_slug = makeArticleSlug(title);
-    insert.status = "published";
-    insert.doctor_id = doctorId;
   } else if (t === "qa") {
     const q = (payload.question ?? "").trim();
     const a = (payload.answer ?? "").trim();
@@ -354,7 +296,7 @@ export async function POST(req: Request) {
   const { data: row, error: insErr } = await supabase
     .from("qas")
     .insert(insert)
-    .select("id, type, article_slug, status, post_slug, post_year, shortcode")
+    .select("id, type, status, post_slug, post_year, shortcode")
     .single();
 
   if (insErr) {
@@ -368,7 +310,6 @@ export async function POST(req: Request) {
     id: row.id,
     type: row.type,
     status: row.status,
-    article_slug: row.article_slug,
     post_slug: row.post_slug,
     post_year: row.post_year,
     shortcode: row.shortcode,
