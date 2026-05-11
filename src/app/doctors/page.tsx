@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
+import { buildDoctorReference } from "@/lib/schema/doctor";
+import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +18,20 @@ type Doctor = {
   photo_url: string | null;
   intro: string | null;
   sort_order: number;
+};
+
+export const metadata: Metadata = {
+  title: "피부과 전문의",
+  description:
+    "피부텐텐과 함께하는 피부과 전문의 9명의 프로필. 각 전문 분야와 답변·칼럼을 한눈에 살펴보세요.",
+  alternates: { canonical: `${SITE_URL}/doctors` },
+  openGraph: {
+    title: "피부과 전문의 | 피부텐텐",
+    description:
+      "피부텐텐과 함께하는 피부과 전문의 9명. 안티에이징·리프팅·스킨부스터 분야 검증된 답변.",
+    url: `${SITE_URL}/doctors`,
+    type: "website",
+  },
 };
 
 export default async function DoctorsPage() {
@@ -47,8 +64,68 @@ export default async function DoctorsPage() {
     );
   }
 
+  // JSON-LD: CollectionPage + ItemList + BreadcrumbList
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        name: "피부과 전문의",
+        description:
+          "피부텐텐과 함께하는 피부과 전문의 프로필 모음. 각 전문의의 전문 분야와 답변을 한눈에.",
+        url: `${SITE_URL}/doctors`,
+        about: {
+          "@type": "MedicalSpecialty",
+          name: "Dermatology",
+        },
+        isPartOf: {
+          "@type": "WebSite",
+          name: "피부텐텐",
+          url: SITE_URL,
+        },
+        inLanguage: "ko-KR",
+        mainEntity: {
+          "@type": "ItemList",
+          numberOfItems: doctors.length,
+          itemListOrder: "https://schema.org/ItemListOrderAscending",
+          itemListElement: doctors.map((d, idx) => ({
+            "@type": "ListItem",
+            position: idx + 1,
+            item: buildDoctorReference({
+              slug: d.slug,
+              name: d.name,
+              title: d.title,
+            }),
+          })),
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "홈",
+            item: `${SITE_URL}/`,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "피부과 전문의",
+            item: `${SITE_URL}/doctors`,
+          },
+        ],
+      },
+    ],
+  };
+
   return (
     <section className="space-y-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <header className="text-center">
         <h1 className="text-2xl font-bold text-[var(--text)]">피부과 전문의</h1>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">

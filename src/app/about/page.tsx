@@ -1,28 +1,169 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { buildDoctorReference } from "@/lib/schema/doctor";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "사이트 안내",
   description:
-    "피부텐텐은 피부과 전문의가 함께하는 피부 미용 Q&A SNS입니다. 운영 주체, 콘텐츠 정책, 의료 정보 면책 안내.",
+    "피부텐텐은 피부과 전문의 9명이 함께하는 피부 미용 Q&A SNS입니다. 운영 주체 주식회사 진솔컴퍼니, 콘텐츠 정책, 의료 정보 면책 안내.",
   alternates: { canonical: `${SITE_URL}/about` },
+  openGraph: {
+    title: "사이트 안내 | 피부텐텐",
+    description:
+      "피부과 전문의가 만드는 검증된 피부 Q&A SNS. 운영 주체·콘텐츠 정책·의료 면책 안내.",
+    url: `${SITE_URL}/about`,
+    type: "website",
+  },
 };
+
+type DoctorRef = { slug: string; name: string; title: string };
 
 /**
  * 사이트 안내 — 운영 주체, 콘텐츠 정책, 의료 면책.
  * (의료법 제56조 의료광고 제한 + YMYL E-E-A-T 신뢰 신호)
+ *
+ * v5.1 spec: AboutPage + MedicalOrganization 풀세트 schema.
+ * 의사 카드 그리드는 /doctors에 있으므로 본문 노출 X.
+ * schema의 member 배열에만 9명 @id 참조 (LLM·AEO 신호).
  */
-export default function AboutPage() {
+export default async function AboutPage() {
+  // 의사 9명 — schema member 배열용으로만 fetch
+  const supabase = await createSupabaseServerClient();
+  const { data: doctors } = await supabase
+    .from("doctors")
+    .select("slug, name, title")
+    .order("sort_order", { ascending: true })
+    .returns<DoctorRef[]>();
+
+  const memberRefs = (doctors ?? []).map((d) =>
+    buildDoctorReference({ slug: d.slug, name: d.name, title: d.title }),
+  );
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "AboutPage",
+        "@id": `${SITE_URL}/about#about`,
+        name: "사이트 안내",
+        url: `${SITE_URL}/about`,
+        inLanguage: "ko-KR",
+        isPartOf: {
+          "@type": "WebSite",
+          name: "피부텐텐",
+          url: SITE_URL,
+        },
+        mainEntity: { "@id": `${SITE_URL}/#organization` },
+      },
+      {
+        "@type": "MedicalOrganization",
+        "@id": `${SITE_URL}/#organization`,
+        name: "피부텐텐",
+        alternateName: ["Pibutenten", "피부 텐텐"],
+        url: SITE_URL,
+        logo: `${SITE_URL}/brand-logo.svg`,
+        image: `${SITE_URL}/og.png`,
+        description:
+          "피부과 전문의 9명이 함께 만드는 피부 미용 Q&A SNS. 시술·홈케어·안티에이징 관련 검증된 답변과 칼럼을 제공합니다.",
+        medicalSpecialty: ["Dermatology"],
+        knowsAbout: [
+          "피부과",
+          "안티에이징",
+          "리프팅",
+          "스킨부스터",
+          "피부 시술",
+          "콜라겐",
+          "보톡스",
+          "필러",
+          "써마지",
+          "울쎄라",
+          "쥬베룩",
+          "여드름",
+          "기미",
+          "색소침착",
+          "피부장벽",
+        ],
+        publisher: {
+          "@type": "Organization",
+          name: "주식회사 진솔컴퍼니",
+          url: SITE_URL,
+        },
+        parentOrganization: {
+          "@type": "Organization",
+          name: "주식회사 진솔컴퍼니",
+        },
+        contactPoint: {
+          "@type": "ContactPoint",
+          email: "jminbae@gmail.com",
+          contactType: "customer support",
+          availableLanguage: ["Korean", "ko-KR"],
+        },
+        sameAs: ["https://www.youtube.com/@pibutenten"],
+        // 9명 의사 — Person @id 참조 (풀 정보는 /doctors/{slug}#person 에 존재)
+        ...(memberRefs.length > 0 ? { member: memberRefs } : {}),
+        // 진료 가능 콘텐츠 분야 (AI 인용 신호 강화)
+        availableService: [
+          {
+            "@type": "MedicalProcedure",
+            name: "안티에이징",
+            procedureType: "https://schema.org/PercutaneousProcedure",
+          },
+          {
+            "@type": "MedicalProcedure",
+            name: "리프팅",
+            procedureType: "https://schema.org/PercutaneousProcedure",
+          },
+          {
+            "@type": "MedicalProcedure",
+            name: "스킨부스터",
+            procedureType: "https://schema.org/PercutaneousProcedure",
+          },
+        ],
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "홈",
+            item: `${SITE_URL}/`,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "사이트 안내",
+            item: `${SITE_URL}/about`,
+          },
+        ],
+      },
+    ],
+  };
+
   return (
     <article className="mx-auto w-full max-w-[680px] py-2">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <h1 className="mb-4 text-[26px] font-bold leading-[1.35] text-[var(--text)] sm:text-[30px]">
         사이트 안내
       </h1>
       <p className="mb-8 text-[15px] leading-[1.7] text-[var(--text-secondary)]">
-        피부텐텐은 피부과 전문의 9명이 함께 만드는 피부 미용 Q&amp;A SNS입니다.
-        사용자가 자유롭게 피부 고민을 나누고, 전문의가 검수된 답변과 칼럼을
-        제공합니다.
+        피부텐텐은 피부과 전문의{" "}
+        <Link
+          href="/doctors"
+          className="font-semibold text-[var(--primary)] hover:underline"
+        >
+          9명
+        </Link>
+        이 함께 만드는 피부 미용 Q&amp;A SNS입니다. 사용자가 자유롭게 피부 고민을
+        나누고, 전문의가 검수된 답변과 칼럼을 제공합니다.
       </p>
 
       <Section title="운영 주체">
@@ -55,10 +196,16 @@ export default function AboutPage() {
             — 일반 회원이 자유롭게 작성한 개인 의견입니다. 의료 정보가 아니며,
             검색엔진·AI에 의료 정보로 색인되지 않도록 처리합니다.
           </li>
-          <li>
-            의사·회원 글은 카드 디자인과 뱃지로 구분 표시됩니다.
-          </li>
+          <li>의사·회원 글은 카드 디자인과 뱃지로 구분 표시됩니다.</li>
         </ul>
+      </Section>
+
+      <Section title="전문 분야">
+        <p className="text-[14px] leading-[1.7] text-[var(--text-secondary)]">
+          안티에이징·리프팅·스킨부스터를 중심으로, 피부과 전문의의 검증된
+          시술·홈케어·안티에이징 정보를 제공합니다. 시술별 원리·효과·부작용·관리법
+          등을 한곳에서 모아볼 수 있습니다.
+        </p>
       </Section>
 
       <Section title="의료 정보 면책">
