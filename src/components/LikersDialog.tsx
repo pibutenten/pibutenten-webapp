@@ -126,22 +126,27 @@ export default function LikersDialog({ qaId, open, onClose }: Props) {
           </button>
         </div>
 
-        {/* Body — 남는 공간 차지하며 내부 스크롤 */}
-        <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {/* Body — 컴팩트 그리드 (한 줄 2명, 데스크탑 3명).
+            아바타 + 닉네임만 — handle/id 표시 X (팔로우 시스템 아니라 간소화) */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
           {loading && !likers && (
-            <li className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">
+            <p className="py-6 text-center text-sm text-[var(--text-muted)]">
               불러오는 중…
-            </li>
+            </p>
           )}
           {likers && likers.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">
+            <p className="py-6 text-center text-sm text-[var(--text-muted)]">
               아직 좋아요가 없어요.
-            </li>
+            </p>
           )}
-          {likers?.map((l) => (
-            <LikerRow key={l.user_id} liker={l} onClose={onClose} />
-          ))}
-        </ul>
+          {likers && likers.length > 0 && (
+            <ul className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+              {likers.map((l) => (
+                <LikerRow key={l.user_id} liker={l} onClose={onClose} />
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -153,28 +158,24 @@ function LikerRow({ liker, onClose }: { liker: Liker; onClose: () => void }) {
   const href = liker.handle ? `/${liker.handle}` : null;
 
   const content = (
-    <div className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--bg-soft)]">
+    <div className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--bg-soft)]">
       {liker.avatar_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={liker.avatar_url}
           alt=""
-          className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-soft)] object-cover"
+          className="h-8 w-8 shrink-0 rounded-full bg-[var(--bg-soft)] object-cover"
         />
       ) : (
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--bg-soft)] text-[14px] font-semibold text-[var(--text-secondary)]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--bg-soft)] text-[12px] font-semibold text-[var(--text-secondary)]">
           {initial}
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[14px] font-semibold text-[var(--text)]">
+        <div className="truncate text-[13px] font-medium text-[var(--text)]">
           {name}
         </div>
-        {liker.handle && (
-          <div className="truncate text-[12px] text-[var(--text-muted)]">
-            @{liker.handle}
-          </div>
-        )}
+        {/* v5.1: id(@handle) 노출 X — 팔로우 시스템 아니라 간소화 (아바타 + 닉네임만) */}
       </div>
     </div>
   );
