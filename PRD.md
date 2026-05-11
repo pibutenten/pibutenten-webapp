@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-11
-> 기준 commit: `f9ad701` (별점 시스템 숨김)
+> 마지막 업데이트: 2026-05-11 (오후)
+> 기준 commit: `eb6fc61` (저장 토글 savePending stuck bug fix)
 > 라이브: https://pibutenten-webapp.vercel.app
 
 ---
@@ -79,14 +79,14 @@
 - `post` — 일반 포스팅 (의사 꿀팁, 회원 공유, 일기 등)
 - ~~`article`~~ — **칼럼 폐기됨 (commit 94f5aab)**
 
-### post 카테고리 (sub-type) — 2026-05-10 정리
+### post 카테고리 (sub-type) — 2026-05-11 최신
 | 슬러그 | 라벨 | 비고 |
 |---|---|---|
 | Q&A (`type=qa`) | Q&A | 의사 답변 글 (구 `답해드려요`) |
-| share (구 news) | 공유하기 | URL 큐레이션 + 외부 공유 (구 `새소식`) |
+| link (구 share, 구 news) | 공유하기 | URL 큐레이션 + 외부 공유. slug는 `link`로 변경 — 푸터 액션 `share(공유)`와 변수명 충돌 회피, 라벨은 그대로 |
 | tip | 꿀팁 | 의사·회원 꿀팁 |
 | diary | 피부일기 | 회원 일상 |
-| ask | 물어봐요 | 회원 질문 |
+| ask | 궁금해요 | 회원 질문 |
 
 ---
 
@@ -377,6 +377,27 @@
 - DB 컬럼·RPC 모두 보존 (`rating_avg`, `rating_count`)
 - 향후 부활 옵션 열림
 
+### 좋아요/추천 분기 시도 + 푸터 개편 (`d950f4e`)
+- **시도**: Q&A에 👍 추천(secondary navy), post에 ♥ 좋아요(accent coral) 분기
+- 카테고리 slug `share` → `link` 마이그레이션 (0036_share_to_link.sql)
+- prefetch identity_id 기반화
+
+### 포커스 선 + dropdown 중복 fix (`e3f3797`)
+- :focus-visible의 outline 강제 제거 (사용자 10회 이상 요청)
+- layout.tsx에서 `profile.handle`과 동일한 `kind='primary'` row 중복 제거
+  - 배정민 4개 → 3개로 정리 (개발자/원장/개인)
+
+### 추천 폐기 → ♥ 좋아요 통일 + 푸터 순서 + 저장 노란색 (`c70ec40`)
+- 👍 ThumbsUp 인지도 낮아 폐기, 모든 카드에서 ♥ 좋아요로 일원화
+- RecentLikers·LikersDialog qaType prop은 호환성 유지하되 실제로는 무시
+- 푸터 순서: 좋아요 → 댓글 → 저장 (좌측 묶음) → 공유 (우측 ml-auto)
+- 저장 색: 하늘색 → **앰버 #F59E0B** (브랜드 톤앤매너 따뜻한 호박색)
+
+### 저장 토글 진짜 원인 fix (`eb6fc61`)
+- **증상**: 저장 한 번은 되는데 두 번째 클릭부터 취소 안 됨 (10회 신고)
+- **원인**: `setSavePending(true)` 후 함수 끝에서 `setSavePending(false)` 호출 누락 → 첫 클릭 후 영원히 true로 stuck → 모든 후속 클릭이 `if (savePending) return;` 가드에 막힘
+- **수정**: 전체를 `try/finally`로 감싸 finally에서 강제 false 처리
+
 ---
 
 ## 8. 디자인 결정사항 (확정)
@@ -388,12 +409,24 @@
 - 액션 4버튼: 취소 / 저장 / 검수 요청 / 발행
 - 글쓴이 선택 모든 type 고정 노출
 
-### 카드 푸터 (Instagram 표준)
+### 카드 푸터 (피부텐텐 v5.1+ 확정)
 - 아이콘 크기: 22px
 - 텍스트: 14px
 - gap: 4
-- 0 카운트는 숨김 (좋아요·댓글·공유)
+- 0 카운트는 숨김 (좋아요·댓글·저장·공유)
 - 별점: **숨김 (DB 보존, 부활 가능)**
+
+**순서**: `[♥ 좋아요] [💬 댓글] [🔖 저장]` 좌측 묶음 / `[📤 공유]` 우측 (ml-auto)
+
+**활성 색상**:
+| 액션 | 비활성 | 활성 |
+|---|---|---|
+| ♥ 좋아요 | `text-secondary` (#62737E) | `--accent` 코랄 (#FF6B81) |
+| 💬 댓글 | `text-secondary` | hover: `--primary` 하늘 |
+| 🔖 저장 | `text-secondary` | **앰버 #F59E0B** (따뜻한 호박) |
+| 📤 공유 | `text-secondary` | hover: `--primary` 하늘 |
+
+**좋아요/추천 분기 폐기**: Q&A별 ThumbsUp 시도했으나 사용자 인지도 낮아 폐기. 모든 카드 ♥ 좋아요로 통일.
 
 ### 좋아요 표시
 - 아바타 겹침: 좌측이 z-top, `-space-x-2.5`
@@ -436,6 +469,11 @@
 - bottom sheet 풀너비 + slideUp 애니메이션
 - 헤더와 main 동일 패딩 (`max-w-[1080px] px-4 sm:px-6`)
 
+### 포커스 outline
+- `:focus, :focus-visible` 모두 `outline: none !important` + `box-shadow: none !important`
+- 사용자 강력 요청 — 클릭 후 잔상 파란 선 완전 제거
+- 키보드 접근성은 브라우저 기본 동작에 위임
+
 ---
 
 ## 9. SEO / JSON-LD 구조화 데이터
@@ -467,10 +505,13 @@
 
 ## 10. 다음 작업 (TODO)
 
-### 즉시 (현재 작업 중)
-- [ ] **저장(북마크) 토글 버그 fix** — 한 번 더 누르면 취소되어야 하는데 안 됨
-- [ ] **저장 아이콘 노란색**으로 변경 (amber-500 계열)
-- [ ] **아이콘 순서 표준 결정** — Instagram 패턴 (좋아요 → 댓글 → 공유 → 저장) 적용
+### 완료 (2026-05-11 오후 라운드)
+- [x] **저장(북마크) 토글 버그 fix** — savePending stuck (eb6fc61)
+- [x] **저장 아이콘 앰버 #F59E0B**로 변경 (c70ec40)
+- [x] **아이콘 순서**: 좋아요/댓글/저장 좌측 묶음 + 공유 우측 (c70ec40)
+- [x] **포커스 파란선** 완전 제거 (e3f3797)
+- [x] **dropdown 중복 'primary' identity** 숨김 (e3f3797)
+- [x] **카테고리 slug** share → link (d950f4e)
 
 ### 별점 시스템 결정 보류
 - 현재 hidden 상태, DB·RPC 모두 보존
@@ -526,12 +567,11 @@
 ## 13. Open Questions / 결정 보류
 
 1. **별점 시스템 부활 여부** — 현재 숨김. 부활 시 SNS 맥락에서 부자연스러움 vs E-E-A-T 신호 트레이드오프
-2. **저장 토글 색상** — 노란색 확정. 정확한 톤 (amber-500 / yellow-500) 미확정
-3. **아이콘 순서** — Instagram 표준 (♥ 💬 📤 🔖) 적용 권고, 사용자 결정 대기
-4. **Vercel Pro 업그레이드** (월 $20)
-5. **Naver OAuth** — Supabase 미지원, custom OAuth 부담
-6. **댓글 author identification** — 현재 익명, 모더레이션 필요 시 hover 표시 검토
-7. **회원 부계정(identity) 생성 플로우** — 의사는 자동, 회원은 수동 UX 미정
+2. **Vercel Pro 업그레이드** (월 $20) — 베타 비공개 운영 시 필요
+3. **Naver OAuth** — Supabase 미지원, custom OAuth 부담
+4. **댓글 author identification** — 현재 익명, 모더레이션 필요 시 hover 표시 검토
+5. **회원 부계정(identity) 생성 플로우** — 의사는 자동, 회원은 수동 UX 미정
+6. **멀티 identity 자동 primary row 처리** — 마이그레이션이 모든 profile에 자동 생성한 `kind='primary'` row가 dropdown에서 숨겨졌지만 DB에는 잔존. qa_likes/qa_saves FK 정리 후 redundant row 일괄 삭제 검토
 
 ---
 
@@ -539,6 +579,10 @@
 
 | Commit | 내용 |
 |---|---|
+| `eb6fc61` | **저장 토글 진짜 fix** — savePending state stuck 해제 (try/finally) |
+| `c70ec40` | 추천(👍) 폐기 → ♥ 좋아요 통일 + 푸터 순서(좌측 묶음 + 공유 우측) + 저장 앰버색 |
+| `e3f3797` | 포커스 파란선 완전 제거 + dropdown 중복 primary identity 숨김 |
+| `d950f4e` | Q&A 추천/post 좋아요 분기 시도 + 푸터 개편 + share→link slug 마이그레이션 + PRD 풀업데이트 |
 | `f9ad701` | 별점 시스템 사용자 화면 hide (DB 보존) |
 | `f63aa59` | 멀티 identity 완전 분리 — qa_likes·qa_saves PK identity 기반 |
 | `a50ccf2` | 좋아요 팝업 떠 있을 때 페이지 스크롤 허용 |
