@@ -151,3 +151,22 @@ a {
     margin-bottom: 16px;
   }
 }
+
+/* ========== iOS Safari zoom-in 방지 ==========
+   font-size 16px 미만 input/textarea/select에 focus 시 iPhone Safari가
+   자동 확대 → 등록 버튼이 viewport 밖으로 밀려나는 문제.
+   모바일(≤640px)만 16px 강제, 데스크탑은 디자인된 크기 그대로 유지.
+   (인스타·트위터·Threads 등 표준 처리 방식) */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
