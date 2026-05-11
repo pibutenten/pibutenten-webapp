@@ -17,6 +17,7 @@ import { categorize } from "@/lib/category-sets";
 import { PICK_IDS } from "@/lib/picks";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import CommentsBlock from "@/components/CommentsBlock";
+import RecentLikers from "@/components/RecentLikers";
 import { getQaUrl, getQaEditUrl } from "@/lib/qa-url";
 import {
   parseYoutubeTimestamp,
@@ -1172,6 +1173,10 @@ export default function QACard({
         </button>
 
       </div>
+
+      {/* 인스타식 좋아요 표시 — 구분선 아래, 댓글 블록 바로 위.
+          좋아요 1+ 일 때만 노출. 페르소나(personal)는 alt_* 사용 (RPC 처리). */}
+      <RecentLikers qaId={qa.id} likeCount={likeCount} />
 
       {/* 댓글 블록 — 댓글 있거나 댓글창 열린 상태일 때만 표시 (본문 펼침과 무관) */}
       <CommentsBlock
