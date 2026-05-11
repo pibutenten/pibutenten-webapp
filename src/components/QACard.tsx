@@ -1058,8 +1058,8 @@ export default function QACard({
           {saveCount > 0 && <span>{saveCount}</span>}
         </button>
 
-        {/* v4 — 평점 (★) — 미니멀 텍스트 + 호버 popover */}
-        <div className="relative">
+        {/* v5.1: 별점 시스템 hold — 사용자 화면에서 숨김 (DB·RPC는 유지). */}
+        <div className="relative hidden">
           <button
             type="button"
             onClick={() => setRatingOpen((v) => !v)}
