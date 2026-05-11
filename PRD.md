@@ -561,10 +561,18 @@
 ### 핵심 신호
 - `Person.hasCredential` — 의사 면허 정보
 - `MedicalOrganization` — 진솔컴퍼니 + 5개 지점
-- `VideoObject` — YouTube 영상 URL/썸네일/이름
+- `VideoObject` — YouTube 영상 URL/썸네일/이름 + **`startOffset`** (Phase 6.1, external_url의 `?t={N}s`에서 ISO 8601 `PT{N}S`로 변환 — 답변 구간 시작 지점 명시)
 - `BreadcrumbList` — 모든 깊이 페이지
 - `AggregateRating` — DB 보존 중이나 UI 숨김으로 인해 현재 노출 X
 - **`ScholarlyArticle` Citation** (Phase 6) — acceptedAnswer.citation에 PubMed 참고문헌 {name, url(DOI), sameAs(PubMed), datePublished, publisher, author, identifier: PMID}. AI·검색엔진이 "의사 답변 + 학술 인용" 신호 인식.
+- **`SpeakableSpecification`** (Phase 6.1) — cssSelector `.qa-answer-speakable`로 답안 첫 단락(두괄식 답) 음성/AI assistant 픽업 명시.
+- **`Question.mainEntityOfPage`** (Phase 6.1) — Question entity와 WebPage cross-reference. Google이 페이지 주제와 Q&A 콘텐츠를 1:1 매핑으로 인식.
+- **`publisher: Organization + MedicalOrganization`** (Phase 6.1) — 페이지 게시 책임 주체 명시(주식회사 진솔컴퍼니). YMYL E-E-A-T 신호 보강.
+
+### h1 룰 (Phase 6.1)
+- **단독 페이지**(`/doctors/{slug}/{year}/{postSlug}`, `/{handle}/{shortcode}`)의 질문은 **`<h1>`** — QACard에 `asH1` prop을 true로 전달.
+- 메인 피드·검색·태그 페이지 등 **리스트 컨텍스트**에서는 카드 질문이 `<h2>` (페이지당 h1 1개 룰 준수).
+- 단독 페이지 전체에 h1이 정확히 1개만 존재해야 검색엔진이 페이지 주제를 가장 강하게 인식.
 
 ---
 
@@ -578,6 +586,13 @@
 - [x] **Schema.org Citation JSON-LD** — acceptedAnswer.citation에 PubMed 학술 인용 마킹
 - [x] **저널명 Title Case 정규화** — DB 13건 일괄 + 프롬프트 룰 명시
 - [x] **한국어 어절 경계 룰** 프롬프트 추가 (어간/조사 분리 금지)
+
+### 완료 (Phase 6.1 — SEO/AEO 보강, 2026-05-11)
+- [x] **`<h1>` 단독 페이지 적용** — QACard `asH1` prop, 메인 피드는 `<h2>` 유지
+- [x] **VideoObject `startOffset`** — external_url의 `?t={N}s` → ISO 8601 `PT{N}S` 변환, videos 테이블 매핑 없어도 external_url에서 video_id 추출해 VideoObject 생성
+- [x] **`Question.mainEntityOfPage`** cross-reference 추가
+- [x] **`SpeakableSpecification`** — `.qa-answer-speakable` cssSelector, 본문 첫 단락 className 부여
+- [x] **`publisher: Organization + MedicalOrganization`** — 진솔컴퍼니 명시
 
 ### 완료 (오후 라운드, 2026-05-11)
 - [x] **헤더 아바타 inline-flex fix** — 원본 크기 노출 버그 (942ddd6)

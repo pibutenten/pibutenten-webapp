@@ -117,6 +117,8 @@ type Props = {
   autoExpandComments?: boolean;
   /** 단독 페이지: 본문 자동 펼침 (line-clamp 해제). 짧은 글이면 영향 없음. */
   forceExpanded?: boolean;
+  /** 단독 페이지: 질문을 h1으로 렌더 (페이지당 h1 1개 룰). 피드/리스트에서는 h2 유지. */
+  asH1?: boolean;
   /** v4 — viewer의 좋아요/저장/평점 초기 상태 (server prefetch).
    * 있으면 useEffect fetch 생략 → 카드가 즉시 정확한 상태로 렌더 (2~3초 지연 제거). */
   viewerLiked?: boolean;
@@ -131,6 +133,7 @@ export default function QACard({
   isHot = false,
   autoExpandComments = false,
   forceExpanded = false,
+  asH1 = false,
   viewerLiked,
   viewerSaved,
   viewerRating,
@@ -883,15 +886,27 @@ export default function QACard({
           </button>
 
           {/* 2. 제목 — 하늘색(브랜드 primary), 클릭 시 단독 페이지로 이동.
-              내부 링크 신호(PageRank · 앵커 텍스트) 누적 + 크롤러가 단독 URL 색인 가능. */}
-          <h2 className="mb-2.5 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px]">
-            <Link
-              href={getQaUrl(qa)}
-              className="text-[var(--primary)] hover:underline"
-            >
-              {highlight(qa.question, activeQuery)}
-            </Link>
-          </h2>
+              내부 링크 신호(PageRank · 앵커 텍스트) 누적 + 크롤러가 단독 URL 색인 가능.
+              asH1=true(단독 페이지)면 <h1>, 그 외 피드/리스트에서는 <h2>. */}
+          {asH1 ? (
+            <h1 className="mb-2.5 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px]">
+              <Link
+                href={getQaUrl(qa)}
+                className="text-[var(--primary)] hover:underline"
+              >
+                {highlight(qa.question, activeQuery)}
+              </Link>
+            </h1>
+          ) : (
+            <h2 className="mb-2.5 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px]">
+              <Link
+                href={getQaUrl(qa)}
+                className="text-[var(--primary)] hover:underline"
+              >
+                {highlight(qa.question, activeQuery)}
+              </Link>
+            </h2>
+          )}
 
           {/* 3. 본문 — 단락(\n\n) 분리 + **bold** 인라인(형광펜 하이라이트) 렌더링.
               isLongAnswer && !expanded → 첫 단락만 line-clamp-4(mobile)/md:line-clamp-5(desktop)로 가림.
@@ -1624,10 +1639,12 @@ function renderAnswerBody(
             : "hidden"
           : "";
         const showMore = clamped && isFirst;
+        // 첫 단락에 speakable class — JSON-LD SpeakableSpecification.cssSelector가 이걸 가리킴 (음성·AI assistant 답변 픽업).
+        const speakableClass = isFirst ? " qa-answer-speakable" : "";
         return (
           <p
             key={pi}
-            className={`whitespace-pre-wrap text-[15px] leading-[1.7] text-[var(--text)] ${
+            className={`whitespace-pre-wrap text-[15px] leading-[1.7] text-[var(--text)]${speakableClass} ${
               isFirst ? "" : "mt-2.5"
             } ${clampClass}`}
             style={{ transition: "color 0.2s ease" }}

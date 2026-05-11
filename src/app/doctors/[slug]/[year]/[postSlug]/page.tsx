@@ -141,10 +141,25 @@ function buildJsonLd(
       "@type": "ImageObject",
       url: `${SITE}/og/${doctorSlug}.png`,
     },
+    // 게시 책임 주체 — 의료 페이지의 E-E-A-T 신호 강화 (MedicalOrganization).
+    publisher: {
+      "@type": ["Organization", "MedicalOrganization"],
+      "@id": `${SITE}/about#org`,
+      name: "주식회사 진솔컴퍼니",
+      url: `${SITE}/about`,
+      logo: { "@type": "ImageObject", url: `${SITE}/logo.png` },
+    },
+    // 음성/AI assistant가 두괄식 답안 첫 단락을 우선 픽업하도록 마킹.
+    speakable: {
+      "@type": "SpeakableSpecification",
+      cssSelector: [".qa-answer-speakable"],
+    },
     mainEntity: {
       "@type": "Question",
       name: qa.question,
       text: qa.question,
+      // 페이지와 Question entity를 cross-reference로 강하게 연결 — Google이 1:1 매핑으로 인식.
+      mainEntityOfPage: { "@id": `${url}#webpage` },
       answerCount: 1,
       upvoteCount: qa.like_count ?? 0,
       dateCreated: created,
@@ -181,26 +196,42 @@ function buildJsonLd(
     audience: { "@type": "MedicalAudience", audienceType: "Patient" },
   };
 
-  // VideoObject — qa.video 데이터 있을 때만 (YouTube 원본 영상 메타)
-  // v5.1 spec D-1: 본문 발췌문은 VideoObject.description에 들어가 AEO 신호화
+  // VideoObject — qa.video(videos 테이블 join) 우선, 없으면 external_url(YouTube)에서 video_id 추출.
+  // v5.1 spec D-1: 본문 발췌문은 VideoObject.description에 들어가 AEO 신호화.
+  // Phase 6 카드는 videos 테이블 매핑 없이 external_url에 ?t={N}s 형태로 들어가 있어, 거기서 startOffset 추출.
   const video = qa.video as
     | { youtube_id?: string | null; youtube_url?: string | null; topic?: string | null; upload_date?: string | null }
     | { youtube_id?: string | null; youtube_url?: string | null; topic?: string | null; upload_date?: string | null }[]
     | null
     | undefined;
   const v = Array.isArray(video) ? video[0] : video;
-  if (v?.youtube_id) {
-    const videoName = v.topic
+
+  // external_url에서 YouTube video_id + 타임스탬프 파싱 (예: https://youtu.be/MeycbSmQfxs?t=276s)
+  const extUrl = (qa as { external_url?: string | null }).external_url ?? null;
+  let extVideoId: string | null = null;
+  let extStartSeconds: number | null = null;
+  if (extUrl) {
+    const ytMatch = extUrl.match(/(?:youtu\.be\/|v=|youtube\.com\/embed\/)([\w-]{6,15})/);
+    if (ytMatch) extVideoId = ytMatch[1];
+    const tMatch = extUrl.match(/[?&]t=(\d+)s?/);
+    if (tMatch) extStartSeconds = Number.parseInt(tMatch[1], 10);
+  }
+
+  const videoId = v?.youtube_id ?? extVideoId ?? null;
+  if (videoId) {
+    const videoName = v?.topic
       ? `${v.topic} — 영상에서 자세히 보기`
       : qa.question;
     medicalPage.video = {
       "@type": "VideoObject",
       name: videoName,
       description: answerText.slice(0, 200),
-      embedUrl: `https://www.youtube.com/embed/${v.youtube_id}`,
-      contentUrl: v.youtube_url ?? `https://youtu.be/${v.youtube_id}`,
-      thumbnailUrl: `https://i.ytimg.com/vi/${v.youtube_id}/maxresdefault.jpg`,
-      ...(v.upload_date ? { uploadDate: v.upload_date } : {}),
+      embedUrl: `https://www.youtube.com/embed/${videoId}`,
+      contentUrl: v?.youtube_url ?? `https://youtu.be/${videoId}`,
+      thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+      ...(v?.upload_date ? { uploadDate: v.upload_date } : {}),
+      // ISO 8601 duration — 답변 구간이 영상의 어느 시점부터 시작되는지 명시 (AI 픽업률↑).
+      ...(extStartSeconds !== null ? { startOffset: `PT${extStartSeconds}S` } : {}),
       inLanguage: "ko-KR",
     };
   }
@@ -264,6 +295,7 @@ export default async function DermatologistPostPage({ params }: Props) {
         isHot={hotIds.includes(qa.id)}
         autoExpandComments
         forceExpanded
+        asH1
       />
     </section>
   );
