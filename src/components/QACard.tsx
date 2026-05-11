@@ -17,7 +17,7 @@ import { categorize } from "@/lib/category-sets";
 import { PICK_IDS } from "@/lib/picks";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import CommentsBlock from "@/components/CommentsBlock";
-import { getQaUrl } from "@/lib/qa-url";
+import { getQaUrl, getQaEditUrl } from "@/lib/qa-url";
 import {
   parseYoutubeTimestamp,
   formatTimestamp,
@@ -99,7 +99,7 @@ type Props = {
   boostDoctorSlug?: string;
   /** 이 카드가 HOT인지 (서버에서 계산한 hot id set 기준) */
   isHot?: boolean;
-  /** 단독 페이지(/qa/[id], /doctors/{slug}/{year}/{slug})에서 사용 — 댓글 자동 열림 + 입력 포커스 */
+  /** 단독 페이지(/doctors/{slug}/{year}/{slug}, /[handle]/[shortcode])에서 사용 — 댓글 자동 열림 */
   autoExpandComments?: boolean;
   /** 단독 페이지: 본문 자동 펼침 (line-clamp 해제). 짧은 글이면 영향 없음. */
   forceExpanded?: boolean;
@@ -542,11 +542,11 @@ export default function QACard({
           new CustomEvent("pibutenten:qa-deleted", { detail: { id: qa.id } }),
         );
         // 2) 단일 포스트 페이지에서 삭제한 경우 — 메인 피드로 이동
-        //    (현재 URL이 /qa/{id} 또는 /doctors/.../{post-slug}이면 그 페이지가 사라진 상태)
+        //    (현재 URL이 글 단독 페이지면 그 페이지가 사라진 상태)
         const path = window.location.pathname;
         if (
-          path.startsWith(`/qa/${qa.id}`) ||
-          (qa.post_slug && path.includes(`/${qa.post_slug}`))
+          (qa.post_slug && path.includes(`/${qa.post_slug}`)) ||
+          (qa.shortcode && path.endsWith(`/${qa.shortcode}`))
         ) {
           router.push("/");
         } else {
@@ -701,16 +701,22 @@ export default function QACard({
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-28 overflow-hidden rounded-md border border-[var(--border)] bg-white py-1 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      router.push(`/qa/${qa.id}/edit`);
-                    }}
-                    className="block w-full cursor-pointer px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-soft)]"
-                  >
-                    수정
-                  </button>
+                  {(() => {
+                    const editHref = getQaEditUrl(qa);
+                    if (!editHref) return null;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          router.push(editHref);
+                        }}
+                        className="block w-full cursor-pointer px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-soft)]"
+                      >
+                        수정
+                      </button>
+                    );
+                  })()}
                   <button
                     type="button"
                     onClick={() => {

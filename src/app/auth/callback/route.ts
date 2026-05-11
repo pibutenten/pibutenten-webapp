@@ -7,7 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * Provider(Google/Kakao 등) → Supabase → 이 endpoint 로 redirect 된다.
  *  - ?code=...      : auth code (PKCE)  → exchangeCodeForSession 으로 세션 발급
  *  - ?error=...     : provider 에러 메시지 (취소/거부 등)
- *  - ?next=/feed    : 최종 도착 경로 (signInWithOAuth 호출 시 redirectTo 에 같이 실어 보냄)
+ *  - ?next=/        : 최종 도착 경로 (signInWithOAuth 호출 시 redirectTo 에 같이 실어 보냄)
  *
  * 동작:
  *  1) code 교환 → 쿠키에 세션 저장
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/onboarding`);
   }
 
-  // 6) 모든 role은 /feed로 (관리/내 글 페이지는 헤더 본인 아이콘으로 진입)
+  // 6) 모든 role은 / 메인 피드로 (관리/내 글 페이지는 헤더 본인 아이콘으로 진입)
   const dest = next || "/";
   return NextResponse.redirect(`${origin}${dest}`);
 }

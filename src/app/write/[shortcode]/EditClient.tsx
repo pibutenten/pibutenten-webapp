@@ -10,6 +10,8 @@ type Props = {
   initialTitle: string;
   initialBody: string;
   initialKeywords: string[];
+  /** 저장·취소 후 돌아갈 URL (예: /{handle}/{shortcode}) */
+  returnUrl: string;
 };
 
 const KEYWORD_MAX = 10;
@@ -20,6 +22,7 @@ export default function EditClient({
   initialTitle,
   initialBody,
   initialKeywords,
+  returnUrl,
 }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
@@ -70,7 +73,7 @@ export default function EditClient({
         setError("저장 실패: " + updErr.message);
         return;
       }
-      router.push(`/qa/${qaId}`);
+      router.push(returnUrl);
       router.refresh();
     });
   }
@@ -166,7 +169,7 @@ export default function EditClient({
       <div className="flex items-center justify-end gap-2 border-t border-[var(--border)] pt-4">
         <button
           type="button"
-          onClick={() => router.push(`/qa/${qaId}`)}
+          onClick={() => router.push(returnUrl)}
           disabled={pending}
           className="h-10 rounded-md border border-[var(--border)] px-4 text-sm hover:bg-[var(--bg-soft)] disabled:opacity-50"
         >

@@ -6,7 +6,7 @@ import { SITE_URL } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/auth/naver/start?next=/feed
+ * GET /api/auth/naver/start?next=/
  *
  * 1) state(CSRF 방어 토큰) 생성 → 쿠키 set
  * 2) next(로그인 후 도착 경로) 쿠키 set

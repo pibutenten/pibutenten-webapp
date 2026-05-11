@@ -1,14 +1,14 @@
 /**
  * Q&A 글 URL 생성 헬퍼.
  *
- * v4 spec:
+ * v5.1 spec:
  *  - 의사 official 글 (doctor + post_year + post_slug):
- *      /doctors/{doctorSlug}/{year}/{post-slug} ← canonical (keyword slug)
- *  - 회원 글 (author handle + post_year + shortcode):
- *      /{handle}/{year}/{shortcode} ← canonical (8자 base58)
- *  - 의사 personal persona 글 (alt_handle + post_year + shortcode):
- *      /{alt_handle}/{year}/{shortcode} ← 회원 패턴과 동일
- *  - canonical 정보 부족 (handle/slug 부재) → /qa/{id} fallback
+ *      /doctors/{doctorSlug}/{year}/{post-slug} ← canonical (keyword slug, year 유지)
+ *  - 회원 글 (author handle + shortcode):
+ *      /{handle}/{shortcode} ← canonical (8자 base58, year 제거)
+ *  - 의사 personal persona 글 (alt_handle + shortcode):
+ *      /{alt_handle}/{shortcode} ← 회원 패턴과 동일
+ *  - canonical 정보 부족 시 → 홈으로 (/qa, /feed 라우트 폐기됨)
  *  - 칼럼(article) → /article/{article_slug}
  */
 export type QaUrlInput = {
@@ -53,6 +53,25 @@ export function getQaUrl(qa: QaUrlInput): string {
     }
   }
 
-  // 4) fallback
-  return `/qa/${qa.id}`;
+  // 4) fallback — 모든 글에 SEO URL이 있어야 함. 누락이면 홈으로.
+  return "/";
+}
+
+/**
+ * 글 수정 페이지 URL.
+ *
+ * v5.1 spec: /write 라우트로 통합.
+ *  - 신규 작성: /write
+ *  - 기존 글 수정: /write/{shortcode}
+ *
+ * 권한 체크는 page.tsx에서 shortcode 기반으로만 진행 (handle 검증 불필요).
+ * 정보 부족 시 null 반환 — 호출 측에서 메뉴 노출/숨김 처리.
+ */
+export function getQaEditUrl(qa: QaUrlInput): string | null {
+  if (qa.type === "article") {
+    // 칼럼은 별도 admin 편집 (현재 지원 X)
+    return null;
+  }
+  if (!qa.shortcode) return null;
+  return `/write/${qa.shortcode}`;
 }

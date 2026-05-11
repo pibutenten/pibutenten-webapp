@@ -9,6 +9,7 @@ import {
   type UserLevel,
 } from "@/lib/user-grades";
 import RoleChangeForm from "./RoleChangeForm";
+import { getQaUrl } from "@/lib/qa-url";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,22 @@ type CommentRow = {
 };
 
 type LikeRow = {
-  qa: { id: number; question: string; created_at: string } | null;
+  qa: {
+    id: number;
+    question: string;
+    created_at: string;
+    type?: string | null;
+    posted_as?: string | null;
+    post_year?: number | null;
+    post_slug?: string | null;
+    shortcode?: string | null;
+    article_slug?: string | null;
+    doctor?: { slug: string } | { slug: string }[] | null;
+    author?:
+      | { handle?: string | null; alt_handle?: string | null }
+      | { handle?: string | null; alt_handle?: string | null }[]
+      | null;
+  } | null;
 };
 
 type Props = {
@@ -101,7 +117,11 @@ export default async function AdminUserDetailPage({ params }: Props) {
   // 좋아요
   const { data: likes } = await supabase
     .from("qa_likes")
-    .select("qa:qas(id, question, created_at)")
+    .select(
+      `qa:qas(id, question, created_at, type, posted_as, post_year, post_slug, shortcode, article_slug,
+        doctor:doctors(slug),
+        author:profiles!qas_author_id_profiles_fkey(handle, alt_handle))`,
+    )
     .eq("user_id", id)
     .order("created_at", { ascending: false })
     .limit(30)
@@ -281,7 +301,21 @@ export default async function AdminUserDetailPage({ params }: Props) {
               .map((l) => (
                 <li key={l.qa!.id} className="py-2">
                   <Link
-                    href={`/qa/${l.qa!.id}`}
+                    href={getQaUrl({
+                      id: l.qa!.id,
+                      type: l.qa!.type ?? undefined,
+                      posted_as: l.qa!.posted_as ?? undefined,
+                      post_year: l.qa!.post_year ?? null,
+                      post_slug: l.qa!.post_slug ?? null,
+                      shortcode: l.qa!.shortcode ?? null,
+                      article_slug: l.qa!.article_slug ?? null,
+                      doctor: Array.isArray(l.qa!.doctor)
+                        ? l.qa!.doctor[0] ?? null
+                        : l.qa!.doctor ?? null,
+                      author: Array.isArray(l.qa!.author)
+                        ? l.qa!.author[0] ?? null
+                        : l.qa!.author ?? null,
+                    })}
                     className="block text-sm text-[var(--text)] hover:text-[var(--primary)] hover:underline"
                   >
                     {l.qa!.question?.slice(0, 80)}

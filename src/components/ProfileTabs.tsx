@@ -82,7 +82,7 @@ function commentLink(c: CommentRow): string {
       : qa.author?.handle ?? null;
     if (handle) return `/${handle}/${qa.shortcode}`;
   }
-  return `/qa/${qa.id}`;
+  return "/";
 }
 
 /**
@@ -104,22 +104,29 @@ export default function ProfileTabs({
 }: Props) {
   const [tab, setTab] = useState<Tab>("posts");
 
-  // 피부고민 탭은 공개된 항목 있을 때만
-  const hasSkin = !!(
+  // visibility flag — owner는 항상 모든 탭 표시. 외부인은 visibility !== false일 때만.
+  const v = skinInfo?.visibility ?? {};
+  const showTab = (key: string) => isOwner || v[key] !== false;
+  // 피부고민 탭은 공개된 항목이 있을 때만 (각 항목별 visibility는 SkinInfoBlock에서 다시 필터)
+  const hasSkinContent = !!(
     skinInfo &&
-    ((skinInfo.visibility.face_shape !== false && skinInfo.faceShape) ||
-      (skinInfo.visibility.skin_type !== false && skinInfo.skinType) ||
-      (skinInfo.visibility.skin_concerns !== false && skinInfo.skinConcerns.length) ||
-      (skinInfo.visibility.interested_procedures !== false &&
-        skinInfo.interestedProcedures.length) ||
-      (skinInfo.visibility.liked_procedures !== false && skinInfo.likedProcedures.length))
+    (skinInfo.faceShape ||
+      skinInfo.skinType ||
+      skinInfo.skinConcerns.length ||
+      skinInfo.interestedProcedures.length ||
+      skinInfo.likedProcedures.length)
   );
 
-  // 탭 순서: 작성 글 → 댓글 → (본인일 때 좋아요·저장) → 피부고민 (맨 우측)
+  // 탭 순서: 작성 글 → 댓글 → 좋아요·저장 → 피부고민
+  // - likes/saves는 RLS상 외부인이 raw 데이터 fetch 불가 → 외부인이 visibility on 봐도 빈 상태
+  // - 그래도 visibility 컨트롤 일관성을 위해 5개 모두 flag 적용
   const tabs: Tab[] = (() => {
-    const base: Tab[] = ["posts", "comments"];
-    if (isOwner) base.push("likes", "saves");
-    if (hasSkin) base.push("skin");
+    const base: Tab[] = [];
+    if (showTab("tab_posts")) base.push("posts");
+    if (showTab("tab_comments")) base.push("comments");
+    if (showTab("tab_likes") && isOwner) base.push("likes");
+    if (showTab("tab_saves") && isOwner) base.push("saves");
+    if (hasSkinContent && showTab("tab_skin")) base.push("skin");
     return base;
   })();
 

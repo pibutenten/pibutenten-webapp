@@ -6,16 +6,16 @@ import { SITE_URL } from "@/lib/site";
  * sitemap.xml — Next.js App Router 자동 생성.
  *
  * 포함:
- *  - 정적 라우트 (/, /feed, /doctors, /about)
+ *  - 정적 라우트 (/, /doctors, /about)
  *  - 의사 9명 프로필 (/doctors/{slug})
  *  - 발행된 의사 글 (canonical: /doctors/{slug}/{year}/{post_slug})
  *  - 발행된 의사 칼럼 (/article/{article_slug})
- *  - fallback: /qa/{id} (post_slug 없는 의사 글)
  *
  * 제외 (robots에서도 차단):
- *  - /u/* (회원 글 — UGC, YMYL 안전성)
+ *  - /{handle}/{shortcode} (회원 글 — UGC, YMYL 안전성)
  *  - /me/*, /admin/*, /onboarding, /write, /signup, /login
  *  - /api, /debug
+ *  - SEO URL 구성 못 하는 의사 글(post_slug/post_year 누락)도 sitemap에서 제외
  */
 
 export const revalidate = 3600; // 1시간마다 재생성
@@ -97,15 +97,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           },
         ];
       }
-      // fallback — /qa/{id}
-      return [
-        {
-          url: `${SITE_URL}/qa/${q.id}`,
-          lastModified,
-          changeFrequency: "monthly" as const,
-          priority: 0.6,
-        },
-      ];
+      // SEO URL 만들 수 없는 글은 sitemap에서 제외
+      return [];
     });
 
     // 의사 프로필 — /doctors/{slug}

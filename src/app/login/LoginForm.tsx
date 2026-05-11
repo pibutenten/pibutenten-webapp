@@ -38,7 +38,7 @@ export default function LoginForm({ next, error: initialError }: Props) {
         .select("role")
         .eq("id", user.id)
         .maybeSingle();
-      // 모든 role은 /feed로 (관리/내 글은 헤더 본인 아이콘으로 진입)
+      // 모든 role은 / 메인 피드로 (관리/내 글은 헤더 본인 아이콘으로 진입)
       const dest = next || "/";
       window.location.assign(dest);
     });
