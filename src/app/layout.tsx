@@ -22,11 +22,11 @@ const notoSansKR = Noto_Sans_KR({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "피부텐텐",
+    default: "피부텐텐 | 피부과 전문의가 답하는 리프팅 · 스킨부스터 Q&A 라운지",
     template: "피부텐텐 | %s",
   },
   description:
-    "피부과 전문의가 함께하는 피부 미용 SNS. 피드, 검색, 원장님 소개를 한 곳에서.",
+    "피부과 전문의가 답하는 리프팅·스킨부스터·안티에이징·피부시술 Q&A와 칼럼. 광고 없이 검증된 답변만 모았습니다.",
   applicationName: "피부텐텐",
   manifest: "/manifest.webmanifest",
   icons: {
