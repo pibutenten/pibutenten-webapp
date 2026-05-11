@@ -456,7 +456,7 @@ function CommentItem({
 
   return (
     <div
-      className="rounded-md px-0 py-1.5"
+      className="rounded-md px-0 py-1"
       style={
         dimmed
           ? { backgroundColor: "#F5F5F5", color: "#888" }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Masonry from "react-masonry-css";
 import QACard, { type QACardData } from "./QACard";
 
 type ViewerState = { liked?: boolean; saved?: boolean; rating?: number };
@@ -125,14 +126,15 @@ export default function QAFeed({
       window.removeEventListener("pibutenten:qa-deleted", onDeleted);
   }, []);
 
-  // alternating split (홀수 → 좌, 짝수 → 우) — 데스크탑 전용
-  const left = items.filter((_, i) => i % 2 === 0);
-  const right = items.filter((_, i) => i % 2 === 1);
-
   return (
     <>
-      {/* 모바일: 단일 칼럼 */}
-      <div className="flex flex-col gap-4 min-[900px]:hidden">
+      {/* 카드 피드 — react-masonry-css 가로 flow.
+          데스크탑(≥900px) 2-column, 모바일 1-column 자동. DOM 한 벌. */}
+      <Masonry
+        breakpointCols={{ default: 2, 899: 1 }}
+        className="feed-masonry"
+        columnClassName="feed-masonry__col"
+      >
         {items.map((qa) => (
           <QACard
             key={qa.id}
@@ -145,37 +147,7 @@ export default function QAFeed({
             viewerRating={viewerStates?.[qa.id]?.rating}
           />
         ))}
-      </div>
-
-      {/* 데스크탑: 좌·우 독립 칼럼 */}
-      <div className="hidden grid-cols-2 items-start gap-5 min-[900px]:grid">
-        <div className="flex flex-col gap-5">
-          {left.map((qa) => (
-            <QACard
-              key={qa.id}
-              qa={qa}
-              activeQuery={searchQuery}
-              boostDoctorSlug={doctorSlug}
-              viewerLiked={viewerStates?.[qa.id]?.liked}
-              viewerSaved={viewerStates?.[qa.id]?.saved}
-              viewerRating={viewerStates?.[qa.id]?.rating}
-            />
-          ))}
-        </div>
-        <div className="flex flex-col gap-5">
-          {right.map((qa) => (
-            <QACard
-              key={qa.id}
-              qa={qa}
-              activeQuery={searchQuery}
-              boostDoctorSlug={doctorSlug}
-              viewerLiked={viewerStates?.[qa.id]?.liked}
-              viewerSaved={viewerStates?.[qa.id]?.saved}
-              viewerRating={viewerStates?.[qa.id]?.rating}
-            />
-          ))}
-        </div>
-      </div>
+      </Masonry>
 
       {/* 더 불러오기 sentinel + 로딩/끝 표시 */}
       <div ref={sentinelRef} className="h-10" />

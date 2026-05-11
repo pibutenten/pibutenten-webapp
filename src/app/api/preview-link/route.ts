@@ -114,8 +114,13 @@ function extractMeta(
   );
   const tag = html.match(re)?.[0];
   if (!tag) return "";
-  const c = tag.match(/content=["']([^"']*)["']/i);
-  return decodeEntities((c?.[1] ?? "").trim());
+  // 시작·종료 따옴표 짝 맞춤 — content 값 안에 반대 종류 따옴표가 있어도 OK
+  // 예: content="올타이트 개발기업 '○○○', ..." 케이스에서 ' 만나도 안 끊김
+  const dq = tag.match(/content="([^"]*)"/i);
+  if (dq) return decodeEntities(dq[1].trim());
+  const sq = tag.match(/content='([^']*)'/i);
+  if (sq) return decodeEntities(sq[1].trim());
+  return "";
 }
 
 function decodeEntities(s: string): string {

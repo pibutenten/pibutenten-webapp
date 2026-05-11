@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Masonry from "react-masonry-css";
 import QACard, { type QACardData } from "./QACard";
 import ArticleSectionCard from "./ArticleSectionCard";
 import type { ArticleSectionVirtualCard } from "@/lib/article/types";
@@ -144,14 +145,15 @@ export default function FeedWithArticles({
   // qa + article 섹션 카드 섞기 — 4번째 카드마다 article 섹션 1개
   const mixed: MixedItem[] = mixItems(qaItems, initialArticleCards);
 
-  // 좌·우 칼럼 분리
-  const left = mixed.filter((_, i) => i % 2 === 0);
-  const right = mixed.filter((_, i) => i % 2 === 1);
-
   return (
     <>
-      {/* 모바일 */}
-      <div className="flex flex-col gap-4 min-[900px]:hidden">
+      {/* 카드 피드 — react-masonry-css 가로 flow.
+          데스크탑(≥900px) 2-column, 모바일 1-column 자동 분기. DOM 한 벌. */}
+      <Masonry
+        breakpointCols={{ default: 2, 899: 1 }}
+        className="feed-masonry"
+        columnClassName="feed-masonry__col"
+      >
         {mixed.map((it) => (
           <Item
             key={keyFor(it)}
@@ -162,35 +164,7 @@ export default function FeedWithArticles({
             viewerStates={viewerStates}
           />
         ))}
-      </div>
-
-      {/* 데스크탑 */}
-      <div className="hidden grid-cols-2 items-start gap-5 min-[900px]:grid">
-        <div className="flex flex-col gap-5">
-          {left.map((it) => (
-            <Item
-              key={keyFor(it)}
-              item={it}
-              activeQuery={searchQuery}
-              boostDoctorSlug={doctorSlug}
-              hotSet={hotSet}
-              viewerStates={viewerStates}
-            />
-          ))}
-        </div>
-        <div className="flex flex-col gap-5">
-          {right.map((it) => (
-            <Item
-              key={keyFor(it)}
-              item={it}
-              activeQuery={searchQuery}
-              boostDoctorSlug={doctorSlug}
-              hotSet={hotSet}
-              viewerStates={viewerStates}
-            />
-          ))}
-        </div>
-      </div>
+      </Masonry>
 
       <div ref={sentinelRef} className="h-10" />
       {loading && (
