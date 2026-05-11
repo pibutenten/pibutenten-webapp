@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-11 (오후 라운드 완료)
-> 기준 commit: `942ddd6` (헤더 아바타 inline-flex fix)
+> 마지막 업데이트: 2026-05-11 (Phase 6 — Q&A 파이프라인 v5 + 카드 v7)
+> 기준 commit: `645ed82` (인라인 더보기 + Title Case + 어절 경계 룰)
 > 라이브: https://pibutenten-webapp.vercel.app
 
 ---
@@ -25,6 +25,17 @@
 - **인덱싱 자산은 의사 글만** — 회원 글은 SNS UI에서만, `noindex`
 - **UI 단순성** — 본인 활동/설정은 `/settings/*` 안에서 처리, 별도 드롭다운 X
 - **멀티 아이덴티티 완전 분리** — 같은 사람이라도 좋아요·저장·댓글은 identity별 독립
+
+### 작업 디렉토리 구조 (워크스페이스 루트 = `D:\Dropbox\Claude Code\260503 피부텐텐 웹앱개발\`)
+
+코드 외 운영 자료가 워크스페이스 루트 (`pibutenten-app` 상위)에 별도 폴더로 정리되어 있음. Git 추적 X — 작업 환경에서만 참조.
+
+| 폴더 | 용도 |
+|---|---|
+| `pibutenten-app/` | Next.js 앱 코드 (Git 추적, Vercel 배포 소스) |
+| `자막/` | 유튜브 영상의 **수동 한글 자막** WebVTT 파일 (자동자막 X). 파일명 패턴 `{YYMMDD}_{video_id 또는 키워드}.ko.vtt`. Phase 6 Q&A 파이프라인의 1차 입력. |
+| `전달용/` | **운영자가 작업 파일을 전달**하는 폴더. 사용자가 새 프롬프트·스펙·매핑 파일을 여기에 업로드하면 작업 진행. 현재 핵심 파일: `pibutenten_prompt_step1_v5.md`(자막→Q&A 카드), `pibutenten_prompt_step2_v2.md`(PubMed reference 매칭), `pibutenten-dev-spec-260510-v5.1.md`(앱 스펙), `slug-mapping.ts`, `procedure-mappings.json`. |
+| `Q&A_백업/` | Phase 6 파이프라인의 **카드 산출물 JSON 백업**. 파일명은 자막과 동일 베이스(`{YYMMDD}_{id}.json`). DB INSERT 후에도 보존해 운영자가 본문·bold·reference 검토 가능. |
 
 ---
 
@@ -181,6 +192,7 @@
 | video_url | YouTube URL (VideoObject용) |
 | published | boolean |
 | created_at | |
+| pubmed_ref | jsonb — 단일 PubMed 참고 논문 {pmid, doi, title, journal, year, authors_short, pubmed_url, doi_url, reasoning(내부)} (마이그레이션 `0037`) |
 
 ### profiles 테이블
 | 컬럼 | 의미 |
@@ -251,6 +263,53 @@
 ---
 
 ## 7. 완료된 기능 — 시간순 (2026-05-06 이후)
+
+### Phase 6: Q&A 파이프라인 v5 + 카드 v7 + PubMed 참고문헌 (2026-05-11)
+
+**파이프라인 (자막 → Q&A 카드 + PubMed 인용)**:
+- 자막 폴더: `/자막/*.ko.vtt` (수동 한글 자막, 자동자막 X).
+- 1단계 프롬프트 `전달용/pibutenten_prompt_step1_v5.md` — 영상 자막을 입력받아 Q&A 카드(최대 8개) + PubMed 검색 키워드 + 출처(`source.video_id/title/source_file/video_url`) 생성. 카드별 9 카테고리 분류, bold 위치-길이 비대칭(P1 10~25자 짧게 + P2 25~50자 길게), 한국어 어절 경계 룰, 두괄식 패턴 분산.
+- 후처리: 카드별 `pubmed_search_keywords`로 PubMed API 호출 → 후보 5~10개 메타데이터 수집.
+- 2단계 프롬프트 `전달용/pibutenten_prompt_step2_v2.md` — 후보 중 답안 핵심 주장을 직접 뒷받침하는 PMID 1개 선택 → `reference` 객체({pmid, doi, title, journal(Title Case 정규화), year, authors_short, pubmed_url, doi_url, reasoning(운영 내부)}). 적합 후보 없으면 `null`.
+- 산출물 백업: `/Q&A_백업/*.json` (영상별 카드 묶음 + reference).
+
+**DB 변경 (마이그레이션 `0037_qa_pubmed_ref.sql`)**:
+- `qas.pubmed_ref jsonb` 컬럼 추가.
+- `search_qas_scored` RPC 반환에 `pubmed_ref` 포함 (시그니처 갱신).
+- `[handle]/[shortcode]`, `doctors/[slug]/[year]/[postSlug]` select 쿼리에 `pubmed_ref` 추가.
+
+**최초 발행 16개 카드 (2026-05-11)**:
+- 정한미(`jung-hanmi`, `93b30a7c-bd6f-4a98-b7fe-2c169cf07962`) 작성자, `type=qa`, `category=qa`, `status=published`, `post_year=2026`.
+- 4편 영상 × 4카드: 쥬브젠(260430), 땅콩형 얼굴(260424), 스킨케어(260417), 힐로웨이브(260414).
+- `external_url`에 YouTube 타임스탬프 링크. PubMed reference 13개 매칭 + 3개 null.
+
+**카드 디자인 v7 (`QACard.tsx`)**:
+- **본문 multi-paragraph**: `\n\n` 분리 후 단락 사이 `mt-2.5`.
+- **bold 형광펜 하이라이트**: `<strong>`에 `linear-gradient(transparent 60%, rgba(255,230,90,0.55) 60%)` 인라인 스타일.
+- **line-clamp 반응형**: closed 상태에서 첫 단락 `line-clamp-4 md:line-clamp-5`, 나머지 단락 hidden.
+- **"더보기" 인라인**: 첫 단락 끝 inline `<span>`으로 작고 연하게(`text-[12px] text-[var(--text-muted)]/70`) 노출. line-clamp 자동 ellipsis만 활용, 별도 `…` 표기 X.
+- **참고문헌 인라인 footer**: border 박스 제거. `<cite itemScope itemType="https://schema.org/ScholarlyArticle">` 한 줄 — "참고문헌" 작은 라벨(10px) + `Title — Authors, Journal (Year)`. 제목이 PubMed 링크(DOI는 JSON-LD에 보존). closed 상태에서는 hidden.
+
+**JSON-LD Citation** (`/doctors/{slug}/{year}/{post-slug}` `acceptedAnswer.citation`):
+- `@type: ScholarlyArticle`
+- `name`, `url(DOI canonical)`, `sameAs(PubMed)`, `datePublished`, `publisher(Journal)`, `author(Authors)`, `identifier: PMID:...`
+
+**v5 핵심 룰 요약 (Q&A 카드 작성)**:
+- 분량 400~600자 / 8~10문장 / 2단락 기본.
+- 카드당 bold **2개 권장(기본)**, 1개 가능, 0개는 예외(4카드 중 최대 1개).
+- bold 위치-길이 비대칭: P1 10~25자 짧은 핵심 명사·수치, P2 25~50자 답+백데이터 통합 절.
+- **한국어 어절 경계 룰**: 어간 + 어미/조사 분리 금지. `낮|고` X → `낮고` O / `손상|으로` X → `손상으로` O.
+- 데코·엔게이지먼트 표현 bold 금지("딱 5분만 투자", "노화 방지의 기본").
+- 시술명 단독 bold 금지(절에 포함 시 OK).
+- 4카드 영상 단위 분포: P1+P2 둘다 50~75%, 1개 25~50%, 0개 ≤25%.
+- 자체 검증: 2개 bold 카드 최소 2개 이상.
+
+**v2 핵심 룰 요약 (PubMed 매칭)**:
+- 적합도 우선순위: 주제 직접 일치 > 답안 주장 뒷받침 > Systematic Review/Meta-analysis > RCT > Clinical Trial > 한국 연구 가중(같은 적합도일 때).
+- 적합 후보 없으면 `null` 반환. 억지 매칭 금지.
+- **저널명 Title Case 정규화**: PubMed 원본 sentence-case → 주요 단어 첫 글자 대문자, 짧은 전치사·관사·접속사(`of, in, on, for, the, a, an, and, or, but, to`)는 첫 단어가 아니면 소문자. 약어(JAMA, BMJ, PLOS) 원본 유지.
+
+**관련 commit**: `e1180ac` (RPC + 16 카드 + 디자인 초기) → `c9a18af` (v7 디자인) → `0efb420` (DOI→PubMed) → `a12d495` (더보기 라벨) → `ddab499` (참고문헌 한글화) → `8e9f3e8` (더보기 overlay) → `645ed82` (더보기 인라인).
 
 ### Round 1: URL 통합 (`b7baa1f`, `b495028`)
 - `/qa`, `/feed` 라우트 삭제
@@ -495,7 +554,7 @@
 | `/about` | AboutPage + MedicalOrganization |
 | `/doctors` | CollectionPage + ItemList + Person @id |
 | `/doctors/{slug}` | Person + MedicalBusiness (지점) + hasCredential |
-| `/doctors/{slug}/{year}/{post-slug}` | QAPage 또는 Article + Person author + **VideoObject** (영상 있는 경우) + BreadcrumbList |
+| `/doctors/{slug}/{year}/{post-slug}` | QAPage 또는 Article + Person author + **VideoObject** + **acceptedAnswer.citation (ScholarlyArticle)** + BreadcrumbList |
 | `/tags/{태그}` | CollectionPage + ItemList |
 | `/{handle}/{shortcode}` | 영구 noindex |
 
@@ -505,12 +564,22 @@
 - `VideoObject` — YouTube 영상 URL/썸네일/이름
 - `BreadcrumbList` — 모든 깊이 페이지
 - `AggregateRating` — DB 보존 중이나 UI 숨김으로 인해 현재 노출 X
+- **`ScholarlyArticle` Citation** (Phase 6) — acceptedAnswer.citation에 PubMed 참고문헌 {name, url(DOI), sameAs(PubMed), datePublished, publisher, author, identifier: PMID}. AI·검색엔진이 "의사 답변 + 학술 인용" 신호 인식.
 
 ---
 
 ## 10. 다음 작업 (TODO)
 
-### 완료 (2026-05-11 오후 라운드)
+### 완료 (Phase 6, 2026-05-11)
+- [x] **Q&A 추출 파이프라인 v5** — step1 v5 (자막→카드+키워드) + step2 v2 (PubMed reference 매칭)
+- [x] **신규 16개 Q&A 카드 발행** — 정한미 4편 영상 × 4카드
+- [x] **`qas.pubmed_ref` jsonb 컬럼** + `search_qas_scored` RPC 갱신 (마이그레이션 0037)
+- [x] **카드 디자인 v7** — bold 형광펜·line-clamp 4/5·인라인 ref·"더보기" 인라인·"참고문헌" 라벨
+- [x] **Schema.org Citation JSON-LD** — acceptedAnswer.citation에 PubMed 학술 인용 마킹
+- [x] **저널명 Title Case 정규화** — DB 13건 일괄 + 프롬프트 룰 명시
+- [x] **한국어 어절 경계 룰** 프롬프트 추가 (어간/조사 분리 금지)
+
+### 완료 (오후 라운드, 2026-05-11)
 - [x] **헤더 아바타 inline-flex fix** — 원본 크기 노출 버그 (942ddd6)
 - [x] **저장(북마크) 토글 버그 fix** — savePending stuck (eb6fc61)
 - [x] **저장 아이콘 앰버 #F59E0B**로 변경 (c70ec40)
@@ -548,14 +617,36 @@
 
 ---
 
-## 11. Q&A 작성 규칙 (변경 없음)
+## 11. Q&A 작성 규칙 (Phase 6 — v5/v2 파이프라인 기준)
 
-- **분량**: 7~8문장 / 350~450자
-- **두괄식**: 첫 문장에 결론·핵심
-- **단독 이해**: 다른 Q&A 없이도 시술 정의·핵심 정보 매번 포함
-- **금지**: 마크다운 강조(`**`), 불필요한 부연·반복
-- **전문 용어**: 괄호로 짧게 풀어주기
-- **답변 톤**: 친근하지만 전문적 ("효과가 있을 수 있어요/추천드려요")
+### 11.1 1단계 프롬프트 (자막 → 카드)
+풀버전: `전달용/pibutenten_prompt_step1_v5.md`. 핵심 룰:
+
+- **분량**: **400~600자, 8~10문장**, 2단락 기본(P1 직접 답·맥락 / P2 메커니즘·세부·비교·주의).
+- **두괄식**: 첫 문장 50~70자, 질문에 대한 직접 답.
+- **Specificity First**: 자막의 구체 수치·기간·용량·횟수를 정확히 옮김. 일반화·뭉뚱그리기 금지.
+- **자막 외 정보 금지**: 추측·암묵 지식 X. `script_evidence`에 자막 원문 2~3 인용으로 검증.
+- **bold(마크다운 `**`)** — `markdown`만 허용.
+  - **카드당 2개 권장(기본 목표)**, 1개 가능, 0개는 예외(4카드 중 ≤1).
+  - **위치-길이 비대칭**: P1 짧게 10~25자(핵심 명사·수치), P2 길게 25~50자(답+백데이터 통합 절).
+  - **한국어 어절 경계 룰**: 어간/조사 분리 금지. `낮|고` X → `낮고` O / `손상|으로` X → `손상으로` O / `입증|되어` X → `입증되어` O.
+  - 시술명 단독 bold·데코 표현("딱 5분만 투자", "노화 방지의 기본") bold 금지.
+  - 단락당 ≤1, 총 분량 30~80자, 영상 단위 분포 50~75%가 P1+P2 둘다.
+- **9 카테고리 + mechanism**: 시술 선택·비교 / 효과·지속기간 / 안전성·부작용 / 통증·시술 과정 / 다운타임·회복 / 시술 전 주의사항 / 시술 후 관리 / 비용·정품 확인 / 적합성·금기. 4카드는 최소 3개 카테고리 분포, ★★★ 등급 2개 이상.
+- **단독 이해**: 다른 카드 없이 의미 통해야. 시술명 처음 등장 시 1~2단어로 짧게 풀어주기.
+- **포맷 금지**: 표·불릿·번호 리스트·이모지·헤더·기타 마크다운 금지. `**bold**`와 단락 구분 `\n\n`만 허용.
+- **문체**: 해요체·합니다체 5:5~6:4 혼합. 금지 어휘: "추천드려요"(→ "권해 드려요"), "한답니다", "정말/진짜/엄청/되게", "~거든요" 남발.
+- **출처**: `source` 객체 `{video_id, video_title, source_file, video_url}` + `timestamp` + `pubmed_search_keywords` 영문 2~3개.
+
+### 11.2 2단계 프롬프트 (PubMed reference 매칭)
+풀버전: `전달용/pibutenten_prompt_step2_v2.md`. 핵심 룰:
+
+- 적합도 우선순위: 주제 직접 일치 > 답안 주장 뒷받침 > Systematic Review/Meta-analysis > RCT > Clinical Trial > 한국 연구 가중(같은 적합도일 때).
+- 적합 후보 없으면 `null` 반환. 억지 매칭 금지.
+- 출력 `reference {pmid, doi, title, journal, year, authors_short, pubmed_url, doi_url}` + `reasoning(50~100자 운영 검수용)`.
+- URL: `pubmed_url = https://pubmed.ncbi.nlm.nih.gov/{pmid}/`, `doi_url = https://doi.org/{doi}`.
+- **저널명 Title Case 정규화**: PubMed 원본 sentence-case → 주요 단어 첫 글자 대문자, 짧은 전치사·관사·접속사(`of, in, on, for, the, a, an, and, or, but, to`)는 첫 단어가 아니면 소문자. 약어(JAMA, BMJ, PLOS) 원본 유지.
+- `title`은 sentence-case 유지(학술 인용 관행).
 
 ---
 
@@ -585,6 +676,14 @@
 
 | Commit | 내용 |
 |---|---|
+| `645ed82` | **카드 v7-final** — "더보기" 인라인 12px text-muted/70(overlay 제거), 참고문헌 라벨 한글화, JSON-LD sameAs+identifier, 저널명 Title Case |
+| `8e9f3e8` | "더보기" overlay 시도(우하단 absolute + fade) → 인라인으로 재변경(645ed82) |
+| `ddab499` | 참고문헌 라벨 한글화(`Reference`→`참고문헌`) + URL 텍스트 제거 |
+| `0efb420` | ref 링크 DOI→PubMed 전환, JSON-LD에 DOI canonical + sameAs PubMed 보존 |
+| `a12d495` | 접힌 카드에 "더보기" 라벨 추가(별도 줄, 이후 인라인으로 재설계) |
+| `c9a18af` | **카드 v7 디자인** — 형광펜 bold(linear-gradient) + line-clamp 4/5 + 인라인 ref + Citation JSON-LD + v5 bold 재배치 |
+| `e1180ac` | **Phase 6 발행** — `qas.pubmed_ref` jsonb + `search_qas_scored` RPC 갱신(마이그레이션 0037) + 16개 신규 카드 INSERT(정한미 4편) + QACard에 markdown bold·multi-paragraph·ref 박스 초기 구현 |
+| `6fc8b4d` | PRD에 헤더 아바타 fix 라운드 정리 |
 | `942ddd6` | **헤더 아바타 fix** — span inline 요소로 인한 원본 크기 노출 (inline-flex 추가) |
 | `eb6fc61` | **저장 토글 진짜 fix** — savePending state stuck 해제 (try/finally) |
 | `c70ec40` | 추천(👍) 폐기 → ♥ 좋아요 통일 + 푸터 순서(좌측 묶음 + 공유 우측) + 저장 앰버색 |
@@ -621,4 +720,4 @@
 
 ---
 
-> 본 문서는 라이브 코드(`pibutenten-app`)와 git 히스토리를 기준으로 작성되었으며, 다음 결정 사항(별점·저장 색·아이콘 순서) 확정 후 다시 업데이트 예정.
+> 본 문서는 라이브 코드(`pibutenten-app`)와 git 히스토리, 그리고 워크스페이스 운영 자료(`전달용/`, `자막/`, `Q&A_백업/`)를 함께 참조해 작성되었으며, Phase 6 (Q&A 파이프라인 v5 + 카드 v7) 정리까지 반영된 상태. 다음 라운드 작업(베타 전 점검·새 영상 추가 발행) 진행 시 갱신.
