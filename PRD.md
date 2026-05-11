@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-11 (오후)
-> 기준 commit: `eb6fc61` (저장 토글 savePending stuck bug fix)
+> 마지막 업데이트: 2026-05-11 (오후 라운드 완료)
+> 기준 commit: `942ddd6` (헤더 아바타 inline-flex fix)
 > 라이브: https://pibutenten-webapp.vercel.app
 
 ---
@@ -398,6 +398,11 @@
 - **원인**: `setSavePending(true)` 후 함수 끝에서 `setSavePending(false)` 호출 누락 → 첫 클릭 후 영원히 true로 stuck → 모든 후속 클릭이 `if (savePending) return;` 가드에 막힘
 - **수정**: 전체를 `try/finally`로 감싸 finally에서 강제 false 처리
 
+### 헤더 아바타 inline-flex fix (`942ddd6`)
+- **증상**: 특정 사용자(세로로 긴 portrait 아바타)에서 헤더 IdentitySwitcher의 아바타가 28x28 동그라미가 아니라 원본 이미지 크기로 노출
+- **원인**: Avatar wrapper가 `<span>` (기본 `display:inline`) → width/height 인라인 스타일 무시 → 박스 크기 0/inline → `overflow-hidden`·`rounded-full` 무력화 → 내부 `<img>`가 자연 크기로 폴백
+- **수정**: `className`에 `inline-flex` 추가 (display 강제) — 다른 위치(Profile·Doctor·Admin)는 모두 `<div>`라서 영향 없음
+
 ---
 
 ## 8. 디자인 결정사항 (확정)
@@ -506,6 +511,7 @@
 ## 10. 다음 작업 (TODO)
 
 ### 완료 (2026-05-11 오후 라운드)
+- [x] **헤더 아바타 inline-flex fix** — 원본 크기 노출 버그 (942ddd6)
 - [x] **저장(북마크) 토글 버그 fix** — savePending stuck (eb6fc61)
 - [x] **저장 아이콘 앰버 #F59E0B**로 변경 (c70ec40)
 - [x] **아이콘 순서**: 좋아요/댓글/저장 좌측 묶음 + 공유 우측 (c70ec40)
@@ -579,6 +585,7 @@
 
 | Commit | 내용 |
 |---|---|
+| `942ddd6` | **헤더 아바타 fix** — span inline 요소로 인한 원본 크기 노출 (inline-flex 추가) |
 | `eb6fc61` | **저장 토글 진짜 fix** — savePending state stuck 해제 (try/finally) |
 | `c70ec40` | 추천(👍) 폐기 → ♥ 좋아요 통일 + 푸터 순서(좌측 묶음 + 공유 우측) + 저장 앰버색 |
 | `e3f3797` | 포커스 파란선 완전 제거 + dropdown 중복 primary identity 숨김 |
