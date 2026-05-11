@@ -300,27 +300,25 @@ export default function QACard({
     };
   }, [qa.id, hasViewerPrefetch]);
 
-  // 저장 토글 — 로그인 필수, 진행 중 클릭 무시 (자꾸 풀리는 문제 방지)
+  // 저장 토글 — 로그인 필수, 진행 중 클릭 무시 (자꾸 풀리는 문제 방지).
+  // ⚠️ 모든 경로에서 setSavePending(false)로 풀어야 다음 클릭이 막히지 않음.
   async function handleSave() {
     if (typeof window === "undefined") return;
     if (savePending) return;
     setSavePending(true);
-    const supabase = createSupabaseBrowserClient();
-    const { data: u } = await supabase.auth.getUser();
-    const userId = u.user?.id;
-    if (!userId) {
-      setSavePending(false);
-      router.push("/login?next=" + encodeURIComponent(window.location.pathname));
-      return;
-    }
-    const wasSaved = saved;
-    // 낙관적
-    setSaved(!wasSaved);
-    setSaveCount((c) => (wasSaved ? Math.max(0, c - 1) : c + 1));
-    // v5.1 옵션 X: identity 기반 RPC로 통일 (PK=(identity_id, qa_id))
-    //   - 같은 OAuth user라도 identity별로 저장 분리
-    //   - RPC가 NULL identity_id 받으면 primary identity 자동 lookup
-    {
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { data: u } = await supabase.auth.getUser();
+      const userId = u.user?.id;
+      if (!userId) {
+        router.push("/login?next=" + encodeURIComponent(window.location.pathname));
+        return;
+      }
+      const wasSaved = saved;
+      // 낙관적
+      setSaved(!wasSaved);
+      setSaveCount((c) => (wasSaved ? Math.max(0, c - 1) : c + 1));
+      // v5.1+ identity 기반 RPC (PK=(identity_id, qa_id))
       const activeIdentityId = getActiveIdentityId();
       const { data, error } = await supabase.rpc("toggle_qa_save", {
         p_qa_id: qa.id,
@@ -339,14 +337,17 @@ export default function QACard({
         setSaved(row.saved);
         setSaveCount(row.save_count);
       }
+      // 트리거가 갱신한 정확한 save_count 재조회
+      const { data: q } = await supabase
+        .from("qas")
+        .select("save_count")
+        .eq("id", qa.id)
+        .maybeSingle();
+      if (q) setSaveCount(Number((q as { save_count: number }).save_count ?? 0));
+    } finally {
+      // 어떤 경로로 끝나든 무조건 pending 해제 — 다음 클릭 가능
+      setSavePending(false);
     }
-    // 트리거가 갱신한 정확한 save_count 재조회
-    const { data: q } = await supabase
-      .from("qas")
-      .select("save_count")
-      .eq("id", qa.id)
-      .maybeSingle();
-    if (q) setSaveCount(Number((q as { save_count: number }).save_count ?? 0));
   }
 
   // 평점 등록/변경 — upsert (qa_ratings PK = qa_id,user_id,persona)
