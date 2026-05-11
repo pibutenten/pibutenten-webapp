@@ -931,9 +931,12 @@ export default function QACard({
         })()}
       </div>
 
-      {/* 태그 칩 — 카테고리 라벨(꿀팁/피부일기/물어봐요/새소식/Q&A)은 위 헤더에 이미
-          표시되므로 태그에서는 제외. 옛 데이터 호환 위해 display 단계에서 필터. */}
+      {/* 태그 칩 — 사용자 키워드 + 자동 카테고리 칩(맨 끝).
+          v5.1: 카테고리 라벨(답해드려요/피부꿀팁/피부일기/궁금해요/새소식)을
+          모든 글의 태그 맨 끝에 자동 append. 클릭하면 /search?q=라벨 로 같은
+          카테고리 글만 보임. 사용자 직접 입력은 받지 않음 (자동). */}
       {(() => {
+        // 옛 데이터에 사용자가 직접 입력한 카테고리 라벨이 있으면 중복 방지로 제거
         const CATEGORY_LABELS = [
           "Q&A", "답해드려요",
           "꿀팁", "피부꿀팁",
@@ -941,9 +944,16 @@ export default function QACard({
           "물어봐요", "궁금해요",
           "새소식",
         ];
-        const visibleKeywords = qa.keywords.filter(
+        const userKeywords = qa.keywords.filter(
           (k) => !CATEGORY_LABELS.includes(k),
         );
+        // 현재 글의 category 라벨을 마지막에 자동 추가
+        const categoryLabel = qa.category
+          ? labelForCategory(qa.category)
+          : null;
+        const visibleKeywords = categoryLabel
+          ? [...userKeywords, categoryLabel]
+          : userKeywords;
         if (visibleKeywords.length === 0) return null;
         return (
         <Keywords
