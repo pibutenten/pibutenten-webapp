@@ -73,8 +73,9 @@ export default function RecentLikers({
   const visibleLikers = likers.slice(0, maxAvatars);
 
   return (
-    <div className="flex items-center gap-1.5 px-1 py-1 text-[12.5px] text-[var(--text-secondary)]">
-      {/* 아바타 겹침 — 더 컴팩트 (-space-x-2.5). 맨 좌측이 z-index 가장 위. */}
+    <div className="flex items-center gap-1.5 py-1 text-[12.5px] text-[var(--text-secondary)]">
+      {/* 아바타 겹침 — 더 컴팩트 (-space-x-2.5). 맨 좌측이 z-index 가장 위.
+          좌측 정렬은 카드 footer 아이콘(좋아요/댓글)과 동일하게 — padding 없음. */}
       <div className="flex -space-x-2.5">
         {visibleLikers.map((l, idx) => (
           <div
