@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ImageCropDialog from "@/components/ImageCropDialog";
 import {
   FACE_SHAPES,
   SKIN_TYPES,
@@ -46,38 +47,6 @@ type Status =
 const SELECTED = "#9CA3AF"; // 더 연한 회색
 const CHECK_ACCENT = "#CBD5E1"; // 체크박스 — 더 연한 슬레이트 (눈에 덜 띄게)
 
-/** 클라이언트 리사이징 — 256x256 center-crop, JPEG 0.82 */
-async function resizeImage(file: File): Promise<Blob> {
-  const SIZE = 256;
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error("이미지 로드 실패"));
-      el.src = url;
-    });
-    const minSide = Math.min(img.width, img.height);
-    const sx = (img.width - minSide) / 2;
-    const sy = (img.height - minSide) / 2;
-    const canvas = document.createElement("canvas");
-    canvas.width = SIZE;
-    canvas.height = SIZE;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("canvas 컨텍스트 실패");
-    ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, SIZE, SIZE);
-    return await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error("blob 변환 실패"))),
-        "image/jpeg",
-        0.82,
-      ),
-    );
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
 const PROVIDER_LABEL: Record<string, string> = {
   email: "이메일",
   google: "Google",
@@ -102,10 +71,29 @@ export default function ProfileEditClient({
   const cameraRef = useRef<HTMLInputElement | null>(null);
   // 사진 변경: storage 업로드만 하고 state에 보관 — DB는 [저장하기] 버튼 누를 때 일괄 update
   const [pendingAvatarUrl, setPendingAvatarUrl] = useState<string | null>(null);
-  async function uploadAvatar(file: File) {
+
+  // 사진 자르기 다이얼로그 (인스타식 — 드래그·확대로 위치 조정 후 업로드)
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
+
+  /** 파일 선택 시 — 다이얼로그 띄움 (자동 center-crop 대신 사용자 조정). */
+  function onFilePicked(file: File) {
+    const url = URL.createObjectURL(file);
+    setCropSrc(url);
+    setCropOpen(true);
+  }
+
+  function onCropCancel() {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+    setCropOpen(false);
+  }
+
+  /** 다이얼로그에서 [완료] 누름 → blob을 supabase 업로드. */
+  async function onCropConfirm(blob: Blob) {
     setUploading(true);
+    setCropOpen(false);
     try {
-      const blob = await resizeImage(file);
       const path = `${userId}/${Date.now()}.jpg`;
       const { error: upErr } = await sb.storage
         .from("avatars")
@@ -124,6 +112,8 @@ export default function ProfileEditClient({
       setPendingAvatarUrl(newUrl);
     } finally {
       setUploading(false);
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+      setCropSrc(null);
     }
   }
 
@@ -393,7 +383,7 @@ export default function ProfileEditClient({
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) uploadAvatar(f);
+              if (f) onFilePicked(f);
               if (fileRef.current) fileRef.current.value = "";
             }}
           />
@@ -405,9 +395,18 @@ export default function ProfileEditClient({
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) uploadAvatar(f);
+              if (f) onFilePicked(f);
               if (cameraRef.current) cameraRef.current.value = "";
             }}
+          />
+
+          {/* 인스타식 사진 자르기 — 드래그·확대로 위치 조정 후 정사각형 crop */}
+          <ImageCropDialog
+            src={cropSrc}
+            open={cropOpen}
+            onCancel={onCropCancel}
+            onConfirm={onCropConfirm}
+            outputSize={512}
           />
         </div>
       </Card>
