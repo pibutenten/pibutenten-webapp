@@ -62,6 +62,18 @@ export type QACardData = {
   category?: string | null;
   /** 의사 직함 숨김 (Phase A.2) — true면 사적 모드, "피부과 전문의" 배지 숨김 */
   hide_doctor_credential?: boolean | null;
+  /** Phase 6 — 카드 하단 ref. 박스용 PubMed 단일 참고문헌. null이면 미노출 */
+  pubmed_ref?: {
+    pmid?: string | null;
+    doi?: string | null;
+    title?: string | null;
+    journal?: string | null;
+    year?: string | null;
+    authors_short?: string | null;
+    pubmed_url?: string | null;
+    doi_url?: string | null;
+    reasoning?: string | null;
+  } | null;
   doctor: {
     slug: string;
     name: string;
@@ -881,20 +893,47 @@ export default function QACard({
             </Link>
           </h2>
 
-          {/* 3. 본문 — 줄바꿈 보존, 길이 충분할 때만 클릭으로 펼침/접기 */}
+          {/* 3. 본문 — 단락(\n\n) 분리 + **bold** 인라인 렌더링. 길이 충분할 때만 클릭으로 펼침/접기. */}
           <div
             onClick={() => isLongAnswer && setExpanded((v) => !v)}
             className={isLongAnswer ? "cursor-pointer" : ""}
           >
-            <p
-              className={`whitespace-pre-wrap text-[15px] leading-[1.7] text-[var(--text)] ${
-                isLongAnswer && !expanded ? "line-clamp-5" : ""
-              }`}
-              style={{ transition: "color 0.2s ease" }}
-            >
-              {highlight(qa.answer, activeQuery)}
-            </p>
+            {renderAnswerBody(qa.answer, activeQuery, isLongAnswer && !expanded)}
           </div>
+
+          {/* 3a. 참고 논문 — pubmed_ref가 있을 때만 카드 본문 아래 작은 박스로 노출.
+              운영자 검수용 reasoning은 사용자 화면에 노출하지 않음. */}
+          {qa.pubmed_ref && (qa.pubmed_ref.pmid || qa.pubmed_ref.doi) && (() => {
+            const r = qa.pubmed_ref;
+            const linkHref = r.doi_url || r.pubmed_url;
+            const meta = [r.journal, r.year, r.authors_short].filter(Boolean).join(" · ");
+            return (
+              <div
+                className="mt-3 rounded-md border border-[var(--border)] bg-[var(--bg-soft)]/60 px-3 py-2 text-[12px] leading-[1.55]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="font-medium text-[var(--text-muted)]">참고 논문</div>
+                <div className="mt-0.5 text-[var(--text)]">
+                  {linkHref ? (
+                    <a
+                      href={linkHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                      style={{ color: "var(--primary)" }}
+                    >
+                      {r.title || linkHref}
+                    </a>
+                  ) : (
+                    <span>{r.title}</span>
+                  )}
+                </div>
+                {meta && (
+                  <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">{meta}</div>
+                )}
+              </div>
+            );
+          })()}
         </>
       )}
       <div className="mt-2 flex items-center gap-3 text-[12px]">
@@ -1490,6 +1529,72 @@ function absoluteDateTimeLabel(iso: string | null | undefined): string | null {
  * 텍스트 안에서 query 부분 일치를 노란 mark로 강조 (대소문자 무시).
  * query 비어있으면 원문 반환.
  */
+/**
+ * 답안 본문 렌더링.
+ * - `\n\n` 단락 분리 후 각 단락을 <p>로 출력 (단락 사이 살짝 여백, mt-2).
+ * - `**bold**` 마크다운 한 가지만 인라인으로 <strong>로 변환.
+ * - 검색 query 하이라이트는 plain 텍스트 부분에 highlight()로 적용.
+ * - clamped=true면 마지막 단락만 line-clamp-3로 접어 보이게 (인스타식 미리보기).
+ */
+function renderAnswerBody(
+  text: string,
+  query: string | undefined,
+  clamped: boolean,
+): ReactNode {
+  const paragraphs = (text ?? "").split(/\n{2,}/).map((s) => s.trimEnd());
+  return (
+    <>
+      {paragraphs.map((para, pi) => {
+        const isFirst = pi === 0;
+        const isLast = pi === paragraphs.length - 1;
+        // 인라인 bold + 검색 하이라이트 처리
+        const inline: ReactNode[] = [];
+        const re = /\*\*([^*]+)\*\*/g;
+        let lastIdx = 0;
+        let m: RegExpExecArray | null;
+        let key = 0;
+        while ((m = re.exec(para)) !== null) {
+          if (m.index > lastIdx) {
+            const slice = para.slice(lastIdx, m.index);
+            inline.push(
+              <Fragment key={`t${pi}-${key++}`}>
+                {highlight(slice, query)}
+              </Fragment>,
+            );
+          }
+          inline.push(
+            <strong
+              key={`b${pi}-${key++}`}
+              className="font-semibold text-[var(--text)]"
+            >
+              {highlight(m[1], query)}
+            </strong>,
+          );
+          lastIdx = m.index + m[0].length;
+        }
+        if (lastIdx < para.length) {
+          inline.push(
+            <Fragment key={`t${pi}-${key++}`}>
+              {highlight(para.slice(lastIdx), query)}
+            </Fragment>,
+          );
+        }
+        return (
+          <p
+            key={pi}
+            className={`whitespace-pre-wrap text-[15px] leading-[1.7] text-[var(--text)] ${
+              isFirst ? "" : "mt-2.5"
+            } ${clamped && isLast ? "line-clamp-3" : ""}`}
+            style={{ transition: "color 0.2s ease" }}
+          >
+            {inline}
+          </p>
+        );
+      })}
+    </>
+  );
+}
+
 function highlight(text: string, query?: string): ReactNode {
   if (!query || !query.trim()) return text;
   const q = query.trim();

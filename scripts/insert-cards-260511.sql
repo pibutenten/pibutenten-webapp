@@ -1,0 +1,173 @@
+-- 16개 Q&A 카드 INSERT — 2026-05-11 라운드
+-- 모두 정한미(jung-hanmi) 작성자, type='qa', category='qa', status='published', published=true.
+-- post_year=2026, post_slug는 카드별 영문 슬러그. external_url에 YouTube 타임스탬프 링크 포함.
+-- pubmed_ref는 단일 jsonb 객체 (null 가능). 운영자 검수용 reasoning 포함.
+
+insert into public.qas
+  (doctor_id, type, category, status, published, question, answer, keywords,
+   post_year, post_slug, external_url, pubmed_ref, created_at, updated_at)
+values
+  -- ===== 영상 1: 260430_MeycbSmQfxs (쥬브젠) =====
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '쥬브젠은 필러랑 어떻게 다른가요?',
+    E'쥬브젠은 히알루론산에 이산화탄소 가스를 함께 주입해 패임을 채우는 동시에 새 살을 돋게 한다는 점에서 일반 필러와 본질적으로 다른 시술입니다. 일반 필러는 히알루론산만으로 패인 부위를 직접 채우는 방식이지만, 쥬브젠은 같은 히알루론산에 이산화탄소 가스를 더해 피부 속에서 새 살이 차오르도록 자극합니다.\n\n또 전용 기계로 한 번에 **0.001cc씩** 미세하게 분산 주입되는 점도 차이입니다. 그래서 시술 직후 효과가 바로 나타나지만, 시간이 지나면서 본인 살의 탄력이 올라와 3개월, 6개월, 1년 후에 오히려 더 탄탄해진 모습이 보입니다. 일반 필러나 스킨부스터보다 효과가 훨씬 오래 가는 편이며, 5~60대처럼 탄력이 떨어지면서 주름이 깊어진 분들께 특히 적합한 선택지예요. 다만 영구적인 시술은 아니므로, 피부가 계속 나이 드는 과정에 맞춰 상태를 보고 재시술을 결정하시면 됩니다.',
+    ARRAY['쥬브젠','필러 차이','히알루론산','이산화탄소','신생콜라겐']::text[],
+    2026, 'juvelyn-vs-filler',
+    'https://youtu.be/MeycbSmQfxs?t=78s',
+    '{"pmid":"36999460","doi":"10.1111/jocd.15741","title":"An overview of the role of carboxytherapy in dermatology","journal":"Journal of cosmetic dermatology","year":"2023","authors_short":"Bagherani N, Smoller BR, Tavoosidana G et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/36999460/","doi_url":"https://doi.org/10.1111/jocd.15741","reasoning":"2023 J Cosmet Dermatol 카복시테라피 종합 리뷰로 진피 콜라겐 재구성과 피부 회춘 응용을 직접 다뤄, 답안의 ''HA+CO2가 새 살을 돋게 한다''는 메커니즘 주장을 뒷받침함."}'::jsonb,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '쥬브젠 효과는 얼마나 유지되나요?',
+    E'쥬브젠 효과는 **3년에서 5년 정도** 유지되는 경우가 많습니다. 일반 필러나 스킨부스터보다 훨씬 오래 가는 편이며, 시술 직후부터 효과가 보이지만 시간이 지날수록 더 탄탄해진다는 점이 특징이에요.\n\n우리 피부는 계속 나이가 들기 때문에, 한 번 받으면 영구적이라고 단정하기는 어렵습니다. 다만 시술 직후에도 효과가 바로 보이고, 두세 달 정도 지나면서 더 좋아진다고 알려져 있어요. 3개월, 6개월, 1년 시점에 비교하면 본인 살에 탄력이 올라와 점점 차오르는 변화가 확인됩니다. 3~5년이 지난 시점에 상태가 괜찮으면 굳이 다시 받지 않아도 되고, 주름이 다시 보이기 시작하면 그때 추가로 받는 식이 권장돼요. 정해진 주기로 강제 반복하는 시술이 아니라, 본인 피부 변화에 맞춰 결정하는 시술이라고 이해하시면 됩니다.',
+    ARRAY['쥬브젠 효과','지속기간','유지기간','재시술 시점','장기 효과']::text[],
+    2026, 'juvelyn-duration-3to5years',
+    'https://youtu.be/MeycbSmQfxs?t=241s',
+    null,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '쥬브젠 시술 후 멍이나 붉은기는 얼마나 가나요?',
+    E'쥬브젠 시술 후 멍은 약 일주일, 붉은기는 3~4주 정도 갈 수 있어요. 바늘로 주입하는 시술이라 멍은 어느 정도 피하기 어렵지만, 대부분 일주일 안에 빠집니다. 멍이 빠진 뒤 남는 붉은기는 피부 속에서 새 살이 차오르는 과정에서 생기는 자연스러운 반응이라 잘못된 신호가 아니에요.\n\n시술 후에는 시술 부위에 방수가 되는 재생 테이프를 붙이므로, 그 상태로 세수와 일상생활은 모두 가능합니다. 다만 음주, 흡연, 땀을 많이 흘리는 운동은 **3일에서 일주일 정도** 피하시는 것이 회복에 좋아요. 멍은 보통 일주일 안에 가라앉지만 붉은기는 3~4주 갈 수 있다는 점을 미리 알고 시술 시점을 잡으시면 좋습니다. 새 살이 차오르는 정상 반응이므로, 시술 부위에 문제가 생긴 것으로 오해하실 필요는 없습니다.',
+    ARRAY['쥬브젠 부작용','멍','붉은기','다운타임','시술후관리']::text[],
+    2026, 'juvelyn-recovery-bruising',
+    'https://youtu.be/MeycbSmQfxs?t=276s',
+    '{"pmid":"35124882","doi":"10.1111/jocd.14834","title":"Carboxytherapy in dermatology: A systematic review","journal":"Journal of cosmetic dermatology","year":"2022","authors_short":"Ahramiyanpour N, Shafie''ei M, Sarvipour N et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/35124882/","doi_url":"https://doi.org/10.1111/jocd.14834","reasoning":"2022 J Cosmet Dermatol 카복시테라피 시스템 리뷰로 27편 연구를 종합해 시술 후 부작용으로 홍반·통증·기포음·점상출혈이 경미·일시적이라고 보고. 답안의 멍·붉은기 다운타임 주장을 직접 뒷받침."}'::jsonb,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '쥬브젠은 누구에게 잘 맞나요?',
+    E'쥬브젠은 탄력이 떨어지면서 주름이 깊어진 5~60대 분들께 특히 잘 맞는 시술입니다. 30~40대 젊은 분들에게는 사실 크게 필요하지 않고, 40대인데 피부 탄력이 떨어진 분이나 5~60대 어머니들이 받았을 때 만족도가 높은 편이에요.\n\n시술 가능한 부위는 팔자주름, 마리오네트 주름, 입가 고양이 주름, 그리고 가로 목주름이 대표적입니다. 가로 주름이 잡힐 만큼 탄력이 떨어진 목에는 쥬브젠으로 탄탄하게 받쳐 주는 효과가 좋아요. 이마와 미간에도 가능하지만, 눈 밑은 적합하지 않으니 다른 시술을 고려해야 합니다. 보통 5~60대 팔자주름에는 필러를 먼저 떠올리는 경우가 많은데, 패임뿐 아니라 동반된 탄력 저하까지 함께 다루는 쥬브젠이 훨씬 효과적인 경우가 많아요. 다만 패임 정도가 가볍거나 잔주름 위주라면 다른 시술이 더 적절할 수 있어, 본인의 주름 깊이와 탄력 상태를 진료실에서 평가받은 뒤 결정하시면 됩니다.',
+    ARRAY['쥬브젠 적응증','5~60대','팔자주름','목주름','고양이주름']::text[],
+    2026, 'juvelyn-good-candidates',
+    'https://youtu.be/MeycbSmQfxs?t=391s',
+    '{"pmid":"35124882","doi":"10.1111/jocd.14834","title":"Carboxytherapy in dermatology: A systematic review","journal":"Journal of cosmetic dermatology","year":"2022","authors_short":"Ahramiyanpour N, Shafie''ei M, Sarvipour N et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/35124882/","doi_url":"https://doi.org/10.1111/jocd.14834","reasoning":"2022 J Cosmet Dermatol 카복시테라피 시스템 리뷰로 안면 주름·피부 노화에 대한 카복시테라피의 임상 적응증을 종합. 답안의 탄력 저하 동반 주름에 대한 적응증 주장을 뒷받침."}'::jsonb,
+    now(), now()
+  ),
+  -- ===== 영상 2: 260424_lZ2460EWRgw (땅콩형) =====
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '땅콩형 얼굴은 울쎄라를 받으면 안 되나요?',
+    E'땅콩형 얼굴이라고 울쎄라가 절대 금기는 아니지만, **처음부터 권하기는 어려운 경우가 많습니다**. 울쎄라는 1.5mm, 3.0mm, 4.5mm 깊이에 초음파 열점을 만드는 장비인데, 3.0mm는 피하지방층, 4.5mm는 스마스 근막을 타깃으로 합니다.\n\n이 열점이 피하지방층을 강하게 타격하면 지방 세포가 파괴될 수 있는데, 이미 볼과 관자가 꺼진 땅콩형 얼굴에서는 이 변화가 꺼짐 악화로 이어지기 쉬워요. 그래서 같은 리프팅 효과가 목표라면 단극성 고주파인 써마지, 세르프, 덴서티 같은 장비를 먼저 권하게 됩니다. 단극성 고주파는 전기가 지방층으로 잘 흐르지 않아 지방 세포 파괴 가능성이 낮고, 전반적인 탄력만 끌어올리는 데 강점이 있어요. 깊이와 위치를 정교하게 조절해 잘 시술하면 땅콩형 얼굴에도 울쎄라를 쓸 수는 있지만, 처음 받는 분이라면 안전한 대안부터 시도하는 편이 낫습니다. 특히 볼 패임이 이미 있는 분은 시술 전에 본인 얼굴형을 정확히 진단받는 단계를 거치는 것이 중요해요.',
+    ARRAY['땅콩형 얼굴','울쎄라 주의','볼 패임','단극성 고주파','써마지']::text[],
+    2026, 'peanut-face-ulthera-warning',
+    'https://youtu.be/lZ2460EWRgw?t=50s',
+    '{"pmid":"31738490","doi":null,"title":"Facial Skin Tightening With Microfocused Ultrasound and Dermal Fillers: Considerations for Patient Selection and Outcomes","journal":"Journal of drugs in dermatology","year":"2019","authors_short":"Casabona G, Kaye K","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/31738490/","doi_url":null,"reasoning":"2019 J Drugs Dermatol MFU 임상 가이드로 환자 선택 단계에서 bone or fat loss(이미 꺼진 부위) 평가를 명시. 답안의 땅콩형 환자에서 울쎄라 사전 평가 필요성 주장에 직접 부합."}'::jsonb,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '사각턱 보톡스를 잘못 맞으면 볼이 더 꺼지나요?',
+    E'사각턱 보톡스를 잘못 맞으면 **오히려 볼 꺼짐이 심해질 수 있습니다**. 사각턱은 교근이라는 저작 근육의 발달 때문에 두꺼워 보이는 현상이고, 이걸 줄이기 위해 보통 보톡스를 3~4 포인트로 나눠 주입해요. 그런데 광대가 있고 볼이 이미 꺼진 분이 강한 사각턱 보톡스를 맞으면 얼굴이 더 야위어 보일 수 있습니다.\n\n주사 위치가 너무 위쪽으로 올라가거나 용량이 과하면, 광대 아래쪽 볼륨이 함께 위축되면서 볼이 훅 꺼지는 결과가 나타납니다. 그래서 ''무턱대고 사각턱 보톡스를 맞으면 무턱된다''는 표현이 자주 사용돼요. 같은 사각턱이라도 위치를 낮춰서 잡고 용량을 줄여 부드럽게 라인만 다듬는 식으로 접근하면, 꺼짐 부작용은 줄이면서 자연스러운 윤곽을 얻을 수 있습니다. 사각턱이 있더라도 본인 광대와 볼 균형을 함께 봐서 맞춰야 결과가 안정적이에요. 따라서 사각턱 보톡스를 처음 맞을 때는 본인 얼굴 윤곽과 볼륨 상태를 함께 평가받은 뒤 위치와 용량을 결정하는 것이 안전합니다.',
+    ARRAY['사각턱 보톡스','볼 꺼짐','교근','보톡스 부작용','용량 조절']::text[],
+    2026, 'masseter-botulinum-cheek-hollow',
+    'https://youtu.be/lZ2460EWRgw?t=130s',
+    '{"pmid":"36527687","doi":"10.1093/asj/sjac336","title":"A Comprehensive Ultrasound Evaluation Approach of Lower Facial Structure Before Masseter Muscle Botulinum Toxin Injection","journal":"Aesthetic surgery journal","year":"2023","authors_short":"Li Z, Chi Y, Chen C et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/36527687/","doi_url":"https://doi.org/10.1093/asj/sjac336","reasoning":"2023 Aesthet Surg J 동아시아 환자 84개 마사터 분석으로, 부적절한 주사가 합병증을 유발하며 마사터·피하지방·하악 평가가 필수임을 강조. 답안의 위치·용량 오류 시 볼 꺼짐 위험 주장에 직접 부합."}'::jsonb,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '꺼진 얼굴엔 힐로웨이브와 스컬트라 중 뭘 골라야 하나요?',
+    E'꺼진 얼굴은 즉각 볼륨을 원하면 힐로웨이브, 시간이 걸려도 자연스러운 변화를 원하면 스컬트라가 적합합니다. 리프팅 시술은 처지거나 튀어나온 부위를 정돈하는 데 강점이 있지만, 이미 꺼진 부위를 다시 차오르게 만들지는 못해서 꺼짐 자체는 채워주는 시술이 필요해요.\n\n힐로웨이브는 가교제를 최소화한 히알루론산 스킨부스터라 부드럽게 동화되고 시술 직후 바로 볼륨이 채워집니다. 유지 기간은 **3개월 정도**이며, 필러는 부담스럽지만 빠르게 효과를 보고 싶은 분들께 권하기 좋아요. 반면 스컬트라는 PLLA 성분이 콜라겐과 엘라스틴을 만들어내는 섬유아세포를 자극해, 6개월 정도에 걸쳐 서서히 볼륨이 차오르는 방식입니다. 효과가 천천히 올라오는 만큼 인위적이지 않고 자연스러우며, 시간을 기다릴 수 있는 분들께 적합한 선택지가 돼요. 두 시술 모두 땅콩형처럼 매끄럽게 채워줘야 하는 얼굴형에 잘 맞고, 원하는 속도와 자연스러움 정도에 따라 골라 받으시면 됩니다.',
+    ARRAY['꺼진 얼굴','힐로웨이브','스컬트라','PLLA','볼륨 채우기']::text[],
+    2026, 'hilowave-vs-sculptra-selection',
+    'https://youtu.be/lZ2460EWRgw?t=191s',
+    '{"pmid":"37969055","doi":"10.1111/jocd.16085","title":"Skin rejuvenation effect of the combined PDLLA and non cross-linked hyaluronic acid: A preliminary study","journal":"Journal of cosmetic dermatology","year":"2023","authors_short":"Seo SB, Park H, Jo JY et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/37969055/","doi_url":"https://doi.org/10.1111/jocd.16085","reasoning":"2023 J Cosmet Dermatol 한국 임상 연구로 PDLLA(스컬트라 계열)와 non-crosslinked HA(힐로웨이브 계열)을 결합한 회춘 효과 평가. 답안의 두 시술 적응증 비교 주장에 직접 부합하며 한국 연구 가중."}'::jsonb,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '스컬트라 결절은 어떻게 줄일 수 있나요?',
+    E'스컬트라 결절은 입자가 한 곳에 뭉치지 않도록 사전 처리하고 깊은 층에 분산해 시술하면 크게 줄일 수 있습니다. 결절은 PLLA 입자가 고르게 퍼지지 못하고 한 부위에 모여 국소적으로 과도한 콜라겐 반응이 일어날 때 생기는 현상이에요.\n\n그래서 시술 전에 스컬트라와 증류수를 **최소 3일, 가급적 일주일 전**에 미리 섞어 수화해 두고, 수화 직후에는 초음파 분쇄로 입자를 더 작고 고르게 만드는 사전 처리가 중요합니다. 시술 직전에는 롤러 믹서로 계속 굴려 입자가 가라앉지 않은 뽀얀 상태로 만들어 주입해요. 시술 자체도 표층보다 깊은 층을 타깃으로 잡는 편이 결절 위험을 낮추고, 시술 후에는 스파츌라로 부위를 마사지해 입자가 고르게 분포되도록 마무리합니다. 과거에는 결절 이슈가 있었지만 요즘은 희석 비율을 늘리고 이런 사전·사후 처리가 정착하면서 결절은 크게 걱정하지 않아도 되는 수준으로 안정화되었어요. 결절이 무서워 콜라겐 부스터를 망설이는 분들도 시술자의 준비 과정과 시술법을 자세히 확인한 뒤 결정하시면 부담을 줄일 수 있습니다.',
+    ARRAY['스컬트라 결절','PLLA','결절 방지','수화','초음파 분쇄']::text[],
+    2026, 'sculptra-nodule-prevention',
+    'https://youtu.be/lZ2460EWRgw?t=455s',
+    '{"pmid":"38693639","doi":"10.1111/jocd.16343","title":"Complications of collagen biostimulators in Brazil: Description of products, treatments, and evolution of 55 cases","journal":"Journal of cosmetic dermatology","year":"2024","authors_short":"Ianhez M, de Goés E Silva Freire G, Sigrist RMS et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/38693639/","doi_url":"https://doi.org/10.1111/jocd.16343","reasoning":"2024 J Cosmet Dermatol 콜라겐 부스터 합병증 55건 다기관 분석으로 결절이 89.1%로 가장 흔하며 PLLA-Sculptra·Elleva가 다수. 답안의 결절 발생 메커니즘과 사전 처리·시술법 중요성 주장 뒷받침."}'::jsonb,
+    now(), now()
+  ),
+  -- ===== 영상 3: 260417_정한미_스킨케어 =====
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '지성 피부도 보습제를 발라야 하나요?',
+    E'지성 피부도 가볍게라도 보습 단계는 꼭 챙기는 것이 좋습니다. 안 당긴다고 아무것도 안 바르면 피지가 계속 산화되면서 모공이 막히고, 시간이 지나면 **트러블과 피부결 손상**으로 이어지기 쉬워요.\n\n지성 피부에서 진짜 중요한 건 두 가지인데, 첫째는 저녁 클렌징입니다. 피지가 폭발하는 정도라면 약알칼리성 폼클렌저를 중간중간 쓰는 것이 좋고, 일상적으로는 라로슈포제 에빠클라나 뉴트로지나 딥포밍 같은 무난한 클렌저도 충분해요. 둘째는 계절에 맞춘 가벼운 보습 한 단계입니다. 여름엔 가벼운 토너, 봄·가을엔 가벼운 로션, 겨울엔 적당한 크림 식으로 딱 하나만 발라도 지성 피부 관리는 충분합니다. 아무것도 안 바르는 것이 아니라, 본인에게 맞는 가벼운 한 단계는 챙기는 것이 핵심이에요. 피지가 안 당겨서 편하다는 감각만으로 케어를 거르면, 산화된 피지가 쌓이면서 결국 모공이 막히기 쉽습니다.',
+    ARRAY['지성 피부 스킨케어','클렌징','보습','피지 관리','모공']::text[],
+    2026, 'oily-skin-skincare-basics',
+    null,
+    null,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '건성 피부는 어떤 스킨케어 단계가 적절한가요?',
+    E'건성 피부는 약산성 클렌저, 세럼, 크림의 세 단계가 기본 스킨케어입니다. 건성 피부는 수분이 계속 빠지고 피부 장벽이 약한 가뭄 상태에 가까워, 케어를 거르면 주름이 빨리 쌓이기 쉬워요.\n\n그래서 세안은 자극이 적은 약산성 클렌저로 부드럽게 하고, 다음 단계로 기능성 세럼이나 수분 세럼을 한 단계 발라줍니다. 마무리는 크림으로 유분층을 만들어 주는 것이 좋고, 이렇게 세 단계만 챙겨도 보통 5분 안에 끝나요. 7~8가지 제품을 쌓아 올릴 필요는 없으며, 평소에도 당김이 심하다면 같은 크림을 한 번 더 바르거나 다른 크림을 추가로 덧발라 보습 강도를 조절하시면 됩니다. 건성 피부가 아무 케어도 안 하는 것은 사실상 피부 노화를 방치하는 셈이라, **딱 5분만 투자**해도 큰 차이를 만들 수 있어요. 건성일수록 유분이 적어 외부 자극에 약하므로, 기초 단계만이라도 매일 일정하게 챙기는 습관이 결과를 좌우합니다.',
+    ARRAY['건성 피부 스킨케어','약산성 클렌저','세럼','크림','피부 장벽']::text[],
+    2026, 'dry-skin-skincare-routine',
+    null,
+    null,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '선크림은 매일 발라야 하나요?',
+    E'선크림은 지성이든 건성이든 매일 바르는 것이 **노화 방지의 기본**입니다. 자외선은 콜라겐과 엘라스틴을 손상시키고 색소 침착을 가속하기 때문에, 누적되면 주름·칙칙함·기미 같은 광노화가 빠르게 진행돼요.\n\n평소에 토너와 로션 같은 다른 단계를 줄이더라도 마지막에 선크림은 꼭 챙기는 쪽이 효율적인 노화 관리 방법입니다. 출퇴근 정도의 외출만 있어도 자외선 노출이 충분히 누적되므로, 보습 단계를 마친 뒤 마무리로 한 번 발라주시면 돼요. 정말 거의 외출이 없는 날에는 생략할 수 있지만, 일반적인 직장 생활을 한다면 매일 챙기는 쪽이 안전합니다. 짧게 보면 차이가 잘 안 보여도 1~2년 후에는 매일 바른 사람과 바르지 않은 사람의 피부 노화 정도가 분명히 달라져요. 늙는다는 얘기를 듣고 어제부터 다시 바르기 시작했다는 사례처럼, 인식한 즉시 매일 루틴에 넣는 편이 좋습니다.',
+    ARRAY['선크림','광노화','자외선 차단','노화 방지','일상 스킨케어']::text[],
+    2026, 'daily-sunscreen-photoaging',
+    null,
+    '{"pmid":"23732711","doi":"10.7326/0003-4819-158-11-201306040-00002","title":"Sunscreen and prevention of skin aging: a randomized trial","journal":"Annals of internal medicine","year":"2013","authors_short":"Hughes MC, Williams GM, Baker P et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/23732711/","doi_url":"https://doi.org/10.7326/0003-4819-158-11-201306040-00002","reasoning":"2013 Ann Intern Med RCT로 4.5년간 매일 선크림 사용군이 임의 사용군 대비 광노화가 24% 적었음을 입증. 답안의 매일 바른 사람과 바르지 않은 사람의 노화 차이 주장을 직접 뒷받침."}'::jsonb,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '레티노이드를 꾸준히 바르면 어떤 효과가 있나요?',
+    E'레티노이드는 콜라겐 생성을 자극해 주름을 예방하고 이미 생긴 노화 변화를 되돌리는 성분으로, **3개월·6개월·1년 이상** 꾸준히 발라야 효과를 체감할 수 있습니다. 한두 달로는 차이가 거의 보이지 않으니, 처음부터 단기 효과를 기대하지 않는 것이 중요해요.\n\n화장품에 들어가는 레티놀과 레티날, 그리고 처방으로 받는 트레티노인 계열(아크리프, 투앤티 크림 등)이 대표적이며, 모두 콜라겐 합성 촉진과 주름 개선 효과가 과학적으로 입증되어 있습니다. 그래서 30대 중반부터는 저녁 루틴에 레티노이드 한 가지를 더하는 것이 효율적인 노화 관리 전략이 돼요. 처음부터 고농도로 시작하면 자극을 받기 쉬우므로 낮은 단계부터 시작해 천천히 농도를 올리는 방식이 권장됩니다. 안 바르는 사람과 꾸준히 바른 사람의 차이는 30대 중반 이후 점점 크게 벌어지므로, 가능하면 빨리 시작해 길게 유지하는 편이 결과 측면에서 유리해요. 본인도 레티날을 꾸준히 사용하면서 피부가 점점 탄탄해지는 변화를 직접 경험했다는 사례가 영상에 함께 소개됩니다.',
+    ARRAY['레티노이드','레티놀','레티날','트레티노인','주름 예방']::text[],
+    2026, 'retinoid-anti-aging-effect',
+    null,
+    '{"pmid":"29947134","doi":"10.1111/bjd.16918","title":"Prospective, randomized, double-blind assessment of topical bakuchiol and retinol for facial photoageing","journal":"The British journal of dermatology","year":"2018","authors_short":"Dhaliwal S, Rybak I, Ellis SR et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/29947134/","doi_url":"https://doi.org/10.1111/bjd.16918","reasoning":"2018 Br J Dermatol 12주 무작위 이중맹검 임상으로 레티놀 0.5% 도포가 주름 면적과 색소침착을 유의하게 개선. 답안의 레티노이드 콜라겐·주름 예방 효과 주장을 직접 임상적으로 뒷받침."}'::jsonb,
+    now(), now()
+  ),
+  -- ===== 영상 4: 260414_174Hw712Q_c (힐로웨이브) =====
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '힐로웨이브는 일반 필러와 어떻게 다른가요?',
+    E'힐로웨이브는 **가교제를 최소화한 부드러운 히알루론산 스킨부스터**라는 점에서 일반 필러와 본질적으로 다른 시술입니다. 일반 필러는 히알루론산을 단단히 결합해 덩어리 형태로 만들어 패임을 채우지만, 힐로웨이브는 같은 히알루론산을 거의 풀어 놓아 줄줄 흐를 정도로 부드러운 상태로 사용해요.\n\n그래서 필러는 콧대를 세우거나 깊게 패인 부위를 단단히 받쳐 주는 데 강한 반면, 힐로웨이브는 피부 속에서 **뭉치지 않고 고르게 퍼져** 자연스럽게 채워 주는 데 강합니다. 눈 밑, 팔자주름, 옆볼처럼 미세하게 꺼진 부위에 시술하면 받은 티 없이 인상이 밝아지고, 동시에 피부 결도 좋아지는 효과를 얻을 수 있어요. 다만 단단한 받침이 필요한 깊은 팔자나 크게 꺼진 볼은 힐로웨이브로 충분히 채워지지 않으므로, 그런 경우엔 일반 필러가 더 적합합니다. 만능 시술은 아니므로 본인 꺼짐의 깊이를 보고 두 시술을 적절히 선택·조합하시면 됩니다. 필러가 부담스러운 분이나 결절 걱정으로 콜라겐 부스터를 망설이는 분에게 입문 시술로도 자주 권해지는 선택지예요.',
+    ARRAY['힐로웨이브','필러 비교','히알루론산','가교제','스킨부스터']::text[],
+    2026, 'hilowave-vs-filler',
+    'https://youtu.be/174Hw712Q_c?t=188s',
+    '{"pmid":"32419355","doi":"10.1111/jocd.13493","title":"Evaluation of safety and efficacy of booster injections of hyaluronic acid in improving the facial skin quality","journal":"Journal of cosmetic dermatology","year":"2020","authors_short":"Ayatollahi A, Firooz A, Samadi A","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/32419355/","doi_url":"https://doi.org/10.1111/jocd.13493","reasoning":"2020 J Cosmet Dermatol 임상 연구로 non-crosslinked HA 부스터의 피부 탄력·수분 개선과 안전성을 평가. 답안의 가교제 최소화 HA가 일반 필러와 달리 자연스럽게 채우고 결을 개선한다는 주장에 직접 부합."}'::jsonb,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '힐로웨이브는 결절 위험이 정말 없나요?',
+    E'힐로웨이브가 결절 걱정이 거의 없는 이유는, 재료가 히알루론산이면서 그마저도 단단하게 뭉쳐 있지 않고 부드럽게 풀어진 형태이기 때문입니다. 결절은 시술 후에 입자나 콜라겐 반응이 한 곳에 뭉쳐 만져지는 단단한 멍울로, 콜라겐 부스터를 망설이는 가장 큰 이유로 꼽히기도 해요.\n\n보통 결절은 콜라겐 부스터처럼 콜라겐 생성을 강하게 자극하는 시술에서 입자가 한 곳에 모여 국소적으로 과도한 반응이 일어날 때 생기는 현상입니다. 반면 힐로웨이브는 외부에서 콜라겐 생성을 강제로 유도하지 않고 본래 피부에 있는 히알루론산을 보충하는 방식이라, **결절을 만들 만한 메커니즘 자체가 약합니다**. 가교제를 최소화해 입자가 단단히 뭉치지도 않으므로, 한 부위에 굳어 결절처럼 만져질 가능성도 낮아요. 그래서 스컬트라, 쥬베룩, 레디어스, 올리디아 같은 콜라겐 부스터의 결절 이슈가 두려운 분들에게 입문 시술로 권하는 편입니다. 눈 밑·팔자·옆볼 같은 미세한 꺼짐 부위에 부담 없이 시작해 보고 싶다면 우선 고려하기 좋은 옵션이에요.',
+    ARRAY['힐로웨이브 안전성','결절 위험','히알루론산','콜라겐 부스터 비교','안전한 스킨부스터']::text[],
+    2026, 'hilowave-nodule-safety',
+    'https://youtu.be/174Hw712Q_c?t=262s',
+    '{"pmid":"37705328","doi":"10.1111/jocd.15944","title":"The efficacy of intradermal hyaluronic acid filler as a skin quality booster: A prospective, single-center, single-arm pilot study","journal":"Journal of cosmetic dermatology","year":"2023","authors_short":"Lee JH, Kim J, Lee YN et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/37705328/","doi_url":"https://doi.org/10.1111/jocd.15944","reasoning":"2023 J Cosmet Dermatol Yonsei 임상 연구로 HA 스킨부스터 12주 추적에서 일시적 피하결절 1건 외 심각한 부작용이 없음을 보고. 답안의 HA 부스터 결절 위험이 매우 낮다는 주장을 직접 뒷받침하며 한국 연구 가중."}'::jsonb,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '힐로웨이브는 어떻게 즉각 효과와 장기 효과를 동시에 내나요?',
+    E'힐로웨이브는 고분자와 저분자 히알루론산을 함께 담아 두 가지 효과를 동시에 만들어냅니다. 고분자 히알루론산은 **자기 무게의 수백 배**에 달하는 수분을 머금어 시술 직후부터 즉각적인 보습과 볼륨감을 제공해요.\n\n반면 저분자 히알루론산은 크기가 작아 조직 깊이까지 빠르게 침투하고, 콜라겐을 만드는 섬유아세포를 자극해 장기적으로 피부 결을 개선하는 신호를 전달합니다. 그래서 시술 직후엔 수분과 볼륨이 차오르는 변화가 보이고, 시간이 지나면서 피부 자체가 건강해지는 변화도 함께 따라와요. 다만 스컬트라처럼 콜라겐 생성을 강하게 촉진하는 수준은 아니므로, 콜라겐 부스터의 장기 효과를 대체하는 시술은 아닙니다. 두 가지 작용이 한 번의 시술 안에 담겨 있다는 점이 일반 히알루론산 시술과 가장 큰 차이이며, 받은 직후엔 빛나고 시간이 지날수록 피부가 좋아지는 효과를 동시에 노릴 수 있어요. 광이 돈다, 촉촉해졌다, 화사해졌다는 후기가 자주 나오는 것도 두 가지 작용이 합쳐진 결과로 볼 수 있습니다.',
+    ARRAY['힐로웨이브 스킨부스터','고분자 히알루론산','저분자 히알루론산','섬유아세포','콜라겐 자극']::text[],
+    2026, 'hilowave-dual-mechanism',
+    'https://youtu.be/174Hw712Q_c?t=354s',
+    '{"pmid":"37062921","doi":"10.1111/jocd.15763","title":"Synergy of GHK-Cu and hyaluronic acid on collagen IV upregulation via fibroblast and ex-vivo skin tests","journal":"Journal of cosmetic dermatology","year":"2023","authors_short":"Jiang F, Wu Y, Liu Z et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/37062921/","doi_url":"https://doi.org/10.1111/jocd.15763","reasoning":"2023 J Cosmet Dermatol 세포·ex-vivo 실험으로 저분자량 HA가 섬유아세포 콜라겐 IV 합성을 25배까지 증가시킴을 입증. 답안의 저분자 HA가 섬유아세포를 자극해 콜라겐을 만든다는 메커니즘 주장 직접 뒷받침."}'::jsonb,
+    now(), now()
+  ),
+  (
+    '93b30a7c-bd6f-4a98-b7fe-2c169cf07962', 'qa', 'qa', 'published', true,
+    '힐로웨이브 효과는 얼마나 유지되나요?',
+    E'힐로웨이브 효과는 보통 **3개월에서 6개월** 정도 유지됩니다. 필러처럼 가교제로 단단히 결합한 게 아니라 부드럽게 풀어 놓은 형태이기 때문에, 1년에서 1년 반 정도 가는 일반 필러보다는 짧은 편이에요.\n\n대신 그만큼 본인 조직에 잘 동화되고 이물감이 적다는 장점이 따라옵니다. 또 안전성·결절 측면의 부담이 적어, 재시술 부담 없이 일정 주기로 가볍게 유지·관리할 수 있는 시술로 자리 잡았어요. 효과가 다 빠질 때까지 기다리지 않고 3개월 시점부터 본인이 좋았던 느낌을 유지하고 싶을 때 재시술을 받는 분도 많습니다. 다만 깊고 단단하게 패인 부위는 힐로웨이브로 충분히 채워지지 않으므로, 강한 받침이 필요한 곳엔 단단한 필러나 콜라겐 부스터가 더 적합해요. 미세한 볼륨 보충과 자연스러움이 목표라면 힐로웨이브가 잘 맞고, 확실한 볼륨이 필요한 부위엔 다른 시술과 조합하는 방향이 권장됩니다. 본인이 어느 주기로 받을지는 시술 후 피부 변화 속도에 맞춰 결정하시면 돼요.',
+    ARRAY['힐로웨이브 유지기간','재시술','필러 비교','깊은 주름','스킨부스터 한계']::text[],
+    2026, 'hilowave-duration-3to6months',
+    'https://youtu.be/174Hw712Q_c?t=421s',
+    '{"pmid":"37705328","doi":"10.1111/jocd.15944","title":"The efficacy of intradermal hyaluronic acid filler as a skin quality booster: A prospective, single-center, single-arm pilot study","journal":"Journal of cosmetic dermatology","year":"2023","authors_short":"Lee JH, Kim J, Lee YN et al.","pubmed_url":"https://pubmed.ncbi.nlm.nih.gov/37705328/","doi_url":"https://doi.org/10.1111/jocd.15944","reasoning":"2023 J Cosmet Dermatol Yonsei 임상 연구로 HA 필러 스킨부스터를 12주 추적해 8주에 주름 40% 감소·12주에 33% 유지로 측정. 답안의 3~6개월 유지 주장에 임상 데이터로 부합하며 한국 연구 가중."}'::jsonb,
+    now(), now()
+  );
