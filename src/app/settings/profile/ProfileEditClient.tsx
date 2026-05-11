@@ -36,6 +36,15 @@ type Props = {
   loginProviders: string[];
   /** 우측 상단 [← 프로필] 링크의 href — 프로필 페이지(/{handle} 또는 /) */
   profileHref: string;
+  /**
+   * v5.1 옵션 X: 활성 identity_id (UUID).
+   * null이면 1차 identity (= profiles row 자체) 편집.
+   * UUID면 profile_identities row 편집 (display_name·avatar·bio만).
+   */
+  activeIdentityId: string | null;
+  activeIdentityKind: string | null;
+  /** 원장 1차 계정 등 — 사진·이름 read-only (관리자가 doctors 테이블에서 관리). */
+  readOnlyNameAndAvatar: boolean;
   initial: Initial;
 };
 
@@ -59,6 +68,9 @@ export default function ProfileEditClient({
   currentEmail,
   loginProviders,
   profileHref,
+  activeIdentityId,
+  activeIdentityKind,
+  readOnlyNameAndAvatar,
   initial,
 }: Props) {
   const router = useRouter();
@@ -205,23 +217,30 @@ export default function ProfileEditClient({
     setInterestedInput("");
   }
   // 통합 저장: 사진 + 닉네임 + 자기소개 + 피부정보 + visibility 한 번에
+  // v5.1 옵션 X: 활성 identity가 multi-identity면 profile_identities row에 저장.
+  //   - 사진·이름·bio는 identity 별로 분리 (배스킨 사진 = 배스킨 identity row)
+  //   - 피부정보·visibility·marketing은 profiles 공통 (개인 1명 1set)
+  //   - readOnlyNameAndAvatar = true면 사진·이름 변경 무시 (원장 1차 계정 등)
   function saveAll() {
     setSkinStatus({ type: "idle" });
     startSkin(async () => {
-      const updates: Record<string, unknown> = {
+      // 1) 피부 정보·visibility는 항상 profiles에 (개인 1명 단일 set)
+      const profileUpdates: Record<string, unknown> = {
         face_shape: faceShape,
         skin_type: skinType,
         skin_concerns: skinConcerns,
         interested_procedures: interestedProcedures,
         liked_procedures: likedProcedures,
-        bio: bio.trim() || null,
         field_visibility: visibility,
       };
-      // 사진이 변경된 경우만 포함
-      if (pendingAvatarUrl) updates.avatar_url = pendingAvatarUrl;
-      // 닉네임 변경된 경우만 포함 (validation 포함)
+
+      // 2) 사진·이름·bio — 활성 identity 따라 분기
       const trimmedName = displayName.trim();
-      if (trimmedName !== initial.displayName) {
+      const nameChanged = trimmedName !== initial.displayName;
+      const photoChanged = !!pendingAvatarUrl;
+      const bioTrimmed = bio.trim() || null;
+
+      if (nameChanged && !readOnlyNameAndAvatar) {
         if (!trimmedName || trimmedName.length < 2 || trimmedName.length > 20) {
           setSkinStatus({
             type: "err",
@@ -229,11 +248,35 @@ export default function ProfileEditClient({
           });
           return;
         }
-        updates.display_name = trimmedName;
       }
+
+      if (activeIdentityId) {
+        // multi-identity 활성 → profile_identities row 수정 (사진·이름·bio)
+        const identityUpdates: Record<string, unknown> = { bio: bioTrimmed };
+        if (!readOnlyNameAndAvatar) {
+          if (photoChanged) identityUpdates.avatar_url = pendingAvatarUrl;
+          if (nameChanged) identityUpdates.display_name = trimmedName;
+        }
+        const { error: ie } = await sb
+          .from("profile_identities")
+          .update(identityUpdates)
+          .eq("id", activeIdentityId);
+        if (ie) {
+          setSkinStatus({ type: "err", msg: ie.message });
+          return;
+        }
+      } else {
+        // 1차 identity (profiles row 자체) — 사진·이름·bio도 profiles에
+        if (!readOnlyNameAndAvatar) {
+          if (photoChanged) profileUpdates.avatar_url = pendingAvatarUrl;
+          if (nameChanged) profileUpdates.display_name = trimmedName;
+        }
+        profileUpdates.bio = bioTrimmed;
+      }
+
       const { error } = await sb
         .from("profiles")
-        .update(updates)
+        .update(profileUpdates)
         .eq("id", userId);
       if (error) {
         setSkinStatus({ type: "err", msg: error.message });

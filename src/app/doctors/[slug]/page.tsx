@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -118,6 +119,72 @@ export default async function DoctorDetailPage({ params }: Props) {
   const affiliation = [doctor.clinic, doctor.branch].filter(Boolean).join(" ");
   const hotIds = Array.from(await getHotQaIds(20));
 
+  // 본인 접속 판단 — viewer가 doctor_accounts로 매핑된 본인 doctor인지
+  let isOwner = false;
+  let ownerStats: {
+    published: number;
+    pending: number;
+    draft: number;
+    receivedLikes: number;
+    receivedSaves: number;
+  } | null = null;
+  if (viewer) {
+    const { data: da } = await supabase
+      .from("doctor_accounts")
+      .select("doctor_id")
+      .eq("profile_id", viewer.id)
+      .eq("doctor_id", doctor.id)
+      .maybeSingle();
+    if (da) {
+      isOwner = true;
+      // 본인 글 상태별 카운트 + 받은 인터랙션 합산
+      const [pub, pen, drf, likesRes, savesRes] = await Promise.all([
+        supabase
+          .from("qas")
+          .select("id", { count: "exact", head: true })
+          .eq("doctor_id", doctor.id)
+          .eq("status", "published"),
+        supabase
+          .from("qas")
+          .select("id", { count: "exact", head: true })
+          .eq("doctor_id", doctor.id)
+          .eq("status", "pending_review"),
+        supabase
+          .from("qas")
+          .select("id", { count: "exact", head: true })
+          .eq("doctor_id", doctor.id)
+          .eq("status", "draft"),
+        supabase
+          .from("qas")
+          .select("like_count")
+          .eq("doctor_id", doctor.id)
+          .eq("status", "published"),
+        supabase
+          .from("qas")
+          .select("save_count")
+          .eq("doctor_id", doctor.id)
+          .eq("status", "published"),
+      ]);
+      const totalLikes = (likesRes.data ?? []).reduce(
+        (sum: number, r: { like_count: number | null }) =>
+          sum + (r.like_count ?? 0),
+        0,
+      );
+      const totalSaves = (savesRes.data ?? []).reduce(
+        (sum: number, r: { save_count: number | null }) =>
+          sum + (r.save_count ?? 0),
+        0,
+      );
+      ownerStats = {
+        published: pub.count ?? 0,
+        pending: pen.count ?? 0,
+        draft: drf.count ?? 0,
+        receivedLikes: totalLikes,
+        receivedSaves: totalSaves,
+      };
+    }
+  }
+
   // JSON-LD: Physician(풀세트, multi-typing) + BreadcrumbList — 헬퍼로 중앙화 (변경 1·2·4·6)
   const SITE = SITE_URL;
   const physicianLd = buildDoctorFull({
@@ -208,6 +275,11 @@ export default async function DoctorDetailPage({ params }: Props) {
 
       </header>
 
+      {/* 본인 접속 시만 — 원장 대시보드 위젯 (외부인엔 노출 X) */}
+      {isOwner && ownerStats && (
+        <DoctorOwnerWidget doctorName={doctor.name} stats={ownerStats} />
+      )}
+
       {/* 프로필 강화 섹션 — profile_data에 입력된 항목만 노출 (E-E-A-T 신뢰 신호) */}
       <DoctorProfileSection profile={profile} />
 
@@ -238,6 +310,83 @@ export default async function DoctorDetailPage({ params }: Props) {
         />
       )}
     </section>
+  );
+}
+
+/**
+ * 원장 본인 접속 시 표시되는 대시보드 위젯.
+ * - 글 상태별 카운트 + 받은 인터랙션 합산
+ * - 빠른 작성 버튼 (Q&A·꿀팁·공유하기)
+ * - 외부인엔 노출 X
+ */
+function DoctorOwnerWidget({
+  doctorName,
+  stats,
+}: {
+  doctorName: string;
+  stats: {
+    published: number;
+    pending: number;
+    draft: number;
+    receivedLikes: number;
+    receivedSaves: number;
+  };
+}) {
+  return (
+    <div className="rounded-[var(--radius)] border border-[var(--primary)]/30 bg-[var(--primary-soft)] p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[15px] font-bold text-[var(--text)]">
+          {doctorName} 원장님 대시보드
+        </h2>
+        <span className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
+          본인만 보임
+        </span>
+      </div>
+
+      {/* 통계 5종 */}
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+        <Stat label="발행" value={stats.published} />
+        <Stat label="검수 대기" value={stats.pending} />
+        <Stat label="임시저장" value={stats.draft} />
+        <Stat label="받은 좋아요" value={stats.receivedLikes} />
+        <Stat label="받은 저장" value={stats.receivedSaves} />
+      </div>
+
+      {/* 빠른 작성 */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link
+          href="/write"
+          className="rounded-full bg-[var(--primary)] px-4 py-1.5 text-[13px] font-semibold text-white hover:bg-[var(--primary-dark)]"
+        >
+          ✏ 새 글 작성
+        </Link>
+        <Link
+          href="/admin/qas"
+          className="rounded-full border border-[var(--border)] bg-white px-4 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+        >
+          전체 글 관리 →
+        </Link>
+        <Link
+          href="/settings/profile"
+          className="rounded-full border border-[var(--border)] bg-white px-4 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+        >
+          ⚙ 프로필 수정
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-[var(--radius-sm)] bg-white px-3 py-2 text-center">
+      <div className="text-[11px] font-medium text-[var(--text-muted)]">
+        {label}
+      </div>
+      <div className="mt-0.5 text-[18px] font-bold text-[var(--text)]">
+        {value}
+      </div>
+    </div>
   );
 }
 

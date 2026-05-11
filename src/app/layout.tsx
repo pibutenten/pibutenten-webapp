@@ -134,6 +134,18 @@ async function getSessionInfo(): Promise<SessionInfo> {
         kind: ei.kind,
       });
     }
+    // v5.1: dropdown 순서 — 관리자 / 원장 / 개인 / 기타 (사용자 의도)
+    const KIND_ORDER: Record<string, number> = {
+      admin: 0,
+      doctor: 1,
+      primary: 1, // primary가 doctor면 1, 그 외엔 fallback
+      personal: 2,
+      other: 3,
+    };
+    identities.sort(
+      (a, b) =>
+        (KIND_ORDER[a.kind] ?? 99) - (KIND_ORDER[b.kind] ?? 99),
+    );
     // 활성 identity 결정 — cookie 우선, 없으면 'primary'
     const { cookies } = await import("next/headers");
     const cookieStore = await cookies();
