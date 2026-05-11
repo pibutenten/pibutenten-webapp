@@ -126,7 +126,7 @@ function buildJsonLd(
   });
 
   // QAPage — 단일 질문 + 의사 검수 답변 + SNS 인터랙션 신호
-  const medicalPage = {
+  const medicalPage: Record<string, unknown> = {
     "@type": ["MedicalWebPage", "QAPage"],
     "@id": `${url}#webpage`,
     url,
@@ -163,6 +163,30 @@ function buildJsonLd(
     specialty: "https://schema.org/Dermatologic",
     audience: { "@type": "MedicalAudience", audienceType: "Patient" },
   };
+
+  // VideoObject — qa.video 데이터 있을 때만 (YouTube 원본 영상 메타)
+  // v5.1 spec D-1: 본문 발췌문은 VideoObject.description에 들어가 AEO 신호화
+  const video = qa.video as
+    | { youtube_id?: string | null; youtube_url?: string | null; topic?: string | null; upload_date?: string | null }
+    | { youtube_id?: string | null; youtube_url?: string | null; topic?: string | null; upload_date?: string | null }[]
+    | null
+    | undefined;
+  const v = Array.isArray(video) ? video[0] : video;
+  if (v?.youtube_id) {
+    const videoName = v.topic
+      ? `${v.topic} — 영상에서 자세히 보기`
+      : qa.question;
+    medicalPage.video = {
+      "@type": "VideoObject",
+      name: videoName,
+      description: answerText.slice(0, 200),
+      embedUrl: `https://www.youtube.com/embed/${v.youtube_id}`,
+      contentUrl: v.youtube_url ?? `https://youtu.be/${v.youtube_id}`,
+      thumbnailUrl: `https://i.ytimg.com/vi/${v.youtube_id}/maxresdefault.jpg`,
+      ...(v.upload_date ? { uploadDate: v.upload_date } : {}),
+      inLanguage: "ko-KR",
+    };
+  }
 
   return {
     "@context": "https://schema.org",
