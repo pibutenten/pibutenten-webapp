@@ -19,6 +19,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import CommentsBlock from "@/components/CommentsBlock";
 import RecentLikers from "@/components/RecentLikers";
 import { getQaUrl, getQaEditUrl } from "@/lib/qa-url";
+import { getActiveIdentityId } from "@/lib/active-identity";
 import {
   parseYoutubeTimestamp,
   formatTimestamp,
@@ -303,9 +304,15 @@ export default function QACard({
         return;
       }
     } else {
+      const activeIdentityId = getActiveIdentityId();
       const { error } = await supabase
         .from("qa_saves")
-        .insert({ qa_id: qa.id, user_id: userId, persona: "official" });
+        .insert({
+          qa_id: qa.id,
+          user_id: userId,
+          persona: "official",
+          identity_id: activeIdentityId,
+        });
       if (error) {
         console.error("[qa_saves insert]", error);
         alert("저장 실패: " + error.message);
@@ -412,6 +419,7 @@ export default function QACard({
         try {
           const { data, error } = await supabase.rpc("toggle_qa_like", {
             p_qa_id: qa.id,
+            p_identity_id: getActiveIdentityId(),
           });
           if (!error) {
             const row = (data as { liked: boolean; like_count: number }[] | null)?.[0];
