@@ -910,18 +910,23 @@ export default function QACard({
             !(isLongAnswer && !expanded) &&
             (() => {
               const r = qa.pubmed_ref;
-              const linkHref = r.doi_url || r.pubmed_url;
-              const linkLabel = r.doi
-                ? `doi.org/${r.doi}`
-                : r.pmid
+              // 사용자 화면 링크는 PubMed 우선 (DOI는 JSON-LD 머신 마크업에 보존).
+              const linkHref = r.pubmed_url || r.doi_url;
+              const linkLabel = r.pmid
                 ? `pubmed.ncbi.nlm.nih.gov/${r.pmid}`
+                : r.doi
+                ? `doi.org/${r.doi}`
                 : null;
               // 압축 한 줄: Authors, Journal (Year) — schema.org Citation/<cite> 머신 가독성
               return (
-                <p
-                  className="mt-2 text-[13px] leading-[1.55] text-[var(--text-muted)]"
+                <div
+                  className="mt-3"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]/70">
+                    Reference
+                  </div>
+                  <p className="mt-0.5 text-[13px] leading-[1.55] text-[var(--text-muted)]">
                   <cite
                     itemScope
                     itemType="https://schema.org/ScholarlyArticle"
@@ -966,7 +971,8 @@ export default function QACard({
                       </span>
                     )}
                   </cite>
-                </p>
+                  </p>
+                </div>
               );
             })()}
         </>

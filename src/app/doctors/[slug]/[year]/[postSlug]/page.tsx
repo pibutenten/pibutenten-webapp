@@ -162,8 +162,11 @@ function buildJsonLd(
           if (!ref || (!ref.pmid && !ref.doi)) return {};
           const citation: Record<string, unknown> = { "@type": "ScholarlyArticle" };
           if (ref.title) citation.name = ref.title;
+          // canonical url은 DOI 우선(영구 식별자). 사용자 화면 링크는 PubMed지만 머신 마크업은 DOI를 우선해 둠.
           const citeUrl = (ref.doi_url as string) || (ref.pubmed_url as string) || null;
           if (citeUrl) citation.url = citeUrl;
+          // PubMed URL도 sameAs로 함께 노출 — AI/검색엔진이 두 식별자 모두 인식.
+          if (ref.doi_url && ref.pubmed_url) citation.sameAs = ref.pubmed_url;
           if (ref.year) citation.datePublished = ref.year;
           if (ref.journal) citation.publisher = ref.journal;
           if (ref.authors_short) citation.author = ref.authors_short;
