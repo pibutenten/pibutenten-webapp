@@ -694,7 +694,7 @@ export default function QACard({
                 aria-label="더보기"
                 title="더보기"
               >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-[18px] w-[18px]" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-[22px] w-[22px]" aria-hidden>
                   <circle cx="5" cy="12" r="1.6" />
                   <circle cx="12" cy="12" r="1.6" />
                   <circle cx="19" cy="12" r="1.6" />
@@ -975,7 +975,7 @@ export default function QACard({
 
       {/* footer: 좋아요·댓글·저장·평점·공유 — 컴팩트
           (v5.1: 조회수 카드 표시 제거 — SNS 표준에서 잘 안 보임. /admin 통계에는 유지) */}
-      <div className="flex items-center gap-3.5 pt-3 text-[13px] text-[var(--text-secondary)]">
+      <div className="flex items-center gap-4 pt-3 text-[14px] text-[var(--text-secondary)]">
         <button
           type="button"
           onClick={handleLike}
@@ -996,7 +996,7 @@ export default function QACard({
             strokeLinecap="round"
             strokeLinejoin="round"
             className={
-              "h-[18px] w-[18px] transition-transform " +
+              "h-[22px] w-[22px] transition-transform " +
               (liked ? "like-pulse" : "")
             }
             aria-hidden
@@ -1019,7 +1019,7 @@ export default function QACard({
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-[18px] w-[18px]"
+            className="h-[22px] w-[22px]"
             aria-hidden
           >
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -1049,7 +1049,7 @@ export default function QACard({
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-[18px] w-[18px]"
+            className="h-[22px] w-[22px]"
             aria-hidden
           >
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -1078,7 +1078,7 @@ export default function QACard({
               strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="h-[18px] w-[18px]"
+              className="h-[22px] w-[22px]"
               aria-hidden
             >
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -1156,7 +1156,7 @@ export default function QACard({
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-[18px] w-[18px]"
+            className="h-[22px] w-[22px]"
             aria-hidden
           >
             <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />

@@ -73,7 +73,7 @@ export default function RecentLikers({
   const visibleLikers = likers.slice(0, maxAvatars);
 
   return (
-    <div className="flex items-center gap-1.5 py-1 text-[12.5px] text-[var(--text-secondary)]">
+    <div className="flex items-center gap-2 py-1 text-[13.5px] text-[var(--text-secondary)]">
       {/* 아바타 겹침 — 더 컴팩트 (-space-x-2.5). 맨 좌측이 z-index 가장 위.
           좌측 정렬은 카드 footer 아이콘(좋아요/댓글)과 동일하게 — padding 없음. */}
       <div className="flex -space-x-2.5">
@@ -116,7 +116,7 @@ function LikerAvatar({ liker }: { liker: Liker }) {
     <img
       src={liker.avatar_url}
       alt={liker.display_name ?? "회원"}
-      className="h-6 w-6 rounded-full border-2 border-white bg-[var(--bg-soft)] object-cover"
+      className="h-7 w-7 rounded-full border-2 border-white bg-[var(--bg-soft)] object-cover"
     />
   ) : (
     <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[var(--bg-soft)] text-[10px] font-semibold text-[var(--text-secondary)]">
