@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
+import { getIdentityContext } from "@/lib/identity";
 
 export const dynamic = "force-dynamic";
 
@@ -20,25 +21,15 @@ export default async function AdminPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/admin");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profile?.role !== "admin") {
+  // 권한 분기 — active identity 기반 (cookie 'pibutenten:identity')
+  //   active.kind='admin'     → super admin (개발자/관리자, 모든 권한 + 새 Q&A 추출하기 노출)
+  //   active.doctor_id !=NULL → 원장 admin (본인 doctor 카드만 + 새 Q&A 추출하기 숨김)
+  //   active.kind='personal'  → admin 권한 없음 → 일반 사용자처럼 차단
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx?.active || (!idCtx.isSuperAdmin && !idCtx.isDoctorAdmin)) {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
-
-  // 권한 분기 (doctor_accounts 매핑 기준):
-  //   매핑 없음 → super admin (개발자, 모든 권한 + 새 Q&A 추출하기 노출)
-  //   매핑 있음 → 원장 admin (본인 doctor 카드만 + 새 Q&A 추출하기 숨김)
-  const { data: doctorMapping } = await supabase
-    .from("doctor_accounts")
-    .select("doctor_id")
-    .eq("profile_id", user.id)
-    .maybeSingle();
-  const isSuperAdmin = !doctorMapping?.doctor_id;
+  const isSuperAdmin = idCtx.isSuperAdmin;
 
   // 운영 통계 — 회원·글·댓글 카운트 + 인기 검색어·태그
   const [

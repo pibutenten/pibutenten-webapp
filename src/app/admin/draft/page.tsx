@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
 import DraftClient from "./DraftClient";
 
 export const dynamic = "force-dynamic";
@@ -10,22 +11,17 @@ export default async function AdminDraftPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/admin/draft");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "admin") {
+  // 새 Q&A 추출하기는 super admin (active.kind='admin') 전용.
+  // 원장 admin은 검수만 가능 → /admin/qas?status=pending_review 로 redirect.
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx?.active) {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
-  // 새 Q&A 추출하기는 super admin 전용 (doctor_accounts 매핑된 원장 계정은 검수만)
-  const { data: doctorMapping } = await supabase
-    .from("doctor_accounts")
-    .select("doctor_id")
-    .eq("profile_id", user.id)
-    .maybeSingle();
-  if (doctorMapping?.doctor_id) {
-    redirect("/admin/qas?status=pending_review");
+  if (!idCtx.isSuperAdmin) {
+    if (idCtx.isDoctorAdmin) {
+      redirect("/admin/qas?status=pending_review");
+    }
+    redirect("/login?error=관리자 권한이 필요합니다");
   }
 
   return (
