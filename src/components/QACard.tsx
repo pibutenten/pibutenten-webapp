@@ -935,7 +935,7 @@ export default function QACard({
             onClick={() => isLongAnswer && setExpanded((v) => !v)}
             className={isLongAnswer ? "cursor-pointer" : ""}
           >
-            {renderAnswerBody(qa.answer, activeQuery, isLongAnswer && !expanded)}
+            {renderAnswerBody(qa.answer, activeQuery, isLongAnswer && !expanded, highlightColor)}
           </div>
 
           {/* 3a. 참고 논문 — pubmed_ref가 있을 때만 카드 본문 아래 인라인 한 줄로 자연스럽게 노출.
@@ -1607,6 +1607,7 @@ function renderAnswerBody(
   text: string,
   query: string | undefined,
   clamped: boolean,
+  highlightColor: string,
 ): ReactNode {
   const paragraphs = (text ?? "").split(/\n{2,}/).map((s) => s.trimEnd());
   return (
