@@ -15,6 +15,10 @@
 
 import { YoutubeTranscript } from "youtube-transcript";
 import { fetchCaptionsViaOauth, isOauthAvailable } from "./youtube-oauth";
+import {
+  fetchTranscriptViaPython,
+  isPythonTranscriptAvailable,
+} from "./python-transcript";
 
 export type YoutubeTranscriptResult = {
   videoId: string;
@@ -213,7 +217,20 @@ async function fetchTranscriptResilient(videoId: string): Promise<{
 }> {
   const errors: string[] = [];
 
-  // 0) YouTube Data API v3 OAuth (피부텐텐 본인 채널 영상 — 가장 안정적)
+  // 0a) Python `youtube-transcript-api` (외부 채널 영상도 잡힘 — 가장 안정적)
+  if (isPythonTranscriptAvailable()) {
+    try {
+      const r = await fetchTranscriptViaPython(videoId);
+      if (r && r.text.length >= 20) {
+        return { text: r.text, source: r.source };
+      }
+      if (!r) errors.push("python: no transcript");
+    } catch (e) {
+      errors.push(`python: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  // 0b) YouTube Data API v3 OAuth (본인 채널 — 둘째 안정적)
   if (isOauthAvailable()) {
     try {
       const r = await fetchCaptionsViaOauth(videoId);
