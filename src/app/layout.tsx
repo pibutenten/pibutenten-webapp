@@ -132,10 +132,10 @@ async function getSessionInfo(): Promise<SessionInfo> {
       avatar_url: string | null;
       kind: string;
     }>) {
-      // 멀티 identity 마이그레이션이 모든 profile에 자동 생성한 kind='primary' row는
-      // 이미 위에서 profile row(id='primary')로 추가됨 → 중복 dropdown 항목 방지.
+      // primary identity (profiles.handle 자체)와 동일 handle인 profile_identities row는
+      // dropdown 중복 방지. kind 무관 — 0041 migration 이후 doctor/admin 등으로 바뀐 케이스도 포함.
       // (DB row는 qa_likes/qa_saves FK 때문에 그대로 유지)
-      if (ei.kind === "primary" && ei.handle === profile.handle) continue;
+      if (ei.handle === profile.handle) continue;
       identities.push({
         id: ei.id,
         handle: ei.handle,
