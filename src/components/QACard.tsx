@@ -126,12 +126,14 @@ type Props = {
   viewerRating?: number;
 };
 
-// 카드별 결정적 형광펜 색 (3색 파스텔 팔레트 — 옵션 B)
-// Yellow #FFE65A / Mint #A8EBD0 / Lavender #D4C5F9 — 한 카드는 항상 한 색 (SSR safe)
+// 카드별 결정적 형광펜 색 (4색 파스텔 팔레트)
+// Yellow #FFE65A / Mint #A8EBD0 / Lavender #D4C5F9 / Sky Blue #A8DEFF
+// 한 카드는 항상 한 색 (SSR safe — 카드 ID 해시 매핑)
 const HIGHLIGHT_PALETTE = [
   "rgba(255, 230, 90, 0.55)",
   "rgba(168, 235, 208, 0.55)",
   "rgba(212, 197, 249, 0.55)",
+  "rgba(168, 222, 255, 0.55)",
 ];
 
 function pickHighlight(seed: string): string {
@@ -529,9 +531,15 @@ export default function QACard({
     theme?.avatarOffsetY ?? (theme?.offsetY ?? 0) * 0.46;
 
   // 검색어가 어느 카테고리에 속하는지 판정 → 칩 강조 색
-  const queryCategoryColor = activeQuery
-    ? CATEGORIES.find((c) => c.slug === categorize(activeQuery))?.color
-    : null;
+  // 단, 글 카테고리 라벨(Q&A/꿀팁/피부일기/궁금해요/공유하기)이면 콘텐츠 카테고리 추정 X
+  // (그 라벨은 search/page.tsx 에서 category 컬럼 직접 필터로 분기됨)
+  const POST_CATEGORY_LABELS = new Set([
+    "Q&A", "피부꿀팁", "피부일기", "궁금해요", "공유하기",
+  ]);
+  const queryCategoryColor =
+    activeQuery && !POST_CATEGORY_LABELS.has(activeQuery)
+      ? CATEGORIES.find((c) => c.slug === categorize(activeQuery))?.color
+      : null;
 
   // 현재 로그인 사용자 + role
   useEffect(() => {
