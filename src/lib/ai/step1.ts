@@ -161,12 +161,25 @@ function normalize(parsed: unknown): DraftCard[] {
   return out;
 }
 
+export type Step1Usage = {
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+};
+
+export type Step1Result = {
+  drafts: DraftCard[];
+  usage: Step1Usage;
+  model: string;
+};
+
 export async function runStep1(opts: {
   transcript: string;
   videoId: string;
   videoTitle: string;
   sourceFile: string;
-}): Promise<DraftCard[]> {
+}): Promise<Step1Result> {
   const apiKey = getEnv("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
   if (!opts.transcript || opts.transcript.trim().length < 100) {
@@ -189,5 +202,15 @@ export async function runStep1(opts: {
     .trim();
   if (!text) throw new Error("Step1 returned empty content");
   const parsed = extractJson(text);
-  return normalize(parsed);
+  const drafts = normalize(parsed);
+  return {
+    drafts,
+    usage: {
+      input_tokens: msg.usage?.input_tokens ?? 0,
+      output_tokens: msg.usage?.output_tokens ?? 0,
+      cache_creation_input_tokens: msg.usage?.cache_creation_input_tokens ?? undefined,
+      cache_read_input_tokens: msg.usage?.cache_read_input_tokens ?? undefined,
+    },
+    model: MODEL,
+  };
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DOCTORS_9 } from "@/lib/ai/identify-doctors";
 import { pickHighlight } from "@/lib/qa-highlight";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
+import { costUSD, formatUSD, formatTokens, type UsageLike } from "@/lib/ai/pricing";
 
 // ── 위저드 타입 ────────────────────────────────────────
 
@@ -132,6 +133,11 @@ export default function DraftClient() {
   const [primarySlug, setPrimarySlug] = useState<string>("");
   const [cards, setCards] = useState<EditableCard[]>([]);
 
+  // LLM 토큰 사용량 — Step1·Step2 별도 누적 (재실행 시 합산)
+  type UsageAccum = UsageLike & { model: string; calls: number };
+  const [step1Usage, setStep1Usage] = useState<UsageAccum | null>(null);
+  const [step2Usage, setStep2Usage] = useState<UsageAccum | null>(null);
+
   // 자막 수동 입력 fallback — 자동 fetch 실패 시 운영자가 직접 붙여넣기
   const [manualFallback, setManualFallback] = useState(false);
   const [manualTranscript, setManualTranscript] = useState("");
@@ -230,12 +236,29 @@ export default function DraftClient() {
         }),
       });
       const data = (await res.json()) as
-        | { drafts: Step1Card[] }
+        | { drafts: Step1Card[]; usage?: UsageLike; model?: string }
         | { error: string };
       if (!res.ok || "error" in data) {
         setError("error" in data ? data.error : `Step1 실패 (${res.status})`);
         setStage("analyzed");
         return;
+      }
+      // 사용량 누적 (재실행 시 +1 call)
+      if (data.usage) {
+        setStep1Usage((prev) => ({
+          input_tokens:
+            (prev?.input_tokens ?? 0) + (data.usage?.input_tokens ?? 0),
+          output_tokens:
+            (prev?.output_tokens ?? 0) + (data.usage?.output_tokens ?? 0),
+          cache_creation_input_tokens:
+            (prev?.cache_creation_input_tokens ?? 0) +
+            (data.usage?.cache_creation_input_tokens ?? 0),
+          cache_read_input_tokens:
+            (prev?.cache_read_input_tokens ?? 0) +
+            (data.usage?.cache_read_input_tokens ?? 0),
+          model: data.model ?? prev?.model ?? "claude-opus-4-7",
+          calls: (prev?.calls ?? 0) + 1,
+        }));
       }
       const editable: EditableCard[] = data.drafts.map((d) => {
         const sec = d.timestamp?.start_seconds ?? 0;
@@ -279,12 +302,33 @@ export default function DraftClient() {
         }),
       });
       const data = (await res.json()) as
-        | { results: Step2Result[] }
+        | {
+            results: Step2Result[];
+            usage?: UsageLike;
+            llm_calls?: number;
+            model?: string;
+          }
         | { error: string };
       if (!res.ok || "error" in data) {
         setError("error" in data ? data.error : `Step2 실패 (${res.status})`);
         setStage("stepped1");
         return;
+      }
+      if (data.usage) {
+        setStep2Usage((prev) => ({
+          input_tokens:
+            (prev?.input_tokens ?? 0) + (data.usage?.input_tokens ?? 0),
+          output_tokens:
+            (prev?.output_tokens ?? 0) + (data.usage?.output_tokens ?? 0),
+          cache_creation_input_tokens:
+            (prev?.cache_creation_input_tokens ?? 0) +
+            (data.usage?.cache_creation_input_tokens ?? 0),
+          cache_read_input_tokens:
+            (prev?.cache_read_input_tokens ?? 0) +
+            (data.usage?.cache_read_input_tokens ?? 0),
+          model: data.model ?? prev?.model ?? "claude-opus-4-7",
+          calls: (prev?.calls ?? 0) + (data.llm_calls ?? 0),
+        }));
       }
       setCards((prev) =>
         prev.map((c, i) => ({ ...c, step2: data.results[i] })),
@@ -634,6 +678,11 @@ export default function DraftClient() {
               />
             ))}
           </div>
+
+          {/* LLM 토큰·비용 요약 — 검수 보내기 직전 마지막 확인 */}
+          {(step1Usage || step2Usage) && (
+            <UsageSummary step1={step1Usage} step2={step2Usage} />
+          )}
 
           <button
             type="button"
@@ -1019,6 +1068,103 @@ function ReferenceLine({
           </a>
         )}
       </div>
+    </div>
+  );
+}
+
+/** LLM 토큰·비용 요약 — Step1·Step2 합계 + 모델별 USD 환산. */
+function UsageSummary({
+  step1,
+  step2,
+}: {
+  step1: (UsageLike & { model: string; calls: number }) | null;
+  step2: (UsageLike & { model: string; calls: number }) | null;
+}) {
+  const cost1 = step1 ? costUSD(step1.model, step1) : 0;
+  const cost2 = step2 ? costUSD(step2.model, step2) : 0;
+  const totalIn =
+    (step1?.input_tokens ?? 0) +
+    (step1?.cache_creation_input_tokens ?? 0) +
+    (step1?.cache_read_input_tokens ?? 0) +
+    (step2?.input_tokens ?? 0) +
+    (step2?.cache_creation_input_tokens ?? 0) +
+    (step2?.cache_read_input_tokens ?? 0);
+  const totalOut = (step1?.output_tokens ?? 0) + (step2?.output_tokens ?? 0);
+  const totalCost = cost1 + cost2;
+  const model = step1?.model ?? step2?.model ?? "claude-opus-4-7";
+
+  return (
+    <div className="rounded-md border border-[var(--border)] bg-[var(--bg-soft)]/60 p-3 text-xs">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-semibold text-[var(--text-secondary)]">
+          LLM 사용량 (모델: {model})
+        </span>
+        <span className="font-bold text-[var(--primary)]">
+          합계 {formatUSD(totalCost)}
+        </span>
+      </div>
+      <table className="w-full text-[11px]">
+        <thead className="text-[var(--text-muted)]">
+          <tr>
+            <th className="pb-1 text-left font-medium">단계</th>
+            <th className="pb-1 text-right font-medium">호출</th>
+            <th className="pb-1 text-right font-medium">input</th>
+            <th className="pb-1 text-right font-medium">output</th>
+            <th className="pb-1 text-right font-medium">비용</th>
+          </tr>
+        </thead>
+        <tbody className="text-[var(--text-secondary)]">
+          {step1 && (
+            <tr>
+              <td className="py-0.5">Step1 Q&A 추출</td>
+              <td className="py-0.5 text-right">{step1.calls}회</td>
+              <td className="py-0.5 text-right">
+                {formatTokens(step1.input_tokens)}
+              </td>
+              <td className="py-0.5 text-right">
+                {formatTokens(step1.output_tokens)}
+              </td>
+              <td className="py-0.5 text-right font-medium text-[var(--text)]">
+                {formatUSD(cost1)}
+              </td>
+            </tr>
+          )}
+          {step2 && (
+            <tr>
+              <td className="py-0.5">Step2 PubMed 매칭</td>
+              <td className="py-0.5 text-right">{step2.calls}회</td>
+              <td className="py-0.5 text-right">
+                {formatTokens(step2.input_tokens)}
+              </td>
+              <td className="py-0.5 text-right">
+                {formatTokens(step2.output_tokens)}
+              </td>
+              <td className="py-0.5 text-right font-medium text-[var(--text)]">
+                {formatUSD(cost2)}
+              </td>
+            </tr>
+          )}
+          <tr className="border-t border-[var(--border)]">
+            <td className="pt-1 font-semibold text-[var(--text)]">합계</td>
+            <td className="pt-1 text-right font-semibold text-[var(--text)]">
+              {(step1?.calls ?? 0) + (step2?.calls ?? 0)}회
+            </td>
+            <td className="pt-1 text-right font-semibold text-[var(--text)]">
+              {formatTokens(totalIn)}
+            </td>
+            <td className="pt-1 text-right font-semibold text-[var(--text)]">
+              {formatTokens(totalOut)}
+            </td>
+            <td className="pt-1 text-right font-bold text-[var(--primary)]">
+              {formatUSD(totalCost)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="mt-1 text-[10px] text-[var(--text-muted)]">
+        가격: Claude Opus 4 기준 input $15/M · output $75/M (cache write $18.75/M,
+        cache read $1.5/M)
+      </p>
     </div>
   );
 }

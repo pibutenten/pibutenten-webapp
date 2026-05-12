@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       : 8;
   const cards = body.cards as CardIn[];
 
-  const results: Array<{
+  type CardResult = {
     reference: Awaited<ReturnType<typeof runStep2>>["reference"];
     reasoning: string;
     candidates: Array<{
@@ -72,7 +72,13 @@ export async function POST(req: Request) {
       authors_short: string;
       doi: string;
     }>;
-  }> = [];
+    usage: { input_tokens: number; output_tokens: number };
+    llm_calls: number;
+  };
+  const results: CardResult[] = [];
+  let totalIn = 0;
+  let totalOut = 0;
+  let totalCalls = 0;
 
   for (const c of cards) {
     const kws = Array.isArray(c.pubmed_search_keywords)
@@ -85,6 +91,9 @@ export async function POST(req: Request) {
       pubmedKeywords: kws,
       candidates,
     });
+    let cardIn = step2.usage?.input_tokens ?? 0;
+    let cardOut = step2.usage?.output_tokens ?? 0;
+    let calls = 1;
     // 후보 0 또는 null reference면 retmax 확장 1단계 (8 → 20)
     if (!step2.reference && retmax === 8 && candidates.length < 20) {
       candidates = await fetchPubmedCandidates(kws, 20);
@@ -94,7 +103,13 @@ export async function POST(req: Request) {
         pubmedKeywords: kws,
         candidates,
       });
+      cardIn += step2.usage?.input_tokens ?? 0;
+      cardOut += step2.usage?.output_tokens ?? 0;
+      calls += 1;
     }
+    totalIn += cardIn;
+    totalOut += cardOut;
+    totalCalls += calls;
 
     results.push({
       reference: step2.reference,
@@ -107,11 +122,23 @@ export async function POST(req: Request) {
         authors_short: x.authors_short,
         doi: x.doi,
       })),
+      usage: { input_tokens: cardIn, output_tokens: cardOut },
+      llm_calls: calls,
     });
   }
 
+  console.log(
+    `[step2] cards=${cards.length} llm_calls=${totalCalls} ` +
+      `usage_input=${totalIn} usage_output=${totalOut}`,
+  );
+
   return NextResponse.json(
-    { results },
+    {
+      results,
+      usage: { input_tokens: totalIn, output_tokens: totalOut },
+      llm_calls: totalCalls,
+      model: "claude-opus-4-7",
+    },
     { headers: { "cache-control": "no-store" } },
   );
 }

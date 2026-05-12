@@ -24,9 +24,18 @@ export type Step2Reference = {
   doi_url: string;
 };
 
+export type Step2Usage = {
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+};
+
 export type Step2Result = {
   reference: Step2Reference | null;
   reasoning: string;
+  usage?: Step2Usage;
+  model?: string;
 };
 
 let cachedSystemPrompt: string | null = null;
@@ -162,13 +171,22 @@ export async function runStep2(opts: {
     .map((b) => b.text)
     .join("\n")
     .trim();
+  const usage: Step2Usage = {
+    input_tokens: msg.usage?.input_tokens ?? 0,
+    output_tokens: msg.usage?.output_tokens ?? 0,
+    cache_creation_input_tokens: msg.usage?.cache_creation_input_tokens ?? undefined,
+    cache_read_input_tokens: msg.usage?.cache_read_input_tokens ?? undefined,
+  };
   try {
     const parsed = extractJson(text);
-    return normalize(parsed);
+    const result = normalize(parsed);
+    return { ...result, usage, model: MODEL };
   } catch (e) {
     return {
       reference: null,
       reasoning: `파싱 실패: ${e instanceof Error ? e.message : String(e)}`,
+      usage,
+      model: MODEL,
     };
   }
 }

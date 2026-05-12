@@ -48,14 +48,18 @@ export async function POST(req: Request) {
   const sourceFile = `${videoId}.ko.vtt`;
 
   try {
-    const drafts = await runStep1({
+    const result = await runStep1({
       transcript,
       videoId,
       videoTitle,
       sourceFile,
     });
+    console.log(
+      `[step1] video=${videoId} drafts=${result.drafts.length} model=${result.model} ` +
+        `usage_input=${result.usage.input_tokens} usage_output=${result.usage.output_tokens}`,
+    );
     return NextResponse.json(
-      { drafts },
+      { drafts: result.drafts, usage: result.usage, model: result.model },
       { headers: { "cache-control": "no-store" } },
     );
   } catch (e) {
