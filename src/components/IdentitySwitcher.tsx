@@ -75,11 +75,12 @@ export default function IdentitySwitcher({
         title="내 프로필"
         className="flex items-center gap-1.5 rounded-md p-1 outline-none transition-colors hover:bg-[var(--bg-soft)] focus:outline-none focus-visible:ring-0"
       >
-        <span className="relative">
+        {/* 아바타 래퍼 — 텍스트 x-height와 시각적 중심을 맞추려 inline-flex + 살짝 아래로 (translate-y 1px) */}
+        <span className="relative inline-flex items-center translate-y-px">
           <Avatar src={active.avatarUrl} />
           <NotificationBadge />
         </span>
-        <span className="hidden max-w-[100px] truncate text-[13px] font-medium text-[var(--text)] sm:inline">
+        <span className="hidden max-w-[100px] truncate text-[13px] font-medium leading-none text-[var(--text)] sm:inline">
           {active.displayName}
         </span>
       </Link>
@@ -133,11 +134,12 @@ export default function IdentitySwitcher({
         }
         className="flex items-center gap-1.5 rounded-md p-1 outline-none transition-colors hover:bg-[var(--bg-soft)] focus:outline-none focus-visible:ring-0"
       >
-        <span className="relative">
+        {/* 아바타 래퍼 — 텍스트 x-height와 시각적 중심을 맞추려 inline-flex + 살짝 아래로 (translate-y 1px) */}
+        <span className="relative inline-flex items-center translate-y-px">
           <Avatar src={active.avatarUrl} />
           <NotificationBadge />
         </span>
-        <span className="hidden max-w-[100px] truncate text-[13px] font-medium text-[var(--text)] sm:inline">
+        <span className="hidden max-w-[100px] truncate text-[13px] font-medium leading-none text-[var(--text)] sm:inline">
           {active.displayName}
         </span>
       </Link>
