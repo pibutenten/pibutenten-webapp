@@ -10,6 +10,7 @@ import {
 } from "@/lib/user-grades";
 import RoleChangeForm from "./RoleChangeForm";
 import { getQaUrl } from "@/lib/qa-url";
+import { getIdentityContext } from "@/lib/identity";
 
 export const dynamic = "force-dynamic";
 
@@ -102,14 +103,15 @@ export default async function AdminUserDetailPage({
   } = await supabase.auth.getUser();
   if (!me) redirect(`/login?next=/admin/users/${id}`);
 
-  const { data: meProfile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", me.id)
-    .maybeSingle();
-  if (meProfile?.role !== "admin") {
+  // viewer의 active identity 권한 — admin/doctor 모드만 진입 가능, 역할변경은 admin만
+  const viewerCtx = await getIdentityContext(supabase);
+  if (!viewerCtx?.active) {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
+  if (!viewerCtx.isSuperAdmin && !viewerCtx.isDoctorAdmin) {
+    redirect("/login?error=관리자 권한이 필요합니다");
+  }
+  const viewerIsAdmin = viewerCtx.isSuperAdmin;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -398,13 +400,15 @@ export default async function AdminUserDetailPage({
         <Stat label="좋아요" value={likes?.length ?? 0} />
       </div>
 
-      {/* 역할 변경 폼 */}
-      <RoleChangeForm
-        userId={profile.id}
-        currentRole={profile.role}
-        currentDoctorId={currentDoctorId}
-        doctors={doctorsForForm}
-      />
+      {/* 역할 변경 폼 — viewer가 admin identity일 때만 노출 (원장 admin은 X) */}
+      {viewerIsAdmin && (
+        <RoleChangeForm
+          userId={profile.id}
+          currentRole={profile.role}
+          currentDoctorId={currentDoctorId}
+          doctors={doctorsForForm}
+        />
+      )}
 
       {/* 작성 글 */}
       <Section title="📝 작성 글" empty="작성 글 없음">
