@@ -318,7 +318,7 @@ export default function DraftClient() {
           pubmedRef: c.step2?.reference ?? null,
           pubmedReasoning: c.step2?.reasoning,
         })),
-        status: "published",
+        status: "pending_review",
       };
       const res = await fetch("/api/admin/draft/publish", {
         method: "POST",
@@ -329,11 +329,11 @@ export default function DraftClient() {
         | { saved: number; ids: number[] }
         | { error: string };
       if (!res.ok || "error" in data) {
-        setError("error" in data ? data.error : `발행 실패 (${res.status})`);
+        setError("error" in data ? data.error : `검수 보내기 실패 (${res.status})`);
         setStage("stepped2");
         return;
       }
-      router.push(`/admin/qas?status=published`);
+      router.push(`/admin/qas?status=pending_review`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "네트워크 오류");
       setStage("stepped2");
@@ -587,23 +587,36 @@ export default function DraftClient() {
         </section>
       )}
 
-      {/* [3] Q&A 카드 N개 */}
+      {/* [3] PubMed 참고문헌 매칭 — Q&A 카드 위에 큰 버튼 (Step1과 동일 색·크기) */}
       {cards.length > 0 && analyze && (
         <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
-          <div className="mb-1 flex items-center justify-between">
-            <div className="text-sm font-semibold text-[var(--text-secondary)]">
-              ③ Q&A 카드 ({cards.length}개) — 검수·편집
-            </div>
-            <button
-              type="button"
-              onClick={runStep2}
-              disabled={stage === "step2ing"}
-              className="rounded-md border border-[var(--primary)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-50"
-            >
-              {stage === "step2ing"
-                ? "Step2 매칭 중…"
-                : "Step2: PubMed 참고문헌 매칭"}
-            </button>
+          <div className="mb-1 text-sm font-semibold text-[var(--text-secondary)]">
+            ③ PubMed 참고문헌 매칭
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            각 카드 답변에 맞는 PubMed 논문 후보를 찾아 best reference 1개를
+            자동 선택합니다. 카드별로 다른 후보로 교체·확인 가능.
+          </p>
+          <button
+            type="button"
+            onClick={runStep2}
+            disabled={stage === "step2ing"}
+            className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
+          >
+            {stage === "step2ing"
+              ? "참고문헌 매칭 중… (PubMed 검색 + LLM 선정)"
+              : cards.some((c) => c.step2)
+              ? "참고문헌 다시 매칭"
+              : "참고문헌 매칭 실행"}
+          </button>
+        </section>
+      )}
+
+      {/* [4] Q&A 카드 N개 */}
+      {cards.length > 0 && analyze && (
+        <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
+          <div className="mb-1 text-sm font-semibold text-[var(--text-secondary)]">
+            ④ Q&A 카드 ({cards.length}개) — 검수·편집
           </div>
 
           <div className="space-y-4">
@@ -629,9 +642,12 @@ export default function DraftClient() {
             className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
           >
             {stage === "publishing"
-              ? "발행 중…"
-              : `④ ${cards.length}개 카드 모두 발행`}
+              ? "검수 보내는 중…"
+              : `⑤ ${cards.length}개 카드 원장님께 검수 보냄`}
           </button>
+          <p className="text-center text-[11px] text-[var(--text-muted)]">
+            검수 보낸 카드는 원장님 검수 대시보드에서 확인·발행됩니다.
+          </p>
         </section>
       )}
     </div>
@@ -803,49 +819,161 @@ function CardEditor({
       </div>
 
       {card.step2 && (
-        <div className="rounded-md border border-[var(--border)] bg-white p-3 text-xs">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="font-semibold text-[var(--text-secondary)]">
-              참고문헌 (PubMed)
-            </span>
-            <div className="flex items-center gap-2">
-              {card.step2.candidates.length > 0 && (
-                <select
-                  onChange={(e) => {
-                    if (e.target.value) onApplyCandidate(e.target.value);
+        <ReferenceSection
+          step2={card.step2}
+          onApplyCandidate={onApplyCandidate}
+          onClearReference={onClearReference}
+        />
+      )}
+    </article>
+  );
+}
+
+/** 참고문헌 영역 — 결정된 ref + 후보 펼치기 + 확인 후 적용 */
+function ReferenceSection({
+  step2,
+  onApplyCandidate,
+  onClearReference,
+}: {
+  step2: Step2Result;
+  onApplyCandidate: (pmid: string) => void;
+  onClearReference: () => void;
+}) {
+  const [showCandidates, setShowCandidates] = useState(false);
+  const [previewPmid, setPreviewPmid] = useState<string | null>(null);
+  const preview = step2.candidates.find((c) => c.pmid === previewPmid) ?? null;
+
+  return (
+    <div className="space-y-2 rounded-md border border-[var(--border)] bg-white p-3 text-xs">
+      <div className="flex items-center justify-between">
+        <span className="font-semibold text-[var(--text-secondary)]">
+          참고문헌 (PubMed)
+        </span>
+        <div className="flex items-center gap-2">
+          {step2.candidates.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowCandidates((v) => !v);
+                setPreviewPmid(null);
+              }}
+              className="rounded border border-[var(--border)] bg-white px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+            >
+              {showCandidates
+                ? "후보 닫기"
+                : `후보 ${step2.candidates.length}개 보기`}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClearReference}
+            className="rounded border border-[var(--border)] bg-white px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          >
+            없음으로
+          </button>
+        </div>
+      </div>
+
+      {/* 현재 결정된 참고문헌 — 전체 너비 */}
+      {step2.reference ? (
+        <div className="rounded-md bg-[var(--bg-soft)]/60 p-2.5">
+          <ReferenceLine r={step2.reference} />
+        </div>
+      ) : (
+        <p className="text-[var(--text-muted)]">
+          참고문헌 없음 — {step2.reasoning}
+        </p>
+      )}
+
+      {/* 후보 펼치기 — 클릭 시 미리보기, 확인 버튼으로 결정 */}
+      {showCandidates && step2.candidates.length > 0 && (
+        <div className="space-y-1.5 rounded-md border border-dashed border-[var(--border)] p-2">
+          <p className="text-[11px] font-semibold text-[var(--text-muted)]">
+            후보 ({step2.candidates.length}) — 클릭해서 미리보고 “이걸로 적용” 누르세요
+          </p>
+          <ul className="space-y-1">
+            {step2.candidates.map((c) => {
+              const selected = c.pmid === previewPmid;
+              const current = step2.reference?.pmid === c.pmid;
+              return (
+                <li key={c.pmid}>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewPmid(selected ? null : c.pmid)}
+                    className={`w-full rounded border px-2 py-1.5 text-left text-[11px] transition-colors ${
+                      selected
+                        ? "border-[var(--primary)] bg-[var(--primary)]/5"
+                        : "border-[var(--border)] bg-white hover:border-[var(--primary)]/50"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5 inline-block min-w-3 text-[10px] text-[var(--text-muted)]">
+                        {selected ? "▾" : "▸"}
+                      </span>
+                      <span className="flex-1">
+                        <span className="block font-medium text-[var(--text)]">
+                          {c.title || "(제목 없음)"}
+                          {current && (
+                            <span className="ml-1 rounded-full bg-[var(--primary)]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--primary)]">
+                              현재
+                            </span>
+                          )}
+                        </span>
+                        <span className="block text-[var(--text-secondary)]">
+                          {c.authors_short && `${c.authors_short} · `}
+                          {c.journal && `${c.journal}`}
+                          {c.year && ` (${c.year})`}
+                        </span>
+                      </span>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {preview && (
+            <div className="rounded-md border border-[var(--primary)]/30 bg-[var(--primary)]/5 p-2 text-[11px]">
+              <p className="mb-1 font-semibold text-[var(--text)]">
+                {preview.title}
+              </p>
+              <p className="text-[var(--text-secondary)]">
+                {preview.authors_short && `${preview.authors_short} · `}
+                {preview.journal && `${preview.journal}`}
+                {preview.year && ` (${preview.year})`}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onApplyCandidate(preview.pmid);
+                    setShowCandidates(false);
+                    setPreviewPmid(null);
                   }}
-                  defaultValue=""
-                  className="rounded border border-[var(--border)] bg-white px-2 py-1 text-[11px]"
+                  className="rounded-md bg-[var(--primary)] px-3 py-1.5 text-[11px] font-semibold text-white hover:opacity-90"
                 >
-                  <option value="">
-                    후보로 교체 ({card.step2.candidates.length})
-                  </option>
-                  {card.step2.candidates.map((cand) => (
-                    <option key={cand.pmid} value={cand.pmid}>
-                      {cand.pmid} · {cand.year} · {cand.authors_short || cand.journal}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <button
-                type="button"
-                onClick={onClearReference}
-                className="rounded border border-[var(--border)] bg-white px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
-              >
-                없음으로
-              </button>
+                  ✓ 이걸로 적용
+                </button>
+                <a
+                  href={`https://pubmed.ncbi.nlm.nih.gov/${preview.pmid}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                >
+                  PubMed 열기 ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewPmid(null)}
+                  className="rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                >
+                  취소
+                </button>
+              </div>
             </div>
-          </div>
-          {card.step2.reference ? (
-            <ReferenceLine r={card.step2.reference} />
-          ) : (
-            <p className="text-[var(--text-muted)]">
-              참고문헌 없음 — {card.step2.reasoning}
-            </p>
           )}
         </div>
       )}
-    </article>
+    </div>
   );
 }
 

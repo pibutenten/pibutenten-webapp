@@ -38,6 +38,25 @@ def find_kind(api, video_id, language):
     return "manual"
 
 
+def format_ts(sec: float) -> str:
+    """초 → [MM:SS] 또는 [H:MM:SS] (1시간 넘으면)."""
+    s = int(sec or 0)
+    if s >= 3600:
+        return f"[{s // 3600}:{(s % 3600) // 60:02d}:{s % 60:02d}]"
+    return f"[{s // 60:02d}:{s % 60:02d}]"
+
+
+def with_timestamps(snippets) -> str:
+    """[MM:SS] 텍스트 형식. LLM이 카드별 timestamp 추출에 사용."""
+    parts = []
+    for s in snippets:
+        t = (s.text or "").replace("\n", " ").strip()
+        if not t:
+            continue
+        parts.append(f"{format_ts(s.start)} {t}")
+    return "\n".join(parts).strip()
+
+
 def main():
     if len(sys.argv) < 2:
         print(json.dumps({"error": "video_id required"}))
@@ -48,11 +67,7 @@ def main():
     for lang in ["ko", "en"]:
         try:
             fetched = api.fetch(vid, languages=[lang])
-            text = " ".join(
-                s.text.replace("\n", " ").strip()
-                for s in fetched.snippets
-                if s.text and s.text.strip()
-            ).strip()
+            text = with_timestamps(fetched.snippets)
             if not text or len(text) < 20:
                 continue
             kind = find_kind(api, vid, lang)
@@ -77,9 +92,7 @@ def main():
         if transcripts:
             first = transcripts[0]
             fetched = first.fetch()
-            text = " ".join(
-                s.text.replace("\n", " ").strip() for s in fetched.snippets
-            ).strip()
+            text = with_timestamps(fetched.snippets)
             if text and len(text) >= 20:
                 print(json.dumps(
                     {"transcript": text, "source": "default", "lang": first.language_code},

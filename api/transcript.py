@@ -41,6 +41,24 @@ def _find_kind(api, video_id, language):
     return "manual"
 
 
+def _fmt_ts(sec: float) -> str:
+    s = int(sec or 0)
+    if s >= 3600:
+        return f"[{s // 3600}:{(s % 3600) // 60:02d}:{s % 60:02d}]"
+    return f"[{s // 60:02d}:{s % 60:02d}]"
+
+
+def _with_timestamps(snippets) -> str:
+    """[MM:SS] 텍스트 형식. LLM이 카드별 timestamp 추출에 사용."""
+    parts = []
+    for s in snippets:
+        t = (s.text or "").replace("\n", " ").strip()
+        if not t:
+            continue
+        parts.append(f"{_fmt_ts(s.start)} {t}")
+    return "\n".join(parts).strip()
+
+
 def _do_fetch(video_id: str) -> dict:
     if YouTubeTranscriptApi is None:
         return {"error": f"import failed: {_IMPORT_ERROR}"}
@@ -50,11 +68,7 @@ def _do_fetch(video_id: str) -> dict:
     for lang in ["ko", "en"]:
         try:
             fetched = api.fetch(video_id, languages=[lang])
-            text = " ".join(
-                s.text.replace("\n", " ").strip()
-                for s in fetched.snippets
-                if s.text and s.text.strip()
-            ).strip()
+            text = _with_timestamps(fetched.snippets)
             if not text or len(text) < 20:
                 continue
             kind = _find_kind(api, video_id, lang)
@@ -75,9 +89,7 @@ def _do_fetch(video_id: str) -> dict:
         if transcripts:
             first = transcripts[0]
             fetched = first.fetch()
-            text = " ".join(
-                s.text.replace("\n", " ").strip() for s in fetched.snippets
-            ).strip()
+            text = _with_timestamps(fetched.snippets)
             if text and len(text) >= 20:
                 return {
                     "transcript": text,
