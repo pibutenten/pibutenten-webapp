@@ -83,9 +83,11 @@ async function getSessionInfo(): Promise<SessionInfo> {
       .eq("id", user.id)
       .maybeSingle();
     if (!profile) return null;
-    // doctor → 공식 doctors.slug 매핑 lookup (헤더 1-click 진입용)
+    // doctor_accounts 매핑 lookup (헤더 1-click 진입용).
+    // role과 무관하게 항상 조회 — 배정민처럼 role='admin'이면서 doctor 매핑이 있는
+    // 케이스에서 primary identity를 '원장'으로 정확히 렌더하기 위함.
     let doctorSlug: string | null = null;
-    if (profile.role === "doctor") {
+    {
       const { data: da } = await supabase
         .from("doctor_accounts")
         .select("doctor:doctors(slug)")
