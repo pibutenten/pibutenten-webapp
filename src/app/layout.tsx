@@ -108,11 +108,15 @@ async function getSessionInfo(): Promise<SessionInfo> {
       .order("created_at", { ascending: true });
     const identities: import("@/components/TopNav").SessionIdentity[] = [];
     if (profile.handle) {
+      // doctor 매핑이면 사진 fallback: /doctors/{slug}.png (관리자가 등록한 정적 이미지)
+      const primaryAvatar =
+        (profile.avatar_url as string | null) ??
+        (doctorSlug ? `/doctors/${doctorSlug}.png` : null);
       identities.push({
         id: "primary",
         handle: profile.handle as string,
         displayName: (profile.display_name as string | null) ?? user.email ?? "",
-        avatarUrl: (profile.avatar_url as string | null) ?? null,
+        avatarUrl: primaryAvatar,
         // primary identity kind: doctor 매핑 > admin > user (회원)
         kind: doctorSlug
           ? "doctor"

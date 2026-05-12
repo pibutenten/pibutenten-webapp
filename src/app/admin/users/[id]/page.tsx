@@ -269,8 +269,9 @@ export default async function AdminUserDetailPage({
 
   // active identity의 표시 정보 결정
   const showDoctor = !!activeDoctor; // doctor identity면 doctor 정보 우선
+  // doctors.photo_url NULL이면 /doctors/{slug}.png fallback (관리자가 등록한 정적 이미지)
   const headerAvatar = showDoctor
-    ? activeDoctor!.photo_url
+    ? activeDoctor!.photo_url ?? `/doctors/${activeDoctor!.slug}.png`
     : activeIdentity?.avatar_url ?? profile.avatar_url;
   const headerName = showDoctor
     ? activeDoctor!.name

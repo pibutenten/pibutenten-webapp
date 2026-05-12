@@ -60,18 +60,9 @@ type DisplayRow = {
   termsAgreedAt: string | null;
 };
 
-/** identity.kind → 등급 라벨 매핑 (admin / doctor / user 3가지) */
+/** identity.kind → 등급 라벨 (영어 그대로 — admin / doctor / user) */
 function kindToRoleLabel(kind: string): string {
-  switch (kind) {
-    case "admin":
-      return "관리자";
-    case "doctor":
-      return "원장";
-    case "user":
-      return "회원";
-    default:
-      return kind;
-  }
+  return kind; // admin / doctor / user 그대로 표시
 }
 
 type Props = {
@@ -185,7 +176,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         isPrimary: true,
         handle: profile.handle ?? doc.slug,
         displayName: profile.display_name ?? doc.name,
-        roleLabel: "원장",
+        roleLabel: "doctor",
         level: profile.level,
         activityScore: profile.activity_score,
         postCount: postCountMap.get(profile.id) ?? 0,
@@ -221,7 +212,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         unregistered: true,
         handle: doc.slug,
         displayName: doc.name,
-        roleLabel: "원장",
+        roleLabel: "doctor",
         level: null,
         activityScore: null,
         postCount: 0,
@@ -236,9 +227,9 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   for (const p of profiles ?? []) {
     if (doctorProfileIds.has(p.id)) continue; // 원장 섹션에 이미 표시됨
 
-    // primary row — kind 결정: profile.role='admin'이면 '관리자', 그 외 '회원'
+    // primary row — kind 결정 (영어 — admin/doctor/user)
     const primaryRoleLabel =
-      p.role === "admin" ? "관리자" : p.role === "doctor" ? "원장" : "회원";
+      p.role === "admin" ? "admin" : p.role === "doctor" ? "doctor" : "user";
     memberRows.push({
       key: `${p.id}::primary`,
       profileId: p.id,
@@ -276,23 +267,10 @@ export default async function AdminUsersPage({ searchParams }: Props) {
 
   const rows: DisplayRow[] = [...doctorRows, ...memberRows];
 
-  // 등급/활동 필터 (DisplayRow에 적용)
+  // 등급 필터 (DisplayRow에 적용) — 영어 그대로 매칭 (admin/doctor/user)
   const filteredRows = rows.filter((r) => {
     if (roleParam) {
-      // roleParam: 'admin'|'doctor'|'user' → 매핑
-      const want =
-        roleParam === "admin"
-          ? "관리자"
-          : roleParam === "doctor"
-            ? "원장"
-            : roleParam === "user"
-              ? "회원"
-              : roleParam;
-      if (r.roleLabel !== want) return false;
-    }
-    if (levelParam !== "") {
-      if (!r.isPrimary) return false;
-      if (r.level !== (parseInt(levelParam, 10) || 0)) return false;
+      if (r.roleLabel !== roleParam) return false;
     }
     return true;
   });
@@ -324,20 +302,9 @@ export default async function AdminUsersPage({ searchParams }: Props) {
           className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
         >
           <option value="">전체 등급</option>
-          <option value="admin">관리자</option>
-          <option value="doctor">원장</option>
-          <option value="user">일반회원</option>
-        </select>
-        <select
-          name="level"
-          defaultValue={levelParam}
-          className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-        >
-          <option value="">전체 활동</option>
-          <option value="0">일반</option>
-          <option value="1">활동회원</option>
-          <option value="2">단골</option>
-          <option value="3">VIP</option>
+          <option value="admin">admin</option>
+          <option value="doctor">doctor</option>
+          <option value="user">user</option>
         </select>
         <input
           type="text"
@@ -366,8 +333,6 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                 <th className="px-3 py-2 text-left font-medium">닉네임</th>
                 <th className="px-3 py-2 text-left font-medium">핸들</th>
                 <th className="px-3 py-2 text-left font-medium">등급</th>
-                <th className="px-3 py-2 text-left font-medium">활동</th>
-                <th className="px-3 py-2 text-right font-medium">점수</th>
                 <th className="px-3 py-2 text-right font-medium">글수</th>
                 <th className="px-3 py-2 text-left font-medium">가입일</th>
               </tr>
@@ -433,21 +398,6 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                       <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
                         {r.roleLabel}
                       </span>
-                    </td>
-                    <td className="px-3 py-2 align-top">
-                      {r.isPrimary && r.roleLabel === "회원" && r.level !== null && (
-                        <span
-                          className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                          style={{ backgroundColor: lvlColor.bg, color: lvlColor.fg }}
-                        >
-                          {LEVEL_LABELS[r.level] ?? "일반"}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
-                      {r.activityScore !== null
-                        ? r.activityScore.toLocaleString()
-                        : ""}
                     </td>
                     <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
                       {r.isPrimary ? r.postCount.toLocaleString() : ""}
