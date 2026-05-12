@@ -245,6 +245,21 @@ async function efetch(pmids: string[]): Promise<PubmedCandidate[]> {
 }
 
 /**
+ * PMID 1개로 직접 efetch — 운영자가 PMID를 알 때 reference 객체 생성용.
+ *
+ * 반환: 한 개의 PubmedCandidate (정상) 또는 null (없음/오류).
+ */
+export async function fetchPubmedByPmid(
+  pmid: string,
+): Promise<PubmedCandidate | null> {
+  const cleaned = (pmid || "").trim();
+  if (!/^\d+$/.test(cleaned)) return null;
+  const results = await efetch([cleaned]);
+  if (!results.length) return null;
+  return results[0];
+}
+
+/**
  * 카드의 pubmed_search_keywords 리스트로 시도 — 첫 결과가 있는 쿼리의 후보 반환.
  * RPS 제한 회피용 sleep 포함 (NCBI: 키 없으면 ~3req/s).
  */

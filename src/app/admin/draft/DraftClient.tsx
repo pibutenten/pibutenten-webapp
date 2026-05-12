@@ -1,9 +1,10 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DOCTORS_9 } from "@/lib/ai/identify-doctors";
 import { pickHighlight } from "@/lib/qa-highlight";
+import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 
 // ── 위저드 타입 ────────────────────────────────────────
 
@@ -131,6 +132,12 @@ export default function DraftClient() {
   const [primarySlug, setPrimarySlug] = useState<string>("");
   const [cards, setCards] = useState<EditableCard[]>([]);
 
+  // 자막 수동 입력 fallback — 자동 fetch 실패 시 운영자가 직접 붙여넣기
+  const [manualFallback, setManualFallback] = useState(false);
+  const [manualTranscript, setManualTranscript] = useState("");
+  const [manualVideoId, setManualVideoId] = useState("");
+  const [manualTitle, setManualTitle] = useState("");
+
   async function runAnalyze() {
     setError(null);
     setAnalyze(null);
@@ -145,9 +152,15 @@ export default function DraftClient() {
       const data = (await res.json()) as AnalyzeResp | { error: string };
       if (!res.ok || "error" in data) {
         setError("error" in data ? data.error : `분석 실패 (${res.status})`);
+        // 자막 fetch 실패 → 수동 입력 fallback UI 노출
+        setManualFallback(true);
+        // 영상 ID는 URL에서 추출해서 채워두기
+        const m = url.trim().match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+        if (m) setManualVideoId(m[1]);
         setStage("idle");
         return;
       }
+      setManualFallback(false);
       setAnalyze(data);
       setPrimarySlug(data.primary?.slug ?? "");
       setStage("analyzed");
@@ -155,6 +168,42 @@ export default function DraftClient() {
       setError(e instanceof Error ? e.message : "네트워크 오류");
       setStage("idle");
     }
+  }
+
+  /**
+   * 자막을 수동으로 붙여넣은 경우 — 클라이언트에서 9명 식별만 빠르게 처리.
+   * (서버 API는 자막 fetch 포함이라 우회. 식별 로직은 동일 lib 사용.)
+   */
+  async function applyManualTranscript() {
+    if (!manualTranscript.trim() || !manualVideoId.trim()) {
+      setError("자막 본문과 영상 ID 모두 입력해주세요.");
+      return;
+    }
+    setError(null);
+    const { identifyDoctors } = await import("@/lib/ai/identify-doctors");
+    const id = identifyDoctors({
+      transcript: manualTranscript,
+      videoTitle: manualTitle || null,
+    });
+    if (id.empty) {
+      setError(
+        "이 자막에는 등록된 원장 9명 중 누구도 등장하지 않습니다. Q&A 추출 대상이 아닙니다.",
+      );
+      return;
+    }
+    const fakeAnalyze: AnalyzeResp = {
+      videoId: manualVideoId.trim(),
+      title: manualTitle || null,
+      source: "ko-manual",
+      transcript: manualTranscript,
+      doctors: id.matches,
+      primary: id.primary,
+      empty: id.empty,
+    };
+    setAnalyze(fakeAnalyze);
+    setPrimarySlug(fakeAnalyze.primary?.slug ?? "");
+    setManualFallback(false);
+    setStage("analyzed");
   }
 
   async function runStep1() {
@@ -368,6 +417,73 @@ export default function DraftClient() {
         </div>
       )}
 
+      {/* 자막 수동 fallback — 자동 fetch 실패 시 운영자가 직접 붙여넣기 */}
+      {manualFallback && !analyze && (
+        <section className="space-y-3 rounded-[var(--radius)] border border-amber-300 bg-amber-50/40 p-5">
+          <div>
+            <p className="mb-1 text-sm font-semibold text-amber-800">
+              자동 자막 추출이 막힌 영상입니다.
+            </p>
+            <p className="text-xs text-amber-700">
+              YouTube에서 직접 자막을 복사해 아래에 붙여넣어주세요. ‘…
+              더보기’ → ‘스크립트 표시’를 누르면 자막 전체를 한 번에 복사할 수
+              있습니다.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-amber-800">
+                영상 ID (11자)
+              </label>
+              <input
+                type="text"
+                value={manualVideoId}
+                onChange={(e) => setManualVideoId(e.target.value)}
+                placeholder="Jsu_96-DLcQ"
+                className="w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-amber-800">
+                영상 제목 (선택)
+              </label>
+              <input
+                type="text"
+                value={manualTitle}
+                onChange={(e) => setManualTitle(e.target.value)}
+                placeholder="자동으로 채워지지 않으면 직접 입력"
+                className="w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-amber-800">
+              자막 본문 (한국어, 1000자 이상 권장)
+            </label>
+            <textarea
+              value={manualTranscript}
+              onChange={(e) => setManualTranscript(e.target.value)}
+              rows={10}
+              placeholder="자막 전체를 그대로 붙여넣기 (시간 표시는 있어도 무관)"
+              className="w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-sm leading-[1.65] focus:border-amber-500 focus:outline-none"
+            />
+            <p className="mt-1 text-[11px] text-amber-700">
+              현재 {manualTranscript.length.toLocaleString()}자
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={applyManualTranscript}
+            disabled={
+              !manualTranscript.trim() || manualTranscript.trim().length < 100
+            }
+            className="w-full rounded-md bg-amber-600 py-2 font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            붙여넣은 자막으로 진행
+          </button>
+        </section>
+      )}
+
       {/* [2] 영상 분석 결과 */}
       {analyze && (
         <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
@@ -513,32 +629,13 @@ function CardEditor({
   onApplyCandidate: (pmid: string) => void;
   onClearReference: () => void;
 }) {
-  const answerRef = useRef<HTMLTextAreaElement | null>(null);
   const externalUrl = buildExternalUrl(videoId, card.startSec);
   const highlightColor = useMemo(
     () => pickHighlight(`draft-${index}-${videoId}`),
     [index, videoId],
   );
-
-  function toggleBold() {
-    const ta = answerRef.current;
-    if (!ta) return;
-    const start = ta.selectionStart ?? 0;
-    const end = ta.selectionEnd ?? 0;
-    if (start === end) return;
-    const selected = ta.value.slice(start, end);
-    if (
-      selected.length >= 4 &&
-      selected.startsWith("**") &&
-      selected.endsWith("**")
-    ) {
-      ta.setRangeText(selected.slice(2, -2), start, end, "select");
-    } else {
-      ta.setRangeText(`**${selected}**`, start, end, "select");
-    }
-    onChange({ answer: ta.value });
-    ta.focus();
-  }
+  const doctorName =
+    DOCTORS_9.find((d) => d.slug === card.doctorSlug)?.name ?? "(미지정)";
 
   return (
     <article className="space-y-3 rounded-md border border-[var(--border)] bg-[var(--bg-soft)]/30 p-4">
@@ -565,18 +662,13 @@ function CardEditor({
           <label className="mb-1 block text-xs text-[var(--text-secondary)]">
             화자
           </label>
-          <select
-            value={card.doctorSlug}
-            onChange={(e) => onChange({ doctorSlug: e.target.value })}
-            className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)]"
-          >
-            <option value="">— 선택 —</option>
-            {DOCTORS_9.map((d) => (
-              <option key={d.slug} value={d.slug}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          {/* readonly chip — 추출 단계 주 화자로 고정. 변경하려면 ② 단계 라디오에서 */}
+          <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm">
+            <span className="font-medium text-[var(--text)]">{doctorName}</span>
+            <span className="text-[10px] text-[var(--text-muted)]">
+              (주 화자 고정)
+            </span>
+          </div>
         </div>
         <div>
           <label className="mb-1 block text-xs text-[var(--text-secondary)]">
@@ -646,39 +738,19 @@ function CardEditor({
       </div>
 
       <div>
-        <div className="mb-1 flex items-center justify-between">
-          <label className="text-xs text-[var(--text-secondary)]">
-            답변{" "}
-            <span className="text-[10px] text-[var(--text-muted)]">
-              ({card.answer.length}자, 목표 400~600자)
-            </span>
-          </label>
-          <button
-            type="button"
-            onClick={toggleBold}
-            title="굵게 (Ctrl+B)"
-            className="rounded-md border border-[var(--border)] bg-white px-2.5 py-1 text-xs font-bold text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
-          >
-            B 굵게
-          </button>
-        </div>
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          <textarea
-            ref={answerRef}
-            value={card.answer}
-            onChange={(e) => onChange({ answer: e.target.value })}
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && (e.key === "b" || e.key === "B")) {
-                e.preventDefault();
-                toggleBold();
-              }
-            }}
-            rows={12}
-            className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm leading-[1.65] focus:border-[var(--primary)] font-[ui-monospace,SFMono-Regular,Menlo,monospace]"
-            placeholder="답변 본문 (markdown: **bold**, 단락은 빈 줄)"
-          />
-          <AnswerPreview text={card.answer} highlightColor={highlightColor} />
-        </div>
+        <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+          답변{" "}
+          <span className="text-[10px] text-[var(--text-muted)]">
+            ({card.answer.length}자, 목표 400~600자)
+          </span>
+        </label>
+        <MarkdownBoldEditor
+          value={card.answer}
+          onChange={(md) => onChange({ answer: md })}
+          highlightColor={highlightColor}
+          placeholder="답변 본문 (텍스트 선택 후 [B 굵게] 또는 Ctrl+B로 형광펜 적용)"
+          minHeight={280}
+        />
       </div>
 
       <div>
@@ -787,70 +859,6 @@ function ReferenceLine({
           >
             DOI
           </a>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AnswerPreview({
-  text,
-  highlightColor,
-}: {
-  text: string;
-  highlightColor: string;
-}) {
-  const paragraphs = (text ?? "").split(/\n{2,}/).map((s) => s.trimEnd());
-  return (
-    <div className="rounded-md border border-[var(--border)] bg-white p-3">
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-        미리보기
-      </div>
-      <div className="space-y-2">
-        {paragraphs.map((para, pi) => {
-          const parts: React.ReactNode[] = [];
-          const re = /\*\*([^*]+)\*\*/g;
-          let last = 0;
-          let m: RegExpExecArray | null;
-          let key = 0;
-          while ((m = re.exec(para)) !== null) {
-            if (m.index > last) {
-              parts.push(
-                <Fragment key={`t${pi}-${key++}`}>
-                  {para.slice(last, m.index)}
-                </Fragment>,
-              );
-            }
-            parts.push(
-              <strong
-                key={`b${pi}-${key++}`}
-                className="font-semibold text-[var(--text)]"
-                style={{
-                  backgroundImage: `linear-gradient(transparent 60%, ${highlightColor} 60%)`,
-                  padding: "0 1px",
-                }}
-              >
-                {m[1]}
-              </strong>,
-            );
-            last = m.index + m[0].length;
-          }
-          if (last < para.length) {
-            parts.push(
-              <Fragment key={`t${pi}-${key++}`}>{para.slice(last)}</Fragment>,
-            );
-          }
-          return (
-            <p
-              key={pi}
-              className="whitespace-pre-wrap text-[14px] leading-[1.65] text-[var(--text)]"
-            >
-              {parts}
-            </p>
-          );
-        })}
-        {paragraphs.length === 0 && (
-          <p className="text-xs text-[var(--text-muted)]">(미리보기 없음)</p>
         )}
       </div>
     </div>

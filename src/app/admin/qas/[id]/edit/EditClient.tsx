@@ -1,9 +1,10 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { pickHighlight } from "@/lib/qa-highlight";
+import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 
 type Doctor = {
   id: string;
@@ -149,7 +150,8 @@ export default function EditClient({
   const [answer, setAnswer] = useState(qa.answer);
   const [keywords, setKeywords] = useState<string[]>(qa.keywords);
   const [keywordInput, setKeywordInput] = useState("");
-  const [doctorId, setDoctorId] = useState<string | null>(qa.doctor_id);
+  // 글쓴이는 추출 단계에서 결정한 화자로 고정 — 편집 페이지에선 변경 X
+  const doctorId = qa.doctor_id;
   const [status, setStatus] = useState<QA["status"]>(qa.status);
   const [isPick, setIsPick] = useState<boolean>(qa.is_pick ?? false);
 
@@ -160,13 +162,16 @@ export default function EditClient({
   const [startSec, setStartSec] = useState(initialStartSec);
   const [startInput, setStartInput] = useState(formatMMSS(initialStartSec));
 
+  // 참고문헌 — 편집·추가·제거 가능
+  const [pubmedRef, setPubmedRef] = useState<PubmedRef>(qa.pubmed_ref ?? null);
+  const [refPmidInput, setRefPmidInput] = useState("");
+  const [refLoading, setRefLoading] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSave] = useTransition();
   const [oembedLoading, setOembedLoading] = useState(false);
 
-  const answerRef = useRef<HTMLTextAreaElement | null>(null);
-
-  // 미리보기용 형광펜 색 — 카드 id 기반 (실제 카드와 동일 색)
+  // 편집기 내 <strong> 형광펜 색 — 카드 id 기반 (실제 카드와 동일 색)
   const highlightColor = useMemo(() => pickHighlight(String(qa.id)), [qa.id]);
 
   // baseId는 현재 external_url 또는 video.youtube_id 에서 추출
@@ -208,37 +213,6 @@ export default function EditClient({
     }
   }
 
-  /**
-   * 답변 textarea의 선택 영역을 **로 wrap/unwrap. native undo 보존(setRangeText).
-   */
-  function toggleBold() {
-    const ta = answerRef.current;
-    if (!ta) return;
-    const start = ta.selectionStart ?? 0;
-    const end = ta.selectionEnd ?? 0;
-    if (start === end) return;
-    const selected = ta.value.slice(start, end);
-    if (
-      selected.length >= 4 &&
-      selected.startsWith("**") &&
-      selected.endsWith("**")
-    ) {
-      const inner = selected.slice(2, -2);
-      ta.setRangeText(inner, start, end, "select");
-    } else {
-      ta.setRangeText(`**${selected}**`, start, end, "select");
-    }
-    setAnswer(ta.value);
-    ta.focus();
-  }
-
-  function onAnswerKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if ((e.ctrlKey || e.metaKey) && (e.key === "b" || e.key === "B")) {
-      e.preventDefault();
-      toggleBold();
-    }
-  }
-
   function save(toStatus?: QA["status"]) {
     const finalStatus = toStatus ?? status;
     setError(null);
@@ -273,6 +247,7 @@ export default function EditClient({
           external_url: externalUrl.trim() || null,
           external_title: externalTitle.trim() || null,
           meta: metaStr,
+          pubmed_ref: pubmedRef,
         })
         .eq("id", qa.id);
       if (upErr) {
@@ -347,23 +322,19 @@ export default function EditClient({
 
       {/* ── 편집 폼 ── */}
       <div className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
-        {/* 글쓴이 */}
+        {/* 글쓴이 — 추출 단계에서 결정된 화자가 그대로 고정 (편집 불가) */}
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
             글쓴이
           </label>
-          <select
-            value={doctorId ?? ""}
-            onChange={(e) => setDoctorId(e.target.value || null)}
-            className="w-full rounded-md border border-[var(--border)] px-3 py-2 outline-none focus:border-[var(--primary)]"
-          >
-            <option value="">— 없음 —</option>
-            {doctors.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2 text-sm">
+            <span className="font-medium text-[var(--text)]">
+              {doctors.find((d) => d.id === doctorId)?.name ?? "— 없음 —"}
+            </span>
+            <span className="text-[11px] text-[var(--text-muted)]">
+              (변경 불가)
+            </span>
+          </div>
         </div>
 
         {/* Pick 토글 */}
@@ -474,36 +445,21 @@ export default function EditClient({
           />
         </div>
 
-        {/* 답변 — Side-by-side */}
+        {/* 답변 — 단일 WYSIWYG 편집기 (굵게 즉시 형광펜 시각화. ** 마크다운 안 보임) */}
         <div>
-          <div className="mb-1 flex items-center justify-between">
-            <label className="text-sm text-[var(--text-secondary)]">
-              답변{" "}
-              <span className="text-xs text-[var(--text-muted)]">
-                ({answerLength}자, 목표 400~600자 / {paragraphCount}단락)
-              </span>
-            </label>
-            <button
-              type="button"
-              onClick={toggleBold}
-              title="굵게 (Ctrl+B) — 선택한 텍스트를 **로 감싸 형광펜 적용"
-              className="rounded-md border border-[var(--border)] bg-white px-2.5 py-1 text-xs font-bold text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
-            >
-              <span style={{ fontWeight: 700 }}>B</span> 굵게
-            </button>
-          </div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            <textarea
-              ref={answerRef}
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={onAnswerKeyDown}
-              rows={14}
-              className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm leading-[1.65] outline-none focus:border-[var(--primary)] font-[ui-monospace,SFMono-Regular,Menlo,monospace]"
-              placeholder="답변 본문 (markdown: **bold**, 단락은 빈 줄)"
-            />
-            <AnswerPreview text={answer} highlightColor={highlightColor} />
-          </div>
+          <label className="mb-1 block text-sm text-[var(--text-secondary)]">
+            답변{" "}
+            <span className="text-xs text-[var(--text-muted)]">
+              ({answerLength}자, 목표 400~600자 / {paragraphCount}단락)
+            </span>
+          </label>
+          <MarkdownBoldEditor
+            value={answer}
+            onChange={setAnswer}
+            highlightColor={highlightColor}
+            placeholder="답변 본문 (텍스트 선택 후 [B 굵게] 또는 Ctrl+B로 형광펜 적용)"
+            minHeight={320}
+          />
         </div>
 
         {/* 키워드 */}
@@ -557,30 +513,103 @@ export default function EditClient({
           </div>
         </div>
 
-        {/* 참고문헌 (PubMed) */}
+        {/* 참고문헌 (PubMed) — 편집/추가/제거 */}
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
             참고문헌 (PubMed)
           </label>
-          <ReferenceDisplay pubmed_ref={qa.pubmed_ref ?? null} />
-        </div>
-
-        {/* 상태 */}
-        <div>
-          <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            상태
-          </label>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as QA["status"])}
-            className="w-full rounded-md border border-[var(--border)] px-3 py-2 outline-none focus:border-[var(--primary)]"
-          >
-            {(Object.keys(STATUS_LABELS) as QA["status"][]).map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
+          {pubmedRef ? (
+            <div className="space-y-2">
+              <ReferenceLine r={pubmedRef} />
+              <button
+                type="button"
+                onClick={() => setPubmedRef(null)}
+                className="text-xs text-red-600 hover:underline"
+              >
+                참고문헌 제거
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-soft)]/40 p-3">
+              <p className="mb-2 text-xs text-[var(--text-muted)]">
+                참고문헌 없음 — PMID를 입력해 PubMed에서 가져올 수 있습니다.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={refPmidInput}
+                  onChange={(e) => setRefPmidInput(e.target.value)}
+                  placeholder="PMID 숫자 (예: 37705328)"
+                  className="flex-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={refLoading || !refPmidInput.trim()}
+                  onClick={async () => {
+                    setError(null);
+                    setRefLoading(true);
+                    try {
+                      const res = await fetch(
+                        "/api/admin/draft/pubmed-by-pmid",
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            pmid: refPmidInput.trim(),
+                          }),
+                        },
+                      );
+                      const data = (await res.json()) as
+                        | {
+                            reference: {
+                              pmid: string;
+                              doi: string;
+                              title: string;
+                              journal: string;
+                              year: string;
+                              authors_short: string;
+                            };
+                          }
+                        | { error: string };
+                      if (!res.ok || "error" in data) {
+                        setError(
+                          "error" in data
+                            ? data.error
+                            : `PubMed 조회 실패 (${res.status})`,
+                        );
+                        return;
+                      }
+                      const r = data.reference;
+                      setPubmedRef({
+                        pmid: r.pmid,
+                        doi: r.doi,
+                        title: r.title,
+                        journal: r.journal,
+                        year: r.year,
+                        authors_short: r.authors_short,
+                        pubmed_url: `https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/`,
+                        doi_url: r.doi ? `https://doi.org/${r.doi}` : "",
+                      });
+                      setRefPmidInput("");
+                    } catch (e) {
+                      setError(
+                        e instanceof Error ? e.message : "네트워크 오류",
+                      );
+                    } finally {
+                      setRefLoading(false);
+                    }
+                  }}
+                  className="whitespace-nowrap rounded-md border border-[var(--primary)] bg-white px-3 py-2 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-50"
+                >
+                  {refLoading ? "조회 중…" : "+ PubMed에서 가져오기"}
+                </button>
+              </div>
+              <p className="mt-1 text-[10px] text-[var(--text-muted)]">
+                PMID는 PubMed 검색결과 URL 끝의 숫자 (예:
+                pubmed.ncbi.nlm.nih.gov/<b>37705328</b>/).
+              </p>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -589,45 +618,71 @@ export default function EditClient({
           </div>
         )}
 
-        {/* 액션 버튼 */}
-        <div className="flex flex-wrap justify-between gap-2 pt-2">
-          <button
-            type="button"
-            onClick={deleteQA}
-            disabled={isSaving}
-            className="rounded-md border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
-          >
-            🗑 삭제
-          </button>
-          <div className="flex flex-wrap gap-2">
+        {/* 액션 버튼 — 상태 dropdown 대체. 현재 상태는 chip으로 표시, 클릭 시 즉시 저장+상태 변경 */}
+        <div className="space-y-2 pt-2">
+          <div className="text-xs text-[var(--text-secondary)]">
+            현재 상태:{" "}
+            <span
+              className="inline-block rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
+              style={{ backgroundColor: STATUS_COLORS[status] }}
+            >
+              {STATUS_LABELS[status]}
+            </span>
+            <span className="ml-2 text-[11px] text-[var(--text-muted)]">
+              아래 버튼을 누르면 그 상태로 즉시 저장됩니다.
+            </span>
+          </div>
+          <div className="flex flex-wrap justify-between gap-2">
             <button
               type="button"
-              onClick={() => save()}
+              onClick={deleteQA}
               disabled={isSaving}
-              className="rounded-md border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] disabled:opacity-50"
+              className="rounded-md border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
             >
-              💾 저장
+              🗑 삭제
             </button>
-            {status !== "published" && (
-              <button
-                type="button"
-                onClick={() => save("published")}
-                disabled={isSaving}
-                className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                🚀 발행
-              </button>
-            )}
-            {status === "published" && (
-              <button
-                type="button"
-                onClick={() => save("archived")}
-                disabled={isSaving}
-                className="rounded-md border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:border-[var(--primary)] disabled:opacity-50"
-              >
-                📥 비공개로
-              </button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {status !== "draft" && (
+                <button
+                  type="button"
+                  onClick={() => save("draft")}
+                  disabled={isSaving}
+                  className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
+                >
+                  📝 초안으로
+                </button>
+              )}
+              {status !== "pending_review" && (
+                <button
+                  type="button"
+                  onClick={() => save("pending_review")}
+                  disabled={isSaving}
+                  className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  ⏳ 검수 대기로
+                </button>
+              )}
+              {status !== "published" && (
+                <button
+                  type="button"
+                  onClick={() => save("published")}
+                  disabled={isSaving}
+                  className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+                >
+                  🚀 발행
+                </button>
+              )}
+              {status === "published" && (
+                <button
+                  type="button"
+                  onClick={() => save("archived")}
+                  disabled={isSaving}
+                  className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:border-[var(--primary)] disabled:opacity-50"
+                >
+                  📥 보관
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -635,84 +690,9 @@ export default function EditClient({
   );
 }
 
-/** 답변 미리보기 — QACard.renderAnswerBody 와 같은 로직 (form 영역용 간소화). */
-function AnswerPreview({
-  text,
-  highlightColor,
-}: {
-  text: string;
-  highlightColor: string;
-}) {
-  const paragraphs = (text ?? "").split(/\n{2,}/).map((s) => s.trimEnd());
-  return (
-    <div className="rounded-md border border-[var(--border)] bg-white p-3">
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-        미리보기
-      </div>
-      <div className="space-y-2">
-        {paragraphs.map((para, pi) => {
-          const parts: React.ReactNode[] = [];
-          const re = /\*\*([^*]+)\*\*/g;
-          let last = 0;
-          let m: RegExpExecArray | null;
-          let key = 0;
-          while ((m = re.exec(para)) !== null) {
-            if (m.index > last) {
-              parts.push(
-                <Fragment key={`t${pi}-${key++}`}>
-                  {para.slice(last, m.index)}
-                </Fragment>,
-              );
-            }
-            parts.push(
-              <strong
-                key={`b${pi}-${key++}`}
-                className="font-semibold text-[var(--text)]"
-                style={{
-                  backgroundImage: `linear-gradient(transparent 60%, ${highlightColor} 60%)`,
-                  padding: "0 1px",
-                }}
-              >
-                {m[1]}
-              </strong>,
-            );
-            last = m.index + m[0].length;
-          }
-          if (last < para.length) {
-            parts.push(
-              <Fragment key={`t${pi}-${key++}`}>{para.slice(last)}</Fragment>,
-            );
-          }
-          return (
-            <p
-              key={pi}
-              className="whitespace-pre-wrap text-[14px] leading-[1.65] text-[var(--text)]"
-            >
-              {parts}
-            </p>
-          );
-        })}
-        {paragraphs.length === 0 && (
-          <p className="text-xs text-[var(--text-muted)]">(미리보기 없음)</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** PubMed 참고문헌 — 카드 footer와 동일 형식. 편집은 Track 4 위저드에서 통합. */
-function ReferenceDisplay({ pubmed_ref }: { pubmed_ref: PubmedRef }) {
-  if (
-    !pubmed_ref ||
-    (!pubmed_ref.pmid && !pubmed_ref.doi && !pubmed_ref.title)
-  ) {
-    return (
-      <p className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-soft)]/40 px-3 py-2 text-xs text-[var(--text-muted)]">
-        참고문헌 없음 (Step2 LLM 매칭이 적합 후보를 찾지 못한 카드 또는 미설정)
-      </p>
-    );
-  }
-  const url = pubmed_ref.pubmed_url ?? pubmed_ref.doi_url ?? "#";
+/** PubMed 참고문헌 한 줄 표시 (카드 footer와 동일 형식). */
+function ReferenceLine({ r }: { r: NonNullable<PubmedRef> }) {
+  const url = r.pubmed_url ?? r.doi_url ?? "#";
   return (
     <div className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[12px] leading-[1.55]">
       <a
@@ -721,27 +701,27 @@ function ReferenceDisplay({ pubmed_ref }: { pubmed_ref: PubmedRef }) {
         rel="noopener noreferrer"
         className="font-medium text-[var(--text)] underline decoration-[var(--text-muted)]/40 underline-offset-[3px] hover:decoration-[var(--primary)]"
       >
-        {pubmed_ref.title ?? "(제목 없음)"}
+        {r.title ?? "(제목 없음)"}
       </a>
       <div className="mt-0.5 text-[var(--text-secondary)]">
-        {pubmed_ref.authors_short && <span>{pubmed_ref.authors_short} · </span>}
-        {pubmed_ref.journal && <span>{pubmed_ref.journal}</span>}
-        {pubmed_ref.year && <span> ({pubmed_ref.year})</span>}
+        {r.authors_short && <span>{r.authors_short} · </span>}
+        {r.journal && <span>{r.journal}</span>}
+        {r.year && <span> ({r.year})</span>}
       </div>
       <div className="mt-0.5 flex gap-3 text-[10px] text-[var(--text-muted)]">
-        {pubmed_ref.pmid && (
+        {r.pmid && (
           <a
-            href={`https://pubmed.ncbi.nlm.nih.gov/${pubmed_ref.pmid}/`}
+            href={`https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/`}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-[var(--primary)]"
           >
-            PMID: {pubmed_ref.pmid}
+            PMID: {r.pmid}
           </a>
         )}
-        {pubmed_ref.doi && (
+        {r.doi && (
           <a
-            href={`https://doi.org/${pubmed_ref.doi}`}
+            href={`https://doi.org/${r.doi}`}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-[var(--primary)]"

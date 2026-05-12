@@ -1,0 +1,66 @@
+/**
+ * POST /api/admin/draft/pubmed-by-pmid
+ *
+ * 운영자가 PMID를 직접 입력하면 PubMed eutils로 efetch해서 reference 객체 반환.
+ * 편집 페이지의 "참고문헌 추가" 기능에서 사용.
+ *
+ * 입력:  { pmid: string }
+ * 출력:  { reference: {pmid,doi,title,journal,year,authors_short,pubmed_url,doi_url} | null,
+ *          error?: string }
+ */
+
+import { NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { fetchPubmedByPmid } from "@/lib/ai/pubmed";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  // 원장도 가능하게 (편집 페이지 접근 가능한 역할이면 참고문헌 추가도 OK)
+  if (profile?.role !== "admin" && profile?.role !== "doctor") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  let body: { pmid?: unknown };
+  try {
+    body = (await req.json()) as { pmid?: unknown };
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const raw = typeof body.pmid === "string" ? body.pmid.trim() : "";
+  const pmid = raw.replace(/^PMID[:\s]*/i, "").trim();
+  if (!/^\d{1,9}$/.test(pmid)) {
+    return NextResponse.json(
+      { error: "PMID는 1-9자리 숫자여야 합니다." },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const ref = await fetchPubmedByPmid(pmid);
+    if (!ref) {
+      return NextResponse.json(
+        { error: `PMID ${pmid}에 해당하는 PubMed 논문을 찾을 수 없습니다.` },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({ reference: ref });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      { error: `PubMed fetch 실패: ${msg}` },
+      { status: 502 },
+    );
+  }
+}

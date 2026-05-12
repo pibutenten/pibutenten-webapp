@@ -1,13 +1,16 @@
 /**
- * YouTube 자막 fetch 유틸 (Phase 8 — v2).
+ * YouTube 자막 fetch 유틸 (Phase 8 — v3).
  *
- * 동작:
- *  1) URL → videoId 추출 (watch / youtu.be / shorts / embed / live)
- *  2) 한국어 **수동 자막** 우선 → 실패 시 한국어 **자동자막** → 실패 시 영어 → default
- *     - youtube-transcript 패키지 + timedtext API fallback
- *  3) 영상 제목·업로드일은 oEmbed로 best-effort
+ * 동작 (다층 fallback):
+ *   1) watch 페이지 HTML의 `ytInitialPlayerResponse.captions.playerCaptionsTracklistRenderer.captionTracks`
+ *      파싱 → 한국어 트랙(수동 우선) baseUrl로 직접 자막 fetch. 가장 안정적.
+ *   2) youtube-transcript 패키지 (ko 우선)
+ *   3) timedtext API (수동 ko → 자동 ko → en → default)
  *
- * 자막을 어느 트랙에서도 못 가져오면 명확한 한국어 메시지로 throw.
+ * 둘 다 실패 시 명확한 한국어 메시지로 throw.
+ *
+ * v3 변경: watch 페이지 파싱 추가 (youtube-transcript / timedtext가 "Transcript is
+ * disabled" 또는 empty body로 실패하는 영상도 처리 가능).
  */
 
 import { YoutubeTranscript } from "youtube-transcript";
@@ -15,17 +18,13 @@ import { YoutubeTranscript } from "youtube-transcript";
 export type YoutubeTranscriptResult = {
   videoId: string;
   title: string | null;
-  /** 자막 본문 — 자막 줄들 공백으로 합친 plain text */
   transcript: string;
-  /** 어느 트랙에서 가져왔는지 (디버깅·UI 표시용) */
   source: "ko-manual" | "ko-auto" | "en" | "default" | "unknown";
-  /** ISO 날짜 (YYYY-MM-DD) 또는 null — oEmbed에는 업로드일이 없음 */
   uploadDate: string | null;
 };
 
 const YOUTUBE_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
 
-/** 다양한 YouTube URL 형태에서 11자 videoId 를 추출. 실패 시 throw. */
 export function extractVideoId(input: string): string {
   const raw = input.trim();
   if (!raw) throw new Error("URL is empty");
@@ -80,7 +79,93 @@ function decodeHtml(s: string): string {
     );
 }
 
-/** youtube-transcript 패키지로 자막 시도. lang 명시 시 해당 언어 우선. */
+/** 자막 XML → 합쳐진 plain text. <text>·<p> 모두 대응 */
+function parseCaptionXml(xml: string): string {
+  let matches = xml.match(/<text[^>]*>([\s\S]*?)<\/text>/g);
+  if (!matches || matches.length === 0) {
+    matches = xml.match(/<p[^>]*>([\s\S]*?)<\/p>/g);
+  }
+  if (!matches || matches.length === 0) throw new Error("no <text>/<p> nodes");
+  const parts = matches
+    .map((m) =>
+      m.replace(/<text[^>]*>/, "").replace(/<\/text>$/, "")
+        .replace(/<p[^>]*>/, "").replace(/<\/p>$/, ""),
+    )
+    .map((t) => decodeHtml(t.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  if (parts.length === 0) throw new Error("caption XML empty after parse");
+  return parts.join(" ");
+}
+
+type CaptionTrack = {
+  baseUrl: string;
+  languageCode: string;
+  kind?: string; // "asr" = 자동자막
+  name?: { simpleText?: string };
+};
+
+/**
+ * watch 페이지 HTML에서 ytInitialPlayerResponse → captionTracks 추출.
+ *
+ * youtube-transcript / timedtext API가 실패하는 영상도 이 경로로 자막 fetch 가능.
+ * (이 API들은 YouTube의 인증·봇 탐지에 자주 막힘)
+ */
+async function fetchCaptionTracksFromWatch(
+  videoId: string,
+): Promise<CaptionTrack[]> {
+  const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    headers: {
+      "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`watch page HTTP ${res.status}`);
+  const html = await res.text();
+
+  // ytInitialPlayerResponse 추출 — 여러 패턴 시도
+  const patterns = [
+    /var\s+ytInitialPlayerResponse\s*=\s*({[\s\S]+?})\s*;\s*(?:var|<\/script>)/,
+    /ytInitialPlayerResponse\s*=\s*({[\s\S]+?})\s*;\s*(?:var|<\/script>)/,
+  ];
+  let playerResponse: unknown = null;
+  for (const pat of patterns) {
+    const m = html.match(pat);
+    if (m) {
+      try {
+        playerResponse = JSON.parse(m[1]);
+        break;
+      } catch {
+        /* try next */
+      }
+    }
+  }
+  if (!playerResponse || typeof playerResponse !== "object") {
+    throw new Error("ytInitialPlayerResponse not found");
+  }
+  const pr = playerResponse as {
+    captions?: {
+      playerCaptionsTracklistRenderer?: { captionTracks?: CaptionTrack[] };
+    };
+  };
+  const tracks =
+    pr.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+  if (!tracks.length) throw new Error("captionTracks empty");
+  return tracks;
+}
+
+async function fetchCaptionByTrack(track: CaptionTrack): Promise<string> {
+  if (!track.baseUrl) throw new Error("track has no baseUrl");
+  const res = await fetch(track.baseUrl, { cache: "no-store" });
+  if (!res.ok) throw new Error(`track baseUrl HTTP ${res.status}`);
+  const xml = await res.text();
+  if (!xml.trim()) throw new Error("track empty body");
+  return parseCaptionXml(xml);
+}
+
+/** youtube-transcript 패키지 fallback */
 async function fetchViaPackage(videoId: string, lang?: string): Promise<string> {
   const items = await YoutubeTranscript.fetchTranscript(
     videoId,
@@ -93,7 +178,7 @@ async function fetchViaPackage(videoId: string, lang?: string): Promise<string> 
     .join(" ");
 }
 
-/** timedtext API fallback. kind='asr'이면 자동자막 직접 호출 (수동 자막은 kind 생략). */
+/** timedtext API fallback */
 async function fetchViaTimedText(
   videoId: string,
   opts: { lang?: string; kind?: "asr" } = {},
@@ -108,57 +193,101 @@ async function fetchViaTimedText(
   if (!res.ok) throw new Error(`timedtext HTTP ${res.status}`);
   const xml = await res.text();
   if (!xml.trim()) throw new Error("timedtext empty body");
-  const matches = xml.match(/<text[^>]*>([\s\S]*?)<\/text>/g);
-  if (!matches?.length) throw new Error("no <text> nodes");
-  const parts = matches
-    .map((m) => m.replace(/<text[^>]*>/, "").replace(/<\/text>$/, ""))
-    .map((t) => decodeHtml(t).replace(/\s+/g, " ").trim())
-    .filter(Boolean);
-  if (!parts.length) throw new Error("timedtext empty after parse");
-  return parts.join(" ");
+  return parseCaptionXml(xml);
 }
 
 /**
- * 자막 트랙 시도 순서 (한국어 수동 → 자동 → 영어 → default):
+ * 자막 시도 — 가장 안정적인 watch 페이지 파싱부터, fallback으로 패키지·timedtext.
+ *
+ * 트랙 우선순위:
+ *   1) 한국어 수동
+ *   2) 한국어 자동(asr)
+ *   3) 영어 수동
+ *   4) 어떤 수동 트랙이든
+ *   5) 어떤 트랙이든
  */
 async function fetchTranscriptResilient(videoId: string): Promise<{
   text: string;
   source: YoutubeTranscriptResult["source"];
 }> {
+  const errors: string[] = [];
+
+  // 1) watch 페이지 → captionTracks 분석
+  try {
+    const tracks = await fetchCaptionTracksFromWatch(videoId);
+
+    const findKo = (asr: boolean) =>
+      tracks.find(
+        (t) =>
+          t.languageCode === "ko" &&
+          (asr ? t.kind === "asr" : t.kind !== "asr"),
+      );
+    const koManual = findKo(false);
+    const koAuto = findKo(true);
+    const enManual = tracks.find(
+      (t) => t.languageCode === "en" && t.kind !== "asr",
+    );
+    const anyManual = tracks.find((t) => t.kind !== "asr");
+    const any = tracks[0];
+
+    const order: Array<{
+      label: YoutubeTranscriptResult["source"];
+      track?: CaptionTrack;
+    }> = [
+      { label: "ko-manual", track: koManual },
+      { label: "ko-auto", track: koAuto },
+      { label: "en", track: enManual },
+      { label: "default", track: anyManual },
+      { label: "default", track: any },
+    ];
+    for (const o of order) {
+      if (!o.track) continue;
+      try {
+        const text = (await fetchCaptionByTrack(o.track)).trim();
+        if (text.length >= 20) {
+          return { text, source: o.label };
+        }
+        errors.push(`watch:${o.label}:${o.track.languageCode}:too short`);
+      } catch (e) {
+        errors.push(
+          `watch:${o.label}:${o.track.languageCode}:${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        );
+      }
+    }
+  } catch (e) {
+    errors.push(`watch page: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // 2) youtube-transcript 패키지 + timedtext API (백업)
   const attempts: Array<{
     label: YoutubeTranscriptResult["source"];
     run: () => Promise<string>;
   }> = [
-    { label: "ko-manual", run: () => fetchViaTimedText(videoId, { lang: "ko" }) },
     { label: "ko-manual", run: () => fetchViaPackage(videoId, "ko") },
+    { label: "ko-manual", run: () => fetchViaTimedText(videoId, { lang: "ko" }) },
     { label: "ko-auto", run: () => fetchViaTimedText(videoId, { lang: "ko", kind: "asr" }) },
-    { label: "en", run: () => fetchViaTimedText(videoId, { lang: "en" }) },
     { label: "en", run: () => fetchViaPackage(videoId, "en") },
-    { label: "default", run: () => fetchViaTimedText(videoId) },
+    { label: "en", run: () => fetchViaTimedText(videoId, { lang: "en" }) },
     { label: "default", run: () => fetchViaPackage(videoId) },
+    { label: "default", run: () => fetchViaTimedText(videoId) },
   ];
-
-  const errors: string[] = [];
   for (const a of attempts) {
     try {
       const text = (await a.run()).trim();
-      if (text.length >= 20) {
-        return { text, source: a.label };
-      }
-      errors.push(`${a.label}: too short`);
+      if (text.length >= 20) return { text, source: a.label };
+      errors.push(`${a.label}:too short`);
     } catch (e) {
-      errors.push(`${a.label}: ${e instanceof Error ? e.message : String(e)}`);
+      errors.push(`${a.label}:${e instanceof Error ? e.message : String(e)}`);
     }
   }
+
   throw new Error(
     `이 영상에는 한국어 자막이 없어 Q&A를 추출할 수 없습니다. (시도: ${errors.join(" | ")})`,
   );
 }
 
-/**
- * YouTube URL/ID → 자막 + 제목 fetch.
- * @throws videoId 추출 실패, 모든 자막 트랙 fetch 실패 시
- */
 export async function fetchYoutubeTranscript(
   input: string,
 ): Promise<YoutubeTranscriptResult> {

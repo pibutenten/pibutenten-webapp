@@ -23,8 +23,9 @@ export default async function AdminEditQAPage({ params }: Props) {
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
-  if (profile?.role !== "admin") {
-    redirect("/login?error=관리자 권한이 필요합니다");
+  const viewerRole = (profile?.role ?? "user") as "admin" | "doctor" | "user";
+  if (viewerRole !== "admin" && viewerRole !== "doctor") {
+    redirect("/login?error=권한이 필요합니다");
   }
 
   const { data: qaRaw } = await supabase
@@ -40,6 +41,18 @@ export default async function AdminEditQAPage({ params }: Props) {
     .eq("id", numId)
     .maybeSingle();
   if (!qaRaw) notFound();
+
+  // 원장 본인은 본인 글만 편집 가능 (admin은 모두 가능)
+  if (viewerRole === "doctor") {
+    const { data: da } = await supabase
+      .from("doctor_accounts")
+      .select("doctor_id")
+      .eq("profile_id", user.id)
+      .maybeSingle();
+    if (!da || da.doctor_id !== qaRaw.doctor_id) {
+      redirect("/admin/qas?error=본인 글만 편집할 수 있습니다");
+    }
+  }
   // PostgREST join은 배열로 추론되므로 단일 객체로 normalize
   const qa = {
     ...qaRaw,
