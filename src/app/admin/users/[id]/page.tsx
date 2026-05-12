@@ -280,7 +280,7 @@ export default async function AdminUserDetailPage({
     : activeIdentity
       ? activeIdentity.kind === "admin"
         ? "관리자"
-        : activeIdentity.kind === "personal"
+        : activeIdentity.kind === "user"
           ? "회원"
           : activeIdentity.kind
       : ROLE_LABELS[profile.role] ?? profile.role;
@@ -322,7 +322,7 @@ export default async function AdminUserDetailPage({
               >
                 {it.kind === "admin"
                   ? "관리자"
-                  : it.kind === "personal"
+                  : it.kind === "user"
                     ? "개인"
                     : it.kind}
                 {" "}({it.display_name} @{it.handle})

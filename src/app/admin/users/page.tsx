@@ -60,14 +60,14 @@ type DisplayRow = {
   termsAgreedAt: string | null;
 };
 
-/** identity.kind → 등급 라벨 매핑 */
+/** identity.kind → 등급 라벨 매핑 (admin / doctor / user 3가지) */
 function kindToRoleLabel(kind: string): string {
   switch (kind) {
     case "admin":
       return "관리자";
     case "doctor":
       return "원장";
-    case "personal":
+    case "user":
       return "회원";
     default:
       return kind;
