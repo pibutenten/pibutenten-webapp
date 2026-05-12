@@ -115,9 +115,18 @@ export async function GET(req: Request) {
 
   let profilesById = new Map<string, ProfileRow>();
   let doctorByProfile = new Map<string, string>();
+  // identity_id → {display_name, avatar_url} (멀티 ID 분리 표시용)
+  const identityById = new Map<string, { display_name: string | null; avatar_url: string | null }>();
 
   if (authorIds.length > 0) {
-    const [profRes, docRes] = await Promise.all([
+    const identityIds = Array.from(
+      new Set(
+        [...rootRows, ...replyRows]
+          .map((r) => (r as { identity_id?: string | null }).identity_id)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    const [profRes, docRes, idRes] = await Promise.all([
       supabase
         .from("profiles")
         .select("id, display_name, avatar_url, alt_display_name, alt_avatar_url, role")
@@ -126,11 +135,14 @@ export async function GET(req: Request) {
         .from("doctor_accounts")
         .select("profile_id, doctor_id")
         .in("profile_id", authorIds),
+      identityIds.length > 0
+        ? supabase
+            .from("profile_identities")
+            .select("id, display_name, avatar_url")
+            .in("id", identityIds)
+        : Promise.resolve({ data: [], error: null }),
     ]);
     if (profRes.error) {
-      // profiles select RLS는 본인만 — anon 환경에선 빈 결과가 정상.
-      // 그래도 select_self 정책상 타인 프로필은 비공개. 표시명 없으면 "익명"으로.
-      // 에러여도 무시하고 진행 (목록은 성공해야 함).
       profilesById = new Map();
     } else {
       profilesById = new Map(
@@ -142,20 +154,29 @@ export async function GET(req: Request) {
         (docRes.data as DoctorAcctRow[]).map((d) => [d.profile_id, d.doctor_id]),
       );
     }
+    if (!idRes.error && idRes.data) {
+      for (const row of idRes.data as Array<{ id: string; display_name: string | null; avatar_url: string | null }>) {
+        identityById.set(row.id, { display_name: row.display_name, avatar_url: row.avatar_url });
+      }
+    }
   }
 
   function attachAuthor(r: Omit<CommentRow, "author">): CommentRow {
     if (!r.author_id) return { ...r, author: null };
     const p = profilesById.get(r.author_id);
+    // 멀티 ID: comments.identity_id 있으면 그 identity의 display_name/avatar 우선
+    const idId = (r as { identity_id?: string | null }).identity_id;
+    const ident = idId ? identityById.get(idId) : null;
     return {
       ...r,
       author: p
         ? {
             id: p.id,
-            display_name: p.display_name,
-            avatar_url: p.avatar_url,
-            alt_display_name: p.alt_display_name,
-            alt_avatar_url: p.alt_avatar_url,
+            display_name: ident?.display_name ?? p.display_name,
+            avatar_url: ident?.avatar_url ?? p.avatar_url,
+            // identity 있으면 personal/official 분기 무력화 — alt_*도 identity 값으로 덮어쓰기
+            alt_display_name: ident?.display_name ?? p.alt_display_name,
+            alt_avatar_url: ident?.avatar_url ?? p.alt_avatar_url,
             role: p.role,
             doctor_id: doctorByProfile.get(p.id) ?? null,
           }
