@@ -33,16 +33,26 @@ type IdentityRow = {
   created_at: string;
 };
 
+type DoctorRow = {
+  id: string;
+  slug: string;
+  name: string;
+  branch: string | null;
+  sort_order: number;
+};
+
 /** 표 한 줄 — primary profile 또는 profile_identities row */
 type DisplayRow = {
   key: string;
-  profileId: string;
+  profileId: string | null; // 미가입 원장은 null
+  doctorId: string | null;
   isPrimary: boolean;
+  /** 가입 안 한 원장은 unregistered=true */
+  unregistered?: boolean;
   handle: string;
   displayName: string;
-  /** primary면 profile.role, 부계정이면 identity.kind → 등급 라벨 결정 */
+  /** "관리자" | "원장" | "회원" */
   roleLabel: string;
-  bio: string | null;
   level: UserLevel | null;
   activityScore: number | null;
   postCount: number;
@@ -124,7 +134,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
     }
   }
 
-  // 모든 profile의 profile_identities (부계정) 조회 → DisplayRow 단위로 펼침
+  // 모든 profile의 profile_identities (부계정) 조회
   let identitiesByProfile = new Map<string, IdentityRow[]>();
   if (userIds.length > 0) {
     const { data: idents } = await supabase
@@ -139,36 +149,122 @@ export default async function AdminUsersPage({ searchParams }: Props) {
     }
   }
 
-  // DisplayRow 배열 — 같은 profile은 인접 (primary 먼저, 그 다음 부계정)
-  const rows: DisplayRow[] = [];
+  // doctors 9명 — 회원관리 상단 섹션 (미가입 포함)
+  const { data: doctorsAll } = await supabase
+    .from("doctors")
+    .select("id, slug, name, branch, sort_order")
+    .order("sort_order", { ascending: true })
+    .returns<DoctorRow[]>();
+
+  // doctor_accounts 매핑 (어느 profile이 어느 doctor의 가입자인지)
+  const { data: docAccounts } = await supabase
+    .from("doctor_accounts")
+    .select("profile_id, doctor_id");
+  const profileToDoctor = new Map<string, string>(); // profile_id → doctor_id
+  const doctorToProfile = new Map<string, string>(); // doctor_id → profile_id
+  for (const da of (docAccounts ?? []) as Array<{ profile_id: string; doctor_id: string }>) {
+    profileToDoctor.set(da.profile_id, da.doctor_id);
+    doctorToProfile.set(da.doctor_id, da.profile_id);
+  }
+  const doctorProfileIds = new Set(profileToDoctor.keys());
+
+  // ─── 원장 섹션 row (9명, doctors 기준) ───
+  const doctorRows: DisplayRow[] = [];
+  for (const doc of doctorsAll ?? []) {
+    const profileId = doctorToProfile.get(doc.id) ?? null;
+    const profile = profileId
+      ? (profiles ?? []).find((p) => p.id === profileId) ?? null
+      : null;
+
+    if (profile) {
+      // 가입한 원장 — primary row (원장 등급으로 강제)
+      doctorRows.push({
+        key: `doc-${doc.id}::primary`,
+        profileId: profile.id,
+        doctorId: doc.id,
+        isPrimary: true,
+        handle: profile.handle ?? doc.slug,
+        displayName: profile.display_name ?? doc.name,
+        roleLabel: "원장",
+        level: profile.level,
+        activityScore: profile.activity_score,
+        postCount: postCountMap.get(profile.id) ?? 0,
+        createdAt: profile.created_at,
+        termsAgreedAt: profile.terms_agreed_at,
+      });
+      // 부계정 identity row들 (primary handle과 중복 제거)
+      const idents = identitiesByProfile.get(profile.id) ?? [];
+      for (const it of idents) {
+        if (it.handle === profile.handle) continue;
+        doctorRows.push({
+          key: `doc-${doc.id}::${it.id}`,
+          profileId: profile.id,
+          doctorId: doc.id,
+          isPrimary: false,
+          handle: it.handle,
+          displayName: it.display_name,
+          roleLabel: kindToRoleLabel(it.kind),
+          level: null,
+          activityScore: null,
+          postCount: 0,
+          createdAt: it.created_at,
+          termsAgreedAt: profile.terms_agreed_at,
+        });
+      }
+    } else {
+      // 미가입 원장
+      doctorRows.push({
+        key: `doc-${doc.id}::unreg`,
+        profileId: null,
+        doctorId: doc.id,
+        isPrimary: true,
+        unregistered: true,
+        handle: doc.slug,
+        displayName: doc.name,
+        roleLabel: "원장",
+        level: null,
+        activityScore: null,
+        postCount: 0,
+        createdAt: "",
+        termsAgreedAt: null,
+      });
+    }
+  }
+
+  // ─── 일반 회원 섹션 row (doctor 매핑 없는 profiles) ───
+  const memberRows: DisplayRow[] = [];
   for (const p of profiles ?? []) {
-    // primary row
-    rows.push({
+    if (doctorProfileIds.has(p.id)) continue; // 원장 섹션에 이미 표시됨
+
+    // primary row — kind 결정: profile.role='admin'이면 '관리자', 그 외 '회원'
+    const primaryRoleLabel =
+      p.role === "admin" ? "관리자" : p.role === "doctor" ? "원장" : "회원";
+    memberRows.push({
       key: `${p.id}::primary`,
       profileId: p.id,
+      doctorId: null,
       isPrimary: true,
       handle: p.handle ?? "",
       displayName: p.display_name ?? "(이름 없음)",
-      roleLabel: ROLE_LABELS[p.role] ?? p.role,
-      bio: p.bio,
+      roleLabel: primaryRoleLabel,
       level: p.level,
       activityScore: p.activity_score,
       postCount: postCountMap.get(p.id) ?? 0,
       createdAt: p.created_at,
       termsAgreedAt: p.terms_agreed_at,
     });
-    // 부계정 identity row들 — primary handle과 중복인 건 skip
+    // 부계정
     const idents = identitiesByProfile.get(p.id) ?? [];
     for (const it of idents) {
-      if (it.handle === p.handle) continue; // primary 중복 제거
-      rows.push({
+      if (it.handle === p.handle) continue;
+      memberRows.push({
         key: `${p.id}::${it.id}`,
         profileId: p.id,
+        doctorId: null,
         isPrimary: false,
         handle: it.handle,
         displayName: it.display_name,
         roleLabel: kindToRoleLabel(it.kind),
-        bio: null,
         level: null,
         activityScore: null,
         postCount: 0,
@@ -177,6 +273,8 @@ export default async function AdminUsersPage({ searchParams }: Props) {
       });
     }
   }
+
+  const rows: DisplayRow[] = [...doctorRows, ...memberRows];
 
   // 등급/활동 필터 (DisplayRow에 적용)
   const filteredRows = rows.filter((r) => {
@@ -205,7 +303,11 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text)]">회원 관리</h1>
           <p className="mt-1 text-xs text-[var(--text-muted)]">
-            총 {(total ?? 0).toLocaleString()}명 · {filteredRows.length} ID
+            원장 {doctorRows.filter((r) => r.isPrimary).length}명
+            (가입 {doctorRows.filter((r) => r.isPrimary && !r.unregistered).length}
+            /미가입 {doctorRows.filter((r) => r.unregistered).length})
+            · 일반 회원 {memberRows.filter((r) => r.isPrimary).length}명
+            · 총 {filteredRows.length} ID
           </p>
         </div>
       </div>
@@ -283,19 +385,30 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                       sameProfileAsPrev
                         ? "border-t border-dashed border-[var(--border)]/50"
                         : "border-t border-[var(--border)]"
-                    }`}
+                    } ${r.unregistered ? "bg-amber-50/30" : ""}`}
                   >
                     <td className="px-3 py-2 align-top text-[var(--text)]">
                       {!r.isPrimary && (
                         <span className="mr-1 text-[var(--text-muted)]">↳</span>
                       )}
-                      <Link
-                        href={`/admin/users/${r.profileId}`}
-                        className="font-medium hover:text-[var(--primary)] hover:underline"
-                      >
-                        {r.displayName}
-                      </Link>
-                      {r.isPrimary && !r.termsAgreedAt && (
+                      {r.profileId ? (
+                        <Link
+                          href={`/admin/users/${r.profileId}`}
+                          className="font-medium hover:text-[var(--primary)] hover:underline"
+                        >
+                          {r.displayName}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-[var(--text-secondary)]">
+                          {r.displayName}
+                        </span>
+                      )}
+                      {r.unregistered && (
+                        <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                          미가입
+                        </span>
+                      )}
+                      {r.isPrimary && !r.unregistered && !r.termsAgreedAt && (
                         <span className="ml-1 text-[10px] text-amber-700">
                           (온보딩 미완료)
                         </span>
