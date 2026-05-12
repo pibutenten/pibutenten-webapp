@@ -108,10 +108,16 @@ async function getSessionInfo(): Promise<SessionInfo> {
       .order("created_at", { ascending: true });
     const identities: import("@/components/TopNav").SessionIdentity[] = [];
     if (profile.handle) {
-      // doctor 매핑이면 사진 fallback: /doctors/{slug}.png (관리자가 등록한 정적 이미지)
-      const primaryAvatar =
-        (profile.avatar_url as string | null) ??
-        (doctorSlug ? `/doctors/${doctorSlug}.png` : null);
+      // doctor 매핑이면 doctor.photo_url 우선 (admin이 등록한 원장 사진 — single source)
+      let primaryAvatar = profile.avatar_url as string | null;
+      if (doctorSlug) {
+        const { data: doc } = await supabase
+          .from("doctors")
+          .select("photo_url")
+          .eq("slug", doctorSlug)
+          .maybeSingle();
+        primaryAvatar = (doc?.photo_url as string | null) ?? primaryAvatar;
+      }
       identities.push({
         id: "primary",
         handle: profile.handle as string,
