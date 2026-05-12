@@ -126,6 +126,23 @@ type Props = {
   viewerRating?: number;
 };
 
+// 카드별 결정적 형광펜 색 (3색 파스텔 팔레트 — 옵션 B)
+// Yellow #FFE65A / Mint #A8EBD0 / Lavender #D4C5F9 — 한 카드는 항상 한 색 (SSR safe)
+const HIGHLIGHT_PALETTE = [
+  "rgba(255, 230, 90, 0.55)",
+  "rgba(168, 235, 208, 0.55)",
+  "rgba(212, 197, 249, 0.55)",
+];
+
+function pickHighlight(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = ((h << 5) - h) + seed.charCodeAt(i);
+    h |= 0;
+  }
+  return HIGHLIGHT_PALETTE[Math.abs(h) % HIGHLIGHT_PALETTE.length];
+}
+
 export default function QACard({
   qa,
   activeQuery,
@@ -138,6 +155,9 @@ export default function QACard({
   viewerSaved,
   viewerRating,
 }: Props) {
+  const highlightColor = pickHighlight(
+    String(qa.shortcode ?? qa.post_slug ?? qa.id ?? "")
+  );
   const [expanded, setExpanded] = useState(forceExpanded);
   const [viewCount, setViewCount] = useState(qa.view_count);
   const [likeCount, setLikeCount] = useState(qa.like_count);
@@ -1613,9 +1633,9 @@ function renderAnswerBody(
               key={`b${pi}-${key++}`}
               className="font-semibold text-[var(--text)]"
               style={{
-                // 하단 1/3 정도만 노란 형광펜 줄을 깐 듯한 인라인 하이라이트
-                backgroundImage:
-                  "linear-gradient(transparent 60%, rgba(255, 230, 90, 0.55) 60%)",
+                // 하단 1/3 정도만 형광펜 줄을 깐 듯한 인라인 하이라이트
+                // 카드 ID 해시로 3색(Yellow/Mint/Lavender) 결정적 매핑 — 한 카드 안에서는 동일 색
+                backgroundImage: `linear-gradient(transparent 60%, ${highlightColor} 60%)`,
                 padding: "0 1px",
               }}
             >
