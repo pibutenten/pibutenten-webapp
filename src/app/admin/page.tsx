@@ -77,7 +77,7 @@ export default async function AdminPage() {
 
   return (
     <section className="w-full py-6">
-      <div className="mb-5">
+      <div className="mb-5 pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">관리자 대시보드</h1>
         <p className="mt-1 text-xs text-[var(--text-muted)]">
           운영 통계·모더레이션·회원 관리 (영구 noindex)

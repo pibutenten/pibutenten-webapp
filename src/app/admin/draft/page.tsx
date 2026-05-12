@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import DraftClient from "./DraftClient";
 
@@ -26,14 +27,14 @@ export default async function AdminDraftPage() {
 
   return (
     <section className="w-full py-6">
-      <div className="mb-5 flex items-baseline justify-between">
-        <h1 className="text-2xl font-bold text-[var(--text)]">새 Q&A 초안</h1>
-        <a
+      <div className="mb-5 flex items-baseline justify-between pl-1">
+        <h1 className="text-2xl font-bold text-[var(--text)]">Q&A 추출하기</h1>
+        <Link
           href="/admin/qas"
           className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
         >
           ← 전체 목록
-        </a>
+        </Link>
       </div>
       <DraftClient doctors={doctors ?? []} />
     </section>

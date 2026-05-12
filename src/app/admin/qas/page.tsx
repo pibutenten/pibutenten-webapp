@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PickToggle from "@/components/PickToggle";
 import { labelForCategory } from "@/lib/post-category";
+import AdminQasDoctorFilter from "./AdminQasDoctorFilter";
 
 export const dynamic = "force-dynamic";
 
@@ -143,21 +144,23 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   // role='doctor' but 매핑 없음, role='user'는 차단.
   let ownDoctorSlug: string | null = null;
   let ownDoctorId: string | null = null;
+  let ownDoctorName: string | null = null;
   if (!isAdmin) {
     if (viewerRole === "doctor") {
       const { data: da } = await supabase
         .from("doctor_accounts")
-        .select("doctor:doctors(slug, id)")
+        .select("doctor:doctors(slug, id, name)")
         .eq("profile_id", user.id)
         .maybeSingle();
       const d = da?.doctor as
-        | { slug: string; id: string }
-        | { slug: string; id: string }[]
+        | { slug: string; id: string; name: string }
+        | { slug: string; id: string; name: string }[]
         | null;
       const resolved = Array.isArray(d) ? d[0] : d;
       if (resolved) {
         ownDoctorSlug = resolved.slug;
         ownDoctorId = resolved.id;
+        ownDoctorName = resolved.name;
       }
     }
     if (!ownDoctorSlug) {
@@ -305,8 +308,8 @@ export default async function AdminQAsPage({ searchParams }: Props) {
 
   return (
     <section className="w-full py-6">
-      {/* 헤더 */}
-      <div className="mb-5 flex items-baseline justify-between gap-3">
+      {/* 헤더 — 박스 내용과 시각적 정렬 위해 살짝 들여쓰기 */}
+      <div className="mb-5 flex items-baseline justify-between gap-3 pl-1">
         <div>
           <h1 className="text-2xl font-bold text-[var(--text)]">
             {isAdmin ? "전체 카드 목록" : "내 글 관리"}
@@ -455,24 +458,37 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           <input type="hidden" name="category" value={categoryParam} />
         )}
         {pickOnly && <input type="hidden" name="pick" value="1" />}
-        {/* 원장 필터 — 관리자 전용. 원장 본인 접근 시 본인 slug가 서버에서 강제 적용됨 */}
+        {/* 원장 필터:
+             - 관리자: select, onChange 즉시 navigate (검색 버튼 없이 자동 적용)
+             - 원장 본인: readonly chip으로 본인 이름 표시. doctor 파라미터는 서버에서 강제 적용 */}
         {isAdmin ? (
-          <select
-            id="admin-qas-doctor-filter"
-            name="doctor"
-            defaultValue={doctorSlugParam}
-            className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text)] focus:border-[var(--primary)] focus:outline-none"
-          >
-            <option value="">전체 원장</option>
-            {doctors.map((d) => (
-              <option key={d.id} value={d.slug}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          <AdminQasDoctorFilter
+            doctors={doctors.map((d) => ({
+              id: d.id,
+              slug: d.slug,
+              name: d.name,
+            }))}
+            currentSlug={doctorSlugParam}
+            basePath={`/admin/qas${buildQueryString({
+              status: statusParam === "all" ? undefined : statusParam,
+              type: typeParam === "all" ? undefined : typeParam,
+              category: categoryParam === "all" ? undefined : categoryParam,
+              pick: pickOnly ? "1" : undefined,
+              q: qParam || undefined,
+              doctor: doctorSlugParam || undefined,
+            })}`}
+          />
         ) : (
-          // 원장 본인은 doctor 파라미터를 서버에서 강제 적용. 필터 UI 없음.
-          <input type="hidden" name="doctor" value={doctorSlugParam} />
+          <>
+            {/* 원장 본인은 doctor 파라미터를 서버에서 강제. 본인 이름을 chip으로 readonly 노출 */}
+            <input type="hidden" name="doctor" value={doctorSlugParam} />
+            <span className="h-9 inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] px-3 text-sm font-medium text-[var(--text)]">
+              {ownDoctorName ?? doctorSlugParam}
+              <span className="text-[10px] font-normal text-[var(--text-muted)]">
+                본인 글
+              </span>
+            </span>
+          </>
         )}
         <input
           type="text"

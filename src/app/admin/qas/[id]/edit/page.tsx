@@ -88,7 +88,7 @@ export default async function AdminEditQAPage({ params }: Props) {
 
   return (
     <section className="w-full py-6">
-      <div className="mb-5 flex items-baseline justify-between">
+      <div className="mb-5 flex items-baseline justify-between pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">
           Q&A #{qa.id} 편집
         </h1>
