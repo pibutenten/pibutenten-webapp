@@ -29,6 +29,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { generateShortcode } from "@/lib/shortcode";
+import { normalizeTags } from "@/lib/tag-dictionary";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -156,7 +157,7 @@ export async function POST(req: Request) {
       is_pick: false,
       question: q,
       answer: a,
-      keywords: c.keywords ?? [],
+      keywords: normalizeTags(c.keywords ?? []),
       post_year: postYear,
       post_slug: postSlug,
       shortcode,

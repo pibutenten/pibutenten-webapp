@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { pickHighlight } from "@/lib/qa-highlight";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
+import { normalizeTags } from "@/lib/tag-dictionary";
 
 type Doctor = {
   id: string;
@@ -239,7 +240,7 @@ export default function EditClient({
         .update({
           question: question.trim(),
           answer: answer.trim(),
-          keywords,
+          keywords: normalizeTags(keywords),
           doctor_id: doctorId,
           status: finalStatus,
           is_pick: isPick,
