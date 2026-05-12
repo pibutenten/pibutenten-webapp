@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-11 (Phase 6 — Q&A 파이프라인 v5 + 카드 v7)
-> 기준 commit: `645ed82` (인라인 더보기 + Title Case + 어절 경계 룰)
+> 마지막 업데이트: 2026-05-12 (Phase 7 — 자막 1021→990 카드 일괄 INSERT + UI 정비)
+> 기준 commit: `74cb617` (메인 피드 F5 셔플)
 > 라이브: https://pibutenten-webapp.vercel.app
 
 ---
@@ -263,6 +263,84 @@
 ---
 
 ## 7. 완료된 기능 — 시간순 (2026-05-06 이후)
+
+### Phase 7: 자막 1,371 → 990 카드 일괄 INSERT + UI 정비 (2026-05-12)
+
+**파이프라인 (코드 + sub-agent batch)**:
+- 워크스페이스 루트 `scripts_phase7/` 에 작업 스크립트 일괄 배치 (git 추적 X, 운영 자료).
+- **Step1 산출물**: 이전 세션에서 자막 345 영상 → `Q&A_백업/*.json` (1,371 카드, 각 카드에 `question/answer/keywords/category/pubmed_search_keywords/script_evidence/source/timestamp`).
+- **Step2 v2 (이번 세션, sub-agent batch)**: 카드별 best PubMed reference 1개 선택.
+  - **Phase A (PubMed 후보 fetch)**: `13_pubmed_candidates.py` — esearch + efetch 직렬 호출, retmax 8 → 20 → 40 단계 확장. 카드별 `references_candidates` 배열 (8~40 후보) 저장.
+  - **Phase B (LLM 선택)**: `36_make_chunks_simple.py` 로 10 카드씩 chunk 분할 → Claude Code 본 세션에서 Task tool sub-agent (`general-purpose`, claude-opus-4-7) 5개씩 병렬 호출. step2 v2 시스템 프롬프트 적용. 카드별 `reference` (dict or null) + `reasoning` 저장. 8 후보 라운드 → 20 후보 expand → 40 후보 expand 3단계 retry.
+  - **결과**: 990 카드 중 **866 reference 확정 (87%)**, 124 null (적합 PubMed 후보 없음).
+
+**원장 식별 + 파일 정리**:
+- `30_identify_doctors.py` — 자막 자기소개 패턴 + 영상 제목 분석 + 자막 본문 호명 빈도로 9명 원장 식별. 외부 5명 화이트리스트 (김율희·김안나·김협·황동현·김창식).
+- `33_rename_and_archive.py` — 단일 9명 + 이중 9명 + 9명+외부 혼합 영상 자동 rename (`YYMMDD_원장이름_videoid.json`). 외부만/미식별 88 영상 → `Q&A_백업_review/` 격리.
+- `34_fix_filenames.py` — 자막 패턴이 잘못 잡은 외부 이름 토큰 89개 정정 ("박효진이", "이도영로서의", "생활하면" 등). 외부 5명 등장 9 영상 자동 삭제.
+- **중복 정리**: 같은 video_id가 두 파일에 들어간 8 영상 + step1 LLM 중복 question 10건 → DB row 31개 제거. **1,021 → 990 카드**.
+
+**DB 작업 (마이그레이션 없음, Supabase Management API 직접 SQL)**:
+- 기존 1,228 qas + 관련 의존 테이블 (qa_likes 63, qa_saves 21, qa_ratings 20, comment_likes 14, comments 34, notifications 15) 전수 삭제. 회원 16 profiles / 9 doctors 보존.
+- 990 카드 INSERT (배치 100개씩 트랜잭션). doctor_id는 영상 제목/자막에서 식별된 9명 슬러그 매핑. type=qa, category=qa, status=published, is_pick=false.
+- 카드별 `external_url/external_image (i.ytimg.com hqdefault)/external_title/external_site_name` 메타 UPDATE (`22_update_external_meta.py`).
+
+**의사별 카드 분포 (DB)**:
+| 슬러그 | 카드 수 |
+|---|---|
+| jung-hanmi (정한미) | 약 368 |
+| kim-jongsic (김종식) | 약 174 |
+| park-hyojin (박효진) | 약 112 |
+| rhee-doyoung (이도영) | 약 90 |
+| kwon-soohyun (권수현) | 약 81 |
+| ko-hyerim (고혜림) | 약 81 |
+| kang-hyunjin (강현진) | 약 52 |
+| kim-soohyung (김수형) | 약 46 |
+| bae-jungmin (배정민) | 약 17 |
+
+**UI 변경 (commit 8건)**:
+- **카드 형광펜 4색 결정적 매핑** (`QACard.tsx`): Yellow `#FFE65A` / Mint `#A8EBD0` / Lavender `#D4C5F9` / Sky Blue `#A8DEFF`. 카드 ID 해시 % 4 SSR safe. 한 카드 안에서는 P1·P2 동일 색.
+- **단락 간격 축소** mt-2.5 → mt-1 (10px → 4px).
+- **메인 피드 F5 셔플** (`page.tsx`): RPC fetch 80개 → Fisher-Yates 셔플 → 20개 노출. `dynamic=force-dynamic + force-no-store`.
+- **글 카테고리 검색 분기** (`search/page.tsx`): "Q&A/꿀팁/피부일기/궁금해요/공유하기" 라벨이면 category 컬럼 직접 필터, 그 외엔 search_qas_scored RPC 유지.
+- **글 카테고리 라벨 검색 시 콘텐츠 카테고리 추정 X**: queryCategoryColor null 처리.
+- **댓글 멀티 ID 분리** (`api/comments/route.ts`): comments.identity_id로 profile_identities join → identity별 display_name/avatar.
+- **프로필 댓글 탭 identity 필터** (`ProfileTabs.tsx`): active identity 매칭 + primary는 IS NULL.
+- **라우트 충돌 해소**: 폐기된 `/[handle]/[year]/[shortcode]/` 디렉토리 삭제 (Next 16 dev 빌드 통과).
+- **next.config.ts**: i.ytimg.com / img.youtube.com remotePatterns 허용.
+
+**박효진 원장 SNS 등록 (DB doctors.profile_data jsonb)**:
+- instagram: https://www.instagram.com/drsolarderma
+- threads: https://www.threads.com/@felice_bk
+- blog: https://blog.naver.com/doctorsolar
+- UI(의사 프로필 page.tsx)는 이미 칩 노출 코드 있어 자동 표시.
+
+**Phase 7 commit 히스토리**:
+| Commit | 내용 |
+|---|---|
+| `74cb617` | 메인 피드 F5 카드 순서 셔플 (Fisher-Yates) |
+| `9359a7b` | 프로필 댓글 탭 active identity 필터 |
+| `6234104` | 댓글 작성자 display를 active identity 기준으로 |
+| `9ba933e` | 4색 추가 (Sky Blue) + 글 카테고리 검색 시 콘텐츠 카테고리 추정 X |
+| `51e1beb` | 영상 미리보기 메타 (external_image i.ytimg.com) + 카테고리 검색 + 단락 간격 |
+| `7add2a2` | highlightColor renderAnswerBody 인자 전달 + /[handle]/[year]/[shortcode] 폐기 라우트 삭제 |
+| `ada46db` | 카드 형광펜 3색 1차 (Yellow/Mint/Lavender) |
+
+**Phase 7 운영 자료 (scripts_phase7/)** — git 추적 X, 워크스페이스 로컬:
+- `10_scan_status.py` — JSON step2 진행 상황 점검
+- `13_pubmed_candidates.py --retmax N` — PubMed 후보 fetch (8/20/40)
+- `16_merge_results.py` — sub-agent 결과 JSON 머지
+- `20_build_dataset.py` — JSON → INSERT용 dataset
+- `21_insert_qas.py` — DB INSERT (100/batch)
+- `22_update_external_meta.py` — 영상 메타 UPDATE
+- `30_identify_doctors.py` — 영상 출연 원장 식별
+- `33_rename_and_archive.py` — 파일 rename + review 격리
+- `34_fix_filenames.py` — 파일명 토큰 정정 + 외부 5명 영상 삭제
+- `36_make_chunks_simple.py` — sub-agent용 chunk 생성
+- `db_util.py` — Supabase Management API SQL 헬퍼 (UA: curl/8.0.0 필수)
+- `원장_검수_보고서.md` — 사용자 수동 검수용 분류 보고서
+
+---
 
 ### Phase 6: Q&A 파이프라인 v5 + 카드 v7 + PubMed 참고문헌 (2026-05-11)
 
@@ -577,6 +655,65 @@
 ---
 
 ## 10. 다음 작업 (TODO)
+
+### 완료 (Phase 7, 2026-05-12)
+- [x] **자막 345 영상 → 990 카드 일괄 DB INSERT** (1,371 중 중복 31 + review 88영상 제외)
+- [x] **PubMed reference 866/990 (87%)** — 3단계 retry (8/20/40 후보)
+- [x] **영상 출연 원장 자동 식별** — 자기소개 패턴 + 영상 제목 + 본문 빈도. 외부 5명 영상 9개 삭제. 88 영상 review 폴더 격리
+- [x] **카드 영상 메타 1,001/1,021 카드** — external_url + external_image (i.ytimg.com hqdefault) + external_title
+- [x] **카드 형광펜 4색 결정적 매핑** (Yellow/Mint/Lavender/Sky Blue)
+- [x] **단락 간격 축소** mt-2.5 → mt-1
+- [x] **메인 피드 F5 셔플** (Fisher-Yates, fetch 80 → 노출 20)
+- [x] **글 카테고리 칩 검색 분기** (Q&A/꿀팁/피부일기/궁금해요/공유하기 → category 컬럼 직접 필터)
+- [x] **댓글 멀티 ID 분리** (identity_id 기준 display_name/avatar)
+- [x] **프로필 댓글 탭 active identity 필터**
+- [x] **박효진 원장 SNS 등록** (doctors.profile_data jsonb)
+- [x] **폐기 라우트 삭제** (/[handle]/[year]/[shortcode]/)
+
+### Phase 8 (다음 세션) — 관리자/원장 대시보드 + 글쓰기 모드 정리
+**목표**: Phase 7에서 코드+sub-agent batch로 일괄 처리한 step1(자막→카드) + step2(PubMed reference) 파이프라인 전체를 **관리자 웹 UI**에서 수동 실행 가능하게 함. 새 영상 1편씩 추가 발행 시 어드민이 브라우저에서 끝까지 처리.
+
+**구현 범위**:
+1. **YouTube 영상 ID 추출 + 자막 fetch** (코드 베이스, 서버 액션)
+   - 입력: YouTube 영상 URL
+   - 출력: video_id + 한글 자막(WebVTT) + 영상 제목/업로드일/썸네일
+   - 자막은 자동자막 X, 수동 한글자막만. fallback 처리
+2. **원장 자동 식별** (코드 베이스)
+   - 자막 본문 자기소개 패턴 + 영상 제목 → 9명 매칭 (Phase 7 `30_identify_doctors.py` 로직 이식)
+   - 외부 원장 등장 시 admin에 경고 + 작업 중단 선택지
+3. **Step1: 자막 → Q&A 카드** (Claude Opus 4.7 API 직접 호출, 서버 액션)
+   - 시스템 프롬프트: `전달용/pibutenten_prompt_step1_v5.md` 그대로
+   - 입력: 자막 WebVTT + 영상 메타
+   - 출력: 카드 N개 (질문/답안/keywords/category/pubmed_search_keywords/script_evidence/timestamp)
+   - 관리자 UI에 카드 미리보기 + 검수 + 인라인 편집 (bold 위치·문장 수정)
+4. **Step2: 카드별 PubMed reference 매칭** (코드 fetch + Claude Opus 4.7 API LLM 선택)
+   - **PubMed eutils API 직접 호출** (코드, esearch + efetch retmax 8/20/40)
+   - **LLM 선택**: 시스템 프롬프트 `전달용/pibutenten_prompt_step2_v2.md` 그대로 적용. API 직접 호출 (Anthropic SDK)
+   - 관리자 UI에 reference 후보 N개 + LLM 추천 + 사용자 수동 선택/교체/null 처리
+5. **카드별 중심 화자 결정** (이중·혼합 출연 영상)
+   - 자막 timestamp 구간 텍스트 + LLM (선택적)
+   - 또는 어드민이 카드별 수동 지정
+6. **DB INSERT + Storage 업로드**
+   - 영상 메타 → videos 테이블 INSERT (qas.video_id FK 연결)
+   - 카드 → qas INSERT (post_year/post_slug/external_url/external_image/pubmed_ref 등)
+   - 자막 파일 → Supabase Storage 또는 운영자 로컬 보관
+
+**기술 스택 결정**:
+- LLM 호출: **Claude Opus 4.7** (`claude-opus-4-7`), Anthropic Node SDK in API route
+  - 환경변수: `ANTHROPIC_API_KEY` (이미 .env.local)
+- PubMed: NCBI eutils API (코드만, Node fetch)
+- YouTube 자막: `youtube-transcript` (이미 의존성에 있음) + 또는 yt-dlp 서버 호출
+- 자막 → 화자 식별: 코드 베이스 (Phase 7 30_identify_doctors.py 로직 TypeScript 포팅)
+
+**UI 위치**:
+- `/admin/draft` (기존 AI 초안 페이지 확장) 또는 새 페이지 `/admin/pipeline`
+- 단계별 위저드: 1) URL 입력 → 2) 자막+원장 확인 → 3) Step1 카드 미리보기·수정 → 4) Step2 reference 매칭·검수 → 5) 발행
+
+**참고 자료**:
+- `전달용/pibutenten_prompt_step1_v5.md` (자막 → 카드 시스템 프롬프트)
+- `전달용/pibutenten_prompt_step2_v2.md` (PubMed reference 선택 시스템 프롬프트)
+- `scripts_phase7/` (Phase 7 batch 처리 코드 — 로직 참고)
+- `scripts_phase7/원장_검수_보고서.md` (88 review 영상 + 외부 원장 영상 목록)
 
 ### 완료 (Phase 6, 2026-05-11)
 - [x] **Q&A 추출 파이프라인 v5** — step1 v5 (자막→카드+키워드) + step2 v2 (PubMed reference 매칭)
