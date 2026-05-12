@@ -188,8 +188,13 @@ export default function ProfileTabs({
     if (tab !== "comments" || comments !== null) return;
     setCommentsLoading(true);
     (async () => {
+      const { getActiveIdentityId } = await import("@/lib/active-identity");
+      const activeId = getActiveIdentityId();
       const sb = createSupabaseBrowserClient();
-      const { data } = await sb
+      // 멀티 ID 분리: active identity 가 있으면 identity_id 매칭
+      //   - UUID identity: identity_id = activeId
+      //   - 'primary' (또는 null): identity_id null인 댓글
+      let query = sb
         .from("comments")
         .select(
           `id, body, created_at, qa_id,
@@ -198,8 +203,17 @@ export default function ProfileTabs({
                   author:profiles!qas_author_id_profiles_fkey(handle, alt_handle))`,
         )
         .eq("author_id", profileId)
-        .eq("posted_as", personaForPosts)
-        .eq("status", "visible")
+        .eq("status", "visible");
+      if (
+        activeId &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeId)
+      ) {
+        query = query.eq("identity_id", activeId);
+      } else {
+        // primary identity — identity_id 없는 댓글 (구 데이터 호환 위해 personaForPosts 도 같이)
+        query = query.is("identity_id", null).eq("posted_as", personaForPosts);
+      }
+      const { data } = await query
         .order("created_at", { ascending: false })
         .limit(50)
         .returns<CommentRow[]>();
