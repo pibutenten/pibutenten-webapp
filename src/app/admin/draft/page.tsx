@@ -19,12 +19,6 @@ export default async function AdminDraftPage() {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
 
-  // 원장 9명 목록 (slug + name) — 매칭 dropdown용
-  const { data: doctors } = await supabase
-    .from("doctors")
-    .select("id, slug, name, branch")
-    .order("sort_order", { ascending: true });
-
   return (
     <section className="w-full py-6">
       <div className="mb-5 flex items-baseline justify-between pl-1">
@@ -36,7 +30,7 @@ export default async function AdminDraftPage() {
           ← 전체 목록
         </Link>
       </div>
-      <DraftClient doctors={doctors ?? []} />
+      <DraftClient />
     </section>
   );
 }

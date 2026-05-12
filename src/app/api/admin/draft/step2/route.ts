@@ -1,0 +1,117 @@
+/**
+ * POST /api/admin/draft/step2
+ *
+ * Phase 8 위저드 Step2 — 카드 N개를 받아 각 카드별 PubMed 후보 fetch + LLM 선택.
+ *
+ * 입력: {
+ *   cards: [{ question, answer, pubmed_search_keywords }],
+ *   retmax?: number (기본 8, expand 시 20/40)
+ * }
+ * 출력: {
+ *   results: [{
+ *     reference: {pmid,doi,title,journal,year,authors_short,pubmed_url,doi_url} | null,
+ *     reasoning: string,
+ *     candidates: [{pmid,title,journal,year,authors_short,doi}, ...]  // UI 교체 dropdown용
+ *   }]
+ * }
+ */
+
+import { NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { fetchPubmedCandidates } from "@/lib/ai/pubmed";
+import { runStep2 } from "@/lib/ai/step2";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 300; // 카드 N개 * (PubMed ~3s + LLM ~10s) = 카드별 ~15s
+
+type CardIn = {
+  question: string;
+  answer: string;
+  pubmed_search_keywords: string[];
+};
+
+export async function POST(req: Request) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profile?.role !== "admin") {
+    return NextResponse.json(
+      { error: "Forbidden: admin only" },
+      { status: 403 },
+    );
+  }
+
+  let body: { cards?: unknown; retmax?: unknown };
+  try {
+    body = (await req.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  if (!Array.isArray(body.cards)) {
+    return NextResponse.json({ error: "cards[] required" }, { status: 400 });
+  }
+  const retmax =
+    typeof body.retmax === "number" && body.retmax > 0
+      ? Math.min(Math.floor(body.retmax), 40)
+      : 8;
+  const cards = body.cards as CardIn[];
+
+  const results: Array<{
+    reference: Awaited<ReturnType<typeof runStep2>>["reference"];
+    reasoning: string;
+    candidates: Array<{
+      pmid: string;
+      title: string;
+      journal: string;
+      year: string;
+      authors_short: string;
+      doi: string;
+    }>;
+  }> = [];
+
+  for (const c of cards) {
+    const kws = Array.isArray(c.pubmed_search_keywords)
+      ? c.pubmed_search_keywords
+      : [];
+    let candidates = await fetchPubmedCandidates(kws, retmax);
+    let step2 = await runStep2({
+      question: c.question,
+      answer: c.answer,
+      pubmedKeywords: kws,
+      candidates,
+    });
+    // 후보 0 또는 null reference면 retmax 확장 1단계 (8 → 20)
+    if (!step2.reference && retmax === 8 && candidates.length < 20) {
+      candidates = await fetchPubmedCandidates(kws, 20);
+      step2 = await runStep2({
+        question: c.question,
+        answer: c.answer,
+        pubmedKeywords: kws,
+        candidates,
+      });
+    }
+
+    results.push({
+      reference: step2.reference,
+      reasoning: step2.reasoning,
+      candidates: candidates.map((x) => ({
+        pmid: x.pmid,
+        title: x.title,
+        journal: x.journal,
+        year: x.year,
+        authors_short: x.authors_short,
+        doi: x.doi,
+      })),
+    });
+  }
+
+  return NextResponse.json(
+    { results },
+    { headers: { "cache-control": "no-store" } },
+  );
+}

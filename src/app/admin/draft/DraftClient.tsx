@@ -1,302 +1,867 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DOCTORS_9 } from "@/lib/ai/identify-doctors";
+import { pickHighlight } from "@/lib/qa-highlight";
 
-type Doctor = {
-  id: string;
-  slug: string;
+// ── 위저드 타입 ────────────────────────────────────────
+
+type DoctorMatch = {
   name: string;
-  branch: string | null;
+  slug: string;
+  frequency: number;
+  selfIntro: boolean;
+  inTitle: boolean;
 };
 
-type DraftQA = {
+type AnalyzeResp = {
+  videoId: string;
+  title: string | null;
+  source: "ko-manual" | "ko-auto" | "en" | "default" | "unknown";
+  transcript: string;
+  doctors: DoctorMatch[];
+  primary: DoctorMatch | null;
+  empty: boolean;
+};
+
+type Step1Card = {
   question: string;
   answer: string;
   keywords: string[];
+  category?: string;
+  source: {
+    video_id: string;
+    video_title: string;
+    source_file: string;
+    video_url: string;
+  };
+  timestamp: { start: string; end?: string; start_seconds: number } | null;
+  pubmed_search_keywords: string[];
+  script_evidence?: string;
 };
 
-type MatchedDoctor = { slug: string; name: string };
+type PubmedRef = {
+  pmid: string;
+  doi: string;
+  title: string;
+  journal: string;
+  year: string;
+  authors_short: string;
+  pubmed_url: string;
+  doi_url: string;
+} | null;
 
-type GenerateResult = {
-  videoId: string;
-  title: string | null;
-  doctorSlug?: string;
-  doctorName?: string;
-  matchedDoctors?: MatchedDoctor[];
-  needsManualDoctor?: boolean;
-  message?: string;
-  drafts?: DraftQA[];
+type Step2Result = {
+  reference: PubmedRef;
+  reasoning: string;
+  candidates: Array<{
+    pmid: string;
+    title: string;
+    journal: string;
+    year: string;
+    authors_short: string;
+    doi: string;
+  }>;
 };
 
-type Props = {
-  doctors: Doctor[];
+/** 카드별 편집용 상태 (Step1 출력 + 사용자 변경 반영) */
+type EditableCard = {
+  source: Step1Card["source"];
+  scriptEvidence?: string;
+  pubmedSearchKeywords: string[];
+
+  question: string;
+  answer: string;
+  keywords: string[];
+  category: string;
+  doctorSlug: string;
+  startSec: number;
+  startInput: string;
+  externalTitle: string;
+
+  step2?: Step2Result;
 };
 
-export default function DraftClient({ doctors }: Props) {
+const TRANSCRIPT_SOURCE_LABEL: Record<AnalyzeResp["source"], string> = {
+  "ko-manual": "한국어 수동 자막",
+  "ko-auto": "한국어 자동 자막",
+  en: "영어 자막",
+  default: "기본 자막",
+  unknown: "알 수 없음",
+};
+
+function formatMMSS(sec: number): string {
+  const s = Math.max(0, Math.floor(sec || 0));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+function parseMMSS(input: string): number {
+  const raw = (input || "").trim();
+  if (!raw) return 0;
+  if (/^\d+$/.test(raw)) return Number.parseInt(raw, 10) || 0;
+  const m = raw.match(/^(\d{1,2})\s*[:.]\s*(\d{1,2})$/);
+  if (m) {
+    return (Number.parseInt(m[1], 10) || 0) * 60 + (Number.parseInt(m[2], 10) || 0);
+  }
+  return 0;
+}
+function buildExternalUrl(videoId: string, startSec: number): string {
+  if (startSec > 0) return `https://youtu.be/${videoId}?t=${startSec}s`;
+  return `https://youtu.be/${videoId}`;
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────
+
+export default function DraftClient() {
   const router = useRouter();
   const [url, setUrl] = useState("");
-  // "" = 자동 매칭 시도 (서버에서 영상 제목/자막에서 원장 이름 검색)
-  const [doctorSlug, setDoctorSlug] = useState("");
+  const [stage, setStage] = useState<
+    | "idle"
+    | "analyzing"
+    | "analyzed"
+    | "step1ing"
+    | "stepped1"
+    | "step2ing"
+    | "stepped2"
+    | "publishing"
+  >("idle");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<GenerateResult | null>(null);
-  // 사용자가 수정 중인 drafts (생성 직후 result.drafts 복사)
-  const [editing, setEditing] = useState<DraftQA[]>([]);
-  const [saved, setSaved] = useState<Set<number>>(new Set());
-  const [isGenerating, startGen] = useTransition();
-  const [isSaving, startSave] = useTransition();
 
-  function handleGenerate(e: React.FormEvent) {
-    e.preventDefault();
+  const [analyze, setAnalyze] = useState<AnalyzeResp | null>(null);
+  const [primarySlug, setPrimarySlug] = useState<string>("");
+  const [cards, setCards] = useState<EditableCard[]>([]);
+
+  async function runAnalyze() {
     setError(null);
-    setResult(null);
-    setEditing([]);
-    setSaved(new Set());
-    startGen(async () => {
-      try {
-        const res = await fetch("/api/admin/draft", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: url.trim(), doctorSlug }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data?.error ?? `초안 생성 실패 (${res.status})`);
-          return;
-        }
-        setResult(data);
-        // 자동 매칭 결과를 select에 반영 (사용자가 변경 가능)
-        if (data.doctorSlug) setDoctorSlug(data.doctorSlug);
-        // 자동 매칭 실패 — drafts 없음, 사용자가 select 후 다시 시도
-        if (data.needsManualDoctor) {
-          setError(
-            data.message ?? "원장을 자동 매칭하지 못했습니다. 직접 선택 후 다시 시도해주세요.",
-          );
-          return;
-        }
-        setEditing(data.drafts ?? []);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "네트워크 오류");
+    setAnalyze(null);
+    setCards([]);
+    setStage("analyzing");
+    try {
+      const res = await fetch("/api/admin/draft/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+      const data = (await res.json()) as AnalyzeResp | { error: string };
+      if (!res.ok || "error" in data) {
+        setError("error" in data ? data.error : `분석 실패 (${res.status})`);
+        setStage("idle");
+        return;
       }
-    });
+      setAnalyze(data);
+      setPrimarySlug(data.primary?.slug ?? "");
+      setStage("analyzed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "네트워크 오류");
+      setStage("idle");
+    }
   }
 
-  function updateDraft(idx: number, patch: Partial<DraftQA>) {
-    setEditing((prev) =>
-      prev.map((d, i) => (i === idx ? { ...d, ...patch } : d)),
+  async function runStep1() {
+    if (!analyze) return;
+    setError(null);
+    setStage("step1ing");
+    try {
+      const res = await fetch("/api/admin/draft/step1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: analyze.transcript,
+          videoId: analyze.videoId,
+          videoTitle: analyze.title ?? "",
+        }),
+      });
+      const data = (await res.json()) as
+        | { drafts: Step1Card[] }
+        | { error: string };
+      if (!res.ok || "error" in data) {
+        setError("error" in data ? data.error : `Step1 실패 (${res.status})`);
+        setStage("analyzed");
+        return;
+      }
+      const editable: EditableCard[] = data.drafts.map((d) => {
+        const sec = d.timestamp?.start_seconds ?? 0;
+        return {
+          source: d.source,
+          scriptEvidence: d.script_evidence,
+          pubmedSearchKeywords: d.pubmed_search_keywords ?? [],
+          question: d.question,
+          answer: d.answer,
+          keywords: d.keywords ?? [],
+          category: d.category ?? "",
+          doctorSlug: primarySlug,
+          startSec: sec,
+          startInput: formatMMSS(sec),
+          externalTitle: d.source.video_title || analyze.title || "",
+        };
+      });
+      setCards(editable);
+      setStage("stepped1");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "네트워크 오류");
+      setStage("analyzed");
+    }
+  }
+
+  async function runStep2() {
+    if (!analyze || cards.length === 0) return;
+    setError(null);
+    setStage("step2ing");
+    try {
+      const res = await fetch("/api/admin/draft/step2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cards: cards.map((c) => ({
+            question: c.question,
+            answer: c.answer,
+            pubmed_search_keywords: c.pubmedSearchKeywords,
+          })),
+          retmax: 8,
+        }),
+      });
+      const data = (await res.json()) as
+        | { results: Step2Result[] }
+        | { error: string };
+      if (!res.ok || "error" in data) {
+        setError("error" in data ? data.error : `Step2 실패 (${res.status})`);
+        setStage("stepped1");
+        return;
+      }
+      setCards((prev) =>
+        prev.map((c, i) => ({ ...c, step2: data.results[i] })),
+      );
+      setStage("stepped2");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "네트워크 오류");
+      setStage("stepped1");
+    }
+  }
+
+  async function publish() {
+    if (!analyze || cards.length === 0) return;
+    setError(null);
+    setStage("publishing");
+    try {
+      const payload = {
+        videoId: analyze.videoId,
+        videoTitle: analyze.title ?? "",
+        cards: cards.map((c) => ({
+          question: c.question,
+          answer: c.answer,
+          keywords: c.keywords,
+          category: c.category || null,
+          doctorSlug: c.doctorSlug,
+          externalUrl: buildExternalUrl(analyze.videoId, c.startSec),
+          externalTitle: c.externalTitle,
+          externalImage: `https://i.ytimg.com/vi/${analyze.videoId}/hqdefault.jpg`,
+          timestampStartSec: c.startSec,
+          scriptEvidence: c.scriptEvidence,
+          pubmedRef: c.step2?.reference ?? null,
+          pubmedReasoning: c.step2?.reasoning,
+        })),
+        status: "published",
+      };
+      const res = await fetch("/api/admin/draft/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json()) as
+        | { saved: number; ids: number[] }
+        | { error: string };
+      if (!res.ok || "error" in data) {
+        setError("error" in data ? data.error : `발행 실패 (${res.status})`);
+        setStage("stepped2");
+        return;
+      }
+      router.push(`/admin/qas?status=published`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "네트워크 오류");
+      setStage("stepped2");
+    }
+  }
+
+  function updateCard(idx: number, patch: Partial<EditableCard>) {
+    setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+  }
+  function commitStartInput(idx: number) {
+    setCards((prev) =>
+      prev.map((c, i) => {
+        if (i !== idx) return c;
+        const sec = parseMMSS(c.startInput);
+        return { ...c, startSec: sec, startInput: formatMMSS(sec) };
+      }),
     );
   }
-
-  function saveDraft(idx: number) {
-    if (!result || !doctorSlug) return;
-    const draft = editing[idx];
-    if (!draft) return;
-    startSave(async () => {
-      try {
-        const res = await fetch("/api/admin/draft/save", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            doctorSlug,
-            videoId: result.videoId,
-            videoTitle: result.title,
-            youtubeUrl: url.trim(),
-            draft,
-            status: "pending_review", // 저장 시 원장 검수 대기 상태
-          }),
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          alert(`저장 실패: ${data?.error ?? res.status}`);
-          return;
-        }
-        setSaved((prev) => new Set(prev).add(idx));
-      } catch (e) {
-        alert(e instanceof Error ? e.message : "네트워크 오류");
-      }
-    });
+  function deleteCard(idx: number) {
+    if (!confirm(`카드 #${idx + 1}을 폐기합니다. 확인.`)) return;
+    setCards((prev) => prev.filter((_, i) => i !== idx));
   }
-
-  function saveAll() {
-    if (!result) return;
-    startSave(async () => {
-      try {
-        const res = await fetch("/api/admin/draft/save", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            doctorSlug,
-            videoId: result.videoId,
-            videoTitle: result.title,
-            youtubeUrl: url.trim(),
-            drafts: editing.filter((_, i) => !saved.has(i)),
-            status: "pending_review",
-          }),
-        });
-        if (!res.ok) {
-          const data = await res.json();
-          alert(`일괄 저장 실패: ${data?.error ?? res.status}`);
-          return;
-        }
-        setSaved(new Set(editing.map((_, i) => i)));
-        // 저장 후 admin 목록으로 이동 옵션
-        if (confirm("모두 저장되었습니다. 전체 목록으로 이동할까요?")) {
-          router.push("/admin/qas?status=pending_review");
-        }
-      } catch (e) {
-        alert(e instanceof Error ? e.message : "네트워크 오류");
-      }
-    });
+  function applyCandidate(idx: number, pmid: string) {
+    setCards((prev) =>
+      prev.map((c, i) => {
+        if (i !== idx || !c.step2) return c;
+        const cand = c.step2.candidates.find((x) => x.pmid === pmid);
+        if (!cand) return c;
+        return {
+          ...c,
+          step2: {
+            ...c.step2,
+            reference: {
+              pmid: cand.pmid,
+              doi: cand.doi,
+              title: cand.title,
+              journal: cand.journal,
+              year: cand.year,
+              authors_short: cand.authors_short,
+              pubmed_url: `https://pubmed.ncbi.nlm.nih.gov/${cand.pmid}/`,
+              doi_url: cand.doi ? `https://doi.org/${cand.doi}` : "",
+            },
+            reasoning: `수동 선택: ${pmid}`,
+          },
+        };
+      }),
+    );
+  }
+  function clearReference(idx: number) {
+    setCards((prev) =>
+      prev.map((c, i) => {
+        if (i !== idx || !c.step2) return c;
+        return {
+          ...c,
+          step2: { ...c.step2, reference: null, reasoning: "수동: 참고문헌 없음" },
+        };
+      }),
+    );
   }
 
   return (
     <div className="space-y-5">
-      {/* 입력 폼 */}
-      <form
-        onSubmit={handleGenerate}
-        className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]"
-      >
+      {/* [1] URL 입력 */}
+      <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
         <div>
-          <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            YouTube 영상 URL
+          <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
+            ① YouTube URL
           </label>
           <input
             type="url"
-            required
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://www.youtube.com/watch?v=..."
             className="w-full rounded-md border border-[var(--border)] px-3 py-2 outline-none focus:border-[var(--primary)]"
           />
         </div>
+        <button
+          type="button"
+          onClick={runAnalyze}
+          disabled={stage === "analyzing" || !url.trim()}
+          className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
+        >
+          {stage === "analyzing" ? "분석 중… (자막 + 원장 식별)" : "추출 시작"}
+        </button>
+      </section>
+
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* [2] 영상 분석 결과 */}
+      {analyze && (
+        <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
+          <div className="mb-1 text-sm font-semibold text-[var(--text-secondary)]">
+            ② 영상 분석 결과
+          </div>
+          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+            <Field label="영상 제목" value={analyze.title ?? "(없음)"} />
+            <Field label="영상 ID" value={analyze.videoId} />
+            <Field
+              label="자막"
+              value={`${TRANSCRIPT_SOURCE_LABEL[analyze.source]} (${analyze.transcript.length.toLocaleString()}자)`}
+            />
+          </div>
+
+          {analyze.empty ? (
+            <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              이 영상에는 등록된 원장 9명 중 누구도 등장하지 않습니다. Q&A 추출
+              대상이 아닙니다.
+            </div>
+          ) : (
+            <>
+              <div className="rounded-md bg-[var(--bg-soft)] p-3">
+                <p className="mb-2 text-xs font-semibold text-[var(--text-secondary)]">
+                  🎤 출연 원장 (자동 식별)
+                </p>
+                <div className="space-y-1.5">
+                  {analyze.doctors.map((d) => (
+                    <label
+                      key={d.slug}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="radio"
+                        name="primary-doctor"
+                        value={d.slug}
+                        checked={primarySlug === d.slug}
+                        onChange={() => setPrimarySlug(d.slug)}
+                      />
+                      <span className="font-medium">{d.name}</span>
+                      <span className="text-xs text-[var(--text-muted)]">
+                        자막 {d.frequency}회
+                        {d.selfIntro && " · 자기소개 ✓"}
+                        {d.inTitle && " · 제목 ✓"}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-[var(--text-muted)]">
+                  주 화자(◉)는 모든 카드의 기본 화자가 됩니다. 카드별로 개별
+                  변경 가능.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={runStep1}
+                disabled={
+                  stage === "step1ing" || stage === "step2ing" || !primarySlug
+                }
+                className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
+              >
+                {stage === "step1ing"
+                  ? "Step1 진행 중… (LLM이 카드 생성 — 30~60초)"
+                  : cards.length > 0
+                  ? "Step1 다시 실행"
+                  : "Step1: Q&A 카드 생성"}
+              </button>
+            </>
+          )}
+        </section>
+      )}
+
+      {/* [3] Q&A 카드 N개 */}
+      {cards.length > 0 && analyze && (
+        <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
+          <div className="mb-1 flex items-center justify-between">
+            <div className="text-sm font-semibold text-[var(--text-secondary)]">
+              ③ Q&A 카드 ({cards.length}개) — 검수·편집
+            </div>
+            <button
+              type="button"
+              onClick={runStep2}
+              disabled={stage === "step2ing"}
+              className="rounded-md border border-[var(--primary)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-50"
+            >
+              {stage === "step2ing"
+                ? "Step2 매칭 중…"
+                : "Step2: PubMed 참고문헌 매칭"}
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {cards.map((c, i) => (
+              <CardEditor
+                key={i}
+                index={i}
+                card={c}
+                videoId={analyze.videoId}
+                onChange={(patch) => updateCard(i, patch)}
+                onCommitStart={() => commitStartInput(i)}
+                onDelete={() => deleteCard(i)}
+                onApplyCandidate={(pmid) => applyCandidate(i, pmid)}
+                onClearReference={() => clearReference(i)}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={publish}
+            disabled={stage === "publishing" || cards.length === 0}
+            className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
+          >
+            {stage === "publishing"
+              ? "발행 중…"
+              : `④ ${cards.length}개 카드 모두 발행`}
+          </button>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// ── 카드 에디터 ────────────────────────────────────────
+
+function CardEditor({
+  index,
+  card,
+  videoId,
+  onChange,
+  onCommitStart,
+  onDelete,
+  onApplyCandidate,
+  onClearReference,
+}: {
+  index: number;
+  card: EditableCard;
+  videoId: string;
+  onChange: (patch: Partial<EditableCard>) => void;
+  onCommitStart: () => void;
+  onDelete: () => void;
+  onApplyCandidate: (pmid: string) => void;
+  onClearReference: () => void;
+}) {
+  const answerRef = useRef<HTMLTextAreaElement | null>(null);
+  const externalUrl = buildExternalUrl(videoId, card.startSec);
+  const highlightColor = useMemo(
+    () => pickHighlight(`draft-${index}-${videoId}`),
+    [index, videoId],
+  );
+
+  function toggleBold() {
+    const ta = answerRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart ?? 0;
+    const end = ta.selectionEnd ?? 0;
+    if (start === end) return;
+    const selected = ta.value.slice(start, end);
+    if (
+      selected.length >= 4 &&
+      selected.startsWith("**") &&
+      selected.endsWith("**")
+    ) {
+      ta.setRangeText(selected.slice(2, -2), start, end, "select");
+    } else {
+      ta.setRangeText(`**${selected}**`, start, end, "select");
+    }
+    onChange({ answer: ta.value });
+    ta.focus();
+  }
+
+  return (
+    <article className="space-y-3 rounded-md border border-[var(--border)] bg-[var(--bg-soft)]/30 p-4">
+      <header className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
+          <span>카드 #{index + 1}</span>
+          {card.category && (
+            <span className="rounded-full bg-white px-2 py-0.5 text-[10px]">
+              {card.category}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="text-xs text-red-600 hover:underline"
+        >
+          폐기
+        </button>
+      </header>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            원장님 <span className="text-xs text-[var(--text-muted)]">(비워두면 영상에서 자동 감지)</span>
+          <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+            화자
           </label>
           <select
-            value={doctorSlug}
-            onChange={(e) => setDoctorSlug(e.target.value)}
-            className="w-full rounded-md border border-[var(--border)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+            value={card.doctorSlug}
+            onChange={(e) => onChange({ doctorSlug: e.target.value })}
+            className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)]"
           >
-            <option value="">— 자동 감지 —</option>
-            {doctors.map((d) => (
+            <option value="">— 선택 —</option>
+            {DOCTORS_9.map((d) => (
               <option key={d.slug} value={d.slug}>
                 {d.name}
               </option>
             ))}
           </select>
         </div>
-        {error && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        <button
-          type="submit"
-          disabled={isGenerating || !url.trim() || !doctorSlug}
-          className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
-        >
-          {isGenerating ? "AI가 초안 생성 중… (수십 초 소요)" : "초안 생성"}
-        </button>
-        <p className="text-xs text-[var(--text-muted)]">
-          자막 fetch + Claude API 호출. 30~90초 정도 걸립니다.
-        </p>
-      </form>
+        <div>
+          <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+            시작 시각 (MM:SS)
+          </label>
+          <input
+            type="text"
+            value={card.startInput}
+            onChange={(e) => onChange({ startInput: e.target.value })}
+            onBlur={onCommitStart}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onCommitStart();
+              }
+            }}
+            placeholder="00:00"
+            className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)]"
+          />
+        </div>
+      </div>
 
-      {/* 결과 */}
-      {result && (
-        <div className="space-y-4">
-          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
-            <div className="text-xs text-[var(--text-muted)]">
-              영상 ID: <code>{result.videoId}</code>
-              {result.title && <> · {result.title}</>}
-            </div>
-            <div className="mt-1 text-sm">
-              <b>{editing.length}</b>개 초안 생성됨 (
-              <b>{saved.size}</b>개 저장 완료)
-            </div>
-            <div className="mt-3 flex gap-2">
+      <div>
+        <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+          영상 링크 (시작 시각 자동 반영)
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={externalUrl}
+            readOnly
+            className="flex-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--text-secondary)]"
+          />
+          <a
+            href={externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-xs font-medium text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          >
+            ↗ 열기
+          </a>
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+          영상 제목
+        </label>
+        <input
+          type="text"
+          value={card.externalTitle}
+          onChange={(e) => onChange({ externalTitle: e.target.value })}
+          className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)]"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+          질문
+        </label>
+        <input
+          type="text"
+          value={card.question}
+          onChange={(e) => onChange({ question: e.target.value })}
+          className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-base font-bold focus:border-[var(--primary)]"
+        />
+      </div>
+
+      <div>
+        <div className="mb-1 flex items-center justify-between">
+          <label className="text-xs text-[var(--text-secondary)]">
+            답변{" "}
+            <span className="text-[10px] text-[var(--text-muted)]">
+              ({card.answer.length}자, 목표 400~600자)
+            </span>
+          </label>
+          <button
+            type="button"
+            onClick={toggleBold}
+            title="굵게 (Ctrl+B)"
+            className="rounded-md border border-[var(--border)] bg-white px-2.5 py-1 text-xs font-bold text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          >
+            B 굵게
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          <textarea
+            ref={answerRef}
+            value={card.answer}
+            onChange={(e) => onChange({ answer: e.target.value })}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && (e.key === "b" || e.key === "B")) {
+                e.preventDefault();
+                toggleBold();
+              }
+            }}
+            rows={12}
+            className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm leading-[1.65] focus:border-[var(--primary)] font-[ui-monospace,SFMono-Regular,Menlo,monospace]"
+            placeholder="답변 본문 (markdown: **bold**, 단락은 빈 줄)"
+          />
+          <AnswerPreview text={card.answer} highlightColor={highlightColor} />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+          키워드 (쉼표로 구분)
+        </label>
+        <input
+          type="text"
+          value={card.keywords.join(", ")}
+          onChange={(e) =>
+            onChange({
+              keywords: e.target.value
+                .split(",")
+                .map((k) => k.trim())
+                .filter(Boolean),
+            })
+          }
+          className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)]"
+        />
+      </div>
+
+      {card.step2 && (
+        <div className="rounded-md border border-[var(--border)] bg-white p-3 text-xs">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="font-semibold text-[var(--text-secondary)]">
+              참고문헌 (PubMed)
+            </span>
+            <div className="flex items-center gap-2">
+              {card.step2.candidates.length > 0 && (
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) onApplyCandidate(e.target.value);
+                  }}
+                  defaultValue=""
+                  className="rounded border border-[var(--border)] bg-white px-2 py-1 text-[11px]"
+                >
+                  <option value="">
+                    후보로 교체 ({card.step2.candidates.length})
+                  </option>
+                  {card.step2.candidates.map((cand) => (
+                    <option key={cand.pmid} value={cand.pmid}>
+                      {cand.pmid} · {cand.year} · {cand.authors_short || cand.journal}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button
                 type="button"
-                onClick={saveAll}
-                disabled={isSaving || saved.size === editing.length}
-                className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                onClick={onClearReference}
+                className="rounded border border-[var(--border)] bg-white px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
               >
-                {isSaving
-                  ? "저장 중…"
-                  : saved.size === editing.length
-                  ? "모두 저장됨"
-                  : `남은 ${editing.length - saved.size}개 일괄 저장 (검수 대기)`}
+                없음으로
               </button>
             </div>
           </div>
-
-          {editing.map((draft, idx) => (
-            <article
-              key={idx}
-              className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5"
-              style={{
-                opacity: saved.has(idx) ? 0.55 : 1,
-                borderLeft: saved.has(idx)
-                  ? "3px solid #4CAF50"
-                  : "3px solid #FFA000",
-              }}
-            >
-              <div className="mb-2 text-xs font-semibold text-[var(--text-muted)]">
-                {saved.has(idx) ? "✓ 저장됨" : `초안 #${idx + 1}`}
-              </div>
-              <input
-                type="text"
-                value={draft.question}
-                onChange={(e) =>
-                  updateDraft(idx, { question: e.target.value })
-                }
-                disabled={saved.has(idx)}
-                className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-base font-bold outline-none focus:border-[var(--primary)]"
-                placeholder="질문"
-              />
-              <textarea
-                value={draft.answer}
-                onChange={(e) =>
-                  updateDraft(idx, { answer: e.target.value })
-                }
-                disabled={saved.has(idx)}
-                rows={7}
-                className="mt-2 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-                placeholder="답변 (7~8문장 / 350~450자)"
-              />
-              <div className="mt-2 text-xs text-[var(--text-muted)]">
-                글자 수: {draft.answer.length}자 (목표 350~450)
-              </div>
-              <input
-                type="text"
-                value={draft.keywords.join(", ")}
-                onChange={(e) =>
-                  updateDraft(idx, {
-                    keywords: e.target.value
-                      .split(",")
-                      .map((k) => k.trim())
-                      .filter(Boolean),
-                  })
-                }
-                disabled={saved.has(idx)}
-                className="mt-2 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-                placeholder="태그 (쉼표로 구분)"
-              />
-              <div className="mt-3 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => saveDraft(idx)}
-                  disabled={isSaving || saved.has(idx)}
-                  className="rounded-md border border-[var(--primary)] px-3 py-1.5 text-sm font-semibold text-[var(--primary)] disabled:opacity-50"
-                >
-                  {saved.has(idx) ? "저장됨" : "이 초안만 저장"}
-                </button>
-              </div>
-            </article>
-          ))}
+          {card.step2.reference ? (
+            <ReferenceLine r={card.step2.reference} />
+          ) : (
+            <p className="text-[var(--text-muted)]">
+              참고문헌 없음 — {card.step2.reasoning}
+            </p>
+          )}
         </div>
       )}
+    </article>
+  );
+}
+
+function ReferenceLine({
+  r,
+}: {
+  r: NonNullable<Step2Result["reference"]>;
+}) {
+  return (
+    <div>
+      <a
+        href={r.pubmed_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium text-[var(--text)] underline decoration-[var(--text-muted)]/40 underline-offset-[3px] hover:decoration-[var(--primary)]"
+      >
+        {r.title}
+      </a>
+      <div className="mt-0.5 text-[var(--text-secondary)]">
+        {r.authors_short && <span>{r.authors_short} · </span>}
+        {r.journal && <span>{r.journal}</span>}
+        {r.year && <span> ({r.year})</span>}
+      </div>
+      <div className="mt-0.5 flex gap-3 text-[10px] text-[var(--text-muted)]">
+        {r.pmid && (
+          <a
+            href={`https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-[var(--primary)]"
+          >
+            PMID: {r.pmid}
+          </a>
+        )}
+        {r.doi && (
+          <a
+            href={`https://doi.org/${r.doi}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-[var(--primary)]"
+          >
+            DOI
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AnswerPreview({
+  text,
+  highlightColor,
+}: {
+  text: string;
+  highlightColor: string;
+}) {
+  const paragraphs = (text ?? "").split(/\n{2,}/).map((s) => s.trimEnd());
+  return (
+    <div className="rounded-md border border-[var(--border)] bg-white p-3">
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+        미리보기
+      </div>
+      <div className="space-y-2">
+        {paragraphs.map((para, pi) => {
+          const parts: React.ReactNode[] = [];
+          const re = /\*\*([^*]+)\*\*/g;
+          let last = 0;
+          let m: RegExpExecArray | null;
+          let key = 0;
+          while ((m = re.exec(para)) !== null) {
+            if (m.index > last) {
+              parts.push(
+                <Fragment key={`t${pi}-${key++}`}>
+                  {para.slice(last, m.index)}
+                </Fragment>,
+              );
+            }
+            parts.push(
+              <strong
+                key={`b${pi}-${key++}`}
+                className="font-semibold text-[var(--text)]"
+                style={{
+                  backgroundImage: `linear-gradient(transparent 60%, ${highlightColor} 60%)`,
+                  padding: "0 1px",
+                }}
+              >
+                {m[1]}
+              </strong>,
+            );
+            last = m.index + m[0].length;
+          }
+          if (last < para.length) {
+            parts.push(
+              <Fragment key={`t${pi}-${key++}`}>{para.slice(last)}</Fragment>,
+            );
+          }
+          return (
+            <p
+              key={pi}
+              className="whitespace-pre-wrap text-[14px] leading-[1.65] text-[var(--text)]"
+            >
+              {parts}
+            </p>
+          );
+        })}
+        {paragraphs.length === 0 && (
+          <p className="text-xs text-[var(--text-muted)]">(미리보기 없음)</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-[var(--bg-soft)] px-3 py-2">
+      <div className="text-[10px] text-[var(--text-muted)]">{label}</div>
+      <div className="mt-0.5 text-sm text-[var(--text)]">{value}</div>
     </div>
   );
 }
