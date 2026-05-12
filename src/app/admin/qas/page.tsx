@@ -138,35 +138,42 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     .maybeSingle();
 
   const viewerRole = (profile?.role ?? "user") as "admin" | "doctor" | "user";
-  const isAdmin = viewerRole === "admin";
 
-  // 원장 본인 접근 — doctor_accounts 매핑이 있는 doctor 계정은 본인 글만 열람.
-  // role='doctor' but 매핑 없음, role='user'는 차단.
+  // 원장 본인 접근 — doctor_accounts 매핑된 계정은 본인 doctor 글만 열람·검수.
+  // role='admin' 이면서 매핑된 경우 = 원장 admin (super admin 아님)
+  // role='admin' 이면서 매핑 없음 = super admin (모든 카드)
+  // role='doctor' + 매핑 = 원장 (본인만)
+  // role='user' = 차단
   let ownDoctorSlug: string | null = null;
   let ownDoctorId: string | null = null;
   let ownDoctorName: string | null = null;
-  if (!isAdmin) {
-    if (viewerRole === "doctor") {
-      const { data: da } = await supabase
-        .from("doctor_accounts")
-        .select("doctor:doctors(slug, id, name)")
-        .eq("profile_id", user.id)
-        .maybeSingle();
-      const d = da?.doctor as
-        | { slug: string; id: string; name: string }
-        | { slug: string; id: string; name: string }[]
-        | null;
-      const resolved = Array.isArray(d) ? d[0] : d;
-      if (resolved) {
-        ownDoctorSlug = resolved.slug;
-        ownDoctorId = resolved.id;
-        ownDoctorName = resolved.name;
-      }
-    }
-    if (!ownDoctorSlug) {
-      redirect("/login?error=관리자 권한이 필요합니다");
+  if (viewerRole === "admin" || viewerRole === "doctor") {
+    const { data: da } = await supabase
+      .from("doctor_accounts")
+      .select("doctor:doctors(slug, id, name)")
+      .eq("profile_id", user.id)
+      .maybeSingle();
+    const d = da?.doctor as
+      | { slug: string; id: string; name: string }
+      | { slug: string; id: string; name: string }[]
+      | null;
+    const resolved = Array.isArray(d) ? d[0] : d;
+    if (resolved) {
+      ownDoctorSlug = resolved.slug;
+      ownDoctorId = resolved.id;
+      ownDoctorName = resolved.name;
     }
   }
+  // role='doctor' 인데 매핑 없으면 차단, role='user' 도 차단
+  if (viewerRole === "doctor" && !ownDoctorSlug) {
+    redirect("/login?error=관리자 권한이 필요합니다");
+  }
+  if (viewerRole !== "admin" && viewerRole !== "doctor") {
+    redirect("/login?error=관리자 권한이 필요합니다");
+  }
+  // super admin = role=admin AND doctor_accounts 매핑 없음
+  const isSuperAdmin = viewerRole === "admin" && !ownDoctorSlug;
+  const isAdmin = isSuperAdmin;
 
   // ── 쿼리 파라미터 파싱 ──
   const statusParam = isStatusFilter(sp.status) ? sp.status : "all";

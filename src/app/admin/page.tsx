@@ -30,6 +30,16 @@ export default async function AdminPage() {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
 
+  // 권한 분기 (doctor_accounts 매핑 기준):
+  //   매핑 없음 → super admin (개발자, 모든 권한 + 새 Q&A 추출하기 노출)
+  //   매핑 있음 → 원장 admin (본인 doctor 카드만 + 새 Q&A 추출하기 숨김)
+  const { data: doctorMapping } = await supabase
+    .from("doctor_accounts")
+    .select("doctor_id")
+    .eq("profile_id", user.id)
+    .maybeSingle();
+  const isSuperAdmin = !doctorMapping?.doctor_id;
+
   // 운영 통계 — 회원·글·댓글 카운트 + 인기 검색어·태그
   const [
     { count: userCount },
@@ -114,14 +124,24 @@ export default async function AdminPage() {
             title="전체 글 관리"
             desc="Q&A·포스팅 검색·필터·발행/보관"
           />
+          {/* 새 Q&A 추출하기 — super admin 전용 (원장 계정엔 숨김) */}
+          {isSuperAdmin && (
+            <Tool
+              href="/admin/draft"
+              emoji="📝"
+              title="새 Q&A 추출하기"
+              desc="YouTube 영상 → AI Q&A 카드 추출 → PubMed 참고문헌 매칭 → 원장 검수 보냄"
+            />
+          )}
+          {/* 검수 대기 — 모든 admin 노출 (원장 계정에선 본인 doctor 카드만 보임) */}
           <Tool
-            href="/admin/draft"
-            emoji="📝"
-            title="초안 / 검수 대기"
+            href="/admin/qas?status=pending_review"
+            emoji="⏳"
+            title="검수 대기"
             desc={
               (pendingReview ?? 0) > 0
                 ? `${pendingReview}개 검수 대기 중 →`
-                : "AI 초안 생성·원장 검수"
+                : "검수 후 발행 대기"
             }
             highlight={(pendingReview ?? 0) > 0}
           />
