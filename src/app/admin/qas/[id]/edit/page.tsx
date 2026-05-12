@@ -32,6 +32,8 @@ export default async function AdminEditQAPage({ params }: Props) {
     .select(
       `id, question, answer, meta, keywords, status, type, is_pick,
        doctor_id, video_id, like_count, view_count, created_at,
+       external_url, external_title, external_image, external_site_name,
+       pubmed_ref,
        doctor:doctors(id, slug, name, branch),
        video:videos(youtube_id, youtube_url, topic, upload_date)`,
     )
@@ -62,16 +64,7 @@ export default async function AdminEditQAPage({ params }: Props) {
     doctorPickCount = count ?? 0;
   }
 
-  // 같은 video를 공유하는 다른 qa 개수 (영상 정보 변경 시 영향받는 글)
-  let sameVideoQaCount = 0;
-  if (qa.video_id) {
-    const { count } = await supabase
-      .from("qas")
-      .select("id", { count: "exact", head: true })
-      .eq("video_id", qa.video_id)
-      .neq("id", qa.id);
-    sameVideoQaCount = count ?? 0;
-  }
+  // (sameVideoQaCount는 카드별 external_* 편집으로 전환 후 불필요 — 제거)
 
   // 댓글 수 (Phase B comments 테이블 — 없으면 0)
   let commentCount = 0;
@@ -103,7 +96,6 @@ export default async function AdminEditQAPage({ params }: Props) {
         qa={qa}
         doctors={doctors ?? []}
         doctorPickCount={doctorPickCount}
-        sameVideoQaCount={sameVideoQaCount}
         commentCount={commentCount}
       />
     </section>

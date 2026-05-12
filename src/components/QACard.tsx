@@ -25,6 +25,7 @@ import {
   formatTimestamp,
 } from "@/lib/youtube-time";
 import { labelForCategory } from "@/lib/post-category";
+import { pickHighlight } from "@/lib/qa-highlight";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 export type QACardData = {
@@ -126,24 +127,8 @@ type Props = {
   viewerRating?: number;
 };
 
-// 카드별 결정적 형광펜 색 (4색 파스텔 팔레트)
-// Yellow #FFE65A / Mint #A8EBD0 / Lavender #D4C5F9 / Sky Blue #A8DEFF
-// 한 카드는 항상 한 색 (SSR safe — 카드 ID 해시 매핑)
-const HIGHLIGHT_PALETTE = [
-  "rgba(255, 230, 90, 0.55)",
-  "rgba(168, 235, 208, 0.55)",
-  "rgba(212, 197, 249, 0.55)",
-  "rgba(168, 222, 255, 0.55)",
-];
-
-function pickHighlight(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = ((h << 5) - h) + seed.charCodeAt(i);
-    h |= 0;
-  }
-  return HIGHLIGHT_PALETTE[Math.abs(h) % HIGHLIGHT_PALETTE.length];
-}
+// 카드별 결정적 형광펜 색은 lib/qa-highlight.ts 의 pickHighlight 사용
+// (Yellow / Mint / Lavender / Sky Blue 4색 — 카드 ID 해시로 결정. SSR safe)
 
 export default function QACard({
   qa,
