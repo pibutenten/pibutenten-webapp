@@ -45,6 +45,14 @@ export function isOauthAvailable(): boolean {
   );
 }
 
+/** refresh_token이 만료/취소된 경우 throw. 호출자가 잡아서 "재인증 필요" UX 노출. */
+export class OauthRefreshExpiredError extends Error {
+  constructor(public detail: string) {
+    super(`OAuth refresh_token expired or revoked: ${detail}`);
+    this.name = "OauthRefreshExpiredError";
+  }
+}
+
 async function getAccessToken(): Promise<string> {
   const now = Date.now();
   if (cachedAccessToken && cachedAccessToken.expiresAt > now + 60_000) {
@@ -64,6 +72,10 @@ async function getAccessToken(): Promise<string> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    // invalid_grant = refresh_token 만료/취소. 별도 에러 클래스로 throw.
+    if (res.status === 400 && /invalid_grant/i.test(text)) {
+      throw new OauthRefreshExpiredError(text.slice(0, 200));
+    }
     throw new Error(
       `OAuth token refresh failed: HTTP ${res.status} ${text.slice(0, 200)}`,
     );
@@ -73,6 +85,35 @@ async function getAccessToken(): Promise<string> {
   const ttl = (j.expires_in ?? 3600) * 1000;
   cachedAccessToken = { token: j.access_token, expiresAt: now + ttl };
   return j.access_token;
+}
+
+/**
+ * OAuth 상태 확인 — refresh_token 갱신 시도해 유효 여부 반환.
+ * /admin 카드·draft 위저드 등에서 호출해 상태 라벨 결정.
+ */
+export type OauthHealth =
+  | { state: "disabled" } // env 미설정
+  | { state: "ok"; expiresAt: number }
+  | { state: "expired"; detail: string }
+  | { state: "error"; detail: string };
+
+export async function checkOauthHealth(): Promise<OauthHealth> {
+  if (!isOauthAvailable()) return { state: "disabled" };
+  try {
+    await getAccessToken();
+    return {
+      state: "ok",
+      expiresAt: cachedAccessToken?.expiresAt ?? Date.now(),
+    };
+  } catch (e) {
+    if (e instanceof OauthRefreshExpiredError) {
+      return { state: "expired", detail: e.detail };
+    }
+    return {
+      state: "error",
+      detail: e instanceof Error ? e.message : String(e),
+    };
+  }
 }
 
 async function listCaptions(

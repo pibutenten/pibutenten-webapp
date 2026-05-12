@@ -137,6 +137,8 @@ export default function DraftClient() {
   const [manualTranscript, setManualTranscript] = useState("");
   const [manualVideoId, setManualVideoId] = useState("");
   const [manualTitle, setManualTitle] = useState("");
+  // OAuth 만료 감지 — analyze 응답의 oauthState='expired'면 재인증 버튼 노출
+  const [oauthExpired, setOauthExpired] = useState(false);
 
   async function runAnalyze() {
     setError(null);
@@ -149,9 +151,15 @@ export default function DraftClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: url.trim() }),
       });
-      const data = (await res.json()) as AnalyzeResp | { error: string };
+      const data = (await res.json()) as
+        | AnalyzeResp
+        | { error: string; oauthState?: "disabled" | "ok" | "expired" | "error" };
       if (!res.ok || "error" in data) {
         setError("error" in data ? data.error : `분석 실패 (${res.status})`);
+        // OAuth 만료가 원인일 수 있음 — 재인증 UI 노출
+        if ("oauthState" in data && data.oauthState === "expired") {
+          setOauthExpired(true);
+        }
         // 자막 fetch 실패 → 수동 입력 fallback UI 노출
         setManualFallback(true);
         // 영상 ID는 URL에서 추출해서 채워두기
@@ -161,6 +169,7 @@ export default function DraftClient() {
         return;
       }
       setManualFallback(false);
+      setOauthExpired(false);
       setAnalyze(data);
       setPrimarySlug(data.primary?.slug ?? "");
       setStage("analyzed");
@@ -414,6 +423,27 @@ export default function DraftClient() {
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {/* OAuth 만료 — 1-click 재인증 버튼 */}
+      {oauthExpired && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div>
+            <div className="font-semibold">YouTube OAuth 토큰 만료</div>
+            <div className="text-xs">
+              테스트 모드는 7일에 1번 재인증이 필요합니다. 새 창이 열리면 반드시{" "}
+              <b>pibutenten@gmail.com</b>으로 동의해주세요.
+            </div>
+          </div>
+          <a
+            href="/api/admin/youtube-oauth/start"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="whitespace-nowrap rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+          >
+            🔑 재인증 (5초)
+          </a>
         </div>
       )}
 

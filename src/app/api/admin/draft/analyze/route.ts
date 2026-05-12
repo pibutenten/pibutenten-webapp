@@ -20,6 +20,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { fetchYoutubeTranscript } from "@/lib/ai/youtube-transcript";
 import { identifyDoctors } from "@/lib/ai/identify-doctors";
+import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -62,7 +63,12 @@ export async function POST(req: Request) {
     transcriptResult = await fetchYoutubeTranscript(url);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: msg }, { status: 422 });
+    // 자막 fetch 실패 — OAuth 만료가 원인일 수도 있어 상태 같이 반환
+    const oauthHealth = await checkOauthHealth();
+    return NextResponse.json(
+      { error: msg, oauthState: oauthHealth.state },
+      { status: 422 },
+    );
   }
 
   // 9명 원장 자동 식별

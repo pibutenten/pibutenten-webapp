@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,9 @@ export default async function AdminPage() {
     supabase.rpc("get_top_search_queries", { p_days: 7, p_limit: 10 }),
     supabase.rpc("get_indexable_tags", { p_min_count: 4 }),
   ]);
+
+  // YouTube OAuth 상태 — 카드 라벨 동적 표시용
+  const oauthHealth = await checkOauthHealth();
   const topSearches = (topSearchRes.data ?? []) as Array<{
     query: string;
     cnt: number;
@@ -135,9 +139,36 @@ export default async function AdminPage() {
           />
           <Tool
             href="/api/admin/youtube-oauth/start"
-            emoji="🔑"
-            title="YouTube 자막 OAuth 연동"
-            desc="피부텐텐 본인 채널 영상 자막 자동 fetch (1회 설정)"
+            emoji={
+              oauthHealth.state === "ok"
+                ? "✅"
+                : oauthHealth.state === "expired"
+                ? "⚠"
+                : oauthHealth.state === "error"
+                ? "⚠"
+                : "🔑"
+            }
+            title={
+              oauthHealth.state === "ok"
+                ? "YouTube 자막 OAuth (연동 중)"
+                : oauthHealth.state === "expired"
+                ? "YouTube 자막 OAuth (재인증 필요)"
+                : oauthHealth.state === "error"
+                ? "YouTube 자막 OAuth (오류)"
+                : "YouTube 자막 OAuth 연동"
+            }
+            desc={
+              oauthHealth.state === "ok"
+                ? "본인 채널 영상 자막 자동 fetch 작동 중. 클릭하면 다른 계정으로 재인증."
+                : oauthHealth.state === "expired"
+                ? "토큰 만료(테스트 모드 7일). 클릭 → 5초 내 재인증 → 자동 갱신."
+                : oauthHealth.state === "error"
+                ? `오류: ${oauthHealth.detail.slice(0, 60)} — 클릭해 재인증.`
+                : "피부텐텐 본인 채널 영상 자막 자동 fetch (1회 설정)"
+            }
+            highlight={
+              oauthHealth.state === "expired" || oauthHealth.state === "error"
+            }
           />
         </div>
       </div>
