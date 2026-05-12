@@ -304,8 +304,8 @@ export default async function AdminUsersPage({ searchParams }: Props) {
           <h1 className="text-2xl font-bold text-[var(--text)]">회원 관리</h1>
           <p className="mt-1 text-xs text-[var(--text-muted)]">
             원장 {doctorRows.filter((r) => r.isPrimary).length}명
-            (가입 {doctorRows.filter((r) => r.isPrimary && !r.unregistered).length}
-            /미가입 {doctorRows.filter((r) => r.unregistered).length})
+            (연결 {doctorRows.filter((r) => r.isPrimary && !r.unregistered).length}
+            /연결안됨 {doctorRows.filter((r) => r.unregistered).length})
             · 일반 회원 {memberRows.filter((r) => r.isPrimary).length}명
             · 총 {filteredRows.length} ID
           </p>
@@ -393,8 +393,20 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                       )}
                       {r.profileId ? (
                         <Link
-                          href={`/admin/users/${r.profileId}`}
+                          href={
+                            r.isPrimary
+                              ? `/admin/users/${r.profileId}?identity=primary`
+                              : `/admin/users/${r.profileId}?identity=${r.key.split("::")[1]}`
+                          }
                           className="font-medium hover:text-[var(--primary)] hover:underline"
+                        >
+                          {r.displayName}
+                        </Link>
+                      ) : r.doctorId ? (
+                        // 미가입(연결 안된) 원장 — doctor 관리 페이지로
+                        <Link
+                          href={`/admin/doctors/${r.handle}`}
+                          className="font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] hover:underline"
                         >
                           {r.displayName}
                         </Link>
@@ -405,7 +417,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                       )}
                       {r.unregistered && (
                         <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
-                          미가입
+                          연결 안됨
                         </span>
                       )}
                       {r.isPrimary && !r.unregistered && !r.termsAgreedAt && (

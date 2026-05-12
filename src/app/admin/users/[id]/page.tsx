@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 
 type ProfileRow = {
   id: string;
+  handle: string | null;
   display_name: string | null;
   role: UserRole;
   level: UserLevel;
@@ -66,10 +67,35 @@ type LikeRow = {
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ identity?: string }>;
 };
 
-export default async function AdminUserDetailPage({ params }: Props) {
+type IdentityRow = {
+  id: string;
+  profile_id: string;
+  handle: string;
+  display_name: string;
+  avatar_url: string | null;
+  kind: string;
+  doctor_id: string | null;
+  created_at: string;
+};
+
+type DoctorRow = {
+  id: string;
+  slug: string;
+  name: string;
+  branch: string | null;
+  photo_url: string | null;
+};
+
+export default async function AdminUserDetailPage({
+  params,
+  searchParams,
+}: Props) {
   const { id } = await params;
+  const sp = await searchParams;
+  const identityParam = (sp.identity ?? "primary").trim();
   const supabase = await createSupabaseServerClient();
   const {
     data: { user: me },
@@ -88,21 +114,81 @@ export default async function AdminUserDetailPage({ params }: Props) {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, display_name, role, level, activity_score, bio, birth_date, created_at, terms_agreed_at, avatar_url, is_public",
+      "id, handle, display_name, role, level, activity_score, bio, birth_date, created_at, terms_agreed_at, avatar_url, is_public",
     )
     .eq("id", id)
     .maybeSingle()
     .returns<ProfileRow>();
   if (!profile) notFound();
 
-  // 작성 글
-  const { data: qas } = await supabase
+  // ─── Active identity 결정 (URL ?identity= 기반) ───
+  //  'primary' or 미설정 → profile row 자체 (배정민 원장 / 정한미 원장 / 일반회원 자기 자신)
+  //  UUID → profile_identities row (개발자 부계정, 배스킨 개인계정 등)
+  let activeIdentity:
+    | (IdentityRow & { isPrimary: false })
+    | null = null;
+  if (identityParam !== "primary" && /^[0-9a-f-]{36}$/i.test(identityParam)) {
+    const { data: row } = await supabase
+      .from("profile_identities")
+      .select(
+        "id, profile_id, handle, display_name, avatar_url, kind, doctor_id, created_at",
+      )
+      .eq("id", identityParam)
+      .eq("profile_id", id) // 본인 profile의 identity만
+      .maybeSingle()
+      .returns<IdentityRow>();
+    if (row) activeIdentity = { ...row, isPrimary: false };
+  }
+
+  // 모든 identity 목록 (탭/링크용)
+  const { data: allIdentities } = await supabase
+    .from("profile_identities")
+    .select("id, handle, display_name, kind, doctor_id")
+    .eq("profile_id", id)
+    .order("created_at", { ascending: true })
+    .returns<IdentityRow[]>();
+
+  // primary identity의 doctor 매핑 (doctor_accounts)
+  const { data: primaryMapping } = await supabase
+    .from("doctor_accounts")
+    .select("doctor_id")
+    .eq("profile_id", id)
+    .maybeSingle()
+    .returns<{ doctor_id: string } | null>();
+  const primaryDoctorId = primaryMapping?.doctor_id ?? null;
+
+  // 현재 active identity의 doctor_id 결정
+  const activeDoctorId = activeIdentity
+    ? activeIdentity.doctor_id
+    : primaryDoctorId;
+
+  // active identity가 doctor면 doctors.photo_url 사용
+  let activeDoctor: DoctorRow | null = null;
+  if (activeDoctorId) {
+    const { data: doc } = await supabase
+      .from("doctors")
+      .select("id, slug, name, branch, photo_url")
+      .eq("id", activeDoctorId)
+      .maybeSingle()
+      .returns<DoctorRow>();
+    activeDoctor = doc;
+  }
+
+  // 작성 글 — identity별 필터:
+  //   doctor identity → qa.doctor_id = 그 doctor (원장 글)
+  //   그 외 (personal/admin/primary 비매핑) → doctor_id IS NULL (개인 글)
+  let qasQuery = supabase
     .from("qas")
     .select("id, type, status, question, like_count, view_count, created_at")
     .eq("author_id", id)
     .order("created_at", { ascending: false })
-    .limit(50)
-    .returns<QaRow[]>();
+    .limit(50);
+  if (activeDoctorId) {
+    qasQuery = qasQuery.eq("doctor_id", activeDoctorId);
+  } else {
+    qasQuery = qasQuery.is("doctor_id", null);
+  }
+  const { data: qas } = await qasQuery.returns<QaRow[]>();
 
   // 댓글
   const { data: comments } = await supabase
@@ -167,6 +253,24 @@ export default async function AdminUserDetailPage({ params }: Props) {
   const lvlColor = LEVEL_COLORS[profile.level] ?? LEVEL_COLORS[0];
   const formatDate = (s: string | null) => (s ? s.slice(0, 10) : "—");
 
+  // active identity의 표시 정보 결정
+  const showDoctor = !!activeDoctor; // doctor identity면 doctor 정보 우선
+  const headerAvatar = showDoctor
+    ? activeDoctor!.photo_url
+    : activeIdentity?.avatar_url ?? profile.avatar_url;
+  const headerName = showDoctor
+    ? activeDoctor!.name
+    : activeIdentity?.display_name ?? profile.display_name;
+  const headerRoleLabel = showDoctor
+    ? "원장"
+    : activeIdentity
+      ? activeIdentity.kind === "admin"
+        ? "관리자"
+        : activeIdentity.kind === "personal"
+          ? "회원"
+          : activeIdentity.kind
+      : ROLE_LABELS[profile.role] ?? profile.role;
+
   return (
     <section className="w-full py-6">
       <Link
@@ -176,14 +280,51 @@ export default async function AdminUserDetailPage({ params }: Props) {
         ← 회원 목록
       </Link>
 
+      {/* Identity 스위처 (한 사람의 여러 ID) */}
+      {(allIdentities?.length ?? 0) > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-[var(--text-muted)]">이 회원의 ID:</span>
+          <Link
+            href={`/admin/users/${id}?identity=primary`}
+            className={`rounded-full border px-2.5 py-1 text-xs ${
+              activeIdentity === null
+                ? "border-[var(--primary)] bg-[var(--primary)]/10 font-semibold text-[var(--primary)]"
+                : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)]/50"
+            }`}
+          >
+            {primaryDoctorId ? "원장" : "주 ID"} (@{profile.handle ?? ""})
+          </Link>
+          {(allIdentities ?? [])
+            .filter((it) => it.handle !== profile.handle)
+            .map((it) => (
+              <Link
+                key={it.id}
+                href={`/admin/users/${id}?identity=${it.id}`}
+                className={`rounded-full border px-2.5 py-1 text-xs ${
+                  activeIdentity?.id === it.id
+                    ? "border-[var(--primary)] bg-[var(--primary)]/10 font-semibold text-[var(--primary)]"
+                    : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)]/50"
+                }`}
+              >
+                {it.kind === "admin"
+                  ? "관리자"
+                  : it.kind === "personal"
+                    ? "개인"
+                    : it.kind}
+                {" "}({it.display_name} @{it.handle})
+              </Link>
+            ))}
+        </div>
+      )}
+
       {/* 헤더 */}
       <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
         <div className="flex items-start gap-4">
           <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
-            {profile.avatar_url ? (
+            {headerAvatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={profile.avatar_url}
+                src={headerAvatar}
                 alt=""
                 className="h-full w-full object-cover"
               />
@@ -196,12 +337,12 @@ export default async function AdminUserDetailPage({ params }: Props) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold text-[var(--text)]">
-                {profile.display_name ?? "(이름 없음)"}
+                {headerName ?? "(이름 없음)"}
               </h1>
               <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
-                {ROLE_LABELS[profile.role] ?? profile.role}
+                {headerRoleLabel}
               </span>
-              {profile.role === "user" && (
+              {!showDoctor && !activeIdentity && profile.role === "user" && (
                 <span
                   className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
                   style={{ backgroundColor: lvlColor.bg, color: lvlColor.fg }}
@@ -210,7 +351,12 @@ export default async function AdminUserDetailPage({ params }: Props) {
                 </span>
               )}
             </div>
-            {profile.bio && (
+            {showDoctor && activeDoctor!.branch && (
+              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
+                {activeDoctor!.branch}
+              </p>
+            )}
+            {!showDoctor && profile.bio && (
               <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
                 {profile.bio}
               </p>
