@@ -14,6 +14,7 @@
  */
 
 import { YoutubeTranscript } from "youtube-transcript";
+import { fetchCaptionsViaOauth, isOauthAvailable } from "./youtube-oauth";
 
 export type YoutubeTranscriptResult = {
   videoId: string;
@@ -211,6 +212,19 @@ async function fetchTranscriptResilient(videoId: string): Promise<{
   source: YoutubeTranscriptResult["source"];
 }> {
   const errors: string[] = [];
+
+  // 0) YouTube Data API v3 OAuth (피부텐텐 본인 채널 영상 — 가장 안정적)
+  if (isOauthAvailable()) {
+    try {
+      const r = await fetchCaptionsViaOauth(videoId);
+      if (r && r.text.length >= 20) {
+        return { text: r.text, source: r.source };
+      }
+      if (!r) errors.push("oauth: no caption / 403 / not own channel");
+    } catch (e) {
+      errors.push(`oauth: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
 
   // 1) watch 페이지 → captionTracks 분석
   try {

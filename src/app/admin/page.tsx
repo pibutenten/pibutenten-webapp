@@ -133,6 +133,12 @@ export default async function AdminPage() {
             title="의사 프로필 관리"
             desc="학력·경력·전문분야 등 확장 프로필"
           />
+          <Tool
+            href="/api/admin/youtube-oauth/start"
+            emoji="🔑"
+            title="YouTube 자막 OAuth 연동"
+            desc="피부텐텐 본인 채널 영상 자막 자동 fetch (1회 설정)"
+          />
         </div>
       </div>
 
