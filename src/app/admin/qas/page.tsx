@@ -136,8 +136,33 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile?.role !== "admin") {
-    redirect("/login?error=관리자 권한이 필요합니다");
+  const viewerRole = (profile?.role ?? "user") as "admin" | "doctor" | "user";
+  const isAdmin = viewerRole === "admin";
+
+  // 원장 본인 접근 — doctor_accounts 매핑이 있는 doctor 계정은 본인 글만 열람.
+  // role='doctor' but 매핑 없음, role='user'는 차단.
+  let ownDoctorSlug: string | null = null;
+  let ownDoctorId: string | null = null;
+  if (!isAdmin) {
+    if (viewerRole === "doctor") {
+      const { data: da } = await supabase
+        .from("doctor_accounts")
+        .select("doctor:doctors(slug, id)")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+      const d = da?.doctor as
+        | { slug: string; id: string }
+        | { slug: string; id: string }[]
+        | null;
+      const resolved = Array.isArray(d) ? d[0] : d;
+      if (resolved) {
+        ownDoctorSlug = resolved.slug;
+        ownDoctorId = resolved.id;
+      }
+    }
+    if (!ownDoctorSlug) {
+      redirect("/login?error=관리자 권한이 필요합니다");
+    }
   }
 
   // ── 쿼리 파라미터 파싱 ──
@@ -147,24 +172,34 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     ? sp.category
     : "all";
   const qParam = (sp.q ?? "").trim();
-  const doctorSlugParam = (sp.doctor ?? "").trim();
+  // 원장 본인 접근 — doctor 파라미터를 본인 slug로 강제 (URL 조작으로 타 원장 글 열람 차단)
+  const doctorSlugParam = isAdmin
+    ? (sp.doctor ?? "").trim()
+    : (ownDoctorSlug ?? "");
   const pickOnly = sp.pick === "1";
   const pageNum = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const offset = (pageNum - 1) * PAGE_SIZE;
 
-  // ── 원장 목록 (필터 dropdown용) ──
-  const { data: doctorsData } = await supabase
-    .from("doctors")
-    .select("id, slug, name, branch")
-    .order("sort_order", { ascending: true })
-    .returns<DoctorOption[]>();
-  const doctors: DoctorOption[] = doctorsData ?? [];
+  // ── 원장 목록 (필터 dropdown용 — 관리자만) ──
+  const doctorsListResult = isAdmin
+    ? await supabase
+        .from("doctors")
+        .select("id, slug, name, branch")
+        .order("sort_order", { ascending: true })
+        .returns<DoctorOption[]>()
+    : { data: [] as DoctorOption[] };
+  const doctors: DoctorOption[] = doctorsListResult.data ?? [];
 
   // doctor slug → id 매핑 (필터용)
   let doctorIdFilter: string | null = null;
-  if (doctorSlugParam) {
-    const found = doctors.find((d) => d.slug === doctorSlugParam);
-    doctorIdFilter = found?.id ?? null;
+  if (isAdmin) {
+    if (doctorSlugParam) {
+      const found = doctors.find((d) => d.slug === doctorSlugParam);
+      doctorIdFilter = found?.id ?? null;
+    }
+  } else {
+    // 원장 본인 접근 — DB 쿼리 단계에서 본인 doctor_id로 강제 필터
+    doctorIdFilter = ownDoctorId;
   }
 
   // ── 상태별 카운트 (탭 표시용) ──
@@ -273,17 +308,23 @@ export default async function AdminQAsPage({ searchParams }: Props) {
       {/* 헤더 */}
       <div className="mb-5 flex items-baseline justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">전체 카드 목록</h1>
+          <h1 className="text-2xl font-bold text-[var(--text)]">
+            {isAdmin ? "전체 카드 목록" : "내 글 관리"}
+          </h1>
           <p className="mt-1 text-xs text-[var(--text-muted)]">
-            관리자 전용 — 총 {total.toLocaleString()}건
+            {isAdmin
+              ? `관리자 전용 — 총 ${total.toLocaleString()}건`
+              : `본인 글 — 총 ${total.toLocaleString()}건`}
           </p>
         </div>
-        <Link
-          href="/admin/draft"
-          className="whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
-        >
-          + 새 초안
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/admin/draft"
+            className="whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          >
+            + 새 초안
+          </Link>
+        )}
       </div>
 
       {/* status 필터 탭 — 모바일에선 라벨 위 / 카운트 아래 (한 줄에 다 보이게) */}
@@ -414,19 +455,25 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           <input type="hidden" name="category" value={categoryParam} />
         )}
         {pickOnly && <input type="hidden" name="pick" value="1" />}
-        <select
-          id="admin-qas-doctor-filter"
-          name="doctor"
-          defaultValue={doctorSlugParam}
-          className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text)] focus:border-[var(--primary)] focus:outline-none"
-        >
-          <option value="">전체 원장</option>
-          {doctors.map((d) => (
-            <option key={d.id} value={d.slug}>
-              {d.name}
-            </option>
-          ))}
-        </select>
+        {/* 원장 필터 — 관리자 전용. 원장 본인 접근 시 본인 slug가 서버에서 강제 적용됨 */}
+        {isAdmin ? (
+          <select
+            id="admin-qas-doctor-filter"
+            name="doctor"
+            defaultValue={doctorSlugParam}
+            className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text)] focus:border-[var(--primary)] focus:outline-none"
+          >
+            <option value="">전체 원장</option>
+            {doctors.map((d) => (
+              <option key={d.id} value={d.slug}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          // 원장 본인은 doctor 파라미터를 서버에서 강제 적용. 필터 UI 없음.
+          <input type="hidden" name="doctor" value={doctorSlugParam} />
+        )}
         <input
           type="text"
           name="q"

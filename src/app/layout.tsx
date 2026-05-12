@@ -111,8 +111,12 @@ async function getSessionInfo(): Promise<SessionInfo> {
         handle: profile.handle as string,
         displayName: (profile.display_name as string | null) ?? user.email ?? "",
         avatarUrl: (profile.avatar_url as string | null) ?? null,
-        kind:
-          profile.role === "admin"
+        // primary kind 우선순위: doctor 매핑 > admin > primary
+        // 배정민(admin + doctor 매핑) 같은 케이스에서 primary는 doctor 페이지로 가야 하고,
+        // admin 진입은 별도 'developer/admin' 부계정 identity로.
+        kind: doctorSlug
+          ? "doctor"
+          : profile.role === "admin"
             ? "admin"
             : profile.role === "doctor"
               ? "doctor"

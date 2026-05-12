@@ -266,7 +266,11 @@ export default async function DoctorDetailPage({ params }: Props) {
           </p>
         </div>
 
-        <DoctorOwnerWidget doctorName={doctor.name} stats={ownerStats} />
+        <DoctorOwnerWidget
+          doctorName={doctor.name}
+          doctorSlug={doctor.slug}
+          stats={ownerStats}
+        />
 
         {/* 받은 댓글 — 최근 10개 */}
         <DoctorCommentsWidget comments={recentComments} doctorSlug={doctor.slug} />
@@ -378,9 +382,11 @@ export default async function DoctorDetailPage({ params }: Props) {
  */
 function DoctorOwnerWidget({
   doctorName,
+  doctorSlug,
   stats,
 }: {
   doctorName: string;
+  doctorSlug: string;
   stats: {
     published: number;
     pending: number;
@@ -419,7 +425,7 @@ function DoctorOwnerWidget({
           ✏ 새 글 작성
         </Link>
         <Link
-          href="/admin/qas"
+          href={`/admin/qas?doctor=${doctorSlug}`}
           className="rounded-full border border-[var(--border)] bg-white px-4 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
         >
           내 글 관리 →
