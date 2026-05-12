@@ -44,7 +44,24 @@ function scriptPath(): string {
 
 function pythonCmd(): string {
   if (process.env.PYTHON_BIN) return process.env.PYTHON_BIN;
-  return process.platform === "win32" ? "python" : "python3";
+  // Windows: Microsoft Store stub 회피 — 알려진 Python 절대경로 우선 탐색
+  if (process.platform === "win32") {
+    const candidates = [
+      "C:/Users/Bae/AppData/Local/Programs/Python/Python312/python.exe",
+      "C:/Python312/python.exe",
+      "C:/Python311/python.exe",
+      "C:/Python310/python.exe",
+    ];
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) return p;
+      } catch {
+        /* continue */
+      }
+    }
+    return "python";
+  }
+  return "python3";
 }
 
 function vercelTranscriptUrl(): string {

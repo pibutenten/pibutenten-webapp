@@ -8,6 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import fs from "node:fs";
 import path from "node:path";
 import type { PubmedCandidate } from "./pubmed";
+import { getEnv } from "./env-fallback";
 
 const MODEL = "claude-opus-4-7";
 const MAX_TOKENS = 2000;
@@ -144,7 +145,7 @@ export async function runStep2(opts: {
   if (opts.candidates.length === 0) {
     return { reference: null, reasoning: "PubMed 후보 없음" };
   }
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = getEnv("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
 
   const system = loadSystemPrompt();

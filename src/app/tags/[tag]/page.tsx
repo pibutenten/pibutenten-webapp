@@ -8,17 +8,20 @@ import { SITE_URL } from "@/lib/site";
 /**
  * /tags/{태그} — 태그별 의사 글 hub.
  *
- * v5.1 spec:
+ * v5.2 spec:
  *  - URL은 한국어 그대로 (UTF-8)
  *  - 의사 글 4개 이상 모인 태그만 페이지 활성화 (그 미만은 404)
- *  - 정렬은 최신순 고정 (셔플 X) — 봇·사용자 동일 정렬
+ *  - 정렬: SNS-style 시간가중 + jitter (메인 피드와 동일)
+ *    · tag_qas_scored RPC (HALF_LIFE=14일, JITTER_AMP=0.2)
+ *    · 봇·사용자 동일 RPC — Google이 다른 순서를 봐도 무방
+ *    · canonical은 그대로 → SEO 영향 X
  *  - posted_as='official' AND category IN ('qa','tip') 만 인덱싱
- *  - JSON-LD CollectionPage + ItemList
- *  - ISR 1시간 (새 글 발행 시 자연스레 갱신)
+ *  - JSON-LD CollectionPage + ItemList (itemListOrder=Unordered)
+ *  - ISR 비활성: dynamic — 매 요청마다 새 셔플 (jitter 살리기)
  */
 
-export const revalidate = 3600;
-export const dynamicParams = true; // 빌드 시 미생성 태그도 첫 요청 시 SSR 후 캐시
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
 
 const PAGE_LIMIT = 50; // 페이지당 카드 수 (단순 — 페이지네이션은 추후)
 const MIN_DOCTOR_POSTS = 4;
@@ -41,31 +44,28 @@ async function fetchPostsForTag(
   tag: string,
 ): Promise<{ posts: QACardData[]; count: number }> {
   const supabase = await createSupabaseServerClient();
-  const { data, count } = await supabase
+  // 시간가중 + jitter 셔플 — tag_qas_scored RPC
+  // (메인 피드 feed_qas_scored 와 동일 공식: HALF_LIFE=14일, jitter=0.2 → ±10%)
+  const rpcRes = await supabase.rpc("tag_qas_scored", {
+    p_tag: tag,
+    p_limit: PAGE_LIMIT,
+    p_offset: 0,
+    p_half_life_days: 14,
+    p_jitter_amp: 0.2,
+  });
+  const posts = (rpcRes.data ?? []) as QACardData[];
+
+  // count 는 RPC가 limit 까지만 주므로 별도 조회 (인덱싱 조건 동일)
+  const { count } = await supabase
     .from("qas")
-    .select(
-      `
-      id, question, answer, meta, keywords, type, created_at, updated_at, posted_as,
-      like_count, view_count, share_count, comment_count, save_count,
-      rating_avg, rating_count,
-      post_year, post_slug, shortcode,
-      category, hide_doctor_credential,
-      external_url, external_title, external_description, external_image, external_site_name,
-      doctor:doctors(slug, name, branch),
-      author:profiles!qas_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle),
-      video:videos(youtube_id, youtube_url, topic, upload_date)
-    `,
-      { count: "exact" },
-    )
+    .select("id", { count: "exact", head: true })
     .eq("status", "published")
     .eq("posted_as", "official")
     .in("category", ["qa", "tip"])
     .not("doctor_id", "is", null)
-    .contains("keywords", [tag])
-    .order("created_at", { ascending: false })
-    .limit(PAGE_LIMIT)
-    .returns<QACardData[]>();
-  return { posts: data ?? [], count: count ?? 0 };
+    .contains("keywords", [tag]);
+
+  return { posts, count: count ?? 0 };
 }
 
 export async function generateMetadata({
@@ -118,7 +118,8 @@ export default async function TagPage({ params }: Props) {
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: posts.length,
-      itemListOrder: "https://schema.org/ItemListOrderDescending",
+      // 시간가중 + jitter 셔플이라 명확한 순서 없음
+      itemListOrder: "https://schema.org/ItemListUnordered",
       itemListElement: posts.slice(0, 20).map((p, idx) => ({
         "@type": "ListItem",
         position: idx + 1,
@@ -150,7 +151,7 @@ export default async function TagPage({ params }: Props) {
           <span className="font-bold text-[var(--primary)]">
             {count}
           </span>
-          개. 최신순으로 정렬됩니다.
+          개.
         </p>
       </header>
 

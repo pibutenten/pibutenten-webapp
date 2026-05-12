@@ -9,6 +9,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import fs from "node:fs";
 import path from "node:path";
+import { getEnv } from "./env-fallback";
 
 const MODEL = "claude-opus-4-7";
 const MAX_TOKENS = 8192;
@@ -166,7 +167,7 @@ export async function runStep1(opts: {
   videoTitle: string;
   sourceFile: string;
 }): Promise<DraftCard[]> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = getEnv("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
   if (!opts.transcript || opts.transcript.trim().length < 100) {
     throw new Error("Transcript is too short for Step1");
