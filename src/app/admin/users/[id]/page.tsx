@@ -174,19 +174,33 @@ export default async function AdminUserDetailPage({
     activeDoctor = doc;
   }
 
-  // 작성 글 — identity별 필터:
-  //   doctor identity → qa.doctor_id = 그 doctor (원장 글)
-  //   그 외 (personal/admin/primary 비매핑) → doctor_id IS NULL (개인 글)
+  // 작성 글 — author_identity_id 기준 (각 ID는 독립 author)
+  //   active identity가 부계정 (UUID) → 그 identity id 그대로
+  //   active identity가 primary → profile_identities에서 그 profile의 primary kind row id
+  //   leg데이터: author_identity_id NULL인 카드는 doctor_id로 fallback
+  let targetIdentityId: string | null = null;
+  if (activeIdentity) {
+    targetIdentityId = activeIdentity.id;
+  } else {
+    // primary identity의 profile_identities row (handle = profile.handle)
+    const primaryIdentity = (allIdentities ?? []).find(
+      (it) => it.handle === profile.handle,
+    );
+    targetIdentityId = primaryIdentity?.id ?? null;
+  }
+
   let qasQuery = supabase
     .from("qas")
     .select("id, type, status, question, like_count, view_count, created_at")
-    .eq("author_id", id)
     .order("created_at", { ascending: false })
     .limit(50);
-  if (activeDoctorId) {
+  if (targetIdentityId) {
+    qasQuery = qasQuery.eq("author_identity_id", targetIdentityId);
+  } else if (activeDoctorId) {
+    // identity row 없을 때 legacy doctor_id fallback
     qasQuery = qasQuery.eq("doctor_id", activeDoctorId);
   } else {
-    qasQuery = qasQuery.is("doctor_id", null);
+    qasQuery = qasQuery.eq("author_id", id).is("doctor_id", null);
   }
   const { data: qas } = await qasQuery.returns<QaRow[]>();
 
