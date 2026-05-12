@@ -15,6 +15,13 @@ const nextConfig: NextConfig = {
   // Server-only Node 라이브러리 — webpack 번들링 X (Next 15+)
   // jsdom·readability는 Node 환경에서만 동작 + native 의존성 있어 외부로 처리.
   serverExternalPackages: ["jsdom", "@mozilla/readability"],
+  // 외부 이미지 도메인 허용 — YouTube 썸네일 (qas.external_image)
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "i.ytimg.com" },
+      { protocol: "https", hostname: "img.youtube.com" },
+    ],
+  },
 };
 
 export default nextConfig;

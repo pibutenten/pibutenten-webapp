@@ -1666,7 +1666,7 @@ function renderAnswerBody(
           <p
             key={pi}
             className={`whitespace-pre-wrap text-[15px] leading-[1.7] text-[var(--text)]${speakableClass} ${
-              isFirst ? "" : "mt-2.5"
+              isFirst ? "" : "mt-1"
             } ${clampClass}`}
             style={{ transition: "color 0.2s ease" }}
           >

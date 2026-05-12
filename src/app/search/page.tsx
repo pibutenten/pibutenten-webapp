@@ -68,13 +68,44 @@ export default async function HomePage({ searchParams }: Props) {
   // q 있을 때나 없을 때 모두 RPC 사용 — 일관된 정렬 (q: 점수+노이즈 / no-q: video.upload_date desc)
   // boost: 특정 원장 slug에 +300 가산 (원장님 단일 페이지에서 칩 클릭으로 넘어왔을 때)
   const popularByCategoryPromise = getPopularByCategory();
-  const rpcRes = await supabase.rpc("search_qas_scored", {
-    p_q: q,
-    p_doctor_slug: null,
-    p_offset: 0,
-    p_limit: INITIAL_PAGE_SIZE,
-    p_boost_doctor_slug: boost || null,
-  });
+
+  // 카테고리 라벨 검색 — q가 카드 카테고리 라벨이면 category 컬럼 필터로 전환
+  // (search_qas_scored RPC는 keywords/question/answer 텍스트만 매칭해서 카테고리 라벨이 안 잡힘)
+  const CATEGORY_LABEL_TO_SLUG: Record<string, string> = {
+    "Q&A": "qa",
+    "피부꿀팁": "tip",
+    "피부일기": "diary",
+    "궁금해요": "ask",
+    "공유하기": "link",
+  };
+  const categorySlug = q ? CATEGORY_LABEL_TO_SLUG[q] : undefined;
+
+  let rpcRes;
+  if (categorySlug) {
+    // 카테고리 직접 필터 — 본문 매칭 대신 category 컬럼만
+    rpcRes = await supabase
+      .from("qas")
+      .select(
+        `id, question, answer, meta, keywords, like_count, view_count, save_count,
+         rating_avg, rating_count, type, posted_as, post_year, post_slug,
+         external_url, external_title, external_description, external_image, external_site_name,
+         category, hide_doctor_credential, shortcode, pubmed_ref, created_at,
+         doctor:doctors!doctor_id (slug, name, branch),
+         author:profiles!author_id (id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle, updated_at)`,
+      )
+      .eq("status", "published")
+      .eq("category", categorySlug)
+      .order("created_at", { ascending: false })
+      .limit(INITIAL_PAGE_SIZE);
+  } else {
+    rpcRes = await supabase.rpc("search_qas_scored", {
+      p_q: q,
+      p_doctor_slug: null,
+      p_offset: 0,
+      p_limit: INITIAL_PAGE_SIZE,
+      p_boost_doctor_slug: boost || null,
+    });
+  }
   let qas = (rpcRes.data ?? []) as QACardData[];
   const error = rpcRes.error;
 
