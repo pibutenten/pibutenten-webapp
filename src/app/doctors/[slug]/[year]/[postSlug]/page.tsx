@@ -7,6 +7,7 @@ import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import { keywordsToAbout } from "@/lib/schema/procedure";
+import { stripMarkdown } from "@/lib/strip-markdown";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const qa = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
   if (!qa) return { title: "피부텐텐", robots: { index: false } };
   const docName = qa.doctor?.name ? `${qa.doctor.name} 원장님` : "피부텐텐";
-  const desc = (qa.answer ?? "").replace(/\s+/g, " ").trim().slice(0, 110);
+  const desc = stripMarkdown(qa.answer).slice(0, 110);
   const ogUrl = qa.doctor?.slug ? `/og/${qa.doctor.slug}.png` : `/og.png`;
   const canonical = `${SITE}/doctors/${slug}/${year}/${encodeURIComponent(postSlug)}`;
   return {
@@ -98,7 +99,7 @@ function buildJsonLd(
   const created = qa.created_at ?? new Date().toISOString();
   const modified = qa.updated_at ?? created;
   const docName = qa.doctor?.name ?? "";
-  const answerText = (qa.answer ?? "").replace(/\s+/g, " ").trim();
+  const answerText = stripMarkdown(qa.answer);
 
   const breadcrumb = {
     "@type": "BreadcrumbList",

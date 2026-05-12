@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import QACard, { type QACardData } from "@/components/QACard";
 import { SITE_URL } from "@/lib/site";
+import { stripMarkdown } from "@/lib/strip-markdown";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const indexable = qa.category === "tip";
   return {
     title: qa.question,
-    description: (qa.answer ?? "").slice(0, 160),
+    description: stripMarkdown(qa.answer).slice(0, 160),
     alternates: { canonical: url },
     robots: indexable
       ? { index: true, follow: true }
