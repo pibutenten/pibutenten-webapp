@@ -301,16 +301,41 @@ export default function DraftClient() {
           retmax: 8,
         }),
       });
-      const data = (await res.json()) as
+      // 빈 응답·timeout·HTML 에러 페이지 안전 처리 — 그냥 res.json() 하면 깨짐
+      const raw = await res.text();
+      if (!raw) {
+        setError(
+          `참고문헌 매칭 실패 (HTTP ${res.status}) — 응답이 비었습니다. ` +
+            `LLM 호출 타임아웃 또는 서버 에러일 가능성이 큽니다. 서버 로그 확인 필요.`,
+        );
+        setStage("stepped1");
+        return;
+      }
+      let data:
         | {
             results: Step2Result[];
             usage?: UsageLike;
             llm_calls?: number;
             model?: string;
+            error?: string;
           }
         | { error: string };
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setError(
+          `참고문헌 매칭 실패 (HTTP ${res.status}) — JSON 파싱 실패. ` +
+            `응답 일부: ${raw.slice(0, 200)}`,
+        );
+        setStage("stepped1");
+        return;
+      }
       if (!res.ok || "error" in data) {
-        setError("error" in data ? data.error : `Step2 실패 (${res.status})`);
+        setError(
+          "error" in data && data.error
+            ? data.error
+            : `참고문헌 매칭 실패 (HTTP ${res.status})`,
+        );
         setStage("stepped1");
         return;
       }
@@ -440,11 +465,11 @@ export default function DraftClient() {
 
   return (
     <div className="space-y-5">
-      {/* [1] URL 입력 */}
+      {/* [1] URL 입력 + Step 1. 자막 추출 */}
       <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
         <div>
           <label className="mb-1 block text-sm font-semibold text-[var(--text-secondary)]">
-            ① YouTube URL
+            YouTube URL
           </label>
           <input
             type="url"
@@ -452,15 +477,24 @@ export default function DraftClient() {
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://www.youtube.com/watch?v=..."
             className="w-full rounded-md border border-[var(--border)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+            disabled={!!analyze}
           />
         </div>
         <button
           type="button"
           onClick={runAnalyze}
-          disabled={stage === "analyzing" || !url.trim()}
-          className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
+          disabled={stage === "analyzing" || !url.trim() || !!analyze}
+          className={`w-full rounded-md py-2.5 font-semibold text-white transition-opacity disabled:opacity-100 ${
+            analyze
+              ? "bg-[var(--text-muted)] cursor-default"
+              : "bg-[var(--primary)] disabled:opacity-50"
+          }`}
         >
-          {stage === "analyzing" ? "분석 중… (자막 + 원장 식별)" : "추출 시작"}
+          {stage === "analyzing"
+            ? "Step 1. 자막 추출 중… (자막 + 원장 식별)"
+            : analyze
+              ? "✓ Step 1. 자막 추출 완료"
+              : "Step 1. 자막 추출"}
         </button>
       </section>
 
@@ -616,51 +650,33 @@ export default function DraftClient() {
                 type="button"
                 onClick={runStep1}
                 disabled={
-                  stage === "step1ing" || stage === "step2ing" || !primarySlug
+                  stage === "step1ing" ||
+                  stage === "step2ing" ||
+                  !primarySlug ||
+                  cards.length > 0
                 }
-                className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
+                className={`w-full rounded-md py-2.5 font-semibold text-white transition-opacity disabled:opacity-100 ${
+                  cards.length > 0
+                    ? "bg-[var(--text-muted)] cursor-default"
+                    : "bg-[var(--primary)] disabled:opacity-50"
+                }`}
               >
                 {stage === "step1ing"
-                  ? "Step1 진행 중… (LLM이 카드 생성 — 30~60초)"
+                  ? "Step 2. Q&A 카드 생성 중… (LLM — 30~60초)"
                   : cards.length > 0
-                  ? "Step1 다시 실행"
-                  : "Step1: Q&A 카드 생성"}
+                    ? "✓ Step 2. Q&A 카드 생성 완료"
+                    : "Step 2. Q&A 카드 생성"}
               </button>
             </>
           )}
         </section>
       )}
 
-      {/* [3] PubMed 참고문헌 매칭 — Q&A 카드 위에 큰 버튼 (Step1과 동일 색·크기) */}
+      {/* [3] Q&A 카드 N개 — 검수·편집 (PubMed 매칭 박스보다 위에 위치) */}
       {cards.length > 0 && analyze && (
         <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
           <div className="mb-1 text-sm font-semibold text-[var(--text-secondary)]">
-            ③ PubMed 참고문헌 매칭
-          </div>
-          <p className="text-xs text-[var(--text-muted)]">
-            각 카드 답변에 맞는 PubMed 논문 후보를 찾아 best reference 1개를
-            자동 선택합니다. 카드별로 다른 후보로 교체·확인 가능.
-          </p>
-          <button
-            type="button"
-            onClick={runStep2}
-            disabled={stage === "step2ing"}
-            className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
-          >
-            {stage === "step2ing"
-              ? "참고문헌 매칭 중… (PubMed 검색 + LLM 선정)"
-              : cards.some((c) => c.step2)
-              ? "참고문헌 다시 매칭"
-              : "참고문헌 매칭 실행"}
-          </button>
-        </section>
-      )}
-
-      {/* [4] Q&A 카드 N개 */}
-      {cards.length > 0 && analyze && (
-        <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
-          <div className="mb-1 text-sm font-semibold text-[var(--text-secondary)]">
-            ④ Q&A 카드 ({cards.length}개) — 검수·편집
+            Q&A 카드 ({cards.length}개) — 검수·편집
           </div>
 
           <div className="space-y-4">
@@ -678,12 +694,45 @@ export default function DraftClient() {
               />
             ))}
           </div>
+        </section>
+      )}
 
-          {/* LLM 토큰·비용 요약 — 검수 보내기 직전 마지막 확인 */}
-          {(step1Usage || step2Usage) && (
-            <UsageSummary step1={step1Usage} step2={step2Usage} />
-          )}
+      {/* [4] Step 3. PubMed 검색 — 카드 아래에 위치 */}
+      {cards.length > 0 && analyze && (
+        <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
+          <p className="text-xs text-[var(--text-muted)]">
+            각 카드 답변에 맞는 PubMed 논문 후보를 찾아 best reference 1개를
+            자동 선택. 카드별로 다른 후보로 교체·확인 가능.
+          </p>
+          <button
+            type="button"
+            onClick={runStep2}
+            disabled={stage === "step2ing" || cards.some((c) => c.step2)}
+            className={`w-full rounded-md py-2.5 font-semibold text-white transition-opacity disabled:opacity-100 ${
+              cards.some((c) => c.step2)
+                ? "bg-[var(--text-muted)] cursor-default"
+                : "bg-[var(--primary)] disabled:opacity-50"
+            }`}
+          >
+            {stage === "step2ing"
+              ? "Step 3. PubMed 검색 중… (PubMed + LLM 선정)"
+              : cards.some((c) => c.step2)
+                ? "✓ Step 3. PubMed 검색 완료"
+                : "Step 3. PubMed 검색"}
+          </button>
+        </section>
+      )}
 
+      {/* [5] LLM 토큰·비용 요약 — Step3 밑에 별도 카드 */}
+      {cards.length > 0 && analyze && (step1Usage || step2Usage) && (
+        <section className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
+          <UsageSummary step1={step1Usage} step2={step2Usage} />
+        </section>
+      )}
+
+      {/* [6] Step 4. 검수 보내기 */}
+      {cards.length > 0 && analyze && (
+        <section className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
           <button
             type="button"
             onClick={publish}
@@ -692,7 +741,7 @@ export default function DraftClient() {
           >
             {stage === "publishing"
               ? "검수 보내는 중…"
-              : `⑤ ${cards.length}개 카드 원장님께 검수 보냄`}
+              : `Step 4. ${cards.length}개 카드 원장님께 검수 보내기`}
           </button>
           <p className="text-center text-[11px] text-[var(--text-muted)]">
             검수 보낸 카드는 원장님 검수 대시보드에서 확인·발행됩니다.
@@ -810,13 +859,13 @@ function CardEditor({
 
       <div>
         <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-          영상 제목
+          영상 제목 <span className="text-[10px] text-[var(--text-muted)]">(자동, 수정 불가)</span>
         </label>
         <input
           type="text"
           value={card.externalTitle}
-          onChange={(e) => onChange({ externalTitle: e.target.value })}
-          className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)]"
+          readOnly
+          className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-soft)]/40 px-3 py-2 text-sm text-[var(--text-secondary)]"
         />
       </div>
 
