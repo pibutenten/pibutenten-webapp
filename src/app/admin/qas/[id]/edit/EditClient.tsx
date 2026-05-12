@@ -151,8 +151,9 @@ export default function EditClient({
   const [answer, setAnswer] = useState(qa.answer);
   const [keywords, setKeywords] = useState<string[]>(qa.keywords);
   const [keywordInput, setKeywordInput] = useState("");
-  // 글쓴이는 추출 단계에서 결정한 화자로 고정 — 편집 페이지에선 변경 X
-  const doctorId = qa.doctor_id;
+  // 글쓴이 — 관리자(super admin)는 변경 가능. 원장 admin은 본인 카드만 보이므로 변경 불필요.
+  // (super admin 여부는 server에서 가드되어 이 페이지 진입 자체가 가능한 것 — 클라이언트에선 항상 dropdown 노출)
+  const [doctorId, setDoctorId] = useState<string | null>(qa.doctor_id);
   const [status, setStatus] = useState<QA["status"]>(qa.status);
   const [isPick, setIsPick] = useState<boolean>(qa.is_pick ?? false);
 
@@ -323,19 +324,23 @@ export default function EditClient({
 
       {/* ── 편집 폼 ── */}
       <div className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
-        {/* 글쓴이 — 추출 단계에서 결정된 화자가 그대로 고정 (편집 불가) */}
+        {/* 글쓴이 — super admin은 변경 가능 (2인 영상에서 잘못 분류 등 수정용) */}
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
             글쓴이
           </label>
-          <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2 text-sm">
-            <span className="font-medium text-[var(--text)]">
-              {doctors.find((d) => d.id === doctorId)?.name ?? "— 없음 —"}
-            </span>
-            <span className="text-[11px] text-[var(--text-muted)]">
-              (변경 불가)
-            </span>
-          </div>
+          <select
+            value={doctorId ?? ""}
+            onChange={(e) => setDoctorId(e.target.value || null)}
+            className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
+          >
+            <option value="">— 없음 —</option>
+            {doctors.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Pick 토글 */}
