@@ -2,5 +2,10 @@
   "regions": ["icn1"],
   "git": {
     "deploymentEnabled": true
+  },
+  "functions": {
+    "api/transcript.py": {
+      "maxDuration": 30
+    }
   }
 }

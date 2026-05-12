@@ -1,13 +1,12 @@
 /**
- * Python `youtube-transcript-api` 라이브러리를 child_process로 호출.
+ * Python `youtube-transcript-api` 자막 fetch (외부 채널도 잘 잡힘).
  *
- * 장점: YouTube가 막아둔 외부 채널 영상도 안정적으로 자막 fetch.
- * 단점: 서버에 Python 3 + `youtube-transcript-api` 패키지 필요.
+ * 두 가지 호출 모드:
+ *   1) dev (로컬): child_process로 scripts/fetch_transcript.py 직접 실행
+ *   2) prod (Vercel): /api/transcript Python serverless function 내부 fetch
  *
- * dev: 사용자 로컬에 Python 3.12 + pip install youtube-transcript-api 설치 시 작동.
- * prod (Vercel): 별도 Python serverless function 또는 worker로 분리 필요 (향후).
- *
- * Python 미설치/실패 시 null 반환 — 호출자가 다른 fallback로.
+ * Vercel 감지: process.env.VERCEL === "1" — 자동으로 prod 모드 전환.
+ * 둘 다 실패 시 null — 호출자가 다른 fallback로.
  */
 
 import { spawn } from "node:child_process";
@@ -20,17 +19,19 @@ export type PythonTranscriptResult = {
   lang?: string;
 };
 
-/** scripts/fetch_transcript.py 가 존재하는지 (= 통합되어 있는지) */
+/** 환경별로 자막 fetch 통로가 살아있는지 */
 export function isPythonTranscriptAvailable(): boolean {
-  const script = scriptPath();
-  if (!fs.existsSync(script)) return false;
-  // env로 비활성 강제 가능
   if (process.env.PYTHON_TRANSCRIPT_DISABLED === "1") return false;
-  return true;
+  if (isVercelEnv()) return true; // Vercel은 /api/transcript 항상 시도 가능
+  // dev/로컬은 스크립트 파일 존재 여부로 판정
+  return fs.existsSync(scriptPath());
+}
+
+function isVercelEnv(): boolean {
+  return process.env.VERCEL === "1";
 }
 
 function scriptPath(): string {
-  // process.cwd() 기준
   const candidates = [
     path.join(process.cwd(), "scripts/fetch_transcript.py"),
     path.join(process.cwd(), "pibutenten-app/scripts/fetch_transcript.py"),
@@ -42,23 +43,74 @@ function scriptPath(): string {
 }
 
 function pythonCmd(): string {
-  // env로 override 가능. Windows는 보통 `python`, *nix는 `python3`.
   if (process.env.PYTHON_BIN) return process.env.PYTHON_BIN;
   return process.platform === "win32" ? "python" : "python3";
 }
 
-/**
- * 외부 채널 영상도 한국어 자막 fetch 시도.
- * 성공: {text, source, lang}
- * 실패: null (호출자가 다른 fallback로)
- *
- * 타임아웃 25초 — 일반적으로 1~5초 소요. timedtext API가 느리면 길어질 수 있음.
- */
-export async function fetchTranscriptViaPython(
+function vercelTranscriptUrl(): string {
+  // 같은 도메인 — Vercel 환경에선 VERCEL_URL이 자동 주입 (예: pibutenten-webapp.vercel.app)
+  const host = process.env.VERCEL_URL || "localhost:3000";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  return `${proto}://${host}/api/transcript`;
+}
+
+async function fetchViaVercelEndpoint(
   videoId: string,
 ): Promise<PythonTranscriptResult | null> {
-  if (!isPythonTranscriptAvailable()) return null;
+  try {
+    const url = vercelTranscriptUrl();
+    const secret = process.env.PYTHON_TRANSCRIPT_SECRET ?? "";
+    const ctrl = new AbortController();
+    const timeoutId = setTimeout(() => ctrl.abort(), 25000);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(secret ? { "X-Transcript-Secret": secret } : {}),
+        },
+        body: JSON.stringify({ videoId }),
+        signal: ctrl.signal,
+        cache: "no-store",
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.warn(
+        `[python-transcript] /api/transcript HTTP ${res.status}:`,
+        text.slice(0, 200),
+      );
+      return null;
+    }
+    const j = (await res.json()) as {
+      transcript?: string;
+      source?: string;
+      lang?: string;
+      error?: string;
+    };
+    if (j.error || !j.transcript) return null;
+    const source = ((): PythonTranscriptResult["source"] => {
+      const s = j.source;
+      if (s === "ko-manual" || s === "ko-auto" || s === "en" || s === "default")
+        return s;
+      return "default";
+    })();
+    return { text: j.transcript, source, lang: j.lang };
+  } catch (e) {
+    console.warn(
+      `[python-transcript] vercel endpoint failed:`,
+      e instanceof Error ? e.message : String(e),
+    );
+    return null;
+  }
+}
 
+async function fetchViaChildProcess(
+  videoId: string,
+): Promise<PythonTranscriptResult | null> {
   const script = scriptPath();
   const cmd = pythonCmd();
 
@@ -114,12 +166,14 @@ export async function fetchTranscriptViaPython(
     });
     proc.on("close", () => {
       clearTimeout(timer);
-      // stdout은 JSON 한 줄 — 첫 줄만 사용
       const line = (out.split("\n").find((l) => l.trim().startsWith("{")) ??
         "").trim();
       if (!line) {
         if (err) {
-          console.warn(`[python-transcript] no JSON for ${videoId}, stderr:`, err.slice(0, 200));
+          console.warn(
+            `[python-transcript] no JSON for ${videoId}, stderr:`,
+            err.slice(0, 200),
+          );
         }
         finish(null);
         return;
@@ -156,4 +210,19 @@ export async function fetchTranscriptViaPython(
       }
     });
   });
+}
+
+/**
+ * 외부 채널 영상도 한국어 자막 fetch 시도.
+ * Vercel 환경: /api/transcript (Python serverless function) 내부 fetch.
+ * 로컬 dev: scripts/fetch_transcript.py를 child_process로 실행.
+ */
+export async function fetchTranscriptViaPython(
+  videoId: string,
+): Promise<PythonTranscriptResult | null> {
+  if (!isPythonTranscriptAvailable()) return null;
+  if (isVercelEnv()) {
+    return fetchViaVercelEndpoint(videoId);
+  }
+  return fetchViaChildProcess(videoId);
 }
