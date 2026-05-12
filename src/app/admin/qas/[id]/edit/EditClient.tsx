@@ -62,6 +62,8 @@ type Props = {
   doctors: Doctor[];
   doctorPickCount?: number;
   commentCount?: number;
+  /** super admin만 글쓴이 변경 가능. 원장 admin은 본인 글만 보고 글쓴이 readonly */
+  canChangeAuthor?: boolean;
 };
 
 const STATUS_LABELS: Record<QA["status"], string> = {
@@ -143,6 +145,7 @@ export default function EditClient({
   doctors,
   doctorPickCount = 0,
   commentCount = 0,
+  canChangeAuthor = false,
 }: Props) {
   const router = useRouter();
 
@@ -324,23 +327,31 @@ export default function EditClient({
 
       {/* ── 편집 폼 ── */}
       <div className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
-        {/* 글쓴이 — super admin은 변경 가능 (2인 영상에서 잘못 분류 등 수정용) */}
+        {/* 글쓴이 — super admin만 변경 가능. 원장 admin은 본인 고정 */}
         <div>
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
             글쓴이
           </label>
-          <select
-            value={doctorId ?? ""}
-            onChange={(e) => setDoctorId(e.target.value || null)}
-            className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
-          >
-            <option value="">— 없음 —</option>
-            {doctors.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          {canChangeAuthor ? (
+            <select
+              value={doctorId ?? ""}
+              onChange={(e) => setDoctorId(e.target.value || null)}
+              className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
+            >
+              <option value="">— 없음 —</option>
+              {doctors.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2 text-sm">
+              <span className="font-medium text-[var(--text)]">
+                {doctors.find((d) => d.id === doctorId)?.name ?? "— 없음 —"}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Pick 토글 */}

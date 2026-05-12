@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
 import EditClient from "./EditClient";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +19,14 @@ export default async function AdminEditQAPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/login?next=/admin/qas/${id}/edit`);
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  const viewerRole = (profile?.role ?? "user") as "admin" | "doctor" | "user";
-  if (viewerRole !== "admin" && viewerRole !== "doctor") {
+  // active identity 기반 권한 분기 — super admin만 글쓴이 변경 가능
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx?.active) {
+    redirect("/login?error=권한이 필요합니다");
+  }
+  const isSuperAdmin = idCtx.isSuperAdmin;
+  const isDoctorAdmin = idCtx.isDoctorAdmin;
+  if (!isSuperAdmin && !isDoctorAdmin) {
     redirect("/login?error=권한이 필요합니다");
   }
 
@@ -42,14 +44,9 @@ export default async function AdminEditQAPage({ params }: Props) {
     .maybeSingle();
   if (!qaRaw) notFound();
 
-  // 원장 본인은 본인 글만 편집 가능 (admin은 모두 가능)
-  if (viewerRole === "doctor") {
-    const { data: da } = await supabase
-      .from("doctor_accounts")
-      .select("doctor_id")
-      .eq("profile_id", user.id)
-      .maybeSingle();
-    if (!da || da.doctor_id !== qaRaw.doctor_id) {
+  // 원장 admin은 본인 doctor 글만 편집 가능 (super admin은 모두)
+  if (isDoctorAdmin && !isSuperAdmin) {
+    if (qaRaw.doctor_id !== idCtx.activeDoctorId) {
       redirect("/admin/qas?error=본인 글만 편집할 수 있습니다");
     }
   }
@@ -110,6 +107,7 @@ export default async function AdminEditQAPage({ params }: Props) {
         doctors={doctors ?? []}
         doctorPickCount={doctorPickCount}
         commentCount={commentCount}
+        canChangeAuthor={isSuperAdmin}
       />
     </section>
   );
