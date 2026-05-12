@@ -28,24 +28,19 @@ export const metadata: Metadata = {
 export default async function FeedPage() {
   const supabase = await createSupabaseServerClient();
 
-  // F5 마다 새 순서: RPC로 더 많이 가져와서 셔플 후 INITIAL_PAGE_SIZE 잘라쓰기
-  const FETCH_POOL = INITIAL_PAGE_SIZE * 4;
-  const rpcRes = await supabase.rpc("search_qas_scored", {
-    p_q: "",
-    p_doctor_slug: null,
+  // SNS-style 시간 가중치 + 인기 + doctor 가중 + jitter (lib는 0038_feed_qas_scored RPC)
+  // - HALF_LIFE 14일: 14일 전 글은 가중 절반
+  // - jitter ±10%: F5마다 비슷한 점수 글끼리 순서 살짝 변동
+  // - doctor 글 x2: 원장 글이 일반 회원 글의 2배 가중 (회원 글 들어왔을 때 발현)
+  // 풀 오버샘플 + 클라이언트 셔플은 더 이상 필요 X — DB가 score+jitter 정렬해서 줌.
+  const rpcRes = await supabase.rpc("feed_qas_scored", {
+    p_limit: INITIAL_PAGE_SIZE,
     p_offset: 0,
-    p_limit: FETCH_POOL,
-    p_boost_doctor_slug: null,
+    p_half_life_days: 14,
+    p_jitter_amp: 0.2,
   });
   let qas = (rpcRes.data ?? []) as QACardData[];
   const error = rpcRes.error;
-
-  // Fisher-Yates 셔플 (매 요청마다 다른 순서) — SSR 페이지라 새로고침마다 새 순서
-  for (let i = qas.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [qas[i], qas[j]] = [qas[j], qas[i]];
-  }
-  qas = qas.slice(0, INITIAL_PAGE_SIZE);
 
   // 첫 4카드 다양화 (검색 없으니 모두 다른 원장)
   if (qas.length > 4) {
