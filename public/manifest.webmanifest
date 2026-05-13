@@ -32,7 +32,7 @@
   "related_applications": [
     {
       "platform": "webapp",
-      "url": "https://pibutenten-webapp.vercel.app/manifest.webmanifest"
+      "url": "https://pbtt.kr/manifest.webmanifest"
     }
   ],
   "prefer_related_applications": false

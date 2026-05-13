@@ -6,10 +6,9 @@
 
 ## 핵심 콘텐츠 (의사 답변)
 
-- [홈 피드](https://pibutenten-webapp.vercel.app/)
-- [전체 피드](https://pibutenten-webapp.vercel.app/feed)
-- [참여 전문의](https://pibutenten-webapp.vercel.app/doctors)
-- [sitemap.xml](https://pibutenten-webapp.vercel.app/sitemap.xml)
+- [홈 피드](https://pbtt.kr/)
+- [참여 전문의](https://pbtt.kr/doctors)
+- [sitemap.xml](https://pbtt.kr/sitemap.xml)
 
 ## 인용 정책
 

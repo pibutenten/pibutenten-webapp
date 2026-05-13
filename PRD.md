@@ -18,9 +18,10 @@
 - ✅ /write Q&A 본문 4색 형광펜 (`MarkdownBoldEditor` + `pickHighlight`) — 카드 편집기와 동일 시각 톤
 - ✅ RLS Phase 9 호환 (migration 0059): `is_admin()` / `current_doctor_id()` / `same_group_profile_ids()` 묶음 기반 + profiles·qa_likes·qa_saves·qa_ratings·comments·qas 정책에 묶음 내 profile.id 허용
 - ✅ OG-extract User-Agent도 SITE_URL 기반으로 통일
-- ⏳ 다음 세션 — D1·D2 다중 출연 LLM 프롬프트 / /write ↔ 카드 편집기 완전 통일 (PubMed chip + ref UI) / pibutenten.com 도메인 연결 (사용자 자체 작업)
+- ✅ **pbtt.kr 도메인 연결** (2026-05-13) — 가비아 등록, A 216.198.79.1 / CNAME www→vercel-dns-017 / Vercel env NEXT_PUBLIC_SITE_URL=https://pbtt.kr / Supabase Auth site_url+uri_allow_list 갱신 / vercel.app→pbtt.kr 301 redirect (next.config.ts)
+- ⏳ 다음 세션 — D1·D2 다중 출연 LLM 프롬프트 / /write ↔ 카드 편집기 완전 통일 (PubMed chip + ref UI) / Google·Kakao OAuth 콘솔에 pbtt.kr redirect URI 추가 (사용자 작업)
 
-> 라이브: https://pibutenten-webapp.vercel.app
+> 라이브: https://pbtt.kr (구: https://pibutenten-webapp.vercel.app — 301 redirect)
 
 ---
 
@@ -30,11 +31,11 @@
 - **회사**: 주식회사 진솔컴퍼니
 - **운영자**: jminbae@gmail.com
 - **슬로건**: 피부가 예뻐지는 모든 이야기 / 피부가 예뻐지는 10분
-- **현재 라이브**: https://pibutenten-webapp.vercel.app
-- **정식 도메인 (예정)**: https://pibutenten.com
+- **메인 도메인**: https://pbtt.kr (2026-05-13 연결)
+- **보조 도메인**: https://www.pbtt.kr → 308 redirect to apex / https://pibutenten-webapp.vercel.app → 301 redirect
 - **출시 계획**
   - 5월: 기본 개발 완료 → 5개 지점(강남·수원·판교·건대·대구) 직원·가족 비공개 베타
-  - 6월: pibutenten.com 정식 런칭
+  - 6월: 정식 런칭 (pbtt.kr 유지, pibutenten.com 확보 시 추가 연결)
 
 ### 핵심 원칙
 

@@ -22,6 +22,23 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "img.youtube.com" },
     ],
   },
+  // vercel.app → pbtt.kr 영구 리다이렉트 (canonical 도메인 통일)
+  // Preview 배포는 영향 받지 않음 (Production만 적용 — vercel host 매칭)
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "pibutenten-webapp.vercel.app",
+          },
+        ],
+        destination: "https://pbtt.kr/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
