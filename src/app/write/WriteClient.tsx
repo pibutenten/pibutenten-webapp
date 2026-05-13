@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import {
   categoriesForRole,
-  defaultHideCredential,
   type PostCategorySlug,
 } from "@/lib/post-category";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
@@ -118,12 +117,6 @@ export default function WriteClient({
   const [keywords, setKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState("");
 
-  // 의사 직함 숨김 토글 — 카테고리별 default + 사용자가 토글 가능
-  const [hideCredential, setHideCredential] = useState<boolean>(
-    defaultHideCredential("diary"),
-  );
-  // 카테고리 변경 시 default 따라가도록 — changeCategory에서 처리
-
   // 외부 링크 — 모든 카테고리에서 옵션. [채우기] 누르면 메타 fetch해서 제목/본문/태그 채움
   const [externalUrl, setExternalUrl] = useState("");
   const [externalMeta, setExternalMeta] = useState<{
@@ -184,8 +177,6 @@ export default function WriteClient({
       setError(null);
     }
     setCategory(next);
-    // 카테고리 변경 시 의사 직함 숨김 default도 업데이트
-    setHideCredential(defaultHideCredential(next));
     // share 외 카테고리로 전환 시 외부 링크·첫 댓글 초기화
     // 새소식·Q&A 외 카테고리로 전환 시 외부 링크 초기화 (둘 다 외부 URL 사용)
     if (next !== "link" && next !== "qa") {
@@ -389,7 +380,7 @@ export default function WriteClient({
           category,
           keywords,
           status: submitStatus,
-          hide_doctor_credential: hideCredential,
+          hide_doctor_credential: false,
         };
         // 외부 링크가 있으면 메타와 함께 전송 (Phase 3)
         if (externalUrl.trim()) {
@@ -537,18 +528,8 @@ export default function WriteClient({
               );
             })}
           </div>
-          {/* 의사 직함 숨김 토글 — role이 doctor·admin일 때만 노출 */}
-          {(role === "doctor" || role === "admin") && (
-            <label className="mt-3 flex cursor-pointer items-center gap-2 text-[12.5px] text-[var(--text-secondary)]">
-              <input
-                type="checkbox"
-                checked={hideCredential}
-                onChange={(e) => setHideCredential(e.target.checked)}
-                className="h-4 w-4 rounded border-[var(--border)] text-[var(--primary-light)] focus:ring-[var(--primary-light)]"
-              />
-              <span>이 글에서 &ldquo;피부과 전문의&rdquo; 직함 숨기기 <span className="text-[var(--text-muted)]">(사적 모드)</span></span>
-            </label>
-          )}
+          {/* '사적 모드' 토글 폐기 — Phase 9에서 개발자/원장/개인 계정이 별도 profiles row로 분리됨.
+              개인 글은 user 계정으로 로그인 후 작성, 원장 글은 doctor 계정으로 작성 — 직함은 활성 ID에 종속. */}
         </div>
 
         {/* 외부 링크 — "새소식"·"Q&A" 두 카테고리에서 노출. v4 spec.
