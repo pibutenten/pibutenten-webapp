@@ -1,7 +1,22 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-13 (Phase 7.5 진행 중 — 누더기 정리 + 아바타 일관성 + PubMed 안정화 + doctors 모바일 레이아웃 + 영상 누락 audit)
-> 기준 commit: `5b475d6` (역할/권한 변경 섹션 viewer admin only) + TopNav 우상단 프로필 CSS (object-position 50% 12% + scale 1.18)
+> 마지막 업데이트: 2026-05-13 (Phase 9 완료 — `profile_identities` 폐기 + admin API 묶음 권한 통일 + 활동 KPI 6종 + qa_views/qa_shares 트래킹)
+> 기준 commit: `bab0f2a` (Phase 9 마무리: profile_identities drop + OAuth env URL)
+
+## 🟢 진행 상황 한눈에
+- ✅ Phase 9 — multi-ID 단순화 (profiles + auth_user_id 묶음), `profile_identities` table·`identity_id` 컬럼 모두 drop (migration 0055)
+- ✅ admin API 10개 권한 검사 → `auth_user_id` 묶음 기준 helper(`requireAdmin` / `requireAdminOrDoctor`)
+- ✅ 영상 URL 백필 994/994 카드
+- ✅ Admin 대시보드: KPI 6종 + 5개 기간 prefetch (방문자/조회수/댓글/좋아요/저장/공유)
+- ✅ 인기 검색어·태그 6개 기간 prefetch (클릭 시 깜빡임 0)
+- ✅ /admin/comments 신규 페이지 (제목 → ↳ 댓글 본문)
+- ✅ qa_views / qa_shares 이벤트 로그 (session dedup, fail silent)
+- ✅ QACard ⋮ 메뉴 — admin 전체 / 본인 author 글 (원장 출연 Q&A 포함)
+- ✅ OAuth callback URL — env 자동 분기 (`NEXT_PUBLIC_SITE_URL` > `VERCEL_URL` > localhost)
+- ✅ /write 사적 모드(직함 숨기기) 토글 제거 (Phase 9에서 ID 분리됐으므로 불필요)
+- ✅ /write Q&A 카테고리: 영상 URL [미리보기] 버튼 (본문 안 덮음)
+- ⏳ 다음 세션 — RLS 정책 Phase 9 재작성 / /write 4색 형광펜 / D1·D2 다중 출연 LLM 프롬프트 / pibutenten.com 도메인 연결 (사용자 자체 작업)
+
 > 라이브: https://pibutenten-webapp.vercel.app
 
 ---

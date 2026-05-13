@@ -211,6 +211,50 @@ export default function WriteClient({
   }
 
   /** URL [채우기] — 외부 링크 메타 fetch → 제목/본문/태그 자동 채움 */
+  /** Q&A 카테고리 전용: 영상 URL의 제목·썸네일만 미리보기로 가져옴 (본문 안 덮음) */
+  async function previewVideoMeta() {
+    const url = externalUrl.trim();
+    if (!url) return;
+    setError(null);
+    setExternalMeta(null);
+    setFilling(true);
+    try {
+      const r = await fetch("/api/preview-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const raw = await r.text();
+      let data: {
+        error?: string;
+        title?: string;
+        description?: string;
+        image?: string | null;
+        siteName?: string;
+      } | null = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        setError(`영상 정보를 가져오지 못했어요 (${r.status}).`);
+        return;
+      }
+      if (!r.ok) {
+        setError(data?.error ?? `영상 정보를 가져오지 못했어요 (${r.status}).`);
+        return;
+      }
+      setExternalMeta({
+        title: data?.title,
+        description: data?.description,
+        image: data?.image ?? null,
+        siteName: data?.siteName,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "영상 미리보기 실패");
+    } finally {
+      setFilling(false);
+    }
+  }
+
   async function fillFromUrl() {
     const url = externalUrl.trim();
     if (!url) return;
@@ -561,6 +605,17 @@ export default function WriteClient({
                 className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--primary-light)] bg-[var(--primary-light)] px-3 text-sm font-semibold text-white hover:bg-[var(--primary-light-hover)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:bg-[var(--border)]"
               >
                 {filling ? "가져오는 중…" : "채우기"}
+              </button>
+            )}
+            {category === "qa" && (
+              <button
+                type="button"
+                onClick={previewVideoMeta}
+                disabled={filling || !externalUrl.trim()}
+                className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm font-semibold text-[var(--text)] hover:border-[var(--primary-light)] hover:text-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-50"
+                title="영상 제목·썸네일 미리보기 (본문은 안 덮어씌움)"
+              >
+                {filling ? "확인 중…" : "미리보기"}
               </button>
             )}
           </div>
