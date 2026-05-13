@@ -12,8 +12,15 @@ import { requireAdmin } from "@/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
 
-const REDIRECT_URI =
-  "http://localhost:3000/api/admin/youtube-oauth/callback";
+// 도메인은 NEXT_PUBLIC_SITE_URL(production) > VERCEL_URL > localhost 순.
+// Google OAuth 콘솔의 "승인된 리디렉션 URI"에 동일 값 등록 필요.
+function getRedirectUri(): string {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  if (explicit) return `${explicit}/api/admin/youtube-oauth/callback`;
+  const vercel = process.env.VERCEL_URL;
+  if (vercel) return `https://${vercel}/api/admin/youtube-oauth/callback`;
+  return "http://localhost:3000/api/admin/youtube-oauth/callback";
+}
 
 export async function GET() {
   const guard = await requireAdmin();
@@ -29,7 +36,7 @@ export async function GET() {
 
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: getRedirectUri(),
     response_type: "code",
     scope: "https://www.googleapis.com/auth/youtube.force-ssl",
     access_type: "offline",

@@ -123,32 +123,80 @@ export default async function AdminUserDetailPage({
     .returns<ProfileRow>();
   if (!profile) notFound();
 
-  // ─── Active identity 결정 (URL ?identity= 기반) ───
-  //  'primary' or 미설정 → profile row 자체 (배정민 원장 / 정한미 원장 / 일반회원 자기 자신)
-  //  UUID → profile_identities row (개발자 부계정, 배스킨 개인계정 등)
+  // ─── Phase 9: Active identity = 같은 auth_user_id 묶음 안의 다른 profiles row ───
+  //  'primary' or 미설정 → profile row 자체
+  //  UUID → 묶음 안의 다른 profile (sub-identity)
+  //
+  //  허위 매핑 방지: 본 profile의 auth_user_id와 같은 묶음 안에만 한정.
+  const groupKey = (profile as ProfileRow & { auth_user_id?: string | null })
+    .id; // legacy fallback
+  const { data: profileExt } = await supabase
+    .from("profiles")
+    .select("auth_user_id")
+    .eq("id", id)
+    .maybeSingle();
+  const authUserId =
+    (profileExt as { auth_user_id?: string | null } | null)?.auth_user_id ??
+    null;
+
+  // 묶음 안의 모든 profile (= 사용 가능한 identity 목록)
+  const { data: groupRows } = authUserId
+    ? await supabase
+        .from("profiles")
+        .select(
+          "id, handle, display_name, avatar_url, role, created_at",
+        )
+        .or(`id.eq.${id},auth_user_id.eq.${authUserId}`)
+        .order("created_at", { ascending: true })
+    : { data: null };
+  type GroupRow = {
+    id: string;
+    handle: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+    role: string;
+    created_at: string;
+  };
+  const allProfilesInGroup = (groupRows ?? []) as GroupRow[];
+
+  // identity ↔ doctor 매핑 (doctor_accounts)
+  const { data: docAccts } = await supabase
+    .from("doctor_accounts")
+    .select("profile_id, doctor_id")
+    .in(
+      "profile_id",
+      allProfilesInGroup.length > 0
+        ? allProfilesInGroup.map((p) => p.id)
+        : [id],
+    );
+  const doctorIdByProfile = new Map<string, string>(
+    (docAccts ?? []).map((r) => [
+      (r as { profile_id: string }).profile_id,
+      (r as { doctor_id: string }).doctor_id,
+    ]),
+  );
+
+  // legacy IdentityRow 형태로 매핑 (UI 호환)
+  const allIdentities: IdentityRow[] = allProfilesInGroup.map((p) => ({
+    id: p.id,
+    profile_id: id,
+    handle: p.handle ?? "",
+    display_name: p.display_name ?? "",
+    avatar_url: p.avatar_url,
+    kind: p.role,
+    doctor_id: doctorIdByProfile.get(p.id) ?? null,
+    created_at: p.created_at,
+  }));
+
   let activeIdentity:
     | (IdentityRow & { isPrimary: false })
     | null = null;
   if (identityParam !== "primary" && /^[0-9a-f-]{36}$/i.test(identityParam)) {
-    const { data: row } = await supabase
-      .from("profile_identities")
-      .select(
-        "id, profile_id, handle, display_name, avatar_url, kind, doctor_id, created_at",
-      )
-      .eq("id", identityParam)
-      .eq("profile_id", id) // 본인 profile의 identity만
-      .maybeSingle()
-      .returns<IdentityRow>();
-    if (row) activeIdentity = { ...row, isPrimary: false };
+    const found = allIdentities.find((r) => r.id === identityParam);
+    if (found) activeIdentity = { ...found, isPrimary: false };
   }
-
-  // 모든 identity 목록 (탭/링크용)
-  const { data: allIdentities } = await supabase
-    .from("profile_identities")
-    .select("id, handle, display_name, kind, doctor_id")
-    .eq("profile_id", id)
-    .order("created_at", { ascending: true })
-    .returns<IdentityRow[]>();
+  // unused 변수 경고 무시용
+  void groupKey;
 
   // primary identity의 doctor 매핑 (doctor_accounts)
   const { data: primaryMapping } = await supabase
@@ -176,33 +224,21 @@ export default async function AdminUserDetailPage({
     activeDoctor = doc;
   }
 
-  // 작성 글 — author_identity_id 기준 (각 ID는 독립 author)
-  //   active identity가 부계정 (UUID) → 그 identity id 그대로
-  //   active identity가 primary → profile_identities에서 그 profile의 primary kind row id
-  //   leg데이터: author_identity_id NULL인 카드는 doctor_id로 fallback
-  let targetIdentityId: string | null = null;
-  if (activeIdentity) {
-    targetIdentityId = activeIdentity.id;
-  } else {
-    // primary identity의 profile_identities row (handle = profile.handle)
-    const primaryIdentity = (allIdentities ?? []).find(
-      (it) => it.handle === profile.handle,
-    );
-    targetIdentityId = primaryIdentity?.id ?? null;
-  }
+  // Phase 9: 작성 글 — author_id (profile.id) 기준.
+  //   active identity = 묶음 안의 다른 profile → 그 profile.id로 필터
+  //   없으면 본 profile.id + doctor_id NULL (개인 글)
+  //   activeDoctorId 있으면 doctor_id로 fallback
+  const targetAuthorId = activeIdentity?.id ?? id;
 
   let qasQuery = supabase
     .from("qas")
     .select("id, type, status, question, like_count, view_count, created_at")
     .order("created_at", { ascending: false })
     .limit(50);
-  if (targetIdentityId) {
-    qasQuery = qasQuery.eq("author_identity_id", targetIdentityId);
-  } else if (activeDoctorId) {
-    // identity row 없을 때 legacy doctor_id fallback
+  if (activeDoctorId) {
     qasQuery = qasQuery.eq("doctor_id", activeDoctorId);
   } else {
-    qasQuery = qasQuery.eq("author_id", id).is("doctor_id", null);
+    qasQuery = qasQuery.eq("author_id", targetAuthorId).is("doctor_id", null);
   }
   const { data: qas } = await qasQuery.returns<QaRow[]>();
 

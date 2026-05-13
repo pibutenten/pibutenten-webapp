@@ -273,46 +273,23 @@ export default function QACard({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        // v5.1+ FIX: prefetch와 toggle RPC가 같은 identity_id를 봐야 토글이 정확.
-        // - activeIdentityId가 UUID면 그대로 사용
-        // - null이면 primary kind identity를 lookup (toggle RPC와 동일 로직)
-        let effectiveIdentityId = getActiveIdentityId();
-        if (!effectiveIdentityId) {
-          const { data: prim } = await supabase
-            .from("profile_identities")
-            .select("id")
-            .eq("profile_id", user.id)
-            .eq("kind", "primary")
-            .maybeSingle();
-          effectiveIdentityId = (prim as { id: string } | null)?.id ?? null;
-        }
+        // Phase 9: qa_likes / qa_saves PK = (qa_id, user_id). user_id = active profile.id.
+        //   - activeIdentityId 있으면 그 profile id 사용 (묶음 내 다른 ID로 활동)
+        //   - 없으면 auth.users.id (legacy: profile.id == user.id 경우)
+        const activeProfileId = getActiveIdentityId() ?? user.id;
         const [likeRes, saveRes, rateRes] = await Promise.all([
-          effectiveIdentityId
-            ? supabase
-                .from("qa_likes")
-                .select("qa_id")
-                .eq("qa_id", qa.id)
-                .eq("identity_id", effectiveIdentityId)
-                .maybeSingle()
-            : supabase
-                .from("qa_likes")
-                .select("qa_id")
-                .eq("qa_id", qa.id)
-                .eq("user_id", user.id)
-                .maybeSingle(),
-          effectiveIdentityId
-            ? supabase
-                .from("qa_saves")
-                .select("qa_id")
-                .eq("qa_id", qa.id)
-                .eq("identity_id", effectiveIdentityId)
-                .maybeSingle()
-            : supabase
-                .from("qa_saves")
-                .select("qa_id")
-                .eq("qa_id", qa.id)
-                .eq("user_id", user.id)
-                .maybeSingle(),
+          supabase
+            .from("qa_likes")
+            .select("qa_id")
+            .eq("qa_id", qa.id)
+            .eq("user_id", activeProfileId)
+            .maybeSingle(),
+          supabase
+            .from("qa_saves")
+            .select("qa_id")
+            .eq("qa_id", qa.id)
+            .eq("user_id", activeProfileId)
+            .maybeSingle(),
           supabase
             .from("qa_ratings")
             .select("rating")

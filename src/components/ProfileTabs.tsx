@@ -192,9 +192,15 @@ export default function ProfileTabs({
       const activeId = getActiveIdentityId();
       const sb = createSupabaseBrowserClient();
       // 멀티 ID 분리: active identity 가 있으면 identity_id 매칭
-      //   - UUID identity: identity_id = activeId
-      //   - 'primary' (또는 null): identity_id null인 댓글
-      let query = sb
+      // Phase 9: 댓글은 author_id (profile.id)로 직접 필터. identity_id 컬럼 폐기.
+      //   active identity가 UUID 묶음 안의 다른 profile이면 그 id 사용, 아니면 profileId 그대로.
+      const targetAuthorId =
+        activeId &&
+        activeId !== "primary" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeId)
+          ? activeId
+          : profileId;
+      const query = sb
         .from("comments")
         .select(
           `id, body, created_at, qa_id,
@@ -202,17 +208,8 @@ export default function ProfileTabs({
                   doctor:doctors(slug),
                   author:profiles!qas_author_id_profiles_fkey(handle, alt_handle))`,
         )
-        .eq("author_id", profileId)
+        .eq("author_id", targetAuthorId)
         .eq("status", "visible");
-      if (
-        activeId &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeId)
-      ) {
-        query = query.eq("identity_id", activeId);
-      } else {
-        // primary identity — identity_id 없는 댓글 (구 데이터 호환 위해 personaForPosts 도 같이)
-        query = query.is("identity_id", null).eq("posted_as", personaForPosts);
-      }
       const { data } = await query
         .order("created_at", { ascending: false })
         .limit(50)

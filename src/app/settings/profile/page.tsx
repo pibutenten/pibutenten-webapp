@@ -55,29 +55,38 @@ export default async function MyProfilePage() {
 
   const loginProviders = (user.identities ?? []).map((i) => i.provider);
 
-  // v5.1 옵션 X: 활성 identity 판별
-  // cookie 'pibutenten:identity'가 'primary' 또는 없음 → 1차 identity (= profiles row 자체)
-  // UUID이면 profile_identities row id
+  // Phase 9: cookie가 UUID면 해당 profile (본인 묶음 안)이 active identity.
+  //   - 'primary' 또는 빈 값 → 로그인 profile 자체가 active
+  //   - UUID → 같은 auth_user_id 묶음 안의 다른 profile (예: doctor 부계정)
   const cookieStore = await cookies();
   const activeCookie = cookieStore.get("pibutenten:identity")?.value ?? null;
   const isMultiIdentity =
     activeCookie &&
     activeCookie !== "primary" &&
+    activeCookie !== user.id &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       activeCookie,
     );
 
-  // 활성 identity 정보 fetch (multi-identity일 때만)
+  // 활성 identity profile fetch (multi-identity일 때만 — 본인 묶음 검증 포함)
   let activeIdentity: IdentityRow | null = null;
   if (isMultiIdentity) {
     const { data } = await supabase
-      .from("profile_identities")
-      .select("id, display_name, avatar_url, bio, kind, handle")
+      .from("profiles")
+      .select("id, display_name, avatar_url, bio, role, handle")
       .eq("id", activeCookie)
-      .eq("profile_id", user.id)
-      .maybeSingle()
-      .returns<IdentityRow>();
-    activeIdentity = data ?? null;
+      .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`)
+      .maybeSingle();
+    if (data) {
+      activeIdentity = {
+        id: (data as { id: string }).id,
+        display_name: (data as { display_name: string | null }).display_name,
+        avatar_url: (data as { avatar_url: string | null }).avatar_url,
+        bio: (data as { bio: string | null }).bio,
+        kind: (data as { role: string }).role,
+        handle: (data as { handle: string | null }).handle,
+      } as IdentityRow;
+    }
   }
 
   // 표시·편집할 값 결정:

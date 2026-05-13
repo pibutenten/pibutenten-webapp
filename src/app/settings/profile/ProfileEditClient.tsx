@@ -250,34 +250,19 @@ export default function ProfileEditClient({
         }
       }
 
-      if (activeIdentityId) {
-        // multi-identity 활성 → profile_identities row 수정 (사진·이름·bio)
-        const identityUpdates: Record<string, unknown> = { bio: bioTrimmed };
-        if (!readOnlyNameAndAvatar) {
-          if (photoChanged) identityUpdates.avatar_url = pendingAvatarUrl;
-          if (nameChanged) identityUpdates.display_name = trimmedName;
-        }
-        const { error: ie } = await sb
-          .from("profile_identities")
-          .update(identityUpdates)
-          .eq("id", activeIdentityId);
-        if (ie) {
-          setSkinStatus({ type: "err", msg: ie.message });
-          return;
-        }
-      } else {
-        // 1차 identity (profiles row 자체) — 사진·이름·bio도 profiles에
-        if (!readOnlyNameAndAvatar) {
-          if (photoChanged) profileUpdates.avatar_url = pendingAvatarUrl;
-          if (nameChanged) profileUpdates.display_name = trimmedName;
-        }
-        profileUpdates.bio = bioTrimmed;
+      // Phase 9: active identity == 다른 profiles row (묶음 내) 또는 본인 profile 자체.
+      // 둘 다 profiles update로 일원화. activeIdentityId가 있으면 그 row를, 없으면 본인을.
+      const targetProfileId = activeIdentityId ?? userId;
+      if (!readOnlyNameAndAvatar) {
+        if (photoChanged) profileUpdates.avatar_url = pendingAvatarUrl;
+        if (nameChanged) profileUpdates.display_name = trimmedName;
       }
+      profileUpdates.bio = bioTrimmed;
 
       const { error } = await sb
         .from("profiles")
         .update(profileUpdates)
-        .eq("id", userId);
+        .eq("id", targetProfileId);
       if (error) {
         setSkinStatus({ type: "err", msg: error.message });
         return;

@@ -13,8 +13,13 @@ import path from "node:path";
 
 export const dynamic = "force-dynamic";
 
-const REDIRECT_URI =
-  "http://localhost:3000/api/admin/youtube-oauth/callback";
+function getRedirectUri(): string {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  if (explicit) return `${explicit}/api/admin/youtube-oauth/callback`;
+  const vercel = process.env.VERCEL_URL;
+  if (vercel) return `https://${vercel}/api/admin/youtube-oauth/callback`;
+  return "http://localhost:3000/api/admin/youtube-oauth/callback";
+}
 
 function htmlPage(title: string, body: string): NextResponse {
   const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${title}</title>
@@ -65,7 +70,7 @@ export async function GET(req: Request) {
     code,
     client_id: clientId,
     client_secret: clientSecret,
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: getRedirectUri(),
     grant_type: "authorization_code",
   });
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {

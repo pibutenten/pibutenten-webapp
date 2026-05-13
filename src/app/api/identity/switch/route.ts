@@ -6,12 +6,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * v4 multi-identity — 활성 identity 스위치.
+ * Phase 9: ID 스위치 — 모든 ID = profiles row.
  *
- * POST { identityId: 'primary' | <profile_identities.id> }
+ * POST { identityId: 'primary' | <profiles.id> }
  *
- * cookie 'pibutenten:identity'에 저장 → layout.tsx getSessionInfo가 읽어서 활성 결정.
- * 본인이 보유한 identity인지 검증 (다른 사람 identity로 스위치 차단).
+ * cookie 'pibutenten:identity'에 target profile.id 저장.
+ * 본인 묶음(auth_user_id) 안의 profile인지 검증.
  */
 export async function POST(req: Request) {
   let body: { identityId?: string } = {};
@@ -33,18 +33,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "로그인 필요" }, { status: 401 });
   }
 
-  // 'primary'는 항상 허용 (본인 profiles row)
+  // 'primary'는 항상 허용 (legacy 호환)
   if (target !== "primary") {
-    // profile_identities 본인 소유인지 검증
+    // 본인 묶음 (auth_user_id) 안의 profile인지 검증
     const { data: row } = await supabase
-      .from("profile_identities")
+      .from("profiles")
       .select("id")
       .eq("id", target)
-      .eq("profile_id", user.id)
+      .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`)
       .maybeSingle();
     if (!row) {
       return NextResponse.json(
-        { error: "권한 없음 — 본인 identity가 아닙니다." },
+        { error: "권한 없음 — 본인 ID가 아닙니다." },
         { status: 403 },
       );
     }
