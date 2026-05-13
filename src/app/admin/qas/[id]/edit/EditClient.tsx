@@ -649,6 +649,8 @@ export default function EditClient({
               아래 버튼을 누르면 그 상태로 즉시 저장됩니다.
             </span>
           </div>
+          {/* E1: 버튼 3개 통일 — 삭제 / 대기 / 발행.
+              초안으로·보관 버튼 제거. 현재 상태와 같은 버튼은 disabled로 표시. */}
           <div className="flex flex-wrap justify-between gap-2">
             <button
               type="button"
@@ -659,46 +661,22 @@ export default function EditClient({
               🗑 삭제
             </button>
             <div className="flex flex-wrap gap-2">
-              {status !== "draft" && (
-                <button
-                  type="button"
-                  onClick={() => save("draft")}
-                  disabled={isSaving}
-                  className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
-                >
-                  📝 초안으로
-                </button>
-              )}
-              {status !== "pending_review" && (
-                <button
-                  type="button"
-                  onClick={() => save("pending_review")}
-                  disabled={isSaving}
-                  className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
-                >
-                  ⏳ 검수 대기로
-                </button>
-              )}
-              {status !== "published" && (
-                <button
-                  type="button"
-                  onClick={() => save("published")}
-                  disabled={isSaving}
-                  className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
-                >
-                  🚀 발행
-                </button>
-              )}
-              {status === "published" && (
-                <button
-                  type="button"
-                  onClick={() => save("archived")}
-                  disabled={isSaving}
-                  className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:border-[var(--primary)] disabled:opacity-50"
-                >
-                  📥 보관
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => save("pending_review")}
+                disabled={isSaving || status === "pending_review"}
+                className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+              >
+                ⏳ 대기
+              </button>
+              <button
+                type="button"
+                onClick={() => save("published")}
+                disabled={isSaving || status === "published"}
+                className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+              >
+                🚀 발행
+              </button>
             </div>
           </div>
         </div>
