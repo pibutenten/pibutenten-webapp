@@ -899,19 +899,38 @@ function CardEditor({
 
       <div>
         <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-          키워드 (쉼표로 구분)
+          키워드 (엔터로 추가, X로 삭제)
         </label>
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {card.keywords.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() =>
+                onChange({
+                  keywords: card.keywords.filter((x) => x !== k),
+                })
+              }
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--primary)] bg-[var(--primary)]/10 px-2.5 py-0.5 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary)]/20"
+            >
+              {k} <span aria-hidden>×</span>
+            </button>
+          ))}
+        </div>
         <input
           type="text"
-          value={card.keywords.join(", ")}
-          onChange={(e) =>
-            onChange({
-              keywords: e.target.value
-                .split(",")
-                .map((k) => k.trim())
-                .filter(Boolean),
-            })
-          }
+          placeholder="키워드 입력 후 Enter"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              const v = (e.target as HTMLInputElement).value
+                .trim()
+                .replace(/^#/, "");
+              if (!v || card.keywords.includes(v)) return;
+              onChange({ keywords: [...card.keywords, v] });
+              (e.target as HTMLInputElement).value = "";
+            }
+          }}
           className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)]"
         />
       </div>
