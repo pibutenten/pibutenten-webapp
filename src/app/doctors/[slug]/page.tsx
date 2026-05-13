@@ -13,6 +13,7 @@ import {
   type DoctorProfileData,
 } from "@/lib/doctor-profile";
 import { buildDoctorFull } from "@/lib/schema/doctor";
+import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
 
 export const dynamic = "force-dynamic";
 
@@ -185,6 +186,32 @@ export default async function DoctorDetailPage({ params }: Props) {
     }
   }
 
+  // 본인 접속 시 — 인기 검색어/태그 6개 기간 prefetch (admin 대시보드와 동일)
+  // 기간 토글 6종 통일: 24시간/7일/30일/90일/1년/전체
+  const POPULAR_DAYS = [1, 7, 30, 90, 365, 0] as const;
+  type SearchRow = { query: string; cnt: number };
+  type TagRow = { keyword: string; cnt: number };
+  const searchesByDays: Record<number, SearchRow[]> = {};
+  const tagsByDays: Record<number, TagRow[]> = {};
+  if (isOwner) {
+    const [searchResults, tagResults] = await Promise.all([
+      Promise.all(
+        POPULAR_DAYS.map((d) =>
+          supabase.rpc("get_top_search_queries", { p_days: d || 36500, p_limit: 10 }),
+        ),
+      ),
+      Promise.all(
+        POPULAR_DAYS.map((d) =>
+          supabase.rpc("get_top_tags", { p_days: d, p_min_count: 1, p_limit: 10 }),
+        ),
+      ),
+    ]);
+    POPULAR_DAYS.forEach((d, i) => {
+      searchesByDays[d] = (searchResults[i]?.data ?? []) as SearchRow[];
+      tagsByDays[d] = ((tagResults[i]?.data ?? []) as TagRow[]).slice(0, 10);
+    });
+  }
+
   // 본인 접속 시 — 내 글에 달린 최근 댓글 (처리해야 할 것들)
   type RecentCommentRow = {
     id: number;
@@ -277,6 +304,12 @@ export default async function DoctorDetailPage({ params }: Props) {
 
         {/* 받은 댓글 — 최근 10개 */}
         <DoctorCommentsWidget comments={recentComments} doctorSlug={doctor.slug} />
+
+        {/* 인기 검색어·태그 — admin 대시보드와 동일 (글로벌 데이터, 6개 기간 prefetch) */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <PopularSearchesCard initialDays={7} dataByDays={searchesByDays} />
+          <PopularTagsCard initialDays={0} dataByDays={tagsByDays} />
+        </div>
 
         {/* 공개 프로필 미리보기 링크 */}
         <p className="text-center text-[11px] text-[var(--text-muted)]">

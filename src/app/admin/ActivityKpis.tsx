@@ -11,11 +11,13 @@ type Kpi = {
   shares: number;
 };
 
+// 기간 토글 6종 — 사이트 전체 통일 (24시간/7일/30일/90일/1년/전체)
 const PERIODS: Array<{ label: string; days: number }> = [
   { label: "24시간", days: 1 },
   { label: "7일", days: 7 },
   { label: "30일", days: 30 },
   { label: "90일", days: 90 },
+  { label: "1년", days: 365 },
   { label: "전체", days: 0 },
 ];
 
@@ -66,7 +68,7 @@ export default function ActivityKpis({
                 className={
                   "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors " +
                   (active
-                    ? "bg-[var(--primary)] text-white"
+                    ? "bg-[var(--primary)]/80 font-semibold text-white"
                     : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
                 }
               >

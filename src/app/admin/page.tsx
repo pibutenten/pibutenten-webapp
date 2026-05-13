@@ -14,10 +14,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// 인기 검색어/태그 — 6개 기간 모두 prefetch
-const SEARCH_TAG_DAYS = [7, 30, 90, 180, 365, 0] as const;
-// 활동 KPI — 5개 기간 모두 prefetch
-const ACTIVITY_DAYS = [1, 7, 30, 90, 0] as const;
+// 기간 토글 6종 통일 — 24시간/7일/30일/90일/1년/전체 (사이트 전체 동일)
+const PERIOD_DAYS = [1, 7, 30, 90, 365, 0] as const;
+const SEARCH_TAG_DAYS = PERIOD_DAYS;
+const ACTIVITY_DAYS = PERIOD_DAYS;
 
 type SearchRow = { query: string; cnt: number };
 type TagRow = { keyword: string; cnt: number };
