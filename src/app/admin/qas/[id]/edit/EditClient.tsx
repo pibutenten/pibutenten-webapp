@@ -54,6 +54,7 @@ type QA = {
   external_image?: string | null;
   external_site_name?: string | null;
   pubmed_ref?: PubmedRef;
+  pubmed_refs?: NonNullable<PubmedRef>[] | null;
   doctor: Doctor | null;
   video: Video | null;
 };
@@ -168,8 +169,13 @@ export default function EditClient({
   const [startSec, setStartSec] = useState(initialStartSec);
   const [startInput, setStartInput] = useState(formatMMSS(initialStartSec));
 
-  // 참고문헌 — 편집·추가·제거 가능
-  const [pubmedRef, setPubmedRef] = useState<PubmedRef>(qa.pubmed_ref ?? null);
+  // 참고문헌 — 멀티 ref 지원 (Phase 9 / 0054).
+  // 초기값: qa.pubmed_refs 우선, 없으면 단일 pubmed_ref를 1개짜리 배열로.
+  const [pubmedRefs, setPubmedRefs] = useState<NonNullable<PubmedRef>[]>(() => {
+    if (qa.pubmed_refs && qa.pubmed_refs.length > 0) return qa.pubmed_refs;
+    if (qa.pubmed_ref) return [qa.pubmed_ref];
+    return [];
+  });
   const [refPmidInput, setRefPmidInput] = useState("");
   const [refLoading, setRefLoading] = useState(false);
 
@@ -254,7 +260,9 @@ export default function EditClient({
           external_url: externalUrl.trim() || null,
           external_title: externalTitle.trim() || null,
           meta: metaStr,
-          pubmed_ref: pubmedRef,
+          // 단일 pubmed_ref(legacy) + 멀티 pubmed_refs 둘 다 저장 (호환성)
+          pubmed_ref: pubmedRefs[0] ?? null,
+          pubmed_refs: pubmedRefs.length > 0 ? pubmedRefs : null,
         })
         .eq("id", qa.id);
       if (upErr) {
@@ -519,21 +527,28 @@ export default function EditClient({
           <label className="mb-1 block text-sm text-[var(--text-secondary)]">
             참고문헌 (PubMed)
           </label>
-          {pubmedRef ? (
-            <div className="space-y-2">
-              <ReferenceLine r={pubmedRef} />
-              <button
-                type="button"
-                onClick={() => setPubmedRef(null)}
-                className="text-xs text-red-600 hover:underline"
-              >
-                참고문헌 제거
-              </button>
-            </div>
-          ) : (
+          {/* E6: 멀티 ref UI — 각 ref별 X 버튼 + 새 ref 추가 + 입력 */}
+          <div className="space-y-2">
+            {pubmedRefs.map((r, idx) => (
+              <div key={`${r.pmid}-${idx}`} className="relative">
+                <ReferenceLine r={r} />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPubmedRefs((prev) => prev.filter((_, i) => i !== idx))
+                  }
+                  title="이 참고문헌 제거"
+                  className="absolute right-2 top-2 rounded-full border border-red-300 bg-white px-2 py-0.5 text-[11px] font-bold text-red-600 hover:bg-red-50"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
             <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-soft)]/40 p-3">
               <p className="mb-2 text-xs text-[var(--text-muted)]">
-                참고문헌 없음 — PMID를 입력해 PubMed에서 가져올 수 있습니다.
+                {pubmedRefs.length === 0
+                  ? "참고문헌 없음 — PMID를 입력해 PubMed에서 가져올 수 있습니다."
+                  : "참고문헌 추가 — PMID 입력 후 [+ PubMed에서 가져오기]"}
               </p>
               <div className="flex gap-2">
                 <input
@@ -581,7 +596,7 @@ export default function EditClient({
                         return;
                       }
                       const r = data.reference;
-                      setPubmedRef({
+                      const newRef = {
                         pmid: r.pmid,
                         doi: r.doi,
                         title: r.title,
@@ -590,6 +605,11 @@ export default function EditClient({
                         authors_short: r.authors_short,
                         pubmed_url: `https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/`,
                         doi_url: r.doi ? `https://doi.org/${r.doi}` : "",
+                      };
+                      // 중복 PMID 차단
+                      setPubmedRefs((prev) => {
+                        if (prev.some((p) => p.pmid === newRef.pmid)) return prev;
+                        return [...prev, newRef];
                       });
                       setRefPmidInput("");
                     } catch (e) {
@@ -610,7 +630,7 @@ export default function EditClient({
                 pubmed.ncbi.nlm.nih.gov/<b>37705328</b>/).
               </p>
             </div>
-          )}
+          </div>
         </div>
 
         {error && (

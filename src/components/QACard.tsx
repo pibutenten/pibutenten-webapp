@@ -63,7 +63,7 @@ export type QACardData = {
   category?: string | null;
   /** 의사 직함 숨김 (Phase A.2) — true면 사적 모드, "피부과 전문의" 배지 숨김 */
   hide_doctor_credential?: boolean | null;
-  /** Phase 6 — 카드 하단 ref. 박스용 PubMed 단일 참고문헌. null이면 미노출 */
+  /** Phase 6 — 카드 하단 ref. 박스용 PubMed 단일 참고문헌. (legacy, 호환성 유지) */
   pubmed_ref?: {
     pmid?: string | null;
     doi?: string | null;
@@ -75,6 +75,18 @@ export type QACardData = {
     doi_url?: string | null;
     reasoning?: string | null;
   } | null;
+  /** Phase 9 (0054) — 멀티 참고문헌 배열. 있으면 우선, 없으면 pubmed_ref 사용 */
+  pubmed_refs?: Array<{
+    pmid?: string | null;
+    doi?: string | null;
+    title?: string | null;
+    journal?: string | null;
+    year?: string | null;
+    authors_short?: string | null;
+    pubmed_url?: string | null;
+    doi_url?: string | null;
+    reasoning?: string | null;
+  }> | null;
   doctor: {
     slug: string;
     name: string;
@@ -931,68 +943,82 @@ export default function QACard({
             {renderAnswerBody(qa.answer, activeQuery, isLongAnswer && !expanded, highlightColor)}
           </div>
 
-          {/* 3a. 참고 논문 — pubmed_ref가 있을 때만 카드 본문 아래 인라인 한 줄로 자연스럽게 노출.
-              isLongAnswer && !expanded면 가림(펼쳐야 보임). 운영자 reasoning은 사용자 화면에 X. */}
-          {qa.pubmed_ref &&
-            (qa.pubmed_ref.pmid || qa.pubmed_ref.doi) &&
-            !(isLongAnswer && !expanded) &&
-            (() => {
-              const r = qa.pubmed_ref;
-              // 사용자 화면 링크는 PubMed 우선 (DOI는 JSON-LD 머신 마크업에 보존).
-              const linkHref = r.pubmed_url || r.doi_url;
-              // 압축 한 줄: Title — Authors, Journal (Year). 제목 자체가 PubMed 링크라 URL 텍스트는 생략.
-              return (
-                <div
-                  className="mt-3"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="text-[10px] font-semibold tracking-[0.04em] text-[var(--text-muted)]/70">
-                    참고문헌
-                  </div>
-                  <p className="mt-0.5 text-[13px] leading-[1.55] text-[var(--text-muted)]">
-                  <cite
-                    itemScope
-                    itemType="https://schema.org/ScholarlyArticle"
-                    className="not-italic"
-                  >
-                    {linkHref ? (
-                      <a
-                        href={linkHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline"
-                        style={{ color: "var(--primary)" }}
-                        itemProp="url"
-                      >
-                        <span itemProp="name">{r.title}</span>
-                      </a>
-                    ) : (
-                      <span itemProp="name">{r.title}</span>
-                    )}
-                    {r.authors_short && (
-                      <>
-                        {" — "}
-                        <span itemProp="author">{r.authors_short}</span>
-                      </>
-                    )}
-                    {r.journal && (
-                      <>
-                        {", "}
-                        <span itemProp="publisher">{r.journal}</span>
-                      </>
-                    )}
-                    {r.year && (
-                      <>
-                        {" ("}
-                        <span itemProp="datePublished">{r.year}</span>
-                        {")"}
-                      </>
-                    )}
-                  </cite>
-                  </p>
+          {/* 3a. 참고 논문 — 멀티 ref 지원.
+              pubmed_refs(배열) 우선, 없으면 단일 pubmed_ref(legacy) fallback.
+              isLongAnswer && !expanded면 가림(펼쳐야 보임). reasoning은 사용자 화면 X. */}
+          {(() => {
+            // 표시할 ref 배열 결정
+            const refs: NonNullable<QACardData["pubmed_refs"]> =
+              qa.pubmed_refs && qa.pubmed_refs.length > 0
+                ? qa.pubmed_refs
+                : qa.pubmed_ref
+                  ? [qa.pubmed_ref]
+                  : [];
+            // 유효한 ref만 (pmid 또는 doi 있는 것)
+            const validRefs = refs.filter((r) => r.pmid || r.doi);
+            if (validRefs.length === 0) return null;
+            if (isLongAnswer && !expanded) return null;
+            return (
+              <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                <div className="text-[10px] font-semibold tracking-[0.04em] text-[var(--text-muted)]/70">
+                  참고문헌{validRefs.length > 1 ? ` (${validRefs.length})` : ""}
                 </div>
-              );
-            })()}
+                <ul className="mt-0.5 space-y-1 text-[13px] leading-[1.55] text-[var(--text-muted)]">
+                  {validRefs.map((r, idx) => {
+                    const linkHref = r.pubmed_url || r.doi_url;
+                    return (
+                      <li key={`${r.pmid ?? r.doi ?? idx}-${idx}`}>
+                        <cite
+                          itemScope
+                          itemType="https://schema.org/ScholarlyArticle"
+                          className="not-italic"
+                        >
+                          {validRefs.length > 1 && (
+                            <span className="mr-1 text-[var(--text-muted)]/70">
+                              {idx + 1}.
+                            </span>
+                          )}
+                          {linkHref ? (
+                            <a
+                              href={linkHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:underline"
+                              style={{ color: "var(--primary)" }}
+                              itemProp="url"
+                            >
+                              <span itemProp="name">{r.title}</span>
+                            </a>
+                          ) : (
+                            <span itemProp="name">{r.title}</span>
+                          )}
+                          {r.authors_short && (
+                            <>
+                              {" — "}
+                              <span itemProp="author">{r.authors_short}</span>
+                            </>
+                          )}
+                          {r.journal && (
+                            <>
+                              {", "}
+                              <span itemProp="publisher">{r.journal}</span>
+                            </>
+                          )}
+                          {r.year && (
+                            <>
+                              {" ("}
+                              <span itemProp="datePublished">{r.year}</span>
+                              {")"}
+                            </>
+                          )}
+                        </cite>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })()}
         </>
       )}
       <div className="mt-2 flex items-center gap-3 text-[12px]">

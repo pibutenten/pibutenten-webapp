@@ -36,7 +36,7 @@ export default async function AdminEditQAPage({ params }: Props) {
       `id, question, answer, meta, keywords, status, type, is_pick,
        doctor_id, video_id, like_count, view_count, created_at,
        external_url, external_title, external_image, external_site_name,
-       pubmed_ref,
+       pubmed_ref, pubmed_refs,
        doctor:doctors(id, slug, name, branch),
        video:videos(youtube_id, youtube_url, topic, upload_date)`,
     )
