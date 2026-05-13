@@ -123,11 +123,14 @@ export default async function DoctorDetailPage({ params }: Props) {
   // 본인 접속 판단 — viewer가 doctor_accounts로 매핑된 본인 doctor인지
   let isOwner = false;
   let ownerStats: {
-    published: number;
-    pending: number;
+    publishedQa: number;
+    pendingReview: number;
+    publishedPost: number;
     draft: number;
+    receivedComments: number;
     receivedLikes: number;
     receivedSaves: number;
+    receivedShares: number;
   } | null = null;
   if (viewer) {
     const { data: da } = await supabase
@@ -138,12 +141,14 @@ export default async function DoctorDetailPage({ params }: Props) {
       .maybeSingle();
     if (da) {
       isOwner = true;
-      // 본인 글 상태별 카운트 + 받은 인터랙션 합산
-      const [pub, pen, drf, likesRes, savesRes] = await Promise.all([
+      // 8개 KPI: 글 상태별 카운트(4) + 받은 인터랙션 합산(4)
+      // 누적 카운트 기준. 기간 토글은 다음 세션 RPC 작업으로 분리됨.
+      const [pubQa, pen, pubPost, drf, sumsRes] = await Promise.all([
         supabase
           .from("qas")
           .select("id", { count: "exact", head: true })
           .eq("doctor_id", doctor.id)
+          .eq("type", "qa")
           .eq("status", "published"),
         supabase
           .from("qas")
@@ -154,34 +159,43 @@ export default async function DoctorDetailPage({ params }: Props) {
           .from("qas")
           .select("id", { count: "exact", head: true })
           .eq("doctor_id", doctor.id)
+          .eq("type", "post")
+          .eq("status", "published"),
+        supabase
+          .from("qas")
+          .select("id", { count: "exact", head: true })
+          .eq("doctor_id", doctor.id)
           .eq("status", "draft"),
         supabase
           .from("qas")
-          .select("like_count")
-          .eq("doctor_id", doctor.id)
-          .eq("status", "published"),
-        supabase
-          .from("qas")
-          .select("save_count")
+          .select("like_count, save_count, share_count, comment_count")
           .eq("doctor_id", doctor.id)
           .eq("status", "published"),
       ]);
-      const totalLikes = (likesRes.data ?? []).reduce(
-        (sum: number, r: { like_count: number | null }) =>
-          sum + (r.like_count ?? 0),
-        0,
-      );
-      const totalSaves = (savesRes.data ?? []).reduce(
-        (sum: number, r: { save_count: number | null }) =>
-          sum + (r.save_count ?? 0),
-        0,
+      type SumRow = {
+        like_count: number | null;
+        save_count: number | null;
+        share_count: number | null;
+        comment_count: number | null;
+      };
+      const sums = ((sumsRes.data ?? []) as SumRow[]).reduce(
+        (acc, r) => ({
+          likes: acc.likes + (r.like_count ?? 0),
+          saves: acc.saves + (r.save_count ?? 0),
+          shares: acc.shares + (r.share_count ?? 0),
+          comments: acc.comments + (r.comment_count ?? 0),
+        }),
+        { likes: 0, saves: 0, shares: 0, comments: 0 },
       );
       ownerStats = {
-        published: pub.count ?? 0,
-        pending: pen.count ?? 0,
+        publishedQa: pubQa.count ?? 0,
+        pendingReview: pen.count ?? 0,
+        publishedPost: pubPost.count ?? 0,
         draft: drf.count ?? 0,
-        receivedLikes: totalLikes,
-        receivedSaves: totalSaves,
+        receivedComments: sums.comments,
+        receivedLikes: sums.likes,
+        receivedSaves: sums.saves,
+        receivedShares: sums.shares,
       };
     }
   }
@@ -294,7 +308,6 @@ export default async function DoctorDetailPage({ params }: Props) {
         </div>
 
         <DoctorOwnerWidget
-          doctorName={doctor.name}
           doctorSlug={doctor.slug}
           stats={ownerStats}
         />
@@ -441,38 +454,50 @@ export default async function DoctorDetailPage({ params }: Props) {
  * - 외부인엔 노출 X
  */
 function DoctorOwnerWidget({
-  doctorName,
   doctorSlug,
   stats,
 }: {
-  doctorName: string;
   doctorSlug: string;
   stats: {
-    published: number;
-    pending: number;
+    publishedQa: number;
+    pendingReview: number;
+    publishedPost: number;
     draft: number;
+    receivedComments: number;
     receivedLikes: number;
     receivedSaves: number;
+    receivedShares: number;
   };
 }) {
   return (
     <div>
-      {/* 통계 5종 — 각 카드 클릭 시 해당 메뉴로 이동. 외곽 박스/헤더 제거 — 상위 대시보드 헤더로 통합. */}
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+      {/* 8개 KPI — 모바일 4×2 / 데스크탑 8 한 줄. 각 카드 클릭 시 해당 필터로 이동.
+          누적 카운트 기준 — 기간 토글은 별도 RPC 작업으로 분리됨. */}
+      <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8">
         <Stat
-          label="발행"
-          value={stats.published}
-          href={`/admin/qas?doctor=${doctorSlug}&status=published`}
+          label="발행 Q&A"
+          value={stats.publishedQa}
+          href={`/admin/qas?doctor=${doctorSlug}&type=qa&status=published`}
         />
         <Stat
           label="검수 대기"
-          value={stats.pending}
+          value={stats.pendingReview}
           href={`/admin/qas?doctor=${doctorSlug}&status=pending_review`}
+        />
+        <Stat
+          label="발행 포스팅"
+          value={stats.publishedPost}
+          href={`/admin/qas?doctor=${doctorSlug}&type=post&status=published`}
         />
         <Stat
           label="임시저장"
           value={stats.draft}
           href={`/admin/qas?doctor=${doctorSlug}&status=draft`}
+        />
+        <Stat
+          label="받은 댓글"
+          value={stats.receivedComments}
+          href={`/admin/qas?doctor=${doctorSlug}&sort=comments`}
         />
         <Stat
           label="받은 좋아요"
@@ -484,9 +509,12 @@ function DoctorOwnerWidget({
           value={stats.receivedSaves}
           href={`/admin/qas?doctor=${doctorSlug}&sort=saves`}
         />
+        <Stat
+          label="받은 공유"
+          value={stats.receivedShares}
+          href={`/admin/qas?doctor=${doctorSlug}&sort=shares`}
+        />
       </div>
-
-      {/* 새 글 작성·내 글 관리 버튼 제거 — 우하단 floating 버튼 + 위 Stat 카드 클릭으로 통합. */}
     </div>
   );
 }
