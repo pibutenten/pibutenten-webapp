@@ -184,7 +184,7 @@ export default async function AdminPage() {
               href="/admin/draft"
               emoji="📝"
               title="새 Q&A 추출하기"
-              desc="YouTube 영상 → AI Q&A 카드 추출 → PubMed 참고문헌 매칭 → 원장 검수 보냄"
+              desc="소스에서 Q&A 카드를 추출하여 검수를 보냅니다"
             />
           )}
           {/* 검수 대기 — 모든 admin 노출 (원장 계정에선 본인 doctor 카드만 보임) */}
