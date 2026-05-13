@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-13 (도메인 이전 `pbtt.kr` + 약관 페이지 신설 + OAuth provider 4종 갱신)
-> 기준 commit: `f002b5b` (login 페이지 안내 문구 정리)
+> 마지막 업데이트: 2026-05-14 (대시보드 대대적 정비 A/B/C 트랙 + 약관 정식 검토본 + KPI 리스트 페이지 + D1·D2 LLM)
+> 기준 commit: `8df5550` (TopNav 클린업 + migration 0044)
 
 ## 🟢 진행 상황 한눈에
 - ✅ Phase 9 — multi-ID 단순화 (profiles + auth_user_id 묶음), `profile_identities` table·`identity_id` 컬럼 모두 drop (migration 0055)
@@ -38,7 +38,44 @@
   - SiteFooter nav에 두 페이지 링크 추가
   - 초안 상태 명시 — 베타 안정화 이후 법무 자문 권장
 - ✅ **MigrationBanner 제거 + login 페이지 안내 문구 정리** — pibutenten.com 이전 안내(쇼핑몰 분리)가 pbtt.kr 신규 도메인엔 부적합. 로그인 페이지 "관리자/원장님 계정 전용 (일반 회원가입은 추후 오픈)" 문구는 네이버 검수와 모순돼 제거.
-- ⏳ 다음 세션 — D1·D2 다중 출연 LLM 프롬프트 / /write ↔ 카드 편집기 완전 통일 (PubMed chip + ref UI) / 네이버 검수 결과 대기 (3~7영업일) / 베타 전 체크리스트 진행
+- ✅ **약관 정식 검토본 반영** (2026-05-14) — terms.md/privacy.md/about.md/doctor-guidelines.md 4종 검토본 적용
+  - `/terms` 16조 (의료법 56조/시행령 23조 광고 금지 + 응급의료 안내 + 게시물 외부 활용 중단권 등 보강)
+  - `/privacy` 12조 + 제5조의2 (개인정보 국외 이전 표) 신규
+  - `/about` JSON-LD schema 보존 + 관련 문서 섹션 추가
+  - `/doctor-guidelines` 신규 페이지 (8섹션)
+  - 4 페이지 footer 표준 순서 통일: 홈으로 / 사이트 안내 / 전문의 / 이용약관 / 개인정보 처리방침 / 의사 답변 가이드라인 (본인 페이지만 빠짐)
+  - SiteFooter에도 "의사 답변 가이드라인" 추가
+  - 운영 이메일 `jminbae@gmail.com` → `pibutenten@gmail.com` 일괄 통일 (4 페이지 + PRD + llms.txt)
+  - 개인정보 보호책임자: 배진민 → 배정민
+  - "홈으로" 버튼 하늘색 → 회색(text-secondary) + 흰글씨 통일
+- ✅ **A 트랙: 대시보드 시각 정비** (2026-05-14)
+  - A1: "운영 도구" → "대시보드" 라벨 / AdminBackLink 라운드 박스 제거
+  - A2: 자주 쓰는 진입점 3개 제거 (검수대기/Pick/새 글 쓰기)
+  - A3: 원장 본인 대시보드 중복 헤더 + "본인만 보임" 뱃지 제거
+  - A4: privacy/terms "홈으로" 흰글씨 보장
+  - A5: 로그아웃 버튼을 `/{handle}` 본인 프로필 하단으로 이동 (프로필 수정에서는 제거)
+- ✅ **B 트랙: 대시보드 기능 추가** (2026-05-14)
+  - B1: 기간 토글 6종 통일 (24h/7d/30d/90d/1y/all) + active 칩 bg-primary/80 톤 다운
+  - B2 (partial): 원장 KPI 5개 → 8개 (발행 Q&A/검수대기/발행 포스팅/임시 / 받은 댓글/좋아요/저장/공유). 누적 카운트 기준 — 기간 토글은 B2-rest 다음 세션
+  - B3: 원장 대시보드에 인기 검색어/태그 위젯 추가 (admin과 동일)
+  - B4: /admin/users에 회원별 기간 KPI 5개 (방문일수/조회/댓글/좋아요/공유) + 기간 토글
+  - B5: /admin/comments 글 묶음화 + 무한 스크롤 (CommentsClient + API route)
+  - B6: 활동통계 6개 KPI 카드 클릭 시 TOP 리스트 페이지 6종 (visitors/views/comments/likes/saves/shares)
+    - 통합 `/admin/stats/[kind]` + StatsListClient + API route
+    - 무한 스크롤 + 기간 토글 6종
+- ✅ **C1 (D1·D2): admin/draft LLM 강화 + 카드별 화자 dropdown** (2026-05-14)
+  - D1: step1 LLM 프롬프트에 영상 출연 원장 목록 + 주 화자 표시 전송. LLM이 카드별 `doctor_slug` 응답
+  - D2: CardEditor 화자 readonly chip → 9 doctor select dropdown (LLM 추정 틀려도 수동 수정 가능)
+- ✅ **C2 partial: migration 0044 `qas.pubmed_refs jsonb[]`** 신설 + 적용 (843/995 row 백필). EditClient 멀티 ref UI는 이미 구현됨. WriteClient 멀티 ref 통합은 다음 세션.
+- ✅ **DB migrations 신규** (2026-05-14)
+  - `0044_qa_pubmed_refs_multi.sql` — `qas.pubmed_refs jsonb[]` 신설 + 기존 단일 `pubmed_ref` 백필
+  - `0046_admin_kpi_lists.sql` — RPC 7종 (`get_users_kpi`, `get_top_visitors`, `get_top_qas_by_views/comments/likes/saves/shares`)
+- ⏳ 다음 세션
+  - C2 잔여: E2 (Pick 토글 좌우 배치) / E3 (영상 제목 readonly + oEmbed) / E4 (YouTube 진입 버튼 제거) / WriteClient 멀티 PubMed ref UI
+  - B2 잔여: 원장 KPI 8개에 기간 토글 (RPC `get_doctor_kpi(doctor_id, days)` 신규 필요)
+  - 네이버 OAuth 검수 결과 대기 (3~7영업일)
+  - sitemap.xml / robots.txt / llms.txt 인덱싱 정책 논의 (베타 동안 noindex 유지)
+  - Supabase Pro 업그레이드 ($25/월) — 6월 정식 런칭 전
 
 > 라이브: https://pbtt.kr (구: https://pibutenten-webapp.vercel.app, https://www.pbtt.kr — 모두 308 redirect)
 
