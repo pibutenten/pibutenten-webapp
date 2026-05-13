@@ -48,7 +48,7 @@
 
 - **이름**: 피부텐텐 — 피부과 전문의가 함께하는 Q&A SNS
 - **회사**: 주식회사 진솔컴퍼니
-- **운영자**: jminbae@gmail.com
+- **운영자**: pibutenten@gmail.com
 - **슬로건**: 피부가 예뻐지는 모든 이야기 / 피부가 예뻐지는 10분
 - **메인 도메인**: https://pbtt.kr (2026-05-13 연결)
 - **보조 도메인**: https://www.pbtt.kr → 308 redirect to apex / https://pibutenten-webapp.vercel.app → 301 redirect

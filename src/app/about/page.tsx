@@ -98,7 +98,7 @@ export default async function AboutPage() {
         },
         contactPoint: {
           "@type": "ContactPoint",
-          email: "jminbae@gmail.com",
+          email: "pibutenten@gmail.com",
           contactType: "customer support",
           availableLanguage: ["Korean", "ko-KR"],
         },
@@ -163,19 +163,20 @@ export default async function AboutPage() {
           9명
         </Link>
         이 함께 만드는 피부 미용 Q&amp;A SNS입니다. 사용자가 자유롭게 피부 고민을
-        나누고, 전문의가 검수된 답변과 칼럼을 제공합니다.
+        나누고, 전문의가 검수한 답변과 칼럼을 제공합니다.
       </p>
 
       <Section title="운영 주체">
         <ul className="list-disc space-y-1 pl-5 text-[14px] leading-[1.7] text-[var(--text-secondary)]">
           <li>운영자: 주식회사 진솔컴퍼니</li>
+          <li>사업자등록번호: 261-86-01781</li>
           <li>
             문의:{" "}
             <a
-              href="mailto:jminbae@gmail.com"
+              href="mailto:pibutenten@gmail.com"
               className="text-[var(--primary)] hover:underline"
             >
-              jminbae@gmail.com
+              pibutenten@gmail.com
             </a>
           </li>
         </ul>
@@ -187,7 +188,15 @@ export default async function AboutPage() {
             <strong className="font-semibold text-[var(--text)]">
               전문의 답변
             </strong>{" "}
-            — board-certified 피부과 전문의가 직접 작성·검수한 콘텐츠입니다.
+            — 피부과 전문의가 직접 작성·검수한 콘텐츠입니다. 의사 회원의 답변·
+            칼럼 작성은{" "}
+            <Link
+              href="/doctor-guidelines"
+              className="text-[var(--primary)] hover:underline"
+            >
+              의사 답변 가이드라인
+            </Link>
+            에 따라 운영됩니다.
           </li>
           <li>
             <strong className="font-semibold text-[var(--text)]">
@@ -196,7 +205,12 @@ export default async function AboutPage() {
             — 일반 회원이 자유롭게 작성한 개인 의견입니다. 의료 정보가 아니며,
             검색엔진·AI에 의료 정보로 색인되지 않도록 처리합니다.
           </li>
-          <li>의사·회원 글은 카드 디자인과 뱃지로 구분 표시됩니다.</li>
+          <li>
+            <strong className="font-semibold text-[var(--text)]">
+              카드 구분
+            </strong>{" "}
+            — 의사 글과 회원 글은 카드 디자인과 뱃지로 명확히 구분 표시됩니다.
+          </li>
         </ul>
       </Section>
 
@@ -204,24 +218,71 @@ export default async function AboutPage() {
         <p className="text-[14px] leading-[1.7] text-[var(--text-secondary)]">
           안티에이징·리프팅·스킨부스터를 중심으로, 피부과 전문의의 검증된
           시술·홈케어·안티에이징 정보를 제공합니다. 시술별 원리·효과·부작용·관리법
-          등을 한곳에서 모아볼 수 있습니다.
+          등을 한 곳에서 모아볼 수 있습니다.
         </p>
       </Section>
 
       <Section title="의료 정보 면책">
         <div className="rounded-[var(--radius-sm)] border border-amber-200 bg-amber-50 p-4 text-[13.5px] leading-[1.7] text-amber-900">
           <p className="mb-2 font-semibold">전문의 답변에 대한 안내</p>
-          <p className="mb-3">
+          <p className="mb-2">
             본 사이트의 전문의 답변은 피부과 전문의가 작성한{" "}
             <strong>일반적인 의학 정보</strong>이며, 개인의 진단·치료를 대체하지
             않습니다. 시술 결정 전 반드시 의료진과 직접 상담하시기 바랍니다.
           </p>
+          <p className="mb-3">
+            본 서비스는 개별 회원에 대한 진단·처방·치료를 위한 의료상담을 제공
+            하지 않습니다. 전문의 답변은 같은 질문을 가진 모든 독자에게 도움이
+            되도록 일반 의학 정보 형태로 제공되며, 특정 회원의 증상을 진단하거나
+            치료방법을 결정하기 위한 것이 아닙니다.
+          </p>
           <p className="mb-2 font-semibold">회원 글에 대한 안내</p>
-          <p>
+          <p className="mb-2">
             회원이 작성한 글은 개인 의견이며 의료 정보가 아닙니다. 의료 결정
             시에는 반드시 전문의와 상담하시기 바랍니다.
           </p>
+          <p className="mb-3">
+            회원이 자신의 시술·치료 경험을 게시하거나 특정 의료기관·의료인을
+            추천·비교하는 행위는 「의료법」 제56조 및 같은 법 시행령 제23조에
+            따른 금지 광고에 해당할 수 있습니다. 회사는 이러한 게시물에 대해
+            사전 통지 없이 삭제·블라인드 조치할 수 있습니다.
+          </p>
+          <p className="mb-2 font-semibold">응급 상황 안내</p>
+          <p>
+            호흡곤란, 의식 저하, 광범위한 발진·부종을 동반한 알레르기 반응 등
+            응급 증상이 있는 경우 즉시 119에 신고하거나 가까운 응급의료기관을
+            방문하시기 바랍니다. 본 서비스는 응급 의료 안내 채널이 아닙니다.
+          </p>
         </div>
+      </Section>
+
+      <Section title="관련 문서">
+        <ul className="list-disc space-y-1 pl-5 text-[14px] leading-[1.7] text-[var(--text-secondary)]">
+          <li>
+            <Link
+              href="/terms"
+              className="text-[var(--primary)] hover:underline"
+            >
+              이용약관
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/privacy"
+              className="text-[var(--primary)] hover:underline"
+            >
+              개인정보 처리방침
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/doctor-guidelines"
+              className="text-[var(--primary)] hover:underline"
+            >
+              의사 답변 가이드라인
+            </Link>
+          </li>
+        </ul>
       </Section>
 
       <Section title="외부 링크">
@@ -243,7 +304,8 @@ export default async function AboutPage() {
       <div className="mt-10 flex flex-wrap gap-2 text-[13px]">
         <Link
           href="/"
-          className="rounded-md bg-[var(--primary)] px-4 py-2 font-semibold text-white hover:bg-[var(--primary-dark)]"
+          className="rounded-md bg-[var(--text-secondary)] px-4 py-2 font-semibold text-white hover:bg-[var(--text)]"
+          style={{ color: "#FFFFFF" }}
         >
           홈으로
         </Link>
