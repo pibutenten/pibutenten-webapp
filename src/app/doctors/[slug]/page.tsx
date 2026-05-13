@@ -295,49 +295,73 @@ export default async function DoctorDetailPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {/* 원장님 hero — 모바일에선 양옆/위 main padding 상쇄해서 viewport 가장자리까지 가득 */}
+      {/* 원장님 hero
+          모바일: 인트로 멘트가 페이지 폭을 가득 차지하며 데스크탑처럼 줄바꿈 유지.
+                  멘트는 곡선 따옴표("…")로 감싸고, 사진은 그 아래 정중앙.
+                  이름/소속은 사진 위쪽 여백에 안 겹치게.
+          데스크탑: 기존 좌-멘트 + 우-사진 2단 구조 유지. */}
       <header className="relative -mx-4 -mt-6 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:-mt-4 sm:w-full sm:rounded-t-[var(--radius)]">
-        {/* 좌측 padding을 ProfileSection 카드 안쪽 padding과 정렬 (모바일 40px / 데스크탑 24px)
-            상단 여백 추가 — 헤더 바와 hero 콘텐츠 사이 호흡 확보 */}
-        <div className="mx-auto flex max-w-[820px] items-end gap-2 pl-10 pr-4 pt-6 sm:gap-3 sm:pl-6 sm:pr-3 sm:pt-10">
-          {/* 좌측: 멘트(중상단) + 이름(하단) — 좌측 여백은 부모 px-4로 일관 */}
-          <div className="flex flex-1 flex-col self-stretch pb-5 pt-10 sm:pb-8 sm:pt-16">
-            {doctor.intro && (
-              <>
-                {/* 모바일: \n 무시하고 페이지 폭에 맞춰 자동 wrap */}
-                <p className="block text-[14px] leading-[1.7] text-[var(--text-secondary)] sm:hidden">
-                  {doctor.intro.replace(/\s*\n+\s*/g, " ")}
-                </p>
-                {/* 데스크탑: 입력된 \n 줄바꿈 그대로 유지 */}
-                <p className="hidden whitespace-pre-line text-[16px] leading-[1.7] text-[var(--text-secondary)] sm:block">
-                  {doctor.intro}
-                </p>
-              </>
-            )}
-            <div className="mt-auto pt-5">
-              <h1 className="text-2xl font-bold text-[var(--text)] sm:text-3xl">
-                {doctor.name}
-              </h1>
-              <p className="mt-1 text-[13px] font-medium text-[var(--text-secondary)] sm:text-[14px]">
-                {affiliation}
-              </p>
-            </div>
+        {/* 모바일 레이아웃 — 멘트 가운데(따옴표 wrap), 사진 정중앙 */}
+        <div className="mx-auto flex max-w-[820px] flex-col px-5 pt-12 sm:hidden">
+          {doctor.intro && (
+            // 데스크탑처럼 \n 줄바꿈 유지 + 좀 더 넓은 사용 (max-w 없음).
+            // 시작·끝 곡선 따옴표("…")로 감싸기 — 인용문 느낌.
+            <p className="whitespace-pre-line text-center text-[15px] leading-[1.75] text-[var(--text-secondary)]">
+              {`\u201C${doctor.intro}\u201D`}
+            </p>
+          )}
+          {/* 이름·소속 — 사진 윗부분 여백에 놓이도록 사진 위에 배치 */}
+          <div className="mt-6 text-center">
+            <h1 className="text-2xl font-bold text-[var(--text)]">
+              {doctor.name}
+            </h1>
+            <p className="mt-1 text-[13px] font-medium text-[var(--text-secondary)]">
+              {affiliation}
+            </p>
           </div>
-
-          {/* 우측: 누끼 사진 — 모바일도 시원하게, 우측 가장자리 안쪽으로 (translate 제거)
-              사진 윗부분 여백 확보: 박스를 키우고 object-bottom 으로 하단 정렬 */}
-          <div className="relative h-[340px] w-[195px] shrink-0 sm:h-[450px] sm:w-[270px]">
+          {/* 사진 — 정중앙 배치, 사이즈 살짝 키움 */}
+          <div className="relative mx-auto mt-3 h-[380px] w-[230px]">
             <Image
               src={photo}
               alt={`${doctor.name} 원장님`}
               fill
-              sizes="(max-width: 600px) 195px, 270px"
+              sizes="230px"
               className="object-contain object-bottom"
               priority
             />
           </div>
         </div>
 
+        {/* 데스크탑 레이아웃 — 기존 그대로 (좌-멘트 / 우-사진) */}
+        <div className="mx-auto hidden max-w-[820px] items-end gap-3 pl-6 pr-3 pt-10 sm:flex">
+          <div className="flex flex-1 flex-col self-stretch pb-8 pt-16">
+            {doctor.intro && (
+              <p className="whitespace-pre-line text-[16px] leading-[1.7] text-[var(--text-secondary)]">
+                {doctor.intro}
+              </p>
+            )}
+            <div className="mt-auto pt-5">
+              <h1 className="text-3xl font-bold text-[var(--text)]">
+                {doctor.name}
+              </h1>
+              <p className="mt-1 text-[14px] font-medium text-[var(--text-secondary)]">
+                {affiliation}
+              </p>
+            </div>
+          </div>
+
+          {/* 우측: 누끼 사진 */}
+          <div className="relative h-[450px] w-[270px] shrink-0">
+            <Image
+              src={photo}
+              alt={`${doctor.name} 원장님`}
+              fill
+              sizes="270px"
+              className="object-contain object-bottom"
+              priority
+            />
+          </div>
+        </div>
       </header>
 
       {/* 프로필 강화 섹션 — profile_data에 입력된 항목만 노출 (E-E-A-T 신뢰 신호)
@@ -569,10 +593,10 @@ function DoctorProfileSection({ profile }: { profile: DoctorProfileData }) {
   if (profile.expertise && profile.expertise.length > 0)
     leftItems.push({ title: "전문 분야", values: profile.expertise });
 
-  // 우측 컬럼: 학회·소속 → 출판·저서 (소속/저작 신호)
+  // 우측 컬럼: 학회 → 출판·저서 (소속/저작 신호)
   const rightItems: { title: string; values: string[] }[] = [];
   if (profile.memberOf && profile.memberOf.length > 0)
-    rightItems.push({ title: "학회·소속", values: profile.memberOf });
+    rightItems.push({ title: "학회", values: profile.memberOf });
   if (profile.publications && profile.publications.length > 0)
     rightItems.push({ title: "출판·저서", values: profile.publications });
 
@@ -642,7 +666,7 @@ function ProfileDl({
       {items.map((it) => (
         <div
           key={it.title}
-          className="grid grid-cols-[80px_1fr] items-baseline gap-3 text-[13.5px] sm:grid-cols-[100px_1fr]"
+          className="grid grid-cols-[52px_1fr] items-baseline gap-3 text-[13.5px] sm:grid-cols-[64px_1fr]"
         >
           <dt className="font-medium text-[var(--text-muted)]">{it.title}</dt>
           <dd className="text-[var(--text-secondary)]">
