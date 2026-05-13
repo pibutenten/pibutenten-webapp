@@ -84,28 +84,50 @@ export async function POST(req: Request) {
     const kws = Array.isArray(c.pubmed_search_keywords)
       ? c.pubmed_search_keywords
       : [];
-    let candidates = await fetchPubmedCandidates(kws, retmax);
-    let step2 = await runStep2({
-      question: c.question,
-      answer: c.answer,
-      pubmedKeywords: kws,
-      candidates,
-    });
-    let cardIn = step2.usage?.input_tokens ?? 0;
-    let cardOut = step2.usage?.output_tokens ?? 0;
-    let calls = 1;
-    // 후보 0 또는 null reference면 retmax 확장 1단계 (8 → 20)
-    if (!step2.reference && retmax === 8 && candidates.length < 20) {
-      candidates = await fetchPubmedCandidates(kws, 20);
+    // 카드별 try/catch — 한 카드의 PubMed/LLM 실패가 전체 응답을 막지 않도록 격리.
+    // NCBI 타임아웃·rate limit·Anthropic 일시 오류에서도 다음 카드는 계속 처리.
+    let candidates: Awaited<ReturnType<typeof fetchPubmedCandidates>> = [];
+    let step2: Awaited<ReturnType<typeof runStep2>> = {
+      reference: null,
+      reasoning: "",
+    };
+    let cardIn = 0;
+    let cardOut = 0;
+    let calls = 0;
+    try {
+      candidates = await fetchPubmedCandidates(kws, retmax);
       step2 = await runStep2({
         question: c.question,
         answer: c.answer,
         pubmedKeywords: kws,
         candidates,
       });
-      cardIn += step2.usage?.input_tokens ?? 0;
-      cardOut += step2.usage?.output_tokens ?? 0;
-      calls += 1;
+      cardIn = step2.usage?.input_tokens ?? 0;
+      cardOut = step2.usage?.output_tokens ?? 0;
+      calls = 1;
+      // 후보 0 또는 null reference면 retmax 확장 1단계 (8 → 20)
+      if (!step2.reference && retmax === 8 && candidates.length < 20) {
+        candidates = await fetchPubmedCandidates(kws, 20);
+        step2 = await runStep2({
+          question: c.question,
+          answer: c.answer,
+          pubmedKeywords: kws,
+          candidates,
+        });
+        cardIn += step2.usage?.input_tokens ?? 0;
+        cardOut += step2.usage?.output_tokens ?? 0;
+        calls += 1;
+      }
+    } catch (e) {
+      // 한 카드 실패는 격리 — 다음 카드 계속 처리.
+      console.warn(
+        `[step2] card failed q="${c.question?.slice(0, 40) ?? ""}" err=`,
+        e,
+      );
+      step2 = {
+        reference: null,
+        reasoning: `PubMed/LLM 호출 실패: ${e instanceof Error ? e.message : String(e)}`,
+      };
     }
     totalIn += cardIn;
     totalOut += cardOut;
