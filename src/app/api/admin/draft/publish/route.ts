@@ -20,9 +20,12 @@
  *   status?: 'draft' | 'pending_review' | 'published'  (기본 published)
  * }
  *
- * 출력: { saved: number, ids: number[] }
+ * 출력: { saved: number, ids: number[], videoRowId: number }
  *
- * NOTE: video 테이블은 안 건드림 (Phase 8 결정 — 카드별 external_*로 독립).
+ * 영상 정보:
+ *   - `videos` 테이블에 `youtube_id` 기준 UPSERT (없으면 INSERT, 있으면 갱신)
+ *   - 모든 카드의 `qas.video_id`에 그 videos.id 채움
+ *   - 외부 카드 형식(external_url 등)도 동시에 유지 (이전 호환)
  * shortcode·post_year·post_slug는 카드별 자동 생성.
  */
 
@@ -103,6 +106,28 @@ export async function POST(req: Request) {
     (doctorsData ?? []).map((d) => [d.slug, d.id]),
   );
 
+  // videos UPSERT — youtube_id 기준. 모든 qas.video_id에 이 row.id 채움.
+  const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const { data: videoRow, error: vidErr } = await supabase
+    .from("videos")
+    .upsert(
+      {
+        youtube_id: videoId,
+        youtube_url: youtubeUrl,
+        topic: videoTitle || null,
+      },
+      { onConflict: "youtube_id" },
+    )
+    .select("id")
+    .single();
+  if (vidErr || !videoRow) {
+    return NextResponse.json(
+      { error: `videos upsert 실패: ${vidErr?.message ?? "unknown"}` },
+      { status: 500 },
+    );
+  }
+  const videoRowId = videoRow.id as number;
+
   const now = new Date();
   const postYear = now.getFullYear();
   const yyyymmdd = now.toISOString().slice(0, 10);
@@ -150,6 +175,7 @@ export async function POST(req: Request) {
 
     rows.push({
       doctor_id: doctorId,
+      video_id: videoRowId, // ← videos.id 필수 채움 (single source)
       type: "qa",
       category: "qa",
       status,
@@ -188,6 +214,7 @@ export async function POST(req: Request) {
     {
       saved: inserted?.length ?? 0,
       ids: (inserted ?? []).map((r) => r.id),
+      videoRowId,
     },
     { headers: { "cache-control": "no-store" } },
   );
