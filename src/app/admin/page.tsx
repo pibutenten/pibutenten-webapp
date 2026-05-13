@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
 import { getIdentityContext } from "@/lib/identity";
 import { PopularSearchesCard, PopularTagsCard } from "./PopularCards";
+import ActivityKpis from "./ActivityKpis";
 
 export const dynamic = "force-dynamic";
 
@@ -13,27 +14,27 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const PERIOD_OPTIONS: Array<{ label: string; days: number }> = [
-  { label: "7일", days: 7 },
-  { label: "1개월", days: 30 },
-  { label: "3개월", days: 90 },
-  { label: "6개월", days: 180 },
-  { label: "1년", days: 365 },
-  { label: "전체", days: 0 },
-];
+// 인기 검색어/태그 — 6개 기간 모두 prefetch
+const SEARCH_TAG_DAYS = [7, 30, 90, 180, 365, 0] as const;
+// 활동 KPI — 5개 기간 모두 prefetch
+const ACTIVITY_DAYS = [1, 7, 30, 90, 0] as const;
+
+type SearchRow = { query: string; cnt: number };
+type TagRow = { keyword: string; cnt: number };
+type KpiRow = {
+  visitors: number;
+  views: number;
+  comments: number;
+  likes: number;
+  saves: number;
+  shares: number;
+};
 
 /**
  * /admin — 관리자 전용 대시보드 (v4 spec).
  * 영구 noindex. 운영 통계 + 모더레이션 + 회원 관리 + 검색어/태그 인기도 + AEO/GEO log.
  */
-export default async function AdminPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ searches?: string; tags?: string }>;
-}) {
-  const sp = (await searchParams) ?? {};
-  const searchesDays = parseInt(sp.searches ?? "7", 10) || 7;
-  const tagsDays = parseInt(sp.tags ?? "0", 10) || 0;
+export default async function AdminPage() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/admin");
@@ -48,7 +49,8 @@ export default async function AdminPage({
   }
   const isSuperAdmin = idCtx.isSuperAdmin;
 
-  // 운영 통계 — 회원·글·댓글 카운트 + 인기 검색어·태그
+  // 운영 통계 + 6개 기간 검색어/태그 + 5개 기간 활동 KPI 일괄 prefetch.
+  // 모든 기간을 미리 받아두면 클릭 시 깜빡임 없이 즉시 스위치.
   const [
     { count: userCount },
     { count: doctorCount },
@@ -56,8 +58,9 @@ export default async function AdminPage({
     { count: postPublished },
     { count: pendingReview },
     { count: totalComments },
-    topSearchRes,
-    topTagsRes,
+    searchResults,
+    tagResults,
+    kpiResults,
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase
@@ -82,20 +85,58 @@ export default async function AdminPage({
       .from("comments")
       .select("id", { count: "exact", head: true })
       .eq("status", "visible"),
-    supabase.rpc("get_top_search_queries", { p_days: searchesDays || 36500, p_limit: 10 }),
-    supabase.rpc("get_top_tags", { p_days: tagsDays, p_min_count: 1, p_limit: 10 }),
+    Promise.all(
+      SEARCH_TAG_DAYS.map((d) =>
+        supabase.rpc("get_top_search_queries", { p_days: d || 36500, p_limit: 10 })
+      )
+    ),
+    Promise.all(
+      SEARCH_TAG_DAYS.map((d) =>
+        supabase.rpc("get_top_tags", { p_days: d, p_min_count: 1, p_limit: 10 })
+      )
+    ),
+    Promise.all(
+      ACTIVITY_DAYS.map((d) => supabase.rpc("get_admin_kpi", { p_days: d }))
+    ),
   ]);
 
   // YouTube OAuth 상태 — 카드 라벨 동적 표시용
   const oauthHealth = await checkOauthHealth();
-  const topSearches = (topSearchRes.data ?? []) as Array<{
-    query: string;
-    cnt: number;
-  }>;
-  const topTags = ((topTagsRes.data ?? []) as Array<{
-    keyword: string;
-    cnt: number;
-  }>).slice(0, 10);
+
+  // 검색어 / 태그 — Record<days, rows> 맵 변환
+  const searchesByDays: Record<number, SearchRow[]> = {};
+  SEARCH_TAG_DAYS.forEach((d, i) => {
+    searchesByDays[d] = (searchResults[i]?.data ?? []) as SearchRow[];
+  });
+  const tagsByDays: Record<number, TagRow[]> = {};
+  SEARCH_TAG_DAYS.forEach((d, i) => {
+    tagsByDays[d] = ((tagResults[i]?.data ?? []) as TagRow[]).slice(0, 10);
+  });
+
+  // 활동 KPI — Record<days, Kpi> 맵 변환 (RPC가 set returning 또는 single row 모두 지원)
+  const kpiByDays: Record<number, KpiRow> = {};
+  const EMPTY_KPI: KpiRow = {
+    visitors: 0,
+    views: 0,
+    comments: 0,
+    likes: 0,
+    saves: 0,
+    shares: 0,
+  };
+  ACTIVITY_DAYS.forEach((d, i) => {
+    const rows = kpiResults[i]?.data;
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    kpiByDays[d] = row
+      ? {
+          visitors: Number(row.visitors ?? 0),
+          views: Number(row.views ?? 0),
+          comments: Number(row.comments ?? 0),
+          likes: Number(row.likes ?? 0),
+          saves: Number(row.saves ?? 0),
+          shares: Number(row.shares ?? 0),
+        }
+      : EMPTY_KPI;
+  });
 
   return (
     <section className="w-full py-6">
@@ -106,11 +147,11 @@ export default async function AdminPage({
         </p>
       </div>
 
-      {/* 운영 통계 — 카드 6개. 클릭 시 해당 메뉴로 이동.
-          모바일 3개씩 (2줄), 데스크탑 6개 한 줄. */}
+      {/* 운영 통계 — 누적 카드 6개. 모바일 3개씩 (2줄), 데스크탑 6개 한 줄.
+          원장 → 의사 프로필 관리, 댓글 → 제목+댓글 리스트 페이지. */}
       <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
         <Stat label="전체 회원" value={userCount ?? 0} href="/admin/users" />
-        <Stat label="원장" value={doctorCount ?? 0} href="/admin/users?role=doctor" />
+        <Stat label="원장" value={doctorCount ?? 0} href="/admin/doctors" />
         <Stat label="발행 Q&A" value={qaPublished ?? 0} href="/admin/qas?type=qa&status=published" />
         <Stat label="발행 포스팅" value={postPublished ?? 0} href="/admin/qas?type=post&status=published" />
         <Stat
@@ -119,8 +160,11 @@ export default async function AdminPage({
           highlight={(pendingReview ?? 0) > 0}
           href="/admin/qas?status=pending_review"
         />
-        <Stat label="댓글" value={totalComments ?? 0} href="/admin/qas?has=comments" />
+        <Stat label="댓글" value={totalComments ?? 0} href="/admin/comments" />
       </div>
+
+      {/* 활동 KPI (기간 토글) — 방문자/조회수/댓글/좋아요/저장/공유. 모든 기간 prefetch. */}
+      <ActivityKpis initialDays={7} dataByDays={kpiByDays} />
 
       {/* 운영 도구 — 깊은 페이지 진입점 */}
       <div className="mb-6">
@@ -230,10 +274,10 @@ export default async function AdminPage({
         </div>
       </div>
 
-      {/* 인기 검색어·태그 — client 컴포넌트 (기간 토글이 카드만 갱신) */}
+      {/* 인기 검색어·태그 — 모든 기간 prefetch → 클릭 시 즉시 스위치 (깜빡임 0). */}
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <PopularSearchesCard initialDays={searchesDays} initialData={topSearches} />
-        <PopularTagsCard initialDays={tagsDays} initialData={topTags} />
+        <PopularSearchesCard initialDays={7} dataByDays={searchesByDays} />
+        <PopularTagsCard initialDays={0} dataByDays={tagsByDays} />
       </div>
     </section>
   );

@@ -559,6 +559,36 @@ export default function QACard({
     return () => { alive = false; };
   }, []);
 
+  // 카드 view 트래킹 — qa_views INSERT (session 당 qa 1회)
+  // session_id는 sessionStorage에 저장 (탭 닫으면 새 세션 → UV 산정)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const seenKey = `pibutenten:view:${qa.id}`;
+    if (sessionStorage.getItem(seenKey)) return;
+    let sessionId = sessionStorage.getItem("pibutenten:sid");
+    if (!sessionId) {
+      sessionId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      sessionStorage.setItem("pibutenten:sid", sessionId);
+    }
+    sessionStorage.setItem(seenKey, "1");
+    (async () => {
+      try {
+        const sb = createSupabaseBrowserClient();
+        const { data: { user } } = await sb.auth.getUser();
+        await sb.from("qa_views").insert({
+          qa_id: qa.id,
+          user_id: user?.id ?? null,
+          session_id: sessionId,
+        });
+      } catch {
+        // 트래킹 실패는 UX에 영향 X — silent
+      }
+    })();
+  }, [qa.id]);
+
   // 메뉴 외부 클릭 시 닫기
   useEffect(() => {
     if (!menuOpen) return;
@@ -571,9 +601,11 @@ export default function QACard({
     return () => document.removeEventListener("click", onDocClick);
   }, [menuOpen]);
 
-  // 수정/삭제 권한: 관리자 OR 본인 글(post)
-  const canEdit =
-    !!me && (me.role === "admin" || (qa.type === "post" && me.id === qa.author?.id));
+  // 수정/삭제 권한:
+  //   - admin: 모든 글 (Q&A·포스팅 가리지 않음)
+  //   - 그 외(원장 포함): 본인이 작성자(author)인 글만
+  //     (qa.author.id 가 me.id 와 일치 — doctor identity 도 me.id 로 매칭됨)
+  const canEdit = !!me && (me.role === "admin" || me.id === qa.author?.id);
 
   async function saveEdit() {
     if (!editTitle.trim() || !editBody.trim()) {
@@ -1222,6 +1254,15 @@ export default function QACard({
               p_qa_id: qa.id,
             });
             if (typeof data === "number") setShareCount(data);
+            // qa_shares 이벤트 로그 (관리자 KPI '공유' 카운트용) — fail silent
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              await supabase.from("qa_shares").insert({
+                qa_id: qa.id,
+                user_id: user?.id ?? null,
+                channel: "link",
+              });
+            } catch { /* noop */ }
           }}
           className="ml-auto flex cursor-pointer items-center gap-1 transition-colors hover:text-[var(--primary)]"
           aria-label="공유"
