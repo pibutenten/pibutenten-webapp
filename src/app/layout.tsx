@@ -5,6 +5,7 @@ import TopNav, { type SessionInfo } from "@/components/TopNav";
 import ScrollManager from "@/components/ScrollManager";
 import FloatingWriteButton from "@/components/FloatingWriteButton";
 import InstallPrompt from "@/components/InstallPrompt";
+import MigrationBanner from "@/components/MigrationBanner";
 import AppSplash from "@/components/AppSplash";
 import SiteFooter from "@/components/SiteFooter";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -265,6 +266,8 @@ window.addEventListener('appinstalled', function() {
         <InstallPrompt signedIn={!!session?.role} />
         {/* 앱 구동 splash overlay — standalone 진입 시 1.5초 동그라미 로고 */}
         <AppSplash />
+        {/* 쇼핑몰→피부텐텐몰 이전 안내 팝업 (session 1회). */}
+        <MigrationBanner />
       </body>
     </html>
   );
