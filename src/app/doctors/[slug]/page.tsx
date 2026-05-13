@@ -490,14 +490,14 @@ function DoctorOpsTools({ doctorSlug }: { doctorSlug: string }) {
           </p>
         </Link>
         <Link
-          href="/admin/draft"
+          href="/write?type=qa"
           className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
         >
           <div className="text-[15px] font-bold text-[var(--text)]">
-            📝 새 Q&A 추출
+            ✍️ Q&A 작성
           </div>
           <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">
-            YouTube 영상 → AI Q&A 카드 → PubMed 매칭 → 검수발행
+            새 Q&A 카드 하나 작성. URL(블로그·릴스·YouTube)로 첨부 가능
           </p>
         </Link>
       </div>
