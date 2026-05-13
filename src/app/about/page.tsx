@@ -310,8 +310,26 @@ export default async function AboutPage() {
           홈으로
         </Link>
         <Link
+          href="/terms"
+          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
+        >
+          이용약관
+        </Link>
+        <Link
+          href="/privacy"
+          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
+        >
+          개인정보 처리방침
+        </Link>
+        <Link
+          href="/doctor-guidelines"
+          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
+        >
+          의사 답변 가이드라인
+        </Link>
+        <Link
           href="/doctors"
-          className="rounded-md border border-[var(--border)] px-4 py-2 text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
         >
           전문의 둘러보기
         </Link>

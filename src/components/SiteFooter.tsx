@@ -40,6 +40,12 @@ export default function SiteFooter() {
           >
             개인정보 처리방침
           </Link>
+          <Link
+            href="/doctor-guidelines"
+            className="hover:text-[var(--primary)] hover:underline"
+          >
+            의사 답변 가이드라인
+          </Link>
         </nav>
       </div>
       <p className="mt-2 text-[11px] text-[var(--text-muted)]">
