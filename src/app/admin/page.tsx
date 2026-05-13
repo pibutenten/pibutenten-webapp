@@ -12,11 +12,27 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+const PERIOD_OPTIONS: Array<{ label: string; days: number }> = [
+  { label: "7일", days: 7 },
+  { label: "1개월", days: 30 },
+  { label: "3개월", days: 90 },
+  { label: "6개월", days: 180 },
+  { label: "1년", days: 365 },
+  { label: "전체", days: 0 },
+];
+
 /**
  * /admin — 관리자 전용 대시보드 (v4 spec).
  * 영구 noindex. 운영 통계 + 모더레이션 + 회원 관리 + 검색어/태그 인기도 + AEO/GEO log.
  */
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ searches?: string; tags?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const searchesDays = parseInt(sp.searches ?? "7", 10) || 7;
+  const tagsDays = parseInt(sp.tags ?? "0", 10) || 0;
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/admin");
@@ -65,8 +81,8 @@ export default async function AdminPage() {
       .from("comments")
       .select("id", { count: "exact", head: true })
       .eq("status", "visible"),
-    supabase.rpc("get_top_search_queries", { p_days: 7, p_limit: 10 }),
-    supabase.rpc("get_indexable_tags", { p_min_count: 4 }),
+    supabase.rpc("get_top_search_queries", { p_days: searchesDays || 36500, p_limit: 10 }),
+    supabase.rpc("get_top_tags", { p_days: tagsDays, p_min_count: 1, p_limit: 10 }),
   ]);
 
   // YouTube OAuth 상태 — 카드 라벨 동적 표시용
@@ -212,12 +228,36 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      {/* 인기 검색어 (지난 7일) */}
+      {/* 인기 검색어·태그 (기간 토글) */}
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
-          <h2 className="mb-3 text-sm font-bold text-[var(--text)]">
-            🔍 인기 검색어 <span className="text-[var(--text-muted)]">(지난 7일)</span>
-          </h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-[var(--text)]">
+              🔍 인기 검색어
+            </h2>
+            <div className="flex flex-wrap gap-1">
+              {PERIOD_OPTIONS.map((p) => {
+                const active = p.days === searchesDays;
+                const params = new URLSearchParams();
+                params.set("searches", String(p.days));
+                params.set("tags", String(tagsDays));
+                return (
+                  <Link
+                    key={p.days}
+                    href={`/admin?${params.toString()}#popular`}
+                    className={
+                      "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors " +
+                      (active
+                        ? "bg-[var(--primary)] text-white"
+                        : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
+                    }
+                  >
+                    {p.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
           {topSearches.length === 0 ? (
             <p className="text-xs text-[var(--text-muted)]">
               검색 기록이 아직 없습니다.
@@ -250,9 +290,33 @@ export default async function AdminPage() {
         </div>
 
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
-          <h2 className="mb-3 text-sm font-bold text-[var(--text)]">
-            🏷 인기 태그 <span className="text-[var(--text-muted)]">(누적·의사 글 4+)</span>
-          </h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-[var(--text)]">
+              🏷 인기 태그
+            </h2>
+            <div className="flex flex-wrap gap-1">
+              {PERIOD_OPTIONS.map((p) => {
+                const active = p.days === tagsDays;
+                const params = new URLSearchParams();
+                params.set("searches", String(searchesDays));
+                params.set("tags", String(p.days));
+                return (
+                  <Link
+                    key={p.days}
+                    href={`/admin?${params.toString()}#popular`}
+                    className={
+                      "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors " +
+                      (active
+                        ? "bg-[var(--primary)] text-white"
+                        : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
+                    }
+                  >
+                    {p.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
           {topTags.length === 0 ? (
             <p className="text-xs text-[var(--text-muted)]">
               인덱싱 태그 없음.
