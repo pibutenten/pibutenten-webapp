@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     .select(
       `id, body, created_at, qa_id,
        qa:qa_id(question, shortcode),
-       author:author_profile_id(handle, display_name)`,
+       author:author_id(handle, display_name)`,
     )
     .eq("status", "visible")
     .lt("created_at", before)

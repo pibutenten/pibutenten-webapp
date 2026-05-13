@@ -42,7 +42,7 @@ export default async function AdminCommentsPage() {
       .select(
         `id, body, created_at, qa_id,
          qa:qa_id(question, shortcode),
-         author:author_profile_id(handle, display_name)`,
+         author:author_id(handle, display_name)`,
       )
       .eq("status", "visible")
       .order("created_at", { ascending: false })

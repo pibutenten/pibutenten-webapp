@@ -28,7 +28,27 @@ type Props = {
   searchParams: Promise<{
     q?: string;
     role?: string;
+    days?: string;
   }>;
+};
+
+// 기간 토글 6종 — 사이트 전체 통일
+const PERIOD_OPTIONS: Array<{ label: string; days: number }> = [
+  { label: "24시간", days: 1 },
+  { label: "7일", days: 7 },
+  { label: "30일", days: 30 },
+  { label: "90일", days: 90 },
+  { label: "1년", days: 365 },
+  { label: "전체", days: 0 },
+];
+
+type UserKpi = {
+  profile_id: string;
+  visit_days: number;
+  views_received: number;
+  comments_written: number;
+  likes_received: number;
+  shares_received: number;
 };
 
 export default async function AdminUsersPage({ searchParams }: Props) {
@@ -55,6 +75,8 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   const sp = await searchParams;
   const qParam = (sp.q ?? "").trim();
   const roleParam = sp.role ?? "";
+  const daysRaw = parseInt(sp.days ?? "7", 10);
+  const daysParam = PERIOD_OPTIONS.some((p) => p.days === daysRaw) ? daysRaw : 7;
 
   // profiles 전체 조회 (auth_user_id 포함)
   let q = supabase
@@ -83,6 +105,12 @@ export default async function AdminUsersPage({ searchParams }: Props) {
       postCountMap.set(id, (postCountMap.get(id) ?? 0) + 1);
     }
   }
+
+  // 회원별 KPI (방문 일수/받은 조회/작성 댓글/받은 좋아요/받은 공유) — 기간 RPC
+  const kpiMap = new Map<string, UserKpi>();
+  const kpiResult = await supabase.rpc("get_users_kpi", { p_days: daysParam });
+  const kpiRows = (kpiResult.data ?? []) as UserKpi[];
+  for (const r of kpiRows) kpiMap.set(r.profile_id, r);
 
   // 등급 필터 적용
   const filtered = (profiles ?? []).filter((p) => {
@@ -166,7 +194,37 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         >
           검색
         </button>
+        {/* 현재 days 값을 폼에 보존 (검색 시 함께 전송) */}
+        <input type="hidden" name="days" value={String(daysParam)} />
       </form>
+
+      {/* 기간 토글 — 회원별 KPI 5개에 적용 */}
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+        <span className="text-[var(--text-muted)]">KPI 기간</span>
+        <div className="flex flex-wrap gap-1">
+          {PERIOD_OPTIONS.map((opt) => {
+            const active = opt.days === daysParam;
+            const params = new URLSearchParams();
+            if (qParam) params.set("q", qParam);
+            if (roleParam) params.set("role", roleParam);
+            params.set("days", String(opt.days));
+            return (
+              <Link
+                key={opt.days}
+                href={`/admin/users?${params.toString()}`}
+                className={
+                  "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors " +
+                  (active
+                    ? "bg-[var(--primary)]/80 font-semibold text-white"
+                    : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
+                }
+              >
+                {opt.label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
       {filtered.length === 0 ? (
         <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-white p-8 text-center text-sm text-[var(--text-muted)]">
@@ -181,6 +239,27 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                 <th className="px-3 py-2 text-left font-medium">핸들</th>
                 <th className="px-3 py-2 text-left font-medium">등급</th>
                 <th className="px-3 py-2 text-right font-medium">글수</th>
+                <th
+                  className="px-2 py-2 text-right font-medium"
+                  title="방문 일수 (하루 1회까지, 기간 내)"
+                >
+                  방문
+                </th>
+                <th className="px-2 py-2 text-right font-medium" title="받은 조회수">
+                  조회
+                </th>
+                <th
+                  className="px-2 py-2 text-right font-medium"
+                  title="작성한 댓글 수"
+                >
+                  댓글
+                </th>
+                <th className="px-2 py-2 text-right font-medium" title="받은 좋아요">
+                  좋아요
+                </th>
+                <th className="px-2 py-2 text-right font-medium" title="받은 공유">
+                  공유
+                </th>
                 <th className="px-3 py-2 text-left font-medium">가입일</th>
                 <th className="px-3 py-2 text-left font-medium">묶음</th>
               </tr>
@@ -229,6 +308,22 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                       </td>
                       <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
                         {(postCountMap.get(p.id) ?? 0).toLocaleString()}
+                      </td>
+                      {/* 5개 KPI — 기간 토글 적용 (default 7일) */}
+                      <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                        {(kpiMap.get(p.id)?.visit_days ?? 0).toLocaleString()}
+                      </td>
+                      <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                        {(kpiMap.get(p.id)?.views_received ?? 0).toLocaleString()}
+                      </td>
+                      <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                        {(kpiMap.get(p.id)?.comments_written ?? 0).toLocaleString()}
+                      </td>
+                      <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                        {(kpiMap.get(p.id)?.likes_received ?? 0).toLocaleString()}
+                      </td>
+                      <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                        {(kpiMap.get(p.id)?.shares_received ?? 0).toLocaleString()}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
                         {p.created_at?.slice(0, 10) ?? "—"}
