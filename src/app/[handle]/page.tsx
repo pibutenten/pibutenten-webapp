@@ -116,13 +116,26 @@ async function fetchProfileByHandle(
       .maybeSingle()
       .returns<ProfileRow>();
     if (parent) {
+      // doctor identity면 doctors.photo_url 우선 (single source 규약)
+      let resolvedAvatar = identity.avatar_url;
+      if (identity.doctor_id) {
+        const { data: doc } = await supabase
+          .from("doctors")
+          .select("slug, photo_url")
+          .eq("id", identity.doctor_id)
+          .maybeSingle()
+          .returns<{ slug: string; photo_url: string | null }>();
+        if (doc) {
+          resolvedAvatar = doc.photo_url ?? `/doctors/${doc.slug}.png`;
+        }
+      }
       return {
         profile: parent,
         isAlt: true,
         identity: {
           id: identity.id,
           display_name: identity.display_name,
-          avatar_url: identity.avatar_url,
+          avatar_url: resolvedAvatar,
           bio: identity.bio,
           kind: identity.kind,
           doctor_id: identity.doctor_id,
@@ -282,6 +295,12 @@ export default async function HandleProfilePage({ params }: Props) {
               src={avatarUrl}
               alt=""
               className="h-full w-full object-cover"
+              // doctor 누끼 사진은 상반신 — 작은 원형에서 얼굴이 잘리지 않도록 위쪽으로 정렬
+              style={
+                identity?.doctor_id
+                  ? { objectPosition: "50% 12%" }
+                  : undefined
+              }
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-5xl text-[var(--text-muted)]">

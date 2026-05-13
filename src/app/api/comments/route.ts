@@ -138,7 +138,7 @@ export async function GET(req: Request) {
       identityIds.length > 0
         ? supabase
             .from("profile_identities")
-            .select("id, display_name, avatar_url")
+            .select("id, display_name, avatar_url, doctor_id")
             .in("id", identityIds)
         : Promise.resolve({ data: [], error: null }),
     ]);
@@ -155,8 +155,37 @@ export async function GET(req: Request) {
       );
     }
     if (!idRes.error && idRes.data) {
-      for (const row of idRes.data as Array<{ id: string; display_name: string | null; avatar_url: string | null }>) {
-        identityById.set(row.id, { display_name: row.display_name, avatar_url: row.avatar_url });
+      // doctor identity인 경우 doctors.photo_url single source 사용
+      type IdRow = {
+        id: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        doctor_id: string | null;
+      };
+      const idRows = idRes.data as IdRow[];
+      const doctorIdsToFetch = Array.from(
+        new Set(idRows.map((r) => r.doctor_id).filter((v): v is string => !!v)),
+      );
+      let doctorPhotoMap = new Map<string, string>();
+      if (doctorIdsToFetch.length > 0) {
+        const { data: docRows } = await supabase
+          .from("doctors")
+          .select("id, slug, photo_url")
+          .in("id", doctorIdsToFetch);
+        if (docRows) {
+          doctorPhotoMap = new Map(
+            (docRows as Array<{ id: string; slug: string; photo_url: string | null }>).map(
+              (d) => [d.id, d.photo_url ?? `/doctors/${d.slug}.png`],
+            ),
+          );
+        }
+      }
+      for (const row of idRows) {
+        const docPhoto = row.doctor_id ? doctorPhotoMap.get(row.doctor_id) ?? null : null;
+        identityById.set(row.id, {
+          display_name: row.display_name,
+          avatar_url: docPhoto ?? row.avatar_url,
+        });
       }
     }
   }
