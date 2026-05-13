@@ -2,9 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 // v4 다중 identity 전환은 IdentitySwitcher로 (1개일 땐 단순 Link)
 import IdentitySwitcher from "./IdentitySwitcher";
 
@@ -285,20 +284,8 @@ function InstallAppButton() {
 
 export default function TopNav({ session }: TopNavProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [isLoggingOut, startLogout] = useTransition();
-
-  function handleLogout() {
-    startLogout(async () => {
-      const supabase = createSupabaseBrowserClient();
-      await supabase.auth.signOut();
-      // 풀 리로드 — layout의 session 캐시 확실히 비움
-      window.location.assign("/");
-    });
-  }
-
-  const dashboardHref =
-    session?.role === "admin" ? "/admin" : "/settings";
+  // 로그아웃 동작은 본인 프로필 페이지(/{handle}) 하단 LogoutButton으로 이동됨 (A5)
+  // router/isLoggingOut/handleLogout/dashboardHref는 더 이상 사용 안 함 — 정리.
 
   return (
     <header
