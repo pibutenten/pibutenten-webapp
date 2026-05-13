@@ -215,7 +215,8 @@ export default function TermsPage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href="/"
-            className="rounded-md bg-[var(--primary)] px-4 py-2 text-white hover:bg-[var(--primary-dark)]"
+            className="rounded-md bg-[var(--primary)] px-4 py-2 font-semibold text-white hover:bg-[var(--primary-dark)]"
+            style={{ color: "#FFFFFF" }}
           >
             홈으로
           </Link>

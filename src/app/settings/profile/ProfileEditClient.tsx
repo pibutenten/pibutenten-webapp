@@ -306,16 +306,7 @@ export default function ProfileEditClient({
       setDeleteOpen(false);
     }
   }
-  const [logoutPending, setLogoutPending] = useState(false);
-  async function performLogout() {
-    setLogoutPending(true);
-    try {
-      await sb.auth.signOut();
-      window.location.assign("/");
-    } finally {
-      setLogoutPending(false);
-    }
-  }
+  // 로그아웃은 본인 프로필 페이지(/{handle}) 하단의 LogoutButton으로 이동됨
 
   // 표시용 — 생년월일은 'XX대'로만, 성별과 결합 ('40대 여성')
   const ageBucket = (() => {
@@ -675,18 +666,9 @@ export default function ProfileEditClient({
       </div>
       <Msg status={skinStatus} />
 
-      {/* 로그아웃·탈퇴 footer */}
+      {/* 회원 탈퇴 footer — 로그아웃은 본인 프로필 페이지(/{handle}) 하단으로 이동됨 */}
       <div className="mt-10 border-t border-[var(--border)] pt-6">
         <div className="flex items-center justify-end gap-3 text-[12px] text-[var(--text-muted)]">
-          <button
-            type="button"
-            onClick={performLogout}
-            disabled={logoutPending}
-            className="hover:text-[var(--text-secondary)] hover:underline disabled:opacity-50"
-          >
-            {logoutPending ? "로그아웃 중…" : "로그아웃"}
-          </button>
-          <span aria-hidden>·</span>
           <button
             type="button"
             onClick={() => setDeleteOpen(true)}

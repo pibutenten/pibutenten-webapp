@@ -272,7 +272,7 @@ export default async function DoctorDetailPage({ params }: Props) {
           stats={ownerStats}
         />
 
-        {/* 운영 도구 (관리자 대시보드와 동일 패턴) */}
+        {/* 대시보드 메뉴 (관리자 대시보드와 동일 패턴) */}
         <DoctorOpsTools doctorSlug={doctor.slug} />
 
         {/* 받은 댓글 — 최근 10개 */}
@@ -423,17 +423,8 @@ function DoctorOwnerWidget({
   };
 }) {
   return (
-    <div className="rounded-[var(--radius)] border border-[var(--primary)]/30 bg-[var(--primary-soft)] p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[15px] font-bold text-[var(--text)]">
-          {doctorName} 원장님 대시보드
-        </h2>
-        <span className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
-          본인만 보임
-        </span>
-      </div>
-
-      {/* 통계 5종 — 각 카드 클릭 시 해당 메뉴로 이동 */}
+    <div>
+      {/* 통계 5종 — 각 카드 클릭 시 해당 메뉴로 이동. 외곽 박스/헤더 제거 — 상위 대시보드 헤더로 통합. */}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         <Stat
           label="발행"
@@ -468,14 +459,14 @@ function DoctorOwnerWidget({
 }
 
 /**
- * 원장 본인 대시보드 — 운영 도구 섹션 (admin 대시보드와 동일 패턴).
+ * 원장 본인 대시보드 — 메뉴 섹션 (admin 대시보드와 동일 패턴).
  * 내 글 관리·새 Q&A 추출 진입.
  */
 function DoctorOpsTools({ doctorSlug }: { doctorSlug: string }) {
   return (
     <div>
       <h2 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
-        운영 도구
+        대시보드
       </h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Link

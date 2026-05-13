@@ -166,10 +166,10 @@ export default async function AdminPage() {
       {/* 활동 KPI (기간 토글) — 방문자/조회수/댓글/좋아요/저장/공유. 모든 기간 prefetch. */}
       <ActivityKpis initialDays={7} dataByDays={kpiByDays} />
 
-      {/* 운영 도구 — 깊은 페이지 진입점 */}
+      {/* 대시보드 메뉴 — 깊은 페이지 진입점 */}
       <div className="mb-6">
         <h2 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
-          운영 도구
+          대시보드
         </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Tool
@@ -244,33 +244,6 @@ export default async function AdminPage() {
               oauthHealth.state === "expired" || oauthHealth.state === "error"
             }
           />
-        </div>
-      </div>
-
-      {/* 자주 쓰는 진입점 */}
-      <div className="mb-6">
-        <h2 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
-          자주 쓰는 진입점
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/admin/qas?status=pending_review"
-            className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100"
-          >
-            ⏳ 검수 대기 큐
-          </Link>
-          <Link
-            href="/admin/qas?pick=1"
-            className="rounded-full border border-[var(--border)] bg-white px-3 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-          >
-            ⭐ Pick 관리
-          </Link>
-          <Link
-            href="/write"
-            className="rounded-full border border-[var(--primary)] bg-[var(--primary-soft)] px-3 py-1 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary)]/15"
-          >
-            ✍️ 새 글 쓰기
-          </Link>
         </div>
       </div>
 

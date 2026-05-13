@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type QACardData } from "@/components/QACard";
 import ProfileTabs from "@/components/ProfileTabs";
+import LogoutButton from "@/components/LogoutButton";
 import { SITE_URL } from "@/lib/site";
 import type { UserRole } from "@/lib/user-grades";
 
@@ -341,6 +342,13 @@ export default async function HandleProfilePage({ params }: Props) {
         }}
         viewerStates={viewerStates}
       />
+
+      {/* 본인 접속 시 페이지 최하단에 로그아웃 (탈퇴는 /settings/profile에 유지) */}
+      {isOwner && (
+        <div className="mt-12 flex justify-center border-t border-[var(--border)] pt-6">
+          <LogoutButton />
+        </div>
+      )}
     </section>
   );
 }
