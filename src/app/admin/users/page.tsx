@@ -1,75 +1,33 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  ROLE_LABELS,
-  LEVEL_LABELS,
-  LEVEL_COLORS,
-  type UserRole,
-  type UserLevel,
-} from "@/lib/user-grades";
+import type { UserRole } from "@/lib/user-grades";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Phase 9: 회원관리 페이지 단순화.
+ *
+ * - 모든 ID = 1 `profiles` row (메인/부계정 구분 없음, 모두 동등)
+ * - 묶음: 같은 `auth_user_id` 값을 가진 row끼리 한 사람
+ * - 미가입 원장: `auth_user_id = NULL`
+ * - `profile_identities` 의존 제거됨
+ */
 type ProfileRow = {
   id: string;
   handle: string | null;
   display_name: string | null;
   role: UserRole;
-  level: UserLevel;
-  activity_score: number;
   bio: string | null;
   created_at: string;
   terms_agreed_at: string | null;
+  auth_user_id: string | null;
 };
-
-type IdentityRow = {
-  id: string;
-  profile_id: string;
-  handle: string;
-  display_name: string;
-  kind: string;
-  doctor_id: string | null;
-  created_at: string;
-};
-
-type DoctorRow = {
-  id: string;
-  slug: string;
-  name: string;
-  branch: string | null;
-  sort_order: number;
-};
-
-/** 표 한 줄 — primary profile 또는 profile_identities row */
-type DisplayRow = {
-  key: string;
-  profileId: string | null; // 미가입 원장은 null
-  doctorId: string | null;
-  isPrimary: boolean;
-  /** 가입 안 한 원장은 unregistered=true */
-  unregistered?: boolean;
-  handle: string;
-  displayName: string;
-  /** "관리자" | "원장" | "회원" */
-  roleLabel: string;
-  level: UserLevel | null;
-  activityScore: number | null;
-  postCount: number;
-  createdAt: string;
-  termsAgreedAt: string | null;
-};
-
-/** identity.kind → 등급 라벨 (영어 그대로 — admin / doctor / user) */
-function kindToRoleLabel(kind: string): string {
-  return kind; // admin / doctor / user 그대로 표시
-}
 
 type Props = {
   searchParams: Promise<{
     q?: string;
     role?: string;
-    level?: string;
   }>;
 };
 
@@ -92,188 +50,73 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   const sp = await searchParams;
   const qParam = (sp.q ?? "").trim();
   const roleParam = sp.role ?? "";
-  const levelParam = sp.level ?? "";
 
-  // profiles 조회
+  // profiles 전체 조회 (auth_user_id 포함)
   let q = supabase
     .from("profiles")
     .select(
-      "id, handle, display_name, role, level, activity_score, bio, created_at, terms_agreed_at",
-      { count: "exact" },
+      "id, handle, display_name, role, bio, created_at, terms_agreed_at, auth_user_id",
     )
     .order("created_at", { ascending: false })
-    .limit(200);
+    .limit(500);
   if (qParam) {
     const escaped = qParam.replace(/[%_]/g, "\\$&");
-    q = q.ilike("display_name", `%${escaped}%`);
+    q = q.or(`display_name.ilike.%${escaped}%,handle.ilike.%${escaped}%`);
   }
-  const { data: profiles, count: total } = await q.returns<ProfileRow[]>();
+  const { data: profiles } = await q.returns<ProfileRow[]>();
 
-  // 각 회원의 작성 글 수
-  const userIds = (profiles ?? []).map((p) => p.id);
+  // 카드 작성 수 집계 (author_id = profiles.id 기준)
+  const allIds = (profiles ?? []).map((p) => p.id);
   const postCountMap = new Map<string, number>();
-  if (userIds.length > 0) {
+  if (allIds.length > 0) {
     const { data: counts } = await supabase
       .from("qas")
-      .select("author_id", { count: "exact", head: false })
-      .in("author_id", userIds);
-    if (counts) {
-      for (const r of counts) {
-        const id = (r as { author_id: string }).author_id;
-        postCountMap.set(id, (postCountMap.get(id) ?? 0) + 1);
-      }
+      .select("author_id")
+      .in("author_id", allIds);
+    for (const r of counts ?? []) {
+      const id = (r as { author_id: string }).author_id;
+      postCountMap.set(id, (postCountMap.get(id) ?? 0) + 1);
     }
   }
 
-  // 모든 profile의 profile_identities (부계정) 조회
-  let identitiesByProfile = new Map<string, IdentityRow[]>();
-  if (userIds.length > 0) {
-    const { data: idents } = await supabase
-      .from("profile_identities")
-      .select("id, profile_id, handle, display_name, kind, doctor_id, created_at")
-      .in("profile_id", userIds)
-      .returns<IdentityRow[]>();
-    for (const it of idents ?? []) {
-      const arr = identitiesByProfile.get(it.profile_id) ?? [];
-      arr.push(it);
-      identitiesByProfile.set(it.profile_id, arr);
-    }
-  }
-
-  // doctors 9명 — 회원관리 상단 섹션 (미가입 포함)
-  const { data: doctorsAll } = await supabase
-    .from("doctors")
-    .select("id, slug, name, branch, sort_order")
-    .order("sort_order", { ascending: true })
-    .returns<DoctorRow[]>();
-
-  // doctor_accounts 매핑 (어느 profile이 어느 doctor의 가입자인지)
-  const { data: docAccounts } = await supabase
-    .from("doctor_accounts")
-    .select("profile_id, doctor_id");
-  const profileToDoctor = new Map<string, string>(); // profile_id → doctor_id
-  const doctorToProfile = new Map<string, string>(); // doctor_id → profile_id
-  for (const da of (docAccounts ?? []) as Array<{ profile_id: string; doctor_id: string }>) {
-    profileToDoctor.set(da.profile_id, da.doctor_id);
-    doctorToProfile.set(da.doctor_id, da.profile_id);
-  }
-  const doctorProfileIds = new Set(profileToDoctor.keys());
-
-  // ─── 원장 섹션 row (9명, doctors 기준) ───
-  const doctorRows: DisplayRow[] = [];
-  for (const doc of doctorsAll ?? []) {
-    const profileId = doctorToProfile.get(doc.id) ?? null;
-    const profile = profileId
-      ? (profiles ?? []).find((p) => p.id === profileId) ?? null
-      : null;
-
-    if (profile) {
-      // 가입한 원장 — primary row (원장 등급으로 강제)
-      doctorRows.push({
-        key: `doc-${doc.id}::primary`,
-        profileId: profile.id,
-        doctorId: doc.id,
-        isPrimary: true,
-        handle: profile.handle ?? doc.slug,
-        displayName: profile.display_name ?? doc.name,
-        roleLabel: "doctor",
-        level: profile.level,
-        activityScore: profile.activity_score,
-        postCount: postCountMap.get(profile.id) ?? 0,
-        createdAt: profile.created_at,
-        termsAgreedAt: profile.terms_agreed_at,
-      });
-      // 부계정 identity row들 (primary handle과 중복 제거)
-      const idents = identitiesByProfile.get(profile.id) ?? [];
-      for (const it of idents) {
-        if (it.handle === profile.handle) continue;
-        doctorRows.push({
-          key: `doc-${doc.id}::${it.id}`,
-          profileId: profile.id,
-          doctorId: doc.id,
-          isPrimary: false,
-          handle: it.handle,
-          displayName: it.display_name,
-          roleLabel: kindToRoleLabel(it.kind),
-          level: null,
-          activityScore: null,
-          postCount: 0,
-          createdAt: it.created_at,
-          termsAgreedAt: profile.terms_agreed_at,
-        });
-      }
-    } else {
-      // 미가입 원장
-      doctorRows.push({
-        key: `doc-${doc.id}::unreg`,
-        profileId: null,
-        doctorId: doc.id,
-        isPrimary: true,
-        unregistered: true,
-        handle: doc.slug,
-        displayName: doc.name,
-        roleLabel: "doctor",
-        level: null,
-        activityScore: null,
-        postCount: 0,
-        createdAt: "",
-        termsAgreedAt: null,
-      });
-    }
-  }
-
-  // ─── 일반 회원 섹션 row (doctor 매핑 없는 profiles) ───
-  const memberRows: DisplayRow[] = [];
-  for (const p of profiles ?? []) {
-    if (doctorProfileIds.has(p.id)) continue; // 원장 섹션에 이미 표시됨
-
-    // primary row — kind 결정 (영어 — admin/doctor/user)
-    const primaryRoleLabel =
-      p.role === "admin" ? "admin" : p.role === "doctor" ? "doctor" : "user";
-    memberRows.push({
-      key: `${p.id}::primary`,
-      profileId: p.id,
-      doctorId: null,
-      isPrimary: true,
-      handle: p.handle ?? "",
-      displayName: p.display_name ?? "(이름 없음)",
-      roleLabel: primaryRoleLabel,
-      level: p.level,
-      activityScore: p.activity_score,
-      postCount: postCountMap.get(p.id) ?? 0,
-      createdAt: p.created_at,
-      termsAgreedAt: p.terms_agreed_at,
-    });
-    // 부계정
-    const idents = identitiesByProfile.get(p.id) ?? [];
-    for (const it of idents) {
-      if (it.handle === p.handle) continue;
-      memberRows.push({
-        key: `${p.id}::${it.id}`,
-        profileId: p.id,
-        doctorId: null,
-        isPrimary: false,
-        handle: it.handle,
-        displayName: it.display_name,
-        roleLabel: kindToRoleLabel(it.kind),
-        level: null,
-        activityScore: null,
-        postCount: 0,
-        createdAt: it.created_at,
-        termsAgreedAt: p.terms_agreed_at,
-      });
-    }
-  }
-
-  const rows: DisplayRow[] = [...doctorRows, ...memberRows];
-
-  // 등급 필터 (DisplayRow에 적용) — 영어 그대로 매칭 (admin/doctor/user)
-  const filteredRows = rows.filter((r) => {
-    if (roleParam) {
-      if (r.roleLabel !== roleParam) return false;
-    }
+  // 등급 필터 적용
+  const filtered = (profiles ?? []).filter((p) => {
+    if (roleParam && p.role !== roleParam) return false;
     return true;
   });
+
+  // auth_user_id 기준 그룹핑 — 같은 묶음끼리 시각적으로 인접
+  // (auth_user_id가 NULL인 row는 각자 별도 묶음으로 취급)
+  const groups = new Map<string, ProfileRow[]>();
+  for (const p of filtered) {
+    const key = p.auth_user_id ?? `__null__:${p.id}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(p);
+    groups.set(key, arr);
+  }
+  // 묶음 내 정렬: doctor → admin → user 순서, 그 안에선 handle 순
+  const ROLE_ORDER: Record<string, number> = { doctor: 0, admin: 1, user: 2 };
+  for (const arr of groups.values()) {
+    arr.sort((a, b) => {
+      const ra = ROLE_ORDER[a.role] ?? 9;
+      const rb = ROLE_ORDER[b.role] ?? 9;
+      if (ra !== rb) return ra - rb;
+      return (a.handle ?? "").localeCompare(b.handle ?? "");
+    });
+  }
+  // 묶음 순서: 묶음 크기 큰 것부터, 그 다음 doctor 묶음, 마지막 단독
+  const groupArr = Array.from(groups.values()).sort((a, b) => {
+    if (a.length !== b.length) return b.length - a.length;
+    const aHasDoc = a.some((r) => r.role === "doctor");
+    const bHasDoc = b.some((r) => r.role === "doctor");
+    if (aHasDoc !== bHasDoc) return aHasDoc ? -1 : 1;
+    return (a[0].created_at ?? "").localeCompare(b[0].created_at ?? "");
+  });
+
+  // 미가입 원장 카운트 (auth_user_id IS NULL)
+  const unregisteredDoctorCount = (profiles ?? []).filter(
+    (p) => p.role === "doctor" && p.auth_user_id == null,
+  ).length;
 
   return (
     <section className="w-full py-6">
@@ -281,11 +124,10 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text)]">회원 관리</h1>
           <p className="mt-1 text-xs text-[var(--text-muted)]">
-            원장 {doctorRows.filter((r) => r.isPrimary).length}명
-            (연결 {doctorRows.filter((r) => r.isPrimary && !r.unregistered).length}
-            /연결안됨 {doctorRows.filter((r) => r.unregistered).length})
-            · 일반 회원 {memberRows.filter((r) => r.isPrimary).length}명
-            · 총 {filteredRows.length} ID
+            총 {filtered.length} ID · {groupArr.length} 묶음
+            {unregisteredDoctorCount > 0 && (
+              <span> · 미가입 원장 {unregisteredDoctorCount}명</span>
+            )}
           </p>
         </div>
       </div>
@@ -310,7 +152,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
           type="text"
           name="q"
           defaultValue={qParam}
-          placeholder="닉네임 검색"
+          placeholder="닉네임/핸들 검색"
           className="h-9 flex-1 min-w-[140px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
         />
         <button
@@ -321,7 +163,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         </button>
       </form>
 
-      {filteredRows.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-white p-8 text-center text-sm text-[var(--text-muted)]">
           조건에 맞는 ID가 없어요.
         </div>
@@ -335,78 +177,69 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                 <th className="px-3 py-2 text-left font-medium">등급</th>
                 <th className="px-3 py-2 text-right font-medium">글수</th>
                 <th className="px-3 py-2 text-left font-medium">가입일</th>
+                <th className="px-3 py-2 text-left font-medium">묶음</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((r, idx) => {
-                const prev = idx > 0 ? filteredRows[idx - 1] : null;
-                const sameProfileAsPrev = prev && prev.profileId === r.profileId;
-                const lvl = r.level ?? 0;
-                const lvlColor = LEVEL_COLORS[lvl] ?? LEVEL_COLORS[0];
-                return (
-                  <tr
-                    key={r.key}
-                    className={`transition-colors hover:bg-[var(--bg-soft)] ${
-                      sameProfileAsPrev
-                        ? "border-t border-dashed border-[var(--border)]/50"
-                        : "border-t border-[var(--border)]"
-                    } ${r.unregistered ? "bg-amber-50/30" : ""}`}
-                  >
-                    <td className="px-3 py-2 align-top text-[var(--text)]">
-                      {!r.isPrimary && (
-                        <span className="mr-1 text-[var(--text-muted)]">↳</span>
-                      )}
-                      {r.profileId ? (
+              {groupArr.map((grp, gi) => {
+                const groupKey = grp[0].auth_user_id ?? grp[0].id;
+                const groupLabel = grp.length > 1 ? `${grp.length}명` : "—";
+                return grp.map((p, idx) => {
+                  const isUnregistered =
+                    p.role === "doctor" && p.auth_user_id == null;
+                  return (
+                    <tr
+                      key={p.id}
+                      className={`transition-colors hover:bg-[var(--bg-soft)] ${
+                        idx === 0
+                          ? "border-t-2 border-[var(--border)]"
+                          : "border-t border-dashed border-[var(--border)]/50"
+                      } ${isUnregistered ? "bg-amber-50/30" : ""}`}
+                    >
+                      <td className="px-3 py-2 align-top text-[var(--text)]">
                         <Link
-                          href={
-                            r.isPrimary
-                              ? `/admin/users/${r.profileId}?identity=primary`
-                              : `/admin/users/${r.profileId}?identity=${r.key.split("::")[1]}`
-                          }
+                          href={`/admin/users/${p.id}`}
                           className="font-medium hover:text-[var(--primary)] hover:underline"
                         >
-                          {r.displayName}
+                          {p.display_name ?? "(이름 없음)"}
                         </Link>
-                      ) : r.doctorId ? (
-                        // 미가입(연결 안된) 원장 — doctor 관리 페이지로
-                        <Link
-                          href={`/admin/doctors/${r.handle}`}
-                          className="font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] hover:underline"
-                        >
-                          {r.displayName}
-                        </Link>
-                      ) : (
-                        <span className="font-medium text-[var(--text-secondary)]">
-                          {r.displayName}
+                        {isUnregistered && (
+                          <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                            미가입
+                          </span>
+                        )}
+                        {!isUnregistered && !p.terms_agreed_at && (
+                          <span className="ml-1 text-[10px] text-amber-700">
+                            (온보딩 미완료)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
+                        {p.handle ? `@${p.handle}` : "—"}
+                      </td>
+                      <td className="px-3 py-2 align-top">
+                        <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
+                          {p.role}
                         </span>
-                      )}
-                      {r.unregistered && (
-                        <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
-                          연결 안됨
-                        </span>
-                      )}
-                      {r.isPrimary && !r.unregistered && !r.termsAgreedAt && (
-                        <span className="ml-1 text-[10px] text-amber-700">
-                          (온보딩 미완료)
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
-                      {r.handle ? `@${r.handle}` : "—"}
-                    </td>
-                    <td className="px-3 py-2 align-top">
-                      <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
-                        {r.roleLabel}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
-                      {r.isPrimary ? r.postCount.toLocaleString() : ""}
-                    </td>
-                    <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
-                      {r.createdAt?.slice(0, 10)}
-                    </td>
-                  </tr>
-                );
+                      </td>
+                      <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
+                        {(postCountMap.get(p.id) ?? 0).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
+                        {p.created_at?.slice(0, 10) ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
+                        {idx === 0 ? (
+                          <span title={`auth_user_id: ${groupKey}`}>
+                            {groupLabel}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--text-muted)]/60">↳</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                });
               })}
             </tbody>
           </table>
