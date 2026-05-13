@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
 import { getIdentityContext } from "@/lib/identity";
+import { PopularSearchesCard, PopularTagsCard } from "./PopularCards";
 
 export const dynamic = "force-dynamic";
 
@@ -105,8 +106,9 @@ export default async function AdminPage({
         </p>
       </div>
 
-      {/* 운영 통계 — 카드 6개. 클릭 시 해당 메뉴로 이동. */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      {/* 운영 통계 — 카드 6개. 클릭 시 해당 메뉴로 이동.
+          모바일 3개씩 (2줄), 데스크탑 6개 한 줄. */}
+      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
         <Stat label="전체 회원" value={userCount ?? 0} href="/admin/users" />
         <Stat label="원장" value={doctorCount ?? 0} href="/admin/users?role=doctor" />
         <Stat label="발행 Q&A" value={qaPublished ?? 0} href="/admin/qas?type=qa&status=published" />
@@ -228,130 +230,11 @@ export default async function AdminPage({
         </div>
       </div>
 
-      {/* 인기 검색어·태그 (기간 토글) */}
+      {/* 인기 검색어·태그 — client 컴포넌트 (기간 토글이 카드만 갱신) */}
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-[var(--text)]">
-              🔍 인기 검색어
-            </h2>
-            <div className="flex flex-wrap gap-1">
-              {PERIOD_OPTIONS.map((p) => {
-                const active = p.days === searchesDays;
-                const params = new URLSearchParams();
-                params.set("searches", String(p.days));
-                params.set("tags", String(tagsDays));
-                return (
-                  <Link
-                    key={p.days}
-                    href={`/admin?${params.toString()}#popular`}
-                    className={
-                      "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors " +
-                      (active
-                        ? "bg-[var(--primary)] text-white"
-                        : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
-                    }
-                  >
-                    {p.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-          {topSearches.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)]">
-              검색 기록이 아직 없습니다.
-            </p>
-          ) : (
-            <ol className="space-y-1">
-              {topSearches.map((s, i) => (
-                <li
-                  key={`${s.query}-${i}`}
-                  className="flex items-center justify-between gap-2 text-[13px]"
-                >
-                  <span className="flex items-center gap-2 truncate">
-                    <span className="w-4 text-right text-[11px] text-[var(--text-muted)]">
-                      {i + 1}
-                    </span>
-                    <Link
-                      href={`/search?q=${encodeURIComponent(s.query)}`}
-                      className="truncate hover:text-[var(--primary)] hover:underline"
-                    >
-                      {s.query}
-                    </Link>
-                  </span>
-                  <span className="tabular-nums text-[11px] text-[var(--text-muted)]">
-                    {s.cnt}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-
-        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-[var(--text)]">
-              🏷 인기 태그
-            </h2>
-            <div className="flex flex-wrap gap-1">
-              {PERIOD_OPTIONS.map((p) => {
-                const active = p.days === tagsDays;
-                const params = new URLSearchParams();
-                params.set("searches", String(searchesDays));
-                params.set("tags", String(p.days));
-                return (
-                  <Link
-                    key={p.days}
-                    href={`/admin?${params.toString()}#popular`}
-                    className={
-                      "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors " +
-                      (active
-                        ? "bg-[var(--primary)] text-white"
-                        : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
-                    }
-                  >
-                    {p.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-          {topTags.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)]">
-              인덱싱 태그 없음.
-            </p>
-          ) : (
-            <ol className="space-y-1">
-              {topTags.map((t, i) => (
-                <li
-                  key={t.keyword}
-                  className="flex items-center justify-between gap-2 text-[13px]"
-                >
-                  <span className="flex items-center gap-2 truncate">
-                    <span className="w-4 text-right text-[11px] text-[var(--text-muted)]">
-                      {i + 1}
-                    </span>
-                    <Link
-                      href={`/tags/${encodeURIComponent(t.keyword)}`}
-                      className="truncate hover:text-[var(--primary)] hover:underline"
-                    >
-                      #{t.keyword}
-                    </Link>
-                  </span>
-                  <span className="tabular-nums text-[11px] text-[var(--text-muted)]">
-                    {t.cnt}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
+        <PopularSearchesCard initialDays={searchesDays} initialData={topSearches} />
+        <PopularTagsCard initialDays={tagsDays} initialData={topTags} />
       </div>
-
-      <p className="mt-6 text-[11px] text-[var(--text-muted)]">
-        ※ AEO/GEO manual 인용 로그는 다음 phase에서 추가됩니다.
-      </p>
     </section>
   );
 }
