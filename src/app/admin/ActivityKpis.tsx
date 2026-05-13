@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 type Kpi = {
@@ -9,6 +10,16 @@ type Kpi = {
   likes: number;
   saves: number;
   shares: number;
+};
+
+// 카드 라벨 → /admin/stats/{kind} 매핑
+const KIND_BY_LABEL: Record<string, string> = {
+  방문자: "visitors",
+  조회수: "views",
+  댓글: "comments",
+  좋아요: "likes",
+  저장: "saves",
+  공유: "shares",
 };
 
 // 기간 토글 6종 — 사이트 전체 통일 (24시간/7일/30일/90일/1년/전체)
@@ -79,17 +90,31 @@ export default function ActivityKpis({
         </div>
       </div>
       <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
-        {items.map((it) => (
-          <div
-            key={it.label}
-            className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4"
-          >
-            <div className="text-xs text-[var(--text-muted)]">{it.label}</div>
-            <div className="mt-1 text-2xl font-bold tabular-nums text-[var(--text)]">
-              {it.value.toLocaleString()}
+        {items.map((it) => {
+          const kind = KIND_BY_LABEL[it.label];
+          const href = kind
+            ? `/admin/stats/${kind}?days=${days || 0}`
+            : null;
+          const cls =
+            "block rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 transition-colors hover:border-[var(--primary)] hover:bg-[var(--bg-soft)]";
+          const inner = (
+            <>
+              <div className="text-xs text-[var(--text-muted)]">{it.label}</div>
+              <div className="mt-1 text-2xl font-bold tabular-nums text-[var(--text)]">
+                {it.value.toLocaleString()}
+              </div>
+            </>
+          );
+          return href ? (
+            <Link key={it.label} href={href} className={cls}>
+              {inner}
+            </Link>
+          ) : (
+            <div key={it.label} className={cls}>
+              {inner}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

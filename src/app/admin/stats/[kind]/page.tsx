@@ -1,0 +1,106 @@
+import { notFound, redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
+import StatsListClient, {
+  type Kind,
+  type VisitorRow,
+  type QaRow,
+} from "./StatsListClient";
+
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "활동 통계",
+  robots: { index: false, follow: false },
+};
+
+const KIND_TITLES: Record<Kind, string> = {
+  visitors: "방문자",
+  views: "조회된 글",
+  comments: "댓글 많은 글",
+  likes: "좋아요 많은 글",
+  saves: "저장 많은 글",
+  shares: "공유 많은 글",
+};
+
+const KIND_RPCS: Record<Kind, string> = {
+  visitors: "get_top_visitors",
+  views: "get_top_qas_by_views",
+  comments: "get_top_qas_by_comments",
+  likes: "get_top_qas_by_likes",
+  saves: "get_top_qas_by_saves",
+  shares: "get_top_qas_by_shares",
+};
+
+const ALLOWED_KINDS: Kind[] = [
+  "visitors",
+  "views",
+  "comments",
+  "likes",
+  "saves",
+  "shares",
+];
+
+const FIRST_PAGE_SIZE = 50;
+const DEFAULT_DAYS = 7;
+
+type Props = {
+  params: Promise<{ kind: string }>;
+  searchParams?: Promise<{ days?: string }>;
+};
+
+/**
+ * /admin/stats/{kind} — 활동 통계 TOP 리스트.
+ *
+ * 6개 KPI(방문자/조회/댓글/좋아요/저장/공유)에 공통 패턴 — RPC + StatsListClient.
+ * 무한 스크롤 + 기간 토글 6종 통일.
+ */
+export default async function StatsKindPage({ params, searchParams }: Props) {
+  const { kind: kindRaw } = await params;
+  const kind = ALLOWED_KINDS.includes(kindRaw as Kind) ? (kindRaw as Kind) : null;
+  if (!kind) notFound();
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect(`/login?next=/admin/stats/${kind}`);
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx?.active || (!idCtx.isSuperAdmin && !idCtx.isDoctorAdmin)) {
+    redirect("/login?error=관리자 권한이 필요합니다");
+  }
+
+  const sp = (await searchParams) ?? {};
+  const daysRaw = parseInt(sp.days ?? String(DEFAULT_DAYS), 10);
+  const days = [1, 7, 30, 90, 365, 0].includes(daysRaw) ? daysRaw : DEFAULT_DAYS;
+
+  const rpc = KIND_RPCS[kind];
+  const result = await supabase.rpc(rpc, {
+    p_days: days,
+    p_limit: FIRST_PAGE_SIZE + 1,
+    p_offset: 0,
+  });
+  const rows = (result.data ?? []) as (VisitorRow | QaRow)[];
+  const hasMore = rows.length > FIRST_PAGE_SIZE;
+  const firstPage = rows.slice(0, FIRST_PAGE_SIZE);
+
+  return (
+    <section className="w-full py-6">
+      <div className="mb-5 pl-1">
+        <h1 className="text-2xl font-bold text-[var(--text)]">
+          {KIND_TITLES[kind]} TOP
+        </h1>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          기간별 TOP 리스트 — 클릭하면 해당 사용자/글로 이동합니다.
+        </p>
+      </div>
+
+      <StatsListClient
+        kind={kind}
+        initial={firstPage}
+        initialHasMore={hasMore}
+        initialDays={days}
+      />
+    </section>
+  );
+}
