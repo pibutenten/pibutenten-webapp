@@ -814,6 +814,11 @@
 - `profile_identities` 관련 200줄+ 코드 제거
 - 향후 멀티 ID 확장 (한 사람이 ID 5~10개 추가) 비용 거의 0
 
+**Phase 9 진행 상황 (2026-05-13 세션, 마지막 단계)**:
+- [x] **0044 적용 완료** — `profiles.auth_user_id uuid` 추가 + FK + 인덱스. 17개 row 본인 id로 백필. role enum 'developer' 안전 처리 (enum이면 ADD, 아니면 skip).
+- [x] **0045 작성 (적용 X)** — `profile_identities` → `profiles` INSERT (id 재사용으로 기존 FK 그대로 통함) + `doctor_accounts` 보존 + `qas`·`comments`·`qa_likes`·`qa_saves`·`comment_likes` FK 재배선 + `admin` → `developer` 변환. 코드 변경과 함께 적용 예정.
+- [ ] **다음 세션 — 0045 적용 + 코드 변경** — `getIdentityContext` 단순화, `viewer-states.ts` identity 분기 제거, `IdentitySwitcher`를 같은 `auth_user_id` 묶음 표시로 변경, profile_identities·관련 컬럼 폐기(0046)
+
 **Phase 7.5 commit 히스토리** (이번 세션):
 
 | commit | 내용 |
@@ -837,6 +842,9 @@
 | `a900f7b` | PubMed step2 카드별 try/catch 격리 |
 | `ec8cb40` | 카드 편집기 버튼 3개 통일 (삭제 / 대기 / 발행) |
 | `6c1b6b0` | `scripts/audit_qa_videos.py` 영상 링크 누락 진단 스크립트 |
+| `7f57b6f` | 발행 API videos UPSERT + qas.video_id 자동 채움 + 994개 백필 |
+| (이번 세션) | 0044 적용 — `profiles.auth_user_id` 컬럼 추가 + role enum 'developer' 안전 추가 |
+| (이번 세션) | 0045 작성 — `profile_identities` → `profiles` 이관 SQL (적용은 다음 세션) |
 
 ---
 
