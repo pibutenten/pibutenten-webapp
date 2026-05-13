@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { SITE_URL } from "@/lib/site";
 
 /**
  * 외부 URL의 Open Graph 메타 추출.
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
       signal: ctrl.signal,
       redirect: "follow",
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; PibutentenBot/1.0; +https://pibutenten-webapp.vercel.app)",
+        "User-Agent": `Mozilla/5.0 (compatible; PibutentenBot/1.0; +${SITE_URL})`,
         Accept: "text/html,application/xhtml+xml",
       },
     });

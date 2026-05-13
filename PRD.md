@@ -15,7 +15,10 @@
 - ✅ OAuth callback URL — env 자동 분기 (`NEXT_PUBLIC_SITE_URL` > `VERCEL_URL` > localhost)
 - ✅ /write 사적 모드(직함 숨기기) 토글 제거 (Phase 9에서 ID 분리됐으므로 불필요)
 - ✅ /write Q&A 카테고리: 영상 URL [미리보기] 버튼 (본문 안 덮음)
-- ⏳ 다음 세션 — RLS 정책 Phase 9 재작성 / /write 4색 형광펜 / D1·D2 다중 출연 LLM 프롬프트 / pibutenten.com 도메인 연결 (사용자 자체 작업)
+- ✅ /write Q&A 본문 4색 형광펜 (`MarkdownBoldEditor` + `pickHighlight`) — 카드 편집기와 동일 시각 톤
+- ✅ RLS Phase 9 호환 (migration 0059): `is_admin()` / `current_doctor_id()` / `same_group_profile_ids()` 묶음 기반 + profiles·qa_likes·qa_saves·qa_ratings·comments·qas 정책에 묶음 내 profile.id 허용
+- ✅ OG-extract User-Agent도 SITE_URL 기반으로 통일
+- ⏳ 다음 세션 — D1·D2 다중 출연 LLM 프롬프트 / /write ↔ 카드 편집기 완전 통일 (PubMed chip + ref UI) / pibutenten.com 도메인 연결 (사용자 자체 작업)
 
 > 라이브: https://pibutenten-webapp.vercel.app
 

@@ -7,6 +7,8 @@ import {
   type PostCategorySlug,
 } from "@/lib/post-category";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
+import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
+import { pickHighlight } from "@/lib/qa-highlight";
 
 /** 글쓰기 페이지 진입 시 랜덤 노출 카피 (꼭 공유하고 싶은 나만의 피부 비법은 베리에이션 강조) */
 const WRITE_PHRASES = [
@@ -629,7 +631,8 @@ export default function WriteClient({
         </div>
         )}
 
-        {/* 포스팅·Q&A 통합 form — 제목 / 본문 동일 구조 */}
+        {/* 포스팅·Q&A 통합 form — 제목 / 본문 동일 구조.
+            Q&A 카테고리만 형광펜(MarkdownBoldEditor) 사용 — 카드와 동일 시각 톤. */}
         {(type === "post" || type === "qa") && (
           <PostQaForm
             title={title}
@@ -637,6 +640,7 @@ export default function WriteClient({
             body={body}
             onBody={setBody}
             bodyMax={category === "link" ? 400 : 800}
+            useHighlight={category === "qa"}
           />
         )}
 
@@ -833,6 +837,7 @@ function PostQaForm({
   body,
   onBody,
   bodyMax = 800,
+  useHighlight = false,
 }: {
   title: string;
   onTitle: (s: string) => void;
@@ -840,7 +845,15 @@ function PostQaForm({
   onBody: (s: string) => void;
   /** 본문 최대 글자수 — 카테고리별 다름 (새소식은 짧게). 기본 800 */
   bodyMax?: number;
+  /** Q&A 본문은 형광펜(WYSIWYG) 사용. 기본 false (포스팅은 평문 textarea). */
+  useHighlight?: boolean;
 }) {
+  // 새로 작성하는 글은 카드 id가 아직 없으므로 제목 기반 seed → 4색 중 안정 픽
+  const highlightColor = useHighlight ? pickHighlight(title || "draft") : "";
+  // markdown 본문에서 ** 문자열 제외한 순수 글자수 (한도 비교용)
+  const bodyPlainLen = useHighlight
+    ? body.replace(/\*\*/g, "").length
+    : body.length;
   return (
     <>
       <div>
@@ -859,16 +872,31 @@ function PostQaForm({
         <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
           본문{" "}
           <span className="text-xs font-normal text-[var(--text-muted)]">
-            ({body.length} / {bodyMax})
+            ({bodyPlainLen} / {bodyMax})
           </span>
+          {useHighlight && (
+            <span className="ml-2 text-[11px] font-normal text-[var(--text-muted)]">
+              · 텍스트 선택 후 [B] 또는 Ctrl+B 누르면 형광펜
+            </span>
+          )}
         </label>
-        <textarea
-          value={body}
-          onChange={(e) => onBody(e.target.value)}
-          rows={10}
-          maxLength={bodyMax}
-          className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
-        />
+        {useHighlight ? (
+          <MarkdownBoldEditor
+            value={body}
+            onChange={onBody}
+            highlightColor={highlightColor}
+            minHeight={260}
+            placeholder="답변 본문을 작성해주세요. 핵심 표현은 [B] 굵게로 형광펜 강조."
+          />
+        ) : (
+          <textarea
+            value={body}
+            onChange={(e) => onBody(e.target.value)}
+            rows={10}
+            maxLength={bodyMax}
+            className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
+          />
+        )}
       </div>
     </>
   );

@@ -1,19 +1,20 @@
 "use client";
 
 /**
- * 클라이언트 측 활성 identity 읽기 헬퍼.
+ * 클라이언트 측 활성 ID 읽기 헬퍼.
  *
- * 활성 identity는 cookie `pibutenten:identity`에 저장됨.
- *  - 값 'primary' 또는 없음: 1차 identity (= profile 자체). identity_id는 NULL로 저장.
- *  - 값 UUID: profile_identities row id. 인터랙션(qa_likes·qa_saves·comments) 시
- *    identity_id 컬럼에 그 UUID를 함께 저장 → 멀티 identity 카운팅/표시 정확화.
+ * Phase 9: 모든 ID = profiles row. cookie `pibutenten:identity`에 target profile.id 저장.
+ *  - 값 'primary' 또는 없음 → 로그인 profile 자체가 활성
+ *  - 값 UUID → 같은 auth_user_id 묶음 안의 다른 profile (예: doctor 부계정)
+ *
+ * 인터랙션(qa_likes·qa_saves·comments) 시 author_id/user_id = 이 값.
  */
 
 const COOKIE = "pibutenten:identity";
 
 /**
- * 활성 identity_id (UUID) 반환.
- * - 'primary' 또는 cookie 없음 → null (= profile 자체 = 1차 identity)
+ * 활성 profile.id (UUID) 반환.
+ * - 'primary' 또는 cookie 없음 → null (= 로그인 profile 자체)
  * - UUID → 그 string
  */
 export function getActiveIdentityId(): string | null {
