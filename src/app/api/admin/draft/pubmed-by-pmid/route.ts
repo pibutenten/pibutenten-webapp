@@ -10,27 +10,16 @@
  */
 
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdminOrDoctor } from "@/lib/admin-guard";
 import { fetchPubmedByPmid } from "@/lib/ai/pubmed";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  // 원장도 가능하게 (편집 페이지 접근 가능한 역할이면 참고문헌 추가도 OK)
-  if (profile?.role !== "admin" && profile?.role !== "doctor") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  // 편집 페이지 접근 가능한 admin·doctor 둘 다 허용
+  const guard = await requireAdminOrDoctor();
+  if (!guard.ok) return guard.response;
 
   let body: { pmid?: unknown };
   try {

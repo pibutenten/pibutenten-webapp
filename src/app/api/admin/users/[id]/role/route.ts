@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -20,26 +21,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const supabase = await createSupabaseServerClient();
 
-  // 호출자 admin 검증
-  const {
-    data: { user: caller },
-  } = await supabase.auth.getUser();
-  if (!caller) {
-    return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
-  }
-  const { data: callerProfile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", caller.id)
-    .maybeSingle();
-  if (callerProfile?.role !== "admin") {
-    return NextResponse.json(
-      { error: "관리자 권한이 필요합니다" },
-      { status: 403 },
-    );
-  }
+  // 호출자 admin 검증 (auth_user_id 묶음 기준)
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.response;
+  const supabase = await createSupabaseServerClient();
 
   const body = (await req.json()) as Body;
   const role = body.role;

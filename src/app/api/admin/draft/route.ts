@@ -17,6 +17,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/admin-guard";
 import { fetchYoutubeTranscript } from "@/lib/ai/youtube-transcript";
 import { generateQADrafts } from "@/lib/ai/draft-generator";
 
@@ -45,22 +46,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "url is required" }, { status: 400 });
   }
 
-  // ── 2) 인증 + 관리자 권한
+  // ── 2) 인증 + 관리자 권한 (auth_user_id 묶음 기준)
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.response;
   const supabase = await createSupabaseServerClient();
-
-  const { data: userData, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userData?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { data: profile, error: profileErr } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userData.user.id)
-    .single();
-  if (profileErr || !profile || profile.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden: admin only" }, { status: 403 });
-  }
 
   // ── 3) 자막 fetch (자동 매칭에도 필요하므로 먼저 실행)
   let transcriptResult;

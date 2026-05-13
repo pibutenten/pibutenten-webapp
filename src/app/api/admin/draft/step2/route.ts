@@ -18,6 +18,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/admin-guard";
 import { fetchPubmedCandidates } from "@/lib/ai/pubmed";
 import { runStep2 } from "@/lib/ai/step2";
 
@@ -31,20 +32,8 @@ type CardIn = {
 };
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "admin") {
-    return NextResponse.json(
-      { error: "Forbidden: admin only" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.response;
 
   let body: { cards?: unknown; retmax?: unknown };
   try {

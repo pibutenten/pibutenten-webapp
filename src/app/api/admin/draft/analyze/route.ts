@@ -17,7 +17,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/admin-guard";
 import { fetchYoutubeTranscript } from "@/lib/ai/youtube-transcript";
 import { identifyDoctors } from "@/lib/ai/identify-doctors";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
@@ -26,22 +26,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user }, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "admin") {
-    return NextResponse.json(
-      { error: "Forbidden: admin only" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.response;
 
   let body: { url?: unknown };
   try {

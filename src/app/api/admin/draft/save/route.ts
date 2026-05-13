@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -25,21 +26,9 @@ type SaveBody = {
  * 관리자 전용.
  */
 export async function POST(req: Request) {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.response;
   const supabase = await createSupabaseServerClient();
-
-  // 관리자 권한 체크
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "로그인 필요" }, { status: 401 });
-  }
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "admin") {
-    return NextResponse.json({ error: "관리자 권한 필요" }, { status: 403 });
-  }
 
   let body: SaveBody;
   try {
@@ -111,7 +100,7 @@ export async function POST(req: Request) {
     video_id: videoRowId,
     status,
     type: "qa" as const,
-    author_id: user.id,
+    author_id: guard.userId,
     published: status === "published",
   }));
 

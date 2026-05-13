@@ -8,7 +8,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -16,21 +16,8 @@ const REDIRECT_URI =
   "http://localhost:3000/api/admin/youtube-oauth/callback";
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.redirect(
-      "http://localhost:3000/login?next=/api/admin/youtube-oauth/start",
-    );
-  }
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "admin") {
-    return NextResponse.json({ error: "Admin only" }, { status: 403 });
-  }
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.response;
 
   const clientId = process.env.YOUTUBE_OAUTH_CLIENT_ID;
   if (!clientId) {
