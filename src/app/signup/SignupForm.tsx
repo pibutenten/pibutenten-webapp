@@ -137,7 +137,24 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
         />
         <span>
           <span className="font-semibold text-[var(--text)]">[필수]</span>{" "}
-          이용약관 · 개인정보 처리방침에 동의합니다.
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--primary)] underline hover:text-[var(--primary-dark)]"
+          >
+            이용약관
+          </a>{" "}
+          ·{" "}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--primary)] underline hover:text-[var(--primary-dark)]"
+          >
+            개인정보 처리방침
+          </a>
+          에 동의합니다.
         </span>
       </label>
 

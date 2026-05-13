@@ -29,10 +29,16 @@ export default function SiteFooter() {
             전문의
           </Link>
           <Link
-            href="/"
+            href="/terms"
             className="hover:text-[var(--primary)] hover:underline"
           >
-            피드
+            이용약관
+          </Link>
+          <Link
+            href="/privacy"
+            className="hover:text-[var(--primary)] hover:underline"
+          >
+            개인정보 처리방침
           </Link>
         </nav>
       </div>
