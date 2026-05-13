@@ -89,18 +89,19 @@ export default async function AdminPage() {
         </p>
       </div>
 
-      {/* 운영 통계 — 카드 6개 */}
+      {/* 운영 통계 — 카드 6개. 클릭 시 해당 메뉴로 이동. */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Stat label="전체 회원" value={userCount ?? 0} />
-        <Stat label="원장" value={doctorCount ?? 0} />
-        <Stat label="발행 Q&A" value={qaPublished ?? 0} />
-        <Stat label="발행 포스팅" value={postPublished ?? 0} />
+        <Stat label="전체 회원" value={userCount ?? 0} href="/admin/users" />
+        <Stat label="원장" value={doctorCount ?? 0} href="/admin/users?role=doctor" />
+        <Stat label="발행 Q&A" value={qaPublished ?? 0} href="/admin/qas?type=qa&status=published" />
+        <Stat label="발행 포스팅" value={postPublished ?? 0} href="/admin/qas?type=post&status=published" />
         <Stat
           label="검수 대기"
           value={pendingReview ?? 0}
           highlight={(pendingReview ?? 0) > 0}
+          href="/admin/qas?status=pending_review"
         />
-        <Stat label="댓글" value={totalComments ?? 0} />
+        <Stat label="댓글" value={totalComments ?? 0} href="/admin/qas?has=comments" />
       </div>
 
       {/* 운영 도구 — 깊은 페이지 진입점 */}
@@ -295,18 +296,20 @@ function Stat({
   label,
   value,
   highlight,
+  href,
 }: {
   label: string;
   value: number;
   highlight?: boolean;
+  href?: string;
 }) {
-  return (
-    <div
-      className={
-        "rounded-[var(--radius)] border bg-white p-4 " +
-        (highlight ? "border-amber-300" : "border-[var(--border)]")
-      }
-    >
+  const cls =
+    "block rounded-[var(--radius)] border bg-white p-4 transition-colors " +
+    (highlight
+      ? "border-amber-300 hover:bg-amber-50/40"
+      : "border-[var(--border)] hover:bg-[var(--bg-soft)]");
+  const inner = (
+    <>
       <div className="text-xs text-[var(--text-muted)]">{label}</div>
       <div
         className={
@@ -316,8 +319,16 @@ function Stat({
       >
         {value.toLocaleString()}
       </div>
-    </div>
+    </>
   );
+  if (href) {
+    return (
+      <Link href={href} className={cls}>
+        {inner}
+      </Link>
+    );
+  }
+  return <div className={cls}>{inner}</div>;
 }
 
 function Tool({
