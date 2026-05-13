@@ -52,15 +52,16 @@ type ProfileRow = {
 /**
  * Lookup priority:
  *   1) profiles.handle  (primary identity)
- *   2) profiles.alt_handle  (legacy personal persona)
- *   3) profile_identities.handle  (v4 multi-identity)
+ *   2) profiles.alt_handle  (legacy)
+ *
+ * Phase 9: 모든 ID는 profiles에 독립 row로 존재. profile_identities lookup 제거.
  */
 async function fetchProfileByHandle(
   handle: string,
 ): Promise<{
   profile: ProfileRow;
   isAlt: boolean;
-  /** 매칭된 multi-identity 정보 (있을 때) — display_name/avatar_url/bio override */
+  /** doctor identity 정보 (doctor_accounts 매핑 있을 때) */
   identity?: {
     id: string;
     display_name: string;
@@ -75,16 +76,41 @@ async function fetchProfileByHandle(
   const select =
     "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility";
 
-  // 1) profiles.handle
+  // 1) profiles.handle 매칭 — Phase 9 단일 모델
   let { data } = await supabase
     .from("profiles")
     .select(select)
     .eq("handle", handle)
     .maybeSingle()
     .returns<ProfileRow>();
-  if (data) return { profile: data, isAlt: false };
+  if (data) {
+    // doctor_accounts 매핑 확인 — doctor 사진·정보 single source
+    const { data: da } = await supabase
+      .from("doctor_accounts")
+      .select("doctor:doctors(id, slug, photo_url)")
+      .eq("profile_id", data.id)
+      .maybeSingle();
+    const doc = (
+      Array.isArray(da?.doctor) ? da?.doctor?.[0] : da?.doctor
+    ) as { id: string; slug: string; photo_url: string | null } | undefined;
+    if (doc) {
+      return {
+        profile: data,
+        isAlt: false,
+        identity: {
+          id: data.id,
+          display_name: data.display_name ?? handle,
+          avatar_url: doc.photo_url ?? `/doctors/${doc.slug}.png`,
+          bio: data.bio,
+          kind: "doctor",
+          doctor_id: doc.id,
+        },
+      };
+    }
+    return { profile: data, isAlt: false };
+  }
 
-  // 2) profiles.alt_handle (legacy personal persona)
+  // 2) profiles.alt_handle (legacy personal persona — 점진 폐기 예정)
   ({ data } = await supabase
     .from("profiles")
     .select(select)
@@ -92,57 +118,6 @@ async function fetchProfileByHandle(
     .maybeSingle()
     .returns<ProfileRow>());
   if (data) return { profile: data, isAlt: true };
-
-  // 3) profile_identities.handle (v4 multi-identity)
-  const { data: identity } = await supabase
-    .from("profile_identities")
-    .select("id, profile_id, display_name, avatar_url, bio, kind, doctor_id")
-    .eq("handle", handle)
-    .maybeSingle()
-    .returns<{
-      id: string;
-      profile_id: string;
-      display_name: string;
-      avatar_url: string | null;
-      bio: string | null;
-      kind: string;
-      doctor_id: string | null;
-    }>();
-  if (identity) {
-    const { data: parent } = await supabase
-      .from("profiles")
-      .select(select)
-      .eq("id", identity.profile_id)
-      .maybeSingle()
-      .returns<ProfileRow>();
-    if (parent) {
-      // doctor identity면 doctors.photo_url 우선 (single source 규약)
-      let resolvedAvatar = identity.avatar_url;
-      if (identity.doctor_id) {
-        const { data: doc } = await supabase
-          .from("doctors")
-          .select("slug, photo_url")
-          .eq("id", identity.doctor_id)
-          .maybeSingle()
-          .returns<{ slug: string; photo_url: string | null }>();
-        if (doc) {
-          resolvedAvatar = doc.photo_url ?? `/doctors/${doc.slug}.png`;
-        }
-      }
-      return {
-        profile: parent,
-        isAlt: true,
-        identity: {
-          id: identity.id,
-          display_name: identity.display_name,
-          avatar_url: resolvedAvatar,
-          bio: identity.bio,
-          kind: identity.kind,
-          doctor_id: identity.doctor_id,
-        },
-      };
-    }
-  }
 
   return null;
 }

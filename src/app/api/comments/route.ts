@@ -113,79 +113,42 @@ export async function GET(req: Request) {
   };
   type DoctorAcctRow = { profile_id: string; doctor_id: string };
 
-  let profilesById = new Map<string, ProfileRow>();
+  let profilesById = new Map<string, ProfileRow & { doctor_photo_url?: string | null }>();
   let doctorByProfile = new Map<string, string>();
-  // identity_id → {display_name, avatar_url} (멀티 ID 분리 표시용)
-  const identityById = new Map<string, { display_name: string | null; avatar_url: string | null }>();
 
   if (authorIds.length > 0) {
-    const identityIds = Array.from(
-      new Set(
-        [...rootRows, ...replyRows]
-          .map((r) => (r as { identity_id?: string | null }).identity_id)
-          .filter((v): v is string => !!v),
-      ),
-    );
-    const [profRes, docRes, idRes] = await Promise.all([
+    // Phase 9: profile_identities 폐기. comments.author_id로 직접 profiles 조회.
+    const [profRes, docRes] = await Promise.all([
       supabase
         .from("profiles")
         .select("id, display_name, avatar_url, alt_display_name, alt_avatar_url, role")
         .in("id", authorIds),
       supabase
         .from("doctor_accounts")
-        .select("profile_id, doctor_id")
+        .select("profile_id, doctor_id, doctor:doctors(slug, photo_url)")
         .in("profile_id", authorIds),
-      identityIds.length > 0
-        ? supabase
-            .from("profile_identities")
-            .select("id, display_name, avatar_url, doctor_id")
-            .in("id", identityIds)
-        : Promise.resolve({ data: [], error: null }),
     ]);
-    if (profRes.error) {
-      profilesById = new Map();
-    } else {
+    if (!profRes.error && profRes.data) {
       profilesById = new Map(
         ((profRes.data ?? []) as ProfileRow[]).map((p) => [p.id, p]),
       );
     }
     if (!docRes.error && docRes.data) {
-      doctorByProfile = new Map(
-        (docRes.data as DoctorAcctRow[]).map((d) => [d.profile_id, d.doctor_id]),
-      );
-    }
-    if (!idRes.error && idRes.data) {
-      // doctor identity인 경우 doctors.photo_url single source 사용
-      type IdRow = {
-        id: string;
-        display_name: string | null;
-        avatar_url: string | null;
-        doctor_id: string | null;
+      type DAR = {
+        profile_id: string;
+        doctor_id: string;
+        doctor: { slug: string; photo_url: string | null } | { slug: string; photo_url: string | null }[] | null;
       };
-      const idRows = idRes.data as IdRow[];
-      const doctorIdsToFetch = Array.from(
-        new Set(idRows.map((r) => r.doctor_id).filter((v): v is string => !!v)),
-      );
-      let doctorPhotoMap = new Map<string, string>();
-      if (doctorIdsToFetch.length > 0) {
-        const { data: docRows } = await supabase
-          .from("doctors")
-          .select("id, slug, photo_url")
-          .in("id", doctorIdsToFetch);
-        if (docRows) {
-          doctorPhotoMap = new Map(
-            (docRows as Array<{ id: string; slug: string; photo_url: string | null }>).map(
-              (d) => [d.id, d.photo_url ?? `/doctors/${d.slug}.png`],
-            ),
-          );
+      for (const da of docRes.data as DAR[]) {
+        doctorByProfile.set(da.profile_id, da.doctor_id);
+        const d = Array.isArray(da.doctor) ? da.doctor[0] : da.doctor;
+        if (d) {
+          const photo = d.photo_url ?? `/doctors/${d.slug}.png`;
+          const existing = profilesById.get(da.profile_id);
+          if (existing) {
+            profilesById.set(da.profile_id, { ...existing, doctor_photo_url: photo });
+          }
         }
-      }
-      for (const row of idRows) {
-        const docPhoto = row.doctor_id ? doctorPhotoMap.get(row.doctor_id) ?? null : null;
-        identityById.set(row.id, {
-          display_name: row.display_name,
-          avatar_url: docPhoto ?? row.avatar_url,
-        });
       }
     }
   }
@@ -193,24 +156,20 @@ export async function GET(req: Request) {
   function attachAuthor(r: Omit<CommentRow, "author">): CommentRow {
     if (!r.author_id) return { ...r, author: null };
     const p = profilesById.get(r.author_id);
-    // 멀티 ID: comments.identity_id 있으면 그 identity의 display_name/avatar 우선
-    const idId = (r as { identity_id?: string | null }).identity_id;
-    const ident = idId ? identityById.get(idId) : null;
     return {
       ...r,
       author: p
         ? {
             id: p.id,
-            display_name: ident?.display_name ?? p.display_name,
-            avatar_url: ident?.avatar_url ?? p.avatar_url,
-            // identity 있으면 personal/official 분기 무력화 — alt_*도 identity 값으로 덮어쓰기
-            alt_display_name: ident?.display_name ?? p.alt_display_name,
-            alt_avatar_url: ident?.avatar_url ?? p.alt_avatar_url,
+            display_name: p.display_name,
+            // doctor 매핑 row면 doctors.photo_url 우선 (single source)
+            avatar_url: p.doctor_photo_url ?? p.avatar_url,
+            alt_display_name: p.alt_display_name,
+            alt_avatar_url: p.alt_avatar_url,
             role: p.role,
             doctor_id: doctorByProfile.get(p.id) ?? null,
           }
         : {
-            // RLS로 프로필 직접 조회 안 되는 경우 (대부분 일반 사용자) — 표시명 fallback
             id: r.author_id,
             display_name: null,
             avatar_url: null,

@@ -100,65 +100,58 @@ async function getSessionInfo(): Promise<SessionInfo> {
     const { readPersonaServer } = await import("@/lib/persona-server");
     const persona = (await readPersonaServer()) as "official" | "personal";
 
-    // v4 multi-identity — primary + profile_identities 모두 가져와 dropdown 구성
-    const { data: extraIdentities } = await supabase
-      .from("profile_identities")
-      .select("id, handle, display_name, avatar_url, kind")
-      .eq("profile_id", user.id)
+    // Phase 9: 같은 auth_user_id 묶음의 profiles row 모두 가져와 dropdown 구성
+    // (profile_identities 의존 제거)
+    const { data: groupRows } = await supabase
+      .from("profiles")
+      .select("id, handle, display_name, avatar_url, role")
+      .eq("auth_user_id", user.id)
       .order("created_at", { ascending: true });
-    const identities: import("@/components/TopNav").SessionIdentity[] = [];
-    if (profile.handle) {
-      // doctor 매핑이면 doctor.photo_url 우선 (admin이 등록한 원장 사진 — single source)
-      let primaryAvatar = profile.avatar_url as string | null;
-      if (doctorSlug) {
-        const { data: doc } = await supabase
-          .from("doctors")
-          .select("photo_url")
-          .eq("slug", doctorSlug)
-          .maybeSingle();
-        primaryAvatar = (doc?.photo_url as string | null) ?? primaryAvatar;
+
+    // doctor_accounts 매핑 (각 profile.id가 어느 doctor의 가입자인지)
+    const groupIds = (groupRows ?? []).map((r) => (r as { id: string }).id);
+    const docMap = new Map<string, string>(); // profile_id → doctor.slug
+    if (groupIds.length > 0) {
+      const { data: da } = await supabase
+        .from("doctor_accounts")
+        .select("profile_id, doctor:doctors(slug, photo_url)")
+        .in("profile_id", groupIds);
+      for (const r of da ?? []) {
+        const row = r as { profile_id: string; doctor: { slug: string; photo_url: string | null } | { slug: string; photo_url: string | null }[] | null };
+        const d = Array.isArray(row.doctor) ? row.doctor[0] : row.doctor;
+        if (d) docMap.set(row.profile_id, d.slug);
       }
-      identities.push({
-        id: "primary",
-        handle: profile.handle as string,
-        displayName: (profile.display_name as string | null) ?? user.email ?? "",
-        avatarUrl: primaryAvatar,
-        // primary identity kind: doctor 매핑 > admin > user (회원)
-        kind: doctorSlug
-          ? "doctor"
-          : profile.role === "admin"
-            ? "admin"
-            : profile.role === "doctor"
-              ? "doctor"
-              : "user",
-      });
     }
-    for (const ei of (extraIdentities ?? []) as Array<{
+
+    const identities: import("@/components/TopNav").SessionIdentity[] = [];
+    for (const r of (groupRows ?? []) as Array<{
       id: string;
       handle: string;
       display_name: string;
       avatar_url: string | null;
-      kind: string;
+      role: string;
     }>) {
-      // primary identity (profiles.handle 자체)와 동일 handle인 profile_identities row는
-      // dropdown 중복 방지. kind 무관 — 0041 migration 이후 doctor/admin 등으로 바뀐 케이스도 포함.
-      // (DB row는 qa_likes/qa_saves FK 때문에 그대로 유지)
-      if (ei.handle === profile.handle) continue;
+      // doctor 매핑된 row는 doctors.photo_url 우선 (single source)
+      let avatar = r.avatar_url;
+      const docSlug = docMap.get(r.id);
+      if (docSlug) {
+        avatar = `/doctors/${docSlug}.png`;
+      }
       identities.push({
-        id: ei.id,
-        handle: ei.handle,
-        displayName: ei.display_name,
-        avatarUrl: ei.avatar_url,
-        kind: ei.kind,
+        // id: 본인 auth user의 row면 'primary', 그 외엔 그 profile.id
+        id: r.id === user.id ? "primary" : r.id,
+        handle: r.handle ?? "",
+        displayName: r.display_name ?? user.email ?? "",
+        avatarUrl: avatar,
+        kind: r.role, // role을 kind alias로 사용
       });
     }
-    // v5.1: dropdown 순서 — 관리자 / 원장 / 개인 / 기타 (사용자 의도)
+
+    // dropdown 순서 — admin / doctor / user
     const KIND_ORDER: Record<string, number> = {
       admin: 0,
       doctor: 1,
-      primary: 1, // primary가 doctor면 1, 그 외엔 fallback
       user: 2,
-      other: 3,
     };
     identities.sort(
       (a, b) =>
