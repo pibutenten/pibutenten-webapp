@@ -327,64 +327,74 @@ export default function EditClient({
 
       {/* ── 편집 폼 ── */}
       <div className="space-y-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
-        {/* 글쓴이 — super admin만 변경 가능. 원장 admin은 본인 고정 */}
-        <div>
-          <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            글쓴이
-          </label>
-          {canChangeAuthor ? (
-            <select
-              value={doctorId ?? ""}
-              onChange={(e) => setDoctorId(e.target.value || null)}
-              className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
-            >
-              <option value="">— 없음 —</option>
-              {doctors.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2 text-sm">
-              <span className="font-medium text-[var(--text)]">
-                {doctors.find((d) => d.id === doctorId)?.name ?? "— 없음 —"}
+        {/* E2: 글쓴이 + Pick 토글 좌우 배치 */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* 글쓴이 — super admin만 변경 가능 */}
+          <div>
+            <label className="mb-1 block text-sm text-[var(--text-secondary)]">
+              글쓴이
+            </label>
+            {canChangeAuthor ? (
+              <select
+                value={doctorId ?? ""}
+                onChange={(e) => setDoctorId(e.target.value || null)}
+                className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
+              >
+                <option value="">— 없음 —</option>
+                {doctors.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex h-[38px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-soft)] px-3 text-sm">
+                <span className="font-medium text-[var(--text)]">
+                  {doctors.find((d) => d.id === doctorId)?.name ?? "— 없음 —"}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Pick 토글 */}
+          <div>
+            <label className="mb-1 block text-sm text-[var(--text-secondary)]">
+              Pick (원장님 추천)
+            </label>
+            <div className="flex h-[38px] items-center justify-between rounded-md bg-[var(--bg-soft)] px-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={isPick}
+                  onChange={(e) => setIsPick(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <span className="font-semibold">Pick</span>
+              </label>
+              <span className="text-xs text-[var(--text-muted)]">
+                {doctorPickCount} / 5
               </span>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Pick 토글 */}
-        <div className="flex items-center justify-between rounded-md bg-[var(--bg-soft)] px-3 py-2">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={isPick}
-              onChange={(e) => setIsPick(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <span className="font-semibold">Pick (원장님 추천)</span>
-          </label>
-          <span className="text-xs text-[var(--text-muted)]">
-            현재 이 원장 Pick: {doctorPickCount} / 5
-          </span>
-        </div>
-
-        {/* 영상 정보 — 카드별 (qas.external_* 만 수정, videos 테이블 안 건드림) */}
+        {/* 영상 정보 — 카드별
+            E3: 영상 링크 편집 가능 + 저장 시 oEmbed로 제목 자동 채움
+            E4: YouTube 진입 버튼 제거 (외부 카드 형태로 통일) */}
         <div className="space-y-3 rounded-md border border-[var(--border)] bg-[var(--bg-soft)]/40 p-3">
           <p className="text-xs font-semibold text-[var(--text-secondary)]">
             🎬 영상 정보 (이 카드에만 적용)
           </p>
           <div>
             <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-              영상 제목
+              영상 링크 (YouTube URL — 입력 후 [↻] 클릭으로 제목 자동 채움)
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
-                value={externalTitle}
-                onChange={(e) => setExternalTitle(e.target.value)}
-                placeholder="(없음)"
+                value={externalUrl}
+                onChange={(e) => setExternalUrl(e.target.value)}
+                placeholder="https://youtu.be/..."
                 className="flex-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
               />
               <button
@@ -394,36 +404,21 @@ export default function EditClient({
                 title="YouTube에서 제목 가져오기"
                 className="whitespace-nowrap rounded-md border border-[var(--border)] bg-white px-3 text-xs font-medium text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
               >
-                {oembedLoading ? "가져오는 중…" : "↻ YouTube에서"}
+                {oembedLoading ? "가져오는 중…" : "↻ 제목 가져오기"}
               </button>
             </div>
           </div>
           <div>
             <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-              영상 링크{" "}
-              <span className="text-[10px] text-[var(--text-muted)]">
-                (시작 시각 자동 반영)
-              </span>
+              영상 제목 (readonly — oEmbed로 자동 채움)
             </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={externalUrl}
-                readOnly
-                placeholder="(없음)"
-                className="flex-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--text-secondary)] outline-none"
-              />
-              {externalUrl && (
-                <a
-                  href={externalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="whitespace-nowrap rounded-md border border-[var(--border)] bg-white px-3 py-2 text-xs font-medium text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
-                >
-                  ↗ 열기
-                </a>
-              )}
-            </div>
+            <input
+              type="text"
+              value={externalTitle}
+              readOnly
+              placeholder="(영상 링크 입력 후 [↻ 제목 가져오기] 클릭)"
+              className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--text-secondary)] outline-none"
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs text-[var(--text-secondary)]">
@@ -498,36 +493,23 @@ export default function EditClient({
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={keywordInput}
-              onChange={(e) => setKeywordInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  const v = keywordInput.trim().replace(/^#/, "");
-                  if (!v || keywords.includes(v)) return;
-                  setKeywords((prev) => [...prev, v]);
-                  setKeywordInput("");
-                }
-              }}
-              placeholder="태그 입력 후 Enter"
-              className="flex-1 rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-            />
-            <button
-              type="button"
-              onClick={() => {
+          {/* D3: 키워드 입력 — 엔터로만 추가 ("추가" 버튼 제거) */}
+          <input
+            type="text"
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
                 const v = keywordInput.trim().replace(/^#/, "");
                 if (!v || keywords.includes(v)) return;
                 setKeywords((prev) => [...prev, v]);
                 setKeywordInput("");
-              }}
-              className="rounded-md border border-[var(--border)] px-3 text-sm hover:bg-[var(--bg-soft)]"
-            >
-              추가
-            </button>
-          </div>
+              }
+            }}
+            placeholder="태그 입력 후 Enter"
+            className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
+          />
         </div>
 
         {/* 참고문헌 (PubMed) — 편집/추가/제거 */}
