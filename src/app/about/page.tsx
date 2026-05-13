@@ -310,6 +310,12 @@ export default async function AboutPage() {
           홈으로
         </Link>
         <Link
+          href="/doctors"
+          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
+        >
+          전문의
+        </Link>
+        <Link
           href="/terms"
           className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
         >
