@@ -29,9 +29,6 @@ export default async function LoginPage({ searchParams }: Props) {
         피부텐텐 로그인
       </h1>
       <LoginForm next={sp.next} error={sp.error} />
-      <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
-        관리자/원장님 계정 전용 (일반 회원가입은 추후 오픈)
-      </p>
     </section>
   );
 }
