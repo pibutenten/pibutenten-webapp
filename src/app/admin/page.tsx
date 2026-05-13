@@ -24,7 +24,7 @@ export default async function AdminPage() {
   // 권한 분기 — active identity 기반 (cookie 'pibutenten:identity')
   //   active.kind='admin'     → super admin (개발자/관리자, 모든 권한 + 새 Q&A 추출하기 노출)
   //   active.doctor_id !=NULL → 원장 admin (본인 doctor 카드만 + 새 Q&A 추출하기 숨김)
-  //   active.kind='personal'  → admin 권한 없음 → 일반 사용자처럼 차단
+  //   active.kind='user'      → admin 권한 없음 → 일반 사용자처럼 차단
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx?.active || (!idCtx.isSuperAdmin && !idCtx.isDoctorAdmin)) {
     redirect("/login?error=관리자 권한이 필요합니다");

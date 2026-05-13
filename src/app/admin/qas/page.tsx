@@ -135,7 +135,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   // active identity 기반 권한 분기:
   //   kind='admin'         → super admin (모든 카드)
   //   doctor_id 매핑       → 원장 admin (본인 doctor 카드만)
-  //   kind='personal'      → 차단
+  //   kind='user'          → 차단
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx?.active) {
     redirect("/login?error=관리자 권한이 필요합니다");

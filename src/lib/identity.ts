@@ -7,9 +7,9 @@
  * 권한 모델:
  *   active.kind='admin'           → super admin (개발자/관리자, 모든 권한)
  *   active.doctor_id NOT NULL     → 원장 admin (본인 doctor 카드만)
- *   active.kind='personal'        → 일반 사용자 (admin 페이지 차단)
+ *   active.kind='user'            → 일반 사용자 (admin 페이지 차단)
  *
- * Note: profile.role='admin' 사용자라도 active identity가 'personal'이면
+ * Note: profile.role='admin' 사용자라도 active identity가 'user'이면
  *       일반 사용자처럼 동작 (관리자 진입 X).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -83,7 +83,7 @@ export async function getIdentityContext(
             ? "admin"
             : profile.role === "doctor"
               ? "doctor"
-              : "personal",
+              : "user",
         doctorId,
       };
     }
