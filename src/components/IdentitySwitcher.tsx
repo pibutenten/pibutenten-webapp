@@ -218,7 +218,19 @@ function Avatar({ src, size = 28 }: { src: string | null; size?: number }) {
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="h-full w-full object-cover" />
+        // doctor.photo_url은 상반신 인물 사진 — center-crop 시 얼굴이 잘림.
+        // QACard 카드 내 아바타와 동일 비율: objectPosition 12% + scale(1.18).
+        // transformOrigin을 위쪽(30%)으로 둬서 확대 시 얼굴이 더 잘 보이도록.
+        <img
+          src={src}
+          alt=""
+          className="h-full w-full object-cover"
+          style={{
+            objectPosition: "50% 12%",
+            transform: "scale(1.18)",
+            transformOrigin: "50% 30%",
+          }}
+        />
       ) : (
         <span className="flex h-full w-full items-center justify-center text-[12px]">
           👤
