@@ -300,8 +300,11 @@ export default function ProfileTabs({
                     </p>
                   )}
                   <div className="flex items-start gap-1.5 text-[13.5px] text-[var(--text-secondary)]">
-                    <span className="shrink-0 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--text-muted)]">
-                      댓글
+                    <span
+                      className="shrink-0 text-[15px] leading-[1.4] text-[var(--text-muted)]"
+                      aria-label="댓글"
+                    >
+                      ↳
                     </span>
                     <p className="line-clamp-2">{c.body}</p>
                   </div>

@@ -94,8 +94,11 @@ export default async function AdminCommentsPage({
                   {qaTitle}
                 </Link>
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[10px] font-medium text-[var(--primary)]">
-                    댓글
+                  <span
+                    className="text-[14px] leading-[1] text-[var(--text-muted)]"
+                    aria-label="댓글"
+                  >
+                    ↳
                   </span>
                   <span className="text-[11px] text-[var(--text-muted)]">
                     {authorHandle ? (
