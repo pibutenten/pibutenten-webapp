@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-12 (Phase 7 — 자막 1021→990 카드 일괄 INSERT + UI 정비)
-> 기준 commit: `74cb617` (메인 피드 F5 셔플)
+> 마지막 업데이트: 2026-05-13 (Phase 7.5 진행 중 — 누더기 정리 + 아바타 일관성 + PubMed 안정화 + doctors 모바일 레이아웃 + 영상 누락 audit)
+> 기준 commit: `5b475d6` (역할/권한 변경 섹션 viewer admin only) + TopNav 우상단 프로필 CSS (object-position 50% 12% + scale 1.18)
 > 라이브: https://pibutenten-webapp.vercel.app
 
 ---
@@ -669,6 +669,176 @@
 - [x] **프로필 댓글 탭 active identity 필터**
 - [x] **박효진 원장 SNS 등록** (doctors.profile_data jsonb)
 - [x] **폐기 라우트 삭제** (/[handle]/[year]/[shortcode]/)
+
+### Phase 7.5: 멀티 identity 권한 시스템 + admin/doctor/user 통일 (2026-05-12, 진행 중)
+
+**목표**: `profile_identities`를 single source of truth로 — 한 사람이 `admin` / `doctor` / `user` 3가지 kind의 identity를 독립 보유. 미가입 원장도 doctor identity row 미리 존재. `qas`는 `author_identity_id`로 작성자를 identity 단위로 분리. 권한 분기는 active identity의 kind/doctor_id 기준.
+
+**용어 정리 (중요)**:
+- `developer` = handle (예: 배정민이 admin identity에 본인이 정한 닉네임)
+- `admin` / `doctor` / `user` = kind (DB enum, 권한 종류)
+- 한국어 UI 라벨에서도 영문 그대로 사용 (혼동 방지)
+
+**완료**:
+- [x] **kind enum 통일** — primary/personal/member 등 혼재 → `admin` / `doctor` / `user` 3가지(영문)
+- [x] **profile_identities.profile_id nullable** (migration `0043_unowned_identities.sql`) — 미가입 원장 6명도 doctor identity 미리 보유 가능
+- [x] **doctor identity row 9명 전원 등록** — 가입 3(정한미·이도영·배정민) + 미가입 6명
+- [x] **qas.author_identity_id 컬럼** (migration `0042_qas_author_identity.sql`) — 994개 row 자동 백필 (doctor_id 매칭 + 회원글은 primary identity)
+- [x] **getIdentityContext() helper** (`src/lib/identity.ts`) — 모든 admin 페이지 권한 분기 단일화. cookie `pibutenten:identity` → active identity의 kind/doctor_id 결정
+- [x] **doctors.photo_url single source** — 9명 모두 `/doctors/{slug}.png`로 일괄 채움. UI fallback 코드 제거
+- [x] **/admin/users 회원관리 재설계**:
+  - profile + identity 통합 표시 (identity 단위, 한 사람 여러 row)
+  - 원장 9명 묶음 (가입/미가입 구분) + 미가입 원장 → `/admin/doctors/{slug}` 링크
+  - 라벨 영문 통일 (`admin` / `doctor` / `user`)
+  - 활동 컬럼·level 필터 제거
+- [x] **/admin/users/[id] active identity 분기** — `?identity=` 쿼리로 탭 전환, 작성 글은 `author_identity_id` 기준, 헤더 사진/이름은 active identity 기준 (doctor면 doctors.photo_url + name)
+- [x] **권한 게이트**:
+  - `/admin/draft` (새 Q&A 추출): super admin (active.kind === 'admin') only
+  - `/admin/qas/[id]/edit` 글쓴이 변경: super admin only (그 외에는 readonly chip — `canChangeAuthor` prop)
+  - `/admin/users/[id]` RoleChangeForm: viewer가 admin일 때만 노출 (`viewerIsAdmin`)
+  - 원장 admin은 본인 doctor 글만 편집 가능 (`qa.doctor_id !== activeDoctorId`면 redirect)
+- [x] **TopNav identity dropdown 중복 제거** — primary와 동일 handle인 profile_identities row는 dropdown에서 숨김
+- [x] **TopNav 우상단 프로필 사진 CSS** — Avatar의 `<img>`에 `objectPosition: "50% 12%"` 추가. doctor.photo_url 상반신 사진의 얼굴이 작은 원형 아바타에서 잘리는 문제 해결, QACard 카드 아바타와 동일 값
+- [x] **API `/api/identity/switch`** — cookie 갱신 + 본인 identity 보안 체크
+- [x] **Token usage 로깅 + USD 환산** — Step1/Step2 LLM 토큰 사용량 + 비용 표시 (Claude Opus 4: input $15/M, output $75/M, cache read $1.5/M, write $18.75/M). `src/lib/ai/pricing.ts` + DraftClient UsageSummary 컴포넌트
+- [x] **Step2 안전망** — `Unexpected end of JSON input` 회피 (`res.text()` + try `JSON.parse` 감싸기)
+- [x] **Vivid blue 로고 + OG 교체** — `/brand-logo.svg`, `/logo.svg`, `/og.png`
+
+**관련 migrations**:
+- `0040_profiles_doctor_id.sql` — 호환성 컬럼 (실제 미사용, 추후 삭제 검토)
+- `0041_identity_doctor_mapping.sql` — 가입 3명의 profile_identities에 doctor_id 매핑
+- `0042_qas_author_identity.sql` — `qas.author_identity_id` FK + 자동 백필
+- `0043_unowned_identities.sql` — profile_id nullable + 미가입 원장 6명 doctor identity 자동 생성
+
+**남은 작업 (Phase 7.5 이어서)**:
+
+**A. Identity single source 점검 (다른 페이지 UI 일관성)** — doctor.photo_url + face 정렬 적용 확인
+- [x] QACard 카드 아바타 (이미 `objectPosition: "50% 12%"` + per-doctor avatarTx/Ty)
+- [x] TopNav 우상단 — `objectPosition 12%` + **`scale(1.18)` + `transformOrigin "50% 30%"`** 추가 (이번 세션, 머리 잘림 해결)
+- [x] A3. `/doctors/[slug]` 페이지 헤더 사진 (확인) — 누끼 hero 대형 사진이라 objectPosition 불필요 (이미 `object-contain object-bottom`로 정상)
+- [x] A4. `/[handle]` 개인 프로필 페이지 사진 — `fetchProfileByHandle`에서 identity.doctor_id 있으면 doctors.photo_url 조회 후 우선 사용. 큰 원형(128px)에 누끼 사진일 때 `objectPosition: "50% 12%"` 적용
+- [x] A5. 댓글 작성자 아바타 (`api/comments` 응답) — `profile_identities.doctor_id` 있으면 doctors.photo_url 조회 후 single source로 노출
+- [ ] A6. LikersDialog / RecentLikers / NotificationsClient (다음 세션)
+
+**B. 발행 API author_identity_id 자동 채움**
+- [ ] `/api/admin/draft/publish` (또는 카드 발행 핸들러) — INSERT 시 active identity 기반 `author_identity_id` 자동 set
+- [ ] 카드별 doctor identity 다중 선택 시 자동 매칭 (Step1 출연 원장 식별 결과 사용)
+- [ ] 회원 글(`type=post`, doctor 아님)도 자동으로 active identity 기록
+
+**C. 회원 → 원장 연결 메뉴 (역할 부여)**
+- [ ] `/admin/users/[id]` RoleChangeForm 확장 — "이 회원을 ○○ 원장과 연결" 액션 추가
+- [ ] 동작: 선택한 미가입 doctor identity row의 `profile_id`를 해당 회원 `profile.id`로 UPDATE
+- [ ] 동시에 `doctor_accounts(profile_id, doctor_id)` row INSERT
+- [ ] 회원 입장에서는 다음 로그인부터 doctor identity가 dropdown에 노출
+
+**D. Q&A 추출 UI 정리 (`/admin/draft`)**
+- [ ] D1. 다중 출연 원장 영상 — 디폴트 선택 + 카드별 자동 분류 (Step1 화자 식별 결과)
+- [ ] D2. 카드 화자 dropdown (현재 readonly chip → 편집 가능)
+- [ ] D3. 키워드 태그 UI — 쉼표 입력 → 엔터로 추가, X로 삭제 (현재는 쉼표 추가 불가)
+- [ ] D4. 답변 본문 빈 줄 자동 제거 + 문단 간격 정리
+- [ ] D5. Step 라벨 순서 정리 (1. 자막/원장 → 2. Q&A 추출 → 3. PubMed → 4. 검수 발행)
+- [ ] D6. LLM 사용량 표시 위치 — 검수 발행 버튼 바로 위
+
+**E. 카드 편집기 정리 (`/admin/qas/[id]/edit`)**
+- [ ] E1. 버튼 3개 통일: 삭제 / 대기로 변경 / 발행
+- [ ] E2. 글쓴이(원장) + Pick 토글 좌우 배치
+- [ ] E3. 영상 제목 readonly + 링크 저장 버튼 (oEmbed로 자동 채움)
+- [ ] E4. YouTube 진입 버튼 제거 (외부 카드 형태로 통일)
+- [x] E5. 본문 강조 버튼 — 굵음 + 형광펜 4색 결정적 매핑 (이미 `src/lib/qa-highlight.ts`로 구현됨: Yellow/Mint/Lavender/Sky Blue 카드 ID 해시 기반)
+- [ ] E6. 참고문헌 멀티 ref UI — PMID/URL 추가/삭제 (X / + 버튼) — schema는 `pubmed_refs jsonb[]` 신규 추가, 기존 `pubmed_ref`(단일) 1개짜리 배열로 백필 합의됨 (migration 0044 예정)
+
+**F. 신규 발견·요청 항목 (2026-05-13 세션)**
+- [x] **F1. tmp 파일 누더기 정리** — `.tmp.NNN.TIMESTAMP` 형식의 임시 파일 263개 일괄 삭제 (src 233 + 루트 30)
+- [x] **F2. identity.ts `personal` 잔존 정리** — `kind === 'user'`로 통일 (PRD enum 규약 일치), admin/page.tsx + admin/qas/page.tsx 주석도 정리
+- [x] **F3. `/doctors/[slug]` 모바일 레이아웃 재구성** — 모바일: 인트로 멘트를 가운데 정렬 + 데스크탑처럼 줄바꿈 유지(`whitespace-pre-line`) + 폭 넓게. 이름·소속을 사진 위 여백에 배치(겹치지 않게). 사진은 230×380로 살짝 키우고 중앙에서 약간 우측(`translate-x-[18px]`). 데스크탑은 기존 2단 구조 유지.
+- [x] **F4. PubMed Step2 안정화** — `/api/admin/draft/step2`의 카드 루프를 카드별 `try/catch`로 격리. 한 카드의 NCBI 타임아웃·rate limit·Anthropic 일시 오류가 나머지 카드 응답을 막지 않게 함. 실패 카드는 `reasoning: "PubMed/LLM 호출 실패: ..."`로 응답.
+- [x] **F5. 영상 바로가기 누락 카드 진단 스크립트** — `scripts/audit_qa_videos.py` 신규. 결과(전수조사 시점): 발행 카드 991개 중 20개 누락 (모두 `external_url IS NULL` + `video_id IS NULL`). 모든 카드의 `video_id`는 NULL 상태이고 `external_url`로만 영상 링크 저장 중. 누락 카드 원장별: 고혜림 4, 김종식 4, 정한미·이도영 등.
+- [ ] **F6. 누락 카드 백필** — 카드 편집기에서 영상 URL 편집 가능하게 만들고 (E3) admin이 수동 채움. + 발행 API에서 Q&A 카테고리는 `external_url` 또는 `video_id` 필수 검증 추가 (다음 세션)
+- [ ] **F7. A6 잔여 아바타** — LikersDialog / RecentLikers / NotificationsClient에 동일하게 doctor identity → doctors.photo_url single source 적용 (다음 세션)
+- [ ] **F8. Migration 0044 + B + C + D 잔여 + E 잔여** — schema 0044(pubmed_refs jsonb[] + RPC 갱신), 발행 API author_identity_id 자동(B), 회원→원장 연결(C), Q&A 추출 UI 정리(D1~D6 중 D5 완료 제외), 카드 편집기(E1~E4·E6) — 다음 세션
+- [x] **F9. `/doctors/[slug]` 모바일 레이아웃 추가 보정** — 인트로 멘트 시작·끝을 곡선 따옴표(U+201C/201D)로 감싸기, 사진은 정중앙(translate-x 제거), 상단 여백 pt-6 → pt-12. 프로필 박스 "학회·소속" → "학회"로 라벨 단축. dl 라벨 칸 폭 80→52(모바일)/100→64(데스크탑)로 축소해서 우측 본문 가용 폭 확장.
+- [x] **F10. 카드 편집기 버튼 3개 통일 (E1 일부)** — `/admin/qas/[id]/edit`의 액션 버튼을 4~5개에서 항상 3개로 단순화: 🗑 삭제 / ⏳ 대기 / 🚀 발행. 현재 상태와 동일한 버튼은 disabled 처리. 초안으로·보관 버튼은 제거.
+- [ ] **F11. 영상 누락 카드 원인 정리** — 발행 API에 `external_url`/`video_id` 검증이 없어서 누락된 채 발행됨이 확인됨 (audit 결과 batch별 누락 패턴). F6과 함께 처리.
+
+---
+
+### Phase 9: 멀티 ID 데이터 모델 단순화 (다음 세션, 대형 작업)
+
+**목표**: 사용자 결정 — `profile_identities`를 폐기하고 모든 ID가 `profiles` 테이블 단일 row로 동등하게 관리되는 모델로 단순화. 한 사람의 여러 ID는 `profiles.auth_user_id` 컬럼으로 묶음.
+
+**핵심 합의 사항 (2026-05-13 세션)**:
+- `profile_identities` 테이블 **폐기**
+- `profile_identities.kind` 컬럼 **폐기** — 모든 등급은 `profiles.role`로 단일화
+- `profiles.role` enum에 `developer` 추가 (현재: `user` / `doctor` / `admin` → 변경 후: `user` / `doctor` / `developer`)
+- `profiles`에 `auth_user_id` 컬럼 추가 — Supabase `auth.users.id`를 가리키는 UUID (영구 불변 식별자). 같은 `auth_user_id` 값을 가진 profiles row들이 한 사람.
+- 메인/부계정 개념 **삭제** — 모든 ID는 동등한 profiles row
+- 미가입 원장은 `auth_user_id = NULL` (아직 로그인 안 함)
+
+**왜 `auth_user_id`인가**:
+- DB 관례에 부합 (`xxx_id` 형식의 FK)
+- Supabase auth.users 1 row = 1 이메일 제약 회피 가능 (이메일 없이 anonymous도 가능, NULLABLE)
+- UUID 영구 불변 → display_name·handle 같은 변경 가능 필드와 분리
+
+**마이그레이션 작업 (Migration 0045 예상)**:
+1. DB 백업 스냅샷 우선 작성
+2. `profiles.auth_user_id uuid` 컬럼 추가 (FK → `auth.users.id`, NULLABLE)
+3. 기존 `profiles.id` 데이터 → 본인 `auth_user_id`로 백필 (현재 1:1이므로 자기 자신)
+4. `profile_identities` row들 → `profiles` 새 row로 이관 + 같은 `auth_user_id` 설정
+5. `qas.author_id`·`qas.author_identity_id` 통합 → 새 `profiles.id` 가리키도록 재배선
+6. `qa_likes.user_id`·`qa_likes.identity_id`·`qa_saves`·`qa_ratings`·`comments.author_id`·`comments.identity_id` 재배선 — 모두 새 `profiles.id`만 사용
+7. `doctor_accounts` 테이블 검토 — `profiles.id ↔ doctors.id` 매핑이 `profiles.role='doctor'`인 row로 통합 가능한지
+8. RLS 정책 전부 재작성 — `auth.uid() = profiles.auth_user_id` 패턴으로 변경
+9. `role` enum에 `developer` 값 추가, 기존 `admin` 데이터 일괄 변경
+10. 마이그레이션 후 `profile_identities` 테이블 폐기
+
+**코드 작업**:
+- `src/lib/identity.ts`의 `getIdentityContext()` — `auth_user_id` 기반으로 단순화. profile_identities 조회 제거.
+- `src/lib/active-identity.ts` — 어느 profiles.id가 활성인지만 cookie로 관리
+- `src/components/IdentitySwitcher.tsx` — 같은 `auth_user_id`의 profiles 목록 표시 + 스위치
+- `src/components/QACard.tsx` — `posted_as` / persona 로직 단순화 (author_id가 직접 profiles row이므로)
+- `src/lib/viewer-states.ts` — `user_id` 비교만으로 자동 분리 ✓ (identity_id 분기 제거)
+- `src/app/[handle]/page.tsx` — `fetchProfileByHandle`은 `profiles.handle`만 조회. profile_identities lookup 제거.
+- `src/app/api/comments/route.ts` — comments.identity_id 컬럼 폐기, author_id가 직접 profiles row
+- `src/app/admin/users/page.tsx` — 표 단일화 (메인/부계정 구분 없음, 모든 row 동등 표시 + 묶음 시각 표시)
+- `src/app/admin/users/[id]/page.tsx`·`RoleChangeForm.tsx` — kind·doctor 연결 메뉴 단순화 또는 폐기
+- TopNav identity dropdown — `auth_user_id` 묶음 멤버 목록
+
+**자동 해결되는 기존 이슈**:
+- ✅ 배스킨 ↔ 배정민 좋아요·저장·평점 섞임 (각 ID가 독립 profiles.id이므로 user_id 비교만으로 자동 분리)
+- ✅ 댓글 좋아요 동일 패턴 문제
+- ✅ `getIdentityContext` 권한 분기 단순화
+- ✅ `qas.author_identity_id`·`comments.identity_id` 등 이중 컬럼 정리
+
+**Phase 9 결과**:
+- DB row 수는 늘어남(profile_identities 데이터가 profiles로 이관) 하지만 테이블 수는 줄고 코드가 매우 단순해짐
+- `profile_identities` 관련 200줄+ 코드 제거
+- 향후 멀티 ID 확장 (한 사람이 ID 5~10개 추가) 비용 거의 0
+
+**Phase 7.5 commit 히스토리** (이번 세션):
+
+| commit | 내용 |
+|---|---|
+| (TBD) | 0040 profiles.doctor_id 호환 컬럼 |
+| (TBD) | 0041 정한미·이도영·배정민 doctor identity 매핑 |
+| (TBD) | 0042 qas.author_identity_id 컬럼 + 백필 |
+| (TBD) | 0043 profile_identities.profile_id nullable + 미가입 원장 6명 |
+| `1666843` | identity 통일 정리 (kind enum + UI 라벨) |
+| `6f1d653` | doctors.photo_url single source 적용 |
+| `128cd1e` | 글쓴이 변경 super admin only (`canChangeAuthor` prop) |
+| `5b475d6` | `/admin/users/[id]` RoleChangeForm viewer admin only (`viewerIsAdmin`) |
+| (이번 세션) | tmp 파일 263개 일괄 삭제 + identity.ts `personal`→`user` 통일 |
+| (이번 세션) | TopNav 우상단 프로필 CSS — `objectPosition: "50% 12%"` + `scale(1.18)` + `transformOrigin "50% 30%"` (머리 잘림 해결) |
+| (이번 세션) | `/[handle]` 프로필 사진 — doctor identity는 doctors.photo_url single source |
+| (이번 세션) | `/api/comments` 응답 아바타 — doctor identity는 doctors.photo_url single source |
+| (이번 세션) | `/doctors/[slug]` 모바일 레이아웃 재구성 — 멘트 가운데/넓게 + 사진 아래 중앙 약간 우측 |
+| (이번 세션) | `/api/admin/draft/step2` 카드별 try/catch 격리 (PubMed/LLM 일시 실패 안정화) |
+| (이번 세션) | `scripts/audit_qa_videos.py` 영상 링크 누락 카드 진단 — 20개 발견 |
+| `28bedf0` | `/doctors/[slug]` 모바일 레이아웃 + 프로필 라벨 폭 축소 |
+| `a900f7b` | PubMed step2 카드별 try/catch 격리 |
+| `ec8cb40` | 카드 편집기 버튼 3개 통일 (삭제 / 대기 / 발행) |
+| `6c1b6b0` | `scripts/audit_qa_videos.py` 영상 링크 누락 진단 스크립트 |
+
+---
 
 ### Phase 8 (다음 세션) — 관리자/원장 대시보드 + 글쓰기 모드 정리
 **목표**: Phase 7에서 코드+sub-agent batch로 일괄 처리한 step1(자막→카드) + step2(PubMed reference) 파이프라인 전체를 **관리자 웹 UI**에서 수동 실행 가능하게 함. 새 영상 1편씩 추가 발행 시 어드민이 브라우저에서 끝까지 처리.
