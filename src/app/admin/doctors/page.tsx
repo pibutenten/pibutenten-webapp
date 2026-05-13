@@ -39,12 +39,15 @@ export default async function AdminDoctorsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/admin/doctors");
 
-  const { data: meProfile } = await supabase
+  // Phase 9: 묶음(auth_user_id) 안에 admin role profile이 있으면 admin 권한 인정
+  const { data: myProfiles } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (meProfile?.role !== "admin") {
+    .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
+  const hasAdmin = (myProfiles ?? []).some(
+    (p) => (p as { role: string }).role === "admin",
+  );
+  if (!hasAdmin) {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
 
