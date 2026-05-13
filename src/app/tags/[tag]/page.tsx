@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import QACard, { type QACardData } from "@/components/QACard";
+import { type QACardData } from "@/components/QACard";
+import CardMasonry from "@/components/CardMasonry";
 import { SITE_URL } from "@/lib/site";
 
 /**
@@ -155,11 +156,8 @@ export default async function TagPage({ params }: Props) {
         </p>
       </header>
 
-      <div className="space-y-4">
-        {posts.map((qa) => (
-          <QACard key={qa.id} qa={qa} />
-        ))}
-      </div>
+      {/* 메인 피드와 동일한 Masonry — CardMasonry는 client wrapper */}
+      <CardMasonry posts={posts} />
 
       {count > PAGE_LIMIT && (
         <p className="mt-6 text-center text-xs text-[var(--text-muted)]">

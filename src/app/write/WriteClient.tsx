@@ -7,6 +7,7 @@ import {
   defaultHideCredential,
   type PostCategorySlug,
 } from "@/lib/post-category";
+import { normalizeAnswerBody } from "@/lib/normalize-body";
 
 /** 글쓰기 페이지 진입 시 랜덤 노출 카피 (꼭 공유하고 싶은 나만의 피부 비법은 베리에이션 강조) */
 const WRITE_PHRASES = [
@@ -148,12 +149,14 @@ export default function WriteClient({
 
   /** 참고문헌이 있으면 본문 끝에 번호 매겨 append (Q&A 카테고리 + 비어있지 않은 항목만) */
   function bodyWithReferences(): string {
-    if (category !== "qa") return body;
+    // D4: 빈 줄 자동 제거 (단락 구분 유지) — Q&A 편집기와 동일 규칙
+    const cleanBody = normalizeAnswerBody(body);
+    if (category !== "qa") return cleanBody;
     const filled = references.map((r) => r.trim()).filter(Boolean);
-    if (filled.length === 0) return body;
+    if (filled.length === 0) return cleanBody;
     const refBlock =
       "참고문헌\n" + filled.map((r, i) => `${i + 1}. ${r}`).join("\n");
-    return `${body.trimEnd()}\n\n${refBlock}`;
+    return `${cleanBody}\n\n${refBlock}`;
   }
 
   /** 작성 중 내용이 있는지 체크 — type 전환 경고용 */

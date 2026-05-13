@@ -491,10 +491,10 @@ export default function DraftClient() {
           }`}
         >
           {stage === "analyzing"
-            ? "Step 1. 자막 추출 중… (자막 + 원장 식별)"
+            ? "Step 1. 자막/원장 추출 중…"
             : analyze
-              ? "✓ Step 1. 자막 추출 완료"
-              : "Step 1. 자막 추출"}
+              ? "✓ Step 1. 자막/원장 완료"
+              : "Step 1. 자막/원장"}
         </button>
       </section>
 
@@ -662,10 +662,10 @@ export default function DraftClient() {
                 }`}
               >
                 {stage === "step1ing"
-                  ? "Step 2. Q&A 카드 생성 중… (LLM — 30~60초)"
+                  ? "Step 2. Q&A 생성 중…"
                   : cards.length > 0
-                    ? "✓ Step 2. Q&A 카드 생성 완료"
-                    : "Step 2. Q&A 카드 생성"}
+                    ? "✓ Step 2. Q&A 완료"
+                    : "Step 2. Q&A"}
               </button>
             </>
           )}
@@ -715,10 +715,10 @@ export default function DraftClient() {
             }`}
           >
             {stage === "step2ing"
-              ? "Step 3. PubMed 검색 중… (PubMed + LLM 선정)"
+              ? "Step 3. PubMed 검색 중…"
               : cards.some((c) => c.step2)
-                ? "✓ Step 3. PubMed 검색 완료"
-                : "Step 3. PubMed 검색"}
+                ? "✓ Step 3. PubMed 완료"
+                : "Step 3. PubMed"}
           </button>
         </section>
       )}
@@ -740,8 +740,8 @@ export default function DraftClient() {
             className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
           >
             {stage === "publishing"
-              ? "검수 보내는 중…"
-              : `Step 4. ${cards.length}개 카드 원장님께 검수 보내기`}
+              ? "검수발행 중…"
+              : `Step 4. 검수발행 (${cards.length}개)`}
           </button>
           <p className="text-center text-[11px] text-[var(--text-muted)]">
             검수 보낸 카드는 원장님 검수 대시보드에서 확인·발행됩니다.

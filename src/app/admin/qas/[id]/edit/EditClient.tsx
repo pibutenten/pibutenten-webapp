@@ -6,6 +6,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { pickHighlight } from "@/lib/qa-highlight";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 import { normalizeTags } from "@/lib/tag-dictionary";
+import { normalizeAnswerBody } from "@/lib/normalize-body";
 
 type Doctor = {
   id: string;
@@ -243,7 +244,8 @@ export default function EditClient({
         .from("qas")
         .update({
           question: question.trim(),
-          answer: answer.trim(),
+          // D4: 답변 본문 빈 줄 자동 제거 (단락 구분 유지)
+          answer: normalizeAnswerBody(answer),
           keywords: normalizeTags(keywords),
           doctor_id: doctorId,
           status: finalStatus,
