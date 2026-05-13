@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-13 (Phase 9 완료 — `profile_identities` 폐기 + admin API 묶음 권한 통일 + 활동 KPI 6종 + qa_views/qa_shares 트래킹)
-> 기준 commit: `bab0f2a` (Phase 9 마무리: profile_identities drop + OAuth env URL)
+> 마지막 업데이트: 2026-05-13 (도메인 이전 `pbtt.kr` + 약관 페이지 신설 + OAuth provider 4종 갱신)
+> 기준 commit: `f002b5b` (login 페이지 안내 문구 정리)
 
 ## 🟢 진행 상황 한눈에
 - ✅ Phase 9 — multi-ID 단순화 (profiles + auth_user_id 묶음), `profile_identities` table·`identity_id` 컬럼 모두 drop (migration 0055)
@@ -18,10 +18,29 @@
 - ✅ /write Q&A 본문 4색 형광펜 (`MarkdownBoldEditor` + `pickHighlight`) — 카드 편집기와 동일 시각 톤
 - ✅ RLS Phase 9 호환 (migration 0059): `is_admin()` / `current_doctor_id()` / `same_group_profile_ids()` 묶음 기반 + profiles·qa_likes·qa_saves·qa_ratings·comments·qas 정책에 묶음 내 profile.id 허용
 - ✅ OG-extract User-Agent도 SITE_URL 기반으로 통일
-- ✅ **pbtt.kr 도메인 연결** (2026-05-13) — 가비아 등록, A 216.198.79.1 / CNAME www→vercel-dns-017 / Vercel env NEXT_PUBLIC_SITE_URL=https://pbtt.kr / Supabase Auth site_url+uri_allow_list 갱신 / vercel.app→pbtt.kr 301 redirect (next.config.ts)
-- ⏳ 다음 세션 — D1·D2 다중 출연 LLM 프롬프트 / /write ↔ 카드 편집기 완전 통일 (PubMed chip + ref UI) / Google·Kakao OAuth 콘솔에 pbtt.kr redirect URI 추가 (사용자 작업)
+- ✅ **pbtt.kr 도메인 연결 — 풀 스택** (2026-05-13)
+  - 가비아 DNS: A `@ → 216.198.79.1` + CNAME `www → d9eae3c8237d555c.vercel-dns-017.com` (점 포함)
+  - Vercel: pbtt.kr (apex) + www.pbtt.kr (308 redirect to apex) + pibutenten-webapp.vercel.app (308 redirect to apex)
+  - Vercel env: `NEXT_PUBLIC_SITE_URL=https://pbtt.kr` (Production only)
+  - `next.config.ts`: `pibutenten-webapp.vercel.app` host → `https://pbtt.kr/:path*` 308 permanent redirect
+  - Supabase Auth: `site_url=https://pbtt.kr` + `uri_allow_list`에 pbtt.kr·www.pbtt.kr 추가 (Management API PATCH)
+  - 코드: `src/lib/site.ts` 주석 갱신 / `public/llms.txt` URL pbtt.kr / `public/manifest.webmanifest` URL pbtt.kr / `.env.local.example` 주석 갱신 / PRD 도메인 정보 갱신
+  - Smoke test: `pbtt.kr` 200 / `www.pbtt.kr` 308→pbtt.kr / `vercel.app` 308→pbtt.kr 모두 통과
+- ✅ **OAuth provider 4종 도메인 갱신** (2026-05-13)
+  - Google Cloud OAuth: Authorized JavaScript origins에 `https://pbtt.kr` + `https://www.pbtt.kr` 추가
+  - Kakao Developers: 앱 대표 도메인을 `https://pbtt.kr`로 변경
+  - Naver Developers: 서비스 URL `https://pbtt.kr` + Callback URL `https://pbtt.kr/api/auth/naver/callback` 추가 (구 vercel.app도 유지 — preview 대비). **검수 요청 진행 중** (단계별 캡처 5장 + 신규 회원가입 적용)
+  - Supabase는 위 도메인 작업으로 이미 갱신됨 (구글·카카오는 Supabase 중계 OAuth)
+- ✅ **약관 페이지 신설** (2026-05-13)
+  - `/privacy` 개인정보 처리방침 11조 (한국 개인정보보호법 표준)
+  - `/terms` 이용약관 12조
+  - SignupForm 체크박스 텍스트에 두 페이지 링크 연결
+  - SiteFooter nav에 두 페이지 링크 추가
+  - 초안 상태 명시 — 베타 안정화 이후 법무 자문 권장
+- ✅ **MigrationBanner 제거 + login 페이지 안내 문구 정리** — pibutenten.com 이전 안내(쇼핑몰 분리)가 pbtt.kr 신규 도메인엔 부적합. 로그인 페이지 "관리자/원장님 계정 전용 (일반 회원가입은 추후 오픈)" 문구는 네이버 검수와 모순돼 제거.
+- ⏳ 다음 세션 — D1·D2 다중 출연 LLM 프롬프트 / /write ↔ 카드 편집기 완전 통일 (PubMed chip + ref UI) / 네이버 검수 결과 대기 (3~7영업일) / 베타 전 체크리스트 진행
 
-> 라이브: https://pbtt.kr (구: https://pibutenten-webapp.vercel.app — 301 redirect)
+> 라이브: https://pbtt.kr (구: https://pibutenten-webapp.vercel.app, https://www.pbtt.kr — 모두 308 redirect)
 
 ---
 
@@ -945,10 +964,13 @@
   3. 부활 (의사 페이지에만 종합 평점)
 
 ### 베타 전 (5월)
-- [ ] Vercel Pro 업그레이드 결정 (Password Protection 베타 비공개용)
-- [ ] iOS/Android 실기기 통합 QA (카카오 로그인, 댓글 입력, 좋아요 다이얼로그)
+- [x] **pbtt.kr 도메인 연결 + OAuth provider 4종 갱신** (2026-05-13)
+- [x] **`/privacy`, `/terms` 페이지 신설** (2026-05-13, 초안 — 법무 검토 보류)
+- [ ] 네이버 OAuth 검수 결과 대기 (요청 완료, 3~7영업일)
+- [ ] iOS/Android 실기기 통합 QA (구글/카카오/네이버 로그인 + 댓글 + 좋아요)
 - [ ] `/settings/account` 보강 (이메일/탈퇴)
-- [ ] `sitemap.xml`, `robots.txt` 본격 작성
+- [ ] `sitemap.xml`, `robots.txt` 본격 작성 (현재는 기본만)
+- [ ] Vercel Pro 업그레이드 결정 (Password Protection 베타 비공개용)
 - [ ] 멀티 identity onboarding 플로우 (의사 부계정 생성)
 
 ### 베타 운영 중
@@ -958,11 +980,12 @@
 - [ ] AEO/GEO manual log 입력 폼
 
 ### 정식 런칭 (6월)
-- [ ] pibutenten.com 도메인 Vercel 연결
+- [ ] pibutenten.com 도메인 확보 시 Vercel 추가 연결 (현재는 pbtt.kr만)
 - [ ] Password Protection 해제
-- [ ] OG 이미지 prod URL 업데이트
-- [ ] `/privacy`, `/terms` 페이지 신설
-- [ ] Google Search Console + Rich Results Test verify
+- [ ] OG 이미지 prod URL 검증 (이미 pbtt.kr 자동 반영됨)
+- [ ] `/privacy`, `/terms` 법무 자문 후 정식 확정
+- [ ] Google Search Console + Rich Results Test verify (pbtt.kr 소유 등록)
+- [ ] 네이버 Webmaster Tools 사이트 등록 + pbtt.kr 소유 확인
 
 ---
 
