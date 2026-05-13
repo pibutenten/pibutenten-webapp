@@ -36,6 +36,7 @@ type ProfileRow = {
   interested_procedures: string[] | null;
   liked_procedures: string[] | null;
   field_visibility: Record<string, boolean> | null;
+  auth_user_id: string | null;
 };
 
 /**
@@ -74,7 +75,7 @@ async function fetchProfileByHandle(
   if (!/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(handle)) return null;
   const supabase = await createSupabaseServerClient();
   const select =
-    "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility";
+    "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility, auth_user_id";
 
   // 1) profiles.handle 매칭 — Phase 9 단일 모델
   let { data } = await supabase
@@ -164,7 +165,13 @@ export default async function HandleProfilePage({ params }: Props) {
   const {
     data: { user: viewer },
   } = await supabase.auth.getUser();
-  const isOwner = viewer?.id === profile.id;
+  // Phase 9: 같은 auth_user_id 묶음이면 본인 (다른 ID여도 같은 사람)
+  // - 본인 auth user의 메인 profile 접근: profile.id === viewer.id
+  // - 본인 묶음 다른 profile 접근(부계정 등): profile.auth_user_id === viewer.id
+  const profileAuthUserId = (profile as { auth_user_id?: string | null }).auth_user_id ?? null;
+  const isOwner = !!viewer && (
+    viewer.id === profile.id || profileAuthUserId === viewer.id
+  );
 
   // 본인일 때 role 조회 — admin이 본인 1차 handle로 접근하면 /admin으로 redirect.
   // 단 personal identity handle(예: 배스킨 jminbae)로 접근한 경우엔 회원 프로필 그대로 노출.

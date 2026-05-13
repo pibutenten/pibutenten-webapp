@@ -286,6 +286,7 @@ export default function ProfileTabs({
             <Empty msg="작성한 댓글이 없어요" />
           ) : (
             // 데스크탑 2단 / 모바일 1단. 박스 어디든 클릭 → 원본 글로 이동.
+            // 원본 글 제목을 위에, 그 아래 "댓글:" 라벨 + 댓글 본문.
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {comments.map((c) => (
                 <Link
@@ -293,14 +294,17 @@ export default function ProfileTabs({
                   href={c.qa ? commentLink(c) : "/"}
                   className="block rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 outline-none transition-colors hover:border-[var(--primary)] hover:bg-[var(--bg-soft)]/30 focus:outline-none focus-visible:ring-0"
                 >
-                  <p className="line-clamp-3 text-[14px] text-[var(--text)]">
-                    {c.body}
-                  </p>
                   {c.qa && (
-                    <p className="mt-1.5 truncate text-[11.5px] text-[var(--text-muted)]">
-                      → {c.qa.question}
+                    <p className="mb-1.5 truncate text-[13px] font-semibold text-[var(--text)]">
+                      {c.qa.question}
                     </p>
                   )}
+                  <div className="flex items-start gap-1.5 text-[13.5px] text-[var(--text-secondary)]">
+                    <span className="shrink-0 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--text-muted)]">
+                      댓글
+                    </span>
+                    <p className="line-clamp-2">{c.body}</p>
+                  </div>
                 </Link>
               ))}
             </div>

@@ -272,6 +272,9 @@ export default async function DoctorDetailPage({ params }: Props) {
           stats={ownerStats}
         />
 
+        {/* 운영 도구 (관리자 대시보드와 동일 패턴) */}
+        <DoctorOpsTools doctorSlug={doctor.slug} />
+
         {/* 받은 댓글 — 최근 10개 */}
         <DoctorCommentsWidget comments={recentComments} doctorSlug={doctor.slug} />
 
@@ -430,29 +433,72 @@ function DoctorOwnerWidget({
         </span>
       </div>
 
-      {/* 통계 5종 */}
+      {/* 통계 5종 — 각 카드 클릭 시 해당 메뉴로 이동 */}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-        <Stat label="발행" value={stats.published} />
-        <Stat label="검수 대기" value={stats.pending} />
-        <Stat label="임시저장" value={stats.draft} />
-        <Stat label="받은 좋아요" value={stats.receivedLikes} />
-        <Stat label="받은 저장" value={stats.receivedSaves} />
+        <Stat
+          label="발행"
+          value={stats.published}
+          href={`/admin/qas?doctor=${doctorSlug}&status=published`}
+        />
+        <Stat
+          label="검수 대기"
+          value={stats.pending}
+          href={`/admin/qas?doctor=${doctorSlug}&status=pending_review`}
+        />
+        <Stat
+          label="임시저장"
+          value={stats.draft}
+          href={`/admin/qas?doctor=${doctorSlug}&status=draft`}
+        />
+        <Stat
+          label="받은 좋아요"
+          value={stats.receivedLikes}
+          href={`/admin/qas?doctor=${doctorSlug}&sort=likes`}
+        />
+        <Stat
+          label="받은 저장"
+          value={stats.receivedSaves}
+          href={`/admin/qas?doctor=${doctorSlug}&sort=saves`}
+        />
       </div>
 
-      {/* 빠른 작성·관리.
-          원장 프로필 자체 수정은 관리자 영역(하드코딩) — 본 페이지에서 제거. */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Link
-          href="/write"
-          className="rounded-full bg-[var(--primary)] px-4 py-1.5 text-[13px] font-semibold text-white hover:bg-[var(--primary-dark)]"
-        >
-          ✏ 새 글 작성
-        </Link>
+      {/* 새 글 작성·내 글 관리 버튼 제거 — 우하단 floating 버튼 + 위 Stat 카드 클릭으로 통합. */}
+    </div>
+  );
+}
+
+/**
+ * 원장 본인 대시보드 — 운영 도구 섹션 (admin 대시보드와 동일 패턴).
+ * 내 글 관리·새 Q&A 추출 진입.
+ */
+function DoctorOpsTools({ doctorSlug }: { doctorSlug: string }) {
+  return (
+    <div>
+      <h2 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
+        운영 도구
+      </h2>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Link
           href={`/admin/qas?doctor=${doctorSlug}`}
-          className="rounded-full border border-[var(--border)] bg-white px-4 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+          className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
         >
-          내 글 관리 →
+          <div className="text-[15px] font-bold text-[var(--text)]">
+            📚 내 글 관리
+          </div>
+          <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">
+            Q&A·포스팅 검색·필터·발행/보관
+          </p>
+        </Link>
+        <Link
+          href="/admin/draft"
+          className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
+        >
+          <div className="text-[15px] font-bold text-[var(--text)]">
+            📝 새 Q&A 추출
+          </div>
+          <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">
+            YouTube 영상 → AI Q&A 카드 → PubMed 매칭 → 검수발행
+          </p>
         </Link>
       </div>
     </div>
@@ -566,17 +612,35 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString("ko-KR");
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-[var(--radius-sm)] bg-white px-3 py-2 text-center">
+function Stat({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: number;
+  href?: string;
+}) {
+  const inner = (
+    <>
       <div className="text-[11px] font-medium text-[var(--text-muted)]">
         {label}
       </div>
       <div className="mt-0.5 text-[18px] font-bold text-[var(--text)]">
         {value}
       </div>
-    </div>
+    </>
   );
+  const cls =
+    "block rounded-[var(--radius-sm)] bg-white px-3 py-2 text-center transition-colors hover:bg-[var(--primary-soft)]";
+  if (href) {
+    return (
+      <Link href={href} className={cls}>
+        {inner}
+      </Link>
+    );
+  }
+  return <div className={cls}>{inner}</div>;
 }
 
 /**
