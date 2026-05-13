@@ -20,7 +20,13 @@ export async function POST(req: Request) {
   if (!guard.ok) return guard.response;
   const supabase = await createSupabaseServerClient();
 
-  let body: { transcript?: unknown; videoId?: unknown; videoTitle?: unknown };
+  let body: {
+    transcript?: unknown;
+    videoId?: unknown;
+    videoTitle?: unknown;
+    doctors?: unknown;
+    primarySlug?: unknown;
+  };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -29,6 +35,23 @@ export async function POST(req: Request) {
   const transcript = typeof body.transcript === "string" ? body.transcript : "";
   const videoId = typeof body.videoId === "string" ? body.videoId : "";
   const videoTitle = typeof body.videoTitle === "string" ? body.videoTitle : "";
+  const primarySlug =
+    typeof body.primarySlug === "string" ? body.primarySlug : undefined;
+  const doctors = Array.isArray(body.doctors)
+    ? (body.doctors as unknown[])
+        .map((d) => {
+          if (!d || typeof d !== "object") return null;
+          const o = d as Record<string, unknown>;
+          const slug = typeof o.slug === "string" ? o.slug : null;
+          const name = typeof o.name === "string" ? o.name : null;
+          const frequency = typeof o.frequency === "number" ? o.frequency : 0;
+          if (!slug || !name) return null;
+          return { slug, name, frequency };
+        })
+        .filter((d): d is { slug: string; name: string; frequency: number } =>
+          Boolean(d),
+        )
+    : undefined;
   if (!transcript || !videoId) {
     return NextResponse.json(
       { error: "transcript, videoId required" },
@@ -43,6 +66,8 @@ export async function POST(req: Request) {
       videoId,
       videoTitle,
       sourceFile,
+      doctors,
+      primarySlug,
     });
     console.log(
       `[step1] video=${videoId} drafts=${result.drafts.length} model=${result.model} ` +

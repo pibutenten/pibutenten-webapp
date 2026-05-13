@@ -32,6 +32,8 @@ export type DraftCard = {
   } | null;
   pubmed_search_keywords: string[];
   script_evidence?: string;
+  /** D1: 카드별 화자 — 다중 출연 영상에서 LLM이 카드별로 추정. 단일 출연이면 주 화자 slug. */
+  doctor_slug?: string;
 };
 
 let cachedSystemPrompt: string | null = null;
@@ -58,13 +60,38 @@ function buildUserMessage(opts: {
   videoId: string;
   videoTitle: string;
   sourceFile: string;
+  doctors?: Array<{ slug: string; name: string; frequency: number }>;
+  primarySlug?: string;
 }): string {
+  const doctorsList = (opts.doctors ?? [])
+    .map(
+      (d) =>
+        `  - slug: "${d.slug}", name: "${d.name}", 자막 호명 ${d.frequency}회${
+          opts.primarySlug === d.slug ? " ◉ 주 화자" : ""
+        }`,
+    )
+    .join("\n");
+  const isMultiDoctor = (opts.doctors ?? []).length > 1;
+
   return `다음 영상 자막을 Step1 v5 룰에 맞춰 Q&A 카드로 추출하세요.
 
 [입력 메타]
 - video_id: ${opts.videoId}
 - video_title: ${opts.videoTitle}
 - source_file: ${opts.sourceFile}
+
+[영상 출연 원장 목록]
+${doctorsList || "  (분석되지 않음)"}
+
+[D1: 카드별 화자 식별 — ${isMultiDoctor ? "다중 출연 영상" : "단일 출연 영상"}]
+각 카드 객체에 \`doctor_slug\` 필드를 추가하세요. 값은 위 출연 원장 목록의 slug 중 하나여야 합니다.
+
+판단 기준:
+1. 카드 timestamp 구간의 자막에서 직접 답변하는(설명하는) 원장의 slug
+2. 본인 시술·경험을 1인칭으로 설명하는 패턴 ("제가 보톡스를 시술할 때…")
+3. 다른 원장의 발언을 인용하거나 질문만 하는 경우 X — 실제로 답변·설명하는 원장
+4. 확신이 안 서면 영상 주 화자(◉) slug를 사용
+${isMultiDoctor ? "5. 위 목록에 없는 slug는 절대 만들지 마세요." : "5. 단일 출연이므로 모든 카드의 doctor_slug는 동일."}
 
 [transcript]
 ${opts.transcript}
@@ -155,6 +182,10 @@ function normalize(parsed: unknown): DraftCard[] {
       pubmed_search_keywords: pubmedKw,
       script_evidence:
         typeof obj.script_evidence === "string" ? obj.script_evidence : undefined,
+      doctor_slug:
+        typeof obj.doctor_slug === "string" && obj.doctor_slug.trim()
+          ? obj.doctor_slug.trim()
+          : undefined,
     });
   }
   if (!out.length) throw new Error("Step1 produced 0 valid cards");
@@ -179,6 +210,8 @@ export async function runStep1(opts: {
   videoId: string;
   videoTitle: string;
   sourceFile: string;
+  doctors?: Array<{ slug: string; name: string; frequency: number }>;
+  primarySlug?: string;
 }): Promise<Step1Result> {
   const apiKey = getEnv("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");

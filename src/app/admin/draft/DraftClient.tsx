@@ -226,6 +226,7 @@ export default function DraftClient() {
     setError(null);
     setStage("step1ing");
     try {
+      // D1: LLM이 다중 출연 영상에서 카드별 화자를 추정할 수 있도록 doctors 컨텍스트 전송
       const res = await fetch("/api/admin/draft/step1", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -233,6 +234,12 @@ export default function DraftClient() {
           transcript: analyze.transcript,
           videoId: analyze.videoId,
           videoTitle: analyze.title ?? "",
+          doctors: analyze.doctors.map((d) => ({
+            slug: d.slug,
+            name: d.name,
+            frequency: d.frequency,
+          })),
+          primarySlug,
         }),
       });
       const data = (await res.json()) as
@@ -260,8 +267,13 @@ export default function DraftClient() {
           calls: (prev?.calls ?? 0) + 1,
         }));
       }
+      // D1: LLM이 카드별 doctor_slug를 응답한 경우 매핑. 누락/유효하지 않은 slug는 primarySlug fallback.
+      const validSlugs = new Set(analyze.doctors.map((d) => d.slug));
       const editable: EditableCard[] = data.drafts.map((d) => {
         const sec = d.timestamp?.start_seconds ?? 0;
+        const llmSlug = (d as { doctor_slug?: string }).doctor_slug;
+        const doctorSlug =
+          llmSlug && validSlugs.has(llmSlug) ? llmSlug : primarySlug;
         return {
           source: d.source,
           scriptEvidence: d.script_evidence,
@@ -270,7 +282,7 @@ export default function DraftClient() {
           answer: d.answer,
           keywords: d.keywords ?? [],
           category: d.category ?? "",
-          doctorSlug: primarySlug,
+          doctorSlug,
           startSec: sec,
           startInput: formatMMSS(sec),
           externalTitle: d.source.video_title || analyze.title || "",
@@ -778,9 +790,6 @@ function CardEditor({
     () => pickHighlight(`draft-${index}-${videoId}`),
     [index, videoId],
   );
-  const doctorName =
-    DOCTORS_9.find((d) => d.slug === card.doctorSlug)?.name ?? "(미지정)";
-
   return (
     <article className="space-y-3 rounded-md border border-[var(--border)] bg-[var(--bg-soft)]/30 p-4">
       <header className="flex items-center justify-between">
@@ -806,13 +815,18 @@ function CardEditor({
           <label className="mb-1 block text-xs text-[var(--text-secondary)]">
             화자
           </label>
-          {/* readonly chip — 추출 단계 주 화자로 고정. 변경하려면 ② 단계 라디오에서 */}
-          <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm">
-            <span className="font-medium text-[var(--text)]">{doctorName}</span>
-            <span className="text-[10px] text-[var(--text-muted)]">
-              (주 화자 고정)
-            </span>
-          </div>
+          {/* D2: 카드별 화자 dropdown — 다중 출연 영상에서 카드마다 다른 화자 지정 가능 */}
+          <select
+            value={card.doctorSlug}
+            onChange={(e) => onChange({ doctorSlug: e.target.value })}
+            className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
+          >
+            {DOCTORS_9.map((d) => (
+              <option key={d.slug} value={d.slug}>
+                {d.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="mb-1 block text-xs text-[var(--text-secondary)]">
