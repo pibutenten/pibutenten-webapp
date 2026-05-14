@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import NotificationPreferences from "@/components/NotificationPreferences";
+import PushNotificationToggle from "@/components/PushNotificationToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,10 @@ export default async function NotificationSettingsPage() {
       <p className="mb-5 text-sm text-[var(--text-secondary)]">
         받고 싶은 알림 종류를 각각 켜고 끌 수 있어요. 변경은 즉시 저장됩니다.
       </p>
-      <NotificationPreferences role={role} />
+      <div className="space-y-4">
+        <PushNotificationToggle />
+        <NotificationPreferences role={role} />
+      </div>
     </section>
   );
 }

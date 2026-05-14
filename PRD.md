@@ -10,6 +10,9 @@
 - [ ] **Supabase Pro 업그레이드** ($25/mo) — 오픈 전 활성화. 자동 백업·DB 백업 기간 늘림
 - [ ] **/privacy /terms 법무 검토** — 베타 안정화 후 변호사 자문. 현재 자체 작성 상태
 - [ ] **카카오 OAuth 모드** — 개발중 vs 검수완료 확인
+- [ ] **PWA Push 운영 설정** — VAPID 키 Vercel env 등록 + Supabase Database Webhook 등록
+  - Vercel env: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_WEBHOOK_SECRET` (4개)
+  - Supabase Dashboard → Database → Webhooks: notifications INSERT → POST https://pbtt.kr/api/push/send + 헤더 `x-pibutenten-push-secret`
 
 ### 🟡 오픈 직후 (1주 내)
 - [ ] sitemap.xml / robots.txt / llms.txt 인덱싱 정책 검토 + 적용
