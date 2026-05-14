@@ -71,7 +71,7 @@ export default function SearchBar({
         }}
         placeholder="피부과 전문의가 솔직하게 답해드립니다!"
         aria-label="Q&A 검색"
-        className="h-[50px] w-full rounded-full border-2 border-[var(--secondary)] bg-white px-6 pr-14 text-center text-[15px] font-bold text-[var(--text)] outline-none shadow-[var(--shadow-sm)] transition-[border-color,box-shadow] placeholder:text-[16px] placeholder:font-normal placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:shadow-[0_0_0_4px_rgba(95,168,211,0.15)] sm:h-14 sm:text-[17px]"
+        className="h-[50px] w-full rounded-full border-2 border-[var(--secondary)] bg-white px-6 pr-14 text-center text-[15px] font-bold text-[var(--text)] outline-none shadow-[var(--shadow-sm)] transition-[border-color,box-shadow] placeholder:text-[16px] placeholder:font-normal placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:shadow-[0_0_0_4px_rgba(139,195,222,0.20)] sm:h-14 sm:text-[17px]"
       />
       <button
         type="submit"
