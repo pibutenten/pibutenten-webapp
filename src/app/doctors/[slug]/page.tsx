@@ -14,6 +14,7 @@ import {
 } from "@/lib/doctor-profile";
 import { buildDoctorFull } from "@/lib/schema/doctor";
 import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
+import LogoutButton from "@/components/LogoutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -335,6 +336,11 @@ export default async function DoctorDetailPage({ params }: Props) {
             미리보기
           </Link>
         </p>
+
+        {/* 본인 대시보드 최하단 로그아웃 — admin/doctor/user 공통 패턴 */}
+        <div className="mt-12 flex justify-center border-t border-[var(--border)] pt-6">
+          <LogoutButton />
+        </div>
       </section>
     );
   }

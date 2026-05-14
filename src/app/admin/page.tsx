@@ -6,6 +6,7 @@ import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
 import { getIdentityContext } from "@/lib/identity";
 import { PopularSearchesCard, PopularTagsCard } from "./PopularCards";
 import ActivityKpis from "./ActivityKpis";
+import LogoutButton from "@/components/LogoutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -251,6 +252,11 @@ export default async function AdminPage() {
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <PopularSearchesCard initialDays={7} dataByDays={searchesByDays} />
         <PopularTagsCard initialDays={0} dataByDays={tagsByDays} />
+      </div>
+
+      {/* 본인 대시보드 최하단 로그아웃 — admin/doctor/user 공통 패턴 */}
+      <div className="mt-12 flex justify-center border-t border-[var(--border)] pt-6">
+        <LogoutButton />
       </div>
     </section>
   );
