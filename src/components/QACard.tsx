@@ -266,19 +266,19 @@ export default function QACard({
     })();
   }, [qa.id]);
 
-  // 조회수 트리거 — "의도적인 active 보기" 신호일 때만 카운트 (정확도 최우선).
+  // 조회수 트리거 — 4-10초 dwell 윈도우 (사용자 정책).
   //
-  // 정책 (사용자 요청):
-  //   - 첫 화면에 스크롤 없이 등장한 카드는 dwell과 무관하게 카운팅 X
-  //   - 스크롤한 후 카드가 viewport 중앙에 5초 이상 머물고
-  //     → 그 다음 "다른 동작"이 발생할 때 비로소 카운팅
-  //       (다른 동작 = 카드가 viewport에서 사라짐 = 또 스크롤하거나 카드 닫기)
-  //   - 5초 머문 후에도 계속 그대로 머물면(자리비움 의심) 카운팅 X
+  // 카드가 viewport 이탈할 때 머문 시간 측정:
+  //   · 4초 미만: 스쳐 지나감 → X
+  //   · 4초 ≤ dwell ≤ 10초: 실제 읽음 → 카운팅 ✅
+  //   · 10초 초과: 자리비움(딴짓 의심) → X
   //
-  // 명시적 트리거 (위 dwell과 무관하게 즉시 카운팅):
+  // 첫 화면 스크롤 없이 등장한 카드는 dwell 시작 자체를 안 함 → 카운팅 X.
+  //
+  // 명시적 트리거 (dwell 윈도우와 무관하게 즉시 카운팅):
   //   1. 단독 페이지 진입 (forceExpanded=true)
-  //   2. 카드 펼침 (더보기 클릭) — onClick에서 recordView()
-  //   3. 영상 보러가기 클릭 — 영상 링크 핸들러에서 recordView()
+  //   2. 카드 펼침 (더보기 클릭)
+  //   3. 영상 보러가기 클릭
   //
   // session_id 기반 dedup — 같은 세션 같은 qa는 1회만.
   useEffect(() => {
@@ -291,25 +291,14 @@ export default function QACard({
     const card = cardRef.current;
     if (!card) return;
 
-    const DWELL_MS = 5000;
+    const DWELL_MIN_MS = 4000;
+    const DWELL_MAX_MS = 10000;
     let scrolled = false;
-    let pendingIntersect = false;
-    let dwellTimer: ReturnType<typeof setTimeout> | null = null;
-    let dwellMet = false; // 5초 머무름 충족 — 아직 카운팅 X, "다른 동작" 대기
-
-    function maybeStartDwell() {
-      if (!scrolled || !pendingIntersect) return;
-      if (dwellTimer || dwellMet) return;
-      dwellTimer = setTimeout(() => {
-        dwellMet = true; // 5초 채움 — 다음 viewport 이탈 시 카운팅
-        dwellTimer = null;
-      }, DWELL_MS);
-    }
+    let dwellStartTime: number | null = null;
 
     function onScroll() {
       if (scrolled) return;
       scrolled = true;
-      maybeStartDwell();
     }
     window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -318,20 +307,18 @@ export default function QACard({
         const entry = entries[0];
         if (!entry) return;
         if (entry.isIntersecting) {
-          pendingIntersect = true;
-          maybeStartDwell();
+          // 카드 진입 — dwell 타이머 시작 (단, 페이지 스크롤 발생 후에만)
+          if (scrolled) dwellStartTime = Date.now();
         } else {
-          pendingIntersect = false;
-          if (dwellTimer) {
-            // 5초 채우기 전에 떠남 → 미카운팅, 타이머만 취소
-            clearTimeout(dwellTimer);
-            dwellTimer = null;
-          }
-          if (dwellMet) {
-            // 5초 채운 후 떠남 = "다른 동작" 발생 → 실제로 읽은 것으로 간주
-            recordView();
-            dwellMet = false;
-            observer.disconnect();
+          // 카드 이탈 — dwell 시간 측정 + 윈도우 검사
+          if (dwellStartTime !== null) {
+            const dwellMs = Date.now() - dwellStartTime;
+            dwellStartTime = null;
+            if (dwellMs >= DWELL_MIN_MS && dwellMs <= DWELL_MAX_MS) {
+              recordView();
+              observer.disconnect();
+            }
+            // 4초 미만(스쳐감) or 10초 초과(딴짓) → 무시
           }
         }
       },
@@ -342,7 +329,6 @@ export default function QACard({
     );
     observer.observe(card);
     return () => {
-      if (dwellTimer) clearTimeout(dwellTimer);
       observer.disconnect();
       window.removeEventListener("scroll", onScroll);
     };
