@@ -76,6 +76,24 @@ export default function NotificationsBell() {
     return () => clearInterval(id);
   }, [fetchData]);
 
+  // 탭 복귀 시 즉시 refetch — 폴링 사이 백그라운드에서 새 알림이 생긴 경우 빠른 반영
+  useEffect(() => {
+    function onVisibility() {
+      if (document.visibilityState === "visible") void fetchData();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [fetchData]);
+
+  // pibutenten:notifications-read 이벤트 수신 — 다른 컴포넌트(예: /notifications 페이지)가 읽음 처리 시 동기화
+  useEffect(() => {
+    function onRead() {
+      void fetchData();
+    }
+    window.addEventListener("pibutenten:notifications-read", onRead);
+    return () => window.removeEventListener("pibutenten:notifications-read", onRead);
+  }, [fetchData]);
+
   // 외부 클릭 시 닫기
   useEffect(() => {
     if (!open) return;
@@ -87,27 +105,47 @@ export default function NotificationsBell() {
     return () => window.removeEventListener("mousedown", onClickOutside);
   }, [open]);
 
-  // 열릴 때 모두 읽음 처리
+  // 열릴 때 모두 읽음 처리 (RPC가 '궁금해요' 본인 미답 알림은 제외 — migration 0080)
   async function handleOpen() {
     setOpen(true);
     if (unread === 0) return;
     setLoading(true);
     try {
       await fetch("/api/notifications/read", { method: "POST" });
-      setUnread(0);
+      // 서버 RPC가 ask 본인 미답 알림을 제외할 수 있으므로 클라이언트 unread는 다시 fetch로 동기화
+      void fetchData();
       try {
         const nav = navigator as unknown as Record<string, () => void>;
         nav.clearAppBadge?.();
       } catch {
         /* noop */
       }
-      // 드롭다운에서는 read 표시도 갱신
-      setItems((prev) =>
-        prev?.map((it) => ({ ...it, read_at: it.read_at ?? new Date().toISOString() })) ??
-        prev,
-      );
     } finally {
       setLoading(false);
+    }
+  }
+
+  // 개별 알림 읽음 처리 (× 버튼)
+  async function dismissOne(id: number, e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await fetch("/api/notifications/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [id] }),
+      });
+      // 낙관적 업데이트
+      setItems((prev) =>
+        prev?.map((it) =>
+          it.id === id
+            ? { ...it, read_at: it.read_at ?? new Date().toISOString() }
+            : it,
+        ) ?? prev,
+      );
+      void fetchData();
+    } catch {
+      /* noop */
     }
   }
 
@@ -158,13 +196,13 @@ export default function NotificationsBell() {
               items.map((it) => (
                 <li
                   key={it.id}
-                  className="border-b border-[var(--border)]/60 last:border-b-0"
+                  className="group relative border-b border-[var(--border)]/60 last:border-b-0"
                 >
                   <Link
                     href={it.url}
                     onClick={() => setOpen(false)}
                     className={
-                      "block px-3 py-2 text-[12px] hover:bg-[var(--bg-soft)] " +
+                      "block px-3 py-2 pr-8 text-[12px] hover:bg-[var(--bg-soft)] " +
                       (it.read_at
                         ? "text-[var(--text-secondary)]"
                         : "bg-[var(--primary)]/5 text-[var(--text)]")
@@ -182,10 +220,38 @@ export default function NotificationsBell() {
                       {it.message}
                     </p>
                   </Link>
+                  {/* 개별 × 버튼 — 읽음으로 표시 (모바일 터치 위해 항상 노출, hover 시 진해짐) */}
+                  {!it.read_at && (
+                    <button
+                      type="button"
+                      onClick={(e) => dismissOne(it.id, e)}
+                      aria-label="이 알림 읽음 처리"
+                      className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-[var(--text-muted)] opacity-50 hover:bg-[var(--bg-soft)] hover:opacity-100"
+                    >
+                      ×
+                    </button>
+                  )}
                 </li>
               ))
             )}
           </ul>
+          {/* 하단 진입점 — 전체 보기 + 알림 설정 */}
+          <div className="flex border-t border-[var(--border)] text-[11px]">
+            <Link
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="flex-1 px-3 py-2 text-center text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
+            >
+              전체 보기
+            </Link>
+            <Link
+              href="/settings/notifications"
+              onClick={() => setOpen(false)}
+              className="flex-1 border-l border-[var(--border)] px-3 py-2 text-center text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
+            >
+              ⚙ 설정
+            </Link>
+          </div>
         </div>
       )}
     </div>
