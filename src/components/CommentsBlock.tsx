@@ -739,7 +739,7 @@ function CommentForm({
   }, [disableAutoFocus]);
 
   return (
-    <div className="flex items-stretch gap-1.5">
+    <div className="flex items-center gap-1.5">
       <div className="relative flex-1">
         <textarea
           ref={textareaRef}
@@ -784,14 +784,32 @@ function CommentForm({
           </span>
         )}
       </div>
-      {/* 등록 — 텍스트 링크 스타일 (작고 차분) */}
+      {/* 등록 — 위 화살표 아이콘 (textarea 와 가운데 정렬) */}
       <button
         type="button"
-        className="shrink-0 self-stretch rounded-md px-2.5 text-[12px] font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)] disabled:cursor-not-allowed disabled:text-[var(--text-muted)] disabled:hover:bg-transparent"
+        aria-label="등록"
+        title="등록"
+        className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:bg-[var(--border)]"
         disabled={submitting || !body.trim()}
         onClick={onSubmit}
       >
-        {submitting ? "…" : "등록"}
+        {submitting ? (
+          <span className="text-[12px]">…</span>
+        ) : (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+            aria-hidden
+          >
+            <path d="M12 19V5" />
+            <path d="M5 12l7-7 7 7" />
+          </svg>
+        )}
       </button>
     </div>
   );

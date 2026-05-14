@@ -96,7 +96,7 @@ export default function ActivityKpis({
             ? `/admin/stats/${kind}?days=${days || 0}`
             : null;
           const cls =
-            "block rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 transition-colors hover:border-[var(--primary)] hover:bg-[var(--bg-soft)]";
+            "block rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 transition-colors hover:bg-[var(--bg-soft)]";
           const inner = (
             <>
               <div className="text-xs text-[var(--text-muted)]">{it.label}</div>

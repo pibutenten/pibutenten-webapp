@@ -218,8 +218,8 @@ export default function StatsListClient({
                         "(작성자 없음)";
                       return (
                         <>
-                          {/* 닉네임 좌측 — 고정폭, 길면 truncate */}
-                          <div className="w-[88px] shrink-0 truncate text-[12px] text-[var(--text-muted)] sm:w-[120px]">
+                          {/* 닉네임 좌측 — 고정폭(축소), 길면 truncate */}
+                          <div className="w-[68px] shrink-0 truncate text-[12px] text-[var(--text-muted)] sm:w-[88px]">
                             {row.author_handle ? (
                               <Link
                                 href={`/${row.author_handle}`}
@@ -301,7 +301,7 @@ function CommentsBlock({ comments }: { comments: CommentSummary[] }) {
   );
 
   return (
-    <div className="border-t border-[var(--border)] bg-[var(--bg-soft)]/50 px-4 py-2">
+    <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2">
       <ul className="space-y-1.5">
         {parents.map((c) => {
           const replies = repliesByParent.get(c.id) ?? [];
