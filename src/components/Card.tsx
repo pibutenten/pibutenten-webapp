@@ -941,7 +941,7 @@ export default function QACard({
                 const catLabel = labelForCategory(qa.category);
                 if (!catLabel && !dateLabel) return null;
                 return (
-                  <div className="mt-[3px] truncate text-[11.5px] leading-[1.2] text-[var(--text-muted)]">
+                  <div className="mt-[5px] truncate text-[11.5px] leading-[1.2] text-[var(--text-muted)]">
                     {catLabel}
                     {dateLabel && (
                       <>
