@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { readPersonaServer } from "@/lib/persona-server";
+import { getIdentityContext } from "@/lib/identity";
 import {
   buildSlug,
   resolveSlugCollision,
@@ -48,22 +50,16 @@ type Payload = {
  */
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  // Phase 9: active identity 기반 — 묶음 내 ID 전환 시 글의 author도 그 profile로 저장.
+  // 구 버그: user.id (= base auth.users.id) 만 사용해 항상 base profile(보통 의사)로 저장 →
+  //   회원 모드로 작성한 글이 의사 핸들 슬러그(/bae-jungmin/...)로 노출되는 문제.
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx?.active) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!profile) {
-    return NextResponse.json({ error: "프로필을 찾을 수 없습니다." }, { status: 403 });
-  }
-  const role = (profile.role ?? "user") as "admin" | "doctor" | "user";
+  const user = idCtx.user;
+  // role은 active identity 기준 (회원 ID로 전환 중이면 'user', 의사 ID면 'doctor')
+  const role = (idCtx.active.role ?? "user") as "admin" | "doctor" | "user";
 
   let payload: Payload;
   try {
@@ -250,11 +246,13 @@ export async function POST(req: Request) {
     }
   }
 
-  // 본문 검증 + insert payload 구성
+  // 본문 검증 + insert payload 구성.
+  // author_id에 active identity의 profile.id 사용 — 묶음 내 ID 전환 시 글의 작성자도 그 ID로 기록됨.
+  // (좋아요·저장·댓글과 동일한 ID 정책.)
   const insert: Record<string, unknown> = {
     type: t,
     category,
-    author_id: user.id,
+    author_id: idCtx.active.profileId,
     keywords,
     post_year: postYear,
     post_slug: postSlug,
@@ -296,7 +294,11 @@ export async function POST(req: Request) {
     }
     insert.question = q;
     insert.answer = a;
-    insert.status = "pending_review";
+    // 클라이언트가 보낸 status 존중 (draft/pending_review/published).
+    // 이전 버그: status를 항상 pending_review로 강제 덮어써서 "저장"(draft) 버튼이 검수 큐로 직행함.
+    insert.status = reqStatus;
+    insert.published = reqStatus === "published";
+    insert.posted_as = currentPersona;
     insert.doctor_id = doctorId;
   }
 
@@ -311,6 +313,25 @@ export async function POST(req: Request) {
       { error: `저장 실패: ${insErr.message}` },
       { status: 500 },
     );
+  }
+
+  // 캐시 무효화 — 대시보드 KPI/카드 목록/회원 프로필 즉시 갱신.
+  // (point-in-time 카운트는 매번 fresh fetch지만, Next.js RSC payload 캐시·full route cache 모두 무효화)
+  try {
+    revalidatePath("/");
+    revalidatePath("/admin");
+    revalidatePath("/admin/cards");
+    if (doctorId) {
+      const { data: docRow } = await supabase
+        .from("doctors")
+        .select("slug")
+        .eq("id", doctorId)
+        .maybeSingle();
+      if (docRow?.slug) revalidatePath(`/doctors/${docRow.slug}`);
+    }
+    if (idCtx.active.handle) revalidatePath(`/${idCtx.active.handle}`);
+  } catch {
+    /* revalidatePath 실패는 저장 성공에 영향 X */
   }
 
   return NextResponse.json({

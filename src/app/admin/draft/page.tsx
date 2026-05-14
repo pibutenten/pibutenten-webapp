@@ -6,6 +6,11 @@ import DraftClient from "./DraftClient";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "신규 Q&A 추출",
+  robots: { index: false, follow: false },
+};
+
 export default async function AdminDraftPage() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();

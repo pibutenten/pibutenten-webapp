@@ -8,6 +8,11 @@ import { getIdentityContext } from "@/lib/identity";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "카드 관리",
+  robots: { index: false, follow: false },
+};
+
 // ─────────────────────────────────────────────
 // 어드민 전용 타입
 // ─────────────────────────────────────────────

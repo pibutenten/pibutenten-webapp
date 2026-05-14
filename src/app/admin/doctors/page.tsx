@@ -10,6 +10,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "전문의 관리",
+  robots: { index: false, follow: false },
+};
+
 type DoctorRow = {
   id: string;
   slug: string;

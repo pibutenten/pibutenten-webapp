@@ -5,6 +5,11 @@ import type { UserRole } from "@/lib/user-grades";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "회원 관리",
+  robots: { index: false, follow: false },
+};
+
 /**
  * Phase 9: 회원관리 페이지 단순화.
  *

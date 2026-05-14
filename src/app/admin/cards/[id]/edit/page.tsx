@@ -6,6 +6,11 @@ import EditClient from "./EditClient";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "카드 편집",
+  robots: { index: false, follow: false },
+};
+
 type Props = {
   params: Promise<{ id: string }>;
 };
