@@ -187,8 +187,11 @@ export default function StatsListClient({
                     const qaHref = row.shortcode
                       ? `/q/${row.shortcode}`
                       : `/q/${row.qa_id}`;
-                    const aname =
-                      row.author_name || row.author_handle || "(작성자 없음)";
+                    // 작성자 표시: display_name 우선, 없으면 handle, 둘 다 없으면 "(작성자 없음)"
+                    const displayName =
+                      row.author_name?.trim() ||
+                      row.author_handle?.trim() ||
+                      "(작성자 없음)";
                     return (
                       <div>
                         <Link
@@ -204,10 +207,10 @@ export default function StatsListClient({
                               href={`/${row.author_handle}`}
                               className="hover:underline"
                             >
-                              @{row.author_handle}
+                              {displayName}
                             </Link>
                           ) : (
-                            aname
+                            displayName
                           )}
                         </div>
                       </div>

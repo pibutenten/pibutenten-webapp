@@ -96,6 +96,18 @@ export async function POST(req: Request) {
     (doctorsData ?? []).map((d) => [d.slug, d.id]),
   );
 
+  // doctor_id → profile_id 매핑 (검수→발행 시 author = 원장님 profile).
+  // doctor_accounts에 매핑 없으면 admin profile_id로 fallback.
+  const { data: doctorAccounts } = await supabase
+    .from("doctor_accounts")
+    .select("doctor_id, profile_id");
+  const doctorIdToProfileId = new Map<string, string>(
+    (doctorAccounts ?? []).map((r) => [
+      (r as { doctor_id: string }).doctor_id,
+      (r as { profile_id: string }).profile_id,
+    ]),
+  );
+
   // videos UPSERT — youtube_id 기준. 모든 qas.video_id에 이 row.id 채움.
   const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const { data: videoRow, error: vidErr } = await supabase
@@ -183,7 +195,10 @@ export async function POST(req: Request) {
       external_site_name: "YouTube",
       pubmed_ref: c.pubmedRef ?? null,
       meta: JSON.stringify(metaObj),
-      author_id: guard.userId,
+      // author = 검수받을 원장님의 profile_id. 매핑 없으면 admin profile_id fallback.
+      // (auth.users.id 가 아니라 profiles.id 사용 — Phase 9 FK 정합성)
+      author_id:
+        doctorIdToProfileId.get(doctorId) ?? guard.adminProfileId,
       created_at: `${yyyymmdd} 00:00:00+09`,
       updated_at: now.toISOString(),
     });
