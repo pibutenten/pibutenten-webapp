@@ -14,11 +14,11 @@ type Liker = {
 };
 
 type Props = {
-  qaId: number;
+  cardId: number;
   open: boolean;
   onClose: () => void;
-  /** v5.1+: 'qa'면 다이얼로그 헤더 '추천', 그 외는 '좋아요' */
-  qaType?: "qa" | "post";
+  /** v5.1+: 'card'면 다이얼로그 헤더 '추천', 그 외는 '좋아요' */
+  qaType?: "card" | "post";
 };
 
 /**
@@ -31,7 +31,7 @@ type Props = {
  */
 const FETCH_LIMIT = 200;
 
-export default function LikersDialog({ qaId, open, onClose, qaType }: Props) {
+export default function LikersDialog({ cardId, open, onClose, qaType }: Props) {
   // v5.1+ 사용자 결정: 좋아요로 통일. qaType prop은 호환성 유지.
   void qaType;
   const headerLabel = "좋아요";
@@ -48,7 +48,7 @@ export default function LikersDialog({ qaId, open, onClose, qaType }: Props) {
       try {
         const sb = createSupabaseBrowserClient();
         const { data } = await sb.rpc("get_recent_card_likers", {
-          p_card_id: qaId,
+          p_card_id: cardId,
           p_limit: FETCH_LIMIT,
         });
         if (cancelled) return;
@@ -62,7 +62,7 @@ export default function LikersDialog({ qaId, open, onClose, qaType }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [qaId, open]);
+  }, [cardId, open]);
 
   // ESC 키 닫기 + body 스크롤 잠금
   useEffect(() => {

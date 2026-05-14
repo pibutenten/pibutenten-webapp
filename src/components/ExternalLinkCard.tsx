@@ -3,7 +3,7 @@
  *
  * 사용처:
  *  - 의사·회원이 외부 URL 공유 시 자동 카드 생성 (qa.type='link')
- *  - QACard 안에 임베드되어 사용
+ *  - Card 안에 임베드되어 사용
  *
  * SEO:
  *  - 외부 링크는 rel="noopener noreferrer ugc" (사용자 공유 콘텐츠 표시)

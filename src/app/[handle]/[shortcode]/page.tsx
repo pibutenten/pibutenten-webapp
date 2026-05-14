@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import QACard, { type QACardData } from "@/components/Card";
+import Card, { type CardData } from "@/components/Card";
 import { SITE_URL } from "@/lib/site";
 import { stripMarkdown } from "@/lib/strip-markdown";
 
@@ -12,7 +12,7 @@ type Props = {
   params: Promise<{ handle: string; shortcode: string }>;
 };
 
-type QaWithFields = QACardData & {
+type QaWithFields = CardData & {
   updated_at?: string | null;
 };
 
@@ -44,7 +44,7 @@ async function fetchQa(
         category, hide_doctor_credential, pubmed_ref,
         external_url, external_title, external_description, external_image, external_site_name,
         doctor:doctors(slug, name, branch),
-        author:profiles!qas_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle),
+        author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle),
         video:videos(youtube_id, youtube_url, topic, upload_date)
       `,
       )
@@ -65,13 +65,13 @@ async function fetchQa(
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle, shortcode } = await params;
-  const qa = await fetchQa(handle, shortcode);
-  if (!qa) return { title: "찾을 수 없는 글" };
+  const card = await fetchQa(handle, shortcode);
+  if (!card) return { title: "찾을 수 없는 글" };
   const url = `${SITE_URL}/${handle}/${shortcode}`;
-  const indexable = qa.category === "tip";
+  const indexable = card.category === "tip";
   return {
-    title: qa.question,
-    description: stripMarkdown(qa.answer).slice(0, 160),
+    title: card.question,
+    description: stripMarkdown(card.answer).slice(0, 160),
     alternates: { canonical: url },
     robots: indexable
       ? { index: true, follow: true }
@@ -81,8 +81,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function MemberPostPage({ params }: Props) {
   const { handle, shortcode } = await params;
-  const qa = await fetchQa(handle, shortcode);
-  if (!qa) notFound();
+  const card = await fetchQa(handle, shortcode);
+  if (!card) notFound();
 
   return (
     <section className="w-full py-6">
@@ -92,7 +92,7 @@ export default async function MemberPostPage({ params }: Props) {
       >
         ← {handle} 프로필
       </Link>
-      <QACard qa={qa} />
+      <Card card={card} />
     </section>
   );
 }

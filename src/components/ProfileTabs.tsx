@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Feed from "@/components/Feed";
-import type { QACardData } from "@/components/Card";
+import type { CardData } from "@/components/Card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Tab = "posts" | "skin" | "comments" | "likes" | "saves";
@@ -18,7 +18,7 @@ export type SkinInfo = {
 };
 
 type Props = {
-  posts: QACardData[];
+  posts: CardData[];
   /** 본인 보기일 때만 [좋아요][저장] 탭 노출 */
   isOwner: boolean;
   postsCount: number;
@@ -49,7 +49,7 @@ type CommentRow = {
   body: string;
   created_at: string;
   card_id: number;
-  qa: {
+  card: {
     id: number;
     question: string;
     type: string | null;
@@ -66,18 +66,18 @@ type CommentRow = {
 };
 
 function commentLink(c: CommentRow): string {
-  const qa = c.qa;
-  if (!qa) return "/";
+  const card = c.card;
+  if (!card) return "/";
   // posted_as DB enum: 'official' | 'personal'. 옛 'doctor'/'self' 값도 매핑.
-  const isOfficial = qa.posted_as === "official" || qa.posted_as === "doctor";
-  const isPersonal = qa.posted_as === "personal" || qa.posted_as === "self";
-  if (isOfficial && qa.doctor?.slug && qa.post_year && qa.post_slug)
-    return `/doctors/${qa.doctor.slug}/${qa.post_year}/${qa.post_slug}`;
-  if (qa.shortcode) {
+  const isOfficial = card.posted_as === "official" || card.posted_as === "doctor";
+  const isPersonal = card.posted_as === "personal" || card.posted_as === "self";
+  if (isOfficial && card.doctor?.slug && card.post_year && card.post_slug)
+    return `/doctors/${card.doctor.slug}/${card.post_year}/${card.post_slug}`;
+  if (card.shortcode) {
     const handle = isPersonal
-      ? qa.author?.alt_handle ?? qa.author?.handle
-      : qa.author?.handle ?? null;
-    if (handle) return `/${handle}/${qa.shortcode}`;
+      ? card.author?.alt_handle ?? card.author?.handle
+      : card.author?.handle ?? null;
+    if (handle) return `/${handle}/${card.shortcode}`;
   }
   return "/";
 }
@@ -132,8 +132,8 @@ export default function ProfileTabs({
   const [commentsLoading, setCommentsLoading] = useState(false);
 
   // v4 — 좋아요/저장 글 lazy fetch (본인 보기에서만 노출됨)
-  const [savedPosts, setSavedPosts] = useState<QACardData[] | null>(null);
-  const [likedPosts, setLikedPosts] = useState<QACardData[] | null>(null);
+  const [savedPosts, setSavedPosts] = useState<CardData[] | null>(null);
+  const [likedPosts, setLikedPosts] = useState<CardData[] | null>(null);
 
   useEffect(() => {
     if ((tab !== "saves" && tab !== "likes") || !isOwner) return;
@@ -168,7 +168,7 @@ export default function ProfileTabs({
            external_url, external_title, external_description, external_image, external_site_name,
            doctor:doctors(slug, name, branch),
            video:videos(youtube_id, youtube_url, topic, upload_date),
-           author:profiles!qas_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle, updated_at)`,
+           author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle, updated_at)`,
         )
         .in("id", ids);
       if (qasErr) {
@@ -176,9 +176,9 @@ export default function ProfileTabs({
       }
       console.log(`[ProfileTabs ${tab}] fetched qas=`, qas?.length ?? 0);
       // 저장/좋아요 시간 순서 유지
-      const map = new Map<number, QACardData>();
-      for (const q of qas ?? []) map.set((q as { id: number }).id, q as unknown as QACardData);
-      const ordered = ids.map((id) => map.get(id)).filter(Boolean) as QACardData[];
+      const map = new Map<number, CardData>();
+      for (const q of qas ?? []) map.set((q as { id: number }).id, q as unknown as CardData);
+      const ordered = ids.map((id) => map.get(id)).filter(Boolean) as CardData[];
       if (tab === "saves") setSavedPosts(ordered);
       else setLikedPosts(ordered);
     })();
@@ -204,9 +204,9 @@ export default function ProfileTabs({
         .from("comments")
         .select(
           `id, body, created_at, card_id,
-           qa:cards(id, question, type, post_year, post_slug, shortcode, posted_as,
+           card:cards(id, question, type, post_year, post_slug, shortcode, posted_as,
                   doctor:doctors(slug),
-                  author:profiles!qas_author_id_profiles_fkey(handle, alt_handle))`,
+                  author:profiles!cards_author_id_profiles_fkey(handle, alt_handle))`,
         )
         .eq("author_id", targetAuthorId)
         .eq("status", "visible");
@@ -288,12 +288,12 @@ export default function ProfileTabs({
               {comments.map((c) => (
                 <Link
                   key={c.id}
-                  href={c.qa ? commentLink(c) : "/"}
+                  href={c.card ? commentLink(c) : "/"}
                   className="block rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 outline-none transition-colors hover:border-[var(--primary)] hover:bg-[var(--bg-soft)]/30 focus:outline-none focus-visible:ring-0"
                 >
-                  {c.qa && (
+                  {c.card && (
                     <p className="mb-1.5 truncate text-[13px] font-semibold text-[var(--text)]">
-                      {c.qa.question}
+                      {c.card.question}
                     </p>
                   )}
                   <div className="flex items-start gap-1.5 text-[13.5px] text-[var(--text-secondary)]">

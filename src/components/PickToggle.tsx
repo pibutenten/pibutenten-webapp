@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Props = {
-  qaId: number;
+  cardId: number;
   initial: boolean;
 };
 
@@ -12,7 +12,7 @@ type Props = {
  * 목록에서 별 클릭으로 Pick on/off.
  * 권한은 RLS + RPC SECURITY DEFINER에서 처리 (관리자/원장 본인).
  */
-export default function PickToggle({ qaId, initial }: Props) {
+export default function PickToggle({ cardId, initial }: Props) {
   const [pick, setPick] = useState(initial);
   const [pending, startTransition] = useTransition();
 
@@ -24,7 +24,7 @@ export default function PickToggle({ qaId, initial }: Props) {
       const supabase = createSupabaseBrowserClient();
       const next = !pick;
       const { error } = await supabase.rpc("toggle_card_pick", {
-        p_card_id: qaId,
+        p_card_id: cardId,
         p_pick: next,
       });
       if (error) {

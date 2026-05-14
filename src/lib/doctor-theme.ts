@@ -11,9 +11,9 @@ export type DoctorTheme = {
   offsetX?: number;
   /** /doctors 96px 사진 미세 위치 보정 (px). 양수 = 아래. 기본 0. */
   offsetY?: number;
-  /** QACard 44px 아바타 X 보정 (px). 미지정 시 offsetX × 0.46. */
+  /** Card 44px 아바타 X 보정 (px). 미지정 시 offsetX × 0.46. */
   avatarOffsetX?: number;
-  /** QACard 44px 아바타 Y 보정 (px). 미지정 시 offsetY × 0.46. */
+  /** Card 44px 아바타 Y 보정 (px). 미지정 시 offsetY × 0.46. */
   avatarOffsetY?: number;
 };
 

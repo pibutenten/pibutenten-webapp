@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Masonry from "react-masonry-css";
-import QACard, { type QACardData } from "./Card";
+import Card, { type CardData } from "./Card";
 
 type ViewerState = { liked?: boolean; saved?: boolean; rating?: number };
 
 type Props = {
-  initial: QACardData[];
+  initial: CardData[];
   pageSize?: number;
   /** 검색어. 있으면 페이지네이션 시 ?q=...로 함께 호출 */
   searchQuery?: string;
@@ -40,7 +40,7 @@ export default function Feed({
   viewerStates,
 }: Props) {
   const hotSet = new Set(hotIds ?? []);
-  const [items, setItems] = useState<QACardData[]>(initial);
+  const [items, setItems] = useState<CardData[]>(initial);
   const [hasMore, setHasMore] = useState(initial.length >= pageSize);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -90,7 +90,7 @@ export default function Feed({
         setHasMore(false);
         return;
       }
-      const data = (await res.json()) as { qas: QACardData[] };
+      const data = (await res.json()) as { qas: CardData[] };
       const next = data.qas ?? [];
       setItems((prev) => [...prev, ...next]);
       if (next.length < ps) setHasMore(false);
@@ -137,16 +137,16 @@ export default function Feed({
         className="feed-masonry"
         columnClassName="feed-masonry__col"
       >
-        {items.map((qa) => (
-          <QACard
-            key={qa.id}
-            qa={qa}
+        {items.map((card) => (
+          <Card
+            key={card.id}
+            card={card}
             activeQuery={searchQuery}
             boostDoctorSlug={doctorSlug}
-            isHot={hotSet.has(qa.id)}
-            viewerLiked={viewerStates?.[qa.id]?.liked}
-            viewerSaved={viewerStates?.[qa.id]?.saved}
-            viewerRating={viewerStates?.[qa.id]?.rating}
+            isHot={hotSet.has(card.id)}
+            viewerLiked={viewerStates?.[card.id]?.liked}
+            viewerSaved={viewerStates?.[card.id]?.saved}
+            viewerRating={viewerStates?.[card.id]?.rating}
           />
         ))}
       </Masonry>

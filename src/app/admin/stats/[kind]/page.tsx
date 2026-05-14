@@ -4,7 +4,7 @@ import { getIdentityContext } from "@/lib/identity";
 import StatsListClient, {
   type Kind,
   type VisitorRow,
-  type QaRow,
+  type CardRow,
 } from "./StatsListClient";
 
 export const dynamic = "force-dynamic";
@@ -80,7 +80,7 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
     p_limit: FIRST_PAGE_SIZE + 1,
     p_offset: 0,
   });
-  let rows = (result.data ?? []) as (VisitorRow | QaRow)[];
+  let rows = (result.data ?? []) as (VisitorRow | CardRow)[];
   const hasMore = rows.length > FIRST_PAGE_SIZE;
 
   // comments kind: 각 qa의 기간 내 댓글(+대댓글)도 함께 fetch — 항상 펼친 상태로 표시
@@ -90,29 +90,29 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
         ? "1970-01-01T00:00:00Z"
         // eslint-disable-next-line react-hooks/purity -- server component, request-time
         : new Date(Date.now() - days * 86400_000).toISOString();
-    const qaIds = (rows as QaRow[])
+    const cardIds = (rows as CardRow[])
       .map((r) => r.card_id)
       .filter((id): id is number => typeof id === "number");
-    if (qaIds.length > 0) {
+    if (cardIds.length > 0) {
       const { data: comments } = await supabase
         .from("comments")
         .select(
           "id, card_id, body, created_at, parent_id, author_id, author:profiles!comments_author_id_fkey(display_name, handle)",
         )
-        .in("card_id", qaIds)
+        .in("card_id", cardIds)
         .eq("status", "visible")
         .gte("created_at", since)
         .order("created_at", { ascending: true });
-      const byQa = new Map<number, unknown[]>();
+      const byCard = new Map<number, unknown[]>();
       for (const c of comments ?? []) {
-        const qaId = (c as { card_id: number }).card_id;
-        if (!byQa.has(qaId)) byQa.set(qaId, []);
-        byQa.get(qaId)!.push(c);
+        const cardId = (c as { card_id: number }).card_id;
+        if (!byCard.has(cardId)) byCard.set(cardId, []);
+        byCard.get(cardId)!.push(c);
       }
-      rows = (rows as QaRow[]).map((r) => ({
+      rows = (rows as CardRow[]).map((r) => ({
         ...r,
-        comments: byQa.get(r.card_id) ?? [],
-      })) as QaRow[];
+        comments: byCard.get(r.card_id) ?? [],
+      })) as CardRow[];
     }
   }
 

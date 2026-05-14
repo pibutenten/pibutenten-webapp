@@ -15,13 +15,13 @@ type Liker = {
 };
 
 type Props = {
-  qaId: number;
+  cardId: number;
   /** 좋아요/추천 카운트. 0이면 컴포넌트 자체 렌더링 X. 변할 때 refetch trigger. */
   likeCount: number;
   /** 최대 노출 아바타 수 (default 3) */
   maxAvatars?: number;
-  /** v5.1+: 글 type — 'qa'면 '추천했어요', 그 외는 '좋아합니다' */
-  qaType?: "qa" | "post";
+  /** v5.1+: 글 type — 'card'면 '추천했어요', 그 외는 '좋아합니다' */
+  qaType?: "card" | "post";
 };
 
 /**
@@ -32,10 +32,10 @@ type Props = {
  *  - 페르소나 분기: qa_likes.persona='personal'이면 alt_display_name·alt_avatar·alt_handle
  *  - lazy load: 카운트 > 0일 때만 RPC 호출, 카드 mount 시 한 번
  *
- * 위치: QACard footer 구분선 아래, CommentsBlock 바로 위.
+ * 위치: Card footer 구분선 아래, CommentsBlock 바로 위.
  */
 export default function RecentLikers({
-  qaId,
+  cardId,
   likeCount,
   maxAvatars = 3,
   qaType = "post",
@@ -53,7 +53,7 @@ export default function RecentLikers({
       try {
         const sb = createSupabaseBrowserClient();
         const { data, error } = await sb.rpc("get_recent_card_likers", {
-          p_card_id: qaId,
+          p_card_id: cardId,
           p_limit: maxAvatars,
         });
         if (cancelled) return;
@@ -73,7 +73,7 @@ export default function RecentLikers({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [qaId, likeCount, maxAvatars]);
+  }, [cardId, likeCount, maxAvatars]);
 
   if (likeCount <= 0 || !likers || likers.length === 0) return null;
 
@@ -106,7 +106,7 @@ export default function RecentLikers({
 
       {/* 텍스트 — 첫 명 강조 + "외 N명" 클릭 시 다이얼로그 (인스타식)
           닉네임과 "님" 사이 공백 없음 (배스킨님 외 1명…)
-          type='qa'면 '추천했어요', 그 외는 '좋아합니다' */}
+          type='card'면 '추천했어요', 그 외는 '좋아합니다' */}
       <span className="leading-tight">
         <LikerName liker={likers[0]} fallback={firstName} />
         {others > 0 ? (
@@ -131,7 +131,7 @@ export default function RecentLikers({
 
       {/* 인스타식 리스트 다이얼로그 */}
       <LikersDialog
-        qaId={qaId}
+        cardId={cardId}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         qaType={qaType}

@@ -45,11 +45,11 @@ type CommentRow = {
   body: string;
   created_at: string;
   status: string;
-  qa: { id: number; question: string } | null;
+  card: { id: number; question: string } | null;
 };
 
 type LikeRow = {
-  qa: {
+  card: {
     id: number;
     question: string;
     created_at: string;
@@ -245,7 +245,7 @@ export default async function AdminUserDetailPage({
   // 댓글
   const { data: comments } = await supabase
     .from("comments")
-    .select("id, card_id, body, created_at, status, qa:cards(id, question)")
+    .select("id, card_id, body, created_at, status, card:cards(id, question)")
     .eq("author_id", id)
     .order("created_at", { ascending: false })
     .limit(30)
@@ -255,9 +255,9 @@ export default async function AdminUserDetailPage({
   const { data: likes } = await supabase
     .from("card_likes")
     .select(
-      `qa:cards(id, question, created_at, type, posted_as, post_year, post_slug, shortcode,
+      `card:cards(id, question, created_at, type, posted_as, post_year, post_slug, shortcode,
         doctor:doctors(slug),
-        author:profiles!qas_author_id_profiles_fkey(handle, alt_handle))`,
+        author:profiles!cards_author_id_profiles_fkey(handle, alt_handle))`,
     )
     .eq("user_id", id)
     .order("created_at", { ascending: false })
@@ -480,7 +480,7 @@ export default async function AdminUserDetailPage({
             {comments.map((c) => (
               <li key={c.id} className="py-2 text-sm">
                 <div className="text-xs text-[var(--text-muted)]">
-                  → {c.qa?.question?.slice(0, 50) ?? "(원글 없음)"} ·{" "}
+                  → {c.card?.question?.slice(0, 50) ?? "(원글 없음)"} ·{" "}
                   {formatDate(c.created_at)}
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-[var(--text)]">
@@ -497,27 +497,27 @@ export default async function AdminUserDetailPage({
         {likes && likes.length > 0 && (
           <ul className="divide-y divide-[var(--border)]">
             {likes
-              .filter((l) => l.qa)
+              .filter((l) => l.card)
               .map((l) => (
-                <li key={l.qa!.id} className="py-2">
+                <li key={l.card!.id} className="py-2">
                   <Link
                     href={getQaUrl({
-                      id: l.qa!.id,
-                      type: l.qa!.type ?? undefined,
-                      posted_as: l.qa!.posted_as ?? undefined,
-                      post_year: l.qa!.post_year ?? null,
-                      post_slug: l.qa!.post_slug ?? null,
-                      shortcode: l.qa!.shortcode ?? null,
-                      doctor: Array.isArray(l.qa!.doctor)
-                        ? l.qa!.doctor[0] ?? null
-                        : l.qa!.doctor ?? null,
-                      author: Array.isArray(l.qa!.author)
-                        ? l.qa!.author[0] ?? null
-                        : l.qa!.author ?? null,
+                      id: l.card!.id,
+                      type: l.card!.type ?? undefined,
+                      posted_as: l.card!.posted_as ?? undefined,
+                      post_year: l.card!.post_year ?? null,
+                      post_slug: l.card!.post_slug ?? null,
+                      shortcode: l.card!.shortcode ?? null,
+                      doctor: Array.isArray(l.card!.doctor)
+                        ? l.card!.doctor[0] ?? null
+                        : l.card!.doctor ?? null,
+                      author: Array.isArray(l.card!.author)
+                        ? l.card!.author[0] ?? null
+                        : l.card!.author ?? null,
                     })}
                     className="block text-sm text-[var(--text)] hover:text-[var(--primary)] hover:underline"
                   >
-                    {l.qa!.question?.slice(0, 80)}
+                    {l.card!.question?.slice(0, 80)}
                   </Link>
                 </li>
               ))}

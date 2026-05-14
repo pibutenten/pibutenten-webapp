@@ -4,7 +4,7 @@
  * 피부텐텐 PWA 설치 안내 모달 + Service Worker 등록.
  *
  * 노출 트리거 (둘 중 하나):
- *   1) `pibutenten:qa-viewed` 이벤트가 5회 이상 (QACard 50% 노출 시 1회)
+ *   1) `pibutenten:qa-viewed` 이벤트가 5회 이상 (Card 50% 노출 시 1회)
  *   2) 로그인 사용자 — 첫 진입 후 4초 지연
  *
  * 노출 차단:

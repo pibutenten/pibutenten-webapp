@@ -1,8 +1,8 @@
 /**
  * /api/comments
  *
- *  GET  ?qaId=N&offset=0&limit=20  → root 댓글 + 각 root의 답글들 (트리)
- *  POST { qaId, parentId?, body }  → 새 댓글/답글 작성 (인증 필수)
+ *  GET  ?cardId=N&offset=0&limit=20  → root 댓글 + 각 root의 답글들 (트리)
+ *  POST { cardId, parentId?, body }  → 새 댓글/답글 작성 (인증 필수)
  *
  * RLS가 권한을 강제. 여기서는 입력 검증과 응답 정형화만.
  */
@@ -47,13 +47,13 @@ export type CommentWithReplies = CommentRow & {
 // ─────────────────────────────────────────────────────────────
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const qaIdRaw = url.searchParams.get("qaId");
-  if (!qaIdRaw) {
-    return NextResponse.json({ error: "qaId is required" }, { status: 400 });
+  const cardIdRaw = url.searchParams.get("cardId");
+  if (!cardIdRaw) {
+    return NextResponse.json({ error: "cardId is required" }, { status: 400 });
   }
-  const qaId = parseInt(qaIdRaw, 10);
-  if (!Number.isFinite(qaId) || qaId <= 0) {
-    return NextResponse.json({ error: "invalid qaId" }, { status: 400 });
+  const cardId = parseInt(cardIdRaw, 10);
+  if (!Number.isFinite(cardId) || cardId <= 0) {
+    return NextResponse.json({ error: "invalid cardId" }, { status: 400 });
   }
   const offset = Math.max(0, parseInt(url.searchParams.get("offset") ?? "0", 10) || 0);
   const limitRaw = parseInt(url.searchParams.get("limit") ?? "20", 10) || 20;
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
   const rootRes = await supabase
     .from("comments")
     .select("*")
-    .eq("card_id", qaId)
+    .eq("card_id", cardId)
     .is("parent_id", null)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
@@ -84,7 +84,7 @@ export async function GET(req: Request) {
     const replyRes = await supabase
       .from("comments")
       .select("*")
-      .eq("card_id", qaId)
+      .eq("card_id", cardId)
       .in("parent_id", rootIds)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true });
@@ -222,7 +222,7 @@ export async function GET(req: Request) {
   const totalRes = await supabase
     .from("comments")
     .select("*", { count: "exact", head: true })
-    .eq("card_id", qaId)
+    .eq("card_id", cardId)
     .is("parent_id", null);
 
   return NextResponse.json(
@@ -238,7 +238,7 @@ export async function GET(req: Request) {
 // POST
 // ─────────────────────────────────────────────────────────────
 type PostBody = {
-  qaId?: unknown;
+  cardId?: unknown;
   parentId?: unknown;
   body?: unknown;
 };
@@ -251,9 +251,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const qaId = typeof raw.qaId === "number" ? raw.qaId : parseInt(String(raw.qaId ?? ""), 10);
-  if (!Number.isFinite(qaId) || qaId <= 0) {
-    return NextResponse.json({ error: "qaId is required" }, { status: 400 });
+  const cardId = typeof raw.cardId === "number" ? raw.cardId : parseInt(String(raw.cardId ?? ""), 10);
+  if (!Number.isFinite(cardId) || cardId <= 0) {
+    return NextResponse.json({ error: "cardId is required" }, { status: 400 });
   }
 
   const parentId =
@@ -290,7 +290,7 @@ export async function POST(req: Request) {
   const ins = await supabase
     .from("comments")
     .insert({
-      card_id: qaId,
+      card_id: cardId,
       parent_id: parentId,
       body,
       author_id: user.id,

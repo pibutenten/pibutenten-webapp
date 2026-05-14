@@ -238,7 +238,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
       `id, status, type, category, posted_as, is_pick, question, answer, like_count, view_count, share_count, created_at,
        comments_count:comments(count),
        doctor:doctors(slug, name, branch),
-       author:profiles!qas_author_id_profiles_fkey(display_name, alt_display_name, handle, alt_handle)`,
+       author:profiles!cards_author_id_profiles_fkey(display_name, alt_display_name, handle, alt_handle)`,
       { count: "exact" },
     );
 
@@ -580,7 +580,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                         </Link>
                       </td>
                       <td className="px-3 py-2 align-top text-center">
-                        <PickToggle qaId={r.id} initial={!!r.is_pick} />
+                        <PickToggle cardId={r.id} initial={!!r.is_pick} />
                       </td>
                       <td className="px-3 py-2 align-top">
                         <span

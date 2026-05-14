@@ -219,7 +219,7 @@ function Avatar({ src, size = 28 }: { src: string | null; size?: number }) {
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
         // doctor.photo_url은 상반신 인물 사진 — center-crop 시 얼굴이 잘림.
-        // QACard 카드 내 아바타와 동일 비율: objectPosition 12% + scale(1.18).
+        // Card 카드 내 아바타와 동일 비율: objectPosition 12% + scale(1.18).
         // transformOrigin을 위쪽(30%)으로 둬서 확대 시 얼굴이 더 잘 보이도록.
         <img
           src={src}

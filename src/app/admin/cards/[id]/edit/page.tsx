@@ -51,11 +51,11 @@ export default async function AdminEditQAPage({ params }: Props) {
     }
   }
   // PostgREST join은 배열로 추론되므로 단일 객체로 normalize
-  const qa = {
+  const card = {
     ...qaRaw,
     doctor: Array.isArray(qaRaw.doctor) ? qaRaw.doctor[0] ?? null : qaRaw.doctor,
     video: Array.isArray(qaRaw.video) ? qaRaw.video[0] ?? null : qaRaw.video,
-  } as Parameters<typeof EditClient>[0]["qa"];
+  } as Parameters<typeof EditClient>[0]["card"];
 
   // 원장 목록 (doctor 변경 가능)
   const { data: doctors } = await supabase
@@ -65,11 +65,11 @@ export default async function AdminEditQAPage({ params }: Props) {
 
   // 같은 doctor의 현재 Pick 개수 (5개 제한 표시)
   let doctorPickCount = 0;
-  if (qa.doctor_id) {
+  if (card.doctor_id) {
     const { count } = await supabase
       .from("cards")
       .select("id", { count: "exact", head: true })
-      .eq("doctor_id", qa.doctor_id)
+      .eq("doctor_id", card.doctor_id)
       .eq("is_pick", true);
     doctorPickCount = count ?? 0;
   }
@@ -82,7 +82,7 @@ export default async function AdminEditQAPage({ params }: Props) {
     const { count } = await supabase
       .from("comments")
       .select("id", { count: "exact", head: true })
-      .eq("card_id", qa.id)
+      .eq("card_id", card.id)
       .eq("status", "visible");
     commentCount = count ?? 0;
   } catch {
@@ -93,7 +93,7 @@ export default async function AdminEditQAPage({ params }: Props) {
     <section className="w-full py-6">
       <div className="mb-5 flex items-baseline justify-between pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">
-          Q&A #{qa.id} 편집
+          Q&A #{card.id} 편집
         </h1>
         <Link
           href="/admin/cards"
@@ -103,7 +103,7 @@ export default async function AdminEditQAPage({ params }: Props) {
         </Link>
       </div>
       <EditClient
-        qa={qa}
+        card={card}
         doctors={doctors ?? []}
         doctorPickCount={doctorPickCount}
         commentCount={commentCount}

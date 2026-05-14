@@ -48,7 +48,7 @@ type CommentRow = {
 type CommentWithReplies = CommentRow & { replies: CommentRow[] };
 
 type Props = {
-  qaId: number;
+  cardId: number;
   /** 글이 속한 원장님 slug (현재 로그인한 사람이 그 doctor 본인일 때 [원장님] 배지) */
   doctorSlug: string | null;
   /** 발행되지 않은 글이면 댓글 폼 숨김 */
@@ -68,7 +68,7 @@ type Me = {
 } | null;
 
 export default function CommentsBlock({
-  qaId,
+  cardId,
   isPublishedQa,
   onCountChange,
   showInput = false,
@@ -91,7 +91,7 @@ export default function CommentsBlock({
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`/api/comments?qaId=${qaId}&limit=50`, {
+      const r = await fetch(`/api/comments?cardId=${cardId}&limit=50`, {
         cache: "no-store",
       });
       const j = (await r.json()) as
@@ -110,7 +110,7 @@ export default function CommentsBlock({
     } finally {
       setLoading(false);
     }
-  }, [qaId]);
+  }, [cardId]);
 
   // ── 현재 로그인 사용자 정보 (id/role/doctor_id)
   useEffect(() => {
@@ -186,7 +186,7 @@ export default function CommentsBlock({
     return c;
   }, [comments]);
 
-  // ── 부모(QACard)에 댓글 수 변경 알림
+  // ── 부모(Card)에 댓글 수 변경 알림
   useEffect(() => {
     onCountChange?.(visibleCount);
   }, [visibleCount, onCountChange]);
@@ -199,7 +199,7 @@ export default function CommentsBlock({
       const r = await fetch("/api/comments", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ qaId, parentId, body }),
+        body: JSON.stringify({ cardId, parentId, body }),
       });
       const j = (await r.json()) as { error?: string };
       if (!r.ok) {

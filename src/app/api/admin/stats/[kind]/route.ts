@@ -70,28 +70,28 @@ export async function GET(
       days === 0
         ? "1970-01-01T00:00:00Z"
         : new Date(Date.now() - days * 86400_000).toISOString();
-    const qaIds = rows
+    const cardIds = rows
       .map((r) => r.card_id as number)
       .filter((id) => typeof id === "number");
-    if (qaIds.length > 0) {
+    if (cardIds.length > 0) {
       const { data: comments } = await supabase
         .from("comments")
         .select(
           "id, card_id, body, created_at, parent_id, author_id, author:profiles!comments_author_id_fkey(display_name, handle)",
         )
-        .in("card_id", qaIds)
+        .in("card_id", cardIds)
         .eq("status", "visible")
         .gte("created_at", since)
         .order("created_at", { ascending: true });
-      const byQa = new Map<number, unknown[]>();
+      const byCard = new Map<number, unknown[]>();
       for (const c of comments ?? []) {
-        const qaId = (c as { card_id: number }).card_id;
-        if (!byQa.has(qaId)) byQa.set(qaId, []);
-        byQa.get(qaId)!.push(c);
+        const cardId = (c as { card_id: number }).card_id;
+        if (!byCard.has(cardId)) byCard.set(cardId, []);
+        byCard.get(cardId)!.push(c);
       }
       rows = rows.map((r) => ({
         ...r,
-        comments: byQa.get(r.card_id as number) ?? [],
+        comments: byCard.get(r.card_id as number) ?? [],
       }));
     }
   }

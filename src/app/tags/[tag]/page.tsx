@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { type QACardData } from "@/components/Card";
+import { type CardData } from "@/components/Card";
 import CardMasonry from "@/components/CardMasonry";
 import { SITE_URL } from "@/lib/site";
 
@@ -43,18 +43,18 @@ async function fetchAllIndexableTags(): Promise<IndexableTag[]> {
 
 async function fetchPostsForTag(
   tag: string,
-): Promise<{ posts: QACardData[]; count: number }> {
+): Promise<{ posts: CardData[]; count: number }> {
   const supabase = await createSupabaseServerClient();
   // 시간가중 + jitter 셔플 — tag_qas_scored RPC
   // (메인 피드 feed_qas_scored 와 동일 공식: HALF_LIFE=14일, jitter=0.2 → ±10%)
-  const rpcRes = await supabase.rpc("tag_qas_scored", {
+  const rpcRes = await supabase.rpc("tag_cards_scored", {
     p_tag: tag,
     p_limit: PAGE_LIMIT,
     p_offset: 0,
     p_half_life_days: 14,
     p_jitter_amp: 0.2,
   });
-  const posts = (rpcRes.data ?? []) as QACardData[];
+  const posts = (rpcRes.data ?? []) as CardData[];
 
   // count 는 RPC가 limit 까지만 주므로 별도 조회 (인덱싱 조건 동일)
   const { count } = await supabase
@@ -176,11 +176,11 @@ export default async function TagPage({ params }: Props) {
 }
 
 /**
- * QACard 글의 canonical URL 계산 — JSON-LD ItemList용.
+ * Card 글의 canonical URL 계산 — JSON-LD ItemList용.
  * 의사 글이라 항상 doctor + post_year + post_slug 가 있어야 함.
  * (없으면 fallback /{handle}/{shortcode})
  */
-function postUrl(p: QACardData): string {
+function postUrl(p: CardData): string {
   const d = p.doctor as { slug: string } | null | undefined;
   if (d?.slug && p.post_year && p.post_slug) {
     return `${SITE_URL}/doctors/${d.slug}/${p.post_year}/${p.post_slug}`;

@@ -62,7 +62,7 @@ export default async function PostEditPage({ params }: Props) {
     .from("cards")
     .select(
       `id, question, answer, keywords, type, status, author_id, doctor_id, shortcode, posted_as,
-       author:profiles!qas_author_id_profiles_fkey(handle, alt_handle)`,
+       author:profiles!cards_author_id_profiles_fkey(handle, alt_handle)`,
     )
     .eq("shortcode", shortcode)
     .maybeSingle()

@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-14 (qas → cards 전면 rename 완성 + 알림 + 메트릭 + 후속 정리)
-> 기준 commit: `298c0d7` (Phase 3 RPC 함수명 + URL 정합성)
+> 마지막 업데이트: 2026-05-14 (qas → cards 100% 정리 완성 — DB/코드/타입/제약/enum 모두)
+> 기준 commit: Phase 4 완료 (migrations 0072~0076 + 코드 일괄 rename)
 
 ## 🆕 2026-05-14 작업 일괄 (현재 세션)
 
@@ -32,12 +32,25 @@
 - StatsListClient/CommentsClient도 `/q/{shortcode}` → `/{handle}/{shortcode}` (또는 admin edit)
 - ProfileTabs.tsx `'qa_saves'`/`'qa_likes'` 문자열 변수 → `'card_saves'`/`'card_likes'`
 
-#### Phase 3 보류 (compat view 통해 정상 동작 / cosmetic)
-- `feed_qas_scored` / `search_qas_scored` / `tag_qas_scored` — 본문 복잡한 score 계산. 함수명/본문 마이그레이션 별도 phase
-- FK 제약명 `qas_*_fkey` 유지 — PostgreSQL FK는 이름으로 식별, 기능 영향 없음
-- TypeScript `QACard` / `QACardData` 타입명 — Card.tsx export, 모든 import 정상
-- qa_type enum 'article' 값 물리 제거 — RLS policy 의존성 다수, 보류
-- RPC body 모두 cards 직접 참조 마이그레이션 후 compat view DROP — 별도 phase
+#### Phase 4 — 잔여 정리 완료 (migrations 0072~0076)
+- **0072** `feed_qas_scored` / `search_qas_scored` / `tag_qas_scored` 본문 cards 직접 참조 + 함수명 → `feed_cards_scored` / `search_cards_scored` / `tag_cards_scored`
+- **0073** `get_my_notifications` / `get_notifications` RETURN TABLE 컬럼 `qa_id → card_id` (DROP+CREATE)
+- **migrate_remaining_functions.py** — 23개 legacy 함수 본문 일괄 substitution (qas → cards, qa_id → card_id 등)
+- **0074** **compat view 7개 DROP** — 모든 함수 마이그레이션 완료 후 잔여 의존성 0
+- **0075** FK 제약명 일괄 rename: `qas_*_fkey → cards_*_fkey`, `qa_*_qa_id_fkey → card_*_card_id_fkey` + 코드 `profiles!qas_author_id_profiles_fkey` 참조 갱신
+- **0076** **qa_type enum 'article' 값 물리 제거** — 의존 RLS policy 3개 DROP/CREATE + DEFAULT 임시 제거 후 enum 교체 + policy 재생성 (`cards_user_own_post` / `_delete` / `_insert`)
+- **TypeScript 타입/변수 일괄 rename**:
+  - `QACard → Card`, `QACardData → CardData`, `QACardProps → CardProps`, `QaRow → CardRow`
+  - Card.tsx prop `qa: CardData` → `card: CardData` + 모든 caller 12+ 곳
+  - 응답 alias `qa:cards(...)` → `card:cards(...)` + `r.qa`/`c.qa`/`l.qa` access → `.card`
+  - 로컬 변수 `qa` → `card`, `qaId` → `cardId`, `qaIds` → `cardIds`, `byQa` → `byCard`
+  - EditClient `qa` prop → `card`, `deleteQA` → `deleteCard`, `shareQA` → `shareCard`
+
+#### 완전 정리 — 잔여 0
+- DB: 모든 테이블/컬럼/인덱스/제약명/함수명/함수body/trigger 모두 cards 일관
+- 코드: 변수명/타입명/Supabase query alias/prop 모두 card 일관
+- compat view 0개
+- enum qa_type 값: `'qa' | 'post'` 만 (article 물리 제거됨)
 
 ### 2) 알림 시스템 구축 (migration 0062 + 0063)
 - 6종 trigger: `comment` / `reply` / `like` (24h debounce) / `new_ask` (모든 원장) / `review_request` / `published`

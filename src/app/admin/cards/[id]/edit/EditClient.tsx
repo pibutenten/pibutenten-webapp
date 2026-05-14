@@ -33,7 +33,7 @@ type PubmedRef = {
   doi_url?: string | null;
 } | null;
 
-type QA = {
+type Card = {
   id: number;
   question: string;
   answer: string;
@@ -60,7 +60,7 @@ type QA = {
 };
 
 type Props = {
-  qa: QA;
+  card: Card;
   doctors: Doctor[];
   doctorPickCount?: number;
   commentCount?: number;
@@ -68,14 +68,14 @@ type Props = {
   canChangeAuthor?: boolean;
 };
 
-const STATUS_LABELS: Record<QA["status"], string> = {
+const STATUS_LABELS: Record<Card["status"], string> = {
   draft: "초안",
   pending_review: "대기",
   published: "발행",
   archived: "보관",
 };
 
-const STATUS_COLORS: Record<QA["status"], string> = {
+const STATUS_COLORS: Record<Card["status"], string> = {
   draft: "#9E9E9E",
   pending_review: "#FFA000",
   published: "#4CAF50",
@@ -143,7 +143,7 @@ function buildExternalUrl(videoId: string, startSec: number): string {
 }
 
 export default function EditClient({
-  qa,
+  card,
   doctors,
   doctorPickCount = 0,
   commentCount = 0,
@@ -152,28 +152,28 @@ export default function EditClient({
   const router = useRouter();
 
   // ── 폼 상태 ──
-  const [question, setQuestion] = useState(qa.question);
-  const [answer, setAnswer] = useState(qa.answer);
-  const [keywords, setKeywords] = useState<string[]>(qa.keywords);
+  const [question, setQuestion] = useState(card.question);
+  const [answer, setAnswer] = useState(card.answer);
+  const [keywords, setKeywords] = useState<string[]>(card.keywords);
   const [keywordInput, setKeywordInput] = useState("");
   // 글쓴이 — 관리자(super admin)는 변경 가능. 원장 admin은 본인 카드만 보이므로 변경 불필요.
   // (super admin 여부는 server에서 가드되어 이 페이지 진입 자체가 가능한 것 — 클라이언트에선 항상 dropdown 노출)
-  const [doctorId, setDoctorId] = useState<string | null>(qa.doctor_id);
-  const [status, setStatus] = useState<QA["status"]>(qa.status);
-  const [isPick, setIsPick] = useState<boolean>(qa.is_pick ?? false);
+  const [doctorId, setDoctorId] = useState<string | null>(card.doctor_id);
+  const [status, setStatus] = useState<Card["status"]>(card.status);
+  const [isPick, setIsPick] = useState<boolean>(card.is_pick ?? false);
 
   // 영상 정보 — qas.external_* 카드별 (videos 테이블 안 건드림)
-  const [externalUrl, setExternalUrl] = useState(qa.external_url ?? "");
-  const [externalTitle, setExternalTitle] = useState(qa.external_title ?? "");
-  const initialStartSec = extractStartSeconds(qa.external_url ?? "");
+  const [externalUrl, setExternalUrl] = useState(card.external_url ?? "");
+  const [externalTitle, setExternalTitle] = useState(card.external_title ?? "");
+  const initialStartSec = extractStartSeconds(card.external_url ?? "");
   const [startSec, setStartSec] = useState(initialStartSec);
   const [startInput, setStartInput] = useState(formatMMSS(initialStartSec));
 
   // 참고문헌 — 멀티 ref 지원 (Phase 9 / 0054).
-  // 초기값: qa.pubmed_refs 우선, 없으면 단일 pubmed_ref를 1개짜리 배열로.
+  // 초기값: card.pubmed_refs 우선, 없으면 단일 pubmed_ref를 1개짜리 배열로.
   const [pubmedRefs, setPubmedRefs] = useState<NonNullable<PubmedRef>[]>(() => {
-    if (qa.pubmed_refs && qa.pubmed_refs.length > 0) return qa.pubmed_refs;
-    if (qa.pubmed_ref) return [qa.pubmed_ref];
+    if (card.pubmed_refs && card.pubmed_refs.length > 0) return card.pubmed_refs;
+    if (card.pubmed_ref) return [card.pubmed_ref];
     return [];
   });
   const [refPmidInput, setRefPmidInput] = useState("");
@@ -185,11 +185,11 @@ export default function EditClient({
   const [oembedLoading, setOembedLoading] = useState(false);
 
   // 편집기 내 <strong> 형광펜 색 — 카드 id 기반 (실제 카드와 동일 색)
-  const highlightColor = useMemo(() => pickHighlight(String(qa.id)), [qa.id]);
+  const highlightColor = useMemo(() => pickHighlight(String(card.id)), [card.id]);
 
   // baseId는 현재 external_url 또는 video.youtube_id 에서 추출
   const baseVideoId =
-    extractVideoId(externalUrl) ?? qa.video?.youtube_id ?? "";
+    extractVideoId(externalUrl) ?? card.video?.youtube_id ?? "";
 
   function handleStartInputChange(v: string) {
     setStartInput(v);
@@ -226,7 +226,7 @@ export default function EditClient({
     }
   }
 
-  function save(toStatus?: QA["status"]) {
+  function save(toStatus?: Card["status"]) {
     const finalStatus = toStatus ?? status;
     setError(null);
     startSave(async () => {
@@ -235,7 +235,7 @@ export default function EditClient({
       // meta(text 컬럼, JSON string)에 timestamp 갱신
       let metaObj: Record<string, unknown> = {};
       try {
-        if (qa.meta) metaObj = JSON.parse(qa.meta) as Record<string, unknown>;
+        if (card.meta) metaObj = JSON.parse(card.meta) as Record<string, unknown>;
       } catch {
         metaObj = {};
       }
@@ -265,7 +265,7 @@ export default function EditClient({
           pubmed_ref: pubmedRefs[0] ?? null,
           pubmed_refs: pubmedRefs.length > 0 ? pubmedRefs : null,
         })
-        .eq("id", qa.id);
+        .eq("id", card.id);
       if (upErr) {
         const msg = upErr.message ?? "저장 실패";
         if (msg.includes("PICK_LIMIT_EXCEEDED")) {
@@ -287,15 +287,15 @@ export default function EditClient({
     });
   }
 
-  function deleteQA() {
-    if (!confirm(`Q&A #${qa.id} 를 영구 삭제할까요? 되돌릴 수 없습니다.`))
+  function deleteCard() {
+    if (!confirm(`Q&A #${card.id} 를 영구 삭제할까요? 되돌릴 수 없습니다.`))
       return;
     startSave(async () => {
       const supabase = createSupabaseBrowserClient();
       const { error: delErr } = await supabase
         .from("cards")
         .delete()
-        .eq("id", qa.id);
+        .eq("id", card.id);
       if (delErr) {
         setError(`삭제 실패: ${delErr.message}`);
         return;
@@ -321,17 +321,17 @@ export default function EditClient({
               {STATUS_LABELS[status]}
             </span>
           </span>
-          <span>타입: {qa.type === "qa" ? "원장 Q&A" : "사용자 글"}</span>
+          <span>타입: {card.type === "qa" ? "원장 Q&A" : "사용자 글"}</span>
           <span>
-            좋아요 {qa.like_count} · 조회 {qa.view_count} · 댓글 {commentCount}
+            좋아요 {card.like_count} · 조회 {card.view_count} · 댓글 {commentCount}
           </span>
         </div>
         <div className="mt-1 flex flex-wrap gap-3 text-xs text-[var(--text-muted)]">
           <span>
-            생성일: {new Date(qa.created_at).toLocaleDateString("ko-KR")}
+            생성일: {new Date(card.created_at).toLocaleDateString("ko-KR")}
           </span>
-          {qa.video?.upload_date && (
-            <span>업로드일: {qa.video.upload_date}</span>
+          {card.video?.upload_date && (
+            <span>업로드일: {card.video.upload_date}</span>
           )}
         </div>
       </div>
@@ -699,7 +699,7 @@ export default function EditClient({
           <div className="flex flex-wrap justify-between gap-2">
             <button
               type="button"
-              onClick={deleteQA}
+              onClick={deleteCard}
               disabled={isSaving}
               className="rounded-md border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
             >

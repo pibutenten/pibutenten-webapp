@@ -29,7 +29,7 @@ import { labelForCategory } from "@/lib/post-category";
 import { pickHighlight } from "@/lib/card-highlight";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
-export type QACardData = {
+export type CardData = {
   id: number;
   question: string;
   answer: string;
@@ -45,7 +45,7 @@ export type QACardData = {
   rating_avg?: number;
   /** v4 — 평점 참여 수 */
   rating_count?: number;
-  type?: "qa" | "post" | "link";
+  type?: "card" | "post" | "link";
   created_at?: string;
   /** 작성 당시 페르소나 — 'personal'이면 author.alt_* 우선 표시 */
   posted_as?: "official" | "personal";
@@ -54,7 +54,7 @@ export type QACardData = {
   post_slug?: string | null;
   /** v4 — 회원 글 / 의사 personal 글 URL용 8자 base58 식별자 */
   shortcode?: string | null;
-  /** 외부 링크 — 모든 카테고리에서 옵션 (Phase 3). qa 카테고리 외에서는 카드에 [더 알아보기] 버튼 노출 */
+  /** 외부 링크 — 모든 카테고리에서 옵션 (Phase 3). card 카테고리 외에서는 카드에 [더 알아보기] 버튼 노출 */
   external_url?: string | null;
   external_title?: string | null;
   external_description?: string | null;
@@ -120,7 +120,7 @@ export type QACardData = {
  * - fadeInUp 애니메이션
  */
 type Props = {
-  qa: QACardData;
+  card: CardData;
   /** 검색어 — 일치하는 태그 칩은 카테고리 색, 본문은 노란 mark */
   activeQuery?: string;
   /** 칩 클릭 시 검색 URL에 boost로 함께 전달 (원장님 단일 페이지에서 사용) */
@@ -140,11 +140,11 @@ type Props = {
   viewerRating?: number;
 };
 
-// 카드별 결정적 형광펜 색은 lib/qa-highlight.ts 의 pickHighlight 사용
+// 카드별 결정적 형광펜 색은 lib/card-highlight.ts 의 pickHighlight 사용
 // (Yellow / Mint / Lavender / Sky Blue 4색 — 카드 ID 해시로 결정. SSR safe)
 
-export default function QACard({
-  qa,
+export default function Card({
+  card,
   activeQuery,
   boostDoctorSlug,
   isHot = false,
@@ -156,28 +156,28 @@ export default function QACard({
   viewerRating,
 }: Props) {
   const highlightColor = pickHighlight(
-    String(qa.shortcode ?? qa.post_slug ?? qa.id ?? "")
+    String(card.shortcode ?? card.post_slug ?? card.id ?? "")
   );
   const [expanded, setExpanded] = useState(forceExpanded);
-  const [viewCount, setViewCount] = useState(qa.view_count);
-  const [likeCount, setLikeCount] = useState(qa.like_count);
-  const [shareCount, setShareCount] = useState(qa.share_count ?? 0);
-  const [commentCount, setCommentCount] = useState(qa.comment_count ?? 0);
+  const [viewCount, setViewCount] = useState(card.view_count);
+  const [likeCount, setLikeCount] = useState(card.like_count);
+  const [shareCount, setShareCount] = useState(card.share_count ?? 0);
+  const [commentCount, setCommentCount] = useState(card.comment_count ?? 0);
   // 단독 페이지에서는 댓글창 자동 열림 (autoExpandComments)
   const [commentsOpen, setCommentsOpen] = useState(autoExpandComments);
   const [liked, setLiked] = useState(viewerLiked ?? false);
   // v4 — 저장(북마크) + 평점 (server prefetch가 있으면 즉시 적용 → 2~3초 지연 제거)
   const [saved, setSaved] = useState(viewerSaved ?? false);
-  const [saveCount, setSaveCount] = useState(qa.save_count ?? 0);
+  const [saveCount, setSaveCount] = useState(card.save_count ?? 0);
   const [savePending, setSavePending] = useState(false);
-  const [ratingAvg, setRatingAvg] = useState<number>(Number(qa.rating_avg ?? 0));
-  const [ratingCount, setRatingCount] = useState<number>(qa.rating_count ?? 0);
+  const [ratingAvg, setRatingAvg] = useState<number>(Number(card.rating_avg ?? 0));
+  const [ratingCount, setRatingCount] = useState<number>(card.rating_count ?? 0);
   const [myRating, setMyRating] = useState<number>(viewerRating ?? 0);
   const [ratingHover, setRatingHover] = useState<number>(0);
   const [ratingOpen, setRatingOpen] = useState(false);
   // Phase 9: 같은 auth_user_id 묶음의 모든 profile.id 와 그중 최고 권한 role을 보관
   // - role: admin > doctor > user (묶음 안에 admin profile 있으면 admin)
-  // - profileIds: 묶음 내 모든 profile.id (qa.author?.id 매칭용)
+  // - profileIds: 묶음 내 모든 profile.id (card.author?.id 매칭용)
   const [me, setMe] = useState<{
     id: string;
     role: "admin" | "doctor" | "user";
@@ -185,16 +185,16 @@ export default function QACard({
   } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(qa.question);
-  const [editBody, setEditBody] = useState(qa.answer);
+  const [editTitle, setEditTitle] = useState(card.question);
+  const [editBody, setEditBody] = useState(card.answer);
   const [editSaving, setEditSaving] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
   const router = useRouter();
-  const doctor = qa.doctor;
-  const isPick = PICK_IDS.has(qa.id);
+  const doctor = card.doctor;
+  const isPick = PICK_IDS.has(card.id);
 
   // 노출(impression) +1 — 카드가 피드에 등장하면 즉시 (session 1회 dedup).
   // 조회(view)와 분리: 노출 = 단순 등장, 조회 = 의도 신호.
@@ -203,7 +203,7 @@ export default function QACard({
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (forceExpanded) return; // 단독 페이지는 피드 노출과 무관
-    const impKey = `pibutenten:imp:${qa.id}`;
+    const impKey = `pibutenten:imp:${card.id}`;
     if (sessionStorage.getItem(impKey)) return;
     sessionStorage.setItem(impKey, "1");
 
@@ -223,7 +223,7 @@ export default function QACard({
           data: { user },
         } = await sb.auth.getUser();
         await sb.from("card_impressions").insert({
-          card_id: qa.id,
+          card_id: card.id,
           user_id: user?.id ?? null,
           session_id: sessionId,
         });
@@ -231,7 +231,7 @@ export default function QACard({
         // 트래킹 실패는 UX 영향 X — silent
       }
     })();
-  }, [qa.id, forceExpanded]);
+  }, [card.id, forceExpanded]);
 
   // 조회수 +1 helper — 의도 신호일 때만 호출.
   // qa_views.insert만 호출. DB trigger(0047)가 qas.view_count도 자동 +1 동기화.
@@ -239,7 +239,7 @@ export default function QACard({
   // session_id 기반 dedup — 같은 세션 같은 qa는 1회만.
   const recordView = useCallback(() => {
     if (typeof window === "undefined") return;
-    const seenKey = `pibutenten:view:${qa.id}`;
+    const seenKey = `pibutenten:view:${card.id}`;
     if (sessionStorage.getItem(seenKey)) return; // 이미 카운팅한 세션
     sessionStorage.setItem(seenKey, "1");
 
@@ -262,16 +262,16 @@ export default function QACard({
           data: { user },
         } = await sb.auth.getUser();
         await sb.from("card_views").insert({
-          card_id: qa.id,
+          card_id: card.id,
           user_id: user?.id ?? null,
           session_id: sessionId,
         });
-        window.dispatchEvent(new CustomEvent("pibutenten:qa-viewed"));
+        window.dispatchEvent(new CustomEvent("pibutenten:card-viewed"));
       } catch {
         // 트래킹 실패는 UX에 영향 X — silent
       }
     })();
-  }, [qa.id]);
+  }, [card.id]);
 
   // 조회수 트리거 — 4-10초 dwell 윈도우 (사용자 정책).
   //
@@ -339,7 +339,7 @@ export default function QACard({
       observer.disconnect();
       window.removeEventListener("scroll", onScroll);
     };
-  }, [qa.id, forceExpanded, recordView]);
+  }, [card.id, forceExpanded, recordView]);
 
   // 좋아요 + 저장 + 평점 상태 초기화 — server prefetch가 있으면 client fetch 생략.
   // 미로그인 사용자만 localStorage에서 좋아요 기억 복원.
@@ -371,21 +371,21 @@ export default function QACard({
           supabase
             .from("card_likes")
             .select("card_id")
-            .eq("card_id", qa.id)
+            .eq("card_id", card.id)
             .in("user_id", profileIds)
             .limit(1)
             .maybeSingle(),
           supabase
             .from("card_saves")
             .select("card_id")
-            .eq("card_id", qa.id)
+            .eq("card_id", card.id)
             .in("user_id", profileIds)
             .limit(1)
             .maybeSingle(),
           supabase
             .from("card_ratings")
             .select("rating")
-            .eq("card_id", qa.id)
+            .eq("card_id", card.id)
             .in("user_id", profileIds)
             .limit(1)
             .maybeSingle(),
@@ -396,13 +396,13 @@ export default function QACard({
         const r = (rateRes.data as { rating: number } | null)?.rating;
         if (typeof r === "number") setMyRating(r);
       } else {
-        if (alive) setLiked(lsGet(`qa-liked-${qa.id}`) === "1");
+        if (alive) setLiked(lsGet(`card-liked-${card.id}`) === "1");
       }
     })();
     return () => {
       alive = false;
     };
-  }, [qa.id, hasViewerPrefetch]);
+  }, [card.id, hasViewerPrefetch]);
 
   // 저장 토글 — 로그인 필수, 진행 중 클릭 무시 (자꾸 풀리는 문제 방지).
   // ⚠️ 모든 경로에서 setSavePending(false)로 풀어야 다음 클릭이 막히지 않음.
@@ -424,7 +424,7 @@ export default function QACard({
       // v5.1+ identity 기반 RPC (PK=(identity_id, card_id))
       const activeIdentityId = getActiveIdentityId();
       const { data, error } = await supabase.rpc("toggle_card_save", {
-        p_card_id: qa.id,
+        p_card_id: card.id,
         p_identity_id: activeIdentityId,
       });
       if (error) {
@@ -444,7 +444,7 @@ export default function QACard({
       const { data: q } = await supabase
         .from("cards")
         .select("save_count")
-        .eq("id", qa.id)
+        .eq("id", card.id)
         .maybeSingle();
       if (q) setSaveCount(Number((q as { save_count: number }).save_count ?? 0));
     } finally {
@@ -471,7 +471,7 @@ export default function QACard({
     setRatingOpen(false);
     const { error } = await supabase.from("card_ratings").upsert(
       {
-        card_id: qa.id,
+        card_id: card.id,
         user_id: userId,
         persona: "official",
         rating: stars,
@@ -487,7 +487,7 @@ export default function QACard({
     const { data: q } = await supabase
       .from("cards")
       .select("rating_avg, rating_count")
-      .eq("id", qa.id)
+      .eq("id", card.id)
       .maybeSingle();
     if (q) {
       setRatingAvg(Number((q as { rating_avg: number | string }).rating_avg ?? 0));
@@ -535,7 +535,7 @@ export default function QACard({
     (async () => {
       try {
         const { data, error } = await supabase.rpc("toggle_card_like", {
-          p_card_id: qa.id,
+          p_card_id: card.id,
           p_identity_id: getActiveIdentityId(),
         });
         if (error) throw error;
@@ -543,8 +543,8 @@ export default function QACard({
         if (row) {
           setLiked(row.liked);
           setLikeCount(row.like_count);
-          if (row.liked) lsSet(`qa-liked-${qa.id}`, "1");
-          else lsRemove(`qa-liked-${qa.id}`);
+          if (row.liked) lsSet(`card-liked-${card.id}`, "1");
+          else lsRemove(`card-liked-${card.id}`);
         }
       } catch (e) {
         // RPC 실패 — UI 롤백 + 콘솔 로깅 (silent fail 방지)
@@ -558,13 +558,13 @@ export default function QACard({
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
   // 모든 글 단일 시간 기준 — qas.created_at (영상 글은 backfill로 video.upload_date와 동기화됨)
   // SNS 표준 상대시간 + 호버 시 절대 날짜
-  const dateLabel = qa.created_at ? relativeTime(qa.created_at) : null;
-  const dateAbsolute = qa.created_at
-    ? absoluteDateTimeLabel(qa.created_at)
+  const dateLabel = card.created_at ? relativeTime(card.created_at) : null;
+  const dateAbsolute = card.created_at
+    ? absoluteDateTimeLabel(card.created_at)
     : null;
-  const dateIso = qa.created_at ?? undefined;
+  const dateIso = card.created_at ?? undefined;
 
-  // QACard 아바타용 offset (avatarOffsetX/Y 우선, 없으면 offsetX/Y * 0.46)
+  // Card 아바타용 offset (avatarOffsetX/Y 우선, 없으면 offsetX/Y * 0.46)
   const avatarTx =
     theme?.avatarOffsetX ?? (theme?.offsetX ?? 0) * 0.46;
   const avatarTy =
@@ -627,12 +627,12 @@ export default function QACard({
 
   // 수정/삭제 권한 (Phase 9):
   //   - admin: 모든 글
-  //   - 그 외: 묶음 안 어떤 profile.id 가 qa.author?.id 와 일치하면 본인 글
+  //   - 그 외: 묶음 안 어떤 profile.id 가 card.author?.id 와 일치하면 본인 글
   //     (예: 원장님의 official/personal profile 둘 다 본인 글로 인정)
   const canEdit =
     !!me &&
     (me.role === "admin" ||
-      (qa.author?.id != null && me.profileIds.includes(qa.author.id)));
+      (card.author?.id != null && me.profileIds.includes(card.author.id)));
 
   async function saveEdit() {
     if (!editTitle.trim() || !editBody.trim()) {
@@ -645,7 +645,7 @@ export default function QACard({
       const { error } = await sb
         .from("cards")
         .update({ question: editTitle.trim(), answer: editBody.trim() })
-        .eq("id", qa.id);
+        .eq("id", card.id);
       if (error) {
         alert("수정 실패: " + error.message);
       } else {
@@ -661,21 +661,21 @@ export default function QACard({
     setDeleting(true);
     try {
       const sb = createSupabaseBrowserClient();
-      const { error } = await sb.from("cards").delete().eq("id", qa.id);
+      const { error } = await sb.from("cards").delete().eq("id", card.id);
       if (error) {
         alert("삭제 실패: " + error.message);
       } else {
         setConfirmDeleteOpen(false);
         // 1) 피드의 client-side 리스트에 즉시 반영 (FeedWithArticles가 listen)
         window.dispatchEvent(
-          new CustomEvent("pibutenten:qa-deleted", { detail: { id: qa.id } }),
+          new CustomEvent("pibutenten:card-deleted", { detail: { id: card.id } }),
         );
         // 2) 단일 포스트 페이지에서 삭제한 경우 — 메인 피드로 이동
         //    (현재 URL이 글 단독 페이지면 그 페이지가 사라진 상태)
         const path = window.location.pathname;
         if (
-          (qa.post_slug && path.includes(`/${qa.post_slug}`)) ||
-          (qa.shortcode && path.endsWith(`/${qa.shortcode}`))
+          (card.post_slug && path.includes(`/${card.post_slug}`)) ||
+          (card.shortcode && path.endsWith(`/${card.shortcode}`))
         ) {
           router.push("/");
         } else {
@@ -690,34 +690,34 @@ export default function QACard({
 
   // 24시간 내 글 → NEW 배지
   const isNew = (() => {
-    if (!qa.created_at) return false;
-    const t = new Date(qa.created_at).getTime();
+    if (!card.created_at) return false;
+    const t = new Date(card.created_at).getTime();
     if (!Number.isFinite(t)) return false;
     return Date.now() - t < 24 * 60 * 60 * 1000;
   })();
 
   // 본문 길이 — 짧으면 "더보기" 토글 비표시 (250자 미만 또는 줄바꿈 5줄 미만)
-  const answerLines = (qa.answer ?? "").split("\n").length;
-  const isLongAnswer = (qa.answer?.length ?? 0) > 250 || answerLines >= 6;
+  const answerLines = (card.answer ?? "").split("\n").length;
+  const isLongAnswer = (card.answer?.length ?? 0) > 250 || answerLines >= 6;
 
   // 페르소나 — 'personal'로 작성된 글은 alt 정보 우선, doctor 뱃지/링크 숨김
-  const isPersonalPost = qa.posted_as === "personal";
+  const isPersonalPost = card.posted_as === "personal";
   // hide_doctor_credential — 의사가 카테고리·토글로 직함 숨긴 경우 (Phase A.2)
-  const credentialHidden = Boolean(qa.hide_doctor_credential);
+  const credentialHidden = Boolean(card.hide_doctor_credential);
   const showAsDoctor = !!doctor && !isPersonalPost && !credentialHidden;
   const authorName = isPersonalPost
-    ? qa.author?.alt_display_name ?? qa.author?.display_name ?? "익명"
-    : doctor?.name ?? qa.author?.display_name ?? "익명";
+    ? card.author?.alt_display_name ?? card.author?.display_name ?? "익명"
+    : doctor?.name ?? card.author?.display_name ?? "익명";
   // 회원·personal 아바타에는 cache buster (profile.updated_at) 부착 — 사진 변경 즉시 반영
   const rawAvatar = isPersonalPost
-    ? qa.author?.alt_avatar_url ?? qa.author?.avatar_url ?? null
+    ? card.author?.alt_avatar_url ?? card.author?.avatar_url ?? null
     : doctor
       ? photo
-      : qa.author?.avatar_url ?? null;
+      : card.author?.avatar_url ?? null;
   const authorAvatar = (() => {
     if (!rawAvatar) return null;
     if (doctor && !isPersonalPost) return rawAvatar; // 정적 의사 사진은 그대로
-    const ts = qa.author?.updated_at;
+    const ts = card.author?.updated_at;
     if (!ts) return rawAvatar;
     const stamp = new Date(ts).getTime();
     return rawAvatar + (rawAvatar.includes("?") ? "&" : "?") + "v=" + stamp;
@@ -781,8 +781,8 @@ export default function QACard({
               type="button"
               onClick={() => {
                 setIsEditing(false);
-                setEditTitle(qa.question);
-                setEditBody(qa.answer);
+                setEditTitle(card.question);
+                setEditBody(card.answer);
               }}
               className="rounded-md px-3 py-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text)]"
             >
@@ -822,7 +822,7 @@ export default function QACard({
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-28 overflow-hidden rounded-md border border-[var(--border)] bg-white py-1 shadow-lg">
                   {(() => {
-                    const editHref = getQaEditUrl(qa);
+                    const editHref = getQaEditUrl(card);
                     if (!editHref) return null;
                     return (
                       <button
@@ -858,16 +858,16 @@ export default function QACard({
               e.stopPropagation();
               if (showAsDoctor && doctor?.slug) {
                 router.push(`/doctors/${doctor.slug}`);
-              } else if (qa.author?.id) {
+              } else if (card.author?.id) {
                 // 개인모드 글이면 ?p=personal 로 personal-only 활동 표시
                 const suffix = isPersonalPost ? "?p=personal" : "";
-                router.push(`/u/${qa.author.id}${suffix}`);
+                router.push(`/u/${card.author.id}${suffix}`);
               }
             }}
-            disabled={!showAsDoctor && !qa.author?.id}
+            disabled={!showAsDoctor && !card.author?.id}
             className={
               "mb-3 -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2.5 rounded-md py-1.5 px-1 text-left transition-colors " +
-              (showAsDoctor || qa.author?.id
+              (showAsDoctor || card.author?.id
                 ? "cursor-pointer hover:bg-[var(--primary-soft)]"
                 : "cursor-default")
             }
@@ -938,7 +938,7 @@ export default function QACard({
               {/* 2줄: 카테고리 · 날짜 — 모든 글 동일 (의사·회원·관리자 다 동일).
                   옛 영상 topic 표시는 v4에서 제거 (카테고리로 통일). */}
               {(() => {
-                const catLabel = labelForCategory(qa.category);
+                const catLabel = labelForCategory(card.category);
                 if (!catLabel && !dateLabel) return null;
                 return (
                   <div className="mt-[5px] truncate text-[11.5px] leading-[1.2] text-[var(--text-muted)]">
@@ -966,19 +966,19 @@ export default function QACard({
           {asH1 ? (
             <h1 className="mb-2.5 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px]">
               <Link
-                href={getQaUrl(qa)}
+                href={getQaUrl(card)}
                 className="text-[var(--primary)] hover:underline"
               >
-                {highlight(qa.question, activeQuery)}
+                {highlight(card.question, activeQuery)}
               </Link>
             </h1>
           ) : (
             <h2 className="mb-2.5 whitespace-pre-wrap text-[17px] font-bold leading-[1.45] tracking-[-0.3px]">
               <Link
-                href={getQaUrl(qa)}
+                href={getQaUrl(card)}
                 className="text-[var(--primary)] hover:underline"
               >
-                {highlight(qa.question, activeQuery)}
+                {highlight(card.question, activeQuery)}
               </Link>
             </h2>
           )}
@@ -995,7 +995,7 @@ export default function QACard({
             }}
             className={isLongAnswer ? "cursor-pointer" : ""}
           >
-            {renderAnswerBody(qa.answer, activeQuery, isLongAnswer && !expanded, highlightColor)}
+            {renderAnswerBody(card.answer, activeQuery, isLongAnswer && !expanded, highlightColor)}
           </div>
 
           {/* 3a. 참고 논문 — 멀티 ref 지원.
@@ -1003,11 +1003,11 @@ export default function QACard({
               isLongAnswer && !expanded면 가림(펼쳐야 보임). reasoning은 사용자 화면 X. */}
           {(() => {
             // 표시할 ref 배열 결정
-            const refs: NonNullable<QACardData["pubmed_refs"]> =
-              qa.pubmed_refs && qa.pubmed_refs.length > 0
-                ? qa.pubmed_refs
-                : qa.pubmed_ref
-                  ? [qa.pubmed_ref]
+            const refs: NonNullable<CardData["pubmed_refs"]> =
+              card.pubmed_refs && card.pubmed_refs.length > 0
+                ? card.pubmed_refs
+                : card.pubmed_ref
+                  ? [card.pubmed_ref]
                   : [];
             // 유효한 ref만 (pmid 또는 doi 있는 것)
             const validRefs = refs.filter((r) => r.pmid || r.doi);
@@ -1083,14 +1083,14 @@ export default function QACard({
           //  1) Q&A 카테고리 + external_url(youtube) → 영상 보러가기 + timestamp
           //  2) videos 테이블 join (legacy backfill)
           //  3) 그 외 카테고리 + external_url → [더 알아보기]
-          const isQa = qa.category === "qa";
-          const ext = qa.external_url;
+          const isQa = card.category === "card";
+          const ext = card.external_url;
           const isYoutubeExt =
             ext && /(?:youtu\.be|youtube\.com|youtube-nocookie\.com)/.test(ext);
           const videoHref =
             isQa && isYoutubeExt
               ? ext
-              : qa.video?.youtube_url ?? null;
+              : card.video?.youtube_url ?? null;
           const tsec = parseYoutubeTimestamp(videoHref);
           if (videoHref) {
             return (
@@ -1146,12 +1146,12 @@ export default function QACard({
           "물어봐요", "궁금해요",
           "새소식", "공유하기",
         ];
-        const userKeywords = qa.keywords.filter(
+        const userKeywords = card.keywords.filter(
           (k) => !CATEGORY_LABELS.includes(k),
         );
         // 현재 글의 category 라벨을 마지막에 자동 추가
-        const categoryLabel = qa.category
-          ? labelForCategory(qa.category)
+        const categoryLabel = card.category
+          ? labelForCategory(card.category)
           : null;
         const visibleKeywords = categoryLabel
           ? [...userKeywords, categoryLabel]
@@ -1266,17 +1266,17 @@ export default function QACard({
         <button
           type="button"
           onClick={async () => {
-            await shareQA(qa);
+            await shareCard(card);
             const supabase = createSupabaseBrowserClient();
             const { data } = await supabase.rpc("increment_card_share", {
-              p_card_id: qa.id,
+              p_card_id: card.id,
             });
             if (typeof data === "number") setShareCount(data);
             // qa_shares 이벤트 로그 (관리자 KPI '공유' 카운트용) — fail silent
             try {
               const { data: { user } } = await supabase.auth.getUser();
               await supabase.from("card_shares").insert({
-                card_id: qa.id,
+                card_id: card.id,
                 user_id: user?.id ?? null,
                 channel: "link",
               });
@@ -1383,12 +1383,12 @@ export default function QACard({
       </div>
 
       {/* 인스타식 좋아요 표시 — 구분선 아래, 댓글 블록 바로 위. 좋아요 1+ 일 때만 노출. */}
-      <RecentLikers qaId={qa.id} likeCount={likeCount} />
+      <RecentLikers cardId={card.id} likeCount={likeCount} />
 
       {/* 댓글 블록 — 댓글 있거나 댓글창 열린 상태일 때만 표시 (본문 펼침과 무관) */}
       <CommentsBlock
-        qaId={qa.id}
-        doctorSlug={qa.doctor?.slug ?? null}
+        cardId={card.id}
+        doctorSlug={card.doctor?.slug ?? null}
         isPublishedQa={true}
         onCountChange={setCommentCount}
         showInput={commentsOpen}
@@ -1563,13 +1563,13 @@ function Keywords({
   );
 }
 
-async function shareQA(qa: QACardData) {
+async function shareCard(card: CardData) {
   if (typeof window === "undefined") return;
   // v4 canonical URL — getQaUrl이 의사 official(slug)·회원/personal(handle+shortcode)·fallback 결정
-  const path = getQaUrl(qa);
+  const path = getQaUrl(card);
   const url = `${window.location.origin}${path}`;
-  const title = qa.question;
-  const text = `${qa.doctor?.name ?? ""} 원장님 — 피부텐텐`;
+  const title = card.question;
+  const text = `${card.doctor?.name ?? ""} 원장님 — 피부텐텐`;
 
   // 모바일에서만 native share 사용 (데스크탑 Chrome share UI는 부실해서 클립보드가 더 자연)
   const ua = window.navigator.userAgent;
@@ -1744,7 +1744,7 @@ function renderAnswerBody(
           : "";
         const showMore = clamped && isFirst;
         // 첫 단락에 speakable class — JSON-LD SpeakableSpecification.cssSelector가 이걸 가리킴 (음성·AI assistant 답변 픽업).
-        const speakableClass = isFirst ? " qa-answer-speakable" : "";
+        const speakableClass = isFirst ? " card-answer-speakable" : "";
         return (
           <p
             key={pi}

@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
 import { getHotQaIds } from "@/lib/hot-ids";
 import Feed from "@/components/Feed";
-import type { QACardData } from "@/components/Card";
+import type { CardData } from "@/components/Card";
 import { SITE_URL } from "@/lib/site";
 import {
   asDoctorProfileData,
@@ -88,14 +88,14 @@ export default async function DoctorDetailPage({ params }: Props) {
   const profile: DoctorProfileData = asDoctorProfileData(doctor.profile_data);
 
   // RPC로 가져와서 검색어 없을 때도 ±14일 랜덤 셔플 (홈 피드와 동일)
-  const rpcRes = await supabase.rpc("search_qas_scored", {
+  const rpcRes = await supabase.rpc("search_cards_scored", {
     p_q: "",
     p_doctor_slug: doctor.slug,
     p_offset: 0,
     p_limit: PAGE_SIZE,
     p_boost_doctor_slug: null,
   });
-  const qas = (rpcRes.data ?? []) as QACardData[];
+  const qas = (rpcRes.data ?? []) as CardData[];
   // 카운트는 별도 쿼리
   const cRes = await supabase
     .from("cards")
@@ -238,7 +238,7 @@ export default async function DoctorDetailPage({ params }: Props) {
       avatar_url: string | null;
       handle: string | null;
     } | null;
-    qa: { question: string; shortcode: string | null } | null;
+    card: { question: string; shortcode: string | null } | null;
   };
   let recentComments: RecentCommentRow[] = [];
   if (isOwner) {
@@ -247,9 +247,9 @@ export default async function DoctorDetailPage({ params }: Props) {
       .select(
         `id, card_id, body, created_at,
          author:profiles!comments_author_id_fkey(display_name, avatar_url, handle),
-         qa:cards!inner(question, shortcode, doctor_id)`,
+         card:cards!inner(question, shortcode, doctor_id)`,
       )
-      .eq("qa.doctor_id", doctor.id)
+      .eq("card.doctor_id", doctor.id)
       .eq("status", "visible")
       .order("created_at", { ascending: false })
       .limit(10);
@@ -582,7 +582,7 @@ function DoctorCommentsWidget({
       avatar_url: string | null;
       handle: string | null;
     } | null;
-    qa: { question: string; shortcode: string | null } | null;
+    card: { question: string; shortcode: string | null } | null;
   }>;
   doctorSlug: string;
 }) {
@@ -613,8 +613,8 @@ function DoctorCommentsWidget({
           const name = author?.display_name ?? "익명";
           const initial = name.slice(0, 1);
           const target =
-            author?.handle && c.qa?.shortcode
-              ? `/${author.handle}/${c.qa.shortcode}`
+            author?.handle && c.card?.shortcode
+              ? `/${author.handle}/${c.card.shortcode}`
               : `/doctors/${doctorSlug}`;
           return (
             <li key={c.id} className="flex items-start gap-2">
@@ -642,12 +642,12 @@ function DoctorCommentsWidget({
                 <p className="mt-0.5 line-clamp-2 text-[13px] text-[var(--text-secondary)]">
                   {c.body}
                 </p>
-                {c.qa?.question && (
+                {c.card?.question && (
                   <Link
                     href={target}
                     className="mt-1 inline-block truncate text-[11.5px] text-[var(--text-muted)] hover:text-[var(--primary)]"
                   >
-                    ↳ {c.qa.question.slice(0, 60)}
+                    ↳ {c.card.question.slice(0, 60)}
                   </Link>
                 )}
               </div>

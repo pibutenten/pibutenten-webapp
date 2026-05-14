@@ -48,7 +48,7 @@ export type CommentSummary = {
     | null;
 };
 
-export type QaRow = {
+export type CardRow = {
   card_id: number;
   question: string | null;
   shortcode: string | null;
@@ -59,7 +59,7 @@ export type QaRow = {
   comments?: CommentSummary[]; // comments kind 한정 — 글 밑에 항상 펼침
 };
 
-type Row = VisitorRow | QaRow;
+type Row = VisitorRow | CardRow;
 
 const PAGE_SIZE = 50;
 
@@ -171,16 +171,16 @@ export default function StatsListClient({
         <ol className="space-y-2">
           {rows.map((r, i) => {
             const isVisitors = kind === "visitors";
-            const qaRow = !isVisitors ? (r as QaRow) : null;
+            const cardRow = !isVisitors ? (r as CardRow) : null;
             const visitorRow = isVisitors ? (r as VisitorRow) : null;
             const showComments =
-              kind === "comments" && qaRow?.comments && qaRow.comments.length > 0;
+              kind === "comments" && cardRow?.comments && cardRow.comments.length > 0;
             return (
               <li
                 key={
                   isVisitors
                     ? (visitorRow as VisitorRow).profile_id
-                    : (qaRow as QaRow).card_id + "-" + i
+                    : (cardRow as CardRow).card_id + "-" + i
                 }
                 className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
               >
@@ -208,7 +208,7 @@ export default function StatsListClient({
                     })()
                   ) : (
                     (() => {
-                      const row = qaRow as QaRow;
+                      const row = cardRow as CardRow;
                       // 공개 카드 URL = /{handle}/{shortcode}. handle/shortcode 없으면 admin edit 로 폴백
                       const qaHref =
                         row.author_handle && row.shortcode
@@ -248,13 +248,13 @@ export default function StatsListClient({
                   <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--text)]">
                     {isVisitors
                       ? (visitorRow as VisitorRow).visit_count.toLocaleString()
-                      : (qaRow as QaRow).cnt.toLocaleString()}
+                      : (cardRow as CardRow).cnt.toLocaleString()}
                   </span>
                 </div>
 
                 {/* 댓글 항상 펼침 — comments kind 한정 */}
                 {showComments && (
-                  <CommentsBlock comments={(qaRow as QaRow).comments!} />
+                  <CommentsBlock comments={(cardRow as CardRow).comments!} />
                 )}
               </li>
             );

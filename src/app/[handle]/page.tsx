@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { type QACardData } from "@/components/Card";
+import { type CardData } from "@/components/Card";
 import ProfileTabs from "@/components/ProfileTabs";
 import LogoutButton from "@/components/LogoutButton";
 import { SITE_URL } from "@/lib/site";
@@ -218,7 +218,7 @@ export default async function HandleProfilePage({ params }: Props) {
       category, hide_doctor_credential,
       external_url, external_title, external_description, external_image, external_site_name,
       doctor:doctors(slug, name, branch),
-      author:profiles!qas_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle),
+      author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle),
       video:videos(youtube_id, youtube_url, topic, upload_date)
       `,
     )
@@ -227,7 +227,7 @@ export default async function HandleProfilePage({ params }: Props) {
     .eq("status", "published")
     .order("created_at", { ascending: false })
     .limit(20)
-    .returns<QACardData[]>();
+    .returns<CardData[]>();
 
   const posts = postsData ?? [];
 

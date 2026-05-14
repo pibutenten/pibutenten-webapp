@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import HeroSearch from "@/components/HeroSearch";
 import CategoryWithChips from "@/components/CategoryWithChips";
 import Feed from "@/components/Feed";
-import type { QACardData } from "@/components/Card";
+import type { CardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import { getHotQaIds } from "@/lib/hot-ids";
@@ -98,7 +98,7 @@ export default async function HomePage({ searchParams }: Props) {
       .order("created_at", { ascending: false })
       .limit(INITIAL_PAGE_SIZE);
   } else {
-    rpcRes = await supabase.rpc("search_qas_scored", {
+    rpcRes = await supabase.rpc("search_cards_scored", {
       p_q: q,
       p_doctor_slug: null,
       p_offset: 0,
@@ -106,15 +106,15 @@ export default async function HomePage({ searchParams }: Props) {
       p_boost_doctor_slug: boost || null,
     });
   }
-  let qas = (rpcRes.data ?? []) as QACardData[];
+  let qas = (rpcRes.data ?? []) as CardData[];
   const error = rpcRes.error;
 
   // 첫 4카드 다양화 — 검색 없을 때: 모두 다른 원장 (max 1) / 검색 있을 때: 같은 원장 최대 2번
   if (qas.length > 4) {
     const maxPerDoctor = q ? 2 : 1;
     const counts = new Map<string, number>();
-    const head: QACardData[] = [];
-    const tail: QACardData[] = [];
+    const head: CardData[] = [];
+    const tail: CardData[] = [];
     for (const it of qas) {
       const slug = it.doctor?.slug ?? "_unknown";
       const c = counts.get(slug) ?? 0;
@@ -132,7 +132,7 @@ export default async function HomePage({ searchParams }: Props) {
   // (홈/검색 모두 적용. 원장 개인 페이지는 별도 라우트라 영향 없음)
   if (qas.length >= 3) {
     const remaining = [...qas];
-    const reordered: QACardData[] = [];
+    const reordered: CardData[] = [];
     while (remaining.length > 0) {
       const last = reordered[reordered.length - 1];
       const prev = reordered[reordered.length - 2];
@@ -150,7 +150,7 @@ export default async function HomePage({ searchParams }: Props) {
           continue;
         }
       }
-      reordered.push(remaining.shift() as QACardData);
+      reordered.push(remaining.shift() as CardData);
     }
     qas = reordered;
   }

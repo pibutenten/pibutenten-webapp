@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Feed from "@/components/Feed";
-import type { QACardData } from "@/components/Card";
+import type { CardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
@@ -33,20 +33,20 @@ export default async function FeedPage() {
   // - jitter ±10%: F5마다 비슷한 점수 글끼리 순서 살짝 변동
   // - doctor 글 x2: 원장 글이 일반 회원 글의 2배 가중 (회원 글 들어왔을 때 발현)
   // 풀 오버샘플 + 클라이언트 셔플은 더 이상 필요 X — DB가 score+jitter 정렬해서 줌.
-  const rpcRes = await supabase.rpc("feed_qas_scored", {
+  const rpcRes = await supabase.rpc("feed_cards_scored", {
     p_limit: INITIAL_PAGE_SIZE,
     p_offset: 0,
     p_half_life_days: 14,
     p_jitter_amp: 0.2,
   });
-  let qas = (rpcRes.data ?? []) as QACardData[];
+  let qas = (rpcRes.data ?? []) as CardData[];
   const error = rpcRes.error;
 
   // 첫 4카드 다양화 (검색 없으니 모두 다른 원장)
   if (qas.length > 4) {
     const counts = new Map<string, number>();
-    const head: QACardData[] = [];
-    const tail: QACardData[] = [];
+    const head: CardData[] = [];
+    const tail: CardData[] = [];
     for (const it of qas) {
       const slug = it.doctor?.slug ?? "_unknown";
       const c = counts.get(slug) ?? 0;
@@ -63,7 +63,7 @@ export default async function FeedPage() {
   // 같은 원장 3연속 방지
   if (qas.length >= 3) {
     const remaining = [...qas];
-    const reordered: QACardData[] = [];
+    const reordered: CardData[] = [];
     while (remaining.length > 0) {
       const last = reordered[reordered.length - 1];
       const prev = reordered[reordered.length - 2];
@@ -81,7 +81,7 @@ export default async function FeedPage() {
           continue;
         }
       }
-      reordered.push(remaining.shift() as QACardData);
+      reordered.push(remaining.shift() as CardData);
     }
     qas = reordered;
   }

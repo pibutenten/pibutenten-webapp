@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import QACard, { type QACardData } from "@/components/Card";
+import Card, { type CardData } from "@/components/Card";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { buildDoctorReference } from "@/lib/schema/doctor";
@@ -17,7 +17,7 @@ type Props = {
 
 const SITE = SITE_URL;
 
-type QaWithModified = QACardData & { updated_at?: string | null };
+type QaWithModified = CardData & { updated_at?: string | null };
 
 async function fetchQaByDoctorYearSlug(
   doctorSlug: string,
@@ -41,7 +41,7 @@ async function fetchQaByDoctorYearSlug(
         category, hide_doctor_credential, pubmed_ref,
         external_url, external_title, external_description, external_image, external_site_name,
         doctor:doctors(slug, name, branch),
-        author:profiles!qas_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url),
+        author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url),
         video:videos(youtube_id, youtube_url, topic, upload_date)
       `,
       )
@@ -63,18 +63,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!Number.isFinite(yearInt)) {
     return { title: "피부텐텐", robots: { index: false } };
   }
-  const qa = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
-  if (!qa) return { title: "피부텐텐", robots: { index: false } };
-  const docName = qa.doctor?.name ? `${qa.doctor.name} 원장님` : "피부텐텐";
-  const desc = stripMarkdown(qa.answer).slice(0, 110);
-  const ogUrl = qa.doctor?.slug ? `/og/${qa.doctor.slug}.png` : `/og.png`;
+  const card = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
+  if (!card) return { title: "피부텐텐", robots: { index: false } };
+  const docName = card.doctor?.name ? `${card.doctor.name} 원장님` : "피부텐텐";
+  const desc = stripMarkdown(card.answer).slice(0, 110);
+  const ogUrl = card.doctor?.slug ? `/og/${card.doctor.slug}.png` : `/og.png`;
   const canonical = `${SITE}/doctors/${slug}/${year}/${encodeURIComponent(postSlug)}`;
   return {
-    title: qa.question,
+    title: card.question,
     description: desc,
     alternates: { canonical },
     openGraph: {
-      title: qa.question,
+      title: card.question,
       description: `${docName} — ${desc}`,
       type: "article",
       url: canonical,
@@ -82,7 +82,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: qa.question,
+      title: card.question,
       description: `${docName} — ${desc}`,
       images: [ogUrl],
     },
@@ -90,16 +90,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 function buildJsonLd(
-  qa: QaWithModified,
+  card: QaWithModified,
   doctorSlug: string,
   year: number,
   postSlug: string,
 ) {
   const url = `${SITE}/doctors/${doctorSlug}/${year}/${encodeURIComponent(postSlug)}`;
-  const created = qa.created_at ?? new Date().toISOString();
-  const modified = qa.updated_at ?? created;
-  const docName = qa.doctor?.name ?? "";
-  const answerText = stripMarkdown(qa.answer);
+  const created = card.created_at ?? new Date().toISOString();
+  const modified = card.updated_at ?? created;
+  const docName = card.doctor?.name ?? "";
+  const answerText = stripMarkdown(card.answer);
 
   const breadcrumb = {
     "@type": "BreadcrumbList",
@@ -117,7 +117,7 @@ function buildJsonLd(
         name: `${year}년`,
         item: `${SITE}/doctors/${doctorSlug}/${year}`,
       },
-      { "@type": "ListItem", position: 4, name: qa.question },
+      { "@type": "ListItem", position: 4, name: card.question },
     ],
   };
 
@@ -131,7 +131,7 @@ function buildJsonLd(
     "@type": ["MedicalWebPage", "QAPage"],
     "@id": `${url}#webpage`,
     url,
-    name: qa.question,
+    name: card.question,
     inLanguage: "ko-KR",
     datePublished: created,
     dateModified: modified, // qas.updated_at 활용 (AI freshness)
@@ -157,12 +157,12 @@ function buildJsonLd(
     },
     mainEntity: {
       "@type": "Question",
-      name: qa.question,
-      text: qa.question,
+      name: card.question,
+      text: card.question,
       // 페이지와 Question entity를 cross-reference로 강하게 연결 — Google이 1:1 매핑으로 인식.
       mainEntityOfPage: { "@id": `${url}#webpage` },
       answerCount: 1,
-      upvoteCount: qa.like_count ?? 0,
+      upvoteCount: card.like_count ?? 0,
       dateCreated: created,
       author: { "@id": `${SITE}/doctors/${doctorSlug}#person` },
       acceptedAnswer: {
@@ -170,11 +170,11 @@ function buildJsonLd(
         text: answerText.slice(0, 4000),
         author: { "@id": `${SITE}/doctors/${doctorSlug}#person` },
         dateCreated: created,
-        upvoteCount: qa.like_count ?? 0,
+        upvoteCount: card.like_count ?? 0,
         url,
         // 학술 인용(Schema.org Citation) — pubmed_ref 있을 때만. AI/검색엔진이 "논문 인용 붙은 의학 답변"으로 인식.
         ...((() => {
-          const ref = (qa as { pubmed_ref?: Record<string, unknown> | null }).pubmed_ref;
+          const ref = (card as { pubmed_ref?: Record<string, unknown> | null }).pubmed_ref;
           if (!ref || (!ref.pmid && !ref.doi)) return {};
           const citation: Record<string, unknown> = { "@type": "ScholarlyArticle" };
           if (ref.title) citation.name = ref.title;
@@ -192,15 +192,15 @@ function buildJsonLd(
       },
     },
     // 시술/조건/일반 자동 분류 (procedure-mappings 사전 활용)
-    about: keywordsToAbout(qa.keywords),
+    about: keywordsToAbout(card.keywords),
     specialty: "https://schema.org/Dermatologic",
     audience: { "@type": "MedicalAudience", audienceType: "Patient" },
   };
 
-  // VideoObject — qa.video(videos 테이블 join) 우선, 없으면 external_url(YouTube)에서 video_id 추출.
+  // VideoObject — card.video(videos 테이블 join) 우선, 없으면 external_url(YouTube)에서 video_id 추출.
   // v5.1 spec D-1: 본문 발췌문은 VideoObject.description에 들어가 AEO 신호화.
   // Phase 6 카드는 videos 테이블 매핑 없이 external_url에 ?t={N}s 형태로 들어가 있어, 거기서 startOffset 추출.
-  const video = qa.video as
+  const video = card.video as
     | { youtube_id?: string | null; youtube_url?: string | null; topic?: string | null; upload_date?: string | null }
     | { youtube_id?: string | null; youtube_url?: string | null; topic?: string | null; upload_date?: string | null }[]
     | null
@@ -208,7 +208,7 @@ function buildJsonLd(
   const v = Array.isArray(video) ? video[0] : video;
 
   // external_url에서 YouTube video_id + 타임스탬프 파싱 (예: https://youtu.be/MeycbSmQfxs?t=276s)
-  const extUrl = (qa as { external_url?: string | null }).external_url ?? null;
+  const extUrl = (card as { external_url?: string | null }).external_url ?? null;
   let extVideoId: string | null = null;
   let extStartSeconds: number | null = null;
   if (extUrl) {
@@ -222,7 +222,7 @@ function buildJsonLd(
   if (videoId) {
     const videoName = v?.topic
       ? `${v.topic} — 영상에서 자세히 보기`
-      : qa.question;
+      : card.question;
     medicalPage.video = {
       "@type": "VideoObject",
       name: videoName,
@@ -249,8 +249,8 @@ export default async function DermatologistPostPage({ params }: Props) {
   if (!Number.isFinite(yearInt) || yearInt < 2000 || yearInt > 2100) {
     notFound();
   }
-  const qa = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
-  if (!qa) {
+  const card = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
+  if (!card) {
     return (
       <section className="mx-auto w-full max-w-[480px] py-10">
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center shadow-[var(--shadow-sm)]">
@@ -283,7 +283,7 @@ export default async function DermatologistPostPage({ params }: Props) {
   }
 
   const hotIds = Array.from(await getHotQaIds(20));
-  const jsonLd = buildJsonLd(qa, slug, yearInt, postSlug);
+  const jsonLd = buildJsonLd(card, slug, yearInt, postSlug);
 
   return (
     <section className="mx-auto w-full max-w-[680px]">
@@ -291,9 +291,9 @@ export default async function DermatologistPostPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <QACard
-        qa={qa}
-        isHot={hotIds.includes(qa.id)}
+      <Card
+        card={card}
+        isHot={hotIds.includes(card.id)}
         autoExpandComments
         forceExpanded
         asH1

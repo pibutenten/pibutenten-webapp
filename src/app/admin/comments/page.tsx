@@ -41,7 +41,7 @@ export default async function AdminCommentsPage() {
       .from("comments")
       .select(
         `id, body, created_at, card_id,
-         qa:card_id(question, shortcode),
+         card:cards(question, shortcode),
          author:author_id(handle, display_name)`,
       )
       .eq("status", "visible")

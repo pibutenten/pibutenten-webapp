@@ -5,7 +5,7 @@
  * Peach(주황) / Mint / Lavender / Sky Blue.
  * Yellow는 검색 본문 하이라이트와 색상이 겹쳐 제거됨 → Peach(주황)로 대체.
  *
- * QACard.tsx 와 /admin/cards/[id]/edit 미리보기에서 동일 결과를 보장하기 위해 공유.
+ * Card.tsx 와 /admin/cards/[id]/edit 미리보기에서 동일 결과를 보장하기 위해 공유.
  */
 
 export const HIGHLIGHT_PALETTE: readonly string[] = [
