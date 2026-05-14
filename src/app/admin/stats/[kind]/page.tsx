@@ -88,6 +88,7 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
     const since =
       days === 0
         ? "1970-01-01T00:00:00Z"
+        // eslint-disable-next-line react-hooks/purity -- server component, request-time
         : new Date(Date.now() - days * 86400_000).toISOString();
     const qaIds = (rows as QaRow[])
       .map((r) => r.qa_id)

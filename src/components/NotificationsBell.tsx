@@ -68,10 +68,11 @@ export default function NotificationsBell() {
     }
   }, []);
 
-  // 초기 fetch + polling
+  // 초기 fetch + polling (fetchData는 async — setState는 await 이후 발생, false positive)
   useEffect(() => {
-    fetchData();
-    const id = setInterval(fetchData, POLL_MS);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchData();
+    const id = setInterval(() => void fetchData(), POLL_MS);
     return () => clearInterval(id);
   }, [fetchData]);
 
