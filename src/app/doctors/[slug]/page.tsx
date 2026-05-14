@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
 import { getHotQaIds } from "@/lib/hot-ids";
 import Feed from "@/components/Feed";
-import type { QACardData } from "@/components/QACard";
+import type { QACardData } from "@/components/Card";
 import { SITE_URL } from "@/lib/site";
 import {
   asDoctorProfileData,
@@ -484,42 +484,42 @@ function DoctorOwnerWidget({
         <Stat
           label="발행 Q&A"
           value={stats.publishedQa}
-          href={`/admin/qas?doctor=${doctorSlug}&type=qa&status=published`}
+          href={`/admin/cards?doctor=${doctorSlug}&type=qa&status=published`}
         />
         <Stat
           label="검수 대기"
           value={stats.pendingReview}
-          href={`/admin/qas?doctor=${doctorSlug}&status=pending_review`}
+          href={`/admin/cards?doctor=${doctorSlug}&status=pending_review`}
         />
         <Stat
           label="발행 포스팅"
           value={stats.publishedPost}
-          href={`/admin/qas?doctor=${doctorSlug}&type=post&status=published`}
+          href={`/admin/cards?doctor=${doctorSlug}&type=post&status=published`}
         />
         <Stat
           label="임시저장"
           value={stats.draft}
-          href={`/admin/qas?doctor=${doctorSlug}&status=draft`}
+          href={`/admin/cards?doctor=${doctorSlug}&status=draft`}
         />
         <Stat
           label="받은 댓글"
           value={stats.receivedComments}
-          href={`/admin/qas?doctor=${doctorSlug}&sort=comments`}
+          href={`/admin/cards?doctor=${doctorSlug}&sort=comments`}
         />
         <Stat
           label="받은 좋아요"
           value={stats.receivedLikes}
-          href={`/admin/qas?doctor=${doctorSlug}&sort=likes`}
+          href={`/admin/cards?doctor=${doctorSlug}&sort=likes`}
         />
         <Stat
           label="받은 저장"
           value={stats.receivedSaves}
-          href={`/admin/qas?doctor=${doctorSlug}&sort=saves`}
+          href={`/admin/cards?doctor=${doctorSlug}&sort=saves`}
         />
         <Stat
           label="받은 공유"
           value={stats.receivedShares}
-          href={`/admin/qas?doctor=${doctorSlug}&sort=shares`}
+          href={`/admin/cards?doctor=${doctorSlug}&sort=shares`}
         />
       </div>
     </div>
@@ -538,7 +538,7 @@ function DoctorOpsTools({ doctorSlug }: { doctorSlug: string }) {
       </h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Link
-          href={`/admin/qas?doctor=${doctorSlug}`}
+          href={`/admin/cards?doctor=${doctorSlug}`}
           className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
         >
           <div className="text-[15px] font-bold text-[var(--text)]">

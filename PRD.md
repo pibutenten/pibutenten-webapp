@@ -1,7 +1,75 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-14 (대시보드 대대적 정비 A/B/C 트랙 + 약관 정식 검토본 + KPI 리스트 페이지 + D1·D2 LLM)
-> 기준 commit: `8df5550` (TopNav 클린업 + migration 0044)
+> 마지막 업데이트: 2026-05-14 (qas → cards 전면 rename + 알림 시스템 + 메트릭 재정의)
+> 기준 commit: `ed17067` (cards 1차) — 이후 추가: /admin/cards + 파일 rename Phase 2
+
+## 🆕 2026-05-14 후반 작업 (현재 세션)
+
+### 1) qas → cards 전면 rename (Option C 확정)
+- **DB 변경 (migration 0065)**:
+  - 테이블 rename: `qas → cards`, `qa_views/likes/saves/shares/impressions/ratings → card_*`
+  - 컬럼 rename: 모든 외래키 `qa_id → card_id` (comments, notifications + 6개 metric 테이블)
+  - 인덱스 25개 모두 rename (`qas_*/qa_* → cards_*/card_*`)
+  - **임시 backwards-compat VIEW 7개 (qas, qa_views, ...)** — 39개 legacy RPC 함수가 즉시 깨지지 않도록.
+    PostgreSQL은 simple view를 인라인 처리 → 성능 비용 0. 영구 abstraction layer로 유지.
+- **코드 변경 (38 파일)**:
+  - `.from('qas')` → `.from('cards')`, qa_* → card_*
+  - `qa_id` 82회 → `card_id`
+  - 관계 alias: `qa:qas(...)` → `qa:cards(...)` (응답 변수명 `qa` 보존 → 호환)
+- **디렉토리/파일 rename (Phase 2)**:
+  - `/api/qas/route.ts` → `/api/cards/route.ts`
+  - `/admin/qas/*` → `/admin/cards/*` (전체 디렉토리)
+  - `src/components/QACard.tsx` → `Card.tsx`
+  - `src/lib/qa-url.ts` → `card-url.ts`
+  - `src/lib/qa-highlight.ts` → `card-highlight.ts`
+- **보류한 작업** (별도 phase):
+  - 39개 legacy RPC 함수 body 마이그레이션 (`from qas` → `from cards`) — compat view 통해 정상 동작 중이라 우선순위 낮음
+  - qa_type enum 'article' 값 물리 제거 — RLS policy 의존성 다수, cosmetic 비용 vs 효용
+
+### 2) 알림 시스템 구축 (migration 0062 + 0063)
+- 6종 trigger: `comment` / `reply` / `like` (24h debounce) / `new_ask` (모든 원장) / `review_request` / `published`
+- TopNav 우측 종(🔔) + 빨간 배지 + 드롭다운 (20건)
+- 60초 폴링, 클릭 시 자동 모두 읽음 처리
+- **PWA Badge API** (`navigator.setAppBadge`) — 홈 화면 앱 아이콘에 미확인 수 표시
+- `/settings/profile` 하단 알림 종류별 on/off 설정 (6개 토글, 즉시 자동 저장)
+- 알림 설정 default true, role 별 노출 항목 분기 (`review_request`/`new_ask`는 doctor/admin 한정)
+
+### 3) 메트릭 정의 재정립 (migration 0061)
+- 옛 마운트 즉시 INSERT 누적된 `qa_views` 부풀려진 데이터 → 전체 리셋
+- `get_admin_kpi` 재정의:
+  - **방문자 = unique(user|session) FROM card_impressions** — 페이지 로드만 해도 카운트 (자연스러운 UV)
+  - **조회수 = count(*) FROM card_views** — 4-10초 dwell 통과만 (의도 신호)
+- `get_top_visitors` 도 card_impressions 기반
+
+### 4) 작성자(author_id) Phase 9 정합성 복구 (migration 0060 + 0064)
+- `publish/route.ts` 옛 코드가 `author_id = auth.users.id` 저장 → Phase 9 신규 profile에서 JOIN 실패 → "(작성자 없음)"
+- migration 0060: NULL/orphan author_id → admin profile / doctor profile 로 일괄 복구
+- migration 0064: doctor_id 있는 카드는 `author_id = doctor_accounts.profile_id` 강제 교체 (admin이 author로 남은 잔여 정리)
+- 새 publish: `author_id = doctor's profile_id` (검수 발행 시) / `admin profile_id` (직접 발행 시)
+
+### 5) Q&A 화면 개선
+- 댓글 많은 글 TOP에 글 본문 댓글(대댓글 포함) **항상 펼침** — `CommentsBlock` 부모-자식 트리, 답글은 `↳` 들여쓰기
+- TOP 리스트 한 줄 레이아웃: rank 번호(1,2,3,4) 제거 → `닉네임(좌, 고정폭) · 제목(가운데, truncate) · 카운트(우)`
+- StatsListClient: 작성자 display_name 우선 표시 (handle 폴백)
+- QACard ⋮ 메뉴 권한 복구: Phase 9 묶음 내 모든 profile.id 매칭으로 admin/원장 모두 ⋮ 노출
+
+### 6) type='article' 코드 정리
+- TypeScript type union 5곳 `'article'` 제거 (qas/page, users/[id], write/page, write/EditClient, QACard, qa-url)
+- v5.1 deprecation 주석 정리 (sitemap, articles route, WriteClient)
+- DB enum 값은 보존 (물리 제거는 RLS policy 의존성으로 별도 phase)
+
+### 7) 편집기 개선
+- 영상 URL → 외부 링크 라벨 (video 아닐 수도)
+- PubMed URL/PMID 모두 입력 가능 (regex `\d{6,9}` 자동 추출)
+- 태그 자동 추출 버튼 (✨) — `/api/admin/extract-keywords` (Claude Opus 4.7 호출)
+
+### 8) UI 정리
+- /write 액션 버튼 순서: 초기화 / 저장 / 검수 요청 / 올리기
+- /write Phase 9 active identity 기반 role 결정 (사람 부계정 권한 차단)
+- 톤 다운: `--primary` `#5FA8D3 → #8BC3DE` (전역)
+- 좋아요 안 눌림 fix (anon path 제거, RPC silent fail 방지)
+- 4 페이지 footer 순서 통일 (about/privacy/terms/doctor-guidelines)
+- 관리자/원장/회원 대시보드 모두 하단 LogoutButton 통일
 
 ## 🟢 진행 상황 한눈에
 - ✅ Phase 9 — multi-ID 단순화 (profiles + auth_user_id 묶음), `profile_identities` table·`identity_id` 컬럼 모두 drop (migration 0055)

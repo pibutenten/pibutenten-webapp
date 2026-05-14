@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { pickHighlight } from "@/lib/qa-highlight";
+import { pickHighlight } from "@/lib/card-highlight";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 import { normalizeTags } from "@/lib/tag-dictionary";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
@@ -280,7 +280,7 @@ export default function EditClient({
 
       setStatus(finalStatus);
       if (toStatus) {
-        router.push(`/admin/qas?status=${finalStatus}`);
+        router.push(`/admin/cards?status=${finalStatus}`);
       } else {
         router.refresh();
       }
@@ -300,7 +300,7 @@ export default function EditClient({
         setError(`삭제 실패: ${delErr.message}`);
         return;
       }
-      router.push("/admin/qas");
+      router.push("/admin/cards");
     });
   }
 

@@ -8,7 +8,7 @@ type Doctor = { id: string; slug: string; name: string };
 type Props = {
   doctors: Doctor[];
   currentSlug: string;
-  /** 다른 filter들도 navigate 시 함께 보존하기 위한 base path. 예: "/admin/qas?status=published&q=foo" */
+  /** 다른 filter들도 navigate 시 함께 보존하기 위한 base path. 예: "/admin/cards?status=published&q=foo" */
   basePath: string;
 };
 

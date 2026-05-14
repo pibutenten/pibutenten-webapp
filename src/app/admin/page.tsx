@@ -153,13 +153,13 @@ export default async function AdminPage() {
       <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
         <Stat label="전체 회원" value={userCount ?? 0} href="/admin/users" />
         <Stat label="원장" value={doctorCount ?? 0} href="/admin/doctors" />
-        <Stat label="발행 Q&A" value={qaPublished ?? 0} href="/admin/qas?type=qa&status=published" />
-        <Stat label="발행 포스팅" value={postPublished ?? 0} href="/admin/qas?type=post&status=published" />
+        <Stat label="발행 Q&A" value={qaPublished ?? 0} href="/admin/cards?type=qa&status=published" />
+        <Stat label="발행 포스팅" value={postPublished ?? 0} href="/admin/cards?type=post&status=published" />
         <Stat
           label="검수 대기"
           value={pendingReview ?? 0}
           highlight={(pendingReview ?? 0) > 0}
-          href="/admin/qas?status=pending_review"
+          href="/admin/cards?status=pending_review"
         />
         <Stat label="댓글" value={totalComments ?? 0} href="/admin/comments" />
       </div>
@@ -174,7 +174,7 @@ export default async function AdminPage() {
         </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Tool
-            href="/admin/qas"
+            href="/admin/cards"
             emoji="📚"
             title="전체 글 관리"
             desc="Q&A·포스팅 검색·필터·발행/보관"
@@ -190,7 +190,7 @@ export default async function AdminPage() {
           )}
           {/* 검수 대기 — 모든 admin 노출 (원장 계정에선 본인 doctor 카드만 보임) */}
           <Tool
-            href="/admin/qas?status=pending_review"
+            href="/admin/cards?status=pending_review"
             emoji="⏳"
             title="검수 대기"
             desc={

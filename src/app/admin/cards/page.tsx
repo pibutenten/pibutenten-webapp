@@ -130,7 +130,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/admin/qas");
+  if (!user) redirect("/login?next=/admin/cards");
 
   // active identity 기반 권한 분기:
   //   kind='admin'         → super admin (모든 카드)
@@ -329,7 +329,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
       <div className="mb-3 flex gap-0 border-b border-[var(--border)] overflow-x-auto sm:gap-1 [&::-webkit-scrollbar]:hidden">
         {STATUS_LIST.map((s) => {
           const active = s.key === statusParam;
-          const href = `/admin/qas${buildQueryString({
+          const href = `/admin/cards${buildQueryString({
             ...baseQuery,
             status: s.key === "all" ? undefined : s.key,
             page: undefined,
@@ -363,7 +363,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           {TYPE_LIST.map((t) => {
             const active = t.key === typeParam;
             // 타입을 바꾸면 카테고리는 reset (qa로 가면 카테고리 의미 없음)
-            const href = `/admin/qas${buildQueryString({
+            const href = `/admin/cards${buildQueryString({
               ...baseQuery,
               type: t.key === "all" ? undefined : t.key,
               category: t.key === "post" ? baseQuery.category : undefined,
@@ -394,7 +394,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-0.5">
             {CATEGORY_LIST.map((c) => {
               const active = c.key === categoryParam;
-              const href = `/admin/qas${buildQueryString({
+              const href = `/admin/cards${buildQueryString({
                 ...baseQuery,
                 category: c.key === "all" ? undefined : c.key,
                 page: undefined,
@@ -420,7 +420,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           </div>
         )}
         <Link
-          href={`/admin/qas${buildQueryString({
+          href={`/admin/cards${buildQueryString({
             ...baseQuery,
             pick: pickOnly ? undefined : "1",
             page: undefined,
@@ -439,7 +439,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
       {/* 검색 + 원장 필터 (GET form) — 모바일/데스크탑 모두 한 줄 */}
       <form
         method="get"
-        action="/admin/qas"
+        action="/admin/cards"
         className="mb-4 flex items-center gap-2"
       >
         {/* 현재 status/type/pick을 hidden으로 유지 */}
@@ -464,7 +464,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
               name: d.name,
             }))}
             currentSlug={doctorSlugParam}
-            basePath={`/admin/qas${buildQueryString({
+            basePath={`/admin/cards${buildQueryString({
               status: statusParam === "all" ? undefined : statusParam,
               type: typeParam === "all" ? undefined : typeParam,
               category: categoryParam === "all" ? undefined : categoryParam,
@@ -500,7 +500,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
         </button>
         {(qParam || doctorSlugParam) && (
           <Link
-            href={`/admin/qas${buildQueryString({
+            href={`/admin/cards${buildQueryString({
               status: statusParam === "all" ? undefined : statusParam,
             })}`}
             className="h-9 inline-flex items-center rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
@@ -573,7 +573,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                     >
                       <td className="px-3 py-2 align-top text-[var(--text-muted)]">
                         <Link
-                          href={`/admin/qas/${r.id}/edit`}
+                          href={`/admin/cards/${r.id}/edit`}
                           className="hover:text-[var(--primary)] hover:underline"
                         >
                           #{r.id}
@@ -622,7 +622,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                       </td>
                       <td className="px-3 py-2 align-top text-[var(--text)]">
                         <Link
-                          href={`/admin/qas/${r.id}/edit`}
+                          href={`/admin/cards/${r.id}/edit`}
                           className="block hover:text-[var(--primary)] hover:underline"
                           title={r.question}
                         >
@@ -658,7 +658,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
               className="mt-4 flex items-center justify-center gap-1"
             >
               <Link
-                href={`/admin/qas${buildQueryString({
+                href={`/admin/cards${buildQueryString({
                   ...baseQuery,
                   page: pageNum > 1 ? pageNum - 1 : undefined,
                 })}`}
@@ -675,7 +675,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
               {startPage > 1 && (
                 <>
                   <Link
-                    href={`/admin/qas${buildQueryString({
+                    href={`/admin/cards${buildQueryString({
                       ...baseQuery,
                       page: 1,
                     })}`}
@@ -693,7 +693,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                 return (
                   <Link
                     key={p}
-                    href={`/admin/qas${buildQueryString({
+                    href={`/admin/cards${buildQueryString({
                       ...baseQuery,
                       page: p === 1 ? undefined : p,
                     })}`}
@@ -715,7 +715,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                     <span className="px-1 text-[var(--text-muted)]">…</span>
                   )}
                   <Link
-                    href={`/admin/qas${buildQueryString({
+                    href={`/admin/cards${buildQueryString({
                       ...baseQuery,
                       page: totalPages,
                     })}`}
@@ -726,7 +726,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                 </>
               )}
               <Link
-                href={`/admin/qas${buildQueryString({
+                href={`/admin/cards${buildQueryString({
                   ...baseQuery,
                   page: pageNum < totalPages ? pageNum + 1 : undefined,
                 })}`}

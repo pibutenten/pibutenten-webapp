@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DOCTORS_9 } from "@/lib/ai/identify-doctors";
-import { pickHighlight } from "@/lib/qa-highlight";
+import { pickHighlight } from "@/lib/card-highlight";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 import { costUSD, formatUSD, formatTokens, type UsageLike } from "@/lib/ai/pricing";
 
@@ -414,7 +414,7 @@ export default function DraftClient() {
         setStage("stepped2");
         return;
       }
-      router.push(`/admin/qas?status=pending_review`);
+      router.push(`/admin/cards?status=pending_review`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "네트워크 오류");
       setStage("stepped2");

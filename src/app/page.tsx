@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Feed from "@/components/Feed";
-import type { QACardData } from "@/components/QACard";
+import type { QACardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";

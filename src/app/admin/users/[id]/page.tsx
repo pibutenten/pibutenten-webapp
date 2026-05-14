@@ -9,7 +9,7 @@ import {
   type UserLevel,
 } from "@/lib/user-grades";
 import RoleChangeForm from "./RoleChangeForm";
-import { getQaUrl } from "@/lib/qa-url";
+import { getQaUrl } from "@/lib/card-url";
 import { getIdentityContext } from "@/lib/identity";
 
 export const dynamic = "force-dynamic";
@@ -459,7 +459,7 @@ export default async function AdminUserDetailPage({
                   <span>{formatDate(q.created_at)}</span>
                 </div>
                 <Link
-                  href={`/admin/qas/${q.id}/edit`}
+                  href={`/admin/cards/${q.id}/edit`}
                   className="mt-0.5 block text-sm text-[var(--text)] hover:text-[var(--primary)] hover:underline"
                 >
                   {q.question?.slice(0, 80) ?? "(제목 없음)"}

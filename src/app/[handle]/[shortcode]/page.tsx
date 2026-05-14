@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import QACard, { type QACardData } from "@/components/QACard";
+import QACard, { type QACardData } from "@/components/Card";
 import { SITE_URL } from "@/lib/site";
 import { stripMarkdown } from "@/lib/strip-markdown";
 

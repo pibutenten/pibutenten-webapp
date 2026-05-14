@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import HeroSearch from "@/components/HeroSearch";
 import CategoryWithChips from "@/components/CategoryWithChips";
 import Feed from "@/components/Feed";
-import type { QACardData } from "@/components/QACard";
+import type { QACardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import { getHotQaIds } from "@/lib/hot-ids";

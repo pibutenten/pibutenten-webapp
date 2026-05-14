@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Feed from "@/components/Feed";
-import type { QACardData } from "@/components/QACard";
+import type { QACardData } from "@/components/Card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Tab = "posts" | "skin" | "comments" | "likes" | "saves";

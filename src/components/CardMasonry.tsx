@@ -1,7 +1,7 @@
 "use client";
 
 import Masonry from "react-masonry-css";
-import QACard, { type QACardData } from "./QACard";
+import QACard, { type QACardData } from "./Card";
 
 /**
  * 정적 카드 리스트용 Masonry 래퍼.

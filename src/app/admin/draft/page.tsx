@@ -12,14 +12,14 @@ export default async function AdminDraftPage() {
   if (!user) redirect("/login?next=/admin/draft");
 
   // 새 Q&A 추출하기는 super admin (active.kind='admin') 전용.
-  // 원장 admin은 검수만 가능 → /admin/qas?status=pending_review 로 redirect.
+  // 원장 admin은 검수만 가능 → /admin/cards?status=pending_review 로 redirect.
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx?.active) {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
   if (!idCtx.isSuperAdmin) {
     if (idCtx.isDoctorAdmin) {
-      redirect("/admin/qas?status=pending_review");
+      redirect("/admin/cards?status=pending_review");
     }
     redirect("/login?error=관리자 권한이 필요합니다");
   }
@@ -29,7 +29,7 @@ export default async function AdminDraftPage() {
       <div className="mb-5 flex items-baseline justify-between pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">새 Q&A 추출하기</h1>
         <Link
-          href="/admin/qas"
+          href="/admin/cards"
           className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
         >
           ← 전체 목록

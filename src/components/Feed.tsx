@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Masonry from "react-masonry-css";
-import QACard, { type QACardData } from "./QACard";
+import QACard, { type QACardData } from "./Card";
 
 type ViewerState = { liked?: boolean; saved?: boolean; rating?: number };
 

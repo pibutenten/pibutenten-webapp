@@ -19,14 +19,14 @@ import { PICK_IDS } from "@/lib/picks";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import CommentsBlock from "@/components/CommentsBlock";
 import RecentLikers from "@/components/RecentLikers";
-import { getQaUrl, getQaEditUrl } from "@/lib/qa-url";
+import { getQaUrl, getQaEditUrl } from "@/lib/card-url";
 import { getActiveIdentityId } from "@/lib/active-identity";
 import {
   parseYoutubeTimestamp,
   formatTimestamp,
 } from "@/lib/youtube-time";
 import { labelForCategory } from "@/lib/post-category";
-import { pickHighlight } from "@/lib/qa-highlight";
+import { pickHighlight } from "@/lib/card-highlight";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 export type QACardData = {

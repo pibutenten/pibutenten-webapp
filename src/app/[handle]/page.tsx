@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { type QACardData } from "@/components/QACard";
+import { type QACardData } from "@/components/Card";
 import ProfileTabs from "@/components/ProfileTabs";
 import LogoutButton from "@/components/LogoutButton";
 import { SITE_URL } from "@/lib/site";

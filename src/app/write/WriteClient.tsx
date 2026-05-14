@@ -8,7 +8,7 @@ import {
 } from "@/lib/post-category";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
-import { pickHighlight } from "@/lib/qa-highlight";
+import { pickHighlight } from "@/lib/card-highlight";
 
 /** 글쓰기 페이지 진입 시 랜덤 노출 카피 (꼭 공유하고 싶은 나만의 피부 비법은 베리에이션 강조) */
 const WRITE_PHRASES = [
@@ -496,11 +496,11 @@ export default function WriteClient({
         };
         // v5.1: /me/qnas 폐기 — 원장 본인 글 관리는 /doctors/{slug} 본인 페이지 위젯에서.
         // 일단 redirect:
-        //   - admin: /admin/qas (관리자 글 관리 페이지 그대로)
+        //   - admin: /admin/cards (관리자 글 관리 페이지 그대로)
         //   - doctor: /doctors/{my-slug} (본인 페이지에서 글 목록 확인)
         //   - user/etc: / (메인 피드)
         if (submitStatus === "draft") {
-          if (role === "admin") router.push("/admin/qas?status=draft");
+          if (role === "admin") router.push("/admin/cards?status=draft");
           else if (role === "doctor" && myDoctor)
             router.push(`/doctors/${myDoctor.slug}`);
           else router.push("/");
@@ -508,7 +508,7 @@ export default function WriteClient({
           return;
         }
         if (data.type === "qa") {
-          if (role === "admin") router.push(`/admin/qas?status=${submitStatus}`);
+          if (role === "admin") router.push(`/admin/cards?status=${submitStatus}`);
           else if (role === "doctor" && myDoctor)
             router.push(`/doctors/${myDoctor.slug}`);
           else router.push("/");

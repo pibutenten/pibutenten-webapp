@@ -17,7 +17,7 @@ export default async function AdminEditQAPage({ params }: Props) {
 
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect(`/login?next=/admin/qas/${id}/edit`);
+  if (!user) redirect(`/login?next=/admin/cards/${id}/edit`);
 
   // active identity 기반 권한 분기 — super admin만 글쓴이 변경 가능
   const idCtx = await getIdentityContext(supabase);
@@ -47,7 +47,7 @@ export default async function AdminEditQAPage({ params }: Props) {
   // 원장 admin은 본인 doctor 글만 편집 가능 (super admin은 모두)
   if (isDoctorAdmin && !isSuperAdmin) {
     if (qaRaw.doctor_id !== idCtx.activeDoctorId) {
-      redirect("/admin/qas?error=본인 글만 편집할 수 있습니다");
+      redirect("/admin/cards?error=본인 글만 편집할 수 있습니다");
     }
   }
   // PostgREST join은 배열로 추론되므로 단일 객체로 normalize
@@ -96,7 +96,7 @@ export default async function AdminEditQAPage({ params }: Props) {
           Q&A #{qa.id} 편집
         </h1>
         <Link
-          href="/admin/qas"
+          href="/admin/cards"
           className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
         >
           ← 목록
