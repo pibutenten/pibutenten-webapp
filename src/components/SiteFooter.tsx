@@ -50,11 +50,10 @@ export default function SiteFooter() {
       </div>
       <p className="mt-2 text-[11px] text-[var(--text-muted)]">
         본 사이트의 전문의 답변은 일반 의학 정보이며 개인의 진단·치료를 대체하지
-        않습니다. 자세한 내용은{" "}
+        않습니다.{" "}
         <Link href="/about" className="underline hover:text-[var(--primary)]">
-          사이트 안내
+          자세히 보기
         </Link>
-        를 참고해주세요.
       </p>
     </footer>
   );

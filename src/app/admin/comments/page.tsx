@@ -42,7 +42,7 @@ export default async function AdminCommentsPage() {
       .select(
         `id, body, created_at, card_id,
          card:cards(question, shortcode),
-         author:author_id(handle, display_name)`,
+         author:profiles!comments_author_id_fkey(handle, display_name)`,
       )
       .eq("status", "visible")
       .order("created_at", { ascending: false })

@@ -201,10 +201,13 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   }
 
   // ── 상태별 카운트 (탭 표시용) ──
-  // 한꺼번에 여러 카운트를 가져오기 위해 각각 head:true count 쿼리 병렬 실행
+  // 한꺼번에 여러 카운트를 가져오기 위해 각각 head:true count 쿼리 병렬 실행.
+  // type/category/doctor 필터는 status 탭에도 반영해야 대시보드 KPI(예: type=qa published)와 일치.
   async function countByStatus(s: QAStatus | "all"): Promise<number> {
     let qb = supabase.from("cards").select("id", { count: "exact", head: true });
     if (s !== "all") qb = qb.eq("status", s);
+    if (typeParam !== "all") qb = qb.eq("type", typeParam);
+    if (categoryParam !== "all") qb = qb.eq("category", categoryParam);
     if (doctorIdFilter) qb = qb.eq("doctor_id", doctorIdFilter);
     if (qParam) {
       const escaped = qParam.replace(/[%_]/g, "\\$&");

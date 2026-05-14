@@ -92,7 +92,8 @@ export default async function MemberPostPage({ params }: Props) {
       >
         ← {handle} 프로필
       </Link>
-      <Card card={card} />
+      {/* 단독 카드 상세 — 본문 펼침 + 댓글 자동 펼침 (의사 글 페이지와 동일 정책) */}
+      <Card card={card} forceExpanded autoExpandComments asH1 />
     </section>
   );
 }

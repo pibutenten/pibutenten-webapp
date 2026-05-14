@@ -9,6 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
 
 export const dynamic = "force-dynamic";
 
@@ -275,10 +276,8 @@ export async function POST(req: Request) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx?.active) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
@@ -286,14 +285,18 @@ export async function POST(req: Request) {
   const { readPersonaServer } = await import("@/lib/persona-server");
   const currentPersona = await readPersonaServer();
 
-  // Phase 9: identity_id 컬럼 폐기 — author_id (auth.users.id) + posted_as 로 충분
+  // Phase 9: author_id에 **active identity의 profile.id** 저장.
+  //   cookie 'pibutenten:identity'가 UUID면 그 profile, 'primary'면 base profile.
+  //   getIdentityContext가 묶음 검증(auth_user_id 매칭) 후 idCtx.active.profileId 반환.
+  //   좋아요·저장과 동일한 ID 정책 — 묶음 내 ID 전환 시 댓글도 그 ID로 기록됨.
+  //   (구 버그: user.id(=base auth.users.id)만 사용 → 활성 ID 무시되고 base profile로 저장됨)
   const ins = await supabase
     .from("comments")
     .insert({
       card_id: cardId,
       parent_id: parentId,
       body,
-      author_id: user.id,
+      author_id: idCtx.active.profileId,
       posted_as: currentPersona,
     })
     .select("*")
