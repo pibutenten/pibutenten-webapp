@@ -19,7 +19,7 @@ export default function AdminBackLink() {
     <div className="mb-3 -mt-2 sm:-mt-1">
       <Link
         href="/admin"
-        className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
+        className="inline-flex items-center gap-1 text-[12px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
       >
         <span aria-hidden>←</span>
         <span>대시보드</span>
