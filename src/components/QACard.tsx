@@ -175,7 +175,14 @@ export default function QACard({
   const [myRating, setMyRating] = useState<number>(viewerRating ?? 0);
   const [ratingHover, setRatingHover] = useState<number>(0);
   const [ratingOpen, setRatingOpen] = useState(false);
-  const [me, setMe] = useState<{ id: string; role: "admin" | "doctor" | "user" } | null>(null);
+  // Phase 9: 같은 auth_user_id 묶음의 모든 profile.id 와 그중 최고 권한 role을 보관
+  // - role: admin > doctor > user (묶음 안에 admin profile 있으면 admin)
+  // - profileIds: 묶음 내 모든 profile.id (qa.author?.id 매칭용)
+  const [me, setMe] = useState<{
+    id: string;
+    role: "admin" | "doctor" | "user";
+    profileIds: string[];
+  } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(qa.question);
@@ -563,22 +570,30 @@ export default function QACard({
       ? CATEGORIES.find((c) => c.slug === categorize(activeQuery))?.color
       : null;
 
-  // 현재 로그인 사용자 + role
+  // 현재 로그인 사용자 + Phase 9 묶음 정보
+  // (auth.users.id ↔ profiles 묶음. id == user.id 이거나 auth_user_id == user.id 인 모든 profile)
   useEffect(() => {
     let alive = true;
     (async () => {
       const sb = createSupabaseBrowserClient();
       const { data: { user } } = await sb.auth.getUser();
       if (!alive || !user) return;
-      const { data: prof } = await sb
+      const { data: profs } = await sb
         .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
+        .select("id, role")
+        .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
       if (!alive) return;
+      const rows = (profs ?? []) as Array<{ id: string; role: string }>;
+      const roles = new Set(rows.map((r) => r.role));
+      const effectiveRole: "admin" | "doctor" | "user" = roles.has("admin")
+        ? "admin"
+        : roles.has("doctor")
+          ? "doctor"
+          : "user";
       setMe({
         id: user.id,
-        role: ((prof?.role as "admin" | "doctor" | "user" | undefined) ?? "user"),
+        role: effectiveRole,
+        profileIds: rows.map((r) => r.id),
       });
     })();
     return () => { alive = false; };
@@ -599,11 +614,14 @@ export default function QACard({
     return () => document.removeEventListener("click", onDocClick);
   }, [menuOpen]);
 
-  // 수정/삭제 권한:
-  //   - admin: 모든 글 (Q&A·포스팅 가리지 않음)
-  //   - 그 외(원장 포함): 본인이 작성자(author)인 글만
-  //     (qa.author.id 가 me.id 와 일치 — doctor identity 도 me.id 로 매칭됨)
-  const canEdit = !!me && (me.role === "admin" || me.id === qa.author?.id);
+  // 수정/삭제 권한 (Phase 9):
+  //   - admin: 모든 글
+  //   - 그 외: 묶음 안 어떤 profile.id 가 qa.author?.id 와 일치하면 본인 글
+  //     (예: 원장님의 official/personal profile 둘 다 본인 글로 인정)
+  const canEdit =
+    !!me &&
+    (me.role === "admin" ||
+      (qa.author?.id != null && me.profileIds.includes(qa.author.id)));
 
   async function saveEdit() {
     if (!editTitle.trim() || !editBody.trim()) {

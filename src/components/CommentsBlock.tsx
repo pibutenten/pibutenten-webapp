@@ -126,16 +126,35 @@ export default function CommentsBlock({
         setMeLoaded(true);
         return;
       }
-      // 본인 프로필 + 본인 doctor_id (RLS상 본인은 select 가능)
-      const [{ data: prof }, { data: docMap }] = await Promise.all([
-        sb.from("profiles").select("id, role").eq("id", user.id).maybeSingle(),
-        sb.from("doctor_accounts").select("doctor_id").eq("profile_id", user.id).maybeSingle(),
+      // Phase 9: 같은 auth_user_id 묶음 안 모든 profile 의 role 중 최고 권한 채택.
+      // doctor_id 는 묶음 안 어떤 profile 이라도 doctor_accounts 매핑 있으면 첫 항목 사용.
+      const [{ data: profs }, { data: docMaps }] = await Promise.all([
+        sb
+          .from("profiles")
+          .select("id, role")
+          .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`),
+        sb
+          .from("doctor_accounts")
+          .select("doctor_id, profile_id"),
       ]);
       if (!alive) return;
+      const rows = (profs ?? []) as Array<{ id: string; role: string }>;
+      const profileIds = new Set(rows.map((r) => r.id));
+      const roles = new Set(rows.map((r) => r.role));
+      const effectiveRole: "admin" | "doctor" | "user" = roles.has("admin")
+        ? "admin"
+        : roles.has("doctor")
+          ? "doctor"
+          : "user";
+      const myDoctorId =
+        (docMaps ?? [])
+          .find((d) =>
+            profileIds.has((d as { profile_id: string }).profile_id),
+          )?.doctor_id ?? null;
       setMe({
         id: user.id,
-        role: (prof?.role as Me extends infer T ? (T extends { role: infer R } ? R : never) : never) ?? "user",
-        doctor_id: (docMap?.doctor_id as string | undefined) ?? null,
+        role: effectiveRole,
+        doctor_id: (myDoctorId as string | null) ?? null,
       });
       setMeLoaded(true);
     })();
