@@ -503,63 +503,37 @@ export default function QACard({
 
   function handleLike() {
     if (typeof window === "undefined") return;
+    // 로그인 필수 — 익명 path는 qa_likes에 row를 안 남겨서 새로고침 시 풀리는 문제 발생.
+    // me state로 미리 확인하고, 미로그인 시 로그인 페이지로 안내.
+    if (!me) {
+      router.push("/login?next=" + encodeURIComponent(window.location.pathname));
+      return;
+    }
     const supabase = createSupabaseBrowserClient();
     const wasLiked = liked;
-    // 낙관적 UI 업데이트 — 인앱에서도 즉각 피드백
+    // 낙관적 UI 업데이트
     setLiked(!wasLiked);
     setLikeCount((c) => (wasLiked ? Math.max(0, c - 1) : c + 1));
 
     (async () => {
-      // auth.getUser() 가 인앱 브라우저에서 throw할 수 있어 try/catch
-      let userId: string | null = null;
       try {
-        const { data } = await supabase.auth.getUser();
-        userId = data.user?.id ?? null;
-      } catch {
-        userId = null;
-      }
-
-      // 토글 RPC 시도 (auth 가능할 때) — 실패하면 anon path로 fallback
-      let success = false;
-      if (userId) {
-        try {
-          const { data, error } = await supabase.rpc("toggle_qa_like", {
-            p_qa_id: qa.id,
-            p_identity_id: getActiveIdentityId(),
-          });
-          if (!error) {
-            const row = (data as { liked: boolean; like_count: number }[] | null)?.[0];
-            if (row) {
-              setLiked(row.liked);
-              setLikeCount(row.like_count);
-              if (row.liked) lsSet(`qa-liked-${qa.id}`, "1");
-              else lsRemove(`qa-liked-${qa.id}`);
-              success = true;
-            }
-          }
-        } catch {
-          /* fallback to anon path below */
+        const { data, error } = await supabase.rpc("toggle_qa_like", {
+          p_qa_id: qa.id,
+          p_identity_id: getActiveIdentityId(),
+        });
+        if (error) throw error;
+        const row = (data as { liked: boolean; like_count: number }[] | null)?.[0];
+        if (row) {
+          setLiked(row.liked);
+          setLikeCount(row.like_count);
+          if (row.liked) lsSet(`qa-liked-${qa.id}`, "1");
+          else lsRemove(`qa-liked-${qa.id}`);
         }
-      }
-
-      // anon path — 로그인 안 됐거나 toggle 실패 시
-      if (!success) {
-        const rpc = wasLiked ? "decrement_qa_like" : "increment_qa_like";
-        try {
-          const { data, error } = await supabase.rpc(rpc, { p_qa_id: qa.id });
-          if (error) {
-            // 완전 실패 — UI 롤백
-            setLiked(wasLiked);
-            setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
-            return;
-          }
-          if (typeof data === "number") setLikeCount(data);
-          if (wasLiked) lsRemove(`qa-liked-${qa.id}`);
-          else lsSet(`qa-liked-${qa.id}`, "1");
-        } catch {
-          setLiked(wasLiked);
-          setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
-        }
+      } catch (e) {
+        // RPC 실패 — UI 롤백 + 콘솔 로깅 (silent fail 방지)
+        console.error("[handleLike] toggle_qa_like failed:", e);
+        setLiked(wasLiked);
+        setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
       }
     })();
   }
