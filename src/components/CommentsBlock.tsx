@@ -338,7 +338,7 @@ export default function CommentsBlock({
             onChange={setBody}
             onSubmit={() => submitComment(null)}
             submitting={submitting}
-            placeholder="댓글 남기기"
+            placeholder="텐즈님의 생각을 남겨주세요"
             disableAutoFocus={disableAutoFocus}
           />
         </div>

@@ -355,28 +355,39 @@ export default function QACard({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        // Phase 9: qa_likes / qa_saves PK = (card_id, user_id). user_id = active profile.id.
-        //   - activeIdentityId 있으면 그 profile id 사용 (묶음 내 다른 ID로 활동)
-        //   - 없으면 auth.users.id (legacy: profile.id == user.id 경우)
-        const activeProfileId = getActiveIdentityId() ?? user.id;
+        // Phase 9: card_likes / card_saves user_id 는 묶음 안 어떤 profile.id 라도 가능.
+        // (활동 시점의 active identity 가 무엇이었든 본인이 좋아요/저장한 것은 본인으로 인식)
+        // → 묶음의 모든 profile.id 를 IN 으로 검사.
+        const { data: bundleProfs } = await supabase
+          .from("profiles")
+          .select("id")
+          .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
+        const profileIds = (bundleProfs ?? []).map(
+          (p) => (p as { id: string }).id,
+        );
+        if (profileIds.length === 0) profileIds.push(user.id);
+
         const [likeRes, saveRes, rateRes] = await Promise.all([
           supabase
             .from("card_likes")
             .select("card_id")
             .eq("card_id", qa.id)
-            .eq("user_id", activeProfileId)
+            .in("user_id", profileIds)
+            .limit(1)
             .maybeSingle(),
           supabase
             .from("card_saves")
             .select("card_id")
             .eq("card_id", qa.id)
-            .eq("user_id", activeProfileId)
+            .in("user_id", profileIds)
+            .limit(1)
             .maybeSingle(),
           supabase
             .from("card_ratings")
             .select("rating")
             .eq("card_id", qa.id)
-            .eq("user_id", user.id)
+            .in("user_id", profileIds)
+            .limit(1)
             .maybeSingle(),
         ]);
         if (!alive) return;
@@ -1160,6 +1171,7 @@ export default function QACard({
           keywords={visibleKeywords}
           activeQuery={activeQuery}
           queryCategoryColor={queryCategoryColor ?? null}
+          forceShowAll={expanded || forceExpanded}
           onPick={(kw) => {
             const params = new URLSearchParams({ q: kw });
             if (boostDoctorSlug) params.set("boost", boostDoctorSlug);
@@ -1423,14 +1435,19 @@ function Keywords({
   activeQuery,
   queryCategoryColor,
   onPick,
+  forceShowAll = false,
 }: {
   keywords: string[];
   activeQuery?: string;
   queryCategoryColor: string | null;
   onPick: (kw: string) => void;
+  /** 카드 본문 펼침 / 단독 페이지 진입 시 태그도 자동 펼침 */
+  forceShowAll?: boolean;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [showAllLocal, setShowAllLocal] = useState(false);
+  const showAll = forceShowAll || showAllLocal;
+  const setShowAll = setShowAllLocal;
   // 초기값: 모든 태그 노출(SSR HTML에는 한 번만 등장).
   // 클라이언트에서 첫 줄 측정 후 fitCount 조정 → +N 배지 표시.
   const [fitCount, setFitCount] = useState<number>(keywords.length);

@@ -286,17 +286,7 @@ export async function POST(req: Request) {
   const { readPersonaServer } = await import("@/lib/persona-server");
   const currentPersona = await readPersonaServer();
 
-  // v5.1 옵션 X: 활성 identity_id도 함께 저장 (멀티 ID 카운팅·표시 정확화)
-  const { cookies } = await import("next/headers");
-  const cookieStore = await cookies();
-  const identityCookie = cookieStore.get("pibutenten:identity")?.value;
-  const identityId =
-    identityCookie &&
-    identityCookie !== "primary" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identityCookie)
-      ? identityCookie
-      : null;
-
+  // Phase 9: identity_id 컬럼 폐기 — author_id (auth.users.id) + posted_as 로 충분
   const ins = await supabase
     .from("comments")
     .insert({
@@ -305,7 +295,6 @@ export async function POST(req: Request) {
       body,
       author_id: user.id,
       posted_as: currentPersona,
-      identity_id: identityId,
     })
     .select("*")
     .single();
