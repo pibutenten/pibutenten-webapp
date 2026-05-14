@@ -734,10 +734,7 @@ export default function QACard({
           {isNew && (
             <span
               className="inline-flex items-center rounded-b-md px-2 pt-0.5 pb-1 text-[10px] font-bold leading-none tracking-wider text-white"
-              style={{
-                backgroundColor: "#81C784",
-                boxShadow: "0 1px 3px rgba(129, 199, 132, 0.25)",
-              }}
+              style={{ backgroundColor: "#81C784" }}
             >
               NEW
             </span>
@@ -745,10 +742,7 @@ export default function QACard({
           {isHot && (
             <span
               className="inline-flex items-center rounded-b-md px-2 pt-0.5 pb-1 text-[10px] font-bold leading-none tracking-wider text-white"
-              style={{
-                backgroundColor: "#F48FB1",
-                boxShadow: "0 1px 3px rgba(244, 143, 177, 0.25)",
-              }}
+              style={{ backgroundColor: "#F48FB1" }}
             >
               HOT
             </span>
@@ -756,10 +750,7 @@ export default function QACard({
           {isPick && (
             <span
               className="inline-flex items-center rounded-b-md px-2 pt-0.5 pb-1 text-[10px] font-bold leading-none tracking-wider text-white"
-              style={{
-                backgroundColor: "#7DB7DA",
-                boxShadow: "0 1px 3px rgba(125, 183, 218, 0.25)",
-              }}
+              style={{ backgroundColor: "#7DB7DA" }}
             >
               Pick
             </span>
