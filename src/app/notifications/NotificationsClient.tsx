@@ -9,9 +9,12 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
  *
  * - 50개씩 무한 스크롤 (IntersectionObserver)
  * - 필터 칩: 전체 / 댓글 / 답글 / 좋아요 / 궁금해요 / 운영 (doctor/admin만)
+ * - 기간 필터: 전체 / 1일 / 1주 / 1달 (client side)
  * - kind 6종 라벨 (NotificationsBell과 동기화)
  * - 알림 클릭 시 notifications.url 직접 사용 (0071 migration에서 정합된 경로)
- * - 페이지 진입 시 자동 모두 읽음 (단 ask 본인 미답 알림은 mark_my_notifications_read RPC 측에서 제외 — Step B에서)
+ * - 페이지 진입 시 자동 모두 읽음 (단 ask 본인 미답 알림은 mark_my_notifications_read RPC 측에서 제외 — 0080)
+ * - 행별 × 버튼 — 개별 읽음 처리 (unread만 노출)
+ * - 선택 모드 토글 → 체크박스 + "모두 읽음" 일괄 처리
  */
 
 type Kind =
@@ -66,6 +69,15 @@ const FILTER_KINDS: Record<FilterKey, Kind[] | null> = {
   ops: ["review_request", "published"],
 };
 
+type PeriodKey = "all" | "1d" | "7d" | "30d";
+
+const PERIOD_MS: Record<PeriodKey, number | null> = {
+  all: null,
+  "1d": 24 * 3600_000,
+  "7d": 7 * 24 * 3600_000,
+  "30d": 30 * 24 * 3600_000,
+};
+
 const PAGE_SIZE = 50;
 
 export default function NotificationsClient({
@@ -75,8 +87,11 @@ export default function NotificationsClient({
 }) {
   const [items, setItems] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [period, setPeriod] = useState<PeriodKey>("all");
   const [loading, setLoading] = useState(true);
   const [done, setDone] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const offsetRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const fetchingRef = useRef(false);
@@ -97,7 +112,7 @@ export default function NotificationsClient({
       setDone(rows.length < PAGE_SIZE);
       setLoading(false);
 
-      // 모두 읽음 처리 — RPC가 ask 본인 미답 알림은 제외 (Step B에서)
+      // 모두 읽음 처리 — RPC가 ask 본인 미답 알림은 제외 (migration 0080)
       await sb.rpc("mark_notifications_read", { p_ids: null });
       window.dispatchEvent(new CustomEvent("pibutenten:notifications-read"));
     })();
@@ -138,17 +153,78 @@ export default function NotificationsClient({
     return () => io.disconnect();
   }, [loadMore]);
 
-  // 4) 필터링 (client side — 이미 fetch된 알림만 대상)
+  // 4) 필터링 (kind + 기간) — client side
+  const now = Date.now();
+  const periodMs = PERIOD_MS[period];
   const visible = items.filter((n) => {
     const allowed = FILTER_KINDS[filter];
-    if (!allowed) return true;
-    return allowed.includes(n.kind as Kind);
+    if (allowed && !allowed.includes(n.kind as Kind)) return false;
+    if (periodMs !== null) {
+      const age = now - new Date(n.created_at).getTime();
+      if (age > periodMs) return false;
+    }
+    return true;
   });
+
+  // 5) 개별 알림 읽음 처리
+  async function readOne(id: number) {
+    try {
+      await fetch("/api/notifications/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [id] }),
+      });
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === id
+            ? { ...it, read_at: it.read_at ?? new Date().toISOString() }
+            : it,
+        ),
+      );
+      window.dispatchEvent(new CustomEvent("pibutenten:notifications-read"));
+    } catch {
+      /* noop */
+    }
+  }
+
+  // 6) 선택한 알림 일괄 읽음
+  async function readSelected() {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    try {
+      await fetch("/api/notifications/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      setItems((prev) =>
+        prev.map((it) =>
+          selected.has(it.id)
+            ? { ...it, read_at: it.read_at ?? new Date().toISOString() }
+            : it,
+        ),
+      );
+      setSelected(new Set());
+      setSelectMode(false);
+      window.dispatchEvent(new CustomEvent("pibutenten:notifications-read"));
+    } catch {
+      /* noop */
+    }
+  }
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <div>
-      {/* 필터 칩 */}
-      <div className="mb-4 flex flex-wrap gap-1.5">
+      {/* 필터 칩 — kind */}
+      <div className="mb-2 flex flex-wrap gap-1.5">
         <FilterChip
           label="전체"
           active={filter === "all"}
@@ -183,6 +259,51 @@ export default function NotificationsClient({
         )}
       </div>
 
+      {/* 기간 + 액션 */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          <PeriodChip label="기간 전체" active={period === "all"} onClick={() => setPeriod("all")} />
+          <PeriodChip label="1일" active={period === "1d"} onClick={() => setPeriod("1d")} />
+          <PeriodChip label="1주" active={period === "7d"} onClick={() => setPeriod("7d")} />
+          <PeriodChip label="1달" active={period === "30d"} onClick={() => setPeriod("30d")} />
+        </div>
+        <div className="flex items-center gap-2 text-[11px]">
+          {selectMode ? (
+            <>
+              <span className="text-[var(--text-muted)]">
+                {selected.size}건 선택
+              </span>
+              <button
+                type="button"
+                onClick={readSelected}
+                disabled={selected.size === 0}
+                className="rounded-full bg-[var(--primary)] px-3 py-1 font-semibold text-white disabled:opacity-50"
+              >
+                모두 읽음
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectMode(false);
+                  setSelected(new Set());
+                }}
+                className="rounded-full border border-[var(--border)] px-3 py-1 text-[var(--text-secondary)]"
+              >
+                취소
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSelectMode(true)}
+              className="rounded-full border border-[var(--border)] px-3 py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+            >
+              선택 모드
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 본문 */}
       {loading ? (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center text-sm text-[var(--text-muted)]">
@@ -190,14 +311,21 @@ export default function NotificationsClient({
         </div>
       ) : visible.length === 0 ? (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center text-sm text-[var(--text-secondary)]">
-          {filter === "all"
+          {filter === "all" && period === "all"
             ? "아직 알림이 없어요."
-            : "해당 종류의 알림이 없어요."}
+            : "조건에 맞는 알림이 없어요."}
         </div>
       ) : (
         <ul className="divide-y divide-[var(--border)] rounded-[var(--radius)] border border-[var(--border)] bg-white">
           {visible.map((n) => (
-            <NotificationRow key={n.id} n={n} />
+            <NotificationRow
+              key={n.id}
+              n={n}
+              selectMode={selectMode}
+              selected={selected.has(n.id)}
+              onToggleSelect={() => toggleSelect(n.id)}
+              onDismiss={() => readOne(n.id)}
+            />
           ))}
         </ul>
       )}
@@ -240,28 +368,71 @@ function FilterChip({
   );
 }
 
-function NotificationRow({ n }: { n: Notification }) {
+function PeriodChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "rounded-full border px-2.5 py-0.5 text-[11px] transition-colors " +
+        (active
+          ? "border-[var(--text-secondary)] bg-[var(--text-secondary)] text-white"
+          : "border-[var(--border)] bg-white text-[var(--text-muted)] hover:bg-[var(--bg-soft)]")
+      }
+    >
+      {label}
+    </button>
+  );
+}
+
+function NotificationRow({
+  n,
+  selectMode,
+  selected,
+  onToggleSelect,
+  onDismiss,
+}: {
+  n: Notification;
+  selectMode: boolean;
+  selected: boolean;
+  onToggleSelect: () => void;
+  onDismiss: () => void;
+}) {
   const text = KIND_LABEL[n.kind] ?? "새 알림";
   const icon = KIND_ICON[n.kind] ?? "•";
   const actorName = n.actor_display_name ?? "회원";
   const initial = actorName.slice(0, 1);
   const actorHref = n.actor_handle ? `/${n.actor_handle}` : null;
-  // notifications.url 직접 사용 (0071 migration에서 /{handle}/{shortcode} 또는 /admin/cards/{id}/edit로 정합)
   const target = n.url ?? (n.card_id ? `/?_=${n.card_id}` : "/");
   const time = relativeTime(n.created_at);
   const unread = !n.read_at;
-
-  // new_ask / review_request / published 는 actor가 의미 없거나 시스템 알림 — 아바타 대신 아이콘
   const showActorAvatar =
     n.kind === "comment" || n.kind === "reply" || n.kind === "like";
 
   return (
     <li
       className={
-        "flex items-center gap-3 px-4 py-3 " +
+        "group relative flex items-center gap-3 px-4 py-3 " +
         (unread ? "bg-[var(--primary-soft)]" : "")
       }
     >
+      {selectMode && (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggleSelect}
+          aria-label="알림 선택"
+          className="h-4 w-4 shrink-0 accent-[var(--primary)]"
+        />
+      )}
       {showActorAvatar && actorHref ? (
         <Link href={actorHref} className="shrink-0">
           <Avatar src={n.actor_avatar_url} initial={initial} />
@@ -276,11 +447,11 @@ function NotificationRow({ n }: { n: Notification }) {
       <div className="min-w-0 flex-1">
         <div className="text-[14px] leading-tight text-[var(--text)]">
           {showActorAvatar && actorHref ? (
-            <Link href={actorHref} className="font-semibold hover:underline">
+            <Link href={actorHref} className="whitespace-nowrap font-semibold hover:underline">
               {actorName}
             </Link>
           ) : showActorAvatar ? (
-            <span className="font-semibold">{actorName}</span>
+            <span className="whitespace-nowrap font-semibold">{actorName}</span>
           ) : null}
           {showActorAvatar && <span className="text-[var(--text-secondary)]"> {text}</span>}
           {!showActorAvatar && (
@@ -297,6 +468,17 @@ function NotificationRow({ n }: { n: Notification }) {
         )}
         <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">{time}</div>
       </div>
+      {/* unread + 선택 모드 아닐 때만 개별 × 버튼 */}
+      {unread && !selectMode && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="이 알림 읽음 처리"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] opacity-50 transition hover:bg-white hover:opacity-100"
+        >
+          ×
+        </button>
+      )}
     </li>
   );
 }
