@@ -295,10 +295,11 @@ export default async function DoctorDetailPage({ params }: Props) {
   };
 
   // 본인 접속 시 — 외부인용 프로필 화면 모두 숨기고 대시보드만 렌더 (사용자 요청)
+  // py-6 / mb-5 pl-1 — admin 대시보드(/admin)와 동일 spacing 위치 유지
   if (isOwner && ownerStats) {
     return (
-      <section className="space-y-5 py-2">
-        <div className="mb-1">
+      <section className="w-full space-y-5 py-6">
+        <div className="mb-5 pl-1">
           <h1 className="text-2xl font-bold text-[var(--text)]">
             {doctor.name} 원장님 대시보드
           </h1>
