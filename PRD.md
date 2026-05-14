@@ -1,36 +1,60 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-14 후반 (점검 보고서 3차 + Pretendard self-host + 알림 시스템 풀세트)
-> 기준 commit: `a37e021`
+> 마지막 업데이트: 2026-05-14 야간 (profile.id 일원화 + Pretendard + 알림 풀세트 + PWA Push 자동화)
+> 기준 commit: `01060a0`
 
-## 🆕 2026-05-14 후반 세션 작업 (commit 흐름)
+## 🎯 핵심 모델 — Phase 9 묶음 (확정)
+
+> 한 `auth.users.id` 아래 여러 `profile.id`가 묶임. 모든 인터랙션은 **active identity의 profile.id** 기준.
+> cookie `pibutenten:identity` 로 묶음 내 ID 전환. **7종 인터랙션 모두 일관 정책**:
+
+| 인터랙션 | 저장 컬럼 | 값 |
+|---|---|---|
+| 좋아요 | `card_likes.user_id` | active profile.id |
+| 저장 | `card_saves.user_id` | active profile.id |
+| 댓글 | `comments.author_id` | active profile.id |
+| 글쓰기 | `cards.author_id` | active profile.id |
+| 노출 | `card_impressions.user_id` | active profile.id |
+| 조회 | `card_views.user_id` | active profile.id |
+| 공유 | `card_shares.user_id` | active profile.id |
+
+> **본인 확인(권한 검증)은 묶음 전체** — `id.eq.${user.id} OR auth_user_id.eq.${user.id}` 패턴. `profile.id === user.id` 단순 비교 금지.
+
+> **의사 9명 avatar 정책**: `profile.avatar_url = '/doctors/{slug}.png'` 동기화. doctor_accounts join 의존도 제거 — profile.id 하나로 사진 결정.
+
+## 🆕 2026-05-14 야간 세션 작업 (commit 흐름)
 
 | commit | 내용 |
 |---|---|
-| `9b05d0a` | robots.txt/sitemap.xml 인덱싱 정책 fix + console.log·qas 주석 클린업 |
-| `8884a5b` | /notifications 충실화 (필터 6종·무한스크롤·migration 0079 url 컬럼) |
-| `8c1129d` | migration 0080 — '궁금해요' 알림 24h 지속 정책 (본인 답글로만 정리) |
-| `2dab205` | 점검 1차 P0+P1 (migration 0081 card_impressions GRANT, 0082 avatar https, 홈 H1, 의사 H1 중복, 한국어 띄어쓰기, hit area) |
-| `3028586` | /settings/notifications 신규 페이지 + NotificationsBell 개선 (visibilitychange, hover ×, 하단 링크) |
-| `3f88521` | /notifications 액션 (개별 × · 선택 모드 · 기간 필터) |
-| `c6f5316` | migration 0083 — 좋아요 N명 그룹화 (UPDATE 패턴) |
-| `81abda9` | PWA Push 풀스택 (migration 0084 + SW v2 + 3개 API + Toggle 컴포넌트 + web-push) |
-| `c4cbf36` | 점검 2차 (migration 0085 comments.author_id FK, 댓글 ID-스왑 fix, countByStatus type 필터, 회원 글 상세 댓글, disclaimer 라벨, 더미 cleanup) |
-| `f38122c` | Pretendard self-host (한글 폴백 문제 해결, next/font 우회) |
-| `a059974` | 점검 3차 P0 (글쓰기 ID-스왑 fix, revalidatePath, qa status 강제 fix, /admin metadata) |
-| `a37e021` | 점검 3차 P1 일부 (hydration error, youtube-oauth prefetch 차단) |
+| `9b05d0a` | robots.txt/sitemap.xml 인덱싱 정책 + 클린업 |
+| `8884a5b` | /notifications 충실화 (filter 6종·무한스크롤·migration 0079 url) |
+| `8c1129d` | migration 0080 — '궁금해요' 24h 지속 정책 |
+| `2dab205` | 점검 1차 P0+P1 (migration 0081·0082, 홈 H1, 의사 H1, 한국어, hit area) |
+| `3028586` | /settings/notifications + NotificationsBell 개선 |
+| `3f88521` | /notifications 액션 (× / 선택 / 기간) |
+| `c6f5316` | migration 0083 좋아요 N명 그룹화 |
+| `81abda9` | PWA Push 풀스택 (migration 0084 + SW v2 + 3 API + Toggle + web-push) |
+| `c4cbf36` | 점검 2차 (migration 0085, 댓글 ID-스왑, count type 필터, 회원 글 상세 댓글) |
+| `f38122c` | Pretendard self-host (한글 폴백 해결) |
+| `a059974` | 점검 3차 P0 (글쓰기 ID-스왑, revalidatePath, qa status, /admin metadata) |
+| `a37e021` | 점검 3차 P1 (hydration, youtube-oauth prefetch) |
+| `9081e93` | PRD 업데이트 |
+| `a9dbda4` | **PWA Push 운영 자동화** (Vercel env 4종 + migration 0086 pg_net trigger) + 방문자/조회/공유 active profile.id 통일 + 대시보드 spacing |
+| `01060a0` | **profile.id 일원화** — 의사 9명 avatar 동기화, write isAuthor 묶음 인지, migration 0087 활동통계 펼침 RPC |
 
 ## 🚨 다음 세션 시작 시 우선 점검
 
 ### 🔴 오픈 직전 (필수, 확인 필요)
 - [ ] **Naver OAuth 검수 결과** — 2026-05-13 제출, 3-7영업일. 진행/완료 여부 확인
-- [ ] **Supabase Pro 업그레이드** ($25/mo) — 오픈 전 활성화. 자동 백업·DB 백업 기간 늘림
-- [ ] **/privacy /terms 법무 검토** — 베타 안정화 후 변호사 자문. 현재 자체 작성 상태
+- [ ] **Vercel Pro 업그레이드** ($20/mo) — Fluid Active CPU 한도 초과 상태. 베타 오픈 전 필수 (Hobby는 영리 약관 위반 소지)
+- [ ] **Supabase Pro 업그레이드** ($25/mo) — 자동 백업·DB 백업 기간 확장
+- [ ] **/privacy /terms 법무 검토** — 베타 안정화 후 변호사 자문
 - [ ] **카카오 OAuth 모드** — 개발중 vs 검수완료 확인
-- [ ] **PWA Push 운영 설정** — VAPID 키 Vercel env 등록 + Supabase Database Webhook 등록
-  - Vercel env: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_WEBHOOK_SECRET` (4개)
-  - Supabase Dashboard → Database → Webhooks: notifications INSERT → POST https://pbtt.kr/api/push/send + 헤더 `x-pibutenten-push-secret`
-- [ ] **Production 배포 후 404 status 재확인** — dev 환경에서 200 응답 (Turbopack 특성), production curl 검증 필요
+- [x] **PWA Push 운영 설정** (commit `a9dbda4`로 자동화 완료)
+  - Vercel env 4종: CLI로 등록 완료 (NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT / PUSH_WEBHOOK_SECRET)
+  - Supabase Webhook: migration 0086의 pg_net trigger로 대체 (Dashboard 수동 설정 불필요)
+- [ ] **Production 배포 후 검증** — 다음 deploy부터 PWA Push env 반영. 실제 알림 발송 테스트
+- [ ] **Production 404 status 재확인** — dev 환경 200 응답은 Turbopack 특성. `curl -I https://pbtt.kr/존재안하는URL`로 검증
 
 ### 🟡 점검 보고서 3차 잔여 P1 (다음 세션)
 - [ ] **/favicon.ico HTML 응답** — `app/favicon.ico` 정적 파일 또는 `app/icon.tsx`
