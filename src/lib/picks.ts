@@ -1,6 +1,6 @@
 /**
  * 자동 생성된 PICK 목록 (scripts/select_picks.py).
- * 각 원장님별 추천 글. QACard에 Pick 배지 표시용.
+ * 각 원장님별 추천 글. Card에 Pick 배지 표시용.
  */
 
 export const PICK_IDS_BY_DOCTOR: Record<string, number[]> = {

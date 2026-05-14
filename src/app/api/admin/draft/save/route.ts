@@ -22,7 +22,7 @@ type SaveBody = {
 
 /**
  * POST /api/admin/draft/save
- * 단일 초안 또는 일괄 저장 — qas + videos 테이블에 insert.
+ * 단일 초안 또는 일괄 저장 — cards + videos 테이블에 insert.
  * 관리자 전용.
  */
 export async function POST(req: Request) {
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     videoRowId = newVideo.id;
   }
 
-  // qas 일괄 insert
+  // cards 일괄 insert
   const status = body.status ?? "pending_review";
   const rows = drafts.map((d) => ({
     question: d.question,
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
 
   if (iErr) {
     return NextResponse.json(
-      { error: `qas insert 실패: ${iErr.message}` },
+      { error: `cards insert 실패: ${iErr.message}` },
       { status: 500 },
     );
   }

@@ -1,7 +1,7 @@
 /**
  * 클라이언트 me 정보 모듈 캐시.
  *
- * 같은 페이지에 여러 QACard가 있을 때 각각 getUser + profiles select 하면
+ * 같은 페이지에 여러 Card가 있을 때 각각 getUser + profiles select 하면
  * 부수적으로 수정/삭제 버튼이 시간차로 나타남. 첫 호출만 실제 fetch하고
  * 나머지는 그 promise를 share.
  *

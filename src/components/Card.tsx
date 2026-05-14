@@ -39,7 +39,7 @@ export type CardData = {
   view_count: number;
   share_count?: number;
   comment_count?: number;
-  /** v4 — 저장(북마크) 누적 수 (qas.save_count) */
+  /** v4 — 저장(북마크) 누적 수 (cards.save_count) */
   save_count?: number;
   /** v4 — 평점 평균 (1~5, 0이면 미평가) */
   rating_avg?: number;
@@ -199,7 +199,7 @@ export default function Card({
   // 노출(impression) +1 — 카드가 피드에 등장하면 즉시 (session 1회 dedup).
   // 조회(view)와 분리: 노출 = 단순 등장, 조회 = 의도 신호.
   // engagement rate = view_count / impression_count 로 인기도 평가 가능.
-  // DB trigger(0048)가 qas.impression_count 자동 +1.
+  // DB trigger(0048)가 cards.impression_count 자동 +1.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (forceExpanded) return; // 단독 페이지는 피드 노출과 무관
@@ -234,9 +234,9 @@ export default function Card({
   }, [card.id, forceExpanded]);
 
   // 조회수 +1 helper — 의도 신호일 때만 호출.
-  // qa_views.insert만 호출. DB trigger(0047)가 qas.view_count도 자동 +1 동기화.
+  // card_views.insert만 호출. DB trigger(0047)가 cards.view_count도 자동 +1 동기화.
   // 두 메트릭(이벤트 로그 + 누적 카운터) 항상 일치 — 코드 단순화.
-  // session_id 기반 dedup — 같은 세션 같은 qa는 1회만.
+  // session_id 기반 dedup — 같은 세션 같은 card는 1회만.
   const recordView = useCallback(() => {
     if (typeof window === "undefined") return;
     const seenKey = `pibutenten:view:${card.id}`;
@@ -453,9 +453,9 @@ export default function Card({
     }
   }
 
-  // 평점 등록/변경 — upsert (qa_ratings PK = card_id,user_id,persona)
-  // 트리거가 qas.rating_avg/rating_count를 매번 from-scratch 재계산하므로
-  // upsert 후 qas를 다시 fetch해서 정확한 값으로 sync (optimistic 누적 오류 방지).
+  // 평점 등록/변경 — upsert (card_ratings PK = card_id,user_id,persona)
+  // 트리거가 cards.rating_avg/rating_count를 매번 from-scratch 재계산하므로
+  // upsert 후 cards를 다시 fetch해서 정확한 값으로 sync (optimistic 누적 오류 방지).
   async function handleRate(stars: number) {
     if (typeof window === "undefined") return;
     if (stars < 1 || stars > 5) return;
@@ -556,7 +556,7 @@ export default function Card({
   }
   const theme = doctor ? getDoctorTheme(doctor.slug) : null;
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
-  // 모든 글 단일 시간 기준 — qas.created_at (영상 글은 backfill로 video.upload_date와 동기화됨)
+  // 모든 글 단일 시간 기준 — cards.created_at (영상 글은 backfill로 video.upload_date와 동기화됨)
   // SNS 표준 상대시간 + 호버 시 절대 날짜
   const dateLabel = card.created_at ? relativeTime(card.created_at) : null;
   const dateAbsolute = card.created_at

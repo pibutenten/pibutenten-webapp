@@ -134,7 +134,7 @@ function buildJsonLd(
     name: card.question,
     inLanguage: "ko-KR",
     datePublished: created,
-    dateModified: modified, // qas.updated_at 활용 (AI freshness)
+    dateModified: modified, // cards.updated_at 활용 (AI freshness)
     lastReviewed: modified.slice(0, 10),
     reviewedBy: { "@id": `${SITE}/doctors/${doctorSlug}#person` },
     isPartOf: { "@id": `${SITE}/#website` },

@@ -21,7 +21,7 @@ type QaWithFields = CardData & {
  * URL: /{handle}/{shortcode}  (year 세그먼트 제거 — 더 짧고 깔끔)
  *
  * - handle은 profiles.handle 또는 alt_handle 어느 쪽이든 매칭
- * - shortcode는 qas.shortcode (UNIQUE)
+ * - shortcode는 cards.shortcode (UNIQUE)
  *
  * 주의: /{handle}만 있을 때(/[handle]/page.tsx)와 라우트 충돌 방지를 위해
  *       shortcode 세그먼트는 base58 6~12자 패턴으로만 매칭 (regex로 검증).

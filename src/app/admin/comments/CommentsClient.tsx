@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * /admin/comments — 클라이언트 컴포넌트.
  *
  * 패턴:
- *   - 댓글을 최신순(created_at desc)으로 가져오되, 동일 qa_id끼리 인접해 그룹화
+ *   - 댓글을 최신순(created_at desc)으로 가져오되, 동일 card_id끼리 인접해 그룹화
  *   - 한 글에 최근 댓글이 여러 개면 함께 묶어서 표시 (글 제목 1번 + 댓글 N개)
  *   - IntersectionObserver로 무한 스크롤 (`/api/admin/comments?before=ISO&limit=50`)
  *

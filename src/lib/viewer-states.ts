@@ -1,7 +1,7 @@
 /**
  * 카드 피드용 viewer state batch fetch.
  * 서버에서 viewer의 좋아요/저장/평점 상태를 한 번에 fetch해서
- * QACard에 props로 넘기면 클라이언트 useEffect 추가 fetch가 사라져
+ * Card에 props로 넘기면 클라이언트 useEffect 추가 fetch가 사라져
  * 카드 첫 렌더가 즉시 정확한 상태로 표시됨.
  *
  * Phase 9: viewerId는 active profile.id로 자동 변환됨.

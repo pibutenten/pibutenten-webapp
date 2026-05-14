@@ -8,20 +8,23 @@ import { SITE_URL } from "@/lib/site";
  *  - 공개 검색엔진(Googlebot, Naver Yeti, Daum 등): 허용
  *  - AI 크롤러(GPTBot, ClaudeBot, PerplexityBot, Google-Extended 등): 명시적 허용
  *    → 의사 답변이 AI Overviews/ChatGPT/Claude/Perplexity 답변에 인용될 가능성 ↑
- *  - 모든 봇에 차단: /api, /admin, /me, /onboarding, /write, /signup, /login, /u, /debug
- *  - 회원 글(/u/*) 차단 이유: 검증되지 않은 일반인 의견이 의료 정보로 색인되지 않게 (YMYL 안전성)
+ *  - 모든 봇에 차단: /api, /admin, /settings, /notifications, /onboarding, /write, /signup, /login, /u/, /debug, /search
+ *  - 회원 글(/{handle}/{shortcode}) 자체는 페이지 레벨 metadata noindex 처리
+ *    (robots.txt는 가변 핸들 패턴 지정 불가 — 메타태그로 YMYL 안전성 보장)
  */
 
 const COMMON_DISALLOW = [
   "/api/",
   "/admin/",
   "/settings",
+  "/notifications",
   "/onboarding",
   "/write",
   "/signup",
   "/login",
-  "/u/", // UGC — 회원 프로필/글 색인 차단 (의료 YMYL 안전)
+  "/u/", // legacy /u/[id] 폐기 경로 — 안전 차단
   "/debug/",
+  "/search", // 검색 결과는 영구 noindex (page level)
 ];
 
 export default function robots(): MetadataRoute.Robots {

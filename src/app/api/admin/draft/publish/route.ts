@@ -1,7 +1,7 @@
 /**
  * POST /api/admin/draft/publish
  *
- * Phase 8 위저드 Step3 — 검수 완료된 카드 N개를 qas INSERT + 발행.
+ * Phase 8 위저드 Step3 — 검수 완료된 카드 N개를 cards INSERT + 발행.
  *
  * 입력: {
  *   videoId: string,
@@ -24,7 +24,7 @@
  *
  * 영상 정보:
  *   - `videos` 테이블에 `youtube_id` 기준 UPSERT (없으면 INSERT, 있으면 갱신)
- *   - 모든 카드의 `qas.video_id`에 그 videos.id 채움
+ *   - 모든 카드의 `cards.video_id`에 그 videos.id 채움
  *   - 외부 카드 형식(external_url 등)도 동시에 유지 (이전 호환)
  * shortcode·post_year·post_slug는 카드별 자동 생성.
  */
@@ -108,7 +108,7 @@ export async function POST(req: Request) {
     ]),
   );
 
-  // videos UPSERT — youtube_id 기준. 모든 qas.video_id에 이 row.id 채움.
+  // videos UPSERT — youtube_id 기준. 모든 cards.video_id에 이 row.id 채움.
   const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const { data: videoRow, error: vidErr } = await supabase
     .from("videos")
@@ -210,7 +210,7 @@ export async function POST(req: Request) {
     .select("id");
   if (insErr) {
     return NextResponse.json(
-      { error: `qas insert 실패: ${insErr.message}` },
+      { error: `cards insert 실패: ${insErr.message}` },
       { status: 500 },
     );
   }

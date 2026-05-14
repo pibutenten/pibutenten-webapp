@@ -153,13 +153,12 @@ export default function ProfileTabs({
         console.error(`[${table} list]`, rowsErr);
       }
       const ids = (rows ?? []).map((r) => (r as { card_id: number }).card_id);
-      console.log(`[ProfileTabs ${tab}] profileId=${profileId} ids=`, ids);
       if (ids.length === 0) {
         if (tab === "saves") setSavedPosts([]);
         else setLikedPosts([]);
         return;
       }
-      // 2) qas + 작성자/원장/영상 + 모든 v4 필드 join
+      // 2) cards + 작성자/원장/영상 + 모든 v4 필드 join
       const { data: qas, error: qasErr } = await sb
         .from("cards")
         .select(
@@ -172,9 +171,8 @@ export default function ProfileTabs({
         )
         .in("id", ids);
       if (qasErr) {
-        console.error("[qas join for saves/likes]", qasErr);
+        console.error("[cards join for saves/likes]", qasErr);
       }
-      console.log(`[ProfileTabs ${tab}] fetched qas=`, qas?.length ?? 0);
       // 저장/좋아요 시간 순서 유지
       const map = new Map<number, CardData>();
       for (const q of qas ?? []) map.set((q as { id: number }).id, q as unknown as CardData);

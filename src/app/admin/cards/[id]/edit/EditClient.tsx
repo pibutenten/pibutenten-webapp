@@ -162,7 +162,7 @@ export default function EditClient({
   const [status, setStatus] = useState<Card["status"]>(card.status);
   const [isPick, setIsPick] = useState<boolean>(card.is_pick ?? false);
 
-  // 영상 정보 — qas.external_* 카드별 (videos 테이블 안 건드림)
+  // 영상 정보 — cards.external_* 카드별 (videos 테이블 안 건드림)
   const [externalUrl, setExternalUrl] = useState(card.external_url ?? "");
   const [externalTitle, setExternalTitle] = useState(card.external_title ?? "");
   const initialStartSec = extractStartSeconds(card.external_url ?? "");

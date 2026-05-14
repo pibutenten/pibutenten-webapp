@@ -1,5 +1,5 @@
 /**
- * 글 카테고리(post category) — qas.category 컬럼과 1:1 매핑.
+ * 글 카테고리(post category) — cards.category 컬럼과 1:1 매핑.
  *
  * v5.1+ spec 5개 체계:
  *   - qa     Q&A         의사 답변 (의사·관리자 전용, 인덱싱)
