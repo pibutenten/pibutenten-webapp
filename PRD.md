@@ -1,7 +1,24 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-14 (qas → cards 100% 완료 + 좋아요/저장/댓글 legacy trigger fix + 종합 검증)
-> 기준 commit: `8554626` (migration 0078: trigger/함수명 cosmetic rename, qa* 잔여 0)
+> 마지막 업데이트: 2026-05-14 후반 (점검 보고서 3차 + Pretendard self-host + 알림 시스템 풀세트)
+> 기준 commit: `a37e021`
+
+## 🆕 2026-05-14 후반 세션 작업 (commit 흐름)
+
+| commit | 내용 |
+|---|---|
+| `9b05d0a` | robots.txt/sitemap.xml 인덱싱 정책 fix + console.log·qas 주석 클린업 |
+| `8884a5b` | /notifications 충실화 (필터 6종·무한스크롤·migration 0079 url 컬럼) |
+| `8c1129d` | migration 0080 — '궁금해요' 알림 24h 지속 정책 (본인 답글로만 정리) |
+| `2dab205` | 점검 1차 P0+P1 (migration 0081 card_impressions GRANT, 0082 avatar https, 홈 H1, 의사 H1 중복, 한국어 띄어쓰기, hit area) |
+| `3028586` | /settings/notifications 신규 페이지 + NotificationsBell 개선 (visibilitychange, hover ×, 하단 링크) |
+| `3f88521` | /notifications 액션 (개별 × · 선택 모드 · 기간 필터) |
+| `c6f5316` | migration 0083 — 좋아요 N명 그룹화 (UPDATE 패턴) |
+| `81abda9` | PWA Push 풀스택 (migration 0084 + SW v2 + 3개 API + Toggle 컴포넌트 + web-push) |
+| `c4cbf36` | 점검 2차 (migration 0085 comments.author_id FK, 댓글 ID-스왑 fix, countByStatus type 필터, 회원 글 상세 댓글, disclaimer 라벨, 더미 cleanup) |
+| `f38122c` | Pretendard self-host (한글 폴백 문제 해결, next/font 우회) |
+| `a059974` | 점검 3차 P0 (글쓰기 ID-스왑 fix, revalidatePath, qa status 강제 fix, /admin metadata) |
+| `a37e021` | 점검 3차 P1 일부 (hydration error, youtube-oauth prefetch 차단) |
 
 ## 🚨 다음 세션 시작 시 우선 점검
 
@@ -13,6 +30,33 @@
 - [ ] **PWA Push 운영 설정** — VAPID 키 Vercel env 등록 + Supabase Database Webhook 등록
   - Vercel env: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_WEBHOOK_SECRET` (4개)
   - Supabase Dashboard → Database → Webhooks: notifications INSERT → POST https://pbtt.kr/api/push/send + 헤더 `x-pibutenten-push-secret`
+- [ ] **Production 배포 후 404 status 재확인** — dev 환경에서 200 응답 (Turbopack 특성), production curl 검증 필요
+
+### 🟡 점검 보고서 3차 잔여 P1 (다음 세션)
+- [ ] **/favicon.ico HTML 응답** — `app/favicon.ico` 정적 파일 또는 `app/icon.tsx`
+- [ ] **/manifest.json HTML 응답** — `app/manifest.json/route.ts` 301 → `/manifest.webmanifest`
+- [ ] **/write?type=qa URL 파라미터 무시** — searchParams.type 초기값 반영
+- [ ] **카테고리 토글 a11y** — `role="radiogroup"` + `aria-pressed`/`aria-checked`
+- [ ] **card-impressions 배치/디바운스** — 홈 1로드에 21건 → 묶어서 1건
+- [ ] **get_recent_card_likers N+1** — 카드 N개 RPC 호출 → 1회 batch RPC
+- [ ] **`<Image sizes>` 보정** — 의사 아바타 36px ↔ 표시 42px, supabase 이미지 28px ↔ 원본 512px
+- [ ] **PWA beforeinstallprompt 재호출** — preventDefault 후 보관 + 사용자 트리거 시 노출
+
+### 🟡 점검 보고서 P2/P3
+- [ ] 카드 상세 시맨틱 H2/H3 분리 (현재 H1만)
+- [ ] /doctors/{slug} JSON-LD를 `<main>` → `<head>`로 이동
+- [ ] /search hydration warning (SSR/CSR 헤딩 텍스트 일관성)
+- [ ] 12px 미만 폰트 42개 → 가독성 보정
+- [ ] /admin/doctors 그리드 → 테이블 통일 또는 토글
+- [ ] HTTP 보안 헤더 검토 (X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
+- [ ] URL 슬러그 정책 문서화 (`/doctors/...` vs `/{handle}/...` vs `/u/...`)
+- [ ] 폰트 최적화 — Pretendard variable subset(~301KB) 또는 dynamic subset 전환 (현재 static 4개 ~3MB)
+
+### 🟡 추후 점검 (보고서 7장 후속)
+- [ ] 모바일 실기기 검증 (iOS Safari A2HS·푸시·OAuth, Android Chrome FAB·키보드)
+- [ ] 카카오톡/페이스북 인앱 브라우저 OAuth 차단 검증
+- [ ] 깨진 PMID/DOI fallback UI (관리자 PMID 검증 도구 별도 작업)
+- [ ] Lighthouse·a11y·법무 자문
 
 ### 🟡 오픈 직후 (1주 내)
 - [ ] sitemap.xml / robots.txt / llms.txt 인덱싱 정책 검토 + 적용
