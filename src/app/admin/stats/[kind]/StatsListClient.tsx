@@ -184,66 +184,66 @@ export default function StatsListClient({
                 }
                 className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
               >
-                <div className="flex items-start gap-3 px-4 py-2.5">
-                  <span className="w-6 shrink-0 text-right text-xs tabular-nums text-[var(--text-muted)]">
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    {isVisitors ? (
-                      (() => {
-                        const row = visitorRow as VisitorRow;
-                        const name =
-                          row.display_name || row.handle || "(이름 없음)";
-                        return row.handle ? (
-                          <Link
-                            href={`/${row.handle}`}
-                            className="text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
-                          >
-                            {name}
-                          </Link>
-                        ) : (
-                          <span className="text-sm font-medium text-[var(--text)]">
-                            {name}
-                          </span>
-                        );
-                      })()
-                    ) : (
-                      (() => {
-                        const row = qaRow as QaRow;
-                        const qaHref = row.shortcode
-                          ? `/q/${row.shortcode}`
-                          : `/q/${row.qa_id}`;
-                        const displayName =
-                          row.author_name?.trim() ||
-                          row.author_handle?.trim() ||
-                          "(작성자 없음)";
-                        return (
-                          <div>
+                {/* 한 줄 레이아웃: 닉네임(좌, 고정폭) · 제목(가운데, truncate) · 카운트(우) */}
+                <div className="flex items-center gap-3 px-4 py-2">
+                  {isVisitors ? (
+                    (() => {
+                      const row = visitorRow as VisitorRow;
+                      const name =
+                        row.display_name || row.handle || "(이름 없음)";
+                      return (
+                        <div className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)]">
+                          {row.handle ? (
                             <Link
-                              href={qaHref}
-                              className="block truncate text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
-                              title={row.question ?? undefined}
+                              href={`/${row.handle}`}
+                              className="hover:text-[var(--primary)] hover:underline"
                             >
-                              {row.question || "(제목 없음)"}
+                              {name}
                             </Link>
-                            <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">
-                              {row.author_handle ? (
-                                <Link
-                                  href={`/${row.author_handle}`}
-                                  className="hover:underline"
-                                >
-                                  {displayName}
-                                </Link>
-                              ) : (
-                                displayName
-                              )}
-                            </div>
+                          ) : (
+                            name
+                          )}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    (() => {
+                      const row = qaRow as QaRow;
+                      const qaHref = row.shortcode
+                        ? `/q/${row.shortcode}`
+                        : `/q/${row.qa_id}`;
+                      const displayName =
+                        row.author_name?.trim() ||
+                        row.author_handle?.trim() ||
+                        "(작성자 없음)";
+                      return (
+                        <>
+                          {/* 닉네임 좌측 — 고정폭, 길면 truncate */}
+                          <div className="w-[88px] shrink-0 truncate text-[12px] text-[var(--text-muted)] sm:w-[120px]">
+                            {row.author_handle ? (
+                              <Link
+                                href={`/${row.author_handle}`}
+                                className="hover:underline"
+                              >
+                                {displayName}
+                              </Link>
+                            ) : (
+                              displayName
+                            )}
                           </div>
-                        );
-                      })()
-                    )}
-                  </div>
-                  <span className="shrink-0 self-center text-sm font-bold tabular-nums text-[var(--text)]">
+                          {/* 제목 — 남는 공간 차지, truncate */}
+                          <Link
+                            href={qaHref}
+                            className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
+                            title={row.question ?? undefined}
+                          >
+                            {row.question || "(제목 없음)"}
+                          </Link>
+                        </>
+                      );
+                    })()
+                  )}
+                  <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--text)]">
                     {isVisitors
                       ? (visitorRow as VisitorRow).visit_count.toLocaleString()
                       : (qaRow as QaRow).cnt.toLocaleString()}
