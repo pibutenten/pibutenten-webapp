@@ -45,7 +45,7 @@ export type QACardData = {
   rating_avg?: number;
   /** v4 — 평점 참여 수 */
   rating_count?: number;
-  type?: "qa" | "post" | "article" | "link";
+  type?: "qa" | "post" | "link";
   created_at?: string;
   /** 작성 당시 페르소나 — 'personal'이면 author.alt_* 우선 표시 */
   posted_as?: "official" | "personal";

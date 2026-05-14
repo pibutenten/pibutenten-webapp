@@ -6,7 +6,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Props = {
   qaId: number;
-  type: "qa" | "post" | "article";
+  type: "qa" | "post";
   initialTitle: string;
   initialBody: string;
   initialKeywords: string[];

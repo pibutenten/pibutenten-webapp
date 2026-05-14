@@ -12,7 +12,7 @@
  */
 export type QaUrlInput = {
   id: number;
-  /** v5.1: 'article' type 폐기. 'qa'/'post'/'link' 만 유효. */
+  /** 'qa' / 'post' / 'link' */
   type?: "qa" | "post" | "link" | string;
   /** DB enum: 'official' | 'personal'. 옛 'doctor'/'self' 값도 backward-compat으로 매핑. */
   posted_as?: "official" | "personal" | "doctor" | "self" | string | null;

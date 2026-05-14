@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic";
 // 어드민 전용 타입
 // ─────────────────────────────────────────────
 type QAStatus = "draft" | "pending_review" | "published" | "archived";
-type QAType = "qa" | "post" | "article";
-type TypeFilter = "qa" | "post" | "all"; // v4: 칼럼(article) UI에서 제거
+type QAType = "qa" | "post";
+type TypeFilter = "qa" | "post" | "all";
 type StatusFilter = QAStatus | "all";
 type CategoryFilter = "tip" | "diary" | "ask" | "link" | "all";
 
@@ -285,7 +285,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     doctor: doctorSlugParam || undefined,
   };
 
-  // v4: 칼럼(article)은 UI에서 제거. 타입은 포스팅·Q&A 두 종류.
+  // 타입 — 포스팅·Q&A 두 종류
   const TYPE_LIST: { key: TypeFilter; label: string }[] = [
     { key: "all", label: "전체 타입" },
     { key: "post", label: "포스팅" },

@@ -16,8 +16,6 @@ import { SITE_URL } from "@/lib/site";
  *  - /me/*, /admin/*, /onboarding, /write, /signup, /login
  *  - /api, /debug
  *  - SEO URL 구성 못 하는 의사 글(post_slug/post_year 누락)도 sitemap에서 제외
- *
- * v5.1: 칼럼(type='article') 폐기 — /article 라우트 제거됨.
  */
 
 export const revalidate = 3600; // 1시간마다 재생성

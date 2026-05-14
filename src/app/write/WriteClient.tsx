@@ -51,7 +51,7 @@ type Section = {
   image: string | null;
 };
 
-// v5.1: 'article'(칼럼) 폐기 — post/qa 만 지원.
+// post / qa 만 지원
 type WriteType = "post" | "qa";
 
 type Props = {

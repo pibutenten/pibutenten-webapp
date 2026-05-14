@@ -31,7 +31,7 @@ type ProfileRow = {
 
 type QaRow = {
   id: number;
-  type: "qa" | "post" | "article";
+  type: "qa" | "post";
   status: string;
   question: string;
   like_count: number | null;

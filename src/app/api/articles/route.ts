@@ -8,7 +8,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-// v5.1: 'article'(칼럼) 폐기 — post/qa 만 지원.
+// post / qa 만 지원
 type WriteType = "post" | "qa";
 
 type SubmitStatus = "draft" | "pending_review" | "published";
@@ -45,7 +45,6 @@ type Payload = {
  * 글쓰기 통합 엔드포인트.
  * - type='post' : 일반 글 (모든 로그인 유저). 즉시 published.
  * - type='qa' : 관리자/원장이 작성. status='pending_review'.
- * v5.1: 'article'(칼럼) 폐기됨.
  */
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
@@ -127,7 +126,7 @@ export async function POST(req: Request) {
   }
   // post는 doctor_id null
 
-  // 페르소나 컨텍스트 — post는 페르소나 따라 official/personal, qa·article은 항상 official
+  // 페르소나 컨텍스트 — post는 페르소나 따라 official/personal, qa는 항상 official
   const currentPersona = await readPersonaServer();
 
   // ── post_slug + post_year 자동 생성 (§2 SEO URL 정책) ─────────────

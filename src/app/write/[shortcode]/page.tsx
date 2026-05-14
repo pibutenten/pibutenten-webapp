@@ -14,7 +14,7 @@ type QaRow = {
   question: string;
   answer: string;
   keywords: string[] | null;
-  type: "qa" | "post" | "article";
+  type: "qa" | "post";
   status: string;
   author_id: string | null;
   doctor_id: string | null;
