@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import ProfileEditClient from "./ProfileEditClient";
+import NotificationPreferences from "@/components/NotificationPreferences";
 import {
   DEFAULT_VISIBILITY,
   type FieldVisibility,
@@ -109,7 +110,7 @@ export default async function MyProfilePage() {
   const isDoctorPrimary = profile.role === "doctor" && !activeIdentity;
 
   return (
-    <section className="mx-auto w-full max-w-[640px] py-6">
+    <section className="mx-auto w-full max-w-[640px] space-y-5 py-6">
       <ProfileEditClient
         userId={user.id}
         currentEmail={user.email ?? ""}
@@ -133,6 +134,8 @@ export default async function MyProfilePage() {
           fieldVisibility: profile.field_visibility ?? DEFAULT_VISIBILITY,
         }}
       />
+      {/* 알림 설정 — 모든 종류 on/off (doctor/admin 한정 항목은 자동 노출) */}
+      <NotificationPreferences role={profile.role} />
     </section>
   );
 }
