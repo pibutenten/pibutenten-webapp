@@ -172,6 +172,13 @@ export async function POST(req: Request) {
   } else {
     category = t === "qa" ? "qa" : "diary";
   }
+  // user role은 category='qa' 사용 불가 (type=post + category=qa 우회 차단)
+  if (category === "qa" && role !== "admin" && role !== "doctor") {
+    return NextResponse.json(
+      { error: "Q&A 카테고리는 원장 또는 관리자만 작성 가능합니다." },
+      { status: 403 },
+    );
+  }
 
   // v5.1: 카테고리 라벨은 카드 헤더(닉네임 밑) + 태그 칩 끝에 자동 표시.
   // 사용자가 카테고리 라벨을 keywords에 직접 입력했으면 중복 방지로 제거.
