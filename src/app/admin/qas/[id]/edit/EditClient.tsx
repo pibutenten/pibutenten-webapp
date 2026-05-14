@@ -178,6 +178,7 @@ export default function EditClient({
   });
   const [refPmidInput, setRefPmidInput] = useState("");
   const [refLoading, setRefLoading] = useState(false);
+  const [tagAutoLoading, setTagAutoLoading] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSave] = useTransition();
@@ -388,30 +389,29 @@ export default function EditClient({
           </div>
         </div>
 
-        {/* 영상 정보 — 카드별
-            E3: 영상 링크 편집 가능 + 저장 시 oEmbed로 제목 자동 채움
-            E4: YouTube 진입 버튼 제거 (외부 카드 형태로 통일) */}
+        {/* 외부 링크 — 카드별 (영상·블로그·릴스 등 무엇이든)
+            E3: 링크 편집 가능 + YouTube이면 oEmbed로 제목 자동 채움 */}
         <div className="space-y-3 rounded-md border border-[var(--border)] bg-[var(--bg-soft)]/40 p-3">
           <p className="text-xs font-semibold text-[var(--text-secondary)]">
-            🎬 영상 정보 (이 카드에만 적용)
+            🔗 외부 링크 (이 카드에만 적용)
           </p>
           <div>
             <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-              영상 링크 (YouTube URL — 입력 후 [↻] 클릭으로 제목 자동 채움)
+              외부 링크 URL <span className="text-[10px] text-[var(--text-muted)]">(영상·블로그·릴스 등. YouTube면 [↻]로 제목 자동 채움)</span>
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={externalUrl}
                 onChange={(e) => setExternalUrl(e.target.value)}
-                placeholder="https://youtu.be/..."
+                placeholder="https://..."
                 className="flex-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
               />
               <button
                 type="button"
                 onClick={fetchTitleFromYoutube}
                 disabled={oembedLoading || !baseVideoId}
-                title="YouTube에서 제목 가져오기"
+                title="YouTube에서 제목 가져오기 (YouTube URL일 때만)"
                 className="whitespace-nowrap rounded-md border border-[var(--border)] bg-white px-3 text-xs font-medium text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
               >
                 {oembedLoading ? "가져오는 중…" : "↻ 제목 가져오기"}
@@ -420,14 +420,14 @@ export default function EditClient({
           </div>
           <div>
             <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-              영상 제목 (readonly — oEmbed로 자동 채움)
+              링크 제목 <span className="text-[10px] text-[var(--text-muted)]">(YouTube면 oEmbed 자동, 그 외 수동 입력 가능)</span>
             </label>
             <input
               type="text"
               value={externalTitle}
-              readOnly
-              placeholder="(영상 링크 입력 후 [↻ 제목 가져오기] 클릭)"
-              className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--text-secondary)] outline-none"
+              onChange={(e) => setExternalTitle(e.target.value)}
+              placeholder="(YouTube면 [↻ 제목 가져오기] 또는 직접 입력)"
+              className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
             />
           </div>
           <div>
@@ -484,11 +484,46 @@ export default function EditClient({
           />
         </div>
 
-        {/* 키워드 */}
+        {/* 키워드 — 자동 추출(LLM) + 직접 입력 */}
         <div>
-          <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            태그
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="text-sm text-[var(--text-secondary)]">태그</label>
+            <button
+              type="button"
+              disabled={tagAutoLoading || (!question.trim() && !answer.trim())}
+              onClick={async () => {
+                setError(null);
+                setTagAutoLoading(true);
+                try {
+                  const res = await fetch("/api/admin/extract-keywords", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question, answer }),
+                  });
+                  const data = (await res.json()) as
+                    | { keywords: string[] }
+                    | { error: string };
+                  if (!res.ok || "error" in data) {
+                    setError("error" in data ? data.error : `추출 실패 (${res.status})`);
+                    return;
+                  }
+                  setKeywords((prev) => {
+                    const set = new Set(prev);
+                    for (const k of data.keywords) set.add(k);
+                    return Array.from(set);
+                  });
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "네트워크 오류");
+                } finally {
+                  setTagAutoLoading(false);
+                }
+              }}
+              title="질문·답변 본문에서 태그 자동 추출 (Claude)"
+              className="rounded-md border border-[var(--primary)] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-50"
+            >
+              {tagAutoLoading ? "추출 중…" : "✨ 자동 추출"}
+            </button>
+          </div>
           <div className="mb-2 flex flex-wrap gap-1.5">
             {keywords.map((k) => (
               <button
@@ -517,7 +552,7 @@ export default function EditClient({
                 setKeywordInput("");
               }
             }}
-            placeholder="태그 입력 후 Enter"
+            placeholder="태그 입력 후 Enter (또는 ✨ 자동 추출로 LLM 추천)"
             className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
           />
         </div>
@@ -547,15 +582,15 @@ export default function EditClient({
             <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-soft)]/40 p-3">
               <p className="mb-2 text-xs text-[var(--text-muted)]">
                 {pubmedRefs.length === 0
-                  ? "참고문헌 없음 — PMID를 입력해 PubMed에서 가져올 수 있습니다."
-                  : "참고문헌 추가 — PMID 입력 후 [+ PubMed에서 가져오기]"}
+                  ? "참고문헌 없음 — PubMed URL 또는 PMID를 입력해 자동으로 채울 수 있습니다."
+                  : "참고문헌 추가 — PubMed URL 또는 PMID 입력 후 [+ 삽입]"}
               </p>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={refPmidInput}
                   onChange={(e) => setRefPmidInput(e.target.value)}
-                  placeholder="PMID 숫자 (예: 37705328)"
+                  placeholder="https://pubmed.ncbi.nlm.nih.gov/37705328/ 또는 37705328"
                   className="flex-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
                 />
                 <button
@@ -565,14 +600,21 @@ export default function EditClient({
                     setError(null);
                     setRefLoading(true);
                     try {
+                      // PubMed URL 또는 PMID 숫자 모두 받기 — URL에서 마지막 숫자 추출
+                      const raw = refPmidInput.trim();
+                      const pmidMatch = raw.match(/(\d{6,9})/);
+                      if (!pmidMatch) {
+                        setError("PMID 숫자가 보이지 않습니다. PubMed URL 또는 PMID 숫자를 입력해 주세요.");
+                        setRefLoading(false);
+                        return;
+                      }
+                      const pmid = pmidMatch[1];
                       const res = await fetch(
                         "/api/admin/draft/pubmed-by-pmid",
                         {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            pmid: refPmidInput.trim(),
-                          }),
+                          body: JSON.stringify({ pmid }),
                         },
                       );
                       const data = (await res.json()) as
@@ -622,12 +664,11 @@ export default function EditClient({
                   }}
                   className="whitespace-nowrap rounded-md border border-[var(--primary)] bg-white px-3 py-2 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-50"
                 >
-                  {refLoading ? "조회 중…" : "+ PubMed에서 가져오기"}
+                  {refLoading ? "조회 중…" : "+ 삽입"}
                 </button>
               </div>
               <p className="mt-1 text-[10px] text-[var(--text-muted)]">
-                PMID는 PubMed 검색결과 URL 끝의 숫자 (예:
-                pubmed.ncbi.nlm.nih.gov/<b>37705328</b>/).
+                PubMed URL 또는 PMID 숫자(URL 끝의 6~9자리 숫자) 모두 인식.
               </p>
             </div>
           </div>
