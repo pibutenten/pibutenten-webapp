@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
 import WriteClient from "./WriteClient";
 
 export const dynamic = "force-dynamic";
@@ -18,27 +19,25 @@ export default async function WritePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/write");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, display_name, birthdate")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!profile) redirect("/login?error=프로필을 찾을 수 없습니다");
+  // Phase 9: active identity 기반 role 결정 (cookie 'pibutenten:identity').
+  // 같은 사람의 admin/doctor/user profile 묶음에서 cookie로 선택된 active만 권한 인정.
+  // 예: 배정민(admin) + 배스킨(user 부계정) → 배스킨 cookie active 시 role='user'.
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx?.active) redirect("/login?error=프로필을 찾을 수 없습니다");
 
-  const role = (profile.role ?? "user") as "admin" | "doctor" | "user";
+  const role = (idCtx.active.role ?? "user") as "admin" | "doctor" | "user";
+  const displayName = idCtx.active.displayName ?? "";
 
-  // 추가정보(생년월일 등) 강제 X — /me 배너로만 자율 안내
-
-  // 원장 본인 매핑
+  // 원장 본인 매핑 — active identity의 doctor_id로 조회
   let myDoctor: { slug: string; name: string } | null = null;
-  if (role === "doctor") {
-    const { data: da } = await supabase
-      .from("doctor_accounts")
-      .select("doctor:doctors(slug, name)")
-      .eq("profile_id", user.id)
+  if (role === "doctor" && idCtx.active.doctorId) {
+    const { data: d } = await supabase
+      .from("doctors")
+      .select("slug, name")
+      .eq("id", idCtx.active.doctorId)
       .maybeSingle()
-      .returns<{ doctor: { slug: string; name: string } | null } | null>();
-    myDoctor = da?.doctor ?? null;
+      .returns<{ slug: string; name: string } | null>();
+    myDoctor = d ?? null;
   }
 
   // 관리자/qa용 원장 목록
@@ -57,7 +56,7 @@ export default async function WritePage() {
       role={role}
       myDoctor={myDoctor}
       doctors={doctors}
-      displayName={profile.display_name ?? ""}
+      displayName={displayName}
     />
   );
 }
