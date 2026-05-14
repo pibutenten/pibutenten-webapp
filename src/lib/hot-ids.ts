@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
  * HOT Q&A ID Set — 좋아요×2 + 조회수에 90일 반감기 가중, 상위 N개.
- * Supabase RPC `get_hot_qa_ids` 사용.
+ * Supabase RPC `get_hot_card_ids` 사용.
  * React cache로 동일 요청 내 중복 호출 dedupe.
  *
  * 주의: Next.js의 unstable_cache 내부에서는 cookies()를 사용하는
@@ -11,7 +11,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  */
 export const getHotQaIds = cache(async (limit = 20): Promise<Set<number>> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("get_hot_qa_ids", {
+  const { data, error } = await supabase.rpc("get_hot_card_ids", {
     p_limit: limit,
   });
   if (error || !data) return new Set();
@@ -20,7 +20,7 @@ export const getHotQaIds = cache(async (limit = 20): Promise<Set<number>> => {
       if (typeof row === "number") return row;
       if (row && typeof row === "object") {
         const r = row as Record<string, unknown>;
-        const v = r.id ?? r.get_hot_qa_ids ?? Object.values(r)[0];
+        const v = r.id ?? r.get_hot_card_ids ?? Object.values(r)[0];
         return typeof v === "number" ? v : Number(v);
       }
       return Number(row);

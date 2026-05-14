@@ -23,8 +23,8 @@ export default function PickToggle({ qaId, initial }: Props) {
     startTransition(async () => {
       const supabase = createSupabaseBrowserClient();
       const next = !pick;
-      const { error } = await supabase.rpc("toggle_qa_pick", {
-        p_qa_id: qaId,
+      const { error } = await supabase.rpc("toggle_card_pick", {
+        p_card_id: qaId,
         p_pick: next,
       });
       if (error) {

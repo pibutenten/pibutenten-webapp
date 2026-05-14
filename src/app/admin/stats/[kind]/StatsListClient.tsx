@@ -209,9 +209,11 @@ export default function StatsListClient({
                   ) : (
                     (() => {
                       const row = qaRow as QaRow;
-                      const qaHref = row.shortcode
-                        ? `/q/${row.shortcode}`
-                        : `/q/${row.card_id}`;
+                      // 공개 카드 URL = /{handle}/{shortcode}. handle/shortcode 없으면 admin edit 로 폴백
+                      const qaHref =
+                        row.author_handle && row.shortcode
+                          ? `/${row.author_handle}/${row.shortcode}`
+                          : `/admin/cards/${row.card_id}/edit`;
                       const displayName =
                         row.author_name?.trim() ||
                         row.author_handle?.trim() ||

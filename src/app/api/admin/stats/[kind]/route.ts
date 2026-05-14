@@ -6,11 +6,11 @@ export const dynamic = "force-dynamic";
 
 const KIND_RPCS: Record<string, string> = {
   visitors: "get_top_visitors",
-  views: "get_top_qas_by_views",
-  comments: "get_top_qas_by_comments",
-  likes: "get_top_qas_by_likes",
-  saves: "get_top_qas_by_saves",
-  shares: "get_top_qas_by_shares",
+  views: "get_top_cards_by_views",
+  comments: "get_top_cards_by_comments",
+  likes: "get_top_cards_by_likes",
+  saves: "get_top_cards_by_saves",
+  shares: "get_top_cards_by_shares",
 };
 
 const ALLOWED_DAYS = new Set([1, 7, 30, 90, 365, 0]);

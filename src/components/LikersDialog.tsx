@@ -47,8 +47,8 @@ export default function LikersDialog({ qaId, open, onClose, qaType }: Props) {
     (async () => {
       try {
         const sb = createSupabaseBrowserClient();
-        const { data } = await sb.rpc("get_recent_likers", {
-          p_qa_id: qaId,
+        const { data } = await sb.rpc("get_recent_card_likers", {
+          p_card_id: qaId,
           p_limit: FETCH_LIMIT,
         });
         if (cancelled) return;

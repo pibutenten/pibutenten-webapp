@@ -25,11 +25,11 @@ const KIND_TITLES: Record<Kind, string> = {
 
 const KIND_RPCS: Record<Kind, string> = {
   visitors: "get_top_visitors",
-  views: "get_top_qas_by_views",
-  comments: "get_top_qas_by_comments",
-  likes: "get_top_qas_by_likes",
-  saves: "get_top_qas_by_saves",
-  shares: "get_top_qas_by_shares",
+  views: "get_top_cards_by_views",
+  comments: "get_top_cards_by_comments",
+  likes: "get_top_cards_by_likes",
+  saves: "get_top_cards_by_saves",
+  shares: "get_top_cards_by_shares",
 };
 
 const ALLOWED_KINDS: Kind[] = [

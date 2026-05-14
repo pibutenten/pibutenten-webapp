@@ -141,7 +141,7 @@ export default function ProfileTabs({
     if (tab === "likes" && likedPosts !== null) return;
     (async () => {
       const sb = createSupabaseBrowserClient();
-      const table = tab === "saves" ? "qa_saves" : "qa_likes";
+      const table = tab === "saves" ? "card_saves" : "card_likes";
       // 1) 내가 저장/좋아요한 card_id 목록
       const { data: rows, error: rowsErr } = await sb
         .from(table)

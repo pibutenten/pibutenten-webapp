@@ -423,8 +423,8 @@ export default function QACard({
       setSaveCount((c) => (wasSaved ? Math.max(0, c - 1) : c + 1));
       // v5.1+ identity 기반 RPC (PK=(identity_id, card_id))
       const activeIdentityId = getActiveIdentityId();
-      const { data, error } = await supabase.rpc("toggle_qa_save", {
-        p_qa_id: qa.id,
+      const { data, error } = await supabase.rpc("toggle_card_save", {
+        p_card_id: qa.id,
         p_identity_id: activeIdentityId,
       });
       if (error) {
@@ -534,8 +534,8 @@ export default function QACard({
 
     (async () => {
       try {
-        const { data, error } = await supabase.rpc("toggle_qa_like", {
-          p_qa_id: qa.id,
+        const { data, error } = await supabase.rpc("toggle_card_like", {
+          p_card_id: qa.id,
           p_identity_id: getActiveIdentityId(),
         });
         if (error) throw error;
@@ -1268,8 +1268,8 @@ export default function QACard({
           onClick={async () => {
             await shareQA(qa);
             const supabase = createSupabaseBrowserClient();
-            const { data } = await supabase.rpc("increment_qa_share", {
-              p_qa_id: qa.id,
+            const { data } = await supabase.rpc("increment_card_share", {
+              p_card_id: qa.id,
             });
             if (typeof data === "number") setShareCount(data);
             // qa_shares 이벤트 로그 (관리자 KPI '공유' 카운트용) — fail silent

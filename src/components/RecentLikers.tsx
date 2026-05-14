@@ -52,8 +52,8 @@ export default function RecentLikers({
     async function load() {
       try {
         const sb = createSupabaseBrowserClient();
-        const { data, error } = await sb.rpc("get_recent_likers", {
-          p_qa_id: qaId,
+        const { data, error } = await sb.rpc("get_recent_card_likers", {
+          p_card_id: qaId,
           p_limit: maxAvatars,
         });
         if (cancelled) return;
