@@ -12,25 +12,26 @@ const HIDDEN_PREFIXES = ["/write", "/onboarding", "/signup", "/login"];
 
 /**
  * 우하단 플로팅 글쓰기 버튼 (Threads 스타일).
- * - 로그인 사용자만 노출
+ * - 로그인/비로그인 모두 노출 — 비로그인은 클릭 시 /login?next=/write로 유도
  * - 글쓰기/온보딩 등 자기 자신 맥락 페이지에서는 숨김
  * - iOS safe-area 대응
+ * - 색상: 로고 primary(#5FA8D3)보다 한 단계 연한 톤 (#8BC3DE) — 부담스럽지 않게
  */
 export default function FloatingWriteButton({ hasSession }: Props) {
   const pathname = usePathname() || "";
-  if (!hasSession) return null;
   if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
+  const href = hasSession ? "/write" : "/login?next=/write";
   return (
     <Link
-      href="/write"
+      href={href}
       aria-label="글쓰기"
-      className="floating-write fixed z-40 flex items-center justify-center rounded-full text-white shadow-[0_8px_20px_rgba(95,168,211,0.35)] transition-all hover:shadow-[0_10px_24px_rgba(95,168,211,0.45)] active:scale-95"
+      className="floating-write fixed z-40 flex items-center justify-center rounded-full text-white shadow-[0_8px_20px_rgba(139,195,222,0.35)] transition-all hover:shadow-[0_10px_24px_rgba(139,195,222,0.45)] active:scale-95"
       style={{
         bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
         right: "20px",
         width: 56,
         height: 56,
-        backgroundColor: "#5FA8D3",
+        backgroundColor: "#8BC3DE",
       }}
     >
       <svg

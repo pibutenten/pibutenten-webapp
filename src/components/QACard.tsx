@@ -390,16 +390,15 @@ export default function QACard({
   // ⚠️ 모든 경로에서 setSavePending(false)로 풀어야 다음 클릭이 막히지 않음.
   async function handleSave() {
     if (typeof window === "undefined") return;
+    // 미로그인 → 로그인 페이지로 (좋아요와 동일 패턴, me state 활용)
+    if (!me) {
+      router.push("/login?next=" + encodeURIComponent(window.location.pathname));
+      return;
+    }
     if (savePending) return;
     setSavePending(true);
     try {
       const supabase = createSupabaseBrowserClient();
-      const { data: u } = await supabase.auth.getUser();
-      const userId = u.user?.id;
-      if (!userId) {
-        router.push("/login?next=" + encodeURIComponent(window.location.pathname));
-        return;
-      }
       const wasSaved = saved;
       // 낙관적
       setSaved(!wasSaved);
