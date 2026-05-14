@@ -486,14 +486,14 @@ function CommentItem({
         {profileLink ? (
           <Link
             href={profileLink}
-            className="font-bold text-[var(--text)] hover:text-[var(--primary)] hover:underline"
+            className="whitespace-nowrap font-bold text-[var(--text)] hover:text-[var(--primary)] hover:underline"
             style={dimmed ? { color: "#888" } : undefined}
           >
             {displayName}
           </Link>
         ) : (
           <span
-            className="font-bold text-[var(--text)]"
+            className="whitespace-nowrap font-bold text-[var(--text)]"
             style={dimmed ? { color: "#888" } : undefined}
           >
             {displayName}

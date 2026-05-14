@@ -397,9 +397,14 @@ export default async function DoctorDetailPage({ params }: Props) {
               </p>
             )}
             <div className="mt-auto pt-5">
-              <h1 className="text-3xl font-bold text-[var(--text)]">
+              {/* 모바일 h1과 동일 텍스트 — SEO/스크린리더는 모바일 layout의 h1만 노출.
+                  데스크탑은 시각 표시만 동일하게 (div, aria-hidden) — H1 중복 방지. */}
+              <div
+                aria-hidden="true"
+                className="text-3xl font-bold text-[var(--text)]"
+              >
                 {doctor.name}
-              </h1>
+              </div>
               <p className="mt-1 text-[14px] font-medium text-[var(--text-secondary)]">
                 {affiliation}
               </p>

@@ -327,7 +327,9 @@ export default function TopNav({ session }: TopNavProps) {
                 : pathname.startsWith(item.href));
 
             const baseCls =
-              "flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium transition-colors";
+              // WCAG 2.5.5 — 모바일 hit area 최소 44×44px 보장.
+              // 모바일은 p-3(12px) → 20px icon + 24px = 44px. 데스크탑은 p-2(8px) 유지 (텍스트로 폭 확보됨).
+              "flex min-h-[44px] items-center gap-1.5 rounded-md p-3 text-[14px] font-medium transition-colors sm:min-h-0 sm:p-2";
             const activeCls = isActive
               ? "text-[var(--primary)]"
               : "text-[var(--text-secondary)] hover:text-[var(--primary)]";
@@ -389,7 +391,7 @@ export default function TopNav({ session }: TopNavProps) {
           ) : (
             <Link
               href="/login"
-              className="flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
+              className="flex min-h-[44px] items-center gap-1.5 rounded-md p-3 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)] sm:min-h-0 sm:p-2"
               title="로그인"
             >
               {UserIcon}

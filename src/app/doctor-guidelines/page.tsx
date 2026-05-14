@@ -124,8 +124,8 @@ export default function DoctorGuidelinesPage() {
         </p>
         <ol className="list-decimal space-y-1 pl-5">
           <li>
-            <strong>질문 요지 정리</strong> — 어떤 점이 궁금한 상황인지 일반화
-            하여 정리
+            <strong>질문 요지 정리</strong> — 어떤 점이 궁금한 상황인지
+            일반화하여 정리
           </li>
           <li>
             <strong>일반적인 의학 정보 설명</strong> — 해당 증상·시술·질환에

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
@@ -111,6 +112,17 @@ export default function LoginForm({ next, error: initialError }: Props) {
           {isPending ? "로그인 중…" : "로그인"}
         </button>
       </form>
+
+      {/* 회원가입 안내 — 신규 사용자가 막히지 않도록 명시적 진입 */}
+      <p className="text-center text-sm text-[var(--text-secondary)]">
+        처음이신가요?{" "}
+        <Link
+          href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
+          className="font-semibold text-[var(--primary)] hover:underline"
+        >
+          회원가입
+        </Link>
+      </p>
     </div>
   );
 }

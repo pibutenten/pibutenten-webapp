@@ -188,8 +188,8 @@ export default async function AboutPage() {
             <strong className="font-semibold text-[var(--text)]">
               전문의 답변
             </strong>{" "}
-            — 피부과 전문의가 직접 작성·검수한 콘텐츠입니다. 의사 회원의 답변·
-            칼럼 작성은{" "}
+            — 피부과 전문의가 직접 작성·검수한 콘텐츠입니다. 의사
+            회원의 답변·칼럼 작성은{" "}
             <Link
               href="/doctor-guidelines"
               className="text-[var(--primary)] hover:underline"
@@ -231,8 +231,8 @@ export default async function AboutPage() {
             않습니다. 시술 결정 전 반드시 의료진과 직접 상담하시기 바랍니다.
           </p>
           <p className="mb-3">
-            본 서비스는 개별 회원에 대한 진단·처방·치료를 위한 의료상담을 제공
-            하지 않습니다. 전문의 답변은 같은 질문을 가진 모든 독자에게 도움이
+            본 서비스는 개별 회원에 대한 진단·처방·치료를 위한 의료상담을
+            제공하지 않습니다. 전문의 답변은 같은 질문을 가진 모든 독자에게 도움이
             되도록 일반 의학 정보 형태로 제공되며, 특정 회원의 증상을 진단하거나
             치료방법을 결정하기 위한 것이 아닙니다.
           </p>

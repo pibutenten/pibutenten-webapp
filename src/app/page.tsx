@@ -102,6 +102,10 @@ export default async function FeedPage() {
 
   return (
     <section className="pt-1 sm:pt-2">
+      {/* SEO/접근성 — 시각 표시는 헤더 로고가 담당, 스크린리더/봇용 H1 1개 보장 */}
+      <h1 className="sr-only">
+        피부텐텐 — 피부과 전문의가 답하는 피부 Q&A 라운지
+      </h1>
       {error && (
         <div className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           Q&A 불러오기 실패: {error.message}

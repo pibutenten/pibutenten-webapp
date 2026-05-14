@@ -97,10 +97,14 @@ export async function GET(request: NextRequest) {
   //   profiles.avatar_url 비어 있을 때만 채움 (사용자가 온보딩에서 선택한 아바타는 보존)
   if (profile && !profile.avatar_url) {
     const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-    const oauthAvatar =
+    let oauthAvatar =
       (typeof meta.avatar_url === "string" && meta.avatar_url) ||
       (typeof meta.picture === "string" && meta.picture) ||
       null;
+    // Mixed Content 방지: 카카오 등 일부 OAuth provider가 http URL을 반환할 때 https로 강제 업그레이드.
+    if (oauthAvatar && oauthAvatar.startsWith("http://")) {
+      oauthAvatar = "https://" + oauthAvatar.slice(7);
+    }
     if (oauthAvatar) {
       try {
         await supabase
