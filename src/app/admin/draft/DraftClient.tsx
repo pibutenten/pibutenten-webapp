@@ -752,8 +752,8 @@ export default function DraftClient() {
             className="w-full rounded-md bg-[var(--primary)] py-2.5 font-semibold text-white transition-opacity disabled:opacity-50"
           >
             {stage === "publishing"
-              ? "검수발행 중…"
-              : `Step 4. 검수발행 (${cards.length}개)`}
+              ? "원장님 검수 전송 중…"
+              : `Step 4. 원장님 검수 전송 (${cards.length}개)`}
           </button>
           <p className="text-center text-[11px] text-[var(--text-muted)]">
             검수 보낸 카드는 원장님 검수 대시보드에서 확인·발행됩니다.
