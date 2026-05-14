@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_KR } from "next/font/google";
 import Script from "next/script";
 import TopNav, { type SessionInfo } from "@/components/TopNav";
 import ScrollManager from "@/components/ScrollManager";
@@ -12,12 +11,9 @@ import { SITE_URL } from "@/lib/site";
 import { allClinicsSchema } from "@/lib/schema/clinic";
 import "./globals.css";
 
-const notoSansKR = Noto_Sans_KR({
-  variable: "--font-noto-sans-kr",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
+// Pretendard variable font — self-host via @font-face in globals.css.
+// Next.js 16 turbopack + next/font/local의 'target.css' resolve 이슈로 인해
+// next/font 우회. globals.css의 @font-face로 직접 등록 + preload는 <link> 태그.
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -191,10 +187,18 @@ export default async function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${notoSansKR.variable} h-full antialiased`}
+      className="h-full antialiased"
       suppressHydrationWarning
     >
       <head>
+        {/* Pretendard Regular (400) — preload (self-host, FOUT 최소화) */}
+        <link
+          rel="preload"
+          href="/fonts/Pretendard-Regular.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
         {/* F5/리로드 시 브라우저 스크롤 자동복원 끄기 — 페이지 페인트 전에 실행 */}
         <Script id="scroll-restoration" strategy="beforeInteractive">
           {`if ('scrollRestoration' in history) history.scrollRestoration = 'manual';`}

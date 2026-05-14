@@ -1,5 +1,46 @@
 @import "tailwindcss";
 
+/* ========== Pretendard font (self-host static weights) ==========
+ * npm 'pretendard' 패키지의 static woff2 4개 weight: Regular(400)/Medium(500)/SemiBold(600)/Bold(700).
+ * variable subset은 npm 패키지에 미포함이라 static 사용.
+ * Next 16 turbopack + next/font/local의 target.css resolve 이슈로 직접 @font-face 작성.
+ * font-display: swap으로 FOUT 최소화. preload는 Regular(가장 자주 쓰임) 1개만.
+ */
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/Pretendard-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/Pretendard-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/Pretendard-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/Pretendard-Bold.woff2") format("woff2");
+}
+
+:root {
+  --font-pretendard: "Pretendard", -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Segoe UI",
+    system-ui, sans-serif;
+}
+
 /* ========== 피부텐텐 디자인 토큰 ========== */
 :root {
   /* 메인 액션 — 하늘색 (남색 대신).
@@ -45,8 +86,9 @@
   --color-primary-dark: var(--primary-dark);
   --color-secondary: var(--secondary);
   --color-border-token: var(--border);
-  --font-sans: var(--font-noto-sans-kr), -apple-system, BlinkMacSystemFont,
-    "Segoe UI", system-ui, sans-serif;
+  --font-sans: var(--font-pretendard), -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Segoe UI",
+    system-ui, sans-serif;
 }
 
 * {
@@ -72,8 +114,9 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-noto-sans-kr), -apple-system, BlinkMacSystemFont,
-    "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-pretendard), -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Segoe UI",
+    system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
