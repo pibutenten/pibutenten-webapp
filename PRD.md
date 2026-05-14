@@ -1,9 +1,42 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-14 (qas → cards 100% 정리 완성 — DB/코드/타입/제약/enum 모두)
-> 기준 commit: Phase 4 완료 (migrations 0072~0076 + 코드 일괄 rename)
+> 마지막 업데이트: 2026-05-14 (qas → cards 100% 완료 + 좋아요/저장/댓글 legacy trigger fix + 종합 검증)
+> 기준 commit: `8554626` (migration 0078: trigger/함수명 cosmetic rename, qa* 잔여 0)
 
-## 🆕 2026-05-14 작업 일괄 (현재 세션)
+## 🚨 다음 세션 시작 시 우선 점검
+
+### 🔴 오픈 직전 (필수, 확인 필요)
+- [ ] **Naver OAuth 검수 결과** — 2026-05-13 제출, 3-7영업일. 진행/완료 여부 확인
+- [ ] **Supabase Pro 업그레이드** ($25/mo) — 오픈 전 활성화. 자동 백업·DB 백업 기간 늘림
+- [ ] **/privacy /terms 법무 검토** — 베타 안정화 후 변호사 자문. 현재 자체 작성 상태
+- [ ] **카카오 OAuth 모드** — 개발중 vs 검수완료 확인
+
+### 🟡 오픈 직후 (1주 내)
+- [ ] sitemap.xml / robots.txt / llms.txt 인덱싱 정책 검토 + 적용
+- [ ] Vercel Analytics 4xx/5xx 모니터링 알림 설정
+- [ ] 첫 회원 사용자 피드백 수집 채널 마련 (Google Form / DM)
+- [ ] 의사 9명 onboarding 가이드 1:1 안내
+
+### 🟢 Phase 2 — 알림 시스템 확장 (미진행)
+- [ ] PWA Push Notification (락스크린 토스트) — VAPID key + Service Worker subscription
+- [ ] 이메일 다이제스트 (주 1회 미확인 알림 요약) — Resend or similar
+- [ ] 알림 전체 페이지 `/notifications` 충실화 (디렉토리는 이미 존재)
+- [ ] 좋아요 N명 묶기 추가 grouping
+
+### 🟢 Phase 2 — Q&A 추출 파이프라인
+- [ ] YouTube OAuth 토큰 만료 모니터링 (테스트 모드 7일 만료 → 정식 OAuth 갱신)
+- [ ] 추출 자동화 (cron) — 신규 영상 감지 + 자동 추출
+- [ ] LLM 다중 출연 화자 인식 정확도 모니터링
+
+### 🟢 코드 클린업 (cosmetic)
+- [ ] 주석 잔여 `qa_id`, `qas` 텍스트 (기능 영향 0, 가독성만)
+- [ ] `console.log` 4곳 (운영 진단용, 운영 안정 후 제거)
+- [ ] `scripts/` 60+개 + `scripts_phase7/` 1회성 마이그레이션 도구 아카이브
+- [ ] PostgreSQL FK `qa_likes_qa_id_fkey` 등 일부 FK 제약명 추가 점검 (0075에서 대부분 처리됨)
+
+---
+
+## 🆕 2026-05-14 작업 일괄 (마지막 세션)
 
 ### 1) qas → cards 전면 rename — 3 phase 완료 (Option C)
 
@@ -46,11 +79,21 @@
   - 로컬 변수 `qa` → `card`, `qaId` → `cardId`, `qaIds` → `cardIds`, `byQa` → `byCard`
   - EditClient `qa` prop → `card`, `deleteQA` → `deleteCard`, `shareQA` → `shareCard`
 
-#### 완전 정리 — 잔여 0
-- DB: 모든 테이블/컬럼/인덱스/제약명/함수명/함수body/trigger 모두 cards 일관
+#### Phase 5 — Legacy trigger fix + 좋아요/저장/댓글 복구 (migrations 0077~0078)
+- **0077** 폐기된 컬럼·enum 참조하는 옛 trigger 4개 DROP
+  - `on_qa_like_added` (`kind='qa_like'` 미존재 enum + `NEW.identity_id`/`actor_identity_id` 폐기 컬럼) — **좋아요/저장 안 됨 직접 원인**
+  - `on_comment_added`, `on_comment_created` (`actor_identity_id`)
+  - `on_qa_published` (legacy 포인트 시스템, 미사용)
+  - 신규 trigger(`on_qa_like_for_notification` / `on_comment_for_notification`)이 동일 책임 수행
+- **0078** trigger/함수명 cosmetic rename (qa* → card*) — `inspect_functions.py` 결과 잔여 0
+
+#### Phase 6 — 종합 검증
+- **모든 페이지 37개 200 응답 확인** (public/admin/static)
+- **/api 12개 엔드포인트 정상 응답 확인** (200 또는 의도된 401)
+- DB: 테이블/컬럼/인덱스/FK/함수명/함수body/trigger 모두 cards 일관
 - 코드: 변수명/타입명/Supabase query alias/prop 모두 card 일관
-- compat view 0개
-- enum qa_type 값: `'qa' | 'post'` 만 (article 물리 제거됨)
+- compat view 0개, enum 'article' 0건
+- iOS bell dropdown 좁은 화면 대응 (min(320px, calc(100vw-16px)))
 
 ### 2) 알림 시스템 구축 (migration 0062 + 0063)
 - 6종 trigger: `comment` / `reply` / `like` (24h debounce) / `new_ask` (모든 원장) / `review_request` / `published`
