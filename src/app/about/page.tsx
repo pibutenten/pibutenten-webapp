@@ -303,17 +303,11 @@ export default async function AboutPage() {
 
       <div className="mt-10 flex flex-wrap gap-2 text-[13px]">
         <Link
-          href="/"
-          className="rounded-md bg-[var(--text-secondary)] px-4 py-2 font-semibold text-white hover:bg-[var(--text)]"
-          style={{ color: "#FFFFFF" }}
+          href="/about"
+          aria-current="page"
+          className="rounded-md border border-[var(--primary)]/40 bg-[var(--primary-soft)] px-4 py-2 font-semibold text-[var(--primary)]"
         >
-          홈으로
-        </Link>
-        <Link
-          href="/doctors"
-          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-        >
-          전문의
+          사이트 안내
         </Link>
         <Link
           href="/terms"

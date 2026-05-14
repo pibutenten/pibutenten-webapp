@@ -182,23 +182,10 @@ export default function DoctorGuidelinesPage() {
         <p>주식회사 진솔컴퍼니</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
-            href="/"
-            className="rounded-md bg-[var(--text-secondary)] px-4 py-2 font-semibold text-white hover:bg-[var(--text)]"
-            style={{ color: "#FFFFFF" }}
-          >
-            홈으로
-          </Link>
-          <Link
             href="/about"
             className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
           >
             사이트 안내
-          </Link>
-          <Link
-            href="/doctors"
-            className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-          >
-            전문의
           </Link>
           <Link
             href="/terms"
@@ -211,6 +198,13 @@ export default function DoctorGuidelinesPage() {
             className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
           >
             개인정보 처리방침
+          </Link>
+          <Link
+            href="/doctor-guidelines"
+            aria-current="page"
+            className="rounded-md border border-[var(--primary)]/40 bg-[var(--primary-soft)] px-4 py-2 font-semibold text-[var(--primary)]"
+          >
+            의사 답변 가이드라인
           </Link>
         </div>
       </footer>
