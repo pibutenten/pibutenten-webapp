@@ -90,8 +90,8 @@ export default function Feed({
         setHasMore(false);
         return;
       }
-      const data = (await res.json()) as { qas: CardData[] };
-      const next = data.qas ?? [];
+      const data = (await res.json()) as { cards: CardData[] };
+      const next = data.cards ?? [];
       setItems((prev) => [...prev, ...next]);
       if (next.length < ps) setHasMore(false);
     } catch {

@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
   const supabase = await createSupabaseServerClient();
 
-  // 항상 search_qas_scored RPC 사용
+  // 항상 search_cards_scored RPC 사용
   const res = await supabase.rpc("search_cards_scored", {
     p_q: q,
     p_doctor_slug: doctorSlug || null,
@@ -38,7 +38,7 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json(
-    { qas: data ?? [] },
+    { cards: data ?? [] },
     { headers: { "cache-control": "no-store" } },
   );
 }
