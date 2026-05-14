@@ -143,6 +143,13 @@ export default function InstallPrompt({ signedIn }: Props) {
       const plat = detectPlatform();
       if (plat === "other") return; // 데스크탑은 노출 안 함
       setPlatform(plat);
+      // 재호출 보강: head Script 가 보관 중인 deferred event 가 있으면 다시 끌어와
+      // [설치] 버튼이 자동 prompt() 를 띄우도록 한다 — 이전에 dismiss 후 Chrome 이
+      // beforeinstallprompt 를 재발사한 케이스에서도 정상 동작.
+      if (window.__pibutenten_bip) {
+        deferredRef.current = window.__pibutenten_bip;
+        setHasDeferred(true);
+      }
       setShow(true);
     };
     window.addEventListener("pibutenten:install-show", onForceShow);
@@ -234,7 +241,13 @@ export default function InstallPrompt({ signedIn }: Props) {
   }, []);
 
   const install = useCallback(async () => {
-    const dp = deferredRef.current;
+    // 재호출 보강: deferredRef 가 비어 있어도 head Script 가 보관 중일 수 있으므로
+    // 한 번 더 window.__pibutenten_bip 을 조회한다. (dismiss 후 Chrome 이 재발사한 케이스)
+    let dp = deferredRef.current;
+    if (!dp && typeof window !== "undefined" && window.__pibutenten_bip) {
+      dp = window.__pibutenten_bip;
+      deferredRef.current = dp;
+    }
     if (dp) {
       try {
         await dp.prompt();

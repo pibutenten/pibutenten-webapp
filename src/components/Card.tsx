@@ -27,6 +27,7 @@ import {
 } from "@/lib/youtube-time";
 import { labelForCategory } from "@/lib/post-category";
 import { pickHighlight } from "@/lib/card-highlight";
+import { enqueueImpression } from "@/lib/impression-queue";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 export type CardData = {
@@ -196,46 +197,19 @@ export default function Card({
   const doctor = card.doctor;
   const isPick = PICK_IDS.has(card.id);
 
-  // 노출(impression) +1 — 카드가 피드에 등장하면 즉시 (session 1회 dedup).
+  // 노출(impression) +1 — 큐에 enqueue (session 1회 dedup은 sessionStorage로 차단).
   // 조회(view)와 분리: 노출 = 단순 등장, 조회 = 의도 신호.
   // engagement rate = view_count / impression_count 로 인기도 평가 가능.
   // DB trigger(0048)가 cards.impression_count 자동 +1.
+  // 배치: enqueueImpression이 800ms 디바운스로 모아 1회 INSERT (홈 21건 → 1건).
+  // 방문자 분리 집계 — active identity의 profile.id를 user_id로 저장 (큐 모듈 내부에서 결정).
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (forceExpanded) return; // 단독 페이지는 피드 노출과 무관
     const impKey = `pibutenten:imp:${card.id}`;
     if (sessionStorage.getItem(impKey)) return;
     sessionStorage.setItem(impKey, "1");
-
-    let sessionId = sessionStorage.getItem("pibutenten:sid");
-    if (!sessionId) {
-      sessionId =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      sessionStorage.setItem("pibutenten:sid", sessionId);
-    }
-
-    (async () => {
-      try {
-        const sb = createSupabaseBrowserClient();
-        const {
-          data: { user },
-        } = await sb.auth.getUser();
-        // 방문자 분리 집계 — active identity의 profile.id를 user_id로 저장.
-        // cookie 'pibutenten:identity'가 UUID면 그 profile, 'primary'면 base profile.
-        // 같은 묶음 내라도 ID 전환 시 다른 사용자로 카운트됨 (좋아요/저장/댓글과 동일 정책).
-        const activeId = getActiveIdentityId();
-        const userId = user ? (activeId ?? user.id) : null;
-        await sb.from("card_impressions").insert({
-          card_id: card.id,
-          user_id: userId,
-          session_id: sessionId,
-        });
-      } catch {
-        // 트래킹 실패는 UX 영향 X — silent
-      }
-    })();
+    enqueueImpression(card.id);
   }, [card.id, forceExpanded]);
 
   // 조회수 +1 helper — 의도 신호일 때만 호출.
@@ -901,7 +875,9 @@ export default function Card({
                   src={authorAvatar}
                   alt={authorName}
                   fill
-                  sizes="36px"
+                  // 표시 컨테이너는 36px 기본이지만 일부 레이아웃에서 42px까지 확대됨.
+                  // DPR 2x를 고려해 srcSet에서 한 단계 큰 사이즈를 선택하도록 여유 보정.
+                  sizes="48px"
                   className="object-cover"
                   unoptimized={!doctor || isPersonalPost}
                   style={

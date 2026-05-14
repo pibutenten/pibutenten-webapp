@@ -59,6 +59,8 @@ type Props = {
   myDoctor: { slug: string; name: string } | null;
   doctors: Doctor[];
   displayName: string;
+  /** /write?category=... 또는 /write?type=qa 로 진입 시 초기 카테고리 */
+  initialCategory?: PostCategorySlug;
 };
 
 const TYPE_LABEL: Record<WriteType, string> = {
@@ -82,6 +84,7 @@ export default function WriteClient({
   myDoctor,
   doctors,
   displayName,
+  initialCategory,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -91,7 +94,12 @@ export default function WriteClient({
   //   - doctor·admin: + qa
   // 내부 type은 category에서 자동 파생 (qa → 'qa', 그 외 → 'post').
   const availableCategories = categoriesForRole(role);
-  const [category, setCategory] = useState<PostCategorySlug>("diary");
+  // initialCategory가 role 권한에 맞는지 한 번 더 검증 후 채택. 부적합 시 'diary' 폴백.
+  const safeInitial: PostCategorySlug =
+    initialCategory && availableCategories.some((c) => c.slug === initialCategory)
+      ? initialCategory
+      : "diary";
+  const [category, setCategory] = useState<PostCategorySlug>(safeInitial);
   const type: WriteType = category === "qa" ? "qa" : "post";
   const allowedTypes: WriteType[] = []; // type 토글 UI 제거 (호환용 더미)
 
@@ -554,13 +562,22 @@ export default function WriteClient({
           </label>
           {/* 모바일에서 5개 카테고리 한 줄 유지 — flex-nowrap + 가로 스크롤.
               칩 shrink-0 + whitespace-nowrap로 줄바꿈 방지. 데스크탑은 flex-wrap. */}
-          <div className="-mx-1 flex flex-nowrap gap-1.5 overflow-x-auto px-1 sm:flex-wrap sm:gap-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            role="radiogroup"
+            aria-label="카테고리"
+            className="-mx-1 flex flex-nowrap gap-1.5 overflow-x-auto px-1 sm:flex-wrap sm:gap-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {availableCategories.map((c) => {
               const selected = c.slug === category;
               return (
                 <button
                   key={c.slug}
                   type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  aria-label={c.label}
+                  // 라디오 그룹: 비선택 항목은 키보드 탭 순서에서 제외, 선택 항목만 tabIndex=0
+                  tabIndex={selected ? 0 : -1}
                   onClick={() => changeCategory(c.slug)}
                   className={
                     "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors sm:px-3.5 " +

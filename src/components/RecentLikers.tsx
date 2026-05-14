@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { fetchRecentLikersBatch } from "@/lib/likers-batch";
 import LikersDialog from "@/components/LikersDialog";
 
 type Liker = {
@@ -51,22 +51,15 @@ export default function RecentLikers({
     let cancelled = false;
     async function load() {
       try {
-        const sb = createSupabaseBrowserClient();
-        const { data, error } = await sb.rpc("get_recent_card_likers", {
-          p_card_id: cardId,
-          p_limit: maxAvatars,
-        });
+        const rows = await fetchRecentLikersBatch(cardId, maxAvatars);
         if (cancelled) return;
-        if (error || !data) {
-          setLikers([]);
-          return;
-        }
-        setLikers(data as Liker[]);
+        setLikers(rows as Liker[]);
       } catch {
         if (!cancelled) setLikers([]);
       }
     }
-    // 즉시 한 번 + 좋아요 INSERT 반영 위해 500ms 후 한 번 더 (idempotent refetch)
+    // 즉시 한 번 + 좋아요 INSERT 반영 위해 500ms 후 한 번 더 (idempotent refetch).
+    // 각 호출은 모듈 큐가 80ms 디바운스로 모아 1회 batch RPC 로 전송 — 카드 N장이면 최대 2회 RPC.
     load();
     const t = setTimeout(load, 500);
     return () => {
@@ -140,6 +133,21 @@ export default function RecentLikers({
   );
 }
 
+/**
+ * supabase storage URL 에 transformation query 만 추가 (path 는 유지).
+ *  - 정적 자산(/doctors/*.png)·외부 호스팅: 그대로 반환
+ *  - supabase /storage/v1/object/...: ?width=&height= query 추가
+ *      (Free 플랜은 query 무시하여 원본 그대로 — regression 0)
+ *      (Pro 플랜에 image transformation 활성화 시 thumb 변환 적용)
+ *  path 자체를 /render/image/ 로 바꾸면 Free 에서 404 가능 — 위험 회피.
+ */
+function withImageTransform(url: string, size: number): string {
+  if (!url) return url;
+  if (!url.includes("/storage/v1/object/")) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}width=${size}&height=${size}&resize=cover`;
+}
+
 function LikerAvatar({ liker }: { liker: Liker }) {
   const initial = (liker.display_name ?? "?").slice(0, 1);
   const href = liker.handle ? `/${liker.handle}` : null;
@@ -147,10 +155,17 @@ function LikerAvatar({ liker }: { liker: Liker }) {
   const avatarBox =
     "block h-7 w-7 shrink-0 rounded-full border-2 border-white bg-[var(--bg-soft)]";
   const inner = liker.avatar_url ? (
+    // 28px(h-7 w-7) 표시 — DPR 2x 대응으로 56px transform 요청.
+    // supabase storage 호스팅 이미지면 transform query 가 적용 (Pro 플랜 시),
+    // 정적 자산(/doctors/*.png)·외부 URL은 query 무시되어 원본 반환.
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={liker.avatar_url}
+      src={withImageTransform(liker.avatar_url, 56)}
       alt={liker.display_name ?? "회원"}
+      width={28}
+      height={28}
+      loading="lazy"
+      decoding="async"
       className={avatarBox + " object-cover"}
     />
   ) : (

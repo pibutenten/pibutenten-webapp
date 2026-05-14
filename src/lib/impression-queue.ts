@@ -1,0 +1,122 @@
+/**
+ * card_impressions 배치 큐.
+ *
+ * 동기:
+ *  - 홈 1로드에 21장 카드가 마운트 → 기존엔 카드별 1건씩 21회 INSERT.
+ *  - 모듈 단위 큐로 모은 뒤 800ms 디바운스 + visibilitychange flush 로 한 번에 INSERT.
+ *
+ * 정책:
+ *  - dedup: 같은 card_id가 짧은 시간 내 2번 enqueue 되면 1번만 전송.
+ *  - user/session: 한 번 결정되면 페이지 lifetime 동안 캐시.
+ *  - 실패: silent (UX 영향 없음).
+ */
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getActiveIdentityId } from "@/lib/active-identity";
+
+const FLUSH_DELAY_MS = 800;
+
+let pending: Set<number> = new Set();
+let timer: ReturnType<typeof setTimeout> | null = null;
+let userIdResolved = false;
+let userId: string | null = null;
+let sessionId: string | null = null;
+let flushing = false;
+let attached = false;
+
+function getOrCreateSessionId(): string {
+  if (sessionId) return sessionId;
+  if (typeof window === "undefined") return "";
+  let sid = sessionStorage.getItem("pibutenten:sid");
+  if (!sid) {
+    sid =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem("pibutenten:sid", sid);
+  }
+  sessionId = sid;
+  return sid;
+}
+
+async function resolveUserId(): Promise<string | null> {
+  if (userIdResolved) return userId;
+  try {
+    const sb = createSupabaseBrowserClient();
+    const {
+      data: { user },
+    } = await sb.auth.getUser();
+    const activeId = getActiveIdentityId();
+    userId = user ? (activeId ?? user.id) : null;
+  } catch {
+    userId = null;
+  } finally {
+    userIdResolved = true;
+  }
+  return userId;
+}
+
+async function flush(): Promise<void> {
+  if (flushing) return;
+  if (pending.size === 0) return;
+  flushing = true;
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
+  // 스냅샷 — 이번 flush 분량만 처리. 이후 enqueue는 다음 cycle.
+  const cardIds = Array.from(pending);
+  pending = new Set<number>();
+  try {
+    const uid = await resolveUserId();
+    const sid = getOrCreateSessionId();
+    const rows = cardIds.map((card_id) => ({
+      card_id,
+      user_id: uid,
+      session_id: sid,
+    }));
+    const sb = createSupabaseBrowserClient();
+    await sb.from("card_impressions").insert(rows);
+  } catch {
+    // silent
+  } finally {
+    flushing = false;
+    if (pending.size > 0) {
+      // flush 도중 새로 enqueue 된 항목이 있으면 다시 예약
+      schedule();
+    }
+  }
+}
+
+function schedule(): void {
+  if (typeof window === "undefined") return;
+  if (timer) return;
+  timer = setTimeout(() => {
+    timer = null;
+    void flush();
+  }, FLUSH_DELAY_MS);
+}
+
+function attachLifecycleListeners(): void {
+  if (attached) return;
+  if (typeof window === "undefined") return;
+  attached = true;
+  // 페이지 이탈 시 강제 flush — keepalive fetch는 supabase-js가 자체 처리.
+  const onHide = () => {
+    if (pending.size > 0) void flush();
+  };
+  window.addEventListener("pagehide", onHide);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") onHide();
+  });
+}
+
+/**
+ * Card.tsx 마운트 시 호출. session 1회 dedup은 호출자 측 책임 (sessionStorage).
+ */
+export function enqueueImpression(cardId: number): void {
+  if (typeof window === "undefined") return;
+  if (!Number.isFinite(cardId)) return;
+  attachLifecycleListeners();
+  pending.add(cardId);
+  schedule();
+}

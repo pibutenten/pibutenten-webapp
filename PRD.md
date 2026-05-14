@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-14 야간 (profile.id 일원화 + Pretendard + 알림 풀세트 + PWA Push 자동화)
-> 기준 commit: `01060a0`
+> 마지막 업데이트: 2026-05-14 야간 — 점검 보고서 3차 잔여 P1 8건 완료
+> 기준 commit: `975f6c3`
 
 ## 🎯 핵심 모델 — Phase 9 묶음 (확정)
 
@@ -41,6 +41,8 @@
 | `9081e93` | PRD 업데이트 |
 | `a9dbda4` | **PWA Push 운영 자동화** (Vercel env 4종 + migration 0086 pg_net trigger) + 방문자/조회/공유 active profile.id 통일 + 대시보드 spacing |
 | `01060a0` | **profile.id 일원화** — 의사 9명 avatar 동기화, write isAuthor 묶음 인지, migration 0087 활동통계 펼침 RPC |
+| `975f6c3` | PRD 정리 + Phase 9 핵심 모델 + PWA Push 자동화 완료 표시 |
+| (다음) | **점검 3차 잔여 P1 8건** — favicon.ico, /manifest.json 301, /write?type 초기값, 카테고리 a11y, impression 배치 큐, likers batch RPC(0088), Image sizes 보정, beforeinstallprompt 재호출 |
 
 ## 🚨 다음 세션 시작 시 우선 점검
 
@@ -56,15 +58,15 @@
 - [ ] **Production 배포 후 검증** — 다음 deploy부터 PWA Push env 반영. 실제 알림 발송 테스트
 - [ ] **Production 404 status 재확인** — dev 환경 200 응답은 Turbopack 특성. `curl -I https://pbtt.kr/존재안하는URL`로 검증
 
-### 🟡 점검 보고서 3차 잔여 P1 (다음 세션)
-- [ ] **/favicon.ico HTML 응답** — `app/favicon.ico` 정적 파일 또는 `app/icon.tsx`
-- [ ] **/manifest.json HTML 응답** — `app/manifest.json/route.ts` 301 → `/manifest.webmanifest`
-- [ ] **/write?type=qa URL 파라미터 무시** — searchParams.type 초기값 반영
-- [ ] **카테고리 토글 a11y** — `role="radiogroup"` + `aria-pressed`/`aria-checked`
-- [ ] **card-impressions 배치/디바운스** — 홈 1로드에 21건 → 묶어서 1건
-- [ ] **get_recent_card_likers N+1** — 카드 N개 RPC 호출 → 1회 batch RPC
-- [ ] **`<Image sizes>` 보정** — 의사 아바타 36px ↔ 표시 42px, supabase 이미지 28px ↔ 원본 512px
-- [ ] **PWA beforeinstallprompt 재호출** — preventDefault 후 보관 + 사용자 트리거 시 노출
+### 🟢 점검 보고서 3차 잔여 P1 — 8건 모두 완료 (commit 다음)
+- [x] **/favicon.ico HTML 응답** — `src/app/favicon.ico` ICO 파일(16/32/48 멀티 사이즈) 추가
+- [x] **/manifest.json HTML 응답** — `src/app/manifest.json/route.ts` 301 → `/manifest.webmanifest`
+- [x] **/write?type=qa URL 파라미터 무시** — page.tsx searchParams 파싱 → WriteClient initialCategory prop, role 권한 검증 (qa는 doctor/admin만)
+- [x] **카테고리 토글 a11y** — WriteClient `role="radiogroup"` + 각 칩 `role="radio"` `aria-checked` `tabIndex` (선택만 0, 나머지 -1)
+- [x] **card-impressions 배치/디바운스** — `src/lib/impression-queue.ts` 모듈 큐 (800ms 디바운스 + visibilitychange flush). 홈 21건 → 1건 INSERT
+- [x] **get_recent_card_likers N+1 → batch RPC** — migration 0088 `get_recent_card_likers_batch(bigint[], int)`, `src/lib/likers-batch.ts` 클라이언트 큐 (80ms 디바운스). 카드 N장 → 최대 2회 RPC
+- [x] **`<Image sizes>` 보정** — Card.tsx 의사 아바타 sizes "36px" → "48px" (DPR 2x), RecentLikers `<img>` 28px width/height 명시 + lazy/async + supabase storage URL transform query
+- [x] **PWA beforeinstallprompt 재호출** — install()/onForceShow에서 deferredRef null 시 `window.__pibutenten_bip` 재로드 (Chrome dismiss 후 재발사 케이스 대응)
 
 ### 🟡 점검 보고서 P2/P3
 - [ ] 카드 상세 시맨틱 H2/H3 분리 (현재 H1만)
