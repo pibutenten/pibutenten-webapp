@@ -69,6 +69,14 @@ export default async function PostEditPage({ params }: Props) {
     .returns<QaRow>();
   if (!qa) notFound();
 
+  // Phase 9 묶음 내 모든 profile.id 수집 — author_id가 묶음 안 어떤 profile이든 본인으로 인정.
+  // (이전 버그: qa.author_id === user.id 만 비교 → 묶음의 alt profile로 쓴 글은 본인 글 인정 안 됨)
+  const { data: myProfiles } = await supabase
+    .from("profiles")
+    .select("id")
+    .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
+  const myProfileIds = new Set((myProfiles ?? []).map((p) => p.id as string));
+
   // 본인 doctor_id (doctor 본인 글 권한 체크용)
   let myDoctorId: string | null = null;
   if (profile.role === "doctor") {
@@ -81,9 +89,9 @@ export default async function PostEditPage({ params }: Props) {
     myDoctorId = da?.doctor_id ?? null;
   }
 
-  // 권한 체크
+  // 권한 체크 — author_id가 묶음 안 어떤 profile이든 isAuthor=true
   const isAdmin = profile.role === "admin";
-  const isAuthor = qa.author_id === user.id;
+  const isAuthor = !!qa.author_id && myProfileIds.has(qa.author_id);
   const isDoctorOfQa = !!myDoctorId && qa.doctor_id === myDoctorId;
   const canEdit = isAdmin || isAuthor || isDoctorOfQa;
   if (!canEdit) {

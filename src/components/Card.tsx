@@ -1280,12 +1280,15 @@ export default function Card({
               p_card_id: card.id,
             });
             if (typeof data === "number") setShareCount(data);
-            // qa_shares 이벤트 로그 (관리자 KPI '공유' 카운트용) — fail silent
+            // card_shares 이벤트 로그 (관리자 KPI '공유' 카운트용) — fail silent
+            // active identity 분리 집계 — 같은 묶음 ID 전환 시 별도 user로 카운트
             try {
               const { data: { user } } = await supabase.auth.getUser();
+              const activeId = getActiveIdentityId();
+              const userId = user ? (activeId ?? user.id) : null;
               await supabase.from("card_shares").insert({
                 card_id: card.id,
-                user_id: user?.id ?? null,
+                user_id: userId,
                 channel: "link",
               });
             } catch { /* noop */ }

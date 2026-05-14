@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 /**
  * /admin/stats/{kind} 공통 무한 스크롤 클라이언트.
@@ -246,11 +247,25 @@ export default function StatsListClient({
                       );
                     })()
                   )}
-                  <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--text)]">
-                    {isVisitors
-                      ? (visitorRow as VisitorRow).visit_count.toLocaleString()
-                      : (cardRow as CardRow).cnt.toLocaleString()}
-                  </span>
+                  {/* 카운트 — likes/saves/shares/views는 클릭 시 활동한 사용자 펼침.
+                      visitors/comments는 펼침 없음 (visitors는 한 사람 카운트, comments는 이미 펼침). */}
+                  {!isVisitors &&
+                  (kind === "likes" ||
+                    kind === "saves" ||
+                    kind === "shares" ||
+                    kind === "views") ? (
+                    <ActivityCountButton
+                      cardId={(cardRow as CardRow).card_id}
+                      kind={kind}
+                      count={(cardRow as CardRow).cnt}
+                    />
+                  ) : (
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--text)]">
+                      {isVisitors
+                        ? (visitorRow as VisitorRow).visit_count.toLocaleString()
+                        : (cardRow as CardRow).cnt.toLocaleString()}
+                    </span>
+                  )}
                 </div>
 
                 {/* 댓글 항상 펼침 — comments kind 한정 */}
@@ -323,6 +338,117 @@ function CommentsBlock({ comments }: { comments: CommentSummary[] }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * 활동 카운트 버튼 — 클릭 시 그 카드의 활동 사용자 N명 inline 펼침.
+ * likes/saves/shares/views 한정 (visitors/comments는 별도 패턴).
+ */
+type ActivityUser = {
+  profile_id: string;
+  display_name: string | null;
+  handle: string | null;
+  avatar_url: string | null;
+  acted_at: string;
+};
+
+function ActivityCountButton({
+  cardId,
+  kind,
+  count,
+}: {
+  cardId: number;
+  kind: "likes" | "saves" | "shares" | "views";
+  count: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [users, setUsers] = useState<ActivityUser[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && users === null) {
+      setLoading(true);
+      try {
+        const sb = createSupabaseBrowserClient();
+        const { data } = await sb.rpc("get_card_activity_users", {
+          p_card_id: cardId,
+          p_kind: kind,
+          p_limit: 30,
+        });
+        setUsers((data ?? []) as ActivityUser[]);
+      } finally {
+        setLoading(false);
+      }
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="shrink-0 rounded px-2 py-0.5 text-sm font-bold tabular-nums text-[var(--text)] hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
+        title="클릭하면 활동한 사용자를 펼쳐서 봅니다"
+      >
+        {count.toLocaleString()}
+      </button>
+      {open && (
+        <ActivityUsersInline
+          users={users}
+          loading={loading}
+          count={count}
+        />
+      )}
+    </>
+  );
+}
+
+function ActivityUsersInline({
+  users,
+  loading,
+  count,
+}: {
+  users: ActivityUser[] | null;
+  loading: boolean;
+  count: number;
+}) {
+  return (
+    <div className="basis-full border-t border-[var(--border)] bg-slate-50 px-4 py-2 -mx-4 mt-2">
+      {loading || users === null ? (
+        <p className="text-[11px] text-[var(--text-muted)]">불러오는 중…</p>
+      ) : users.length === 0 ? (
+        <p className="text-[11px] text-[var(--text-muted)]">활동한 사용자가 없습니다.</p>
+      ) : (
+        <div className="flex flex-wrap gap-x-2 gap-y-1 text-[12px]">
+          {users.map((u) => {
+            const name =
+              u.display_name?.trim() || u.handle?.trim() || "(이름 없음)";
+            return u.handle ? (
+              <Link
+                key={u.profile_id}
+                href={`/${u.handle}`}
+                className="text-[var(--text-secondary)] hover:text-[var(--primary)] hover:underline"
+              >
+                {name}
+              </Link>
+            ) : (
+              <span key={u.profile_id} className="text-[var(--text-secondary)]">
+                {name}
+              </span>
+            );
+          })}
+          {count > users.length && (
+            <span className="text-[var(--text-muted)]">
+              외 {(count - users.length).toLocaleString()}명
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
