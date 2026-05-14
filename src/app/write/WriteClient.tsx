@@ -771,8 +771,28 @@ export default function WriteClient({
           </div>
         )}
 
-        {/* 액션 — 일반인은 발행만, 원장/관리자는 저장 + 검수(관리자만) + 발행 */}
+        {/* 액션 — 좌→우: 초기화 / 저장 / 검수 요청(admin만) / 올리기 */}
         <div className="flex flex-wrap items-center justify-center gap-2 border-t border-[var(--border)] pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              if (!title.trim() && !body.trim() && keywords.length === 0 && !externalUrl.trim()) return;
+              if (!confirm("작성 중인 내용을 모두 지우고 새로 시작할까요?")) return;
+              setTitle("");
+              setBody("");
+              setKeywords([]);
+              setKeywordInput("");
+              setExternalUrl("");
+              setExternalMeta(null);
+              setFirstComment("");
+              setReferences([""]);
+              setError(null);
+            }}
+            disabled={pending}
+            className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
+          >
+            초기화
+          </button>
           {role !== "user" && (
             <button
               type="button"
@@ -794,26 +814,6 @@ export default function WriteClient({
               검수 요청
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              if (!title.trim() && !body.trim() && keywords.length === 0 && !externalUrl.trim()) return;
-              if (!confirm("작성 중인 내용을 모두 지우고 새로 시작할까요?")) return;
-              setTitle("");
-              setBody("");
-              setKeywords([]);
-              setKeywordInput("");
-              setExternalUrl("");
-              setExternalMeta(null);
-              setFirstComment("");
-              setReferences([""]);
-              setError(null);
-            }}
-            disabled={pending}
-            className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
-          >
-            초기화
-          </button>
           <button
             type="button"
             onClick={() => handleSubmit("published")}
