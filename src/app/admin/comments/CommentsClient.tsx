@@ -18,7 +18,7 @@ export type CommentRow = {
   id: string;
   body: string;
   created_at: string;
-  qa_id: string;
+  card_id: string;
   qa: { question: string | null; shortcode: string | null } | null;
   author: { handle: string | null; display_name: string | null } | null;
 };
@@ -40,13 +40,13 @@ function buildGroups(rows: CommentRow[]): Group[] {
     const qaTitle = r.qa?.question?.trim() || "(제목 없음)";
     const qaHref = r.qa?.shortcode
       ? `/q/${r.qa.shortcode}`
-      : `/q/${r.qa_id}`;
-    const existing = map.get(r.qa_id);
+      : `/q/${r.card_id}`;
+    const existing = map.get(r.card_id);
     if (existing) {
       existing.comments.push(r);
     } else {
-      map.set(r.qa_id, {
-        qaId: r.qa_id,
+      map.set(r.card_id, {
+        qaId: r.card_id,
         qaTitle,
         qaHref,
         latestAt: r.created_at,

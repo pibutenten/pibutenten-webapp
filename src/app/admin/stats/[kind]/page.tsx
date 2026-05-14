@@ -91,27 +91,27 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
         // eslint-disable-next-line react-hooks/purity -- server component, request-time
         : new Date(Date.now() - days * 86400_000).toISOString();
     const qaIds = (rows as QaRow[])
-      .map((r) => r.qa_id)
+      .map((r) => r.card_id)
       .filter((id): id is number => typeof id === "number");
     if (qaIds.length > 0) {
       const { data: comments } = await supabase
         .from("comments")
         .select(
-          "id, qa_id, body, created_at, parent_id, author_id, author:profiles!comments_author_id_fkey(display_name, handle)",
+          "id, card_id, body, created_at, parent_id, author_id, author:profiles!comments_author_id_fkey(display_name, handle)",
         )
-        .in("qa_id", qaIds)
+        .in("card_id", qaIds)
         .eq("status", "visible")
         .gte("created_at", since)
         .order("created_at", { ascending: true });
       const byQa = new Map<number, unknown[]>();
       for (const c of comments ?? []) {
-        const qaId = (c as { qa_id: number }).qa_id;
+        const qaId = (c as { card_id: number }).card_id;
         if (!byQa.has(qaId)) byQa.set(qaId, []);
         byQa.get(qaId)!.push(c);
       }
       rows = (rows as QaRow[]).map((r) => ({
         ...r,
-        comments: byQa.get(r.qa_id) ?? [],
+        comments: byQa.get(r.card_id) ?? [],
       })) as QaRow[];
     }
   }

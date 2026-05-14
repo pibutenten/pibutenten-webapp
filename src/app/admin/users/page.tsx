@@ -97,7 +97,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   const postCountMap = new Map<string, number>();
   if (allIds.length > 0) {
     const { data: counts } = await supabase
-      .from("qas")
+      .from("cards")
       .select("author_id")
       .in("author_id", allIds);
     for (const r of counts ?? []) {

@@ -84,7 +84,7 @@ export default async function HomePage({ searchParams }: Props) {
   if (categorySlug) {
     // 카테고리 직접 필터 — 본문 매칭 대신 category 컬럼만
     rpcRes = await supabase
-      .from("qas")
+      .from("cards")
       .select(
         `id, question, answer, meta, keywords, like_count, view_count, save_count,
          rating_avg, rating_count, type, posted_as, post_year, post_slug,
@@ -159,7 +159,7 @@ export default async function HomePage({ searchParams }: Props) {
   let count: number | null = null;
   if (q && !error) {
     let countQuery = supabase
-      .from("qas")
+      .from("cards")
       .select("id", { count: "exact", head: true })
       .eq("published", true);
     const words = q.split(/\s+/).filter((w) => w.length > 0);

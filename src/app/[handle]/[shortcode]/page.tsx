@@ -36,7 +36,7 @@ async function fetchQa(
   try {
     const supabase = await createSupabaseServerClient();
     const { data } = await supabase
-      .from("qas")
+      .from("cards")
       .select(
         `
         id, question, answer, meta, keywords, type, created_at, updated_at, posted_as,

@@ -58,7 +58,7 @@ async function fetchPostsForTag(
 
   // count 는 RPC가 limit 까지만 주므로 별도 조회 (인덱싱 조건 동일)
   const { count } = await supabase
-    .from("qas")
+    .from("cards")
     .select("id", { count: "exact", head: true })
     .eq("status", "published")
     .eq("posted_as", "official")

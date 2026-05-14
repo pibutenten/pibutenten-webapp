@@ -98,7 +98,7 @@ export default async function DoctorDetailPage({ params }: Props) {
   const qas = (rpcRes.data ?? []) as QACardData[];
   // 카운트는 별도 쿼리
   const cRes = await supabase
-    .from("qas")
+    .from("cards")
     .select("id", { count: "exact", head: true })
     .eq("published", true)
     .eq("doctor_id", doctor.id);
@@ -146,29 +146,29 @@ export default async function DoctorDetailPage({ params }: Props) {
       // 누적 카운트 기준. 기간 토글은 다음 세션 RPC 작업으로 분리됨.
       const [pubQa, pen, pubPost, drf, sumsRes] = await Promise.all([
         supabase
-          .from("qas")
+          .from("cards")
           .select("id", { count: "exact", head: true })
           .eq("doctor_id", doctor.id)
           .eq("type", "qa")
           .eq("status", "published"),
         supabase
-          .from("qas")
+          .from("cards")
           .select("id", { count: "exact", head: true })
           .eq("doctor_id", doctor.id)
           .eq("status", "pending_review"),
         supabase
-          .from("qas")
+          .from("cards")
           .select("id", { count: "exact", head: true })
           .eq("doctor_id", doctor.id)
           .eq("type", "post")
           .eq("status", "published"),
         supabase
-          .from("qas")
+          .from("cards")
           .select("id", { count: "exact", head: true })
           .eq("doctor_id", doctor.id)
           .eq("status", "draft"),
         supabase
-          .from("qas")
+          .from("cards")
           .select("like_count, save_count, share_count, comment_count")
           .eq("doctor_id", doctor.id)
           .eq("status", "published"),
@@ -230,7 +230,7 @@ export default async function DoctorDetailPage({ params }: Props) {
   // 본인 접속 시 — 내 글에 달린 최근 댓글 (처리해야 할 것들)
   type RecentCommentRow = {
     id: number;
-    qa_id: number;
+    card_id: number;
     body: string;
     created_at: string;
     author: {
@@ -245,9 +245,9 @@ export default async function DoctorDetailPage({ params }: Props) {
     const { data: rc } = await supabase
       .from("comments")
       .select(
-        `id, qa_id, body, created_at,
+        `id, card_id, body, created_at,
          author:profiles!comments_author_id_fkey(display_name, avatar_url, handle),
-         qa:qas!inner(question, shortcode, doctor_id)`,
+         qa:cards!inner(question, shortcode, doctor_id)`,
       )
       .eq("qa.doctor_id", doctor.id)
       .eq("status", "visible")
@@ -574,7 +574,7 @@ function DoctorCommentsWidget({
 }: {
   comments: Array<{
     id: number;
-    qa_id: number;
+    card_id: number;
     body: string;
     created_at: string;
     author: {

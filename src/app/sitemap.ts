@@ -56,7 +56,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // 발행된 글 — 의사가 작성한 것만 (UGC 회원 글은 제외 위해 doctor_id 기준)
     const { data: qas } = await supabase
-      .from("qas")
+      .from("cards")
       .select(
         "id, created_at, doctor_id, post_year, post_slug, doctor:doctors(slug)",
       )

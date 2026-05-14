@@ -248,7 +248,7 @@ export default function EditClient({
       const metaStr = JSON.stringify(metaObj);
 
       const { error: upErr } = await supabase
-        .from("qas")
+        .from("cards")
         .update({
           question: question.trim(),
           // D4: 답변 본문 빈 줄 자동 제거 (단락 구분 유지)
@@ -293,7 +293,7 @@ export default function EditClient({
     startSave(async () => {
       const supabase = createSupabaseBrowserClient();
       const { error: delErr } = await supabase
-        .from("qas")
+        .from("cards")
         .delete()
         .eq("id", qa.id);
       if (delErr) {

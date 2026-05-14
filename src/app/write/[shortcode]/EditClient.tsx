@@ -62,7 +62,7 @@ export default function EditClient({
     startTransition(async () => {
       const sb = createSupabaseBrowserClient();
       const { error: updErr } = await sb
-        .from("qas")
+        .from("cards")
         .update({
           question: title.trim(),
           answer: body.trim(),

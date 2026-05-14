@@ -48,7 +48,7 @@ type CommentRow = {
   id: number;
   body: string;
   created_at: string;
-  qa_id: number;
+  card_id: number;
   qa: {
     id: number;
     question: string;
@@ -142,17 +142,17 @@ export default function ProfileTabs({
     (async () => {
       const sb = createSupabaseBrowserClient();
       const table = tab === "saves" ? "qa_saves" : "qa_likes";
-      // 1) 내가 저장/좋아요한 qa_id 목록
+      // 1) 내가 저장/좋아요한 card_id 목록
       const { data: rows, error: rowsErr } = await sb
         .from(table)
-        .select("qa_id, created_at")
+        .select("card_id, created_at")
         .eq("user_id", profileId)
         .order("created_at", { ascending: false })
         .limit(50);
       if (rowsErr) {
         console.error(`[${table} list]`, rowsErr);
       }
-      const ids = (rows ?? []).map((r) => (r as { qa_id: number }).qa_id);
+      const ids = (rows ?? []).map((r) => (r as { card_id: number }).card_id);
       console.log(`[ProfileTabs ${tab}] profileId=${profileId} ids=`, ids);
       if (ids.length === 0) {
         if (tab === "saves") setSavedPosts([]);
@@ -161,7 +161,7 @@ export default function ProfileTabs({
       }
       // 2) qas + 작성자/원장/영상 + 모든 v4 필드 join
       const { data: qas, error: qasErr } = await sb
-        .from("qas")
+        .from("cards")
         .select(
           `id, question, answer, meta, keywords, like_count, view_count, save_count, rating_avg, rating_count,
            type, posted_as, post_year, post_slug, shortcode, category, hide_doctor_credential, created_at,
@@ -203,8 +203,8 @@ export default function ProfileTabs({
       const query = sb
         .from("comments")
         .select(
-          `id, body, created_at, qa_id,
-           qa:qas(id, question, type, post_year, post_slug, shortcode, posted_as,
+          `id, body, created_at, card_id,
+           qa:cards(id, question, type, post_year, post_slug, shortcode, posted_as,
                   doctor:doctors(slug),
                   author:profiles!qas_author_id_profiles_fkey(handle, alt_handle))`,
         )

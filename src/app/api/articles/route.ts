@@ -148,7 +148,7 @@ export async function POST(req: Request) {
         baseSlug = lastDash > 5 ? cut.slice(0, lastDash) : cut;
       }
       const { data: existing } = await supabase
-        .from("qas")
+        .from("cards")
         .select("post_slug")
         .eq("doctor_id", doctorId)
         .eq("post_year", postYear)
@@ -233,7 +233,7 @@ export async function POST(req: Request) {
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidate = generateShortcode();
       const { data: existing } = await supabase
-        .from("qas")
+        .from("cards")
         .select("id")
         .eq("shortcode", candidate)
         .maybeSingle();
@@ -301,7 +301,7 @@ export async function POST(req: Request) {
   }
 
   const { data: row, error: insErr } = await supabase
-    .from("qas")
+    .from("cards")
     .insert(insert)
     .select("id, type, status, post_slug, post_year, shortcode")
     .single();

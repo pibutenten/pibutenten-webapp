@@ -31,7 +31,7 @@ export default async function AdminEditQAPage({ params }: Props) {
   }
 
   const { data: qaRaw } = await supabase
-    .from("qas")
+    .from("cards")
     .select(
       `id, question, answer, meta, keywords, status, type, is_pick,
        doctor_id, video_id, like_count, view_count, created_at,
@@ -67,7 +67,7 @@ export default async function AdminEditQAPage({ params }: Props) {
   let doctorPickCount = 0;
   if (qa.doctor_id) {
     const { count } = await supabase
-      .from("qas")
+      .from("cards")
       .select("id", { count: "exact", head: true })
       .eq("doctor_id", qa.doctor_id)
       .eq("is_pick", true);
@@ -82,7 +82,7 @@ export default async function AdminEditQAPage({ params }: Props) {
     const { count } = await supabase
       .from("comments")
       .select("id", { count: "exact", head: true })
-      .eq("qa_id", qa.id)
+      .eq("card_id", qa.id)
       .eq("status", "visible");
     commentCount = count ?? 0;
   } catch {

@@ -7,7 +7,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 type Notification = {
   id: number;
   kind: "comment" | "reply" | "qa_like" | "comment_like" | "system" | string;
-  qa_id: number | null;
+  card_id: number | null;
   comment_id: number | null;
   actor_id: string | null;
   actor_display_name: string | null;
@@ -82,9 +82,9 @@ function NotificationRow({ n }: { n: Notification }) {
   const actorName = n.actor_display_name ?? "회원";
   const initial = actorName.slice(0, 1);
   const actorHref = n.actor_handle ? `/${n.actor_handle}` : null;
-  // 알림 클릭 시 가는 곳 — 일단 글 단독 페이지 (qa_id 있을 때)
+  // 알림 클릭 시 가는 곳 — 일단 글 단독 페이지 (card_id 있을 때)
   // qa URL은 알 수 없으니 fallback /. 향후 RPC에서 canonical URL 같이 반환하면 정확화.
-  const target = n.qa_id ? `/?_=${n.qa_id}` : "/";
+  const target = n.card_id ? `/?_=${n.card_id}` : "/";
   const time = relativeTime(n.created_at);
   const unread = !n.read_at;
 

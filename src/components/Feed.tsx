@@ -17,7 +17,7 @@ type Props = {
   boostDoctorSlug?: string;
   /** HOT 카드의 ID 목록 (서버에서 계산) */
   hotIds?: number[];
-  /** v4 — viewer의 좋아요/저장/평점 상태 (qa_id → state). server prefetch.
+  /** v4 — viewer의 좋아요/저장/평점 상태 (card_id → state). server prefetch.
    * 카드별 client useEffect 호출 제거 → 첫 렌더부터 정확한 상태. */
   viewerStates?: Record<number, ViewerState>;
 };
@@ -28,7 +28,7 @@ type Props = {
  *
  * - 데스크탑(≥900px): 좌·우 두 칼럼 masonry (react-masonry-css 가로 flow)
  * - 모바일: 단일 칼럼
- * - 무한 스크롤: 하단 sentinel을 IntersectionObserver로 감지 → /api/qas?offset=...
+ * - 무한 스크롤: 하단 sentinel을 IntersectionObserver로 감지 → /api/cards?offset=...
  */
 export default function Feed({
   initial,
@@ -83,7 +83,7 @@ export default function Feed({
       if (sq) params.set("q", sq);
       if (ds) params.set("doctor_slug", ds);
       if (bd) params.set("boost", bd);
-      const res = await fetch(`/api/qas?${params.toString()}`, {
+      const res = await fetch(`/api/cards?${params.toString()}`, {
         cache: "no-store",
       });
       if (!res.ok) {

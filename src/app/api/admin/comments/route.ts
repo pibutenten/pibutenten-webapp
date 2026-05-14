@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("comments")
     .select(
-      `id, body, created_at, qa_id,
-       qa:qa_id(question, shortcode),
+      `id, body, created_at, card_id,
+       qa:card_id(question, shortcode),
        author:author_id(handle, display_name)`,
     )
     .eq("status", "visible")

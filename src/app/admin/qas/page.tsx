@@ -203,7 +203,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   // ── 상태별 카운트 (탭 표시용) ──
   // 한꺼번에 여러 카운트를 가져오기 위해 각각 head:true count 쿼리 병렬 실행
   async function countByStatus(s: QAStatus | "all"): Promise<number> {
-    let qb = supabase.from("qas").select("id", { count: "exact", head: true });
+    let qb = supabase.from("cards").select("id", { count: "exact", head: true });
     if (s !== "all") qb = qb.eq("status", s);
     if (doctorIdFilter) qb = qb.eq("doctor_id", doctorIdFilter);
     if (qParam) {
@@ -233,7 +233,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
 
   // ── 본 목록 쿼리 ──
   let listQuery = supabase
-    .from("qas")
+    .from("cards")
     .select(
       `id, status, type, category, posted_as, is_pick, question, answer, like_count, view_count, share_count, created_at,
        comments_count:comments(count),

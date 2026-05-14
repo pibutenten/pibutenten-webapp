@@ -33,7 +33,7 @@ async function fetchQaByDoctorYearSlug(
       .maybeSingle();
     if (!doctor) return null;
     const { data } = await supabase
-      .from("qas")
+      .from("cards")
       .select(
         `
         id, question, answer, meta, keywords, type, created_at, updated_at, posted_as,

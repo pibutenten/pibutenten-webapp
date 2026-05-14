@@ -15,7 +15,7 @@ const TOP_N = 60;
 export async function getPopularByCategory(): Promise<PopularByCategory> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
-    .from("qas")
+    .from("cards")
     .select("keywords")
     .eq("published", true);
 

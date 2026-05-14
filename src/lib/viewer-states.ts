@@ -45,38 +45,38 @@ export async function fetchViewerStates(
   const activeId = await resolveActiveProfileId(viewerId);
   const [likes, saves, ratings] = await Promise.all([
     supabase
-      .from("qa_likes")
-      .select("qa_id")
+      .from("card_likes")
+      .select("card_id")
       .eq("user_id", activeId)
-      .in("qa_id", qaIds),
+      .in("card_id", qaIds),
     supabase
-      .from("qa_saves")
-      .select("qa_id")
+      .from("card_saves")
+      .select("card_id")
       .eq("user_id", activeId)
-      .in("qa_id", qaIds),
+      .in("card_id", qaIds),
     supabase
-      .from("qa_ratings")
-      .select("qa_id, rating")
+      .from("card_ratings")
+      .select("card_id, rating")
       .eq("user_id", activeId)
-      .in("qa_id", qaIds),
+      .in("card_id", qaIds),
   ]);
   for (const r of likes.data ?? []) {
-    const id = (r as { qa_id: number }).qa_id;
+    const id = (r as { card_id: number }).card_id;
     const cur = map.get(id) ?? {};
     cur.liked = true;
     map.set(id, cur);
   }
   for (const r of saves.data ?? []) {
-    const id = (r as { qa_id: number }).qa_id;
+    const id = (r as { card_id: number }).card_id;
     const cur = map.get(id) ?? {};
     cur.saved = true;
     map.set(id, cur);
   }
   for (const r of ratings.data ?? []) {
-    const row = r as { qa_id: number; rating: number };
-    const cur = map.get(row.qa_id) ?? {};
+    const row = r as { card_id: number; rating: number };
+    const cur = map.get(row.card_id) ?? {};
     cur.rating = row.rating;
-    map.set(row.qa_id, cur);
+    map.set(row.card_id, cur);
   }
   return map;
 }

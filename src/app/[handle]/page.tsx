@@ -210,7 +210,7 @@ export default async function HandleProfilePage({ params }: Props) {
 
   // 작성 글 — 현재 페르소나로 작성한 published 글만, 최근 20개
   const { data: postsData } = await supabase
-    .from("qas")
+    .from("cards")
     .select(
       `
       id, question, answer, meta, keywords, type, created_at, posted_as,
@@ -245,12 +245,12 @@ export default async function HandleProfilePage({ params }: Props) {
   if (isOwner) {
     const [likesRes, savesRes] = await Promise.all([
       supabase
-        .from("qa_likes")
-        .select("qa_id", { count: "exact", head: true })
+        .from("card_likes")
+        .select("card_id", { count: "exact", head: true })
         .eq("user_id", profile.id),
       supabase
-        .from("qa_saves")
-        .select("qa_id", { count: "exact", head: true })
+        .from("card_saves")
+        .select("card_id", { count: "exact", head: true })
         .eq("user_id", profile.id),
     ]);
     likesCount = likesRes.count ?? 0;

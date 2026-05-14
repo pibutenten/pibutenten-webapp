@@ -128,7 +128,7 @@ export async function POST(
     // 4-A. post 백필 — author=id 인 post에 doctor_id 설정
     //      (매핑 전 본인이 쓴 post도 doctor 페이지에 노출되도록)
     await supabase
-      .from("qas")
+      .from("cards")
       .update({ doctor_id: doctorId })
       .eq("author_id", id)
       .eq("type", "post")
@@ -138,7 +138,7 @@ export async function POST(
     //      (정한미 doctor의 영상 Q&A들이 정한미 user의 "작성한 글"로 잡히도록)
     //      관리자/원장 본인이 이미 author로 작성한 글은 건드리지 않음 (author_id IS NULL 조건)
     await supabase
-      .from("qas")
+      .from("cards")
       .update({ author_id: id })
       .eq("doctor_id", doctorId)
       .is("author_id", null);

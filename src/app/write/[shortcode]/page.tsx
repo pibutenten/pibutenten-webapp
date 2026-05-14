@@ -59,7 +59,7 @@ export default async function PostEditPage({ params }: Props) {
 
   // qa 로드 — handle은 viewer URL 만들기 용도로만
   const { data: qa } = await supabase
-    .from("qas")
+    .from("cards")
     .select(
       `id, question, answer, keywords, type, status, author_id, doctor_id, shortcode, posted_as,
        author:profiles!qas_author_id_profiles_fkey(handle, alt_handle)`,

@@ -30,7 +30,7 @@ type Author = {
 
 type CommentRow = {
   id: number;
-  qa_id: number;
+  card_id: number;
   author_id: string | null;
   parent_id: number | null;
   body: string;

@@ -69,17 +69,17 @@ export default async function AdminPage() {
       .select("id", { count: "exact", head: true })
       .eq("role", "doctor"),
     supabase
-      .from("qas")
+      .from("cards")
       .select("id", { count: "exact", head: true })
       .eq("type", "qa")
       .eq("status", "published"),
     supabase
-      .from("qas")
+      .from("cards")
       .select("id", { count: "exact", head: true })
       .eq("type", "post")
       .eq("status", "published"),
     supabase
-      .from("qas")
+      .from("cards")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending_review"),
     supabase

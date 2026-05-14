@@ -105,7 +105,7 @@ export async function POST(req: Request) {
   }));
 
   const { data: inserted, error: iErr } = await supabase
-    .from("qas")
+    .from("cards")
     .insert(rows)
     .select("id");
 

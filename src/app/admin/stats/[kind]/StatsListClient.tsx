@@ -37,7 +37,7 @@ export type VisitorRow = {
 
 export type CommentSummary = {
   id: number;
-  qa_id: number;
+  card_id: number;
   body: string;
   created_at: string;
   parent_id: number | null;
@@ -49,7 +49,7 @@ export type CommentSummary = {
 };
 
 export type QaRow = {
-  qa_id: number;
+  card_id: number;
   question: string | null;
   shortcode: string | null;
   author_id: string | null;
@@ -180,7 +180,7 @@ export default function StatsListClient({
                 key={
                   isVisitors
                     ? (visitorRow as VisitorRow).profile_id
-                    : (qaRow as QaRow).qa_id + "-" + i
+                    : (qaRow as QaRow).card_id + "-" + i
                 }
                 className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
               >
@@ -211,7 +211,7 @@ export default function StatsListClient({
                       const row = qaRow as QaRow;
                       const qaHref = row.shortcode
                         ? `/q/${row.shortcode}`
-                        : `/q/${row.qa_id}`;
+                        : `/q/${row.card_id}`;
                       const displayName =
                         row.author_name?.trim() ||
                         row.author_handle?.trim() ||

@@ -222,8 +222,8 @@ export default function QACard({
         const {
           data: { user },
         } = await sb.auth.getUser();
-        await sb.from("qa_impressions").insert({
-          qa_id: qa.id,
+        await sb.from("card_impressions").insert({
+          card_id: qa.id,
           user_id: user?.id ?? null,
           session_id: sessionId,
         });
@@ -261,8 +261,8 @@ export default function QACard({
         const {
           data: { user },
         } = await sb.auth.getUser();
-        await sb.from("qa_views").insert({
-          qa_id: qa.id,
+        await sb.from("card_views").insert({
+          card_id: qa.id,
           user_id: user?.id ?? null,
           session_id: sessionId,
         });
@@ -355,27 +355,27 @@ export default function QACard({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        // Phase 9: qa_likes / qa_saves PK = (qa_id, user_id). user_id = active profile.id.
+        // Phase 9: qa_likes / qa_saves PK = (card_id, user_id). user_id = active profile.id.
         //   - activeIdentityId 있으면 그 profile id 사용 (묶음 내 다른 ID로 활동)
         //   - 없으면 auth.users.id (legacy: profile.id == user.id 경우)
         const activeProfileId = getActiveIdentityId() ?? user.id;
         const [likeRes, saveRes, rateRes] = await Promise.all([
           supabase
-            .from("qa_likes")
-            .select("qa_id")
-            .eq("qa_id", qa.id)
+            .from("card_likes")
+            .select("card_id")
+            .eq("card_id", qa.id)
             .eq("user_id", activeProfileId)
             .maybeSingle(),
           supabase
-            .from("qa_saves")
-            .select("qa_id")
-            .eq("qa_id", qa.id)
+            .from("card_saves")
+            .select("card_id")
+            .eq("card_id", qa.id)
             .eq("user_id", activeProfileId)
             .maybeSingle(),
           supabase
-            .from("qa_ratings")
+            .from("card_ratings")
             .select("rating")
-            .eq("qa_id", qa.id)
+            .eq("card_id", qa.id)
             .eq("user_id", user.id)
             .maybeSingle(),
         ]);
@@ -410,7 +410,7 @@ export default function QACard({
       // 낙관적
       setSaved(!wasSaved);
       setSaveCount((c) => (wasSaved ? Math.max(0, c - 1) : c + 1));
-      // v5.1+ identity 기반 RPC (PK=(identity_id, qa_id))
+      // v5.1+ identity 기반 RPC (PK=(identity_id, card_id))
       const activeIdentityId = getActiveIdentityId();
       const { data, error } = await supabase.rpc("toggle_qa_save", {
         p_qa_id: qa.id,
@@ -431,7 +431,7 @@ export default function QACard({
       }
       // 트리거가 갱신한 정확한 save_count 재조회
       const { data: q } = await supabase
-        .from("qas")
+        .from("cards")
         .select("save_count")
         .eq("id", qa.id)
         .maybeSingle();
@@ -442,7 +442,7 @@ export default function QACard({
     }
   }
 
-  // 평점 등록/변경 — upsert (qa_ratings PK = qa_id,user_id,persona)
+  // 평점 등록/변경 — upsert (qa_ratings PK = card_id,user_id,persona)
   // 트리거가 qas.rating_avg/rating_count를 매번 from-scratch 재계산하므로
   // upsert 후 qas를 다시 fetch해서 정확한 값으로 sync (optimistic 누적 오류 방지).
   async function handleRate(stars: number) {
@@ -458,15 +458,15 @@ export default function QACard({
     const prev = myRating;
     setMyRating(stars);
     setRatingOpen(false);
-    const { error } = await supabase.from("qa_ratings").upsert(
+    const { error } = await supabase.from("card_ratings").upsert(
       {
-        qa_id: qa.id,
+        card_id: qa.id,
         user_id: userId,
         persona: "official",
         rating: stars,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "qa_id,user_id,persona" },
+      { onConflict: "card_id,user_id,persona" },
     );
     if (error) {
       setMyRating(prev);
@@ -474,7 +474,7 @@ export default function QACard({
     }
     // 트리거가 갱신한 정확한 평균·카운트 재조회 (optimistic 추정 X — 정확한 값 보장)
     const { data: q } = await supabase
-      .from("qas")
+      .from("cards")
       .select("rating_avg, rating_count")
       .eq("id", qa.id)
       .maybeSingle();
@@ -632,7 +632,7 @@ export default function QACard({
     try {
       const sb = createSupabaseBrowserClient();
       const { error } = await sb
-        .from("qas")
+        .from("cards")
         .update({ question: editTitle.trim(), answer: editBody.trim() })
         .eq("id", qa.id);
       if (error) {
@@ -650,7 +650,7 @@ export default function QACard({
     setDeleting(true);
     try {
       const sb = createSupabaseBrowserClient();
-      const { error } = await sb.from("qas").delete().eq("id", qa.id);
+      const { error } = await sb.from("cards").delete().eq("id", qa.id);
       if (error) {
         alert("삭제 실패: " + error.message);
       } else {
@@ -1272,8 +1272,8 @@ export default function QACard({
             // qa_shares 이벤트 로그 (관리자 KPI '공유' 카운트용) — fail silent
             try {
               const { data: { user } } = await supabase.auth.getUser();
-              await supabase.from("qa_shares").insert({
-                qa_id: qa.id,
+              await supabase.from("card_shares").insert({
+                card_id: qa.id,
                 user_id: user?.id ?? null,
                 channel: "link",
               });

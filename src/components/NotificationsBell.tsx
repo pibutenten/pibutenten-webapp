@@ -24,7 +24,7 @@ type NotificationItem = {
   actor_id: string | null;
   actor_name: string | null;
   actor_handle: string | null;
-  qa_id: number | null;
+  card_id: number | null;
   comment_id: number | null;
   message: string;
   url: string;

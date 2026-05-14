@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 const MAX_LIMIT = 50;
 
 /**
- * GET /api/qas?offset=0&limit=20&q=쥬브젠
+ * GET /api/cards?offset=0&limit=20&q=쥬브젠
  *   - 발행된 Q&A를 created_at desc, id desc 정렬 (안정적)
  *   - q 있으면 question/answer ILIKE 부분일치 필터
  *   - doctor / video JOIN 결과 함께 반환

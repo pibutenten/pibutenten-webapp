@@ -16,7 +16,7 @@ const MAX_LIMIT = 50;
 
 export type CommentRow = {
   id: number;
-  qa_id: number;
+  card_id: number;
   author_id: string | null;
   parent_id: number | null;
   body: string;
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
   const rootRes = await supabase
     .from("comments")
     .select("*")
-    .eq("qa_id", qaId)
+    .eq("card_id", qaId)
     .is("parent_id", null)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
@@ -84,7 +84,7 @@ export async function GET(req: Request) {
     const replyRes = await supabase
       .from("comments")
       .select("*")
-      .eq("qa_id", qaId)
+      .eq("card_id", qaId)
       .in("parent_id", rootIds)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true });
@@ -222,7 +222,7 @@ export async function GET(req: Request) {
   const totalRes = await supabase
     .from("comments")
     .select("*", { count: "exact", head: true })
-    .eq("qa_id", qaId)
+    .eq("card_id", qaId)
     .is("parent_id", null);
 
   return NextResponse.json(
@@ -300,7 +300,7 @@ export async function POST(req: Request) {
   const ins = await supabase
     .from("comments")
     .insert({
-      qa_id: qaId,
+      card_id: qaId,
       parent_id: parentId,
       body,
       author_id: user.id,

@@ -41,7 +41,7 @@ type QaRow = {
 
 type CommentRow = {
   id: number;
-  qa_id: number;
+  card_id: number;
   body: string;
   created_at: string;
   status: string;
@@ -231,7 +231,7 @@ export default async function AdminUserDetailPage({
   const targetAuthorId = activeIdentity?.id ?? id;
 
   let qasQuery = supabase
-    .from("qas")
+    .from("cards")
     .select("id, type, status, question, like_count, view_count, created_at")
     .order("created_at", { ascending: false })
     .limit(50);
@@ -245,7 +245,7 @@ export default async function AdminUserDetailPage({
   // 댓글
   const { data: comments } = await supabase
     .from("comments")
-    .select("id, qa_id, body, created_at, status, qa:qas(id, question)")
+    .select("id, card_id, body, created_at, status, qa:cards(id, question)")
     .eq("author_id", id)
     .order("created_at", { ascending: false })
     .limit(30)
@@ -253,9 +253,9 @@ export default async function AdminUserDetailPage({
 
   // 좋아요
   const { data: likes } = await supabase
-    .from("qa_likes")
+    .from("card_likes")
     .select(
-      `qa:qas(id, question, created_at, type, posted_as, post_year, post_slug, shortcode,
+      `qa:cards(id, question, created_at, type, posted_as, post_year, post_slug, shortcode,
         doctor:doctors(slug),
         author:profiles!qas_author_id_profiles_fkey(handle, alt_handle))`,
     )

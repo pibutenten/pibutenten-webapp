@@ -205,7 +205,7 @@ export async function POST(req: Request) {
   }
 
   const { data: inserted, error: insErr } = await supabase
-    .from("qas")
+    .from("cards")
     .insert(rows)
     .select("id");
   if (insErr) {
