@@ -148,13 +148,20 @@ export default function CommentsClient({
                             authorName
                           )}
                           {" · "}
-                          {new Date(c.created_at).toLocaleString("ko-KR", {
-                            year: "numeric",
-                            month: "2-digit",
-                            day: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {/* 시각 포맷은 SSR/CSR timezone 차이로 hydration mismatch 발생.
+                              suppressHydrationWarning으로 워닝 격리 (실제 표시는 클라이언트 timezone 기준) */}
+                          <time
+                            dateTime={c.created_at}
+                            suppressHydrationWarning
+                          >
+                            {new Date(c.created_at).toLocaleString("ko-KR", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </time>
                         </div>
                         <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--text-secondary)]">
                           {c.body}

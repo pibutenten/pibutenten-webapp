@@ -213,6 +213,7 @@ export default async function AdminPage() {
             desc="학력·경력·전문분야 등 확장 프로필"
           />
           <Tool
+            prefetch={false}
             href="/api/admin/youtube-oauth/start"
             emoji={
               oauthHealth.state === "ok"
@@ -307,16 +308,20 @@ function Tool({
   title,
   desc,
   highlight,
+  prefetch,
 }: {
   href: string;
   emoji: string;
   title: string;
   desc: string;
   highlight?: boolean;
+  /** API endpoint나 사이드 이펙트 있는 라우트는 prefetch={false} 권장 */
+  prefetch?: boolean;
 }) {
   return (
     <Link
       href={href}
+      prefetch={prefetch}
       className={
         "group flex items-center gap-3 rounded-[var(--radius)] border bg-white p-4 transition-colors " +
         (highlight
