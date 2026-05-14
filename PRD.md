@@ -1,30 +1,43 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-14 (qas → cards 전면 rename + 알림 시스템 + 메트릭 재정의)
-> 기준 commit: `ed17067` (cards 1차) — 이후 추가: /admin/cards + 파일 rename Phase 2
+> 마지막 업데이트: 2026-05-14 (qas → cards 전면 rename 완성 + 알림 + 메트릭 + 후속 정리)
+> 기준 commit: `298c0d7` (Phase 3 RPC 함수명 + URL 정합성)
 
-## 🆕 2026-05-14 후반 작업 (현재 세션)
+## 🆕 2026-05-14 작업 일괄 (현재 세션)
 
-### 1) qas → cards 전면 rename (Option C 확정)
-- **DB 변경 (migration 0065)**:
-  - 테이블 rename: `qas → cards`, `qa_views/likes/saves/shares/impressions/ratings → card_*`
-  - 컬럼 rename: 모든 외래키 `qa_id → card_id` (comments, notifications + 6개 metric 테이블)
-  - 인덱스 25개 모두 rename (`qas_*/qa_* → cards_*/card_*`)
-  - **임시 backwards-compat VIEW 7개 (qas, qa_views, ...)** — 39개 legacy RPC 함수가 즉시 깨지지 않도록.
-    PostgreSQL은 simple view를 인라인 처리 → 성능 비용 0. 영구 abstraction layer로 유지.
-- **코드 변경 (38 파일)**:
-  - `.from('qas')` → `.from('cards')`, qa_* → card_*
-  - `qa_id` 82회 → `card_id`
-  - 관계 alias: `qa:qas(...)` → `qa:cards(...)` (응답 변수명 `qa` 보존 → 호환)
-- **디렉토리/파일 rename (Phase 2)**:
-  - `/api/qas/route.ts` → `/api/cards/route.ts`
-  - `/admin/qas/*` → `/admin/cards/*` (전체 디렉토리)
-  - `src/components/QACard.tsx` → `Card.tsx`
-  - `src/lib/qa-url.ts` → `card-url.ts`
-  - `src/lib/qa-highlight.ts` → `card-highlight.ts`
-- **보류한 작업** (별도 phase):
-  - 39개 legacy RPC 함수 body 마이그레이션 (`from qas` → `from cards`) — compat view 통해 정상 동작 중이라 우선순위 낮음
-  - qa_type enum 'article' 값 물리 제거 — RLS policy 의존성 다수, cosmetic 비용 vs 효용
+### 1) qas → cards 전면 rename — 3 phase 완료 (Option C)
+
+#### Phase 1 (commit ed17067) — DB 테이블/컬럼 rename + 코드 일괄
+- migration **0065**: 7 테이블 rename, 8 컬럼 `qa_id → card_id`, 25 인덱스 rename, backwards-compat VIEW 7개 생성
+- 코드 38 파일: `.from('qas')` → `.from('cards')`, `qa_id` 82회 → `card_id`, `qa:qas(...)` → `qa:cards(...)` (응답 alias `qa` 보존)
+
+#### Phase 2 (commit c704385) — 디렉토리/파일 rename
+- `/api/qas/route.ts` → `/api/cards/route.ts`
+- `/admin/qas/*` → `/admin/cards/*` 전체
+- `QACard.tsx` → `Card.tsx`, `qa-url.ts` → `card-url.ts`, `qa-highlight.ts` → `card-highlight.ts`
+
+#### Phase 3 (commit 298c0d7) — RPC 함수명 + 잔여 버그 정리 (migrations 0066~0071)
+- **0066** `qas_save_count_sync` / `qa_likes_sync` / `qas_rating_sync` trigger body `NEW.qa_id` → `NEW.card_id` (북마크/평점 미작동 fix)
+- **0067** RPC body `INSERT ... ON CONFLICT` compat view 미지원 → cards/card_* 직접 참조 (좋아요/저장 fix)
+- **0068** `get_top_qas_by_*` 5개 RPC body 옛 컬럼 참조 → card_id 갱신 (TOP 0건 반환 fix)
+- **0069** `on_qa_view_insert` / `on_qa_impression_insert` trigger body fix (방문자/조회수 카운트 미증가 fix)
+- **0070** RPC 함수명 일괄 rename:
+  - 단수 카드 1건: `toggle_qa_*` → `toggle_card_*`, `increment_qa_*` → `increment_card_*`, `get_hot_qa_ids` → `get_hot_card_ids`, `get_recent_likers` → `get_recent_card_likers`
+  - 여러 카드: `get_top_qas_by_*` → `get_top_cards_by_*`
+  - 파라미터: `p_qa_id` → `p_card_id`
+  - 코드 callers 12+곳 동시 갱신
+- **0071** 알림 trigger 함수 컬럼명 + URL fix
+  - `NEW.qa_id` → `NEW.card_id`
+  - 알림 url `/q/{shortcode}` (라우트 없음 → 404) → `/{author_handle}/{shortcode}` (실제 라우트), admin 컨텍스트 `/admin/cards/{id}/edit`
+- StatsListClient/CommentsClient도 `/q/{shortcode}` → `/{handle}/{shortcode}` (또는 admin edit)
+- ProfileTabs.tsx `'qa_saves'`/`'qa_likes'` 문자열 변수 → `'card_saves'`/`'card_likes'`
+
+#### Phase 3 보류 (compat view 통해 정상 동작 / cosmetic)
+- `feed_qas_scored` / `search_qas_scored` / `tag_qas_scored` — 본문 복잡한 score 계산. 함수명/본문 마이그레이션 별도 phase
+- FK 제약명 `qas_*_fkey` 유지 — PostgreSQL FK는 이름으로 식별, 기능 영향 없음
+- TypeScript `QACard` / `QACardData` 타입명 — Card.tsx export, 모든 import 정상
+- qa_type enum 'article' 값 물리 제거 — RLS policy 의존성 다수, 보류
+- RPC body 모두 cards 직접 참조 마이그레이션 후 compat view DROP — 별도 phase
 
 ### 2) 알림 시스템 구축 (migration 0062 + 0063)
 - 6종 trigger: `comment` / `reply` / `like` (24h debounce) / `new_ask` (모든 원장) / `review_request` / `published`
