@@ -134,7 +134,14 @@ export default function NotificationsBell() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+6px)] z-50 w-[320px] max-w-[88vw] overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg"
+          className="absolute right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg"
+          style={{
+            // 폭: 320px 기본, 단 viewport 기준 좌우 8px 여백 보장. iOS Safari 좁은 화면 대응.
+            width: "min(320px, calc(100vw - 16px))",
+            // iOS Safari 자동 텍스트 확대 방지 (가독성 위해 100% 고정)
+            WebkitTextSizeAdjust: "100%",
+            textSizeAdjust: "100%",
+          }}
         >
           <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2">
             <span className="text-sm font-bold text-[var(--text)]">알림</span>
