@@ -35,6 +35,19 @@ export type VisitorRow = {
   visit_count: number;
 };
 
+export type CommentSummary = {
+  id: number;
+  qa_id: number;
+  body: string;
+  created_at: string;
+  parent_id: number | null;
+  author_id: string | null;
+  author:
+    | { display_name: string | null; handle: string | null }
+    | { display_name: string | null; handle: string | null }[]
+    | null;
+};
+
 export type QaRow = {
   qa_id: number;
   question: string | null;
@@ -43,6 +56,7 @@ export type QaRow = {
   author_name: string | null;
   author_handle: string | null;
   cnt: number;
+  comments?: CommentSummary[]; // comments kind 한정 — 글 밑에 항상 펼침
 };
 
 type Row = VisitorRow | QaRow;
@@ -155,76 +169,94 @@ export default function StatsListClient({
         </p>
       ) : (
         <ol className="space-y-2">
-          {rows.map((r, i) => (
-            <li
-              key={kind === "visitors" ? (r as VisitorRow).profile_id : (r as QaRow).qa_id + "-" + i}
-              className="flex items-start gap-3 rounded-md border border-[var(--border)] bg-white px-4 py-2.5"
-            >
-              <span className="w-6 shrink-0 text-right text-xs tabular-nums text-[var(--text-muted)]">
-                {i + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                {kind === "visitors" ? (
-                  (() => {
-                    const row = r as VisitorRow;
-                    const name = row.display_name || row.handle || "(이름 없음)";
-                    return row.handle ? (
-                      <Link
-                        href={`/${row.handle}`}
-                        className="text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
-                      >
-                        {name}
-                      </Link>
+          {rows.map((r, i) => {
+            const isVisitors = kind === "visitors";
+            const qaRow = !isVisitors ? (r as QaRow) : null;
+            const visitorRow = isVisitors ? (r as VisitorRow) : null;
+            const showComments =
+              kind === "comments" && qaRow?.comments && qaRow.comments.length > 0;
+            return (
+              <li
+                key={
+                  isVisitors
+                    ? (visitorRow as VisitorRow).profile_id
+                    : (qaRow as QaRow).qa_id + "-" + i
+                }
+                className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
+              >
+                <div className="flex items-start gap-3 px-4 py-2.5">
+                  <span className="w-6 shrink-0 text-right text-xs tabular-nums text-[var(--text-muted)]">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    {isVisitors ? (
+                      (() => {
+                        const row = visitorRow as VisitorRow;
+                        const name =
+                          row.display_name || row.handle || "(이름 없음)";
+                        return row.handle ? (
+                          <Link
+                            href={`/${row.handle}`}
+                            className="text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
+                          >
+                            {name}
+                          </Link>
+                        ) : (
+                          <span className="text-sm font-medium text-[var(--text)]">
+                            {name}
+                          </span>
+                        );
+                      })()
                     ) : (
-                      <span className="text-sm font-medium text-[var(--text)]">
-                        {name}
-                      </span>
-                    );
-                  })()
-                ) : (
-                  (() => {
-                    const row = r as QaRow;
-                    const qaHref = row.shortcode
-                      ? `/q/${row.shortcode}`
-                      : `/q/${row.qa_id}`;
-                    // 작성자 표시: display_name 우선, 없으면 handle, 둘 다 없으면 "(작성자 없음)"
-                    const displayName =
-                      row.author_name?.trim() ||
-                      row.author_handle?.trim() ||
-                      "(작성자 없음)";
-                    return (
-                      <div>
-                        <Link
-                          href={qaHref}
-                          className="block truncate text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
-                          title={row.question ?? undefined}
-                        >
-                          {row.question || "(제목 없음)"}
-                        </Link>
-                        <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">
-                          {row.author_handle ? (
+                      (() => {
+                        const row = qaRow as QaRow;
+                        const qaHref = row.shortcode
+                          ? `/q/${row.shortcode}`
+                          : `/q/${row.qa_id}`;
+                        const displayName =
+                          row.author_name?.trim() ||
+                          row.author_handle?.trim() ||
+                          "(작성자 없음)";
+                        return (
+                          <div>
                             <Link
-                              href={`/${row.author_handle}`}
-                              className="hover:underline"
+                              href={qaHref}
+                              className="block truncate text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
+                              title={row.question ?? undefined}
                             >
-                              {displayName}
+                              {row.question || "(제목 없음)"}
                             </Link>
-                          ) : (
-                            displayName
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()
+                            <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                              {row.author_handle ? (
+                                <Link
+                                  href={`/${row.author_handle}`}
+                                  className="hover:underline"
+                                >
+                                  {displayName}
+                                </Link>
+                              ) : (
+                                displayName
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                  <span className="shrink-0 self-center text-sm font-bold tabular-nums text-[var(--text)]">
+                    {isVisitors
+                      ? (visitorRow as VisitorRow).visit_count.toLocaleString()
+                      : (qaRow as QaRow).cnt.toLocaleString()}
+                  </span>
+                </div>
+
+                {/* 댓글 항상 펼침 — comments kind 한정 */}
+                {showComments && (
+                  <CommentsBlock comments={(qaRow as QaRow).comments!} />
                 )}
-              </div>
-              <span className="shrink-0 self-center text-sm font-bold tabular-nums text-[var(--text)]">
-                {kind === "visitors"
-                  ? (r as VisitorRow).visit_count.toLocaleString()
-                  : (r as QaRow).cnt.toLocaleString()}
-              </span>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ol>
       )}
 
@@ -242,6 +274,103 @@ export default function StatsListClient({
           : rows.length > 0
           ? "마지막입니다."
           : ""}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 댓글 블록 — 글 박스 하단에 항상 펼친 상태로 표시.
+ * 부모(parent_id=null) → 본인 들여쓰기 0 / 답글 들여쓰기 1.
+ */
+function CommentsBlock({ comments }: { comments: CommentSummary[] }) {
+  // 부모-자식 트리 구성. order: 부모 created_at asc, 그 아래로 답글들 asc.
+  const parents = comments.filter((c) => c.parent_id == null);
+  const repliesByParent = new Map<number, CommentSummary[]>();
+  for (const c of comments) {
+    if (c.parent_id != null) {
+      const list = repliesByParent.get(c.parent_id) ?? [];
+      list.push(c);
+      repliesByParent.set(c.parent_id, list);
+    }
+  }
+  // 고아 답글(부모 없음)도 표시 — 부모를 못 받은 경우 그냥 부모처럼 렌더
+  const orphanReplies = comments.filter(
+    (c) =>
+      c.parent_id != null && !parents.some((p) => p.id === c.parent_id),
+  );
+
+  return (
+    <div className="border-t border-[var(--border)] bg-[var(--bg-soft)]/50 px-4 py-2">
+      <ul className="space-y-1.5">
+        {parents.map((c) => {
+          const replies = repliesByParent.get(c.id) ?? [];
+          return (
+            <li key={c.id}>
+              <CommentLine comment={c} depth={0} />
+              {replies.map((r) => (
+                <CommentLine key={r.id} comment={r} depth={1} />
+              ))}
+            </li>
+          );
+        })}
+        {orphanReplies.map((r) => (
+          <li key={r.id}>
+            <CommentLine comment={r} depth={0} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function CommentLine({
+  comment,
+  depth,
+}: {
+  comment: CommentSummary;
+  depth: 0 | 1;
+}) {
+  const a = Array.isArray(comment.author)
+    ? comment.author[0] ?? null
+    : comment.author;
+  const aname =
+    a?.display_name?.trim() || a?.handle?.trim() || "(알 수 없음)";
+  const ahandle = a?.handle ?? null;
+  const time = new Date(comment.created_at).toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return (
+    <div
+      className="flex items-start gap-1.5 py-0.5"
+      style={{ paddingLeft: depth === 1 ? 20 : 0 }}
+    >
+      {depth === 1 && (
+        <span
+          aria-hidden
+          className="mt-0.5 select-none text-[12px] leading-[1] text-[var(--text-muted)]"
+        >
+          ↳
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="text-[10.5px] text-[var(--text-muted)]">
+          {ahandle ? (
+            <Link href={`/${ahandle}`} className="hover:underline">
+              {aname}
+            </Link>
+          ) : (
+            aname
+          )}
+          {" · "}
+          {time}
+        </div>
+        <p className="whitespace-pre-wrap text-[12px] leading-snug text-[var(--text-secondary)]">
+          {comment.body}
+        </p>
       </div>
     </div>
   );

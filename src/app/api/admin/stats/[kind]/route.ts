@@ -62,8 +62,39 @@ export async function GET(
   }
   const data = (result.data ?? []) as unknown[];
   const hasMore = data.length > limit;
-  return NextResponse.json({
-    rows: data.slice(0, limit),
-    hasMore,
-  });
+  let rows = data.slice(0, limit) as Record<string, unknown>[];
+
+  // comments kind: 각 qa의 기간 내 댓글(대댓글 포함) 본문도 함께 fetch
+  if (kind === "comments" && rows.length > 0) {
+    const since =
+      days === 0
+        ? "1970-01-01T00:00:00Z"
+        : new Date(Date.now() - days * 86400_000).toISOString();
+    const qaIds = rows
+      .map((r) => r.qa_id as number)
+      .filter((id) => typeof id === "number");
+    if (qaIds.length > 0) {
+      const { data: comments } = await supabase
+        .from("comments")
+        .select(
+          "id, qa_id, body, created_at, parent_id, author_id, author:profiles!comments_author_id_fkey(display_name, handle)",
+        )
+        .in("qa_id", qaIds)
+        .eq("status", "visible")
+        .gte("created_at", since)
+        .order("created_at", { ascending: true });
+      const byQa = new Map<number, unknown[]>();
+      for (const c of comments ?? []) {
+        const qaId = (c as { qa_id: number }).qa_id;
+        if (!byQa.has(qaId)) byQa.set(qaId, []);
+        byQa.get(qaId)!.push(c);
+      }
+      rows = rows.map((r) => ({
+        ...r,
+        comments: byQa.get(r.qa_id as number) ?? [],
+      }));
+    }
+  }
+
+  return NextResponse.json({ rows, hasMore });
 }

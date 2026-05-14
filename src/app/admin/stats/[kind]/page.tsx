@@ -80,8 +80,41 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
     p_limit: FIRST_PAGE_SIZE + 1,
     p_offset: 0,
   });
-  const rows = (result.data ?? []) as (VisitorRow | QaRow)[];
+  let rows = (result.data ?? []) as (VisitorRow | QaRow)[];
   const hasMore = rows.length > FIRST_PAGE_SIZE;
+
+  // comments kind: 각 qa의 기간 내 댓글(+대댓글)도 함께 fetch — 항상 펼친 상태로 표시
+  if (kind === "comments" && rows.length > 0) {
+    const since =
+      days === 0
+        ? "1970-01-01T00:00:00Z"
+        : new Date(Date.now() - days * 86400_000).toISOString();
+    const qaIds = (rows as QaRow[])
+      .map((r) => r.qa_id)
+      .filter((id): id is number => typeof id === "number");
+    if (qaIds.length > 0) {
+      const { data: comments } = await supabase
+        .from("comments")
+        .select(
+          "id, qa_id, body, created_at, parent_id, author_id, author:profiles!comments_author_id_fkey(display_name, handle)",
+        )
+        .in("qa_id", qaIds)
+        .eq("status", "visible")
+        .gte("created_at", since)
+        .order("created_at", { ascending: true });
+      const byQa = new Map<number, unknown[]>();
+      for (const c of comments ?? []) {
+        const qaId = (c as { qa_id: number }).qa_id;
+        if (!byQa.has(qaId)) byQa.set(qaId, []);
+        byQa.get(qaId)!.push(c);
+      }
+      rows = (rows as QaRow[]).map((r) => ({
+        ...r,
+        comments: byQa.get(r.qa_id) ?? [],
+      })) as QaRow[];
+    }
+  }
+
   const firstPage = rows.slice(0, FIRST_PAGE_SIZE);
 
   return (

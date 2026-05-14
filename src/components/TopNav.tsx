@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 // v4 다중 identity 전환은 IdentitySwitcher로 (1개일 땐 단순 Link)
 import IdentitySwitcher from "./IdentitySwitcher";
+import NotificationsBell from "./NotificationsBell";
 
 type NavItem = {
   href: string;
@@ -367,6 +368,9 @@ export default function TopNav({ session }: TopNavProps) {
               </Link>
             );
           })}
+
+          {/* 로그인 사용자: 알림 종 아이콘 (미확인 시 빨간 배지 + PWA Badge) */}
+          {session && <NotificationsBell />}
 
           {/* 모바일 우상단 — 앱 설치 버튼 (데스크탑은 Chrome 자체 설치 메뉴가 있어 숨김) */}
           <InstallAppButton />
