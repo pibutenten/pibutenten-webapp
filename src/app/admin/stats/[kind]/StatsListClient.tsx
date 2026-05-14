@@ -184,8 +184,9 @@ export default function StatsListClient({
                 }
                 className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
               >
-                {/* 한 줄 레이아웃: 닉네임(좌, 고정폭) · 제목(가운데, truncate) · 카운트(우) */}
-                <div className="flex items-center gap-3 px-4 py-2">
+                {/* 한 줄 레이아웃: 닉네임(좌, 고정폭) · 제목(가운데, truncate) · 카운트(우)
+                    gap-1.5 (6px) — 글쓴이↔제목 사이 시각적 거리 좁힘 (이전 gap-3, 12px) */}
+                <div className="flex items-center gap-1.5 px-4 py-2">
                   {isVisitors ? (
                     (() => {
                       const row = visitorRow as VisitorRow;

@@ -222,9 +222,14 @@ export default function Card({
         const {
           data: { user },
         } = await sb.auth.getUser();
+        // 방문자 분리 집계 — active identity의 profile.id를 user_id로 저장.
+        // cookie 'pibutenten:identity'가 UUID면 그 profile, 'primary'면 base profile.
+        // 같은 묶음 내라도 ID 전환 시 다른 사용자로 카운트됨 (좋아요/저장/댓글과 동일 정책).
+        const activeId = getActiveIdentityId();
+        const userId = user ? (activeId ?? user.id) : null;
         await sb.from("card_impressions").insert({
           card_id: card.id,
-          user_id: user?.id ?? null,
+          user_id: userId,
           session_id: sessionId,
         });
       } catch {
@@ -261,9 +266,12 @@ export default function Card({
         const {
           data: { user },
         } = await sb.auth.getUser();
+        // active identity 분리 집계 — 같은 묶음 내 ID 전환 시 별도 user_id로 카운트
+        const activeId = getActiveIdentityId();
+        const userId = user ? (activeId ?? user.id) : null;
         await sb.from("card_views").insert({
           card_id: card.id,
-          user_id: user?.id ?? null,
+          user_id: userId,
           session_id: sessionId,
         });
         window.dispatchEvent(new CustomEvent("pibutenten:card-viewed"));
