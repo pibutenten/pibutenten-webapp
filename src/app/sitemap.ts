@@ -9,7 +9,7 @@ import { SITE_URL } from "@/lib/site";
  *  - 정적 라우트 (/, /doctors, /about)
  *  - 의사 9명 프로필 (/doctors/{slug})
  *  - 발행된 의사 글 (canonical: /doctors/{slug}/{year}/{post_slug})
- *  - /tags/{태그} — 의사 글 4개 이상 모인 태그 hub (AEO/GEO 자산)
+ *  - /topics/{태그} — 의사 글 4개 이상 모인 태그 hub (AEO/GEO 자산)
  *
  * 제외 (robots에서도 차단):
  *  - /{handle}/{shortcode} (회원 글 — UGC, YMYL 안전성)
@@ -96,14 +96,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-    // /tags/{태그} — 의사 글 4개 이상인 태그만
+    // /topics/{태그} — 의사 글 4개 이상인 태그만
     const { data: tags } = await supabase.rpc("get_indexable_tags", {
       p_min_count: 4,
     });
     const tagRoutes: MetadataRoute.Sitemap = (
       (tags ?? []) as Array<{ keyword: string; cnt: number }>
     ).map((t) => ({
-      url: `${SITE_URL}/tags/${encodeURIComponent(t.keyword)}`,
+      url: `${SITE_URL}/topics/${encodeURIComponent(t.keyword)}`,
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.6,

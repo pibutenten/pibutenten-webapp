@@ -133,7 +133,7 @@ export function PopularTagsCard({
                   {i + 1}
                 </span>
                 <Link
-                  href={`/tags/${encodeURIComponent(t.keyword)}`}
+                  href={`/topics/${encodeURIComponent(t.keyword)}`}
                   className="truncate hover:text-[var(--primary)] hover:underline"
                 >
                   #{t.keyword}

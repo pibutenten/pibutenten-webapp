@@ -7,7 +7,7 @@ import CardMasonry from "@/components/CardMasonry";
 import { SITE_URL } from "@/lib/site";
 
 /**
- * /tags/{태그} — 태그별 의사 글 hub.
+ * /topics/{태그} — 태그별 의사 글 hub.
  *
  * v5.2 spec:
  *  - URL은 한국어 그대로 (UTF-8)
@@ -74,7 +74,7 @@ export async function generateMetadata({
 }: Props): Promise<Metadata> {
   const { tag: rawTag } = await params;
   const tag = decodeURIComponent(rawTag);
-  const url = `${SITE_URL}/tags/${encodeURIComponent(tag)}`;
+  const url = `${SITE_URL}/topics/${encodeURIComponent(tag)}`;
   return {
     title: `${tag} — 피부과 전문의 답변 모음`,
     description: `${tag} 관련 피부과 전문의의 검증된 답변과 칼럼. 시술 원리·효과·부작용·관리법까지 한곳에서.`,
@@ -103,7 +103,7 @@ export default async function TagPage({ params }: Props) {
   if (posts.length === 0) notFound();
 
   // 3) JSON-LD CollectionPage + ItemList
-  const url = `${SITE_URL}/tags/${encodeURIComponent(tag)}`;
+  const url = `${SITE_URL}/topics/${encodeURIComponent(tag)}`;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",

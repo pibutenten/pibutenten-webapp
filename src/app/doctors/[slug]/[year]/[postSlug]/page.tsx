@@ -38,7 +38,7 @@ async function fetchQaByDoctorYearSlug(
         `
         id, question, answer, meta, keywords, type, created_at, updated_at, posted_as,
         like_count, view_count, post_year, post_slug,
-        category, hide_doctor_credential, pubmed_ref,
+        category, hide_doctor_credential, pubmed_ref, pubmed_refs,
         external_url, external_title, external_description, external_image, external_site_name,
         doctor:doctors(slug, name, branch),
         author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url),
@@ -172,22 +172,37 @@ function buildJsonLd(
         dateCreated: created,
         upvoteCount: card.like_count ?? 0,
         url,
-        // 학술 인용(Schema.org Citation) — pubmed_ref 있을 때만. AI/검색엔진이 "논문 인용 붙은 의학 답변"으로 인식.
+        // 학술 인용(Schema.org Citation) — pubmed_refs (멀티) 우선, 없으면 pubmed_ref (단일 legacy) fallback.
+        // AI/검색엔진이 "논문 인용 붙은 의학 답변"으로 인식. 여러 ref 가 있으면 array 로 출력 (Schema.org spec OK).
         ...((() => {
-          const ref = (card as { pubmed_ref?: Record<string, unknown> | null }).pubmed_ref;
-          if (!ref || (!ref.pmid && !ref.doi)) return {};
-          const citation: Record<string, unknown> = { "@type": "ScholarlyArticle" };
-          if (ref.title) citation.name = ref.title;
-          // canonical url은 DOI 우선(영구 식별자). 사용자 화면 링크는 PubMed지만 머신 마크업은 DOI를 우선해 둠.
-          const citeUrl = (ref.doi_url as string) || (ref.pubmed_url as string) || null;
-          if (citeUrl) citation.url = citeUrl;
-          // PubMed URL도 sameAs로 함께 노출 — AI/검색엔진이 두 식별자 모두 인식.
-          if (ref.doi_url && ref.pubmed_url) citation.sameAs = ref.pubmed_url;
-          if (ref.year) citation.datePublished = ref.year;
-          if (ref.journal) citation.publisher = ref.journal;
-          if (ref.authors_short) citation.author = ref.authors_short;
-          if (ref.pmid) citation.identifier = `PMID:${ref.pmid}`;
-          return { citation };
+          const c = card as {
+            pubmed_ref?: Record<string, unknown> | null;
+            pubmed_refs?: Array<Record<string, unknown>> | null;
+          };
+          const refs: Array<Record<string, unknown>> =
+            c.pubmed_refs && c.pubmed_refs.length > 0
+              ? c.pubmed_refs
+              : c.pubmed_ref
+                ? [c.pubmed_ref]
+                : [];
+          const built = refs
+            .filter((ref) => ref && (ref.pmid || ref.doi))
+            .map((ref) => {
+              const citation: Record<string, unknown> = { "@type": "ScholarlyArticle" };
+              if (ref.title) citation.name = ref.title;
+              // canonical url은 DOI 우선(영구 식별자). 머신 마크업 DOI 우선.
+              const citeUrl = (ref.doi_url as string) || (ref.pubmed_url as string) || null;
+              if (citeUrl) citation.url = citeUrl;
+              if (ref.doi_url && ref.pubmed_url) citation.sameAs = ref.pubmed_url;
+              if (ref.year) citation.datePublished = ref.year;
+              if (ref.journal) citation.publisher = ref.journal;
+              if (ref.authors_short) citation.author = ref.authors_short;
+              if (ref.pmid) citation.identifier = `PMID:${ref.pmid}`;
+              return citation;
+            });
+          if (built.length === 0) return {};
+          // 단일 ref 면 객체로, 멀티면 array — 둘 다 Schema.org citation spec 허용
+          return { citation: built.length === 1 ? built[0] : built };
         })()),
       },
     },
