@@ -31,7 +31,7 @@ export default function BackButton({
       aria-label="뒤로가기"
       title="뒤로"
       className={
-        "inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)] " +
+        "inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--primary)] " +
         className
       }
     >
@@ -42,11 +42,12 @@ export default function BackButton({
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="h-5 w-5"
+        className="h-4 w-4"
         aria-hidden
       >
         <polyline points="15 18 9 12 15 6" />
       </svg>
+      <span>뒤로</span>
     </button>
   );
 }

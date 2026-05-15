@@ -57,28 +57,17 @@ export type CardRow = {
   author_name: string | null;
   author_handle: string | null;
   cnt: number;
-  /** API route 에서 cards.post_year + cards.doctor:doctors(slug) join 으로 채움.
-   *  의사 글 canonical URL /doctors/{slug}/{year}/{shortcode} 구성에 사용. */
-  doctor_slug?: string | null;
-  post_year?: number | null;
   comments?: CommentSummary[]; // comments kind 한정 — 글 밑에 항상 펼침
 };
 
 /**
- * 카드 공개 URL 결정 — 의사 글 우선, 회원 글 fallback. 둘 다 없으면 null.
- *  - 의사 글: /doctors/{slug}/{year}/{shortcode}
- *  - 회원 글: /{handle}/{shortcode}
- *  - null: link 비활성 (편집기로 가는 fallback 제거 — 사용자 의도 외 navigate 차단)
+ * 카드 공개 URL — `/{handle}/{shortcode}` 단일.
+ * 이 라우트는 shortcode UNIQUE 매칭이라 의사·회원 글 모두 처리됨.
+ * (의사 글의 SEO canonical 은 /doctors/.../ 이지만 대시보드 클릭 동선엔 무관.)
  */
 function publicCardUrl(row: CardRow): string | null {
-  if (!row.shortcode) return null;
-  if (row.doctor_slug && row.post_year) {
-    return `/doctors/${row.doctor_slug}/${row.post_year}/${row.shortcode}`;
-  }
-  if (row.author_handle) {
-    return `/${row.author_handle}/${row.shortcode}`;
-  }
-  return null;
+  if (!row.shortcode || !row.author_handle) return null;
+  return `/${row.author_handle}/${row.shortcode}`;
 }
 
 type Row = VisitorRow | CardRow;

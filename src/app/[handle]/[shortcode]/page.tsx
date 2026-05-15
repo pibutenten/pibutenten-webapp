@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Card, { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
@@ -87,16 +86,9 @@ export default async function MemberPostPage({ params }: Props) {
 
   return (
     <section className="w-full py-6">
-      {/* 좌상단 < — history.back() 시도 (옛 피드 스크롤 위치 복원, 사용자 요청).
-          옆 Link 는 작성자 프로필 진입 (별개 동선). */}
-      <div className="mb-3 flex items-center gap-1">
-        <BackButton fallbackHref="/" />
-        <Link
-          href={`/${handle}`}
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
-        >
-          {handle} 프로필
-        </Link>
+      {/* 좌상단 ← 뒤로 — history.back() 시도. 라벨 통일. */}
+      <div className="mb-3">
+        <BackButton fallbackHref={`/${handle}`} />
       </div>
       {/* 단독 카드 상세 — 본문 펼침 + 댓글 자동 펼침 (의사 글 페이지와 동일 정책) */}
       <Card card={card} forceExpanded autoExpandComments asH1 />

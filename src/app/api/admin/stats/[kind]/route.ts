@@ -64,41 +64,8 @@ export async function GET(
   const hasMore = data.length > limit;
   let rows = data.slice(0, limit) as Record<string, unknown>[];
 
-  // visitors 외 모든 card 종류: 카드별 doctor_slug + post_year 추가 fetch
-  // → 의사 글 canonical URL /doctors/{slug}/{year}/{shortcode} 구성에 사용
-  // (RPC 가 author_handle/shortcode 만 반환하므로 회원 글 fallback 만 가능했던 한계 해소)
-  if (kind !== "visitors" && rows.length > 0) {
-    const cardIds = rows
-      .map((r) => r.card_id as number)
-      .filter((id) => typeof id === "number");
-    if (cardIds.length > 0) {
-      const { data: cards } = await supabase
-        .from("cards")
-        .select("id, post_year, doctor:doctors(slug)")
-        .in("id", cardIds);
-      type CardJoinRow = {
-        id: number;
-        post_year: number | null;
-        doctor: { slug: string } | { slug: string }[] | null;
-      };
-      const byCard = new Map<number, { doctor_slug: string | null; post_year: number | null }>();
-      for (const c of (cards ?? []) as CardJoinRow[]) {
-        const doc = Array.isArray(c.doctor) ? c.doctor[0] ?? null : c.doctor;
-        byCard.set(c.id, {
-          doctor_slug: doc?.slug ?? null,
-          post_year: c.post_year ?? null,
-        });
-      }
-      rows = rows.map((r) => {
-        const extra = byCard.get(r.card_id as number);
-        return {
-          ...r,
-          doctor_slug: extra?.doctor_slug ?? null,
-          post_year: extra?.post_year ?? null,
-        };
-      });
-    }
-  }
+  // (옛 의사 글 doctor_slug+post_year+created_at fetch 분기 제거 — publicCardUrl 단순화로 불필요.
+  // 모든 카드는 /{author_handle}/{shortcode} 단일 라우트로 접근. 의사 글의 SEO canonical 은 별개)
 
   // comments kind: 각 qa의 기간 내 댓글(대댓글 포함) 본문도 함께 fetch
   if (kind === "comments" && rows.length > 0) {

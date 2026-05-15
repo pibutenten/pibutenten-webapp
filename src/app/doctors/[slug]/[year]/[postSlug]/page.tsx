@@ -307,15 +307,9 @@ export default async function DermatologistPostPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {/* 좌상단 < — history.back() (옛 피드/의사 페이지 위치 복원). 외부 진입 시 의사 페이지 fallback. */}
-      <div className="mb-2 flex items-center gap-1">
+      {/* 좌상단 ← 뒤로 — history.back(). 라벨 통일. */}
+      <div className="mb-2">
         <BackButton fallbackHref={`/doctors/${slug}`} />
-        <Link
-          href={`/doctors/${slug}`}
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
-        >
-          {slug} 페이지
-        </Link>
       </div>
       <Card
         card={card}
