@@ -180,10 +180,11 @@ export default function Card({
   // - id: active profile.id (cookie 'pibutenten:identity' 기반, 'primary' 면 user.id)
   // - role: active profile 자체의 role (묶음 최고 권한 X)
   // → 본인 글 편집/⋮ 메뉴는 active == author 일 때만 노출. ID 전환 시 권한도 함께 전환됨.
-  const [me, setMe] = useState<{
-    id: string;
-    role: "admin" | "doctor" | "user";
-  } | null>(null);
+  // 3-state: undefined=로딩 중 / null=비로그인 / obj=로그인.
+  // 로딩 중에 좋아요/저장/평가 클릭 시 잘못된 login redirect 방지 (race 차단).
+  const [me, setMe] = useState<
+    { id: string; role: "admin" | "doctor" | "user" } | null | undefined
+  >(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.question);
@@ -383,8 +384,9 @@ export default function Card({
   // ⚠️ 모든 경로에서 setSavePending(false)로 풀어야 다음 클릭이 막히지 않음.
   async function handleSave() {
     if (typeof window === "undefined") return;
-    // 미로그인 → 로그인 페이지로 (좋아요와 동일 패턴, me state 활용)
-    if (!me) {
+    // me 로딩 중(undefined) → 무시. 비로그인(null) → login redirect.
+    if (me === undefined) return;
+    if (me === null) {
       router.push("/login?next=" + encodeURIComponent(window.location.pathname));
       return;
     }
@@ -495,9 +497,10 @@ export default function Card({
 
   function handleLike() {
     if (typeof window === "undefined") return;
-    // 로그인 필수 — 익명 path는 qa_likes에 row를 안 남겨서 새로고침 시 풀리는 문제 발생.
-    // me state로 미리 확인하고, 미로그인 시 로그인 페이지로 안내.
-    if (!me) {
+    // me 로딩 중(undefined) → 무시. 로딩 race 차단.
+    // 비로그인(null) → login redirect.
+    if (me === undefined) return;
+    if (me === null) {
       router.push("/login?next=" + encodeURIComponent(window.location.pathname));
       return;
     }
@@ -566,7 +569,12 @@ export default function Card({
     (async () => {
       const sb = createSupabaseBrowserClient();
       const { data: { user } } = await sb.auth.getUser();
-      if (!alive || !user) return;
+      if (!alive) return;
+      // 비로그인 — me=null 명시 (로딩 중 undefined 와 구분)
+      if (!user) {
+        setMe(null);
+        return;
+      }
       const activeId = getActiveIdentityId() ?? user.id;
       // 단일 profile 조회 — 본인 묶음 안 멤버 검증 포함
       const { data: prof } = await sb

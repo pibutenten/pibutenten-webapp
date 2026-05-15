@@ -789,14 +789,29 @@ function CommentForm({
           </span>
         )}
       </div>
-      {/* 등록 — 위 화살표 아이콘 (textarea 와 가운데 정렬) */}
+      {/* 등록 — 위 화살표 아이콘 (textarea 와 가운데 정렬).
+          hit area 44x44 (WCAG/iOS 권장) — 32x32 시 모바일 미스터치로 10번 누르는 케이스 발생.
+          onPointerDown 으로 한 번 더 발사 — IME 조합 중 마지막 글자 클릭이 disabled 로 사라지는 케이스 보강. */}
       <button
         type="button"
         aria-label="등록"
         title="등록"
-        className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:bg-[var(--border)]"
+        className="shrink-0 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:bg-[var(--border)]"
         disabled={submitting || !body.trim()}
-        onClick={onSubmit}
+        onPointerDown={(e) => {
+          // 한글 IME 조합 종료 강제 — composition 이 끝나야 body 가 갱신되고 disabled 해제됨
+          const ta = textareaRef.current;
+          if (ta && document.activeElement === ta) {
+            ta.blur();
+            ta.focus();
+          }
+          // 클릭이 막히지 않도록 약간 지연 후 onClick 으로 처리됨
+          void e;
+        }}
+        onClick={() => {
+          if (submitting || !body.trim()) return;
+          onSubmit();
+        }}
       >
         {submitting ? (
           <span className="text-[12px]">…</span>
