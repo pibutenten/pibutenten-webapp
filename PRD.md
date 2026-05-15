@@ -1,5 +1,84 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
+> 마지막 업데이트: 2026-05-15 ~ 16 (QA 23건 + OAuth/카테고리/묶음 정책 대량 fix)
+> 기준 commit: `66019bc`
+
+## 🆕 2026-05-15 ~ 16 세션 작업 (commit 흐름)
+
+| commit | 내용 |
+|---|---|
+| `bca3000` | **QA P0/P1 + UX 1차** — admin 가드 통일 헬퍼 `admin-page-guard.ts` 신설 + 8개 admin 페이지 교체 (묶음 OR 정책 단일화) / `card_impressions` upsert / supabase 클라이언트 싱글톤 + SIGNED_OUT 핸들러 / `RelativeTime` 컴포넌트 신설로 hydration #418 차단 / migration 0092 인기태그 RPC `posted_as` 필터 제거 / 회원 글쓰기 [저장] 버튼 모든 role 노출 |
+| `b8b401e` | **브랜드 tenten blue (#4CBFF2) 전면 적용** — CSS/TSX 6 파일 색상 변경 + 아이콘 PNG 12개 일괄 recolor (anti-aliased edge 보존) + OG `1200×630` letterbox + manifest theme/background |
+| `4f68d6e` | **QA 묶음 1** — 공유하기→소식공유, '끄적끄적' 카테고리 신설+디폴트, 공유 문구 구분자 콜론→파이프, 댓글 본문 trim, 모바일 댓글 글씨 연하게, 태그 '접기' 디자인, 좋아요 다이얼로그 빈 결과 fix |
+| `2924d67` | **QA 묶음 2** — BackButton 전구 (12 페이지), 우상단 아이콘 진한색 통일, 본인 발행 글 최상단 고정, 검색창 색·모바일 여백, 태그 입력 IME 버그(써마지+스페이스), 헤로 카피 4초 + slide-up keyframe |
+| `002d113` | **QA 묶음 3** — 글 단독 페이지 글/태그 접기 차단, 댓글 입력 박스 pill, 의사 카드 호버 음영, 의사 사진 배경 그라데이션, 모바일 댓글창 단일 포커스, 피드 jitter 0.35, 글 삭제 fade-out 애니메이션 |
+| `5d81f59` | **CRITICAL — Google/Kakao OAuth 로그인 복구** — supabase/client.ts 의 `onAuthStateChange('SIGNED_OUT')` → `location.reload()` 핸들러 제거. signInWithOAuth 흐름 중 SIGNED_OUT 발사 → reload 트리거 → provider redirect 끊김 이슈. 싱글톤은 유지 |
+| `42f246b` | **CRITICAL — 새 가입자 차단 fix** + 의사 단독 페이지 hero 그라데이션 + 댓글 inline flow. migration 0093 — `_suggest_handle` 에서 `profiles.alt_handle` (존재 안 함) 참조 제거. `handle_new_user` 트리거 실패로 모든 신규 OAuth 가입이 "Database error saving new user" 반환되던 이슈 |
+| `215e1a0` | **사이트 전체 '뒤로' 통일** — '← 대시보드', '← 회원 목록', '← 의사 목록' 등 옛 텍스트 백 링크 6 페이지 제거 + `BackButton` 컴포넌트 단일 패턴 / `/admin/users` doctor 매핑 배지 자동 표시 (🩺 김종식) |
+| `60b0040` | 댓글 layout 원복 (메타 우측 inline 유지) + `AdminBackLink` 비활성 / `/admin/doctors` 직박힘 '← 대시보드' 제거 / doctor_accounts 매핑 스크립트 (시도 1) |
+| `fb0bb93` | **댓글 메타 2회 중복 fix** + 묶음 정정 + 매핑할 원장 9명 모두 노출. CommentItem 의 메타 블록이 두 번 렌더되던 시각 버그 / 회원 명함 role 되돌리기 (doctor→user) + auth_user_id 묶음 형성 / RoleChangeForm 의 `availableDoctors` 필터 제거 |
+| `f30df47` | 회원관리 디폴트 기간 '전체' + OAuth callback `display_name` user_metadata 자동 채우기 + font-bold 회귀 원복 (시키지 않은 변경 되돌림) |
+| `66019bc` | **'흰글씨로' 진짜 원인 fix** — Tailwind v4 `@theme inline` 에 `--color-primary-active` 매핑 누락. `bg-[var(--primary-active)]` arbitrary value 가 dev/build 캐시에서 무효화. 매핑 추가로 active 칩 진한 파랑(#1B87C9) + 흰글씨 정상 대비 (WCAG AA) |
+
+## 🆕 핵심 정책 변경 (2026-05-15~16)
+
+### 카테고리 v5.2 (6개 체계)
+- 순서: **끄적끄적**(doodle, default) → 피부일기 → 피부꿀팁 → 궁금해요 → **소식공유**(link, 옛 공유하기 라벨 변경) → Q&A
+- `cards.category` 컬럼은 text 타입이라 DB 변경 X
+- 회원 글쓰기 디폴트 'diary' → **'doodle'**
+
+### `/admin/*` 가드 단일화
+- 신설 헬퍼: `src/lib/admin-page-guard.ts` — `requireAdminPage(next?, opts?)`
+- 8 페이지 모두 동일 헬퍼 사용. PRD §C 묶음 OR 정책으로 통일
+- `opts.superAdminOnly: true` — `/admin/users`, `/admin/doctors`, `/admin/doctors/[slug]/edit` 는 doctor 차단
+
+### `--primary-active` 신설 (active 칩 흰글씨 대비)
+- `--primary` (#4CBFF2) + 흰글씨 contrast ~1.94:1 (너무 낮음 — 글씨 흐릿)
+- `--primary-active` (#1B87C9) + 흰글씨 contrast ~4.5:1 (WCAG AA)
+- `@theme inline` 에 `--color-primary-active: var(--primary-active)` 매핑 필수 (Tailwind v4)
+- 적용처: `ActivityKpis`, `PopularCards`, `StatsListClient`, `admin/users` 기간 토글
+
+### `RelativeTime` 컴포넌트 (hydration #418 차단)
+- 옛 `relativeTime()` 직접 호출 → SSR/CSR 다른 값 → React #418
+- 신설 `<RelativeTime iso={...} />` — SSR 빈 문자열, 마운트 후 `setState` 로 실제 값. 60초 자동 갱신
+- 적용처: `Card.tsx` 의 글 날짜, `CommentsBlock.tsx` 의 댓글 시간
+
+### OAuth callback display_name 자동 채우기 (`src/app/auth/callback/route.ts`)
+- OAuth 가입 시 `user_metadata.{name, full_name, nickname}` 첫 값 → `profiles.display_name` 자동
+- `profiles.display_name IS NULL` 일 때만 (사용자 직접 설정 보존)
+
+## 🗄 DB 변경 (즉시 prod 반영, 배포 무관)
+
+### 마이그레이션
+- **0092** — `get_top_tags` RPC `posted_as = 'official'` 필터 제거 (cards 컬럼 부재). 인기태그 살아남
+- **0093** — `_suggest_handle` 의 `alt_handle` 참조 제거. 새 가입자 차단 해소
+
+### doctor_accounts + auth_user_id 묶음 (배정민 패턴 동일 적용)
+| doctor | placeholder profile | 묶음 멤버 (user role) |
+|---|---|---|
+| 김종식 | @kim-jongsic (doctor) | + @hhskin02 사과 |
+| 정한미 | @jung-hanmi (doctor) | + @u-x3x6fb 너구리 |
+| 고혜림 | @ko-hyerim (doctor) | + @drizzle212 Hyerim |
+| 권수현 | @kwon-soohyun (doctor) | + @pinkegg119 뚜엉이 |
+
+→ `doctor_accounts` 1:1 매핑은 placeholder doctor profile 유지. 회원 명함은 `auth_user_id` 로 같은 묶음 (PRD §C). 회원 role 은 user 그대로.
+
+### 데이터 정리
+- `@u-4ta852` (잘못 생성된 정한미 sub-profile) 삭제 (활동 데이터 0)
+- `@lhjcjstk79` display_name backfill: NULL → '이혜정' (auth.users.user_metadata 의 'name')
+
+## ⚠️ 잔여 진단 필요 (다음 세션)
+
+| 항목 | 메모 |
+|---|---|
+| **방문자/조회수 집계** | `card_views` 239건 / 가장 최근 5건 모두 `@developer` view → 일반 회원 view 가 DB 도달 안 함. `recordView()` 클라이언트 호출 또는 RLS 또는 RPC 점검 |
+| **OAuth provider 별 동일인 식별** | 같은 사람이 Google/Kakao/Naver 가입 시 별도 ID. @lhjhyeya (Google, lhjhyeya@gmail.com) vs @lhjcjstk79 (Kakao, lhjcjstk79@naver.com) 둘 다 '이혜정' — 자동 판단 불가. Option A (이메일 매칭) / B (휴대폰 인증) / C (수동 매칭) / D (마이페이지에서 연결) 중 결정 필요 |
+| **QA 23건 중 미적용** | (2) PWA 설치 안내 플랫폼별, (3) 비로그인 로그인 권유, (4) iOS PWA pull-to-refresh, (16) 저장 글 서브탭 (ProfileTabs.saves 이미 존재) |
+
+---
+
+## 🆕 이전 세션 (2026-05-15 야간 — 옛 묶음)
+
 > 마지막 업데이트: 2026-05-15 야간 (대량 UX·정책 fix + 의사 글 URL 정책 분기 + Q&A canonical redirect)
 > 기준 commit: `1f75bbb`
 
