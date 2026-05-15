@@ -405,7 +405,7 @@ export default function Card({
         p_identity_id: activeIdentityId,
       });
       if (error) {
-        console.error("[toggle_qa_save]", error);
+        console.error("[toggle_card_save]", error);
         alert((wasSaved ? "저장 취소" : "저장") + " 실패: " + error.message);
         // 낙관적 복원
         setSaved(wasSaved);
@@ -526,7 +526,7 @@ export default function Card({
         }
       } catch (e) {
         // RPC 실패 — UI 롤백 + 콘솔 로깅 (silent fail 방지)
-        console.error("[handleLike] toggle_qa_like failed:", e);
+        console.error("[handleLike] toggle_card_like failed:", e);
         setLiked(wasLiked);
         setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
       }
