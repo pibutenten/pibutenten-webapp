@@ -1069,10 +1069,14 @@ export default function Card({
         {/* 더보기 버튼 제거 — 본문 클릭으로 펼침/접기 */}
         {(() => {
           // 영상 링크 우선순위:
-          //  1) Q&A 카테고리 + external_url(youtube) → 영상 보러가기 + timestamp
-          //  2) videos 테이블 join (legacy backfill)
+          //  1) Q&A 카테고리 + external_url(youtube) → 영상 보러가기 + timestamp (?t=...)
+          //  2) videos 테이블 join (legacy backfill, timestamp 없음)
           //  3) 그 외 카테고리 + external_url → [더 알아보기]
-          const isQa = card.category === "card";
+          // 정정 (2026-05-15): 옛 코드 'card.category === "card"' 는 항상 false 였음
+          //   (category enum: 'qa'|'tip'|'diary'|'ask'|'link'). 이로 인해 external_url
+          //   분기를 타지 못해 videos.youtube_url(timestamp 없음) 으로 fallback 되며
+          //   모든 Q&A 영상의 시작 시간이 표시되지 않던 회귀 fix.
+          const isQa = card.category === "qa";
           const ext = card.external_url;
           const isYoutubeExt =
             ext && /(?:youtu\.be|youtube\.com|youtube-nocookie\.com)/.test(ext);
