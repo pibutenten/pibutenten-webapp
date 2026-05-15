@@ -170,29 +170,37 @@ export default function NotificationPreferences({
                   {r.desc}
                 </p>
               </div>
+              {/* 토글 — 박스 44x24, thumb 20x20 / 좌우 2px 여백 (ON: left 22, OFF: left 2).
+                  옛 코드는 translate-x-[22px] arbitrary + Tailwind 'shadow' 사용했는데
+                  v4 환경에서 thumb 이 박스 밖으로 튀어나오고 그림자도 약해 깨져 보임.
+                  → 핵심 좌표/크기/그림자 모두 inline style 로 명시 (Tailwind 의존성 제거). */}
               <button
                 type="button"
                 role="switch"
                 aria-checked={value}
                 disabled={!prefs || saving}
                 onClick={() => toggle(r.key)}
-                className={
-                  "relative h-6 w-11 shrink-0 rounded-full transition-colors " +
-                  (value
-                    ? "bg-[var(--primary)]"
-                    : "bg-[var(--border)]")
-                }
+                className="relative shrink-0 rounded-full transition-colors"
+                style={{
+                  width: 44,
+                  height: 24,
+                  backgroundColor: value
+                    ? "var(--primary)"
+                    : "var(--border)",
+                }}
               >
-                {/* thumb — Tailwind 'shadow' 가 약해 흰색 thumb 이 흰색 배경(설정 박스)
-                    에 묻혀 토글이 깨져 보이던 문제 fix.
-                    inline boxShadow + 옅은 ring 으로 경계 명확히. */}
                 <span
                   aria-hidden
-                  className={
-                    "absolute top-0.5 h-5 w-5 rounded-full bg-white ring-1 ring-black/10 transition-transform " +
-                    (value ? "translate-x-[22px]" : "translate-x-0.5")
-                  }
-                  style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.1)" }}
+                  className="absolute rounded-full bg-white ring-1 ring-black/10"
+                  style={{
+                    width: 20,
+                    height: 20,
+                    top: 2,
+                    left: value ? 22 : 2,
+                    boxShadow:
+                      "0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.1)",
+                    transition: "left 200ms ease",
+                  }}
                 />
               </button>
             </li>
