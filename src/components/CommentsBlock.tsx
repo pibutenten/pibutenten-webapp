@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
+import RelativeTime from "@/components/RelativeTime";
 
 type CommentStatus = "visible" | "hidden" | "deleted";
 
@@ -73,10 +74,8 @@ export default function CommentsBlock({
   disableAutoFocus = false,
 }: Props) {
   const [comments, setComments] = useState<CommentWithReplies[]>([]);
-  const [totalRoot, setTotalRoot] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
   const [me, setMe] = useState<Me>(null);
   const [meLoaded, setMeLoaded] = useState(false);
 
@@ -98,10 +97,8 @@ export default function CommentsBlock({
       if ("error" in j) {
         setError(j.error);
         setComments([]);
-        setTotalRoot(0);
       } else {
         setComments(j.comments);
-        setTotalRoot(j.total_root);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -173,8 +170,11 @@ export default function CommentsBlock({
   const isAdmin = me?.role === "admin";
   // qa의 doctor 본인 여부는 댓글의 권한과는 별개 (서버 RLS가 진실원). UI는 me.doctor_id로 표시 보조.
 
-  // ── 표시할 댓글 (preview / expanded 토글)
-  const visibleRoots = expanded ? comments : comments.slice(0, 3);
+  // ── 표시할 댓글:
+  //   - showInput=false (카드 상단 💬 아이콘 미클릭) → 프리뷰 3개
+  //   - showInput=true  (💬 클릭으로 입력창 열림)   → 전체 펼침
+  //   "모두 보기 (N)" 버튼은 제거 — 카드 상단 💬 토글이 단일 진입점.
+  const visibleRoots = showInput ? comments : comments.slice(0, 3);
 
   // ── 가시 댓글 총 수 (전체 표시용 카운트는 totalRoot + 답글 합산보다는 visible만 카운트)
   const visibleCount = useMemo(() => {
@@ -262,18 +262,6 @@ export default function CommentsBlock({
       style={hasComments ? { borderColor: "#EEEFF1" } : undefined}
       onClick={(e) => e.stopPropagation()}
     >
-      {totalRoot > 3 && (
-        <div className="mb-1 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)]"
-          >
-            {expanded ? "접기" : `모두 보기 (${totalRoot})`}
-          </button>
-        </div>
-      )}
-
       {error && (
         <p className="text-[12px] text-red-600">댓글을 불러오지 못했어요: {error}</p>
       )}
@@ -474,7 +462,8 @@ function CommentItem({
     : comment.author?.id
       ? `/u/${comment.author.id}`
       : null;
-  const timeLabel = relativeTime(comment.created_at);
+  // P1-4 fix — RelativeTime 컴포넌트로 위임. SSR 빈 문자열 → 마운트 후 실제 값 set.
+  //   hydration mismatch (React #418) 방지.
 
   return (
     <div
@@ -524,7 +513,9 @@ function CommentItem({
             {isDeleted ? "(삭제된 댓글이에요)" : comment.body.trim()}
           </span>
         )}
-        <span className="text-[11px] text-[var(--text-muted)]">· {timeLabel}</span>
+        <span className="text-[11px] text-[var(--text-muted)]">
+          · <RelativeTime iso={comment.created_at} />
+        </span>
         {isHidden && (
           <span className="text-[11px] text-[var(--text-muted)]">🙈 가림</span>
         )}
@@ -840,18 +831,5 @@ function CommentForm({
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// helper: 상대시간 (예: "2일 전")
-// ─────────────────────────────────────────────────────────────
-
-function relativeTime(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (!Number.isFinite(t)) return "";
-  const diffSec = Math.floor((Date.now() - t) / 1000);
-  if (diffSec < 60) return "방금 전";
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}시간 전`;
-  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}일 전`;
-  const d = new Date(iso);
-  return `${d.getFullYear().toString().slice(2)}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
+// helper: 상대시간 (예: "2일 전") — RelativeTime 컴포넌트로 이전됨 (P1-4 fix).
+//   `src/components/RelativeTime.tsx` 의 formatRelativeTime/RelativeTime 사용.

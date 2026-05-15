@@ -1,9 +1,8 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
-import { getIdentityContext } from "@/lib/identity";
+import { requireAdminPage } from "@/lib/admin-page-guard";
 import { PopularSearchesCard, PopularTagsCard } from "./PopularCards";
 import ActivityKpis from "./ActivityKpis";
 import LogoutButton from "@/components/LogoutButton";
@@ -36,19 +35,11 @@ type KpiRow = {
  * 영구 noindex. 운영 통계 + 모더레이션 + 회원 관리 + 검색어/태그 인기도 + AEO/GEO log.
  */
 export default async function AdminPage() {
+  // PRD §C — 묶음 OR 가드. 묶음 안에 admin role profile 1개라도 있으면 super admin,
+  // 또는 active 가 doctor + doctor_accounts 매핑이면 doctor admin. 그 외 차단.
+  const guard = await requireAdminPage("/admin");
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/admin");
-
-  // 권한 분기 — active identity 기반 (cookie 'pibutenten:identity')
-  //   active.kind='admin'     → super admin (개발자/관리자, 모든 권한 + 새 Q&A 추출하기 노출)
-  //   active.doctor_id !=NULL → 원장 admin (본인 doctor 카드만 + 새 Q&A 추출하기 숨김)
-  //   active.kind='user'      → admin 권한 없음 → 일반 사용자처럼 차단
-  const idCtx = await getIdentityContext(supabase);
-  if (!idCtx?.active || (!idCtx.isSuperAdmin && !idCtx.isDoctorAdmin)) {
-    redirect("/login?error=관리자 권한이 필요합니다");
-  }
-  const isSuperAdmin = idCtx.isSuperAdmin;
+  const isSuperAdmin = guard.isSuperAdmin;
 
   // 운영 통계 + 6개 기간 검색어/태그 + 5개 기간 활동 KPI 일괄 prefetch.
   // 모든 기간을 미리 받아두면 클릭 시 깜빡임 없이 즉시 스위치.

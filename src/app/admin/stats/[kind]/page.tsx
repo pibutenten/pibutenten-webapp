@@ -1,6 +1,6 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getIdentityContext } from "@/lib/identity";
+import { requireAdminPage } from "@/lib/admin-page-guard";
 import StatsListClient, {
   type Kind,
   type VisitorRow,
@@ -60,15 +60,9 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
   const kind = ALLOWED_KINDS.includes(kindRaw as Kind) ? (kindRaw as Kind) : null;
   if (!kind) notFound();
 
+  // PRD §C — 묶음 OR 가드 (admin or doctor admin)
+  await requireAdminPage(`/admin/stats/${kind}`);
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect(`/login?next=/admin/stats/${kind}`);
-  const idCtx = await getIdentityContext(supabase);
-  if (!idCtx?.active || (!idCtx.isSuperAdmin && !idCtx.isDoctorAdmin)) {
-    redirect("/login?error=관리자 권한이 필요합니다");
-  }
 
   const sp = (await searchParams) ?? {};
   const daysRaw = parseInt(sp.days ?? String(DEFAULT_DAYS), 10);

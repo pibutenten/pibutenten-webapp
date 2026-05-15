@@ -29,6 +29,7 @@ import { labelForCategory } from "@/lib/post-category";
 import { pickHighlight } from "@/lib/card-highlight";
 import { enqueueImpression } from "@/lib/impression-queue";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import RelativeTime from "@/components/RelativeTime";
 
 export type CardData = {
   id: number;
@@ -529,8 +530,9 @@ export default function Card({
   const theme = doctor ? getDoctorTheme(doctor.slug) : null;
   const photo = doctor ? getDoctorPhoto(doctor.slug) : null;
   // 모든 글 단일 시간 기준 — cards.created_at (영상 글은 backfill로 video.upload_date와 동기화됨)
-  // SNS 표준 상대시간 + 호버 시 절대 날짜
-  const dateLabel = card.created_at ? relativeTime(card.created_at) : null;
+  // SNS 표준 상대시간 + 호버 시 절대 날짜.
+  // P1-4 fix — relativeTime() 직접 호출 대신 <RelativeTime/> 컴포넌트 사용 (hydration mismatch 방지).
+  const hasDate = !!card.created_at;
   const dateAbsolute = card.created_at
     ? absoluteDateTimeLabel(card.created_at)
     : null;
@@ -915,18 +917,18 @@ export default function Card({
                   옛 영상 topic 표시는 v4에서 제거 (카테고리로 통일). */}
               {(() => {
                 const catLabel = labelForCategory(card.category);
-                if (!catLabel && !dateLabel) return null;
+                if (!catLabel && !hasDate) return null;
                 return (
                   <div className="mt-[5px] truncate text-[11.5px] leading-[1.2] text-[var(--text-muted)]">
                     {catLabel}
-                    {dateLabel && (
+                    {hasDate && card.created_at && (
                       <>
                         {catLabel ? " · " : ""}
                         <time
                           dateTime={dateIso}
                           title={dateAbsolute ?? undefined}
                         >
-                          {dateLabel}
+                          <RelativeTime iso={card.created_at} />
                         </time>
                       </>
                     )}
@@ -1617,29 +1619,8 @@ function formatDate(iso: string | null): string | null {
   return `${m[1].slice(2)}.${m[2]}.${m[3]}`;
 }
 
-/**
- * SNS 표준 상대시간.
- *  - <1분: 방금 전
- *  - <1시간: N분 전
- *  - <24시간: N시간 전
- *  - <7일: N일 전
- *  - <4주: N주 전
- *  - <12달: N달 전
- *  - 그 외: N년 전
- */
-function relativeTime(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const t = new Date(iso).getTime();
-  if (!Number.isFinite(t)) return null;
-  const diffSec = Math.floor((Date.now() - t) / 1000);
-  if (diffSec < 60) return "방금 전";
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}시간 전`;
-  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}일 전`;
-  if (diffSec < 86400 * 28) return `${Math.floor(diffSec / (86400 * 7))}주 전`;
-  if (diffSec < 86400 * 365) return `${Math.floor(diffSec / (86400 * 30))}달 전`;
-  return `${Math.floor(diffSec / (86400 * 365))}년 전`;
-}
+// SNS 표준 상대시간 — RelativeTime 컴포넌트로 이전됨 (P1-4 fix).
+//   `src/components/RelativeTime.tsx` 의 formatRelativeTime/RelativeTime 사용.
 
 /**
  * 호버 절대 날짜 — title 속성용.

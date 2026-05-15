@@ -49,17 +49,32 @@ export default function HeroSearch() {
   const [focused, setFocused] = useState(false);
   const [phrase, setPhrase] = useState(HERO_PHRASES[0]);
 
-  // 6 초 인터벌로 자동 회전 (사용자 새로고침 안 해도 다양한 카피 노출).
-  // 같은 phrase 연속 X — 직전 인덱스와 다른 인덱스 강제.
+  // 6 초 인터벌로 자동 회전 (Fisher-Yates 셔플 큐):
+  // - 모든 phrase 한 번씩 노출하고 큐 소진 시 재셔플 → "같은 순서" 인상 제거
+  // - 첫 phrase 는 SSR 안전상 HERO_PHRASES[0] 로 마운트 (hydration mismatch 차단),
+  //   마운트 직후 첫 pickNext() 호출에서 셔플된 큐로 즉시 교체.
   useEffect(() => {
-    let lastIdx = 0;
-    function pickNext() {
-      let idx = Math.floor(Math.random() * HERO_PHRASES.length);
-      if (HERO_PHRASES.length > 1 && idx === lastIdx) {
-        idx = (idx + 1) % HERO_PHRASES.length;
+    function shuffle<T>(arr: T[]): T[] {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
       }
-      lastIdx = idx;
-      setPhrase(HERO_PHRASES[idx]);
+      return a;
+    }
+    let queue: string[] = shuffle(HERO_PHRASES);
+    let prev = HERO_PHRASES[0];
+    function pickNext() {
+      if (queue.length === 0) {
+        queue = shuffle(HERO_PHRASES);
+        // 새 큐 첫 항목이 직전과 같으면 한 번 swap (연속 노출 방지)
+        if (queue.length > 1 && queue[0] === prev) {
+          [queue[0], queue[1]] = [queue[1], queue[0]];
+        }
+      }
+      const next = queue.shift()!;
+      prev = next;
+      setPhrase(next);
     }
     pickNext();
     const timer = window.setInterval(pickNext, 6000);

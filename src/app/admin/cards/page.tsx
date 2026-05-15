@@ -1,10 +1,9 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PickToggle from "@/components/PickToggle";
 import { labelForCategory } from "@/lib/post-category";
 import AdminQasDoctorFilter from "./AdminQasDoctorFilter";
-import { getIdentityContext } from "@/lib/identity";
+import { requireAdminPage } from "@/lib/admin-page-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -128,35 +127,25 @@ function buildQueryString(params: Record<string, string | number | undefined>): 
 export default async function AdminQAsPage({ searchParams }: Props) {
   const sp = await searchParams;
 
+  // PRD §C — 묶음 OR 가드. 권한 분기:
+  //   bundle has admin role → super admin (모든 카드)
+  //   active doctor_id 매핑 → 원장 admin (본인 doctor 카드만)
+  //   둘 다 아님            → redirect
+  const guard = await requireAdminPage("/admin/cards");
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/admin/cards");
-
-  // active identity 기반 권한 분기:
-  //   kind='admin'         → super admin (모든 카드)
-  //   doctor_id 매핑       → 원장 admin (본인 doctor 카드만)
-  //   kind='user'          → 차단
-  const idCtx = await getIdentityContext(supabase);
-  if (!idCtx?.active) {
-    redirect("/login?error=관리자 권한이 필요합니다");
-  }
-  if (!idCtx.isSuperAdmin && !idCtx.isDoctorAdmin) {
-    redirect("/login?error=관리자 권한이 필요합니다");
-  }
-  const isSuperAdmin = idCtx.isSuperAdmin;
+  const isSuperAdmin = guard.isSuperAdmin;
   const isAdmin = isSuperAdmin;
 
-  // 원장 admin이면 본인 doctor 정보 lookup (필터·헤더용)
+  // 원장 admin이면 본인 doctor 정보 lookup (필터·헤더용).
+  // super admin 일 때도 active 가 doctor 면 본인 doctor slug 노출 (편의).
   let ownDoctorSlug: string | null = null;
   let ownDoctorId: string | null = null;
   let ownDoctorName: string | null = null;
-  if (idCtx.isDoctorAdmin && idCtx.activeDoctorId) {
+  if (guard.isDoctorAdmin && guard.activeDoctorId) {
     const { data: d } = await supabase
       .from("doctors")
       .select("slug, id, name")
-      .eq("id", idCtx.activeDoctorId)
+      .eq("id", guard.activeDoctorId)
       .maybeSingle();
     if (d) {
       ownDoctorSlug = d.slug as string;

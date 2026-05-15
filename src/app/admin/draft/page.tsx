@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getIdentityContext } from "@/lib/identity";
+import { requireAdminPage } from "@/lib/admin-page-guard";
 import DraftClient from "./DraftClient";
 
 export const dynamic = "force-dynamic";
@@ -12,18 +11,11 @@ export const metadata = {
 };
 
 export default async function AdminDraftPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/admin/draft");
-
-  // 새 Q&A 추출하기는 super admin (active.kind='admin') 전용.
-  // 원장 admin은 검수만 가능 → /admin/cards?status=pending_review 로 redirect.
-  const idCtx = await getIdentityContext(supabase);
-  if (!idCtx?.active) {
-    redirect("/login?error=관리자 권한이 필요합니다");
-  }
-  if (!idCtx.isSuperAdmin) {
-    if (idCtx.isDoctorAdmin) {
+  // 새 Q&A 추출하기는 super admin (묶음에 admin role) 전용.
+  // 원장 admin (active doctor) 은 검수만 가능 → /admin/cards?status=pending_review 로 redirect.
+  const guard = await requireAdminPage("/admin/draft");
+  if (!guard.isSuperAdmin) {
+    if (guard.isDoctorAdmin) {
       redirect("/admin/cards?status=pending_review");
     }
     redirect("/login?error=관리자 권한이 필요합니다");

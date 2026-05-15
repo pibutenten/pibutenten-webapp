@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getIdentityContext } from "@/lib/identity";
+import { requireAdminPage } from "@/lib/admin-page-guard";
 import CommentsClient, { type CommentRow } from "./CommentsClient";
 
 export const dynamic = "force-dynamic";
@@ -21,15 +20,9 @@ const FIRST_PAGE_SIZE = 50;
  *   - 서버에서 첫 50개 prefetch → CommentsClient에 hydration
  */
 export default async function AdminCommentsPage() {
+  // PRD §C — 묶음 OR 가드 (admin or doctor admin)
+  await requireAdminPage("/admin/comments");
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/admin/comments");
-  const idCtx = await getIdentityContext(supabase);
-  if (!idCtx?.active || (!idCtx.isSuperAdmin && !idCtx.isDoctorAdmin)) {
-    redirect("/login?error=관리자 권한이 필요합니다");
-  }
 
   // 전체 카운트 + 첫 페이지 댓글 동시 fetch
   const [{ count }, { data: rows }] = await Promise.all([

@@ -201,8 +201,6 @@ export default function StatsListClient({
             const isVisitors = kind === "visitors";
             const cardRow = !isVisitors ? (r as CardRow) : null;
             const visitorRow = isVisitors ? (r as VisitorRow) : null;
-            const showComments =
-              kind === "comments" && cardRow?.comments && cardRow.comments.length > 0;
             return (
               <li
                 key={
@@ -239,12 +237,11 @@ export default function StatsListClient({
                       {(visitorRow as VisitorRow).visit_count.toLocaleString()}
                     </span>
                   </div>
-                ) : kind === "comments" ? (
-                  // 댓글 TOP — 글 제목은 단독 URL link, 댓글은 항상 펼침 (옛 동작 유지)
-                  <CommentsTopRow row={cardRow as CardRow} showComments={!!showComments} />
                 ) : (
-                  // likes/saves/shares/views TOP — 글 제목·카운트 클릭 모두 닉네임 펼침 토글.
-                  // 펼친 창 클릭하면 글 단독 URL 로 이동.
+                  // likes/saves/shares/views/comments TOP — 모두 동일 UX:
+                  //   1) 제목·카운트 클릭 → 펼침 토글
+                  //   2) 펼친 패널 클릭 → 글 단독 URL 이동
+                  //   3) 댓글의 경우 펼친 패널 내용이 닉네임·시간·본문(1줄, 길면 wrap)
                   <ActivityTopRow row={cardRow as CardRow} kind={kind} />
                 )}
               </li>
@@ -273,53 +270,8 @@ export default function StatsListClient({
 }
 
 /**
- * 댓글 블록 — 글 박스 하단에 항상 펼친 상태로 표시.
- * 부모(parent_id=null) → 본인 들여쓰기 0 / 답글 들여쓰기 1.
- */
-function CommentsBlock({ comments }: { comments: CommentSummary[] }) {
-  // 부모-자식 트리 구성. order: 부모 created_at asc, 그 아래로 답글들 asc.
-  const parents = comments.filter((c) => c.parent_id == null);
-  const repliesByParent = new Map<number, CommentSummary[]>();
-  for (const c of comments) {
-    if (c.parent_id != null) {
-      const list = repliesByParent.get(c.parent_id) ?? [];
-      list.push(c);
-      repliesByParent.set(c.parent_id, list);
-    }
-  }
-  // 고아 답글(부모 없음)도 표시 — 부모를 못 받은 경우 그냥 부모처럼 렌더
-  const orphanReplies = comments.filter(
-    (c) =>
-      c.parent_id != null && !parents.some((p) => p.id === c.parent_id),
-  );
-
-  return (
-    <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2">
-      <ul className="space-y-1.5">
-        {parents.map((c) => {
-          const replies = repliesByParent.get(c.id) ?? [];
-          return (
-            <li key={c.id}>
-              <CommentLine comment={c} depth={0} />
-              {replies.map((r) => (
-                <CommentLine key={r.id} comment={r} depth={1} />
-              ))}
-            </li>
-          );
-        })}
-        {orphanReplies.map((r) => (
-          <li key={r.id}>
-            <CommentLine comment={r} depth={0} />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/**
- * 활동 카운트 버튼 — 클릭 시 그 카드의 활동 사용자 N명 inline 펼침.
- * likes/saves/shares/views 한정 (visitors/comments는 별도 패턴).
+ * 활동 카운트 버튼 — 클릭 시 그 카드의 활동 내역 inline 펼침.
+ * likes/saves/shares/views = 활동 사용자 N명 / comments = 댓글 1줄씩.
  */
 type ActivityUser = {
   profile_id: string;
@@ -339,7 +291,7 @@ function ActivityTopRow({
   kind,
 }: {
   row: CardRow;
-  kind: "likes" | "saves" | "shares" | "views";
+  kind: "likes" | "saves" | "shares" | "views" | "comments";
 }) {
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<ActivityUser[] | null>(null);
@@ -353,10 +305,12 @@ function ActivityTopRow({
     row.author_handle?.trim() ||
     "(작성자 없음)";
 
+  // 댓글의 경우 펼친 패널은 row.comments 를 그대로 사용 (RPC 호출 없음).
+  // likes/saves/shares/views 는 get_card_activity_users RPC 호출.
   async function toggle() {
     const next = !open;
     setOpen(next);
-    if (next && users === null) {
+    if (next && kind !== "comments" && users === null) {
       setLoading(true);
       try {
         const sb = createSupabaseBrowserClient();
@@ -405,75 +359,142 @@ function ActivityTopRow({
           onClick={toggle}
           aria-expanded={open}
           className="shrink-0 rounded px-2 py-0.5 text-sm font-bold tabular-nums text-[var(--text)] hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
-          title="클릭하면 활동한 사용자를 펼쳐서 봅니다"
+          title="클릭하면 활동 내역을 펼쳐서 봅니다"
         >
           {row.cnt.toLocaleString()}
         </button>
       </div>
       {open && (
-        <ActivityUsersInline
-          users={users}
-          loading={loading}
-          count={row.cnt}
-          cardHref={cardHref}
-        />
+        kind === "comments" ? (
+          <CommentsInline comments={row.comments ?? []} cardHref={cardHref} />
+        ) : (
+          <ActivityUsersInline
+            users={users}
+            loading={loading}
+            count={row.cnt}
+            cardHref={cardHref}
+          />
+        )
       )}
     </>
   );
 }
 
 /**
- * 댓글 TOP — 글 제목은 단독 URL link, 댓글은 항상 펼침 (옛 동작 유지).
- * activity TOP 과 분리해서 영역 책임 명확.
+ * 댓글 펼침 패널 — likes/saves 등 ActivityUsersInline 와 동일 UX.
+ *  - 패널 영역 어디든 클릭 → 글 단독 URL 로 이동 (cardHref null 이면 link 비활성)
+ *  - 한 댓글 = 1줄: 닉네임 · 시간 · 본문. 본문이 길면 자연 wrap.
+ *  - 답글은 들여쓰기 1단으로 inline.
+ *  - 본문 앞뒤 공백·줄바꿈 trim (사용자 요청).
  */
-function CommentsTopRow({
-  row,
-  showComments,
+function CommentsInline({
+  comments,
+  cardHref,
 }: {
-  row: CardRow;
-  showComments: boolean;
+  comments: CommentSummary[];
+  cardHref: string | null;
 }) {
-  const cardHref = publicCardUrl(row);
-  const displayName =
-    row.author_name?.trim() ||
-    row.author_handle?.trim() ||
-    "(작성자 없음)";
-  return (
-    <>
-      <div className="flex items-center gap-1 px-4 py-2">
-        <div className="w-[52px] shrink-0 truncate text-[12px] text-[var(--text-muted)] sm:w-[72px]">
-          {row.author_handle ? (
-            <Link href={`/${row.author_handle}`} className="hover:underline">
-              {displayName}
-            </Link>
-          ) : (
-            displayName
-          )}
-        </div>
-        {cardHref ? (
-          <Link
-            href={cardHref}
-            className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
-            title={row.question ?? undefined}
-          >
-            {row.question || "(제목 없음)"}
-          </Link>
-        ) : (
-          <span
-            className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)]"
-            title={row.question ?? undefined}
-          >
-            {row.question || "(제목 없음)"}
-          </span>
-        )}
-        <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--text)]">
-          {row.cnt.toLocaleString()}
-        </span>
+  if (comments.length === 0) {
+    const empty = (
+      <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2">
+        <p className="text-[11px] text-[var(--text-muted)]">댓글이 없습니다.</p>
       </div>
-      {showComments && row.comments && (
-        <CommentsBlock comments={row.comments} />
+    );
+    if (!cardHref) return empty;
+    return (
+      <Link href={cardHref} className="group block" title="글 보기">
+        {empty}
+      </Link>
+    );
+  }
+  // 부모-자식 트리 구성 (CommentsBlock 와 동일)
+  const parents = comments.filter((c) => c.parent_id == null);
+  const repliesByParent = new Map<number, CommentSummary[]>();
+  for (const c of comments) {
+    if (c.parent_id != null) {
+      const list = repliesByParent.get(c.parent_id) ?? [];
+      list.push(c);
+      repliesByParent.set(c.parent_id, list);
+    }
+  }
+  const orphanReplies = comments.filter(
+    (c) =>
+      c.parent_id != null && !parents.some((p) => p.id === c.parent_id),
+  );
+
+  const inner = (
+    <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2 transition-colors group-hover:bg-[var(--bg-soft)]">
+      <ul className="space-y-1">
+        {parents.map((c) => {
+          const replies = repliesByParent.get(c.id) ?? [];
+          return (
+            <li key={c.id}>
+              <CommentInlineLine comment={c} depth={0} />
+              {replies.map((r) => (
+                <CommentInlineLine key={r.id} comment={r} depth={1} />
+              ))}
+            </li>
+          );
+        })}
+        {orphanReplies.map((r) => (
+          <li key={r.id}>
+            <CommentInlineLine comment={r} depth={0} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+  if (!cardHref) return inner;
+  return (
+    <Link href={cardHref} className="group block" title="글 보기">
+      {inner}
+    </Link>
+  );
+}
+
+/**
+ * 댓글 1줄 — 닉네임 · 시간 · 본문(앞뒤 공백/줄바꿈 trim, 길면 자연 wrap).
+ * depth=1 답글은 좌측 들여쓰기.
+ */
+function CommentInlineLine({
+  comment,
+  depth,
+}: {
+  comment: CommentSummary;
+  depth: 0 | 1;
+}) {
+  const a = Array.isArray(comment.author)
+    ? comment.author[0] ?? null
+    : comment.author;
+  const aname =
+    a?.display_name?.trim() || a?.handle?.trim() || "(알 수 없음)";
+  const time = new Date(comment.created_at).toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  // 본문 앞뒤 공백/줄바꿈 제거. 내부 줄바꿈은 단일 공백으로 축약해 한 줄로 자연스럽게 흐르게.
+  const bodyText = comment.body.replace(/\s+/g, " ").trim();
+  return (
+    <div
+      className="flex flex-wrap items-baseline gap-x-1.5 text-[12px] leading-snug"
+      style={{ paddingLeft: depth === 1 ? 20 : 0 }}
+    >
+      {depth === 1 && (
+        <span
+          aria-hidden
+          className="select-none text-[12px] leading-[1] text-[var(--text-muted)]"
+        >
+          ↳
+        </span>
       )}
-    </>
+      <span className="font-medium text-[var(--text)]">{aname}</span>
+      <span className="text-[10.5px] text-[var(--text-muted)]">· {time}</span>
+      <span className="min-w-0 flex-1 text-[var(--text-secondary)]">
+        {bodyText}
+      </span>
+    </div>
   );
 }
 
@@ -529,54 +550,3 @@ function ActivityUsersInline({
   );
 }
 
-function CommentLine({
-  comment,
-  depth,
-}: {
-  comment: CommentSummary;
-  depth: 0 | 1;
-}) {
-  const a = Array.isArray(comment.author)
-    ? comment.author[0] ?? null
-    : comment.author;
-  const aname =
-    a?.display_name?.trim() || a?.handle?.trim() || "(알 수 없음)";
-  const ahandle = a?.handle ?? null;
-  const time = new Date(comment.created_at).toLocaleString("ko-KR", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  return (
-    <div
-      className="flex items-start gap-1.5 py-0.5"
-      style={{ paddingLeft: depth === 1 ? 20 : 0 }}
-    >
-      {depth === 1 && (
-        <span
-          aria-hidden
-          className="mt-0.5 select-none text-[12px] leading-[1] text-[var(--text-muted)]"
-        >
-          ↳
-        </span>
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="text-[10.5px] text-[var(--text-muted)]">
-          {ahandle ? (
-            <Link href={`/${ahandle}`} className="hover:underline">
-              {aname}
-            </Link>
-          ) : (
-            aname
-          )}
-          {" · "}
-          {time}
-        </div>
-        <p className="whitespace-pre-wrap text-[12px] leading-snug text-[var(--text-secondary)]">
-          {comment.body}
-        </p>
-      </div>
-    </div>
-  );
-}

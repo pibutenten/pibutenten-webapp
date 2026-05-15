@@ -75,7 +75,11 @@ async function flush(): Promise<void> {
       session_id: sid,
     }));
     const sb = createSupabaseBrowserClient();
-    await sb.from("card_impressions").insert(rows);
+    // UNIQUE(user_id, card_id) 충돌 시 409 무시 — 재방문 시 이전 row 그대로 유지.
+    // ignoreDuplicates=true → INSERT ... ON CONFLICT DO NOTHING 효과.
+    await sb
+      .from("card_impressions")
+      .upsert(rows, { onConflict: "user_id,card_id", ignoreDuplicates: true });
   } catch {
     // silent
   } finally {

@@ -108,24 +108,32 @@ export default function WriteClient({
     role === "doctor" ? (myDoctor?.slug ?? "") : "",
   );
 
-  // 페이지 진입 시 헤더 카피 랜덤 (SSR-safe — 첫 렌더는 첫 phrase) +
-  // 6초 인터벌로 자연스럽게 자동 회전 (사용자가 새로고침 안 해도 다양한 카피 노출).
-  // 같은 카피 연속 노출 방지 — 직전과 다른 인덱스 강제.
+  // 페이지 진입 시 헤더 카피 — Fisher-Yates 셔플 큐로 6초 회전 (HeroSearch 와 동일 정책).
+  // 모든 phrase 한 번씩 노출하고 큐 소진 시 재셔플 → "같은 순서" 인상 제거.
   const [headerPhrase, setHeaderPhrase] = useState(WRITE_PHRASES[0]);
   useEffect(() => {
-    let lastIdx = 0;
-    function pickNext() {
-      let idx = Math.floor(Math.random() * WRITE_PHRASES.length);
-      // 같은 phrase 연속 X (배열 길이 2 이상이면 보장)
-      if (WRITE_PHRASES.length > 1 && idx === lastIdx) {
-        idx = (idx + 1) % WRITE_PHRASES.length;
+    function shuffle<T>(arr: T[]): T[] {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
       }
-      lastIdx = idx;
-      setHeaderPhrase(WRITE_PHRASES[idx]);
+      return a;
     }
-    // 마운트 즉시 1회 (첫 phrase 고정 → 랜덤)
+    let queue: string[] = shuffle(WRITE_PHRASES);
+    let prev = WRITE_PHRASES[0];
+    function pickNext() {
+      if (queue.length === 0) {
+        queue = shuffle(WRITE_PHRASES);
+        if (queue.length > 1 && queue[0] === prev) {
+          [queue[0], queue[1]] = [queue[1], queue[0]];
+        }
+      }
+      const next = queue.shift()!;
+      prev = next;
+      setHeaderPhrase(next);
+    }
     pickNext();
-    // 6초 간격 회전
     const timer = window.setInterval(pickNext, 6000);
     return () => window.clearInterval(timer);
   }, []);
@@ -843,16 +851,16 @@ export default function WriteClient({
           >
             초기화
           </button>
-          {role !== "user" && (
-            <button
-              type="button"
-              onClick={() => handleSubmit("draft")}
-              disabled={pending}
-              className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm hover:bg-[var(--bg-soft)] disabled:opacity-50"
-            >
-              저장
-            </button>
-          )}
+          {/* 저장(임시저장) — 모든 role 공통. 사용자가 글 쓰다가 새로고침/탭 닫기에도
+              본문 유실 안 되도록 회원에게도 임시저장 제공 (2026-05-15 정책 통일). */}
+          <button
+            type="button"
+            onClick={() => handleSubmit("draft")}
+            disabled={pending}
+            className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm hover:bg-[var(--bg-soft)] disabled:opacity-50"
+          >
+            저장
+          </button>
           {role === "admin" && canRequestReview && (
             <button
               type="button"

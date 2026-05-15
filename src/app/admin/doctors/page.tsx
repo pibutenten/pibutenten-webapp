@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/admin-page-guard";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
 import {
   asDoctorProfileData,
@@ -38,23 +38,9 @@ function isProfileFilled(p: DoctorProfileData): boolean {
 }
 
 export default async function AdminDoctorsPage() {
+  // PRD §C — 묶음 OR 가드. 전문의 관리는 super admin 전용 (doctor 차단).
+  await requireAdminPage("/admin/doctors", { superAdminOnly: true });
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/admin/doctors");
-
-  // Phase 9: 묶음(auth_user_id) 안에 admin role profile이 있으면 admin 권한 인정
-  const { data: myProfiles } = await supabase
-    .from("profiles")
-    .select("role")
-    .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
-  const hasAdmin = (myProfiles ?? []).some(
-    (p) => (p as { role: string }).role === "admin",
-  );
-  if (!hasAdmin) {
-    redirect("/login?error=관리자 권한이 필요합니다");
-  }
 
   const { data: doctors } = await supabase
     .from("doctors")
