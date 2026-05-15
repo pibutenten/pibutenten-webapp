@@ -183,11 +183,16 @@ export default function NotificationPreferences({
                     : "bg-[var(--border)]")
                 }
               >
+                {/* thumb — Tailwind 'shadow' 가 약해 흰색 thumb 이 흰색 배경(설정 박스)
+                    에 묻혀 토글이 깨져 보이던 문제 fix.
+                    inline boxShadow + 옅은 ring 으로 경계 명확히. */}
                 <span
+                  aria-hidden
                   className={
-                    "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform " +
+                    "absolute top-0.5 h-5 w-5 rounded-full bg-white ring-1 ring-black/10 transition-transform " +
                     (value ? "translate-x-[22px]" : "translate-x-0.5")
                   }
+                  style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.1)" }}
                 />
               </button>
             </li>
