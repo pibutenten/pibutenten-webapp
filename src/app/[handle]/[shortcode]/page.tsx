@@ -86,17 +86,16 @@ export default async function MemberPostPage({ params }: Props) {
 
   // 정책 (2026-05-15): 의사 Q&A 는 doctor canonical 한 곳에서만 노출.
   // 회원 라우트로 접근 시도 시 → /doctors/{slug}/{year}/{post_slug} 로 영구 redirect (308).
-  // Supabase 가 1:1 doctor join 을 array 로 반환하는 케이스 처리 (다른 페이지에서도 동일 패턴).
+  // Supabase 가 1:1 doctor join 을 array 로 반환하는 케이스 처리.
+  // doctor 메타가 누락된 경우 (post_year/post_slug 없음) author_handle 로 doctor.slug 추정.
   const doc = Array.isArray(card.doctor) ? card.doctor[0] : card.doctor;
-  if (
-    card.category === "qa" &&
-    doc?.slug &&
-    card.post_year &&
-    card.post_slug
-  ) {
-    permanentRedirect(
-      `/doctors/${doc.slug}/${card.post_year}/${card.post_slug}`,
-    );
+  if (card.category === "qa") {
+    const dslug = doc?.slug ?? handle; // author_handle 이 doctor.slug 와 같음 (의사 글)
+    const year = card.post_year ?? new Date(card.created_at ?? Date.now()).getUTCFullYear();
+    const pslug = card.post_slug ?? card.shortcode; // post_slug 누락 시 shortcode fallback
+    if (dslug && year && pslug) {
+      permanentRedirect(`/doctors/${dslug}/${year}/${pslug}`);
+    }
   }
 
   return (
