@@ -185,11 +185,11 @@ export default function StatsListClient({
                 }
                 className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
               >
-                {/* 한 줄 레이아웃: 닉네임(좌, 고정폭) · 제목(가운데, truncate) · 카운트(우)
-                    gap-1.5 (6px) — 글쓴이↔제목 사이 시각적 거리 좁힘 (이전 gap-3, 12px) */}
-                <div className="flex items-center gap-1.5 px-4 py-2">
-                  {isVisitors ? (
-                    (() => {
+                {/* 한 줄 레이아웃: 닉네임(좌, 고정폭 축소) · 제목(가운데, truncate) · 카운트(우).
+                    gap-1 (4px) — 닉네임↔제목 사이 거리 추가 단축, 제목 시작이 더 왼쪽으로 자연스럽게 붙음. */}
+                {isVisitors ? (
+                  <div className="flex items-center gap-1 px-4 py-2">
+                    {(() => {
                       const row = visitorRow as VisitorRow;
                       const name =
                         row.display_name || row.handle || "(이름 없음)";
@@ -207,70 +207,18 @@ export default function StatsListClient({
                           )}
                         </div>
                       );
-                    })()
-                  ) : (
-                    (() => {
-                      const row = cardRow as CardRow;
-                      // 공개 카드 URL = /{handle}/{shortcode}. handle/shortcode 없으면 admin edit 로 폴백
-                      const qaHref =
-                        row.author_handle && row.shortcode
-                          ? `/${row.author_handle}/${row.shortcode}`
-                          : `/admin/cards/${row.card_id}/edit`;
-                      const displayName =
-                        row.author_name?.trim() ||
-                        row.author_handle?.trim() ||
-                        "(작성자 없음)";
-                      return (
-                        <>
-                          {/* 닉네임 좌측 — 고정폭(축소), 길면 truncate */}
-                          <div className="w-[68px] shrink-0 truncate text-[12px] text-[var(--text-muted)] sm:w-[88px]">
-                            {row.author_handle ? (
-                              <Link
-                                href={`/${row.author_handle}`}
-                                className="hover:underline"
-                              >
-                                {displayName}
-                              </Link>
-                            ) : (
-                              displayName
-                            )}
-                          </div>
-                          {/* 제목 — 남는 공간 차지, truncate */}
-                          <Link
-                            href={qaHref}
-                            className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
-                            title={row.question ?? undefined}
-                          >
-                            {row.question || "(제목 없음)"}
-                          </Link>
-                        </>
-                      );
-                    })()
-                  )}
-                  {/* 카운트 — likes/saves/shares/views는 클릭 시 활동한 사용자 펼침.
-                      visitors/comments는 펼침 없음 (visitors는 한 사람 카운트, comments는 이미 펼침). */}
-                  {!isVisitors &&
-                  (kind === "likes" ||
-                    kind === "saves" ||
-                    kind === "shares" ||
-                    kind === "views") ? (
-                    <ActivityCountButton
-                      cardId={(cardRow as CardRow).card_id}
-                      kind={kind}
-                      count={(cardRow as CardRow).cnt}
-                    />
-                  ) : (
+                    })()}
                     <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--text)]">
-                      {isVisitors
-                        ? (visitorRow as VisitorRow).visit_count.toLocaleString()
-                        : (cardRow as CardRow).cnt.toLocaleString()}
+                      {(visitorRow as VisitorRow).visit_count.toLocaleString()}
                     </span>
-                  )}
-                </div>
-
-                {/* 댓글 항상 펼침 — comments kind 한정 */}
-                {showComments && (
-                  <CommentsBlock comments={(cardRow as CardRow).comments!} />
+                  </div>
+                ) : kind === "comments" ? (
+                  // 댓글 TOP — 글 제목은 단독 URL link, 댓글은 항상 펼침 (옛 동작 유지)
+                  <CommentsTopRow row={cardRow as CardRow} showComments={!!showComments} />
+                ) : (
+                  // likes/saves/shares/views TOP — 글 제목·카운트 클릭 모두 닉네임 펼침 토글.
+                  // 펼친 창 클릭하면 글 단독 URL 로 이동.
+                  <ActivityTopRow row={cardRow as CardRow} kind={kind} />
                 )}
               </li>
             );
@@ -354,18 +302,31 @@ type ActivityUser = {
   acted_at: string;
 };
 
-function ActivityCountButton({
-  cardId,
+/**
+ * likes/saves/shares/views TOP 한 행.
+ *  - 글 제목 클릭 / 카운트 클릭 모두 같은 펼침 토글
+ *  - 펼친 창 = 활동한 닉네임 나열 + 영역 어디든 클릭하면 그 글 단독 URL 로 이동
+ */
+function ActivityTopRow({
+  row,
   kind,
-  count,
 }: {
-  cardId: number;
+  row: CardRow;
   kind: "likes" | "saves" | "shares" | "views";
-  count: number;
 }) {
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<ActivityUser[] | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // 공개 카드 URL = /{handle}/{shortcode}. handle/shortcode 없으면 admin edit 로 폴백.
+  const cardHref =
+    row.author_handle && row.shortcode
+      ? `/${row.author_handle}/${row.shortcode}`
+      : `/admin/cards/${row.card_id}/edit`;
+  const displayName =
+    row.author_name?.trim() ||
+    row.author_handle?.trim() ||
+    "(작성자 없음)";
 
   async function toggle() {
     const next = !open;
@@ -375,7 +336,7 @@ function ActivityCountButton({
       try {
         const sb = createSupabaseBrowserClient();
         const { data } = await sb.rpc("get_card_activity_users", {
-          p_card_id: cardId,
+          p_card_id: row.card_id,
           p_kind: kind,
           p_limit: 30,
         });
@@ -388,21 +349,98 @@ function ActivityCountButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={open}
-        className="shrink-0 rounded px-2 py-0.5 text-sm font-bold tabular-nums text-[var(--text)] hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
-        title="클릭하면 활동한 사용자를 펼쳐서 봅니다"
-      >
-        {count.toLocaleString()}
-      </button>
+      <div className="flex items-center gap-1 px-4 py-2">
+        {/* 닉네임 좌측 — 폭 축소 (52→72), 길면 truncate. 사용자 프로필 link 유지 */}
+        <div className="w-[52px] shrink-0 truncate text-[12px] text-[var(--text-muted)] sm:w-[72px]">
+          {row.author_handle ? (
+            <Link
+              href={`/${row.author_handle}`}
+              className="hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {displayName}
+            </Link>
+          ) : (
+            displayName
+          )}
+        </div>
+        {/* 제목 — 클릭 시 펼침 토글 (편집기 navigate 가 아닌). aria-expanded 로 a11y 표현. */}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          className="min-w-0 flex-1 truncate text-left text-sm font-medium text-[var(--text)] hover:text-[var(--primary)]"
+          title={row.question ?? undefined}
+        >
+          {row.question || "(제목 없음)"}
+        </button>
+        {/* 카운트도 같은 펼침 toggle */}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          className="shrink-0 rounded px-2 py-0.5 text-sm font-bold tabular-nums text-[var(--text)] hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
+          title="클릭하면 활동한 사용자를 펼쳐서 봅니다"
+        >
+          {row.cnt.toLocaleString()}
+        </button>
+      </div>
       {open && (
         <ActivityUsersInline
           users={users}
           loading={loading}
-          count={count}
+          count={row.cnt}
+          cardHref={cardHref}
         />
+      )}
+    </>
+  );
+}
+
+/**
+ * 댓글 TOP — 글 제목은 단독 URL link, 댓글은 항상 펼침 (옛 동작 유지).
+ * activity TOP 과 분리해서 영역 책임 명확.
+ */
+function CommentsTopRow({
+  row,
+  showComments,
+}: {
+  row: CardRow;
+  showComments: boolean;
+}) {
+  const cardHref =
+    row.author_handle && row.shortcode
+      ? `/${row.author_handle}/${row.shortcode}`
+      : `/admin/cards/${row.card_id}/edit`;
+  const displayName =
+    row.author_name?.trim() ||
+    row.author_handle?.trim() ||
+    "(작성자 없음)";
+  return (
+    <>
+      <div className="flex items-center gap-1 px-4 py-2">
+        <div className="w-[52px] shrink-0 truncate text-[12px] text-[var(--text-muted)] sm:w-[72px]">
+          {row.author_handle ? (
+            <Link href={`/${row.author_handle}`} className="hover:underline">
+              {displayName}
+            </Link>
+          ) : (
+            displayName
+          )}
+        </div>
+        <Link
+          href={cardHref}
+          className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
+          title={row.question ?? undefined}
+        >
+          {row.question || "(제목 없음)"}
+        </Link>
+        <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--text)]">
+          {row.cnt.toLocaleString()}
+        </span>
+      </div>
+      {showComments && row.comments && (
+        <CommentsBlock comments={row.comments} />
       )}
     </>
   );
@@ -412,13 +450,17 @@ function ActivityUsersInline({
   users,
   loading,
   count,
+  cardHref,
 }: {
   users: ActivityUser[] | null;
   loading: boolean;
   count: number;
+  /** 펼친 창 전체를 감싸는 link target — 어디 클릭하든 그 글 단독 URL 로 이동 */
+  cardHref: string;
 }) {
-  return (
-    <div className="basis-full border-t border-[var(--border)] bg-slate-50 px-4 py-2 -mx-4 mt-2">
+  // 닉네임 자체는 텍스트 표시 (사용자 프로필 link 아님). 창 어디 클릭하든 글 단독 URL.
+  const inner = (
+    <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2 transition-colors group-hover:bg-[var(--bg-soft)]">
       {loading || users === null ? (
         <p className="text-[11px] text-[var(--text-muted)]">불러오는 중…</p>
       ) : users.length === 0 ? (
@@ -428,15 +470,7 @@ function ActivityUsersInline({
           {users.map((u) => {
             const name =
               u.display_name?.trim() || u.handle?.trim() || "(이름 없음)";
-            return u.handle ? (
-              <Link
-                key={u.profile_id}
-                href={`/${u.handle}`}
-                className="text-[var(--text-secondary)] hover:text-[var(--primary)] hover:underline"
-              >
-                {name}
-              </Link>
-            ) : (
+            return (
               <span key={u.profile_id} className="text-[var(--text-secondary)]">
                 {name}
               </span>
@@ -450,6 +484,11 @@ function ActivityUsersInline({
         </div>
       )}
     </div>
+  );
+  return (
+    <Link href={cardHref} className="group block" title="글 보기">
+      {inner}
+    </Link>
   );
 }
 

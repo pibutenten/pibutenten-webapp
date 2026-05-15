@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-15 (8 commit 묶음 — 멀티 ID 재정의·SEO·알림·splash·FAQPage EEAT)
-> 기준 commit: `de9ac8c`
+> 마지막 업데이트: 2026-05-15 (총 11 commit — 멀티 ID·SEO·알림·splash·FAQPage·파비콘 vivid blue·대시보드 TOP UX)
+> 기준 commit: 다음 commit 예정
 
 ## 🎯 핵심 모델 — Phase 9 묶음 (2026-05-15 정책 재정의)
 
@@ -102,6 +102,9 @@ me.id === card.author.id
 | `7c9e9f3` | **/tags → /topics rename** (clean, 301 없이) + PubMed citation JSON-LD 단일 → 멀티 ref array 매핑 |
 | `a97fd72` | **PWA standalone splash 깜빡임 fix** — head Script(beforeInteractive) + globals.css `@media (display-mode: standalone) body::before`. React mount 무관 즉시 splash → iOS native splash 와 시각적 연속, 깜빡임 0 |
 | `de9ac8c` | **/topics/[tag] FAQPage + Physician EEAT + Organization publisher** — `@graph`로 CollectionPage + FAQPage. 각 카드 = Question + acceptedAnswer.author Physician (의사 credentials: jobTitle/medicalSpecialty/worksFor/memberOf). AI/검색엔진 인용 우선순위 ↑ |
+| `4aa8a10` | PRD 1차 업데이트 |
+| (다음) | **파비콘 vivid blue (#00B1FF)** — 12 아이콘 일괄 recolor (옛 #71BFEA → #00B1FF, anti-aliased edge 보존) + manifest theme/background_color + splash CSS 색상 + 미사용 AppSplash 컴포넌트 제거 |
+| (다음) | **대시보드 TOP UX** — 좋아요/저장/공유/views TOP 글 제목 클릭 시 편집기 navigate → 닉네임 펼침 토글 (글 제목·카운트 양쪽 trigger). 펼친 창 = 글 단독 URL link (창 어디 클릭해도 그 글로). 닉네임 칸 폭 68/88 → 52/72 축소, gap-1.5 → gap-1 (제목 시작 왼쪽 당김). 댓글 TOP 분리(`CommentsTopRow`) — 옛 동작 유지 |
 
 ## 🚨 다음 세션 시작 시 우선 점검
 
@@ -116,10 +119,10 @@ me.id === card.author.id
 - [ ] **Production 404 status 재확인** — `curl -I https://pbtt.kr/존재안하는URL` (dev 환경 200 응답은 Turbopack 특성)
 - [ ] **의사 6명 (auth_user_id NULL) onboarding** — 김종식·고혜림·권수현·강현진·박효진·김수형 (DB 조회 결과). OAuth 로그인 시 profiles.auth_user_id 채워짐
 
-### 🟡 잔여 작업 (우선순위 중간 — 다음 세션)
-- [ ] **파비콘 색상 갱신** — `2. vivid blue/` 폴더 SVG (#00b1ff) 기준으로 favicon-{16,32,48,192}.png 재생성 + manifest.webmanifest theme_color/background_color 갱신
-- [ ] **대시보드 TOP UX** — 좋아요/저장/공유 TOP 리스트 클릭 시 편집기로 가는 버그. 클릭=닉네임 펼침/접힘 토글, 닉네임 클릭=글 단독 URL (댓글 TOP 패턴과 통일)
-- [ ] **TOP 리스트 닉네임 칸 폭 축소 + 제목 왼쪽 당김** (조회된 글 TOP 등)
+### 🟢 잔여 작업 — 모두 처리 완료 (2026-05-15)
+- [x] **파비콘 색상 갱신** — vivid blue #00B1FF 일괄 적용 (12 파일 + manifest + splash CSS)
+- [x] **대시보드 TOP UX** — 글 제목 클릭 펼침 토글 + 펼친 창 글 단독 URL link
+- [x] **TOP 리스트 닉네임 칸 폭 축소 + 제목 왼쪽 당김** — w 68/88 → 52/72, gap-1.5 → gap-1
 
 ### 🟢 점검 보고서 3차 잔여 P1 — 8건 모두 완료 (commit 다음)
 - [x] **/favicon.ico HTML 응답** — `src/app/favicon.ico` ICO 파일(16/32/48 멀티 사이즈) 추가
