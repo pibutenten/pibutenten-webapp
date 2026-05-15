@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-15 — 멀티 ID 정책 재정의 (활동=active 단일, 권한 검증만 묶음)
-> 기준 commit: `6ae4092`
+> 마지막 업데이트: 2026-05-15 (8 commit 묶음 — 멀티 ID 재정의·SEO·알림·splash·FAQPage EEAT)
+> 기준 commit: `de9ac8c`
 
 ## 🎯 핵심 모델 — Phase 9 묶음 (2026-05-15 정책 재정의)
 
@@ -88,21 +88,38 @@ me.id === card.author.id
 | `a9dbda4` | **PWA Push 운영 자동화** (Vercel env 4종 + migration 0086 pg_net trigger) + 방문자/조회/공유 active profile.id 통일 + 대시보드 spacing |
 | `01060a0` | **profile.id 일원화** — 의사 9명 avatar 동기화, write isAuthor 묶음 인지, migration 0087 활동통계 펼침 RPC |
 | `975f6c3` | PRD 정리 + Phase 9 핵심 모델 + PWA Push 자동화 완료 표시 |
-| (다음) | **점검 3차 잔여 P1 8건** — favicon.ico, /manifest.json 301, /write?type 초기값, 카테고리 a11y, impression 배치 큐, likers batch RPC(0088), Image sizes 보정, beforeinstallprompt 재호출 |
+| `6ae4092` | **점검 3차 잔여 P1 8건** — favicon.ico, /manifest.json 301, /write?type 초기값, 카테고리 a11y, impression 배치 큐, likers batch RPC(0088), Image sizes 보정, beforeinstallprompt 재호출 |
+
+## 🆕 2026-05-15 세션 작업 (commit 흐름)
+
+| commit | 내용 |
+|---|---|
+| `d656f76` | **멀티 ID 정책 재정의** — 활동/표시는 active profile.id 단일, 권한 검증만 묶음. PRD §A/B/C/D/E 절 신설. Card/CommentsBlock me state·viewer state·⋮ 메뉴 모두 active 단일로 |
+| `2e4e926` | 태그 입력 UX — 띄어쓰기/엔터 자동 추가 + 중복 시각 피드백 (네이버 블로그 패턴) |
+| `d7c12f5` | **좋아요/저장 race 차단** — me 3-state(undefined=로딩/null=비로그인/obj=로그인). 마운트 직후 클릭 시 잘못된 /login redirect 방지. 댓글 등록 hit area 32→44px (모바일 미스터치 해소) |
+| `6e9ab8b` | **SEO Fix 3건** — speakable cssSelector mismatch (`.qa-answer-speakable` → `.card-answer-speakable`) / SearchAction target (`/?q` → `/search?q`) / "더보기" span DOM 텍스트 → CSS `::after content` (크롤러/LLM 본문 오염 차단) |
+| `9d483ac` | **알림 UX 3건** — 드롭다운 absolute → fixed positioning (카카오/네이버 인앱 viewport 잘림 fix) / 회원 메뉴 빨간점 중복 제거 (종 1곳만) / 배지 색상 빨강 → HOT 핑크 #F48FB1 |
+| `7c9e9f3` | **/tags → /topics rename** (clean, 301 없이) + PubMed citation JSON-LD 단일 → 멀티 ref array 매핑 |
+| `a97fd72` | **PWA standalone splash 깜빡임 fix** — head Script(beforeInteractive) + globals.css `@media (display-mode: standalone) body::before`. React mount 무관 즉시 splash → iOS native splash 와 시각적 연속, 깜빡임 0 |
+| `de9ac8c` | **/topics/[tag] FAQPage + Physician EEAT + Organization publisher** — `@graph`로 CollectionPage + FAQPage. 각 카드 = Question + acceptedAnswer.author Physician (의사 credentials: jobTitle/medicalSpecialty/worksFor/memberOf). AI/검색엔진 인용 우선순위 ↑ |
 
 ## 🚨 다음 세션 시작 시 우선 점검
 
-### 🔴 오픈 직전 (필수, 확인 필요)
+### 🔴 오픈 직전 (필수, 사용자 영역 — 확인 필요)
 - [ ] **Naver OAuth 검수 결과** — 2026-05-13 제출, 3-7영업일. 진행/완료 여부 확인
 - [ ] **Vercel Pro 업그레이드** ($20/mo) — Fluid Active CPU 한도 초과 상태. 베타 오픈 전 필수 (Hobby는 영리 약관 위반 소지)
-- [ ] **Supabase Pro 업그레이드** ($25/mo) — 자동 백업·DB 백업 기간 확장
+- [ ] **Supabase Pro 업그레이드** ($25/mo) — 자동 백업·DB 백업 기간 확장 (image transformation 이 활성화되면 RecentLikers 의 supabase URL transform query 효과 발휘)
 - [ ] **/privacy /terms 법무 검토** — 베타 안정화 후 변호사 자문
 - [ ] **카카오 OAuth 모드** — 개발중 vs 검수완료 확인
 - [x] **PWA Push 운영 설정** (commit `a9dbda4`로 자동화 완료)
-  - Vercel env 4종: CLI로 등록 완료 (NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT / PUSH_WEBHOOK_SECRET)
-  - Supabase Webhook: migration 0086의 pg_net trigger로 대체 (Dashboard 수동 설정 불필요)
-- [ ] **Production 배포 후 검증** — 다음 deploy부터 PWA Push env 반영. 실제 알림 발송 테스트
-- [ ] **Production 404 status 재확인** — dev 환경 200 응답은 Turbopack 특성. `curl -I https://pbtt.kr/존재안하는URL`로 검증
+- [ ] **Production 배포 후 검증** — 실제 알림 발송 테스트 (의사 onboarding 후)
+- [ ] **Production 404 status 재확인** — `curl -I https://pbtt.kr/존재안하는URL` (dev 환경 200 응답은 Turbopack 특성)
+- [ ] **의사 6명 (auth_user_id NULL) onboarding** — 김종식·고혜림·권수현·강현진·박효진·김수형 (DB 조회 결과). OAuth 로그인 시 profiles.auth_user_id 채워짐
+
+### 🟡 잔여 작업 (우선순위 중간 — 다음 세션)
+- [ ] **파비콘 색상 갱신** — `2. vivid blue/` 폴더 SVG (#00b1ff) 기준으로 favicon-{16,32,48,192}.png 재생성 + manifest.webmanifest theme_color/background_color 갱신
+- [ ] **대시보드 TOP UX** — 좋아요/저장/공유 TOP 리스트 클릭 시 편집기로 가는 버그. 클릭=닉네임 펼침/접힘 토글, 닉네임 클릭=글 단독 URL (댓글 TOP 패턴과 통일)
+- [ ] **TOP 리스트 닉네임 칸 폭 축소 + 제목 왼쪽 당김** (조회된 글 TOP 등)
 
 ### 🟢 점검 보고서 3차 잔여 P1 — 8건 모두 완료 (commit 다음)
 - [x] **/favicon.ico HTML 응답** — `src/app/favicon.ico` ICO 파일(16/32/48 멀티 사이즈) 추가
