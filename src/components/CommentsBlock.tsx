@@ -741,7 +741,13 @@ function CommentForm({
   }, [disableAutoFocus]);
 
   return (
-    <div className="flex items-center gap-1.5">
+    /* 7번 fix — 댓글 입력 박스 양 끝 둥글게(pill) + 엔터 버튼 위치 정렬.
+       - 컨테이너 rounded-full border 로 양 끝 원형, textarea + 버튼 통합 모양
+       - 버튼 높이 = textarea 높이 (h-9 동일), 컨테이너 오른쪽 안쪽에 패딩으로 분리
+       - disabled 색 — 옅은 primary/45 → 활성과 대비 줄임 */
+    <div
+      className="flex items-stretch gap-1 rounded-full border border-[var(--border)] bg-white pl-1 pr-1 focus-within:border-[var(--primary)]"
+    >
       <div className="relative flex-1">
         <textarea
           ref={textareaRef}
@@ -770,15 +776,16 @@ function CommentForm({
           rows={1}
           maxLength={2000}
           // 사용자 보고: 입력창 + 안내 텍스트가 카드 본문 대비 커보임 → 12px 로 축소.
+          // pill 컨테이너 안에 들어가므로 자체 테두리 제거, 안쪽 패딩만.
           className={
-            "w-full resize-none overflow-hidden rounded-md border border-[var(--border)] px-2 py-1 text-[12px] focus:border-[var(--primary)] focus:outline-none " +
-            (body.length >= 1500 ? "pr-14 pb-4" : "")
+            "w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-2 text-[12px] leading-[1.4] focus:outline-none focus:ring-0 " +
+            (body.length >= 1500 ? "pr-14 pb-5" : "")
           }
         />
         {/* 글자수 카운트 — 1500자 이상부터만 노출 (한도 임박 알림) */}
         {body.length >= 1500 && (
           <span
-            className="pointer-events-none absolute bottom-0.5 right-1.5 text-[10px]"
+            className="pointer-events-none absolute bottom-1 right-2 text-[10px]"
             style={{
               color: body.length >= 1900 ? "#E91E63" : "var(--text-muted)",
             }}
@@ -787,15 +794,14 @@ function CommentForm({
           </span>
         )}
       </div>
-      {/* 등록 — 위 화살표 아이콘 (textarea 와 가운데 정렬).
-          입력창과 비율 맞춰 36x36 (사용자: 옛 44 가 너무 커보임).
-          disabled 시 회색(border 색) 대신 옅은 primary 톤으로 (사용자: 컬러 수정).
-          onPointerDown 으로 한 번 더 발사 — IME 조합 중 마지막 글자 클릭이 disabled 로 사라지는 케이스 보강. */}
+      {/* 등록 — 위 화살표 아이콘. pill 컨테이너 안 오른쪽, 입력창 높이와 정렬.
+          self-center 로 multi-line 시 세로 중앙. h-8 w-8 = 32×32 (컨테이너 내부 padding 고려).
+          disabled — 옅은 primary/45 로 활성과 색 대비 줄임 (사용자: 차이 너무 커보임). */}
       <button
         type="button"
         aria-label="등록"
         title="등록"
-        className="shrink-0 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:bg-[var(--primary-soft)] disabled:text-white/70"
+        className="self-center shrink-0 my-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:bg-[var(--primary)]/45 disabled:text-white/80"
         disabled={submitting || !body.trim()}
         onPointerDown={(e) => {
           // 한글 IME 조합 종료 강제 — composition 이 끝나야 body 가 갱신되고 disabled 해제됨

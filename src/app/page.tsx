@@ -37,11 +37,14 @@ export default async function FeedPage() {
   // - jitter ±10%: F5마다 비슷한 점수 글끼리 순서 살짝 변동
   // - doctor 글 x2: 원장 글이 일반 회원 글의 2배 가중 (회원 글 들어왔을 때 발현)
   // 풀 오버샘플 + 클라이언트 셔플은 더 이상 필요 X — DB가 score+jitter 정렬해서 줌.
+  // 10번 — jitter 폭 0.2 → 0.35 (사용자: 새로고침 시 더 다양하게 보이게).
+  //   feed_cards_scored RPC 가 p_jitter_amp 비율로 점수에 노이즈 추가 → 상위권 글들이
+  //   F5 마다 더 자주 순서 변동. 0.35 = ±17.5% 까지 (이전 ±10%).
   const rpcRes = await supabase.rpc("feed_cards_scored", {
     p_limit: INITIAL_PAGE_SIZE,
     p_offset: 0,
     p_half_life_days: 14,
-    p_jitter_amp: 0.2,
+    p_jitter_amp: 0.35,
   });
   let qas = (rpcRes.data ?? []) as CardData[];
   const error = rpcRes.error;

@@ -162,6 +162,17 @@ export default function Card({
   const [commentCount, setCommentCount] = useState(card.comment_count ?? 0);
   // 단독 페이지에서는 댓글창 자동 열림 (autoExpandComments)
   const [commentsOpen, setCommentsOpen] = useState(autoExpandComments);
+  // 20번 — 모바일: 다른 카드 댓글창 열리면 본 카드 댓글창 닫기 (focus single).
+  //   데스크탑은 이 이벤트 미발사 (송신 측에서 width 768 분기).
+  useEffect(() => {
+    function onOtherOpened(e: Event) {
+      const det = (e as CustomEvent<{ cardId: number }>).detail;
+      if (det && det.cardId !== card.id) setCommentsOpen(false);
+    }
+    window.addEventListener("pibutenten:comments-opened", onOtherOpened);
+    return () =>
+      window.removeEventListener("pibutenten:comments-opened", onOtherOpened);
+  }, [card.id]);
   const [liked, setLiked] = useState(viewerLiked ?? false);
   // v4 — 저장(북마크) + 평점 (server prefetch가 있으면 즉시 적용 → 2~3초 지연 제거)
   const [saved, setSaved] = useState(viewerSaved ?? false);
@@ -188,6 +199,8 @@ export default function Card({
   const [editSaving, setEditSaving] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // 24번 — 삭제 성공 후 카드가 fade-out + collapse 후 사라지는 애니메이션
+  const [vanishing, setVanishing] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
   const router = useRouter();
@@ -647,26 +660,35 @@ export default function Card({
       const { error } = await sb.from("cards").delete().eq("id", card.id);
       if (error) {
         alert("삭제 실패: " + error.message);
-      } else {
-        setConfirmDeleteOpen(false);
-        // 1) 피드의 client-side 리스트에 즉시 반영 (FeedWithArticles가 listen)
+        setDeleting(false);
+        return;
+      }
+      setConfirmDeleteOpen(false);
+
+      // 24번 — 카드 사라지는 애니메이션 (fade-out + collapse).
+      // 1) vanishing=true → CSS transition 으로 max-height/opacity/margin 축소 (320ms)
+      // 2) 단일 페이지면 push, 피드면 dispatch + refresh (애니메이션 이후)
+      const path = window.location.pathname;
+      const isSinglePage =
+        (card.post_slug && path.includes(`/${card.post_slug}`)) ||
+        (card.shortcode && path.endsWith(`/${card.shortcode}`));
+
+      if (isSinglePage) {
+        // 단일 페이지 — 즉시 이동 (페이지 자체가 사라지므로 카드 애니메이션 의미 없음)
+        router.push("/");
+        return;
+      }
+
+      // 피드/검색/대시보드 — 카드 자체에 vanishing 애니메이션 적용
+      setVanishing(true);
+      setTimeout(() => {
         window.dispatchEvent(
           new CustomEvent("pibutenten:card-deleted", { detail: { id: card.id } }),
         );
-        // 2) 단일 포스트 페이지에서 삭제한 경우 — 메인 피드로 이동
-        //    (현재 URL이 글 단독 페이지면 그 페이지가 사라진 상태)
-        const path = window.location.pathname;
-        if (
-          (card.post_slug && path.includes(`/${card.post_slug}`)) ||
-          (card.shortcode && path.endsWith(`/${card.shortcode}`))
-        ) {
-          router.push("/");
-        } else {
-          // 3) 그 외 페이지(피드/검색/대시보드 등)는 RSC 재요청
-          router.refresh();
-        }
-      }
-    } finally {
+        router.refresh();
+      }, 340);
+    } catch (e) {
+      void e;
       setDeleting(false);
     }
   }
@@ -702,6 +724,23 @@ export default function Card({
   return (
     <article
       ref={cardRef}
+      // 24번 — vanishing=true 면 fade-out + collapse 애니메이션 (삭제 직후).
+      //   max-height 는 일시적 estimate; transition 후 부모 listener 가 React unmount.
+      style={
+        vanishing
+          ? {
+              maxHeight: 0,
+              opacity: 0,
+              marginTop: 0,
+              marginBottom: 0,
+              paddingTop: 0,
+              paddingBottom: 0,
+              overflow: "hidden",
+              transition:
+                "max-height 320ms ease, opacity 220ms ease, margin 320ms ease, padding 320ms ease",
+            }
+          : undefined
+      }
       className="fade-in-up relative rounded-[var(--radius)] bg-white p-[18px_20px]"
     >
       {(isPick || isHot || isNew) && (
@@ -963,15 +1002,17 @@ export default function Card({
 
           {/* 3. 본문 — 단락(\n\n) 분리 + **bold** 인라인(형광펜 하이라이트) 렌더링.
               isLongAnswer && !expanded → 첫 단락만 line-clamp-4(mobile)/md:line-clamp-5(desktop)로 가림.
-              expanded → 전체 단락 + 참고문헌까지 펼침. */}
+              expanded → 전체 단락 + 참고문헌까지 펼침.
+              6번 — forceExpanded (글 단독 페이지) 일 때는 본문 클릭으로도 접기 불가 (사용자 요청). */}
           <div
             onClick={() => {
               if (!isLongAnswer) return;
+              if (forceExpanded) return; // 단독 페이지: 접기 차단
               // 펼침 클릭 = 명확한 의도 → 조회 카운트 (recordView가 session dedup)
               if (!expanded) recordView();
               setExpanded((v) => !v);
             }}
-            className={isLongAnswer ? "cursor-pointer" : ""}
+            className={isLongAnswer && !forceExpanded ? "cursor-pointer" : ""}
           >
             {renderAnswerBody(card.answer, activeQuery, isLongAnswer && !expanded, highlightColor)}
           </div>
@@ -1197,7 +1238,21 @@ export default function Card({
 
         <button
           type="button"
-          onClick={() => setCommentsOpen((v) => !v)}
+          onClick={() => {
+            // 20번 — 모바일: 다른 카드 댓글창 열려 있으면 닫음 (포커스 이동 자연스럽게).
+            // 데스크탑은 그대로 유지 (병렬 편집 가능). 768px 기준.
+            setCommentsOpen((v) => {
+              const next = !v;
+              if (next && typeof window !== "undefined" && window.innerWidth <= 768) {
+                window.dispatchEvent(
+                  new CustomEvent("pibutenten:comments-opened", {
+                    detail: { cardId: card.id },
+                  }),
+                );
+              }
+              return next;
+            });
+          }}
           className="flex cursor-pointer items-center gap-1 transition-colors hover:text-[var(--primary)]"
           aria-label="댓글"
         >
@@ -1531,8 +1586,9 @@ function Keywords({
             +{hidden}
           </button>
         )}
-        {showAll && keywords.length > 0 && (
-          /* "접기" 는 태그가 아니므로 칩 디자인 X — 연한 회색 inline 텍스트 (본문 더보기와 동일 톤) */
+        {showAll && keywords.length > 0 && !forceShowAll && (
+          /* "접기" 는 태그가 아니므로 칩 디자인 X — 연한 회색 inline 텍스트 (본문 더보기와 동일 톤).
+             6번 — forceShowAll(글 단독 페이지) 일 때는 접기 자체 미노출 (사용자 요청). */
           <button
             type="button"
             onClick={(e) => {

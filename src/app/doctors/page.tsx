@@ -143,11 +143,16 @@ export default async function DoctorsPage() {
               key={d.id}
               href={`/doctors/${d.slug}`}
               aria-label={`${d.name} 원장님 소개로 이동`}
-              className="block overflow-hidden rounded-[var(--radius)] bg-white transition-transform hover:-translate-y-0.5"
+              // 17번 — 마우스 호버 시 살짝 음영 (그림자 + 살짝 위로). 기본 상태는 그림자 X.
+              className="block overflow-hidden rounded-[var(--radius)] bg-white shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.18),0_2px_6px_-2px_rgba(0,0,0,0.08)]"
             >
               <div
+                // 18번 — 프로필 사진 뒤 원장 컬러 그라데이션 (위는 진하게, 아래로 페이드).
+                //  상단 색상 ~ 하단 white 부드러운 그라데이션. theme.bg 사용.
                 className="relative aspect-square w-full overflow-hidden"
-                style={{ background: `${theme.bg}33` }}
+                style={{
+                  background: `linear-gradient(180deg, ${theme.bg}66 0%, ${theme.bg}33 45%, #ffffff 100%)`,
+                }}
               >
                 <Image
                   src={photo}
