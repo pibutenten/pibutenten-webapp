@@ -54,14 +54,13 @@ type LikeRow = {
     question: string;
     created_at: string;
     type?: string | null;
-    posted_as?: string | null;
     post_year?: number | null;
     post_slug?: string | null;
     shortcode?: string | null;
     doctor?: { slug: string } | { slug: string }[] | null;
     author?:
-      | { handle?: string | null; alt_handle?: string | null }
-      | { handle?: string | null; alt_handle?: string | null }[]
+      | { handle?: string | null }
+      | { handle?: string | null }[]
       | null;
   } | null;
 };
@@ -255,9 +254,9 @@ export default async function AdminUserDetailPage({
   const { data: likes } = await supabase
     .from("card_likes")
     .select(
-      `card:cards(id, question, created_at, type, posted_as, post_year, post_slug, shortcode,
+      `card:cards(id, question, created_at, type, post_year, post_slug, shortcode,
         doctor:doctors(slug),
-        author:profiles!cards_author_id_profiles_fkey(handle, alt_handle))`,
+        author:profiles!cards_author_id_profiles_fkey(handle))`,
     )
     .eq("user_id", id)
     .order("created_at", { ascending: false })
@@ -504,7 +503,6 @@ export default async function AdminUserDetailPage({
                     href={getQaUrl({
                       id: l.card!.id,
                       type: l.card!.type ?? undefined,
-                      posted_as: l.card!.posted_as ?? undefined,
                       post_year: l.card!.post_year ?? null,
                       post_slug: l.card!.post_slug ?? null,
                       shortcode: l.card!.shortcode ?? null,

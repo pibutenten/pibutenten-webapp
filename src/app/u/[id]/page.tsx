@@ -17,12 +17,10 @@ export default async function UserIdRedirect({ params }: Props) {
   const supabase = await createSupabaseServerClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("handle, alt_handle")
+    .select("handle")
     .eq("id", id)
     .maybeSingle()
-    .returns<{ handle: string | null; alt_handle: string | null }>();
-  if (!profile) notFound();
-  const target = profile.handle ?? profile.alt_handle;
-  if (!target) notFound();
-  redirect(`/${target}`);
+    .returns<{ handle: string | null }>();
+  if (!profile?.handle) notFound();
+  redirect(`/${profile.handle}`);
 }

@@ -27,7 +27,6 @@ type AdminQARow = {
   status: QAStatus;
   type: QAType;
   category: string | null;
-  posted_as: "official" | "personal" | null;
   is_pick: boolean | null;
   question: string;
   answer: string | null;
@@ -39,9 +38,7 @@ type AdminQARow = {
   doctor: { slug: string; name: string; branch: string | null } | null;
   author: {
     display_name: string | null;
-    alt_display_name: string | null;
     handle: string | null;
-    alt_handle: string | null;
   } | null;
 };
 
@@ -243,10 +240,10 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   let listQuery = supabase
     .from("cards")
     .select(
-      `id, status, type, category, posted_as, is_pick, question, answer, like_count, view_count, share_count, created_at,
+      `id, status, type, category, is_pick, question, answer, like_count, view_count, share_count, created_at,
        comments_count:comments(count),
        doctor:doctors(slug, name, branch),
-       author:profiles!cards_author_id_profiles_fkey(display_name, alt_display_name, handle, alt_handle)`,
+       author:profiles!cards_author_id_profiles_fkey(display_name, handle)`,
       { count: "exact" },
     );
 
@@ -610,19 +607,12 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                           : labelForCategory(r.category) || "포스팅"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 align-top text-[var(--text)]">
-                        {/* 글쓴이 — 의사 official 글이면 원장 이름, 그 외엔 닉네임(handle/display_name) */}
-                        {r.doctor && r.posted_as === "official" ? (
+                        {/* 글쓴이 — 의사 글이면 원장 이름, 그 외엔 닉네임(handle/display_name) */}
+                        {r.doctor ? (
                           <span>{r.doctor.name}</span>
                         ) : r.author ? (
                           <span>
-                            {r.posted_as === "personal"
-                              ? r.author.alt_display_name ??
-                                r.author.alt_handle ??
-                                r.author.handle ??
-                                "—"
-                              : r.author.display_name ??
-                                r.author.handle ??
-                                "—"}
+                            {r.author.display_name ?? r.author.handle ?? "—"}
                           </span>
                         ) : (
                           <span className="text-[var(--text-muted)]">—</span>

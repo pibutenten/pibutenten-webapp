@@ -143,7 +143,7 @@ export default async function DoctorsPage() {
               key={d.id}
               href={`/doctors/${d.slug}`}
               aria-label={`${d.name} 원장님 소개로 이동`}
-              className="block overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5 hover:shadow-[var(--shadow)]"
+              className="block overflow-hidden rounded-[var(--radius)] bg-white transition-transform hover:-translate-y-0.5"
             >
               <div
                 className="relative aspect-square w-full overflow-hidden"

@@ -42,7 +42,6 @@ type Card = {
   status: "draft" | "pending_review" | "published" | "archived";
   type: "qa" | "post";
   category: string | null;
-  posted_as: "official" | "personal" | null;
   is_pick?: boolean;
   doctor_id: string | null;
   video_id: string | null;

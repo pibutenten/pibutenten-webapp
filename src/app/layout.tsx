@@ -74,9 +74,7 @@ async function getSessionInfo(): Promise<SessionInfo> {
     if (!user) return null;
     const { data: profile } = await supabase
       .from("profiles")
-      .select(
-        "role, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle",
-      )
+      .select("role, display_name, avatar_url, handle")
       .eq("id", user.id)
       .maybeSingle();
     if (!profile) return null;
@@ -93,10 +91,6 @@ async function getSessionInfo(): Promise<SessionInfo> {
       const d = da?.doctor as { slug: string } | { slug: string }[] | null;
       doctorSlug = Array.isArray(d) ? d[0]?.slug ?? null : d?.slug ?? null;
     }
-    // 페르소나 — 의사/관리자가 personal로 스위치한 상태 여부
-    const { readPersonaServer } = await import("@/lib/persona-server");
-    const persona = (await readPersonaServer()) as "official" | "personal";
-
     // Phase 9: 같은 auth_user_id 묶음의 profiles row 모두 가져와 dropdown 구성
     // (profile_identities 의존 제거)
     const { data: groupRows } = await supabase
@@ -167,12 +161,8 @@ async function getSessionInfo(): Promise<SessionInfo> {
       role: (profile.role as "admin" | "doctor" | "user") ?? "user",
       displayName: profile.display_name ?? user.email ?? "",
       avatarUrl: (profile.avatar_url as string | null) ?? null,
-      altDisplayName: (profile.alt_display_name as string | null) ?? null,
-      altAvatarUrl: (profile.alt_avatar_url as string | null) ?? null,
       handle: (profile.handle as string | null) ?? null,
-      altHandle: (profile.alt_handle as string | null) ?? null,
       doctorSlug,
-      persona,
       identities,
       activeIdentityId,
     };

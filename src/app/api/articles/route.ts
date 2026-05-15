@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { readPersonaServer } from "@/lib/persona-server";
 import { getIdentityContext } from "@/lib/identity";
 import {
   buildSlug,
@@ -122,9 +121,6 @@ export async function POST(req: Request) {
   }
   // post는 doctor_id null
 
-  // 페르소나 컨텍스트 — post는 페르소나 따라 official/personal, qa는 항상 official
-  const currentPersona = await readPersonaServer();
-
   // ── post_slug + post_year 자동 생성 (§2 SEO URL 정책) ─────────────
   // post_year: 발행 연도 (서버 기준, KST 무관 — DB에서 EXTRACT YEAR로 동일 결과)
   const postYear = new Date().getUTCFullYear();
@@ -218,12 +214,11 @@ export async function POST(req: Request) {
     }
   }
 
-  // shortcode 생성 — 회원 글(post) 또는 의사 personal post 일 때.
-  // doctor official 글(doctorId + post_slug 모두 있음)은 keyword slug를 쓰므로 shortcode 불필요.
+  // shortcode 생성 — 회원 글(post)일 때.
+  // doctor 글(doctorId + post_slug 모두 있음)은 keyword slug를 쓰므로 shortcode 불필요.
   // 충돌 시 최대 5회 재시도 (8자 base58 = ~128조 조합으로 사실상 충돌 0).
   let shortcode: string | null = null;
-  const isDoctorOfficial =
-    t === "qa" || (t === "post" && doctorId && currentPersona === "official");
+  const isDoctorOfficial = t === "qa" || (t === "post" && !!doctorId);
   if (t === "post" && !isDoctorOfficial) {
     const { generateShortcode } = await import("@/lib/shortcode");
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -280,9 +275,8 @@ export async function POST(req: Request) {
     insert.answer = body;
     insert.status = reqStatus;
     insert.published = reqStatus === "published";
-    insert.posted_as = currentPersona;
-    // doctor_id — 공식 모드에서만 매핑된 doctor 페이지에 노출
-    insert.doctor_id = currentPersona === "official" ? doctorId : null;
+    // doctor_id — active identity가 의사 매핑된 row일 때만 doctor 페이지에 노출
+    insert.doctor_id = doctorId;
   } else if (t === "qa") {
     const q = (payload.question ?? "").trim();
     const a = (payload.answer ?? "").trim();
@@ -298,7 +292,6 @@ export async function POST(req: Request) {
     // 이전 버그: status를 항상 pending_review로 강제 덮어써서 "저장"(draft) 버튼이 검수 큐로 직행함.
     insert.status = reqStatus;
     insert.published = reqStatus === "published";
-    insert.posted_as = currentPersona;
     insert.doctor_id = doctorId;
   }
 

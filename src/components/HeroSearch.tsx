@@ -23,16 +23,17 @@ const HERO_PHRASES = [
   "전문의만 아는 진짜 피부 이야기",
   "피부과 전문의의 진짜 해답",
   "시술 전에 꼭 알아야 할 것들",
-  "전문의가 직접 답하는 피부 Q&A",
+  "전문의가 직접 답하는 Q&A",
   "내 피부 타입에 맞는 정보 찾기",
   "전문의가 말하는 진짜 피부 관리",
   "요즘 가장 핫한 시술 알아보기",
-  "강남에서 요즘 뜨는 시술, 바로가기",
+  "강남에서 요즘 뜨는 시술은?",
+  "강남에서 핫한 시술 알아보기",
   "40대가 많이 받는 시술 이야기",
   "요즘 30대의 피부 관심사는?",
   "가장 핫한 팔자주름 시술은?",
-  "목주름 없애는데 가장 효과있는 방법은?",
-  "모델손처럼 예쁜손 만드는 방법은?",
+  "목주름에 진짜 효과있는 방법은?",
+  "예쁜 손 만드는 피부 꿀팁은?",
 ];
 
 /**
@@ -80,7 +81,7 @@ export default function HeroSearch() {
       <h1
         className="overflow-hidden whitespace-nowrap font-extrabold text-[var(--primary)] transition-[opacity,max-height,margin] duration-300"
         style={{
-          fontSize: "clamp(14px, 4.2vw, 32px)",
+          fontSize: "clamp(26px, 6vw, 32px)",
           letterSpacing: "-0.8px",
           opacity: focused ? 0 : 1,
           maxHeight: focused ? 0 : "120px",
@@ -97,7 +98,6 @@ export default function HeroSearch() {
         className="sticky top-[56px] z-30 -mx-4 px-4 py-2 sm:-mx-6 sm:px-6"
         style={{
           backgroundColor: "var(--bg)",
-          boxShadow: "0 2px 4px -2px rgba(0,0,0,0.06)",
         }}
       >
         <SearchBar

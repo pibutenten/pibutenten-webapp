@@ -749,7 +749,7 @@ function DoctorProfileSection({ profile }: { profile: DoctorProfileData }) {
     return null;
 
   return (
-    <section className="relative z-10 -mt-6 rounded-[var(--radius)] border border-[var(--border)] bg-white px-6 py-4 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] sm:-mt-8">
+    <section className="relative z-10 -mt-6 rounded-[var(--radius)] bg-white px-6 py-4 sm:-mt-8">
       <h2 className="mb-3 text-[15px] font-bold text-[var(--text)]">
         프로필
       </h2>

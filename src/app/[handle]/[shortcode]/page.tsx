@@ -39,12 +39,12 @@ async function fetchQa(
       .from("cards")
       .select(
         `
-        id, question, answer, meta, keywords, type, created_at, updated_at, posted_as,
+        id, question, answer, meta, keywords, type, created_at, updated_at,
         like_count, view_count, post_year, post_slug, shortcode,
         category, hide_doctor_credential, pubmed_ref,
         external_url, external_title, external_description, external_image, external_site_name,
         doctor:doctors(slug, name, branch),
-        author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle),
+        author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle),
         video:videos(youtube_id, youtube_url, topic, upload_date)
       `,
       )
@@ -53,9 +53,9 @@ async function fetchQa(
       .maybeSingle()
       .returns<QaWithFields>();
     if (!data) return null;
-    // handle 또는 alt_handle 매칭 — 잘못된 handle prefix로 다른 사람 글 접근 방지
+    // handle 매칭 — 잘못된 handle prefix로 다른 사람 글 접근 방지
     const a = data.author;
-    const matched = a && (a.handle === handle || a.alt_handle === handle);
+    const matched = a && a.handle === handle;
     if (!matched) return null;
     return data;
   } catch {

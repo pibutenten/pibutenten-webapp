@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -29,13 +28,9 @@ export type SessionInfo = {
   role: "admin" | "doctor" | "user";
   displayName: string;
   avatarUrl: string | null;
-  altDisplayName: string | null;
-  altAvatarUrl: string | null;
   /** v4 — 헤더 아바타 1-click 진입용 */
   handle: string | null;
-  altHandle: string | null;
   doctorSlug: string | null;
-  persona: "official" | "personal";
   /** v4 multi-identity — 본인이 보유한 모든 identity (primary 포함). 1개일 땐 dropdown 안 보임. */
   identities: SessionIdentity[];
   /** 현재 활성 identity id ('primary' 또는 profile_identities.id) */
@@ -45,22 +40,6 @@ export type SessionInfo = {
 type TopNavProps = {
   session: SessionInfo;
 };
-
-const HomeIcon = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-5 w-5"
-    aria-hidden="true"
-  >
-    <path d="M3 11.5 12 4l9 7.5" />
-    <path d="M5 10.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9.5" />
-  </svg>
-);
 
 const SearchIcon = (
   <svg
@@ -103,38 +82,6 @@ const DoctorIcon = (
     <circle cx="12" cy="12" r="3.5" />
     {/* 어깨 — UserIcon과 동일 좌표 */}
     <path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2" />
-  </svg>
-);
-
-const YoutubeIcon = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-5 w-5"
-    aria-hidden="true"
-  >
-    <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
-    <path d="m10 15 5-3-5-3z" />
-  </svg>
-);
-
-const WriteIcon = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-5 w-5"
-    aria-hidden
-  >
-    <path d="M12 20h9" />
-    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
   </svg>
 );
 

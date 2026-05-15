@@ -29,7 +29,6 @@ type Props = {
  *
  *  - post (♥ 좋아요): "○○○님이 좋아합니다" / "○○○님 외 N명이 좋아합니다"
  *  - Q&A (👍 추천):   "○○○님이 추천했어요" / "○○○님 외 N명이 추천했어요"
- *  - 페르소나 분기: qa_likes.persona='personal'이면 alt_display_name·alt_avatar·alt_handle
  *  - lazy load: 카운트 > 0일 때만 RPC 호출, 카드 mount 시 한 번
  *
  * 위치: Card footer 구분선 아래, CommentsBlock 바로 위.

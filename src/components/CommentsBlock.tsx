@@ -23,8 +23,7 @@ type Author = {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
-  alt_display_name?: string | null;
-  alt_avatar_url?: string | null;
+  handle?: string | null;
   role: "admin" | "doctor" | "user";
   doctor_id: string | null;
 };
@@ -39,8 +38,6 @@ type CommentRow = {
   like_count: number;
   created_at: string;
   updated_at: string;
-  /** 작성 당시 페르소나 — 'personal'이면 author.alt_* 우선 표시 */
-  posted_as?: "official" | "personal";
   /** v4 — viewer가 이 댓글에 좋아요 표시했는지 (server prefetch) */
   viewer_liked?: boolean;
   author: Author | null;
@@ -467,17 +464,16 @@ function CommentItem({
   // 가림 댓글 표시: 본인 / admin / doctor RLS 통과로 응답에 포함된 경우만. 회색 처리.
   const dimmed = isHidden || isDeleted;
 
-  // 작성자 배지 — personal 페르소나로 작성한 댓글은 doctor 뱃지/실명 숨김
-  const isPersonalComment = comment.posted_as === "personal";
+  // 작성자 배지 — role='doctor' active identity면 verified 마크
   const role = comment.author?.role;
-  const isAuthorDoctor = role === "doctor" && !isPersonalComment;
+  const isAuthorDoctor = role === "doctor";
 
-  const displayName = isPersonalComment
-    ? comment.author?.alt_display_name ?? comment.author?.display_name ?? "익명"
-    : comment.author?.display_name ?? "익명";
-  const profileLink = comment.author?.id
-    ? `/u/${comment.author.id}${isPersonalComment ? "?p=personal" : ""}`
-    : null;
+  const displayName = comment.author?.display_name ?? "익명";
+  const profileLink = comment.author?.handle
+    ? `/${comment.author.handle}`
+    : comment.author?.id
+      ? `/u/${comment.author.id}`
+      : null;
   const timeLabel = relativeTime(comment.created_at);
 
   return (
@@ -517,13 +513,15 @@ function CommentItem({
             <path d="M22.5 12.5l-2.7-3 .4-4-3.9-.9-2-3.5-3.7 1.9-3.7-1.9-2 3.5-3.9.8.4 4-2.7 3 2.7 3-.4 4 3.9.9 2 3.5 3.7-1.9 3.7 1.9 2-3.5 3.9-.8-.4-4 2.6-3zM10 17.5L5.5 13l1.7-1.7L10 14.1l6.7-6.7L18.4 9 10 17.5z" />
           </svg>
         )}
-        {/* 본문 — editing 모드 아닐 때 한 줄로 옆에 붙임 */}
+        {/* 본문 — editing 모드 아닐 때 닉네임 옆에 inline.
+            ⚠️ 앞뒤 공백/개행만 trim — 본문 중간의 의도적 줄바꿈은 그대로 보존
+               (whitespace-pre-wrap 으로 \n 살림). */}
         {!editing && (
           <span
             className="whitespace-pre-wrap break-all leading-[1.5] text-[var(--text)]"
             style={dimmed ? { color: "#888" } : undefined}
           >
-            {isDeleted ? "(삭제된 댓글이에요)" : comment.body}
+            {isDeleted ? "(삭제된 댓글이에요)" : comment.body.trim()}
           </span>
         )}
         <span className="text-[11px] text-[var(--text-muted)]">· {timeLabel}</span>

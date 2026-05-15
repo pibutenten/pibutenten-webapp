@@ -19,10 +19,9 @@ type QaRow = {
   author_id: string | null;
   doctor_id: string | null;
   shortcode: string | null;
-  posted_as: "official" | "personal" | string | null;
   author:
-    | { handle: string | null; alt_handle: string | null }
-    | { handle: string | null; alt_handle: string | null }[]
+    | { handle: string | null }
+    | { handle: string | null }[]
     | null;
 };
 
@@ -61,8 +60,8 @@ export default async function PostEditPage({ params }: Props) {
   const { data: qa } = await supabase
     .from("cards")
     .select(
-      `id, question, answer, keywords, type, status, author_id, doctor_id, shortcode, posted_as,
-       author:profiles!cards_author_id_profiles_fkey(handle, alt_handle)`,
+      `id, question, answer, keywords, type, status, author_id, doctor_id, shortcode,
+       author:profiles!cards_author_id_profiles_fkey(handle)`,
     )
     .eq("shortcode", shortcode)
     .maybeSingle()
@@ -100,10 +99,7 @@ export default async function PostEditPage({ params }: Props) {
 
   // returnUrl 계산 — viewer URL (취소·저장 후 돌아갈 곳)
   const a = Array.isArray(qa.author) ? qa.author[0] : qa.author;
-  const isPersonal = qa.posted_as === "personal";
-  const handle = isPersonal
-    ? a?.alt_handle ?? a?.handle ?? null
-    : a?.handle ?? null;
+  const handle = a?.handle ?? null;
   const returnUrl = handle ? `/${handle}/${shortcode}` : "/";
 
   return (

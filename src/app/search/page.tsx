@@ -87,11 +87,11 @@ export default async function HomePage({ searchParams }: Props) {
       .from("cards")
       .select(
         `id, question, answer, meta, keywords, like_count, view_count, save_count,
-         rating_avg, rating_count, type, posted_as, post_year, post_slug,
+         rating_avg, rating_count, type, post_year, post_slug,
          external_url, external_title, external_description, external_image, external_site_name,
          category, hide_doctor_credential, shortcode, pubmed_ref, created_at,
          doctor:doctors!doctor_id (slug, name, branch),
-         author:profiles!author_id (id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle, updated_at)`,
+         author:profiles!author_id (id, display_name, avatar_url, handle, updated_at)`,
       )
       .eq("status", "published")
       .eq("category", categorySlug)

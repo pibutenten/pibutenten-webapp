@@ -25,15 +25,13 @@ export type CommentRow = {
   like_count: number;
   created_at: string;
   updated_at: string;
-  posted_as?: "official" | "personal";
   /** v4 — viewer가 이 댓글에 좋아요 표시했는지 (server prefetch). */
   viewer_liked?: boolean;
   author: {
     id: string;
     display_name: string | null;
     avatar_url: string | null;
-    alt_display_name: string | null;
-    alt_avatar_url: string | null;
+    handle: string | null;
     role: "admin" | "doctor" | "user";
     doctor_id: string | null;
   } | null;
@@ -108,8 +106,7 @@ export async function GET(req: Request) {
     id: string;
     display_name: string | null;
     avatar_url: string | null;
-    alt_display_name: string | null;
-    alt_avatar_url: string | null;
+    handle: string | null;
     role: "admin" | "doctor" | "user";
   };
   type DoctorAcctRow = { profile_id: string; doctor_id: string };
@@ -122,7 +119,7 @@ export async function GET(req: Request) {
     const [profRes, docRes] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, display_name, avatar_url, alt_display_name, alt_avatar_url, role")
+        .select("id, display_name, avatar_url, handle, role")
         .in("id", authorIds),
       supabase
         .from("doctor_accounts")
@@ -165,8 +162,7 @@ export async function GET(req: Request) {
             display_name: p.display_name,
             // doctor 매핑 row면 doctors.photo_url 우선 (single source)
             avatar_url: p.doctor_photo_url ?? p.avatar_url,
-            alt_display_name: p.alt_display_name,
-            alt_avatar_url: p.alt_avatar_url,
+            handle: p.handle,
             role: p.role,
             doctor_id: doctorByProfile.get(p.id) ?? null,
           }
@@ -174,8 +170,7 @@ export async function GET(req: Request) {
             id: r.author_id,
             display_name: null,
             avatar_url: null,
-            alt_display_name: null,
-            alt_avatar_url: null,
+            handle: null,
             role: "user",
             doctor_id: null,
           },
@@ -281,15 +276,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  // 페르소나 컨텍스트 — 댓글도 현재 페르소나로 마킹
-  const { readPersonaServer } = await import("@/lib/persona-server");
-  const currentPersona = await readPersonaServer();
-
   // Phase 9: author_id에 **active identity의 profile.id** 저장.
   //   cookie 'pibutenten:identity'가 UUID면 그 profile, 'primary'면 base profile.
   //   getIdentityContext가 묶음 검증(auth_user_id 매칭) 후 idCtx.active.profileId 반환.
   //   좋아요·저장과 동일한 ID 정책 — 묶음 내 ID 전환 시 댓글도 그 ID로 기록됨.
-  //   (구 버그: user.id(=base auth.users.id)만 사용 → 활성 ID 무시되고 base profile로 저장됨)
   const ins = await supabase
     .from("comments")
     .insert({
@@ -297,7 +287,6 @@ export async function POST(req: Request) {
       parent_id: parentId,
       body,
       author_id: idCtx.active.profileId,
-      posted_as: currentPersona,
     })
     .select("*")
     .single();

@@ -48,8 +48,6 @@ export type CardData = {
   rating_count?: number;
   type?: "card" | "post" | "link";
   created_at?: string;
-  /** 작성 당시 페르소나 — 'personal'이면 author.alt_* 우선 표시 */
-  posted_as?: "official" | "personal";
   /** §2 SEO URL — /doctors/{slug}/{year}/{postSlug} canonical 생성용 */
   post_year?: number | null;
   post_slug?: string | null;
@@ -98,11 +96,8 @@ export type CardData = {
     id: string;
     display_name: string | null;
     avatar_url: string | null;
-    alt_display_name?: string | null;
-    alt_avatar_url?: string | null;
     /** v4 — 회원 핸들 (URL용) */
     handle?: string | null;
-    alt_handle?: string | null;
     /** v4 — avatar cache buster용. profile.updated_at (avatar 변경 시 갱신) */
     updated_at?: string | null;
   } | null;
@@ -687,23 +682,16 @@ export default function Card({
   const answerLines = (card.answer ?? "").split("\n").length;
   const isLongAnswer = (card.answer?.length ?? 0) > 250 || answerLines >= 6;
 
-  // 페르소나 — 'personal'로 작성된 글은 alt 정보 우선, doctor 뱃지/링크 숨김
-  const isPersonalPost = card.posted_as === "personal";
   // hide_doctor_credential — 의사가 카테고리·토글로 직함 숨긴 경우 (Phase A.2)
   const credentialHidden = Boolean(card.hide_doctor_credential);
-  const showAsDoctor = !!doctor && !isPersonalPost && !credentialHidden;
-  const authorName = isPersonalPost
-    ? card.author?.alt_display_name ?? card.author?.display_name ?? "익명"
-    : doctor?.name ?? card.author?.display_name ?? "익명";
-  // 회원·personal 아바타에는 cache buster (profile.updated_at) 부착 — 사진 변경 즉시 반영
-  const rawAvatar = isPersonalPost
-    ? card.author?.alt_avatar_url ?? card.author?.avatar_url ?? null
-    : doctor
-      ? photo
-      : card.author?.avatar_url ?? null;
+  const showAsDoctor = !!doctor && !credentialHidden;
+  const authorName =
+    doctor?.name ?? card.author?.display_name ?? "익명";
+  // 회원 아바타에는 cache buster (profile.updated_at) 부착 — 사진 변경 즉시 반영
+  const rawAvatar = doctor ? photo : card.author?.avatar_url ?? null;
   const authorAvatar = (() => {
     if (!rawAvatar) return null;
-    if (doctor && !isPersonalPost) return rawAvatar; // 정적 의사 사진은 그대로
+    if (doctor) return rawAvatar; // 정적 의사 사진은 그대로
     const ts = card.author?.updated_at;
     if (!ts) return rawAvatar;
     const stamp = new Date(ts).getTime();
@@ -845,10 +833,10 @@ export default function Card({
               e.stopPropagation();
               if (showAsDoctor && doctor?.slug) {
                 router.push(`/doctors/${doctor.slug}`);
+              } else if (card.author?.handle) {
+                router.push(`/${card.author.handle}`);
               } else if (card.author?.id) {
-                // 개인모드 글이면 ?p=personal 로 personal-only 활동 표시
-                const suffix = isPersonalPost ? "?p=personal" : "";
-                router.push(`/u/${card.author.id}${suffix}`);
+                router.push(`/u/${card.author.id}`);
               }
             }}
             disabled={!showAsDoctor && !card.author?.id}
@@ -884,7 +872,7 @@ export default function Card({
                   // DPR 2x를 고려해 srcSet에서 한 단계 큰 사이즈를 선택하도록 여유 보정.
                   sizes="48px"
                   className="object-cover"
-                  unoptimized={!doctor || isPersonalPost}
+                  unoptimized={!doctor}
                   style={
                     showAsDoctor
                       ? {

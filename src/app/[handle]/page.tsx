@@ -19,16 +19,12 @@ type Props = {
 type ProfileRow = {
   id: string;
   display_name: string | null;
-  alt_display_name: string | null;
-  alt_avatar_url: string | null;
-  alt_bio: string | null;
   role: UserRole;
   bio: string | null;
   avatar_url: string | null;
   is_public: boolean | null;
   created_at: string;
   handle: string | null;
-  alt_handle: string | null;
   birthdate: string | null;
   gender: "male" | "female" | "other" | null;
   face_shape: string | null;
@@ -44,25 +40,19 @@ type ProfileRow = {
  * 회원 프로필 페이지 — 핸들 기반 (v4 spec).
  *
  * URL: /{handle}
- *  - handle 매칭 → official 페르소나 뷰
- *  - alt_handle 매칭 → personal 페르소나 뷰 (의사·관리자가 personal id로 글 쓸 때)
+ *  - profiles.handle 매칭 → 프로필 뷰
  *  - 매칭 없음 → 404
  *
- * 본인 보기일 때만 [수정], [프로필 전환], [활동], [설정], [로그아웃] 노출 (다음 phase에서 추가).
- * 외부인 보기는 작성 글·댓글 탭만.
- */
-/**
- * Lookup priority:
- *   1) profiles.handle  (primary identity)
- *   2) profiles.alt_handle  (legacy)
+ * Phase 9: 모든 ID는 profiles에 독립 row로 존재 (auth_user_id로 묶음).
+ * 한 사람이 의사·일반 두 모드로 활동하고 싶으면 별개 profile row로 분리.
  *
- * Phase 9: 모든 ID는 profiles에 독립 row로 존재. profile_identities lookup 제거.
+ * 본인 보기일 때만 [수정], [활동], [설정], [로그아웃] 노출.
+ * 외부인 보기는 작성 글·댓글 탭만.
  */
 async function fetchProfileByHandle(
   handle: string,
 ): Promise<{
   profile: ProfileRow;
-  isAlt: boolean;
   /** doctor identity 정보 (doctor_accounts 매핑 있을 때) */
   identity?: {
     id: string;
@@ -76,65 +66,50 @@ async function fetchProfileByHandle(
   if (!/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(handle)) return null;
   const supabase = await createSupabaseServerClient();
   const select =
-    "id, display_name, alt_display_name, alt_avatar_url, alt_bio, role, bio, avatar_url, is_public, created_at, handle, alt_handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility, auth_user_id";
+    "id, display_name, role, bio, avatar_url, is_public, created_at, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility, auth_user_id";
 
-  // 1) profiles.handle 매칭 — Phase 9 단일 모델
-  let { data } = await supabase
+  const { data } = await supabase
     .from("profiles")
     .select(select)
     .eq("handle", handle)
     .maybeSingle()
     .returns<ProfileRow>();
-  if (data) {
-    // doctor_accounts 매핑 확인 — doctor 사진·정보 single source
-    const { data: da } = await supabase
-      .from("doctor_accounts")
-      .select("doctor:doctors(id, slug, photo_url)")
-      .eq("profile_id", data.id)
-      .maybeSingle();
-    const doc = (
-      Array.isArray(da?.doctor) ? da?.doctor?.[0] : da?.doctor
-    ) as { id: string; slug: string; photo_url: string | null } | undefined;
-    if (doc) {
-      return {
-        profile: data,
-        isAlt: false,
-        identity: {
-          id: data.id,
-          display_name: data.display_name ?? handle,
-          avatar_url: doc.photo_url ?? `/doctors/${doc.slug}.png`,
-          bio: data.bio,
-          kind: "doctor",
-          doctor_id: doc.id,
-        },
-      };
-    }
-    return { profile: data, isAlt: false };
+  if (!data) return null;
+
+  // doctor_accounts 매핑 확인 — doctor 사진·정보 single source
+  const { data: da } = await supabase
+    .from("doctor_accounts")
+    .select("doctor:doctors(id, slug, photo_url)")
+    .eq("profile_id", data.id)
+    .maybeSingle();
+  const doc = (
+    Array.isArray(da?.doctor) ? da?.doctor?.[0] : da?.doctor
+  ) as { id: string; slug: string; photo_url: string | null } | undefined;
+  if (doc) {
+    return {
+      profile: data,
+      identity: {
+        id: data.id,
+        display_name: data.display_name ?? handle,
+        avatar_url: doc.photo_url ?? `/doctors/${doc.slug}.png`,
+        bio: data.bio,
+        kind: "doctor",
+        doctor_id: doc.id,
+      },
+    };
   }
-
-  // 2) profiles.alt_handle (legacy personal persona — 점진 폐기 예정)
-  ({ data } = await supabase
-    .from("profiles")
-    .select(select)
-    .eq("alt_handle", handle)
-    .maybeSingle()
-    .returns<ProfileRow>());
-  if (data) return { profile: data, isAlt: true };
-
-  return null;
+  return { profile: data };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
   const result = await fetchProfileByHandle(handle);
   if (!result) return { title: "찾을 수 없는 회원" };
-  const { profile, isAlt, identity } = result;
+  const { profile, identity } = result;
   const name = identity
     ? identity.display_name
-    : isAlt
-      ? profile.alt_display_name ?? handle
-      : profile.display_name ?? handle;
-  const bio = identity ? identity.bio : isAlt ? profile.alt_bio : profile.bio;
+    : profile.display_name ?? handle;
+  const bio = identity ? identity.bio : profile.bio;
   return {
     // v5.1: handle 노출 X — 닉네임만 (layout template이 "피부텐텐 | …" prefix 자동 추가)
     title: name,
@@ -161,7 +136,7 @@ export default async function HandleProfilePage({ params }: Props) {
 
   const result = await fetchProfileByHandle(handle);
   if (!result) notFound();
-  const { profile, isAlt, identity } = result;
+  const { profile, identity } = result;
 
   const {
     data: { user: viewer },
@@ -186,8 +161,8 @@ export default async function HandleProfilePage({ params }: Props) {
       .maybeSingle();
     viewerRole =
       ((vp?.role as "admin" | "doctor" | "user" | undefined) ?? null) ?? null;
-    // identity·alt_handle로 접근 시엔 redirect 안 함 (개인 페르소나 모드)
-    if (viewerRole === "admin" && !identity && !isAlt) {
+    // identity가 있으면 redirect 안 함 (의사 매핑된 본인 화면)
+    if (viewerRole === "admin" && !identity) {
       redirect("/admin");
     }
   }
@@ -195,35 +170,25 @@ export default async function HandleProfilePage({ params }: Props) {
   // identity가 있으면 identity의 display_name/avatar/bio를 우선 (multi-identity)
   const displayName = identity
     ? identity.display_name
-    : isAlt
-      ? profile.alt_display_name ?? handle
-      : profile.display_name ?? handle;
-  const avatarUrl = identity
-    ? identity.avatar_url
-    : isAlt
-      ? profile.alt_avatar_url
-      : profile.avatar_url;
-  const bio = identity ? identity.bio : isAlt ? profile.alt_bio : profile.bio;
-  // identity가 doctor kind면 official, 아니면 personal로 글 필터
-  const personaForPosts =
-    identity?.kind === "doctor" || (!identity && !isAlt) ? "official" : "personal";
+    : profile.display_name ?? handle;
+  const avatarUrl = identity ? identity.avatar_url : profile.avatar_url;
+  const bio = identity ? identity.bio : profile.bio;
 
-  // 작성 글 — 현재 페르소나로 작성한 published 글만, 최근 20개
+  // 작성 글 — 이 profile.id로 작성된 published 글만, 최근 20개
   const { data: postsData } = await supabase
     .from("cards")
     .select(
       `
-      id, question, answer, meta, keywords, type, created_at, posted_as,
+      id, question, answer, meta, keywords, type, created_at,
       like_count, view_count, post_year, post_slug, shortcode,
       category, hide_doctor_credential,
       external_url, external_title, external_description, external_image, external_site_name,
       doctor:doctors(slug, name, branch),
-      author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle),
+      author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle),
       video:videos(youtube_id, youtube_url, topic, upload_date)
       `,
     )
     .eq("author_id", profile.id)
-    .eq("posted_as", personaForPosts)
     .eq("status", "published")
     .order("created_at", { ascending: false })
     .limit(20)
@@ -236,7 +201,6 @@ export default async function HandleProfilePage({ params }: Props) {
     .from("comments")
     .select("id", { count: "exact", head: true })
     .eq("author_id", profile.id)
-    .eq("posted_as", personaForPosts)
     .eq("status", "visible");
 
   // 좋아요/저장 카운트 prefetch — 본인 보기일 때만 (본인만 자기 likes/saves SELECT 가능)
@@ -295,11 +259,6 @@ export default async function HandleProfilePage({ params }: Props) {
           <h1 className="text-xl font-bold text-[var(--text)]">
             {displayName}
           </h1>
-          {isAlt && (
-            <span className="rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
-              개인 모드
-            </span>
-          )}
         </div>
         <div className="mt-0.5 text-sm text-[var(--text-muted)]">@{handle}</div>
         {bio && (
@@ -331,7 +290,6 @@ export default async function HandleProfilePage({ params }: Props) {
         savesCount={savesCount}
         isOwner={isOwner}
         profileId={profile.id}
-        personaForPosts={personaForPosts}
         skinInfo={{
           faceShape: profile.face_shape,
           skinType: profile.skin_type,

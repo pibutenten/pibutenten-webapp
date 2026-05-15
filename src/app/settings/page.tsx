@@ -1,16 +1,14 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { readPersonaServer } from "@/lib/persona-server";
 
 export const dynamic = "force-dynamic";
 
 /**
- * v4: /me는 본인 프로필(/{handle} 또는 /doctors/{slug})로 redirect.
- * 옛 북마크·외부 링크·헤더 fallback 보존용.
- *
- * - 의사 official 페르소나 → /doctors/{slug}
- * - 그 외 (회원·의사 personal·관리자): /{handle 또는 alt_handle}
- * - handle 미설정 시 fallback /
+ * /settings: 본인 프로필로 redirect.
+ *  - admin → /admin
+ *  - doctor (doctor_accounts 매핑 있음) → /doctors/{slug}
+ *  - 그 외 → /{handle}
+ *  - handle 미설정 → /
  */
 export default async function MeRedirect() {
   const supabase = await createSupabaseServerClient();
@@ -21,13 +19,12 @@ export default async function MeRedirect() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, handle, alt_handle")
+    .select("role, handle")
     .eq("id", user.id)
     .maybeSingle()
     .returns<{
       role: "user" | "doctor" | "admin";
       handle: string | null;
-      alt_handle: string | null;
     }>();
 
   if (!profile) redirect("/");
@@ -35,10 +32,8 @@ export default async function MeRedirect() {
   // 관리자 — 본인 프로필 안 만들고 대시보드로
   if (profile.role === "admin") redirect("/admin");
 
-  const persona = (await readPersonaServer()) as "official" | "personal";
-
-  // 의사 official — /doctors/{slug}
-  if (profile.role === "doctor" && persona === "official") {
+  // 의사 — doctor_accounts 매핑 있으면 /doctors/{slug}
+  if (profile.role === "doctor") {
     const { data: da } = await supabase
       .from("doctor_accounts")
       .select("doctor:doctors(slug)")
@@ -50,11 +45,7 @@ export default async function MeRedirect() {
   }
 
   // 그 외 — handle 기반
-  const handle =
-    persona === "personal"
-      ? profile.alt_handle ?? profile.handle
-      : profile.handle ?? profile.alt_handle;
-  if (handle) redirect(`/${handle}`);
+  if (profile.handle) redirect(`/${profile.handle}`);
 
   redirect("/");
 }

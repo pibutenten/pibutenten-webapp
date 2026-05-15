@@ -38,8 +38,6 @@ type Props = {
   savesCount?: number;
   /** 댓글 fetch 대상 — profile.id (author_id) */
   profileId: string;
-  /** personal/official 페르소나로 작성한 댓글만 fetch */
-  personaForPosts: "official" | "personal";
   /** 피부정보 (공개된 항목만 표시) — 비어있으면 탭 숨김 */
   skinInfo?: SkinInfo;
   /** v4 — viewer의 좋아요/저장/평점 prefetch (posts/saves/likes 카드에 즉시 반영) */
@@ -66,11 +64,9 @@ type CommentRow = {
     post_year: number | null;
     post_slug: string | null;
     shortcode: string | null;
-    posted_as: string | null;
     doctor: { slug: string } | null;
     author: {
       handle: string | null;
-      alt_handle: string | null;
     } | null;
   } | null;
 };
@@ -78,16 +74,12 @@ type CommentRow = {
 function commentLink(c: CommentRow): string {
   const card = c.card;
   if (!card) return "/";
-  // posted_as DB enum: 'official' | 'personal'. 옛 'doctor'/'self' 값도 매핑.
-  const isOfficial = card.posted_as === "official" || card.posted_as === "doctor";
-  const isPersonal = card.posted_as === "personal" || card.posted_as === "self";
-  if (isOfficial && card.doctor?.slug && card.post_year && card.post_slug)
+  // 의사 글 — keyword slug
+  if (card.doctor?.slug && card.post_year && card.post_slug)
     return `/doctors/${card.doctor.slug}/${card.post_year}/${card.post_slug}`;
-  if (card.shortcode) {
-    const handle = isPersonal
-      ? card.author?.alt_handle ?? card.author?.handle
-      : card.author?.handle ?? null;
-    if (handle) return `/${handle}/${card.shortcode}`;
+  // 회원 글 — handle + shortcode
+  if (card.shortcode && card.author?.handle) {
+    return `/${card.author.handle}/${card.shortcode}`;
   }
   return "/";
 }
@@ -105,7 +97,6 @@ export default function ProfileTabs({
   likesCount,
   savesCount,
   profileId,
-  personaForPosts,
   skinInfo,
   viewerStates,
 }: Props) {
@@ -173,11 +164,11 @@ export default function ProfileTabs({
         .from("cards")
         .select(
           `id, question, answer, meta, keywords, like_count, view_count, save_count, rating_avg, rating_count,
-           type, posted_as, post_year, post_slug, shortcode, category, hide_doctor_credential, created_at,
+           type, post_year, post_slug, shortcode, category, hide_doctor_credential, created_at,
            external_url, external_title, external_description, external_image, external_site_name,
            doctor:doctors(slug, name, branch),
            video:videos(youtube_id, youtube_url, topic, upload_date),
-           author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, alt_display_name, alt_avatar_url, handle, alt_handle, updated_at)`,
+           author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle, updated_at)`,
         )
         .in("id", ids);
       if (qasErr) {
@@ -212,9 +203,9 @@ export default function ProfileTabs({
         .from("comments")
         .select(
           `id, body, created_at, card_id,
-           card:cards(id, question, type, post_year, post_slug, shortcode, posted_as,
+           card:cards(id, question, type, post_year, post_slug, shortcode,
                   doctor:doctors(slug),
-                  author:profiles!cards_author_id_profiles_fkey(handle, alt_handle))`,
+                  author:profiles!cards_author_id_profiles_fkey(handle))`,
         )
         .eq("author_id", targetAuthorId)
         .eq("status", "visible");
@@ -225,7 +216,7 @@ export default function ProfileTabs({
       setComments(data ?? []);
       setCommentsLoading(false);
     })();
-  }, [tab, comments, profileId, personaForPosts]);
+  }, [tab, comments, profileId]);
 
   return (
     <div>
