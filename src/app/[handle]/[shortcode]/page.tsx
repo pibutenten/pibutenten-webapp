@@ -86,15 +86,16 @@ export default async function MemberPostPage({ params }: Props) {
 
   // 정책 (2026-05-15): 의사 Q&A 는 doctor canonical 한 곳에서만 노출.
   // 회원 라우트로 접근 시도 시 → /doctors/{slug}/{year}/{post_slug} 로 영구 redirect (308).
-  // SEO 신호 통합 + 사용자가 어떤 URL 로 들어와도 정식 URL 로 자동 이동.
+  // Supabase 가 1:1 doctor join 을 array 로 반환하는 케이스 처리 (다른 페이지에서도 동일 패턴).
+  const doc = Array.isArray(card.doctor) ? card.doctor[0] : card.doctor;
   if (
     card.category === "qa" &&
-    card.doctor?.slug &&
+    doc?.slug &&
     card.post_year &&
     card.post_slug
   ) {
     permanentRedirect(
-      `/doctors/${card.doctor.slug}/${card.post_year}/${card.post_slug}`,
+      `/doctors/${doc.slug}/${card.post_year}/${card.post_slug}`,
     );
   }
 
