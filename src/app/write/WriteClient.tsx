@@ -741,7 +741,9 @@ export default function WriteClient({
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
+          {/* min-w-0 — 좁은 모바일 viewport 에서 input flex-1 의 콘텐츠 폭으로
+              [추가] 버튼이 밀려 잘리는 현상 방지 (placeholder 길이 영향). */}
+          <div className="flex min-w-0 gap-2">
             <input
               type="text"
               value={keywordInput}
@@ -753,13 +755,15 @@ export default function WriteClient({
                   addKeyword(keywordInput);
                 }
               }}
-              placeholder="태그 입력 후 Enter 또는 띄어쓰기"
-              className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+              placeholder="Enter 또는 띄어쓰기로 추가"
+              className="h-9 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
             />
+            {/* shrink-0 + whitespace-nowrap — 좁은 화면에서 '추가' 가 '추\n가' 로
+                줄바꿈되거나 input 에 밀려 잘리는 현상 방지. */}
             <button
               type="button"
               onClick={() => addKeyword(keywordInput)}
-              className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm hover:bg-[var(--bg-soft)]"
+              className="h-9 shrink-0 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm hover:bg-[var(--bg-soft)]"
             >
               추가
             </button>
