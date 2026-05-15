@@ -206,7 +206,11 @@ export default function WriteClient({
   function addKeyword(k: string) {
     const v = k.trim().replace(/^#/, "");
     if (!v) return;
-    if (keywords.includes(v)) return;
+    if (keywords.includes(v)) {
+      // 중복 시 시각 피드백 — 입력값은 유지 (사용자가 수정해서 다른 태그로 변경 가능)
+      setError("이미 등록된 태그입니다.");
+      return;
+    }
     if (keywords.length >= maxKw) {
       setError(`태그는 최대 ${maxKw}개까지 가능합니다.`);
       return;
@@ -741,12 +745,13 @@ export default function WriteClient({
               value={keywordInput}
               onChange={(e) => setKeywordInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                // Enter 또는 Space 입력 시 태그 자동 추가 (네이버 블로그 패턴)
+                if (e.key === "Enter" || e.key === " " || e.code === "Space") {
                   e.preventDefault();
                   addKeyword(keywordInput);
                 }
               }}
-              placeholder="태그 입력 후 Enter"
+              placeholder="태그 입력 후 Enter 또는 띄어쓰기"
               className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
             />
             <button
