@@ -244,3 +244,16 @@ a {
   outline: none;
   box-shadow: 0 0 0 0 transparent;
 }
+
+/* '더보기' inline 라벨 — CSS ::after 로 표시.
+   DOM 에 텍스트가 없으므로 크롤러/LLM 이 답변 본문에 "더보기" 를 합쳐 읽지 않음.
+   기존 <span aria-hidden>더보기</span> 패턴이 aria-hidden 으로 스크린리더만 차단하고
+   크롤러는 그대로 읽던 SEO 이슈 해결. */
+.card-answer--more::after {
+  content: " 더보기";
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  opacity: 0.7;
+}

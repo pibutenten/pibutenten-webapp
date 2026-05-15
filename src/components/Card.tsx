@@ -1737,24 +1737,18 @@ function renderAnswerBody(
         const showMore = clamped && isFirst;
         // 첫 단락에 speakable class — JSON-LD SpeakableSpecification.cssSelector가 이걸 가리킴 (음성·AI assistant 답변 픽업).
         const speakableClass = isFirst ? " card-answer-speakable" : "";
+        // SEO/AEO: '더보기' 라벨은 CSS ::after 로 표시. DOM 텍스트로 두면 크롤러/LLM 이
+        // 답변 본문 끝에 "...작동 방식.더보기" 식으로 흘려 읽음. ::after content 는
+        // pseudo element 라 검색엔진이 본문에서 분리.
         return (
           <p
             key={pi}
             className={`whitespace-pre-wrap text-[15px] leading-[1.7] text-[var(--text)]${speakableClass} ${
               isFirst ? "" : "mt-1"
-            } ${clampClass}`}
+            } ${clampClass} ${showMore ? "card-answer--more" : ""}`}
             style={{ transition: "color 0.2s ease" }}
           >
             {inline}
-            {showMore && (
-              // 인라인 "더보기" — 작고 연하게 본문 끝에 자연스럽게 붙음. "더 알아보기" 라벨 크기(12px) 매칭.
-              <span
-                aria-hidden
-                className="ml-1 text-[12px] font-normal text-[var(--text-muted)]/70"
-              >
-                더보기
-              </span>
-            )}
           </p>
         );
       })}

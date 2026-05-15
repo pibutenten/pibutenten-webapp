@@ -246,7 +246,8 @@ window.addEventListener('appinstalled', function() {
                   publisher: { "@id": `${SITE_URL}/#organization` },
                   potentialAction: {
                     "@type": "SearchAction",
-                    target: `${SITE_URL}/?q={search_term_string}`,
+                    // /search 는 page-level noindex(follow=true) 이므로 크롤이 결과 페이지를 따라가서 개별 카드로 진입.
+                    target: `${SITE_URL}/search?q={search_term_string}`,
                     "query-input": "required name=search_term_string",
                   },
                 },

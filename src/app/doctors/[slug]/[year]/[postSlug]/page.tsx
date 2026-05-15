@@ -153,7 +153,7 @@ function buildJsonLd(
     // 음성/AI assistant가 두괄식 답안 첫 단락을 우선 픽업하도록 마킹.
     speakable: {
       "@type": "SpeakableSpecification",
-      cssSelector: [".qa-answer-speakable"],
+      cssSelector: [".card-answer-speakable"],
     },
     mainEntity: {
       "@type": "Question",
