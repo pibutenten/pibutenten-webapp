@@ -4,7 +4,6 @@ import TopNav, { type SessionInfo } from "@/components/TopNav";
 import ScrollManager from "@/components/ScrollManager";
 import FloatingWriteButton from "@/components/FloatingWriteButton";
 import InstallPrompt from "@/components/InstallPrompt";
-import AppSplash from "@/components/AppSplash";
 import SiteFooter from "@/components/SiteFooter";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/site";
@@ -203,6 +202,37 @@ export default async function RootLayout({
         <Script id="scroll-restoration" strategy="beforeInteractive">
           {`if ('scrollRestoration' in history) history.scrollRestoration = 'manual';`}
         </Script>
+        {/* PWA standalone splash 제어 — sessionStorage 체크 후 즉시 hide / 1.5s 후 fade.
+            CSS @media (display-mode: standalone) body::before 가 즉시 splash overlay 표시.
+            이 script 가 sessionStorage check + body class 부여로 hide/fade 처리.
+            React mount 전부터 동작 → iOS native splash → app 콘텐츠 사이 깜빡임 0. */}
+        <Script id="pwa-standalone-splash" strategy="beforeInteractive">
+          {`(function(){
+  try {
+    var isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    if (!isStandalone && navigator && navigator.standalone) isStandalone = true;
+    if (!isStandalone) return;
+    if (sessionStorage.getItem('pibutenten-splash-shown') === '1') {
+      // 같은 세션 두번째 진입 — splash 즉시 제거
+      document.documentElement.addEventListener('DOMContentLoaded', function(){
+        document.body.classList.add('splash-removed');
+      });
+      // 이미 DOM 로드된 케이스 fallback
+      if (document.body) document.body.classList.add('splash-removed');
+      return;
+    }
+    sessionStorage.setItem('pibutenten-splash-shown', '1');
+    // 첫 진입 — 1.5초 후 fade-out, 다시 350ms 후 완전 제거
+    var SHOW_MS = 1500, FADE_MS = 350;
+    function startSequence(){
+      setTimeout(function(){ document.body && document.body.classList.add('splash-done'); }, SHOW_MS);
+      setTimeout(function(){ document.body && document.body.classList.add('splash-removed'); }, SHOW_MS + FADE_MS);
+    }
+    if (document.body) startSequence();
+    else document.addEventListener('DOMContentLoaded', startSequence);
+  } catch(_) {}
+})();`}
+        </Script>
         {/* PWA: beforeinstallprompt + appinstalled 이벤트를 React 마운트보다 먼저 캐치 */}
         <Script id="pwa-bip-capture" strategy="beforeInteractive">
           {`window.__pibutenten_bip = null;
@@ -268,8 +298,7 @@ window.addEventListener('appinstalled', function() {
         <FloatingWriteButton hasSession={!!session?.role} />
         {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
         <InstallPrompt signedIn={!!session?.role} />
-        {/* 앱 구동 splash overlay — standalone 진입 시 1.5초 동그라미 로고 */}
-        <AppSplash />
+        {/* 앱 구동 splash — head Script + globals.css body::before 가 처리 (React 무관, 깜빡임 0) */}
       </body>
     </html>
   );

@@ -257,3 +257,28 @@ a {
   color: var(--text-muted);
   opacity: 0.7;
 }
+
+/* PWA standalone 진입 시 즉시 splash overlay — React mount 전부터 표시되어
+   iOS native splash → app 콘텐츠 사이 깜빡임 차단. JS 가 sessionStorage 체크 후
+   body 에 .splash-done 클래스 부여하면 fade-out. */
+@media (display-mode: standalone) {
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background-color: #71BFEA;
+    background-image: url("/icons/splash-circle-512.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 160px 160px;
+    pointer-events: none;
+    transition: opacity 350ms ease-out;
+  }
+  body.splash-done::before {
+    opacity: 0;
+  }
+  body.splash-removed::before {
+    display: none;
+  }
+}
