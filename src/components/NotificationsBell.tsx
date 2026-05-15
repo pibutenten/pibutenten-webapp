@@ -40,6 +40,10 @@ export default function NotificationsBell() {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  // 드롭다운 fixed 위치 — viewport 좌표 기준. wrapper transform/overflow 영향 무관.
+  // 카카오/네이버 인앱 브라우저에서 absolute 가 viewport 좌측 너머로 잘리는 현상 회피.
+  const [dropTop, setDropTop] = useState<number>(64);
 
   const fetchData = useCallback(async () => {
     try {
@@ -105,6 +109,14 @@ export default function NotificationsBell() {
     return () => window.removeEventListener("mousedown", onClickOutside);
   }, [open]);
 
+  // 드롭다운 위치 — bell button 의 viewport 좌표 기준 top.
+  // open 시 1회 측정. scroll 발생 시 닫힘 처리(외부 클릭 listener 가 처리).
+  useEffect(() => {
+    if (!open) return;
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) setDropTop(rect.bottom + 6);
+  }, [open]);
+
   // 열릴 때 모두 읽음 처리 (RPC가 '궁금해요' 본인 미답 알림은 제외 — migration 0080)
   async function handleOpen() {
     setOpen(true);
@@ -152,6 +164,7 @@ export default function NotificationsBell() {
   return (
     <div ref={wrapRef} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         aria-label="알림"
         title="알림"
@@ -162,7 +175,9 @@ export default function NotificationsBell() {
         {unread > 0 && (
           <span
             aria-label={`미확인 알림 ${unread}개`}
-            className="absolute -right-0.5 -top-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-[18px] text-white"
+            // HOT 라벨과 동일 핑크 (#F48FB1) — 옛 새빨간색 대비 톤앤매너 일관성
+            className="absolute -right-0.5 -top-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-[18px] text-white"
+            style={{ backgroundColor: "#F48FB1" }}
           >
             {unread > 99 ? "99+" : unread}
           </span>
@@ -172,9 +187,13 @@ export default function NotificationsBell() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg"
+          // position: fixed → wrapper transform/overflow 영향 무관, viewport 기준.
+          // 카카오/네이버 인앱에서 absolute 가 viewport 좌측 너머로 잘리는 현상 회피.
+          className="fixed z-50 overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg"
           style={{
-            // 폭: 320px 기본, 단 viewport 기준 좌우 8px 여백 보장. iOS Safari 좁은 화면 대응.
+            top: dropTop,
+            right: 8,
+            // 폭: 320px 기본, 단 viewport 기준 좌우 16px 여백 보장. iOS Safari 좁은 화면 대응.
             width: "min(320px, calc(100vw - 16px))",
             // iOS Safari 자동 텍스트 확대 방지 (가독성 위해 100% 고정)
             WebkitTextSizeAdjust: "100%",

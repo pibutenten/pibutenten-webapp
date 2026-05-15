@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { SessionIdentity } from "./TopNav";
-import NotificationBadge from "./NotificationBadge";
 
 type Props = {
   identities: SessionIdentity[];
@@ -78,7 +77,6 @@ export default function IdentitySwitcher({
         {/* 아바타 래퍼 — 텍스트 x-height와 시각적 중심을 맞추려 inline-flex + 살짝 아래로 (translate-y 1px) */}
         <span className="relative inline-flex items-center translate-y-px">
           <Avatar src={active.avatarUrl} />
-          <NotificationBadge />
         </span>
         <span className="hidden max-w-[100px] truncate text-[13px] font-medium leading-none text-[var(--text)] sm:inline">
           {active.displayName}
@@ -137,7 +135,6 @@ export default function IdentitySwitcher({
         {/* 아바타 래퍼 — 텍스트 x-height와 시각적 중심을 맞추려 inline-flex + 살짝 아래로 (translate-y 1px) */}
         <span className="relative inline-flex items-center translate-y-px">
           <Avatar src={active.avatarUrl} />
-          <NotificationBadge />
         </span>
         <span className="hidden max-w-[100px] truncate text-[13px] font-medium leading-none text-[var(--text)] sm:inline">
           {active.displayName}
