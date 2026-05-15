@@ -612,13 +612,15 @@ export default function WriteClient({
                 : "URL 입력 후 [채우기] 누르면 제목·본문·태그 자동 채움"}
             </span>
           </label>
-          <div className="flex gap-2">
+          {/* min-w-0 — input flex-1 의 기본 min-width(콘텐츠 폭) 때문에 모바일 좁은 화면에서
+              [채우기] 버튼이 viewport 밖으로 밀려 잘리는 현상 fix. */}
+          <div className="flex min-w-0 gap-2">
             <input
               type="url"
               value={externalUrl}
               onChange={(e) => setExternalUrl(e.target.value)}
               placeholder="https://..."
-              className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary-light)] focus:outline-none"
+              className="h-9 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary-light)] focus:outline-none"
             />
             {category === "link" && (
               <button

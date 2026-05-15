@@ -57,8 +57,29 @@ export type CardRow = {
   author_name: string | null;
   author_handle: string | null;
   cnt: number;
+  /** API route 에서 cards.post_year + cards.doctor:doctors(slug) join 으로 채움.
+   *  의사 글 canonical URL /doctors/{slug}/{year}/{shortcode} 구성에 사용. */
+  doctor_slug?: string | null;
+  post_year?: number | null;
   comments?: CommentSummary[]; // comments kind 한정 — 글 밑에 항상 펼침
 };
+
+/**
+ * 카드 공개 URL 결정 — 의사 글 우선, 회원 글 fallback. 둘 다 없으면 null.
+ *  - 의사 글: /doctors/{slug}/{year}/{shortcode}
+ *  - 회원 글: /{handle}/{shortcode}
+ *  - null: link 비활성 (편집기로 가는 fallback 제거 — 사용자 의도 외 navigate 차단)
+ */
+function publicCardUrl(row: CardRow): string | null {
+  if (!row.shortcode) return null;
+  if (row.doctor_slug && row.post_year) {
+    return `/doctors/${row.doctor_slug}/${row.post_year}/${row.shortcode}`;
+  }
+  if (row.author_handle) {
+    return `/${row.author_handle}/${row.shortcode}`;
+  }
+  return null;
+}
 
 type Row = VisitorRow | CardRow;
 
@@ -318,11 +339,9 @@ function ActivityTopRow({
   const [users, setUsers] = useState<ActivityUser[] | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 공개 카드 URL = /{handle}/{shortcode}. handle/shortcode 없으면 admin edit 로 폴백.
-  const cardHref =
-    row.author_handle && row.shortcode
-      ? `/${row.author_handle}/${row.shortcode}`
-      : `/admin/cards/${row.card_id}/edit`;
+  // 공개 카드 URL — 의사 글 /doctors/{slug}/{year}/{shortcode} 우선, 회원 글 /{handle}/{shortcode}.
+  // 둘 다 없으면 null → link 비활성 (편집기로 가는 fallback 제거).
+  const cardHref = publicCardUrl(row);
   const displayName =
     row.author_name?.trim() ||
     row.author_handle?.trim() ||
@@ -408,10 +427,7 @@ function CommentsTopRow({
   row: CardRow;
   showComments: boolean;
 }) {
-  const cardHref =
-    row.author_handle && row.shortcode
-      ? `/${row.author_handle}/${row.shortcode}`
-      : `/admin/cards/${row.card_id}/edit`;
+  const cardHref = publicCardUrl(row);
   const displayName =
     row.author_name?.trim() ||
     row.author_handle?.trim() ||
@@ -428,13 +444,22 @@ function CommentsTopRow({
             displayName
           )}
         </div>
-        <Link
-          href={cardHref}
-          className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
-          title={row.question ?? undefined}
-        >
-          {row.question || "(제목 없음)"}
-        </Link>
+        {cardHref ? (
+          <Link
+            href={cardHref}
+            className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)] hover:text-[var(--primary)] hover:underline"
+            title={row.question ?? undefined}
+          >
+            {row.question || "(제목 없음)"}
+          </Link>
+        ) : (
+          <span
+            className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)]"
+            title={row.question ?? undefined}
+          >
+            {row.question || "(제목 없음)"}
+          </span>
+        )}
         <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--text)]">
           {row.cnt.toLocaleString()}
         </span>
@@ -455,9 +480,15 @@ function ActivityUsersInline({
   users: ActivityUser[] | null;
   loading: boolean;
   count: number;
-  /** 펼친 창 전체를 감싸는 link target — 어디 클릭하든 그 글 단독 URL 로 이동 */
-  cardHref: string;
+  /** 펼친 창 전체를 감싸는 link target. null 이면 link 비활성 (편집기 fallback 차단). */
+  cardHref: string | null;
 }) {
+  // count vs users.length mismatch 의 정확한 의미:
+  //  - likes/saves: 한 사람당 1행만 가능 → count == users.length (mismatch 거의 0)
+  //  - shares/views: 한 사람이 여러 번 가능 → count > users.length (정상)
+  //  - 따라서 '외 N명' 은 RPC limit(30) 으로 잘린 사용자가 있을 때만 의미 있음.
+  //    개별 사용자 수는 users.length(distinct).
+  void count;
   // 닉네임 자체는 텍스트 표시 (사용자 프로필 link 아님). 창 어디 클릭하든 글 단독 URL.
   const inner = (
     <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2 transition-colors group-hover:bg-[var(--bg-soft)]">
@@ -476,15 +507,15 @@ function ActivityUsersInline({
               </span>
             );
           })}
-          {count > users.length && (
-            <span className="text-[var(--text-muted)]">
-              외 {(count - users.length).toLocaleString()}명
-            </span>
+          {users.length >= 30 && (
+            <span className="text-[var(--text-muted)]">외 더…</span>
           )}
         </div>
       )}
     </div>
   );
+  // cardHref null — 회원 글이 아니거나 의사 글 메타가 없는 경우 link 비활성 (편집기 fallback 차단).
+  if (!cardHref) return inner;
   return (
     <Link href={cardHref} className="group block" title="글 보기">
       {inner}
