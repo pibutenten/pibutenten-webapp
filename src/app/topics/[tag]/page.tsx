@@ -102,24 +102,50 @@ export default async function TagPage({ params }: Props) {
   const { posts, count } = await fetchPostsForTag(tag);
   if (posts.length === 0) notFound();
 
-  // 3) JSON-LD CollectionPage + ItemList
+  // 3) JSON-LD: @graph 로 CollectionPage + FAQPage 묶음 출력.
+  //    AEO/GEO/SEO 강화:
+  //      - FAQPage.mainEntity = Question[] 각 카드 1개씩
+  //      - 각 acceptedAnswer.author = Physician (의사 EEAT 신호 — 검증된 의사 답변)
+  //      - publisher / isPartOf = Organization 피부텐텐 (브랜드 권위, layout 의 #organization 참조)
+  //    화면 비노출 — Google·Bing·Perplexity·ChatGPT 등이 해석하여 인용 우선순위 결정.
   const url = `${SITE_URL}/topics/${encodeURIComponent(tag)}`;
-  const jsonLd = {
-    "@context": "https://schema.org",
+  const ORG_ID = `${SITE_URL}/#organization`;
+
+  // 답변 본문 snippet — 1단락(또는 400자) 한정. FAQPage spec 권장.
+  const answerSnippet = (p: CardData): string => {
+    const txt = (p.answer ?? "").replace(/\s+/g, " ").trim();
+    return txt.length > 400 ? txt.slice(0, 400) + "…" : txt;
+  };
+
+  // 의사별 Physician @id (`/doctors/{slug}#person`) — 단일 문서 내 동일 의사 중복 시 @id 로 dedup
+  const doctorPersonRef = (p: CardData) => {
+    if (!p.doctor) return null;
+    return {
+      "@type": "Physician",
+      "@id": `${SITE_URL}/doctors/${p.doctor.slug}#person`,
+      name: p.doctor.name,
+      jobTitle: "피부과 전문의",
+      medicalSpecialty: "https://schema.org/Dermatologic",
+      url: `${SITE_URL}/doctors/${p.doctor.slug}`,
+      ...(p.doctor.branch
+        ? { worksFor: { "@type": "MedicalClinic", name: `힐하우스피부과 ${p.doctor.branch}` } }
+        : {}),
+      memberOf: { "@id": ORG_ID },
+    };
+  };
+
+  const collectionPage = {
     "@type": "CollectionPage",
+    "@id": `${url}#collection`,
     name: `${tag} — 피부과 전문의 답변 모음`,
     url,
     about: { "@type": "Thing", name: tag },
-    isPartOf: {
-      "@type": "WebSite",
-      name: "피부텐텐",
-      url: SITE_URL,
-    },
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    publisher: { "@id": ORG_ID },
     inLanguage: "ko-KR",
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: posts.length,
-      // 시간가중 + jitter 셔플이라 명확한 순서 없음
       itemListOrder: "https://schema.org/ItemListUnordered",
       itemListElement: posts.slice(0, 20).map((p, idx) => ({
         "@type": "ListItem",
@@ -128,6 +154,31 @@ export default async function TagPage({ params }: Props) {
         name: p.question,
       })),
     },
+  };
+
+  const faqPage = {
+    "@type": "FAQPage",
+    "@id": `${url}#faq`,
+    inLanguage: "ko-KR",
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    publisher: { "@id": ORG_ID },
+    // 각 카드 = Question + acceptedAnswer (의사 작성). FAQPage spec 충족.
+    mainEntity: posts.map((p) => ({
+      "@type": "Question",
+      name: p.question,
+      url: postUrl(p),
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: answerSnippet(p),
+        url: postUrl(p),
+        ...(p.doctor ? { author: doctorPersonRef(p) } : {}),
+      },
+    })),
+  };
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [collectionPage, faqPage],
   };
 
   return (
