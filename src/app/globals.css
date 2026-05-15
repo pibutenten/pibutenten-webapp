@@ -46,7 +46,7 @@
   /* 메인 액션 — 하늘색 (남색 대신).
      2026-05-14: 로고와 통일하면서 사이트 톤 다운 — 한 단계 연한 톤으로.
      hover/active용 dark는 옛 primary(#5FA8D3) 유지로 자연스럽게 진해짐. */
-  --primary: #8BC3DE;
+  --primary: #4CBFF2;
   --primary-dark: #5FA8D3;
   /* 부드러운 하늘색 hover/selection 톤 — 절반쯤 연하게 */
   --primary-soft: #F2F8FC;
@@ -271,7 +271,7 @@ a {
     position: fixed;
     inset: 0;
     z-index: 200;
-    background-color: #00B1FF;
+    background-color: #4CBFF2;
     background-image: url("/icons/splash-circle-512.png");
     background-repeat: no-repeat;
     background-position: center;

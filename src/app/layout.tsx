@@ -56,9 +56,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // theme/background 와 톤앤매너 통일 — manifest #00B1FF 와 일관, 옛 #1B4965 (네이비)
+  // theme/background 와 톤앤매너 통일 — manifest #4CBFF2 와 일관, 옛 #1B4965 (네이비)
   // 와의 mismatch 로 PWA standalone 진입 시 상단 status bar 영역 색 깜빡임이 있던 부분 해소.
-  themeColor: "#00B1FF",
+  themeColor: "#4CBFF2",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

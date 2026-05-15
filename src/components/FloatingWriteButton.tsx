@@ -15,7 +15,7 @@ const HIDDEN_PREFIXES = ["/write", "/onboarding", "/signup", "/login"];
  * - 로그인/비로그인 모두 노출 — 비로그인은 클릭 시 /login?next=/write로 유도
  * - 글쓰기/온보딩 등 자기 자신 맥락 페이지에서는 숨김
  * - iOS safe-area 대응
- * - 색상: 로고 primary(#5FA8D3)보다 한 단계 연한 톤 (#8BC3DE) — 부담스럽지 않게
+ * - 색상: 로고 primary(#5FA8D3)보다 한 단계 연한 톤 (#4CBFF2) — 부담스럽지 않게
  */
 export default function FloatingWriteButton({ hasSession }: Props) {
   const pathname = usePathname() || "";
@@ -31,7 +31,7 @@ export default function FloatingWriteButton({ hasSession }: Props) {
         right: "20px",
         width: 56,
         height: 56,
-        backgroundColor: "#8BC3DE",
+        backgroundColor: "#4CBFF2",
       }}
     >
       <svg
