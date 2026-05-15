@@ -125,7 +125,7 @@ export default async function HandleProfilePage({ params }: Props) {
   const { handle } = await params;
 
   // v5.1: handle이 의사 slug와 일치하면 → /doctors/{slug}로 308 redirect (canonical 통일)
-  // 원장 official 페이지는 /doctors/{slug}만 — /{slug}로는 진입 X
+  // 원장 페이지는 /doctors/{slug}만 — /{slug}로는 진입 X
   const supabase = await createSupabaseServerClient();
   const { data: doctorMatch } = await supabase
     .from("doctors")
@@ -150,7 +150,7 @@ export default async function HandleProfilePage({ params }: Props) {
   );
 
   // 본인일 때 role 조회 — admin이 본인 1차 handle로 접근하면 /admin으로 redirect.
-  // 단 personal identity handle(예: 배스킨 jminbae)로 접근한 경우엔 회원 프로필 그대로 노출.
+  // 단 묶음의 별개 identity handle(예: 배스킨 jminbae 회원용 profile)로 접근한 경우엔 회원 프로필 그대로 노출.
   // (배정민 케이스: admin인데 배스킨으로 SNS 활동 — 그때는 일반 회원 화면이 맞음)
   let viewerRole: "admin" | "doctor" | "user" | null = null;
   if (isOwner && viewer) {

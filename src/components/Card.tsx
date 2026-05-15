@@ -51,7 +51,7 @@ export type CardData = {
   /** §2 SEO URL — /doctors/{slug}/{year}/{postSlug} canonical 생성용 */
   post_year?: number | null;
   post_slug?: string | null;
-  /** v4 — 회원 글 / 의사 personal 글 URL용 8자 base58 식별자 */
+  /** v4 — 회원 글 URL용 8자 base58 식별자 */
   shortcode?: string | null;
   /** 외부 링크 — 모든 카테고리에서 옵션 (Phase 3). card 카테고리 외에서는 카드에 [더 알아보기] 버튼 노출 */
   external_url?: string | null;
@@ -425,7 +425,7 @@ export default function Card({
     }
   }
 
-  // 평점 등록/변경 — upsert (card_ratings PK = card_id,user_id,persona)
+  // 평점 등록/변경 — upsert (card_ratings PK = card_id,user_id)
   // 트리거가 cards.rating_avg/rating_count를 매번 from-scratch 재계산하므로
   // upsert 후 cards를 다시 fetch해서 정확한 값으로 sync (optimistic 누적 오류 방지).
   async function handleRate(stars: number) {
@@ -445,11 +445,10 @@ export default function Card({
       {
         card_id: card.id,
         user_id: userId,
-        persona: "official",
         rating: stars,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "card_id,user_id,persona" },
+      { onConflict: "card_id,user_id" },
     );
     if (error) {
       setMyRating(prev);
@@ -1549,7 +1548,7 @@ function Keywords({
 
 async function shareCard(card: CardData) {
   if (typeof window === "undefined") return;
-  // v4 canonical URL — getQaUrl이 의사 official(slug)·회원/personal(handle+shortcode)·fallback 결정
+  // v4 canonical URL — getQaUrl이 의사(slug)·회원(handle+shortcode)·fallback 결정
   const path = getQaUrl(card);
   const url = `${window.location.origin}${path}`;
   const title = card.question;

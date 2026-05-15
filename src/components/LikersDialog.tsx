@@ -6,7 +6,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Liker = {
   user_id: string;
-  persona: "official" | "personal" | string;
   display_name: string | null;
   avatar_url: string | null;
   handle: string | null;

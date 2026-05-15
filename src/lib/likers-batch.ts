@@ -16,7 +16,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export type Liker = {
   user_id: string;
-  persona: string;
   display_name: string | null;
   avatar_url: string | null;
   handle: string | null;
@@ -80,7 +79,6 @@ async function flushBucket(limit: number): Promise<void> {
       }
       list.push({
         user_id: row.user_id,
-        persona: row.persona,
         display_name: row.display_name,
         avatar_url: row.avatar_url,
         handle: row.handle,

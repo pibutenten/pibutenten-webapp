@@ -15,12 +15,12 @@ type NavItem = {
 };
 
 export type SessionIdentity = {
-  /** 'primary' (profiles row 자체) 또는 profile_identities.id (uuid) */
+  /** 'primary' (profiles row 자체) 또는 묶음 내 다른 profile.id (uuid) */
   id: string;
   handle: string;
   displayName: string;
   avatarUrl: string | null;
-  /** developer | doctor | personal | admin | other | primary */
+  /** profiles.role 값: 'admin' | 'doctor' | 'user' (호환성 alias) */
   kind: string;
 };
 

@@ -17,10 +17,10 @@ type QaWithFields = CardData & {
 };
 
 /**
- * 회원 글 / 의사 personal persona 글 라우트.
+ * 회원 글 라우트.
  * URL: /{handle}/{shortcode}  (year 세그먼트 제거 — 더 짧고 깔끔)
  *
- * - handle은 profiles.handle 또는 alt_handle 어느 쪽이든 매칭
+ * - handle은 profiles.handle 매칭
  * - shortcode는 cards.shortcode (UNIQUE)
  *
  * 주의: /{handle}만 있을 때(/[handle]/page.tsx)와 라우트 충돌 방지를 위해

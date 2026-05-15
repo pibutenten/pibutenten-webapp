@@ -8,7 +8,7 @@ import type { SessionIdentity } from "./TopNav";
 type Props = {
   identities: SessionIdentity[];
   activeId: string;
-  /** 의사 official 진입 시 /doctors/{slug} 우선 (없으면 handle) */
+  /** 의사 identity 진입 시 /doctors/{slug} 우선 (없으면 handle) */
   doctorSlug: string | null;
   isAdmin: boolean;
 };
@@ -16,10 +16,9 @@ type Props = {
 const KIND_LABEL: Record<string, string> = {
   primary: "기본",
   doctor: "원장",
-  personal: "개인",
+  user: "회원",
   admin: "관리자",
   other: "기타",
-  // v5.1: 'developer' kind 폐기 → 'admin'으로 통일 (배정민 케이스: 개발자 = 관리자)
 };
 
 /**
