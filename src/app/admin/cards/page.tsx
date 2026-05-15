@@ -4,6 +4,7 @@ import PickToggle from "@/components/PickToggle";
 import { labelForCategory } from "@/lib/post-category";
 import AdminQasDoctorFilter from "./AdminQasDoctorFilter";
 import { requireAdminPage } from "@/lib/admin-page-guard";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -303,6 +304,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
 
   return (
     <section className="w-full py-6">
+      <div className="mb-1 -ml-1"><BackButton /></div>
       {/* 헤더 — 박스 내용과 시각적 정렬 위해 살짝 들여쓰기 */}
       <div className="mb-5 flex items-baseline justify-between gap-3 pl-1">
         <div>

@@ -71,12 +71,16 @@ export default function SearchBar({
         }}
         placeholder="피부과 전문의가 솔직하게 답해드립니다!"
         aria-label="Q&A 검색"
-        className="h-[50px] w-full rounded-full border-2 border-[var(--secondary)] bg-white px-6 pr-14 text-center text-[15px] font-bold text-[var(--text)] outline-none shadow-[var(--shadow-sm)] transition-[border-color,box-shadow] placeholder:text-[16px] placeholder:font-normal placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:shadow-[0_0_0_4px_rgba(139,195,222,0.20)] sm:h-14 sm:text-[17px]"
+        // 14번 fix — 기본 테두리 색을 var(--border) 로 살짝 연하게 (이전 --secondary 는 너무 강했음).
+        //              focus 시 --primary 로 강조 — 대비 유지.
+        className="h-[50px] w-full rounded-full border-2 border-[var(--border)] bg-white px-6 pr-14 text-center text-[15px] font-bold text-[var(--text)] outline-none shadow-[var(--shadow-sm)] transition-[border-color,box-shadow] placeholder:text-[16px] placeholder:font-normal placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:shadow-[0_0_0_4px_rgba(76,191,242,0.18)] sm:h-14 sm:text-[17px]"
       />
       <button
         type="submit"
         aria-label="검색"
-        className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)]"
+        // 14번 fix — 모바일에서 위/아래/우측 여백 동일하게: inset-y-[5px] right-[5px] (h-[50px] 기준).
+        // 데스크탑(sm:h-14) 은 inset-y-[8px] right-[8px] 로 균등.
+        className="absolute right-[5px] top-[5px] bottom-[5px] my-auto flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)] sm:right-[8px] sm:top-[8px] sm:bottom-[8px] sm:h-10 sm:w-10"
       >
         <svg
           viewBox="0 0 24 24"

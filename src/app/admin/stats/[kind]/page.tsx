@@ -6,6 +6,7 @@ import StatsListClient, {
   type VisitorRow,
   type CardRow,
 } from "./StatsListClient";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -114,6 +115,7 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
 
   return (
     <section className="w-full py-6">
+      <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">
           {KIND_TITLES[kind]} TOP

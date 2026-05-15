@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import DraftClient from "./DraftClient";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function AdminDraftPage() {
 
   return (
     <section className="w-full py-6">
+      <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 flex items-baseline justify-between pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">새 Q&A 추출하기</h1>
         <Link

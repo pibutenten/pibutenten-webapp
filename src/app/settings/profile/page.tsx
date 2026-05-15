@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import ProfileEditClient from "./ProfileEditClient";
 import NotificationPreferences from "@/components/NotificationPreferences";
+import BackButton from "@/components/BackButton";
 import {
   DEFAULT_VISIBILITY,
   type FieldVisibility,
@@ -111,6 +112,9 @@ export default async function MyProfilePage() {
 
   return (
     <section className="mx-auto w-full max-w-[640px] space-y-5 py-6">
+      <div className="-ml-1">
+        <BackButton />
+      </div>
       <ProfileEditClient
         userId={user.id}
         currentEmail={user.email ?? ""}

@@ -135,7 +135,8 @@ export default function WriteClient({
       setHeaderPhrase(next);
     }
     pickNext();
-    const timer = window.setInterval(pickNext, 6000);
+    // 4초 인터벌 (사용자 요청 21번 — HeroSearch 와 동일)
+    const timer = window.setInterval(pickNext, 4000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -578,14 +579,18 @@ export default function WriteClient({
 
   return (
     <section className="w-full py-6">
-      {/* 헤더 카피 — 6초 회전. clamp 로 viewport 폭에 따라 폰트 자동 축소
-          (모바일 좁은 화면 한 줄 수렴 보장, 큰 화면은 원래 크기).
-          whitespace-nowrap 으로 강제 한 줄, 짧은 페이즈 변경 시 transition. */}
+      {/* 헤더 카피 — 4초 회전. clamp 로 viewport 폭에 따라 폰트 자동 축소.
+          21번 — phrase 변경 시 아래에서 슬라이드 업 + fade-in. key={headerPhrase}. */}
       <h1
-        className="mb-5 whitespace-nowrap text-center font-bold text-[var(--text)] transition-opacity"
+        className="mb-5 overflow-hidden whitespace-nowrap text-center font-bold text-[var(--text)]"
         style={{ fontSize: "clamp(0.95rem, 4.6vw, 1.5rem)" }}
       >
-        {headerPhrase}
+        <span
+          key={headerPhrase}
+          className="inline-block animate-[heroPhraseUp_420ms_cubic-bezier(0.2,0,0,1)_both]"
+        >
+          {headerPhrase}
+        </span>
       </h1>
 
       {/* 폼 본체 */}
@@ -780,6 +785,11 @@ export default function WriteClient({
               value={keywordInput}
               onChange={(e) => setKeywordInput(e.target.value)}
               onKeyDown={(e) => {
+                // 15번 fix — IME(한글) 입력 중인 keydown 은 무시.
+                // "써마지" 후 Space → IME 종료되며 마지막 글자 "지" 가 별도 이벤트로 들어와
+                //   '써마지' + '지' 두 개로 분리되던 버그.
+                //   isComposing === true 또는 keyCode === 229 (legacy) 둘 다 IME 진행 중.
+                if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                 // Enter 또는 Space 입력 시 태그 자동 추가 (네이버 블로그 패턴)
                 if (e.key === "Enter" || e.key === " " || e.code === "Space") {
                   e.preventDefault();

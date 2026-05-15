@@ -7,6 +7,7 @@ import {
   asDoctorProfileData,
   type DoctorProfileData,
 } from "@/lib/doctor-profile";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,7 @@ export default async function AdminDoctorsPage() {
 
   return (
     <section className="w-full py-6">
+      <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 flex items-baseline justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[var(--text)]">

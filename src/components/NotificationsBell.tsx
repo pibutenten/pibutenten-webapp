@@ -169,7 +169,7 @@ export default function NotificationsBell() {
         aria-label="알림"
         title="알림"
         onClick={() => (open ? setOpen(false) : handleOpen())}
-        className="relative flex items-center gap-1.5 rounded-md p-2 text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
+        className="relative flex items-center gap-1.5 rounded-md p-2 text-[var(--text)] transition-colors hover:text-[var(--primary)]"
       >
         <BellIcon />
         {unread > 0 && (

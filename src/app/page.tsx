@@ -5,6 +5,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { fetchViewerStates } from "@/lib/viewer-states";
+import { cookies } from "next/headers";
+
+const IDENTITY_COOKIE = "pibutenten:identity";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -92,6 +96,31 @@ export default async function FeedPage() {
   const {
     data: { user: viewer },
   } = await supabase.auth.getUser();
+
+  // 11번 — 본인이 최근 발행한 글을 피드 맨 위에 고정 (HOT 가중치 무관).
+  // active profile.id (cookie) 기준 — 회원 명함으로 쓴 글은 그 active 가 작성자.
+  // active 가 'primary' 면 user.id (auth) 가 author_id.
+  if (viewer) {
+    const cookieStore = await cookies();
+    const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? "primary";
+    const activeId =
+      cookieVal !== "primary" && UUID_RE.test(cookieVal) ? cookieVal : viewer.id;
+    const { data: myLatest } = await supabase
+      .from("cards")
+      .select(
+        "id, type, category, question, answer, meta, keywords, like_count, view_count, save_count, share_count, rating_avg, rating_count, post_year, post_slug, external_url, external_title, external_description, external_image, external_site_name, hide_doctor_credential, shortcode, pubmed_ref, created_at, doctor:doctors(id, slug, name, title, clinic, branch, profile_data, primary_color, accent_color), author:profiles!author_id(id, display_name, avatar_url, handle, role)",
+      )
+      .eq("status", "published")
+      .eq("author_id", activeId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (myLatest) {
+      // 같은 id 가 이미 qas 에 있으면 제거 후 맨 앞에 prepend.
+      const myCard = myLatest as unknown as CardData;
+      qas = [myCard, ...qas.filter((q) => q.id !== myCard.id)];
+    }
+  }
   const viewerStateMap = await fetchViewerStates(
     supabase,
     viewer?.id ?? null,

@@ -77,7 +77,8 @@ export default function HeroSearch() {
       setPhrase(next);
     }
     pickNext();
-    const timer = window.setInterval(pickNext, 6000);
+    // 4초 인터벌 (이전 6초 → 더 짧게, 사용자 요청 21번)
+    const timer = window.setInterval(pickNext, 4000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -104,7 +105,14 @@ export default function HeroSearch() {
           pointerEvents: focused ? "none" : "auto",
         }}
       >
-        {phrase}
+        {/* 21번 — phrase 변경 시 아래에서 슬라이드 업 + fade-in.
+            key={phrase} 로 React 가 매번 새 노드로 mount → CSS keyframe 재실행. */}
+        <span
+          key={phrase}
+          className="inline-block animate-[heroPhraseUp_420ms_cubic-bezier(0.2,0,0,1)_both]"
+        >
+          {phrase}
+        </span>
       </h1>
       {/* 검색창 — 스크롤해도 상단 고정 (TopNav 56px 아래)
           ※ 부모 main 영역의 좌우 패딩(px-4 sm:px-6)을 음수 마진으로 상쇄해서

@@ -213,6 +213,20 @@ a {
   }
 }
 
+/* ========== 헤로 카피 전환 (HeroSearch / WriteClient) ==========
+   phrase 변경 시 아래에서 슬라이드 업 + fade-in. key={phrase} 로 매번 mount 재발생.
+   사용자 요청 (23 fix #21): 짧고 부드럽게 — 420ms ease-out 곡선. */
+@keyframes heroPhraseUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ========== iOS Safari zoom-in 방지 ==========
    font-size 16px 미만 input/textarea/select에 focus 시 iPhone Safari가
    자동 확대 → 등록 버튼이 viewport 밖으로 밀려나는 문제.

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import NotificationsClient from "./NotificationsClient";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,9 @@ export default async function NotificationsPage() {
 
   return (
     <section className="w-full py-6">
+      <div className="mb-1 -ml-1">
+        <BackButton />
+      </div>
       <div className="mb-4 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold text-[var(--text)]">알림</h1>
         <Link

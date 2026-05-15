@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import NotificationPreferences from "@/components/NotificationPreferences";
 import PushNotificationToggle from "@/components/PushNotificationToggle";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -33,13 +34,16 @@ export default async function NotificationSettingsPage() {
 
   return (
     <section className="mx-auto w-full max-w-[640px] py-6">
+      <div className="mb-1 -ml-1">
+        <BackButton fallbackHref="/notifications" />
+      </div>
       <div className="mb-4 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold text-[var(--text)]">알림 설정</h1>
         <Link
           href="/notifications"
           className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
         >
-          ← 알림 목록
+          알림 목록
         </Link>
       </div>
       <p className="mb-5 text-sm text-[var(--text-secondary)]">

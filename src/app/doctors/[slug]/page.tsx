@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import BackButton from "@/components/BackButton";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
 import { getHotQaIds } from "@/lib/hot-ids";
 import Feed from "@/components/Feed";
@@ -300,6 +301,9 @@ export default async function DoctorDetailPage({ params }: Props) {
   if (isOwner && ownerStats) {
     return (
       <section className="w-full space-y-5 py-6">
+        <div className="mb-1 -ml-1">
+          <BackButton />
+        </div>
         <div className="mb-5 pl-1">
           <h1 className="text-2xl font-bold text-[var(--text)]">
             {doctor.name} 원장님 대시보드
@@ -351,6 +355,9 @@ export default async function DoctorDetailPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <div className="-ml-1">
+        <BackButton fallbackHref="/doctors" />
+      </div>
       {/* 원장님 hero
           모바일: 인트로 멘트가 페이지 폭을 가득 차지하며 데스크탑처럼 줄바꿈 유지.
                   멘트는 곡선 따옴표("…")로 감싸고, 사진은 그 아래 정중앙.

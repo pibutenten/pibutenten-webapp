@@ -223,7 +223,7 @@ function InstallAppButton() {
       onClick={show}
       aria-label="앱 설치"
       title="앱 설치"
-      className="flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)] sm:hidden"
+      className="flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text)] transition-colors hover:text-[var(--primary)] sm:hidden"
     >
       {InstallIcon}
     </button>
@@ -277,9 +277,11 @@ export default function TopNav({ session }: TopNavProps) {
               // WCAG 2.5.5 — 모바일 hit area 최소 44×44px 보장.
               // 모바일은 p-3(12px) → 20px icon + 24px = 44px. 데스크탑은 p-2(8px) 유지 (텍스트로 폭 확보됨).
               "flex min-h-[44px] items-center gap-1.5 rounded-md p-3 text-[14px] font-medium transition-colors sm:min-h-0 sm:p-2";
+            // 우상단 아이콘 색상 통일 — 활성/비활성 모두 진한색(text) 으로 (사용자 요청 9번).
+            // hover 시 brand primary 로 강조.
             const activeCls = isActive
               ? "text-[var(--primary)]"
-              : "text-[var(--text-secondary)] hover:text-[var(--primary)]";
+              : "text-[var(--text)] hover:text-[var(--primary)]";
 
             const content = (
               <>
@@ -338,7 +340,7 @@ export default function TopNav({ session }: TopNavProps) {
           ) : (
             <Link
               href="/login"
-              className="flex min-h-[44px] items-center gap-1.5 rounded-md p-3 text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)] sm:min-h-0 sm:p-2"
+              className="flex min-h-[44px] items-center gap-1.5 rounded-md p-3 text-[14px] font-medium text-[var(--text)] transition-colors hover:text-[var(--primary)] sm:min-h-0 sm:p-2"
               title="로그인"
             >
               {UserIcon}
