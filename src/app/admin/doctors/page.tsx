@@ -62,12 +62,6 @@ export default async function AdminDoctorsPage() {
             의사 페이지에 노출됩니다.
           </p>
         </div>
-        <Link
-          href="/settings"
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
-        >
-          ← 대시보드
-        </Link>
       </div>
 
       {!doctors || doctors.length === 0 ? (

@@ -502,11 +502,9 @@ function CommentItem({
             <path d="M22.5 12.5l-2.7-3 .4-4-3.9-.9-2-3.5-3.7 1.9-3.7-1.9-2 3.5-3.9.8.4 4-2.7 3 2.7 3-.4 4 3.9.9 2 3.5 3.7-1.9 3.7 1.9 2-3.5 3.9-.8-.4-4 2.6-3zM10 17.5L5.5 13l1.7-1.7L10 14.1l6.7-6.7L18.4 9 10 17.5z" />
           </svg>
         )}
-        {/* 본문 — editing 모드 아닐 때 닉네임 옆에 inline.
-            사용자 요청: 닉네임 ↔ 본문 사이 줄바꿈 없이 자연스럽게 흐르게.
-            - flex-1 min-w-0: 닉네임 옆 자리를 본문이 차지 (남는 공간 다 사용),
-              본문이 길면 단어 단위로 wrap (별도 줄 X).
-            - 앞뒤 공백/개행 trim + 내부 연속 whitespace 단일 공백 압축. */}
+        {/* 본문 — 닉네임 옆에 inline. 사용자 요청:
+            - 본문이 길면 자연 wrap, 둘째 줄은 본문 영역 좌측부터 시작
+            - 앞뒤 공백/개행 trim + 내부 연속 whitespace 단일 공백 압축 */}
         {!editing && (
           <span
             className="min-w-0 flex-1 whitespace-normal break-words leading-[1.5] text-[13px] text-[var(--text-secondary)]"
@@ -526,7 +524,6 @@ function CommentItem({
         {isDeleted && (
           <span className="text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
         )}
-
         {/* 답글 버튼 — 헤더 라인에 inline (root 댓글에만) */}
         {!isReply && onReplyClick && !isDeleted && (
           <button
@@ -537,9 +534,7 @@ function CommentItem({
             · {isReplying ? "답글 취소" : "답글"}
           </button>
         )}
-        {/* v4 — 좋아요 (root + 답글 모두). 미니멀 inline 하트.
-            부모 div 가 items-baseline 이라 하트 svg/button 도 baseline 정렬 강제 +
-            svg 가 텍스트 baseline 보다 약간 떠 보이는 현상은 미세 translateY 로 보정. */}
+        {/* 좋아요 (root + 답글 모두). 미니멀 inline 하트. */}
         {!isDeleted && (
           <button
             type="button"
@@ -562,6 +557,55 @@ function CommentItem({
               strokeLinejoin="round"
               className="h-[12px] w-[12px]"
               style={{ transform: "translateY(2px)" }}
+              aria-hidden
+            >
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            {likeCount > 0 && <span>{likeCount}</span>}
+          </button>
+        )}
+        <span className="text-[11px] text-[var(--text-muted)]">
+          · <RelativeTime iso={comment.created_at} />
+        </span>
+        {isHidden && (
+          <span className="text-[11px] text-[var(--text-muted)]">🙈 가림</span>
+        )}
+        {isDeleted && (
+          <span className="text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
+        )}
+
+        {/* 답글 버튼 — root 댓글에만 */}
+        {!isReply && onReplyClick && !isDeleted && (
+          <button
+            type="button"
+            onClick={onReplyClick}
+            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
+          >
+            · {isReplying ? "답글 취소" : "답글"}
+          </button>
+        )}
+        {/* 좋아요 (root + 답글 모두). 미니멀 inline 하트. */}
+        {!isDeleted && (
+          <button
+            type="button"
+            onClick={toggleLike}
+            disabled={likePending}
+            aria-label={liked ? "좋아요 취소" : "좋아요"}
+            className={
+              "inline-flex items-center gap-0.5 text-[11px] transition-colors " +
+              (liked
+                ? "text-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:text-[var(--accent)]")
+            }
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill={liked ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-[12px] w-[12px]"
               aria-hidden
             >
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
