@@ -564,55 +564,6 @@ function CommentItem({
             {likeCount > 0 && <span>{likeCount}</span>}
           </button>
         )}
-        <span className="text-[11px] text-[var(--text-muted)]">
-          · <RelativeTime iso={comment.created_at} />
-        </span>
-        {isHidden && (
-          <span className="text-[11px] text-[var(--text-muted)]">🙈 가림</span>
-        )}
-        {isDeleted && (
-          <span className="text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
-        )}
-
-        {/* 답글 버튼 — root 댓글에만 */}
-        {!isReply && onReplyClick && !isDeleted && (
-          <button
-            type="button"
-            onClick={onReplyClick}
-            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
-          >
-            · {isReplying ? "답글 취소" : "답글"}
-          </button>
-        )}
-        {/* 좋아요 (root + 답글 모두). 미니멀 inline 하트. */}
-        {!isDeleted && (
-          <button
-            type="button"
-            onClick={toggleLike}
-            disabled={likePending}
-            aria-label={liked ? "좋아요 취소" : "좋아요"}
-            className={
-              "inline-flex items-center gap-0.5 text-[11px] transition-colors " +
-              (liked
-                ? "text-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--accent)]")
-            }
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill={liked ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-[12px] w-[12px]"
-              aria-hidden
-            >
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-            {likeCount > 0 && <span>{likeCount}</span>}
-          </button>
-        )}
 
         {showMenu && (
           <div className="ml-auto">

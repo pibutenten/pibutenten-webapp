@@ -180,7 +180,7 @@ export default function StatsListClient({
               className={
                 "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors " +
                 (active
-                  ? "bg-[var(--primary)]/80 font-semibold text-white"
+                  ? "bg-[var(--primary)] font-semibold text-white"
                   : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
               }
             >

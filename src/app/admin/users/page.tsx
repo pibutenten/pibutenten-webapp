@@ -117,9 +117,21 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   const kpiRows = (kpiResult.data ?? []) as UserKpi[];
   for (const r of kpiRows) kpiMap.set(r.profile_id, r);
 
-  // 등급 필터 적용
+  // 기간 필터 — 가입일(created_at) 기준. days=0 (전체) 면 필터 X.
+  // 사용자 요청 (2026-05-15): 기간 토글 = 가입 기간 필터.
+  //   24시간 → 최근 24시간 내 가입한 사람만, 전체 → 전체 회원.
+  const sinceTs =
+    daysParam > 0
+      ? Date.now() - daysParam * 24 * 60 * 60 * 1000
+      : null;
+
+  // 등급 + 가입기간 필터 적용
   const filtered = (profiles ?? []).filter((p) => {
     if (roleParam && p.role !== roleParam) return false;
+    if (sinceTs !== null) {
+      const created = p.created_at ? new Date(p.created_at).getTime() : 0;
+      if (created < sinceTs) return false;
+    }
     return true;
   });
 
@@ -206,7 +218,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
 
       {/* 기간 토글 — 회원별 KPI 5개에 적용 */}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-        <span className="text-[var(--text-muted)]">KPI 기간</span>
+        <span className="text-[var(--text-muted)]">기간</span>
         <div className="flex flex-wrap gap-1">
           {PERIOD_OPTIONS.map((opt) => {
             const active = opt.days === daysParam;
@@ -221,7 +233,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                 className={
                   "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors " +
                   (active
-                    ? "bg-[var(--primary)]/80 font-semibold text-white"
+                    ? "bg-[var(--primary)] font-semibold text-white"
                     : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
                 }
               >

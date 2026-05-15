@@ -42,10 +42,10 @@ export default function RoleChangeForm({
     role !== currentRole ||
     (role === "doctor" && doctorId !== (currentDoctorId ?? ""));
 
-  // 다른 사람이 매핑된 doctor 제외 (본인이 이미 매핑된 doctor는 OK)
-  const availableDoctors = doctors.filter(
-    (d) => !d.is_mapped || d.id === currentDoctorId,
-  );
+  // 전체 9명 doctor 모두 노출 — 이미 매핑된 doctor 도 option 에 표시 (교체 가능).
+  // 사용자 요청 (2026-05-15): 매핑할 원장 리스트가 비어있는 버그 fix.
+  //   이미 doctor_accounts 매핑된 doctor 제외하던 옛 필터 제거.
+  const availableDoctors = doctors;
 
   function save() {
     setMsg(null);
@@ -114,15 +114,19 @@ export default function RoleChangeForm({
               className="h-9 w-full rounded-md border border-[var(--border)] bg-white px-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
             >
               <option value="">— 선택 —</option>
-              {availableDoctors.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                  {d.is_mapped && d.id === currentDoctorId ? " · 현재 매핑됨" : ""}
-                </option>
-              ))}
+              {availableDoctors.map((d) => {
+                const isCurrent = d.id === currentDoctorId;
+                const isOther = d.is_mapped && !isCurrent;
+                return (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                    {isCurrent ? " · 현재 매핑됨" : isOther ? " · (다른 회원 매핑 중 — 교체)" : ""}
+                  </option>
+                );
+              })}
             </select>
             <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-              이미 다른 회원에게 매핑된 원장은 목록에 표시되지 않습니다.
+              다른 회원에게 매핑된 원장 선택 시 그 매핑이 본 회원으로 교체됩니다.
             </p>
           </div>
         )}
