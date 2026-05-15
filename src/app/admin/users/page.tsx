@@ -85,6 +85,21 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   // 카드 작성 수 집계 (author_id = profiles.id 기준)
   const allIds = (profiles ?? []).map((p) => p.id);
   const postCountMap = new Map<string, number>();
+  // doctor_accounts 매핑 — profile_id → doctor {slug, name}
+  const doctorByProfile = new Map<string, { slug: string; name: string }>();
+  if (allIds.length > 0) {
+    const { data: maps } = await supabase
+      .from("doctor_accounts")
+      .select("profile_id, doctors!doctor_id(slug, name)")
+      .in("profile_id", allIds);
+    for (const m of (maps ?? []) as Array<{
+      profile_id: string;
+      doctors: { slug: string; name: string } | { slug: string; name: string }[] | null;
+    }>) {
+      const d = Array.isArray(m.doctors) ? m.doctors[0] : m.doctors;
+      if (d) doctorByProfile.set(m.profile_id, { slug: d.slug, name: d.name });
+    }
+  }
   if (allIds.length > 0) {
     const { data: counts } = await supabase
       .from("cards")
@@ -296,6 +311,15 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                         <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
                           {p.role}
                         </span>
+                        {/* doctor_accounts 매핑 표시 — 매핑된 doctor name */}
+                        {doctorByProfile.has(p.id) && (
+                          <span
+                            className="ml-1 inline-flex items-center rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--primary)]"
+                            title="매핑된 원장님"
+                          >
+                            🩺 {doctorByProfile.get(p.id)!.name}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
                         {(postCountMap.get(p.id) ?? 0).toLocaleString()}

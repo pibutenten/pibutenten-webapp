@@ -6,6 +6,7 @@ import { requireAdminPage } from "@/lib/admin-page-guard";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
 import { asDoctorProfileData } from "@/lib/doctor-profile";
 import DoctorProfileEditForm from "./DoctorProfileEditForm";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -41,13 +42,9 @@ export default async function AdminDoctorEditPage({ params }: Props) {
 
   return (
     <section className="w-full py-6">
-      <Link
-        href="/admin/doctors"
-        className="mb-3 inline-block text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
-      >
-        ← 의사 목록
-      </Link>
+      
 
+      <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
         <div className="flex items-start gap-4">
           <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">

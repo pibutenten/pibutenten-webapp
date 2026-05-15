@@ -337,12 +337,7 @@ export default function ProfileEditClient({
       <div className="mb-1 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold text-[var(--text)]">내 정보</h1>
         <div className="flex items-baseline gap-3">
-          <Link
-            href={profileHref}
-            className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
-          >
-            ← 프로필
-          </Link>
+          
           <button
             type="button"
             onClick={saveAll}

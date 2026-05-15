@@ -11,6 +11,7 @@ import {
 import RoleChangeForm from "./RoleChangeForm";
 import { getQaUrl } from "@/lib/card-url";
 import { getIdentityContext } from "@/lib/identity";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -325,13 +326,9 @@ export default async function AdminUserDetailPage({
 
   return (
     <section className="w-full py-6">
-      <Link
-        href="/admin/users"
-        className="mb-3 inline-block text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
-      >
-        ← 회원 목록
-      </Link>
+      
 
+      <div className="mb-1 -ml-1"><BackButton /></div>
       {/* Identity 스위처 (한 사람의 여러 ID) */}
       {(allIdentities?.length ?? 0) > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-1.5">

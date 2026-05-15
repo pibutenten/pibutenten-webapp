@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import EditClient from "./EditClient";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -104,14 +105,10 @@ export default async function PostEditPage({ params }: Props) {
 
   return (
     <section className="w-full py-6">
+      <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold text-[var(--text)]">글 수정</h1>
-        <Link
-          href={returnUrl}
-          className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
-        >
-          ← 글로 돌아가기
-        </Link>
+        
       </div>
       <EditClient
         qaId={qa.id}

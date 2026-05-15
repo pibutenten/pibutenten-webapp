@@ -27,12 +27,7 @@ export default async function AdminDraftPage() {
       <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 flex items-baseline justify-between pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">새 Q&A 추출하기</h1>
-        <Link
-          href="/admin/cards"
-          className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
-        >
-          ← 전체 목록
-        </Link>
+        
       </div>
       <DraftClient />
     </section>

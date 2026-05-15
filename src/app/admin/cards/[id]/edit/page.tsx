@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import EditClient from "./EditClient";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -96,16 +97,12 @@ export default async function AdminEditQAPage({ params }: Props) {
 
   return (
     <section className="w-full py-6">
+      <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 flex items-baseline justify-between pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">
           Q&A #{card.id} 편집
         </h1>
-        <Link
-          href="/admin/cards"
-          className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)]"
-        >
-          ← 목록
-        </Link>
+        
       </div>
       <EditClient
         card={card}
