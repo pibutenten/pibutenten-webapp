@@ -256,9 +256,11 @@ export default function CommentsBlock({
 
   return (
     <div
+      // 빈 공간 축소: 댓글 0 개일 때 mt-3 pt-2.5 → mt-1.5 pt-1.5 (옛 버튼 줄과 입력창
+      // 사이 빈 공간이 너무 크다는 사용자 보고 fix). hasComments 일 때는 옛 간격 유지.
       className={
-        "mt-3 pt-2.5 text-[13px] text-[var(--text)]" +
-        (hasComments ? " border-t" : "")
+        "text-[13px] text-[var(--text)] " +
+        (hasComments ? "mt-3 pt-2.5 border-t" : "mt-1.5 pt-1.5")
       }
       style={hasComments ? { borderColor: "#EEEFF1" } : undefined}
       onClick={(e) => e.stopPropagation()}
@@ -542,7 +544,9 @@ function CommentItem({
             · {isReplying ? "답글 취소" : "답글"}
           </button>
         )}
-        {/* v4 — 좋아요 (root + 답글 모두). 미니멀 inline 하트. */}
+        {/* v4 — 좋아요 (root + 답글 모두). 미니멀 inline 하트.
+            부모 div 가 items-baseline 이라 하트 svg/button 도 baseline 정렬 강제 +
+            svg 가 텍스트 baseline 보다 약간 떠 보이는 현상은 미세 translateY 로 보정. */}
         {!isDeleted && (
           <button
             type="button"
@@ -550,7 +554,7 @@ function CommentItem({
             disabled={likePending}
             aria-label={liked ? "좋아요 취소" : "좋아요"}
             className={
-              "inline-flex items-center gap-0.5 text-[11px] transition-colors " +
+              "inline-flex items-baseline gap-0.5 text-[11px] transition-colors " +
               (liked
                 ? "text-[var(--accent)]"
                 : "text-[var(--text-muted)] hover:text-[var(--accent)]")
@@ -564,6 +568,7 @@ function CommentItem({
               strokeLinecap="round"
               strokeLinejoin="round"
               className="h-[12px] w-[12px]"
+              style={{ transform: "translateY(2px)" }}
               aria-hidden
             >
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
@@ -772,8 +777,9 @@ function CommentForm({
           placeholder={placeholder ?? "댓글을 입력하세요"}
           rows={1}
           maxLength={2000}
+          // 사용자 보고: 입력창 + 안내 텍스트가 카드 본문 대비 커보임 → 12px 로 축소.
           className={
-            "w-full resize-none overflow-hidden rounded-md border border-[var(--border)] px-2 py-1.5 text-[13px] focus:border-[var(--primary)] focus:outline-none " +
+            "w-full resize-none overflow-hidden rounded-md border border-[var(--border)] px-2 py-1 text-[12px] focus:border-[var(--primary)] focus:outline-none " +
             (body.length >= 1500 ? "pr-14 pb-4" : "")
           }
         />
@@ -790,13 +796,14 @@ function CommentForm({
         )}
       </div>
       {/* 등록 — 위 화살표 아이콘 (textarea 와 가운데 정렬).
-          hit area 44x44 (WCAG/iOS 권장) — 32x32 시 모바일 미스터치로 10번 누르는 케이스 발생.
+          입력창과 비율 맞춰 36x36 (사용자: 옛 44 가 너무 커보임).
+          disabled 시 회색(border 색) 대신 옅은 primary 톤으로 (사용자: 컬러 수정).
           onPointerDown 으로 한 번 더 발사 — IME 조합 중 마지막 글자 클릭이 disabled 로 사라지는 케이스 보강. */}
       <button
         type="button"
         aria-label="등록"
         title="등록"
-        className="shrink-0 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:bg-[var(--border)]"
+        className="shrink-0 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:bg-[var(--primary-soft)] disabled:text-white/70"
         disabled={submitting || !body.trim()}
         onPointerDown={(e) => {
           // 한글 IME 조합 종료 강제 — composition 이 끝나야 body 가 갱신되고 disabled 해제됨

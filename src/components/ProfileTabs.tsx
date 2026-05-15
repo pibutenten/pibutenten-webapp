@@ -5,6 +5,16 @@ import Link from "next/link";
 import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { PROCEDURES } from "@/lib/profile-options";
+
+// procedure key (영어, ex: lifting/laser/booster) → 한글 label 매핑.
+// PROCEDURES dictionary 에 정의된 키는 한글로, 자유 입력은 그대로 표시.
+const PROCEDURE_LABEL: Record<string, string> = Object.fromEntries(
+  PROCEDURES.map((p) => [p.key, p.label]),
+);
+function localizeProcedure(v: string): string {
+  return PROCEDURE_LABEL[v] ?? v;
+}
 
 type Tab = "posts" | "skin" | "comments" | "likes" | "saves";
 
@@ -387,11 +397,16 @@ function SkinInfoBlock({ info }: { info: SkinInfo }) {
     });
   }
 
-  // 3) 저는 이런 시술에 관심이 있어요.. (자유 입력 → 한글 그대로)
+  // 3) 저는 이런 시술에 관심이 있어요..
+  //    PROCEDURES dictionary key (lifting/laser/booster 등 영어) → 한글 label 변환.
+  //    자유 입력(매핑 없음) 은 그대로 노출.
   if (v.interested_procedures !== false && info.interestedProcedures.length) {
     sections.push({
       title: "저는 이런 시술에 관심 있어요~",
-      chips: info.interestedProcedures.map((p) => ({ label: p, q: p })),
+      chips: info.interestedProcedures.map((p) => {
+        const label = localizeProcedure(p);
+        return { label, q: label };
+      }),
     });
   }
 
@@ -399,7 +414,10 @@ function SkinInfoBlock({ info }: { info: SkinInfo }) {
   if (v.liked_procedures !== false && info.likedProcedures.length) {
     sections.push({
       title: "제가 좋아하는 시술은요..",
-      chips: info.likedProcedures.map((l) => ({ label: l, q: l })),
+      chips: info.likedProcedures.map((l) => {
+        const label = localizeProcedure(l);
+        return { label, q: label };
+      }),
     });
   }
 

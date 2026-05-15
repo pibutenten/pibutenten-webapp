@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Card, { type CardData } from "@/components/Card";
+import BackButton from "@/components/BackButton";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { buildDoctorReference } from "@/lib/schema/doctor";
@@ -306,6 +307,16 @@ export default async function DermatologistPostPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {/* 좌상단 < — history.back() (옛 피드/의사 페이지 위치 복원). 외부 진입 시 의사 페이지 fallback. */}
+      <div className="mb-2 flex items-center gap-1">
+        <BackButton fallbackHref={`/doctors/${slug}`} />
+        <Link
+          href={`/doctors/${slug}`}
+          className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
+        >
+          {slug} 페이지
+        </Link>
+      </div>
       <Card
         card={card}
         isHot={hotIds.includes(card.id)}

@@ -290,7 +290,7 @@ export default function TopNav({ session }: TopNavProps) {
 
   return (
     <header
-      className="sticky top-0 z-50 border-b border-[var(--border)] backdrop-blur"
+      className="sticky top-0 z-50 backdrop-blur"
       style={{ background: "rgba(255,255,255,0.92)" }}
     >
       <div className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-2 px-4 py-3 sm:px-6">

@@ -48,9 +48,21 @@ export default function HeroSearch() {
   const [focused, setFocused] = useState(false);
   const [phrase, setPhrase] = useState(HERO_PHRASES[0]);
 
+  // 6 초 인터벌로 자동 회전 (사용자 새로고침 안 해도 다양한 카피 노출).
+  // 같은 phrase 연속 X — 직전 인덱스와 다른 인덱스 강제.
   useEffect(() => {
-    // 마운트 시 1회 랜덤 픽 (세션 동안 유지, 새로고침 시 새 phrase)
-    setPhrase(HERO_PHRASES[Math.floor(Math.random() * HERO_PHRASES.length)]);
+    let lastIdx = 0;
+    function pickNext() {
+      let idx = Math.floor(Math.random() * HERO_PHRASES.length);
+      if (HERO_PHRASES.length > 1 && idx === lastIdx) {
+        idx = (idx + 1) % HERO_PHRASES.length;
+      }
+      lastIdx = idx;
+      setPhrase(HERO_PHRASES[idx]);
+    }
+    pickNext();
+    const timer = window.setInterval(pickNext, 6000);
+    return () => window.clearInterval(timer);
   }, []);
 
   function handleFocusChange(f: boolean) {
@@ -66,9 +78,9 @@ export default function HeroSearch() {
   return (
     <header className="text-center pt-6 sm:pt-10">
       <h1
-        className="overflow-hidden font-extrabold text-[var(--primary)] transition-[opacity,max-height,margin] duration-300"
+        className="overflow-hidden whitespace-nowrap font-extrabold text-[var(--primary)] transition-[opacity,max-height,margin] duration-300"
         style={{
-          fontSize: "clamp(26px, 6vw, 32px)",
+          fontSize: "clamp(14px, 4.2vw, 32px)",
           letterSpacing: "-0.8px",
           opacity: focused ? 0 : 1,
           maxHeight: focused ? 0 : "120px",

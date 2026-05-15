@@ -1,6 +1,6 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-15 (총 11 commit — 멀티 ID·SEO·알림·splash·FAQPage·파비콘 vivid blue·대시보드 TOP UX)
+> 마지막 업데이트: 2026-05-15 (UX·정책 fix 대량 묶음 — HOT 기준·뒤로가기·PWA status bar·댓글 UI·홈 헤로 회전·프로필 한글화 외)
 > 기준 commit: 다음 commit 예정
 
 ## 🎯 핵심 모델 — Phase 9 묶음 (2026-05-15 정책 재정의)
@@ -103,8 +103,15 @@ me.id === card.author.id
 | `a97fd72` | **PWA standalone splash 깜빡임 fix** — head Script(beforeInteractive) + globals.css `@media (display-mode: standalone) body::before`. React mount 무관 즉시 splash → iOS native splash 와 시각적 연속, 깜빡임 0 |
 | `de9ac8c` | **/topics/[tag] FAQPage + Physician EEAT + Organization publisher** — `@graph`로 CollectionPage + FAQPage. 각 카드 = Question + acceptedAnswer.author Physician (의사 credentials: jobTitle/medicalSpecialty/worksFor/memberOf). AI/검색엔진 인용 우선순위 ↑ |
 | `4aa8a10` | PRD 1차 업데이트 |
-| (다음) | **파비콘 vivid blue (#00B1FF)** — 12 아이콘 일괄 recolor (옛 #71BFEA → #00B1FF, anti-aliased edge 보존) + manifest theme/background_color + splash CSS 색상 + 미사용 AppSplash 컴포넌트 제거 |
-| (다음) | **대시보드 TOP UX** — 좋아요/저장/공유/views TOP 글 제목 클릭 시 편집기 navigate → 닉네임 펼침 토글 (글 제목·카운트 양쪽 trigger). 펼친 창 = 글 단독 URL link (창 어디 클릭해도 그 글로). 닉네임 칸 폭 68/88 → 52/72 축소, gap-1.5 → gap-1 (제목 시작 왼쪽 당김). 댓글 TOP 분리(`CommentsTopRow`) — 옛 동작 유지 |
+| `fa7b9a9` | **파비콘 vivid blue (#00B1FF)** — 12 아이콘 일괄 recolor (옛 #71BFEA → #00B1FF, anti-aliased edge 보존) + manifest theme/background_color + splash CSS 색상 + 미사용 AppSplash 컴포넌트 제거. **대시보드 TOP UX 1차** |
+| `e504995` | **대시보드 TOP 펼친 닉네임 → 편집기 fix** — API route 에 cards.post_year + doctor.slug join 추가, publicCardUrl 헬퍼 (의사 글 /doctors/{slug}/{year}/{shortcode} 우선 / 회원 글 /{handle}/{shortcode} / 둘 다 없으면 link 비활성). + 글쓰기 [채우기] 버튼 모바일 overflow fix |
+| `581ff74` | **영상 보러가기 timestamp 회귀 fix** — Card.tsx isQa 비교 'card' → 'qa' (category enum 매칭 실패로 모든 Q&A 시작 시간 사라졌던 회귀) |
+| `f8c081d` | console.error 옛 RPC 이름 cleanup + 전수 코드 클린 점검 보고 |
+| `ffad861` | 알림 토글 thumb fix (1차) |
+| `499a65d` | 글쓰기 태그 placeholder + [추가] 버튼 줄바꿈 fix |
+| `6ca5fbf` | 글쓰기 헤더 카피 6초 자동 회전 + clamp 폰트 (한 줄 수렴) |
+| `1ede496` | 알림 토글 thumb 박스 밖 튀어나옴 fix — inline left/transition (Tailwind v4 의존 제거) |
+| (다음) | **2026-05-15 대량 UX·정책 fix 묶음** (단일 commit): HOT 기준(migration 0089 시간가중+임계값) / TopNav 하단 라인 제거 / 홈 헤로 6초 회전 + 한 줄 수렴 / 프로필 시술 영어 → 한글 (lifting/laser/booster → PROCEDURES dict 매핑) / 댓글 빈 공간 축소 / 댓글 하트 baseline 정렬 / 댓글 등록 버튼 44 → 36 + disabled 색상 / 댓글 placeholder 12px 축소 / 뒤로가기 BackButton 신설 + 글 상세 두 라우트 적용 / PWA themeColor #00B1FF 통일 + safe-area-inset-top body padding |
 
 ## 🚨 다음 세션 시작 시 우선 점검
 
