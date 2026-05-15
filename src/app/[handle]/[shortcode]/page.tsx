@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Card, { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
@@ -83,6 +83,20 @@ export default async function MemberPostPage({ params }: Props) {
   const { handle, shortcode } = await params;
   const card = await fetchQa(handle, shortcode);
   if (!card) notFound();
+
+  // 정책 (2026-05-15): 의사 Q&A 는 doctor canonical 한 곳에서만 노출.
+  // 회원 라우트로 접근 시도 시 → /doctors/{slug}/{year}/{post_slug} 로 영구 redirect (308).
+  // SEO 신호 통합 + 사용자가 어떤 URL 로 들어와도 정식 URL 로 자동 이동.
+  if (
+    card.category === "qa" &&
+    card.doctor?.slug &&
+    card.post_year &&
+    card.post_slug
+  ) {
+    permanentRedirect(
+      `/doctors/${card.doctor.slug}/${card.post_year}/${card.post_slug}`,
+    );
+  }
 
   return (
     <section className="w-full py-6">
