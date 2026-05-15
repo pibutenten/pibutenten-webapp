@@ -176,13 +176,13 @@ export default function Card({
   const [myRating, setMyRating] = useState<number>(viewerRating ?? 0);
   const [ratingHover, setRatingHover] = useState<number>(0);
   const [ratingOpen, setRatingOpen] = useState(false);
-  // Phase 9: 같은 auth_user_id 묶음의 모든 profile.id 와 그중 최고 권한 role을 보관
-  // - role: admin > doctor > user (묶음 안에 admin profile 있으면 admin)
-  // - profileIds: 묶음 내 모든 profile.id (card.author?.id 매칭용)
+  // 정책 (2026-05-15 재정의): me.id / me.role 모두 **active profile.id 단일** 기준.
+  // - id: active profile.id (cookie 'pibutenten:identity' 기반, 'primary' 면 user.id)
+  // - role: active profile 자체의 role (묶음 최고 권한 X)
+  // → 본인 글 편집/⋮ 메뉴는 active == author 일 때만 노출. ID 전환 시 권한도 함께 전환됨.
   const [me, setMe] = useState<{
     id: string;
     role: "admin" | "doctor" | "user";
-    profileIds: string[];
   } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -337,38 +337,31 @@ export default function Card({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        // Phase 9: card_likes / card_saves user_id 는 묶음 안 어떤 profile.id 라도 가능.
-        // (활동 시점의 active identity 가 무엇이었든 본인이 좋아요/저장한 것은 본인으로 인식)
-        // → 묶음의 모든 profile.id 를 IN 으로 검사.
-        const { data: bundleProfs } = await supabase
-          .from("profiles")
-          .select("id")
-          .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
-        const profileIds = (bundleProfs ?? []).map(
-          (p) => (p as { id: string }).id,
-        );
-        if (profileIds.length === 0) profileIds.push(user.id);
+        // 정책 (2026-05-15 재정의): 활동(좋아요/저장/평가) 표시는 **active profile.id 단일** 기준.
+        // 묶음의 다른 profile 로 누른 좋아요는 그 profile 의 활동 — 본인이라도 active 가 다르면 OFF.
+        // active = cookie 'pibutenten:identity' = 'primary' 면 user.id, UUID 면 그 값.
+        const activeId = getActiveIdentityId() ?? user.id;
 
         const [likeRes, saveRes, rateRes] = await Promise.all([
           supabase
             .from("card_likes")
             .select("card_id")
             .eq("card_id", card.id)
-            .in("user_id", profileIds)
+            .eq("user_id", activeId)
             .limit(1)
             .maybeSingle(),
           supabase
             .from("card_saves")
             .select("card_id")
             .eq("card_id", card.id)
-            .in("user_id", profileIds)
+            .eq("user_id", activeId)
             .limit(1)
             .maybeSingle(),
           supabase
             .from("card_ratings")
             .select("rating")
             .eq("card_id", card.id)
-            .in("user_id", profileIds)
+            .eq("user_id", activeId)
             .limit(1)
             .maybeSingle(),
         ]);
@@ -564,30 +557,34 @@ export default function Card({
       : null;
 
   // 현재 로그인 사용자 + Phase 9 묶음 정보
-  // (auth.users.id ↔ profiles 묶음. id == user.id 이거나 auth_user_id == user.id 인 모든 profile)
+  // me 결정: active profile.id 단일 조회 (정책 재정의 2026-05-15).
+  //   - cookie 'pibutenten:identity' = 'primary' 또는 미설정 → user.id (primary profile.id)
+  //   - cookie UUID → 그 profile.id (단 본인 묶음 안 멤버여야 함, 보안 검증)
+  //   - role 도 그 active profile 자체의 role 만 사용 (묶음 최고 권한 X)
   useEffect(() => {
     let alive = true;
     (async () => {
       const sb = createSupabaseBrowserClient();
       const { data: { user } } = await sb.auth.getUser();
       if (!alive || !user) return;
-      const { data: profs } = await sb
+      const activeId = getActiveIdentityId() ?? user.id;
+      // 단일 profile 조회 — 본인 묶음 안 멤버 검증 포함
+      const { data: prof } = await sb
         .from("profiles")
-        .select("id, role")
-        .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
+        .select("id, role, auth_user_id")
+        .eq("id", activeId)
+        .maybeSingle();
       if (!alive) return;
-      const rows = (profs ?? []) as Array<{ id: string; role: string }>;
-      const roles = new Set(rows.map((r) => r.role));
-      const effectiveRole: "admin" | "doctor" | "user" = roles.has("admin")
-        ? "admin"
-        : roles.has("doctor")
-          ? "doctor"
-          : "user";
-      setMe({
-        id: user.id,
-        role: effectiveRole,
-        profileIds: rows.map((r) => r.id),
-      });
+      const row = prof as { id: string; role: string; auth_user_id: string } | null;
+      // 본인 묶음 검증 — 다른 사람 profile cookie 위조 차단
+      const isMine = !!row && (row.id === user.id || row.auth_user_id === user.id);
+      if (!isMine) {
+        // fallback: primary profile (= user.id) 로
+        setMe({ id: user.id, role: "user" });
+        return;
+      }
+      const role = ((row?.role as string) ?? "user") as "admin" | "doctor" | "user";
+      setMe({ id: activeId, role });
     })();
     return () => { alive = false; };
   }, []);
@@ -607,14 +604,14 @@ export default function Card({
     return () => document.removeEventListener("click", onDocClick);
   }, [menuOpen]);
 
-  // 수정/삭제 권한 (Phase 9):
-  //   - admin: 모든 글
-  //   - 그 외: 묶음 안 어떤 profile.id 가 card.author?.id 와 일치하면 본인 글
-  //     (예: 원장님의 official/personal profile 둘 다 본인 글로 인정)
+  // 수정/삭제 권한 (정책 재정의 2026-05-15):
+  //   - active=admin: 모든 글
+  //   - 그 외: active profile.id == card.author?.id 일 때만 (active 단일 매칭)
+  //     → 같은 묶음의 다른 ID 로 쓴 글은 ⋮ 안 보임. 그 ID 로 전환해야 편집 가능.
   const canEdit =
     !!me &&
     (me.role === "admin" ||
-      (card.author?.id != null && me.profileIds.includes(card.author.id)));
+      (card.author?.id != null && me.id === card.author.id));
 
   async function saveEdit() {
     if (!editTitle.trim() || !editBody.trim()) {

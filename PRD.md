@@ -1,26 +1,72 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-14 야간 — 점검 보고서 3차 잔여 P1 8건 완료
-> 기준 commit: `975f6c3`
+> 마지막 업데이트: 2026-05-15 — 멀티 ID 정책 재정의 (활동=active 단일, 권한 검증만 묶음)
+> 기준 commit: `6ae4092`
 
-## 🎯 핵심 모델 — Phase 9 묶음 (확정)
+## 🎯 핵심 모델 — Phase 9 묶음 (2026-05-15 정책 재정의)
 
-> 한 `auth.users.id` 아래 여러 `profile.id`가 묶임. 모든 인터랙션은 **active identity의 profile.id** 기준.
-> cookie `pibutenten:identity` 로 묶음 내 ID 전환. **7종 인터랙션 모두 일관 정책**:
+> 한 `auth.users.id` 아래 여러 `profile.id`가 묶임. cookie `pibutenten:identity` 로 묶음 내 ID 전환.
+>
+> **각 profile.id 는 완전히 별인격으로 동작.** 묶음 = "한 사람의 명함 묶음" 개념일 뿐, 활동·표시는 active 명함 단일.
+>
+> ⚠️ 옛 PRD의 "본인 확인(권한 검증)은 묶음 전체" 정의가 활동 영역까지 잘못 확장 적용되어 빨간 하트·⋮ 메뉴·댓글 권한이 묶음 인지로 동작하던 버그가 있었음 (2026-05-15 fix).
+
+### A. 활동 저장 — 항상 **active profile.id 단일** 기준
 
 | 인터랙션 | 저장 컬럼 | 값 |
 |---|---|---|
-| 좋아요 | `card_likes.user_id` | active profile.id |
-| 저장 | `card_saves.user_id` | active profile.id |
-| 댓글 | `comments.author_id` | active profile.id |
-| 글쓰기 | `cards.author_id` | active profile.id |
-| 노출 | `card_impressions.user_id` | active profile.id |
-| 조회 | `card_views.user_id` | active profile.id |
-| 공유 | `card_shares.user_id` | active profile.id |
+| 좋아요 | `card_likes.user_id` | **active profile.id** |
+| 저장 | `card_saves.user_id` | **active profile.id** |
+| 댓글 | `comments.author_id` | **active profile.id** |
+| 글쓰기 | `cards.author_id` | **active profile.id** |
+| 노출 | `card_impressions.user_id` | **active profile.id** |
+| 조회 | `card_views.user_id` | **active profile.id** |
+| 공유 | `card_shares.user_id` | **active profile.id** |
 
-> **본인 확인(권한 검증)은 묶음 전체** — `id.eq.${user.id} OR auth_user_id.eq.${user.id}` 패턴. `profile.id === user.id` 단순 비교 금지.
+### B. 활동 표시·본인 인식 — **active profile.id 단일** 기준 (묶음 IN 패턴 금지)
 
-> **의사 9명 avatar 정책**: `profile.avatar_url = '/doctors/{slug}.png'` 동기화. doctor_accounts join 의존도 제거 — profile.id 하나로 사진 결정.
+| 영역 | 검사 |
+|---|---|
+| 빨간 하트(♥) ON 여부 | `card_likes.user_id == active profile.id` 만 |
+| 저장 북마크 ON 여부 | `card_saves.user_id == active profile.id` 만 |
+| 평가별 본인 점수 | `card_ratings.user_id == active profile.id` 만 |
+| 본인 글 ⋮ (편집/삭제) | `cards.author_id == active profile.id` 만 |
+| 본인 댓글 ⋮ | `comments.author_id == active profile.id` 만 |
+| 본인 doctor 매핑 (CommentsBlock me.doctor_id) | `doctor_accounts.profile_id == active profile.id` 만 |
+
+→ 같은 묶음의 다른 profile 활동은 **남의 활동처럼 보임**. ID 전환해야 본인으로 인식.
+→ Card.tsx me.role 도 active profile 자체의 role (묶음 최고 권한 X). active=admin 이면 admin, active=doctor/user 이면 그 단일 role.
+
+### C. 권한 검증 (보안·편의) — 묶음 전체 OK
+
+| 영역 | 검사 |
+|---|---|
+| `/admin` 페이지 접근 | 묶음 안에 admin role profile 1개 이상 있으면 OK (`admin-guard.ts`) |
+| `/api/identity/switch` 보안 | cookie target profile.id 가 본인 묶음 안인지 검증 |
+| `/{handle}` 본인 프로필 표시 | 묶음 안의 다른 profile 페이지 접근 시 "본인" 표시 (편의) |
+| `getIdentityContext` cookie 검증 | cookie UUID 가 본인 묶음 안인지 보안 검증 |
+
+→ **권한 = 묶음 / 활동 표시 = active 단일** 의 분리가 핵심. 둘을 절대 혼동하지 말 것.
+
+### D. 의사 9명 avatar 정책
+
+`profile.avatar_url = '/doctors/{slug}.png'` 동기화. doctor_accounts join 의존도 제거 — profile.id 하나로 사진 결정.
+
+### E. 코드 패턴 — 금지/허용
+
+```ts
+// ❌ 금지: 활동 영역에서 묶음 IN 검사 (옛 패턴)
+.from("card_likes").in("user_id", profileIds)  // 빨간 하트가 묶음 단위로 켜짐
+me.profileIds.includes(card.author.id)         // 묶음 어떤 profile이 작성자면 ⋮ 노출
+
+// ✅ 허용: 활동 영역은 active 단일
+const activeId = getActiveIdentityId() ?? user.id;
+.from("card_likes").eq("user_id", activeId)
+me.id === card.author.id
+
+// ✅ 허용: 보안/권한 검증만 묶음 OR 패턴
+.from("profiles").or(`id.eq.${user.id},auth_user_id.eq.${user.id}`)  // admin-guard.ts 등
+```
 
 ## 🆕 2026-05-14 야간 세션 작업 (commit 흐름)
 
