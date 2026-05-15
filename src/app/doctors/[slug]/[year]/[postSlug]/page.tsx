@@ -50,6 +50,9 @@ async function fetchQaByDoctorYearSlug(
       .eq("post_year", year)
       .eq("post_slug", postSlug)
       .eq("status", "published")
+      // 정책 (2026-05-15): doctor 라우트는 의사 Q&A canonical 만 노출.
+      // 의사의 비-qa 카테고리 글 (diary/tip/ask/link) 은 회원 라우트로 분리됨.
+      .eq("category", "qa")
       .maybeSingle()
       .returns<QaWithModified>();
     return data;

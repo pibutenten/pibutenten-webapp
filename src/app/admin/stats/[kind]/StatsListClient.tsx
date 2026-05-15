@@ -58,16 +58,33 @@ export type CardRow = {
   author_handle: string | null;
   cnt: number;
   comments?: CommentSummary[]; // comments kind 한정 — 글 밑에 항상 펼침
+  // 의사 글 메타 — publicCardUrl 정책 분기에 사용 (API route 의 cards join 으로 채움)
+  category?: string | null;
+  doctor_slug?: string | null;
+  post_year?: number | null;
+  post_slug?: string | null;
 };
 
 /**
- * 카드 공개 URL — `/{handle}/{shortcode}` 단일.
- * 이 라우트는 shortcode UNIQUE 매칭이라 의사·회원 글 모두 처리됨.
- * (의사 글의 SEO canonical 은 /doctors/.../ 이지만 대시보드 클릭 동선엔 무관.)
+ * 카드 공개 URL — 정책 (사용자 결정 2026-05-15):
+ *   1) 의사 Q&A (category='qa' + doctor 메타 충족) → /doctors/{slug}/{year}/{post_slug}
+ *   2) 그 외 모든 글 (의사의 비-qa 카테고리 포함) → /{author_handle}/{shortcode}
+ *
+ * 향후 정책 변경은 본 함수의 분기 한 줄만 바꾸면 됨.
  */
 function publicCardUrl(row: CardRow): string | null {
-  if (!row.shortcode || !row.author_handle) return null;
-  return `/${row.author_handle}/${row.shortcode}`;
+  if (
+    row.category === "qa" &&
+    row.doctor_slug &&
+    row.post_year &&
+    row.post_slug
+  ) {
+    return `/doctors/${row.doctor_slug}/${row.post_year}/${row.post_slug}`;
+  }
+  if (row.author_handle && row.shortcode) {
+    return `/${row.author_handle}/${row.shortcode}`;
+  }
+  return null;
 }
 
 type Row = VisitorRow | CardRow;
