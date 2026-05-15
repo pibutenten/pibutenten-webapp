@@ -108,10 +108,26 @@ export default function WriteClient({
     role === "doctor" ? (myDoctor?.slug ?? "") : "",
   );
 
-  // 페이지 진입 시 헤더 카피 랜덤 (SSR-safe — 첫 렌더는 첫 phrase)
+  // 페이지 진입 시 헤더 카피 랜덤 (SSR-safe — 첫 렌더는 첫 phrase) +
+  // 6초 인터벌로 자연스럽게 자동 회전 (사용자가 새로고침 안 해도 다양한 카피 노출).
+  // 같은 카피 연속 노출 방지 — 직전과 다른 인덱스 강제.
   const [headerPhrase, setHeaderPhrase] = useState(WRITE_PHRASES[0]);
   useEffect(() => {
-    setHeaderPhrase(WRITE_PHRASES[Math.floor(Math.random() * WRITE_PHRASES.length)]);
+    let lastIdx = 0;
+    function pickNext() {
+      let idx = Math.floor(Math.random() * WRITE_PHRASES.length);
+      // 같은 phrase 연속 X (배열 길이 2 이상이면 보장)
+      if (WRITE_PHRASES.length > 1 && idx === lastIdx) {
+        idx = (idx + 1) % WRITE_PHRASES.length;
+      }
+      lastIdx = idx;
+      setHeaderPhrase(WRITE_PHRASES[idx]);
+    }
+    // 마운트 즉시 1회 (첫 phrase 고정 → 랜덤)
+    pickNext();
+    // 6초 간격 회전
+    const timer = window.setInterval(pickNext, 6000);
+    return () => window.clearInterval(timer);
   }, []);
 
   // 통합: post + qa 공통 — 제목 / 내용 (qa는 질문 / 답변)
@@ -553,7 +569,13 @@ export default function WriteClient({
 
   return (
     <section className="w-full py-6">
-      <h1 className="mb-5 text-center text-2xl font-bold text-[var(--text)]">
+      {/* 헤더 카피 — 6초 회전. clamp 로 viewport 폭에 따라 폰트 자동 축소
+          (모바일 좁은 화면 한 줄 수렴 보장, 큰 화면은 원래 크기).
+          whitespace-nowrap 으로 강제 한 줄, 짧은 페이즈 변경 시 transition. */}
+      <h1
+        className="mb-5 whitespace-nowrap text-center font-bold text-[var(--text)] transition-opacity"
+        style={{ fontSize: "clamp(0.95rem, 4.6vw, 1.5rem)" }}
+      >
         {headerPhrase}
       </h1>
 
