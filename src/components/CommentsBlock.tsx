@@ -503,12 +503,13 @@ function CommentItem({
           </svg>
         )}
         {/* 본문 — editing 모드 아닐 때 닉네임 옆에 inline.
-            사용자 요청: 본문 위아래 줄바꿈/공백 제거해서 자연스럽게 흐르게.
-            - 앞뒤 공백/개행 trim
-            - 내부 연속 공백 + 개행 → 단일 공백 (whitespace-normal 로 단어 wrap) */}
+            사용자 요청: 닉네임 ↔ 본문 사이 줄바꿈 없이 자연스럽게 흐르게.
+            - flex-1 min-w-0: 닉네임 옆 자리를 본문이 차지 (남는 공간 다 사용),
+              본문이 길면 단어 단위로 wrap (별도 줄 X).
+            - 앞뒤 공백/개행 trim + 내부 연속 whitespace 단일 공백 압축. */}
         {!editing && (
           <span
-            className="whitespace-normal break-words leading-[1.5] text-[13px] text-[var(--text-secondary)] sm:text-[13px]"
+            className="min-w-0 flex-1 whitespace-normal break-words leading-[1.5] text-[13px] text-[var(--text-secondary)]"
             style={dimmed ? { color: "#888" } : undefined}
           >
             {isDeleted

@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import BackButton from "@/components/BackButton";
-import { getDoctorPhoto } from "@/lib/doctor-theme";
+import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
 import { getHotQaIds } from "@/lib/hot-ids";
 import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
@@ -119,6 +119,7 @@ export default async function DoctorDetailPage({ params }: Props) {
   for (const [id, st] of vsMap) viewerStates[id] = st;
 
   const photo = getDoctorPhoto(doctor.slug);
+  const theme = getDoctorTheme(doctor.slug);
   const affiliation = [doctor.clinic, doctor.branch].filter(Boolean).join(" ");
   const hotIds = Array.from(await getHotQaIds(20));
 
@@ -363,7 +364,20 @@ export default async function DoctorDetailPage({ params }: Props) {
                   멘트는 곡선 따옴표("…")로 감싸고, 사진은 그 아래 정중앙.
                   이름/소속은 사진 위쪽 여백에 안 겹치게.
           데스크탑: 기존 좌-멘트 + 우-사진 2단 구조 유지. */}
-      <header className="relative -mx-4 -mt-6 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:-mt-4 sm:w-full sm:rounded-t-[var(--radius)]">
+      <header
+        className="relative -mx-4 -mt-6 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:-mt-4 sm:w-full sm:rounded-t-[var(--radius)]"
+        style={{
+          // 사용자 요청 — 은은하고 고급스러운 그라데이션.
+          // 좌측 상단 원장 컬러(약 18%) → 우측 하단 흰색.
+          // radial-gradient 로 어색한 banding 없이 부드럽게 페이드.
+          // 모바일/데스크탑 동일 톤, 0.18 alpha 로 살짝만 (텍스트 가독성 유지).
+          background: `
+            radial-gradient(ellipse at 0% 0%, ${theme.bg}30 0%, transparent 55%),
+            radial-gradient(ellipse at 100% 100%, ${theme.bg}1a 0%, transparent 60%),
+            linear-gradient(180deg, ${theme.bg}10 0%, #ffffff 100%)
+          `,
+        }}
+      >
         {/* 모바일 레이아웃 — 멘트 가운데(따옴표 wrap), 사진 정중앙 */}
         <div className="mx-auto flex max-w-[820px] flex-col px-5 pt-12 sm:hidden">
           {doctor.intro && (
