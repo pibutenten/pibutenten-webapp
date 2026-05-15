@@ -94,11 +94,12 @@ export default function WriteClient({
   //   - doctor·admin: + qa
   // 내부 type은 category에서 자동 파생 (qa → 'qa', 그 외 → 'post').
   const availableCategories = categoriesForRole(role);
-  // initialCategory가 role 권한에 맞는지 한 번 더 검증 후 채택. 부적합 시 'diary' 폴백.
+  // initialCategory가 role 권한에 맞는지 한 번 더 검증 후 채택. 부적합 시 'doodle' 폴백
+  // (v5.2 디폴트 — 짧은 생각/메모; 사용자가 진입하자마자 무겁지 않게).
   const safeInitial: PostCategorySlug =
     initialCategory && availableCategories.some((c) => c.slug === initialCategory)
       ? initialCategory
-      : "diary";
+      : "doodle";
   const [category, setCategory] = useState<PostCategorySlug>(safeInitial);
   const type: WriteType = category === "qa" ? "qa" : "post";
   const allowedTypes: WriteType[] = []; // type 토글 UI 제거 (호환용 더미)

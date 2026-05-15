@@ -1,15 +1,22 @@
 /**
  * 글 카테고리(post category) — cards.category 컬럼과 1:1 매핑.
  *
- * v5.1+ spec 5개 체계:
- *   - qa     Q&A         의사 답변 (의사·관리자 전용, 인덱싱)
- *   - tip    피부꿀팁     정보·노하우·후기 (회원·의사, 인덱싱)
+ * v5.2 spec 6개 체계 (2026-05-15):
+ *   - doodle 끄적끄적     짧은 생각/메모 (회원·의사 디폴트, noindex)
  *   - diary  피부일기     일상·피부 변화 (회원·의사, noindex)
+ *   - tip    피부꿀팁     정보·노하우·후기 (회원·의사, 인덱싱)
  *   - ask    궁금해요     의견·고민 (회원·의사, noindex)
- *   - link   공유하기     외부 콘텐츠 큐레이션 + URL 카드 + 출처 표기 (회원·의사, noindex)
- *                         (slug는 'link'로 변경됨 — 푸터 액션 'share(공유)'와 변수명 충돌 회피)
+ *   - link   소식공유     외부 콘텐츠 큐레이션 + URL 카드 + 출처 표기 (회원·의사, noindex)
+ *                         (slug 는 'link' 유지 — 푸터 액션 'share(공유)' 변수명 충돌 회피)
+ *   - qa     Q&A         의사 답변 (의사·관리자 전용, 인덱싱)
  */
-export type PostCategorySlug = "qa" | "tip" | "diary" | "ask" | "link";
+export type PostCategorySlug =
+  | "doodle"
+  | "diary"
+  | "tip"
+  | "ask"
+  | "link"
+  | "qa";
 
 export type PostCategory = {
   slug: PostCategorySlug;
@@ -24,12 +31,15 @@ export type PostCategory = {
   defaultHideDoctorCredential: boolean;
 };
 
+// 노출 순서 (write UI 칩 순서 + 글쓰기 디폴트는 첫 번째):
+//   끄적끄적 → 피부일기 → 피부꿀팁 → 궁금해요 → 소식공유 → (Q&A: 의사·관리자만)
 export const POST_CATEGORIES: readonly PostCategory[] = [
-  { slug: "tip",   label: "피부꿀팁", publicForUsers: true,  defaultHideDoctorCredential: false },
-  { slug: "diary", label: "피부일기", publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "ask",   label: "궁금해요", publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "link",  label: "공유하기", publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "qa",    label: "Q&A",     publicForUsers: false, defaultHideDoctorCredential: false },
+  { slug: "doodle", label: "끄적끄적", publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "diary",  label: "피부일기", publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "tip",    label: "피부꿀팁", publicForUsers: true,  defaultHideDoctorCredential: false },
+  { slug: "ask",    label: "궁금해요", publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "link",   label: "소식공유", publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "qa",     label: "Q&A",     publicForUsers: false, defaultHideDoctorCredential: false },
 ];
 
 const SLUG_TO_LABEL: Record<PostCategorySlug, string> = Object.fromEntries(
@@ -58,7 +68,8 @@ export function isPostCategorySlug(
     s === "tip" ||
     s === "diary" ||
     s === "ask" ||
-    s === "link"
+    s === "link" ||
+    s === "doodle"
   );
 }
 

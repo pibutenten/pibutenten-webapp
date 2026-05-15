@@ -545,10 +545,10 @@ export default function Card({
     theme?.avatarOffsetY ?? (theme?.offsetY ?? 0) * 0.46;
 
   // 검색어가 어느 카테고리에 속하는지 판정 → 칩 강조 색
-  // 단, 글 카테고리 라벨(Q&A/꿀팁/피부일기/궁금해요/공유하기)이면 콘텐츠 카테고리 추정 X
+  // 단, 글 카테고리 라벨(Q&A/꿀팁/피부일기/궁금해요/소식공유/끄적끄적)이면 콘텐츠 카테고리 추정 X
   // (그 라벨은 search/page.tsx 에서 category 컬럼 직접 필터로 분기됨)
   const POST_CATEGORY_LABELS = new Set([
-    "Q&A", "피부꿀팁", "피부일기", "궁금해요", "공유하기",
+    "Q&A", "피부꿀팁", "피부일기", "궁금해요", "소식공유", "끄적끄적",
   ]);
   const queryCategoryColor =
     activeQuery && !POST_CATEGORY_LABELS.has(activeQuery)
@@ -1116,7 +1116,7 @@ export default function Card({
       </div>
 
       {/* 태그 칩 — 사용자 키워드 + 자동 카테고리 칩(맨 끝).
-          v5.1: 카테고리 라벨(Q&A/피부꿀팁/피부일기/궁금해요/공유하기)을
+          v5.2: 카테고리 라벨(끄적끄적/피부일기/피부꿀팁/궁금해요/소식공유/Q&A) 을
           모든 글의 태그 맨 끝에 자동 append. 클릭하면 /search?q=라벨 로 같은
           카테고리 글만 보임. 사용자 직접 입력은 받지 않음 (자동). */}
       {(() => {
@@ -1126,7 +1126,8 @@ export default function Card({
           "꿀팁", "피부꿀팁",
           "피부일기",
           "물어봐요", "궁금해요",
-          "새소식", "공유하기",
+          "새소식", "공유하기", "소식공유",
+          "끄적끄적",
         ];
         const userKeywords = card.keywords.filter(
           (k) => !CATEGORY_LABELS.includes(k),
@@ -1531,14 +1532,14 @@ function Keywords({
           </button>
         )}
         {showAll && keywords.length > 0 && (
+          /* "접기" 는 태그가 아니므로 칩 디자인 X — 연한 회색 inline 텍스트 (본문 더보기와 동일 톤) */
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               setShowAll(false);
             }}
-            className="inline-flex cursor-pointer items-center rounded-full px-2.5 py-[3px] text-[11px] font-medium whitespace-nowrap transition-colors hover:text-[var(--primary)]"
-            style={{ backgroundColor: "#F0F2F5", color: "#8A8F99" }}
+            className="inline-flex cursor-pointer items-center whitespace-nowrap px-1 text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--primary)]"
           >
             접기
           </button>
@@ -1554,7 +1555,8 @@ async function shareCard(card: CardData) {
   const path = getQaUrl(card);
   const url = `${window.location.origin}${path}`;
   const title = card.question;
-  const text = `${card.doctor?.name ?? ""} 원장님 — 피부텐텐`;
+  // 공유 문구: "OOO 원장님 | OOO OOO" — 파이프 구분 (이전 em-dash 어색해서 변경)
+  const text = `${card.doctor?.name ?? ""} 원장님 | ${card.question ?? ""}`;
 
   // 모바일에서만 native share 사용 (데스크탑 Chrome share UI는 부실해서 클립보드가 더 자연)
   const ua = window.navigator.userAgent;

@@ -503,14 +503,17 @@ function CommentItem({
           </svg>
         )}
         {/* 본문 — editing 모드 아닐 때 닉네임 옆에 inline.
-            ⚠️ 앞뒤 공백/개행만 trim — 본문 중간의 의도적 줄바꿈은 그대로 보존
-               (whitespace-pre-wrap 으로 \n 살림). */}
+            사용자 요청: 본문 위아래 줄바꿈/공백 제거해서 자연스럽게 흐르게.
+            - 앞뒤 공백/개행 trim
+            - 내부 연속 공백 + 개행 → 단일 공백 (whitespace-normal 로 단어 wrap) */}
         {!editing && (
           <span
-            className="whitespace-pre-wrap break-all leading-[1.5] text-[var(--text)]"
+            className="whitespace-normal break-words leading-[1.5] text-[13px] text-[var(--text-secondary)] sm:text-[13px]"
             style={dimmed ? { color: "#888" } : undefined}
           >
-            {isDeleted ? "(삭제된 댓글이에요)" : comment.body.trim()}
+            {isDeleted
+              ? "(삭제된 댓글이에요)"
+              : comment.body.replace(/\s+/g, " ").trim()}
           </span>
         )}
         <span className="text-[11px] text-[var(--text-muted)]">

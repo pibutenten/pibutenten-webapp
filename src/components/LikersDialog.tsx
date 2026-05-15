@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { fetchRecentLikersBatch } from "@/lib/likers-batch";
 
 type Liker = {
   user_id: string;
@@ -38,20 +38,18 @@ export default function LikersDialog({ cardId, open, onClose, qaType }: Props) {
   const [likers, setLikers] = useState<Liker[] | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // open 시 fetch
+  // open 시 fetch — RecentLikers 와 동일하게 batch helper 사용.
+  // (옛 단건 RPC get_recent_card_likers 는 0088 마이그레이션 이후 작동 안 함 — 빈 결과로
+  //  "아직 좋아요가 없어요" 표시되는 버그가 있었음.)
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
     (async () => {
       try {
-        const sb = createSupabaseBrowserClient();
-        const { data } = await sb.rpc("get_recent_card_likers", {
-          p_card_id: cardId,
-          p_limit: FETCH_LIMIT,
-        });
+        const rows = await fetchRecentLikersBatch(cardId, FETCH_LIMIT);
         if (cancelled) return;
-        setLikers((data ?? []) as Liker[]);
+        setLikers(rows as Liker[]);
       } catch {
         if (!cancelled) setLikers([]);
       } finally {

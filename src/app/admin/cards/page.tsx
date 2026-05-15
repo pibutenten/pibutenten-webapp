@@ -19,7 +19,7 @@ type QAStatus = "draft" | "pending_review" | "published" | "archived";
 type QAType = "qa" | "post";
 type TypeFilter = "qa" | "post" | "all";
 type StatusFilter = QAStatus | "all";
-type CategoryFilter = "tip" | "diary" | "ask" | "link" | "all";
+type CategoryFilter = "doodle" | "tip" | "diary" | "ask" | "link" | "all";
 
 type AdminQARow = {
   id: number;
@@ -68,7 +68,12 @@ function isTypeFilter(v: string | undefined): v is TypeFilter {
 
 function isCategoryFilter(v: string | undefined): v is CategoryFilter {
   return (
-    v === "tip" || v === "diary" || v === "ask" || v === "link" || v === "all"
+    v === "doodle" ||
+    v === "tip" ||
+    v === "diary" ||
+    v === "ask" ||
+    v === "link" ||
+    v === "all"
   );
 }
 
@@ -286,13 +291,14 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     { key: "qa", label: "Q&A" },
   ];
 
-  // 포스팅 카테고리 — Q&A 카테고리는 type=qa이므로 제외, 포스팅 4종만
+  // 포스팅 카테고리 — Q&A 카테고리는 type=qa이므로 제외, 포스팅 5종만
   const CATEGORY_LIST: { key: CategoryFilter; label: string }[] = [
     { key: "all", label: "전체 카테고리" },
-    { key: "tip", label: "피부꿀팁" },
+    { key: "doodle", label: "끄적끄적" },
     { key: "diary", label: "피부일기" },
+    { key: "tip", label: "피부꿀팁" },
     { key: "ask", label: "궁금해요" },
-    { key: "link", label: "공유하기" },
+    { key: "link", label: "소식공유" },
   ];
 
   return (

@@ -77,6 +77,8 @@ export default async function HomePage({ searchParams }: Props) {
     "피부일기": "diary",
     "궁금해요": "ask",
     "공유하기": "link",
+    "소식공유": "link",
+    "끄적끄적": "doodle",
   };
   const categorySlug = q ? CATEGORY_LABEL_TO_SLUG[q] : undefined;
 
