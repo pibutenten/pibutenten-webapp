@@ -1,7 +1,7 @@
 # 피부텐텐 (Pibutenten) — PRD & 개발 현황
 
-> 마지막 업데이트: 2026-05-15 (UX·정책 fix 대량 묶음 — HOT 기준·뒤로가기·PWA status bar·댓글 UI·홈 헤로 회전·프로필 한글화 외)
-> 기준 commit: 다음 commit 예정
+> 마지막 업데이트: 2026-05-15 야간 (대량 UX·정책 fix + 의사 글 URL 정책 분기 + Q&A canonical redirect)
+> 기준 commit: `1f75bbb`
 
 ## 🎯 핵심 모델 — Phase 9 묶음 (2026-05-15 정책 재정의)
 
@@ -51,6 +51,32 @@
 ### D. 의사 9명 avatar 정책
 
 `profile.avatar_url = '/doctors/{slug}.png'` 동기화. doctor_accounts join 의존도 제거 — profile.id 하나로 사진 결정.
+
+### F. 글 URL 정책 (2026-05-15 사용자 결정)
+
+| 글 유형 | URL | 비고 |
+|---|---|---|
+| **의사 Q&A** (`category='qa'` + doctor 있음) | `/doctors/{slug}/{year}/{post_slug}` (canonical) | 회원 라우트 접근 시 308 영구 redirect (permanentRedirect) |
+| **의사 비-Q&A** (diary/tip/ask/link) | `/{handle}/{shortcode}` | doctor 라우트는 `.eq('category','qa')` 필터로 차단 (404) |
+| **회원 모든 글** | `/{handle}/{shortcode}` | (기본) |
+
+**한 글 = 한 URL** 정책. 향후 변경 시 두 곳만 수정:
+1. `src/app/admin/stats/[kind]/StatsListClient.tsx` 의 `publicCardUrl` 분기
+2. `src/app/doctors/[slug]/[year]/[postSlug]/page.tsx` 의 `.eq('category', 'qa')` 필터
+
+### G. 인덱싱 정책 (A안 — 사용자 결정 2026-05-15)
+
+| URL | 인덱싱 |
+|---|---|
+| `/doctors/.../qa` (의사 Q&A canonical) | ✅ |
+| `/topics/{tag}` (토픽 hub, FAQPage+Physician EEAT) | ✅ |
+| `/doctors/{slug}` 의사 프로필 | ✅ |
+| `/about` | ✅ |
+| `/{handle}/{shortcode}` 의 **피부꿀팁(`category='tip'`)** | ✅ |
+| `/{handle}/{shortcode}` 의 그 외 (일기/궁금해요/공유) | ⛔ noindex |
+| `/search`, `/login`, `/write`, `/admin/*` 등 | ⛔ noindex |
+
+→ 변경 위치: `[handle]/[shortcode]/page.tsx` 의 `generateMetadata` 의 `indexable` 한 줄.
 
 ### E. 코드 패턴 — 금지/허용
 
@@ -111,7 +137,12 @@ me.id === card.author.id
 | `499a65d` | 글쓰기 태그 placeholder + [추가] 버튼 줄바꿈 fix |
 | `6ca5fbf` | 글쓰기 헤더 카피 6초 자동 회전 + clamp 폰트 (한 줄 수렴) |
 | `1ede496` | 알림 토글 thumb 박스 밖 튀어나옴 fix — inline left/transition (Tailwind v4 의존 제거) |
-| (다음) | **2026-05-15 대량 UX·정책 fix 묶음** (단일 commit): HOT 기준(migration 0089 시간가중+임계값) / TopNav 하단 라인 제거 / 홈 헤로 6초 회전 + 한 줄 수렴 / 프로필 시술 영어 → 한글 (lifting/laser/booster → PROCEDURES dict 매핑) / 댓글 빈 공간 축소 / 댓글 하트 baseline 정렬 / 댓글 등록 버튼 44 → 36 + disabled 색상 / 댓글 placeholder 12px 축소 / 뒤로가기 BackButton 신설 + 글 상세 두 라우트 적용 / PWA themeColor #00B1FF 통일 + safe-area-inset-top body padding |
+| `6892f77` | **2026-05-15 대량 UX·정책 fix 묶음**: HOT 기준(migration 0089 시간가중+임계값) / TopNav 하단 라인 제거 / 홈 헤로 6초 회전 + 한 줄 수렴 / 프로필 시술 영어 → 한글 (lifting/laser/booster → PROCEDURES dict 매핑) / 댓글 빈 공간 축소 / 댓글 하트 baseline 정렬 / 댓글 등록 버튼 44 → 36 + disabled 색상 / 댓글 placeholder 12px 축소 / 뒤로가기 BackButton 신설 + 글 상세 두 라우트 적용 / PWA themeColor #00B1FF 통일 + safe-area-inset-top body padding |
+| `52c29db` | **대시보드 단순화 + BackButton 라벨 통일** — publicCardUrl 분기 제거 (옛 의사 글 fallback 누더기 제거 → /{handle}/{shortcode} 단일), API route stats 의 cards join 코드 통째 삭제, BackButton "← 뒤로" 라벨 통일 + 글 상세 두 라우트 옆 Link 제거 |
+| `b5b3a5a` | **의사 글 URL 정책 분기** — 사용자 결정: 의사 Q&A 만 /doctors/{slug}/{year}/{post_slug} canonical, 그 외 의사 카테고리(diary/tip/ask/link) 는 /{handle}/{shortcode}. publicCardUrl 분기 + API route cards join 재추가 (category/post_year/post_slug/doctor.slug). doctors/[slug]/[year]/[postSlug] 라우트에 .eq('category','qa') 필터 추가 (SEO duplicate 차단) |
+| `b85dbc2` | 의사 Q&A 회원 라우트 접근 시 doctor canonical 로 영구 redirect (308) — permanentRedirect 추가 |
+| `80264b3` | 의사 Q&A redirect: Supabase doctor join array 처리 추가 |
+| `1f75bbb` | **의사 Q&A redirect 강화** — doc.slug 누락 시 handle fallback, post_year 누락 시 created_at year, post_slug 누락 시 shortcode fallback. category==='qa' 면 무조건 redirect 시도 |
 
 ## 🚨 다음 세션 시작 시 우선 점검
 
@@ -126,10 +157,30 @@ me.id === card.author.id
 - [ ] **Production 404 status 재확인** — `curl -I https://pbtt.kr/존재안하는URL` (dev 환경 200 응답은 Turbopack 특성)
 - [ ] **의사 6명 (auth_user_id NULL) onboarding** — 김종식·고혜림·권수현·강현진·박효진·김수형 (DB 조회 결과). OAuth 로그인 시 profiles.auth_user_id 채워짐
 
+### 🟡 다음 세션 잔여 작업 (2026-05-15 야간 누적)
+- [ ] **🔴 sitemap.ts 가 §F 정책과 배치** — 의사 글 모든 카테고리를 `/doctors/{slug}/{year}/{post_slug}` 로 등록 중. 의사 비-Q&A 는 그 URL 이 404 (`.eq('category','qa')` 필터) → 검색엔진 sitemap 따라가서 404 만나는 SEO 부정 신호. fix: sitemap fetch 에 `.eq('category', 'qa')` 추가 + 의사 비-Q&A 와 회원 tip 은 회원 URL 로 등록
+- [ ] **/admin/comments 댓글 화면** — 작성자 표시 `@handle` → `display_name` (닉네임). 한 줄로 표현 가능한 짧은 댓글이 두 줄로 표시되는 spacing 문제
+- [ ] **누더기 정리 더 진행** — Card.tsx 의 unused 변수 (viewCount), WriteClient 의 unused (allowedTypes/setAuthorDoctor), admin/draft 의 console.log, 옛 type union 잔재 등
+- [ ] **글쓰기 버튼 첫 클릭 race** — FAB 클릭이 한 번에 안 들어가는 케이스 (사용자 보고). 페이지 마운트 race 또는 모바일 hit 정확도. router.push() 강제 onClick 검토
+- [ ] **의사 Q&A redirect prod 검증** — `1f75bbb` 적용 후 https://pbtt.kr/rhee-doyoung/Vgfa4eAV → https://pbtt.kr/doctors/rhee-doyoung/2026/Jsu_96-DLcQ-3 로 자동 이동하는지 사용자 직접 브라우저 확인 필요
+- [ ] **네이버 OAuth 재검수 결과** — 2026-05-15 재제출 (사업소명서 .docx 첨부 + 회원체계 소명 입력란). 3-7영업일
+
 ### 🟢 잔여 작업 — 모두 처리 완료 (2026-05-15)
 - [x] **파비콘 색상 갱신** — vivid blue #00B1FF 일괄 적용 (12 파일 + manifest + splash CSS)
 - [x] **대시보드 TOP UX** — 글 제목 클릭 펼침 토글 + 펼친 창 글 단독 URL link
 - [x] **TOP 리스트 닉네임 칸 폭 축소 + 제목 왼쪽 당김** — w 68/88 → 52/72, gap-1.5 → gap-1
+- [x] **HOT 잘못된 기준 fix** — migration 0089 `get_hot_card_ids_v2` 시간가중 + 최소 점수 임계값
+- [x] **TopNav 하단 라인 제거**
+- [x] **홈 헤로 멘트 6초 자동 회전 + 한 줄 수렴** (clamp 폰트)
+- [x] **프로필 시술 영어 → 한글** (PROCEDURES dict 매핑)
+- [x] **댓글 UI 4건** — 빈 공간 / 하트 baseline / 등록 버튼 36 / placeholder 12px
+- [x] **뒤로가기 BackButton** — history.back() + fallback. 글 상세 두 라우트 적용. 라벨 "← 뒤로" 통일
+- [x] **PWA standalone status bar** — themeColor 통일 + body padding-top env(safe-area-inset-top)
+- [x] **알림 토글 thumb 깨짐** — inline left/transition (Tailwind v4 의존 제거)
+- [x] **글쓰기 [채우기] [추가] 버튼 모바일 overflow** — input min-w-0 + button shrink-0 whitespace-nowrap
+- [x] **글쓰기 헤더 카피 자동 회전 + 한 줄 수렴**
+- [x] **영상 보러가기 timestamp 회귀** — Card.tsx isQa 비교 'card' → 'qa'
+- [x] **의사 글 URL 정책 분기 + Q&A canonical redirect**
 
 ### 🟢 점검 보고서 3차 잔여 P1 — 8건 모두 완료 (commit 다음)
 - [x] **/favicon.ico HTML 응답** — `src/app/favicon.ico` ICO 파일(16/32/48 멀티 사이즈) 추가
