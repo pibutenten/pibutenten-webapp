@@ -65,7 +65,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   const sp = await searchParams;
   const qParam = (sp.q ?? "").trim();
   const roleParam = sp.role ?? "";
-  const daysRaw = parseInt(sp.days ?? "7", 10);
+  const daysRaw = parseInt(sp.days ?? "0", 10);
   const daysParam = PERIOD_OPTIONS.some((p) => p.days === daysRaw) ? daysRaw : 7;
 
   // profiles 전체 조회 (auth_user_id 포함)

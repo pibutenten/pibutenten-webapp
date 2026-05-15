@@ -92,25 +92,43 @@ export async function GET(request: NextRequest) {
     .eq("id", user.id)
     .maybeSingle();
 
-  // 4-1) OAuth provider 프로필 이미지 → profiles.avatar_url 자동 채우기
-  //   Google: user_metadata.picture / Kakao: avatar_url / Naver: avatar_url (Naver 콜백에서 set)
-  //   profiles.avatar_url 비어 있을 때만 채움 (사용자가 온보딩에서 선택한 아바타는 보존)
-  if (profile && !profile.avatar_url) {
+  // 4-1) OAuth provider 메타 → profiles.{avatar_url, display_name} 자동 채우기
+  //   Google: user_metadata.{picture, name, full_name}
+  //   Kakao: user_metadata.{avatar_url, name, nickname}
+  //   Naver: user_metadata.{avatar_url, name} (Naver 콜백에서 set)
+  //   profiles 컬럼이 비어 있을 때만 채움 (사용자가 직접 설정한 값은 보존).
+  if (profile) {
     const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-    let oauthAvatar =
-      (typeof meta.avatar_url === "string" && meta.avatar_url) ||
-      (typeof meta.picture === "string" && meta.picture) ||
-      null;
-    // Mixed Content 방지: 카카오 등 일부 OAuth provider가 http URL을 반환할 때 https로 강제 업그레이드.
-    if (oauthAvatar && oauthAvatar.startsWith("http://")) {
-      oauthAvatar = "https://" + oauthAvatar.slice(7);
+    const updates: Record<string, string> = {};
+
+    // avatar_url 자동 채우기 (기존 로직)
+    if (!profile.avatar_url) {
+      let oauthAvatar =
+        (typeof meta.avatar_url === "string" && meta.avatar_url) ||
+        (typeof meta.picture === "string" && meta.picture) ||
+        null;
+      if (oauthAvatar && oauthAvatar.startsWith("http://")) {
+        oauthAvatar = "https://" + oauthAvatar.slice(7);
+      }
+      if (oauthAvatar) updates.avatar_url = oauthAvatar;
     }
-    if (oauthAvatar) {
+
+    // display_name 자동 채우기 — OAuth provider 이름 사용
+    //   Google: name 또는 full_name, Kakao: name 또는 nickname, Naver: name
+    if (!profile.display_name) {
+      const nameCandidate =
+        (typeof meta.name === "string" && meta.name.trim() && meta.name.trim()) ||
+        (typeof meta.full_name === "string" && meta.full_name.trim() &&
+          meta.full_name.trim()) ||
+        (typeof meta.nickname === "string" && meta.nickname.trim() &&
+          meta.nickname.trim()) ||
+        null;
+      if (nameCandidate) updates.display_name = nameCandidate;
+    }
+
+    if (Object.keys(updates).length > 0) {
       try {
-        await supabase
-          .from("profiles")
-          .update({ avatar_url: oauthAvatar })
-          .eq("id", user.id);
+        await supabase.from("profiles").update(updates).eq("id", user.id);
       } catch {
         // 실패해도 로그인 흐름은 계속 진행
       }
