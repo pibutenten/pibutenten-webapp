@@ -89,7 +89,7 @@ export default async function HomePage({ searchParams }: Props) {
       .from("cards")
       .select(
         `id, question, answer, meta, keywords, like_count, view_count, save_count,
-         rating_avg, rating_count, type, post_year, post_slug,
+         type, post_year, post_slug,
          external_url, external_title, external_description, external_image, external_site_name,
          category, hide_doctor_credential, shortcode, pubmed_ref, created_at,
          doctor:doctors!doctor_id (slug, name, branch),
@@ -179,7 +179,7 @@ export default async function HomePage({ searchParams }: Props) {
   const popularByCategory = await popularByCategoryPromise;
   const hotIds = Array.from(await getHotQaIds(20));
 
-  // viewer prefetch — 좋아요/저장/평점 즉시 표시
+  // viewer prefetch — 좋아요/저장 즉시 표시
   const {
     data: { user: viewer },
   } = await supabase.auth.getUser();
@@ -189,7 +189,7 @@ export default async function HomePage({ searchParams }: Props) {
     viewer?.id ?? null,
     (qas ?? []).map((q) => q.id),
   );
-  const viewerStates: Record<number, { liked?: boolean; saved?: boolean; rating?: number }> = {};
+  const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
   for (const [id, st] of vsMap) viewerStates[id] = st;
 
   return (

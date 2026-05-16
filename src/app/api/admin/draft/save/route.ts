@@ -100,7 +100,7 @@ export async function POST(req: Request) {
     video_id: videoRowId,
     status,
     type: "qa" as const,
-    author_id: guard.userId,
+    author_id: guard.adminProfileId,
     published: status === "published",
   }));
 

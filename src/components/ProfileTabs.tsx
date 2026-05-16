@@ -40,8 +40,8 @@ type Props = {
   profileId: string;
   /** 피부정보 (공개된 항목만 표시) — 비어있으면 탭 숨김 */
   skinInfo?: SkinInfo;
-  /** v4 — viewer의 좋아요/저장/평점 prefetch (posts/saves/likes 카드에 즉시 반영) */
-  viewerStates?: Record<number, { liked?: boolean; saved?: boolean; rating?: number }>;
+  /** v4 — viewer의 좋아요/저장 prefetch (posts/saves/likes 카드에 즉시 반영) */
+  viewerStates?: Record<number, { liked?: boolean; saved?: boolean }>;
 };
 
 const TAB_LABEL: Record<Tab, string> = {
@@ -163,7 +163,7 @@ export default function ProfileTabs({
       const { data: qas, error: qasErr } = await sb
         .from("cards")
         .select(
-          `id, question, answer, meta, keywords, like_count, view_count, save_count, rating_avg, rating_count,
+          `id, question, answer, meta, keywords, like_count, view_count, save_count,
            type, post_year, post_slug, shortcode, category, hide_doctor_credential, created_at,
            external_url, external_title, external_description, external_image, external_site_name,
            doctor:doctors(slug, name, branch),

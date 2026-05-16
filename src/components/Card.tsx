@@ -43,10 +43,6 @@ export type CardData = {
   comment_count?: number;
   /** v4 — 저장(북마크) 누적 수 (cards.save_count) */
   save_count?: number;
-  /** v4 — 평점 평균 (1~5, 0이면 미평가) */
-  rating_avg?: number;
-  /** v4 — 평점 참여 수 */
-  rating_count?: number;
   type?: "card" | "post" | "link";
   created_at?: string;
   /** §2 SEO URL — /doctors/{slug}/{year}/{postSlug} canonical 생성용 */
@@ -130,11 +126,10 @@ type Props = {
   forceExpanded?: boolean;
   /** 단독 페이지: 질문을 h1으로 렌더 (페이지당 h1 1개 룰). 피드/리스트에서는 h2 유지. */
   asH1?: boolean;
-  /** v4 — viewer의 좋아요/저장/평점 초기 상태 (server prefetch).
+  /** v4 — viewer의 좋아요/저장 초기 상태 (server prefetch).
    * 있으면 useEffect fetch 생략 → 카드가 즉시 정확한 상태로 렌더 (2~3초 지연 제거). */
   viewerLiked?: boolean;
   viewerSaved?: boolean;
-  viewerRating?: number;
 };
 
 // 카드별 결정적 형광펜 색은 lib/card-highlight.ts 의 pickHighlight 사용
@@ -150,7 +145,6 @@ export default function Card({
   asH1 = false,
   viewerLiked,
   viewerSaved,
-  viewerRating,
 }: Props) {
   const highlightColor = pickHighlight(
     String(card.shortcode ?? card.post_slug ?? card.id ?? "")
@@ -174,15 +168,10 @@ export default function Card({
       window.removeEventListener("pibutenten:comments-opened", onOtherOpened);
   }, [card.id]);
   const [liked, setLiked] = useState(viewerLiked ?? false);
-  // v4 — 저장(북마크) + 평점 (server prefetch가 있으면 즉시 적용 → 2~3초 지연 제거)
+  // v4 — 저장(북마크) (server prefetch가 있으면 즉시 적용 → 2~3초 지연 제거)
   const [saved, setSaved] = useState(viewerSaved ?? false);
   const [saveCount, setSaveCount] = useState(card.save_count ?? 0);
   const [savePending, setSavePending] = useState(false);
-  const [ratingAvg, setRatingAvg] = useState<number>(Number(card.rating_avg ?? 0));
-  const [ratingCount, setRatingCount] = useState<number>(card.rating_count ?? 0);
-  const [myRating, setMyRating] = useState<number>(viewerRating ?? 0);
-  const [ratingHover, setRatingHover] = useState<number>(0);
-  const [ratingOpen, setRatingOpen] = useState(false);
   // 정책 (2026-05-15 재정의): me.id / me.role 모두 **active profile.id 단일** 기준.
   // - id: active profile.id (cookie 'pibutenten:identity' 기반, 'primary' 면 user.id)
   // - role: active profile 자체의 role (묶음 최고 권한 X)
@@ -333,10 +322,10 @@ export default function Card({
     };
   }, [card.id, forceExpanded, recordView]);
 
-  // 좋아요 + 저장 + 평점 상태 초기화 — server prefetch가 있으면 client fetch 생략.
+  // 좋아요 + 저장 상태 초기화 — server prefetch가 있으면 client fetch 생략.
   // 미로그인 사용자만 localStorage에서 좋아요 기억 복원.
   const hasViewerPrefetch =
-    viewerLiked !== undefined || viewerSaved !== undefined || viewerRating !== undefined;
+    viewerLiked !== undefined || viewerSaved !== undefined;
   useEffect(() => {
     if (hasViewerPrefetch) return; // 서버에서 이미 받음 → fetch 생략
     let alive = true;
@@ -347,12 +336,12 @@ export default function Card({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        // 정책 (2026-05-15 재정의): 활동(좋아요/저장/평가) 표시는 **active profile.id 단일** 기준.
+        // 정책 (2026-05-15 재정의): 활동(좋아요/저장) 표시는 **active profile.id 단일** 기준.
         // 묶음의 다른 profile 로 누른 좋아요는 그 profile 의 활동 — 본인이라도 active 가 다르면 OFF.
         // active = cookie 'pibutenten:identity' = 'primary' 면 user.id, UUID 면 그 값.
         const activeId = getActiveIdentityId() ?? user.id;
 
-        const [likeRes, saveRes, rateRes] = await Promise.all([
+        const [likeRes, saveRes] = await Promise.all([
           supabase
             .from("card_likes")
             .select("card_id")
@@ -367,19 +356,10 @@ export default function Card({
             .eq("user_id", activeId)
             .limit(1)
             .maybeSingle(),
-          supabase
-            .from("card_ratings")
-            .select("rating")
-            .eq("card_id", card.id)
-            .eq("user_id", activeId)
-            .limit(1)
-            .maybeSingle(),
         ]);
         if (!alive) return;
         setLiked(!!likeRes.data);
         setSaved(!!saveRes.data);
-        const r = (rateRes.data as { rating: number } | null)?.rating;
-        if (typeof r === "number") setMyRating(r);
       } else {
         if (alive) setLiked(lsGet(`card-liked-${card.id}`) === "1");
       }
@@ -436,47 +416,6 @@ export default function Card({
     } finally {
       // 어떤 경로로 끝나든 무조건 pending 해제 — 다음 클릭 가능
       setSavePending(false);
-    }
-  }
-
-  // 평점 등록/변경 — upsert (card_ratings PK = card_id,user_id)
-  // 트리거가 cards.rating_avg/rating_count를 매번 from-scratch 재계산하므로
-  // upsert 후 cards를 다시 fetch해서 정확한 값으로 sync (optimistic 누적 오류 방지).
-  async function handleRate(stars: number) {
-    if (typeof window === "undefined") return;
-    if (stars < 1 || stars > 5) return;
-    const supabase = createSupabaseBrowserClient();
-    const { data: u } = await supabase.auth.getUser();
-    const userId = u.user?.id;
-    if (!userId) {
-      router.push("/login?next=" + encodeURIComponent(window.location.pathname));
-      return;
-    }
-    const prev = myRating;
-    setMyRating(stars);
-    setRatingOpen(false);
-    const { error } = await supabase.from("card_ratings").upsert(
-      {
-        card_id: card.id,
-        user_id: userId,
-        rating: stars,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "card_id,user_id" },
-    );
-    if (error) {
-      setMyRating(prev);
-      return;
-    }
-    // 트리거가 갱신한 정확한 평균·카운트 재조회 (optimistic 추정 X — 정확한 값 보장)
-    const { data: q } = await supabase
-      .from("cards")
-      .select("rating_avg, rating_count")
-      .eq("id", card.id)
-      .maybeSingle();
-    if (q) {
-      setRatingAvg(Number((q as { rating_avg: number | string }).rating_avg ?? 0));
-      setRatingCount(Number((q as { rating_count: number }).rating_count ?? 0));
     }
   }
 
@@ -1304,24 +1243,36 @@ export default function Card({
         <button
           type="button"
           onClick={async () => {
-            await shareCard(card);
+            const channel = await shareCard(card);
+            // 사용자가 native share dialog를 취소한 경우(channel=null): 카운트 X
+            if (!channel) return;
+            // card_shares row insert — 트리거(0095)가 cards.share_count 자동 +1.
+            // user_id: active profile.id (Phase 9) 또는 비로그인 시 null (익명 카운트).
+            // channel: "native" (모바일 OS 공유) | "link-copy" (데스크탑 클립보드).
+            // 패턴은 card_views / card_impressions 와 동일.
             const supabase = createSupabaseBrowserClient();
-            const { data } = await supabase.rpc("increment_card_share", {
-              p_card_id: card.id,
+            const { data: u } = await supabase.auth.getUser();
+            const activeId = getActiveIdentityId();
+            const userId = u.user ? (activeId ?? u.user.id) : null;
+            // 낙관적 UI: setShareCount 즉시 +1, fail 시 rollback
+            const prevCount = shareCount;
+            setShareCount((c) => c + 1);
+            const insRes = await supabase.from("card_shares").insert({
+              card_id: card.id,
+              user_id: userId,
+              channel,
             });
-            if (typeof data === "number") setShareCount(data);
-            // card_shares 이벤트 로그 (관리자 KPI '공유' 카운트용) — fail silent
-            // active identity 분리 집계 — 같은 묶음 ID 전환 시 별도 user로 카운트
-            try {
-              const { data: { user } } = await supabase.auth.getUser();
-              const activeId = getActiveIdentityId();
-              const userId = user ? (activeId ?? user.id) : null;
-              await supabase.from("card_shares").insert({
-                card_id: card.id,
-                user_id: userId,
-                channel: "link",
-              });
-            } catch { /* noop */ }
+            if (insRes.error) {
+              setShareCount(prevCount);
+              return;
+            }
+            // 트리거가 갱신한 정확한 카운트 재조회 (낙관적 추정 보정)
+            const { data: q } = await supabase
+              .from("cards")
+              .select("share_count")
+              .eq("id", card.id)
+              .maybeSingle();
+            if (q) setShareCount(Number((q as { share_count: number }).share_count ?? prevCount + 1));
           }}
           className="ml-auto flex cursor-pointer items-center gap-1 transition-colors hover:text-[var(--primary)]"
           aria-label="공유"
@@ -1343,83 +1294,6 @@ export default function Card({
           </svg>
           {shareCount > 0 && <span>{shareCount}</span>}
         </button>
-
-        {/* v5.1: 별점 시스템 hold — 사용자 화면에서 숨김 (DB·RPC는 유지). */}
-        <div className="relative hidden">
-          <button
-            type="button"
-            onClick={() => setRatingOpen((v) => !v)}
-            className={
-              "flex cursor-pointer items-center gap-0.5 transition-colors " +
-              (myRating > 0 || ratingCount > 0
-                ? "text-amber-500"
-                : "text-[var(--text-secondary)] hover:text-amber-500")
-            }
-            title={myRating > 0 ? `내 평점 ${myRating}점` : "평점 매기기"}
-            aria-label="평점"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill={myRating > 0 || ratingCount > 0 ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-[22px] w-[22px]"
-              aria-hidden
-            >
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-            {ratingCount > 0 && (
-              <span className="tabular-nums">{ratingAvg.toFixed(1)}</span>
-            )}
-          </button>
-          {ratingOpen && (
-            <>
-              {/* outside click */}
-              <button
-                type="button"
-                aria-label="닫기"
-                onClick={() => {
-                  setRatingOpen(false);
-                  setRatingHover(0);
-                }}
-                className="fixed inset-0 z-30 cursor-default"
-              />
-              <div
-                className="absolute bottom-full left-1/2 z-40 mb-2 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-[var(--border)] bg-white px-2 py-1.5 shadow-lg"
-                onMouseLeave={() => setRatingHover(0)}
-              >
-                {[1, 2, 3, 4, 5].map((n) => {
-                  const filled = (ratingHover || myRating) >= n;
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      onMouseEnter={() => setRatingHover(n)}
-                      onClick={() => handleRate(n)}
-                      className="cursor-pointer p-0.5 text-amber-500"
-                      aria-label={`${n}점`}
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill={filled ? "currentColor" : "none"}
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-[20px] w-[20px]"
-                        aria-hidden
-                      >
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                      </svg>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
 
       </div>
 
@@ -1605,8 +1479,9 @@ function Keywords({
   );
 }
 
-async function shareCard(card: CardData) {
-  if (typeof window === "undefined") return;
+/** 공유 완료 시 사용된 채널을 반환. 사용자가 취소하면 null. */
+async function shareCard(card: CardData): Promise<"native" | "link-copy" | null> {
+  if (typeof window === "undefined") return null;
   // v4 canonical URL — getQaUrl이 의사(slug)·회원(handle+shortcode)·fallback 결정
   const path = getQaUrl(card);
   const url = `${window.location.origin}${path}`;
@@ -1627,11 +1502,11 @@ async function shareCard(card: CardData) {
   if (isMobile && nav.share) {
     try {
       await nav.share({ url, title, text });
-      return;
+      return "native";
     } catch (err) {
       // 사용자 취소(AbortError)면 fallback 안 함 — "복사" 토스트가 의도 안 한 동작
       const e = err as { name?: string };
-      if (e?.name === "AbortError") return;
+      if (e?.name === "AbortError") return null;
       // 그 외 실제 실패만 클립보드 fallback
     }
   }
@@ -1640,8 +1515,10 @@ async function shareCard(card: CardData) {
   try {
     await navigator.clipboard.writeText(url);
     showToast("링크가 복사되었어요");
+    return "link-copy";
   } catch {
     // 클립보드 실패는 보통 권한 거부 — 노이즈 토스트 띄우지 않음
+    return null;
   }
 }
 

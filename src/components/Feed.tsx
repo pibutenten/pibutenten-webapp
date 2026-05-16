@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Masonry from "react-masonry-css";
 import Card, { type CardData } from "./Card";
 
-type ViewerState = { liked?: boolean; saved?: boolean; rating?: number };
+type ViewerState = { liked?: boolean; saved?: boolean };
 
 type Props = {
   initial: CardData[];
@@ -17,7 +17,7 @@ type Props = {
   boostDoctorSlug?: string;
   /** HOT 카드의 ID 목록 (서버에서 계산) */
   hotIds?: number[];
-  /** v4 — viewer의 좋아요/저장/평점 상태 (card_id → state). server prefetch.
+  /** v4 — viewer의 좋아요/저장 상태 (card_id → state). server prefetch.
    * 카드별 client useEffect 호출 제거 → 첫 렌더부터 정확한 상태. */
   viewerStates?: Record<number, ViewerState>;
 };
@@ -146,7 +146,6 @@ export default function Feed({
             isHot={hotSet.has(card.id)}
             viewerLiked={viewerStates?.[card.id]?.liked}
             viewerSaved={viewerStates?.[card.id]?.saved}
-            viewerRating={viewerStates?.[card.id]?.rating}
           />
         ))}
       </Masonry>

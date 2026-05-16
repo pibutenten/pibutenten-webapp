@@ -115,7 +115,7 @@ export default async function DoctorDetailPage({ params }: Props) {
     viewer?.id ?? null,
     qas.map((q) => q.id),
   );
-  const viewerStates: Record<number, { liked?: boolean; saved?: boolean; rating?: number }> = {};
+  const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
   for (const [id, st] of vsMap) viewerStates[id] = st;
 
   const photo = getDoctorPhoto(doctor.slug);

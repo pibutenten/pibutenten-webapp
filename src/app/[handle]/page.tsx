@@ -222,14 +222,14 @@ export default async function HandleProfilePage({ params }: Props) {
     savesCount = savesRes.count ?? 0;
   }
 
-  // viewer prefetch — posts에 대한 좋아요/저장/평점
+  // viewer prefetch — posts에 대한 좋아요/저장
   const { fetchViewerStates } = await import("@/lib/viewer-states");
   const vsMap = await fetchViewerStates(
     supabase,
     viewer?.id ?? null,
     posts.map((p) => p.id),
   );
-  const viewerStates: Record<number, { liked?: boolean; saved?: boolean; rating?: number }> = {};
+  const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
   for (const [id, st] of vsMap) viewerStates[id] = st;
 
   return (

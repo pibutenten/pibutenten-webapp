@@ -111,7 +111,7 @@ export default async function FeedPage() {
     const { data: myLatest } = await supabase
       .from("cards")
       .select(
-        "id, type, category, question, answer, meta, keywords, like_count, view_count, save_count, share_count, rating_avg, rating_count, post_year, post_slug, external_url, external_title, external_description, external_image, external_site_name, hide_doctor_credential, shortcode, pubmed_ref, created_at, doctor:doctors(id, slug, name, title, clinic, branch, profile_data, primary_color, accent_color), author:profiles!author_id(id, display_name, avatar_url, handle, role)",
+        "id, type, category, question, answer, meta, keywords, like_count, view_count, save_count, share_count, post_year, post_slug, external_url, external_title, external_description, external_image, external_site_name, hide_doctor_credential, shortcode, pubmed_ref, created_at, doctor:doctors(id, slug, name, title, clinic, branch, profile_data, primary_color, accent_color), author:profiles!author_id(id, display_name, avatar_url, handle, role)",
       )
       .eq("status", "published")
       .eq("author_id", activeId)
@@ -129,7 +129,7 @@ export default async function FeedPage() {
     viewer?.id ?? null,
     qas.map((q) => q.id),
   );
-  const viewerStates: Record<number, { liked?: boolean; saved?: boolean; rating?: number }> = {};
+  const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
   for (const [id, state] of viewerStateMap) viewerStates[id] = state;
 
   return (
