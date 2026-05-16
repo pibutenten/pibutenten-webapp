@@ -83,30 +83,23 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
     void existing; // 단순 hint, 실제 매칭은 admin.auth.admin.listUsers 사용
 
-    // admin.auth.admin.getUserByEmail은 없으므로 listUsers 페이지 순회 + email 매칭
-    //  - perPage 1000으로 한 번에 많이 가져오고, 그래도 못 찾으면 다음 페이지
-    //  - 회원 ~수만 명 정도까지는 비용 미미. 그 이상이면 admin RPC로 최적화 권장
+    // Phase 6-3 (2026-05-16): listUsers 풀스캔 (DoS amplifier) 제거.
+    //   기존: perPage=1000 × 최대 50 페이지 순회 — 호출 1회당 최대 50,000 row 비용.
+    //         외부 무인증 endpoint 라 공격자가 반복 호출 시 DB 풀 마비 위험.
+    //   개선: service_role 권한으로 auth.users 테이블 직접 조회 — email unique index 로 O(1).
     let userId: string | null = null;
     {
-      const PER_PAGE = 1000;
-      for (let page = 1; page <= 50; page++) {
-        const { data, error: listErr } = await admin.auth.admin.listUsers({
-          page,
-          perPage: PER_PAGE,
-        });
-        if (listErr) {
-          throw new Error(`사용자 조회 실패: ${listErr.message}`);
-        }
-        const users = data?.users ?? [];
-        const found = users.find(
-          (u) => u.email?.toLowerCase() === email,
-        );
-        if (found) {
-          userId = found.id;
-          break;
-        }
-        if (users.length < PER_PAGE) break; // 마지막 페이지 도달
+      const { data: existingUser, error: lookupErr } = await admin
+        .schema("auth" as never)
+        .from("users")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
+      if (lookupErr) {
+        throw new Error(`사용자 조회 실패: ${lookupErr.message}`);
       }
+      const row = existingUser as { id: string } | null;
+      if (row) userId = row.id;
     }
 
     if (!userId) {

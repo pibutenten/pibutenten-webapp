@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isHostSafeForExternalFetch } from "@/lib/ssrf-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,15 +25,33 @@ type PreviewResult = {
   kind: "youtube" | "instagram" | "naverblog" | "web";
 };
 
-const FETCH_TIMEOUT_MS = 12000;
+// Phase 6-2: 6초 단축 (이전 12s → 적대적 대용량 HTML 처리 시 응답 지연 완화)
+const FETCH_TIMEOUT_MS = 6000;
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 const MAX_BODY_CHARS = 600;
 
+/**
+ * Phase 6-2: SSRF 가드 통합. fetchWithTimeout 호출 직전에 DNS 해석 + IP 검증.
+ *   - 사설/메타데이터 호스트로 해석되면 즉시 throw.
+ *   - 호출자 (kind detection 후 여러 endpoint 호출) 인터페이스 그대로.
+ */
 async function fetchWithTimeout(
   url: string,
   extraHeaders: Record<string, string> = {},
 ): Promise<Response> {
+  // SSRF 검증 — 도메인 → IP 해석 + 사설/메타데이터 차단
+  try {
+    const parsed = new URL(url);
+    const guard = await isHostSafeForExternalFetch(parsed.hostname);
+    if (!guard.ok) {
+      throw new Error(`[preview-link] blocked host: ${guard.reason}`);
+    }
+  } catch (e) {
+    // URL 파싱 실패 or guard fail
+    throw e instanceof Error ? e : new Error("invalid url");
+  }
+
   const ctl = new AbortController();
   const id = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -654,6 +674,15 @@ async function safeNaverBlogBody(
 }
 
 async function handle(req: Request): Promise<Response> {
+  // Phase 6-2: 인증 필수 (anon DoS / SSRF proxy 방지)
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
+  }
+
   let body: { url?: string } = {};
   try {
     body = (await req.json()) as { url?: string };

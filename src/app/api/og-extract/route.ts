@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SITE_URL } from "@/lib/site";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { safeFetchExternal } from "@/lib/ssrf-guard";
 
 /**
  * 외부 URL의 Open Graph 메타 추출.
@@ -10,30 +12,16 @@ import { SITE_URL } from "@/lib/site";
  *
  * 사용처: WriteClient에서 사용자가 외부 링크 입력 시 → 카드 자동 생성.
  *
- * 보안:
+ * 보안 (Phase 6-2):
+ *  - 로그인 사용자만 호출 가능 (anon DoS 방지)
  *  - https only
- *  - 내부 IP / 로컬호스트 차단 (SSRF 방지)
- *  - timeout 6s
- *  - 응답 크기 1MB 상한
- *
- * 차단 도메인은 추후 environment variable로 관리 (BLOCKED_OG_DOMAINS).
+ *  - DNS 해석 후 사설 IP / 로컬호스트 / 클라우드 메타데이터 차단 (lib/ssrf-guard)
+ *  - redirect hop 별 host 재검증
+ *  - timeout 6s, 응답 크기 1MB 상한
  */
 
 const TIMEOUT_MS = 6000;
 const MAX_BYTES = 1024 * 1024; // 1MB
-const BLOCKED_HOST_PATTERNS = [
-  /^localhost$/i,
-  /^127\./,
-  /^10\./,
-  /^192\.168\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^0\./,
-  /^169\.254\./,
-];
-
-function isBlockedHost(hostname: string): boolean {
-  return BLOCKED_HOST_PATTERNS.some((p) => p.test(hostname));
-}
 
 function unescapeHtml(s: string): string {
   return s
@@ -71,6 +59,18 @@ function extractCanonical(html: string): string | null {
 }
 
 export async function POST(request: NextRequest) {
+  // Phase 6-2: 인증 필수 (anon DoS 방지)
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "로그인이 필요합니다" },
+      { status: 401 },
+    );
+  }
+
   let body: { url?: string };
   try {
     body = (await request.json()) as { url?: string };
@@ -86,105 +86,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "URL 필요" }, { status: 400 });
   }
 
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
+  // Phase 6-2: SSRF-safe fetch (DNS 해석 + redirect hop 재검증 + size/timeout cap)
+  const fetchResult = await safeFetchExternal(raw, {
+    timeoutMs: TIMEOUT_MS,
+    maxBytes: MAX_BYTES,
+    maxRedirects: 3,
+    allowedProtocols: ["https:"], // 주석 명세대로 https 만 (이전 http: 허용은 정정)
+    expectedContentType: "text/html",
+    headers: {
+      "User-Agent": `Mozilla/5.0 (compatible; PibutentenBot/1.0; +${SITE_URL})`,
+      Accept: "text/html,application/xhtml+xml",
+    },
+  });
+
+  if (!fetchResult.ok) {
     return NextResponse.json(
-      { ok: false, error: "올바른 URL 형식이 아닙니다" },
-      { status: 400 },
+      { ok: false, error: fetchResult.error },
+      { status: fetchResult.status >= 400 ? 502 : 400 },
     );
   }
 
-  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-    return NextResponse.json(
-      { ok: false, error: "https/http URL만 가능" },
-      { status: 400 },
-    );
-  }
-  if (isBlockedHost(parsed.hostname)) {
-    return NextResponse.json(
-      { ok: false, error: "내부망 호스트는 차단됩니다" },
-      { status: 400 },
-    );
-  }
+  const html = new TextDecoder("utf-8").decode(fetchResult.bodyBytes);
+  const finalUrl = new URL(fetchResult.finalUrl);
+  const title =
+    extractMeta(html, "og:title") ?? extractTitle(html) ?? null;
+  const description =
+    extractMeta(html, "og:description") ??
+    extractMeta(html, "description") ??
+    null;
+  const image = extractMeta(html, "og:image");
+  const siteName = extractMeta(html, "og:site_name") ?? finalUrl.hostname;
+  const canonical = extractCanonical(html) ?? fetchResult.finalUrl;
 
-  // fetch with timeout + size cap
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(parsed.toString(), {
-      signal: ctrl.signal,
-      redirect: "follow",
-      headers: {
-        "User-Agent": `Mozilla/5.0 (compatible; PibutentenBot/1.0; +${SITE_URL})`,
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
-    clearTimeout(t);
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { ok: false, error: `원격 HTTP ${res.status}` },
-        { status: 502 },
-      );
-    }
-
-    const ctype = res.headers.get("content-type") || "";
-    if (!ctype.includes("text/html")) {
-      return NextResponse.json(
-        { ok: false, error: "HTML 콘텐츠가 아닙니다" },
-        { status: 415 },
-      );
-    }
-
-    // 응답 크기 제한 — 스트림으로 읽으면서 1MB 초과 시 중단
-    const reader = res.body?.getReader();
-    if (!reader) {
-      return NextResponse.json(
-        { ok: false, error: "응답 본문 없음" },
-        { status: 502 },
-      );
-    }
-    const decoder = new TextDecoder("utf-8");
-    let html = "";
-    let received = 0;
-    // 스트림 읽기 — head 닫힘 감지하면 조기 종료 (메타는 head에만 있음)
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      received += value.byteLength;
-      if (received > MAX_BYTES) {
-        await reader.cancel();
-        break;
-      }
-      html += decoder.decode(value, { stream: true });
-      if (html.includes("</head>")) {
-        await reader.cancel();
-        break;
-      }
-    }
-
-    const title =
-      extractMeta(html, "og:title") ?? extractTitle(html) ?? null;
-    const description =
-      extractMeta(html, "og:description") ??
-      extractMeta(html, "description") ??
-      null;
-    const image = extractMeta(html, "og:image");
-    const siteName = extractMeta(html, "og:site_name") ?? parsed.hostname;
-    const canonical = extractCanonical(html) ?? parsed.toString();
-
-    return NextResponse.json({
-      ok: true,
-      data: { title, description, image, siteName, canonical },
-    });
-  } catch (e) {
-    clearTimeout(t);
-    const msg = e instanceof Error ? e.message : "네트워크 오류";
-    return NextResponse.json(
-      { ok: false, error: msg },
-      { status: 502 },
-    );
-  }
+  return NextResponse.json({
+    ok: true,
+    data: { title, description, image, siteName, canonical },
+  });
 }

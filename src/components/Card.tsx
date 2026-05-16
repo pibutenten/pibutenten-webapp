@@ -271,7 +271,11 @@ export default function Card({
     <article
       ref={cardRef}
       // 24번 — vanishing=true 면 fade-out + collapse 애니메이션 (삭제 직후).
-      //   max-height 는 일시적 estimate; transition 후 부모 listener 가 React unmount.
+      //   Phase 6-1: cubic-bezier(0.4, 0, 0.2, 1) — Material Design standard easing.
+      //     opacity 먼저 빠르게(180ms) 사라지고, max-height/margin/padding 이 좀 더
+      //     긴 시간(340ms)에 걸쳐 collapse → 아래 카드들이 자연스럽게 슬쩍 올라옴.
+      //   transition 종료 직후 (시간 = 340ms) Card.tsx 의 setTimeout 이
+      //   cardBus.emitCardDeleted() 를 발사 → Feed.tsx 가 items 에서 제거 → unmount.
       style={
         vanishing
           ? {
@@ -282,8 +286,14 @@ export default function Card({
               paddingTop: 0,
               paddingBottom: 0,
               overflow: "hidden",
+              transform: "scale(0.96)",
               transition:
-                "max-height 320ms ease, opacity 220ms ease, margin 320ms ease, padding 320ms ease",
+                "max-height 340ms cubic-bezier(0.4, 0, 0.2, 1)," +
+                " opacity 180ms ease-out," +
+                " transform 280ms cubic-bezier(0.4, 0, 0.2, 1)," +
+                " margin 340ms cubic-bezier(0.4, 0, 0.2, 1)," +
+                " padding 340ms cubic-bezier(0.4, 0, 0.2, 1)",
+              willChange: "max-height, opacity, transform",
             }
           : undefined
       }

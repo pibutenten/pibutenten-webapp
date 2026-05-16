@@ -1,10 +1,65 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import sharp from "sharp";
 
+export const runtime = "nodejs"; // sharp 는 Edge runtime 미지원
 export const dynamic = "force-dynamic";
 
 const MAX_SIZE = 8 * 1024 * 1024; // 8MB
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+/**
+ * Phase 6-6 (2026-05-16): sharp 로 EXIF 메타데이터 제거 + 재인코딩.
+ *
+ * 보안:
+ *  - GPS 위경도 / 촬영 일시 / 카메라 시리얼 등 모든 EXIF 제거 (헬스케어 플랫폼 — 환부 사진 등에서 추적 가능 정보 노출 차단)
+ *  - 매직바이트 검증을 sharp 의 자체 파일 형식 인식으로 강화 (위장 차단)
+ *
+ * 정책:
+ *  - jpeg/png/webp: sharp 로 처리 + 메타데이터 제거 + 동일 포맷 재인코딩 (quality 85)
+ *  - gif: 애니메이션 손상 위험 — sharp 처리 X, magic-byte 검증만
+ *  - 최대 2560×2560 으로 리사이즈 (원본 비율 유지, fit: inside)
+ */
+const SHARP_RESIZE_MAX = 2560;
+
+async function processImage(
+  buf: Buffer,
+  mime: string,
+): Promise<{ ok: true; out: Buffer; mime: string } | { ok: false; error: string }> {
+  // gif 는 애니메이션 보존 위해 sharp pass (대신 매직바이트 검증 통과 필수)
+  if (mime === "image/gif") {
+    return { ok: true, out: buf, mime };
+  }
+  try {
+    // failOnError:false — 손상된 입력도 가능한 한 처리. 메타데이터 자동 제거됨.
+    let pipeline = sharp(buf, { failOn: "none" })
+      .rotate() // EXIF orientation 적용 후 EXIF 제거 (자동)
+      .resize({
+        width: SHARP_RESIZE_MAX,
+        height: SHARP_RESIZE_MAX,
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+
+    // 원본 포맷으로 재인코딩 — withMetadata() 호출 안 함 (기본 동작이 메타데이터 제거)
+    if (mime === "image/jpeg") {
+      pipeline = pipeline.jpeg({ quality: 85, mozjpeg: true });
+    } else if (mime === "image/png") {
+      pipeline = pipeline.png({ compressionLevel: 9 });
+    } else if (mime === "image/webp") {
+      pipeline = pipeline.webp({ quality: 85 });
+    }
+
+    const out = await pipeline.toBuffer();
+    return { ok: true, out, mime };
+  } catch (e) {
+    return {
+      ok: false,
+      error: `이미지 처리 실패: ${e instanceof Error ? e.message : String(e)}`,
+    };
+  }
+}
 
 /**
  * POST /api/upload
@@ -49,25 +104,32 @@ export async function POST(req: Request) {
     );
   }
 
-  const ext = extFromMime(mime);
-  const ts = Date.now();
-  const rand = Math.random().toString(36).slice(2, 10);
-  const path = `${user.id}/${ts}_${rand}.${ext}`;
-
-  const buf = Buffer.from(await file.arrayBuffer());
+  const rawBuf = Buffer.from(await file.arrayBuffer());
 
   // 매직바이트 검증 (2026-05-16) — 클라가 MIME만 위장해서 SVG 등 위험 파일을 jpg로 신고하는 케이스 차단
-  if (!matchesMagicBytes(buf, mime)) {
+  if (!matchesMagicBytes(rawBuf, mime)) {
     return NextResponse.json(
       { error: "파일 내용이 선언한 형식과 일치하지 않습니다." },
       { status: 400 },
     );
   }
 
+  // Phase 6-6: sharp 로 EXIF 메타데이터 제거 + 재인코딩 (gif 는 제외)
+  const processed = await processImage(rawBuf, mime);
+  if (!processed.ok) {
+    return NextResponse.json({ error: processed.error }, { status: 400 });
+  }
+  const outBuf = processed.out;
+  const outMime = processed.mime;
+
+  // Phase 6-6: 파일명은 crypto.randomUUID (이전 Math.random 41bit → 122bit, 충돌·예측 불가).
+  const ext = extFromMime(outMime);
+  const path = `${user.id}/${randomUUID()}.${ext}`;
+
   const { error: upErr } = await supabase.storage
     .from("articles")
-    .upload(path, buf, {
-      contentType: mime,
+    .upload(path, outBuf, {
+      contentType: outMime,
       cacheControl: "3600",
       upsert: false,
     });

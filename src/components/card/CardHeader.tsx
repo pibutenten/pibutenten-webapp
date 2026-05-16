@@ -52,6 +52,11 @@ export default function CardHeader({
   // hide_doctor_credential — 의사가 카테고리·토글로 직함 숨긴 경우 (Phase A.2)
   const credentialHidden = Boolean(card.hide_doctor_credential);
   const showAsDoctor = !!doctor && !credentialHidden;
+  // Phase 6-7 (2026-05-16): 탈퇴 sentinel 처리 — handle === 'deleted-user' 또는 id === well-known UUID
+  //   일 때 프로필 페이지 이동 비활성, 직함 표시 비활성.
+  const isDeletedUser =
+    card.author?.handle === "deleted-user" ||
+    card.author?.id === "00000000-0000-0000-0000-000000000000";
   const authorName = doctor?.name ?? card.author?.display_name ?? "익명";
 
   // 회원 아바타에는 cache buster (profile.updated_at) 부착 — 사진 변경 즉시 반영
@@ -95,6 +100,8 @@ export default function CardHeader({
 
   const onAuthorClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // 탈퇴 sentinel — 프로필 페이지 없음, 클릭 무시
+    if (isDeletedUser) return;
     if (showAsDoctor && doctor?.slug) {
       router.push(`/doctors/${doctor.slug}`);
     } else if (card.author?.handle) {
@@ -193,10 +200,10 @@ export default function CardHeader({
       <button
         type="button"
         onClick={onAuthorClick}
-        disabled={!showAsDoctor && !card.author?.id}
+        disabled={isDeletedUser || (!showAsDoctor && !card.author?.id)}
         className={
           "mb-3 -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2.5 rounded-md py-1.5 px-1 text-left transition-colors " +
-          (showAsDoctor || card.author?.id
+          (!isDeletedUser && (showAsDoctor || card.author?.id)
             ? "cursor-pointer hover:bg-[var(--primary-soft)]"
             : "cursor-default")
         }

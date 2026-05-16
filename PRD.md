@@ -697,18 +697,19 @@ me.id === card.author.id
 | field_visibility | jsonb (필드별 노출 정책) |
 | marketing_email_consent | boolean |
 
-### profile_identities 테이블 (멀티 identity, commit 83490ea)
-| 컬럼 | 의미 |
-|---|---|
-| id | PK (uuid) |
-| profile_id | profiles.id FK |
-| kind | `primary` / `admin` / `personal` / 기타 |
-| handle, display_name, avatar_url, bio | identity별 독립 |
-| face_shape, skin_type, skin_concerns[], interested_procedures[], liked_procedures[], field_visibility | identity별 온보딩 |
+### 멀티 identity (Phase 9 — profiles.auth_user_id 묶음 기반)
+- profile_identities 테이블은 Phase 9 (`0090_drop_persona_system.sql`) 에서 제거됨.
+- 한 `auth.users.id` 에 여러 `profiles` row 를 둘 수 있고, 같은 `auth_user_id` 로 묶인다.
+- Primary row = `profiles.id == auth_user_id`. 그 외 row 는 `auth_user_id` 만 같다.
+- 활성 identity = cookie `pibutenten:identity` ('primary' 또는 묶음 내 profile.id).
+- 같은 사람이라도 identity 별로 좋아요/저장/댓글이 완전 분리된다.
+- handle / display_name / avatar_url / bio 는 row 별 독립.
 
-- 모든 profile에 자동으로 `kind='primary'` row 생성
-- 활성 identity = cookie `pibutenten:identity` ('primary' 또는 UUID)
-- 같은 사람이라도 identity별로 좋아요/저장/댓글이 완전 분리됨
+#### identity별 온보딩 정책 (Phase 6-NEW, migration 0106)
+- 기본은 identity 별 독립. 단, `doctor_accounts` 매핑된 의사 멀티 계정 보유자에 한해 최초 한 번 온보딩 정보를 묶음 전체에 자동 이식한다 (`avatar_url` / `display_name` / `handle` / `role` / `doctor_id` 제외).
+- 이식 후에는 각 profile 의 온보딩 컬럼을 독립적으로 수정 가능 (재이식 X — COALESCE 로 NULL 컬럼만 채움).
+- RPC: `propagate_onboarding_to_doctor_bundle(p_source_profile_id uuid)` — `OnboardingClient` / `ProfileEditClient` 저장 직후 호출. 의사 멀티 계정 아니면 0 반환 (무해).
+- 이식 컬럼 12개: `birthdate`, `gender`, `face_shape`, `skin_type`, `skin_concerns[]`, `interested_procedures[]`, `liked_procedures[]`, `bio`, `legal_name`, `field_visibility`, `marketing_email_consent`, `terms_agreed_at`.
 
 ### doctor_accounts 테이블
 - `profile_id` ↔ `doctor_id` 1:1 매핑

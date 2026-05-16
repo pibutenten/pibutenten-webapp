@@ -299,6 +299,23 @@ export default function OnboardingClient({ userId, initial }: Props) {
         setErr(`저장 실패: ${error.message}`);
         return;
       }
+      // Phase 6-NEW (migration 0106): 의사 멀티 계정 보유자에 한해
+      // 묶음 내 다른 profile row 들에 온보딩 정보를 일괄 전파 (COALESCE — NULL 컬럼만 채움).
+      // 의사 멀티 계정 아니면 RPC 가 0 반환 — 무해. 실패는 silent (best effort).
+      try {
+        const { error: propErr } = await sb.rpc(
+          "propagate_onboarding_to_doctor_bundle",
+          { p_source_profile_id: userId },
+        );
+        if (propErr) {
+          console.warn(
+            "[onboarding] propagate RPC failed:",
+            propErr.message,
+          );
+        }
+      } catch (e) {
+        console.warn("[onboarding] propagate RPC threw:", e);
+      }
       // middleware의 온보딩 가드 캐시 — 즉시 통과시키기 위해 클라이언트에서 set.
       // 첫 가입 강제 게이트 쿠키도 만료시켜 두 번 다시 강제 redirect 안 되게 한다.
       try {

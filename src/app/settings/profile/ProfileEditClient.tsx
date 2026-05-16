@@ -4,7 +4,6 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import ConfirmDialog from "@/components/ConfirmDialog";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import {
   FACE_SHAPES,
@@ -242,6 +241,24 @@ export default function ProfileEditClient({
         setSkinStatus({ type: "err", msg: error.message });
         return;
       }
+      // Phase 6-NEW (migration 0106): 의사 멀티 계정 보유자의 묶음 내 NULL 컬럼에 propagate.
+      // COALESCE 패턴이므로 다른 row 에 이미 값 있는 컬럼은 보존 — "이식 후 독립 수정" 보장.
+      // avatar_url/display_name 은 RPC 가 복사하지 않음 (의사 row 사진/이름 보호).
+      // 의사 멀티 계정 아니면 0 반환 — 무해. 실패는 silent.
+      try {
+        const { error: propErr } = await sb.rpc(
+          "propagate_onboarding_to_doctor_bundle",
+          { p_source_profile_id: targetProfileId },
+        );
+        if (propErr) {
+          console.warn(
+            "[profile-edit] propagate RPC failed:",
+            propErr.message,
+          );
+        }
+      } catch (e) {
+        console.warn("[profile-edit] propagate RPC threw:", e);
+      }
       setPendingAvatarUrl(null);
       setSkinStatus({ type: "ok", msg: "저장되었어요." });
       router.refresh();
@@ -264,12 +281,20 @@ export default function ProfileEditClient({
   }
 
   // ── 로그아웃 / 탈퇴 ──
+  // Phase 6-5 (2026-05-16): typed confirmation 강제 — "탈퇴에 동의합니다" 타이핑 일치 시만 진행
+  const DELETE_CONFIRMATION_PHRASE = "탈퇴에 동의합니다";
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
   async function performDelete() {
+    if (deleteConfirmInput.trim() !== DELETE_CONFIRMATION_PHRASE) return;
     setDeletePending(true);
     try {
-      const r = await fetch("/api/me/delete", { method: "POST" });
+      const r = await fetch("/api/me/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: deleteConfirmInput.trim() }),
+      });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
         alert(j.error ?? "탈퇴 실패");
@@ -279,6 +304,7 @@ export default function ProfileEditClient({
     } finally {
       setDeletePending(false);
       setDeleteOpen(false);
+      setDeleteConfirmInput("");
     }
   }
   // 로그아웃은 본인 프로필 페이지(/{handle}) 하단의 LogoutButton으로 이동됨
@@ -648,17 +674,58 @@ export default function ProfileEditClient({
         </div>
       </div>
 
-      <ConfirmDialog
-        open={deleteOpen}
-        title="정말 탈퇴할까요?"
-        description={
-          "회원 탈퇴 시 계정이 영구 삭제되며, 작성한 글·댓글·좋아요·저장 등 모든 활동 기록이 함께 사라집니다.\n\n이 작업은 되돌릴 수 없어요."
-        }
-        confirmLabel={deletePending ? "탈퇴 처리 중…" : "탈퇴"}
-        cancelLabel="취소"
-        onConfirm={performDelete}
-        onCancel={() => setDeleteOpen(false)}
-      />
+      {/* Phase 6-5: typed confirmation — 의도치 않은 탈퇴 / CSRF 방어 */}
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-[var(--radius)] bg-white p-5 shadow-2xl">
+            <h3 className="text-base font-bold text-[var(--text)]">
+              정말 탈퇴할까요?
+            </h3>
+            <p className="mt-2 whitespace-pre-line text-[13px] leading-[1.6] text-[var(--text-secondary)]">
+              {`회원 탈퇴 시 계정이 영구 삭제되며, 작성한 글·댓글·좋아요·저장 등 모든 활동 기록이 함께 사라집니다.\n\n이 작업은 되돌릴 수 없어요.`}
+            </p>
+            <p className="mt-3 text-[12.5px] leading-[1.55] text-[var(--text)]">
+              계속하시려면 아래 칸에{" "}
+              <strong className="text-[var(--accent)]">
+                {DELETE_CONFIRMATION_PHRASE}
+              </strong>{" "}
+              라고 정확히 입력해주세요.
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmInput}
+              onChange={(e) => setDeleteConfirmInput(e.target.value)}
+              placeholder={DELETE_CONFIRMATION_PHRASE}
+              autoFocus
+              className="mt-2 h-10 w-full rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--accent)] focus:outline-none"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteOpen(false);
+                  setDeleteConfirmInput("");
+                }}
+                disabled={deletePending}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={performDelete}
+                disabled={
+                  deletePending ||
+                  deleteConfirmInput.trim() !== DELETE_CONFIRMATION_PHRASE
+                }
+                className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {deletePending ? "탈퇴 처리 중…" : "탈퇴"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
