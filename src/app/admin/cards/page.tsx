@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PickToggle from "@/components/PickToggle";
 import { labelForCategory } from "@/lib/post-category";
-import AdminQasDoctorFilter from "./AdminQasDoctorFilter";
+import AdminCardsDoctorFilter from "./AdminCardsDoctorFilter";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import BackButton from "@/components/BackButton";
 
@@ -459,7 +459,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
              - 관리자: select, onChange 즉시 navigate (검색 버튼 없이 자동 적용)
              - 원장 본인: readonly chip으로 본인 이름 표시. doctor 파라미터는 서버에서 강제 적용 */}
         {isAdmin ? (
-          <AdminQasDoctorFilter
+          <AdminCardsDoctorFilter
             doctors={doctors.map((d) => ({
               id: d.id,
               slug: d.slug,

@@ -70,7 +70,7 @@ export default async function HomePage({ searchParams }: Props) {
   const popularByCategoryPromise = getPopularByCategory();
 
   // 카테고리 라벨 검색 — q가 카드 카테고리 라벨이면 category 컬럼 필터로 전환
-  // (search_qas_scored RPC는 keywords/question/answer 텍스트만 매칭해서 카테고리 라벨이 안 잡힘)
+  // (search_cards_scored RPC는 keywords/question/answer 텍스트만 매칭해서 카테고리 라벨이 안 잡힘)
   const CATEGORY_LABEL_TO_SLUG: Record<string, string> = {
     "Q&A": "qa",
     "피부꿀팁": "tip",
@@ -108,16 +108,16 @@ export default async function HomePage({ searchParams }: Props) {
       p_boost_doctor_slug: boost || null,
     });
   }
-  let qas = (rpcRes.data ?? []) as CardData[];
+  let cards = (rpcRes.data ?? []) as CardData[];
   const error = rpcRes.error;
 
   // 첫 4카드 다양화 — 검색 없을 때: 모두 다른 원장 (max 1) / 검색 있을 때: 같은 원장 최대 2번
-  if (qas.length > 4) {
+  if (cards.length > 4) {
     const maxPerDoctor = q ? 2 : 1;
     const counts = new Map<string, number>();
     const head: CardData[] = [];
     const tail: CardData[] = [];
-    for (const it of qas) {
+    for (const it of cards) {
       const slug = it.doctor?.slug ?? "_unknown";
       const c = counts.get(slug) ?? 0;
       if (head.length < 4 && c < maxPerDoctor) {
@@ -127,13 +127,13 @@ export default async function HomePage({ searchParams }: Props) {
         tail.push(it);
       }
     }
-    qas = [...head, ...tail];
+    cards = [...head, ...tail];
   }
 
   // 같은 원장 3연속 방지 — 2연속까지만 허용, 3번째에는 다른 원장 끼워넣기
   // (홈/검색 모두 적용. 원장 개인 페이지는 별도 라우트라 영향 없음)
-  if (qas.length >= 3) {
-    const remaining = [...qas];
+  if (cards.length >= 3) {
+    const remaining = [...cards];
     const reordered: CardData[] = [];
     while (remaining.length > 0) {
       const last = reordered[reordered.length - 1];
@@ -154,7 +154,7 @@ export default async function HomePage({ searchParams }: Props) {
       }
       reordered.push(remaining.shift() as CardData);
     }
-    qas = reordered;
+    cards = reordered;
   }
 
   // 검색일 때만 카운트 별도 조회
@@ -187,7 +187,7 @@ export default async function HomePage({ searchParams }: Props) {
   const vsMap = await fetchViewerStates(
     supabase,
     viewer?.id ?? null,
-    (qas ?? []).map((q) => q.id),
+    (cards ?? []).map((q) => q.id),
   );
   const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
   for (const [id, st] of vsMap) viewerStates[id] = st;
@@ -204,7 +204,7 @@ export default async function HomePage({ searchParams }: Props) {
       {q && (
         <p className="mt-10 text-left text-sm text-[var(--text-secondary)] sm:mt-12">
           <span className="font-bold text-[var(--primary)]">“{q}”</span>
-          에 대한 <span className="font-bold">{count ?? qas?.length ?? 0}</span>
+          에 대한 <span className="font-bold">{count ?? cards?.length ?? 0}</span>
           개의 답변
         </p>
       )}
@@ -215,14 +215,14 @@ export default async function HomePage({ searchParams }: Props) {
             Q&A 불러오기 실패: {error.message}
           </div>
         )}
-        {!error && (qas?.length ?? 0) === 0 && (
+        {!error && (cards?.length ?? 0) === 0 && (
           <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">
             {q ? "검색 결과가 없습니다." : "등록된 Q&A가 없습니다."}
           </div>
         )}
-        {!error && qas && qas.length > 0 && (
+        {!error && cards && cards.length > 0 && (
           <Feed
-            initial={qas}
+            initial={cards}
             pageSize={INITIAL_PAGE_SIZE}
             searchQuery={q || undefined}
             boostDoctorSlug={boost || undefined}

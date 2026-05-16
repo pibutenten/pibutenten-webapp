@@ -96,7 +96,7 @@ export default async function DoctorDetailPage({ params }: Props) {
     p_limit: PAGE_SIZE,
     p_boost_doctor_slug: null,
   });
-  const qas = (rpcRes.data ?? []) as CardData[];
+  const cards = (rpcRes.data ?? []) as CardData[];
   // 카운트는 별도 쿼리
   const cRes = await supabase
     .from("cards")
@@ -113,7 +113,7 @@ export default async function DoctorDetailPage({ params }: Props) {
   const vsMap = await fetchViewerStates(
     supabase,
     viewer?.id ?? null,
-    qas.map((q) => q.id),
+    cards.map((q) => q.id),
   );
   const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
   for (const [id, st] of vsMap) viewerStates[id] = st;
@@ -462,13 +462,13 @@ export default async function DoctorDetailPage({ params }: Props) {
       </h2>
 
       {/* Q&A 피드 (해당 원장만) */}
-      {!qas || qas.length === 0 ? (
+      {!cards || cards.length === 0 ? (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">
           아직 등록된 Q&A가 없어요.
         </div>
       ) : (
         <Feed
-          initial={qas}
+          initial={cards}
           pageSize={PAGE_SIZE}
           doctorSlug={doctor.slug}
           hotIds={hotIds}

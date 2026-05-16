@@ -19,7 +19,7 @@ type Props = {
  * - 다른 필터(status/type/category/pick/q)는 basePath에 이미 포함되어 있어 유지됨
  * - "전체 원장"이면 doctor 파라미터 제거
  */
-export default function AdminQasDoctorFilter({
+export default function AdminCardsDoctorFilter({
   doctors,
   currentSlug,
   basePath,
@@ -42,7 +42,7 @@ export default function AdminQasDoctorFilter({
 
   return (
     <select
-      id="admin-qas-doctor-filter"
+      id="admin-cards-doctor-filter"
       value={currentSlug}
       onChange={(e) => handleChange(e.target.value)}
       className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm text-[var(--text)] focus:border-[var(--primary)] focus:outline-none"

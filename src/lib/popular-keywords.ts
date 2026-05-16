@@ -9,7 +9,7 @@ export type PopularByCategory = Record<CategorySlug, string[]>;
 const TOP_N = 60;
 
 /**
- * 발행된 모든 qas의 keywords를 카운트 → 카테고리별 빈도 상위 N개.
+ * 발행된 모든 cards의 keywords를 카운트 → 카테고리별 빈도 상위 N개.
  * 매핑 안 되는 태그는 'knowledge' (피부상식)에 떨어짐.
  */
 export async function getPopularByCategory(): Promise<PopularByCategory> {

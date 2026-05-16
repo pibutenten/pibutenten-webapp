@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 export default async function FeedPage() {
   const supabase = await createSupabaseServerClient();
 
-  // SNS-style 시간 가중치 + 인기 + doctor 가중 + jitter (lib는 0038_feed_qas_scored RPC)
+  // SNS-style 시간 가중치 + 인기 + doctor 가중 + jitter (lib는 0038_feed_cards_scored RPC)
   // - HALF_LIFE 14일: 14일 전 글은 가중 절반
   // - jitter ±10%: F5마다 비슷한 점수 글끼리 순서 살짝 변동
   // - doctor 글 x2: 원장 글이 일반 회원 글의 2배 가중 (회원 글 들어왔을 때 발현)
@@ -46,15 +46,15 @@ export default async function FeedPage() {
     p_half_life_days: 14,
     p_jitter_amp: 0.35,
   });
-  let qas = (rpcRes.data ?? []) as CardData[];
+  let cards = (rpcRes.data ?? []) as CardData[];
   const error = rpcRes.error;
 
   // 첫 4카드 다양화 (검색 없으니 모두 다른 원장)
-  if (qas.length > 4) {
+  if (cards.length > 4) {
     const counts = new Map<string, number>();
     const head: CardData[] = [];
     const tail: CardData[] = [];
-    for (const it of qas) {
+    for (const it of cards) {
       const slug = it.doctor?.slug ?? "_unknown";
       const c = counts.get(slug) ?? 0;
       if (head.length < 4 && c < 1) {
@@ -64,12 +64,12 @@ export default async function FeedPage() {
         tail.push(it);
       }
     }
-    qas = [...head, ...tail];
+    cards = [...head, ...tail];
   }
 
   // 같은 원장 3연속 방지
-  if (qas.length >= 3) {
-    const remaining = [...qas];
+  if (cards.length >= 3) {
+    const remaining = [...cards];
     const reordered: CardData[] = [];
     while (remaining.length > 0) {
       const last = reordered[reordered.length - 1];
@@ -90,7 +90,7 @@ export default async function FeedPage() {
       }
       reordered.push(remaining.shift() as CardData);
     }
-    qas = reordered;
+    cards = reordered;
   }
 
   const hotIds = Array.from(await getHotQaIds(20));
@@ -119,15 +119,15 @@ export default async function FeedPage() {
       .limit(1)
       .maybeSingle();
     if (myLatest) {
-      // 같은 id 가 이미 qas 에 있으면 제거 후 맨 앞에 prepend.
+      // 같은 id 가 이미 cards 에 있으면 제거 후 맨 앞에 prepend.
       const myCard = myLatest as unknown as CardData;
-      qas = [myCard, ...qas.filter((q) => q.id !== myCard.id)];
+      cards = [myCard, ...cards.filter((q) => q.id !== myCard.id)];
     }
   }
   const viewerStateMap = await fetchViewerStates(
     supabase,
     viewer?.id ?? null,
-    qas.map((q) => q.id),
+    cards.map((q) => q.id),
   );
   const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
   for (const [id, state] of viewerStateMap) viewerStates[id] = state;
@@ -143,14 +143,14 @@ export default async function FeedPage() {
           Q&A 불러오기 실패: {error.message}
         </div>
       )}
-      {!error && qas.length === 0 && (
+      {!error && cards.length === 0 && (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">
           등록된 Q&A가 없습니다.
         </div>
       )}
-      {!error && qas.length > 0 && (
+      {!error && cards.length > 0 && (
         <Feed
-          initial={qas}
+          initial={cards}
           pageSize={INITIAL_PAGE_SIZE}
           hotIds={hotIds}
           viewerStates={viewerStates}

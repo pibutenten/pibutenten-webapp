@@ -49,7 +49,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const supabase = await createSupabaseServerClient();
 
     // 발행된 글 — 의사가 작성한 것만 (UGC 회원 글은 제외 위해 doctor_id 기준)
-    const { data: qas } = await supabase
+    const { data: publishedCards } = await supabase
       .from("cards")
       .select(
         "id, created_at, doctor_id, post_year, post_slug, doctor:doctors(slug)",
@@ -62,7 +62,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from("doctors")
       .select("slug, updated_at, created_at");
 
-    const qaRoutes: MetadataRoute.Sitemap = (qas ?? []).flatMap((q) => {
+    const cardRoutes: MetadataRoute.Sitemap = (publishedCards ?? []).flatMap((q) => {
       const lastModified = q.created_at ? new Date(q.created_at) : now;
       // 의사 글 + post_year + post_slug → canonical URL
       // (Supabase nested doctors join은 1:1이지만 array로 올 수 있어 조심)
@@ -109,7 +109,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
-    return [...staticRoutes, ...doctorRoutes, ...tagRoutes, ...qaRoutes];
+    return [...staticRoutes, ...doctorRoutes, ...tagRoutes, ...cardRoutes];
   } catch (e) {
     // DB 접근 실패 시에도 정적 라우트는 노출
     console.warn("[sitemap] DB fetch failed, fallback to static routes:", e);

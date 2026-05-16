@@ -160,7 +160,7 @@ export default function ProfileTabs({
         return;
       }
       // 2) cards + 작성자/원장/영상 + 모든 v4 필드 join
-      const { data: qas, error: qasErr } = await sb
+      const { data: cardRows, error: cardErr } = await sb
         .from("cards")
         .select(
           `id, question, answer, meta, keywords, like_count, view_count, save_count,
@@ -171,12 +171,12 @@ export default function ProfileTabs({
            author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle, updated_at)`,
         )
         .in("id", ids);
-      if (qasErr) {
-        console.error("[cards join for saves/likes]", qasErr);
+      if (cardErr) {
+        console.error("[cards join for saves/likes]", cardErr);
       }
       // 저장/좋아요 시간 순서 유지
       const map = new Map<number, CardData>();
-      for (const q of qas ?? []) map.set((q as { id: number }).id, q as unknown as CardData);
+      for (const q of cardRows ?? []) map.set((q as { id: number }).id, q as unknown as CardData);
       const ordered = ids.map((id) => map.get(id)).filter(Boolean) as CardData[];
       if (tab === "saves") setSavedPosts(ordered);
       else setLikedPosts(ordered);

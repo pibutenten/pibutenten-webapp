@@ -230,17 +230,17 @@ export default async function AdminUserDetailPage({
   //   activeDoctorId 있으면 doctor_id로 fallback
   const targetAuthorId = activeIdentity?.id ?? id;
 
-  let qasQuery = supabase
+  let authoredCardsQuery = supabase
     .from("cards")
     .select("id, type, status, question, like_count, view_count, created_at")
     .order("created_at", { ascending: false })
     .limit(50);
   if (activeDoctorId) {
-    qasQuery = qasQuery.eq("doctor_id", activeDoctorId);
+    authoredCardsQuery = authoredCardsQuery.eq("doctor_id", activeDoctorId);
   } else {
-    qasQuery = qasQuery.eq("author_id", targetAuthorId).is("doctor_id", null);
+    authoredCardsQuery = authoredCardsQuery.eq("author_id", targetAuthorId).is("doctor_id", null);
   }
-  const { data: qas } = await qasQuery.returns<QaRow[]>();
+  const { data: authoredCards } = await authoredCardsQuery.returns<QaRow[]>();
 
   // 댓글
   const { data: comments } = await supabase
@@ -427,7 +427,7 @@ export default async function AdminUserDetailPage({
 
       {/* 통계 */}
       <div className="mb-5 grid grid-cols-3 gap-3 sm:grid-cols-3">
-        <Stat label="작성 글" value={qas?.length ?? 0} />
+        <Stat label="작성 글" value={authoredCards?.length ?? 0} />
         <Stat label="댓글" value={comments?.length ?? 0} />
         <Stat label="좋아요" value={likes?.length ?? 0} />
       </div>
@@ -444,9 +444,9 @@ export default async function AdminUserDetailPage({
 
       {/* 작성 글 */}
       <Section title="📝 작성 글" empty="작성 글 없음">
-        {qas && qas.length > 0 && (
+        {authoredCards && authoredCards.length > 0 && (
           <ul className="divide-y divide-[var(--border)]">
-            {qas.map((q) => (
+            {authoredCards.map((q) => (
               <li key={q.id} className="py-2">
                 <div className="flex items-baseline justify-between gap-2 text-xs text-[var(--text-muted)]">
                   <span className="rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[10px] font-medium">

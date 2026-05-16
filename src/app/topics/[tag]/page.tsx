@@ -13,7 +13,7 @@ import { SITE_URL } from "@/lib/site";
  *  - URL은 한국어 그대로 (UTF-8)
  *  - 의사 글 4개 이상 모인 태그만 페이지 활성화 (그 미만은 404)
  *  - 정렬: SNS-style 시간가중 + jitter (메인 피드와 동일)
- *    · tag_qas_scored RPC (HALF_LIFE=14일, JITTER_AMP=0.2)
+ *    · tag_cards_scored RPC (HALF_LIFE=14일, JITTER_AMP=0.2)
  *    · 봇·사용자 동일 RPC — Google이 다른 순서를 봐도 무방
  *    · canonical은 그대로 → SEO 영향 X
  *  - doctor 매핑된 글 + category IN ('qa','tip') 만 인덱싱
@@ -45,8 +45,8 @@ async function fetchPostsForTag(
   tag: string,
 ): Promise<{ posts: CardData[]; count: number }> {
   const supabase = await createSupabaseServerClient();
-  // 시간가중 + jitter 셔플 — tag_qas_scored RPC
-  // (메인 피드 feed_qas_scored 와 동일 공식: HALF_LIFE=14일, jitter=0.2 → ±10%)
+  // 시간가중 + jitter 셔플 — tag_cards_scored RPC
+  // (메인 피드 feed_cards_scored 와 동일 공식: HALF_LIFE=14일, jitter=0.2 → ±10%)
   const rpcRes = await supabase.rpc("tag_cards_scored", {
     p_tag: tag,
     p_limit: PAGE_LIMIT,
