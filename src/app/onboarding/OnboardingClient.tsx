@@ -54,6 +54,7 @@ const PROCEDURES: { key: string; label: string }[] = [
 ];
 
 type Initial = {
+  legalName: string;
   birthdate: string;
   gender: "male" | "female" | "other" | null;
   faceShape: string | null;
@@ -62,6 +63,16 @@ type Initial = {
   interestedProcedures: string[];
   bio: string;
   avatarUrl: string | null;
+};
+
+/** dedup 검사 결과 row */
+type DuplicateRow = {
+  profile_id: string;
+  auth_user_id: string | null;
+  handle: string | null;
+  display_name: string | null;
+  role: string;
+  created_at: string;
 };
 
 type Props = {
@@ -143,6 +154,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
       ? `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`
       : "";
 
+  const [legalName, setLegalName] = useState(initial.legalName);
   const [gender, setGender] = useState<Initial["gender"]>(initial.gender);
   const [faceShape, setFaceShape] = useState<string | null>(initial.faceShape);
   const [skinType, setSkinType] = useState<string | null>(initial.skinType);
@@ -159,6 +171,9 @@ export default function OnboardingClient({ userId, initial }: Props) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
+
+  // dedup 다이얼로그 — 같은 이름+생년월일+성별 조합 발견 시 표시
+  const [duplicates, setDuplicates] = useState<DuplicateRow[] | null>(null);
 
   function toggle(arr: string[], v: string): string[] {
     return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
@@ -198,10 +213,18 @@ export default function OnboardingClient({ userId, initial }: Props) {
     }
   }
 
-  function save() {
+  /**
+   * 폼 검증 + dedup 체크 (체크 통과 시 또는 무시 결정 시 실제 저장).
+   * @param skipDedup true 면 다이얼로그에서 "그래도 진행" 선택 — dedup 검사 skip
+   */
+  function save(skipDedup = false) {
     setErr(null);
 
     // 필수값 검증
+    if (!legalName.trim()) {
+      setErr("이름을 입력해주세요.");
+      return;
+    }
     if (!birthdate) {
       setErr("생년월일을 입력해주세요.");
       return;
@@ -226,6 +249,20 @@ export default function OnboardingClient({ userId, initial }: Props) {
 
     start(async () => {
       const sb = createSupabaseBrowserClient();
+
+      // dedup 검사 (skipDedup=false 일 때만)
+      if (!skipDedup) {
+        const { data: dups } = await sb.rpc("find_duplicate_profiles", {
+          p_legal_name: legalName.trim(),
+          p_birthdate: birthdate,
+          p_gender: gender,
+        });
+        if (Array.isArray(dups) && dups.length > 0) {
+          setDuplicates(dups as DuplicateRow[]);
+          return; // 사용자 확인 후 다시 save(true) 호출됨
+        }
+      }
+
       // avatar_url에는 ?v= 캐시버스터 떼고 저장 (DB는 깨끗하게)
       const cleanAvatar = avatarUrl
         ? avatarUrl.split("?")[0] || avatarUrl
@@ -233,6 +270,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
       const { error } = await sb
         .from("profiles")
         .update({
+          legal_name: legalName.trim(),
           birthdate,
           gender,
           face_shape: faceShape,
@@ -346,7 +384,23 @@ export default function OnboardingClient({ userId, initial }: Props) {
 
       {/* 1. 기본정보 */}
       <Section title="기본정보" required>
+        <p className="mb-3 rounded-md bg-[var(--bg-soft)] px-3 py-2 text-[12px] leading-[1.55] text-[var(--text-secondary)]">
+          💡 <strong>이름·생년월일·성별은 중복 가입자 식별에만 사용됩니다.</strong>
+          {" "}프로필 등 다른 곳에는 표시되지 않으며, 한 분이 부계정으로 가입하는
+          경우 같은 분의 묶음으로 관리하기 위해 받습니다.
+        </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Label>이름 (실명)</Label>
+            <input
+              type="text"
+              value={legalName}
+              onChange={(e) => setLegalName(e.target.value)}
+              placeholder="홍길동"
+              maxLength={40}
+              className="h-10 w-full rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+            />
+          </div>
           <div>
             <Label>생년월일</Label>
             <div className="flex gap-1.5">
@@ -487,13 +541,73 @@ export default function OnboardingClient({ userId, initial }: Props) {
         )}
         <button
           type="button"
-          onClick={save}
+          onClick={() => save()}
           disabled={pending}
           className="h-10 rounded-full bg-[var(--primary-light)] px-7 text-[14px] font-semibold text-white transition-all hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
         >
           {pending ? "저장 중…" : "저장"}
         </button>
       </div>
+
+      {/* dedup 다이얼로그 — 같은 이름+생년월일+성별 조합 발견 시 */}
+      {duplicates && duplicates.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-[var(--radius)] bg-white p-5 shadow-2xl">
+            <h3 className="text-base font-bold text-[var(--text)]">
+              혹시 이미 가입하셨나요?
+            </h3>
+            <p className="mt-2 text-[13px] leading-[1.6] text-[var(--text-secondary)]">
+              입력하신 이름·생년월일·성별과 일치하는 계정이
+              {" "}<strong>{duplicates.length}개</strong> 발견되었습니다.
+              본인의 다른 계정이면 본계정으로 묶어드릴 수 있습니다.
+            </p>
+            <ul className="mt-3 space-y-1.5 max-h-40 overflow-y-auto">
+              {duplicates.map((d) => (
+                <li
+                  key={d.profile_id}
+                  className="rounded-md border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2 text-[12px] text-[var(--text)]"
+                >
+                  <div className="font-medium">
+                    {d.display_name ?? "(이름 없음)"}
+                    {d.handle && (
+                      <span className="ml-1 text-[var(--text-muted)]">
+                        @{d.handle}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-[var(--text-muted)]">
+                    가입: {new Date(d.created_at).toLocaleDateString("ko-KR")}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-[11.5px] leading-[1.55] text-[var(--text-muted)]">
+              본인의 다른 계정이 맞으면 관리자에게 문의(jminbae@gmail.com)해
+              계정을 묶을 수 있습니다. 다른 분이거나 모르면 그냥 진행하세요.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDuplicates(null)}
+                className="rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+              >
+                다시 확인
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDuplicates(null);
+                  save(true); // skipDedup
+                }}
+                disabled={pending}
+                className="rounded-md bg-[var(--primary)] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+              >
+                다른 사람이에요, 진행
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

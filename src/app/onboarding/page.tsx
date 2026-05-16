@@ -5,6 +5,7 @@ import OnboardingClient from "./OnboardingClient";
 export const dynamic = "force-dynamic";
 
 type ProfileRow = {
+  legal_name: string | null;
   birthdate: string | null;
   gender: "male" | "female" | "other" | null;
   face_shape: string | null;
@@ -25,7 +26,7 @@ export default async function OnboardingPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url",
+      "legal_name, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url",
     )
     .eq("id", user.id)
     .maybeSingle()
@@ -45,6 +46,7 @@ export default async function OnboardingPage() {
       <OnboardingClient
         userId={user.id}
         initial={{
+          legalName: profile?.legal_name ?? "",
           birthdate: profile?.birthdate ?? "",
           gender: (profile?.gender as "male" | "female" | "other" | null) ?? null,
           faceShape: profile?.face_shape ?? null,
