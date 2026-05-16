@@ -12,7 +12,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/admin-guard";
+import { YOUTUBE_OAUTH_STATE_COOKIE } from "@/app/api/admin/youtube-oauth/start/route";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +43,14 @@ a{color:#1B4965}</style></head>
 }
 
 export async function GET(req: Request) {
+  // Phase 5-6: callback 도 admin 권한 강제 — 비관리자가 우연/악의적으로
+  // 콜백 URL 에 접근해도 토큰 교환을 시도하지 않도록 한다.
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.response;
+
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
+  const stateParam = url.searchParams.get("state");
   const errorParam = url.searchParams.get("error");
   if (errorParam) {
     return htmlPage(
@@ -55,6 +64,25 @@ export async function GET(req: Request) {
     return htmlPage(
       "OAuth 콜백",
       `<h1>잘못된 접근</h1><p>인가 코드가 없습니다.</p>`,
+    );
+  }
+
+  // Phase 5-6: CSRF state 검증 — 쿠키와 URL 의 state 가 일치해야만 토큰 교환 진행.
+  const cookieStore = await cookies();
+  const cookieState = cookieStore.get(YOUTUBE_OAUTH_STATE_COOKIE)?.value ?? null;
+  // 1회용 — 사용 직후 즉시 삭제
+  if (cookieState) {
+    cookieStore.set(YOUTUBE_OAUTH_STATE_COOKIE, "", {
+      maxAge: 0,
+      path: "/",
+    });
+  }
+  if (!cookieState || !stateParam || cookieState !== stateParam) {
+    return htmlPage(
+      "CSRF 검증 실패",
+      `<h1>❌ state 불일치</h1>
+       <p class="err">OAuth state 가 일치하지 않습니다 (CSRF 방어).</p>
+       <p><a href="/api/admin/youtube-oauth/start">다시 시도</a></p>`,
     );
   }
 

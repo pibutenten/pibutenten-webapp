@@ -17,6 +17,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
+import { timingSafeEqual } from "crypto";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // web-push는 Edge runtime 미지원
@@ -45,10 +46,25 @@ type WebhookPayload = {
   };
 };
 
+/**
+ * 시크릿 timing-safe 비교 — 길이 다를 때도 안전.
+ * (Phase 5-5: 단순 `!==` 는 첫 글자 mismatch 시간을 leak.)
+ */
+function safeEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a, "utf8");
+  const bBuf = Buffer.from(b, "utf8");
+  if (aBuf.length !== bBuf.length) {
+    // 길이 정보도 노출 X 위해 동일 길이 버퍼로 비교 후 false 반환
+    timingSafeEqual(aBuf, Buffer.alloc(aBuf.length));
+    return false;
+  }
+  return timingSafeEqual(aBuf, bBuf);
+}
+
 export async function POST(req: Request) {
-  // 인증 — webhook secret 검증
+  // 인증 — webhook secret 검증 (timing-safe)
   const sentSecret = req.headers.get("x-pibutenten-push-secret") ?? "";
-  if (!WEBHOOK_SECRET || sentSecret !== WEBHOOK_SECRET) {
+  if (!WEBHOOK_SECRET || !safeEqual(sentSecret, WEBHOOK_SECRET)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

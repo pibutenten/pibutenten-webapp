@@ -406,6 +406,7 @@ function CommentItem({
     const sb = createSupabaseBrowserClient();
     const { data, error } = await sb.rpc("toggle_comment_like", {
       p_comment_id: comment.id,
+      p_identity_id: getActiveIdentityId(),
     });
     if (error) {
       setLiked(wasLiked);

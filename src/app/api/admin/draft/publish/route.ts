@@ -181,7 +181,6 @@ export async function POST(req: Request) {
       type: "qa",
       category: "qa",
       status,
-      published: status === "published",
       is_pick: false,
       question: q,
       answer: a,

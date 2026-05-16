@@ -8,9 +8,16 @@
  */
 
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { randomBytes } from "crypto";
 import { requireAdmin } from "@/lib/admin-guard";
 
 export const dynamic = "force-dynamic";
+
+/** state 쿠키 이름 — callback 에서 동일 cookie 값 검증 (CSRF 방어). */
+export const YOUTUBE_OAUTH_STATE_COOKIE = "pibutenten_yt_oauth_state";
+/** state 유효 기간 (초) — 동의 화면 머무는 시간 고려해 넉넉히. */
+export const YOUTUBE_OAUTH_STATE_MAX_AGE_SEC = 600;
 
 // 도메인은 NEXT_PUBLIC_SITE_URL(production) > VERCEL_URL > localhost 순.
 // Google OAuth 콘솔의 "승인된 리디렉션 URI"에 동일 값 등록 필요.
@@ -34,6 +41,18 @@ export async function GET() {
     );
   }
 
+  // CSRF state — 예측 불가능한 32-byte hex 난수.
+  // 쿠키 + URL 양쪽에 실어 보내 callback 에서 일치 확인.
+  const state = randomBytes(32).toString("hex");
+  const cookieStore = await cookies();
+  cookieStore.set(YOUTUBE_OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: YOUTUBE_OAUTH_STATE_MAX_AGE_SEC,
+  });
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: getRedirectUri(),
@@ -42,6 +61,7 @@ export async function GET() {
     access_type: "offline",
     prompt: "consent", // 매번 refresh_token 발급 보장
     include_granted_scopes: "true",
+    state, // CSRF 방어 — Phase 5-6
   });
 
   return NextResponse.redirect(

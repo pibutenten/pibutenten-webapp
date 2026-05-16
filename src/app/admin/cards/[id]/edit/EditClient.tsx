@@ -256,7 +256,6 @@ export default function EditClient({
           doctor_id: doctorId,
           status: finalStatus,
           is_pick: isPick,
-          published: finalStatus === "published",
           external_url: externalUrl.trim() || null,
           external_title: externalTitle.trim() || null,
           meta: metaStr,

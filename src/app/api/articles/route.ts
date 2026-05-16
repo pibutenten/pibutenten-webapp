@@ -274,7 +274,6 @@ export async function POST(req: Request) {
     insert.question = title;
     insert.answer = body;
     insert.status = reqStatus;
-    insert.published = reqStatus === "published";
     // doctor_id — active identity가 의사 매핑된 row일 때만 doctor 페이지에 노출
     insert.doctor_id = doctorId;
   } else if (t === "qa") {
@@ -291,7 +290,6 @@ export async function POST(req: Request) {
     // 클라이언트가 보낸 status 존중 (draft/pending_review/published).
     // 이전 버그: status를 항상 pending_review로 강제 덮어써서 "저장"(draft) 버튼이 검수 큐로 직행함.
     insert.status = reqStatus;
-    insert.published = reqStatus === "published";
     insert.doctor_id = doctorId;
   }
 

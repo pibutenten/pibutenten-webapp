@@ -65,15 +65,27 @@ type Initial = {
   avatarUrl: string | null;
 };
 
-/** dedup 검사 결과 row */
-type DuplicateRow = {
-  profile_id: string;
-  auth_user_id: string | null;
-  handle: string | null;
-  display_name: string | null;
-  role: string;
-  created_at: string;
+/** dedup 검사 결과 — Phase 5-4 (2026-05-16): handle 등 식별 정보 노출 X.
+ *  match_count + 가입 채널 힌트만 (예: ['google', 'kakao']) */
+type DuplicateResult = {
+  match_count: number;
+  providers: string[];
 };
+
+/** OAuth provider 한글 라벨 매핑 */
+const PROVIDER_LABEL: Record<string, string> = {
+  google: "구글",
+  kakao: "카카오",
+  naver: "네이버",
+  email: "이메일",
+};
+
+function formatProviders(providers: string[]): string {
+  if (!providers || providers.length === 0) return "소셜 로그인";
+  return providers
+    .map((p) => PROVIDER_LABEL[p] ?? p)
+    .join(" / ");
+}
 
 type Props = {
   userId: string;
@@ -173,7 +185,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   // dedup 다이얼로그 — 같은 이름+생년월일+성별 조합 발견 시 표시
-  const [duplicates, setDuplicates] = useState<DuplicateRow[] | null>(null);
+  const [duplicate, setDuplicate] = useState<DuplicateResult | null>(null);
 
   function toggle(arr: string[], v: string): string[] {
     return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
@@ -257,8 +269,10 @@ export default function OnboardingClient({ userId, initial }: Props) {
           p_birthdate: birthdate,
           p_gender: gender,
         });
-        if (Array.isArray(dups) && dups.length > 0) {
-          setDuplicates(dups as DuplicateRow[]);
+        // 새 반환 형식 (0102): TABLE(match_count int, providers text[]) — 한 row 반환.
+        const row = (dups as DuplicateResult[] | null)?.[0];
+        if (row && row.match_count > 0) {
+          setDuplicate(row);
           return; // 사용자 확인 후 다시 save(true) 호출됨
         }
       }
@@ -549,54 +563,45 @@ export default function OnboardingClient({ userId, initial }: Props) {
         </button>
       </div>
 
-      {/* dedup 다이얼로그 — 같은 이름+생년월일+성별 조합 발견 시 */}
-      {duplicates && duplicates.length > 0 && (
+      {/* dedup 다이얼로그 — Phase 5-4: 식별 정보(handle/display_name) 노출 X.
+          가입 채널 힌트만 제공 → "그 방법으로 로그인하세요" UX. */}
+      {duplicate && duplicate.match_count > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-[var(--radius)] bg-white p-5 shadow-2xl">
             <h3 className="text-base font-bold text-[var(--text)]">
               혹시 이미 가입하셨나요?
             </h3>
             <p className="mt-2 text-[13px] leading-[1.6] text-[var(--text-secondary)]">
-              입력하신 이름·생년월일·성별과 일치하는 계정이
-              {" "}<strong>{duplicates.length}개</strong> 발견되었습니다.
-              본인의 다른 계정이면 본계정으로 묶어드릴 수 있습니다.
+              입력하신 이름·생년월일·성별과 일치하는 계정이 이미 발견되었어요.
+              {duplicate.providers.length > 0 && (
+                <>
+                  <br />
+                  기존에 <strong>{formatProviders(duplicate.providers)}</strong>{" "}
+                  계정으로 가입하신 적이 있을 수 있습니다.
+                </>
+              )}
             </p>
-            <ul className="mt-3 space-y-1.5 max-h-40 overflow-y-auto">
-              {duplicates.map((d) => (
-                <li
-                  key={d.profile_id}
-                  className="rounded-md border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2 text-[12px] text-[var(--text)]"
-                >
-                  <div className="font-medium">
-                    {d.display_name ?? "(이름 없음)"}
-                    {d.handle && (
-                      <span className="ml-1 text-[var(--text-muted)]">
-                        @{d.handle}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-[var(--text-muted)]">
-                    가입: {new Date(d.created_at).toLocaleDateString("ko-KR")}
-                  </div>
-                </li>
-              ))}
-            </ul>
             <p className="mt-3 text-[11.5px] leading-[1.55] text-[var(--text-muted)]">
-              본인의 다른 계정이 맞으면 관리자에게 문의(jminbae@gmail.com)해
-              계정을 묶을 수 있습니다. 다른 분이거나 모르면 그냥 진행하세요.
+              본인 계정이 맞으면 해당 소셜 계정으로 다시 로그인해주세요.
+              본인 확인이 필요하시면 관리자(jminbae@gmail.com)에게 문의 주세요.
+              다른 분이거나 처음 가입이시면 그냥 진행하셔도 됩니다.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setDuplicates(null)}
+                onClick={() => {
+                  setDuplicate(null);
+                  // 기존 계정으로 다시 로그인 — 로그인 페이지로
+                  window.location.assign("/login");
+                }}
                 className="rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
               >
-                다시 확인
+                기존 계정으로 로그인
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  setDuplicates(null);
+                  setDuplicate(null);
                   save(true); // skipDedup
                 }}
                 disabled={pending}
