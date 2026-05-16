@@ -54,7 +54,7 @@ const PROCEDURES: { key: string; label: string }[] = [
 ];
 
 type Initial = {
-  legalName: string;
+  email: string;
   birthdate: string;
   gender: "male" | "female" | "other" | null;
   faceShape: string | null;
@@ -166,7 +166,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
       ? `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`
       : "";
 
-  const [legalName, setLegalName] = useState(initial.legalName);
+  const [email, setEmail] = useState(initial.email);
   const [gender, setGender] = useState<Initial["gender"]>(initial.gender);
   const [faceShape, setFaceShape] = useState<string | null>(initial.faceShape);
   const [skinType, setSkinType] = useState<string | null>(initial.skinType);
@@ -233,8 +233,14 @@ export default function OnboardingClient({ userId, initial }: Props) {
     setErr(null);
 
     // 필수값 검증
-    if (!legalName.trim()) {
-      setErr("이름을 입력해주세요.");
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setErr("이메일을 입력해주세요.");
+      return;
+    }
+    // 가벼운 형식 검증만 (RFC 완벽 X — 사용자가 다른 이메일 적어도 정책상 허용)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setErr("이메일 형식이 올바르지 않아요.");
       return;
     }
     if (!birthdate) {
@@ -265,7 +271,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
       // dedup 검사 (skipDedup=false 일 때만)
       if (!skipDedup) {
         const { data: dups } = await sb.rpc("find_duplicate_profiles", {
-          p_legal_name: legalName.trim(),
+          p_email: trimmedEmail.toLowerCase(),
           p_birthdate: birthdate,
           p_gender: gender,
         });
@@ -284,7 +290,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
       const { error } = await sb
         .from("profiles")
         .update({
-          legal_name: legalName.trim(),
+          contact_email: trimmedEmail.toLowerCase(),
           birthdate,
           gender,
           face_shape: faceShape,
@@ -416,21 +422,27 @@ export default function OnboardingClient({ userId, initial }: Props) {
       {/* 1. 기본정보 */}
       <Section title="기본정보" required>
         <p className="mb-3 rounded-md bg-[var(--bg-soft)] px-3 py-2 text-[12px] leading-[1.55] text-[var(--text-secondary)]">
-          💡 <strong>이름·생년월일·성별은 중복 가입자 식별에만 사용됩니다.</strong>
+          💡 <strong>이메일·생년월일·성별은 중복 가입자 식별에만 사용됩니다.</strong>
           {" "}프로필 등 다른 곳에는 표시되지 않으며, 한 분이 부계정으로 가입하는
           경우 같은 분의 묶음으로 관리하기 위해 받습니다.
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Label>이름 (실명)</Label>
+            <Label>이메일</Label>
             <input
-              type="text"
-              value={legalName}
-              onChange={(e) => setLegalName(e.target.value)}
-              placeholder="홍길동"
-              maxLength={40}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              maxLength={120}
+              inputMode="email"
+              autoComplete="email"
               className="h-10 w-full rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
             />
+            <p className="mt-1 text-[11px] leading-[1.5] text-[var(--text-muted)]">
+              가입한 SNS 의 이메일이 자동으로 채워져요. 다른 이메일을 쓰시려면
+              직접 수정해 주세요.
+            </p>
           </div>
           <div>
             <Label>생년월일</Label>
@@ -693,7 +705,7 @@ function Chip({
       className={
         "shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors sm:text-[13.5px] " +
         (active
-          ? "bg-[#6B7280] text-white"
+          ? "bg-[#9CA3AF] text-white"
           : "bg-[var(--bg-soft)] text-[var(--text-secondary)] hover:bg-[#E5E7EB] hover:text-[var(--text)]")
       }
     >

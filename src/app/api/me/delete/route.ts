@@ -62,9 +62,12 @@ export async function POST(req: Request) {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Phase 6-7 (2026-05-16): 콘텐츠 익명화 + PII NULL — auth.users.delete 직전.
-  //   cards/comments.author_id → sentinel ("탈퇴한 사용자") 이관.
-  //   profiles 의 birthdate/legal_name/avatar_url/... NULL.
+  // Phase 7-extra (2026-05-16): soft-delete 익명화 — auth.users.delete 직전.
+  //   sentinel 방식 폐기 (migration 0109).
+  //   각 profile row 가 본인 자리에서 in-place 익명화:
+  //     - handle → 'deleted-{12hex}', display_name → '(탈퇴한 사용자)'
+  //     - 모든 PII NULL, auth_user_id NULL, deleted_at = now()
+  //   cards/comments.author_id 는 그대로 — 가리키는 row 가 이미 익명화됨.
   //   user 본인 권한으로 RPC 호출 (SECURITY DEFINER + auth.uid() 검증).
   try {
     const { error: anonErr } = await supabase.rpc(
@@ -72,7 +75,8 @@ export async function POST(req: Request) {
     );
     if (anonErr) {
       console.error("[me/delete] anonymize RPC failed:", anonErr.message);
-      // 익명화 실패해도 탈퇴는 진행 (FK SET NULL 폴백) — 단 운영 가시성 위해 에러 응답.
+      // 익명화 실패 시 탈퇴 자체 중단 — 익명화 없이 auth.users 삭제하면
+      // profile row 의 PII 가 그대로 남기 때문.
       return NextResponse.json(
         { error: `익명화 실패: ${anonErr.message}` },
         { status: 500 },
