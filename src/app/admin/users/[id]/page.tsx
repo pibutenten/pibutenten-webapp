@@ -263,23 +263,19 @@ export default async function AdminUserDetailPage({
   // 현재 매핑된 doctor_id (있으면) — lib/doctor-mapping 헬퍼
   const currentDoctorId = await getDoctorIdForProfile(supabase, id);
 
-  // 매핑용 doctors 목록 — 각 doctor 의 매핑 상태 + 매핑 대상 profile 정체 포함.
-  // 정체:
-  //   placeholder = doctor_accounts.profile_id 가 auth_user_id IS NULL 인 seed profile.
-  //                 → 새 매핑 등록 시 자동 해제됨 (안전 교체).
-  //   real        = 실제 가입 회원 (auth_user_id NOT NULL). 교체 시 명시적 충돌.
+  // 매핑용 doctors 목록 — 각 doctor 매핑 상태 + 매핑된 profile 의 handle/display_name 만.
+  // 정책 (2026-05-17): doctor_accounts 에는 가입 회원만 들어감 (placeholder 분기 폐기).
   type DoctorAccRow = {
     profile_id: string;
-    profiles: {
-      auth_user_id: string | null;
-      handle: string | null;
-      display_name: string | null;
-    } | { auth_user_id: string | null; handle: string | null; display_name: string | null }[] | null;
+    profiles:
+      | { handle: string | null; display_name: string | null }
+      | { handle: string | null; display_name: string | null }[]
+      | null;
   };
   const { data: allDoctors } = await supabase
     .from("doctors")
     .select(
-      "id, slug, name, branch, doctor_accounts(profile_id, profiles(auth_user_id, handle, display_name))",
+      "id, slug, name, branch, doctor_accounts(profile_id, profiles(handle, display_name))",
     )
     .order("name", { ascending: true })
     .returns<
@@ -292,22 +288,18 @@ export default async function AdminUserDetailPage({
       }[]
     >();
   const doctorsForForm = (allDoctors ?? []).map((d) => {
-    const list = d.doctor_accounts ?? [];
-    const first = list[0] ?? null;
+    const first = (d.doctor_accounts ?? [])[0] ?? null;
     const mappedProfile = first
       ? Array.isArray(first.profiles)
         ? first.profiles[0] ?? null
         : first.profiles ?? null
       : null;
-    const isMapped = !!first;
-    const isPlaceholder = isMapped && mappedProfile?.auth_user_id == null;
     return {
       id: d.id,
       slug: d.slug,
       name: d.name,
       branch: d.branch,
-      is_mapped: isMapped,
-      is_placeholder: isPlaceholder,
+      is_mapped: !!first,
       mapped_handle: mappedProfile?.handle ?? null,
       mapped_display_name: mappedProfile?.display_name ?? null,
     };

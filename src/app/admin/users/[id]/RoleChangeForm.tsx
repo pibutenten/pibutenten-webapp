@@ -9,11 +9,9 @@ type Doctor = {
   name: string;
   branch: string | null;
   is_mapped: boolean;
-  /** 매핑된 profile 이 미가입 placeholder (auth_user_id IS NULL) 인지. true 면 안전한 자동 교체 대상. */
-  is_placeholder: boolean;
-  /** 매핑된 profile 의 handle (placeholder 도 handle 은 있을 수 있음). */
+  /** 매핑된 profile 의 handle. 충돌 표시용. */
   mapped_handle: string | null;
-  /** 매핑된 profile 의 display_name. */
+  /** 매핑된 profile 의 display_name. 충돌 표시용. */
   mapped_display_name: string | null;
 };
 
@@ -25,10 +23,15 @@ type Props = {
 };
 
 /**
- * 관리자 회원 역할 변경 폼.
- * - role: user/doctor/admin
- * - doctor 선택 시 doctor_id 매핑 (doctor_accounts upsert)
- * - 다른 role로 변경 시 기존 매핑 자동 제거 (서버에서 처리)
+ * 관리자 회원 역할·매핑 변경 폼.
+ *
+ * 정책 (2026-05-17):
+ * - 역할 dropdown: 회원 (user) / 관리자 (admin) 만 선택 가능. '원장' 옵션 폐기.
+ *   기존 6개 doctor 본 profile 은 role='doctor' 그대로 유지 (legacy, disabled option 으로만 노출).
+ * - 매핑할 원장 dropdown: 역할과 무관하게 항상 표시. user 도 admin 도 매핑 가능.
+ * - 매핑 추가/해제 시 profiles.role 자동 변경 없음. display_name 자동 sync 없음.
+ *   매핑된 user 계정은 화면에서 그대로 user 로 표시되고, 원장 모드 활동은
+ *   IdentitySwitcher 에서 명시 전환할 때만.
  */
 export default function RoleChangeForm({
   userId,
@@ -45,28 +48,21 @@ export default function RoleChangeForm({
   );
 
   const dirty =
-    role !== currentRole ||
-    (role === "doctor" && doctorId !== (currentDoctorId ?? ""));
-
-  // 전체 9명 doctor 모두 노출 — 이미 매핑된 doctor 도 option 에 표시 (교체 가능).
-  // 사용자 요청 (2026-05-15): 매핑할 원장 리스트가 비어있는 버그 fix.
-  //   이미 doctor_accounts 매핑된 doctor 제외하던 옛 필터 제거.
-  const availableDoctors = doctors;
+    role !== currentRole || doctorId !== (currentDoctorId ?? "");
 
   function save() {
     setMsg(null);
-    if (role === "doctor" && !doctorId) {
-      setMsg({ type: "err", text: "원장 매핑을 선택해주세요." });
-      return;
-    }
     startTransition(async () => {
       try {
         const res = await fetch(`/api/admin/users/${userId}/role`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          // role 과 doctor_id 를 독립적으로 전송 — 서버에서 각각 처리.
+          //   doctor_id=null → 매핑 해제 / doctor_id=값 → 매핑 추가·교체.
+          //   role 변경은 별개 (자동 sync 없음).
           body: JSON.stringify({
             role,
-            doctor_id: role === "doctor" ? doctorId : null,
+            doctor_id: doctorId || null,
           }),
         });
         const j = (await res.json()) as { error?: string; ok?: boolean };
@@ -88,7 +84,7 @@ export default function RoleChangeForm({
   return (
     <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
       <h2 className="mb-3 text-sm font-bold text-[var(--text)]">
-        🔐 역할 / 권한 변경
+        🔐 역할 / 매핑 변경
       </h2>
       <div className="space-y-3">
         <div>
@@ -103,58 +99,57 @@ export default function RoleChangeForm({
             disabled={pending}
             className="h-9 w-full rounded-md border border-[var(--border)] bg-white px-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
           >
-            <option value="user">회원 (일반)</option>
-            <option value="doctor">원장</option>
+            <option value="user">회원</option>
             <option value="admin">관리자</option>
+            {/* legacy doctor 본 profile (6개) 만 자기 자신 옵션으로 노출.
+                disabled — 신규 할당 불가, 기존 상태만 유지. */}
+            {currentRole === "doctor" && (
+              <option value="doctor" disabled>
+                원장 (legacy · doctor 본 profile)
+              </option>
+            )}
           </select>
         </div>
-        {role === "doctor" && (
-          <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
-              매핑할 원장
-            </label>
-            <select
-              value={doctorId}
-              onChange={(e) => setDoctorId(e.target.value)}
-              disabled={pending}
-              className="h-9 w-full rounded-md border border-[var(--border)] bg-white px-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
-            >
-              <option value="">— 선택 —</option>
-              {availableDoctors.map((d) => {
-                const isCurrent = d.id === currentDoctorId;
-                const isOther = d.is_mapped && !isCurrent;
-                // 정체별 라벨 (사용자 요청 2026-05-17):
-                //   - 현재 매핑       → "· 현재 매핑됨"
-                //   - 미가입 placeholder → "· 미가입 placeholder · 자동 교체 OK"
-                //   - 실제 가입 회원   → "· @handle 매핑 중 · 교체 시 그 회원에서 매핑 해제됨"
-                let suffix = "";
-                if (isCurrent) {
-                  suffix = " · 현재 매핑됨";
-                } else if (isOther) {
-                  if (d.is_placeholder) {
-                    suffix = " · 미가입 placeholder · 자동 교체 OK";
-                  } else {
-                    const who =
-                      d.mapped_handle
-                        ? `@${d.mapped_handle}`
-                        : d.mapped_display_name ?? "다른 회원";
-                    suffix = ` · ${who} 매핑 중 · 교체`;
-                  }
-                }
-                return (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                    {suffix}
-                  </option>
-                );
-              })}
-            </select>
-            <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-              미가입 placeholder 매핑은 자동 해제됨. 실제 회원이 매핑된 원장 선택 시에는
-              먼저 그 회원의 매핑을 풀어야 함 (API 에서 명시적 충돌 응답).
-            </p>
-          </div>
-        )}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+            매핑할 원장
+            <span className="ml-1 text-[10px] font-normal text-[var(--text-muted)]">
+              (역할과 무관 · 비워두면 매핑 해제)
+            </span>
+          </label>
+          <select
+            value={doctorId}
+            onChange={(e) => setDoctorId(e.target.value)}
+            disabled={pending}
+            className="h-9 w-full rounded-md border border-[var(--border)] bg-white px-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+          >
+            <option value="">— 매핑 없음 —</option>
+            {doctors.map((d) => {
+              const isCurrent = d.id === currentDoctorId;
+              const isOther = d.is_mapped && !isCurrent;
+              let suffix = "";
+              if (isCurrent) {
+                suffix = " · 현재 매핑됨";
+              } else if (isOther) {
+                const who =
+                  d.mapped_handle
+                    ? `@${d.mapped_handle}`
+                    : d.mapped_display_name ?? "다른 회원";
+                suffix = ` · ${who} 매핑 중 · 교체`;
+              }
+              return (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                  {suffix}
+                </option>
+              );
+            })}
+          </select>
+          <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+            매핑은 "이 계정이 해당 원장으로 활동 가능" 표시만. 화면엔 그대로 user 로
+            보이고, 원장 모드 전환은 IdentitySwitcher 에서.
+          </p>
+        </div>
         <div className="flex items-center justify-end gap-2">
           {msg && (
             <span
