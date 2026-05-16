@@ -263,10 +263,24 @@ export default async function AdminUserDetailPage({
   // 현재 매핑된 doctor_id (있으면) — lib/doctor-mapping 헬퍼
   const currentDoctorId = await getDoctorIdForProfile(supabase, id);
 
-  // 매핑용 doctors 목록 (각 doctor의 매핑 상태 포함)
+  // 매핑용 doctors 목록 — 각 doctor 의 매핑 상태 + 매핑 대상 profile 정체 포함.
+  // 정체:
+  //   placeholder = doctor_accounts.profile_id 가 auth_user_id IS NULL 인 seed profile.
+  //                 → 새 매핑 등록 시 자동 해제됨 (안전 교체).
+  //   real        = 실제 가입 회원 (auth_user_id NOT NULL). 교체 시 명시적 충돌.
+  type DoctorAccRow = {
+    profile_id: string;
+    profiles: {
+      auth_user_id: string | null;
+      handle: string | null;
+      display_name: string | null;
+    } | { auth_user_id: string | null; handle: string | null; display_name: string | null }[] | null;
+  };
   const { data: allDoctors } = await supabase
     .from("doctors")
-    .select("id, slug, name, branch, doctor_accounts(profile_id)")
+    .select(
+      "id, slug, name, branch, doctor_accounts(profile_id, profiles(auth_user_id, handle, display_name))",
+    )
     .order("name", { ascending: true })
     .returns<
       {
@@ -274,21 +288,28 @@ export default async function AdminUserDetailPage({
         slug: string;
         name: string;
         branch: string | null;
-        doctor_accounts: { profile_id: string }[] | null;
+        doctor_accounts: DoctorAccRow[] | null;
       }[]
     >();
   const doctorsForForm = (allDoctors ?? []).map((d) => {
-    // doctor_accounts는 1:1 관계라 Supabase가 객체/배열/null로 반환할 수 있음 — 모두 처리
-    const da = d.doctor_accounts;
-    let isMapped = false;
-    if (Array.isArray(da)) isMapped = da.length > 0;
-    else if (da) isMapped = true;
+    const list = d.doctor_accounts ?? [];
+    const first = list[0] ?? null;
+    const mappedProfile = first
+      ? Array.isArray(first.profiles)
+        ? first.profiles[0] ?? null
+        : first.profiles ?? null
+      : null;
+    const isMapped = !!first;
+    const isPlaceholder = isMapped && mappedProfile?.auth_user_id == null;
     return {
       id: d.id,
       slug: d.slug,
       name: d.name,
       branch: d.branch,
       is_mapped: isMapped,
+      is_placeholder: isPlaceholder,
+      mapped_handle: mappedProfile?.handle ?? null,
+      mapped_display_name: mappedProfile?.display_name ?? null,
     };
   });
 

@@ -9,6 +9,12 @@ type Doctor = {
   name: string;
   branch: string | null;
   is_mapped: boolean;
+  /** 매핑된 profile 이 미가입 placeholder (auth_user_id IS NULL) 인지. true 면 안전한 자동 교체 대상. */
+  is_placeholder: boolean;
+  /** 매핑된 profile 의 handle (placeholder 도 handle 은 있을 수 있음). */
+  mapped_handle: string | null;
+  /** 매핑된 profile 의 display_name. */
+  mapped_display_name: string | null;
 };
 
 type Props = {
@@ -117,16 +123,35 @@ export default function RoleChangeForm({
               {availableDoctors.map((d) => {
                 const isCurrent = d.id === currentDoctorId;
                 const isOther = d.is_mapped && !isCurrent;
+                // 정체별 라벨 (사용자 요청 2026-05-17):
+                //   - 현재 매핑       → "· 현재 매핑됨"
+                //   - 미가입 placeholder → "· 미가입 placeholder · 자동 교체 OK"
+                //   - 실제 가입 회원   → "· @handle 매핑 중 · 교체 시 그 회원에서 매핑 해제됨"
+                let suffix = "";
+                if (isCurrent) {
+                  suffix = " · 현재 매핑됨";
+                } else if (isOther) {
+                  if (d.is_placeholder) {
+                    suffix = " · 미가입 placeholder · 자동 교체 OK";
+                  } else {
+                    const who =
+                      d.mapped_handle
+                        ? `@${d.mapped_handle}`
+                        : d.mapped_display_name ?? "다른 회원";
+                    suffix = ` · ${who} 매핑 중 · 교체`;
+                  }
+                }
                 return (
                   <option key={d.id} value={d.id}>
                     {d.name}
-                    {isCurrent ? " · 현재 매핑됨" : isOther ? " · (다른 회원 매핑 중 — 교체)" : ""}
+                    {suffix}
                   </option>
                 );
               })}
             </select>
             <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-              다른 회원에게 매핑된 원장 선택 시 그 매핑이 본 회원으로 교체됩니다.
+              미가입 placeholder 매핑은 자동 해제됨. 실제 회원이 매핑된 원장 선택 시에는
+              먼저 그 회원의 매핑을 풀어야 함 (API 에서 명시적 충돌 응답).
             </p>
           </div>
         )}

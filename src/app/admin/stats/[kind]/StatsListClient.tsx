@@ -304,7 +304,7 @@ function ActivityTopRow({
   const [users, setUsers] = useState<ActivityUser[] | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 카드 URL — publicCardUrl 가 항상 valid string 반환 (메타 누락 시 /admin/cards/{id}/edit fallback).
+  // 카드 URL — publicCardUrl 가 항상 valid string 반환 (메타 누락 시 /cards/{id} server redirect).
   const cardHref = publicCardUrl(row);
   const displayName =
     row.author_name?.trim() ||
@@ -388,7 +388,7 @@ function ActivityTopRow({
 
 /**
  * 댓글 펼침 패널 — likes/saves 등 ActivityUsersInline 와 동일 UX.
- *  - 패널 영역 어디든 클릭 → 글 단독 URL 로 이동 (cardHref null 이면 link 비활성)
+ *  - 패널 영역 어디든 클릭 → 글 단독 URL 로 이동 (publicCardUrl 항상 valid)
  *  - 한 댓글 = 1줄: 닉네임 · 시간 · 본문. 본문이 길면 자연 wrap.
  *  - 답글은 들여쓰기 1단으로 inline.
  *  - 본문 앞뒤 공백·줄바꿈 trim (사용자 요청).

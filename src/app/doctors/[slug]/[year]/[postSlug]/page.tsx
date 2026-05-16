@@ -297,7 +297,7 @@ export default async function DermatologistPostPage({ params }: Props) {
   const jsonLd = buildJsonLd(card, slug, yearInt, postSlug);
 
   return (
-    <section className="mx-auto w-full max-w-[680px] pt-3">
+    <section className="mx-auto w-full max-w-[680px] py-6">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}

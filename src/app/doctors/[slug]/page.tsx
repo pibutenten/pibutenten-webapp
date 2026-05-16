@@ -163,8 +163,8 @@ export default async function DoctorDetailPage({ params }: Props) {
   };
 
   return (
-    // pt-3 — 다른 페이지(`section py-6`)와 BackButton 절대 위치 통일.
-    // pb 는 header 가 -mt 음수 마진으로 위로 끌어올리므로 별도로 두지 않음.
+    // pt-3 — 의도적으로 다른 페이지(`py-6`) 보다 BackButton 위치 높임.
+    //         바로 아래 sky-blue hero 박스가 커서 윗 여백을 줄여야 시각적 균형이 맞음 (사용자 결정 2026-05-17).
     <section className="space-y-6 pt-3">
       <script
         type="application/ld+json"
