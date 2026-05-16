@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import EditClient from "./EditClient";
 import BackButton from "@/components/BackButton";
 import { bundleProfileFilter } from "@/lib/identity-shared";
+import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
 
 export const dynamic = "force-dynamic";
 
@@ -78,16 +79,10 @@ export default async function PostEditPage({ params }: Props) {
     .or(bundleProfileFilter(user.id));
   const myProfileIds = new Set((myProfiles ?? []).map((p) => p.id as string));
 
-  // 본인 doctor_id (doctor 본인 글 권한 체크용)
+  // 본인 doctor_id (doctor 본인 글 권한 체크용) — lib/doctor-mapping 헬퍼
   let myDoctorId: string | null = null;
   if (profile.role === "doctor") {
-    const { data: da } = await supabase
-      .from("doctor_accounts")
-      .select("doctor_id")
-      .eq("profile_id", user.id)
-      .maybeSingle()
-      .returns<{ doctor_id: string } | null>();
-    myDoctorId = da?.doctor_id ?? null;
+    myDoctorId = await getDoctorIdForProfile(supabase, user.id);
   }
 
   // 권한 체크 — author_id가 묶음 안 어떤 profile이든 isAuthor=true

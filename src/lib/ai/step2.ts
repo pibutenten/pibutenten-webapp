@@ -5,10 +5,11 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import fs from "node:fs";
-import path from "node:path";
 import type { PubmedCandidate } from "./pubmed";
 import { getEnv } from "./env-fallback";
+import { extractJson } from "./extract-json";
+import { loadSystemPrompt } from "./load-prompt";
+import { truncate } from "@/lib/string-utils";
 
 const MODEL = "claude-opus-4-7";
 const MAX_TOKENS = 2000;
@@ -38,27 +39,6 @@ export type Step2Result = {
   model?: string;
 };
 
-let cachedSystemPrompt: string | null = null;
-function loadSystemPrompt(): string {
-  if (cachedSystemPrompt) return cachedSystemPrompt;
-  const candidates = [
-    path.join(process.cwd(), "src/lib/ai/prompts/step2_v2.md"),
-    path.join(process.cwd(), "pibutenten-app/src/lib/ai/prompts/step2_v2.md"),
-  ];
-  for (const p of candidates) {
-    if (fs.existsSync(p)) {
-      cachedSystemPrompt = fs.readFileSync(p, "utf8");
-      return cachedSystemPrompt;
-    }
-  }
-  throw new Error("step2_v2.md not found");
-}
-
-function truncate(s: string, n: number): string {
-  if (!s) return "";
-  return s.length <= n ? s : s.slice(0, n) + "…";
-}
-
 function buildUserMessage(opts: {
   question: string;
   answer: string;
@@ -87,33 +67,6 @@ pubmed_search_keywords: ${opts.pubmedKeywords.join(", ")}
 ${JSON.stringify(lite, null, 2)}
 
 위 step2 v2 룰에 따라 JSON 단일 객체 반환. 적합한 후보 없으면 reference=null. 마크다운 펜스 금지.`;
-}
-
-function extractJson(raw: string): unknown {
-  const trimmed = raw.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    /* continue */
-  }
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fence) {
-    try {
-      return JSON.parse(fence[1].trim());
-    } catch {
-      /* continue */
-    }
-  }
-  const first = trimmed.indexOf("{");
-  const last = trimmed.lastIndexOf("}");
-  if (first >= 0 && last > first) {
-    try {
-      return JSON.parse(trimmed.slice(first, last + 1));
-    } catch {
-      /* continue */
-    }
-  }
-  throw new Error("Failed to parse Step2 JSON");
 }
 
 function normalize(parsed: unknown): Step2Result {
@@ -157,7 +110,7 @@ export async function runStep2(opts: {
   const apiKey = getEnv("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
 
-  const system = loadSystemPrompt();
+  const system = loadSystemPrompt("step2_v2.md");
   const user = buildUserMessage(opts);
   const client = new Anthropic({ apiKey });
   const msg = await client.messages.create({

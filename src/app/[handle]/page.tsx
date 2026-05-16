@@ -8,6 +8,8 @@ import LogoutButton from "@/components/LogoutButton";
 import BackButton from "@/components/BackButton";
 import { SITE_URL } from "@/lib/site";
 import type { UserRole } from "@/lib/user-grades";
+import { CARD_LIST_SELECT } from "@/lib/card-select";
+import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -178,17 +180,7 @@ export default async function HandleProfilePage({ params }: Props) {
   // 작성 글 — 이 profile.id로 작성된 published 글만, 최근 20개
   const { data: postsData } = await supabase
     .from("cards")
-    .select(
-      `
-      id, question, answer, meta, keywords, type, created_at,
-      like_count, view_count, post_year, post_slug, shortcode,
-      category, hide_doctor_credential,
-      external_url, external_title, external_description, external_image, external_site_name,
-      doctor:doctors(slug, name, branch),
-      author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle),
-      video:videos(youtube_id, youtube_url, topic, upload_date)
-      `,
-    )
+    .select(CARD_LIST_SELECT)
     .eq("author_id", profile.id)
     .eq("status", "published")
     .order("created_at", { ascending: false })
@@ -223,14 +215,11 @@ export default async function HandleProfilePage({ params }: Props) {
   }
 
   // viewer prefetch — posts에 대한 좋아요/저장
-  const { fetchViewerStates } = await import("@/lib/viewer-states");
-  const vsMap = await fetchViewerStates(
+  const viewerStates = await fetchViewerStatesRecord(
     supabase,
     viewer?.id ?? null,
     posts.map((p) => p.id),
   );
-  const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
-  for (const [id, st] of vsMap) viewerStates[id] = st;
 
   return (
     <section className="w-full py-6">

@@ -7,9 +7,9 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import fs from "node:fs";
-import path from "node:path";
 import { getEnv } from "./env-fallback";
+import { extractJson } from "./extract-json";
+import { loadSystemPrompt } from "./load-prompt";
 
 const MODEL = "claude-opus-4-7";
 const MAX_TOKENS = 8192;
@@ -35,25 +35,6 @@ export type DraftCard = {
   /** D1: 카드별 화자 — 다중 출연 영상에서 LLM이 카드별로 추정. 단일 출연이면 주 화자 slug. */
   doctor_slug?: string;
 };
-
-let cachedSystemPrompt: string | null = null;
-function loadSystemPrompt(): string {
-  if (cachedSystemPrompt) return cachedSystemPrompt;
-  // process.cwd() 기준 — Next.js 서버 환경에서 항상 app 루트
-  const candidates = [
-    path.join(process.cwd(), "src/lib/ai/prompts/step1_v5.md"),
-    path.join(process.cwd(), "pibutenten-app/src/lib/ai/prompts/step1_v5.md"),
-  ];
-  for (const p of candidates) {
-    if (fs.existsSync(p)) {
-      cachedSystemPrompt = fs.readFileSync(p, "utf8");
-      return cachedSystemPrompt;
-    }
-  }
-  throw new Error(
-    `step1_v5.md not found (tried: ${candidates.join(", ")})`,
-  );
-}
 
 function buildUserMessage(opts: {
   transcript: string;
@@ -110,34 +91,6 @@ ${safeTranscript}
 </untrusted_input>
 
 JSON 단일 객체만 출력. 마크다운 펜스 금지.`;
-}
-
-/** 응답 텍스트에서 JSON 추출 — 코드펜스/잡문 섞여도 첫 { ... } 매칭. */
-function extractJson(raw: string): unknown {
-  const trimmed = raw.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    /* continue */
-  }
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fence) {
-    try {
-      return JSON.parse(fence[1].trim());
-    } catch {
-      /* continue */
-    }
-  }
-  const first = trimmed.indexOf("{");
-  const last = trimmed.lastIndexOf("}");
-  if (first >= 0 && last > first) {
-    try {
-      return JSON.parse(trimmed.slice(first, last + 1));
-    } catch {
-      /* continue */
-    }
-  }
-  throw new Error("Failed to parse JSON from Step1 output");
 }
 
 function normalize(parsed: unknown): DraftCard[] {
@@ -231,7 +184,7 @@ export async function runStep1(opts: {
   if (!opts.transcript || opts.transcript.trim().length < 100) {
     throw new Error("Transcript is too short for Step1");
   }
-  const system = loadSystemPrompt();
+  const system = loadSystemPrompt("step1_v5.md");
   const user = buildUserMessage(opts);
 
   const client = new Anthropic({ apiKey });

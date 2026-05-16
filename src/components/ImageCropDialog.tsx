@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
+import { showToast } from "@/lib/toast";
 
 type Props = {
   /** 원본 이미지 URL (object URL 또는 외부) */
@@ -76,7 +77,7 @@ export default function ImageCropDialog({
       onConfirm(blob);
     } catch (e) {
       console.error("[ImageCropDialog]", e);
-      alert("이미지 처리 실패 — 다른 이미지로 시도해주세요.");
+      showToast("이미지 처리 실패 — 다른 이미지로 시도해주세요.", { tone: "danger" });
       setSaving(false);
     }
   }

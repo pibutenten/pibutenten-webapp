@@ -17,6 +17,8 @@ import {
 import { buildDoctorFull } from "@/lib/schema/doctor";
 import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
 import LogoutButton from "@/components/LogoutButton";
+import { formatRelativeTime } from "@/lib/relative-time";
+import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 
 export const dynamic = "force-dynamic";
 
@@ -110,14 +112,11 @@ export default async function DoctorDetailPage({ params }: Props) {
   const {
     data: { user: viewer },
   } = await supabase.auth.getUser();
-  const { fetchViewerStates } = await import("@/lib/viewer-states");
-  const vsMap = await fetchViewerStates(
+  const viewerStates = await fetchViewerStatesRecord(
     supabase,
     viewer?.id ?? null,
     cards.map((q) => q.id),
   );
-  const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
-  for (const [id, st] of vsMap) viewerStates[id] = st;
 
   const photo = getDoctorPhoto(doctor.slug);
   const theme = getDoctorTheme(doctor.slug);
@@ -663,7 +662,7 @@ function DoctorCommentsWidget({
                     {name}
                   </span>
                   <span className="text-[11px] text-[var(--text-muted)]">
-                    {relativeTime(c.created_at)}
+                    {formatRelativeTime(c.created_at)}
                   </span>
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-[13px] text-[var(--text-secondary)]">
@@ -684,18 +683,6 @@ function DoctorCommentsWidget({
       </ul>
     </div>
   );
-}
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "방금";
-  if (m < 60) return `${m}분 전`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}시간 전`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}일 전`;
-  return new Date(iso).toLocaleDateString("ko-KR");
 }
 
 function Stat({

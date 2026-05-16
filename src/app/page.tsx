@@ -4,9 +4,11 @@ import type { CardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
-import { fetchViewerStates } from "@/lib/viewer-states";
+import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { cookies } from "next/headers";
 import { IDENTITY_COOKIE, PRIMARY_IDENTITY_ID, UUID_RE } from "@/lib/identity-shared";
+import { CARD_LIST_SELECT } from "@/lib/card-select";
+import { diversifyByDoctor } from "@/lib/feed-shuffle";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -47,49 +49,8 @@ export default async function FeedPage() {
   let cards = (rpcRes.data ?? []) as CardData[];
   const error = rpcRes.error;
 
-  // 첫 4카드 다양화 (검색 없으니 모두 다른 원장)
-  if (cards.length > 4) {
-    const counts = new Map<string, number>();
-    const head: CardData[] = [];
-    const tail: CardData[] = [];
-    for (const it of cards) {
-      const slug = it.doctor?.slug ?? "_unknown";
-      const c = counts.get(slug) ?? 0;
-      if (head.length < 4 && c < 1) {
-        head.push(it);
-        counts.set(slug, c + 1);
-      } else {
-        tail.push(it);
-      }
-    }
-    cards = [...head, ...tail];
-  }
-
-  // 같은 원장 3연속 방지
-  if (cards.length >= 3) {
-    const remaining = [...cards];
-    const reordered: CardData[] = [];
-    while (remaining.length > 0) {
-      const last = reordered[reordered.length - 1];
-      const prev = reordered[reordered.length - 2];
-      const lastTwoSameSlug =
-        last !== undefined &&
-        prev !== undefined &&
-        last.doctor?.slug !== undefined &&
-        last.doctor?.slug === prev.doctor?.slug;
-      if (lastTwoSameSlug) {
-        const idx = remaining.findIndex(
-          (it) => it.doctor?.slug !== last.doctor?.slug,
-        );
-        if (idx >= 0) {
-          reordered.push(remaining.splice(idx, 1)[0]);
-          continue;
-        }
-      }
-      reordered.push(remaining.shift() as CardData);
-    }
-    cards = reordered;
-  }
+  // 피드 다양화 — 첫 4카드 모두 다른 원장 + 같은 원장 3연속 방지 (lib/feed-shuffle 헬퍼)
+  cards = diversifyByDoctor(cards, { maxPerDoctorInHead: 1, headSize: 4 });
 
   const hotIds = Array.from(await getHotQaIds(20));
 
@@ -110,9 +71,7 @@ export default async function FeedPage() {
         : viewer.id;
     const { data: myLatest } = await supabase
       .from("cards")
-      .select(
-        "id, type, category, question, answer, meta, keywords, like_count, view_count, save_count, share_count, post_year, post_slug, external_url, external_title, external_description, external_image, external_site_name, hide_doctor_credential, shortcode, pubmed_ref, created_at, doctor:doctors(id, slug, name, title, clinic, branch, profile_data, primary_color, accent_color), author:profiles!author_id(id, display_name, avatar_url, handle, role)",
-      )
+      .select(CARD_LIST_SELECT)
       .eq("status", "published")
       .eq("author_id", activeId)
       .order("created_at", { ascending: false })
@@ -124,13 +83,11 @@ export default async function FeedPage() {
       cards = [myCard, ...cards.filter((q) => q.id !== myCard.id)];
     }
   }
-  const viewerStateMap = await fetchViewerStates(
+  const viewerStates = await fetchViewerStatesRecord(
     supabase,
     viewer?.id ?? null,
     cards.map((q) => q.id),
   );
-  const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
-  for (const [id, state] of viewerStateMap) viewerStates[id] = state;
 
   return (
     <section className="pt-1 sm:pt-2">

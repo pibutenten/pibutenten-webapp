@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import ImageCropDialog from "@/components/ImageCropDialog";
+import { showToast } from "@/lib/toast";
 import {
   FACE_SHAPES,
   SKIN_TYPES,
@@ -113,7 +114,7 @@ export default function ProfileEditClient({
           upsert: false,
         });
       if (upErr) {
-        alert("업로드 실패: " + upErr.message);
+        showToast("업로드 실패: " + upErr.message, { tone: "danger" });
         return;
       }
       const { data: pub } = sb.storage.from("avatars").getPublicUrl(path);
@@ -297,7 +298,7 @@ export default function ProfileEditClient({
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
-        alert(j.error ?? "탈퇴 실패");
+        showToast(j.error ?? "탈퇴 실패", { tone: "danger" });
         return;
       }
       window.location.assign("/");

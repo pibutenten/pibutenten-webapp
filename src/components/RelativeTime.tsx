@@ -13,26 +13,11 @@
  *   <RelativeTime iso={card.created_at} fallback="—" />
  */
 import { useEffect, useState } from "react";
+import { formatRelativeTime } from "@/lib/relative-time";
 
-export function formatRelativeTime(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (!Number.isFinite(t)) return "";
-  const diffSec = Math.floor((Date.now() - t) / 1000);
-  if (diffSec < 0) return "방금 전";
-  if (diffSec < 60) return "방금 전";
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}시간 전`;
-  if (diffSec < 86400 * 7) {
-    const d = Math.floor(diffSec / 86400);
-    return d === 1 ? "어제" : `${d}일 전`;
-  }
-  if (diffSec < 86400 * 30) return `${Math.floor(diffSec / (86400 * 7))}주 전`;
-  if (diffSec < 86400 * 365) {
-    // "0달 전" 어색 — 30일 미만은 위 분기에서 처리됨. 30~365일은 1달 이상이라 0달 안 나옴.
-    return `${Math.floor(diffSec / (86400 * 30))}달 전`;
-  }
-  return `${Math.floor(diffSec / (86400 * 365))}년 전`;
-}
+// Phase 7-B: 함수 본체는 `@/lib/relative-time` 로 이동 — 서버/클라이언트 어디서나 사용 가능.
+// 이 모듈은 호환성을 위해 동일 이름으로 re-export 유지 (기존 임포터 변경 불필요).
+export { formatRelativeTime };
 
 type Props = {
   iso: string | null | undefined;

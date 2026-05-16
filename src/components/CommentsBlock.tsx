@@ -18,6 +18,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
 import RelativeTime from "@/components/RelativeTime";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
+import { showToast } from "@/lib/toast";
 
 type CommentStatus = "visible" | "hidden" | "deleted";
 
@@ -208,7 +209,7 @@ export default function CommentsBlock({
       });
       const j = (await r.json()) as { error?: string };
       if (!r.ok) {
-        alert(j.error ?? "댓글 작성 실패");
+        showToast(j.error ?? "댓글 작성 실패", { tone: "danger" });
         return;
       }
       setBody("");
@@ -230,7 +231,7 @@ export default function CommentsBlock({
     });
     const j = (await r.json()) as { error?: string };
     if (!r.ok) {
-      alert(j.error ?? "수정 실패");
+      showToast(j.error ?? "수정 실패", { tone: "danger" });
       return false;
     }
     await reload();
@@ -242,7 +243,7 @@ export default function CommentsBlock({
     const r = await fetch(`/api/comments/${id}`, { method: "DELETE" });
     const j = (await r.json()) as { error?: string };
     if (!r.ok) {
-      alert(j.error ?? "삭제 실패");
+      showToast(j.error ?? "삭제 실패", { tone: "danger" });
       return;
     }
     await reload();
@@ -282,6 +283,7 @@ export default function CommentsBlock({
               isReplying={replyTarget === c.id}
               onPatch={patchComment}
               onDelete={deleteComment}
+              onRequireLogin={() => setAuthPromptOpen(true)}
             />
 
             {/* 답글 목록 — 좌측 세로선으로 그룹 표현. 댓글↔답글 간격은 각 item의 py-1.5로 통일 */}
@@ -299,6 +301,7 @@ export default function CommentsBlock({
                       isReply
                       onPatch={patchComment}
                       onDelete={deleteComment}
+                      onRequireLogin={() => setAuthPromptOpen(true)}
                     />
                   </li>
                 ))}
@@ -371,6 +374,7 @@ function CommentItem({
   onReplyClick,
   onPatch,
   onDelete,
+  onRequireLogin,
 }: {
   comment: CommentRow;
   me: Me;
@@ -380,6 +384,8 @@ function CommentItem({
   onReplyClick?: () => void;
   onPatch: (id: number, p: { body?: string; status?: CommentStatus }) => Promise<boolean>;
   onDelete: (id: number) => void;
+  /** 비로그인 사용자가 좋아요 시도 시 호출 — 부모(CommentsBlock)의 LoginPromptDialog 열림. */
+  onRequireLogin: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
@@ -394,9 +400,7 @@ function CommentItem({
   async function toggleLike() {
     if (likePending) return;
     if (!me) {
-      window.location.assign(
-        "/login?next=" + encodeURIComponent(window.location.pathname),
-      );
+      onRequireLogin();
       return;
     }
     setLikePending(true);

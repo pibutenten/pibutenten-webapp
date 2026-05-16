@@ -5,6 +5,7 @@ import Card, { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
 import { SITE_URL } from "@/lib/site";
 import { stripMarkdown } from "@/lib/strip-markdown";
+import { CARD_DETAIL_SELECT } from "@/lib/card-select";
 
 export const dynamic = "force-dynamic";
 
@@ -37,17 +38,7 @@ async function fetchQa(
     const supabase = await createSupabaseServerClient();
     const { data } = await supabase
       .from("cards")
-      .select(
-        `
-        id, question, answer, meta, keywords, type, created_at, updated_at,
-        like_count, view_count, post_year, post_slug, shortcode,
-        category, hide_doctor_credential, pubmed_ref,
-        external_url, external_title, external_description, external_image, external_site_name,
-        doctor:doctors(slug, name, branch),
-        author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle),
-        video:videos(youtube_id, youtube_url, topic, upload_date)
-      `,
-      )
+      .select(CARD_DETAIL_SELECT)
       .eq("shortcode", shortcode)
       .eq("status", "published")
       .maybeSingle()

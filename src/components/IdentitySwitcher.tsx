@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { SessionIdentity } from "./TopNav";
+import { showToast } from "@/lib/toast";
 
 type Props = {
   identities: SessionIdentity[];
@@ -100,13 +101,13 @@ export default function IdentitySwitcher({
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
-        alert(j.error ?? "스위치 실패");
+        showToast(j.error ?? "스위치 실패", { tone: "danger" });
         return;
       }
       // 풀 reload — layout의 session 캐시 확실히 비움
       window.location.assign("/");
     } catch {
-      alert("네트워크 오류");
+      showToast("네트워크 오류", { tone: "danger" });
     }
   }
 

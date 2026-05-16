@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { showToast } from "@/lib/toast";
 
 /**
  * 카카오톡/페이스북/네이버 등 인앱 브라우저(WebView) 감지 → 외부 브라우저로 열기 안내.
  * 구글 OAuth는 disallowed_useragent로 인앱에서 차단됨.
+ *
+ * NOTE (Phase 7-D 검토): `useState(() => detect())` lazy init 으로 단순화하는 안을 검토했으나
+ * SSR(navigator undefined → null) vs 클라이언트(실제 UA) 사이에 하이드레이션 미스매치 발생 가능 →
+ * `useEffect` 안에서 setState 하는 현재 패턴 유지 (서버는 null 로 일관 렌더링).
  */
 export default function InAppBrowserNotice() {
   const [isInApp, setIsInApp] = useState<string | null>(null);
@@ -41,7 +46,7 @@ export default function InAppBrowserNotice() {
     }
     // 그 외: URL 복사
     navigator.clipboard?.writeText(url);
-    alert("주소가 복사되었어요. Chrome/Safari에서 붙여넣으세요.");
+    showToast("주소가 복사되었어요. Chrome/Safari에서 붙여넣으세요.");
   }
 
   return (

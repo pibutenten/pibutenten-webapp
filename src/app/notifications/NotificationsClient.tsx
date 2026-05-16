@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { formatRelativeTime } from "@/lib/relative-time";
 
 /**
  * /notifications — 알림 전체 페이지.
@@ -412,7 +413,7 @@ function NotificationRow({
   const initial = actorName.slice(0, 1);
   const actorHref = n.actor_handle ? `/${n.actor_handle}` : null;
   const target = n.url ?? (n.card_id ? `/?_=${n.card_id}` : "/");
-  const time = relativeTime(n.created_at);
+  const time = formatRelativeTime(n.created_at);
   const unread = !n.read_at;
   const showActorAvatar =
     n.kind === "comment" || n.kind === "reply" || n.kind === "like";
@@ -507,15 +508,3 @@ function Avatar({
   );
 }
 
-function relativeTime(iso: string): string {
-  const d = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return "방금 전";
-  if (min < 60) return `${min}분 전`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}시간 전`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}일 전`;
-  return d.toLocaleDateString("ko-KR");
-}

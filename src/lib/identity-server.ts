@@ -17,6 +17,7 @@ import {
   UUID_RE,
   type ActiveIdentity,
 } from "./identity-shared";
+import { getDoctorIdForProfile } from "./doctor-mapping";
 
 /**
  * cookie 'pibutenten:identity' 를 읽어 target profile.id 결정.
@@ -64,12 +65,7 @@ export async function resolveActiveIdentity(
     return null;
   }
 
-  const { data: da } = await supabase
-    .from("doctor_accounts")
-    .select("doctor_id")
-    .eq("profile_id", targetProfileId)
-    .maybeSingle();
-  const doctorId = (da?.doctor_id as string | null) ?? null;
+  const doctorId = await getDoctorIdForProfile(supabase, targetProfileId);
   const role = (profile.role as string) ?? "user";
 
   return {

@@ -50,3 +50,50 @@ export function getQaEditUrl(qa: QaUrlInput): string | null {
   if (!qa.shortcode) return null;
   return `/write/${qa.shortcode}`;
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Phase 7-A (2026-05-16): URL 헬퍼 확장 — 하드코딩 라우트 통합 출처.
+// ─────────────────────────────────────────────────────────────────
+
+/** 의사 프로필 URL. */
+export function doctorUrl(slug: string): string {
+  return `/doctors/${slug}`;
+}
+
+/** 의사의 admin 글 관리 페이지 URL — query 옵션 지원. */
+export function adminCardsByDoctor(
+  slug: string,
+  opts: {
+    type?: "qa" | "post";
+    status?: "draft" | "pending_review" | "published" | "archived";
+    sort?: string;
+  } = {},
+): string {
+  const params = new URLSearchParams({ doctor: slug });
+  if (opts.type) params.set("type", opts.type);
+  if (opts.status) params.set("status", opts.status);
+  if (opts.sort) params.set("sort", opts.sort);
+  return `/admin/cards?${params.toString()}`;
+}
+
+/** 회원/원장 프로필 URL — handle 또는 fallback /u/{id}. */
+export function profileUrl(input: {
+  handle?: string | null;
+  id?: string | null;
+}): string | null {
+  if (input.handle) return `/${input.handle}`;
+  if (input.id) return `/u/${input.id}`;
+  return null;
+}
+
+/** 로그인 페이지 URL — next/error 쿼리 통합. */
+export function loginUrl(
+  opts: { next?: string; error?: string } = {},
+): string {
+  const params = new URLSearchParams();
+  if (opts.next) params.set("next", opts.next);
+  if (opts.error) params.set("error", opts.error);
+  const qs = params.toString();
+  return qs ? `/login?${qs}` : "/login";
+}
+

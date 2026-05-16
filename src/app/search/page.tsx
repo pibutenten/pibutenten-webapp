@@ -7,6 +7,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
+import { CARD_LIST_SELECT } from "@/lib/card-select";
+import { fetchViewerStatesRecord } from "@/lib/viewer-states";
+import { diversifyByDoctor } from "@/lib/feed-shuffle";
 
 export const dynamic = "force-dynamic";
 
@@ -87,14 +90,7 @@ export default async function HomePage({ searchParams }: Props) {
     // 카테고리 직접 필터 — 본문 매칭 대신 category 컬럼만
     rpcRes = await supabase
       .from("cards")
-      .select(
-        `id, question, answer, meta, keywords, like_count, view_count, save_count,
-         type, post_year, post_slug,
-         external_url, external_title, external_description, external_image, external_site_name,
-         category, hide_doctor_credential, shortcode, pubmed_ref, created_at,
-         doctor:doctors!doctor_id (slug, name, branch),
-         author:profiles!author_id (id, display_name, avatar_url, handle, updated_at)`,
-      )
+      .select(CARD_LIST_SELECT)
       .eq("status", "published")
       .eq("category", categorySlug)
       .order("created_at", { ascending: false })
@@ -111,51 +107,12 @@ export default async function HomePage({ searchParams }: Props) {
   let cards = (rpcRes.data ?? []) as CardData[];
   const error = rpcRes.error;
 
-  // 첫 4카드 다양화 — 검색 없을 때: 모두 다른 원장 (max 1) / 검색 있을 때: 같은 원장 최대 2번
-  if (cards.length > 4) {
-    const maxPerDoctor = q ? 2 : 1;
-    const counts = new Map<string, number>();
-    const head: CardData[] = [];
-    const tail: CardData[] = [];
-    for (const it of cards) {
-      const slug = it.doctor?.slug ?? "_unknown";
-      const c = counts.get(slug) ?? 0;
-      if (head.length < 4 && c < maxPerDoctor) {
-        head.push(it);
-        counts.set(slug, c + 1);
-      } else {
-        tail.push(it);
-      }
-    }
-    cards = [...head, ...tail];
-  }
-
-  // 같은 원장 3연속 방지 — 2연속까지만 허용, 3번째에는 다른 원장 끼워넣기
+  // 피드 다양화 — 검색 없을 때: head 1명/1회 / 검색 있을 때: head 1명/2회. 같은 원장 3연속 방지.
   // (홈/검색 모두 적용. 원장 개인 페이지는 별도 라우트라 영향 없음)
-  if (cards.length >= 3) {
-    const remaining = [...cards];
-    const reordered: CardData[] = [];
-    while (remaining.length > 0) {
-      const last = reordered[reordered.length - 1];
-      const prev = reordered[reordered.length - 2];
-      const lastTwoSameSlug =
-        last !== undefined &&
-        prev !== undefined &&
-        last.doctor?.slug !== undefined &&
-        last.doctor?.slug === prev.doctor?.slug;
-      if (lastTwoSameSlug) {
-        const idx = remaining.findIndex(
-          (it) => it.doctor?.slug !== last.doctor?.slug,
-        );
-        if (idx >= 0) {
-          reordered.push(remaining.splice(idx, 1)[0]);
-          continue;
-        }
-      }
-      reordered.push(remaining.shift() as CardData);
-    }
-    cards = reordered;
-  }
+  cards = diversifyByDoctor(cards, {
+    maxPerDoctorInHead: q ? 2 : 1,
+    headSize: 4,
+  });
 
   // 검색일 때만 카운트 별도 조회
   let count: number | null = null;
@@ -183,14 +140,11 @@ export default async function HomePage({ searchParams }: Props) {
   const {
     data: { user: viewer },
   } = await supabase.auth.getUser();
-  const { fetchViewerStates } = await import("@/lib/viewer-states");
-  const vsMap = await fetchViewerStates(
+  const viewerStates = await fetchViewerStatesRecord(
     supabase,
     viewer?.id ?? null,
     (cards ?? []).map((q) => q.id),
   );
-  const viewerStates: Record<number, { liked?: boolean; saved?: boolean }> = {};
-  for (const [id, st] of vsMap) viewerStates[id] = st;
 
   return (
     <section>

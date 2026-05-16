@@ -10,6 +10,7 @@ import { buildDoctorReference } from "@/lib/schema/doctor";
 import { keywordsToAbout } from "@/lib/schema/procedure";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { jsonLdString } from "@/lib/json-ld";
+import { CARD_DETAIL_SELECT } from "@/lib/card-select";
 
 export const dynamic = "force-dynamic";
 
@@ -36,17 +37,7 @@ async function fetchQaByDoctorYearSlug(
     if (!doctor) return null;
     const { data } = await supabase
       .from("cards")
-      .select(
-        `
-        id, question, answer, meta, keywords, type, created_at, updated_at,
-        like_count, view_count, post_year, post_slug,
-        category, hide_doctor_credential, pubmed_ref, pubmed_refs,
-        external_url, external_title, external_description, external_image, external_site_name,
-        doctor:doctors(slug, name, branch),
-        author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle),
-        video:videos(youtube_id, youtube_url, topic, upload_date)
-      `,
-      )
+      .select(CARD_DETAIL_SELECT)
       .eq("doctor_id", doctor.id)
       .eq("post_year", year)
       .eq("post_slug", postSlug)

@@ -72,3 +72,22 @@ export async function fetchViewerStates(
   }
   return map;
 }
+
+/**
+ * `fetchViewerStates` 의 Record 반환 버전.
+ * 호출처들이 `Map → Record<number, …>` 로 직접 변환하던 4곳의 중복 패턴 제거용.
+ * (page.tsx / search/page.tsx / [handle]/page.tsx / doctors/[slug]/page.tsx)
+ *
+ * 내부적으로 fetchViewerStates 를 그대로 호출해 Map → Record 변환만 수행.
+ * 기존 Map 시그니처는 다른 호출처 호환 위해 유지.
+ */
+export async function fetchViewerStatesRecord(
+  supabase: SupabaseClient,
+  viewerId: string | null,
+  cardIds: number[],
+): Promise<Record<number, { liked?: boolean; saved?: boolean }>> {
+  const map = await fetchViewerStates(supabase, viewerId, cardIds);
+  const rec: Record<number, { liked?: boolean; saved?: boolean }> = {};
+  for (const [id, st] of map) rec[id] = st;
+  return rec;
+}

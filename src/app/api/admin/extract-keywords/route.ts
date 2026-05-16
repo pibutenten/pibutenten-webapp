@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getEnv } from "@/lib/ai/env-fallback";
+import { extractJson } from "@/lib/ai/extract-json";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -78,14 +79,8 @@ export async function POST(req: Request) {
       .join("\n")
       .trim();
 
-    // JSON 추출 (코드펜스 가능성 대비)
-    const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    const jsonText = fence ? fence[1].trim() : text;
-    const first = jsonText.indexOf("{");
-    const last = jsonText.lastIndexOf("}");
-    const slice = first >= 0 && last > first ? jsonText.slice(first, last + 1) : jsonText;
-
-    const parsed = JSON.parse(slice) as { keywords?: unknown };
+    // JSON 추출 (코드펜스/잡문 섞여도 대응)
+    const parsed = extractJson(text) as { keywords?: unknown };
     const raw = Array.isArray(parsed.keywords) ? parsed.keywords : [];
     const keywords = raw
       .filter((k): k is string => typeof k === "string")

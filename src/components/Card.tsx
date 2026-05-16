@@ -20,6 +20,7 @@ import { pickHighlight } from "@/lib/card-highlight";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { shareCard } from "@/components/card/utils/card-share";
+import { showToast } from "@/lib/toast";
 import { useCardBus } from "@/components/card/hooks/useCardBus";
 import { useCardEngagement } from "@/components/card/hooks/useCardEngagement";
 import { useCardViewer } from "@/components/card/hooks/useCardViewer";
@@ -223,7 +224,7 @@ export default function Card({
       const sb = createSupabaseBrowserClient();
       const { error } = await sb.from("cards").delete().eq("id", card.id);
       if (error) {
-        alert("삭제 실패: " + error.message);
+        showToast("삭제 실패: " + error.message, { tone: "danger" });
         setDeleting(false);
         return;
       }

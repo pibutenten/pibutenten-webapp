@@ -8,6 +8,7 @@ import {
   siteOrigin,
   type OAuthProviderMeta,
 } from "@/lib/auth/oauth-providers";
+import { showToast } from "@/lib/toast";
 
 type Props = {
   /** 로그인 성공 후 최종 도착할 페이지 (callback → 이 곳으로 redirect) */
@@ -33,7 +34,7 @@ export default function SocialLoginButtons({ next }: Props) {
     }
 
     if (!p.supabaseProvider) {
-      alert(p.disabledReason || "이 로그인은 곧 지원될 예정이에요.");
+      showToast(p.disabledReason || "이 로그인은 곧 지원될 예정이에요.");
       return;
     }
 

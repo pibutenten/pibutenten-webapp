@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { showToast } from "@/lib/toast";
 
 type Props = {
   cardId: number;
@@ -28,7 +29,7 @@ export default function PickToggle({ cardId, initial }: Props) {
         p_pick: next,
       });
       if (error) {
-        alert(`Pick 변경 실패: ${error.message}`);
+        showToast(`Pick 변경 실패: ${error.message}`, { tone: "danger" });
         return;
       }
       setPick(next);

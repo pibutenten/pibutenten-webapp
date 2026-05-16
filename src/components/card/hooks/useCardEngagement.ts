@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CardData } from "@/components/Card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { showToast } from "@/lib/toast";
 import { getActiveIdentityId } from "@/lib/active-identity";
 
 export type EngagementMe =
@@ -213,7 +214,10 @@ export function useCardEngagement(
       });
       if (error) {
         console.error("[useCardEngagement] toggle_card_save:", error);
-        alert((wasSaved ? "저장 취소" : "저장") + " 실패: " + error.message);
+        showToast(
+          (wasSaved ? "저장 취소" : "저장") + " 실패: " + error.message,
+          { tone: "danger" },
+        );
         // 낙관적 복원
         setSaved(wasSaved);
         setSaveCount((c) => (wasSaved ? c + 1 : Math.max(0, c - 1)));

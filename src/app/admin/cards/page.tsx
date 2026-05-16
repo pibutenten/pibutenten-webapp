@@ -5,6 +5,8 @@ import { labelForCategory } from "@/lib/post-category";
 import AdminCardsDoctorFilter from "./AdminCardsDoctorFilter";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import BackButton from "@/components/BackButton";
+import { formatYmd } from "@/lib/format-date";
+import { truncate } from "@/lib/string-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -104,20 +106,6 @@ function isStatusFilter(v: string | undefined): v is StatusFilter {
     v === "published" ||
     v === "archived"
   );
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const yy = String(d.getFullYear()).slice(2);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yy}.${mm}.${dd}`;
-}
-
-function truncate(s: string, len: number): string {
-  if (!s) return "";
-  return s.length > len ? s.slice(0, len) + "…" : s;
 }
 
 function buildQueryString(params: Record<string, string | number | undefined>): string {
@@ -637,7 +625,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                         {(r.share_count ?? 0).toLocaleString()}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
-                        {formatDate(r.created_at)}
+                        {formatYmd(r.created_at)}
                       </td>
                     </tr>
                   );

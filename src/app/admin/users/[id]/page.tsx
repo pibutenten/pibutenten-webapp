@@ -12,6 +12,8 @@ import RoleChangeForm from "./RoleChangeForm";
 import { getQaUrl } from "@/lib/card-url";
 import { getIdentityContext } from "@/lib/identity";
 import BackButton from "@/components/BackButton";
+import { formatIsoDate } from "@/lib/format-date";
+import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
 
 export const dynamic = "force-dynamic";
 
@@ -198,14 +200,8 @@ export default async function AdminUserDetailPage({
   // unused 변수 경고 무시용
   void groupKey;
 
-  // primary identity의 doctor 매핑 (doctor_accounts)
-  const { data: primaryMapping } = await supabase
-    .from("doctor_accounts")
-    .select("doctor_id")
-    .eq("profile_id", id)
-    .maybeSingle()
-    .returns<{ doctor_id: string } | null>();
-  const primaryDoctorId = primaryMapping?.doctor_id ?? null;
+  // primary identity의 doctor 매핑 (doctor_accounts) — lib/doctor-mapping 헬퍼
+  const primaryDoctorId = await getDoctorIdForProfile(supabase, id);
 
   // 현재 active identity의 doctor_id 결정
   const activeDoctorId = activeIdentity
@@ -264,14 +260,8 @@ export default async function AdminUserDetailPage({
     .limit(30)
     .returns<LikeRow[]>();
 
-  // 현재 매핑된 doctor_id (있으면)
-  const { data: myMapping } = await supabase
-    .from("doctor_accounts")
-    .select("doctor_id")
-    .eq("profile_id", id)
-    .maybeSingle()
-    .returns<{ doctor_id: string } | null>();
-  const currentDoctorId = myMapping?.doctor_id ?? null;
+  // 현재 매핑된 doctor_id (있으면) — lib/doctor-mapping 헬퍼
+  const currentDoctorId = await getDoctorIdForProfile(supabase, id);
 
   // 매핑용 doctors 목록 (각 doctor의 매핑 상태 포함)
   const { data: allDoctors } = await supabase
@@ -303,7 +293,6 @@ export default async function AdminUserDetailPage({
   });
 
   const lvlColor = LEVEL_COLORS[profile.level] ?? LEVEL_COLORS[0];
-  const formatDate = (s: string | null) => (s ? s.slice(0, 10) : "—");
 
   // active identity의 표시 정보 결정
   const showDoctor = !!activeDoctor; // doctor identity면 doctor 정보 우선
@@ -411,9 +400,9 @@ export default async function AdminUserDetailPage({
               </p>
             )}
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
-              <span>가입일: {formatDate(profile.created_at)}</span>
+              <span>가입일: {formatIsoDate(profile.created_at)}</span>
               {profile.birth_date && (
-                <span>생일: {formatDate(profile.birth_date)}</span>
+                <span>생일: {formatIsoDate(profile.birth_date)}</span>
               )}
               <span>활동점수: {profile.activity_score.toLocaleString()}</span>
               <span>
@@ -452,7 +441,7 @@ export default async function AdminUserDetailPage({
                   <span className="rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[10px] font-medium">
                     {q.type === "post" ? "포스팅" : "Q&A"}
                   </span>
-                  <span>{formatDate(q.created_at)}</span>
+                  <span>{formatIsoDate(q.created_at)}</span>
                 </div>
                 <Link
                   href={`/admin/cards/${q.id}/edit`}
@@ -477,7 +466,7 @@ export default async function AdminUserDetailPage({
               <li key={c.id} className="py-2 text-sm">
                 <div className="text-xs text-[var(--text-muted)]">
                   → {c.card?.question?.slice(0, 50) ?? "(원글 없음)"} ·{" "}
-                  {formatDate(c.created_at)}
+                  {formatIsoDate(c.created_at)}
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-[var(--text)]">
                   {c.body}
