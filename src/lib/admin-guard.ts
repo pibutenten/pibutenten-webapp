@@ -12,6 +12,7 @@
  */
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "./supabase/server";
+import { bundleProfileFilter } from "./identity-shared";
 
 export type AdminGuardResult =
   | {
@@ -58,7 +59,7 @@ async function requireAnyOfRoles(
   const { data: rows } = await supabase
     .from("profiles")
     .select("id, role")
-    .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`)
+    .or(bundleProfileFilter(user.id))
     .in("role", roles);
 
   const match = (rows ?? []).find((r) =>

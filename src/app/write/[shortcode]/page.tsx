@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import EditClient from "./EditClient";
 import BackButton from "@/components/BackButton";
+import { bundleProfileFilter } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,7 @@ export default async function PostEditPage({ params }: Props) {
   const { data: myProfiles } = await supabase
     .from("profiles")
     .select("id")
-    .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
+    .or(bundleProfileFilter(user.id));
   const myProfileIds = new Set((myProfiles ?? []).map((p) => p.id as string));
 
   // 본인 doctor_id (doctor 본인 글 권한 체크용)
@@ -111,7 +112,7 @@ export default async function PostEditPage({ params }: Props) {
         
       </div>
       <EditClient
-        qaId={qa.id}
+        cardId={qa.id}
         type={qa.type}
         initialTitle={qa.question}
         initialBody={qa.answer}

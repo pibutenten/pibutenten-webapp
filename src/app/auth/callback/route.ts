@@ -18,12 +18,42 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  *
  * Next.js 16 의 Route Handler 규약(GET 함수, NextRequest, NextResponse) 준수.
  */
+/**
+ * Open Redirect 방어 — next 파라미터 sanitize.
+ *
+ * 허용: /로 시작하는 단일 슬래시 + 우리 사이트 path-only
+ *   ex) "/", "/columns/123", "/settings"
+ * 차단:
+ *   - // 또는 /\ 로 시작 (protocol-relative URL)
+ *   - http:// / https:// 등 절대 URL
+ *   - 공백·제어 문자
+ *   - 안전하지 않은 값은 빈 문자열 반환 → 호출자가 "/" 폴백 사용
+ */
+function sanitizeNext(raw: string | null): string {
+  if (!raw) return "";
+  // 제어 문자 / 공백 차단
+  if (/[\s\x00-\x1f]/.test(raw)) return "";
+  // 단일 슬래시로 시작해야 하고 protocol-relative 차단
+  if (!raw.startsWith("/")) return "";
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return "";
+  // 절대 URL 패턴 차단 (스킴 어디든 포함된 경우)
+  if (/^[a-z][a-z0-9+.-]*:/i.test(raw.slice(1))) return "";
+  // path만 허용 — 한 번 더 URL parser로 검증
+  try {
+    const parsed = new URL(raw, "https://pbtt.kr");
+    if (parsed.origin !== "https://pbtt.kr") return "";
+    return parsed.pathname + parsed.search + parsed.hash;
+  } catch {
+    return "";
+  }
+}
+
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const code = url.searchParams.get("code");
   const oauthError = url.searchParams.get("error");
   const oauthErrorDesc = url.searchParams.get("error_description");
-  const next = url.searchParams.get("next") || "";
+  const next = sanitizeNext(url.searchParams.get("next"));
 
   // origin 은 same-host 안전 redirect 베이스
   const origin = url.origin;

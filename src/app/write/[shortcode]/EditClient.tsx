@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Props = {
-  qaId: number;
+  cardId: number;
   type: "qa" | "post";
   initialTitle: string;
   initialBody: string;
@@ -17,7 +17,7 @@ type Props = {
 const KEYWORD_MAX = 10;
 
 export default function EditClient({
-  qaId,
+  cardId,
   type,
   initialTitle,
   initialBody,
@@ -68,7 +68,7 @@ export default function EditClient({
           answer: body.trim(),
           keywords,
         })
-        .eq("id", qaId);
+        .eq("id", cardId);
       if (updErr) {
         setError("저장 실패: " + updErr.message);
         return;

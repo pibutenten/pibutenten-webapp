@@ -21,7 +21,7 @@
  */
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "./supabase/server";
-import { type ActiveIdentity } from "./identity-shared";
+import { bundleProfileFilter, type ActiveIdentity } from "./identity-shared";
 import { resolveActiveIdentity } from "./identity-server";
 
 export type { ActiveIdentity } from "./identity-shared";
@@ -63,7 +63,7 @@ export async function requireAdminPage(
   const { data: adminRows } = await supabase
     .from("profiles")
     .select("id, role")
-    .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`)
+    .or(bundleProfileFilter(user.id))
     .eq("role", "admin");
   const admin = (adminRows ?? [])[0] as { id: string } | undefined;
   const adminProfileId = admin?.id ?? null;

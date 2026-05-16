@@ -163,7 +163,7 @@ export default async function HomePage({ searchParams }: Props) {
     let countQuery = supabase
       .from("cards")
       .select("id", { count: "exact", head: true })
-      .eq("published", true);
+      .eq("status", "published");
     const words = q.split(/\s+/).filter((w) => w.length > 0);
     for (const w of words) {
       const escaped = w.replace(/[%_*]/g, "\\$&").replace(/[(),]/g, " ");

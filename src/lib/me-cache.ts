@@ -52,8 +52,4 @@ export async function getMeClient(): Promise<MeInfo> {
   return pending;
 }
 
-/** 로그인·로그아웃 직후 캐시 무효화 (현재는 logout 시 풀 reload라 불필요하지만 미래용) */
-export function invalidateMeCache() {
-  cached = undefined;
-  pending = null;
-}
+// (invalidateMeCache 폐기됨 — logout 흐름이 풀 reload이므로 불필요)

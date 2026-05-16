@@ -17,7 +17,7 @@ export async function getPopularByCategory(): Promise<PopularByCategory> {
   const { data, error } = await supabase
     .from("cards")
     .select("keywords")
-    .eq("published", true);
+    .eq("status", "published");
 
   if (error || !data) {
     return { concerns: [], lifting: [], injectables: [], homecare: [], knowledge: [] };

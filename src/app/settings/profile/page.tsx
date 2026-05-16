@@ -8,6 +8,12 @@ import {
   DEFAULT_VISIBILITY,
   type FieldVisibility,
 } from "@/lib/profile-options";
+import {
+  IDENTITY_COOKIE,
+  PRIMARY_IDENTITY_ID,
+  UUID_RE,
+  bundleProfileFilter,
+} from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -61,14 +67,12 @@ export default async function MyProfilePage() {
   //   - 'primary' 또는 빈 값 → 로그인 profile 자체가 active
   //   - UUID → 같은 auth_user_id 묶음 안의 다른 profile (예: doctor 부계정)
   const cookieStore = await cookies();
-  const activeCookie = cookieStore.get("pibutenten:identity")?.value ?? null;
+  const activeCookie = cookieStore.get(IDENTITY_COOKIE)?.value ?? null;
   const isMultiIdentity =
     activeCookie &&
-    activeCookie !== "primary" &&
+    activeCookie !== PRIMARY_IDENTITY_ID &&
     activeCookie !== user.id &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      activeCookie,
-    );
+    UUID_RE.test(activeCookie);
 
   // 활성 identity profile fetch (multi-identity일 때만 — 본인 묶음 검증 포함)
   let activeIdentity: IdentityRow | null = null;
@@ -77,7 +81,7 @@ export default async function MyProfilePage() {
       .from("profiles")
       .select("id, display_name, avatar_url, bio, role, handle")
       .eq("id", activeCookie)
-      .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`)
+      .or(bundleProfileFilter(user.id))
       .maybeSingle();
     if (data) {
       activeIdentity = {

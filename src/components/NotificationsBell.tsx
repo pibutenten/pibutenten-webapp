@@ -45,16 +45,20 @@ export default function NotificationsBell() {
   // 카카오/네이버 인앱 브라우저에서 absolute 가 viewport 좌측 너머로 잘리는 현상 회피.
   const [dropTop, setDropTop] = useState<number>(64);
 
-  const fetchData = useCallback(async () => {
+  // AbortController로 in-flight fetch 취소 + unmount/탭 숨김 시 정리.
+  // (Phase 2 — 메모리 누수 / 유령 setState 방지)
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
       const res = await fetch("/api/notifications?limit=20", {
         cache: "no-store",
+        signal,
       });
       if (!res.ok) return;
       const data = (await res.json()) as {
         items: NotificationItem[];
         unread: number;
       };
+      if (signal?.aborted) return;
       setItems(data.items);
       setUnread(data.unread);
       // PWA Badge API (지원 안 하면 silent fail) — Navigator에 타입이 없어 record cast
@@ -68,16 +72,23 @@ export default function NotificationsBell() {
         /* noop */
       }
     } catch {
-      /* noop */
+      /* abort 또는 네트워크 에러 — silent */
     }
   }, []);
 
-  // 초기 fetch + polling (fetchData는 async — setState는 await 이후 발생, false positive)
+  // 초기 fetch + polling — 탭이 hidden일 때는 폴링 skip (배터리/네트워크 절약)
   useEffect(() => {
+    const ac = new AbortController();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchData();
-    const id = setInterval(() => void fetchData(), POLL_MS);
-    return () => clearInterval(id);
+    void fetchData(ac.signal);
+    const id = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void fetchData(ac.signal);
+    }, POLL_MS);
+    return () => {
+      ac.abort();
+      clearInterval(id);
+    };
   }, [fetchData]);
 
   // 탭 복귀 시 즉시 refetch — 폴링 사이 백그라운드에서 새 알림이 생긴 경우 빠른 반영

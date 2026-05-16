@@ -6,9 +6,7 @@ import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { fetchViewerStates } from "@/lib/viewer-states";
 import { cookies } from "next/headers";
-
-const IDENTITY_COOKIE = "pibutenten:identity";
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { IDENTITY_COOKIE, PRIMARY_IDENTITY_ID, UUID_RE } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -105,9 +103,11 @@ export default async function FeedPage() {
   // active 가 'primary' 면 user.id (auth) 가 author_id.
   if (viewer) {
     const cookieStore = await cookies();
-    const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? "primary";
+    const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? PRIMARY_IDENTITY_ID;
     const activeId =
-      cookieVal !== "primary" && UUID_RE.test(cookieVal) ? cookieVal : viewer.id;
+      cookieVal !== PRIMARY_IDENTITY_ID && UUID_RE.test(cookieVal)
+        ? cookieVal
+        : viewer.id;
     const { data: myLatest } = await supabase
       .from("cards")
       .select(

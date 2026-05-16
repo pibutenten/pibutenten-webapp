@@ -9,6 +9,7 @@ import { getHotQaIds } from "@/lib/hot-ids";
 import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
 import { SITE_URL } from "@/lib/site";
+import { jsonLdString } from "@/lib/json-ld";
 import {
   asDoctorProfileData,
   type DoctorProfileData,
@@ -101,7 +102,7 @@ export default async function DoctorDetailPage({ params }: Props) {
   const cRes = await supabase
     .from("cards")
     .select("id", { count: "exact", head: true })
-    .eq("published", true)
+    .eq("status", "published")
     .eq("doctor_id", doctor.id);
   const count = cRes.count ?? null;
 
@@ -354,7 +355,7 @@ export default async function DoctorDetailPage({ params }: Props) {
     <section className="space-y-6">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
       <div className="-ml-1">
         <BackButton fallbackHref="/doctors" />

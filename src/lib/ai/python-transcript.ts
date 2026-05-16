@@ -43,11 +43,12 @@ function scriptPath(): string {
 }
 
 function pythonCmd(): string {
+  // 우선순위: PYTHON_BIN 환경변수 → OS별 기본값.
+  // (Windows 로컬에서는 .env.local에 PYTHON_BIN=C:/path/to/python.exe 설정 권장 —
+  //  Microsoft Store stub 회피용. 사용자별 절대경로는 더 이상 하드코딩하지 않음.)
   if (process.env.PYTHON_BIN) return process.env.PYTHON_BIN;
-  // Windows: Microsoft Store stub 회피 — 알려진 Python 절대경로 우선 탐색
   if (process.platform === "win32") {
     const candidates = [
-      "C:/Users/Bae/AppData/Local/Programs/Python/Python312/python.exe",
       "C:/Python312/python.exe",
       "C:/Python311/python.exe",
       "C:/Python310/python.exe",

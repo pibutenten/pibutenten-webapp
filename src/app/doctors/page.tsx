@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import { SITE_URL } from "@/lib/site";
+import { jsonLdString } from "@/lib/json-ld";
 
 export const dynamic = "force-dynamic";
 
@@ -123,7 +124,7 @@ export default async function DoctorsPage() {
     <section className="space-y-6">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
 
       <header className="text-center">

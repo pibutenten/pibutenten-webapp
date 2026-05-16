@@ -18,9 +18,11 @@
  * 단 서버는 클라가 보낸 이 값 대신 자체 httpOnly 쿠키로 검증한다 (RPC 내부 또는 server fetch).
  */
 
-import { IDENTITY_MIRROR_COOKIE, UUID_RE } from "./identity-shared";
-
-const MIRROR_COOKIE = IDENTITY_MIRROR_COOKIE;
+import {
+  IDENTITY_MIRROR_COOKIE,
+  PRIMARY_IDENTITY_ID,
+  UUID_RE,
+} from "./identity-shared";
 
 /**
  * 활성 profile.id (UUID) 반환.
@@ -30,11 +32,11 @@ const MIRROR_COOKIE = IDENTITY_MIRROR_COOKIE;
 export function getActiveIdentityId(): string | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie.match(
-    new RegExp(`(?:^|;\\s*)${MIRROR_COOKIE}=([^;]+)`),
+    new RegExp(`(?:^|;\\s*)${IDENTITY_MIRROR_COOKIE}=([^;]+)`),
   );
   if (!match) return null;
   const val = decodeURIComponent(match[1]);
-  if (!val || val === "primary") return null;
+  if (!val || val === PRIMARY_IDENTITY_ID) return null;
   // UUID 검증 (identity-shared 공유 정규식)
   if (!UUID_RE.test(val)) return null;
   return val;

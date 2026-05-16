@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { jsonLdString } from "@/lib/json-ld";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 
@@ -148,7 +149,7 @@ export default async function AboutPage() {
     <article className="mx-auto w-full max-w-[680px] py-2">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
 
       <h1 className="mb-4 text-[26px] font-bold leading-[1.35] text-[var(--text)] sm:text-[30px]">

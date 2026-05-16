@@ -16,12 +16,10 @@ type Props = {
   cardId: number;
   open: boolean;
   onClose: () => void;
-  /** v5.1+: 'card'면 다이얼로그 헤더 '추천', 그 외는 '좋아요' */
-  qaType?: "card" | "post";
 };
 
 /**
- * 인스타식 좋아요/추천 리스트 다이얼로그.
+ * 인스타식 좋아요 리스트 다이얼로그.
  * - "N명" 클릭 시 열림
  * - 누른 사람 전체 리스트 (최대 200명)
  * - 각 항목 클릭 시 그 사람 프로필로 이동
@@ -30,9 +28,7 @@ type Props = {
  */
 const FETCH_LIMIT = 200;
 
-export default function LikersDialog({ cardId, open, onClose, qaType }: Props) {
-  // v5.1+ 사용자 결정: 좋아요로 통일. qaType prop은 호환성 유지.
-  void qaType;
+export default function LikersDialog({ cardId, open, onClose }: Props) {
   const headerLabel = "좋아요";
   const emptyLabel = "아직 좋아요가 없어요.";
   const [likers, setLikers] = useState<Liker[] | null>(null);

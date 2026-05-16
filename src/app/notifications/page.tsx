@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import NotificationsClient from "./NotificationsClient";
 import BackButton from "@/components/BackButton";
+import { bundleProfileFilter } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function NotificationsPage() {
   const { data: profiles } = await supabase
     .from("profiles")
     .select("role")
-    .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
+    .or(bundleProfileFilter(user.id));
   const roles = (profiles ?? []).map((p) => p.role as string);
   const isAdmin = roles.includes("admin");
   const isDoctor = roles.includes("doctor");

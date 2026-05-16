@@ -13,6 +13,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import {
   IDENTITY_COOKIE,
+  PRIMARY_IDENTITY_ID,
   UUID_RE,
   type ActiveIdentity,
 } from "./identity-shared";
@@ -24,8 +25,8 @@ import {
  */
 async function readTargetProfileId(authUserId: string): Promise<string> {
   const cookieStore = await cookies();
-  const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? "primary";
-  if (cookieVal !== "primary" && UUID_RE.test(cookieVal)) {
+  const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? PRIMARY_IDENTITY_ID;
+  if (cookieVal !== PRIMARY_IDENTITY_ID && UUID_RE.test(cookieVal)) {
     return cookieVal;
   }
   return authUserId;
@@ -72,7 +73,7 @@ export async function resolveActiveIdentity(
   const role = (profile.role as string) ?? "user";
 
   return {
-    id: targetProfileId === authUserId ? "primary" : targetProfileId,
+    id: targetProfileId === authUserId ? PRIMARY_IDENTITY_ID : targetProfileId,
     authUserId,
     profileId: targetProfileId,
     handle: (profile.handle as string) ?? "",

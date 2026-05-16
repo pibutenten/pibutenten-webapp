@@ -8,6 +8,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { bundleProfileFilter } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id")
-    .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`)
+    .or(bundleProfileFilter(user.id))
     .limit(1);
   const profileId = profiles?.[0]?.id;
   if (!profileId) {

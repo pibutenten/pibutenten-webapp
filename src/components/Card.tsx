@@ -169,6 +169,7 @@ export default function Card({
       window.removeEventListener("pibutenten:comments-opened", onOtherOpened);
   }, [card.id]);
   const [liked, setLiked] = useState(viewerLiked ?? false);
+  const [likePending, setLikePending] = useState(false);
   // v4 — 저장(북마크) (server prefetch가 있으면 즉시 적용 → 2~3초 지연 제거)
   const [saved, setSaved] = useState(viewerSaved ?? false);
   const [saveCount, setSaveCount] = useState(card.save_count ?? 0);
@@ -455,6 +456,10 @@ export default function Card({
       setAuthPrompt("좋아요를 누르려면 회원가입이 필요해요");
       return;
     }
+    // 연타/더블 클릭 가드 — handleSave 패턴과 동기화 (Phase 2 fix).
+    // RPC 응답 전 추가 토글을 막아 카운트 lurch 방지.
+    if (likePending) return;
+    setLikePending(true);
     const supabase = createSupabaseBrowserClient();
     const wasLiked = liked;
     // 낙관적 UI 업데이트
@@ -480,6 +485,8 @@ export default function Card({
         console.error("[handleLike] toggle_card_like failed:", e);
         setLiked(wasLiked);
         setLikeCount((c) => (wasLiked ? c + 1 : Math.max(0, c - 1)));
+      } finally {
+        setLikePending(false);
       }
     })();
   }
@@ -1556,13 +1563,6 @@ function showToast(msg: string) {
     el.style.transform = "translate(-50%,-50%) scale(0.95)";
     setTimeout(() => el.remove(), 220);
   }, 1500);
-}
-
-function formatDate(iso: string | null): string | null {
-  if (!iso) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  if (!m) return iso;
-  return `${m[1].slice(2)}.${m[2]}.${m[3]}`;
 }
 
 // SNS 표준 상대시간 — RelativeTime 컴포넌트로 이전됨 (P1-4 fix).

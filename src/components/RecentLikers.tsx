@@ -15,19 +15,16 @@ type Liker = {
 
 type Props = {
   cardId: number;
-  /** 좋아요/추천 카운트. 0이면 컴포넌트 자체 렌더링 X. 변할 때 refetch trigger. */
+  /** 좋아요 카운트. 0이면 컴포넌트 자체 렌더링 X. 변할 때 refetch trigger. */
   likeCount: number;
   /** 최대 노출 아바타 수 (default 3) */
   maxAvatars?: number;
-  /** v5.1+: 글 type — 'card'면 '추천했어요', 그 외는 '좋아합니다' */
-  qaType?: "card" | "post";
 };
 
 /**
- * 인스타식 좋아요/추천 표시.
+ * 인스타식 좋아요 표시.
  *
- *  - post (♥ 좋아요): "○○○님이 좋아합니다" / "○○○님 외 N명이 좋아합니다"
- *  - Q&A (👍 추천):   "○○○님이 추천했어요" / "○○○님 외 N명이 추천했어요"
+ *  - "○○○님이 좋아합니다" / "○○○님 외 N명이 좋아합니다"
  *  - lazy load: 카운트 > 0일 때만 RPC 호출, 카드 mount 시 한 번
  *
  * 위치: Card footer 구분선 아래, CommentsBlock 바로 위.
@@ -36,7 +33,6 @@ export default function RecentLikers({
   cardId,
   likeCount,
   maxAvatars = 3,
-  qaType = "post",
 }: Props) {
   const [likers, setLikers] = useState<Liker[] | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -73,8 +69,6 @@ export default function RecentLikers({
 
   const visibleLikers = likers.slice(0, maxAvatars);
 
-  // v5.1+ 사용자 결정: 좋아요로 통일 (추천/엄지척 폐기). qaType prop은 호환성 유지.
-  void qaType;
   const tailMany = "이 좋아합니다";
   const tailOne = "님이 좋아합니다";
 
@@ -96,8 +90,7 @@ export default function RecentLikers({
       </div>
 
       {/* 텍스트 — 첫 명 강조 + "외 N명" 클릭 시 다이얼로그 (인스타식)
-          닉네임과 "님" 사이 공백 없음 (배스킨님 외 1명…)
-          type='card'면 '추천했어요', 그 외는 '좋아합니다' */}
+          닉네임과 "님" 사이 공백 없음 (배스킨님 외 1명…) */}
       <span className="leading-tight">
         <LikerName liker={likers[0]} fallback={firstName} />
         {others > 0 ? (
@@ -125,7 +118,6 @@ export default function RecentLikers({
         cardId={cardId}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        qaType={qaType}
       />
     </div>
   );

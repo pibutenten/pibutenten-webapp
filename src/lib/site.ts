@@ -18,9 +18,4 @@ export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
   "https://pibutenten-webapp.vercel.app";
 
-/** 절대 URL 생성 헬퍼 — path는 / 로 시작 */
-export function absoluteUrl(path: string): string {
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  const cleaned = path.startsWith("/") ? path : `/${path}`;
-  return `${SITE_URL}${cleaned}`;
-}
+// (absoluteUrl 폐기됨 — `${SITE_URL}${path}` 인라인으로 충분, 호출처 0건이었음)

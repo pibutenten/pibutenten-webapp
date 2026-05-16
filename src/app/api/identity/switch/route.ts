@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  IDENTITY_COOKIE,
+  IDENTITY_MIRROR_COOKIE,
+  PRIMARY_IDENTITY_ID,
+  UUID_RE,
+  bundleProfileFilter,
+} from "@/lib/identity-shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,13 +41,20 @@ export async function POST(req: Request) {
   }
 
   // 'primary'는 항상 허용 (legacy 호환)
-  if (target !== "primary") {
+  if (target !== PRIMARY_IDENTITY_ID) {
+    // 입력값 형식 검증 — UUID 외 값 차단 (defense-in-depth)
+    if (!UUID_RE.test(target)) {
+      return NextResponse.json(
+        { error: "잘못된 identityId 형식" },
+        { status: 400 },
+      );
+    }
     // 본인 묶음 (auth_user_id) 안의 profile인지 검증
     const { data: row } = await supabase
       .from("profiles")
       .select("id")
       .eq("id", target)
-      .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`)
+      .or(bundleProfileFilter(user.id))
       .maybeSingle();
     if (!row) {
       return NextResponse.json(
@@ -61,11 +75,11 @@ export async function POST(req: Request) {
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
   };
-  cookieStore.set("pibutenten:identity", target, {
+  cookieStore.set(IDENTITY_COOKIE, target, {
     ...baseOpts,
     httpOnly: true, // 보안: JS 접근 차단 (XSS 방어)
   });
-  cookieStore.set("pibutenten:identity-mirror", target, {
+  cookieStore.set(IDENTITY_MIRROR_COOKIE, target, {
     ...baseOpts,
     httpOnly: false, // 클라이언트 표시용 — 서버는 신뢰 X
   });

@@ -10,20 +10,23 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import {
+  IDENTITY_COOKIE,
+  PRIMARY_IDENTITY_ID,
+  UUID_RE,
+} from "@/lib/identity-shared";
 
 export type ViewerStateMap = Map<
   number,
   { liked?: boolean; saved?: boolean }
 >;
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /** active identity cookie → 활성 profile.id. 없거나 primary면 authUserId 그대로. */
 async function resolveActiveProfileId(authUserId: string): Promise<string> {
   try {
     const c = await cookies();
-    const val = c.get("pibutenten:identity")?.value;
-    if (val && val !== "primary" && UUID_RE.test(val)) return val;
+    const val = c.get(IDENTITY_COOKIE)?.value;
+    if (val && val !== PRIMARY_IDENTITY_ID && UUID_RE.test(val)) return val;
   } catch {
     /* cookies() 컨텍스트 밖이면 fallback */
   }
@@ -31,29 +34,29 @@ async function resolveActiveProfileId(authUserId: string): Promise<string> {
 }
 
 /**
- * 주어진 qaIds 목록에 대해 viewer의 좋아요/저장을 일괄 조회.
+ * 주어진 cardIds 목록에 대해 viewer의 좋아요/저장을 일괄 조회.
  * viewerId가 null이면 빈 Map 반환 (미로그인).
  * Phase 9: viewerId는 active profile.id로 자동 변환 (cookie 기반).
  */
 export async function fetchViewerStates(
   supabase: SupabaseClient,
   viewerId: string | null,
-  qaIds: number[],
+  cardIds: number[],
 ): Promise<ViewerStateMap> {
   const map: ViewerStateMap = new Map();
-  if (!viewerId || qaIds.length === 0) return map;
+  if (!viewerId || cardIds.length === 0) return map;
   const activeId = await resolveActiveProfileId(viewerId);
   const [likes, saves] = await Promise.all([
     supabase
       .from("card_likes")
       .select("card_id")
       .eq("user_id", activeId)
-      .in("card_id", qaIds),
+      .in("card_id", cardIds),
     supabase
       .from("card_saves")
       .select("card_id")
       .eq("user_id", activeId)
-      .in("card_id", qaIds),
+      .in("card_id", cardIds),
   ]);
   for (const r of likes.data ?? []) {
     const id = (r as { card_id: number }).card_id;

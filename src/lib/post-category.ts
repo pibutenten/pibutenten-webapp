@@ -46,11 +46,6 @@ const SLUG_TO_LABEL: Record<PostCategorySlug, string> = Object.fromEntries(
   POST_CATEGORIES.map((c) => [c.slug, c.label]),
 ) as Record<PostCategorySlug, string>;
 
-const SLUG_TO_HIDE_DEFAULT: Record<PostCategorySlug, boolean> =
-  Object.fromEntries(
-    POST_CATEGORIES.map((c) => [c.slug, c.defaultHideDoctorCredential]),
-  ) as Record<PostCategorySlug, boolean>;
-
 /** role별 글쓰기에서 선택 가능한 카테고리 목록 */
 export function categoriesForRole(
   role: "user" | "doctor" | "admin",
@@ -78,12 +73,7 @@ export function labelForCategory(s: string | null | undefined): string {
   return isPostCategorySlug(s) ? SLUG_TO_LABEL[s] : "";
 }
 
-/** 카테고리 default — 의사 직함 숨김 여부 */
-export function defaultHideCredential(
-  s: string | null | undefined,
-): boolean {
-  return isPostCategorySlug(s) ? SLUG_TO_HIDE_DEFAULT[s] : false;
-}
+// (defaultHideCredential 폐기됨 — POST_CATEGORIES 배열의 defaultHideDoctorCredential 필드 직접 참조로 충분)
 
 /** 인덱싱 가능한 카테고리 (의사 글) */
 export function isIndexableForDoctor(s: string | null | undefined): boolean {

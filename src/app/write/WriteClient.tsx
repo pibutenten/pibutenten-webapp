@@ -44,13 +44,6 @@ type Doctor = {
   branch: string | null;
 };
 
-// dead — 칼럼 폐기 후에도 ArticleEditor sub-component가 남아있어서 type만 유지
-type Section = {
-  heading: string;
-  body: string;
-  image: string | null;
-};
-
 // post / qa 만 지원
 type WriteType = "post" | "qa";
 
@@ -102,7 +95,6 @@ export default function WriteClient({
       : "doodle";
   const [category, setCategory] = useState<PostCategorySlug>(safeInitial);
   const type: WriteType = category === "qa" ? "qa" : "post";
-  const allowedTypes: WriteType[] = []; // type 토글 UI 제거 (호환용 더미)
 
   // 글쓴이 (원장 명의) — 모든 type에 공통 노출. ""=관리자 명의(admin), 원장 본인은 자기 slug 고정
   const [authorDoctor, setAuthorDoctor] = useState<string>(
@@ -143,11 +135,6 @@ export default function WriteClient({
   // 통합: post + qa 공통 — 제목 / 내용 (qa는 질문 / 답변)
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-
-  // article 전용 (admin만)
-  const [sections, setSections] = useState<Section[]>([
-    { heading: "", body: "", image: null },
-  ]);
 
   // 공통 태그
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -207,7 +194,6 @@ export default function WriteClient({
       if (!ok) return;
       setTitle("");
       setBody("");
-      setSections([{ heading: "", body: "", image: null }]);
       setKeywords([]);
       setKeywordInput("");
       setError(null);
@@ -404,34 +390,6 @@ export default function WriteClient({
     }
   }
 
-  function updateSection(i: number, patch: Partial<Section>) {
-    setSections((prev) =>
-      prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)),
-    );
-  }
-
-  function addSection() {
-    if (sections.length >= 12) {
-      setError("섹션은 최대 12개까지 가능합니다.");
-      return;
-    }
-    setSections((prev) => [...prev, { heading: "", body: "", image: null }]);
-  }
-
-  function removeSection(i: number) {
-    setSections((prev) => prev.filter((_, idx) => idx !== i));
-  }
-
-  function moveSection(i: number, dir: -1 | 1) {
-    setSections((prev) => {
-      const next = [...prev];
-      const j = i + dir;
-      if (j < 0 || j >= next.length) return prev;
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
-  }
-
   function validateBeforeSubmit(forStatus: SubmitStatus): string | null {
     if (forStatus === "draft") {
       if (!title.trim() && !body.trim()) return "제목 또는 본문을 입력해주세요.";
@@ -519,7 +477,7 @@ export default function WriteClient({
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                qaId: data.id,
+                cardId: data.id,
                 body: firstComment.trim(),
               }),
             });
@@ -971,118 +929,5 @@ function PostQaForm({
   );
 }
 
-// ────────────────────────────────────────────────────────────
-// ArticleForm — 대표 이미지 제거, placeholder 예시 제거
-// ────────────────────────────────────────────────────────────
-function ArticleForm({
-  title,
-  onTitle,
-  sections,
-  onUpdateSection,
-  onAddSection,
-  onRemoveSection,
-  onMoveSection,
-}: {
-  title: string;
-  onTitle: (s: string) => void;
-  sections: Section[];
-  onUpdateSection: (i: number, patch: Partial<Section>) => void;
-  onAddSection: () => void;
-  onRemoveSection: (i: number) => void;
-  onMoveSection: (i: number, dir: -1 | 1) => void;
-}) {
-  return (
-    <div className="space-y-5">
-      {/* 제목 */}
-      <div>
-        <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-          제목
-        </label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => onTitle(e.target.value)}
-          maxLength={120}
-          className="h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-base font-medium focus:border-[var(--primary)] focus:outline-none"
-        />
-      </div>
-
-      {/* 섹션 */}
-      <div>
-        <div className="mb-2 flex items-baseline justify-between">
-          <label className="block text-sm font-semibold text-[var(--text)]">
-            섹션 ({sections.length})
-          </label>
-          <button
-            type="button"
-            onClick={onAddSection}
-            className="text-xs text-[var(--primary)] hover:underline"
-          >
-            + 섹션 추가
-          </button>
-        </div>
-        <div className="space-y-4">
-          {sections.map((s, i) => (
-            <div
-              key={i}
-              className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)]/40 p-3"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-xs font-semibold text-[var(--text-secondary)]">
-                  섹션 {i + 1}
-                </div>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => onMoveSection(i, -1)}
-                    className="rounded px-1.5 py-0.5 text-xs text-[var(--text-muted)] hover:bg-white"
-                    aria-label="위로 이동"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onMoveSection(i, 1)}
-                    className="rounded px-1.5 py-0.5 text-xs text-[var(--text-muted)] hover:bg-white"
-                    aria-label="아래로 이동"
-                  >
-                    ↓
-                  </button>
-                  {sections.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => onRemoveSection(i)}
-                      className="rounded px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50"
-                    >
-                      삭제
-                    </button>
-                  )}
-                </div>
-              </div>
-              <input
-                type="text"
-                value={s.heading}
-                onChange={(e) =>
-                  onUpdateSection(i, { heading: e.target.value })
-                }
-                maxLength={100}
-                placeholder="소제목"
-                className="mb-2 h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-[15px] font-semibold focus:border-[var(--primary)] focus:outline-none"
-              />
-              <textarea
-                value={s.body}
-                onChange={(e) => onUpdateSection(i, { body: e.target.value })}
-                rows={5}
-                maxLength={2000}
-                placeholder="본문"
-                className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // QaForm 제거됨 — PostQaForm으로 통합 (포스팅·Q&A 동일 구조)

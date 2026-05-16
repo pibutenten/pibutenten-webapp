@@ -4,7 +4,7 @@
  * 피부텐텐 PWA 설치 안내 모달 + Service Worker 등록.
  *
  * 노출 트리거 (둘 중 하나):
- *   1) `pibutenten:qa-viewed` 이벤트가 5회 이상 (Card 50% 노출 시 1회)
+ *   1) `pibutenten:card-viewed` 이벤트가 5회 이상 (Card 50% 노출 시 1회)
  *   2) 로그인 사용자 — 첫 진입 후 4초 지연
  *
  * 노출 차단:
@@ -209,14 +209,14 @@ export default function InstallPrompt({ signedIn }: Props) {
     } catch {}
     if (count >= REQUIRED_QA_VIEWS) evaluate();
 
-    const onQaViewed = () => {
+    const onCardViewed = () => {
       count += 1;
       try {
         sessionStorage.setItem(STORAGE_QA_VIEW_COUNT, String(count));
       } catch {}
       if (count >= REQUIRED_QA_VIEWS) evaluate();
     };
-    window.addEventListener("pibutenten:qa-viewed", onQaViewed);
+    window.addEventListener("pibutenten:card-viewed", onCardViewed);
 
     // 트리거 2: 로그인 사용자 — 진입 4초 후
     let signInTimer: number | undefined;
@@ -228,7 +228,7 @@ export default function InstallPrompt({ signedIn }: Props) {
       window.removeEventListener("pibutenten:install-show", onForceShow);
       window.removeEventListener("pibutenten:bip-ready", onBipReady);
       window.removeEventListener("beforeinstallprompt", onBefore);
-      window.removeEventListener("pibutenten:qa-viewed", onQaViewed);
+      window.removeEventListener("pibutenten:card-viewed", onCardViewed);
       if (signInTimer !== undefined) window.clearTimeout(signInTimer);
     };
   }, [signedIn]);

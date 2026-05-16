@@ -9,6 +9,7 @@ import { SITE_URL } from "@/lib/site";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import { keywordsToAbout } from "@/lib/schema/procedure";
 import { stripMarkdown } from "@/lib/strip-markdown";
+import { jsonLdString } from "@/lib/json-ld";
 
 export const dynamic = "force-dynamic";
 
@@ -308,7 +309,7 @@ export default async function DermatologistPostPage({ params }: Props) {
     <section className="mx-auto w-full max-w-[680px]">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
       {/* 좌상단 ← 뒤로 — history.back(). 라벨 통일. */}
       <div className="mb-2">

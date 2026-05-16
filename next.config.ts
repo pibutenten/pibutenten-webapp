@@ -39,6 +39,58 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  /**
+   * Security Headers (Phase 2 — 2026-05-16).
+   *
+   * 적용 대상: 모든 라우트.
+   * CSP는 Report-Only로 먼저 도입 — 1주 모니터링 후 enforce로 전환.
+   *
+   * 화이트리스트 도메인:
+   *  - script-src: 'self' + 'unsafe-inline' (JSON-LD) + 'unsafe-eval' (Turbopack dev)
+   *  - connect-src: Supabase + Vercel Analytics
+   *  - frame-src: YouTube (영상 임베드)
+   *  - img-src: Supabase Storage + YouTube 썸네일
+   *  - frame-ancestors: 'none' (클릭재킹 방어)
+   */
+  async headers() {
+    const supabaseHost =
+      process.env.NEXT_PUBLIC_SUPABASE_URL
+        ?.replace(/^https?:\/\//, "")
+        ?.replace(/\/$/, "") || "*.supabase.co";
+    const cspReport = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      `img-src 'self' data: blob: https://${supabaseHost} https://i.ytimg.com https://img.youtube.com https:`,
+      "font-src 'self' data:",
+      `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://vitals.vercel-insights.com`,
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+      "upgrade-insecure-requests",
+    ].join("; ");
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          { key: "Permissions-Policy", value: "geolocation=(), microphone=(), camera=()" },
+          { key: "Content-Security-Policy-Report-Only", value: cspReport },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

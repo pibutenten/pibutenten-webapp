@@ -130,33 +130,8 @@ export default function ProfileEditClient({
   }
 
   // ── 닉네임 ──
+  // (개별 저장 path 제거됨 — saveAll()로 통합 저장. 입력 state만 유지.)
   const [displayName, setDisplayName] = useState(initial.displayName);
-  const [nameStatus, setNameStatus] = useState<Status>({ type: "idle" });
-  const [namePending, startName] = useTransition();
-  function saveDisplayName() {
-    setNameStatus({ type: "idle" });
-    const trimmed = displayName.trim();
-    if (!trimmed) {
-      setNameStatus({ type: "err", msg: "닉네임을 입력해주세요." });
-      return;
-    }
-    if (trimmed.length < 2 || trimmed.length > 20) {
-      setNameStatus({ type: "err", msg: "닉네임은 2~20자로 입력해주세요." });
-      return;
-    }
-    startName(async () => {
-      const { error } = await sb
-        .from("profiles")
-        .update({ display_name: trimmed })
-        .eq("id", userId);
-      if (error) {
-        setNameStatus({ type: "err", msg: error.message });
-        return;
-      }
-      setNameStatus({ type: "ok", msg: "닉네임이 변경되었어요." });
-      router.refresh();
-    });
-  }
 
   // ── 피부 정보 ──
   const [faceShape, setFaceShape] = useState<string | null>(initial.faceShape);
@@ -456,7 +431,6 @@ export default function ProfileEditClient({
             className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:bg-[var(--bg-soft)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed"
           />
         </div>
-        <Msg status={nameStatus} />
       </Card>
 
       {/* 4. 자기소개 */}

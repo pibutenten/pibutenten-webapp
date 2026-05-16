@@ -7,6 +7,8 @@ import InstallPrompt from "@/components/InstallPrompt";
 import SiteFooter from "@/components/SiteFooter";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/site";
+import { jsonLdString } from "@/lib/json-ld";
+import { IDENTITY_COOKIE, PRIMARY_IDENTITY_ID } from "@/lib/identity-shared";
 import { allClinicsSchema } from "@/lib/schema/clinic";
 import "./globals.css";
 
@@ -151,11 +153,11 @@ async function getSessionInfo(): Promise<SessionInfo> {
     // 활성 identity 결정 — cookie 우선, 없으면 'primary'
     const { cookies } = await import("next/headers");
     const cookieStore = await cookies();
-    const activeFromCookie = cookieStore.get("pibutenten:identity")?.value;
+    const activeFromCookie = cookieStore.get(IDENTITY_COOKIE)?.value;
     const activeIdentityId =
       activeFromCookie && identities.some((i) => i.id === activeFromCookie)
         ? activeFromCookie
-        : "primary";
+        : PRIMARY_IDENTITY_ID;
 
     return {
       role: (profile.role as "admin" | "doctor" | "user") ?? "user",
@@ -245,7 +247,7 @@ window.addEventListener('appinstalled', function() {
           type="application/ld+json"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: jsonLdString({
               "@context": "https://schema.org",
               "@graph": [
                 {

@@ -37,27 +37,4 @@ export function normalizeHandleCandidate(raw: string): string {
   return s;
 }
 
-/**
- * Reserved handle인지 확인 — DB 조회 (단독 호출은 비효율, 보통 trigger가 잡음).
- */
-export async function isReservedHandle(
-  supabase: {
-    from: (table: string) => {
-      select: (cols: string) => {
-        eq: (
-          col: string,
-          val: string,
-        ) => { maybeSingle: () => Promise<{ data: unknown }> };
-      };
-    };
-  },
-  handle: string,
-): Promise<boolean> {
-  if (!handle) return true;
-  const { data } = await supabase
-    .from("reserved_handles")
-    .select("handle")
-    .eq("handle", handle)
-    .maybeSingle();
-  return data !== null;
-}
+// (isReservedHandle 폐기됨 — reserved_handles는 DB trigger에서 강제하므로 클라/서버 lookup 불필요)

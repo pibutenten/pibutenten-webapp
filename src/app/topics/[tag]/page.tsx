@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type CardData } from "@/components/Card";
 import CardMasonry from "@/components/CardMasonry";
 import { SITE_URL } from "@/lib/site";
+import { jsonLdString } from "@/lib/json-ld";
 
 /**
  * /topics/{태그} — 태그별 의사 글 hub.
@@ -184,7 +185,7 @@ export default async function TagPage({ params }: Props) {
     <section className="w-full py-6">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
 
       <header className="mb-6">

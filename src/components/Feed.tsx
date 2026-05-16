@@ -123,9 +123,9 @@ export default function Feed({
       if (typeof id !== "number") return;
       setItems((prev) => prev.filter((q) => q.id !== id));
     }
-    window.addEventListener("pibutenten:qa-deleted", onDeleted);
+    window.addEventListener("pibutenten:card-deleted", onDeleted);
     return () =>
-      window.removeEventListener("pibutenten:qa-deleted", onDeleted);
+      window.removeEventListener("pibutenten:card-deleted", onDeleted);
   }, []);
 
   return (

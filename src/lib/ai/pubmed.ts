@@ -95,6 +95,7 @@ async function esearch(query: string, retmax: number): Promise<string[]> {
       return [];
     }
   }
+  // unreachable — 모든 분기가 위에서 return 처리
   return [];
 }
 
@@ -241,6 +242,7 @@ async function efetch(pmids: string[]): Promise<PubmedCandidate[]> {
       return [];
     }
   }
+  // unreachable — 모든 분기가 위에서 return 처리
   return [];
 }
 
