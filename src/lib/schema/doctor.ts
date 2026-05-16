@@ -31,6 +31,23 @@ const COMMON_MEMBER_OF = [
 ];
 
 /**
+ * 9명 원장 — slug ↔ 한국어 이름 SSOT.
+ * AI 식별, schema, UI 표시 등 모든 곳에서 이 배열을 참조 (lib/ai/identify-doctors 등).
+ * 추가/변경 시 여기만 수정. DOCTOR_TO_CLINIC (clinic.ts) 와 slug 일치 유지.
+ */
+export const DOCTORS = [
+  { name: "정한미", slug: "jung-hanmi" },
+  { name: "배정민", slug: "bae-jungmin" },
+  { name: "권수현", slug: "kwon-soohyun" },
+  { name: "김수형", slug: "kim-soohyung" },
+  { name: "고혜림", slug: "ko-hyerim" },
+  { name: "김종식", slug: "kim-jongsic" },
+  { name: "이도영", slug: "rhee-doyoung" },
+  { name: "강현진", slug: "kang-hyunjin" },
+  { name: "박효진", slug: "park-hyojin" },
+] as const;
+
+/**
  * 9명 의사 영문 표기 매핑 — alternateName 용 (한·영 cross-reference, AI 인용 친화).
  * 이도영만 표기가 Rhee로 다름 (사용자 확정).
  */

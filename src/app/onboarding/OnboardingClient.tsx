@@ -3,55 +3,13 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-
-// ─────────────────────────────────────────────────────────────
-// 옵션 정의 — 한글 라벨은 UI 전용, DB에는 영문 key 저장
-// ─────────────────────────────────────────────────────────────
-
-const GENDERS: { key: "male" | "female" | "other"; label: string }[] = [
-  { key: "female", label: "여성" },
-  { key: "male", label: "남성" },
-];
-
-const FACE_SHAPES: { key: string; label: string }[] = [
-  { key: "oval", label: "달걀형" },
-  { key: "peanut", label: "땅콩형" },
-  { key: "oblong", label: "장방형" },
-  { key: "square", label: "각진형" },
-  { key: "round", label: "둥근형" },
-];
-
-const SKIN_TYPES: { key: string; label: string }[] = [
-  { key: "extreme_dry", label: "극건성" },
-  { key: "dry", label: "건성" },
-  { key: "normal", label: "중성" },
-  { key: "combination", label: "복합성" },
-  { key: "dehydrated_oily", label: "수부지" },
-  { key: "oily", label: "지성" },
-  { key: "extreme_oily", label: "극지성" },
-];
-
-const SKIN_CONCERNS: { key: string; label: string }[] = [
-  { key: "elasticity", label: "탄력" },
-  { key: "volume", label: "볼륨" },
-  { key: "wrinkle", label: "주름" },
-  { key: "tone", label: "피부톤" },
-  { key: "pores", label: "모공" },
-  { key: "contour", label: "윤곽" },
-  { key: "texture", label: "피부결" },
-  { key: "aging", label: "노안" },
-  { key: "trouble", label: "트러블" },
-  { key: "sensitive", label: "민감성" },
-];
-
-const PROCEDURES: { key: string; label: string }[] = [
-  { key: "lifting", label: "리프팅" },
-  { key: "laser", label: "레이저" },
-  { key: "booster", label: "스킨부스터" },
-  { key: "botox", label: "보톡스" },
-  { key: "filler", label: "필러" },
-  { key: "cosmetic", label: "화장품" },
-];
+import {
+  GENDERS,
+  FACE_SHAPES,
+  SKIN_TYPES,
+  SKIN_CONCERNS,
+  PROCEDURES,
+} from "@/lib/profile-options";
 
 type Initial = {
   email: string;

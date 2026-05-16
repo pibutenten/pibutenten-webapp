@@ -223,7 +223,7 @@ export default async function HandleProfilePage({ params }: Props) {
 
   return (
     <section className="w-full py-6">
-      <div className="mb-2 -ml-1">
+      <div className="mb-1 -ml-1">
         <BackButton />
       </div>
       {/* 프로필 헤더 — 사진 가운데, 카드 wrapper 없이 */}

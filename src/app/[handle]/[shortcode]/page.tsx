@@ -91,8 +91,8 @@ export default async function MemberPostPage({ params }: Props) {
 
   return (
     <section className="w-full py-6">
-      {/* 좌상단 ← 뒤로 — history.back() 시도. 라벨 통일. */}
-      <div className="mb-3">
+      {/* 좌상단 ← 뒤로 — 다른 페이지와 동일하게 mb-1 -ml-1 통일. */}
+      <div className="mb-1 -ml-1">
         <BackButton fallbackHref={`/${handle}`} />
       </div>
       {/* 단독 카드 상세 — 본문 펼침 + 댓글 자동 펼침 (의사 글 페이지와 동일 정책) */}

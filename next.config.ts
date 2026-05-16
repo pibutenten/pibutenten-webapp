@@ -41,24 +41,28 @@ const nextConfig: NextConfig = {
     ];
   },
   /**
-   * Security Headers (Phase 2 — 2026-05-16).
+   * Security Headers.
    *
    * 적용 대상: 모든 라우트.
-   * CSP는 Report-Only로 먼저 도입 — 1주 모니터링 후 enforce로 전환.
+   *
+   * CSP 정책 (2026-05-17 — Report-Only 유지):
+   *   - production / development 모두 `Content-Security-Policy-Report-Only`
+   *   - 결정 사유: enforce 시 GoogleBot 이 CSP 로 차단된 리소스를 못 읽어 SEO 풍부도 영향 가능성.
+   *     SEO 우선 정책이라 enforce 미적용. 위반 로그는 계속 수집됨.
    *
    * 화이트리스트 도메인:
-   *  - script-src: 'self' + 'unsafe-inline' (JSON-LD) + 'unsafe-eval' (Turbopack dev)
+   *  - script-src: 'self' + 'unsafe-inline' (JSON-LD) + 'unsafe-eval' (Turbopack)
    *  - connect-src: Supabase + Vercel Analytics
    *  - frame-src: YouTube (영상 임베드)
    *  - img-src: Supabase Storage + YouTube 썸네일
-   *  - frame-ancestors: 'none' (클릭재킹 방어)
+   *  - frame-ancestors: 'none' (클릭재킹 방어 — Report-Only 라도 X-Frame-Options 가 enforce)
    */
   async headers() {
     const supabaseHost =
       process.env.NEXT_PUBLIC_SUPABASE_URL
         ?.replace(/^https?:\/\//, "")
         ?.replace(/\/$/, "") || "*.supabase.co";
-    const cspReport = [
+    const csp = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
@@ -72,6 +76,8 @@ const nextConfig: NextConfig = {
       "object-src 'none'",
       "upgrade-insecure-requests",
     ].join("; ");
+    // Report-Only 유지 (SEO 우선 정책).
+    const cspKey = "Content-Security-Policy-Report-Only";
     return [
       {
         source: "/:path*",
@@ -87,7 +93,7 @@ const nextConfig: NextConfig = {
             value: "max-age=63072000; includeSubDomains; preload",
           },
           { key: "Permissions-Policy", value: "geolocation=(), microphone=(), camera=()" },
-          { key: "Content-Security-Policy-Report-Only", value: cspReport },
+          { key: cspKey, value: csp },
         ],
       },
     ];

@@ -68,3 +68,22 @@ export type ActiveIdentity = {
   /** doctor_accounts 매핑 (없으면 null) */
   doctorId: string | null;
 };
+
+/**
+ * Active identity 로부터 권한 flag 도출.
+ * isSuperAdmin / isDoctorAdmin 판별식이 identity.ts 와 admin-page-guard.ts 두 곳에
+ * 중복 산재하던 것을 단일 헬퍼로 통합.
+ */
+export type IdentityFlags = {
+  isSuperAdmin: boolean;
+  isDoctorAdmin: boolean;
+  activeDoctorId: string | null;
+};
+
+export function deriveIdentityFlags(active: ActiveIdentity | null): IdentityFlags {
+  return {
+    isSuperAdmin: active?.role === "admin",
+    isDoctorAdmin: !!active?.doctorId,
+    activeDoctorId: active?.doctorId ?? null,
+  };
+}

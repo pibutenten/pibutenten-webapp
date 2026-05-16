@@ -6,7 +6,7 @@
  */
 import { getQaUrl } from "@/lib/card-url";
 import type { CardData } from "@/components/Card";
-import { showToast } from "./card-toast";
+import { showToast } from "@/lib/toast";
 
 export async function shareCard(
   card: CardData,

@@ -17,7 +17,6 @@
  */
 
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { fetchPubmedCandidates } from "@/lib/ai/pubmed";
 import { runStep2 } from "@/lib/ai/step2";

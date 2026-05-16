@@ -5,15 +5,17 @@ import Link from "next/link";
 import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { PROCEDURES } from "@/lib/profile-options";
+import {
+  FACE_LABEL,
+  SKIN_LABEL,
+  CONCERN_LABEL as CON_LABEL,
+  PROCEDURE_LABEL as PROC_LABEL,
+} from "@/lib/profile-options";
 
 // procedure key (영어, ex: lifting/laser/booster) → 한글 label 매핑.
-// PROCEDURES dictionary 에 정의된 키는 한글로, 자유 입력은 그대로 표시.
-const PROCEDURE_LABEL: Record<string, string> = Object.fromEntries(
-  PROCEDURES.map((p) => [p.key, p.label]),
-);
+// 자유 입력 키는 그대로 표시.
 function localizeProcedure(v: string): string {
-  return PROCEDURE_LABEL[v] ?? v;
+  return PROC_LABEL[v] ?? v;
 }
 
 type Tab = "posts" | "skin" | "comments" | "likes" | "saves";
@@ -187,18 +189,11 @@ export default function ProfileTabs({
     if (tab !== "comments" || comments !== null) return;
     setCommentsLoading(true);
     (async () => {
-      const { getActiveIdentityId } = await import("@/lib/active-identity");
-      const activeId = getActiveIdentityId();
       const sb = createSupabaseBrowserClient();
-      // 멀티 ID 분리: active identity 가 있으면 identity_id 매칭
-      // Phase 9: 댓글은 author_id (profile.id)로 직접 필터. identity_id 컬럼 폐기.
-      //   active identity가 UUID 묶음 안의 다른 profile이면 그 id 사용, 아니면 profileId 그대로.
-      const targetAuthorId =
-        activeId &&
-        activeId !== "primary" &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeId)
-          ? activeId
-          : profileId;
+      // URL handle 페이지의 author_id == profileId.
+      // 이전: viewer 의 active identity 로 분기 → viewer 본인 댓글로 fetch 되어
+      //       서버 prefetch 카운트(=URL 주인의 댓글)와 mismatch (예: 1 → 3 으로 변동).
+      //       이 페이지는 명확히 URL handle 의 profile 댓글만 보여줘야 한다.
       const query = sb
         .from("comments")
         .select(
@@ -207,7 +202,7 @@ export default function ProfileTabs({
                   doctor:doctors(slug),
                   author:profiles!cards_author_id_profiles_fkey(handle))`,
         )
-        .eq("author_id", targetAuthorId)
+        .eq("author_id", profileId)
         .eq("status", "visible");
       const { data } = await query
         .order("created_at", { ascending: false })
@@ -339,25 +334,6 @@ function Empty({ msg }: { msg: string }) {
   );
 }
 
-const FACE_LABEL: Record<string, string> = {
-  oval: "달걀형", peanut: "땅콩형", oblong: "장방형",
-  square: "각진형", round: "둥근형",
-};
-const SKIN_LABEL: Record<string, string> = {
-  extreme_dry: "극건성", dry: "건성", normal: "중성",
-  combination: "복합성", dehydrated_oily: "수부지",
-  oily: "지성", extreme_oily: "극지성",
-};
-const CON_LABEL: Record<string, string> = {
-  elasticity: "탄력", volume: "볼륨", wrinkle: "주름",
-  tone: "피부톤", pores: "모공", contour: "윤곽",
-  texture: "피부결", aging: "노안", trouble: "트러블",
-  sensitive: "민감성",
-};
-const PROC_LABEL: Record<string, string> = {
-  lifting: "리프팅", laser: "레이저", booster: "스킨부스터",
-  botox: "보톡스", filler: "필러", cosmetic: "화장품",
-};
 
 function SkinInfoBlock({ info }: { info: SkinInfo }) {
   const v = info.visibility ?? {};

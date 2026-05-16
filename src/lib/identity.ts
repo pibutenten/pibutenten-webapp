@@ -16,7 +16,7 @@
  * identity-server.ts 의 resolveActiveIdentity 헬퍼로 추출. admin-page-guard.ts 도 동일 헬퍼 사용.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { type ActiveIdentity } from "./identity-shared";
+import { deriveIdentityFlags, type ActiveIdentity } from "./identity-shared";
 import { resolveActiveIdentity } from "./identity-server";
 
 export type { ActiveIdentity } from "./identity-shared";
@@ -42,14 +42,11 @@ export async function getIdentityContext(
   if (!user) return null;
 
   const active = await resolveActiveIdentity(supabase, user.id, user.email);
-  const isSuperAdmin = active?.role === "admin";
-  const isDoctorAdmin = !!active?.doctorId;
+  const flags = deriveIdentityFlags(active);
 
   return {
     user: { id: user.id, email: user.email ?? null },
     active,
-    isSuperAdmin,
-    isDoctorAdmin,
-    activeDoctorId: active?.doctorId ?? null,
+    ...flags,
   };
 }

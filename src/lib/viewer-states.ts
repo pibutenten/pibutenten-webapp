@@ -9,29 +9,12 @@
  * - 없거나 'primary'면 authUserId (= primary profile.id)
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-import {
-  IDENTITY_COOKIE,
-  PRIMARY_IDENTITY_ID,
-  UUID_RE,
-} from "@/lib/identity-shared";
+import { readTargetProfileId } from "@/lib/identity-server";
 
 export type ViewerStateMap = Map<
   number,
   { liked?: boolean; saved?: boolean }
 >;
-
-/** active identity cookie → 활성 profile.id. 없거나 primary면 authUserId 그대로. */
-async function resolveActiveProfileId(authUserId: string): Promise<string> {
-  try {
-    const c = await cookies();
-    const val = c.get(IDENTITY_COOKIE)?.value;
-    if (val && val !== PRIMARY_IDENTITY_ID && UUID_RE.test(val)) return val;
-  } catch {
-    /* cookies() 컨텍스트 밖이면 fallback */
-  }
-  return authUserId;
-}
 
 /**
  * 주어진 cardIds 목록에 대해 viewer의 좋아요/저장을 일괄 조회.
@@ -45,7 +28,7 @@ export async function fetchViewerStates(
 ): Promise<ViewerStateMap> {
   const map: ViewerStateMap = new Map();
   if (!viewerId || cardIds.length === 0) return map;
-  const activeId = await resolveActiveProfileId(viewerId);
+  const activeId = await readTargetProfileId(viewerId);
   const [likes, saves] = await Promise.all([
     supabase
       .from("card_likes")

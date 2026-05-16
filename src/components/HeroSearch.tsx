@@ -77,8 +77,8 @@ export default function HeroSearch() {
       setPhrase(next);
     }
     pickNext();
-    // 4초 인터벌 (이전 6초 → 더 짧게, 사용자 요청 21번)
-    const timer = window.setInterval(pickNext, 4000);
+    // 5.5초 인터벌 — 4초는 너무 빠르다는 피드백, 6초보단 약간 짧게.
+    const timer = window.setInterval(pickNext, 5500);
     return () => window.clearInterval(timer);
   }, []);
 

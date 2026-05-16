@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { formatRelativeTime } from "@/lib/relative-time";
+import {
+  KIND_LONG_LABEL,
+  KIND_ICON,
+  type NotificationKind,
+} from "@/lib/notification-kinds";
 
 /**
  * /notifications — 알림 전체 페이지.
@@ -18,13 +23,7 @@ import { formatRelativeTime } from "@/lib/relative-time";
  * - 선택 모드 토글 → 체크박스 + "모두 읽음" 일괄 처리
  */
 
-type Kind =
-  | "comment"
-  | "reply"
-  | "like"
-  | "new_ask"
-  | "review_request"
-  | "published";
+type Kind = NotificationKind;
 
 type Notification = {
   id: number;
@@ -41,23 +40,7 @@ type Notification = {
   created_at: string;
 };
 
-const KIND_LABEL: Record<string, string> = {
-  comment: "내 글에 댓글을 남겼어요",
-  reply: "내 댓글에 답글을 남겼어요",
-  like: "내 글에 좋아요를 눌렀어요",
-  new_ask: "새 궁금해요 글이 올라왔어요",
-  review_request: "새 검수 요청이 도착했어요",
-  published: "내 글이 발행되었어요",
-};
-
-const KIND_ICON: Record<string, string> = {
-  comment: "💬",
-  reply: "↳",
-  like: "❤",
-  new_ask: "❓",
-  review_request: "🩺",
-  published: "🚀",
-};
+const KIND_LABEL = KIND_LONG_LABEL;
 
 type FilterKey = "all" | "comment" | "reply" | "like" | "new_ask" | "ops";
 
@@ -407,8 +390,8 @@ function NotificationRow({
   onToggleSelect: () => void;
   onDismiss: () => void;
 }) {
-  const text = KIND_LABEL[n.kind] ?? "새 알림";
-  const icon = KIND_ICON[n.kind] ?? "•";
+  const text = (KIND_LABEL as Record<string, string>)[n.kind] ?? "새 알림";
+  const icon = (KIND_ICON as Record<string, string>)[n.kind] ?? "•";
   const actorName = n.actor_display_name ?? "회원";
   const initial = actorName.slice(0, 1);
   const actorHref = n.actor_handle ? `/${n.actor_handle}` : null;

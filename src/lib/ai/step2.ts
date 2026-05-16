@@ -10,8 +10,9 @@ import { getEnv } from "./env-fallback";
 import { extractJson } from "./extract-json";
 import { loadSystemPrompt } from "./load-prompt";
 import { truncate } from "@/lib/string-utils";
+import { MODEL_ID } from "./pricing";
 
-const MODEL = "claude-opus-4-7";
+const MODEL = MODEL_ID;
 const MAX_TOKENS = 2000;
 
 export type Step2Reference = {

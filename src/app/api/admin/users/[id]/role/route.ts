@@ -27,7 +27,12 @@ export async function POST(
   if (!guard.ok) return guard.response;
   const supabase = await createSupabaseServerClient();
 
-  const body = (await req.json()) as Body;
+  let body: Body;
+  try {
+    body = (await req.json()) as Body;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const role = body.role;
   if (!role || !["admin", "doctor", "user"].includes(role)) {
     return NextResponse.json(
@@ -57,21 +62,43 @@ export async function POST(
   }
 
   // doctor 매핑이 다른 사람에게 있는지 확인 (자기 자신은 OK)
+  // 단, 기존 매핑이 "미가입 placeholder" profile (auth_user_id IS NULL) 라면
+  //      → 운영 초기 seed 로 생긴 빈 row 이므로 자동으로 해제 후 새 매핑으로 교체.
+  //      가입된 다른 회원이면 명시적 에러 반환.
   if (role === "doctor" && doctorId) {
     const { data: existing } = await supabase
       .from("doctor_accounts")
-      .select("profile_id")
+      .select("profile_id, profiles!inner(auth_user_id, display_name)")
       .eq("doctor_id", doctorId)
       .maybeSingle()
-      .returns<{ profile_id: string } | null>();
+      .returns<{
+        profile_id: string;
+        profiles: { auth_user_id: string | null; display_name: string | null };
+      } | null>();
     if (existing && existing.profile_id !== id) {
-      return NextResponse.json(
-        {
-          error:
-            "해당 원장은 이미 다른 회원에게 매핑되어 있습니다. 먼저 해제해주세요.",
-        },
-        { status: 409 },
-      );
+      const isPlaceholder = existing.profiles?.auth_user_id == null;
+      if (isPlaceholder) {
+        // 자동 해제 — 미가입 placeholder 와의 매핑 제거. placeholder profile 자체는
+        // 다른 곳에서 author_id 로 참조될 수 있어 그대로 두고 mapping 만 푼다.
+        const { error: delErr } = await supabase
+          .from("doctor_accounts")
+          .delete()
+          .eq("profile_id", existing.profile_id);
+        if (delErr) {
+          return NextResponse.json(
+            { error: `기존 placeholder 매핑 해제 실패: ${delErr.message}` },
+            { status: 500 },
+          );
+        }
+      } else {
+        const exName = existing.profiles?.display_name ?? "다른 회원";
+        return NextResponse.json(
+          {
+            error: `해당 원장은 이미 가입 회원 "${exName}" 에게 매핑되어 있습니다. 먼저 해제해주세요.`,
+          },
+          { status: 409 },
+        );
+      }
     }
   }
 

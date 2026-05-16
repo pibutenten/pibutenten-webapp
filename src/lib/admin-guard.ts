@@ -13,6 +13,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "./supabase/server";
 import { bundleProfileFilter } from "./identity-shared";
+import { getIdentityContext } from "./identity";
 
 export type AdminGuardResult =
   | {
@@ -78,5 +79,69 @@ async function requireAnyOfRoles(
     ok: true,
     userId: user.id,
     adminProfileId: match.id as string,
+  };
+}
+
+/**
+ * Active identity 기준 super admin 권한 검사 (cookie 의 active 가 admin role 이어야 통과).
+ * 묶음(bundle) 기준의 requireAdmin() 과 다른 의미 — 일반 회원 active 로 전환된 상태면 차단.
+ *
+ * `/api/admin/comments` 등 active 가 super admin 임을 강제하고 싶은 라우트에서 사용.
+ */
+export type ActiveAdminGuardResult =
+  | { ok: true; userId: string; activeProfileId: string }
+  | { ok: false; response: NextResponse };
+
+export async function requireActiveSuperAdmin(): Promise<ActiveAdminGuardResult> {
+  const supabase = await createSupabaseServerClient();
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+  if (!idCtx.isSuperAdmin) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Forbidden: super admin only" },
+        { status: 403 },
+      ),
+    };
+  }
+  return {
+    ok: true,
+    userId: idCtx.user.id,
+    activeProfileId: idCtx.active?.id ?? idCtx.user.id,
+  };
+}
+
+/**
+ * Active identity 가 super admin 또는 doctor admin 인지 검사.
+ * `/api/admin/stats/[kind]` 등에서 사용.
+ */
+export async function requireActiveSuperOrDoctorAdmin(): Promise<ActiveAdminGuardResult> {
+  const supabase = await createSupabaseServerClient();
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+  if (!idCtx.isSuperAdmin && !idCtx.isDoctorAdmin) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Forbidden: admin or doctor only" },
+        { status: 403 },
+      ),
+    };
+  }
+  return {
+    ok: true,
+    userId: idCtx.user.id,
+    activeProfileId: idCtx.active?.id ?? idCtx.user.id,
   };
 }

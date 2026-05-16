@@ -116,7 +116,7 @@ export default async function MyProfilePage() {
 
   return (
     <section className="mx-auto w-full max-w-[640px] space-y-5 py-6">
-      <div className="-ml-1">
+      <div className="mb-1 -ml-1">
         <BackButton />
       </div>
       <ProfileEditClient

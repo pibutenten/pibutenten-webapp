@@ -43,9 +43,3 @@ export async function GET(req: Request) {
   );
 }
 
-/** PostgREST .or 의 값에서 콤마·괄호·*·% 등 메타문자 escape. */
-function escapeLike(s: string): string {
-  // 콤마/괄호는 PostgREST 파서가 분리자로 쓰므로 제거 (검색에 영향 적음)
-  // % _ * 는 LIKE 메타문자
-  return s.replace(/[(),]/g, " ").replace(/[%_*]/g, "\\$&");
-}

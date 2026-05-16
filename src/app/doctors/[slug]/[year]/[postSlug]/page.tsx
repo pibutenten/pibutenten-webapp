@@ -297,13 +297,13 @@ export default async function DermatologistPostPage({ params }: Props) {
   const jsonLd = buildJsonLd(card, slug, yearInt, postSlug);
 
   return (
-    <section className="mx-auto w-full max-w-[680px]">
+    <section className="mx-auto w-full max-w-[680px] pt-3">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
-      {/* 좌상단 ← 뒤로 — history.back(). 라벨 통일. */}
-      <div className="mb-2">
+      {/* 좌상단 ← 뒤로 — 다른 페이지와 동일하게 mb-1 -ml-1 통일. */}
+      <div className="mb-1 -ml-1">
         <BackButton fallbackHref={`/doctors/${slug}`} />
       </div>
       <Card

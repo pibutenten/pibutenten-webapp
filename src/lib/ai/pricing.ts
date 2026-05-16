@@ -8,7 +8,11 @@
  *  - cache read: input × 0.1
  *
  * 가격이 변하면 이 파일만 수정.
+ * 모델 ID 변경 시 MODEL_ID 상수만 변경 (step1/step2/extract-keywords 자동 반영).
  */
+
+/** 현재 사용 중인 Claude 모델 ID — step1, step2, extract-keywords 공통. */
+export const MODEL_ID = "claude-opus-4-7";
 
 export type UsageLike = {
   input_tokens: number;

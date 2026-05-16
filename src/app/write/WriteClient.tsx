@@ -9,6 +9,7 @@ import {
 import { normalizeAnswerBody } from "@/lib/normalize-body";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 import { pickHighlight } from "@/lib/card-highlight";
+import KeywordsEditor from "@/components/card-editor/KeywordsEditor";
 
 /** 글쓰기 페이지 진입 시 랜덤 노출 카피 (꼭 공유하고 싶은 나만의 피부 비법은 베리에이션 강조) */
 const WRITE_PHRASES = [
@@ -127,8 +128,8 @@ export default function WriteClient({
       setHeaderPhrase(next);
     }
     pickNext();
-    // 4초 인터벌 (사용자 요청 21번 — HeroSearch 와 동일)
-    const timer = window.setInterval(pickNext, 4000);
+    // 5.5초 인터벌 — HeroSearch 와 동일 (4초는 너무 빠름).
+    const timer = window.setInterval(pickNext, 5500);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -138,7 +139,6 @@ export default function WriteClient({
 
   // 공통 태그
   const [keywords, setKeywords] = useState<string[]>([]);
-  const [keywordInput, setKeywordInput] = useState("");
 
   // 외부 링크 — 모든 카테고리에서 옵션. [채우기] 누르면 메타 fetch해서 제목/본문/태그 채움
   const [externalUrl, setExternalUrl] = useState("");
@@ -157,8 +157,83 @@ export default function WriteClient({
   // Q&A 참고문헌 — 발행 시 본문 끝에 "\n\n참고문헌\n1. …\n2. …" 형식으로 append.
   // 빈 항목은 제출 시 자동 필터. [+ 추가] 버튼으로 행 추가 / [×] 버튼으로 제거.
   const [references, setReferences] = useState<string[]>([""]);
+  // 각 ref 행마다 [등록] 버튼 진행 중 표시 (PubMed API 호출 중)
+  const [refResolving, setRefResolving] = useState<Record<number, boolean>>({});
 
   const [error, setError] = useState<string | null>(null);
+
+  /** PubMed URL 또는 PMID 문자열에서 PMID(숫자) 만 추출. 매치 실패 시 null. */
+  function extractPmid(input: string): string | null {
+    const trimmed = (input || "").trim();
+    if (!trimmed) return null;
+    // PubMed URL — pubmed.ncbi.nlm.nih.gov/12345678
+    const urlMatch = trimmed.match(/pubmed\.ncbi\.nlm\.nih\.gov\/(\d{1,9})/i);
+    if (urlMatch) return urlMatch[1];
+    // 순수 숫자 (또는 "PMID: 12345678" 형식)
+    const numMatch = trimmed.match(/(?:^|PMID[:\s]*)(\d{1,9})/i);
+    if (numMatch) return numMatch[1];
+    return null;
+  }
+
+  /** PubmedCandidate → "Title — Authors, Journal (Year)" 형식의 한 줄 ref.
+   *  예: "Minimally Invasive Approach … — Rohrich RJ, Schultz KP et al., Plast Reconstr Surg (2022)" */
+  function formatPubmedRef(ref: {
+    authors_short: string;
+    title: string;
+    journal: string;
+    year: string;
+    pmid: string;
+    doi: string;
+  }): string {
+    // title 은 efetch 파서에서 이미 끝에 "." 가 붙여져 들어옴 — 그대로 사용.
+    const title = ref.title || "";
+    const tail: string[] = [];
+    if (ref.authors_short) tail.push(ref.authors_short);
+    if (ref.journal) tail.push(ref.journal);
+    const tailJoined = tail.join(", ");
+    const yearPart = ref.year ? ` (${ref.year})` : "";
+    if (!title && !tailJoined && !yearPart) return "";
+    if (!tailJoined && !yearPart) return title;
+    if (!title) return `${tailJoined}${yearPart}`.trim();
+    return `${title} — ${tailJoined}${yearPart}`.trim();
+  }
+
+  /** [등록] 버튼 — 입력값에서 PMID 추출 후 PubMed API 호출, references[idx]를 변환된 ref로 덮어씀. */
+  async function resolvePubmedRef(idx: number) {
+    const input = references[idx] ?? "";
+    const pmid = extractPmid(input);
+    if (!pmid) {
+      setError("PubMed URL 또는 PMID(숫자)를 입력해주세요.");
+      return;
+    }
+    setError(null);
+    setRefResolving((s) => ({ ...s, [idx]: true }));
+    try {
+      const res = await fetch("/api/admin/draft/pubmed-by-pmid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pmid }),
+      });
+      const data = (await res.json()) as
+        | { reference?: { authors_short: string; title: string; journal: string; year: string; pmid: string; doi: string } }
+        | { error?: string };
+      if (!res.ok || !("reference" in data) || !data.reference) {
+        const msg = "error" in data ? data.error : "PubMed 메타를 불러올 수 없습니다.";
+        setError(msg ?? "PubMed 메타를 불러올 수 없습니다.");
+        return;
+      }
+      const formatted = formatPubmedRef(data.reference);
+      setReferences((prev) => {
+        const next = [...prev];
+        next[idx] = formatted;
+        return next;
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "PubMed 메타 조회 실패");
+    } finally {
+      setRefResolving((s) => ({ ...s, [idx]: false }));
+    }
+  }
 
   const minKw = KEYWORD_MIN[type];
   const maxKw = KEYWORD_MAX[type];
@@ -195,7 +270,6 @@ export default function WriteClient({
       setTitle("");
       setBody("");
       setKeywords([]);
-      setKeywordInput("");
       setError(null);
     }
     setCategory(next);
@@ -215,26 +289,6 @@ export default function WriteClient({
     }
   }
 
-  function addKeyword(k: string) {
-    const v = k.trim().replace(/^#/, "");
-    if (!v) return;
-    if (keywords.includes(v)) {
-      // 중복 시 시각 피드백 — 입력값은 유지 (사용자가 수정해서 다른 태그로 변경 가능)
-      setError("이미 등록된 태그입니다.");
-      return;
-    }
-    if (keywords.length >= maxKw) {
-      setError(`태그는 최대 ${maxKw}개까지 가능합니다.`);
-      return;
-    }
-    setKeywords((prev) => [...prev, v]);
-    setKeywordInput("");
-    setError(null);
-  }
-
-  function removeKeyword(k: string) {
-    setKeywords((prev) => prev.filter((x) => x !== k));
-  }
 
   /** URL [채우기] — 외부 링크 메타 fetch → 제목/본문/태그 자동 채움 */
   /** Q&A 카테고리 전용: 영상 URL의 제목·썸네일만 미리보기로 가져옴 (본문 안 덮음) */
@@ -684,9 +738,25 @@ export default function WriteClient({
                       next[idx] = e.target.value;
                       setReferences(next);
                     }}
-                    placeholder="저자, 논문 제목, 학술지명, 연도 / DOI / URL 등"
+                    onKeyDown={(e) => {
+                      // Enter 키로도 등록 동작 (UX). IME 조합 중에는 무시.
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                        e.preventDefault();
+                        if (!refResolving[idx]) void resolvePubmedRef(idx);
+                      }
+                    }}
+                    placeholder="PubMed URL을 입력하세요 (또는 PMID 숫자)"
                     className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary-light)] focus:outline-none"
                   />
+                  <button
+                    type="button"
+                    onClick={() => void resolvePubmedRef(idx)}
+                    disabled={refResolving[idx] || !ref.trim()}
+                    className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--primary)] bg-[var(--primary)] px-3 text-xs font-semibold text-white hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="PubMed URL을 참고문헌 형식으로 변환"
+                  >
+                    {refResolving[idx] ? "변환중…" : "등록"}
+                  </button>
                   {references.length > 1 && (
                     <button
                       type="button"
@@ -714,61 +784,15 @@ export default function WriteClient({
 
         {/* article(칼럼) 글쓰기 진입점은 Phase 1에서 제거됨 — 카드 포스팅으로 통일 */}
 
-        {/* 공통: 태그 — maxKw=0이면 비표시 (post는 태그 없음) */}
-        {maxKw > 0 && (
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-            태그{" "}
-            <span className="text-xs font-normal text-[var(--text-muted)]">
-              {minKw > 0 ? `${minKw}~${maxKw}개` : `최대 ${maxKw}개`}
-            </span>
-          </label>
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {keywords.map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => removeKeyword(k)}
-                className="inline-flex items-center gap-1 rounded-full border border-[var(--primary)] bg-[var(--primary)]/10 px-2.5 py-0.5 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary)]/20"
-              >
-                {k} <span aria-hidden>×</span>
-              </button>
-            ))}
-          </div>
-          {/* min-w-0 — 좁은 모바일 viewport 에서 input flex-1 의 콘텐츠 폭으로
-              [추가] 버튼이 밀려 잘리는 현상 방지 (placeholder 길이 영향). */}
-          <div className="flex min-w-0 gap-2">
-            <input
-              type="text"
-              value={keywordInput}
-              onChange={(e) => setKeywordInput(e.target.value)}
-              onKeyDown={(e) => {
-                // 15번 fix — IME(한글) 입력 중인 keydown 은 무시.
-                // "써마지" 후 Space → IME 종료되며 마지막 글자 "지" 가 별도 이벤트로 들어와
-                //   '써마지' + '지' 두 개로 분리되던 버그.
-                //   isComposing === true 또는 keyCode === 229 (legacy) 둘 다 IME 진행 중.
-                if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                // Enter 또는 Space 입력 시 태그 자동 추가 (네이버 블로그 패턴)
-                if (e.key === "Enter" || e.key === " " || e.code === "Space") {
-                  e.preventDefault();
-                  addKeyword(keywordInput);
-                }
-              }}
-              placeholder="Enter 또는 띄어쓰기로 추가"
-              className="h-9 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-            />
-            {/* shrink-0 + whitespace-nowrap — 좁은 화면에서 '추가' 가 '추\n가' 로
-                줄바꿈되거나 input 에 밀려 잘리는 현상 방지. */}
-            <button
-              type="button"
-              onClick={() => addKeyword(keywordInput)}
-              className="h-9 shrink-0 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm hover:bg-[var(--bg-soft)]"
-            >
-              추가
-            </button>
-          </div>
-        </div>
-        )}
+        {/* 공통: 태그 — maxKw=0이면 KeywordsEditor 내부에서 자동 비표시 */}
+        <KeywordsEditor
+          keywords={keywords}
+          onChange={setKeywords}
+          onError={setError}
+          max={maxKw}
+          min={minKw}
+          disabled={pending}
+        />
 
         {/* 카테고리 안내 문구 제거 — Phase 2에서 카테고리 드롭다운으로 교체 예정 */}
 
@@ -808,7 +832,6 @@ export default function WriteClient({
               setTitle("");
               setBody("");
               setKeywords([]);
-              setKeywordInput("");
               setExternalUrl("");
               setExternalMeta(null);
               setFirstComment("");

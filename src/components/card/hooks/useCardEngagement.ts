@@ -25,6 +25,7 @@ import type { CardData } from "@/components/Card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { showToast } from "@/lib/toast";
 import { getActiveIdentityId } from "@/lib/active-identity";
+import { getSessionId } from "@/lib/impression-queue";
 
 export type EngagementMe =
   | { id: string; role: "admin" | "doctor" | "user" }
@@ -257,9 +258,11 @@ export function useCardEngagement(
     const userId = u.user ? (activeId ?? u.user.id) : null;
     const prevCount = shareCount;
     setShareCount((c) => c + 1);
+    // session_id 도 함께 저장 — 비로그인 공유 session 단위 dedup 위함 (0117 정책).
     const insRes = await supabase.from("card_shares").insert({
       card_id: card.id,
       user_id: userId,
+      session_id: getSessionId(),
       channel,
     });
     if (insRes.error) {

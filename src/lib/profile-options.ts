@@ -87,3 +87,18 @@ export const TAB_LABELS: { key: keyof FieldVisibility; label: string }[] = [
   { key: "tab_saves", label: "저장" },
   { key: "tab_skin", label: "피부고민" },
 ];
+
+// ─────────────────────────────────────────────────────────────
+// 키 → 라벨 빠른 lookup — ProfileTabs 등에서 사용 (이전 중복 정의 통합)
+// ─────────────────────────────────────────────────────────────
+
+function toLabelMap<T extends { key: string; label: string }>(
+  arr: readonly T[],
+): Record<string, string> {
+  return Object.fromEntries(arr.map((o) => [o.key, o.label]));
+}
+
+export const FACE_LABEL = toLabelMap(FACE_SHAPES);
+export const SKIN_LABEL = toLabelMap(SKIN_TYPES);
+export const CONCERN_LABEL = toLabelMap(SKIN_CONCERNS);
+export const PROCEDURE_LABEL = toLabelMap(PROCEDURES);

@@ -8,7 +8,6 @@
  */
 
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { runStep1 } from "@/lib/ai/step1";
 
@@ -18,7 +17,6 @@ export const maxDuration = 120;
 export async function POST(req: Request) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
-  const supabase = await createSupabaseServerClient();
 
   let body: {
     transcript?: unknown;

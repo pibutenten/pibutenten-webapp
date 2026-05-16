@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { timingSafeEqual } from "crypto";
 import {
   exchangeNaverCode,
   fetchNaverUserInfo,
@@ -6,6 +7,17 @@ import {
 } from "@/lib/auth/naver";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { SITE_URL } from "@/lib/site";
+
+/** state cookie timing-safe 비교. 길이 mismatch 도 동일 시간으로 처리. */
+function stateMatches(cookieState: string, urlState: string): boolean {
+  const a = Buffer.from(cookieState, "utf8");
+  const b = Buffer.from(urlState, "utf8");
+  if (a.length !== b.length) {
+    timingSafeEqual(a, Buffer.alloc(a.length));
+    return false;
+  }
+  return timingSafeEqual(a, b);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +55,7 @@ export async function GET(request: NextRequest) {
 
   // 1) state 검증
   const cookieState = request.cookies.get("naver_oauth_state")?.value;
-  if (!cookieState || cookieState !== state) {
+  if (!cookieState || !stateMatches(cookieState, state)) {
     return redirectToLogin("CSRF 검증 실패 (state mismatch)");
   }
   const next = request.cookies.get("naver_oauth_next")?.value || "/";
@@ -74,14 +86,6 @@ export async function GET(request: NextRequest) {
 
     // 4) Supabase 사용자 동기화 (admin SDK)
     const admin = createSupabaseAdminClient();
-
-    // 이메일로 기존 사용자 조회
-    const { data: existing } = await admin
-      .from("profiles")
-      .select("id, display_name, avatar_url")
-      .ilike("display_name", displayName) // 단순 lookup용 (실제 유니크 키는 auth.users.email)
-      .maybeSingle();
-    void existing; // 단순 hint, 실제 매칭은 admin.auth.admin.listUsers 사용
 
     // Phase 6-3 (2026-05-16): listUsers 풀스캔 (DoS amplifier) 제거.
     //   기존: perPage=1000 × 최대 50 페이지 순회 — 호출 1회당 최대 50,000 row 비용.

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import KeywordsEditor from "@/components/card-editor/KeywordsEditor";
 
 type Props = {
   cardId: number;
@@ -28,26 +29,8 @@ export default function EditClient({
   const [title, setTitle] = useState(initialTitle);
   const [body, setBody] = useState(initialBody);
   const [keywords, setKeywords] = useState<string[]>(initialKeywords);
-  const [keywordInput, setKeywordInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  function addKeyword(k: string) {
-    const v = k.trim().replace(/^#/, "");
-    if (!v) return;
-    if (keywords.includes(v)) return;
-    if (keywords.length >= KEYWORD_MAX) {
-      setError(`태그는 최대 ${KEYWORD_MAX}개까지 가능합니다.`);
-      return;
-    }
-    setKeywords((prev) => [...prev, v]);
-    setKeywordInput("");
-    setError(null);
-  }
-
-  function removeKeyword(k: string) {
-    setKeywords((prev) => prev.filter((x) => x !== k));
-  }
 
   function save() {
     setError(null);
@@ -115,48 +98,14 @@ export default function EditClient({
       </div>
 
       {/* 태그 */}
-      <div>
-        <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-          태그{" "}
-          <span className="text-xs font-normal text-[var(--text-muted)]">
-            최대 {KEYWORD_MAX}개
-          </span>
-        </label>
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {keywords.map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => removeKeyword(k)}
-              className="inline-flex items-center gap-1 rounded-full border border-[var(--primary)] bg-[var(--primary)]/10 px-2.5 py-0.5 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary)]/20"
-            >
-              {k} <span aria-hidden>×</span>
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addKeyword(keywordInput);
-              }
-            }}
-            placeholder="태그 입력 후 Enter"
-            className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-          />
-          <button
-            type="button"
-            onClick={() => addKeyword(keywordInput)}
-            className="h-9 rounded-md border border-[var(--border)] px-3 text-sm hover:bg-[var(--bg-soft)]"
-          >
-            추가
-          </button>
-        </div>
-      </div>
+      <KeywordsEditor
+        keywords={keywords}
+        onChange={setKeywords}
+        onError={setError}
+        max={KEYWORD_MAX}
+        disabled={pending}
+      />
+
 
       {/* 에러 */}
       {error && (

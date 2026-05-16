@@ -1,8 +1,14 @@
 /**
  * POST /api/notifications/read
  *
- * - body 없음 또는 {ids: null}: 본인 미확인 알림 모두 읽음 (ask 본인 미답 알림 제외 — migration 0080)
- * - body {ids: [1,2,3]}: 명시한 알림 ID만 읽음 (제외 정책 없이 즉시 read)
+ * 두 RPC 분기 (명명이 헷갈리니 주의):
+ *  - `mark_my_notifications_read()` — body 없음/{ids:null} 시 호출. 본인 미확인 알림 전체를 read.
+ *    단, **ask 카테고리에 본인이 아직 답변 안 한 알림은 제외** (지속형 알림 정책, migration 0080).
+ *    "내" 알림이라는 의미라 my 접두사.
+ *  - `mark_notifications_read(p_ids[])` — body {ids:[...]} 시 호출. 명시한 ID만 즉시 read.
+ *    제외 정책 없음 (사용자가 종 dropdown 에서 개별 클릭하는 흐름).
+ *
+ * 즉, my 버전 = 일괄 + ask 제외, ids 버전 = 명시 + 즉시. 향후 RPC 통합 시 함수명 통일 필요.
  */
 
 import { NextResponse } from "next/server";

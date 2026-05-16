@@ -351,12 +351,14 @@ export default async function DoctorDetailPage({ params }: Props) {
   }
 
   return (
-    <section className="space-y-6">
+    // pt-3 — 다른 페이지(`section py-6`)와 BackButton 절대 위치 통일.
+    // pb 는 header 가 -mt 음수 마진으로 위로 끌어올리므로 별도로 두지 않음.
+    <section className="space-y-6 pt-3">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
-      <div className="-ml-1">
+      <div className="mb-1 -ml-1">
         <BackButton fallbackHref="/doctors" />
       </div>
       {/* 원장님 hero
@@ -365,7 +367,10 @@ export default async function DoctorDetailPage({ params }: Props) {
                   이름/소속은 사진 위쪽 여백에 안 겹치게.
           데스크탑: 기존 좌-멘트 + 우-사진 2단 구조 유지. */}
       <header
-        className="relative -mx-4 -mt-6 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:-mt-4 sm:w-full sm:rounded-t-[var(--radius)]"
+        // 모바일·데스크탑 모두 main 의 px-4 안쪽에 들어와 ProfileSection 과 좌우 폭 동일.
+        // 이전: -mx-4 w-[calc(100%+2rem)] 로 viewport 가득 차게 했더니 모바일에서 사진 box
+        // 와 그 아래 ProfileSection (px-6) 의 좌우 폭이 어긋남 → 통합 박스가 깨짐. 제거.
+        className="relative overflow-hidden rounded-t-[var(--radius)]"
         style={{
           // 사용자 요청 — 은은하고 고급스러운 그라데이션.
           // 좌측 상단 원장 컬러(약 18%) → 우측 하단 흰색.
@@ -378,8 +383,9 @@ export default async function DoctorDetailPage({ params }: Props) {
           `,
         }}
       >
-        {/* 모바일 레이아웃 — 멘트 가운데(따옴표 wrap), 사진 정중앙 */}
-        <div className="mx-auto flex max-w-[820px] flex-col px-5 pt-12 sm:hidden">
+        {/* 모바일 레이아웃 — 멘트 가운데(따옴표 wrap), 사진 정중앙.
+            px-6: ProfileSection 의 px-6 과 동일 (모바일 통합 박스 좌우 폭 일치) */}
+        <div className="mx-auto flex max-w-[820px] flex-col px-6 pt-12 sm:hidden">
           {doctor.intro && (
             // 데스크탑처럼 \n 줄바꿈 유지 + 좀 더 넓은 사용 (max-w 없음).
             // 시작·끝 곡선 따옴표("…")로 감싸기 — 인용문 느낌.
@@ -758,7 +764,12 @@ function DoctorProfileSection({ profile }: { profile: DoctorProfileData }) {
     return null;
 
   return (
-    <section className="relative z-10 -mt-6 rounded-[var(--radius)] bg-white px-6 py-4 sm:-mt-8">
+    // 사진 header 와 위/아래 라운드를 분담해서 한 박스처럼 매끄럽게 잇기:
+    //   header → rounded-t (위) / 사진 아래쪽은 직각으로 ProfileSection 과 맞붙음
+    //   ProfileSection → rounded-b (아래) / 윗쪽은 직각으로 header 와 맞붙음
+    // 부모 section 의 space-y-6 (24px) 이 header 와 ProfileSection 사이에 간격을 만들어
+    // 틈이 생기므로 -mt-6 으로 그 간격을 정확히 0 으로 상쇄. 라운드는 분담돼 있어 통합 박스.
+    <section className="relative z-10 -mt-6 rounded-b-[var(--radius)] bg-white px-6 py-4">
       <h2 className="mb-3 text-[15px] font-bold text-[var(--text)]">
         프로필
       </h2>

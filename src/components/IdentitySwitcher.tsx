@@ -56,14 +56,10 @@ export default function IdentitySwitcher({
 
   // 활성 identity의 진입 링크
   //  - admin: /admin (관리자 대시보드)
-  //  - doctor: /doctors/{slug} (원장 대시보드 — 본인 접속 시 dashboard-only 화면)
-  //  - 그 외: /{handle} (개인 프로필 피드)
+  //  - 그 외 (doctor 포함): /{handle} — handle 페이지가 본인 접속 시 대시보드 역할.
+  //    /doctors/{slug} 는 본인이든 외부인이든 공개 프로필만 보여주는 정책으로 통일.
   const profileHref =
-    active.kind === "admin"
-      ? "/admin"
-      : (active.kind === "doctor" || active.kind === "primary") && doctorSlug
-        ? `/doctors/${doctorSlug}`
-        : `/${active.handle}`;
+    active.kind === "admin" ? "/admin" : `/${active.handle}`;
 
   // identity가 1개뿐이면 dropdown 무의미 — 단순 Link
   if (identities.length === 1) {

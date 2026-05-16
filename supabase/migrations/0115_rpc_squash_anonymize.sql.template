@@ -1,0 +1,43 @@
+-- 0115_rpc_squash_anonymize.sql.template
+--
+-- ⚠️ 이 파일은 **template** 입니다. 즉시 적용 X.
+-- 적용 조건: `anonymize_user_content_before_delete` / `find_duplicate_profiles` RPC 가
+--   2026-05-16 이후 1개월 이상 hotfix 없이 안정 운영된 후.
+--
+-- 안정화 확인 절차:
+--   1. production 에서 마지막 hotfix 가 0111 (2026-05-16) 임을 확인
+--   2. supabase logs / 에러 모니터링에서 anonymize / find_duplicate_profiles 호출 실패 0건 확인
+--   3. 새 가입자/탈퇴 흐름 정상 동작 확인 (e2e 스크립트 실행)
+--
+-- 적용 시:
+--   1. 파일명을 `.template` 제거하고 `0115_rpc_squash_anonymize.sql` 로 rename
+--   2. 0107~0111 의 RPC 재정의 라인을 모두 합친 **최종본** 1개로 OR REPLACE
+--   3. application 코드는 변경 없음 (RPC 시그니처 동일)
+--
+-- 회귀 위험:
+--   - 함수 본문 합치는 과정에서 오타 가능성 — 반드시 production DB 와 byte-level 비교 후 적용
+--   - 탈퇴 처리 실패 시 **사용자 데이터 손실 위험** — 새벽 시간대 배포 + 즉시 롤백 SQL 준비
+
+-- ─────────────────────────────────────────────────────────────
+-- 적용 시 작성할 SQL (현재는 placeholder)
+-- ─────────────────────────────────────────────────────────────
+--
+-- CREATE OR REPLACE FUNCTION public.anonymize_user_content_before_delete(p_auth_user_id uuid)
+--   RETURNS jsonb
+--   LANGUAGE plpgsql
+--   SECURITY DEFINER
+--   SET search_path = public
+-- AS $$ ... 0111 의 최신 본문 ... $$;
+--
+-- CREATE OR REPLACE FUNCTION public.find_duplicate_profiles(p_email text, p_birthdate date, p_gender text)
+--   RETURNS TABLE(...)
+--   LANGUAGE plpgsql
+--   SECURITY DEFINER
+--   SET search_path = public
+-- AS $$ ... 0111 의 최신 본문 ... $$;
+--
+-- COMMENT ON FUNCTION ... IS 'Squashed from 0107~0111 (2026-05-17). 향후 변경 시 새 마이그레이션.';
+
+-- 적용 전까지 이 파일은 idempotent — 어떤 SQL 도 실행하지 않음.
+-- supabase CLI 가 `.template` 확장자는 무시함.
+SELECT 1;

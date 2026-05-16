@@ -23,12 +23,19 @@ import { getDoctorIdForProfile } from "./doctor-mapping";
  * cookie 'pibutenten:identity' 를 읽어 target profile.id 결정.
  *  - 'primary' 또는 cookie 없음 → authUserId 반환
  *  - 유효한 UUID 면 그 값 반환
+ *  - cookies() 컨텍스트 밖(테스트/일부 server util)에서 호출 시 authUserId 반환
+ *
+ * exported — viewer-states 등에서도 동일 로직 사용 (이전 중복 정의 제거).
  */
-async function readTargetProfileId(authUserId: string): Promise<string> {
-  const cookieStore = await cookies();
-  const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? PRIMARY_IDENTITY_ID;
-  if (cookieVal !== PRIMARY_IDENTITY_ID && UUID_RE.test(cookieVal)) {
-    return cookieVal;
+export async function readTargetProfileId(authUserId: string): Promise<string> {
+  try {
+    const cookieStore = await cookies();
+    const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? PRIMARY_IDENTITY_ID;
+    if (cookieVal !== PRIMARY_IDENTITY_ID && UUID_RE.test(cookieVal)) {
+      return cookieVal;
+    }
+  } catch {
+    /* cookies() 컨텍스트 밖이면 fallback */
   }
   return authUserId;
 }

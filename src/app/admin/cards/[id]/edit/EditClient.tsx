@@ -7,6 +7,7 @@ import { pickHighlight } from "@/lib/card-highlight";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 import { normalizeTags } from "@/lib/tag-dictionary";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
+import KeywordsEditor from "@/components/card-editor/KeywordsEditor";
 
 type Doctor = {
   id: string;
@@ -154,7 +155,6 @@ export default function EditClient({
   const [question, setQuestion] = useState(card.question);
   const [answer, setAnswer] = useState(card.answer);
   const [keywords, setKeywords] = useState<string[]>(card.keywords);
-  const [keywordInput, setKeywordInput] = useState("");
   // 글쓴이 — 관리자(super admin)는 변경 가능. 원장 admin은 본인 카드만 보이므로 변경 불필요.
   // (super admin 여부는 server에서 가드되어 이 페이지 진입 자체가 가능한 것 — 클라이언트에선 항상 dropdown 노출)
   const [doctorId, setDoctorId] = useState<string | null>(card.doctor_id);
@@ -483,9 +483,14 @@ export default function EditClient({
         </div>
 
         {/* 키워드 — 자동 추출(LLM) + 직접 입력 */}
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <label className="text-sm text-[var(--text-secondary)]">태그</label>
+        <KeywordsEditor
+          keywords={keywords}
+          onChange={setKeywords}
+          onError={setError}
+          max={20}
+          placeholder="태그 입력 후 Enter (또는 ✨ 자동 추출로 LLM 추천)"
+          disabled={isSaving}
+          labelExtra={
             <button
               type="button"
               disabled={tagAutoLoading || (!question.trim() && !answer.trim())}
@@ -521,39 +526,8 @@ export default function EditClient({
             >
               {tagAutoLoading ? "추출 중…" : "✨ 자동 추출"}
             </button>
-          </div>
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {keywords.map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() =>
-                  setKeywords((prev) => prev.filter((x) => x !== k))
-                }
-                className="inline-flex items-center gap-1 rounded-full border border-[var(--primary)] bg-[var(--primary)]/10 px-2.5 py-0.5 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary)]/20"
-              >
-                {k} <span aria-hidden>×</span>
-              </button>
-            ))}
-          </div>
-          {/* D3: 키워드 입력 — 엔터로만 추가 ("추가" 버튼 제거) */}
-          <input
-            type="text"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                const v = keywordInput.trim().replace(/^#/, "");
-                if (!v || keywords.includes(v)) return;
-                setKeywords((prev) => [...prev, v]);
-                setKeywordInput("");
-              }
-            }}
-            placeholder="태그 입력 후 Enter (또는 ✨ 자동 추출로 LLM 추천)"
-            className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-          />
-        </div>
+          }
+        />
 
         {/* 참고문헌 (PubMed) — 편집/추가/제거 */}
         <div>

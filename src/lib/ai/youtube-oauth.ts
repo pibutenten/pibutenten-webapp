@@ -63,11 +63,15 @@ async function getRefreshToken(): Promise<string | null> {
   } catch {
     // DB 접근 실패는 env fallback으로
   }
-  // env fallback (옛 환경 호환)
-  const envToken = process.env.YOUTUBE_OAUTH_REFRESH_TOKEN;
-  if (envToken) {
-    cachedRefreshToken = { token: envToken, expiresAt: now + 60_000 };
-    return envToken;
+  // env fallback — **production 차단** (2026-05-17): 운영에서는 DB only.
+  // dev 환경에서는 .env.local 의 YOUTUBE_OAUTH_REFRESH_TOKEN 으로 초기 세팅 가능.
+  // 운영 배포된 코드에서 env fallback 이 살아 있으면 시크릿 평문 노출 위험.
+  if (process.env.NODE_ENV !== "production") {
+    const envToken = process.env.YOUTUBE_OAUTH_REFRESH_TOKEN;
+    if (envToken) {
+      cachedRefreshToken = { token: envToken, expiresAt: now + 60_000 };
+      return envToken;
+    }
   }
   return null;
 }

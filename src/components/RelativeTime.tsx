@@ -15,9 +15,7 @@
 import { useEffect, useState } from "react";
 import { formatRelativeTime } from "@/lib/relative-time";
 
-// Phase 7-B: 함수 본체는 `@/lib/relative-time` 로 이동 — 서버/클라이언트 어디서나 사용 가능.
-// 이 모듈은 호환성을 위해 동일 이름으로 re-export 유지 (기존 임포터 변경 불필요).
-export { formatRelativeTime };
+// 함수 본체는 `@/lib/relative-time`. 외부 호출자는 lib에서 직접 import.
 
 type Props = {
   iso: string | null | undefined;

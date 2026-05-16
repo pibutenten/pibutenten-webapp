@@ -11,18 +11,10 @@
  * Phase 7 `scripts_phase7/30_identify_doctors.py` 의 핵심 로직 포팅.
  */
 
-/** DB doctors.slug 기준 9명 원장 — PRD §4 */
-export const DOCTORS_9 = [
-  { name: "정한미", slug: "jung-hanmi" },
-  { name: "배정민", slug: "bae-jungmin" },
-  { name: "권수현", slug: "kwon-soohyun" },
-  { name: "김수형", slug: "kim-soohyung" },
-  { name: "고혜림", slug: "ko-hyerim" },
-  { name: "김종식", slug: "kim-jongsic" },
-  { name: "이도영", slug: "rhee-doyoung" },
-  { name: "강현진", slug: "kang-hyunjin" },
-  { name: "박효진", slug: "park-hyojin" },
-] as const;
+// DB doctors.slug 기준 9명 원장 — SSOT 는 schema/doctor.ts 의 DOCTORS.
+// 호환성 위해 동일 이름으로 re-export (기존 호출자 변경 불필요).
+import { DOCTORS } from "@/lib/schema/doctor";
+export const DOCTORS_9 = DOCTORS;
 
 export type DoctorMatch = {
   name: string;

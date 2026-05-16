@@ -7,6 +7,14 @@
  *   3) 상위 N개 태그 반환 (기본 5개)
  *
  * 의도적으로 AI 호출 없음 — 비용 0, 즉시 응답.
+ *
+ * ⚠️ 호출 분기 정책 (2026-05-17):
+ *   - **회원 글쓰기 (`/write`, `WriteClient`)**: 이 `extractAutoTags()` 만 사용 (즉시 + 무료).
+ *   - **admin AI 초안 검수 (`/admin/draft`, `/admin/cards/[id]/edit`)**: `/api/admin/extract-keywords`
+ *     (Claude 호출) 도 사용 가능. 시술명 사전에 없는 신규 키워드 추출이 강점.
+ *
+ *   두 경로는 **상호 배타**. 동일 글에 둘 다 호출하지 말 것 (UX 혼란 + 중복 비용).
+ *   AI 라우트는 admin 전용이며, 일반 회원 글쓰기 흐름에 절대 추가하지 말 것.
  */
 import mappings from "@/data/procedure-mappings/procedure-mappings.json";
 

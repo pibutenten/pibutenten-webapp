@@ -30,7 +30,8 @@ export type Kind =
   | "shares";
 
 export type VisitorRow = {
-  profile_id: string;
+  // 비로그인 방문자 합계 행은 profile_id = null (0117 정책)
+  profile_id: string | null;
   display_name: string | null;
   handle: string | null;
   visit_count: number;
@@ -197,7 +198,7 @@ export default function StatsListClient({
         </p>
       ) : (
         <ol className="space-y-2">
-          {rows.map((r, i) => {
+          {rows.map((r) => {
             const isVisitors = kind === "visitors";
             const cardRow = !isVisitors ? (r as CardRow) : null;
             const visitorRow = isVisitors ? (r as VisitorRow) : null;
@@ -205,8 +206,9 @@ export default function StatsListClient({
               <li
                 key={
                   isVisitors
-                    ? (visitorRow as VisitorRow).profile_id
-                    : (cardRow as CardRow).card_id + "-" + i
+                    ? // 비로그인 방문자 합계 행은 profile_id = null → 고정 key "anon"
+                      ((visitorRow as VisitorRow).profile_id ?? "anon")
+                    : (cardRow as CardRow).card_id
                 }
                 className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
               >

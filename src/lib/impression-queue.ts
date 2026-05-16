@@ -38,6 +38,14 @@ function getOrCreateSessionId(): string {
   return sid;
 }
 
+// 모듈 외부에서 같은 session id 가 필요할 때 (예: card_shares INSERT 시 session-dedup).
+// sessionStorage 키 SSOT 유지 — 호출자가 직접 read 하지 않도록.
+export function getSessionId(): string | null {
+  if (typeof window === "undefined") return null;
+  const sid = getOrCreateSessionId();
+  return sid || null;
+}
+
 async function resolveUserId(): Promise<string | null> {
   if (userIdResolved) return userId;
   try {

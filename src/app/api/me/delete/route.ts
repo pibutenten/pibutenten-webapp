@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,17 +50,15 @@ export async function POST(req: Request) {
   }
 
   // service role client (auth.admin.deleteUser 권한)
-  const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!SERVICE_ROLE_KEY || !SUPABASE_URL) {
+  let admin;
+  try {
+    admin = createSupabaseAdminClient();
+  } catch {
     return NextResponse.json(
       { error: "서버 설정 오류 (관리자에게 문의)" },
       { status: 500 },
     );
   }
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
 
   // Phase 7-extra (2026-05-16): soft-delete 익명화 — auth.users.delete 직전.
   //   sentinel 방식 폐기 (migration 0109).
