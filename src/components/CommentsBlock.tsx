@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
 import RelativeTime from "@/components/RelativeTime";
+import LoginPromptDialog from "@/components/LoginPromptDialog";
 
 type CommentStatus = "visible" | "hidden" | "deleted";
 
@@ -82,6 +83,8 @@ export default function CommentsBlock({
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
+  // 비로그인 사용자가 "로그인하고 댓글 남기기" 클릭 시 모달 (이전 페이지 이동 → 모달)
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
 
   // ── 댓글 fetch
   const reload = useCallback(async () => {
@@ -337,14 +340,20 @@ export default function CommentsBlock({
       )}
       {showInput && isPublishedQa && meLoaded && !isLoggedIn && (
         <div className="mt-3 text-center">
-          <Link
-            href="/login"
+          <button
+            type="button"
+            onClick={() => setAuthPromptOpen(true)}
             className="text-[12px] text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline"
           >
             로그인하고 댓글 남기기
-          </Link>
+          </button>
         </div>
       )}
+      <LoginPromptDialog
+        open={authPromptOpen}
+        message="댓글을 남기려면 회원가입이 필요해요"
+        onClose={() => setAuthPromptOpen(false)}
+      />
     </div>
   );
 }

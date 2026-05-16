@@ -29,6 +29,7 @@ import { labelForCategory } from "@/lib/post-category";
 import { pickHighlight } from "@/lib/card-highlight";
 import { enqueueImpression } from "@/lib/impression-queue";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import LoginPromptDialog from "@/components/LoginPromptDialog";
 import RelativeTime from "@/components/RelativeTime";
 
 export type CardData = {
@@ -182,6 +183,8 @@ export default function Card({
     { id: string; role: "admin" | "doctor" | "user" } | null | undefined
   >(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
+  // 비로그인 사용자가 로그인 필요 액션 시도 시 띄울 모달 (인스타·트위터 표준 UX)
+  const [authPrompt, setAuthPrompt] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.question);
   const [editBody, setEditBody] = useState(card.answer);
@@ -373,10 +376,10 @@ export default function Card({
   // ⚠️ 모든 경로에서 setSavePending(false)로 풀어야 다음 클릭이 막히지 않음.
   async function handleSave() {
     if (typeof window === "undefined") return;
-    // me 로딩 중(undefined) → 무시. 비로그인(null) → login redirect.
+    // me 로딩 중(undefined) → 무시. 비로그인(null) → 로그인 안내 모달.
     if (me === undefined) return;
     if (me === null) {
-      router.push("/login?next=" + encodeURIComponent(window.location.pathname));
+      setAuthPrompt("저장하려면 회원가입이 필요해요");
       return;
     }
     if (savePending) return;
@@ -445,10 +448,10 @@ export default function Card({
   function handleLike() {
     if (typeof window === "undefined") return;
     // me 로딩 중(undefined) → 무시. 로딩 race 차단.
-    // 비로그인(null) → login redirect.
+    // 비로그인(null) → 로그인 안내 모달.
     if (me === undefined) return;
     if (me === null) {
-      router.push("/login?next=" + encodeURIComponent(window.location.pathname));
+      setAuthPrompt("좋아요를 누르려면 회원가입이 필요해요");
       return;
     }
     const supabase = createSupabaseBrowserClient();
@@ -1320,6 +1323,13 @@ export default function Card({
         tone="danger"
         onConfirm={performDelete}
         onCancel={() => !deleting && setConfirmDeleteOpen(false)}
+      />
+
+      {/* 비로그인 상태에서 좋아요/저장 시도 시 — 인스타·트위터 표준 UX */}
+      <LoginPromptDialog
+        open={!!authPrompt}
+        message={authPrompt ?? ""}
+        onClose={() => setAuthPrompt(null)}
       />
     </article>
   );
