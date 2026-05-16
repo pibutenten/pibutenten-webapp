@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Masonry from "react-masonry-css";
 import Card, { type CardData } from "./Card";
+import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 
 type ViewerState = { liked?: boolean; saved?: boolean };
 
@@ -123,9 +124,9 @@ export default function Feed({
       if (typeof id !== "number") return;
       setItems((prev) => prev.filter((q) => q.id !== id));
     }
-    window.addEventListener("pibutenten:card-deleted", onDeleted);
+    window.addEventListener(CARD_BUS_EVENTS.CARD_DELETED, onDeleted);
     return () =>
-      window.removeEventListener("pibutenten:card-deleted", onDeleted);
+      window.removeEventListener(CARD_BUS_EVENTS.CARD_DELETED, onDeleted);
   }, []);
 
   return (

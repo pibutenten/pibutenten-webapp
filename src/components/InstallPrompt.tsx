@@ -19,6 +19,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 
 type Props = { signedIn: boolean };
 
@@ -216,7 +217,7 @@ export default function InstallPrompt({ signedIn }: Props) {
       } catch {}
       if (count >= REQUIRED_QA_VIEWS) evaluate();
     };
-    window.addEventListener("pibutenten:card-viewed", onCardViewed);
+    window.addEventListener(CARD_BUS_EVENTS.CARD_VIEWED, onCardViewed);
 
     // 트리거 2: 로그인 사용자 — 진입 4초 후
     let signInTimer: number | undefined;
@@ -228,7 +229,7 @@ export default function InstallPrompt({ signedIn }: Props) {
       window.removeEventListener("pibutenten:install-show", onForceShow);
       window.removeEventListener("pibutenten:bip-ready", onBipReady);
       window.removeEventListener("beforeinstallprompt", onBefore);
-      window.removeEventListener("pibutenten:card-viewed", onCardViewed);
+      window.removeEventListener(CARD_BUS_EVENTS.CARD_VIEWED, onCardViewed);
       if (signInTimer !== undefined) window.clearTimeout(signInTimer);
     };
   }, [signedIn]);
