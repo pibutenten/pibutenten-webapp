@@ -11,14 +11,13 @@
  *   active.role='admin'         → super admin (모든 권한)
  *   active.role='doctor' + doctor_accounts 매핑 → 원장 admin (본인 doctor 카드만)
  *   active.role='user'          → 일반 사용자 (admin 페이지 차단)
+ *
+ * Phase 2 정리 (2026-05-16): cookie 읽기 + profile/doctor_accounts lookup 본문 50줄을
+ * identity-server.ts 의 resolveActiveIdentity 헬퍼로 추출. admin-page-guard.ts 도 동일 헬퍼 사용.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-import {
-  IDENTITY_COOKIE,
-  UUID_RE,
-  type ActiveIdentity,
-} from "./identity-shared";
+import { type ActiveIdentity } from "./identity-shared";
+import { resolveActiveIdentity } from "./identity-server";
 
 export type { ActiveIdentity } from "./identity-shared";
 
@@ -42,47 +41,7 @@ export async function getIdentityContext(
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const cookieStore = await cookies();
-  const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? "primary";
-
-  // active profile.id 결정
-  // - 'primary' → 본인 auth user의 profile (id = user.id)
-  // - UUID → 그 profiles.id (단, 같은 auth_user_id 묶음 멤버여야 함)
-  let targetProfileId = user.id;
-  if (cookieVal !== "primary" && UUID_RE.test(cookieVal)) {
-    targetProfileId = cookieVal;
-  }
-
-  // profiles에서 조회 + 본인 묶음(auth_user_id = user.id) 검증
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, handle, display_name, avatar_url, role, auth_user_id")
-    .eq("id", targetProfileId)
-    .maybeSingle();
-
-  // 본인 묶음 멤버 검증 — 다른 사람 profiles로 스위치 시도 차단
-  let active: ActiveIdentity | null = null;
-  if (profile && (profile.auth_user_id === user.id || targetProfileId === user.id)) {
-    // doctor_accounts 매핑 lookup
-    const { data: da } = await supabase
-      .from("doctor_accounts")
-      .select("doctor_id")
-      .eq("profile_id", targetProfileId)
-      .maybeSingle();
-    const doctorId = (da?.doctor_id as string | null) ?? null;
-    const role = (profile.role as string) ?? "user";
-    active = {
-      id: targetProfileId === user.id ? "primary" : targetProfileId,
-      authUserId: user.id,
-      profileId: targetProfileId,
-      handle: (profile.handle as string) ?? "",
-      displayName: (profile.display_name as string) ?? user.email ?? "",
-      avatarUrl: (profile.avatar_url as string | null) ?? null,
-      role,
-      doctorId,
-    };
-  }
-
+  const active = await resolveActiveIdentity(supabase, user.id, user.email);
   const isSuperAdmin = active?.role === "admin";
   const isDoctorAdmin = !!active?.doctorId;
 

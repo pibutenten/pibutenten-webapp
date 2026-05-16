@@ -80,8 +80,9 @@ async function flush(): Promise<void> {
     await sb
       .from("card_impressions")
       .upsert(rows, { onConflict: "user_id,card_id", ignoreDuplicates: true });
-  } catch {
-    // silent
+  } catch (e) {
+    // UX 영향 X 이지만 운영 가시성 위해 콘솔 로그 (대량 실패 시 즉시 발견)
+    console.error("[card_impressions] flush failed:", e);
   } finally {
     flushing = false;
     if (pending.size > 0) {

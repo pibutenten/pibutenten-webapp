@@ -15,15 +15,14 @@
  *
  * 활성 명함이 회원이어도 묶음에 admin 있으면 통과 — 운영자가 점검·작성 동선에서
  * 매번 admin 명함 전환할 필요 없음 (PRD §C 의도).
+ *
+ * Phase 2 정리 (2026-05-16): cookie 읽기 + profile/doctor_accounts lookup 본문 50줄을
+ * identity-server.ts 의 resolveActiveIdentity 헬퍼로 추출. identity.ts 와 동일 헬퍼 사용.
  */
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "./supabase/server";
-import {
-  IDENTITY_COOKIE,
-  UUID_RE,
-  type ActiveIdentity,
-} from "./identity-shared";
+import { type ActiveIdentity } from "./identity-shared";
+import { resolveActiveIdentity } from "./identity-server";
 
 export type { ActiveIdentity } from "./identity-shared";
 
@@ -70,45 +69,8 @@ export async function requireAdminPage(
   const adminProfileId = admin?.id ?? null;
   const isSuperAdmin = !!admin;
 
-  // active identity 결정 — cookie 'pibutenten:identity' 또는 primary
-  const cookieStore = await cookies();
-  const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? "primary";
-  let targetProfileId = user.id;
-  if (cookieVal !== "primary" && UUID_RE.test(cookieVal)) {
-    targetProfileId = cookieVal;
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, handle, display_name, avatar_url, role, auth_user_id")
-    .eq("id", targetProfileId)
-    .maybeSingle();
-
-  // 본인 묶음 멤버 검증 — 다른 사람 profile cookie 위조 차단
-  let active: ActiveIdentity | null = null;
-  if (
-    profile &&
-    (profile.auth_user_id === user.id || targetProfileId === user.id)
-  ) {
-    const { data: da } = await supabase
-      .from("doctor_accounts")
-      .select("doctor_id")
-      .eq("profile_id", targetProfileId)
-      .maybeSingle();
-    const doctorId = (da?.doctor_id as string | null) ?? null;
-    const role = (profile.role as string) ?? "user";
-    active = {
-      id: targetProfileId === user.id ? "primary" : targetProfileId,
-      authUserId: user.id,
-      profileId: targetProfileId,
-      handle: (profile.handle as string) ?? "",
-      displayName: (profile.display_name as string) ?? user.email ?? "",
-      avatarUrl: (profile.avatar_url as string | null) ?? null,
-      role,
-      doctorId,
-    };
-  }
-
+  // active identity 결정 — identity-server.resolveActiveIdentity 헬퍼 사용
+  const active = await resolveActiveIdentity(supabase, user.id, user.email);
   const isDoctorAdmin = !!active?.doctorId;
 
   // 권한 체크 —

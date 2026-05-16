@@ -251,8 +251,9 @@ export default function Card({
           session_id: sessionId,
         });
         window.dispatchEvent(new CustomEvent("pibutenten:card-viewed"));
-      } catch {
-        // 트래킹 실패는 UX에 영향 X — silent
+      } catch (e) {
+        // 트래킹 실패는 UX에 영향 X — silent fail 이지만 운영 가시성 위해 콘솔 로그
+        console.error("[card_views] insert failed:", e);
       }
     })();
   }, [card.id]);
