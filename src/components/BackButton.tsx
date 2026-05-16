@@ -4,8 +4,14 @@ import { useRouter } from "next/navigation";
 
 /**
  * 글 상세 페이지 좌상단 뒤로가기 버튼.
- * - history.back() 시도 — 같은 SPA 세션 안이면 옛 피드/스크롤 위치 복원 (사용자 요청)
- * - history depth 1 이하 (외부 직접 진입) 면 fallback / (홈) 으로 이동
+ *
+ * 정책 (2026-05-17):
+ * - 같은 탭 안에서 한 번이라도 SPA navigation 이 일어났으면 → `router.back()` (피드/스크롤 복원).
+ * - 외부에서 단독글 URL 로 바로 진입한 경우 (새 탭, 공유 링크 등) → `fallbackHref` 로 이동.
+ * - 판별 기준: **`window.history.length > 1`** 단일 조건.
+ *   이전엔 `document.referrer` 비교도 함께 했는데, 홈 → 단독글로 SPA 이동 시 referrer 는
+ *   초기 외부 referrer 그대로 유지(또는 빈 문자열) 이라 검사가 실패 → 글쓴이 프로필로
+ *   잘못 fallback 되는 버그가 있었음 (사용자 보고 2026-05-17). referrer 검사 제거.
  */
 export default function BackButton({
   fallbackHref = "/",
@@ -17,8 +23,7 @@ export default function BackButton({
   const router = useRouter();
   function go() {
     if (typeof window === "undefined") return;
-    // history depth 가 있으면 back, 없으면 fallback
-    if (window.history.length > 1 && document.referrer && document.referrer !== window.location.href) {
+    if (window.history.length > 1) {
       router.back();
     } else {
       router.push(fallbackHref);

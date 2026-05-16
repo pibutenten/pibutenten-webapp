@@ -289,30 +289,7 @@ a {
   opacity: 0.7;
 }
 
-/* PWA standalone 진입 시 즉시 splash overlay — React mount 전부터 표시되어
-   iOS native splash → app 콘텐츠 사이 깜빡임 차단. JS 가 sessionStorage 체크 후
-   body 에 .splash-done 클래스 부여하면 fade-out. */
-@media (display-mode: standalone) {
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 200;
-    background-color: #4CBFF2;
-    /* 둥근 배경 박스가 들어 있던 splash-circle-512.png 는 manifest #4CBFF2 위에
-       또 다른 둥근 박스가 겹쳐 보이는 이중 색 문제가 있어 폐기.
-       splash-logo.svg 는 흰색 tt: 글자만 들어 있어서 단색 배경 위에 글자만 떠 보임. */
-    background-image: url("/icons/splash-logo.svg");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 160px 160px;
-    pointer-events: none;
-    transition: opacity 350ms ease-out;
-  }
-  body.splash-done::before {
-    opacity: 0;
-  }
-  body.splash-removed::before {
-    display: none;
-  }
-}
+/* PWA standalone splash — manifest 의 background_color(#4CBFF2) + icon-512 가
+   OS native splash 를 이미 처리한다. 별도 body::before overlay 를 두면 native
+   splash 종료 후 또 다른 splash 가 깜빡 보이는 이중 노출 문제 (사용자 보고
+   2026-05-17) — overlay 폐기. layout.tsx 의 splash Script 도 함께 제거됨. */

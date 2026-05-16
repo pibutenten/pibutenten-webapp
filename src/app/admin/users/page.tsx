@@ -50,7 +50,9 @@ const PERIOD_OPTIONS: Array<{ label: string; days: number }> = [
 
 type UserKpi = {
   profile_id: string;
-  visit_days: number;
+  /** 0118 (2026-05-17): 세션 단위 방문 수 (card_impressions DISTINCT session_id).
+   *  0117 의 /admin/stats/visitors 정책과 통일 — 같은 세션의 여러 impression = 1 방문. */
+  visit_sessions: number;
   views_received: number;
   comments_written: number;
   likes_received: number;
@@ -259,7 +261,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                 <th className="px-3 py-2 text-right font-medium">글수</th>
                 <th
                   className="px-2 py-2 text-right font-medium"
-                  title="방문 일수 (하루 1회까지, 기간 내)"
+                  title="세션 단위 방문 수 (같은 세션 안 여러 임프레션 = 1방문, 기간 내 / 0117·0118 정책)"
                 >
                   방문
                 </th>
@@ -338,7 +340,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                       </td>
                       {/* 5개 KPI — 기간 토글 적용 (default 7일) */}
                       <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
-                        {(kpiMap.get(p.id)?.visit_days ?? 0).toLocaleString()}
+                        {(kpiMap.get(p.id)?.visit_sessions ?? 0).toLocaleString()}
                       </td>
                       <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.views_received ?? 0).toLocaleString()}

@@ -68,12 +68,16 @@ export async function POST(
   if (role === "doctor" && doctorId) {
     const { data: existing } = await supabase
       .from("doctor_accounts")
-      .select("profile_id, profiles!inner(auth_user_id, display_name)")
+      .select("profile_id, profiles!inner(auth_user_id, display_name, handle)")
       .eq("doctor_id", doctorId)
       .maybeSingle()
       .returns<{
         profile_id: string;
-        profiles: { auth_user_id: string | null; display_name: string | null };
+        profiles: {
+          auth_user_id: string | null;
+          display_name: string | null;
+          handle: string | null;
+        };
       } | null>();
     if (existing && existing.profile_id !== id) {
       const isPlaceholder = existing.profiles?.auth_user_id == null;
@@ -91,10 +95,18 @@ export async function POST(
           );
         }
       } else {
-        const exName = existing.profiles?.display_name ?? "다른 회원";
+        // 정체 명확화 — display_name + @handle + auth_user_id 접두까지 노출해서
+        // admin 이 누구와 충돌인지 즉시 식별 가능. profile id 도 함께 반환.
+        const exName = existing.profiles?.display_name ?? "(이름 없음)";
+        const exHandle = existing.profiles?.handle
+          ? `@${existing.profiles.handle}`
+          : "(handle 없음)";
         return NextResponse.json(
           {
-            error: `해당 원장은 이미 가입 회원 "${exName}" 에게 매핑되어 있습니다. 먼저 해제해주세요.`,
+            error: `해당 원장은 이미 가입 회원 "${exName}" ${exHandle} 에게 매핑되어 있습니다. 먼저 /admin/users 에서 그 회원의 매핑을 해제해주세요.`,
+            existing_profile_id: existing.profile_id,
+            existing_display_name: exName,
+            existing_handle: existing.profiles?.handle ?? null,
           },
           { status: 409 },
         );

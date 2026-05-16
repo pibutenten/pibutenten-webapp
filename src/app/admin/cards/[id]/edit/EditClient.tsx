@@ -529,122 +529,17 @@ export default function EditClient({
           }
         />
 
-        {/* 참고문헌 (PubMed) — 편집/추가/제거 */}
-        <div>
-          <label className="mb-1 block text-sm text-[var(--text-secondary)]">
-            참고문헌 (PubMed)
-          </label>
-          {/* E6: 멀티 ref UI — 각 ref별 X 버튼 + 새 ref 추가 + 입력 */}
-          <div className="space-y-2">
-            {pubmedRefs.map((r, idx) => (
-              <div key={`${r.pmid}-${idx}`} className="relative">
-                <ReferenceLine r={r} />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPubmedRefs((prev) => prev.filter((_, i) => i !== idx))
-                  }
-                  title="이 참고문헌 제거"
-                  className="absolute right-2 top-2 rounded-full border border-red-300 bg-white px-2 py-0.5 text-[11px] font-bold text-red-600 hover:bg-red-50"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-soft)]/40 p-3">
-              <p className="mb-2 text-xs text-[var(--text-muted)]">
-                {pubmedRefs.length === 0
-                  ? "참고문헌 없음 — PubMed URL 또는 PMID를 입력해 자동으로 채울 수 있습니다."
-                  : "참고문헌 추가 — PubMed URL 또는 PMID 입력 후 [+ 삽입]"}
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={refPmidInput}
-                  onChange={(e) => setRefPmidInput(e.target.value)}
-                  placeholder="https://pubmed.ncbi.nlm.nih.gov/37705328/ 또는 37705328"
-                  className="flex-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
-                />
-                <button
-                  type="button"
-                  disabled={refLoading || !refPmidInput.trim()}
-                  onClick={async () => {
-                    setError(null);
-                    setRefLoading(true);
-                    try {
-                      // PubMed URL 또는 PMID 숫자 모두 받기 — URL에서 마지막 숫자 추출
-                      const raw = refPmidInput.trim();
-                      const pmidMatch = raw.match(/(\d{6,9})/);
-                      if (!pmidMatch) {
-                        setError("PMID 숫자가 보이지 않습니다. PubMed URL 또는 PMID 숫자를 입력해 주세요.");
-                        setRefLoading(false);
-                        return;
-                      }
-                      const pmid = pmidMatch[1];
-                      const res = await fetch(
-                        "/api/admin/draft/pubmed-by-pmid",
-                        {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ pmid }),
-                        },
-                      );
-                      const data = (await res.json()) as
-                        | {
-                            reference: {
-                              pmid: string;
-                              doi: string;
-                              title: string;
-                              journal: string;
-                              year: string;
-                              authors_short: string;
-                            };
-                          }
-                        | { error: string };
-                      if (!res.ok || "error" in data) {
-                        setError(
-                          "error" in data
-                            ? data.error
-                            : `PubMed 조회 실패 (${res.status})`,
-                        );
-                        return;
-                      }
-                      const r = data.reference;
-                      const newRef = {
-                        pmid: r.pmid,
-                        doi: r.doi,
-                        title: r.title,
-                        journal: r.journal,
-                        year: r.year,
-                        authors_short: r.authors_short,
-                        pubmed_url: `https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/`,
-                        doi_url: r.doi ? `https://doi.org/${r.doi}` : "",
-                      };
-                      // 중복 PMID 차단
-                      setPubmedRefs((prev) => {
-                        if (prev.some((p) => p.pmid === newRef.pmid)) return prev;
-                        return [...prev, newRef];
-                      });
-                      setRefPmidInput("");
-                    } catch (e) {
-                      setError(
-                        e instanceof Error ? e.message : "네트워크 오류",
-                      );
-                    } finally {
-                      setRefLoading(false);
-                    }
-                  }}
-                  className="whitespace-nowrap rounded-md border border-[var(--primary)] bg-white px-3 py-2 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-50"
-                >
-                  {refLoading ? "조회 중…" : "+ 삽입"}
-                </button>
-              </div>
-              <p className="mt-1 text-[10px] text-[var(--text-muted)]">
-                PubMed URL 또는 PMID 숫자(URL 끝의 6~9자리 숫자) 모두 인식.
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* 참고문헌 (PubMed) — 등록 후 카드 본문과 동일한 스타일로 칩 표시 + X 로 제거.
+            "참고문헌 추가" 버튼으로 N개 누적. 사용자 결정 (2026-05-17). */}
+        <PubmedRefsField
+          refs={pubmedRefs}
+          setRefs={setPubmedRefs}
+          input={refPmidInput}
+          setInput={setRefPmidInput}
+          loading={refLoading}
+          setLoading={setRefLoading}
+          setError={setError}
+        />
 
         {error && (
           <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -702,46 +597,203 @@ export default function EditClient({
   );
 }
 
-/** PubMed 참고문헌 한 줄 표시 (카드 footer와 동일 형식). */
-function ReferenceLine({ r }: { r: NonNullable<PubmedRef> }) {
-  const url = r.pubmed_url ?? r.doi_url ?? "#";
+/**
+ * PubMed 참고문헌 필드 — 등록한 ref 들은 카드 본문 스타일(title sky-blue + meta muted)
+ * 그대로 표시하고 우측 X 로 제거. 아래 [+ 참고문헌 추가] 버튼 누르면 입력 박스 노출.
+ * 등록 후 입력 박스는 자동으로 접힘 (사용자 요청 2026-05-17).
+ */
+function PubmedRefsField({
+  refs,
+  setRefs,
+  input,
+  setInput,
+  loading,
+  setLoading,
+  setError,
+}: {
+  refs: NonNullable<PubmedRef>[];
+  setRefs: React.Dispatch<React.SetStateAction<NonNullable<PubmedRef>[]>>;
+  input: string;
+  setInput: (v: string) => void;
+  loading: boolean;
+  setLoading: (v: boolean) => void;
+  setError: (e: string | null) => void;
+}) {
+  // 입력 박스 열림 여부 — 초기엔 ref 가 없으면 열고, 있으면 닫음.
+  // 등록 시 자동 닫힘. [+ 참고문헌 추가] 로 다시 열림.
+  const [showInput, setShowInput] = useState(refs.length === 0);
+
+  async function submit() {
+    setError(null);
+    setLoading(true);
+    try {
+      const raw = input.trim();
+      const pmidMatch = raw.match(/(\d{6,9})/);
+      if (!pmidMatch) {
+        setError(
+          "PMID 숫자가 보이지 않습니다. PubMed URL 또는 PMID 숫자를 입력해 주세요.",
+        );
+        return;
+      }
+      const pmid = pmidMatch[1];
+      const res = await fetch("/api/admin/draft/pubmed-by-pmid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pmid }),
+      });
+      const data = (await res.json()) as
+        | {
+            reference: {
+              pmid: string;
+              doi: string;
+              title: string;
+              journal: string;
+              year: string;
+              authors_short: string;
+            };
+          }
+        | { error: string };
+      if (!res.ok || "error" in data) {
+        setError(
+          "error" in data ? data.error : `PubMed 조회 실패 (${res.status})`,
+        );
+        return;
+      }
+      const r = data.reference;
+      const newRef = {
+        pmid: r.pmid,
+        doi: r.doi,
+        title: r.title,
+        journal: r.journal,
+        year: r.year,
+        authors_short: r.authors_short,
+        pubmed_url: `https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/`,
+        doi_url: r.doi ? `https://doi.org/${r.doi}` : "",
+      };
+      // 중복 PMID 차단
+      setRefs((prev) => {
+        if (prev.some((p) => p.pmid === newRef.pmid)) return prev;
+        return [...prev, newRef];
+      });
+      setInput("");
+      setShowInput(false); // 등록 후 입력 박스 자동 접힘 (사용자 요청)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "네트워크 오류");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[12px] leading-[1.55]">
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="font-medium text-[var(--text)] underline decoration-[var(--text-muted)]/40 underline-offset-[3px] hover:decoration-[var(--primary)]"
-      >
-        {r.title ?? "(제목 없음)"}
-      </a>
-      <div className="mt-0.5 text-[var(--text-secondary)]">
-        {r.authors_short && <span>{r.authors_short} · </span>}
-        {r.journal && <span>{r.journal}</span>}
-        {r.year && <span> ({r.year})</span>}
-      </div>
-      <div className="mt-0.5 flex gap-3 text-[10px] text-[var(--text-muted)]">
-        {r.pmid && (
-          <a
-            href={`https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-[var(--primary)]"
-          >
-            PMID: {r.pmid}
-          </a>
-        )}
-        {r.doi && (
-          <a
-            href={`https://doi.org/${r.doi}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-[var(--primary)]"
-          >
-            DOI
-          </a>
-        )}
-      </div>
+    <div>
+      <label className="mb-1 block text-sm text-[var(--text-secondary)]">
+        참고문헌 (PubMed)
+      </label>
+
+      {/* 등록된 ref 목록 — 카드 본문 스타일(title sky-blue, meta muted, 13px).
+          넘버링은 자동 (1., 2., …). 우측 X 로 제거. */}
+      {refs.length > 0 && (
+        <ul className="mb-2 space-y-1 text-[13px] leading-[1.55]">
+          {refs.map((r, idx) => (
+            <li
+              key={`${r.pmid}-${idx}`}
+              className="flex items-start gap-2 group"
+            >
+              <span className="shrink-0 pt-[1px] text-[var(--text-muted)]/70">
+                {idx + 1}.
+              </span>
+              <div className="min-w-0 flex-1">
+                {r.pubmed_url || r.doi_url ? (
+                  <a
+                    href={r.pubmed_url || r.doi_url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                    style={{ color: "var(--primary)" }}
+                  >
+                    {r.title ?? "(제목 없음)"}
+                  </a>
+                ) : (
+                  <span style={{ color: "var(--primary)" }}>
+                    {r.title ?? "(제목 없음)"}
+                  </span>
+                )}
+                <span className="text-[var(--text-muted)]">
+                  {r.authors_short && <> — {r.authors_short}</>}
+                  {r.journal && <>, {r.journal}</>}
+                  {r.year && <> ({r.year})</>}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setRefs((prev) => prev.filter((_, i) => i !== idx))
+                }
+                title="이 참고문헌 제거"
+                aria-label="참고문헌 제거"
+                className="shrink-0 rounded-full border border-transparent px-1.5 text-[13px] font-bold text-[var(--text-muted)] hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* 입력 박스 — showInput 일 때만. 등록 누르면 접힘. */}
+      {showInput ? (
+        <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-soft)]/40 p-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="https://pubmed.ncbi.nlm.nih.gov/37705328/ 또는 37705328"
+              className="flex-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (!loading && input.trim()) submit();
+                }
+              }}
+            />
+            <button
+              type="button"
+              disabled={loading || !input.trim()}
+              onClick={submit}
+              className="whitespace-nowrap rounded-md border border-[var(--primary)] bg-white px-3 py-2 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-50"
+            >
+              {loading ? "조회 중…" : "등록"}
+            </button>
+            {refs.length > 0 && (
+              // 이미 등록된 ref 가 있고 사용자가 입력 박스를 열었다가 취소 — 박스만 닫기.
+              <button
+                type="button"
+                onClick={() => {
+                  setInput("");
+                  setShowInput(false);
+                }}
+                className="whitespace-nowrap rounded-md border border-[var(--border)] bg-white px-2 py-2 text-xs text-[var(--text-muted)] hover:bg-[var(--bg-soft)]"
+                title="입력 취소"
+              >
+                취소
+              </button>
+            )}
+          </div>
+          <p className="mt-1 text-[10px] text-[var(--text-muted)]">
+            PubMed URL 또는 PMID 숫자(URL 끝의 6~9자리 숫자) 모두 인식.
+          </p>
+        </div>
+      ) : (
+        // 입력 박스 닫힘 + ref 가 1개 이상 등록된 상태 — 추가 버튼만 노출.
+        <button
+          type="button"
+          onClick={() => setShowInput(true)}
+          className="rounded-md border border-dashed border-[var(--border)] bg-white px-3 py-2 text-xs text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+        >
+          + 참고문헌 추가
+        </button>
+      )}
     </div>
   );
 }

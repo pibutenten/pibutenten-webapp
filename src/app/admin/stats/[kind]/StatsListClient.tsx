@@ -67,13 +67,18 @@ export type CardRow = {
 };
 
 /**
- * 카드 공개 URL — 정책 (사용자 결정 2026-05-15):
+ * 카드 URL — 사용자 정책 (2026-05-17 v3, 편집기 fallback 제거):
  *   1) 의사 Q&A (category='qa' + doctor 메타 충족) → /doctors/{slug}/{year}/{post_slug}
- *   2) 그 외 모든 글 (의사의 비-qa 카테고리 포함) → /{author_handle}/{shortcode}
+ *   2) 그 외 모든 글 (handle + shortcode 충족) → /{author_handle}/{shortcode}
+ *   3) **fallback** → /cards/{id} (server redirect 페이지가 canonical 재계산 후 302)
+ *      편집기로는 절대 떨어지지 않음. 메타 부분 누락 카드도 공개 페이지로.
  *
- * 향후 정책 변경은 본 함수의 분기 한 줄만 바꾸면 됨.
+ * 변경 이력:
+ *   - v1 (오전): null 분기 → Link 미적용 → 일부 행 클릭 불가
+ *   - v2 (오후): /admin/cards/{id}/edit fallback → 사용자 보고 "편집기로 가버림"
+ *   - v3 (현재): /cards/{id} redirect 페이지 → 항상 공개 카드로
  */
-function publicCardUrl(row: CardRow): string | null {
+function publicCardUrl(row: CardRow): string {
   if (
     row.category === "qa" &&
     row.doctor_slug &&
@@ -85,7 +90,7 @@ function publicCardUrl(row: CardRow): string | null {
   if (row.author_handle && row.shortcode) {
     return `/${row.author_handle}/${row.shortcode}`;
   }
-  return null;
+  return `/cards/${row.card_id}`;
 }
 
 type Row = VisitorRow | CardRow;
@@ -299,8 +304,7 @@ function ActivityTopRow({
   const [users, setUsers] = useState<ActivityUser[] | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 공개 카드 URL — 의사 글 /doctors/{slug}/{year}/{shortcode} 우선, 회원 글 /{handle}/{shortcode}.
-  // 둘 다 없으면 null → link 비활성 (편집기로 가는 fallback 제거).
+  // 카드 URL — publicCardUrl 가 항상 valid string 반환 (메타 누락 시 /admin/cards/{id}/edit fallback).
   const cardHref = publicCardUrl(row);
   const displayName =
     row.author_name?.trim() ||
@@ -394,18 +398,14 @@ function CommentsInline({
   cardHref,
 }: {
   comments: CommentSummary[];
-  cardHref: string | null;
+  cardHref: string;
 }) {
   if (comments.length === 0) {
-    const empty = (
-      <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2">
-        <p className="text-[11px] text-[var(--text-muted)]">댓글이 없습니다.</p>
-      </div>
-    );
-    if (!cardHref) return empty;
     return (
       <Link href={cardHref} className="group block" title="글 보기">
-        {empty}
+        <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2">
+          <p className="text-[11px] text-[var(--text-muted)]">댓글이 없습니다.</p>
+        </div>
       </Link>
     );
   }
@@ -424,32 +424,28 @@ function CommentsInline({
       c.parent_id != null && !parents.some((p) => p.id === c.parent_id),
   );
 
-  const inner = (
-    <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2 transition-colors group-hover:bg-[var(--bg-soft)]">
-      <ul className="space-y-1">
-        {parents.map((c) => {
-          const replies = repliesByParent.get(c.id) ?? [];
-          return (
-            <li key={c.id}>
-              <CommentInlineLine comment={c} depth={0} />
-              {replies.map((r) => (
-                <CommentInlineLine key={r.id} comment={r} depth={1} />
-              ))}
-            </li>
-          );
-        })}
-        {orphanReplies.map((r) => (
-          <li key={r.id}>
-            <CommentInlineLine comment={r} depth={0} />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-  if (!cardHref) return inner;
   return (
     <Link href={cardHref} className="group block" title="글 보기">
-      {inner}
+      <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2 transition-colors group-hover:bg-[var(--bg-soft)]">
+        <ul className="space-y-1">
+          {parents.map((c) => {
+            const replies = repliesByParent.get(c.id) ?? [];
+            return (
+              <li key={c.id}>
+                <CommentInlineLine comment={c} depth={0} />
+                {replies.map((r) => (
+                  <CommentInlineLine key={r.id} comment={r} depth={1} />
+                ))}
+              </li>
+            );
+          })}
+          {orphanReplies.map((r) => (
+            <li key={r.id}>
+              <CommentInlineLine comment={r} depth={0} />
+            </li>
+          ))}
+        </ul>
+      </div>
     </Link>
   );
 }
@@ -509,8 +505,8 @@ function ActivityUsersInline({
   users: ActivityUser[] | null;
   loading: boolean;
   count: number;
-  /** 펼친 창 전체를 감싸는 link target. null 이면 link 비활성 (편집기 fallback 차단). */
-  cardHref: string | null;
+  /** 펼친 창 전체를 감싸는 link target — publicCardUrl 가 항상 valid string 보장. */
+  cardHref: string;
 }) {
   // count vs users.length mismatch 의 정확한 의미:
   //  - likes/saves: 한 사람당 1행만 가능 → count == users.length (mismatch 거의 0)
@@ -518,36 +514,30 @@ function ActivityUsersInline({
   //  - 따라서 '외 N명' 은 RPC limit(30) 으로 잘린 사용자가 있을 때만 의미 있음.
   //    개별 사용자 수는 users.length(distinct).
   void count;
-  // 닉네임 자체는 텍스트 표시 (사용자 프로필 link 아님). 창 어디 클릭하든 글 단독 URL.
-  const inner = (
-    <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2 transition-colors group-hover:bg-[var(--bg-soft)]">
-      {loading || users === null ? (
-        <p className="text-[11px] text-[var(--text-muted)]">불러오는 중…</p>
-      ) : users.length === 0 ? (
-        <p className="text-[11px] text-[var(--text-muted)]">활동한 사용자가 없습니다.</p>
-      ) : (
-        <div className="flex flex-wrap gap-x-2 gap-y-1 text-[12px]">
-          {users.map((u) => {
-            const name =
-              u.display_name?.trim() || u.handle?.trim() || "(이름 없음)";
-            return (
-              <span key={u.profile_id} className="text-[var(--text-secondary)]">
-                {name}
-              </span>
-            );
-          })}
-          {users.length >= 30 && (
-            <span className="text-[var(--text-muted)]">외 더…</span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-  // cardHref null — 회원 글이 아니거나 의사 글 메타가 없는 경우 link 비활성 (편집기 fallback 차단).
-  if (!cardHref) return inner;
   return (
     <Link href={cardHref} className="group block" title="글 보기">
-      {inner}
+      <div className="border-t border-[var(--border)] bg-slate-50 px-4 py-2 transition-colors group-hover:bg-[var(--bg-soft)]">
+        {loading || users === null ? (
+          <p className="text-[11px] text-[var(--text-muted)]">불러오는 중…</p>
+        ) : users.length === 0 ? (
+          <p className="text-[11px] text-[var(--text-muted)]">활동한 사용자가 없습니다.</p>
+        ) : (
+          <div className="flex flex-wrap gap-x-2 gap-y-1 text-[12px]">
+            {users.map((u) => {
+              const name =
+                u.display_name?.trim() || u.handle?.trim() || "(이름 없음)";
+              return (
+                <span key={u.profile_id} className="text-[var(--text-secondary)]">
+                  {name}
+                </span>
+              );
+            })}
+            {users.length >= 30 && (
+              <span className="text-[var(--text-muted)]">외 더…</span>
+            )}
+          </div>
+        )}
+      </div>
     </Link>
   );
 }
