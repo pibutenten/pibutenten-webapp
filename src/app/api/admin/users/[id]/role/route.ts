@@ -132,6 +132,36 @@ export async function POST(
         return NextResponse.json({ error: insErr.message }, { status: 500 });
       }
     }
+    // ── 묶음(bundle) 동기화 ──────────────────────────────────────────
+    // doctor primary profile (handle = doctor.slug) 의 auth_user_id 를 매핑되는
+    // user profile 에도 복사 → 둘이 같은 auth_user_id 묶음이 되어 IdentitySwitcher
+    // 에서 doctor 모드로 전환 가능. (사용자 정책 2026-05-17)
+    //
+    // doctor primary 의 auth_user_id 가 NULL 이면 (의사 미가입) 묶음 형성 불가 — skip.
+    const { data: doctorRow } = await supabase
+      .from("doctors")
+      .select("slug")
+      .eq("id", doctorId)
+      .maybeSingle()
+      .returns<{ slug: string } | null>();
+    if (doctorRow?.slug) {
+      const { data: doctorPrimary } = await supabase
+        .from("profiles")
+        .select("id, auth_user_id")
+        .eq("handle", doctorRow.slug)
+        .maybeSingle()
+        .returns<{ id: string; auth_user_id: string | null } | null>();
+      if (
+        doctorPrimary?.auth_user_id &&
+        doctorPrimary.id !== id // 자기 자신이면 skip
+      ) {
+        await supabase
+          .from("profiles")
+          .update({ auth_user_id: doctorPrimary.auth_user_id })
+          .eq("id", id);
+      }
+    }
+
     // post 백필 — author_id=id 인 post 글에 doctor_id 자동 채움.
     await supabase
       .from("cards")

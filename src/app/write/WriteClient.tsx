@@ -715,7 +715,12 @@ export default function WriteClient({
           />
         )}
 
-        {/* Q&A 카테고리 — 참고문헌 입력 (선택). 본문 바로 아래에 위치. */}
+        {/* Q&A 카테고리 — 참고문헌 입력 (선택). 본문 바로 아래에 위치.
+            UX 정책 (사용자 요청 2026-05-17):
+            - references[idx] === "" → 입력 모드 (input + 등록 버튼)
+            - references[idx] !== "" → 칩 모드 (카드 본문 스타일: 제목 sky-blue + meta muted) + X
+            - X 누르면 그 행이 다시 빈 입력 모드로 (배열에서 제거 X)
+            - "+ 참고문헌 추가" 버튼으로 새 행 추가 (자동 넘버링) */}
         {category === "qa" && (
           <div>
             <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
@@ -725,52 +730,94 @@ export default function WriteClient({
               </span>
             </label>
             <div className="flex flex-col gap-1.5">
-              {references.map((ref, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <span className="w-5 shrink-0 text-right text-xs text-[var(--text-muted)]">
-                    {idx + 1}.
-                  </span>
-                  <input
-                    type="text"
-                    value={ref}
-                    onChange={(e) => {
-                      const next = [...references];
-                      next[idx] = e.target.value;
-                      setReferences(next);
-                    }}
-                    onKeyDown={(e) => {
-                      // Enter 키로도 등록 동작 (UX). IME 조합 중에는 무시.
-                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                        e.preventDefault();
-                        if (!refResolving[idx]) void resolvePubmedRef(idx);
-                      }
-                    }}
-                    placeholder="PubMed URL을 입력하세요 (또는 PMID 숫자)"
-                    className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary-light)] focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void resolvePubmedRef(idx)}
-                    disabled={refResolving[idx] || !ref.trim()}
-                    className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--primary)] bg-[var(--primary)] px-3 text-xs font-semibold text-white hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label="PubMed URL을 참고문헌 형식으로 변환"
-                  >
-                    {refResolving[idx] ? "변환중…" : "등록"}
-                  </button>
-                  {references.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setReferences(references.filter((_, i) => i !== idx))
-                      }
-                      className="h-9 w-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-soft)]"
-                      aria-label="이 참고문헌 제거"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
+              {references.map((ref, idx) => {
+                const isRegistered = ref.trim().length > 0;
+                // 등록된 ref 는 "Title — Authors, Journal (Year)" 형태.
+                // 첫 " — " 구분자로 title / meta 분리해서 카드 스타일과 동일하게 표시.
+                const dashIdx = ref.indexOf(" — ");
+                const refTitle = dashIdx === -1 ? ref : ref.slice(0, dashIdx);
+                const refMeta = dashIdx === -1 ? "" : ref.slice(dashIdx);
+                return (
+                  <div key={idx} className="flex items-start gap-2">
+                    <span className="w-5 shrink-0 pt-2 text-right text-xs text-[var(--text-muted)]">
+                      {idx + 1}.
+                    </span>
+                    {isRegistered ? (
+                      // 등록된 칩 — 카드 본문과 동일 스타일 (title sky-blue, meta muted, 13px).
+                      <div className="flex min-w-0 flex-1 items-start gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 py-2">
+                        <p className="min-w-0 flex-1 text-[13px] leading-[1.55]">
+                          <span style={{ color: "var(--primary)" }}>
+                            {refTitle}
+                          </span>
+                          {refMeta && (
+                            <span className="text-[var(--text-muted)]">
+                              {refMeta}
+                            </span>
+                          )}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // 그 행을 빈 입력 상태로 되돌림 (배열에서 제거 X — 빈 입력 노출).
+                            const next = [...references];
+                            next[idx] = "";
+                            setReferences(next);
+                          }}
+                          aria-label="이 참고문헌 지우기 (다시 입력 가능)"
+                          title="이 참고문헌 지우기"
+                          className="shrink-0 rounded-full border border-transparent px-1.5 text-[13px] font-bold text-[var(--text-muted)] hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      // 입력 모드 — input + 등록 버튼.
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <input
+                          type="text"
+                          value={ref}
+                          onChange={(e) => {
+                            const next = [...references];
+                            next[idx] = e.target.value;
+                            setReferences(next);
+                          }}
+                          onKeyDown={(e) => {
+                            // Enter 로도 등록. IME 조합 중에는 무시.
+                            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                              e.preventDefault();
+                              if (!refResolving[idx]) void resolvePubmedRef(idx);
+                            }
+                          }}
+                          placeholder="PubMed URL을 입력하세요 (또는 PMID 숫자)"
+                          className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary-light)] focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void resolvePubmedRef(idx)}
+                          disabled={refResolving[idx]}
+                          className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--primary)] bg-[var(--primary)] px-3 text-xs font-semibold text-white hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label="PubMed URL을 참고문헌 형식으로 변환"
+                        >
+                          {refResolving[idx] ? "변환중…" : "등록"}
+                        </button>
+                        {/* 빈 입력 행이 2개 이상일 때만 행 삭제 X (1개 행이면 그대로 유지). */}
+                        {references.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReferences(references.filter((_, i) => i !== idx))
+                            }
+                            className="h-9 w-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-soft)]"
+                            aria-label="이 참고문헌 행 제거"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               <button
                 type="button"
                 onClick={() => setReferences([...references, ""])}
