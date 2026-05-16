@@ -743,17 +743,14 @@ export default function WriteClient({
                       {idx + 1}.
                     </span>
                     {isRegistered ? (
-                      // 등록된 칩 — 카드 본문과 동일 스타일 (title sky-blue, meta muted, 13px).
-                      <div className="flex min-w-0 flex-1 items-start gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 py-2">
-                        <p className="min-w-0 flex-1 text-[13px] leading-[1.55]">
+                      // 등록된 ref — 카드 본문(CardBody.tsx) 참고문헌 영역과 동일 스타일.
+                      // 박스 없이 단순 텍스트: title sky-blue, meta muted, 13px / leading-[1.55].
+                      <div className="flex min-w-0 flex-1 items-start gap-2 py-1">
+                        <p className="min-w-0 flex-1 text-[13px] leading-[1.55] text-[var(--text-muted)]">
                           <span style={{ color: "var(--primary)" }}>
                             {refTitle}
                           </span>
-                          {refMeta && (
-                            <span className="text-[var(--text-muted)]">
-                              {refMeta}
-                            </span>
-                          )}
+                          {refMeta}
                         </p>
                         <button
                           type="button"
@@ -765,7 +762,7 @@ export default function WriteClient({
                           }}
                           aria-label="이 참고문헌 지우기 (다시 입력 가능)"
                           title="이 참고문헌 지우기"
-                          className="shrink-0 rounded-full border border-transparent px-1.5 text-[13px] font-bold text-[var(--text-muted)] hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                          className="mt-0.5 shrink-0 rounded-full px-1.5 text-[13px] font-bold text-[var(--text-muted)] hover:bg-red-50 hover:text-red-600"
                         >
                           ×
                         </button>
