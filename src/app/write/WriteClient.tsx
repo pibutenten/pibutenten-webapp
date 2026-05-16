@@ -731,10 +731,11 @@ export default function WriteClient({
             </label>
             <div className="flex flex-col gap-1.5">
               {references.map((ref, idx) => {
-                const isRegistered = ref.trim().length > 0;
-                // 등록된 ref 는 "Title — Authors, Journal (Year)" 형태.
-                // 첫 " — " 구분자로 title / meta 분리해서 카드 스타일과 동일하게 표시.
+                // 등록 판정: " — " 구분자 포함 시만 등록된 ref 로 인정.
+                // (URL/PMID 입력 중엔 false → 입력 모드 유지 → 사용자가 [등록]/Enter 칠 기회 보장)
+                // formatPubmedRef() 결과는 항상 " — " 포함 ("Title — Authors, Journal (Year)").
                 const dashIdx = ref.indexOf(" — ");
+                const isRegistered = dashIdx !== -1;
                 const refTitle = dashIdx === -1 ? ref : ref.slice(0, dashIdx);
                 const refMeta = dashIdx === -1 ? "" : ref.slice(dashIdx);
                 return (
