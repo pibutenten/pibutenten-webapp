@@ -75,11 +75,16 @@ async function flush(): Promise<void> {
       session_id: sid,
     }));
     const sb = createSupabaseBrowserClient();
-    // UNIQUE(user_id, card_id) 충돌 시 409 무시 — 재방문 시 이전 row 그대로 유지.
-    // ignoreDuplicates=true → INSERT ... ON CONFLICT DO NOTHING 효과.
+    // UNIQUE(card_id, session_id) 충돌 시 409 무시 — 같은 세션 같은 카드는 1회만.
+    //   2026-05-16 회귀 fix: 옛 onConflict "user_id,card_id" 는 실제 UNIQUE 인덱스
+    //   (card_id, session_id) 와 매칭 안 되어 INSERT 전부 실패하던 회귀.
+    //   결과: 24시간 방문자 통계 = 0 (실측 통해 발견).
     await sb
       .from("card_impressions")
-      .upsert(rows, { onConflict: "user_id,card_id", ignoreDuplicates: true });
+      .upsert(rows, {
+        onConflict: "card_id,session_id",
+        ignoreDuplicates: true,
+      });
   } catch (e) {
     // UX 영향 X 이지만 운영 가시성 위해 콘솔 로그 (대량 실패 시 즉시 발견)
     console.error("[card_impressions] flush failed:", e);

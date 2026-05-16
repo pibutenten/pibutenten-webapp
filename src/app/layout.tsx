@@ -93,12 +93,13 @@ async function getSessionInfo(): Promise<SessionInfo> {
       const d = da?.doctor as { slug: string } | { slug: string }[] | null;
       doctorSlug = Array.isArray(d) ? d[0]?.slug ?? null : d?.slug ?? null;
     }
-    // Phase 9: 같은 auth_user_id 묶음의 profiles row 모두 가져와 dropdown 구성
-    // (profile_identities 의존 제거)
+    // Phase 9 묶음 lookup — bundleProfileFilter 와 동일 패턴.
+    //   2026-05-16 회귀 fix: 기존 .eq("auth_user_id", user.id) 는 일부 환경에서
+    //   1 row 만 반환되어 IdentitySwitcher dropdown 사라지는 회귀 발생 → .or() OR 패턴으로 통일.
     const { data: groupRows } = await supabase
       .from("profiles")
       .select("id, handle, display_name, avatar_url, role")
-      .eq("auth_user_id", user.id)
+      .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`)
       .order("created_at", { ascending: true });
 
     // doctor_accounts 매핑 (각 profile.id가 어느 doctor의 가입자인지)

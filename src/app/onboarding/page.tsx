@@ -23,7 +23,8 @@ export default async function OnboardingPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/onboarding");
 
-  const { data: profile } = await supabase
+  // primary row (id = user.id) — 온보딩 정보 저장 대상 (middleware 의 birthdate 체크 기준).
+  const { data: primary } = await supabase
     .from("profiles")
     .select(
       "legal_name, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url",
@@ -31,6 +32,27 @@ export default async function OnboardingPage() {
     .eq("id", user.id)
     .maybeSingle()
     .returns<ProfileRow>();
+
+  // Phase 6-NEW (2026-05-16): 의사 멀티 계정 사용자는 role='user' row 의
+  //   avatar_url 을 온보딩 화면에 표시한다 (의사 명함 사진 X).
+  //   - 묶음 안에 role='user' row 있으면 그 avatar 우선.
+  //   - 없으면 primary row 의 avatar 사용 (단일 계정 사용자).
+  //   - 이름은 onboarding 폼에서 입력받는 항목이라 표시 영향 없음 (legal_name 만 prefill).
+  let displayAvatar: string | null = primary?.avatar_url ?? null;
+  const { data: groupRows } = await supabase
+    .from("profiles")
+    .select("id, role, avatar_url")
+    .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
+  const userRow = (groupRows ?? []).find(
+    (r) => (r as { role: string }).role === "user",
+  ) as { avatar_url: string | null } | undefined;
+  if (userRow?.avatar_url) {
+    displayAvatar = userRow.avatar_url;
+  }
+
+  const profile: ProfileRow | null = primary
+    ? { ...primary, avatar_url: displayAvatar }
+    : null;
 
   return (
     <section className="mx-auto w-full max-w-[640px] py-6">
