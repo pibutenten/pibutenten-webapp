@@ -56,6 +56,14 @@ export async function POST(req: Request) {
 
   const buf = Buffer.from(await file.arrayBuffer());
 
+  // 매직바이트 검증 (2026-05-16) — 클라가 MIME만 위장해서 SVG 등 위험 파일을 jpg로 신고하는 케이스 차단
+  if (!matchesMagicBytes(buf, mime)) {
+    return NextResponse.json(
+      { error: "파일 내용이 선언한 형식과 일치하지 않습니다." },
+      { status: 400 },
+    );
+  }
+
   const { error: upErr } = await supabase.storage
     .from("articles")
     .upload(path, buf, {
@@ -86,5 +94,46 @@ function extFromMime(mime: string): string {
       return "gif";
     default:
       return "bin";
+  }
+}
+
+/**
+ * 첫 몇 바이트의 magic number 로 실제 형식 검증.
+ * 클라이언트가 보낸 MIME 헤더만 신뢰하면 SVG/HTML 등을 image/jpeg 라고 위장해 업로드 가능 →
+ * avatars 버킷은 public 이라 XSS 벡터가 되므로 차단.
+ */
+function matchesMagicBytes(buf: Buffer, mime: string): boolean {
+  if (buf.length < 12) return false;
+  switch (mime) {
+    case "image/jpeg":
+      // FF D8 FF
+      return buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+    case "image/png":
+      // 89 50 4E 47 0D 0A 1A 0A
+      return (
+        buf[0] === 0x89 &&
+        buf[1] === 0x50 &&
+        buf[2] === 0x4e &&
+        buf[3] === 0x47 &&
+        buf[4] === 0x0d &&
+        buf[5] === 0x0a &&
+        buf[6] === 0x1a &&
+        buf[7] === 0x0a
+      );
+    case "image/webp":
+      // RIFF....WEBP  (offset 0: 'RIFF', offset 8: 'WEBP')
+      return (
+        buf.slice(0, 4).toString("ascii") === "RIFF" &&
+        buf.slice(8, 12).toString("ascii") === "WEBP"
+      );
+    case "image/gif":
+      // GIF87a | GIF89a
+      return (
+        buf.slice(0, 4).toString("ascii") === "GIF8" &&
+        (buf[4] === 0x37 || buf[4] === 0x39) &&
+        buf[5] === 0x61
+      );
+    default:
+      return false;
   }
 }

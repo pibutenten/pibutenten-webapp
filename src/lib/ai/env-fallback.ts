@@ -51,12 +51,22 @@ function loadEnvFile(): Record<string, string> {
 
 /**
  * env 변수 가져오기 — process.env가 비어있으면 .env.local 파일에서 읽음.
- * Vercel 환경 (VERCEL=1)에선 process.env만 사용 (fallback 시도 X).
+ *
+ * 보안 가드 (2026-05-16 강화):
+ *   - production / Vercel 환경에선 fs read 절대 시도 X (process.env만 신뢰)
+ *   - dev 한정 fallback. .env.local fs read는 dev 서버 Turbopack env 누락 버그 대응 목적
  */
 export function getEnv(key: string): string | undefined {
   const v = process.env[key];
   if (v) return v;
-  if (process.env.VERCEL === "1") return undefined;
+  // production / Vercel: fs fallback 금지 — process.env만 신뢰
+  if (
+    process.env.VERCEL === "1" ||
+    process.env.NODE_ENV === "production"
+  ) {
+    return undefined;
+  }
+  // dev 한정: .env.local fs read (Turbopack 누락 대응)
   const file = loadEnvFile();
   return file[key] || undefined;
 }

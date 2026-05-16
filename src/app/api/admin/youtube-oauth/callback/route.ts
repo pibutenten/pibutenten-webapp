@@ -2,14 +2,17 @@
  * GET /api/admin/youtube-oauth/callback
  *
  * Google 동의 후 ?code= 받음 → access_token + refresh_token 교환 →
- * dev 환경이면 .env.local에 YOUTUBE_OAUTH_REFRESH_TOKEN 자동 저장.
+ * youtube_oauth_tokens 테이블에 service_role로 upsert.
  *
- * 응답: HTML 페이지로 성공 메시지 + dev 서버 재시작 안내.
+ * 보안 (2026-05-16 migration 0097):
+ *   - 이전: .env.local 평문 write + HTML <pre>에 refresh_token 평문 출력 → 노출 위험
+ *   - 현재: DB 저장 + HTML에 token 미노출 (인증 완료 텍스트만)
+ *
+ * 응답: HTML 페이지로 성공 메시지만.
  */
 
 import { NextResponse } from "next/server";
-import fs from "node:fs";
-import path from "node:path";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -101,44 +104,42 @@ export async function GET(req: Request) {
     );
   }
 
-  // dev 환경 — .env.local 자동 갱신
-  let envWriteResult = "";
+  // youtube_oauth_tokens 테이블에 upsert — service_role 키로 RLS 우회.
+  // singleton: provider = 'google-youtube' 한 row만 유지.
+  let dbResult = "";
   try {
-    const envPath = path.join(process.cwd(), ".env.local");
-    if (fs.existsSync(envPath)) {
-      let envText = fs.readFileSync(envPath, "utf8");
-      const refreshLine = `YOUTUBE_OAUTH_REFRESH_TOKEN=${tokenJson.refresh_token}`;
-      if (/^YOUTUBE_OAUTH_REFRESH_TOKEN=.*$/m.test(envText)) {
-        envText = envText.replace(
-          /^YOUTUBE_OAUTH_REFRESH_TOKEN=.*$/m,
-          refreshLine,
-        );
-      } else {
-        envText = envText.replace(/\s*$/, "") + "\n" + refreshLine + "\n";
-      }
-      fs.writeFileSync(envPath, envText, "utf8");
-      envWriteResult = `✅ .env.local 자동 갱신됨 (${envPath})`;
+    const admin = createSupabaseAdminClient();
+    const { error } = await admin.from("youtube_oauth_tokens").upsert(
+      {
+        provider: "google-youtube",
+        client_id: clientId,
+        refresh_token: tokenJson.refresh_token,
+        scope: tokenJson.scope ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "provider" },
+    );
+    if (error) {
+      dbResult = `⚠ DB 저장 실패: ${error.message}`;
     } else {
-      envWriteResult =
-        "⚠ .env.local 파일이 없습니다 — 아래 값을 수동으로 추가하세요.";
+      dbResult = "✅ refresh_token이 DB에 안전하게 저장되었습니다.";
     }
   } catch (e) {
-    envWriteResult = `⚠ .env.local 자동 갱신 실패: ${e instanceof Error ? e.message : String(e)}`;
+    dbResult = `⚠ DB 저장 예외: ${e instanceof Error ? e.message : String(e)}`;
   }
 
   return htmlPage(
     "YouTube OAuth 완료",
     `<h1>✅ YouTube OAuth 연동 완료</h1>
-     <p class="ok">refresh_token이 발급되었습니다.</p>
-     <p>${envWriteResult}</p>
-     <h3>refresh_token (수동 추가 필요할 때):</h3>
-     <pre>YOUTUBE_OAUTH_REFRESH_TOKEN=${tokenJson.refresh_token}</pre>
+     <p class="ok">${dbResult}</p>
      <h3>다음 단계</h3>
      <ol>
-       <li>dev 서버 재시작 (Ctrl+C → npm run dev) — Next.js가 .env 변경을 반영하려면 필수</li>
        <li><a href="/admin/draft">/admin/draft (Q&A 추출하기)</a>로 가서 본인 채널 영상 URL 입력</li>
        <li>자막이 OAuth 트랙(<code>ko-manual</code>)으로 표시되면 성공</li>
      </ol>
-     <p style="margin-top:24px;font-size:12px;color:#666">scope: ${tokenJson.scope}</p>`,
+     <p style="margin-top:24px;font-size:12px;color:#666">
+       토큰은 화면에 표시되지 않습니다 (보안). 재발급이 필요하면
+       <a href="/api/admin/youtube-oauth/start">여기서 다시 인증</a>하면 DB가 자동 갱신됩니다.
+     </p>`,
   );
 }

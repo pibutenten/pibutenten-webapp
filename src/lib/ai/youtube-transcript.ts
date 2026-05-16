@@ -231,7 +231,7 @@ async function fetchTranscriptResilient(videoId: string): Promise<{
   }
 
   // 0b) YouTube Data API v3 OAuth (본인 채널 — 둘째 안정적)
-  if (isOauthAvailable()) {
+  if (await isOauthAvailable()) {
     try {
       const r = await fetchCaptionsViaOauth(videoId);
       if (r && r.text.length >= 20) {

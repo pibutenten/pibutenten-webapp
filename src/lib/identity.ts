@@ -14,28 +14,13 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import {
+  IDENTITY_COOKIE,
+  UUID_RE,
+  type ActiveIdentity,
+} from "./identity-shared";
 
-const COOKIE = "pibutenten:identity";
-
-export type ActiveIdentity = {
-  /** active profiles.id ('primary' = 본인 auth user의 row) */
-  id: string | "primary";
-  /** 묶음 키 (auth.users.id) */
-  authUserId: string;
-  /** 현재 active profile.id (실제 UUID — DB 행위 user_id로 사용) */
-  profileId: string;
-  handle: string;
-  displayName: string;
-  avatarUrl: string | null;
-  /** 'admin' | 'doctor' | 'user' */
-  role: string;
-  /**
-   * @deprecated Phase 9: kind는 role과 동일. 호환성 위해 유지.
-   */
-  kind: string;
-  /** doctor_accounts 매핑된 doctor_id (없으면 NULL) */
-  doctorId: string | null;
-};
+export type { ActiveIdentity } from "./identity-shared";
 
 export type IdentityContext = {
   user: { id: string; email: string | null };
@@ -44,8 +29,6 @@ export type IdentityContext = {
   isDoctorAdmin: boolean;
   activeDoctorId: string | null;
 };
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * 현재 로그인된 user의 active identity 조회 + 권한 분기 flag.
@@ -60,7 +43,7 @@ export async function getIdentityContext(
   if (!user) return null;
 
   const cookieStore = await cookies();
-  const cookieVal = cookieStore.get(COOKIE)?.value ?? "primary";
+  const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? "primary";
 
   // active profile.id 결정
   // - 'primary' → 본인 auth user의 profile (id = user.id)
@@ -96,7 +79,6 @@ export async function getIdentityContext(
       displayName: (profile.display_name as string) ?? user.email ?? "",
       avatarUrl: (profile.avatar_url as string | null) ?? null,
       role,
-      kind: role, // 호환성 alias
       doctorId,
     };
   }

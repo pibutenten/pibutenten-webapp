@@ -62,7 +62,6 @@ type Initial = {
   interestedProcedures: string[];
   bio: string;
   avatarUrl: string | null;
-  avatarBgColor: string | null;
 };
 
 type Props = {
@@ -242,8 +241,6 @@ export default function OnboardingClient({ userId, initial }: Props) {
           interested_procedures: procedures,
           bio: bio.trim() || null,
           avatar_url: cleanAvatar,
-          // 기본 아바타 그리드 제거 → 배경색 항상 null (직접 업로드 사진은 색 무관)
-          avatar_bg_color: null,
         })
         .eq("id", userId);
       if (error) {

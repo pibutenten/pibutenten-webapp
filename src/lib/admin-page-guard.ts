@@ -19,25 +19,13 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "./supabase/server";
+import {
+  IDENTITY_COOKIE,
+  UUID_RE,
+  type ActiveIdentity,
+} from "./identity-shared";
 
-const COOKIE = "pibutenten:identity";
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export type ActiveIdentity = {
-  /** 'primary' 또는 profiles.id (UUID) */
-  id: string;
-  authUserId: string;
-  profileId: string;
-  handle: string;
-  displayName: string;
-  avatarUrl: string | null;
-  /** 'admin' | 'doctor' | 'user' */
-  role: string;
-  /** 호환성: kind === role */
-  kind: string;
-  /** active profile 의 doctor_accounts 매핑 (없으면 null) */
-  doctorId: string | null;
-};
+export type { ActiveIdentity } from "./identity-shared";
 
 export type AdminPageGuardResult = {
   user: { id: string; email: string | null };
@@ -84,7 +72,7 @@ export async function requireAdminPage(
 
   // active identity 결정 — cookie 'pibutenten:identity' 또는 primary
   const cookieStore = await cookies();
-  const cookieVal = cookieStore.get(COOKIE)?.value ?? "primary";
+  const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? "primary";
   let targetProfileId = user.id;
   if (cookieVal !== "primary" && UUID_RE.test(cookieVal)) {
     targetProfileId = cookieVal;
@@ -117,7 +105,6 @@ export async function requireAdminPage(
       displayName: (profile.display_name as string) ?? user.email ?? "",
       avatarUrl: (profile.avatar_url as string | null) ?? null,
       role,
-      kind: role,
       doctorId,
     };
   }

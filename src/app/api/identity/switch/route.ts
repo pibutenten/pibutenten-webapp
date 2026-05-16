@@ -50,13 +50,24 @@ export async function POST(req: Request) {
     }
   }
 
+  // 보안 패턴 (2026-05-16): 쿠키 2개 분리.
+  //   1) pibutenten:identity         — httpOnly. 서버가 신뢰하는 단일 진실. (XSS 탈취 불가)
+  //   2) pibutenten:identity-mirror  — httpOnly X. UI 표시 전용. 탈취돼도 위장 불가 (서버가 무시).
+  // 두 값을 항상 동일하게 set. server side getIdentityContext 는 (1)만 읽는다.
   const cookieStore = await cookies();
-  cookieStore.set("pibutenten:identity", target, {
+  const baseOpts = {
     path: "/",
     maxAge: 60 * 60 * 24 * 365, // 1년
-    sameSite: "lax",
-    httpOnly: false, // 클라이언트에서 표시용으로도 읽을 수 있게
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
+  };
+  cookieStore.set("pibutenten:identity", target, {
+    ...baseOpts,
+    httpOnly: true, // 보안: JS 접근 차단 (XSS 방어)
+  });
+  cookieStore.set("pibutenten:identity-mirror", target, {
+    ...baseOpts,
+    httpOnly: false, // 클라이언트 표시용 — 서버는 신뢰 X
   });
 
   return NextResponse.json({ ok: true, identityId: target });
