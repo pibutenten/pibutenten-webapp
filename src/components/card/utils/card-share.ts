@@ -16,8 +16,13 @@ export async function shareCard(
   const path = getQaUrl(card);
   const url = `${window.location.origin}${path}`;
   const title = card.question;
-  // 공유 문구: "OOO 원장님 | OOO OOO" — 파이프 구분 (이전 em-dash 어색해서 변경)
-  const text = `${card.doctor?.name ?? ""} 원장님 | ${card.question ?? ""}`;
+  // 공유 문구: title 에 이미 질문이 들어가므로 text 는 출처/저자만.
+  // (이전 버그: text 에도 질문을 또 넣어 카톡이 "Q - 원장님 | Q https://..." 로
+  //  Q 가 두 번 노출됨, 260518 fix)
+  const docName = card.doctor?.name;
+  const text = docName
+    ? `피부텐텐 ${docName} 원장님`
+    : "피부텐텐";
 
   // 모바일에서만 native share 사용 (데스크탑 Chrome share UI는 부실해서 클립보드가 더 자연)
   const ua = window.navigator.userAgent;

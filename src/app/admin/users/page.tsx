@@ -137,11 +137,18 @@ export default async function AdminUsersPage({ searchParams }: Props) {
     return true;
   });
 
-  // auth_user_id 기준 그룹핑 — 같은 묶음끼리 시각적으로 인접
-  // (auth_user_id가 NULL인 row는 각자 별도 묶음으로 취급)
+  // auth_user_id 기준 그룹핑 — 같은 묶음끼리 시각적으로 인접.
+  // 키 산정 규칙:
+  //   - auth_user_id NOT NULL → 그 값을 키로 (sub, 또는 자기 자신 가리키는 primary).
+  //   - auth_user_id NULL     → 자기 id 를 키로. id 자체가 auth.users.id 이면
+  //     같은 묶음의 sub(auth_user_id = 이 id)와 동일 키로 정확히 합쳐짐.
+  //
+  // 이전 버그(`__null__:${id}` 접두사 사용)는 auth_user_id NULL 인 primary 와
+  // 그 id 를 가리키는 sub 의 키를 서로 다르게 만들어 화면에서 분리 표시되었음.
+  // 0127 묶음 작업 후 발견 (260518 fix).
   const groups = new Map<string, ProfileRow[]>();
   for (const p of filtered) {
-    const key = p.auth_user_id ?? `__null__:${p.id}`;
+    const key = p.auth_user_id ?? p.id;
     const arr = groups.get(key) ?? [];
     arr.push(p);
     groups.set(key, arr);

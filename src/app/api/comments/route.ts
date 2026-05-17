@@ -62,12 +62,15 @@ export async function GET(req: Request) {
 
   const supabase = await createSupabaseServerClient();
 
-  // 1) root 댓글 (parent_id is null) — 페이지네이션 + 최신순
+  // 1) root 댓글 (parent_id is null) — 페이지네이션.
+  // 정렬: 좋아요 많은 순(인기) → 최신순 → id 내림차순(tie-break).
+  // (이전 단순 최신순 → 좋아요 많은 댓글이 묻히는 문제, 260518 fix)
   const rootRes = await supabase
     .from("comments")
     .select("*")
     .eq("card_id", cardId)
     .is("parent_id", null)
+    .order("like_count", { ascending: false })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .range(offset, offset + limit - 1);

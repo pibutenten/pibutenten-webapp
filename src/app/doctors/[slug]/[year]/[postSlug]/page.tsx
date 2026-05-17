@@ -71,7 +71,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: { canonical },
     openGraph: {
       title: card.question,
-      description: `${docName} — ${desc}`,
+      // description 은 답변 본문만 — title 영역에 이미 질문이 표시되고 원장 이름은
+      // OG 이미지(profile photo + 직함 배지)에 노출되므로 prefix 중복 제거.
+      // (이전 "정한미 원장님 — 답..." → 답변만 표시, 260518)
+      description: desc,
       type: "article",
       url: canonical,
       images: [{ url: ogUrl, width: 1200, height: 630, alt: docName }],
@@ -79,7 +82,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: card.question,
-      description: `${docName} — ${desc}`,
+      description: desc,
       images: [ogUrl],
     },
   };

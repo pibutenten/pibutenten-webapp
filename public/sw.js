@@ -12,7 +12,7 @@
  *  - fetch 핸들러는 네트워크 직행만 함 — Chrome의 "설치 가능" 신호용.
  *  - 변경 시 클라이언트가 즉시 새 SW를 받도록 skipWaiting/clientsClaim.
  */
-const VERSION = "v2-push";
+const VERSION = "v3-white-bg-icons-260518";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
