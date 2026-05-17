@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import EditClient from "./EditClient";
 import BackButton from "@/components/BackButton";
 import { bundleProfileFilter } from "@/lib/identity-shared";
-import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
+import { getIdentityContext } from "@/lib/identity";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +34,16 @@ type QaRow = {
  * v5.1 spec: /write 통합. 신규 작성은 /write, 수정은 /write/{shortcode}.
  * 권한 체크는 shortcode 기반으로만 진행 (handle 검증은 보기 라우트에서 처리됨).
  *
- * 권한:
- *   - admin은 모두 수정 가능
- *   - 본인 author이면 수정 가능
- *   - doctor 본인 doctor_id 글이면 수정 가능
+ * 권한 (모든 판정은 **active identity** 기준 — 식별자 전환 결과를 따름):
+ *   - active.role='admin' → 모든 카드 수정 가능
+ *   - active 카드 author이면 수정 가능 (묶음 안 어떤 profile이든 author 면 인정)
+ *   - active.role='doctor' + 그 doctor 의 카드면 수정 가능
+ *
+ * 260518 fix: 기존 코드는 `auth.getUser()` 의 base profile.role 만 봐서 식별자
+ *   전환(예: admin profile 로 전환)이 무시되어 admin이 다른 사람 글 수정 차단되던
+ *   회귀. 카드 컴포넌트(useCardViewer)는 이미 active identity 기준으로 ⋮ 노출
+ *   판정하는데, 진입 페이지가 다른 기준이라 "통로는 있는데 들어가면 막힘" UX
+ *   모순 발생. getIdentityContext() 표준 헬퍼로 통일.
  */
 export default async function PostEditPage({ params }: Props) {
   const { shortcode } = await params;
@@ -46,18 +52,13 @@ export default async function PostEditPage({ params }: Props) {
   if (!/^[1-9A-HJ-NP-Za-km-z]{6,12}$/.test(shortcode)) notFound();
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect(`/login?next=/write/${shortcode}`);
 
-  // 본인 프로필 + role
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!profile) redirect("/login?error=프로필을 찾을 수 없습니다");
+  // active identity 조회 (식별자 전환 반영). 미로그인 → /login.
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx) redirect(`/login?next=/write/${shortcode}`);
+  if (!idCtx.active) {
+    redirect("/login?error=프로필을 찾을 수 없습니다");
+  }
 
   // qa 로드 — handle은 viewer URL 만들기 용도로만
   const { data: qa } = await supabase
@@ -72,23 +73,23 @@ export default async function PostEditPage({ params }: Props) {
   if (!qa) notFound();
 
   // Phase 9 묶음 내 모든 profile.id 수집 — author_id가 묶음 안 어떤 profile이든 본인으로 인정.
-  // (이전 버그: qa.author_id === user.id 만 비교 → 묶음의 alt profile로 쓴 글은 본인 글 인정 안 됨)
+  // (묶음의 alt profile로 쓴 글도 본인 글로 인정)
   const { data: myProfiles } = await supabase
     .from("profiles")
     .select("id")
-    .or(bundleProfileFilter(user.id));
+    .or(bundleProfileFilter(idCtx.user.id));
   const myProfileIds = new Set((myProfiles ?? []).map((p) => p.id as string));
 
-  // 본인 doctor_id (doctor 본인 글 권한 체크용) — lib/doctor-mapping 헬퍼
-  let myDoctorId: string | null = null;
-  if (profile.role === "doctor") {
-    myDoctorId = await getDoctorIdForProfile(supabase, user.id);
-  }
-
-  // 권한 체크 — author_id가 묶음 안 어떤 profile이든 isAuthor=true
-  const isAdmin = profile.role === "admin";
+  // 권한 체크 — 전부 active identity 기준
+  //   isAdmin       : active 가 admin role (식별자 전환된 그 profile 의 role)
+  //   isAuthor      : qa.author_id 가 묶음 안 어느 profile (묶음 인지)
+  //   isDoctorOfQa  : active 가 매핑된 doctor (identity-server.ts 에서 doctor_accounts
+  //                    lookup 으로 채워짐 — active profile.id 기반이라 두 anchor 패턴
+  //                    모두 호환)
+  const isAdmin = idCtx.isSuperAdmin;
   const isAuthor = !!qa.author_id && myProfileIds.has(qa.author_id);
-  const isDoctorOfQa = !!myDoctorId && qa.doctor_id === myDoctorId;
+  const isDoctorOfQa =
+    !!idCtx.activeDoctorId && qa.doctor_id === idCtx.activeDoctorId;
   const canEdit = isAdmin || isAuthor || isDoctorOfQa;
   if (!canEdit) {
     redirect("/?error=본인 글만 편집할 수 있습니다");
