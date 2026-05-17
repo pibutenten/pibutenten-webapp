@@ -59,13 +59,27 @@ const CSRF_EXEMPT_API_PREFIXES = [
 
 /**
  * 허용되는 Origin 값.
- *   - production: https://pbtt.kr + Vercel preview URL
- *   - dev: http://localhost:* (NEXT_PUBLIC_SITE_URL 기준)
+ *   - production (VERCEL_ENV === 'production'): https://pbtt.kr + www.pbtt.kr
+ *   - preview (VERCEL_ENV === 'preview'): 위 + pibutenten-webapp-*.vercel.app
+ *   - dev: 위 + localhost / 사용자 LAN
+ *
+ * A9 (2026-05-17): 기존 `o.hostname.endsWith(".vercel.app")` 는 임의 Vercel 배포에서
+ *   cross-origin POST 허용 → 공격면. 우리 프로젝트 prefix 로 좁힘.
+ *   LAN IP 하드코딩은 NODE_ENV/VERCEL_ENV 가드 안으로 격리.
  */
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
   try {
     const o = new URL(origin);
+    const vercelEnv = process.env.VERCEL_ENV; // 'production' | 'preview' | 'development' | undefined
+    const isDev = vercelEnv === "development" || !vercelEnv;
+    const isPreview = vercelEnv === "preview";
+
+    // production 핵심 도메인 — 모든 환경에서 허용 (운영 도메인은 빌드 환경 무관 신뢰).
+    if (o.origin === "https://pbtt.kr") return true;
+    if (o.origin === "https://www.pbtt.kr") return true;
+
+    // NEXT_PUBLIC_SITE_URL — 환경마다 다르므로 매칭.
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
     if (siteUrl) {
       try {
@@ -75,19 +89,30 @@ function isAllowedOrigin(origin: string | null): boolean {
         /* ignore */
       }
     }
-    // production allow-list
-    if (o.origin === "https://pbtt.kr") return true;
-    if (o.origin === "https://www.pbtt.kr") return true;
-    // Vercel preview/branch deploys — *.vercel.app
-    if (o.hostname.endsWith(".vercel.app")) return true;
-    // localhost (dev)
-    if (
-      o.hostname === "localhost" ||
-      o.hostname === "127.0.0.1" ||
-      o.hostname === "192.168.0.20" // 사용자 LAN IP — dev 환경
-    ) {
-      return true;
+
+    // preview/development: Vercel preview 도메인 — 프로젝트 prefix 로 좁힘.
+    // production 빌드 환경에는 preview 도메인 허용 X (cross-origin 공격면 차단).
+    if (isPreview || isDev) {
+      if (
+        o.hostname === "pibutenten-webapp.vercel.app" ||
+        o.hostname.startsWith("pibutenten-webapp-") &&
+          o.hostname.endsWith(".vercel.app")
+      ) {
+        return true;
+      }
     }
+
+    // dev only: localhost / 사용자 LAN.
+    if (isDev) {
+      if (
+        o.hostname === "localhost" ||
+        o.hostname === "127.0.0.1" ||
+        o.hostname === "192.168.0.20" // 사용자 LAN IP — dev 환경 한정
+      ) {
+        return true;
+      }
+    }
+
     return false;
   } catch {
     return false;
@@ -221,9 +246,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // 통과 — 캐시 쿠키 set (12시간)
+  // httpOnly: false — OnboardingClient.tsx 에서 document.cookie 로 같은 쿠키를 set 하므로 유지.
+  // secure: production HTTPS 환경에서만 전송되도록 강제 (A11, 2026-05-17).
   response.cookies.set(ONBOARDED_COOKIE, user.id, {
     httpOnly: false,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60 * 12,
   });

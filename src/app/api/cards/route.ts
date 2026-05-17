@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
   const error = res.error;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return errorResponse(error, "generic", "[cards GET] search_cards_scored", 500);
   }
 
   return NextResponse.json(

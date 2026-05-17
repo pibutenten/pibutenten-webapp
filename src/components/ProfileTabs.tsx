@@ -44,6 +44,12 @@ type Props = {
   skinInfo?: SkinInfo;
   /** v4 — viewer의 좋아요/저장 prefetch (posts/saves/likes 카드에 즉시 반영) */
   viewerStates?: Record<number, { liked?: boolean; saved?: boolean }>;
+  /**
+   * 비로그인(anon) 보기 여부 — true 면 피부고민 탭에 PII 대신 로그인 CTA 표시.
+   * 0122 마이그레이션으로 anon 은 PII 컬럼을 select 자체 못함 → server 가 빈 skinInfo 전달.
+   * A1 (2026-05-17).
+   */
+  viewerIsAnon?: boolean;
 };
 
 const TAB_LABEL: Record<Tab, string> = {
@@ -101,6 +107,7 @@ export default function ProfileTabs({
   profileId,
   skinInfo,
   viewerStates,
+  viewerIsAnon,
 }: Props) {
   const [tab, setTab] = useState<Tab>("posts");
 
@@ -116,6 +123,9 @@ export default function ProfileTabs({
       skinInfo.interestedProcedures.length ||
       skinInfo.likedProcedures.length)
   );
+  // anon 은 PII 컬럼을 못 받으므로 피부고민 탭 자체는 "로그인 안내" 용도로 표시.
+  // is_public/field_visibility 도 안 받았을 수 있어 보수적으로 탭 노출.
+  const showSkinTabForAnon = !!viewerIsAnon && !isOwner;
 
   // 탭 순서: 작성 글 → 댓글 → 좋아요·저장 → 피부고민
   // - likes/saves는 RLS상 외부인이 raw 데이터 fetch 불가 → 외부인이 visibility on 봐도 빈 상태
@@ -127,6 +137,8 @@ export default function ProfileTabs({
     if (showTab("tab_likes") && isOwner) base.push("likes");
     if (showTab("tab_saves") && isOwner) base.push("saves");
     if (hasSkinContent && showTab("tab_skin")) base.push("skin");
+    // anon 보기에 한해, 피부고민이 있는지 모름 → 무조건 탭 노출 (클릭 시 로그인 CTA).
+    else if (showSkinTabForAnon) base.push("skin");
     return base;
   })();
 
@@ -265,7 +277,10 @@ export default function ProfileTabs({
           <Feed initial={posts} pageSize={20} viewerStates={viewerStates} />
         ))}
 
-      {tab === "skin" && skinInfo && (
+      {tab === "skin" && viewerIsAnon && !isOwner && (
+        <LoginPromptForPII />
+      )}
+      {tab === "skin" && !viewerIsAnon && skinInfo && (
         <SkinInfoBlock info={skinInfo} />
       )}
 
@@ -330,6 +345,45 @@ function Empty({ msg }: { msg: string }) {
   return (
     <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] p-10 text-center text-sm text-[var(--text-muted)]">
       {msg}
+    </div>
+  );
+}
+
+/**
+ * 비로그인 사용자에게 PII(피부정보) 영역을 가리고 로그인/회원가입 CTA 노출.
+ * A1 (2026-05-17) — 0122 마이그레이션으로 anon 은 PII 컬럼 SELECT 자체 불가.
+ * 단순한 차단이 아닌 회원가입 유도 (그로스 hook).
+ */
+function LoginPromptForPII() {
+  const nextPath =
+    typeof window !== "undefined"
+      ? window.location.pathname + window.location.search
+      : "/";
+  const loginHref = `/login?next=${encodeURIComponent(nextPath)}`;
+  const signupHref = `/signup?next=${encodeURIComponent(nextPath)}`;
+  return (
+    <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-soft)]/40 px-6 py-10 text-center">
+      <div className="mb-2 text-2xl">🔒</div>
+      <p className="mb-1 text-sm font-semibold text-[var(--text)]">
+        피부 고민·관심 시술 정보는 회원에게만 공개돼요
+      </p>
+      <p className="mb-5 text-xs text-[var(--text-muted)]">
+        같은 피부 고민을 가진 회원들과 정보를 나눠 보세요.
+      </p>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <Link
+          href={signupHref}
+          className="rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+        >
+          1초 만에 가입하기
+        </Link>
+        <Link
+          href={loginHref}
+          className="rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-white"
+        >
+          이미 회원이라면 로그인
+        </Link>
+      </div>
     </div>
   );
 }

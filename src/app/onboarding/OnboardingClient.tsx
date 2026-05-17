@@ -210,6 +210,26 @@ export default function OnboardingClient({ userId, initial }: Props) {
       setErr("올바른 생년월일을 입력해주세요.");
       return;
     }
+    // 만 14세 미만 차단 (A3, 2026-05-17).
+    // 개인정보 보호법상 만 14세 미만은 법정대리인 동의 필수. 피부텐텐은 현재
+    // 법정대리인 동의 프로세스가 없으므로 14세 미만 가입 자체를 차단.
+    // 계산: 오늘 기준 - 14년 < 생일 이면 미만.
+    const birthDateObj = new Date(birthdate);
+    const today = new Date();
+    let ageYears = today.getFullYear() - birthDateObj.getFullYear();
+    const monthDiff = today.getMonth() - birthDateObj.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDateObj.getDate())
+    ) {
+      ageYears -= 1;
+    }
+    if (ageYears < 14) {
+      setErr(
+        "만 14세 미만은 가입할 수 없습니다. 법정대리인의 도움이 필요해요.",
+      );
+      return;
+    }
     if (!gender) {
       setErr("성별을 선택해주세요.");
       return;
@@ -282,9 +302,16 @@ export default function OnboardingClient({ userId, initial }: Props) {
       }
       // middleware의 온보딩 가드 캐시 — 즉시 통과시키기 위해 클라이언트에서 set.
       // 첫 가입 강제 게이트 쿠키도 만료시켜 두 번 다시 강제 redirect 안 되게 한다.
+      // Secure flag: HTTPS 환경에서만 자동 부여 (A11, 2026-05-17).
+      // window.location.protocol 로 현재 페이지가 HTTPS 인 경우에만 Secure 부여 —
+      // localhost http 개발 환경에서는 Secure 빠져서 정상 동작.
       try {
-        document.cookie = `pibutenten_onboarded=${userId}; Path=/; Max-Age=${60 * 60 * 12}; SameSite=Lax`;
-        document.cookie = `pibutenten_must_onboard=; Path=/; Max-Age=0; SameSite=Lax`;
+        const secureAttr =
+          typeof window !== "undefined" && window.location.protocol === "https:"
+            ? "; Secure"
+            : "";
+        document.cookie = `pibutenten_onboarded=${userId}; Path=/; Max-Age=${60 * 60 * 12}; SameSite=Lax${secureAttr}`;
+        document.cookie = `pibutenten_must_onboard=; Path=/; Max-Age=0; SameSite=Lax${secureAttr}`;
       } catch {
         /* ignore — 인앱 sandbox */
       }

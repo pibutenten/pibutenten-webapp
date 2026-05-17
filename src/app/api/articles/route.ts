@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
+import { rateLimit } from "@/lib/rate-limit";
+import { errorResponse } from "@/lib/error-response";
 import {
   buildSlug,
   resolveSlugCollision,
@@ -59,6 +61,16 @@ export async function POST(req: Request) {
   const user = idCtx.user;
   // role은 active identity 기준 (회원 ID로 전환 중이면 'user', 의사 ID면 'doctor')
   const role = (idCtx.active.role ?? "user") as "admin" | "doctor" | "user";
+
+  // Rate limit (A8): 사용자당 분당 5회. 글 도배 방어.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "articles-post",
+    userId: user.id,
+    max: 5,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   let payload: Payload;
   try {
@@ -306,10 +318,8 @@ export async function POST(req: Request) {
     .single();
 
   if (insErr) {
-    return NextResponse.json(
-      { error: `저장 실패: ${insErr.message}` },
-      { status: 500 },
-    );
+    // A10: 상세 메시지는 로그에만, 사용자엔 일반 문구 + error_id.
+    return errorResponse(insErr, "save_failed", "[articles] cards insert", 500);
   }
 
   // 캐시 무효화 — 대시보드 KPI/카드 목록/회원 프로필 즉시 갱신.

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isHostSafeForExternalFetch } from "@/lib/ssrf-guard";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,46 +31,105 @@ const FETCH_TIMEOUT_MS = 6000;
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 const MAX_BODY_CHARS = 600;
+// A6 (2026-05-17): 응답 본문 크기 cap. 일반 블로그 HTML 95% < 1MB. 메타만 필요하므로 2MB 충분.
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+// 리다이렉트 최대 hop. 모든 hop 마다 host 재검증 적용 (SSRF).
+const MAX_REDIRECTS = 3;
 
 /**
- * Phase 6-2: SSRF 가드 통합. fetchWithTimeout 호출 직전에 DNS 해석 + IP 검증.
- *   - 사설/메타데이터 호스트로 해석되면 즉시 throw.
- *   - 호출자 (kind detection 후 여러 endpoint 호출) 인터페이스 그대로.
+ * SSRF-safe fetch — 각 redirect hop 마다 host 재검증.
+ *   - `redirect: 'manual'` 로 hop 별 검증 강제 (A6, 2026-05-17).
+ *   - 응답 본문 streaming + MAX_BODY_BYTES cap.
+ *   - https only.
+ *   - https-only 정책으로 MITM 차단.
+ *   - 반환: 메모리에 적재된 본문을 가진 합성 Response (caller 가 .arrayBuffer() / .text() 사용 가능).
  */
 async function fetchWithTimeout(
   url: string,
   extraHeaders: Record<string, string> = {},
 ): Promise<Response> {
-  // SSRF 검증 — 도메인 → IP 해석 + 사설/메타데이터 차단
+  let currentUrl: URL;
   try {
-    const parsed = new URL(url);
-    const guard = await isHostSafeForExternalFetch(parsed.hostname);
+    currentUrl = new URL(url);
+  } catch (e) {
+    throw e instanceof Error ? e : new Error("invalid url");
+  }
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    // https only — http 리다이렉트도 차단.
+    if (currentUrl.protocol !== "https:") {
+      throw new Error(`[preview-link] protocol blocked: ${currentUrl.protocol}`);
+    }
+    // SSRF — 도메인 → IP 해석 후 사설/메타데이터 차단. hop 마다 재검증.
+    const guard = await isHostSafeForExternalFetch(currentUrl.hostname);
     if (!guard.ok) {
       throw new Error(`[preview-link] blocked host: ${guard.reason}`);
     }
-  } catch (e) {
-    // URL 파싱 실패 or guard fail
-    throw e instanceof Error ? e : new Error("invalid url");
-  }
-
-  const ctl = new AbortController();
-  const id = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
-  try {
-    return await fetch(url, {
-      method: "GET",
-      headers: {
-        "User-Agent": UA,
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.5",
-        ...extraHeaders,
-      },
-      redirect: "follow",
-      signal: ctl.signal,
+    const ctl = new AbortController();
+    const id = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(currentUrl.toString(), {
+        method: "GET",
+        headers: {
+          "User-Agent": UA,
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.5",
+          ...extraHeaders,
+        },
+        redirect: "manual",
+        signal: ctl.signal,
+      });
+    } finally {
+      clearTimeout(id);
+    }
+    // 3xx — Location 재검증 후 다음 hop
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get("location");
+      if (!loc) {
+        throw new Error(`[preview-link] redirect without Location: ${res.status}`);
+      }
+      let next: URL;
+      try {
+        next = new URL(loc, currentUrl);
+      } catch {
+        throw new Error("[preview-link] invalid redirect Location");
+      }
+      currentUrl = next;
+      continue;
+    }
+    // 본문 streaming + cap
+    const reader = res.body?.getReader();
+    if (!reader) {
+      return new Response(new Uint8Array(0), {
+        status: res.status,
+        headers: res.headers,
+      });
+    }
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > MAX_BODY_BYTES) {
+        await reader.cancel().catch(() => {});
+        throw new Error(`[preview-link] response exceeds ${MAX_BODY_BYTES} bytes`);
+      }
+      chunks.push(value);
+    }
+    const total = new Uint8Array(received);
+    let off = 0;
+    for (const c of chunks) {
+      total.set(c, off);
+      off += c.byteLength;
+    }
+    return new Response(total, {
+      status: res.status,
+      headers: res.headers,
     });
-  } finally {
-    clearTimeout(id);
   }
+  throw new Error(`[preview-link] too many redirects (>${MAX_REDIRECTS})`);
 }
 
 /**
@@ -683,6 +743,16 @@ async function handle(req: Request): Promise<Response> {
     return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
   }
 
+  // Rate limit (A8): 사용자당 분당 30회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "preview-link",
+    userId: user.id,
+    max: 30,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
+
   let body: { url?: string } = {};
   try {
     body = (await req.json()) as { url?: string };
@@ -703,9 +773,11 @@ async function handle(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
+  // https only (A6, 2026-05-17) — http 는 MITM 위험 + SSRF 표면 확장.
+  // 사용자가 http URL 을 넣으면 자동 promote 후 시도하지 않고 명확히 거부.
+  if (url.protocol !== "https:") {
     return NextResponse.json(
-      { error: "http/https URL만 지원해요." },
+      { error: "https URL만 지원해요." },
       { status: 400 },
     );
   }

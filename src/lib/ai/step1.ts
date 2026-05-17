@@ -6,6 +6,7 @@
  * 출력: { drafts: DraftCard[] } JSON 단일 객체.
  */
 
+import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { getEnv } from "./env-fallback";
 import { extractJson } from "./extract-json";

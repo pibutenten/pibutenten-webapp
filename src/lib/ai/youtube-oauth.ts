@@ -18,6 +18,7 @@
  *   - 외부 채널 영상은 본질적으로 download 거부 (403 forbidden / 자막 트랙 자체가 안 보임).
  */
 
+import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export type OauthCaptionResult = {

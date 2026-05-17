@@ -54,6 +54,14 @@ type ProfileRow = {
  */
 async function fetchProfileByHandle(
   handle: string,
+  /**
+   * 비로그인(anon) 호출이면 PII 컬럼(birthdate/gender/face_shape/skin_type/
+   * skin_concerns/interested_procedures/liked_procedures)을 select 목록에서 제외.
+   * 0122 마이그레이션으로 anon 은 위 컬럼에 column-level REVOKE 가 걸려 있어
+   * 포함해서 호출하면 permission denied 로 전체 쿼리가 실패함.
+   * A1 (2026-05-17).
+   */
+  viewerIsAnon: boolean = false,
 ): Promise<{
   profile: ProfileRow;
   /** doctor identity 정보 (doctor_accounts 매핑 있을 때) */
@@ -68,8 +76,11 @@ async function fetchProfileByHandle(
 } | null> {
   if (!/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(handle)) return null;
   const supabase = await createSupabaseServerClient();
-  const select =
-    "id, display_name, role, bio, avatar_url, is_public, created_at, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, field_visibility, auth_user_id";
+  const baseSelect =
+    "id, display_name, role, bio, avatar_url, is_public, created_at, handle, field_visibility, auth_user_id";
+  const piiSelect =
+    ", birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures";
+  const select = viewerIsAnon ? baseSelect : baseSelect + piiSelect;
 
   const { data } = await supabase
     .from("profiles")
@@ -106,7 +117,8 @@ async function fetchProfileByHandle(
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
-  const result = await fetchProfileByHandle(handle);
+  // metadata 생성은 PII 불필요 — viewerIsAnon=true 로 안전한 select 사용.
+  const result = await fetchProfileByHandle(handle, true);
   if (!result) return { title: "찾을 수 없는 회원" };
   const { profile, identity } = result;
   const name = identity
@@ -137,13 +149,15 @@ export default async function HandleProfilePage({ params }: Props) {
     .maybeSingle();
   if (doctorMatch) redirect(`/doctors/${handle}`);
 
-  const result = await fetchProfileByHandle(handle);
-  if (!result) notFound();
-  const { profile, identity } = result;
-
+  // viewer 먼저 확인 — anon 이면 PII 컬럼 select 제외 (0122 RLS column REVOKE 대응).
   const {
     data: { user: viewer },
   } = await supabase.auth.getUser();
+  const viewerIsAnon = !viewer;
+
+  const result = await fetchProfileByHandle(handle, viewerIsAnon);
+  if (!result) notFound();
+  const { profile, identity } = result;
   // Phase 9: 같은 auth_user_id 묶음이면 본인 (다른 ID여도 같은 사람)
   // - 본인 auth user의 메인 profile 접근: profile.id === viewer.id
   // - 본인 묶음 다른 profile 접근(부계정 등): profile.auth_user_id === viewer.id
@@ -283,15 +297,23 @@ export default async function HandleProfilePage({ params }: Props) {
         savesCount={savesCount}
         isOwner={isOwner}
         profileId={profile.id}
-        skinInfo={{
-          faceShape: profile.face_shape,
-          skinType: profile.skin_type,
-          skinConcerns: profile.skin_concerns ?? [],
-          interestedProcedures: profile.interested_procedures ?? [],
-          likedProcedures: profile.liked_procedures ?? [],
-          visibility: (profile.field_visibility ?? {}) as Record<string, boolean>,
-        }}
+        skinInfo={
+          viewerIsAnon
+            ? undefined
+            : {
+                faceShape: profile.face_shape,
+                skinType: profile.skin_type,
+                skinConcerns: profile.skin_concerns ?? [],
+                interestedProcedures: profile.interested_procedures ?? [],
+                likedProcedures: profile.liked_procedures ?? [],
+                visibility: (profile.field_visibility ?? {}) as Record<
+                  string,
+                  boolean
+                >,
+              }
+        }
         viewerStates={viewerStates}
+        viewerIsAnon={viewerIsAnon}
       />
 
       {/* 본인 접속 시 페이지 최하단에 로그아웃 (탈퇴는 /settings/profile에 유지) */}

@@ -14,6 +14,8 @@
  * 참고: https://developers.naver.com/docs/login/api/api.md
  */
 
+import "server-only";
+
 const NAVER_AUTHORIZE_URL = "https://nid.naver.com/oauth2.0/authorize";
 const NAVER_TOKEN_URL = "https://nid.naver.com/oauth2.0/token";
 const NAVER_USERINFO_URL = "https://openapi.naver.com/v1/nid/me";

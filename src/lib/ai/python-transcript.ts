@@ -9,6 +9,7 @@
  * 둘 다 실패 시 null — 호출자가 다른 fallback로.
  */
 
+import "server-only";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs";

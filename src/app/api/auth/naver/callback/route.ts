@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, randomUUID } from "crypto";
 import {
   exchangeNaverCode,
   fetchNaverUserInfo,
@@ -106,6 +106,50 @@ export async function GET(request: NextRequest) {
       if (row) userId = row.id;
     }
 
+    // ── A5 (2026-05-17): provider 충돌 검사 ─────────────────────────────
+    // 같은 email 로 이미 Google/Kakao 등 다른 provider 로 가입된 사용자라면
+    // 자동 매칭하지 않고 안내 페이지로 분기 — 계정 인수(Account Takeover) 방어.
+    // Naver 가 이메일 변경/미검증 이메일을 줘서 기존 계정을 가로채는 시나리오 차단.
+    if (userId) {
+      const { data: identitiesRow } = await admin
+        .schema("auth" as never)
+        .from("identities")
+        .select("provider")
+        .eq("user_id", userId);
+      const providers = (identitiesRow as { provider: string }[] | null) ?? [];
+      const hasNaver = providers.some((i) => i.provider === "naver");
+      const hasOther = providers.some(
+        (i) => i.provider !== "naver" && i.provider !== "email",
+      );
+      // naver identity 가 이미 연결되어 있으면 정상 로그인.
+      // naver identity 가 없고 다른 OAuth provider 가 있으면 차단.
+      if (!hasNaver && hasOther) {
+        const otherProvider = providers.find(
+          (i) => i.provider !== "naver" && i.provider !== "email",
+        )?.provider;
+        const url = new URL("/login/conflict", SITE_URL);
+        url.searchParams.set("existing_provider", otherProvider ?? "other");
+        url.searchParams.set("attempted_provider", "naver");
+        // state/next 쿠키 정리
+        const res = NextResponse.redirect(url);
+        res.cookies.set("naver_oauth_state", "", { maxAge: 0, path: "/" });
+        res.cookies.set("naver_oauth_next", "", { maxAge: 0, path: "/" });
+        return res;
+      }
+      // naver 외 어떤 identity 도 없는 케이스(예: email 가입만) → 새 identity 연결 허용 X.
+      // 사용자가 기존 email 로그인 후 명시적으로 연결해야 함.
+      if (!hasNaver && providers.length > 0 && !hasOther) {
+        const url = new URL("/login/conflict", SITE_URL);
+        url.searchParams.set("existing_provider", "email");
+        url.searchParams.set("attempted_provider", "naver");
+        const res = NextResponse.redirect(url);
+        res.cookies.set("naver_oauth_state", "", { maxAge: 0, path: "/" });
+        res.cookies.set("naver_oauth_next", "", { maxAge: 0, path: "/" });
+        return res;
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     if (!userId) {
       // 신규 사용자 생성
       const { data: created, error: createErr } =
@@ -194,14 +238,42 @@ export async function GET(request: NextRequest) {
     res.cookies.set("naver_oauth_next", "", { maxAge: 0, path: "/" });
     return res;
   } catch (e) {
+    // A10: 상세 메시지를 redirect URL 에 박지 않음 (referer 누설 차단).
+    // 상세는 서버 로그에만, 사용자에겐 표준 문구 + error_id.
+    const errorId = randomUUID();
     const msg = e instanceof Error ? e.message : "알 수 없는 오류";
-    console.error("[naver callback]", msg);
-    return redirectToLogin(msg);
+    console.error(`[error:${errorId}] [naver callback] ${msg}`, e);
+    return redirectToLoginWithId(errorId);
   }
 }
 
+/**
+ * 사용자 표시용 redirect — 상세 메시지를 query 에 박지 않고 error_id 만 노출.
+ * 운영자는 Vercel logs 에서 `grep <error_id>` 로 상세 추적.
+ */
 function redirectToLogin(error: string): NextResponse {
+  // 표준 문구만 — 상세 message 직접 전달 X.
+  // (legacy 호출이 그대로 string 을 넘기는 케이스 대비)
   const url = new URL("/login", SITE_URL);
-  url.searchParams.set("error", error);
+  // 메시지 단축 + 일반화. 사용자 입력/내부 SDK 메시지 누설 차단.
+  const standard = standardizeNaverError(error);
+  url.searchParams.set("error", standard);
   return NextResponse.redirect(url);
+}
+
+function redirectToLoginWithId(errorId: string): NextResponse {
+  const url = new URL("/login", SITE_URL);
+  url.searchParams.set("error", "auth_failed");
+  url.searchParams.set("error_id", errorId);
+  return NextResponse.redirect(url);
+}
+
+function standardizeNaverError(raw: string): string {
+  // 사용자 노출용 표준 카테고리 매핑.
+  if (raw.includes("CSRF") || raw.includes("state")) return "csrf_failed";
+  if (raw.includes("취소") || raw.toLowerCase().includes("cancel"))
+    return "cancelled";
+  if (raw.includes("환경변수") || raw.includes("env")) return "config_error";
+  if (raw.includes("파라미터")) return "missing_param";
+  return "auth_failed";
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { rateLimit } from "@/lib/rate-limit";
 import sharp from "sharp";
 
 export const runtime = "nodejs"; // sharp 는 Edge runtime 미지원
@@ -76,6 +77,16 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
+
+  // Rate limit (A8): 사용자당 분당 20회. 이미지 폭주 업로드 방어.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "upload",
+    userId: user.id,
+    max: 20,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   let form: FormData;
   try {

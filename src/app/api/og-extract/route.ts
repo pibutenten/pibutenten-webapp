@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SITE_URL } from "@/lib/site";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { safeFetchExternal } from "@/lib/ssrf-guard";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * 외부 URL의 Open Graph 메타 추출.
@@ -70,6 +71,16 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
+
+  // Rate limit (A8): 사용자당 분당 30회.
+  const limited = await rateLimit({
+    request,
+    bucketPrefix: "og-extract",
+    userId: user.id,
+    max: 30,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   let body: { url?: string };
   try {

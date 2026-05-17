@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { errorResponse } from "@/lib/error-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,12 +73,15 @@ export async function POST(req: Request) {
       "anonymize_user_content_before_delete",
     );
     if (anonErr) {
-      console.error("[me/delete] anonymize RPC failed:", anonErr.message);
       // 익명화 실패 시 탈퇴 자체 중단 — 익명화 없이 auth.users 삭제하면
       // profile row 의 PII 가 그대로 남기 때문.
-      return NextResponse.json(
-        { error: `익명화 실패: ${anonErr.message}` },
-        { status: 500 },
+      // A10: 상세 메시지(RPC 내부 PG error) 노출 금지.
+      return errorResponse(
+        anonErr,
+        "generic",
+        "[me/delete] anonymize RPC",
+        500,
+        { user_id: user.id },
       );
     }
   } catch (e) {

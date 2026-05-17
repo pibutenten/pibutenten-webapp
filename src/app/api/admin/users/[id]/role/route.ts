@@ -54,14 +54,30 @@ export async function POST(
   // 대상 user 존재 확인
   const { data: targetProfile } = await supabase
     .from("profiles")
-    .select("id, role")
+    .select("id, role, auth_user_id")
     .eq("id", id)
     .maybeSingle()
-    .returns<{ id: string; role: string } | null>();
+    .returns<{ id: string; role: string; auth_user_id: string | null } | null>();
   if (!targetProfile) {
     return NextResponse.json(
       { error: "대상 회원을 찾을 수 없습니다" },
       { status: 404 },
+    );
+  }
+
+  // ── 자기 자신 강등 차단 (A7, 2026-05-17) ────────────────────────────────
+  // 본인(같은 auth_user_id 묶음) 이 본인의 role 을 'admin' 이 아닌 값으로 바꾸려는
+  // 시도를 차단. admin 부재 상태 방지. 다른 admin 이 강등하는 것은 의도된 동작.
+  if (
+    targetProfile.auth_user_id === guard.userId &&
+    role !== "admin"
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "본인의 admin 권한은 본인이 강등할 수 없습니다. 다른 관리자에게 요청해 주세요.",
+      },
+      { status: 400 },
     );
   }
 

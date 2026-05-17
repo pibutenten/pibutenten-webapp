@@ -4,6 +4,7 @@
  * 시스템 프롬프트: `src/lib/ai/prompts/step2_v2.md` (전달용 v2 그대로).
  */
 
+import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { PubmedCandidate } from "./pubmed";
 import { getEnv } from "./env-fallback";

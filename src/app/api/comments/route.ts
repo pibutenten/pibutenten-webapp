@@ -10,6 +10,8 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
+import { rateLimit } from "@/lib/rate-limit";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +73,7 @@ export async function GET(req: Request) {
     .range(offset, offset + limit - 1);
 
   if (rootRes.error) {
-    return NextResponse.json({ error: rootRes.error.message }, { status: 500 });
+    return errorResponse(rootRes.error, "generic", "[comments GET] root", 500);
   }
 
   const rootRows = (rootRes.data ?? []) as Omit<CommentRow, "author">[];
@@ -88,7 +90,7 @@ export async function GET(req: Request) {
       .order("created_at", { ascending: true })
       .order("id", { ascending: true });
     if (replyRes.error) {
-      return NextResponse.json({ error: replyRes.error.message }, { status: 500 });
+      return errorResponse(replyRes.error, "generic", "[comments GET] reply", 500);
     }
     replyRows = (replyRes.data ?? []) as Omit<CommentRow, "author">[];
   }
@@ -276,6 +278,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
+  // Rate limit (A8): 사용자당 분당 10회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "comments-post",
+    userId: idCtx.user.id,
+    max: 10,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
+
   // Phase 9: author_id에 **active identity의 profile.id** 저장.
   //   cookie 'pibutenten:identity'가 UUID면 그 profile, 'primary'면 base profile.
   //   getIdentityContext가 묶음 검증(auth_user_id 매칭) 후 idCtx.active.profileId 반환.
@@ -292,7 +304,7 @@ export async function POST(req: Request) {
     .single();
 
   if (ins.error) {
-    return NextResponse.json({ error: ins.error.message }, { status: 400 });
+    return errorResponse(ins.error, "save_failed", "[comments POST]", 400);
   }
 
   return NextResponse.json({ comment: ins.data }, { status: 201 });

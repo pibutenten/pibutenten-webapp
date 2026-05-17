@@ -72,8 +72,14 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
       // (admin/doctor는 운영용 계정이라 스킵)
       if (role !== "admin" && role !== "doctor" && !profile?.birthdate) {
         // middleware가 이 쿠키 보면 /onboarding으로 강제 redirect
+        // Secure flag: HTTPS 환경에서만 자동 부여 (A11, 2026-05-17).
         try {
-          document.cookie = `pibutenten_must_onboard=1; Path=/; Max-Age=${60 * 60 * 24}; SameSite=Lax`;
+          const secureAttr =
+            typeof window !== "undefined" &&
+            window.location.protocol === "https:"
+              ? "; Secure"
+              : "";
+          document.cookie = `pibutenten_must_onboard=1; Path=/; Max-Age=${60 * 60 * 24}; SameSite=Lax${secureAttr}`;
         } catch {
           /* ignore */
         }

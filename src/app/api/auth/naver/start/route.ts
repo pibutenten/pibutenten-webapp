@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { randomBytes } from "node:crypto";
 import { buildNaverAuthorizeUrl, loadNaverEnv } from "@/lib/auth/naver";
 import { SITE_URL } from "@/lib/site";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,17 @@ export const dynamic = "force-dynamic";
  * NAVER_CLIENT_ID/SECRET 환경변수 미설정 시 → /login?error=...로 안내.
  */
 export async function GET(request: NextRequest) {
+  // Rate limit (A8): IP당 분당 10회. Naver OAuth state brute-force / 봇 트리거 방어.
+  // 미로그인 흐름이라 user ID 없음 → IP 기반.
+  const limited = await rateLimit({
+    request,
+    bucketPrefix: "naver-start",
+    userId: null,
+    max: 10,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
+
   const env = loadNaverEnv(SITE_URL);
   if (!env) {
     const url = new URL("/login", request.url);
