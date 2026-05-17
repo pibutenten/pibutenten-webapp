@@ -232,12 +232,17 @@ export async function POST(req: Request) {
     }
   }
 
-  // shortcode 생성 — 회원 글(post)일 때.
-  // doctor 글(doctorId + post_slug 모두 있음)은 keyword slug를 쓰므로 shortcode 불필요.
+  // shortcode 생성 — 모든 카드(post/qa, 회원/doctor)에 부여.
+  //   - 회원 글: viewer URL `/{handle}/{shortcode}` 의 식별자.
+  //   - doctor 글: viewer URL 은 `/doctors/{slug}/{year}/{post-slug}` 지만,
+  //     수정 라우트 `/write/{shortcode}` 가 shortcode 만 받기 때문에 카드 케밥의
+  //     "수정" 메뉴 노출에 필수 (`getQaEditUrl` 이 shortcode null 이면 null 반환 →
+  //     케밥에 삭제만 노출되던 회귀 fix, 260517).
+  //   - admin/draft/publish 경로(YouTube 일괄 발행)도 doctor 카드에 이미 shortcode
+  //     생성 중 → 동일 정책.
   // 충돌 시 최대 5회 재시도 (8자 base58 = ~128조 조합으로 사실상 충돌 0).
   let shortcode: string | null = null;
-  const isDoctorOfficial = t === "qa" || (t === "post" && !!doctorId);
-  if (t === "post" && !isDoctorOfficial) {
+  {
     const { generateShortcode } = await import("@/lib/shortcode");
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidate = generateShortcode();
