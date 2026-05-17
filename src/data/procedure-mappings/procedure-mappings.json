@@ -4049,6 +4049,864 @@
       "en": "gut-discomfort",
       "category": "knowledge",
       "type": "general"
+    },
+    {
+      "ko": "조기리프팅",
+      "en": "early-lifting",
+      "category": "lifting",
+      "type": "general"
+    },
+    {
+      "ko": "노화진행",
+      "en": "aging-process",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "재생력",
+      "en": "regeneration",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "보툴리눔톡신",
+      "en": "botulinum-toxin",
+      "category": "injectables",
+      "type": "medical"
+    },
+    {
+      "ko": "엘러간",
+      "en": "allergan",
+      "category": "injectables",
+      "type": "brand"
+    },
+    {
+      "ko": "가족력",
+      "en": "family-history",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "유병률",
+      "en": "prevalence",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "직계가족",
+      "en": "first-degree-relative",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "접촉성피부염",
+      "en": "contact-dermatitis",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "신경통",
+      "en": "neuralgia",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "람세이헌트증후군",
+      "en": "ramsay-hunt",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "안면마비",
+      "en": "facial-palsy",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "항바이러스제",
+      "en": "antiviral",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "청력저하",
+      "en": "hearing-loss",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "쿠싱증후군",
+      "en": "cushing-syndrome",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "골다공증",
+      "en": "osteoporosis",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "체중증가",
+      "en": "weight-gain",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "피부위축",
+      "en": "skin-atrophy",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "백내장",
+      "en": "cataract",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "녹내장",
+      "en": "glaucoma",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "저지방우유",
+      "en": "low-fat-milk",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "유청단백질",
+      "en": "whey-protein",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "유제품",
+      "en": "dairy",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "피부이식",
+      "en": "skin-graft",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "미세펀치이식",
+      "en": "micro-punch-graft",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "SST",
+      "en": "sst",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "백선",
+      "en": "tinea",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "족부백선",
+      "en": "foot-tinea",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "체부백선",
+      "en": "body-tinea",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "발톱무좀",
+      "en": "toenail-fungus",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "실리콘시트",
+      "en": "silicone-sheet",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "메피폼",
+      "en": "mepiform",
+      "category": "homecare",
+      "type": "brand"
+    },
+    {
+      "ko": "듀오덤",
+      "en": "duoderm",
+      "category": "homecare",
+      "type": "brand"
+    },
+    {
+      "ko": "습윤환경",
+      "en": "moist-environment",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "봉합",
+      "en": "suture",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "지혈",
+      "en": "hemostasis",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "쌍커풀",
+      "en": "double-eyelid",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "매몰법",
+      "en": "buried-suture",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "코필러",
+      "en": "nose-filler",
+      "category": "injectables",
+      "type": "medical"
+    },
+    {
+      "ko": "혈관막힘",
+      "en": "vascular-occlusion",
+      "category": "injectables",
+      "type": "medical"
+    },
+    {
+      "ko": "실명",
+      "en": "blindness",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "면역억제제",
+      "en": "immunosuppressant",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "미니펄스요법",
+      "en": "minipulse-therapy",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "먹는콜라겐",
+      "en": "oral-collagen",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "겨드랑이보톡스",
+      "en": "armpit-botox",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "데오드란트",
+      "en": "deodorant",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "벨벳피부",
+      "en": "velvet-skin",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "인슐린저항성",
+      "en": "insulin-resistance",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "흑색가시세포증",
+      "en": "acanthosis-nigricans",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "GI지수",
+      "en": "glycemic-index",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "마이크로니들",
+      "en": "microneedle",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "성장주기",
+      "en": "growth-cycle",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "성장기",
+      "en": "anagen",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "휴지기",
+      "en": "telogen",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "퇴행기",
+      "en": "catagen",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "라티쎄",
+      "en": "latisse",
+      "category": "concerns",
+      "type": "brand"
+    },
+    {
+      "ko": "Bimatoprost",
+      "en": "bimatoprost",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "프로스타글란딘",
+      "en": "prostaglandin",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "비오틴",
+      "en": "biotin",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "어성초",
+      "en": "houttuynia",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "민간요법",
+      "en": "folk-remedy",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "꾸준한관리",
+      "en": "regular-care",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "흡수시간",
+      "en": "absorption-time",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "리포조말",
+      "en": "liposomal",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "환원형글루타치온",
+      "en": "reduced-glutathione",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "아세틸글루타치온",
+      "en": "acetyl-glutathione",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "흡수율",
+      "en": "absorption-rate",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "실비보험",
+      "en": "insurance",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "아토피피부염",
+      "en": "atopic-dermatitis",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "처방",
+      "en": "prescription",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "보험",
+      "en": "insurance",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "체중감량",
+      "en": "weight-loss",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "비만치료제",
+      "en": "obesity-drug",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "심혈관질환",
+      "en": "cardiovascular",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "Botulus",
+      "en": "botulus",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "Clostridium botulinum",
+      "en": "c-botulinum",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "사시치료",
+      "en": "strabismus",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "앨런스콧",
+      "en": "alan-scott",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "캐루더스",
+      "en": "carruthers",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "안검경련",
+      "en": "blepharospasm",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "립스틱테스터",
+      "en": "lipstick-tester",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "화장품위생",
+      "en": "cosmetic-hygiene",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "황색포도상구균",
+      "en": "s-aureus",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "갈락토미세스",
+      "en": "galactomyces",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "비피다발효용해물",
+      "en": "bifida-ferment",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "락토바실러스",
+      "en": "lactobacillus",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "SK-II",
+      "en": "sk-ii",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "가정용MTS",
+      "en": "home-mts",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "병원용MTS",
+      "en": "clinic-mts",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "니들깊이",
+      "en": "needle-depth",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "PA",
+      "en": "pa",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "워터프루프",
+      "en": "waterproof",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "자외선A",
+      "en": "uva",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "기미패치",
+      "en": "melasma-patch",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "알파비사보롤",
+      "en": "bisabolol",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "알부틴",
+      "en": "arbutin",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "딸기우유",
+      "en": "strawberry-milk",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "대흉근",
+      "en": "pectoralis",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "에스트로겐",
+      "en": "estrogen",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "유선조직",
+      "en": "mammary-tissue",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "탈모샴푸",
+      "en": "hair-loss-shampoo",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "살리실릭애시드",
+      "en": "salicylic-acid",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "검은콩",
+      "en": "black-bean",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "미온수",
+      "en": "lukewarm-water",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "거품세정",
+      "en": "foam-wash",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "콘투락투벡스겔",
+      "en": "contractubex",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "노스카나겔",
+      "en": "noscarna",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "2도화상",
+      "en": "second-degree-burn",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "3도화상",
+      "en": "third-degree-burn",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "물집",
+      "en": "blister",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "열상",
+      "en": "laceration",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "찰과상",
+      "en": "abrasion",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "생리식염수",
+      "en": "saline",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "과산화수소수",
+      "en": "hydrogen-peroxide",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "헤어라인",
+      "en": "hairline",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "1도화상",
+      "en": "first-degree-burn",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "저온화상",
+      "en": "low-temp-burn",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "재생",
+      "en": "regeneration",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "성분침투",
+      "en": "ingredient-penetration",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "1회적정량",
+      "en": "single-dose",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "WHO권고",
+      "en": "who-recommendation",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "덧바르기",
+      "en": "reapplication",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "마스크페이스",
+      "en": "mask-face",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "중안면부",
+      "en": "midface",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "눈밑보톡스",
+      "en": "under-eye-botox",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "표정근육",
+      "en": "expression-muscle",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "속눈썹증모제",
+      "en": "lash-serum",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "히스타민",
+      "en": "histamine",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "히루딘",
+      "en": "hirudin",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "모세혈관",
+      "en": "capillary",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "혈관확장",
+      "en": "vasodilation",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "직구",
+      "en": "direct-purchase",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "프로토픽",
+      "en": "protopic",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "타크로리무스",
+      "en": "tacrolimus",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "프로바이오틱스",
+      "en": "probiotics",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "프리바이오틱스",
+      "en": "prebiotics",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "신바이오틱스",
+      "en": "synbiotics",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "포스트바이오틱스",
+      "en": "postbiotics",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "젖산",
+      "en": "lactic-acid",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "암모니아",
+      "en": "ammonia",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "시트로넬라",
+      "en": "citronella",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "겹쌍커풀",
+      "en": "double-fold",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "눈매",
+      "en": "eye-shape",
+      "category": "knowledge",
+      "type": "general"
     }
   ],
   "normalizations": {
