@@ -2,12 +2,18 @@
 """
 Phase 7: Q&A_백업/*.json → INSERT SQL (qas 테이블).
 
-설계:
+⚠️ DEPRECATED (2026-05-17): post_slug 정책이 keyword slug 로 통일됨.
+이 스크립트가 만드는 `{video_id}-{ordinal}` 형식의 slug 는 더 이상 사용하지 않음.
+재import 가 필요하면 PRD §11-A 의 키워드 추출 정책에 맞춰 post_slug 생성 로직을
+교체해야 함 (keywords[0:3] → procedure-mappings.json 영문 변환 → '-' join).
+기존 import 분은 `scripts_keyword_backfill/` 의 backfill 로 갈아엎음.
+
+설계 (Phase 7 당시 — 레거시):
 - 모든 카드: doctor_id = jung-hanmi (UUID 하드코드), type='qa', category='qa',
   status='published', published=true
 - post_year = 2000 + filename YY
 - created_at/updated_at = filename YYMMDD → 20YY-MM-DD 00:00:00+00 (영상 업로드일)
-- post_slug = '{video_id}-{ordinal}' (영상 내 카드 순서 1, 2, 3...)
+- post_slug = '{video_id}-{ordinal}' (영상 내 카드 순서 1, 2, 3...) ← ⚠️ deprecated
 - external_url = draft.source.video_url
 - pubmed_ref = draft.reference (jsonb) or null
 - 청크당 250개씩 SQL 분할 (Supabase 안전 한도)

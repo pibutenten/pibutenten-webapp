@@ -121,24 +121,19 @@ export async function POST(req: Request) {
   }
   // post는 doctor_id null
 
-  // ── post_slug + post_year 자동 생성 (§2 SEO URL 정책) ─────────────
+  // ── post_slug + post_year 자동 생성 (PRD §11-A SEO URL 정책) ─────────
   // post_year: 발행 연도 (서버 기준, KST 무관 — DB에서 EXTRACT YEAR로 동일 결과)
   const postYear = new Date().getUTCFullYear();
-  // post_slug: 태그 첫 3개만 결합 + 50자 초과 시 단어 경계에서 자르기.
-  //  → URL 가독성 + Twitter/카톡 미리보기 잘림 방지.
+  // post_slug: buildSlug() 가 내부에서 영문 단어 3개(최대 4개) + 부분 중복 제거 적용.
+  //  → keywords 배열 전체를 넘기되, 내부에서 1st/2nd 우선 + 단어 수 자동 제어.
+  //  → 50자 초과 cut + URL 가독성 + Twitter/카톡 미리보기 잘림 방지.
   // 같은 의사·연도 내 충돌 시 -2/-3 부여.
-  const SLUG_MAX_KEYWORDS = 3;
-  const SLUG_MAX_LEN = 50;
   let postSlug: string | null = null;
   if (doctorId && keywords.length > 0) {
-    const slugTags = keywords.slice(0, SLUG_MAX_KEYWORDS);
-    let baseSlug = buildSlug(slugTags);
+    // 첫 5개까지 슬러그 빌더에 전달 (내부에서 단어 수 따라 자동 trim)
+    const slugTags = keywords.slice(0, 5);
+    const baseSlug = buildSlug(slugTags);
     if (baseSlug && !baseSlug.startsWith("untagged-")) {
-      if (baseSlug.length > SLUG_MAX_LEN) {
-        const cut = baseSlug.slice(0, SLUG_MAX_LEN);
-        const lastDash = cut.lastIndexOf("-");
-        baseSlug = lastDash > 5 ? cut.slice(0, lastDash) : cut;
-      }
       const { data: existing } = await supabase
         .from("cards")
         .select("post_slug")

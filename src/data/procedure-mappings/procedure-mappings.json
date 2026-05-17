@@ -646,7 +646,10 @@
       "ko": "리투오",
       "en": "re2o",
       "category": "injectables",
-      "type": "brand"
+      "type": "brand",
+      "synonyms": [
+        "엘라비에리투오"
+      ]
     },
     {
       "ko": "리쥬란",
@@ -1647,7 +1650,7 @@
     },
     {
       "ko": "손등",
-      "en": "back-of-hand",
+      "en": "hand",
       "category": "concerns",
       "type": "general"
     },
@@ -3119,6 +3122,933 @@
         "post-procedure care",
         "post-treatment care"
       ]
+    },
+    {
+      "ko": "입술주름",
+      "en": "lip-wrinkle",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "인중주름",
+      "en": "philtrum-wrinkle",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "인중",
+      "en": "philtrum",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "경락",
+      "en": "meridian-massage",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "튼살",
+      "en": "stretch-mark",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "흰튼살",
+      "en": "white-stretch-mark",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "붉은튼살",
+      "en": "red-stretch-mark",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "튼살크림",
+      "en": "stretch-mark-cream",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "제모레이저",
+      "en": "laser-hair-removal",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "얼굴제모레이저",
+      "en": "facial-laser-hair-removal",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "남성제모",
+      "en": "male-hair-removal",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "수염제모",
+      "en": "beard-removal",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "제모",
+      "en": "hair-removal",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "엑시머레이저",
+      "en": "excimer-laser",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "자외선치료",
+      "en": "uv-therapy",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "자외선",
+      "en": "uv",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "백반증수술",
+      "en": "vitiligo-surgery",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "호흡마취",
+      "en": "inhalation-anesthesia",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "안면거상술",
+      "en": "facelift",
+      "category": "lifting",
+      "type": "medical"
+    },
+    {
+      "ko": "대변이식술",
+      "en": "fecal-transplant",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "FMT",
+      "en": "fmt",
+      "category": "knowledge",
+      "type": "medical",
+      "synonyms": [
+        "대변이식술"
+      ]
+    },
+    {
+      "ko": "여드름압출",
+      "en": "acne-extraction",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "프랙셔널레이저",
+      "en": "fractional-laser",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "체외충격파",
+      "en": "shockwave-therapy",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "토닝",
+      "en": "laser-toning",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "MTS",
+      "en": "mts",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "눈가",
+      "en": "eye-area",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "눈밑",
+      "en": "under-eye",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "이마",
+      "en": "forehead",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "겨드랑이",
+      "en": "armpit",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "이중턱",
+      "en": "double-chin",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "측두근",
+      "en": "temporalis",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "광대근육",
+      "en": "zygomatic-muscle",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "얼굴근육",
+      "en": "facial-muscle",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "근육",
+      "en": "muscle",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "속눈썹",
+      "en": "eyelash",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "진피층",
+      "en": "dermis",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "피부톤",
+      "en": "skin-tone",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "얼굴홈트",
+      "en": "face-exercise",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "가슴성형",
+      "en": "breast-surgery",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "얼굴크기",
+      "en": "face-size",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "피부암",
+      "en": "skin-cancer",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "기저세포암",
+      "en": "basal-cell-carcinoma",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "편평세포암",
+      "en": "squamous-cell-carcinoma",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "주근깨",
+      "en": "freckle",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "흑자",
+      "en": "lentigo",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "밀크커피반점",
+      "en": "cafe-au-lait",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "무좀",
+      "en": "athletes-foot",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "단순포진",
+      "en": "herpes-simplex",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "헤르페스",
+      "en": "herpes",
+      "category": "concerns",
+      "type": "medical",
+      "synonyms": [
+        "단순포진"
+      ]
+    },
+    {
+      "ko": "대상포진",
+      "en": "shingles",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "모기물림",
+      "en": "mosquito-bite",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "모기",
+      "en": "mosquito",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "패인흉터",
+      "en": "atrophic-scar",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "여성형탈모",
+      "en": "female-pattern-hair-loss",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "노인냄새",
+      "en": "body-odor-aging",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "마취크림",
+      "en": "anesthetic-cream",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "장벽크림",
+      "en": "barrier-cream",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "MD보습제",
+      "en": "md-moisturizer",
+      "category": "homecare",
+      "type": "brand"
+    },
+    {
+      "ko": "투앤티크림",
+      "en": "tretinoin",
+      "category": "homecare",
+      "type": "medical"
+    },
+    {
+      "ko": "트리파로텐",
+      "en": "trifarotene",
+      "category": "homecare",
+      "type": "medical"
+    },
+    {
+      "ko": "효소세안제",
+      "en": "enzyme-cleanser",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "폼클렌징",
+      "en": "foam-cleanser",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "클렌징워터",
+      "en": "cleansing-water",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "비타민C앰플",
+      "en": "vitamin-c-ampoule",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "비타민D",
+      "en": "vitamin-d",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "멜라토닌",
+      "en": "melatonin",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "활성산소",
+      "en": "reactive-oxygen",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "이산화탄소",
+      "en": "co2",
+      "category": "injectables",
+      "type": "general"
+    },
+    {
+      "ko": "PDLLA",
+      "en": "pdlla",
+      "category": "injectables",
+      "type": "medical"
+    },
+    {
+      "ko": "폴리뉴클레오타이드",
+      "en": "polynucleotide",
+      "category": "injectables",
+      "type": "medical"
+    },
+    {
+      "ko": "JAK억제제",
+      "en": "jak-inhibitor",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "하이드로퀴논",
+      "en": "hydroquinone",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "아산화질소",
+      "en": "nitrous-oxide",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "캐뉼라",
+      "en": "cannula",
+      "category": "injectables",
+      "type": "general"
+    },
+    {
+      "ko": "메디폼",
+      "en": "medifoam",
+      "category": "homecare",
+      "type": "brand"
+    },
+    {
+      "ko": "에스로반",
+      "en": "mupirocin",
+      "category": "homecare",
+      "type": "medical"
+    },
+    {
+      "ko": "위고비",
+      "en": "wegovy",
+      "category": "knowledge",
+      "type": "brand"
+    },
+    {
+      "ko": "세마글루타이드",
+      "en": "semaglutide",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "코어톡스",
+      "en": "coretox",
+      "category": "injectables",
+      "type": "brand"
+    },
+    {
+      "ko": "포텐자",
+      "en": "potenza",
+      "category": "lifting",
+      "type": "brand"
+    },
+    {
+      "ko": "브이올렛",
+      "en": "v-olet",
+      "category": "concerns",
+      "type": "brand"
+    },
+    {
+      "ko": "핀쥬베",
+      "en": "finasteride",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "프로페시아",
+      "en": "finasteride",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "피나스테리드",
+      "en": "finasteride",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "아보다트",
+      "en": "dutasteride",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "두타스테리드",
+      "en": "dutasteride",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "박트로반",
+      "en": "mupirocin",
+      "category": "homecare",
+      "type": "medical"
+    },
+    {
+      "ko": "무피로신",
+      "en": "mupirocin",
+      "category": "homecare",
+      "type": "medical"
+    },
+    {
+      "ko": "푸시딘산",
+      "en": "fusidic-acid",
+      "category": "homecare",
+      "type": "medical"
+    },
+    {
+      "ko": "스테로이드연고",
+      "en": "topical-steroid",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "쿨링",
+      "en": "cooling",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "수화",
+      "en": "hydration",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "희석",
+      "en": "dilution",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "재시술",
+      "en": "retreatment",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "농도",
+      "en": "concentration",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "면도",
+      "en": "shaving",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "마사지",
+      "en": "massage",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "샴푸",
+      "en": "shampoo",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "아침세안",
+      "en": "morning-cleansing",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "자가진단",
+      "en": "self-diagnosis",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "냉찜질",
+      "en": "cold-compress",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "흡연",
+      "en": "smoking",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "운동",
+      "en": "exercise",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "표정",
+      "en": "expression",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "다이소",
+      "en": "daiso",
+      "category": "homecare",
+      "type": "brand"
+    },
+    {
+      "ko": "블루라이트",
+      "en": "blue-light",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "미세먼지",
+      "en": "particulate-matter",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "세균",
+      "en": "bacteria",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "내성",
+      "en": "tolerance",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "단백질",
+      "en": "protein",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "지방층",
+      "en": "fat-layer",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "멜라닌세포",
+      "en": "melanocyte",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "피지선",
+      "en": "sebaceous-gland",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "여름",
+      "en": "summer",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "10대피부",
+      "en": "teen-skin",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "20대",
+      "en": "20s",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "성형",
+      "en": "plastic-surgery",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "괄사",
+      "en": "gua-sha",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "슬로우에이징",
+      "en": "slow-aging",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "마이크로바이옴",
+      "en": "microbiome",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "혈당지수",
+      "en": "glycemic-index",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "메가도스",
+      "en": "mega-dose",
+      "category": "homecare",
+      "type": "general"
+    },
+    {
+      "ko": "엠보",
+      "en": "wheal",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "R0테크닉",
+      "en": "r0-technique",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "레이저부작용",
+      "en": "laser-side-effect",
+      "category": "concerns",
+      "type": "knowledge"
+    },
+    {
+      "ko": "피부과전문의",
+      "en": "dermatologist",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "피부과",
+      "en": "dermatology",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "전문의",
+      "en": "specialist",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "선택",
+      "en": "selection",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "고압산소치료",
+      "en": "hyperbaric-oxygen",
+      "category": "concerns",
+      "type": "medical"
+    },
+    {
+      "ko": "미의기준",
+      "en": "beauty-standard",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "얼굴대칭",
+      "en": "facial-symmetry",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "V라인",
+      "en": "v-line",
+      "category": "concerns",
+      "type": "general",
+      "synonyms": [
+        "브이라인"
+      ]
+    },
+    {
+      "ko": "광대뼈",
+      "en": "cheekbone",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "심미안",
+      "en": "aesthetic-sense",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "아름다움",
+      "en": "beauty",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "반영구문신",
+      "en": "semi-permanent-tattoo",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "영구문신",
+      "en": "permanent-tattoo",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "표피층",
+      "en": "epidermis",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "턴오버",
+      "en": "skin-turnover",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "대식세포",
+      "en": "macrophage",
+      "category": "knowledge",
+      "type": "medical"
+    },
+    {
+      "ko": "잉크입자",
+      "en": "ink-particle",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "눈",
+      "en": "eye",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "흰자",
+      "en": "sclera",
+      "category": "concerns",
+      "type": "general"
+    },
+    {
+      "ko": "감정",
+      "en": "emotion",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "진화",
+      "en": "evolution",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "비언어소통",
+      "en": "nonverbal-communication",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "제로콜라",
+      "en": "zero-cola",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "인공감미료",
+      "en": "artificial-sweetener",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "대체당",
+      "en": "sugar-substitute",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "감미료",
+      "en": "sweetener",
+      "category": "knowledge",
+      "type": "general"
+    },
+    {
+      "ko": "장불편",
+      "en": "gut-discomfort",
+      "category": "knowledge",
+      "type": "general"
     }
   ],
   "normalizations": {

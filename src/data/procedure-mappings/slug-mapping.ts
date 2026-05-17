@@ -66,28 +66,74 @@ export function getEnglishSlug(koreanTerm: string): string | null {
   return koToEnIndex.get(koreanTerm.trim()) ?? null;
 }
 
+/** 영문 단어(`-` split) 기준 기본 목표 단어 수. */
+export const SLUG_TARGET_WORDS = 3;
+
+/** 영문 단어 최대 (의미 더해질 때만). */
+export const SLUG_MAX_WORDS = 4;
+
+/** 슬러그 최대 글자 수. 초과 시 마지막 `-` 경계에서 cut. */
+export const SLUG_MAX_LEN = 50;
+
+function wordCount(parts: string[]): number {
+  return parts.reduce((acc, p) => acc + p.split("-").length, 0);
+}
+
 /**
- * 여러 태그를 결합하여 URL slug 생성.
+ * 여러 태그를 결합하여 URL slug 생성. (PRD §11-A 룰)
  *
- * 규칙:
- * - 매핑 사전에 있는 한글만 영문으로 변환
- * - 매핑 없는 항목은 무시
- * - 모두 매핑 실패 시 'untagged-{timestamp}' 폴백
- * - 결과는 소문자 + 하이픈 결합
+ * 룰:
+ * - 영문 단어 기준 기본 3개, 최대 4개 (의미 더해질 때만).
+ * - **부분 중복 제거**: 새 영문의 단어 중 기존에 이미 있는 단어는 제거.
+ *   예: parts=[hand] + hand-cream → cream 만 → 결과 hand-cream
+ *   예: parts=[square-jaw, botox] + square-jaw-botox → 완전 중복 → skip
+ * - 한 한글 키워드가 영문 3+ 단어 차지하는 케이스(예: 손등=back-of-hand, 폐기된 매핑이지만)는
+ *   차별화를 위해 한 개 더 시도.
+ * - 매핑 없는 항목은 무시.
+ * - 모두 매핑 실패 시 'untagged-{timestamp}' 폴백.
+ * - 결과는 소문자 + 하이픈 결합. 50자 초과 시 마지막 `-` 경계에서 cut.
  *
- * @param tags 태그 배열 (예: ['쥬브젠', '효과', '지속기간'])
- * @returns URL slug (예: 'juvgen-effect-duration')
+ * @param tags 태그 배열 (예: ['쥬브젠', '눈가주름', '히알루론산'])
+ * @returns URL slug (예: 'juvgen-eye-wrinkle-hyaluronic-acid' → trim 후 'juvgen-eye-wrinkle')
  */
 export function buildSlug(tags: string[]): string {
-  const validParts = tags
-    .map(tag => getEnglishSlug(tag))
-    .filter((s): s is string => s !== null && s.length > 0);
+  const parts: string[] = [];
+  const seenEn = new Set<string>();
 
-  if (validParts.length === 0) {
+  for (const tag of tags) {
+    const en = getEnglishSlug(tag);
+    if (!en || seenEn.has(en)) continue;
+
+    const existingWords = new Set(parts.length ? parts.join("-").split("-") : []);
+
+    // 부분 중복 처리: 기존에 이미 있는 단어 제거
+    const newWords = en.split("-");
+    const filtered = newWords.filter((w) => !existingWords.has(w));
+    if (filtered.length === 0) continue; // 완전 중복
+
+    const newTotal = wordCount(parts) + filtered.length;
+
+    // 4 단어 초과면 skip (첫 항목 예외)
+    if (parts.length > 0 && newTotal > SLUG_MAX_WORDS) continue;
+
+    parts.push(en);
+    seenEn.add(en);
+
+    // 3 단어 이상 도달 → break (단, 한글 1개가 영문 3+ 단어 차지하면 한 개 더 시도)
+    if (wordCount(parts) >= SLUG_TARGET_WORDS && parts.length >= 2) break;
+  }
+
+  if (parts.length === 0) {
     return `untagged-${Date.now().toString(36)}`;
   }
 
-  return validParts.join('-').toLowerCase();
+  let s = parts.join("-").toLowerCase();
+  if (s.length > SLUG_MAX_LEN) {
+    const cut = s.slice(0, SLUG_MAX_LEN);
+    const last = cut.lastIndexOf("-");
+    s = last > 5 ? cut.slice(0, last) : cut;
+  }
+  return s;
 }
 
 /**
