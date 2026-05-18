@@ -187,6 +187,15 @@ export default async function AboutPage() {
         <ul className="list-disc space-y-2 pl-5 text-[14px] leading-[1.7] text-[var(--text-secondary)]">
           <li>
             <strong className="font-semibold text-[var(--text)]">
+              의료진 등록
+            </strong>{" "}
+            — 의료인(피부과 전문의) 계정은 운영자가 직접 면허번호·소속·동의를
+            확인한 후 부여합니다. 일반 회원은 어떠한 방법(가입 옵션·자기 신고·
+            소셜 로그인 등)으로도 의사 권한을 획득할 수 없으며,「의료법」
+            제27조의 의료인 자격 사칭 위험을 구조적으로 차단하고 있습니다.
+          </li>
+          <li>
+            <strong className="font-semibold text-[var(--text)]">
               전문의 답변
             </strong>{" "}
             — 피부과 전문의가 직접 작성·검수한 콘텐츠입니다. 의사
