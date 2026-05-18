@@ -10,6 +10,12 @@ import { normalizeAnswerBody } from "@/lib/normalize-body";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 import { pickHighlight } from "@/lib/card-highlight";
 import KeywordsEditor from "@/components/card-editor/KeywordsEditor";
+import PubmedRefsField, {
+  appendReferencesToBody,
+} from "@/components/card-editor/fields/PubmedRefsField";
+import ExternalLinkField, {
+  type ExternalMeta,
+} from "@/components/card-editor/fields/ExternalLinkField";
 
 /** 글쓰기 페이지 진입 시 랜덤 노출 카피 (꼭 공유하고 싶은 나만의 피부 비법은 베리에이션 강조) */
 const WRITE_PHRASES = [
@@ -140,105 +146,30 @@ export default function WriteClient({
   // 공통 태그
   const [keywords, setKeywords] = useState<string[]>([]);
 
-  // 외부 링크 — 모든 카테고리에서 옵션. [채우기] 누르면 메타 fetch해서 제목/본문/태그 채움
+  // 외부 링크 — 모든 카테고리에서 옵션. UI 는 ExternalLinkField 가 처리.
+  // (260518 Phase 1: filling state / previewVideoMeta / fillFromUrl 추출 →
+  //  src/components/card-editor/fields/ExternalLinkField.tsx)
   const [externalUrl, setExternalUrl] = useState("");
-  const [externalMeta, setExternalMeta] = useState<{
-    title?: string;
-    description?: string;
-    image?: string | null;
-    siteName?: string;
-  } | null>(null);
-  const [filling, setFilling] = useState(false);
+  const [externalMeta, setExternalMeta] = useState<ExternalMeta | null>(null);
   const [autoTagging, setAutoTagging] = useState(false);
 
   // 새소식 — 첫 댓글 동시 작성. 공유한 콘텐츠에 본인 코멘트를 함께 남기는 흐름.
   const [firstComment, setFirstComment] = useState("");
 
   // Q&A 참고문헌 — 발행 시 본문 끝에 "\n\n참고문헌\n1. …\n2. …" 형식으로 append.
-  // 빈 항목은 제출 시 자동 필터. [+ 추가] 버튼으로 행 추가 / [×] 버튼으로 제거.
+  // 빈 항목은 제출 시 자동 필터. UI 와 PMID resolver 는 PubmedRefsField 가 책임.
+  // (260518 Phase 1: refResolving / extractPmid / formatPubmedRef / resolvePubmedRef
+  //  추출 → src/components/card-editor/fields/PubmedRefsField.tsx)
   const [references, setReferences] = useState<string[]>([""]);
-  // 각 ref 행마다 [등록] 버튼 진행 중 표시 (PubMed API 호출 중)
-  const [refResolving, setRefResolving] = useState<Record<number, boolean>>({});
 
   const [error, setError] = useState<string | null>(null);
-
-  /** PubMed URL 또는 PMID 문자열에서 PMID(숫자) 만 추출. 매치 실패 시 null. */
-  function extractPmid(input: string): string | null {
-    const trimmed = (input || "").trim();
-    if (!trimmed) return null;
-    // PubMed URL — pubmed.ncbi.nlm.nih.gov/12345678
-    const urlMatch = trimmed.match(/pubmed\.ncbi\.nlm\.nih\.gov\/(\d{1,9})/i);
-    if (urlMatch) return urlMatch[1];
-    // 순수 숫자 (또는 "PMID: 12345678" 형식)
-    const numMatch = trimmed.match(/(?:^|PMID[:\s]*)(\d{1,9})/i);
-    if (numMatch) return numMatch[1];
-    return null;
-  }
-
-  /** PubmedCandidate → "Title — Authors, Journal (Year)" 형식의 한 줄 ref.
-   *  예: "Minimally Invasive Approach … — Rohrich RJ, Schultz KP et al., Plast Reconstr Surg (2022)" */
-  function formatPubmedRef(ref: {
-    authors_short: string;
-    title: string;
-    journal: string;
-    year: string;
-    pmid: string;
-    doi: string;
-  }): string {
-    // title 은 efetch 파서에서 이미 끝에 "." 가 붙여져 들어옴 — 그대로 사용.
-    const title = ref.title || "";
-    const tail: string[] = [];
-    if (ref.authors_short) tail.push(ref.authors_short);
-    if (ref.journal) tail.push(ref.journal);
-    const tailJoined = tail.join(", ");
-    const yearPart = ref.year ? ` (${ref.year})` : "";
-    if (!title && !tailJoined && !yearPart) return "";
-    if (!tailJoined && !yearPart) return title;
-    if (!title) return `${tailJoined}${yearPart}`.trim();
-    return `${title} — ${tailJoined}${yearPart}`.trim();
-  }
-
-  /** [등록] 버튼 — 입력값에서 PMID 추출 후 PubMed API 호출, references[idx]를 변환된 ref로 덮어씀. */
-  async function resolvePubmedRef(idx: number) {
-    const input = references[idx] ?? "";
-    const pmid = extractPmid(input);
-    if (!pmid) {
-      setError("PubMed URL 또는 PMID(숫자)를 입력해주세요.");
-      return;
-    }
-    setError(null);
-    setRefResolving((s) => ({ ...s, [idx]: true }));
-    try {
-      const res = await fetch("/api/admin/draft/pubmed-by-pmid", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pmid }),
-      });
-      const data = (await res.json()) as
-        | { reference?: { authors_short: string; title: string; journal: string; year: string; pmid: string; doi: string } }
-        | { error?: string };
-      if (!res.ok || !("reference" in data) || !data.reference) {
-        const msg = "error" in data ? data.error : "PubMed 메타를 불러올 수 없습니다.";
-        setError(msg ?? "PubMed 메타를 불러올 수 없습니다.");
-        return;
-      }
-      const formatted = formatPubmedRef(data.reference);
-      setReferences((prev) => {
-        const next = [...prev];
-        next[idx] = formatted;
-        return next;
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "PubMed 메타 조회 실패");
-    } finally {
-      setRefResolving((s) => ({ ...s, [idx]: false }));
-    }
-  }
 
   const minKw = KEYWORD_MIN[type];
   const maxKw = KEYWORD_MAX[type];
 
-  /** 참고문헌이 있으면 본문 끝에 번호 매겨 append (Q&A 카테고리 + 비어있지 않은 항목만) */
+  /** 참고문헌이 있으면 본문 끝에 번호 매겨 append (Q&A 카테고리 + 비어있지 않은 항목만).
+   *  (260518 Phase 1: 본문 append 헬퍼는 PubmedRefsField 에 동일 함수가 export 됨 — 향후 통합 시 그것 사용.
+   *   현재는 normalizeAnswerBody + 빈 ref 필터링 + Q&A 카테고리 분기 결합이라 inline 유지) */
   function bodyWithReferences(): string {
     // D4: 빈 줄 자동 제거 (단락 구분 유지) — Q&A 편집기와 동일 규칙
     const cleanBody = normalizeAnswerBody(body);
@@ -290,120 +221,8 @@ export default function WriteClient({
   }
 
 
-  /** URL [채우기] — 외부 링크 메타 fetch → 제목/본문/태그 자동 채움 */
-  /** Q&A 카테고리 전용: 영상 URL의 제목·썸네일만 미리보기로 가져옴 (본문 안 덮음) */
-  async function previewVideoMeta() {
-    const url = externalUrl.trim();
-    if (!url) return;
-    setError(null);
-    setExternalMeta(null);
-    setFilling(true);
-    try {
-      const r = await fetch("/api/preview-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const raw = await r.text();
-      let data: {
-        error?: string;
-        title?: string;
-        description?: string;
-        image?: string | null;
-        siteName?: string;
-      } | null = null;
-      try {
-        data = raw ? JSON.parse(raw) : null;
-      } catch {
-        setError(`영상 정보를 가져오지 못했어요 (${r.status}).`);
-        return;
-      }
-      if (!r.ok) {
-        setError(data?.error ?? `영상 정보를 가져오지 못했어요 (${r.status}).`);
-        return;
-      }
-      setExternalMeta({
-        title: data?.title,
-        description: data?.description,
-        image: data?.image ?? null,
-        siteName: data?.siteName,
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "영상 미리보기 실패");
-    } finally {
-      setFilling(false);
-    }
-  }
-
-  async function fillFromUrl() {
-    const url = externalUrl.trim();
-    if (!url) return;
-    setError(null);
-    // 새 URL을 시도하는 시점에 기존 채우기 결과 clear.
-    // 성공하면 새로 채워지고, 실패해도 이전 URL 결과가 남지 않음 (사용자 의도와 일치).
-    setTitle("");
-    setBody("");
-    setKeywords([]);
-    setExternalMeta(null);
-    setFilling(true);
-    try {
-      const r = await fetch("/api/preview-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      // 응답이 HTML(에러 페이지)일 수 있어 안전 파싱
-      const raw = await r.text();
-      let data: { error?: string; title?: string; description?: string; image?: string | null; siteName?: string } | null = null;
-      try {
-        data = raw ? JSON.parse(raw) : null;
-      } catch {
-        setError(`링크 정보를 가져오지 못했어요 (${r.status}). 잠시 후 다시 시도해주세요.`);
-        return;
-      }
-      if (!r.ok) {
-        setError(data?.error ?? `링크 정보를 가져오지 못했어요 (${r.status}).`);
-        return;
-      }
-      const meta = data as {
-        title?: string;
-        description?: string;
-        image?: string | null;
-        siteName?: string;
-      };
-      setExternalMeta(meta);
-      // [채우기] 동작 — 사용자가 명시적으로 누른 액션이므로 항상 덮어씀
-      // (이미 쓴 내용이 있어도 새 URL 메타로 갱신해야 직관적)
-      if (meta.title) setTitle(meta.title);
-      if (meta.description) {
-        // 출처 표기 — 새소식은 누구의 콘텐츠인지 본문 끝에 명시 (저작권·예의)
-        const sourceTag = meta.siteName
-          ? `\n\n(출처 = ${meta.siteName})`
-          : "";
-        // 새소식은 본문 한도 400자 — 출처 표기 자리 확보 위해 맞춰 trim
-        const limit = category === "link" ? 400 - sourceTag.length : 800;
-        const desc =
-          meta.description.length > limit
-            ? meta.description.slice(0, limit).replace(/\s+\S*$/, "") + "…"
-            : meta.description;
-        setBody(desc + sourceTag);
-      }
-      // 키워드 자동 추출 — 채우기 시 3~7개만 자동, 사용자가 추가로 maxKw(=10)까지 가능
-      const AUTO_TAG_MIN = 3;
-      const AUTO_TAG_MAX = 7;
-      const { extractTagsFromText } = await import("@/lib/auto-tag");
-      const haystack = [meta.title, meta.description]
-        .filter((s): s is string => Boolean(s))
-        .join("\n");
-      const auto = extractTagsFromText(haystack, { limit: AUTO_TAG_MAX });
-      const slice = auto.slice(0, Math.max(AUTO_TAG_MIN, Math.min(auto.length, AUTO_TAG_MAX)));
-      setKeywords(slice);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "링크 처리 실패");
-    } finally {
-      setFilling(false);
-    }
-  }
+  // previewVideoMeta / fillFromUrl — ExternalLinkField 컴포넌트 내부로 이동 (260518 Phase 1).
+  // 새소식 [채우기] 시 부모에 title/body/keywords 전달은 onAutoFill prop 콜백으로 처리.
 
   /** [태그 자동 생성] — 본문(+제목+외부 메타)에서 사전 매칭으로 태그 추출 */
   async function autoGenerateTags() {
@@ -647,59 +466,28 @@ export default function WriteClient({
               개인 글은 user 계정으로 로그인 후 작성, 원장 글은 doctor 계정으로 작성 — 직함은 활성 ID에 종속. */}
         </div>
 
-        {/* 외부 링크 — "새소식"·"Q&A" 두 카테고리에서 노출. v4 spec.
-            - 새소식: 채우기 버튼으로 제목·본문·태그 자동 추출
-            - Q&A: 영상 URL만 첨부 (제목·본문은 직접 작성). [영상 보러가기] 표시. */}
+        {/* 외부 링크 / 영상 URL — ExternalLinkField 로 추출 (260518 Phase 1).
+            - 새소식(link): 채우기 → onAutoFill 로 title/body/keywords 자동 채움
+            - Q&A: 영상 URL 미리보기만 (본문은 사용자가 직접) */}
         {(category === "link" || category === "qa") && (
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-            {category === "qa" ? "영상 URL" : "외부 링크"}{" "}
-            <span className="text-xs font-normal text-[var(--text-muted)]">
-              {category === "qa"
-                ? "선택 — 카드에 [영상 보러가기] 버튼 노출 (시간 포함 URL: ?t=120 또는 t=2m30s)"
-                : "URL 입력 후 [채우기] 누르면 제목·본문·태그 자동 채움"}
-            </span>
-          </label>
-          {/* min-w-0 — input flex-1 의 기본 min-width(콘텐츠 폭) 때문에 모바일 좁은 화면에서
-              [채우기] 버튼이 viewport 밖으로 밀려 잘리는 현상 fix. */}
-          <div className="flex min-w-0 gap-2">
-            <input
-              type="url"
-              value={externalUrl}
-              onChange={(e) => setExternalUrl(e.target.value)}
-              placeholder="https://..."
-              className="h-9 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary-light)] focus:outline-none"
-            />
-            {category === "link" && (
-              <button
-                type="button"
-                onClick={fillFromUrl}
-                disabled={filling || !externalUrl.trim()}
-                className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--primary-light)] bg-[var(--primary-light)] px-3 text-sm font-semibold text-white hover:bg-[var(--primary-light-hover)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:bg-[var(--border)]"
-              >
-                {filling ? "가져오는 중…" : "채우기"}
-              </button>
-            )}
-            {category === "qa" && (
-              <button
-                type="button"
-                onClick={previewVideoMeta}
-                disabled={filling || !externalUrl.trim()}
-                className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm font-semibold text-[var(--text)] hover:border-[var(--primary-light)] hover:text-[var(--primary-light)] disabled:cursor-not-allowed disabled:opacity-50"
-                title="영상 제목·썸네일 미리보기 (본문은 안 덮어씌움)"
-              >
-                {filling ? "확인 중…" : "미리보기"}
-              </button>
-            )}
-          </div>
-          {externalMeta?.title && (
-            <p className="mt-1.5 text-[11.5px] text-[var(--text-muted)]">
-              <span className="font-semibold">{externalMeta.siteName ?? "외부 링크"}</span>
-              <span className="mx-1.5">·</span>
-              {externalMeta.title}
-            </p>
-          )}
-        </div>
+          <ExternalLinkField
+            url={externalUrl}
+            onUrlChange={setExternalUrl}
+            meta={externalMeta}
+            onMetaChange={setExternalMeta}
+            mode={category === "qa" ? "qa" : "link"}
+            bodyMax={category === "link" ? 400 : 800}
+            onError={setError}
+            onAutoFill={({ title: t, body: b, keywords: k }) => {
+              // 새소식 [채우기] 동작 — 사용자가 명시적으로 누른 액션이므로 항상 덮어씀
+              setTitle("");
+              setBody("");
+              setKeywords([]);
+              if (t) setTitle(t);
+              if (b) setBody(b);
+              if (k.length > 0) setKeywords(k);
+            }}
+          />
         )}
 
         {/* 포스팅·Q&A 통합 form — 제목 / 본문 동일 구조.
@@ -715,116 +503,13 @@ export default function WriteClient({
           />
         )}
 
-        {/* Q&A 카테고리 — 참고문헌 입력 (선택). 본문 바로 아래에 위치.
-            UX 정책 (사용자 요청 2026-05-17):
-            - references[idx] === "" → 입력 모드 (input + 등록 버튼)
-            - references[idx] !== "" → 칩 모드 (카드 본문 스타일: 제목 sky-blue + meta muted) + X
-            - X 누르면 그 행이 다시 빈 입력 모드로 (배열에서 제거 X)
-            - "+ 참고문헌 추가" 버튼으로 새 행 추가 (자동 넘버링) */}
+        {/* Q&A 카테고리 — 참고문헌 입력 (PubmedRefsField 로 추출, 260518 Phase 1) */}
         {category === "qa" && (
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-              참고문헌{" "}
-              <span className="text-xs font-normal text-[var(--text-muted)]">
-                선택 — 본문 끝에 자동으로 추가됩니다
-              </span>
-            </label>
-            <div className="flex flex-col gap-1.5">
-              {references.map((ref, idx) => {
-                // 등록 판정: " — " 구분자 포함 시만 등록된 ref 로 인정.
-                // (URL/PMID 입력 중엔 false → 입력 모드 유지 → 사용자가 [등록]/Enter 칠 기회 보장)
-                // formatPubmedRef() 결과는 항상 " — " 포함 ("Title — Authors, Journal (Year)").
-                const dashIdx = ref.indexOf(" — ");
-                const isRegistered = dashIdx !== -1;
-                const refTitle = dashIdx === -1 ? ref : ref.slice(0, dashIdx);
-                const refMeta = dashIdx === -1 ? "" : ref.slice(dashIdx);
-                return (
-                  <div key={idx} className="flex items-start gap-2">
-                    <span className="w-5 shrink-0 pt-2 text-right text-xs text-[var(--text-muted)]">
-                      {idx + 1}.
-                    </span>
-                    {isRegistered ? (
-                      // 등록된 ref — 카드 본문(CardBody.tsx) 참고문헌 영역과 동일 스타일.
-                      // 박스 없이 단순 텍스트: title sky-blue, meta muted, 13px / leading-[1.55].
-                      <div className="flex min-w-0 flex-1 items-start gap-2 py-1">
-                        <p className="min-w-0 flex-1 text-[13px] leading-[1.55] text-[var(--text-muted)]">
-                          <span style={{ color: "var(--primary)" }}>
-                            {refTitle}
-                          </span>
-                          {refMeta}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            // 그 행을 빈 입력 상태로 되돌림 (배열에서 제거 X — 빈 입력 노출).
-                            const next = [...references];
-                            next[idx] = "";
-                            setReferences(next);
-                          }}
-                          aria-label="이 참고문헌 지우기 (다시 입력 가능)"
-                          title="이 참고문헌 지우기"
-                          className="mt-0.5 shrink-0 rounded-full px-1.5 text-[13px] font-bold text-[var(--text-muted)] hover:bg-red-50 hover:text-red-600"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ) : (
-                      // 입력 모드 — input + 등록 버튼.
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <input
-                          type="text"
-                          value={ref}
-                          onChange={(e) => {
-                            const next = [...references];
-                            next[idx] = e.target.value;
-                            setReferences(next);
-                          }}
-                          onKeyDown={(e) => {
-                            // Enter 로도 등록. IME 조합 중에는 무시.
-                            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                              e.preventDefault();
-                              if (!refResolving[idx]) void resolvePubmedRef(idx);
-                            }
-                          }}
-                          placeholder="PubMed URL을 입력하세요 (또는 PMID 숫자)"
-                          className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary-light)] focus:outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void resolvePubmedRef(idx)}
-                          disabled={refResolving[idx]}
-                          className="h-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--primary)] bg-[var(--primary)] px-3 text-xs font-semibold text-white hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
-                          aria-label="PubMed URL을 참고문헌 형식으로 변환"
-                        >
-                          {refResolving[idx] ? "변환중…" : "등록"}
-                        </button>
-                        {/* 빈 입력 행이 2개 이상일 때만 행 삭제 X (1개 행이면 그대로 유지). */}
-                        {references.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setReferences(references.filter((_, i) => i !== idx))
-                            }
-                            className="h-9 w-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-soft)]"
-                            aria-label="이 참고문헌 행 제거"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => setReferences([...references, ""])}
-                className="mt-1 self-start rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-              >
-                + 참고문헌 추가
-              </button>
-            </div>
-          </div>
+          <PubmedRefsField
+            value={references}
+            onChange={setReferences}
+            onError={setError}
+          />
         )}
 
         {/* article(칼럼) 글쓰기 진입점은 Phase 1에서 제거됨 — 카드 포스팅으로 통일 */}
