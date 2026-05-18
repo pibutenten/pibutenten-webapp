@@ -90,43 +90,43 @@ export async function GET(request: NextRequest) {
     // Phase 6-3 (2026-05-16): listUsers 풀스캔 (DoS amplifier) 제거.
     //   기존: perPage=1000 × 최대 50 페이지 순회 — 호출 1회당 최대 50,000 row 비용.
     //         외부 무인증 endpoint 라 공격자가 반복 호출 시 DB 풀 마비 위험.
-    //   개선: service_role 권한으로 auth.users 테이블 직접 조회 — email unique index 로 O(1).
+    //   개선 (0133, 2026-05-19): auth 스키마는 PostgREST 가 노출하지 않아
+    //     `.schema("auth").from("users")` 가 "Invalid schema: auth" 로 실패. →
+    //     `find_auth_user_by_email_with_providers` RPC (SECURITY DEFINER, service_role only) 로
+    //     auth.users + auth.identities 한 번에 조회. email unique index 로 O(1).
     let userId: string | null = null;
+    let providers: string[] = [];
     {
-      const { data: existingUser, error: lookupErr } = await admin
-        .schema("auth" as never)
-        .from("users")
-        .select("id")
-        .eq("email", email)
-        .maybeSingle();
+      const { data: rpcRows, error: lookupErr } = await admin.rpc(
+        "find_auth_user_by_email_with_providers",
+        { p_email: email },
+      );
       if (lookupErr) {
         throw new Error(`사용자 조회 실패: ${lookupErr.message}`);
       }
-      const row = existingUser as { id: string } | null;
-      if (row) userId = row.id;
+      const row = (rpcRows as { user_id: string; providers: string[] }[] | null)?.[0];
+      if (row) {
+        userId = row.user_id;
+        providers = row.providers ?? [];
+      }
     }
 
     // ── A5 (2026-05-17): provider 충돌 검사 ─────────────────────────────
     // 같은 email 로 이미 Google/Kakao 등 다른 provider 로 가입된 사용자라면
     // 자동 매칭하지 않고 안내 페이지로 분기 — 계정 인수(Account Takeover) 방어.
     // Naver 가 이메일 변경/미검증 이메일을 줘서 기존 계정을 가로채는 시나리오 차단.
+    // (0133, 2026-05-19): providers 는 위 RPC 한 번 호출에서 이미 받음.
     if (userId) {
-      const { data: identitiesRow } = await admin
-        .schema("auth" as never)
-        .from("identities")
-        .select("provider")
-        .eq("user_id", userId);
-      const providers = (identitiesRow as { provider: string }[] | null) ?? [];
-      const hasNaver = providers.some((i) => i.provider === "naver");
+      const hasNaver = providers.some((p) => p === "naver");
       const hasOther = providers.some(
-        (i) => i.provider !== "naver" && i.provider !== "email",
+        (p) => p !== "naver" && p !== "email",
       );
       // naver identity 가 이미 연결되어 있으면 정상 로그인.
       // naver identity 가 없고 다른 OAuth provider 가 있으면 차단.
       if (!hasNaver && hasOther) {
         const otherProvider = providers.find(
-          (i) => i.provider !== "naver" && i.provider !== "email",
-        )?.provider;
+          (p) => p !== "naver" && p !== "email",
+        );
         const url = new URL("/login/conflict", SITE_URL);
         url.searchParams.set("existing_provider", otherProvider ?? "other");
         url.searchParams.set("attempted_provider", "naver");
