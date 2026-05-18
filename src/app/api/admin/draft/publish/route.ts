@@ -34,6 +34,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { generateShortcode } from "@/lib/shortcode";
 import { normalizeTags } from "@/lib/tag-dictionary";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -56,6 +57,17 @@ type CardIn = {
 export async function POST(req: Request) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
+
+  // PR-B E6: 대량 카드 INSERT 폭주 방어. admin 당 분당 5회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "admin-draft-publish",
+    userId: guard.userId,
+    max: 5,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
+
   const supabase = await createSupabaseServerClient();
 
   let body: {

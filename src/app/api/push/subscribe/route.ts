@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { bundleProfileFilter } from "@/lib/identity-shared";
 import { errorResponse } from "@/lib/error-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,16 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
+  // PR-B E6: 구독 등록 도배 방어. user 당 분당 10회 충분 (정상 사용 1~2회).
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "push-subscribe",
+    userId: user.id,
+    max: 10,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   let body: PushSubscriptionBody;
   try {

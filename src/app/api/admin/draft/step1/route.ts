@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { runStep1 } from "@/lib/ai/step1";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -17,6 +18,16 @@ export const maxDuration = 120;
 export async function POST(req: Request) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
+
+  // PR-B E6 (2026-05-19): LLM 호출 비용 폭주 방어. admin 당 분당 10회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "admin-draft-step1",
+    userId: guard.userId,
+    max: 10,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   let body: {
     transcript?: unknown;

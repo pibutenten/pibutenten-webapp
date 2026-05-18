@@ -20,6 +20,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { fetchPubmedCandidates } from "@/lib/ai/pubmed";
 import { runStep2 } from "@/lib/ai/step2";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 카드 N개 * (PubMed ~3s + LLM ~10s) = 카드별 ~15s
@@ -33,6 +34,16 @@ type CardIn = {
 export async function POST(req: Request) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
+
+  // PR-B E6: PubMed × N + LLM 호출 비용 폭주 방어. admin 당 분당 5회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "admin-draft-step2",
+    userId: guard.userId,
+    max: 5,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   let body: { cards?: unknown; retmax?: unknown };
   try {
