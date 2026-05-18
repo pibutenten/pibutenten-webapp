@@ -130,12 +130,43 @@ export async function POST(req: Request) {
   }
   const videoRowId = videoRow.id as number;
 
+  // Dedup 검사 — 같은 video_id 에 이미 발행된 카드 있는지 (260518, soft-delete 도입과 함께).
+  // 같은 영상 두 번째 분석·publish 시 중복 카드 생성 차단 (김종식 원장 케이스 회귀 방지).
+  // 매칭 기준: 동일 video_id + (start_seconds 동일 OR 정규화된 question prefix 20자 일치).
+  // 매칭된 후보 카드는 자동 skip 하고 응답에 skipped 목록 반환.
+  const { data: existingCards } = await supabase
+    .from("cards")
+    .select("id, question, meta")
+    .eq("video_id", videoRowId)
+    .is("deleted_at", null);
+
+  function normalizeQ(s: string): string {
+    return (s || "")
+      .replace(/\s+/g, "")
+      .replace(/[?!.,~·:\u200b"'()]/g, "")
+      .toLowerCase();
+  }
+  const existingFingerprints = new Set<string>();
+  const existingPrefixes = new Set<string>();
+  for (const row of existingCards ?? []) {
+    const meta =
+      typeof row.meta === "string" ? JSON.parse(row.meta || "{}") : row.meta;
+    const startSec =
+      meta?.timestamp?.start_seconds ?? meta?.timestamp?.startSeconds ?? null;
+    const qNorm = normalizeQ(row.question as string);
+    if (startSec !== null) {
+      existingFingerprints.add(`${startSec}:${qNorm.slice(0, 12)}`);
+    }
+    if (qNorm.length >= 15) existingPrefixes.add(qNorm.slice(0, 20));
+  }
+
   const now = new Date();
   const postYear = now.getFullYear();
   const yyyymmdd = now.toISOString().slice(0, 10);
 
   // 카드별 row 생성
   const rows: Record<string, unknown>[] = [];
+  const skippedDuplicates: Array<{ idx: number; question: string; reason: string }> = [];
   for (let i = 0; i < cards.length; i++) {
     const c = cards[i];
     const q = (c.question ?? "").trim();
@@ -153,6 +184,31 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
+
+    // Dedup 검사 — 동일 video 의 기존 카드와 매칭되면 skip.
+    const qNorm = normalizeQ(q);
+    const startSec = c.timestampStartSec ?? 0;
+    const fp = `${startSec}:${qNorm.slice(0, 12)}`;
+    const prefix20 = qNorm.slice(0, 20);
+    if (existingFingerprints.has(fp)) {
+      skippedDuplicates.push({
+        idx: i,
+        question: q,
+        reason: `같은 영상의 ${startSec}s 에 동일 question 존재`,
+      });
+      continue;
+    }
+    if (prefix20.length >= 15 && existingPrefixes.has(prefix20)) {
+      skippedDuplicates.push({
+        idx: i,
+        question: q,
+        reason: `같은 영상에 거의 동일한 question prefix 존재`,
+      });
+      continue;
+    }
+    // 새 카드도 같은 batch 내 중복 차단 (자기 자신끼리)
+    existingPrefixes.add(prefix20);
+    existingFingerprints.add(fp);
 
     const externalImage =
       c.externalImage || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
@@ -203,6 +259,20 @@ export async function POST(req: Request) {
     });
   }
 
+  // 모든 카드가 중복으로 skip 됐을 때 — INSERT 안 함, 응답만 반환.
+  if (rows.length === 0) {
+    return NextResponse.json(
+      {
+        saved: 0,
+        ids: [],
+        videoRowId,
+        skipped_duplicates: skippedDuplicates,
+        message: "모든 카드가 기존 발행 카드와 중복이라 skip 됐습니다.",
+      },
+      { headers: { "cache-control": "no-store" } },
+    );
+  }
+
   const { data: inserted, error: insErr } = await supabase
     .from("cards")
     .insert(rows)
@@ -219,6 +289,7 @@ export async function POST(req: Request) {
       saved: inserted?.length ?? 0,
       ids: (inserted ?? []).map((r) => r.id),
       videoRowId,
+      skipped_duplicates: skippedDuplicates,
     },
     { headers: { "cache-control": "no-store" } },
   );

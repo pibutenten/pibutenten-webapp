@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PickToggle from "@/components/PickToggle";
+import RestoreButton from "./RestoreButton";
 import { labelForCategory } from "@/lib/post-category";
 import AdminCardsDoctorFilter from "./AdminCardsDoctorFilter";
 import { requireAdminPage } from "@/lib/admin-page-guard";
@@ -21,7 +22,9 @@ export const metadata = {
 type QAStatus = "draft" | "pending_review" | "published" | "archived";
 type QAType = "qa" | "post";
 type TypeFilter = "qa" | "post" | "all";
-type StatusFilter = QAStatus | "all";
+// 'deleted' 는 가짜 status — 실제 DB 상태 컬럼이 아니라 deleted_at IS NOT NULL row 의 카드.
+// 0132 soft-delete 도입과 함께 추가 (260518).
+type StatusFilter = QAStatus | "all" | "deleted";
 type CategoryFilter = "doodle" | "tip" | "diary" | "ask" | "link" | "all";
 
 type AdminQARow = {
@@ -37,6 +40,7 @@ type AdminQARow = {
   share_count: number | null;
   comments_count: { count: number }[] | null;
   created_at: string;
+  deleted_at: string | null;
   doctor: { slug: string; name: string; branch: string | null } | null;
   author: {
     display_name: string | null;
@@ -52,6 +56,17 @@ type DoctorOption = {
 };
 
 type StatusCounts = Record<StatusFilter, number>;
+
+function isStatusFilter(v: string | undefined): v is StatusFilter {
+  return (
+    v === "draft" ||
+    v === "pending_review" ||
+    v === "published" ||
+    v === "archived" ||
+    v === "all" ||
+    v === "deleted"
+  );
+}
 
 type Props = {
   searchParams: Promise<{
@@ -88,6 +103,7 @@ const STATUS_LIST: { key: StatusFilter; label: string }[] = [
   { key: "pending_review", label: "대기" },
   { key: "published", label: "발행" },
   { key: "archived", label: "보관" },
+  { key: "deleted", label: "삭제됨" },
 ];
 
 // status 색상 — 발행은 너무 튀지 않게 외곽선·옅은 톤. 대기·보관은 강조 유지.
@@ -98,15 +114,6 @@ const STATUS_STYLE: Record<QAStatus, { bg: string; fg: string; label: string; bo
   archived: { bg: "#F3F4F6", fg: "#4B5563", label: "보관", border: "#E5E7EB" },
 };
 
-function isStatusFilter(v: string | undefined): v is StatusFilter {
-  return (
-    v === "all" ||
-    v === "draft" ||
-    v === "pending_review" ||
-    v === "published" ||
-    v === "archived"
-  );
-}
 
 function buildQueryString(params: Record<string, string | number | undefined>): string {
   const usp = new URLSearchParams();
@@ -188,9 +195,15 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   // ── 상태별 카운트 (탭 표시용) ──
   // 한꺼번에 여러 카운트를 가져오기 위해 각각 head:true count 쿼리 병렬 실행.
   // type/category/doctor 필터는 status 탭에도 반영해야 대시보드 KPI(예: type=qa published)와 일치.
-  async function countByStatus(s: QAStatus | "all"): Promise<number> {
+  async function countByStatus(s: StatusFilter): Promise<number> {
     let qb = supabase.from("cards").select("id", { count: "exact", head: true });
-    if (s !== "all") qb = qb.eq("status", s);
+    // 'deleted' 는 special — deleted_at IS NOT NULL row 만. 그 외는 살아있는 카드 (RLS 가 강제하지만 명시).
+    if (s === "deleted") {
+      qb = qb.not("deleted_at", "is", null);
+    } else {
+      qb = qb.is("deleted_at", null);
+      if (s !== "all") qb = qb.eq("status", s);
+    }
     if (typeParam !== "all") qb = qb.eq("type", typeParam);
     if (categoryParam !== "all") qb = qb.eq("category", categoryParam);
     if (doctorIdFilter) qb = qb.eq("doctor_id", doctorIdFilter);
@@ -203,13 +216,15 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     return count ?? 0;
   }
 
-  const [cAll, cDraft, cPending, cPublished, cArchived] = await Promise.all([
-    countByStatus("all"),
-    countByStatus("draft"),
-    countByStatus("pending_review"),
-    countByStatus("published"),
-    countByStatus("archived"),
-  ]);
+  const [cAll, cDraft, cPending, cPublished, cArchived, cDeleted] =
+    await Promise.all([
+      countByStatus("all"),
+      countByStatus("draft"),
+      countByStatus("pending_review"),
+      countByStatus("published"),
+      countByStatus("archived"),
+      countByStatus("deleted"),
+    ]);
 
   const statusCounts: StatusCounts = {
     all: cAll,
@@ -217,20 +232,27 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     pending_review: cPending,
     published: cPublished,
     archived: cArchived,
+    deleted: cDeleted,
   };
 
   // ── 본 목록 쿼리 ──
   let listQuery = supabase
     .from("cards")
     .select(
-      `id, status, type, category, is_pick, question, answer, like_count, view_count, share_count, created_at,
+      `id, status, type, category, is_pick, question, answer, like_count, view_count, share_count, created_at, deleted_at,
        comments_count:comments(count),
        doctor:doctors(slug, name, branch),
        author:profiles!cards_author_id_profiles_fkey(display_name, handle)`,
       { count: "exact" },
     );
 
-  if (statusParam !== "all") listQuery = listQuery.eq("status", statusParam);
+  // 'deleted' 탭이면 deleted_at IS NOT NULL row 만, 그 외는 살아있는 카드만.
+  if (statusParam === "deleted") {
+    listQuery = listQuery.not("deleted_at", "is", null);
+  } else {
+    listQuery = listQuery.is("deleted_at", null);
+    if (statusParam !== "all") listQuery = listQuery.eq("status", statusParam);
+  }
   if (typeParam !== "all") listQuery = listQuery.eq("type", typeParam);
   if (categoryParam !== "all")
     listQuery = listQuery.eq("category", categoryParam);
@@ -570,7 +592,11 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                         </Link>
                       </td>
                       <td className="px-3 py-2 align-top text-center">
-                        <PickToggle cardId={r.id} initial={!!r.is_pick} />
+                        {r.deleted_at ? (
+                          <RestoreButton cardId={r.id} />
+                        ) : (
+                          <PickToggle cardId={r.id} initial={!!r.is_pick} />
+                        )}
                       </td>
                       <td className="px-3 py-2 align-top">
                         <span

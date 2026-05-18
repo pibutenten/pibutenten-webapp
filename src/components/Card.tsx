@@ -152,7 +152,13 @@ export default function Card({
     setDeleting(true);
     try {
       const sb = createSupabaseBrowserClient();
-      const { error } = await sb.from("cards").delete().eq("id", card.id);
+      // soft-delete (260518 — 0132): hard DELETE 대신 deleted_at 시각 채움.
+      // RLS 'cards_public_read' 가 deleted_at IS NULL 강제 → 즉시 모든 화면에서 사라짐.
+      // admin 은 /admin/cards?status=deleted 에서 복구 가능.
+      const { error } = await sb
+        .from("cards")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", card.id);
       if (error) {
         showToast("삭제 실패: " + error.message, { tone: "danger" });
         setDeleting(false);
