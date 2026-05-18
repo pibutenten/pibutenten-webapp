@@ -24,6 +24,68 @@
 
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+/** 이메일 마스킹: 'jminbae@gmail.com' → 'jm****@gmail.com'. */
+export function maskEmail(raw: string | null | undefined): string | null {
+  if (!raw || typeof raw !== "string") return null;
+  const at = raw.indexOf("@");
+  if (at <= 0) return null;
+  const local = raw.slice(0, at);
+  const domain = raw.slice(at);
+  const visible = local.slice(0, Math.min(2, local.length));
+  return `${visible}${"*".repeat(Math.max(2, local.length - visible.length))}${domain}`;
+}
+
+/** IPv4 마지막 옥텟 마스킹: '203.0.113.42' → '203.0.113.***'. IPv6 는 첫 2 그룹만 유지. */
+export function maskIp(raw: string | null | undefined): string | null {
+  if (!raw || typeof raw !== "string") return null;
+  const v4 = raw.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}$/);
+  if (v4) return `${v4[1]}.***`;
+  if (raw.includes(":")) {
+    const parts = raw.split(":");
+    return `${parts.slice(0, 2).join(":")}:***`;
+  }
+  return "***";
+}
+
+/** auth 콜백 에러 추적 메타 (PR-OPS, 0135). */
+export type AuthErrorTrack = {
+  provider: "google" | "kakao" | "naver" | "magiclink" | "unknown";
+  step: string;
+  attemptedEmail?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+};
+
+/**
+ * auth_callback_errors 테이블에 한 줄 적재. 실패해도 로그만 — 본 로그인 흐름은 막지 않음.
+ * INSERT 는 admin client (service_role) 으로만 — RLS 가 anon/authenticated 차단.
+ *
+ * 다른 모듈(예: Naver callback)에서 자체 errorId/catch 로 처리하는 경로용으로도 노출.
+ */
+export async function trackAuthError(
+  errorId: string,
+  track: AuthErrorTrack,
+  kind: string,
+  errorMessage: string | null,
+): Promise<void> {
+  try {
+    const admin = createSupabaseAdminClient();
+    await admin.from("auth_callback_errors").insert({
+      error_id: errorId,
+      provider: track.provider,
+      step: track.step,
+      error_kind: kind,
+      error_message: errorMessage ? errorMessage.slice(0, 2000) : null,
+      attempted_email_masked: maskEmail(track.attemptedEmail),
+      ip_masked: maskIp(track.ip),
+      user_agent: track.userAgent ? track.userAgent.slice(0, 500) : null,
+    });
+  } catch (e) {
+    console.error(`[auth-track:${errorId}] insert failed`, e);
+  }
+}
 
 /** 표준 클라이언트 메시지 (유형별). */
 export const STANDARD_ERROR_MESSAGES = {
@@ -91,8 +153,15 @@ export function errorRedirectLogin(
   kind: ErrorKind,
   context: string,
   baseUrl: string,
+  /** PR-OPS (0135): auth_callback_errors 테이블에 추적용 메타. 있으면 비동기 INSERT. */
+  track?: AuthErrorTrack,
 ): NextResponse {
   const errorId = logErrorWithId(err, context);
+  if (track) {
+    // 비동기 적재 — 본 흐름 막지 않음.
+    const message = err instanceof Error ? err.message : String(err ?? "");
+    void trackAuthError(errorId, track, kind, message);
+  }
   const url = new URL("/login", baseUrl);
   // 사용자에게 보이는 query 는 error_id 와 kind 만. 상세 X.
   url.searchParams.set("error", kind);

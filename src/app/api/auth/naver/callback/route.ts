@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/naver";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { SITE_URL } from "@/lib/site";
+import { trackAuthError, type AuthErrorTrack } from "@/lib/error-response";
 
 /** state cookie timing-safe 비교. 길이 mismatch 도 동일 시간으로 처리. */
 function stateMatches(cookieState: string, urlState: string): boolean {
@@ -243,6 +244,19 @@ export async function GET(request: NextRequest) {
     const errorId = randomUUID();
     const msg = e instanceof Error ? e.message : "알 수 없는 오류";
     console.error(`[error:${errorId}] [naver callback] ${msg}`, e);
+
+    // PR-OPS (0135): admin UI 추적용 비동기 적재.
+    const track: AuthErrorTrack = {
+      provider: "naver",
+      step: "callback",
+      ip:
+        request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+        request.headers.get("x-real-ip") ||
+        null,
+      userAgent: request.headers.get("user-agent"),
+    };
+    void trackAuthError(errorId, track, "auth_failed", msg);
+
     return redirectToLoginWithId(errorId);
   }
 }

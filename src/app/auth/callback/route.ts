@@ -1,5 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { errorRedirectLogin, type AuthErrorTrack } from "@/lib/error-response";
+
+/** PR-OPS (0135): auth 콜백 provider 추정 — 정확한 분기는 force 가능한 상태에서만. */
+function inferProvider(url: URL): AuthErrorTrack["provider"] {
+  const t = url.searchParams.get("type");
+  if (t === "magiclink") return "magiclink";
+  return "unknown";
+}
+
+/** IP 추출 — rate-limit.ts 와 같은 우선순위. */
+function extractIp(req: NextRequest): string | null {
+  const h = req.headers;
+  return (
+    h.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+    h.get("x-real-ip")?.trim() ||
+    h.get("x-forwarded-for")?.split(",").pop()?.trim() ||
+    null
+  );
+}
 
 /**
  * OAuth 콜백 Route Handler.
@@ -58,11 +77,23 @@ export async function GET(request: NextRequest) {
   // origin 은 same-host 안전 redirect 베이스
   const origin = url.origin;
 
+  // PR-OPS (0135): 에러 추적 메타 기본값.
+  const trackBase: AuthErrorTrack = {
+    provider: inferProvider(url),
+    step: "callback",
+    ip: extractIp(request),
+    userAgent: request.headers.get("user-agent"),
+  };
+
   // 1) provider 측 에러 (사용자가 취소했거나 거부)
   if (oauthError) {
     const msg = oauthErrorDesc || oauthError;
-    return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(msg)}`,
+    return errorRedirectLogin(
+      new Error(msg),
+      "auth_failed",
+      "[auth/callback] provider error",
+      request.url,
+      { ...trackBase, step: "provider_error" },
     );
   }
 
@@ -73,8 +104,12 @@ export async function GET(request: NextRequest) {
   const otpType = url.searchParams.get("type");
 
   if (!code && !tokenHash) {
-    return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent("OAuth 콜백 파라미터 누락")}`,
+    return errorRedirectLogin(
+      new Error("OAuth 콜백 파라미터 누락"),
+      "auth_failed",
+      "[auth/callback] missing params",
+      request.url,
+      { ...trackBase, step: "missing_params" },
     );
   }
 
@@ -84,8 +119,12 @@ export async function GET(request: NextRequest) {
     // (a) PKCE — OAuth provider code 교환
     const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
     if (exchangeErr) {
-      return NextResponse.redirect(
-        `${origin}/login?error=${encodeURIComponent(exchangeErr.message || "세션 발급 실패")}`,
+      return errorRedirectLogin(
+        exchangeErr,
+        "auth_failed",
+        "[auth/callback] code_exchange",
+        request.url,
+        { ...trackBase, step: "code_exchange" },
       );
     }
   } else if (tokenHash && otpType) {
@@ -100,8 +139,12 @@ export async function GET(request: NextRequest) {
       type: otpType as "magiclink" | "signup" | "recovery" | "invite" | "email_change" | "email",
     });
     if (verifyErr || !verifyData.session) {
-      return NextResponse.redirect(
-        `${origin}/login?error=${encodeURIComponent(verifyErr?.message || "토큰 검증 실패")}`,
+      return errorRedirectLogin(
+        verifyErr ?? new Error("토큰 검증 실패"),
+        "auth_failed",
+        "[auth/callback] token_verify",
+        request.url,
+        { ...trackBase, step: "token_verify" },
       );
     }
   }
@@ -111,8 +154,12 @@ export async function GET(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent("사용자 확인 실패")}`,
+    return errorRedirectLogin(
+      new Error("사용자 확인 실패"),
+      "auth_failed",
+      "[auth/callback] user_lookup",
+      request.url,
+      { ...trackBase, step: "user_lookup" },
     );
   }
 

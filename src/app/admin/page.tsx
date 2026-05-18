@@ -160,10 +160,10 @@ export default async function AdminPage() {
       {/* 활동 KPI (기간 토글) — 방문자/조회수/댓글/좋아요/저장/공유. 모든 기간 prefetch. */}
       <ActivityKpis initialDays={7} dataByDays={kpiByDays} />
 
-      {/* 대시보드 메뉴 — 깊은 페이지 진입점 */}
+      {/* 운영 프로그램 — 액션·관리 도구 (KPI/통계와 구분). PR-OPS (2026-05-19) 명명 정리. */}
       <div className="mb-6">
         <h2 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
-          대시보드
+          운영 프로그램
         </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Tool
@@ -205,6 +205,15 @@ export default async function AdminPage() {
             title="의사 프로필 관리"
             desc="학력·경력·전문분야 등 확장 프로필"
           />
+          {/* PR-OPS (2026-05-19): OAuth 콜백 에러 운영 추적기 — super admin 만 */}
+          {isSuperAdmin && (
+            <Tool
+              href="/admin/auth-errors"
+              emoji="🪪"
+              title="회원가입 에러 로그"
+              desc="Google·Kakao·Naver 콜백 에러 (PII 마스킹)"
+            />
+          )}
           <Tool
             prefetch={false}
             href="/api/admin/youtube-oauth/start"
