@@ -19,7 +19,6 @@
  */
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
 import { pickHighlight } from "@/lib/card-highlight";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
@@ -156,8 +155,6 @@ export default function EditClient({
       return;
     }
     startTransition(async () => {
-      const sb = createSupabaseBrowserClient();
-
       // 본문 최종 — Q&A 면 참고문헌을 본문 끝에 append (WriteClient 와 동일 규칙).
       const cleanBody = normalizeAnswerBody(body);
       const filledRefs = references.map((r) => r.trim()).filter(Boolean);
@@ -165,17 +162,17 @@ export default function EditClient({
         ? appendReferencesToBody(cleanBody, filledRefs)
         : cleanBody;
 
-      // 업데이트 페이로드. external_* 는 URL 있을 때만 채움 (없으면 null 로 비움).
+      // 업데이트 페이로드. 260518 Phase 3: supabase 직접 update → PUT /api/articles/[id]
+      // 로 전환. 권한 검증·rate-limit·revalidate 가 한 군데(API) 에서 통일.
       const payload: Record<string, unknown> = {
         question: title.trim(),
         answer: finalAnswer,
         keywords,
       };
 
-      // 카테고리 변경됐으면 함께 갱신 + type 도 파생 ('qa' ↔ 'post').
+      // 카테고리 변경됐으면 함께 갱신 (type 은 API 가 파생).
       if (category && category !== initialCategoryNorm) {
         payload.category = category;
-        payload.type = category === "qa" ? "qa" : "post";
       }
       if (showExternal) {
         const u = externalUrl.trim();
@@ -195,8 +192,6 @@ export default function EditClient({
       }
 
       // Q&A 카테고리만 — PubMed refs 객체 컬럼 보존 (PubMed 링크 클릭에 사용).
-      // 비어있지 않은 ref 인덱스만 추리고, meta 가 있으면 객체, 없으면 string 만 있는 ref 는 객체 없으니
-      // pubmed_refs 에 포함 X (본문 append 로만 표시).
       if (showRefs) {
         const objs: NonNullable<PubmedRefObj>[] = [];
         references.forEach((r, i) => {
@@ -208,12 +203,25 @@ export default function EditClient({
         payload.pubmed_ref = objs[0] ?? null;
       }
 
-      const { error: updErr } = await sb
-        .from("cards")
-        .update(payload)
-        .eq("id", cardId);
-      if (updErr) {
-        setError("저장 실패: " + updErr.message);
+      try {
+        const res = await fetch(`/api/articles/${cardId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          setError(
+            "저장 실패: " + (data?.error ?? `HTTP ${res.status}`),
+          );
+          return;
+        }
+      } catch (e) {
+        setError(
+          "저장 실패: " + (e instanceof Error ? e.message : "network"),
+        );
         return;
       }
       router.push(returnUrl);

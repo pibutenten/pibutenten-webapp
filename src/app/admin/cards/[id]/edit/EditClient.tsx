@@ -286,13 +286,15 @@ export default function EditClient({
   }
 
   function deleteCard() {
-    if (!confirm(`Q&A #${card.id} 를 영구 삭제할까요? 되돌릴 수 없습니다.`))
+    if (!confirm(`Q&A #${card.id} 를 삭제할까요? /admin/cards?status=deleted 에서 복구 가능합니다.`))
       return;
     startSave(async () => {
       const supabase = createSupabaseBrowserClient();
+      // 0132 (260518) soft-delete — hard DELETE 가 아닌 deleted_at 채움.
+      // RLS 가 자동으로 살아있는 카드 화면에서 가림. admin/cards?status=deleted 에서 복구 가능.
       const { error: delErr } = await supabase
         .from("cards")
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq("id", card.id);
       if (delErr) {
         setError(`삭제 실패: ${delErr.message}`);
