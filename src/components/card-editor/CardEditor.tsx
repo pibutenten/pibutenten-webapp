@@ -197,12 +197,10 @@ export default function CardEditor({
   // ── 카테고리 picker ─────────────────────────────────────────
   function changeCategory(next: PostCategorySlug) {
     if (next === category) return;
-    // Q&A ↔ 그 외 전환 시 내용 있으면 확인 (UX 일관성).
-    const isCurQa = category === "qa";
-    const isNextQa = next === "qa";
-    if (isCurQa !== isNextQa && (title.trim() || body.trim() || keywords.length > 0)) {
+    // 작성 중 내용 있으면 확인 — 통일된 한 줄 메시지 (260518).
+    if (title.trim() || body.trim() || keywords.length > 0) {
       const ok = window.confirm(
-        "작성 중인 내용이 있습니다.\n카테고리(Q&A↔포스팅)를 변경하면 일부 입력이 사라질 수 있습니다.\n계속하시겠습니까?",
+        "주의: 카테고리를 변경하면 일부 정보가 소실될 수 있습니다. 계속하시겠습니까?",
       );
       if (!ok) return;
     }
@@ -375,7 +373,7 @@ export default function CardEditor({
             onChange={setBody}
             highlightColor={pickHighlight(highlightSeed)}
             disabled={pending}
-            placeholder="답변을 입력하세요. 텍스트를 선택해 '굵게' 버튼(또는 Ctrl+B) 누르면 형광펜이 적용됩니다."
+            placeholder="답변을 입력하세요. 텍스트 선택 후 Ctrl+B 누르면 형광펜이 적용됩니다."
             minHeight={280}
           />
         ) : (

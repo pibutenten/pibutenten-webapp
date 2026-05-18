@@ -906,7 +906,7 @@ function CardEditor({
           value={card.answer}
           onChange={(md) => onChange({ answer: md })}
           highlightColor={highlightColor}
-          placeholder="답변 본문 (텍스트 선택 후 [B 굵게] 또는 Ctrl+B로 형광펜 적용)"
+          placeholder="답변 본문 (텍스트 선택 후 Ctrl+B 누르면 형광펜이 적용됩니다)"
           minHeight={280}
         />
       </div>

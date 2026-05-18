@@ -191,18 +191,21 @@ export default function WriteClient({
     return false;
   }
 
-  /** 카테고리 전환 — 작성 중 내용 있고 type이 바뀌면 경고 (qa ↔ 일반) */
+  /** 카테고리 전환 — 작성 중 내용 있으면 경고. 메시지는 CardEditor 와 통일 (260518). */
   function changeCategory(next: PostCategorySlug) {
     if (next === category) return;
-    const nextType: WriteType = next === "qa" ? "qa" : "post";
-    if (nextType !== type && hasUnsavedContent()) {
+    if (hasUnsavedContent()) {
       const ok = window.confirm(
-        "작성 중인 내용이 있습니다.\n카테고리를 변경하면 작성한 내용이 모두 사라집니다.\n계속하시겠습니까?",
+        "주의: 카테고리를 변경하면 일부 정보가 소실될 수 있습니다. 계속하시겠습니까?",
       );
       if (!ok) return;
-      setTitle("");
-      setBody("");
-      setKeywords([]);
+      // Q&A ↔ 그 외 type 이 바뀔 때만 본문 비움 (같은 type 안 카테고리 전환은 본문 유지)
+      const nextType: WriteType = next === "qa" ? "qa" : "post";
+      if (nextType !== type) {
+        setTitle("");
+        setBody("");
+        setKeywords([]);
+      }
       setError(null);
     }
     setCategory(next);

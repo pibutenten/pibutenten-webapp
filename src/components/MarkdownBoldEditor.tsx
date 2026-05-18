@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
  *
  * - contentEditable div. **마크다운 문자열이 사용자 화면에 노출되지 않음**.
  * - 굵게(`**foo**`)는 즉시 `<strong>` + 형광펜 배경으로 시각화.
- * - 굵게 토글: 버튼 클릭 또는 Ctrl+B. document.execCommand('bold') 기반.
+ * - 강조 토글: 버튼 클릭 또는 Ctrl+B. document.execCommand('bold') 기반.
  * - undo: 브라우저 native (Ctrl+Z).
  * - 단락은 빈 줄 (Enter 두 번). HTML로는 `<br>` 두 개.
  * - 복붙 시 plain text로 강제 변환 (포맷 유실 방지).
@@ -128,10 +128,10 @@ export default function MarkdownBoldEditor({
           type="button"
           onClick={toggleBold}
           disabled={disabled}
-          title="굵게 (Ctrl+B) — 선택한 텍스트에 형광펜 적용"
+          title="강조 (Ctrl+B) — 선택한 텍스트에 형광펜 적용"
           className="rounded-md border border-[var(--border)] bg-white px-2.5 py-1 text-xs font-bold text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
         >
-          <span style={{ fontWeight: 700 }}>B</span> 굵게
+          강조
         </button>
       </div>
       <div
