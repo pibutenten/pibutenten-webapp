@@ -229,3 +229,55 @@ export function appendReferencesToBody(body: string, refs: string[]): string {
     "참고문헌\n" + filled.map((r, i) => `${i + 1}. ${r}`).join("\n");
   return `${body}\n\n${refBlock}`;
 }
+
+/**
+ * 기존 본문에서 자동 생성된 "참고문헌" 섹션을 추출.
+ * EditClient (수정 모드) 진입 시 본문/refs 분리 위해 사용.
+ *
+ * 매치 패턴: 본문 끝의 `참고문헌` 헤더 + `1. ...`, `2. ...` 의 번호 리스트.
+ * (strict — 사용자가 손으로 적은 비표준 섹션은 보존)
+ */
+export function splitBodyAndReferences(body: string): {
+  cleanBody: string;
+  refs: string[];
+} {
+  const re = /\n+참고문헌\s*\n((?:\s*\d+\.\s+[^\n]+\n?)+)\s*$/;
+  const m = body.match(re);
+  if (!m || m.index === undefined) return { cleanBody: body, refs: [] };
+  const refsBlock = m[1];
+  const refs = refsBlock
+    .split("\n")
+    .map((line) => line.replace(/^\s*\d+\.\s+/, "").trim())
+    .filter(Boolean);
+  const cleanBody = body.slice(0, m.index).trimEnd();
+  return { cleanBody, refs };
+}
+
+/**
+ * pubmed_refs DB 객체 → PubmedRefsField string 포맷.
+ * Phase 2 (260518): admin 발행 카드는 pubmed_refs 컬럼에 객체 배열로 저장됨.
+ * EditClient 가 그것을 본문 끝의 "참고문헌" 섹션과 동등하게 다루기 위해 변환.
+ */
+export type PubmedRefObj = {
+  pmid?: string | null;
+  doi?: string | null;
+  title?: string | null;
+  journal?: string | null;
+  year?: string | null;
+  authors_short?: string | null;
+  pubmed_url?: string | null;
+  doi_url?: string | null;
+};
+
+export function pubmedRefObjToString(ref: PubmedRefObj): string {
+  const title = ref.title ?? "";
+  const tail: string[] = [];
+  if (ref.authors_short) tail.push(ref.authors_short);
+  if (ref.journal) tail.push(ref.journal);
+  const tailJoined = tail.join(", ");
+  const yearPart = ref.year ? ` (${ref.year})` : "";
+  if (!title && !tailJoined && !yearPart) return "";
+  if (!tailJoined && !yearPart) return title;
+  if (!title) return `${tailJoined}${yearPart}`.trim();
+  return `${title} — ${tailJoined}${yearPart}`.trim();
+}

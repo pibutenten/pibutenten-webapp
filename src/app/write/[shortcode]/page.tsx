@@ -12,6 +12,17 @@ type Props = {
   params: Promise<{ shortcode: string }>;
 };
 
+type PubmedRefRow = {
+  pmid?: string | null;
+  doi?: string | null;
+  title?: string | null;
+  journal?: string | null;
+  year?: string | null;
+  authors_short?: string | null;
+  pubmed_url?: string | null;
+  doi_url?: string | null;
+} | null;
+
 type QaRow = {
   id: number;
   question: string;
@@ -19,9 +30,17 @@ type QaRow = {
   keywords: string[] | null;
   type: "qa" | "post";
   status: string;
+  category: string | null;
   author_id: string | null;
   doctor_id: string | null;
   shortcode: string | null;
+  external_url: string | null;
+  external_title: string | null;
+  external_description: string | null;
+  external_image: string | null;
+  external_site_name: string | null;
+  pubmed_ref: PubmedRefRow;
+  pubmed_refs: NonNullable<PubmedRefRow>[] | null;
   author:
     | { handle: string | null }
     | { handle: string | null }[]
@@ -60,11 +79,14 @@ export default async function PostEditPage({ params }: Props) {
     redirect("/login?error=프로필을 찾을 수 없습니다");
   }
 
-  // qa 로드 — handle은 viewer URL 만들기 용도로만
+  // qa 로드 — handle은 viewer URL 만들기 용도로만.
+  // Phase 2 (260518): EditClient 풀폼 확장 위해 category / external_* / pubmed_* 추가.
   const { data: qa } = await supabase
     .from("cards")
     .select(
-      `id, question, answer, keywords, type, status, author_id, doctor_id, shortcode,
+      `id, question, answer, keywords, type, status, category, author_id, doctor_id, shortcode,
+       external_url, external_title, external_description, external_image, external_site_name,
+       pubmed_ref, pubmed_refs,
        author:profiles!cards_author_id_profiles_fkey(handle)`,
     )
     .eq("shortcode", shortcode)
@@ -110,9 +132,29 @@ export default async function PostEditPage({ params }: Props) {
       <EditClient
         cardId={qa.id}
         type={qa.type}
+        category={qa.category}
         initialTitle={qa.question}
         initialBody={qa.answer}
         initialKeywords={qa.keywords ?? []}
+        initialExternalUrl={qa.external_url ?? ""}
+        initialExternalMeta={
+          qa.external_title || qa.external_description
+            ? {
+                title: qa.external_title ?? undefined,
+                description: qa.external_description ?? undefined,
+                image: qa.external_image,
+                siteName: qa.external_site_name ?? undefined,
+              }
+            : null
+        }
+        initialPubmedRefs={
+          // pubmed_refs 우선, 없으면 단일 pubmed_ref 를 배열로
+          qa.pubmed_refs && qa.pubmed_refs.length > 0
+            ? qa.pubmed_refs
+            : qa.pubmed_ref
+              ? [qa.pubmed_ref]
+              : []
+        }
         returnUrl={returnUrl}
       />
     </section>
