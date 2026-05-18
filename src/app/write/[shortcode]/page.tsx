@@ -133,6 +133,7 @@ export default async function PostEditPage({ params }: Props) {
         cardId={qa.id}
         type={qa.type}
         category={qa.category}
+        viewerRole={(idCtx.active.role ?? "user") as "admin" | "doctor" | "user"}
         initialTitle={qa.question}
         initialBody={qa.answer}
         initialKeywords={qa.keywords ?? []}

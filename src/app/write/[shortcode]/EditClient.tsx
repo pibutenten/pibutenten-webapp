@@ -21,7 +21,14 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
+import { pickHighlight } from "@/lib/card-highlight";
+import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 import KeywordsEditor from "@/components/card-editor/KeywordsEditor";
+import {
+  categoriesForRole,
+  isPostCategorySlug,
+  type PostCategorySlug,
+} from "@/lib/post-category";
 import PubmedRefsField, {
   appendReferencesToBody,
   pubmedRefObjToString,
@@ -35,8 +42,9 @@ import ExternalLinkField, {
 type Props = {
   cardId: number;
   type: "qa" | "post";
-  /** category 는 readonly 표시용. 수정은 admin 라우트에서만 가능. */
   category: string | null;
+  /** active identity 의 role — 카테고리 옵션 필터링 ('qa' 는 admin·doctor 만). */
+  viewerRole: "admin" | "doctor" | "user";
   initialTitle: string;
   initialBody: string;
   initialKeywords: string[];
@@ -53,7 +61,8 @@ const BODY_MAX_DEFAULT = 4000;
 export default function EditClient({
   cardId,
   type,
-  category,
+  category: initialCategory,
+  viewerRole,
   initialTitle,
   initialBody,
   initialKeywords,
@@ -64,19 +73,55 @@ export default function EditClient({
 }: Props) {
   const router = useRouter();
 
+  // 카테고리 — viewerRole 기반 옵션 필터. 변경 시 type ('qa' vs 'post') 도 함께 갱신.
+  // user 는 'qa' 옵션 없음 (categoriesForRole 가 publicForUsers 만 반환).
+  const availableCategories = useMemo(
+    () => categoriesForRole(viewerRole),
+    [viewerRole],
+  );
+  // 초기값이 category 옵션에 없으면 (예: viewerRole='user' 인데 카드가 type='qa') readonly fallback.
+  const initialCategoryNorm: PostCategorySlug | null =
+    initialCategory && isPostCategorySlug(initialCategory)
+      ? (initialCategory as PostCategorySlug)
+      : null;
+  const initialChangeable =
+    initialCategoryNorm !== null &&
+    availableCategories.some((c) => c.slug === initialCategoryNorm);
+  const [category, setCategory] = useState<PostCategorySlug | null>(
+    initialCategoryNorm,
+  );
+
   // 본문에 이미 박힌 "참고문헌" 섹션을 추출해 refs state 로 격리.
   // (textarea 에는 cleanBody 만 표시 → refs UI 와 중복 노출 방지.)
+  // 동시에 pubmed_refs 객체 배열은 meta state 로 보관 (PubMed 링크 클릭에 사용).
   const initial = useMemo(() => {
     const split = splitBodyAndReferences(initialBody);
-    // pubmed_refs 객체 배열도 string 으로 변환해 합침 (admin 발행 카드 호환).
-    const fromObj = initialPubmedRefs
-      .map((r) => pubmedRefObjToString(r))
-      .filter(Boolean);
-    // 합집합 — 중복 제거 (object 변환과 본문 추출이 같은 내용일 수 있음).
-    const allRefs = Array.from(new Set([...fromObj, ...split.refs]));
+    // 본문에서 추출한 ref string 들 — 매칭되는 PubmedRefObj 가 있으면 그것을 meta 로 묶음.
+    const objStrings = initialPubmedRefs.map((r) => pubmedRefObjToString(r));
+    const objByString = new Map<string, PubmedRefObj>();
+    initialPubmedRefs.forEach((obj, i) => {
+      const s = objStrings[i];
+      if (s) objByString.set(s, obj);
+    });
+
+    const refs: string[] = [];
+    const metas: (PubmedRefObj | null)[] = [];
+    // 본문에서 추출한 ref 우선 (사용자가 보던 순서 보존), 매칭되는 객체는 meta 로 첨부.
+    for (const r of split.refs) {
+      refs.push(r);
+      metas.push(objByString.get(r) ?? null);
+      objByString.delete(r);
+    }
+    // 본문에 없던 객체-only ref 추가
+    for (const [s, obj] of objByString.entries()) {
+      refs.push(s);
+      metas.push(obj);
+    }
+
     return {
       cleanBody: split.cleanBody,
-      refs: allRefs.length > 0 ? allRefs : [""],
+      refs: refs.length > 0 ? refs : [""],
+      metas: refs.length > 0 ? metas : [null],
     };
   }, [initialBody, initialPubmedRefs]);
 
@@ -84,6 +129,9 @@ export default function EditClient({
   const [body, setBody] = useState(initial.cleanBody);
   const [keywords, setKeywords] = useState<string[]>(initialKeywords);
   const [references, setReferences] = useState<string[]>(initial.refs);
+  const [refsMeta, setRefsMeta] = useState<(PubmedRefObj | null)[]>(
+    initial.metas,
+  );
   const [externalUrl, setExternalUrl] = useState(initialExternalUrl);
   const [externalMeta, setExternalMeta] = useState<ExternalMeta | null>(
     initialExternalMeta,
@@ -91,7 +139,8 @@ export default function EditClient({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const isQa = category === "qa" || type === "qa";
+  // category 가 변경 가능하면 그 값 우선, 아니면 props.type 으로 폴백.
+  const isQa = category === "qa" || (category === null && type === "qa");
   const isLink = category === "link";
   const showRefs = isQa;
   const showExternal = isQa || isLink;
@@ -122,6 +171,12 @@ export default function EditClient({
         answer: finalAnswer,
         keywords,
       };
+
+      // 카테고리 변경됐으면 함께 갱신 + type 도 파생 ('qa' ↔ 'post').
+      if (category && category !== initialCategoryNorm) {
+        payload.category = category;
+        payload.type = category === "qa" ? "qa" : "post";
+      }
       if (showExternal) {
         const u = externalUrl.trim();
         if (u) {
@@ -137,6 +192,20 @@ export default function EditClient({
           payload.external_image = null;
           payload.external_site_name = null;
         }
+      }
+
+      // Q&A 카테고리만 — PubMed refs 객체 컬럼 보존 (PubMed 링크 클릭에 사용).
+      // 비어있지 않은 ref 인덱스만 추리고, meta 가 있으면 객체, 없으면 string 만 있는 ref 는 객체 없으니
+      // pubmed_refs 에 포함 X (본문 append 로만 표시).
+      if (showRefs) {
+        const objs: NonNullable<PubmedRefObj>[] = [];
+        references.forEach((r, i) => {
+          if (!r.trim()) return;
+          const m = refsMeta[i];
+          if (m && (m.pmid || m.doi)) objs.push(m as NonNullable<PubmedRefObj>);
+        });
+        payload.pubmed_refs = objs.length > 0 ? objs : null;
+        payload.pubmed_ref = objs[0] ?? null;
       }
 
       const { error: updErr } = await sb
@@ -158,18 +227,40 @@ export default function EditClient({
 
   return (
     <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
-      {/* 카테고리 표시 (readonly — admin 만 변경 가능) */}
-      {category && (
-        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <span>카테고리</span>
-          <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 font-medium text-[var(--text)]">
-            {category}
-          </span>
-          <span className="text-[11px]">
-            (카테고리 변경은 운영자에게 요청해주세요)
-          </span>
-        </div>
-      )}
+      {/* 카테고리 — viewerRole 가 변경 가능한 옵션 보유 시 picker, 아니면 readonly 칩.
+          (예: viewerRole='user' 면 'qa' 옵션 없음 → user 가 doctor Q&A 를 수정해도 카테고리는 readonly) */}
+      <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+        <span>카테고리</span>
+        {initialChangeable && availableCategories.length > 1 ? (
+          <select
+            value={category ?? ""}
+            disabled={pending}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (isPostCategorySlug(next)) setCategory(next as PostCategorySlug);
+            }}
+            className="h-7 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 text-xs font-medium text-[var(--text)] focus:border-[var(--primary-light)] focus:outline-none disabled:opacity-50"
+            aria-label="카테고리 변경"
+          >
+            {availableCategories.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <>
+            <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 font-medium text-[var(--text)]">
+              {category ?? type}
+            </span>
+            {!initialChangeable && (
+              <span className="text-[11px]">
+                (이 카테고리는 본인 권한으로 변경 불가)
+              </span>
+            )}
+          </>
+        )}
+      </div>
 
       {/* 외부 링크 (Q&A: 영상 URL / 새소식: 외부 링크) */}
       {showExternal && (
@@ -202,7 +293,8 @@ export default function EditClient({
         />
       </div>
 
-      {/* 본문 — textarea. 참고문헌은 별도 UI 라 cleanBody 만 표시. */}
+      {/* 본문 — Q&A 면 MarkdownBoldEditor (선택영역 → '강조' 토글 즉시 bold+형광펜),
+          그 외엔 일반 textarea. WriteClient 의 PostQaForm 과 같은 정책. */}
       <div>
         <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
           {bodyLabel}{" "}
@@ -210,21 +302,36 @@ export default function EditClient({
             ({body.length} / {bodyMax})
           </span>
         </label>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={12}
-          maxLength={bodyMax}
-          disabled={pending}
-          className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
-        />
+        {isQa ? (
+          <MarkdownBoldEditor
+            value={body}
+            onChange={setBody}
+            highlightColor={pickHighlight(String(cardId))}
+            disabled={pending}
+            placeholder="답변을 입력하세요. 텍스트를 선택해 '굵게' 버튼(또는 Ctrl+B) 누르면 형광펜이 적용됩니다."
+            minHeight={280}
+          />
+        ) : (
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={12}
+            maxLength={bodyMax}
+            disabled={pending}
+            className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+          />
+        )}
       </div>
 
       {/* Q&A 참고문헌 (PubMed) — Q&A 카테고리에서만 노출. */}
       {showRefs && (
         <PubmedRefsField
           value={references}
-          onChange={setReferences}
+          meta={refsMeta}
+          onChange={(v, m) => {
+            setReferences(v);
+            setRefsMeta(m);
+          }}
           onError={setError}
           disabled={pending}
         />
@@ -247,7 +354,7 @@ export default function EditClient({
       )}
 
       {/* 액션 */}
-      <div className="flex items-center justify-end gap-2 border-t border-[var(--border)] pt-4">
+      <div className="flex items-center justify-center gap-2 border-t border-[var(--border)] pt-4">
         <button
           type="button"
           onClick={() => router.push(returnUrl)}

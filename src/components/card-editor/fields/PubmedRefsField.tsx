@@ -31,7 +31,17 @@ type PubmedCandidate = {
 type Props = {
   /** 참고문헌 배열 (빈 행은 입력 모드, 비어있지 않으면 등록 상태로 간주) */
   value: string[];
-  onChange: (next: string[]) => void;
+  /**
+   * value 와 길이가 같은 metadata 배열 — PMID/DOI/URL 등.
+   * 있으면 등록된 chip 이 클릭 가능 (PubMed 페이지 새 탭으로 이동).
+   * 260518 Phase 2.5: 클릭 가능 ref 위해 도입.
+   */
+  meta?: (PubmedRefObj | null)[];
+  /**
+   * value 와 meta 를 함께 변경. 길이 sync 책임은 컴포넌트 안에서 처리.
+   * (이전: onChange(next: string[]) → 호환 위해 인자 2개로 확장)
+   */
+  onChange: (next: string[], nextMeta: (PubmedRefObj | null)[]) => void;
   /** 에러 메시지 부모로 전파 (에러 영역은 부모가 그림) */
   onError?: (msg: string | null) => void;
   /** 전체 입력 비활성 (저장 진행 중 등) */
@@ -67,11 +77,41 @@ function formatPubmedRef(ref: PubmedCandidate): string {
 
 export default function PubmedRefsField({
   value,
+  meta,
   onChange,
   onError,
   disabled = false,
 }: Props) {
   const [refResolving, setRefResolving] = useState<Record<number, boolean>>({});
+
+  /** 현재 meta 를 value 와 길이 맞춤 (부족하면 null 패딩, 넘치면 슬라이스). */
+  function alignedMeta(forValue: string[]): (PubmedRefObj | null)[] {
+    const base: (PubmedRefObj | null)[] = meta ? [...meta] : [];
+    if (forValue.length > base.length) {
+      return base.concat(Array(forValue.length - base.length).fill(null));
+    }
+    return base.slice(0, forValue.length);
+  }
+
+  /** value 와 meta 를 함께 갱신해 onChange 한 번에 전달. */
+  function emit(nextValue: string[], nextMeta: (PubmedRefObj | null)[]) {
+    onChange(nextValue, nextMeta);
+  }
+
+  /** ref 에서 PubMed URL 추출 — meta 우선, 없으면 string 안 PMID 정규식 시도. */
+  function pubmedUrlFor(idx: number, refStr: string): string | null {
+    const m = meta?.[idx];
+    if (m?.pubmed_url) return m.pubmed_url;
+    if (m?.pmid) return `https://pubmed.ncbi.nlm.nih.gov/${m.pmid}/`;
+    if (m?.doi_url) return m.doi_url;
+    if (m?.doi) return `https://doi.org/${m.doi}`;
+    // fallback — ref string 안에 PubMed URL 또는 PMID 가 있는지
+    const urlMatch = refStr.match(/https?:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/?/i);
+    if (urlMatch) return urlMatch[0];
+    const pmidMatch = refStr.match(/PMID[:\s]*(\d{4,9})/i);
+    if (pmidMatch) return `https://pubmed.ncbi.nlm.nih.gov/${pmidMatch[1]}/`;
+    return null;
+  }
 
   /** [등록] 버튼 — 입력값에서 PMID 추출 후 PubMed API 호출, value[idx]를 변환된 ref로 덮어씀. */
   async function resolveRef(idx: number) {
@@ -97,10 +137,22 @@ export default function PubmedRefsField({
         onError?.(msg ?? "PubMed 메타를 불러올 수 없습니다.");
         return;
       }
-      const formatted = formatPubmedRef(data.reference);
-      const next = [...value];
-      next[idx] = formatted;
-      onChange(next);
+      const r = data.reference;
+      const formatted = formatPubmedRef(r);
+      const nextValue = [...value];
+      nextValue[idx] = formatted;
+      const nextMeta = alignedMeta(nextValue);
+      nextMeta[idx] = {
+        pmid: r.pmid || null,
+        doi: r.doi || null,
+        title: r.title || null,
+        journal: r.journal || null,
+        year: r.year || null,
+        authors_short: r.authors_short || null,
+        pubmed_url: r.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/` : null,
+        doi_url: r.doi ? `https://doi.org/${r.doi}` : null,
+      };
+      emit(nextValue, nextMeta);
     } catch (e) {
       onError?.(e instanceof Error ? e.message : "PubMed 메타 조회 실패");
     } finally {
@@ -113,7 +165,7 @@ export default function PubmedRefsField({
       <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
         참고문헌{" "}
         <span className="text-xs font-normal text-[var(--text-muted)]">
-          선택 — 본문 끝에 자동으로 추가됩니다
+          선택 — 본문 끝에 자동으로 추가됩니다 · 등록 후 제목 클릭 시 PubMed 로 이동
         </span>
       </label>
       <div className="flex flex-col gap-1.5">
@@ -122,26 +174,42 @@ export default function PubmedRefsField({
           const dashIdx = ref.indexOf(" — ");
           const isRegistered = dashIdx !== -1;
           const refTitle = dashIdx === -1 ? ref : ref.slice(0, dashIdx);
-          const refMeta = dashIdx === -1 ? "" : ref.slice(dashIdx);
+          const refMetaText = dashIdx === -1 ? "" : ref.slice(dashIdx);
+          const pubmedUrl = isRegistered ? pubmedUrlFor(idx, ref) : null;
           return (
             <div key={idx} className="flex items-start gap-2">
               <span className="w-5 shrink-0 pt-2 text-right text-xs text-[var(--text-muted)]">
                 {idx + 1}.
               </span>
               {isRegistered ? (
-                // 등록된 ref — 카드 본문 참고문헌 영역과 동일 스타일 (title sky-blue, meta muted).
+                // 등록된 ref — title 부분이 링크면 클릭하여 PubMed/DOI 새 탭 이동.
                 <div className="flex min-w-0 flex-1 items-start gap-2 py-1">
                   <p className="min-w-0 flex-1 text-[13px] leading-[1.55] text-[var(--text-muted)]">
-                    <span style={{ color: "var(--primary)" }}>{refTitle}</span>
-                    {refMeta}
+                    {pubmedUrl ? (
+                      <a
+                        href={pubmedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline-offset-2 hover:underline"
+                        style={{ color: "var(--primary)" }}
+                        title="PubMed 페이지 열기 (새 탭)"
+                      >
+                        {refTitle}
+                      </a>
+                    ) : (
+                      <span style={{ color: "var(--primary)" }}>{refTitle}</span>
+                    )}
+                    {refMetaText}
                   </p>
                   <button
                     type="button"
                     onClick={() => {
-                      // 그 행을 빈 입력 상태로 되돌림 (배열에서 제거 X — 빈 입력 노출).
-                      const next = [...value];
-                      next[idx] = "";
-                      onChange(next);
+                      // 그 행을 빈 입력 상태로 되돌림 (배열에서 제거 X — 빈 입력 노출). meta 도 null 로.
+                      const nextValue = [...value];
+                      nextValue[idx] = "";
+                      const nextMeta = alignedMeta(nextValue);
+                      nextMeta[idx] = null;
+                      emit(nextValue, nextMeta);
                     }}
                     disabled={disabled}
                     aria-label="이 참고문헌 지우기 (다시 입력 가능)"
@@ -159,9 +227,9 @@ export default function PubmedRefsField({
                     value={ref}
                     disabled={disabled}
                     onChange={(e) => {
-                      const next = [...value];
-                      next[idx] = e.target.value;
-                      onChange(next);
+                      const nextValue = [...value];
+                      nextValue[idx] = e.target.value;
+                      emit(nextValue, alignedMeta(nextValue));
                     }}
                     onKeyDown={(e) => {
                       // Enter 로도 등록. IME 조합 중에는 무시.
@@ -186,9 +254,11 @@ export default function PubmedRefsField({
                   {value.length > 1 && (
                     <button
                       type="button"
-                      onClick={() =>
-                        onChange(value.filter((_, i) => i !== idx))
-                      }
+                      onClick={() => {
+                        const nextValue = value.filter((_, i) => i !== idx);
+                        const nextMeta = (meta ?? []).filter((_, i) => i !== idx);
+                        emit(nextValue, nextMeta);
+                      }}
                       disabled={disabled}
                       className="h-9 w-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
                       aria-label="이 참고문헌 행 제거"
@@ -203,7 +273,10 @@ export default function PubmedRefsField({
         })}
         <button
           type="button"
-          onClick={() => onChange([...value, ""])}
+          onClick={() => {
+            const nextValue = [...value, ""];
+            emit(nextValue, alignedMeta(nextValue));
+          }}
           disabled={disabled}
           className="mt-1 self-start rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
         >

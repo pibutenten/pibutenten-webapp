@@ -13,7 +13,13 @@
  *
  * 부수효과: POST /api/preview-link (OG/oEmbed 메타 프록시)
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  extractStartSeconds,
+  formatMMSS,
+  parseMMSS,
+  setStartSecondsOnUrl,
+} from "@/lib/youtube-start-time";
 
 export type ExternalMeta = {
   title?: string;
@@ -40,7 +46,7 @@ type Props = {
     body: string;
     keywords: string[];
   }) => void;
-  /** mode="link" 에서 본문 한도 (기본 400 — 새소식 정책). */
+  /** mode="link" 에서 본문 한도 (기본 800). */
   bodyMax?: number;
   onError?: (msg: string | null) => void;
   disabled?: boolean;
@@ -56,7 +62,7 @@ export default function ExternalLinkField({
   onMetaChange,
   mode,
   onAutoFill,
-  bodyMax = 400,
+  bodyMax = 800,
   onError,
   disabled = false,
 }: Props) {
@@ -159,10 +165,28 @@ export default function ExternalLinkField({
         : "외부 링크";
   const hint =
     mode === "qa"
-      ? "선택 — 카드에 [영상 보러가기] 버튼 노출 (시간 포함 URL: ?t=120 또는 t=2m30s)"
+      ? "선택 — 카드에 [영상 보러가기] 버튼 노출 (시작 시간은 아래에서 따로 입력 가능)"
       : mode === "link"
         ? "URL 입력 후 [채우기] 누르면 제목·본문·태그 자동 채움"
         : "선택";
+
+  // 영상 시작 시간 — Q&A 모드에서만 노출. URL ↔ MM:SS 양방향 sync.
+  // URL 이 바뀌면 derived 값(currentStartSec) 도 자동 갱신.
+  const currentStartSec = useMemo(() => extractStartSeconds(url), [url]);
+  const [startInput, setStartInput] = useState(() =>
+    currentStartSec > 0 ? formatMMSS(currentStartSec) : "",
+  );
+  // URL 이 외부에서 바뀌면 시작시간 input 동기화 (단, 사용자 입력 중이면 그대로 둠 — onBlur 에서 정규화).
+  // 단순 구현: url 의 t 가 변하면 input 도 갱신.
+  // 사용자가 input 에 잘못된 형식 적었을 때 URL 갱신이 안 되더라도 input 그대로 두어 수정 가능.
+  // (useEffect 사용 안 함 — 사용자 IME/타이핑 중에 input 덮는 사고 방지)
+
+  function applyStartInput(next: string) {
+    setStartInput(next);
+    const sec = parseMMSS(next);
+    const updated = setStartSecondsOnUrl(url, sec);
+    if (updated !== url) onUrlChange(updated);
+  }
 
   return (
     <div>
@@ -203,6 +227,32 @@ export default function ExternalLinkField({
           </button>
         )}
       </div>
+      {/* Q&A 모드 — 시작시간 (MM:SS) 입력. URL ↔ 시간 양방향. */}
+      {mode === "qa" && url.trim() && (
+        <div className="mt-2 flex items-center gap-2">
+          <label className="text-xs text-[var(--text-muted)]">
+            시작 시간
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={startInput}
+            disabled={disabled}
+            onChange={(e) => applyStartInput(e.target.value)}
+            onBlur={() => {
+              // blur 시 정규화 — 유효 입력은 "MM:SS" 로 통일, 무효는 ""(0초)
+              const sec = parseMMSS(startInput);
+              setStartInput(sec > 0 ? formatMMSS(sec) : "");
+            }}
+            placeholder="00:00"
+            className="h-8 w-24 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 text-center text-sm tabular-nums focus:border-[var(--primary-light)] focus:outline-none disabled:opacity-50"
+            aria-label="영상 시작 시간 (MM:SS)"
+          />
+          <span className="text-[11px] text-[var(--text-muted)]">
+            (예: 02:30 = 2분 30초부터 재생)
+          </span>
+        </div>
+      )}
       {meta?.title && (
         <p className="mt-1.5 text-[11.5px] text-[var(--text-muted)]">
           <span className="font-semibold">{meta.siteName ?? "외부 링크"}</span>

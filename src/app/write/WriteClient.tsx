@@ -12,6 +12,7 @@ import { pickHighlight } from "@/lib/card-highlight";
 import KeywordsEditor from "@/components/card-editor/KeywordsEditor";
 import PubmedRefsField, {
   appendReferencesToBody,
+  type PubmedRefObj,
 } from "@/components/card-editor/fields/PubmedRefsField";
 import ExternalLinkField, {
   type ExternalMeta,
@@ -161,6 +162,7 @@ export default function WriteClient({
   // (260518 Phase 1: refResolving / extractPmid / formatPubmedRef / resolvePubmedRef
   //  추출 → src/components/card-editor/fields/PubmedRefsField.tsx)
   const [references, setReferences] = useState<string[]>([""]);
+  const [refsMeta, setRefsMeta] = useState<(PubmedRefObj | null)[]>([null]);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -217,6 +219,7 @@ export default function WriteClient({
     // 참고문헌은 Q&A 전용
     if (next !== "qa") {
       setReferences([""]);
+      setRefsMeta([null]);
     }
   }
 
@@ -271,7 +274,7 @@ export default function WriteClient({
     // post / qa 공통: 제목 + 본문 필수 (v5.1: 칼럼 폐기)
     if (!title.trim()) return "제목을 입력해주세요.";
     if (!body.trim()) return "본문을 입력해주세요.";
-    const bodyLimit = category === "link" ? 400 : 800;
+    const bodyLimit = 800;
     // Q&A 참고문헌까지 합친 최종 본문 기준으로 한도 체크 (DB 저장 길이)
     const finalLen = bodyWithReferences().length;
     if (finalLen > bodyLimit)
@@ -476,7 +479,7 @@ export default function WriteClient({
             meta={externalMeta}
             onMetaChange={setExternalMeta}
             mode={category === "qa" ? "qa" : "link"}
-            bodyMax={category === "link" ? 400 : 800}
+            bodyMax={800}
             onError={setError}
             onAutoFill={({ title: t, body: b, keywords: k }) => {
               // 새소식 [채우기] 동작 — 사용자가 명시적으로 누른 액션이므로 항상 덮어씀
@@ -498,7 +501,7 @@ export default function WriteClient({
             onTitle={setTitle}
             body={body}
             onBody={setBody}
-            bodyMax={category === "link" ? 400 : 800}
+            bodyMax={800}
             useHighlight={category === "qa"}
           />
         )}
@@ -507,7 +510,11 @@ export default function WriteClient({
         {category === "qa" && (
           <PubmedRefsField
             value={references}
-            onChange={setReferences}
+            meta={refsMeta}
+            onChange={(v, m) => {
+              setReferences(v);
+              setRefsMeta(m);
+            }}
             onError={setError}
           />
         )}
@@ -566,6 +573,7 @@ export default function WriteClient({
               setExternalMeta(null);
               setFirstComment("");
               setReferences([""]);
+              setRefsMeta([null]);
               setError(null);
             }}
             disabled={pending}
