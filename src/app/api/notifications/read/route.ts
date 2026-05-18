@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -48,12 +49,12 @@ export async function POST(req: Request) {
       p_ids: ids,
     });
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return errorResponse(error, "save_failed", "[notif/read] mark_notifications_read", 500);
     }
   } else {
     const { error } = await supabase.rpc("mark_my_notifications_read");
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return errorResponse(error, "save_failed", "[notif/read] mark_my_notifications_read", 500);
     }
   }
   return NextResponse.json(

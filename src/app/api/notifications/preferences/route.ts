@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export async function GET() {
   }
   const { data, error } = await supabase.rpc("get_my_notification_prefs");
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return errorResponse(error, "generic", "[prefs GET] rpc", 500);
   }
   const row = Array.isArray(data) ? data[0] : data;
   const prefs: Prefs = {
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
     p_published: toBool(body.pref_published, true),
   });
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return errorResponse(error, "save_failed", "[prefs POST] rpc", 500);
   }
   return NextResponse.json(
     { ok: true },

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +59,7 @@ export async function GET(
     p_offset: offset,
   });
   if (result.error) {
-    return NextResponse.json({ error: result.error.message }, { status: 500 });
+    return errorResponse(result.error, "generic", `[admin/stats/${kind}] rpc`, 500);
   }
   const data = (result.data ?? []) as unknown[];
   const hasMore = data.length > limit;

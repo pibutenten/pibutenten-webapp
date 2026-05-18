@@ -55,6 +55,15 @@ export default function SiteFooter() {
           자세히 보기
         </Link>
       </p>
+      <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+        문의·신고:{" "}
+        <a
+          href="mailto:pibutenten@gmail.com"
+          className="underline hover:text-[var(--primary)]"
+        >
+          pibutenten@gmail.com
+        </a>
+      </p>
     </footer>
   );
 }

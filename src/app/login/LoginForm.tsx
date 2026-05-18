@@ -6,12 +6,25 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import InAppBrowserNotice from "@/components/InAppBrowserNotice";
 
-type Props = { next?: string; error?: string };
+type Props = { next?: string; error?: string; errorId?: string };
 
-export default function LoginForm({ next, error: initialError }: Props) {
+/** STANDARD_ERROR_MESSAGES 동기화 — 클라 사이드 친절 매핑. */
+const ERROR_KIND_LABELS: Record<string, string> = {
+  auth_failed: "로그인 처리 중 오류가 발생했어요.",
+  network_failed: "외부 서비스 연결에 실패했어요.",
+  generic: "요청 처리 중 오류가 발생했어요.",
+  unauthorized: "로그인이 필요합니다.",
+  invalid_input: "입력값이 올바르지 않아요.",
+};
+
+export default function LoginForm({ next, error: initialError, errorId }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(initialError ?? null);
+  // initialError 가 kind 문자열이면 친절 메시지로 변환.
+  const friendlyInitial = initialError
+    ? ERROR_KIND_LABELS[initialError] ?? initialError
+    : null;
+  const [error, setError] = useState<string | null>(friendlyInitial);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(e: React.FormEvent) {
@@ -101,7 +114,24 @@ export default function LoginForm({ next, error: initialError }: Props) {
         </label>
         {error && (
           <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
+            <div>{error}</div>
+            {errorId && (
+              <div className="mt-1.5 text-xs text-red-600/80">
+                계속 실패하면 아래 ID와 함께 알려주시면 빠르게 확인해 드려요.
+                <br />
+                <span className="font-mono">ID: {errorId}</span>
+                <br />
+                문의:{" "}
+                <a
+                  href={`mailto:pibutenten@gmail.com?subject=${encodeURIComponent(
+                    `로그인 오류 문의 (${errorId})`,
+                  )}`}
+                  className="underline"
+                >
+                  pibutenten@gmail.com
+                </a>
+              </div>
+            )}
           </div>
         )}
         <button

@@ -71,6 +71,16 @@ export default async function LoginConflictPage({
           홈으로 돌아가기
         </Link>
       </div>
+      <p className="mt-6 text-xs text-[var(--text-muted)]">
+        도움이 필요하시면{" "}
+        <a
+          href="mailto:pibutenten@gmail.com?subject=계정 채널 안내 문의"
+          className="underline hover:text-[var(--primary)]"
+        >
+          pibutenten@gmail.com
+        </a>{" "}
+        으로 알려주세요.
+      </p>
     </section>
   );
 }

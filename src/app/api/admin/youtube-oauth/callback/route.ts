@@ -148,12 +148,14 @@ export async function GET(req: Request) {
       { onConflict: "provider" },
     );
     if (error) {
-      dbResult = `⚠ DB 저장 실패: ${error.message}`;
+      console.error("[youtube-oauth callback] DB upsert error", error);
+      dbResult = "⚠ DB 저장 실패 — 서버 로그를 확인해주세요.";
     } else {
       dbResult = "✅ refresh_token이 DB에 안전하게 저장되었습니다.";
     }
   } catch (e) {
-    dbResult = `⚠ DB 저장 예외: ${e instanceof Error ? e.message : String(e)}`;
+    console.error("[youtube-oauth callback] DB upsert threw", e);
+    dbResult = "⚠ DB 저장 예외 발생 — 서버 로그를 확인해주세요.";
   }
 
   return htmlPage(

@@ -9,6 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     .maybeSingle();
 
   if (upd.error) {
-    return NextResponse.json({ error: upd.error.message }, { status: 400 });
+    return errorResponse(upd.error, "save_failed", "[comments PATCH] update", 400);
   }
   if (!upd.data) {
     return NextResponse.json({ error: "권한이 없거나 댓글을 찾을 수 없습니다." }, { status: 403 });
@@ -104,7 +105,7 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     .maybeSingle();
 
   if (del.error) {
-    return NextResponse.json({ error: del.error.message }, { status: 400 });
+    return errorResponse(del.error, "save_failed", "[comments DELETE] delete", 400);
   }
   if (!del.data) {
     return NextResponse.json({ error: "권한이 없거나 댓글을 찾을 수 없습니다." }, { status: 403 });

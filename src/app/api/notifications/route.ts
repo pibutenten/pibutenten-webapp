@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
     supabase.rpc("get_my_unread_count"),
   ]);
   if (items.error) {
-    return NextResponse.json({ error: items.error.message }, { status: 500 });
+    return errorResponse(items.error, "generic", "[notifications GET] items rpc", 500);
   }
   return NextResponse.json(
     {
