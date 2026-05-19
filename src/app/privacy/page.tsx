@@ -24,7 +24,8 @@ export default function PrivacyPage() {
           개인정보 처리방침
         </h1>
         <p className="text-[13px] text-[var(--text-muted)]">
-          시행일자: 2026년 5월 13일 · 최종 개정일: 2026년 5월 13일
+          시행일자: 2026년 5월 19일 · 최종 개정일: 2026년 5월 19일
+          (국외이전 고지 보완 · 탈퇴 절차 명문화)
         </p>
       </header>
 
@@ -261,30 +262,121 @@ export default function PrivacyPage() {
                   회원가입·서비스 이용 시 정보통신망을 통한 전송
                 </td>
                 <td className="border-b border-[var(--border)] px-2 py-2 align-top">
-                  이메일, 이름(닉네임), 프로필 사진, 피부 정보, 활동 로그
+                  이메일, 닉네임, 프로필 사진, 피부 정보, 활동 로그
                 </td>
                 <td className="border-b border-[var(--border)] px-2 py-2 align-top">
-                  회원 인증, 데이터 저장
+                  데이터베이스·인증·파일 저장
                 </td>
                 <td className="border-b border-[var(--border)] px-2 py-2 align-top">
-                  회원 탈퇴 시까지 또는 위탁계약 종료 시까지
+                  회원 탈퇴 시까지
                 </td>
               </tr>
               <tr>
-                <td className="px-2 py-2 align-top">Vercel Inc.</td>
-                <td className="px-2 py-2 align-top">미국</td>
-                <td className="px-2 py-2 align-top">
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  Vercel Inc.
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  미국
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
                   서비스 접속 시 정보통신망을 통한 전송
                 </td>
-                <td className="px-2 py-2 align-top">
-                  접속 IP, 쿠키, 서비스 이용 기록
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  접속 IP, 쿠키, 요청 로그
                 </td>
-                <td className="px-2 py-2 align-top">호스팅, 콘텐츠 전송</td>
-                <td className="px-2 py-2 align-top">위탁계약 종료 시까지</td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  웹 호스팅·CDN·서버리스 함수 실행
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  최대 30일 (로그)
+                </td>
+              </tr>
+              <tr>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  Anthropic PBC
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  미국
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  관리자의 글 초안 작성 시 정보통신망을 통한 API 호출
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  관리자가 입력한 영상 transcript·초안 텍스트 (회원
+                  개인정보는 전송하지 않음)
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  AI 글 초안 생성 (Claude API)
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  요청 처리 후 즉시 폐기 (Anthropic 정책)
+                </td>
+              </tr>
+              <tr>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  Google LLC
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  미국
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  회원이 Google 로그인 선택 시 OAuth 인증
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  이메일, 프로필 이미지, Google 식별자
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  소셜 로그인 인증
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  회원 탈퇴 시까지
+                </td>
+              </tr>
+              <tr>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  Apple·Google·Mozilla (Web Push)
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  글로벌 (브라우저 공급자)
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  회원이 푸시 알림 동의 시 구독·발송
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  푸시 구독 endpoint, 알림 페이로드 (회원이 동의한 알림 내용)
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  웹 푸시 알림 전달
+                </td>
+                <td className="border-b border-[var(--border)] px-2 py-2 align-top">
+                  구독 해지 시까지
+                </td>
+              </tr>
+              <tr>
+                <td className="px-2 py-2 align-top">
+                  NIH / National Library of Medicine
+                </td>
+                <td className="px-2 py-2 align-top">미국</td>
+                <td className="px-2 py-2 align-top">
+                  관리자의 학술 메타 조회 시 정보통신망을 통한 API 호출
+                </td>
+                <td className="px-2 py-2 align-top">
+                  검색 키워드·PMID (회원 개인정보는 전송하지 않음)
+                </td>
+                <td className="px-2 py-2 align-top">
+                  PubMed 참고문헌 메타 조회
+                </td>
+                <td className="px-2 py-2 align-top">회사 미보관</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p className="mt-3 text-[12.5px] text-[var(--text-muted)]">
+          ※ 네이버·카카오 OAuth는 국내 사업자 처리이므로 국외 이전에 해당하지
+          않습니다. ※ 회사는 위 이전받는 자와 표준계약 또는 동등한 보호조치를
+          이행하며, 「개인정보 보호법」 제28조의8 및 관련 고시에 따른 안전조치를
+          취합니다.
+        </p>
         <p className="mt-3">
           회원은 위 국외 이전에 동의하지 않을 권리가 있으나, 동의를 거부할 경우
           서비스 이용이 제한될 수 있습니다.
@@ -313,13 +405,42 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <Section title="제7조 (개인정보의 파기)">
-        <p>
+      <Section title="제7조 (개인정보의 파기 및 회원 탈퇴 처리)">
+        <p className="mb-3">
           회사는 개인정보 보유기간의 경과, 처리 목적 달성 등 개인정보가 불필요
           하게 되었을 때에는 지체 없이 해당 개인정보를 파기합니다. 전자적 파일
           형태는 복구·재생이 불가능한 방법으로 영구 삭제하며, 종이 문서는 분쇄
           또는 소각합니다.
         </p>
+        <p className="mb-2">
+          <strong>회원 탈퇴 시 처리 절차</strong>:
+        </p>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>
+            탈퇴 신청 즉시 회원이 작성한 게시물·댓글의 작성자 식별 정보를
+            익명화합니다 (핸들 → <code>deleted-xxxxxxxxxxxx</code>, 표시명 →{" "}
+            <code>(탈퇴한 사용자)</code>).
+          </li>
+          <li>
+            프로필의 개인정보 항목(이메일, 생년월일, 성별, 얼굴형, 피부타입,
+            피부고민, 관심시술, 자기소개 등)은 즉시 NULL 또는 빈 값으로 변경되어
+            식별 불가능한 상태가 됩니다.
+          </li>
+          <li>
+            데이터베이스 백업본은 백업 보존 정책에 따라 최대 30일 후 자연
+            소실됩니다. 백업본은 사고 복구 목적으로만 이용되며, 정상 운영
+            데이터로 사용되지 않습니다.
+          </li>
+          <li>
+            법령상 보존 의무가 있는 정보가 있는 경우(현재 무료 서비스이므로
+            해당 사항 없음)에 한하여 분리 보관 후 보존 기간 종료 시 즉시
+            파기합니다.
+          </li>
+          <li>
+            탈퇴 후 동일 이메일로 재가입하더라도 이전 활동 이력(좋아요·저장·
+            게시물·댓글 등)은 복원되지 않습니다.
+          </li>
+        </ol>
       </Section>
 
       <Section title="제8조 (개인정보의 안전성 확보 조치)">
