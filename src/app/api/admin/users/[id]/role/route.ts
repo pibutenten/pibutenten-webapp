@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-guard";
+import { logAudit } from "@/lib/audit-log";
 
 export const dynamic = "force-dynamic";
 
@@ -195,6 +196,20 @@ export async function POST(
     // doctor_id 가 null → 매핑 해제 (기존에 매핑이 있었으면 삭제, 없으면 no-op).
     await supabase.from("doctor_accounts").delete().eq("profile_id", id);
   }
+
+  // 보안 2.5차 F묶음 — 감사 로그 기록.
+  await logAudit({
+    action: "admin.role_change",
+    actorAuthUserId: guard.userId,
+    targetTable: "profiles",
+    targetId: id,
+    request: req,
+    metadata: {
+      from_role: targetProfile.role,
+      to_role: role,
+      doctor_id: doctorId ?? null,
+    },
+  });
 
   return NextResponse.json({ ok: true });
 }

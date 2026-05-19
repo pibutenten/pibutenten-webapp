@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { errorResponse } from "@/lib/error-response";
+import { logAudit } from "@/lib/audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -99,6 +100,15 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+
+  // 보안 2.5차 F묶음 — 감사 로그 기록 (PIPA §8).
+  await logAudit({
+    action: "profile.delete",
+    actorAuthUserId: user.id,
+    targetTable: "profiles",
+    targetId: user.id,
+    request: req,
+  });
 
   // 현재 sign out
   await supabase.auth.signOut();

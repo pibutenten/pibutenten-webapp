@@ -8,6 +8,7 @@ import {
   UUID_RE,
   bundleProfileFilter,
 } from "@/lib/identity-shared";
+import { logAudit } from "@/lib/audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,6 +83,15 @@ export async function POST(req: Request) {
   cookieStore.set(IDENTITY_MIRROR_COOKIE, target, {
     ...baseOpts,
     httpOnly: false, // 클라이언트 표시용 — 서버는 신뢰 X
+  });
+
+  // 보안 2.5차 F묶음 — 감사 로그 기록.
+  await logAudit({
+    action: "identity.switch",
+    actorAuthUserId: user.id,
+    targetTable: "profiles",
+    targetId: target,
+    request: req,
   });
 
   return NextResponse.json({ ok: true, identityId: target });
