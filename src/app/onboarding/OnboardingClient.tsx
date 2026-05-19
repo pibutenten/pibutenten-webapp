@@ -21,6 +21,8 @@ type Initial = {
   interestedProcedures: string[];
   bio: string;
   avatarUrl: string | null;
+  /** 피부 정보 활용 동의 시점 — 이미 동의했으면 체크박스 기본 ON (보안 2.5차) */
+  skinInfoConsentAt?: string | null;
 };
 
 /** dedup 검사 결과 — Phase 5-4 (2026-05-16): handle 등 식별 정보 노출 X.
@@ -136,6 +138,12 @@ export default function OnboardingClient({ userId, initial }: Props) {
   );
   const [bio, setBio] = useState(initial.bio);
 
+  // 피부 정보 활용 동의 (보안 2.5차 C묶음, 2026-05-19) — 필수.
+  // PIPA 권고: 동의 시점 보존 → 저장 시 profiles.skin_info_consent_at = now().
+  const [skinInfoConsent, setSkinInfoConsent] = useState<boolean>(
+    Boolean(initial.skinInfoConsentAt),
+  );
+
   // 아바타 — SNS(구글/카카오/네이버) 프로필 이미지가 디폴트, 변경 시 직접 업로드
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initial.avatarUrl);
   const [uploading, setUploading] = useState(false);
@@ -242,6 +250,12 @@ export default function OnboardingClient({ userId, initial }: Props) {
       setErr("피부타입을 선택해주세요.");
       return;
     }
+    if (!skinInfoConsent) {
+      setErr(
+        "피부 정보 활용에 동의해 주세요. 동의하지 않으시면 가입을 진행할 수 없어요.",
+      );
+      return;
+    }
 
     start(async () => {
       const sb = createSupabaseBrowserClient();
@@ -277,6 +291,8 @@ export default function OnboardingClient({ userId, initial }: Props) {
           interested_procedures: procedures,
           bio: bio.trim() || null,
           avatar_url: cleanAvatar,
+          // 보안 2.5차 C묶음: PIPA 동의 시점 보존
+          skin_info_consent_at: new Date().toISOString(),
         })
         .eq("id", userId);
       if (error) {
@@ -562,6 +578,40 @@ export default function OnboardingClient({ userId, initial }: Props) {
         </div>
       </Section>
 
+      {/* 피부 정보 활용 동의 — 보안 2.5차 C묶음 (2026-05-19, PIPA) */}
+      <div className="mt-4 rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 sm:p-5">
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={skinInfoConsent}
+            onChange={(e) => setSkinInfoConsent(e.target.checked)}
+            className="mt-[3px] h-4 w-4 cursor-pointer accent-[var(--primary)]"
+          />
+          <span className="text-[13px] leading-[1.6] text-[var(--text-secondary)]">
+            <strong className="text-[var(--text)]">
+              입력한 피부 정보(피부타입·피부고민·관심시술)
+            </strong>
+            를 피드 추천 및 서비스 개선에 활용하는 것에 동의합니다. 동의 시점은
+            기록되며, 동의 철회는{" "}
+            <a
+              href="/settings/profile"
+              className="text-[var(--primary)] hover:underline"
+            >
+              설정
+            </a>
+            에서 언제든 가능합니다.{" "}
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener"
+              className="text-[var(--primary)] hover:underline"
+            >
+              자세히 보기
+            </a>
+          </span>
+        </label>
+      </div>
+
       {/* 액션 */}
       <div className="mt-2 flex flex-col items-center gap-2">
         {err && (
@@ -570,7 +620,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
         <button
           type="button"
           onClick={() => save()}
-          disabled={pending}
+          disabled={pending || !skinInfoConsent}
           className="h-10 rounded-full bg-[var(--primary-light)] px-7 text-[14px] font-semibold text-white transition-all hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
         >
           {pending ? "저장 중…" : "저장"}

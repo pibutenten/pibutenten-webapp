@@ -46,23 +46,45 @@ export default function SiteFooter() {
           >
             의사 답변 가이드라인
           </Link>
+          <Link
+            href="/disclaimer"
+            className="hover:text-[var(--primary)] hover:underline"
+          >
+            의료정보 안내
+          </Link>
+          <Link
+            href="/report"
+            className="hover:text-[var(--primary)] hover:underline"
+          >
+            신고하기
+          </Link>
         </nav>
       </div>
       <p className="mt-2 text-[11px] text-[var(--text-muted)]">
         본 사이트의 전문의 답변은 일반 의학 정보이며 개인의 진단·치료를 대체하지
         않습니다.{" "}
-        <Link href="/about" className="underline hover:text-[var(--primary)]">
+        <Link
+          href="/disclaimer"
+          className="underline hover:text-[var(--primary)]"
+        >
           자세히 보기
         </Link>
       </p>
       <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-        문의·신고:{" "}
+        문의:{" "}
         <a
           href="mailto:pibutenten@gmail.com"
           className="underline hover:text-[var(--primary)]"
         >
           pibutenten@gmail.com
-        </a>
+        </a>{" "}
+        · 신고는{" "}
+        <Link
+          href="/report"
+          className="underline hover:text-[var(--primary)]"
+        >
+          신고하기
+        </Link>
       </p>
     </footer>
   );
