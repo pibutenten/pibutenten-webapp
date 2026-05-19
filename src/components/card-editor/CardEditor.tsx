@@ -46,6 +46,17 @@ import PubmedRefsField, {
 import ExternalLinkField, {
   type ExternalMeta,
 } from "@/components/card-editor/fields/ExternalLinkField";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { SUICIDE_SELF_HARM_KEYWORDS } from "@/lib/content-screening-dict";
+
+/**
+ * 보안 2.5차 L3 — 자살/자해 키워드 감지 헬퍼.
+ * 차단 아닌 안내. 사용자가 "계속 작성" 누르면 진행.
+ */
+function detectSuicideRisk(text: string): boolean {
+  const lower = text.toLowerCase();
+  return SUICIDE_SELF_HARM_KEYWORDS.some((kw) => lower.includes(kw));
+}
 
 export type CardEditorInitial = {
   cardId: number;
@@ -245,6 +256,22 @@ export default function CardEditor({
     };
   }
 
+  // 보안 2.5차 L3 — 자살/자해 안전 메시지 (감지 후 1회 안내, 차단 X)
+  const [pendingAction, setPendingAction] = useState<SubmitAction | null>(null);
+  const [suicideRiskAcknowledged, setSuicideRiskAcknowledged] = useState(false);
+
+  function doSubmit(action: SubmitAction) {
+    const payload = buildPayload();
+    startTransition(async () => {
+      const r = await onSubmit(payload, action);
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      // 성공 후 처리는 wrapper 가 알아서 (router.push 등). 본 컴포넌트는 form 만.
+    });
+  }
+
   function submit(action: SubmitAction) {
     setError(null);
     if (!title.trim()) {
@@ -260,14 +287,15 @@ export default function CardEditor({
       setError(`본문은 최대 ${bodyMax}자까지 가능합니다. (현재 ${payload.body.length}자)`);
       return;
     }
-    startTransition(async () => {
-      const r = await onSubmit(payload, action);
-      if (!r.ok) {
-        setError(r.error);
+    // 자살/자해 키워드 감지 — 1회 안내 후 사용자 동의 시 진행 (차단 아님).
+    if (!suicideRiskAcknowledged) {
+      const text = `${payload.title} ${payload.body}`;
+      if (detectSuicideRisk(text)) {
+        setPendingAction(action);
         return;
       }
-      // 성공 후 처리는 wrapper 가 알아서 (router.push 등). 본 컴포넌트는 form 만.
-    });
+    }
+    doSubmit(action);
   }
 
   function cancelEdit() {
@@ -473,6 +501,33 @@ export default function CardEditor({
           </>
         )}
       </div>
+
+      {/* 보안 2.5차 L3 — 자살/자해 안전 메시지 (차단 아님, 1회 안내) */}
+      <ConfirmDialog
+        open={pendingAction !== null}
+        title="혹시 도움이 필요하신가요?"
+        description={
+          "입력하신 내용 중 어려운 시간을 보내고 계신 것 같은 표현이 보였어요.\n\n" +
+          "도움을 받으실 수 있는 곳:\n" +
+          "• 자살예방상담전화 109 (24시간)\n" +
+          "• 정신건강위기상담 1577-0199\n" +
+          "• 청소년상담 1388\n\n" +
+          "그대로 작성을 계속하실 수 있고, 잠시 멈추고 도움받기를 선택하실 수도 있어요."
+        }
+        tone="primary"
+        confirmLabel="계속 작성"
+        cancelLabel="도움받기"
+        onConfirm={() => {
+          const action = pendingAction;
+          setSuicideRiskAcknowledged(true);
+          setPendingAction(null);
+          if (action) doSubmit(action);
+        }}
+        onCancel={() => {
+          setPendingAction(null);
+          // 외부 안내 페이지로 이동하지 않음 — 모달만 닫고 사용자 결정 존중.
+        }}
+      />
     </div>
   );
 }

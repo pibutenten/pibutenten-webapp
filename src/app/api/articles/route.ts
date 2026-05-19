@@ -9,6 +9,7 @@ import {
   resolveSlugCollision,
 } from "@/data/procedure-mappings/slug-mapping";
 import { ArticleCreateSchema } from "@/lib/schema/api/articles";
+import { screenContent } from "@/lib/content-screening";
 
 export const dynamic = "force-dynamic";
 
@@ -303,6 +304,25 @@ export async function POST(req: Request) {
     // 이전 버그: status를 항상 pending_review로 강제 덮어써서 "저장"(draft) 버튼이 검수 큐로 직행함.
     insert.status = reqStatus;
     insert.doctor_id = doctorId;
+  }
+
+  // 보안 2.5차 E묶음 (2026-05-19): 자동 콘텐츠 검수기.
+  // 의사·관리자는 자동 통과. 회원 글에서 의료광고·약사법 의심 패턴 임계점 초과 시
+  // status 강제 pending_review + screening_flags 저장 → admin 검토 큐로.
+  if (role === "user") {
+    const verdict = screenContent({
+      title: insert.question as string | null,
+      body: insert.answer as string | null,
+      question: insert.question as string | null,
+      answer: insert.answer as string | null,
+      keywords,
+      externalUrl: (insert.external_url as string | null) ?? null,
+      authorRole: "user",
+    });
+    if (verdict.flagged) {
+      insert.status = "pending_review";
+      insert.screening_flags = verdict.reasons;
+    }
   }
 
   const { data: row, error: insErr } = await supabase

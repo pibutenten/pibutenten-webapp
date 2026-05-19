@@ -30,6 +30,7 @@ import { bundleProfileFilter } from "@/lib/identity-shared";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { ArticleUpdateSchema } from "@/lib/schema/api/articles";
+import { screenContent } from "@/lib/content-screening";
 import {
   categoriesForRole,
   isPostCategorySlug,
@@ -285,6 +286,28 @@ export async function PUT(
   }
 
   update.updated_at = new Date().toISOString();
+
+  // 보안 2.5차 E묶음 (2026-05-19): 본문 수정 시 자동 검수기 재실행.
+  // 의사·관리자는 자동 통과. 회원이 본문 수정 시 의심 패턴 잡히면 status 강제 변경.
+  // admin 이 명시적으로 status 지정한 경우엔 그것을 존중 (덮어쓰지 않음).
+  if (role === "user" && (update.question || update.answer)) {
+    const verdict = screenContent({
+      title: (update.question as string | null) ?? null,
+      body: (update.answer as string | null) ?? null,
+      question: (update.question as string | null) ?? null,
+      answer: (update.answer as string | null) ?? null,
+      keywords: (update.keywords as string[] | null) ?? null,
+      externalUrl: (update.external_url as string | null) ?? null,
+      authorRole: "user",
+    });
+    if (verdict.flagged) {
+      update.status = "pending_review";
+      update.screening_flags = verdict.reasons;
+    } else {
+      // 의심 해소된 경우 flags 정리
+      update.screening_flags = null;
+    }
+  }
 
   const { error: updErr } = await supabase
     .from("cards")
