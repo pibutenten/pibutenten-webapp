@@ -8,6 +8,7 @@ import {
   buildSlug,
   resolveSlugCollision,
 } from "@/data/procedure-mappings/slug-mapping";
+import { ArticleCreateSchema } from "@/lib/schema/api/articles";
 
 export const dynamic = "force-dynamic";
 
@@ -15,32 +16,6 @@ export const dynamic = "force-dynamic";
 type WriteType = "post" | "qa";
 
 type SubmitStatus = "draft" | "pending_review" | "published";
-
-type Payload = {
-  type: WriteType;
-  /** 글 분류 카테고리 (Phase 2) — review/daily/question/news/qa. 미입력 시 type 기반 자동 매핑 */
-  category?: string;
-  status?: SubmitStatus; // 기본 'published'
-  // post: title + body 통일 (Q&A와 동일 구조)
-  title?: string;
-  body?: string;
-  // qa
-  doctor_slug?: string;
-  question?: string;
-  answer?: string;
-  // shared
-  keywords?: string[];
-  // 외부 링크 (Phase 3) — 모든 카테고리에서 옵션
-  external_url?: string;
-  external_meta?: {
-    title?: string;
-    description?: string;
-    image?: string | null;
-    siteName?: string;
-  };
-  /** 의사 직함 숨김 — Phase A.2. 사적 모드 카테고리 default true */
-  hide_doctor_credential?: boolean;
-};
 
 /**
  * POST /api/articles
@@ -72,16 +47,30 @@ export async function POST(req: Request) {
   });
   if (limited) return limited;
 
-  let payload: Payload;
+  // zod 스키마 검증 (보안 2.5차 D-3) — 형식·크기 화이트리스트.
+  // 라우트 단의 추가 권한·status 분기 검증은 아래에서 별도 수행.
+  let rawJson: unknown;
   try {
-    payload = (await req.json()) as Payload;
+    rawJson = await req.json();
   } catch {
     return NextResponse.json({ error: "잘못된 요청 형식" }, { status: 400 });
   }
-  const t = payload.type;
-  if (t !== "post" && t !== "qa") {
-    return NextResponse.json({ error: "유효하지 않은 type" }, { status: 400 });
+  const parsed = ArticleCreateSchema.safeParse(rawJson);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "invalid_input",
+        message: "요청 형식이 올바르지 않습니다.",
+        issues: parsed.error.issues.slice(0, 5).map((iss) => ({
+          path: iss.path.join("."),
+          code: iss.code,
+        })),
+      },
+      { status: 400 },
+    );
   }
+  const payload = parsed.data;
+  const t = payload.type;
 
   // 권한 검증 — v5.1: Q&A는 원장·관리자만 작성 가능
   if (t === "qa" && role !== "admin" && role !== "doctor") {

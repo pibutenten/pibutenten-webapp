@@ -20,7 +20,9 @@
  *
  * 정책:
  *   - userId 가 있으면 user 키 (`<prefix>:user:<uuid>`), 없으면 IP 키 (`<prefix>:ip:<ip>`).
- *   - IP 가 unknown 이면 통과 (운영에선 거의 안 일어남, 너무 빡빡하게 막지 X).
+ *   - 두 식별자 모두 부재면 fail-closed 로 429 차단 (2026-05-19 보안 2.5차).
+ *     Vercel 환경에서는 x-vercel-forwarded-for 가 항상 부여되므로 정상 사용자는 영향 없음.
+ *     식별자 부재는 헤더 위조 봇 패턴 → 차단이 안전.
  *   - 응답: 429 + Retry-After (윈도우 끝까지 남은 초) + 표준 JSON body.
  *   - console.warn 로 ops 알림 (반복 시 모니터링 대상).
  */
@@ -100,8 +102,25 @@ export async function rateLimit(
       ? `${bucketPrefix}:ip:${ip}`
       : null;
 
-  // IP 도 사용자 ID 도 없으면 통과 (식별 불가 — 매우 드문 케이스).
-  if (!bucketKey) return null;
+  // 식별자 둘 다 부재 — fail-closed 로 429 (보안 2.5차, 2026-05-19).
+  // Vercel 환경에서는 x-vercel-forwarded-for 가 항상 부여되므로 정상 사용자는 도달 X.
+  // 도달한다면 헤더 위조 봇 시도이므로 차단이 안전.
+  if (!bucketKey) {
+    console.warn("[rate-limit] BLOCKED — no identifier (anon + no IP)", {
+      bucketPrefix,
+    });
+    return NextResponse.json(
+      {
+        error: "rate_limited",
+        message: "요청 식별자를 확인할 수 없어 일시 차단되었습니다.",
+        retry_after_seconds: windowSeconds,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(windowSeconds) },
+      },
+    );
+  }
 
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin.rpc("check_and_increment_rate_limit", {

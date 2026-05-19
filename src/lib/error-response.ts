@@ -49,6 +49,53 @@ export function maskIp(raw: string | null | undefined): string | null {
   return "***";
 }
 
+/**
+ * 생년월일 마스킹 (보안 2.5차 D-4, 2026-05-19): '2002-03-14' → '2002-**-**'.
+ * ISO date / Date 객체 / Timestamp 문자열 모두 허용.
+ * - 입력이 비어 있으면 null
+ * - 연도만 노출 (연령 추정은 가능하지만 정확한 생일 미노출 — PIPA 안전성 확보조치 권고)
+ */
+export function maskBirthdate(raw: string | Date | null | undefined): string | null {
+  if (!raw) return null;
+  const s = typeof raw === "string" ? raw : raw.toISOString();
+  const m = s.match(/^(\d{4})-\d{2}-\d{2}/);
+  if (!m) return null;
+  return `${m[1]}-**-**`;
+}
+
+/**
+ * 임의 객체에서 흔한 PII 키를 마스킹 (보안 2.5차 D-4, 2026-05-19).
+ * console.error 직전 또는 errorResponse extra 에 sensitive 메타 넣을 때 사용.
+ *
+ * 마스킹 대상 키: email, contact_email, attempted_email, birthdate, dob, ip, ip_address, phone
+ */
+export function scrubPii<T extends Record<string, unknown>>(obj: T): T {
+  if (!obj || typeof obj !== "object") return obj;
+  const out: Record<string, unknown> = { ...obj };
+  for (const key of Object.keys(out)) {
+    const lower = key.toLowerCase();
+    const val = out[key];
+    if (typeof val !== "string" && !(val instanceof Date)) continue;
+    if (lower.includes("email")) {
+      out[key] = maskEmail(val as string);
+    } else if (lower === "ip" || lower.includes("ip_address") || lower.endsWith("ip")) {
+      out[key] = maskIp(val as string);
+    } else if (
+      lower === "birthdate" ||
+      lower === "dob" ||
+      lower === "birth_date" ||
+      lower === "birthday"
+    ) {
+      out[key] = maskBirthdate(val as string | Date);
+    } else if (lower === "phone" || lower === "mobile" || lower === "tel") {
+      // 010-1234-5678 → 010-****-5678
+      const v = String(val);
+      out[key] = v.replace(/(\d{2,3})[-\s]?(\d{3,4})[-\s]?(\d{4})/, "$1-****-$3");
+    }
+  }
+  return out as T;
+}
+
 /** auth 콜백 에러 추적 메타 (PR-OPS, 0135). */
 export type AuthErrorTrack = {
   provider: "google" | "kakao" | "naver" | "magiclink" | "unknown";
@@ -105,6 +152,9 @@ export type ErrorKind = keyof typeof STANDARD_ERROR_MESSAGES;
 /**
  * 서버 로그에 상세 에러를 기록하고 error_id 발급.
  * 호출자가 응답 body / redirect URL 에 ID 만 노출하면 운영자가 ID 로 로그 추적 가능.
+ *
+ * 보안 2.5차 D-4 (2026-05-19): extra 에 흔한 PII 키(email/birthdate/ip/phone)가 들어있으면
+ * 로그 기록 전 자동 마스킹. server log 가 외부에 노출되더라도 PII 누설 최소화.
  */
 export function logErrorWithId(
   err: unknown,
@@ -116,7 +166,8 @@ export function logErrorWithId(
     err instanceof Error
       ? { message: err.message, name: err.name, stack: err.stack }
       : { value: String(err) };
-  console.error(`[error:${errorId}] ${context}`, { ...detail, ...extra });
+  const safeExtra = extra ? scrubPii(extra) : undefined;
+  console.error(`[error:${errorId}] ${context}`, { ...detail, ...safeExtra });
   return errorId;
 }
 

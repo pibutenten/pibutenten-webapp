@@ -29,6 +29,7 @@ import { getIdentityContext } from "@/lib/identity";
 import { bundleProfileFilter } from "@/lib/identity-shared";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
+import { ArticleUpdateSchema } from "@/lib/schema/api/articles";
 import {
   categoriesForRole,
   isPostCategorySlug,
@@ -105,12 +106,28 @@ export async function PUT(
   });
   if (limited) return limited;
 
-  let payload: Payload;
+  // zod 스키마 검증 (보안 2.5차 D-3) — 형식·크기 화이트리스트.
+  let rawJson: unknown;
   try {
-    payload = (await req.json()) as Payload;
+    rawJson = await req.json();
   } catch {
     return NextResponse.json({ error: "잘못된 요청 형식" }, { status: 400 });
   }
+  const parsed = ArticleUpdateSchema.safeParse(rawJson);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "invalid_input",
+        message: "요청 형식이 올바르지 않습니다.",
+        issues: parsed.error.issues.slice(0, 5).map((iss) => ({
+          path: iss.path.join("."),
+          code: iss.code,
+        })),
+      },
+      { status: 400 },
+    );
+  }
+  const payload = parsed.data as Payload;
 
   // 카드 조회 — 권한 검증용.
   const { data: card, error: fetchErr } = await supabase
