@@ -27,6 +27,16 @@ const BRAND = "#4CBFF2";
 
 await mkdir(OUT, { recursive: true });
 
+// ── source 이미지 1.25배 zoom 후 중앙 crop (2026-05-21) ──
+// 사용자 보고: PWA 설치 아이콘의 tt: 글씨가 작게 보임. 옛 디자인의 "꽉 찬 느낌"
+// 복원 위해 원본(1920×1920) 을 2400×2400 으로 확대 후 중앙 1920×1920 만 추출.
+// → 가장자리 여백 ~10% 가 잘리면서 글씨 비율이 1.25 배로 커짐.
+const ZOOMED_SRC = await sharp(SRC)
+  .resize({ width: 2400, height: 2400, fit: "fill" })
+  .extract({ left: 240, top: 240, width: 1920, height: 1920 })
+  .png()
+  .toBuffer();
+
 // 1) 단순 리사이즈 — 파비콘 / 아이콘
 const sizes = [
   { name: "favicon-16.png", size: 16 },
@@ -38,7 +48,7 @@ const sizes = [
   { name: "icon-512.png", size: 512 },
 ];
 for (const { name, size } of sizes) {
-  await sharp(SRC)
+  await sharp(ZOOMED_SRC)
     .resize(size, size, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
     .png()
     .toFile(path.join(OUT, name));
@@ -51,7 +61,7 @@ for (const { name, size } of sizes) {
   const size = 512;
   const inner = Math.round(size * 0.64); // 안전영역 안쪽으로 한 번 더 줄임
   const offset = Math.round((size - inner) / 2);
-  const innerBuf = await sharp(SRC)
+  const innerBuf = await sharp(ZOOMED_SRC)
     .resize(inner, inner, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
     .png()
     .toBuffer();
@@ -75,7 +85,7 @@ for (const { name, size } of sizes) {
   const W = 2048;
   const H = 2732;
   const logo = Math.round(Math.min(W, H) * 0.35); // 717px
-  const logoBuf = await sharp(SRC)
+  const logoBuf = await sharp(ZOOMED_SRC)
     .resize(logo, logo, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 0 } })
     .png()
     .toBuffer();
