@@ -69,6 +69,15 @@ type Step2Result = {
 
 /** 카드별 편집용 상태 (Step1 출력 + 사용자 변경 반영) */
 type EditableCard = {
+  /**
+   * 클라이언트 측 stable identity — React key 용. Step 1 응답 변환 시 crypto.randomUUID() 부여.
+   *
+   * 2026-05-20 버그 이력: 옛 `key={i}` 패턴에서 카드 폐기 시 React 가 컴포넌트를
+   * 재사용하면서 자식 MarkdownBoldEditor 의 `initialized.current` 가드(초기 1회만
+   * innerHTML 세팅, cursor 보존 목적) 가 새 props.value 를 무시 → 본문이 옛 카드 데이터로
+   * 남아 제목과 mismatch 되는 회귀 발생. uuid 기반 key 로 unmount/remount 보장.
+   */
+  uuid: string;
   source: Step1Card["source"];
   scriptEvidence?: string;
   pubmedSearchKeywords: string[];
@@ -275,6 +284,8 @@ export default function DraftClient() {
         const doctorSlug =
           llmSlug && validSlugs.has(llmSlug) ? llmSlug : primarySlug;
         return {
+          // stable client-side UUID for React key (카드 폐기 시 인덱스 회귀 방지).
+          uuid: crypto.randomUUID(),
           source: d.source,
           scriptEvidence: d.script_evidence,
           pubmedSearchKeywords: d.pubmed_search_keywords ?? [],
@@ -694,7 +705,10 @@ export default function DraftClient() {
           <div className="space-y-4">
             {cards.map((c, i) => (
               <CardEditor
-                key={i}
+                // c.uuid: stable client-side identity (2026-05-20 fix — 옛 key={i} 가
+                //   카드 폐기 시 자식 MarkdownBoldEditor의 initialized 가드와 결합되어
+                //   본문 mismatch 회귀를 만들던 버그).
+                key={c.uuid}
                 index={i}
                 card={c}
                 videoId={analyze.videoId}
