@@ -39,7 +39,7 @@ export default function TermsPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>
             <strong>서비스</strong>: 피부과 전문의가 함께 만드는 피부 미용
-            Q&amp;A SNS — 의사 답변·회원 글·검색·태그·알림 등 일체.
+            커뮤니티 — 의사 답변·회원 글·검색·태그·알림 등 일체.
           </li>
           <li>
             <strong>회원</strong>: 본 약관에 동의하고 회사와 이용계약을 체결한

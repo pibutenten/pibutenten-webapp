@@ -13,7 +13,7 @@ export default function SiteFooter() {
           <strong className="font-semibold text-[var(--text-secondary)]">
             피부텐텐
           </strong>{" "}
-          · 피부과 전문의가 함께 만드는 Q&amp;A SNS · 주식회사 진솔컴퍼니
+          · 피부과 전문의가 직접 답하는 리프팅 · 스킨부스터 · 안티에이징 · 피부시술 커뮤니티 · 주식회사 진솔컴퍼니
         </p>
         <nav className="flex flex-wrap gap-3">
           <Link

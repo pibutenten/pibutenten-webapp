@@ -10,12 +10,12 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "사이트 안내",
   description:
-    "피부텐텐은 피부과 전문의 9명이 함께하는 피부 미용 Q&A SNS입니다. 운영 주체 주식회사 진솔컴퍼니, 콘텐츠 정책, 의료 정보 면책 안내.",
+    "피부텐텐은 피부과 전문의 9명이 함께하는 피부 미용 커뮤니티입니다. 운영 주체 주식회사 진솔컴퍼니, 콘텐츠 정책, 의료 정보 면책 안내.",
   alternates: { canonical: `${SITE_URL}/about` },
   openGraph: {
     title: "사이트 안내 | 피부텐텐",
     description:
-      "피부과 전문의가 만드는 검증된 피부 Q&A SNS. 운영 주체·콘텐츠 정책·의료 면책 안내.",
+      "피부과 전문의가 만드는 검증된 피부 미용 커뮤니티. 운영 주체·콘텐츠 정책·의료 면책 안내.",
     url: `${SITE_URL}/about`,
     type: "website",
   },
@@ -69,7 +69,7 @@ export default async function AboutPage() {
         logo: `${SITE_URL}/brand-logo.svg`,
         image: `${SITE_URL}/og.png`,
         description:
-          "피부과 전문의 9명이 함께 만드는 피부 미용 Q&A SNS. 시술·홈케어·안티에이징 관련 검증된 답변과 칼럼을 제공합니다.",
+          "피부과 전문의 9명이 함께 만드는 피부 미용 커뮤니티. 시술·홈케어·안티에이징 관련 검증된 답변과 칼럼을 제공합니다.",
         medicalSpecialty: ["Dermatology"],
         knowsAbout: [
           "피부과",
@@ -163,7 +163,7 @@ export default async function AboutPage() {
         >
           9명
         </Link>
-        이 함께 만드는 피부 미용 Q&amp;A SNS입니다. 사용자가 자유롭게 피부 고민을
+        이 함께 만드는 피부 미용 커뮤니티입니다. 사용자가 자유롭게 피부 고민을
         나누고, 전문의가 검수한 답변과 칼럼을 제공합니다.
       </p>
 

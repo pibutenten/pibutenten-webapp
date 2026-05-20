@@ -35,7 +35,7 @@ export default function DoctorGuidelinesPage() {
       </header>
 
       <p className="mb-4 text-[14px] leading-[1.75] text-[var(--text-secondary)]">
-        피부텐텐은 피부과 전문의가 함께 만드는 Q&amp;A SNS입니다. 의사 회원의
+        피부텐텐은 피부과 전문의가 함께 만드는 커뮤니티입니다. 의사 회원의
         답변은 회원과 일반 독자가 피부 건강에 대해 정확한 정보를 얻고 의료적
         의사결정을 내리는 데 도움을 주는 <strong>일반 의학 정보</strong>로
         제공됩니다.

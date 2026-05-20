@@ -19,11 +19,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "피부텐텐 | 피부과 전문의가 답하는 리프팅·스킨부스터 Q&A 라운지",
+    default: "피부텐텐 | 피부가 예뻐지는 모든 이야기",
     template: "피부텐텐 | %s",
   },
   description:
-    "피부과 전문의가 답하는 리프팅·스킨부스터·안티에이징·피부시술 Q&A. 광고 없이 검증된 답변만 모았습니다.",
+    "피부과 전문의가 직접 답하는 리프팅·스킨부스터·안티에이징·피부시술 커뮤니티. 광고 없이 검증된 답변만 모았습니다.",
   applicationName: "피부텐텐",
   manifest: "/manifest.webmanifest",
   icons: {
@@ -44,15 +44,17 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "피부텐텐",
-    title: "피부텐텐",
-    description: "피부가 예뻐지는 모든 이야기",
+    title: "피부텐텐 | 피부가 예뻐지는 모든 이야기",
+    description:
+      "피부과 전문의가 직접 답하는 리프팅 · 스킨부스터 · 안티에이징 · 피부시술 커뮤니티",
     locale: "ko_KR",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "피부텐텐" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "피부텐텐",
-    description: "피부가 예뻐지는 모든 이야기",
+    title: "피부텐텐 | 피부가 예뻐지는 모든 이야기",
+    description:
+      "피부과 전문의가 직접 답하는 리프팅 · 스킨부스터 · 안티에이징 · 피부시술 커뮤니티",
     images: ["/og.png"],
   },
 };
@@ -236,7 +238,7 @@ window.addEventListener('appinstalled', function() {
                   url: `${SITE_URL}/`,
                   logo: `${SITE_URL}/logo.png`,
                   description:
-                    "피부과 전문의가 함께 만드는 피부 미용 Q&A SNS",
+                    "피부과 전문의가 함께 만드는 피부 미용 커뮤니티",
                   sameAs: ["https://www.youtube.com/@pibutenten"],
                 },
                 {

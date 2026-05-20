@@ -18,10 +18,10 @@ const INITIAL_PAGE_SIZE = 20;
 
 export const metadata: Metadata = {
   // 메인 페이지 절대 title — template "피부텐텐 | %s" 우회.
-  // v5.1: SEO·AEO 친화 핵심 키워드 (피부과 전문의·리프팅·스킨부스터·Q&A) 포함.
-  title: { absolute: "피부텐텐 | 피부과 전문의가 답하는 리프팅·스킨부스터 Q&A 라운지" },
+  // 2026-05-20: 브랜드 + 슬로건 형태로 통일 (브라우저 탭 잘림 방지 + og:title 일관성).
+  title: { absolute: "피부텐텐 | 피부가 예뻐지는 모든 이야기" },
   description:
-    "피부과 전문의 9명이 답하는 최신 Q&A와 칼럼. 시술·홈케어·안티에이징 관련 검수된 답변 모음.",
+    "피부과 전문의 9명이 직접 답하는 피부 미용 커뮤니티. 시술·홈케어·안티에이징 관련 검수된 답변 모음.",
   alternates: { canonical: `${SITE_URL}/` },
 };
 
