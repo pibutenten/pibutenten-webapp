@@ -58,9 +58,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // theme/background 와 톤앤매너 통일 — manifest #4CBFF2 와 일관, 옛 #1B4965 (네이비)
-  // 와의 mismatch 로 PWA standalone 진입 시 상단 status bar 영역 색 깜빡임이 있던 부분 해소.
-  themeColor: "#4CBFF2",
+  // 2026-05-20 — PWA 상태바(최상단 OS 정보창)를 흰색으로 통일.
+  // 안드로이드 PWA splash 배경은 manifest.background_color (#4CBFF2)가, 상태바 색은
+  // theme_color (#FFFFFF) 가 담당. iOS PWA 는 statusBarStyle="default" 로 흰 배경+검정 텍스트.
+  themeColor: "#FFFFFF",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -197,8 +198,13 @@ export default async function RootLayout({
         <Script id="scroll-restoration" strategy="beforeInteractive">
           {`if ('scrollRestoration' in history) history.scrollRestoration = 'manual';`}
         </Script>
-        {/* PWA splash: manifest 의 background_color + icon-512 가 OS native splash 처리.
-            별도 body::before overlay 폐기 — 이중 노출 문제 (2026-05-17). */}
+        {/* PWA splash:
+            - 안드로이드: OS native splash 가 manifest.background_color (#4CBFF2) + icon-512 로 자동 표시.
+            - iOS: manifest.background_color 무시. apple-touch-startup-image 메타 없으면 흰 화면.
+              → 단일 splash 이미지(#4CBFF2 배경에 로고 합성) 등록. 디바이스별 media query 분기 X —
+              단일 이미지로도 iOS 가 알아서 스케일. 안드로이드는 이 메타 무시하므로 중복 splash 없음.
+            별도 body::before overlay 는 옛 이중 노출 이슈로 폐기 (2026-05-17). */}
+        <link rel="apple-touch-startup-image" href="/icons/apple-splash.png" />
         {/* PWA: beforeinstallprompt + appinstalled 이벤트를 React 마운트보다 먼저 캐치 */}
         <Script id="pwa-bip-capture" strategy="beforeInteractive">
           {`window.__pibutenten_bip = null;

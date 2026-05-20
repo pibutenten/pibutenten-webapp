@@ -508,12 +508,19 @@ function CommentItem({
         {/* 원장님은 verified ✓ 만 표시 — 관리자 배지는 미니멀 위해 생략 */}
         {isAuthorDoctor && (
           <svg
-            viewBox="0 0 24 24"
-            fill="#5BB0D1"
+            viewBox="0 0 12 12"
+            fill="none"
             className="h-[12px] w-[12px]"
             aria-label="피부과 전문의"
           >
-            <path d="M22.5 12.5l-2.7-3 .4-4-3.9-.9-2-3.5-3.7 1.9-3.7-1.9-2 3.5-3.9.8.4 4-2.7 3 2.7 3-.4 4 3.9.9 2 3.5 3.7-1.9 3.7 1.9 2-3.5 3.9-.8-.4-4 2.6-3zM10 17.5L5.5 13l1.7-1.7L10 14.1l6.7-6.7L18.4 9 10 17.5z" />
+            <path
+              d="M6 0L7.6025 1.30939L9.7082 1.1459L10.1954 3.10104L12 4.1459L11.1858 6L12 7.8541L10.1954 8.89896L9.7082 10.8541L7.6025 10.6906L6 12L4.3975 10.6906L2.2918 10.8541L1.80459 8.89896L0 7.8541L0.814188 6L0 4.1459L1.80459 3.10104L2.2918 1.1459L4.3975 1.30939L6 0Z"
+              fill="#4CBFF2"
+            />
+            <path
+              d="M8.56567 4.79451L5.50235 7.85783L3.43457 5.79005L4.08693 5.1373L5.50235 6.55232L7.91292 4.14215L8.56567 4.79451Z"
+              fill="#FFFFFF"
+            />
           </svg>
         )}
         {/* 본문 — 닉네임 옆에 inline. 사용자 요청:
@@ -529,8 +536,9 @@ function CommentItem({
               : comment.body.replace(/\s+/g, " ").trim()}
           </span>
         )}
+        {/* 날짜 — 앞 가온점 제거 (2026-05-20). 답글과의 사이 가온점은 별도 span 으로 분리. */}
         <span className="text-[11px] text-[var(--text-muted)]">
-          · <RelativeTime iso={comment.created_at} />
+          <RelativeTime iso={comment.created_at} />
         </span>
         {isHidden && (
           <span className="text-[11px] text-[var(--text-muted)]">🙈 가림</span>
@@ -538,15 +546,26 @@ function CommentItem({
         {isDeleted && (
           <span className="text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
         )}
-        {/* 답글 버튼 — 헤더 라인에 inline (root 댓글에만) */}
+        {/* 답글 버튼 — 헤더 라인에 inline (root 댓글에만).
+            날짜 ↔ 답글 사이 가온점: 별도 span 으로 분리해 세로 중앙 정렬 (이전엔 "·"가
+            답글 텍스트 베이스라인에 붙어 위로 떠 보였음). leading-none 으로 폰트 박스
+            높이 무력화 후 inline-flex items-center 로 정확히 가운데. */}
         {!isReply && onReplyClick && !isDeleted && (
-          <button
-            type="button"
-            onClick={onReplyClick}
-            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
-          >
-            · {isReplying ? "답글 취소" : "답글"}
-          </button>
+          <>
+            <span
+              className="inline-flex items-center text-[11px] leading-none text-[var(--text-muted)]"
+              aria-hidden
+            >
+              ·
+            </span>
+            <button
+              type="button"
+              onClick={onReplyClick}
+              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
+            >
+              {isReplying ? "답글 취소" : "답글"}
+            </button>
+          </>
         )}
         {/* 좋아요 (root + 답글 모두). 미니멀 inline 하트. */}
         {!isDeleted && (

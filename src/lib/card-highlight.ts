@@ -1,18 +1,19 @@
 /**
- * Q&A 카드 형광펜 색 결정 — 카드 ID(또는 임의 seed) 기반 4색 파스텔 매핑.
+ * Q&A 카드 형광펜 색 결정 — 카드 ID(또는 임의 seed) 기반 5색 파스텔 매핑.
  *
  * 한 카드는 항상 한 색 (SSR safe — 동일 seed → 동일 색).
- * Peach(주황) / Mint / Lavender / Sky Blue.
- * Yellow는 검색 본문 하이라이트와 색상이 겹쳐 제거됨 → Peach(주황)로 대체.
+ * Sky / Mint / Pink / Apricot / Lavender — 모두 부드러운 톤
+ * (2026-05-20 사용자 결정 — 옛 4색 rgba 0.55 → 5색 hex 라이트 톤).
  *
  * Card.tsx 와 /admin/cards/[id]/edit 미리보기에서 동일 결과를 보장하기 위해 공유.
  */
 
 export const HIGHLIGHT_PALETTE: readonly string[] = [
-  "rgba(255, 178, 102, 0.55)", // Peach (주황) — 검색 노란색과 회피
-  "rgba(168, 235, 208, 0.55)", // Mint
-  "rgba(212, 197, 249, 0.55)", // Lavender
-  "rgba(168, 222, 255, 0.55)", // Sky Blue
+  "#E0F2FE", // Sky (하늘)
+  "#DCFCE7", // Mint (민트)
+  "#FFEBF2", // Pink (분홍)
+  "#FFEDD5", // Apricot (살구)
+  "#F3E8FF", // Lavender (보라)
 ];
 
 /**

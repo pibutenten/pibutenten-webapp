@@ -23,7 +23,7 @@ export default function CardActions({
 }: Props) {
   const { like, save, share } = engagement;
   return (
-    <div className="flex items-center gap-4 pt-3 text-[14px] text-[var(--text-secondary)]">
+    <div className="flex items-center gap-4 pt-3 text-[14px] text-[var(--text-icon)]">
       <button
         type="button"
         onClick={like.toggle}
@@ -33,7 +33,7 @@ export default function CardActions({
           "flex cursor-pointer items-center gap-1 transition-colors " +
           (like.active
             ? "text-[var(--accent)]"
-            : "text-[var(--text-secondary)] hover:text-[var(--accent)]")
+            : "text-[var(--text-icon)] hover:text-[var(--accent)]")
         }
       >
         <svg
@@ -85,7 +85,7 @@ export default function CardActions({
           "flex cursor-pointer items-center gap-1 transition-colors " +
           (save.active
             ? "text-[#F59E0B]"
-            : "text-[var(--text-secondary)] hover:text-[#F59E0B]")
+            : "text-[var(--text-icon)] hover:text-[#F59E0B]")
         }
         title={save.active ? "저장 취소" : "저장"}
       >

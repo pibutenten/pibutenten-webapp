@@ -64,9 +64,15 @@
   --bg: #F4F5F7;
   --bg-soft: #ECEEF1;
   --white: #FFFFFF;
-  --text: #2D3436;
-  --text-secondary: #62737E;
-  --text-muted: #94A3B0;
+  /* 2026-05-20 사용자 결정 — 부드러운 검정 톤으로 통일.
+     제목 / 닉네임(좋아요·댓글) → --text
+     본문 / 댓글 본문         → --text-secondary
+     액션 아이콘·숫자          → --text-icon (신규)
+     카테고리 / 더보기 / 영상보러가기 / 태그 → --text-muted */
+  --text: #383F47;
+  --text-secondary: #595E60;
+  --text-icon: #77868F;
+  --text-muted: #A2A6AF;
   --border: #E5E3DD;
   /* 좋아요·하이라이트용 따뜻한 액센트 (코랄 핑크) */
   --accent: #FF6B81;
