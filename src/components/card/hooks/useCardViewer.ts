@@ -108,14 +108,19 @@ export function useCardViewer(
   // 조회(view)와 분리: 노출 = 단순 등장, 조회 = 의도 신호.
   // engagement rate = view_count / impression_count 로 인기도 평가 가능.
   // DB trigger가 cards.impression_count 자동 +1. 큐가 800ms 디바운스 모음 INSERT.
+  //
+  // 2026-05-20: 옛 `if (forceExpanded) return` 가드 제거.
+  //   배경: 가드로 인해 단독 페이지(카카오톡 공유·검색 직접 진입 등) 사용자는
+  //   impression 0건 → 방문자 통계에서 통째 누락되던 회귀 (실측 결과: 24h 8명이
+  //   view 남겼는데 impression 사용자는 2명만). 단독 진입도 명백한 방문 신호이므로
+  //   카운트 포함.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (forceExpanded) return; // 단독 페이지는 피드 노출과 무관
     const impKey = `pibutenten:imp:${card.id}`;
     if (sessionStorage.getItem(impKey)) return;
     sessionStorage.setItem(impKey, "1");
     enqueueImpression(card.id);
-  }, [card.id, forceExpanded]);
+  }, [card.id]);
 
   // ── 3) recordView ──
   // card_views.insert만 호출. DB trigger가 cards.view_count도 자동 +1 동기화.
@@ -160,68 +165,27 @@ export function useCardViewer(
     })();
   }, [card.id]);
 
-  // ── 4) dwell observer — 4-10초 viewport 체류 시 자동 view ──
+  // ── 4) 단독 페이지 진입 시 즉시 view 카운트 ──
   //
-  // 카드가 viewport 이탈할 때 머문 시간 측정:
-  //   · 4초 미만: 스쳐 지나감 → X
-  //   · 4초 ≤ dwell ≤ 10초: 실제 읽음 → 카운팅 ✅
-  //   · 10초 초과: 자리비움(딴짓 의심) → X
-  //
-  // 첫 화면 스크롤 없이 등장한 카드는 dwell 시작 자체를 안 함 → 카운팅 X.
-  //
-  // 명시적 트리거 (dwell 윈도우와 무관하게 즉시 카운팅):
-  //   1. 단독 페이지 진입 (forceExpanded=true)
-  //   2. 카드 펼침 (더보기 클릭)
-  //   3. 영상 보러가기 클릭
+  // 2026-05-20 정책 정비: 옛 dwell observer (4~10초 viewport 체류) 제거.
+  //   배경:
+  //     - SNS 표준(인스타·트위터)은 view = 명백한 의도 신호. 시간 윈도우는 비표준.
+  //     - 옛 정책: 4초 미만 = 스쳐감 X, 10초 초과 = 딴짓 X, 첫 화면 = scroll 안 함 X.
+  //       → 좋아요/저장/공유한 사용자도 view 카운트 누락되는 사례가 빈번.
+  //   새 정책: view = 명백한 의도 신호 모음.
+  //     1) 단독 페이지 진입 (forceExpanded=true) — 본 effect 가 처리
+  //     2) 카드 펼침 (더보기 클릭)                  — Card.tsx onClick → recordView()
+  //     3) 영상 보러가기 클릭                       — CardMedia onWatchClick → recordView()
+  //     4) 좋아요 / 저장 / 공유 토글 성공            — useCardEngagement 내부에서 recordView()
+  //     5) 댓글 작성 성공                          — CommentsBlock submit 성공 → recordView()
+  //   session dedup 은 recordView 내부 sessionStorage 가드(`pibutenten:view:${id}`)가
+  //   같은 세션 같은 카드 중복 INSERT 차단. 즉 한 사람이 좋아요+공유 모두 해도 view 1회.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (forceExpanded) {
       recordView();
-      return;
     }
-    const el = cardRef.current;
-    if (!el) return;
-
-    let scrolled = false;
-    let dwellStartTime: number | null = null;
-
-    function onScroll() {
-      if (scrolled) return;
-      scrolled = true;
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry) return;
-        if (entry.isIntersecting) {
-          // 카드 진입 — dwell 타이머 시작 (단, 페이지 스크롤 발생 후에만)
-          if (scrolled) dwellStartTime = Date.now();
-        } else {
-          // 카드 이탈 — dwell 시간 측정 + 윈도우 검사
-          if (dwellStartTime !== null) {
-            const dwellMs = Date.now() - dwellStartTime;
-            dwellStartTime = null;
-            if (dwellMs >= DWELL_MIN_MS && dwellMs <= DWELL_MAX_MS) {
-              recordView();
-              observer.disconnect();
-            }
-            // 4초 미만(스쳐감) or 10초 초과(딴짓) → 무시
-          }
-        }
-      },
-      {
-        rootMargin: "-35% 0px -35% 0px",
-        threshold: 0.01,
-      },
-    );
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, [card.id, forceExpanded, recordView, cardRef]);
+  }, [forceExpanded, recordView]);
 
   return { me, viewCount, recordView };
 }

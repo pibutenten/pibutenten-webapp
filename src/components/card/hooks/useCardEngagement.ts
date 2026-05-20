@@ -90,6 +90,13 @@ export function useCardEngagement(
   shareCard: (
     card: CardData,
   ) => Promise<"native" | "link-copy" | null>,
+  /**
+   * 2026-05-20 신규 — 인터랙션(좋아요/저장/공유) 성공 시 호출.
+   * 호출처는 useCardViewer 의 `recordView` 를 그대로 전달. 새 view 정책:
+   * "명백한 의도 신호 = view" 룰. session dedup 은 recordView 내부 가드가 처리하므로
+   * 한 사람이 좋아요 + 공유 둘 다 해도 view 1회만 카운트됨.
+   */
+  onInteraction?: () => void,
 ): CardEngagement {
   // ── State ──
   const [likeCount, setLikeCount] = useState(card.like_count);
@@ -179,6 +186,9 @@ export function useCardEngagement(
           if (row.liked) lsSet(`card-liked-${card.id}`, "1");
           else lsRemove(`card-liked-${card.id}`);
         }
+        // 좋아요 토글 성공 = 명백한 의도 신호 → view 카운트 (2026-05-20 정책).
+        // recordView 내부 sessionStorage 가드가 같은 세션 중복 INSERT 차단.
+        onInteraction?.();
       } catch (e) {
         // RPC 실패 — UI 롤백 + 콘솔 로깅 (silent fail 방지)
         console.error("[useCardEngagement] toggle_card_like failed:", e);
@@ -188,7 +198,7 @@ export function useCardEngagement(
         setLikePending(false);
       }
     })();
-  }, [card.id, liked, likePending, me, onLoginRequired]);
+  }, [card.id, liked, likePending, me, onLoginRequired, onInteraction]);
 
   // ── 저장 토글 ──
   // ⚠️ 모든 경로에서 setSavePending(false)로 풀어야 다음 클릭이 막히지 않음.
@@ -241,11 +251,13 @@ export function useCardEngagement(
         setSaveCount(
           Number((q as { save_count: number }).save_count ?? 0),
         );
+      // 저장 토글 성공 = 의도 신호 → view 카운트 (2026-05-20 정책).
+      onInteraction?.();
     } finally {
       // 어떤 경로로 끝나든 무조건 pending 해제 — 다음 클릭 가능
       setSavePending(false);
     }
-  }, [card.id, saved, savePending, me, onLoginRequired]);
+  }, [card.id, saved, savePending, me, onLoginRequired, onInteraction]);
 
   // ── 공유 ──
   // 사용자 취소 시 카운트 X. card_shares INSERT 트리거(0095)가 share_count 자동 갱신.
@@ -279,7 +291,9 @@ export function useCardEngagement(
       setShareCount(
         Number((q as { share_count: number }).share_count ?? prevCount + 1),
       );
-  }, [card, shareCount, shareCard]);
+    // 공유 성공 = 명백한 의도 신호 → view 카운트 (2026-05-20 정책).
+    onInteraction?.();
+  }, [card, shareCount, shareCard, onInteraction]);
 
   return {
     like: { active: liked, count: likeCount, pending: likePending, toggle: toggleLike },

@@ -105,12 +105,15 @@ export default function Card({
   const viewCount = viewer.viewCount;
   const recordView = viewer.recordView;
   // Phase 4-3: like/save/share state + handler 통합
+  // 2026-05-20: 인터랙션 성공 시 recordView 호출 — 명백한 의도 신호이므로 view 카운트.
+  //   session dedup 은 recordView 내부 sessionStorage 가드가 처리 → 좋아요+공유 모두 해도 1회만.
   const eng = useCardEngagement(
     card,
     { liked: viewerLiked, saved: viewerSaved },
     me,
     setAuthPrompt,
     shareCard,
+    recordView,
   );
   // 인라인 편집 모드 없음 — kebab '수정' 메뉴는 항상 /write/[shortcode] 로 navigate.
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
