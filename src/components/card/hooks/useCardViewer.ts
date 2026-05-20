@@ -22,6 +22,7 @@ import type { CardData } from "@/components/Card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
 import { enqueueImpression } from "@/lib/impression-queue";
+import { useSession } from "@/lib/session-context";
 
 export type ViewerMe =
   | { id: string; role: "admin" | "doctor" | "user" }
@@ -51,7 +52,23 @@ export function useCardViewer(
   options: UseCardViewerOptions,
 ): UseCardViewer {
   const { forceExpanded, cardRef, onViewed } = options;
-  const [me, setMe] = useState<ViewerMe>(undefined);
+  // 2026-05-20 정공법 fix: SSR session 을 SessionContext 로 받아 me 즉시 결정.
+  //   옛 코드: setState 초기값 undefined → async getUser() 결과 기다림 → 비로그인
+  //     사용자가 카드 mount 직후 좋아요 클릭 시 me === undefined silent return →
+  //     LoginPromptDialog 안 뜨던 회귀.
+  //   새 코드: ssrSession === null 즉시 me=null. ssrSession === 객체 즉시 me={...}.
+  //     클라이언트 fetch 는 백그라운드에서 active profile.role 정확화에만 사용 (선택).
+  const ssrSession = useSession();
+  const [me, setMe] = useState<ViewerMe>(() => {
+    if (ssrSession === null) return null;
+    // SSR session 이 있으면 즉시 me 결정. activeIdentityId 가 'primary' 면 user.id 가
+    // 아직 client 에서 모르므로 placeholder 'primary' 그대로 사용 — 좋아요 RPC 는
+    // 별도로 getActiveIdentityId() 호출하므로 영향 없음.
+    return {
+      id: ssrSession.activeIdentityId,
+      role: ssrSession.role,
+    };
+  });
   const [viewCount, setViewCount] = useState(card.view_count);
 
   // onViewed가 매 렌더마다 새 함수여도 effect 의존성에 안 걸리도록 ref로 고정

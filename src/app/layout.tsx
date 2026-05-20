@@ -5,6 +5,7 @@ import ScrollManager from "@/components/ScrollManager";
 import FloatingWriteButton from "@/components/FloatingWriteButton";
 import InstallPrompt from "@/components/InstallPrompt";
 import SiteFooter from "@/components/SiteFooter";
+import { SessionProvider } from "@/lib/session-context";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
@@ -263,15 +264,20 @@ window.addEventListener('appinstalled', function() {
         />
       </head>
       <body className="min-h-full flex flex-col">
-        <ScrollManager />
-        <TopNav session={session} />
-        <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 pt-2 pb-8 sm:px-6">
-          {children}
-        </main>
-        <SiteFooter />
-        <FloatingWriteButton hasSession={!!session?.role} />
-        {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
-        <InstallPrompt signedIn={!!session?.role} />
+        {/* SessionProvider — SSR 에서 결정된 session 정보를 클라이언트 컴포넌트에 즉시 전달.
+            useCardViewer 의 me 결정 시 비동기 auth.getUser() 기다리지 않고 즉시 로그인 여부 판단 가능.
+            (비로그인 사용자가 좋아요 클릭 즉시 LoginPromptDialog 트리거 보장 — 2026-05-20 회귀 fix) */}
+        <SessionProvider session={session}>
+          <ScrollManager />
+          <TopNav session={session} />
+          <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 pt-2 pb-8 sm:px-6">
+            {children}
+          </main>
+          <SiteFooter />
+          <FloatingWriteButton hasSession={!!session?.role} />
+          {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
+          <InstallPrompt signedIn={!!session?.role} />
+        </SessionProvider>
       </body>
     </html>
   );

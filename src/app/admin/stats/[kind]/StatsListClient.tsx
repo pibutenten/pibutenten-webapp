@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react"; // useEffect 추가 사용
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 /**
@@ -249,7 +249,11 @@ export default function StatsListClient({
                   //   1) 제목·카운트 클릭 → 펼침 토글
                   //   2) 펼친 패널 클릭 → 글 단독 URL 이동
                   //   3) 댓글의 경우 펼친 패널 내용이 닉네임·시간·본문(1줄, 길면 wrap)
-                  <ActivityTopRow row={cardRow as CardRow} kind={kind} />
+                  <ActivityTopRow
+                    row={cardRow as CardRow}
+                    kind={kind}
+                    days={days}
+                  />
                 )}
               </li>
             );
@@ -296,13 +300,22 @@ type ActivityUser = {
 function ActivityTopRow({
   row,
   kind,
+  days,
 }: {
   row: CardRow;
   kind: "likes" | "saves" | "shares" | "views" | "comments";
+  /** 활동 사용자 RPC 호출에 전달할 시간 윈도우 (cnt 와 일치 보장). */
+  days: number;
 }) {
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<ActivityUser[] | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // days 변경 시 캐시 무효화 — 시간 윈도우 바뀌면 다음 펼침 때 재조회.
+  useEffect(() => {
+    setUsers(null);
+    setOpen(false);
+  }, [days]);
 
   // 카드 URL — publicCardUrl 가 항상 valid string 반환 (메타 누락 시 /cards/{id} server redirect).
   const cardHref = publicCardUrl(row);
@@ -313,6 +326,8 @@ function ActivityTopRow({
 
   // 댓글의 경우 펼친 패널은 row.comments 를 그대로 사용 (RPC 호출 없음).
   // likes/saves/shares/views 는 get_card_activity_users RPC 호출.
+  // 2026-05-20 fix: p_days 전달 — cnt(시간 윈도우) ↔ 닉네임 칩(시간 윈도우) 일치 보장.
+  //   옛 RPC는 윈도우 없이 전체 기간 → cnt 6 인데 칩 14명 mismatch 회귀 발생.
   async function toggle() {
     const next = !open;
     setOpen(next);
@@ -324,6 +339,7 @@ function ActivityTopRow({
           p_card_id: row.card_id,
           p_kind: kind,
           p_limit: 30,
+          p_days: days,
         });
         setUsers((data ?? []) as ActivityUser[]);
       } finally {
