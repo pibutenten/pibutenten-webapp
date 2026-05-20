@@ -83,7 +83,7 @@ export function renderAnswerBody(
           inline.push(
             <strong
               key={`b${pi}-${key++}`}
-              className="font-semibold text-[var(--text)]"
+              className="font-semibold text-[var(--text-secondary)]"
               style={{
                 // 하단 1/3 정도만 형광펜 줄을 깐 듯한 인라인 하이라이트
                 // 카드 ID 해시로 3색(Yellow/Mint/Lavender) 결정적 매핑 — 한 카드 안에서는 동일 색
@@ -119,7 +119,7 @@ export function renderAnswerBody(
         return (
           <p
             key={pi}
-            className={`whitespace-pre-wrap text-[15px] leading-[1.7] text-[var(--text)]${speakableClass} ${
+            className={`whitespace-pre-wrap text-[15px] leading-[1.7] text-[var(--text-secondary)]${speakableClass} ${
               isFirst ? "" : "mt-1"
             } ${clampClass} ${showMore ? "card-answer--more" : ""}`}
             style={{ transition: "color 0.2s ease" }}

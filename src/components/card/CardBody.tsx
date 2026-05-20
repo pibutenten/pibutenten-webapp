@@ -58,7 +58,7 @@ export default function CardBody({
   const titleInner = (
     <Link
       href={getQaUrl(card)}
-      className="text-[var(--primary)] hover:underline"
+      className="text-[var(--text)] hover:text-[var(--primary)] hover:underline"
     >
       {highlight(card.question, activeQuery)}
     </Link>
@@ -66,8 +66,9 @@ export default function CardBody({
 
   return (
     <>
-      {/* 2. 제목 — 하늘색(브랜드 primary), 클릭 시 단독 페이지로 이동.
+      {/* 2. 제목 — 부드러운 검정(--text #383F47, 2026-05-20 사용자 결정), 클릭 시 단독 페이지로 이동.
           내부 링크 신호(PageRank · 앵커 텍스트) 누적 + 크롤러가 단독 URL 색인 가능.
+          hover 시에만 primary 하늘색 + underline 으로 클릭 가능 시각 신호.
           asH1=true(단독 페이지)면 <h1>, 그 외 피드/리스트에서는 <h2>. */}
       {asH1 ? (
         <h1 className={titleClass}>{titleInner}</h1>

@@ -20,7 +20,7 @@ const CHIP_BASE_CLASS =
   "inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] whitespace-nowrap";
 const CHIP_DEFAULT_STYLE: React.CSSProperties = {
   backgroundColor: "#F0F2F5",
-  color: "#8A8F99",
+  color: "#A2A6AF",
   fontWeight: 500,
 };
 
@@ -64,7 +64,7 @@ export default function CardKeywords({
         const span = document.createElement("span");
         span.className = CHIP_BASE_CLASS;
         span.style.backgroundColor = "#F0F2F5";
-        span.style.color = "#8A8F99";
+        span.style.color = "#A2A6AF";
         span.style.fontWeight = "500";
         span.textContent = kw;
         probe.appendChild(span);
@@ -143,7 +143,7 @@ export default function CardKeywords({
               setShowAll(true);
             }}
             className="inline-flex shrink-0 cursor-pointer items-center rounded-full px-2.5 py-[3px] text-[11px] font-medium whitespace-nowrap transition-colors hover:text-[var(--primary)]"
-            style={{ backgroundColor: "#F0F2F5", color: "#8A8F99" }}
+            style={{ backgroundColor: "#F0F2F5", color: "#A2A6AF" }}
           >
             +{hidden}
           </button>
