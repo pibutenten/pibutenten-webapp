@@ -77,28 +77,42 @@ for (const { name, size } of circularIcons) {
 }
 
 // (b) PWA OS 홈 아이콘 — 원형 심볼 위에 #4CBFF2 정사각 배경 (OS 마스크 대응)
+//     사용자 결정 (2026-05-21): 원형 심볼을 사각 캔버스 1.5배로 키워 중앙 합성 →
+//     원이 캔버스 밖으로 튀어나가 모서리가 청색 사각 배경에 자연스럽게 흡수 → tt:
+//     글씨가 화면 가득 차게 보임. OS round-square 마스크에도 모서리 청색 유지.
 const squareSizes = [
   { name: "apple-touch-icon.png", size: 180 },
   { name: "icon-192.png", size: 192 },
   { name: "icon-512.png", size: 512 },
 ];
+const SYMBOL_SCALE = 1.5;
 for (const { name, size } of squareSizes) {
+  const renderSize = Math.round(size * SYMBOL_SCALE);
+  const cropOffset = Math.round((renderSize - size) / 2);
+  // 1) 1.5x 크기로 심볼 렌더
   const symbolBuf = await sharp(SRC, { density: 600 })
-    .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .resize(renderSize, renderSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();
-  await sharp({
+  // 2) 같은 1.5x 크기의 청색 캔버스에 심볼 얹기 → buffer → extract 중앙 size×size.
+  //    sharp pipeline 에서 composite→extract 체인이 일부 버전에서 거부됨.
+  //    composite 결과를 buffer 로 분리 후 별도 extract 호출하는 패턴이 안전.
+  const composedBuf = await sharp({
     create: {
-      width: size,
-      height: size,
+      width: renderSize,
+      height: renderSize,
       channels: 4,
       background: { r: 76, g: 191, b: 242, alpha: 1 }, // #4CBFF2
     },
   })
     .composite([{ input: symbolBuf }])
     .png()
+    .toBuffer();
+  await sharp(composedBuf)
+    .extract({ left: cropOffset, top: cropOffset, width: size, height: size })
+    .png()
     .toFile(path.join(OUT, name));
-  console.log(`✓ ${name} (${size}×${size}, 청색 사각 + 원형 심볼)`);
+  console.log(`✓ ${name} (${size}×${size}, 청색 사각 + 원형 심볼 1.5x)`);
 }
 
 // 2) maskable 512 — PWA maskable safe zone 80% (가장자리 padding 20%).
