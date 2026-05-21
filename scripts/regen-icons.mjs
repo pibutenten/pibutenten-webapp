@@ -37,22 +37,72 @@ const ZOOMED_SRC = await sharp(SRC)
   .png()
   .toBuffer();
 
-// 1) 단순 리사이즈 — 파비콘 / 아이콘
-const sizes = [
+// 1.5배 zoom 변형 — InstallPrompt 모달 (splash-circle-512.png) 전용. 글씨를 더 크게.
+const ZOOMED_1_5X = await sharp(SRC)
+  .resize({ width: 2880, height: 2880, fit: "fill" })
+  .extract({ left: 480, top: 480, width: 1920, height: 1920 })
+  .png()
+  .toBuffer();
+
+// 원형 마스크 헬퍼 — round-square PNG 를 받아 원형(외곽 투명) 으로 처리.
+//   브라우저 탭 favicon 전용 — 사용자 결정 (2026-05-21): "원형으로 하면 흰색 모서리 안 보임".
+//   PWA OS 홈 아이콘 (apple-touch-icon, icon-192/512, maskable) 은 round-square 그대로 유지.
+async function applyCircleMask(srcBuf, size) {
+  const mask = Buffer.from(
+    `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="white"/></svg>`,
+  );
+  return sharp(srcBuf)
+    .composite([{ input: mask, blend: "dest-in" }])
+    .png()
+    .toBuffer();
+}
+
+// 1a) favicon (16/32/48/192) — 원형 마스크 적용 (모서리 4개 투명).
+//     브라우저 탭/북마크에서 원형 심볼로 표시.
+const faviconSizes = [
   { name: "favicon-16.png", size: 16 },
   { name: "favicon-32.png", size: 32 },
   { name: "favicon-48.png", size: 48 },
   { name: "favicon-192.png", size: 192 },
+];
+for (const { name, size } of faviconSizes) {
+  const resized = await sharp(ZOOMED_SRC)
+    .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+  const circular = await applyCircleMask(resized, size);
+  const fs = await import("node:fs/promises");
+  await fs.writeFile(path.join(OUT, name), circular);
+  console.log(`✓ ${name} (${size}×${size}, 원형)`);
+}
+
+// 1b) PWA OS 홈 아이콘 (apple-touch-icon/icon-192/icon-512) — round-square 그대로.
+//     사용자 결정 (2026-05-21): "원형으로 하면 OS 가 마스크해서 흰 모서리 보임 → 사각 유지".
+const squareSizes = [
   { name: "apple-touch-icon.png", size: 180 },
   { name: "icon-192.png", size: 192 },
   { name: "icon-512.png", size: 512 },
 ];
-for (const { name, size } of sizes) {
+for (const { name, size } of squareSizes) {
   await sharp(ZOOMED_SRC)
     .resize(size, size, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
     .png()
     .toFile(path.join(OUT, name));
-  console.log(`✓ ${name} (${size}×${size})`);
+  console.log(`✓ ${name} (${size}×${size}, round-square)`);
+}
+
+// 1c) splash-circle-512.png — InstallPrompt 모달 ("홈 화면에 추가해보세요!") 아이콘.
+//     1.5배 zoom + 원형 마스크. tt: 글씨를 더 크게 보여줌.
+{
+  const size = 512;
+  const resized = await sharp(ZOOMED_1_5X)
+    .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+  const circular = await applyCircleMask(resized, size);
+  const fs = await import("node:fs/promises");
+  await fs.writeFile(path.join(OUT, "splash-circle-512.png"), circular);
+  console.log(`✓ splash-circle-512.png (512×512, 원형 + 1.5x zoom, InstallPrompt 모달용)`);
 }
 
 // 2) maskable 512 — PWA maskable safe zone 80% (가장자리 padding 20%).
