@@ -85,7 +85,10 @@ const squareSizes = [
   { name: "icon-192.png", size: 192 },
   { name: "icon-512.png", size: 512 },
 ];
-const SYMBOL_SCALE = 1.5;
+// SVG 원본 tt: 글씨가 원 직경 약 58% 만 차지 (path 좌표 25~110 / 원 147).
+// 1.5x 로 키워도 청색 사각 캔버스 대비 87% → 사용자 "아직 작다" 보고.
+// 2.0x 면 글씨 폭이 캔버스의 약 116% → 양옆이 청색 모서리에 흡수되며 tt: 가 꽉 참.
+const SYMBOL_SCALE = 2.0;
 for (const { name, size } of squareSizes) {
   const renderSize = Math.round(size * SYMBOL_SCALE);
   const cropOffset = Math.round((renderSize - size) / 2);
