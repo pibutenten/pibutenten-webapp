@@ -17,32 +17,24 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
-const SRC = path.resolve(
-  repoRoot,
-  "../전달용/4. tenten blue/심볼_tentenblue.png",
-);
+// 2026-05-21 source 교체: 옛 PNG round-square (심볼_tentenblue.png) 가 사용자가 말한
+// "진짜 우리 심볼" 이 아니라는 보고 → public/icons/symbol.svg 원형 심볼 (vivid blue
+// "심볼.svg" 의 원형 디자인 + 색만 #4CBFF2) 로 교체. SVG 라 모든 사이즈에서 깨끗.
+const SRC = path.resolve(repoRoot, "public/icons/symbol.svg");
 const OUT = path.resolve(repoRoot, "public/icons");
 
 const BRAND = "#4CBFF2";
 
 await mkdir(OUT, { recursive: true });
 
-// ── source 이미지 1.25배 zoom 후 중앙 crop (2026-05-21) ──
-// 사용자 보고: PWA 설치 아이콘의 tt: 글씨가 작게 보임. 옛 디자인의 "꽉 찬 느낌"
-// 복원 위해 원본(1920×1920) 을 2400×2400 으로 확대 후 중앙 1920×1920 만 추출.
-// → 가장자리 여백 ~10% 가 잘리면서 글씨 비율이 1.25 배로 커짐.
-const ZOOMED_SRC = await sharp(SRC)
-  .resize({ width: 2400, height: 2400, fit: "fill" })
-  .extract({ left: 240, top: 240, width: 1920, height: 1920 })
+// SVG 를 1920×1920 PNG 로 우선 렌더 (downstream 파이프라인 호환).
+const ZOOMED_SRC = await sharp(SRC, { density: 600 })
+  .resize(1920, 1920, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
   .png()
   .toBuffer();
 
-// 1.5배 zoom 변형 — InstallPrompt 모달 (splash-circle-512.png) 전용. 글씨를 더 크게.
-const ZOOMED_1_5X = await sharp(SRC)
-  .resize({ width: 2880, height: 2880, fit: "fill" })
-  .extract({ left: 480, top: 480, width: 1920, height: 1920 })
-  .png()
-  .toBuffer();
+// 1.5배 zoom 변형 — 더 이상 사용 안 함 (오리지널 통일). 호환성 위해 alias 유지.
+const ZOOMED_1_5X = ZOOMED_SRC;
 
 // 원형 마스크 헬퍼 — round-square PNG 를 받아 원형(외곽 투명) 으로 처리.
 //   브라우저 탭 favicon 전용 — 사용자 결정 (2026-05-21): "원형으로 하면 흰색 모서리 안 보임".
@@ -57,26 +49,56 @@ async function applyCircleMask(srcBuf, size) {
     .toBuffer();
 }
 
-// 1) 모든 아이콘 — 오리지널 심볼 (round-square + 1.25x zoom).
-//    사용자 결정 (2026-05-21 후속): "데스크탑 로고와 InstallPrompt 모달 모두
-//    오리지널 심볼이 더 자연스럽다" → favicon 원형 마스크와 splash-circle 1.5x zoom 모두 폐기.
-//    모든 아이콘이 동일한 round-square 디자인으로 통일됨.
-const sizes = [
+// 2026-05-21 정책 정비 — 진짜 우리 원형 심볼 + 컨텍스트별 배경 처리:
+//
+//   (a) favicon (16/32/48/192): 원형 그대로 + 투명 배경.
+//       → 브라우저 탭에서 깨끗한 원형 심볼 노출 (사각 모서리 없음).
+//
+//   (b) PWA OS 홈 아이콘 (apple-touch-icon/icon-192/icon-512/splash-circle):
+//       원형 심볼 위에 #4CBFF2 정사각 배경 깔기. 청색 위에 같은 청색 원형이라
+//       OS 의 round-square 마스크가 적용되어도 흰 모서리 없이 자연스러움.
+//       사용자 결정 (2026-05-21): "PWA 홈에 원형 그대로 두면 OS 가 마스크해서
+//       흰 모서리가 보임 → 사각으로 통일된 청색 배경 + 흰 tt: 글자".
+
+// (a) favicon — 원형 + 투명 배경
+const faviconSizes = [
   { name: "favicon-16.png", size: 16 },
   { name: "favicon-32.png", size: 32 },
   { name: "favicon-48.png", size: 48 },
   { name: "favicon-192.png", size: 192 },
+];
+for (const { name, size } of faviconSizes) {
+  await sharp(SRC, { density: 600 })
+    .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toFile(path.join(OUT, name));
+  console.log(`✓ ${name} (${size}×${size}, 원형 + 투명)`);
+}
+
+// (b) PWA OS 홈 아이콘 — 원형 심볼 위에 #4CBFF2 정사각 배경
+const squareSizes = [
   { name: "apple-touch-icon.png", size: 180 },
   { name: "icon-192.png", size: 192 },
   { name: "icon-512.png", size: 512 },
-  { name: "splash-circle-512.png", size: 512 }, // InstallPrompt 모달 — 동일 디자인.
+  { name: "splash-circle-512.png", size: 512 }, // InstallPrompt 모달
 ];
-for (const { name, size } of sizes) {
-  await sharp(ZOOMED_SRC)
-    .resize(size, size, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
+for (const { name, size } of squareSizes) {
+  const symbolBuf = await sharp(SRC, { density: 600 })
+    .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+  await sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: { r: 76, g: 191, b: 242, alpha: 1 }, // #4CBFF2
+    },
+  })
+    .composite([{ input: symbolBuf }])
     .png()
     .toFile(path.join(OUT, name));
-  console.log(`✓ ${name} (${size}×${size})`);
+  console.log(`✓ ${name} (${size}×${size}, 청색 사각 + 원형 심볼)`);
 }
 
 // 2) maskable 512 — PWA maskable safe zone 80% (가장자리 padding 20%).
