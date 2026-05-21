@@ -49,25 +49,26 @@ async function applyCircleMask(srcBuf, size) {
     .toBuffer();
 }
 
-// 2026-05-21 정책 정비 — 진짜 우리 원형 심볼 + 컨텍스트별 배경 처리:
+// 2026-05-21 정책 정비 (사용자 결정 보완):
 //
-//   (a) favicon (16/32/48/192): 원형 그대로 + 투명 배경.
-//       → 브라우저 탭에서 깨끗한 원형 심볼 노출 (사각 모서리 없음).
+//   (a) favicon (16/32/48/192) + splash-circle-512 (InstallPrompt 모달):
+//       원형 심볼 그대로 + 투명 배경.
+//       - 브라우저 탭: 탭 배경 위에 원형 심볼 노출.
+//       - InstallPrompt 모달: 흰 모달 박스 위에 원형 심볼 노출 (사이트 브랜드 강조).
 //
-//   (b) PWA OS 홈 아이콘 (apple-touch-icon/icon-192/icon-512/splash-circle):
-//       원형 심볼 위에 #4CBFF2 정사각 배경 깔기. 청색 위에 같은 청색 원형이라
-//       OS 의 round-square 마스크가 적용되어도 흰 모서리 없이 자연스러움.
-//       사용자 결정 (2026-05-21): "PWA 홈에 원형 그대로 두면 OS 가 마스크해서
-//       흰 모서리가 보임 → 사각으로 통일된 청색 배경 + 흰 tt: 글자".
+//   (b) PWA OS 홈 아이콘 (apple-touch-icon/icon-192/icon-512):
+//       원형 심볼 위에 #4CBFF2 정사각 배경. OS 의 round-square 마스크가 적용되어도
+//       같은 청색이라 흰 모서리 없이 자연스러움 (디바이스마다 다른 마스크 모양 대응).
 
-// (a) favicon — 원형 + 투명 배경
-const faviconSizes = [
+// (a) favicon + InstallPrompt 모달 아이콘 — 원형 + 투명 배경
+const circularIcons = [
   { name: "favicon-16.png", size: 16 },
   { name: "favicon-32.png", size: 32 },
   { name: "favicon-48.png", size: 48 },
   { name: "favicon-192.png", size: 192 },
+  { name: "splash-circle-512.png", size: 512 }, // InstallPrompt 모달 — 사이트 브랜드 원형 심볼
 ];
-for (const { name, size } of faviconSizes) {
+for (const { name, size } of circularIcons) {
   await sharp(SRC, { density: 600 })
     .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
@@ -75,12 +76,11 @@ for (const { name, size } of faviconSizes) {
   console.log(`✓ ${name} (${size}×${size}, 원형 + 투명)`);
 }
 
-// (b) PWA OS 홈 아이콘 — 원형 심볼 위에 #4CBFF2 정사각 배경
+// (b) PWA OS 홈 아이콘 — 원형 심볼 위에 #4CBFF2 정사각 배경 (OS 마스크 대응)
 const squareSizes = [
   { name: "apple-touch-icon.png", size: 180 },
   { name: "icon-192.png", size: 192 },
   { name: "icon-512.png", size: 512 },
-  { name: "splash-circle-512.png", size: 512 }, // InstallPrompt 모달
 ];
 for (const { name, size } of squareSizes) {
   const symbolBuf = await sharp(SRC, { density: 600 })
