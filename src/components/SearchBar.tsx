@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { addEngagement } from "@/lib/engagement-score";
 
 type Props = {
   initialValue?: string;
@@ -46,6 +47,8 @@ export default function SearchBar({
         (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.blur();
         // v3 URL 정책: 검색은 /search 로 분리됨
         router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+        // 비로그인 흥미 점수 +3 (명확한 검색 의도)
+        addEngagement("search");
       }}
       className="relative mx-auto w-full max-w-[520px]"
     >

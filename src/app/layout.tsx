@@ -5,6 +5,7 @@ import ScrollManager from "@/components/ScrollManager";
 import FloatingWriteButton from "@/components/FloatingWriteButton";
 import InstallPrompt from "@/components/InstallPrompt";
 import SiteFooter from "@/components/SiteFooter";
+import EngagementPromptListener from "@/components/EngagementPromptListener";
 import { SessionProvider } from "@/lib/session-context";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/site";
@@ -277,6 +278,8 @@ window.addEventListener('appinstalled', function() {
           <FloatingWriteButton hasSession={!!session?.role} />
           {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
           <InstallPrompt signedIn={!!session?.role} />
+          {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}
+          <EngagementPromptListener />
         </SessionProvider>
       </body>
     </html>

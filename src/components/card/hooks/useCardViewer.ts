@@ -23,6 +23,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
 import { enqueueImpression } from "@/lib/impression-queue";
 import { useSession } from "@/lib/session-context";
+import { addEngagement } from "@/lib/engagement-score";
 
 export type ViewerMe =
   | { id: string; role: "admin" | "doctor" | "user" }
@@ -159,6 +160,9 @@ export function useCardViewer(
 
     // optimistic UI update — 카드 조회수 표시 즉시 +1 (trigger가 DB도 +1)
     setViewCount((v) => (typeof v === "number" ? v + 1 : 1));
+
+    // 비로그인 흥미 점수 +1 (no-op if 로그인). recordView 자체가 의도 신호.
+    addEngagement("card-view");
 
     (async () => {
       try {

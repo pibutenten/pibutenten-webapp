@@ -21,6 +21,7 @@ import {
   stripCategoryLabels,
 } from "@/lib/category-labels";
 import { pickHighlight } from "@/lib/card-highlight";
+import { addEngagement } from "@/lib/engagement-score";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { shareCard } from "@/components/card/utils/card-share";
@@ -259,11 +260,21 @@ export default function Card({
             highlightColor={highlightColor}
             onExpandToggle={() => {
               // 펼침 클릭 = 명확한 의도 → 조회 카운트 (recordView가 session dedup)
-              if (!expanded) recordView();
+              // + 비로그인 흥미 점수 +2 (깊이 읽음 신호)
+              if (!expanded) {
+                recordView();
+                addEngagement("card-expand");
+              }
               setExpanded((v) => !v);
             }}
           />
-      <CardMedia card={card} onWatchClick={recordView} />
+      <CardMedia
+        card={card}
+        onWatchClick={() => {
+          recordView();
+          addEngagement("video-click");
+        }}
+      />
 
       {/* 태그 칩 — 사용자 키워드 + 자동 카테고리 칩(맨 끝).
           v5.2: 카테고리 라벨(끄적끄적/피부일기/피부꿀팁/궁금해요/소식공유/Q&A) 을

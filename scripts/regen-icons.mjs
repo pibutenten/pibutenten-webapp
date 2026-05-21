@@ -57,52 +57,26 @@ async function applyCircleMask(srcBuf, size) {
     .toBuffer();
 }
 
-// 1a) favicon (16/32/48/192) — 원형 마스크 적용 (모서리 4개 투명).
-//     브라우저 탭/북마크에서 원형 심볼로 표시.
-const faviconSizes = [
+// 1) 모든 아이콘 — 오리지널 심볼 (round-square + 1.25x zoom).
+//    사용자 결정 (2026-05-21 후속): "데스크탑 로고와 InstallPrompt 모달 모두
+//    오리지널 심볼이 더 자연스럽다" → favicon 원형 마스크와 splash-circle 1.5x zoom 모두 폐기.
+//    모든 아이콘이 동일한 round-square 디자인으로 통일됨.
+const sizes = [
   { name: "favicon-16.png", size: 16 },
   { name: "favicon-32.png", size: 32 },
   { name: "favicon-48.png", size: 48 },
   { name: "favicon-192.png", size: 192 },
-];
-for (const { name, size } of faviconSizes) {
-  const resized = await sharp(ZOOMED_SRC)
-    .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
-    .toBuffer();
-  const circular = await applyCircleMask(resized, size);
-  const fs = await import("node:fs/promises");
-  await fs.writeFile(path.join(OUT, name), circular);
-  console.log(`✓ ${name} (${size}×${size}, 원형)`);
-}
-
-// 1b) PWA OS 홈 아이콘 (apple-touch-icon/icon-192/icon-512) — round-square 그대로.
-//     사용자 결정 (2026-05-21): "원형으로 하면 OS 가 마스크해서 흰 모서리 보임 → 사각 유지".
-const squareSizes = [
   { name: "apple-touch-icon.png", size: 180 },
   { name: "icon-192.png", size: 192 },
   { name: "icon-512.png", size: 512 },
+  { name: "splash-circle-512.png", size: 512 }, // InstallPrompt 모달 — 동일 디자인.
 ];
-for (const { name, size } of squareSizes) {
+for (const { name, size } of sizes) {
   await sharp(ZOOMED_SRC)
     .resize(size, size, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
     .png()
     .toFile(path.join(OUT, name));
-  console.log(`✓ ${name} (${size}×${size}, round-square)`);
-}
-
-// 1c) splash-circle-512.png — InstallPrompt 모달 ("홈 화면에 추가해보세요!") 아이콘.
-//     1.5배 zoom + 원형 마스크. tt: 글씨를 더 크게 보여줌.
-{
-  const size = 512;
-  const resized = await sharp(ZOOMED_1_5X)
-    .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
-    .toBuffer();
-  const circular = await applyCircleMask(resized, size);
-  const fs = await import("node:fs/promises");
-  await fs.writeFile(path.join(OUT, "splash-circle-512.png"), circular);
-  console.log(`✓ splash-circle-512.png (512×512, 원형 + 1.5x zoom, InstallPrompt 모달용)`);
+  console.log(`✓ ${name} (${size}×${size})`);
 }
 
 // 2) maskable 512 — PWA maskable safe zone 80% (가장자리 padding 20%).
