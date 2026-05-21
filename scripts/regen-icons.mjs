@@ -118,28 +118,36 @@ for (const { name, size } of squareSizes) {
   console.log(`✓ ${name} (${size}×${size}, 청색 사각 + 원형 심볼 1.5x)`);
 }
 
-// 2) maskable 512 — PWA maskable safe zone 80% (가장자리 padding 20%).
-//    실제 padding: 18%(좌우상하 9%) — 안전.
+// 2) maskable 512 — Android OS "앱 설치" 다이얼로그 + adaptive icon 표시용.
+//    사용자 보고 (2026-05-21): Android OS 다이얼로그에 작은 tt: 가 보임 → maskable
+//    이 옛 64% safe zone + tt: 비율 작은 SVG 그대로 적용되어 발생.
+//    수정: SYMBOL_SCALE 적용 (squareSizes 패턴 동일). tt: 글씨가 화면 가득 차게.
+//    PWA maskable spec: safe zone 80% 권장이지만 tt: 글씨가 SVG 중앙에 작게 모여
+//    있어 2.0x 로 키워도 안전 영역 안에 있음.
 {
   const size = 512;
-  const inner = Math.round(size * 0.64); // 안전영역 안쪽으로 한 번 더 줄임
-  const offset = Math.round((size - inner) / 2);
-  const innerBuf = await sharp(ZOOMED_SRC)
-    .resize(inner, inner, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
+  const renderSize = Math.round(size * SYMBOL_SCALE);
+  const cropOffset = Math.round((renderSize - size) / 2);
+  const symbolBuf = await sharp(SRC, { density: 600 })
+    .resize(renderSize, renderSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();
-  await sharp({
+  const composedBuf = await sharp({
     create: {
-      width: size,
-      height: size,
+      width: renderSize,
+      height: renderSize,
       channels: 4,
       background: { r: 76, g: 191, b: 242, alpha: 1 }, // #4CBFF2
     },
   })
-    .composite([{ input: innerBuf, top: offset, left: offset }])
+    .composite([{ input: symbolBuf }])
+    .png()
+    .toBuffer();
+  await sharp(composedBuf)
+    .extract({ left: cropOffset, top: cropOffset, width: size, height: size })
     .png()
     .toFile(path.join(OUT, "icon-maskable-512.png"));
-  console.log(`✓ icon-maskable-512.png (512×512, maskable)`);
+  console.log(`✓ icon-maskable-512.png (512×512, maskable, 청색 사각 + 원형 심볼 2.0x)`);
 }
 
 // 3) iOS apple-splash.png — 2048×2732 (iPad Pro 12.9), #4CBFF2 배경 + 중앙 로고 35%.
