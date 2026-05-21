@@ -21,6 +21,9 @@ const repoRoot = path.resolve(__dirname, "..");
 // "진짜 우리 심볼" 이 아니라는 보고 → public/icons/symbol.svg 원형 심볼 (vivid blue
 // "심볼.svg" 의 원형 디자인 + 색만 #4CBFF2) 로 교체. SVG 라 모든 사이즈에서 깨끗.
 const SRC = path.resolve(repoRoot, "public/icons/symbol.svg");
+// PWA OS 아이콘 전용 SVG — 원본 path + 글씨 path 만 1.4x scale 적용 (캔버스 가운데 정확).
+// favicon 은 원본 symbol.svg 그대로 사용 (사용자 결정: favicon 은 건드리지 않음).
+const SRC_PWA = path.resolve(repoRoot, "public/icons/symbol-pwa.svg");
 const OUT = path.resolve(repoRoot, "public/icons");
 
 const BRAND = "#4CBFF2";
@@ -85,40 +88,15 @@ const squareSizes = [
   { name: "icon-192.png", size: 192 },
   { name: "icon-512.png", size: 512 },
 ];
-// SVG 원본 tt: 글씨가 원 직경 약 58% 만 차지 (path 좌표 25~110 / 원 147).
-// 사용자 피드백 진행:
-//   1.5x → 87% (작다)
-//   2.0x → 116% (너무 크다, 잘림)
-//   1.7x → 99% (너무 크다)
-//   1.6x → 93% — 적정 예상 (캔버스 대비 약간 여유)
-const SYMBOL_SCALE = 1.6;
+// PWA OS 아이콘은 SRC_PWA (symbol-pwa.svg) 를 source 로 사용.
+//   해당 SVG 안에서 글씨 위치 보정 + 1.4x scale 이 이미 적용됨 → JS 측 SCALE 1.0.
+//   결과: 글씨가 캔버스 81% 가운데 정확히 위치 (잘림 0, maskable safe zone 80% 준수).
 for (const { name, size } of squareSizes) {
-  const renderSize = Math.round(size * SYMBOL_SCALE);
-  const cropOffset = Math.round((renderSize - size) / 2);
-  // 1) 1.5x 크기로 심볼 렌더
-  const symbolBuf = await sharp(SRC, { density: 600 })
-    .resize(renderSize, renderSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
-    .toBuffer();
-  // 2) 같은 1.5x 크기의 청색 캔버스에 심볼 얹기 → buffer → extract 중앙 size×size.
-  //    sharp pipeline 에서 composite→extract 체인이 일부 버전에서 거부됨.
-  //    composite 결과를 buffer 로 분리 후 별도 extract 호출하는 패턴이 안전.
-  const composedBuf = await sharp({
-    create: {
-      width: renderSize,
-      height: renderSize,
-      channels: 4,
-      background: { r: 76, g: 191, b: 242, alpha: 1 }, // #4CBFF2
-    },
-  })
-    .composite([{ input: symbolBuf }])
-    .png()
-    .toBuffer();
-  await sharp(composedBuf)
-    .extract({ left: cropOffset, top: cropOffset, width: size, height: size })
+  await sharp(SRC_PWA, { density: 600 })
+    .resize(size, size, { fit: "contain", background: { r: 76, g: 191, b: 242, alpha: 1 } })
     .png()
     .toFile(path.join(OUT, name));
-  console.log(`✓ ${name} (${size}×${size}, 청색 사각 + 원형 심볼 1.5x)`);
+  console.log(`✓ ${name} (${size}×${size}, 청색 사각 + symbol-pwa.svg 가운데 정확)`);
 }
 
 // 2) maskable 512 — Android OS "앱 설치" 다이얼로그 + adaptive icon 표시용.
@@ -129,28 +107,11 @@ for (const { name, size } of squareSizes) {
 //    있어 2.0x 로 키워도 안전 영역 안에 있음.
 {
   const size = 512;
-  const renderSize = Math.round(size * SYMBOL_SCALE);
-  const cropOffset = Math.round((renderSize - size) / 2);
-  const symbolBuf = await sharp(SRC, { density: 600 })
-    .resize(renderSize, renderSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
-    .toBuffer();
-  const composedBuf = await sharp({
-    create: {
-      width: renderSize,
-      height: renderSize,
-      channels: 4,
-      background: { r: 76, g: 191, b: 242, alpha: 1 }, // #4CBFF2
-    },
-  })
-    .composite([{ input: symbolBuf }])
-    .png()
-    .toBuffer();
-  await sharp(composedBuf)
-    .extract({ left: cropOffset, top: cropOffset, width: size, height: size })
+  await sharp(SRC_PWA, { density: 600 })
+    .resize(size, size, { fit: "contain", background: { r: 76, g: 191, b: 242, alpha: 1 } })
     .png()
     .toFile(path.join(OUT, "icon-maskable-512.png"));
-  console.log(`✓ icon-maskable-512.png (512×512, maskable, 청색 사각 + 원형 심볼 2.0x)`);
+  console.log(`✓ icon-maskable-512.png (512×512, maskable, symbol-pwa.svg 가운데 정확)`);
 }
 
 // 3) iOS apple-splash.png — 2048×2732 (iPad Pro 12.9), #4CBFF2 배경 + 중앙 로고 35%.
