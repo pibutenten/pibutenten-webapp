@@ -10,6 +10,8 @@ import { SITE_URL } from "@/lib/site";
 import type { UserRole } from "@/lib/user-grades";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
+import DoctorDashboardWidget from "@/components/doctor-dashboard/DoctorDashboardWidget";
+import { getDoctorDashboardData } from "@/lib/doctor-dashboard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -72,6 +74,7 @@ async function fetchProfileByHandle(
     bio: string | null;
     kind: string;
     doctor_id: string | null;
+    doctor_slug: string | null;
   };
 } | null> {
   if (!/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(handle)) return null;
@@ -109,6 +112,7 @@ async function fetchProfileByHandle(
         bio: data.bio,
         kind: "doctor",
         doctor_id: doc.id,
+        doctor_slug: doc.slug,
       },
     };
   }
@@ -235,6 +239,17 @@ export default async function HandleProfilePage({ params }: Props) {
     posts.map((p) => p.id),
   );
 
+  // 2026-05-22: 의사 본인 대시보드 데이터 (외부인에게는 fetch 안 함)
+  const isDoctorOwner =
+    isOwner && identity?.kind === "doctor" && !!identity?.doctor_id;
+  const doctorDashboardData = isDoctorOwner
+    ? await getDoctorDashboardData(
+        supabase,
+        identity?.doctor_id ?? null,
+        profile.id,
+      )
+    : null;
+
   return (
     <section className="w-full py-6">
       <div className="mb-1 -ml-1">
@@ -287,6 +302,16 @@ export default async function HandleProfilePage({ params }: Props) {
 
         {/* 피부 정보는 [피부고민] 탭으로 이동됨 */}
       </div>
+
+      {/* 2026-05-22: 의사 본인 대시보드 — 본인+의사 모드일 때만 (외부인 비노출) */}
+      {isDoctorOwner && doctorDashboardData && (
+        <div className="mx-auto w-full max-w-[680px] px-4 sm:px-0">
+          <DoctorDashboardWidget
+            data={doctorDashboardData}
+            doctorSlug={identity?.doctor_slug ?? null}
+          />
+        </div>
+      )}
 
       {/* 탭 — 작성 글 / 피부고민 / 댓글 / 좋아요(owner) / 저장(owner) */}
       <ProfileTabs
