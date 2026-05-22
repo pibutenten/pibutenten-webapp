@@ -81,10 +81,10 @@
   /* 카드 상태 배지 색 (NEW/HOT/Pick/like/save) — CardHeader/CardActions/NotificationsBell에서 사용 */
   --accent-new: #81C784;
   --accent-hot: #F48FB1;
-  --accent-pick: #7DB7DA;
+  --accent-pick: #4CBFF2; /* 2026-05-22: 브랜드 sky 통일 (옛 #7DB7DA) */
   --accent-like: #FF6B81;
   --accent-save: #F59E0B;
-  --doctor-badge: #5BB0D1;
+  --doctor-badge: #4CBFF2; /* 2026-05-22: 브랜드 sky 통일 (옛 #5BB0D1) */
   --card-highlight: #FFF3A3;
   --shadow-sm: 0 1px 3px rgba(27, 73, 101, 0.06);
   --shadow: 0 2px 12px rgba(27, 73, 101, 0.08);
@@ -198,7 +198,7 @@ a:focus-visible,
 
 /* ========== 플로팅 글쓰기 버튼 hover ========== */
 .floating-write:hover {
-  background-color: #4A8FB8 !important; /* primary-dark */
+  background-color: var(--primary-dark) !important;
 }
 
 /* ========== 카드 피드 masonry (react-masonry-css) ==========

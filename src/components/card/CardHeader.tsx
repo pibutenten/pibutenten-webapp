@@ -135,7 +135,7 @@ export default function CardHeader({
           {isPick && (
             <span
               className="inline-flex items-center rounded-b-md px-2 pt-0.5 pb-1 text-[10px] font-bold leading-none tracking-wider text-white"
-              style={{ backgroundColor: "#7DB7DA" }}
+              style={{ backgroundColor: "var(--accent-pick)" }}
             >
               Pick
             </span>
@@ -261,7 +261,7 @@ export default function CardHeader({
             {showAsDoctor && (
               <span
                 className="inline-flex items-center gap-1 text-[11.5px] font-medium leading-[1.2]"
-                style={{ color: "#5BB0D1" }}
+                style={{ color: "var(--doctor-badge)" }}
               >
                 <svg
                   viewBox="0 0 12 12"
