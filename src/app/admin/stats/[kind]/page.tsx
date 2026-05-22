@@ -103,6 +103,49 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
   let rows = (result.data ?? []) as (VisitorRow | CardRow | NewMemberRow | NewCardRow)[];
   const hasMore = rows.length > FIRST_PAGE_SIZE;
 
+  // 2026-05-22: card_id 기반 row 에 카드 메타(category 등) 머지 — API route 동일 패턴.
+  // 카테고리 라벨 + publicCardUrl 분기에 사용. visitors / new-members 는 카드 없음.
+  if (kind !== "visitors" && kind !== "new-members" && rows.length > 0) {
+    const cardIdsForMeta = (rows as Array<{ card_id?: number }>)
+      .map((r) => r.card_id)
+      .filter((id): id is number => typeof id === "number");
+    if (cardIdsForMeta.length > 0) {
+      const { data: cards } = await supabase
+        .from("cards")
+        .select("id, category, post_year, post_slug, doctor:doctors(slug)")
+        .in("id", cardIdsForMeta);
+      type CardJoinRow = {
+        id: number;
+        category: string | null;
+        post_year: number | null;
+        post_slug: string | null;
+        doctor: { slug: string } | { slug: string }[] | null;
+      };
+      const byCardMeta = new Map<
+        number,
+        {
+          category: string | null;
+          doctor_slug: string | null;
+          post_year: number | null;
+          post_slug: string | null;
+        }
+      >();
+      for (const c of (cards ?? []) as CardJoinRow[]) {
+        const doc = Array.isArray(c.doctor) ? c.doctor[0] ?? null : c.doctor;
+        byCardMeta.set(c.id, {
+          category: c.category ?? null,
+          doctor_slug: doc?.slug ?? null,
+          post_year: c.post_year ?? null,
+          post_slug: c.post_slug ?? null,
+        });
+      }
+      rows = (rows as Array<Record<string, unknown>>).map((r) => ({
+        ...r,
+        ...(byCardMeta.get(r.card_id as number) ?? {}),
+      })) as typeof rows;
+    }
+  }
+
   // comments kind: 각 qa의 기간 내 댓글(+대댓글)도 함께 fetch — 항상 펼친 상태로 표시
   if (kind === "comments" && rows.length > 0) {
     const since =

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react"; // useEffect 추가 사용
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { labelForCategory } from "@/lib/post-category";
 
 /**
  * /admin/stats/{kind} 공통 무한 스크롤 클라이언트.
@@ -374,6 +375,7 @@ function NewCardRowItem({ row }: { row: NewCardRow }) {
     post_year: row.post_year ?? null,
     post_slug: row.post_slug ?? null,
   });
+  const categoryLabel = labelForCategory(row.category ?? null);
   return (
     <Link href={cardHref} className="block transition-colors hover:bg-[var(--bg-soft)]">
       <div className="flex items-center gap-2 px-4 py-2">
@@ -381,6 +383,9 @@ function NewCardRowItem({ row }: { row: NewCardRow }) {
           {author}
         </div>
         <div className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)]">
+          {categoryLabel && (
+            <span className="mr-1.5 text-[var(--text-muted)]">{categoryLabel}</span>
+          )}
           {row.question || "(제목 없음)"}
         </div>
         <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
@@ -476,7 +481,7 @@ function ActivityTopRow({
             displayName
           )}
         </div>
-        {/* 제목 — 클릭 시 펼침 토글 (편집기 navigate 가 아닌). aria-expanded 로 a11y 표현. */}
+        {/* 제목 — 클릭 시 펼침 토글. 카테고리 라벨 (연한 글씨) 앞에 prepend. */}
         <button
           type="button"
           onClick={toggle}
@@ -484,6 +489,14 @@ function ActivityTopRow({
           className="min-w-0 flex-1 truncate text-left text-sm font-medium text-[var(--text)] hover:text-[var(--primary)]"
           title={row.question ?? undefined}
         >
+          {(() => {
+            const cat = labelForCategory(row.category ?? null);
+            return cat ? (
+              <span className="mr-1.5 font-normal text-[var(--text-muted)]">
+                {cat}
+              </span>
+            ) : null;
+          })()}
           {row.question || "(제목 없음)"}
         </button>
         {/* 카운트도 같은 펼침 toggle */}
