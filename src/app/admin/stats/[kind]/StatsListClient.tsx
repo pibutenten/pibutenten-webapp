@@ -27,7 +27,9 @@ export type Kind =
   | "comments"
   | "likes"
   | "saves"
-  | "shares";
+  | "shares"
+  | "new-members"
+  | "new-cards";
 
 export type VisitorRow = {
   // 비로그인 방문자 합계 행은 profile_id = null (0117 정책)
@@ -35,6 +37,30 @@ export type VisitorRow = {
   display_name: string | null;
   handle: string | null;
   visit_count: number;
+  // 2026-05-22 (0145): 최근 방문 시각 — 동률 시 최신순 정렬용
+  last_visit_at?: string | null;
+};
+
+export type NewMemberRow = {
+  profile_id: string;
+  display_name: string | null;
+  handle: string | null;
+  role: string | null;
+  created_at: string;
+};
+
+export type NewCardRow = {
+  card_id: number;
+  question: string | null;
+  shortcode: string | null;
+  author_id: string | null;
+  author_name: string | null;
+  author_handle: string | null;
+  created_at: string;
+  category?: string | null;
+  doctor_slug?: string | null;
+  post_year?: number | null;
+  post_slug?: string | null;
 };
 
 export type CommentSummary = {
@@ -93,7 +119,7 @@ function publicCardUrl(row: CardRow): string {
   return `/cards/${row.card_id}`;
 }
 
-type Row = VisitorRow | CardRow;
+type Row = VisitorRow | CardRow | NewMemberRow | NewCardRow;
 
 const PAGE_SIZE = 50;
 
@@ -201,63 +227,69 @@ export default function StatsListClient({
         <p className="rounded-md border border-dashed border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-muted)]">
           해당 기간에 데이터가 없습니다.
         </p>
-      ) : (
-        <ol className="space-y-2">
-          {rows.map((r) => {
-            const isVisitors = kind === "visitors";
-            const cardRow = !isVisitors ? (r as CardRow) : null;
-            const visitorRow = isVisitors ? (r as VisitorRow) : null;
-            return (
-              <li
-                key={
-                  isVisitors
-                    ? // 비로그인 방문자 합계 행은 profile_id = null → 고정 key "anon"
-                      ((visitorRow as VisitorRow).profile_id ?? "anon")
-                    : (cardRow as CardRow).card_id
-                }
-                className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
+      ) : kind === "visitors" ? (
+        // 2026-05-22: 방문자 = 칩 layout (한 줄에 여러 명). 비로그인 항상 맨 앞 (RPC 정렬).
+        <div className="flex flex-wrap gap-2">
+          {(rows as VisitorRow[]).map((row, i) => {
+            const name = row.display_name || row.handle || "(이름 없음)";
+            const key = row.profile_id ?? `anon-${i}`;
+            const chipBase =
+              "inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-[13px]";
+            const inner = (
+              <>
+                <span className="text-[var(--text)]">{name}</span>
+                <span className="font-bold tabular-nums text-[var(--primary)]">
+                  {row.visit_count.toLocaleString()}
+                </span>
+              </>
+            );
+            return row.handle ? (
+              <Link
+                key={key}
+                href={`/${row.handle}`}
+                className={`${chipBase} transition-colors hover:border-[var(--primary)]`}
               >
-                {/* 한 줄 레이아웃: 닉네임(좌, 고정폭 축소) · 제목(가운데, truncate) · 카운트(우).
-                    gap-1 (4px) — 닉네임↔제목 사이 거리 추가 단축, 제목 시작이 더 왼쪽으로 자연스럽게 붙음. */}
-                {isVisitors ? (
-                  <div className="flex items-center gap-1 px-4 py-2">
-                    {(() => {
-                      const row = visitorRow as VisitorRow;
-                      const name =
-                        row.display_name || row.handle || "(이름 없음)";
-                      return (
-                        <div className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)]">
-                          {row.handle ? (
-                            <Link
-                              href={`/${row.handle}`}
-                              className="hover:text-[var(--primary)] hover:underline"
-                            >
-                              {name}
-                            </Link>
-                          ) : (
-                            name
-                          )}
-                        </div>
-                      );
-                    })()}
-                    <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--text)]">
-                      {(visitorRow as VisitorRow).visit_count.toLocaleString()}
-                    </span>
-                  </div>
-                ) : (
-                  // likes/saves/shares/views/comments TOP — 모두 동일 UX:
-                  //   1) 제목·카운트 클릭 → 펼침 토글
-                  //   2) 펼친 패널 클릭 → 글 단독 URL 이동
-                  //   3) 댓글의 경우 펼친 패널 내용이 닉네임·시간·본문(1줄, 길면 wrap)
-                  <ActivityTopRow
-                    row={cardRow as CardRow}
-                    kind={kind}
-                    days={days}
-                  />
-                )}
-              </li>
+                {inner}
+              </Link>
+            ) : (
+              <div key={key} className={chipBase}>
+                {inner}
+              </div>
             );
           })}
+        </div>
+      ) : kind === "new-members" ? (
+        <ol className="space-y-2">
+          {(rows as NewMemberRow[]).map((r) => (
+            <li
+              key={r.profile_id}
+              className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
+            >
+              <NewMemberRowItem row={r} />
+            </li>
+          ))}
+        </ol>
+      ) : kind === "new-cards" ? (
+        <ol className="space-y-2">
+          {(rows as NewCardRow[]).map((r) => (
+            <li
+              key={r.card_id}
+              className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
+            >
+              <NewCardRowItem row={r} />
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <ol className="space-y-2">
+          {(rows as CardRow[]).map((cardRow) => (
+            <li
+              key={cardRow.card_id}
+              className="overflow-hidden rounded-md border border-[var(--border)] bg-white"
+            >
+              <ActivityTopRow row={cardRow} kind={kind} days={days} />
+            </li>
+          ))}
         </ol>
       )}
 
@@ -277,6 +309,85 @@ export default function StatsListClient({
           : ""}
       </div>
     </div>
+  );
+}
+
+/**
+ * 신규 회원 한 행 — 닉네임 + 가입일 + (있으면) 프로필 link.
+ */
+function NewMemberRowItem({ row }: { row: NewMemberRow }) {
+  const name = row.display_name || row.handle || "(이름 없음)";
+  const joinedAt = new Date(row.created_at).toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return (
+    <div className="flex items-center gap-2 px-4 py-2">
+      <div className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)]">
+        {row.handle ? (
+          <Link
+            href={`/${row.handle}`}
+            className="hover:text-[var(--primary)] hover:underline"
+          >
+            {name}
+          </Link>
+        ) : (
+          name
+        )}
+        {row.role && row.role !== "user" && (
+          <span className="ml-1.5 rounded-full bg-[var(--bg-soft)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]">
+            {row.role}
+          </span>
+        )}
+      </div>
+      <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
+        {joinedAt}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * 신규 글 한 행 — 제목 + 작성자 + 발행일. 글 단독 페이지로 link.
+ */
+function NewCardRowItem({ row }: { row: NewCardRow }) {
+  const author = row.author_name || row.author_handle || "(작성자 없음)";
+  const createdAt = new Date(row.created_at).toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const cardHref = publicCardUrl({
+    card_id: row.card_id,
+    question: row.question,
+    shortcode: row.shortcode,
+    author_id: row.author_id,
+    author_name: row.author_name,
+    author_handle: row.author_handle,
+    cnt: 0,
+    category: row.category ?? null,
+    doctor_slug: row.doctor_slug ?? null,
+    post_year: row.post_year ?? null,
+    post_slug: row.post_slug ?? null,
+  });
+  return (
+    <Link href={cardHref} className="block transition-colors hover:bg-[var(--bg-soft)]">
+      <div className="flex items-center gap-2 px-4 py-2">
+        <div className="w-[52px] shrink-0 truncate text-[12px] text-[var(--text-muted)] sm:w-[72px]">
+          {author}
+        </div>
+        <div className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text)]">
+          {row.question || "(제목 없음)"}
+        </div>
+        <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
+          {createdAt}
+        </span>
+      </div>
+    </Link>
   );
 }
 

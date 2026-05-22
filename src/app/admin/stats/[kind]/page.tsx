@@ -5,6 +5,8 @@ import StatsListClient, {
   type Kind,
   type VisitorRow,
   type CardRow,
+  type NewMemberRow,
+  type NewCardRow,
 } from "./StatsListClient";
 import BackButton from "@/components/BackButton";
 
@@ -17,7 +19,9 @@ export const metadata = {
 
 const KIND_TITLES: Record<Kind, string> = {
   visitors: "방문자",
+  "new-members": "새 회원",
   views: "조회된 글",
+  "new-cards": "새 글",
   comments: "댓글 많은 글",
   likes: "좋아요 많은 글",
   saves: "저장 많은 글",
@@ -26,7 +30,9 @@ const KIND_TITLES: Record<Kind, string> = {
 
 const KIND_RPCS: Record<Kind, string> = {
   visitors: "get_top_visitors",
+  "new-members": "get_top_new_members",
   views: "get_top_cards_by_views",
+  "new-cards": "get_top_new_cards",
   comments: "get_top_cards_by_comments",
   likes: "get_top_cards_by_likes",
   saves: "get_top_cards_by_saves",
@@ -35,7 +41,9 @@ const KIND_RPCS: Record<Kind, string> = {
 
 const ALLOWED_KINDS: Kind[] = [
   "visitors",
+  "new-members",
   "views",
+  "new-cards",
   "comments",
   "likes",
   "saves",
@@ -75,7 +83,7 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
     p_limit: FIRST_PAGE_SIZE + 1,
     p_offset: 0,
   });
-  let rows = (result.data ?? []) as (VisitorRow | CardRow)[];
+  let rows = (result.data ?? []) as (VisitorRow | CardRow | NewMemberRow | NewCardRow)[];
   const hasMore = rows.length > FIRST_PAGE_SIZE;
 
   // comments kind: 각 qa의 기간 내 댓글(+대댓글)도 함께 fetch — 항상 펼친 상태로 표시

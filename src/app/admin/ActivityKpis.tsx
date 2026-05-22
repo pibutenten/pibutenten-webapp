@@ -5,17 +5,21 @@ import { useState } from "react";
 
 type Kpi = {
   visitors: number;
+  new_members: number;
   views: number;
+  new_cards: number;
   comments: number;
   likes: number;
   saves: number;
   shares: number;
 };
 
-// 카드 라벨 → /admin/stats/{kind} 매핑
+// 카드 라벨 → /admin/stats/{kind} 매핑 (2026-05-22: 새 회원, 새 글 추가)
 const KIND_BY_LABEL: Record<string, string> = {
   방문자: "visitors",
+  "새 회원": "new-members",
   조회수: "views",
+  "새 글": "new-cards",
   댓글: "comments",
   좋아요: "likes",
   저장: "saves",
@@ -46,16 +50,21 @@ export default function ActivityKpis({
   const [days, setDays] = useState(initialDays);
   const data: Kpi = dataByDays[days] ?? {
     visitors: 0,
+    new_members: 0,
     views: 0,
+    new_cards: 0,
     comments: 0,
     likes: 0,
     saves: 0,
     shares: 0,
   };
 
+  // 2026-05-22 사용자 결정 순서: 방문자/새 회원/조회수/새 글/댓글/좋아요/저장/공유 (8개)
   const items: Array<{ label: string; value: number }> = [
     { label: "방문자", value: data.visitors },
+    { label: "새 회원", value: data.new_members },
     { label: "조회수", value: data.views },
+    { label: "새 글", value: data.new_cards },
     { label: "댓글", value: data.comments },
     { label: "좋아요", value: data.likes },
     { label: "저장", value: data.saves },
@@ -89,7 +98,7 @@ export default function ActivityKpis({
           })}
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
+      <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8">
         {items.map((it) => {
           const kind = KIND_BY_LABEL[it.label];
           const href = kind

@@ -24,7 +24,9 @@ type SearchRow = { query: string; cnt: number };
 type TagRow = { keyword: string; cnt: number };
 type KpiRow = {
   visitors: number;
+  new_members: number;
   views: number;
+  new_cards: number;
   comments: number;
   likes: number;
   saves: number;
@@ -110,7 +112,9 @@ export default async function AdminPage() {
   const kpiByDays: Record<number, KpiRow> = {};
   const EMPTY_KPI: KpiRow = {
     visitors: 0,
+    new_members: 0,
     views: 0,
+    new_cards: 0,
     comments: 0,
     likes: 0,
     saves: 0,
@@ -122,7 +126,9 @@ export default async function AdminPage() {
     kpiByDays[d] = row
       ? {
           visitors: Number(row.visitors ?? 0),
+          new_members: Number(row.new_members ?? 0),
           views: Number(row.views ?? 0),
+          new_cards: Number(row.new_cards ?? 0),
           comments: Number(row.comments ?? 0),
           likes: Number(row.likes ?? 0),
           saves: Number(row.saves ?? 0),

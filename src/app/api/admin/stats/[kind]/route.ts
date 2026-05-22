@@ -7,7 +7,9 @@ export const dynamic = "force-dynamic";
 
 const KIND_RPCS: Record<string, string> = {
   visitors: "get_top_visitors",
+  "new-members": "get_top_new_members",
   views: "get_top_cards_by_views",
+  "new-cards": "get_top_new_cards",
   comments: "get_top_cards_by_comments",
   likes: "get_top_cards_by_likes",
   saves: "get_top_cards_by_saves",
@@ -66,7 +68,11 @@ export async function GET(
   let rows = data.slice(0, limit) as Record<string, unknown>[];
 
   // 카드 메타 fetch — publicCardUrl 정책 분기 (의사 Q&A 만 doctor route, 그 외 회원 route).
-  if (kind !== "visitors" && rows.length > 0) {
+  // visitors / new-members 는 카드 없음. new-cards 도 author 정보 RPC 에 있으나
+  // doctor route 분기 위해 category/post_year/post_slug/doctor_slug 보강 필요.
+  const needsCardMeta =
+    kind !== "visitors" && kind !== "new-members" && rows.length > 0;
+  if (needsCardMeta) {
     const cardIds = rows
       .map((r) => r.card_id as number)
       .filter((id) => typeof id === "number");
