@@ -54,12 +54,16 @@ export default function IdentitySwitcher({
   const active = identities.find((i) => i.id === activeId) ?? identities[0];
   if (!active) return null;
 
-  // 활성 identity의 진입 링크
+  // 활성 identity의 진입 링크 (2026-05-22 정책 갱신):
   //  - admin: /admin (관리자 대시보드)
-  //  - 그 외 (doctor 포함): /{handle} — handle 페이지가 본인 접속 시 대시보드 역할.
-  //    /doctors/{slug} 는 본인이든 외부인이든 공개 프로필만 보여주는 정책으로 통일.
+  //  - doctor: /doctor (NEW — 원장 본인 대시보드, /doctors/{slug} 공개 프로필과 분리)
+  //  - 그 외: /{handle} (회원 본인 프로필)
   const profileHref =
-    active.kind === "admin" ? "/admin" : `/${active.handle}`;
+    active.kind === "admin"
+      ? "/admin"
+      : active.kind === "doctor"
+        ? "/doctor"
+        : `/${active.handle}`;
 
   // identity가 1개뿐이면 dropdown 무의미 — 단순 Link
   if (identities.length === 1) {
