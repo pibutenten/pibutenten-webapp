@@ -172,7 +172,7 @@ export default async function AdminPage() {
       </div>
 
       {/* 활동 KPI (기간 토글) — 방문자/조회수/댓글/좋아요/저장/공유. 모든 기간 prefetch. */}
-      <ActivityKpis initialDays={7} dataByDays={kpiByDays} />
+      <ActivityKpis initialDays={1} dataByDays={kpiByDays} />
 
       {/* 운영 프로그램 — 액션·관리 도구 (KPI/통계와 구분). PR-OPS (2026-05-19) 명명 정리. */}
       <div className="mb-6">
@@ -267,7 +267,7 @@ export default async function AdminPage() {
 
       {/* 인기 검색어·태그 — 모든 기간 prefetch → 클릭 시 즉시 스위치 (깜빡임 0). */}
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <PopularSearchesCard initialDays={7} dataByDays={searchesByDays} />
+        <PopularSearchesCard initialDays={1} dataByDays={searchesByDays} />
         <PopularTagsCard initialDays={0} dataByDays={tagsByDays} />
       </div>
 

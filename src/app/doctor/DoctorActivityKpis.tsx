@@ -54,7 +54,7 @@ const PERIODS: Array<{ label: string; days: number }> = [
 ];
 
 export default function DoctorActivityKpis({
-  initialDays = 7,
+  initialDays = 1,
   dataByDays,
 }: {
   initialDays?: number;

@@ -52,7 +52,7 @@ type TagItem = { keyword: string; cnt: number };
  * 클릭 시 즉시 스위치 (로딩 없음, 깜빡임 없음).
  */
 export function PopularSearchesCard({
-  initialDays = 7,
+  initialDays = 1,
   dataByDays,
 }: {
   initialDays?: number;

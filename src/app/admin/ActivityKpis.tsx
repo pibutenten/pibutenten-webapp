@@ -41,7 +41,7 @@ const PERIODS: Array<{ label: string; days: number }> = [
  * 모든 기간 데이터를 미리 받아두고 클릭 시 즉시 스위치 (깜빡임 0).
  */
 export default function ActivityKpis({
-  initialDays = 7,
+  initialDays = 1,
   dataByDays,
 }: {
   initialDays?: number;

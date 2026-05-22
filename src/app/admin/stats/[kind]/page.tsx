@@ -51,7 +51,7 @@ const ALLOWED_KINDS: Kind[] = [
 ];
 
 const FIRST_PAGE_SIZE = 50;
-const DEFAULT_DAYS = 7;
+const DEFAULT_DAYS = 1;
 
 type Props = {
   params: Promise<{ kind: string }>;

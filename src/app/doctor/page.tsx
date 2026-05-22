@@ -135,7 +135,7 @@ export default async function DoctorDashboardPage() {
       </div>
 
       {/* 1) 본인 글 KPI — 기간 토글 6종 */}
-      <DoctorActivityKpis initialDays={7} dataByDays={kpiByDays} />
+      <DoctorActivityKpis initialDays={1} dataByDays={kpiByDays} />
 
       {/* 2) 운영 프로그램 — Tool 카드 (admin 동일 패턴, doctor 한정 메뉴) */}
       <div className="mb-6">
@@ -189,7 +189,7 @@ export default async function DoctorDashboardPage() {
 
       {/* 3) 인기 검색어 / 인기 태그 — 사이트 전체 (admin 동일 컴포넌트 재사용) */}
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <PopularSearchesCard initialDays={7} dataByDays={searchesByDays} />
+        <PopularSearchesCard initialDays={1} dataByDays={searchesByDays} />
         <PopularTagsCard initialDays={0} dataByDays={tagsByDays} />
       </div>
     </section>
