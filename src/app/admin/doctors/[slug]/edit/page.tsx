@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -26,8 +26,8 @@ type Props = {
 
 export default async function AdminDoctorEditPage({ params }: Props) {
   const { slug } = await params;
-  // PRD §C — 묶음 OR 가드. 전문의 프로필 편집은 super admin 전용 (doctor 차단).
-  await requireAdminPage(`/admin/doctors/${slug}/edit`, { superAdminOnly: true });
+  // 2026-05-22: super admin 또는 본인 doctor admin 만 통과. 다른 의사 slug 면 본인 대시보드로.
+  const guard = await requireAdminPage(`/admin/doctors/${slug}/edit`);
   const supabase = await createSupabaseServerClient();
 
   const { data: doctor } = await supabase
@@ -37,6 +37,11 @@ export default async function AdminDoctorEditPage({ params }: Props) {
     .maybeSingle()
     .returns<DoctorRow>();
   if (!doctor) notFound();
+
+  // 권한 분기: super admin 모두 가능 / doctor admin 은 본인 slug 만
+  if (!guard.isSuperAdmin && doctor.id !== guard.activeDoctorId) {
+    redirect("/doctor");
+  }
 
   const initial = asDoctorProfileData(doctor.profile_data);
 
