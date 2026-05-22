@@ -203,10 +203,9 @@ export async function PUT(
     if (!a) {
       return NextResponse.json({ error: "본문/답변이 비어있습니다." }, { status: 400 });
     }
-    // 본문 한도 — link 카테고리 800, 그 외 admin 카드는 4000 까지 허용 (admin EditClient 도 4000).
-    const effectiveCategory =
-      nextCategory ?? (card.category as PostCategorySlug | null);
-    const bodyMax = effectiveCategory === "link" ? 800 : 4000;
+    // 2026-05-22: 본문 한도 모든 카테고리 4000자 통일 (link 800자 폐기)
+    void nextCategory; // 카테고리 무관
+    const bodyMax = 4000;
     if (a.length > bodyMax) {
       return NextResponse.json(
         { error: `본문은 최대 ${bodyMax}자까지 가능합니다.` },

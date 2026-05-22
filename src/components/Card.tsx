@@ -152,6 +152,31 @@ export default function Card({
     (me.role === "admin" ||
       (card.author?.id != null && me.id === card.author.id));
 
+  // 숨김(hidden) 토글 — admin 이면 무조건 메뉴 항목 노출.
+  // RPC 기반 피드(feed_cards_scored)는 status 컬럼이 빠져 있어 undefined 가능 →
+  // admin 권한만 보고 노출. 일반 사용자는 RLS 가 published 만 노출하므로 hidden
+  // 카드가 list 에 들어오지 않음 (안전).
+  const canHide = !!me && me.role === "admin";
+  const isHidden = card.status === "hidden";
+
+  async function performHide() {
+    const next = isHidden ? "published" : "hidden";
+    const confirmMsg = isHidden
+      ? "이 글의 숨김을 해제하고 다시 공개로 전환할까요?"
+      : "이 글을 숨김 처리할까요?\n관리자/작성자/해당 원장 외에는 보이지 않게 됩니다.";
+    if (!window.confirm(confirmMsg)) return;
+    const sb = createSupabaseBrowserClient();
+    const { error } = await sb
+      .from("cards")
+      .update({ status: next })
+      .eq("id", card.id);
+    if (error) {
+      showToast("숨김 처리 실패: " + error.message, { tone: "danger" });
+      return;
+    }
+    router.refresh();
+  }
+
   async function performDelete() {
     setDeleting(true);
     try {
@@ -248,6 +273,9 @@ export default function Card({
             canEdit={canEdit}
             editHref={getQaEditUrl(card)}
             onDeleteClick={() => setConfirmDeleteOpen(true)}
+            canHide={canHide}
+            isHidden={isHidden}
+            onHideClick={performHide}
           />
 
           <CardBody

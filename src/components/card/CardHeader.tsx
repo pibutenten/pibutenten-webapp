@@ -33,6 +33,12 @@ type Props = {
   editHref: string | null;
   /** 삭제 메뉴 클릭 — 호출자가 ConfirmDialog 등을 띄움. */
   onDeleteClick: () => void;
+  /** admin 만 — 보관/보관 해제 메뉴 항목 노출 (published/hidden 상태일 때만 의미). */
+  canHide?: boolean;
+  /** 현재 카드가 hidden (보관됨) 상태인지 — 라벨 분기용. */
+  isHidden?: boolean;
+  /** 보관 토글 콜백 — 호출자가 supabase update + refresh 처리. */
+  onHideClick?: () => void;
 };
 
 export default function CardHeader({
@@ -43,6 +49,9 @@ export default function CardHeader({
   canEdit,
   editHref,
   onDeleteClick,
+  canHide = false,
+  isHidden = false,
+  onHideClick,
 }: Props) {
   const router = useRouter();
   const doctor = card.doctor;
@@ -179,6 +188,18 @@ export default function CardHeader({
                   className="block w-full cursor-pointer px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-soft)]"
                 >
                   수정
+                </button>
+              )}
+              {canHide && onHideClick && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onHideClick();
+                  }}
+                  className="block w-full cursor-pointer px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-soft)]"
+                >
+                  {isHidden ? "숨김 해제" : "숨김"}
                 </button>
               )}
               <button

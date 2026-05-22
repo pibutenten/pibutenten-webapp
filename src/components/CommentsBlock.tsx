@@ -541,7 +541,7 @@ function CommentItem({
           <RelativeTime iso={comment.created_at} />
         </span>
         {isHidden && (
-          <span className="text-[11px] text-[var(--text-muted)]">🙈 가림</span>
+          <span className="text-[11px] text-[var(--text-muted)]">숨김됨</span>
         )}
         {isDeleted && (
           <span className="text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
@@ -641,13 +641,13 @@ function CommentItem({
                 {canModerate && comment.status === "visible" && (
                   <button
                     type="button"
-                    className="block w-full px-3 py-1.5 text-left text-[13px] hover:bg-[var(--bg-soft)]"
+                    className="block w-full px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-soft)]"
                     onClick={async () => {
                       setMenuOpen(false);
                       await onPatch(comment.id, { status: "hidden" });
                     }}
                   >
-                    가림
+                    숨김
                   </button>
                 )}
                 {canModerate && isHidden && (
@@ -659,7 +659,7 @@ function CommentItem({
                       await onPatch(comment.id, { status: "visible" });
                     }}
                   >
-                    복원
+                    숨김 해제
                   </button>
                 )}
                 {canDelete && (

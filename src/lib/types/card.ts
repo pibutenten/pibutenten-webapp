@@ -44,6 +44,11 @@ export type CardData = {
   external_site_name?: string | null;
   /** 글 분류 카테고리 (Phase 2) */
   category?: string | null;
+  /** 카드 상태 (qa_status: draft/pending_review/published/archived/hidden).
+   *  Phase 8-extra (2026-05-22): admin ⋮ 메뉴의 숨김 토글 활성 조건 판정용.
+   *  일반 회원/원장 뷰에서는 RLS가 published 만 노출하므로 사실상 published.
+   *  optional — 모든 select 가 status 를 가져오진 않음. undefined 면 메뉴 미노출. */
+  status?: string | null;
   /** 의사 직함 숨김 (Phase A.2) — true면 사적 모드, "피부과 전문의" 배지 숨김 */
   hide_doctor_credential?: boolean | null;
   /** Phase 6 — 카드 하단 ref. 박스용 PubMed 단일 참고문헌. (legacy, 호환성 유지) */

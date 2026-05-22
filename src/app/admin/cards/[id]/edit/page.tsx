@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
+import { fetchAdminCardExtras } from "@/lib/admin-card-extras";
 import EditClient from "./EditClient";
 import BackButton from "@/components/BackButton";
 
@@ -39,10 +39,11 @@ export default async function AdminEditQAPage({ params }: Props) {
   const { data: qaRaw } = await supabase
     .from("cards")
     .select(
-      `id, question, answer, meta, keywords, status, type, is_pick,
-       doctor_id, video_id, like_count, view_count, created_at,
+      `id, question, answer, meta, keywords, status, type, category, is_pick,
+       doctor_id, author_id, video_id, like_count, view_count, created_at,
        external_url, external_title, external_image, external_site_name,
        pubmed_ref, pubmed_refs,
+       author:profiles!cards_author_id_profiles_fkey(id, display_name, handle, role),
        doctor:doctors(id, slug, name, branch),
        video:videos(youtube_id, youtube_url, topic, upload_date)`,
     )
@@ -59,57 +60,24 @@ export default async function AdminEditQAPage({ params }: Props) {
   // PostgREST join은 배열로 추론되므로 단일 객체로 normalize
   const card = {
     ...qaRaw,
+    author: Array.isArray(qaRaw.author) ? qaRaw.author[0] ?? null : qaRaw.author,
     doctor: Array.isArray(qaRaw.doctor) ? qaRaw.doctor[0] ?? null : qaRaw.doctor,
     video: Array.isArray(qaRaw.video) ? qaRaw.video[0] ?? null : qaRaw.video,
   } as Parameters<typeof EditClient>[0]["card"];
 
-  // 원장 목록 (doctor 변경 가능)
-  const { data: doctors } = await supabase
-    .from("doctors")
-    .select("id, slug, name, branch")
-    .order("sort_order", { ascending: true });
-
-  // 같은 doctor의 현재 Pick 개수 (5개 제한 표시)
-  let doctorPickCount = 0;
-  if (card.doctor_id) {
-    const { count } = await supabase
-      .from("cards")
-      .select("id", { count: "exact", head: true })
-      .eq("doctor_id", card.doctor_id)
-      .eq("is_pick", true);
-    doctorPickCount = count ?? 0;
-  }
-
-  // (sameVideoQaCount는 카드별 external_* 편집으로 전환 후 불필요 — 제거)
-
-  // 댓글 수 (Phase B comments 테이블 — 없으면 0)
-  let commentCount = 0;
-  try {
-    const { count } = await supabase
-      .from("comments")
-      .select("id", { count: "exact", head: true })
-      .eq("card_id", card.id)
-      .eq("status", "visible");
-    commentCount = count ?? 0;
-  } catch {
-    commentCount = 0;
-  }
+  // admin extras 통합 fetch (헬퍼 — /write/[shortcode] admin 분기와 공통)
+  const extras = await fetchAdminCardExtras(supabase, card, { isSuperAdmin });
 
   return (
     <section className="w-full py-6">
       <div className="mb-1 -ml-1"><BackButton /></div>
-      <div className="mb-5 flex items-baseline justify-between pl-1">
-        <h1 className="text-2xl font-bold text-[var(--text)]">
-          Q&A #{card.id} 편집
-        </h1>
-        
-      </div>
       <EditClient
         card={card}
-        doctors={doctors ?? []}
-        doctorPickCount={doctorPickCount}
-        commentCount={commentCount}
+        doctors={extras.doctors}
+        doctorPickCount={extras.doctorPickCount}
+        commentCount={extras.commentCount}
         canChangeAuthor={isSuperAdmin}
+        authorOptions={extras.authorOptions}
       />
     </section>
   );

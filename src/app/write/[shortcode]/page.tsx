@@ -1,10 +1,11 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import EditClient from "./EditClient";
+import UserEditClient from "./EditClient";
+import AdminEditClient from "@/app/admin/cards/[id]/edit/EditClient";
 import BackButton from "@/components/BackButton";
 import { bundleProfileFilter } from "@/lib/identity-shared";
 import { getIdentityContext } from "@/lib/identity";
+import { fetchAdminCardExtras } from "@/lib/admin-card-extras";
 
 export const dynamic = "force-dynamic";
 
@@ -122,14 +123,59 @@ export default async function PostEditPage({ params }: Props) {
   const handle = a?.handle ?? null;
   const returnUrl = handle ? `/${handle}/${shortcode}` : "/";
 
+  // admin 분기 — 같은 경로 진입이라도 super admin 은 admin extras (글쓴이 변경, 숨김,
+  // soft-delete, status 토글, LLM 태그 등) 전부 노출. 추가 풀 select 후 AdminEditClient 렌더.
+  if (isAdmin) {
+    const { data: fullRaw } = await supabase
+      .from("cards")
+      .select(
+        `id, question, answer, meta, keywords, status, type, category, is_pick,
+         doctor_id, author_id, video_id, like_count, view_count, created_at,
+         external_url, external_title, external_image, external_site_name,
+         pubmed_ref, pubmed_refs,
+         author:profiles!cards_author_id_profiles_fkey(id, display_name, handle, role),
+         doctor:doctors(id, slug, name, branch)`,
+      )
+      .eq("id", qa.id)
+      .maybeSingle();
+    if (!fullRaw) notFound();
+    const card = {
+      ...fullRaw,
+      author: Array.isArray(fullRaw.author)
+        ? fullRaw.author[0] ?? null
+        : fullRaw.author,
+      doctor: Array.isArray(fullRaw.doctor)
+        ? fullRaw.doctor[0] ?? null
+        : fullRaw.doctor,
+    } as Parameters<typeof AdminEditClient>[0]["card"];
+
+    const extras = await fetchAdminCardExtras(supabase, card, {
+      isSuperAdmin: true,
+    });
+
+    return (
+      <section className="w-full py-6">
+        <div className="mb-1 -ml-1"><BackButton /></div>
+        <AdminEditClient
+          card={card}
+          doctors={extras.doctors}
+          doctorPickCount={extras.doctorPickCount}
+          commentCount={extras.commentCount}
+          canChangeAuthor={true}
+          authorOptions={extras.authorOptions}
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="w-full py-6">
       <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold text-[var(--text)]">글 수정</h1>
-        
+
       </div>
-      <EditClient
+      <UserEditClient
         cardId={qa.id}
         type={qa.type}
         category={qa.category}

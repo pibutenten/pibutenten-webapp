@@ -1,24 +1,28 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import {
-  categoriesForRole,
-  type PostCategorySlug,
-} from "@/lib/post-category";
-import { normalizeAnswerBody } from "@/lib/normalize-body";
-import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
-import { pickHighlight } from "@/lib/card-highlight";
-import KeywordsEditor from "@/components/card-editor/KeywordsEditor";
-import PubmedRefsField, {
-  appendReferencesToBody,
-  type PubmedRefObj,
-} from "@/components/card-editor/fields/PubmedRefsField";
-import ExternalLinkField, {
-  type ExternalMeta,
-} from "@/components/card-editor/fields/ExternalLinkField";
+/**
+ * WriteClient — 새 글 작성 (`/write`) — Phase 4b 통합 wrapper (2026-05-22).
+ *
+ * 본 wrapper 책임:
+ *   - WRITE_PHRASES 헤더 카피 (5.5초 회전)
+ *   - 글쓴이 결정:
+ *     · doctor 본인 → myDoctor 자동 (UI 노출 X)
+ *     · admin → 글쓴이 dropdown (의사 9명 + 본인 관리자 명의)
+ *     · 회원 → 항상 본인 명의
+ *   - POST /api/articles 호출 + redirect
+ *
+ * UI·검증·필드는 모두 CardEditor 담당.
+ */
 
-/** 글쓰기 페이지 진입 시 랜덤 노출 카피 (꼭 공유하고 싶은 나만의 피부 비법은 베리에이션 강조) */
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import CardEditor, {
+  type CardEditorPayload,
+  type DoctorOption,
+  type SubmitAction,
+} from "@/components/card-editor/CardEditor";
+import type { PostCategorySlug } from "@/lib/post-category";
+
 const WRITE_PHRASES = [
   "유독 잘 받은 화장의 비결은..",
   "오늘 나의 스킨케어 꿀팁은?",
@@ -45,6 +49,15 @@ const WRITE_PHRASES = [
   "피부고민, 이렇게 해결했어요",
 ];
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 type Doctor = {
   id: string;
   slug: string;
@@ -52,646 +65,176 @@ type Doctor = {
   branch: string | null;
 };
 
-// post / qa 만 지원
-type WriteType = "post" | "qa";
-
 type Props = {
   role: "admin" | "doctor" | "user";
   myDoctor: { slug: string; name: string } | null;
+  /** admin 의 글쓴이 dropdown 옵션 (의사 9명). doctor 본인은 자동 myDoctor. */
   doctors: Doctor[];
   displayName: string;
-  /** /write?category=... 또는 /write?type=qa 로 진입 시 초기 카테고리 */
   initialCategory?: PostCategorySlug;
-};
-
-const TYPE_LABEL: Record<WriteType, string> = {
-  post: "포스팅",
-  qa: "Q&A",
-};
-
-// 모든 type 태그 최대 10개 (필수는 0개 — 선택)
-const KEYWORD_MIN: Record<WriteType, number> = {
-  post: 0,
-  qa: 0,
-};
-
-const KEYWORD_MAX: Record<WriteType, number> = {
-  post: 10,
-  qa: 10,
 };
 
 export default function WriteClient({
   role,
   myDoctor,
   doctors,
-  displayName,
   initialCategory,
 }: Props) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
-
-  // 카테고리 선택 — Phase 2부터 type 토글을 카테고리로 통합.
-  //   - user: review / daily / question / news
-  //   - doctor·admin: + qa
-  // 내부 type은 category에서 자동 파생 (qa → 'qa', 그 외 → 'post').
-  const availableCategories = categoriesForRole(role);
-  // initialCategory가 role 권한에 맞는지 한 번 더 검증 후 채택. 부적합 시 'doodle' 폴백
-  // (v5.2 디폴트 — 짧은 생각/메모; 사용자가 진입하자마자 무겁지 않게).
-  const safeInitial: PostCategorySlug =
-    initialCategory && availableCategories.some((c) => c.slug === initialCategory)
-      ? initialCategory
-      : "doodle";
-  const [category, setCategory] = useState<PostCategorySlug>(safeInitial);
-  const type: WriteType = category === "qa" ? "qa" : "post";
-
-  // 글쓴이 (원장 명의) — 모든 type에 공통 노출. ""=관리자 명의(admin), 원장 본인은 자기 slug 고정
-  const [authorDoctor, setAuthorDoctor] = useState<string>(
-    role === "doctor" ? (myDoctor?.slug ?? "") : "",
-  );
-
-  // 페이지 진입 시 헤더 카피 — Fisher-Yates 셔플 큐로 6초 회전 (HeroSearch 와 동일 정책).
-  // 모든 phrase 한 번씩 노출하고 큐 소진 시 재셔플 → "같은 순서" 인상 제거.
   const [headerPhrase, setHeaderPhrase] = useState(WRITE_PHRASES[0]);
+
+  // 헤더 카피 5.5초 회전 (mount-time shuffle + 순회)
   useEffect(() => {
-    function shuffle<T>(arr: T[]): T[] {
-      const a = arr.slice();
-      for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-      }
-      return a;
-    }
     let queue: string[] = shuffle(WRITE_PHRASES);
     let prev = WRITE_PHRASES[0];
-    function pickNext() {
+    setHeaderPhrase(queue[0]);
+    queue = queue.slice(1);
+    const id = window.setInterval(() => {
       if (queue.length === 0) {
         queue = shuffle(WRITE_PHRASES);
-        if (queue.length > 1 && queue[0] === prev) {
+        if (queue[0] === prev) {
           [queue[0], queue[1]] = [queue[1], queue[0]];
         }
       }
       const next = queue.shift()!;
       prev = next;
       setHeaderPhrase(next);
-    }
-    pickNext();
-    // 5.5초 인터벌 — HeroSearch 와 동일 (4초는 너무 빠름).
-    const timer = window.setInterval(pickNext, 5500);
-    return () => window.clearInterval(timer);
+    }, 5500);
+    return () => window.clearInterval(id);
   }, []);
 
-  // 통합: post + qa 공통 — 제목 / 내용 (qa는 질문 / 답변)
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  async function handleSubmit(
+    payload: CardEditorPayload,
+    action: SubmitAction,
+  ): Promise<{ ok: true; cardId: number } | { ok: false; error: string }> {
+    // status 결정 — action 기준
+    const status =
+      action === "save_draft"
+        ? "draft"
+        : action === "request_review"
+          ? "pending_review"
+          : "published";
 
-  // 공통 태그
-  const [keywords, setKeywords] = useState<string[]>([]);
+    const isQa = payload.category === "qa";
 
-  // 외부 링크 — 모든 카테고리에서 옵션. UI 는 ExternalLinkField 가 처리.
-  // (260518 Phase 1: filling state / previewVideoMeta / fillFromUrl 추출 →
-  //  src/components/card-editor/fields/ExternalLinkField.tsx)
-  const [externalUrl, setExternalUrl] = useState("");
-  const [externalMeta, setExternalMeta] = useState<ExternalMeta | null>(null);
-  const [autoTagging, setAutoTagging] = useState(false);
+    // API payload 조립 (POST /api/articles 명세)
+    const apiPayload: Record<string, unknown> = {
+      type: payload.type,
+      category: payload.category,
+      keywords: payload.keywords,
+      status,
+      hide_doctor_credential: false,
+    };
 
-  // 새소식 — 첫 댓글 동시 작성. 공유한 콘텐츠에 본인 코멘트를 함께 남기는 흐름.
-  const [firstComment, setFirstComment] = useState("");
+    // 외부 링크
+    if (payload.externalUrl) {
+      apiPayload.external_url = payload.externalUrl;
+      apiPayload.external_meta = payload.externalMeta
+        ? {
+            title: payload.externalMeta.title,
+            description: payload.externalMeta.description,
+            image: payload.externalMeta.image,
+            siteName: payload.externalMeta.siteName,
+          }
+        : null;
+    }
 
-  // Q&A 참고문헌 — 발행 시 본문 끝에 "\n\n참고문헌\n1. …\n2. …" 형식으로 append.
-  // 빈 항목은 제출 시 자동 필터. UI 와 PMID resolver 는 PubmedRefsField 가 책임.
-  // (260518 Phase 1: refResolving / extractPmid / formatPubmedRef / resolvePubmedRef
-  //  추출 → src/components/card-editor/fields/PubmedRefsField.tsx)
-  const [references, setReferences] = useState<string[]>([""]);
-  const [refsMeta, setRefsMeta] = useState<(PubmedRefObj | null)[]>([null]);
+    // 의사 명의 (admin 의 dropdown 또는 doctor 본인의 myDoctor)
+    if (payload.doctorSlug) {
+      apiPayload.doctor_slug = payload.doctorSlug;
+    }
 
-  const [error, setError] = useState<string | null>(null);
-
-  const minKw = KEYWORD_MIN[type];
-  const maxKw = KEYWORD_MAX[type];
-
-  /** 참고문헌이 있으면 본문 끝에 번호 매겨 append (Q&A 카테고리 + 비어있지 않은 항목만).
-   *  (260518 Phase 1: 본문 append 헬퍼는 PubmedRefsField 에 동일 함수가 export 됨 — 향후 통합 시 그것 사용.
-   *   현재는 normalizeAnswerBody + 빈 ref 필터링 + Q&A 카테고리 분기 결합이라 inline 유지) */
-  function bodyWithReferences(): string {
-    // D4: 빈 줄 자동 제거 (단락 구분 유지) — Q&A 편집기와 동일 규칙
-    const cleanBody = normalizeAnswerBody(body);
-    if (category !== "qa") return cleanBody;
-    const filled = references.map((r) => r.trim()).filter(Boolean);
-    if (filled.length === 0) return cleanBody;
-    const refBlock =
-      "참고문헌\n" + filled.map((r, i) => `${i + 1}. ${r}`).join("\n");
-    return `${cleanBody}\n\n${refBlock}`;
-  }
-
-  /** 작성 중 내용이 있는지 체크 — type 전환 경고용 */
-  function hasUnsavedContent(): boolean {
-    if (title.trim()) return true;
-    if (body.trim()) return true;
-    if (keywords.length > 0) return true;
-    return false;
-  }
-
-  /** 카테고리 전환 — 작성 중 내용 있으면 경고. 메시지는 CardEditor 와 통일 (260518). */
-  function changeCategory(next: PostCategorySlug) {
-    if (next === category) return;
-    if (hasUnsavedContent()) {
-      const ok = window.confirm(
-        "주의: 카테고리를 변경하면 일부 정보가 소실될 수 있습니다. 계속하시겠습니까?",
-      );
-      if (!ok) return;
-      // Q&A ↔ 그 외 type 이 바뀔 때만 본문 비움 (같은 type 안 카테고리 전환은 본문 유지)
-      const nextType: WriteType = next === "qa" ? "qa" : "post";
-      if (nextType !== type) {
-        setTitle("");
-        setBody("");
-        setKeywords([]);
+    // type 별로 필드명 다름
+    if (isQa) {
+      apiPayload.question = payload.title;
+      apiPayload.answer = payload.body;
+      if (payload.pubmedRefs.length > 0) {
+        apiPayload.pubmed_refs = payload.pubmedRefs;
+        apiPayload.pubmed_ref = payload.pubmedRefs[0];
       }
-      setError(null);
+    } else {
+      apiPayload.title = payload.title;
+      apiPayload.body = payload.body;
     }
-    setCategory(next);
-    // share 외 카테고리로 전환 시 외부 링크·첫 댓글 초기화
-    // 새소식·Q&A 외 카테고리로 전환 시 외부 링크 초기화 (둘 다 외부 URL 사용)
-    if (next !== "link" && next !== "qa") {
-      setExternalUrl("");
-      setExternalMeta(null);
-    }
-    // 첫 댓글은 새소식 전용
-    if (next !== "link") {
-      setFirstComment("");
-    }
-    // 참고문헌은 Q&A 전용
-    if (next !== "qa") {
-      setReferences([""]);
-      setRefsMeta([null]);
-    }
-  }
 
-
-  // previewVideoMeta / fillFromUrl — ExternalLinkField 컴포넌트 내부로 이동 (260518 Phase 1).
-  // 새소식 [채우기] 시 부모에 title/body/keywords 전달은 onAutoFill prop 콜백으로 처리.
-
-  /** [태그 자동 생성] — 본문(+제목+외부 메타)에서 사전 매칭으로 태그 추출 */
-  async function autoGenerateTags() {
-    setError(null);
-    setAutoTagging(true);
     try {
-      const { extractTagsFromText } = await import("@/lib/auto-tag");
-      const haystack = [
-        title,
-        body,
-        externalMeta?.title,
-        externalMeta?.description,
-      ]
-        .filter((s): s is string => Boolean(s))
-        .join("\n");
-      if (!haystack.trim()) {
-        setError("본문이나 제목을 먼저 입력해주세요.");
-        return;
-      }
-      const auto = extractTagsFromText(haystack, {
-        limit: maxKw,
-        exclude: keywords,
+      const res = await fetch("/api/articles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(apiPayload),
       });
-      if (auto.length === 0) {
-        setError("매칭되는 태그가 없어요. 직접 입력해주세요.");
-        return;
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        return { ok: false, error: data?.error ?? `HTTP ${res.status}` };
       }
-      setKeywords((prev) => {
-        const merged = [...prev];
-        for (const k of auto) {
-          if (merged.length >= maxKw) break;
-          if (!merged.includes(k)) merged.push(k);
-        }
-        return merged;
-      });
-    } finally {
-      setAutoTagging(false);
-    }
-  }
+      const data = (await res.json()) as { id: number; shortcode?: string };
 
-  function validateBeforeSubmit(forStatus: SubmitStatus): string | null {
-    if (forStatus === "draft") {
-      if (!title.trim() && !body.trim()) return "제목 또는 본문을 입력해주세요.";
-      return null;
-    }
-    // post / qa 공통: 제목 + 본문 필수 (v5.1: 칼럼 폐기)
-    if (!title.trim()) return "제목을 입력해주세요.";
-    if (!body.trim()) return "본문을 입력해주세요.";
-    const bodyLimit = 800;
-    // Q&A 참고문헌까지 합친 최종 본문 기준으로 한도 체크 (DB 저장 길이)
-    const finalLen = bodyWithReferences().length;
-    if (finalLen > bodyLimit)
-      return `본문 + 참고문헌 합쳐 최대 ${bodyLimit}자까지 가능합니다. 현재 ${finalLen}자.`;
-    return null;
-  }
-
-  type SubmitStatus = "draft" | "pending_review" | "published";
-
-  function handleSubmit(submitStatus: SubmitStatus) {
-    setError(null);
-    const ve = validateBeforeSubmit(submitStatus);
-    if (ve) {
-      setError(ve);
-      return;
-    }
-    startTransition(async () => {
-      try {
-        const payload: Record<string, unknown> = {
-          type,
-          category,
-          keywords,
-          status: submitStatus,
-          hide_doctor_credential: false,
-        };
-        // 외부 링크가 있으면 메타와 함께 전송 (Phase 3)
-        if (externalUrl.trim()) {
-          payload.external_url = externalUrl.trim();
-          if (externalMeta) {
-            payload.external_meta = {
-              title: externalMeta.title,
-              description: externalMeta.description,
-              image: externalMeta.image,
-              siteName: externalMeta.siteName,
-            };
-          }
+      // 새소식 첫 댓글
+      if (payload.firstComment && status !== "draft") {
+        try {
+          await fetch("/api/comments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cardId: data.id,
+              body: payload.firstComment,
+            }),
+          });
+        } catch {
+          /* 첫 댓글 실패해도 글 저장은 성공 */
         }
-        // 글쓴이 — admin이 본인 명의면 비움, 원장 명의면 slug 전달
-        if (role === "admin" && authorDoctor) {
-          payload.doctor_slug = authorDoctor;
-        }
-        // 원장은 항상 본인 명의 (myDoctor.slug)
-        if (role === "doctor" && myDoctor) {
-          payload.doctor_slug = myDoctor.slug;
-        }
-        if (type === "post") {
-          // post: title을 question에, body를 answer에 통일
-          // Q&A 카테고리면 본문 끝에 참고문헌 자동 append
-          payload.title = title;
-          payload.body = bodyWithReferences();
-        } else if (type === "qa") {
-          payload.question = title;
-          payload.answer = bodyWithReferences();
-        }
-
-        const res = await fetch("/api/articles", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data?.error ?? `저장 실패 (${res.status})`);
-          return;
-        }
-
-        // 새소식 — 첫 댓글이 있으면 동시 등록 (실패해도 글 저장은 유지)
-        if (
-          category === "link" &&
-          firstComment.trim() &&
-          submitStatus !== "draft" &&
-          typeof data.id === "number"
-        ) {
-          try {
-            await fetch("/api/comments", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                cardId: data.id,
-                body: firstComment.trim(),
-              }),
-            });
-          } catch {
-            /* 댓글 등록 실패 — 사용자에게 별도 안내 없이 본문만 저장 유지 */
-          }
-        }
-
-        // 저장된 상태에 따른 redirect — push 후 스크롤 맨 위로 (피드 첫 카드부터 보이게)
-        const goTop = () => {
-          if (typeof window !== "undefined") window.scrollTo({ top: 0 });
-        };
-        // v5.1: /me/qnas 폐기 — 원장 본인 글 관리는 /doctors/{slug} 본인 페이지 위젯에서.
-        // 일단 redirect:
-        //   - admin: /admin/cards (관리자 글 관리 페이지 그대로)
-        //   - doctor: /doctors/{my-slug} (본인 페이지에서 글 목록 확인)
-        //   - user/etc: / (메인 피드)
-        if (submitStatus === "draft") {
-          if (role === "admin") router.push("/admin/cards?status=draft");
-          else if (role === "doctor" && myDoctor)
-            router.push(`/doctors/${myDoctor.slug}`);
-          else router.push("/");
-          goTop();
-          return;
-        }
-        if (data.type === "qa") {
-          if (role === "admin") router.push(`/admin/cards?status=${submitStatus}`);
-          else if (role === "doctor" && myDoctor)
-            router.push(`/doctors/${myDoctor.slug}`);
-          else router.push("/");
-        } else {
-          router.push(`/`);
-        }
-        goTop();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "네트워크 오류");
       }
-    });
+
+      // Redirect — role / status / type 별
+      let redirectUrl = "/";
+      if (status === "draft") {
+        if (role === "admin") redirectUrl = "/admin/cards?status=draft";
+        else if (role === "doctor" && myDoctor)
+          redirectUrl = `/doctors/${myDoctor.slug}`;
+      } else if (isQa) {
+        redirectUrl = `/admin/cards?status=${status}`;
+      }
+      router.push(redirectUrl);
+      router.refresh();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return { ok: true, cardId: data.id };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "network" };
+    }
   }
 
-  // "검수 요청" 활성화 조건:
-  //  - 작성자(role)와 글쓴이(authorDoctor)가 다름 (예: admin이 원장 명의로 작성)
-  //  - 일반 사용자(user)는 검수 요청 비활성 (post만 가능, 자기 명의)
-  //  - 원장 본인이 본인 글 쓰는 건 본인 발행이라 검수 요청 비활성
-  const canRequestReview =
-    role === "admin" && !!authorDoctor; // admin이 원장 명의로 쓸 때만
+  // 2026-05-22: '검수 요청' 버튼 폐기 — 검수 흐름은 /admin/draft (AI Q&A 추출) 워크플로에만 존재.
+  // /write 는 즉시 발행 또는 임시 저장만.
 
-  // "발행" 활성화 조건:
-  //  - admin이 본인 명의로 → 발행
-  //  - admin이 원장 명의로 → 발행 가능 (원장 대신 즉시 발행)
-  //  - 원장이 본인 명의로 → 발행
-  //  - user → 발행 (post 한정)
-  // 결국 모두 발행 가능. canRequestReview만 분기.
-
-  // 글쓴이 라벨은 노출하지 않음 — admin도 항상 본인 명의로 작성, 원장은 본인 doctor 고정.
-  // (다른 명의로 쓰려면 해당 계정으로 로그인하면 됨)
+  // admin 만 글쓴이 dropdown — 의사 9명 + 본인 명의 옵션은 CardEditor 내부에서 추가
+  const createAuthorOptions: DoctorOption[] | undefined =
+    role === "admin"
+      ? doctors.map((d) => ({
+          id: d.id,
+          slug: d.slug,
+          name: d.name,
+          branch: d.branch,
+        }))
+      : undefined;
 
   return (
     <section className="w-full py-6">
-      {/* 헤더 카피 — 4초 회전. clamp 로 viewport 폭에 따라 폰트 자동 축소.
-          21번 — phrase 변경 시 아래에서 슬라이드 업 + fade-in. key={headerPhrase}. */}
       <h1
-        className="mb-5 overflow-hidden whitespace-nowrap text-center font-bold text-[var(--text)]"
-        style={{ fontSize: "clamp(0.95rem, 4.6vw, 1.5rem)" }}
+        key={headerPhrase}
+        className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up"
       >
-        <span
-          key={headerPhrase}
-          className="inline-block animate-[heroPhraseUp_420ms_cubic-bezier(0.2,0,0,1)_both]"
-        >
-          {headerPhrase}
-        </span>
+        {headerPhrase}
       </h1>
-
-      {/* 폼 본체 */}
-      <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
-        {/* 카테고리 선택 — 글 종류 분류. role별로 옵션 다름 */}
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold text-[var(--text)]">
-            카테고리
-          </label>
-          {/* 모바일에서 5개 카테고리 한 줄 유지 — flex-nowrap + 가로 스크롤.
-              칩 shrink-0 + whitespace-nowrap로 줄바꿈 방지. 데스크탑은 flex-wrap. */}
-          <div
-            role="radiogroup"
-            aria-label="카테고리"
-            className="-mx-1 flex flex-nowrap gap-1.5 overflow-x-auto px-1 sm:flex-wrap sm:gap-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {availableCategories.map((c) => {
-              const selected = c.slug === category;
-              return (
-                <button
-                  key={c.slug}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  aria-label={c.label}
-                  // 라디오 그룹: 비선택 항목은 키보드 탭 순서에서 제외, 선택 항목만 tabIndex=0
-                  tabIndex={selected ? 0 : -1}
-                  onClick={() => changeCategory(c.slug)}
-                  className={
-                    "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors sm:px-3.5 " +
-                    (selected
-                      ? "border-[var(--primary-light)] bg-[var(--primary-light)] text-white"
-                      : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary-light)] hover:text-[var(--primary-light-hover)]")
-                  }
-                >
-                  {c.label}
-                </button>
-              );
-            })}
-          </div>
-          {/* '사적 모드' 토글 폐기 — Phase 9에서 개발자/원장/개인 계정이 별도 profiles row로 분리됨.
-              개인 글은 user 계정으로 로그인 후 작성, 원장 글은 doctor 계정으로 작성 — 직함은 활성 ID에 종속. */}
-        </div>
-
-        {/* 외부 링크 / 영상 URL — ExternalLinkField 로 추출 (260518 Phase 1).
-            - 새소식(link): 채우기 → onAutoFill 로 title/body/keywords 자동 채움
-            - Q&A: 영상 URL 미리보기만 (본문은 사용자가 직접) */}
-        {(category === "link" || category === "qa") && (
-          <ExternalLinkField
-            url={externalUrl}
-            onUrlChange={setExternalUrl}
-            meta={externalMeta}
-            onMetaChange={setExternalMeta}
-            mode={category === "qa" ? "qa" : "link"}
-            bodyMax={800}
-            onError={setError}
-            onAutoFill={({ title: t, body: b, keywords: k }) => {
-              // 새소식 [채우기] 동작 — 사용자가 명시적으로 누른 액션이므로 항상 덮어씀
-              setTitle("");
-              setBody("");
-              setKeywords([]);
-              if (t) setTitle(t);
-              if (b) setBody(b);
-              if (k.length > 0) setKeywords(k);
-            }}
-          />
-        )}
-
-        {/* 포스팅·Q&A 통합 form — 제목 / 본문 동일 구조.
-            Q&A 카테고리만 형광펜(MarkdownBoldEditor) 사용 — 카드와 동일 시각 톤. */}
-        {(type === "post" || type === "qa") && (
-          <PostQaForm
-            title={title}
-            onTitle={setTitle}
-            body={body}
-            onBody={setBody}
-            bodyMax={800}
-            useHighlight={category === "qa"}
-          />
-        )}
-
-        {/* Q&A 카테고리 — 참고문헌 입력 (PubmedRefsField 로 추출, 260518 Phase 1) */}
-        {category === "qa" && (
-          <PubmedRefsField
-            value={references}
-            meta={refsMeta}
-            onChange={(v, m) => {
-              setReferences(v);
-              setRefsMeta(m);
-            }}
-            onError={setError}
-          />
-        )}
-
-        {/* article(칼럼) 글쓰기 진입점은 Phase 1에서 제거됨 — 카드 포스팅으로 통일 */}
-
-        {/* 공통: 태그 — maxKw=0이면 KeywordsEditor 내부에서 자동 비표시 */}
-        <KeywordsEditor
-          keywords={keywords}
-          onChange={setKeywords}
-          onError={setError}
-          max={maxKw}
-          min={minKw}
-          disabled={pending}
-        />
-
-        {/* 카테고리 안내 문구 제거 — Phase 2에서 카테고리 드롭다운으로 교체 예정 */}
-
-        {/* 새소식 — 첫 댓글 동시 작성. 위치: 태그 아래(원래 댓글이 태그 아래에 붙는 흐름과 동일). */}
-        {category === "link" && (
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-              내 코멘트{" "}
-              <span className="text-xs font-normal text-[var(--text-muted)]">
-                선택 — 글과 동시에 첫 댓글로 등록됨
-              </span>
-            </label>
-            <textarea
-              value={firstComment}
-              onChange={(e) => setFirstComment(e.target.value)}
-              placeholder="이 콘텐츠에 대한 내 생각을 짧게 남겨보세요"
-              rows={3}
-              className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary-light)] focus:outline-none"
-            />
-          </div>
-        )}
-
-        {/* 에러 */}
-        {error && (
-          <div className="rounded-[var(--radius-sm)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        {/* 액션 — 좌→우: 초기화 / 저장 / 검수 요청(admin만) / 올리기 */}
-        <div className="flex flex-wrap items-center justify-center gap-2 border-t border-[var(--border)] pt-4">
-          <button
-            type="button"
-            onClick={() => {
-              if (!title.trim() && !body.trim() && keywords.length === 0 && !externalUrl.trim()) return;
-              if (!confirm("작성 중인 내용을 모두 지우고 새로 시작할까요?")) return;
-              setTitle("");
-              setBody("");
-              setKeywords([]);
-              setExternalUrl("");
-              setExternalMeta(null);
-              setFirstComment("");
-              setReferences([""]);
-              setRefsMeta([null]);
-              setError(null);
-            }}
-            disabled={pending}
-            className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
-          >
-            초기화
-          </button>
-          {/* 저장(임시저장) — 모든 role 공통. 사용자가 글 쓰다가 새로고침/탭 닫기에도
-              본문 유실 안 되도록 회원에게도 임시저장 제공 (2026-05-15 정책 통일). */}
-          <button
-            type="button"
-            onClick={() => handleSubmit("draft")}
-            disabled={pending}
-            className="h-10 rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm hover:bg-[var(--bg-soft)] disabled:opacity-50"
-          >
-            저장
-          </button>
-          {role === "admin" && canRequestReview && (
-            <button
-              type="button"
-              onClick={() => handleSubmit("pending_review")}
-              disabled={pending}
-              className="h-10 rounded-[var(--radius-sm)] border border-amber-300 bg-amber-50 px-4 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
-              title="원장 검수 큐로 전송"
-            >
-              검수 요청
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => handleSubmit("published")}
-            disabled={pending}
-            className="h-10 rounded-[var(--radius-sm)] bg-[var(--primary-light)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
-          >
-            {pending ? "올리는 중…" : "올리기"}
-          </button>
-        </div>
-      </div>
+      <CardEditor
+        mode="create"
+        viewerRole={role}
+        initialCategory={initialCategory}
+        myDoctor={myDoctor}
+        createAuthorOptions={createAuthorOptions}
+        onSubmit={handleSubmit}
+      />
     </section>
   );
 }
-
-// ────────────────────────────────────────────────────────────
-// PostQaForm — 포스팅 + Q&A 공통: 제목 / 본문
-// ────────────────────────────────────────────────────────────
-function PostQaForm({
-  title,
-  onTitle,
-  body,
-  onBody,
-  bodyMax = 800,
-  useHighlight = false,
-}: {
-  title: string;
-  onTitle: (s: string) => void;
-  body: string;
-  onBody: (s: string) => void;
-  /** 본문 최대 글자수 — 카테고리별 다름 (새소식은 짧게). 기본 800 */
-  bodyMax?: number;
-  /** Q&A 본문은 형광펜(WYSIWYG) 사용. 기본 false (포스팅은 평문 textarea). */
-  useHighlight?: boolean;
-}) {
-  // 새로 작성하는 글은 카드 id가 아직 없으므로 제목 기반 seed → 4색 중 안정 픽
-  const highlightColor = useHighlight ? pickHighlight(title || "draft") : "";
-  // markdown 본문에서 ** 문자열 제외한 순수 글자수 (한도 비교용)
-  const bodyPlainLen = useHighlight
-    ? body.replace(/\*\*/g, "").length
-    : body.length;
-  return (
-    <>
-      <div>
-        <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-          제목
-        </label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => onTitle(e.target.value)}
-          maxLength={200}
-          className="h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-base font-medium focus:border-[var(--primary)] focus:outline-none"
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-          본문{" "}
-          <span className="text-xs font-normal text-[var(--text-muted)]">
-            ({bodyPlainLen} / {bodyMax})
-          </span>
-          {useHighlight && (
-            <span className="ml-2 text-[11px] font-normal text-[var(--text-muted)]">
-              · 텍스트 선택 후 [B] 또는 Ctrl+B 누르면 형광펜
-            </span>
-          )}
-        </label>
-        {useHighlight ? (
-          <MarkdownBoldEditor
-            value={body}
-            onChange={onBody}
-            highlightColor={highlightColor}
-            minHeight={260}
-            placeholder="답변 본문을 작성해주세요. 핵심 표현은 [B] 굵게로 형광펜 강조."
-          />
-        ) : (
-          <textarea
-            value={body}
-            onChange={(e) => onBody(e.target.value)}
-            rows={10}
-            maxLength={bodyMax}
-            className="w-full resize-y rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none"
-          />
-        )}
-      </div>
-    </>
-  );
-}
-
-
-// QaForm 제거됨 — PostQaForm으로 통합 (포스팅·Q&A 동일 구조)

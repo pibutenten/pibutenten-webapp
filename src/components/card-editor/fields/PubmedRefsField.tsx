@@ -61,12 +61,29 @@ function extractPmid(input: string): string | null {
   return null;
 }
 
+/** HTML numeric entity decode — 옛 DB 데이터(`Ta&#xef;eb` 등) 표시 시점 복원.
+ *  2026-05-22 추가. 신규 fetch 는 pubmed.ts stripTags 가 이미 decode. */
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) =>
+      String.fromCodePoint(parseInt(h, 16)),
+    )
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)));
+}
+
 /** PubmedCandidate → "Title — Authors, Journal (Year)" 형식의 한 줄 ref. */
 function formatPubmedRef(ref: PubmedCandidate): string {
-  const title = ref.title || "";
+  const title = decodeHtmlEntities(ref.title || "");
   const tail: string[] = [];
-  if (ref.authors_short) tail.push(ref.authors_short);
-  if (ref.journal) tail.push(ref.journal);
+  if (ref.authors_short) tail.push(decodeHtmlEntities(ref.authors_short));
+  if (ref.journal) tail.push(decodeHtmlEntities(ref.journal));
   const tailJoined = tail.join(", ");
   const yearPart = ref.year ? ` (${ref.year})` : "";
   if (!title && !tailJoined && !yearPart) return "";
@@ -343,10 +360,11 @@ export type PubmedRefObj = {
 };
 
 export function pubmedRefObjToString(ref: PubmedRefObj): string {
-  const title = ref.title ?? "";
+  // 옛 DB 데이터의 HTML entity decode (Ta&#xef;eb → Taïeb)
+  const title = decodeHtmlEntities(ref.title ?? "");
   const tail: string[] = [];
-  if (ref.authors_short) tail.push(ref.authors_short);
-  if (ref.journal) tail.push(ref.journal);
+  if (ref.authors_short) tail.push(decodeHtmlEntities(ref.authors_short));
+  if (ref.journal) tail.push(decodeHtmlEntities(ref.journal));
   const tailJoined = tail.join(", ");
   const yearPart = ref.year ? ` (${ref.year})` : "";
   if (!title && !tailJoined && !yearPart) return "";

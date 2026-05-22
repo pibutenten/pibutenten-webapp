@@ -118,6 +118,10 @@ function stripTags(s: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    // 2026-05-22: 16진수 numeric entity 도 decode (Ta&#xef;eb → Taïeb 같은 외국인 이름)
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
     .trim();
 }

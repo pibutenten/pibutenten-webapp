@@ -47,13 +47,14 @@ type Props = {
     body: string;
     keywords: string[];
   }) => void;
-  /** mode="link" 에서 본문 한도 (기본 800). */
+  /** mode="link" 에서 본문 한도 (기본 4000 — 2026-05-22 다른 카테고리와 통일) */
   bodyMax?: number;
   onError?: (msg: string | null) => void;
   disabled?: boolean;
 };
 
-const AUTO_TAG_MIN = 3;
+// 2026-05-22 사용자 결정: 소식공유 자동 태그를 6~7개로 (이전 3~7)
+const AUTO_TAG_MIN = 6;
 const AUTO_TAG_MAX = 7;
 
 export default function ExternalLinkField({
@@ -63,7 +64,7 @@ export default function ExternalLinkField({
   onMetaChange,
   mode,
   onAutoFill,
-  bodyMax = 800,
+  bodyMax = 4000,
   onError,
   disabled = false,
 }: Props) {
