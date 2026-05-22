@@ -10,6 +10,7 @@
  */
 import { useRouter } from "next/navigation";
 import { isPostCategorySlug, type PostCategorySlug } from "@/lib/post-category";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import CardEditor, {
   type CardEditorInitial,
   type CardEditorPayload,
@@ -116,12 +117,26 @@ export default function EditClient({
     }
   }
 
+  // 일반 사용자(원장·회원) 본인 글 지우기 — soft-delete (cards.deleted_at = now()).
+  // RLS: cards_owner_update (0155) 가 same-group 작성자 UPDATE 허용.
+  async function handleOwnerDelete(): Promise<void> {
+    const sb = createSupabaseBrowserClient();
+    const { error } = await sb
+      .from("cards")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", cardId);
+    if (error) throw new Error(error.message);
+    router.push(returnUrl);
+    router.refresh();
+  }
+
   return (
     <CardEditor
       mode="edit"
       viewerRole={viewerRole}
       initialCard={initialCard}
       onSubmit={handleSubmit}
+      onOwnerDelete={handleOwnerDelete}
       returnUrl={returnUrl}
     />
   );

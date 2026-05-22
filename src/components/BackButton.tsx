@@ -35,9 +35,9 @@ export default function BackButton({
       onClick={go}
       aria-label="뒤로가기"
       title="뒤로"
-      // 화살표/텍스트 위/아래 여백 16px, 색상 #A2A6AF
+      // 화살표/텍스트 위/아래 여백 16px (총 높이 약 48px), 색상 #A2A6AF
       className={
-        "inline-flex items-center gap-1 rounded-md px-2 text-[13px] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--primary)] " +
+        "inline-flex min-h-[48px] items-center gap-1 rounded-md px-2 text-[13px] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--primary)] " +
         className
       }
       style={{ color: "#A2A6AF", paddingTop: "16px", paddingBottom: "16px" }}

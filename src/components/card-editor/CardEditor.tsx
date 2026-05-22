@@ -181,6 +181,10 @@ type Props = {
   /** create 모드 admin 만 — 검수 요청 버튼 노출 */
   showRequestReview?: boolean;
 
+  /** edit 모드 일반 사용자(원장·회원) — 본인 글 지우기 (soft-delete) 콜백.
+   *  제공되면 [지우기] 버튼 노출. admin 은 adminExtras.onSoftDelete 사용. */
+  onOwnerDelete?: () => Promise<void>;
+
   onSubmit: (
     payload: CardEditorPayload,
     action: SubmitAction,
@@ -252,6 +256,7 @@ export default function CardEditor({
   returnUrl,
   adminExtras,
   showRequestReview = false,
+  onOwnerDelete,
   onSubmit,
 }: Props) {
   const router = useRouter();
@@ -1011,15 +1016,36 @@ export default function CardEditor({
                   {pending ? "처리 중…" : "올리기"}
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => submit("save")}
-                  disabled={pending}
-                  className="h-10 rounded-md bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
-                  title="수정 사항 저장"
-                >
-                  {pending ? "처리 중…" : "올리기"}
-                </button>
+                <>
+                  {onOwnerDelete && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm("이 글을 지울까요? 복구할 수 없어요.")) return;
+                        setError(null);
+                        try {
+                          await onOwnerDelete();
+                        } catch (e) {
+                          setError(e instanceof Error ? e.message : "삭제 실패");
+                        }
+                      }}
+                      disabled={pending}
+                      className="h-10 rounded-md bg-red-300 px-5 text-sm font-semibold text-white hover:bg-red-400 disabled:opacity-50"
+                      title="이 글을 지웁니다"
+                    >
+                      지우기
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => submit("save")}
+                    disabled={pending}
+                    className="h-10 rounded-md bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+                    title="수정 사항 저장"
+                  >
+                    {pending ? "처리 중…" : "올리기"}
+                  </button>
+                </>
               )}
             </>
           ) : (
