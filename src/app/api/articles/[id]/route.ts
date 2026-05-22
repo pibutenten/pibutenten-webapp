@@ -254,9 +254,10 @@ export async function PUT(
     update.status = payload.status;
   }
   if (payload.is_pick !== undefined) {
-    if (!isAdmin) {
+    // 2026-05-22 정책: admin 또는 의사 본인 글이면 Pick 가능 (다른 의사 글 X).
+    if (!(isAdmin || isDoctorOfQa)) {
       return NextResponse.json(
-        { error: "is_pick 변경은 admin 만 가능합니다." },
+        { error: "is_pick 변경은 관리자 또는 의사 본인 글만 가능합니다." },
         { status: 403 },
       );
     }
