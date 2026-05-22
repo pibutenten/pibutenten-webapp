@@ -70,10 +70,13 @@ export default function LoginForm({ next, error: initialError, errorId }: Props)
       >
         <h2
           id="social-login-title"
-          className="mb-3 text-sm font-semibold text-[var(--text)]"
+          className="text-sm font-semibold text-[var(--text)]"
         >
           소셜로 시작하기
         </h2>
+        <p className="mb-3 text-[12px] text-[var(--text-muted)]">
+          3초만에 가입 / 로그인 — 별도 비밀번호 없이 바로 시작해요.
+        </p>
         <SocialLoginButtons next={next} />
       </section>
 

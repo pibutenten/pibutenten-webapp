@@ -1,24 +1,31 @@
 /**
- * 비로그인 사용자 흥미 점수 누적 시스템 (2026-05-21).
+ * 비로그인 사용자 흥미 점수 누적 시스템 (2026-05-21 신설, 2026-05-22 v2 개선).
  *
  * 정책:
  *   - 비로그인 사용자가 사이트와 인터랙션할수록 점수 누적 (sessionStorage).
  *   - 임계점(THRESHOLD) 도달 시 한 번만 회원가입 권유 모달 트리거 (custom event emit).
  *   - "나중에" 닫음 → localStorage 에 dismiss timestamp 저장 → 일주일 후 재노출 가능.
  *   - 로그인 사용자에게는 no-op (점수 누적 자체 안 함).
+ *   - custom event detail 에 reason 동봉 → 모달이 reason 별 카피 선택 가능.
  *
- * 점수표 (Phase 2):
- *   카드 view 1개 (4초 이상 머묾 또는 펼침) — +1  (기본)
+ * 점수표 (Phase 2 → v2 2026-05-22 조정):
+ *   - 임계점 10 → 6 (사용자 보고: "한참 읽었는데 안 뜸")
+ *   - card-view 1 → 2 (기본 신호 강화)
+ *   - dwell-2min 신규 +3 (5분 너무 늦음, 의미 있는 머묾)
+ *   - dwell-5min 5 → 4 (2분과 누적 균형)
+ *
+ *   카드 view 1개 (4초 이상 머묾 또는 펼침) — +2
  *   카드 펼침 (더보기 클릭)                — +2  (깊이 읽음)
  *   영상 보러가기 클릭                     — +3  (외부 의도)
- *   검색 1회 (q 입력 후 결과 본 경우)       — +3  (명확한 의도)
+ *   검색 1회                              — +3  (명확한 의도)
  *   카테고리 chip 클릭                     — +1  (탐색)
- *   태그 클릭 (/topics/{tag})              — +2  (깊은 탐색)
- *   페이지 navigate 1회                    — +1  (다회 페이지)
- *   5분 이상 사이트 머묾                    — +5  (강한 시간 신호)
- *   10분 이상 머묾 (5분과 별개로 추가)      — +5  (매우 강한 신호)
+ *   태그 클릭                             — +2  (깊은 탐색)
+ *   페이지 navigate                       — +1
+ *   2분 이상 (visible 누적)                — +3  (NEW)
+ *   5분 이상 (visible 누적)                — +4
+ *   10분 이상 (visible 누적)               — +5
  *
- * 임계점: 누적 ≥ 10점 → 모달 트리거 (한 세션 1회).
+ * 임계점: 누적 ≥ 6점 → 모달 트리거 (한 세션 1회).
  *
  * 좋아요/저장/공유/댓글 시도 시 = 이미 LoginPromptDialog 가 자체 트리거 (별도 처리).
  */
@@ -31,27 +38,34 @@ export type EngagementReason =
   | "chip-click"
   | "tag-click"
   | "navigate"
+  | "dwell-2min"
   | "dwell-5min"
   | "dwell-10min";
 
 export const SCORE_TABLE: Record<EngagementReason, number> = {
-  "card-view": 1,
+  "card-view": 2,
   "card-expand": 2,
   "video-click": 3,
   "search": 3,
   "chip-click": 1,
   "tag-click": 2,
   "navigate": 1,
-  "dwell-5min": 5,
+  "dwell-2min": 3,
+  "dwell-5min": 4,
   "dwell-10min": 5,
 };
 
-export const THRESHOLD = 10;
+export const THRESHOLD = 6;
 const SS_SCORE_KEY = "pibutenten:engagement-score";
 const SS_TRIGGERED_KEY = "pibutenten:engagement-triggered";
 const LS_DISMISSED_KEY = "pibutenten:engagement-dismissed-at";
 const RESET_AFTER_DAYS = 7;
 const EVENT_NAME = "pibutenten:engagement-threshold";
+
+export type EngagementEventDetail = {
+  score: number;
+  reason: EngagementReason;
+};
 
 /**
  * 비로그인 사용자 흥미 신호 누적.
@@ -90,7 +104,11 @@ export function addEngagement(reason: EngagementReason): number {
 
   if (next >= THRESHOLD) {
     sessionStorage.setItem(SS_TRIGGERED_KEY, "1");
-    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { score: next } }));
+    window.dispatchEvent(
+      new CustomEvent<EngagementEventDetail>(EVENT_NAME, {
+        detail: { score: next, reason },
+      }),
+    );
   }
   return next;
 }
