@@ -69,20 +69,37 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
   const kind = ALLOWED_KINDS.includes(kindRaw as Kind) ? (kindRaw as Kind) : null;
   if (!kind) notFound();
 
-  // PRD §C — 묶음 OR 가드 (admin or doctor admin)
-  await requireAdminPage(`/admin/stats/${kind}`);
+  const guard = await requireAdminPage(`/admin/stats/${kind}`);
   const supabase = await createSupabaseServerClient();
 
   const sp = (await searchParams) ?? {};
   const daysRaw = parseInt(sp.days ?? String(DEFAULT_DAYS), 10);
   const days = [1, 7, 30, 90, 365, 0].includes(daysRaw) ? daysRaw : DEFAULT_DAYS;
 
+  // 2026-05-22: active doctor 면 본인 글 한정 (views/likes/saves/shares/comments 5종).
+  // visitors / new-members / new-cards 는 사이트 전체 그대로 (doctor 무관 지표).
+  const isActiveDoctor =
+    guard.active?.role === "doctor" && !!guard.activeDoctorId;
+  const DOCTOR_FILTER_KINDS = new Set<Kind>([
+    "views",
+    "likes",
+    "saves",
+    "shares",
+    "comments",
+  ]);
+  const useDoctorFilter = isActiveDoctor && DOCTOR_FILTER_KINDS.has(kind);
+
   const rpc = KIND_RPCS[kind];
-  const result = await supabase.rpc(rpc, {
+  const rpcArgs: Record<string, unknown> = {
     p_days: days,
     p_limit: FIRST_PAGE_SIZE + 1,
     p_offset: 0,
-  });
+  };
+  if (useDoctorFilter) {
+    rpcArgs.p_doctor_id = guard.activeDoctorId;
+    rpcArgs.p_author_profile_id = guard.active?.profileId ?? null;
+  }
+  const result = await supabase.rpc(rpc, rpcArgs);
   let rows = (result.data ?? []) as (VisitorRow | CardRow | NewMemberRow | NewCardRow)[];
   const hasMore = rows.length > FIRST_PAGE_SIZE;
 
@@ -127,6 +144,11 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
       <div className="mb-5 pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">
           {KIND_TITLES[kind]} TOP
+          {useDoctorFilter && (
+            <span className="ml-2 align-middle text-[12px] font-medium text-[var(--primary)]">
+              내 글 한정
+            </span>
+          )}
         </h1>
         <p className="mt-1 text-xs text-[var(--text-muted)]">
           기간별 TOP 리스트 — 클릭하면 해당 사용자/글로 이동합니다.

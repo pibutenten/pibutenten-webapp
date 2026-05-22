@@ -18,15 +18,31 @@ export type DoctorKpi = {
   pending_review: number;
 };
 
-// 카드 라벨 → 클릭 시 이동할 경로
-const KIND_BY_LABEL: Record<string, string | null> = {
-  조회수: "/admin/cards?status=published",
-  댓글: "/admin/comments",
-  저장: null,
-  공유: null,
-  "내 글": "/admin/cards?status=published",
-  "검수 대기": "/admin/cards?status=pending_review",
+// 카드 라벨 → 클릭 시 이동할 경로 (2026-05-22 v3):
+//   조회/댓글/저장/공유 → /admin/stats/{kind}?days={d} (관리자 UX 동일, 본인 글 한정 자동 적용)
+//   내 글 / 검수 대기   → /admin/cards?status={x} (목록 페이지, doctor active 자동 본인 필터)
+// 0148 마이그레이션 이후 RPC 가 p_doctor_id + p_author_profile_id 받아서 자동 필터링.
+type KpiHref =
+  | { kind: "stats"; stat: "views" | "comments" | "saves" | "shares" }
+  | { kind: "cards"; status: "published" | "pending_review" }
+  | null;
+
+const KIND_BY_LABEL: Record<string, KpiHref> = {
+  조회수: { kind: "stats", stat: "views" },
+  댓글: { kind: "stats", stat: "comments" },
+  저장: { kind: "stats", stat: "saves" },
+  공유: { kind: "stats", stat: "shares" },
+  "내 글": { kind: "cards", status: "published" },
+  "검수 대기": { kind: "cards", status: "pending_review" },
 };
+
+function buildHref(target: KpiHref, days: number): string | null {
+  if (!target) return null;
+  if (target.kind === "stats") {
+    return `/admin/stats/${target.stat}?days=${days || 0}`;
+  }
+  return `/admin/cards?status=${target.status}`;
+}
 
 const PERIODS: Array<{ label: string; days: number }> = [
   { label: "24시간", days: 1 },
@@ -97,7 +113,7 @@ export default function DoctorActivityKpis({
       </div>
       <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
         {items.map((it) => {
-          const href = KIND_BY_LABEL[it.label];
+          const href = buildHref(KIND_BY_LABEL[it.label] ?? null, days);
           const cls =
             "block rounded-[var(--radius)] border bg-white p-4 transition-colors " +
             (it.highlight

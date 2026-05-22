@@ -55,11 +55,29 @@ export async function GET(
     ? Math.min(Math.max(limitRaw, 1), 100)
     : 50;
 
-  const result = await supabase.rpc(rpc, {
+  // 2026-05-22: active doctor 면 본인 글 한정 RPC 호출 (views/likes/saves/shares/comments).
+  const isActiveDoctor =
+    idCtx.active.role === "doctor" && !!idCtx.activeDoctorId;
+  const DOCTOR_FILTER_KINDS = new Set([
+    "views",
+    "likes",
+    "saves",
+    "shares",
+    "comments",
+  ]);
+  const useDoctorFilter =
+    isActiveDoctor && DOCTOR_FILTER_KINDS.has(kind);
+
+  const rpcArgs: Record<string, unknown> = {
     p_days: days,
     p_limit: limit + 1,
     p_offset: offset,
-  });
+  };
+  if (useDoctorFilter) {
+    rpcArgs.p_doctor_id = idCtx.activeDoctorId;
+    rpcArgs.p_author_profile_id = idCtx.active.profileId ?? null;
+  }
+  const result = await supabase.rpc(rpc, rpcArgs);
   if (result.error) {
     return errorResponse(result.error, "generic", `[admin/stats/${kind}] rpc`, 500);
   }
