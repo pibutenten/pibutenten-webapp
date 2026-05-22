@@ -23,12 +23,6 @@ export default function SiteFooter() {
             사이트 안내
           </Link>
           <Link
-            href="/doctors"
-            className="hover:text-[var(--primary)] hover:underline"
-          >
-            전문의
-          </Link>
-          <Link
             href="/terms"
             className="hover:text-[var(--primary)] hover:underline"
           >
@@ -56,7 +50,7 @@ export default function SiteFooter() {
             href="/report"
             className="hover:text-[var(--primary)] hover:underline"
           >
-            신고하기
+            콘텐츠 신고
           </Link>
         </nav>
       </div>
@@ -83,7 +77,7 @@ export default function SiteFooter() {
           href="/report"
           className="underline hover:text-[var(--primary)]"
         >
-          신고하기
+          콘텐츠 신고
         </Link>
       </p>
     </footer>

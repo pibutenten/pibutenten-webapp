@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import InfoPageLayout from "@/components/info/InfoPageLayout";
 
 export const metadata: Metadata = {
   title: "의료 정보 안내 — 피부텐텐",
@@ -18,10 +19,11 @@ export const metadata: Metadata = {
 
 export default function DisclaimerPage() {
   return (
-    <article className="mx-auto w-full max-w-[680px] py-2">
-      <h1 className="mb-4 text-[26px] font-bold leading-[1.35] text-[var(--text)] sm:text-[30px]">
-        의료 정보 안내
-      </h1>
+    <InfoPageLayout
+      current="disclaimer"
+      title="의료 정보 안내"
+      subtitle="피부텐텐 콘텐츠의 성격·한계·응급 대응 안내"
+    >
       <p className="mb-8 text-[14px] leading-[1.7] text-[var(--text-secondary)]">
         본 페이지는 피부텐텐 콘텐츠의 성격과 한계, 응급 상황 대응에 대해
         안내합니다. 본 안내는{" "}
@@ -121,33 +123,7 @@ export default function DisclaimerPage() {
         </p>
       </Section>
 
-      <div className="mt-10 flex flex-wrap gap-2 text-[13px]">
-        <Link
-          href="/about"
-          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-        >
-          사이트 안내
-        </Link>
-        <Link
-          href="/terms"
-          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-        >
-          이용약관
-        </Link>
-        <Link
-          href="/privacy"
-          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-        >
-          개인정보 처리방침
-        </Link>
-        <Link
-          href="/doctor-guidelines"
-          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-        >
-          의사 답변 가이드라인
-        </Link>
-      </div>
-    </article>
+    </InfoPageLayout>
   );
 }
 

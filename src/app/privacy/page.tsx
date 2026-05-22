@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import InfoPageLayout from "@/components/info/InfoPageLayout";
 
 export const metadata: Metadata = {
   title: "개인정보 처리방침",
@@ -18,16 +19,11 @@ export const metadata: Metadata = {
  */
 export default function PrivacyPage() {
   return (
-    <article className="mx-auto w-full max-w-[720px] px-4 py-6 sm:px-6">
-      <header className="mb-8">
-        <h1 className="mb-3 text-[26px] font-bold leading-[1.35] text-[var(--text)] sm:text-[30px]">
-          개인정보 처리방침
-        </h1>
-        <p className="text-[13px] text-[var(--text-muted)]">
-          시행일자: 2026년 5월 19일 · 최종 개정일: 2026년 5월 19일
-          (국외이전 고지 보완 · 탈퇴 절차 명문화)
-        </p>
-      </header>
+    <InfoPageLayout
+      current="privacy"
+      title="개인정보 처리방침"
+      subtitle="시행일자: 2026년 5월 19일 · 최종 개정일: 2026년 5월 19일 (국외이전 고지 보완 · 탈퇴 절차 명문화)"
+    >
 
       <p className="mb-8 rounded-md bg-[var(--bg-soft)] p-4 text-[14px] leading-[1.7] text-[var(--text-secondary)]">
         주식회사 진솔컴퍼니(이하 &ldquo;회사&rdquo;)는 정보주체의 자유와 권리
@@ -511,41 +507,11 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <footer className="mt-10 border-t border-[var(--border)] pt-6 text-[13px] text-[var(--text-muted)]">
-        <p>주식회사 진솔컴퍼니 · 사업자등록번호 261-86-01781</p>
-        <p>
-          본 방침은 검수·수정을 거치는 중인 초안 단계이며, 정식 법무 자문 후
-          확정될 수 있습니다. 수정 사항은 본 페이지에서 공지됩니다.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            href="/about"
-            className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-          >
-            사이트 안내
-          </Link>
-          <Link
-            href="/terms"
-            className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-          >
-            이용약관
-          </Link>
-          <Link
-            href="/privacy"
-            aria-current="page"
-            className="rounded-md border border-[var(--primary)]/40 bg-[var(--primary-soft)] px-4 py-2 font-semibold text-[var(--primary)]"
-          >
-            개인정보 처리방침
-          </Link>
-          <Link
-            href="/doctor-guidelines"
-            className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-          >
-            의사 답변 가이드라인
-          </Link>
-        </div>
-      </footer>
-    </article>
+      <p className="mt-10 text-[12px] italic text-[var(--text-muted)]">
+        본 방침은 검수·수정을 거치는 중인 초안 단계이며, 정식 법무 자문 후
+        확정될 수 있습니다. 수정 사항은 본 페이지에서 공지됩니다.
+      </p>
+    </InfoPageLayout>
   );
 }
 

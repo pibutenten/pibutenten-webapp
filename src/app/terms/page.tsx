@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import InfoPageLayout from "@/components/info/InfoPageLayout";
 
 export const metadata: Metadata = {
   title: "이용약관",
@@ -16,15 +17,11 @@ export const metadata: Metadata = {
  */
 export default function TermsPage() {
   return (
-    <article className="mx-auto w-full max-w-[720px] px-4 py-6 sm:px-6">
-      <header className="mb-8">
-        <h1 className="mb-3 text-[26px] font-bold leading-[1.35] text-[var(--text)] sm:text-[30px]">
-          이용약관
-        </h1>
-        <p className="text-[13px] text-[var(--text-muted)]">
-          시행일자: 2026년 5월 19일 (의료광고·임시조치·탈퇴 절차 명시 보강)
-        </p>
-      </header>
+    <InfoPageLayout
+      current="terms"
+      title="이용약관"
+      subtitle="시행일자: 2026년 5월 19일 (의료광고·임시조치·탈퇴 절차 명시 보강)"
+    >
 
       <Section title="제1조 (목적)">
         <p>
@@ -416,50 +413,11 @@ export default function TermsPage() {
         </p>
       </Section>
 
-      <footer className="mt-10 border-t border-[var(--border)] pt-6 text-[13px] text-[var(--text-muted)]">
-        <p className="mb-1">
-          회사 연락처:{" "}
-          <a
-            href="mailto:pibutenten@gmail.com"
-            className="text-[var(--primary)] hover:underline"
-          >
-            pibutenten@gmail.com
-          </a>
-        </p>
-        <p>주식회사 진솔컴퍼니 · 사업자등록번호 261-86-01781</p>
-        <p>
-          본 약관은 검수·수정을 거치는 중인 초안 단계이며, 정식 법무 자문 후
-          확정될 수 있습니다.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            href="/about"
-            className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-          >
-            사이트 안내
-          </Link>
-          <Link
-            href="/terms"
-            aria-current="page"
-            className="rounded-md border border-[var(--primary)]/40 bg-[var(--primary-soft)] px-4 py-2 font-semibold text-[var(--primary)]"
-          >
-            이용약관
-          </Link>
-          <Link
-            href="/privacy"
-            className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-          >
-            개인정보 처리방침
-          </Link>
-          <Link
-            href="/doctor-guidelines"
-            className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-          >
-            의사 답변 가이드라인
-          </Link>
-        </div>
-      </footer>
-    </article>
+      <p className="mt-10 text-[12px] italic text-[var(--text-muted)]">
+        본 약관은 검수·수정을 거치는 중인 초안 단계이며, 정식 법무 자문 후
+        확정될 수 있습니다.
+      </p>
+    </InfoPageLayout>
   );
 }
 

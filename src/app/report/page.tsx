@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import { ReportForm } from "./ReportForm";
+import InfoPageLayout from "@/components/info/InfoPageLayout";
 
 export const metadata: Metadata = {
   title: "콘텐츠 신고 — 피부텐텐",
@@ -19,10 +20,11 @@ export const metadata: Metadata = {
 
 export default function ReportPage() {
   return (
-    <article className="mx-auto w-full max-w-[680px] py-2">
-      <h1 className="mb-3 text-[26px] font-bold leading-[1.35] text-[var(--text)] sm:text-[30px]">
-        콘텐츠 신고
-      </h1>
+    <InfoPageLayout
+      current="report"
+      title="콘텐츠 신고"
+      subtitle="정보통신망법 제44조의2 절차에 따라 처리됩니다"
+    >
       <p className="mb-6 text-[14px] leading-[1.7] text-[var(--text-secondary)]">
         피부텐텐의 게시물·댓글이 본 서비스의{" "}
         <Link
@@ -67,6 +69,6 @@ export default function ReportPage() {
           개시합니다.
         </p>
       </section>
-    </article>
+    </InfoPageLayout>
   );
 }

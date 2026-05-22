@@ -4,6 +4,7 @@ import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildDoctorReference } from "@/lib/schema/doctor";
+import InfoPageLayout from "@/components/info/InfoPageLayout";
 
 export const dynamic = "force-dynamic";
 
@@ -146,15 +147,16 @@ export default async function AboutPage() {
   };
 
   return (
-    <article className="mx-auto w-full max-w-[680px] py-2">
+    <InfoPageLayout
+      current="about"
+      title="사이트 안내"
+      subtitle="피부과 전문의가 함께 만드는 피부 미용 커뮤니티"
+    >
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
 
-      <h1 className="mb-4 text-[26px] font-bold leading-[1.35] text-[var(--text)] sm:text-[30px]">
-        사이트 안내
-      </h1>
       <p className="mb-8 text-[15px] leading-[1.7] text-[var(--text-secondary)]">
         피부텐텐은 피부과 전문의{" "}
         <Link
@@ -311,34 +313,7 @@ export default async function AboutPage() {
         </ul>
       </Section>
 
-      <div className="mt-10 flex flex-wrap gap-2 text-[13px]">
-        <Link
-          href="/about"
-          aria-current="page"
-          className="rounded-md border border-[var(--primary)]/40 bg-[var(--primary-soft)] px-4 py-2 font-semibold text-[var(--primary)]"
-        >
-          사이트 안내
-        </Link>
-        <Link
-          href="/terms"
-          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-        >
-          이용약관
-        </Link>
-        <Link
-          href="/privacy"
-          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-        >
-          개인정보 처리방침
-        </Link>
-        <Link
-          href="/doctor-guidelines"
-          className="rounded-md border border-[var(--border)] px-4 py-2 hover:border-[var(--primary)] hover:text-[var(--primary)]"
-        >
-          의사 답변 가이드라인
-        </Link>
-      </div>
-    </article>
+    </InfoPageLayout>
   );
 }
 
