@@ -481,36 +481,122 @@ function CommentItem({
 
   return (
     <div
-      className="rounded-md px-0 py-1"
+      className={
+        dimmed ? "rounded-md px-2 py-1.5" : "rounded-md px-0 py-1"
+      }
       style={
         dimmed
-          ? { backgroundColor: "#F5F5F5", color: "#888" }
+          ? { backgroundColor: "#EEEEEE", color: "#888" }
           : undefined
       }
     >
-      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[13px]">
+      {/* 새 레이아웃: 메타(시간·답글·♡·⋮)는 우측 float, 닉네임+본문은 inline 텍스트로 흐름.
+          본문이 길어지면 자연 wrap 으로 둘째 줄이 닉네임과 동일한 좌측 라인에서 시작.
+          닉네임 ↔ 본문 5px / 메타 사이 간격 2px·5px·2px·8px. */}
+      <div className="text-[13px] leading-[1.5]" style={{ display: "flow-root" }}>
+        {/* 메타 — float-right. 텍스트 흐름이 좌측부터 채워지고 끝나면 둘째 줄은 좌단으로 wrap. */}
+        <div className="float-right ml-2 inline-flex items-center whitespace-nowrap">
+          <span className="text-[11px] text-[var(--text-muted)]">
+            <RelativeTime iso={comment.created_at} />
+          </span>
+          {isHidden && (
+            <span className="ml-1 text-[11px] text-[var(--text-muted)]">숨김됨</span>
+          )}
+          {isDeleted && (
+            <span className="ml-1 text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
+          )}
+          {/* 답글 — root 댓글에만 (시간 → 가온점: 2px, 가온점 → 답글: 5px) */}
+          {!isReply && onReplyClick && !isDeleted && (
+            <>
+              <span
+                style={{ marginLeft: "2px" }}
+                className="inline-flex items-center text-[11px] leading-none text-[var(--text-muted)]"
+                aria-hidden
+              >
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={onReplyClick}
+                style={{ marginLeft: "5px" }}
+                className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
+              >
+                {isReplying ? "답글 취소" : "답글"}
+              </button>
+            </>
+          )}
+          {/* 좋아요 — 답글 → ♡: 2px */}
+          {!isDeleted && (
+            <button
+              type="button"
+              onClick={toggleLike}
+              disabled={likePending}
+              aria-label={liked ? "좋아요 취소" : "좋아요"}
+              style={{ marginLeft: "2px" }}
+              className={
+                "inline-flex items-center gap-0.5 text-[11px] transition-colors " +
+                (liked
+                  ? "text-[var(--accent)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--accent)]")
+              }
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill={liked ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-[12px] w-[12px]"
+                aria-hidden
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+              {likeCount > 0 && <span>{likeCount}</span>}
+            </button>
+          )}
+
+          {showMenu && (
+            <button
+              ref={menuTriggerRef}
+              type="button"
+              aria-label="메뉴"
+              style={{ marginLeft: "8px" }}
+              className="px-1 text-[16px] leading-none text-[var(--text-muted)] hover:text-[var(--text)]"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (menuOpen) setMenuOpen(false);
+                else openMenu();
+              }}
+            >
+              ⋮
+            </button>
+          )}
+        </div>
+
+        {/* 닉네임 */}
         {profileLink ? (
           <Link
             href={profileLink}
-            className="whitespace-nowrap font-bold text-[var(--text)] hover:text-[var(--primary)] hover:underline"
+            className="font-bold text-[var(--text)] hover:text-[var(--primary)] hover:underline"
             style={dimmed ? { color: "#888" } : undefined}
           >
             {displayName}
           </Link>
         ) : (
           <span
-            className="whitespace-nowrap font-bold text-[var(--text)]"
+            className="font-bold text-[var(--text)]"
             style={dimmed ? { color: "#888" } : undefined}
           >
             {displayName}
           </span>
         )}
-        {/* 원장님은 verified ✓ 만 표시 — 관리자 배지는 미니멀 위해 생략 */}
+        {/* 원장님 verified ✓ */}
         {isAuthorDoctor && (
           <svg
             viewBox="0 0 12 12"
             fill="none"
-            className="h-[12px] w-[12px]"
+            className="ml-0.5 inline-block h-[12px] w-[12px] align-middle"
             aria-label="피부과 전문의"
           >
             <path
@@ -523,163 +609,85 @@ function CommentItem({
             />
           </svg>
         )}
-        {/* 본문 — 닉네임 옆에 inline. 사용자 요청:
-            - 본문이 길면 자연 wrap, 둘째 줄은 본문 영역 좌측부터 시작
-            - 앞뒤 공백/개행 trim + 내부 연속 whitespace 단일 공백 압축 */}
+        {/* 본문 — 닉네임 ↔ 본문 5px. 둘째 줄부터 좌측 0 에서 시작 (들여쓰기 없음). */}
         {!editing && (
           <span
-            className="min-w-0 flex-1 whitespace-normal break-words leading-[1.5] text-[13px] text-[var(--text-secondary)]"
-            style={dimmed ? { color: "#888" } : undefined}
+            style={{ marginLeft: "5px" }}
+            className="text-[13px] text-[var(--text-secondary)]"
           >
             {isDeleted
               ? "(삭제된 댓글이에요)"
               : comment.body.replace(/\s+/g, " ").trim()}
           </span>
         )}
-        {/* 날짜 — 앞 가온점 제거 (2026-05-20). 답글과의 사이 가온점은 별도 span 으로 분리. */}
-        <span className="text-[11px] text-[var(--text-muted)]">
-          <RelativeTime iso={comment.created_at} />
-        </span>
-        {isHidden && (
-          <span className="text-[11px] text-[var(--text-muted)]">숨김됨</span>
-        )}
-        {isDeleted && (
-          <span className="text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
-        )}
-        {/* 답글 버튼 — 헤더 라인에 inline (root 댓글에만).
-            날짜 ↔ 답글 사이 가온점: 별도 span 으로 분리해 세로 중앙 정렬 (이전엔 "·"가
-            답글 텍스트 베이스라인에 붙어 위로 떠 보였음). leading-none 으로 폰트 박스
-            높이 무력화 후 inline-flex items-center 로 정확히 가운데. */}
-        {!isReply && onReplyClick && !isDeleted && (
-          <>
-            <span
-              className="inline-flex items-center text-[11px] leading-none text-[var(--text-muted)]"
-              aria-hidden
-            >
-              ·
-            </span>
-            <button
-              type="button"
-              onClick={onReplyClick}
-              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
-            >
-              {isReplying ? "답글 취소" : "답글"}
-            </button>
-          </>
-        )}
-        {/* 좋아요 (root + 답글 모두). 미니멀 inline 하트. */}
-        {!isDeleted && (
-          <button
-            type="button"
-            onClick={toggleLike}
-            disabled={likePending}
-            aria-label={liked ? "좋아요 취소" : "좋아요"}
-            className={
-              "inline-flex items-baseline gap-0.5 text-[11px] transition-colors " +
-              (liked
-                ? "text-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--accent)]")
-            }
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill={liked ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-[12px] w-[12px]"
-              style={{ transform: "translateY(2px)" }}
-              aria-hidden
-            >
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-            {likeCount > 0 && <span>{likeCount}</span>}
-          </button>
-        )}
 
-        {showMenu && (
-          <div className="ml-auto">
-            <button
-              ref={menuTriggerRef}
-              type="button"
-              aria-label="메뉴"
-              className="px-1 text-[16px] leading-none text-[var(--text-muted)] hover:text-[var(--text)]"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (menuOpen) setMenuOpen(false);
-                else openMenu();
-              }}
-            >
-              ⋮
-            </button>
-            {menuOpen && menuPos && typeof document !== "undefined" &&
-              createPortal(
-                <div
-                  ref={menuPanelRef}
-                  style={{
-                    position: "absolute",
-                    top: menuPos.top,
-                    left: menuPos.left,
-                  }}
-                  className="z-[200] min-w-[120px] overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                {canEdit && !isDeleted && (
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-1.5 text-left text-[13px] hover:bg-[var(--bg-soft)]"
-                    onClick={() => {
-                      setEditing(true);
-                      setEditBody(comment.body);
-                      setMenuOpen(false);
-                    }}
-                  >
-                    수정
-                  </button>
-                )}
-                {canModerate && comment.status === "visible" && (
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-soft)]"
-                    onClick={async () => {
-                      setMenuOpen(false);
-                      await onPatch(comment.id, { status: "hidden" });
-                    }}
-                  >
-                    숨김
-                  </button>
-                )}
-                {canModerate && isHidden && (
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-1.5 text-left text-[13px] hover:bg-[var(--bg-soft)]"
-                    onClick={async () => {
-                      setMenuOpen(false);
-                      await onPatch(comment.id, { status: "visible" });
-                    }}
-                  >
-                    숨김 해제
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    className="block w-full px-3 py-1.5 text-left text-[13px] text-red-600 hover:bg-red-50"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onDelete(comment.id);
-                    }}
-                  >
-                    삭제
-                  </button>
-                )}
-                </div>,
-                document.body,
-              )}
-          </div>
-        )}
       </div>
+
+      {/* 메뉴 panel — Portal (트리거 버튼은 위 float-right div 안에 있음) */}
+      {showMenu && menuOpen && menuPos && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={menuPanelRef}
+            style={{
+              position: "absolute",
+              top: menuPos.top,
+              left: menuPos.left,
+            }}
+            className="z-[200] min-w-[120px] overflow-hidden rounded-md border border-[var(--border)] bg-white shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {canEdit && !isDeleted && (
+              <button
+                type="button"
+                className="block w-full px-3 py-1.5 text-left text-[13px] hover:bg-[var(--bg-soft)]"
+                onClick={() => {
+                  setEditing(true);
+                  setEditBody(comment.body);
+                  setMenuOpen(false);
+                }}
+              >
+                수정
+              </button>
+            )}
+            {canModerate && comment.status === "visible" && (
+              <button
+                type="button"
+                className="block w-full px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-soft)]"
+                onClick={async () => {
+                  setMenuOpen(false);
+                  await onPatch(comment.id, { status: "hidden" });
+                }}
+              >
+                숨김
+              </button>
+            )}
+            {canModerate && isHidden && (
+              <button
+                type="button"
+                className="block w-full px-3 py-1.5 text-left text-[13px] hover:bg-[var(--bg-soft)]"
+                onClick={async () => {
+                  setMenuOpen(false);
+                  await onPatch(comment.id, { status: "visible" });
+                }}
+              >
+                해제
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                className="block w-full px-3 py-1.5 text-left text-[13px] text-red-600 hover:bg-red-50"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDelete(comment.id);
+                }}
+              >
+                삭제
+              </button>
+            )}
+          </div>,
+          document.body,
+        )}
 
       {/* 본문 / 수정 폼 */}
       {editing ? (
@@ -769,13 +777,19 @@ function CommentForm({
     return () => window.clearTimeout(id);
   }, [disableAutoFocus]);
 
+  const submitDisabled = submitting || !body.trim();
+
   return (
-    /* 7번 fix — 댓글 입력 박스 양 끝 둥글게(pill) + 엔터 버튼 위치 정렬.
-       - 컨테이너 rounded-full border 로 양 끝 원형, textarea + 버튼 통합 모양
-       - 버튼 높이 = textarea 높이 (h-9 동일), 컨테이너 오른쪽 안쪽에 패딩으로 분리
-       - disabled 색 — 옅은 primary/45 → 활성과 대비 줄임 */
+    /* 댓글 입력 박스 (스펙):
+       - R: 고정 20px (textarea 높이 늘어나도 모서리 R 보존, 원형으로 변형되지 않음)
+       - 테두리: #DCE3E7 / 1px (포커스 시 primary)
+       - 높이: 40px (textarea가 늘면 컨테이너도 늘어남)
+       - 폰트 13pt, placeholder 색 #A2A6AF
+       - 텍스트 세로 중앙 정렬 (line-height + 수직 padding 으로 정확히 40px)
+       - 등록 버튼: comment_btn_enabled / disabled SVG 1:1 사용 (28×28) */
     <div
-      className="flex items-stretch gap-1 rounded-full border border-[var(--border)] bg-white pl-1 pr-1 focus-within:border-[var(--primary)]"
+      className="flex items-center gap-1 rounded-[20px] border bg-white pl-1 pr-1 min-h-[40px] focus-within:border-[var(--primary)]"
+      style={{ borderColor: "#DCE3E7", borderWidth: "1px" }}
     >
       <div className="relative flex-1">
         <textarea
@@ -804,12 +818,12 @@ function CommentForm({
           placeholder={placeholder ?? "댓글을 입력하세요"}
           rows={1}
           maxLength={2000}
-          // 사용자 보고: 입력창 + 안내 텍스트가 카드 본문 대비 커보임 → 12px 로 축소.
-          // pill 컨테이너 안에 들어가므로 자체 테두리 제거, 안쪽 패딩만.
+          // 폰트 13pt, line-height 20px + py 10px = 단일 라인 시 정확히 40px (컨테이너 높이와 일치 → 세로 중앙)
           className={
-            "w-full resize-none overflow-hidden border-0 bg-transparent px-3 py-2 text-[12px] leading-[1.4] focus:outline-none focus:ring-0 " +
+            "block w-full resize-none overflow-hidden border-0 bg-transparent px-3 text-[13px] leading-[20px] placeholder:text-[#A2A6AF] focus:outline-none focus:ring-0 " +
             (body.length >= 1500 ? "pr-14 pb-5" : "")
           }
+          style={{ paddingTop: "10px", paddingBottom: "10px" }}
         />
         {/* 글자수 카운트 — 1500자 이상부터만 노출 (한도 임박 알림) */}
         {body.length >= 1500 && (
@@ -823,15 +837,14 @@ function CommentForm({
           </span>
         )}
       </div>
-      {/* 등록 — 위 화살표 아이콘. pill 컨테이너 안 오른쪽, 입력창 높이와 정렬.
-          self-center 로 multi-line 시 세로 중앙. h-8 w-8 = 32×32 (컨테이너 내부 padding 고려).
-          disabled — 옅은 primary/45 로 활성과 색 대비 줄임 (사용자: 차이 너무 커보임). */}
+      {/* 등록 — comment_btn SVG 1:1 사용 (28×28). disabled 상태별 SVG 교체.
+          self-center 로 multi-line 시 세로 중앙 유지. */}
       <button
         type="button"
         aria-label="등록"
         title="등록"
-        className="self-center shrink-0 my-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:bg-[var(--primary)]/45 disabled:text-white/80"
-        disabled={submitting || !body.trim()}
+        className="self-center shrink-0 flex h-7 w-7 items-center justify-center disabled:cursor-not-allowed"
+        disabled={submitDisabled}
         onPointerDown={(e) => {
           // 한글 IME 조합 종료 강제 — composition 이 끝나야 body 가 갱신되고 disabled 해제됨
           const ta = textareaRef.current;
@@ -839,7 +852,6 @@ function CommentForm({
             ta.blur();
             ta.focus();
           }
-          // 클릭이 막히지 않도록 약간 지연 후 onClick 으로 처리됨
           void e;
         }}
         onClick={() => {
@@ -850,19 +862,19 @@ function CommentForm({
         {submitting ? (
           <span className="text-[12px]">…</span>
         ) : (
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4"
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={
+              submitDisabled
+                ? "/icons/comment_btn_disabled.svg"
+                : "/icons/comment_btn_enabled.svg"
+            }
+            alt=""
+            width={28}
+            height={28}
+            className="h-7 w-7"
             aria-hidden
-          >
-            <path d="M12 19V5" />
-            <path d="M5 12l7-7 7 7" />
-          </svg>
+          />
         )}
       </button>
     </div>

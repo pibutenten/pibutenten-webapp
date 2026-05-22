@@ -46,11 +46,23 @@ export default function CardMedia({ card, onWatchClick }: Props) {
             // 영상 보러가기 클릭 = 조회수 +1 (recordView가 session dedup + trigger)
             onWatchClick?.();
           }}
-          className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]/60 hover:text-[var(--primary)]"
+          // 좌측 padding 제거 — 유튜브 아이콘 시작점이 본문 시작점과 일치하도록 (사용자 요청)
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md py-0.5 font-medium transition-colors hover:bg-[var(--bg-soft)]/60"
+          style={{ color: "#474B4C" }}
         >
-          <span style={{ color: "#FF0000" }}>▶</span> 영상 보러가기
+          {/* 유튜브 심볼 — youtube.svg 1:1 사용 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icons/youtube.svg"
+            alt=""
+            width={17}
+            height={12}
+            className="h-3 w-auto"
+            aria-hidden
+          />
+          영상 보러가기
           {tsec !== null && (
-            <span className="text-[11px] text-[var(--text-muted)]">
+            <span className="text-[11px]" style={{ color: "#474B4C" }}>
               {formatTimestamp(tsec)}~
             </span>
           )}

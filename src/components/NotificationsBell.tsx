@@ -82,14 +82,14 @@ export default function NotificationsBell() {
       href="/notifications"
       aria-label="알림"
       title="알림"
-      className="relative flex items-center gap-1.5 rounded-md p-2 text-[var(--text)] transition-colors hover:text-[var(--primary)]"
+      className="relative flex min-h-[44px] items-center gap-1.5 rounded-md p-3 text-[var(--text)] sm:min-h-0 sm:p-2"
     >
       <BellIcon />
       {unread > 0 && (
         <span
           aria-label={`미확인 알림 ${unread}개`}
           // HOT 라벨과 동일 핑크 (#F48FB1) — 톤앤매너 일관성
-          className="absolute -right-0.5 -top-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-[18px] text-white"
+          className="absolute right-1 top-1 inline-flex min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-[18px] text-white sm:-right-0.5 sm:-top-0.5"
           style={{ backgroundColor: "#F48FB1" }}
         >
           {unread > 99 ? "99+" : unread}
@@ -100,20 +100,16 @@ export default function NotificationsBell() {
 }
 
 function BellIcon() {
+  // 디자인 SVG(18×18) 1:1 사용. 활성/비활성 색 변화 없음 (자체 #474B4C 고정).
   return (
-    <svg
-      width={20}
-      height={20}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/icons/ic_nav_bell.svg"
+      alt=""
+      width={18}
+      height={18}
+      className="h-[18px] w-[18px]"
       aria-hidden
-    >
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
+    />
   );
 }

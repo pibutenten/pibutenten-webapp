@@ -127,7 +127,7 @@ export default function CardHeader({
         <div className="pointer-events-none absolute right-4 top-0 z-10 flex gap-1">
           {isNew && (
             <span
-              className="inline-flex items-center rounded-b-md px-2 pt-0.5 pb-1 text-[10px] font-bold leading-none tracking-wider text-white"
+              className="inline-flex items-center rounded-b-md px-2 py-1 text-[10px] font-bold leading-none tracking-wider text-white"
               style={{ backgroundColor: "#81C784" }}
             >
               NEW
@@ -135,7 +135,7 @@ export default function CardHeader({
           )}
           {isHot && (
             <span
-              className="inline-flex items-center rounded-b-md px-2 pt-0.5 pb-1 text-[10px] font-bold leading-none tracking-wider text-white"
+              className="inline-flex items-center rounded-b-md px-2 py-1 text-[10px] font-bold leading-none tracking-wider text-white"
               style={{ backgroundColor: "#F48FB1" }}
             >
               HOT
@@ -143,7 +143,7 @@ export default function CardHeader({
           )}
           {isPick && (
             <span
-              className="inline-flex items-center rounded-b-md px-2 pt-0.5 pb-1 text-[10px] font-bold leading-none tracking-wider text-white"
+              className="inline-flex items-center rounded-b-md px-2 py-1 text-[10px] font-bold leading-none tracking-wider text-white"
               style={{ backgroundColor: "var(--accent-pick)" }}
             >
               Pick
@@ -199,7 +199,7 @@ export default function CardHeader({
                   }}
                   className="block w-full cursor-pointer px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-soft)]"
                 >
-                  {isHidden ? "숨김 해제" : "숨김"}
+                  {isHidden ? "해제" : "숨기기"}
                 </button>
               )}
               <button

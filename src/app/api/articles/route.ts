@@ -152,13 +152,14 @@ export async function POST(req: Request) {
   }
 
   // 카테고리 결정 — payload.category 우선, 없으면 type에서 자동 매핑.
-  // v5.1+: 5개 카테고리 qa/tip/diary/ask/link (share → link 슬러그 변경, 라벨 '공유하기' 유지)
-  const VALID_CATEGORIES = ["qa", "tip", "diary", "ask", "link"];
+  // v5.2: 6개 카테고리 qa/tip/diary/ask/link/doodle (doodle=끄적끄적)
+  //   ※ 2026-05-22 fix: 이전엔 'doodle' 누락으로 끄적끄적 글이 'diary'로 잘못 저장되던 버그.
+  const VALID_CATEGORIES = ["qa", "tip", "diary", "ask", "link", "doodle"];
   let category: string;
   if (payload.category && VALID_CATEGORIES.includes(payload.category)) {
     category = payload.category;
   } else {
-    category = t === "qa" ? "qa" : "diary";
+    category = t === "qa" ? "qa" : "doodle";
   }
   // user role은 category='qa' 사용 불가 (type=post + category=qa 우회 차단)
   if (category === "qa" && role !== "admin" && role !== "doctor") {

@@ -973,14 +973,7 @@ export default function CardEditor({
         <div className="flex flex-wrap items-center justify-center gap-2 border-t border-[var(--border)] pt-4">
           {mode === "edit" ? (
             <>
-              <button
-                type="button"
-                onClick={cancelEdit}
-                disabled={pending}
-                className="h-10 rounded-md bg-gray-300 px-5 text-sm font-semibold text-white hover:bg-gray-400 disabled:opacity-50"
-              >
-                취소
-              </button>
+              {/* 수정 모드 — 취소 제거. 관리자: 숨기기 / 지우기 / 올리기 / (해제). 일반(원장·회원): 올리기만. */}
               {isAdminMode && adminExtras?.canHide && (status === "published" || status === "hidden") && (
                 <button
                   type="button"
@@ -993,7 +986,7 @@ export default function CardEditor({
                       : "글을 숨김 (관리자/작성자/원장 외 비공개)"
                   }
                 >
-                  {status === "hidden" ? "숨김 해제" : "숨김"}
+                  {status === "hidden" ? "해제" : "숨기기"}
                 </button>
               )}
               {isAdminMode && adminExtras?.enableSoftDelete && (
@@ -1004,18 +997,18 @@ export default function CardEditor({
                   className="h-10 rounded-md bg-red-300 px-5 text-sm font-semibold text-white hover:bg-red-400 disabled:opacity-50"
                   title="이 카드 삭제 (복구 가능)"
                 >
-                  삭제
+                  지우기
                 </button>
               )}
               {isAdminMode ? (
                 <button
                   type="button"
                   onClick={() => submit("publish")}
-                  disabled={pending || status === "published"}
+                  disabled={pending}
                   className="h-10 rounded-md bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
-                  title="발행 상태로 저장"
+                  title="수정 사항을 적용하고 발행"
                 >
-                  {pending ? "처리 중…" : "발행"}
+                  {pending ? "처리 중…" : "올리기"}
                 </button>
               ) : (
                 <button
@@ -1023,43 +1016,23 @@ export default function CardEditor({
                   onClick={() => submit("save")}
                   disabled={pending}
                   className="h-10 rounded-md bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+                  title="수정 사항 저장"
                 >
-                  {pending ? "저장 중…" : "저장"}
+                  {pending ? "처리 중…" : "올리기"}
                 </button>
               )}
             </>
           ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => submit("save_draft")}
-                disabled={pending}
-                className="h-10 rounded-md border border-[var(--border)] px-4 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
-                title="발행하지 않고 임시 저장 (status=draft)"
-              >
-                저장
-              </button>
-              {showRequestReview && (
-                <button
-                  type="button"
-                  onClick={() => submit("request_review")}
-                  disabled={pending}
-                  className="h-10 rounded-md border border-[var(--primary-light)] bg-white px-4 text-sm font-semibold text-[var(--primary)] hover:bg-[var(--primary-soft)] disabled:opacity-50"
-                  title="원장님 검수 큐로 보냄 (status=pending_review)"
-                >
-                  검수 요청
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => submit("publish")}
-                disabled={pending}
-                className="h-10 rounded-md bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
-                title="즉시 발행 (status=published)"
-              >
-                {pending ? "처리 중…" : "올리기"}
-              </button>
-            </>
+            // 일반 사용자: '올리기' 버튼만 노출 (저장/검수요청 제거 — 사용자 요청)
+            <button
+              type="button"
+              onClick={() => submit("publish")}
+              disabled={pending}
+              className="h-10 rounded-md bg-[var(--primary)] px-5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+              title="즉시 발행 (status=published)"
+            >
+              {pending ? "처리 중…" : "올리기"}
+            </button>
           )}
         </div>
 

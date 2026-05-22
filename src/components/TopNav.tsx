@@ -41,48 +41,29 @@ type TopNavProps = {
   session: SessionInfo;
 };
 
+// 우상단 네비 아이콘 — 디자인 SVG(18×18) 1:1 사용. 활성/비활성 색 변화 없음 (자체 #474B4C 고정).
 const SearchIcon = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-5 w-5"
+  // eslint-disable-next-line @next/next/no-img-element
+  <img
+    src="/icons/ic_nav_search.svg"
+    alt=""
+    width={18}
+    height={18}
+    className="h-[18px] w-[18px]"
     aria-hidden="true"
-  >
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.3-4.3" />
-  </svg>
+  />
 );
 
-/**
- * 전문의 — 사람(머리+어깨) 위에 학사모. 본인 아이콘(UserIcon)과 동일 비율 유지.
- *  - 어깨: UserIcon과 정확히 같은 좌표 (x=4~20, y=15~21)
- *  - 머리: r=3.5 (UserIcon r=4보다 살짝 작아 학사모와 균형)
- *  - 학사모: 상단 y=3~8 영역에 얇게
- */
 const DoctorIcon = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-5 w-5"
+  // eslint-disable-next-line @next/next/no-img-element
+  <img
+    src="/icons/ic_nav_doctor.svg"
+    alt=""
+    width={18}
+    height={18}
+    className="h-[18px] w-[18px]"
     aria-hidden="true"
-  >
-    {/* 학사모 윗면 — 얇은 마름모 */}
-    <path d="M3.5 5.5l8.5-2.5 8.5 2.5-8.5 2.5z" />
-    {/* 우측 술띠 */}
-    <path d="M20.5 5.5v3" />
-    {/* 머리 */}
-    <circle cx="12" cy="12" r="3.5" />
-    {/* 어깨 — UserIcon과 동일 좌표 */}
-    <path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2" />
-  </svg>
+  />
 );
 
 function buildNavItems(_hasSession: boolean): NavItem[] {
@@ -240,7 +221,7 @@ export default function TopNav({ session }: TopNavProps) {
       className="sticky top-0 z-50 backdrop-blur"
       style={{ background: "rgba(255,255,255,0.92)" }}
     >
-      <div className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-2 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <Link
           href="/"
           aria-label="피부텐텐 홈"
@@ -265,7 +246,7 @@ export default function TopNav({ session }: TopNavProps) {
           />
         </Link>
 
-        <nav className="flex items-center gap-1 sm:gap-3">
+        <nav className="flex items-center gap-3 sm:gap-3">
           {buildNavItems(!!session).map((item) => {
             const isActive =
               !item.external &&
@@ -277,10 +258,9 @@ export default function TopNav({ session }: TopNavProps) {
               // WCAG 2.5.5 — 모바일 hit area 최소 44×44px 보장.
               // 모바일은 p-3(12px) → 20px icon + 24px = 44px. 데스크탑은 p-2(8px) 유지 (텍스트로 폭 확보됨).
               "flex min-h-[44px] items-center gap-1.5 rounded-md p-3 text-[14px] font-medium transition-colors sm:min-h-0 sm:p-2";
-            // 우상단 아이콘 색상 통일 — 활성/비활성 모두 진한색(text) 으로 (사용자 요청 9번).
-            // hover 시 brand primary 로 강조.
+            // 활성/비활성 색 변화 없음 — 아이콘 자체 색(#474B4C) 유지. 라벨 텍스트만 hover 시 primary.
             const activeCls = isActive
-              ? "text-[var(--primary)]"
+              ? "text-[var(--text)]"
               : "text-[var(--text)] hover:text-[var(--primary)]";
 
             const content = (

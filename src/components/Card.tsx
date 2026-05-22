@@ -263,7 +263,11 @@ export default function Card({
             }
           : undefined
       }
-      className="fade-in-up relative rounded-[var(--radius)] bg-white p-[18px_20px]"
+      // 숨김 상태 글 — 카드 바탕 회색 (#EEEEEE) 으로 시각적 구분 (admin 시야에서만 노출됨)
+      className={
+        "fade-in-up relative rounded-[var(--radius)] p-[18px_20px] " +
+        (isHidden ? "bg-[#EEEEEE]" : "bg-white")
+      }
     >
       <CardHeader
             card={card}
