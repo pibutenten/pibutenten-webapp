@@ -119,13 +119,18 @@ export default function EditClient({
 
   // 일반 사용자(원장·회원) 본인 글 지우기 — soft-delete (cards.deleted_at = now()).
   // RLS: cards_owner_update (0155) 가 same-group 작성자 UPDATE 허용.
+  // .select() 로 affected rows 검증 — RLS silent block 감지 (0 rows, no error).
   async function handleOwnerDelete(): Promise<void> {
     const sb = createSupabaseBrowserClient();
-    const { error } = await sb
+    const { data, error } = await sb
       .from("cards")
       .update({ deleted_at: new Date().toISOString() })
-      .eq("id", cardId);
+      .eq("id", cardId)
+      .select("id");
     if (error) throw new Error(error.message);
+    if (!data || data.length === 0) {
+      throw new Error("권한이 없어 삭제할 수 없어요 (RLS).");
+    }
     router.push(returnUrl);
     router.refresh();
   }

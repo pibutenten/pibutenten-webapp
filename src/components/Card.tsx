@@ -166,14 +166,22 @@ export default function Card({
       : "이 글을 숨김 처리할까요?\n관리자/작성자/해당 원장 외에는 보이지 않게 됩니다.";
     if (!window.confirm(confirmMsg)) return;
     const sb = createSupabaseBrowserClient();
-    const { error } = await sb
+    // .select() 로 affected rows 회수 — RLS 가 silent block 할 경우 data=[]/length=0 로 감지.
+    const { data, error } = await sb
       .from("cards")
       .update({ status: next })
-      .eq("id", card.id);
+      .eq("id", card.id)
+      .select("id");
     if (error) {
       showToast("숨김 처리 실패: " + error.message, { tone: "danger" });
       return;
     }
+    if (!data || data.length === 0) {
+      // RLS silent block — UPDATE 정책 미통과. 실제 DB 변경 없음.
+      showToast("권한이 없어 처리할 수 없어요. 본인/관리자 글만 가능합니다.", { tone: "danger" });
+      return;
+    }
+    showToast(isHidden ? "공개로 전환했어요" : "숨김 처리했어요");
     router.refresh();
   }
 
@@ -184,15 +192,24 @@ export default function Card({
       // soft-delete (260518 — 0132): hard DELETE 대신 deleted_at 시각 채움.
       // RLS 'cards_public_read' 가 deleted_at IS NULL 강제 → 즉시 모든 화면에서 사라짐.
       // admin 은 /admin/cards?status=deleted 에서 복구 가능.
-      const { error } = await sb
+      // .select() 로 affected rows 회수 — RLS silent block (0 rows, no error) 감지.
+      const { data, error } = await sb
         .from("cards")
         .update({ deleted_at: new Date().toISOString() })
-        .eq("id", card.id);
+        .eq("id", card.id)
+        .select("id");
       if (error) {
         showToast("삭제 실패: " + error.message, { tone: "danger" });
         setDeleting(false);
         return;
       }
+      if (!data || data.length === 0) {
+        // RLS silent block — UPDATE 정책 미통과. 실제 DB 변경 없음.
+        showToast("권한이 없어 삭제할 수 없어요. 본인/관리자 글만 가능합니다.", { tone: "danger" });
+        setDeleting(false);
+        return;
+      }
+      showToast("글을 삭제했어요");
       setConfirmDeleteOpen(false);
 
       // 24번 — 카드 사라지는 애니메이션 (fade-out + collapse).
