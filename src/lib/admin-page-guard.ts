@@ -73,11 +73,17 @@ export async function requireAdminPage(
   const active = await resolveActiveIdentity(supabase, user.id, user.email);
   const isDoctorAdmin = !!active?.doctorId;
 
-  // 권한 체크 —
+  // 권한 체크 (2026-05-22 active 기준 통일) —
   //   기본: super admin (묶음) OR doctor admin (active) 통과
-  //   superAdminOnly=true: super admin 만 통과 (doctor 차단; users/doctors 관리 페이지용)
+  //   superAdminOnly=true: super admin 보유 + active 가 admin role 이어야 통과.
+  //     멀티 아이디 사용자가 doctor 로 active 전환 시 admin 전용 페이지 차단됨.
   if (opts?.superAdminOnly) {
-    if (!isSuperAdmin) {
+    const isActiveAdmin = isSuperAdmin && active?.role === "admin";
+    if (!isActiveAdmin) {
+      // active 가 doctor 면 본인 대시보드로
+      if (active?.role === "doctor" && active.doctorId) {
+        redirect("/doctor");
+      }
       redirect("/login?error=관리자 권한이 필요합니다");
     }
   } else if (!isSuperAdmin && !isDoctorAdmin) {

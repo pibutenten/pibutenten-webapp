@@ -128,21 +128,24 @@ function buildQueryString(params: Record<string, string | number | undefined>): 
 export default async function AdminQAsPage({ searchParams }: Props) {
   const sp = await searchParams;
 
-  // PRD §C — 묶음 OR 가드. 권한 분기:
-  //   bundle has admin role → super admin (모든 카드)
-  //   active doctor_id 매핑 → 원장 admin (본인 doctor 카드만)
-  //   둘 다 아님            → redirect
+  // 권한 분기 (2026-05-22 active 기준 통일):
+  //   active identity = admin role    → super admin (전체 카드, 전체 원장 dropdown)
+  //   active identity = doctor + 매핑 → 본인 doctor 모드 (전체 글 안 보임, 본인만)
+  //
+  // 사용자 결정 (2026-05-22): 멀티 아이디 사용자가 doctor 로 active 전환 시
+  // super admin 권한 묶음(예: 배정민+개발자)이라도 "그 정체성" 기준으로 동작.
+  // active=배정민(doctor) 일 때 본인 글만 보여야. super admin 권한은 active=개발자(admin) 일 때만 발휘.
   const guard = await requireAdminPage("/admin/cards");
   const supabase = await createSupabaseServerClient();
-  const isSuperAdmin = guard.isSuperAdmin;
-  const isAdmin = isSuperAdmin;
+  const isActiveDoctor =
+    guard.active?.role === "doctor" && !!guard.activeDoctorId;
+  const isAdmin = guard.isSuperAdmin && !isActiveDoctor;
 
-  // 원장 admin이면 본인 doctor 정보 lookup (필터·헤더용).
-  // super admin 일 때도 active 가 doctor 면 본인 doctor slug 노출 (편의).
+  // 본인 doctor 정보 lookup — active 가 doctor 면 강제 본인 doctor 필터링용
   let ownDoctorSlug: string | null = null;
   let ownDoctorId: string | null = null;
   let ownDoctorName: string | null = null;
-  if (guard.isDoctorAdmin && guard.activeDoctorId) {
+  if (isActiveDoctor && guard.activeDoctorId) {
     const { data: d } = await supabase
       .from("doctors")
       .select("slug, id, name")

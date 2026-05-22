@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
@@ -41,6 +42,13 @@ export default async function AdminPage() {
   // PRD §C — 묶음 OR 가드. 묶음 안에 admin role profile 1개라도 있으면 super admin,
   // 또는 active 가 doctor + doctor_accounts 매핑이면 doctor admin. 그 외 차단.
   const guard = await requireAdminPage("/admin");
+
+  // 2026-05-22: active 가 doctor 면 본인 대시보드 /doctor 로 보냄 (안전망).
+  // IdentitySwitcher 가 doctor → /doctor 로 보내지만 직접 URL 입력 케이스 차단.
+  if (guard.active?.role === "doctor" && guard.activeDoctorId) {
+    redirect("/doctor");
+  }
+
   const supabase = await createSupabaseServerClient();
   const isSuperAdmin = guard.isSuperAdmin;
 
