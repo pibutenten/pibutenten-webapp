@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+  type CSSProperties,
+} from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -349,10 +355,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* 0. 프로필 사진 — SNS 프로필 디폴트 + 직접 업로드 옵션 */}
-      <Section
-        title="프로필 사진을 올려주세요!"
-        hint="SNS 프로필 사진 그대로 또는 직접 업로드"
-      >
+      <Section title="프로필 사진을 올려주세요!">
         <div className="flex items-center gap-4">
           {/* 미리보기 — 큰 원형, OAuth 사진이거나 업로드한 사진 그대로 노출 */}
           <div
@@ -401,10 +404,6 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
                 </button>
               )}
             </div>
-            <p className="mt-2 text-[11.5px] leading-[1.55] text-[var(--text-muted)]">
-              기본은 가입 시 사용한 SNS 프로필 사진이에요. 바꾸고 싶으면 직접
-              업로드하거나 사진을 찍으세요. (자동으로 256×256으로 줄여서 저장)
-            </p>
             <input
               ref={fileInputRef}
               type="file"
@@ -433,9 +432,8 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
       {/* 1. 기본정보 */}
       <Section title="본인 확인을 위한 기본 정보를 알려주세요." required>
         <p className="mb-3 rounded-md bg-[var(--bg-soft)] px-3 py-2 text-[12px] leading-[1.55] text-[var(--text-secondary)]">
-          💡 <strong>이메일·생년월일·성별은 중복 가입자 식별에만 사용됩니다.</strong>
-          {" "}프로필 등 다른 곳에는 표시되지 않으며, 한 분이 부계정으로 가입하는
-          경우 같은 분의 묶음으로 관리하기 위해 받습니다.
+          중복 가입자 식별에만 사용됩니다. 프로필에서는 연령대와 성별만
+          노출되어요.
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -558,83 +556,25 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
         </div>
       </Section>
 
-      {/* 5. 관심 키워드 — 발행 카드 keywords 카테고리별 TOP N 에서 픽 (최대 10개).
-            카테고리 탭 = /search 의 CategoryWithChips 와 동일 5개 (피부고민/리프팅/스킨부스터/홈케어/피부상식).
-            선택 시 picked 칩 강조 + 카운터 (n/10). 한도 도달 시 추가 픽 무시. */}
+      {/* 5. 관심 키워드 — /search 의 CategoryWithChips 와 동일 UI (밑줄 탭 + 그라데이션 라인 + 작은 칩 + 더보기 토글). 최대 10개. */}
       <Section
-        title="피부에 대해 궁금한 것을 골라주시면, 맞춤형 정보를 보여드릴게요."
+        title="피부에 대해 궁금한 것을 골라주시면, 맞춤형 정보를 보여드릴게요. (추후에도 언제든지 변경하실 수 있어요)"
         hint={`최대 ${INTERESTS_MAX}개 · ${procedures.length}/${INTERESTS_MAX}`}
       >
-        {/* 카테고리 탭 */}
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          {CATEGORIES.map((c) => {
-            const active = interestCategory === c.slug;
-            return (
-              <button
-                key={c.slug}
-                type="button"
-                onClick={() => setInterestCategory(c.slug)}
-                className={
-                  "rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors " +
-                  (active
-                    ? "text-white"
-                    : "bg-[var(--bg-soft)] text-[var(--text-secondary)] hover:bg-[#E5E7EB]")
-                }
-                style={active ? { backgroundColor: c.color } : undefined}
-              >
-                {c.label}
-              </button>
-            );
-          })}
-        </div>
-        {/* 칩 */}
-        <div className="flex flex-wrap gap-2">
-          {popularByCategory[interestCategory].length === 0 ? (
-            <p className="text-[12px] text-[var(--text-muted)]">
-              아직 키워드가 없어요.
-            </p>
-          ) : (
-            popularByCategory[interestCategory].map((kw) => {
-              const picked = procedures.includes(kw);
-              const limitReached =
-                !picked && procedures.length >= INTERESTS_MAX;
-              return (
-                <Chip
-                  key={kw}
-                  active={picked}
-                  onClick={() => {
-                    if (limitReached) return;
-                    setProcedures(toggle(procedures, kw));
-                  }}
-                >
-                  {kw}
-                </Chip>
-              );
-            })
-          )}
-        </div>
-        {/* 선택된 항목 미리보기 — 다른 카테고리에서 고른 것까지 한눈에 */}
-        {procedures.length > 0 && (
-          <div className="mt-3 border-t border-[var(--border)] pt-3">
-            <div className="mb-1.5 text-[11px] text-[var(--text-muted)]">
-              선택한 키워드
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {procedures.map((kw) => (
-                <button
-                  key={kw}
-                  type="button"
-                  onClick={() => setProcedures(procedures.filter((x) => x !== kw))}
-                  className="inline-flex items-center gap-1 rounded-full bg-[#9CA3AF] px-2.5 py-1 text-[12px] font-medium text-white hover:bg-[#6B7280]"
-                  title="제거"
-                >
-                  {kw}
-                  <span aria-hidden>×</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <InterestPicker
+          popularByCategory={popularByCategory}
+          activeCategory={interestCategory}
+          onCategoryChange={setInterestCategory}
+          picked={procedures}
+          onToggle={(kw) => {
+            const isPicked = procedures.includes(kw);
+            if (!isPicked && procedures.length >= INTERESTS_MAX) return;
+            setProcedures(toggle(procedures, kw));
+          }}
+          onRemove={(kw) =>
+            setProcedures(procedures.filter((x) => x !== kw))
+          }
+        />
       </Section>
 
       {/* 6. 자기소개 */}
@@ -644,7 +584,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
           onChange={(e) => setBio(e.target.value)}
           rows={2}
           maxLength={200}
-          placeholder="한 줄로 나를 소개해 주세요"
+          placeholder=""
           className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] focus:border-[var(--primary)] focus:outline-none"
         />
         <div className="mt-1 text-right text-[11px] text-[var(--text-muted)]">
@@ -691,14 +631,25 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
         {err && (
           <span className="text-[12px] font-medium text-red-600">{err}</span>
         )}
-        <button
-          type="button"
-          onClick={() => save()}
-          disabled={pending || !skinInfoConsent}
-          className="h-10 rounded-full bg-[var(--primary-light)] px-7 text-[14px] font-semibold text-white transition-all hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
-        >
-          {pending ? "저장 중…" : "저장"}
-        </button>
+        {/* 저장 버튼 — 필수 항목 모두 채워졌고 동의 체크된 경우에만 활성화.
+              필수: 이메일 형식 OK / 생년월일 (년·월·일 세 칸) / 성별 / 얼굴형 / 피부타입 / 동의. */}
+        {(() => {
+          const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+          const birthOk = !!(birthYear && birthMonth && birthDay);
+          const requiredOk =
+            emailOk && birthOk && !!gender && !!faceShape && !!skinType && skinInfoConsent;
+          const buttonDisabled = pending || !requiredOk;
+          return (
+            <button
+              type="button"
+              onClick={() => save()}
+              disabled={buttonDisabled}
+              className="h-10 rounded-full bg-[var(--primary-light)] px-7 text-[14px] font-semibold text-white transition-all hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
+            >
+              {pending ? "저장 중…" : "저장"}
+            </button>
+          );
+        })()}
       </div>
 
       {/* dedup 다이얼로그 — Phase 5-4: 식별 정보(handle/display_name) 노출 X.
@@ -772,8 +723,11 @@ function Section({
 }) {
   return (
     <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 sm:p-5">
-      <div className="mb-2.5 flex items-baseline gap-1.5">
-        <h2 className="text-sm font-bold text-[var(--text)]">{title}</h2>
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        {/* 질문체 제목 — 16px 로 키움 (이전 14px) */}
+        <h2 className="text-[16px] font-bold leading-[1.4] text-[var(--text)]">
+          {title}
+        </h2>
         {required ? (
           <span className="text-[11px] font-semibold text-[var(--primary)]">
             필수
@@ -820,5 +774,193 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * 관심 키워드 picker — /search 의 CategoryWithChips UI 재현.
+ * - 밑줄형 카테고리 탭 (5개, active 시 카테고리 색)
+ * - 탭 ↔ 칩 사이 그라데이션 라인 (양 끝 페이드)
+ * - 작은 칩 (#E8EAEE 배경 / picked = 카테고리색 + 굵게)
+ * - 모바일: 3줄(100px) collapsed / 7줄(244px) expanded
+ * - 데스크탑: 항상 3줄 (펼치기 버튼 hidden)
+ * - 선택된 키워드 미리보기 (다른 카테고리 고른 것 포함) + ✕ 제거
+ */
+function InterestPicker({
+  popularByCategory,
+  activeCategory,
+  onCategoryChange,
+  picked,
+  onToggle,
+  onRemove,
+}: {
+  popularByCategory: PopularByCategory;
+  activeCategory: CategorySlug;
+  onCategoryChange: (slug: CategorySlug) => void;
+  picked: string[];
+  onToggle: (kw: string) => void;
+  onRemove: (kw: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const outerRef = useRef<HTMLDivElement>(null);
+
+  const cat = CATEGORIES.find((c) => c.slug === activeCategory)!;
+  const allChips = popularByCategory[activeCategory] ?? [];
+
+  // 오버플로 측정 — 탭 변경/리사이즈 시 재계산
+  useLayoutEffect(() => {
+    if (!innerRef.current || !outerRef.current) return;
+    const measure = () => {
+      const inner = innerRef.current;
+      const outer = outerRef.current;
+      if (!inner || !outer) return;
+      const cs = window.getComputedStyle(outer);
+      const collapsedH = parseFloat(cs.getPropertyValue("--chips-h") || "108");
+      setHasOverflow(inner.scrollHeight > collapsedH + 1);
+    };
+    measure();
+    const obs = new ResizeObserver(measure);
+    if (innerRef.current) obs.observe(innerRef.current);
+    return () => obs.disconnect();
+  }, [activeCategory, expanded]);
+
+  return (
+    <div className="chips-host">
+      {/* 탭 — 밑줄형 (search 페이지 동일) */}
+      <div
+        role="tablist"
+        aria-label="카테고리"
+        className="-mx-2 flex gap-x-[14px] overflow-x-auto px-2 sm:mx-0 sm:flex-wrap sm:gap-x-7 sm:gap-y-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" } as CSSProperties}
+      >
+        {CATEGORIES.map((c) => {
+          const isActive = activeCategory === c.slug;
+          return (
+            <button
+              key={c.slug}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => onCategoryChange(c.slug)}
+              className="shrink-0 cursor-pointer border-b-2 px-1 py-[6px] text-[13px] font-semibold transition-[color,border-color,transform] hover:opacity-70 active:scale-[0.96] sm:py-[7px] sm:text-[14px]"
+              style={{
+                color: isActive ? c.color : "var(--text-secondary)",
+                borderBottomColor: isActive ? c.color : "transparent",
+              }}
+            >
+              {c.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 탭 ↔ 칩 그라데이션 라인 */}
+      <div
+        aria-hidden
+        className="mb-3 h-px w-full sm:mb-[14px]"
+        style={{
+          background:
+            "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.10) 18%, rgba(0,0,0,0.10) 82%, transparent 100%)",
+        }}
+      />
+
+      {/* 칩 */}
+      {allChips.length === 0 ? (
+        <div className="text-center text-xs text-[var(--text-muted)]">
+          이 카테고리의 인기 키워드가 아직 없어요.
+        </div>
+      ) : (
+        <>
+          <div
+            ref={outerRef}
+            className="overflow-hidden transition-[max-height] duration-300"
+            style={{
+              maxHeight: expanded
+                ? "var(--chips-h-expanded)"
+                : "var(--chips-h)",
+            }}
+          >
+            <div ref={innerRef} className="flex flex-wrap gap-1.5">
+              {allChips.map((kw) => {
+                const selected = picked.includes(kw);
+                return (
+                  <button
+                    key={kw}
+                    type="button"
+                    onClick={() => onToggle(kw)}
+                    className="cursor-pointer rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97]"
+                    style={
+                      selected
+                        ? {
+                            backgroundColor: cat.color + "1A",
+                            color: cat.color,
+                            fontWeight: 700,
+                          }
+                        : {
+                            backgroundColor: "#E8EAEE",
+                            color: "#5C6470",
+                            fontWeight: 500,
+                          }
+                    }
+                  >
+                    {kw}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {(hasOverflow || expanded) && (
+            <div className="mt-2 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="rounded-full px-3 py-1 text-[12px] font-semibold text-[var(--text-muted)] transition-colors"
+              >
+                {expanded ? "접기 ▴" : "더보기 ▾"}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* 선택된 키워드 미리보기 — 다른 카테고리 포함 */}
+      {picked.length > 0 && (
+        <div className="mt-3 border-t border-[var(--border)] pt-3">
+          <div className="mb-1.5 text-[11px] text-[var(--text-muted)]">
+            선택한 키워드
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {picked.map((kw) => (
+              <button
+                key={kw}
+                type="button"
+                onClick={() => onRemove(kw)}
+                className="inline-flex items-center gap-1 rounded-full bg-[#9CA3AF] px-2.5 py-1 text-[12px] font-medium text-white hover:bg-[#6B7280]"
+                title="제거"
+              >
+                {kw}
+                <span aria-hidden>×</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .chips-host {
+          --chips-h: 100px;          /* 3줄 (모바일 collapsed) */
+          --chips-h-expanded: 244px; /* 7줄 (모바일 expanded) */
+        }
+        @media (min-width: 600px) {
+          .chips-host {
+            --chips-h: 100px;          /* 데스크탑도 3줄 */
+            --chips-h-expanded: 360px; /* 데스크탑 펼침 — 더 보이게 */
+          }
+        }
+      `}</style>
+    </div>
   );
 }
