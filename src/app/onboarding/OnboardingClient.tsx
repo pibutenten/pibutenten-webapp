@@ -266,6 +266,22 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
       setErr("피부타입을 선택해주세요.");
       return;
     }
+    if (!avatarUrl) {
+      setErr("프로필 사진을 선택해주세요.");
+      return;
+    }
+    if (skinConcerns.length === 0) {
+      setErr("피부 고민을 한 개 이상 선택해주세요.");
+      return;
+    }
+    if (procedures.length === 0) {
+      setErr("관심 키워드를 한 개 이상 선택해주세요.");
+      return;
+    }
+    if (!bio.trim()) {
+      setErr("자기소개를 한 줄 적어주세요.");
+      return;
+    }
     if (!skinInfoConsent) {
       setErr(
         "피부 정보 활용에 동의해 주세요. 동의하지 않으시면 가입을 진행할 수 없어요.",
@@ -355,7 +371,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* 0. 프로필 사진 — SNS 프로필 디폴트 + 직접 업로드 옵션 */}
-      <Section title="프로필 사진을 올려주세요!">
+      <Section title="프로필 사진을 선택해주세요!" required>
         <div className="flex items-center gap-4">
           {/* 미리보기 — 큰 원형, OAuth 사진이거나 업로드한 사진 그대로 노출 */}
           <div
@@ -431,7 +447,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
 
       {/* 1. 기본정보 */}
       <Section title="본인 확인을 위한 기본 정보를 알려주세요." required>
-        <p className="mb-3 rounded-md bg-[var(--bg-soft)] px-3 py-2 text-[12px] leading-[1.55] text-[var(--text-secondary)]">
+        <p className="mb-3 text-[12px] leading-[1.55] text-[var(--text-secondary)]">
           중복 가입자 식별에만 사용됩니다. 프로필에서는 연령대와 성별만
           노출되어요.
         </p>
@@ -542,7 +558,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
       </Section>
 
       {/* 4. 피부고민 */}
-      <Section title="요즘 어떤 피부 고민이 있으세요?" hint="복수 선택">
+      <Section title="요즘 어떤 피부 고민이 있으세요?" required hint="복수 선택">
         <div className="flex flex-wrap gap-2">
           {SKIN_CONCERNS.map((c) => (
             <Chip
@@ -558,9 +574,14 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
 
       {/* 5. 관심 키워드 — /search 의 CategoryWithChips 와 동일 UI (밑줄 탭 + 그라데이션 라인 + 작은 칩 + 더보기 토글). 최대 10개. */}
       <Section
-        title="피부에 대해 궁금한 것을 골라주시면, 맞춤형 정보를 보여드릴게요. (추후에도 언제든지 변경하실 수 있어요)"
+        title="피부에 대해 궁금한 것을 골라주시면, 맞춤형 정보를 보여드릴게요."
+        required
         hint={`최대 ${INTERESTS_MAX}개 · ${procedures.length}/${INTERESTS_MAX}`}
       >
+        {/* 안내 — 제목 아랫줄, 볼드 없이 일반 텍스트 */}
+        <p className="mb-3 text-[12px] leading-[1.55] text-[var(--text-secondary)]">
+          추후에도 언제든지 변경하실 수 있어요
+        </p>
         <InterestPicker
           popularByCategory={popularByCategory}
           activeCategory={interestCategory}
@@ -574,11 +595,18 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
           onRemove={(kw) =>
             setProcedures(procedures.filter((x) => x !== kw))
           }
+          onAddCustom={(kw) => {
+            const v = kw.trim();
+            if (!v) return;
+            if (procedures.includes(v)) return;
+            if (procedures.length >= INTERESTS_MAX) return;
+            setProcedures([...procedures, v]);
+          }}
         />
       </Section>
 
       {/* 6. 자기소개 */}
-      <Section title="본인을 한 줄로 소개해 주실래요?">
+      <Section title="본인을 한 줄로 소개해 주실래요?" required>
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}
@@ -631,13 +659,23 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
         {err && (
           <span className="text-[12px] font-medium text-red-600">{err}</span>
         )}
-        {/* 저장 버튼 — 필수 항목 모두 채워졌고 동의 체크된 경우에만 활성화.
-              필수: 이메일 형식 OK / 생년월일 (년·월·일 세 칸) / 성별 / 얼굴형 / 피부타입 / 동의. */}
+        {/* 저장 버튼 — 모든 필수 항목 + 동의 채워졌을 때만 활성화.
+              필수: 프로필 사진 / 이메일 / 생년월일 / 성별 / 얼굴형 / 피부타입 /
+                    피부고민 1+ / 관심 키워드 1+ / 자기소개 / 동의. */}
         {(() => {
           const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
           const birthOk = !!(birthYear && birthMonth && birthDay);
           const requiredOk =
-            emailOk && birthOk && !!gender && !!faceShape && !!skinType && skinInfoConsent;
+            !!avatarUrl &&
+            emailOk &&
+            birthOk &&
+            !!gender &&
+            !!faceShape &&
+            !!skinType &&
+            skinConcerns.length > 0 &&
+            procedures.length > 0 &&
+            bio.trim().length > 0 &&
+            skinInfoConsent;
           const buttonDisabled = pending || !requiredOk;
           return (
             <button
@@ -766,10 +804,10 @@ function Chip({
       type="button"
       onClick={onClick}
       className={
-        "shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors sm:text-[13.5px] " +
+        "shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors " +
         (active
-          ? "bg-[#9CA3AF] text-white"
-          : "bg-[var(--bg-soft)] text-[var(--text-secondary)] hover:bg-[#E5E7EB] hover:text-[var(--text)]")
+          ? "bg-[#9CA3AF] text-white font-semibold"
+          : "bg-[#E8EAEE] text-[#5C6470] hover:bg-[#D8DCE3]")
       }
     >
       {children}
@@ -778,13 +816,12 @@ function Chip({
 }
 
 /**
- * 관심 키워드 picker — /search 의 CategoryWithChips UI 재현.
- * - 밑줄형 카테고리 탭 (5개, active 시 카테고리 색)
- * - 탭 ↔ 칩 사이 그라데이션 라인 (양 끝 페이드)
- * - 작은 칩 (#E8EAEE 배경 / picked = 카테고리색 + 굵게)
- * - 모바일: 3줄(100px) collapsed / 7줄(244px) expanded
- * - 데스크탑: 항상 3줄 (펼치기 버튼 hidden)
- * - 선택된 키워드 미리보기 (다른 카테고리 고른 것 포함) + ✕ 제거
+ * 관심 키워드 picker — /search 의 CategoryWithChips UI 재현 + 온보딩용 확장.
+ * - 밑줄형 카테고리 탭 (5개, active 시 카테고리 색) — 가운데 정렬
+ * - 탭 ↔ 칩 사이 그라데이션 라인
+ * - 작은 칩 (#E8EAEE 배경 / picked 시 해당 칩이 속한 카테고리 색 + 굵게) — 가운데 정렬
+ * - collapsed 시 3줄 미리보기, expanded 시 전체 노출 (잘림 없음)
+ * - 선택된 키워드 미리보기 — picked 칩의 원래 카테고리 색으로 표시 + 자유 추가 입력란
  */
 function InterestPicker({
   popularByCategory,
@@ -793,6 +830,7 @@ function InterestPicker({
   picked,
   onToggle,
   onRemove,
+  onAddCustom,
 }: {
   popularByCategory: PopularByCategory;
   activeCategory: CategorySlug;
@@ -800,18 +838,32 @@ function InterestPicker({
   picked: string[];
   onToggle: (kw: string) => void;
   onRemove: (kw: string) => void;
+  onAddCustom: (kw: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [hasOverflow, setHasOverflow] = useState(false);
+  const [customInput, setCustomInput] = useState("");
   const innerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
 
   const cat = CATEGORIES.find((c) => c.slug === activeCategory)!;
   const allChips = popularByCategory[activeCategory] ?? [];
 
-  // 오버플로 측정 — 탭 변경/리사이즈 시 재계산
+  /** 주어진 키워드가 속한 카테고리 색을 반환 — 미발견 시 회색(#9CA3AF) 폴백. */
+  function colorOfKeyword(kw: string): string {
+    for (const c of CATEGORIES) {
+      if ((popularByCategory[c.slug] ?? []).includes(kw)) return c.color;
+    }
+    return "#9CA3AF";
+  }
+
+  // 오버플로 측정 — 탭 변경/리사이즈 시 재계산. expanded 면 검사 스킵 (전체 노출 보장).
   useLayoutEffect(() => {
     if (!innerRef.current || !outerRef.current) return;
+    if (expanded) {
+      setHasOverflow(true); // expanded 면 접기 버튼 유지
+      return;
+    }
     const measure = () => {
       const inner = innerRef.current;
       const outer = outerRef.current;
@@ -828,11 +880,11 @@ function InterestPicker({
 
   return (
     <div className="chips-host">
-      {/* 탭 — 밑줄형 (search 페이지 동일) */}
+      {/* 탭 — 가운데 정렬 */}
       <div
         role="tablist"
         aria-label="카테고리"
-        className="-mx-2 flex gap-x-[14px] overflow-x-auto px-2 sm:mx-0 sm:flex-wrap sm:gap-x-7 sm:gap-y-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+        className="-mx-2 flex justify-center gap-x-[14px] overflow-x-auto px-2 sm:mx-0 sm:flex-wrap sm:gap-x-7 sm:gap-y-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none" } as CSSProperties}
       >
         {CATEGORIES.map((c) => {
@@ -866,7 +918,7 @@ function InterestPicker({
         }}
       />
 
-      {/* 칩 */}
+      {/* 칩 — 가운데 정렬. expanded 면 max-height 해제로 잘림 없이 전체 노출. */}
       {allChips.length === 0 ? (
         <div className="text-center text-xs text-[var(--text-muted)]">
           이 카테고리의 인기 키워드가 아직 없어요.
@@ -877,12 +929,10 @@ function InterestPicker({
             ref={outerRef}
             className="overflow-hidden transition-[max-height] duration-300"
             style={{
-              maxHeight: expanded
-                ? "var(--chips-h-expanded)"
-                : "var(--chips-h)",
+              maxHeight: expanded ? "none" : "var(--chips-h)",
             }}
           >
-            <div ref={innerRef} className="flex flex-wrap gap-1.5">
+            <div ref={innerRef} className="flex flex-wrap justify-center gap-1.5">
               {allChips.map((kw) => {
                 const selected = picked.includes(kw);
                 return (
@@ -926,39 +976,74 @@ function InterestPicker({
         </>
       )}
 
-      {/* 선택된 키워드 미리보기 — 다른 카테고리 포함 */}
+      {/* 선택된 키워드 미리보기 — picked 칩의 원래 카테고리 색으로 표시. ✕ 클릭 = 제거. */}
       {picked.length > 0 && (
         <div className="mt-3 border-t border-[var(--border)] pt-3">
           <div className="mb-1.5 text-[11px] text-[var(--text-muted)]">
             선택한 키워드
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {picked.map((kw) => (
-              <button
-                key={kw}
-                type="button"
-                onClick={() => onRemove(kw)}
-                className="inline-flex items-center gap-1 rounded-full bg-[#9CA3AF] px-2.5 py-1 text-[12px] font-medium text-white hover:bg-[#6B7280]"
-                title="제거"
-              >
-                {kw}
-                <span aria-hidden>×</span>
-              </button>
-            ))}
+            {picked.map((kw) => {
+              const color = colorOfKeyword(kw);
+              return (
+                <button
+                  key={kw}
+                  type="button"
+                  onClick={() => onRemove(kw)}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium transition-colors"
+                  style={{
+                    backgroundColor: color + "1A",
+                    color: color,
+                    fontWeight: 700,
+                  }}
+                  title="제거"
+                >
+                  {kw}
+                  <span aria-hidden>×</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
+      {/* 자유 추가 입력란 — 원하는 키워드가 위 목록에 없으면 직접 추가 */}
+      <div className="mt-3 flex items-center gap-2">
+        <input
+          type="text"
+          value={customInput}
+          onChange={(e) => setCustomInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (
+              e.key === "Enter" &&
+              !e.nativeEvent.isComposing &&
+              e.keyCode !== 229
+            ) {
+              e.preventDefault();
+              onAddCustom(customInput);
+              setCustomInput("");
+            }
+          }}
+          placeholder="원하는 키워드 직접 추가"
+          maxLength={30}
+          className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            onAddCustom(customInput);
+            setCustomInput("");
+          }}
+          disabled={!customInput.trim()}
+          className="h-9 shrink-0 rounded-md bg-[var(--primary)] px-3 text-[12.5px] font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+        >
+          추가
+        </button>
+      </div>
+
       <style jsx>{`
         .chips-host {
-          --chips-h: 100px;          /* 3줄 (모바일 collapsed) */
-          --chips-h-expanded: 244px; /* 7줄 (모바일 expanded) */
-        }
-        @media (min-width: 600px) {
-          .chips-host {
-            --chips-h: 100px;          /* 데스크탑도 3줄 */
-            --chips-h-expanded: 360px; /* 데스크탑 펼침 — 더 보이게 */
-          }
+          --chips-h: 100px;          /* 3줄 (collapsed 공통) */
         }
       `}</style>
     </div>
