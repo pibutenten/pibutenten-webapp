@@ -535,7 +535,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
 
       {/* 2. 얼굴형 */}
       <Section title="얼굴형이 어떻게 되세요?" required hint="택 1">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           {FACE_SHAPES.map((f) => (
             <Chip
               key={f.key}
@@ -550,7 +550,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
 
       {/* 3. 피부타입 */}
       <Section title="피부 타입은 어떤 편이세요?" required hint="택 1">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           {SKIN_TYPES.map((s) => (
             <Chip
               key={s.key}
@@ -565,7 +565,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
 
       {/* 4. 피부고민 */}
       <Section title="요즘 어떤 피부 고민이 있으세요?" required hint="복수 선택">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           {SKIN_CONCERNS.map((c) => (
             <Chip
               key={c.key}
@@ -1019,10 +1019,10 @@ function InterestPicker({
       {/* 선택된 키워드 미리보기 — picked 칩의 원래 카테고리 색으로 표시. ✕ 클릭 = 제거. */}
       {picked.length > 0 && (
         <div className="mt-3 border-t border-[var(--border)] pt-3">
-          <div className="mb-1.5 text-[11px] text-[var(--text-muted)]">
+          <div className="mb-1.5 text-center text-[11px] text-[var(--text-muted)]">
             선택한 키워드
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap justify-center gap-1.5">
             {picked.map((kw) => {
               const color = colorOfKeyword(kw);
               return (
