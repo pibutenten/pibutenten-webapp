@@ -279,10 +279,6 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
       setErr("관심 키워드를 한 개 이상 선택해주세요.");
       return;
     }
-    if (!bio.trim()) {
-      setErr("자기소개를 한 줄 적어주세요.");
-      return;
-    }
     if (!skinInfoConsent) {
       setErr(
         "피부 정보 활용에 동의해 주세요. 동의하지 않으시면 가입을 진행할 수 없어요.",
@@ -312,6 +308,9 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
       const cleanAvatar = avatarUrl
         ? avatarUrl.split("?")[0] || avatarUrl
         : null;
+      // 미입력 시 디폴트 자기소개 ("만나서 반갑습니다.") 로 저장 (UI placeholder 와 동일 문구).
+      const DEFAULT_BIO = "만나서 반갑습니다.";
+      const finalBio = bio.trim() || DEFAULT_BIO;
       const { error } = await sb
         .from("profiles")
         .update({
@@ -322,7 +321,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
           skin_type: skinType,
           skin_concerns: skinConcerns,
           interested_procedures: procedures,
-          bio: bio.trim() || null,
+          bio: finalBio,
           avatar_url: cleanAvatar,
           // 보안 2.5차 C묶음: PIPA 동의 시점 보존
           skin_info_consent_at: new Date().toISOString(),
@@ -612,18 +611,23 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
         />
       </Section>
 
-      {/* 6. 자기소개 */}
-      <Section title="본인을 한 줄로 소개해 주실래요?" required>
+      {/* 6. 자기소개 — 미입력 시 DEFAULT_BIO 로 자동 저장. required 아님. */}
+      <Section title="본인을 한 줄로 소개해 주실래요?">
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           rows={2}
           maxLength={200}
-          placeholder=""
-          className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] focus:border-[var(--primary)] focus:outline-none"
+          placeholder="만나서 반갑습니다."
+          className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:outline-none"
         />
-        <div className="mt-1 text-right text-[11px] text-[var(--text-muted)]">
-          {bio.length}/200
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <span className="text-[11.5px] text-[var(--text-muted)]">
+            미입력 시 &lsquo;만나서 반갑습니다.&rsquo; 로 표시됩니다.
+          </span>
+          <span className="text-[11px] text-[var(--text-muted)]">
+            {bio.length}/200
+          </span>
         </div>
       </Section>
 
@@ -681,7 +685,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
             !!skinType &&
             skinConcerns.length > 0 &&
             procedures.length > 0 &&
-            bio.trim().length > 0 &&
+            // bio 는 미입력 시 "만나서 반갑습니다." 디폴트로 저장되므로 필수 아님
             skinInfoConsent;
           const buttonDisabled = pending || !requiredOk;
           return (
