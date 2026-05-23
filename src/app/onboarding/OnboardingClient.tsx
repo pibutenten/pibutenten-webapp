@@ -563,9 +563,9 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
         </div>
       </Section>
 
-      {/* 4. 피부고민 */}
+      {/* 4. 피부고민 — 모바일은 정확히 5×2 grid (10개 균등), 데스크탑은 flex-wrap 가운데 */}
       <Section title="요즘 어떤 피부 고민이 있으세요?" required hint="복수 선택">
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="grid grid-cols-5 place-items-center gap-1.5 sm:flex sm:flex-wrap sm:justify-center sm:gap-2">
           {SKIN_CONCERNS.map((c) => (
             <Chip
               key={c.key}
