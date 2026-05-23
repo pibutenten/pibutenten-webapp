@@ -189,23 +189,23 @@ export default function Card({
     setDeleting(true);
     try {
       const sb = createSupabaseBrowserClient();
-      // soft-delete (260518 — 0132): hard DELETE 대신 deleted_at 시각 채움.
-      // RLS 'cards_public_read' 가 deleted_at IS NULL 강제 → 즉시 모든 화면에서 사라짐.
-      // admin 은 /admin/cards?status=deleted 에서 복구 가능.
-      // .select() 로 affected rows 회수 — RLS silent block (0 rows, no error) 감지.
-      const { data, error } = await sb
-        .from("cards")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", card.id)
-        .select("id");
+      // soft-delete via SECURITY DEFINER RPC (0156).
+      // 배경: 직접 `cards.update({deleted_at})` 호출은 type='qa' 등 일부 카드에서
+      //       RLS WITH CHECK 가 sub-select 패턴을 미묘하게 막아
+      //       "new row violates row-level security policy for table 'cards'" 에러 발생
+      //       (정책 표현식 자체는 직접 평가 시 TRUE — PostgreSQL RLS evaluator 이슈로 추정).
+      //       `soft_delete_card(p_card_id)` RPC 가 권한 체크 + UPDATE 를
+      //       SECURITY DEFINER 컨텍스트에서 처리 — RLS 우회 + 권한 명시 검증.
+      const { error } = await sb.rpc("soft_delete_card", { p_card_id: card.id });
       if (error) {
-        showToast("삭제 실패: " + error.message, { tone: "danger" });
-        setDeleting(false);
-        return;
-      }
-      if (!data || data.length === 0) {
-        // RLS silent block — UPDATE 정책 미통과. 실제 DB 변경 없음.
-        showToast("권한이 없어 삭제할 수 없어요. 본인/관리자 글만 가능합니다.", { tone: "danger" });
+        const msg = error.message || "";
+        if (msg.includes("forbidden")) {
+          showToast("권한이 없어 삭제할 수 없어요. 본인/관리자 글만 가능합니다.", { tone: "danger" });
+        } else if (msg.includes("card_not_found")) {
+          showToast("이미 삭제되었거나 존재하지 않는 카드입니다.", { tone: "danger" });
+        } else {
+          showToast("삭제 실패: " + msg, { tone: "danger" });
+        }
         setDeleting(false);
         return;
       }

@@ -117,19 +117,26 @@ export default function EditClient({
     }
   }
 
-  // 일반 사용자(원장·회원) 본인 글 지우기 — soft-delete (cards.deleted_at = now()).
-  // RLS: cards_owner_update (0155) 가 same-group 작성자 UPDATE 허용.
-  // .select() 로 affected rows 검증 — RLS silent block 감지 (0 rows, no error).
+  // 일반 사용자(원장·회원) 본인 글 지우기 — soft-delete via SECURITY DEFINER RPC (0156).
+  // 배경: 직접 `cards.update({deleted_at})` 호출 시 일부 카드(특히 type='qa') 에서
+  //       RLS WITH CHECK 가 sub-select 패턴을 미묘하게 막아
+  //       "new row violates row-level security policy for table 'cards'" 에러 발생.
+  //       (정책 expression 자체는 직접 평가 시 TRUE 인데 evaluator 단에서 막힘 —
+  //        PostgreSQL RLS sub-select 평가의 미묘한 이슈로 추정.)
+  //       0156 의 `soft_delete_card(p_card_id)` RPC 가 권한 체크 + UPDATE 를
+  //       SECURITY DEFINER 컨텍스트에서 처리 — RLS 우회 + 권한 명시 검증.
   async function handleOwnerDelete(): Promise<void> {
     const sb = createSupabaseBrowserClient();
-    const { data, error } = await sb
-      .from("cards")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", cardId)
-      .select("id");
-    if (error) throw new Error(error.message);
-    if (!data || data.length === 0) {
-      throw new Error("권한이 없어 삭제할 수 없어요 (RLS).");
+    const { error } = await sb.rpc("soft_delete_card", { p_card_id: cardId });
+    if (error) {
+      const msg = error.message || "";
+      if (msg.includes("forbidden")) {
+        throw new Error("권한이 없어 삭제할 수 없어요.");
+      }
+      if (msg.includes("card_not_found")) {
+        throw new Error("이미 삭제되었거나 존재하지 않는 카드입니다.");
+      }
+      throw new Error(msg || "삭제 실패");
     }
     router.push(returnUrl);
     router.refresh();

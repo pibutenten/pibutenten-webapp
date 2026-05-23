@@ -584,10 +584,8 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
         required
         hint={`최대 ${INTERESTS_MAX}개 · ${procedures.length}/${INTERESTS_MAX}`}
       >
-        {/* 안내 — 제목 아랫줄, 볼드 없이 일반 텍스트 */}
-        <p className="mb-3 text-[13px] leading-[1.55] text-[var(--text-secondary)]">
-          추후에도 언제든지 변경하실 수 있어요
-        </p>
+        {/* 안내문 ("추후에도 언제든지 변경하실 수 있어요") 는 page.tsx 의
+            상단 부제 아래로 이동 (사용자 요청 2026-05-23 IV). */}
         <InterestPicker
           popularByCategory={popularByCategory}
           activeCategory={interestCategory}
@@ -809,14 +807,15 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      // 검색 페이지 (CategoryWithChips) 칩과 색·굵기 통일:
-      //   - 비활성: bg #E8EAEE / text #5C6470 / fontWeight 500
-      //   - 활성: bg #9CA3AF / text white / fontWeight 600
+      // 비활성: bg #E8EAEE / text #5C6470 / fontWeight 500 (검색 페이지 톤 동일)
+      // 활성: 브랜드색 #4CBFF2 (var(--primary)) / text white / fontWeight 600
+      //   — 사용자 요청 (2026-05-23 IV): 회색 → 브랜드색. 단, 5번 관심 키워드 picker
+      //     안의 칩은 카테고리 색을 유지(별도 인라인 <button>, Chip 컴포넌트와 분리).
       className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97]"
       style={
         active
           ? {
-              backgroundColor: "#9CA3AF",
+              backgroundColor: "#4CBFF2",
               color: "#FFFFFF",
               fontWeight: 600,
             }

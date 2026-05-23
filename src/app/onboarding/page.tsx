@@ -71,6 +71,11 @@ export default async function OnboardingPage() {
         <p className="mt-1 text-sm text-[var(--text-secondary)]">
           나에게 꼭 맞는 피부 정보를 추천하기 위해 몇 가지만 알려주세요.
         </p>
+        {/* 5번 관심 키워드 안내문 — 사용자 요청 (2026-05-23 IV) 으로 5번 섹션 내부에서
+            상단 부제 아래로 이동. */}
+        <p className="mt-0.5 text-[12.5px] text-[var(--text-muted)]">
+          추후에도 언제든지 변경하실 수 있어요.
+        </p>
       </header>
 
       <OnboardingClient
