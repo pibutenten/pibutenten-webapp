@@ -8,8 +8,11 @@ import {
   FACE_SHAPES,
   SKIN_TYPES,
   SKIN_CONCERNS,
-  PROCEDURES,
 } from "@/lib/profile-options";
+import { CATEGORIES, type CategorySlug } from "@/lib/categories";
+import type { PopularByCategory } from "@/lib/popular-keywords";
+
+const INTERESTS_MAX = 10;
 
 type Initial = {
   email: string;
@@ -50,6 +53,8 @@ function formatProviders(providers: string[]): string {
 type Props = {
   userId: string;
   initial: Initial;
+  /** 발행된 카드 keywords 카테고리별 TOP N — 섹션 5 (관심 키워드 칩) 용. */
+  popularByCategory: PopularByCategory;
 };
 
 // 클라이언트 리사이징 — 256x256 center-crop, JPEG quality 0.82 → 보통 30~80KB
@@ -111,7 +116,7 @@ function parseBirthdate(s: string): {
   };
 }
 
-export default function OnboardingClient({ userId, initial }: Props) {
+export default function OnboardingClient({ userId, initial, popularByCategory }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -133,9 +138,14 @@ export default function OnboardingClient({ userId, initial }: Props) {
   const [skinConcerns, setSkinConcerns] = useState<string[]>(
     initial.skinConcerns,
   );
+  // 섹션 5 (관심 키워드) — 발행 카드 keywords 카테고리별 TOP N 에서 픽. 최대 10개.
+  //   기존 PROCEDURES enum 키 데이터와의 호환: 초기값을 그대로 적재 (사용자가 새로 고를 때까지 유지).
   const [procedures, setProcedures] = useState<string[]>(
     initial.interestedProcedures,
   );
+  // 섹션 5 카테고리 탭 활성 — 진입 시 'concerns' 디폴트.
+  const [interestCategory, setInterestCategory] =
+    useState<CategorySlug>("concerns");
   const [bio, setBio] = useState(initial.bio);
 
   // 피부 정보 활용 동의 (보안 2.5차 C묶음, 2026-05-19) — 필수.
@@ -340,7 +350,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
     <div className="space-y-3 sm:space-y-4">
       {/* 0. 프로필 사진 — SNS 프로필 디폴트 + 직접 업로드 옵션 */}
       <Section
-        title="프로필 사진"
+        title="프로필 사진을 올려주세요!"
         hint="SNS 프로필 사진 그대로 또는 직접 업로드"
       >
         <div className="flex items-center gap-4">
@@ -421,7 +431,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
       </Section>
 
       {/* 1. 기본정보 */}
-      <Section title="기본정보" required>
+      <Section title="본인 확인을 위한 기본 정보를 알려주세요." required>
         <p className="mb-3 rounded-md bg-[var(--bg-soft)] px-3 py-2 text-[12px] leading-[1.55] text-[var(--text-secondary)]">
           💡 <strong>이메일·생년월일·성별은 중복 가입자 식별에만 사용됩니다.</strong>
           {" "}프로필 등 다른 곳에는 표시되지 않으며, 한 분이 부계정으로 가입하는
@@ -504,7 +514,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
       </Section>
 
       {/* 2. 얼굴형 */}
-      <Section title="얼굴형" required hint="택 1">
+      <Section title="얼굴형이 어떻게 되세요?" required hint="택 1">
         <div className="flex flex-wrap gap-2">
           {FACE_SHAPES.map((f) => (
             <Chip
@@ -519,7 +529,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
       </Section>
 
       {/* 3. 피부타입 */}
-      <Section title="피부타입" required hint="택 1">
+      <Section title="피부 타입은 어떤 편이세요?" required hint="택 1">
         <div className="flex flex-wrap gap-2">
           {SKIN_TYPES.map((s) => (
             <Chip
@@ -534,7 +544,7 @@ export default function OnboardingClient({ userId, initial }: Props) {
       </Section>
 
       {/* 4. 피부고민 */}
-      <Section title="피부고민" hint="복수 선택">
+      <Section title="요즘 어떤 피부 고민이 있으세요?" hint="복수 선택">
         <div className="flex flex-wrap gap-2">
           {SKIN_CONCERNS.map((c) => (
             <Chip
@@ -548,23 +558,87 @@ export default function OnboardingClient({ userId, initial }: Props) {
         </div>
       </Section>
 
-      {/* 5. 관심시술 */}
-      <Section title="관심시술" hint="복수 선택">
-        <div className="flex flex-wrap gap-2">
-          {PROCEDURES.map((p) => (
-            <Chip
-              key={p.key}
-              active={procedures.includes(p.key)}
-              onClick={() => setProcedures(toggle(procedures, p.key))}
-            >
-              {p.label}
-            </Chip>
-          ))}
+      {/* 5. 관심 키워드 — 발행 카드 keywords 카테고리별 TOP N 에서 픽 (최대 10개).
+            카테고리 탭 = /search 의 CategoryWithChips 와 동일 5개 (피부고민/리프팅/스킨부스터/홈케어/피부상식).
+            선택 시 picked 칩 강조 + 카운터 (n/10). 한도 도달 시 추가 픽 무시. */}
+      <Section
+        title="피부에 대해 궁금한 것을 골라주시면, 맞춤형 정보를 보여드릴게요."
+        hint={`최대 ${INTERESTS_MAX}개 · ${procedures.length}/${INTERESTS_MAX}`}
+      >
+        {/* 카테고리 탭 */}
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {CATEGORIES.map((c) => {
+            const active = interestCategory === c.slug;
+            return (
+              <button
+                key={c.slug}
+                type="button"
+                onClick={() => setInterestCategory(c.slug)}
+                className={
+                  "rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors " +
+                  (active
+                    ? "text-white"
+                    : "bg-[var(--bg-soft)] text-[var(--text-secondary)] hover:bg-[#E5E7EB]")
+                }
+                style={active ? { backgroundColor: c.color } : undefined}
+              >
+                {c.label}
+              </button>
+            );
+          })}
         </div>
+        {/* 칩 */}
+        <div className="flex flex-wrap gap-2">
+          {popularByCategory[interestCategory].length === 0 ? (
+            <p className="text-[12px] text-[var(--text-muted)]">
+              아직 키워드가 없어요.
+            </p>
+          ) : (
+            popularByCategory[interestCategory].map((kw) => {
+              const picked = procedures.includes(kw);
+              const limitReached =
+                !picked && procedures.length >= INTERESTS_MAX;
+              return (
+                <Chip
+                  key={kw}
+                  active={picked}
+                  onClick={() => {
+                    if (limitReached) return;
+                    setProcedures(toggle(procedures, kw));
+                  }}
+                >
+                  {kw}
+                </Chip>
+              );
+            })
+          )}
+        </div>
+        {/* 선택된 항목 미리보기 — 다른 카테고리에서 고른 것까지 한눈에 */}
+        {procedures.length > 0 && (
+          <div className="mt-3 border-t border-[var(--border)] pt-3">
+            <div className="mb-1.5 text-[11px] text-[var(--text-muted)]">
+              선택한 키워드
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {procedures.map((kw) => (
+                <button
+                  key={kw}
+                  type="button"
+                  onClick={() => setProcedures(procedures.filter((x) => x !== kw))}
+                  className="inline-flex items-center gap-1 rounded-full bg-[#9CA3AF] px-2.5 py-1 text-[12px] font-medium text-white hover:bg-[#6B7280]"
+                  title="제거"
+                >
+                  {kw}
+                  <span aria-hidden>×</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </Section>
 
       {/* 6. 자기소개 */}
-      <Section title="본인을 소개한다면?">
+      <Section title="본인을 한 줄로 소개해 주실래요?">
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}

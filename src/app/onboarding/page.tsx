@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPopularByCategory } from "@/lib/popular-keywords";
 import OnboardingClient from "./OnboardingClient";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +59,9 @@ export default async function OnboardingPage() {
   //   - 없으면 auth.users.email 기본값.
   const defaultEmail = profile?.contact_email ?? user.email ?? "";
 
+  // 5번 섹션 (관심 키워드) — 발행된 카드 keywords 의 카테고리별 빈도 TOP N.
+  const popularByCategory = await getPopularByCategory();
+
   return (
     <section className="mx-auto w-full max-w-[640px] py-6">
       <header className="mb-5">
@@ -71,6 +75,7 @@ export default async function OnboardingPage() {
 
       <OnboardingClient
         userId={user.id}
+        popularByCategory={popularByCategory}
         initial={{
           email: defaultEmail,
           birthdate: profile?.birthdate ?? "",
