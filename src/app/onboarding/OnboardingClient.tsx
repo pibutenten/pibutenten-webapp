@@ -447,13 +447,16 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
 
       {/* 1. 기본정보 */}
       <Section title="본인 확인을 위한 기본 정보를 알려주세요." required>
-        <p className="mb-3 text-[12px] leading-[1.55] text-[var(--text-secondary)]">
+        <p className="mb-3 text-[13px] leading-[1.55] text-[var(--text-secondary)]">
           중복 가입자 식별에만 사용됩니다. 프로필에서는 연령대와 성별만
           노출되어요.
         </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Label>이메일</Label>
+        <div className="space-y-3">
+          {/* 이메일 — 라벨 좌측, 입력 우측 (가로 정렬) */}
+          <div className="flex items-center gap-3">
+            <span className="w-[60px] shrink-0 text-[12px] font-medium text-[var(--text-secondary)]">
+              이메일
+            </span>
             <input
               type="email"
               value={email}
@@ -462,20 +465,23 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
               maxLength={120}
               inputMode="email"
               autoComplete="email"
-              className="h-10 w-full rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+              className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[12.5px] focus:border-[var(--primary)] focus:outline-none"
             />
-            <p className="mt-1 text-[11px] leading-[1.5] text-[var(--text-muted)]">
-              가입한 SNS 의 이메일이 자동으로 채워져요. 다른 이메일을 쓰시려면
-              직접 수정해 주세요.
-            </p>
           </div>
-          <div>
-            <Label>생년월일</Label>
-            <div className="flex gap-1.5">
+          <p className="-mt-1 ml-[72px] text-[12px] leading-[1.5] text-[var(--text-muted)]">
+            다른 이메일을 쓰시려면 직접 수정해 주세요.
+          </p>
+
+          {/* 생년월일 — 라벨 좌측, select 3개 우측 */}
+          <div className="flex items-center gap-3">
+            <span className="w-[60px] shrink-0 text-[12px] font-medium text-[var(--text-secondary)]">
+              생년월일
+            </span>
+            <div className="flex flex-1 gap-1.5">
               <select
                 value={birthYear}
                 onChange={(e) => setBirthYear(e.target.value)}
-                className="h-10 flex-[1.3] rounded-md border border-[var(--border)] bg-white px-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+                className="h-9 flex-[1.3] rounded-md border border-[var(--border)] bg-white px-2 text-[12.5px] focus:border-[var(--primary)] focus:outline-none"
               >
                 <option value="">년</option>
                 {YEAR_OPTIONS.map((y) => (
@@ -487,7 +493,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
               <select
                 value={birthMonth}
                 onChange={(e) => setBirthMonth(e.target.value)}
-                className="h-10 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+                className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[12.5px] focus:border-[var(--primary)] focus:outline-none"
               >
                 <option value="">월</option>
                 {MONTH_OPTIONS.map((m) => (
@@ -499,7 +505,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
               <select
                 value={birthDay}
                 onChange={(e) => setBirthDay(e.target.value)}
-                className="h-10 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+                className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[12.5px] focus:border-[var(--primary)] focus:outline-none"
               >
                 <option value="">일</option>
                 {DAY_OPTIONS.map((d) => (
@@ -510,9 +516,13 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
               </select>
             </div>
           </div>
-          <div>
-            <Label>성별</Label>
-            <div className="flex flex-wrap gap-2">
+
+          {/* 성별 — 칩 그대로 (가로 정렬 적용 안 함, 칩이 폭에 따라 wrap) */}
+          <div className="flex items-center gap-3">
+            <span className="w-[60px] shrink-0 text-[12px] font-medium text-[var(--text-secondary)]">
+              성별
+            </span>
+            <div className="flex flex-1 flex-wrap gap-2">
               {GENDERS.map((g) => (
                 <Chip
                   key={g.key}
@@ -579,7 +589,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
         hint={`최대 ${INTERESTS_MAX}개 · ${procedures.length}/${INTERESTS_MAX}`}
       >
         {/* 안내 — 제목 아랫줄, 볼드 없이 일반 텍스트 */}
-        <p className="mb-3 text-[12px] leading-[1.55] text-[var(--text-secondary)]">
+        <p className="mb-3 text-[13px] leading-[1.55] text-[var(--text-secondary)]">
           추후에도 언제든지 변경하실 수 있어요
         </p>
         <InterestPicker
@@ -755,10 +765,12 @@ function Section({
   children,
 }: {
   title: string;
+  /** 검증 시 사용 — UI 라벨('필수' / '선택')은 노출하지 않음 (사용자 요청 2026-05-23). */
   required?: boolean;
   hint?: string;
   children: React.ReactNode;
 }) {
+  void required;
   return (
     <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -766,15 +778,8 @@ function Section({
         <h2 className="text-[16px] font-bold leading-[1.4] text-[var(--text)]">
           {title}
         </h2>
-        {required ? (
-          <span className="text-[11px] font-semibold text-[var(--primary)]">
-            필수
-          </span>
-        ) : (
-          <span className="text-[11px] text-[var(--text-muted)]">선택</span>
-        )}
         {hint && (
-          <span className="text-[11px] text-[var(--text-muted)]">· {hint}</span>
+          <span className="text-[11px] text-[var(--text-muted)]">{hint}</span>
         )}
       </div>
       {children}
@@ -841,13 +846,16 @@ function InterestPicker({
   onAddCustom: (kw: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [hasOverflow, setHasOverflow] = useState(false);
+  /** 줄 수 제한으로 잘려서 표시 안 되는 첫 칩 index (null = 전부 표시 가능). */
+  const [cutoffIndex, setCutoffIndex] = useState<number | null>(null);
   const [customInput, setCustomInput] = useState("");
   const innerRef = useRef<HTMLDivElement>(null);
-  const outerRef = useRef<HTMLDivElement>(null);
 
   const cat = CATEGORIES.find((c) => c.slug === activeCategory)!;
   const allChips = popularByCategory[activeCategory] ?? [];
+
+  // 줄 수 제한 — collapsed 3줄 / expanded 7줄. ROW_LIMIT 초과 줄에 들어갈 칩은 아예 렌더 안 함.
+  const ROW_LIMIT = expanded ? 7 : 3;
 
   /** 주어진 키워드가 속한 카테고리 색을 반환 — 미발견 시 회색(#9CA3AF) 폴백. */
   function colorOfKeyword(kw: string): string {
@@ -857,29 +865,48 @@ function InterestPicker({
     return "#9CA3AF";
   }
 
-  // 오버플로 측정 — 탭 변경/리사이즈 시 재계산. expanded 면 검사 스킵 (전체 노출 보장).
+  // 줄 수 측정 → cutoffIndex 결정. useLayoutEffect 라 paint 전에 처리 (시각적 깜빡임 없음).
+  //   `flex-wrap` 줄 식별은 chip.offsetTop 으로 (같은 줄 = 같은 top).
+  //   ROW_LIMIT+1 번째 줄 첫 칩의 index 를 cutoff 로 설정 → slice 로 잘라냄.
   useLayoutEffect(() => {
-    if (!innerRef.current || !outerRef.current) return;
-    if (expanded) {
-      setHasOverflow(true); // expanded 면 접기 버튼 유지
-      return;
-    }
-    const measure = () => {
+    const inner = innerRef.current;
+    if (!inner) return;
+
+    function measure() {
       const inner = innerRef.current;
-      const outer = outerRef.current;
-      if (!inner || !outer) return;
-      const cs = window.getComputedStyle(outer);
-      const collapsedH = parseFloat(cs.getPropertyValue("--chips-h") || "108");
-      setHasOverflow(inner.scrollHeight > collapsedH + 1);
-    };
+      if (!inner) return;
+      const chips = Array.from(inner.children) as HTMLElement[];
+      if (chips.length === 0) {
+        setCutoffIndex(null);
+        return;
+      }
+      const seenTops = new Set<number>();
+      let cutoff: number | null = null;
+      for (let i = 0; i < chips.length; i++) {
+        const t = chips[i].offsetTop;
+        if (!seenTops.has(t)) {
+          if (seenTops.size >= ROW_LIMIT) {
+            cutoff = i; // 이 칩이 ROW_LIMIT+1 번째 줄 시작 → 잘라냄
+            break;
+          }
+          seenTops.add(t);
+        }
+      }
+      setCutoffIndex(cutoff);
+    }
+
     measure();
     const obs = new ResizeObserver(measure);
-    if (innerRef.current) obs.observe(innerRef.current);
+    obs.observe(inner);
     return () => obs.disconnect();
-  }, [activeCategory, expanded]);
+  }, [activeCategory, ROW_LIMIT, allChips]);
+
+  const visibleChips =
+    cutoffIndex !== null ? allChips.slice(0, cutoffIndex) : allChips;
+  const hasOverflow = cutoffIndex !== null;
 
   return (
-    <div className="chips-host">
+    <div>
       {/* 탭 — 가운데 정렬 */}
       <div
         role="tablist"
@@ -918,22 +945,16 @@ function InterestPicker({
         }}
       />
 
-      {/* 칩 — 가운데 정렬. expanded 면 max-height 해제로 잘림 없이 전체 노출. */}
+      {/* 칩 — 가운데 정렬. 줄 수 제한(ROW_LIMIT) 초과 칩은 visibleChips 에서 잘려 렌더 안 됨. */}
       {allChips.length === 0 ? (
         <div className="text-center text-xs text-[var(--text-muted)]">
           이 카테고리의 인기 키워드가 아직 없어요.
         </div>
       ) : (
         <>
-          <div
-            ref={outerRef}
-            className="overflow-hidden transition-[max-height] duration-300"
-            style={{
-              maxHeight: expanded ? "none" : "var(--chips-h)",
-            }}
-          >
+          <div>
             <div ref={innerRef} className="flex flex-wrap justify-center gap-1.5">
-              {allChips.map((kw) => {
+              {visibleChips.map((kw) => {
                 const selected = picked.includes(kw);
                 return (
                   <button
@@ -1041,11 +1062,6 @@ function InterestPicker({
         </button>
       </div>
 
-      <style jsx>{`
-        .chips-host {
-          --chips-h: 100px;          /* 3줄 (collapsed 공통) */
-        }
-      `}</style>
     </div>
   );
 }
