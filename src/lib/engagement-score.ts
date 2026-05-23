@@ -1,5 +1,5 @@
 /**
- * 비로그인 사용자 흥미 점수 누적 시스템 (2026-05-21 신설, 2026-05-22 v2 개선).
+ * 비로그인 사용자 흥미 점수 누적 시스템 (2026-05-21 신설, 2026-05-22 v2 개선, 2026-05-23 v3 조정).
  *
  * 정책:
  *   - 비로그인 사용자가 사이트와 인터랙션할수록 점수 누적 (sessionStorage).
@@ -8,11 +8,10 @@
  *   - 로그인 사용자에게는 no-op (점수 누적 자체 안 함).
  *   - custom event detail 에 reason 동봉 → 모달이 reason 별 카피 선택 가능.
  *
- * 점수표 (Phase 2 → v2 2026-05-22 조정):
- *   - 임계점 10 → 6 (사용자 보고: "한참 읽었는데 안 뜸")
- *   - card-view 1 → 2 (기본 신호 강화)
- *   - dwell-2min 신규 +3 (5분 너무 늦음, 의미 있는 머묾)
- *   - dwell-5min 5 → 4 (2분과 누적 균형)
+ * 점수표 변천:
+ *   - Phase 2 (초기): 임계점 10
+ *   - v2 (2026-05-22): 10 → 6 (사용자: "한참 읽었는데 안 뜸")
+ *   - v3 (2026-05-23): 6 → 15 (사용자: "조금 빠른듯. 충분히 경험한 다음에 요청하는게 수락 가능성↑")
  *
  *   카드 view 1개 (4초 이상 머묾 또는 펼침) — +2
  *   카드 펼침 (더보기 클릭)                — +2  (깊이 읽음)
@@ -21,11 +20,15 @@
  *   카테고리 chip 클릭                     — +1  (탐색)
  *   태그 클릭                             — +2  (깊은 탐색)
  *   페이지 navigate                       — +1
- *   2분 이상 (visible 누적)                — +3  (NEW)
+ *   2분 이상 (visible 누적)                — +3
  *   5분 이상 (visible 누적)                — +4
  *   10분 이상 (visible 누적)               — +5
  *
- * 임계점: 누적 ≥ 6점 → 모달 트리거 (한 세션 1회).
+ * 임계점: 누적 ≥ 15점 → 모달 트리거 (한 세션 1회).
+ *   대표 도달 경로:
+ *     - 카드 5개 깊이 read(+10) + 검색 1번(+3) + 펼침 1번(+2) = 15
+ *     - 5분 머묾(+4) + 카드 3개 view(+6) + 영상(+3) + 펼침(+2) = 15
+ *     - 10분 머묾(+5) + 검색 2번(+6) + 카드 2개(+4) = 15
  *
  * 좋아요/저장/공유/댓글 시도 시 = 이미 LoginPromptDialog 가 자체 트리거 (별도 처리).
  */
@@ -55,7 +58,7 @@ export const SCORE_TABLE: Record<EngagementReason, number> = {
   "dwell-10min": 5,
 };
 
-export const THRESHOLD = 6;
+export const THRESHOLD = 15;
 const SS_SCORE_KEY = "pibutenten:engagement-score";
 const SS_TRIGGERED_KEY = "pibutenten:engagement-triggered";
 const LS_DISMISSED_KEY = "pibutenten:engagement-dismissed-at";
