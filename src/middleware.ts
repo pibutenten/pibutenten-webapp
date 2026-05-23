@@ -255,6 +255,30 @@ export async function middleware(request: NextRequest) {
     path: "/",
     maxAge: 60 * 60 * 12,
   });
+
+  // site_visits 적재 (0157, 2026-05-23) — 로그인 사용자 페이지 진입 추적.
+  // 1일 1회 dedup: VISITED_COOKIE 가 있으면 skip. 없으면 INSERT + 24h 쿠키 set.
+  // 카드 view/impression 이 없는 사용자(예: 알림에서 본인 카드 편집만)도 방문자로 카운트.
+  // fail-safe — INSERT 실패해도 본 요청은 정상 처리.
+  const visitedCookie = request.cookies.get("pibutenten_visited")?.value;
+  if (!visitedCookie) {
+    try {
+      await supabase.from("site_visits").insert({
+        user_id: user.id,
+        path,
+      });
+    } catch (e) {
+      console.warn("[middleware] site_visits insert failed:", e);
+    }
+    response.cookies.set("pibutenten_visited", "1", {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24,
+    });
+  }
+
   return response;
 }
 
