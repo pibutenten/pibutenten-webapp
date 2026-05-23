@@ -466,7 +466,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
               maxLength={120}
               inputMode="email"
               autoComplete="email"
-              className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[12.5px] focus:border-[var(--primary)] focus:outline-none"
+              className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[12px] focus:border-[var(--primary)] focus:outline-none"
             />
           </div>
           {/* 생년월일 — 라벨 좌측, select 3개 우측 */}
@@ -478,7 +478,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
               <select
                 value={birthYear}
                 onChange={(e) => setBirthYear(e.target.value)}
-                className="h-9 flex-[1.3] rounded-md border border-[var(--border)] bg-white px-2 text-[12.5px] focus:border-[var(--primary)] focus:outline-none"
+                className="h-9 flex-[1.3] rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none"
               >
                 <option value="">년</option>
                 {YEAR_OPTIONS.map((y) => (
@@ -490,7 +490,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
               <select
                 value={birthMonth}
                 onChange={(e) => setBirthMonth(e.target.value)}
-                className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[12.5px] focus:border-[var(--primary)] focus:outline-none"
+                className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none"
               >
                 <option value="">월</option>
                 {MONTH_OPTIONS.map((m) => (
@@ -502,7 +502,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
               <select
                 value={birthDay}
                 onChange={(e) => setBirthDay(e.target.value)}
-                className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[12.5px] focus:border-[var(--primary)] focus:outline-none"
+                className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none"
               >
                 <option value="">일</option>
                 {DAY_OPTIONS.map((d) => (
@@ -805,11 +805,22 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={
-        "shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors " +
-        (active
-          ? "bg-[#9CA3AF] text-white font-semibold"
-          : "bg-[#E8EAEE] text-[#5C6470] hover:bg-[#D8DCE3]")
+      // 검색 페이지 (CategoryWithChips) 칩과 색·굵기 통일:
+      //   - 비활성: bg #E8EAEE / text #5C6470 / fontWeight 500
+      //   - 활성: bg #9CA3AF / text white / fontWeight 600
+      className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97]"
+      style={
+        active
+          ? {
+              backgroundColor: "#9CA3AF",
+              color: "#FFFFFF",
+              fontWeight: 600,
+            }
+          : {
+              backgroundColor: "#E8EAEE",
+              color: "#5C6470",
+              fontWeight: 500,
+            }
       }
     >
       {children}
