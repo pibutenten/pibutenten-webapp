@@ -109,15 +109,15 @@ export default function EngagementPromptDialog({ open, reason, onClose }: Props)
       >
         {/* 상단 로고 + 트러스트 카피 */}
         <div className="flex flex-col items-center gap-2">
-          <div className="h-12 w-12 overflow-hidden rounded-2xl">
-            <Image
-              src="/icons/icon-192.png"
-              alt="피부텐텐"
-              width={48}
-              height={48}
-              priority
-            />
-          </div>
+          {/* 브랜드 심볼 — 원형 transparent symbol.svg (PWA 사각 아이콘 X) */}
+          <Image
+            src="/icons/symbol.svg"
+            alt="피부텐텐"
+            width={48}
+            height={48}
+            className="h-12 w-12"
+            priority
+          />
           <p className="text-[12px] text-[var(--text-muted)]">{trustCopy}</p>
         </div>
 
