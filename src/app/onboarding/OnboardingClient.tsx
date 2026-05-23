@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -468,10 +469,6 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
               className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[12.5px] focus:border-[var(--primary)] focus:outline-none"
             />
           </div>
-          <p className="-mt-1 ml-[72px] text-[12px] leading-[1.5] text-[var(--text-muted)]">
-            다른 이메일을 쓰시려면 직접 수정해 주세요.
-          </p>
-
           {/* 생년월일 — 라벨 좌측, select 3개 우측 */}
           <div className="flex items-center gap-3">
             <span className="w-[60px] shrink-0 text-[12px] font-medium text-[var(--text-secondary)]">
@@ -865,41 +862,49 @@ function InterestPicker({
     return "#9CA3AF";
   }
 
-  // 줄 수 측정 → cutoffIndex 결정. useLayoutEffect 라 paint 전에 처리 (시각적 깜빡임 없음).
-  //   `flex-wrap` 줄 식별은 chip.offsetTop 으로 (같은 줄 = 같은 top).
-  //   ROW_LIMIT+1 번째 줄 첫 칩의 index 를 cutoff 로 설정 → slice 로 잘라냄.
+  // 줄 수 측정 → cutoffIndex 결정. ⚠ 무한 re-measure 루프 fix (사용자 보고 "떨림"):
+  //   기존 버전은 ResizeObserver 가 자기가 슬라이스한 inner 의 사이즈 변화를 감지하여 재측정,
+  //   재측정 결과가 달라지면(슬라이스 vs 풀세트 layout 차이) 다시 setState → 무한 루프.
+  //
+  //   현재 버전:
+  //   1) effect 의존성 변경 시 (category/ROW_LIMIT/allChips/window-resize) → cutoff null 로 reset
+  //   2) cutoff === null 이면 전체 칩이 렌더된 상태 → 그 layout 으로 측정 → cutoff 확정
+  //   3) cutoff 가 number 일 때 effect 다시 들어와도 early return → 무한 루프 차단
+  //   4) ResizeObserver 미사용 (window resize 만 listen)
   useLayoutEffect(() => {
+    setCutoffIndex(null);
+  }, [activeCategory, ROW_LIMIT, allChips]);
+
+  useLayoutEffect(() => {
+    if (cutoffIndex !== null) return; // 이미 슬라이스됨 — 재측정 X
     const inner = innerRef.current;
     if (!inner) return;
+    const chips = Array.from(inner.children) as HTMLElement[];
+    if (chips.length === 0) return;
 
-    function measure() {
-      const inner = innerRef.current;
-      if (!inner) return;
-      const chips = Array.from(inner.children) as HTMLElement[];
-      if (chips.length === 0) {
-        setCutoffIndex(null);
-        return;
-      }
-      const seenTops = new Set<number>();
-      let cutoff: number | null = null;
-      for (let i = 0; i < chips.length; i++) {
-        const t = chips[i].offsetTop;
-        if (!seenTops.has(t)) {
-          if (seenTops.size >= ROW_LIMIT) {
-            cutoff = i; // 이 칩이 ROW_LIMIT+1 번째 줄 시작 → 잘라냄
-            break;
-          }
-          seenTops.add(t);
+    const seenTops = new Set<number>();
+    let cutoff: number | null = null;
+    for (let i = 0; i < chips.length; i++) {
+      const t = chips[i].offsetTop;
+      if (!seenTops.has(t)) {
+        if (seenTops.size >= ROW_LIMIT) {
+          cutoff = i;
+          break;
         }
+        seenTops.add(t);
       }
-      setCutoffIndex(cutoff);
     }
+    if (cutoff !== null) setCutoffIndex(cutoff);
+  });
 
-    measure();
-    const obs = new ResizeObserver(measure);
-    obs.observe(inner);
-    return () => obs.disconnect();
-  }, [activeCategory, ROW_LIMIT, allChips]);
+  // window resize → cutoff 리셋 → 전체 칩 재렌더 → 재측정.
+  useEffect(() => {
+    function onResize() {
+      setCutoffIndex(null);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const visibleChips =
     cutoffIndex !== null ? allChips.slice(0, cutoffIndex) : allChips;
