@@ -1,0 +1,172 @@
+# 피부텐텐 PRD (Product Requirements Document)
+
+> 제품의 **"왜·무엇"** 을 정의하는 문서. 기술 구조는 `ARCHITECTURE.md`, 변경 이력은 `CHANGELOG.md`, 의사결정 근거는 `decisions/` 참조.
+
+---
+
+## 1. 제품 개요
+
+**피부텐텐 (Pibutenten)** — 피부과 전문의가 함께하는 피부 미용 SNS / Q&A 검색 엔진.
+
+- **도메인**: https://pbtt.kr
+- **운영사**: 주식회사 진솔컴퍼니 (jminbae@gmail.com)
+- **YouTube**: https://www.youtube.com/@pibutenten
+
+---
+
+## 2. 핵심 가치 제안
+
+> "피부과 전문의가 직접 답하는 리프팅 · 스킨부스터 · 안티에이징 · 피부시술 커뮤니티"
+
+- 일반 사용자의 피부 고민 → **검증된 피부과 전문의 답변** 검색 가능
+- 피부과 전문의 답변·칼럼 → **SEO 최적화로 자연 유입 확보**
+- 일반 회원의 피부 일기·시술 후기 → **커뮤니티 형 데이터 축적**
+- YouTube 영상 → AI 추출 Q&A 카드 → 검색 가능한 형태로 재배포
+
+---
+
+## 3. 사용자 페르소나
+
+### 3.1. 일반 회원 (user)
+- 피부 고민/시술 질문 작성, 다른 회원/원장 답변 검색
+- 피부 일기, 시술 후기, 외부 글 공유
+- 카테고리: `diary` (피부일기) / `ask` (물어봐요) / `link` (공유하기) / `doodle` (끄적끄적)
+
+### 3.2. 피부과 전문의 (doctor)
+- Q&A 답변, 칼럼 작성, 회원 질문 검수
+- 본인 글의 SEO URL: `/doctors/{slug}/{year}/{post-slug}`
+- 본인 멀티 프로필 (의사 본계 + 일반 회원 부계) 같은 묶음 가능
+- 카테고리: `qa` (Q&A) / `tip` (꿀팁) 추가 작성 권한
+
+### 3.3. 관리자 (admin)
+- 운영 전반: 카드/댓글/회원 관리, AI 글 초안 생성, KPI 대시보드
+- AI 글 초안 워크플로 (`/admin/draft`): YouTube → 검수 → 발행
+- 보안·신고 처리, 콘텐츠 자동 검수 결과 대응
+
+---
+
+## 4. 핵심 기능
+
+### 4.1. 글 (카드) 시스템
+- 통합 테이블 `cards` (구 `qas`, 2026 리네임 — ADR 0004)
+- 타입: `qa` (Q&A), `post` (일반 글)
+- 카테고리 5분류: `qa` / `tip` / `diary` / `ask` / `link` / `doodle`
+- 상태: `draft` / `pending_review` / `published` / `hidden` / `archived`
+- soft-delete + in-place 익명화 (ADR 0002)
+- 외부 링크 OG 카드 첨부, YouTube 영상 시작시간 sync
+
+### 4.2. 검색 / 피드
+- 메인 RPC: `search_cards_scored`
+- HOT 카드 자동 마킹 (`get_hot_card_ids_v2`)
+- 같은 원장 3연속 방지, 첫 4카드 다양화
+- 인기 키워드 칩 5탭 (피부고민/리프팅/스킨부스터/홈케어/피부상식)
+
+### 4.3. 사용자 시스템 (Identity Phase 9 — ADR 0001)
+- 한 auth user 가 여러 profile row 보유 가능 (의사 본계 + 일반 부계)
+- 쿠키 기반 active identity 전환
+- 모든 인터랙션 (좋아요/저장/댓글/글) 의 `user_id`/`author_id` = active profile.id
+
+### 4.4. 온보딩 (필수 게이트)
+- 약관 동의 + 생년월일·성별·얼굴형·피부타입 입력 강제
+- 14세 미만 차단 (CHECK constraint)
+- 중복 가입자 식별 (OAuth provider email 기반 — ADR 0003)
+
+### 4.5. 알림 / 푸시
+- DB 트리거 → webhook → Web Push (VAPID)
+- 댓글·좋아요·저장·답변 알림 채널별 설정
+
+### 4.6. AI 글 초안 (`/admin/draft`)
+- Anthropic Claude 기반 2단계 워크플로
+- Step 1: YouTube transcript → Q&A 후보 추출
+- Step 2: 후보 → Q&A 본문 생성 + PubMed 참고문헌 자동 첨부
+
+### 4.7. 콘텐츠 자동 검수
+- 의료법 §56② 14금지 + 약사법 §68 + 환자후기 키워드 사전
+- 의사·관리자 자동 통과, 일반 회원만 적용
+- 자살/자해 키워드 감지 시 안전 메시지 모달 (109/1577-0199/1388)
+
+---
+
+## 5. 비기능 요구사항
+
+### 5.1. 보안
+- RLS (행 단위 권한) 전체 적용 (ADR 0006)
+- CSRF Origin 검증 (allow-list 좁힘)
+- SSRF 가드 (DNS + IPv4/IPv6 사설 대역 + 메타데이터 호스트 + redirect 매 hop)
+- 업로드: magic byte 검증 + sharp EXIF 제거 + 8MB 한도
+- audit_logs 1년 보관 (민감 API: 회원 탈퇴, 권한 변경, identity 전환)
+- 상세 보안 정책: `SECURITY.md`
+
+### 5.2. 개인정보보호 (PIPA)
+- 탈퇴 시 soft-delete in-place 익명화 (네이버 카페식, ADR 0002)
+- anon 권한 컬럼 화이트리스트 (PII 8개 컬럼 anon SELECT 차단)
+- 처리방침 국외이전 표 명시 (Supabase/Vercel/Anthropic/Google/Web Push/PubMed)
+- 30일 임시조치 절차 (정통망법 §44조의2)
+
+### 5.3. 의료법 준수
+- 의료광고 14금지 자동 검수
+- 환자 후기 차단
+- 의료 면책 페이지 (`/disclaimer`)
+- 처방·진단 행위 금지 안내
+
+### 5.4. SEO
+- 동적 sitemap, robots, manifest
+- OG 메타: 원장님 페이지·단일 글 페이지 모두 `generateMetadata`
+- 의사 글 URL: `/doctors/{slug}/{year}/{post-slug}` 키워드 기반 slug
+- 회원 글 URL: `/{handle}/{shortcode}` 8자 base58
+- 베타 기간 (~2026-06-01) 전체 봇 차단, 공개 시 환원
+
+### 5.5. PWA
+- manifest.json + Service Worker
+- 아이콘 2그룹 구조 (favicon=원형 / OS 아이콘=사각, ADR 0009)
+- iOS apple-touch-startup-image, Android native splash 지원
+
+### 5.6. 접근성
+- 모바일 우선 PWA (모바일 1단 / 데스크탑 ≥900px 2단, 최대 너비 1080px)
+- 한국어 폰트 (Pretendard)
+- 시각 대비 WCAG AA 수준 (글자색 4톤, ADR 0010)
+
+---
+
+## 6. 성공 지표 (KPI)
+
+### 6.1. 운영 KPI (관리자 대시보드, 기본 24h)
+- 방문자 (1일 1방문 KST dedup, ADR 0010)
+- 조회수 (distinct visitor)
+- 댓글·좋아요·저장·공유 수
+- 신규 회원·신규 카드 수
+
+### 6.2. 비즈니스 KPI
+- 베타 기간 (~2026-06-01): 의사 9명 + 회원 ~100명 + 카드 ~2300개
+- 공개 후 목표: 월간 DAU 1만 (분기별 재검토)
+
+---
+
+## 7. 제외 범위 (Out of Scope)
+
+- 결제·구독·유료 콘텐츠 (현 무료)
+- 실시간 채팅·DM
+- 화상 진료·온라인 처방 (의료법상 불가)
+- 19금 콘텐츠 차단 기능 (콘텐츠 없음 — 약관 1줄 명시만)
+- 광고 시스템 (베타 기간 보류)
+
+---
+
+## 8. 관련 문서
+
+| 영역 | 위치 |
+|---|---|
+| 시스템 구조 | `ARCHITECTURE.md` |
+| DB 스키마 | `DATABASE.md` |
+| 기술 명세 (온보딩/검색/키워드/OG/알림/AI) | `TECH_SPEC.md` |
+| 배포 절차 | `DEPLOYMENT.md` |
+| 향후 계획 | `ROADMAP.md` |
+| 변경 이력 | `CHANGELOG.md` |
+| 운영 매뉴얼 | `RUNBOOK.md` |
+| 보안 | `SECURITY.md` |
+| 의사결정 기록 | `decisions/` |
+| 점검 보고서 | `reports/` |
+
+---
+
+**이 문서 변경 시**: 라우트·핵심 컴포넌트 변경이 함께 있을 경우 `ARCHITECTURE.md` 도 같이 갱신 (CLAUDE.md §5 동기화 규칙).
