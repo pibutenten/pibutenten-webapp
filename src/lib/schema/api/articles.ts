@@ -23,15 +23,21 @@ const ExternalMetaSchema = z
   })
   .strict();
 
+// PubMed 참고문헌 객체 — 클라이언트(PubmedRefsField.tsx 의 PubmedRefObj 타입) 형식과 일치.
+// 모든 필드 nullable + optional — DB jsonb 의 실제 값 형태 보존.
+// 2026-05-26 fix (김수형 원장 회귀): 옛 schema 가 `authors`/`url` 같은 다른 필드명
+// 사용 + `.strict()` 라 클라이언트의 `authors_short`/`pubmed_url`/`doi_url` 필드를
+// reject → "invalid_input" 에러. PubMed 참고문헌이 붙은 모든 카드 수정 차단됐던 회귀.
 const PubmedRefSchema = z
   .object({
-    pmid: z.string().max(20).optional(),
-    doi: z.string().max(200).optional(),
-    title: z.string().max(1000).optional(),
-    authors: z.string().max(2000).optional(),
-    journal: z.string().max(300).optional(),
-    year: z.union([z.string().max(10), z.number().int()]).optional(),
-    url: z.string().url().max(2048).optional(),
+    pmid: z.string().max(20).nullable().optional(),
+    doi: z.string().max(200).nullable().optional(),
+    title: z.string().max(1000).nullable().optional(),
+    journal: z.string().max(300).nullable().optional(),
+    year: z.union([z.string().max(10), z.number().int()]).nullable().optional(),
+    authors_short: z.string().max(2000).nullable().optional(),
+    pubmed_url: z.string().url().max(2048).nullable().optional(),
+    doi_url: z.string().url().max(2048).nullable().optional(),
   })
   .strict();
 
