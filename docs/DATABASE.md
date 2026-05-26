@@ -124,6 +124,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | `toggle_comment_like` | 댓글 좋아요 (`p_identity_id`, 0101) |
 | `toggle_card_pick` | is_pick 토글 (admin OR self-doctor, 0151) |
 | `soft_delete_card(p_card_id)` | SECURITY DEFINER RLS 우회 삭제 (0156) |
+| `get_active_doctor_id(p_profile_id)` | active 신분 단위 doctor 매핑 lookup (0158). 위조 차단: profile_id 가 호출자 묶음에 속하지 않으면 null. ADR 0001 active 권한 원칙 |
 | `get_card_activity_users(card_id, kind, p_days)` | admin 카드 활동 사용자 |
 | `get_top_cards_by_views/likes/saves/shares/comments` | admin KPI TOP |
 | `get_top_visitors_inner(p_days)` | 방문자 TOP |
@@ -178,7 +179,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 
 ## 5. 마이그레이션 히스토리
 
-핵심 이정표 (0001 ~ 0157, ~160개):
+핵심 이정표 (0001 ~ 0158, ~161개):
 
 | Migration | 내용 |
 |---|---|
@@ -237,6 +238,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | **0155** | **cards_owner_update/delete — 모든 type 커버** |
 | 0156 | soft_delete_card RPC (SECURITY DEFINER RLS 우회) |
 | **0157** | **site_visits 테이블 (방문자 추적 확장)** |
+| **0158** | **get_active_doctor_id RPC — active 신분 단위 doctor 매핑 lookup (정한미 원장 회귀 fix)** |
 
 ---
 

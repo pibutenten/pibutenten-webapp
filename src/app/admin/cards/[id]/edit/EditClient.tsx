@@ -180,13 +180,24 @@ export default function EditClient({
     ? card.author.display_name ?? card.author.handle ?? "이름 없음"
     : "— 알 수 없음 —";
 
+  // soft-delete via SECURITY DEFINER RPC (0156).
+  // 배경: 직접 `cards.update({deleted_at})` 는 PostgreSQL RLS WITH CHECK 의 sub-select
+  // 평가 미묘 이슈로 type='qa' 카드에서 "new row violates row-level security policy"
+  // raw 에러를 form 빨간 박스에 노출시킴 (이도영 원장 카드 #2316 사례).
+  // 일반 EditClient / Card.tsx 는 이미 RPC 로 통일됐는데 admin EditClient 만 누락 →
+  // doctor admin 본인이 본인 카드 admin/cards/[id]/edit 진입 후 [지우기] 시 회귀 발생.
   async function handleSoftDelete() {
     const supabase = createSupabaseBrowserClient();
-    const { error: delErr } = await supabase
-      .from("cards")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", card.id);
-    if (delErr) throw new Error(delErr.message);
+    const { error: delErr } = await supabase.rpc("soft_delete_card", {
+      p_card_id: card.id,
+    });
+    if (delErr) {
+      const msg = delErr.message || "";
+      if (msg.includes("forbidden")) throw new Error("권한이 없어 삭제할 수 없어요.");
+      if (msg.includes("card_not_found"))
+        throw new Error("이미 삭제되었거나 존재하지 않는 카드입니다.");
+      throw new Error(msg || "삭제 실패");
+    }
     router.push("/admin/cards");
   }
 

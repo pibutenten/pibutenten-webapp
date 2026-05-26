@@ -28,18 +28,29 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * 주어진 profile.id 에 매핑된 doctor.id 반환.
  *  - 매핑 row 없음 → null
  *  - 매핑 row 있음 → doctor_id 값 (string)
+ *  - profile.id 가 호출자(auth.uid()) 묶음에 속하지 않으면 null (위조 차단)
  *
- * 별도 권한 검사 X — 호출 측의 RLS / session 가드를 사용.
+ * 구현: SECURITY DEFINER RPC `get_active_doctor_id` (마이그레이션 0158) 호출.
+ *
+ * 배경 — ADR 0001 "묶음 동등 독립 + active 신분 단위 권한" 원칙 준수:
+ *   직접 `doctor_accounts.select().eq("profile_id", X)` 패턴은 RLS 정책
+ *   `(auth.uid() = profile_id) OR is_admin()` 를 거치는데, PostgreSQL auth.uid()
+ *   는 active identity 전환을 모름 (항상 primary auth_user.id). 그래서 본계가
+ *   primary 가 아닌 의사(예: 정한미 원장 — 너구리 primary + 의사 본계 sub)는
+ *   본인의 의사 매핑조차 못 봄 → /doctor 가드에서 doctorId=null → 홈으로 튕김.
+ *
+ *   해결: RLS 정책을 "본인 묶음 전체" 로 확장하면 묶음 단위 권한 합산이 되어
+ *   ADR 0001 위배. 대신 active 신분의 profile.id 를 명시적으로 전달받아
+ *   그 신분 단독 매핑만 lookup 하는 SECURITY DEFINER RPC 가 정답.
+ *   너구리로 active 시 너구리 profile.id 전달 → null → 의사 권한 자동 상속 차단.
  */
 export async function getDoctorIdForProfile(
   supabase: SupabaseClient,
   profileId: string,
 ): Promise<string | null> {
-  const { data } = await supabase
-    .from("doctor_accounts")
-    .select("doctor_id")
-    .eq("profile_id", profileId)
-    .maybeSingle()
-    .returns<{ doctor_id: string } | null>();
-  return data?.doctor_id ?? null;
+  const { data, error } = await supabase
+    .rpc("get_active_doctor_id", { p_profile_id: profileId })
+    .returns<string | null>();
+  if (error) return null;
+  return (data as string | null) ?? null;
 }
