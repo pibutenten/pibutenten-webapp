@@ -6,6 +6,65 @@
 
 ---
 
+## [2026-05-26] (X) — 세션 종료 정리 + 미해결 회귀 + 다음 세션 우선순위
+
+### Session log (af15ce1 → cb2a60d → 5e8d3b4 → bdbe933 → e3f3280)
+서브에이전트 8명 종합 누더기 진단 + ADR 0012 정착 + 마이그레이션 0164~0167 적용 + SW auto-reload + Vercel cache invalidate. 상세는 `docs/reports/2026-05-26-session-final-report.md`.
+
+### Unresolved — 정한미·고혜림 원장 회귀
+- **증상**: admin/cards/[id]/edit 화면에서 글 수정 → "올리기" 클릭 시 `"Could not find the 'pubmed_ref' column of 'cards' in the schema cache"` 에러
+- **진단 결과 (모두 통과)**:
+  - local code `pubmed_ref` 단수 참조 0건
+  - production 24개 chunk 전수 검사 0건
+  - DB cards 컬럼 목록에 `pubmed_ref` 없음
+  - DB 함수·view·트리거 0건
+  - PostgREST schema cache 정상 (`NOTIFY pgrst, 'reload schema'` 완료)
+  - 직접 PATCH `{"pubmed_refs": null}` → 정상
+  - 직접 PATCH `{"pubmed_ref": null}` → 사용자 본 에러 정확히 재현
+- **시도된 fix**: `bdbe933` (SW auto-reload), `e3f3280` (package.json version bump → Vercel build cache full invalidate)
+- **사용자 단서**: "고친지 한두 시간 후" — stale page 캐시 아님, 진짜 production 코드 잔재 의심
+
+### Next session — 우선순위 액션
+
+#### P0 — 정한미·고혜림 회귀 종결
+1. **e3f3280 deploy 완료 후 두 원장 재시도 결과 확인** — 정상이면 종결
+2. **여전히 에러 시 안전망 추가**: `src/app/admin/cards/[id]/edit/EditClient.tsx` 의 `.from("cards").update(update)` 직전에 **cards 테이블 실제 컬럼 화이트리스트** 필터 박기 — 어떤 코드 path 가 옛 컬럼 추가해도 자동 차단:
+   ```typescript
+   const CARDS_COLUMNS = new Set([/* DB introspect 결과 */]);
+   const filtered = Object.fromEntries(
+     Object.entries(update).filter(([k]) => CARDS_COLUMNS.has(k))
+   );
+   await supabase.from("cards").update(filtered).eq("id", card.id);
+   ```
+3. **Vercel CLI/dashboard 에서 production alias 직접 확인** — pbtt.kr 가 어느 commit 빌드에 alias 됐는지 확정
+
+#### P1 — ADR 0012 잔여 정합 (단기, 1~2주)
+- `doctor_accounts` 직접 SELECT 9곳 → `getDoctorIdForProfile` 헬퍼 통일 (정한미식 회귀 잠재 표면 차단)
+- `audit_logs` 4건 보강 (Naver callback / `/api/upload` / `/api/reports` / admin OAuth) — PIPA §8 정합
+- middleware `pibutenten_onboarded` 쿠키 HMAC 서명화 (위조 차단)
+- `acting_profile_id()` 헬퍼로 RLS/RPC 인라인 34곳 일괄 치환
+
+#### P2 — 중기 (2~4주)
+- 옛 함수 7회 재정의 squash (`anonymize_user_content_before_delete`, `find_duplicate_profiles`, scored RPCs)
+- `layout.tsx` `getSessionInfo` 105줄 → `lib/session-info.ts` 분리 + force-dynamic/revalidate/fetchCache 트리플 정리
+- doctor legacy role 6 profile 데이터 마이그레이션 + UI 분기 단순화
+- CardEditor.tsx 1093줄 분할 (CategoryPicker / StartTimeField / AdminExtrasPanel / OwnerActionsBar)
+
+#### P3 — 장기 (베타 종료 2026-06-01 이후, 무트래픽 시점)
+- 마이그레이션 baseline squash (`0000_baseline.sql` 1장) — production drift 0 확인 후
+- `cards.question`/`answer` → `title`/`body` 컬럼 리네임 + 모든 검색 RPC 본문 갱신
+- Dialog 베이스 마이그레이션 (6 모달 wrapper 중복 제거)
+- CSS 색상 토큰 일괄 치환 (Tailwind v4 `@theme inline`)
+- SSRF 가드 통합 (`safeFetchExternal` 단일)
+
+### Lessons (다음 세션이 참고)
+1. **DB 컬럼 DROP 직후 stale client chunk 잔존** — column DROP 마이그레이션 시 (a) PostgREST schema reload + (b) SW auto-reload (이미 도입됨) + (c) update payload 화이트리스트 필터 (방어 심층화) 3박자 필수.
+2. **column 검사는 client + server 양쪽 모두 필요** — production client chunk grep 만으로는 server function bundle 잔재 못 잡음. 차후 Vercel CLI `vercel inspect <deployment>` 로 server function 검사 절차 추가.
+3. **사용자 결정 → ADR 박기 → 적용 검증** 패턴이 누더기 방지에 가장 효과적 — ADR 0012 가 향후 같은 회귀 재발의 단일 판단 기준.
+4. **8명 검토 합의도 ≥ 4명** 항목은 100% 진짜 누더기 — 거짓 양성 거의 0.
+
+---
+
 ## [2026-05-26] (IX) — ADR 0012 명함 단위 완전 독립 원칙 정착 (서브에이전트 8명 종합 누더기 진단 → 일괄 정합)
 
 사용자 결정 — "의사 명함으로 쓴 글은 의사 글, 회원 명함으로 쓴 글은 회원 글. 그 사이 교차·합산 없음. 묶음의 유일한 효용은 빠른 전환." — 을 단일 원칙으로 박고 application layer 의 절반 정합 상태를 끝까지 정합. 5월 한 달 이도영·정한미·김수형 원장 회귀 3연속의 근본 차단.
