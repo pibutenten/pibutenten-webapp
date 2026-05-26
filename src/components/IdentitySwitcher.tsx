@@ -14,12 +14,12 @@ type Props = {
   isAdmin: boolean;
 };
 
+// 계정 역할 라벨. 'primary' 분기 제거 (ADR 0001 — 동등 독립, 위계 없음).
+// session.identities[].kind 는 profile.role ('admin' | 'doctor' | 'user').
 const KIND_LABEL: Record<string, string> = {
-  primary: "기본",
   doctor: "원장",
   user: "회원",
   admin: "관리자",
-  other: "기타",
 };
 
 /**
@@ -119,14 +119,14 @@ export default function IdentitySwitcher({
         aria-label={`${active.displayName} — ${
           active.kind === "admin"
             ? "관리자 대시보드"
-            : active.kind === "doctor" || active.kind === "primary"
+            : active.kind === "doctor"
               ? "원장 대시보드"
               : "내 프로필"
         }`}
         title={
           active.kind === "admin"
             ? "관리자 대시보드"
-            : active.kind === "doctor" || active.kind === "primary"
+            : active.kind === "doctor"
               ? "원장 대시보드"
               : "내 프로필"
         }

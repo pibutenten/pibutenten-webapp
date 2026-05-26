@@ -146,7 +146,8 @@ async function getSessionInfo(): Promise<SessionInfo> {
       });
     }
 
-    // dropdown 순서 — admin / doctor / user
+    // dropdown 정렬 — 역할 우선도 (UI 표시 순서만, 권한 부여와 무관).
+    // ADR 0001 동등 독립 원칙: 정렬은 표시 순서일 뿐, 위계 의미 없음.
     const KIND_ORDER: Record<string, number> = {
       admin: 0,
       doctor: 1,

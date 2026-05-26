@@ -150,16 +150,25 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 - `public_profiles_view` (안전 컬럼 19개만 노출)
 - `chk_min_age` CHECK constraint (14세 미만 차단, 0121)
 
-### 3.2. cards
-- `cards_public_read`: `status='published' OR is_admin() OR doctor_id=current_doctor_id() OR author_id IN same_group_profile_ids(auth.uid())` + `deleted_at IS NULL` 강제 (0132)
-- `cards_admin_all` / `cards_doctor_update`/`_delete` / `cards_user_own_post`/`_delete`
-- `cards_owner_update`/`_delete` (0155 신설 → 0160 active 단위 재작성): 모든 type 커버, `author_id = COALESCE(current_active_profile_id(), auth.uid())`
-- `cards_user_post_insert` (0160 재작성): 3중 OR 분기 모두 active 단위
-- `is_admin()` / `current_doctor_id()` active 인식 (0159 — ADR 0011)
+### 3.2. cards (계정 단위 — ADR 0011)
+- `cards_public_read` (0161 재작성): `is_admin() OR (deleted_at IS NULL AND (status='published' OR doctor_id=current_doctor_id() OR author_id = COALESCE(current_active_profile_id(), auth.uid())))`
+- `cards_admin_all` / `cards_doctor_update`/`_delete` (doctor_id = current_doctor_id())
+- `cards_owner_update`/`_delete` (0155 신설 → **0160 계정 단위 재작성**): 모든 type 커버, `author_id = COALESCE(current_active_profile_id(), auth.uid())`
+- `cards_user_own_post`/`_delete` (0160 재작성): type='post' AND `author_id = COALESCE(current_active_profile_id(), auth.uid())`
+- `cards_user_post_insert` (0160 재작성): 3중 OR 분기 모두 계정 단위
+- `is_admin()` / `current_doctor_id()` 계정 단위 인식 (0159 — ADR 0011)
 - 폐기: `cards_open_all_to_auth` (0160 DROP — USING=true/CHECK=true PERMISSIVE 라 owner/doctor 정책 무력화하던 보안 구멍)
 
-### 3.3. comments, card_likes, card_saves
-- 본인 + admin + same-group bundle 접근
+### 3.3. comments / card_likes / card_saves / comment_likes (0161 계정 단위 재작성)
+- `comments_insert/update_self/delete_self`: `author_id = COALESCE(current_active_profile_id(), auth.uid())`
+- `comments_select`: visible OR is_admin OR active 작성자 OR active 가 카드 owner(doctor·author)
+- `card_likes_insert/delete`: `user_id = COALESCE(current_active_profile_id(), auth.uid())`. select 는 true (public, 카운트 노출)
+- `card_saves_insert/delete/select`: 동일 (select 는 본인 active 만 또는 admin)
+- `comment_likes_insert/delete/select`: 동일
+
+### 3.4. notifications / notification_preferences / push_subscriptions (0161 계정 단위 재작성)
+- 중복 정책 (옛 `_self_*` + 새 `_own`) 통합 → 단일 정책
+- `recipient_id` / `profile_id = COALESCE(current_active_profile_id(), auth.uid())`
 
 ### 3.4. avatars 버킷
 - `avatars_public_read` + `avatars_user_insert/update/delete` (본인 폴더만)
@@ -181,7 +190,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 
 ## 5. 마이그레이션 히스토리
 
-핵심 이정표 (0001 ~ 0160, ~163개):
+핵심 이정표 (0001 ~ 0162, ~165개):
 
 | Migration | 내용 |
 |---|---|
@@ -235,7 +244,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0145, 0146 | get_top_visitors last_visit_at + get_top_new_members/cards |
 | 0151 | toggle_card_pick = admin OR self-doctor |
 | **0152** | **cards qa_status enum 'hidden' 추가** |
-| 0153 | is_admin() 묶음 인식 확장 |
+| 0153 | is_admin() 묶음 인식 확장 (→ 0159 에서 계정 단위로 정합, 본 옛 패턴 폐기) |
 | 0154 | feed_cards_scored 반환에 status 컬럼 |
 | **0155** | **cards_owner_update/delete — 모든 type 커버** |
 | 0156 | soft_delete_card RPC (SECURITY DEFINER RLS 우회) |
@@ -243,6 +252,8 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | **0158** | **get_active_doctor_id RPC — active 신분 단위 doctor 매핑 lookup (정한미 원장 회귀 fix)** |
 | **0159** | **current_active_profile_id GUC 헬퍼 + is_admin/current_doctor_id active 인식 본문 교체 (ADR 0011)** |
 | **0160** | **cards RLS active 단위 재작성 + cards_open_all_to_auth 보안 구멍 DROP (ADR 0011)** |
+| **0161** | **Phase 2-A: cards_public_read SELECT + card_likes/saves/comments/comment_likes + notifications 중복 정리 + notification_preferences + push_subscriptions 모두 계정 단위 (ADR 0011)** |
+| **0162** | **Phase 2-B: toggle_card_hide RPC 신설 + soft_delete_card/get_my_stats/get_my_notifications/mark_my_notifications_read/toggle_card_like/save/comment_like/pick + _check_doctor_kpi_access/get_doctor_kpi/anonymize_user_content_before_delete 모두 계정 단위 (ADR 0011)** |
 
 ---
 

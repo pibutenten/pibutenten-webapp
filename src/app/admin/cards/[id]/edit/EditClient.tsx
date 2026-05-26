@@ -201,14 +201,24 @@ export default function EditClient({
     router.push("/admin/cards");
   }
 
+  // 숨김/공개 토글 — 계정 단위 권한 검증 RPC (0162 신설).
+  // 이전: 직접 cards.update({status}) 호출 → cards_owner_update RLS 통과해야 하는데
+  // 옛 묶음 단위 RLS (0155) 였음. 0160 active 단위 재작성 후에도 동일 패턴 유지 가능하나,
+  // soft-delete 와 일관되게 SECURITY DEFINER RPC 로 통일하여 계정 단위 권한 검증 명시화.
   async function handleToggleHide() {
     const supabase = createSupabaseBrowserClient();
     const next = card.status === "hidden" ? "published" : "hidden";
-    const { error: hideErr } = await supabase
-      .from("cards")
-      .update({ status: next })
-      .eq("id", card.id);
-    if (hideErr) throw new Error(hideErr.message);
+    const { error: hideErr } = await supabase.rpc("toggle_card_hide", {
+      p_card_id: card.id,
+      p_next_status: next,
+    });
+    if (hideErr) {
+      const msg = hideErr.message || "";
+      if (msg.includes("forbidden")) throw new Error("권한이 없어 처리할 수 없어요.");
+      if (msg.includes("card_not_found"))
+        throw new Error("카드를 찾을 수 없습니다.");
+      throw new Error(msg || "숨김 토글 실패");
+    }
     router.refresh();
   }
 

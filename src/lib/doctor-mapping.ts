@@ -35,9 +35,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * 배경 — ADR 0001 "묶음 동등 독립 + active 신분 단위 권한" 원칙 준수:
  *   직접 `doctor_accounts.select().eq("profile_id", X)` 패턴은 RLS 정책
  *   `(auth.uid() = profile_id) OR is_admin()` 를 거치는데, PostgreSQL auth.uid()
- *   는 active identity 전환을 모름 (항상 primary auth_user.id). 그래서 본계가
- *   primary 가 아닌 의사(예: 정한미 원장 — 너구리 primary + 의사 본계 sub)는
- *   본인의 의사 매핑조차 못 봄 → /doctor 가드에서 doctorId=null → 홈으로 튕김.
+ *   는 active identity 전환을 모름 (항상 base auth_user_id). 그래서 의사 계정이
+ *   base auth_user_id 와 다른 profile.id 인 경우 (예: 정한미 원장 — base
+ *   auth_user_id 는 너구리 회원 계정, 의사 계정은 sub-identity 로 추가됨),
+ *   의사 계정으로 active 일 때 본인 의사 매핑조차 못 봄 → /doctor 가드에서
+ *   doctorId=null → 홈으로 튕김.
  *
  *   해결: RLS 정책을 "본인 묶음 전체" 로 확장하면 묶음 단위 권한 합산이 되어
  *   ADR 0001 위배. 대신 active 신분의 profile.id 를 명시적으로 전달받아
