@@ -6,10 +6,13 @@
 
 ---
 
-## [2026-05-26] (V) — 김수형 원장 회귀 fix: PubmedRefSchema 필드명 정합
+## [2026-05-26] (V) — 김수형 원장 회귀 fix + PubMed schema SSOT 패턴 적용
 
 ### Fixed
 - **PubMed 참고문헌이 붙은 모든 카드 수정 시 `invalid_input` 에러** (`src/lib/schema/api/articles.ts`): `PubmedRefSchema` 의 필드명이 클라이언트 (`PubmedRefsField.tsx` 의 `PubmedRefObj` 타입) 실제 전송 필드와 불일치. zod schema 는 `authors`/`url` 기대했으나 클라이언트는 `authors_short`/`pubmed_url`/`doi_url` 전송. `.strict()` 모드라 정의되지 않은 필드 reject → PUT `/api/articles/[id]` 진입점에서 차단. 이번 commit 들 (0158~0163) 과 무관한 기존 버그였으나 김수형 원장 보고로 발견. PubMed 참고문헌 갖춘 9명 의사 카드 전체 수정 차단됐을 가능성. 필드명 일치 + 모든 필드 nullable 처리로 즉시 해소.
+
+### Changed
+- **SSOT (단일 출처) 패턴 적용** — PubMed 참고문헌 타입 정의가 zod schema (`articles.ts`) 와 TypeScript type (`PubmedRefsField.tsx`) 두 곳에 분산되어 동기화 누락 가능성 (이번 회귀의 근본 원인). zod schema 한 곳에서 정의 + `z.infer<typeof PubmedRefSchema>` 로 type 추출 → `PubmedRefsField.tsx` 가 그것을 import + re-export. 향후 형식 변경 시 한 곳만 수정하면 클라이언트/서버 양쪽 자동 정합. 같은 패턴의 회귀 재발 차단.
 
 ---
 

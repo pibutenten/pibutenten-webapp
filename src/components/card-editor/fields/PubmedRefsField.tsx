@@ -18,6 +18,7 @@
  * 부수효과: POST /api/admin/draft/pubmed-by-pmid (PubMed efetch 프록시)
  */
 import { useState } from "react";
+import type { PubmedRefObj as ImportedPubmedRefObj } from "@/lib/schema/api/articles";
 
 type PubmedCandidate = {
   authors_short: string;
@@ -348,16 +349,11 @@ export function splitBodyAndReferences(body: string): {
  * Phase 2 (260518): admin 발행 카드는 pubmed_refs 컬럼에 객체 배열로 저장됨.
  * EditClient 가 그것을 본문 끝의 "참고문헌" 섹션과 동등하게 다루기 위해 변환.
  */
-export type PubmedRefObj = {
-  pmid?: string | null;
-  doi?: string | null;
-  title?: string | null;
-  journal?: string | null;
-  year?: string | null;
-  authors_short?: string | null;
-  pubmed_url?: string | null;
-  doi_url?: string | null;
-};
+// 단일 출처 (SSOT) — zod schema 에서 자동 추출 (articles.ts 의 PubmedRefSchema).
+// 본 파일의 다른 함수가 PubmedRefObj 를 사용하므로 re-export.
+// 2026-05-26 fix: 옛날엔 본 파일과 articles.ts 양쪽에 따로 정의되어 동기화 누락
+// (김수형 원장 회귀 — 필드명 어긋남) → SSOT 패턴으로 재발 차단.
+export type PubmedRefObj = ImportedPubmedRefObj;
 
 export function pubmedRefObjToString(ref: PubmedRefObj): string {
   // 옛 DB 데이터의 HTML entity decode (Ta&#xef;eb → Taïeb)

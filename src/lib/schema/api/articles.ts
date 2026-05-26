@@ -23,12 +23,16 @@ const ExternalMetaSchema = z
   })
   .strict();
 
-// PubMed 참고문헌 객체 — 클라이언트(PubmedRefsField.tsx 의 PubmedRefObj 타입) 형식과 일치.
+// PubMed 참고문헌 객체 — 본 schema 가 단일 출처 (SSOT).
+// 클라이언트 (PubmedRefsField.tsx 의 PubmedRefObj) 도 이 schema 의 z.infer 결과를
+// import 해서 사용 — 형식 정의 한 곳, 분기 없음. 향후 형식 변경 시 본 schema 한
+// 곳만 수정하면 클라이언트/서버 양쪽 자동 정합.
+//
 // 모든 필드 nullable + optional — DB jsonb 의 실제 값 형태 보존.
-// 2026-05-26 fix (김수형 원장 회귀): 옛 schema 가 `authors`/`url` 같은 다른 필드명
-// 사용 + `.strict()` 라 클라이언트의 `authors_short`/`pubmed_url`/`doi_url` 필드를
-// reject → "invalid_input" 에러. PubMed 참고문헌이 붙은 모든 카드 수정 차단됐던 회귀.
-const PubmedRefSchema = z
+// 2026-05-26 fix (김수형 원장 회귀): 이전엔 client type 과 server zod 가 두 곳에
+// 분산되어 있어 client 가 `authors_short`/`pubmed_url`/`doi_url` 전송했는데 server
+// zod 는 옛 `authors`/`url` 기대 → "invalid_input" 에러. 본 SSOT 패턴으로 재발 차단.
+export const PubmedRefSchema = z
   .object({
     pmid: z.string().max(20).nullable().optional(),
     doi: z.string().max(200).nullable().optional(),
@@ -40,6 +44,9 @@ const PubmedRefSchema = z
     doi_url: z.string().url().max(2048).nullable().optional(),
   })
   .strict();
+
+/** PubMed 참고문헌 객체 TypeScript 타입 — 클라이언트/서버 공통. */
+export type PubmedRefObj = z.infer<typeof PubmedRefSchema>;
 
 /**
  * POST /api/articles — 글 생성
