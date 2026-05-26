@@ -32,8 +32,10 @@ const ExternalMetaSchema = z
 // 2026-05-26 fix (김수형 원장 회귀): 이전엔 client type 과 server zod 가 두 곳에
 // 분산되어 있어 client 가 `authors_short`/`pubmed_url`/`doi_url` 전송했는데 server
 // zod 는 옛 `authors`/`url` 기대 → "invalid_input" 에러. 본 SSOT 패턴으로 재발 차단.
-// URL 또는 빈 문자열 허용 helper — DraftClient 가 doi 없을 때 doi_url: "" 저장하는
-// 패턴 (production 65건 잔재). zod .url() 가 "" 거부하던 회귀 차단.
+// URL 또는 빈 문자열 허용 helper.
+// 의도: DOI 가 도입(2000년대)되기 이전 발표된 옛 논문은 PubMed 등록은 됐지만 DOI 가
+// 본래 없음 — 이런 ref 의 doi_url 이 빈 값인 건 데이터 모델상 정상. zod .url() 만
+// 강제하면 그 ref 갖춘 카드 (production 65건) 수정 차단됨. 빈 값을 합법 표현으로 수용.
 const UrlOrEmpty = z.union([z.string().url().max(2048), z.literal("")]);
 
 export const PubmedRefSchema = z
