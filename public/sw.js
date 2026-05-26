@@ -5,21 +5,44 @@
  *  1) Android Chrome `beforeinstallprompt` 이벤트 발생 조건 충족
  *     (manifest.webmanifest + SW + fetch 핸들러).
  *  2) Web Push Notification 수신·표시·클릭 처리.
- *  3) 미래 캐싱 전략(오프라인 등) 확장 지점.
+ *  3) **새 deploy 감지 시 열려있는 모든 탭 자동 reload** — DB schema 변경
+ *     (예: 컬럼 DROP) 직후 옛 build 의 JavaScript chunk 가 잔존하면 사용자가
+ *     "schema cache 에 없는 컬럼" 에러 보던 회귀 차단 (2026-05-26).
  *
  * 의도적 가벼움:
- *  - 캐시 작업 없음 (Next.js 정적 자산은 자체 CDN/HTTP 캐시로 충분).
- *  - fetch 핸들러는 네트워크 직행만 함 — Chrome의 "설치 가능" 신호용.
+ *  - fetch 응답 캐싱 없음 (Next.js 정적 자산은 자체 CDN/HTTP 캐시로 충분).
  *  - 변경 시 클라이언트가 즉시 새 SW를 받도록 skipWaiting/clientsClaim.
+ *  - activate 시 controlled clients 자동 reload (새 chunk 강제 가져옴).
  */
-const VERSION = "v3-white-bg-icons-260518";
+const VERSION = "v4-auto-reload-260526";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    (async () => {
+      await self.clients.claim();
+      // 새 SW 가 활성화되면 (= 새 deploy 가 사용자 모바일에 도달) 열려있는
+      // 모든 탭을 자동 reload → 옛 build chunk 잔존 차단.
+      // 단발성 — SW version 이 바뀌어 새로 activate 될 때만 1회.
+      try {
+        const clients = await self.clients.matchAll({ type: "window" });
+        for (const c of clients) {
+          try {
+            // navigate 가 사용자가 보던 페이지 그대로 reload — 작업 중인
+            // 입력은 잃을 수 있으나 schema mismatch 로 인한 silent 에러보다 안전.
+            await c.navigate(c.url);
+          } catch {
+            /* 일부 브라우저는 navigate 차단 — 무시 */
+          }
+        }
+      } catch {
+        /* matchAll 실패해도 fetch handler 는 정상 작동 */
+      }
+    })(),
+  );
 });
 
 self.addEventListener("fetch", (event) => {
