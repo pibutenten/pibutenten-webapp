@@ -10,6 +10,7 @@ import {
 } from "@/data/procedure-mappings/slug-mapping";
 import { ArticleCreateSchema } from "@/lib/schema/api/articles";
 import { screenContent } from "@/lib/content-screening";
+import { stripCategoryLabels } from "@/lib/category-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -171,32 +172,8 @@ export async function POST(req: Request) {
 
   // 카테고리 라벨은 카드 헤더(닉네임 밑) + 태그 칩 끝에 자동 표시.
   // 사용자가 카테고리 라벨을 keywords에 직접 입력했으면 중복 방지로 제거.
-  //
-  // v5.2 (현재) 라벨: 끄적끄적·피부일기·피부꿀팁·궁금해요·소식공유·Q&A
-  // v5.1 옛 라벨: 꿀팁·공유하기
-  // v5.0 이전 옛 라벨: 답해드려요·물어봐요·새소식
-  //
-  // 데이터에 옛 라벨이 한 건도 안 남아있음이 확인되면(SELECT) 옛 라벨 부분 축소 가능.
-  // 그때까지는 보수적으로 전부 유지 — 사용자에게 보일 위험만 차단.
-  const CATEGORY_LABELS_TO_STRIP = [
-    // v5.2 현재
-    "끄적끄적",
-    "피부일기",
-    "피부꿀팁",
-    "궁금해요",
-    "소식공유",
-    "Q&A",
-    // v5.1 옛
-    "꿀팁",
-    "공유하기",
-    // v5.0 이전 옛
-    "답해드려요",
-    "물어봐요",
-    "새소식",
-  ];
-  const filteredKeywords = keywords.filter(
-    (k) => !CATEGORY_LABELS_TO_STRIP.includes(k),
-  );
+  // SSOT — `lib/category-labels.ts` 의 `stripCategoryLabels` 헬퍼 사용 (ADR 0012 정합).
+  const filteredKeywords = stripCategoryLabels(keywords);
   keywords.length = 0;
   keywords.push(...filteredKeywords.slice(0, 8));
 

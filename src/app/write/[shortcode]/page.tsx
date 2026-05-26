@@ -40,7 +40,6 @@ type QaRow = {
   external_description: string | null;
   external_image: string | null;
   external_site_name: string | null;
-  pubmed_ref: PubmedRefRow;
   pubmed_refs: NonNullable<PubmedRefRow>[] | null;
   author:
     | { handle: string | null }
@@ -87,7 +86,7 @@ export default async function PostEditPage({ params }: Props) {
     .select(
       `id, question, answer, keywords, type, status, category, author_id, doctor_id, shortcode,
        external_url, external_title, external_description, external_image, external_site_name,
-       pubmed_ref, pubmed_refs,
+       pubmed_refs,
        author:profiles!cards_author_id_profiles_fkey(handle)`,
     )
     .eq("shortcode", shortcode)
@@ -132,7 +131,7 @@ export default async function PostEditPage({ params }: Props) {
         `id, question, answer, meta, keywords, status, type, category, is_pick,
          doctor_id, author_id, video_id, like_count, view_count, created_at,
          external_url, external_title, external_image, external_site_name,
-         pubmed_ref, pubmed_refs,
+         pubmed_refs,
          author:profiles!cards_author_id_profiles_fkey(id, display_name, handle, role),
          doctor:doctors(id, slug, name, branch)`,
       )
@@ -194,14 +193,7 @@ export default async function PostEditPage({ params }: Props) {
               }
             : null
         }
-        initialPubmedRefs={
-          // pubmed_refs 우선, 없으면 단일 pubmed_ref 를 배열로
-          qa.pubmed_refs && qa.pubmed_refs.length > 0
-            ? qa.pubmed_refs
-            : qa.pubmed_ref
-              ? [qa.pubmed_ref]
-              : []
-        }
+        initialPubmedRefs={qa.pubmed_refs ?? []}
         returnUrl={returnUrl}
       />
     </section>

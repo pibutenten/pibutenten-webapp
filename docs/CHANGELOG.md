@@ -6,6 +6,62 @@
 
 ---
 
+## [2026-05-26] (IX) — ADR 0012 명함 단위 완전 독립 원칙 정착 (서브에이전트 8명 종합 누더기 진단 → 일괄 정합)
+
+사용자 결정 — "의사 명함으로 쓴 글은 의사 글, 회원 명함으로 쓴 글은 회원 글. 그 사이 교차·합산 없음. 묶음의 유일한 효용은 빠른 전환." — 을 단일 원칙으로 박고 application layer 의 절반 정합 상태를 끝까지 정합. 5월 한 달 이도영·정한미·김수형 원장 회귀 3연속의 근본 차단.
+
+### Added
+- **`docs/decisions/0012-profile-unit-complete-independence.md`** 신설: 명함 단위 완전 독립 5원칙 명문화. ADR 0011 (DB layer) 이후 application layer 정합 정책.
+- **`docs/PRD.md` §4.3 갱신**: 5원칙 inline 추가.
+- **`scripts/check-migration-naming.mjs`** 신설: 마이그레이션 동일 번호 충돌 + `_fix_`/`_hotfix_`/`_again`/`_revert`/사람 이름 + `.template` 박제 검출. 신규 (>= 0164) 차단, 옛 누적은 경고. `npm run check-migrations`.
+
+### Migration (production 적용 완료)
+- **0164** `acting_profile_id() helper` — `COALESCE(current_active_profile_id(), auth.uid())` SQL 패턴 34곳 인라인 반복의 단일 출처. 향후 fallback 정책 변경 시 1곳만 수정.
+- **0165** `profiles.doctor_id 인라인` — `doctor_accounts` 표 SELECT 18곳 분산의 근본 해결. profiles row 안에 doctor_id 컬럼 직접 박음 + 백필 (의사 명함 9개) + doctor_accounts 변경 자동 sync 트리거 (호환). `get_active_doctor_id()` RPC 본문 단순화. doctor_accounts 표 DROP 은 호출 측 정합 후 별도 마이그레이션.
+- **0166** `pubmed_ref 컬럼 제거` — 옛 단일 자리 + 새 배열 자리 이중 저장 (김수형 회귀 패턴) 통합. production 분포 점검 (only_old 15건 / both 844건 mismatch 0건) 후 백필 + DROP COLUMN.
+
+### Changed (application layer 정합)
+- **`src/lib/admin-guard.ts`** — `requireAdmin()` / `requireAdminOrDoctor()` 가 묶음 OR (`profiles.or(bundleProfileFilter)`) → active 단위 (`getIdentityContext().isSuperAdmin`) 로 통합. 사용자 결정 "관리자 명함이 아니면 차단 — 안내 불필요" 반영. 옛 `requireActiveSuperAdmin` / `requireActiveSuperOrDoctorAdmin` 는 호환 alias 로 유지.
+- **`src/lib/admin-page-guard.ts`** — RSC 페이지 가드도 active 단위로. 묶음 admin profile lookup SQL 제거.
+- **`src/lib/me-cache.ts`** — base profile (id=user.id) 만 읽던 옛 패턴 → active profile (`getActiveIdentityId() ?? user.id`) 의 role 읽음. sub-identity 의사 사용자 (정한미 원장 패턴) 의 권한 표시 회귀 차단.
+- **`src/components/card/hooks/useCardViewer.ts`** — me 결정 SSR session 단일 출처. 옛 useEffect 안 `auth.getUser()` + `profiles.select()` 중복 fetch 제거. 카드 1장당 RPC 2회 → 0회 (페이지 카드 20장이면 40회 호출 감소).
+- **`src/app/api/articles/[id]/route.ts`** — `isAuthor` 가 `myProfileIds.has(card.author_id)` (묶음 OR) → `card.author_id === active.profileId` (active 단위). 의사 명함으로 쓴 글을 회원 명함으로 active 인 채 수정 시도하면 차단 (silent UPDATE 0 rows 회귀 방지). 안내 메시지에 "다른 명함이면 그 명함으로 전환 후 편집" 추가.
+- **`src/app/api/articles/route.ts`** — 카테고리 라벨 strip 11줄 인라인 배열 → `stripCategoryLabels` 헬퍼 1줄 import. SSOT 일치.
+- **`src/middleware.ts`** — CSRF allowlist 의 개인 LAN IP (`192.168.0.20`) 하드코딩 → `CSRF_ALLOWED_ORIGINS` 환경변수. 개발자 인수 시 코드 수정 불필요.
+
+### Changed (pubmed_refs 단일 출처화 — 코드 측 정합)
+0166 마이그레이션과 함께 다음 12개 파일에서 옛 `pubmed_ref` (단수) 참조 일괄 제거:
+- `src/lib/card-select.ts` (CARD_LIST_SELECT / CARD_DETAIL_SELECT)
+- `src/lib/types/card.ts` (CardData.pubmed_ref 필드)
+- `src/lib/schema/api/articles.ts` (ArticleUpdateSchema.pubmed_ref)
+- `src/components/card/CardBody.tsx` (fallback 분기)
+- `src/app/admin/cards/[id]/edit/page.tsx` (SELECT)
+- `src/app/admin/cards/[id]/edit/EditClient.tsx` (Card type + initialPubmedRefs + payload)
+- `src/app/api/admin/draft/publish/route.ts` (insert payload — `pubmed_refs` array 로 변경)
+- `src/app/write/[shortcode]/page.tsx` (QaRow + 2개 SELECT + initialPubmedRefs)
+- `src/app/write/[shortcode]/EditClient.tsx` (apiPayload)
+- `src/app/write/WriteClient.tsx` (apiPayload)
+- `src/app/api/articles/[id]/route.ts` (PubmedRefObj type 사용처 + payload field + update field)
+- `src/app/doctors/[slug]/[year]/[postSlug]/page.tsx` (Schema.org Citation fallback)
+
+### Added (env)
+- `.env.local.example` 에 `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` (Management API 용), `CSRF_ALLOWED_ORIGINS` 명시.
+- `package.json` 에 `npm run check-migrations` 추가.
+
+### 회귀 검증 영역 (이번 릴리즈 후 점검 필요)
+- `/admin/cards`, `/admin/draft`, `/admin/users`, `/admin/comments`, `/admin/stats` 5개 admin 라우트 — 묶음 → active 가드 변경. admin 운영진이 회원 명함으로 active 인 채 접근 시 차단됨 (의도).
+- `/write/[shortcode]` 본인 글 편집 — active 명함 = 작성 명함 일치 시만 통과.
+- 카드 좋아요/저장/공유 클릭 — me 결정이 SSR session 단일 출처라 첫 paint 즉시 정확.
+- 의사 9명 페이지 표시 — `get_active_doctor_id()` RPC 본문 단순화 후 정상 동작.
+
+### 보류 (별도 후속 처리 필요)
+- **`doctor_accounts` 표 DROP** — 호출 측 9~18곳이 모두 헬퍼 또는 `profiles.doctor_id` 컬럼 직접 사용으로 정합된 후, 별도 마이그레이션 (가칭 0167) 에서 DROP. CLAUDE.md §10 ("파괴적 DB 변경 자동 실행 금지") 룰 준수.
+- **`audit_logs` 4건 보강** (naver callback 신규 user 생성 / upload / reports / admin youtube-oauth callback) — 별도 세션에서 PIPA §8 안전성 확보조치 정합.
+- **옛 함수 squash** (anonymize 7회 재정의, find_duplicate_profiles 5회, scored RPCs 4회) — 베타 종료 (2026-06-01) 직후 무트래픽 시점 baseline + squash.
+- **`cards.question/answer` 컬럼 → `title/body` 리네임** — 모든 RPC 본문 갱신 필요. 별도 세션.
+
+---
+
 ## [2026-05-26] (VIII) — 세션 종료 정리 (`350c899`) + Phase 3 후속 로드맵
 
 ### Changed

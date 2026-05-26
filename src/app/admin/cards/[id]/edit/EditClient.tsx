@@ -80,7 +80,6 @@ type Card = {
   external_title?: string | null;
   external_image?: string | null;
   external_site_name?: string | null;
-  pubmed_ref?: PubmedRef;
   pubmed_refs?: NonNullable<PubmedRef>[] | null;
   author: AuthorBrief | null;
   doctor: Doctor | null;
@@ -141,9 +140,7 @@ export default function EditClient({
   const initialPubmedRefs: NonNullable<PubmedRefObj>[] =
     card.pubmed_refs && card.pubmed_refs.length > 0
       ? card.pubmed_refs.map(normalizePubRef)
-      : card.pubmed_ref
-        ? [normalizePubRef(card.pubmed_ref)]
-        : [];
+      : [];
 
   const initialExternalMeta: ExternalMeta | null = card.external_title
     ? {
@@ -255,7 +252,6 @@ export default function EditClient({
       external_image: payload.externalMeta?.image ?? null,
       external_site_name: payload.externalMeta?.siteName ?? null,
       meta: JSON.stringify(metaObj),
-      pubmed_ref: payload.pubmedRefs[0] ?? null,
       pubmed_refs: payload.pubmedRefs.length > 0 ? payload.pubmedRefs : null,
       category: payload.category,
     };

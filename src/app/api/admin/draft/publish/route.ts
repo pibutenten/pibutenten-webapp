@@ -260,7 +260,7 @@ export async function POST(req: Request) {
       external_title: c.externalTitle || videoTitle,
       external_image: externalImage,
       external_site_name: "YouTube",
-      pubmed_ref: c.pubmedRef ?? null,
+      pubmed_refs: c.pubmedRef ? [c.pubmedRef] : null,
       meta: JSON.stringify(metaObj),
       // author = 검수받을 원장님의 profile_id. 매핑 없으면 admin profile_id fallback.
       // (auth.users.id 가 아니라 profiles.id 사용 — Phase 9 FK 정합성)

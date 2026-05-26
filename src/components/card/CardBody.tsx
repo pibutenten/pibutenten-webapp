@@ -6,7 +6,7 @@
  * 영역:
  *  1) 제목 (h1 단독 페이지 / h2 피드 — asH1으로 분기)
  *  2) 답변 본문 (단락 분리 + bold + 형광펜 + clamp / 클릭 펼침)
- *  3) 참고문헌 (pubmed_refs 우선, 없으면 단일 pubmed_ref legacy fallback)
+ *  3) 참고문헌 (pubmed_refs 배열 — ADR 0012 정합)
  */
 import Link from "next/link";
 import type { CardData } from "@/components/Card";
@@ -42,13 +42,8 @@ export default function CardBody({
   highlightColor,
   onExpandToggle,
 }: Props) {
-  // 표시할 참고문헌 ref 배열 결정 — pubmed_refs 우선, 없으면 단일 pubmed_ref legacy fallback
-  const refs: NonNullable<CardData["pubmed_refs"]> =
-    card.pubmed_refs && card.pubmed_refs.length > 0
-      ? card.pubmed_refs
-      : card.pubmed_ref
-        ? [card.pubmed_ref]
-        : [];
+  // 표시할 참고문헌 ref 배열 — ADR 0012 정합. 옛 단일 pubmed_ref fallback 폐기.
+  const refs: NonNullable<CardData["pubmed_refs"]> = card.pubmed_refs ?? [];
   // 유효한 ref만 (pmid 또는 doi 있는 것)
   const validRefs = refs.filter((r) => r.pmid || r.doi);
   const showRefs = validRefs.length > 0 && !(isLongAnswer && !expanded);
@@ -96,8 +91,7 @@ export default function CardBody({
         )}
       </div>
 
-      {/* 3a. 참고 논문 — 멀티 ref 지원.
-          pubmed_refs(배열) 우선, 없으면 단일 pubmed_ref(legacy) fallback.
+      {/* 3a. 참고 논문 — pubmed_refs 배열 (ADR 0012 단일 출처).
           isLongAnswer && !expanded면 가림(펼쳐야 보임). reasoning은 사용자 화면 X. */}
       {showRefs && (
         <div className="mt-3" onClick={(e) => e.stopPropagation()}>

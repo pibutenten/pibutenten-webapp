@@ -14,7 +14,7 @@
  *   - question, answer, keywords
  *   - category (변경 시 type 도 함께)
  *   - external_url + external_title/description/image/site_name
- *   - pubmed_ref (단일), pubmed_refs (배열)
+ *   - pubmed_refs (배열) — ADR 0012 단일 출처
  *   - status (admin 만)
  *   - is_pick (admin 만)
  *   - doctor_id (admin 만)
@@ -26,7 +26,6 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
-import { bundleProfileFilter } from "@/lib/identity-shared";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { ArticleUpdateSchema } from "@/lib/schema/api/articles";
@@ -63,7 +62,6 @@ type Payload = {
   external_description?: string | null;
   external_image?: string | null;
   external_site_name?: string | null;
-  pubmed_ref?: PubmedRefObj;
   pubmed_refs?: NonNullable<PubmedRefObj>[] | null;
   // admin 전용
   status?: Status;
@@ -143,22 +141,23 @@ export async function PUT(
     return NextResponse.json({ error: "카드를 찾을 수 없습니다." }, { status: 404 });
   }
 
-  // 권한 — POST /api/articles 와 같은 패턴 (active identity 기준).
-  // 묶음 인지 isAuthor: card.author_id 가 user 묶음 안 어느 profile 이면 통과.
-  const { data: myProfiles } = await supabase
-    .from("profiles")
-    .select("id")
-    .or(bundleProfileFilter(user.id));
-  const myProfileIds = new Set((myProfiles ?? []).map((p) => p.id as string));
-
+  // 권한 — ADR 0012 정합. active 명함 단위만 인정.
+  //   - active 가 admin role            → 모든 카드 편집 허용
+  //   - card.author_id === active.profileId → 본인이 작성한 카드 (active 명함과 일치)
+  //   - active 가 의사 + 본인 doctor 카드  → 의사 본인 카드 편집 허용
+  // 옛 "묶음 OR" (auth_user_id 묶음 안 어느 profile 이면 통과) 패턴 폐기.
   const isAdmin = idCtx.isSuperAdmin;
-  const isAuthor = !!card.author_id && myProfileIds.has(card.author_id);
+  const activeProfileId = idCtx.active.profileId;
+  const isAuthor = !!card.author_id && card.author_id === activeProfileId;
   const isDoctorOfQa =
     !!idCtx.activeDoctorId && card.doctor_id === idCtx.activeDoctorId;
   const canEdit = isAdmin || isAuthor || isDoctorOfQa;
   if (!canEdit) {
     return NextResponse.json(
-      { error: "본인 글만 편집할 수 있습니다." },
+      {
+        error:
+          "본인 글만 편집할 수 있습니다. 다른 명함으로 작성한 글은 그 명함으로 전환 후 편집해주세요.",
+      },
       { status: 403 },
     );
   }
@@ -231,12 +230,9 @@ export async function PUT(
     update.external_site_name = payload.external_site_name ?? null;
   }
 
-  // PubMed refs
+  // PubMed refs (ADR 0012 — 옛 단일 pubmed_ref 폐기)
   if ("pubmed_refs" in payload) {
     update.pubmed_refs = payload.pubmed_refs ?? null;
-  }
-  if ("pubmed_ref" in payload) {
-    update.pubmed_ref = payload.pubmed_ref ?? null;
   }
 
   // admin 전용 필드

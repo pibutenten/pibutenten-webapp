@@ -51,9 +51,7 @@ export type CardData = {
   status?: string | null;
   /** 의사 직함 숨김 (Phase A.2) — true면 사적 모드, "피부과 전문의" 배지 숨김 */
   hide_doctor_credential?: boolean | null;
-  /** Phase 6 — 카드 하단 ref. 박스용 PubMed 단일 참고문헌. (legacy, 호환성 유지) */
-  pubmed_ref?: PubmedRef | null;
-  /** Phase 9 (0054) — 멀티 참고문헌 배열. 있으면 우선, 없으면 pubmed_ref 사용 */
+  /** PubMed 참고문헌 배열. ADR 0012 (2026-05-26) — 옛 단일 pubmed_ref 컬럼 폐기, 배열 단일 출처. */
   pubmed_refs?: PubmedRef[] | null;
   doctor: {
     slug: string;

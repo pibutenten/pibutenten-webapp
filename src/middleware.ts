@@ -58,15 +58,34 @@ const CSRF_EXEMPT_API_PREFIXES = [
 ];
 
 /**
- * 허용되는 Origin 값.
- *   - production (VERCEL_ENV === 'production'): https://pbtt.kr + www.pbtt.kr
- *   - preview (VERCEL_ENV === 'preview'): 위 + pibutenten-webapp-*.vercel.app
- *   - dev: 위 + localhost / 사용자 LAN
+ * 허용되는 Origin 값. ADR 0012 정합 — 개인 LAN IP 하드코딩 폐기, 환경변수화.
  *
- * A9 (2026-05-17): 기존 `o.hostname.endsWith(".vercel.app")` 는 임의 Vercel 배포에서
- *   cross-origin POST 허용 → 공격면. 우리 프로젝트 prefix 로 좁힘.
- *   LAN IP 하드코딩은 NODE_ENV/VERCEL_ENV 가드 안으로 격리.
+ *   - production 핵심 도메인 (https://pbtt.kr / www.pbtt.kr) — 모든 환경에서 허용
+ *   - NEXT_PUBLIC_SITE_URL — 환경별 사이트 URL
+ *   - CSRF_ALLOWED_ORIGINS — 콤마 구분 환경변수 (개발 LAN IP / 추가 도메인 등)
+ *   - preview/development: pibutenten-webapp-*.vercel.app 패턴
+ *   - dev: localhost / 127.0.0.1
  */
+
+/** CSRF_ALLOWED_ORIGINS 환경변수 파싱 — 콤마 구분, 빈 값/공백 제거 */
+function parseAllowedOrigins(): Set<string> {
+  const raw = process.env.CSRF_ALLOWED_ORIGINS ?? "";
+  return new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => {
+        try {
+          return new URL(s).origin;
+        } catch {
+          return s;
+        }
+      }),
+  );
+}
+const ENV_ALLOWED_ORIGINS = parseAllowedOrigins();
+
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
   try {
@@ -90,25 +109,24 @@ function isAllowedOrigin(origin: string | null): boolean {
       }
     }
 
+    // CSRF_ALLOWED_ORIGINS 환경변수 (개발 LAN IP 등) — 모든 환경.
+    if (ENV_ALLOWED_ORIGINS.has(o.origin)) return true;
+
     // preview/development: Vercel preview 도메인 — 프로젝트 prefix 로 좁힘.
     // production 빌드 환경에는 preview 도메인 허용 X (cross-origin 공격면 차단).
     if (isPreview || isDev) {
       if (
         o.hostname === "pibutenten-webapp.vercel.app" ||
-        o.hostname.startsWith("pibutenten-webapp-") &&
-          o.hostname.endsWith(".vercel.app")
+        (o.hostname.startsWith("pibutenten-webapp-") &&
+          o.hostname.endsWith(".vercel.app"))
       ) {
         return true;
       }
     }
 
-    // dev only: localhost / 사용자 LAN.
+    // dev only: localhost / 127.0.0.1 (개인 LAN IP 는 CSRF_ALLOWED_ORIGINS 로 주입)
     if (isDev) {
-      if (
-        o.hostname === "localhost" ||
-        o.hostname === "127.0.0.1" ||
-        o.hostname === "192.168.0.20" // 사용자 LAN IP — dev 환경 한정
-      ) {
+      if (o.hostname === "localhost" || o.hostname === "127.0.0.1") {
         return true;
       }
     }

@@ -171,19 +171,12 @@ function buildJsonLd(
         dateCreated: created,
         upvoteCount: card.like_count ?? 0,
         url,
-        // 학술 인용(Schema.org Citation) — pubmed_refs (멀티) 우선, 없으면 pubmed_ref (단일 legacy) fallback.
-        // AI/검색엔진이 "논문 인용 붙은 의학 답변"으로 인식. 여러 ref 가 있으면 array 로 출력 (Schema.org spec OK).
+        // 학술 인용(Schema.org Citation) — pubmed_refs 배열 (ADR 0012 단일 출처).
         ...((() => {
           const c = card as {
-            pubmed_ref?: Record<string, unknown> | null;
             pubmed_refs?: Array<Record<string, unknown>> | null;
           };
-          const refs: Array<Record<string, unknown>> =
-            c.pubmed_refs && c.pubmed_refs.length > 0
-              ? c.pubmed_refs
-              : c.pubmed_ref
-                ? [c.pubmed_ref]
-                : [];
+          const refs: Array<Record<string, unknown>> = c.pubmed_refs ?? [];
           const built = refs
             .filter((ref) => ref && (ref.pmid || ref.doi))
             .map((ref) => {

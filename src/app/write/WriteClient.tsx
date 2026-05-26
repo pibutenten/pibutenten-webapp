@@ -150,7 +150,6 @@ export default function WriteClient({
       apiPayload.answer = payload.body;
       if (payload.pubmedRefs.length > 0) {
         apiPayload.pubmed_refs = payload.pubmedRefs;
-        apiPayload.pubmed_ref = payload.pubmedRefs[0];
       }
     } else {
       apiPayload.title = payload.title;

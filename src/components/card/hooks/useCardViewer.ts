@@ -1,17 +1,15 @@
 "use client";
 
 /**
- * Viewer (보는 사람) 컨텍스트 통합 훅 (Phase 4-4).
+ * Viewer (보는 사람) 컨텍스트 통합 훅 (ADR 0012 정합).
  *
  * 책임:
- *  1) me 결정 (3-state) — active profile.id + role 단일 기준
- *     - 비로그인 → me = null
- *     - 로딩 중 → me = undefined (race 차단용)
- *     - 로그인 → me = { id, role }, 본인 묶음 검증 포함
+ *  1) me 결정 — SessionContext (SSR) 단일 출처. active profile.id + role.
+ *     - 비로그인 → me = null (SSR 시점 결정 — race window 없음)
+ *     - 로그인 → me = { id, role }
  *  2) viewCount 카운터 (낙관적 +1)
  *  3) impression — mount 시 1회 enqueue (session dedup)
  *  4) recordView — 의도 신호 발생 시 호출 (session_id 기반 dedup, DB 트리거가 view_count 갱신)
- *  5) dwell observer — 4-10초 viewport 체류 시 자동 recordView
  *
  * 외부 인터페이스:
  *   const viewer = useCardViewer(card, { forceExpanded, cardRef, onViewed });
@@ -24,6 +22,10 @@ import { getActiveIdentityId } from "@/lib/active-identity";
 import { enqueueImpression } from "@/lib/impression-queue";
 import { useSession } from "@/lib/session-context";
 import { addEngagement } from "@/lib/engagement-score";
+
+// ADR 0012 정합: SessionContext (SSR) 가 me 의 단일 출처.
+// 옛 client supabase.auth.getUser() + profiles select useEffect 제거 — 카드 N장 당
+// RPC 2회 호출 폭주 차단 + 첫 paint 이후 me 깜빡임 차단.
 
 export type ViewerMe =
   | { id: string; role: "admin" | "doctor" | "user" }
@@ -53,23 +55,17 @@ export function useCardViewer(
   options: UseCardViewerOptions,
 ): UseCardViewer {
   const { forceExpanded, cardRef, onViewed } = options;
-  // 2026-05-20 정공법 fix: SSR session 을 SessionContext 로 받아 me 즉시 결정.
-  //   옛 코드: setState 초기값 undefined → async getUser() 결과 기다림 → 비로그인
-  //     사용자가 카드 mount 직후 좋아요 클릭 시 me === undefined silent return →
-  //     LoginPromptDialog 안 뜨던 회귀.
-  //   새 코드: ssrSession === null 즉시 me=null. ssrSession === 객체 즉시 me={...}.
-  //     클라이언트 fetch 는 백그라운드에서 active profile.role 정확화에만 사용 (선택).
+  // ADR 0012 정합 (2026-05-26): SessionContext (SSR) 단일 출처. useEffect 제거.
+  //   옛: SSR 초기값 + useEffect 안 client supabase.auth.getUser() + profiles select
+  //       → 카드 1장당 RPC 2회 (페이지 카드 20장이면 40회) + 첫 paint 후 me 깜빡임.
+  //   새: SSR session 만 사용. me 는 render 즉시 결정 — race window 없음.
+  //   2026-05-20 회귀 (비로그인 좋아요 클릭 시 모달 안 뜸) 은 ssrSession === null 명시
+  //       반환으로 차단 — 기존과 동일.
   const ssrSession = useSession();
-  const [me, setMe] = useState<ViewerMe>(() => {
-    if (ssrSession === null) return null;
-    // SSR session 이 있으면 즉시 me 결정. activeIdentityId 가 'primary' 면 user.id 가
-    // 아직 client 에서 모르므로 placeholder 'primary' 그대로 사용 — 좋아요 RPC 는
-    // 별도로 getActiveIdentityId() 호출하므로 영향 없음.
-    return {
-      id: ssrSession.activeIdentityId,
-      role: ssrSession.role,
-    };
-  });
+  const me: ViewerMe =
+    ssrSession === null
+      ? null
+      : { id: ssrSession.activeIdentityId, role: ssrSession.role };
   const [viewCount, setViewCount] = useState(card.view_count);
 
   // onViewed가 매 렌더마다 새 함수여도 effect 의존성에 안 걸리도록 ref로 고정
@@ -77,49 +73,6 @@ export function useCardViewer(
   useEffect(() => {
     onViewedRef.current = onViewed;
   }, [onViewed]);
-
-  // ── 1) me 결정 ──
-  // active profile.id 단일 조회 + 본인 묶음 검증.
-  // (Phase 9 정책 — 묶음 최고 권한 X, active profile 자체 role만)
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const sb = createSupabaseBrowserClient();
-      const {
-        data: { user },
-      } = await sb.auth.getUser();
-      if (!alive) return;
-      if (!user) {
-        setMe(null);
-        return;
-      }
-      const activeId = getActiveIdentityId() ?? user.id;
-      const { data: prof } = await sb
-        .from("profiles")
-        .select("id, role, auth_user_id")
-        .eq("id", activeId)
-        .maybeSingle();
-      if (!alive) return;
-      const row = prof as
-        | { id: string; role: string; auth_user_id: string }
-        | null;
-      // 본인 묶음 검증 — 다른 사람 profile cookie 위조 차단
-      const isMine =
-        !!row && (row.id === user.id || row.auth_user_id === user.id);
-      if (!isMine) {
-        setMe({ id: user.id, role: "user" });
-        return;
-      }
-      const role = ((row?.role as string) ?? "user") as
-        | "admin"
-        | "doctor"
-        | "user";
-      setMe({ id: activeId, role });
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // ── 2) impression — mount 1회 enqueue ──
   // 노출(impression) +1 — 큐에 enqueue (session 1회 dedup은 sessionStorage로 차단).

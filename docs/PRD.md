@@ -61,11 +61,18 @@
 - 같은 원장 3연속 방지, 첫 4카드 다양화
 - 인기 키워드 칩 5탭 (피부고민/리프팅/스킨부스터/홈케어/피부상식)
 
-### 4.3. 사용자 시스템 (Identity — ADR 0001, ADR 0011)
-- 한 auth user 가 여러 profile row 보유 가능 — 모든 profile 은 **동등하게 독립** (의사 역할 + 일반 회원 역할 등). 위계 / "본계·부계" 개념 없음
+### 4.3. 사용자 시스템 (Identity — ADR 0001, ADR 0011, **ADR 0012**)
+- 한 auth user 가 여러 profile row 보유 가능 — 모든 profile 은 **동등하게 독립**. 위계 / "본계·부계" 개념 없음
 - 쿠키 기반 active identity 전환
 - 모든 인터랙션 (좋아요/저장/댓글/글) 의 `user_id`/`author_id` = active profile.id
-- **권한은 현재 active 신분 단위** — RLS / 핵심 함수가 HTTP 헤더 GUC 로 active profile.id 인식 (ADR 0011)
+- **권한은 현재 active 신분 단위** — RLS / 핵심 함수 (ADR 0011) + TypeScript 가드 / API 라우트 (ADR 0012) 모두 active 단위
+
+**명함 단위 완전 독립 5원칙 (ADR 0012, 2026-05-26)**:
+1. 데이터 (글·댓글·좋아요·저장·알림) 는 작성·발생한 명함에만 귀속. 같은 사람의 다른 명함은 접근 불가.
+2. 권한 판정은 active 명함만. 묶음 합산 금지 (admin 운영진이 회원 명함이면 admin 페이지 차단).
+3. 의사 명함으로 쓴 글 = 의사 글, 회원 명함으로 쓴 글 = 회원 글. 사이에 교차·합산 없음.
+4. 묶음 (bundle) 의 유일한 효용은 IdentitySwitcher dropdown + 빠른 전환.
+5. 의사 정보 (doctor_id) 는 명함 row 안에 인라인. 별도 매핑 표 (`doctor_accounts`) 직접 조회 점진 폐기.
 
 ### 4.4. 온보딩 (필수 게이트)
 - 약관 동의 + 생년월일·성별·얼굴형·피부타입 입력 강제

@@ -96,7 +96,6 @@ export default function EditClient({
     if (payload.category === "qa") {
       apiPayload.pubmed_refs =
         payload.pubmedRefs.length > 0 ? payload.pubmedRefs : null;
-      apiPayload.pubmed_ref = payload.pubmedRefs[0] ?? null;
     }
 
     try {
