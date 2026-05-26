@@ -20,6 +20,25 @@
 
 ## Next (다음 우선순위)
 
+### Multi-identity Phase 3 — application layer 정합 (ADR 0011 후속)
+
+2026-05-26 정합 작업으로 SQL 레벨 (마이그레이션 0158~0163) 은 완료됐으나, 서브에이전트 외부 감사 (commit 7aeba53 시점) 에서 application layer (TypeScript 가드·API 라우트·layout) 의 동일 정합 누락 발견:
+
+- [ ] **HIGH — `requireAdmin()` (`src/lib/admin-guard.ts:60-67`) 의 묶음 합산 패턴 정정**: 회원으로 active 전환한 상태에서 묶음 안 admin profile 있으면 admin API 통과. `is_admin()` SQL 함수가 0159 에서 active 단위로 재작성됐는데 TypeScript 가드는 옛 패턴. ADR 0011 위배.
+- [ ] **HIGH — `requireAdminPage()` (`src/lib/admin-page-guard.ts:60-70`) 동일 패턴 정정**: 본 파일 line 8-17 주석이 "회원 명함이어도 묶음에 admin 있으면 통과" 라고 PRD §C 의도라며 ADR 0011 과 직접 충돌. 주석 + 본문 동시 정정.
+- [ ] **HIGH — admin EditClient (`src/app/admin/cards/[id]/edit/EditClient.tsx:285-289`) handleSubmit 의 cards 직접 update → PUT API 로 통일**: route head comment 가 "통합됐다" 라고 명시했으나 실제는 admin 측만 미정합. soft-delete/숨기기는 RPC 통일됐는데 본문 저장만 누락.
+- [ ] **MEDIUM — `articles/[id]/route.ts:148-155` 의 `isAuthor` 묶음 합산 → active 단위**: PUT API 의 권한 판정이 묶음 합산 → cards RLS (0160 active 단위) 와 비대칭. silent fail 가능.
+- [ ] **MEDIUM — `layout.tsx getSessionInfo` (line 82-100) 가 primary profile 의 role/doctorSlug 만 lookup**: 정한미 회귀의 다른 표면. 본인 의사 매핑 lookup 만 0158 RPC 로 fix 됐고 layout 의 role/doctorSlug 는 미적용.
+- [ ] **MEDIUM — `doctor_accounts` 직접 SELECT 18+ 곳 (doctor-mapping.ts 주석 참조) → `get_active_doctor_id` RPC 통일**: layout.tsx / `[handle]/page.tsx` / `admin/users/page.tsx` / `comments/route.ts` / `admin/draft/publish/route.ts` 등 잔재.
+- [ ] **LOW — "부계정" 용어 잔재 5건 정리**: `src/lib/active-identity.ts:15`, `src/app/admin/users/page.tsx:17`, `src/app/[handle]/page.tsx:165`, `src/app/settings/profile/page.tsx:68`, `src/app/write/page.tsx:34` — 모두 주석. "sub-identity" 또는 "묶음 내 다른 profile" 로 치환.
+- [ ] **LOW — admin EditClient PubmedRef 로컬 타입 분산** (`src/app/admin/cards/[id]/edit/EditClient.tsx:38-47`) → `articles.ts` 의 SSOT PubmedRefObj import.
+
+### 보안 방어 심층화 (Phase 3-B)
+
+- [ ] **MEDIUM — `api_rate_limits` RLS 정책 명시화**: 현재 RLS ON + 정책 0개 (default deny). server-side rate-limit (`src/lib/rate-limit.ts`) 가 service_role 만 쓰는지 검증 후 명시 정책 추가 또는 ADR 명문화.
+- [ ] **MEDIUM — `anonymize_user_content_before_delete` / `propagate_onboarding_to_doctor_bundle` anon EXECUTE 권한 정리**: 본문 가드 있으나 ADR 0006 "정기 점검" 정책상 anon EXECUTE 자체 노출 surface. REVOKE EXECUTE FROM anon 마이그레이션.
+- [ ] **LOW — `search_logs` 옛 중복 정책 정리 후 확인**: 0163 에서 정리했으나 production 재검증 + admin 정책 단일화.
+
 ### 에디터 통합 마무리
 **상태**: Phase 4a 완료, Phase 4b/4c 미진행. ADR 검토 후 결정.
 - [ ] **Phase 4b**: WriteClient → CardEditor wrapper 화

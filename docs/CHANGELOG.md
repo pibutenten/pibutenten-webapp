@@ -6,10 +6,20 @@
 
 ---
 
-## [2026-05-26] (VII) — PubmedRef url 빈 문자열 허용 (잠재 회귀 사전 차단)
+## [2026-05-26] (VIII) — 세션 종료 정리 (`350c899`) + Phase 3 후속 로드맵
+
+### Changed
+- **`UrlOrEmpty` 주석 의미 명확화** (`src/lib/schema/api/articles.ts`): 옛 주석 "회귀 차단" 관점이 땜빵 인상 → "DOI 도입(2000년대) 이전 발표된 옛 논문은 PubMed 등록은 됐지만 DOI 없는 정상 데이터 케이스를 수용" 으로 의미 정정. 동작 변경 없음. 사용자 통찰 — "오래된 논문은 PubMed 검색은 되지만 doi 주소 없을 때도 있어" — 반영.
+
+### Docs
+- **`docs/ROADMAP.md` Phase 3 추가**: 서브에이전트 외부 감사 (commit 7aeba53 시점) 에서 발견된 application layer 정합 누락 5건 (HIGH·MEDIUM) + 위계 표현 잔재 + 보안 방어 심층화 후속 항목 명문화. SQL 정합은 완료됐으나 TypeScript 가드·API 라우트·layout 의 동일 정합이 미완 — Phase 3 로 분리.
+
+---
+
+## [2026-05-26] (VII) — PubmedRef url 빈 문자열 허용 (DOI 없는 옛 논문 수용)
 
 ### Fixed
-- **doi 없는 참고문헌이 붙은 카드 (production 65건) 의 잠재 invalid_input 회귀**: `pubmed_url`/`doi_url` 의 zod `.url()` 검증이 빈 문자열 `""` 거부. DraftClient.tsx:469 가 `doi_url: cand.doi ? \`https://doi.org/...\` : ""` 패턴 — doi 없는 ref 는 doi_url 에 빈 문자열 저장. production 분포: `doi_url` 빈 문자열 65건 / null 5건 / 유효 URL 773건. 그 65건 갖춘 카드 수정 시 회귀 가능했음. `UrlOrEmpty = z.union([z.string().url().max(2048), z.literal("")])` helper 로 빈 문자열도 허용 → 회귀 사전 차단.
+- **doi 없는 참고문헌이 붙은 카드 (production 65건) 의 잠재 invalid_input 회귀**: `pubmed_url`/`doi_url` 의 zod `.url()` 검증이 빈 문자열 `""` 거부. DraftClient.tsx:469 가 `doi_url: cand.doi ? \`https://doi.org/...\` : ""` 패턴 — doi 없는 ref 는 doi_url 에 빈 문자열 저장. production 분포: `doi_url` 빈 문자열 65건 / null 5건 / 유효 URL 773건. **DOI 가 도입된 건 2000년대 이후 — 그 이전 발표된 옛 논문은 PubMed 등록은 됐지만 DOI 자체가 본래 없는 정상 데이터 케이스**. `UrlOrEmpty = z.union([z.string().url().max(2048), z.literal("")])` helper 로 빈 문자열도 합법 표현으로 수용.
 
 ### Lesson (검증 강화)
 김수형 원장 보고 (V/VI commit) 이후 production 의 모든 PubMed ref 필드를 빈 문자열 vs null vs 유효값 분포로 cross-check 한 결과 추가 65건 잠재 회귀 발견. 향후 zod schema 추가 시 production 실데이터의 실제 분포 검증 단계를 정합 체크리스트에 포함.
