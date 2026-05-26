@@ -147,7 +147,7 @@ ORDER BY ordinal_position;
    - `/admin/doctors` 에서 신규 doctor 추가 (slug, 이름, 소속, 사진)
 
 2. **회원 계정과 매핑**
-   - 의사 본인이 피부텐텐에 회원 가입 (Google/Kakao/Naver 중 1개)
+   - 해당 의료인이 피부텐텐에 가입 (Google/Kakao/Naver 중 1개)
    - `/admin/users` 에서 해당 회원의 `role` 을 `doctor` 로 변경
    - `/admin/users` 의 doctor 매핑 UI 에서 본인 doctor 카드와 연결
 
@@ -181,7 +181,7 @@ ORDER BY ordinal_position;
 - 면허 정지·취소
 - 의료법 §27 환자 유인 알선 적발
 - 의료광고법 §56·§57 위반 게시물 반복 게시
-- 의사 본인 요청 (탈퇴 또는 권한 반환)
+- 해당 의료인 본인 요청 (탈퇴 또는 권한 반환)
 
 #### 절차
 1. `/admin/users` 에서 해당 회원 `role` 을 `user` 로 변경

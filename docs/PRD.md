@@ -35,7 +35,7 @@
 ### 3.2. 피부과 전문의 (doctor)
 - Q&A 답변, 칼럼 작성, 회원 질문 검수
 - 본인 글의 SEO URL: `/doctors/{slug}/{year}/{post-slug}`
-- 본인 멀티 프로필 (의사 본계 + 일반 회원 부계) 같은 묶음 가능
+- 같은 사람이 의사 역할 profile + 일반 회원 역할 profile 두 신분으로 동등하게 활동 가능 (같은 auth_user_id 묶음, 위계 없음, ADR 0001)
 - 카테고리: `qa` (Q&A) / `tip` (꿀팁) 추가 작성 권한
 
 ### 3.3. 관리자 (admin)
@@ -61,10 +61,11 @@
 - 같은 원장 3연속 방지, 첫 4카드 다양화
 - 인기 키워드 칩 5탭 (피부고민/리프팅/스킨부스터/홈케어/피부상식)
 
-### 4.3. 사용자 시스템 (Identity Phase 9 — ADR 0001)
-- 한 auth user 가 여러 profile row 보유 가능 (의사 본계 + 일반 부계)
+### 4.3. 사용자 시스템 (Identity — ADR 0001, ADR 0011)
+- 한 auth user 가 여러 profile row 보유 가능 — 모든 profile 은 **동등하게 독립** (의사 역할 + 일반 회원 역할 등). 위계 / "본계·부계" 개념 없음
 - 쿠키 기반 active identity 전환
 - 모든 인터랙션 (좋아요/저장/댓글/글) 의 `user_id`/`author_id` = active profile.id
+- **권한은 현재 active 신분 단위** — RLS / 핵심 함수가 HTTP 헤더 GUC 로 active profile.id 인식 (ADR 0011)
 
 ### 4.4. 온보딩 (필수 게이트)
 - 약관 동의 + 생년월일·성별·얼굴형·피부타입 입력 강제

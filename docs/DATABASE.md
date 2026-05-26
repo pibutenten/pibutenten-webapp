@@ -151,10 +151,12 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 - `chk_min_age` CHECK constraint (14세 미만 차단, 0121)
 
 ### 3.2. cards
-- `cards_public_read`: `status='published' OR is_admin() OR doctor_id=current_doctor_id() OR author_id=auth.uid()` + `deleted_at IS NULL` 강제 (0132)
+- `cards_public_read`: `status='published' OR is_admin() OR doctor_id=current_doctor_id() OR author_id IN same_group_profile_ids(auth.uid())` + `deleted_at IS NULL` 강제 (0132)
 - `cards_admin_all` / `cards_doctor_update`/`_delete` / `cards_user_own_post`/`_delete`
-- `cards_owner_update`/`_delete` (0155): 모든 type 커버, `author_id IN same_group_profile_ids(uid)`
-- `is_admin()` 묶음 인식 확장 (0153)
+- `cards_owner_update`/`_delete` (0155 신설 → 0160 active 단위 재작성): 모든 type 커버, `author_id = COALESCE(current_active_profile_id(), auth.uid())`
+- `cards_user_post_insert` (0160 재작성): 3중 OR 분기 모두 active 단위
+- `is_admin()` / `current_doctor_id()` active 인식 (0159 — ADR 0011)
+- 폐기: `cards_open_all_to_auth` (0160 DROP — USING=true/CHECK=true PERMISSIVE 라 owner/doctor 정책 무력화하던 보안 구멍)
 
 ### 3.3. comments, card_likes, card_saves
 - 본인 + admin + same-group bundle 접근
@@ -179,7 +181,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 
 ## 5. 마이그레이션 히스토리
 
-핵심 이정표 (0001 ~ 0158, ~161개):
+핵심 이정표 (0001 ~ 0160, ~163개):
 
 | Migration | 내용 |
 |---|---|
@@ -239,6 +241,8 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0156 | soft_delete_card RPC (SECURITY DEFINER RLS 우회) |
 | **0157** | **site_visits 테이블 (방문자 추적 확장)** |
 | **0158** | **get_active_doctor_id RPC — active 신분 단위 doctor 매핑 lookup (정한미 원장 회귀 fix)** |
+| **0159** | **current_active_profile_id GUC 헬퍼 + is_admin/current_doctor_id active 인식 본문 교체 (ADR 0011)** |
+| **0160** | **cards RLS active 단위 재작성 + cards_open_all_to_auth 보안 구멍 DROP (ADR 0011)** |
 
 ---
 

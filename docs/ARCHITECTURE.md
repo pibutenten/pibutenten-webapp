@@ -191,8 +191,8 @@ supabase/
 ### 4.3. 네비·검색·피드
 | 파일 | 역할 |
 |---|---|
-| `TopNav.tsx` | 헤더 + 본인 아이콘 (active identity) |
-| `IdentitySwitcher.tsx` | 본명/부계정 전환 dropdown |
+| `TopNav.tsx` | 헤더 + 현재 active profile 아이콘 |
+| `IdentitySwitcher.tsx` | 신분(profile) 전환 dropdown — 묶음 안 동등 독립한 profile 들 (ADR 0001, 0011) |
 | `Feed.tsx`, `CardMasonry.tsx` | 피드 + grid (react-masonry-css) |
 | `HeroSearch.tsx`, `SearchBar.tsx` | 메인 검색창·sticky 검색바 |
 | `CategoryWithChips.tsx` | 인기 키워드 5탭 + 칩 |
