@@ -159,6 +159,8 @@ export default function Card({
   const canHide = !!me && me.role === "admin";
   const isHidden = card.status === "hidden";
 
+  // 숨김/공개 토글 — 0162 toggle_card_hide RPC 호출 (계정 단위 권한 검증 + admin EditClient
+  // handleToggleHide 와 일관 진입점). 이전 직접 cards.update({status}) 패턴 → RPC 통일.
   async function performHide() {
     const next = isHidden ? "published" : "hidden";
     const confirmMsg = isHidden
@@ -166,19 +168,19 @@ export default function Card({
       : "이 글을 숨김 처리할까요?\n관리자/작성자/해당 원장 외에는 보이지 않게 됩니다.";
     if (!window.confirm(confirmMsg)) return;
     const sb = createSupabaseBrowserClient();
-    // .select() 로 affected rows 회수 — RLS 가 silent block 할 경우 data=[]/length=0 로 감지.
-    const { data, error } = await sb
-      .from("cards")
-      .update({ status: next })
-      .eq("id", card.id)
-      .select("id");
+    const { error } = await sb.rpc("toggle_card_hide", {
+      p_card_id: card.id,
+      p_next_status: next,
+    });
     if (error) {
-      showToast("숨김 처리 실패: " + error.message, { tone: "danger" });
-      return;
-    }
-    if (!data || data.length === 0) {
-      // RLS silent block — UPDATE 정책 미통과. 실제 DB 변경 없음.
-      showToast("권한이 없어 처리할 수 없어요. 본인/관리자 글만 가능합니다.", { tone: "danger" });
+      const msg = error.message || "";
+      if (msg.includes("forbidden")) {
+        showToast("권한이 없어 처리할 수 없어요. 본인/관리자 글만 가능합니다.", { tone: "danger" });
+      } else if (msg.includes("card_not_found")) {
+        showToast("카드를 찾을 수 없습니다.", { tone: "danger" });
+      } else {
+        showToast("숨김 처리 실패: " + msg, { tone: "danger" });
+      }
       return;
     }
     showToast(isHidden ? "공개로 전환했어요" : "숨김 처리했어요");
