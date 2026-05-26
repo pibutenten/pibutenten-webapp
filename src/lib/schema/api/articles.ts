@@ -32,6 +32,10 @@ const ExternalMetaSchema = z
 // 2026-05-26 fix (김수형 원장 회귀): 이전엔 client type 과 server zod 가 두 곳에
 // 분산되어 있어 client 가 `authors_short`/`pubmed_url`/`doi_url` 전송했는데 server
 // zod 는 옛 `authors`/`url` 기대 → "invalid_input" 에러. 본 SSOT 패턴으로 재발 차단.
+// URL 또는 빈 문자열 허용 helper — DraftClient 가 doi 없을 때 doi_url: "" 저장하는
+// 패턴 (production 65건 잔재). zod .url() 가 "" 거부하던 회귀 차단.
+const UrlOrEmpty = z.union([z.string().url().max(2048), z.literal("")]);
+
 export const PubmedRefSchema = z
   .object({
     pmid: z.string().max(20).nullable().optional(),
@@ -40,8 +44,8 @@ export const PubmedRefSchema = z
     journal: z.string().max(300).nullable().optional(),
     year: z.union([z.string().max(10), z.number().int()]).nullable().optional(),
     authors_short: z.string().max(2000).nullable().optional(),
-    pubmed_url: z.string().url().max(2048).nullable().optional(),
-    doi_url: z.string().url().max(2048).nullable().optional(),
+    pubmed_url: UrlOrEmpty.nullable().optional(),
+    doi_url: UrlOrEmpty.nullable().optional(),
   })
   .strict();
 
