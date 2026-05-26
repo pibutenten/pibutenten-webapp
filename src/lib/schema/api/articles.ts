@@ -86,8 +86,14 @@ export const ArticleUpdateSchema = z
     external_description: z.string().max(2000).nullable().optional(),
     external_image: z.string().url().max(2048).nullable().optional(),
     external_site_name: z.string().max(200).nullable().optional(),
+    // pubmed_ref: null = 참고문헌 비우기. EditClient 가 0개일 때 명시 null 전송.
     pubmed_ref: PubmedRefSchema.nullable().optional(),
-    pubmed_refs: z.array(PubmedRefSchema).max(20).optional(),
+    // pubmed_refs: null = 참고문헌 비우기. EditClient handleSubmit 의
+    //   `payload.pubmedRefs.length > 0 ? payload.pubmedRefs : null` 로직과 정합.
+    //   2026-05-26 fix (김수형 원장 회귀 2차): nullable() 누락으로 참고문헌 0개 카드
+    //   수정 시도 시 zod reject → "invalid_input". PubMed 참고문헌 없는 카드 전체에서
+    //   재현 가능했던 회귀. nullable() 추가로 해소.
+    pubmed_refs: z.array(PubmedRefSchema).max(20).nullable().optional(),
     // admin 전용 — 라우트에서 isAdmin 가드 추가 검증
     status: z.enum(["draft", "pending_review", "published", "archived"]).optional(),
     is_pick: z.boolean().optional(),

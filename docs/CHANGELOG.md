@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-05-26] (VI) — 김수형 원장 회귀 2차 fix: pubmed_refs nullable 누락
+
+### Fixed
+- **참고문헌이 아예 없는 카드 수정 시에도 `invalid_input` 에러**: 직전 (V) commit 으로 PubMed 필드명 정합 + SSOT 했으나, **`pubmed_refs` 자체의 nullable() 누락** 별개 버그를 못 잡음. EditClient `handleSubmit` 의 `payload.pubmedRefs.length > 0 ? payload.pubmedRefs : null` 로직이 0개일 때 `null` 전송 → zod schema `z.array(...).max(20).optional()` 가 array 또는 undefined 만 허용 (nullable() 없음) → reject. 김수형 원장 카드 #2188 (미간 주름 — pubmed_refs=null) 도 동일 차단. 참고문헌 유무와 무관하게 모든 카드 수정 막혔던 회귀. nullable() 추가로 해소.
+
+### Lesson
+직전 V commit 검증 시 "참고문헌 있는 카드만 영향" 으로 잘못 진단. 실제는 null 자체도 막던 더 광범위한 버그. 검증 단계에서 production 의 김수형 원장 실제 카드 데이터 (pubmed_refs=null) 를 미리 확인했어야 함. payload 의 모든 nullable 필드를 zod 와 cross-check 하는 점검 누락.
+
+---
+
 ## [2026-05-26] (V) — 김수형 원장 회귀 fix + PubMed schema SSOT 패턴 적용
 
 ### Fixed
