@@ -261,6 +261,8 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | **0168** | **notifications RPC active 단위 정합 — validate_active_profile_id 헬퍼 + 5개 RPC 에 p_active_profile_id 파라미터 (Critical-2 DB 측)** |
 | **0169** | **pubmed_refs jsonb 정규화 — year string→int (858 ref), doi_url ""→null (64 ref). SSOT 정합 (Critical-4)** |
 | **0170** | **feed_cards_scored / tag_cards_scored 의 RETURNS TABLE 에 pubmed_refs jsonb[] 추가 — 피드/태그 리스트에서 참고문헌 재노출 회귀 fix** |
+| **0171** | **cards.question → title, cards.answer → body 리네임 + 인덱스 2개 RENAME + 카드 참조 RPC 10개 재정의 (feed/search/tag_cards_scored, get_notifications, get_top_cards_by_{comments\|likes\|saves\|shares\|views}_inner, get_top_new_cards_inner). P2-4 SSOT** |
+| **0172** | **feed/search/tag_cards_scored 에 `AND c.deleted_at IS NULL` 명시 + get_top_visitors_inner 비로그인 행 display_name → NULL (옛 한글 라벨 인코딩 사고 차단, UI 가 라벨링)** |
 
 ---
 

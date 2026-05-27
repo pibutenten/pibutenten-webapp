@@ -163,10 +163,14 @@ export default function PubmedRefsField({
       <div className="flex flex-col gap-1.5">
         {value.map((ref, idx) => {
           // 등록 판정: " — " 구분자 포함 시만 등록된 ref 로 인정.
+          //   - 저장값은 " — " 그대로 유지 (등록 마커 + 옛 데이터 호환).
+          //   - 시각 표시는 CardBody.tsx 와 일치시키기 위해 엠대시 prefix 만 공백으로 치환
+          //     (2026-05-28). 색상 위계 (title=primary, meta=muted) 로만 시각 구분.
           const dashIdx = ref.indexOf(" — ");
           const isRegistered = dashIdx !== -1;
           const refTitle = dashIdx === -1 ? ref : ref.slice(0, dashIdx);
-          const refMetaText = dashIdx === -1 ? "" : ref.slice(dashIdx);
+          const refMetaRaw = dashIdx === -1 ? "" : ref.slice(dashIdx);
+          const refMetaText = refMetaRaw.replace(/^\s*—\s*/, " ");
           const pubmedUrl = isRegistered ? pubmedUrlFor(idx, ref) : null;
           return (
             <div key={idx} className="flex items-start gap-2">

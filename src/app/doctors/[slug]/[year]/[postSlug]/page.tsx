@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -22,11 +23,15 @@ const SITE = SITE_URL;
 
 type QaWithModified = CardData & { updated_at?: string | null };
 
-async function fetchQaByDoctorYearSlug(
+// React `cache()` 메모이즈 (2026-05-28).
+//   같은 request 안에서 generateMetadata 와 page component 가 동일 인자로 호출하면
+//   두 번째 호출은 첫 호출의 결과를 재사용 (DB 왕복 2회 → 1회). 다른 request 는
+//   항상 fresh — force-dynamic 정책 유지.
+const fetchQaByDoctorYearSlug = cache(async (
   doctorSlug: string,
   year: number,
   postSlug: string,
-): Promise<QaWithModified | null> {
+): Promise<QaWithModified | null> => {
   try {
     const supabase = await createSupabaseServerClient();
     const { data: doctor } = await supabase
@@ -51,7 +56,7 @@ async function fetchQaByDoctorYearSlug(
   } catch {
     return null;
   }
-}
+});
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, year, postSlug } = await params;

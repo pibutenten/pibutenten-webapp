@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-05-28] — RPC deleted_at 다층 방어 + visitors Mojibake fix + 캐싱 + 로그아웃 쿠키 정리
+
+### Added
+- 새 마이그레이션 `0172_fix_rpc_deleted_at_and_visitors.sql`
+  - `feed_cards_scored` / `search_cards_scored` / `tag_cards_scored` 3개 RPC 본문에 `AND c.deleted_at IS NULL` 명시. status='published' 만 보던 옛 조건이 향후 status/deleted_at 불일치 row 가 생길 때 즉시 누출하던 위험 차단.
+  - `get_top_visitors_inner` 재정의 — 비로그인 합계 행의 `display_name` 을 옛 한글 `'비로그인 방문자'` 에서 `NULL` 로 변경. 일부 환경의 Mojibake 근본 차단. profile_id IS NULL 신호만 보내고 라벨링은 UI 책임.
+
+### Changed
+- `src/app/admin/stats/[kind]/StatsListClient.tsx` — 방문자 칩 렌더에서 `row.profile_id == null` 이면 "비로그인" 라벨 표시. RPC 가 보낸 NULL display_name 을 UI 에서 일관 처리.
+- `src/components/card-editor/fields/PubmedRefsField.tsx` — 등록된 ref 칩 모드의 메타 표시에서 앞 엠대시(` — `) prefix 만 공백으로 시각 치환. 저장값과 등록 판정 마커는 그대로 유지 (CardBody.tsx 의 색상 위계와 일치).
+- `src/app/doctors/[slug]/[year]/[postSlug]/page.tsx` — `fetchQaByDoctorYearSlug` 를 React `cache()` 로 메모이즈. 같은 request 안의 `generateMetadata` + page component 호출이 DB 왕복 2회 → 1회.
+- `src/components/LogoutButton.tsx` — `supabase.auth.signOut()` 후 `pibutenten:identity-mirror` + `pibutenten_onboarded` 쿠키 명시 삭제. 비-httpOnly 쿠키가 다음 사용자/계정 전환 시 잔존하던 회귀 방지.
+- `docs/DATABASE.md` 마이그레이션 히스토리 표에 0171, 0172 행 추가 (옛 0171 누락 보완).
+
+---
+
 ## [2026-05-27] — Critical 1~6 + 회귀 fix 묶음 (e0852c6 → 443cb45)
 
 ### Critical-1 ~ Critical-6 (e0852c6 → af4267c)

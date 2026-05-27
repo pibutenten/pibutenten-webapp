@@ -231,9 +231,14 @@ export default function StatsListClient({
         </p>
       ) : kind === "visitors" ? (
         // 2026-05-22: 방문자 = 칩 layout (한 줄에 여러 명). 비로그인 항상 맨 앞 (RPC 정렬).
+        // 2026-05-28 (0172): RPC 가 비로그인 행을 NULL display_name 으로 보낸다.
+        //   profile_id IS NULL 신호만 보고 "비로그인" 라벨을 UI 에서 부여 (한글 인코딩 사고 차단).
         <div className="flex flex-wrap gap-2">
           {(rows as VisitorRow[]).map((row, i) => {
-            const name = row.display_name || row.handle || "(이름 없음)";
+            const isAnon = row.profile_id == null;
+            const name = isAnon
+              ? "비로그인"
+              : row.display_name || row.handle || "(이름 없음)";
             const key = row.profile_id ?? `anon-${i}`;
             const chipBase =
               "inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-[13px]";
