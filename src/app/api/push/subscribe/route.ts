@@ -2,13 +2,17 @@
  * POST /api/push/subscribe
  * body: { endpoint, keys: { p256dh, auth } }
  *
- * Web Push 구독 정보 저장 — 본인 profile에 묶음.
+ * Web Push 구독 정보 저장 — **active profile 한 장** 기준 (CLAUDE.md 원칙 #1).
  * 같은 (profile_id, endpoint) 있으면 UPDATE (last_used_at 갱신).
+ *
+ * Critical-2 (2026-05-27): 묶음의 "첫 profile" 에 저장하던 비결정적 로직 폐기.
+ * 현재 active identity 의 profileId 에 명시 저장. 묶음 내 다른 profile 로 전환
+ * 시 그쪽 신분으로 별도 구독 등록 (신분별 알림 분리).
  */
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { bundleProfileFilter } from "@/lib/identity-shared";
+import { getIdentityContext } from "@/lib/identity";
 import { errorResponse } from "@/lib/error-response";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -21,10 +25,8 @@ type PushSubscriptionBody = {
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx || !idCtx.active) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -32,7 +34,7 @@ export async function POST(req: Request) {
   const limited = await rateLimit({
     request: req,
     bucketPrefix: "push-subscribe",
-    userId: user.id,
+    userId: idCtx.user.id,
     max: 10,
     windowSeconds: 60,
   });
@@ -58,16 +60,8 @@ export async function POST(req: Request) {
     );
   }
 
-  // Phase 9 묶음 — 본인 묶음 내 첫 profile.id에 저장
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id")
-    .or(bundleProfileFilter(user.id))
-    .limit(1);
-  const profileId = profiles?.[0]?.id;
-  if (!profileId) {
-    return NextResponse.json({ error: "profile not found" }, { status: 404 });
-  }
+  // 활성 신분 한 장에만 명시 저장 (CLAUDE.md 원칙 #1).
+  const profileId = idCtx.active.profileId;
 
   const userAgent = req.headers.get("user-agent") ?? null;
 

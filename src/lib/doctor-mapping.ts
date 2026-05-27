@@ -1,58 +1,110 @@
 /**
- * doctor_accounts 매핑 lookup 헬퍼.
+ * Doctor 매핑 lookup 헬퍼 — `profiles.doctor_id` SSOT 기반.
  *
- * Phase 7-D (2026-05-16): `from("doctor_accounts").select("doctor_id").eq("profile_id", X).maybeSingle()`
- * 패턴이 코드베이스 18+ 곳에 분산. 핵심 경로 우선 통합.
+ * 원칙 (CLAUDE.md):
+ *   1. 모든 권한·정체성 판정은 active profile 한 장 단위로 완결.
+ *      묶음(bundle) 기준 권한 판정 금지.
+ *   2. `profiles.doctor_id` 가 의사 매핑의 유일한 진실의 출처(SSOT).
+ *      `doctor_accounts` 테이블은 향후 삭제 예정이므로 애플리케이션 코드는
+ *      더 이상 직접 SELECT 하지 않는다.
  *
- * 사용처 (우선순위 교체 완료):
- *   - src/lib/identity-server.ts (resolveActiveIdentity)
- *   - src/app/write/[shortcode]/page.tsx
- *   - src/app/admin/users/[id]/page.tsx (primaryMapping, myMapping)
- *
- * 미교체 (확장된 select 또는 join 사용 — helper 의도 범위 밖):
- *   - src/app/[handle]/page.tsx (`doctor:doctors(id, slug, photo_url)` join)
- *   - src/app/layout.tsx (`doctor:doctors(slug, photo_url)` join, `.in(...)`)
- *   - src/app/doctors/[slug]/page.tsx (추가 `.eq("doctor_id", ...)` 필터)
- *   - src/app/admin/users/page.tsx (`.in(...)` 다건 + join)
- *   - src/app/api/comments/route.ts (join + `.in(...)`)
- *   - src/app/api/admin/users/[id]/role/route.ts (insert/update/delete)
- *   - src/app/api/admin/draft/publish/route.ts (전체 select)
- *   - src/components/CommentsBlock.tsx (Promise.all 묶음)
- *   - src/app/settings/page.tsx (join)
- *
- *   향후 단순 lookup 으로 단축 가능한 곳이 생기면 본 helper 호출로 정리.
+ * 본 모듈은 active profile.id 한 장을 받아 그 신분 단독 매핑만 lookup 한다.
+ * 묶음(auth_user_id) 단위 권한 합산은 본 모듈 책임 밖.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * 주어진 profile.id 에 매핑된 doctor.id 반환.
- *  - 매핑 row 없음 → null
- *  - 매핑 row 있음 → doctor_id 값 (string)
- *  - profile.id 가 호출자(auth.uid()) 묶음에 속하지 않으면 null (위조 차단)
+ * 주어진 profile.id 의 doctor.id 반환.
+ *  - 매핑 없음 → null
+ *  - 매핑 있음 → doctor_id 값 (uuid string)
  *
- * 구현: SECURITY DEFINER RPC `get_active_doctor_id` (마이그레이션 0158) 호출.
- *
- * 배경 — ADR 0001 "묶음 동등 독립 + active 신분 단위 권한" 원칙 준수:
- *   직접 `doctor_accounts.select().eq("profile_id", X)` 패턴은 RLS 정책
- *   `(auth.uid() = profile_id) OR is_admin()` 를 거치는데, PostgreSQL auth.uid()
- *   는 active identity 전환을 모름 (항상 base auth_user_id). 그래서 의사 계정이
- *   base auth_user_id 와 다른 profile.id 인 경우 (예: 정한미 원장 — base
- *   auth_user_id 는 너구리 회원 계정, 의사 계정은 sub-identity 로 추가됨),
- *   의사 계정으로 active 일 때 본인 의사 매핑조차 못 봄 → /doctor 가드에서
- *   doctorId=null → 홈으로 튕김.
- *
- *   해결: RLS 정책을 "본인 묶음 전체" 로 확장하면 묶음 단위 권한 합산이 되어
- *   ADR 0001 위배. 대신 active 신분의 profile.id 를 명시적으로 전달받아
- *   그 신분 단독 매핑만 lookup 하는 SECURITY DEFINER RPC 가 정답.
- *   너구리로 active 시 너구리 profile.id 전달 → null → 의사 권한 자동 상속 차단.
+ * `profiles.doctor_id` 컬럼을 직접 읽는다.
  */
 export async function getDoctorIdForProfile(
   supabase: SupabaseClient,
   profileId: string,
 ): Promise<string | null> {
   const { data, error } = await supabase
-    .rpc("get_active_doctor_id", { p_profile_id: profileId })
-    .returns<string | null>();
-  if (error) return null;
-  return (data as string | null) ?? null;
+    .from("profiles")
+    .select("doctor_id")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return (data.doctor_id as string | null) ?? null;
+}
+
+/**
+ * 주어진 profile.id 의 doctor.slug 반환.
+ *  - 매핑 없음 또는 slug 없음 → null
+ *  - 매핑 있음 → doctors.slug 값
+ */
+export async function getDoctorSlugForProfile(
+  supabase: SupabaseClient,
+  profileId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("doctor:doctors(slug)")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (error || !data) return null;
+  // PostgREST embedded relation can be object or array depending on FK cardinality.
+  const doctor = (data as { doctor?: { slug?: string | null } | { slug?: string | null }[] | null })
+    .doctor;
+  const obj = Array.isArray(doctor) ? doctor[0] : doctor;
+  return (obj?.slug as string | null) ?? null;
+}
+
+/**
+ * 여러 profile.id 의 doctor 메타 정보를 일괄 조회.
+ *
+ * @returns Map<profileId, DoctorMeta> — 매핑 없는 profile 은 Map 에서 누락.
+ *
+ * 사용처: 헤더의 의사 1-click 진입, 댓글/QA author 의 의사 마크업, admin 사용자 목록 등
+ * "다건 profile → 의사 정보" 표시 경로.
+ */
+export type DoctorMeta = {
+  doctorId: string;
+  slug: string | null;
+  name: string | null;
+  photoUrl: string | null;
+  branch: string | null;
+};
+
+export async function getDoctorMetaBatch(
+  supabase: SupabaseClient,
+  profileIds: string[],
+): Promise<Map<string, DoctorMeta>> {
+  const out = new Map<string, DoctorMeta>();
+  if (!profileIds || profileIds.length === 0) return out;
+
+  // 중복 제거
+  const uniqueIds = Array.from(new Set(profileIds));
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, doctor_id, doctor:doctors(slug, name, photo_url, branch)")
+    .in("id", uniqueIds);
+
+  if (error || !data) return out;
+
+  for (const row of data as Array<{
+    id: string;
+    doctor_id: string | null;
+    doctor:
+      | { slug?: string | null; name?: string | null; photo_url?: string | null; branch?: string | null }
+      | { slug?: string | null; name?: string | null; photo_url?: string | null; branch?: string | null }[]
+      | null;
+  }>) {
+    if (!row.doctor_id) continue;
+    const d = Array.isArray(row.doctor) ? row.doctor[0] : row.doctor;
+    out.set(row.id, {
+      doctorId: row.doctor_id,
+      slug: (d?.slug as string | null) ?? null,
+      name: (d?.name as string | null) ?? null,
+      photoUrl: (d?.photo_url as string | null) ?? null,
+      branch: (d?.branch as string | null) ?? null,
+    });
+  }
+  return out;
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { logAudit } from "@/lib/audit-log";
+import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
 
 export const dynamic = "force-dynamic";
 
@@ -84,27 +85,29 @@ export async function POST(
 
   // ── 1. 매핑 충돌 확인 (자기 자신 제외) ────────────────────────────────
   // doctor_id 값이 들어오면, 그 doctor 가 이미 다른 회원에게 매핑돼 있는지 확인.
+  // SSOT (profiles.doctor_id) 기준 역조회.
   if (doctorId) {
     const { data: existing } = await supabase
-      .from("doctor_accounts")
-      .select("profile_id, profiles!inner(display_name, handle)")
+      .from("profiles")
+      .select("id, display_name, handle")
       .eq("doctor_id", doctorId)
       .maybeSingle()
       .returns<{
-        profile_id: string;
-        profiles: { display_name: string | null; handle: string | null };
+        id: string;
+        display_name: string | null;
+        handle: string | null;
       } | null>();
-    if (existing && existing.profile_id !== id) {
-      const exName = existing.profiles?.display_name ?? "(이름 없음)";
-      const exHandle = existing.profiles?.handle
-        ? `@${existing.profiles.handle}`
+    if (existing && existing.id !== id) {
+      const exName = existing.display_name ?? "(이름 없음)";
+      const exHandle = existing.handle
+        ? `@${existing.handle}`
         : "(handle 없음)";
       return NextResponse.json(
         {
           error: `해당 원장은 이미 가입 회원 "${exName}" ${exHandle} 에게 매핑되어 있습니다. 먼저 그 회원의 매핑을 해제해주세요.`,
-          existing_profile_id: existing.profile_id,
+          existing_profile_id: existing.id,
           existing_display_name: exName,
-          existing_handle: existing.profiles?.handle ?? null,
+          existing_handle: existing.handle ?? null,
         },
         { status: 409 },
       );
@@ -127,13 +130,9 @@ export async function POST(
   //   doctor_id 가 있으면 upsert (기존 매핑은 갱신, 없으면 insert).
   //   doctor_id 가 null 이면 매핑 해제.
   if (doctorId) {
-    const { data: myMapping } = await supabase
-      .from("doctor_accounts")
-      .select("profile_id")
-      .eq("profile_id", id)
-      .maybeSingle()
-      .returns<{ profile_id: string } | null>();
-    if (myMapping) {
+    // SSOT (profiles.doctor_id) 헬퍼로 기존 매핑 존재 여부 확인.
+    const existingDoctorId = await getDoctorIdForProfile(supabase, id);
+    if (existingDoctorId) {
       const { error: mapErr } = await supabase
         .from("doctor_accounts")
         .update({ doctor_id: doctorId })

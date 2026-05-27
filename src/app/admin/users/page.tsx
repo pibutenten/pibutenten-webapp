@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import type { UserRole } from "@/lib/user-grades";
 import BackButton from "@/components/BackButton";
+import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
 
 export const dynamic = "force-dynamic";
 
@@ -87,19 +88,14 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   // 카드 작성 수 집계 (author_id = profiles.id 기준)
   const allIds = (profiles ?? []).map((p) => p.id);
   const postCountMap = new Map<string, number>();
-  // doctor_accounts 매핑 — profile_id → doctor {slug, name}
+  // 매핑된 의사 — profile_id → doctor {slug, name} (SSOT: profiles.doctor_id)
   const doctorByProfile = new Map<string, { slug: string; name: string }>();
   if (allIds.length > 0) {
-    const { data: maps } = await supabase
-      .from("doctor_accounts")
-      .select("profile_id, doctors!doctor_id(slug, name)")
-      .in("profile_id", allIds);
-    for (const m of (maps ?? []) as Array<{
-      profile_id: string;
-      doctors: { slug: string; name: string } | { slug: string; name: string }[] | null;
-    }>) {
-      const d = Array.isArray(m.doctors) ? m.doctors[0] : m.doctors;
-      if (d) doctorByProfile.set(m.profile_id, { slug: d.slug, name: d.name });
+    const metaMap = await getDoctorMetaBatch(supabase, allIds);
+    for (const [pid, meta] of metaMap) {
+      if (meta.slug && meta.name) {
+        doctorByProfile.set(pid, { slug: meta.slug, name: meta.name });
+      }
     }
   }
   if (allIds.length > 0) {

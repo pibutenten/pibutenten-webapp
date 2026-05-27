@@ -34,6 +34,7 @@ import CardEditor, {
 import { isPostCategorySlug, type PostCategorySlug } from "@/lib/post-category";
 import type { ExternalMeta } from "@/components/card-editor/fields/ExternalLinkField";
 import type { PubmedRefObj } from "@/components/card-editor/fields/PubmedRefsField";
+import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
 
 type PubmedRef = {
   pmid?: string | null;
@@ -263,15 +264,12 @@ export default function EditClient({
       payload.authorProfileId !== card.author_id
     ) {
       update.author_id = payload.authorProfileId;
-      // 새 author 의 doctor_accounts 매핑 lookup → doctor_id 자동 set/clear
+      // 새 author 의 doctor 매핑 lookup → doctor_id 자동 set/clear (SSOT: profiles.doctor_id)
       if (payload.authorProfileId) {
-        const { data: daRow } = await supabase
-          .from("doctor_accounts")
-          .select("doctor_id")
-          .eq("profile_id", payload.authorProfileId)
-          .maybeSingle();
-        update.doctor_id =
-          (daRow as { doctor_id: string } | null)?.doctor_id ?? null;
+        update.doctor_id = await getDoctorIdForProfile(
+          supabase,
+          payload.authorProfileId,
+        );
       } else {
         update.doctor_id = null;
       }

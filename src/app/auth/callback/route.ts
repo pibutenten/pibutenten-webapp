@@ -206,8 +206,15 @@ export async function GET(request: NextRequest) {
     if (Object.keys(updates).length > 0) {
       try {
         await supabase.from("profiles").update(updates).eq("id", user.id);
-      } catch {
-        // 실패해도 로그인 흐름은 계속 진행
+      } catch (e) {
+        // 실패해도 로그인 흐름은 계속 — 단, 사용자 메타 동기화 누락은 회원 화면에서
+        // 빈 표시·아바타 깨짐을 유발할 수 있어 추적용으로 기록.
+        const isDev = process.env.NODE_ENV !== "production";
+        if (isDev) {
+          console.warn("[auth-callback] profile 메타 동기화 실패:", e instanceof Error ? e.message : e);
+        } else {
+          console.error("[auth-callback] profile 메타 동기화 실패:", e instanceof Error ? e.message : e);
+        }
       }
     }
   }

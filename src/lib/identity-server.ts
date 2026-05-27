@@ -34,8 +34,15 @@ export async function readTargetProfileId(authUserId: string): Promise<string> {
     if (cookieVal !== PRIMARY_IDENTITY_ID && UUID_RE.test(cookieVal)) {
       return cookieVal;
     }
-  } catch {
-    /* cookies() 컨텍스트 밖이면 fallback */
+  } catch (e) {
+    // cookies() 컨텍스트 밖이면 authUserId 로 fallback — 의도된 흐름이지만
+    // 예상치 못한 컨텍스트(예: edge runtime) 에서 권한 회귀가 일어날 수 있으므로 기록.
+    const isDev = process.env.NODE_ENV !== "production";
+    if (isDev) {
+      console.warn("[auth-identity] cookie 컨텍스트 읽기 실패:", e instanceof Error ? e.message : e);
+    } else {
+      console.error("[auth-identity] cookie 컨텍스트 읽기 실패:", e instanceof Error ? e.message : e);
+    }
   }
   return authUserId;
 }

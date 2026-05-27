@@ -12,6 +12,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
+import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
 
 export const dynamic = "force-dynamic";
 
@@ -114,43 +115,32 @@ export async function GET(req: Request) {
     handle: string | null;
     role: "admin" | "doctor" | "user";
   };
-  type DoctorAcctRow = { profile_id: string; doctor_id: string };
 
   let profilesById = new Map<string, ProfileRow & { doctor_photo_url?: string | null }>();
-  let doctorByProfile = new Map<string, string>();
+  const doctorByProfile = new Map<string, string>();
 
   if (authorIds.length > 0) {
     // Phase 9: profile_identities 폐기. comments.author_id로 직접 profiles 조회.
-    const [profRes, docRes] = await Promise.all([
+    // 의사 매핑은 SSOT (profiles.doctor_id) 기준 헬퍼로 조회.
+    const [profRes, doctorMetaMap] = await Promise.all([
       supabase
         .from("profiles")
         .select("id, display_name, avatar_url, handle, role")
         .in("id", authorIds),
-      supabase
-        .from("doctor_accounts")
-        .select("profile_id, doctor_id, doctor:doctors(slug, photo_url)")
-        .in("profile_id", authorIds),
+      getDoctorMetaBatch(supabase, authorIds),
     ]);
     if (!profRes.error && profRes.data) {
       profilesById = new Map(
         ((profRes.data ?? []) as ProfileRow[]).map((p) => [p.id, p]),
       );
     }
-    if (!docRes.error && docRes.data) {
-      type DAR = {
-        profile_id: string;
-        doctor_id: string;
-        doctor: { slug: string; photo_url: string | null } | { slug: string; photo_url: string | null }[] | null;
-      };
-      for (const da of docRes.data as DAR[]) {
-        doctorByProfile.set(da.profile_id, da.doctor_id);
-        const d = Array.isArray(da.doctor) ? da.doctor[0] : da.doctor;
-        if (d) {
-          const photo = d.photo_url ?? `/doctors/${d.slug}.png`;
-          const existing = profilesById.get(da.profile_id);
-          if (existing) {
-            profilesById.set(da.profile_id, { ...existing, doctor_photo_url: photo });
-          }
+    for (const [pid, meta] of doctorMetaMap) {
+      doctorByProfile.set(pid, meta.doctorId);
+      if (meta.slug) {
+        const photo = meta.photoUrl ?? `/doctors/${meta.slug}.png`;
+        const existing = profilesById.get(pid);
+        if (existing) {
+          profilesById.set(pid, { ...existing, doctor_photo_url: photo });
         }
       }
     }

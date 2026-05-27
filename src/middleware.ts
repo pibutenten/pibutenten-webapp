@@ -104,8 +104,15 @@ function isAllowedOrigin(origin: string | null): boolean {
       try {
         const site = new URL(siteUrl);
         if (o.origin === site.origin) return true;
-      } catch {
-        /* ignore */
+      } catch (e) {
+        // NEXT_PUBLIC_SITE_URL 이 잘못된 값이면 CSRF 화이트리스트가 비어
+        // 모든 변이성 요청이 거절될 수 있음 — 운영 사고 가능성 있으므로 기록.
+        const isDev = process.env.NODE_ENV !== "production";
+        if (isDev) {
+          console.warn("[csrf-origin] NEXT_PUBLIC_SITE_URL 파싱 실패:", e instanceof Error ? e.message : e);
+        } else {
+          console.error("[csrf-origin] NEXT_PUBLIC_SITE_URL 파싱 실패:", e instanceof Error ? e.message : e);
+        }
       }
     }
 

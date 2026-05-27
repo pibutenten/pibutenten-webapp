@@ -12,6 +12,10 @@ import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import { IDENTITY_COOKIE, PRIMARY_IDENTITY_ID } from "@/lib/identity-shared";
 import { allClinicsSchema } from "@/lib/schema/clinic";
+import {
+  getDoctorSlugForProfile,
+  getDoctorMetaBatch,
+} from "@/lib/doctor-mapping";
 import "./globals.css";
 
 // Pretendard variable font — self-host via @font-face in globals.css.
@@ -85,19 +89,10 @@ async function getSessionInfo(): Promise<SessionInfo> {
       .eq("id", user.id)
       .maybeSingle();
     if (!profile) return null;
-    // doctor_accounts 매핑 lookup (헤더 1-click 진입용).
+    // 의사 매핑 lookup (헤더 1-click 진입용). SSOT: profiles.doctor_id.
     // role과 무관하게 항상 조회 — 배정민처럼 role='admin'이면서 doctor 매핑이 있는
     // 케이스에서 primary identity를 '원장'으로 정확히 렌더하기 위함.
-    let doctorSlug: string | null = null;
-    {
-      const { data: da } = await supabase
-        .from("doctor_accounts")
-        .select("doctor:doctors(slug)")
-        .eq("profile_id", user.id)
-        .maybeSingle();
-      const d = da?.doctor as { slug: string } | { slug: string }[] | null;
-      doctorSlug = Array.isArray(d) ? d[0]?.slug ?? null : d?.slug ?? null;
-    }
+    const doctorSlug = await getDoctorSlugForProfile(supabase, user.id);
     // Phase 9 묶음 lookup — bundleProfileFilter 와 동일 패턴.
     //   2026-05-16 회귀 fix: 기존 .eq("auth_user_id", user.id) 는 일부 환경에서
     //   1 row 만 반환되어 IdentitySwitcher dropdown 사라지는 회귀 발생 → .or() OR 패턴으로 통일.
@@ -107,18 +102,13 @@ async function getSessionInfo(): Promise<SessionInfo> {
       .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`)
       .order("created_at", { ascending: true });
 
-    // doctor_accounts 매핑 (각 profile.id가 어느 doctor의 가입자인지)
+    // 의사 매핑 (각 profile.id가 어느 doctor의 가입자인지). SSOT: profiles.doctor_id.
     const groupIds = (groupRows ?? []).map((r) => (r as { id: string }).id);
     const docMap = new Map<string, string>(); // profile_id → doctor.slug
     if (groupIds.length > 0) {
-      const { data: da } = await supabase
-        .from("doctor_accounts")
-        .select("profile_id, doctor:doctors(slug, photo_url)")
-        .in("profile_id", groupIds);
-      for (const r of da ?? []) {
-        const row = r as { profile_id: string; doctor: { slug: string; photo_url: string | null } | { slug: string; photo_url: string | null }[] | null };
-        const d = Array.isArray(row.doctor) ? row.doctor[0] : row.doctor;
-        if (d) docMap.set(row.profile_id, d.slug);
+      const metaMap = await getDoctorMetaBatch(supabase, groupIds);
+      for (const [pid, meta] of metaMap) {
+        if (meta.slug) docMap.set(pid, meta.slug);
       }
     }
 

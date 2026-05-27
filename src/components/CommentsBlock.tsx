@@ -19,6 +19,7 @@ import { getActiveIdentityId } from "@/lib/active-identity";
 import RelativeTime from "@/components/RelativeTime";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { showToast } from "@/lib/toast";
+import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
 
 type CommentStatus = "visible" | "hidden" | "deleted";
 
@@ -128,20 +129,16 @@ export default function CommentsBlock({
       // 정책 (2026-05-15 재정의): me.id / role / doctor_id 모두 **active profile 단일** 기준.
       // - id: active profile.id (cookie 'pibutenten:identity', 'primary' 면 user.id)
       // - role: active profile 자체의 role (묶음 최고 권한 X)
-      // - doctor_id: active profile 의 doctor_accounts 매핑 (묶음의 다른 profile X)
+      // - doctor_id: active profile 의 의사 매핑 (SSOT: profiles.doctor_id, 묶음의 다른 profile X)
       // → 댓글 본인 인식 (isAuthor) 도 active == author 일 때만.
       const activeId = getActiveIdentityId() ?? user.id;
-      const [{ data: prof }, { data: docMap }] = await Promise.all([
+      const [{ data: prof }, myDoctorId] = await Promise.all([
         sb
           .from("profiles")
           .select("id, role, auth_user_id")
           .eq("id", activeId)
           .maybeSingle(),
-        sb
-          .from("doctor_accounts")
-          .select("doctor_id")
-          .eq("profile_id", activeId)
-          .maybeSingle(),
+        getDoctorIdForProfile(sb, activeId),
       ]);
       if (!alive) return;
       const row = prof as { id: string; role: string; auth_user_id: string } | null;
@@ -153,7 +150,6 @@ export default function CommentsBlock({
         return;
       }
       const role = ((row?.role as string) ?? "user") as "admin" | "doctor" | "user";
-      const myDoctorId = (docMap as { doctor_id: string } | null)?.doctor_id ?? null;
       setMe({
         id: activeId,
         role,

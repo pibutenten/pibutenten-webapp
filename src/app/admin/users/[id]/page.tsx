@@ -13,7 +13,7 @@ import { getQaUrl } from "@/lib/card-url";
 import { getIdentityContext } from "@/lib/identity";
 import BackButton from "@/components/BackButton";
 import { formatIsoDate } from "@/lib/format-date";
-import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
+import { getDoctorIdForProfile, getDoctorMetaBatch } from "@/lib/doctor-mapping";
 
 export const dynamic = "force-dynamic";
 
@@ -161,21 +161,14 @@ export default async function AdminUserDetailPage({
   };
   const allProfilesInGroup = (groupRows ?? []) as GroupRow[];
 
-  // identity ↔ doctor 매핑 (doctor_accounts)
-  const { data: docAccts } = await supabase
-    .from("doctor_accounts")
-    .select("profile_id, doctor_id")
-    .in(
-      "profile_id",
-      allProfilesInGroup.length > 0
-        ? allProfilesInGroup.map((p) => p.id)
-        : [id],
-    );
+  // identity ↔ doctor 매핑 (SSOT: profiles.doctor_id)
+  const groupProfileIds =
+    allProfilesInGroup.length > 0
+      ? allProfilesInGroup.map((p) => p.id)
+      : [id];
+  const groupDoctorMeta = await getDoctorMetaBatch(supabase, groupProfileIds);
   const doctorIdByProfile = new Map<string, string>(
-    (docAccts ?? []).map((r) => [
-      (r as { profile_id: string }).profile_id,
-      (r as { doctor_id: string }).doctor_id,
-    ]),
+    Array.from(groupDoctorMeta.entries()).map(([pid, m]) => [pid, m.doctorId]),
   );
 
   // legacy IdentityRow 형태로 매핑 (UI 호환)
@@ -264,19 +257,10 @@ export default async function AdminUserDetailPage({
   const currentDoctorId = await getDoctorIdForProfile(supabase, id);
 
   // 매핑용 doctors 목록 — 각 doctor 매핑 상태 + 매핑된 profile 의 handle/display_name 만.
-  // 정책 (2026-05-17): doctor_accounts 에는 가입 회원만 들어감 (placeholder 분기 폐기).
-  type DoctorAccRow = {
-    profile_id: string;
-    profiles:
-      | { handle: string | null; display_name: string | null }
-      | { handle: string | null; display_name: string | null }[]
-      | null;
-  };
+  // SSOT (profiles.doctor_id) 기반 역조회: doctors 목록 + profiles.doctor_id 분리 쿼리 후 메모리 join.
   const { data: allDoctors } = await supabase
     .from("doctors")
-    .select(
-      "id, slug, name, branch, doctor_accounts(profile_id, profiles(handle, display_name))",
-    )
+    .select("id, slug, name, branch")
     .order("name", { ascending: true })
     .returns<
       {
@@ -284,22 +268,40 @@ export default async function AdminUserDetailPage({
         slug: string;
         name: string;
         branch: string | null;
-        doctor_accounts: DoctorAccRow[] | null;
       }[]
     >();
+  const { data: mappedProfilesData } = await supabase
+    .from("profiles")
+    .select("id, doctor_id, handle, display_name")
+    .not("doctor_id", "is", null)
+    .returns<
+      {
+        id: string;
+        doctor_id: string;
+        handle: string | null;
+        display_name: string | null;
+      }[]
+    >();
+  const mappedProfileByDoctor = new Map<
+    string,
+    { handle: string | null; display_name: string | null }
+  >();
+  for (const p of mappedProfilesData ?? []) {
+    if (!mappedProfileByDoctor.has(p.doctor_id)) {
+      mappedProfileByDoctor.set(p.doctor_id, {
+        handle: p.handle,
+        display_name: p.display_name,
+      });
+    }
+  }
   const doctorsForForm = (allDoctors ?? []).map((d) => {
-    const first = (d.doctor_accounts ?? [])[0] ?? null;
-    const mappedProfile = first
-      ? Array.isArray(first.profiles)
-        ? first.profiles[0] ?? null
-        : first.profiles ?? null
-      : null;
+    const mappedProfile = mappedProfileByDoctor.get(d.id) ?? null;
     return {
       id: d.id,
       slug: d.slug,
       name: d.name,
       branch: d.branch,
-      is_mapped: !!first,
+      is_mapped: !!mappedProfile,
       mapped_handle: mappedProfile?.handle ?? null,
       mapped_display_name: mappedProfile?.display_name ?? null,
     };

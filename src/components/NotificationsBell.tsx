@@ -39,8 +39,17 @@ export default function NotificationsBell() {
       } catch {
         /* noop */
       }
-    } catch {
-      /* abort 또는 네트워크 에러 — silent */
+    } catch (e) {
+      // abort (탭 전환·네비게이션) 는 정상이지만, 그 외 네트워크 에러는
+      // 종 아이콘 unread 카운트가 멈춘 회귀를 추적할 수 있도록 기록.
+      const name = e instanceof Error ? e.name : "";
+      if (name === "AbortError") return;
+      const isDev = process.env.NODE_ENV !== "production";
+      if (isDev) {
+        console.warn("[notif-bell] unread fetch 실패:", e instanceof Error ? e.message : e);
+      } else {
+        console.error("[notif-bell] unread fetch 실패:", e instanceof Error ? e.message : e);
+      }
     }
   }, []);
 

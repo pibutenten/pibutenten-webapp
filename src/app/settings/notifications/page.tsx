@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import NotificationPreferences from "@/components/NotificationPreferences";
 import PushNotificationToggle from "@/components/PushNotificationToggle";
 import BackButton from "@/components/BackButton";
-import { bundleProfileFilter } from "@/lib/identity-shared";
+import { getIdentityContext } from "@/lib/identity";
 
 export const dynamic = "force-dynamic";
 
@@ -16,21 +16,16 @@ export const metadata: Metadata = {
 
 export default async function NotificationSettingsPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/settings/notifications");
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx) redirect("/login?next=/settings/notifications");
+  if (!idCtx.active) redirect("/login?error=프로필을 찾을 수 없습니다");
 
-  // Phase 9 묶음 인지 — 본인 묶음 내 profile 중 가장 권한 높은 role 사용
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("role")
-    .or(bundleProfileFilter(user.id));
-  const roles = (profiles ?? []).map((p) => p.role as string);
-  const role: "admin" | "doctor" | "user" = roles.includes("admin")
-    ? "admin"
-    : roles.includes("doctor")
-      ? "doctor"
+  // role 판정은 **active profile 한 장** 기준 (CLAUDE.md 원칙 #1).
+  // Critical-2 (2026-05-27): 묶음 OR 합산 폐지. 현재 active 신분의 role 만 사용.
+  const activeRole = idCtx.active.role;
+  const role: "admin" | "doctor" | "user" =
+    activeRole === "admin" || activeRole === "doctor"
+      ? activeRole
       : "user";
 
   return (

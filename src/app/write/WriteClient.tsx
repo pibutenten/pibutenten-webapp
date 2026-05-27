@@ -181,8 +181,14 @@ export default function WriteClient({
               body: payload.firstComment,
             }),
           });
-        } catch {
-          /* 첫 댓글 실패해도 글 저장은 성공 */
+        } catch (e) {
+          // 첫 댓글 실패해도 글 저장은 성공 — 사용자는 댓글 누락을 모르므로 기록.
+          const isDev = process.env.NODE_ENV !== "production";
+          if (isDev) {
+            console.warn("[comment-first-save] 새소식 첫 댓글 저장 실패:", e instanceof Error ? e.message : e);
+          } else {
+            console.error("[comment-first-save] 새소식 첫 댓글 저장 실패:", e instanceof Error ? e.message : e);
+          }
         }
       }
 

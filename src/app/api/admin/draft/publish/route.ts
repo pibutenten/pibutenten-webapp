@@ -109,14 +109,15 @@ export async function POST(req: Request) {
   );
 
   // doctor_id → profile_id 매핑 (검수→발행 시 author = 원장님 profile).
-  // doctor_accounts에 매핑 없으면 admin profile_id로 fallback.
-  const { data: doctorAccounts } = await supabase
-    .from("doctor_accounts")
-    .select("doctor_id, profile_id");
+  // SSOT (profiles.doctor_id) 기준 역조회. 매핑 없으면 admin profile_id 로 fallback.
+  const { data: mappedProfiles } = await supabase
+    .from("profiles")
+    .select("id, doctor_id")
+    .not("doctor_id", "is", null);
   const doctorIdToProfileId = new Map<string, string>(
-    (doctorAccounts ?? []).map((r) => [
+    (mappedProfiles ?? []).map((r) => [
       (r as { doctor_id: string }).doctor_id,
-      (r as { profile_id: string }).profile_id,
+      (r as { id: string }).id,
     ]),
   );
 

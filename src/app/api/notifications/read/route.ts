@@ -13,18 +13,18 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
 import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx || !idCtx.active) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const activeProfileId = idCtx.active.profileId;
 
   // body 없을 수도 있음 (이전 호출 방식) — 안전하게 파싱
   let ids: number[] | null = null;
@@ -39,20 +39,31 @@ export async function POST(req: Request) {
         if (ids.length === 0) ids = null;
       }
     }
-  } catch {
-    // 무시 — body 없는 호출로 처리
+  } catch (e) {
+    // body 파싱 실패 → 일괄 read (mark_my_notifications_read) 로 fallback —
+    // 정상 흐름이지만 잘못된 payload 패턴 회귀 추적용으로 기록.
+    const isDev = process.env.NODE_ENV !== "production";
+    if (isDev) {
+      console.warn("[notif-read] body 파싱 실패, 일괄 read 로 fallback:", e instanceof Error ? e.message : e);
+    } else {
+      console.error("[notif-read] body 파싱 실패, 일괄 read 로 fallback:", e instanceof Error ? e.message : e);
+    }
   }
 
-  // ids가 있으면 명시 read (제외 없음). 없으면 mark_my_notifications_read (정책 적용)
+  // ids가 있으면 명시 read (제외 없음). 없으면 mark_my_notifications_read (정책 적용).
+  // active profile 한 장 기준으로 명시 전달 (마이그레이션 0168).
   if (ids) {
     const { error } = await supabase.rpc("mark_notifications_read", {
       p_ids: ids,
+      p_active_profile_id: activeProfileId,
     });
     if (error) {
       return errorResponse(error, "save_failed", "[notif/read] mark_notifications_read", 500);
     }
   } else {
-    const { error } = await supabase.rpc("mark_my_notifications_read");
+    const { error } = await supabase.rpc("mark_my_notifications_read", {
+      p_active_profile_id: activeProfileId,
+    });
     if (error) {
       return errorResponse(error, "save_failed", "[notif/read] mark_my_notifications_read", 500);
     }

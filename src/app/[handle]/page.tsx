@@ -10,6 +10,7 @@ import { SITE_URL } from "@/lib/site";
 import type { UserRole } from "@/lib/user-grades";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
+import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -91,26 +92,20 @@ async function fetchProfileByHandle(
     .returns<ProfileRow>();
   if (!data) return null;
 
-  // doctor_accounts 매핑 확인 — doctor 사진·정보 single source
-  const { data: da } = await supabase
-    .from("doctor_accounts")
-    .select("doctor:doctors(id, slug, photo_url)")
-    .eq("profile_id", data.id)
-    .maybeSingle();
-  const doc = (
-    Array.isArray(da?.doctor) ? da?.doctor?.[0] : da?.doctor
-  ) as { id: string; slug: string; photo_url: string | null } | undefined;
-  if (doc) {
+  // 의사 매핑 확인 — doctor 사진·정보 single source (SSOT: profiles.doctor_id)
+  const metaMap = await getDoctorMetaBatch(supabase, [data.id]);
+  const docMeta = metaMap.get(data.id);
+  if (docMeta && docMeta.slug) {
     return {
       profile: data,
       identity: {
         id: data.id,
         display_name: data.display_name ?? handle,
-        avatar_url: doc.photo_url ?? `/doctors/${doc.slug}.png`,
+        avatar_url: docMeta.photoUrl ?? `/doctors/${docMeta.slug}.png`,
         bio: data.bio,
         kind: "doctor",
-        doctor_id: doc.id,
-        doctor_slug: doc.slug,
+        doctor_id: docMeta.doctorId,
+        doctor_slug: docMeta.slug,
       },
     };
   }

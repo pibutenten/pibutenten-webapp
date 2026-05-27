@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { formatRelativeTime } from "@/lib/relative-time";
 import {
   KIND_LONG_LABEL,
@@ -81,46 +80,63 @@ export default function NotificationsClient({
   const fetchingRef = useRef(false);
 
   // 1) 초기 + 모두 읽음 처리 (페이지 진입 시 1회)
+  //
+  // active profile 한 장 기준 (CLAUDE.md 원칙 #1) — 서버 API 경유.
+  // 브라우저는 active.profileId (httpOnly cookie) 를 직접 모르므로,
+  // 서버 라우트가 idCtx 에서 읽어 RPC 에 명시 전달 (마이그레이션 0168).
   useEffect(() => {
-    let cancelled = false;
+    const ac = new AbortController();
     (async () => {
-      const sb = createSupabaseBrowserClient();
-      const { data } = await sb.rpc("get_notifications", {
-        p_offset: 0,
-        p_limit: PAGE_SIZE,
-      });
-      if (cancelled) return;
-      const rows = (data ?? []) as Notification[];
-      setItems(rows);
-      offsetRef.current = rows.length;
-      setDone(rows.length < PAGE_SIZE);
-      setLoading(false);
+      try {
+        const res = await fetch(
+          `/api/notifications?offset=0&limit=${PAGE_SIZE}`,
+          { cache: "no-store", signal: ac.signal },
+        );
+        if (!res.ok) return;
+        const json = (await res.json()) as { items?: Notification[] };
+        const rows = json.items ?? [];
+        setItems(rows);
+        offsetRef.current = rows.length;
+        setDone(rows.length < PAGE_SIZE);
+        setLoading(false);
 
-      // 모두 읽음 처리 — RPC가 ask 본인 미답 알림은 제외 (migration 0080)
-      await sb.rpc("mark_notifications_read", { p_ids: null });
-      window.dispatchEvent(new CustomEvent("pibutenten:notifications-read"));
+        // 모두 읽음 처리 — 서버가 mark_my_notifications_read 호출 (ask 본인 미답 제외 정책 유지)
+        await fetch("/api/notifications/read", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        window.dispatchEvent(new CustomEvent("pibutenten:notifications-read"));
+      } catch {
+        /* 페이지 unmount 시 AbortError — silent */
+      }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => ac.abort();
   }, []);
 
   // 2) 더 불러오기
   const loadMore = useCallback(async () => {
     if (fetchingRef.current || done) return;
     fetchingRef.current = true;
-    const sb = createSupabaseBrowserClient();
-    const { data } = await sb.rpc("get_notifications", {
-      p_offset: offsetRef.current,
-      p_limit: PAGE_SIZE,
-    });
-    const rows = (data ?? []) as Notification[];
-    if (rows.length > 0) {
-      setItems((prev) => [...prev, ...rows]);
-      offsetRef.current += rows.length;
+    try {
+      const res = await fetch(
+        `/api/notifications?offset=${offsetRef.current}&limit=${PAGE_SIZE}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) {
+        fetchingRef.current = false;
+        return;
+      }
+      const json = (await res.json()) as { items?: Notification[] };
+      const rows = json.items ?? [];
+      if (rows.length > 0) {
+        setItems((prev) => [...prev, ...rows]);
+        offsetRef.current += rows.length;
+      }
+      if (rows.length < PAGE_SIZE) setDone(true);
+    } finally {
+      fetchingRef.current = false;
     }
-    if (rows.length < PAGE_SIZE) setDone(true);
-    fetchingRef.current = false;
   }, [done]);
 
   // 3) IntersectionObserver — sentinel 보이면 더 불러오기
@@ -166,8 +182,15 @@ export default function NotificationsClient({
         ),
       );
       window.dispatchEvent(new CustomEvent("pibutenten:notifications-read"));
-    } catch {
-      /* noop */
+    } catch (e) {
+      // read API 실패 — 사용자는 UI 상 읽음 처리됐으나 서버 반영 안 됨.
+      // 새로고침 시 다시 unread 로 돌아오는 회귀 추적용 기록.
+      const isDev = process.env.NODE_ENV !== "production";
+      if (isDev) {
+        console.warn("[notif-read-mark] 개별 read 실패:", e instanceof Error ? e.message : e);
+      } else {
+        console.error("[notif-read-mark] 개별 read 실패:", e instanceof Error ? e.message : e);
+      }
     }
   }
 
@@ -191,8 +214,14 @@ export default function NotificationsClient({
       setSelected(new Set());
       setSelectMode(false);
       window.dispatchEvent(new CustomEvent("pibutenten:notifications-read"));
-    } catch {
-      /* noop */
+    } catch (e) {
+      // 일괄 read 실패 — UI 상 읽음 처리됐으나 서버 미반영. 회귀 추적용 기록.
+      const isDev = process.env.NODE_ENV !== "production";
+      if (isDev) {
+        console.warn("[notif-read-mark] 일괄 read 실패:", e instanceof Error ? e.message : e);
+      } else {
+        console.error("[notif-read-mark] 일괄 read 실패:", e instanceof Error ? e.message : e);
+      }
     }
   }
 

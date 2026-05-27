@@ -1,34 +1,75 @@
 /**
- * GET /api/notifications?limit=20
- * 본인 알림 최근 N개 + 미확인 수.
+ * GET /api/notifications
+ *
+ *   기본 (dropdown 모드): ?limit=N            → { items, unread }
+ *   페이지 모드:           ?offset=N&limit=N  → { items, unread } (items 는 get_notifications 의 풀 페이로드)
+ *
+ * 모든 조회는 **active profile 한 장** 기준 (CLAUDE.md 원칙 #1, 마이그레이션 0168).
+ * 호출자의 active profileId 를 RPC 에 명시 전달 — 묶음 다른 신분의 알림 누설 차단.
  */
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
 import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const idCtx = await getIdentityContext(supabase);
+  if (!idCtx || !idCtx.active) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const activeProfileId = idCtx.active.profileId;
+
   const url = new URL(req.url);
   const limitRaw = parseInt(url.searchParams.get("limit") ?? "20", 10);
   const limit = Number.isFinite(limitRaw)
     ? Math.min(Math.max(limitRaw, 1), 50)
     : 20;
 
+  const offsetParam = url.searchParams.get("offset");
+  const usePageMode = offsetParam !== null;
+  const offsetRaw = parseInt(offsetParam ?? "0", 10);
+  const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+
+  if (usePageMode) {
+    // 페이지 모드 — get_notifications (avatar/card_question 등 풀 페이로드)
+    const [items, unread] = await Promise.all([
+      supabase.rpc("get_notifications", {
+        p_active_profile_id: activeProfileId,
+        p_offset: offset,
+        p_limit: limit,
+      }),
+      supabase.rpc("get_my_unread_count", {
+        p_active_profile_id: activeProfileId,
+      }),
+    ]);
+    if (items.error) {
+      return errorResponse(items.error, "generic", "[notifications GET] get_notifications", 500);
+    }
+    return NextResponse.json(
+      {
+        items: items.data ?? [],
+        unread: Number(unread.data ?? 0),
+      },
+      { headers: { "cache-control": "no-store" } },
+    );
+  }
+
+  // dropdown 모드 — get_my_notifications (메시지 단문 페이로드)
   const [items, unread] = await Promise.all([
-    supabase.rpc("get_my_notifications", { p_limit: limit }),
-    supabase.rpc("get_my_unread_count"),
+    supabase.rpc("get_my_notifications", {
+      p_active_profile_id: activeProfileId,
+      p_limit: limit,
+    }),
+    supabase.rpc("get_my_unread_count", {
+      p_active_profile_id: activeProfileId,
+    }),
   ]);
   if (items.error) {
-    return errorResponse(items.error, "generic", "[notifications GET] items rpc", 500);
+    return errorResponse(items.error, "generic", "[notifications GET] get_my_notifications", 500);
   }
   return NextResponse.json(
     {

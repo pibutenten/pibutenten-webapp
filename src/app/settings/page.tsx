@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getDoctorSlugForProfile } from "@/lib/doctor-mapping";
 
 export const dynamic = "force-dynamic";
 
@@ -32,15 +33,9 @@ export default async function MeRedirect() {
   // 관리자 — 본인 프로필 안 만들고 대시보드로
   if (profile.role === "admin") redirect("/admin");
 
-  // 의사 — doctor_accounts 매핑 있으면 /doctors/{slug}
+  // 의사 — doctor 매핑 있으면 /doctors/{slug} (SSOT: profiles.doctor_id)
   if (profile.role === "doctor") {
-    const { data: da } = await supabase
-      .from("doctor_accounts")
-      .select("doctor:doctors(slug)")
-      .eq("profile_id", user.id)
-      .maybeSingle();
-    const d = da?.doctor as { slug: string } | { slug: string }[] | null;
-    const slug = Array.isArray(d) ? d[0]?.slug : d?.slug;
+    const slug = await getDoctorSlugForProfile(supabase, user.id);
     if (slug) redirect(`/doctors/${slug}`);
   }
 
