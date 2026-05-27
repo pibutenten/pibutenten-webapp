@@ -102,6 +102,25 @@
 
 ---
 
+### P2-2 — CardEditor 컴포넌트 4분할
+
+#### Added
+- `src/components/card-editor/parts/CardEditorMeta.tsx` (196줄) — 카테고리 picker + admin author/Pick + create admin author select. Presentational only.
+- `src/components/card-editor/parts/CardEditorBody.tsx` (90줄) — 제목 input + 본문 (Q&A 면 MarkdownBoldEditor, 그 외 textarea).
+- `src/components/card-editor/parts/CardEditorAttachments.tsx` (185줄) — 외부 링크 + 영상 시작시각 + PubMed refs + link 첫 댓글. `renderSection` prop ("external" | "post-body") 으로 본문 위/아래 위치 분기.
+
+#### Changed
+- `src/components/card-editor/CardEditor.tsx` 1097줄 → 950줄. 상위 컨테이너 책임 명확화: 모든 state·useEffect·`buildPayload`·`submit`·`handleSoftDelete`·`handleToggleHide`·헤더·KeywordsEditor·액션 버튼·ConfirmDialog 보유. JSX 본문은 3개 자식 컴포넌트 호출로 교체.
+- 모든 자식은 state 없음 (Presentational). 상태와 setter 는 부모에서 strict-typed props 로 전달. Zod 검증·payload 빌드·LLM 호출 흐름 전부 컨테이너에 보존.
+- create 모드 admin 의 글쓴이 dropdown 위치를 메타 블록 안으로 이동 (옛: 키워드 아래). 같은 "글쓴이 메타" 묶음에 통합. 동작·검증 동일.
+
+#### Preserved (의도적 비변경)
+- 외부 export 타입 (`CardEditorInitial`, `CardEditorPayload`, `SubmitAction`, `AdminExtras`, `AuthorOption`, `DoctorOption`, `CardStatus`) 모두 CardEditor.tsx 에 그대로 유지 — wrapper (`/write`, `/write/[shortcode]`, `/admin/cards/[id]/edit`) 의 import 경로 0 변경.
+- 모든 비즈니스 헬퍼 (`formatMMSS`/`parseMMSS`/`extractStartSeconds`/`buildExternalUrl`/`detectSuicideRisk`/`STATUS_LABELS`/`STATUS_COLORS`/`SAME_GROUP`/`isCrossGroupSwitch`/`changeCategory`/`commitStartInput`/`extractKeywordsLlm`/`fetchOembedTitle`/`buildPayload`/`doSubmit`/`submit`/`handleSoftDelete`/`handleToggleHide`/`cancelEdit`) 컨테이너 유지.
+- 자살/자해 키워드 감지 로직, optimistic Pick 카운트, useTransition pending 흐름, suicideRiskAcknowledged 게이트 모두 컨테이너에 그대로.
+
+---
+
 ## [2026-05-26] (X) — 세션 종료 정리 + 미해결 회귀 + 다음 세션 우선순위
 
 ### Session log (af15ce1 → cb2a60d → 5e8d3b4 → bdbe933 → e3f3280)

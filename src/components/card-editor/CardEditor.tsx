@@ -29,25 +29,24 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
-import { pickHighlight } from "@/lib/card-highlight";
-import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 import KeywordsEditor from "@/components/card-editor/KeywordsEditor";
 import {
   categoriesForRole,
-  isPostCategorySlug,
   labelForCategory,
   type PostCategorySlug,
 } from "@/lib/post-category";
-import PubmedRefsField, {
+import {
   pubmedRefObjToString,
   splitBodyAndReferences,
   type PubmedRefObj,
 } from "@/components/card-editor/fields/PubmedRefsField";
-import ExternalLinkField, {
-  type ExternalMeta,
-} from "@/components/card-editor/fields/ExternalLinkField";
+import { type ExternalMeta } from "@/components/card-editor/fields/ExternalLinkField";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { SUICIDE_SELF_HARM_KEYWORDS } from "@/lib/content-screening-dict";
+// P2-2 (2026-05-27) — 1097줄 거대 컴포넌트를 4분할. 본 파일은 상위 컨테이너.
+import CardEditorMeta from "@/components/card-editor/parts/CardEditorMeta";
+import CardEditorBody from "@/components/card-editor/parts/CardEditorBody";
+import CardEditorAttachments from "@/components/card-editor/parts/CardEditorAttachments";
 
 /**
  * 자살/자해 키워드 감지 — 차단 아닌 안내 (보안 2.5차 L3).
@@ -688,224 +687,121 @@ export default function CardEditor({
       )}
 
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
-        {/* 카테고리 picker — 라벨 옆에 chip 인라인 배치 (2026-05-22) */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <label className="text-sm font-semibold text-[var(--text)]">
-            카테고리
-          </label>
-          {mode === "create" ||
-          (initialChangeable && availableCategories.length > 1) ? (
-            <div className="flex flex-wrap gap-1.5">
-              {availableCategories.map((c) => {
-                const active = category === c.slug;
-                return (
-                  <button
-                    key={c.slug}
-                    type="button"
-                    onClick={() => changeCategory(c.slug)}
-                    disabled={pending}
-                    className={
-                      "h-7 rounded-full border px-3 text-xs font-medium transition-colors disabled:opacity-50 " +
-                      (active
-                        ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                        : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary-light)] hover:text-[var(--text)]")
-                    }
-                  >
-                    {c.label}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex h-7 items-center rounded-full bg-[var(--bg-soft)] px-3 text-xs font-medium text-[var(--text)]">
-                {category ?? initialCard?.type ?? "post"}
-              </span>
-              {!initialChangeable && (
-                <span className="text-[11px] text-[var(--text-muted)]">
-                  (이 카테고리는 본인 권한으로 변경 불가)
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+        {/* 메타데이터 영역 — 카테고리 picker + admin author/Pick + create admin author select.
+            P2-2 (2026-05-27): 옛 코드는 create admin author select 가 키워드 아래에 있었지만,
+            논리적으로 같은 "글쓴이 메타" 묶음이라 Meta 블록으로 통합. UI 동작·검증 동일. */}
+        <CardEditorMeta
+          mode={mode}
+          viewerRole={viewerRole}
+          initialCard={initialCard}
+          pending={pending}
+          category={category}
+          availableCategories={availableCategories}
+          initialChangeable={initialChangeable}
+          onChangeCategory={changeCategory}
+          isAdminMode={isAdminMode}
+          adminExtras={adminExtras}
+          authorProfileId={authorProfileId}
+          onChangeAuthorProfileId={setAuthorProfileId}
+          isPick={isPick}
+          onChangeIsPick={setIsPick}
+          adminPickCount={adminPickCount}
+          createAuthorOptions={createAuthorOptions}
+          createAuthorSlug={createAuthorSlug}
+          onChangeCreateAuthorSlug={setCreateAuthorSlug}
+        />
 
-        {/* admin extras — 글쓴이 + (의사 글일 때만) Pick (edit 모드 admin) */}
-        {isAdminMode && adminExtras && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* 글쓴이 — 항상 표시 (변경 가능 시 dropdown, 아니면 readonly) */}
-            <div className={adminExtras.isDoctorAuthored ? "" : "sm:col-span-2"}>
-              <label className="mb-1 block text-xs font-semibold text-[var(--text)]">
-                글쓴이
-              </label>
-              {adminExtras.canChangeAuthor && adminExtras.authorOptions ? (
-                <select
-                  value={authorProfileId ?? ""}
-                  onChange={(e) => setAuthorProfileId(e.target.value || null)}
-                  disabled={pending}
-                  className="h-9 w-full rounded-md border border-[var(--border)] bg-white px-2 text-sm disabled:opacity-50"
-                >
-                  {adminExtras.authorOptions.map((a) => (
-                    <option key={a.profileId} value={a.profileId}>
-                      {a.displayName ?? a.handle ?? "이름 없음"}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="rounded-md border border-[var(--border)] bg-[var(--bg-soft)] px-3 py-2 text-sm text-[var(--text-secondary)]">
-                  {adminExtras.currentAuthorDisplay || "— 알 수 없음 —"}
-                </div>
-              )}
-            </div>
+        {/* 첨부 영역 — 외부 링크 + 시작시각 (제목 바로 위, 원본 순서 유지) */}
+        <CardEditorAttachments
+          mode={mode}
+          pending={pending}
+          onError={setError}
+          showExternal={showExternal}
+          isQa={isQa}
+          isLink={isLink}
+          externalUrl={externalUrl}
+          onChangeExternalUrl={setExternalUrl}
+          externalMeta={externalMeta}
+          onChangeExternalMeta={setExternalMeta}
+          bodyMax={bodyMax}
+          onAutoFill={
+            mode === "create" && isLink
+              ? ({ title: t, body: b, keywords: k }) => {
+                  setTitle("");
+                  setBody("");
+                  setKeywords([]);
+                  if (t) setTitle(t);
+                  if (b) setBody(b);
+                  if (k.length > 0) setKeywords(k);
+                }
+              : undefined
+          }
+          isAdminMode={isAdminMode}
+          showStartTime={showStartTime}
+          startInput={startInput}
+          onChangeStartInput={setStartInput}
+          onCommitStartInput={commitStartInput}
+          onFetchOembedTitle={fetchOembedTitle}
+          oembedLoading={oembedLoading}
+          showRefs={showRefs}
+          references={references}
+          refsMeta={refsMeta}
+          onChangeRefs={(v, m) => {
+            setReferences(v);
+            setRefsMeta(m);
+          }}
+          firstComment={firstComment}
+          onChangeFirstComment={setFirstComment}
+          renderSection="external"
+        />
 
-            {/* Pick 토글 — 의사 글일 때만 노출 (회원 글 = Pick 없음).
-                admin OR self-doctor 권한 (0151) */}
-            {adminExtras.isDoctorAuthored && (
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-[var(--text)]">
-                  Pick (원장님 추천)
-                </label>
-                <label className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={isPick}
-                    onChange={(e) => setIsPick(e.target.checked)}
-                    disabled={
-                      pending || !(adminExtras.canTogglePick ?? true)
-                    }
-                    className="h-4 w-4"
-                  />
-                  <span>추천</span>
-                  <span className="text-xs text-[var(--text-muted)]">
-                    {adminPickCount} / 5
-                  </span>
-                </label>
-              </div>
-            )}
-          </div>
-        )}
+        {/* 에디터 영역 — 제목 + 본문 (MarkdownBoldEditor / textarea) */}
+        <CardEditorBody
+          titleLabel={titleLabel}
+          bodyLabel={bodyLabel}
+          title={title}
+          onChangeTitle={setTitle}
+          body={body}
+          onChangeBody={setBody}
+          bodyMax={bodyMax}
+          isQa={isQa}
+          highlightSeed={highlightSeed}
+          pending={pending}
+        />
 
-        {/* 외부 링크 */}
-        {showExternal && (
-          <ExternalLinkField
-            url={externalUrl}
-            onUrlChange={setExternalUrl}
-            meta={externalMeta}
-            onMetaChange={setExternalMeta}
-            mode={isQa ? "qa" : "link"}
-            bodyMax={bodyMax}
-            onError={setError}
-            disabled={pending}
-            onAutoFill={
-              mode === "create" && isLink
-                ? ({ title: t, body: b, keywords: k }) => {
-                    setTitle("");
-                    setBody("");
-                    setKeywords([]);
-                    if (t) setTitle(t);
-                    if (b) setBody(b);
-                    if (k.length > 0) setKeywords(k);
-                  }
-                : undefined
-            }
-          />
-        )}
+        {/* 첨부 영역 — Q&A 참고문헌 + link 첫 댓글 (본문 아래) */}
+        <CardEditorAttachments
+          mode={mode}
+          pending={pending}
+          onError={setError}
+          showExternal={false}
+          isQa={isQa}
+          isLink={isLink}
+          externalUrl={externalUrl}
+          onChangeExternalUrl={setExternalUrl}
+          externalMeta={externalMeta}
+          onChangeExternalMeta={setExternalMeta}
+          bodyMax={bodyMax}
+          isAdminMode={isAdminMode}
+          showStartTime={false}
+          startInput={startInput}
+          onChangeStartInput={setStartInput}
+          onCommitStartInput={commitStartInput}
+          onFetchOembedTitle={fetchOembedTitle}
+          oembedLoading={oembedLoading}
+          showRefs={showRefs}
+          references={references}
+          refsMeta={refsMeta}
+          onChangeRefs={(v, m) => {
+            setReferences(v);
+            setRefsMeta(m);
+          }}
+          firstComment={firstComment}
+          onChangeFirstComment={setFirstComment}
+          renderSection="post-body"
+        />
 
-        {/* 영상 시작 시각 + oEmbed 제목 가져오기 (qa + admin 모드만) */}
-        {isAdminMode && showStartTime && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[var(--text)]">
-                시작 시각 (MM:SS)
-              </label>
-              <input
-                type="text"
-                value={startInput}
-                onChange={(e) => setStartInput(e.target.value)}
-                onBlur={commitStartInput}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    commitStartInput();
-                  }
-                }}
-                disabled={pending}
-                placeholder="00:00"
-                className="h-9 w-full rounded-md border border-[var(--border)] bg-white px-2 text-sm disabled:opacity-50"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                type="button"
-                onClick={fetchOembedTitle}
-                disabled={pending || oembedLoading || !externalUrl}
-                className="h-9 rounded-md border border-[var(--border)] bg-white px-3 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-soft)] disabled:opacity-50"
-              >
-                {oembedLoading ? "조회 중…" : "↻ 제목 가져오기"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 제목 */}
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-            {titleLabel}
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-            disabled={pending}
-            className="h-10 w-full rounded-md border border-[var(--border)] bg-white px-3 text-base font-medium focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
-          />
-        </div>
-
-        {/* 본문 */}
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-            {bodyLabel}{" "}
-            <span className="text-xs font-normal text-[var(--text-muted)]">
-              ({body.length} / {bodyMax})
-            </span>
-          </label>
-          {isQa ? (
-            <MarkdownBoldEditor
-              value={body}
-              onChange={setBody}
-              highlightColor={pickHighlight(highlightSeed)}
-              disabled={pending}
-              placeholder="답변을 입력하세요. 텍스트 선택 후 Ctrl+B 누르면 형광펜이 적용됩니다."
-              minHeight={280}
-            />
-          ) : (
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={12}
-              maxLength={bodyMax}
-              disabled={pending}
-              className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
-            />
-          )}
-        </div>
-
-        {/* Q&A 참고문헌 */}
-        {showRefs && (
-          <PubmedRefsField
-            value={references}
-            meta={refsMeta}
-            onChange={(v, m) => {
-              setReferences(v);
-              setRefsMeta(m);
-            }}
-            onError={setError}
-            disabled={pending}
-          />
-        )}
-
-        {/* 태그 + (admin) LLM 자동추출 버튼 */}
+        {/* 태그 + (admin) LLM 자동추출 버튼 — 상위 컨테이너 보유 (LLM 호출이 컨테이너 상태 의존) */}
         <div>
           <KeywordsEditor
             keywords={keywords}
@@ -927,49 +823,6 @@ export default function CardEditor({
             }
           />
         </div>
-
-        {/* create 모드 admin — 글쓴이 선택 (의사 9명 + 본인 명의) */}
-        {mode === "create" &&
-          viewerRole === "admin" &&
-          createAuthorOptions &&
-          createAuthorOptions.length > 0 && (
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[var(--text)]">
-                글쓴이
-              </label>
-              <select
-                value={createAuthorSlug}
-                onChange={(e) => setCreateAuthorSlug(e.target.value)}
-                disabled={pending}
-                className="h-9 w-full rounded-md border border-[var(--border)] bg-white px-2 text-sm disabled:opacity-50"
-              >
-                <option value="">— 본인 (관리자) 명의 —</option>
-                {createAuthorOptions.map((d) => (
-                  <option key={d.id} value={d.slug}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-        {/* link 카테고리 — 첫 댓글 */}
-        {mode === "create" && isLink && (
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-[var(--text)]">
-              내 코멘트 (선택)
-            </label>
-            <textarea
-              value={firstComment}
-              onChange={(e) => setFirstComment(e.target.value)}
-              rows={3}
-              maxLength={500}
-              disabled={pending}
-              className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-sm focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
-              placeholder="공유하면서 한마디 — 글 발행 시 첫 댓글로 등록됩니다."
-            />
-          </div>
-        )}
 
         {/* 에러 */}
         {error && (
