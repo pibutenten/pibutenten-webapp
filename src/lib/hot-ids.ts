@@ -11,20 +11,14 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  */
 export const getHotQaIds = cache(async (limit = 20): Promise<Set<number>> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("get_hot_card_ids", {
-    p_limit: limit,
-  });
-  if (error || !data) return new Set();
-  const ids = (data as unknown[])
-    .map((row) => {
-      if (typeof row === "number") return row;
-      if (row && typeof row === "object") {
-        const r = row as Record<string, unknown>;
-        const v = r.id ?? r.get_hot_card_ids ?? Object.values(r)[0];
-        return typeof v === "number" ? v : Number(v);
-      }
-      return Number(row);
-    })
-    .filter((n): n is number => Number.isFinite(n));
-  return new Set(ids);
+  // Sub-3 (2026-05-27): Supabase 명시 제네릭 `.returns<{ id: number }[]>()` 사용.
+  // RPC `get_hot_card_ids` SETOF (id bigint) 반환 → row 별 `{ id: number }` 객체.
+  // 옛 `as unknown[]` + 다단계 typeof 추측 매핑은 제네릭 도입으로 폐기.
+  // Array.isArray 좁히기 — supabase-js 가 `.single()` chain 검증용으로 만드는
+  // discriminator union (`T[] | { Error: ... }`) 중 array 분기를 좁혀냄.
+  const { data, error } = await supabase
+    .rpc("get_hot_card_ids", { p_limit: limit })
+    .returns<{ id: number }[]>();
+  if (error || !data || !Array.isArray(data)) return new Set();
+  return new Set(data.map((row) => row.id).filter(Number.isFinite));
 });

@@ -10,6 +10,7 @@ import { SITE_URL } from "@/lib/site";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
+import { CATEGORY_LABEL_TO_SLUG } from "@/lib/post-category";
 
 export const dynamic = "force-dynamic";
 
@@ -74,15 +75,8 @@ export default async function HomePage({ searchParams }: Props) {
 
   // 카테고리 라벨 검색 — q가 카드 카테고리 라벨이면 category 컬럼 필터로 전환
   // (search_cards_scored RPC는 keywords/question/answer 텍스트만 매칭해서 카테고리 라벨이 안 잡힘)
-  const CATEGORY_LABEL_TO_SLUG: Record<string, string> = {
-    "Q&A": "qa",
-    "피부꿀팁": "tip",
-    "피부일기": "diary",
-    "궁금해요": "ask",
-    "공유하기": "link",
-    "소식공유": "link",
-    "끄적끄적": "doodle",
-  };
+  // CATEGORY_LABEL_TO_SLUG SSOT 는 `@/lib/post-category` (Sub-6, 2026-05-27). 현재 6개
+  // 라벨 + 옛 "공유하기" → "link" 호환 매핑 포함.
   const categorySlug = q ? CATEGORY_LABEL_TO_SLUG[q] : undefined;
 
   let rpcRes;

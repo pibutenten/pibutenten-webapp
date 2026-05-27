@@ -10,7 +10,7 @@ import {
 } from "@/data/procedure-mappings/slug-mapping";
 import { ArticleCreateSchema } from "@/lib/schema/api/articles";
 import { screenContent } from "@/lib/content-screening";
-import { stripCategoryLabels } from "@/lib/category-labels";
+import { stripCategoryLabels } from "@/lib/post-category";
 import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";

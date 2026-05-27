@@ -74,6 +74,34 @@
 
 ---
 
+### Sub-6 — 카테고리 라벨 SSOT 통합
+
+#### Added
+- `src/lib/post-category.ts` 에 5개 신규 export: `LEGACY_CATEGORY_LABELS` (옛 5라벨 보존), `POST_CATEGORY_LABELS` (POST_CATEGORIES derive Set), `ALL_CATEGORY_LABELS` (현재+옛 합성), `stripCategoryLabels()` (헬퍼 이전), `CATEGORY_LABEL_TO_SLUG` (POST_CATEGORIES derive + "공유하기"→"link" 호환 매핑).
+
+#### Removed
+- `src/lib/category-labels.ts` 파일 삭제 (47줄). 모든 정의가 `post-category.ts` 로 흡수. SSOT 단일화.
+
+#### Changed
+- `src/components/Card.tsx`: `@/lib/category-labels` import 제거 → `@/lib/post-category` 단일 import.
+- `src/app/api/articles/route.ts`: 동일 (1줄).
+- `src/app/admin/cards/page.tsx`: 하드코딩 `CATEGORY_LIST` 5개 명시 → `POST_CATEGORIES.filter((c) => c.slug !== "qa").map(...)` derive.
+- `src/app/search/page.tsx`: 인라인 `CATEGORY_LABEL_TO_SLUG` 7쌍 명시 → `@/lib/post-category` import.
+
+#### Preserved
+- `LEGACY_CATEGORY_LABELS` 5개 (꿀팁·공유하기·답해드려요·물어봐요·새소식) — 옛 데이터 row keywords 잔재 호환 strip.
+- "공유하기" → "link" 검색 입력 호환 매핑.
+
+---
+
+### Sub-3 — hot-ids.ts RPC 타입 좁히기
+
+#### Changed
+- `src/lib/hot-ids.ts` 의 `as unknown[]` + 다단계 typeof 추측 매핑 (12줄) → Supabase 명시 제네릭 `.returns<{ id: number }[]>()` (2줄). 타입 안전성 향상 + 가독성 회복.
+- `Array.isArray` 가드 1줄 — supabase-js 가 `.single()` chain 검증용으로 만드는 `T[] | { Error: ... }` discriminator union 중 array 분기 좁히기.
+
+---
+
 ## [2026-05-26] (X) — 세션 종료 정리 + 미해결 회귀 + 다음 세션 우선순위
 
 ### Session log (af15ce1 → cb2a60d → 5e8d3b4 → bdbe933 → e3f3280)

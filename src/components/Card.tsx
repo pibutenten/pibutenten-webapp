@@ -16,11 +16,11 @@ import RecentLikers from "@/components/RecentLikers";
 import { getQaEditUrl } from "@/lib/card-url";
 import { getActiveIdentityId } from "@/lib/active-identity";
 import { ROLES } from "@/lib/identity-shared";
-import { labelForCategory } from "@/lib/post-category";
 import {
+  labelForCategory,
   POST_CATEGORY_LABELS,
   stripCategoryLabels,
-} from "@/lib/category-labels";
+} from "@/lib/post-category";
 import { pickHighlight } from "@/lib/card-highlight";
 import { addEngagement } from "@/lib/engagement-score";
 import ConfirmDialog from "@/components/ConfirmDialog";

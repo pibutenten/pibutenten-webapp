@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PickToggle from "@/components/PickToggle";
 import RestoreButton from "./RestoreButton";
-import { labelForCategory } from "@/lib/post-category";
+import { labelForCategory, POST_CATEGORIES } from "@/lib/post-category";
 import AdminCardsDoctorFilter from "./AdminCardsDoctorFilter";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
@@ -306,14 +306,13 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     { key: "qa", label: "Q&A" },
   ];
 
-  // 포스팅 카테고리 — Q&A 카테고리는 type=qa이므로 제외, 포스팅 5종만
+  // 포스팅 카테고리 — Q&A 카테고리는 type=qa이므로 제외, 포스팅 5종만.
+  // SSOT: POST_CATEGORIES (Sub-6, 2026-05-27). qa 제외 + "전체" prepend.
   const CATEGORY_LIST: { key: CategoryFilter; label: string }[] = [
     { key: "all", label: "전체 카테고리" },
-    { key: "doodle", label: "끄적끄적" },
-    { key: "diary", label: "피부일기" },
-    { key: "tip", label: "피부꿀팁" },
-    { key: "ask", label: "궁금해요" },
-    { key: "link", label: "소식공유" },
+    ...POST_CATEGORIES
+      .filter((c) => c.slug !== "qa")
+      .map((c) => ({ key: c.slug as CategoryFilter, label: c.label })),
   ];
 
   return (

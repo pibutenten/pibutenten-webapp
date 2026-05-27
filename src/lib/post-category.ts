@@ -86,3 +86,59 @@ export function isIndexableForDoctor(s: string | null | undefined): boolean {
 export function isIndexableForMember(s: string | null | undefined): boolean {
   return s === "tip";
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 카테고리 라벨 SSOT (Sub-6, 2026-05-27) — 구 src/lib/category-labels.ts 통합
+//
+// POST_CATEGORIES 가 현재 활성 v5.2 6개의 단일 정의. 아래 derived 상수들은
+// 라벨이 코드 곳곳에 하드코딩되던 누더기를 차단하기 위한 단일 출처. 옛 라벨은
+// 데이터 마이그레이션 잔재(과거 row 의 keywords 컬럼 등) 호환용으로 LEGACY 에 분리.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 옛 카테고리 라벨 (데이터 마이그레이션 잔재) — 호환 strip / 검색 매핑용.
+ *  - v5.1 옛   : 꿀팁·공유하기
+ *  - v5.0 이전 : 답해드려요·물어봐요·새소식
+ */
+export const LEGACY_CATEGORY_LABELS: readonly string[] = [
+  // v5.1 옛
+  "꿀팁",
+  "공유하기",
+  // v5.0 이전
+  "답해드려요",
+  "물어봐요",
+  "새소식",
+];
+
+/** v5.2 현재 활성 6개 카테고리 라벨 (Set 형태) — 검색 입력 매칭용. POST_CATEGORIES 에서 derive. */
+export const POST_CATEGORY_LABELS: ReadonlySet<string> = new Set(
+  POST_CATEGORIES.map((c) => c.label),
+);
+
+/**
+ * 옛/현재 라벨 모음 (배열) — 데이터 마이그레이션 잔재 가능성 대비 보수적 strip.
+ *  - v5.2 (현재): POST_CATEGORIES 6개 label
+ *  - v5.1 옛   : LEGACY_CATEGORY_LABELS 앞 2개
+ *  - v5.0 이전 : LEGACY_CATEGORY_LABELS 나머지 3개
+ */
+export const ALL_CATEGORY_LABELS: readonly string[] = [
+  ...POST_CATEGORIES.map((c) => c.label),
+  ...LEGACY_CATEGORY_LABELS,
+];
+
+/** 사용자가 직접 입력한 카테고리 라벨(옛/현재) 제거 헬퍼. */
+export function stripCategoryLabels(keywords: readonly string[]): string[] {
+  return keywords.filter((k) => !ALL_CATEGORY_LABELS.includes(k));
+}
+
+/**
+ * 검색 입력(label) → slug 매핑. 현재 6개는 POST_CATEGORIES 에서 derive,
+ * 옛 라벨 "공유하기" 만 호환을 위해 "link" 로 명시 매핑 (search/page.tsx 호환).
+ */
+export const CATEGORY_LABEL_TO_SLUG: Readonly<Record<string, PostCategorySlug>> = {
+  ...Object.fromEntries(
+    POST_CATEGORIES.map((c) => [c.label, c.slug] as const),
+  ),
+  // 옛 라벨 → 현재 slug 호환 매핑 (사용자 입력 호환).
+  "공유하기": "link",
+} as Record<string, PostCategorySlug>;
