@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react"; // useEffect 추가 사용
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { labelForCategory } from "@/lib/post-category";
+import { ROLES } from "@/lib/identity-shared";
 
 /**
  * /admin/stats/{kind} 공통 무한 스크롤 클라이언트.
@@ -338,7 +339,7 @@ function NewMemberRowItem({ row }: { row: NewMemberRow }) {
         ) : (
           name
         )}
-        {row.role && row.role !== "user" && (
+        {row.role && row.role !== ROLES.USER && (
           <span className="ml-1.5 rounded-full bg-[var(--bg-soft)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]">
             {row.role}
           </span>

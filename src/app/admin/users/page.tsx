@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
+import { ROLES } from "@/lib/identity-shared";
 import type { UserRole } from "@/lib/user-grades";
 import BackButton from "@/components/BackButton";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
@@ -162,15 +163,15 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   // 묶음 순서: 묶음 크기 큰 것부터, 그 다음 doctor 묶음, 마지막 단독
   const groupArr = Array.from(groups.values()).sort((a, b) => {
     if (a.length !== b.length) return b.length - a.length;
-    const aHasDoc = a.some((r) => r.role === "doctor");
-    const bHasDoc = b.some((r) => r.role === "doctor");
+    const aHasDoc = a.some((r) => r.role === ROLES.DOCTOR);
+    const bHasDoc = b.some((r) => r.role === ROLES.DOCTOR);
     if (aHasDoc !== bHasDoc) return aHasDoc ? -1 : 1;
     return (a[0].created_at ?? "").localeCompare(b[0].created_at ?? "");
   });
 
   // 미가입 원장 카운트 (auth_user_id IS NULL)
   const unregisteredDoctorCount = (profiles ?? []).filter(
-    (p) => p.role === "doctor" && p.auth_user_id == null,
+    (p) => p.role === ROLES.DOCTOR && p.auth_user_id == null,
   ).length;
 
   return (
@@ -293,7 +294,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                 const groupLabel = grp.length > 1 ? `${grp.length}명` : "—";
                 return grp.map((p, idx) => {
                   const isUnregistered =
-                    p.role === "doctor" && p.auth_user_id == null;
+                    p.role === ROLES.DOCTOR && p.auth_user_id == null;
                   return (
                     <tr
                       key={p.id}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ROLES } from "@/lib/identity-shared";
 
 /**
  * 알림 종류별 on/off 설정.
@@ -136,7 +137,7 @@ export default function NotificationPreferences({
   }
 
   const visibleRows = ROWS.filter(
-    (r) => r.visibleToUser || role === "doctor" || role === "admin",
+    (r) => r.visibleToUser || role === ROLES.DOCTOR || role === ROLES.ADMIN,
   );
 
   return (

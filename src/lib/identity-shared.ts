@@ -22,6 +22,17 @@
 export const IDENTITY_COOKIE = "pibutenten:identity";
 export const IDENTITY_MIRROR_COOKIE = "pibutenten:identity-mirror";
 
+/**
+ * 역할(role) 문자열 단일 출처 (Sub-5, 2026-05-27).
+ * 코드 전역에서 `profile.role === ROLES.ADMIN` 형태로 사용.
+ * DB 의 profiles.role 컬럼 CHECK 제약과 정확히 일치해야 함.
+ */
+export const ROLES = {
+  ADMIN: "admin",
+  DOCTOR: "doctor",
+  USER: "user",
+} as const;
+
 /** UUID v4 형식 검증 (8-4-4-4-12) */
 export const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -79,7 +90,7 @@ export type IdentityFlags = {
 
 export function deriveIdentityFlags(active: ActiveIdentity | null): IdentityFlags {
   return {
-    isSuperAdmin: active?.role === "admin",
+    isSuperAdmin: active?.role === ROLES.ADMIN,
     isDoctorAdmin: !!active?.doctorId,
     activeDoctorId: active?.doctorId ?? null,
   };

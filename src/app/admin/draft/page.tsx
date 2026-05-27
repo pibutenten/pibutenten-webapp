@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin-page-guard";
+import { ROLES } from "@/lib/identity-shared";
 import DraftClient from "./DraftClient";
 import BackButton from "@/components/BackButton";
 
@@ -15,9 +16,9 @@ export default async function AdminDraftPage() {
   // 새 Q&A 추출하기는 super admin 전용 (active 도 admin role 이어야).
   // 2026-05-22: active 가 doctor 면 (super admin 묶음이라도) 본인 대시보드로 보냄.
   const guard = await requireAdminPage("/admin/draft");
-  const isActiveAdmin = guard.isSuperAdmin && guard.active?.role === "admin";
+  const isActiveAdmin = guard.isSuperAdmin && guard.active?.role === ROLES.ADMIN;
   if (!isActiveAdmin) {
-    if (guard.active?.role === "doctor" && guard.activeDoctorId) {
+    if (guard.active?.role === ROLES.DOCTOR && guard.activeDoctorId) {
       redirect("/doctor");
     }
     redirect("/login?error=관리자 권한이 필요합니다");

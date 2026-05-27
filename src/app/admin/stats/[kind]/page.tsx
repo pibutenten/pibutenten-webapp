@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
+import { ROLES } from "@/lib/identity-shared";
 import StatsListClient, {
   type Kind,
   type VisitorRow,
@@ -79,7 +80,7 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
   // 2026-05-22: active doctor 면 본인 글 한정 (views/likes/saves/shares/comments 5종).
   // visitors / new-members / new-cards 는 사이트 전체 그대로 (doctor 무관 지표).
   const isActiveDoctor =
-    guard.active?.role === "doctor" && !!guard.activeDoctorId;
+    guard.active?.role === ROLES.DOCTOR && !!guard.activeDoctorId;
   const DOCTOR_FILTER_KINDS = new Set<Kind>([
     "views",
     "likes",

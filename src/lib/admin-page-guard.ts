@@ -17,6 +17,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "./supabase/server";
 import type { ActiveIdentity } from "./identity-shared";
+import { ROLES } from "./identity-shared";
 import { resolveActiveIdentity } from "./identity-server";
 
 export type { ActiveIdentity } from "./identity-shared";
@@ -61,13 +62,13 @@ export async function requireAdminPage(
   }
 
   // ADR 0012 정합 — active 단위 권한 판정
-  const isSuperAdmin = active.role === "admin";
+  const isSuperAdmin = active.role === ROLES.ADMIN;
   const isDoctorAdmin = !!active.doctorId;
 
   if (opts?.superAdminOnly) {
     if (!isSuperAdmin) {
       // active 가 doctor 면 본인 대시보드로
-      if (active.role === "doctor" && active.doctorId) {
+      if (active.role === ROLES.DOCTOR && active.doctorId) {
         redirect("/doctor");
       }
       redirect("/login?error=관리자 권한이 필요합니다");

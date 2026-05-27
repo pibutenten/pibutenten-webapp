@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 // v4 다중 identity 전환은 IdentitySwitcher로 (1개일 땐 단순 Link)
 import IdentitySwitcher from "./IdentitySwitcher";
 import NotificationsBell from "./NotificationsBell";
+import { ROLES } from "@/lib/identity-shared";
 
 type NavItem = {
   href: string;
@@ -315,7 +316,7 @@ export default function TopNav({ session }: TopNavProps) {
               identities={session.identities}
               activeId={session.activeIdentityId}
               doctorSlug={session.doctorSlug}
-              isAdmin={session.role === "admin"}
+              isAdmin={session.role === ROLES.ADMIN}
             />
           ) : (
             <Link

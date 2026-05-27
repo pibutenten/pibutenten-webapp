@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
+import { ROLES } from "@/lib/identity-shared";
 import RelativeTime from "@/components/RelativeTime";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { showToast } from "@/lib/toast";
@@ -167,7 +168,7 @@ export default function CommentsBlock({
   }, [reload]);
 
   const isLoggedIn = !!me;
-  const isAdmin = me?.role === "admin";
+  const isAdmin = me?.role === ROLES.ADMIN;
   // qa의 doctor 본인 여부는 댓글의 권한과는 별개 (서버 RLS가 진실원). UI는 me.doctor_id로 표시 보조.
 
   // ── 표시할 댓글:
@@ -464,7 +465,7 @@ function CommentItem({
 
   // 작성자 배지 — role='doctor' active identity면 verified 마크
   const role = comment.author?.role;
-  const isAuthorDoctor = role === "doctor";
+  const isAuthorDoctor = role === ROLES.DOCTOR;
 
   const displayName = comment.author?.display_name ?? "익명";
   const profileLink = comment.author?.handle

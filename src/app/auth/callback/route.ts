@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { errorRedirectLogin, type AuthErrorTrack } from "@/lib/error-response";
+import { ROLES } from "@/lib/identity-shared";
 
 /** PR-OPS (0135): auth 콜백 provider 추정 — 정확한 분기는 force 가능한 상태에서만. */
 function inferProvider(url: URL): AuthErrorTrack["provider"] {
@@ -228,8 +229,8 @@ export async function GET(request: NextRequest) {
   // 5) 약관 동의는 했지만 추가정보(생년월일 등) 미입력 → /onboarding
   //    일반 사용자에게만 강제 (doctor / admin은 운영용 계정이라 스킵 가능)
   if (
-    profile.role !== "doctor" &&
-    profile.role !== "admin" &&
+    profile.role !== ROLES.DOCTOR &&
+    profile.role !== ROLES.ADMIN &&
     !profile.birthdate
   ) {
     return NextResponse.redirect(`${origin}/onboarding`);

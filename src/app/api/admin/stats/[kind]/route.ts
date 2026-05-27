@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { errorResponse } from "@/lib/error-response";
+import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export async function GET(
 
   // 2026-05-22: active doctor 면 본인 글 한정 RPC 호출 (views/likes/saves/shares/comments).
   const isActiveDoctor =
-    idCtx.active.role === "doctor" && !!idCtx.activeDoctorId;
+    idCtx.active.role === ROLES.DOCTOR && !!idCtx.activeDoctorId;
   const DOCTOR_FILTER_KINDS = new Set([
     "views",
     "likes",

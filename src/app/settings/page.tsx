@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDoctorSlugForProfile } from "@/lib/doctor-mapping";
+import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +32,10 @@ export default async function MeRedirect() {
   if (!profile) redirect("/");
 
   // 관리자 — 본인 프로필 안 만들고 대시보드로
-  if (profile.role === "admin") redirect("/admin");
+  if (profile.role === ROLES.ADMIN) redirect("/admin");
 
   // 의사 — doctor 매핑 있으면 /doctors/{slug} (SSOT: profiles.doctor_id)
-  if (profile.role === "doctor") {
+  if (profile.role === ROLES.DOCTOR) {
     const slug = await getDoctorSlugForProfile(supabase, user.id);
     if (slug) redirect(`/doctors/${slug}`);
   }

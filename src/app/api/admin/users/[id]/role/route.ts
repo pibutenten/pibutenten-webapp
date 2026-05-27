@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { logAudit } from "@/lib/audit-log";
 import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
 import { errorResponse } from "@/lib/error-response";
+import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,7 @@ export async function POST(
   // 시도를 차단. admin 부재 상태 방지. 다른 admin 이 강등하는 것은 의도된 동작.
   if (
     targetProfile.auth_user_id === guard.userId &&
-    role !== "admin"
+    role !== ROLES.ADMIN
   ) {
     return errorResponse(null, "invalid_input", "[admin/users/role] self-demote blocked", 400, undefined, {
       userMessage:

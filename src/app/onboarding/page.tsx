@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import OnboardingClient from "./OnboardingClient";
+import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export default async function OnboardingPage() {
     .select("id, role, avatar_url")
     .or(`id.eq.${user.id},auth_user_id.eq.${user.id}`);
   const userRow = (groupRows ?? []).find(
-    (r) => (r as { role: string }).role === "user",
+    (r) => (r as { role: string }).role === ROLES.USER,
   ) as { avatar_url: string | null } | undefined;
   if (userRow?.avatar_url) {
     displayAvatar = userRow.avatar_url;

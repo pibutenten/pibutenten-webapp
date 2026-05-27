@@ -10,6 +10,7 @@ import {
 } from "@/lib/profile-options";
 import {
   IDENTITY_COOKIE,
+  ROLES,
   UUID_RE,
   bundleProfileFilter,
 } from "@/lib/identity-shared";
@@ -111,7 +112,7 @@ export default async function MyProfilePage() {
     : profile.handle ?? "";
 
   // 사용자 요청: 원장 본인(1차) 계정은 사진·이름 read-only (DB에 다른 곳에서 관리)
-  const isDoctorPrimary = profile.role === "doctor" && !activeIdentity;
+  const isDoctorPrimary = profile.role === ROLES.DOCTOR && !activeIdentity;
 
   return (
     <section className="mx-auto w-full max-w-[640px] space-y-5 py-6">

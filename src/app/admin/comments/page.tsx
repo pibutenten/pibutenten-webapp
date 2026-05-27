@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
+import { ROLES } from "@/lib/identity-shared";
 import CommentsClient, { type CommentRow } from "./CommentsClient";
 import BackButton from "@/components/BackButton";
 
@@ -26,7 +27,7 @@ export default async function AdminCommentsPage() {
 
   // 2026-05-22: active doctor 면 본인 카드 댓글만. super admin 권한 묶음이라도 active=doctor 시 본인 한정.
   const isActiveDoctor =
-    guard.active?.role === "doctor" && !!guard.activeDoctorId;
+    guard.active?.role === ROLES.DOCTOR && !!guard.activeDoctorId;
   const isAdmin = guard.isSuperAdmin && !isActiveDoctor;
 
   // active doctor — 본인 카드 ID 집합 fetch (author_id OR doctor_id)

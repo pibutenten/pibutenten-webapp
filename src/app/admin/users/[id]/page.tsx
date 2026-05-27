@@ -10,6 +10,7 @@ import {
 } from "@/lib/user-grades";
 import RoleChangeForm from "./RoleChangeForm";
 import { getQaUrl } from "@/lib/card-url";
+import { ROLES } from "@/lib/identity-shared";
 import { getIdentityContext } from "@/lib/identity";
 import BackButton from "@/components/BackButton";
 import { formatIsoDate } from "@/lib/format-date";
@@ -397,7 +398,7 @@ export default async function AdminUserDetailPage({
               <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
                 {headerRoleLabel}
               </span>
-              {!showDoctor && !activeIdentity && profile.role === "user" && (
+              {!showDoctor && !activeIdentity && profile.role === ROLES.USER && (
                 <span
                   className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
                   style={{ backgroundColor: lvlColor.bg, color: lvlColor.fg }}

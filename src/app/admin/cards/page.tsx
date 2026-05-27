@@ -5,6 +5,7 @@ import RestoreButton from "./RestoreButton";
 import { labelForCategory } from "@/lib/post-category";
 import AdminCardsDoctorFilter from "./AdminCardsDoctorFilter";
 import { requireAdminPage } from "@/lib/admin-page-guard";
+import { ROLES } from "@/lib/identity-shared";
 import BackButton from "@/components/BackButton";
 import { formatYmd } from "@/lib/format-date";
 import { truncate } from "@/lib/string-utils";
@@ -138,7 +139,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   const guard = await requireAdminPage("/admin/cards");
   const supabase = await createSupabaseServerClient();
   const isActiveDoctor =
-    guard.active?.role === "doctor" && !!guard.activeDoctorId;
+    guard.active?.role === ROLES.DOCTOR && !!guard.activeDoctorId;
   const isAdmin = guard.isSuperAdmin && !isActiveDoctor;
 
   // 본인 doctor 정보 lookup — active 가 doctor 면 강제 본인 doctor 필터링용

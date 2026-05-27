@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import SignupForm from "./SignupForm";
+import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -35,8 +36,8 @@ export default async function SignupPage({ searchParams }: Props) {
   if (profile?.terms_agreed_at) {
     // 이미 가입 완료된 사용자
     const role = profile.role ?? "user";
-    if (role === "admin") redirect("/admin");
-    if (role === "doctor") redirect("/settings");
+    if (role === ROLES.ADMIN) redirect("/admin");
+    if (role === ROLES.DOCTOR) redirect("/settings");
     redirect(next || "/");
   }
 

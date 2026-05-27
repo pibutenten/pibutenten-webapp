@@ -11,6 +11,7 @@ import {
 import { ArticleCreateSchema } from "@/lib/schema/api/articles";
 import { screenContent } from "@/lib/content-screening";
 import { stripCategoryLabels } from "@/lib/category-labels";
+import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +83,7 @@ export async function POST(req: Request) {
   const t = payload.type;
 
   // 권한 검증 — v5.1: Q&A는 원장·관리자만 작성 가능
-  if (t === "qa" && role !== "admin" && role !== "doctor") {
+  if (t === "qa" && role !== ROLES.ADMIN && role !== ROLES.DOCTOR) {
     return errorResponse(null, "forbidden", "[articles POST] qa role denied", 403, undefined, {
       userMessage: "Q&A는 원장 또는 관리자만 작성 가능합니다.",
     });
@@ -100,7 +101,7 @@ export async function POST(req: Request) {
     });
   }
   // pending_review는 admin이 원장 명의로 작성할 때만 의미 있음
-  if (reqStatus === "pending_review" && role !== "admin") {
+  if (reqStatus === "pending_review" && role !== ROLES.ADMIN) {
     return errorResponse(null, "forbidden", "[articles POST] pending_review denied", 403, undefined, {
       userMessage: "검수 요청 권한이 없습니다.",
     });
@@ -174,7 +175,7 @@ export async function POST(req: Request) {
     category = t === "qa" ? "qa" : "doodle";
   }
   // user role은 category='qa' 사용 불가 (type=post + category=qa 우회 차단)
-  if (category === "qa" && role !== "admin" && role !== "doctor") {
+  if (category === "qa" && role !== ROLES.ADMIN && role !== ROLES.DOCTOR) {
     return errorResponse(null, "forbidden", "[articles POST] qa category denied", 403, undefined, {
       userMessage: "Q&A 카테고리는 원장 또는 관리자만 작성 가능합니다.",
     });
@@ -304,7 +305,7 @@ export async function POST(req: Request) {
   // 보안 2.5차 E묶음 (2026-05-19): 자동 콘텐츠 검수기.
   // 의사·관리자는 자동 통과. 회원 글에서 의료광고·약사법 의심 패턴 임계점 초과 시
   // status 강제 pending_review + screening_flags 저장 → admin 검토 큐로.
-  if (role === "user") {
+  if (role === ROLES.USER) {
     const verdict = screenContent({
       title: insert.question as string | null,
       body: insert.answer as string | null,

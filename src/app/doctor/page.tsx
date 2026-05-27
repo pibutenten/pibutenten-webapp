@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveActiveIdentity } from "@/lib/identity-server";
+import { ROLES } from "@/lib/identity-shared";
 import BackButton from "@/components/BackButton";
 import DoctorActivityKpis, { type DoctorKpi } from "./DoctorActivityKpis";
 import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
@@ -41,7 +42,7 @@ export default async function DoctorDashboardPage() {
 
   const active = await resolveActiveIdentity(supabase, user.id, user.email);
   if (!active?.doctorId) {
-    if (active?.role === "admin") redirect("/admin");
+    if (active?.role === ROLES.ADMIN) redirect("/admin");
     redirect("/");
   }
 

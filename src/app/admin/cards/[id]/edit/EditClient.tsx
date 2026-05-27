@@ -35,6 +35,7 @@ import { isPostCategorySlug, type PostCategorySlug } from "@/lib/post-category";
 import type { ExternalMeta } from "@/components/card-editor/fields/ExternalLinkField";
 import type { PubmedRefObj } from "@/lib/schema/api/articles";
 import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
+import { ROLES } from "@/lib/identity-shared";
 
 type Doctor = {
   id: string;
@@ -112,7 +113,7 @@ export default function EditClient({
 
   // 의사 글 판정: 카드의 doctor_id 가 있거나 author 가 doctor role 이면 의사 글
   const isDoctorAuthored =
-    !!card.doctor_id || card.author?.role === "doctor";
+    !!card.doctor_id || card.author?.role === ROLES.DOCTOR;
 
   // initialCard 변환 — DB Card → CardEditorInitial.
   // Critical-4 (마이그레이션 0169): pubmed_refs 가 이미 SSOT (PubmedRefObj) 형태로

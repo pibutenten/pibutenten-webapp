@@ -35,6 +35,7 @@ import {
   isPostCategorySlug,
   type PostCategorySlug,
 } from "@/lib/post-category";
+import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -284,7 +285,7 @@ export async function PUT(
   // 보안 2.5차 E묶음 (2026-05-19): 본문 수정 시 자동 검수기 재실행.
   // 의사·관리자는 자동 통과. 회원이 본문 수정 시 의심 패턴 잡히면 status 강제 변경.
   // admin 이 명시적으로 status 지정한 경우엔 그것을 존중 (덮어쓰지 않음).
-  if (role === "user" && (update.question || update.answer)) {
+  if (role === ROLES.USER && (update.question || update.answer)) {
     const verdict = screenContent({
       title: (update.question as string | null) ?? null,
       body: (update.answer as string | null) ?? null,

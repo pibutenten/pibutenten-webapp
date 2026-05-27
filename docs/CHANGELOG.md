@@ -47,6 +47,18 @@
 
 ---
 
+### Sub-5 — 권한 문자열 상수화
+
+#### Added
+- `src/lib/identity-shared.ts` 에 `ROLES = { ADMIN: "admin", DOCTOR: "doctor", USER: "user" } as const` 단일 출처 상수 추가. DB profiles.role CHECK 제약과 1:1 매칭.
+
+#### Changed
+- 25개 파일, 약 50건의 `role === "admin"`/`role !== "doctor"`/`role === "user"` 류 비교 리터럴을 `ROLES.ADMIN`/`ROLES.DOCTOR`/`ROLES.USER` 상수 참조로 일괄 치환. 오타·중복 매직스트링 표면 차단.
+- 변경 대상: lib (`admin-page-guard`, `post-category`, `identity-shared` 자체), components (`Card`, `CommentsBlock`, `TopNav`, `NotificationPreferences`), app/admin 8개 파일, app/api 4개 라우트, app 기타 (`write`, `signup`, `settings`, `settings/profile`, `doctor`, `onboarding`, `auth/callback`).
+- 보존 영역 (의도적 비치환): TypeScript union 타입 자리 (`role: "admin" | "doctor" | "user"`), Anthropic AI SDK `{ role: "user", content }` 파라미터 (도메인 다름), legacy 호환 함수 이름·내부 로직 (`requireActiveSuperAdmin` 등).
+
+---
+
 ## [2026-05-26] (X) — 세션 종료 정리 + 미해결 회귀 + 다음 세션 우선순위
 
 ### Session log (af15ce1 → cb2a60d → 5e8d3b4 → bdbe933 → e3f3280)

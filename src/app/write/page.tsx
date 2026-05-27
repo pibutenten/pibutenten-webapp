@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { isPostCategorySlug, type PostCategorySlug } from "@/lib/post-category";
+import { ROLES } from "@/lib/identity-shared";
 import WriteClient from "./WriteClient";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,7 @@ export default async function WritePage({
 
   // 원장 본인 매핑 — active identity의 doctor_id로 조회
   let myDoctor: { slug: string; name: string } | null = null;
-  if (role === "doctor" && idCtx.active.doctorId) {
+  if (role === ROLES.DOCTOR && idCtx.active.doctorId) {
     const { data: d } = await supabase
       .from("doctors")
       .select("slug, name")
@@ -52,7 +53,7 @@ export default async function WritePage({
 
   // 관리자/qa용 원장 목록
   let doctors: Doctor[] = [];
-  if (role === "admin") {
+  if (role === ROLES.ADMIN) {
     const { data } = await supabase
       .from("doctors")
       .select("id, slug, name, branch")
@@ -71,7 +72,7 @@ export default async function WritePage({
   } else if (rawType === "qa") {
     initialCategory = "qa";
   }
-  if (initialCategory === "qa" && role === "user") {
+  if (initialCategory === "qa" && role === ROLES.USER) {
     initialCategory = undefined;
   }
 

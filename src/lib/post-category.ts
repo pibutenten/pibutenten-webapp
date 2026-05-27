@@ -33,6 +33,8 @@ export type PostCategory = {
 
 // 노출 순서 (write UI 칩 순서 + 글쓰기 디폴트는 첫 번째):
 //   끄적끄적 → 피부일기 → 피부꿀팁 → 궁금해요 → 소식공유 → (Q&A: 의사·관리자만)
+import { ROLES } from "./identity-shared";
+
 export const POST_CATEGORIES: readonly PostCategory[] = [
   { slug: "doodle", label: "끄적끄적", publicForUsers: true,  defaultHideDoctorCredential: true  },
   { slug: "diary",  label: "피부일기", publicForUsers: true,  defaultHideDoctorCredential: true  },
@@ -50,7 +52,7 @@ const SLUG_TO_LABEL: Record<PostCategorySlug, string> = Object.fromEntries(
 export function categoriesForRole(
   role: "user" | "doctor" | "admin",
 ): PostCategory[] {
-  if (role === "user") return POST_CATEGORIES.filter((c) => c.publicForUsers);
+  if (role === ROLES.USER) return POST_CATEGORIES.filter((c) => c.publicForUsers);
   return [...POST_CATEGORIES];
 }
 

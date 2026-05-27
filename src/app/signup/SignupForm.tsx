@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ROLES } from "@/lib/identity-shared";
 
 type Props = {
   initialDisplayName: string;
@@ -70,7 +71,7 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
 
       // 일반 사용자 + 온보딩 미완료 → /onboarding 강제 게이트
       // (admin/doctor는 운영용 계정이라 스킵)
-      if (role !== "admin" && role !== "doctor" && !profile?.birthdate) {
+      if (role !== ROLES.ADMIN && role !== ROLES.DOCTOR && !profile?.birthdate) {
         // middleware가 이 쿠키 보면 /onboarding으로 강제 redirect
         // Secure flag: HTTPS 환경에서만 자동 부여 (A11, 2026-05-17).
         try {
@@ -88,9 +89,9 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
       }
 
       const dest =
-        role === "admin"
+        role === ROLES.ADMIN
           ? "/admin"
-          : role === "doctor"
+          : role === ROLES.DOCTOR
             ? "/settings"
             : next || "/";
       window.location.assign(dest);

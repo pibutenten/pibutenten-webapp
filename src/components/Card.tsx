@@ -15,6 +15,7 @@ import CommentsBlock from "@/components/CommentsBlock";
 import RecentLikers from "@/components/RecentLikers";
 import { getQaEditUrl } from "@/lib/card-url";
 import { getActiveIdentityId } from "@/lib/active-identity";
+import { ROLES } from "@/lib/identity-shared";
 import { labelForCategory } from "@/lib/post-category";
 import {
   POST_CATEGORY_LABELS,
@@ -149,14 +150,14 @@ export default function Card({
   //     → 같은 묶음의 다른 ID 로 쓴 글은 ⋮ 안 보임. 그 ID 로 전환해야 편집 가능.
   const canEdit =
     !!me &&
-    (me.role === "admin" ||
+    (me.role === ROLES.ADMIN ||
       (card.author?.id != null && me.id === card.author.id));
 
   // 숨김(hidden) 토글 — admin 이면 무조건 메뉴 항목 노출.
   // RPC 기반 피드(feed_cards_scored)는 status 컬럼이 빠져 있어 undefined 가능 →
   // admin 권한만 보고 노출. 일반 사용자는 RLS 가 published 만 노출하므로 hidden
   // 카드가 list 에 들어오지 않음 (안전).
-  const canHide = !!me && me.role === "admin";
+  const canHide = !!me && me.role === ROLES.ADMIN;
   const isHidden = card.status === "hidden";
 
   // 숨김/공개 토글 — 0162 toggle_card_hide RPC 호출 (계정 단위 권한 검증 + admin EditClient

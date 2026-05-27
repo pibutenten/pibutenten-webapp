@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
 import { requireAdminPage } from "@/lib/admin-page-guard";
+import { ROLES } from "@/lib/identity-shared";
 import { PopularSearchesCard, PopularTagsCard } from "./PopularCards";
 import ActivityKpis from "./ActivityKpis";
 import LogoutButton from "@/components/LogoutButton";
@@ -45,7 +46,7 @@ export default async function AdminPage() {
 
   // 2026-05-22: active 가 doctor 면 본인 대시보드 /doctor 로 보냄 (안전망).
   // IdentitySwitcher 가 doctor → /doctor 로 보내지만 직접 URL 입력 케이스 차단.
-  if (guard.active?.role === "doctor" && guard.activeDoctorId) {
+  if (guard.active?.role === ROLES.DOCTOR && guard.activeDoctorId) {
     redirect("/doctor");
   }
 

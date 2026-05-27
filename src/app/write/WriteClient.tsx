@@ -22,6 +22,7 @@ import CardEditor, {
   type SubmitAction,
 } from "@/components/card-editor/CardEditor";
 import type { PostCategorySlug } from "@/lib/post-category";
+import { ROLES } from "@/lib/identity-shared";
 
 const WRITE_PHRASES = [
   "유독 잘 받은 화장의 비결은..",
@@ -195,8 +196,8 @@ export default function WriteClient({
       // Redirect — role / status / type 별
       let redirectUrl = "/";
       if (status === "draft") {
-        if (role === "admin") redirectUrl = "/admin/cards?status=draft";
-        else if (role === "doctor" && myDoctor)
+        if (role === ROLES.ADMIN) redirectUrl = "/admin/cards?status=draft";
+        else if (role === ROLES.DOCTOR && myDoctor)
           redirectUrl = `/doctors/${myDoctor.slug}`;
       } else if (isQa) {
         redirectUrl = `/admin/cards?status=${status}`;
@@ -215,7 +216,7 @@ export default function WriteClient({
 
   // admin 만 글쓴이 dropdown — 의사 9명 + 본인 명의 옵션은 CardEditor 내부에서 추가
   const createAuthorOptions: DoctorOption[] | undefined =
-    role === "admin"
+    role === ROLES.ADMIN
       ? doctors.map((d) => ({
           id: d.id,
           slug: d.slug,
