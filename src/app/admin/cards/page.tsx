@@ -241,13 +241,14 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     return count ?? 0;
   }
 
-  const [cAll, cDraft, cPending, cPublished, cArchived, cDeleted] =
+  const [cAll, cDraft, cPending, cPublished, cArchived, cHidden, cDeleted] =
     await Promise.all([
       countByStatus("all"),
       countByStatus("draft"),
       countByStatus("pending_review"),
       countByStatus("published"),
       countByStatus("archived"),
+      countByStatus("hidden"),
       countByStatus("deleted"),
     ]);
 
@@ -257,6 +258,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     pending_review: cPending,
     published: cPublished,
     archived: cArchived,
+    hidden: cHidden,
     deleted: cDeleted,
   };
 
