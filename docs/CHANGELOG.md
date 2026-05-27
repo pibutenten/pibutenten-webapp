@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-05-28] — 0174 wrapper 6개 `question text → title text` (사용자 보고된 "(제목 없음)" 근본 원인) + Vercel 캐시 무효화
+
+### Added
+- 새 마이그레이션 `0174_fix_top_cards_wrappers_question_legacy.sql` — `pg_get_function_result()` 팩트 체크로 발견: 0171 이 `*_inner` 함수만 재정의하고 wrapper 6개의 `RETURNS TABLE` 시그니처는 누락 → `question text` 잔재. PostgREST 가 wrapper 시그니처의 컬럼명으로 응답하므로 클라가 `row.title` 접근 시 undefined → UI "(제목 없음)" 표시. 6개 (get_top_cards_by_{comments,likes,saves,shares,views}, get_top_new_cards) DROP+CREATE 로 시그니처만 `title text` 로 교체, 본문/권한/SECURITY DEFINER/search_path 보존. 끝에 `NOTIFY pgrst 'reload schema'` + `'reload config'`.
+
+### Changed
+- `package.json` version `0.1.1` → `0.1.2` (Vercel 빌드 캐시 무효화 강제 — 사용자 결정).
+
+### Confirmed (팩트 체크)
+- `get_top_cards_by_views` 외 5개 wrapper 의 production DDL 에 `question text` 잔재 확인 (적용 전).
+- 적용 후 6개 모두 `RETURNS TABLE(card_id bigint, title text, shortcode text, ...)` 로 정합.
+- `search_cards_scored` / `get_card_activity_users` 는 깔끔 (수정 불필요).
+
+---
+
 ## [2026-05-28] — 5건 묶음: PostgREST 캐시 reload + 0044 충돌 해소 + Identity SSOT + comments Zod + tmp 청소
 
 ### Added
