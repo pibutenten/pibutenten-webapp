@@ -30,33 +30,50 @@ const ALLOWED_STATUS = new Set(["visible", "hidden", "deleted"]);
 
 export async function PATCH(req: Request, ctx: Ctx) {
   const id = await getId(ctx);
-  if (id == null) return NextResponse.json({ error: "invalid id" }, { status: 400 });
+  if (id == null) {
+    return errorResponse(null, "invalid_input", "[comments PATCH] invalid id", 400, undefined, {
+      userMessage: "유효하지 않은 댓글 id",
+    });
+  }
 
   let raw: PatchBody;
   try {
     raw = (await req.json()) as PatchBody;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[comments PATCH] body parse", 400, undefined, {
+      userMessage: "잘못된 요청 형식",
+    });
   }
 
   const update: { body?: string; status?: "visible" | "hidden" | "deleted" } = {};
 
   if (typeof raw.body === "string") {
     const b = raw.body.trim();
-    if (!b) return NextResponse.json({ error: "body is empty" }, { status: 400 });
-    if (b.length > 2000)
-      return NextResponse.json({ error: "댓글은 2000자 이내로 작성해주세요." }, { status: 400 });
+    if (!b) {
+      return errorResponse(null, "invalid_input", "[comments PATCH] empty body", 400, undefined, {
+        userMessage: "댓글 내용을 입력해 주세요.",
+      });
+    }
+    if (b.length > 2000) {
+      return errorResponse(null, "invalid_input", "[comments PATCH] body too long", 400, undefined, {
+        userMessage: "댓글은 2000자 이내로 작성해주세요.",
+      });
+    }
     update.body = b;
   }
   if (typeof raw.status === "string") {
     if (!ALLOWED_STATUS.has(raw.status)) {
-      return NextResponse.json({ error: "invalid status" }, { status: 400 });
+      return errorResponse(null, "invalid_input", "[comments PATCH] invalid status", 400, undefined, {
+        userMessage: "유효하지 않은 상태값입니다.",
+      });
     }
     update.status = raw.status as "visible" | "hidden" | "deleted";
   }
 
   if (Object.keys(update).length === 0) {
-    return NextResponse.json({ error: "수정할 내용이 없습니다." }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[comments PATCH] no fields", 400, undefined, {
+      userMessage: "수정할 내용이 없습니다.",
+    });
   }
 
   const supabase = await createSupabaseServerClient();
@@ -64,7 +81,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[comments PATCH] auth required", 401);
   }
 
   const upd = await supabase
@@ -78,7 +95,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return errorResponse(upd.error, "save_failed", "[comments PATCH] update", 400);
   }
   if (!upd.data) {
-    return NextResponse.json({ error: "권한이 없거나 댓글을 찾을 수 없습니다." }, { status: 403 });
+    return errorResponse(null, "forbidden", "[comments PATCH] denied or not found", 403, undefined, {
+      userMessage: "권한이 없거나 댓글을 찾을 수 없습니다.",
+    });
   }
 
   return NextResponse.json({ comment: upd.data });
@@ -86,14 +105,18 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
 export async function DELETE(_req: Request, ctx: Ctx) {
   const id = await getId(ctx);
-  if (id == null) return NextResponse.json({ error: "invalid id" }, { status: 400 });
+  if (id == null) {
+    return errorResponse(null, "invalid_input", "[comments DELETE] invalid id", 400, undefined, {
+      userMessage: "유효하지 않은 댓글 id",
+    });
+  }
 
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[comments DELETE] auth required", 401);
   }
 
   // RLS가 자체적으로 본인 / admin / 해당 doctor만 통과시킴.
@@ -108,7 +131,9 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     return errorResponse(del.error, "save_failed", "[comments DELETE] delete", 400);
   }
   if (!del.data) {
-    return NextResponse.json({ error: "권한이 없거나 댓글을 찾을 수 없습니다." }, { status: 403 });
+    return errorResponse(null, "forbidden", "[comments DELETE] denied or not found", 403, undefined, {
+      userMessage: "권한이 없거나 댓글을 찾을 수 없습니다.",
+    });
   }
 
   return NextResponse.json({ ok: true });

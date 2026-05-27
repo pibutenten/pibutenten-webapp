@@ -173,7 +173,18 @@ export function logErrorWithId(
 
 /**
  * JSON 에러 응답.
- * Body: { error: <kind>, message: <표준 문구>, error_id: <uuid> }
+ * Body: { error: <kind>, message: <표준 문구 또는 opts.userMessage>, error_id: <uuid> }
+ *
+ * opts.userMessage: 도메인 검증 메시지 등 사용자에게 보여줄 구체 문구. 미지정 시
+ *   STANDARD_ERROR_MESSAGES[kind] 사용. 단, **내부 시스템 메시지 (DB err.message,
+ *   Supabase 컬럼명, 스택 등) 는 절대 여기에 넣지 말 것** — server log 에만 남도록
+ *   err 로 전달.
+ *
+ * opts.devOnly: dev 환경(NODE_ENV !== 'production') 에서만 응답 body 에 머지될 객체
+ *   (예: Zod issues 배열). production 에서는 무시.
+ *
+ * opts.bodyExtra: 운영·개발 모두 응답 body 에 항상 머지될 비-민감 보조 필드
+ *   (예: OAuth state, 운영 분기 플래그). **민감 정보 금지** — DB err.message 등은 err 로.
  */
 export function errorResponse(
   err: unknown,
@@ -181,16 +192,25 @@ export function errorResponse(
   context: string,
   status = 500,
   extra?: Record<string, unknown>,
+  opts?: {
+    userMessage?: string;
+    devOnly?: Record<string, unknown>;
+    bodyExtra?: Record<string, unknown>;
+  },
 ): NextResponse {
   const errorId = logErrorWithId(err, context, extra);
-  return NextResponse.json(
-    {
-      error: kind,
-      message: STANDARD_ERROR_MESSAGES[kind],
-      error_id: errorId,
-    },
-    { status },
-  );
+  const body: Record<string, unknown> = {
+    error: kind,
+    message: opts?.userMessage ?? STANDARD_ERROR_MESSAGES[kind],
+    error_id: errorId,
+  };
+  if (opts?.bodyExtra) {
+    Object.assign(body, opts.bodyExtra);
+  }
+  if (opts?.devOnly && process.env.NODE_ENV !== "production") {
+    Object.assign(body, opts.devOnly);
+  }
+  return NextResponse.json(body, { status });
 }
 
 /**

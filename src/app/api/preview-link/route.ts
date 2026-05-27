@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isHostSafeForExternalFetch } from "@/lib/ssrf-guard";
 import { rateLimit } from "@/lib/rate-limit";
+import { errorResponse } from "@/lib/error-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -740,7 +741,7 @@ async function handle(req: Request): Promise<Response> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[preview-link] auth required", 401);
   }
 
   // Rate limit (A8): 사용자당 분당 30회.
@@ -756,30 +757,32 @@ async function handle(req: Request): Promise<Response> {
   let body: { url?: string } = {};
   try {
     body = (await req.json()) as { url?: string };
-  } catch {
-    return NextResponse.json({ error: "유효하지 않은 요청" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[preview-link] body parse", 400, undefined, {
+      userMessage: "유효하지 않은 요청",
+    });
   }
   const raw = (body.url ?? "").trim();
   if (!raw) {
-    return NextResponse.json({ error: "URL이 비어있어요." }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[preview-link] url empty", 400, undefined, {
+      userMessage: "URL이 비어있어요.",
+    });
   }
 
   let url: URL;
   try {
     url = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
-  } catch {
-    return NextResponse.json(
-      { error: "URL 형식이 올바르지 않아요." },
-      { status: 400 },
-    );
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[preview-link] url malformed", 400, undefined, {
+      userMessage: "URL 형식이 올바르지 않아요.",
+    });
   }
   // https only (A6, 2026-05-17) — http 는 MITM 위험 + SSRF 표면 확장.
   // 사용자가 http URL 을 넣으면 자동 promote 후 시도하지 않고 명확히 거부.
   if (url.protocol !== "https:") {
-    return NextResponse.json(
-      { error: "https URL만 지원해요." },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[preview-link] non-https", 400, undefined, {
+      userMessage: "https URL만 지원해요.",
+    });
   }
 
   const kind = detectKind(url);
@@ -891,17 +894,15 @@ async function handle(req: Request): Promise<Response> {
   let res: Response;
   try {
     res = await fetchWithTimeout(url.toString());
-  } catch {
-    return NextResponse.json(
-      { error: "페이지를 불러올 수 없어요." },
-      { status: 502 },
-    );
+  } catch (e) {
+    return errorResponse(e, "network_failed", "[preview-link] fetch threw", 502, undefined, {
+      userMessage: "페이지를 불러올 수 없어요.",
+    });
   }
   if (!res.ok) {
-    return NextResponse.json(
-      { error: `페이지 응답 오류 (${res.status})` },
-      { status: 502 },
-    );
+    return errorResponse(null, "network_failed", "[preview-link] upstream not ok", 502, { upstream_status: res.status }, {
+      userMessage: `페이지 응답 오류 (${res.status})`,
+    });
   }
   const html = await decodeHtmlResponse(res);
   const headHtml = html.slice(0, 80_000);
@@ -948,13 +949,12 @@ async function handle(req: Request): Promise<Response> {
 
 export async function POST(req: Request) {
   // outer try-catch — 어떤 throw도 JSON으로 변환 (HTML 에러 페이지 방지)
+  // err.message 가 사용자에 노출되던 옛 패턴 제거 — 표준 메시지 + server log id 만 반환.
   try {
     return await handle(req);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "내부 오류";
-    return NextResponse.json(
-      { error: `링크 처리 중 오류: ${msg.slice(0, 120)}` },
-      { status: 500 },
-    );
+    return errorResponse(e, "generic", "[preview-link] outer", 500, undefined, {
+      userMessage: "링크 처리 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.",
+    });
   }
 }

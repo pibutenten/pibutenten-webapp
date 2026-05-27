@@ -17,6 +17,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { getEnv } from "@/lib/ai/env-fallback";
 import { extractJson } from "@/lib/ai/extract-json";
 import { MODEL_ID } from "@/lib/ai/pricing";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -134,8 +135,8 @@ export async function POST(req: Request) {
   let body: { question?: unknown; answer?: unknown };
   try {
     body = (await req.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[admin/extract-keywords] body parse", 400, undefined, { userMessage: "Invalid JSON body" });
   }
   // prompt injection mitigation — `<` `>` 치환 (step1.ts 와 동일 패턴).
   // admin 전용이라 위험도 낮지만 defense-in-depth.
@@ -143,18 +144,12 @@ export async function POST(req: Request) {
   const question = typeof body.question === "string" ? sanitize(body.question.trim()) : "";
   const answer = typeof body.answer === "string" ? sanitize(body.answer.trim()) : "";
   if (!question && !answer) {
-    return NextResponse.json(
-      { error: "question 또는 answer가 필요합니다" },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[admin/extract-keywords] q/a required", 400, undefined, { userMessage: "question 또는 answer가 필요합니다" });
   }
 
   const apiKey = getEnv("ANTHROPIC_API_KEY");
   if (!apiKey) {
-    return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY 미설정" },
-      { status: 500 },
-    );
+    return errorResponse(null, "generic", "[admin/extract-keywords] ANTHROPIC_API_KEY missing", 500);
   }
 
   try {
@@ -190,10 +185,6 @@ export async function POST(req: Request) {
       { headers: { "cache-control": "no-store" } },
     );
   } catch (e) {
-    const m = e instanceof Error ? e.message : String(e);
-    return NextResponse.json(
-      { error: `태그 추출 실패: ${m}` },
-      { status: 502 },
-    );
+    return errorResponse(e, "network_failed", "[admin/extract-keywords] LLM call failed", 502);
   }
 }

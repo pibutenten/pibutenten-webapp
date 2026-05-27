@@ -30,7 +30,7 @@ export async function GET(
   const { kind } = await params;
   const rpc = KIND_RPCS[kind];
   if (!rpc) {
-    return NextResponse.json({ error: "invalid kind" }, { status: 400 });
+    return errorResponse(null, "invalid_input", `[admin/stats/${kind}] invalid kind`, 400, undefined, { userMessage: "invalid kind" });
   }
 
   const supabase = await createSupabaseServerClient();
@@ -38,11 +38,11 @@ export async function GET(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return errorResponse(null, "unauthorized", `[admin/stats/${kind}] auth required`, 401);
   }
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx?.active || (!idCtx.isSuperAdmin && !idCtx.isDoctorAdmin)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    return errorResponse(null, "forbidden", `[admin/stats/${kind}] admin/doctor required`, 403);
   }
 
   const url = request.nextUrl;

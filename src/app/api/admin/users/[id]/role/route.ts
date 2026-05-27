@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { logAudit } from "@/lib/audit-log";
 import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -42,14 +43,13 @@ export async function POST(
   try {
     body = (await req.json()) as Body;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[admin/users/role] body parse", 400);
   }
   const role = body.role;
   if (!role || !["admin", "doctor", "user"].includes(role)) {
-    return NextResponse.json(
-      { error: "올바른 역할이 아닙니다" },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[admin/users/role] invalid role", 400, undefined, {
+      userMessage: "올바른 역할이 아닙니다",
+    });
   }
   const doctorId = body.doctor_id ?? null;
 
@@ -61,10 +61,9 @@ export async function POST(
     .maybeSingle()
     .returns<{ id: string; role: string; auth_user_id: string | null } | null>();
   if (!targetProfile) {
-    return NextResponse.json(
-      { error: "대상 회원을 찾을 수 없습니다" },
-      { status: 404 },
-    );
+    return errorResponse(null, "not_found", "[admin/users/role] target not found", 404, undefined, {
+      userMessage: "대상 회원을 찾을 수 없습니다",
+    });
   }
 
   // ── 자기 자신 강등 차단 (A7, 2026-05-17) ────────────────────────────────
@@ -74,13 +73,10 @@ export async function POST(
     targetProfile.auth_user_id === guard.userId &&
     role !== "admin"
   ) {
-    return NextResponse.json(
-      {
-        error:
-          "본인의 admin 권한은 본인이 강등할 수 없습니다. 다른 관리자에게 요청해 주세요.",
-      },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[admin/users/role] self-demote blocked", 400, undefined, {
+      userMessage:
+        "본인의 admin 권한은 본인이 강등할 수 없습니다. 다른 관리자에게 요청해 주세요.",
+    });
   }
 
   // ── 1. 매핑 충돌 확인 (자기 자신 제외) ────────────────────────────────
@@ -102,14 +98,20 @@ export async function POST(
       const exHandle = existing.handle
         ? `@${existing.handle}`
         : "(handle 없음)";
-      return NextResponse.json(
+      return errorResponse(
+        null,
+        "invalid_input",
+        "[admin/users/role] doctor already mapped",
+        409,
+        undefined,
         {
-          error: `해당 원장은 이미 가입 회원 "${exName}" ${exHandle} 에게 매핑되어 있습니다. 먼저 그 회원의 매핑을 해제해주세요.`,
-          existing_profile_id: existing.id,
-          existing_display_name: exName,
-          existing_handle: existing.handle ?? null,
+          userMessage: `해당 원장은 이미 가입 회원 "${exName}" ${exHandle} 에게 매핑되어 있습니다. 먼저 그 회원의 매핑을 해제해주세요.`,
+          bodyExtra: {
+            existing_profile_id: existing.id,
+            existing_display_name: exName,
+            existing_handle: existing.handle ?? null,
+          },
         },
-        { status: 409 },
       );
     }
   }
@@ -122,7 +124,7 @@ export async function POST(
       .update({ role })
       .eq("id", id);
     if (updErr) {
-      return NextResponse.json({ error: updErr.message }, { status: 500 });
+      return errorResponse(updErr, "save_failed", "[admin/users/role] profiles.role update", 500);
     }
   }
 
@@ -138,14 +140,14 @@ export async function POST(
         .update({ doctor_id: doctorId })
         .eq("profile_id", id);
       if (mapErr) {
-        return NextResponse.json({ error: mapErr.message }, { status: 500 });
+        return errorResponse(mapErr, "save_failed", "[admin/users/role] doctor_accounts update", 500);
       }
     } else {
       const { error: insErr } = await supabase
         .from("doctor_accounts")
         .insert({ profile_id: id, doctor_id: doctorId });
       if (insErr) {
-        return NextResponse.json({ error: insErr.message }, { status: 500 });
+        return errorResponse(insErr, "save_failed", "[admin/users/role] doctor_accounts insert", 500);
       }
     }
     // ── 묶음(bundle) 동기화 ──────────────────────────────────────────

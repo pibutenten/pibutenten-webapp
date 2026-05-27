@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx || !idCtx.active) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[notif/read] auth required", 401);
   }
   const activeProfileId = idCtx.active.profileId;
 

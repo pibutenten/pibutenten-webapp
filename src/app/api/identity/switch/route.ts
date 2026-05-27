@@ -9,6 +9,7 @@ import {
   bundleProfileFilter,
 } from "@/lib/identity-shared";
 import { logAudit } from "@/lib/audit-log";
+import { errorResponse } from "@/lib/error-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,12 +26,16 @@ export async function POST(req: Request) {
   let body: { identityId?: string } = {};
   try {
     body = (await req.json()) as { identityId?: string };
-  } catch {
-    return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[identity/switch] body parse", 400, undefined, {
+      userMessage: "잘못된 요청",
+    });
   }
   const target = (body.identityId ?? "").trim();
   if (!target) {
-    return NextResponse.json({ error: "identityId 필요" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[identity/switch] identityId missing", 400, undefined, {
+      userMessage: "identityId 필요",
+    });
   }
 
   const supabase = await createSupabaseServerClient();
@@ -38,17 +43,16 @@ export async function POST(req: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "로그인 필요" }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[identity/switch] auth required", 401);
   }
 
   // 'primary'는 항상 허용 (legacy 호환)
   if (target !== PRIMARY_IDENTITY_ID) {
     // 입력값 형식 검증 — UUID 외 값 차단 (defense-in-depth)
     if (!UUID_RE.test(target)) {
-      return NextResponse.json(
-        { error: "잘못된 identityId 형식" },
-        { status: 400 },
-      );
+      return errorResponse(null, "invalid_input", "[identity/switch] invalid uuid", 400, undefined, {
+        userMessage: "잘못된 identityId 형식",
+      });
     }
     // 본인 묶음 (auth_user_id) 안의 profile인지 검증
     const { data: row } = await supabase
@@ -58,10 +62,9 @@ export async function POST(req: Request) {
       .or(bundleProfileFilter(user.id))
       .maybeSingle();
     if (!row) {
-      return NextResponse.json(
-        { error: "권한 없음 — 본인 ID가 아닙니다." },
-        { status: 403 },
-      );
+      return errorResponse(null, "forbidden", "[identity/switch] not in bundle", 403, undefined, {
+        userMessage: "권한 없음 — 본인 ID가 아닙니다.",
+      });
     }
   }
 

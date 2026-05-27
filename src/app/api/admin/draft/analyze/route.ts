@@ -21,6 +21,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { fetchYoutubeTranscript } from "@/lib/ai/youtube-transcript";
 import { identifyDoctors } from "@/lib/ai/identify-doctors";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -32,15 +33,12 @@ export async function POST(req: Request) {
   let body: { url?: unknown };
   try {
     body = (await req.json()) as { url?: unknown };
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[admin/draft/analyze] body parse", 400, undefined, { userMessage: "Invalid JSON body" });
   }
   const url = typeof body.url === "string" ? body.url.trim() : "";
   if (!url) {
-    return NextResponse.json(
-      { error: "url is required" },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[admin/draft/analyze] url required", 400, undefined, { userMessage: "url is required" });
   }
 
   // 자막 + 메타 fetch
@@ -48,12 +46,18 @@ export async function POST(req: Request) {
   try {
     transcriptResult = await fetchYoutubeTranscript(url);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    // 자막 fetch 실패 — OAuth 만료가 원인일 수도 있어 상태 같이 반환
+    // 자막 fetch 실패 — OAuth 만료가 원인일 수도 있어 oauthState 를 함께 반환 (UI 분기용).
     const oauthHealth = await checkOauthHealth();
-    return NextResponse.json(
-      { error: msg, oauthState: oauthHealth.state },
-      { status: 422 },
+    return errorResponse(
+      e,
+      "network_failed",
+      "[admin/draft/analyze] transcript fetch",
+      422,
+      { oauthState: oauthHealth.state },
+      {
+        userMessage: "자막을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.",
+        bodyExtra: { oauthState: oauthHealth.state },
+      },
     );
   }
 

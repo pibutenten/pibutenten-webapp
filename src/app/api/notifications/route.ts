@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   const supabase = await createSupabaseServerClient();
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx || !idCtx.active) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[notifications GET] auth required", 401);
   }
   const activeProfileId = idCtx.active.profileId;
 

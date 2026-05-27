@@ -35,6 +35,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { generateShortcode } from "@/lib/shortcode";
 import { normalizeTags } from "@/lib/tag-dictionary";
 import { rateLimit } from "@/lib/rate-limit";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -78,8 +79,8 @@ export async function POST(req: Request) {
   };
   try {
     body = (await req.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[admin/draft/publish] body parse", 400, undefined, { userMessage: "Invalid JSON body" });
   }
   const videoId = typeof body.videoId === "string" ? body.videoId : "";
   const videoTitle = typeof body.videoTitle === "string" ? body.videoTitle : "";
@@ -90,14 +91,11 @@ export async function POST(req: Request) {
       ? body.status
       : "published";
   if (!videoId || !Array.isArray(body.cards)) {
-    return NextResponse.json(
-      { error: "videoId, cards[] required" },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[admin/draft/publish] videoId/cards required", 400, undefined, { userMessage: "videoId, cards[] required" });
   }
   const cards = body.cards as CardIn[];
   if (cards.length === 0) {
-    return NextResponse.json({ error: "cards is empty" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[admin/draft/publish] cards empty", 400, undefined, { userMessage: "cards is empty" });
   }
 
   // doctor_slug → doctor_id 매핑
@@ -136,10 +134,7 @@ export async function POST(req: Request) {
     .select("id")
     .single();
   if (vidErr || !videoRow) {
-    return NextResponse.json(
-      { error: `videos upsert 실패: ${vidErr?.message ?? "unknown"}` },
-      { status: 500 },
-    );
+    return errorResponse(vidErr, "save_failed", "[admin/draft/publish] videos upsert", 500);
   }
   const videoRowId = videoRow.id as number;
 
@@ -185,17 +180,11 @@ export async function POST(req: Request) {
     const q = (c.question ?? "").trim();
     const a = (c.answer ?? "").trim();
     if (!q || !a) {
-      return NextResponse.json(
-        { error: `card #${i + 1}: question/answer 비어있음` },
-        { status: 400 },
-      );
+      return errorResponse(null, "invalid_input", `[admin/draft/publish] card #${i + 1} empty q/a`, 400, undefined, { userMessage: `card #${i + 1}: question/answer 비어있음` });
     }
     const doctorId = slugToId.get(c.doctorSlug);
     if (!doctorId) {
-      return NextResponse.json(
-        { error: `card #${i + 1}: doctor not found for slug ${c.doctorSlug}` },
-        { status: 400 },
-      );
+      return errorResponse(null, "invalid_input", `[admin/draft/publish] card #${i + 1} doctor not found`, 400, undefined, { userMessage: `card #${i + 1}: doctor not found for slug ${c.doctorSlug}` });
     }
 
     // Dedup 검사 — 동일 video 의 기존 카드와 매칭되면 skip.
@@ -291,10 +280,7 @@ export async function POST(req: Request) {
     .insert(rows)
     .select("id");
   if (insErr) {
-    return NextResponse.json(
-      { error: `cards insert 실패: ${insErr.message}` },
-      { status: 500 },
-    );
+    return errorResponse(insErr, "save_failed", "[admin/draft/publish] cards insert", 500);
   }
 
   return NextResponse.json(

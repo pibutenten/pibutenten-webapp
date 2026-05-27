@@ -24,7 +24,7 @@ export async function GET() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[notif/prefs] auth required", 401);
   }
   const { data, error } = await supabase.rpc("get_my_notification_prefs");
   if (error) {
@@ -50,14 +50,16 @@ export async function POST(req: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[notif/prefs] auth required", 401);
   }
 
   let body: Partial<Prefs>;
   try {
     body = (await req.json()) as Partial<Prefs>;
-  } catch {
-    return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[notif/prefs POST] body parse", 400, undefined, {
+      userMessage: "잘못된 요청 형식",
+    });
   }
 
   const toBool = (v: unknown, def: boolean) =>

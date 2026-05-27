@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[push/unsubscribe] auth required", 401);
   }
 
   let endpoint: string | null = null;
@@ -35,7 +35,9 @@ export async function POST(req: Request) {
     }
   }
   if (!endpoint) {
-    return NextResponse.json({ error: "endpoint required" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[push/unsubscribe] endpoint missing", 400, undefined, {
+      userMessage: "endpoint required",
+    });
   }
 
   // RLS가 본인 묶음만 허용하므로 endpoint 단독으로 안전

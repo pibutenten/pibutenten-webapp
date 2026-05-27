@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -17,13 +18,13 @@ export async function GET(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[admin/comments GET] auth required", 401);
   }
   // 권한 좁히기 (2026-05-16): super admin 만 전체 댓글 조회 가능.
   // doctor admin 은 본인 doctor 글 댓글만 보면 되므로 본인 글 페이지에서 확인.
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx?.active || !idCtx.isSuperAdmin) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    return errorResponse(null, "forbidden", "[admin/comments GET] super admin required", 403);
   }
 
   const url = request.nextUrl;
@@ -45,11 +46,7 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(limit + 1);
   if (error) {
-    console.error("[/api/admin/comments] query failed:", error);
-    return NextResponse.json(
-      { error: "댓글 조회에 실패했습니다." },
-      { status: 500 },
-    );
+    return errorResponse(error, "generic", "[admin/comments GET] query failed", 500, undefined, { userMessage: "댓글 조회에 실패했습니다." });
   }
 
   const rows = data ?? [];

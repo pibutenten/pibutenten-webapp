@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminOrDoctor } from "@/lib/admin-guard";
 import { fetchPubmedByPmid } from "@/lib/ai/pubmed";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -24,32 +25,22 @@ export async function POST(req: Request) {
   let body: { pmid?: unknown };
   try {
     body = (await req.json()) as { pmid?: unknown };
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[admin/draft/pubmed-by-pmid] body parse", 400, undefined, { userMessage: "Invalid JSON" });
   }
   const raw = typeof body.pmid === "string" ? body.pmid.trim() : "";
   const pmid = raw.replace(/^PMID[:\s]*/i, "").trim();
   if (!/^\d{1,9}$/.test(pmid)) {
-    return NextResponse.json(
-      { error: "PMID는 1-9자리 숫자여야 합니다." },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[admin/draft/pubmed-by-pmid] pmid format", 400, undefined, { userMessage: "PMID는 1-9자리 숫자여야 합니다." });
   }
 
   try {
     const ref = await fetchPubmedByPmid(pmid);
     if (!ref) {
-      return NextResponse.json(
-        { error: `PMID ${pmid}에 해당하는 PubMed 논문을 찾을 수 없습니다.` },
-        { status: 404 },
-      );
+      return errorResponse(null, "not_found", "[admin/draft/pubmed-by-pmid] not found", 404, undefined, { userMessage: `PMID ${pmid}에 해당하는 PubMed 논문을 찾을 수 없습니다.` });
     }
     return NextResponse.json({ reference: ref });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json(
-      { error: `PubMed fetch 실패: ${msg}` },
-      { status: 502 },
-    );
+    return errorResponse(e, "network_failed", "[admin/draft/pubmed-by-pmid] fetch failed", 502);
   }
 }

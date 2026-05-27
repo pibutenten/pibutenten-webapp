@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { randomBytes } from "crypto";
 import { requireAdmin } from "@/lib/admin-guard";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +36,12 @@ export async function GET() {
 
   const clientId = process.env.YOUTUBE_OAUTH_CLIENT_ID;
   if (!clientId) {
-    return NextResponse.json(
-      { error: "YOUTUBE_OAUTH_CLIENT_ID not set" },
-      { status: 500 },
+    // 환경변수 누락은 운영 사고. 사용자에게는 일반 문구만, 서버 로그에 변수명 기록.
+    return errorResponse(
+      new Error("YOUTUBE_OAUTH_CLIENT_ID not set"),
+      "generic",
+      "[admin/youtube-oauth/start] env var missing",
+      500,
     );
   }
 

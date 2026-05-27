@@ -57,18 +57,22 @@ export async function POST(req: Request) {
   let rawJson: unknown;
   try {
     rawJson = await req.json();
-  } catch {
-    return NextResponse.json({ error: "잘못된 요청 형식" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[reports POST] body parse", 400, undefined, {
+      userMessage: "잘못된 요청 형식",
+    });
   }
   const parsed = ReportSchema.safeParse(rawJson);
   if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: "invalid_input",
-        message: "입력값이 올바르지 않아요.",
+    return errorResponse(null, "invalid_input", "[reports POST] zod parse", 400, undefined, {
+      userMessage: "입력값이 올바르지 않아요.",
+      devOnly: {
+        issues: parsed.error.issues.slice(0, 5).map((iss) => ({
+          path: iss.path.join("."),
+          code: iss.code,
+        })),
       },
-      { status: 400 },
-    );
+    });
   }
   const payload = parsed.data;
 
@@ -79,13 +83,9 @@ export async function POST(req: Request) {
     !payload.card_id &&
     !payload.comment_id
   ) {
-    return NextResponse.json(
-      {
-        error: "invalid_input",
-        message: "신고 대상 URL 또는 상세 사유 중 하나는 입력해 주세요.",
-      },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[reports POST] empty input", 400, undefined, {
+      userMessage: "신고 대상 URL 또는 상세 사유 중 하나는 입력해 주세요.",
+    });
   }
 
   // service_role 로 INSERT — RLS 의 anon INSERT 정책이 있지만,

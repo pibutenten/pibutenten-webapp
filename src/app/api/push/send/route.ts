@@ -16,6 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { errorResponse } from "@/lib/error-response";
 import webpush from "web-push";
 import { timingSafeEqual } from "crypto";
 
@@ -63,21 +64,20 @@ export async function POST(req: Request) {
   // 인증 — webhook secret 검증 (timing-safe)
   const sentSecret = req.headers.get("x-pibutenten-push-secret") ?? "";
   if (!WEBHOOK_SECRET || !safeEqual(sentSecret, WEBHOOK_SECRET)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    return errorResponse(null, "forbidden", "[push/send] webhook secret mismatch", 403);
   }
 
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
-    return NextResponse.json(
-      { error: "VAPID keys not configured" },
-      { status: 503 },
-    );
+    return errorResponse(null, "generic", "[push/send] VAPID keys not configured", 503);
   }
 
   let body: WebhookPayload;
   try {
     body = (await req.json()) as WebhookPayload;
-  } catch {
-    return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[push/send] body parse", 400, undefined, {
+      userMessage: "잘못된 요청 형식",
+    });
   }
 
   // INSERT 이벤트만 처리

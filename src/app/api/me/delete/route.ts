@@ -28,38 +28,33 @@ export async function POST(req: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "로그인 필요" }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[me/delete] auth required", 401);
   }
 
   // Phase 6-5: typed confirmation 검증
   let body: { confirmation?: string } = {};
   try {
     body = (await req.json()) as { confirmation?: string };
-  } catch {
-    return NextResponse.json(
-      { error: "요청 형식이 올바르지 않습니다." },
-      { status: 400 },
-    );
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[me/delete] body parse", 400, undefined, {
+      userMessage: "요청 형식이 올바르지 않습니다.",
+    });
   }
   const input = (body.confirmation ?? "").trim();
   if (input !== REQUIRED_CONFIRMATION) {
-    return NextResponse.json(
-      {
-        error: `탈퇴를 진행하려면 정확히 "${REQUIRED_CONFIRMATION}" 라고 입력해야 합니다.`,
-      },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[me/delete] confirmation mismatch", 400, undefined, {
+      userMessage: `탈퇴를 진행하려면 정확히 "${REQUIRED_CONFIRMATION}" 라고 입력해야 합니다.`,
+    });
   }
 
   // service role client (auth.admin.deleteUser 권한)
   let admin;
   try {
     admin = createSupabaseAdminClient();
-  } catch {
-    return NextResponse.json(
-      { error: "서버 설정 오류 (관리자에게 문의)" },
-      { status: 500 },
-    );
+  } catch (e) {
+    return errorResponse(e, "generic", "[me/delete] admin client init", 500, undefined, {
+      userMessage: "서버 설정 오류 (관리자에게 문의)",
+    });
   }
 
   // Phase 7-extra (2026-05-16): soft-delete 익명화 — auth.users.delete 직전.
@@ -86,19 +81,14 @@ export async function POST(req: Request) {
       );
     }
   } catch (e) {
-    console.error("[me/delete] anonymize RPC threw:", e);
-    return NextResponse.json(
-      { error: "익명화 처리 중 오류" },
-      { status: 500 },
-    );
+    return errorResponse(e, "generic", "[me/delete] anonymize RPC threw", 500, { user_id: user.id }, {
+      userMessage: "익명화 처리 중 오류",
+    });
   }
 
   const { error: delErr } = await admin.auth.admin.deleteUser(user.id);
   if (delErr) {
-    return NextResponse.json(
-      { error: `탈퇴 실패: ${delErr.message}` },
-      { status: 500 },
-    );
+    return errorResponse(delErr, "generic", "[me/delete] admin deleteUser", 500, { user_id: user.id });
   }
 
   // 보안 2.5차 F묶음 — 감사 로그 기록 (PIPA §8).

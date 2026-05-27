@@ -21,6 +21,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { fetchPubmedCandidates } from "@/lib/ai/pubmed";
 import { runStep2 } from "@/lib/ai/step2";
 import { rateLimit } from "@/lib/rate-limit";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 카드 N개 * (PubMed ~3s + LLM ~10s) = 카드별 ~15s
@@ -48,11 +49,11 @@ export async function POST(req: Request) {
   let body: { cards?: unknown; retmax?: unknown };
   try {
     body = (await req.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[admin/draft/step2] body parse", 400, undefined, { userMessage: "Invalid JSON body" });
   }
   if (!Array.isArray(body.cards)) {
-    return NextResponse.json({ error: "cards[] required" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[admin/draft/step2] cards[] required", 400, undefined, { userMessage: "cards[] required" });
   }
   const retmax =
     typeof body.retmax === "number" && body.retmax > 0

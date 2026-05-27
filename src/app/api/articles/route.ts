@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   //   회원 모드로 작성한 글이 의사 핸들 슬러그(/bae-jungmin/...)로 노출되는 문제.
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx?.active) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[articles POST] auth required", 401);
   }
   const user = idCtx.user;
   // role은 active identity 기준 (회원 ID로 전환 중이면 'user', 의사 ID면 'doctor')
@@ -54,21 +54,28 @@ export async function POST(req: Request) {
   let rawJson: unknown;
   try {
     rawJson = await req.json();
-  } catch {
-    return NextResponse.json({ error: "잘못된 요청 형식" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[articles POST] body parse", 400, undefined, {
+      userMessage: "잘못된 요청 형식",
+    });
   }
   const parsed = ArticleCreateSchema.safeParse(rawJson);
   if (!parsed.success) {
-    return NextResponse.json(
+    return errorResponse(
+      null,
+      "invalid_input",
+      "[articles POST] zod parse",
+      400,
+      undefined,
       {
-        error: "invalid_input",
-        message: "요청 형식이 올바르지 않습니다.",
-        issues: parsed.error.issues.slice(0, 5).map((iss) => ({
-          path: iss.path.join("."),
-          code: iss.code,
-        })),
+        userMessage: "요청 형식이 올바르지 않습니다.",
+        devOnly: {
+          issues: parsed.error.issues.slice(0, 5).map((iss) => ({
+            path: iss.path.join("."),
+            code: iss.code,
+          })),
+        },
       },
-      { status: 400 },
     );
   }
   const payload = parsed.data;
@@ -76,10 +83,9 @@ export async function POST(req: Request) {
 
   // 권한 검증 — v5.1: Q&A는 원장·관리자만 작성 가능
   if (t === "qa" && role !== "admin" && role !== "doctor") {
-    return NextResponse.json(
-      { error: "Q&A는 원장 또는 관리자만 작성 가능합니다." },
-      { status: 403 },
-    );
+    return errorResponse(null, "forbidden", "[articles POST] qa role denied", 403, undefined, {
+      userMessage: "Q&A는 원장 또는 관리자만 작성 가능합니다.",
+    });
   }
 
   // status 결정 — 클라이언트가 보낸 값 검증
@@ -89,14 +95,15 @@ export async function POST(req: Request) {
     reqStatus !== "pending_review" &&
     reqStatus !== "published"
   ) {
-    return NextResponse.json({ error: "유효하지 않은 status" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[articles POST] invalid status", 400, undefined, {
+      userMessage: "유효하지 않은 status",
+    });
   }
   // pending_review는 admin이 원장 명의로 작성할 때만 의미 있음
   if (reqStatus === "pending_review" && role !== "admin") {
-    return NextResponse.json(
-      { error: "검수 요청 권한이 없습니다." },
-      { status: 403 },
-    );
+    return errorResponse(null, "forbidden", "[articles POST] pending_review denied", 403, undefined, {
+      userMessage: "검수 요청 권한이 없습니다.",
+    });
   }
 
   const keywords = (payload.keywords ?? [])
@@ -110,7 +117,9 @@ export async function POST(req: Request) {
   if (t === "qa") {
     const slug = (payload.doctor_slug ?? "").trim();
     if (!slug) {
-      return NextResponse.json({ error: "원장을 선택해주세요." }, { status: 400 });
+      return errorResponse(null, "invalid_input", "[articles POST] doctor_slug missing", 400, undefined, {
+        userMessage: "원장을 선택해주세요.",
+      });
     }
     const { data: d } = await supabase
       .from("doctors")
@@ -118,7 +127,9 @@ export async function POST(req: Request) {
       .eq("slug", slug)
       .maybeSingle();
     if (!d) {
-      return NextResponse.json({ error: "원장을 찾을 수 없습니다." }, { status: 400 });
+      return errorResponse(null, "invalid_input", "[articles POST] doctor not found", 400, undefined, {
+        userMessage: "원장을 찾을 수 없습니다.",
+      });
     }
     doctorId = d.id;
   }
@@ -164,10 +175,9 @@ export async function POST(req: Request) {
   }
   // user role은 category='qa' 사용 불가 (type=post + category=qa 우회 차단)
   if (category === "qa" && role !== "admin" && role !== "doctor") {
-    return NextResponse.json(
-      { error: "Q&A 카테고리는 원장 또는 관리자만 작성 가능합니다." },
-      { status: 403 },
-    );
+    return errorResponse(null, "forbidden", "[articles POST] qa category denied", 403, undefined, {
+      userMessage: "Q&A 카테고리는 원장 또는 관리자만 작성 가능합니다.",
+    });
   }
 
   // 카테고리 라벨은 카드 헤더(닉네임 밑) + 태그 칩 끝에 자동 표시.
@@ -225,10 +235,9 @@ export async function POST(req: Request) {
       }
     }
     if (!shortcode) {
-      return NextResponse.json(
-        { error: "shortcode 생성 실패 — 잠시 후 다시 시도해주세요." },
-        { status: 500 },
-      );
+      return errorResponse(null, "save_failed", "[articles POST] shortcode gen failed", 500, undefined, {
+        userMessage: "shortcode 생성 실패 — 잠시 후 다시 시도해주세요.",
+      });
     }
   }
 
@@ -251,16 +260,19 @@ export async function POST(req: Request) {
     const title = (payload.title ?? "").trim();
     const body = (payload.body ?? "").trim();
     if (!title) {
-      return NextResponse.json({ error: "제목을 입력해주세요." }, { status: 400 });
+      return errorResponse(null, "invalid_input", "[articles POST] empty title", 400, undefined, {
+        userMessage: "제목을 입력해주세요.",
+      });
     }
     if (!body) {
-      return NextResponse.json({ error: "본문을 입력해주세요." }, { status: 400 });
+      return errorResponse(null, "invalid_input", "[articles POST] empty body", 400, undefined, {
+        userMessage: "본문을 입력해주세요.",
+      });
     }
     if (body.length > 4000) {
-      return NextResponse.json(
-        { error: "본문은 최대 4000자까지 가능합니다." },
-        { status: 400 },
-      );
+      return errorResponse(null, "invalid_input", "[articles POST] body too long", 400, undefined, {
+        userMessage: "본문은 최대 4000자까지 가능합니다.",
+      });
     }
     insert.question = title;
     insert.answer = body;
@@ -271,10 +283,9 @@ export async function POST(req: Request) {
     const q = (payload.question ?? "").trim();
     const a = (payload.answer ?? "").trim();
     if (!q || !a) {
-      return NextResponse.json(
-        { error: "질문과 답변을 모두 입력해주세요." },
-        { status: 400 },
-      );
+      return errorResponse(null, "invalid_input", "[articles POST] qa fields missing", 400, undefined, {
+        userMessage: "질문과 답변을 모두 입력해주세요.",
+      });
     }
     insert.question = q;
     insert.answer = a;

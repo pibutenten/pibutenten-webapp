@@ -3,6 +3,7 @@ import { SITE_URL } from "@/lib/site";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { safeFetchExternal } from "@/lib/ssrf-guard";
 import { rateLimit } from "@/lib/rate-limit";
+import { errorResponse } from "@/lib/error-response";
 
 /**
  * 외부 URL의 Open Graph 메타 추출.
@@ -66,10 +67,11 @@ export async function POST(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json(
-      { ok: false, error: "로그인이 필요합니다" },
-      { status: 401 },
-    );
+    // 호출자(WriteClient) 가 ok 플래그 분기 — bodyExtra 로 `ok: false` 유지.
+    return errorResponse(null, "unauthorized", "[og-extract] auth required", 401, undefined, {
+      userMessage: "로그인이 필요합니다",
+      bodyExtra: { ok: false },
+    });
   }
 
   // Rate limit (A8): 사용자당 분당 30회.
@@ -85,16 +87,19 @@ export async function POST(request: NextRequest) {
   let body: { url?: string };
   try {
     body = (await request.json()) as { url?: string };
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "JSON 파싱 실패" },
-      { status: 400 },
-    );
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[og-extract] body parse", 400, undefined, {
+      userMessage: "JSON 파싱 실패",
+      bodyExtra: { ok: false },
+    });
   }
 
   const raw = (body.url ?? "").trim();
   if (!raw) {
-    return NextResponse.json({ ok: false, error: "URL 필요" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[og-extract] url required", 400, undefined, {
+      userMessage: "URL 필요",
+      bodyExtra: { ok: false },
+    });
   }
 
   // Phase 6-2: SSRF-safe fetch (DNS 해석 + redirect hop 재검증 + size/timeout cap)
@@ -111,9 +116,18 @@ export async function POST(request: NextRequest) {
   });
 
   if (!fetchResult.ok) {
-    return NextResponse.json(
-      { ok: false, error: fetchResult.error },
-      { status: fetchResult.status >= 400 ? 502 : 400 },
+    // fetchResult.error 는 외부 fetch 내부 상세(URL/host/timeout 등) — 사용자에 직접 노출 금지.
+    // 표준 메시지만 노출, 상세는 server log.
+    return errorResponse(
+      new Error(fetchResult.error ?? "external fetch failed"),
+      "network_failed",
+      "[og-extract] safeFetchExternal",
+      fetchResult.status >= 400 ? 502 : 400,
+      { upstream_status: fetchResult.status },
+      {
+        userMessage: "외부 페이지를 가져오지 못했어요.",
+        bodyExtra: { ok: false },
+      },
     );
   }
 

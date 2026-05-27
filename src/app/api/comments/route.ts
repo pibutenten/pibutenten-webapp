@@ -51,11 +51,15 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const cardIdRaw = url.searchParams.get("cardId");
   if (!cardIdRaw) {
-    return NextResponse.json({ error: "cardId is required" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[comments GET] cardId missing", 400, undefined, {
+      userMessage: "cardId 가 필요합니다.",
+    });
   }
   const cardId = parseInt(cardIdRaw, 10);
   if (!Number.isFinite(cardId) || cardId <= 0) {
-    return NextResponse.json({ error: "invalid cardId" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[comments GET] invalid cardId", 400, undefined, {
+      userMessage: "유효하지 않은 cardId 입니다.",
+    });
   }
   const offset = Math.max(0, parseInt(url.searchParams.get("offset") ?? "0", 10) || 0);
   const limitRaw = parseInt(url.searchParams.get("limit") ?? "20", 10) || 20;
@@ -238,13 +242,17 @@ export async function POST(req: Request) {
   let raw: PostBody;
   try {
     raw = (await req.json()) as PostBody;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[comments POST] body parse", 400, undefined, {
+      userMessage: "잘못된 요청 형식",
+    });
   }
 
   const cardId = typeof raw.cardId === "number" ? raw.cardId : parseInt(String(raw.cardId ?? ""), 10);
   if (!Number.isFinite(cardId) || cardId <= 0) {
-    return NextResponse.json({ error: "cardId is required" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[comments POST] cardId missing", 400, undefined, {
+      userMessage: "cardId 가 필요합니다.",
+    });
   }
 
   const parentId =
@@ -254,21 +262,27 @@ export async function POST(req: Request) {
         ? raw.parentId
         : parseInt(String(raw.parentId), 10);
   if (parentId !== null && (!Number.isFinite(parentId) || parentId <= 0)) {
-    return NextResponse.json({ error: "invalid parentId" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[comments POST] invalid parentId", 400, undefined, {
+      userMessage: "유효하지 않은 parentId 입니다.",
+    });
   }
 
   const body = typeof raw.body === "string" ? raw.body.trim() : "";
   if (!body) {
-    return NextResponse.json({ error: "body is required" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[comments POST] empty body", 400, undefined, {
+      userMessage: "댓글 내용을 입력해 주세요.",
+    });
   }
   if (body.length > 2000) {
-    return NextResponse.json({ error: "댓글은 2000자 이내로 작성해주세요." }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[comments POST] body too long", 400, undefined, {
+      userMessage: "댓글은 2000자 이내로 작성해주세요.",
+    });
   }
 
   const supabase = await createSupabaseServerClient();
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx?.active) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[comments POST] auth required", 401);
   }
 
   // Rate limit (A8): 사용자당 분당 10회.

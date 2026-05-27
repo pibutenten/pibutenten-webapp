@@ -84,13 +84,15 @@ export async function PUT(
   const { id: idStr } = await params;
   const cardId = Number.parseInt(idStr, 10);
   if (!Number.isFinite(cardId) || cardId <= 0) {
-    return NextResponse.json({ error: "유효하지 않은 카드 id" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[articles PUT] invalid id", 400, undefined, {
+      userMessage: "유효하지 않은 카드 id",
+    });
   }
 
   const supabase = await createSupabaseServerClient();
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx?.active) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[articles PUT] auth required", 401);
   }
   const user = idCtx.user;
   const role = (idCtx.active.role ?? "user") as "admin" | "doctor" | "user";
@@ -109,21 +111,28 @@ export async function PUT(
   let rawJson: unknown;
   try {
     rawJson = await req.json();
-  } catch {
-    return NextResponse.json({ error: "잘못된 요청 형식" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[articles PUT] body parse", 400, undefined, {
+      userMessage: "잘못된 요청 형식",
+    });
   }
   const parsed = ArticleUpdateSchema.safeParse(rawJson);
   if (!parsed.success) {
-    return NextResponse.json(
+    return errorResponse(
+      null,
+      "invalid_input",
+      "[articles PUT] zod parse",
+      400,
+      undefined,
       {
-        error: "invalid_input",
-        message: "요청 형식이 올바르지 않습니다.",
-        issues: parsed.error.issues.slice(0, 5).map((iss) => ({
-          path: iss.path.join("."),
-          code: iss.code,
-        })),
+        userMessage: "요청 형식이 올바르지 않습니다.",
+        devOnly: {
+          issues: parsed.error.issues.slice(0, 5).map((iss) => ({
+            path: iss.path.join("."),
+            code: iss.code,
+          })),
+        },
       },
-      { status: 400 },
     );
   }
   const payload = parsed.data as Payload;
@@ -138,7 +147,9 @@ export async function PUT(
     return errorResponse(fetchErr, "generic", "[articles PUT] fetch", 500);
   }
   if (!card) {
-    return NextResponse.json({ error: "카드를 찾을 수 없습니다." }, { status: 404 });
+    return errorResponse(null, "not_found", "[articles PUT] card not found", 404, undefined, {
+      userMessage: "카드를 찾을 수 없습니다.",
+    });
   }
 
   // 권한 — ADR 0012 정합. active 명함 단위만 인정.
@@ -153,13 +164,10 @@ export async function PUT(
     !!idCtx.activeDoctorId && card.doctor_id === idCtx.activeDoctorId;
   const canEdit = isAdmin || isAuthor || isDoctorOfQa;
   if (!canEdit) {
-    return NextResponse.json(
-      {
-        error:
-          "본인 글만 편집할 수 있습니다. 다른 명함으로 작성한 글은 그 명함으로 전환 후 편집해주세요.",
-      },
-      { status: 403 },
-    );
+    return errorResponse(null, "forbidden", "[articles PUT] edit denied", 403, undefined, {
+      userMessage:
+        "본인 글만 편집할 수 있습니다. 다른 명함으로 작성한 글은 그 명함으로 전환 후 편집해주세요.",
+    });
   }
 
   // 페이로드 → UPDATE row 구성. undefined 인 필드는 미수정.
@@ -169,18 +177,16 @@ export async function PUT(
   let nextCategory: PostCategorySlug | null = null;
   if (typeof payload.category === "string") {
     if (!isPostCategorySlug(payload.category)) {
-      return NextResponse.json(
-        { error: "유효하지 않은 카테고리" },
-        { status: 400 },
-      );
+      return errorResponse(null, "invalid_input", "[articles PUT] invalid category", 400, undefined, {
+        userMessage: "유효하지 않은 카테고리",
+      });
     }
     const allowed = categoriesForRole(role);
     const ok = allowed.some((c) => c.slug === payload.category);
     if (!ok) {
-      return NextResponse.json(
-        { error: "이 카테고리는 사용 권한이 없습니다." },
-        { status: 403 },
-      );
+      return errorResponse(null, "forbidden", "[articles PUT] category not allowed", 403, undefined, {
+        userMessage: "이 카테고리는 사용 권한이 없습니다.",
+      });
     }
     nextCategory = payload.category as PostCategorySlug;
     update.category = nextCategory;
@@ -190,26 +196,31 @@ export async function PUT(
   if (typeof payload.question === "string") {
     const q = payload.question.trim();
     if (!q) {
-      return NextResponse.json({ error: "제목/질문이 비어있습니다." }, { status: 400 });
+      return errorResponse(null, "invalid_input", "[articles PUT] empty question", 400, undefined, {
+        userMessage: "제목/질문이 비어있습니다.",
+      });
     }
     if (q.length > 200) {
-      return NextResponse.json({ error: "제목은 200자 이내" }, { status: 400 });
+      return errorResponse(null, "invalid_input", "[articles PUT] question too long", 400, undefined, {
+        userMessage: "제목은 200자 이내",
+      });
     }
     update.question = q;
   }
   if (typeof payload.answer === "string") {
     const a = payload.answer.trim();
     if (!a) {
-      return NextResponse.json({ error: "본문/답변이 비어있습니다." }, { status: 400 });
+      return errorResponse(null, "invalid_input", "[articles PUT] empty answer", 400, undefined, {
+        userMessage: "본문/답변이 비어있습니다.",
+      });
     }
     // 2026-05-22: 본문 한도 모든 카테고리 4000자 통일 (link 800자 폐기)
     void nextCategory; // 카테고리 무관
     const bodyMax = 4000;
     if (a.length > bodyMax) {
-      return NextResponse.json(
-        { error: `본문은 최대 ${bodyMax}자까지 가능합니다.` },
-        { status: 400 },
-      );
+      return errorResponse(null, "invalid_input", "[articles PUT] answer too long", 400, undefined, {
+        userMessage: `본문은 최대 ${bodyMax}자까지 가능합니다.`,
+      });
     }
     update.answer = a;
   }
@@ -238,41 +249,39 @@ export async function PUT(
   // admin 전용 필드
   if (payload.status !== undefined) {
     if (!isAdmin) {
-      return NextResponse.json(
-        { error: "status 변경은 admin 만 가능합니다." },
-        { status: 403 },
-      );
+      return errorResponse(null, "forbidden", "[articles PUT] status admin only", 403, undefined, {
+        userMessage: "status 변경은 admin 만 가능합니다.",
+      });
     }
     if (!STATUS_SET.has(payload.status)) {
-      return NextResponse.json({ error: "유효하지 않은 status" }, { status: 400 });
+      return errorResponse(null, "invalid_input", "[articles PUT] invalid status", 400, undefined, {
+        userMessage: "유효하지 않은 status",
+      });
     }
     update.status = payload.status;
   }
   if (payload.is_pick !== undefined) {
     // 2026-05-22 정책: admin 또는 의사 본인 글이면 Pick 가능 (다른 의사 글 X).
     if (!(isAdmin || isDoctorOfQa)) {
-      return NextResponse.json(
-        { error: "is_pick 변경은 관리자 또는 의사 본인 글만 가능합니다." },
-        { status: 403 },
-      );
+      return errorResponse(null, "forbidden", "[articles PUT] is_pick denied", 403, undefined, {
+        userMessage: "is_pick 변경은 관리자 또는 의사 본인 글만 가능합니다.",
+      });
     }
     update.is_pick = !!payload.is_pick;
   }
   if (payload.doctor_id !== undefined) {
     if (!isAdmin) {
-      return NextResponse.json(
-        { error: "doctor 변경은 admin 만 가능합니다." },
-        { status: 403 },
-      );
+      return errorResponse(null, "forbidden", "[articles PUT] doctor_id admin only", 403, undefined, {
+        userMessage: "doctor 변경은 admin 만 가능합니다.",
+      });
     }
     update.doctor_id = payload.doctor_id;
   }
   if (payload.deleted_at !== undefined) {
     if (!isAdmin) {
-      return NextResponse.json(
-        { error: "복구/삭제 상태 변경은 admin 만 가능합니다." },
-        { status: 403 },
-      );
+      return errorResponse(null, "forbidden", "[articles PUT] deleted_at admin only", 403, undefined, {
+        userMessage: "복구/삭제 상태 변경은 admin 만 가능합니다.",
+      });
     }
     update.deleted_at = payload.deleted_at; // null 이면 복구
   }

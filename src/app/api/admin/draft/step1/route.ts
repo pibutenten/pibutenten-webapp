@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { runStep1 } from "@/lib/ai/step1";
 import { rateLimit } from "@/lib/rate-limit";
+import { errorResponse } from "@/lib/error-response";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -38,8 +39,8 @@ export async function POST(req: Request) {
   };
   try {
     body = (await req.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[admin/draft/step1] body parse", 400, undefined, { userMessage: "Invalid JSON body" });
   }
   const transcript = typeof body.transcript === "string" ? body.transcript : "";
   const videoId = typeof body.videoId === "string" ? body.videoId : "";
@@ -62,10 +63,7 @@ export async function POST(req: Request) {
         )
     : undefined;
   if (!transcript || !videoId) {
-    return NextResponse.json(
-      { error: "transcript, videoId required" },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[admin/draft/step1] transcript/videoId required", 400, undefined, { userMessage: "transcript, videoId required" });
   }
   const sourceFile = `${videoId}.ko.vtt`;
 
@@ -87,10 +85,6 @@ export async function POST(req: Request) {
       { headers: { "cache-control": "no-store" } },
     );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json(
-      { error: `Step1 failed: ${msg}` },
-      { status: 502 },
-    );
+    return errorResponse(e, "network_failed", "[admin/draft/step1] LLM call failed", 502);
   }
 }

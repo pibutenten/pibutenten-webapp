@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
   const idCtx = await getIdentityContext(supabase);
   if (!idCtx || !idCtx.active) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[push/subscribe] auth required", 401);
   }
 
   // PR-B E6: 구독 등록 도배 방어. user 당 분당 10회 충분 (정상 사용 1~2회).
@@ -43,8 +43,10 @@ export async function POST(req: Request) {
   let body: PushSubscriptionBody;
   try {
     body = (await req.json()) as PushSubscriptionBody;
-  } catch {
-    return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[push/subscribe] body parse", 400, undefined, {
+      userMessage: "잘못된 요청 형식",
+    });
   }
 
   const endpoint = typeof body.endpoint === "string" ? body.endpoint : null;
@@ -54,10 +56,9 @@ export async function POST(req: Request) {
     body.keys && typeof body.keys.auth === "string" ? body.keys.auth : null;
 
   if (!endpoint || !p256dh || !auth) {
-    return NextResponse.json(
-      { error: "endpoint and keys required" },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[push/subscribe] endpoint/keys missing", 400, undefined, {
+      userMessage: "endpoint and keys required",
+    });
   }
 
   // 활성 신분 한 장에만 명시 저장 (CLAUDE.md 원칙 #1).

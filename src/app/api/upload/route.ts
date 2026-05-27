@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { errorResponse } from "@/lib/error-response";
 import sharp from "sharp";
 
 export const runtime = "nodejs"; // sharp 는 Edge runtime 미지원
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    return errorResponse(null, "unauthorized", "[upload] auth required", 401);
   }
 
   // Rate limit (A8): 사용자당 분당 20회. 이미지 폭주 업로드 방어.
@@ -91,44 +92,50 @@ export async function POST(req: Request) {
   let form: FormData;
   try {
     form = await req.formData();
-  } catch {
-    return NextResponse.json({ error: "잘못된 요청 형식" }, { status: 400 });
+  } catch (e) {
+    return errorResponse(e, "invalid_input", "[upload] formData parse", 400, undefined, {
+      userMessage: "잘못된 요청 형식",
+    });
   }
   const file = form.get("file");
   if (!(file instanceof Blob)) {
-    return NextResponse.json({ error: "파일이 없습니다." }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[upload] no file", 400, undefined, {
+      userMessage: "파일이 없습니다.",
+    });
   }
   if (file.size === 0) {
-    return NextResponse.json({ error: "빈 파일" }, { status: 400 });
+    return errorResponse(null, "invalid_input", "[upload] empty file", 400, undefined, {
+      userMessage: "빈 파일",
+    });
   }
   if (file.size > MAX_SIZE) {
-    return NextResponse.json(
-      { error: `파일 크기 한도(${MAX_SIZE / 1024 / 1024}MB) 초과` },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[upload] size limit", 400, undefined, {
+      userMessage: `파일 크기 한도(${MAX_SIZE / 1024 / 1024}MB) 초과`,
+    });
   }
   const mime = file.type || "application/octet-stream";
   if (!ALLOWED.includes(mime)) {
-    return NextResponse.json(
-      { error: "지원되지 않는 파일 형식 (jpeg/png/webp/gif만 가능)" },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[upload] mime not allowed", 400, undefined, {
+      userMessage: "지원되지 않는 파일 형식 (jpeg/png/webp/gif만 가능)",
+    });
   }
 
   const rawBuf = Buffer.from(await file.arrayBuffer());
 
   // 매직바이트 검증 (2026-05-16) — 클라가 MIME만 위장해서 SVG 등 위험 파일을 jpg로 신고하는 케이스 차단
   if (!matchesMagicBytes(rawBuf, mime)) {
-    return NextResponse.json(
-      { error: "파일 내용이 선언한 형식과 일치하지 않습니다." },
-      { status: 400 },
-    );
+    return errorResponse(null, "invalid_input", "[upload] magic byte mismatch", 400, undefined, {
+      userMessage: "파일 내용이 선언한 형식과 일치하지 않습니다.",
+    });
   }
 
   // Phase 6-6: sharp 로 EXIF 메타데이터 제거 + 재인코딩 (gif 는 제외)
+  // processed.error 에는 sharp 내부 에러 메시지가 들어있을 수 있어 사용자에게 직접 노출 금지.
   const processed = await processImage(rawBuf, mime);
   if (!processed.ok) {
-    return NextResponse.json({ error: processed.error }, { status: 400 });
+    return errorResponse(processed.error, "invalid_input", "[upload] processImage", 400, undefined, {
+      userMessage: "이미지 처리에 실패했어요. 다른 파일을 시도해 주세요.",
+    });
   }
   const outBuf = processed.out;
   const outMime = processed.mime;
@@ -145,10 +152,7 @@ export async function POST(req: Request) {
       upsert: false,
     });
   if (upErr) {
-    return NextResponse.json(
-      { error: `업로드 실패: ${upErr.message}` },
-      { status: 500 },
-    );
+    return errorResponse(upErr, "save_failed", "[upload] storage upload", 500);
   }
 
   const { data: pub } = supabase.storage.from("articles").getPublicUrl(path);
