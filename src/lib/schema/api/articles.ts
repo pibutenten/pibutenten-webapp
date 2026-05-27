@@ -103,11 +103,10 @@ export const ArticleCreateSchema = z
     type: z.enum(["post", "qa"]),
     category: z.string().max(20).optional(),
     status: z.enum(["draft", "pending_review", "published"]).optional(),
+    // P2-4 (2026-05-27): 옛 question/answer 필드 폐기, title/body 만 사용.
     title: z.string().max(500).optional(),
     body: z.string().max(30_000).optional(),
     doctor_slug: z.string().max(120).optional(),
-    question: z.string().max(500).optional(),
-    answer: z.string().max(30_000).optional(),
     keywords: z.array(z.string().min(1).max(50)).max(8).optional(),
     external_url: z.string().url().max(2048).optional(),
     external_meta: ExternalMetaSchema.optional(),
@@ -126,8 +125,9 @@ export type ArticleCreatePayload = z.infer<typeof ArticleCreateSchema>;
  */
 export const ArticleUpdateSchema = z
   .object({
-    question: z.string().max(500).optional(),
-    answer: z.string().max(30_000).optional(),
+    // P2-4 (2026-05-27): 옛 question/answer → title/body 리네임.
+    title: z.string().max(500).optional(),
+    body: z.string().max(30_000).optional(),
     keywords: z.array(z.string().min(1).max(50)).max(10).optional(),
     category: z.string().max(20).optional(),
     external_url: z.string().url().max(2048).nullable().optional(),

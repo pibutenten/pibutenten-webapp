@@ -15,8 +15,8 @@ type Props = {
 
 type QaRow = {
   id: number;
-  question: string;
-  answer: string;
+  title: string;
+  body: string;
   keywords: string[] | null;
   type: "qa" | "post";
   status: string;
@@ -71,7 +71,7 @@ export default async function PostEditPage({ params }: Props) {
   const { data: qa } = await supabase
     .from("cards")
     .select(
-      `id, question, answer, keywords, type, status, category, author_id, doctor_id, shortcode,
+      `id, title, body, keywords, type, status, category, author_id, doctor_id, shortcode,
        external_url, external_title, external_description, external_image, external_site_name,
        pubmed_refs,
        author:profiles!cards_author_id_profiles_fkey(handle)`,
@@ -106,7 +106,7 @@ export default async function PostEditPage({ params }: Props) {
     const { data: fullRaw } = await supabase
       .from("cards")
       .select(
-        `id, question, answer, meta, keywords, status, type, category, is_pick,
+        `id, title, body, meta, keywords, status, type, category, is_pick,
          doctor_id, author_id, video_id, like_count, view_count, created_at,
          external_url, external_title, external_image, external_site_name,
          pubmed_refs,
@@ -157,8 +157,8 @@ export default async function PostEditPage({ params }: Props) {
         type={qa.type}
         category={qa.category}
         viewerRole={(idCtx.active.role ?? "user") as "admin" | "doctor" | "user"}
-        initialTitle={qa.question}
-        initialBody={qa.answer}
+        initialTitle={qa.title}
+        initialBody={qa.body}
         initialKeywords={qa.keywords ?? []}
         initialExternalUrl={qa.external_url ?? ""}
         initialExternalMeta={

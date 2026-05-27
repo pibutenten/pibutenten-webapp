@@ -68,8 +68,9 @@ export default function EditClient({
     payload: CardEditorPayload,
   ): Promise<{ ok: true; cardId: number } | { ok: false; error: string }> {
     const apiPayload: Record<string, unknown> = {
-      question: payload.title,
-      answer: payload.body,
+      // P2-4 (2026-05-27): API 계약 title/body 통일.
+      title: payload.title,
+      body: payload.body,
       keywords: payload.keywords,
     };
     if (payload.category && payload.category !== initialCard.category) {

@@ -250,8 +250,8 @@ export default function Card({
   })();
 
   // 본문 길이 — 짧으면 "더보기" 토글 비표시 (250자 미만 또는 줄바꿈 5줄 미만)
-  const answerLines = (card.answer ?? "").split("\n").length;
-  const isLongAnswer = (card.answer?.length ?? 0) > 250 || answerLines >= 6;
+  const answerLines = (card.body ?? "").split("\n").length;
+  const isLongAnswer = (card.body?.length ?? 0) > 250 || answerLines >= 6;
 
   return (
     <article

@@ -275,21 +275,22 @@ export async function POST(req: Request) {
         userMessage: "본문은 최대 4000자까지 가능합니다.",
       });
     }
-    insert.question = title;
-    insert.answer = body;
+    insert.title = title;
+    insert.body = body;
     insert.status = reqStatus;
     // doctor_id — active identity가 의사 매핑된 row일 때만 doctor 페이지에 노출
     insert.doctor_id = doctorId;
   } else if (t === "qa") {
-    const q = (payload.question ?? "").trim();
-    const a = (payload.answer ?? "").trim();
+    // P2-4 (2026-05-27): API 입력 키 question/answer → title/body 통일.
+    const q = (payload.title ?? "").trim();
+    const a = (payload.body ?? "").trim();
     if (!q || !a) {
       return errorResponse(null, "invalid_input", "[articles POST] qa fields missing", 400, undefined, {
         userMessage: "질문과 답변을 모두 입력해주세요.",
       });
     }
-    insert.question = q;
-    insert.answer = a;
+    insert.title = q;
+    insert.body = a;
     // 클라이언트가 보낸 status 존중 (draft/pending_review/published).
     // 이전 버그: status를 항상 pending_review로 강제 덮어써서 "저장"(draft) 버튼이 검수 큐로 직행함.
     insert.status = reqStatus;
@@ -307,10 +308,8 @@ export async function POST(req: Request) {
   // status 강제 pending_review + screening_flags 저장 → admin 검토 큐로.
   if (role === ROLES.USER) {
     const verdict = screenContent({
-      title: insert.question as string | null,
-      body: insert.answer as string | null,
-      question: insert.question as string | null,
-      answer: insert.answer as string | null,
+      title: insert.title as string | null,
+      body: insert.body as string | null,
       keywords,
       externalUrl: (insert.external_url as string | null) ?? null,
       authorRole: "user",

@@ -42,8 +42,9 @@ export type Step2Result = {
 };
 
 function buildUserMessage(opts: {
-  question: string;
-  answer: string;
+  // P2-4 (2026-05-27): AI 파이프라인도 title/body 통일.
+  title: string;
+  body: string;
   pubmedKeywords: string[];
   candidates: PubmedCandidate[];
 }): string {
@@ -60,9 +61,9 @@ function buildUserMessage(opts: {
   }));
   return `다음 카드와 PubMed 후보들을 보고 best reference 1개를 선택해주세요.
 
-[Q&A 카드]
-question: ${opts.question}
-answer: ${opts.answer}
+[카드]
+title: ${opts.title}
+body: ${opts.body}
 pubmed_search_keywords: ${opts.pubmedKeywords.join(", ")}
 
 [후보 (${lite.length}개)]
@@ -101,8 +102,9 @@ function normalize(parsed: unknown): Step2Result {
 }
 
 export async function runStep2(opts: {
-  question: string;
-  answer: string;
+  // P2-4 (2026-05-27): AI 파이프라인도 title/body 통일.
+  title: string;
+  body: string;
   pubmedKeywords: string[];
   candidates: PubmedCandidate[];
 }): Promise<Step2Result> {

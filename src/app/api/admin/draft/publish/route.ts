@@ -7,7 +7,7 @@
  *   videoId: string,
  *   videoTitle: string,
  *   cards: [{
- *     question, answer, keywords[], category,
+ *     title, body, keywords[], category,
  *     doctorSlug,              // 카드별 화자
  *     externalUrl,             // 시작 시각 포함
  *     externalTitle,
@@ -41,8 +41,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 type CardIn = {
-  question: string;
-  answer: string;
+  // P2-4 (2026-05-27): AI 파이프라인도 title/body 통일.
+  title: string;
+  body: string;
   keywords: string[];
   category?: string | null;
   doctorSlug: string;
@@ -140,11 +141,11 @@ export async function POST(req: Request) {
 
   // Dedup 검사 — 같은 video_id 에 이미 발행된 카드 있는지 (260518, soft-delete 도입과 함께).
   // 같은 영상 두 번째 분석·publish 시 중복 카드 생성 차단 (김종식 원장 케이스 회귀 방지).
-  // 매칭 기준: 동일 video_id + (start_seconds 동일 OR 정규화된 question prefix 20자 일치).
+  // 매칭 기준: 동일 video_id + (start_seconds 동일 OR 정규화된 title prefix 20자 일치).
   // 매칭된 후보 카드는 자동 skip 하고 응답에 skipped 목록 반환.
   const { data: existingCards } = await supabase
     .from("cards")
-    .select("id, question, meta")
+    .select("id, title, meta")
     .eq("video_id", videoRowId)
     .is("deleted_at", null);
 
@@ -161,7 +162,7 @@ export async function POST(req: Request) {
       typeof row.meta === "string" ? JSON.parse(row.meta || "{}") : row.meta;
     const startSec =
       meta?.timestamp?.start_seconds ?? meta?.timestamp?.startSeconds ?? null;
-    const qNorm = normalizeQ(row.question as string);
+    const qNorm = normalizeQ(row.title as string);
     if (startSec !== null) {
       existingFingerprints.add(`${startSec}:${qNorm.slice(0, 12)}`);
     }
@@ -174,13 +175,13 @@ export async function POST(req: Request) {
 
   // 카드별 row 생성
   const rows: Record<string, unknown>[] = [];
-  const skippedDuplicates: Array<{ idx: number; question: string; reason: string }> = [];
+  const skippedDuplicates: Array<{ idx: number; title: string; reason: string }> = [];
   for (let i = 0; i < cards.length; i++) {
     const c = cards[i];
-    const q = (c.question ?? "").trim();
-    const a = (c.answer ?? "").trim();
+    const q = (c.title ?? "").trim();
+    const a = (c.body ?? "").trim();
     if (!q || !a) {
-      return errorResponse(null, "invalid_input", `[admin/draft/publish] card #${i + 1} empty q/a`, 400, undefined, { userMessage: `card #${i + 1}: question/answer 비어있음` });
+      return errorResponse(null, "invalid_input", `[admin/draft/publish] card #${i + 1} empty title/body`, 400, undefined, { userMessage: `card #${i + 1}: 제목/본문 비어있음` });
     }
     const doctorId = slugToId.get(c.doctorSlug);
     if (!doctorId) {
@@ -195,16 +196,16 @@ export async function POST(req: Request) {
     if (existingFingerprints.has(fp)) {
       skippedDuplicates.push({
         idx: i,
-        question: q,
-        reason: `같은 영상의 ${startSec}s 에 동일 question 존재`,
+        title: q,
+        reason: `같은 영상의 ${startSec}s 에 동일 title 존재`,
       });
       continue;
     }
     if (prefix20.length >= 15 && existingPrefixes.has(prefix20)) {
       skippedDuplicates.push({
         idx: i,
-        question: q,
-        reason: `같은 영상에 거의 동일한 question prefix 존재`,
+        title: q,
+        reason: `같은 영상에 거의 동일한 title prefix 존재`,
       });
       continue;
     }
@@ -240,8 +241,8 @@ export async function POST(req: Request) {
       category: "qa",
       status,
       is_pick: false,
-      question: q,
-      answer: a,
+      title: q,
+      body: a,
       keywords: normalizeTags(c.keywords ?? []),
       post_year: postYear,
       post_slug: postSlug,

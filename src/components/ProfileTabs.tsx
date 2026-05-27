@@ -67,7 +67,7 @@ type CommentRow = {
   card_id: number;
   card: {
     id: number;
-    question: string;
+    title: string;
     type: string | null;
     post_year: number | null;
     post_slug: string | null;
@@ -177,7 +177,7 @@ export default function ProfileTabs({
       const { data: cardRows, error: cardErr } = await sb
         .from("cards")
         .select(
-          `id, question, answer, meta, keywords, like_count, view_count, save_count,
+          `id, title, body, meta, keywords, like_count, view_count, save_count,
            type, post_year, post_slug, shortcode, category, hide_doctor_credential, created_at,
            external_url, external_title, external_description, external_image, external_site_name,
            doctor:doctors(slug, name, branch),
@@ -212,7 +212,7 @@ export default function ProfileTabs({
         .from("comments")
         .select(
           `id, body, created_at, card_id,
-           card:cards(id, question, type, post_year, post_slug, shortcode,
+           card:cards(id, title, type, post_year, post_slug, shortcode,
                   doctor:doctors(slug),
                   author:profiles!cards_author_id_profiles_fkey(handle))`,
         )
@@ -304,7 +304,7 @@ export default function ProfileTabs({
                 >
                   {c.card && (
                     <p className="mb-1.5 truncate text-[13px] font-semibold text-[var(--text)]">
-                      {c.card.question}
+                      {c.card.title}
                     </p>
                   )}
                   <div className="flex items-start gap-1.5 text-[13.5px] text-[var(--text-secondary)]">

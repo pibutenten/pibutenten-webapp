@@ -32,8 +32,9 @@ type AnalyzeResp = {
 };
 
 type Step1Card = {
-  question: string;
-  answer: string;
+  // P2-4 (2026-05-27): AI 파이프라인도 title/body 통일.
+  title: string;
+  body: string;
   keywords: string[];
   category?: string;
   source: {
@@ -77,8 +78,8 @@ type EditableCard = {
   scriptEvidence?: string;
   pubmedSearchKeywords: string[];
 
-  question: string;
-  answer: string;
+  title: string;
+  body: string;
   keywords: string[];
   category: string;
   doctorSlug: string;
@@ -284,8 +285,8 @@ export default function DraftClient() {
           source: d.source,
           scriptEvidence: d.script_evidence,
           pubmedSearchKeywords: d.pubmed_search_keywords ?? [],
-          question: d.question,
-          answer: d.answer,
+          title: d.title,
+          body: d.body,
           keywords: d.keywords ?? [],
           category: d.category ?? "",
           doctorSlug,
@@ -312,8 +313,8 @@ export default function DraftClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cards: cards.map((c) => ({
-            question: c.question,
-            answer: c.answer,
+            title: c.title,
+            body: c.body,
             pubmed_search_keywords: c.pubmedSearchKeywords,
           })),
           retmax: 8,
@@ -392,8 +393,8 @@ export default function DraftClient() {
         videoId: analyze.videoId,
         videoTitle: analyze.title ?? "",
         cards: cards.map((c) => ({
-          question: c.question,
-          answer: c.answer,
+          title: c.title,
+          body: c.body,
           keywords: c.keywords,
           category: c.category || null,
           doctorSlug: c.doctorSlug,
@@ -895,28 +896,28 @@ function CardEditor({
 
       <div>
         <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-          질문
+          제목
         </label>
         <input
           type="text"
-          value={card.question}
-          onChange={(e) => onChange({ question: e.target.value })}
+          value={card.title}
+          onChange={(e) => onChange({ title: e.target.value })}
           className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-base font-bold focus:border-[var(--primary)]"
         />
       </div>
 
       <div>
         <label className="mb-1 block text-xs text-[var(--text-secondary)]">
-          답변{" "}
+          본문{" "}
           <span className="text-[10px] text-[var(--text-muted)]">
-            ({card.answer.length}자, 목표 400~600자)
+            ({card.body.length}자, 목표 400~600자)
           </span>
         </label>
         <MarkdownBoldEditor
-          value={card.answer}
-          onChange={(md) => onChange({ answer: md })}
+          value={card.body}
+          onChange={(md) => onChange({ body: md })}
           highlightColor={highlightColor}
-          placeholder="답변 본문 (텍스트 선택 후 Ctrl+B 누르면 형광펜이 적용됩니다)"
+          placeholder="본문 (텍스트 선택 후 Ctrl+B 누르면 형광펜이 적용됩니다)"
           minHeight={280}
         />
       </div>

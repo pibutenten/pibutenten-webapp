@@ -34,8 +34,8 @@ type AdminQARow = {
   type: QAType;
   category: string | null;
   is_pick: boolean | null;
-  question: string;
-  answer: string | null;
+  title: string;
+  body: string | null;
   like_count: number | null;
   view_count: number | null;
   share_count: number | null;
@@ -214,7 +214,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     if (qParam) {
       const escaped = qParam.replace(/[%_]/g, "\\$&");
       const pattern = `%${escaped}%`;
-      qb = qb.or(`question.ilike.${pattern},answer.ilike.${pattern}`);
+      qb = qb.or(`title.ilike.${pattern},body.ilike.${pattern}`);
     }
     const { count } = await qb;
     return count ?? 0;
@@ -243,7 +243,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   let listQuery = supabase
     .from("cards")
     .select(
-      `id, status, type, category, is_pick, question, answer, like_count, view_count, share_count, created_at, deleted_at,
+      `id, status, type, category, is_pick, title, body, like_count, view_count, share_count, created_at, deleted_at,
        comments_count:comments(count),
        doctor:doctors(slug, name, branch),
        author:profiles!cards_author_id_profiles_fkey(display_name, handle)`,
@@ -266,7 +266,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     const escaped = qParam.replace(/[%_]/g, "\\$&");
     const pattern = `%${escaped}%`;
     listQuery = listQuery.or(
-      `question.ilike.${pattern},answer.ilike.${pattern}`,
+      `title.ilike.${pattern},body.ilike.${pattern}`,
     );
   }
 
@@ -636,9 +636,9 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                         <Link
                           href={`/admin/cards/${r.id}/edit`}
                           className="block hover:text-[var(--primary)] hover:underline"
-                          title={r.question}
+                          title={r.title}
                         >
-                          {truncate(r.question ?? "", 50)}
+                          {truncate(r.title ?? "", 50)}
                         </Link>
                       </td>
                       <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">

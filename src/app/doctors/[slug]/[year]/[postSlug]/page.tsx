@@ -62,15 +62,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const card = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
   if (!card) return { title: "피부텐텐", robots: { index: false } };
   const docName = card.doctor?.name ? `${card.doctor.name} 원장님` : "피부텐텐";
-  const desc = stripMarkdown(card.answer).slice(0, 110);
+  const desc = stripMarkdown(card.body).slice(0, 110);
   const ogUrl = card.doctor?.slug ? `/og/${card.doctor.slug}.png` : `/og.png`;
   const canonical = `${SITE}/doctors/${slug}/${year}/${encodeURIComponent(postSlug)}`;
   return {
-    title: card.question,
+    title: card.title,
     description: desc,
     alternates: { canonical },
     openGraph: {
-      title: card.question,
+      title: card.title,
       // description 은 답변 본문만 — title 영역에 이미 질문이 표시되고 원장 이름은
       // OG 이미지(profile photo + 직함 배지)에 노출되므로 prefix 중복 제거.
       // (이전 "정한미 원장님 — 답..." → 답변만 표시, 260518)
@@ -81,7 +81,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: card.question,
+      title: card.title,
       description: desc,
       images: [ogUrl],
     },
@@ -98,7 +98,7 @@ function buildJsonLd(
   const created = card.created_at ?? new Date().toISOString();
   const modified = card.updated_at ?? created;
   const docName = card.doctor?.name ?? "";
-  const answerText = stripMarkdown(card.answer);
+  const answerText = stripMarkdown(card.body);
 
   const breadcrumb = {
     "@type": "BreadcrumbList",
@@ -116,7 +116,7 @@ function buildJsonLd(
         name: `${year}년`,
         item: `${SITE}/doctors/${doctorSlug}/${year}`,
       },
-      { "@type": "ListItem", position: 4, name: card.question },
+      { "@type": "ListItem", position: 4, name: card.title },
     ],
   };
 
@@ -130,7 +130,7 @@ function buildJsonLd(
     "@type": ["MedicalWebPage", "QAPage"],
     "@id": `${url}#webpage`,
     url,
-    name: card.question,
+    name: card.title,
     inLanguage: "ko-KR",
     datePublished: created,
     dateModified: modified, // cards.updated_at 활용 (AI freshness)
@@ -156,8 +156,8 @@ function buildJsonLd(
     },
     mainEntity: {
       "@type": "Question",
-      name: card.question,
-      text: card.question,
+      name: card.title,
+      text: card.title,
       // 페이지와 Question entity를 cross-reference로 강하게 연결 — Google이 1:1 매핑으로 인식.
       mainEntityOfPage: { "@id": `${url}#webpage` },
       answerCount: 1,
@@ -229,7 +229,7 @@ function buildJsonLd(
   if (videoId) {
     const videoName = v?.topic
       ? `${v.topic} — 영상에서 자세히 보기`
-      : card.question;
+      : card.title;
     medicalPage.video = {
       "@type": "VideoObject",
       name: videoName,

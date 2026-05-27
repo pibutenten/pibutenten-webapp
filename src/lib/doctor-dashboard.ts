@@ -30,7 +30,7 @@ export type DoctorDashboardData = {
   // 검수 대기 카드 첫 5건
   pendingPreview: Array<{
     id: number;
-    question: string | null;
+    title: string | null;
     shortcode: string | null;
     created_at: string;
   }>;
@@ -98,7 +98,7 @@ export async function getDoctorDashboardData(
   if (pendingIds.length > 0) {
     const { data: pp } = await supabase
       .from("cards")
-      .select("id, question, shortcode, created_at")
+      .select("id, title, shortcode, created_at")
       .in("id", pendingIds)
       .order("created_at", { ascending: false })
       .limit(5)

@@ -145,16 +145,11 @@ export default function WriteClient({
       apiPayload.doctor_slug = payload.doctorSlug;
     }
 
-    // type 별로 필드명 다름
-    if (isQa) {
-      apiPayload.question = payload.title;
-      apiPayload.answer = payload.body;
-      if (payload.pubmedRefs.length > 0) {
-        apiPayload.pubmed_refs = payload.pubmedRefs;
-      }
-    } else {
-      apiPayload.title = payload.title;
-      apiPayload.body = payload.body;
+    // P2-4 (2026-05-27): API 계약 title/body 통일 — type 분기 폐기.
+    apiPayload.title = payload.title;
+    apiPayload.body = payload.body;
+    if (isQa && payload.pubmedRefs.length > 0) {
+      apiPayload.pubmed_refs = payload.pubmedRefs;
     }
 
     try {

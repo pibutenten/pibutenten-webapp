@@ -39,7 +39,7 @@ export default async function AdminEditQAPage({ params }: Props) {
   const { data: qaRaw } = await supabase
     .from("cards")
     .select(
-      `id, question, answer, meta, keywords, status, type, category, is_pick,
+      `id, title, body, meta, keywords, status, type, category, is_pick,
        doctor_id, author_id, video_id, like_count, view_count, created_at,
        external_url, external_title, external_image, external_site_name,
        pubmed_refs,

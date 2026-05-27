@@ -31,8 +31,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 카드 N개 * (PubMed ~3s + LLM ~10s) = 카드별 ~15s
 
 type CardIn = {
-  question: string;
-  answer: string;
+  // P2-4 (2026-05-27): AI 파이프라인도 title/body 통일.
+  title: string;
+  body: string;
   pubmed_search_keywords: string[];
 };
 
@@ -104,8 +105,8 @@ export async function POST(req: Request) {
     try {
       candidates = await fetchPubmedCandidates(kws, retmax);
       step2 = await runStep2({
-        question: c.question,
-        answer: c.answer,
+        title: c.title,
+        body: c.body,
         pubmedKeywords: kws,
         candidates,
       });
@@ -116,8 +117,8 @@ export async function POST(req: Request) {
       if (!step2.reference && retmax === 8 && candidates.length < 20) {
         candidates = await fetchPubmedCandidates(kws, 20);
         step2 = await runStep2({
-          question: c.question,
-          answer: c.answer,
+          title: c.title,
+          body: c.body,
           pubmedKeywords: kws,
           candidates,
         });
@@ -128,7 +129,7 @@ export async function POST(req: Request) {
     } catch (e) {
       // 한 카드 실패는 격리 — 다음 카드 계속 처리.
       console.warn(
-        `[step2] card failed q="${c.question?.slice(0, 40) ?? ""}" err=`,
+        `[step2] card failed title="${c.title?.slice(0, 40) ?? ""}" err=`,
         e,
       );
       step2 = {

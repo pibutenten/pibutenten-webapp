@@ -55,7 +55,7 @@ export default function CardBody({
       href={getQaUrl(card)}
       className="text-[var(--text)] hover:text-[var(--primary)] hover:underline"
     >
-      {highlight(card.question, activeQuery)}
+      {highlight(card.title, activeQuery)}
     </Link>
   );
 
@@ -84,7 +84,7 @@ export default function CardBody({
         className={isLongAnswer && !forceExpanded ? "cursor-pointer" : ""}
       >
         {renderAnswerBody(
-          card.answer,
+          card.body,
           activeQuery,
           isLongAnswer && !expanded,
           highlightColor,

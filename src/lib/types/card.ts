@@ -16,8 +16,10 @@ export type PubmedRef = PubmedRefObj;
 
 export type CardData = {
   id: number;
-  question: string;
-  answer: string;
+  /** P2-4 (2026-05-27): 옛 `question` 컬럼 → 범용 `title` 로 리네임. */
+  title: string;
+  /** P2-4 (2026-05-27): 옛 `answer` 컬럼 → 범용 `body` 로 리네임. */
+  body: string;
   meta: string | null;
   keywords: string[];
   like_count: number;

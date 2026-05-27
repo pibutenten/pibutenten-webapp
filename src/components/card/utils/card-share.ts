@@ -15,7 +15,7 @@ export async function shareCard(
   // v4 canonical URL — getQaUrl이 의사(slug)·회원(handle+shortcode)·fallback 결정
   const path = getQaUrl(card);
   const url = `${window.location.origin}${path}`;
-  const title = card.question;
+  const title = card.title;
   // 공유 문구: title 에 이미 질문이 들어가므로 text 는 출처/저자만.
   // (이전 버그: text 에도 질문을 또 넣어 카톡이 "Q - 원장님 | Q https://..." 로
   //  Q 가 두 번 노출됨, 260518 fix)

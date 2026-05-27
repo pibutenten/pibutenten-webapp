@@ -43,8 +43,8 @@
 {
   "drafts": [
     {
-      "question": "string",
-      "answer": "string (markdown: **bold**, paragraph breaks \\n\\n만 허용)",
+      "title": "string",
+      "body": "string (markdown: **bold**, paragraph breaks \\n\\n만 허용)",
       "keywords": ["string", ...],
       "category": "string (9 카테고리 중 하나 또는 'mechanism')",
       "source": {
@@ -137,7 +137,7 @@ https://youtu.be/{video_id}
 
 3단계 룰을 충족 못하면 위 범위 안에서 감소 OK.
 
-### 질문(question)
+### 제목(title)
 
 - 일반인이 검색창에 칠 법한 자연스러운 한국어 1~2문장 (15~35자)
 - 시술명·성분명·부위·고민 단어 자연스럽게 포함
@@ -145,7 +145,7 @@ https://youtu.be/{video_id}
 - 4개 카드 안에서 의문문 패턴 다양화
 - 메커니즘 카드는 "원리는?" 보다 **"어떻게 효과가 나타나나요?"** 같은 응용 표현으로
 
-### 답안(answer)
+### 본문(body)
 
 **분량**: **400~600자**, **8~10문장**.
 

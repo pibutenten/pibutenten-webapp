@@ -42,8 +42,9 @@ export const dynamic = "force-dynamic";
 type Status = "draft" | "pending_review" | "published" | "archived";
 
 type Payload = {
-  question?: string;
-  answer?: string;
+  // P2-4 (2026-05-27): API 입력 키 title/body 통일.
+  title?: string;
+  body?: string;
   keywords?: string[];
   category?: string;
   // type 은 클라이언트가 보내도 무시 — category 에서 파생.
@@ -183,36 +184,36 @@ export async function PUT(
     update.type = nextCategory === "qa" ? "qa" : "post";
   }
 
-  if (typeof payload.question === "string") {
-    const q = payload.question.trim();
+  if (typeof payload.title === "string") {
+    const q = payload.title.trim();
     if (!q) {
-      return errorResponse(null, "invalid_input", "[articles PUT] empty question", 400, undefined, {
-        userMessage: "제목/질문이 비어있습니다.",
+      return errorResponse(null, "invalid_input", "[articles PUT] empty title", 400, undefined, {
+        userMessage: "제목이 비어있습니다.",
       });
     }
     if (q.length > 200) {
-      return errorResponse(null, "invalid_input", "[articles PUT] question too long", 400, undefined, {
+      return errorResponse(null, "invalid_input", "[articles PUT] title too long", 400, undefined, {
         userMessage: "제목은 200자 이내",
       });
     }
-    update.question = q;
+    update.title = q;
   }
-  if (typeof payload.answer === "string") {
-    const a = payload.answer.trim();
+  if (typeof payload.body === "string") {
+    const a = payload.body.trim();
     if (!a) {
-      return errorResponse(null, "invalid_input", "[articles PUT] empty answer", 400, undefined, {
-        userMessage: "본문/답변이 비어있습니다.",
+      return errorResponse(null, "invalid_input", "[articles PUT] empty body", 400, undefined, {
+        userMessage: "본문이 비어있습니다.",
       });
     }
     // 2026-05-22: 본문 한도 모든 카테고리 4000자 통일 (link 800자 폐기)
     void nextCategory; // 카테고리 무관
     const bodyMax = 4000;
     if (a.length > bodyMax) {
-      return errorResponse(null, "invalid_input", "[articles PUT] answer too long", 400, undefined, {
+      return errorResponse(null, "invalid_input", "[articles PUT] body too long", 400, undefined, {
         userMessage: `본문은 최대 ${bodyMax}자까지 가능합니다.`,
       });
     }
-    update.answer = a;
+    update.body = a;
   }
 
   if (Array.isArray(payload.keywords)) {
@@ -285,12 +286,10 @@ export async function PUT(
   // 보안 2.5차 E묶음 (2026-05-19): 본문 수정 시 자동 검수기 재실행.
   // 의사·관리자는 자동 통과. 회원이 본문 수정 시 의심 패턴 잡히면 status 강제 변경.
   // admin 이 명시적으로 status 지정한 경우엔 그것을 존중 (덮어쓰지 않음).
-  if (role === ROLES.USER && (update.question || update.answer)) {
+  if (role === ROLES.USER && (update.title || update.body)) {
     const verdict = screenContent({
-      title: (update.question as string | null) ?? null,
-      body: (update.answer as string | null) ?? null,
-      question: (update.question as string | null) ?? null,
-      answer: (update.answer as string | null) ?? null,
+      title: (update.title as string | null) ?? null,
+      body: (update.body as string | null) ?? null,
       keywords: (update.keywords as string[] | null) ?? null,
       externalUrl: (update.external_url as string | null) ?? null,
       authorRole: "user",

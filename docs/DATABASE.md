@@ -54,7 +54,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | `status` | enum: `draft` / `pending_review` / `published` / `hidden` / `archived` (hidden 추가 0152) |
 | `author_id` | uuid → profiles(id) |
 | `doctor_id` | uuid → doctors(id) NULLABLE |
-| `question`, `answer`, `meta` | text |
+| `title`, `body`, `meta` | text — P2-4 (2026-05-27) 옛 question/answer 리네임 |
 | `keywords` | text[] (6~8개) |
 | `like_count`, `view_count`, `share_count`, `comment_count`, `save_count` | int |
 | `post_year` | int — 발행 연도 (SEO URL) |
@@ -68,6 +68,10 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | `screening_flags` | text[] — 자동 검수 플래그 (의료법/약사법/환자후기) |
 | `deleted_at` | timestamptz — soft-delete (0132). ADR 0002 |
 | `created_at`, `updated_at` | timestamptz |
+
+**리네임된 컬럼**:
+- `question` → `title` (0171, P2-4 2026-05-27) — cards 가 Q&A 외 범용 글도 담음.
+- `answer` → `body` (0171, P2-4 2026-05-27) — 위와 동일 이유.
 
 **폐기된 컬럼**:
 - `published` — 0104 drop (status 단일 SSOT)

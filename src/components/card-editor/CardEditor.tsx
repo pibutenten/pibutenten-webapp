@@ -452,7 +452,7 @@ export default function CardEditor({
       const res = await fetch("/api/admin/extract-keywords", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: title, answer: body }),
+        body: JSON.stringify({ title, body }),
       });
       const data = await res.json();
       if (!res.ok) {

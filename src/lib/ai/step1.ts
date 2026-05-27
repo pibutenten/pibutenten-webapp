@@ -17,8 +17,9 @@ const MODEL = MODEL_ID;
 const MAX_TOKENS = 8192;
 
 export type DraftCard = {
-  question: string;
-  answer: string;
+  // P2-4 (2026-05-27): AI 파이프라인도 title/body 통일 (옛 question/answer 폐기).
+  title: string;
+  body: string;
   keywords: string[];
   category?: string;
   source: {
@@ -107,9 +108,9 @@ function normalize(parsed: unknown): DraftCard[] {
   for (const item of root.drafts) {
     if (!item || typeof item !== "object") continue;
     const obj = item as Record<string, unknown>;
-    const question = typeof obj.question === "string" ? obj.question.trim() : "";
-    const answer = typeof obj.answer === "string" ? obj.answer.trim() : "";
-    if (!question || !answer) continue;
+    const title = typeof obj.title === "string" ? obj.title.trim() : "";
+    const body = typeof obj.body === "string" ? obj.body.trim() : "";
+    if (!title || !body) continue;
     const keywords = Array.isArray(obj.keywords)
       ? (obj.keywords as unknown[])
           .filter((k): k is string => typeof k === "string")
@@ -136,8 +137,8 @@ function normalize(parsed: unknown): DraftCard[] {
       };
     }
     out.push({
-      question,
-      answer,
+      title,
+      body,
       keywords,
       category: typeof obj.category === "string" ? obj.category : undefined,
       source: {

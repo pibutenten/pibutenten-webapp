@@ -53,7 +53,7 @@ export type NewMemberRow = {
 
 export type NewCardRow = {
   card_id: number;
-  question: string | null;
+  title: string | null;
   shortcode: string | null;
   author_id: string | null;
   author_name: string | null;
@@ -80,7 +80,7 @@ export type CommentSummary = {
 
 export type CardRow = {
   card_id: number;
-  question: string | null;
+  title: string | null;
   shortcode: string | null;
   author_id: string | null;
   author_name: string | null;
@@ -365,7 +365,7 @@ function NewCardRowItem({ row }: { row: NewCardRow }) {
   });
   const cardHref = publicCardUrl({
     card_id: row.card_id,
-    question: row.question,
+    title: row.title,
     shortcode: row.shortcode,
     author_id: row.author_id,
     author_name: row.author_name,
@@ -387,7 +387,7 @@ function NewCardRowItem({ row }: { row: NewCardRow }) {
           {categoryLabel && (
             <span className="mr-1.5 text-[var(--text-muted)]">{categoryLabel}</span>
           )}
-          {row.question || "(제목 없음)"}
+          {row.title || "(제목 없음)"}
         </div>
         <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
           {createdAt}
@@ -488,7 +488,7 @@ function ActivityTopRow({
           onClick={toggle}
           aria-expanded={open}
           className="min-w-0 flex-1 truncate text-left text-sm font-medium text-[var(--text)] hover:text-[var(--primary)]"
-          title={row.question ?? undefined}
+          title={row.title ?? undefined}
         >
           {(() => {
             const cat = labelForCategory(row.category ?? null);
@@ -498,7 +498,7 @@ function ActivityTopRow({
               </span>
             ) : null;
           })()}
-          {row.question || "(제목 없음)"}
+          {row.title || "(제목 없음)"}
         </button>
         {/* 카운트도 같은 펼침 toggle */}
         <button

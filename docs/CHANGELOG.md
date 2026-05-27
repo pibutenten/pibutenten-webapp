@@ -102,6 +102,39 @@
 
 ---
 
+### P2-4 — cards 컬럼 리네임 (question/answer → title/body)
+
+#### Added
+- 마이그레이션 `0171_cards_rename_question_answer.sql` — `cards.question → title`, `cards.answer → body` RENAME + 인덱스 2개 RENAME + RPC 10개 재정의 + PostgREST 스키마 캐시 reload.
+
+#### Changed (DB)
+- 컬럼 2개 RENAME (data 보존). NOT NULL/타입/제약 모두 유지.
+- 인덱스 2개: `cards_question_trgm_idx → cards_title_trgm_idx`, `cards_answer_trgm_idx → cards_body_trgm_idx`.
+- RPC 재정의 (RETURNS TABLE 시그니처 + 본문 모두 갱신):
+  - `feed_cards_scored`, `search_cards_scored`, `tag_cards_scored` — `question/answer` 반환 컬럼 + ILIKE 검색 본문 모두 `title/body`.
+  - `get_notifications` — 반환 alias `card_question → card_title`.
+  - `get_top_cards_by_{comments|likes|saves|shares|views|new_cards}_inner` — `question` 반환 컬럼 → `title`.
+- RLS policies / 트리거 함수 / View `public_profiles_view` 영향 없음 (해당 컬럼 미참조).
+
+#### Changed (코드)
+- 타입 정의 `CardData` (lib/types/card.ts) — `title/body` 단일.
+- Zod 스키마 (lib/schema/api/articles.ts) — `ArticleCreateSchema/ArticleUpdateSchema` 모두 `title/body` 단일.
+- SQL select 문자열 다수: card-select.ts, doctor-dashboard.ts, admin/users/[id]/page.tsx, admin/cards/page.tsx (+검색 ILIKE), admin/cards/[id]/edit/page.tsx, admin/comments/page.tsx, write/[shortcode]/page.tsx, ProfileTabs.tsx, api/admin/comments/route.ts.
+- ILIKE 검색 패턴: admin/cards/page.tsx (2), search/page.tsx.
+- DB write: api/articles/route.ts, api/articles/[id]/route.ts, admin/cards/[id]/edit/EditClient.tsx, write/[shortcode]/EditClient.tsx, api/admin/draft/publish/route.ts.
+- API 계약 키: WriteClient.tsx, write/[shortcode]/EditClient.tsx, CardEditor.tsx의 extract-keywords 호출, api/admin/extract-keywords/route.ts.
+- 프론트엔드 표시: Card.tsx, CardBody.tsx, card-share.ts, admin/cards, admin/comments, admin/users, admin/stats StatsListClient, ProfileTabs, topics, doctors, [handle], NotificationsClient.
+- AI 파이프라인 일관화 (사용자 결정): step1.ts, step2.ts, prompts/step1_v5.md, prompts/step2_v2.md, api/admin/draft/{step2,publish}/route.ts, DraftClient.tsx 모두 `title/body` 통일. 옛 question/answer 변환 boundary 제거.
+- 알림 RPC 반환 필드명: `card_question → card_title` (DB RPC + NotificationsClient.tsx).
+
+#### Removed
+- `ScreeningInput.question`, `ScreeningInput.answer` (lib/content-screening.ts) — `title/body`로 단일화.
+
+#### Preserved (의도적 비변경)
+- CSS 클래스명 `card-answer-speakable`, `card-answer--more` — 내부 UI 식별자, 외부 노출 없음.
+
+---
+
 ### P2-2 — CardEditor 컴포넌트 4분할
 
 #### Added

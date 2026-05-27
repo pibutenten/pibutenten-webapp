@@ -40,10 +40,9 @@ export type ScreeningVerdict = {
 };
 
 export type ScreeningInput = {
+  // P2-4 (2026-05-27): 옛 question/answer alias 폐기, title/body 단일.
   title?: string | null;
   body?: string | null;
-  question?: string | null;
-  answer?: string | null;
   keywords?: string[] | null;
   externalUrl?: string | null;
   /** 작성자 역할 — admin/doctor 는 자동 통과. */
@@ -67,8 +66,6 @@ export function screenContent(input: ScreeningInput): ScreeningVerdict {
   const text = [
     input.title ?? "",
     input.body ?? "",
-    input.question ?? "",
-    input.answer ?? "",
     (input.keywords ?? []).join(" "),
     input.externalUrl ?? "",
   ].join("\n");

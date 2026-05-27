@@ -35,8 +35,8 @@
 ```json
 {
   "qa_card": {
-    "question": "string",
-    "answer": "string",
+    "title": "string",
+    "body": "string",
     "pubmed_search_keywords": ["string", ...]
   },
   "candidates": [

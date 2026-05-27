@@ -37,7 +37,7 @@ type QaRow = {
   id: number;
   type: "qa" | "post";
   status: string;
-  question: string;
+  title: string;
   like_count: number | null;
   view_count: number | null;
   created_at: string;
@@ -49,13 +49,13 @@ type CommentRow = {
   body: string;
   created_at: string;
   status: string;
-  card: { id: number; question: string } | null;
+  card: { id: number; title: string } | null;
 };
 
 type LikeRow = {
   card: {
     id: number;
-    question: string;
+    title: string;
     created_at: string;
     type?: string | null;
     post_year?: number | null;
@@ -224,7 +224,7 @@ export default async function AdminUserDetailPage({
 
   let authoredCardsQuery = supabase
     .from("cards")
-    .select("id, type, status, question, like_count, view_count, created_at")
+    .select("id, type, status, title, like_count, view_count, created_at")
     .order("created_at", { ascending: false })
     .limit(50);
   if (activeDoctorId) {
@@ -237,7 +237,7 @@ export default async function AdminUserDetailPage({
   // 댓글
   const { data: comments } = await supabase
     .from("comments")
-    .select("id, card_id, body, created_at, status, card:cards(id, question)")
+    .select("id, card_id, body, created_at, status, card:cards(id, title)")
     .eq("author_id", id)
     .order("created_at", { ascending: false })
     .limit(30)
@@ -247,7 +247,7 @@ export default async function AdminUserDetailPage({
   const { data: likes } = await supabase
     .from("card_likes")
     .select(
-      `card:cards(id, question, created_at, type, post_year, post_slug, shortcode,
+      `card:cards(id, title, created_at, type, post_year, post_slug, shortcode,
         doctor:doctors(slug),
         author:profiles!cards_author_id_profiles_fkey(handle))`,
     )
@@ -465,7 +465,7 @@ export default async function AdminUserDetailPage({
                   href={`/admin/cards/${q.id}/edit`}
                   className="mt-0.5 block text-sm text-[var(--text)] hover:text-[var(--primary)] hover:underline"
                 >
-                  {q.question?.slice(0, 80) ?? "(제목 없음)"}
+                  {q.title?.slice(0, 80) ?? "(제목 없음)"}
                 </Link>
                 <div className="mt-0.5 text-xs text-[var(--text-muted)]">
                   ♥ {q.like_count ?? 0} · 조회 {q.view_count ?? 0} · {q.status}
@@ -483,7 +483,7 @@ export default async function AdminUserDetailPage({
             {comments.map((c) => (
               <li key={c.id} className="py-2 text-sm">
                 <div className="text-xs text-[var(--text-muted)]">
-                  → {c.card?.question?.slice(0, 50) ?? "(원글 없음)"} ·{" "}
+                  → {c.card?.title?.slice(0, 50) ?? "(원글 없음)"} ·{" "}
                   {formatIsoDate(c.created_at)}
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-[var(--text)]">
@@ -519,7 +519,7 @@ export default async function AdminUserDetailPage({
                     })}
                     className="block text-sm text-[var(--text)] hover:text-[var(--primary)] hover:underline"
                   >
-                    {l.card!.question?.slice(0, 80)}
+                    {l.card!.title?.slice(0, 80)}
                   </Link>
                 </li>
               ))}

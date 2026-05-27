@@ -53,8 +53,8 @@ type AuthorBrief = {
 
 type Card = {
   id: number;
-  question: string;
-  answer: string;
+  title: string;
+  body: string;
   meta: string | null;
   keywords: string[];
   status: CardStatus;
@@ -136,8 +136,8 @@ export default function EditClient({
       card.category && isPostCategorySlug(card.category)
         ? (card.category as PostCategorySlug)
         : null,
-    title: card.question,
-    body: card.answer,
+    title: card.title,
+    body: card.body,
     keywords: card.keywords ?? [],
     externalUrl: card.external_url ?? "",
     externalMeta: initialExternalMeta,
@@ -220,8 +220,9 @@ export default function EditClient({
     };
 
     const update: Record<string, unknown> = {
-      question: payload.title,
-      answer: normalizeAnswerBody(payload.body),
+      // P2-4 (2026-05-27): cards.question/answer → title/body 리네임.
+      title: payload.title,
+      body: normalizeAnswerBody(payload.body),
       keywords: normalizeTags(payload.keywords),
       status: payload.status ?? card.status,
       is_pick: payload.isPick ?? false,

@@ -120,7 +120,7 @@ export default async function HomePage({ searchParams }: Props) {
       const escaped = w.replace(/[%_*]/g, "\\$&").replace(/[(),]/g, " ");
       const pattern = `%${escaped}%`;
       countQuery = countQuery.or(
-        `question.ilike.${pattern},answer.ilike.${pattern},keywords.cs.{${w}}`,
+        `title.ilike.${pattern},body.ilike.${pattern},keywords.cs.{${w}}`,
       );
     }
     const cRes = await countQuery;

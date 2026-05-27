@@ -113,7 +113,7 @@ export default async function TagPage({ params }: Props) {
 
   // 답변 본문 snippet — 1단락(또는 400자) 한정. FAQPage spec 권장.
   const answerSnippet = (p: CardData): string => {
-    const txt = (p.answer ?? "").replace(/\s+/g, " ").trim();
+    const txt = (p.body ?? "").replace(/\s+/g, " ").trim();
     return txt.length > 400 ? txt.slice(0, 400) + "…" : txt;
   };
 
@@ -151,7 +151,7 @@ export default async function TagPage({ params }: Props) {
         "@type": "ListItem",
         position: idx + 1,
         url: postUrl(p),
-        name: p.question,
+        name: p.title,
       })),
     },
   };
@@ -165,7 +165,7 @@ export default async function TagPage({ params }: Props) {
     // 각 카드 = Question + acceptedAnswer (의사 작성). FAQPage spec 충족.
     mainEntity: posts.map((p) => ({
       "@type": "Question",
-      name: p.question,
+      name: p.title,
       url: postUrl(p),
       acceptedAnswer: {
         "@type": "Answer",

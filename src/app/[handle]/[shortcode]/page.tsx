@@ -61,8 +61,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const url = `${SITE_URL}/${handle}/${shortcode}`;
   const indexable = card.category === "tip";
   return {
-    title: card.question,
-    description: stripMarkdown(card.answer).slice(0, 160),
+    title: card.title,
+    description: stripMarkdown(card.body).slice(0, 160),
     alternates: { canonical: url },
     robots: indexable
       ? { index: true, follow: true }

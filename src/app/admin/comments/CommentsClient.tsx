@@ -19,7 +19,7 @@ export type CommentRow = {
   body: string;
   created_at: string;
   card_id: string;
-  card: { question: string | null; shortcode: string | null } | null;
+  card: { title: string | null; shortcode: string | null } | null;
   author: { handle: string | null; display_name: string | null } | null;
 };
 
@@ -37,7 +37,7 @@ function buildGroups(rows: CommentRow[]): Group[] {
   // 최신순으로 들어오므로 card_id별로 묶되, 처음 등장 순서를 유지 (Map이 insertion order 보존)
   const map = new Map<string, Group>();
   for (const r of rows) {
-    const qaTitle = r.card?.question?.trim() || "(제목 없음)";
+    const qaTitle = r.card?.title?.trim() || "(제목 없음)";
     // /q/{shortcode} 라우트 없음. admin 컨텍스트 → admin edit 페이지로
     const qaHref = `/admin/cards/${r.card_id}/edit`;
     const existing = map.get(r.card_id);

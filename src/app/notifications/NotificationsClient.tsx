@@ -33,7 +33,8 @@ type Notification = {
   actor_display_name: string | null;
   actor_avatar_url: string | null;
   actor_handle: string | null;
-  card_question: string | null;
+  // P2-4 (2026-05-27): get_notifications RPC 반환 alias card_question → card_title.
+  card_title: string | null;
   url: string | null;
   read_at: string | null;
   created_at: string;
@@ -471,12 +472,12 @@ function NotificationRow({
             <span className="font-semibold text-[var(--text)]">{text}</span>
           )}
         </div>
-        {n.card_question && (
+        {n.card_title && (
           <Link
             href={target}
             className="mt-1 block truncate text-[12.5px] text-[var(--text-muted)] hover:text-[var(--primary)]"
           >
-            ↳ {n.card_question}
+            ↳ {n.card_title}
           </Link>
         )}
         <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">{time}</div>

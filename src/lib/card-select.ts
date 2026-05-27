@@ -31,7 +31,7 @@
  * `pubmed_refs` 는 리스트에서도 표시 (2026-05-27 회귀 fix).
  */
 export const CARD_LIST_SELECT = `
-  id, question, answer, meta, keywords, type, status, created_at,
+  id, title, body, meta, keywords, type, status, created_at,
   like_count, view_count, save_count, share_count,
   post_year, post_slug, shortcode,
   category, hide_doctor_credential, pubmed_refs,
@@ -49,7 +49,7 @@ export const CARD_LIST_SELECT = `
  *   - `pubmed_refs`: 멀티 참고문헌 배열 (Phase 9, 단독 페이지에서만 표시)
  */
 export const CARD_DETAIL_SELECT = `
-  id, question, answer, meta, keywords, type, status, created_at, updated_at,
+  id, title, body, meta, keywords, type, status, created_at, updated_at,
   like_count, view_count, save_count, share_count,
   post_year, post_slug, shortcode,
   category, hide_doctor_credential, pubmed_refs,
