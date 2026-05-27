@@ -116,6 +116,7 @@ export default function CardBody({
                 typeof r.title === "string" && r.title.trim()
                   ? r.title
                   : "(제목 없음)";
+              const hasMeta = !!(r.authors_short || r.journal || r.year);
               return (
                 <li key={`${r.pmid ?? r.doi ?? idx}-${idx}`}>
                   <cite
@@ -123,50 +124,54 @@ export default function CardBody({
                     itemType="https://schema.org/ScholarlyArticle"
                     className="not-italic"
                   >
-                    {validRefs.length > 1 && (
-                      <span className="mr-1 text-[var(--text-muted)]/70">
-                        {idx + 1}.
-                      </span>
-                    )}
-                    {linkHref ? (
-                      <a
-                        href={linkHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="relative z-10 inline-block py-0.5 hover:underline"
-                        style={{
-                          color: "var(--primary)",
-                          pointerEvents: "auto",
-                        }}
-                        itemProp="url"
-                      >
+                    {/* 구조 정합 (2026-05-27): 옛 inline 흐름은 title 길이/화면 너비에
+                        따라 authors 가 같은 줄 또는 새 줄로 비결정적 wrap → 카드마다
+                        다르게 보이는 비일관 회귀. title 과 meta (저자/저널/연도) 를
+                        명시적 block 두 줄로 분리하여 모든 카드 동일 패턴 보장. */}
+                    <div className="leading-[1.55]">
+                      {validRefs.length > 1 && (
+                        <span className="mr-1 text-[var(--text-muted)]/70">
+                          {idx + 1}.
+                        </span>
+                      )}
+                      {linkHref ? (
+                        <a
+                          href={linkHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="relative z-10 hover:underline"
+                          style={{
+                            color: "var(--primary)",
+                            pointerEvents: "auto",
+                          }}
+                          itemProp="url"
+                        >
+                          <span itemProp="name">{titleText}</span>
+                        </a>
+                      ) : (
                         <span itemProp="name">{titleText}</span>
-                      </a>
-                    ) : (
-                      <span itemProp="name">{titleText}</span>
-                    )}
-                    {/* title — authors — journal — year:
-                        title 끝에 em-dash 두면 inline 텍스트라 길이에 따라 줄바꿈 후
-                        새 줄 첫 글자가 대시로 시작해 외롭게 보이는 회귀 (2026-05-27 사용자
-                        보고). 한 칸 공백만 두고 저자 inline 자연 흐름. */}
-                    {r.authors_short && (
-                      <>
-                        {" "}
-                        <span itemProp="author">{r.authors_short}</span>
-                      </>
-                    )}
-                    {r.journal && (
-                      <>
-                        {", "}
-                        <span itemProp="publisher">{r.journal}</span>
-                      </>
-                    )}
-                    {r.year && (
-                      <>
-                        {" ("}
-                        <span itemProp="datePublished">{r.year}</span>
-                        {")"}
-                      </>
+                      )}
+                    </div>
+                    {hasMeta && (
+                      <div className="leading-[1.55] text-[var(--text-muted)]">
+                        {r.authors_short && (
+                          <span itemProp="author">{r.authors_short}</span>
+                        )}
+                        {r.journal && (
+                          <>
+                            {r.authors_short ? ", " : ""}
+                            <span itemProp="publisher">{r.journal}</span>
+                          </>
+                        )}
+                        {r.year && (
+                          <>
+                            {(r.authors_short || r.journal) ? " " : ""}
+                            {"("}
+                            <span itemProp="datePublished">{r.year}</span>
+                            {")"}
+                          </>
+                        )}
+                      </div>
                     )}
                   </cite>
                 </li>
