@@ -254,6 +254,9 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | **0160** | **cards RLS active 단위 재작성 + cards_open_all_to_auth 보안 구멍 DROP (ADR 0011)** |
 | **0161** | **Phase 2-A: cards_public_read SELECT + card_likes/saves/comments/comment_likes + notifications 중복 정리 + notification_preferences + push_subscriptions 모두 계정 단위 (ADR 0011)** |
 | **0162** | **Phase 2-B: toggle_card_hide RPC 신설 + soft_delete_card/get_my_stats/get_my_notifications/mark_my_notifications_read/toggle_card_like/save/comment_like/pick + _check_doctor_kpi_access/get_doctor_kpi/anonymize_user_content_before_delete 모두 계정 단위 (ADR 0011)** |
+| **0168** | **notifications RPC active 단위 정합 — validate_active_profile_id 헬퍼 + 5개 RPC 에 p_active_profile_id 파라미터 (Critical-2 DB 측)** |
+| **0169** | **pubmed_refs jsonb 정규화 — year string→int (858 ref), doi_url ""→null (64 ref). SSOT 정합 (Critical-4)** |
+| **0170** | **feed_cards_scored / tag_cards_scored 의 RETURNS TABLE 에 pubmed_refs jsonb[] 추가 — 피드/태그 리스트에서 참고문헌 재노출 회귀 fix** |
 
 ---
 

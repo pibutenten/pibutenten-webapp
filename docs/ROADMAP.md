@@ -28,8 +28,8 @@
 - [ ] **HIGH — `requireAdminPage()` (`src/lib/admin-page-guard.ts:60-70`) 동일 패턴 정정**: 본 파일 line 8-17 주석이 "회원 명함이어도 묶음에 admin 있으면 통과" 라고 PRD §C 의도라며 ADR 0011 과 직접 충돌. 주석 + 본문 동시 정정.
 - [ ] **HIGH — admin EditClient (`src/app/admin/cards/[id]/edit/EditClient.tsx:285-289`) handleSubmit 의 cards 직접 update → PUT API 로 통일**: route head comment 가 "통합됐다" 라고 명시했으나 실제는 admin 측만 미정합. soft-delete/숨기기는 RPC 통일됐는데 본문 저장만 누락.
 - [ ] **MEDIUM — `articles/[id]/route.ts:148-155` 의 `isAuthor` 묶음 합산 → active 단위**: PUT API 의 권한 판정이 묶음 합산 → cards RLS (0160 active 단위) 와 비대칭. silent fail 가능.
-- [ ] **MEDIUM — `layout.tsx getSessionInfo` (line 82-100) 가 primary profile 의 role/doctorSlug 만 lookup**: 정한미 회귀의 다른 표면. 본인 의사 매핑 lookup 만 0158 RPC 로 fix 됐고 layout 의 role/doctorSlug 는 미적용.
-- [ ] **MEDIUM — `doctor_accounts` 직접 SELECT 18+ 곳 (doctor-mapping.ts 주석 참조) → `get_active_doctor_id` RPC 통일**: layout.tsx / `[handle]/page.tsx` / `admin/users/page.tsx` / `comments/route.ts` / `admin/draft/publish/route.ts` 등 잔재.
+- [x] **MEDIUM — `layout.tsx getSessionInfo` (line 82-100) 가 primary profile 의 role/doctorSlug 만 lookup**: 2026-05-27 commit `24fe68e` 로 active 신분 단위 정합 완료. role/displayName/avatarUrl/handle/doctorSlug 모두 active row 기준. `baseUserId` 필드 폐기.
+- [x] **MEDIUM — `doctor_accounts` 직접 SELECT 18+ 곳 → SSOT 헬퍼 통일**: 2026-05-27 commit `e0852c6` (Critical-1) 로 `getDoctorIdForProfile`/`getDoctorSlugForProfile`/`getDoctorMetaBatch` 헬퍼 3개 도입 + 앱 코드 12개 위치 일괄 치환. DB 측 잔재 (0168 `get_notifications` RPC, 0163 `propagate_onboarding_to_doctor_bundle` RPC 의 LEFT JOIN doctor_accounts) 는 별도 정정 마이그레이션 필요 — 아래 NEW 추가.
 - [ ] **LOW — "부계정" 용어 잔재 5건 정리**: `src/lib/active-identity.ts:15`, `src/app/admin/users/page.tsx:17`, `src/app/[handle]/page.tsx:165`, `src/app/settings/profile/page.tsx:68`, `src/app/write/page.tsx:34` — 모두 주석. "sub-identity" 또는 "묶음 내 다른 profile" 로 치환.
 - [ ] **LOW — admin EditClient PubmedRef 로컬 타입 분산** (`src/app/admin/cards/[id]/edit/EditClient.tsx:38-47`) → `articles.ts` 의 SSOT PubmedRefObj import.
 

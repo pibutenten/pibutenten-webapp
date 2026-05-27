@@ -6,6 +6,47 @@
 
 ---
 
+## [2026-05-27] — Critical 1~6 + 회귀 fix 묶음 (e0852c6 → 443cb45)
+
+### Critical-1 ~ Critical-6 (e0852c6 → af4267c)
+
+#### Added
+- 새 마이그레이션 `0168_notifications_active_only.sql` — `validate_active_profile_id(uuid)` 헬퍼 + 5개 notification RPC 에 `p_active_profile_id` 파라미터 추가. Critical-2 DB 측 정합.
+- 새 마이그레이션 `0169_normalize_pubmed_refs.sql` — `cards.pubmed_refs` 안 858 ref `year` string→int, 64 ref `doi_url` ""→null 정규화. Critical-4 SSOT.
+- `src/lib/doctor-mapping.ts` 3개 헬퍼 (`getDoctorIdForProfile`, `getDoctorSlugForProfile`, `getDoctorMetaBatch`) — `profiles.doctor_id` 인라인 컬럼 단일 출처. Critical-1.
+- `src/lib/schema/api/articles.ts` 의 `normalizePubmedRefWire` 함수 — PubMed eutils wire format → SSOT 정규화 boundary.
+
+#### Changed
+- **Critical-1 (SSOT)**: 앱 코드 12개 위치의 `doctor_accounts` SELECT → 새 헬퍼 호출로 일괄 치환. `profiles.doctor_id` 단일 진실 강제.
+- **Critical-2 (active-only)**: `write/[shortcode]/page.tsx` `isAuthor`, `api/push/subscribe`, `(settings/)notifications/page.tsx` role 결정 모두 `active.profileId` 단일 매칭으로 통일. 옛 bundle OR 패턴 폐기.
+- **Critical-3 (errorResponse 통일)**: 27개 API 라우트, 60+ 위치의 `NextResponse.json({error})` 패턴을 `errorResponse` 헬퍼 호출로 일괄 치환. PII 누출 방어 통합 + `userMessage`/`devOnly`/`bodyExtra` 옵션 추가.
+- **Critical-4 (PubmedRef SSOT)**: `PubmedRefSchema` 타입 단순화 (`year: number int`, `doi_url: string.url().nullable()`). 6곳 로컬 `PubmedRef` 재정의 제거 + 통합 formatter (`pubmedRefObjToString`).
+- **Critical-5 (sentinel "primary" 멸종)**: `PRIMARY_IDENTITY_ID` 상수·`PrimaryIdentityId` 타입 폐기. `ActiveIdentity.id` / `SessionInfo.activeIdentityId` 모두 UUID 만 운반. `layout.tsx` `identities[].id = r.id`, `activeIdentityId` 폴백 = `user.id`. cookie "primary" 호환은 `/api/identity/switch` 진입 시 UUID 정규화 1줄로 한정.
+- **Critical-6 (PubmedRef 본문 평문 차단)**: `CardEditor.buildPayload` 의 `appendReferencesToBody` 호출 제거 + `PubmedRefsField` 의 함수 정의 폐기. `renderAnswerBody`·`stripMarkdown` 에 `stripLegacyReferencesTail` 정규식 다층 방어 (옛 row 평문 꼬리 시각 차단). CardBody 의 ref 섹션 CSS 강화 (`relative isolate`, `pointer-events: auto`, `inline-block py-0.5`, title 빈 값 `(제목 없음)` placeholder).
+
+#### Fixed
+- `ArticleCreateSchema` 에 `pubmed_refs` 누락 → POST `/api/articles` 가 `invalid_input` 400 반환하던 회귀 (31d49d3).
+- 9개 critical catch 블록에 prefixed `console.error` 추가 (`[auth-identity]`, `[csrf-origin]`, `[auth-callback]`, `[comment-first-save]`, `[push-unsubscribe]`, `[notif-read]`, `[notif-bell]`, `[notif-read-mark]`) — silent failure 운영 가시성. Sub-4.
+
+---
+
+### Critical-1~6 직후 회귀 fix 묶음 (2109aa9 → 443cb45)
+
+#### Added
+- 새 마이그레이션 `0170_feed_rpcs_add_pubmed_refs.sql` — `feed_cards_scored` / `tag_cards_scored` RPC RETURNS TABLE 에 `pubmed_refs jsonb[]` 컬럼 추가. `search_cards_scored` 는 이미 포함.
+
+#### Changed
+- `CARD_LIST_SELECT` 에 `pubmed_refs` 컬럼 포함 — Critical-6 의 `stripLegacyReferencesTail` 가 옛 본문 평문 ref 꼬리를 잘라낸 뒤 리스트 뷰에서 참고문헌이 완전 부재하던 회귀 해소.
+- `SessionInfo` 를 **active 신분 단위**로 정합화 (`layout.tsx getSessionInfo` 재작성). `role`/`displayName`/`avatarUrl`/`handle`/`doctorSlug` 모두 active row 기준. 옛: base profile (`user.id`) 종속 → admin 묶음의 doctor 가 base 이면 admin active 라도 `me.role='doctor'` 박혀 카드 메뉴 전부 가림 회귀 발생. ADR 0001 정합 강화.
+- `SessionInfo.baseUserId` 필드 폐기 + IdentitySwitcher "대표" 배지 제거 (사용자 결정 — 동등 독립 원칙과 충돌).
+- CardBody 참고문헌 렌더: `<a>` `inline-block py-0.5` 폐기 → 순수 inline. title (primary 하늘색) + 한 칸 공백 + meta wrapper span (저자/저널/연도, muted 회색) 단일 인라인 흐름. em-dash 제거 — 색상으로만 시각 위계.
+
+#### Fixed
+- CardEditor admin "Pick (원장님 추천)" 체크박스 토글 시 카운터 (0/5 → 1/5) 가 변하지 않던 회귀 — optimistic 가감 (`initialIsPick` 와 현재 `isPick` 차이로 +1/-1).
+- 참고문헌 title 끝 em-dash 가 wrap 위치에 따라 새 줄 머리에 외롭게 시작하던 비일관 회귀.
+
+---
+
 ## [2026-05-26] (X) — 세션 종료 정리 + 미해결 회귀 + 다음 세션 우선순위
 
 ### Session log (af15ce1 → cb2a60d → 5e8d3b4 → bdbe933 → e3f3280)
