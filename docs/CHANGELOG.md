@@ -59,6 +59,21 @@
 
 ---
 
+### Sub-1 — layout.tsx getSessionInfo 분리
+
+#### Added
+- `src/lib/session-info.ts` 신설 — `getSessionInfo` 서버 헬퍼 단일 모듈. 함수 본문·주석·cookie 가드 로직 1바이트 변경 없이 그대로 이전.
+
+#### Changed
+- `src/app/layout.tsx` 282줄 → 184줄 (98줄 감소). `getSessionInfo` 인라인 정의 제거 + `import { getSessionInfo } from "@/lib/session-info"` 1줄 추가. layout 모듈 그래프 경량화 부수효과로 build 시간 3.9s → 3.5s 단축.
+- 분리에 따라 layout.tsx 에서 더 이상 직접 쓰지 않는 import 제거: `type { SessionInfo }`, `createSupabaseServerClient`, `IDENTITY_COOKIE`, `UUID_RE`, `getDoctorMetaBatch`.
+
+#### Preserved (의도적 비변경)
+- `export const dynamic = "force-dynamic"` — layout 파일에 남겨야 페이지 캐시 무효화 효과 유지.
+- 함수 내 cookie 가드 (`IDENTITY_COOKIE` 조회 → `UUID_RE` 검증 → `rows.some` 묶음 매칭 → `user.id` 폴백) 와 ADR 0001 / Critical-5 회귀 fix 주석 전부.
+
+---
+
 ## [2026-05-26] (X) — 세션 종료 정리 + 미해결 회귀 + 다음 세션 우선순위
 
 ### Session log (af15ce1 → cb2a60d → 5e8d3b4 → bdbe933 → e3f3280)
