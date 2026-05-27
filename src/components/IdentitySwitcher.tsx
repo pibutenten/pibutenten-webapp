@@ -10,8 +10,6 @@ type Props = {
   identities: SessionIdentity[];
   /** 활성 identity id — 항상 UUID. Critical-5 (2026-05-27) 이후 sentinel "primary" 폐지. */
   activeId: string;
-  /** 본 계정(base profile) 의 id — auth.users.id == base profile.id. "대표" 라벨 렌더링 시 비교. */
-  baseUserId: string;
   /** 의사 identity 진입 시 /doctors/{slug} 우선 (없으면 handle) */
   doctorSlug: string | null;
   isAdmin: boolean;
@@ -35,7 +33,6 @@ const KIND_LABEL: Record<string, string> = {
 export default function IdentitySwitcher({
   identities,
   activeId,
-  baseUserId,
   doctorSlug,
   // isAdmin은 현재 미사용 (kind 기반 분기로 대체). prop 호환성을 위해 유지.
   isAdmin: _isAdmin,
@@ -165,9 +162,6 @@ export default function IdentitySwitcher({
           </div>
           {identities.map((i) => {
             const isActive = i.id === activeId;
-            // Critical-5 (2026-05-27): 렌더링 시점에 baseUserId 비교로 "대표" 라벨 결정.
-            // 옛 sentinel "primary" 대신, 본 계정 식별은 UUID 비교로 정상화.
-            const isBase = i.id === baseUserId;
             return (
               <button
                 key={i.id}
@@ -186,11 +180,6 @@ export default function IdentitySwitcher({
                     <span className="truncate font-medium">
                       {i.displayName}
                     </span>
-                    {isBase && (
-                      <span className="rounded-sm bg-[var(--bg-soft)] px-1 text-[9px] font-semibold text-[var(--text-muted)]">
-                        대표
-                      </span>
-                    )}
                     {isActive && (
                       <span className="text-[10px] text-[var(--primary)]">
                         ●

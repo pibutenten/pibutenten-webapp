@@ -35,8 +35,6 @@ export type SessionInfo = {
   identities: SessionIdentity[];
   /** 현재 활성 identity id — 실제 profile.id (UUID). Critical-5 (2026-05-27) 이후 sentinel "primary" 폐지. */
   activeIdentityId: string;
-  /** 본 계정 식별용 UUID (auth.users.id == base profile.id). IdentitySwitcher 의 "대표" 라벨 렌더링 시 비교. */
-  baseUserId: string;
 } | null;
 
 type TopNavProps = {
@@ -316,7 +314,6 @@ export default function TopNav({ session }: TopNavProps) {
             <IdentitySwitcher
               identities={session.identities}
               activeId={session.activeIdentityId}
-              baseUserId={session.baseUserId}
               doctorSlug={session.doctorSlug}
               isAdmin={session.role === "admin"}
             />
