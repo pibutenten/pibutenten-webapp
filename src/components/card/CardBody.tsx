@@ -119,41 +119,41 @@ export default function CardBody({
               const hasMeta = !!(r.authors_short || r.journal || r.year);
               return (
                 <li key={`${r.pmid ?? r.doi ?? idx}-${idx}`}>
+                  {/* 사용자 결정 (2026-05-27): title 길든 짧든 한 텍스트 흐름으로 인라인 연속.
+                      title (primary 색 link) + 한 칸 공백 + meta (저자, 저널, 연도 회색 span).
+                      <a> 는 inline (옛 inline-block 박스 폐기) — title 텍스트가 단어 boundary
+                      마다 wrap 되고, 마지막 단어 직후에 meta 가 자연 인라인 흐름으로 이어짐.
+                      짧은 title 은 같은 줄, 긴 title 은 wrap 후 이어짐 — 모두 한 텍스트 흐름. */}
                   <cite
                     itemScope
                     itemType="https://schema.org/ScholarlyArticle"
-                    className="not-italic"
+                    className="not-italic leading-[1.55]"
                   >
-                    {/* 구조 정합 (2026-05-27): 옛 inline 흐름은 title 길이/화면 너비에
-                        따라 authors 가 같은 줄 또는 새 줄로 비결정적 wrap → 카드마다
-                        다르게 보이는 비일관 회귀. title 과 meta (저자/저널/연도) 를
-                        명시적 block 두 줄로 분리하여 모든 카드 동일 패턴 보장. */}
-                    <div className="leading-[1.55]">
-                      {validRefs.length > 1 && (
-                        <span className="mr-1 text-[var(--text-muted)]/70">
-                          {idx + 1}.
-                        </span>
-                      )}
-                      {linkHref ? (
-                        <a
-                          href={linkHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="relative z-10 hover:underline"
-                          style={{
-                            color: "var(--primary)",
-                            pointerEvents: "auto",
-                          }}
-                          itemProp="url"
-                        >
-                          <span itemProp="name">{titleText}</span>
-                        </a>
-                      ) : (
+                    {validRefs.length > 1 && (
+                      <span className="mr-1 text-[var(--text-muted)]/70">
+                        {idx + 1}.
+                      </span>
+                    )}
+                    {linkHref ? (
+                      <a
+                        href={linkHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="relative z-10 hover:underline"
+                        style={{
+                          color: "var(--primary)",
+                          pointerEvents: "auto",
+                        }}
+                        itemProp="url"
+                      >
                         <span itemProp="name">{titleText}</span>
-                      )}
-                    </div>
+                      </a>
+                    ) : (
+                      <span itemProp="name">{titleText}</span>
+                    )}
                     {hasMeta && (
-                      <div className="leading-[1.55] text-[var(--text-muted)]">
+                      <span className="text-[var(--text-muted)]">
+                        {" "}
                         {r.authors_short && (
                           <span itemProp="author">{r.authors_short}</span>
                         )}
@@ -171,7 +171,7 @@ export default function CardBody({
                             {")"}
                           </>
                         )}
-                      </div>
+                      </span>
                     )}
                   </cite>
                 </li>
