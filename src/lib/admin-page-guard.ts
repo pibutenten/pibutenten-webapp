@@ -17,7 +17,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "./supabase/server";
 import type { ActiveIdentity } from "./identity-shared";
-import { ROLES } from "./identity-shared";
+import { ROLES, deriveIdentityFlags } from "./identity-shared";
 import { resolveActiveIdentity } from "./identity-server";
 
 export type { ActiveIdentity } from "./identity-shared";
@@ -61,9 +61,12 @@ export async function requireAdminPage(
     redirect("/login?error=세션이 만료되었습니다");
   }
 
-  // ADR 0012 정합 — active 단위 권한 판정
-  const isSuperAdmin = active.role === ROLES.ADMIN;
-  const isDoctorAdmin = !!active.doctorId;
+  // ADR 0012 정합 — active 단위 권한 판정.
+  // 2026-05-28: identity-shared.deriveIdentityFlags() SSOT 호출로 통합.
+  //   옛: `active.role === ROLES.ADMIN` / `!!active.doctorId` 를 본 파일에 직접 구현
+  //       → identity.ts 의 deriveIdentityFlags 와 중복 (정책 변경 시 동시 갱신 필요).
+  //   현재: 단일 헬퍼 호출. 향후 권한 판정 정책 변경은 deriveIdentityFlags 한 곳에서만.
+  const { isSuperAdmin, isDoctorAdmin } = deriveIdentityFlags(active);
 
   if (opts?.superAdminOnly) {
     if (!isSuperAdmin) {

@@ -4,9 +4,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   IDENTITY_COOKIE,
   IDENTITY_MIRROR_COOKIE,
-  UUID_RE,
   bundleProfileFilter,
 } from "@/lib/identity-shared";
+import { normalizeLegacyIdentityValue } from "@/lib/identity-server";
 import { logAudit } from "@/lib/audit-log";
 import { errorResponse } from "@/lib/error-response";
 
@@ -49,11 +49,11 @@ export async function POST(req: Request) {
     return errorResponse(null, "unauthorized", "[identity/switch] auth required", 401);
   }
 
-  // Critical-5: 옛 sentinel "primary" 호환성 — user.id 로 정규화. cookie 에는 UUID 만 저장.
-  const target = targetRaw === "primary" ? user.id : targetRaw;
-
-  // 입력값 형식 검증 — UUID 외 값 차단 (defense-in-depth)
-  if (!UUID_RE.test(target)) {
+  // 2026-05-28: 옛 sentinel "primary" 정규화 + UUID 검증을 normalizeLegacyIdentityValue
+  // SSOT 헬퍼로 위임 (identity-server.ts). 같은 호환성 규칙이 cookie/payload 진입점에서
+  // 일관 적용된다. invalid (빈 값 / 비-UUID / 정규화 후에도 비-UUID) 면 null.
+  const target = normalizeLegacyIdentityValue(targetRaw, user.id);
+  if (!target) {
     return errorResponse(null, "invalid_input", "[identity/switch] invalid uuid", 400, undefined, {
       userMessage: "잘못된 identityId 형식",
     });

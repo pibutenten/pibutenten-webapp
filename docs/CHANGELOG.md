@@ -6,6 +6,25 @@
 
 ---
 
+## [2026-05-28] — 5건 묶음: PostgREST 캐시 reload + 0044 충돌 해소 + Identity SSOT + comments Zod + tmp 청소
+
+### Added
+- 새 마이그레이션 `0173_fix_rpc_legacy_columns.sql` — `/admin/cards` 500 대응. Deep scan 결과: DB 살아있는 함수·View·응용 코드 `.select()`·FK 모두 question/answer 잔재 0건 확인. 실질 변경 없는 `COMMENT ON TABLE cards` + 끝에 `NOTIFY pgrst, 'reload schema'` + `NOTIFY pgrst, 'reload config'` 강제 양방향 캐시 reload (0171/0172 직후 PostgREST 가 옛 schema cache 를 일시적으로 잡고 있던 회귀 차단).
+- 새 헬퍼 `src/lib/identity-server.ts` 의 `normalizeLegacyIdentityValue()` — Critical-5 호환성 정규화 SSOT. 옛 sentinel `"primary"` → authUserId UUID 정규화 + UUID 검증을 단일 함수로. cookie/payload 진입점 어디서든 동일 규칙.
+- 새 스키마 `src/lib/schema/api/comments.ts` — `CommentCreateSchema` + `CommentGetQuerySchema`. articles 와 동일 Zod 패턴 (`.strict()`, transform trim, devOnly issues).
+
+### Changed
+- `supabase/migrations/0044_*.sql` 두 파일을 `0044_01_*.sql` / `0044_02_*.sql` 로 rename. 같은 번호 두 마이그레이션의 적용 순서 불확실성 해소 (이미 production 적용 완료, 신규 환경 세팅 시점만 영향).
+- `src/lib/identity-server.ts` `readTargetProfileId()` — cookie 파싱·"primary" fallback 로직을 `normalizeLegacyIdentityValue()` 호출로 통합.
+- `src/app/api/identity/switch/route.ts` — 하드코딩 `targetRaw === "primary" ? user.id : targetRaw` + 별도 `UUID_RE.test()` 분기 제거. `normalizeLegacyIdentityValue()` 단일 호출로 정규화+검증 통합.
+- `src/lib/admin-page-guard.ts` — `isSuperAdmin`/`isDoctorAdmin` 직접 구현을 `deriveIdentityFlags(active)` SSOT 호출로 교체. identity.ts 와 권한 판정 로직 일치.
+- `src/app/api/comments/route.ts` GET/POST — typeof + parseInt + Math.min/max + trim 수동 검증을 Zod safeParse 로 일괄 치환. 옛 사용자 메시지 (`"댓글 내용을 입력해 주세요."`, `"댓글은 2000자 이내로 작성해주세요."`) 는 schema 의 message 로 이전하여 첫 issue.message 를 그대로 노출.
+
+### Removed
+- `src/lib/**/*.tmp.26376.*` 임시 파일 7건 일괄 삭제 (에디터 충돌 잔재).
+
+---
+
 ## [2026-05-28] — RPC deleted_at 다층 방어 + visitors Mojibake fix + 캐싱 + 로그아웃 쿠키 정리
 
 ### Added

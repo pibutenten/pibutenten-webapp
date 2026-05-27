@@ -13,10 +13,12 @@ import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
+import {
+  CommentCreateSchema,
+  CommentGetQuerySchema,
+} from "@/lib/schema/api/comments";
 
 export const dynamic = "force-dynamic";
-
-const MAX_LIMIT = 50;
 
 export type CommentRow = {
   id: number;
@@ -48,22 +50,33 @@ export type CommentWithReplies = CommentRow & {
 // GET
 // ─────────────────────────────────────────────────────────────
 export async function GET(req: Request) {
+  // 2026-05-28: Zod 검증으로 통합 (articles 와 동일 패턴).
+  //   옛 parseInt + Math.min/max 다중 분기 → CommentGetQuerySchema 단일 출처.
   const url = new URL(req.url);
-  const cardIdRaw = url.searchParams.get("cardId");
-  if (!cardIdRaw) {
-    return errorResponse(null, "invalid_input", "[comments GET] cardId missing", 400, undefined, {
-      userMessage: "cardId 가 필요합니다.",
-    });
+  const parsed = CommentGetQuerySchema.safeParse({
+    cardId: url.searchParams.get("cardId"),
+    offset: url.searchParams.get("offset") ?? undefined,
+    limit: url.searchParams.get("limit") ?? undefined,
+  });
+  if (!parsed.success) {
+    return errorResponse(
+      null,
+      "invalid_input",
+      "[comments GET] schema",
+      400,
+      undefined,
+      {
+        userMessage: "잘못된 요청 파라미터입니다.",
+        devOnly: {
+          issues: parsed.error.issues.slice(0, 5).map((iss) => ({
+            path: iss.path.join("."),
+            code: iss.code,
+          })),
+        },
+      },
+    );
   }
-  const cardId = parseInt(cardIdRaw, 10);
-  if (!Number.isFinite(cardId) || cardId <= 0) {
-    return errorResponse(null, "invalid_input", "[comments GET] invalid cardId", 400, undefined, {
-      userMessage: "유효하지 않은 cardId 입니다.",
-    });
-  }
-  const offset = Math.max(0, parseInt(url.searchParams.get("offset") ?? "0", 10) || 0);
-  const limitRaw = parseInt(url.searchParams.get("limit") ?? "20", 10) || 20;
-  const limit = Math.min(MAX_LIMIT, Math.max(1, limitRaw));
+  const { cardId, offset, limit } = parsed.data;
 
   const supabase = await createSupabaseServerClient();
 
@@ -232,52 +245,49 @@ export async function GET(req: Request) {
 // ─────────────────────────────────────────────────────────────
 // POST
 // ─────────────────────────────────────────────────────────────
-type PostBody = {
-  cardId?: unknown;
-  parentId?: unknown;
-  body?: unknown;
-};
-
 export async function POST(req: Request) {
-  let raw: PostBody;
+  // 2026-05-28: Zod 검증으로 통합 (articles 와 동일 패턴).
+  //   옛 typeof + parseInt + trim + length 다중 분기 → CommentCreateSchema 단일 출처.
+  //   parentId null/undefined 모두 root 댓글로 처리, body 는 schema 의 transform 으로 trim.
+  let rawJson: unknown;
   try {
-    raw = (await req.json()) as PostBody;
+    rawJson = await req.json();
   } catch (e) {
-    return errorResponse(e, "invalid_input", "[comments POST] body parse", 400, undefined, {
-      userMessage: "잘못된 요청 형식",
-    });
+    return errorResponse(
+      e,
+      "invalid_input",
+      "[comments POST] body parse",
+      400,
+      undefined,
+      { userMessage: "잘못된 요청 형식" },
+    );
   }
 
-  const cardId = typeof raw.cardId === "number" ? raw.cardId : parseInt(String(raw.cardId ?? ""), 10);
-  if (!Number.isFinite(cardId) || cardId <= 0) {
-    return errorResponse(null, "invalid_input", "[comments POST] cardId missing", 400, undefined, {
-      userMessage: "cardId 가 필요합니다.",
-    });
+  const parsed = CommentCreateSchema.safeParse(rawJson);
+  if (!parsed.success) {
+    // schema 내 메시지 (예: "댓글 내용을 입력해 주세요." / "댓글은 2000자 이내로...") 를
+    // 첫 issue 의 message 로 사용자에게 그대로 노출. 옛 분기 별 메시지와 의미 일치.
+    const firstMsg = parsed.error.issues[0]?.message;
+    return errorResponse(
+      null,
+      "invalid_input",
+      "[comments POST] schema",
+      400,
+      undefined,
+      {
+        userMessage: firstMsg ?? "유효하지 않은 입력입니다.",
+        devOnly: {
+          issues: parsed.error.issues.slice(0, 5).map((iss) => ({
+            path: iss.path.join("."),
+            code: iss.code,
+          })),
+        },
+      },
+    );
   }
-
-  const parentId =
-    raw.parentId == null || raw.parentId === ""
-      ? null
-      : typeof raw.parentId === "number"
-        ? raw.parentId
-        : parseInt(String(raw.parentId), 10);
-  if (parentId !== null && (!Number.isFinite(parentId) || parentId <= 0)) {
-    return errorResponse(null, "invalid_input", "[comments POST] invalid parentId", 400, undefined, {
-      userMessage: "유효하지 않은 parentId 입니다.",
-    });
-  }
-
-  const body = typeof raw.body === "string" ? raw.body.trim() : "";
-  if (!body) {
-    return errorResponse(null, "invalid_input", "[comments POST] empty body", 400, undefined, {
-      userMessage: "댓글 내용을 입력해 주세요.",
-    });
-  }
-  if (body.length > 2000) {
-    return errorResponse(null, "invalid_input", "[comments POST] body too long", 400, undefined, {
-      userMessage: "댓글은 2000자 이내로 작성해주세요.",
-    });
-  }
+  const { cardId, body } = parsed.data;
+  // parentId 미전송 / null 둘 다 root 댓글 — DB insert 시 null 통일.
+  const parentId = parsed.data.parentId ?? null;
 
   const supabase = await createSupabaseServerClient();
   const idCtx = await getIdentityContext(supabase);
