@@ -39,7 +39,6 @@ import {
   type PostCategorySlug,
 } from "@/lib/post-category";
 import PubmedRefsField, {
-  appendReferencesToBody,
   pubmedRefObjToString,
   splitBodyAndReferences,
   type PubmedRefObj,
@@ -508,11 +507,9 @@ export default function CardEditor({
 
   /* ── 저장 ─────────────────────────────────────────────────── */
   function buildPayload(action: SubmitAction): CardEditorPayload {
-    const cleanBody = normalizeAnswerBody(body);
-    const filledRefs = references.map((r) => r.trim()).filter(Boolean);
-    const finalBody = showRefs
-      ? appendReferencesToBody(cleanBody, filledRefs)
-      : cleanBody;
+    // Critical-6 (2026-05-27): 본문에 "참고문헌\n1. ..." 평문 꼬리를 append 하던 옛 로직
+    // 폐기. 참고문헌은 pubmed_refs (jsonb 컬럼) 단일 출처로만 저장. 본문은 본문만.
+    const finalBody = normalizeAnswerBody(body);
 
     const refObjs: NonNullable<PubmedRefObj>[] = [];
     references.forEach((r, i) => {

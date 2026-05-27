@@ -3,11 +3,32 @@
  *
  *  - highlight(text, query)         : 검색어 부분 일치를 노란 mark로 강조
  *  - renderAnswerBody(...)          : 단락 분리 + bold 마크다운 + 형광펜 + clamp 처리
+ *  - stripLegacyReferencesTail(body): 옛 본문에 평문으로 박힌 "참고문헌\n1. ..." 꼬리 제거 (Critical-6)
  *  - absoluteDateTimeLabel(iso)     : title 속성용 절대 시간 문자열
  *
  * Phase 4-1: Card.tsx 분해를 위해 추출.
  */
 import { Fragment, type ReactNode } from "react";
+
+/**
+ * Critical-6 (2026-05-27): 본문 끝에 옛 패턴으로 평문 박혀있는 "참고문헌" 섹션 잘라내기.
+ *
+ * 배경: 옛 CardEditor 가 본문에 "참고문헌\n1. Title — Authors, Journal (Year)\n2. ..." 를 자동
+ * append + 동시에 pubmed_refs jsonb 컬럼에도 ref 객체 저장 → 카드 단독 페이지에서 큰 검은 글씨로
+ * 본문 평문 ref 가 한 번, 하단에 작은 하늘색 ref 섹션이 한 번, 이중 노출되던 회귀.
+ *
+ * 신규 글은 본문에 평문 ref 가 안 박힘 (CardEditor.buildPayload 에서 append 제거).
+ * 기존 DB row 의 평문 꼬리는 본 함수가 렌더 시점에 시각적으로 잘라낸다 — DB 데이터 자체는 보존.
+ *
+ * 매치 패턴 (PubmedRefsField.tsx 의 splitBodyAndReferences 와 동일):
+ *   본문 끝의 `참고문헌` 헤더 + `\d+\. ...` 번호 리스트.
+ */
+export function stripLegacyReferencesTail(body: string): string {
+  if (!body) return body;
+  return body
+    .replace(/\n+참고문헌\s*\n(?:\s*\d+\.\s+[^\n]+\n?)+\s*$/, "")
+    .trimEnd();
+}
 
 /**
  * 텍스트 안에서 query 부분 일치를 노란 mark로 강조 (대소문자 무시).
@@ -60,7 +81,10 @@ export function renderAnswerBody(
   clamped: boolean,
   highlightColor: string,
 ): ReactNode {
-  const paragraphs = (text ?? "").split(/\n{2,}/).map((s) => s.trimEnd());
+  // Critical-6 (2026-05-27): 옛 데이터의 본문 끝 "참고문헌\n1. ..." 평문 꼬리 시각적 제거.
+  // pubmed_refs jsonb 컬럼이 CardBody 의 별도 ref 섹션으로 렌더되므로 본문 평문은 중복.
+  const cleaned = stripLegacyReferencesTail(text ?? "");
+  const paragraphs = cleaned.split(/\n{2,}/).map((s) => s.trimEnd());
   return (
     <>
       {paragraphs.map((para, pi) => {

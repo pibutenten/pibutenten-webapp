@@ -92,15 +92,30 @@ export default function CardBody({
       </div>
 
       {/* 3a. 참고 논문 — pubmed_refs 배열 (ADR 0012 단일 출처).
-          isLongAnswer && !expanded면 가림(펼쳐야 보임). reasoning은 사용자 화면 X. */}
+          isLongAnswer && !expanded면 가림(펼쳐야 보임). reasoning은 사용자 화면 X.
+          Critical-6 (2026-05-27) CSS 가드:
+            - relative + isolate: 부모의 z-stacking 영향 차단 (혹시 모를 오버레이 가림 방지)
+            - pointer-events: 부모 onClick stopPropagation 만으로 링크 클릭 보장 부족할 수 있어 명시
+            - <a> 자체에 inline-block + py-0.5 로 터치 영역 확보 (모바일 클릭 신뢰성) */}
       {showRefs && (
-        <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="relative isolate mt-3"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="text-[10px] font-semibold tracking-[0.04em] text-[var(--text-muted)]/70">
             참고문헌{validRefs.length > 1 ? ` (${validRefs.length})` : ""}
           </div>
-          <ul className="mt-0.5 space-y-1 text-[13px] leading-[1.55] text-[var(--text-muted)]">
+          <ul
+            className="mt-0.5 space-y-1 text-[13px] leading-[1.55] text-[var(--text-muted)]"
+            style={{ pointerEvents: "auto" }}
+          >
             {validRefs.map((r, idx) => {
               const linkHref = r.pubmed_url || r.doi_url;
+              // Critical-6: title 빈 값 가드 — "(제목 없음)" placeholder
+              const titleText =
+                typeof r.title === "string" && r.title.trim()
+                  ? r.title
+                  : "(제목 없음)";
               return (
                 <li key={`${r.pmid ?? r.doi ?? idx}-${idx}`}>
                   <cite
@@ -118,14 +133,17 @@ export default function CardBody({
                         href={linkHref}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:underline"
-                        style={{ color: "var(--primary)" }}
+                        className="relative z-10 inline-block py-0.5 hover:underline"
+                        style={{
+                          color: "var(--primary)",
+                          pointerEvents: "auto",
+                        }}
                         itemProp="url"
                       >
-                        <span itemProp="name">{r.title}</span>
+                        <span itemProp="name">{titleText}</span>
                       </a>
                     ) : (
-                      <span itemProp="name">{r.title}</span>
+                      <span itemProp="name">{titleText}</span>
                     )}
                     {r.authors_short && (
                       <>

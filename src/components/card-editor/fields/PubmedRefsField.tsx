@@ -280,20 +280,14 @@ export default function PubmedRefsField({
 }
 
 /**
- * 본문 끝에 참고문헌을 번호 매겨 append.
- * Q&A 카테고리 전용 헬퍼. WriteClient / EditClient 둘 다 동일 규칙 사용.
+ * Critical-6 (2026-05-27): 옛 appendReferencesToBody 함수 완전 삭제.
  *
- *   참고문헌
- *   1. Title — Authors, Journal (Year)
- *   2. ...
+ * 참고문헌은 pubmed_refs (jsonb 컬럼) 단일 출처로만 저장한다. 본문 텍스트 끝에
+ * "참고문헌\n1. ..." 평문을 강제로 덧붙이던 옛 패턴 폐기.
+ *
+ * 기존 DB 본문에 평문 꼬리가 박혀있는 카드들은 렌더 시점에 stripLegacyReferencesTail
+ * (utils/card-render) 로 시각적으로 잘라내어 표시 (이중 노출 차단).
  */
-export function appendReferencesToBody(body: string, refs: string[]): string {
-  const filled = refs.map((r) => r.trim()).filter(Boolean);
-  if (filled.length === 0) return body;
-  const refBlock =
-    "참고문헌\n" + filled.map((r, i) => `${i + 1}. ${r}`).join("\n");
-  return `${body}\n\n${refBlock}`;
-}
 
 /**
  * 기존 본문에서 자동 생성된 "참고문헌" 섹션을 추출.
