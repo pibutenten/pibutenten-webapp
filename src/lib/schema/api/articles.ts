@@ -112,6 +112,10 @@ export const ArticleCreateSchema = z
     external_url: z.string().url().max(2048).optional(),
     external_meta: ExternalMetaSchema.optional(),
     hide_doctor_credential: z.boolean().optional(),
+    // 2026-05-27 회귀 fix: WriteClient (의사 신규 Q&A) 가 참고문헌 1개 이상 첨부 시
+    // pubmed_refs 를 함께 전송했는데 본 스키마에 누락되어 .strict() 가 알 수 없는 키로
+    // 차단 → invalid_input 400. ArticleUpdateSchema 와 동일 형태로 추가.
+    pubmed_refs: z.array(PubmedRefSchema).max(20).nullable().optional(),
   })
   .strict();
 

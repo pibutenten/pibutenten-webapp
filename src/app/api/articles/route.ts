@@ -293,6 +293,12 @@ export async function POST(req: Request) {
     // 이전 버그: status를 항상 pending_review로 강제 덮어써서 "저장"(draft) 버튼이 검수 큐로 직행함.
     insert.status = reqStatus;
     insert.doctor_id = doctorId;
+    // 2026-05-27 회귀 fix: WriteClient 가 pubmed_refs 전송했는데 라우트가 insert payload 에
+    // 안 넣어 저장 누락되던 잠재 버그. ArticleUpdate 와 동일하게 명시 저장.
+    //   null = 비우기 (사용자가 모두 X 한 경우), undefined = 미전송 → 그대로.
+    if ("pubmed_refs" in payload) {
+      insert.pubmed_refs = payload.pubmed_refs ?? null;
+    }
   }
 
   // 보안 2.5차 E묶음 (2026-05-19): 자동 콘텐츠 검수기.
