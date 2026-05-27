@@ -20,7 +20,16 @@ export const metadata = {
 // ─────────────────────────────────────────────
 // 어드민 전용 타입
 // ─────────────────────────────────────────────
-type QAStatus = "draft" | "pending_review" | "published" | "archived";
+// 2026-05-28: DB enum qa_status 는 5종 (draft/pending_review/published/archived/hidden).
+//   옛 타입이 'hidden' 누락 → DB 에 status='hidden' row 4건이 들어오면 STATUS_STYLE['hidden']
+//   undefined → "Cannot read properties of undefined (reading 'bg')" → /admin/cards 500 회귀.
+//   DB enum 과 1:1 정합 + 방어 fallback 도 같이 추가.
+type QAStatus =
+  | "draft"
+  | "pending_review"
+  | "published"
+  | "archived"
+  | "hidden";
 type QAType = "qa" | "post";
 type TypeFilter = "qa" | "post" | "all";
 // 'deleted' 는 가짜 status — 실제 DB 상태 컬럼이 아니라 deleted_at IS NOT NULL row 의 카드.
@@ -64,6 +73,7 @@ function isStatusFilter(v: string | undefined): v is StatusFilter {
     v === "pending_review" ||
     v === "published" ||
     v === "archived" ||
+    v === "hidden" ||
     v === "all" ||
     v === "deleted"
   );
@@ -104,16 +114,27 @@ const STATUS_LIST: { key: StatusFilter; label: string }[] = [
   { key: "pending_review", label: "대기" },
   { key: "published", label: "발행" },
   { key: "archived", label: "보관" },
+  { key: "hidden", label: "숨김" },
   { key: "deleted", label: "삭제됨" },
 ];
 
 // status 색상 — 발행은 너무 튀지 않게 외곽선·옅은 톤. 대기·보관은 강조 유지.
+// 2026-05-28: hidden 추가 (DB qa_status 와 1:1 정합).
 const STATUS_STYLE: Record<QAStatus, { bg: string; fg: string; label: string; border?: string }> = {
   draft: { bg: "#F3F4F6", fg: "#6B7280", label: "초안", border: "#E5E7EB" },
   pending_review: { bg: "#FFF7E6", fg: "#B26F00", label: "대기", border: "#FFD08A" },
   published: { bg: "transparent", fg: "#16A34A", label: "발행", border: "#BBF7D0" },
   archived: { bg: "#F3F4F6", fg: "#4B5563", label: "보관", border: "#E5E7EB" },
+  hidden: { bg: "#FEF2F2", fg: "#B91C1C", label: "숨김", border: "#FECACA" },
 };
+// 방어 fallback — 향후 enum 에 새 status 가 추가됐는데 위 STATUS_STYLE 갱신 누락 시
+// crash 대신 default 톤으로 렌더 (가시성 손상 최소).
+const STATUS_STYLE_FALLBACK = {
+  bg: "#F3F4F6",
+  fg: "#6B7280",
+  label: "?",
+  border: "#E5E7EB",
+} as const;
 
 
 function buildQueryString(params: Record<string, string | number | undefined>): string {
@@ -580,7 +601,8 @@ export default async function AdminQAsPage({ searchParams }: Props) {
               </thead>
               <tbody>
                 {rows.map((r) => {
-                  const style = STATUS_STYLE[r.status];
+                  // 2026-05-28: fallback 으로 enum 확장 시 crash 방지.
+                  const style = STATUS_STYLE[r.status] ?? STATUS_STYLE_FALLBACK;
                   return (
                     <tr
                       key={r.id}
