@@ -63,6 +63,8 @@ export type NewCardRow = {
   doctor_slug?: string | null;
   post_year?: number | null;
   post_slug?: string | null;
+  // 0175 (2026-05-28): 삭제된 카드도 신규 글 목록에 포함. UI 가 배지 표시.
+  deleted_at?: string | null;
 };
 
 export type CommentSummary = {
@@ -92,6 +94,9 @@ export type CardRow = {
   doctor_slug?: string | null;
   post_year?: number | null;
   post_slug?: string | null;
+  // 0175 (2026-05-28): RPC 6개 가 deleted_at 반환. UI 가 '[삭제됨]' 배지 표시.
+  //   사용자 결정 (옵션 A): KPI 와 정합 위해 TOP 에도 삭제 카드 포함.
+  deleted_at?: string | null;
 };
 
 /**
@@ -122,6 +127,22 @@ function publicCardUrl(row: CardRow): string {
 }
 
 type Row = VisitorRow | CardRow | NewMemberRow | NewCardRow;
+
+/**
+ * 삭제된 카드 표시 배지 (2026-05-28, 옵션 A 사용자 결정).
+ *   - RPC 6개 가 deleted_at 컬럼 반환 시 제목 앞에 inline 표시.
+ *   - 시각: 빨간 톤 작은 chip. 글 자체는 삭제됐지만 admin 추적용으로 유지.
+ */
+function DeletedBadge() {
+  return (
+    <span
+      className="mr-1.5 inline-flex items-center rounded-full border border-red-200 bg-red-50 px-1.5 py-0.5 align-middle text-[10px] font-medium text-red-700"
+      title="이 카드는 soft-delete 되었으나 활동 추적용으로 표시됩니다"
+    >
+      삭제됨
+    </span>
+  );
+}
 
 const PAGE_SIZE = 50;
 
@@ -392,6 +413,9 @@ function NewCardRowItem({ row }: { row: NewCardRow }) {
           {categoryLabel && (
             <span className="mr-1.5 text-[var(--text-muted)]">{categoryLabel}</span>
           )}
+          {row.deleted_at && (
+            <DeletedBadge />
+          )}
           {row.title || "(제목 없음)"}
         </div>
         <span className="shrink-0 text-[12px] text-[var(--text-muted)]">
@@ -503,6 +527,7 @@ function ActivityTopRow({
               </span>
             ) : null;
           })()}
+          {row.deleted_at && <DeletedBadge />}
           {row.title || "(제목 없음)"}
         </button>
         {/* 카운트도 같은 펼침 toggle */}
