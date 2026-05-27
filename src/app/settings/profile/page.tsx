@@ -10,7 +10,6 @@ import {
 } from "@/lib/profile-options";
 import {
   IDENTITY_COOKIE,
-  PRIMARY_IDENTITY_ID,
   UUID_RE,
   bundleProfileFilter,
 } from "@/lib/identity-shared";
@@ -63,16 +62,16 @@ export default async function MyProfilePage() {
 
   const loginProviders = (user.identities ?? []).map((i) => i.provider);
 
-  // Phase 9: cookie가 UUID면 해당 profile (본인 묶음 안)이 active identity.
-  //   - 'primary' 또는 빈 값 → 로그인 profile 자체가 active
-  //   - UUID → 같은 auth_user_id 묶음 안의 다른 profile (예: doctor 부계정)
+  // Critical-5 (2026-05-27): cookie 가 UUID 이고 user.id 와 다를 때만 multi-identity.
+  //   - 빈 값 / UUID 아님 (옛 "primary" 포함) → base profile 자체가 active
+  //   - UUID == user.id → base profile 자체가 active
+  //   - UUID != user.id → 같은 묶음 다른 profile (예: doctor 부계정 / 회원 부계정)
   const cookieStore = await cookies();
   const activeCookie = cookieStore.get(IDENTITY_COOKIE)?.value ?? null;
   const isMultiIdentity =
     activeCookie &&
-    activeCookie !== PRIMARY_IDENTITY_ID &&
-    activeCookie !== user.id &&
-    UUID_RE.test(activeCookie);
+    UUID_RE.test(activeCookie) &&
+    activeCookie !== user.id;
 
   // 활성 identity profile fetch (multi-identity일 때만 — 본인 묶음 검증 포함)
   let activeIdentity: IdentityRow | null = null;

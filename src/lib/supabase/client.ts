@@ -16,7 +16,7 @@ import { IDENTITY_MIRROR_COOKIE, UUID_RE } from "@/lib/identity-shared";
  *
  *   신분 전환은 IdentitySwitcher 가 `window.location.assign('/')` 풀 리로드로
  *   처리하므로 cached client lifetime 안에서 cookie 가 바뀌지 않음 — 헤더 일관.
- *   cookie 가 'primary' 또는 UUID 가 아니면 헤더 미설정 → DB fallback (auth.uid()).
+ *   cookie 가 UUID 가 아니면 (옛 "primary" / 빈 값 / 비-UUID) 헤더 미설정 → DB fallback (auth.uid()).
  *
  * 변경 (2026-05-15 — P1-3 fix):
  *   - 모듈 스코프 캐시로 단일 인스턴스
@@ -35,7 +35,8 @@ function readActiveIdFromCookie(): string | null {
     const trimmed = part.trim();
     if (trimmed.startsWith(target)) {
       const raw = decodeURIComponent(trimmed.slice(target.length));
-      if (raw && raw !== "primary" && UUID_RE.test(raw)) return raw;
+      // Critical-5 (2026-05-27): UUID 만 인정. 옛 sentinel "primary" 는 UUID_RE 가 자동 거부.
+      if (raw && UUID_RE.test(raw)) return raw;
       return null;
     }
   }

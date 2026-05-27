@@ -6,7 +6,7 @@ import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { cookies } from "next/headers";
-import { IDENTITY_COOKIE, PRIMARY_IDENTITY_ID, UUID_RE } from "@/lib/identity-shared";
+import { IDENTITY_COOKIE, UUID_RE } from "@/lib/identity-shared";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
 
@@ -61,14 +61,13 @@ export default async function FeedPage() {
 
   // 11번 — 본인이 최근 발행한 글을 피드 맨 위에 고정 (HOT 가중치 무관).
   // active profile.id (cookie) 기준 — 회원 명함으로 쓴 글은 그 active 가 작성자.
-  // active 가 'primary' 면 user.id (auth) 가 author_id.
+  // Critical-5 (2026-05-27): cookie 가 UUID 인 경우만 사용, 그 외 (옛 "primary" / 빈 값) → viewer.id (= base profile.id).
   if (viewer) {
     const cookieStore = await cookies();
-    const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? PRIMARY_IDENTITY_ID;
+    const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value;
     const activeId =
-      cookieVal !== PRIMARY_IDENTITY_ID && UUID_RE.test(cookieVal)
-        ? cookieVal
-        : viewer.id;
+      cookieVal && UUID_RE.test(cookieVal) ? cookieVal : viewer.id;
+    // Critical-5 (C-1 fix): 강제 캐스팅 `as unknown as CardData` 폐기 → `.returns<CardData>()` 로 타입 안전 좁힘.
     const { data: myLatest } = await supabase
       .from("cards")
       .select(CARD_LIST_SELECT)
@@ -76,11 +75,10 @@ export default async function FeedPage() {
       .eq("author_id", activeId)
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle<CardData>();
     if (myLatest) {
       // 같은 id 가 이미 cards 에 있으면 제거 후 맨 앞에 prepend.
-      const myCard = myLatest as unknown as CardData;
-      cards = [myCard, ...cards.filter((q) => q.id !== myCard.id)];
+      cards = [myLatest, ...cards.filter((q) => q.id !== myLatest.id)];
     }
   }
   const viewerStates = await fetchViewerStatesRecord(

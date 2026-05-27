@@ -184,13 +184,15 @@ export default function ProfileTabs({
            video:videos(youtube_id, youtube_url, topic, upload_date),
            author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle, updated_at)`,
         )
-        .in("id", ids);
+        .in("id", ids)
+        .returns<CardData[]>();
       if (cardErr) {
         console.error("[cards join for saves/likes]", cardErr);
       }
-      // 저장/좋아요 시간 순서 유지
+      // 저장/좋아요 시간 순서 유지.
+      // Critical-5 (C-2 fix, 2026-05-27): 강제 캐스팅 `as unknown as CardData` 폐기 → `.returns<CardData[]>()` 로 타입 안전 좁힘.
       const map = new Map<number, CardData>();
-      for (const q of cardRows ?? []) map.set((q as { id: number }).id, q as unknown as CardData);
+      for (const q of cardRows ?? []) map.set(q.id, q);
       const ordered = ids.map((id) => map.get(id)).filter(Boolean) as CardData[];
       if (tab === "saves") setSavedPosts(ordered);
       else setLikedPosts(ordered);

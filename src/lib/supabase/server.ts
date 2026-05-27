@@ -12,17 +12,16 @@ import { IDENTITY_COOKIE, UUID_RE } from "@/lib/identity-shared";
  *   로 노출 → DB 의 `current_active_profile_id()` 헬퍼가 읽어 RLS/RPC 가 active
  *   신분 단위로 동작.
  *
- *   cookie 가 'primary' 또는 없거나 UUID 가 아니면 헤더 미설정 → fallback 으로
- *   auth.uid() (primary profile.id) 사용. 회귀 0.
+ *   cookie 가 UUID 가 아니면 (옛 sentinel "primary" / 빈 값 / 비-UUID) 헤더 미설정 →
+ *   fallback 으로 auth.uid() (base profile.id) 사용. 회귀 0.
+ *   Critical-5 (2026-05-27): "primary" 별도 분기 불필요 — UUID_RE 가 자동 거부.
  */
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   const activeIdRaw = cookieStore.get(IDENTITY_COOKIE)?.value;
   const activeId =
-    activeIdRaw && activeIdRaw !== "primary" && UUID_RE.test(activeIdRaw)
-      ? activeIdRaw
-      : null;
+    activeIdRaw && UUID_RE.test(activeIdRaw) ? activeIdRaw : null;
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

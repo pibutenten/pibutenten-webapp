@@ -98,7 +98,8 @@ export default async function AdminUserDetailPage({
 }: Props) {
   const { id } = await params;
   const sp = await searchParams;
-  const identityParam = (sp.identity ?? "primary").trim();
+  // Critical-5 (2026-05-27): URL ?identity= 파라미터는 UUID 만 인정. 빈 값/비-UUID/옛 "primary" 는 base profile 로 처리.
+  const identityParam = (sp.identity ?? "").trim();
   const supabase = await createSupabaseServerClient();
   const {
     data: { user: me },
@@ -186,7 +187,8 @@ export default async function AdminUserDetailPage({
   let activeIdentity:
     | (IdentityRow & { isPrimary: false })
     | null = null;
-  if (identityParam !== "primary" && /^[0-9a-f-]{36}$/i.test(identityParam)) {
+  // Critical-5 (2026-05-27): UUID 검증만. 옛 "primary" sentinel 분기 폐기.
+  if (identityParam && /^[0-9a-f-]{36}$/i.test(identityParam)) {
     const found = allIdentities.find((r) => r.id === identityParam);
     if (found) activeIdentity = { ...found, isPrimary: false };
   }
@@ -338,7 +340,7 @@ export default async function AdminUserDetailPage({
         <div className="mb-3 flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-[var(--text-muted)]">이 회원의 ID:</span>
           <Link
-            href={`/admin/users/${id}?identity=primary`}
+            href={`/admin/users/${id}`}
             className={`rounded-full border px-2.5 py-1 text-xs ${
               activeIdentity === null
                 ? "border-[var(--primary)] bg-[var(--primary)]/10 font-semibold text-[var(--primary)]"

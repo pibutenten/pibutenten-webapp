@@ -13,25 +13,26 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import {
   IDENTITY_COOKIE,
-  PRIMARY_IDENTITY_ID,
   UUID_RE,
   type ActiveIdentity,
 } from "./identity-shared";
 import { getDoctorIdForProfile } from "./doctor-mapping";
 
 /**
- * cookie 'pibutenten:identity' 를 읽어 target profile.id 결정.
- *  - 'primary' 또는 cookie 없음 → authUserId 반환
- *  - 유효한 UUID 면 그 값 반환
- *  - cookies() 컨텍스트 밖(테스트/일부 server util)에서 호출 시 authUserId 반환
+ * cookie 'pibutenten:identity' 를 읽어 target profile.id (UUID) 결정.
+ *
+ * Critical-5 (2026-05-27) — sentinel "primary" 멸종:
+ *   값이 UUID 인 경우만 사용, 그 외 (옛 "primary" / 빈 값 / 비-UUID) 는 모두 authUserId (= base profile.id) 로 fallback.
+ *   호환성: 옛 쿠키 "primary" 를 들고 들어오는 사용자도 base UUID 로 자연 해소된다.
+ *   다음 식별자 전환 또는 신규 로그인 시 cookie 가 UUID 로 갱신된다.
  *
  * exported — viewer-states 등에서도 동일 로직 사용 (이전 중복 정의 제거).
  */
 export async function readTargetProfileId(authUserId: string): Promise<string> {
   try {
     const cookieStore = await cookies();
-    const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value ?? PRIMARY_IDENTITY_ID;
-    if (cookieVal !== PRIMARY_IDENTITY_ID && UUID_RE.test(cookieVal)) {
+    const cookieVal = cookieStore.get(IDENTITY_COOKIE)?.value;
+    if (cookieVal && UUID_RE.test(cookieVal)) {
       return cookieVal;
     }
   } catch (e) {
@@ -83,7 +84,8 @@ export async function resolveActiveIdentity(
   const role = (profile.role as string) ?? "user";
 
   return {
-    id: targetProfileId === authUserId ? PRIMARY_IDENTITY_ID : targetProfileId,
+    // Critical-5: id == profileId 항상 (UUID). 본 계정도 자체 profile.id (= authUserId) 사용.
+    id: targetProfileId,
     authUserId,
     profileId: targetProfileId,
     handle: (profile.handle as string) ?? "",

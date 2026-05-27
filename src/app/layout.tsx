@@ -10,7 +10,7 @@ import { SessionProvider } from "@/lib/session-context";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
-import { IDENTITY_COOKIE, PRIMARY_IDENTITY_ID } from "@/lib/identity-shared";
+import { IDENTITY_COOKIE, UUID_RE } from "@/lib/identity-shared";
 import { allClinicsSchema } from "@/lib/schema/clinic";
 import {
   getDoctorSlugForProfile,
@@ -127,8 +127,9 @@ async function getSessionInfo(): Promise<SessionInfo> {
         avatar = `/doctors/${docSlug}.png`;
       }
       identities.push({
-        // id: 본인 auth user의 row면 'primary', 그 외엔 그 profile.id
-        id: r.id === user.id ? "primary" : r.id,
+        // Critical-5 (2026-05-27): 항상 실제 profile.id (UUID).
+        // 본 계정도 자체 profile.id (= user.id) 그대로 운반. sentinel "primary" 폐지.
+        id: r.id,
         handle: r.handle ?? "",
         displayName: r.display_name ?? user.email ?? "",
         avatarUrl: avatar,
@@ -147,14 +148,17 @@ async function getSessionInfo(): Promise<SessionInfo> {
       (a, b) =>
         (KIND_ORDER[a.kind] ?? 99) - (KIND_ORDER[b.kind] ?? 99),
     );
-    // 활성 identity 결정 — cookie 우선, 없으면 'primary'
+    // 활성 identity 결정 — cookie 가 UUID 이고 묶음 내 identity 면 사용, 그 외 base profile.id (= user.id).
+    // Critical-5 (2026-05-27): 옛 sentinel "primary" 비교 폐지. 항상 UUID.
     const { cookies } = await import("next/headers");
     const cookieStore = await cookies();
     const activeFromCookie = cookieStore.get(IDENTITY_COOKIE)?.value;
     const activeIdentityId =
-      activeFromCookie && identities.some((i) => i.id === activeFromCookie)
+      activeFromCookie &&
+      UUID_RE.test(activeFromCookie) &&
+      identities.some((i) => i.id === activeFromCookie)
         ? activeFromCookie
-        : PRIMARY_IDENTITY_ID;
+        : user.id;
 
     return {
       role: (profile.role as "admin" | "doctor" | "user") ?? "user",
@@ -164,6 +168,8 @@ async function getSessionInfo(): Promise<SessionInfo> {
       doctorSlug,
       identities,
       activeIdentityId,
+      // Critical-5: 본 계정 식별용 — IdentitySwitcher 등이 "대표" 라벨 렌더링 시 사용.
+      baseUserId: user.id,
     };
   } catch {
     return null;

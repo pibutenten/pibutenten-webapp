@@ -15,7 +15,7 @@ type NavItem = {
 };
 
 export type SessionIdentity = {
-  /** 'primary' (profiles row 자체) 또는 묶음 내 다른 profile.id (uuid) */
+  /** 묶음 내 profile.id (UUID). 본 계정도 자체 profile.id 그대로. Critical-5 (2026-05-27). */
   id: string;
   handle: string;
   displayName: string;
@@ -31,10 +31,12 @@ export type SessionInfo = {
   /** v4 — 헤더 아바타 1-click 진입용 */
   handle: string | null;
   doctorSlug: string | null;
-  /** v4 multi-identity — 본인이 보유한 모든 identity (primary 포함). 1개일 땐 dropdown 안 보임. */
+  /** v4 multi-identity — 본인이 보유한 모든 identity (본 계정 포함). 1개일 땐 dropdown 안 보임. */
   identities: SessionIdentity[];
-  /** 현재 활성 identity id ('primary' 또는 profile_identities.id) */
+  /** 현재 활성 identity id — 실제 profile.id (UUID). Critical-5 (2026-05-27) 이후 sentinel "primary" 폐지. */
   activeIdentityId: string;
+  /** 본 계정 식별용 UUID (auth.users.id == base profile.id). IdentitySwitcher 의 "대표" 라벨 렌더링 시 비교. */
+  baseUserId: string;
 } | null;
 
 type TopNavProps = {
@@ -314,6 +316,7 @@ export default function TopNav({ session }: TopNavProps) {
             <IdentitySwitcher
               identities={session.identities}
               activeId={session.activeIdentityId}
+              baseUserId={session.baseUserId}
               doctorSlug={session.doctorSlug}
               isAdmin={session.role === "admin"}
             />
