@@ -646,7 +646,14 @@ export default function CardEditor({
   }
 
   /* ── 렌더 ─────────────────────────────────────────────────── */
-  const adminPickCount = adminExtras?.doctorPickCount ?? 0;
+  // doctorPickCount 는 서버 fetch 시점 값. 본인이 체크박스 토글하면 optimistic 가감
+  // 으로 즉시 반영 (저장 후 router.refresh() 가 서버 카운트 재 fetch 하여 정합 복원).
+  //   - 옛: 0/5 였는데 체크 → 0/5 그대로 (회귀)
+  //   - 새: 0/5 였는데 체크 → 1/5 즉시 반영
+  const initialIsPick = initialCard?.isPick ?? false;
+  const adminPickCount =
+    (adminExtras?.doctorPickCount ?? 0) +
+    (isPick === initialIsPick ? 0 : isPick ? 1 : -1);
 
   return (
     <div className="space-y-5">

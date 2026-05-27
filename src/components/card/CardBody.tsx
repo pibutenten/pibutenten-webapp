@@ -145,9 +145,13 @@ export default function CardBody({
                     ) : (
                       <span itemProp="name">{titleText}</span>
                     )}
+                    {/* title — authors — journal — year:
+                        title 끝에 em-dash 두면 inline 텍스트라 길이에 따라 줄바꿈 후
+                        새 줄 첫 글자가 대시로 시작해 외롭게 보이는 회귀 (2026-05-27 사용자
+                        보고). 한 칸 공백만 두고 저자 inline 자연 흐름. */}
                     {r.authors_short && (
                       <>
-                        {" — "}
+                        {" "}
                         <span itemProp="author">{r.authors_short}</span>
                       </>
                     )}
