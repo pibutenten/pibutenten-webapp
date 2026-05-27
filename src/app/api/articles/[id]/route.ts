@@ -28,7 +28,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
-import { ArticleUpdateSchema } from "@/lib/schema/api/articles";
+import { ArticleUpdateSchema, type PubmedRefObj } from "@/lib/schema/api/articles";
 import { screenContent } from "@/lib/content-screening";
 import {
   categoriesForRole,
@@ -39,17 +39,6 @@ import {
 export const dynamic = "force-dynamic";
 
 type Status = "draft" | "pending_review" | "published" | "archived";
-
-type PubmedRefObj = {
-  pmid?: string | null;
-  doi?: string | null;
-  title?: string | null;
-  journal?: string | null;
-  year?: string | null;
-  authors_short?: string | null;
-  pubmed_url?: string | null;
-  doi_url?: string | null;
-} | null;
 
 type Payload = {
   question?: string;
@@ -62,7 +51,7 @@ type Payload = {
   external_description?: string | null;
   external_image?: string | null;
   external_site_name?: string | null;
-  pubmed_refs?: NonNullable<PubmedRefObj>[] | null;
+  pubmed_refs?: PubmedRefObj[] | null;
   // admin 전용
   status?: Status;
   is_pick?: boolean;

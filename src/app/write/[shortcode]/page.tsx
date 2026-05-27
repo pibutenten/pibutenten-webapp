@@ -5,23 +5,13 @@ import AdminEditClient from "@/app/admin/cards/[id]/edit/EditClient";
 import BackButton from "@/components/BackButton";
 import { getIdentityContext } from "@/lib/identity";
 import { fetchAdminCardExtras } from "@/lib/admin-card-extras";
+import type { PubmedRefObj } from "@/lib/schema/api/articles";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ shortcode: string }>;
 };
-
-type PubmedRefRow = {
-  pmid?: string | null;
-  doi?: string | null;
-  title?: string | null;
-  journal?: string | null;
-  year?: string | null;
-  authors_short?: string | null;
-  pubmed_url?: string | null;
-  doi_url?: string | null;
-} | null;
 
 type QaRow = {
   id: number;
@@ -39,7 +29,7 @@ type QaRow = {
   external_description: string | null;
   external_image: string | null;
   external_site_name: string | null;
-  pubmed_refs: NonNullable<PubmedRefRow>[] | null;
+  pubmed_refs: PubmedRefObj[] | null;
   author:
     | { handle: string | null }
     | { handle: string | null }[]

@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import { requireAdminOrDoctor } from "@/lib/admin-guard";
 import { fetchPubmedByPmid } from "@/lib/ai/pubmed";
 import { errorResponse } from "@/lib/error-response";
+import { normalizePubmedRefWire } from "@/lib/schema/api/articles";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -39,7 +40,8 @@ export async function POST(req: Request) {
     if (!ref) {
       return errorResponse(null, "not_found", "[admin/draft/pubmed-by-pmid] not found", 404, undefined, { userMessage: `PMID ${pmid}에 해당하는 PubMed 논문을 찾을 수 없습니다.` });
     }
-    return NextResponse.json({ reference: ref });
+    // Critical-4: PubMed wire-format → SSOT (PubmedRefObj) 로 정규화한 뒤 응답.
+    return NextResponse.json({ reference: normalizePubmedRefWire(ref) });
   } catch (e) {
     return errorResponse(e, "network_failed", "[admin/draft/pubmed-by-pmid] fetch failed", 502);
   }

@@ -6,6 +6,10 @@ import { DOCTORS_9 } from "@/lib/ai/identify-doctors";
 import { pickHighlight } from "@/lib/card-highlight";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 import { costUSD, formatUSD, formatTokens, type UsageLike } from "@/lib/ai/pricing";
+import {
+  normalizePubmedRefWire,
+  type PubmedRefObj,
+} from "@/lib/schema/api/articles";
 
 // ── 위저드 타입 ────────────────────────────────────────
 
@@ -43,19 +47,10 @@ type Step1Card = {
   script_evidence?: string;
 };
 
-type PubmedRef = {
-  pmid: string;
-  doi: string;
-  title: string;
-  journal: string;
-  year: string;
-  authors_short: string;
-  pubmed_url: string;
-  doi_url: string;
-} | null;
-
+// Critical-4 (2026-05-27): step2 라우트가 SSOT (PubmedRefObj) 형식으로 정규화해 응답.
+// candidates 는 dropdown 표시용 wire-format 유지 (사용자가 선택 시 boundary 에서 normalize).
 type Step2Result = {
-  reference: PubmedRef;
+  reference: PubmedRefObj | null;
   reasoning: string;
   candidates: Array<{
     pmid: string;
@@ -454,11 +449,12 @@ export default function DraftClient() {
         if (i !== idx || !c.step2) return c;
         const cand = c.step2.candidates.find((x) => x.pmid === pmid);
         if (!cand) return c;
+        // Critical-4 boundary: wire-format candidate → SSOT (PubmedRefObj).
         return {
           ...c,
           step2: {
             ...c.step2,
-            reference: {
+            reference: normalizePubmedRefWire({
               pmid: cand.pmid,
               doi: cand.doi,
               title: cand.title,
@@ -467,7 +463,7 @@ export default function DraftClient() {
               authors_short: cand.authors_short,
               pubmed_url: `https://pubmed.ncbi.nlm.nih.gov/${cand.pmid}/`,
               doi_url: cand.doi ? `https://doi.org/${cand.doi}` : "",
-            },
+            }),
             reasoning: `수동 선택: ${pmid}`,
           },
         };
@@ -1127,16 +1123,27 @@ function ReferenceLine({
 }: {
   r: NonNullable<Step2Result["reference"]>;
 }) {
+  // 제목 가드 (Critical-4 #4) — title 비어 있으면 placeholder.
+  const titleDisplay = (r.title ?? "").trim() || "(제목 없음)";
+  // SSOT: pubmed_url 은 string|""|null|undefined. 빈 값이면 비링크 텍스트.
+  const pubmedHref =
+    typeof r.pubmed_url === "string" && r.pubmed_url.trim() !== ""
+      ? r.pubmed_url
+      : null;
   return (
     <div>
-      <a
-        href={r.pubmed_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="font-medium text-[var(--text)] underline decoration-[var(--text-muted)]/40 underline-offset-[3px] hover:decoration-[var(--primary)]"
-      >
-        {r.title}
-      </a>
+      {pubmedHref ? (
+        <a
+          href={pubmedHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-[var(--text)] underline decoration-[var(--text-muted)]/40 underline-offset-[3px] hover:decoration-[var(--primary)]"
+        >
+          {titleDisplay}
+        </a>
+      ) : (
+        <span className="font-medium text-[var(--text)]">{titleDisplay}</span>
+      )}
       <div className="mt-0.5 text-[var(--text-secondary)]">
         {r.authors_short && <span>{r.authors_short} · </span>}
         {r.journal && <span>{r.journal}</span>}

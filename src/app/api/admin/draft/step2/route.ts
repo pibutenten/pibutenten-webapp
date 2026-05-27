@@ -22,6 +22,10 @@ import { fetchPubmedCandidates } from "@/lib/ai/pubmed";
 import { runStep2 } from "@/lib/ai/step2";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
+import {
+  normalizePubmedRefWire,
+  type PubmedRefObj,
+} from "@/lib/schema/api/articles";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 카드 N개 * (PubMed ~3s + LLM ~10s) = 카드별 ~15s
@@ -61,8 +65,11 @@ export async function POST(req: Request) {
       : 8;
   const cards = body.cards as CardIn[];
 
+  // Critical-4: 응답 reference 는 SSOT (PubmedRefObj) 형식으로 정규화한 뒤 내보낸다.
+  // candidates 는 dropdown 표시용 wire-format 유지 (사용자가 선택해 reference 로
+  // 승격될 때 클라이언트가 normalizePubmedRefWire 로 변환).
   type CardResult = {
-    reference: Awaited<ReturnType<typeof runStep2>>["reference"];
+    reference: PubmedRefObj | null;
     reasoning: string;
     candidates: Array<{
       pmid: string;
@@ -134,7 +141,7 @@ export async function POST(req: Request) {
     totalCalls += calls;
 
     results.push({
-      reference: step2.reference,
+      reference: normalizePubmedRefWire(step2.reference),
       reasoning: step2.reasoning,
       candidates: candidates.map((x) => ({
         pmid: x.pmid,

@@ -24,35 +24,74 @@ const ExternalMetaSchema = z
   .strict();
 
 // PubMed 참고문헌 객체 — 본 schema 가 단일 출처 (SSOT).
-// 클라이언트 (PubmedRefsField.tsx 의 PubmedRefObj) 도 이 schema 의 z.infer 결과를
-// import 해서 사용 — 형식 정의 한 곳, 분기 없음. 향후 형식 변경 시 본 schema 한
-// 곳만 수정하면 클라이언트/서버 양쪽 자동 정합.
+// 클라이언트 (PubmedRefsField.tsx) 와 서버 라우트 모두 본 schema 의 z.infer 결과 import.
+//
+// Critical-4 정규화 (2026-05-27, 마이그레이션 0169 적용 후):
+//   - year 는 정수 (number | null). 옛 string 표기 (DB 858건) 전부 int 로 정규화 완료.
+//     1800~2100 범위 가드 — 명백한 잘못된 입력 방지.
+//   - doi_url 은 URL 또는 null (옛 "" 표기 64건 전부 null 로 정규화 완료).
+//     pubmed_url 은 같은 정책 적용 가능하지만 별도 작업으로 분리 (이번 범위는 doi_url 만).
 //
 // 모든 필드 nullable + optional — DB jsonb 의 실제 값 형태 보존.
-// 2026-05-26 fix (김수형 원장 회귀): 이전엔 client type 과 server zod 가 두 곳에
-// 분산되어 있어 client 가 `authors_short`/`pubmed_url`/`doi_url` 전송했는데 server
-// zod 는 옛 `authors`/`url` 기대 → "invalid_input" 에러. 본 SSOT 패턴으로 재발 차단.
-// URL 또는 빈 문자열 허용 helper.
-// 의도: DOI 가 도입(2000년대)되기 이전 발표된 옛 논문은 PubMed 등록은 됐지만 DOI 가
-// 본래 없음 — 이런 ref 의 doi_url 이 빈 값인 건 데이터 모델상 정상. zod .url() 만
-// 강제하면 그 ref 갖춘 카드 (production 65건) 수정 차단됨. 빈 값을 합법 표현으로 수용.
-const UrlOrEmpty = z.union([z.string().url().max(2048), z.literal("")]);
-
 export const PubmedRefSchema = z
   .object({
     pmid: z.string().max(20).nullable().optional(),
     doi: z.string().max(200).nullable().optional(),
     title: z.string().max(1000).nullable().optional(),
     journal: z.string().max(300).nullable().optional(),
-    year: z.union([z.string().max(10), z.number().int()]).nullable().optional(),
+    year: z.number().int().min(1800).max(2100).nullable().optional(),
     authors_short: z.string().max(2000).nullable().optional(),
-    pubmed_url: UrlOrEmpty.nullable().optional(),
-    doi_url: UrlOrEmpty.nullable().optional(),
+    pubmed_url: z.union([z.string().url().max(2048), z.literal("")]).nullable().optional(),
+    doi_url: z.string().url().max(2048).nullable().optional(),
   })
   .strict();
 
 /** PubMed 참고문헌 객체 TypeScript 타입 — 클라이언트/서버 공통. */
 export type PubmedRefObj = z.infer<typeof PubmedRefSchema>;
+
+/**
+ * 외부 PubMed eutils wire-format (year:string, doi_url:"") 을 SSOT 형식 (PubmedRefObj)
+ * 으로 정규화. admin/draft/{step2,pubmed-by-pmid} 라우트가 외부 응답을 받자마자 호출.
+ *
+ * 동작:
+ *   - year: "2024" → 2024, 정수 아니거나 빈 값 → null
+ *   - doi_url: "" → null, 유효 URL → 보존
+ *   - 기타 string 필드: 빈 값 ("") → null 통일
+ */
+export function normalizePubmedRefWire(r: {
+  pmid?: string | null;
+  doi?: string | null;
+  title?: string | null;
+  journal?: string | null;
+  year?: string | number | null;
+  authors_short?: string | null;
+  pubmed_url?: string | null;
+  doi_url?: string | null;
+} | null | undefined): PubmedRefObj | null {
+  if (!r) return null;
+  // year 정규화 (string → int)
+  let yearNum: number | null = null;
+  if (typeof r.year === "number" && Number.isFinite(r.year)) {
+    yearNum = Math.trunc(r.year);
+  } else if (typeof r.year === "string" && /^-?\d+$/.test(r.year.trim())) {
+    yearNum = parseInt(r.year, 10);
+  }
+  if (yearNum !== null && (yearNum < 1800 || yearNum > 2100)) {
+    yearNum = null;
+  }
+  const orNull = (v: string | null | undefined): string | null =>
+    typeof v === "string" && v.trim() !== "" ? v : null;
+  return {
+    pmid: orNull(r.pmid),
+    doi: orNull(r.doi),
+    title: orNull(r.title),
+    journal: orNull(r.journal),
+    year: yearNum,
+    authors_short: orNull(r.authors_short),
+    pubmed_url: orNull(r.pubmed_url),
+    doi_url: orNull(r.doi_url),
+  };
+}
 
 /**
  * POST /api/articles — 글 생성

@@ -13,21 +13,16 @@
  *   - "+ 참고문헌 추가" 버튼으로 새 행 추가
  *   - Enter 키 = [등록] 버튼 (IME 조합 중 무시)
  *   - PubMed URL 또는 PMID 숫자 입력 가능
- *   - 등록 판정은 " — " 구분자 포함 시 (formatPubmedRef 결과는 항상 포함)
+ *   - 등록 판정은 " — " 구분자 포함 시 (pubmedRefObjToString 결과는 항상 포함)
+ *
+ * Critical-4 (2026-05-27): admin/draft/pubmed-by-pmid 가 이제 SSOT (PubmedRefObj)
+ * 형식으로 응답 — 본 컴포넌트는 그대로 사용. 옛 PubmedCandidate (year:string) + 별도
+ * formatPubmedRef 함수 폐기, pubmedRefObjToString 단일 출처로 통합.
  *
  * 부수효과: POST /api/admin/draft/pubmed-by-pmid (PubMed efetch 프록시)
  */
 import { useState } from "react";
 import type { PubmedRefObj as ImportedPubmedRefObj } from "@/lib/schema/api/articles";
-
-type PubmedCandidate = {
-  authors_short: string;
-  title: string;
-  journal: string;
-  year: string;
-  pmid: string;
-  doi: string;
-};
 
 type Props = {
   /** 참고문헌 배열 (빈 행은 입력 모드, 비어있지 않으면 등록 상태로 간주) */
@@ -79,20 +74,6 @@ function decodeHtmlEntities(s: string): string {
     .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)));
 }
 
-/** PubmedCandidate → "Title — Authors, Journal (Year)" 형식의 한 줄 ref. */
-function formatPubmedRef(ref: PubmedCandidate): string {
-  const title = decodeHtmlEntities(ref.title || "");
-  const tail: string[] = [];
-  if (ref.authors_short) tail.push(decodeHtmlEntities(ref.authors_short));
-  if (ref.journal) tail.push(decodeHtmlEntities(ref.journal));
-  const tailJoined = tail.join(", ");
-  const yearPart = ref.year ? ` (${ref.year})` : "";
-  if (!title && !tailJoined && !yearPart) return "";
-  if (!tailJoined && !yearPart) return title;
-  if (!title) return `${tailJoined}${yearPart}`.trim();
-  return `${title} — ${tailJoined}${yearPart}`.trim();
-}
-
 export default function PubmedRefsField({
   value,
   meta,
@@ -131,7 +112,8 @@ export default function PubmedRefsField({
     return null;
   }
 
-  /** [등록] 버튼 — 입력값에서 PMID 추출 후 PubMed API 호출, value[idx]를 변환된 ref로 덮어씀. */
+  /** [등록] 버튼 — 입력값에서 PMID 추출 후 PubMed API 호출, value[idx]를 변환된 ref로 덮어씀.
+   * 응답은 admin/draft/pubmed-by-pmid 가 SSOT (PubmedRefObj) 형식으로 정규화해 보냄. */
   async function resolveRef(idx: number) {
     const input = value[idx] ?? "";
     const pmid = extractPmid(input);
@@ -148,28 +130,20 @@ export default function PubmedRefsField({
         body: JSON.stringify({ pmid }),
       });
       const data = (await res.json()) as
-        | { reference?: PubmedCandidate }
+        | { reference?: PubmedRefObj | null }
         | { error?: string };
       if (!res.ok || !("reference" in data) || !data.reference) {
-        const msg = "error" in data ? data.error : "PubMed 메타를 불러올 수 없습니다.";
+        const msg =
+          "error" in data ? data.error : "PubMed 메타를 불러올 수 없습니다.";
         onError?.(msg ?? "PubMed 메타를 불러올 수 없습니다.");
         return;
       }
       const r = data.reference;
-      const formatted = formatPubmedRef(r);
+      const formatted = pubmedRefObjToString(r);
       const nextValue = [...value];
       nextValue[idx] = formatted;
       const nextMeta = alignedMeta(nextValue);
-      nextMeta[idx] = {
-        pmid: r.pmid || null,
-        doi: r.doi || null,
-        title: r.title || null,
-        journal: r.journal || null,
-        year: r.year || null,
-        authors_short: r.authors_short || null,
-        pubmed_url: r.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/` : null,
-        doi_url: r.doi ? `https://doi.org/${r.doi}` : null,
-      };
+      nextMeta[idx] = r;
       emit(nextValue, nextMeta);
     } catch (e) {
       onError?.(e instanceof Error ? e.message : "PubMed 메타 조회 실패");
@@ -345,26 +319,26 @@ export function splitBodyAndReferences(body: string): {
 }
 
 /**
- * pubmed_refs DB 객체 → PubmedRefsField string 포맷.
- * Phase 2 (260518): admin 발행 카드는 pubmed_refs 컬럼에 객체 배열로 저장됨.
- * EditClient 가 그것을 본문 끝의 "참고문헌" 섹션과 동등하게 다루기 위해 변환.
+ * pubmed_refs DB 객체 → PubmedRefsField string 포맷 ("Title — Authors, Journal (Year)").
+ *
+ * SSOT (단일 출처) — zod schema 에서 자동 추출 (articles.ts 의 PubmedRefSchema).
+ * Critical-4 (2026-05-27): 옛 formatPubmedRef (PubmedCandidate 받음, year:string) 와
+ * 본 함수가 중복이었던 것을 단일 함수로 통합. 모든 호출자가 PubmedRefObj 형식만 사용.
+ *
+ * title 가드: title 이 비어 있으면 "(제목 없음)" 으로 표시 (Critical-4 #4).
  */
-// 단일 출처 (SSOT) — zod schema 에서 자동 추출 (articles.ts 의 PubmedRefSchema).
-// 본 파일의 다른 함수가 PubmedRefObj 를 사용하므로 re-export.
-// 2026-05-26 fix: 옛날엔 본 파일과 articles.ts 양쪽에 따로 정의되어 동기화 누락
-// (김수형 원장 회귀 — 필드명 어긋남) → SSOT 패턴으로 재발 차단.
 export type PubmedRefObj = ImportedPubmedRefObj;
 
 export function pubmedRefObjToString(ref: PubmedRefObj): string {
   // 옛 DB 데이터의 HTML entity decode (Ta&#xef;eb → Taïeb)
-  const title = decodeHtmlEntities(ref.title ?? "");
+  const rawTitle = decodeHtmlEntities(ref.title ?? "");
   const tail: string[] = [];
   if (ref.authors_short) tail.push(decodeHtmlEntities(ref.authors_short));
   if (ref.journal) tail.push(decodeHtmlEntities(ref.journal));
   const tailJoined = tail.join(", ");
-  const yearPart = ref.year ? ` (${ref.year})` : "";
-  if (!title && !tailJoined && !yearPart) return "";
+  const yearPart = ref.year != null ? ` (${ref.year})` : "";
+  // 제목 가드 — title 이 비어 있어도 칩 등록 판정 ("Title — ...") 유지하기 위해 placeholder 표시.
+  const title = rawTitle.trim() || "(제목 없음)";
   if (!tailJoined && !yearPart) return title;
-  if (!title) return `${tailJoined}${yearPart}`.trim();
   return `${title} — ${tailJoined}${yearPart}`.trim();
 }

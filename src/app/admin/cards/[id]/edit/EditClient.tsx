@@ -33,19 +33,8 @@ import CardEditor, {
 } from "@/components/card-editor/CardEditor";
 import { isPostCategorySlug, type PostCategorySlug } from "@/lib/post-category";
 import type { ExternalMeta } from "@/components/card-editor/fields/ExternalLinkField";
-import type { PubmedRefObj } from "@/components/card-editor/fields/PubmedRefsField";
+import type { PubmedRefObj } from "@/lib/schema/api/articles";
 import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
-
-type PubmedRef = {
-  pmid?: string | null;
-  doi?: string | null;
-  title: string;
-  authors_short?: string | null;
-  pubmed_url?: string | null;
-  journal?: string | null;
-  /** year 는 DB 에 string 또는 number 둘 다 가능 — PubmedRefObj 는 string */
-  year?: number | string | null;
-} | null;
 
 type Doctor = {
   id: string;
@@ -81,7 +70,7 @@ type Card = {
   external_title?: string | null;
   external_image?: string | null;
   external_site_name?: string | null;
-  pubmed_refs?: NonNullable<PubmedRef>[] | null;
+  pubmed_refs?: PubmedRefObj[] | null;
   author: AuthorBrief | null;
   doctor: Doctor | null;
 };
@@ -125,23 +114,10 @@ export default function EditClient({
   const isDoctorAuthored =
     !!card.doctor_id || card.author?.role === "doctor";
 
-  // initialCard 변환 — DB Card → CardEditorInitial
-  // year 가 DB 에서 number 일 수 있음 → string 으로 normalize (PubmedRefObj 가 string)
-  function normalizePubRef(r: NonNullable<PubmedRef>): NonNullable<PubmedRefObj> {
-    return {
-      pmid: r.pmid ?? null,
-      doi: r.doi ?? null,
-      title: r.title,
-      authors_short: r.authors_short ?? null,
-      pubmed_url: r.pubmed_url ?? null,
-      journal: r.journal ?? null,
-      year: r.year != null ? String(r.year) : null,
-    };
-  }
-  const initialPubmedRefs: NonNullable<PubmedRefObj>[] =
-    card.pubmed_refs && card.pubmed_refs.length > 0
-      ? card.pubmed_refs.map(normalizePubRef)
-      : [];
+  // initialCard 변환 — DB Card → CardEditorInitial.
+  // Critical-4 (마이그레이션 0169): pubmed_refs 가 이미 SSOT (PubmedRefObj) 형태로
+  // 정규화되어 옛 normalizePubRef (string ↔ number 변환) 가 불필요.
+  const initialPubmedRefs: PubmedRefObj[] = card.pubmed_refs ?? [];
 
   const initialExternalMeta: ExternalMeta | null = card.external_title
     ? {

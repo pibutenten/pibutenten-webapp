@@ -5,17 +5,14 @@
  * 15곳 이상에서 import한다. 변경 시 의존 그래프 전체에 영향.
  */
 
-export type PubmedRef = {
-  pmid?: string | null;
-  doi?: string | null;
-  title?: string | null;
-  journal?: string | null;
-  year?: string | null;
-  authors_short?: string | null;
-  pubmed_url?: string | null;
-  doi_url?: string | null;
-  reasoning?: string | null;
-};
+import type { PubmedRefObj } from "@/lib/schema/api/articles";
+
+/**
+ * Critical-4 (2026-05-27): 옛 PubmedRef 로컬 재정의 제거.
+ * SSOT 는 src/lib/schema/api/articles.ts 의 PubmedRefSchema 한 곳.
+ * 본 CardData 는 그 타입(PubmedRefObj) 그대로 재노출.
+ */
+export type PubmedRef = PubmedRefObj;
 
 export type CardData = {
   id: number;
