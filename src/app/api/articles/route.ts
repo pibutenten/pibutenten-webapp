@@ -306,6 +306,11 @@ export async function POST(req: Request) {
   // 보안 2.5차 E묶음 (2026-05-19): 자동 콘텐츠 검수기.
   // 의사·관리자는 자동 통과. 회원 글에서 의료광고·약사법 의심 패턴 임계점 초과 시
   // status 강제 pending_review + screening_flags 저장 → admin 검토 큐로.
+  //
+  // 2026-05-28 (P1-②): silent fail 방지 — verdict 를 상위 scope 으로 끌어올려
+  // 응답에 screening 필드 포함. 클라이언트(WriteClient) 가 사용자에게 토스트 안내.
+  let screeningFlagged = false;
+  let screeningReasons: string[] = [];
   if (role === ROLES.USER) {
     const verdict = screenContent({
       title: insert.title as string | null,
@@ -317,6 +322,8 @@ export async function POST(req: Request) {
     if (verdict.flagged) {
       insert.status = "pending_review";
       insert.screening_flags = verdict.reasons;
+      screeningFlagged = true;
+      screeningReasons = verdict.reasons;
     }
   }
 
@@ -357,5 +364,16 @@ export async function POST(req: Request) {
     post_slug: row.post_slug,
     post_year: row.post_year,
     shortcode: row.shortcode,
+    // P1-② (2026-05-28): silent fail 방지. 검수에 걸린 회원 글은 pending_review 로
+    // 들어가고 admin 검토 큐로 가지만, 사용자 화면엔 redirect 만 일어나 안 보임.
+    // 클라이언트가 screening 객체 존재 여부만 보고 토스트 1회 노출 (CommentsBlock 패턴).
+    screening: screeningFlagged
+      ? {
+          status: "pending_review" as const,
+          reasons: screeningReasons,
+          userMessage:
+            "글이 자동 검수에서 의료광고·환자후기 등 의심 표현으로 감지되어 검토 대기로 전환되었습니다. 운영자 검토 후 공개 여부가 결정됩니다.",
+        }
+      : null,
   });
 }

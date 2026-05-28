@@ -6,6 +6,29 @@
 
 ---
 
+## [2026-05-28] — 카드 자동검수 silent fail 해소 (P1-②)
+
+### Changed (API 응답)
+- `src/app/api/articles/route.ts` (POST) — 회원 글이 검수에 걸려 `status='pending_review'` 로 전환될 때 응답에 `screening: { status, reasons, userMessage } | null` 필드 포함. 정상 글은 `null`.
+- `src/app/api/articles/[id]/route.ts` (PUT) — 회원이 본문/제목 수정 시 동일 패턴 적용. POST 와 응답 구조 동일.
+
+### Changed (클라이언트 토스트)
+- `src/app/write/WriteClient.tsx` — 응답의 `screening` 객체 존재 시 `showToast(...,{ tone: "danger" })` 1회 노출 후 1.5초 대기 → redirect. 정상 글은 즉시 redirect (회귀 0).
+- `src/app/write/[shortcode]/EditClient.tsx` — 동일 패턴. 수정 흐름의 silent fail 도 함께 해소.
+- 메시지 톤: `CommentsBlock` 댓글 검수 안내와 일관 (광고성·대가성·단정 표현 안내 + 검토 대기 전환).
+
+### 배경 / 정책
+- PRD §4.7 "임계 초과: 카드 status='pending_review' / 댓글 status='hidden' + **작성자에게 1회 안내 (silent fail 방지)**".
+- 댓글 라우트는 2026-05-28 추가 시 응답에 screening 필드를 포함했으나, 카드 라우트는 status 변경만 하고 응답 확장이 누락 → 회원은 자기 글이 왜 안 보이는지 모름. 본 PR 로 닫음.
+- 점검 보고서 §2 P1-② 근거. 보고서는 POST 만 언급했으나 PUT 도 동일 silent fail 이라 본 PR 에 함께 포함.
+
+### 검증
+- `tsc --noEmit` 통과 / `npm run build` 통과 (54 라우트 전체).
+- 응답 필드 "추가" 라 기존 클라이언트 회귀 0. 정상 글은 분기 미진입 → 1.5초 대기 미발생.
+- DB 스키마·마이그레이션 변경 0.
+
+---
+
 ## [2026-05-28] — 자살·자해 안전 키워드 사전 보강 (P1-①)
 
 ### Changed

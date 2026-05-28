@@ -7,7 +7,7 @@
  *   - WRITE_PHRASES 헤더 카피 (5.5초 회전)
  *   - 글쓴이 결정:
  *     · doctor 본인 → myDoctor 자동 (UI 노출 X)
- *     · admin → 글쓴이 dropdown (의사 9명 + 본인 관리자 명의)
+ *     · admin → 글쓴이 dropdown (참여 전문의 + 본인 관리자 명의)
  *     · 회원 → 항상 본인 명의
  *   - POST /api/articles 호출 + redirect
  *
@@ -23,6 +23,7 @@ import CardEditor, {
 } from "@/components/card-editor/CardEditor";
 import type { PostCategorySlug } from "@/lib/post-category";
 import { ROLES } from "@/lib/identity-shared";
+import { showToast } from "@/lib/toast";
 
 const WRITE_PHRASES = [
   "유독 잘 받은 화장의 비결은..",
@@ -69,7 +70,7 @@ type Doctor = {
 type Props = {
   role: "admin" | "doctor" | "user";
   myDoctor: { slug: string; name: string } | null;
-  /** admin 의 글쓴이 dropdown 옵션 (의사 9명). doctor 본인은 자동 myDoctor. */
+  /** admin 의 글쓴이 dropdown 옵션 (참여 전문의). doctor 본인은 자동 myDoctor. */
   doctors: Doctor[];
   displayName: string;
   initialCategory?: PostCategorySlug;
@@ -164,7 +165,17 @@ export default function WriteClient({
         } | null;
         return { ok: false, error: data?.error ?? `HTTP ${res.status}` };
       }
-      const data = (await res.json()) as { id: number; shortcode?: string };
+      const data = (await res.json()) as {
+        id: number;
+        shortcode?: string;
+        // P1-② (2026-05-28): 검수에 걸리면 서버가 screening 객체를 채워준다.
+        // 클라이언트는 존재 여부만 보고 토스트 1회 노출 (CommentsBlock 패턴 일관).
+        screening?: {
+          status: string;
+          reasons: string[];
+          userMessage: string;
+        } | null;
+      };
 
       // 새소식 첫 댓글
       if (payload.firstComment && status !== "draft") {
@@ -213,6 +224,16 @@ export default function WriteClient({
       } else if (isQa) {
         redirectUrl = `/admin/cards?status=${status}`;
       }
+      // P1-② (2026-05-28): silent fail 방지 — 검수 걸린 회원 글은 redirect 전에
+      // 토스트로 1회 안내. 1.5초 대기로 사용자가 토스트를 본 후 페이지 이동.
+      // 정상 글은 즉시 redirect (회귀 0).
+      if (data.screening) {
+        showToast(
+          "광고성·대가성 후기나 효과를 단정·보장하는 표현은 의료법에 따라 게시가 제한될 수 있어요. 글이 검토 대기로 전환되었습니다.",
+          { tone: "danger" },
+        );
+        await new Promise((r) => setTimeout(r, 1500));
+      }
       router.push(redirectUrl);
       router.refresh();
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -225,7 +246,7 @@ export default function WriteClient({
   // 2026-05-22: '검수 요청' 버튼 폐기 — 검수 흐름은 /admin/draft (AI Q&A 추출) 워크플로에만 존재.
   // /write 는 즉시 발행 또는 임시 저장만.
 
-  // admin 만 글쓴이 dropdown — 의사 9명 + 본인 명의 옵션은 CardEditor 내부에서 추가
+  // admin 만 글쓴이 dropdown — 참여 전문의 + 본인 명의 옵션은 CardEditor 내부에서 추가
   const createAuthorOptions: DoctorOption[] | undefined =
     role === ROLES.ADMIN
       ? doctors.map((d) => ({

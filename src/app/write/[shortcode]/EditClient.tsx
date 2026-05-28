@@ -19,6 +19,7 @@ import {
   type ExternalMeta,
 } from "@/components/card-editor/fields/ExternalLinkField";
 import { type PubmedRefObj } from "@/components/card-editor/fields/PubmedRefsField";
+import { showToast } from "@/lib/toast";
 
 type Props = {
   cardId: number;
@@ -108,6 +109,24 @@ export default function EditClient({
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
         return { ok: false, error: data?.error ?? `HTTP ${res.status}` };
+      }
+      // P1-② (2026-05-28): silent fail 방지 — 수정 시에도 검수가 발동될 수 있다
+      // (회원이 본문/제목 수정 시). 응답의 screening 객체 존재 시 토스트 1회 노출.
+      const data = (await res.json().catch(() => null)) as {
+        saved?: number;
+        cardId?: number;
+        screening?: {
+          status: string;
+          reasons: string[];
+          userMessage: string;
+        } | null;
+      } | null;
+      if (data?.screening) {
+        showToast(
+          "광고성·대가성 후기나 효과를 단정·보장하는 표현은 의료법에 따라 게시가 제한될 수 있어요. 글이 검토 대기로 전환되었습니다.",
+          { tone: "danger" },
+        );
+        await new Promise((r) => setTimeout(r, 1500));
       }
       router.push(returnUrl);
       router.refresh();

@@ -311,6 +311,11 @@ export async function PUT(
   // 보안 2.5차 E묶음 (2026-05-19): 본문 수정 시 자동 검수기 재실행.
   // 의사·관리자는 자동 통과. 회원이 본문 수정 시 의심 패턴 잡히면 status 강제 변경.
   // admin 이 명시적으로 status 지정한 경우엔 그것을 존중 (덮어쓰지 않음).
+  //
+  // 2026-05-28 (P1-②): silent fail 방지 — verdict 를 상위 scope 으로 끌어올려
+  // 응답에 screening 필드 포함. 클라이언트(EditClient) 가 사용자에게 토스트 안내.
+  let screeningFlagged = false;
+  let screeningReasons: string[] = [];
   if (role === ROLES.USER && (update.title || update.body)) {
     const verdict = screenContent({
       title: (update.title as string | null) ?? null,
@@ -322,6 +327,8 @@ export async function PUT(
     if (verdict.flagged) {
       update.status = "pending_review";
       update.screening_flags = verdict.reasons;
+      screeningFlagged = true;
+      screeningReasons = verdict.reasons;
     } else {
       // 의심 해소된 경우 flags 정리
       update.screening_flags = null;
@@ -367,5 +374,18 @@ export async function PUT(
     /* revalidate 실패는 무시 — 다음 dynamic 요청에 자동 갱신됨 */
   }
 
-  return NextResponse.json({ saved: 1, cardId });
+  return NextResponse.json({
+    saved: 1,
+    cardId,
+    // P1-② (2026-05-28): silent fail 방지 — 검수에 걸려 pending_review 로 전환되면
+    // 클라이언트가 사용자에게 토스트 1회 노출 (POST 측 응답과 동일 구조).
+    screening: screeningFlagged
+      ? {
+          status: "pending_review" as const,
+          reasons: screeningReasons,
+          userMessage:
+            "글이 자동 검수에서 의료광고·환자후기 등 의심 표현으로 감지되어 검토 대기로 전환되었습니다. 운영자 검토 후 공개 여부가 결정됩니다.",
+        }
+      : null,
+  });
 }
