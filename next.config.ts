@@ -75,10 +75,10 @@ const nextConfig: NextConfig = {
     //   - Vercel Analytics/Speed Insights: va.vercel-scripts.com (script), vitals.vercel-insights.com (beacon)
     //   - GA4: www.googletagmanager.com (gtag script + measurement beacon),
     //          *.google-analytics.com / *.analytics.google.com (beacon)
-    //   - Naver Analytics: wcs.naver.net (script), wcs.naver.com (beacon)
+    //   - Naver Analytics: wcs.pstatic.net (script CDN), wcs.naver.com (beacon)
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://www.googletagmanager.com https://wcs.naver.net",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://www.googletagmanager.com https://wcs.pstatic.net",
       "style-src 'self' 'unsafe-inline'",
       // PR-A E3 (2026-05-19): 끝의 `https:` 와일드카드 제거.
       // 이전엔 모든 HTTPS 이미지 도메인 허용 → CSP 무력화. Supabase Storage + YouTube 썸네일만 허용.

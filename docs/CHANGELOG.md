@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-05-28] — Naver Analytics 스크립트 도메인 수정 (wcs.pstatic.net)
+
+### Fixed
+- `src/app/layout.tsx` — 네이버 Analytics script src 를 `wcs.naver.net` → `wcs.pstatic.net` 으로 수정. 네이버 공식 안내 도메인 일치.
+- `next.config.ts` CSP `script-src` 도 동일 수정.
+
+### 운영
+- Vercel env `NEXT_PUBLIC_NAVER_ANALYTICS_ID=5d1db0791001f8` 추가 완료 (Production/Preview/Development).
+
+---
+
 ## [2026-05-28] — Analytics 스택 설치 (Vercel + GA4 + Naver)
 
 ### Added

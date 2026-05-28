@@ -239,11 +239,12 @@ gtag('config', '${GA4_ID}', {
         )}
 
         {/* 네이버 Analytics — NEXT_PUBLIC_NAVER_ANALYTICS_ID 있을 때만 로드.
-            네이버 wcs(Web Conversion Script) 사양. */}
+            네이버 wcs(Web Conversion Script) 사양.
+            script CDN: wcs.pstatic.net / beacon: wcs.naver.com (CSP 양쪽 화이트리스트). */}
         {NAVER_ANALYTICS_ID && (
           <>
             <Script
-              src="https://wcs.naver.net/wcslog.js"
+              src="https://wcs.pstatic.net/wcslog.js"
               strategy="afterInteractive"
             />
             <Script id="naver-analytics-init" strategy="afterInteractive">
