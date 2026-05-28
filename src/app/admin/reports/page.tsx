@@ -114,23 +114,23 @@ export default async function AdminReportsPage() {
   const pendingCount = rows.filter((r) => r.status === "pending").length;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6">
+    <section className="w-full py-6">
       <div className="mb-1 -ml-1"><BackButton /></div>
-      <h1 className="text-xl font-bold text-[var(--text)]">신고 검토 큐</h1>
-      <p className="mt-1 text-sm text-[var(--text-muted)]">
-        대기 {pendingCount}건 / 전체 {rows.length}건 (최근 200건)
-      </p>
-      <p className="mt-2 text-[12px] text-[var(--text-muted)]">
-        모더레이션 정책: <strong>숨김</strong>은 영구 비공개(복구가능). <strong>완전삭제</strong>는
-        soft-delete 익명화(ADR 0002, 카드 한정). 30일 임시조치 폐기.
-      </p>
+      {/* 헤더 — admin/cards / admin/comments 와 동일 규격 (mb-5 pl-1, h1 text-2xl, p text-xs). */}
+      <div className="mb-5 pl-1">
+        <h1 className="text-2xl font-bold text-[var(--text)]">신고 검토</h1>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          대기 {pendingCount}건 / 전체 {rows.length}건 (최근 200건) — 숨김은 영구 비공개(복구가능),
+          완전삭제는 soft-delete 익명화(카드 한정).
+        </p>
+      </div>
 
       <ReportsClient
         rows={enriched}
         reasonLabel={REASON_LABEL}
         statusLabel={STATUS_LABEL}
       />
-    </main>
+    </section>
   );
 }
 
