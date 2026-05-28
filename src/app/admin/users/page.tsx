@@ -262,26 +262,26 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                 <th className="px-3 py-2 text-left font-medium">닉네임</th>
                 <th className="px-3 py-2 text-left font-medium">핸들</th>
                 <th className="px-3 py-2 text-left font-medium">등급</th>
-                <th className="px-3 py-2 text-right font-medium">글수</th>
+                <th className="px-3 py-2 whitespace-nowrap text-right font-medium">글수</th>
                 <th
-                  className="px-2 py-2 text-right font-medium"
+                  className="px-2 py-2 whitespace-nowrap text-right font-medium"
                   title="세션 단위 방문 수 (같은 세션 안 여러 임프레션 = 1방문, 기간 내 / 0117·0118 정책)"
                 >
                   방문
                 </th>
-                <th className="px-2 py-2 text-right font-medium" title="받은 조회수">
+                <th className="px-2 py-2 whitespace-nowrap text-right font-medium" title="받은 조회수">
                   조회
                 </th>
                 <th
-                  className="px-2 py-2 text-right font-medium"
+                  className="px-2 py-2 whitespace-nowrap text-right font-medium"
                   title="작성한 댓글 수"
                 >
                   댓글
                 </th>
-                <th className="px-2 py-2 text-right font-medium" title="받은 좋아요">
+                <th className="px-2 py-2 whitespace-nowrap text-right font-medium" title="받은 좋아요">
                   좋아요
                 </th>
-                <th className="px-2 py-2 text-right font-medium" title="받은 공유">
+                <th className="px-2 py-2 whitespace-nowrap text-right font-medium" title="받은 공유">
                   공유
                 </th>
                 <th className="px-3 py-2 text-left font-medium">가입일</th>

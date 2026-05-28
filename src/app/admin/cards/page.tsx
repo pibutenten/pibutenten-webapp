@@ -594,10 +594,11 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                   <th className="px-3 py-2 text-left font-medium">타입</th>
                   <th className="px-3 py-2 text-left font-medium">글쓴이</th>
                   <th className="px-3 py-2 text-left font-medium">제목</th>
-                  <th className="px-3 py-2 text-right font-medium">좋아요</th>
-                  <th className="px-3 py-2 text-right font-medium">조회수</th>
-                  <th className="px-3 py-2 text-right font-medium">댓글</th>
-                  <th className="px-3 py-2 text-right font-medium">공유</th>
+                  {/* 2026-05-28: whitespace-nowrap — 좁은 칸에서 2줄로 깨지지 않게 1줄 강제. */}
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">좋아요</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">조회수</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">댓글</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">공유</th>
                   <th className="px-3 py-2 text-left font-medium">생성일</th>
                 </tr>
               </thead>
