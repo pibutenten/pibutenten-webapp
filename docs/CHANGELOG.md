@@ -6,6 +6,34 @@
 
 ---
 
+## [2026-05-28] — 론칭 전 4묶음: CommentsBlock 분해 + CardData alias + 0176 doctor_accounts→view + 문서 sync
+
+### Added
+- 새 모듈 `src/lib/types/comment.ts` — 댓글 도메인 타입 SSOT. `CommentStatus` / `CommentAuthor` / `CommentRow` / `CommentWithReplies` / `CommentViewer` 5종. CommentsBlock 과 `/api/comments` 양쪽 import.
+- 새 폴더 `src/components/comments/` — 옛 단일 `CommentsBlock.tsx` (863줄) 분해.
+  - `CommentForm.tsx` (입력 폼, 148줄)
+  - `CommentItem.tsx` (댓글 1개, 365줄)
+  - `CommentsBlock.tsx` (root, 320줄)
+- `src/lib/types/card.ts` 에 `CardDataList` + `CardDataDetail` alias 신설 (의미 명확화).
+- 새 마이그레이션 `0176_replace_doctor_accounts_with_view.sql` — doctor_accounts 안전 폐기 Phase 1 (사용자 결정).
+  - 9개 RPC 재정의 (doctor_accounts → profiles.doctor_id SSOT):
+    `current_doctor_id`, `get_card_activity_users_inner` (4개 분기), `get_notifications`, `get_recent_card_likers_batch`, `get_recent_likers`, `on_card_status_for_notification` (trigger), `propagate_onboarding_to_doctor_bundle`, `link_doctor_to_profile` (INSERT→UPDATE profiles.doctor_id), `unlink_doctor_from_profile` (DELETE→SET NULL)
+  - `ALTER TABLE doctor_accounts RENAME TO doctor_accounts_deprecated` — 데이터 보존, DROP 아님.
+  - `CREATE VIEW doctor_accounts AS SELECT p.id AS profile_id, p.doctor_id, p.created_at FROM profiles p WHERE doctor_id IS NOT NULL` — 외부 SELECT 호환성 + INSERT/UPDATE 는 view 라 의도된 실패.
+  - GRANT SELECT (authenticated + anon) + `NOTIFY pgrst 'reload schema' + 'reload config'` 양방향
+  - 검증: view 9 rows ↔ deprecated 9 rows 일치, 살아있는 RPC 본문의 SQL FROM/JOIN doctor_accounts 잔재 0건 (주석만 남음).
+  - 보너스 fix: `get_recent_likers` 의 `card_likes.persona` 컬럼 (0090 에서 폐기, 옛 함수에 lazy 잔재) NULL::text 로 정정.
+
+### Changed
+- `src/app/api/comments/route.ts` + `src/components/CommentsBlock.tsx` — Author/CommentRow 로컬 재정의 제거 → `@/lib/types/comment` import 로 통일.
+- `src/components/CommentsBlock.tsx` — 옛 위치는 호환성 re-export 한 줄로 축소 (`export { default } from "./comments/CommentsBlock"`). 외부 호출자 import 경로 보존.
+- `src/components/Feed.tsx`, `src/components/CardMasonry.tsx`, `src/lib/feed-shuffle.ts` — `CardData` → `CardDataList` 의미 명확화 (alias 라 동작 동일).
+- `src/components/Card.tsx` — `CardDataList` / `CardDataDetail` 도 re-export.
+- `docs/ARCHITECTURE.md` "관련 ADR" 섹션에 0011, 0012 양방향 참조 추가.
+- `docs/DATABASE.md` 마이그레이션 표에 0173, 0174, 0175 누락분 추가 (0176 도 함께).
+
+---
+
 ## [2026-05-28] — 0174 wrapper 6개 `question text → title text` (사용자 보고된 "(제목 없음)" 근본 원인) + Vercel 캐시 무효화
 
 ### Added

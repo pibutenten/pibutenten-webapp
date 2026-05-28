@@ -1,7 +1,7 @@
 "use client";
 
 import Masonry from "react-masonry-css";
-import Card, { type CardData } from "./Card";
+import Card, { type CardDataList } from "./Card";
 
 /**
  * 정적 카드 리스트용 Masonry 래퍼.
@@ -14,7 +14,7 @@ export default function CardMasonry({
   posts,
   doctorSlug,
 }: {
-  posts: CardData[];
+  posts: CardDataList[];
   doctorSlug?: string | null;
 }) {
   return (

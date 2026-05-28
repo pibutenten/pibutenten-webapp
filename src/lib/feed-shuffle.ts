@@ -14,7 +14,7 @@
  *
  * 호출 측에서 doctor.slug 가 없는(`undefined`) 카드는 `_unknown` 으로 묶임.
  */
-import type { CardData } from "@/components/Card";
+import type { CardDataList } from "@/components/Card";
 
 export type DiversifyOptions = {
   /** head 영역 안에서 의사 1명당 허용 등장 횟수 (기본 1) */
@@ -30,9 +30,9 @@ export type DiversifyOptions = {
  * - 입력 배열은 변경하지 않음. 새 배열 반환.
  */
 export function diversifyByDoctor(
-  cards: CardData[],
+  cards: CardDataList[],
   opts: DiversifyOptions = {},
-): CardData[] {
+): CardDataList[] {
   const maxPerDoctorInHead = opts.maxPerDoctorInHead ?? 1;
   const headSize = opts.headSize ?? 4;
 
@@ -41,8 +41,8 @@ export function diversifyByDoctor(
   // (1) 첫 N 카드 다양화
   if (out.length > headSize) {
     const counts = new Map<string, number>();
-    const head: CardData[] = [];
-    const tail: CardData[] = [];
+    const head: CardDataList[] = [];
+    const tail: CardDataList[] = [];
     for (const it of out) {
       const slug = it.doctor?.slug ?? "_unknown";
       const c = counts.get(slug) ?? 0;
@@ -59,7 +59,7 @@ export function diversifyByDoctor(
   // (2) 같은 의사 3연속 방지 — 2연속까지만 허용
   if (out.length >= 3) {
     const remaining = [...out];
-    const reordered: CardData[] = [];
+    const reordered: CardDataList[] = [];
     while (remaining.length > 0) {
       const last = reordered[reordered.length - 1];
       const prev = reordered[reordered.length - 2];
@@ -77,7 +77,7 @@ export function diversifyByDoctor(
           continue;
         }
       }
-      reordered.push(remaining.shift() as CardData);
+      reordered.push(remaining.shift() as CardDataList);
     }
     out = reordered;
   }

@@ -73,3 +73,30 @@ export type CardData = {
     upload_date: string | null;
   } | null;
 };
+
+/**
+ * CardDataList — 피드/검색/태그/프로필 리스트 컨텍스트에서 사용하는 alias (2026-05-28).
+ *
+ * 의미: "리스트 SELECT (CARD_LIST_SELECT) 가 반환하는 컬럼 집합".
+ *   - status, updated_at 등 detail 전용 필드는 optional 그대로 (없는 경우가 정상).
+ *   - 현 시점에는 CardData 와 동일 구조. 이후 List 전용 컬럼 (예: 짧은 본문 preview)
+ *     을 추가할 때 본 alias 만 확장.
+ *
+ * 사용처: Feed.tsx, CardMasonry.tsx, ProfileTabs.tsx, page.tsx(홈/검색/topics) 등.
+ */
+export type CardDataList = CardData;
+
+/**
+ * CardDataDetail — 단일 글 페이지 컨텍스트에서 사용하는 강화 alias (2026-05-28).
+ *
+ * 의미: "디테일 SELECT (CARD_DETAIL_SELECT) 가 반환하는 컬럼 집합 + 강화된 필드".
+ *   - updated_at, status 가 항상 존재 (CARD_DETAIL_SELECT 가 가져옴).
+ *   - 의사 페이지의 JSON-LD lastReviewed 등 detail 전용 표시에 필요.
+ *
+ * 사용처: app/doctors/[slug]/[year]/[postSlug]/page.tsx,
+ *         app/[handle]/[shortcode]/page.tsx 등 단일 글 RSC.
+ */
+export type CardDataDetail = CardData & {
+  updated_at: string;
+  status: string;
+};

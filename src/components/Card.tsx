@@ -38,7 +38,8 @@ import Keywords from "@/components/card/CardKeywords";
 
 // CardData 타입은 @/lib/types/card 로 외부화 — 기존 `from "@/components/Card"` import 경로는
 // re-export 통해 그대로 유지 (점진적으로 직접 import 권장).
-export type { CardData } from "@/lib/types/card";
+// 2026-05-28: CardDataList (list 컨텍스트) / CardDataDetail (단일 글) alias 도 함께 re-export.
+export type { CardData, CardDataList, CardDataDetail } from "@/lib/types/card";
 import type { CardData } from "@/lib/types/card";
 
 /**

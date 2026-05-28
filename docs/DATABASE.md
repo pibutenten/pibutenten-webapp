@@ -263,6 +263,10 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | **0170** | **feed_cards_scored / tag_cards_scored 의 RETURNS TABLE 에 pubmed_refs jsonb[] 추가 — 피드/태그 리스트에서 참고문헌 재노출 회귀 fix** |
 | **0171** | **cards.question → title, cards.answer → body 리네임 + 인덱스 2개 RENAME + 카드 참조 RPC 10개 재정의 (feed/search/tag_cards_scored, get_notifications, get_top_cards_by_{comments\|likes\|saves\|shares\|views}_inner, get_top_new_cards_inner). P2-4 SSOT** |
 | **0172** | **feed/search/tag_cards_scored 에 `AND c.deleted_at IS NULL` 명시 + get_top_visitors_inner 비로그인 행 display_name → NULL (옛 한글 라벨 인코딩 사고 차단, UI 가 라벨링)** |
+| **0173** | **`COMMENT ON TABLE cards` + `NOTIFY pgrst 'reload schema'` + `'reload config'` 양방향 강제 — 0171/0172 직후 PostgREST schema cache stale 회귀 차단. 실질 DDL 변경 없음 (deep scan 결과 question/answer 잔재 0건 확인 후 캐시 reload 한정)** |
+| **0174** | **`get_top_cards_by_{comments\|likes\|saves\|shares\|views}` + `get_top_new_cards` wrapper 6개의 `RETURNS TABLE` 시그니처 `question text → title text` 교체. 0171 이 `*_inner` 만 재정의하고 wrapper 누락 → PostgREST 가 옛 컬럼명으로 직렬화 → UI "(제목 없음)" 회귀의 정확한 fix** |
+| **0175** | **통계 TOP RPC 7개 (`*_inner` + 7개 wrapper = 14 함수) 의 `WHERE c.deleted_at IS NULL` 제거 + `RETURNS TABLE` 에 `deleted_at timestamptz` 컬럼 추가. KPI ↔ TOP 정의 정합 (옵션 A: 사용자 결정). UI 는 deleted_at 으로 '삭제됨' 배지 표시** |
+| **0176** | **doctor_accounts 안전 폐기 Phase 1 (사용자 결정). 9개 RPC 재정의 (doctor_accounts → profiles.doctor_id SSOT). 테이블 → `doctor_accounts_deprecated` RENAME (데이터 보존) + 옛 이름은 profiles 기반 view 로 재생성 (외부 SELECT 호환성, INSERT/UPDATE 는 view 라 의도된 실패). 보너스: `get_recent_likers` 의 옛 `card_likes.persona` 잔재 NULL::text 로 정정** |
 
 ---
 

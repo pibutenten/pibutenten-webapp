@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Masonry from "react-masonry-css";
-import Card, { type CardData } from "./Card";
+import Card, { type CardDataList } from "./Card";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 
 type ViewerState = { liked?: boolean; saved?: boolean };
 
 type Props = {
-  initial: CardData[];
+  initial: CardDataList[];
   pageSize?: number;
   /** 검색어. 있으면 페이지네이션 시 ?q=...로 함께 호출 */
   searchQuery?: string;
@@ -41,7 +41,7 @@ export default function Feed({
   viewerStates,
 }: Props) {
   const hotSet = new Set(hotIds ?? []);
-  const [items, setItems] = useState<CardData[]>(initial);
+  const [items, setItems] = useState<CardDataList[]>(initial);
   const [hasMore, setHasMore] = useState(initial.length >= pageSize);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -91,7 +91,7 @@ export default function Feed({
         setHasMore(false);
         return;
       }
-      const data = (await res.json()) as { cards: CardData[] };
+      const data = (await res.json()) as { cards: CardDataList[] };
       const next = data.cards ?? [];
       setItems((prev) => [...prev, ...next]);
       if (next.length < ps) setHasMore(false);

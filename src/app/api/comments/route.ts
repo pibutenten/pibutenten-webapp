@@ -17,34 +17,13 @@ import {
   CommentCreateSchema,
   CommentGetQuerySchema,
 } from "@/lib/schema/api/comments";
+// 2026-05-28: 댓글 도메인 타입 SSOT (lib/types/comment.ts). CommentsBlock 과 공유.
+import type { CommentRow, CommentWithReplies } from "@/lib/types/comment";
 
 export const dynamic = "force-dynamic";
 
-export type CommentRow = {
-  id: number;
-  card_id: number;
-  author_id: string | null;
-  parent_id: number | null;
-  body: string;
-  status: "visible" | "hidden" | "deleted";
-  like_count: number;
-  created_at: string;
-  updated_at: string;
-  /** v4 — viewer가 이 댓글에 좋아요 표시했는지 (server prefetch). */
-  viewer_liked?: boolean;
-  author: {
-    id: string;
-    display_name: string | null;
-    avatar_url: string | null;
-    handle: string | null;
-    role: "admin" | "doctor" | "user";
-    doctor_id: string | null;
-  } | null;
-};
-
-export type CommentWithReplies = CommentRow & {
-  replies: CommentRow[];
-};
+// 옛 in-file 정의 폐기 → re-export 만 유지 (외부 호출자가 본 모듈에서 import 하던 호환성).
+export type { CommentRow, CommentWithReplies };
 
 // ─────────────────────────────────────────────────────────────
 // GET

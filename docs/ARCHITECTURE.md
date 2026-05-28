@@ -312,7 +312,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 
 ## 9. 관련 ADR
 
-- **0001** Multi-profile identity (Phase 9)
+- **0001** Multi-profile identity (Phase 9) — `0011`, `0012` 의 토대
 - **0002** Soft-delete in-place 익명화
 - **0003** Email 기반 dedup
 - **0004** cards 테이블 리네임 (구 qas)
@@ -322,6 +322,8 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - **0008** 흥미 점수 임계점 (v3=15)
 - **0009** PWA 아이콘 2그룹 구조
 - **0010** Visitor 1일 1방문 dedup
+- **0011** Active identity 권한 시스템 (Phase 1 — 2026-05-26). `0001` 의 SQL 측 구현 (RLS·RPC 가 `current_active_profile_id()` GUC 인식). `0012` 와 양방향.
+- **0012** 명함(profile) 단위 완전 독립 (Phase 3 — 2026-05-26). `0011` 의 application layer 확장. 묶음 OR 패턴 폐기, active 단위만 권한 판정. `0001` 의 "모든 profile 동등 독립" 원칙 강제.
 
 ---
 
