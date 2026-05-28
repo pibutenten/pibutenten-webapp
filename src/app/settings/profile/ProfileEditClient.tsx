@@ -23,7 +23,6 @@ type Initial = {
   skinType: string | null;
   skinConcerns: string[];
   interestedProcedures: string[];
-  likedProcedures: string[];
   bio: string;
   avatarUrl: string | null;
   fieldVisibility: FieldVisibility;
@@ -142,10 +141,6 @@ export default function ProfileEditClient({
   const [interestedProcedures, setInterestedProcedures] = useState<string[]>(
     initial.interestedProcedures,
   );
-  const [likedProcedures, setLikedProcedures] = useState<string[]>(
-    initial.likedProcedures,
-  );
-  const [likedInput, setLikedInput] = useState("");
   const [interestedInput, setInterestedInput] = useState("");
   const [bio, setBio] = useState(initial.bio);
   const [visibility, setVisibility] = useState<FieldVisibility>(
@@ -156,23 +151,6 @@ export default function ProfileEditClient({
 
   function toggleArr(arr: string[], k: string): string[] {
     return arr.includes(k) ? arr.filter((x) => x !== k) : [...arr, k];
-  }
-  function addLikedProcedure() {
-    const v = likedInput.trim();
-    if (!v) return;
-    if (likedProcedures.includes(v)) {
-      setLikedInput("");
-      return;
-    }
-    if (likedProcedures.length >= 10) {
-      setSkinStatus({
-        type: "err",
-        msg: "좋아하는 시술은 최대 10개까지 추가할 수 있어요.",
-      });
-      return;
-    }
-    setLikedProcedures([...likedProcedures, v]);
-    setLikedInput("");
   }
   function addInterestedProcedure() {
     const v = interestedInput.trim();
@@ -205,7 +183,6 @@ export default function ProfileEditClient({
         skin_type: skinType,
         skin_concerns: skinConcerns,
         interested_procedures: interestedProcedures,
-        liked_procedures: likedProcedures,
         field_visibility: visibility,
       };
 
@@ -580,53 +557,6 @@ export default function ProfileEditClient({
           <button
             type="button"
             onClick={addInterestedProcedure}
-            className="h-9 rounded-md border border-[var(--border)] px-3 text-[12px] hover:bg-[var(--bg-soft)]"
-          >
-            추가
-          </button>
-        </div>
-      </SectionWithVisibility>
-
-      {/* 9. 좋아하는 시술 (자유 입력) */}
-      <SectionWithVisibility
-        title="좋아하는 시술이 있으세요?"
-        visField="liked_procedures"
-        visibility={visibility}
-        setVisibility={setVisibility}
-        subtitle="자유 입력 — Enter로 추가"
-      >
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {likedProcedures.map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() =>
-                setLikedProcedures(likedProcedures.filter((x) => x !== k))
-              }
-              style={{ backgroundColor: SELECTED, color: "#fff" }}
-              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1 text-[12.5px] font-medium opacity-90 hover:opacity-100"
-            >
-              {k} <span aria-hidden>×</span>
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1.5">
-          <input
-            type="text"
-            value={likedInput}
-            onChange={(e) => setLikedInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addLikedProcedure();
-              }
-            }}
-            placeholder="예: 보톡스, 필러, 울쎄라, 써마지, 티타늄, 리쥬란 등"
-            className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none"
-          />
-          <button
-            type="button"
-            onClick={addLikedProcedure}
             className="h-9 rounded-md border border-[var(--border)] px-3 text-[12px] hover:bg-[var(--bg-soft)]"
           >
             추가

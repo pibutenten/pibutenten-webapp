@@ -34,7 +34,6 @@ type ProfileRow = {
   skin_type: string | null;
   skin_concerns: string[] | null;
   interested_procedures: string[] | null;
-  liked_procedures: string[] | null;
   field_visibility: Record<string, boolean> | null;
   auth_user_id: string | null;
 };
@@ -56,7 +55,7 @@ async function fetchProfileByHandle(
   handle: string,
   /**
    * 비로그인(anon) 호출이면 PII 컬럼(birthdate/gender/face_shape/skin_type/
-   * skin_concerns/interested_procedures/liked_procedures)을 select 목록에서 제외.
+   * skin_concerns/interested_procedures)을 select 목록에서 제외.
    * 0122 마이그레이션으로 anon 은 위 컬럼에 column-level REVOKE 가 걸려 있어
    * 포함해서 호출하면 permission denied 로 전체 쿼리가 실패함.
    * A1 (2026-05-17).
@@ -80,7 +79,7 @@ async function fetchProfileByHandle(
   const baseSelect =
     "id, display_name, role, bio, avatar_url, created_at, handle, field_visibility, auth_user_id";
   const piiSelect =
-    ", birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures";
+    ", birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures";
   const select = viewerIsAnon ? baseSelect : baseSelect + piiSelect;
 
   const { data } = await supabase
@@ -300,7 +299,6 @@ export default async function HandleProfilePage({ params }: Props) {
                 skinType: profile.skin_type,
                 skinConcerns: profile.skin_concerns ?? [],
                 interestedProcedures: profile.interested_procedures ?? [],
-                likedProcedures: profile.liked_procedures ?? [],
                 visibility: (profile.field_visibility ?? {}) as Record<
                   string,
                   boolean

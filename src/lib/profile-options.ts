@@ -54,7 +54,6 @@ export type FieldVisibility = {
   skin_type: boolean;
   skin_concerns: boolean;
   interested_procedures: boolean;
-  liked_procedures: boolean;
   bio: boolean;
   // v4 — 프로필 탭 노출 (다른 사람이 내 프로필 볼 때 어떤 탭이 보일지)
   tab_posts: boolean;
@@ -71,7 +70,6 @@ export const DEFAULT_VISIBILITY: FieldVisibility = {
   skin_type: true,
   skin_concerns: true,
   interested_procedures: true,
-  liked_procedures: true,
   bio: true,
   tab_posts: true,
   tab_comments: true,

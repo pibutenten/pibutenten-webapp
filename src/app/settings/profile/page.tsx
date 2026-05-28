@@ -28,7 +28,6 @@ type ProfileRow = {
   skin_type: string | null;
   skin_concerns: string[] | null;
   interested_procedures: string[] | null;
-  liked_procedures: string[] | null;
   bio: string | null;
   avatar_url: string | null;
   field_visibility: FieldVisibility | null;
@@ -53,7 +52,7 @@ export default async function MyProfilePage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "role, display_name, marketing_email_consent, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures, bio, avatar_url, field_visibility",
+      "role, display_name, marketing_email_consent, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, field_visibility",
     )
     .eq("id", user.id)
     .maybeSingle()
@@ -136,7 +135,6 @@ export default async function MyProfilePage() {
           skinType: profile.skin_type ?? null,
           skinConcerns: profile.skin_concerns ?? [],
           interestedProcedures: profile.interested_procedures ?? [],
-          likedProcedures: profile.liked_procedures ?? [],
           bio: editingBio,
           avatarUrl: editingAvatarUrl,
           fieldVisibility: profile.field_visibility ?? DEFAULT_VISIBILITY,

@@ -25,7 +25,6 @@ export type SkinInfo = {
   skinType: string | null;
   skinConcerns: string[];
   interestedProcedures: string[];
-  likedProcedures: string[];
   visibility: Record<string, boolean>;
 };
 
@@ -120,8 +119,7 @@ export default function ProfileTabs({
     (skinInfo.faceShape ||
       skinInfo.skinType ||
       skinInfo.skinConcerns.length ||
-      skinInfo.interestedProcedures.length ||
-      skinInfo.likedProcedures.length)
+      skinInfo.interestedProcedures.length)
   );
   // anon 은 PII 컬럼을 못 받으므로 피부고민 탭 자체는 "로그인 안내" 용도로 표시.
   // field_visibility 도 안 받았을 수 있어 보수적으로 탭 노출.
@@ -428,17 +426,6 @@ function SkinInfoBlock({ info }: { info: SkinInfo }) {
       title: "저는 이런 시술에 관심 있어요~",
       chips: info.interestedProcedures.map((p) => {
         const label = localizeProcedure(p);
-        return { label, q: label };
-      }),
-    });
-  }
-
-  // 4) 저는 이런 시술들을 좋아해요~
-  if (v.liked_procedures !== false && info.likedProcedures.length) {
-    sections.push({
-      title: "제가 좋아하는 시술은요..",
-      chips: info.likedProcedures.map((l) => {
-        const label = localizeProcedure(l);
         return { label, q: label };
       }),
     });
