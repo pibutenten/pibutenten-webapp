@@ -610,7 +610,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                       key={r.id}
                       className="border-t border-[var(--border)] transition-colors hover:bg-[var(--bg-soft)]"
                     >
-                      <td className="px-3 py-2 align-top text-[var(--text-muted)]">
+                      <td className="px-3 py-2 align-middle text-[var(--text-muted)]">
                         <Link
                           href={`/admin/cards/${r.id}/edit`}
                           className="hover:text-[var(--primary)] hover:underline"
@@ -618,14 +618,14 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                           #{r.id}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 align-top text-center">
+                      <td className="px-3 py-2 align-middle text-center">
                         {r.deleted_at ? (
                           <RestoreButton cardId={r.id} />
                         ) : (
                           <PickToggle cardId={r.id} initial={!!r.is_pick} />
                         )}
                       </td>
-                      <td className="px-3 py-2 align-top">
+                      <td className="px-3 py-2 align-middle">
                         <span
                           className="inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium"
                           style={{
@@ -637,14 +637,14 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                           {style.label}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 align-top text-xs text-[var(--text-secondary)]">
+                      <td className="whitespace-nowrap px-3 py-2 align-middle text-xs text-[var(--text-secondary)]">
                         {/* v4: 포스팅이면 카테고리만 표기 (꿀팁/피부일기/물어봐요/새소식),
                             Q&A이면 'Q&A'. 컬럼 가로폭 절약. */}
                         {r.type === "qa"
                           ? "Q&A"
                           : labelForCategory(r.category) || "포스팅"}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 align-top text-[var(--text)]">
+                      <td className="whitespace-nowrap px-3 py-2 align-middle text-[var(--text)]">
                         {/* 글쓴이 — 의사 글이면 원장 이름, 그 외엔 닉네임(handle/display_name) */}
                         {r.doctor ? (
                           <span>{r.doctor.name}</span>
@@ -656,7 +656,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                           <span className="text-[var(--text-muted)]">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 align-top text-[var(--text)]">
+                      <td className="px-3 py-2 align-middle text-[var(--text)]">
                         <Link
                           href={`/admin/cards/${r.id}/edit`}
                           className="block hover:text-[var(--primary)] hover:underline"
@@ -665,19 +665,19 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                           {truncate(r.title ?? "", 50)}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
+                      <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--text-secondary)]">
                         {(r.like_count ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
+                      <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--text-secondary)]">
                         {(r.view_count ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
+                      <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--text-secondary)]">
                         {(r.comments_count?.[0]?.count ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
+                      <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--text-secondary)]">
                         {(r.share_count ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
+                      <td className="px-3 py-2 align-middle text-xs text-[var(--text-muted)]">
                         {formatYmd(r.created_at)}
                       </td>
                     </tr>

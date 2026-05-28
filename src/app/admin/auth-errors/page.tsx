@@ -152,7 +152,7 @@ export default async function AuthErrorsPage() {
               rows.map((r) => (
                 <tr
                   key={r.error_id}
-                  className="border-t border-[var(--border)] align-top"
+                  className="border-t border-[var(--border)] align-middle"
                 >
                   <td className="px-3 py-2 tabular-nums text-[var(--text-secondary)]">
                     {formatKstShort(r.created_at)}

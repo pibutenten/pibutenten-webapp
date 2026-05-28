@@ -304,7 +304,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                           : "border-t border-dashed border-[var(--border)]/50"
                       } ${isUnregistered ? "bg-amber-50/30" : ""}`}
                     >
-                      <td className="px-3 py-2 align-top text-[var(--text)]">
+                      <td className="px-3 py-2 align-middle text-[var(--text)]">
                         <Link
                           href={`/admin/users/${p.id}`}
                           className="font-medium hover:text-[var(--primary)] hover:underline"
@@ -322,10 +322,10 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
+                      <td className="px-3 py-2 align-middle text-xs text-[var(--text-muted)]">
                         {p.handle ? `@${p.handle}` : "—"}
                       </td>
-                      <td className="px-3 py-2 align-top">
+                      <td className="px-3 py-2 align-middle">
                         <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
                           {p.role}
                         </span>
@@ -339,29 +339,29 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 align-top text-right tabular-nums text-[var(--text-secondary)]">
+                      <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--text-secondary)]">
                         {(postCountMap.get(p.id) ?? 0).toLocaleString()}
                       </td>
                       {/* 5개 KPI — 기간 토글 적용 (default 7일) */}
-                      <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-2 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.visit_sessions ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-2 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.views_received ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-2 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.comments_written ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-2 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.likes_received ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2 align-top text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-2 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.shares_received ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
+                      <td className="px-3 py-2 align-middle text-xs text-[var(--text-muted)]">
                         {p.created_at?.slice(0, 10) ?? "—"}
                       </td>
-                      <td className="px-3 py-2 align-top text-xs text-[var(--text-muted)]">
+                      <td className="px-3 py-2 align-middle text-xs text-[var(--text-muted)]">
                         {idx === 0 ? (
                           <span title={`auth_user_id: ${groupKey}`}>
                             {groupLabel}
