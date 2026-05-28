@@ -6,6 +6,45 @@
 
 ---
 
+## [2026-05-28] — 검수 v2 + 검색 SSOT + 방금 쓴 글 1회 + EditClient 통일 (배치 ⑤, 공개 전 마지막)
+
+### Changed (검수 v2)
+- `FLAG_THRESHOLD` v1 5 → **v2 7** (`src/lib/content-screening.ts`). 거짓양성 비율 축소 — 단일 카테고리 통과, 두 신호 결합 시 잡힘. 카드·댓글 검수 모두 동일 임계점 사용.
+- **`paid_sponsorship` 카테고리 신설** (+4 first-match) — 약관 ④ 명시 금지 유형. 키워드: 협찬받/광고료를 받/원고료/제공 받았/무상 제공/체험단/서포터즈/후원 받/소정의 대가/PPL/대가를 받/제품을 제공. 단독 +4 → 다른 신호 1개 결합 시 임계 7 도달.
+- 기타 카테고리 가중치·키워드는 **변경 없음** (배치 ⑤ 정책 — "나머진 그대로").
+
+### Added (admin 가시성·복구)
+- `/admin/comments?status=hidden` 탭 신설 — 자동검수 hidden 댓글 검토. 행별 `screening_flags` 표시 + "복구 (visible)" 버튼 (PATCH `/api/comments/[id] { status: "visible" }` 재사용, 기존 audit 적재).
+- `/api/admin/comments?status=hidden` 분기. CommentsClient 에 `statusFilter` prop + `restoreComment` 액션.
+- (카드의 pending_review/hidden 큐는 기존 `/admin/cards?status=...` 탭이 이미 제공 — 변경 없음 확인.)
+
+### Changed (검색 SSOT — H3)
+- `src/lib/search-query.ts` 신설 — `fetchCardList(supabase, { q, doctorSlug, boostDoctorSlug, offset, limit })` 헬퍼. q 가 카테고리 라벨이면 `.eq("category", slug)` 직접 필터, 아니면 RPC.
+- 3 호출처 (`/search/page.tsx`, `/api/cards`, `/doctors/[slug]/page.tsx`) 가 모두 본 헬퍼 사용 → 카테고리 라벨 검색 시 첫 페이지·무한스크롤 결과 집합 일관성 보장. `/search` 카운트 쿼리도 카테고리/텍스트 분기 정합.
+
+### Changed (홈 "방금 쓴 글" — H4)
+- 홈 `page.tsx` 영구 prepend 로직 제거 (옛 매번 prepend 폐기 — SEO·UX 회귀).
+- 신규 client `<JustPublishedPrepend />` (`src/components/JustPublishedPrepend.tsx`) — sessionStorage `pbtt:justPublished = {id, ts}` 5분 윈도우 + `:shown` 마킹으로 1회 노출. 다른 사용자 영향 0.
+- WriteClient publish 성공 시 sessionStorage 저장.
+- `/api/cards?ids=...` 분기 추가 — 단일 카드 fetch.
+
+### Changed (admin EditClient → PUT API — ROADMAP HIGH 잔존)
+- `src/app/admin/cards/[id]/edit/EditClient.tsx` `handleSubmit`: cards 직접 update → PUT `/api/articles/[id]` 통일. PUT 가드 (active 단위 권한·zod·rate-limit·audit_logs) 자동 적용.
+- PUT API 가 `author_id` (admin only) + `meta` (admin/doctor) 두 필드 신규 수용. `ArticleUpdateSchema` 확장 + status enum 에 `"hidden"` 추가.
+
+### Documentation
+- TECH_SPEC §10: 임계점 7, paid_sponsorship 카테고리, 가중치 표, admin 복구 경로.
+- TECH_SPEC §4.1: 검색 SSOT 헬퍼 명시 + 방금 쓴 글 1회 정책.
+- ROADMAP: H3·H4 및 admin EditClient HIGH 완료 이동.
+
+### Permission audit (검수 시나리오)
+- (i) "협찬받아서 써봤는데 다녀왔어요 만족" → paid_sponsorship +4 + patient_testimonial +3 = **7 → 걸림** (hidden + screening_flags).
+- (ii) "○○ 다녀왔는데 부작용 없이 100% 만족" → patient_testimonial +1 (1 hit) + exaggerated_efficacy +3 = 4 → **통과** (단일 +3 카테고리만으로는 임계 미달).
+- (iii) 깨끗한 글/댓글 → 모든 카테고리 미히트 → 통과.
+- (iv) 의사 신분 → `authorRole !== "user"` 분기로 무조건 통과.
+
+---
+
 ## [2026-05-28] — 운영 모더레이션 화면 + 영구 숨김 정책 (배치 ④)
 
 ### Added

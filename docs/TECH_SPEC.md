@@ -86,6 +86,8 @@ GOOGLE_CLIENT_SECRET=...
 - 검색어 없을 때: ±14일 랜덤 셔플
 - 같은 원장 3연속 방지, 첫 4카드 다양화
 - HOT 카드: `get_hot_card_ids(p_limit)` 결과로 마킹 (v2 정책 본문 = 시간 가중 + 최소 점수 5)
+- **검색 SSOT 헬퍼** (배치 ⑤ H3, 2026-05-28): `src/lib/search-query.ts::fetchCardList(supabase, { q, doctorSlug, boostDoctorSlug, offset, limit })` — 3 호출처 (`/search/page.tsx`, `/api/cards`, `/doctors/[slug]/page.tsx`) 가 동일 헬퍼 사용. q 가 카테고리 라벨 ("피부일기" 등) 이면 `.eq("category", slug)` 직접 필터, 아니면 RPC. 옛 회귀(첫 페이지 vs 무한스크롤 결과 집합 불일치) 해소.
+- **"방금 쓴 글" 1회 노출** (배치 ⑤ H4): WriteClient publish 성공 → sessionStorage `pbtt:justPublished = {id, ts}` 저장. 홈 mount 시 `<JustPublishedPrepend />` 가 5분 윈도우 + 'shown' 마킹으로 1회 prepend (서버 fetch 없음, 다른 사용자 영향 0). 영구 prepend 폐기.
 
 ### 4.2. 카테고리 (Phase 5.1 - 6분류)
 | slug | 라벨 | 작성 권한 |
@@ -258,12 +260,15 @@ ex) /minji-skin/Ab3xK9Pq
 ## 10. 콘텐츠 자동 검수 (`src/lib/content-screening.ts`)
 
 - 의료법 §56② 14금지 + 약사법 §68 + 환자후기 키워드 사전
-- 임계점 5점 (보수적)
+- **임계점** (배치 ⑤, 2026-05-28): `FLAG_THRESHOLD = 7`. v1 의 5 에서 거짓양성 비율 축소 위해 상향 — 단일 카테고리 통과, 두 신호 결합 시 잡힘.
 - 의사·관리자 자동 통과 (active 신분의 role 기준, ADR 0012)
 - **적용 범위 (2026-05-28~)**:
   - 카드 작성·수정: `cards.screening_flags` 저장 + `status='pending_review'` (admin 검토 큐)
   - 댓글 작성·수정: `comments.screening_flags` 저장 + `status='hidden'` (0178. comments enum 에 pending_review 없어 hidden 으로 대응)
   - 작성자에게 응답 `screening` 객체로 1회 안내 (silent fail 방지)
+- **카테고리 가중치**: patient_testimonial +3 / before_after +3 / comparison_ad +3 / exaggerated_efficacy +3 / price_discount +2 / solicitation +1 / prescription_drug +3 / drug_promotion +2 / **paid_sponsorship +4** (배치 ⑤ 신설) / external_url_with_signal +1.
+- **`paid_sponsorship` 카테고리** (배치 ⑤): 약관 ④에서 명시 금지한 "대가·협찬·체험단·서포터즈" 유형. 단독 +4 — 다른 신호 1개 결합 시 임계 7 도달. 키워드는 "받았다는 의미가 분명한 것" 만.
+- **admin 가시성·복구** (배치 ⑤): `/admin/cards?status=pending_review` / `?status=hidden` 탭 → EditClient → PUT API. `/admin/comments?status=hidden` 탭 신설 — 자동검수 hidden 댓글 검토 + 행별 "복구 (visible)" 버튼 (`PATCH /api/comments/[id] { status: "visible" }`).
 - 자살/자해 키워드 감지 시 안전 메시지 모달 1회 (109/1577-0199/1388) — CardEditor + CommentForm 모두 적용 (`src/lib/safety.ts` SSOT)
 - 사전: `src/lib/content-screening-dict.ts`
 

@@ -24,7 +24,7 @@
 2026-05-26 정합 작업으로 SQL 레벨 (마이그레이션 0158~0163) 은 완료됐으나, 서브에이전트 외부 감사 (commit 7aeba53 시점) 에서 application layer (TypeScript 가드·API 라우트·layout) 의 동일 정합 누락 발견:
 
 - [x] **HIGH — `requireAdmin()` / `requireAdminPage()` 묶음 합산 잔재**: 배치 ④ (2026-05-28) 점검 결과 이미 active 단위 정합 완료. 옛 commit (adc5759, ADR 0012 도입 시점) 에서 처리된 stale 항목. 추가 작업 없음.
-- [ ] **HIGH (마감 2026-06-02 — 론칭 직후) — admin EditClient (`src/app/admin/cards/[id]/edit/EditClient.tsx:285-289`) handleSubmit 의 cards 직접 update → PUT API 로 통일**: route head comment 가 "통합됐다" 라고 명시했으나 실제는 admin 측만 미정합. soft-delete/숨기기는 RPC 통일됐는데 본문 저장만 누락.
+- [x] **HIGH — admin EditClient handleSubmit cards 직접 update → PUT API 통일**: 배치 ⑤ (2026-05-28) 완료. PUT `/api/articles/[id]` 가 `author_id` + `meta` 두 필드 신규 수용 (admin/doctor 가드). active 단위 권한·zod·rate-limit·audit_logs 자동 적용.
 - [x] **MEDIUM — `articles/[id]/route.ts isAuthor` active 단위 정합**: 배치 ② (2026-05-28) commit `f626983` 에서 `isAuthor = card.author_id === activeProfileId` 로 정합 확인.
 - [x] **MEDIUM — `layout.tsx getSessionInfo` (line 82-100) 가 primary profile 의 role/doctorSlug 만 lookup**: 2026-05-27 commit `24fe68e` 로 active 신분 단위 정합 완료. role/displayName/avatarUrl/handle/doctorSlug 모두 active row 기준. `baseUserId` 필드 폐기.
 - [x] **MEDIUM — `doctor_accounts` 직접 SELECT 18+ 곳 → SSOT 헬퍼 통일**: 2026-05-27 commit `e0852c6` (Critical-1) 로 `getDoctorIdForProfile`/`getDoctorSlugForProfile`/`getDoctorMetaBatch` 헬퍼 3개 도입 + 앱 코드 12개 위치 일괄 치환. DB 측 잔재 (0168 `get_notifications` RPC, 0163 `propagate_onboarding_to_doctor_bundle` RPC 의 LEFT JOIN doctor_accounts) 는 별도 정정 마이그레이션 필요 — 아래 NEW 추가.
