@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-05-28] — IndexNow 자동 ping (Bing/Yandex/Seznam/Yep)
+
+### Added
+- `src/app/api/cron/indexnow/route.ts` — Vercel Cron 핸들러. 직전 26h 내 발행/갱신된 의사 Q&A 글 URL 을 IndexNow API 에 일괄 통보.
+  - 회원 글 제외 (`category='qa' AND doctor_id IS NOT NULL`).
+  - Authorization: Bearer `CRON_SECRET` 검증으로 외부 무단 호출 차단.
+  - 빈 응답 시 ping 0건 정상 종료.
+- `public/{INDEXNOW_KEY}.txt` — IndexNow 소유권 증명 파일.
+- `vercel.json` `crons` 추가 — `0 19 * * *` (UTC 19:00 = KST 04:00 매일 1회).
+- Vercel env — `INDEXNOW_KEY` (production/preview/development), `CRON_SECRET` (production only).
+
+### 배경
+- Google·Naver 는 IndexNow 미지원이지만 Bing 색인 = ChatGPT 검색 기반 → AI 답변 인용 가속 간접 효과.
+- 비용 0, 단일 실패점 없음 (IndexNow 다운돼도 sitemap 일반 색인은 계속).
+
+---
+
 ## [2026-05-28] — RSS 라우트 경로 정리
 
 ### Fixed
