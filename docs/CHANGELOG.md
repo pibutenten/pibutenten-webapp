@@ -6,6 +6,51 @@
 
 ---
 
+## [2026-05-29] — profiles 테이블 정비 (7개 항목 일괄, 마이그 6개 + 코드 임시 숨김 1개)
+
+> 온보딩이 줄어들면서 더 이상 안 받는 컬럼이 DB·UI 에 유령처럼 남아 있던 것을 한 번에 정리. 각 항목 단독 마이그·단독 커밋. 마이그 0179~0184 + 항목 7 코드 변경.
+
+### Removed (컬럼 DROP)
+- **0179** `birth_visibility` (text) — 코드 사용 0건 + 데이터 non-default 0건. 단순 DROP.
+- **0180** `birth_date` (date, 옛 컬럼) — 데이터 0%, 현행 `birthdate` 와 별개. `admin/users/[id]/page.tsx` SELECT·타입·표시줄 3건 + `error-response.ts` mask 키 1건 동시 정리.
+- **0183** `is_public` (bool) — 변경 UI 없는 unused. 정책상 모든 프로필 공개 확정.
+  - `public_profiles_view` (0122 anon GRANT view) CASCADE 금지하고 컬럼만 빼서 재정의.
+  - `anonymize_user_content_before_delete` 함수 재정의 (is_public=false 라인 제거).
+  - 코드: `[handle]/page.tsx` robots 분기 → 항상 index, `admin/users/[id]` "공개:" 표시줄 제거, `ProfileTabs.tsx` 주석 정리.
+- **0184** `liked_procedures` (text[]) — 데이터 6.8%, 온보딩 §5 관심 키워드와 의미 중복.
+  - `anonymize_user_content_before_delete` 재정의 (라인 제거).
+  - `propagate_onboarding_to_doctor_bundle` 재정의 (SELECT + UPDATE 두 곳 라인 제거).
+  - `field_visibility` JSON 키 일괄 제거 (44명 전원 → 0건).
+  - 코드 5파일: `profile-options.ts` 타입·DEFAULT, `settings/profile/page.tsx` SELECT·prop, `settings/profile/ProfileEditClient.tsx` 섹션 9 + 상태·핸들러·저장 payload, `[handle]/page.tsx` SELECT·skinInfo, `ProfileTabs.tsx` "제가 좋아하는 시술은요.." 분기 제거.
+
+### Changed (스키마·데이터 정비)
+- **0181** `marketing_email_consent` — `DROP NOT NULL` + `DROP DEFAULT`. NULL=미응답 / false=명시 거부 / true=동의 3-state. 정통망법상 동의 누락 vs 명시 거부 구분. **데이터 변경 0** (true 20, false 24 유지).
+- **0182** `bio` — `ALTER DEFAULT ''` + 기존 NULL 31명 일괄 빈 문자열로 통일. 이후 NULL 안 나타남. 실제 자기소개 13명 그대로. "만나서 반갑습니다." 텍스트는 DB 에 0건이라 별도 UPDATE 불필요.
+
+### Changed (코드 임시 숨김 — 컬럼 유지)
+- 항목 ⑦ `level` / `activity_score` — `admin/users/[id]/page.tsx` 의 "Lv.0 일반" 뱃지(line 400~407) + "활동점수: 0" 표시줄(line 425) 주석 + TODO 마커. 컬럼·SELECT·타입·`LEVEL_COLORS`/`LEVEL_LABELS` import 모두 유지(향후 산정 로직 도입 시 즉시 활성화).
+
+### 사전 조사 결과 (DB 의존 객체 스캔)
+- 코드 grep + `pg_proc`·`pg_views`·`pg_policies`·`pg_indexes` 통합 ILIKE 스캔 → 4건 의존성 발견:
+  - `is_public` → `public_profiles_view` (view) + `anonymize` (function)
+  - `liked_procedures` → `anonymize` + `propagate_onboarding_to_doctor_bundle` (function 2개)
+- `birth_visibility`·`birth_date` 는 DB 의존 객체 0건. 단순 DROP 만으로 안전.
+
+### 검증
+- 각 단계 끝마다 `tsc --noEmit` + `npm run build` 통과. production 마이그 6개 Supabase Management API 로 즉시 적용 후 컬럼·view·field_visibility 키 검증 쿼리로 확인.
+- DB 데이터 손실: `liked_procedures` 3명 입력값 + `birth_date` 0건 + `birth_visibility` 0건 = 약 3행 분량. 6번·5번은 데이터 보존.
+
+### 커밋 (각 단독)
+- ① `46e42e2` 0179_drop_birth_visibility
+- ② `a2ae574` 0180_drop_birth_date_legacy
+- ⑦ `115321c` admin level/activity_score 표시 숨김 (마이그 없음)
+- ⑥ `09b8e32` 0181_marketing_consent_nullable
+- ⑤ `61bb179` 0182_bio_empty_string
+- ④ `bcd685f` 0183_drop_is_public
+- ③ `1e23de9` 0184_drop_liked_procedures
+
+---
+
 ## [2026-05-28] — audit_logs 누락 액션 3종 보강 (P1-⑤)
 
 ### Added (audit action)
