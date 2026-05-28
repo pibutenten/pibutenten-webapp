@@ -144,6 +144,11 @@ export default function PrivacyPage() {
           <li>
             <strong>부정 이용 기록</strong>: 1년
           </li>
+          <li>
+            <strong>운영정책 위반으로 비공개 처리된 게시물</strong>: 분쟁 대응·
+            재발 방지를 위해 보관. 작성자 본인·운영자·해당 글의 담당 원장만 열람
+            가능합니다.
+          </li>
         </ul>
 
         <p className="mt-4 mb-2">

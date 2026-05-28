@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Card, { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
 import { getHotQaIds } from "@/lib/hot-ids";
@@ -59,6 +60,48 @@ const fetchQaByDoctorYearSlug = cache(async (
   }
 });
 
+/**
+ * Hidden qa 카드 placeholder 확인 — 배치 ④ (2026-05-28).
+ * fetchQa 가 null 일 때 admin client (RLS 우회) 로 status 만 확인.
+ *  - status='hidden' + 활성 row + category='qa' → placeholder.
+ *  - 그 외 → 진짜 글 없음.
+ */
+const checkHiddenPlaceholder = cache(async (
+  doctorSlug: string,
+  year: number,
+  postSlug: string,
+): Promise<boolean> => {
+  try {
+    const admin = createSupabaseAdminClient();
+    const { data: doctor } = await admin
+      .from("doctors")
+      .select("id")
+      .eq("slug", doctorSlug)
+      .maybeSingle();
+    if (!doctor) return false;
+    const { data } = await admin
+      .from("cards")
+      .select("status, deleted_at, category")
+      .eq("doctor_id", (doctor as { id: string }).id)
+      .eq("post_year", year)
+      .eq("post_slug", postSlug)
+      .maybeSingle();
+    if (!data) return false;
+    const meta = data as {
+      status: string;
+      deleted_at: string | null;
+      category: string;
+    };
+    return (
+      meta.status === "hidden" &&
+      meta.deleted_at === null &&
+      meta.category === "qa"
+    );
+  } catch {
+    return false;
+  }
+});
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, year, postSlug } = await params;
   const yearInt = Number.parseInt(year, 10);
@@ -66,7 +109,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "피부텐텐", robots: { index: false } };
   }
   const card = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
-  if (!card) return { title: "피부텐텐", robots: { index: false } };
+  if (!card) {
+    // Hidden placeholder 면 noindex (본문 미노출).
+    const hidden = await checkHiddenPlaceholder(slug, yearInt, postSlug);
+    if (hidden) {
+      return {
+        title: "비공개 처리된 게시물",
+        robots: { index: false, follow: false },
+      };
+    }
+    return { title: "피부텐텐", robots: { index: false } };
+  }
   const docName = card.doctor?.name ? `${card.doctor.name} 원장님` : "피부텐텐";
   // 2026-05-18: description 은 답변 본문만 — title 영역에 이미 질문이 표시되고 원장 이름은
   //   OG 이미지(profile photo + 직함 배지)에 노출되므로 prefix 중복 제거.
@@ -258,6 +311,29 @@ export default async function DermatologistPostPage({ params }: Props) {
   }
   const card = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
   if (!card) {
+    // Hidden qa 카드면 placeholder 한 줄 + 문의 안내. 진짜 없는 글이면 기존 "글 없음" 화면.
+    const hidden = await checkHiddenPlaceholder(slug, yearInt, postSlug);
+    if (hidden) {
+      return (
+        <section className="mx-auto w-full max-w-[480px] py-10">
+          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-[var(--shadow-sm)]">
+            <p className="text-[14px] font-semibold text-[var(--text)]">
+              운영정책에 따라 비공개된 게시물입니다.
+            </p>
+            <p className="mt-2 text-[12px] text-[var(--text-muted)]">
+              이의가 있으시면{" "}
+              <a
+                href="mailto:pibutenten@gmail.com"
+                className="text-[var(--primary)] hover:underline"
+              >
+                pibutenten@gmail.com
+              </a>
+              으로 문의해 주세요.
+            </p>
+          </div>
+        </section>
+      );
+    }
     return (
       <section className="mx-auto w-full max-w-[480px] py-10">
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center shadow-[var(--shadow-sm)]">

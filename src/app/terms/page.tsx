@@ -20,7 +20,7 @@ export default function TermsPage() {
     <InfoPageLayout
       current="terms"
       title="이용약관"
-      subtitle="시행일자: 2026년 5월 19일 (의료광고·임시조치·탈퇴 절차 명시 보강)"
+      subtitle="시행일자: 2026년 5월 28일 (의료광고 검수 사전 고지·영구 숨김 정책 정합)"
     >
 
       <Section title="제1조 (목적)">
@@ -202,8 +202,9 @@ export default function TermsPage() {
           사용권이 유지됩니다.
         </p>
         <p className="mb-2">
-          회사는 다음에 해당하는 게시물에 대해 사전 통지 없이 삭제·이동하거나
-          비공개 처리할 수 있습니다.
+          회사는 다음에 해당하는 게시물에 대해 사전 통지 없이 비공개(블라인드)
+          또는 삭제할 수 있습니다. 비공개 조치는 기한의 제한 없이 유지될 수
+          있습니다.
         </p>
         <ol className="list-decimal space-y-1 pl-5">
           <li>제5조 회원의 의무를 위반한 게시물</li>
@@ -212,11 +213,38 @@ export default function TermsPage() {
           <li>저작권·초상권 등 제3자 권리를 침해한 게시물</li>
           <li>기타 관련 법령 또는 공공질서에 위반되는 게시물</li>
         </ol>
+        <p className="mt-3 mb-2">
+          <strong>의료광고 자동 검수 사전 고지</strong>:
+        </p>
+        <p className="mb-2">
+          개인의 솔직한 시술·치료 경험과 만족도 공유는 환영합니다. 다만 다음
+          유형의 게시물은 「의료법」에 따라 게시가 제한될 수 있습니다.
+        </p>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>대가(협찬·광고비·체험단 등)를 받은 후기</li>
+          <li>
+            특정 시술·약물이 반드시 효과가 있다거나 부작용이 전혀 없다고 객관적
+            사실처럼 단정·보장하는 표현
+          </li>
+          <li>특정 의료기관으로의 내원을 유도하는 광고성 게시물</li>
+        </ol>
+        <p className="mt-2 text-[12px] text-[var(--text-muted)]">
+          회사는 위 유형을 자동 검수 도구로 1차 식별할 수 있으며, 임계점 초과
+          게시물은 자동으로 비공개(검토 대기) 상태로 전환될 수 있습니다. 의사·
+          관리자가 작성한 게시물은 검수 대상에서 제외됩니다.
+        </p>
         <p className="mt-3">
           저작권 등 자신의 권리가 침해되었다고 판단한 자는 회사에 게시물의 삭제
-          또는 게재 중단을 요청할 수 있으며, 회사는 「저작권법」 제103조의3,
-          「정보통신망 이용촉진 및 정보보호 등에 관한 법률」 제44조의2 등 관련
-          법령에 따라 처리합니다.
+          또는 게재 중단을 요청할 수 있으며, 회사는 「저작권법」 제103조의3 등
+          관련 법령에 따라 처리합니다. 타인의 권리를 침해당했다고 주장하는 자는
+          이메일{" "}
+          <a
+            href="mailto:pibutenten@gmail.com"
+            className="text-[var(--primary)] hover:underline"
+          >
+            pibutenten@gmail.com
+          </a>
+          으로 삭제를 요청할 수 있습니다.
         </p>
         <p className="mt-3 mb-2">
           <strong>신고 방법</strong>:
@@ -241,25 +269,6 @@ export default function TermsPage() {
               pibutenten@gmail.com
             </a>
             로 신고 대상 URL·사유 첨부
-          </li>
-        </ol>
-        <p className="mt-3 mb-2">
-          <strong>임시조치 절차</strong> (「정보통신망법」 제44조의2):
-        </p>
-        <ol className="list-decimal space-y-1 pl-5">
-          <li>
-            회사는 신고 접수 후 명백한 침해·법령 위반은 즉시 삭제 또는 비공개
-            처리합니다.
-          </li>
-          <li>
-            그 외의 경우 회사는 신고 접수일로부터 30일 이내에 게시물의 접근을
-            임시 차단(임시조치)할 수 있으며, 작성 회원에게 임시조치 사실을
-            통지합니다.
-          </li>
-          <li>
-            작성 회원은 임시조치에 대해 30일 이내에 회사에 이의를 제기할 수
-            있습니다. 이의제기 시 회사는 양 당사자의 의견을 들은 후 게시물의
-            복원·삭제 여부를 결정합니다.
           </li>
         </ol>
       </Section>

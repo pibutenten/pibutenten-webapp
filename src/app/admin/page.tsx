@@ -214,6 +214,15 @@ export default async function AdminPage() {
             title="회원 관리"
             desc="권한 변경·원장 매핑·계정 관리"
           />
+          {/* 배치 ④ (2026-05-28): 신고 검토 큐 (영구 숨김/완전삭제 액션) */}
+          {isSuperAdmin && (
+            <Tool
+              href="/admin/reports"
+              emoji="🚩"
+              title="신고 검토"
+              desc="회원 신고 큐 — 숨김(영구·복구가능) / 완전삭제(익명화)"
+            />
+          )}
           <Tool
             href="/admin/doctors"
             emoji="🩺"

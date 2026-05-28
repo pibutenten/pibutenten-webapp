@@ -289,7 +289,9 @@ export default function CommentItem({
           >
             {isDeleted
               ? "(삭제된 댓글이에요)"
-              : comment.body.replace(/\s+/g, " ").trim()}
+              : isHidden && !canModerate && !isAuthor
+                ? "(비공개 처리된 댓글입니다)"
+                : comment.body.replace(/\s+/g, " ").trim()}
           </span>
         )}
 

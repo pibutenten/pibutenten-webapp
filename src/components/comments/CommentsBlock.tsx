@@ -182,10 +182,25 @@ export default function CommentsBlock({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ cardId, parentId, body }),
       });
-      const j = (await r.json()) as { error?: string };
+      const j = (await r.json()) as {
+        error?: string;
+        screening?: {
+          status: string;
+          reasons: string[];
+          userMessage: string;
+        } | null;
+      };
       if (!r.ok) {
         showToast(j.error ?? "댓글 작성 실패", { tone: "danger" });
         return;
+      }
+      // 자동검수에 걸려 hidden 처리되었으면 작성자에게 1회 안내 (silent fail 방지).
+      // 문구는 lib/safety 흐름과 분리 — 검수 사유 안내용.
+      if (j.screening) {
+        showToast(
+          "광고성·대가성 후기나 효과를 단정·보장하는 표현은 의료법에 따라 게시가 제한될 수 있어요. 댓글이 검토 대기로 전환되었습니다.",
+          { tone: "danger" },
+        );
       }
       setBody("");
       setReplyTarget(null);

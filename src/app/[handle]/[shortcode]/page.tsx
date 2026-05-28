@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Card, { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
 import { SITE_URL } from "@/lib/site";
@@ -55,10 +56,55 @@ async function fetchQa(
   }
 }
 
+/**
+ * Hidden 카드 placeholder 확인 — 배치 ④ (2026-05-28).
+ *
+ * fetchQa 가 null 일 때 추가로 admin client (RLS 우회) 로 status 만 확인.
+ *  - status='hidden' + 활성 row + handle 매칭 → placeholder 렌더 (404 아님).
+ *  - 그 외 (없거나 deleted_at 존재) → 진짜 404.
+ */
+async function checkHiddenPlaceholder(
+  handle: string,
+  shortcode: string,
+): Promise<{ shortcode: string } | null> {
+  if (!/^[1-9A-HJ-NP-Za-km-z]{6,12}$/.test(shortcode)) return null;
+  try {
+    const admin = createSupabaseAdminClient();
+    const { data } = await admin
+      .from("cards")
+      .select("status, deleted_at, author:profiles!author_id(handle)")
+      .eq("shortcode", shortcode)
+      .maybeSingle();
+    if (!data) return null;
+    const meta = data as {
+      status: string;
+      deleted_at: string | null;
+      author: { handle: string | null } | { handle: string | null }[] | null;
+    };
+    if (meta.deleted_at) return null;
+    if (meta.status !== "hidden") return null;
+    const a = Array.isArray(meta.author) ? meta.author[0] : meta.author;
+    if (!a || a.handle !== handle) return null;
+    return { shortcode };
+  } catch {
+    return null;
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle, shortcode } = await params;
   const card = await fetchQa(handle, shortcode);
-  if (!card) return { title: "찾을 수 없는 글" };
+  if (!card) {
+    // Hidden placeholder 면 noindex 로 표기 (interstitial 만, 본문 미노출).
+    const hidden = await checkHiddenPlaceholder(handle, shortcode);
+    if (hidden) {
+      return {
+        title: "비공개 처리된 게시물",
+        robots: { index: false, follow: false },
+      };
+    }
+    return { title: "찾을 수 없는 글" };
+  }
   const url = `${SITE_URL}/${handle}/${shortcode}`;
   const description = stripMarkdown(card.body).slice(0, 160);
   // 2026-05-28: openGraph/twitter boilerplate 는 lib/og-meta.ts 헬퍼로 통합.
@@ -90,7 +136,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function MemberPostPage({ params }: Props) {
   const { handle, shortcode } = await params;
   const card = await fetchQa(handle, shortcode);
-  if (!card) notFound();
+  if (!card) {
+    // Hidden 카드면 본문 대신 placeholder. 진짜 없는 글이면 404.
+    const hidden = await checkHiddenPlaceholder(handle, shortcode);
+    if (hidden) {
+      return (
+        <section className="w-full py-6">
+          <div className="mb-1 -ml-1">
+            <BackButton fallbackHref={`/${handle}`} />
+          </div>
+          <div className="mx-auto max-w-xl rounded-md border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+            <p className="text-[14px] font-semibold text-[var(--text)]">
+              운영정책에 따라 비공개된 게시물입니다.
+            </p>
+            <p className="mt-2 text-[12px] text-[var(--text-muted)]">
+              이의가 있으시면{" "}
+              <a
+                href="mailto:pibutenten@gmail.com"
+                className="text-[var(--primary)] hover:underline"
+              >
+                pibutenten@gmail.com
+              </a>
+              으로 문의해 주세요.
+            </p>
+          </div>
+        </section>
+      );
+    }
+    notFound();
+  }
 
   // 정책 (2026-05-15): 의사 Q&A 는 doctor canonical 한 곳에서만 노출.
   // 회원 라우트로 접근 시도 시 → /doctors/{slug}/{year}/{post_slug} 로 영구 redirect (308).
