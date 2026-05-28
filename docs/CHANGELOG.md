@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-05-28] — 사용자 보고 UX fix 묶음 (BackButton·admin/reports 헤더·삭제 카드 라벨)
+
+### Fixed (UX·UI 정합)
+- **BackButton 위·아래 여백 축소** (`src/components/BackButton.tsx`): `paddingTop/Bottom 16px → 6px`, `min-h-[48px] → min-h-[32px]`. 모바일에서 `← 뒤로` 위 빈 공간이 과해 보이는 회귀 해소 (전 페이지 공통).
+- **`/admin/reports` BackButton 누락 추가** (`src/app/admin/reports/page.tsx`): 다른 admin 페이지와 동일 `<div className="mb-1 -ml-1"><BackButton /></div>` 패턴.
+- **`/admin/reports` 헤더 규격 통일**: 옛 `<main mx-auto max-w-5xl px-4>` (들여쓰기 발생) → `<section className="w-full py-6">` + `<div className="mb-5 pl-1">` + `text-2xl` 제목 + `text-xs` 서브설명. admin/cards / admin/comments 와 1:1 정합.
+
+### Fixed (admin/cards 삭제됨 탭)
+- **Pick 위치는 PickToggle 만**: 옛 동작은 `r.deleted_at` 일 때 `<RestoreButton/>` 로 바뀌어 Pick 토글이 사라지던 회귀. `<PickToggle/>` 만 유지하도록 정정 (RestoreButton import 제거).
+- **상태 컬럼 "삭제" 라벨**: `STATUS_STYLE.deleted` 신설 (빨간 톤 "삭제"). row 렌더에서 `r.deleted_at` 있으면 원 status (발행/대기) 대신 "삭제" 라벨 override. 옛 동작은 삭제됨 탭에서도 발행/대기로 표시되어 혼란.
+- **본문 [올리기] → 자동 복구**: EditClient `handleSubmit` 에서 `action === "publish"` 이고 카드가 `deleted_at` 일 때 `apiPayload.deleted_at = null` 추가 → 발행 + 복구가 한 액션으로. 본문 [지우기] 는 `soft_delete_card` RPC 그대로. 흐름 통일.
+- `EditClient` Card type + `edit/page.tsx` select 절에 `deleted_at` 컬럼 노출.
+
+---
+
 ## [2026-05-28] — 검수 v2 + 검색 SSOT + 방금 쓴 글 1회 + EditClient 통일 (배치 ⑤, 공개 전 마지막)
 
 ### Changed (검수 v2)
