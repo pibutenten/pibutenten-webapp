@@ -67,6 +67,8 @@ type Card = {
   like_count: number;
   view_count: number;
   created_at: string;
+  /** 배치 ⑤ 후속 (2026-05-28): admin EditClient 의 "올리기" → 자동 복구 흐름용. */
+  deleted_at: string | null;
   external_url?: string | null;
   external_title?: string | null;
   external_image?: string | null;
@@ -199,9 +201,8 @@ export default function EditClient({
 
   async function handleSubmit(
     payload: CardEditorPayload,
-    _action: SubmitAction,
+    action: SubmitAction,
   ): Promise<{ ok: true; cardId: number } | { ok: false; error: string }> {
-    void _action;
     const supabase = createSupabaseBrowserClient();
 
     // meta(timestamp) 갱신 — 옛 EditClient 와 동일.
@@ -252,6 +253,13 @@ export default function EditClient({
       } else {
         apiPayload.doctor_id = null;
       }
+    }
+
+    // 2026-05-28 (사용자 보고): 본문에서 "올리기" → 자동 복구.
+    //   deleted 카드를 admin 이 EditClient 에서 발행(publish) 액션으로 저장 시 deleted_at 도 null 로 클리어.
+    //   "지우기" 는 handleSoftDelete (soft_delete_card RPC) 가 별도 처리. 흐름 통일.
+    if (action === "publish" && card.deleted_at) {
+      apiPayload.deleted_at = null;
     }
 
     try {

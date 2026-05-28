@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PickToggle from "@/components/PickToggle";
-import RestoreButton from "./RestoreButton";
 import { labelForCategory, POST_CATEGORIES } from "@/lib/post-category";
 import AdminCardsDoctorFilter from "./AdminCardsDoctorFilter";
 import { requireAdminPage } from "@/lib/admin-page-guard";
@@ -120,12 +119,15 @@ const STATUS_LIST: { key: StatusFilter; label: string }[] = [
 
 // status 색상 — 발행은 너무 튀지 않게 외곽선·옅은 톤. 대기·보관은 강조 유지.
 // 2026-05-28: hidden 추가 (DB qa_status 와 1:1 정합).
-const STATUS_STYLE: Record<QAStatus, { bg: string; fg: string; label: string; border?: string }> = {
+// 2026-05-28 (사용자 보고): 'deleted' 가짜 status 추가 — deleted_at IS NOT NULL row 의 상태 표기.
+//   ('deleted' 는 DB enum 이 아니라 deleted_at 기준 표기용 라벨. row 렌더 분기에서만 사용.)
+const STATUS_STYLE: Record<QAStatus | "deleted", { bg: string; fg: string; label: string; border?: string }> = {
   draft: { bg: "#F3F4F6", fg: "#6B7280", label: "초안", border: "#E5E7EB" },
   pending_review: { bg: "#FFF7E6", fg: "#B26F00", label: "대기", border: "#FFD08A" },
   published: { bg: "transparent", fg: "#16A34A", label: "발행", border: "#BBF7D0" },
   archived: { bg: "#F3F4F6", fg: "#4B5563", label: "보관", border: "#E5E7EB" },
   hidden: { bg: "#FEF2F2", fg: "#B91C1C", label: "숨김", border: "#FECACA" },
+  deleted: { bg: "#FEF2F2", fg: "#991B1B", label: "삭제", border: "#FCA5A5" },
 };
 // 방어 fallback — 향후 enum 에 새 status 가 추가됐는데 위 STATUS_STYLE 갱신 누락 시
 // crash 대신 default 톤으로 렌더 (가시성 손상 최소).
@@ -604,8 +606,12 @@ export default async function AdminQAsPage({ searchParams }: Props) {
               </thead>
               <tbody>
                 {rows.map((r) => {
-                  // 2026-05-28: fallback 으로 enum 확장 시 crash 방지.
-                  const style = STATUS_STYLE[r.status] ?? STATUS_STYLE_FALLBACK;
+                  // 2026-05-28: deleted_at IS NOT NULL 이면 상태 라벨 '삭제' 로 override
+                  //   (사용자 보고 — 옛 동작: deleted 탭에서도 발행/대기 등 원 status 표시되어 혼란).
+                  //   복구 흐름은 본문(EditClient) 의 "올리기" 로 일원화. Pick 위치는 PickToggle 만.
+                  const style = r.deleted_at
+                    ? STATUS_STYLE.deleted
+                    : (STATUS_STYLE[r.status] ?? STATUS_STYLE_FALLBACK);
                   return (
                     <tr
                       key={r.id}
@@ -620,11 +626,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                         </Link>
                       </td>
                       <td className="px-3 py-2 align-middle text-center">
-                        {r.deleted_at ? (
-                          <RestoreButton cardId={r.id} />
-                        ) : (
-                          <PickToggle cardId={r.id} initial={!!r.is_pick} />
-                        )}
+                        <PickToggle cardId={r.id} initial={!!r.is_pick} />
                       </td>
                       <td className="px-3 py-2 align-middle">
                         <span

@@ -41,6 +41,7 @@ export default async function AdminEditQAPage({ params }: Props) {
     .select(
       `id, title, body, meta, keywords, status, type, category, is_pick,
        doctor_id, author_id, video_id, like_count, view_count, created_at,
+       deleted_at,
        external_url, external_title, external_image, external_site_name,
        pubmed_refs,
        author:profiles!cards_author_id_profiles_fkey(id, display_name, handle, role),
