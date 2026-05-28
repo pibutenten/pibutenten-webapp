@@ -6,6 +6,190 @@
 
 ---
 
+## [2026-05-28] — 정책 chip 2단 구조 + Footer 8개 정제 (SSOT 도입)
+
+> 칩 4 vs Footer 11 인지 부조화 해소. SSOT 도입으로 chip nav 와 footer 자동 동기화 → 누더기 차단.
+
+### Added (SSOT)
+- `src/lib/policy-nav.ts` 신설 — 11개 정책·안내 페이지 4개 대분류 매핑 단일 출처.
+  - `POLICY_NAV`: 3/4/2/2 분배 (소개 / 콘텐츠 정책 / 이용 안내 / 문의·신고)
+  - `PAGE_TO_CATEGORY`: 페이지 key → 카테고리 역인덱스
+  - `FOOTER_ITEMS`: `inFooter: true` 필터링된 8개 (정의 순서 유지)
+  - `getCategory(key)`: 카테고리 lookup
+
+### Changed (chip nav 2단 구조)
+- `src/components/info/InfoPageNav.tsx` — 1단 chip 4개 + 2단 sub-chip (활성 카테고리 sub) 2단 구조로 재작성.
+  - 1단 active: solid primary (진한 채움) / inactive: outline + muted
+  - 2단 active: soft primary (옅은 배경 + primary 텍스트) / inactive: outline + muted
+  - `<nav aria-label>` 2개 (대분류 / 세부 정책) 명시 + `aria-current="page"` 활성 표시
+  - sub 항목 1개뿐이면 sub-chip 미노출 (현재 모든 카테고리 ≥2 이므로 항상 노출)
+  - 매핑 SSOT 의존 — PARENT_HUB·PAGES 상수 제거 (policy-nav.ts 로 이전)
+
+### Changed (footer 8개 정제)
+- `src/components/SiteFooter.tsx` — 하드코딩 11개 링크 → `FOOTER_ITEMS.map()` 으로 SSOT 의존.
+  - footer 노출 8개: 사이트 안내 / 편집 정책 / 의학 검수 프로세스 / 의료 정보 안내 / 이용약관 / 개인정보 처리방침 / 문의 / 콘텐츠 신고
+  - footer 제외 3개 (sub-chip + sitemap 으로 접근): 이해상충 공개 / 정정 정책 / 의사 답변 가이드라인
+  - 분류 근거: 법적 의무 4 (이용약관·개인정보·문의·신고) + 신뢰성 4 (Mayo/Cleveland Clinic 벤치마크 YMYL/E-E-A-T signal)
+  - footer `<nav aria-label="사이트 정책">` 명시
+
+### 카테고리 매핑 표 (3/4/2/2)
+| 1단 chip | sub-chip | URL | footer |
+|---|---|---|---|
+| **소개** | 사이트 안내 | `/about` | O |
+|  | 편집 정책 | `/editorial-policy` | O |
+|  | 의학 검수 프로세스 | `/medical-review` | O |
+| **콘텐츠 정책** | 의료 정보 안내 | `/disclaimer` | O |
+|  | 이해상충 공개 | `/disclosures` | X (sub-chip만) |
+|  | 정정 정책 | `/corrections` | X (sub-chip만) |
+|  | 의사 답변 가이드라인 | `/doctor-guidelines` | X (sub-chip만) |
+| **이용 안내** | 이용약관 | `/terms` | O |
+|  | 개인정보 처리방침 | `/privacy` | O |
+| **문의·신고** | 문의 | `/contact` | O |
+|  | 콘텐츠 신고 | `/report` | O |
+
+### SEO/AEO/GEO 영향 분석
+- **SEO 색인**: 모든 11페이지 sitemap.ts 등재 유지 → 색인 누락 없음.
+- **AEO**: llms.txt + 본문 콘텐츠가 메인 신호. footer 노출 여부 무관.
+- **GEO** (E-E-A-T / YMYL): 의료 사이트 신뢰 핵심 3개 (편집 정책 / 의학 검수 / 의료 정보 안내) footer 유지 → GEO signal 보존.
+- footer 제외 3개의 internal link PR 가중치만 약간 감소 (색인은 100% 보장).
+
+### 회귀 위험·완화
+- 카테고리 매핑 변경으로 기존 chip 활성 표시가 일부 페이지에서 달라짐 (예: editorial-policy 가 "콘텐츠 정책" → "소개" 로 이동).
+  - sitemap·URL 모두 불변 → 외부 검색엔진·북마크에 영향 없음.
+- chip 컴포넌트 props 시그니처 (`current: InfoPageKey`) 불변 → 11페이지 호출처 코드 변경 0건.
+- `InfoPageKey` type 재export 유지 → 외부 import 호환.
+
+---
+
+## [2026-05-28] — InfoPageLayout 폭·헤더 통일 + 9명/9인 일반화 + 대표 한 줄 통합
+
+> 인지 부담 축소 + 미래 확장성 + 대시보드 레이아웃 정합. SITE_PUBLIC HOLD 유지.
+
+### Changed (InfoPageLayout 폭·헤더 통일 — 대시보드 패턴)
+- `src/components/info/InfoPageLayout.tsx` — 대시보드 (admin/*, doctor/*) 페이지와 1:1 정합 적용:
+  - `max-w-[720px]` 제거 → 외부 layout 의 `max-w-1080` 컨테이너 활용 (본문 폭 확대)
+  - `<div className="mx-auto w-full max-w-[720px] px-4 py-6 sm:px-6">` → `<section className="w-full py-6">` (admin/cards 와 동일)
+  - BackButton wrapper: `mb-1 -ml-1` (변경 없음, admin 과 동일)
+  - 헤더 박스: `<div className="mb-5 pl-1">` 추가 (admin 헤더 패턴)
+  - H1: `text-[26px] sm:text-[30px]` → **`text-2xl`** (=24px, admin/cards/comments/users/reports/doctor 전부와 동일)
+  - subtitle: `text-[13px]` → **`mt-1 text-xs`** (=12px, admin 헤더 보조와 동일)
+- 적용 대상: /about, /terms, /privacy, /doctor-guidelines, /disclaimer, /report, /contact, /editorial-policy, /medical-review, /corrections, /disclosures (전 11페이지 일괄)
+
+### Changed (대표 + 운영책임자 한 줄 통합)
+- `src/app/about/page.tsx` 운영 주체 섹션, `src/app/contact/page.tsx` 회사 정보 섹션 — 두 줄 `대표: 배정민 / 운영 책임자: 배정민` → 한 줄 **`대표 및 운영책임자: 배정민`**.
+
+### Changed (9명/9인 일반화 — 미래 참여 전문의 수 변동 대비)
+- 사용자 가시 텍스트 전수 일반화:
+  - `src/app/about/page.tsx` — metadata description / schema description / UI 본문 "9명" link / "참여 전문의 9명은" 4곳
+  - `src/app/disclosures/page.tsx` §3 — "참여 전문의 9인은" → "참여 전문의는"
+  - `src/app/doctors/page.tsx` — metadata + OG description 2곳
+  - `src/app/editorial-policy/page.tsx` §5 — "9명 의사 답변·작성자" → "참여 전문의의 답변·작성자"
+  - `src/app/page.tsx` 홈 — metadata description
+  - `public/llms.txt` — 사이트 설명·참여 전문의 목록 항목
+  - `public/.well-known/agent-card.json` — description + `_comment`
+- 코드 주석·내부 문자열 일반화 (변수명·로직 불변): EditClient.tsx, DraftClient.tsx (admin UI "이 자막에는 등록된 원장 9명 중" → "등록 원장님들 중"), analyze/route.ts, layout.tsx, robots.ts, sitemap.ts, WriteClient.tsx, CardEditor.tsx, CardEditorMeta.tsx, admin-card-extras.ts, identify-doctors.ts, schema/clinic.ts, schema/doctor.ts, docs/ARCHITECTURE.md
+- 미래 참조 운영 문서 일반화: `docs/AUTHOR_GUIDE.md`, `docs/TECH_SPEC.md`
+- **시점 기록 문서 의도적 보존**: `docs/CHANGELOG.md` 과거 블록, `docs/PRD.md` §6 KPI (베타 기간 통계), `docs/decisions/*`, `docs/reports/*` — 작성 시점 사실 그대로
+- 검수: `grep -rn "9명\|9인" src public` 결과 **0건**
+
+### 칩 vs Footer 일관성 — 운영자 확인 대기
+- 사용자 지적: 칩 4개 vs Footer 11개 인지 부조화. **A안 (Footer 도 4개로 축소) 권장**. 본 배치에선 미실행 — 운영자 결정 후 후속 PR 로 처리.
+
+### 보존 (의도 유지)
+- robots.ts SITE_PUBLIC HOLD 유지
+- sitemap.xml 의 정책 페이지 11종 URL 유지
+- 각 페이지 JSON-LD schema 변경 없음
+
+---
+
+## [2026-05-28] — InfoPageNav 칩 통합 (11→4) + disclosures §1 정리 (HOLD 유지)
+
+> SITE_PUBLIC 은 계속 false (HOLD). 기존 페이지 URL·JSON-LD·sitemap 모두 유지 → SEO 손실 0. nav 진입점만 사용자 인지 부담 축소 목적으로 통합.
+
+### Changed (InfoPageNav 통합)
+- `src/components/info/InfoPageNav.tsx` — 칩 11개 → **4개로 통합**: `소개(/about)` · `콘텐츠 정책(/editorial-policy)` · `이용 안내(/terms)` · `문의·신고(/contact)`. InfoPageKey 11개는 그대로 유지하고 `PARENT_HUB` 매핑으로 비-칩 페이지 (medical-review/corrections/disclosures/doctor-guidelines/privacy/disclaimer/report) 가 어느 허브 칩 active 상태로 표시될지 결정.
+- aria-current 매핑 검증 11/11 정확: medical-review/corrections/disclosures/doctor-guidelines → 콘텐츠 정책 / privacy/disclaimer → 이용 안내 / report → 문의·신고.
+
+### Added (각 허브 본문에 바로가기 블록)
+- `src/app/editorial-policy/page.tsx` — H1 직후 "관련 정책 바로가기" 블록: 의학 검수 / 정정 정책 / 이해상충 공개 / 의사 답변 가이드라인 4링크.
+- `src/app/contact/page.tsx` — H1 직후 "빠른 접근" 블록: 콘텐츠 신고 / 보안 취약점 제보 / 정정 요청 / 이해상충 공개 4링크.
+- `src/app/terms/page.tsx` — H1 직후 "관련 안내 바로가기" 블록: 개인정보 / 의료 정보 안내 / 의사 답변 가이드라인 3링크.
+
+### Changed (전 페이지 접근 보장)
+- `src/components/SiteFooter.tsx` — footer nav 6 → **11개 링크로 확장**. 칩 축소로 인한 비-칩 페이지 도달 보장 (전 11페이지: about/editorial-policy/medical-review/corrections/disclosures/doctor-guidelines/disclaimer/terms/privacy/contact/report). 검수 11/11 PASS.
+
+### Changed (disclosures §1)
+- `src/app/disclosures/page.tsx` — §1 라벨 "운영주체 자본 관계" → **"운영주체 측 이해상충"**. 본문은 운영자 지시 3줄로 교체:
+  - "운영 주체: 주식회사 진솔컴퍼니 (사업자등록번호 261-86-01781)"
+  - "본 서비스는 광고·협찬을 받지 않으며, 특정 의료기관·의료법인과 광고·송객·수수료 계약을 체결하지 않습니다."
+  - "본 서비스는 의료기관이 아닌 정보 플랫폼이며, 운영 주체는 진료·처방 행위를 하지 않습니다."
+- **"겸직" / "대표이사" / "참여 전문의는 운영사와 관계 없음" 단정 문장 모두 삭제** (grep 검수 0건). 사유: 전문의-운영사 관계를 단정하지 않는 정책으로 통일.
+
+### 보존 (의도 유지)
+- /privacy 와 /terms 는 독립 URL 그대로 유지 (PIPA §30 의무 + 약관 단독 문서).
+- `src/app/sitemap.ts` 의 정책 페이지 11종 URL 그대로 유지 (sitemap 에서 칩 축소 영향 없음).
+- 각 페이지 JSON-LD schema 변경 없음.
+- robots.ts SITE_PUBLIC HOLD 유지.
+
+---
+
+## [2026-05-28] — SEO/AEO/GEO 일괄 생성 (HOLD 모드)
+
+> 4명 독립 분석 (보고서 `docs/reports/2026-05-28-SEO-AEO-GEO-종합보고서.md` + 부록) 기반 일괄 적용.
+> **공개 차단 유지**: `SITE_PUBLIC` env 기본값 미설정 → robots fail-safe 전체 차단. 공개는 운영자가 Vercel 환경변수 `SITE_PUBLIC=true` 추가 후 redeploy.
+
+### Added (노출 인프라)
+- `src/app/robots.ts` — **SITE_PUBLIC 스위치** + 3-tier AI 크롤러 정책 (학습 차단 / 검색·답변 허용 / 일반 검색 허용). 접두 매칭 함정 회피: `/doctor` `/me` 를 DISALLOW_COMMON 에서 제외 (→ `/doctors/*` `/doctor-guidelines` `/medical-review` 차단 방지).
+- `src/app/rss.xml/route.ts` — RSS 2.0, 의사 Q&A 최신 50건. 회원 글 누출 방지 필터 (status=published + doctor_id IS NOT NULL + category=qa). 네이버 freshness signal.
+- `src/app/api/csp-report/route.ts` — CSP 위반 보고 endpoint. console.warn 적재. POST/OPTIONS 처리.
+- `public/.well-known/security.txt` — RFC 9116. Contact 단일 `pibutenten@gmail.com`. Expires 2027-05-28.
+- `public/.well-known/agent-card.json` — AI 에이전트 인터페이스. citationPolicy + endpoints + structuredData + publisher (회사 정보 + 사업자번호 + 주소 + 전화).
+- `public/.well-known/ai-policy.json` — IETF AI Preferences draft. training:disallow / search:allow / answerWithCitation:allow. 회원 글 path exception.
+- `public/llms.txt` — minimal 22줄 → 풀버전 (llmstxt.org). 9명 의사 슬러그 플레이스홀더 (의사목록 링크). `/qa/*` 폐기 라우트 제거. 회사 정보 (사업자번호·주소·전화) 명시.
+- `vercel.json` — 정적 자산 (`/fonts`, `/icons`, `/og`, `/_next/static`) Cache-Control immutable + CORP cross-origin.
+
+### Added (신뢰 페이지 — Mayo/Cleveland Clinic/Healthline/WebMD 벤치마크)
+- `src/app/contact/page.tsx` — 회사 정보 + 8 채널 메일 태그 (일반/정정/컴플라이언스/보안/의사등록/언론). ContactPage schema.
+- `src/app/editorial-policy/page.tsx` — 5단계 워크플로우 + 출처 우선순위 + **AI 사용 정책 [확정정보]** (유튜브·릴스 영상 → AI 가독성·구성 보조 → 전문의 검수). AboutPage schema.
+- `src/app/medical-review/page.tsx` — 6단계 검수 흐름 + 4-date 모델. AboutPage schema.
+- `src/app/corrections/page.tsx` — 30일 정정 이력 + 5분류 표 + 정정 표시 형식 + "현재 공개된 정정 이력이 없습니다." 정적.
+- `src/app/disclosures/page.tsx` — **운영자 [확정정보] 옵션 3** 적용: §1 배정민 운영사 대표 겸직 / §3 의사별 표 없음 (관련 답변 발생 시 개별 고지) / §6 갱신 주기 단순화.
+
+### Added (운영 문서)
+- `docs/AUTHOR_GUIDE.md` — 의사 작성 가이드 (GEO 패턴: 통계 1개·PubMed 1개·blockquote 1개 + 의료법 회피 표현 사전 + 4-date 모델 + 재검수 주기).
+
+### Changed (기존 파일 부분 수정)
+- `src/app/about/page.tsx` — 미션 섹션 추가 ("피부 시술에 대한 궁금증, 검증된 피부과 전문의가 답해드립니다."). 회사 정보 완성 (대표·주소·전화). 의료기관 소속 관계 섹션 추가. 관련 문서 9링크로 확장. MedicalOrganization schema 에 publishingPrinciples/ethicsPolicy/correctionsPolicy/ownershipFundingInfo + parentOrganization.taxID/address/telephone + contactPoint.telephone 추가.
+- `src/app/sitemap.ts` — 정책 페이지 9종 staticRoutes 추가 (editorial-policy/medical-review/corrections/disclosures/disclaimer/doctor-guidelines/contact/terms/privacy). cards.updated_at select 추가 + lastModified `updated_at ?? created_at` 우선순위 (Freshness signal 강화).
+- `next.config.ts` — CSP `report-uri /api/csp-report` + `report-to default` + Report-To 헤더 + COOP/CORP same-origin + Permissions-Policy 확장 (payment/usb/interest-cohort/browsing-topics).
+- `src/app/layout.tsx` — metadata.verification env 기반 플레이스홀더 (NEXT_PUBLIC_NAVER_SITE_VERIFICATION / GOOGLE / BING).
+- `src/components/info/InfoPageNav.tsx` — InfoPageKey 5개 확장 (contact/editorial-policy/medical-review/corrections/disclosures). 칩 11종.
+- `src/components/info/InfoPageFooter.tsx` — **사업자등록번호 교정**: `110-86-12345` (플레이스홀더였음) → `261-86-01781` ([확정정보]). 주소 + 전화 추가.
+
+### Fixed (운영자 개인메일 노출 정리)
+- 운영자 개인메일 노출 0건 (검수: src/public/docs 전수 grep 0건). 전 채널 `pibutenten@gmail.com` 단일 통일.
+- `src/app/onboarding/OnboardingClient.tsx:722` — UI 메시지 안의 운영자 개인메일 → `pibutenten@gmail.com` (사용자 가시 텍스트, 가장 중요).
+- `docs/PRD.md` §1 운영사 이메일 교체.
+- `docs/TECH_SPEC.md` VAPID_SUBJECT 예시 교체.
+- `src/app/auth/callback/route.ts` / `src/app/[handle]/page.tsx` / `src/lib/error-response.ts` 코드 주석 예시 교체 (`user@gmail.com` 일반화).
+- `docs/reports/2026-05-28-SEO-AEO-GEO-*` 부록 보고서 일괄 치환.
+
+### Notes (운영자 결정 대기 — 플레이스홀더)
+- `metadata.verification` 토큰 발급 후 Vercel env 입력 (Naver/Google/Bing).
+- `agent-card.json` physicians 배열은 9명 slug 운영자 입력 대기 (현재는 `/doctors` 목록 링크).
+- `procedures` 마스터 테이블 + 부작용 자동 삽입 시스템은 본 배치에서 **제외** (시술별 부작용 텍스트는 9명 의사 합의 검수 필수 — 임의 생성 금지).
+- ⚠ 의사별 이해상충 표 미작성 (옵션 3, 관련 답변 발생 시 개별 고지).
+- ⚠ `SITE_PUBLIC` env 추가는 운영자가 직접 — 본 배치는 HOLD 유지.
+
+### 공개 전환 절차
+1. Vercel Project → Environment Variables 에 `SITE_PUBLIC=true` 추가 (Production)
+2. Redeploy → `/robots.txt` 가 3-tier 정책으로 환원되는지 확인
+3. Naver Search Advisor / Google Search Console / Bing Webmaster 등록 + sitemap·RSS 제출
+4. verification 토큰 발급 → `NEXT_PUBLIC_NAVER_SITE_VERIFICATION` / `_GOOGLE_` / `_BING_` env 입력
+5. Vercel logs 에서 GPTBot/ClaudeBot 등 AI 봇 user-agent 정책 일치 검증 (주별)
+
+---
+
 ## [2026-05-28] — 사용자 보고 UX fix 묶음 (BackButton·admin/reports 헤더·삭제 카드 라벨)
 
 ### Fixed (UX·UI 정합)

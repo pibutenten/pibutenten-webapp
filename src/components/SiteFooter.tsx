@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { FOOTER_ITEMS } from "@/lib/policy-nav";
 
 /**
  * 사이트 글로벌 푸터.
  *  - 의료 정보 사이트(YMYL) 신뢰 신호 — 운영 주체 + 면책 링크
  *  - "전문의 검수" 한 줄 노출 → AI/검색엔진에 사이트 성격 명시
+ *  - 2026-05-28 v2: FOOTER_ITEMS SSOT (src/lib/policy-nav.ts) 사용.
+ *    11개 → 8개로 정제 (법적 의무 4 + 신뢰성 4).
+ *    빠진 3개 (이해상충 / 정정 정책 / 의사 답변 가이드라인) 는
+ *    상단 sub-chip + sitemap 으로 접근·색인 보장.
  */
 export default function SiteFooter() {
   return (
@@ -15,43 +20,16 @@ export default function SiteFooter() {
           </strong>{" "}
           · 피부과 전문의가 직접 답하는 리프팅 · 스킨부스터 · 안티에이징 · 피부시술 커뮤니티 · 주식회사 진솔컴퍼니
         </p>
-        <nav className="flex flex-wrap gap-3">
-          <Link
-            href="/about"
-            className="hover:text-[var(--primary)] hover:underline"
-          >
-            사이트 안내
-          </Link>
-          <Link
-            href="/terms"
-            className="hover:text-[var(--primary)] hover:underline"
-          >
-            이용약관
-          </Link>
-          <Link
-            href="/privacy"
-            className="hover:text-[var(--primary)] hover:underline"
-          >
-            개인정보 처리방침
-          </Link>
-          <Link
-            href="/doctor-guidelines"
-            className="hover:text-[var(--primary)] hover:underline"
-          >
-            의사 답변 가이드라인
-          </Link>
-          <Link
-            href="/disclaimer"
-            className="hover:text-[var(--primary)] hover:underline"
-          >
-            의료정보 안내
-          </Link>
-          <Link
-            href="/report"
-            className="hover:text-[var(--primary)] hover:underline"
-          >
-            콘텐츠 신고
-          </Link>
+        <nav aria-label="사이트 정책" className="flex flex-wrap gap-3">
+          {FOOTER_ITEMS.map((item) => (
+            <Link
+              key={item.key}
+              href={item.href}
+              className="hover:text-[var(--primary)] hover:underline"
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
       </div>
       <p className="mt-2 text-[11px] text-[var(--text-muted)]">
