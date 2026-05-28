@@ -13,6 +13,7 @@ import { errorResponse } from "@/lib/error-response";
 import { rateLimit } from "@/lib/rate-limit";
 import { getIdentityContext } from "@/lib/identity";
 import { logAudit } from "@/lib/audit-log";
+import { screenContent } from "@/lib/content-screening";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,32 @@ export async function PATCH(req: Request, ctx: Ctx) {
   });
   if (limited) return limited;
 
+  // 콘텐츠 자동검수 (2026-05-28): 본인이 본문 수정 시 active 신분이 USER 면 재검사.
+  // 카드의 PUT 패턴 미러링 (의사·관리자는 자동 통과). 임계 초과 시 status='hidden' + flags.
+  // status 만 변경하는 admin/doctor 흐름은 검수 skip (다른 사용자의 댓글 status 조정).
+  let verdictForAudit: { flagged: boolean; reasons: string[] } | null = null;
+  if (typeof update.body === "string") {
+    const activeRole = (idCtx?.active?.role ?? "user") as
+      | "admin"
+      | "doctor"
+      | "user";
+    const verdict = screenContent({
+      title: null,
+      body: update.body,
+      keywords: null,
+      externalUrl: null,
+      authorRole: activeRole,
+    });
+    if (verdict.flagged) {
+      update.status = "hidden";
+      (update as Record<string, unknown>).screening_flags = verdict.reasons;
+    } else if (activeRole === "user") {
+      // 의심 해소된 수정이면 flags 정리. cards PUT 패턴과 동일.
+      (update as Record<string, unknown>).screening_flags = null;
+    }
+    verdictForAudit = { flagged: verdict.flagged, reasons: verdict.reasons };
+  }
+
   const upd = await supabase
     .from("comments")
     .update(update)
@@ -132,7 +159,17 @@ export async function PATCH(req: Request, ctx: Ctx) {
     });
   }
 
-  return NextResponse.json({ comment: upd.data });
+  return NextResponse.json({
+    comment: upd.data,
+    screening: verdictForAudit?.flagged
+      ? {
+          status: "hidden",
+          reasons: verdictForAudit.reasons,
+          userMessage:
+            "수정 내용이 자동 검수에서 의심 표현으로 감지되어 보류되었습니다. 운영자가 검토합니다.",
+        }
+      : null,
+  });
 }
 
 export async function DELETE(req: Request, ctx: Ctx) {

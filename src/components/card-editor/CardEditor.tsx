@@ -42,19 +42,15 @@ import {
 } from "@/components/card-editor/fields/PubmedRefsField";
 import { type ExternalMeta } from "@/components/card-editor/fields/ExternalLinkField";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { SUICIDE_SELF_HARM_KEYWORDS } from "@/lib/content-screening-dict";
+import {
+  detectSuicideRisk,
+  SAFETY_DIALOG_TITLE,
+  SAFETY_DIALOG_DESCRIPTION,
+} from "@/lib/safety";
 // P2-2 (2026-05-27) — 1097줄 거대 컴포넌트를 4분할. 본 파일은 상위 컨테이너.
 import CardEditorMeta from "@/components/card-editor/parts/CardEditorMeta";
 import CardEditorBody from "@/components/card-editor/parts/CardEditorBody";
 import CardEditorAttachments from "@/components/card-editor/parts/CardEditorAttachments";
-
-/**
- * 자살/자해 키워드 감지 — 차단 아닌 안내 (보안 2.5차 L3).
- */
-function detectSuicideRisk(text: string): boolean {
-  const lower = text.toLowerCase();
-  return SUICIDE_SELF_HARM_KEYWORDS.some((kw) => lower.includes(kw));
-}
 
 export type CardStatus =
   | "draft"
@@ -919,18 +915,11 @@ export default function CardEditor({
           )}
         </div>
 
-        {/* 자살/자해 안전 메시지 */}
+        {/* 자살/자해 안전 메시지 — 문구·키워드 SSOT = lib/safety.ts */}
         <ConfirmDialog
           open={pendingAction !== null}
-          title="혹시 도움이 필요하신가요?"
-          description={
-            "입력하신 내용 중 어려운 시간을 보내고 계신 것 같은 표현이 보였어요.\n\n" +
-            "도움을 받으실 수 있는 곳:\n" +
-            "• 자살예방상담전화 109 (24시간)\n" +
-            "• 정신건강위기상담 1577-0199\n" +
-            "• 청소년상담 1388\n\n" +
-            "그대로 작성을 계속하실 수 있고, 잠시 멈추고 도움받기를 선택하실 수도 있어요."
-          }
+          title={SAFETY_DIALOG_TITLE}
+          description={SAFETY_DIALOG_DESCRIPTION}
           tone="primary"
           confirmLabel="계속 작성"
           cancelLabel="도움받기"

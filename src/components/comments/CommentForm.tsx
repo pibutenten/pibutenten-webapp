@@ -16,7 +16,13 @@
  *   - 마운트 시 autofocus (disableAutoFocus=true 면 생략)
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import {
+  detectSuicideRisk,
+  SAFETY_DIALOG_TITLE,
+  SAFETY_DIALOG_DESCRIPTION,
+} from "@/lib/safety";
 
 type Props = {
   body: string;
@@ -39,6 +45,19 @@ export default function CommentForm({
   disableAutoFocus = false,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  // 자살/자해 안전 모달 — CardEditor 와 동일 패턴 (1회 노출 가드).
+  // 같은 form 인스턴스 내에서 한 번 ack 하면 다음 제출은 곧장 통과.
+  const [pendingSubmit, setPendingSubmit] = useState(false);
+  const [suicideRiskAcknowledged, setSuicideRiskAcknowledged] = useState(false);
+
+  function attemptSubmit() {
+    if (submitting || !body.trim()) return;
+    if (!suicideRiskAcknowledged && detectSuicideRisk(body)) {
+      setPendingSubmit(true);
+      return;
+    }
+    onSubmit();
+  }
 
   // 마운트 시 자동 포커스 — 댓글창/답글창 열림 즉시 입력 가능 (모바일 키보드 자동 활성)
   // disableAutoFocus=true면 (단독 URL 자동 펼침 등) 포커스 생략.
@@ -97,7 +116,7 @@ export default function CommentForm({
               e.keyCode !== 229
             ) {
               e.preventDefault();
-              if (!submitting && body.trim()) onSubmit();
+              attemptSubmit();
             }
           }}
           placeholder={placeholder ?? "댓글을 입력하세요"}
@@ -140,8 +159,7 @@ export default function CommentForm({
           void e;
         }}
         onClick={() => {
-          if (submitting || !body.trim()) return;
-          onSubmit();
+          attemptSubmit();
         }}
       >
         {submitting ? (
@@ -162,6 +180,23 @@ export default function CommentForm({
           />
         )}
       </button>
+      {/* 자살/자해 안전 메시지 — 문구·키워드 SSOT = lib/safety.ts */}
+      <ConfirmDialog
+        open={pendingSubmit}
+        title={SAFETY_DIALOG_TITLE}
+        description={SAFETY_DIALOG_DESCRIPTION}
+        tone="primary"
+        confirmLabel="계속 작성"
+        cancelLabel="도움받기"
+        onConfirm={() => {
+          setSuicideRiskAcknowledged(true);
+          setPendingSubmit(false);
+          onSubmit();
+        }}
+        onCancel={() => {
+          setPendingSubmit(false);
+        }}
+      />
     </div>
   );
 }

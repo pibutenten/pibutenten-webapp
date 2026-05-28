@@ -17,6 +17,7 @@ import {
   CommentCreateSchema,
   CommentGetQuerySchema,
 } from "@/lib/schema/api/comments";
+import { screenContent } from "@/lib/content-screening";
 // 2026-05-28: 댓글 도메인 타입 SSOT (lib/types/comment.ts). CommentsBlock 과 공유.
 import type { CommentRow, CommentWithReplies } from "@/lib/types/comment";
 
@@ -284,18 +285,36 @@ export async function POST(req: Request) {
   });
   if (limited) return limited;
 
+  // 콘텐츠 자동검수 (2026-05-28, 카드 패턴 미러링): active 신분이 USER 면 의료법/약사법/환자후기
+  // 의심 패턴 검사. 임계 5 초과 시 status='hidden' + screening_flags 저장 (카드의 pending_review
+  // 와 대응 — comments enum 에 pending_review 가 없어 hidden 선택. ADR 0007 정합).
+  // 의사·관리자(active) 는 screenContent 안에서 자동 통과.
+  const activeRole = (idCtx.active.role ?? "user") as "admin" | "doctor" | "user";
+  const verdict = screenContent({
+    title: null,
+    body,
+    keywords: null,
+    externalUrl: null,
+    authorRole: activeRole,
+  });
+  const insertRow: Record<string, unknown> = {
+    card_id: cardId,
+    parent_id: parentId,
+    body,
+    author_id: idCtx.active.profileId,
+  };
+  if (verdict.flagged) {
+    insertRow.status = "hidden";
+    insertRow.screening_flags = verdict.reasons;
+  }
+
   // Phase 9: author_id에 **active identity의 profile.id** 저장.
   //   cookie 'pibutenten:identity'가 UUID면 그 profile, 'primary'면 base profile.
   //   getIdentityContext가 묶음 검증(auth_user_id 매칭) 후 idCtx.active.profileId 반환.
   //   좋아요·저장과 동일한 ID 정책 — 묶음 내 ID 전환 시 댓글도 그 ID로 기록됨.
   const ins = await supabase
     .from("comments")
-    .insert({
-      card_id: cardId,
-      parent_id: parentId,
-      body,
-      author_id: idCtx.active.profileId,
-    })
+    .insert(insertRow)
     .select("*")
     .single();
 
@@ -303,5 +322,21 @@ export async function POST(req: Request) {
     return errorResponse(ins.error, "save_failed", "[comments POST]", 400);
   }
 
-  return NextResponse.json({ comment: ins.data }, { status: 201 });
+  // 검수에 걸려 hidden 처리되었으면 사용자에게 명시 — silent fail 방지.
+  // 댓글 자체는 저장되어 admin 검토 큐로 가지만 화면에는 안 보임. 회원이 인지하고
+  // 표현 수정해 다시 시도하거나 admin 검토 결과 기다릴 수 있도록.
+  return NextResponse.json(
+    {
+      comment: ins.data,
+      screening: verdict.flagged
+        ? {
+            status: "hidden",
+            reasons: verdict.reasons,
+            userMessage:
+              "댓글이 자동 검수에서 의료광고·환자후기 등 의심 표현으로 감지되어 보류되었습니다. 운영자가 검토 후 게시 여부를 결정합니다.",
+          }
+        : null,
+    },
+    { status: 201 },
+  );
 }
