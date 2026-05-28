@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-05-28] — 검색엔진 verification 빈 메타태그 방지
+
+### Fixed
+- `src/app/layout.tsx` — `metadata.verification` 빈 문자열 폴백(`|| ""`) 제거. 토큰 미발급 상태에서 `<meta name="naver-site-verification" content="" />` 같은 빈 메타가 렌더되어 Naver Search Advisor 가 "잘못된 토큰" 으로 오판할 위험 차단.
+- `buildVerification()` 헬퍼 신설 — env 값(`NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` / `NEXT_PUBLIC_NAVER_SITE_VERIFICATION` / `NEXT_PUBLIC_BING_SITE_VERIFICATION`) 이 비었으면 해당 키를 객체에서 완전 제외. `trim()` 으로 공백만 입력된 경우도 차단.
+
+### 운영 절차
+- 운영자가 3개 콘솔(GSC / 네이버 서치어드바이저 / Bing Webmaster)에서 토큰 발급 후 Vercel 환경변수에 입력 → redeploy 만으로 즉시 활성.
+
+---
+
 ## [2026-05-28] — 정책 chip 2단 구조 + Footer 8개 정제 (SSOT 도입)
 
 > 칩 4 vs Footer 11 인지 부조화 해소. SSOT 도입으로 chip nav 와 footer 자동 동기화 → 누더기 차단.

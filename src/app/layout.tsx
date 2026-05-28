@@ -58,7 +58,26 @@ export const metadata: Metadata = {
       "피부과 전문의가 직접 답하는 리프팅 · 스킨부스터 · 안티에이징 · 피부시술 커뮤니티",
     images: ["/og.png"],
   },
+  // 2026-05-28: 검색엔진 사이트 인증 토큰. env 가 비었으면 해당 키를 객체에서 완전 제외해
+  //   빈 <meta content=""> 가 렌더되는 것을 차단 (Naver 의 "잘못된 토큰" 오판정 방지).
+  //   - Naver Search Advisor: https://searchadvisor.naver.com → 사이트 등록 → 메타태그
+  //   - Google Search Console: https://search.google.com/search-console → 속성 추가 → HTML 태그
+  //   - Bing Webmaster Tools: https://www.bing.com/webmasters → 사이트 추가 → HTML 메타태그
+  verification: buildVerification(),
 };
+
+function buildVerification(): Metadata["verification"] {
+  const google = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+  const naver = process.env.NEXT_PUBLIC_NAVER_SITE_VERIFICATION?.trim();
+  const bing = process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION?.trim();
+  const other: Record<string, string> = {};
+  if (naver) other["naver-site-verification"] = naver;
+  if (bing) other["msvalidate.01"] = bing;
+  const v: NonNullable<Metadata["verification"]> = {};
+  if (google) v.google = google;
+  if (Object.keys(other).length > 0) v.other = other;
+  return v;
+}
 
 export const viewport: Viewport = {
   // 2026-05-20 — PWA 상태바(최상단 OS 정보창)를 흰색으로 통일.
@@ -151,7 +170,7 @@ window.addEventListener('appinstalled', function() {
                     "query-input": "required name=search_term_string",
                   },
                 },
-                // 5개 힐하우스 브랜치 + 그룹 — 9명 의사가 worksFor: @id로 참조함
+                // 5개 힐하우스 브랜치 + 그룹 — 참여 전문의가 worksFor: @id로 참조함
                 ...allClinicsSchema(),
               ],
             }),
