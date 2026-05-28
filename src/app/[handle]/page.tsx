@@ -26,7 +26,6 @@ type ProfileRow = {
   role: UserRole;
   bio: string | null;
   avatar_url: string | null;
-  is_public: boolean | null;
   created_at: string;
   handle: string | null;
   birthdate: string | null;
@@ -79,7 +78,7 @@ async function fetchProfileByHandle(
   if (!/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(handle)) return null;
   const supabase = await createSupabaseServerClient();
   const baseSelect =
-    "id, display_name, role, bio, avatar_url, is_public, created_at, handle, field_visibility, auth_user_id";
+    "id, display_name, role, bio, avatar_url, created_at, handle, field_visibility, auth_user_id";
   const piiSelect =
     ", birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, liked_procedures";
   const select = viewerIsAnon ? baseSelect : baseSelect + piiSelect;
@@ -127,9 +126,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: name,
     description: bio ?? `${name}의 피부텐텐 프로필`,
     alternates: { canonical: `${SITE_URL}/${handle}` },
-    robots: profile.is_public === false
-      ? { index: false, follow: false }
-      : { index: true, follow: true },
+    robots: { index: true, follow: true },
   };
 }
 
@@ -164,8 +161,8 @@ export default async function HandleProfilePage({ params }: Props) {
   );
 
   // 본인일 때 role 조회 — admin이 본인 1차 handle로 접근하면 /admin으로 redirect.
-  // 단 묶음의 별개 identity handle(예: 배스킨 jminbae 회원용 profile)로 접근한 경우엔 회원 프로필 그대로 노출.
-  // (배정민 케이스: admin인데 배스킨으로 SNS 활동 — 그때는 일반 회원 화면이 맞음)
+  // 단 묶음의 별개 identity handle(예: 회원용 명함 profile)로 접근한 경우엔 회원 프로필 그대로 노출.
+  // (admin이 회원용 명함으로 SNS 활동하는 케이스 — 그때는 일반 회원 화면이 맞음)
   let viewerRole: "admin" | "doctor" | "user" | null = null;
   if (isOwner && viewer) {
     const { data: vp } = await supabase

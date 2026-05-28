@@ -29,7 +29,6 @@ type ProfileRow = {
   created_at: string;
   terms_agreed_at: string | null;
   avatar_url: string | null;
-  is_public: boolean | null;
 };
 
 type QaRow = {
@@ -119,7 +118,7 @@ export default async function AdminUserDetailPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, handle, display_name, role, level, activity_score, bio, created_at, terms_agreed_at, avatar_url, is_public",
+      "id, handle, display_name, role, level, activity_score, bio, created_at, terms_agreed_at, avatar_url",
     )
     .eq("id", id)
     .maybeSingle()
@@ -426,7 +425,6 @@ export default async function AdminUserDetailPage({
               <span>
                 상태: {profile.terms_agreed_at ? "정상" : "온보딩 미완료"}
               </span>
-              <span>공개: {profile.is_public === false ? "비공개" : "공개"}</span>
             </div>
           </div>
         </div>

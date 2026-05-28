@@ -124,7 +124,7 @@ export default function ProfileTabs({
       skinInfo.likedProcedures.length)
   );
   // anon 은 PII 컬럼을 못 받으므로 피부고민 탭 자체는 "로그인 안내" 용도로 표시.
-  // is_public/field_visibility 도 안 받았을 수 있어 보수적으로 탭 노출.
+  // field_visibility 도 안 받았을 수 있어 보수적으로 탭 노출.
   const showSkinTabForAnon = !!viewerIsAnon && !isOwner;
 
   // 탭 순서: 작성 글 → 댓글 → 좋아요·저장 → 피부고민
