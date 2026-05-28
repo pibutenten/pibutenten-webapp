@@ -16,6 +16,7 @@ import {
 } from "@/lib/doctor-profile";
 import { buildDoctorFull } from "@/lib/schema/doctor";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
+import { fetchCardList } from "@/lib/search-query";
 
 export const dynamic = "force-dynamic";
 
@@ -83,15 +84,16 @@ export default async function DoctorDetailPage({ params }: Props) {
   if (!doctor) notFound();
   const profile: DoctorProfileData = asDoctorProfileData(doctor.profile_data);
 
-  // RPC로 가져와서 검색어 없을 때도 ±14일 랜덤 셔플 (홈 피드와 동일)
-  const rpcRes = await supabase.rpc("search_cards_scored", {
-    p_q: "",
-    p_doctor_slug: doctor.slug,
-    p_offset: 0,
-    p_limit: PAGE_SIZE,
-    p_boost_doctor_slug: null,
+  // 배치 ⑤ H3 (2026-05-28): fetchCardList SSOT 헬퍼로 통일.
+  //   doctor 페이지는 q="" 이므로 항상 search_cards_scored RPC 경로 (홈 피드와 동일).
+  const { data: rawCards } = await fetchCardList(supabase, {
+    q: "",
+    doctorSlug: doctor.slug,
+    boostDoctorSlug: null,
+    offset: 0,
+    limit: PAGE_SIZE,
   });
-  const cards = (rpcRes.data ?? []) as CardData[];
+  const cards = (rawCards ?? []) as CardData[];
   // 카운트는 별도 쿼리
   const cRes = await supabase
     .from("cards")

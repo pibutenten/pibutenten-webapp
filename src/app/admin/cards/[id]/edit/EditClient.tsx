@@ -204,7 +204,7 @@ export default function EditClient({
     void _action;
     const supabase = createSupabaseBrowserClient();
 
-    // meta(timestamp) 갱신
+    // meta(timestamp) 갱신 — 옛 EditClient 와 동일.
     let metaObj: Record<string, unknown> = {};
     try {
       if (card.meta) metaObj = JSON.parse(card.meta) as Record<string, unknown>;
@@ -219,8 +219,10 @@ export default function EditClient({
       ...(prevTs?.end ? { end: prevTs.end } : {}),
     };
 
-    const update: Record<string, unknown> = {
-      // P2-4 (2026-05-27): cards.question/answer → title/body 리네임.
+    // 배치 ⑤ 6번 (2026-05-28): cards 직접 update → PUT /api/articles/[id] 통일.
+    //   PUT 가드: active 단위 권한 (ADR 0012) + zod + rate-limit + audit_logs 자동.
+    //   meta·author_id 두 필드는 PUT API 가 admin/doctor 전용으로 새로 수용.
+    const apiPayload: Record<string, unknown> = {
       title: payload.title,
       body: normalizeAnswerBody(payload.body),
       keywords: normalizeTags(payload.keywords),
@@ -235,40 +237,48 @@ export default function EditClient({
       category: payload.category,
     };
 
-    // author 변경 (super admin 만) + 변경 시 doctor_id 자동 추론
+    // author 변경 (super admin 만) + 변경 시 doctor_id 자동 추론.
     if (
       canChangeAuthor &&
       payload.authorProfileId !== undefined &&
       payload.authorProfileId !== card.author_id
     ) {
-      update.author_id = payload.authorProfileId;
-      // 새 author 의 doctor 매핑 lookup → doctor_id 자동 set/clear (SSOT: profiles.doctor_id)
+      apiPayload.author_id = payload.authorProfileId;
       if (payload.authorProfileId) {
-        update.doctor_id = await getDoctorIdForProfile(
+        apiPayload.doctor_id = await getDoctorIdForProfile(
           supabase,
           payload.authorProfileId,
         );
       } else {
-        update.doctor_id = null;
+        apiPayload.doctor_id = null;
       }
     }
-    // author 변경 안 했으면 doctor_id 그대로 유지 (update 에 안 넣음)
 
-    const { error: upErr } = await supabase
-      .from("cards")
-      .update(update)
-      .eq("id", card.id);
-
-    if (upErr) {
-      const msg = upErr.message ?? "저장 실패";
-      if (msg.includes("PICK_LIMIT_EXCEEDED")) {
-        return {
-          ok: false,
-          error:
-            "Pick은 한 원장당 최대 5개까지 가능합니다. 다른 글의 Pick을 먼저 해제해주세요.",
-        };
+    try {
+      const res = await fetch(`/api/articles/${card.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(apiPayload),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as
+          | { message?: string; error?: string }
+          | null;
+        const msg = j?.message ?? j?.error ?? `HTTP ${res.status}`;
+        if (msg.includes("PICK_LIMIT_EXCEEDED")) {
+          return {
+            ok: false,
+            error:
+              "Pick은 한 원장당 최대 5개까지 가능합니다. 다른 글의 Pick을 먼저 해제해주세요.",
+          };
+        }
+        return { ok: false, error: `저장 실패: ${msg}` };
       }
-      return { ok: false, error: `저장 실패: ${msg}` };
+    } catch (e) {
+      return {
+        ok: false,
+        error: `저장 실패: ${e instanceof Error ? e.message : "network"}`,
+      };
     }
 
     const finalStatus = payload.status ?? card.status;

@@ -33,15 +33,19 @@ export async function GET(request: NextRequest) {
   const limit = Number.isFinite(limitRaw)
     ? Math.min(Math.max(limitRaw, 1), 100)
     : 50;
+  // 배치 ⑤ (2026-05-28): status 필터 — visible (기본) / hidden (자동검수 큐).
+  const statusParam = url.searchParams.get("status");
+  const statusFilter: "visible" | "hidden" =
+    statusParam === "hidden" ? "hidden" : "visible";
 
   const { data, error } = await supabase
     .from("comments")
     .select(
-      `id, body, created_at, card_id,
+      `id, body, created_at, card_id, status, screening_flags,
        card:cards(title, shortcode),
        author:profiles!comments_author_id_fkey(handle, display_name)`,
     )
-    .eq("status", "visible")
+    .eq("status", statusFilter)
     .lt("created_at", before)
     .order("created_at", { ascending: false })
     .limit(limit + 1);

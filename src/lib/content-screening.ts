@@ -24,6 +24,7 @@ import {
   COMPARISON_PATTERNS,
   DRUG_PROMOTION_PATTERNS,
   EXAGGERATED_EFFICACY_PATTERNS,
+  PAID_SPONSORSHIP_PATTERNS,
   PATIENT_TESTIMONIAL_PATTERNS,
   PRESCRIPTION_DRUG_NAMES,
   PRICE_DISCOUNT_PATTERNS,
@@ -49,8 +50,13 @@ export type ScreeningInput = {
   authorRole: "admin" | "doctor" | "user";
 };
 
-/** v1 임계점. 운영 데이터 보고 조정. */
-const FLAG_THRESHOLD = 5;
+/**
+ * 검수 임계점.
+ *  - v1 (~2026-05-28): 5. 거짓양성 비율이 높다는 운영 피드백 — "어디서 받았어요" 같은 사실 진술도 자주 잡음.
+ *  - v2 (배치 ⑤, 2026-05-28~): 7. 단일 카테고리로는 안 걸리고 두 신호 결합 시 잡히는 수준.
+ *    동시에 'paid_sponsorship' (+4) 신설 — 약관 ④가 명시 금지한 유형을 단독으로 거의 임계 직전까지 가중.
+ */
+const FLAG_THRESHOLD = 7;
 
 /**
  * 콘텐츠 검수 — 1회 호출.
@@ -88,6 +94,16 @@ export function screenContent(input: ScreeningInput): ScreeningVerdict {
   } else if (testimonialHits === 1) {
     // 단독으로는 약한 신호 — 광고 hint 와 결합 시만 가중.
     score += 1;
+  }
+
+  // 1-b. 대가성·협찬 후기 (배치 ⑤, 2026-05-28)
+  //   약관 ④ "대가(협찬·광고비·체험단 등)를 받은 후기" 단독으로 +4 — 다른 신호 1개와 결합 시 임계 7 도달.
+  for (const re of PAID_SPONSORSHIP_PATTERNS) {
+    if (re.test(text)) {
+      score += 4;
+      reasons.push("paid_sponsorship");
+      break;
+    }
   }
 
   // 2. 비포·애프터 명시

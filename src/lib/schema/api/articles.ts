@@ -140,10 +140,13 @@ export const ArticleUpdateSchema = z
     //   ADR 0012 (2026-05-26): 옛 pubmed_ref 단수 필드 폐기, 배열 단일 출처.
     pubmed_refs: z.array(PubmedRefSchema).max(20).nullable().optional(),
     // admin 전용 — 라우트에서 isAdmin 가드 추가 검증
-    status: z.enum(["draft", "pending_review", "published", "archived"]).optional(),
+    status: z.enum(["draft", "pending_review", "published", "archived", "hidden"]).optional(),
     is_pick: z.boolean().optional(),
     doctor_id: z.string().uuid().nullable().optional(),
     deleted_at: z.string().nullable().optional(),
+    // 배치 ⑤ 6번 (2026-05-28): admin EditClient → PUT 통일 — author 변경 + meta(timestamp) 갱신.
+    author_id: z.string().uuid().nullable().optional(),
+    meta: z.string().max(10_000).nullable().optional(),
   })
   .strict();
 

@@ -19,6 +19,8 @@ export type CommentRow = {
   body: string;
   created_at: string;
   card_id: string;
+  status?: "visible" | "hidden" | "deleted";
+  screening_flags?: string[] | null;
   card: { title: string | null; shortcode: string | null } | null;
   author: { handle: string | null; display_name: string | null } | null;
 };
@@ -59,14 +61,18 @@ function buildGroups(rows: CommentRow[]): Group[] {
 export default function CommentsClient({
   initial,
   initialHasMore,
+  statusFilter = "visible",
 }: {
   initial: CommentRow[];
   initialHasMore: boolean;
+  /** 배치 ⑤ (2026-05-28): visible / hidden 탭 — 자동검수 큐 분기. */
+  statusFilter?: "visible" | "hidden";
 }) {
   const [rows, setRows] = useState<CommentRow[]>(initial);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const loadMore = useCallback(async () => {
@@ -77,7 +83,7 @@ export default function CommentsClient({
     setError(null);
     try {
       const res = await fetch(
-        `/api/admin/comments?before=${encodeURIComponent(last.created_at)}&limit=${PAGE_SIZE}`,
+        `/api/admin/comments?status=${statusFilter}&before=${encodeURIComponent(last.created_at)}&limit=${PAGE_SIZE}`,
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { rows: CommentRow[]; hasMore: boolean };
@@ -88,7 +94,33 @@ export default function CommentsClient({
     } finally {
       setLoading(false);
     }
-  }, [rows, loading, hasMore]);
+  }, [rows, loading, hasMore, statusFilter]);
+
+  // 자동검수 hidden 댓글 복구 — PATCH /api/comments/[id] { status: "visible" } 재사용.
+  // 권한·audit 적재는 기존 라우트(배치 ②)에서 처리.
+  async function restoreComment(id: string) {
+    setBusyId(id);
+    try {
+      const r = await fetch(`/api/comments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "visible" }),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        setError(j?.message ?? `복구 실패 (HTTP ${r.status})`);
+        return;
+      }
+      // 화면에서 해당 row 제거 (hidden 탭에서 사라짐).
+      setRows((prev) => prev.filter((c) => c.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "복구 실패");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -166,6 +198,24 @@ export default function CommentsClient({
                         <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--text-secondary)]">
                           {c.body}
                         </p>
+                        {/* 자동검수 hidden 댓글 — flags + 복구 버튼 */}
+                        {statusFilter === "hidden" && (
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            {c.screening_flags && c.screening_flags.length > 0 && (
+                              <span className="rounded bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700">
+                                사유: {c.screening_flags.join(", ")}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              disabled={busyId === c.id}
+                              onClick={() => restoreComment(c.id)}
+                              className="rounded-md bg-green-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                            >
+                              {busyId === c.id ? "복구 중…" : "복구 (visible)"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </li>
                   );

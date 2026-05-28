@@ -40,7 +40,7 @@ import { logAudit } from "@/lib/audit-log";
 
 export const dynamic = "force-dynamic";
 
-type Status = "draft" | "pending_review" | "published" | "archived";
+type Status = "draft" | "pending_review" | "published" | "archived" | "hidden";
 
 type Payload = {
   // P2-4 (2026-05-27): API 입력 키 title/body 통일.
@@ -60,6 +60,9 @@ type Payload = {
   is_pick?: boolean;
   doctor_id?: string | null;
   deleted_at?: string | null;
+  // 배치 ⑤ 6번 (2026-05-28): admin 전용 — author 변경 + meta JSON 갱신 (EditClient → PUT 통일).
+  author_id?: string | null;
+  meta?: string | null;
 };
 
 const STATUS_SET = new Set<Status>([
@@ -67,6 +70,7 @@ const STATUS_SET = new Set<Status>([
   "pending_review",
   "published",
   "archived",
+  "hidden",
 ]);
 
 export async function PUT(
@@ -277,6 +281,26 @@ export async function PUT(
     }
     update.deleted_at = payload.deleted_at; // null 이면 복구
   }
+  // 배치 ⑤ 6번 (2026-05-28): admin 전용 author 변경 + meta JSON 갱신.
+  //   author_id: super admin 만 (옛 EditClient 와 동일 권한). 변경 시 doctor_id 도 자동 갱신은
+  //   클라이언트가 별도로 payload.doctor_id 함께 보내는 것을 신뢰 (옛 동작 보존).
+  //   meta: admin/doctor 가 timestamp 갱신 등에 사용. user 는 차단.
+  if (payload.author_id !== undefined) {
+    if (!isAdmin) {
+      return errorResponse(null, "forbidden", "[articles PUT] author_id admin only", 403, undefined, {
+        userMessage: "글쓴이 변경은 admin 만 가능합니다.",
+      });
+    }
+    update.author_id = payload.author_id;
+  }
+  if (payload.meta !== undefined) {
+    if (role === ROLES.USER) {
+      return errorResponse(null, "forbidden", "[articles PUT] meta admin/doctor only", 403, undefined, {
+        userMessage: "메타 변경은 admin/doctor 만 가능합니다.",
+      });
+    }
+    update.meta = payload.meta;
+  }
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ saved: 0, message: "변경 사항 없음" });
@@ -321,6 +345,7 @@ export async function PUT(
     if (payload.deleted_at !== undefined) adminChanges.deleted_at = update.deleted_at;
     if (payload.is_pick !== undefined) adminChanges.is_pick = update.is_pick;
     if (payload.doctor_id !== undefined) adminChanges.doctor_id = update.doctor_id;
+    if (payload.author_id !== undefined) adminChanges.author_id = update.author_id;
     if (Object.keys(adminChanges).length > 0) {
       await logAudit({
         action: "card.admin_update",

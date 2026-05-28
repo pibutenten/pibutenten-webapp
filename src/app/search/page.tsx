@@ -7,10 +7,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
-import { CARD_LIST_SELECT } from "@/lib/card-select";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
-import { CATEGORY_LABEL_TO_SLUG } from "@/lib/post-category";
+import { fetchCardList, resolveCategorySlug } from "@/lib/search-query";
 
 export const dynamic = "force-dynamic";
 
@@ -69,37 +68,21 @@ export default async function HomePage({ searchParams }: Props) {
       });
   }
 
-  // q 있을 때나 없을 때 모두 RPC 사용 — 일관된 정렬 (q: 점수+노이즈 / no-q: video.upload_date desc)
-  // boost: 특정 원장 slug에 +300 가산 (원장님 단일 페이지에서 칩 클릭으로 넘어왔을 때)
+  // 배치 ⑤ H3 (2026-05-28): fetchCardList SSOT 헬퍼로 통일.
+  //   /api/cards 무한스크롤과 동일 헬퍼 → 카테고리 라벨 검색 시 21번째 카드부터 다른
+  //   결과 집합으로 바뀌는 H3 회귀 해소.
   const popularByCategoryPromise = getPopularByCategory();
+  // 검색 카운트가 categorySlug 일 때는 category 직접 count, 아니면 텍스트 ILIKE.
+  const categorySlug = resolveCategorySlug(q);
 
-  // 카테고리 라벨 검색 — q가 카드 카테고리 라벨이면 category 컬럼 필터로 전환
-  // (search_cards_scored RPC는 keywords/question/answer 텍스트만 매칭해서 카테고리 라벨이 안 잡힘)
-  // CATEGORY_LABEL_TO_SLUG SSOT 는 `@/lib/post-category` (Sub-6, 2026-05-27). 현재 6개
-  // 라벨 + 옛 "공유하기" → "link" 호환 매핑 포함.
-  const categorySlug = q ? CATEGORY_LABEL_TO_SLUG[q] : undefined;
-
-  let rpcRes;
-  if (categorySlug) {
-    // 카테고리 직접 필터 — 본문 매칭 대신 category 컬럼만
-    rpcRes = await supabase
-      .from("cards")
-      .select(CARD_LIST_SELECT)
-      .eq("status", "published")
-      .eq("category", categorySlug)
-      .order("created_at", { ascending: false })
-      .limit(INITIAL_PAGE_SIZE);
-  } else {
-    rpcRes = await supabase.rpc("search_cards_scored", {
-      p_q: q,
-      p_doctor_slug: null,
-      p_offset: 0,
-      p_limit: INITIAL_PAGE_SIZE,
-      p_boost_doctor_slug: boost || null,
-    });
-  }
-  let cards = (rpcRes.data ?? []) as CardData[];
-  const error = rpcRes.error;
+  const { data: rawCards, error } = await fetchCardList(supabase, {
+    q,
+    doctorSlug: null,
+    boostDoctorSlug: boost || null,
+    offset: 0,
+    limit: INITIAL_PAGE_SIZE,
+  });
+  let cards = (rawCards ?? []) as CardData[];
 
   // 피드 다양화 — 검색 없을 때: head 1명/1회 / 검색 있을 때: head 1명/2회. 같은 원장 3연속 방지.
   // (홈/검색 모두 적용. 원장 개인 페이지는 별도 라우트라 영향 없음)
@@ -108,23 +91,33 @@ export default async function HomePage({ searchParams }: Props) {
     headSize: 4,
   });
 
-  // 검색일 때만 카운트 별도 조회
+  // 검색일 때만 카운트 별도 조회 — fetchCardList 와 동일 분기 (카테고리 vs 텍스트).
   let count: number | null = null;
   if (q && !error) {
-    let countQuery = supabase
-      .from("cards")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "published");
-    const words = q.split(/\s+/).filter((w) => w.length > 0);
-    for (const w of words) {
-      const escaped = w.replace(/[%_*]/g, "\\$&").replace(/[(),]/g, " ");
-      const pattern = `%${escaped}%`;
-      countQuery = countQuery.or(
-        `title.ilike.${pattern},body.ilike.${pattern},keywords.cs.{${w}}`,
-      );
+    if (categorySlug) {
+      // 카테고리 라벨 검색 — category 컬럼 count 만.
+      const cRes = await supabase
+        .from("cards")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "published")
+        .eq("category", categorySlug);
+      count = cRes.count ?? null;
+    } else {
+      let countQuery = supabase
+        .from("cards")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "published");
+      const words = q.split(/\s+/).filter((w) => w.length > 0);
+      for (const w of words) {
+        const escaped = w.replace(/[%_*]/g, "\\$&").replace(/[(),]/g, " ");
+        const pattern = `%${escaped}%`;
+        countQuery = countQuery.or(
+          `title.ilike.${pattern},body.ilike.${pattern},keywords.cs.{${w}}`,
+        );
+      }
+      const cRes = await countQuery;
+      count = cRes.count ?? null;
     }
-    const cRes = await countQuery;
-    count = cRes.count ?? null;
   }
 
   const popularByCategory = await popularByCategoryPromise;

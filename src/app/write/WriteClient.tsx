@@ -188,6 +188,22 @@ export default function WriteClient({
         }
       }
 
+      // 배치 ⑤ H4 (2026-05-28): "방금 쓴 글" prepend 시그널.
+      //   publish 성공 시 sessionStorage 에 {id, ts} 저장 → 홈 mount 시 5분 이내 + shown 미마킹이면
+      //   첫 자리 1회 노출. 새로고침·재방문 시 'shown' 마킹으로 미노출. 다른 사용자에겐 영향 0.
+      if (status === "published" && typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem(
+            "pbtt:justPublished",
+            JSON.stringify({ id: data.id, ts: Date.now() }),
+          );
+          // 이전 shown 마킹 제거 (다른 글이었어도 새 publish 면 새로 1회 노출 권리).
+          window.sessionStorage.removeItem("pbtt:justPublished:shown");
+        } catch {
+          /* sessionStorage 비활성·quota — prepend 미노출, publish 자체는 성공 유지 */
+        }
+      }
+
       // Redirect — role / status / type 별
       let redirectUrl = "/";
       if (status === "draft") {
