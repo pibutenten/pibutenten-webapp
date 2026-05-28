@@ -2,20 +2,28 @@ import type { MetadataRoute } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/site";
 
+// SITE_PUBLIC env + 신규 발행 글 lastmod 를 매 요청 반영.
+export const dynamic = "force-dynamic";
+
 /**
  * sitemap.xml — Next.js App Router 자동 생성.
  *
  * 포함:
- *  - 정적 라우트 (/, /doctors, /about)
- *  - 의사 9명 프로필 (/doctors/{slug})
+ *  - 정적 라우트 (/, /doctors, /about, 신뢰 페이지 9종)
+ *  - 참여 전문의 프로필 (/doctors/{slug})
  *  - 발행된 의사 글 (canonical: /doctors/{slug}/{year}/{post_slug})
  *  - /topics/{태그} — 의사 글 4개 이상 모인 태그 hub (AEO/GEO 자산)
  *
  * 제외 (robots에서도 차단):
  *  - /{handle}/{shortcode} (회원 글 — UGC, YMYL 안전성)
- *  - /me/*, /admin/*, /onboarding, /write, /signup, /login
+ *  - /admin/*, /onboarding, /write, /signup, /login
  *  - /api, /debug
  *  - SEO URL 구성 못 하는 의사 글(post_slug/post_year 누락)도 sitemap에서 제외
+ *
+ * 2026-05-28 변경:
+ *  - 신뢰 페이지 9종 (editorial-policy/medical-review/corrections/disclosures/disclaimer/
+ *    doctor-guidelines/contact/terms/privacy) staticRoutes 에 추가
+ *  - cards.updated_at 추가 select → lastModified 정확화 (updated_at ?? created_at)
  */
 
 export const revalidate = 3600; // 1시간마다 재생성
@@ -35,13 +43,68 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${SITE_URL}/doctors`,
       lastModified: now,
       changeFrequency: "weekly",
-      priority: 0.8,
+      priority: 0.9,
     },
     {
       url: `${SITE_URL}/about`,
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.5,
+    },
+    // 신뢰 페이지 (2026-05-28 추가) — YMYL E-E-A-T 신호
+    {
+      url: `${SITE_URL}/editorial-policy`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.4,
+    },
+    {
+      url: `${SITE_URL}/medical-review`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.4,
+    },
+    {
+      url: `${SITE_URL}/corrections`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/disclosures`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/disclaimer`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.4,
+    },
+    {
+      url: `${SITE_URL}/doctor-guidelines`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/contact`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/terms`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.2,
+    },
+    {
+      url: `${SITE_URL}/privacy`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.2,
     },
   ];
 
@@ -54,19 +117,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { data: publishedCards } = await supabase
       .from("cards")
       .select(
-        "id, created_at, doctor_id, post_year, post_slug, doctor:doctors(slug)",
+        "id, created_at, updated_at, doctor_id, post_year, post_slug, doctor:doctors(slug)",
       )
       .eq("status", "published")
       .eq("category", "qa")
       .not("doctor_id", "is", null);
 
-    // 의사 프로필 9명
+    // 의사 프로필 참여 전문의
     const { data: doctors } = await supabase
       .from("doctors")
       .select("slug, updated_at, created_at");
 
     const cardRoutes: MetadataRoute.Sitemap = (publishedCards ?? []).flatMap((q) => {
-      const lastModified = q.created_at ? new Date(q.created_at) : now;
+      // 2026-05-28: lastModified 정확화 — updated_at 우선, 없으면 created_at
+      // (Freshness signal 강화 — BrightEdge: 60일 내 업데이트 페이지 AI 답변 등장 확률 1.9배)
+      const lastModifiedSource = q.updated_at ?? q.created_at;
+      const lastModified = lastModifiedSource ? new Date(lastModifiedSource) : now;
       // 의사 글 + post_year + post_slug → canonical URL
       // (Supabase nested doctors join은 1:1이지만 array로 올 수 있어 조심)
       const docRel = (q as { doctor?: { slug: string } | { slug: string }[] | null }).doctor;

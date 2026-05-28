@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-05-28] — robots/sitemap force-dynamic + SITE_PUBLIC 공개 전환
+
+### Changed
+- `src/app/robots.ts` / `src/app/sitemap.ts` — `export const dynamic = "force-dynamic"` 추가.
+  - Vercel build cache 가 robots/sitemap 산출물을 재사용하여 SITE_PUBLIC env 변경 후에도 fail-safe 응답이 잔존하는 회귀 차단.
+  - 매 요청 evaluation 으로 SITE_PUBLIC 토글이 즉시 반영.
+
+### Operational
+- Vercel Production env 에 `SITE_PUBLIC=true` 추가 → 사이트 공개 (HOLD 해제).
+- robots.txt 가 3-tier 정책 (검색엔진 Allow / AI 답변봇 Allow / AI 학습봇 Disallow) 으로 정상 출력.
+
+---
+
 ## [2026-05-28] — 검색엔진 verification 빈 메타태그 방지
 
 ### Fixed
