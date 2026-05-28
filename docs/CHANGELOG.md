@@ -6,6 +6,26 @@
 
 ---
 
+## [2026-05-28] — audit_logs 누락 액션 3종 보강 (P1-⑤)
+
+### Added (audit action)
+- `comment.screening_hide` — `src/app/api/comments/route.ts` POST: 회원 댓글이 자동검수에 걸려 `status='hidden'` 처리될 때 적재. metadata: `{cardId, parentId, reasons}`.
+- `card.status_change` — `src/app/api/articles/route.ts` POST + `src/app/api/articles/[id]/route.ts` PUT: 회원 글이 검수에 의해 `status='pending_review'` 로 강제 전환될 때 적재. metadata: `{from_status, to_status: "pending_review", cause: "screening_auto", reasons}`. admin 명시 status 변경은 기존 `card.admin_update` 가 잡음 (중복 회피).
+
+### Changed (audit metadata)
+- `admin.role_change` (`src/app/api/admin/users/[id]/role/route.ts`) — `actorProfileId: guard.activeProfileId` 보강. 어느 admin 명함이 실행했는지 추적 (기존엔 `actorAuthUserId` 만).
+
+### 배경
+- PRD §5.1 "audit_logs 1년 보관 (민감 API: 회원 탈퇴, 권한 변경, identity 전환)" 명시 범위를 콘텐츠 자동 차단(댓글 hidden, 카드 pending_review) 까지 확장. PIPA 안전성 확보조치 §8 추적 보강.
+- 점검 보고서 §2 P1-⑤ 근거.
+
+### 검증
+- `tsc --noEmit` 통과 / `npm run build` 통과 (54 라우트).
+- `logAudit` 가 try/catch 내부 처리 (`src/lib/audit-log.ts:62~88`) → 본 흐름 차단 0. append-only.
+- DB 스키마·마이그레이션 변경 0.
+
+---
+
 ## [2026-05-28] — 카드 자동검수 silent fail 해소 (P1-②)
 
 ### Changed (API 응답)
