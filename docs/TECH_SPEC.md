@@ -259,9 +259,11 @@ ex) /minji-skin/Ab3xK9Pq
 
 - 의료법 §56② 14금지 + 약사법 §68 + 환자후기 키워드 사전
 - 임계점 5점 (보수적)
-- 의사·관리자 자동 통과
-- `cards.screening_flags` 저장 (0139), `pending_review` 부분 인덱스
-- 자살/자해 키워드 감지 시 안전 메시지 모달 1회 (109/1577-0199/1388)
+- 의사·관리자 자동 통과 (active 신분의 role 기준, ADR 0012)
+- **적용 범위 (2026-05-28~)**:
+  - 카드 작성·수정: `cards.screening_flags` 저장 + `status='pending_review'` (admin 검토 큐)
+  - 댓글 작성·수정: `comments.screening_flags` 저장 + `status='hidden'` (0178. comments enum 에 pending_review 없어 hidden 으로 대응)
+- 자살/자해 키워드 감지 시 안전 메시지 모달 1회 (109/1577-0199/1388) — CardEditor + CommentForm 모두 적용 (`src/lib/safety.ts` SSOT)
 - 사전: `src/lib/content-screening-dict.ts`
 
 ---

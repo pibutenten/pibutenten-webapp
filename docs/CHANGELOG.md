@@ -6,6 +6,31 @@
 
 ---
 
+## [2026-05-28] — 댓글 자동검수 + 안전(자살/자해) 모달 SSOT (배치 ③)
+
+### Added
+- `src/lib/safety.ts` — 자살·자해 신호 검출 SSOT 헬퍼 + 안전 모달 문구. CardEditor / CommentForm / 향후 다른 입력 컴포넌트 공용.
+- `comments.screening_flags text[]` 컬럼 (마이그레이션 0178) — 카드와 동일 추적성.
+
+### Changed
+- **댓글 POST/PATCH 에 자동검수 적용** (`src/app/api/comments/route.ts`, `comments/[id]/route.ts`):
+  - active 신분의 role 이 USER 면 `screenContent` 호출 (ADR 0012). 의사·관리자는 자동 통과.
+  - 임계 5 초과 시 `status='hidden'` + `screening_flags` 저장 (comments enum 에 pending_review 가 없어 hidden 으로 카드 패턴 미러링).
+  - 응답에 `screening` 객체 포함 — 회원이 hidden 처리 사유 인지 가능.
+- **CommentForm 자살/자해 안전 모달**: CardEditor 와 동일 패턴 (1회 ack 가드). 모든 댓글 입력 진입점 (root + reply + edit) 에 자동 적용.
+- CardEditor: 인라인 `detectSuicideRisk` 와 모달 문구를 `lib/safety.ts` 의 SSOT 함수·상수로 교체. 동작 동일.
+- WriteClient: CardEditor 를 wrap 만 하므로 별도 추가 없음 — CardEditor SSOT 통해 자동 적용됨 (ROADMAP 항목 자동 해소).
+
+### Migration
+- `supabase/migrations/0178_comments_screening_flags.sql` — production 적용 + 컬럼 추가 확인.
+
+### Documentation
+- PRD.md §4.7 — 적용 범위에 "카드 + 댓글" 명시.
+- TECH_SPEC.md §10 — 댓글 검수 정책·comments.screening_flags 명시 + safety.ts SSOT 명시.
+- DATABASE.md §1.3 — comments.screening_flags + status enum 정합.
+
+---
+
 ## [2026-05-28] — 8-agent 종합 점검 후속 배치 ② (H1/H6/H7/M1/M3/M5/M11/H2)
 
 ### Added

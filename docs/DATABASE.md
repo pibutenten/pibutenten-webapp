@@ -78,7 +78,8 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 - `rating_avg`, `rating_count` — 0094 drop (별점 시스템 폐기)
 
 ### 1.3. `comments`
-- `author_id`, `card_id`, `parent_id`, `body`, `status` (visible/hidden/deleted)
+- `author_id`, `card_id`, `parent_id`, `body`, `like_count`, `screening_flags` (text[], 0178)
+- `status` `comment_status` enum: `visible / hidden / deleted` (cards 의 `pending_review` 가 enum 에 없어 회원 댓글 자동검수 임계 초과 시 `hidden` 으로 대응)
 - `author_id` profiles FK (0085)
 - 폐기: `posted_as` (0090)
 
