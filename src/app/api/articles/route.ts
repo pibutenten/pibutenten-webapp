@@ -12,6 +12,7 @@ import { ArticleCreateSchema } from "@/lib/schema/api/articles";
 import { screenContent } from "@/lib/content-screening";
 import { stripCategoryLabels } from "@/lib/post-category";
 import { ROLES } from "@/lib/identity-shared";
+import { logAudit } from "@/lib/audit-log";
 
 export const dynamic = "force-dynamic";
 
@@ -336,6 +337,26 @@ export async function POST(req: Request) {
   if (insErr) {
     // A10: 상세 메시지는 로그에만, 사용자엔 일반 문구 + error_id.
     return errorResponse(insErr, "save_failed", "[articles] cards insert", 500);
+  }
+
+  // P1-⑤ (2026-05-28): 검수에 의해 status='pending_review' 강제된 회원 글은 audit 적재.
+  // PIPA 안전성 확보조치 §8 — 콘텐츠 자동 차단 추적. admin 명시 status 변경은
+  // PUT 의 card.admin_update 가 별도로 잡음 (중복 회피).
+  if (screeningFlagged) {
+    await logAudit({
+      action: "card.status_change",
+      actorProfileId: idCtx.active.profileId,
+      actorAuthUserId: idCtx.user.id,
+      targetTable: "cards",
+      targetId: row.id,
+      request: req,
+      metadata: {
+        from_status: "(create)",
+        to_status: "pending_review",
+        cause: "screening_auto",
+        reasons: screeningReasons,
+      },
+    });
   }
 
   // 캐시 무효화 — 대시보드 KPI/카드 목록/회원 프로필 즉시 갱신.

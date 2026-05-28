@@ -343,6 +343,25 @@ export async function PUT(
     return errorResponse(updErr, "generic", "[articles PUT] update", 500);
   }
 
+  // P1-⑤ (2026-05-28): 검수에 의해 status='pending_review' 강제된 회원 글 수정은 audit 적재.
+  // admin 명시 status 변경은 아래 card.admin_update 가 별도로 잡음 (중복 회피).
+  if (screeningFlagged) {
+    await logAudit({
+      action: "card.status_change",
+      actorProfileId: activeProfileId,
+      actorAuthUserId: user.id,
+      targetTable: "cards",
+      targetId: cardId,
+      request: req,
+      metadata: {
+        from_status: "(edit)",
+        to_status: "pending_review",
+        cause: "screening_auto",
+        reasons: screeningReasons,
+      },
+    });
+  }
+
   // PIPA 안전성 확보조치 §8: admin 의 카드 admin-only 필드 변경은 audit.
   // 분쟁 추적 핵심 (status hidden 처리·soft-delete·is_pick·doctor 재배정 등).
   // is_pick 은 의사 본인 가능이라 isAdmin 으로 좁힘.

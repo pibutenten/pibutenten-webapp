@@ -197,8 +197,10 @@ export async function POST(
   }
 
   // 보안 2.5차 F묶음 — 감사 로그 기록.
+  // 2026-05-28 (P1-⑤): actorProfileId 보강 — 어느 admin 명함이 실행했는지 추적.
   await logAudit({
     action: "admin.role_change",
+    actorProfileId: guard.activeProfileId,
     actorAuthUserId: guard.userId,
     targetTable: "profiles",
     targetId: id,

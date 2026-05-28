@@ -13,6 +13,7 @@ import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
+import { logAudit } from "@/lib/audit-log";
 import {
   CommentCreateSchema,
   CommentGetQuerySchema,
@@ -320,6 +321,24 @@ export async function POST(req: Request) {
 
   if (ins.error) {
     return errorResponse(ins.error, "save_failed", "[comments POST]", 400);
+  }
+
+  // P1-⑤ (2026-05-28): 검수에 의해 hidden 처리된 댓글은 audit 적재.
+  // PIPA 안전성 확보조치 §8 — 콘텐츠 자동 차단 추적.
+  if (verdict.flagged) {
+    await logAudit({
+      action: "comment.screening_hide",
+      actorProfileId: idCtx.active.profileId,
+      actorAuthUserId: idCtx.user.id,
+      targetTable: "comments",
+      targetId: ins.data?.id ?? null,
+      request: req,
+      metadata: {
+        cardId,
+        parentId,
+        reasons: verdict.reasons,
+      },
+    });
   }
 
   // 검수에 걸려 hidden 처리되었으면 사용자에게 명시 — silent fail 방지.
