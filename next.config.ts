@@ -23,6 +23,15 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "img.youtube.com" },
     ],
   },
+  // /rss.xml URL → /rss 라우트 매핑.
+  // 사유: Next.js 의 dot-in-path 라우트 폴더 (app/rss.xml/) 가 production 에서
+  //   정적 fallback 으로 잘못 매칭되어 HTML 페이지가 응답되는 회귀가 있었음.
+  //   라우트 폴더를 app/rss/ 로 옮기고 외부 노출 URL 만 /rss.xml 로 유지.
+  async rewrites() {
+    return [
+      { source: "/rss.xml", destination: "/rss" },
+    ];
+  },
   // vercel.app → pbtt.kr 영구 리다이렉트 (canonical 도메인 통일)
   // Preview 배포는 영향 받지 않음 (Production만 적용 — vercel host 매칭)
   async redirects() {
@@ -77,7 +86,17 @@ const nextConfig: NextConfig = {
       "form-action 'self'",
       "object-src 'none'",
       "upgrade-insecure-requests",
+      // 2026-05-28: CSP 위반 보고 endpoint — /api/csp-report
+      // report-uri 는 구 사양, report-to 는 신 사양(CSP Level 3). 호환 위해 병기.
+      "report-uri /api/csp-report",
+      "report-to default",
     ].join("; ");
+    // Report-To 헤더 — CSP Level 3 신 사양. /api/csp-report 가 위반 보고 수신.
+    const reportTo = JSON.stringify({
+      group: "default",
+      max_age: 10886400,
+      endpoints: [{ url: "/api/csp-report" }],
+    });
     // Report-Only 유지 (SEO 우선 정책).
     const cspKey = "Content-Security-Policy-Report-Only";
     return [
@@ -94,7 +113,19 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
           },
-          { key: "Permissions-Policy", value: "geolocation=(), microphone=(), camera=()" },
+          // 2026-05-28: Permissions-Policy 확장 — payment/usb/interest-cohort/browsing-topics
+          // (FLoC/Topics API 거부 + 결제·USB 권한 0 — pibutenten 미사용 기능)
+          {
+            key: "Permissions-Policy",
+            value:
+              "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=(), browsing-topics=()",
+          },
+          // 2026-05-28: Cross-Origin-* 헤더 — 사이트 isolation 강화
+          // CORP same-origin 은 정적 자산 (fonts/icons/og) 의 vercel.json 별도 cross-origin 으로 override 됨.
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+          // 2026-05-28: Report-To — CSP 위반 보고 endpoint 그룹 정의
+          { key: "Report-To", value: reportTo },
           { key: cspKey, value: csp },
         ],
       },

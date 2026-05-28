@@ -6,6 +6,15 @@
 
 ---
 
+## [2026-05-28] — RSS 라우트 경로 정리
+
+### Fixed
+- `src/app/rss.xml/route.ts` → `src/app/rss/route.ts` 로 이동.
+  - 사유: Next.js dot-in-path 라우트 폴더 (`app/rss.xml/`) 가 production 에서 정적 fallback 으로 잘못 매칭되어 `pbtt.kr/rss.xml` 응답이 RSS XML 이 아닌 HTML 페이지를 반환하던 회귀 해소. 네이버 서치어드바이저 RSS 제출 시 "사이트맵/RSS 형식이 올바르지 않습니다" 오류 차단.
+- `next.config.ts` — `rewrites()` 추가. 외부 노출 URL `/rss.xml` → 내부 라우트 `/rss` 매핑. 색인 URL 변경 없음.
+
+---
+
 ## [2026-05-28] — robots/sitemap force-dynamic + SITE_PUBLIC 공개 전환
 
 ### Changed
