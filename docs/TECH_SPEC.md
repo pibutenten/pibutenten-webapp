@@ -61,7 +61,7 @@ GOOGLE_CLIENT_SECRET=...
 
 ### 2.4. 검증
 - 14세 미만 reject (클라 + DB CHECK constraint, 0121)
-- 중복 가입자 식별: contact_email + birthdate + gender 조합 (`find_duplicate_profiles` RPC, 0111)
+- 중복 가입자 식별: contact_email + birthdate + gender 조합 (`find_duplicate_profiles(p_email, p_birthdate, p_gender)` RPC, 0111 + 0177 회복)
 - 피부정보 활용 동의 필수 체크박스 (`profiles.skin_info_consent_at`, 0138)
 
 ---
@@ -85,7 +85,7 @@ GOOGLE_CLIENT_SECRET=...
 - `search_cards_scored` RPC (q, doctor_slug, offset, limit, boost_doctor_slug)
 - 검색어 없을 때: ±14일 랜덤 셔플
 - 같은 원장 3연속 방지, 첫 4카드 다양화
-- HOT 카드: `get_hot_card_ids_v2()` 결과로 마킹
+- HOT 카드: `get_hot_card_ids(p_limit)` 결과로 마킹 (v2 정책 본문 = 시간 가중 + 최소 점수 5)
 
 ### 4.2. 카테고리 (Phase 5.1 - 6분류)
 | slug | 라벨 | 작성 권한 |

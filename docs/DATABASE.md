@@ -18,7 +18,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 |---|---|---|
 | `id` | uuid PK | |
 | `auth_user_id` | uuid → auth.users(id) | 같은 auth user 가 여러 profile 묶음 가능 |
-| `role` | text | `admin` / `doctor` / `user` |
+| `role` | user_role enum | `admin` / `doctor` / `user` (`developer` value 는 0044~0050 시도 후 폐기, enum 안에 보존 — 실 데이터 0건, ADR 0011) |
 | `handle` | text UNIQUE | URL용 핸들 (`/[handle]`) |
 | `display_name` | text | |
 | `avatar_url` | text | OAuth 사진 또는 사용자 업로드 |
@@ -119,7 +119,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 이름 | 용도 |
 |---|---|
 | `search_cards_scored(p_q, p_doctor_slug, p_offset, p_limit, p_boost_doctor_slug)` | 메인 피드 |
-| `get_hot_card_ids_v2()` | HOT 카드 id 셋 |
+| `get_hot_card_ids(p_limit)` | HOT 카드 id 셋 (v2 본문 = 시간 가중 + 임계 5, 0089/0104. 0177 에서 deleted_at IS NULL 가드 추가) |
 | `get_recent_card_likers_batch(card_ids[])` | 카드별 최근 likers |
 | `get_notifications_with_url(...)` | 알림 목록 |
 | `get_my_stats()` | /settings 통계 |

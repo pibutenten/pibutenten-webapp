@@ -6,6 +6,40 @@
 
 ---
 
+## [2026-05-28] — 8-agent 종합 점검 후속 배치 ② (H1/H6/H7/M1/M3/M5/M11/H2)
+
+### Added
+- **H6 audit_logs 4종 신규 적재** (PIPA 안전성 확보조치 §8 분쟁 추적):
+  - `card.admin_update` — admin 의 status / deleted_at / is_pick / doctor_id 변경 (articles/[id] PUT)
+  - `comment.admin_update` — status 변경 또는 타인 댓글 본문 변경 (comments/[id] PATCH)
+  - `comment.admin_delete` — 타인 댓글 삭제 (comments/[id] DELETE)
+  - `card.publish` — admin 대량 카드 발행 (admin/draft/publish, video/카드 id/skipped 포함)
+  - `auth.signup` — 신규 가입자 생성 (auth/callback profile 미존재 + naver/callback createUser)
+  - profile.update: 전용 mutation 엔드포인트 없음 (클라이언트 직접 update) — 미적용 보고.
+- **M3 rate-limit 6종 신규 적용**:
+  - `comments-patch` / `comments-delete` 분당 20회
+  - `notif-read` 분당 30회, `push-unsubscribe` 분당 10회
+  - `identity-switch` 분당 20회, `admin-extract-keywords` 분당 15회 (Anthropic 비용 폭주 방어)
+
+### Changed
+- **H1 OAuth callback contact_email 자동 prefill** (ADR 0003 dedup 정확도 향상):
+  - `src/app/auth/callback/route.ts` — Supabase OAuth callback 에서 비어있을 때 `user.email` 채움.
+  - `src/app/api/auth/naver/callback/route.ts` — Naver admin SDK 경로 동일 정책.
+- **H7 preview-link SSRF SSOT 통일**:
+  - `fetchWithTimeout` → `lib/ssrf-guard.ts::safeFetchExternal` 의 thin wrapper. 보호 정책 (hop별 host 재검증·redirect manual·streaming·MAX_BYTES) 모두 SSOT 위임.
+  - Innertube native fetch 에 `redirect: "manual"` 옵션 추가 (hop 하이재킹 방어).
+- **M1 publish KST 보정** — `admin/draft/publish` 의 `post_year`/`created_at` 산정을 +9h offset 후 UTC 메서드 사용. UTC 자정~KST 자정 사이 publish 시 전날로 잡히는 결함 방어.
+- **M5 sitemap 의사 글 쿼리에 `category='qa'` 필터 추가** — 의사 비-qa 카드가 doctor canonical URL 로 sitemap 에 들어가 soft 404 발생하던 결함 차단.
+- **M11 의사 카드 단독 페이지 회원 라우트 noindex** — `[handle]/[shortcode]` 의 generateMetadata 에서 doctor 매핑 카드는 무조건 noindex (회원 글 tip indexable 정책은 그대로).
+- **H2 옛 `/{handle}/{year}/{shortcode}` URL 잔재** — 라우트/링크 빌더/sitemap 모두 사용 0건 확인. 잘못된 주석 1줄만 정정.
+
+### Documentation
+- DATABASE.md — `profiles.role` 타입을 `user_role enum` 으로 정정 + `developer` value 보존 명시.
+- DATABASE.md / TECH_SPEC.md — HOT 함수 실제 이름 `get_hot_card_ids` (v2 본문 = 시간 가중 + 임계 5) + 0177 의 deleted_at 가드 명시.
+- TECH_SPEC.md — `find_duplicate_profiles` 시그니처 `(p_email, p_birthdate, p_gender)` 명시.
+
+---
+
 ## [2026-05-28] — 8-agent 종합 점검 후 DB·함수 정합 3건 (마이그레이션 0177)
 
 ### Fixed
