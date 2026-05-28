@@ -263,8 +263,23 @@ ex) /minji-skin/Ab3xK9Pq
 - **적용 범위 (2026-05-28~)**:
   - 카드 작성·수정: `cards.screening_flags` 저장 + `status='pending_review'` (admin 검토 큐)
   - 댓글 작성·수정: `comments.screening_flags` 저장 + `status='hidden'` (0178. comments enum 에 pending_review 없어 hidden 으로 대응)
+  - 작성자에게 응답 `screening` 객체로 1회 안내 (silent fail 방지)
 - 자살/자해 키워드 감지 시 안전 메시지 모달 1회 (109/1577-0199/1388) — CardEditor + CommentForm 모두 적용 (`src/lib/safety.ts` SSOT)
 - 사전: `src/lib/content-screening-dict.ts`
+
+---
+
+## 10.1 모더레이션 (배치 ④, 2026-05-28)
+
+- 운영 화면: `/admin/reports` (`requireAdminPage` superAdminOnly).
+- API: `PATCH /api/admin/reports/[id]` body `{ action: "hide" | "delete" | "dismiss", note? }`.
+- **숨김 (영구)**: 카드 `toggle_card_hide('hidden')`, 댓글 `comments.status='hidden'`. 복구 가능. 30일 임시조치·자동 만료 없음.
+- **완전삭제** (카드 한정): `soft_delete_card` RPC (ADR 0002 익명화).
+- **기각**: `content_reports.status='dismissed'`, 대상 변경 없음.
+- 모든 액션 `audit_logs.action = 'moderation.{hide|delete|dismiss}'` 적재 + `content_reports.{status, action_taken, resolved_at, resolved_by, resolution_note}` 갱신.
+- **공개 측 숨김 노출**:
+  - 카드 단일 URL: admin client (RLS 우회) 로 status mini-fetch → hidden 이면 본문 대신 placeholder + `noindex`.
+  - 댓글: 일반 viewer 에게 "(비공개 처리된 댓글입니다)" 한 줄. 본인·admin·doctor 는 회색 본문 + "숨김됨" 라벨로 검토 가능.
 
 ---
 

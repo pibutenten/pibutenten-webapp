@@ -69,6 +69,7 @@
 /admin/users/[id]                   역할/매핑 변경
 /admin/stats/[kind]                 세부 통계
 /admin/auth-errors                  회원가입 에러 로그
+/admin/reports                      신고 검토 큐 (배치 ④, 2026-05-28)
 ```
 
 ### 2.5. API 라우트
@@ -118,6 +119,7 @@ POST   /api/admin/draft/save
 POST   /api/admin/draft/analyze
 POST   /api/admin/draft/publish
 POST   /api/admin/draft/pubmed-by-pmid
+PATCH  /api/admin/reports/[id]      모더레이션 액션 (hide/delete/dismiss)
 POST   /api/admin/extract-keywords
 GET    /api/admin/youtube-oauth/start / callback / status
 ```

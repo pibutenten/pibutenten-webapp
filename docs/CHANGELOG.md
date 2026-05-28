@@ -6,6 +6,31 @@
 
 ---
 
+## [2026-05-28] — 운영 모더레이션 화면 + 영구 숨김 정책 (배치 ④)
+
+### Added
+- `/admin/reports` 신고 검토 큐 (`requireAdminPage superAdminOnly`). 액션 3개:
+  - **숨김** (`moderation.hide`): 카드 `toggle_card_hide('hidden')` 또는 댓글 `status='hidden'`. 영구·복구가능.
+  - **완전삭제** (`moderation.delete`, 카드 한정): `soft_delete_card` RPC (ADR 0002 익명화).
+  - **기각** (`moderation.dismiss`): 대상 변경 없음.
+- API: `PATCH /api/admin/reports/[id]` — 모든 액션 `audit_logs` 적재 + `content_reports.{status, action_taken, resolved_at, resolved_by, resolution_note}` 갱신. rate-limit 30/분.
+- admin 대시보드 운영 프로그램 카드에 "신고 검토" 진입점 추가 (super admin 전용).
+
+### Changed
+- **숨김 카드 공개 측 표시**: `[handle]/[shortcode]` + `doctors/[slug]/[year]/[postSlug]` 페이지에서 fetch 가 null 일 때 admin client (RLS 우회) 로 status mini-fetch → `hidden` 이면 본문 대신 placeholder ("운영정책에 따라 비공개된 게시물입니다") + `noindex`. 진짜 없는 글이면 기존 404/글없음 화면 그대로.
+- **숨김 댓글 표시**: 일반 viewer 에게 본문 대신 "(비공개 처리된 댓글입니다)" 한 줄. 본인·admin·doctor 는 회색 본문 + "숨김됨" 라벨로 검토 가능.
+- **CommentsBlock 검수 안내**: 댓글 POST 응답의 `screening` 객체 받으면 toast 로 사유 안내 — silent fail 방지.
+
+### Documentation
+- `terms/page.tsx`: 옛 30일 임시조치 + 이의제기 단락 제거. 영구 숨김 명시 + 의료광고 자동 검수 사전 고지 (대가성 후기·효과 단정·내원 유도 3유형) 추가. subtitle 갱신.
+- `privacy/page.tsx`: 보유 항목에 "운영정책 위반으로 비공개 처리된 게시물" 추가.
+- PRD §4.7 + §4.8 (모더레이션 신설). TECH_SPEC §10.1 신설. DATABASE.md `content_reports` 표 + `comments.status='hidden'` 의미 명시. ARCHITECTURE 라우트 표 갱신.
+
+### Permission audit
+- `requireAdmin()` / `requireAdminPage()` active 단위 정합 — ROADMAP HIGH 항목은 이미 해결된 stale 잔재로 확인됨.
+
+---
+
 ## [2026-05-28] — 댓글 자동검수 + 안전(자살/자해) 모달 SSOT (배치 ③)
 
 ### Added

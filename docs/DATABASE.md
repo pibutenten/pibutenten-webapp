@@ -79,9 +79,16 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 
 ### 1.3. `comments`
 - `author_id`, `card_id`, `parent_id`, `body`, `like_count`, `screening_flags` (text[], 0178)
-- `status` `comment_status` enum: `visible / hidden / deleted` (cards 의 `pending_review` 가 enum 에 없어 회원 댓글 자동검수 임계 초과 시 `hidden` 으로 대응)
+- `status` `comment_status` enum: `visible / hidden / deleted`
+  - `hidden` 의 의미 (2026-05-28~): (a) 회원 댓글 자동검수 임계 초과 또는 (b) `/admin/reports` 운영자 모더레이션. 영구 비공개·복구가능. 30일 임시조치 폐기.
 - `author_id` profiles FK (0085)
 - 폐기: `posted_as` (0090)
+
+**`content_reports`** (신고 큐, 0137):
+- 컬럼: `id, card_id, comment_id, reporter_profile_id, reporter_email, target_url, reason, detail, status, action_taken, resolution_note, resolved_at, resolved_by, temp_block_until, created_at`
+- `status` (text): `pending` / `resolved_hidden` / `resolved_deleted` / `dismissed` (배치 ④ 운영 정의). 옛 `investigating/resolved/rejected/temp_blocked` 도 호환.
+- `action_taken` (text): `hide` / `delete` / `dismiss`.
+- `temp_block_until`: 0137 시 30일 임시조치 의도로 도입. 배치 ④에서 영구 숨김 채택 — 향후 미사용 컬럼.
 
 ### 1.4. 인터랙션 (로그인 필수)
 | 테이블 | PK | 비고 |
