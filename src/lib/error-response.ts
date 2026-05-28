@@ -26,7 +26,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-/** 이메일 마스킹: 'jminbae@gmail.com' → 'jm****@gmail.com'. */
+/** 이메일 마스킹: 'user@gmail.com' → 'us****@gmail.com'. */
 export function maskEmail(raw: string | null | undefined): string | null {
   if (!raw || typeof raw !== "string") return null;
   const at = raw.indexOf("@");
@@ -83,7 +83,6 @@ export function scrubPii<T extends Record<string, unknown>>(obj: T): T {
     } else if (
       lower === "birthdate" ||
       lower === "dob" ||
-      lower === "birth_date" ||
       lower === "birthday"
     ) {
       out[key] = maskBirthdate(val as string | Date);

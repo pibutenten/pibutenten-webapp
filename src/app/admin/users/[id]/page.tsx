@@ -26,7 +26,6 @@ type ProfileRow = {
   level: UserLevel;
   activity_score: number;
   bio: string | null;
-  birth_date: string | null;
   created_at: string;
   terms_agreed_at: string | null;
   avatar_url: string | null;
@@ -120,7 +119,7 @@ export default async function AdminUserDetailPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, handle, display_name, role, level, activity_score, bio, birth_date, created_at, terms_agreed_at, avatar_url, is_public",
+      "id, handle, display_name, role, level, activity_score, bio, created_at, terms_agreed_at, avatar_url, is_public",
     )
     .eq("id", id)
     .maybeSingle()
@@ -419,9 +418,6 @@ export default async function AdminUserDetailPage({
             )}
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
               <span>가입일: {formatIsoDate(profile.created_at)}</span>
-              {profile.birth_date && (
-                <span>생일: {formatIsoDate(profile.birth_date)}</span>
-              )}
               <span>활동점수: {profile.activity_score.toLocaleString()}</span>
               <span>
                 상태: {profile.terms_agreed_at ? "정상" : "온보딩 미완료"}
