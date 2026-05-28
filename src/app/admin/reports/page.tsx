@@ -9,6 +9,7 @@
 import type { Metadata } from "next";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import BackButton from "@/components/BackButton";
 import ReportsClient from "./ReportsClient";
 
 export const dynamic = "force-dynamic";
@@ -114,6 +115,7 @@ export default async function AdminReportsPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6">
+      <div className="mb-1 -ml-1"><BackButton /></div>
       <h1 className="text-xl font-bold text-[var(--text)]">신고 검토 큐</h1>
       <p className="mt-1 text-sm text-[var(--text-muted)]">
         대기 {pendingCount}건 / 전체 {rows.length}건 (최근 200건)

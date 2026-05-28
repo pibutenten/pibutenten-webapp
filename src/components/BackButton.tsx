@@ -35,12 +35,13 @@ export default function BackButton({
       onClick={go}
       aria-label="뒤로가기"
       title="뒤로"
-      // 화살표/텍스트 위/아래 여백 16px (총 높이 약 48px), 색상 #A2A6AF
+      // 위/아래 여백 6px (모바일에서 과한 여백 회귀 — 사용자 보고 2026-05-28).
+      // 색상 #A2A6AF 유지. tap target 은 hit area + 좌우 패딩으로 충분.
       className={
-        "inline-flex min-h-[48px] items-center gap-1 rounded-md px-2 text-[13px] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--primary)] " +
+        "inline-flex min-h-[32px] items-center gap-1 rounded-md px-2 text-[13px] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--primary)] " +
         className
       }
-      style={{ color: "#A2A6AF", paddingTop: "16px", paddingBottom: "16px" }}
+      style={{ color: "#A2A6AF", paddingTop: "6px", paddingBottom: "6px" }}
     >
       <svg
         viewBox="0 0 24 24"
