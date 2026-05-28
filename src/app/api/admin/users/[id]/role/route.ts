@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { logAudit } from "@/lib/audit-log";
-import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
+// 2026-05-28: getDoctorIdForProfile 호출 제거 — profiles.doctor_id 직접 UPDATE 로 통합.
 import { errorResponse } from "@/lib/error-response";
 import { ROLES } from "@/lib/identity-shared";
 
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 type Body = {
   /** 신규 정책: 'user' 또는 'admin' 만 허용. 'doctor' 는 legacy. */
   role?: "admin" | "doctor" | "user";
-  /** 매핑할 doctor_id (있으면 doctor_accounts 추가/교체, null 이면 매핑 해제). */
+  /** 매핑할 doctor_id (있으면 profiles.doctor_id set, null 이면 해제). */
   doctor_id?: string | null;
 };
 
@@ -23,7 +23,10 @@ type Body = {
  *
  *   - role: profiles.role 변경. 'user'/'admin' 만 허용 (신규).
  *           legacy doctor 본 profile 은 role='doctor' 그대로 유지 (변경 요청 안 들어옴).
- *   - doctor_id: doctor_accounts 매핑 추가/교체/해제 (null = 해제).
+ *   - doctor_id: profiles.doctor_id 업데이트 (null = 해제). 2026-05-28 (0176): 옛
+ *               doctor_accounts 테이블 직접 INSERT/UPDATE/DELETE → SSOT 인
+ *               profiles.doctor_id 직접 UPDATE 로 치환. doctor_accounts 는 0176
+ *               부터 view (SELECT 만) 라 직접 변경은 즉시 실패.
  *
  *   매핑은 role 변경을 트리거하지 않음. display_name 자동 sync 도 없음.
  *   매핑된 user 계정은 그대로 user 등급으로 표시되고, 원장 모드 활동은
@@ -129,27 +132,18 @@ export async function POST(
     }
   }
 
-  // ── 3. doctor_accounts 매핑 처리 ────────────────────────────────────────
-  //   doctor_id 가 있으면 upsert (기존 매핑은 갱신, 없으면 insert).
-  //   doctor_id 가 null 이면 매핑 해제.
+  // ── 3. 의사 매핑 처리 (2026-05-28: profiles.doctor_id 직접 UPDATE) ──────
+  //   0176 이전: doctor_accounts 테이블 INSERT/UPDATE/DELETE 분기 처리.
+  //   0176 이후: doctor_accounts 는 view (SELECT only). SSOT 는 profiles.doctor_id
+  //             단일 컬럼이므로 UPDATE 한 번으로 set/교체/해제 모두 처리.
+  //   별도 existing-row 분기 불필요 — UPDATE 가 row 부재 시 0건 영향 (의도된 no-op).
   if (doctorId) {
-    // SSOT (profiles.doctor_id) 헬퍼로 기존 매핑 존재 여부 확인.
-    const existingDoctorId = await getDoctorIdForProfile(supabase, id);
-    if (existingDoctorId) {
-      const { error: mapErr } = await supabase
-        .from("doctor_accounts")
-        .update({ doctor_id: doctorId })
-        .eq("profile_id", id);
-      if (mapErr) {
-        return errorResponse(mapErr, "save_failed", "[admin/users/role] doctor_accounts update", 500);
-      }
-    } else {
-      const { error: insErr } = await supabase
-        .from("doctor_accounts")
-        .insert({ profile_id: id, doctor_id: doctorId });
-      if (insErr) {
-        return errorResponse(insErr, "save_failed", "[admin/users/role] doctor_accounts insert", 500);
-      }
+    const { error: mapErr } = await supabase
+      .from("profiles")
+      .update({ doctor_id: doctorId })
+      .eq("id", id);
+    if (mapErr) {
+      return errorResponse(mapErr, "save_failed", "[admin/users/role] profiles.doctor_id update", 500);
     }
     // ── 묶음(bundle) 동기화 ──────────────────────────────────────────
     // doctor primary profile (handle = doctor.slug) 의 auth_user_id 를 매핑되는
@@ -195,8 +189,11 @@ export async function POST(
       .eq("doctor_id", doctorId)
       .is("author_id", null);
   } else {
-    // doctor_id 가 null → 매핑 해제 (기존에 매핑이 있었으면 삭제, 없으면 no-op).
-    await supabase.from("doctor_accounts").delete().eq("profile_id", id);
+    // doctor_id 가 null → 매핑 해제. profiles.doctor_id 를 NULL 로 SET (SSOT).
+    await supabase
+      .from("profiles")
+      .update({ doctor_id: null })
+      .eq("id", id);
   }
 
   // 보안 2.5차 F묶음 — 감사 로그 기록.

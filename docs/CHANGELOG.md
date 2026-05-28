@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-05-28] — 론칭 QA 막판 CRITICAL fix: admin/users/role route 의 doctor_accounts view 직접 변경 → profiles.doctor_id SSOT UPDATE
+
+### Fixed
+- **CRITICAL** `src/app/api/admin/users/[id]/role/route.ts` — 0176 후 `doctor_accounts` 는 view (SELECT only) 인데 본 라우트는 옛 `.from("doctor_accounts").update/insert/delete` 패턴 유지 → admin 이 회원 역할/의사 매핑 변경 시 즉시 500 ("cannot insert into view" 류). QA 검진에서 발견.
+  - 변경: SSOT 인 `profiles.doctor_id` 직접 UPDATE 로 통합 (existing-row 분기 불필요 — UPDATE 가 row 부재 시 0건 영향, 의도된 no-op).
+  - doctor_id 가 있으면 set/교체, null 이면 NULL 로 해제.
+  - 부수: 미사용 `getDoctorIdForProfile` import 제거.
+
+### Removed
+- 누적된 `.tmp.*` 임시 파일 32개 일괄 삭제 (Dropbox/에디터 충돌 잔재, git ignore 됨).
+
+---
+
 ## [2026-05-28] — 론칭 전 최종 마이크로 디테일: Escape A11y + YouTube regex 상수 + OG 메타 헬퍼 + 문서 최신화
 
 ### Added
