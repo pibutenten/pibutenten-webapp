@@ -73,6 +73,25 @@
 
 ---
 
+## [2026-05-28] — 문서 동기화 (env + DEPLOYMENT.md)
+
+### Added
+- `.env.local.example` — 오늘 추가된 env 9개 명시:
+  - `SITE_PUBLIC` (사이트 공개 스위치, Production only)
+  - `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` / `_NAVER_` / `_BING_` (검색엔진 인증)
+  - `NEXT_PUBLIC_GA4_MEASUREMENT_ID` / `NEXT_PUBLIC_NAVER_ANALYTICS_ID` (Analytics)
+  - `INDEXNOW_KEY` / `CRON_SECRET` (IndexNow + Vercel Cron)
+  - `VERCEL_TOKEN` (로컬 자동화)
+- `docs/DEPLOYMENT.md` §10 — 환경변수 매트릭스 (카테고리·target·민감도 분류).
+
+### Changed
+- `docs/DEPLOYMENT.md` §9 "베타 → 공개 전환 (예정)" → "공개 완료 (2026-05-28)" 로 갱신. robots fail-safe / 검색엔진 등록 / Analytics 가동 / IndexNow Cron 완료 반영.
+
+### Removed
+- `docs/CHANGELOG.md.tmp.*` 임시 파일 2개 정리.
+
+---
+
 ## [2026-05-28] — Naver Analytics 스크립트 도메인 수정 (wcs.pstatic.net)
 
 ### Fixed

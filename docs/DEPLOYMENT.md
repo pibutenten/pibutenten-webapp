@@ -95,18 +95,30 @@ npm run build          # 전체 빌드 (Compiled successfully 확인)
 
 ---
 
-## 9. 베타 → 공개 전환 (2026-06-01 예정)
+## 9. 공개 완료 (2026-05-28)
 
-### 9.1. robots.txt 환원
-`src/app/robots.ts` 의 베타 차단 (`disallow: /`) 제거 → 표준 sitemap 라인 복원.
+### 9.1. robots.txt fail-safe 패턴 (완료)
+`src/app/robots.ts` 가 `SITE_PUBLIC === "true"` 일 때만 3-tier 정책 활성. 그 외 (미설정/오타/빈값) 모두 전체 차단.
+- Production env: `SITE_PUBLIC=true` 등록 완료.
+- Preview/Development: 미설정 유지 → 차단 (의도된 동작).
+- `robots.ts` / `sitemap.ts` 양쪽 `export const dynamic = "force-dynamic"` 로 env 토글 즉시 반영.
 
-### 9.2. SEO 등록
-사용자 직접 수행:
-- Google Search Console
-- Naver Search Advisor
-- Bing Webmaster Tools
+### 9.2. 검색엔진 등록 (완료)
+- Google Search Console — sitemap.xml + rss.xml 제출 완료.
+- 네이버 서치어드바이저 — sitemap.xml + rss.xml 제출 완료.
+- Bing Webmaster Tools — sitemap.xml (Success · 1.4K URLs) + rss.xml 제출 완료.
 
-### 9.3. 운영 KPI 모니터링
+### 9.3. Analytics 가동 (완료)
+- Vercel Analytics + Speed Insights — 패키지 설치 자동 가동.
+- GA4 (`G-K85SS38584`) — `anonymize_ip` + `/search` query string sanitize PII 보호.
+- 네이버 Analytics (`5d1db0791001f8`) — wcs.pstatic.net script.
+
+### 9.4. IndexNow Cron (완료)
+- 매일 KST 04:00 자동 ping (Bing/Yandex/Seznam/Yep).
+- `public/{INDEXNOW_KEY}.txt` 소유권 증명.
+- `Authorization: Bearer ${CRON_SECRET}` 외부 무단 호출 차단.
+
+### 9.5. 운영 KPI 모니터링
 - 콘텐츠 자동 검수기 거짓양성 비율 점검 (1주 후)
 - audit_logs 분기별 정리 (`DELETE FROM audit_logs WHERE created_at < now() - interval '13 months'`)
 - **secret 로테이션 정기 점검 (분기 1회: 1월·4월·7월·10월 첫 영업일)** — VAPID / NAVER / ANTHROPIC / SERVICE_ROLE / PUSH_WEBHOOK.
@@ -115,6 +127,62 @@ npm run build          # 전체 빌드 (Compiled successfully 확인)
   - 사고 직후 (의심되는 노출 발생 시): 분기 일정과 무관하게 **즉시 로테이션**.
   - 로테이션 직후: Vercel preview/production 환경변수 동시 갱신 → 배포 검증.
   - 옛 secret 은 일주일 grace period 후 Supabase Vault·외부 서비스 콘솔에서 영구 삭제.
+
+---
+
+---
+
+## 10. 환경변수 매트릭스 (2026-05-28)
+
+`.env.local.example` 의 모든 환경변수를 카테고리·target·민감도 별로 정리.
+
+### 10.1. Supabase
+| Name | Production | Preview | Dev | 민감도 |
+|---|---|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | ✓ | ✓ | ✓ | 공개 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✓ | ✓ | ✓ | 공개 (anon) |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✓ | ✓ | ✓ | **민감** |
+| `SUPABASE_ACCESS_TOKEN` (Mgmt API) | 로컬만 | — | — | **민감** |
+| `SUPABASE_PROJECT_REF` | 로컬만 | — | — | 공개 |
+
+### 10.2. 사이트 공개 스위치
+| Name | Production | Preview | Dev | 비고 |
+|---|---|---|---|---|
+| `SITE_PUBLIC` | `true` | 미설정 | 미설정 | 정확히 `"true"` 일 때만 공개 |
+
+### 10.3. 검색엔진 사이트 인증 (HTML 메타태그)
+| Name | Production | Preview | Dev |
+|---|---|---|---|
+| `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | ✓ | ✓ | ✓ |
+| `NEXT_PUBLIC_NAVER_SITE_VERIFICATION` | ✓ | ✓ | ✓ |
+| `NEXT_PUBLIC_BING_SITE_VERIFICATION` | ✓ | ✓ | ✓ |
+
+### 10.4. Analytics
+| Name | Production | Preview | Dev | 비고 |
+|---|---|---|---|---|
+| `NEXT_PUBLIC_GA4_MEASUREMENT_ID` | ✓ | ✓ | ✓ | `G-XXXXXXXXXX` |
+| `NEXT_PUBLIC_NAVER_ANALYTICS_ID` | ✓ | ✓ | ✓ | `s_xxxxxxxxxxx` |
+
+### 10.5. IndexNow + Cron
+| Name | Production | Preview | Dev | 비고 |
+|---|---|---|---|---|
+| `INDEXNOW_KEY` | ✓ | ✓ | ✓ | 32+자 hex |
+| `CRON_SECRET` | ✓ | — | — | **Production only**. Vercel Cron 자동 첨부 |
+
+### 10.6. 자동화 (로컬 전용)
+| Name | 위치 | 비고 |
+|---|---|---|
+| `VERCEL_TOKEN` | `.env.local` 만 | AI 협업용 (env 추가/재배포 자동화). 회수: vercel.com/account/tokens |
+
+### 10.7. 기타 (기존)
+| Name | 비고 |
+|---|---|
+| `CSRF_ALLOWED_ORIGINS` | 미설정 시 production 도메인만 허용 |
+| `NEXT_PUBLIC_SITE_URL` | Vercel env 에 설정 |
+| `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | 네이버 OAuth |
+| `ANTHROPIC_API_KEY` | AI 글 초안 생성 |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push |
+| `PUSH_WEBHOOK_SECRET` | Supabase webhook 인증 |
 
 ---
 
