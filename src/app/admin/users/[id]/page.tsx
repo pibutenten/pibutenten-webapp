@@ -309,7 +309,9 @@ export default async function AdminUserDetailPage({
     };
   });
 
-  const lvlColor = LEVEL_COLORS[profile.level] ?? LEVEL_COLORS[0];
+  // TODO(level/activity_score): 산정 로직 도입 전까지 admin 표시 임시 숨김.
+  //   컬럼·SELECT·타입은 유지(향후 활성화 대비). 0179~ 정비와 함께 처리.
+  // const lvlColor = LEVEL_COLORS[profile.level] ?? LEVEL_COLORS[0];
 
   // active identity의 표시 정보 결정
   const showDoctor = !!activeDoctor; // doctor identity면 doctor 정보 우선
@@ -397,14 +399,15 @@ export default async function AdminUserDetailPage({
               <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
                 {headerRoleLabel}
               </span>
-              {!showDoctor && !activeIdentity && profile.role === ROLES.USER && (
+              {/* TODO(level): 산정 로직 도입 전까지 임시 숨김 */}
+              {/* {!showDoctor && !activeIdentity && profile.role === ROLES.USER && (
                 <span
                   className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
                   style={{ backgroundColor: lvlColor.bg, color: lvlColor.fg }}
                 >
                   {LEVEL_LABELS[profile.level] ?? "일반"}
                 </span>
-              )}
+              )} */}
             </div>
             {showDoctor && activeDoctor!.branch && (
               <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
@@ -418,7 +421,8 @@ export default async function AdminUserDetailPage({
             )}
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
               <span>가입일: {formatIsoDate(profile.created_at)}</span>
-              <span>활동점수: {profile.activity_score.toLocaleString()}</span>
+              {/* TODO(activity_score): 산정 로직 도입 전까지 임시 숨김 */}
+              {/* <span>활동점수: {profile.activity_score.toLocaleString()}</span> */}
               <span>
                 상태: {profile.terms_agreed_at ? "정상" : "온보딩 미완료"}
               </span>
