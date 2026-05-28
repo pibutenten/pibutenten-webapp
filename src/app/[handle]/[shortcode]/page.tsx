@@ -60,11 +60,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const card = await fetchQa(handle, shortcode);
   if (!card) return { title: "찾을 수 없는 글" };
   const url = `${SITE_URL}/${handle}/${shortcode}`;
-  const indexable = card.category === "tip";
   const description = stripMarkdown(card.body).slice(0, 160);
   // 2026-05-28: openGraph/twitter boilerplate 는 lib/og-meta.ts 헬퍼로 통합.
   //   doctor 매핑 카드면 그 doctor 의 OG (`/og/{slug}.png`), 회원 글이면 기본 (`/og.png`).
   const doc = Array.isArray(card.doctor) ? card.doctor[0] : card.doctor;
+  // M11 (2026-05-28): 의사 카드 단독 페이지는 회원 라우트에서 noindex.
+  //   - 의사 qa: 아래 page component 가 doctor canonical 로 308 redirect → 어차피 인덱싱 안 됨.
+  //   - 의사 비-qa (tip/diary 등): 회원 라우트에서 noindex 강제 (회원 글과 동일 취급).
+  // 회원 글 정책은 기존 그대로 — tip 만 index 허용, 나머지 noindex.
+  const isDoctorCard = !!doc;
+  const indexable = !isDoctorCard && card.category === "tip";
   return {
     title: card.title,
     description,
@@ -113,5 +118,5 @@ export default async function MemberPostPage({ params }: Props) {
   );
 }
 
-// 옛 URL `/{handle}/{year}/{shortcode}` 호환은 src/app/[handle]/[year]/[shortcode]/page.tsx에서
-// 308 redirect로 처리 (이미 인덱싱된 / 외부 공유된 링크 보존).
+// 정식 URL 패턴은 `/{handle}/{shortcode}` (회원 글) 와 `/doctors/{slug}/{year}/{post_slug}` (의사 Q&A) 두 가지.
+// 옛 `/{handle}/{year}/{shortcode}` 패턴은 공개 전 폐기됨 (H2, 2026-05-28). redirect 불필요.

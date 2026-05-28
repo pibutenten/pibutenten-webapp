@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { isHostSafeForExternalFetch } from "@/lib/ssrf-guard";
+import { isHostSafeForExternalFetch, safeFetchExternal } from "@/lib/ssrf-guard";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 
@@ -38,99 +38,38 @@ const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
 
 /**
- * SSRF-safe fetch — 각 redirect hop 마다 host 재검증.
- *   - `redirect: 'manual'` 로 hop 별 검증 강제 (A6, 2026-05-17).
- *   - 응답 본문 streaming + MAX_BODY_BYTES cap.
- *   - https only.
- *   - https-only 정책으로 MITM 차단.
- *   - 반환: 메모리에 적재된 본문을 가진 합성 Response (caller 가 .arrayBuffer() / .text() 사용 가능).
+ * SSRF-safe fetch — H7 (2026-05-28): SSOT 통일.
+ *
+ * 본 함수는 lib/ssrf-guard.ts::safeFetchExternal 의 thin wrapper.
+ * 보호 정책 (hop별 host 재검증·redirect manual·streaming·MAX_BYTES) 모두 SSOT 에 위임.
+ * 기존 caller 시그니처(Response 반환) 보존을 위해 결과를 합성 Response 로 wrapping.
  */
 async function fetchWithTimeout(
   url: string,
   extraHeaders: Record<string, string> = {},
 ): Promise<Response> {
-  let currentUrl: URL;
-  try {
-    currentUrl = new URL(url);
-  } catch (e) {
-    throw e instanceof Error ? e : new Error("invalid url");
+  const result = await safeFetchExternal(url, {
+    timeoutMs: FETCH_TIMEOUT_MS,
+    maxBytes: MAX_BODY_BYTES,
+    maxRedirects: MAX_REDIRECTS,
+    allowedProtocols: ["https:"],
+    headers: {
+      "User-Agent": UA,
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.5",
+      ...extraHeaders,
+    },
+  });
+  if (!result.ok) {
+    throw new Error(`[preview-link] ${result.error}`);
   }
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    // https only — http 리다이렉트도 차단.
-    if (currentUrl.protocol !== "https:") {
-      throw new Error(`[preview-link] protocol blocked: ${currentUrl.protocol}`);
-    }
-    // SSRF — 도메인 → IP 해석 후 사설/메타데이터 차단. hop 마다 재검증.
-    const guard = await isHostSafeForExternalFetch(currentUrl.hostname);
-    if (!guard.ok) {
-      throw new Error(`[preview-link] blocked host: ${guard.reason}`);
-    }
-    const ctl = new AbortController();
-    const id = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
-    let res: Response;
-    try {
-      res = await fetch(currentUrl.toString(), {
-        method: "GET",
-        headers: {
-          "User-Agent": UA,
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.5",
-          ...extraHeaders,
-        },
-        redirect: "manual",
-        signal: ctl.signal,
-      });
-    } finally {
-      clearTimeout(id);
-    }
-    // 3xx — Location 재검증 후 다음 hop
-    if (res.status >= 300 && res.status < 400) {
-      const loc = res.headers.get("location");
-      if (!loc) {
-        throw new Error(`[preview-link] redirect without Location: ${res.status}`);
-      }
-      let next: URL;
-      try {
-        next = new URL(loc, currentUrl);
-      } catch {
-        throw new Error("[preview-link] invalid redirect Location");
-      }
-      currentUrl = next;
-      continue;
-    }
-    // 본문 streaming + cap
-    const reader = res.body?.getReader();
-    if (!reader) {
-      return new Response(new Uint8Array(0), {
-        status: res.status,
-        headers: res.headers,
-      });
-    }
-    const chunks: Uint8Array[] = [];
-    let received = 0;
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      received += value.byteLength;
-      if (received > MAX_BODY_BYTES) {
-        await reader.cancel().catch(() => {});
-        throw new Error(`[preview-link] response exceeds ${MAX_BODY_BYTES} bytes`);
-      }
-      chunks.push(value);
-    }
-    const total = new Uint8Array(received);
-    let off = 0;
-    for (const c of chunks) {
-      total.set(c, off);
-      off += c.byteLength;
-    }
-    return new Response(total, {
-      status: res.status,
-      headers: res.headers,
-    });
-  }
-  throw new Error(`[preview-link] too many redirects (>${MAX_REDIRECTS})`);
+  // bodyBytes → Response. content-type 만 보존 (caller 가 decodeHtmlResponse 등에서 사용).
+  // Node runtime — Buffer 가 BodyInit 호환.
+  return new Response(Buffer.from(result.bodyBytes), {
+    status: result.status,
+    headers: { "content-type": result.contentType },
+  });
 }
 
 /**
@@ -340,6 +279,9 @@ async function fetchYoutubeInnertube(
             Referer: `https://www.youtube.com/watch?v=${videoId}`,
           },
           signal: ctl.signal,
+          // H7 (2026-05-28): redirect 자동 추적 차단 — hop 하이재킹 방어.
+          // YouTube Innertube 정상 응답은 200 만 기대. 3xx 면 비정상 처리로 간주.
+          redirect: "manual",
           body: JSON.stringify({
             videoId,
             context: {

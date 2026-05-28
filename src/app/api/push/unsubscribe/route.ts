@@ -8,6 +8,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { errorResponse } from "@/lib/error-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,16 @@ export async function POST(req: Request) {
   if (!user) {
     return errorResponse(null, "unauthorized", "[push/unsubscribe] auth required", 401);
   }
+
+  // Rate limit — endpoint 단독 식별 delete 도배 방어. 분당 10회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "push-unsubscribe",
+    userId: user.id,
+    max: 10,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   let endpoint: string | null = null;
   try {

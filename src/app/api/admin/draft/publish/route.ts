@@ -36,6 +36,7 @@ import { generateShortcode } from "@/lib/shortcode";
 import { normalizeTags } from "@/lib/tag-dictionary";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
+import { logAudit } from "@/lib/audit-log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -170,8 +171,11 @@ export async function POST(req: Request) {
   }
 
   const now = new Date();
-  const postYear = now.getFullYear();
-  const yyyymmdd = now.toISOString().slice(0, 10);
+  // KST 보정 (M1, 2026-05-28): UTC 자정~KST 자정 (UTC 15~24시) 사이 publish 시 post_year/생성일이
+  // 전날로 잡히는 결함 방어. +9h offset 후 UTC 메서드 사용 = KST.
+  const nowKst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const postYear = nowKst.getUTCFullYear();
+  const yyyymmdd = nowKst.toISOString().slice(0, 10);
 
   // 카드별 row 생성
   const rows: Record<string, unknown>[] = [];
@@ -284,10 +288,30 @@ export async function POST(req: Request) {
     return errorResponse(insErr, "save_failed", "[admin/draft/publish] cards insert", 500);
   }
 
+  const insertedIds = (inserted ?? []).map((r) => r.id);
+
+  // PIPA 안전성 확보조치 §8: admin 의 대량 카드 발행 audit (의료 콘텐츠 책임 추적).
+  await logAudit({
+    action: "card.publish",
+    actorProfileId: guard.adminProfileId,
+    actorAuthUserId: guard.userId,
+    targetTable: "cards",
+    targetId: videoRowId,
+    request: req,
+    metadata: {
+      videoId,
+      videoRowId,
+      cardIds: insertedIds,
+      saved: insertedIds.length,
+      skipped: skippedDuplicates.length,
+      status,
+    },
+  });
+
   return NextResponse.json(
     {
-      saved: inserted?.length ?? 0,
-      ids: (inserted ?? []).map((r) => r.id),
+      saved: insertedIds.length,
+      ids: insertedIds,
       videoRowId,
       skipped_duplicates: skippedDuplicates,
     },

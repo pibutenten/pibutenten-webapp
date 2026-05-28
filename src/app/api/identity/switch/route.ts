@@ -9,6 +9,7 @@ import {
 import { normalizeLegacyIdentityValue } from "@/lib/identity-server";
 import { logAudit } from "@/lib/audit-log";
 import { errorResponse } from "@/lib/error-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +49,16 @@ export async function POST(req: Request) {
   if (!user) {
     return errorResponse(null, "unauthorized", "[identity/switch] auth required", 401);
   }
+
+  // Rate limit — UUID enumeration 가드. 분당 20회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "identity-switch",
+    userId: user.id,
+    max: 20,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   // 2026-05-28: 옛 sentinel "primary" 정규화 + UUID 검증을 normalizeLegacyIdentityValue
   // SSOT 헬퍼로 위임 (identity-server.ts). 같은 호환성 규칙이 cookie/payload 진입점에서

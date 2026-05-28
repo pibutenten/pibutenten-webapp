@@ -36,6 +36,7 @@ import {
   type PostCategorySlug,
 } from "@/lib/post-category";
 import { ROLES } from "@/lib/identity-shared";
+import { logAudit } from "@/lib/audit-log";
 
 export const dynamic = "force-dynamic";
 
@@ -309,6 +310,28 @@ export async function PUT(
     .eq("id", cardId);
   if (updErr) {
     return errorResponse(updErr, "generic", "[articles PUT] update", 500);
+  }
+
+  // PIPA 안전성 확보조치 §8: admin 의 카드 admin-only 필드 변경은 audit.
+  // 분쟁 추적 핵심 (status hidden 처리·soft-delete·is_pick·doctor 재배정 등).
+  // is_pick 은 의사 본인 가능이라 isAdmin 으로 좁힘.
+  if (isAdmin) {
+    const adminChanges: Record<string, unknown> = {};
+    if (payload.status !== undefined) adminChanges.status = update.status;
+    if (payload.deleted_at !== undefined) adminChanges.deleted_at = update.deleted_at;
+    if (payload.is_pick !== undefined) adminChanges.is_pick = update.is_pick;
+    if (payload.doctor_id !== undefined) adminChanges.doctor_id = update.doctor_id;
+    if (Object.keys(adminChanges).length > 0) {
+      await logAudit({
+        action: "card.admin_update",
+        actorProfileId: activeProfileId,
+        actorAuthUserId: user.id,
+        targetTable: "cards",
+        targetId: cardId,
+        request: req,
+        metadata: adminChanges,
+      });
+    }
   }
 
   // SEO·피드 정적 캐시 무효화 — 카드 viewer URL 과 doctor·handle 페이지.

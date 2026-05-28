@@ -48,13 +48,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 발행된 글 — 의사가 작성한 것만 (UGC 회원 글은 제외 위해 doctor_id 기준)
+    // 발행된 글 — 의사가 작성한 Q&A canonical 만.
+    // M5 (2026-05-28): category='qa' 필터 추가. 의사의 비-qa 카드 (tip 등) 가 doctor canonical
+    // URL 로 sitemap 에 들어가면 page 가 404 반환 (page 가 category=qa 강제) → soft 404.
     const { data: publishedCards } = await supabase
       .from("cards")
       .select(
         "id, created_at, doctor_id, post_year, post_slug, doctor:doctors(slug)",
       )
       .eq("status", "published")
+      .eq("category", "qa")
       .not("doctor_id", "is", null);
 
     // 의사 프로필 9명

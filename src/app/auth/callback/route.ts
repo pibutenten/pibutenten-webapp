@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { errorRedirectLogin, type AuthErrorTrack } from "@/lib/error-response";
 import { ROLES } from "@/lib/identity-shared";
+import { logAudit } from "@/lib/audit-log";
 
 /** PR-OPS (0135): auth 콜백 provider 추정 — 정확한 분기는 force 가능한 상태에서만. */
 function inferProvider(url: URL): AuthErrorTrack["provider"] {
@@ -166,9 +167,29 @@ export async function GET(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, terms_agreed_at, display_name, birthdate, avatar_url")
+    .select("role, terms_agreed_at, display_name, birthdate, avatar_url, contact_email")
     .eq("id", user.id)
     .maybeSingle();
+
+  // PIPA 안전성 확보조치 §8: 신규 가입자 생성 audit (경량 — provider 만).
+  // profile row 가 없으면 첫 콜백 — Supabase trigger 가 곧 생성. provider 는
+  // app_metadata.provider (Supabase OAuth) 또는 user_metadata.provider (naver fallback).
+  if (!profile) {
+    const appMeta = (user.app_metadata ?? {}) as Record<string, unknown>;
+    const userMeta = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const provider =
+      (typeof appMeta.provider === "string" && appMeta.provider) ||
+      (typeof userMeta.provider === "string" && userMeta.provider) ||
+      "unknown";
+    await logAudit({
+      action: "auth.signup",
+      actorAuthUserId: user.id,
+      targetTable: "auth.users",
+      targetId: user.id,
+      request,
+      metadata: { provider },
+    });
+  }
 
   // 4-1) OAuth provider 메타 → profiles.{avatar_url, display_name} 자동 채우기
   //   Google: user_metadata.{picture, name, full_name}
@@ -202,6 +223,13 @@ export async function GET(request: NextRequest) {
           meta.nickname.trim()) ||
         null;
       if (nameCandidate) updates.display_name = nameCandidate;
+    }
+
+    // contact_email 자동 채우기 (ADR 0003) — dedup 매칭 정확도 향상.
+    // 비어 있을 때만 user.email (= auth.users.email, OAuth provider 이메일) 사용.
+    // 사용자가 온보딩에서 직접 수정한 값은 보존.
+    if (!profile.contact_email && typeof user.email === "string" && user.email.trim()) {
+      updates.contact_email = user.email.trim().toLowerCase();
     }
 
     if (Object.keys(updates).length > 0) {

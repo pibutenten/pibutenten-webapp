@@ -18,6 +18,7 @@ import { getEnv } from "@/lib/ai/env-fallback";
 import { extractJson } from "@/lib/ai/extract-json";
 import { MODEL_ID } from "@/lib/ai/pricing";
 import { errorResponse } from "@/lib/error-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -131,6 +132,16 @@ JSON 단일 객체로만 — \`{"keywords": ["태그1", "태그2", ...]}\`.
 export async function POST(req: Request) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
+
+  // Rate limit — Anthropic 비용 폭주 가드 (다소 빡빡하게). admin 당 분당 15회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "admin-extract-keywords",
+    userId: guard.userId,
+    max: 15,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   // P2-4 (2026-05-27): API 입력 키 question/answer → title/body 통일.
   let body: { title?: unknown; body?: unknown };

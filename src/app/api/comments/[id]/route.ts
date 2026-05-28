@@ -10,6 +10,9 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { errorResponse } from "@/lib/error-response";
+import { rateLimit } from "@/lib/rate-limit";
+import { getIdentityContext } from "@/lib/identity";
+import { logAudit } from "@/lib/audit-log";
 
 export const dynamic = "force-dynamic";
 
@@ -77,12 +80,21 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const idCtx = await getIdentityContext(supabase);
+  const user = idCtx?.user ?? null;
   if (!user) {
     return errorResponse(null, "unauthorized", "[comments PATCH] auth required", 401);
   }
+
+  // Rate limit — mutation 도배 가드. 분당 20회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "comments-patch",
+    userId: user.id,
+    max: 20,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   const upd = await supabase
     .from("comments")
@@ -100,10 +112,30 @@ export async function PATCH(req: Request, ctx: Ctx) {
     });
   }
 
+  // PIPA 안전성 확보조치 §8: admin/doctor 가 타인 댓글을 변경한 경우 audit.
+  // status 변경은 admin/doctor 만 가능 (RLS) → 항상 audit. body 변경은 본인 일치 시 noise 라 제외.
+  const ownerId = (upd.data as { user_id?: string | null } | null)?.user_id ?? null;
+  const isOwn = !!idCtx?.active && ownerId === idCtx.active.profileId;
+  if (update.status !== undefined || (!isOwn && update.body !== undefined)) {
+    await logAudit({
+      action: "comment.admin_update",
+      actorProfileId: idCtx?.active?.profileId ?? null,
+      actorAuthUserId: user.id,
+      targetTable: "comments",
+      targetId: id,
+      request: req,
+      metadata: {
+        status: update.status ?? null,
+        bodyChanged: update.body !== undefined,
+        ownerProfileId: ownerId,
+      },
+    });
+  }
+
   return NextResponse.json({ comment: upd.data });
 }
 
-export async function DELETE(_req: Request, ctx: Ctx) {
+export async function DELETE(req: Request, ctx: Ctx) {
   const id = await getId(ctx);
   if (id == null) {
     return errorResponse(null, "invalid_input", "[comments DELETE] invalid id", 400, undefined, {
@@ -112,19 +144,29 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const idCtx = await getIdentityContext(supabase);
+  const user = idCtx?.user ?? null;
   if (!user) {
     return errorResponse(null, "unauthorized", "[comments DELETE] auth required", 401);
   }
 
+  // Rate limit — 분당 20회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "comments-delete",
+    userId: user.id,
+    max: 20,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
+
   // RLS가 자체적으로 본인 / admin / 해당 doctor만 통과시킴.
+  // user_id 도 함께 받아서 audit 판정.
   const del = await supabase
     .from("comments")
     .delete()
     .eq("id", id)
-    .select("id")
+    .select("id, user_id")
     .maybeSingle();
 
   if (del.error) {
@@ -133,6 +175,21 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   if (!del.data) {
     return errorResponse(null, "forbidden", "[comments DELETE] denied or not found", 403, undefined, {
       userMessage: "권한이 없거나 댓글을 찾을 수 없습니다.",
+    });
+  }
+
+  // PIPA 안전성 확보조치 §8: 타인 댓글 삭제는 audit (admin/doctor).
+  const ownerId = (del.data as { user_id?: string | null } | null)?.user_id ?? null;
+  const isOwn = !!idCtx?.active && ownerId === idCtx.active.profileId;
+  if (!isOwn) {
+    await logAudit({
+      action: "comment.admin_delete",
+      actorProfileId: idCtx?.active?.profileId ?? null,
+      actorAuthUserId: user.id,
+      targetTable: "comments",
+      targetId: id,
+      request: req,
+      metadata: { ownerProfileId: ownerId },
     });
   }
 

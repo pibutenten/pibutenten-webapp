@@ -8,6 +8,7 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { SITE_URL } from "@/lib/site";
 import { trackAuthError, type AuthErrorTrack } from "@/lib/error-response";
+import { logAudit } from "@/lib/audit-log";
 
 /** state cookie timing-safe 비교. 길이 mismatch 도 동일 시간으로 처리. */
 function stateMatches(cookieState: string, urlState: string): boolean {
@@ -171,6 +172,15 @@ export async function GET(request: NextRequest) {
         throw new Error(`사용자 생성 실패: ${createErr?.message ?? "unknown"}`);
       }
       userId = created.user.id;
+      // PIPA 안전성 확보조치 §8: 신규 가입자 생성 audit (경량 — provider 만).
+      await logAudit({
+        action: "auth.signup",
+        actorAuthUserId: userId,
+        targetTable: "auth.users",
+        targetId: userId,
+        request,
+        metadata: { provider: "naver" },
+      });
     } else {
       // 기존 사용자 — naver_id metadata 보강 (이미 있으면 무시됨)
       await admin.auth.admin.updateUserById(userId, {
@@ -181,14 +191,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // profiles.avatar_url / display_name 자동 채우기 (비어 있을 때만)
+    // profiles.avatar_url / display_name / contact_email 자동 채우기 (비어 있을 때만)
     //  → /auth/callback에서도 한 번 더 시도하지만 magic link 경로에서 user_metadata 동기화 타이밍이
     //    완벽하지 않을 수 있어 admin SDK로 즉시 set
-    if (profile.profile_image || displayName) {
+    //  → contact_email: ADR 0003 dedup 매칭 정확도 향상. 사용자 수정값은 보존.
+    {
       const updates: Record<string, unknown> = {};
       const { data: existingProfile } = await admin
         .from("profiles")
-        .select("avatar_url, display_name")
+        .select("avatar_url, display_name, contact_email")
         .eq("id", userId)
         .maybeSingle();
       if (
@@ -203,6 +214,13 @@ export async function GET(request: NextRequest) {
           ?.display_name
       ) {
         updates.display_name = displayName;
+      }
+      if (
+        email &&
+        !(existingProfile as { contact_email?: string | null } | null)
+          ?.contact_email
+      ) {
+        updates.contact_email = email.trim().toLowerCase();
       }
       if (Object.keys(updates).length > 0) {
         await admin.from("profiles").update(updates).eq("id", userId);

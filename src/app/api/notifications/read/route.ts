@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { errorResponse } from "@/lib/error-response";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,16 @@ export async function POST(req: Request) {
     return errorResponse(null, "unauthorized", "[notif/read] auth required", 401);
   }
   const activeProfileId = idCtx.active.profileId;
+
+  // Rate limit — 대량 mark-read RPC 호출 가드. 분당 30회.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "notif-read",
+    userId: idCtx.user.id,
+    max: 30,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   // body 없을 수도 있음 (이전 호출 방식) — 안전하게 파싱
   let ids: number[] | null = null;
