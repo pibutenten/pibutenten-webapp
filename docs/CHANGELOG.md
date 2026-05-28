@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-05-28] — 8-agent 종합 점검 후 DB·함수 정합 3건 (마이그레이션 0177)
+
+### Fixed
+- **CRITICAL** `find_duplicate_profiles` — production 함수가 옛 `p_legal_name` 시그니처로 `p.legal_name` 컬럼 매칭을 시도하나 해당 컬럼은 0110 에서 이미 DROP 됨. 코드(`OnboardingClient.tsx:289`) 는 `p_email` 키워드로 호출 중이라 dedup 가 silent 실패 상태였음. ADR 0003 / 0111 의 `contact_email + birthdate + gender` 기반으로 회복. 0134 의 enumeration 차단 (providers 빈 배열) + rate-limit (60s/3회, 24h/30회) 정책 유지.
+- **HIGH** `videos` / `card_impressions` RLS 정책 3건 — 폐기된 `'developer'` role 매칭 잔재 제거 (실 데이터 0건, 0050 에서 admin 으로 회수 완료). `user_role` enum value 자체는 보존 (DROP TYPE drift 회피).
+- **MEDIUM** `get_hot_card_ids` — SECURITY DEFINER 함수가 RLS 의 `deleted_at IS NULL` 제약을 우회하던 점 보강. 0172 의 다층 방어 패턴(`scored` RPC 시리즈) 과 일관성 회복. ADR 0002 soft-delete 정합.
+
+### Migration
+- `supabase/migrations/0177_fix_email_dedup_drop_developer_hot_deleted.sql` — production 적용 완료. 검증: 시그니처 `p_email text, p_birthdate date, p_gender text` / 정책 4건 모두 `role = 'admin'` 단일 매칭 / 함수 본문에 `c.deleted_at IS NULL` 확인.
+
+---
+
 ## [2026-05-28] — 론칭 QA 막판 CRITICAL fix: admin/users/role route 의 doctor_accounts view 직접 변경 → profiles.doctor_id SSOT UPDATE
 
 ### Fixed
