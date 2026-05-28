@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import TopNav from "@/components/TopNav";
 import ScrollManager from "@/components/ScrollManager";
 import FloatingWriteButton from "@/components/FloatingWriteButton";
@@ -12,6 +14,9 @@ import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
 import { getSessionInfo } from "@/lib/session-info";
 import "./globals.css";
+
+const GA4_ID = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID?.trim();
+const NAVER_ANALYTICS_ID = process.env.NEXT_PUBLIC_NAVER_ANALYTICS_ID?.trim();
 
 // Pretendard variable font — self-host via @font-face in globals.css.
 // Next.js 16 turbopack + next/font/local의 'target.css' resolve 이슈로 인해
@@ -194,6 +199,62 @@ window.addEventListener('appinstalled', function() {
           {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}
           <EngagementPromptListener />
         </SessionProvider>
+
+        {/* Vercel Analytics + Speed Insights — CWV field data + page view. env 자동 감지. */}
+        <Analytics />
+        <SpeedInsights />
+
+        {/* GA4 — NEXT_PUBLIC_GA4_MEASUREMENT_ID 가 있을 때만 로드.
+            anonymize_ip + 검색 페이지 query string 측정 제외 (의료 검색어 PII 보호).
+            의료 콘텐츠 PII 위험 회피: send_page_view: false → 직접 page_view 발화 시
+            page_location 에서 /search query string 을 제거한 sanitized URL 로 전송. */}
+        {GA4_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${GA4_ID}', {
+  anonymize_ip: true,
+  allow_google_signals: false,
+  allow_ad_personalization_signals: false,
+  send_page_view: false
+});
+(function(){
+  function sanitize(url){
+    try{
+      var u = new URL(url);
+      if (u.pathname === '/search') u.search = '';
+      return u.toString();
+    } catch(e){ return url; }
+  }
+  gtag('event', 'page_view', { page_location: sanitize(location.href), page_path: location.pathname });
+})();`}
+            </Script>
+          </>
+        )}
+
+        {/* 네이버 Analytics — NEXT_PUBLIC_NAVER_ANALYTICS_ID 있을 때만 로드.
+            네이버 wcs(Web Conversion Script) 사양. */}
+        {NAVER_ANALYTICS_ID && (
+          <>
+            <Script
+              src="https://wcs.naver.net/wcslog.js"
+              strategy="afterInteractive"
+            />
+            <Script id="naver-analytics-init" strategy="afterInteractive">
+              {`if(!window.wcs_add) window.wcs_add = {};
+window.wcs_add["wa"] = "${NAVER_ANALYTICS_ID}";
+if (window.wcs) {
+  window.wcs_do();
+}`}
+            </Script>
+          </>
+        )}
       </body>
     </html>
   );

@@ -71,15 +71,21 @@ const nextConfig: NextConfig = {
       process.env.NEXT_PUBLIC_SUPABASE_URL
         ?.replace(/^https?:\/\//, "")
         ?.replace(/\/$/, "") || "*.supabase.co";
+    // Analytics 도메인 (2026-05-28 추가):
+    //   - Vercel Analytics/Speed Insights: va.vercel-scripts.com (script), vitals.vercel-insights.com (beacon)
+    //   - GA4: www.googletagmanager.com (gtag script + measurement beacon),
+    //          *.google-analytics.com / *.analytics.google.com (beacon)
+    //   - Naver Analytics: wcs.naver.net (script), wcs.naver.com (beacon)
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://www.googletagmanager.com https://wcs.naver.net",
       "style-src 'self' 'unsafe-inline'",
       // PR-A E3 (2026-05-19): 끝의 `https:` 와일드카드 제거.
       // 이전엔 모든 HTTPS 이미지 도메인 허용 → CSP 무력화. Supabase Storage + YouTube 썸네일만 허용.
-      `img-src 'self' data: blob: https://${supabaseHost} https://i.ytimg.com https://img.youtube.com`,
+      // GA4 의 GIF beacon → google-analytics.com / googletagmanager.com 도 img-src 허용.
+      `img-src 'self' data: blob: https://${supabaseHost} https://i.ytimg.com https://img.youtube.com https://www.google-analytics.com https://www.googletagmanager.com`,
       "font-src 'self' data:",
-      `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://vitals.vercel-insights.com`,
+      `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://vitals.vercel-insights.com https://va.vercel-scripts.com https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://wcs.naver.com`,
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",

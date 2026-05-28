@@ -6,6 +6,28 @@
 
 ---
 
+## [2026-05-28] — Analytics 스택 설치 (Vercel + GA4 + Naver)
+
+### Added
+- `@vercel/analytics` + `@vercel/speed-insights` 설치 — CWV field data + page view 자동 측정.
+- `src/app/layout.tsx`:
+  - `<Analytics />` + `<SpeedInsights />` body 끝에 삽입.
+  - GA4 gtag script — `NEXT_PUBLIC_GA4_MEASUREMENT_ID` 있을 때만 로드. `anonymize_ip:true`, `allow_google_signals:false`, `allow_ad_personalization_signals:false` 강제 + `send_page_view:false` 후 sanitized page_view 직접 발화 — `/search` query string 제거하여 의료 검색어 GA4 적재 회피.
+  - Naver Analytics (wcs) — `NEXT_PUBLIC_NAVER_ANALYTICS_ID` 있을 때만 로드.
+
+### Changed (CSP)
+- `next.config.ts` CSP-Report-Only 화이트리스트 확장:
+  - `script-src` += `va.vercel-scripts.com`, `www.googletagmanager.com`, `wcs.naver.net`.
+  - `connect-src` += `va.vercel-scripts.com`, `www.googletagmanager.com`, `www.google-analytics.com`, `analytics.google.com`, `wcs.naver.com`.
+  - `img-src` += `www.google-analytics.com`, `www.googletagmanager.com` (GA4 GIF beacon).
+
+### 운영자 발급 대기 ID
+- `NEXT_PUBLIC_GA4_MEASUREMENT_ID` — GA4 측정 ID (예: `G-XXXXXXXXXX`).
+- `NEXT_PUBLIC_NAVER_ANALYTICS_ID` — 네이버 Analytics 발급 코드 (예: `s_xxxxxxxxxxx`).
+- 미발급 상태에서는 해당 스크립트 자체가 로드 안 됨 (fail-safe).
+
+---
+
 ## [2026-05-28] — IndexNow 자동 ping (Bing/Yandex/Seznam/Yep)
 
 ### Added
