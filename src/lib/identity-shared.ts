@@ -75,6 +75,9 @@ export type ActiveIdentity = {
   role: string;
   /** doctor_accounts 매핑 (없으면 null) */
   doctorId: string | null;
+  /** 온보딩 게이트 — 미입력이면 null. resolveActiveIdentity 가 같은 SELECT 에서 동시 조회 (별도 쿼리 없음). */
+  birthdate: string | null;
+  termsAgreedAt: string | null;
 };
 
 /**

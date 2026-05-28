@@ -276,6 +276,29 @@ export async function POST(req: Request) {
     return errorResponse(null, "unauthorized", "[comments POST] auth required", 401);
   }
 
+  // P1-⑦ (2026-05-29): API 라우트 온보딩 재검증 — defense-in-depth.
+  //   USER 명함만 검증 (admin/doctor 는 signup 단계에서 온보딩 스킵 — ADR 0012).
+  //   resolveActiveIdentity 의 SELECT 에 birthdate/terms_agreed_at 동시 조회 추가 → 별도 SELECT 없음.
+  {
+    const activeRole = (idCtx.active.role ?? "user") as
+      | "admin"
+      | "doctor"
+      | "user";
+    if (
+      activeRole === "user" &&
+      (!idCtx.active.birthdate || !idCtx.active.termsAgreedAt)
+    ) {
+      return errorResponse(
+        null,
+        "forbidden",
+        "[comments POST] onboarding_required",
+        403,
+        undefined,
+        { userMessage: "프로필 기본 정보를 먼저 입력해주세요." },
+      );
+    }
+  }
+
   // Rate limit (A8): 사용자당 분당 10회.
   const limited = await rateLimit({
     request: req,

@@ -41,6 +41,26 @@ export async function POST(req: Request) {
   // role은 active identity 기준 (회원 ID로 전환 중이면 'user', 의사 ID면 'doctor')
   const role = (idCtx.active.role ?? "user") as "admin" | "doctor" | "user";
 
+  // P1-⑦ (2026-05-29): API 라우트 온보딩 재검증 — defense-in-depth.
+  //   middleware 가 /api/* 를 게이트에서 제외하므로 미온보딩 세션이 클라 우회로
+  //   직접 호출하면 회피 가능. USER 명함만 검증 (admin/doctor 는 signup 단계에서
+  //   온보딩 스킵 — ADR 0012). 14세 차단은 DB CHECK + RLS 가 별도로 보장.
+  //   resolveActiveIdentity 의 SELECT 에 birthdate/terms_agreed_at 동시 조회 추가 →
+  //   여기서 별도 SELECT 없음.
+  if (
+    role === ROLES.USER &&
+    (!idCtx.active.birthdate || !idCtx.active.termsAgreedAt)
+  ) {
+    return errorResponse(
+      null,
+      "forbidden",
+      "[articles POST] onboarding_required",
+      403,
+      undefined,
+      { userMessage: "프로필 기본 정보를 먼저 입력해주세요." },
+    );
+  }
+
   // Rate limit (A8): 사용자당 분당 5회. 글 도배 방어.
   const limited = await rateLimit({
     request: req,
