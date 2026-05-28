@@ -1,4 +1,12 @@
 /**
+ * 본 파일은 **글 카테고리 (post category) — `cards.category` 컬럼 SSOT** 입니다.
+ *
+ * - 도메인 : 글 분류 자체 (qa/tip/diary/ask/link/doodle 6종).
+ * - 사용처 : 글 작성·필터·SEO 인덱싱 정책 전반.
+ *
+ * **혼동 주의** — Q&A 답변 페이지의 색상 칩 (피부고민/리프팅 등 5색) 과는 별개 개념입니다.
+ * 답변 페이지 색상 칩은 `src/lib/categories.ts` (UI 메타) 참조.
+ *
  * 글 카테고리(post category) — cards.category 컬럼과 1:1 매핑.
  *
  * v5.2 spec 6개 체계 (2026-05-15):

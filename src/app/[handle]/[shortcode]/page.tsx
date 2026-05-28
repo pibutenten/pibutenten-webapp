@@ -6,6 +6,7 @@ import BackButton from "@/components/BackButton";
 import { SITE_URL } from "@/lib/site";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { CARD_DETAIL_SELECT } from "@/lib/card-select";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -60,13 +61,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!card) return { title: "찾을 수 없는 글" };
   const url = `${SITE_URL}/${handle}/${shortcode}`;
   const indexable = card.category === "tip";
+  const description = stripMarkdown(card.body).slice(0, 160);
+  // 2026-05-28: openGraph/twitter boilerplate 는 lib/og-meta.ts 헬퍼로 통합.
+  //   doctor 매핑 카드면 그 doctor 의 OG (`/og/{slug}.png`), 회원 글이면 기본 (`/og.png`).
+  const doc = Array.isArray(card.doctor) ? card.doctor[0] : card.doctor;
   return {
     title: card.title,
-    description: stripMarkdown(card.body).slice(0, 160),
+    description,
     alternates: { canonical: url },
     robots: indexable
       ? { index: true, follow: true }
       : { index: false, follow: true },
+    ...buildSocialMeta({
+      title: card.title,
+      description,
+      canonical: url,
+      ogImage: buildOgImage(doc?.slug ?? null),
+      ogType: "article",
+    }),
   };
 }
 

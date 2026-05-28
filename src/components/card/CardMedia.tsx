@@ -25,11 +25,20 @@ type Props = {
   onWatchClick?: () => void;
 };
 
+/**
+ * YouTube URL 호스트 매칭 정규식 (2026-05-28 모듈 상수화).
+ *
+ * `youtu.be` (short), `youtube.com` (canonical), `youtube-nocookie.com` (embed privacy) 의
+ * 세 가지 도메인을 모두 인정. 매 렌더마다 정규식 재컴파일 방지를 위해 모듈 스코프 상수.
+ *
+ * 같은 패턴의 정규식이 다른 곳에 또 등장하면 본 상수를 import 해서 재사용 권장.
+ */
+const YOUTUBE_HOST_RE = /(?:youtu\.be|youtube\.com|youtube-nocookie\.com)/;
+
 export default function CardMedia({ card, onWatchClick }: Props) {
   const isQa = card.category === "qa";
   const ext = card.external_url;
-  const isYoutubeExt =
-    !!ext && /(?:youtu\.be|youtube\.com|youtube-nocookie\.com)/.test(ext);
+  const isYoutubeExt = !!ext && YOUTUBE_HOST_RE.test(ext);
   const videoHref =
     isQa && isYoutubeExt ? ext : (card.video?.youtube_url ?? null);
   const tsec = parseYoutubeTimestamp(videoHref);

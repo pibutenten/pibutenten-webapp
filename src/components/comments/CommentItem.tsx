@@ -92,7 +92,7 @@ export default function CommentItem({
   const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
 
-  // 외부 클릭 시 메뉴 닫기 (trigger·panel 둘 다 검사)
+  // 외부 클릭 시 메뉴 닫기 (trigger·panel 둘 다 검사) + Escape 키 닫기 (A11y, 2026-05-28).
   useEffect(() => {
     if (!menuOpen) return;
     function onDocClick(e: MouseEvent) {
@@ -101,8 +101,15 @@ export default function CommentItem({
       if (menuPanelRef.current?.contains(t)) return;
       setMenuOpen(false);
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
     document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [menuOpen]);
 
   // 메뉴 위치 계산 — trigger 버튼 기준 viewport 좌표 (portal로 body에 렌더되므로)

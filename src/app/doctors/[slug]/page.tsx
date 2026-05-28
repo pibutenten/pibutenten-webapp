@@ -9,6 +9,7 @@ import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import {
   asDoctorProfileData,
   type DoctorProfileData,
@@ -35,30 +36,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .maybeSingle()
     .returns<{ name: string; title: string; clinic: string; intro: string | null }>();
   if (!doctor) return {};
-  const ogImage = `/og/${slug}.png`;
   // v5.1: 병원명 제거. 사이트명은 layout template이 prefix로 자동 추가 ("피부텐텐 | …")
   const title = `${doctor.name} · ${doctor.title}`;
   const description =
     doctor.intro?.trim() ||
     `${doctor.name} ${doctor.title}의 피부 Q&A와 칼럼을 만나보세요. 피부텐텐.`;
   const canonical = `${SITE_URL}/doctors/${slug}`;
+  // 2026-05-28: openGraph/twitter boilerplate 는 lib/og-meta.ts 헬퍼로 통합.
   return {
     title,
     description,
     alternates: { canonical },
-    openGraph: {
-      type: "profile",
+    ...buildSocialMeta({
       title,
       description,
-      url: canonical,
-      images: [{ url: ogImage, width: 1200, height: 630, alt: doctor.name }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [ogImage],
-    },
+      canonical,
+      ogImage: buildOgImage(slug),
+      ogType: "profile",
+      ogImageAlt: doctor.name,
+    }),
   };
 }
 

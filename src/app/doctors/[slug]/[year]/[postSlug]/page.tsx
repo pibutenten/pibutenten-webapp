@@ -12,6 +12,7 @@ import { keywordsToAbout } from "@/lib/schema/procedure";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { jsonLdString } from "@/lib/json-ld";
 import { CARD_DETAIL_SELECT } from "@/lib/card-select";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -67,29 +68,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const card = await fetchQaByDoctorYearSlug(slug, yearInt, postSlug);
   if (!card) return { title: "피부텐텐", robots: { index: false } };
   const docName = card.doctor?.name ? `${card.doctor.name} 원장님` : "피부텐텐";
+  // 2026-05-18: description 은 답변 본문만 — title 영역에 이미 질문이 표시되고 원장 이름은
+  //   OG 이미지(profile photo + 직함 배지)에 노출되므로 prefix 중복 제거.
   const desc = stripMarkdown(card.body).slice(0, 110);
-  const ogUrl = card.doctor?.slug ? `/og/${card.doctor.slug}.png` : `/og.png`;
   const canonical = `${SITE}/doctors/${slug}/${year}/${encodeURIComponent(postSlug)}`;
+  // 2026-05-28: openGraph/twitter boilerplate 는 lib/og-meta.ts 헬퍼로 통합.
   return {
     title: card.title,
     description: desc,
     alternates: { canonical },
-    openGraph: {
-      title: card.title,
-      // description 은 답변 본문만 — title 영역에 이미 질문이 표시되고 원장 이름은
-      // OG 이미지(profile photo + 직함 배지)에 노출되므로 prefix 중복 제거.
-      // (이전 "정한미 원장님 — 답..." → 답변만 표시, 260518)
-      description: desc,
-      type: "article",
-      url: canonical,
-      images: [{ url: ogUrl, width: 1200, height: 630, alt: docName }],
-    },
-    twitter: {
-      card: "summary_large_image",
+    ...buildSocialMeta({
       title: card.title,
       description: desc,
-      images: [ogUrl],
-    },
+      canonical,
+      ogImage: buildOgImage(card.doctor?.slug),
+      ogType: "article",
+      ogImageAlt: docName,
+    }),
   };
 }
 

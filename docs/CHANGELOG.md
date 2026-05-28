@@ -6,6 +6,27 @@
 
 ---
 
+## [2026-05-28] — 론칭 전 최종 마이크로 디테일: Escape A11y + YouTube regex 상수 + OG 메타 헬퍼 + 문서 최신화
+
+### Added
+- 새 모듈 `src/lib/og-meta.ts` — OG/Twitter 메타 boilerplate 통합 SSOT. 2개 export.
+  - `buildOgImage(doctorSlug)` — `/og/{slug}.png` 우선, 없으면 `/og.png`.
+  - `buildSocialMeta({ title, description, canonical, ogImage, ogType, ogImageAlt })` — `openGraph` + `twitter` 객체 반환 (1200×630 표준).
+- `src/components/card/CardMedia.tsx` — `YOUTUBE_HOST_RE` 모듈 상수 도입 (매 렌더 정규식 재컴파일 방지 + 재사용 가능).
+
+### Changed
+- `src/components/card/CardHeader.tsx` + `src/components/comments/CommentItem.tsx` 의 메뉴 useEffect 에 `keydown` Escape 키 핸들러 추가 (A11y). 외부 클릭 닫기 + Escape 닫기 정합.
+- `src/lib/categories.ts` 헤더 — "Q&A 답변 페이지 5색 색상 칩 전용 메타. cards.category 와 무관" 명시 + `post-category.ts` 상호 참조.
+- `src/lib/post-category.ts` 헤더 — "글 분류 cards.category SSOT. categories.ts (UI 색상 칩) 와 무관" 명시 + 상호 참조.
+- 3개 RSC 페이지의 `generateMetadata` 가 `buildOgImage` + `buildSocialMeta` 헬퍼 호출로 경량화:
+  - `src/app/doctors/[slug]/page.tsx` (의사 프로필, `ogType: "profile"`)
+  - `src/app/doctors/[slug]/[year]/[postSlug]/page.tsx` (의사 글, `ogType: "article"`)
+  - `src/app/[handle]/[shortcode]/page.tsx` (회원 글, `ogType: "article"`) — OG 메타 신규 추가 (옛 코드는 누락)
+- `docs/ROADMAP.md` — ADR 0012 application layer 정합 4개 미완료 항목에 마감일 **(2026-06-02 — 론칭 직후)** 명시.
+- `docs/DEPLOYMENT.md §9.3` — secret 로테이션 분기 일정 (1월·4월·7월·10월 첫 영업일) + 사고 시 즉시 로테이션 정책 + 일주일 grace period 명문화.
+
+---
+
 ## [2026-05-28] — 론칭 전 4묶음: CommentsBlock 분해 + CardData alias + 0176 doctor_accounts→view + 문서 sync
 
 ### Added

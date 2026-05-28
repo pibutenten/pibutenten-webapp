@@ -95,7 +95,7 @@ export default function CardHeader({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // 메뉴 외부 클릭 시 닫기
+  // 메뉴 외부 클릭 시 닫기 + Escape 키 닫기 (A11y, 2026-05-28).
   useEffect(() => {
     if (!menuOpen) return;
     function onDocClick(e: MouseEvent) {
@@ -103,8 +103,15 @@ export default function CardHeader({
         setMenuOpen(false);
       }
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
     document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [menuOpen]);
 
   const onAuthorClick = (e: React.MouseEvent) => {

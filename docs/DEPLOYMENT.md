@@ -109,7 +109,12 @@ npm run build          # 전체 빌드 (Compiled successfully 확인)
 ### 9.3. 운영 KPI 모니터링
 - 콘텐츠 자동 검수기 거짓양성 비율 점검 (1주 후)
 - audit_logs 분기별 정리 (`DELETE FROM audit_logs WHERE created_at < now() - interval '13 months'`)
-- secret 로테이션 정기 점검 (VAPID/NAVER/ANTHROPIC/SERVICE_ROLE/PUSH_WEBHOOK)
+- **secret 로테이션 정기 점검 (분기 1회: 1월·4월·7월·10월 첫 영업일)** — VAPID / NAVER / ANTHROPIC / SERVICE_ROLE / PUSH_WEBHOOK.
+  - 절차: `docs/RUNBOOK.md §2` 의 단계별 로테이션 가이드 참조.
+  - 책임자: 운영 담당. 분기 첫 영업일에 캘린더 등록.
+  - 사고 직후 (의심되는 노출 발생 시): 분기 일정과 무관하게 **즉시 로테이션**.
+  - 로테이션 직후: Vercel preview/production 환경변수 동시 갱신 → 배포 검증.
+  - 옛 secret 은 일주일 grace period 후 Supabase Vault·외부 서비스 콘솔에서 영구 삭제.
 
 ---
 
