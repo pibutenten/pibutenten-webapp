@@ -172,6 +172,10 @@ src/
 │   ├── ai/                         Claude 초안 파이프라인
 │   ├── auth/                       OAuth (naver, providers)
 │   ├── schema/                     JSON-LD (doctor/clinic/procedure) + zod 검증
+│   │                                — clinic 페이지별 scope: layout=그룹만,
+│   │                                  /·about·contact=5개+그룹, 의사 페이지=단일 지점만
+│   │                                  헬퍼: groupOnlySchema/allClinicsSchema/
+│   │                                  clinicSchemaForDoctor/clinicIdRefForDoctor
 │   └── identity*.ts                Identity 시스템 (Phase 9)
 ├── data/                           정적 매핑 (procedure-mappings)
 └── middleware.ts                   약관/온보딩 가드 + CSRF Origin 검증

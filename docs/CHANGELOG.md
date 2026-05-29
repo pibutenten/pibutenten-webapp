@@ -6,6 +6,34 @@
 
 ---
 
+## [2026-05-29] — schema 브랜드 일관성 + 페이지별 MedicalClinic scope + 표기 통일
+
+### Fixed
+- `src/lib/schema/clinic.ts` — 브랜드 식별자 `hillhouse` → `healhouse` 정정 (4 occurrences). 그룹·5개 지점 `@id` fragment 모두 정답 표기로. 외부 도메인 `healhouse*.com` · 한국어 정식 명칭 `힐하우스피부과` 는 변경 없음. (commit `faed0b0`)
+
+### Changed (페이지별 MedicalClinic scope — commit `4c26a7b`)
+- `src/lib/schema/clinic.ts` — 신규 헬퍼 `groupOnlySchema()` / `clinicSchemaForDoctor(slug)` / `clinicIdRefForDoctor(slug)` 추가. `allClinicsSchema()` 기존 유지.
+- `src/app/layout.tsx` — `allClinicsSchema()` → `groupOnlySchema()`. Organization + WebSite + 그룹 MedicalOrganization 만 전역 노출. 5개 지점 MedicalClinic 제거.
+- `/`, `/about`, `/contact` — `allClinicsSchema()` 인라인 inject. 그룹 전체를 다루는 페이지에서만 5개 지점 풀세트 노출.
+- `/doctors/[slug]`, `/doctors/[slug]/[year]/[postSlug]` — `clinicSchemaForDoctor(slug)` 단일 지점 inject. `Person.worksFor: { "@id": <single clinic @id> }` 보장. 이도영(건대점) 글에는 건대점만, 정한미(강남점) 글에는 강남점만.
+- 효과: 의사 글 페이지 응답 -8KB (-9.4%). 페이지별 핵심 entity 신호 분산 해소. Knowledge Graph 가 "이도영 → 건대점 → 그룹" 3단 체인 정확히 인식 가능.
+
+### Changed (표기 통일 + topics 인라인 정합성 — commit `698f738`)
+- `src/lib/schema/clinic.ts` — 5개 지점 `name` 표기 통일: `힐하우스피부과의원 {지점}` → `힐하우스피부과 {지점}`. 외부 사이트(`healhouse*.com`) 표기 관행과 일치. 그룹 name `힐하우스피부과` 그대로 유지 (지점과 자동 구분).
+- `src/app/topics/[tag]/page.tsx` — `doctorPersonRef` 의 `worksFor` 인라인 `{ "@type": "MedicalClinic", name: ... }` → `clinicIdRefForDoctor(slug)` 의 `@id` 참조로 통일. graph 에 등장 의사들의 단일 지점 schema `@id` dedup 후 inject.
+
+### Added
+- `public/.well-known/agent-card.json` — `physicians` 배열에 9인 풀세트 입력 (slug / name / alternateName / url). `_comment` placeholder 제거. `lastUpdated` 2026-05-29. (commit `67d06cf`)
+- `docs/decisions/0011-seo-aeo-geo-rejected-recommendations.md` — SEO/AEO/GEO 감사 보고서 권고 중 운영자 결정 폐기 11항목 ADR. 향후 작업 추천 시 제외 기준.
+
+### 변경하지 않음 (의도)
+- `supabase/migrations/0001_init.sql:20` `doctors.clinic` default `'힐하우스피부과'` — 마이그레이션 동결.
+- `src/lib/doctor-profile.ts:10` JSDoc 예시 / `src/app/admin/doctors/[slug]/edit/DoctorProfileEditForm.tsx:57` form helper — 비-schema 자유 입력 영역 (UI 안내).
+- 코드 주석·docs 보고서의 자유 텍스트.
+- 외부 도메인 `healhouse{gn,sw,pg,gd,dg,skin}.com` — 무관.
+
+---
+
 ## [2026-05-29] — production 정합성 복구 + 미배포 작업 32 파일 4그룹 정리
 
 > 라이브 사이트 `https://pbtt.kr/{editorial-policy,medical-review,disclosures,corrections,contact}` 가 not-found 페이지로 응답하던 문제 해소. 원인 분석·진단·복구 한 세션.
