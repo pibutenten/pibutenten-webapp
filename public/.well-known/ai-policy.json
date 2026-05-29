@@ -1,0 +1,63 @@
+{
+  "version": "1.0",
+  "specVersion": "draft-ietf-aipref-vocab-00",
+  "site": "https://pbtt.kr",
+  "owner": "주식회사 진솔컴퍼니",
+  "preferences": {
+    "training": "disallow",
+    "tdm": "disallow",
+    "search": "allow",
+    "answerWithCitation": "allow",
+    "userTriggeredFetch": "allow",
+    "summarization": "allow-with-citation",
+    "extraction": "allow-with-citation"
+  },
+  "scope": "https://pbtt.kr/*",
+  "exceptions": [
+    {
+      "scope": "https://pbtt.kr/admin/*",
+      "training": "disallow",
+      "search": "disallow",
+      "reason": "Admin pages, not public"
+    }
+  ],
+  "policies": {
+    "training": {
+      "disallowed": [
+        "GPTBot",
+        "ClaudeBot",
+        "anthropic-ai",
+        "Google-Extended",
+        "CCBot",
+        "Bytespider",
+        "Applebot-Extended",
+        "Meta-ExternalAgent",
+        "Amazonbot",
+        "Diffbot",
+        "cohere-ai"
+      ],
+      "rationale": "YMYL 의료 콘텐츠 — AI 학습 데이터로 무단 사용되어 정확성·맥락을 잃은 의료 정보 생성을 방지"
+    },
+    "answerEngine": {
+      "allowed": [
+        "OAI-SearchBot",
+        "ChatGPT-User",
+        "Claude-SearchBot",
+        "Claude-User",
+        "PerplexityBot",
+        "Perplexity-User"
+      ],
+      "requirements": "Cite source URL and authoring dermatologist name. Include medical disclaimer when reproducing content."
+    },
+    "search": {
+      "allowed": ["Googlebot", "Bingbot", "Yeti", "Daumoa", "DuckDuckBot"]
+    }
+  },
+  "memberContent": {
+    "paths": ["/{handle}/{shortcode}", "/{handle}"],
+    "treatment": "Non-medical user opinion. Excluded from sitemap, JSON-LD entity graph, and AI medical citation."
+  },
+  "contact": "pibutenten@gmail.com",
+  "policyUrl": "https://pbtt.kr/disclosures",
+  "lastUpdated": "2026-05-29"
+}
