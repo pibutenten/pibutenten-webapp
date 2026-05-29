@@ -53,6 +53,7 @@
 ## [2026-05-29] — profiles 테이블 정비 (7개 항목 일괄, 마이그 6개 + 코드 임시 숨김 1개)
 
 > 온보딩이 줄어들면서 더 이상 안 받는 컬럼이 DB·UI 에 유령처럼 남아 있던 것을 한 번에 정리. 각 항목 단독 마이그·단독 커밋. 마이그 0179~0184 + 항목 7 코드 변경.
+> **컬럼 수: 29 → 25 (4개 영구 제거: `birth_visibility`, `birth_date`, `is_public`, `liked_procedures`).**
 
 ### Removed (컬럼 DROP)
 - **0179** `birth_visibility` (text) — 코드 사용 0건 + 데이터 non-default 0건. 단순 DROP.
@@ -82,7 +83,7 @@
 
 ### 검증
 - 각 단계 끝마다 `tsc --noEmit` + `npm run build` 통과. production 마이그 6개 Supabase Management API 로 즉시 적용 후 컬럼·view·field_visibility 키 검증 쿼리로 확인.
-- DB 데이터 손실: `liked_procedures` 3명 입력값 + `birth_date` 0건 + `birth_visibility` 0건 = 약 3행 분량. 6번·5번은 데이터 보존.
+- DB 데이터 손실: `liked_procedures` 3명 입력값 + `birth_date` 0건 + `birth_visibility` 0건 + `is_public` non-true 0건 = 실질 3행 분량 (4개 컬럼 DROP). 6번·5번은 데이터 보존.
 
 ### 커밋 (각 단독)
 - ① `46e42e2` 0179_drop_birth_visibility
@@ -141,7 +142,7 @@
 ## [2026-05-28] — 자살·자해 안전 키워드 사전 보강 (P1-①)
 
 ### Changed
-- `src/lib/content-screening-dict.ts::SUICIDE_SELF_HARM_KEYWORDS` — 10개 → 24개로 확장.
+- `src/lib/content-screening-dict.ts::SUICIDE_SELF_HARM_KEYWORDS` — 10개 → **26개로 확장 (16개 추가)**.
   - 위기 평가 임상 1순위 완곡: `그만 살고 싶`, `더 이상 살고 싶지 않`, `없어지고 싶`
   - "사라" 계열 좁힌 형태: `내가 사라`, `나도 사라`, `그냥 사라졌으면` (피부 콘텐츠 "흉터/기미가 사라" 오탐 회피)
   - 자해 행동: `스스로 다치`, `스스로를 다치`, `그었`, `긋고`, `손목을 그어/그었`, `팔을 그어/그었` (단순 `손목/팔을 그`는 "그늘" 일상 충돌로 제외)
