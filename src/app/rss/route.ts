@@ -44,6 +44,9 @@ type CardRow = {
 
 export async function GET() {
   const supabase = await createSupabaseServerClient();
+  // P2-7 (2026-05-29): pubmed_refs 의도적 미포함.
+  //   RSS 피드는 외부 리더(Feedly·네이버 등) 대상 — 본문·메타 간결성 우선.
+  //   참고문헌 전체 텍스트는 카드 단일 페이지에서만 노출 (JSON-LD citation 포함).
   const { data: cards } = await supabase
     .from("cards")
     .select(
