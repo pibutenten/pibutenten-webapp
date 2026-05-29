@@ -6,6 +6,48 @@
 
 ---
 
+## [2026-05-30] — 원장 계정 연결 기능 신설 (CRITICAL-3 제거 자리 대체)
+
+### 배경
+2026-05-29 제거한 CRITICAL-3 (`/api/admin/users/[id]/role`) 의 자리를, ADR 0012 를
+위반하지 않는 안전한 흐름으로 대체. 관리자가 기존 회원 계정에 **새 원장 명함을 신설**해
+같은 묶음 (`auth_user_id`) 으로 연결. 회원 명함의 role·글은 건드리지 않음.
+
+### 사전조사에서 드러난 설계-현실 차이 (구현 전 사용자 확인)
+- 기존 `propagate_onboarding_to_doctor_bundle` RPC 는 `auth.uid()` 가 묶음 주인일 때만
+  동작 (`'not your bundle'` 가드) → admin 이 **타인 묶음**에 호출 불가. 그대로 재사용 불가.
+- `doctors.slug`·`name` 은 NOT NULL·기본값 없음 + 미연결 doctors row 0개 →
+  원장 정보(slug·이름·병원·지점·직함)는 admin 이 입력 (사용자 결정: 전체 입력).
+- 마이그 최신 번호 0191 존재 → 0192 사용.
+
+### Added
+- 마이그 `0192_admin_create_doctor_profile.sql` — `admin_create_doctor_profile(uuid, text, text, text, text, text)` RPC.
+  - 단일 트랜잭션: `doctors` INSERT (slug·name 필수, clinic/title 기본값) + `profiles` INSERT (role=doctor, doctor_id 인라인, 같은 묶음) + 회원 명함 온보딩 PII 9컬럼 복사.
+  - 안전장치 (RAISE): 잘못된 slug / 회원 미온보딩 / 묶음에 이미 원장 명함 / slug 중복.
+  - handle 은 slug 기반 자동 생성 (UNIQUE + reserved_handles 회피).
+  - **service_role 전용 GRANT** (authenticated·public REVOKE). `auth.uid()` 비의존.
+  - 롤백: `0192b_admin_create_doctor_profile_rollback.sql`.
+- `POST /api/admin/users/[id]/doctor-profile` — `requireAdmin` (super admin) + rate limit + Zod + audit_logs (`admin.doctor_profile_create`). RPC 호출 (service_role admin client).
+- `src/app/admin/users/[id]/CreateDoctorProfileForm.tsx` — 원장 명함 생성 폼. super admin & 묶음에 원장 명함 없을 때만 노출. 회원 미온보딩 시 비활성 안내.
+
+### Changed
+- `src/app/admin/users/[id]/page.tsx` — CRITICAL-3 자리표시 주석을 실제 폼 렌더링으로 교체. `bundleHasDoctor` 계산 추가.
+
+### Security (CRITICAL-3 재발 방지 — DB 실증)
+- RPC 는 회원 명함 row 를 **UPDATE 하지 않음** (INSERT 2건 + 회원에서 읽기만).
+- production BEGIN/ROLLBACK 실증: 생성 후 회원 명함 `role='user'` 불변, 회원 글 `doctor_id` 백필 0건.
+- 가드 실증: 중복 slug / 묶음 내 기존 의사 / 잘못된 slug 모두 RAISE 차단 확인. 테스트 잔재 0건.
+
+### 검증
+- `npx tsc --noEmit` 통과. `npm run build` ✓ Compiled successfully (새 라우트 등록 확인).
+- 잔재 grep 0건 (RoleChangeForm / 옛 role 라우트 참조 / 임시파일).
+
+### 관련 문서
+- ADR `0016-doctor-profile-linking.md` 신규.
+- `ARCHITECTURE.md` (라우트), `DATABASE.md` (마이그 0192) 동기 갱신.
+
+---
+
 ## [2026-05-29] — CRITICAL-3: ADR 0012 위반 라우트 `/api/admin/users/[id]/role` + 호출 UI 제거
 
 ### 배경

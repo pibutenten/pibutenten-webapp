@@ -14,6 +14,7 @@ import { getIdentityContext } from "@/lib/identity";
 import BackButton from "@/components/BackButton";
 import { formatIsoDate } from "@/lib/format-date";
 import { getDoctorIdForProfile, getDoctorMetaBatch } from "@/lib/doctor-mapping";
+import CreateDoctorProfileForm from "./CreateDoctorProfileForm";
 
 export const dynamic = "force-dynamic";
 
@@ -194,6 +195,10 @@ export default async function AdminUserDetailPage({
 
   // primary identity의 doctor 매핑 (doctor_accounts) — lib/doctor-mapping 헬퍼
   const primaryDoctorId = await getDoctorIdForProfile(supabase, id);
+
+  // 묶음에 이미 원장 명함이 있는지 (원장 명함 신설 폼 노출 조건).
+  const bundleHasDoctor =
+    !!primaryDoctorId || allIdentities.some((it) => !!it.doctor_id);
 
   // 현재 active identity의 doctor_id 결정
   const activeDoctorId = activeIdentity
@@ -382,10 +387,17 @@ export default async function AdminUserDetailPage({
         <Stat label="좋아요" value={likes?.length ?? 0} />
       </div>
 
-      {/* CRITICAL-3 (2026-05-29): 역할 변경 폼 폐기.
-         회원·의사 계정은 처음부터 독립이며 사후 role 변경 + 묶음 결합 + 회원 글에
-         doctor_id 소급 백필은 ADR 0012 (명함 단위 완전 독립) 위반. 의사 자격은
-         관리자가 별도 의사 명함을 신설·연결하는 흐름으로 대체 (별도 안건). */}
+      {/* 원장 계정 연결 (2026-05-30): CRITICAL-3(역할 변경 폼) 의 대체.
+         회원 명함의 role·글은 건드리지 않고, 같은 묶음에 새 원장 명함을 신설하고
+         회원의 온보딩 PII 만 복사한다 (ADR 0012 명함 단위 완전 독립 준수).
+         super admin 만, 묶음에 아직 원장 명함이 없을 때만 노출. */}
+      {viewerCtx.isSuperAdmin && !bundleHasDoctor && (
+        <CreateDoctorProfileForm
+          sourceProfileId={id}
+          sourceDisplayName={profile.display_name ?? ""}
+          sourceOnboarded={!!profile.terms_agreed_at}
+        />
+      )}
 
       {/* 작성 글 */}
       <Section title="📝 작성 글" empty="작성 글 없음">

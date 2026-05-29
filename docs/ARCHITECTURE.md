@@ -71,7 +71,7 @@
 /admin/doctors/[slug]/edit          원장 프로필 편집
 /admin/draft                        AI 글 초안 생성
 /admin/users                        회원 관리
-/admin/users/[id]                   사용자 상세 (역할 변경 폼은 2026-05-29 b8251bb 로 제거 — ADR 0012 위반 백필)
+/admin/users/[id]                   사용자 상세 + 원장 명함 신설·연결 폼 (2026-05-30, ADR 0016 — CRITICAL-3 대체. 회원 role·글 불변)
 /admin/stats/[kind]                 세부 통계
 /admin/auth-errors                  회원가입 에러 로그
 /admin/reports                      신고 검토 큐 (배치 ④, 2026-05-28)
@@ -115,6 +115,7 @@ POST   /api/reports                 신고 접수
 #### 관리자 / AI
 ```
 PUT    /api/admin/doctors/[slug]/profile  의사 확장 프로필 (profile_data) 저장 (super admin OR 본인 의사)
+POST   /api/admin/users/[id]/doctor-profile  원장 명함 신설·연결 (super admin, ADR 0016. RPC admin_create_doctor_profile)
 *      /api/admin/comments
 *      /api/admin/stats/[kind]
 POST   /api/admin/draft
