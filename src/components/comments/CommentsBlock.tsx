@@ -25,6 +25,7 @@ import { getActiveIdentityId } from "@/lib/active-identity";
 import { ROLES } from "@/lib/identity-shared";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { showToast } from "@/lib/toast";
+import { pickErrorMessage } from "@/lib/api-error";
 import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
 import type {
   CommentStatus,
@@ -80,12 +81,17 @@ export default function CommentsBlock({
       });
       const j = (await r.json()) as
         | { comments: CommentWithReplies[]; total_root: number }
-        | { error: string };
-      if ("error" in j) {
-        setError(j.error);
+        | { error?: string; message?: string };
+      // B-3 (2026-05-29 / P1-F): r.ok 우선 분기 (in 검사는 optional key 라 narrow 약함).
+      //   서버 message (한글) 우선, error (kind enum) 는 fallback.
+      if (!r.ok) {
+        setError(pickErrorMessage(j as { error?: string; message?: string }, r.status));
         setComments([]);
-      } else {
+      } else if ("comments" in j) {
         setComments(j.comments);
+      } else {
+        setError(pickErrorMessage(j as { error?: string; message?: string }, r.status));
+        setComments([]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -187,6 +193,7 @@ export default function CommentsBlock({
       });
       const j = (await r.json()) as {
         error?: string;
+        message?: string;
         screening?: {
           status: string;
           reasons: string[];
@@ -194,7 +201,10 @@ export default function CommentsBlock({
         } | null;
       };
       if (!r.ok) {
-        showToast(j.error ?? "댓글 작성 실패", { tone: "danger" });
+        // B-3 (2026-05-29 / P1-F): message (한글) 우선, error (kind enum) 는 fallback.
+        showToast(pickErrorMessage(j, r.status) || "댓글 작성 실패", {
+          tone: "danger",
+        });
         return;
       }
       // 자동검수에 걸려 hidden 처리되었으면 작성자에게 1회 안내 (silent fail 방지).
@@ -222,9 +232,12 @@ export default function CommentsBlock({
       headers: { "content-type": "application/json" },
       body: JSON.stringify(patch),
     });
-    const j = (await r.json()) as { error?: string };
+    const j = (await r.json()) as { error?: string; message?: string };
     if (!r.ok) {
-      showToast(j.error ?? "수정 실패", { tone: "danger" });
+      // B-3 (2026-05-29 / P1-F): message 우선 + fallback "수정 실패".
+      showToast(pickErrorMessage(j, r.status) || "수정 실패", {
+        tone: "danger",
+      });
       return false;
     }
     await reload();
@@ -234,9 +247,12 @@ export default function CommentsBlock({
   async function deleteComment(id: number) {
     if (!confirm("정말 삭제할까요? 답글도 함께 삭제됩니다.")) return;
     const r = await fetch(`/api/comments/${id}`, { method: "DELETE" });
-    const j = (await r.json()) as { error?: string };
+    const j = (await r.json()) as { error?: string; message?: string };
     if (!r.ok) {
-      showToast(j.error ?? "삭제 실패", { tone: "danger" });
+      // B-3 (2026-05-29 / P1-F): message 우선 + fallback "삭제 실패".
+      showToast(pickErrorMessage(j, r.status) || "삭제 실패", {
+        tone: "danger",
+      });
       return;
     }
     await reload();

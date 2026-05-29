@@ -24,6 +24,7 @@ import CardEditor, {
 import type { PostCategorySlug } from "@/lib/post-category";
 import { ROLES } from "@/lib/identity-shared";
 import { showToast } from "@/lib/toast";
+import { pickErrorMessage } from "@/lib/api-error";
 
 const WRITE_PHRASES = [
   "유독 잘 받은 화장의 비결은..",
@@ -162,8 +163,10 @@ export default function WriteClient({
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {
           error?: string;
+          message?: string;
         } | null;
-        return { ok: false, error: data?.error ?? `HTTP ${res.status}` };
+        // B-3 (2026-05-29 / P1-F): message (한글) 우선, error (kind enum) fallback.
+        return { ok: false, error: pickErrorMessage(data, res.status) };
       }
       const data = (await res.json()) as {
         id: number;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { SessionIdentity } from "./TopNav";
 import { showToast } from "@/lib/toast";
+import { pickErrorMessage } from "@/lib/api-error";
 
 type Props = {
   identities: SessionIdentity[];
@@ -101,8 +102,13 @@ export default function IdentitySwitcher({
         body: JSON.stringify({ identityId: id }),
       });
       if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        showToast(j.error ?? "스위치 실패", { tone: "danger" });
+        const j = (await r.json().catch(() => ({}))) as
+          | { error?: string; message?: string }
+          | Record<string, never>;
+        // B-3 (2026-05-29 / P1-F): message (한글) 우선, error (kind enum) fallback.
+        showToast(pickErrorMessage(j, r.status) || "스위치 실패", {
+          tone: "danger",
+        });
         return;
       }
       // 풀 reload — layout의 session 캐시 확실히 비움

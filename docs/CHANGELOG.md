@@ -6,6 +6,54 @@
 
 ---
 
+## [2026-05-29] — B-3/B-4/B-5: 에러 메시지 친절화 + ADR 0015 + age_confirmed_at DROP (트랙 B 종료)
+
+### Added
+- `src/lib/api-error.ts` — 신규 헬퍼 `pickErrorMessage(j, status?)`. 응답 `message` (한글) 우선, `error` (kind enum) fallback, 마지막에 `HTTP {status}` 또는 "오류가 발생했어요". 클라이언트 토스트에 영문 enum 노출되던 회귀의 단일 출처 차단 (P1-F).
+- `docs/decisions/0015-onboarding-gate-active-identity.md` — ADR 신규. 온보딩 게이트는 active 명함 단위. settings/profile 은 POLICY-1 잔여 (별도 안건). 첫 명함 완료 시 묶음 빈 명함에 COALESCE 복제. B-1 백필 + B-2 코드 정합 사실 기록.
+- `supabase/migrations/0189_drop_age_confirmed_at.sql` — dead 컬럼 DROP (idempotent + 검증). production HTTP 201 + 사후 SELECT 부재 확인.
+- `supabase/migrations/0189b_rollback.sql` — 정확한 역방향.
+
+### Changed (B-3 — 11곳 + import 7곳)
+- `CommentsBlock.tsx` 4건 (목록 fetch / 작성 / 수정 / 삭제). fetch 분기는 `r.ok` 우선 (in 검사 narrow 약함 회피).
+- `IdentitySwitcher.tsx` (스위치 실패 토스트), `ProfileEditClient.tsx` (탈퇴 실패), `RoleChangeForm.tsx` (역할 변경 실패).
+- `DraftClient.tsx` 4건 (analyze / step1 / step2 참고문헌 / publish).
+- `PubmedRefsField.tsx` (PMID 호출 실패).
+- `WriteClient.tsx`, `write/[shortcode]/EditClient.tsx` — wrapper return 값에 `message` 우선.
+
+### Changed (B-4 — 문서)
+- `docs/decisions/README.md` ADR 0015 등재.
+- `docs/PRD.md §4.4` 게이트 단위 + 묶음 PII 복제 단락 추가.
+- `CLAUDE.md §5` 동기화 페어 — 온보딩 게이트 정책 ↔ ADR 0015.
+
+### Changed (B-5 — 코드)
+- `src/app/signup/SignupForm.tsx:48-58` — `age_confirmed_at: now` SET 라인 제거. 만 14세 차단은 OnboardingClient 의 birthdate 재계산.
+
+### 검증 절차 (모두 통과)
+- B-3 조사 서브에이전트: P1-F 지목 5건 + 추가 8건 + wrapper 2건 = 11곳 + 2 wrapper 정합.
+- B-5 조사 서브에이전트: src/ READ 0건 / RPC 0건 / RLS 0건 / 트리거 0건 / 인덱스 0건 / 제약 0건 / view 0건 / 데이터 (NOT NULL 36 / NULL 10 / total 46). 삭제 안전 확정.
+- 마이그 0189 production 적용: HTTP 201, 사후 `information_schema` SELECT 부재 확인.
+- `npx tsc --noEmit` 통과 (CommentsBlock union narrow 1건 정정 후).
+- `npm run build` `✓ Compiled successfully in 2.9s`.
+- preview server 에러 0건. 홈 + /api/cards 200.
+
+### 변경하지 않음 (의도)
+- `src/app/api/admin/users/[id]/role/route.ts` (CRITICAL-3, 별도 안건).
+- `src/app/settings/profile/page.tsx` 의 base-only 읽기 (POLICY-1 잔여, 별도 안건).
+- 컬럼 통일 트랙 A (Phase 3 / 4) 일절 무관.
+- `marketing_email_consent` dead 후보 — 동의 데이터 보존 권고로 유지.
+- `level` / `activity_score` dead 후보 — admin SELECT 잔재로 별도 cleanup 안건.
+- B-1 백업 테이블 `public.profiles_backup_20260529` 유지 (롤백 source).
+
+### 마이그 번호 예약 상태
+- 0185 — CRITICAL-2 (예약)
+- 0186 — Phase 2 (적용 완료)
+- 0187 — Phase 3 (예약)
+- 0188 — Phase 4 보류
+- **0189 — age_confirmed_at DROP (적용 완료, 2026-05-29)**
+
+---
+
 ## [2026-05-29] — POLICY-1 B-1/B-2: 묶음 PII 백필 + 온보딩 게이트 active 명함 단위 정합
 
 > 첫 점검 보고서 POLICY-1 / POLICY-2 의 실제 사례가 production 에서 발견됨. forbidden 토스트만 보이고 온보딩 화면이 안 뜨던 회귀의 근본 원인 (사용자가 jminbae sub 명함으로 active 전환 후 댓글 작성 시도) 처리.

@@ -39,6 +39,7 @@
 | 0011 | SEO/AEO/GEO 폐기 권고 11항목 (별도 trail, 번호 중복) | Accepted |
 | 0012 | 명함 단위 완전 독립 (Phase 3 — application layer) | Accepted |
 | 0014 | `profile_id` 컬럼 명명 통일 + `author_id` 유지 | Accepted |
+| 0015 | 온보딩 게이트 active 명함 기준 정합 (POLICY-1 부분 해소) | Accepted |
 
 ## 새 ADR 작성
 

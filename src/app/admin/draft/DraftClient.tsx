@@ -6,6 +6,7 @@ import { DOCTORS_9 } from "@/lib/ai/identify-doctors";
 import { pickHighlight } from "@/lib/card-highlight";
 import MarkdownBoldEditor from "@/components/MarkdownBoldEditor";
 import { costUSD, formatUSD, formatTokens, type UsageLike } from "@/lib/ai/pricing";
+import { pickErrorMessage } from "@/lib/api-error";
 import {
   normalizePubmedRefWire,
   type PubmedRefObj,
@@ -164,9 +165,14 @@ export default function DraftClient() {
       });
       const data = (await res.json()) as
         | AnalyzeResp
-        | { error: string; oauthState?: "disabled" | "ok" | "expired" | "error" };
+        | { error: string; message?: string; oauthState?: "disabled" | "ok" | "expired" | "error" };
       if (!res.ok || "error" in data) {
-        setError("error" in data ? data.error : `분석 실패 (${res.status})`);
+        // B-3 (2026-05-29 / P1-F): message (한글) 우선, error (kind enum) fallback.
+        setError(
+          "error" in data
+            ? pickErrorMessage(data, res.status) || `분석 실패 (${res.status})`
+            : `분석 실패 (${res.status})`,
+        );
         // OAuth 만료가 원인일 수 있음 — 재인증 UI 노출
         if ("oauthState" in data && data.oauthState === "expired") {
           setOauthExpired(true);
@@ -249,9 +255,14 @@ export default function DraftClient() {
       });
       const data = (await res.json()) as
         | { drafts: Step1Card[]; usage?: UsageLike; model?: string }
-        | { error: string };
+        | { error: string; message?: string };
       if (!res.ok || "error" in data) {
-        setError("error" in data ? data.error : `Step1 실패 (${res.status})`);
+        // B-3 (2026-05-29 / P1-F): message 우선, error (kind enum) fallback.
+        setError(
+          "error" in data
+            ? pickErrorMessage(data, res.status) || `Step1 실패 (${res.status})`
+            : `Step1 실패 (${res.status})`,
+        );
         setStage("analyzed");
         return;
       }
@@ -350,10 +361,11 @@ export default function DraftClient() {
         return;
       }
       if (!res.ok || "error" in data) {
+        // B-3 (2026-05-29 / P1-F): message 우선, error (kind enum) fallback.
+        const j = data as { error?: string; message?: string };
         setError(
-          "error" in data && data.error
-            ? data.error
-            : `참고문헌 매칭 실패 (HTTP ${res.status})`,
+          pickErrorMessage(j, res.status) ||
+            `참고문헌 매칭 실패 (HTTP ${res.status})`,
         );
         setStage("stepped1");
         return;
@@ -415,9 +427,15 @@ export default function DraftClient() {
       });
       const data = (await res.json()) as
         | { saved: number; ids: number[] }
-        | { error: string };
+        | { error: string; message?: string };
       if (!res.ok || "error" in data) {
-        setError("error" in data ? data.error : `검수 보내기 실패 (${res.status})`);
+        // B-3 (2026-05-29 / P1-F): message 우선, error (kind enum) fallback.
+        setError(
+          "error" in data
+            ? pickErrorMessage(data, res.status) ||
+                `검수 보내기 실패 (${res.status})`
+            : `검수 보내기 실패 (${res.status})`,
+        );
         setStage("stepped2");
         return;
       }

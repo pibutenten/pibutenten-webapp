@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import { showToast } from "@/lib/toast";
+import { pickErrorMessage } from "@/lib/api-error";
 import {
   FACE_SHAPES,
   SKIN_TYPES,
@@ -274,8 +275,13 @@ export default function ProfileEditClient({
         body: JSON.stringify({ confirmation: deleteConfirmInput.trim() }),
       });
       if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        showToast(j.error ?? "탈퇴 실패", { tone: "danger" });
+        const j = (await r.json().catch(() => ({}))) as
+          | { error?: string; message?: string }
+          | Record<string, never>;
+        // B-3 (2026-05-29 / P1-F): message (한글) 우선, error (kind enum) fallback.
+        showToast(pickErrorMessage(j, r.status) || "탈퇴 실패", {
+          tone: "danger",
+        });
         return;
       }
       window.location.assign("/");

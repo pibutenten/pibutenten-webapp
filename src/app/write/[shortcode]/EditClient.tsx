@@ -20,6 +20,7 @@ import {
 } from "@/components/card-editor/fields/ExternalLinkField";
 import { type PubmedRefObj } from "@/components/card-editor/fields/PubmedRefsField";
 import { showToast } from "@/lib/toast";
+import { pickErrorMessage } from "@/lib/api-error";
 
 type Props = {
   cardId: number;
@@ -107,8 +108,9 @@ export default function EditClient({
         body: JSON.stringify(apiPayload),
       });
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        return { ok: false, error: data?.error ?? `HTTP ${res.status}` };
+        const data = (await res.json().catch(() => null)) as { error?: string; message?: string } | null;
+        // B-3 (2026-05-29 / P1-F): message (한글) 우선, error (kind enum) fallback.
+        return { ok: false, error: pickErrorMessage(data, res.status) };
       }
       // P1-② (2026-05-28): silent fail 방지 — 수정 시에도 검수가 발동될 수 있다
       // (회원이 본문/제목 수정 시). 응답의 screening 객체 존재 시 토스트 1회 노출.

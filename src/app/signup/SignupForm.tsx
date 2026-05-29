@@ -45,12 +45,13 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
         return;
       }
 
+      // B-5 (2026-05-29): age_confirmed_at 컬럼 DROP (마이그 0189). 만 14세 차단은
+      // OnboardingClient 의 birthdate 검사로 재계산되므로 별도 timestamp 보존 불필요.
       const now = new Date().toISOString();
       const { error: updErr } = await supabase
         .from("profiles")
         .update({
           display_name: trimmed,
-          age_confirmed_at: now,
           terms_agreed_at: now,
           marketing_email_consent: marketingConsent,
         })

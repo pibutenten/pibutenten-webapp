@@ -84,6 +84,8 @@
 - 약관 동의 + 생년월일·성별·얼굴형·피부타입 입력 강제
 - 14세 미만 차단 (CHECK constraint)
 - 중복 가입자 식별 (OAuth provider email 기반 — ADR 0003)
+- **게이트 단위 (ADR 0015, 2026-05-29)**: 온보딩 검사는 **active 명함 단위**. middleware / onboarding 페이지 / 댓글 라우트 모두 active 명함 (IDENTITY_COOKIE 기반 + 묶음 보안 검증) 의 birthdate/terms_agreed_at 검사. 묶음 외 ID 는 base fallback. 단 `settings/profile` 페이지의 base-only 읽기는 POLICY-1 잔여 — 별도 안건.
+- **묶음 PII 복제 (ADR 0015)**: 첫 명함이 온보딩 완료하면 같은 묶음의 빈 명함에 1회 COALESCE 복제 (NULL 칸만, 의사 멀티 계정 묶음 한정). 복제 후엔 명함별 독립 수정. RPC: `propagate_onboarding_to_doctor_bundle(uuid)`.
 
 ### 4.5. 알림 / 푸시
 - DB 트리거 → webhook → Web Push (VAPID)

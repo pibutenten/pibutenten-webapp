@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { pickErrorMessage } from "@/lib/api-error";
 
 type Doctor = {
   id: string;
@@ -65,9 +66,17 @@ export default function RoleChangeForm({
             doctor_id: doctorId || null,
           }),
         });
-        const j = (await res.json()) as { error?: string; ok?: boolean };
+        const j = (await res.json()) as {
+          error?: string;
+          message?: string;
+          ok?: boolean;
+        };
         if (!res.ok || !j.ok) {
-          setMsg({ type: "err", text: j.error ?? "변경 실패" });
+          // B-3 (2026-05-29 / P1-F): message 우선, error (kind enum) fallback.
+          setMsg({
+            type: "err",
+            text: pickErrorMessage(j, res.status) || "변경 실패",
+          });
           return;
         }
         setMsg({ type: "ok", text: "변경되었습니다." });

@@ -23,6 +23,7 @@
  */
 import { useState } from "react";
 import type { PubmedRefObj as ImportedPubmedRefObj } from "@/lib/schema/api/articles";
+import { pickErrorMessage } from "@/lib/api-error";
 
 type Props = {
   /** 참고문헌 배열 (빈 행은 입력 모드, 비어있지 않으면 등록 상태로 간주) */
@@ -131,11 +132,15 @@ export default function PubmedRefsField({
       });
       const data = (await res.json()) as
         | { reference?: PubmedRefObj | null }
-        | { error?: string };
+        | { error?: string; message?: string };
       if (!res.ok || !("reference" in data) || !data.reference) {
+        // B-3 (2026-05-29 / P1-F): message (한글) 우선, error (kind enum) fallback.
         const msg =
-          "error" in data ? data.error : "PubMed 메타를 불러올 수 없습니다.";
-        onError?.(msg ?? "PubMed 메타를 불러올 수 없습니다.");
+          "error" in data
+            ? pickErrorMessage(data, res.status) ||
+              "PubMed 메타를 불러올 수 없습니다."
+            : "PubMed 메타를 불러올 수 없습니다.";
+        onError?.(msg);
         return;
       }
       const r = data.reference;
