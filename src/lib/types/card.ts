@@ -28,7 +28,8 @@ export type CardData = {
   comment_count?: number;
   /** v4 — 저장(북마크) 누적 수 (cards.save_count) */
   save_count?: number;
-  type?: "card" | "post" | "link";
+  /** DB enum `qa_card_type` 와 1:1 정합. 옛 "card"/"link" 리터럴 폐기 (P2-6, 2026-05-29). */
+  type?: "qa" | "post";
   created_at?: string;
   /** §2 SEO URL — /doctors/{slug}/{year}/{postSlug} canonical 생성용 */
   post_year?: number | null;
