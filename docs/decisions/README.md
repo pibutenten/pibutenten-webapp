@@ -35,6 +35,10 @@
 | 0008 | 흥미 점수 임계점 (v3=15) | Accepted (Supersedes v1=10, v2=6) |
 | 0009 | PWA 아이콘 2그룹 구조 | Accepted |
 | 0010 | Visitor 1일 1방문 KST dedup | Accepted |
+| 0011 | Active identity 권한 시스템 (DB layer) | Accepted |
+| 0011 | SEO/AEO/GEO 폐기 권고 11항목 (별도 trail, 번호 중복) | Accepted |
+| 0012 | 명함 단위 완전 독립 (Phase 3 — application layer) | Accepted |
+| 0014 | `profile_id` 컬럼 명명 통일 + `author_id` 유지 | Accepted |
 
 ## 새 ADR 작성
 

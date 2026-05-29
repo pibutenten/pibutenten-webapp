@@ -74,6 +74,12 @@
 4. 묶음 (bundle) 의 유일한 효용은 IdentitySwitcher dropdown + 빠른 전환.
 5. 의사 정보 (doctor_id) 는 명함 row 안에 인라인. 별도 매핑 표 (`doctor_accounts`) 직접 조회 점진 폐기.
 
+**사람 ID 컬럼 명명 원칙 (ADR 0014, 2026-05-29)**:
+- 사람을 가리키는 ID 는 3계층: `auth.users.id` (로그인 계정, 코드의 `user.id`) / `profiles.id` (명함, 활동 단위) / `profiles.auth_user_id` (묶음 표시, FK 없음).
+- `profiles.id` 를 가리키는 컬럼명 규칙: 콘텐츠 책임 주체는 `author_id` (cards, comments), 그 외 명함 소유·행위자는 `profile_id`. `user_id` 는 신규 사용 금지.
+- 한 row 안에 명함 ID 가 둘 이상 등장하는 경우만 역할 접두사 (`actor_/recipient_/reporter_/resolved_by`).
+- 본 원칙은 즉시 발효. production DB 컬럼 RENAME 은 Phase 2~4 로 분할 적용 중 (마이그 0186~).
+
 ### 4.4. 온보딩 (필수 게이트)
 - 약관 동의 + 생년월일·성별·얼굴형·피부타입 입력 강제
 - 14세 미만 차단 (CHECK constraint)

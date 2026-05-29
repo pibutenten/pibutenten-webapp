@@ -9,6 +9,7 @@
     "lint": "eslint",
     "prepare": "simple-git-hooks || true",
     "secret-scan": "node scripts/secret-scan.js",
+    "column-naming-check": "node scripts/column-naming-check.js",
     "check-migrations": "node scripts/check-migration-naming.mjs"
   },
   "dependencies": {
@@ -31,7 +32,7 @@
     "zod": "^3.23.8"
   },
   "simple-git-hooks": {
-    "pre-commit": "node scripts/secret-scan.js"
+    "pre-commit": "node scripts/secret-scan.js && node scripts/column-naming-check.js"
   },
   "overrides": {
     "postcss": "^8.5.10"

@@ -6,6 +6,41 @@
 
 ---
 
+## [2026-05-29] — ADR 0014 Phase 1: profile_id 컬럼 명명 통일 (문서·hook 만, DB 변경 0)
+
+### Added
+- `docs/decisions/0014-unify-profile-id-naming.md` — ADR 신규. `profiles.id` 를 가리키는 컬럼 명명 규칙 확정. 콘텐츠 책임 주체 = `author_id` (cards/comments) / 그 외 = `profile_id` / 로그인 계정 = `auth_user_id`. 한 row 둘 이상 등장 시 역할 접두사 (`actor_/recipient_/reporter_`). `user_id` 신규 사용 금지. 본 ADR 즉시 발효, production DB 컬럼 RENAME 은 Phase 2~4 (마이그 0186~0187) 로 분할.
+- `scripts/column-naming-check.js` — pre-commit hook. 패턴 A (cards/comments 쿼리에 user_id 등장 시 차단), 패턴 B (신규 마이그 SQL 에 user_id 컬럼 정의 시 경고), 패턴 C (`.tmp.*` 파일 staging 시 차단). 정당한 false positive 는 `git commit --no-verify` 우회 가능.
+- `package.json` — `simple-git-hooks` 의 `pre-commit` 에 `column-naming-check.js` 체이닝 + `scripts.column-naming-check` 신설.
+
+### Changed
+- `CLAUDE.md §5` 동기화 페어 표에 1줄 — 사람 ID 컬럼 명명 ↔ ADR 0014.
+- `docs/PRD.md §4.3` — 사람 ID 컬럼 명명 원칙 단락 신설 (ADR 0012 5원칙 직후).
+- `docs/ARCHITECTURE.md §5.1.1`, `§5.1.2` — 사람 ID 3계층 표 + `profiles.id` 참조 컬럼 명명 표 신설.
+- `docs/DATABASE.md §1.4` — 인터랙션 테이블 비고에 "Phase 3 에서 `profile_id` 로 RENAME 예정" 명시. `§5` 직후에 "마이그 번호 예약 (0185/0186/0187/0188)" 표 신설.
+- `docs/decisions/README.md` — ADR 목록 표에 0011/0012/0014 등재 (옛 누락분 보강).
+
+### 검증 절차 (모두 통과)
+- hook 4가지 테스트 통과:
+  - TEST 1: `cards` + `user_id` → **차단** (exit 1, rule A)
+  - TEST 2: `card_likes` + `user_id` / `cards` + `author_id` → **통과** (exit 0)
+  - TEST 3: `.tmp.*` 파일 → **차단** (exit 1, rule C)
+  - TEST 4: 신규 마이그에 `user_id` → **경고만, 통과** (exit 0, rule B)
+- `npx tsc --noEmit` + `npm run build` 통과.
+
+### 변경하지 않음 (의도)
+- DB 컬럼·FK·인덱스·RLS 정책·RPC·트리거 일체 무변경. Phase 1 은 정책 명문화 + 재발방지 장치 한정.
+- 옛 마이그레이션 (0001~0184) 본문의 옛 컬럼명 (`user_id`) 그대로 유지 — 사료 동결 (CLAUDE.md §6 룰).
+- 호환 별칭 (옛 user_id 도 받는 wrapper 등) 일체 도입 안 함 (누더기 차단).
+
+### 마이그 번호 예약 (선점)
+- 0185 — CRITICAL-2 `content_reports.status` CHECK 갱신
+- 0186 — Phase 2 인터랙션·통계 6 테이블 RENAME
+- 0187 — Phase 3 좋아요·저장 3 테이블 RENAME
+- 0188 — Phase 4 보류
+
+---
+
 ## [2026-05-29] — CRITICAL-1: 댓글 PATCH/DELETE 의 user_id → author_id 정정
 
 ### Fixed

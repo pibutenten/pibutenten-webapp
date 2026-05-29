@@ -93,11 +93,13 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 ### 1.4. 인터랙션 (로그인 필수)
 | 테이블 | PK | 비고 |
 |---|---|---|
-| `card_likes` | (card_id, user_id) | user_id = active profile.id |
+| `card_likes` | (card_id, user_id) | user_id = active profile.id. **Phase 3 에서 `profile_id` 로 RENAME 예정 (ADR 0014)** |
 | `card_saves` | (card_id, user_id) | 동일 |
-| `comment_likes` | — | profiles FK 복구 0100 |
+| `comment_likes` | — | profiles FK 복구 0100. Phase 3 에서 RENAME 예정 |
 
 폐기: `card_likes.persona` (0090), `card_ratings` 테이블 (0094)
+
+> **사람 ID 컬럼 명명 (ADR 0014, 2026-05-29)**: `profiles.id` 를 가리키는 컬럼은 콘텐츠 책임 주체 = `author_id` (cards, comments), 그 외 = `profile_id`. 현재 9개 테이블 (`card_likes/saves/views/impressions/shares/comment_likes/activity_points/daily_logins/site_visits`) 이 옛 이름 `user_id` 를 사용 중이며 **Phase 2~3 마이그 (0186~0187) 에서 일괄 RENAME 예정**. 신규 마이그·코드에서는 `user_id` 사용 금지 — pre-commit hook 으로 자동 차단.
 
 ### 1.5. 추적 (비로그인 포함)
 | 테이블 | 비고 |
@@ -275,6 +277,17 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | **0174** | **`get_top_cards_by_{comments\|likes\|saves\|shares\|views}` + `get_top_new_cards` wrapper 6개의 `RETURNS TABLE` 시그니처 `question text → title text` 교체. 0171 이 `*_inner` 만 재정의하고 wrapper 누락 → PostgREST 가 옛 컬럼명으로 직렬화 → UI "(제목 없음)" 회귀의 정확한 fix** |
 | **0175** | **통계 TOP RPC 7개 (`*_inner` + 7개 wrapper = 14 함수) 의 `WHERE c.deleted_at IS NULL` 제거 + `RETURNS TABLE` 에 `deleted_at timestamptz` 컬럼 추가. KPI ↔ TOP 정의 정합 (옵션 A: 사용자 결정). UI 는 deleted_at 으로 '삭제됨' 배지 표시** |
 | **0176** | **doctor_accounts 안전 폐기 Phase 1 (사용자 결정). 9개 RPC 재정의 (doctor_accounts → profiles.doctor_id SSOT). 테이블 → `doctor_accounts_deprecated` RENAME (데이터 보존) + 옛 이름은 profiles 기반 view 로 재생성 (외부 SELECT 호환성, INSERT/UPDATE 는 view 라 의도된 실패). 보너스: `get_recent_likers` 의 옛 `card_likes.persona` 잔재 NULL::text 로 정정** |
+
+### 마이그 번호 예약 (ADR 0014 Phase 1 — 2026-05-29)
+
+| 번호 | 용도 | 상태 |
+|---|---|---|
+| 0185 | CRITICAL-2 — `content_reports.status` CHECK constraint 갱신 (`pending/resolved_hidden/resolved_deleted/dismissed`) | 예약 |
+| 0186 | Phase 2 — 인터랙션·통계 6 테이블 컬럼 `user_id` → `profile_id` RENAME + FK/index/RLS 갱신 (daily_logins, site_visits, activity_points, card_shares, card_views, card_impressions) | 예약 |
+| 0187 | Phase 3 — 좋아요·저장 3 테이블 RENAME + 트리거·RPC 재정의 (card_likes, card_saves, comment_likes) | 예약 |
+| 0188 | Phase 4 — 보류 (cards/comments `author_id` 유지 결정, ADR 0014 §6) | 보류 |
+
+위 번호는 ADR 0014 채택과 함께 선점. 다른 마이그가 이 번호를 빼앗으면 안 됨.
 
 ---
 
