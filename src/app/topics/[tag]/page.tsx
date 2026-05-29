@@ -6,6 +6,10 @@ import { type CardData } from "@/components/Card";
 import CardMasonry from "@/components/CardMasonry";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
+import {
+  clinicIdRefForDoctor,
+  clinicSchemaForDoctor,
+} from "@/lib/schema/clinic";
 
 /**
  * /topics/{태그} — 태그별 의사 글 hub.
@@ -117,9 +121,12 @@ export default async function TagPage({ params }: Props) {
     return txt.length > 400 ? txt.slice(0, 400) + "…" : txt;
   };
 
-  // 의사별 Physician @id (`/doctors/{slug}#person`) — 단일 문서 내 동일 의사 중복 시 @id 로 dedup
+  // 의사별 Physician @id (`/doctors/{slug}#person`) — 단일 문서 내 동일 의사 중복 시 @id 로 dedup.
+  // worksFor 는 의사 글·프로필 페이지와 동일하게 `clinicIdRefForDoctor` 의 @id 참조 패턴.
+  //   참조 entity 의 MedicalClinic schema 는 graph 의 dedup 된 clinicSchemas 에서 함께 inject.
   const doctorPersonRef = (p: CardData) => {
     if (!p.doctor) return null;
+    const worksForRef = clinicIdRefForDoctor(p.doctor.slug);
     return {
       "@type": "Physician",
       "@id": `${SITE_URL}/doctors/${p.doctor.slug}#person`,
@@ -127,12 +134,24 @@ export default async function TagPage({ params }: Props) {
       jobTitle: "피부과 전문의",
       medicalSpecialty: "https://schema.org/Dermatologic",
       url: `${SITE_URL}/doctors/${p.doctor.slug}`,
-      ...(p.doctor.branch
-        ? { worksFor: { "@type": "MedicalClinic", name: `힐하우스피부과 ${p.doctor.branch}` } }
-        : {}),
+      ...(worksForRef ? { worksFor: worksForRef } : {}),
       memberOf: { "@id": ORG_ID },
     };
   };
+
+  // 등장 의사들의 단일 지점 MedicalClinic schema — @id 기준 중복 제거.
+  // 한 토픽에 같은 지점 의사 N명이 있어도 그 지점 schema 는 1개만 inject.
+  const seenClinicIds = new Set<string>();
+  const clinicSchemas: Record<string, unknown>[] = [];
+  for (const p of posts) {
+    if (!p.doctor?.slug) continue;
+    const cs = clinicSchemaForDoctor(p.doctor.slug);
+    if (!cs) continue;
+    const cid = cs["@id"];
+    if (typeof cid !== "string" || seenClinicIds.has(cid)) continue;
+    seenClinicIds.add(cid);
+    clinicSchemas.push(cs);
+  }
 
   const collectionPage = {
     "@type": "CollectionPage",
@@ -178,7 +197,7 @@ export default async function TagPage({ params }: Props) {
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@graph": [collectionPage, faqPage],
+    "@graph": [collectionPage, faqPage, ...clinicSchemas],
   };
 
   return (

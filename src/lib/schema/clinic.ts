@@ -47,7 +47,7 @@ type Clinic = {
 export const CLINICS: Record<ClinicId, Clinic> = {
   gangnam: {
     id: "gangnam",
-    name: "힐하우스피부과의원 강남점",
+    name: "힐하우스피부과 강남점",
     url: "https://healhousegn.com",
     doctorSlugs: ["jung-hanmi", "bae-jungmin"],
     telephone: "+82-2-6951-5761",
@@ -69,7 +69,7 @@ export const CLINICS: Record<ClinicId, Clinic> = {
   },
   suwon: {
     id: "suwon",
-    name: "힐하우스피부과의원 수원점",
+    name: "힐하우스피부과 수원점",
     url: "https://healhousesw.com",
     doctorSlugs: ["kwon-soohyun", "ko-hyerim", "kim-soohyung"],
     telephone: "+82-31-248-7730",
@@ -94,7 +94,7 @@ export const CLINICS: Record<ClinicId, Clinic> = {
   },
   pangyo: {
     id: "pangyo",
-    name: "힐하우스피부과의원 판교점",
+    name: "힐하우스피부과 판교점",
     url: "https://www.healhousepg.com",
     doctorSlugs: ["kim-jongsic"],
     telephone: "+82-31-701-7438",
@@ -118,7 +118,7 @@ export const CLINICS: Record<ClinicId, Clinic> = {
   },
   gundae: {
     id: "gundae",
-    name: "힐하우스피부과의원 건대점",
+    name: "힐하우스피부과 건대점",
     url: "https://healhousegd.com",
     doctorSlugs: ["rhee-doyoung", "kang-hyunjin"],
     telephone: "+82-2-444-7585",
@@ -142,7 +142,7 @@ export const CLINICS: Record<ClinicId, Clinic> = {
   },
   daegu: {
     id: "daegu",
-    name: "힐하우스피부과의원 대구점",
+    name: "힐하우스피부과 대구점",
     url: "https://healhousedg.com",
     doctorSlugs: ["park-hyojin"],
     telephone: "+82-53-710-1127",
