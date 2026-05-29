@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "사이트 안내",
   description:
-    "피부텐텐은 피부과 전문의 9명이 함께하는 피부 미용 커뮤니티입니다. 운영 주체 주식회사 진솔컴퍼니, 콘텐츠 정책, 의료 정보 면책 안내.",
+    "피부텐텐은 피부과 전문의가 함께하는 피부 미용 커뮤니티입니다. 운영 주체 주식회사 진솔컴퍼니, 콘텐츠 정책, 의료 정보 면책 안내.",
   alternates: { canonical: `${SITE_URL}/about` },
   openGraph: {
     title: "사이트 안내 | 피부텐텐",
@@ -30,10 +30,10 @@ type DoctorRef = { slug: string; name: string; title: string };
  *
  * v5.1 spec: AboutPage + MedicalOrganization 풀세트 schema.
  * 의사 카드 그리드는 /doctors에 있으므로 본문 노출 X.
- * schema의 member 배열에만 9명 @id 참조 (LLM·AEO 신호).
+ * schema의 member 배열에만 참여 전문의 @id 참조 (LLM·AEO 신호).
  */
 export default async function AboutPage() {
-  // 의사 9명 — schema member 배열용으로만 fetch
+  // 참여 전문의 — schema member 배열용으로만 fetch
   const supabase = await createSupabaseServerClient();
   const { data: doctors } = await supabase
     .from("doctors")
@@ -70,7 +70,12 @@ export default async function AboutPage() {
         logo: `${SITE_URL}/brand-logo.svg`,
         image: `${SITE_URL}/og.png`,
         description:
-          "피부과 전문의 9명이 함께 만드는 피부 미용 커뮤니티. 시술·홈케어·안티에이징 관련 검증된 답변과 칼럼을 제공합니다.",
+          "피부과 전문의가 함께 만드는 피부 미용 커뮤니티. 시술·홈케어·안티에이징 관련 검증된 답변과 칼럼을 제공합니다.",
+        // Mayo/Cleveland Clinic 벤치마크 — 책임 문서 schema 연결 (2026-05-28)
+        publishingPrinciples: `${SITE_URL}/editorial-policy`,
+        ethicsPolicy: `${SITE_URL}/editorial-policy`,
+        correctionsPolicy: `${SITE_URL}/corrections`,
+        ownershipFundingInfo: `${SITE_URL}/disclosures`,
         medicalSpecialty: ["Dermatology"],
         knowsAbout: [
           "피부과",
@@ -97,15 +102,25 @@ export default async function AboutPage() {
         parentOrganization: {
           "@type": "Organization",
           name: "주식회사 진솔컴퍼니",
+          taxID: "261-86-01781",
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: "강남대로 518, 4층",
+            addressLocality: "강남구",
+            addressRegion: "서울특별시",
+            addressCountry: "KR",
+          },
+          telephone: "+82-2-6953-0167",
         },
         contactPoint: {
           "@type": "ContactPoint",
           email: "pibutenten@gmail.com",
+          telephone: "+82-2-6953-0167",
           contactType: "customer support",
           availableLanguage: ["Korean", "ko-KR"],
         },
         sameAs: ["https://www.youtube.com/@pibutenten"],
-        // 9명 의사 — Person @id 참조 (풀 정보는 /doctors/{slug}#person 에 존재)
+        // 참여 전문의 — Person @id 참조 (풀 정보는 /doctors/{slug}#person 에 존재)
         ...(memberRefs.length > 0 ? { member: memberRefs } : {}),
         // 진료 가능 콘텐츠 분야 (AI 인용 신호 강화)
         availableService: [
@@ -158,21 +173,30 @@ export default async function AboutPage() {
       />
 
       <p className="mb-8 text-[15px] leading-[1.7] text-[var(--text-secondary)]">
-        피부텐텐은 피부과 전문의{" "}
+        피부텐텐은{" "}
         <Link
           href="/doctors"
           className="font-semibold text-[var(--primary)] hover:underline"
         >
-          9명
+          피부과 전문의
         </Link>
-        이 함께 만드는 피부 미용 커뮤니티입니다. 사용자가 자유롭게 피부 고민을
+        가 함께 만드는 피부 미용 커뮤니티입니다. 사용자가 자유롭게 피부 고민을
         나누고, 전문의가 검수한 답변과 칼럼을 제공합니다.
       </p>
 
+      <Section title="미션">
+        <p>
+          피부 시술에 대한 궁금증, 검증된 피부과 전문의가 답해드립니다.
+        </p>
+      </Section>
+
       <Section title="운영 주체">
         <ul className="list-disc space-y-1 pl-5 text-[14px] leading-[1.7] text-[var(--text-secondary)]">
-          <li>운영자: 주식회사 진솔컴퍼니</li>
+          <li>회사명: 주식회사 진솔컴퍼니</li>
           <li>사업자등록번호: 261-86-01781</li>
+          <li>대표 및 운영책임자: 배정민</li>
+          <li>주소: 서울특별시 강남구 강남대로 518, 4층</li>
+          <li>전화: 02-6953-0167</li>
           <li>
             문의:{" "}
             <a
@@ -183,6 +207,14 @@ export default async function AboutPage() {
             </a>
           </li>
         </ul>
+      </Section>
+
+      <Section title="의료기관 소속 관계">
+        <p className="text-[14px] leading-[1.7] text-[var(--text-secondary)]">
+          본 서비스는 의료기관이 아닌 정보 플랫폼입니다. 참여 전문의는
+          각자 외부 의료기관에 소속되어 있으며, 본 서비스 자체는 진료·처방·치료를
+          제공하지 않습니다.
+        </p>
       </Section>
 
       <Section title="콘텐츠 정책">
@@ -272,6 +304,54 @@ export default async function AboutPage() {
         <ul className="list-disc space-y-1 pl-5 text-[14px] leading-[1.7] text-[var(--text-secondary)]">
           <li>
             <Link
+              href="/editorial-policy"
+              className="text-[var(--primary)] hover:underline"
+            >
+              편집 정책
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/medical-review"
+              className="text-[var(--primary)] hover:underline"
+            >
+              의학 검수 프로세스
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/corrections"
+              className="text-[var(--primary)] hover:underline"
+            >
+              정정 정책
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/disclosures"
+              className="text-[var(--primary)] hover:underline"
+            >
+              이해상충 공개
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/doctor-guidelines"
+              className="text-[var(--primary)] hover:underline"
+            >
+              의사 답변 가이드라인
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/disclaimer"
+              className="text-[var(--primary)] hover:underline"
+            >
+              의료 정보 안내
+            </Link>
+          </li>
+          <li>
+            <Link
               href="/terms"
               className="text-[var(--primary)] hover:underline"
             >
@@ -288,10 +368,10 @@ export default async function AboutPage() {
           </li>
           <li>
             <Link
-              href="/doctor-guidelines"
+              href="/contact"
               className="text-[var(--primary)] hover:underline"
             >
-              의사 답변 가이드라인
+              문의
             </Link>
           </li>
         </ul>

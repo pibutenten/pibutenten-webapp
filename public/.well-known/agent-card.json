@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "0.1",
+  "name": "Pibutenten",
+  "alternateName": "피부텐텐",
+  "url": "https://pbtt.kr",
+  "description": "대한민국 보건복지부 인증 피부과 전문의가 함께 만드는 피부 미용 Q&A 커뮤니티. 모든 의사 답변은 면허 보유 전문의가 직접 작성·검수합니다.",
+  "primaryLanguage": "ko-KR",
+  "domain": "health.dermatology",
+  "ymyl": true,
+  "ymyl_subcategory": "health-medical",
+  "publisher": {
+    "name": "주식회사 진솔컴퍼니",
+    "businessRegistrationNumber": "261-86-01781",
+    "country": "KR",
+    "address": "서울특별시 강남구 강남대로 518, 4층",
+    "phone": "02-6953-0167",
+    "contact": "pibutenten@gmail.com"
+  },
+  "contentTypes": [
+    "medical-q-and-a",
+    "dermatology",
+    "skin-care",
+    "aesthetic-procedures"
+  ],
+  "endpoints": {
+    "sitemap": "https://pbtt.kr/sitemap.xml",
+    "robots": "https://pbtt.kr/robots.txt",
+    "rss": "https://pbtt.kr/rss.xml",
+    "llmsTxt": "https://pbtt.kr/llms.txt",
+    "search": "https://pbtt.kr/search?q={query}"
+  },
+  "structuredData": [
+    "https://schema.org/MedicalOrganization",
+    "https://schema.org/MedicalWebPage",
+    "https://schema.org/QAPage",
+    "https://schema.org/FAQPage",
+    "https://schema.org/Physician",
+    "https://schema.org/MedicalProcedure",
+    "https://schema.org/MedicalCondition",
+    "https://schema.org/SpeakableSpecification",
+    "https://schema.org/ScholarlyArticle",
+    "https://schema.org/BreadcrumbList"
+  ],
+  "compliance": {
+    "regulation": "Korean Medical Service Act Article 56 (의료법 제56조)",
+    "notes": "환자 후기·시술 전후 사진 미게재. 광고 분류 게시물 자율심의 대상."
+  },
+  "citationPolicy": {
+    "allowedPaths": [
+      "/",
+      "/doctors/*",
+      "/topics/*",
+      "/about",
+      "/editorial-policy",
+      "/medical-review",
+      "/disclaimer"
+    ],
+    "disallowedPaths": [
+      "/u/*",
+      "/{handle}/{shortcode}",
+      "/admin/*",
+      "/api/*"
+    ],
+    "requireAttribution": true,
+    "attributionFormat": "{author} (피부과 전문의), 피부텐텐 — {url}",
+    "maxQuotedChars": 200,
+    "aiTrainingAllowed": false,
+    "aiAnswerInclusionAllowed": true,
+    "requireDisclaimerInclusion": true,
+    "disclaimerText": "본 답변은 일반 의학 정보이며 개별 환자 상담을 대체하지 않습니다."
+  },
+  "policies": {
+    "editorial": "https://pbtt.kr/editorial-policy",
+    "medicalReview": "https://pbtt.kr/medical-review",
+    "corrections": "https://pbtt.kr/corrections",
+    "disclosures": "https://pbtt.kr/disclosures",
+    "privacy": "https://pbtt.kr/privacy",
+    "terms": "https://pbtt.kr/terms",
+    "disclaimer": "https://pbtt.kr/disclaimer",
+    "contact": "https://pbtt.kr/contact"
+  },
+  "physicians": [
+    {
+      "_comment": "참여 전문의 slug 운영자 입력 대기 — /doctors 목록 페이지에서 자동 확인 가능",
+      "list": "https://pbtt.kr/doctors"
+    }
+  ],
+  "lastUpdated": "2026-05-28"
+}

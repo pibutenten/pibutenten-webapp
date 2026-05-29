@@ -23,6 +23,44 @@ export default function TermsPage() {
       subtitle="시행일자: 2026년 5월 28일 (의료광고 검수 사전 고지·영구 숨김 정책 정합)"
     >
 
+      <nav
+        aria-label="이용 안내 허브 바로가기"
+        className="mb-8 rounded-md border border-[var(--border)] bg-gray-50 p-4 text-[13px]"
+      >
+        <h2 className="mb-2 text-[14px] font-bold text-[var(--text)]">
+          관련 안내 바로가기
+        </h2>
+        <ul className="grid list-disc grid-cols-1 gap-1 pl-5 sm:grid-cols-2">
+          <li>
+            <Link
+              href="/privacy"
+              className="text-[var(--primary)] hover:underline"
+            >
+              개인정보 처리방침
+            </Link>{" "}
+            — PIPA §30 의무 고지 (독립 문서)
+          </li>
+          <li>
+            <Link
+              href="/disclaimer"
+              className="text-[var(--primary)] hover:underline"
+            >
+              의료 정보 안내
+            </Link>{" "}
+            — 콘텐츠 성격·응급 대응
+          </li>
+          <li>
+            <Link
+              href="/doctor-guidelines"
+              className="text-[var(--primary)] hover:underline"
+            >
+              의사 답변 가이드라인
+            </Link>{" "}
+            — 의사 회원 작성 기준
+          </li>
+        </ul>
+      </nav>
+
       <Section title="제1조 (목적)">
         <p>
           이 약관은 주식회사 진솔컴퍼니(이하 &ldquo;회사&rdquo;)가 운영하는

@@ -9,7 +9,7 @@
 **피부텐텐 (Pibutenten)** — 피부과 전문의가 함께하는 피부 미용 SNS / Q&A 검색 엔진.
 
 - **도메인**: https://pbtt.kr
-- **운영사**: 주식회사 진솔컴퍼니 (jminbae@gmail.com)
+- **운영사**: 주식회사 진솔컴퍼니 (pibutenten@gmail.com)
 - **YouTube**: https://www.youtube.com/@pibutenten
 
 ---
@@ -128,12 +128,19 @@
 - 의료 면책 페이지 (`/disclaimer`)
 - 처방·진단 행위 금지 안내
 
-### 5.4. SEO
+### 5.4. SEO · AEO · GEO
 - 동적 sitemap, robots, manifest
 - OG 메타: 원장님 페이지·단일 글 페이지 모두 `generateMetadata`
 - 의사 글 URL: `/doctors/{slug}/{year}/{post-slug}` 키워드 기반 slug
 - 회원 글 URL: `/{handle}/{shortcode}` 8자 base58
-- 베타 기간 (~2026-06-01) 전체 봇 차단, 공개 시 환원
+- **공개 HOLD 스위치** (2026-05-28): `SITE_PUBLIC` 환경변수. `!== "true"` 면 robots fail-safe 전체 차단. 공개는 운영자가 Vercel 환경변수 추가 후 redeploy.
+- 공개 시 3-tier AI 크롤러 정책 (학습 차단 / 검색·답변 허용 / 일반 검색 허용)
+- RSS: `app/rss.xml/route.ts` — 의사 Q&A 글 최신 50건 (네이버 freshness signal)
+- `/.well-known/`: security.txt (RFC 9116) / agent-card.json / ai-policy.json
+- llms.txt 풀버전 (llmstxt.org 표준)
+- 신뢰 페이지 풀세트 (Mayo/Cleveland Clinic 벤치마크): `/about` · `/editorial-policy` · `/medical-review` · `/corrections` · `/disclosures` · `/disclaimer` · `/doctor-guidelines` · `/contact` · `/terms` · `/privacy`
+- CSP report-uri / report-to → `/api/csp-report` endpoint 적재
+- 검색엔진 verification 토큰 자리 (env 기반, 발급 후 활성): Naver / Google / Bing
 
 ### 5.5. PWA
 - manifest.json + Service Worker

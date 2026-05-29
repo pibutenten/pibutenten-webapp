@@ -36,6 +36,11 @@
 /[handle]/[shortcode]               회원 글 단독
 /u/[id]                             구식 user URL (compat)
 /privacy, /terms, /doctor-guidelines, /disclaimer, /report   법적/안내 페이지
+/contact                            문의 (회사 정보 + 채널)
+/editorial-policy                   편집 정책 (Mayo/Cleveland Clinic 벤치마크)
+/medical-review                     의학 검수 프로세스 (4-date 모델)
+/corrections                        정정 정책 (30일 이력 공개)
+/disclosures                        이해상충 공개
 ```
 
 ### 2.2. 인증 / 온보딩
@@ -129,11 +134,21 @@ GET    /api/admin/youtube-oauth/start / callback / status
 GET    /api/dev-sql/[name]          로컬 SQL 실행
 ```
 
-### 2.6. 메타 / SEO
+### 2.6. 메타 / SEO / AEO / GEO
 ```
 /sitemap.xml                        동적 sitemap (force-dynamic — cookies 사용)
-/robots.txt                         robots
+                                    정적 라우트 12종 + 참여 전문의 + Q&A canonical + 토픽 hub
+                                    cards.lastModified = updated_at ?? created_at (2026-05-28)
+/robots.txt                         robots — SITE_PUBLIC env 기반 HOLD 스위치
+                                    HOLD: User-agent:* Disallow:/
+                                    PUBLIC: 3-tier AI 크롤러 정책
 /manifest.json                      PWA manifest
+/rss.xml                            RSS 2.0 — 의사 Q&A 최신 50건 (네이버 freshness signal)
+/llms.txt                           llmstxt.org 풀버전 (인용 정책 + 운영 정보)
+/.well-known/security.txt           RFC 9116 보안 제보 채널
+/.well-known/agent-card.json        AI 에이전트 인터페이스 (citationPolicy, endpoints)
+/.well-known/ai-policy.json         IETF AI Preferences draft (training/search 선호)
+/api/csp-report                     CSP 위반 보고 endpoint (console.warn 적재)
 ```
 
 ---
