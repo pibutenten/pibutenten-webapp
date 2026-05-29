@@ -32,6 +32,8 @@ type Props = {
   comment: CommentRow;
   me: CommentViewer;
   isAdmin: boolean;
+  /** P1-③ (2026-05-29): 카드의 doctor.id. me.doctor_id 와 매칭되면 숨김 댓글 본문 검토 가능. */
+  cardDoctorId?: string | null;
   isReply?: boolean;
   isReplying?: boolean;
   onReplyClick?: () => void;
@@ -45,6 +47,7 @@ export default function CommentItem({
   comment,
   me,
   isAdmin,
+  cardDoctorId = null,
   isReply = false,
   isReplying = false,
   onReplyClick,
@@ -131,6 +134,11 @@ export default function CommentItem({
   const canEdit = isAuthor;
   const canDelete = isAuthor || isAdmin;
   const showMenu = canEdit || canDelete || canModerate;
+  // P1-③ (2026-05-29): PRD §4.8 숨김 댓글 분기 — 본인·admin·doctor 가 본문 검토 가능.
+  //   카드의 doctor.id 와 me.doctor_id 매칭 시 doctor 본인으로 인정. RLS 우회 X (doctor SELECT 가능, UI 분기만).
+  const isDoctorOfCard =
+    !!me?.doctor_id && !!cardDoctorId && me.doctor_id === cardDoctorId;
+  const canViewHidden = isAdmin || isAuthor || isDoctorOfCard;
 
   const isHidden = comment.status === "hidden";
   const isDeleted = comment.status === "deleted";
@@ -289,7 +297,7 @@ export default function CommentItem({
           >
             {isDeleted
               ? "(삭제된 댓글이에요)"
-              : isHidden && !canModerate && !isAuthor
+              : isHidden && !canViewHidden
                 ? "(비공개 처리된 댓글입니다)"
                 : comment.body.replace(/\s+/g, " ").trim()}
           </span>

@@ -389,6 +389,7 @@ export default function Card({
       <CommentsBlock
         cardId={card.id}
         doctorSlug={card.doctor?.slug ?? null}
+        cardDoctorId={card.doctor?.id ?? null}
         isPublishedQa={true}
         onCountChange={setCommentCount}
         showInput={commentsOpen}

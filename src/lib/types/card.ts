@@ -53,6 +53,7 @@ export type CardData = {
   /** PubMed 참고문헌 배열. ADR 0012 (2026-05-26) — 옛 단일 pubmed_ref 컬럼 폐기, 배열 단일 출처. */
   pubmed_refs?: PubmedRef[] | null;
   doctor: {
+    id: string;
     slug: string;
     name: string;
     branch: string | null;

@@ -36,7 +36,7 @@ export const CARD_LIST_SELECT = `
   post_year, post_slug, shortcode,
   category, hide_doctor_credential, pubmed_refs,
   external_url, external_title, external_description, external_image, external_site_name,
-  doctor:doctors(slug, name, branch),
+  doctor:doctors(id, slug, name, branch),
   author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle, updated_at),
   video:videos(youtube_id, youtube_url, topic, upload_date)
 `;
@@ -54,7 +54,7 @@ export const CARD_DETAIL_SELECT = `
   post_year, post_slug, shortcode,
   category, hide_doctor_credential, pubmed_refs,
   external_url, external_title, external_description, external_image, external_site_name,
-  doctor:doctors(slug, name, branch),
+  doctor:doctors(id, slug, name, branch),
   author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle, updated_at),
   video:videos(youtube_id, youtube_url, topic, upload_date)
 `;

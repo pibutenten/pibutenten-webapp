@@ -38,6 +38,8 @@ type Props = {
   cardId: number;
   /** 글이 속한 원장님 slug (현재 로그인한 사람이 그 doctor 본인일 때 [원장님] 배지) */
   doctorSlug: string | null;
+  /** P1-③ (2026-05-29): 카드의 doctor.id. me.doctor_id 와 매칭되면 숨김 댓글 본문 검토 가능. */
+  cardDoctorId?: string | null;
   /** 발행되지 않은 글이면 댓글 폼 숨김 */
   isPublishedQa: boolean;
   /** 댓글 수 변경 알림 (부모 카드의 카운트 갱신용) */
@@ -50,6 +52,7 @@ type Props = {
 
 export default function CommentsBlock({
   cardId,
+  cardDoctorId,
   isPublishedQa,
   onCountChange,
   showInput = false,
@@ -267,6 +270,7 @@ export default function CommentsBlock({
               comment={c}
               me={me}
               isAdmin={isAdmin}
+              cardDoctorId={cardDoctorId ?? null}
               onReplyClick={() =>
                 setReplyTarget((v) => (v === c.id ? null : c.id))
               }
@@ -288,6 +292,7 @@ export default function CommentsBlock({
                       comment={rep}
                       me={me}
                       isAdmin={isAdmin}
+                      cardDoctorId={cardDoctorId ?? null}
                       isReply
                       onPatch={patchComment}
                       onDelete={deleteComment}
