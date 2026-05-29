@@ -103,40 +103,19 @@ export function isIndexableForMember(s: string | null | undefined): boolean {
 // 데이터 마이그레이션 잔재(과거 row 의 keywords 컬럼 등) 호환용으로 LEGACY 에 분리.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * 옛 카테고리 라벨 (데이터 마이그레이션 잔재) — 호환 strip / 검색 매핑용.
- *  - v5.1 옛   : 꿀팁·공유하기
- *  - v5.0 이전 : 답해드려요·물어봐요·새소식
- */
-export const LEGACY_CATEGORY_LABELS: readonly string[] = [
-  // v5.1 옛
-  "꿀팁",
-  "공유하기",
-  // v5.0 이전
-  "답해드려요",
-  "물어봐요",
-  "새소식",
-];
-
 /** v5.2 현재 활성 6개 카테고리 라벨 (Set 형태) — 검색 입력 매칭용. POST_CATEGORIES 에서 derive. */
 export const POST_CATEGORY_LABELS: ReadonlySet<string> = new Set(
   POST_CATEGORIES.map((c) => c.label),
 );
 
 /**
- * 옛/현재 라벨 모음 (배열) — 데이터 마이그레이션 잔재 가능성 대비 보수적 strip.
- *  - v5.2 (현재): POST_CATEGORIES 6개 label
- *  - v5.1 옛   : LEGACY_CATEGORY_LABELS 앞 2개
- *  - v5.0 이전 : LEGACY_CATEGORY_LABELS 나머지 3개
+ * 사용자가 직접 입력한 카테고리 라벨 제거 헬퍼.
+ * P2-3 (2026-05-29): 옛 v5.0/v5.1 LEGACY_CATEGORY_LABELS (꿀팁·공유하기·답해드려요·물어봐요·새소식)
+ * 제거 — DB grep 결과 잔존 0건, 외부 호출 0건 확인.
+ * CATEGORY_LABEL_TO_SLUG 의 옛 "공유하기" → "link" 매핑은 별도 검색 입력 호환용으로 유지.
  */
-export const ALL_CATEGORY_LABELS: readonly string[] = [
-  ...POST_CATEGORIES.map((c) => c.label),
-  ...LEGACY_CATEGORY_LABELS,
-];
-
-/** 사용자가 직접 입력한 카테고리 라벨(옛/현재) 제거 헬퍼. */
 export function stripCategoryLabels(keywords: readonly string[]): string[] {
-  return keywords.filter((k) => !ALL_CATEGORY_LABELS.includes(k));
+  return keywords.filter((k) => !POST_CATEGORY_LABELS.has(k));
 }
 
 /**
