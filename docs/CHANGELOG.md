@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-05-29] — site_visits 명함 단위 전환 (P1-④)
+
+### Changed
+- `src/middleware.ts` site_visits INSERT — `user_id` 를 base profile.id (`user.id`) 에서 **active profile.id** 로 전환. ADR 0012(명함 단위 완전 독립) 준수.
+- IDENTITY_COOKIE 값이 UUID 면 그 active profile.id, "primary" 또는 미설정이면 base profile.id 로 fallback. **DB 조회 없이 쿠키만 읽음** (성능 영향 0).
+
+### 단절 시점
+- **2026-05-29 시점 기준 단절**: 이전 데이터는 base profile.id 로 저장되어 있어, 한 사람이 의사+회원 두 명함을 가졌어도 base id 로 합산됨. **이 시점 이후 INSERT 부터 active profile.id 로 기록** → 명함별 시계열 통계 산출 가능.
+- 미래에 명함별 시계열 KPI 산출 시 이 단절점을 기점으로 cohort 분리 필요.
+
+### KPI 회귀 점검
+- `get_top_visitors_inner` RPC 는 `JOIN profiles p ON p.id = e.user_id` — base id 든 active id 든 `profiles.id` 매칭. 자동 호환, 추가 코드 변경 0.
+
+---
+
 ## [2026-05-29] — profiles 테이블 정비 (7개 항목 일괄, 마이그 6개 + 코드 임시 숨김 1개)
 
 > 온보딩이 줄어들면서 더 이상 안 받는 컬럼이 DB·UI 에 유령처럼 남아 있던 것을 한 번에 정리. 각 항목 단독 마이그·단독 커밋. 마이그 0179~0184 + 항목 7 코드 변경.
