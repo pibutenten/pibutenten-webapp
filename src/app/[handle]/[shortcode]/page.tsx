@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { checkHiddenByShortcode } from "@/lib/hidden-card";
 import Card, { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
 import { SITE_URL } from "@/lib/site";
@@ -56,39 +56,14 @@ async function fetchQa(
   }
 }
 
-/**
- * Hidden 카드 placeholder 확인 — 배치 ④ (2026-05-28).
- *
- * fetchQa 가 null 일 때 추가로 admin client (RLS 우회) 로 status 만 확인.
- *  - status='hidden' + 활성 row + handle 매칭 → placeholder 렌더 (404 아님).
- *  - 그 외 (없거나 deleted_at 존재) → 진짜 404.
- */
+// P2-5 (2026-05-29): hidden placeholder 로직 DRY → @/lib/hidden-card 로 추출.
+//   doctor 라우트와 회원 라우트가 같은 SSOT 사용.
 async function checkHiddenPlaceholder(
   handle: string,
   shortcode: string,
 ): Promise<{ shortcode: string } | null> {
-  if (!/^[1-9A-HJ-NP-Za-km-z]{6,12}$/.test(shortcode)) return null;
-  try {
-    const admin = createSupabaseAdminClient();
-    const { data } = await admin
-      .from("cards")
-      .select("status, deleted_at, author:profiles!author_id(handle)")
-      .eq("shortcode", shortcode)
-      .maybeSingle();
-    if (!data) return null;
-    const meta = data as {
-      status: string;
-      deleted_at: string | null;
-      author: { handle: string | null } | { handle: string | null }[] | null;
-    };
-    if (meta.deleted_at) return null;
-    if (meta.status !== "hidden") return null;
-    const a = Array.isArray(meta.author) ? meta.author[0] : meta.author;
-    if (!a || a.handle !== handle) return null;
-    return { shortcode };
-  } catch {
-    return null;
-  }
+  const hit = await checkHiddenByShortcode(handle, shortcode);
+  return hit ? { shortcode } : null;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

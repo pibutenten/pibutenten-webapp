@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { checkHiddenByDoctorPost } from "@/lib/hidden-card";
 import Card, { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
 import { getHotQaIds } from "@/lib/hot-ids";
@@ -60,47 +60,8 @@ const fetchQaByDoctorYearSlug = cache(async (
   }
 });
 
-/**
- * Hidden qa 카드 placeholder 확인 — 배치 ④ (2026-05-28).
- * fetchQa 가 null 일 때 admin client (RLS 우회) 로 status 만 확인.
- *  - status='hidden' + 활성 row + category='qa' → placeholder.
- *  - 그 외 → 진짜 글 없음.
- */
-const checkHiddenPlaceholder = cache(async (
-  doctorSlug: string,
-  year: number,
-  postSlug: string,
-): Promise<boolean> => {
-  try {
-    const admin = createSupabaseAdminClient();
-    const { data: doctor } = await admin
-      .from("doctors")
-      .select("id")
-      .eq("slug", doctorSlug)
-      .maybeSingle();
-    if (!doctor) return false;
-    const { data } = await admin
-      .from("cards")
-      .select("status, deleted_at, category")
-      .eq("doctor_id", (doctor as { id: string }).id)
-      .eq("post_year", year)
-      .eq("post_slug", postSlug)
-      .maybeSingle();
-    if (!data) return false;
-    const meta = data as {
-      status: string;
-      deleted_at: string | null;
-      category: string;
-    };
-    return (
-      meta.status === "hidden" &&
-      meta.deleted_at === null &&
-      meta.category === "qa"
-    );
-  } catch {
-    return false;
-  }
-});
+// P2-5 (2026-05-29): hidden placeholder 로직 DRY → @/lib/hidden-card 로 추출.
+const checkHiddenPlaceholder = checkHiddenByDoctorPost;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, year, postSlug } = await params;
