@@ -78,7 +78,7 @@
 - 사람을 가리키는 ID 는 3계층: `auth.users.id` (로그인 계정, 코드의 `user.id`) / `profiles.id` (명함, 활동 단위) / `profiles.auth_user_id` (묶음 표시, FK 없음).
 - `profiles.id` 를 가리키는 컬럼명 규칙: 콘텐츠 책임 주체는 `author_id` (cards, comments), 그 외 명함 소유·행위자는 `profile_id`. `user_id` 는 신규 사용 금지.
 - 한 row 안에 명함 ID 가 둘 이상 등장하는 경우만 역할 접두사 (`actor_/recipient_/reporter_/resolved_by`).
-- 본 원칙은 즉시 발효. production DB 컬럼 RENAME 은 Phase 2~4 로 분할 적용 중 (마이그 0186~).
+- 본 원칙은 즉시 발효. 단 production DB 컬럼은 아직 변경 전이며, `user_id` → `profile_id` RENAME 은 Phase 2~3 마이그 (0186~0187) 에서 적용 예정.
 
 ### 4.4. 온보딩 (필수 게이트)
 - 약관 동의 + 생년월일·성별·얼굴형·피부타입 입력 강제
