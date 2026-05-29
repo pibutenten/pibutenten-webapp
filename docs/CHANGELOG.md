@@ -6,6 +6,70 @@
 
 ---
 
+## [2026-05-29] — production 정합성 복구 + 미배포 작업 32 파일 4그룹 정리
+
+> 라이브 사이트 `https://pbtt.kr/{editorial-policy,medical-review,disclosures,corrections,contact}` 가 not-found 페이지로 응답하던 문제 해소. 원인 분석·진단·복구 한 세션.
+
+### 진단 (서버 측 사실 확인)
+1. **사용자 신고**: 정책 페이지 chip 클릭 시 "페이지를 찾을 수 없어요" 표시. localhost 정상, pbtt.kr 만 깨짐.
+2. **현장 검증 한계**: 이전 점검 보고서의 "11개 정책 페이지 200 PASS" 는 (a) dev `localhost:3000` 측정 + (b) status code 만 확인, **본문 미확인**. prod 도 200 응답하지만 본문이 `/[handle]` catch-all 의 회원 not-found 였음.
+3. **root cause**: 5개 정책 페이지 디렉토리 + 인프라 파일들이 git 에 한 번도 add 된 적 없는 **untracked 상태** (mtime 2026-05-28 15:17~17:37). origin/main 에 없어서 Vercel 빌드 미포함.
+4. **2차 발견** (Dropbox sync 충돌): dev 환경에서 chip 클릭 시 일시 not-found 폴백이 보이던 별개 이슈 — `.next/dev/fallback-build-manifest.json` 의 atomic rename 을 Dropbox sync 가 file lock 으로 차단 → router state header parse 실패 → 500 → not-found fallback. Dropbox 동기화 종료 + `.next` 정리 + dev 재시작으로 해소.
+
+### Added (Commit-1 `096e46b` — 신뢰 페이지 풀세트 + SEO/AEO/GEO 인프라, 17파일)
+- **신규 정책 페이지 5종** (Mayo/Cleveland Clinic 벤치마크):
+  - `src/app/editorial-policy/page.tsx` 편집 정책
+  - `src/app/medical-review/page.tsx` 의학 검수 프로세스 (4-date 모델)
+  - `src/app/disclosures/page.tsx` 이해상충 공개
+  - `src/app/corrections/page.tsx` 정정 정책 (30일 이력)
+  - `src/app/contact/page.tsx` 문의
+- **인프라**:
+  - `src/components/info/InfoPageLayout.tsx` — 적용 대상 6개→11개 확장, `max-w-720` 제거, 외부 `max-w-1080` 컨테이너 활용, H1 24px, admin/cards 헤더 1:1.
+  - `src/components/info/InfoPageFooter.tsx` — 사업자등록번호 `110-86-12345`(플레이스홀더) → **`261-86-01781`**(확정값) + 주소 강남대로 518, 4층 + 전화 02-6953-0167.
+  - `src/app/about/page.tsx` — JSON-LD `publishingPrinciples` / `correctionsPolicy` / `ownershipFundingInfo` (Mayo/Cleveland 벤치마크 schema), 사업자 정보 확정, 의료기관 소속 관계 섹션, "관련 문서" 5 링크.
+  - `src/app/terms/page.tsx` — "이용 안내 허브 바로가기" nav 추가.
+- **부가**: `src/app/api/csp-report/route.ts` (CSP report endpoint), `public/.well-known/{agent-card.json, security.txt}` (RFC 9116), `docs/ARCHITECTURE.md` (11개 정책 라우트 명시 + SEO/AEO/GEO), `docs/PRD.md` (§5.4 SEO·AEO·GEO), `docs/AUTHOR_GUIDE.md` (신규), `docs/reports/2026-05-28-SEO-AEO-GEO-{종합보고서,초안문서부록}.md` (신규).
+- ★ **분리 불가 사유**: InfoPageLayout 의 11개 적용 주석, about JSON-LD 의 5개 정책 URL 참조, footer link 깨짐 해소가 모두 정책 페이지 5개 존재에 의존 → 한 묶음 commit 필수.
+
+### Changed (Commit-2 `cdc34f2` — 9명 → 참여 전문의 일반화, 11파일)
+- 사용자 가시 metadata 2건: `src/app/page.tsx`, `doctors/page.tsx` 의 description.
+- 주석·UI 안내 9건: admin 카드/draft 클라이언트, card-editor, ai/identify-doctors, schema/clinic·doctor, admin-card-extras.
+- **코드 동작 변경 0**, 미래 참여 전문의 수 변동 대비.
+
+### Security / Privacy (Commit-3 `10ea180` — 개인 이메일 일괄 정리, 3파일)
+- `src/app/onboarding/OnboardingClient.tsx` — 사용자 가시 관리자 안내 이메일 `jminbae@gmail.com` → `pibutenten@gmail.com`.
+- `src/app/auth/callback/route.ts` — 주석 예시 이메일 익명화 (`jminbae` → `user`).
+- `docs/TECH_SPEC.md` — VAPID_SUBJECT 환경변수 예시 갱신.
+- 개인 식별 이메일이 공개 사이트 안내 + 운영 docs 에 노출되던 것 회수.
+
+### Changed (Commit-4 `09a77f8` — `.gitignore /all.json` 추가)
+- `all.json` (Vercel API 응답 수동 fetch dump) — 한 번도 tracked 된 적 없어 `git rm --cached` 불필요, 파일 삭제 + ignore 추가만.
+
+### production 검증 결과 (Commit-1 push 직후 Vercel 자동 배포 후)
+| URL | 본문 키워드 hits | title |
+|---|---:|---|
+| `/editorial-policy` | 2 | 피부텐텐 \| 편집 정책 |
+| `/medical-review` | 2 | 피부텐텐 \| 의학 검수 프로세스 |
+| `/disclosures` | 2 | 피부텐텐 \| 이해상충 공개 |
+| `/corrections` | 2 | 피부텐텐 \| 정정 정책 |
+| `/contact` | 2 | 피부텐텐 \| 문의 |
+
+이전: 5개 모두 `<title>피부텐텐 \| 찾을 수 없는 회원</title>` (`/[handle]` catch-all) → 이후: 정상 정책 페이지.
+
+### 운영 교훈 (재발 방지)
+1. **점검·검증은 dev 가 아닌 production 측정 우선**. 동일 라우트라도 dev 에는 untracked 파일이 살아 응답하고 prod 에는 없는 경우 status code 만 보면 가짜 PASS.
+2. **status code 만으로 PASS 판정 금지**. 본문 키워드 또는 title 확인 필수. `/[handle]` catch-all 같은 fallback 라우트가 있는 사이트에서는 not-found 도 200 응답하므로 특히 그렇다.
+3. **Windows + Dropbox sync + Next.js dev 충돌**: `.next` 디렉토리는 Dropbox sync 제외 권장 (또는 작업 폴더를 Dropbox 밖으로). `EPERM rename fallback-build-manifest.json` 에러가 신호.
+4. **단독 커밋 원칙 유지**: `git add .` 금지, 의미 그룹 단위 명시적 stage. 본 세션의 4 그룹 분리 commit 이 정확한 사례.
+
+### 커밋 (각 단독)
+- ① `096e46b` feat: 신뢰 페이지 풀세트 + SEO/AEO/GEO 인프라 (17파일)
+- ② `cdc34f2` refactor: 의사 수 일반화 9명 → 참여 전문의 (11파일)
+- ③ `10ea180` chore: 개인 이메일 → pibutenten@gmail.com (3파일)
+- ④ `09a77f8` chore: .gitignore 에 /all.json 추가 (1+삭제)
+
+---
+
 ## [2026-05-29] — P1-③ + P1-⑥ + P2 8건 잔재 청소 (점검 보고서 §3)
 
 > 항목별 단독 커밋 분리. 호출처 0건 확인 후 제거 원칙. 의심되는 항목은 보존.
