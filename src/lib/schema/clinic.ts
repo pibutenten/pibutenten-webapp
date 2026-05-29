@@ -177,11 +177,11 @@ export const DOCTOR_TO_CLINIC: Record<string, ClinicId> = (() => {
 
 /** clinic schema @id (전역에서 참조됨) */
 export function clinicId(id: ClinicId): string {
-  return `${SITE_URL}/#hillhouse-${id}`;
+  return `${SITE_URL}/#healhouse-${id}`;
 }
 
 /** 그룹(MedicalOrganization) @id */
-export const HILLHOUSE_GROUP_ID = `${SITE_URL}/#hillhouse-group`;
+export const HEALHOUSE_GROUP_ID = `${SITE_URL}/#healhouse-group`;
 
 /** schema.org JSON-LD 객체 빌드 — 한 지점 */
 export function buildClinicSchema(c: Clinic): Record<string, unknown> {
@@ -207,7 +207,7 @@ export function buildClinicSchema(c: Clinic): Record<string, unknown> {
       opens: h.opens,
       closes: h.closes,
     })),
-    parentOrganization: { "@id": HILLHOUSE_GROUP_ID },
+    parentOrganization: { "@id": HEALHOUSE_GROUP_ID },
   };
   if (c.geo) {
     obj.geo = {
@@ -227,7 +227,7 @@ export function allClinicsSchema(): Record<string, unknown>[] {
   );
   list.push({
     "@type": "MedicalOrganization",
-    "@id": HILLHOUSE_GROUP_ID,
+    "@id": HEALHOUSE_GROUP_ID,
     name: "힐하우스피부과",
     url: "https://www.healhouseskin.com",
   });
