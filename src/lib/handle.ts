@@ -37,4 +37,3 @@ export function normalizeHandleCandidate(raw: string): string {
   return s;
 }
 
-// (isReservedHandle 폐기됨 — reserved_handles는 DB trigger에서 강제하므로 클라/서버 lookup 불필요)

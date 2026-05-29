@@ -18,4 +18,3 @@ export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
   "https://pibutenten-webapp.vercel.app";
 
-// (absoluteUrl 폐기됨 — `${SITE_URL}${path}` 인라인으로 충분, 호출처 0건이었음)

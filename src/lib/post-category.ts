@@ -83,7 +83,6 @@ export function labelForCategory(s: string | null | undefined): string {
   return isPostCategorySlug(s) ? SLUG_TO_LABEL[s] : "";
 }
 
-// (defaultHideCredential 폐기됨 — POST_CATEGORIES 배열의 defaultHideDoctorCredential 필드 직접 참조로 충분)
 
 /** 인덱싱 가능한 카테고리 (의사 글) */
 export function isIndexableForDoctor(s: string | null | undefined): boolean {

@@ -58,4 +58,3 @@ export async function getMeClient(): Promise<MeInfo> {
   return pending;
 }
 
-// (invalidateMeCache 폐기됨 — logout/identity switch 흐름이 풀 reload이므로 불필요)
