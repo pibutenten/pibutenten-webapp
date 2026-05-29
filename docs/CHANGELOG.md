@@ -6,6 +6,77 @@
 
 ---
 
+## [2026-05-29] — PUT /api/articles/[id] status 가드 비대칭 정정 (504d6ee 회귀)
+
+### 배경
+정한미 원장 제보 — 의사 admin 으로 본인 글 "올리기" 시 "저장 실패: status 변경은
+admin 만 가능합니다." 토스트. 회귀 추적 결과:
+- 가드 (`route.ts:247`) 자체는 2026-05-18 (`fa2a676`) Phase 3 신설 시점부터 `!isAdmin`
+  단독 (super admin only) 으로 동일. 본 가드는 한 번도 변경되지 않음.
+- 옛엔 admin EditClient 가 `supabase.from('cards').update()` 를 직접 호출 →
+  `cards_doctor_update` / `cards_owner_update` RLS 가 doctor admin 본인 글 통과 →
+  가드가 표면화되지 않았음.
+- 2026-05-28 `504d6ee` ("admin EditClient → PUT 통일") 가 직접 update 경로를
+  끊으면서 PUT 가드가 처음으로 doctor admin 차단을 노출 (회귀).
+- 진입 가드 (`admin/cards/[id]/edit/page.tsx:34`) 는 `isSuperAdmin || isDoctorAdmin`
+  둘 다 허용 → "진입은 허용 / status 변경은 차단" 비대칭. 같은 라우트의 옆 줄
+  `is_pick` 가드는 이미 `isAdmin || isDoctorOfQa` 패턴 — status 만 빠져 있던 비대칭.
+
+### Changed (단일 수정)
+- `src/app/api/articles/[id]/route.ts:246-258` status 가드:
+  - 옛: `if (!isAdmin) → forbidden`
+  - 신: `if (!isAdmin && !isAuthor && !isDoctorOfQa) → forbidden`
+  - userMessage 정정: "status 변경은 관리자 또는 본인 글만 가능합니다."
+  - 정합 근거: 같은 라우트의 `is_pick` 가드 (`isAdmin || isDoctorOfQa`) 패턴 + 진입
+    가드 (`isSuperAdmin || isDoctorAdmin`) 의도와 일치.
+
+### 사후 시나리오 분석
+| 시나리오 | 결과 |
+|---|---|
+| super admin 어느 카드 status 변경 | OK |
+| doctor admin 본인 doctor 글 status 변경 (정한미 케이스) | **OK (해소)** |
+| doctor admin 다른 의사 글 status 변경 | 차단 (page.tsx 진입가드 + 본 가드 둘 다) |
+| 작성자 본인이 본인 글 status 변경 | OK (단 실효 경로 없음 — write/[shortcode]/EditClient 는 status 미전송) |
+| 회원이 타인 글 status 변경 | 차단 (canEdit 가드가 먼저 막음, L161-166) |
+
+### 검증
+- 추적 1 (`git log -L`): 가드 도입 커밋 `fa2a676` (2026-05-18) 부터 의미 무변경 확인.
+- 추적 2: 결정타 커밋 `504d6ee` (2026-05-28) 의 PUT 통일이 직접 회로 차단.
+- 추적 3 (production): 정한미 doctor 카드 360건 100% 시드 import (`meta.video_id`
+  있음). audit_logs `target_table='cards'` 시스템 전체 0건. 의사 명함 role='doctor'
+  (super admin 아님). 코드/이력상 본인 직접 발행 흔적 없음 — 옛 직접 update 경로의
+  RLS 통과가 표면적 동작을 만들어줬을 가능성.
+- `npx tsc --noEmit` 통과 / `npm run build` `✓ Compiled successfully in 4.1s` /
+  preview server `/` & `/api/cards` = 200, 에러 0건.
+
+### 동반 조사 결과 (수정하지 않음 — 별도 판단 대기)
+동반 서브에이전트 전수 조사로 같은 "옛 직접 supabase.update → API 통일 / 진입가드 ↔
+API 가드 비대칭" 패턴을 추가 점검:
+1. **CRITICAL 후보** — `admin/doctors/[slug]/edit/DoctorProfileEditForm.tsx:209-212`
+   `supabase.from("doctors").update({profile_data})` 가 production `doctors` 테이블에
+   UPDATE RLS 정책 부재 + GRANT 부재로 **누가 호출하든 항상 실패**할 가능성. 본 회귀
+   패턴의 정확한 매칭은 아니나 같은 부류 (클라이언트 직접 write / 권한 미비). 별도
+   확인 필요.
+2. **LOW (데드코드)** — `src/app/admin/cards/RestoreButton.tsx` 가 클라이언트 직접
+   `supabase.from('cards').update({deleted_at:null})` 호출. doctor admin 호출 시 RLS
+   차단되나 현재 어느 컴포넌트도 import 안 함 (데드코드). 실효 영향 0.
+3. **이론적 비대칭 (실효 무)** — `is_pick` 필드도 EditClient 가 항상 전송하지만 진입
+   가드가 doctor admin 의 다른 의사 글 진입을 막아 실효 위험 LOW.
+4. **그 외 admin 라우트** — `/admin/reports` / `/admin/users/[id]/role` /
+   `/admin/comments` / `/admin/draft` / `/admin/stats` 모두 진입↔API 가드 정합 (의도된
+   super only 또는 의도된 super OR doctor).
+
+→ 즉 504d6ee 회귀 패턴의 **직접 매칭은 본 status 단건**. doctor 프로필 편집은 별도
+부류로 시급도 CRITICAL 후보.
+
+### 변경하지 않음 (의도)
+- 클라이언트 보조책 (`admin/cards/[id]/edit/EditClient.tsx:230` status 무변경 시 omit)
+  은 사용자 지시 "수정은 단일" 에 따라 보류. 서버 가드 해소만으로 회귀 차단 완료.
+- 동반 조사 결과의 CRITICAL/LOW 항목 별도 판단 대기.
+- CRITICAL-3 (`role/route.ts`) 별도 안건.
+
+---
+
 ## [2026-05-29] — CRITICAL-2: `content_reports.status` CHECK constraint 신값 4종으로 갱신 (마이그 0185)
 
 ### 배경

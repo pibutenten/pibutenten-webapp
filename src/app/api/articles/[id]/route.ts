@@ -242,11 +242,19 @@ export async function PUT(
     update.pubmed_refs = payload.pubmed_refs ?? null;
   }
 
-  // admin 전용 필드
+  // status 변경 — 본인 글이면 허용 (admin / 작성자 본인 / 의사 본인 doctor 글).
+  // 2026-05-29 회귀 정정: 옛 가드는 `!isAdmin` 단독 (super admin only) 이었음.
+  //   진입 가드 (admin/cards/[id]/edit/page.tsx) 가 `isSuperAdmin || isDoctorAdmin`
+  //   둘 다 허용하는 비대칭 상태였고, 504d6ee (2026-05-28) 의 "admin EditClient →
+  //   PUT 통일" 전엔 직접 `supabase.from('cards').update()` 가 cards_doctor_update
+  //   / cards_owner_update RLS 로 통과해서 가려져 있었음. 통일 후 가드가 표면화
+  //   되어 doctor admin 의 본인 글 발행이 차단됨 (정한미 원장 케이스).
+  //   같은 라우트의 옆 줄 `is_pick` 가드 (`isAdmin || isDoctorOfQa`) 패턴과 정합.
+  //   타인 글 status 변경은 여전히 차단 (isAuthor / isDoctorOfQa 는 본인 한정).
   if (payload.status !== undefined) {
-    if (!isAdmin) {
-      return errorResponse(null, "forbidden", "[articles PUT] status admin only", 403, undefined, {
-        userMessage: "status 변경은 admin 만 가능합니다.",
+    if (!isAdmin && !isAuthor && !isDoctorOfQa) {
+      return errorResponse(null, "forbidden", "[articles PUT] status denied", 403, undefined, {
+        userMessage: "status 변경은 관리자 또는 본인 글만 가능합니다.",
       });
     }
     if (!STATUS_SET.has(payload.status)) {
