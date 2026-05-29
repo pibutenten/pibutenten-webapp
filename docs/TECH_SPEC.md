@@ -17,7 +17,7 @@ ANTHROPIC_API_KEY=sk-ant-api03-...
 # Web Push VAPID
 VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
-VAPID_SUBJECT=mailto:jminbae@gmail.com
+VAPID_SUBJECT=mailto:pibutenten@gmail.com
 PUSH_WEBHOOK_SECRET=...
 
 # Naver OAuth
@@ -202,7 +202,7 @@ ex) /minji-skin/Ab3xK9Pq
 
 ### 7.2. 원장님 페이지 (`/doctors/[slug]`)
 - `generateMetadata` 동적 OG
-- 이미지: `/og/{slug}.png` (9명 매핑)
+- 이미지: `/og/{slug}.png` (참여 전문의 slug 별 매핑)
 - 타이틀: `{name} {title} · {clinic}`
 - 검증된 doctor slugs: `baejungmin`, `gohyerim`, `jeonghanmi`, `kanghyunjin`, `kimjongsik`, `kimsoohyung`, `kwonsuhyun`, `leedoyoung`, `parkhyojin`
 

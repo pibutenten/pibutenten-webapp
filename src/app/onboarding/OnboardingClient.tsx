@@ -719,7 +719,7 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
             </p>
             <p className="mt-3 text-[11.5px] leading-[1.55] text-[var(--text-muted)]">
               본인 계정이 맞으면 해당 소셜 계정으로 다시 로그인해주세요.
-              본인 확인이 필요하시면 관리자(jminbae@gmail.com)에게 문의 주세요.
+              본인 확인이 필요하시면 관리자(pibutenten@gmail.com)에게 문의 주세요.
               다른 분이거나 처음 가입이시면 그냥 진행하셔도 됩니다.
             </p>
             <div className="mt-4 flex justify-end gap-2">

@@ -131,8 +131,8 @@ export async function GET(request: NextRequest) {
     }
   } else if (tokenHash && otpType) {
     // (b) Magic link verify — Naver 자체 OAuth 흐름의 자동 로그인 경로.
-    //   ⚠ 다른 계정으로 전환하는 경우(예: 구글 jminbae@gmail.com 세션이 살아있는 상태에서
-    //     네이버 jminbae@naver.com 시도)에 잔여 세션이 우선되어 사용자가 혼란을 겪음.
+    //   ⚠ 다른 계정으로 전환하는 경우(예: 구글 user@gmail.com 세션이 살아있는 상태에서
+    //     네이버 user@naver.com 시도)에 잔여 세션이 우선되어 사용자가 혼란을 겪음.
     //     → 명시적으로 signOut 후 verifyOtp.
     await supabase.auth.signOut();
 
