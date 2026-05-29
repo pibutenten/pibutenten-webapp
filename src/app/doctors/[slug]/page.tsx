@@ -15,6 +15,7 @@ import {
   type DoctorProfileData,
 } from "@/lib/doctor-profile";
 import { buildDoctorFull } from "@/lib/schema/doctor";
+import { clinicSchemaForDoctor } from "@/lib/schema/clinic";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { fetchCardList } from "@/lib/search-query";
 
@@ -131,6 +132,10 @@ export default async function DoctorDetailPage({ params }: Props) {
     profile_data: doctor.profile_data,
   });
 
+  // 해당 의사의 단일 지점 MedicalClinic — physicianLd.worksFor 가 가리키는 entity 보장.
+  // 5개 지점 전체 inject 안 함 (페이지 핵심 entity 신호 분산 회피).
+  const singleClinic = clinicSchemaForDoctor(doctor.slug);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -157,6 +162,7 @@ export default async function DoctorDetailPage({ params }: Props) {
           },
         ],
       },
+      ...(singleClinic ? [singleClinic] : []),
     ],
   };
 

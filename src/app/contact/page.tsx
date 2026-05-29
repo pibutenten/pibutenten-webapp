@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
+import { allClinicsSchema } from "@/lib/schema/clinic";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 
 export const metadata: Metadata = {
@@ -25,14 +26,21 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "ContactPage",
-    "@id": `${SITE_URL}/contact#contactpage`,
-    name: "문의",
-    url: `${SITE_URL}/contact`,
-    inLanguage: "ko-KR",
-    isPartOf: { "@id": `${SITE_URL}/#website` },
-    about: { "@id": `${SITE_URL}/#organization` },
-    mainEntity: { "@id": `${SITE_URL}/#organization` },
+    "@graph": [
+      {
+        "@type": "ContactPage",
+        "@id": `${SITE_URL}/contact#contactpage`,
+        name: "문의",
+        url: `${SITE_URL}/contact`,
+        inLanguage: "ko-KR",
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        about: { "@id": `${SITE_URL}/#organization` },
+        mainEntity: { "@id": `${SITE_URL}/#organization` },
+      },
+      // 5개 힐하우스 지점 MedicalClinic + 그룹 — /contact 도 그룹 전체 채널 안내 페이지.
+      // layout.tsx 는 그룹 schema 만 보유 → 5개 지점은 이 페이지에서 풀세트로 노출.
+      ...allClinicsSchema(),
+    ],
   };
 
   return (

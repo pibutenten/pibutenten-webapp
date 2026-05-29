@@ -11,7 +11,7 @@ import EngagementPromptListener from "@/components/EngagementPromptListener";
 import { SessionProvider } from "@/lib/session-context";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
-import { allClinicsSchema } from "@/lib/schema/clinic";
+import { groupOnlySchema } from "@/lib/schema/clinic";
 import { getSessionInfo } from "@/lib/session-info";
 import "./globals.css";
 
@@ -175,8 +175,11 @@ window.addEventListener('appinstalled', function() {
                     "query-input": "required name=search_term_string",
                   },
                 },
-                // 5개 힐하우스 브랜치 + 그룹 — 참여 전문의가 worksFor: @id로 참조함
-                ...allClinicsSchema(),
+                // 그룹법인 MedicalOrganization 만 전역 노출.
+                // 5개 지점 MedicalClinic 은 그룹 전체를 다루는 페이지(/, /about, /contact) 와
+                // 해당 의사가 속한 1개 지점만 의사 페이지에서 개별 inject
+                // (모든 페이지에 5개 지점 박는 응답 용량 + entity 신호 분산 해소).
+                groupOnlySchema(),
               ],
             }),
           }}

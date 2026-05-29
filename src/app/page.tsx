@@ -6,6 +6,8 @@ import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
+import { jsonLdString } from "@/lib/json-ld";
+import { allClinicsSchema } from "@/lib/schema/clinic";
 import JustPublishedPrepend from "@/components/JustPublishedPrepend";
 
 export const dynamic = "force-dynamic";
@@ -68,8 +70,19 @@ export default async function FeedPage() {
     cards.map((q) => q.id),
   );
 
+  // JSON-LD: 홈 페이지는 그룹 브랜드의 메인 진입점 — 5개 지점 MedicalClinic + 그룹 풀세트.
+  // layout.tsx 가 가진 Organization/WebSite/그룹법인 외에 추가로 inject.
+  const clinicsJsonLd = {
+    "@context": "https://schema.org",
+    "@graph": allClinicsSchema(),
+  };
+
   return (
     <section className="pt-1 sm:pt-2">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdString(clinicsJsonLd) }}
+      />
       {/* SEO/접근성 — 시각 표시는 헤더 로고가 담당, 스크린리더/봇용 H1 1개 보장 */}
       <h1 className="sr-only">
         피부텐텐 — 피부과 전문의가 답하는 피부 Q&A 라운지

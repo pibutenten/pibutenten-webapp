@@ -4,6 +4,7 @@ import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildDoctorReference } from "@/lib/schema/doctor";
+import { allClinicsSchema } from "@/lib/schema/clinic";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 
 export const dynamic = "force-dynamic";
@@ -158,6 +159,9 @@ export default async function AboutPage() {
           },
         ],
       },
+      // 5개 힐하우스 지점 MedicalClinic + 그룹 — /about 은 그룹 전체를 소개하는 페이지.
+      // layout.tsx 는 그룹 schema 만 보유 → 5개 지점은 이 페이지에서 풀세트로 노출.
+      ...allClinicsSchema(),
     ],
   };
 

@@ -220,16 +220,54 @@ export function buildClinicSchema(c: Clinic): Record<string, unknown> {
   return obj;
 }
 
-/** 5개 지점 + 그룹 schema 배열 — layout.tsx의 @graph에 spread */
-export function allClinicsSchema(): Record<string, unknown>[] {
-  const list: Record<string, unknown>[] = Object.values(CLINICS).map(
-    buildClinicSchema,
-  );
-  list.push({
+/**
+ * 그룹(MedicalOrganization) schema 만 — layout.tsx 전역 @graph 노출용.
+ * 5개 지점은 그룹 전체를 다루는 페이지(/, /about, /contact) 와
+ * 의사 페이지(/doctors/[slug] · 그 의사 단일 지점만)에서 개별 주입.
+ */
+export function groupOnlySchema(): Record<string, unknown> {
+  return {
     "@type": "MedicalOrganization",
     "@id": HEALHOUSE_GROUP_ID,
     name: "힐하우스피부과",
     url: "https://www.healhouseskin.com",
-  });
+  };
+}
+
+/**
+ * 5개 지점 + 그룹 schema 배열 — / · /about · /contact 등 그룹 전체를 다루는 페이지용.
+ * layout.tsx 는 이 함수 대신 groupOnlySchema() 사용 (모든 페이지에 5개 지점 박는 비효율 해소).
+ */
+export function allClinicsSchema(): Record<string, unknown>[] {
+  const list: Record<string, unknown>[] = Object.values(CLINICS).map(
+    buildClinicSchema,
+  );
+  list.push(groupOnlySchema());
   return list;
+}
+
+/**
+ * 의사 slug → 해당 1개 지점 MedicalClinic schema.
+ * DOCTOR_TO_CLINIC 매핑 없으면 null.
+ * 의사 글 페이지 · 의사 프로필 페이지의 @graph 에 inject 하여
+ * 의사 Person schema 의 `worksFor: { "@id": ... }` 가 가리키는 entity 를 보장한다.
+ */
+export function clinicSchemaForDoctor(
+  doctorSlug: string,
+): Record<string, unknown> | null {
+  const cid = DOCTOR_TO_CLINIC[doctorSlug];
+  if (!cid) return null;
+  return buildClinicSchema(CLINICS[cid]);
+}
+
+/**
+ * 의사 slug → 해당 지점의 @id 참조 객체. worksFor 필드에 사용.
+ * DOCTOR_TO_CLINIC 매핑 없으면 null.
+ */
+export function clinicIdRefForDoctor(
+  doctorSlug: string,
+): { "@id": string } | null {
+  const cid = DOCTOR_TO_CLINIC[doctorSlug];
+  if (!cid) return null;
+  return { "@id": clinicId(cid) };
 }

@@ -9,6 +9,10 @@ import BackButton from "@/components/BackButton";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { buildDoctorReference } from "@/lib/schema/doctor";
+import {
+  clinicSchemaForDoctor,
+  clinicIdRefForDoctor,
+} from "@/lib/schema/clinic";
 import { keywordsToAbout } from "@/lib/schema/procedure";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { jsonLdString } from "@/lib/json-ld";
@@ -134,10 +138,17 @@ function buildJsonLd(
     ],
   };
 
-  const physician = buildDoctorReference({
+  // Person + worksFor → 해당 의사가 속한 단일 지점 @id 참조.
+  // 그 지점 schema 자체는 아래 @graph 에 함께 inject 하여 reference 보장.
+  const physicianBase = buildDoctorReference({
     slug: doctorSlug,
     name: docName,
   });
+  const worksForRef = clinicIdRefForDoctor(doctorSlug);
+  const physician = worksForRef
+    ? { ...physicianBase, worksFor: worksForRef }
+    : physicianBase;
+  const singleClinic = clinicSchemaForDoctor(doctorSlug);
 
   // QAPage — 단일 질문 + 의사 검수 답변 + SNS 인터랙션 신호
   const medicalPage: Record<string, unknown> = {
@@ -260,7 +271,14 @@ function buildJsonLd(
 
   return {
     "@context": "https://schema.org",
-    "@graph": [medicalPage, physician, breadcrumb],
+    "@graph": [
+      medicalPage,
+      physician,
+      breadcrumb,
+      // 해당 의사의 단일 지점 MedicalClinic — physician.worksFor 가 가리키는 entity 보장.
+      // 5개 지점 전체 inject 안 함 (페이지 핵심 entity 신호 분산 회피).
+      ...(singleClinic ? [singleClinic] : []),
+    ],
   };
 }
 
