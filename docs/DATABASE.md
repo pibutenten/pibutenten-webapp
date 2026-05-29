@@ -86,7 +86,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 
 **`content_reports`** (신고 큐, 0137):
 - 컬럼: `id, card_id, comment_id, reporter_profile_id, reporter_email, target_url, reason, detail, status, action_taken, resolution_note, resolved_at, resolved_by, temp_block_until, created_at`
-- `status` (text): `pending` / `resolved_hidden` / `resolved_deleted` / `dismissed` (배치 ④ 운영 정의). 옛 `investigating/resolved/rejected/temp_blocked` 도 호환.
+- `status` (text, NOT NULL DEFAULT `'pending'`): `pending` / `resolved_hidden` / `resolved_deleted` / `dismissed` (CHECK 마이그 0185, 2026-05-29). 옛 enum (`investigating/resolved/rejected/temp_blocked`) 은 row 0 상태에서 정리됨 — 호환 불필요.
 - `action_taken` (text): `hide` / `delete` / `dismiss`.
 - `temp_block_until`: 0137 시 30일 임시조치 의도로 도입. 배치 ④에서 영구 숨김 채택 — 향후 미사용 컬럼.
 
@@ -282,7 +282,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 
 | 번호 | 용도 | 상태 |
 |---|---|---|
-| 0185 | CRITICAL-2 — `content_reports.status` CHECK constraint 갱신 (`pending/resolved_hidden/resolved_deleted/dismissed`) | 예약 |
+| 0185 | CRITICAL-2 — `content_reports.status` CHECK constraint 갱신 (`pending/resolved_hidden/resolved_deleted/dismissed`) | **적용 완료 (2026-05-29)** |
 | 0186 | Phase 2 — 인터랙션·통계 6 테이블 컬럼 `user_id` → `profile_id` RENAME + FK/index/RLS 갱신 (daily_logins, site_visits, activity_points, card_shares, card_views, card_impressions) | **적용 완료 (2026-05-29, `f8d1c93`)** |
 | 0187 | Phase 3 — 좋아요·저장 3 테이블 RENAME + 트리거·RPC 재정의 (card_likes, card_saves, comment_likes) | **적용 완료 (2026-05-29, `91477c2`)** |
 | 0188 | Phase 4 — 보류 (cards/comments `author_id` 유지 결정, ADR 0014 §6) | 보류 |

@@ -6,6 +6,59 @@
 
 ---
 
+## [2026-05-29] — CRITICAL-2: `content_reports.status` CHECK constraint 신값 4종으로 갱신 (마이그 0185)
+
+### 배경
+0137 (2026-05-19) 도입 옛 CHECK 가 5값 (`pending/investigating/resolved/rejected/temp_blocked`)
+만 허용. 배치 ④ 운영 정의에서 `api/admin/reports/[id]/route.ts` 가 `resolved_hidden /
+resolved_deleted / dismissed` 로 UPDATE 하도록 갱신됐지만 DB CHECK 가 동반 갱신 안 됨 →
+첫 신고 처리 시 23514 violation → 500 회귀 잠복. `content_reports` row 수 = 0 이라 아직
+안 터졌을 뿐. 사용자 점검에서 발견.
+
+### Added (마이그 0185)
+- `supabase/migrations/0185_content_reports_status_check.sql` — 단일 트랜잭션:
+  - 사전 DO 검증 — 옛 CHECK 존재 + `investigating` 토큰 포함 확인.
+  - `DROP CONSTRAINT IF EXISTS content_reports_status_check`.
+  - `ADD CONSTRAINT ... CHECK (status IN ('pending','resolved_hidden','resolved_deleted','dismissed'))`.
+  - 사후 DO 검증 — 신 4값 모두 등장 + `investigating` 잔재 부재.
+  - `NOTIFY pgrst, 'reload schema'`.
+- `supabase/migrations/0185b_content_reports_status_check_rollback.sql` — 정확한 역방향.
+- production 적용 HTTP 201. 사전·사후 DO 검증 통과.
+
+### Changed (문서)
+- `docs/DATABASE.md` §1.3 `content_reports` 박스 — `status` 컬럼 스펙 갱신
+  (NOT NULL DEFAULT `'pending'` 명시 + 옛 enum 호환 표기 제거).
+- `docs/DATABASE.md` §5 마이그 번호 예약 표 — 0185 "예약" → "적용 완료 (2026-05-29)".
+
+### 사전확인 결과 (수정 전, production 직접 조회)
+- `status`: `text NOT NULL DEFAULT 'pending'::text` — 보정 불필요.
+- 옛 CHECK 정의: `CHECK ((status = ANY (ARRAY['pending'::text, 'investigating'::text, 'resolved'::text, 'rejected'::text, 'temp_blocked'::text])))`.
+- row 수: **0** (status 분포 빈 결과). 데이터 마이그 불필요.
+- `pg_get_functiondef` 안 `content_reports` 참조 RPC: **0건**.
+- RLS 정책 4개 (admin select/update/delete + anyone insert) 모두 status 미참조.
+- INSERT 라우트 (`api/reports/route.ts:104`): `status: "pending"` 명시 — 현행·신 CHECK 모두 통과.
+- UPDATE 라우트 (`api/admin/reports/[id]/route.ts:134-149`): 신값 3종만 SET.
+- 0185 번호 충돌: 없음 (0184 → 다음 사용 마이그 0186).
+
+### 검증 (production)
+- 사후 CHECK 정의: `CHECK ((status = ANY (ARRAY['pending'::text, 'resolved_hidden'::text, 'resolved_deleted'::text, 'dismissed'::text])))`.
+- 시뮬레이션 (단일 트랜잭션 안에서 INSERT → 4값 UPDATE → 옛값 차단 확인 → ROLLBACK):
+  - INSERT (status 미명시) → DEFAULT `'pending'` 자동 부여 OK.
+  - UPDATE `pending` / `resolved_hidden` / `resolved_deleted` / `dismissed` 4값 모두 통과.
+  - UPDATE `investigating` (옛값) → check_violation 정확히 차단.
+  - ROLLBACK 후 row 0건 유지 (운영 데이터 영향 0).
+  - 부수: INSERT 시 sequence 가 1 소비 — 운영 영향 없음.
+- `npx tsc --noEmit` 통과. `npm run build` `✓ Compiled successfully`. preview server 200 / 에러 0건.
+
+### 변경하지 않음 (의도)
+- `src/app/admin/reports/page.tsx:39-43` 옛 enum 호환 라벨 (`investigating/resolved/rejected/temp_blocked`)
+  — row 0건이라 사문(死文). 코드 변경 시 무관계 회귀 가능성 있어 본 작업 범위 외로 유지.
+- 코드는 일절 변경하지 않음 (모든 status SET 지점이 이미 신값 정합).
+- 트랙 A (ADR 0014) 무관.
+- CRITICAL-3 (`role/route.ts`) 별도 안건.
+
+---
+
 ## [2026-05-29] — Phase 5: 트랙 A 종료 청소 + 위험 파일 정리 (CRITICAL-4)
 
 ### Changed (블록 2 — 문서 "예정 → 완료" 정정, production DB 사실 검증 후)
