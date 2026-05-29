@@ -11,7 +11,7 @@
  *   - active.role='doctor' + 그 doctor 의 카드면 → 본인 doctor 카드 수정 가능
  *
  * 페이로드 (모두 optional — undefined 면 미수정):
- *   - question, answer, keywords
+ *   - title, body, keywords (옛 question/answer 는 0171 마이그에서 리네임)
  *   - category (변경 시 type 도 함께)
  *   - external_url + external_title/description/image/site_name
  *   - pubmed_refs (배열) — ADR 0012 단일 출처
