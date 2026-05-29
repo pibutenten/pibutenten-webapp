@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-05-29] — CRITICAL-1: 댓글 PATCH/DELETE 의 user_id → author_id 정정
+
+### Fixed
+- `src/app/api/comments/[id]/route.ts` — PATCH(144행) · DELETE(206·219행) 가 존재하지 않는 컬럼 `user_id` 를 참조하던 문제 정정. `comments` 테이블 작성자 컬럼은 마이그 0013/0085 이래 `author_id` 가 SSOT. 옛 잔재로 `user_id` 캐스트가 남아있어 `ownerId` 가 항상 `null` → `isOwn` 판정 깨짐 → PIPA §8 audit 가 본인 액션을 admin/doctor 액션으로 잘못 기록하던 문제 해소. DELETE 의 `.select("id, user_id")` 도 PostgREST 환경에 따라 500 가능성 잠재 → `.select("id, author_id")` 로 정정.
+
+### 검증 절차
+- production DB 직접 조회로 `comments` 스키마 확인: 작성자 컬럼은 `author_id (uuid, nullable)` 단 1개. `user_id` 컬럼 부재.
+- `user_id` 전수조사: DB 의 `user_id` 보유 9개 테이블 (`activity_points`, `card_impressions`, `card_likes`, `card_saves`, `card_shares`, `card_views`, `comment_likes`, `daily_logins`, `site_visits`) 의 정상 사용처는 모두 보존. `comments` 테이블 사용처 4건만 정정 (코드 3건 + 주석 1건).
+- `npx tsc --noEmit` + `npm run build` 통과 확인.
+
+### 변경하지 않음 (의도)
+- `api/comments/route.ts:183` `.from("comment_likes").eq("user_id", viewer.id)` — comment_likes 테이블의 정상 컬럼 사용.
+- `ProfileTabs.tsx:162`, `admin/users/[id]/page.tsx:252`, `[handle]/page.tsx:214/218`, `useCardEngagement.ts:135/142/276`, `useCardViewer.ts:131`, `viewer-states.ts:36/41`, `impression-queue.ts:82`, `middleware.ts:300` 등 — 각 사용처가 다루는 테이블 (`card_likes`/`card_saves`/`card_views`/`card_impressions`/`site_visits`) 의 정상 컬럼.
+
+---
+
 ## [2026-05-29] — schema 브랜드 일관성 + 페이지별 MedicalClinic scope + 표기 통일
 
 ### Fixed

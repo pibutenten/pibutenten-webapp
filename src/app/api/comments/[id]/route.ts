@@ -141,7 +141,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
   // PIPA 안전성 확보조치 §8: admin/doctor 가 타인 댓글을 변경한 경우 audit.
   // status 변경은 admin/doctor 만 가능 (RLS) → 항상 audit. body 변경은 본인 일치 시 noise 라 제외.
-  const ownerId = (upd.data as { user_id?: string | null } | null)?.user_id ?? null;
+  // 2026-05-29 (CRITICAL-1): comments 작성자 컬럼은 author_id (user_id 컬럼은 존재하지 않음).
+  const ownerId = (upd.data as { author_id?: string | null } | null)?.author_id ?? null;
   const isOwn = !!idCtx?.active && ownerId === idCtx.active.profileId;
   if (update.status !== undefined || (!isOwn && update.body !== undefined)) {
     await logAudit({
@@ -198,12 +199,12 @@ export async function DELETE(req: Request, ctx: Ctx) {
   if (limited) return limited;
 
   // RLS가 자체적으로 본인 / admin / 해당 doctor만 통과시킴.
-  // user_id 도 함께 받아서 audit 판정.
+  // author_id 도 함께 받아서 audit 판정 (2026-05-29 CRITICAL-1: 옛 user_id 잘못 참조 정정).
   const del = await supabase
     .from("comments")
     .delete()
     .eq("id", id)
-    .select("id, user_id")
+    .select("id, author_id")
     .maybeSingle();
 
   if (del.error) {
@@ -216,7 +217,8 @@ export async function DELETE(req: Request, ctx: Ctx) {
   }
 
   // PIPA 안전성 확보조치 §8: 타인 댓글 삭제는 audit (admin/doctor).
-  const ownerId = (del.data as { user_id?: string | null } | null)?.user_id ?? null;
+  // 2026-05-29 (CRITICAL-1): comments 작성자 컬럼은 author_id (user_id 컬럼은 존재하지 않음).
+  const ownerId = (del.data as { author_id?: string | null } | null)?.author_id ?? null;
   const isOwn = !!idCtx?.active && ownerId === idCtx.active.profileId;
   if (!isOwn) {
     await logAudit({
