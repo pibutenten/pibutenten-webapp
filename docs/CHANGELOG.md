@@ -6,6 +6,71 @@
 
 ---
 
+## [2026-05-29] — Phase 5: 트랙 A 종료 청소 + 위험 파일 정리 (CRITICAL-4)
+
+### Changed (블록 2 — 문서 "예정 → 완료" 정정, production DB 사실 검증 후)
+- `docs/decisions/0014-unify-profile-id-naming.md` §헤더 / §2(B) / §6 / §7 / Consequences / 미래 부담
+  — Phase 2 (0186, `f8d1c93`) + Phase 3 (0187, `91477c2`) 적용 완료 사실 반영. Phase 4 보류 유지.
+- `docs/DATABASE.md` §1.4 인터랙션 표 + ADR 0014 인용 박스 — PK 표기 `(card_id, profile_id)` /
+  `(comment_id, profile_id)` 갱신, "RENAME 예정" → "RENAME 완료" 정정.
+- `docs/DATABASE.md` §5 끝 마이그 번호 예약 표 — 0186/0187 "예약" → "적용 완료 (commit 해시)",
+  0189 행 추가. production `information_schema.columns` 직접 조회 결과 명시.
+- `docs/PRD.md` §4.3 마지막 단락 — "변경 전 ... 예정" → "Phase 2 + Phase 3 마이그로 2026-05-29
+  적용 완료". cards/comments author_id 유지 사유 명시.
+- `src/lib/active-identity.ts:17` 주석 — "author_id/user_id = 이 값" → "author_id(콘텐츠) /
+  profile_id(그 외) = 이 값".
+
+### Changed (블록 3 — column-naming hook 오탐 보정)
+- `scripts/column-naming-check.js`:
+  - 신규 `stripComments(src)` 헬퍼 — 줄 주석 + 블록 주석 사전 제거.
+  - 패턴 A 매칭 호출부에서 `content` 대신 `stripComments(content)` 사용.
+  - 정규식 본문은 `\buser_id\b` 유지 (이미 `auth_user_id` 와 매칭 안 됨 — `_` 와 `u` 사이
+    단어 경계 없음).
+- false positive 원인이 `.from("comments")` 윈도 안 **주석 텍스트** 였음을 확인 후 보정.
+- 단위 테스트 9 케이스 통과: Phase 3 false positive 2건 / auth_user_id / 진짜 위반 3종 /
+  card_likes 정상 / 블록 주석·JSDoc.
+- 통합 테스트: Phase 3 의 `[handle]/page.tsx` + `admin/users/[id]/page.tsx` 사본 staging 시
+  `--no-verify` 없이 통과. 인위적 진짜 위반 (`.from("cards").eq("user_id"...)`) 차단 확인.
+
+### Removed (블록 4 — 위험 파일 + tmp 정리, CRITICAL-4)
+- `pibutenten-app/scripts_phase7/` 9개 파일 (총 ~1.85 MB, `01_db_wipe.sql` destructive SQL +
+  Phase 7 시드 INSERT SQL 6 part + python 적용 스크립트) — `_archive/legacy/scripts_phase7_app-side-2026-05-29/`
+  로 이동 (history 보존). git tracking 제거. 기존 사료 `_archive/legacy/scripts_phase7/` 와
+  별개 보존 (파일명 일부 겹쳐 덮어쓰기 회피).
+- `pibutenten-app/E` (60,805 bytes, `/login` SSR HTML dump — `curl` 출력 잘못 commit 잔재).
+  코드 import 0건 사전 확인 후 `git rm`.
+- `*.tmp.*` 17건 (전부 untracked, 디스크 잔재) — `find ... -delete`. `.gitignore` + pre-commit
+  패턴 C 가 이미 재발생 차단.
+- `src/lib/ai/identify-doctors.ts:11` JSDoc — 옛 `scripts_phase7/30_identify_doctors.py` 경로
+  참조를 일반화 ("Phase 7 시드 식별 스크립트 (현재 _archive/legacy/scripts_phase7_* 폴더에
+  보존)").
+
+### 검증 (블록 1 + 종합)
+- **9 테이블 user_id 잔재 0건** (src/ + supabase/migrations/ + scripts/ 27 셀 매트릭스).
+  서브에이전트 전수 grep — 진짜 위반 0건. 검사 외 발견: 0186 이전 작성된 옛 일회성 진단
+  스크립트 8개의 옛 컬럼명 잔재 — 데이터 손실 위험 0, 별도 cleanup 안건.
+- production `information_schema.columns` 9 테이블 × {user_id 부재 / profile_id 존재} 매트릭스
+  100% 통과 → 문서 정정 사실 정당화.
+- `npx tsc --noEmit` 통과 (identify-doctors.ts JSDoc 안 `*/` 종료 글자 충돌 1건 정정 후).
+- `npm run build` `✓ Compiled successfully in 3.4s`.
+- preview server 에러 0건. `fetch('/').status === 200`.
+
+### Phase 누적 (트랙 A 종료)
+- Phase 1 (`8af897a`) — ADR 0014 + pre-commit hook + 문서 동기화.
+- Phase 2 (`f8d1c93`) — 마이그 0186 — 6 통계/인터랙션 테이블.
+- Phase 3 (`91477c2`) — 마이그 0187 — 3 인터랙션 테이블.
+- **Phase 5 (이번 커밋) — 잔재 검증 + 문서 정정 + hook 오탐 보정 + 위험 파일 정리.**
+- Phase 4 (cards/comments author_id) — ADR 0014 §6 보류 (6개월 운영 후 재검토).
+
+### 변경하지 않음 (의도)
+- CRITICAL-2 (`content_reports.status` CHECK constraint) — 마이그 0185 예약 유지, 별도 안건.
+- CRITICAL-3 (`/api/admin/users/[id]/role/route.ts`) — 별도 안건.
+- 트랙 A 외 로직 변경 일절 없음.
+- 옛 일회성 진단 스크립트 8개 — Phase 5 범위 외 (별도 cleanup 권고).
+- POLICY-1 잔여 (`settings/profile/page.tsx` base-only 읽기) — 별도 안건.
+
+---
+
 ## [2026-05-29] — ADR 0014 Phase 3: card_likes / card_saves / comment_likes `user_id → profile_id` 통일
 
 ### Changed (DB — 마이그 0187, 단일 트랜잭션, production 적용 완료)

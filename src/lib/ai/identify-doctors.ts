@@ -8,7 +8,8 @@
  *
  * 외부 원장 화이트리스트는 더 이상 추출 X — 등록 원장님들 외에는 "외부"로 일괄 처리.
  *
- * Phase 7 `scripts_phase7/30_identify_doctors.py` 의 핵심 로직 포팅.
+ * Phase 7 시드 식별 스크립트 (현재 _archive/legacy/scripts_phase7_*  폴더에
+ * 보존) 의 핵심 로직 포팅. 운영 코드 기준 SSOT 는 본 파일.
  */
 
 // DB doctors.slug 기준 참여 전문의 — SSOT 는 schema/doctor.ts 의 DOCTORS.

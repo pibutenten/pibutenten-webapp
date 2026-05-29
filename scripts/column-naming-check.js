@@ -33,19 +33,38 @@ const path = require("node:path");
 
 // ─── 패턴 A: cards/comments 테이블에서 user_id 참조 ──────────────────────────
 //
-// 단순 정규식: .from("cards") 또는 .from("comments") 같은 줄·근처에 user_id 등장.
-// AST 파싱 없이 줄 단위 매칭. 의도적 단순함 (운영 부담 0).
+// 정규식: .from("cards") 또는 .from("comments") 호출 후 400자 윈도 안에 user_id
+// (단어 경계) 등장. AST 파싱 없이 줄 단위 매칭. 의도적 단순함 (운영 부담 0).
 //
-// 매칭 예 (모두 차단):
+// 2026-05-29 보정 (Phase 5):
+//   1) `\buser_id\b` 는 본래 `auth_user_id` 와 매칭 안 됨 (`_` 와 `u` 사이 word
+//      boundary 없음) — 이 부분은 false alarm 아니었음.
+//   2) 진짜 false positive 는 .from("comments") 윈도 안 **주석** ("// card_likes/
+//      saves.user_id → profile_id" 같은 마이그 이력 안내) 매칭. 해결: 매칭 전에
+//      줄 주석 (`// ...`) + 블록 주석 (`/* ... */`) 을 먼저 제거 (stripComments).
+//
+// 매칭 예 (차단):
 //   .from("comments").select("id, user_id")
 //   .from("cards").eq("user_id", ...)
 //
 // 매칭 안 됨 (의도):
-//   .from("card_likes").eq("user_id", ...) — card_likes 는 정상
-//   user_id 가 변수 이름이거나 주석인 경우
+//   .from("card_likes").eq("user_id", ...) — card_likes 는 패턴 외 (정상)
+//   // ... user_id ...                     — 주석은 사전 제거됨
+//   auth_user_id: string                   — \b 가 _u 사이에 없어서 매칭 X
 const PATTERN_A_FILE_TYPES = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
 const PATTERN_A_REGEX =
   /\.from\(\s*['"`](cards|comments)['"`]\s*\)[\s\S]{0,400}?\buser_id\b/m;
+
+/** 줄 주석 + 블록 주석 제거 (인용부호 안 //, /* 는 그대로 두는 단순 휴리스틱). */
+function stripComments(src) {
+  // 블록 주석 제거
+  let out = src.replace(/\/\*[\s\S]*?\*\//g, "");
+  // 줄 주석 제거 (인용부호 안의 // 까지 잘릴 수 있으나, false positive 회피가
+  // 본 hook 의 더 큰 가치라 허용. 실제 코드에서 .from("...") 내부에 // 가 들어가는
+  // 경우는 사실상 없음.)
+  out = out.replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  return out;
+}
 
 // 본 파일은 hook 자체 — 본문에 user_id 정규식이 포함되어 자기 자신을 차단함. 화이트리스트.
 const PATTERN_A_WHITELIST = [
@@ -115,7 +134,8 @@ function main() {
 
     // 패턴 A — cards/comments 에서 user_id (TS/JS 파일만)
     if (PATTERN_A_FILE_TYPES.test(file)) {
-      if (PATTERN_A_REGEX.test(content)) {
+      const stripped = stripComments(content);
+      if (PATTERN_A_REGEX.test(stripped)) {
         blockers.push({
           file,
           rule: "A",

@@ -14,7 +14,7 @@
  *   cookie 가 UUID 인 경우만 사용. 그 외 (옛 "primary" / 빈 값 / 비-UUID) → null 반환.
  *   호출자는 null 일 때 본 계정(auth.uid()) 으로 fallback.
  *
- * 인터랙션(card_likes·card_saves·comments·card_shares) 시 author_id/user_id = 이 값.
+ * 인터랙션(card_likes·card_saves·comments·card_shares) 시 author_id(콘텐츠) / profile_id(그 외) = 이 값.
  * 단 서버는 클라가 보낸 이 값 대신 자체 httpOnly 쿠키로 검증한다 (RPC 내부 또는 server fetch).
  */
 

@@ -93,13 +93,13 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 ### 1.4. 인터랙션 (로그인 필수)
 | 테이블 | PK | 비고 |
 |---|---|---|
-| `card_likes` | (card_id, user_id) | user_id = active profile.id. **Phase 3 에서 `profile_id` 로 RENAME 예정 (ADR 0014)** |
-| `card_saves` | (card_id, user_id) | 동일 |
-| `comment_likes` | — | profiles FK 복구 0100. Phase 3 에서 RENAME 예정 |
+| `card_likes` | (card_id, profile_id) | profile_id = active 명함 id. 마이그 0187 (2026-05-29) 로 `user_id` → `profile_id` RENAME 완료 (ADR 0014 Phase 3) |
+| `card_saves` | (card_id, profile_id) | 동일 |
+| `comment_likes` | (comment_id, profile_id) | profiles FK 복구 0100. 마이그 0187 로 RENAME 완료 |
 
 폐기: `card_likes.persona` (0090), `card_ratings` 테이블 (0094)
 
-> **사람 ID 컬럼 명명 (ADR 0014, 2026-05-29)**: `profiles.id` 를 가리키는 컬럼은 콘텐츠 책임 주체 = `author_id` (cards, comments), 그 외 = `profile_id`. 현재 9개 테이블 (`card_likes/saves/views/impressions/shares/comment_likes/activity_points/daily_logins/site_visits`) 이 옛 이름 `user_id` 를 사용 중이며 **Phase 2~3 마이그 (0186~0187) 에서 일괄 RENAME 예정**. 신규 마이그·코드에서는 `user_id` 사용 금지 — pre-commit hook 으로 자동 차단.
+> **사람 ID 컬럼 명명 (ADR 0014, 2026-05-29)**: `profiles.id` 를 가리키는 컬럼은 콘텐츠 책임 주체 = `author_id` (cards, comments), 그 외 = `profile_id`. 옛 9개 테이블 (`card_likes/saves/views/impressions/shares/comment_likes/activity_points/daily_logins/site_visits`) 의 `user_id` 는 Phase 2 (마이그 0186) + Phase 3 (마이그 0187) 로 2026-05-29 `profile_id` 통일 완료. 신규 마이그·코드에서는 `user_id` 사용 금지 — pre-commit hook 으로 자동 차단.
 
 ### 1.5. 추적 (비로그인 포함)
 | 테이블 | 비고 |
@@ -278,16 +278,17 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | **0175** | **통계 TOP RPC 7개 (`*_inner` + 7개 wrapper = 14 함수) 의 `WHERE c.deleted_at IS NULL` 제거 + `RETURNS TABLE` 에 `deleted_at timestamptz` 컬럼 추가. KPI ↔ TOP 정의 정합 (옵션 A: 사용자 결정). UI 는 deleted_at 으로 '삭제됨' 배지 표시** |
 | **0176** | **doctor_accounts 안전 폐기 Phase 1 (사용자 결정). 9개 RPC 재정의 (doctor_accounts → profiles.doctor_id SSOT). 테이블 → `doctor_accounts_deprecated` RENAME (데이터 보존) + 옛 이름은 profiles 기반 view 로 재생성 (외부 SELECT 호환성, INSERT/UPDATE 는 view 라 의도된 실패). 보너스: `get_recent_likers` 의 옛 `card_likes.persona` 잔재 NULL::text 로 정정** |
 
-### 마이그 번호 예약 (ADR 0014 Phase 1 — 2026-05-29)
+### 마이그 번호 예약 + 적용 상태 (ADR 0014 / 트랙 B — 2026-05-29 갱신)
 
 | 번호 | 용도 | 상태 |
 |---|---|---|
 | 0185 | CRITICAL-2 — `content_reports.status` CHECK constraint 갱신 (`pending/resolved_hidden/resolved_deleted/dismissed`) | 예약 |
-| 0186 | Phase 2 — 인터랙션·통계 6 테이블 컬럼 `user_id` → `profile_id` RENAME + FK/index/RLS 갱신 (daily_logins, site_visits, activity_points, card_shares, card_views, card_impressions) | 예약 |
-| 0187 | Phase 3 — 좋아요·저장 3 테이블 RENAME + 트리거·RPC 재정의 (card_likes, card_saves, comment_likes) | 예약 |
+| 0186 | Phase 2 — 인터랙션·통계 6 테이블 컬럼 `user_id` → `profile_id` RENAME + FK/index/RLS 갱신 (daily_logins, site_visits, activity_points, card_shares, card_views, card_impressions) | **적용 완료 (2026-05-29, `f8d1c93`)** |
+| 0187 | Phase 3 — 좋아요·저장 3 테이블 RENAME + 트리거·RPC 재정의 (card_likes, card_saves, comment_likes) | **적용 완료 (2026-05-29, `91477c2`)** |
 | 0188 | Phase 4 — 보류 (cards/comments `author_id` 유지 결정, ADR 0014 §6) | 보류 |
+| 0189 | dead 컬럼 `profiles.age_confirmed_at` DROP (트랙 B-5) | **적용 완료 (2026-05-29, `d2bfddd`)** |
 
-위 번호는 ADR 0014 채택과 함께 선점. 다른 마이그가 이 번호를 빼앗으면 안 됨.
+production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재.
 
 ---
 
