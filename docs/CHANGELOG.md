@@ -6,6 +6,78 @@
 
 ---
 
+## [2026-05-29] — doctors 프로필 편집 권한 복구 (방식 B: API 라우트 통일)
+
+### 배경
+`admin/doctors/[slug]/edit/DoctorProfileEditForm` 이 브라우저 supabase client 로
+`doctors` 테이블 직접 UPDATE 시도. production `doctors` 는:
+- RLS UPDATE 정책 0개 (`doctors: public read` SELECT 만 존재)
+- `authenticated` GRANT UPDATE 부재 (anon/authenticated 둘 다 SELECT 만)
+→ super admin 이든 본인 doctor admin 이든 **`permission denied for table doctors`
+로 항상 실패**. 0001_init (2026-05 초기) 이후 한 번도 동작한 적 없는 코드.
+
+production 9명 doctor 의 `profile_data` 가 채워져 있는 건 SQL 또는 service_role
+직접 backfill 의 결과 — 본 폼이 아니라 별도 경로로 입력된 데이터.
+
+CHANGELOG 의 status 가드 정정 블록(`a06d732`) 동반 조사 #1 의 CRITICAL 후보 확정.
+
+### 결정 방식 (사용자 지시 + 사전 조사)
+**방식 B (API 라우트 통일)** 선택:
+- ADR 0006 의 "RLS=SSOT + admin write = 서버 격리" 원칙 정합.
+- 504d6ee (cards), d03e8c1 (role) 등 코드베이스 추세 (admin write = API 라우트)
+  의 마지막 누락분.
+- `doctors` 표면적은 SELECT-only 유지 → 잠재 write 경로 자동 차단 (방식 A 대비).
+- audit_logs 적재 + Zod 화이트리스트 검증 자동 확보.
+
+### Added
+- `src/app/api/admin/doctors/[slug]/profile/route.ts` — `PUT` 신설:
+  - slug 형식 가드 (`/^[a-z0-9-]+$/`, 60자).
+  - 인증 + active 명함 확인 + 분당 10회 rate limit.
+  - Zod `ProfileDataSchema` (DoctorProfileData 12 필드 화이트리스트, `.strict()`).
+  - 대상 doctor SELECT (slug → id) — RLS public read 통과.
+  - **권한 가드**: `super admin (active role='admin')` OR `(doctor admin AND
+    activeDoctorId === target.id)`. 그 외 403 "본인 의사 프로필만 수정할 수 있습니다."
+  - DB write: `createSupabaseAdminClient()` (service_role) 로 직접 UPDATE —
+    `doctors` UPDATE 권한 부재 회피. 라우트 가드가 권한 책임.
+  - audit_logs 적재: `action='doctor.profile_update'`,
+    `target_table='doctors'`, `target_id=doctor.id`, metadata = `{slug, keys, via:
+    super_admin|self_doctor}`.
+
+### Changed
+- `src/app/admin/doctors/[slug]/edit/DoctorProfileEditForm.tsx`:
+  - `import { createSupabaseBrowserClient }` → `import { pickErrorMessage }`.
+  - `save()` 의 `supabase.from("doctors").update({profile_data}).eq("slug", slug)`
+    → `fetch('/api/admin/doctors/{slug}/profile', { method: 'PUT', body: ... })`.
+  - 에러 메시지는 `pickErrorMessage(j, res.status)` (한글 message 우선).
+
+### DB 변경 없음
+- doctors RLS / GRANT 그대로 유지. 마이그 0190 미사용.
+- 권한 가드는 라우트 한 곳에 집중 (누더기 방지).
+
+### 검증
+- `npx tsc --noEmit` 통과.
+- `npm run build` `✓ Compiled successfully in 3.5s` — 신규 라우트
+  `ƒ /api/admin/doctors/[slug]/profile` 빌드 등록 확인.
+- preview server `/` & `/api/cards` = 200 / 에러 0건.
+- 미인증 PUT 호출 → `401` 분기 정상.
+- 사후 시뮬레이션 (라우트 권한 가드 정확성):
+  | 시나리오 | 결과 |
+  |---|---|
+  | super admin 어느 의사 프로필 수정 | OK (service_role UPDATE) |
+  | doctor admin **본인 의사** (정한미 → jung-hanmi) 수정 | **OK (해소)** |
+  | doctor admin **타인 의사** (예: 정한미가 jung-doyoung 시도) | **차단 403** ("본인 의사 프로필만 수정할 수 있습니다.") |
+  | 회원 (role=user) 또는 비로그인 | 401 / 403 |
+  | 존재하지 않는 slug | 404 |
+  | 알 수 없는 필드 (Zod strict) | 400 (form 필드 화이트리스트만 통과) |
+
+### 변경하지 않음 (의도)
+- doctors RLS / GRANT (방식 B 채택 — 표면적 최소화).
+- 진입 가드 (`admin/doctors/[slug]/edit/page.tsx`) — 기존 `super admin || 본인
+  doctor admin` 정합 유지.
+- CRITICAL-3 (`role/route.ts`) 별도 안건.
+
+---
+
 ## [2026-05-29] — PUT /api/articles/[id] status 가드 비대칭 정정 (504d6ee 회귀)
 
 ### 배경

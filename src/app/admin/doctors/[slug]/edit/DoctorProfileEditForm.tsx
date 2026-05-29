@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { pickErrorMessage } from "@/lib/api-error";
 import type { DoctorProfileData } from "@/lib/doctor-profile";
 
 type Props = {
@@ -204,14 +204,23 @@ export default function DoctorProfileEditForm({ slug, initial }: Props) {
     setMsg(null);
     startTransition(async () => {
       try {
-        const supabase = createSupabaseBrowserClient();
         const cleaned = cleanState(state);
-        const { error } = await supabase
-          .from("doctors")
-          .update({ profile_data: cleaned })
-          .eq("slug", slug);
-        if (error) {
-          setMsg({ type: "err", text: error.message });
+        // 2026-05-29: 옛 `supabase.from("doctors").update()` 직접 호출은 `doctors`
+        // 테이블의 UPDATE RLS 정책 0개 + GRANT 0개로 "permission denied" 항상 실패.
+        // 신규 PUT 라우트로 통일 — 가드(super admin 또는 본인 의사) + audit_logs.
+        const res = await fetch(
+          `/api/admin/doctors/${encodeURIComponent(slug)}/profile`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(cleaned),
+          },
+        );
+        if (!res.ok) {
+          const j = (await res.json().catch(() => null)) as
+            | { error?: string; message?: string }
+            | null;
+          setMsg({ type: "err", text: pickErrorMessage(j, res.status) });
           return;
         }
         setMsg({ type: "ok", text: "저장되었습니다." });
