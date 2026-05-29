@@ -34,8 +34,6 @@ export async function POST(req: Request) {
 | 일반 로그인 필요 | `supabase.auth.getUser()` |
 | Active identity 컨텍스트 필요 | `getIdentityContext(supabase)` from `@/lib/identity` |
 | admin 묶음 검사 (super admin / doctor admin) | `requireAdmin()`, `requireAdminOrDoctor()` from `@/lib/admin-guard` |
-| Active 본인이 super admin | `requireActiveSuperAdmin()` from `@/lib/admin-guard` |
-| Active 가 super 또는 doctor admin | `requireActiveSuperOrDoctorAdmin()` |
 
 신규 admin 라우트는 직접 `idCtx.isSuperAdmin` 검사하지 말고 위 헬퍼 사용.
 

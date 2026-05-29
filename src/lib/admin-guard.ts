@@ -92,15 +92,3 @@ export async function requireAdminOrDoctor(): Promise<AdminGuardResult> {
   };
 }
 
-/**
- * @deprecated requireAdmin() 으로 통합됨 (ADR 0012). 본 함수는 호환 wrapper.
- */
-export const requireActiveSuperAdmin = requireAdmin;
-
-/**
- * @deprecated requireAdminOrDoctor() 로 통합됨 (ADR 0012). 본 함수는 호환 wrapper.
- */
-export const requireActiveSuperOrDoctorAdmin = requireAdminOrDoctor;
-
-/** @deprecated 호환 — requireAdmin 결과 타입과 동일. */
-export type ActiveAdminGuardResult = AdminGuardResult;
