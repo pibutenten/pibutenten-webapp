@@ -30,20 +30,21 @@ type Initial = {
 };
 
 type Props = {
+  /** auth.users.id — Storage path / auth 작업 (탈퇴 등) 용. */
   userId: string;
+  /**
+   * PII 읽기·쓰기 대상 명함 ID (active 명함 또는 base).
+   * page.tsx 가 `getIdentityContext` SSOT 로 결정 (남의 명함 위조 차단 포함).
+   * 2026-05-29 POLICY-1 잔여 정리: 옛 `activeIdentityId ?? userId` 의 클라이언트 로컬
+   * 결정 → 서버에서 결정한 단일 ID 로 통일.
+   */
+  targetProfileId: string;
   currentEmail: string;
   /** 로그인 방식 표시용 — 'email' | 'google' | 'kakao' 등 */
   loginProviders: string[];
   /** 우측 상단 [← 프로필] 링크의 href — 프로필 페이지(/{handle} 또는 /) */
   profileHref: string;
-  /**
-   * v5.1 옵션 X: 활성 identity_id (UUID).
-   * null이면 1차 identity (= profiles row 자체) 편집.
-   * UUID면 profile_identities row 편집 (display_name·avatar·bio만).
-   */
-  activeIdentityId: string | null;
-  activeIdentityKind: string | null;
-  /** 원장 1차 계정 등 — 사진·이름 read-only (관리자가 doctors 테이블에서 관리). */
+  /** 의사 명함 (target.role === DOCTOR) — 사진·이름 read-only (doctors 테이블에서 관리). */
   readOnlyNameAndAvatar: boolean;
   initial: Initial;
 };
@@ -65,11 +66,10 @@ const PROVIDER_LABEL: Record<string, string> = {
 
 export default function ProfileEditClient({
   userId,
+  targetProfileId,
   currentEmail,
   loginProviders,
   profileHref,
-  activeIdentityId,
-  activeIdentityKind,
   readOnlyNameAndAvatar,
   initial,
 }: Props) {
@@ -203,9 +203,9 @@ export default function ProfileEditClient({
         }
       }
 
-      // Phase 9: active identity == 다른 profiles row (묶음 내) 또는 본인 profile 자체.
-      // 둘 다 profiles update로 일원화. activeIdentityId가 있으면 그 row를, 없으면 본인을.
-      const targetProfileId = activeIdentityId ?? userId;
+      // POLICY-1 잔여 정리 (2026-05-29): 옛 로컬 결정 `activeIdentityId ?? userId` →
+      // 서버 (page.tsx + getIdentityContext SSOT) 가 결정한 props.targetProfileId 사용.
+      // 읽기·쓰기 같은 명함 보장 (엇갈림 방지).
       if (!readOnlyNameAndAvatar) {
         if (photoChanged) profileUpdates.avatar_url = pendingAvatarUrl;
         if (nameChanged) profileUpdates.display_name = trimmedName;
@@ -250,10 +250,12 @@ export default function ProfileEditClient({
   function saveMarketing(next: boolean) {
     setMarketing(next);
     startMkt(async () => {
+      // POLICY-1 잔여 정리 (2026-05-29): 옛 `.eq("id", userId)` (base only) →
+      // 같은 active 명함 (targetProfileId) 에 저장. 위 saveAll() 와 동일 명함.
       const { error } = await sb
         .from("profiles")
         .update({ marketing_email_consent: next })
-        .eq("id", userId);
+        .eq("id", targetProfileId);
       if (error) setMarketing(!next);
       router.refresh();
     });

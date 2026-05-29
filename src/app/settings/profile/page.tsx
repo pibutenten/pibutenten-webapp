@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
 import ProfileEditClient from "./ProfileEditClient";
 import NotificationPreferences from "@/components/NotificationPreferences";
 import BackButton from "@/components/BackButton";
@@ -8,16 +8,12 @@ import {
   DEFAULT_VISIBILITY,
   type FieldVisibility,
 } from "@/lib/profile-options";
-import {
-  IDENTITY_COOKIE,
-  ROLES,
-  UUID_RE,
-  bundleProfileFilter,
-} from "@/lib/identity-shared";
+import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
 type ProfileRow = {
+  id: string;
   role: "admin" | "doctor" | "user";
   display_name: string | null;
   marketing_email_consent: boolean | null;
@@ -33,15 +29,6 @@ type ProfileRow = {
   field_visibility: FieldVisibility | null;
 };
 
-type IdentityRow = {
-  id: string;
-  display_name: string;
-  avatar_url: string | null;
-  bio: string | null;
-  kind: string;
-  handle: string;
-};
-
 export default async function MyProfilePage() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -49,12 +36,23 @@ export default async function MyProfilePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/settings/profile");
 
+  // POLICY-1 잔여 정리 (2026-05-29): 옛 .eq("id", user.id) (base only) →
+  //   active 명함 단위. SSOT 헬퍼 `getIdentityContext` 사용 — 내부
+  //   `resolveActiveIdentity` 가 IDENTITY_COOKIE → UUID 검증 → 본인 묶음
+  //   (auth_user_id == user.id) 검증 → active 명함 결정 + 남의 명함 위조 차단까지
+  //   일괄 처리. middleware (B-2) / onboarding (B-2) 와 같은 SSOT.
+  //
+  //   읽기·쓰기 한 세트 보장: 읽기 ID = 쓰기 ID = targetProfileId.
+  //   active 명함이 base 와 같거나 idCtx 가 null 이면 base (user.id) 로 fallback.
+  const idCtx = await getIdentityContext(supabase);
+  const targetProfileId = idCtx?.active?.profileId ?? user.id;
+
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "role, display_name, marketing_email_consent, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, field_visibility",
+      "id, role, display_name, marketing_email_consent, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, field_visibility",
     )
-    .eq("id", user.id)
+    .eq("id", targetProfileId)
     .maybeSingle()
     .returns<ProfileRow>();
 
@@ -62,56 +60,10 @@ export default async function MyProfilePage() {
 
   const loginProviders = (user.identities ?? []).map((i) => i.provider);
 
-  // Critical-5 (2026-05-27): cookie 가 UUID 이고 user.id 와 다를 때만 multi-identity.
-  //   - 빈 값 / UUID 아님 (옛 "primary" 포함) → base profile 자체가 active
-  //   - UUID == user.id → base profile 자체가 active
-  //   - UUID != user.id → 같은 묶음 다른 profile (예: doctor 부계정 / 회원 부계정)
-  const cookieStore = await cookies();
-  const activeCookie = cookieStore.get(IDENTITY_COOKIE)?.value ?? null;
-  const isMultiIdentity =
-    activeCookie &&
-    UUID_RE.test(activeCookie) &&
-    activeCookie !== user.id;
-
-  // 활성 identity profile fetch (multi-identity일 때만 — 본인 묶음 검증 포함)
-  let activeIdentity: IdentityRow | null = null;
-  if (isMultiIdentity) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, display_name, avatar_url, bio, role, handle")
-      .eq("id", activeCookie)
-      .or(bundleProfileFilter(user.id))
-      .maybeSingle();
-    if (data) {
-      activeIdentity = {
-        id: (data as { id: string }).id,
-        display_name: (data as { display_name: string | null }).display_name,
-        avatar_url: (data as { avatar_url: string | null }).avatar_url,
-        bio: (data as { bio: string | null }).bio,
-        kind: (data as { role: string }).role,
-        handle: (data as { handle: string | null }).handle,
-      } as IdentityRow;
-    }
-  }
-
-  // 표시·편집할 값 결정:
-  //   - active identity 있으면 (배스킨 등): identity의 display_name/avatar/bio
-  //   - 없으면 (1차 = profiles row 자체): profile의 값
-  const editingDisplayName = activeIdentity
-    ? activeIdentity.display_name
-    : profile.display_name ?? "";
-  const editingAvatarUrl = activeIdentity
-    ? activeIdentity.avatar_url
-    : profile.avatar_url ?? null;
-  const editingBio = activeIdentity
-    ? activeIdentity.bio ?? ""
-    : profile.bio ?? "";
-  const editingHandle = activeIdentity
-    ? activeIdentity.handle
-    : profile.handle ?? "";
-
-  // 사용자 요청: 원장 본인(1차) 계정은 사진·이름 read-only (DB에 다른 곳에서 관리)
-  const isDoctorPrimary = profile.role === ROLES.DOCTOR && !activeIdentity;
+  // 의사 명함의 사진·이름은 별도 관리 (doctors 테이블 / admin 전용). settings 에서
+  // 변경 불가. 옛 정책 (의사 1차 명함 한정 read-only) 을 active 명함 단위로 확장 —
+  // 의사 명함 active 시 항상 사진·이름 read-only.
+  const isDoctorTarget = profile.role === ROLES.DOCTOR;
 
   return (
     <section className="mx-auto w-full max-w-[640px] space-y-5 py-6">
@@ -120,14 +72,13 @@ export default async function MyProfilePage() {
       </div>
       <ProfileEditClient
         userId={user.id}
+        targetProfileId={targetProfileId}
         currentEmail={user.email ?? ""}
         loginProviders={loginProviders}
-        profileHref={editingHandle ? `/${editingHandle}` : "/"}
-        activeIdentityId={activeIdentity?.id ?? null}
-        activeIdentityKind={activeIdentity?.kind ?? null}
-        readOnlyNameAndAvatar={isDoctorPrimary}
+        profileHref={profile.handle ? `/${profile.handle}` : "/"}
+        readOnlyNameAndAvatar={isDoctorTarget}
         initial={{
-          displayName: editingDisplayName,
+          displayName: profile.display_name ?? "",
           marketingConsent: !!profile.marketing_email_consent,
           birthdate: profile.birthdate ?? "",
           gender: profile.gender ?? null,
@@ -135,8 +86,8 @@ export default async function MyProfilePage() {
           skinType: profile.skin_type ?? null,
           skinConcerns: profile.skin_concerns ?? [],
           interestedProcedures: profile.interested_procedures ?? [],
-          bio: editingBio,
-          avatarUrl: editingAvatarUrl,
+          bio: profile.bio ?? "",
+          avatarUrl: profile.avatar_url ?? null,
           fieldVisibility: profile.field_visibility ?? DEFAULT_VISIBILITY,
         }}
       />

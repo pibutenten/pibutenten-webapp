@@ -6,6 +6,74 @@
 
 ---
 
+## [2026-05-29] — POLICY-1 잔여 정리: `settings/profile` active 명함 단위로 정합
+
+### 배경
+ADR 0015 (트랙 B B-2) 가 온보딩 게이트를 active 명함 단위로 정렬. middleware /
+onboarding / 댓글은 모두 active 명함 정합 완료. `settings/profile/page.tsx` 만
+**옛 base-only 읽기** 잔존 (POLICY-1 잔여, 23종 검수 #12). 의사 명함 active 시:
+- 읽기: `.eq("id", user.id)` → base 의 옛 PII (birthdate/gender/skin 등) 표시
+- 저장 (saveAll): `targetProfileId = activeIdentityId ?? userId` = active 명함 → 저장 OK
+- 저장 (saveMarketing): `.eq("id", userId)` = base → **읽기↔쓰기 엇갈림**
+- 결과: 의사 명함의 PII 가 안 보이고, marketing 토글이 다음 진입 시 base 값으로 표시
+
+### Changed (한 세트 — 읽기·쓰기 일관)
+- `src/app/settings/profile/page.tsx`:
+  - SSOT 헬퍼 `getIdentityContext` 사용 (옛 자체 active 결정 — IDENTITY_COOKIE +
+    UUID_RE + bundleProfileFilter — 폐기). 내부 `resolveActiveIdentity` 가 묶음
+    검증 (`auth_user_id == user.id`) 으로 남의 명함 위조 차단 자동.
+  - `targetProfileId = idCtx?.active?.profileId ?? user.id` 단일 결정 (base fallback).
+  - PII SELECT 의 `.eq("id", user.id)` → `.eq("id", targetProfileId)` — birthdate /
+    gender / skin PII / field_visibility / marketing / bio / avatar / handle /
+    display_name / role 한 곳에서 active 명함 기준.
+  - 옛 multi-identity 별도 fetch + display 정보 mix 로직 폐기 (target 명함 단일
+    fetch 로 통합).
+  - `isDoctorTarget = profile.role === ROLES.DOCTOR` — 의사 명함 active 면 항상
+    사진·이름 read-only (옛 `isDoctorPrimary = role==DOCTOR && !activeIdentity` 의
+    의미를 active 명함 단위로 확장).
+  - `IdentityRow` 타입 / `cookies()` import / `IDENTITY_COOKIE`/`UUID_RE`/
+    `bundleProfileFilter` import 삭제.
+- `src/app/settings/profile/ProfileEditClient.tsx`:
+  - props 정리 — 옛 `activeIdentityId`/`activeIdentityKind` 폐기. 신규 prop
+    `targetProfileId` (서버 결정 단일 ID).
+  - `saveAll()` 의 옛 클라이언트 로컬 결정 `const targetProfileId =
+    activeIdentityId ?? userId` → `props.targetProfileId` 사용.
+  - **`saveMarketing()` 의 옛 `.eq("id", userId)` (base only) → `.eq("id",
+    targetProfileId)` — 핵심 정정**. saveAll() 와 동일 명함.
+
+### 누더기 방지
+- settings/profile/page.tsx 의 자체 active 결정 코드 폐기 → `getIdentityContext`
+  SSOT 사용. 4번째 패턴 흩어짐 방지 (middleware / onboarding / `getIdentityContext`
+  내부 헬퍼와 같은 정책).
+- 호환 별칭 / 임시파일 0.
+
+### 사후 시나리오 분석 (회귀 확인)
+| 시나리오 | 결과 |
+|---|---|
+| 단일 명함 사용자 (base 만) 진입 | `idCtx.active.profileId === user.id` 또는 null fallback → `targetProfileId = user.id` → base PII 읽기·저장 (옛 동작 유지) |
+| doctor admin (정한미) 의사 명함 active 진입 | **doctor 명함의 PII 표시** (옛: base 의 옛 값. 신: active 명함 정합) |
+| 의사 명함에서 skin/marketing 수정·저장 | **doctor 명함에 저장**. 다음 진입 시 새 값 표시 (읽기↔쓰기 일치) |
+| 회원 base 명함 active 진입 (의사 멀티 계정의 회원 명함) | 회원 명함의 PII 읽기·저장 (옛 동작 유지) |
+| 남의 명함 ID 쿠키 위조 시도 | `resolveActiveIdentity` 의 묶음 검증 (`auth_user_id == user.id`) 으로 차단 → idCtx.active = null → targetProfileId = user.id (안전 fallback) |
+| idCtx === null (인증 race) | `?? user.id` base fallback — 정상 동작 |
+
+### 보안 (남의 명함 차단)
+`src/lib/identity-server.ts:106` — `resolveActiveIdentity` 가 "본인 묶음 멤버 검증
+— 다른 사람 profile cookie 위조 차단" 명시. 이번 SSOT 사용으로 동일 정책 자동 적용.
+
+### 검증
+- `npx tsc --noEmit` 통과.
+- `npm run build` `✓ Compiled successfully in 3.0s`.
+- preview server `/` 렌더링 정상 (snapshot 헤더/푸터 정상). 서버 에러 0건.
+
+### 변경하지 않음 (의도)
+- 다른 라우트 (middleware/onboarding/articles 등) — 이미 active 명함 정합.
+- doctors GRANT (0190/0191) 무관.
+- CRITICAL-3 (`/api/admin/users/[id]/role/route.ts`) 별도 안건.
+- 롤백: `git revert <commit>` — 단일 commit, 단순 복원.
+
+---
+
 ## [2026-05-29] — doctors GRANT 누락 후속 정리 (마이그 0190 + 0191)
 
 ### 배경 (d4ceff8 의 진짜 미해결 원인)
