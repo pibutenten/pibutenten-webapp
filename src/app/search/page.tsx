@@ -109,7 +109,15 @@ export default async function HomePage({ searchParams }: Props) {
         .eq("status", "published");
       const words = q.split(/\s+/).filter((w) => w.length > 0);
       for (const w of words) {
-        const escaped = w.replace(/[%_*]/g, "\\$&").replace(/[(),]/g, " ");
+        // P1-⑥ (2026-05-29): ILIKE escape 보강. backslash 가 PostgreSQL ILIKE 의
+        //   default escape 문자라 사용자 입력에 `\` 가 섞이면 다음 글자가 escape 처리됨.
+        //   순서: (1) backslash → \\, (2) % _ 와일드카드 → \%, \_, (3) 메타 문자 → 공백.
+        //   PostgREST `.ilike.` 는 ESCAPE 절 명시 불가 — backslash 자체가 default 라 호환.
+        //   검색 정확도 개선 목적 (SQL injection 은 PostgREST parameterize 로 이미 안전).
+        const escaped = w
+          .replace(/\\/g, "\\\\")
+          .replace(/[%_]/g, "\\$&")
+          .replace(/[()[\],*]/g, " ");
         const pattern = `%${escaped}%`;
         countQuery = countQuery.or(
           `title.ilike.${pattern},body.ilike.${pattern},keywords.cs.{${w}}`,
