@@ -267,13 +267,14 @@ export function useCardEngagement(
     const supabase = createSupabaseBrowserClient();
     const { data: u } = await supabase.auth.getUser();
     const activeId = getActiveIdentityId();
-    const userId = u.user ? (activeId ?? u.user.id) : null;
+    const profileId = u.user ? (activeId ?? u.user.id) : null;
     const prevCount = shareCount;
     setShareCount((c) => c + 1);
     // session_id 도 함께 저장 — 비로그인 공유 session 단위 dedup 위함 (0117 정책).
+    // ADR 0014 Phase 2 (마이그 0186): card_shares.user_id → profile_id RENAME.
     const insRes = await supabase.from("card_shares").insert({
       card_id: card.id,
-      user_id: userId,
+      profile_id: profileId,
       session_id: getSessionId(),
       channel,
     });

@@ -6,6 +6,55 @@
 
 ---
 
+## [2026-05-29] — ADR 0014 Phase 2: 인터랙션·통계 6 테이블 user_id → profile_id RENAME (마이그 0186)
+
+### Changed (DB — 마이그 0186, 단일 트랜잭션 production 적용 완료)
+- 6 테이블 컬럼 `user_id` → `profile_id` RENAME:
+  - `daily_logins` (12) + FK `_profile_id_fkey`
+  - `site_visits` (41) + FK + 인덱스 `idx_site_visits_profile_created`
+  - `activity_points` (167) + FK + 인덱스 2개 (`idx_activity_points_profile_action/created`)
+  - `card_shares` (29) — FK 없음
+  - `card_views` (985) — FK 없음
+  - `card_impressions` (3869) — FK 없음
+- RLS 정책 2개 본문 재정의 (의미 100% 동일, 컬럼명만 치환): `ap_self_select`, `dl_self_select` 의 `auth.uid() = user_id` → `auth.uid() = profile_id`. 권한 과부여 없음.
+- RPC 10개 본문 재정의 (인자명·시그니처·RETURNS TABLE·SECURITY DEFINER·STABLE·search_path 모두 불변, 6 테이블 컬럼 참조만 치환): `award_daily_login`, `award_points`, `get_admin_kpi_inner`, `get_card_activity_users_inner`, `get_doctor_kpi_inner`, `get_my_stats`, `get_top_cards_by_shares_inner`, `get_top_cards_by_views_inner`, `get_top_visitors_inner`, `get_users_kpi_inner`. cross-Phase 함수의 Phase 3 (card_likes/saves) · Phase 4 (cards/comments.author_id) 부분은 그대로 보존.
+- 트리거 함수 3개 (`card_shares_count_sync`, `on_card_impression_insert`, `on_card_view_insert`) 는 `NEW.card_id` 만 사용 — 변경 불필요.
+- 트랜잭션 마지막에 `NOTIFY pgrst, 'reload schema'`.
+
+### Changed (code, 5곳)
+- `src/middleware.ts:299-302` — `site_visits.insert({ user_id })` → `profile_id`. 주석 정합.
+- `src/components/card/hooks/useCardViewer.ts:128-132` — `card_views.insert({ user_id })` → `profile_id`. 변수명 `userId` → `profileId`.
+- `src/components/card/hooks/useCardEngagement.ts:269-279` — `card_shares.insert({ user_id })` → `profile_id`. 변수명 동일 변경.
+- `src/lib/impression-queue.ts:78-84` — `card_impressions` upsert row 의 `user_id` 키 → `profile_id`. 주석 추가.
+- `scripts/check-impressions-today.mjs:30` — `select("...user_id")` → `profile_id`.
+
+### Added
+- `supabase/migrations/0186_phase2_user_id_to_profile_id.sql` — 본 작업 마이그 본문 (단일 트랜잭션 + 검증 블록).
+- `supabase/migrations/0186b_rollback.sql` — 0186 의 정확한 역방향. 평소 미실행, 비상 시 사용.
+
+### 검증 절차 (모두 통과)
+- 마이그 적용: HTTP 201 + 트랜잭션 내부 `DO $$ ... $$` 검증 블록 통과 (6 테이블 profile_id 존재 + user_id 부재 + RLS 정책 2개 재생성 확인).
+- 잔재 grep: src/ 6 테이블 대상 `user_id` 참조 0건. scripts/ 0건. RPC 10개 본문 6 테이블 대상 user_id 잔재 0건 (Python 으로 line-by-line 분석).
+- TypeScript + Build: `npx tsc --noEmit` 통과, `npm run build` `✓ Compiled successfully in 2.8s`.
+- preview server 에러 0건.
+- 실시간 적재 확인 (production DB SELECT): `site_visits.id=42`, `card_views.id=1020~1024`, `card_impressions.id=8072~8115` 모두 `profile_id` 정상.
+- RPC 호출 sanity: `award_daily_login('1f54be8d-...')` → `1` 반환 (정상).
+- RLS sanity: `ap_self_select`/`dl_self_select` 본문 = `auth.uid() = profile_id`. 권한 좁아짐도 넓어짐도 없음.
+
+### 변경하지 않음 (의도)
+- `card_likes`, `card_saves`, `comment_likes` 의 `user_id` — Phase 3 (마이그 0187) 소관. 그대로.
+- `cards.author_id`, `comments.author_id` — Phase 4 보류 (ADR 0014 §6). 그대로.
+- 함수 인자명·변수명·RETURNS TABLE 컬럼 별칭 — 호출자 인터페이스·응답 형식 불변.
+- 호환 별칭 (옛 user_id 도 받는 wrapper 등) 일체 도입 안 함 (누더기 차단).
+
+### 마이그 번호 예약 상태 업데이트
+- 0185 — CRITICAL-2 (예약 유지)
+- **0186 — Phase 2 (적용 완료, 2026-05-29)**
+- 0187 — Phase 3 (예약 유지)
+- 0188 — Phase 4 보류
+
+---
+
 ## [2026-05-29] — ADR 0014 Phase 1: profile_id 컬럼 명명 통일 (문서·hook 만, DB 변경 0)
 
 ### Added

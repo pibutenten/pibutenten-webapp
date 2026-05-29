@@ -27,7 +27,7 @@ const admin = createClient(
 console.log("=== card_impressions 시간대별 적재 (최근 36h, KST) ===");
 const { data: rows, error } = await admin
   .from("card_impressions")
-  .select("created_at, session_id, card_id, user_id")
+  .select("created_at, session_id, card_id, profile_id")
   .gte("created_at", new Date(Date.now() - 36 * 3600 * 1000).toISOString())
   .order("created_at", { ascending: false });
 

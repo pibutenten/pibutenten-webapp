@@ -123,12 +123,13 @@ export function useCardViewer(
         const {
           data: { user },
         } = await sb.auth.getUser();
-        // active identity 분리 집계 — 같은 묶음 내 ID 전환 시 별도 user_id로 카운트
+        // active identity 분리 집계 — 같은 묶음 내 ID 전환 시 별도 profile_id로 카운트.
+        // ADR 0014 Phase 2 (마이그 0186): card_views.user_id → profile_id RENAME.
         const activeId = getActiveIdentityId();
-        const userId = user ? (activeId ?? user.id) : null;
+        const profileId = user ? (activeId ?? user.id) : null;
         await sb.from("card_views").insert({
           card_id: card.id,
-          user_id: userId,
+          profile_id: profileId,
           session_id: sessionId,
         });
         onViewedRef.current?.();

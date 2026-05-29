@@ -77,9 +77,10 @@ async function flush(): Promise<void> {
   try {
     const uid = await resolveUserId();
     const sid = getOrCreateSessionId();
+    // ADR 0014 Phase 2 (마이그 0186): card_impressions.user_id → profile_id RENAME.
     const rows = cardIds.map((card_id) => ({
       card_id,
-      user_id: uid,
+      profile_id: uid,
       session_id: sid,
     }));
     const sb = createSupabaseBrowserClient();

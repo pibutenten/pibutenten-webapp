@@ -287,7 +287,8 @@ export async function middleware(request: NextRequest) {
   // 카드 view/impression 이 없는 사용자(예: 알림에서 본인 카드 편집만)도 방문자로 카운트.
   // fail-safe — INSERT 실패해도 본 요청은 정상 처리.
   //
-  // P1-④ (2026-05-29): user_id = active profile.id 로 전환 (ADR 0012 명함 단위 독립).
+  // P1-④ (2026-05-29): profile_id = active profile.id 로 전환 (ADR 0012 명함 단위 독립).
+  //   ADR 0014 Phase 2 (마이그 0186): site_visits.user_id → profile_id RENAME.
   //   IDENTITY_COOKIE 값이 UUID 면 그 active profile.id, "primary" 또는 없으면 base profile.id (= user.id).
   //   DB 조회 없이 쿠키만 읽음. KPI RPC (get_top_visitors_inner) 는 profiles.id JOIN 이라 자연 호환.
   //   과거 데이터는 base id 로 남아 있음 — 시점 기준 단절 (CHANGELOG 참조).
@@ -297,7 +298,7 @@ export async function middleware(request: NextRequest) {
     const activeId = v && v !== "primary" ? v : user.id;
     try {
       await supabase.from("site_visits").insert({
-        user_id: activeId,
+        profile_id: activeId,
         path,
       });
     } catch (e) {
