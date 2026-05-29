@@ -6,6 +6,70 @@
 
 ---
 
+## [2026-05-29] — CRITICAL-3: ADR 0012 위반 라우트 `/api/admin/users/[id]/role` + 호출 UI 제거
+
+### 배경
+회원 계정과 의사 계정은 처음부터 독립 (ADR 0012 명함 단위 완전 독립 5원칙).
+"회원 → 의사 사후 role 변경" 정책상 존재하지 않음. 의사 자격 신설은 관리자가
+별도 의사 명함을 신설·연결하는 흐름으로 갈 예정 (별도 안건).
+
+`/api/admin/users/[id]/role/route.ts` 가 ADR 0012 채택 전 정책 잔존물:
+1. 회원 role 을 doctor/admin 으로 사후 변경
+2. 매핑 시 두 명함을 강제로 같은 묶음 (`auth_user_id` 동기화) 으로 결합
+3. **회원 시절 글에 doctor_id 소급 자동 백필** (route.ts:178-190) — 가장 위험.
+   회원 명함으로 쓴 일반 post 글이 갑자기 "의사 글" 처럼 보이게 되거나, 익명 doctor
+   글이 그 회원의 작성 글 목록에 등장 → 글 귀속 오염.
+
+### Removed
+- `src/app/api/admin/users/[id]/role/route.ts` (전체 216줄, ADR 0012 위반 백필 포함)
+- `src/app/admin/users/[id]/RoleChangeForm.tsx` (전체 185줄, "🔐 역할 / 매핑 변경" UI)
+  - fetch 호출처 단 1개 (RoleChangeForm:58), 본 라우트 전용.
+
+### Changed (`src/app/admin/users/[id]/page.tsx` — RoleChangeForm 전용 dead code 일괄 정리)
+- L11: `import RoleChangeForm` 제거
+- L115: `const viewerIsAdmin = viewerCtx.isSuperAdmin` 변수 제거 (다른 사용처 0)
+- L256-308: RoleChangeForm 전용 데이터 수집 블록 53줄 제거 (`currentDoctorId`,
+  `allDoctors`, `mappedProfilesData`, `mappedProfileByDoctor`, `doctorsForForm`)
+- L441-449: JSX 분기 (`{viewerIsAdmin && <RoleChangeForm ... />}`) 제거 + ADR 0012
+  정합 사유 주석으로 대체
+
+### 부르는 RPC 0건
+- 라우트가 `supabase.rpc(...)` 호출 안 함. 모두 `from("profiles" | "cards").update`
+  직접 UPDATE → 추가 RPC 정리 안건 없음.
+- 옛 RPC `link_doctor_to_profile`/`unlink_doctor_from_profile` 은 본 라우트와 무관
+  (이미 0176 에서 backward-compat 래퍼화, 코드/DB 호출처 0건). 별도 안건.
+
+### ★ production 잘못 백필 데이터 (사전조사 SELECT 결과 — 본 작업으로 수정 X)
+| 검증 | 결과 |
+|---|---|
+| `role='user'` + `doctor_id` 설정된 profile | **0건** |
+| `doctor_id` 있고 `author_id` NULL 인 카드 (Q&A 백필 흔적) | **0건** |
+| 회원 author + doctor_id 박힌 카드 | **0건** |
+
+→ **2단계 데이터 정리 작업 자체가 자동 해소** (production 잔재 0). 보고서 보관 목적
+으로만 기록.
+
+### 검증
+- 잔재 grep 0건 (`RoleChangeForm` / `/api/admin/users/[id]/role` / `viewerIsAdmin` /
+  `doctorsForForm` 등 모두 0).
+- `npx tsc --noEmit` 통과 (`.next/types` 캐시 무효화 후).
+- `npm run build` `✓ Compiled successfully in 2.8s`. 빌드 라우트 표에 옛
+  `admin/users/[id]/role` 사라짐 확인. `/admin/users/[id]` 정상 등록.
+- preview server 에러 0건. reload 후에도 정상.
+
+### 변경하지 않음 (의도)
+- audit_logs 의 기존 `admin.role_change` row 들 — 운영 추적 보존.
+- 옛 RPC `link_doctor_to_profile`/`unlink_doctor_from_profile` 및 `doctor_accounts` view —
+  별도 안건 (0176 backward-compat 의도 검토 필요).
+- 데이터 정리 — production 잔재 0건이라 작업 자체 불요.
+- 롤백: `git revert <commit>` — 단일 commit, 단순 복원.
+
+### 다음 작업
+관리자가 의사 명함을 신설·연결하는 신규 흐름 (별도 안건 — 정민님이 "내일 2단계"
+로 명명한 작업). 본 라우트 자리는 그 흐름으로 대체 예정.
+
+---
+
 ## [2026-05-29] — POLICY-1 잔여 정리: `settings/profile` active 명함 단위로 정합
 
 ### 배경

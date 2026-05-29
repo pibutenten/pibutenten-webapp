@@ -8,7 +8,6 @@ import {
   type UserRole,
   type UserLevel,
 } from "@/lib/user-grades";
-import RoleChangeForm from "./RoleChangeForm";
 import { getQaUrl } from "@/lib/card-url";
 import { ROLES } from "@/lib/identity-shared";
 import { getIdentityContext } from "@/lib/identity";
@@ -113,7 +112,6 @@ export default async function AdminUserDetailPage({
   if (!viewerCtx.isSuperAdmin && !viewerCtx.isDoctorAdmin) {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
-  const viewerIsAdmin = viewerCtx.isSuperAdmin;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -255,60 +253,6 @@ export default async function AdminUserDetailPage({
     .limit(30)
     .returns<LikeRow[]>();
 
-  // 현재 매핑된 doctor_id (있으면) — lib/doctor-mapping 헬퍼
-  const currentDoctorId = await getDoctorIdForProfile(supabase, id);
-
-  // 매핑용 doctors 목록 — 각 doctor 매핑 상태 + 매핑된 profile 의 handle/display_name 만.
-  // SSOT (profiles.doctor_id) 기반 역조회: doctors 목록 + profiles.doctor_id 분리 쿼리 후 메모리 join.
-  const { data: allDoctors } = await supabase
-    .from("doctors")
-    .select("id, slug, name, branch")
-    .order("name", { ascending: true })
-    .returns<
-      {
-        id: string;
-        slug: string;
-        name: string;
-        branch: string | null;
-      }[]
-    >();
-  const { data: mappedProfilesData } = await supabase
-    .from("profiles")
-    .select("id, doctor_id, handle, display_name")
-    .not("doctor_id", "is", null)
-    .returns<
-      {
-        id: string;
-        doctor_id: string;
-        handle: string | null;
-        display_name: string | null;
-      }[]
-    >();
-  const mappedProfileByDoctor = new Map<
-    string,
-    { handle: string | null; display_name: string | null }
-  >();
-  for (const p of mappedProfilesData ?? []) {
-    if (!mappedProfileByDoctor.has(p.doctor_id)) {
-      mappedProfileByDoctor.set(p.doctor_id, {
-        handle: p.handle,
-        display_name: p.display_name,
-      });
-    }
-  }
-  const doctorsForForm = (allDoctors ?? []).map((d) => {
-    const mappedProfile = mappedProfileByDoctor.get(d.id) ?? null;
-    return {
-      id: d.id,
-      slug: d.slug,
-      name: d.name,
-      branch: d.branch,
-      is_mapped: !!mappedProfile,
-      mapped_handle: mappedProfile?.handle ?? null,
-      mapped_display_name: mappedProfile?.display_name ?? null,
-    };
-  });
-
   // TODO(level/activity_score): 산정 로직 도입 전까지 admin 표시 임시 숨김.
   //   컬럼·SELECT·타입은 유지(향후 활성화 대비). 0179~ 정비와 함께 처리.
   // const lvlColor = LEVEL_COLORS[profile.level] ?? LEVEL_COLORS[0];
@@ -438,15 +382,10 @@ export default async function AdminUserDetailPage({
         <Stat label="좋아요" value={likes?.length ?? 0} />
       </div>
 
-      {/* 역할 변경 폼 — viewer가 admin identity일 때만 노출 (원장 admin은 X) */}
-      {viewerIsAdmin && (
-        <RoleChangeForm
-          userId={profile.id}
-          currentRole={profile.role}
-          currentDoctorId={currentDoctorId}
-          doctors={doctorsForForm}
-        />
-      )}
+      {/* CRITICAL-3 (2026-05-29): 역할 변경 폼 폐기.
+         회원·의사 계정은 처음부터 독립이며 사후 role 변경 + 묶음 결합 + 회원 글에
+         doctor_id 소급 백필은 ADR 0012 (명함 단위 완전 독립) 위반. 의사 자격은
+         관리자가 별도 의사 명함을 신설·연결하는 흐름으로 대체 (별도 안건). */}
 
       {/* 작성 글 */}
       <Section title="📝 작성 글" empty="작성 글 없음">
