@@ -80,10 +80,15 @@
     "contact": "https://pbtt.kr/contact"
   },
   "physicians": [
-    {
-      "_comment": "참여 전문의 slug 운영자 입력 대기 — /doctors 목록 페이지에서 자동 확인 가능",
-      "list": "https://pbtt.kr/doctors"
-    }
+    { "slug": "jung-hanmi",    "name": "정한미", "alternateName": "Hanmi Jung",   "url": "https://pbtt.kr/doctors/jung-hanmi" },
+    { "slug": "bae-jungmin",   "name": "배정민", "alternateName": "Jungmin Bae",  "url": "https://pbtt.kr/doctors/bae-jungmin" },
+    { "slug": "kwon-soohyun",  "name": "권수현", "alternateName": "Soohyun Kwon", "url": "https://pbtt.kr/doctors/kwon-soohyun" },
+    { "slug": "kim-soohyung",  "name": "김수형", "alternateName": "Soohyung Kim", "url": "https://pbtt.kr/doctors/kim-soohyung" },
+    { "slug": "ko-hyerim",     "name": "고혜림", "alternateName": "Hyerim Ko",    "url": "https://pbtt.kr/doctors/ko-hyerim" },
+    { "slug": "kim-jongsic",   "name": "김종식", "alternateName": "Jongsic Kim",  "url": "https://pbtt.kr/doctors/kim-jongsic" },
+    { "slug": "rhee-doyoung",  "name": "이도영", "alternateName": "Doyoung Rhee", "url": "https://pbtt.kr/doctors/rhee-doyoung" },
+    { "slug": "kang-hyunjin",  "name": "강현진", "alternateName": "Hyunjin Kang", "url": "https://pbtt.kr/doctors/kang-hyunjin" },
+    { "slug": "park-hyojin",   "name": "박효진", "alternateName": "Hyojin Park",  "url": "https://pbtt.kr/doctors/park-hyojin" }
   ],
-  "lastUpdated": "2026-05-28"
+  "lastUpdated": "2026-05-29"
 }
