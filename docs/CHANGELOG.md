@@ -6,6 +6,35 @@
 
 ---
 
+## [2026-05-29] — P1-③ + P1-⑥ + P2 8건 잔재 청소 (점검 보고서 §3)
+
+> 항목별 단독 커밋 분리. 호출처 0건 확인 후 제거 원칙. 의심되는 항목은 보존.
+
+### Changed (P1)
+- **P1-③** (`4d59099`) — 숨김 댓글 doctor 분기 추가. PRD §4.8 "본인·admin·doctor 검토 가능" 정합. `card-select.ts` 의 doctor SELECT 절에 `id` 추가, CardData.doctor 타입에 `id` 추가, Card → CommentsBlock → CommentItem props 체인으로 `cardDoctorId` 전달. `canViewHidden = isAdmin || isAuthor || isDoctorOfCard`. RLS 우회 0 (UI 분기만).
+- **P1-⑥** (`ce2de02`) — 검색 ILIKE escape 보강. backslash → `\\\\`, % _ 와일드카드 → escape, ()[],* → 공백 치환 순서. PostgREST `.ilike.` 가 PostgreSQL default escape(backslash) 호환. SQL injection 안전성은 parameterize 가 보장 — 검색 정확도 개선 목적.
+
+### Removed / Changed (P2 잔재 청소)
+- **P2-1** (`f516d8d`) — `admin-guard.ts` deprecated alias 3건 제거 (`requireActiveSuperAdmin` / `requireActiveSuperOrDoctorAdmin` / `ActiveAdminGuardResult`). 호출처 0건 확인. API_POLICY.md 의 함수 명단 정리. `adminProfileId` 필드는 `publish/route.ts` 2건 사용 중이라 보존.
+- **P2-2** (`bf535c9`) — `articles/[id]/route.ts` 주석의 옛 `question/answer` → `title/body` 갱신 (0171 마이그 후속 누락분).
+- **P2-3** (`23e43e4`) — `LEGACY_CATEGORY_LABELS` + `ALL_CATEGORY_LABELS` 제거. DB 데이터 잔존 0건 + 외부 호출 0건. `stripCategoryLabels` 는 `POST_CATEGORY_LABELS` Set 기반으로 단순화.
+- **P2-4** (`6c53e90`) — `ai-policy.json` + `llms.txt` 의 폐기된 `/u/*` 경로 제거 (ADR 0001 회원 글 경로 단일화).
+- **P2-5** (`a2c7d5f`) — hidden 카드 placeholder 로직 DRY 추출 → `src/lib/hidden-card.ts` 신설. `checkHiddenByShortcode` (회원) + `checkHiddenByDoctorPost` (의사) 두 헬퍼. 두 라우트 중복 구현 통합.
+- **P2-6** (`dc96486`) — `CardData.type` 유니온 정합 (`"card" | "post" | "link"` → DB enum `"qa" | "post"`). 옛 리터럴 비교 호출처 0건 확인.
+- **P2-7** (`2082757`) — `rss/route.ts` 의 `pubmed_refs` 미포함 의도 주석 명시 (외부 리더 간결성 우선, 단일 페이지 JSON-LD citation 에만 노출).
+- **P2-8** (`52bb8fd`) — "폐기됨" 잔재 주석 4건 제거 (site.ts/me-cache.ts/handle.ts/post-category.ts).
+
+### Added (SSOT 보강)
+- **P2-9** — 루트 `CLAUDE.md §5` 동기화 페어 표에 2건 추가:
+  - `POST_CATEGORIES` ↔ `cards.category` CHECK constraint
+  - `ActiveIdentity` ↔ `resolveActiveIdentity` SELECT 절
+
+### 보존 (호출처 발견 또는 의도 유지)
+- `admin-guard.ts::adminProfileId` — `publish/route.ts` 2건 사용 (`activeProfileId` 동등 값이지만 기존 호출처 유지).
+- `post-category.ts::CATEGORY_LABEL_TO_SLUG` 안 옛 "공유하기" 매핑 — 검색 입력 호환용.
+
+---
+
 ## [2026-05-29] — site_visits 명함 단위 전환 (P1-④)
 
 ### Changed
