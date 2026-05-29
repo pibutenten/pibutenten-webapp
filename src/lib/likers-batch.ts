@@ -15,7 +15,8 @@
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export type Liker = {
-  user_id: string;
+  // ADR 0014 Phase 3 (마이그 0187): RPC RETURNS TABLE 별칭 user_id → profile_id.
+  profile_id: string;
   display_name: string | null;
   avatar_url: string | null;
   handle: string | null;
@@ -78,7 +79,7 @@ async function flushBucket(limit: number): Promise<void> {
         byCard.set(cid, list);
       }
       list.push({
-        user_id: row.user_id,
+        profile_id: row.profile_id,
         display_name: row.display_name,
         avatar_url: row.avatar_url,
         handle: row.handle,

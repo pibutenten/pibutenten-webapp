@@ -242,6 +242,7 @@ export default async function AdminUserDetailPage({
     .returns<CommentRow[]>();
 
   // 좋아요
+  // ADR 0014 Phase 3 (마이그 0187): card_likes.user_id → profile_id.
   const { data: likes } = await supabase
     .from("card_likes")
     .select(
@@ -249,7 +250,7 @@ export default async function AdminUserDetailPage({
         doctor:doctors(slug),
         author:profiles!cards_author_id_profiles_fkey(handle))`,
     )
-    .eq("user_id", id)
+    .eq("profile_id", id)
     .order("created_at", { ascending: false })
     .limit(30)
     .returns<LikeRow[]>();

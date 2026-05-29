@@ -156,10 +156,11 @@ export default function ProfileTabs({
       const sb = createSupabaseBrowserClient();
       const table = tab === "saves" ? "card_saves" : "card_likes";
       // 1) 내가 저장/좋아요한 card_id 목록
+      // ADR 0014 Phase 3 (마이그 0187): card_likes/saves.user_id → profile_id.
       const { data: rows, error: rowsErr } = await sb
         .from(table)
         .select("card_id, created_at")
-        .eq("user_id", profileId)
+        .eq("profile_id", profileId)
         .order("created_at", { ascending: false })
         .limit(50);
       if (rowsErr) {

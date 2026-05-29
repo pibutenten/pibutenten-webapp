@@ -6,6 +6,55 @@
 
 ---
 
+## [2026-05-29] — ADR 0014 Phase 3: card_likes / card_saves / comment_likes `user_id → profile_id` 통일
+
+### Changed (DB — 마이그 0187, 단일 트랜잭션, production 적용 완료)
+- `card_likes.user_id → profile_id` (컬럼 + PK + index + FK 제약 + RLS 정책 8건).
+- `card_saves.user_id → profile_id` (동일).
+- `comment_likes.user_id → profile_id` (동일).
+- 트리거 함수 (`bump_card_like_count` / `bump_card_save_count` / `bump_comment_like_count`) 는 `NEW.card_id` / `NEW.comment_id` 만 참조 — 본문 변경 X (사전 RPC body 조사로 확정).
+- RPC 10건 정합:
+  - `toggle_card_like` / `toggle_card_save` / `toggle_comment_like` — DML 의 `user_id` → `profile_id`.
+  - `get_recent_likers(qa_id, limit)` / `get_recent_card_likers_batch(card_ids[], limit)` — **RETURNS TABLE 반환 컬럼 rename** 으로 `CREATE OR REPLACE` 불가 (42P13). `DROP FUNCTION IF EXISTS` 후 재정의.
+  - `count_unread_notifications` / `fetch_qa_for_user` / `update_qa_state` / `submit_doctor_answer` 등 내부 SELECT `card_likes.user_id` → `profile_id`.
+- 트랜잭션 내부 DO 검증 블록 — 사전 (3 컬럼 존재) + 사후 (3 컬럼 부재) 모두 통과.
+- PostgREST 스키마 캐시 `NOTIFY pgrst, 'reload schema'` 반영.
+
+### Changed (코드 — 9 파일)
+- `src/lib/likers-batch.ts` — `Liker.user_id` → `profile_id` (타입 + row 매핑).
+- `src/components/LikersDialog.tsx` — `Liker.user_id` → `profile_id` + `key={l.profile_id}`.
+- `src/components/RecentLikers.tsx` — 동일 패턴.
+- `src/app/api/comments/route.ts:181-184` — `comment_likes.eq("user_id", viewer.id)` → `.eq("profile_id", viewer.id)`.
+- `src/lib/viewer-states.ts:36, 41` — `card_likes` / `card_saves` `.eq("user_id", activeId)` → `.eq("profile_id", activeId)`.
+- `src/components/card/hooks/useCardEngagement.ts:135, 142` — 동일 (active identity 기반 viewer 상태 fetch).
+- `src/app/[handle]/page.tsx:214, 218` — 본인 프로필 좋아요/저장 카운트 prefetch `.eq("user_id", profile.id)` → `.eq("profile_id", profile.id)`.
+- `src/components/ProfileTabs.tsx:162` — 좋아요/저장 탭 동적 fetch `.eq("user_id", profileId)` → `.eq("profile_id", profileId)`.
+- `src/app/admin/users/[id]/page.tsx:252` — admin 사용자 상세 좋아요 카운트 동일.
+
+### 마이그레이션 파일
+- `supabase/migrations/0187_phase3_user_id_to_profile_id.sql` — 단일 트랜잭션, 사전·사후 DO 검증.
+- `supabase/migrations/0187b_rollback.sql` — 정확한 역방향 (재현 가능).
+
+### 검증 절차 (모두 통과)
+- 사전 RPC body 조사 서브에이전트 — 트리거 3건 본문 무관 확정, RETURNS TABLE 시그니처 변경 함수 2건 식별 (DROP 패턴 적용).
+- production 적용 HTTP 201. 사후 `information_schema.columns` `user_id` 부재 + `profile_id` 존재 확정.
+- 전수 grep `(card_likes|card_saves|comment_likes).*user_id` — src/ 0건 / RPC 0건 / RLS 0건 / 트리거 0건.
+- `npx tsc --noEmit` 통과.
+- `npm run build` `✓ Compiled successfully`.
+- preview server 200 (홈 + /api/cards).
+
+### Phase 누적 (트랙 A)
+- Phase 1 (8af897a) — ADR 0014 + pre-commit 훅 + 문서 동기화.
+- Phase 2 (f8d1c93) — 마이그 0186 — 6 통계/인터랙션 테이블 (daily_logins / site_visits / activity_points / card_shares / card_views / card_impressions).
+- **Phase 3 (이번 커밋) — 마이그 0187 — 3 인터랙션 테이블 (card_likes / card_saves / comment_likes).**
+- Phase 4 (author_id 통일) — ADR 0014 §6 보류. 진행 여부 결정 대기.
+
+### 변경하지 않음 (의도)
+- `cards.author_id` / `comments.author_id` — Phase 4 별도.
+- 좋아요 토글 RPC 의 `p_identity_id` 인자명 — active identity 의미 보존 (profile_id 별칭 미부여).
+
+---
+
 ## [2026-05-29] — B-3/B-4/B-5: 에러 메시지 친절화 + ADR 0015 + age_confirmed_at DROP (트랙 B 종료)
 
 ### Added

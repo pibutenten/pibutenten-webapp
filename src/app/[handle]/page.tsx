@@ -207,15 +207,16 @@ export default async function HandleProfilePage({ params }: Props) {
   let likesCount = 0;
   let savesCount = 0;
   if (isOwner) {
+    // ADR 0014 Phase 3 (마이그 0187): card_likes/saves.user_id → profile_id.
     const [likesRes, savesRes] = await Promise.all([
       supabase
         .from("card_likes")
         .select("card_id", { count: "exact", head: true })
-        .eq("user_id", profile.id),
+        .eq("profile_id", profile.id),
       supabase
         .from("card_saves")
         .select("card_id", { count: "exact", head: true })
-        .eq("user_id", profile.id),
+        .eq("profile_id", profile.id),
     ]);
     likesCount = likesRes.count ?? 0;
     savesCount = savesRes.count ?? 0;

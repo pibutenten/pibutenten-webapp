@@ -30,15 +30,16 @@ export async function fetchViewerStates(
   if (!viewerId || cardIds.length === 0) return map;
   const activeId = await readTargetProfileId(viewerId);
   const [likes, saves] = await Promise.all([
+    // ADR 0014 Phase 3 (마이그 0187): card_likes/saves.user_id → profile_id.
     supabase
       .from("card_likes")
       .select("card_id")
-      .eq("user_id", activeId)
+      .eq("profile_id", activeId)
       .in("card_id", cardIds),
     supabase
       .from("card_saves")
       .select("card_id")
-      .eq("user_id", activeId)
+      .eq("profile_id", activeId)
       .in("card_id", cardIds),
   ]);
   for (const r of likes.data ?? []) {

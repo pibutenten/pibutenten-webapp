@@ -6,7 +6,8 @@ import { fetchRecentLikersBatch } from "@/lib/likers-batch";
 import LikersDialog from "@/components/LikersDialog";
 
 type Liker = {
-  user_id: string;
+  // ADR 0014 Phase 3 (마이그 0187): RPC RETURNS TABLE 별칭 user_id → profile_id.
+  profile_id: string;
   display_name: string | null;
   avatar_url: string | null;
   handle: string | null;
@@ -80,7 +81,7 @@ export default function RecentLikers({
       <div className="flex -space-x-3.5 -ml-[2px]">
         {visibleLikers.map((l, idx) => (
           <div
-            key={l.user_id}
+            key={l.profile_id}
             className="relative"
             style={{ zIndex: visibleLikers.length - idx }}
           >

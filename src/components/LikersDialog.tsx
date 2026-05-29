@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { fetchRecentLikersBatch } from "@/lib/likers-batch";
 
 type Liker = {
-  user_id: string;
+  // ADR 0014 Phase 3 (마이그 0187): RPC RETURNS TABLE 별칭 user_id → profile_id.
+  profile_id: string;
   display_name: string | null;
   avatar_url: string | null;
   handle: string | null;
@@ -132,7 +133,7 @@ export default function LikersDialog({ cardId, open, onClose }: Props) {
           {likers && likers.length > 0 && (
             <ul className="flex flex-wrap gap-x-1 gap-y-1">
               {likers.map((l) => (
-                <LikerRow key={l.user_id} liker={l} onClose={onClose} />
+                <LikerRow key={l.profile_id} liker={l} onClose={onClose} />
               ))}
             </ul>
           )}

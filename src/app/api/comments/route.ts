@@ -180,7 +180,8 @@ export async function GET(req: Request) {
     const { data: likedRows } = await supabase
       .from("comment_likes")
       .select("comment_id")
-      .eq("user_id", viewer.id)
+      // ADR 0014 Phase 3 (마이그 0187): comment_likes.user_id → profile_id.
+      .eq("profile_id", viewer.id)
       .in("comment_id", allCommentIds);
     likedSet = new Set(
       (likedRows ?? []).map((r) => (r as { comment_id: number }).comment_id),

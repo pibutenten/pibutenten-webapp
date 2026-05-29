@@ -127,19 +127,20 @@ export function useCardEngagement(
         // active = cookie 'pibutenten:identity' = 'primary' 면 user.id, UUID 면 그 값.
         const activeId = getActiveIdentityId() ?? user.id;
 
+        // ADR 0014 Phase 3 (마이그 0187): card_likes/saves.user_id → profile_id.
         const [likeRes, saveRes] = await Promise.all([
           supabase
             .from("card_likes")
             .select("card_id")
             .eq("card_id", card.id)
-            .eq("user_id", activeId)
+            .eq("profile_id", activeId)
             .limit(1)
             .maybeSingle(),
           supabase
             .from("card_saves")
             .select("card_id")
             .eq("card_id", card.id)
-            .eq("user_id", activeId)
+            .eq("profile_id", activeId)
             .limit(1)
             .maybeSingle(),
         ]);
