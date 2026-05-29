@@ -6,6 +6,55 @@
 
 ---
 
+## [2026-05-29] — POLICY-1 B-1/B-2: 묶음 PII 백필 + 온보딩 게이트 active 명함 단위 정합
+
+> 첫 점검 보고서 POLICY-1 / POLICY-2 의 실제 사례가 production 에서 발견됨. forbidden 토스트만 보이고 온보딩 화면이 안 뜨던 회귀의 근본 원인 (사용자가 jminbae sub 명함으로 active 전환 후 댓글 작성 시도) 처리.
+
+### Changed (B-1 — production DB 일회성 백필, 단일 트랜잭션)
+- 백업 테이블 `public.profiles_backup_20260529` 생성 (46 row 동일).
+- 단일 트랜잭션 `UPDATE profiles ... COALESCE` 로 묶음 안 빈 sub 명함 5개 (developer / jminbae / kim-soohyung / kang-hyunjin / park-hyojin) 의 PII (10개 컬럼) 를 같은 묶음 base 명함 값으로 복사. 이미 채워진 칸은 보존.
+- 트랜잭션 내부 사전·사후 DO 검증 블록 모두 통과. 사후 `remaining_sub_null = 0`.
+- 단독 명함 (sub 없는 base) NULL 5건 (lhjcjstk79 외 4명) 은 별도 정책 결정 — 본 작업 범위 외 (단 B-2 적용 후 다음 로그인 시 middleware 가 자동 `/onboarding` 안내).
+
+### Changed (B-2 — 온보딩 게이트 코드 정합, 3파일 한 세트)
+- `src/middleware.ts` — POLICY-1 정정:
+  - 옛 `.eq("id", user.id)` (base 만) → IDENTITY_COOKIE 기반 active 명함 + 묶음 보안 검증.
+  - candidate ID 가 호출자 묶음 (id = user.id 또는 auth_user_id = user.id) 에 속할 때만 active 단위 검사 사용. 묶음 외 ID 는 base fallback. **남의 명함 ID 우회 차단**.
+  - Fast path 2b 의 ONBOARDED_COOKIE 매칭을 active 단위로 좁힘. active 명함이 바뀌면 mismatch 감지 → 슬로 path 재검사. 무한 루프 차단.
+  - ONBOARDED_COOKIE set 시 값을 `profile.id` (검사 통과 명함 ID) 로 — 옛 `user.id` 고정 → active 정합.
+  - `UUID_RE` import 추가.
+- `src/app/onboarding/page.tsx`:
+  - IDENTITY_COOKIE + 묶음 보안 검증으로 `targetProfileId` 결정. 그 명함의 PII 를 prefill.
+  - `OnboardingClient` 에 `targetProfileId` prop 전달.
+- `src/app/onboarding/OnboardingClient.tsx`:
+  - 새 prop `targetProfileId` 추가.
+  - `profiles UPDATE .eq("id", targetProfileId)` — 옛 base 고정 (userId) → active 명함 저장.
+  - `propagate_onboarding_to_doctor_bundle({p_source_profile_id: targetProfileId})` — source 도 active 명함.
+  - `document.cookie = pibutenten_onboarded=${targetProfileId}` — middleware fast path 2b 정합.
+
+### 누더기 차단 (의도)
+- 호환 별칭 / 옛 user_id-style wrapper 일체 도입 안 함.
+- middleware / page.tsx / OnboardingClient 세 곳이 같은 정책 (active 단위 + 묶음 검증). 무한 redirect 루프 차단.
+
+### 검증 절차 (모두 통과)
+- B-1 백필 트랜잭션 HTTP 201 + DO 검증 블록 2개 통과. 사후 `remaining_sub_null = 0`.
+- jminbae 명함 birth/terms/gender/skin 모두 채워짐 확인 — 다음 댓글 작성 시 POST /api/comments 의 onboarding_required 가드 통과.
+- `npx tsc --noEmit` 통과. `npm run build` `✓ Compiled successfully in 3.1s`.
+- preview server 에러 0건, 홈 + /api/cards 정상 응답.
+- 시나리오 코드 흐름:
+  - (a) sub PII NULL 상태 active → middleware active 검사 → birthdate NULL → `/onboarding`. forbidden 토스트 X.
+  - (b) 온보딩 완료 시 active 명함에 저장 + ONBOARDED_COOKIE=targetProfileId → fast path 2b 매칭 → 통과. **무한 루프 없음**.
+  - (c) propagate RPC source = targetProfileId → 묶음 다른 명함 NULL 칸 COALESCE 복사 (이미 채워진 칸 보존).
+  - (d) 남의 명함 ID 쿠키 우회 → `inBundle` 검증 fail → base fallback. 우회 차단.
+
+### 변경하지 않음 (의도)
+- `src/app/settings/profile/page.tsx` 의 base-only 읽기 (POLICY-1 잔여 — 별도 안건).
+- `src/app/api/admin/users/[id]/role/route.ts` (CRITICAL-3 — 별도 안건).
+- `propagate_onboarding_to_doctor_bundle` RPC 본문 — 이미 호출자 묶음 검증 포함. 그대로 사용.
+- 새 sub 명함 생성 시 자동 propagate — src/ 안 `profiles INSERT` 0건 / `create_sub_profile` 류 0건 확인. 정상 sub 생성 경로 현재 부재 → 코드 수정 불필요 (미래 도입 시점 적용 정책).
+
+---
+
 ## [2026-05-29] — ADR 0014 Phase 2: 인터랙션·통계 6 테이블 user_id → profile_id RENAME (마이그 0186)
 
 ### Changed (DB — 마이그 0186, 단일 트랜잭션 production 적용 완료)

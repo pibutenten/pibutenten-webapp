@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { IDENTITY_COOKIE } from "@/lib/identity-shared";
+import { IDENTITY_COOKIE, UUID_RE } from "@/lib/identity-shared";
 
 /**
  * 온보딩 가드 면제 경로 (prefix 매치).
@@ -203,9 +203,22 @@ export async function middleware(request: NextRequest) {
 
   // ⚡ 빠른 경로 2b: onboarded 쿠키가 있으면 supabase 호출 없이 통과
   //   (로그아웃 시 쿠키 expire되도록 별도 처리는 supabase logout이 onboarded 쿠키도 삭제할 때만 필요)
+  //
+  // B-2 (2026-05-29 / POLICY-1): active 명함 단위로 매칭.
+  //   IDENTITY_COOKIE 가 UUID (active 명함 명시) 이고 ONBOARDED_COOKIE 가 그 UUID 와 다르면
+  //   active 가 바뀌었다는 신호 → fast path 통과 X, 슬로 path 로 검사.
+  //   IDENTITY_COOKIE 가 없거나 옛 "primary" 면 옛 사용자 → 쿠키 있으면 그냥 통과.
   const onboardedCookie = request.cookies.get(ONBOARDED_COOKIE)?.value;
+  const idCookieRaw = request.cookies.get(IDENTITY_COOKIE)?.value ?? null;
+  const activeIdHint =
+    idCookieRaw && idCookieRaw !== "primary" && UUID_RE.test(idCookieRaw)
+      ? idCookieRaw
+      : null;
   if (onboardedCookie) {
-    return response;
+    if (!activeIdHint || onboardedCookie === activeIdHint) {
+      return response;
+    }
+    // active 가 다른 명함으로 바뀜 → 슬로 path 에서 active 단위 재검사.
   }
 
   // 위 fast path를 못 통과하면 supabase로 검증
@@ -237,23 +250,68 @@ export async function middleware(request: NextRequest) {
   // 비로그인 → 가드 스킵
   if (!user) return response;
 
-  // profiles 조회 — 약관 + birthdate 한번에 (실패 시 가드 스킵으로 fail-safe)
-  let profile: { terms_agreed_at: string | null; birthdate: string | null } | null = null;
+  // B-2 (2026-05-29 / ADR 0014 후속, POLICY-1): 온보딩 가드를 active 명함 단위로 검사.
+  // 옛 패턴 (.eq("id", user.id)) 은 base profile 만 검사해 sub 명함의 PII NULL 을 놓쳤다 —
+  // 사용자가 forbidden 토스트만 보고 온보딩 화면을 못 보던 회귀 원인.
+  //
+  // 보안 (묶음 우회 차단):
+  //   IDENTITY_COOKIE 가 UUID 면 candidate. 그 UUID 가 호출자 묶음 (id = user.id 또는
+  //   auth_user_id = user.id) 에 속할 때만 검사 대상으로 사용. 다른 사람 명함 ID 를
+  //   쿠키에 넣어 우회 시도 → 묶음 검증 fail → base 로 fallback.
+  //
+  // 단일 쿼리: candidate 가 묶음 안에 있으면 그 row 의 PII 반환 (있으면 active 단위 검사).
+  //           없으면 base (user.id) row 반환. 어느 쪽이든 정확히 1건.
+  const idCookie = request.cookies.get(IDENTITY_COOKIE)?.value;
+  const candidateId =
+    idCookie && idCookie !== "primary" && UUID_RE.test(idCookie)
+      ? idCookie
+      : user.id;
+
+  let profile: { id: string; terms_agreed_at: string | null; birthdate: string | null } | null = null;
   try {
+    // 1차: candidate 가 묶음 안인지 검증 + PII 동시 조회.
+    //   candidate == user.id (base) 면 자동 매칭. 다른 UUID 면 auth_user_id == user.id 검증.
     const { data, error } = await supabase
       .from("profiles")
-      .select("terms_agreed_at, birthdate")
-      .eq("id", user.id)
+      .select("id, terms_agreed_at, birthdate, auth_user_id")
+      .eq("id", candidateId)
       .maybeSingle();
     if (error) {
       // DB 스키마 미적용 등 → 가드 스킵 (무한 redirect 방지)
       console.warn("[middleware] profile select error:", error.message);
       return response;
     }
-    profile = data as { terms_agreed_at: string | null; birthdate: string | null } | null;
+    const row = data as
+      | { id: string; terms_agreed_at: string | null; birthdate: string | null; auth_user_id: string | null }
+      | null;
+    // 묶음 검증: candidate 가 base 와 같거나, auth_user_id 가 user.id 와 같으면 본인 묶음.
+    const inBundle =
+      !!row && (row.id === user.id || row.auth_user_id === user.id);
+    if (inBundle) {
+      profile = {
+        id: row.id,
+        terms_agreed_at: row.terms_agreed_at,
+        birthdate: row.birthdate,
+      };
+    }
   } catch (e) {
     console.warn("[middleware] profile select exception:", e);
     return response;
+  }
+
+  // candidate 가 묶음 외였거나 SELECT 실패 → base profile 로 fallback.
+  if (!profile) {
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, terms_agreed_at, birthdate")
+        .eq("id", user.id)
+        .maybeSingle();
+      profile = data as { id: string; terms_agreed_at: string | null; birthdate: string | null } | null;
+    } catch (e) {
+      console.warn("[middleware] base fallback select exception:", e);
+      return response;
+    }
   }
 
   // profile row 자체가 없으면 (handle_new_user 트리거 미적용 등) 가드 스킵
@@ -274,7 +332,10 @@ export async function middleware(request: NextRequest) {
   // 통과 — 캐시 쿠키 set (12시간)
   // httpOnly: false — OnboardingClient.tsx 에서 document.cookie 로 같은 쿠키를 set 하므로 유지.
   // secure: production HTTPS 환경에서만 전송되도록 강제 (A11, 2026-05-17).
-  response.cookies.set(ONBOARDED_COOKIE, user.id, {
+  //
+  // B-2 (2026-05-29): 쿠키 값을 검사 통과한 명함 ID 로 set (옛 user.id 고정 → profile.id).
+  //   active 명함 바뀌면 fast path 가 mismatch 감지 → 재검사 트리거.
+  response.cookies.set(ONBOARDED_COOKIE, profile.id, {
     httpOnly: false,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

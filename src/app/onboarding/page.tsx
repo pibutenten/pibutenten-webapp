@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import OnboardingClient from "./OnboardingClient";
-import { ROLES } from "@/lib/identity-shared";
+import { IDENTITY_COOKIE, ROLES, UUID_RE } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -26,13 +27,36 @@ export default async function OnboardingPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/onboarding");
 
-  // primary row (id = user.id) — 온보딩 정보 저장 대상 (middleware 의 birthdate 체크 기준).
+  // B-2 (2026-05-29 / POLICY-1): 온보딩 저장 대상을 active 명함 단위로 결정.
+  //   IDENTITY_COOKIE 가 UUID 이고 그 명함이 호출자 묶음 (id = user.id 또는 auth_user_id = user.id)
+  //   에 속하면 active 명함 ID 를, 아니면 base (user.id) 로 fallback.
+  //   middleware 의 active 검사와 같은 정책 — 무한 루프 차단.
+  const cookieStore = await cookies();
+  const idCookie = cookieStore.get(IDENTITY_COOKIE)?.value ?? null;
+  const candidateId =
+    idCookie && idCookie !== "primary" && UUID_RE.test(idCookie)
+      ? idCookie
+      : user.id;
+  let targetProfileId = user.id; // 기본값: base. 묶음 검증 통과 시 candidate 로 갱신.
+  if (candidateId !== user.id) {
+    const { data: cand } = await supabase
+      .from("profiles")
+      .select("id, auth_user_id")
+      .eq("id", candidateId)
+      .maybeSingle()
+      .returns<{ id: string; auth_user_id: string | null } | null>();
+    if (cand && (cand.id === user.id || cand.auth_user_id === user.id)) {
+      targetProfileId = cand.id;
+    }
+  }
+
+  // target profile (active or base) — 온보딩 정보 저장 대상.
   const { data: primary } = await supabase
     .from("profiles")
     .select(
       "contact_email, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, skin_info_consent_at",
     )
-    .eq("id", user.id)
+    .eq("id", targetProfileId)
     .maybeSingle()
     .returns<ProfileRow>();
 
@@ -80,6 +104,7 @@ export default async function OnboardingPage() {
 
       <OnboardingClient
         userId={user.id}
+        targetProfileId={targetProfileId}
         popularByCategory={popularByCategory}
         initial={{
           email: defaultEmail,

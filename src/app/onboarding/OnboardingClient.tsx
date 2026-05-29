@@ -58,7 +58,15 @@ function formatProviders(providers: string[]): string {
 }
 
 type Props = {
+  /** base profile id (auth.users.id). avatar 업로드 경로용. */
   userId: string;
+  /**
+   * 온보딩 PII 저장 대상 명함 id.
+   * B-2 (2026-05-29 / POLICY-1): active 명함 단위 저장.
+   *   page.tsx 에서 IDENTITY_COOKIE 기반으로 묶음 검증 통과 시 candidate, 아니면 user.id.
+   *   middleware 의 active 단위 검사와 정합 — 무한 루프 차단.
+   */
+  targetProfileId: string;
   initial: Initial;
   /** 발행된 카드 keywords 카테고리별 TOP N — 섹션 5 (관심 키워드 칩) 용. */
   popularByCategory: PopularByCategory;
@@ -123,7 +131,7 @@ function parseBirthdate(s: string): {
   };
 }
 
-export default function OnboardingClient({ userId, initial, popularByCategory }: Props) {
+export default function OnboardingClient({ userId, targetProfileId, initial, popularByCategory }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -311,6 +319,8 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
       // 미입력 시 디폴트 자기소개 ("만나서 반갑습니다.") 로 저장 (UI placeholder 와 동일 문구).
       const DEFAULT_BIO = "만나서 반갑습니다.";
       const finalBio = bio.trim() || DEFAULT_BIO;
+      // B-2 (2026-05-29 / POLICY-1): active 명함 (targetProfileId) 에 저장.
+      //   userId 는 avatar 업로드 경로 + onboarded 쿠키 값 용도. PII 저장은 active 명함에.
       const { error } = await sb
         .from("profiles")
         .update({
@@ -326,18 +336,19 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
           // 보안 2.5차 C묶음: PIPA 동의 시점 보존
           skin_info_consent_at: new Date().toISOString(),
         })
-        .eq("id", userId);
+        .eq("id", targetProfileId);
       if (error) {
         setErr(`저장 실패: ${error.message}`);
         return;
       }
-      // Phase 6-NEW (migration 0106): 의사 멀티 계정 보유자에 한해
-      // 묶음 내 다른 profile row 들에 온보딩 정보를 일괄 전파 (COALESCE — NULL 컬럼만 채움).
-      // 의사 멀티 계정 아니면 RPC 가 0 반환 — 무해. 실패는 silent (best effort).
+      // Phase 6-NEW (migration 0106): 묶음 내 다른 profile row 들에 온보딩 정보를 일괄 전파
+      // (COALESCE — NULL 컬럼만 채움). 호출자 묶음 검증 (auth.uid()) 은 RPC 내부에서 처리.
+      // source = targetProfileId (방금 채워진 active 명함). RPC 가 같은 묶음 다른 명함의 NULL 칸만
+      // 복사 — 이미 채워진 명함은 보존. 의사 멀티 계정 묶음 아니면 0 반환 (무해).
       try {
         const { error: propErr } = await sb.rpc(
           "propagate_onboarding_to_doctor_bundle",
-          { p_source_profile_id: userId },
+          { p_source_profile_id: targetProfileId },
         );
         if (propErr) {
           console.warn(
@@ -358,7 +369,9 @@ export default function OnboardingClient({ userId, initial, popularByCategory }:
           typeof window !== "undefined" && window.location.protocol === "https:"
             ? "; Secure"
             : "";
-        document.cookie = `pibutenten_onboarded=${userId}; Path=/; Max-Age=${60 * 60 * 12}; SameSite=Lax${secureAttr}`;
+        // B-2 (2026-05-29): 쿠키 값을 active 명함 id 로 set — middleware fast path 2b 가
+        // 같은 명함 ID 매칭 시에만 통과. active 가 다른 명함으로 바뀌면 mismatch 감지 → 재검사.
+        document.cookie = `pibutenten_onboarded=${targetProfileId}; Path=/; Max-Age=${60 * 60 * 12}; SameSite=Lax${secureAttr}`;
         document.cookie = `pibutenten_must_onboard=; Path=/; Max-Age=0; SameSite=Lax${secureAttr}`;
       } catch {
         /* ignore — 인앱 sandbox */
