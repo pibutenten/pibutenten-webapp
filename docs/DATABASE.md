@@ -287,8 +287,10 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0187 | Phase 3 — 좋아요·저장 3 테이블 RENAME + 트리거·RPC 재정의 (card_likes, card_saves, comment_likes) | **적용 완료 (2026-05-29, `91477c2`)** |
 | 0188 | Phase 4 — 보류 (cards/comments `author_id` 유지 결정, ADR 0014 §6) | 보류 |
 | 0189 | dead 컬럼 `profiles.age_confirmed_at` DROP (트랙 B-5) | **적용 완료 (2026-05-29, `d2bfddd`)** |
+| 0190 | `doctors.profile_data` UPDATE GRANT to service_role (d4ceff8 후속) | **적용 완료 (2026-05-29)** |
+| 0191 | `doctors` SELECT GRANT to service_role (UPDATE WHERE 절 SELECT 권한 요구 충족) | **적용 완료 (2026-05-29)** |
 
-production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재.
+production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 
 ---
 

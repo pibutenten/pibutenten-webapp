@@ -6,6 +6,81 @@
 
 ---
 
+## [2026-05-29] — doctors GRANT 누락 후속 정리 (마이그 0190 + 0191)
+
+### 배경 (d4ceff8 의 진짜 미해결 원인)
+d4ceff8 (방식 B) 가 신규 PUT 라우트 + `createSupabaseAdminClient()` (service_role)
+경로로 통일했으나 **production 에 doctors UPDATE 가 여전히 "저장에 실패했습니다."
+로 차단**. 정한미 원장 재제보로 발견.
+
+진짜 원인 — 서브에이전트 사전조사의 두 단계 잘못된 가정:
+1. "service_role 은 BYPASSRLS + 모든 권한 attribute 부여 → GRANT 없이 통과" 가정.
+2. 실제: `rolbypassrls=true` 는 RLS 만 우회. **PostgreSQL GRANT 체크는 별도**.
+   - `rolsuper=false`, owner=postgres → GRANT 부재 컬럼/테이블 접근 시 42501.
+   - admin write 5 테이블 (audit_logs/cards/comments/content_reports/profiles)
+     모두 service_role 에 SELECT/INSERT/UPDATE/DELETE 부여됨 → 동작.
+   - **doctors 만 0001_init 부터 service_role 에 SIUD 0개** (REFERENCES/TRIGGER/
+     TRUNCATE 만). 일관된 누락 패턴.
+3. 추가: PostgreSQL Privileges 정확 모델 — `UPDATE WHERE 절 / SET RHS 컬럼 참조`
+   는 SELECT 권한도 함께 요구. 0190 가 UPDATE 만 부여한 뒤에도 WHERE id 평가가
+   SELECT 부재로 차단.
+
+d4ceff8 시점의 검증 누락 — "401/400 분기" 만 확인하고 **실제 UPDATE 도달 실증을
+생략** → 잘못된 "처리완료" 보고. 정민님 재제보로 발견 + 즉시 진단 후 0190/0191 로
+정확 정리.
+
+### Added — 마이그 0190 + 0191 (단일 트랜잭션 × 2, production 적용 완료)
+- `supabase/migrations/0190_doctors_profile_data_grant.sql`:
+  - `GRANT UPDATE (profile_data) ON public.doctors TO service_role` (컬럼 한정).
+  - 사전·사후 DO 검증 블록. HTTP 201.
+- `supabase/migrations/0190b_doctors_profile_data_grant_rollback.sql` — 정확한 역방향.
+- `supabase/migrations/0191_doctors_service_role_select.sql`:
+  - `GRANT SELECT ON public.doctors TO service_role` (WHERE id 평가 SELECT 권한 충족).
+  - doctors 는 이미 `doctors: public read` RLS (USING true) — anon/authenticated 도
+    전체 컬럼 SELECT 가능. service_role 부여로 외부 노출 변화 0.
+  - INSERT/DELETE 는 부여 안 함 (의사 신규 생성/삭제는 admin client 경로 아님).
+  - 사전 (0190 의 UPDATE 존재 가드) + 사후 DO 검증. HTTP 201.
+- `supabase/migrations/0191b_doctors_service_role_select_rollback.sql` — 정확한 역방향.
+
+### 최종 GRANT 상태 (service_role × doctors)
+| 권한 | 부여 |
+|---|---|
+| SELECT (전체 컬럼) | ✓ (0191) |
+| UPDATE (profile_data 컬럼) | ✓ (0190) |
+| INSERT / DELETE | — (의도된 부재 — 최소 표면) |
+| 그 외 (REFERENCES/TRIGGER/TRUNCATE) | ✓ (0001_init 기본) |
+
+### ★ end-to-end 실증 (헛보고 재발 방지)
+production Management API 로 직접 `SET LOCAL role service_role; ... ROLLBACK;`
+시퀀스 실행 — 데이터 무변경 보장:
+
+| 검증 | 결과 |
+|---|---|
+| **POSITIVE 1** — `UPDATE doctors SET profile_data=$1 WHERE id=$2` (라우트 실제 쿼리) | **201 통과** (이전 42501) |
+| **POSITIVE 2** — 새 jsonb 값 UPDATE + 사후 SELECT 로 반영 확인 + ROLLBACK | probe 값 정확 반환. 트랜잭션 종료 후 production 데이터 그대로 |
+| **NEGATIVE 1** — `UPDATE name` 시도 | 42501 차단 ✓ |
+| **NEGATIVE 2** — `DELETE FROM doctors` 시도 | 42501 차단 ✓ |
+| **NEGATIVE 3** — `INSERT INTO doctors` 시도 | 42501 차단 ✓ |
+| production 데이터 무변경 | jung-hanmi.youtube = `https://www.youtube.com/@pibutenten` 그대로 |
+
+### 코드 변경 0건
+- 라우트 / 클라이언트 / RLS 모두 무변경. 마이그 2건만으로 권한 부재 종결.
+
+### 검증
+- `npx tsc --noEmit` 통과.
+- `npm run build` `✓ Compiled successfully in 23.5s` — 신규 라우트 빌드 등록 유지.
+
+### 변경하지 않음 (의도)
+- doctors RLS 정책 (그대로 — service_role 은 BYPASSRLS 라 정책 추가 무의미).
+- INSERT/DELETE GRANT 미부여 (현 admin client 경로 미사용 + 최소 표면).
+- 다른 admin write 5 테이블의 GRANT (이미 정합).
+
+### 다음 작업
+정민님 production 환경 (의사 admin 으로 본인 프로필 저장) 실제 통과 확인 요청.
+이후 CRITICAL-3.
+
+---
+
 ## [2026-05-29] — doctors 프로필 편집 권한 복구 (방식 B: API 라우트 통일)
 
 ### 배경
