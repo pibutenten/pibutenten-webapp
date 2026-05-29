@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   // 2026-05-20: 브랜드 + 슬로건 형태로 통일 (브라우저 탭 잘림 방지 + og:title 일관성).
   title: { absolute: "피부텐텐 | 피부가 예뻐지는 모든 이야기" },
   description:
-    "피부과 전문의 9명이 직접 답하는 피부 미용 커뮤니티. 시술·홈케어·안티에이징 관련 검수된 답변 모음.",
+    "피부과 전문의가 직접 답하는 피부 미용 커뮤니티. 시술·홈케어·안티에이징 관련 검수된 답변 모음.",
   alternates: { canonical: `${SITE_URL}/` },
 };
 

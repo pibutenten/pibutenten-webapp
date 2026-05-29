@@ -163,7 +163,7 @@ type Props = {
   /** create 모드 — 의사 본인이 작성 시 myDoctor.slug 자동 첨부 (UI 노출 없음) */
   myDoctor?: { slug: string; name: string } | null;
 
-  /** create 모드 admin — 글쓴이 dropdown (의사 9명). 선택 안 하면 본인 명의 (admin). */
+  /** create 모드 admin — 글쓴이 dropdown (참여 전문의). 선택 안 하면 본인 명의 (admin). */
   createAuthorOptions?: DoctorOption[];
 
   /** edit 모드 — 취소·저장 후 돌아갈 URL */

@@ -9,9 +9,9 @@
  *   - doctors: 원장 목록 (정렬됨)
  *   - authorOptions: 글쓴이 변경용 옵션 — 글쓴이 role 따라 풀 제한
  *       - role='user'   → undefined (변경 불가, EditClient 가 readonly 박스만 렌더)
- *       - role='doctor' → 의사 9명 풀
+ *       - role='doctor' → 참여 전문의 풀
  *       - role='admin'  → 관리자 풀
- *       - role 없음(legacy) → admin + 의사 9명 통합 풀 (호환)
+ *       - role 없음(legacy) → admin + 참여 전문의 통합 풀 (호환)
  *   - doctorPickCount: 같은 doctor 의 현재 Pick 카드 수 (5개 제한 안내용)
  *   - commentCount: 카드의 visible 댓글 수
  */
@@ -71,7 +71,7 @@ export async function fetchAdminCardExtras(
     if (authorRole === "user") {
       authorOptions = undefined;
     } else if (authorRole === "doctor") {
-      // 의사 9명 풀만
+      // 참여 전문의 풀만
       const { data: docProfiles } = await supabase
         .from("profiles")
         .select("id, display_name, handle, role")

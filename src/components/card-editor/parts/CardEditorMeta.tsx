@@ -6,7 +6,7 @@
  * 담당 UI:
  *   - 카테고리 picker (role 별 옵션 chip, edit 시 변경 불가 분기)
  *   - admin extras (edit 모드 admin) — 글쓴이 + Pick 토글
- *   - create 모드 admin — 글쓴이 dropdown (의사 9명 + 본인 명의)
+ *   - create 모드 admin — 글쓴이 dropdown (참여 전문의 + 본인 명의)
  *
  * Presentational only — state 없음, 모든 데이터/콜백 부모(`CardEditor`)에서 전달.
  */
@@ -167,7 +167,7 @@ export default function CardEditorMeta({
         </div>
       )}
 
-      {/* create 모드 admin — 글쓴이 선택 (의사 9명 + 본인 명의) */}
+      {/* create 모드 admin — 글쓴이 선택 (참여 전문의 + 본인 명의) */}
       {mode === "create" &&
         viewerRole === "admin" &&
         createAuthorOptions &&

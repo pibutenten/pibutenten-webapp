@@ -1,7 +1,7 @@
 import { SITE_URL } from "@/lib/site";
 
 /**
- * 5개 힐하우스피부과 브랜치 + 9명 의사→지점 매핑.
+ * 5개 힐하우스피부과 브랜치 + 참여 전문의→지점 매핑.
  * schema.org `MedicalClinic` 객체로 빌드되며 layout.tsx 전역 @graph에 노출됨.
  *
  * 데이터 출처: 각 지점 공식 사이트 (2026-05-09 기준).

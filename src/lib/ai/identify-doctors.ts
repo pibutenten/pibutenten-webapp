@@ -1,17 +1,17 @@
 /**
- * 자막 + 영상 제목 → 우리 9명 원장 자동 식별.
+ * 자막 + 영상 제목 → 우리 참여 전문의 자동 식별.
  *
  * 신호 소스:
  *  1) 자막 첫 ~3분 + 마지막 1분에서 자기소개 패턴
  *  2) 영상 제목에 이름이 포함되어 있는지
- *  3) 자막 전체에서 9명 이름 호명 빈도 (가장 많이 불린 사람 = 주 화자 후보)
+ *  3) 자막 전체에서 원장님 이름 호명 빈도 (가장 많이 불린 사람 = 주 화자 후보)
  *
- * 외부 원장 화이트리스트는 더 이상 추출 X — 9명 외에는 "외부"로 일괄 처리.
+ * 외부 원장 화이트리스트는 더 이상 추출 X — 등록 원장님들 외에는 "외부"로 일괄 처리.
  *
  * Phase 7 `scripts_phase7/30_identify_doctors.py` 의 핵심 로직 포팅.
  */
 
-// DB doctors.slug 기준 9명 원장 — SSOT 는 schema/doctor.ts 의 DOCTORS.
+// DB doctors.slug 기준 참여 전문의 — SSOT 는 schema/doctor.ts 의 DOCTORS.
 // 호환성 위해 동일 이름으로 re-export (기존 호출자 변경 불필요).
 import { DOCTORS } from "@/lib/schema/doctor";
 export const DOCTORS_9 = DOCTORS;
@@ -28,11 +28,11 @@ export type DoctorMatch = {
 };
 
 export type IdentifyResult = {
-  /** 우리 9명 중 자막·제목에 등장한 원장들 — 빈도 내림차순 */
+  /** 우리 등록 원장님들 중 자막·제목에 등장한 원장들 — 빈도 내림차순 */
   matches: DoctorMatch[];
   /** 주 화자 (가장 강한 신호의 원장). 없으면 null */
   primary: DoctorMatch | null;
-  /** 9명 중 누구도 식별 안 됨 — 작업 차단해야 함 */
+  /** 등록 원장님들 중 누구도 식별 안 됨 — 작업 차단해야 함 */
   empty: boolean;
 };
 
@@ -59,7 +59,7 @@ const PARTICLE_SUFFIX = new Set([
   "과", "와", "씨", "님", "의", "에", "도", "만",
 ]);
 
-/** "박효진이", "정한미가" 같은 조사 결합형을 9명 본명으로 정규화. */
+/** "박효진이", "정한미가" 같은 조사 결합형을 원장님 본명으로 정규화. */
 function normalizeName(raw: string): string {
   if (DOCTOR_NAMES.includes(raw)) return raw;
   if (raw.length >= 3) {
@@ -73,7 +73,7 @@ function normalizeName(raw: string): string {
 }
 
 /**
- * 자막에서 자기소개 매칭 — 9명 중 등장한 이름들 (Set 형태).
+ * 자막에서 자기소개 매칭 — 등록 원장님들 중 등장한 이름들 (Set 형태).
  * 자막 앞 ~3분(약 400 줄) + 마지막 1분(약 120 줄) 영역만 본다.
  */
 function extractSelfIntro(transcript: string): Set<string> {
@@ -102,13 +102,13 @@ function countFrequency(text: string, name: string): number {
 }
 
 /**
- * 자막 본문 + 영상 제목 → 우리 9명 식별.
+ * 자막 본문 + 영상 제목 → 우리 등록 원장님들 식별.
  *
  * 매칭 신호 강도(빈도 기준 + 자기소개·제목 가중):
  *   strength = frequency + (selfIntro ? 10 : 0) + (inTitle ? 5 : 0)
  *
  * primary = 최고 strength. 동률이면 자기소개 > 제목 > 빈도 순.
- * empty = 9명 중 누구도 어떤 신호도 없음 (frequency 0 + intro X + title X).
+ * empty = 등록 원장님들 중 누구도 어떤 신호도 없음 (frequency 0 + intro X + title X).
  */
 export function identifyDoctors(opts: {
   transcript: string;

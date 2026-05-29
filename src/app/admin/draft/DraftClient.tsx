@@ -191,7 +191,7 @@ export default function DraftClient() {
   }
 
   /**
-   * 자막을 수동으로 붙여넣은 경우 — 클라이언트에서 9명 식별만 빠르게 처리.
+   * 자막을 수동으로 붙여넣은 경우 — 클라이언트에서 원장님 식별만 빠르게 처리.
    * (서버 API는 자막 fetch 포함이라 우회. 식별 로직은 동일 lib 사용.)
    */
   async function applyManualTranscript() {
@@ -207,7 +207,7 @@ export default function DraftClient() {
     });
     if (id.empty) {
       setError(
-        "이 자막에는 등록된 원장 9명 중 누구도 등장하지 않습니다. Q&A 추출 대상이 아닙니다.",
+        "이 자막에는 등록된 참여 전문의 중 누구도 등장하지 않습니다. Q&A 추출 대상이 아닙니다.",
       );
       return;
     }
@@ -629,7 +629,7 @@ export default function DraftClient() {
 
           {analyze.empty ? (
             <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              이 영상에는 등록된 원장 9명 중 누구도 등장하지 않습니다. Q&A 추출
+              이 영상에는 등록된 참여 전문의 중 누구도 등장하지 않습니다. Q&A 추출
               대상이 아닙니다.
             </div>
           ) : (

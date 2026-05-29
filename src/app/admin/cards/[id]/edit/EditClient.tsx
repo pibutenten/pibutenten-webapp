@@ -85,7 +85,7 @@ type Props = {
   doctorPickCount?: number;
   commentCount?: number;
   canChangeAuthor?: boolean;
-  /** super admin 글쓴이 dropdown 옵션 (관리자 + 의사 9명 profile.id) */
+  /** super admin 글쓴이 dropdown 옵션 (관리자 + 참여 전문의 profile.id) */
   authorOptions?: AuthorOption[];
 };
 

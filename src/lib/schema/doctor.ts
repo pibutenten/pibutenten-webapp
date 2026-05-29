@@ -20,7 +20,7 @@ import { clinicId, DOCTOR_TO_CLINIC } from "@/lib/schema/clinic";
  *    buildDoctorReference: Q&A·칼럼 단독 페이지에서 @id 참조용 최소 정보
  *  - sameAs / knowsAbout: profile_data 기반 자동 채움
  *
- * 9명 공통 (헬퍼 기본값 하드코딩):
+ * 참여 전문의 공통 (헬퍼 기본값 하드코딩):
  *  - memberOf: 대한피부과학회, 대한피부과의사회
  *  - qualifications: 대한민국 보건복지부 인증 피부과 전문의
  */
@@ -31,7 +31,7 @@ const COMMON_MEMBER_OF = [
 ];
 
 /**
- * 9명 원장 — slug ↔ 한국어 이름 SSOT.
+ * 참여 전문의 — slug ↔ 한국어 이름 SSOT.
  * AI 식별, schema, UI 표시 등 모든 곳에서 이 배열을 참조 (lib/ai/identify-doctors 등).
  * 추가/변경 시 여기만 수정. DOCTOR_TO_CLINIC (clinic.ts) 와 slug 일치 유지.
  */
@@ -48,7 +48,7 @@ export const DOCTORS = [
 ] as const;
 
 /**
- * 9명 의사 영문 표기 매핑 — alternateName 용 (한·영 cross-reference, AI 인용 친화).
+ * 참여 전문의 영문 표기 매핑 — alternateName 용 (한·영 cross-reference, AI 인용 친화).
  * 이도영만 표기가 Rhee로 다름 (사용자 확정).
  */
 const DOCTOR_ENGLISH_NAME: Record<string, string> = {

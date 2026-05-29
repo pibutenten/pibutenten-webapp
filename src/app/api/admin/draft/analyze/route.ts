@@ -10,7 +10,7 @@
  *     transcript,          // step1 호출에 그대로 전달용 (UI에서는 hidden)
  *     doctors: [{name, slug, frequency, selfIntro, inTitle}],
  *     primary: {name, slug, ...} | null,
- *     empty: boolean       // 9명 중 누구도 식별 X → 작업 차단
+ *     empty: boolean       // 등록 원장님들 중 누구도 식별 X → 작업 차단
  *   }
  *
  * 인증: profiles.role='admin'만 허용.
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // 9명 원장 자동 식별
+  // 참여 전문의 자동 식별
   const idResult = identifyDoctors({
     transcript: transcriptResult.transcript,
     videoTitle: transcriptResult.title,
