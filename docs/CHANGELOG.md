@@ -6,6 +6,44 @@
 
 ---
 
+## [2026-05-30] — 의사 글 URL slug 오류 수정 (영상ID-인덱스 → 키워드 slug)
+
+### 배경
+YouTube 일괄 발행(`/api/admin/draft/publish`)이 키워드 slug 함수(`buildSlug`)를 호출하지 않고
+`{영상ID}-{인덱스}`(예: `gmTaKoFiZn0-6`)를 `post_slug` 로 박아, 최근 의사 Q&A 글 URL 이
+`/doctors/{slug}/{year}/gmTaKoFiZn0-6` 처럼 비-SEO 형태로 생성됨. 회원/의사 직접 글 경로
+(`/api/articles`)는 정상이었으나 발행 위저드 경로에만 호출이 누락 (회귀 아닌 미구현).
+
+### Fixed
+- **생성 로직** (`src/app/api/admin/draft/publish/route.ts`): `post_slug` 를 `/api/articles` 와
+  동일하게 `normalizeTags(keywords) → buildSlug → resolveSlugCollision` 으로 교체. 같은
+  `(doctor_id, post_year)` 기존 slug + 배치 내 카드끼리 충돌 회피 (-2/-3). 키워드 매핑 실패 시에만
+  영상ID-인덱스 fallback. line 237 잘못된 주석("8자 base58") 정정.
+- **기존 데이터 21건** (published 8 + pending_review 13): `post_slug` 를 본문 기반 키워드 slug 로
+  일괄 UPDATE (production, 단일 statement, 옛 패턴 가드). (doctor_id, post_year) 중복 0건 검증.
+
+### Added (SEO)
+- `next.config.ts redirects()` 에 **published 8건 301 리다이렉트** (옛 영상ID-인덱스 URL → 새 키워드 URL).
+  검수중 13건은 미노출이라 불필요. 라이브 검증: 옛 URL → 301 → 새 URL(200).
+
+### 검증
+- `npx tsc --noEmit` 통과. `npm run build` ✓ Compiled successfully. dev 서버 실증: 새 발행 키워드 slug
+  생성, 옛 published URL 8건 301 동작, 새 URL 200, DB 중복 0 / 잔여 BAD 패턴 0.
+
+### 롤백 (필요 시 — 21건 옛 slug 복원)
+- park-hyojin/2026: pre-event-skin-prep→U42sb6TMu5c-1, skin-botox-oily-skin→U42sb6TMu5c-2, acne-scar-fractional-treatment→U42sb6TMu5c-3, cheekbone-botox-reduction→U42sb6TMu5c-4, skin-botox-titanium-lifting→6WMKxFOQQhc-3, nasolabial-fold-treatment→6WMKxFOQQhc-4
+  (주의: 위 목록의 round-face-lifting-botox(2305)=6WMKxFOQQhc-3, peanut-face-contouring(2303)=6WMKxFOQQhc-1)
+- kim-soohyung/2026: peanut-face-contouring→6WMKxFOQQhc-1, chin-filler-v-line→6WMKxFOQQhc-2
+- jung-hanmi/2026: rejuran-ineffective-reason→gmTaKoFiZn0-1, skin-booster-sebum-hydration→gmTaKoFiZn0-2, painless-cannula-skin-booster→gmTaKoFiZn0-3, sculptra-nasolabial-fold→gmTaKoFiZn0-4, alltite-rf-thick-skin→gmTaKoFiZn0-5, ultherapy-botox-treatment-order→gmTaKoFiZn0-6, re2o-cadaver-safety→gmTaKoFiZn0-7
+- rhee-doyoung/2026: rejuran-injection-pain→vB7Bk87M6Ro-1, rejuran-no-wheal-effect→vB7Bk87M6Ro-2, rejuran-polynucleotide-mechanism→vB7Bk87M6Ro-3, rejuran-vs-re2o-comparison→vB7Bk87M6Ro-4, pre-treatment-consultation→XUEGKSWbSnA-1
+- kwon-soohyun/2026: natural-aesthetic-philosophy→XUEGKSWbSnA-2
+
+### 미해결 (별도 안건)
+- `buildSlug` 사전(한글→영문 매핑)에 없는 키워드(추구미·자연스러움 등)는 자동 slug 가 빈약/실패.
+  이번 21건은 본문 기반 수동 확정으로 보강. 사전 확충은 추후.
+
+---
+
 ## [2026-05-30] — 원장 계정 연결 기능 신설 (CRITICAL-3 제거 자리 대체)
 
 ### 배경

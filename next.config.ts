@@ -47,6 +47,17 @@ const nextConfig: NextConfig = {
         destination: "https://pbtt.kr/:path*",
         permanent: true,
       },
+      // 의사 글 slug 교정 (2026-05-30): 옛 영상ID-인덱스 slug → 키워드 slug 301.
+      //   발행됐던(published) 8건만 SEO 자산 보존용으로 301. 검수중 13건은 미노출이라 불필요.
+      //   생성 로직은 publish/route.ts 에서 키워드 slug 로 수정 완료 (재발 방지).
+      { source: "/doctors/park-hyojin/2026/U42sb6TMu5c-1", destination: "/doctors/park-hyojin/2026/pre-event-skin-prep", statusCode: 301 },
+      { source: "/doctors/jung-hanmi/2026/gmTaKoFiZn0-1", destination: "/doctors/jung-hanmi/2026/rejuran-ineffective-reason", statusCode: 301 },
+      { source: "/doctors/jung-hanmi/2026/gmTaKoFiZn0-2", destination: "/doctors/jung-hanmi/2026/skin-booster-sebum-hydration", statusCode: 301 },
+      { source: "/doctors/jung-hanmi/2026/gmTaKoFiZn0-4", destination: "/doctors/jung-hanmi/2026/sculptra-nasolabial-fold", statusCode: 301 },
+      { source: "/doctors/jung-hanmi/2026/gmTaKoFiZn0-5", destination: "/doctors/jung-hanmi/2026/alltite-rf-thick-skin", statusCode: 301 },
+      { source: "/doctors/jung-hanmi/2026/gmTaKoFiZn0-6", destination: "/doctors/jung-hanmi/2026/ultherapy-botox-treatment-order", statusCode: 301 },
+      { source: "/doctors/jung-hanmi/2026/gmTaKoFiZn0-7", destination: "/doctors/jung-hanmi/2026/re2o-cadaver-safety", statusCode: 301 },
+      { source: "/doctors/rhee-doyoung/2026/vB7Bk87M6Ro-4", destination: "/doctors/rhee-doyoung/2026/rejuran-vs-re2o-comparison", statusCode: 301 },
     ];
   },
   /**

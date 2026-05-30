@@ -34,6 +34,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { generateShortcode } from "@/lib/shortcode";
 import { normalizeTags } from "@/lib/tag-dictionary";
+import { buildSlug, resolveSlugCollision } from "@/data/procedure-mappings/slug-mapping";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { logAudit } from "@/lib/audit-log";
@@ -177,6 +178,32 @@ export async function POST(req: Request) {
   const postYear = nowKst.getUTCFullYear();
   const yyyymmdd = nowKst.toISOString().slice(0, 10);
 
+  // post_slug 충돌 회피용 — 같은 (doctor_id, post_year) 의 기존 slug 를 doctor 별로 미리 적재.
+  // 배치 내 카드끼리도 같은 set 에 누적해 충돌 방지 (한 영상 N카드 키워드 겹침 대비).
+  const batchDoctorIds = Array.from(
+    new Set(
+      cards
+        .map((c) => slugToId.get(c.doctorSlug))
+        .filter((x): x is string => !!x),
+    ),
+  );
+  const usedSlugsByDoctor = new Map<string, Set<string>>();
+  if (batchDoctorIds.length > 0) {
+    const { data: existingSlugRows } = await supabase
+      .from("cards")
+      .select("doctor_id, post_slug")
+      .in("doctor_id", batchDoctorIds)
+      .eq("post_year", postYear)
+      .not("post_slug", "is", null);
+    for (const r of existingSlugRows ?? []) {
+      const did = (r as { doctor_id: string | null }).doctor_id;
+      const ps = (r as { post_slug: string | null }).post_slug;
+      if (!did || !ps) continue;
+      if (!usedSlugsByDoctor.has(did)) usedSlugsByDoctor.set(did, new Set());
+      usedSlugsByDoctor.get(did)!.add(ps);
+    }
+  }
+
   // 카드별 row 생성
   const rows: Record<string, unknown>[] = [];
   const skippedDuplicates: Array<{ idx: number; title: string; reason: string }> = [];
@@ -234,8 +261,20 @@ export async function POST(req: Request) {
       reasoning: c.pubmedReasoning ?? "",
     };
 
-    // post_slug: 회원 글 shortcode 룰을 빌려 8자 base58 사용 (충돌 방지). 운영 카드는 보통 post_year/post_slug로 URL 생성.
-    const postSlug = `${videoId}-${i + 1}`.slice(0, 80);
+    // post_slug: 키워드 기반 SEO slug (PRD §11-A). /api/articles 와 동일 정책으로 통일.
+    //   buildSlug(keywords) → 같은 (doctor_id, post_year) 기존 slug + 배치 내 카드끼리 충돌 회피 (-2/-3).
+    //   키워드 매핑 실패(untagged-) 시에만 영상ID-인덱스 fallback (드묾).
+    const tags = normalizeTags(c.keywords ?? []);
+    let postSlug: string;
+    const baseSlug = tags.length > 0 ? buildSlug(tags.slice(0, 5)) : "";
+    if (baseSlug && !baseSlug.startsWith("untagged-")) {
+      if (!usedSlugsByDoctor.has(doctorId)) usedSlugsByDoctor.set(doctorId, new Set());
+      const used = usedSlugsByDoctor.get(doctorId)!;
+      postSlug = resolveSlugCollision(baseSlug, used);
+      used.add(postSlug);
+    } else {
+      postSlug = `${videoId}-${i + 1}`.slice(0, 80);
+    }
     const shortcode = generateShortcode();
 
     rows.push({
@@ -247,7 +286,7 @@ export async function POST(req: Request) {
       is_pick: false,
       title: q,
       body: a,
-      keywords: normalizeTags(c.keywords ?? []),
+      keywords: tags,
       post_year: postYear,
       post_slug: postSlug,
       shortcode,
