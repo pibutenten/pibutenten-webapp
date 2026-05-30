@@ -51,6 +51,7 @@ import {
 import CardEditorMeta from "@/components/card-editor/parts/CardEditorMeta";
 import CardEditorBody from "@/components/card-editor/parts/CardEditorBody";
 import CardEditorAttachments from "@/components/card-editor/parts/CardEditorAttachments";
+import SlugField from "@/components/card-editor/fields/SlugField";
 
 export type CardStatus =
   | "draft"
@@ -112,6 +113,8 @@ export type CardEditorPayload = {
   authorProfileId?: string | null;
   startSeconds?: number;
   externalTitle?: string | null;
+  /** admin edit — 잠금 전(status=draft) 의사 글의 URL slug 수정값. */
+  postSlug?: string;
 };
 
 export type SubmitAction =
@@ -147,6 +150,16 @@ export type AdminExtras = {
   canHide?: boolean;
   /** 숨김 토글 콜백 — published ↔ hidden 전환. wrapper 가 supabase 직접 호출. */
   onToggleHide?: () => Promise<void>;
+  /** URL slug 표시·편집 (의사 글 전용). show=active 명함 admin, editable=잠금 전(status=draft). */
+  slug?: {
+    show: boolean;
+    editable: boolean;
+    value: string;
+    doctorId: string | null;
+    doctorSlug: string | null;
+    postYear: number;
+    cardId: number;
+  };
 };
 
 type Props = {
@@ -333,6 +346,8 @@ export default function CardEditor({
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // admin edit — URL slug 수정값 (잠금 전 의사 글만 의미).
+  const [postSlug, setPostSlug] = useState(adminExtras?.slug?.value ?? "");
 
   /* ── create 전용 state ──────────────────────────────────────── */
   // admin 의 글쓴이 dropdown 선택값 — "" 면 본인(관리자) 명의, slug 면 그 의사 명의.
@@ -558,6 +573,10 @@ export default function CardEditor({
       payload.startSeconds = startSec;
       payload.externalTitle = externalMeta?.title ?? null;
       // doctorId 는 wrapper 가 author 변경 후 자동 추론 (UI 노출 X)
+      // URL slug — 잠금 전(editable) 의사 글만 전송. 잠금이면 미전송(서버도 무시).
+      if (adminExtras?.slug?.editable) {
+        payload.postSlug = postSlug;
+      }
     }
 
     return payload;
@@ -764,6 +783,20 @@ export default function CardEditor({
           highlightSeed={highlightSeed}
           pending={pending}
         />
+
+        {/* URL slug — admin 전용 (의사 글). 검수 발송/발행 글은 read-only 잠금. */}
+        {adminExtras?.slug?.show && (
+          <SlugField
+            show={adminExtras.slug.show}
+            editable={adminExtras.slug.editable}
+            value={postSlug}
+            onChange={setPostSlug}
+            doctorId={adminExtras.slug.doctorId}
+            doctorSlug={adminExtras.slug.doctorSlug}
+            postYear={adminExtras.slug.postYear}
+            excludeCardId={adminExtras.slug.cardId}
+          />
+        )}
 
         {/* 첨부 영역 — Q&A 참고문헌 + link 첫 댓글 (본문 아래) */}
         <CardEditorAttachments

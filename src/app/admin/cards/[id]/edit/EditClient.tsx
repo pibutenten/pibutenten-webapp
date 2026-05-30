@@ -64,6 +64,8 @@ type Card = {
   doctor_id: string | null;
   author_id: string | null;
   video_id: string | null;
+  post_slug: string | null;
+  post_year: number | null;
   like_count: number;
   view_count: number;
   created_at: string;
@@ -87,6 +89,10 @@ type Props = {
   canChangeAuthor?: boolean;
   /** super admin 글쓴이 dropdown 옵션 (관리자 + 참여 전문의 profile.id) */
   authorOptions?: AuthorOption[];
+  /** URL slug 표시 여부 — active 명함이 super admin 일 때만 true (원장 명함 false). */
+  showSlug?: boolean;
+  /** URL slug 편집 가능 — super admin AND 글이 잠금 전(status=draft) 일 때만 true. */
+  slugEditable?: boolean;
 };
 
 function extractStartSeconds(url: string): number {
@@ -108,6 +114,8 @@ export default function EditClient({
   commentCount = 0,
   canChangeAuthor = false,
   authorOptions,
+  showSlug = false,
+  slugEditable = false,
 }: Props) {
   const router = useRouter();
   // page.tsx 가드 기준: 이 페이지에 도달 = super admin 또는 본인 doctor admin → Pick 항상 가능
@@ -262,6 +270,11 @@ export default function EditClient({
       apiPayload.deleted_at = null;
     }
 
+    // URL slug — 잠금 전(slugEditable) 의사 글만 전송. 서버가 (active admin + draft + 형식·중복) 재검증.
+    if (slugEditable && payload.postSlug !== undefined) {
+      apiPayload.post_slug = payload.postSlug;
+    }
+
     try {
       const res = await fetch(`/api/articles/${card.id}`, {
         method: "PUT",
@@ -309,6 +322,18 @@ export default function EditClient({
     // 숨김 토글 — published/hidden 상태일 때만 의미. admin 전용 (page.tsx 가드).
     canHide: card.status === "published" || card.status === "hidden",
     onToggleHide: handleToggleHide,
+    // URL slug — 의사 글이고 active 명함이 admin 일 때만 표시. 잠금 전(draft)만 편집.
+    slug: showSlug && isDoctorAuthored
+      ? {
+          show: true,
+          editable: slugEditable,
+          value: card.post_slug ?? "",
+          doctorId: card.doctor_id,
+          doctorSlug: card.doctor?.slug ?? null,
+          postYear: card.post_year ?? new Date().getFullYear(),
+          cardId: card.id,
+        }
+      : undefined,
   };
 
   return (

@@ -37,6 +37,11 @@ import {
 } from "@/lib/post-category";
 import { ROLES } from "@/lib/identity-shared";
 import { logAudit } from "@/lib/audit-log";
+import {
+  isValidPostSlug,
+  normalizeToSlug,
+} from "@/data/procedure-mappings/slug-mapping";
+import { isSlugUniqueViolation, SLUG_TAKEN_MESSAGE } from "@/lib/slug-conflict";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +65,8 @@ type Payload = {
   is_pick?: boolean;
   doctor_id?: string | null;
   deleted_at?: string | null;
+  // admin edit — 잠금 전(status=draft) 의사 글 URL slug 수정.
+  post_slug?: string;
   // 배치 ⑤ 6번 (2026-05-28): admin 전용 — author 변경 + meta JSON 갱신 (EditClient → PUT 통일).
   author_id?: string | null;
   meta?: string | null;
@@ -136,7 +143,7 @@ export async function PUT(
   // 카드 조회 — 권한 검증용.
   const { data: card, error: fetchErr } = await supabase
     .from("cards")
-    .select("id, type, category, author_id, doctor_id, deleted_at")
+    .select("id, type, category, author_id, doctor_id, deleted_at, status, post_year")
     .eq("id", cardId)
     .maybeSingle();
   if (fetchErr) {
@@ -310,6 +317,49 @@ export async function PUT(
     update.meta = payload.meta;
   }
 
+  // URL slug — admin edit 전용. 3중 재검증 (UI 검사를 신뢰하지 않고 서버가 최종 판정).
+  //   (a) active 명함 admin  (b) 의사 글  (c) 잠금 전(status=draft)  (d) 형식  (e) 중복.
+  //   검수 발송(pending_review)·발행 글은 slug 잠금 (수정 차단). DB 부분 UNIQUE 가 최후 방어선.
+  if (payload.post_slug !== undefined) {
+    const cardStatus = (card as { status?: string }).status ?? null;
+    const cardPostYear = (card as { post_year?: number | null }).post_year ?? null;
+    if (!isAdmin) {
+      return errorResponse(null, "forbidden", "[articles PUT] slug admin only", 403, undefined, {
+        userMessage: "URL slug 수정은 관리자만 가능합니다.",
+      });
+    }
+    if (!card.doctor_id) {
+      return errorResponse(null, "invalid_input", "[articles PUT] slug non-doctor", 400, undefined, {
+        userMessage: "의사 글만 URL slug 를 가집니다.",
+      });
+    }
+    if (cardStatus !== "draft") {
+      return errorResponse(null, "invalid_input", "[articles PUT] slug locked", 409, undefined, {
+        userMessage: "검수 발송/발행된 글의 URL slug 는 잠겨 있어 수정할 수 없습니다.",
+      });
+    }
+    const s = normalizeToSlug(payload.post_slug);
+    if (!isValidPostSlug(s)) {
+      return errorResponse(null, "invalid_input", "[articles PUT] slug format", 400, undefined, {
+        userMessage: "URL slug 형식 오류 (영문 소문자·숫자·하이픈, 2~50자).",
+      });
+    }
+    const { data: dup } = await supabase
+      .from("cards")
+      .select("id")
+      .eq("doctor_id", card.doctor_id)
+      .eq("post_year", cardPostYear)
+      .eq("post_slug", s)
+      .neq("id", cardId)
+      .limit(1);
+    if (dup && dup.length > 0) {
+      return errorResponse(null, "invalid_input", "[articles PUT] slug taken", 409, undefined, {
+        userMessage: SLUG_TAKEN_MESSAGE,
+      });
+    }
+    update.post_slug = s;
+  }
+
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ saved: 0, message: "변경 사항 없음" });
   }
@@ -348,6 +398,11 @@ export async function PUT(
     .update(update)
     .eq("id", cardId);
   if (updErr) {
+    if (isSlugUniqueViolation(updErr)) {
+      return errorResponse(updErr, "invalid_input", "[articles PUT] slug unique", 409, undefined, {
+        userMessage: SLUG_TAKEN_MESSAGE,
+      });
+    }
     return errorResponse(updErr, "generic", "[articles PUT] update", 500);
   }
 

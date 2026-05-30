@@ -147,6 +147,8 @@ export const ArticleUpdateSchema = z
     // 배치 ⑤ 6번 (2026-05-28): admin EditClient → PUT 통일 — author 변경 + meta(timestamp) 갱신.
     author_id: z.string().uuid().nullable().optional(),
     meta: z.string().max(10_000).nullable().optional(),
+    // admin edit — 잠금 전(draft) 의사 글 URL slug. 라우트에서 admin·draft·형식·중복 재검증.
+    post_slug: z.string().max(80).optional(),
   })
   .strict();
 
