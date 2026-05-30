@@ -214,6 +214,8 @@ export async function POST(req: Request) {
   // 카드별 row 생성
   const rows: Record<string, unknown>[] = [];
   const skippedDuplicates: Array<{ idx: number; title: string; reason: string }> = [];
+  // 관리자가 확정한(비어있지 않은) slug 가 중복·형식오류이면 여기 모아 발송 차단 (자동 -2 안 함).
+  const slugErrors: string[] = [];
   for (let i = 0; i < cards.length; i++) {
     const c = cards[i];
     const q = (c.title ?? "").trim();
@@ -268,22 +270,34 @@ export async function POST(req: Request) {
       reasoning: c.pubmedReasoning ?? "",
     };
 
-    // post_slug: 키워드 기반 SEO slug (PRD §11-A). /api/articles 와 동일 정책으로 통일.
-    //   1순위: 관리자가 draft 화면에서 확정해 보낸 postSlug (형식 검증 통과 시).
-    //   2순위: buildSlug(keywords) 자동.
-    //   둘 다 같은 (doctor_id, post_year) 기존 slug + 배치 내 카드끼리 충돌 회피 (-2/-3).
-    //   키워드 매핑 실패(untagged-) 시에만 영상ID-인덱스 fallback (드묾).
+    // post_slug 결정 — 2026-05-30 정책:
+    //   · 관리자가 값을 둔(비어있지 않은) slug 는 "확정값" → 자동 -2 하지 않는다.
+    //     형식 오류 / 같은 (doctor_id, post_year) 의 기존·배치 중복이면 slugErrors 에 모아 발송 차단.
+    //     (관리자가 모르게 -2 로 바뀌어 의도와 다른 URL 로 나가는 것을 방지)
+    //   · 빈 칸이면 buildSlug(keywords) 자동 제안 + 충돌 시 -2/-3 (사람이 정한 게 아니므로 허용).
+    //   · 키워드 매핑 실패(untagged-) 시에만 영상ID-인덱스 fallback (드묾).
     const tags = normalizeTags(c.keywords ?? []);
     if (!usedSlugsByDoctor.has(doctorId)) usedSlugsByDoctor.set(doctorId, new Set());
     const usedSet = usedSlugsByDoctor.get(doctorId)!;
     let postSlug: string;
     const clientSlug =
       typeof c.postSlug === "string" ? normalizeToSlug(c.postSlug) : "";
-    if (clientSlug && isValidPostSlug(clientSlug)) {
-      // 관리자 확정 slug — 충돌 시에만 -2/-3 (UI 에서 blur 검사 통과했으니 보통 그대로).
-      postSlug = resolveSlugCollision(clientSlug, usedSet);
-      usedSet.add(postSlug);
+    if (clientSlug) {
+      // 관리자 확정 slug — 자동 -2 금지.
+      if (!isValidPostSlug(clientSlug)) {
+        slugErrors.push(`카드 #${i + 1} ("${q.slice(0, 18)}"): slug 형식 오류`);
+        postSlug = clientSlug; // placeholder — slugErrors 로 인해 어차피 insert 안 됨
+      } else if (usedSet.has(clientSlug)) {
+        slugErrors.push(
+          `카드 #${i + 1} ("${q.slice(0, 18)}"): slug '${clientSlug}' 가 다른 카드/기존 글과 중복`,
+        );
+        postSlug = clientSlug;
+      } else {
+        postSlug = clientSlug;
+        usedSet.add(clientSlug);
+      }
     } else {
+      // 빈 칸 → 자동 제안 (buildSlug + -2 유지)
       const baseSlug = tags.length > 0 ? buildSlug(tags.slice(0, 5)) : "";
       if (baseSlug && !baseSlug.startsWith("untagged-")) {
         postSlug = resolveSlugCollision(baseSlug, usedSet);
@@ -319,6 +333,14 @@ export async function POST(req: Request) {
         doctorIdToProfileId.get(doctorId) ?? guard.adminProfileId,
       created_at: `${yyyymmdd} 00:00:00+09`,
       updated_at: now.toISOString(),
+    });
+  }
+
+  // 관리자 확정 slug 중복/형식오류가 하나라도 있으면 발송 차단 (자동 -2 안 함).
+  //   ★ 한 건도 insert 하지 않고 거부 → 사용자가 해당 카드 slug 를 수정 후 재발송.
+  if (slugErrors.length > 0) {
+    return errorResponse(null, "invalid_input", "[admin/draft/publish] slug collision", 409, undefined, {
+      userMessage: `slug 중복/오류로 발송이 차단됐습니다 (자동 변경하지 않음): ${slugErrors.join(" / ")}. 해당 카드의 URL slug 를 다르게 수정한 뒤 다시 발송하세요.`,
     });
   }
 

@@ -426,9 +426,60 @@ export default function DraftClient() {
     }
   }
 
+  /**
+   * 발송 전 slug 중복 사전검사 (서버도 409 로 막지만, UX 용 즉시 차단 — 클라·서버 이중).
+   * 빈 칸(자동 제안 예정)은 검사 제외. 비어있지 않은 slug 만 (카드 간 + 기존 DB) 검사.
+   */
+  async function preflightSlugs(): Promise<string[]> {
+    const problems: string[] = [];
+    // (1) 카드 간 중복 — 같은 화자(doctorSlug) + 같은 정규화 slug
+    const seen = new Map<string, number>(); // key → 처음 등장한 카드 번호(1-based)
+    cards.forEach((c, i) => {
+      const s = normalizeToSlug(c.postSlug ?? "");
+      if (!s) return;
+      const key = `${c.doctorSlug}|${s}`;
+      const first = seen.get(key);
+      if (first) problems.push(`카드 #${first} 와 #${i + 1} 의 slug '${s}' 가 같습니다`);
+      else seen.set(key, i + 1);
+    });
+    // (2) 기존 DB 중복 — 공용 slug-check API (카드별 1회)
+    const year = new Date().getFullYear();
+    await Promise.all(
+      cards.map(async (c, i) => {
+        const s = normalizeToSlug(c.postSlug ?? "");
+        if (!s) return;
+        try {
+          const params = new URLSearchParams({
+            doctorSlug: c.doctorSlug,
+            year: String(year),
+            slug: s,
+          });
+          const res = await fetch(`/api/admin/slug-check?${params}`);
+          if (!res.ok) return;
+          const j = (await res.json()) as { reason?: string };
+          if (j.reason === "taken")
+            problems.push(`카드 #${i + 1} 의 slug '${s}' 는 이미 사용 중입니다`);
+          else if (j.reason === "invalid_format")
+            problems.push(`카드 #${i + 1} 의 slug 형식 오류`);
+        } catch {
+          /* 네트워크 실패 시 서버 409 가 최종 차단 */
+        }
+      }),
+    );
+    return problems;
+  }
+
   async function publish() {
     if (!analyze || cards.length === 0) return;
     setError(null);
+    // ★ slug 중복이면 발송 차단 (자동 -2 로 통과시키지 않음). 수정 후 재발송.
+    const slugProblems = await preflightSlugs();
+    if (slugProblems.length > 0) {
+      setError(
+        `slug 중복/오류로 발송할 수 없습니다 (수정 후 발송): ${slugProblems.join(" / ")}`,
+      );
+      return;
+    }
     setStage("publishing");
     try {
       const payload = {
