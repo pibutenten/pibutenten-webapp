@@ -150,6 +150,8 @@ export default function DraftClient() {
     | "publishing"
   >("idle");
   const [error, setError] = useState<string | null>(null);
+  // 발송 버튼 근처 slug 안내 (기존 preflightSlugs 결과 표시용 — 차단 로직과 별개).
+  const [slugBlock, setSlugBlock] = useState<null | "dup" | "format">(null);
 
   const [analyze, setAnalyze] = useState<AnalyzeResp | null>(null);
   const [primarySlug, setPrimarySlug] = useState<string>("");
@@ -475,11 +477,14 @@ export default function DraftClient() {
     // ★ slug 중복이면 발송 차단 (자동 -2 로 통과시키지 않음). 수정 후 재발송.
     const slugProblems = await preflightSlugs();
     if (slugProblems.length > 0) {
+      // 버튼 근처 짧은 안내 — 형식 오류 우선, 그 외 중복.
+      setSlugBlock(slugProblems.some((p) => p.includes("형식")) ? "format" : "dup");
       setError(
         `slug 중복/오류로 발송할 수 없습니다 (수정 후 발송): ${slugProblems.join(" / ")}`,
       );
       return;
     }
+    setSlugBlock(null);
     setStage("publishing");
     try {
       const payload = {
@@ -553,6 +558,8 @@ export default function DraftClient() {
 
   function updateCard(idx: number, patch: Partial<EditableCard>) {
     setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+    // 카드(특히 slug) 수정하면 발송 차단 안내는 즉시 해제 (재검사는 발송 시).
+    if (slugBlock) setSlugBlock(null);
   }
   function commitStartInput(idx: number) {
     setCards((prev) =>
@@ -901,6 +908,14 @@ export default function DraftClient() {
               ? "원장님 검수 전송 중…"
               : `Step 4. 원장님 검수 전송 (${cards.length}개)`}
           </button>
+          {slugBlock && (
+            <p className="text-center text-xs font-medium text-red-600">
+              {slugBlock === "format"
+                ? "slug 형식이 올바르지 않습니다"
+                : "중복된 slug가 있습니다"}{" "}
+              — 카드 slug를 수정한 뒤 다시 발송하세요.
+            </p>
+          )}
           <p className="text-center text-[11px] text-[var(--text-muted)]">
             검수 보낸 카드는 원장님 검수 대시보드에서 확인·발행됩니다.
           </p>
