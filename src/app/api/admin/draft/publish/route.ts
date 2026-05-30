@@ -34,7 +34,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { generateShortcode } from "@/lib/shortcode";
 import { normalizeTags } from "@/lib/tag-dictionary";
-import { buildSlug, resolveSlugCollision } from "@/data/procedure-mappings/slug-mapping";
+import {
+  buildSlug,
+  resolveSlugCollision,
+  normalizeToSlug,
+  isValidPostSlug,
+} from "@/data/procedure-mappings/slug-mapping";
+import { isSlugUniqueViolation, SLUG_TAKEN_MESSAGE } from "@/lib/slug-conflict";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { logAudit } from "@/lib/audit-log";
@@ -47,6 +53,7 @@ type CardIn = {
   title: string;
   body: string;
   keywords: string[];
+  postSlug?: string; // 관리자가 draft 화면에서 확정한 URL slug (없으면 buildSlug 자동)
   category?: string | null;
   doctorSlug: string;
   externalUrl: string;
@@ -262,18 +269,28 @@ export async function POST(req: Request) {
     };
 
     // post_slug: 키워드 기반 SEO slug (PRD §11-A). /api/articles 와 동일 정책으로 통일.
-    //   buildSlug(keywords) → 같은 (doctor_id, post_year) 기존 slug + 배치 내 카드끼리 충돌 회피 (-2/-3).
+    //   1순위: 관리자가 draft 화면에서 확정해 보낸 postSlug (형식 검증 통과 시).
+    //   2순위: buildSlug(keywords) 자동.
+    //   둘 다 같은 (doctor_id, post_year) 기존 slug + 배치 내 카드끼리 충돌 회피 (-2/-3).
     //   키워드 매핑 실패(untagged-) 시에만 영상ID-인덱스 fallback (드묾).
     const tags = normalizeTags(c.keywords ?? []);
+    if (!usedSlugsByDoctor.has(doctorId)) usedSlugsByDoctor.set(doctorId, new Set());
+    const usedSet = usedSlugsByDoctor.get(doctorId)!;
     let postSlug: string;
-    const baseSlug = tags.length > 0 ? buildSlug(tags.slice(0, 5)) : "";
-    if (baseSlug && !baseSlug.startsWith("untagged-")) {
-      if (!usedSlugsByDoctor.has(doctorId)) usedSlugsByDoctor.set(doctorId, new Set());
-      const used = usedSlugsByDoctor.get(doctorId)!;
-      postSlug = resolveSlugCollision(baseSlug, used);
-      used.add(postSlug);
+    const clientSlug =
+      typeof c.postSlug === "string" ? normalizeToSlug(c.postSlug) : "";
+    if (clientSlug && isValidPostSlug(clientSlug)) {
+      // 관리자 확정 slug — 충돌 시에만 -2/-3 (UI 에서 blur 검사 통과했으니 보통 그대로).
+      postSlug = resolveSlugCollision(clientSlug, usedSet);
+      usedSet.add(postSlug);
     } else {
-      postSlug = `${videoId}-${i + 1}`.slice(0, 80);
+      const baseSlug = tags.length > 0 ? buildSlug(tags.slice(0, 5)) : "";
+      if (baseSlug && !baseSlug.startsWith("untagged-")) {
+        postSlug = resolveSlugCollision(baseSlug, usedSet);
+        usedSet.add(postSlug);
+      } else {
+        postSlug = `${videoId}-${i + 1}`.slice(0, 80);
+      }
     }
     const shortcode = generateShortcode();
 
@@ -324,6 +341,11 @@ export async function POST(req: Request) {
     .insert(rows)
     .select("id");
   if (insErr) {
+    if (isSlugUniqueViolation(insErr)) {
+      return errorResponse(insErr, "invalid_input", "[admin/draft/publish] slug unique", 409, undefined, {
+        userMessage: SLUG_TAKEN_MESSAGE,
+      });
+    }
     return errorResponse(insErr, "save_failed", "[admin/draft/publish] cards insert", 500);
   }
 

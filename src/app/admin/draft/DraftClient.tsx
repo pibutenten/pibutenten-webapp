@@ -11,6 +11,21 @@ import {
   normalizePubmedRefWire,
   type PubmedRefObj,
 } from "@/lib/schema/api/articles";
+import { normalizeTags } from "@/lib/tag-dictionary";
+import {
+  buildSlug,
+  resolveSlugCollision,
+  normalizeToSlug,
+  isValidPostSlug,
+} from "@/data/procedure-mappings/slug-mapping";
+
+/** 카드 keywords → 제안 post_slug (publish/route.ts 와 동일 규칙). */
+function suggestSlug(keywords: string[]): string {
+  const tags = normalizeTags(keywords ?? []);
+  if (tags.length === 0) return "";
+  const base = buildSlug(tags.slice(0, 5));
+  return base && !base.startsWith("untagged-") ? base : "";
+}
 
 // ── 위저드 타입 ────────────────────────────────────────
 
@@ -82,6 +97,7 @@ type EditableCard = {
   title: string;
   body: string;
   keywords: string[];
+  postSlug: string; // 관리자 확정 URL slug (추출 직후 buildSlug 자동 제안)
   category: string;
   doctorSlug: string;
   startSec: number;
@@ -285,11 +301,24 @@ export default function DraftClient() {
       }
       // D1: LLM이 카드별 doctor_slug를 응답한 경우 매핑. 누락/유효하지 않은 slug는 primarySlug fallback.
       const validSlugs = new Set(analyze.doctors.map((d) => d.slug));
+      // 같은 영상의 카드들끼리 slug 겹침 방지 — 화자(doctorSlug)별 누적 집합으로 -2/-3 부여.
+      //   (정한미 6건 케이스: 추출 시점에 이미 서로 다른 slug 가 제안되게)
+      const usedSlugByDoctor = new Map<string, Set<string>>();
       const editable: EditableCard[] = data.drafts.map((d) => {
         const sec = d.timestamp?.start_seconds ?? 0;
         const llmSlug = (d as { doctor_slug?: string }).doctor_slug;
         const doctorSlug =
           llmSlug && validSlugs.has(llmSlug) ? llmSlug : primarySlug;
+        const kw = d.keywords ?? [];
+        const base = suggestSlug(kw);
+        let postSlug = "";
+        if (base) {
+          if (!usedSlugByDoctor.has(doctorSlug))
+            usedSlugByDoctor.set(doctorSlug, new Set());
+          const used = usedSlugByDoctor.get(doctorSlug)!;
+          postSlug = resolveSlugCollision(base, used);
+          used.add(postSlug);
+        }
         return {
           // stable client-side UUID for React key (카드 폐기 시 인덱스 회귀 방지).
           uuid: crypto.randomUUID(),
@@ -298,7 +327,8 @@ export default function DraftClient() {
           pubmedSearchKeywords: d.pubmed_search_keywords ?? [],
           title: d.title,
           body: d.body,
-          keywords: d.keywords ?? [],
+          keywords: kw,
+          postSlug,
           category: d.category ?? "",
           doctorSlug,
           startSec: sec,
@@ -408,6 +438,7 @@ export default function DraftClient() {
           title: c.title,
           body: c.body,
           keywords: c.keywords,
+          postSlug: c.postSlug,
           category: c.category || null,
           doctorSlug: c.doctorSlug,
           externalUrl: buildExternalUrl(analyze.videoId, c.startSec),
@@ -727,6 +758,18 @@ export default function DraftClient() {
                 index={i}
                 card={c}
                 videoId={analyze.videoId}
+                otherSlugs={
+                  new Set(
+                    cards
+                      .filter(
+                        (x, j) =>
+                          j !== i &&
+                          x.doctorSlug === c.doctorSlug &&
+                          !!x.postSlug,
+                      )
+                      .map((x) => x.postSlug),
+                  )
+                }
                 onChange={(patch) => updateCard(i, patch)}
                 onCommitStart={() => commitStartInput(i)}
                 onDelete={() => deleteCard(i)}
@@ -799,6 +842,7 @@ function CardEditor({
   index,
   card,
   videoId,
+  otherSlugs,
   onChange,
   onCommitStart,
   onDelete,
@@ -808,6 +852,7 @@ function CardEditor({
   index: number;
   card: EditableCard;
   videoId: string;
+  otherSlugs: Set<string>;
   onChange: (patch: Partial<EditableCard>) => void;
   onCommitStart: () => void;
   onDelete: () => void;
@@ -819,6 +864,54 @@ function CardEditor({
     () => pickHighlight(`draft-${index}-${videoId}`),
     [index, videoId],
   );
+
+  // URL slug 검사 상태 (형식 즉시 + blur 시 중복: 카드 간 + DB).
+  type SlugState =
+    | { kind: "idle" }
+    | { kind: "checking" }
+    | { kind: "ok" }
+    | { kind: "invalid" }
+    | { kind: "dup_card"; suggestion: string }
+    | { kind: "dup_db"; suggestion: string };
+  const [slugState, setSlugState] = useState<SlugState>({ kind: "idle" });
+  const postYear = new Date().getFullYear();
+
+  async function checkSlug() {
+    const s = normalizeToSlug(card.postSlug ?? "");
+    if (!isValidPostSlug(s)) {
+      setSlugState({ kind: "invalid" });
+      return;
+    }
+    // 1) 같은 영상 카드끼리 (client)
+    if (otherSlugs.has(s)) {
+      setSlugState({ kind: "dup_card", suggestion: resolveSlugCollision(s, otherSlugs) });
+      return;
+    }
+    // 2) DB 기존 (공용 slug-check API — draft 는 doctorSlug 로 조회)
+    setSlugState({ kind: "checking" });
+    try {
+      const params = new URLSearchParams({
+        doctorSlug: card.doctorSlug,
+        year: String(postYear),
+        slug: s,
+      });
+      const res = await fetch(`/api/admin/slug-check?${params}`);
+      const j = (await res.json()) as {
+        available?: boolean;
+        reason?: string;
+        suggestion?: string | null;
+      };
+      if (!res.ok) {
+        setSlugState({ kind: "idle" });
+        return;
+      }
+      if (j.reason === "invalid_format") setSlugState({ kind: "invalid" });
+      else if (j.available) setSlugState({ kind: "ok" });
+      else setSlugState({ kind: "dup_db", suggestion: j.suggestion ?? s });
+    } catch {
+      setSlugState({ kind: "idle" });
+    }
+  }
   return (
     <article className="space-y-3 rounded-md border border-[var(--border)] bg-[var(--bg-soft)]/30 p-4">
       <header className="flex items-center justify-between">
@@ -922,6 +1015,63 @@ function CardEditor({
           onChange={(e) => onChange({ title: e.target.value })}
           className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-base font-bold focus:border-[var(--primary)]"
         />
+      </div>
+
+      {/* URL slug — 관리자가 검수 발송 전까지 확정. 발송 후엔 잠금(수정 불가). */}
+      <div>
+        <label className="mb-1 block text-xs text-[var(--text-secondary)]">
+          URL slug{" "}
+          <span className="text-[10px] text-[var(--text-muted)]">
+            (/doctors/{card.doctorSlug}/{postYear}/…)
+          </span>
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={card.postSlug}
+            onChange={(e) => {
+              onChange({ postSlug: e.target.value });
+              setSlugState({ kind: "idle" });
+            }}
+            onBlur={checkSlug}
+            placeholder="예: rejuran-skin-booster"
+            className="flex-1 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)]"
+          />
+          <span className="shrink-0 text-[11px] font-medium">
+            {slugState.kind === "ok" && (
+              <span className="text-green-600">✓ 사용 가능</span>
+            )}
+            {slugState.kind === "checking" && (
+              <span className="text-[var(--text-muted)]">검사 중…</span>
+            )}
+            {slugState.kind === "invalid" && (
+              <span className="text-red-600">형식 오류</span>
+            )}
+            {slugState.kind === "dup_card" && (
+              <span className="text-red-600">카드 간 중복</span>
+            )}
+            {slugState.kind === "dup_db" && (
+              <span className="text-red-600">이미 사용 중</span>
+            )}
+          </span>
+        </div>
+        {(slugState.kind === "dup_card" || slugState.kind === "dup_db") && (
+          <button
+            type="button"
+            onClick={() => {
+              onChange({ postSlug: slugState.suggestion });
+              setSlugState({ kind: "ok" });
+            }}
+            className="mt-1 text-[11px] text-[var(--primary)] hover:underline"
+          >
+            제안 적용: {slugState.suggestion}
+          </button>
+        )}
+        {!card.postSlug && (
+          <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
+            비우면 발송 시 키워드로 자동 생성됩니다.
+          </p>
+        )}
       </div>
 
       <div>
