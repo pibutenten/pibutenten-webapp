@@ -216,10 +216,56 @@ export function getAllMappings(): ProcedureMapping[] {
   return [...data.mappings];
 }
 
+// ─────────────────────────────────────────────────────────────
+// post_slug 입력 검증·정규화 (slug 편집 UI 공용 — 2026-05-30)
+//   draft 화면 / edit 화면 / 서버 라우트 / slug-check API 가 모두 이 함수만 사용.
+//   규칙 엇갈림 방지 (트랙 B 교훈).
+// ─────────────────────────────────────────────────────────────
+
+/** post_slug 최소 길이 (너무 짧은 일반 slug 방지). */
+export const SLUG_MIN_LEN = 2;
+
+/** 허용 형식: 소문자 영숫자 + 하이픈, 앞뒤는 영숫자. */
+const POST_SLUG_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+
+/**
+ * post_slug 형식 검증. (URL /doctors/{slug}/{year}/{post_slug} 용)
+ * - 소문자 영숫자·하이픈만, 앞뒤 영숫자, 길이 2~50.
+ */
+export function isValidPostSlug(s: string): boolean {
+  if (typeof s !== "string") return false;
+  if (s.length < SLUG_MIN_LEN || s.length > SLUG_MAX_LEN) return false;
+  return POST_SLUG_RE.test(s);
+}
+
+/**
+ * 임의 입력 → post_slug 형식으로 정규화 (ASCII 한정 클린업).
+ *   - 소문자화, 공백·언더스코어 → 하이픈, 허용외 문자 제거, 중복/양끝 하이픈 정리, 50자 컷.
+ *   - 한글 등 비-ASCII 는 제거됨 → 결과가 비거나 무효일 수 있음.
+ *     이 경우 호출부에서 buildSlug(keywords) 제안값으로 fallback 한다 (키워드가 있는 곳에서).
+ */
+export function normalizeToSlug(input: string): string {
+  const lowered = (input ?? "").trim().toLowerCase();
+  if (POST_SLUG_RE.test(lowered) && lowered.length <= SLUG_MAX_LEN) return lowered;
+  let cleaned = lowered
+    .replace(/[\s_]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (cleaned.length > SLUG_MAX_LEN) {
+    const cut = cleaned.slice(0, SLUG_MAX_LEN);
+    const last = cut.lastIndexOf("-");
+    cleaned = last > 5 ? cut.slice(0, last) : cut;
+  }
+  return cleaned;
+}
+
 export default {
   getEnglishSlug,
   buildSlug,
   resolveSlugCollision,
+  isValidPostSlug,
+  normalizeToSlug,
   getMappingsByCategory,
   getMappingsByType,
   getKoreanTerm,
