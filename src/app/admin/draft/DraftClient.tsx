@@ -457,7 +457,15 @@ export default function DraftClient() {
         body: JSON.stringify(payload),
       });
       const data = (await res.json()) as
-        | { saved: number; ids: number[] }
+        | {
+            saved: number;
+            ids: number[];
+            skipped_duplicates?: Array<{
+              idx: number;
+              title: string;
+              reason: string;
+            }>;
+          }
         | { error: string; message?: string };
       if (!res.ok || "error" in data) {
         // B-3 (2026-05-29 / P1-F): message 우선, error (kind enum) fallback.
@@ -466,6 +474,21 @@ export default function DraftClient() {
             ? pickErrorMessage(data, res.status) ||
                 `검수 보내기 실패 (${res.status})`
             : `검수 보내기 실패 (${res.status})`,
+        );
+        setStage("stepped2");
+        return;
+      }
+      // ★ 데이터 소실 방지 (2026-05-30): 서버가 일부 카드를 중복으로 skip 했으면
+      //   조용히 떠나지 말고, 보류된 카드를 화면에 남기고 명확히 안내한다.
+      //   (저장된 카드는 제거 — 재발송 시 중복 재생성 방지. 보류 카드는 그대로 유지 = 소실 0)
+      const skipped = data.skipped_duplicates ?? [];
+      if (skipped.length > 0) {
+        const skippedIdx = new Set(skipped.map((s) => s.idx));
+        setCards((prev) => prev.filter((_, i) => skippedIdx.has(i)));
+        setError(
+          `${data.saved}개 발송 완료. ${skipped.length}개는 중복으로 보류되어 화면에 남아 있습니다 ` +
+            `(제목을 다르게 수정 후 재발송하거나 폐기하세요): ` +
+            skipped.map((s) => `"${s.title.slice(0, 24)}" — ${s.reason}`).join(" / "),
         );
         setStage("stepped2");
         return;
