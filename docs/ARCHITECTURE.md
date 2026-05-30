@@ -116,6 +116,7 @@ POST   /api/reports                 신고 접수
 ```
 PUT    /api/admin/doctors/[slug]/profile  의사 확장 프로필 (profile_data) 저장 (super admin OR 본인 의사)
 POST   /api/admin/users/[id]/doctor-profile  원장 명함 신설·연결 (super admin, ADR 0016. RPC admin_create_doctor_profile)
+GET    /api/admin/slug-check  의사 글 post_slug 형식·중복 검사 공용 (super admin. draft·edit 화면 공유. doctorId|doctorSlug + year + slug)
 *      /api/admin/comments
 *      /api/admin/stats/[kind]
 POST   /api/admin/draft

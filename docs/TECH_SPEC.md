@@ -185,11 +185,18 @@ ex) /minji-skin/Ab3xK9Pq
 - **광범위 일반명사 단독**: 피부, 고민, 관리, 시술, 효과, 부위
 - **카테고리 라벨**: "Q&A", "피부일기", "꿀팁" 등 → `category` 컬럼이 표시 시점에 자동 append
 
-### 6.8. post_slug SSOT 룰 (`src/data/procedure-mappings/slug-mapping.ts::buildSlug()`)
-- 영문 단어 기본 3개, 최대 4개
-- 부분 중복 제거: 새 영문의 단어 중 기존에 있는 단어 제거
-- 50자 초과 시 마지막 `-` 경계 cut
-- 충돌 시 `resolveSlugCollision()` 이 `-2`, `-3` 부여
+### 6.8. post_slug SSOT 룰 (`src/data/procedure-mappings/slug-mapping.ts`)
+- **생성 (`buildSlug()`)**: 영문 단어 기본 3개, 최대 4개. 부분 중복 제거. 50자 초과 시 마지막 `-` 경계 cut. 충돌 시 `resolveSlugCollision()` 이 `-2`, `-3` 부여.
+- **형식 검증 (`isValidPostSlug` / `normalizeToSlug`)**: 소문자 영숫자·하이픈, 앞뒤 영숫자, 2~50자. draft·edit·서버·slug-check API 가 모두 이 공용 함수만 사용 (규칙 엇갈림 방지).
+
+#### slug 편집·잠금 정책 (2026-05-30)
+- **편집 권한 = active 명함이 admin (super admin) 일 때만** (계정/사람 아님, ADR 0012). 원장 명함 active 시 slug 항목 자체 미노출.
+- **편집 구간 = 검수 발송 전 (`status='draft'`) 까지.** 검수 발송(`pending_review`)·발행(`published`) 글은 slug 잠금(read-only). 판정 신호 = `cards.status` (전용 컬럼 없음).
+- **5층 방어**: ① 형식 검사(즉시) → ② 중복 검사(blur, 공용 `/api/admin/slug-check`) → ③ 서버 재검사(저장 시 PUT/publish) → ④ 검수발송 잠금 → ⑤ DB 부분 UNIQUE 인덱스 `cards_doctor_year_slug_uidx`(마이그 0193, 동시저장 23505 최후 방어).
+- **자동 -2 구분**: "빈 칸 → buildSlug 자동 제안" 경로만 `-2/-3` 허용. **관리자가 명시적으로 확정한(비어있지 않은) slug 가 중복이면 자동 -2 하지 않고 발송 차단**(클라 preflight + 서버 409) — 관리자 모르게 다른 URL 로 나가는 것 방지.
+- **draft 발송 시 데이터 보호**: 제목 기반 dedup 으로 skip 된 카드는 화면에 유지 + 안내 (조용히 사라지지 않음). 일부 저장 실패해도 소실 0.
+- **공용 API**: `GET /api/admin/slug-check?doctorId|doctorSlug&year&slug&excludeCardId` → `{available, reason, normalized, suggestion}`. 검사 범위 = DB 인덱스와 동일 (`doctor_id`·`post_slug` not null).
+- **편집 진입 주소**: 공개 SEO URL `/doctors/{slug}/{year}/{post_slug}` 와 별개로, 편집은 `/write/{shortcode}`(안정적 내부 핸들) 또는 `/admin/cards/[id]/edit`. shortcode 는 slug 가 바뀌어도 안 깨지는 카드별 고정 핸들. 두 경로 모두 저장은 `PUT /api/articles/[id]` 단일 통로(slug 방어 동일 적용).
 
 ---
 

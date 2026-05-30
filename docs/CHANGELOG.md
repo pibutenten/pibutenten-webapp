@@ -6,6 +6,49 @@
 
 ---
 
+## [2026-05-30] — 의사 글 slug 편집 UI + 5층 방어 + 발송 버그 3건 수정
+
+### 배경
+slug 사고(영상ID-인덱스 발행) 재발 방지. Q&A 추출·검수 과정에서 slug 를 화면에 노출하고
+관리자가 확인·수정할 수 있게 하며, 중복·동시저장을 5층으로 방어.
+
+### Added
+- 마이그 `0193_cards_post_slug_unique.sql` — `cards(doctor_id, post_year, post_slug)` 부분 UNIQUE 인덱스 (동시저장 23505 최후 방어선). 회원글/빈 slug 제외. production 적용(중복 0 확인). 0193b 롤백.
+- `GET /api/admin/slug-check` — 공용 형식·중복 검사 (가드=active 명함 admin). draft·edit 화면 공유. `doctorId|doctorSlug + year + slug + excludeCardId` → `{available, reason, normalized, suggestion}`.
+- `slug-mapping.ts`: `isValidPostSlug` / `normalizeToSlug` 공용 함수. `slug-conflict.ts`: 23505 → "이미 사용 중" 공용 변환.
+- `/admin/draft`: 카드별 "URL slug" 입력칸 + 추출 직후 buildSlug 자동 제안 + 같은 영상 카드끼리 `-2` 충돌 회피 + blur 중복 검사 뱃지. 발송 버튼 근처 중복/형식 안내.
+- `/admin/cards/[id]/edit` + `CardEditor`: 의사 글 slug 필드 (`SlugField`). active 명함 admin 만 노출(원장 명함 숨김), `status='draft'` 만 편집(그 외 read-only 잠금).
+
+### Changed
+- `publish/route.ts`: post_slug 결정을 1순위 관리자 확정 slug(형식검증 통과 시) → 2순위 buildSlug 로. 관리자 확정 slug 가 중복이면 자동 -2 금지·발송 차단(409). 빈 칸 자동제안 -2 는 유지.
+- `PUT /api/articles/[id]` + zod: `post_slug` 수용 + 서버 5중 재검증 (active admin / 의사글 / draft / 형식 / 중복). 23505 변환.
+
+### Fixed (발송 버그 3건)
+- **데이터 소실**: 제목 dedup 으로 skip 된 카드가 클라이언트의 무조건 navigate 로 조용히 사라지던 문제 → skipped 카드 화면 유지 + 명시 (소실 0).
+- **자동 -2 무단 통과**: 관리자가 같은 slug 를 넣어도 서버가 -2 붙여 통과 → 클라 preflight + 서버 409 로 발송 차단.
+- (선행) 의사 글 slug 영상ID-인덱스 → 키워드 slug 교정 (아래 별도 블록).
+
+### Security (5층 방어)
+형식(즉시) → 중복(blur, 공용 API) → 서버 재검증(저장) → 검수발송 잠금(status≠draft) → DB 부분 UNIQUE.
+slug 편집 권한 = active 명함 admin (ADR 0012). 검수 발송·발행 글 잠금.
+
+### 조사 결론 (수정 없음)
+- `/write/{shortcode}` 편집 경로는 방어 우회 아님: 저장은 `PUT /api/articles/[id]` 단일 통로(가드 동일) + DB 인덱스가 모든 경로 보호. shortcode 는 slug 와 분리된 안정적 내부 편집 핸들(의도된 설계).
+- JSON-LD `lastReviewed`/`dateModified` 는 둘 다 `cards.updated_at` 소스(별도 검수일 컬럼 없음).
+
+### 검증
+- tsc OK, build ✓ Compiled successfully, dev 부팅 에러 0, 라우트 가드 401, DB 23505 거부 실증.
+- 커밋: `6d06da5`(0193) → `b0096fa`(공용+API) → `8338a5f`(draft) → `1f141fe`(edit) → `498ca60`(소실) → `a506e5a`(중복차단) → `b97d03f`(안내).
+
+### 문서
+- DATABASE(0193) / ARCHITECTURE(slug-check API) / TECH_SPEC(§6.8 slug 편집·잠금·5층 방어) 동기 갱신.
+
+### 잔여
+- 미발행 테스트 카드 #2324/#2325(`rejuran-painpain~`) — 정민님 정리 대기 (노출 영향 없음).
+- 실제 auth UI 실증(같은 slug 2개 발송 차단 화면)은 정민님 재확인 예정.
+
+---
+
 ## [2026-05-30] — 의사 글 URL slug 오류 수정 (영상ID-인덱스 → 키워드 slug)
 
 ### 배경
