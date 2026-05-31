@@ -2,7 +2,7 @@
   "schemaVersion": "0.1",
   "name": "Pibutenten",
   "alternateName": "피부텐텐",
-  "url": "https://pbtt.kr",
+  "url": "https://pibutenten.kr",
   "description": "대한민국 보건복지부 인증 피부과 전문의가 함께 만드는 피부 미용 Q&A 커뮤니티. 모든 의사 답변은 면허 보유 전문의가 직접 작성·검수합니다.",
   "primaryLanguage": "ko-KR",
   "domain": "health.dermatology",
@@ -23,11 +23,11 @@
     "aesthetic-procedures"
   ],
   "endpoints": {
-    "sitemap": "https://pbtt.kr/sitemap.xml",
-    "robots": "https://pbtt.kr/robots.txt",
-    "rss": "https://pbtt.kr/rss.xml",
-    "llmsTxt": "https://pbtt.kr/llms.txt",
-    "search": "https://pbtt.kr/search?q={query}"
+    "sitemap": "https://pibutenten.kr/sitemap.xml",
+    "robots": "https://pibutenten.kr/robots.txt",
+    "rss": "https://pibutenten.kr/rss.xml",
+    "llmsTxt": "https://pibutenten.kr/llms.txt",
+    "search": "https://pibutenten.kr/search?q={query}"
   },
   "structuredData": [
     "https://schema.org/MedicalOrganization",
@@ -70,25 +70,25 @@
     "disclaimerText": "본 답변은 일반 의학 정보이며 개별 환자 상담을 대체하지 않습니다."
   },
   "policies": {
-    "editorial": "https://pbtt.kr/editorial-policy",
-    "medicalReview": "https://pbtt.kr/medical-review",
-    "corrections": "https://pbtt.kr/corrections",
-    "disclosures": "https://pbtt.kr/disclosures",
-    "privacy": "https://pbtt.kr/privacy",
-    "terms": "https://pbtt.kr/terms",
-    "disclaimer": "https://pbtt.kr/disclaimer",
-    "contact": "https://pbtt.kr/contact"
+    "editorial": "https://pibutenten.kr/editorial-policy",
+    "medicalReview": "https://pibutenten.kr/medical-review",
+    "corrections": "https://pibutenten.kr/corrections",
+    "disclosures": "https://pibutenten.kr/disclosures",
+    "privacy": "https://pibutenten.kr/privacy",
+    "terms": "https://pibutenten.kr/terms",
+    "disclaimer": "https://pibutenten.kr/disclaimer",
+    "contact": "https://pibutenten.kr/contact"
   },
   "physicians": [
-    { "slug": "jung-hanmi",    "name": "정한미", "alternateName": "Hanmi Jung",   "url": "https://pbtt.kr/doctors/jung-hanmi" },
-    { "slug": "bae-jungmin",   "name": "배정민", "alternateName": "Jungmin Bae",  "url": "https://pbtt.kr/doctors/bae-jungmin" },
-    { "slug": "kwon-soohyun",  "name": "권수현", "alternateName": "Soohyun Kwon", "url": "https://pbtt.kr/doctors/kwon-soohyun" },
-    { "slug": "kim-soohyung",  "name": "김수형", "alternateName": "Soohyung Kim", "url": "https://pbtt.kr/doctors/kim-soohyung" },
-    { "slug": "ko-hyerim",     "name": "고혜림", "alternateName": "Hyerim Ko",    "url": "https://pbtt.kr/doctors/ko-hyerim" },
-    { "slug": "kim-jongsic",   "name": "김종식", "alternateName": "Jongsic Kim",  "url": "https://pbtt.kr/doctors/kim-jongsic" },
-    { "slug": "rhee-doyoung",  "name": "이도영", "alternateName": "Doyoung Rhee", "url": "https://pbtt.kr/doctors/rhee-doyoung" },
-    { "slug": "kang-hyunjin",  "name": "강현진", "alternateName": "Hyunjin Kang", "url": "https://pbtt.kr/doctors/kang-hyunjin" },
-    { "slug": "park-hyojin",   "name": "박효진", "alternateName": "Hyojin Park",  "url": "https://pbtt.kr/doctors/park-hyojin" }
+    { "slug": "jung-hanmi",    "name": "정한미", "alternateName": "Hanmi Jung",   "url": "https://pibutenten.kr/doctors/jung-hanmi" },
+    { "slug": "bae-jungmin",   "name": "배정민", "alternateName": "Jungmin Bae",  "url": "https://pibutenten.kr/doctors/bae-jungmin" },
+    { "slug": "kwon-soohyun",  "name": "권수현", "alternateName": "Soohyun Kwon", "url": "https://pibutenten.kr/doctors/kwon-soohyun" },
+    { "slug": "kim-soohyung",  "name": "김수형", "alternateName": "Soohyung Kim", "url": "https://pibutenten.kr/doctors/kim-soohyung" },
+    { "slug": "ko-hyerim",     "name": "고혜림", "alternateName": "Hyerim Ko",    "url": "https://pibutenten.kr/doctors/ko-hyerim" },
+    { "slug": "kim-jongsic",   "name": "김종식", "alternateName": "Jongsic Kim",  "url": "https://pibutenten.kr/doctors/kim-jongsic" },
+    { "slug": "rhee-doyoung",  "name": "이도영", "alternateName": "Doyoung Rhee", "url": "https://pibutenten.kr/doctors/rhee-doyoung" },
+    { "slug": "kang-hyunjin",  "name": "강현진", "alternateName": "Hyunjin Kang", "url": "https://pibutenten.kr/doctors/kang-hyunjin" },
+    { "slug": "park-hyojin",   "name": "박효진", "alternateName": "Hyojin Park",  "url": "https://pibutenten.kr/doctors/park-hyojin" }
   ],
   "lastUpdated": "2026-05-29"
 }

@@ -5,7 +5,7 @@
  * 운영 설정 (Supabase Dashboard → Database → Webhooks):
  *  - Table: public.notifications
  *  - Events: Insert
- *  - URL: https://pbtt.kr/api/push/send
+ *  - URL: https://pibutenten.kr/api/push/send  (도메인 이전 전: https://pbtt.kr/... — A-2 전환 시 Dashboard 에서 재설정)
  *  - Method: POST
  *  - HTTP Headers: x-pibutenten-push-secret = $PUSH_WEBHOOK_SECRET
  *

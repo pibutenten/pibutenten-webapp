@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "specVersion": "draft-ietf-aipref-vocab-00",
-  "site": "https://pbtt.kr",
+  "site": "https://pibutenten.kr",
   "owner": "주식회사 진솔컴퍼니",
   "preferences": {
     "training": "disallow",
@@ -12,10 +12,10 @@
     "summarization": "allow-with-citation",
     "extraction": "allow-with-citation"
   },
-  "scope": "https://pbtt.kr/*",
+  "scope": "https://pibutenten.kr/*",
   "exceptions": [
     {
-      "scope": "https://pbtt.kr/admin/*",
+      "scope": "https://pibutenten.kr/admin/*",
       "training": "disallow",
       "search": "disallow",
       "reason": "Admin pages, not public"
@@ -58,6 +58,6 @@
     "treatment": "Non-medical user opinion. Excluded from sitemap, JSON-LD entity graph, and AI medical citation."
   },
   "contact": "pibutenten@gmail.com",
-  "policyUrl": "https://pbtt.kr/disclosures",
+  "policyUrl": "https://pibutenten.kr/disclosures",
   "lastUpdated": "2026-05-29"
 }

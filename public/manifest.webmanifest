@@ -32,7 +32,7 @@
   "related_applications": [
     {
       "platform": "webapp",
-      "url": "https://pbtt.kr/manifest.webmanifest"
+      "url": "https://pibutenten.kr/manifest.webmanifest"
     }
   ],
   "prefer_related_applications": false

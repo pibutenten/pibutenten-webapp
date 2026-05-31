@@ -6,23 +6,23 @@
 
 ## 핵심 콘텐츠 (의사 답변)
 
-- [홈 — 최신 의사 답변](https://pbtt.kr/)
-- [참여 전문의 목록](https://pbtt.kr/doctors)
-- [전체 sitemap](https://pbtt.kr/sitemap.xml)
-- [최신 답변 RSS](https://pbtt.kr/rss.xml)
+- [홈 — 최신 의사 답변](https://pibutenten.kr/)
+- [참여 전문의 목록](https://pibutenten.kr/doctors)
+- [전체 sitemap](https://pibutenten.kr/sitemap.xml)
+- [최신 답변 RSS](https://pibutenten.kr/rss.xml)
 
 ## 정책 페이지
 
-- [사이트 안내 (운영주체·콘텐츠 정책)](https://pbtt.kr/about)
-- [편집 정책 (Editorial Policy)](https://pbtt.kr/editorial-policy)
-- [의학 검수 프로세스 (Medical Review)](https://pbtt.kr/medical-review)
-- [정정 정책 (Corrections)](https://pbtt.kr/corrections)
-- [이해상충 공개 (Disclosures)](https://pbtt.kr/disclosures)
-- [의사 답변 가이드라인](https://pbtt.kr/doctor-guidelines)
-- [의료 정보 면책 (Medical Disclaimer)](https://pbtt.kr/disclaimer)
-- [이용약관](https://pbtt.kr/terms)
-- [개인정보처리방침](https://pbtt.kr/privacy)
-- [문의](https://pbtt.kr/contact)
+- [사이트 안내 (운영주체·콘텐츠 정책)](https://pibutenten.kr/about)
+- [편집 정책 (Editorial Policy)](https://pibutenten.kr/editorial-policy)
+- [의학 검수 프로세스 (Medical Review)](https://pibutenten.kr/medical-review)
+- [정정 정책 (Corrections)](https://pibutenten.kr/corrections)
+- [이해상충 공개 (Disclosures)](https://pibutenten.kr/disclosures)
+- [의사 답변 가이드라인](https://pibutenten.kr/doctor-guidelines)
+- [의료 정보 면책 (Medical Disclaimer)](https://pibutenten.kr/disclaimer)
+- [이용약관](https://pibutenten.kr/terms)
+- [개인정보처리방침](https://pibutenten.kr/privacy)
+- [문의](https://pibutenten.kr/contact)
 
 ## 인용 정책
 

@@ -47,7 +47,7 @@ const MUST_ONBOARD_COOKIE = "pibutenten_must_onboard";
  *         단, /api/push/send 의 timing-safe secret check 가 1차 방어선이므로 면제해도 안전.
  *
  * SameSite=Lax 쿠키만으로는 다음을 막지 못함:
- *   - 같은 사이트 서브도메인 공격 (예: malicious.pbtt.kr → pbtt.kr/api/me/delete)
+ *   - 같은 사이트 서브도메인 공격 (예: malicious.pibutenten.kr → pibutenten.kr/api/me/delete)
  *   - 브라우저 확장의 fetch credentials:'include'
  * Origin/Referer 검사는 위 케이스 모두 차단.
  */
@@ -61,7 +61,7 @@ const CSRF_EXEMPT_API_PREFIXES = [
 /**
  * 허용되는 Origin 값. ADR 0012 정합 — 개인 LAN IP 하드코딩 폐기, 환경변수화.
  *
- *   - production 핵심 도메인 (https://pbtt.kr / www.pbtt.kr) — 모든 환경에서 허용
+ *   - production 핵심 도메인 (pibutenten.kr / www + 레거시 pbtt.kr / www) — 모든 환경에서 허용
  *   - NEXT_PUBLIC_SITE_URL — 환경별 사이트 URL
  *   - CSRF_ALLOWED_ORIGINS — 콤마 구분 환경변수 (개발 LAN IP / 추가 도메인 등)
  *   - preview/development: pibutenten-webapp-*.vercel.app 패턴
@@ -96,6 +96,10 @@ function isAllowedOrigin(origin: string | null): boolean {
     const isPreview = vercelEnv === "preview";
 
     // production 핵심 도메인 — 모든 환경에서 허용 (운영 도메인은 빌드 환경 무관 신뢰).
+    //   신 도메인(pibutenten.kr) + 레거시(pbtt.kr) 모두 허용 — 도메인 이전 전환기 무중단.
+    //   전환 완료 후 pbtt.kr 제거는 별도 안건 (당분간 301 대상으로 살아 있음).
+    if (o.origin === "https://pibutenten.kr") return true;
+    if (o.origin === "https://www.pibutenten.kr") return true;
     if (o.origin === "https://pbtt.kr") return true;
     if (o.origin === "https://www.pbtt.kr") return true;
 

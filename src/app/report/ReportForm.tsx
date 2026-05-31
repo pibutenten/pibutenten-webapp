@@ -124,7 +124,7 @@ export function ReportForm() {
           type="text"
           value={targetUrl}
           onChange={(e) => setTargetUrl(e.target.value)}
-          placeholder="https://pbtt.kr/... 또는 카드 ID(예: 2288)"
+          placeholder="https://pibutenten.kr/... 또는 카드 ID(예: 2288)"
           className="h-10 w-full rounded-md border border-[var(--border)] px-3 text-[14px]"
           maxLength={500}
         />

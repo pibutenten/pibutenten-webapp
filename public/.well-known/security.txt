@@ -1,12 +1,12 @@
-# 피부텐텐 (https://pbtt.kr) 보안 취약점 제보 채널
+# 피부텐텐 (https://pibutenten.kr) 보안 취약점 제보 채널
 # RFC 9116
 
 Contact: mailto:pibutenten@gmail.com
 Expires: 2027-05-28T00:00:00.000Z
 Preferred-Languages: ko, en
-Canonical: https://pbtt.kr/.well-known/security.txt
-Policy: https://pbtt.kr/privacy
-Acknowledgments: https://pbtt.kr/about
+Canonical: https://pibutenten.kr/.well-known/security.txt
+Policy: https://pibutenten.kr/privacy
+Acknowledgments: https://pibutenten.kr/about
 
 # 제보 가이드
 # 1) 취약점 PoC, 영향 범위, 재현 절차를 한국어 또는 영어로 작성

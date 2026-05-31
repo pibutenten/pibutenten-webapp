@@ -299,7 +299,7 @@ async function main() {
   console.log(`  - cards.id = ${cardId} (author_id = sentinel)`);
   console.log(`  - comments.id = ${commentId} (author_id = sentinel)`);
   console.log(
-    `\n시각 확인 URL (production): https://pbtt.kr/deleted-user (sentinel profile 페이지)`,
+    `\n시각 확인 URL (production): https://pibutenten.kr/deleted-user (sentinel profile 페이지)`,
   );
 }
 

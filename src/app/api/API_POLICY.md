@@ -63,7 +63,7 @@ status code 일관성:
 export const dynamic = "force-dynamic";
 ```
 
-mutation 라우트는 미들웨어가 Origin 검증 (allow-list: pbtt.kr / *.vercel.app / localhost).
+mutation 라우트는 미들웨어가 Origin 검증 (allow-list: pibutenten.kr / 레거시 pbtt.kr / *.vercel.app / localhost).
 webhook 등 예외는 `src/middleware.ts` 의 `CSRF_EXEMPT_PATHS` 에 명시.
 
 ## 6. CORS

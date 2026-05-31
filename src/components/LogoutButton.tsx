@@ -20,7 +20,7 @@ const CLIENT_VISIBLE_COOKIES_TO_CLEAR = [
 ] as const;
 
 function deleteClientCookie(name: string) {
-  // path=/ + Max-Age=0 으로 즉시 만료. pbtt.kr / vercel preview / localhost 동일 동작.
+  // path=/ + Max-Age=0 으로 즉시 만료. host-only 쿠키(Domain= 미지정)라 어느 도메인에서나 동일 동작.
   document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
 

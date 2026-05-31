@@ -64,7 +64,7 @@ export default function TermsPage() {
       <Section title="제1조 (목적)">
         <p>
           이 약관은 주식회사 진솔컴퍼니(이하 &ldquo;회사&rdquo;)가 운영하는
-          피부텐텐(pbtt.kr, 이하 &ldquo;서비스&rdquo;)의 이용과 관련하여 회사와
+          피부텐텐(pibutenten.kr, 이하 &ldquo;서비스&rdquo;)의 이용과 관련하여 회사와
           이용자(회원·비회원)의 권리, 의무 및 책임 사항, 기타 필요한 사항을
           규정함을 목적으로 합니다.
         </p>

@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { errorRedirectLogin, type AuthErrorTrack } from "@/lib/error-response";
 import { ROLES } from "@/lib/identity-shared";
 import { logAudit } from "@/lib/audit-log";
+import { SITE_URL } from "@/lib/site";
 
 /** PR-OPS (0135): auth 콜백 provider 추정 — 정확한 분기는 force 가능한 상태에서만. */
 function inferProvider(url: URL): AuthErrorTrack["provider"] {
@@ -59,10 +60,13 @@ function sanitizeNext(raw: string | null): string {
   if (raw.startsWith("//") || raw.startsWith("/\\")) return "";
   // 절대 URL 패턴 차단 (스킴 어디든 포함된 경우)
   if (/^[a-z][a-z0-9+.-]*:/i.test(raw.slice(1))) return "";
-  // path만 허용 — 한 번 더 URL parser로 검증
+  // path만 허용 — 한 번 더 URL parser로 검증.
+  //   base origin 은 SITE_URL(SSOT) 기반 — 도메인 이전 후에도 env 한 곳만 보고 동작.
+  //   (raw 는 위에서 이미 절대 URL/스킴 차단됨. base 는 same-origin 판정 기준일 뿐.)
   try {
-    const parsed = new URL(raw, "https://pbtt.kr");
-    if (parsed.origin !== "https://pbtt.kr") return "";
+    const base = new URL(SITE_URL);
+    const parsed = new URL(raw, base);
+    if (parsed.origin !== base.origin) return "";
     return parsed.pathname + parsed.search + parsed.hash;
   } catch {
     return "";

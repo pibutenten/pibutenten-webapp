@@ -1,5 +1,23 @@
 import type { NextConfig } from "next";
 
+/**
+ * 동작용 canonical 도메인 — SSOT (NEXT_PUBLIC_SITE_URL 단일 출처, src/lib/site.ts 와 동일 규칙).
+ * 도메인 이전(pbtt.kr → pibutenten.kr) 후에도 이 한 곳(env)만 보고 동작하도록 하드코딩 제거.
+ *  - production: NEXT_PUBLIC_SITE_URL = https://pbtt.kr (전환 전) / https://pibutenten.kr (전환 후)
+ *  - env 미설정(preview/local): 신 도메인 기본값.
+ */
+const CANONICAL_ORIGIN =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://pibutenten.kr";
+const CANONICAL_HOST = CANONICAL_ORIGIN.replace(/^https?:\/\//, "");
+
+/**
+ * 레거시 도메인 → canonical 301 활성화 게이트.
+ *  ⚠ canonical 이 pibutenten.kr 일 때만(= A-2 env 플립 후) true → pbtt.kr 301 활성화.
+ *    전환 전(NEXT_PUBLIC_SITE_URL=pbtt.kr)에는 코드에 있어도 비활성 →
+ *    "모든 추가 끝나기 전 전환 금지" 게이트를 코드 차원에서 보장. 깃발은 env 플립이 넘긴다.
+ */
+const IS_NEW_DOMAIN = CANONICAL_HOST === "pibutenten.kr";
+
 const nextConfig: NextConfig = {
   /**
    * URL 정책 (v5.1 spec):
@@ -32,7 +50,7 @@ const nextConfig: NextConfig = {
       { source: "/rss.xml", destination: "/rss" },
     ];
   },
-  // vercel.app → pbtt.kr 영구 리다이렉트 (canonical 도메인 통일)
+  // vercel.app → canonical 영구 리다이렉트 (canonical 도메인 통일, SITE_URL 기반)
   // Preview 배포는 영향 받지 않음 (Production만 적용 — vercel host 매칭)
   async redirects() {
     return [
@@ -44,9 +62,27 @@ const nextConfig: NextConfig = {
             value: "pibutenten-webapp.vercel.app",
           },
         ],
-        destination: "https://pbtt.kr/:path*",
+        destination: `${CANONICAL_ORIGIN}/:path*`,
         permanent: true,
       },
+      // 레거시 도메인 pbtt.kr / www.pbtt.kr → canonical(pibutenten.kr) 301 (경로 보존).
+      //   ⚠ env 플립(A-2) 후에만 활성화 (IS_NEW_DOMAIN). 전환 전엔 빈 배열 → 비활성.
+      ...(IS_NEW_DOMAIN
+        ? [
+            {
+              source: "/:path*",
+              has: [{ type: "host" as const, value: "pbtt.kr" }],
+              destination: `${CANONICAL_ORIGIN}/:path*`,
+              permanent: true,
+            },
+            {
+              source: "/:path*",
+              has: [{ type: "host" as const, value: "www.pbtt.kr" }],
+              destination: `${CANONICAL_ORIGIN}/:path*`,
+              permanent: true,
+            },
+          ]
+        : []),
       // 의사 글 slug 교정 (2026-05-30): 옛 영상ID-인덱스 slug → 키워드 slug 301.
       //   발행됐던(published) 8건만 SEO 자산 보존용으로 301. 검수중 13건은 미노출이라 불필요.
       //   생성 로직은 publish/route.ts 에서 키워드 slug 로 수정 완료 (재발 방지).
