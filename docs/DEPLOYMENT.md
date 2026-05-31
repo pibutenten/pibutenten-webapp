@@ -62,10 +62,11 @@ npm run build          # 전체 빌드 (Compiled successfully 확인)
 
 ## 5. 도메인 / SSL / 리다이렉트
 
-- `pbtt.kr` (Aliased, 메인) — HTTPS 정상, Let's Encrypt 자동 발급/갱신
-- `www.pbtt.kr` → `pbtt.kr` 308 redirect
-- `pibutenten-webapp.vercel.app` → `pbtt.kr` permanent redirect (`next.config.ts:28-42`)
-- `pibutenten.com` — 미사용 (등록기관 자동갱신 해지 예정)
+- `pibutenten.kr` (Aliased, 메인 canonical) — HTTPS 정상, Let's Encrypt 자동 발급/갱신
+- `www.pibutenten.kr` → `pibutenten.kr` 308 redirect (Vercel 도메인 레벨)
+- `pibutenten-webapp.vercel.app` → canonical(`SITE_URL`) permanent redirect (`next.config.ts`)
+- 레거시 `pbtt.kr` / `www.pbtt.kr` → `pibutenten.kr` 영구 308 (next.config IS_NEW_DOMAIN 게이트 / www 는 Vercel 도메인 redirect). **폐기 안 함** — 영구 유지
+- `pibutenten.com` — 미사용 (글로벌, 이번 범위 아님)
 - HSTS preload 헤더 적용 (`max-age=63072000; includeSubDomains; preload`)
 
 ---

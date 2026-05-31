@@ -8,7 +8,7 @@
 
 **피부텐텐 (Pibutenten)** — 피부과 전문의가 함께하는 피부 미용 SNS / Q&A 검색 엔진.
 
-- **도메인**: https://pbtt.kr
+- **도메인**: https://pibutenten.kr (구 pbtt.kr → 영구 308 리다이렉트, 폐기 안 함)
 - **운영사**: 주식회사 진솔컴퍼니 (pibutenten@gmail.com)
 - **YouTube**: https://www.youtube.com/@pibutenten
 

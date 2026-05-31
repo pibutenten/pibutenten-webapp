@@ -309,7 +309,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - ONBOARDED_COOKIE set 직후 `site_visits` INSERT (24h 1회, ADR 0010)
 
 ### 6.3. CSRF Origin 검증
-- allow-list: `pbtt.kr`, `pibutenten-webapp-*.vercel.app` (정확 매칭)
+- allow-list: `pibutenten.kr`, 레거시 `pbtt.kr`, `pibutenten-webapp-*.vercel.app` (정확 매칭)
 - `VERCEL_ENV` 기반 환경별 분기
 - LAN IP 는 dev 한정
 

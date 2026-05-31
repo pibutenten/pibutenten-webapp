@@ -2,7 +2,7 @@
 
 피부과 전문의가 함께하는 피부 미용 SNS / Q&A 검색 엔진.
 
-- **Production**: https://pbtt.kr
+- **Production**: https://pibutenten.kr (구 pbtt.kr → 영구 308 리다이렉트, 폐기 안 함)
 - **Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Supabase (Postgres + RLS + RPC + Storage) · Vercel
 - **AI**: Anthropic Claude (`@anthropic-ai/sdk`) — AI 글 초안 워크플로
 - **Form factor**: 모바일 우선 PWA (모바일 1단 / 데스크탑 ≥900px 2단, 최대 너비 1080px)
@@ -95,7 +95,7 @@ supabase/
 ## 보안 / 정책
 
 - 약관 동의·온보딩 강제 게이트 (`middleware.ts`)
-- CSRF Origin 검증 (allow-list: `pbtt.kr`, `*.vercel.app`, localhost)
+- CSRF Origin 검증 (allow-list: `pibutenten.kr`, 레거시 `pbtt.kr`, `*.vercel.app`, localhost)
 - SSRF 가드 (`src/lib/ssrf-guard.ts`) — DNS + IPv4/IPv6 사설 대역 + 메타데이터 호스트 + redirect 매 hop 재검증
 - 업로드: magic byte 검증 + sharp EXIF 제거 + UUID 파일명 + 8MB 한도
 - soft-delete 익명화 (StackOverflow 방식 in-place 마스킹)
@@ -103,7 +103,7 @@ supabase/
 
 ## 배포
 
-- **Domain**: https://pbtt.kr (canonical)
+- **Domain**: https://pibutenten.kr (canonical) · 구 `pbtt.kr` 영구 308 리다이렉트
 - **Hosting**: Vercel (Region: ICN1 Seoul)
 - **Auto-deploy**: ON (`vercel.json` `git.deploymentEnabled: true`)
 - **Repo**: Private GitHub

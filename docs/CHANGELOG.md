@@ -6,6 +6,34 @@
 
 ---
 
+## [2026-05-31] — 도메인 이전 `pbtt.kr` → `pibutenten.kr` (A-1 코드 + A-2 전환)
+
+### 배경
+한국 사이트 도메인을 `pbtt.kr` → `pibutenten.kr` 로 이전. `SITE_PUBLIC` HOLD 로 색인이 거의 없는 시점이라 SEO 손실 최소. 전환 원칙: 새 도메인 "추가" 완료(Phase 0·1) 후 깃발 넘김(A-2). 정합성 원칙: 동작용 도메인은 `SITE_URL`(`src/lib/site.ts`, env `NEXT_PUBLIC_SITE_URL`) 한 곳으로 수렴, 흩어진 하드코딩 제거.
+
+### Added
+- ADR 0017 — 콘텐츠에 자기 사이트 절대 URL 저장 금지(내부 링크는 상대경로/ID). production 전수 스캔 결과 레거시 0건(이미 준수), 규칙만 명문화.
+- `next.config.ts` — 레거시 `pbtt.kr`/`www.pbtt.kr` → canonical 301(308) 리다이렉트. `IS_NEW_DOMAIN`(env=pibutenten.kr) 게이트로 전환 전 비활성.
+- 마이그 0195 — `notifications_push_webhook()` `v_url` → `pibutenten.kr`(net.http_post 는 POST 라 301 미추종).
+
+### Changed
+- **`NEXT_PUBLIC_SITE_URL` → `https://pibutenten.kr`** (Vercel Production + Preview). 재배포로 canonical/robots/sitemap/JSON-LD/OG 전부 새 도메인 반영 + next.config 301 게이트 활성화.
+- `src/middleware.ts` — CSRF allow-list 에 `pibutenten.kr`/`www` 추가(레거시 `pbtt.kr`/`www` 유지).
+- `src/app/auth/callback/route.ts` — `sanitizeNext` 하드코딩 `pbtt.kr` 가드 → `SITE_URL` 기반.
+- 정적파일(`.well-known/agent-card·ai-policy·security.txt`, `llms.txt`, `manifest.webmanifest`) + 약관 본문 + report placeholder + 주석 → 새 도메인.
+- Supabase Auth `site_url` → `https://pibutenten.kr` (redirect 허용목록은 두 도메인 유지).
+- `www.pbtt.kr` Vercel 도메인 리다이렉트 목적지 `pbtt.kr` → `pibutenten.kr`(단일 hop).
+
+### 인프라 (Phase 0·1, 선행 완료)
+- Supabase Pro + Daily Backups + Custom Domains(`auth.pibutenten.kr` active), Vercel Pro + Spend($50).
+- 외부 콘솔 새 도메인 추가: Supabase Auth redirect, 네이버 콜백(PC/모바일), 구글 OAuth 승인도메인, Google·Bing 검색엔진 DNS 검증. (네이버 서치어드바이저는 B 단계 이연.)
+
+### 남은 작업 (B 단계)
+- 구글 OAuth redirect URI 에 `auth.pibutenten.kr/auth/v1/callback` 추가 + `NEXT_PUBLIC_SUPABASE_URL` → 커스텀 인증 도메인 컷오버.
+- 구글 주소 변경 도구 + sitemap 재제출, 네이버 서치어드바이저 등록, OAuth 동의화면 브랜딩.
+
+---
+
 ## [2026-05-31] — 피드 점수 공식 교체: 참여 가중치 확대 + New 부스트
 
 ### 배경
