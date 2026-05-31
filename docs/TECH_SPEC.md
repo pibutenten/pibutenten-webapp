@@ -82,12 +82,16 @@ GOOGLE_CLIENT_SECRET=...
 ## 4. 검색 / 피드
 
 ### 4.1. 메인 피드 (`/`, `/search`, `/api/cards`)
-- `search_cards_scored` RPC (q, doctor_slug, offset, limit, boost_doctor_slug)
-- 검색어 없을 때: ±14일 랜덤 셔플
+- RPC: 홈 첫 페이지 `feed_cards_scored`, 검색·홈 스크롤 `search_cards_scored` (q, doctor_slug, offset, limit, boost_doctor_slug)
+- **점수 공식 (마이그 0194)**: `인기 × 시간감쇠 × 의사배수 × jitter + New 부스트`
+  - 인기 = `ln(좋아요×1 + 저장×2 + 공유×2 + 댓글×2 + 조회×0.1, 최소 1)/ln10 (+1)`. 공유=`cards.share_count`, 댓글=`comments(status='visible')` 점수 계산 시 즉시 count(컬럼/트리거 없음).
+  - 시간감쇠 = `0.5^(글나이/14일)`(반감기 14일) · 의사 글 ×2 · jitter ±17.5%.
+  - **New 부스트** = `1.5 × 0.5^(글나이[시간])`(반감기 1h) 가산 → 신규 글 ~1h 최상단 후 인기글에 밀리고 ~6h ≈0. 반응 붙으면 인기 점수↑로 상위 유지. 기준 `created_at`.
+  - 두 RPC 동일 가중·부스트 → 첫 페이지·스크롤·검색에서 신규 글 노출 일관. 검색은 키워드 매칭 점수가 위에 얹힘.
 - 같은 원장 3연속 방지, 첫 4카드 다양화
 - HOT 카드: `get_hot_card_ids(p_limit)` 결과로 마킹 (v2 정책 본문 = 시간 가중 + 최소 점수 5)
 - **검색 SSOT 헬퍼** (배치 ⑤ H3, 2026-05-28): `src/lib/search-query.ts::fetchCardList(supabase, { q, doctorSlug, boostDoctorSlug, offset, limit })` — 3 호출처 (`/search/page.tsx`, `/api/cards`, `/doctors/[slug]/page.tsx`) 가 동일 헬퍼 사용. q 가 카테고리 라벨 ("피부일기" 등) 이면 `.eq("category", slug)` 직접 필터, 아니면 RPC. 옛 회귀(첫 페이지 vs 무한스크롤 결과 집합 불일치) 해소.
-- **"방금 쓴 글" 1회 노출** (배치 ⑤ H4): WriteClient publish 성공 → sessionStorage `pbtt:justPublished = {id, ts}` 저장. 홈 mount 시 `<JustPublishedPrepend />` 가 5분 윈도우 + 'shown' 마킹으로 1회 prepend (서버 fetch 없음, 다른 사용자 영향 0). 영구 prepend 폐기.
+- **"방금 쓴 글" 1회 노출**: WriteClient publish 성공 → sessionStorage `pbtt:justPublished = {id, ts}` 저장. 홈 `<Feed enableJustPublished>` 가 5분 윈도우 + 'shown' 마킹으로 본인 글을 그리드 첫 칸에 1회 노출(이미 피드에 있으면 맨 앞 이동, 없으면 fetch unshift). 클라이언트 전용·타인 영향 0. (2026-05-31 `JustPublishedPrepend` 별도 컴포넌트 → Feed 흡수. 전역 신규 노출은 New 부스트가 담당.)
 
 ### 4.2. 카테고리 (Phase 5.1 - 6분류)
 | slug | 라벨 | 작성 권한 |

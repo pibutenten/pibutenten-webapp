@@ -167,8 +167,17 @@ export default function Feed({
       // 이미 본 같은 id 면 미노출.
       if (window.sessionStorage.getItem("pbtt:justPublished:shown") === String(id))
         return;
-      // 이미 피드에 있으면(신규 글은 최신순 상위라 흔함) 중복 방지 — 마킹만 하고 종료.
+      // 이미 피드에 있으면 — fetch 없이 그 카드를 맨 앞으로 이동(첫 칸 고정 + 중복 방지).
+      //   feed_cards_scored 는 점수순(의사 글 x2·jitter)이라 새 회원 글이 중간에 끼므로,
+      //   "방금 쓴 글" 의도대로 본인 화면에서만 1회 최상단으로 끌어올린다.
       if (stateRef.current.items.some((c) => c.id === id)) {
+        setItems((prev) => {
+          const idx = prev.findIndex((c) => c.id === id);
+          if (idx <= 0) return prev; // 없음 or 이미 첫 칸 → 그대로
+          const next = [...prev];
+          const [moved] = next.splice(idx, 1);
+          return [moved, ...next];
+        });
         window.sessionStorage.setItem("pbtt:justPublished:shown", String(id));
         return;
       }
