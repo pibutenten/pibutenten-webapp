@@ -21,7 +21,7 @@
 ### Fixed
 - 아이콘 캐시 무력화 — `/icons/(.*)` 는 `vercel.json` 에서 1년 `immutable` 이라 같은 파일명은 클라이언트가 재요청 안 함. 파일명 버전 누적(`-v2`) 대신 manifest/layout 아이콘 src 에 `?v=2` 쿼리만 부여(파일명은 원래대로 유지). 미세조정 시 파일 덮어쓰고 쿼리 숫자만 증가, 확정 시 정리할 잔여 파일 없음. (manifest 는 `max-age=0, must-revalidate` 라 새 쿼리가 즉시 도달.)
 
-> 주의: 현재 아이콘은 테스트(55%)이며 확정 전임. 확정 시 최종 이미지로 덮어쓰고 `?v` 증가.
+> 55% 사용자 승인·확정(2026-05-31). 쿼리 캐시버스팅이라 별도 테스트·잔여 파일 없음 — canonical 파일 + `?v=2` 가 최종본. 향후 크기 변경 시 파일 덮어쓰고 `?v` 만 증가.
 
 ---
 
@@ -47,9 +47,11 @@
 - Supabase Pro + Daily Backups + Custom Domains(`auth.pibutenten.kr` active), Vercel Pro + Spend($50).
 - 외부 콘솔 새 도메인 추가: Supabase Auth redirect, 네이버 콜백(PC/모바일), 구글 OAuth 승인도메인, Google·Bing 검색엔진 DNS 검증. (네이버 서치어드바이저는 B 단계 이연.)
 
-### 남은 작업 (B 단계)
-- 구글 OAuth redirect URI 에 `auth.pibutenten.kr/auth/v1/callback` 추가 + `NEXT_PUBLIC_SUPABASE_URL` → 커스텀 인증 도메인 컷오버.
-- 구글 주소 변경 도구 + sitemap 재제출, 네이버 서치어드바이저 등록, OAuth 동의화면 브랜딩.
+### B 단계 (auth 컷오버 · 검색엔진 · OAuth 브랜딩 — 2026-05-31 완료)
+- **auth 커스텀 도메인 컷오버** — 구글·카카오 OAuth redirect URI 에 `auth.pibutenten.kr/auth/v1/callback` 추가 후 `NEXT_PUBLIC_SUPABASE_URL` → `https://auth.pibutenten.kr` (Prod). CSP `connect-src`/`img-src` 가 새 도메인으로 서빙됨을 라이브 헤더로 검증. (카카오 redirect URI 위치: 앱 > 플랫폼 키 > REST API 키 > 로그인 리다이렉트 URI.)
+- **검색엔진** — GSC 주소 변경 도구(pbtt.kr → pibutenten.kr) + sitemap·RSS 재제출, Bing sitemap·RSS 제출, 네이버 서치어드바이저 신규 등록. 네이버 검증 토큰 교체 → `NEXT_PUBLIC_NAVER_SITE_VERIFICATION`(Vercel env) 갱신·재배포, 메타태그 서빙 확인.
+- **구글 OAuth 동의화면 브랜딩** — 앱 이름 "피부텐텐", 홈페이지·개인정보·약관 링크 pibutenten.kr, 승인 도메인 갱신 → 브랜드 인증 제출(검토 중).
+- **SITE_PUBLIC 상태** — 이미 공개(`true`)였으므로 색인 손실 없이 전환.
 
 ---
 

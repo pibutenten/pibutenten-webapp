@@ -7,7 +7,8 @@
 ## 1. 환경변수 (`.env.local`)
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://nahznfvouuwxqctwlwfs.supabase.co
+# Production = Supabase Custom Domain (ADR 0018). 로컬·템플릿은 ref 직결(*.supabase.co)
+NEXT_PUBLIC_SUPABASE_URL=https://auth.pibutenten.kr
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 SUPABASE_ACCESS_TOKEN=sbp_...

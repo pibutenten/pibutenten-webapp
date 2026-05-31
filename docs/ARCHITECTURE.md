@@ -324,6 +324,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 | `src/lib/supabase/admin.ts` | 서버 측 service_role 필요한 작업 | service_role |
 
 - `admin.ts` 는 `server-only` import 로 클라이언트 번들 노출 차단
+- **클라이언트 base URL**: 세 클라이언트 모두 `NEXT_PUBLIC_SUPABASE_URL` 사용. production 값은 Supabase **Custom Domain** `https://auth.pibutenten.kr` (auth/rest/storage/realtime 전부 프록시). 로컬·템플릿은 프로젝트 ref 의 `*.supabase.co` 직결. 도메인 이전(2026-05-31, ADR 0018)으로 OAuth redirect URI·CSP `connect-src` 도 `auth.pibutenten.kr` 기준.
 
 ---
 
@@ -366,6 +367,11 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - **0010** Visitor 1일 1방문 dedup
 - **0011** Active identity 권한 시스템 (Phase 1 — 2026-05-26). `0001` 의 SQL 측 구현 (RLS·RPC 가 `current_active_profile_id()` GUC 인식). `0012` 와 양방향.
 - **0012** 명함(profile) 단위 완전 독립 (Phase 3 — 2026-05-26). `0011` 의 application layer 확장. 묶음 OR 패턴 폐기, active 단위만 권한 판정. `0001` 의 "모든 profile 동등 독립" 원칙 강제.
+- **0014** 사람 ID 컬럼 명명 통일 (`author_id`/`profile_id`/`auth_user_id`)
+- **0015** 온보딩 게이트 active 명함 기준 정합
+- **0016** 의사 프로필 연결
+- **0017** 콘텐츠에 자기 사이트 절대 URL 저장 금지 — 도메인 이전 시 DB 무수정
+- **0018** 도메인 이전 `pbtt.kr` → `pibutenten.kr` (전략·단계·인프라). auth 커스텀 도메인·SITE_URL 단일 출처·308 영구 리다이렉트.
 
 ---
 

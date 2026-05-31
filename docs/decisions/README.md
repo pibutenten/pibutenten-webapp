@@ -40,6 +40,9 @@
 | 0012 | 명함 단위 완전 독립 (Phase 3 — application layer) | Accepted |
 | 0014 | `profile_id` 컬럼 명명 통일 + `author_id` 유지 | Accepted |
 | 0015 | 온보딩 게이트 active 명함 기준 정합 (POLICY-1 부분 해소) | Accepted |
+| 0016 | 의사 프로필 연결 | Accepted |
+| 0017 | 콘텐츠에 자기 사이트 절대 URL 저장 금지 | Accepted |
+| 0018 | 도메인 이전 `pbtt.kr` → `pibutenten.kr` (전략·단계·인프라) | Accepted |
 
 ## 새 ADR 작성
 

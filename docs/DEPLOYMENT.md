@@ -66,6 +66,7 @@ npm run build          # 전체 빌드 (Compiled successfully 확인)
 - `www.pibutenten.kr` → `pibutenten.kr` 308 redirect (Vercel 도메인 레벨)
 - `pibutenten-webapp.vercel.app` → canonical(`SITE_URL`) permanent redirect (`next.config.ts`)
 - 레거시 `pbtt.kr` / `www.pbtt.kr` → `pibutenten.kr` 영구 308 (next.config IS_NEW_DOMAIN 게이트 / www 는 Vercel 도메인 redirect). **폐기 안 함** — 영구 유지
+- `auth.pibutenten.kr` — **Supabase Custom Domain** (auth/rest/storage/realtime 전부 프록시). `NEXT_PUBLIC_SUPABASE_URL` 이 이 주소를 가리킴 (2026-05-31 컷오버, ADR 0018). SSL 은 Supabase ACME 자동. OAuth redirect URI(`/auth/v1/callback`)·CSP `connect-src`/`img-src` 도 이 도메인 기준.
 - `pibutenten.com` — 미사용 (글로벌, 이번 범위 아님)
 - HSTS preload 헤더 적용 (`max-age=63072000; includeSubDomains; preload`)
 
@@ -140,7 +141,7 @@ npm run build          # 전체 빌드 (Compiled successfully 확인)
 ### 10.1. Supabase
 | Name | Production | Preview | Dev | 민감도 |
 |---|---|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | ✓ | ✓ | ✓ | 공개 |
+| `NEXT_PUBLIC_SUPABASE_URL` | ✓ | ✓ | ✓ | 공개. **Production = `https://auth.pibutenten.kr`** (Supabase Custom Domain, ADR 0018). 로컬·템플릿은 `*.supabase.co` 직결 |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✓ | ✓ | ✓ | 공개 (anon) |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✓ | ✓ | ✓ | **민감** |
 | `SUPABASE_ACCESS_TOKEN` (Mgmt API) | 로컬만 | — | — | **민감** |
