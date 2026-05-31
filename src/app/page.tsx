@@ -8,7 +8,6 @@ import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
 import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
-import JustPublishedPrepend from "@/components/JustPublishedPrepend";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -59,10 +58,9 @@ export default async function FeedPage() {
     data: { user: viewer },
   } = await supabase.auth.getUser();
 
-  // 배치 ⑤ H4 (2026-05-28): 영구 prepend 폐기 (SEO·UX 회귀).
-  //   "방금 쓴 글" 노출은 클라이언트 컴포넌트 <JustPublishedPrepend /> 가 담당.
+  // "방금 쓴 글" 1회 노출은 <Feed enableJustPublished /> 가 담당 (그리드 첫 칸에 편입).
   //   정책: publish 후 5분 이내 + 본인 명의 + sessionStorage 1회 노출 → 'shown' 마킹.
-  //   다른 사용자 피드에는 영향 0.
+  //   클라이언트 전용 — 다른 사용자·SEO 영향 0.
 
   const viewerStates = await fetchViewerStatesRecord(
     supabase,
@@ -97,14 +95,13 @@ export default async function FeedPage() {
           등록된 Q&A가 없습니다.
         </div>
       )}
-      {/* 배치 ⑤ H4 (2026-05-28): "방금 쓴 글" 1회 노출 (5분 윈도우, sessionStorage). */}
-      <JustPublishedPrepend />
       {!error && cards.length > 0 && (
         <Feed
           initial={cards}
           pageSize={INITIAL_PAGE_SIZE}
           hotIds={hotIds}
           viewerStates={viewerStates}
+          enableJustPublished
         />
       )}
     </section>

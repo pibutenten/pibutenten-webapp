@@ -6,6 +6,31 @@
 
 ---
 
+## [2026-05-31] — "방금 쓴 글" prepend 그리드 정합화 (1단 깨짐·중복 노출 수정)
+
+### 배경
+홈 피드에서 본인이 방금 발행한 글이 ① 2단 그리드를 깨고 혼자 1단(전체폭)으로 표시되고 ② 같은 글이 두 번 노출되던 문제. 원인은 `JustPublishedPrepend` 가 Feed 의 Masonry 그리드 **밖**에 별도 블록으로 카드를 렌더(2026-05-28 배치 ⑤ H4 의 지름길 구현)했기 때문. "모든 피드 카드는 한 그리드를 통과한다" 불변식 위반. 본인·발행 직후·새로고침 전 한정 증상(타인·SEO 영향 0)이나 구조적 예외라 정합화.
+
+### Fixed
+- **1단 깨짐**: prepend 로직을 `Feed` 안으로 흡수 → 방금 쓴 글을 `items` 맨 앞에 unshift 하여 Masonry 첫 칸으로 그리드 안에서 렌더(2단 정상).
+- **중복 노출**: 주입 전 `items` 에 동일 id 존재 여부 검사 → 이미 피드에 있으면 미주입(마킹만). `loadMore` append 시에도 id 기준 중복 제거 가드 추가(offset 페이지네이션 창 밀림 대비).
+
+### Changed
+- `Feed.tsx`: `enableJustPublished?: boolean` prop 추가. 홈 Feed 인스턴스만 true(검색·의사·프로필탭은 미전달 → 동작 불변). sessionStorage `pbtt:justPublished` 시그널 읽어 5분 윈도우 + shown 마킹 1회 노출.
+- `page.tsx`: 별도 `<JustPublishedPrepend />` 제거 → `<Feed enableJustPublished />` 로 위임.
+- `api/cards/route.ts`: `ids` 단일조회에 `.is("deleted_at", null)` 추가 — 발행 직후 soft-delete 된 글이 prepend 되는 것 방지(`feed_cards_scored` 와 동일 불변식 정합).
+
+### Removed
+- `components/JustPublishedPrepend.tsx` — 역할이 `Feed` 로 흡수되어 삭제(병렬 렌더 경로 제거).
+
+### 검증
+- `npx tsc --noEmit` 에러 0, `npm run build` Compiled successfully.
+
+### 손대지 않은 것 (과설계 회피)
+- `Feed.tsx` / `CardMasonry.tsx` 두 그리드 컴포넌트는 breakpoint·CSS 클래스(`feed-masonry`)를 공유해 이미 일관 — 통합은 본 건과 무관한 별도 안건으로 보류.
+
+---
+
 ## [2026-05-30] — 의사 글 slug 편집 UI + 5층 방어 + 발송 버그 3건 수정
 
 ### 배경

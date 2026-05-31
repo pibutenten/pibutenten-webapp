@@ -26,9 +26,10 @@ export async function GET(req: Request) {
 
   const supabase = await createSupabaseServerClient();
 
-  // 배치 ⑤ H4 (2026-05-28): "방금 쓴 글" 1회 노출용 단일 ID fetch.
-  //   ?ids=1,2,3 → cards.in("id", [...]) 직접 조회. status='published' 강제.
-  //   JustPublishedPrepend 가 sessionStorage 의 id 로 호출.
+  // "방금 쓴 글" 1회 노출용 단일 ID fetch.
+  //   ?ids=1,2,3 → cards.in("id", [...]) 직접 조회. status='published' + deleted_at IS NULL 강제.
+  //   Feed(enableJustPublished) 가 sessionStorage 의 id 로 호출.
+  //   deleted_at 필터: 발행 직후 soft-delete 된 글이 prepend 되는 것 방지 (feed_cards_scored 와 동일 불변식).
   const idsParam = url.searchParams.get("ids");
   if (idsParam) {
     const ids = idsParam
@@ -43,7 +44,8 @@ export async function GET(req: Request) {
       .from("cards")
       .select(CARD_LIST_SELECT)
       .in("id", ids)
-      .eq("status", "published");
+      .eq("status", "published")
+      .is("deleted_at", null);
     if (r.error) {
       return errorResponse(r.error, "generic", "[cards GET ids]", 500);
     }
