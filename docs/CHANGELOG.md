@@ -18,6 +18,11 @@
 ### Added
 - `icon-maskable-192.png` 신규 + `manifest.webmanifest` 에 `purpose:maskable` 192 항목 추가(192·512 모두 maskable 등록).
 
+### Fixed
+- 아이콘 캐시 무력화 — `/icons/(.*)` 는 `vercel.json` 에서 1년 `immutable` 이라 같은 파일명은 클라이언트가 재요청 안 함. 파일명 버전 누적(`-v2`) 대신 manifest/layout 아이콘 src 에 `?v=2` 쿼리만 부여(파일명은 원래대로 유지). 미세조정 시 파일 덮어쓰고 쿼리 숫자만 증가, 확정 시 정리할 잔여 파일 없음. (manifest 는 `max-age=0, must-revalidate` 라 새 쿼리가 즉시 도달.)
+
+> 주의: 현재 아이콘은 테스트(55%)이며 확정 전임. 확정 시 최종 이미지로 덮어쓰고 `?v` 증가.
+
 ---
 
 ## [2026-05-31] — 도메인 이전 `pbtt.kr` → `pibutenten.kr` (A-1 코드 + A-2 전환)
