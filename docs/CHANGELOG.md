@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-05-31] — PWA 설치 아이콘 여백 보정 (maskable 안전영역)
+
+### 배경
+홈 화면 설치 아이콘의 `tt:` 글자가 캔버스 가로 64% 를 차지해, 안드로이드/삼성 런처의 adaptive 마스크(중앙부 크롭) 적용 시 모서리에 닿아 답답하게 보임. `icon-maskable-512.png` 가 `icon-512.png` 와 동일 파일이라 maskable 안전여백이 0 이었음.
+
+### Changed
+- `tt:` 글자를 한 덩어리로 원위치 축소(가로 64% → **55%**). 콜론 위치·자간 불변, 배경 `#4CBFF2` 풀블리드 유지(흰 모서리 없음). 광학 보정 미적용.
+- 재생성 파일: `icon-512.png`, `icon-maskable-512.png`, `icon-192.png`, `apple-touch-icon.png`(180, iOS 용 RGB).
+
+### Added
+- `icon-maskable-192.png` 신규 + `manifest.webmanifest` 에 `purpose:maskable` 192 항목 추가(192·512 모두 maskable 등록).
+
+---
+
 ## [2026-05-31] — 도메인 이전 `pbtt.kr` → `pibutenten.kr` (A-1 코드 + A-2 전환)
 
 ### 배경
