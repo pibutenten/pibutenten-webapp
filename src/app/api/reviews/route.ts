@@ -5,7 +5,7 @@ import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { ReviewCreateSchema } from "@/lib/schema/api/reviews";
-import { screenContent, detectProhibitedMentions } from "@/lib/content-screening";
+import { screenContent, maskProhibitedMentions } from "@/lib/content-screening";
 import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
@@ -25,12 +25,12 @@ type SubmitStatus = "pending_review" | "published";
  *   4. zod 형식·크기 검증.
  *   5. procedure_ko 가 procedure_taxonomy 에 존재하는지 검증.
  *   6. title 기본값 (`{시술명} 시술후기`).
- *   7. 하드블록: 병원·의사명 지목 표현 감지 시 제출 차단.
- *   8. 소프트 검수: role=user 면 screenContent → flagged 면 pending_review.
+ *   7. 블라인드: 병원·의사명 지목 표현을 "○○" 로 마스킹(제출 차단 아님), 발생수 집계.
+ *   8. 소프트 검수: role=user 면 마스킹된 텍스트로 screenContent → flagged 면 pending_review.
  *   9. shortcode 생성 (충돌 시 최대 5회 재시도).
- *   10. RPC create_procedure_review 호출 (auth.uid() 소유자 검증은 RPC 내부).
+ *   10. RPC create_procedure_review 호출. 중복(23505) 시 409.
  *   11. revalidatePath.
- *   12. 응답 (articles 패턴 — screening 객체 포함).
+ *   12. 응답 (articles 패턴 — screening 객체 + blinded 플래그 포함).
  */
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
@@ -113,21 +113,19 @@ export async function POST(req: Request) {
   }
 
   // 6. title 기본값.
-  const title = (payload.title ?? "").trim() || `${procedureKo} 시술후기`;
-  const body = (payload.body ?? "").trim();
+  const rawTitle = (payload.title ?? "").trim() || `${procedureKo} 시술후기`;
+  const rawBody = (payload.body ?? "").trim();
 
-  // 7. 하드블록 — 병원·의사명 지목 표현 감지 시 제출 차단.
-  const prohibited = detectProhibitedMentions(`${title}\n${body}`);
-  if (prohibited.blocked) {
-    return errorResponse(null, "invalid_input", "[reviews POST] prohibited mention", 400, undefined, {
-      userMessage:
-        "병원·의사명으로 보이는 표현이 포함되어 등록할 수 없습니다: " +
-        prohibited.matches.join(", ") +
-        " — 해당 표현을 빼고 다시 작성해주세요.",
-    });
-  }
+  // 7. 블라인드(마스킹) — 병원·의사명 지목 표현을 "○○" 로 가린다.
+  //    하드블록(제출 차단)을 폐기하고, 마스킹된 텍스트로 교체 후 발생수를 집계.
+  const maskedTitle = maskProhibitedMentions(rawTitle);
+  const maskedBody = maskProhibitedMentions(rawBody);
+  const title = maskedTitle.text;
+  const body = maskedBody.text;
+  const blindedCount = maskedTitle.count + maskedBody.count;
 
   // 8. 소프트 검수 — role=user 만. doctor/admin 은 screenContent 가 자동 통과.
+  //    검수는 마스킹된 텍스트 기준으로 수행 (저장값과 일치).
   let status: SubmitStatus = "published";
   let screeningFlagged = false;
   let screeningReasons: string[] = [];
@@ -170,6 +168,7 @@ export async function POST(req: Request) {
   }
 
   // 10. RPC — 카드 + procedure_reviews 원자적 생성. auth.uid() 소유자 검증은 RPC 내부.
+  //     p_title/p_body 는 마스킹된 값. 신규 척도·선택 항목을 매핑.
   const { data: rpcData, error: rpcErr } = await supabase.rpc("create_procedure_review", {
     p_author_id: idCtx.active.profileId,
     p_procedure_ko: procedureKo,
@@ -181,12 +180,35 @@ export async function POST(req: Request) {
     p_post_year: new Date().getUTCFullYear(),
     p_satisfaction: payload.satisfaction,
     p_pain: payload.pain,
-    p_recovery_days: payload.recovery_days,
-    p_area: payload.area ?? null,
+    p_downtime: payload.downtime,
+    p_sessions: payload.sessions,
+    p_timing: payload.timing,
+    p_revisit: payload.revisit,
     p_cost_satisfaction: payload.cost_satisfaction ?? null,
     p_effect_areas: payload.effect_areas ?? null,
+    p_concurrent_procedures: payload.concurrent_procedures ?? null,
+    p_adverse_reactions: payload.adverse_reactions ?? null,
+    p_oneliner_type: payload.oneliner_type ?? null,
   });
   if (rpcErr) {
+    // 중복(author+procedure) — RPC 가 ERRCODE 23505 또는 메시지에 duplicate_review 로 raise.
+    const isDuplicate =
+      rpcErr.code === "23505" ||
+      (typeof rpcErr.message === "string" &&
+        rpcErr.message.includes("duplicate_review"));
+    if (isDuplicate) {
+      return errorResponse(
+        rpcErr,
+        "invalid_input",
+        "[reviews POST] duplicate_review",
+        409,
+        undefined,
+        {
+          userMessage:
+            "이미 이 시술의 후기를 작성하셨습니다. 마이페이지에서 수정해 주세요.",
+        },
+      );
+    }
     return errorResponse(rpcErr, "save_failed", "[reviews POST] create_procedure_review", 500);
   }
 
@@ -204,11 +226,13 @@ export async function POST(req: Request) {
     /* revalidatePath 실패는 저장 성공에 영향 X */
   }
 
-  // 12. 응답 — articles 패턴 (screening 객체 포함).
+  // 12. 응답 — articles 패턴 (screening 객체 포함) + blinded 플래그.
+  //     blinded=true 면 폼이 "병원·의사명이 자동으로 가려졌습니다" 토스트를 1회 노출.
   return NextResponse.json({
     card_id: cardId,
     shortcode: outShortcode,
     status,
+    blinded: blindedCount > 0,
     screening: screeningFlagged
       ? {
           status: "pending_review" as const,

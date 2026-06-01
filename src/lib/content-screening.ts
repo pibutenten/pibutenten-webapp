@@ -215,3 +215,39 @@ export function detectProhibitedMentions(text: string): ProhibitedMentionResult 
   }
   return { blocked: found.size > 0, matches: Array.from(found).slice(0, 10) };
 }
+
+/**
+ * 병원·의사명 마스킹 결과 (P3 시술후기, 2026-06-01).
+ *   text: 고유명 토큰을 "○○" 로 치환한 본문.
+ *   count: 마스킹이 발생한 횟수 (>0 면 작성자에게 고지 토스트).
+ */
+export type MaskResult = { text: string; count: number };
+
+/**
+ * 시술후기 본문에서 특정 병원명·의사명 지목 표현을 블라인드(마스킹)한다.
+ *
+ * 하드블록(detectProhibitedMentions)과 달리 제출을 막지 않고, 고유명 토큰만
+ * "○○" 로 가린 텍스트를 반환한다. 접미사(피부과/원장님 등) 앞 토큰이
+ * 일반어(EXCLUDE)면 마스킹하지 않는다.
+ *
+ * - 병원: "○○피부과" 처럼 접미사(p2)는 살리고 앞 고유명만 치환.
+ * - 의사: "○○원장님" 처럼 호칭 부분(full.slice(p1.length))은 살리고 성함만 치환.
+ *
+ * CLINIC_NAME_PATTERN·DOCTOR_NAME_PATTERN 은 /g 플래그를 가지므로 String.replace
+ * 콜백이 모든 매치를 순회한다.
+ */
+export function maskProhibitedMentions(text: string): MaskResult {
+  if (!text) return { text, count: 0 };
+  let count = 0;
+  let out = text.replace(CLINIC_NAME_PATTERN, (full: string, p1: string, p2: string) => {
+    if (CLINIC_PREFIX_EXCLUDE.has(p1.trim())) return full;
+    count++;
+    return "○○" + p2;
+  });
+  out = out.replace(DOCTOR_NAME_PATTERN, (full: string, p1: string) => {
+    if (DOCTOR_PREFIX_EXCLUDE.has(p1.trim())) return full;
+    count++;
+    return "○○" + full.slice(p1.length);
+  });
+  return { text: out, count };
+}

@@ -1,26 +1,32 @@
 "use client";
 
 /**
- * ReviewForm — 시술후기 입력 폼 (P3-d, client).
+ * ReviewForm — 시술후기 입력 폼 (P3, client).
  *
- * 2026-06-01 원장님 피드백 반영 재구성:
- *   - 시술 선택을 드롭다운 → 칩(OnboardingClient 피부고민 칩 톤) 단일 선택으로 교체.
- *     procedures 를 categoryLabel(리프팅/주입) 별 2개 섹션으로 묶어 표시, 상단 검색 필터.
- *   - effect(효과 체감 별점)·would_recommend(추천 의향)·cost_satisfaction(비용 만족도)·
- *     area(시술 부위) 입력 전부 폼에서 제거.
- *   - 효과 체감 분야(선택, 복수)를 SKIN_CONCERNS 기반 멀티 칩으로. 단 라벨 치환:
- *     aging→"동안", sensitive→"피부장벽". 저장은 치환된 라벨 문자열 배열.
+ * 2026-06-01 확정 명세 전면 재배치:
+ *   필수: 시술(칩 단일) / 만족도(별점) / 통증(세그먼트) / 다운타임 / 회차 / 받은 시점 /
+ *         재시술 의향 (다운타임~재시술은 ChoiceField 단일 선택 칩).
+ *   선택: 가성비(별점, clearable) / 효과 체감 부위(SKIN_CONCERNS 멀티 칩) /
+ *         병행 시술(현재 시술 제외 멀티 칩) / 이상반응(none-단독 멀티 칩) /
+ *         한줄 후기(text ≤150 + 유형 추천/받기전팁/기타).
+ *   회복기간(일수) 입력 삭제.
+ *
+ * 검수: 병원·의사명은 서버에서 "○○" 로 자동 블라인드(마스킹). 제출 차단 아님.
+ *   blinded 응답이면 고지 토스트 1회.
  *
  * 백엔드: POST /api/reviews. body 계약:
- *   필수 procedure_ko / satisfaction(1~5) / pain(1~5) / recovery_days(0~365)
- *   선택 effect_areas(string[]) / body
- *   응답 { card_id, shortcode, status, screening }.
+ *   필수 procedure_ko / satisfaction(1~5) / pain(1~5) /
+ *        downtime / sessions / timing / revisit (각 enum).
+ *   선택 cost_satisfaction(1~5) / effect_areas(string[]) /
+ *        concurrent_procedures(string[]) / adverse_reactions(enum[]) /
+ *        oneliner_type(enum) / body(한줄후기 ≤150).
+ *   응답 { card_id, shortcode, status, blinded, screening }.
+ *   중복(409) 면 서버 userMessage 노출.
  *
- * 디자인은 globals.css 토큰 + OnboardingClient 칩 톤을 재사용. 모바일 우선.
- * 제출 패턴(토스트·screening 안내·redirect)은 기존 로직 유지.
+ * 디자인은 globals.css 토큰 + 기존 Chip/StarField/SegmentField 톤 재사용. 모바일 우선.
  */
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
@@ -43,13 +49,60 @@ type Props = {
   handle: string;
 };
 
-const BODY_MAX = 4000;
-const RECOVERY_MAX = 365;
+const ONELINER_MAX = 150;
 
 const PAIN_LABELS = ["약함", "조금", "보통", "꽤", "심함"] as const;
 
+/* ── 값 키(고정 — DB CHECK 와 일치) ── */
+type ChoiceOption = { value: string; label: string };
+
+const DOWNTIME_OPTIONS: ChoiceOption[] = [
+  { value: "none", label: "없음" },
+  { value: "d1_2", label: "1~2일" },
+  { value: "d3_5", label: "3~5일" },
+  { value: "w1plus", label: "1주+" },
+];
+const SESSIONS_OPTIONS: ChoiceOption[] = [
+  { value: "s1", label: "1회" },
+  { value: "s2_3", label: "2~3회" },
+  { value: "s4plus", label: "4회+" },
+];
+const TIMING_OPTIONS: ChoiceOption[] = [
+  { value: "w2", label: "2주 내" },
+  { value: "m1_3", label: "1~3개월" },
+  { value: "m3plus", label: "3개월+" },
+];
+const REVISIT_OPTIONS: ChoiceOption[] = [
+  { value: "yes", label: "예" },
+  { value: "maybe", label: "고민중" },
+  { value: "no", label: "아니오" },
+];
+
+/* 이상반응 — none 단독, 나머지는 복수. */
+type AdverseValue = "none" | "bruise" | "swelling" | "pigment" | "etc";
+const ADVERSE_OPTIONS: { value: AdverseValue; label: string }[] = [
+  { value: "none", label: "없음" },
+  { value: "bruise", label: "멍" },
+  { value: "swelling", label: "붓기" },
+  { value: "pigment", label: "색소" },
+  { value: "etc", label: "기타" },
+];
+
+/* 한줄후기 유형 + 유형별 placeholder 예시(회전). */
+type OnelinerType = "recommend" | "caution" | "etc";
+const ONELINER_OPTIONS: { value: OnelinerType; label: string }[] = [
+  { value: "recommend", label: "추천" },
+  { value: "caution", label: "받기 전 팁" },
+  { value: "etc", label: "기타" },
+];
+const ONELINER_EXAMPLES: Record<OnelinerType, string> = {
+  recommend: "피부 칙칙한 분께 강추",
+  caution: "한 번으론 티 잘 안 나요, 2회는 가야",
+  etc: "통증 걱정했는데 괜찮았어요",
+};
+
 /**
- * 효과 체감 분야 옵션 — SKIN_CONCERNS 기반.
+ * 효과 체감 부위 옵션 — SKIN_CONCERNS 기반.
  * 라벨 치환: aging → "동안", sensitive → "피부장벽". 나머지는 원 라벨 그대로.
  * 저장값(effect_areas)은 여기 치환된 라벨 문자열.
  */
@@ -71,11 +124,32 @@ export default function ReviewForm({ procedures, handle }: Props) {
   const [procSearch, setProcSearch] = useState("");
   const [satisfaction, setSatisfaction] = useState<number>(0);
   const [pain, setPain] = useState<number>(0);
-  const [recoveryDays, setRecoveryDays] = useState<string>("");
+  const [downtime, setDowntime] = useState("");
+  const [sessions, setSessions] = useState("");
+  const [timing, setTiming] = useState("");
+  const [revisit, setRevisit] = useState("");
 
   /* ── 선택 ── */
+  const [costSatisfaction, setCostSatisfaction] = useState<number>(0);
   const [effectAreas, setEffectAreas] = useState<string[]>([]);
-  const [body, setBody] = useState("");
+  const [concurrent, setConcurrent] = useState<string[]>([]);
+  const [adverse, setAdverse] = useState<AdverseValue[]>([]);
+  const [oneliner, setOneliner] = useState("");
+  const [onelinerType, setOnelinerType] = useState<OnelinerType>("recommend");
+
+  /* 한줄후기 placeholder 회전 — 선택된 유형의 예시를 표시 (유형 미지정 시 추천 기본). */
+  const [phIndex, setPhIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPhIndex((i) => i + 1), 2500);
+    return () => clearInterval(id);
+  }, []);
+  const onelinerPlaceholder = useMemo(() => {
+    // phIndex 로 3개 유형 예시를 순환 (선택 유형을 시작점으로 고정 노출은 아래에서 우선).
+    const order: OnelinerType[] = ["recommend", "caution", "etc"];
+    const rotating = order[phIndex % order.length];
+    const example = ONELINER_EXAMPLES[onelinerType] ?? ONELINER_EXAMPLES[rotating];
+    return `예: ${example} · 병원·의사 실명은 자동으로 가려집니다`;
+  }, [phIndex, onelinerType]);
 
   /* ── 시술 선택 — 검색 필터 후 categoryLabel 별로 그룹화 ── */
   const grouped = useMemo(() => {
@@ -87,7 +161,6 @@ export default function ReviewForm({ procedures, handle }: Props) {
         })
       : procedures;
 
-    // categoryLabel 순서를 procedures 등장 순서로 보존 (page.tsx 가 리프팅→주입 정렬).
     const order: string[] = [];
     const map = new Map<string, ProcedureOption[]>();
     for (const p of matched) {
@@ -100,6 +173,21 @@ export default function ReviewForm({ procedures, handle }: Props) {
     return order.map((label) => ({ label, items: map.get(label)! }));
   }, [procedures, procSearch]);
 
+  // 병행 시술 옵션 — 현재 선택한 시술 value 는 제외, categoryLabel 별 그룹.
+  const concurrentGroups = useMemo(() => {
+    const order: string[] = [];
+    const map = new Map<string, ProcedureOption[]>();
+    for (const p of procedures) {
+      if (p.value === procedureKo) continue;
+      if (!map.has(p.categoryLabel)) {
+        map.set(p.categoryLabel, []);
+        order.push(p.categoryLabel);
+      }
+      map.get(p.categoryLabel)!.push(p);
+    }
+    return order.map((label) => ({ label, items: map.get(label)! }));
+  }, [procedures, procedureKo]);
+
   // 선택된 시술의 칩 표시 텍스트 — 하위면 "상위 › 하위".
   function chipLabel(p: ProcedureOption): string {
     return p.parentKo ? `${p.parentKo} › ${p.label}` : p.label;
@@ -107,6 +195,8 @@ export default function ReviewForm({ procedures, handle }: Props) {
 
   function pickProcedure(value: string) {
     setProcedureKo(value);
+    // 병행 시술에서 새로 선택한 시술이 들어 있으면 제거.
+    setConcurrent((prev) => prev.filter((v) => v !== value));
     setError(null);
   }
 
@@ -116,20 +206,35 @@ export default function ReviewForm({ procedures, handle }: Props) {
     );
   }
 
+  function toggleConcurrent(v: string) {
+    setConcurrent((prev) =>
+      prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
+    );
+  }
+
+  function toggleAdverse(v: AdverseValue) {
+    setAdverse((prev) => {
+      if (v === "none") {
+        // '없음' 선택 → 나머지 해제. 이미 선택돼 있으면 토글 해제.
+        return prev.includes("none") ? [] : ["none"];
+      }
+      // 나머지 선택 → '없음' 해제.
+      const next = prev.includes(v)
+        ? prev.filter((x) => x !== v)
+        : [...prev.filter((x) => x !== "none"), v];
+      return next;
+    });
+  }
+
   /* ── 제출 ── */
   function validate(): string | null {
     if (!procedureKo) return "시술을 선택해주세요.";
     if (satisfaction < 1) return "만족도를 선택해주세요.";
     if (pain < 1) return "통증 정도를 선택해주세요.";
-    const days = Number(recoveryDays);
-    if (
-      recoveryDays.trim() === "" ||
-      !Number.isInteger(days) ||
-      days < 0 ||
-      days > RECOVERY_MAX
-    ) {
-      return `회복기간을 0~${RECOVERY_MAX}일 사이로 입력해주세요.`;
-    }
+    if (!downtime) return "다운타임을 선택해주세요.";
+    if (!sessions) return "받은 회차를 선택해주세요.";
+    if (!timing) return "받은 시점을 선택해주세요.";
+    if (!revisit) return "재시술 의향을 선택해주세요.";
     return null;
   }
 
@@ -145,11 +250,20 @@ export default function ReviewForm({ procedures, handle }: Props) {
       procedure_ko: procedureKo,
       satisfaction,
       pain,
-      recovery_days: Number(recoveryDays),
+      downtime,
+      sessions,
+      timing,
+      revisit,
     };
+    if (costSatisfaction >= 1) payload.cost_satisfaction = costSatisfaction;
     if (effectAreas.length > 0) payload.effect_areas = effectAreas;
-    const trimmedBody = body.trim();
-    if (trimmedBody) payload.body = trimmedBody;
+    if (concurrent.length > 0) payload.concurrent_procedures = concurrent;
+    if (adverse.length > 0) payload.adverse_reactions = adverse;
+    const trimmedOneliner = oneliner.trim();
+    if (trimmedOneliner) {
+      payload.body = trimmedOneliner;
+      payload.oneliner_type = onelinerType;
+    }
 
     startTransition(async () => {
       try {
@@ -165,7 +279,7 @@ export default function ReviewForm({ procedures, handle }: Props) {
             message?: string;
             userMessage?: string;
           } | null;
-          // 병원·의사명 차단(400) 등은 서버 안내(message/userMessage)를 그대로 노출.
+          // 중복(409)·검증 실패 등은 서버 안내(message/userMessage)를 그대로 노출.
           setError(
             pickErrorMessage(
               { error: data?.error, message: data?.message ?? data?.userMessage },
@@ -179,12 +293,18 @@ export default function ReviewForm({ procedures, handle }: Props) {
           card_id: number | null;
           shortcode: string;
           status: string;
+          blinded?: boolean;
           screening?: {
             status: string;
             reasons: string[];
             userMessage: string;
           } | null;
         };
+
+        // 병원·의사명 자동 블라인드 발생 시 1회 고지.
+        if (data.blinded) {
+          showToast("병원·의사명으로 보이는 표현이 자동으로 가려졌습니다.");
+        }
 
         // 검수 대기로 전환된 경우 1회 안내 후 이동.
         if (data.screening) {
@@ -285,29 +405,45 @@ export default function ReviewForm({ procedures, handle }: Props) {
           disabled={pending}
         />
 
-        {/* ── 4. 회복기간 (필수) ── */}
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-            회복기간 <span className="text-[var(--accent)]">*</span>{" "}
-            <span className="text-xs font-normal text-[var(--text-muted)]">
-              부기·멍 가라앉기까지 (일)
-            </span>
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={RECOVERY_MAX}
-              value={recoveryDays}
-              onChange={(e) => setRecoveryDays(e.target.value)}
-              disabled={pending}
-              placeholder="예: 3"
-              className="h-10 w-28 rounded-md border border-[var(--border)] bg-white px-3 text-base font-medium focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
-            />
-            <span className="text-sm text-[var(--text-secondary)]">일</span>
-          </div>
-        </div>
+        {/* ── 4. 다운타임 (필수) ── */}
+        <ChoiceField
+          label="다운타임"
+          required
+          value={downtime}
+          onChange={setDowntime}
+          options={DOWNTIME_OPTIONS}
+          disabled={pending}
+        />
+
+        {/* ── 5. 회차 (필수) ── */}
+        <ChoiceField
+          label="받은 회차"
+          required
+          value={sessions}
+          onChange={setSessions}
+          options={SESSIONS_OPTIONS}
+          disabled={pending}
+        />
+
+        {/* ── 6. 받은 시점 (필수) ── */}
+        <ChoiceField
+          label="받은 시점"
+          required
+          value={timing}
+          onChange={setTiming}
+          options={TIMING_OPTIONS}
+          disabled={pending}
+        />
+
+        {/* ── 7. 재시술 의향 (필수) ── */}
+        <ChoiceField
+          label="재시술 의향"
+          required
+          value={revisit}
+          onChange={setRevisit}
+          options={REVISIT_OPTIONS}
+          disabled={pending}
+        />
 
         {/* ── 구분선: 선택 항목 ── */}
         <div className="border-t border-[var(--border)] pt-4">
@@ -315,10 +451,21 @@ export default function ReviewForm({ procedures, handle }: Props) {
             아래는 선택 항목입니다.
           </p>
 
-          {/* 5. 효과 체감 분야 (선택, 멀티 칩) */}
+          {/* 8. 가성비 (선택, clearable 별점) */}
+          <div className="mb-4">
+            <StarField
+              label="가성비"
+              clearable
+              value={costSatisfaction}
+              onChange={setCostSatisfaction}
+              disabled={pending}
+            />
+          </div>
+
+          {/* 9. 효과 체감 부위 (선택, 멀티 칩) */}
           <div className="mb-4">
             <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-              효과 체감 분야{" "}
+              효과 체감 부위{" "}
               <span className="text-xs font-normal text-[var(--text-muted)]">
                 (복수 선택)
               </span>
@@ -337,22 +484,96 @@ export default function ReviewForm({ procedures, handle }: Props) {
             </div>
           </div>
 
-          {/* 6. 자유 후기 (선택) */}
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-              자유 후기{" "}
+          {/* 10. 병행 시술 (선택, 멀티 칩 — 현재 시술 제외) */}
+          <div className="mb-4">
+            <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
+              병행 시술{" "}
               <span className="text-xs font-normal text-[var(--text-muted)]">
-                ({body.length} / {BODY_MAX})
+                (함께 받은 시술, 복수 선택)
               </span>
             </label>
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={6}
-              maxLength={BODY_MAX}
+            {concurrentGroups.length === 0 ? (
+              <p className="py-1 text-sm text-[var(--text-muted)]">
+                선택할 수 있는 시술이 없습니다.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {concurrentGroups.map((group) => (
+                  <div key={group.label}>
+                    <div className="mb-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
+                      {group.label}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {group.items.map((p) => (
+                        <Chip
+                          key={p.value}
+                          active={concurrent.includes(p.value)}
+                          onClick={() => toggleConcurrent(p.value)}
+                          disabled={pending}
+                        >
+                          {chipLabel(p)}
+                        </Chip>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 11. 이상반응 (선택, 멀티 칩 — none 단독) */}
+          <div className="mb-4">
+            <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
+              이상반응{" "}
+              <span className="text-xs font-normal text-[var(--text-muted)]">
+                (복수 선택)
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {ADVERSE_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt.value}
+                  active={adverse.includes(opt.value)}
+                  onClick={() => toggleAdverse(opt.value)}
+                  disabled={pending}
+                >
+                  {opt.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          {/* 12. 한줄 후기 (선택) + 유형 */}
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
+              한줄 후기{" "}
+              <span className="text-xs font-normal text-[var(--text-muted)]">
+                ({oneliner.length} / {ONELINER_MAX})
+              </span>
+            </label>
+
+            {/* 유형 단일 선택 칩 */}
+            <div className="mb-2 flex flex-wrap gap-2">
+              {ONELINER_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt.value}
+                  active={onelinerType === opt.value}
+                  onClick={() => setOnelinerType(opt.value)}
+                  disabled={pending}
+                >
+                  {opt.label}
+                </Chip>
+              ))}
+            </div>
+
+            <input
+              type="text"
+              value={oneliner}
+              onChange={(e) => setOneliner(e.target.value)}
+              maxLength={ONELINER_MAX}
               disabled={pending}
-              placeholder="시술 경험을 자유롭게 적어주세요. 병원·의사 실명은 자동 차단됩니다."
-              className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+              placeholder={onelinerPlaceholder}
+              className="h-11 w-full rounded-md border border-[var(--border)] bg-white px-3 text-[15px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
             />
           </div>
         </div>
@@ -517,6 +738,53 @@ function SegmentField({
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * ChoiceField — 가변 개수 {value,label}[] 단일 선택 칩 그룹.
+ *   SegmentField 와 유사하되 옵션이 가변이고 라벨 기반. 칩 톤은 Chip 과 통일.
+ * ───────────────────────────────────────────────────────────── */
+function ChoiceField({
+  label,
+  value,
+  onChange,
+  options,
+  disabled,
+  required,
+  hint,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: ChoiceOption[];
+  disabled?: boolean;
+  required?: boolean;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
+        {label} {required && <span className="text-[var(--accent)]">*</span>}{" "}
+        {hint && (
+          <span className="text-xs font-normal text-[var(--text-muted)]">
+            {hint}
+          </span>
+        )}
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => (
+          <Chip
+            key={opt.value}
+            active={value === opt.value}
+            onClick={() => onChange(opt.value)}
+            disabled={disabled}
+          >
+            {opt.label}
+          </Chip>
+        ))}
       </div>
     </div>
   );
