@@ -296,6 +296,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0196 | `cards.reviewed_at timestamptz` 신설 + 백필. 의료 검토일 SSOT (Q&A=검수 확정 시각, post=NULL). 백필(Q&A published): 3월까지=영상 게시일(KST 자정), 4월이후=검수일(updated_at)/발행일(bold덮임 15건 보정). 표시·정렬 = `COALESCE(reviewed_at, created_at)`. 트리거 안전 위해 단일 UPDATE+CASE. P1-b | **적용 완료 (2026-06-01)** |
 | 0197 | `feed_cards_scored`/`search_cards_scored`/`tag_cards_scored` 정렬 기준 `created_at` → `COALESCE(reviewed_at, created_at)` (시간감쇠·New부스트). RETURNS TABLE+반환에 `reviewed_at` 추가. 반환타입 변경이라 DROP+CREATE (proacl=null 기본 PUBLIC, 재GRANT 불필요). P1-c | **적용 완료 (2026-06-01)** |
 | 0198 | 카테고리 정리: `cards.category` CHECK 를 `qa`/`doodle` 2종으로 축소. diary/ask/tip/doodle→doodle 통합, link→soft-delete(+category=doodle). 백업 `_bak_category_260601`. P2 | **적용 완료 (2026-06-01)** |
+| 0199 | `procedure_taxonomy` 신설(시술 분류 체계, P3-a). 2계층(정식 시술 31 + 하위 14). `ko`(unique)/`en`(slug)/`category`(lifting·injectables)/`parent_ko`(self-FK)/`sort_order`/`active`. RLS: SELECT anon·authenticated(true), 쓰기 service_role 한정. seed SSOT=선별표 §1·§2(하위 전부 이중집계). 신규 테이블(additive). | **적용 완료 (2026-06-01)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

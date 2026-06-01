@@ -6,6 +6,24 @@
 
 ---
 
+## [2026-06-01] — 시술 분류 체계 procedure_taxonomy 신설 (P3-a)
+
+> P3(시술 후기)의 뿌리. 후기 대상 정식 시술 31종 + 하위 종류 14개를 2계층 테이블로 DB화. 이후 단계(이중집계·검색확장)가 이 테이블을 JOIN.
+
+### Added
+- `procedure_taxonomy` 테이블(마이그 0199). `ko`(unique)·`en`(slug)·`category`(lifting/injectables)·`parent_ko`(self-FK, 하위→상위)·`sort_order`·`active`·`created_at`. 인덱스 parent_ko/category. RLS: SELECT anon·authenticated 허용, 쓰기 service_role 한정.
+- seed 45행: 정식 31(리프팅 17 + 주입 14, parent_ko NULL) + 하위 14(이중집계 대상). 상위별 하위수 — 보톡스6·쥬베룩2·리쥬란2·덴서티1·세르프1·벨로테로1·레스틸렌1. 영문 slug 은 `procedure-mappings.json` 매핑(누락 0). SSOT=`전달용/시술태그_선별표.md` §1·§2.
+
+### Decided (P3 설계 확정)
+- 카드 4종: `post`(끄적끄적)·`qa`(의사 Q&A)·`review`(개별 시술후기)·`review_summary`(시술 리포트=시술별 자동 집계).
+- 시술후기 = **일반 회원 작성**, 검수에서 **병원명·의사명 노출 차단**(+기존 의료광고 필터 재사용).
+- 정량 입력: 필수 5(만족도·효과 체감·통증·회복기간·추천 의향) + 선택(시술부위·비용만족·자유본문) + 시술명 필수.
+- 하위 종류는 **전부 이중집계**(자체 통계 + 상위 합산), 검색 시 상·하위 둘 다 노출. 보톡스 6브랜드도 이중집계로 확정.
+- 노출: 개별 후기 카드 = 피드 노출 O·검색 noindex / 시술 리포트 = index.
+- 상세 결정 배경: `decisions/0019-p3-procedure-reviews.md`.
+
+---
+
 ## [2026-06-01] — 시술 태그 표기통일·정합화 (P3 준비)
 
 > P3(시술 후기) 대비, 같은 시술의 표기 흔들림을 정식명으로 통일. 사전(`procedure-mappings.json`) + 실제 카드 태그(DB) 동시 정합화. 후기 대상 정식 시술 31종은 `전달용/시술태그_선별표.md` 확정본 참조.
