@@ -168,6 +168,7 @@ export default function EditClient({
       mode="edit"
       viewerRole={viewerRole}
       initialCard={initialCard}
+      hideCategorySelector
       onSubmit={handleSubmit}
       onOwnerDelete={handleOwnerDelete}
       returnUrl={returnUrl}
