@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  *   2. active identity 없음 → /login?error=...
  *   3. 미온보딩(birthdate NULL)은 middleware 가 /onboarding 으로 자동 게이트 —
  *      여기서 별도 처리 안 함 (write 페이지와 동일).
- *   4. procedure_taxonomy 를 조회해 카테고리(리프팅→주입)+sort_order 로 정렬,
+ *   4. procedure_taxonomy 를 조회해 카테고리(리프팅→스킨부스터)+sort_order 로 정렬,
  *      정식 시술(parent_ko NULL) 아래 하위(parent_ko=해당 ko)를 묶어 그룹화한
  *      평면 옵션 리스트를 ReviewForm 에 전달. 정식·하위 모두 독립 선택 가능.
  *   5. active handle 도 전달 — 제출 성공 시 /{handle}/{shortcode} 상세 이동에 사용.
@@ -26,14 +26,14 @@ type TaxonomyRow = {
   sort_order: number;
 };
 
-// 카테고리 표시 순서 (리프팅 → 주입). taxonomy.category enum 과 일치.
+// 카테고리 표시 순서 (리프팅 → 스킨부스터). taxonomy.category enum 과 일치.
 const CATEGORY_ORDER: Record<string, number> = {
   lifting: 0,
   injectables: 1,
 };
 const CATEGORY_LABEL: Record<string, string> = {
   lifting: "리프팅",
-  injectables: "주입",
+  injectables: "스킨부스터",
 };
 
 export default async function ReviewNewPage() {
@@ -56,7 +56,7 @@ export default async function ReviewNewPage() {
 
   const rows = taxData ?? [];
 
-  // 정식 시술(parent_ko NULL) 을 카테고리(리프팅→주입) + sort_order 로 정렬.
+  // 정식 시술(parent_ko NULL) 을 카테고리(리프팅→스킨부스터) + sort_order 로 정렬.
   const parents = rows
     .filter((r) => r.parent_ko === null)
     .sort((a, b) => {

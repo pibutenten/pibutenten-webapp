@@ -26,11 +26,26 @@
  * 디자인은 globals.css 토큰 + 기존 Chip/StarField/SegmentField 톤 재사용. 모바일 우선.
  */
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type CSSProperties,
+} from "react";
 import { useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
 import { SKIN_CONCERNS } from "@/lib/profile-options";
+import { CATEGORIES } from "@/lib/categories";
+
+/**
+ * categoryLabel(예: "리프팅" / "스킨부스터") → CategoryWithChips 와 같은 색.
+ * CATEGORIES 에서 label 로 매칭, 못 찾으면 var(--primary).
+ */
+function categoryColor(label: string): string {
+  return CATEGORIES.find((c) => c.label === label)?.color ?? "var(--primary)";
+}
 
 export type ProcedureOption = {
   /** 서버 검증값 = procedure_taxonomy.ko */
@@ -121,7 +136,6 @@ export default function ReviewForm({ procedures, handle }: Props) {
 
   /* ── 필수 ── */
   const [procedureKo, setProcedureKo] = useState("");
-  const [procSearch, setProcSearch] = useState("");
   const [satisfaction, setSatisfaction] = useState<number>(0);
   const [pain, setPain] = useState<number>(0);
   const [downtime, setDowntime] = useState("");
@@ -150,48 +164,6 @@ export default function ReviewForm({ procedures, handle }: Props) {
     const example = ONELINER_EXAMPLES[onelinerType] ?? ONELINER_EXAMPLES[rotating];
     return `예: ${example} · 병원·의사 실명은 자동으로 가려집니다`;
   }, [phIndex, onelinerType]);
-
-  /* ── 시술 선택 — 검색 필터 후 categoryLabel 별로 그룹화 ── */
-  const grouped = useMemo(() => {
-    const q = procSearch.trim().toLowerCase();
-    const matched = q
-      ? procedures.filter((p) => {
-          const hay = (p.label + " " + (p.parentKo ?? "")).toLowerCase();
-          return hay.includes(q);
-        })
-      : procedures;
-
-    const order: string[] = [];
-    const map = new Map<string, ProcedureOption[]>();
-    for (const p of matched) {
-      if (!map.has(p.categoryLabel)) {
-        map.set(p.categoryLabel, []);
-        order.push(p.categoryLabel);
-      }
-      map.get(p.categoryLabel)!.push(p);
-    }
-    return order.map((label) => ({ label, items: map.get(label)! }));
-  }, [procedures, procSearch]);
-
-  // 병행 시술 옵션 — 현재 선택한 시술 value 는 제외, categoryLabel 별 그룹.
-  const concurrentGroups = useMemo(() => {
-    const order: string[] = [];
-    const map = new Map<string, ProcedureOption[]>();
-    for (const p of procedures) {
-      if (p.value === procedureKo) continue;
-      if (!map.has(p.categoryLabel)) {
-        map.set(p.categoryLabel, []);
-        order.push(p.categoryLabel);
-      }
-      map.get(p.categoryLabel)!.push(p);
-    }
-    return order.map((label) => ({ label, items: map.get(label)! }));
-  }, [procedures, procedureKo]);
-
-  // 선택된 시술의 칩 표시 텍스트 — 하위면 "상위 › 하위".
-  function chipLabel(p: ProcedureOption): string {
-    return p.parentKo ? `${p.parentKo} › ${p.label}` : p.label;
-  }
 
   function pickProcedure(value: string) {
     setProcedureKo(value);
@@ -327,8 +299,6 @@ export default function ReviewForm({ procedures, handle }: Props) {
     });
   }
 
-  const hasProcedures = procedures.length > 0;
-
   return (
     <section className="w-full py-6">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">
@@ -336,52 +306,23 @@ export default function ReviewForm({ procedures, handle }: Props) {
       </h1>
 
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
-        {/* ── 1. 시술 선택 (필수) — 칩 단일 선택 ── */}
+        {/* ── 1. 시술 선택 (필수) — 탭 + 칩 단일 선택 ── */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
             시술 <span className="text-[var(--accent)]">*</span>
           </label>
-
-          {/* 검색 필터 */}
-          <input
-            type="text"
-            value={procSearch}
-            onChange={(e) => setProcSearch(e.target.value)}
-            disabled={pending}
-            placeholder="시술명 검색"
-            className="mb-3 h-9 w-full rounded-md border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
-          />
-
-          {!hasProcedures ? (
+          {procedures.length === 0 ? (
             <p className="py-2 text-sm text-[var(--text-muted)]">
               선택할 수 있는 시술이 없습니다.
             </p>
-          ) : grouped.length === 0 ? (
-            <p className="py-2 text-sm text-[var(--text-muted)]">
-              검색 결과가 없습니다.
-            </p>
           ) : (
-            <div className="space-y-3">
-              {grouped.map((group) => (
-                <div key={group.label}>
-                  <div className="mb-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
-                    {group.label}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {group.items.map((p) => (
-                      <Chip
-                        key={p.value}
-                        active={procedureKo === p.value}
-                        onClick={() => pickProcedure(p.value)}
-                        disabled={pending}
-                      >
-                        {chipLabel(p)}
-                      </Chip>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TabbedProcedurePicker
+              procedures={procedures}
+              mode="single"
+              value={procedureKo}
+              onChange={pickProcedure}
+              disabled={pending}
+            />
           )}
         </div>
 
@@ -492,32 +433,19 @@ export default function ReviewForm({ procedures, handle }: Props) {
                 (함께 받은 시술, 복수 선택)
               </span>
             </label>
-            {concurrentGroups.length === 0 ? (
+            {procedures.length === 0 ? (
               <p className="py-1 text-sm text-[var(--text-muted)]">
                 선택할 수 있는 시술이 없습니다.
               </p>
             ) : (
-              <div className="space-y-3">
-                {concurrentGroups.map((group) => (
-                  <div key={group.label}>
-                    <div className="mb-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
-                      {group.label}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {group.items.map((p) => (
-                        <Chip
-                          key={p.value}
-                          active={concurrent.includes(p.value)}
-                          onClick={() => toggleConcurrent(p.value)}
-                          disabled={pending}
-                        >
-                          {chipLabel(p)}
-                        </Chip>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <TabbedProcedurePicker
+                procedures={procedures}
+                mode="multi"
+                value={concurrent}
+                onChange={toggleConcurrent}
+                exclude={procedureKo}
+                disabled={pending}
+              />
             )}
           </div>
 
@@ -598,6 +526,165 @@ export default function ReviewForm({ procedures, handle }: Props) {
         </div>
       </div>
     </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * TabbedProcedurePicker — 사이트 태그 검색 위젯 CategoryWithChips 와
+ *   동일한 "탭(상단, 카테고리 색 밑줄) + 칩(선택 시 카테고리색 틴트)" 구조.
+ *
+ *   - 탭: procedures 의 categoryLabel 들(등장 순서 = 리프팅 → 스킨부스터).
+ *         활성 탭은 카테고리 색 글자 + 같은 색 border-b-2 밑줄,
+ *         비활성은 var(--text-secondary) + 투명 밑줄.
+ *   - 탭 아래 그라데이션 라인 (CategoryWithChips 와 동일).
+ *   - 칩: 활성 탭 카테고리의 procedures 만 표시. 선택 시 카테고리색 틴트.
+ *   - single: 클릭 시 onChange(ko), 선택된 1개만 강조.
+ *   - multi: 클릭 토글(onChange 가 토글 수행), value 배열 includes 로 강조,
+ *            exclude 와 같은 value 는 목록에서 제외.
+ *   - 검색 input 없음 (주관식 오인 방지).
+ * ───────────────────────────────────────────────────────────── */
+function TabbedProcedurePicker({
+  procedures,
+  mode,
+  value,
+  onChange,
+  disabled,
+  exclude,
+}: {
+  procedures: ProcedureOption[];
+  mode: "single" | "multi";
+  value: string | string[];
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  exclude?: string;
+}) {
+  // 탭 목록 — categoryLabel 등장 순서 유지.
+  const tabs = useMemo(() => {
+    const order: string[] = [];
+    for (const p of procedures) {
+      if (!order.includes(p.categoryLabel)) order.push(p.categoryLabel);
+    }
+    return order;
+  }, [procedures]);
+
+  // single 모드에서 이미 선택된 값이 있으면 그 카테고리를 기본 활성으로,
+  // 없으면 첫 번째 탭(리프팅).
+  const initialTab = useMemo(() => {
+    if (mode === "single" && typeof value === "string" && value) {
+      const sel = procedures.find((p) => p.value === value);
+      if (sel) return sel.categoryLabel;
+    }
+    return tabs[0] ?? "";
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+
+  // 활성 탭이 유효하지 않게 되면 첫 탭으로 보정.
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.includes(activeTab)) {
+      setActiveTab(tabs[0]);
+    }
+  }, [tabs, activeTab]);
+
+  // 칩 표시 텍스트 — 하위면 "상위 › 하위".
+  function chipLabel(p: ProcedureOption): string {
+    return p.parentKo ? `${p.parentKo} › ${p.label}` : p.label;
+  }
+
+  function isSelected(v: string): boolean {
+    return mode === "multi"
+      ? Array.isArray(value) && value.includes(v)
+      : value === v;
+  }
+
+  // 활성 탭의 칩 목록 (multi 면 exclude 제거).
+  const visibleChips = procedures.filter(
+    (p) =>
+      p.categoryLabel === activeTab &&
+      !(mode === "multi" && exclude && p.value === exclude),
+  );
+
+  return (
+    <div>
+      {/* 탭 */}
+      <div
+        role="tablist"
+        aria-label="시술 카테고리"
+        className="-mx-1 flex justify-center gap-x-[14px] overflow-x-auto px-1 sm:gap-x-7 sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" } as CSSProperties}
+      >
+        {tabs.map((tab) => {
+          const isActive = tab === activeTab;
+          const color = categoryColor(tab);
+          return (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              disabled={disabled}
+              onClick={() => setActiveTab(tab)}
+              className="shrink-0 cursor-pointer border-b-2 px-1 py-[6px] text-[13px] font-semibold transition-[color,border-color,transform] hover:opacity-70 active:scale-[0.96] disabled:opacity-50 sm:py-[7px] sm:text-[14px]"
+              style={{
+                color: isActive ? color : "var(--text-secondary)",
+                borderBottomColor: isActive ? color : "transparent",
+              }}
+            >
+              {tab}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 탭 ↔ 칩 사이 그라데이션 라인 (양 끝 페이드아웃) */}
+      <div
+        aria-hidden
+        className="mb-3 h-px w-full sm:mb-[14px]"
+        style={{
+          background:
+            "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.10) 18%, rgba(0,0,0,0.10) 82%, transparent 100%)",
+        }}
+      />
+
+      {/* 칩 */}
+      {visibleChips.length === 0 ? (
+        <div className="text-center text-xs text-[var(--text-muted)]">
+          선택할 수 있는 시술이 없습니다.
+        </div>
+      ) : (
+        <div className="flex flex-wrap justify-center gap-1.5">
+          {visibleChips.map((p) => {
+            const selected = isSelected(p.value);
+            const color = categoryColor(p.categoryLabel);
+            return (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => onChange(p.value)}
+                disabled={disabled}
+                className="cursor-pointer rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:opacity-50"
+                style={
+                  selected
+                    ? {
+                        backgroundColor: color + "1A",
+                        color,
+                        fontWeight: 700,
+                      }
+                    : {
+                        backgroundColor: "#E8EAEE",
+                        color: "#5C6470",
+                        fontWeight: 500,
+                      }
+                }
+              >
+                {chipLabel(p)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
