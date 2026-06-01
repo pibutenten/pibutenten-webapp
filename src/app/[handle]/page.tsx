@@ -184,17 +184,47 @@ export default async function HandleProfilePage({ params }: Props) {
   const avatarUrl = identity ? identity.avatar_url : profile.avatar_url;
   const bio = identity ? identity.bio : profile.bio;
 
-  // 작성 글 — 이 profile.id로 작성된 published 글만, 최근 20개
-  const { data: postsData } = await supabase
-    .from("cards")
-    .select(CARD_LIST_SELECT)
-    .eq("author_id", profile.id)
-    .eq("status", "published")
-    .order("created_at", { ascending: false })
-    .limit(20)
-    .returns<CardData[]>();
+  // 작성 글 / 내 후기 분리 — 이 profile.id로 작성된 published 글, 최근 20개씩.
+  //  - 작성 글: 일반 글 (category != review/review_summary). 기존 "작성 글" 탭과 동일 의미.
+  //  - 내 후기: 개별 시술후기 (category = review). 둘 다 CARD_LIST_SELECT·정렬·limit 재사용.
+  const [postsRes, reviewsRes] = await Promise.all([
+    supabase
+      .from("cards")
+      .select(CARD_LIST_SELECT)
+      .eq("author_id", profile.id)
+      .eq("status", "published")
+      .not("category", "in", "(review,review_summary)")
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .returns<CardData[]>(),
+    supabase
+      .from("cards")
+      .select(CARD_LIST_SELECT)
+      .eq("author_id", profile.id)
+      .eq("status", "published")
+      .eq("category", "review")
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .returns<CardData[]>(),
+  ]);
 
-  const posts = postsData ?? [];
+  const posts = postsRes.data ?? [];
+  const reviews = reviewsRes.data ?? [];
+
+  // 받은 시술 — procedure_reviews 에서 본인 후기의 distinct 시술명(procedure_ko) 배열.
+  //  RLS(procedure_reviews_read_public + _read_own)가 공개카드 후기 + 본인 후기로 자동 통제.
+  //  비로그인(anon)도 SELECT GRANT 있음 — 공개 카드에 연결된 후기만 보임.
+  const { data: prRows } = await supabase
+    .from("procedure_reviews")
+    .select("procedure_ko")
+    .eq("author_id", profile.id);
+  const receivedProcedures = Array.from(
+    new Set(
+      (prRows ?? [])
+        .map((r) => (r as { procedure_ko: string | null }).procedure_ko)
+        .filter((v): v is string => !!v),
+    ),
+  );
 
   // 댓글 카운트 prefetch (탭 미클릭 시에도 숫자 표시)
   const { count: commentsCount } = await supabase
@@ -222,11 +252,11 @@ export default async function HandleProfilePage({ params }: Props) {
     savesCount = savesRes.count ?? 0;
   }
 
-  // viewer prefetch — posts에 대한 좋아요/저장
+  // viewer prefetch — posts + reviews 카드에 대한 좋아요/저장
   const viewerStates = await fetchViewerStatesRecord(
     supabase,
     viewer?.id ?? null,
-    posts.map((p) => p.id),
+    [...posts, ...reviews].map((p) => p.id),
   );
 
   return (
@@ -283,10 +313,12 @@ export default async function HandleProfilePage({ params }: Props) {
             의사 본인 대시보드는 별도 /doctor 라우트로 분리 (2026-05-22). */}
       </div>
 
-      {/* 탭 — 작성 글 / 피부고민 / 댓글 / 좋아요(owner) / 저장(owner) */}
+      {/* 탭 — 작성 글 / 내 후기 / 댓글 / 좋아요(owner) / 저장(owner) / 피부고민 */}
       <ProfileTabs
         posts={posts}
         postsCount={posts.length}
+        reviews={reviews}
+        reviewsCount={reviews.length}
         commentsCount={commentsCount ?? 0}
         likesCount={likesCount}
         savesCount={savesCount}
@@ -300,6 +332,7 @@ export default async function HandleProfilePage({ params }: Props) {
                 skinType: profile.skin_type,
                 skinConcerns: profile.skin_concerns ?? [],
                 interestedProcedures: profile.interested_procedures ?? [],
+                receivedProcedures,
                 visibility: (profile.field_visibility ?? {}) as Record<
                   string,
                   boolean

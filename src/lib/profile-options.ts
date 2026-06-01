@@ -57,6 +57,7 @@ export type FieldVisibility = {
   bio: boolean;
   // v4 — 프로필 탭 노출 (다른 사람이 내 프로필 볼 때 어떤 탭이 보일지)
   tab_posts: boolean;
+  tab_reviews: boolean;
   tab_comments: boolean;
   tab_likes: boolean;
   tab_saves: boolean;
@@ -72,6 +73,7 @@ export const DEFAULT_VISIBILITY: FieldVisibility = {
   interested_procedures: true,
   bio: true,
   tab_posts: true,
+  tab_reviews: true,
   tab_comments: true,
   tab_likes: true,
   tab_saves: true,
@@ -80,6 +82,7 @@ export const DEFAULT_VISIBILITY: FieldVisibility = {
 
 export const TAB_LABELS: { key: keyof FieldVisibility; label: string }[] = [
   { key: "tab_posts", label: "작성 글" },
+  { key: "tab_reviews", label: "내 후기" },
   { key: "tab_comments", label: "댓글" },
   { key: "tab_likes", label: "좋아요" },
   { key: "tab_saves", label: "저장" },

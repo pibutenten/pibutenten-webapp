@@ -6,6 +6,28 @@
 
 ---
 
+## [2026-06-01] — P4: 후기 폼 다듬기 + FAB 3위성 + 글쓰기/Q&A 분리 + 보관함 탭
+
+### Changed (A — 후기 폼)
+- 만족도 별점 호버 미리채움(연한)→클릭 확정(진한), 통증 표정 회색→호버 파랑 미리보기→확정. 만족도·통증 5칸 너비/간격 통일. 전 인터랙티브 요소 `cursor-pointer`.
+- 재시술 의향 3색(예 파랑/아니오 빨강/고민중 짙은회색), "어떤 효과를 느끼셨나요?" 칩 10색 + 호버 미리보기. 생생한 후기 300자. 안내문구 "의료광고성 표현·병원·의사 실명 언급은 금합니다.".
+
+### Added (B — FAB 위성 3개)
+- `FloatingWriteButton` 위성 3개: 시술 후기 / 글쓰기 / 보관함(=`/{handle}`). 데스크탑 세로, **모바일 부채꼴(arc)**. 커서 버그 수정.
+- **태그 미리선택**: 검색(`?q`)·토픽(`/topics/[tag]`)에서 진입 시 그 태그를 `/review/new?procedure=` 로 전달 → taxonomy 에 있으면 `ReviewForm` 이 해당 시술 선택 상태로 시작(`SelectedProcedureTitle` 잠금).
+
+### Changed (C — 글쓰기/Q&A)
+- 글쓰기 카테고리 칩 줄 숨김(`CardEditorMeta.hideCategorySelector`, /write 전용). 값은 기존 `initialCategory`→doodle 폴백 재사용. `categoriesForRole`·권한검증 무변경.
+- 관리자 대시보드 운영 프로그램에 "새 Q&A 카드 작성하기"(`/write?category=qa`) 메뉴 추가.
+
+### Changed (D — 보관함/프로필 탭)
+- 프로필 탭 순서: 작성 글 · **내 후기**(신설) · 댓글 · 좋아요 · 저장 · 피부고민. 작성 글=`category!=review`, 내 후기=`category=review`. 카드 렌더는 기존 `Feed` 재사용.
+- 피부고민 탭에 "**제가 받은 시술은요~**" 섹션 — `procedure_reviews` 의 본인 distinct 시술명(기존 태그 칩 재사용). 비면 숨김.
+- 기본 활성 탭 = **내용 있는 첫 탭**(작성글→내후기→…). 보관함 FAB 는 `/{handle}` 로 이동.
+- `profile-options.ts`: `tab_reviews` 추가(visibility/라벨).
+
+---
+
 ## [2026-06-01] — FAB 위성 메뉴: 시술 후기 진입점 (P4-a)
 
 ### Changed

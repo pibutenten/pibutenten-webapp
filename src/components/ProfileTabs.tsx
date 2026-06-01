@@ -18,21 +18,26 @@ function localizeProcedure(v: string): string {
   return PROC_LABEL[v] ?? v;
 }
 
-type Tab = "posts" | "skin" | "comments" | "likes" | "saves";
+type Tab = "posts" | "reviews" | "skin" | "comments" | "likes" | "saves";
 
 export type SkinInfo = {
   faceShape: string | null;
   skinType: string | null;
   skinConcerns: string[];
   interestedProcedures: string[];
+  /** 받은 시술 — procedure_reviews 의 distinct 시술명(procedure_ko) 배열. 비면 섹션 숨김 */
+  receivedProcedures: string[];
   visibility: Record<string, boolean>;
 };
 
 type Props = {
   posts: CardData[];
+  /** 내 후기 — category=review 카드 리스트. "작성 글"과 동일 카드 렌더 재사용 */
+  reviews: CardData[];
   /** 본인 보기일 때만 [좋아요][저장] 탭 노출 */
   isOwner: boolean;
   postsCount: number;
+  reviewsCount: number;
   /** 댓글 카운트 (server-side prefetch) — 탭 미클릭 시에도 표시 */
   commentsCount?: number;
   likesCount?: number;
@@ -53,6 +58,7 @@ type Props = {
 
 const TAB_LABEL: Record<Tab, string> = {
   posts: "작성 글",
+  reviews: "내 후기",
   skin: "피부고민",
   comments: "댓글",
   likes: "좋아요",
@@ -98,8 +104,10 @@ function commentLink(c: CommentRow): string {
  */
 export default function ProfileTabs({
   posts,
+  reviews,
   isOwner,
   postsCount,
+  reviewsCount,
   commentsCount,
   likesCount,
   savesCount,
@@ -108,8 +116,6 @@ export default function ProfileTabs({
   viewerStates,
   viewerIsAnon,
 }: Props) {
-  const [tab, setTab] = useState<Tab>("posts");
-
   // visibility flag — owner는 항상 모든 탭 표시. 외부인은 visibility !== false일 때만.
   const v = skinInfo?.visibility ?? {};
   const showTab = (key: string) => isOwner || v[key] !== false;
@@ -119,18 +125,20 @@ export default function ProfileTabs({
     (skinInfo.faceShape ||
       skinInfo.skinType ||
       skinInfo.skinConcerns.length ||
-      skinInfo.interestedProcedures.length)
+      skinInfo.interestedProcedures.length ||
+      skinInfo.receivedProcedures.length)
   );
   // anon 은 PII 컬럼을 못 받으므로 피부고민 탭 자체는 "로그인 안내" 용도로 표시.
   // field_visibility 도 안 받았을 수 있어 보수적으로 탭 노출.
   const showSkinTabForAnon = !!viewerIsAnon && !isOwner;
 
-  // 탭 순서: 작성 글 → 댓글 → 좋아요·저장 → 피부고민
+  // 탭 순서: 작성 글 → 내 후기 → 댓글 → 좋아요·저장 → 피부고민
   // - likes/saves는 RLS상 외부인이 raw 데이터 fetch 불가 → 외부인이 visibility on 봐도 빈 상태
-  // - 그래도 visibility 컨트롤 일관성을 위해 5개 모두 flag 적용
+  // - 그래도 visibility 컨트롤 일관성을 위해 모두 flag 적용
   const tabs: Tab[] = (() => {
     const base: Tab[] = [];
     if (showTab("tab_posts")) base.push("posts");
+    if (showTab("tab_reviews")) base.push("reviews");
     if (showTab("tab_comments")) base.push("comments");
     if (showTab("tab_likes") && isOwner) base.push("likes");
     if (showTab("tab_saves") && isOwner) base.push("saves");
@@ -139,6 +147,33 @@ export default function ProfileTabs({
     else if (showSkinTabForAnon) base.push("skin");
     return base;
   })();
+
+  // 기본 활성 탭 = "탭 순서대로 내용(개수>0)이 있는 첫 탭".
+  //   작성글→내후기→댓글→좋아요→저장→피부고민 순으로 콘텐츠 존재 여부 검사.
+  //   전부 비면 노출 탭 목록의 첫 탭(없으면 posts) 사용.
+  //   skin 은 hasSkinContent/anon 케이스를 "내용 있음"으로 취급.
+  const tabHasContent = (t: Tab): boolean => {
+    switch (t) {
+      case "posts":
+        return postsCount > 0;
+      case "reviews":
+        return reviewsCount > 0;
+      case "comments":
+        return (commentsCount ?? 0) > 0;
+      case "likes":
+        return (likesCount ?? 0) > 0;
+      case "saves":
+        return (savesCount ?? 0) > 0;
+      case "skin":
+        return hasSkinContent || showSkinTabForAnon;
+      default:
+        return false;
+    }
+  };
+  const defaultTab: Tab =
+    tabs.find((t) => tabHasContent(t)) ?? tabs[0] ?? "posts";
+
+  const [tab, setTab] = useState<Tab>(defaultTab);
 
   // 댓글 lazy fetch
   const [comments, setComments] = useState<CommentRow[] | null>(null);
@@ -236,13 +271,15 @@ export default function ProfileTabs({
             const count =
               t === "posts"
                 ? postsCount
-                : t === "skin"
-                  ? null
-                  : t === "comments"
-                    ? comments?.length ?? commentsCount ?? 0
-                    : t === "likes"
-                      ? likesCount ?? 0
-                      : savesCount ?? 0;
+                : t === "reviews"
+                  ? reviewsCount
+                  : t === "skin"
+                    ? null
+                    : t === "comments"
+                      ? comments?.length ?? commentsCount ?? 0
+                      : t === "likes"
+                        ? likesCount ?? 0
+                        : savesCount ?? 0;
             return (
               <button
                 key={t}
@@ -276,6 +313,14 @@ export default function ProfileTabs({
           <Empty msg="아직 작성한 글이 없어요" />
         ) : (
           <Feed initial={posts} pageSize={20} viewerStates={viewerStates} />
+        ))}
+
+      {/* 내 후기 — "작성 글" 탭과 동일한 카드 리스트(Feed) 마크업 재사용 */}
+      {tab === "reviews" &&
+        (reviews.length === 0 ? (
+          <Empty msg="아직 작성한 후기가 없어요" />
+        ) : (
+          <Feed initial={reviews} pageSize={20} viewerStates={viewerStates} />
         ))}
 
       {tab === "skin" && viewerIsAnon && !isOwner && (
@@ -429,6 +474,16 @@ function SkinInfoBlock({ info }: { info: SkinInfo }) {
         const label = localizeProcedure(p);
         return { label, q: label };
       }),
+    });
+  }
+
+  // 4) 제가 받은 시술은요~ (procedure_reviews 의 distinct 시술명)
+  //    procedure_ko 는 이미 한글 시술명 — 별도 변환 없이 그대로 칩 표시.
+  //    배열이 비면 섹션 추가 안 함(렌더 자체 생략).
+  if (info.receivedProcedures.length) {
+    sections.push({
+      title: "제가 받은 시술은요~",
+      chips: info.receivedProcedures.map((p) => ({ label: p, q: p })),
     });
   }
 
