@@ -196,7 +196,7 @@ window.addEventListener('appinstalled', function() {
             {children}
           </main>
           <SiteFooter />
-          <FloatingWriteButton hasSession={!!session?.role} />
+          <FloatingWriteButton hasSession={!!session?.role} handle={session?.handle ?? null} />
           {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
           <InstallPrompt signedIn={!!session?.role} />
           {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}

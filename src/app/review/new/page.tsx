@@ -35,7 +35,12 @@ const CATEGORY_LABEL: Record<string, string> = {
   injectables: "스킨부스터",
 };
 
-export default async function ReviewNewPage() {
+export default async function ReviewNewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ procedure?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -86,5 +91,15 @@ export default async function ReviewNewPage() {
       categoryLabel: CATEGORY_LABEL[r.category] ?? r.category,
     }));
 
-  return <ReviewForm procedures={procedures} handle={idCtx.active.handle} />;
+  // ?procedure 값이 taxonomy 의 ko 에 실제 존재할 때만 미리선택. 없으면 undefined → 평소처럼 고르게.
+  const initialProcedure =
+    sp.procedure && rows.some((r) => r.ko === sp.procedure) ? sp.procedure : undefined;
+
+  return (
+    <ReviewForm
+      procedures={procedures}
+      handle={idCtx.active.handle}
+      initialProcedure={initialProcedure}
+    />
+  );
 }
