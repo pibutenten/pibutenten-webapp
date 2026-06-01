@@ -4,12 +4,12 @@
  * ReviewForm — 시술후기 입력 폼 (P3, client).
  *
  * 2026-06-01 확정 명세 전면 재배치:
- *   필수: 시술(칩 단일) / 만족도(별점) / 통증(세그먼트) / 다운타임 / 회차 / 받은 시점 /
- *         재시술 의향 (다운타임~재시술은 ChoiceField 단일 선택 칩).
- *   선택: 가성비(별점, clearable) / 효과 체감 부위(SKIN_CONCERNS 멀티 칩) /
- *         병행 시술(현재 시술 제외 멀티 칩) / 이상반응(none-단독 멀티 칩) /
- *         한줄 후기(text ≤150 + 유형 추천/받기전팁/기타).
- *   회복기간(일수) 입력 삭제.
+ *   필수: 시술(칩 단일) / 만족도(별점) / 통증(표정 1~5 FaceField) / 다운타임 / 회차 /
+ *         받은 시점 / 재시술 의향 (다운타임~재시술은 ChoiceField 단일 선택 칩).
+ *   선택: 효과 체감 부위(SKIN_CONCERNS 멀티 칩) /
+ *         함께 받은 시술(현재 시술 제외 멀티 칩) / 이상반응(none-단독 멀티 칩) /
+ *         한줄 후기(text ≤150, placeholder 예시 회전).
+ *   회복기간(일수)·가성비·한줄후기 유형 입력 삭제.
  *
  * 검수: 병원·의사명은 서버에서 "○○" 로 자동 블라인드(마스킹). 제출 차단 아님.
  *   blinded 응답이면 고지 토스트 1회.
@@ -17,13 +17,13 @@
  * 백엔드: POST /api/reviews. body 계약:
  *   필수 procedure_ko / satisfaction(1~5) / pain(1~5) /
  *        downtime / sessions / timing / revisit (각 enum).
- *   선택 cost_satisfaction(1~5) / effect_areas(string[]) /
- *        concurrent_procedures(string[]) / adverse_reactions(enum[]) /
- *        oneliner_type(enum) / body(한줄후기 ≤150).
+ *   선택 effect_areas(string[]) / concurrent_procedures(string[]) /
+ *        adverse_reactions(enum[]) / body(한줄후기 ≤150).
+ *   (백엔드는 cost_satisfaction / oneliner_type 을 optional 로 계속 받지만 폼에서 안 보냄.)
  *   응답 { card_id, shortcode, status, blinded, screening }.
  *   중복(409) 면 서버 userMessage 노출.
  *
- * 디자인은 globals.css 토큰 + 기존 Chip/StarField/SegmentField 톤 재사용. 모바일 우선.
+ * 디자인은 globals.css 토큰 + 기존 Chip/StarField 톤 재사용. 모바일 우선.
  */
 
 import {
@@ -66,7 +66,14 @@ type Props = {
 
 const ONELINER_MAX = 150;
 
-const PAIN_LABELS = ["약함", "조금", "보통", "꽤", "심함"] as const;
+/* 통증 — 표정 이모지 1~5 컴팩트 스케일. */
+const PAIN_FACES: { face: string; label: string }[] = [
+  { face: "😀", label: "약함" },
+  { face: "🙂", label: "조금" },
+  { face: "😐", label: "보통" },
+  { face: "😣", label: "꽤" },
+  { face: "😖", label: "심함" },
+];
 
 /* ── 값 키(고정 — DB CHECK 와 일치) ── */
 type ChoiceOption = { value: string; label: string };
@@ -103,18 +110,15 @@ const ADVERSE_OPTIONS: { value: AdverseValue; label: string }[] = [
   { value: "etc", label: "기타" },
 ];
 
-/* 한줄후기 유형 + 유형별 placeholder 예시(회전). */
-type OnelinerType = "recommend" | "caution" | "etc";
-const ONELINER_OPTIONS: { value: OnelinerType; label: string }[] = [
-  { value: "recommend", label: "추천" },
-  { value: "caution", label: "받기 전 팁" },
-  { value: "etc", label: "기타" },
+/* 한줄후기 placeholder 프롬프트 — 작성을 유도하는 문구. 2.5초마다 회전. */
+const ONELINER_PROMPTS: string[] = [
+  "이런 분께 추천해요.",
+  "시술 받기 전에 이런 건 알고 가세요.",
+  "이런 분에겐 맞지 않아요.",
+  "이런 게 참 좋았어요.",
+  "이건 좀 아쉬웠어요.",
+  "솔직한 한마디 남겨주세요.",
 ];
-const ONELINER_EXAMPLES: Record<OnelinerType, string> = {
-  recommend: "피부 칙칙한 분께 강추",
-  caution: "한 번으론 티 잘 안 나요, 2회는 가야",
-  etc: "통증 걱정했는데 괜찮았어요",
-};
 
 /**
  * 효과 체감 부위 옵션 — SKIN_CONCERNS 기반.
@@ -144,26 +148,20 @@ export default function ReviewForm({ procedures, handle }: Props) {
   const [revisit, setRevisit] = useState("");
 
   /* ── 선택 ── */
-  const [costSatisfaction, setCostSatisfaction] = useState<number>(0);
   const [effectAreas, setEffectAreas] = useState<string[]>([]);
   const [concurrent, setConcurrent] = useState<string[]>([]);
   const [adverse, setAdverse] = useState<AdverseValue[]>([]);
   const [oneliner, setOneliner] = useState("");
-  const [onelinerType, setOnelinerType] = useState<OnelinerType>("recommend");
 
-  /* 한줄후기 placeholder 회전 — 선택된 유형의 예시를 표시 (유형 미지정 시 추천 기본). */
+  /* 한줄후기 placeholder 회전 — 유도 문구를 2.5초마다 순환. */
   const [phIndex, setPhIndex] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setPhIndex((i) => i + 1), 2500);
     return () => clearInterval(id);
   }, []);
   const onelinerPlaceholder = useMemo(() => {
-    // phIndex 로 3개 유형 예시를 순환 (선택 유형을 시작점으로 고정 노출은 아래에서 우선).
-    const order: OnelinerType[] = ["recommend", "caution", "etc"];
-    const rotating = order[phIndex % order.length];
-    const example = ONELINER_EXAMPLES[onelinerType] ?? ONELINER_EXAMPLES[rotating];
-    return `예: ${example} · 병원·의사 실명은 자동으로 가려집니다`;
-  }, [phIndex, onelinerType]);
+    return ONELINER_PROMPTS[phIndex % ONELINER_PROMPTS.length];
+  }, [phIndex]);
 
   function pickProcedure(value: string) {
     setProcedureKo(value);
@@ -227,14 +225,12 @@ export default function ReviewForm({ procedures, handle }: Props) {
       timing,
       revisit,
     };
-    if (costSatisfaction >= 1) payload.cost_satisfaction = costSatisfaction;
     if (effectAreas.length > 0) payload.effect_areas = effectAreas;
     if (concurrent.length > 0) payload.concurrent_procedures = concurrent;
     if (adverse.length > 0) payload.adverse_reactions = adverse;
     const trimmedOneliner = oneliner.trim();
     if (trimmedOneliner) {
       payload.body = trimmedOneliner;
-      payload.oneliner_type = onelinerType;
     }
 
     startTransition(async () => {
@@ -336,13 +332,12 @@ export default function ReviewForm({ procedures, handle }: Props) {
         />
 
         {/* ── 3. 통증 (필수) ── */}
-        <SegmentField
+        <FaceField
           label="통증"
           required
           value={pain}
           onChange={setPain}
-          labels={PAIN_LABELS}
-          hint="1 약함 ~ 5 심함"
+          faces={PAIN_FACES}
           disabled={pending}
         />
 
@@ -392,18 +387,7 @@ export default function ReviewForm({ procedures, handle }: Props) {
             아래는 선택 항목입니다.
           </p>
 
-          {/* 8. 가성비 (선택, clearable 별점) */}
-          <div className="mb-4">
-            <StarField
-              label="가성비"
-              clearable
-              value={costSatisfaction}
-              onChange={setCostSatisfaction}
-              disabled={pending}
-            />
-          </div>
-
-          {/* 9. 효과 체감 부위 (선택, 멀티 칩) */}
+          {/* 8. 효과 체감 부위 (선택, 멀티 칩) */}
           <div className="mb-4">
             <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
               효과 체감 부위{" "}
@@ -425,12 +409,12 @@ export default function ReviewForm({ procedures, handle }: Props) {
             </div>
           </div>
 
-          {/* 10. 병행 시술 (선택, 멀티 칩 — 현재 시술 제외) */}
+          {/* 9. 함께 받은 시술 (선택, 멀티 칩 — 현재 시술 제외) */}
           <div className="mb-4">
             <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-              병행 시술{" "}
+              함께 받은 시술{" "}
               <span className="text-xs font-normal text-[var(--text-muted)]">
-                (함께 받은 시술, 복수 선택)
+                (복수 선택)
               </span>
             </label>
             {procedures.length === 0 ? (
@@ -449,7 +433,7 @@ export default function ReviewForm({ procedures, handle }: Props) {
             )}
           </div>
 
-          {/* 11. 이상반응 (선택, 멀티 칩 — none 단독) */}
+          {/* 10. 이상반응 (선택, 멀티 칩 — none 단독) */}
           <div className="mb-4">
             <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
               이상반응{" "}
@@ -471,7 +455,7 @@ export default function ReviewForm({ procedures, handle }: Props) {
             </div>
           </div>
 
-          {/* 12. 한줄 후기 (선택) + 유형 */}
+          {/* 11. 한줄 후기 (선택) */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
               한줄 후기{" "}
@@ -479,20 +463,6 @@ export default function ReviewForm({ procedures, handle }: Props) {
                 ({oneliner.length} / {ONELINER_MAX})
               </span>
             </label>
-
-            {/* 유형 단일 선택 칩 */}
-            <div className="mb-2 flex flex-wrap gap-2">
-              {ONELINER_OPTIONS.map((opt) => (
-                <Chip
-                  key={opt.value}
-                  active={onelinerType === opt.value}
-                  onClick={() => setOnelinerType(opt.value)}
-                  disabled={pending}
-                >
-                  {opt.label}
-                </Chip>
-              ))}
-            </div>
 
             <input
               type="text"
@@ -503,6 +473,9 @@ export default function ReviewForm({ procedures, handle }: Props) {
               placeholder={onelinerPlaceholder}
               className="h-11 w-full rounded-md border border-[var(--border)] bg-white px-3 text-[15px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
             />
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              병원·의사 실명은 자동으로 가려집니다.
+            </p>
           </div>
         </div>
 
@@ -587,9 +560,9 @@ function TabbedProcedurePicker({
     }
   }, [tabs, activeTab]);
 
-  // 칩 표시 텍스트 — 하위면 "상위 › 하위".
+  // 칩 표시 텍스트 — 종속표시 없이 시술명만 (통계는 백엔드가 parent_ko 로 처리).
   function chipLabel(p: ProcedureOption): string {
-    return p.parentKo ? `${p.parentKo} › ${p.label}` : p.label;
+    return p.label;
   }
 
   function isSelected(v: string): boolean {
@@ -773,37 +746,33 @@ function StarField({
 }
 
 /* ─────────────────────────────────────────────────────────────
- * SegmentField — 1~5 세그먼트 (통증 등 양 끝 라벨이 의미 있는 척도).
+ * FaceField — 표정 이모지 1~5 컴팩트 스케일 (통증 등).
+ *   라벨 + 작은 버튼 5개(큰 이모지 + 아래 작은 라벨). 좌측 정렬, 각 버튼 폭 ~48px.
+ *   선택 버튼만 var(--primary) 계열 강조, 미선택은 옅은 회색.
  * ───────────────────────────────────────────────────────────── */
-function SegmentField({
+function FaceField({
   label,
   value,
   onChange,
-  labels,
-  hint,
+  faces,
   disabled,
   required,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
-  labels: readonly string[];
-  hint?: string;
+  faces: { face: string; label: string }[];
   disabled?: boolean;
   required?: boolean;
 }) {
   return (
     <div>
       <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-        {label} {required && <span className="text-[var(--accent)]">*</span>}{" "}
-        {hint && (
-          <span className="text-xs font-normal text-[var(--text-muted)]">
-            {hint}
-          </span>
-        )}
+        {label} {required && <span className="text-[var(--accent)]">*</span>}
       </label>
-      <div className="flex gap-1.5">
-        {[1, 2, 3, 4, 5].map((n) => {
+      <div className="flex justify-start gap-2">
+        {faces.map((f, i) => {
+          const n = i + 1;
           const on = n === value;
           return (
             <button
@@ -811,16 +780,23 @@ function SegmentField({
               type="button"
               onClick={() => onChange(n)}
               disabled={disabled}
-              aria-label={`${label} ${n} ${labels[n - 1] ?? ""}`}
-              className={`flex h-12 flex-1 flex-col items-center justify-center rounded-md border text-sm font-semibold transition-colors disabled:opacity-50 ${
+              aria-label={`${label} ${n} ${f.label}`}
+              aria-pressed={on}
+              className={`flex w-12 flex-col items-center justify-center rounded-md border py-1 transition-colors disabled:opacity-50 ${
                 on
-                  ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                  : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+                  ? "border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_14%,white)]"
+                  : "border-[var(--border)] bg-[var(--bg-soft)] hover:bg-white"
               }`}
             >
-              <span>{n}</span>
-              <span className="text-[10px] font-normal opacity-80">
-                {labels[n - 1] ?? ""}
+              <span className="text-xl leading-none">{f.face}</span>
+              <span
+                className={`mt-0.5 text-[10px] font-medium ${
+                  on
+                    ? "text-[var(--primary-dark)]"
+                    : "text-[var(--text-secondary)]"
+                }`}
+              >
+                {f.label}
               </span>
             </button>
           );
