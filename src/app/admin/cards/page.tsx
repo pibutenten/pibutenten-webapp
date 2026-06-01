@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PickToggle from "@/components/PickToggle";
-import { labelForCategory, POST_CATEGORIES } from "@/lib/post-category";
+import { labelForCategory } from "@/lib/post-category";
 import AdminCardsDoctorFilter from "./AdminCardsDoctorFilter";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
@@ -30,7 +30,7 @@ type QAStatus =
   | "archived"
   | "hidden";
 type QAType = "qa" | "post";
-type TypeFilter = "qa" | "post" | "all";
+type TypeFilter = "qa" | "post" | "review" | "review_summary" | "all";
 // 'deleted' 는 가짜 status — 실제 DB 상태 컬럼이 아니라 deleted_at IS NOT NULL row 의 카드.
 // 0132 soft-delete 도입과 함께 추가 (260518).
 type StatusFilter = QAStatus | "all" | "deleted";
@@ -91,7 +91,13 @@ type Props = {
 };
 
 function isTypeFilter(v: string | undefined): v is TypeFilter {
-  return v === "qa" || v === "post" || v === "all";
+  return (
+    v === "qa" ||
+    v === "post" ||
+    v === "review" ||
+    v === "review_summary" ||
+    v === "all"
+  );
 }
 
 function isCategoryFilter(v: string | undefined): v is CategoryFilter {
@@ -317,20 +323,13 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     doctor: doctorSlugParam || undefined,
   };
 
-  // 타입 — 포스팅·Q&A 두 종류
+  // 타입 5종 (전체 카테고리 줄은 폐지, 2026-06-01).
   const TYPE_LIST: { key: TypeFilter; label: string }[] = [
     { key: "all", label: "전체 타입" },
-    { key: "post", label: "포스팅" },
     { key: "qa", label: "Q&A" },
-  ];
-
-  // 포스팅 카테고리 — Q&A 카테고리는 type=qa이므로 제외, 포스팅(현 doodle)만.
-  // SSOT: POST_CATEGORIES (Sub-6, 2026-05-27). qa 제외 + "전체" prepend.
-  const CATEGORY_LIST: { key: CategoryFilter; label: string }[] = [
-    { key: "all", label: "전체 카테고리" },
-    ...POST_CATEGORIES
-      .filter((c) => c.slug !== "qa")
-      .map((c) => ({ key: c.slug as CategoryFilter, label: c.label })),
+    { key: "post", label: "포스팅" },
+    { key: "review", label: "시술후기" },
+    { key: "review_summary", label: "시술 리포트" },
   ];
 
   return (
@@ -422,36 +421,6 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           })}
         </div>
 
-        {/* 포스팅 카테고리 — type=post 일 때만 의미. type=qa·all 일 때는 disabled 톤. */}
-        {typeParam === "post" && (
-          <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-0.5">
-            {CATEGORY_LIST.map((c) => {
-              const active = c.key === categoryParam;
-              const href = `/admin/cards${buildQueryString({
-                ...baseQuery,
-                category: c.key === "all" ? undefined : c.key,
-                page: undefined,
-              })}`;
-              return (
-                <Link
-                  key={c.key}
-                  href={href}
-                  className={
-                    "rounded-[var(--radius-sm)] px-3 py-1 text-xs transition-colors " +
-                    (active
-                      ? "font-semibold text-[var(--text)]"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
-                  }
-                  style={
-                    active ? { backgroundColor: "#A8D8B933" } : undefined
-                  }
-                >
-                  {c.label}
-                </Link>
-              );
-            })}
-          </div>
-        )}
         <Link
           href={`/admin/cards${buildQueryString({
             ...baseQuery,

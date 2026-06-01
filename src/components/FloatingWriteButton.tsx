@@ -155,24 +155,30 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
           gap: 4px;
           animation: fab-pop 0.18s ease-out both;
         }
-        /* 시술 후기 → 왼쪽 */
-        .fab-root :global(.fab-sat-review) {
+        /* 보관함 → 맨 왼쪽(바깥) */
+        .fab-root :global(.fab-sat-library) {
           bottom: 4px;
           right: 84px;
         }
-        /* 글쓰기 → 좌상단 */
+        /* 글쓰기 → 좌상단(중간) */
         .fab-root :global(.fab-sat-write) {
           bottom: 60px;
           right: 60px;
         }
-        /* 보관함 → 위 */
-        .fab-root :global(.fab-sat-library) {
+        /* 시술 후기 → 위(메인 버튼 쪽) */
+        .fab-root :global(.fab-sat-review) {
           bottom: 84px;
           right: 4px;
         }
-        /* 모바일: 라벨 숨김 (아이콘만으로 충분) */
+        /* 모바일: 라벨 = 평문(상자 없음). 아이콘 아래에 작게. */
         .fab-root :global(.fab-sat .fab-label) {
-          display: none;
+          display: block;
+          font-size: 10px;
+          font-weight: 600;
+          color: var(--text);
+          white-space: nowrap;
+          text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95),
+            0 0 2px rgba(255, 255, 255, 0.95);
         }
 
         @keyframes fab-pop {
@@ -199,8 +205,14 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
             display: inline-flex;
             align-items: center;
             font-size: 14px;
+            font-weight: 600;
             padding: 4px 12px;
             white-space: nowrap;
+            color: var(--text);
+            background: #ffffff;
+            border-radius: 9999px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            text-shadow: none;
           }
         }
       `}</style>
@@ -229,9 +241,7 @@ function SatelliteItem({
       className={`flex cursor-pointer ${className ?? ""}`}
       aria-label={label}
     >
-      <span className="fab-label rounded-full bg-white font-semibold text-[var(--text)] shadow-[0_4px_12px_rgba(0,0,0,0.12)]">
-        {label}
-      </span>
+      <span className="fab-label">{label}</span>
       <span
         className="flex cursor-pointer items-center justify-center rounded-full shadow-[0_6px_16px_rgba(139,195,222,0.35)] transition-transform active:scale-95"
         style={{ width: 46, height: 46, backgroundColor: FAB_COLOR }}

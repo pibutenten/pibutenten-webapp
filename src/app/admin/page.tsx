@@ -200,7 +200,7 @@ export default async function AdminPage() {
           <Tool
             href="/write?category=qa"
             emoji="📝"
-            title="새 Q&A 카드 작성하기"
+            title="Q&A 카드 작성하기"
             desc="원장 명의 Q&A 카드를 직접 작성합니다"
           />
           {/* 검수 대기 — 모든 admin 노출 (원장 계정에선 본인 doctor 카드만 보임) */}

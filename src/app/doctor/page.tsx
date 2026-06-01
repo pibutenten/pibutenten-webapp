@@ -144,6 +144,13 @@ export default async function DoctorDashboardPage() {
           운영 프로그램
         </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* Q&A 카드 직접 작성 — admin 과 동일하게 원장 대시보드에도 노출. /write?category=qa 재사용 */}
+          <Tool
+            href="/write?category=qa"
+            emoji="📝"
+            title="Q&A 카드 작성하기"
+            desc="원장 명의 Q&A 카드를 직접 작성합니다"
+          />
           <Tool
             href="/admin/cards"
             emoji="📚"

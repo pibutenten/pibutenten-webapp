@@ -80,9 +80,9 @@ const PAIN_FACES: { face: string; label: string }[] = [
 type ChoiceOption = { value: string; label: string; color?: string };
 
 const REVISIT_OPTIONS: ChoiceOption[] = [
-  { value: "yes", label: "있어요", color: "var(--primary)" },
-  { value: "no", label: "없어요", color: "#E5484D" },
-  { value: "maybe", label: "고민 중이에요", color: "#9AA1AC" },
+  { value: "yes", label: "있어요", color: "#4CBFF2" },
+  { value: "no", label: "없어요", color: "#EA7E7B" },
+  { value: "maybe", label: "고민 중", color: "#9AA1AC" },
 ];
 
 /* 한줄후기 placeholder 프롬프트 — 작성을 유도하는 문구. 2.5초마다 회전. */
@@ -112,16 +112,16 @@ const EFFECT_AREA_OPTIONS: string[] = SKIN_CONCERNS.map(
  * 탄력·볼륨·주름·피부톤·모공·윤곽·피부결·동안·트러블·피부장벽 순서.
  */
 const EFFECT_AREA_COLORS: string[] = [
-  "#7E57C2",
-  "#29B6F6",
-  "#EC407A",
-  "#BF6E5C",
-  "#9E9D24",
-  "#26A69A",
-  "#FF7043",
-  "#5C6BC0",
-  "#66BB6A",
-  "#FFA726",
+  "#B0A0DE",
+  "#7FD0F8",
+  "#F59CB6",
+  "#D6B0A1",
+  "#CDC97A",
+  "#79CCC3",
+  "#FFAF97",
+  "#9AA6DE",
+  "#A6D9A9",
+  "#FFCB8C",
 ];
 
 export default function ReviewForm({
@@ -270,22 +270,36 @@ export default function ReviewForm({
       </h1>
 
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
-        {/* ── 1. 시술 선택 (필수, 잠금형) ── */}
+        {/* ── 1. 시술 선택 (필수, 잠금형) ──
+            선택하면 피커가 grid-rows 1fr→0fr 로 부드럽게 접히고, 선택한 시술명만
+            제목으로 남으며 아래 입력창들이 자연스럽게 올라옴. */}
         <div>
-          {selectedProcedure ? (
+          {selectedProcedure && (
             <SelectedProcedureTitle option={selectedProcedure} />
-          ) : procedures.length === 0 ? (
-            <p className="py-2 text-center text-sm text-[var(--text-muted)]">
-              선택할 수 있는 시술이 없습니다.
-            </p>
-          ) : (
-            <TabbedProcedurePicker
-              procedures={procedures}
-              value={procedureKo}
-              onChange={pickProcedure}
-              disabled={pending}
-            />
           )}
+          <div
+            className="grid transition-[grid-template-rows] duration-300 ease-out"
+            style={{ gridTemplateRows: procedureKo ? "0fr" : "1fr" }}
+          >
+            <div
+              className={`min-h-0 overflow-hidden transition-opacity duration-200 ${
+                procedureKo ? "opacity-0" : "opacity-100"
+              }`}
+            >
+              {procedures.length === 0 ? (
+                <p className="py-2 text-center text-sm text-[var(--text-muted)]">
+                  선택할 수 있는 시술이 없습니다.
+                </p>
+              ) : (
+                <TabbedProcedurePicker
+                  procedures={procedures}
+                  value={procedureKo}
+                  onChange={pickProcedure}
+                  disabled={pending}
+                />
+              )}
+            </div>
+          </div>
         </div>
 
         {/* ── 2. 만족도 (필수) ── */}
@@ -322,7 +336,7 @@ export default function ReviewForm({
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
             어떤 효과를 느끼셨나요? <span className="text-[var(--accent)]">*</span>{" "}
             <span className="text-xs font-normal text-[var(--text-muted)]">
-              (복수 선택)
+              모두 선택해주세요!
             </span>
           </label>
           <div className="flex flex-wrap gap-2">
@@ -359,7 +373,7 @@ export default function ReviewForm({
             className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
           />
           <p className="mt-1 text-xs text-[var(--text-muted)]">
-            의료광고성 표현·병원·의사 실명 언급은 금합니다.
+            의료광고성 표현·병원과 의사를 특정하는 언급은 금지합니다.
           </p>
         </div>
 
@@ -613,11 +627,11 @@ function EffectChip({
 
   let style: CSSProperties;
   if (active) {
-    // 선택됨 = 칸 색 solid + 흰 글씨 (테두리 없이, 다른 항목과 통일).
-    style = { backgroundColor: color, color: "#FFFFFF", fontWeight: 600 };
+    // 선택됨 = 파스텔 칸 색 + 진한 글씨(파스텔 위 흰글씨는 가독성↓ 이라 진한 톤).
+    style = { backgroundColor: color, color: "#3F4656", fontWeight: 700 };
   } else if (hover && !disabled) {
-    // 호버(미선택) = 그 색 연한 미리보기.
-    style = { backgroundColor: color + "22", color, fontWeight: 600 };
+    // 호버(미선택) = 중립 회색만 살짝 진하게 (해제 시 색 잔상 없이 회색으로).
+    style = { backgroundColor: "#DCE0E6", color: "#5C6470", fontWeight: 500 };
   } else {
     style = { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 };
   }
