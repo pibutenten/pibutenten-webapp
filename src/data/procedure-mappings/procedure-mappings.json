@@ -35,12 +35,6 @@
       "type": "general"
     },
     {
-      "ko": "실",
-      "en": "thread",
-      "category": "lifting",
-      "type": "general"
-    },
-    {
       "ko": "고주파리프팅",
       "en": "rf-lifting",
       "category": "lifting",
@@ -201,19 +195,10 @@
       "notes": "표기 추후 확정 시 업데이트"
     },
     {
-      "ko": "미세바늘고주파",
-      "en": "micro-needle-rf",
-      "category": "lifting",
-      "type": "general"
-    },
-    {
       "ko": "바늘고주파",
       "en": "needle-rf",
       "category": "lifting",
-      "type": "general",
-      "synonyms": [
-        "바늘RF"
-      ]
+      "type": "general"
     },
     {
       "ko": "세르프",
@@ -235,18 +220,6 @@
       "pubmedKeywords": [
         "bipolar RF microneedling lifting"
       ]
-    },
-    {
-      "ko": "티타늄리프팅",
-      "en": "titanium-lifting",
-      "category": "lifting",
-      "type": "general"
-    },
-    {
-      "ko": "티타늄시술",
-      "en": "titanium-procedure",
-      "category": "lifting",
-      "type": "general"
     },
     {
       "ko": "골드PTT",
@@ -300,12 +273,6 @@
       "pubmedKeywords": [
         "superficial musculoaponeurotic system"
       ]
-    },
-    {
-      "ko": "쥬베룩리프팅",
-      "en": "juvelook-lifting",
-      "category": "lifting",
-      "type": "brand"
     },
     {
       "ko": "바이브로",
@@ -495,13 +462,6 @@
       "en": "nefertiti-botox",
       "category": "injectables",
       "type": "general"
-    },
-    {
-      "ko": "앨러간",
-      "en": "allergan",
-      "category": "injectables",
-      "type": "brand",
-      "notes": "AbbVie"
     },
     {
       "ko": "이펙스",
@@ -761,26 +721,8 @@
       "notes": "Allergan"
     },
     {
-      "ko": "스킨바이브주입",
-      "en": "skinvive-injection",
-      "category": "injectables",
-      "type": "brand"
-    },
-    {
       "ko": "주사",
       "en": "injection",
-      "category": "injectables",
-      "type": "general"
-    },
-    {
-      "ko": "주사형",
-      "en": "injection-type",
-      "category": "injectables",
-      "type": "general"
-    },
-    {
-      "ko": "주사시술",
-      "en": "injection-procedure",
       "category": "injectables",
       "type": "general"
     },
@@ -851,22 +793,10 @@
       "type": "medical"
     },
     {
-      "ko": "PDRN주사",
-      "en": "pdrn-injection",
-      "category": "injectables",
-      "type": "medical"
-    },
-    {
       "ko": "엑소좀주사",
       "en": "exosome-injection",
       "category": "injectables",
       "type": "medical"
-    },
-    {
-      "ko": "주사형써마지",
-      "en": "injection-thermage",
-      "category": "injectables",
-      "type": "brand"
     },
     {
       "ko": "콜라겐주사",
@@ -2940,12 +2870,6 @@
       "pubmedKeywords": [
         "low-fluence Q-switched laser melasma"
       ]
-    },
-    {
-      "ko": "바늘RF",
-      "en": "needle-rf",
-      "category": "lifting",
-      "type": "general"
     },
     {
       "ko": "RF",
@@ -5528,9 +5452,6 @@
     "보톡스윤곽": [
       "보톡스"
     ],
-    "티타늄": [
-      "티타늄리프팅"
-    ],
     "리프팅시술": [
       "리프팅"
     ],
@@ -5562,6 +5483,39 @@
     ],
     "마리오네트주름": [
       "마리오네트라인"
+    ],
+    "티타늄리프팅": [
+      "티타늄"
+    ],
+    "티타늄시술": [
+      "티타늄"
+    ],
+    "실": [
+      "실리프팅"
+    ],
+    "쥬베룩리프팅": [
+      "쥬베룩"
+    ],
+    "스킨바이브주입": [
+      "스킨바이브"
+    ],
+    "주사형": [
+      "주사"
+    ],
+    "주사시술": [
+      "주사"
+    ],
+    "PDRN주사": [
+      "PDRN"
+    ],
+    "앨러간": [
+      "엘러간"
+    ],
+    "미세바늘고주파": [
+      "바늘고주파"
+    ],
+    "바늘RF": [
+      "바늘고주파"
     ]
   },
   "blacklist": [
