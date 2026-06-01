@@ -3,19 +3,28 @@
 /**
  * ReviewForm — 시술후기 입력 폼 (P3-d, client).
  *
- * 백엔드: POST /api/reviews (이미 구현). body 계약:
- *   필수 procedure_ko / satisfaction / effect / pain / recovery_days(0~365) / would_recommend
- *   선택 area / cost_satisfaction / effect_areas / body / title
+ * 2026-06-01 원장님 피드백 반영 재구성:
+ *   - 시술 선택을 드롭다운 → 칩(OnboardingClient 피부고민 칩 톤) 단일 선택으로 교체.
+ *     procedures 를 categoryLabel(리프팅/주입) 별 2개 섹션으로 묶어 표시, 상단 검색 필터.
+ *   - effect(효과 체감 별점)·would_recommend(추천 의향)·cost_satisfaction(비용 만족도)·
+ *     area(시술 부위) 입력 전부 폼에서 제거.
+ *   - 효과 체감 분야(선택, 복수)를 SKIN_CONCERNS 기반 멀티 칩으로. 단 라벨 치환:
+ *     aging→"동안", sensitive→"피부장벽". 저장은 치환된 라벨 문자열 배열.
+ *
+ * 백엔드: POST /api/reviews. body 계약:
+ *   필수 procedure_ko / satisfaction(1~5) / pain(1~5) / recovery_days(0~365)
+ *   선택 effect_areas(string[]) / body
  *   응답 { card_id, shortcode, status, screening }.
  *
- * 디자인은 기존 CardEditor / KeywordsEditor / globals.css 토큰을 그대로 재사용.
- * 모바일 우선. 제출 패턴(토스트·screening 안내·redirect)은 WriteClient 모사.
+ * 디자인은 globals.css 토큰 + OnboardingClient 칩 톤을 재사용. 모바일 우선.
+ * 제출 패턴(토스트·screening 안내·redirect)은 기존 로직 유지.
  */
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
+import { SKIN_CONCERNS } from "@/lib/profile-options";
 
 export type ProcedureOption = {
   /** 서버 검증값 = procedure_taxonomy.ko */
@@ -35,13 +44,22 @@ type Props = {
 };
 
 const BODY_MAX = 4000;
-const AREA_MAX = 60;
 const RECOVERY_MAX = 365;
 
-// 효과 체감 분야 후보 — 멀티 칩 (확장 가능하게 배열 상수).
-const EFFECT_AREA_OPTIONS = ["동안", "피부장벽"] as const;
-
 const PAIN_LABELS = ["약함", "조금", "보통", "꽤", "심함"] as const;
+
+/**
+ * 효과 체감 분야 옵션 — SKIN_CONCERNS 기반.
+ * 라벨 치환: aging → "동안", sensitive → "피부장벽". 나머지는 원 라벨 그대로.
+ * 저장값(effect_areas)은 여기 치환된 라벨 문자열.
+ */
+const EFFECT_AREA_LABEL_OVERRIDE: Record<string, string> = {
+  aging: "동안",
+  sensitive: "피부장벽",
+};
+const EFFECT_AREA_OPTIONS: string[] = SKIN_CONCERNS.map(
+  (c) => EFFECT_AREA_LABEL_OVERRIDE[c.key] ?? c.label,
+);
 
 export default function ReviewForm({ procedures, handle }: Props) {
   const router = useRouter();
@@ -51,45 +69,44 @@ export default function ReviewForm({ procedures, handle }: Props) {
   /* ── 필수 ── */
   const [procedureKo, setProcedureKo] = useState("");
   const [procSearch, setProcSearch] = useState("");
-  const [procOpen, setProcOpen] = useState(false);
   const [satisfaction, setSatisfaction] = useState<number>(0);
-  const [effect, setEffect] = useState<number>(0);
   const [pain, setPain] = useState<number>(0);
   const [recoveryDays, setRecoveryDays] = useState<string>("");
-  const [wouldRecommend, setWouldRecommend] = useState<boolean | null>(null);
 
   /* ── 선택 ── */
-  const [area, setArea] = useState("");
-  const [costSatisfaction, setCostSatisfaction] = useState<number>(0);
   const [effectAreas, setEffectAreas] = useState<string[]>([]);
   const [body, setBody] = useState("");
 
-  /* ── 시술 선택 — 검색 필터 + 그룹 표시 ── */
-  const filtered = useMemo(() => {
+  /* ── 시술 선택 — 검색 필터 후 categoryLabel 별로 그룹화 ── */
+  const grouped = useMemo(() => {
     const q = procSearch.trim().toLowerCase();
-    if (!q) return procedures;
-    return procedures.filter((p) => {
-      const hay = (p.label + " " + (p.parentKo ?? "")).toLowerCase();
-      return hay.includes(q);
-    });
+    const matched = q
+      ? procedures.filter((p) => {
+          const hay = (p.label + " " + (p.parentKo ?? "")).toLowerCase();
+          return hay.includes(q);
+        })
+      : procedures;
+
+    // categoryLabel 순서를 procedures 등장 순서로 보존 (page.tsx 가 리프팅→주입 정렬).
+    const order: string[] = [];
+    const map = new Map<string, ProcedureOption[]>();
+    for (const p of matched) {
+      if (!map.has(p.categoryLabel)) {
+        map.set(p.categoryLabel, []);
+        order.push(p.categoryLabel);
+      }
+      map.get(p.categoryLabel)!.push(p);
+    }
+    return order.map((label) => ({ label, items: map.get(label)! }));
   }, [procedures, procSearch]);
 
-  const selected = useMemo(
-    () => procedures.find((p) => p.value === procedureKo) ?? null,
-    [procedures, procedureKo],
-  );
+  // 선택된 시술의 칩 표시 텍스트 — 하위면 "상위 › 하위".
+  function chipLabel(p: ProcedureOption): string {
+    return p.parentKo ? `${p.parentKo} › ${p.label}` : p.label;
+  }
 
-  // 선택된 시술의 표시 텍스트 — 하위면 "상위 › 하위".
-  const selectedLabel = selected
-    ? selected.parentKo
-      ? `${selected.parentKo} › ${selected.label}`
-      : selected.label
-    : "";
-
-  function pickProcedure(p: ProcedureOption) {
-    setProcedureKo(p.value);
-    setProcOpen(false);
-    setProcSearch("");
+  function pickProcedure(value: string) {
+    setProcedureKo(value);
     setError(null);
   }
 
@@ -103,7 +120,6 @@ export default function ReviewForm({ procedures, handle }: Props) {
   function validate(): string | null {
     if (!procedureKo) return "시술을 선택해주세요.";
     if (satisfaction < 1) return "만족도를 선택해주세요.";
-    if (effect < 1) return "효과 체감을 선택해주세요.";
     if (pain < 1) return "통증 정도를 선택해주세요.";
     const days = Number(recoveryDays);
     if (
@@ -114,7 +130,6 @@ export default function ReviewForm({ procedures, handle }: Props) {
     ) {
       return `회복기간을 0~${RECOVERY_MAX}일 사이로 입력해주세요.`;
     }
-    if (wouldRecommend === null) return "추천 의향을 선택해주세요.";
     return null;
   }
 
@@ -129,14 +144,9 @@ export default function ReviewForm({ procedures, handle }: Props) {
     const payload: Record<string, unknown> = {
       procedure_ko: procedureKo,
       satisfaction,
-      effect,
       pain,
       recovery_days: Number(recoveryDays),
-      would_recommend: wouldRecommend,
     };
-    const trimmedArea = area.trim();
-    if (trimmedArea) payload.area = trimmedArea;
-    if (costSatisfaction >= 1) payload.cost_satisfaction = costSatisfaction;
     if (effectAreas.length > 0) payload.effect_areas = effectAreas;
     const trimmedBody = body.trim();
     if (trimmedBody) payload.body = trimmedBody;
@@ -176,7 +186,7 @@ export default function ReviewForm({ procedures, handle }: Props) {
           } | null;
         };
 
-        // 검수 대기로 전환된 경우 1회 안내 후 이동 (WriteClient 패턴).
+        // 검수 대기로 전환된 경우 1회 안내 후 이동.
         if (data.screening) {
           showToast(
             data.screening.userMessage ||
@@ -197,6 +207,8 @@ export default function ReviewForm({ procedures, handle }: Props) {
     });
   }
 
+  const hasProcedures = procedures.length > 0;
+
   return (
     <section className="w-full py-6">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">
@@ -204,97 +216,56 @@ export default function ReviewForm({ procedures, handle }: Props) {
       </h1>
 
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
-        {/* ── 시술 선택 (필수) ── */}
+        {/* ── 1. 시술 선택 (필수) — 칩 단일 선택 ── */}
         <div>
-          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
+          <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
             시술 <span className="text-[var(--accent)]">*</span>
           </label>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setProcOpen((o) => !o)}
-              disabled={pending}
-              className="flex h-10 w-full items-center justify-between rounded-md border border-[var(--border)] bg-white px-3 text-left text-base focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
-            >
-              <span
-                className={
-                  selectedLabel
-                    ? "font-medium text-[var(--text)]"
-                    : "text-[var(--text-muted)]"
-                }
-              >
-                {selectedLabel || "시술을 선택하세요"}
-              </span>
-              <span aria-hidden className="text-[var(--text-muted)]">
-                ▾
-              </span>
-            </button>
 
-            {procOpen && (
-              <div className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-[var(--border)] bg-white shadow-[var(--shadow)]">
-                <div className="sticky top-0 border-b border-[var(--border)] bg-white p-2">
-                  <input
-                    type="text"
-                    autoFocus
-                    value={procSearch}
-                    onChange={(e) => setProcSearch(e.target.value)}
-                    placeholder="시술명 검색"
-                    className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-                  />
+          {/* 검색 필터 */}
+          <input
+            type="text"
+            value={procSearch}
+            onChange={(e) => setProcSearch(e.target.value)}
+            disabled={pending}
+            placeholder="시술명 검색"
+            className="mb-3 h-9 w-full rounded-md border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+          />
+
+          {!hasProcedures ? (
+            <p className="py-2 text-sm text-[var(--text-muted)]">
+              선택할 수 있는 시술이 없습니다.
+            </p>
+          ) : grouped.length === 0 ? (
+            <p className="py-2 text-sm text-[var(--text-muted)]">
+              검색 결과가 없습니다.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {grouped.map((group) => (
+                <div key={group.label}>
+                  <div className="mb-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
+                    {group.label}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {group.items.map((p) => (
+                      <Chip
+                        key={p.value}
+                        active={procedureKo === p.value}
+                        onClick={() => pickProcedure(p.value)}
+                        disabled={pending}
+                      >
+                        {chipLabel(p)}
+                      </Chip>
+                    ))}
+                  </div>
                 </div>
-                {filtered.length === 0 ? (
-                  <p className="px-3 py-4 text-center text-sm text-[var(--text-muted)]">
-                    검색 결과가 없습니다.
-                  </p>
-                ) : (
-                  <ul className="py-1">
-                    {filtered.map((p, i) => {
-                      // 그룹 헤더 — 카테고리가 바뀌는 지점에 표시 (검색 안 했을 때만 깔끔).
-                      const prev = filtered[i - 1];
-                      const showHeader =
-                        !prev || prev.categoryLabel !== p.categoryLabel;
-                      return (
-                        <li key={p.value}>
-                          {showHeader && (
-                            <div className="bg-[var(--bg-soft)] px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)]">
-                              {p.categoryLabel}
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => pickProcedure(p)}
-                            className={`block w-full px-3 py-2 text-left text-sm hover:bg-[var(--primary-soft)] ${
-                              p.parentKo
-                                ? "pl-6 text-[var(--text-secondary)]"
-                                : "font-medium text-[var(--text)]"
-                            } ${
-                              p.value === procedureKo
-                                ? "bg-[var(--primary-soft)]"
-                                : ""
-                            }`}
-                          >
-                            {p.parentKo ? (
-                              <span>
-                                <span className="text-[var(--text-muted)]">
-                                  {p.parentKo} ›{" "}
-                                </span>
-                                {p.label}
-                              </span>
-                            ) : (
-                              p.label
-                            )}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* ── 만족도 (필수) ── */}
+        {/* ── 2. 만족도 (필수) ── */}
         <StarField
           label="만족도"
           required
@@ -303,16 +274,7 @@ export default function ReviewForm({ procedures, handle }: Props) {
           disabled={pending}
         />
 
-        {/* ── 효과 체감 (필수) ── */}
-        <StarField
-          label="효과 체감"
-          required
-          value={effect}
-          onChange={setEffect}
-          disabled={pending}
-        />
-
-        {/* ── 통증 (필수) ── */}
+        {/* ── 3. 통증 (필수) ── */}
         <SegmentField
           label="통증"
           required
@@ -323,7 +285,7 @@ export default function ReviewForm({ procedures, handle }: Props) {
           disabled={pending}
         />
 
-        {/* ── 회복기간 (필수) ── */}
+        {/* ── 4. 회복기간 (필수) ── */}
         <div>
           <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
             회복기간 <span className="text-[var(--accent)]">*</span>{" "}
@@ -347,103 +309,35 @@ export default function ReviewForm({ procedures, handle }: Props) {
           </div>
         </div>
 
-        {/* ── 추천 의향 (필수) ── */}
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-            추천 의향 <span className="text-[var(--accent)]">*</span>
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setWouldRecommend(true)}
-              disabled={pending}
-              className={`h-10 flex-1 rounded-md border text-sm font-semibold transition-colors disabled:opacity-50 ${
-                wouldRecommend === true
-                  ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                  : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-              }`}
-            >
-              추천해요
-            </button>
-            <button
-              type="button"
-              onClick={() => setWouldRecommend(false)}
-              disabled={pending}
-              className={`h-10 flex-1 rounded-md border text-sm font-semibold transition-colors disabled:opacity-50 ${
-                wouldRecommend === false
-                  ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                  : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-              }`}
-            >
-              아니요
-            </button>
-          </div>
-        </div>
-
         {/* ── 구분선: 선택 항목 ── */}
         <div className="border-t border-[var(--border)] pt-4">
           <p className="mb-3 text-xs font-medium text-[var(--text-muted)]">
             아래는 선택 항목입니다.
           </p>
 
-          {/* 시술 부위 (선택) */}
+          {/* 5. 효과 체감 분야 (선택, 멀티 칩) */}
           <div className="mb-4">
-            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-              시술 부위
-            </label>
-            <input
-              type="text"
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
-              maxLength={AREA_MAX}
-              disabled={pending}
-              placeholder="예: 볼, 턱선, 이마"
-              className="h-10 w-full rounded-md border border-[var(--border)] bg-white px-3 text-base focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
-            />
-          </div>
-
-          {/* 비용 만족도 (선택) */}
-          <div className="mb-4">
-            <StarField
-              label="비용 만족도"
-              value={costSatisfaction}
-              onChange={setCostSatisfaction}
-              disabled={pending}
-              clearable
-            />
-          </div>
-
-          {/* 효과 체감 분야 (선택, 멀티 칩) */}
-          <div className="mb-4">
-            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
+            <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
               효과 체감 분야{" "}
               <span className="text-xs font-normal text-[var(--text-muted)]">
                 (복수 선택)
               </span>
             </label>
-            <div className="flex flex-wrap gap-1.5">
-              {EFFECT_AREA_OPTIONS.map((opt) => {
-                const on = effectAreas.includes(opt);
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => toggleEffectArea(opt)}
-                    disabled={pending}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
-                      on
-                        ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
-                        : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
+            <div className="flex flex-wrap gap-2">
+              {EFFECT_AREA_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt}
+                  active={effectAreas.includes(opt)}
+                  onClick={() => toggleEffectArea(opt)}
+                  disabled={pending}
+                >
+                  {opt}
+                </Chip>
+              ))}
             </div>
           </div>
 
-          {/* 자유 후기 (선택) */}
+          {/* 6. 자유 후기 (선택) */}
           <div>
             <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
               자유 후기{" "}
@@ -483,6 +377,38 @@ export default function ReviewForm({ procedures, handle }: Props) {
         </div>
       </div>
     </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Chip — 둥근 pill 선택 칩 (OnboardingClient 피부고민 칩과 동일 톤).
+ *   비활성: #E8EAEE / #5C6470 / 500. 활성: var(--primary) / 흰색 / 600.
+ * ───────────────────────────────────────────────────────────── */
+function Chip({
+  active,
+  onClick,
+  disabled,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:opacity-50"
+      style={
+        active
+          ? { backgroundColor: "#4CBFF2", color: "#FFFFFF", fontWeight: 600 }
+          : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }
+      }
+    >
+      {children}
+    </button>
   );
 }
 

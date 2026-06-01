@@ -21,25 +21,25 @@ import { z } from "zod";
 /**
  * POST /api/reviews — 시술후기 생성
  *
- * 필수: procedure_ko, satisfaction, effect, pain, recovery_days, would_recommend.
+ * 필수: procedure_ko, satisfaction, pain, recovery_days.
  * 선택: area, cost_satisfaction, effect_areas, body, title.
+ *   (effect·would_recommend 는 원장님 피드백으로 2026-06-01 제거.)
  */
 export const ReviewCreateSchema = z
   .object({
     // 시술명 (procedure_taxonomy.ko 와 매칭 — 라우트에서 존재 검증).
     procedure_ko: z.string().min(1).max(40),
-    // 평점 3종 (1~5 정수, 필수).
+    // 평점 2종 (1~5 정수, 필수).
     satisfaction: z.number().int().min(1).max(5),
-    effect: z.number().int().min(1).max(5),
     pain: z.number().int().min(1).max(5),
     // 회복 기간 (일 단위, 0~365 정수, 필수).
     recovery_days: z.number().int().min(0).max(365),
-    // 재추천 여부 (필수).
-    would_recommend: z.boolean(),
     // 선택 항목.
+    //   area/cost_satisfaction 은 스키마엔 남겨두되 현재 폼은 보내지 않음.
     area: z.string().max(60).optional(),
     cost_satisfaction: z.number().int().min(1).max(5).optional(),
-    effect_areas: z.array(z.string().min(1).max(20)).max(5).optional(),
+    // 효과 체감 분야 — 멀티 칩 라벨(≤10개, 각 ≤20자).
+    effect_areas: z.array(z.string().min(1).max(20)).max(10).optional(),
     body: z.string().max(4000).optional(),
     title: z.string().max(200).optional(),
   })
