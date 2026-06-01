@@ -185,6 +185,12 @@ type Props = {
   /** create 모드 admin 만 — 검수 요청 버튼 노출 */
   showRequestReview?: boolean;
 
+  /**
+   * 카테고리 선택 줄 숨김 (값은 initialCategory 로 그대로 결정·저장).
+   * /write(WriteClient) 에서만 true. 편집 화면은 미전달이라 기존대로 카테고리 줄 표시.
+   */
+  hideCategorySelector?: boolean;
+
   /** edit 모드 일반 사용자(원장·회원) — 본인 글 지우기 (soft-delete) 콜백.
    *  제공되면 [지우기] 버튼 노출. admin 은 adminExtras.onSoftDelete 사용. */
   onOwnerDelete?: () => Promise<void>;
@@ -260,6 +266,7 @@ export default function CardEditor({
   returnUrl,
   adminExtras,
   showRequestReview = false,
+  hideCategorySelector = false,
   onOwnerDelete,
   onSubmit,
 }: Props) {
@@ -685,6 +692,7 @@ export default function CardEditor({
           availableCategories={availableCategories}
           initialChangeable={initialChangeable}
           onChangeCategory={changeCategory}
+          hideCategorySelector={hideCategorySelector}
           isAdminMode={isAdminMode}
           adminExtras={adminExtras}
           authorProfileId={authorProfileId}

@@ -252,6 +252,7 @@ export default function WriteClient({
         initialCategory={initialCategory}
         myDoctor={myDoctor}
         createAuthorOptions={createAuthorOptions}
+        hideCategorySelector
         onSubmit={handleSubmit}
       />
     </section>

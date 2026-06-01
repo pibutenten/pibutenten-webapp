@@ -196,6 +196,13 @@ export default async function AdminPage() {
               desc="소스에서 Q&A 카드를 추출하여 검수를 보냅니다"
             />
           )}
+          {/* 새 Q&A 카드 직접 작성 — 기존 /write?category=qa 재사용 (admin/doctor 노출) */}
+          <Tool
+            href="/write?category=qa"
+            emoji="📝"
+            title="새 Q&A 카드 작성하기"
+            desc="원장 명의 Q&A 카드를 직접 작성합니다"
+          />
           {/* 검수 대기 — 모든 admin 노출 (원장 계정에선 본인 doctor 카드만 보임) */}
           <Tool
             href="/admin/cards?status=pending_review"

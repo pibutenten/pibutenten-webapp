@@ -30,6 +30,12 @@ export type CardEditorMetaProps = {
   availableCategories: PostCategory[];
   initialChangeable: boolean;
   onChangeCategory: (next: PostCategorySlug) => void;
+  /**
+   * 카테고리 선택 줄 자체를 숨김 (값은 initialCategory 로 그대로 흘러감).
+   * /write(WriteClient) 에서만 true — 글쓰기 화면은 카테고리 칩 줄을 노출하지 않음.
+   * 편집(EditClient/admin) 은 미전달(=false) 이라 기존대로 카테고리 줄 표시.
+   */
+  hideCategorySelector?: boolean;
 
   // ── admin extras (edit 모드) ─────────────────────────────────
   isAdminMode: boolean;
@@ -55,6 +61,7 @@ export default function CardEditorMeta({
   availableCategories,
   initialChangeable,
   onChangeCategory,
+  hideCategorySelector = false,
   isAdminMode,
   adminExtras,
   authorProfileId,
@@ -68,7 +75,10 @@ export default function CardEditorMeta({
 }: CardEditorMetaProps) {
   return (
     <>
-      {/* 카테고리 picker — 라벨 옆에 chip 인라인 배치 (2026-05-22) */}
+      {/* 카테고리 picker — 라벨 옆에 chip 인라인 배치 (2026-05-22).
+          hideCategorySelector=true 면 줄 자체를 숨김 (값은 부모의 initialCategory 로 유지).
+          /write 글쓰기 화면 전용 — 편집 화면은 미전달이라 기존대로 표시. */}
+      {!hideCategorySelector && (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <label className="text-sm font-semibold text-[var(--text)]">
           카테고리
@@ -109,6 +119,7 @@ export default function CardEditorMeta({
           </div>
         )}
       </div>
+      )}
 
       {/* admin extras — 글쓴이 + (의사 글일 때만) Pick (edit 모드 admin) */}
       {isAdminMode && adminExtras && (
