@@ -6,6 +6,14 @@
 
 ---
 
+## [2026-06-01] — 후기 테이블 GRANT 누락 수정 (P3 결함)
+
+### Fixed
+- `procedure_taxonomy`·`procedure_reviews` 가 RLS 정책만 있고 `anon`/`authenticated` 테이블 GRANT 가 없어, 로그인 세션이 시술 목록을 못 읽음 → `/review/new` 가 "선택할 수 있는 시술이 없습니다"(빈 목록). `GRANT SELECT TO anon, authenticated`(마이그 0204)로 해소. 행 접근은 기존 RLS 가 계속 통제.
+- 원인: 0199/0200 신규 테이블에 GRANT 누락 + 검증을 Management API(postgres superuser)로만 해 권한·RLS 우회로 결함 은폐. 이후 신규 테이블은 `SET ROLE authenticated` 시뮬레이션으로 검증.
+
+---
+
 ## [2026-06-01] — 시술후기 시술 선택 UI를 태그검색 탭+칩으로 통일 (P3-d 보정)
 
 ### Changed
