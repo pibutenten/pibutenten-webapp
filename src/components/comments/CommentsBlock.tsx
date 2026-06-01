@@ -27,6 +27,7 @@ import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
 import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
+import { useSession } from "@/lib/session-context";
 import type {
   CommentStatus,
   CommentViewer,
@@ -64,6 +65,12 @@ export default function CommentsBlock({
   const [error, setError] = useState<string | null>(null);
   const [me, setMe] = useState<CommentViewer>(null);
   const [meLoaded, setMeLoaded] = useState(false);
+
+  // 댓글 입력 placeholder — 로그인 시 본인 닉네임, 비로그인은 기본('텐즈').
+  const session = useSession();
+  const composerPlaceholder = session?.displayName
+    ? `${session.displayName}님의 생각을 남겨주세요`
+    : "텐즈님의 생각을 남겨주세요";
 
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -347,7 +354,7 @@ export default function CommentsBlock({
             onChange={setBody}
             onSubmit={() => submitComment(null)}
             submitting={submitting}
-            placeholder="텐즈님의 생각을 남겨주세요"
+            placeholder={composerPlaceholder}
             disableAutoFocus={disableAutoFocus}
           />
         </div>
