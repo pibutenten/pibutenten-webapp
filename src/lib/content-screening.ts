@@ -21,7 +21,11 @@
 
 import {
   AD_HINTS,
+  CLINIC_NAME_PATTERN,
+  CLINIC_PREFIX_EXCLUDE,
   COMPARISON_PATTERNS,
+  DOCTOR_NAME_PATTERN,
+  DOCTOR_PREFIX_EXCLUDE,
   DRUG_PROMOTION_PATTERNS,
   EXAGGERATED_EFFICACY_PATTERNS,
   PAID_SPONSORSHIP_PATTERNS,
@@ -182,4 +186,32 @@ export function screenContent(input: ScreeningInput): ScreeningVerdict {
     score,
     reasons: uniqueReasons,
   };
+}
+
+/**
+ * 병원·의사명 하드블록 탐지 결과 (P3 시술후기 전용, 2026-06-01).
+ *   blocked=true 면 제출 자체를 차단 (점수 합산식 소프트 검수와 별개).
+ *   matches: 차단 근거가 된 표현 (사용자 안내용, 최대 10개).
+ */
+export type ProhibitedMentionResult = { blocked: boolean; matches: string[] };
+
+/**
+ * 시술후기 본문에서 특정 병원명·의사명 지목 표현을 탐지.
+ *
+ * - 접미사(피부과/원장님 등) 앞 고유명 토큰이 일반어(EXCLUDE)면 차단하지 않음.
+ * - 전역(g) 정규식 재사용 시 lastIndex 상태 문제를 피하기 위해 matchAll 사용.
+ */
+export function detectProhibitedMentions(text: string): ProhibitedMentionResult {
+  const found = new Set<string>();
+  if (text) {
+    for (const m of text.matchAll(CLINIC_NAME_PATTERN)) {
+      const prefix = (m[1] ?? "").trim();
+      if (!CLINIC_PREFIX_EXCLUDE.has(prefix)) found.add(m[0].trim());
+    }
+    for (const m of text.matchAll(DOCTOR_NAME_PATTERN)) {
+      const prefix = (m[1] ?? "").trim();
+      if (!DOCTOR_PREFIX_EXCLUDE.has(prefix)) found.add(m[0].trim());
+    }
+  }
+  return { blocked: found.size > 0, matches: Array.from(found).slice(0, 10) };
 }

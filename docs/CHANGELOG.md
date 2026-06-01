@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-06-01] — 시술후기 쓰기 경로 (P3-c)
+
+> 회원이 시술후기를 작성하면 개별 후기 카드(type=review) + procedure_reviews 행이 원자적으로 생성. 입력 폼 UI 는 P3-d.
+
+### Added
+- 마이그 0201: `cards.category` CHECK 에 `review`/`review_summary` 추가 + `create_procedure_review` RPC(SECURITY DEFINER, `auth.uid()` 본인검증, 카드+후기 원자 생성).
+- `POST /api/reviews` 라우트: 회원 작성, 온보딩 게이트·rate limit(분당5)·zod·시술존재검증·shortcode 생성·RPC 호출. 응답에 screening 객체.
+- `post-category.ts`: `review`(시술후기, noindex)·`review_summary`(시술 리포트, index) 등록. `categoriesForRole` 에서는 제외(전용 폼/시스템 생성).
+- 검수 신설 `detectProhibitedMentions`: **병원·의사명 패턴 탐지 → 제출 차단**(하드블록). 접미사(피부과/원장님 등) 앞 토큰이 일반어(EXCLUDE)면 통과. 기존 `screenContent`(의료광고)는 그대로 — flagged 면 pending_review(소프트).
+
+### Note
+- 검수는 **패턴 기반**(등록 의사명단 미사용). "위치+접미사"(예: "강남에서 피부과") 과차단 가능 — 운영 데이터로 EXCLUDE/정규식 튜닝 예정.
+- 동기화 페어(CLAUDE.md §5): category CHECK ↔ post-category.ts 동시 갱신 완료.
+
+---
+
 ## [2026-06-01] — 시술 후기 DB 기반 procedure_reviews 신설 (P3-b)
 
 > 개별 시술후기의 정량 데이터 저장소. 카드(type=review)와 1:1. 리포트 집계는 P3-d.

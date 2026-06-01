@@ -1,7 +1,7 @@
 /**
  * 본 파일은 **글 카테고리 (post category) — `cards.category` 컬럼 SSOT** 입니다.
  *
- * - 도메인 : 글 분류 자체 (qa/doodle 2종).
+ * - 도메인 : 글 분류 자체 (qa/doodle/review/review_summary 4종).
  * - 사용처 : 글 작성·필터·SEO 인덱싱 정책 전반.
  *
  * **혼동 주의** — Q&A 답변 페이지의 색상 칩 (피부고민/리프팅 등 5색) 과는 별개 개념입니다.
@@ -9,16 +9,23 @@
  *
  * 글 카테고리(post category) — cards.category 컬럼과 1:1 매핑.
  *
- * v6 spec 2개 체계 (2026-06-01, 마이그 0198):
- *   - qa     Q&A         의사 답변 (의사·관리자 전용, 인덱싱)
- *   - doodle 끄적끄적     일반 포스팅 (회원·의사·관리자, noindex)
+ * v7 spec 4개 체계 (P3, 2026-06-01):
+ *   - qa             Q&A         의사 답변 (의사·관리자 전용, 인덱싱)
+ *   - doodle         끄적끄적     일반 포스팅 (회원·의사·관리자, noindex)
+ *   - review         시술후기     전용 폼으로만 작성 (회원 작성, noindex — 개별 후기)
+ *   - review_summary 시술 리포트  시스템 생성 집계 카드 (사용자 글쓰기 불가, index)
  *
  * (폐지) diary/ask/tip/link 는 전부 doodle 로 통합되었고 link 는 soft-delete 됨.
- *   review(시술후기) 는 추후 별도 추가 예정 (현재 범위 아님).
+ *
+ * review/review_summary 는 일반 글쓰기 카테고리 목록(categoriesForRole)에는 노출하지 않음.
+ *   - review        : `/api/reviews` 전용 폼 경로로만 작성.
+ *   - review_summary: 시스템이 후기를 집계해 생성하는 카드(작성자 역할 무관 인덱싱).
  */
 export type PostCategorySlug =
   | "doodle"
-  | "qa";
+  | "qa"
+  | "review"
+  | "review_summary";
 
 export type PostCategory = {
   slug: PostCategorySlug;
@@ -38,27 +45,46 @@ export type PostCategory = {
 import { ROLES } from "./identity-shared";
 
 export const POST_CATEGORIES: readonly PostCategory[] = [
-  { slug: "doodle", label: "끄적끄적", publicForUsers: true,  defaultHideDoctorCredential: true  },
-  { slug: "qa",     label: "Q&A",     publicForUsers: false, defaultHideDoctorCredential: false },
+  { slug: "doodle",         label: "끄적끄적",     publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "qa",             label: "Q&A",         publicForUsers: false, defaultHideDoctorCredential: false },
+  { slug: "review",         label: "시술후기",     publicForUsers: true,  defaultHideDoctorCredential: false },
+  { slug: "review_summary", label: "시술 리포트",  publicForUsers: false, defaultHideDoctorCredential: false },
 ];
 
 const SLUG_TO_LABEL: Record<PostCategorySlug, string> = Object.fromEntries(
   POST_CATEGORIES.map((c) => [c.slug, c.label]),
 ) as Record<PostCategorySlug, string>;
 
+/**
+ * 일반 글쓰기 UI 에 노출하지 않는 카테고리.
+ *   - review        : 전용 폼(`/api/reviews`) 으로만 작성 — 일반 글쓰기 칩에서 제외.
+ *   - review_summary: 시스템 생성 집계 카드 — 어떤 역할도 직접 작성하지 않음.
+ * categoriesForRole 에서 이 집합을 일괄 제외해 qa/doodle 만 노출되던 기존 동작을 보존.
+ */
+const WRITE_UI_EXCLUDED: ReadonlySet<PostCategorySlug> = new Set([
+  "review",
+  "review_summary",
+]);
+
 /** role별 글쓰기에서 선택 가능한 카테고리 목록 */
 export function categoriesForRole(
   role: "user" | "doctor" | "admin",
 ): PostCategory[] {
-  if (role === ROLES.USER) return POST_CATEGORIES.filter((c) => c.publicForUsers);
-  return [...POST_CATEGORIES];
+  const selectable = POST_CATEGORIES.filter((c) => !WRITE_UI_EXCLUDED.has(c.slug));
+  if (role === ROLES.USER) return selectable.filter((c) => c.publicForUsers);
+  return [...selectable];
 }
 
 /** 외부 입력값 검증 (API 진입점에서 사용) */
 export function isPostCategorySlug(
   s: string | null | undefined,
 ): s is PostCategorySlug {
-  return s === "qa" || s === "doodle";
+  return (
+    s === "qa" ||
+    s === "doodle" ||
+    s === "review" ||
+    s === "review_summary"
+  );
 }
 
 /** UI 라벨 lookup — invalid 입력은 빈 문자열 */
@@ -67,14 +93,21 @@ export function labelForCategory(s: string | null | undefined): string {
 }
 
 
-/** 인덱싱 가능한 카테고리 (의사 글) — Q&A 만 */
+/**
+ * 인덱싱 가능한 카테고리 (의사 글) — Q&A + 시술 리포트(review_summary).
+ *   review_summary 는 집계 카드라 작성자 역할과 무관하게 인덱싱.
+ *   개별 후기(review) 는 noindex.
+ */
 export function isIndexableForDoctor(s: string | null | undefined): boolean {
-  return s === "qa";
+  return s === "qa" || s === "review_summary";
 }
 
-/** 인덱싱 가능한 카테고리 (회원 글) — 현재 없음 (doodle 은 noindex) */
-export function isIndexableForMember(_s: string | null | undefined): boolean {
-  return false;
+/**
+ * 인덱싱 가능한 카테고리 (회원 글) — 시술 리포트(review_summary) 만.
+ *   doodle·review(개별 후기) 는 noindex. review_summary 는 집계 카드라 인덱싱.
+ */
+export function isIndexableForMember(s: string | null | undefined): boolean {
+  return s === "review_summary";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
