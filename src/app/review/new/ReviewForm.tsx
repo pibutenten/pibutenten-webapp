@@ -758,11 +758,11 @@ function FaceField({
           if (selected) {
             wrapClass = "opacity-100";
             labelClass = "text-[var(--primary-dark)]";
-            pillStyle = { backgroundColor: "rgba(76,191,242,0.16)" };
+            pillStyle = { backgroundColor: "transparent" };
           } else if (previewing) {
             wrapClass = "opacity-90";
             labelClass = "text-[var(--primary)]";
-            pillStyle = { backgroundColor: "rgba(76,191,242,0.08)" };
+            pillStyle = { backgroundColor: "transparent" };
           } else {
             wrapClass = "opacity-40 hover:opacity-70";
             labelClass = "text-[var(--text-secondary)]";
