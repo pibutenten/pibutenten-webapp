@@ -334,7 +334,7 @@ export default function ReviewForm({
         {/* ── 5. 체감 효과 (필수, 멀티 칩) ── */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            어떤 효과를 느끼셨나요? <span className="text-[var(--accent)]">*</span>{" "}
+            어떤 효과를 느끼셨나요?{" "}
             <span className="text-xs font-normal text-[var(--text-muted)]">
               모두 선택해주세요!
             </span>
@@ -357,7 +357,7 @@ export default function ReviewForm({
         {/* ── 6. 생생한 후기 (필수) ── */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            생생한 후기를 남겨주세요 <span className="text-[var(--accent)]">*</span>{" "}
+            생생한 후기를 남겨주세요{" "}
             <span className="text-xs font-normal text-[var(--text-muted)]">
               ({oneliner.length} / {ONELINER_MAX})
             </span>
@@ -627,8 +627,8 @@ function EffectChip({
 
   let style: CSSProperties;
   if (active) {
-    // 선택됨 = 파스텔 칸 색 + 진한 글씨(파스텔 위 흰글씨는 가독성↓ 이라 진한 톤).
-    style = { backgroundColor: color, color: "#3F4656", fontWeight: 700 };
+    // 선택됨 = 칸 색 solid + 흰 글씨.
+    style = { backgroundColor: color, color: "#FFFFFF", fontWeight: 600 };
   } else if (hover && !disabled) {
     // 호버(미선택) = 중립 회색만 살짝 진하게 (해제 시 색 잔상 없이 회색으로).
     style = { backgroundColor: "#DCE0E6", color: "#5C6470", fontWeight: 500 };
@@ -678,8 +678,7 @@ function StarField({
     <div>
       <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
         {label}{" "}
-        {required && <span className="text-[var(--accent)]">*</span>}
-      </label>
+             </label>
       <div
         className="flex justify-start gap-2"
         onMouseLeave={() => setHover(0)}
@@ -743,8 +742,7 @@ function FaceField({
   return (
     <div>
       <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-        {label} {required && <span className="text-[var(--accent)]">*</span>}
-      </label>
+        {label}      </label>
       <div
         className="flex justify-start gap-2"
         onMouseLeave={() => setHover(0)}
@@ -824,8 +822,7 @@ function ChoiceField({
   return (
     <div>
       <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-        {label} {required && <span className="text-[var(--accent)]">*</span>}
-      </label>
+        {label}      </label>
       <div className="flex flex-wrap gap-2">
         {options.map((opt) => (
           <Chip

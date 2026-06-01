@@ -147,44 +147,30 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
         - 데스크탑(≥640px): absolute 무효화하고 세로 스택(라벨 알약 + 아이콘 원).
       */}
       <style jsx>{`
-        /* ── 모바일 부채꼴 (기본) — FAB 가까이 타이트하게, 라벨은 바깥쪽 ── */
+        /* ── 모바일 부채꼴 (기본) — 아이콘만(라벨 없음) ── */
         .fab-root :global(.fab-sat) {
           position: absolute;
+          flex-direction: column-reverse;
           align-items: center;
-          gap: 3px;
+          gap: 4px;
           animation: fab-pop 0.18s ease-out both;
         }
-        /* 보관함·글쓰기 → 라벨을 아이콘 왼쪽(바깥) */
-        .fab-root :global(.fab-sat-library),
-        .fab-root :global(.fab-sat-write) {
-          flex-direction: row;
-        }
-        /* 시술 후기 → 라벨을 아이콘 위(바깥) */
-        .fab-root :global(.fab-sat-review) {
-          flex-direction: column;
-        }
-        /* 위치 (FAB 가까이) — 보관함 왼쪽 / 글쓰기 좌상단 / 시술후기 위 */
+        /* 보관함 왼쪽 / 글쓰기 좌상단 / 시술후기 위 */
         .fab-root :global(.fab-sat-library) {
-          bottom: 5px;
-          right: 70px;
+          bottom: 4px;
+          right: 84px;
         }
         .fab-root :global(.fab-sat-write) {
-          bottom: 52px;
-          right: 52px;
+          bottom: 60px;
+          right: 60px;
         }
         .fab-root :global(.fab-sat-review) {
-          bottom: 70px;
-          right: 5px;
+          bottom: 84px;
+          right: 4px;
         }
-        /* 모바일: 라벨 = 평문(상자 없음) + 강한 흰 외곽선(내용 위에서도 보이게) */
+        /* 모바일: 라벨 숨김 (아이콘만으로 충분) */
         .fab-root :global(.fab-sat .fab-label) {
-          display: block;
-          font-size: 11px;
-          font-weight: 700;
-          color: var(--text);
-          white-space: nowrap;
-          text-shadow: 0 1px 2px #fff, 0 -1px 2px #fff, 1px 0 2px #fff,
-            -1px 0 2px #fff, 0 0 5px #fff;
+          display: none;
         }
 
         @keyframes fab-pop {
