@@ -63,11 +63,11 @@ type Props = {
   handle: string;
 };
 
-const ONELINER_MAX = 150;
+const ONELINER_MAX = 400;
 
 /* 통증 — 표정 이모지 1~5 컴팩트 스케일. */
 const PAIN_FACES: { face: string; label: string }[] = [
-  { face: "😀", label: "약함" },
+  { face: "😊", label: "없음" },
   { face: "🙂", label: "조금" },
   { face: "😐", label: "보통" },
   { face: "😣", label: "꽤" },
@@ -79,8 +79,8 @@ type ChoiceOption = { value: string; label: string };
 
 const REVISIT_OPTIONS: ChoiceOption[] = [
   { value: "yes", label: "예" },
-  { value: "maybe", label: "고민중" },
   { value: "no", label: "아니오" },
+  { value: "maybe", label: "고민중" },
 ];
 
 /* 한줄후기 placeholder 프롬프트 — 작성을 유도하는 문구. 2.5초마다 회전. */
@@ -293,7 +293,7 @@ export default function ReviewForm({ procedures, handle }: Props) {
         {/* ── 5. 체감 효과 (필수, 멀티 칩) ── */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            체감 효과 <span className="text-[var(--accent)]">*</span>{" "}
+            어떤 효과를 느끼셨나요? <span className="text-[var(--accent)]">*</span>{" "}
             <span className="text-xs font-normal text-[var(--text-muted)]">
               (복수 선택)
             </span>
@@ -312,23 +312,23 @@ export default function ReviewForm({ procedures, handle }: Props) {
           </div>
         </div>
 
-        {/* ── 6. 한줄 후기 (필수) ── */}
+        {/* ── 6. 생생한 후기 (필수) ── */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            한줄 후기 <span className="text-[var(--accent)]">*</span>{" "}
+            생생한 후기를 남겨주세요 <span className="text-[var(--accent)]">*</span>{" "}
             <span className="text-xs font-normal text-[var(--text-muted)]">
               ({oneliner.length} / {ONELINER_MAX})
             </span>
           </label>
 
-          <input
-            type="text"
+          <textarea
             value={oneliner}
             onChange={(e) => setOneliner(e.target.value)}
             maxLength={ONELINER_MAX}
+            rows={4}
             disabled={pending}
             placeholder={onelinerPlaceholder}
-            className="h-11 w-full rounded-md border border-[var(--border)] bg-white px-3 text-[15px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+            className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
           />
           <p className="mt-1 text-xs text-[var(--text-muted)]">
             병원·의사 실명은 자동으로 가려집니다.

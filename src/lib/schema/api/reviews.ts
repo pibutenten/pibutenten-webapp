@@ -25,7 +25,7 @@ import { z } from "zod";
  *
  * 최종 폼 항목 (전부 필수):
  *   procedure_ko / satisfaction(1~5) / pain(1~5) / revisit(예·고민중·아니오) /
- *   effect_areas(체감 효과 멀티, ≥1) / body(한줄후기 ≤150, 비어있으면 안 됨).
+ *   effect_areas(체감 효과 멀티, ≥1) / body(생생한 후기 ≤400, 비어있으면 안 됨).
  * 선택: title (기본값 생성용).
  *
  * 2026-06-01 단순화: downtime/sessions/timing/cost_satisfaction/
@@ -43,8 +43,8 @@ export const ReviewCreateSchema = z
     revisit: z.enum(["yes", "maybe", "no"]),
     // 체감 효과 — SKIN_CONCERNS 라벨(동안/피부장벽 치환), 복수(1~10개, 각 ≤20자).
     effect_areas: z.array(z.string().min(1).max(20)).min(1).max(10),
-    // 한줄후기 본문 (body 컬럼에 저장, 1~150자 — 비어있으면 안 됨).
-    body: z.string().min(1).max(150),
+    // 생생한 후기 본문 (body 컬럼에 저장, 1~400자 — 비어있으면 안 됨).
+    body: z.string().min(1).max(400),
 
     // ── 선택 ──
     // title 기본값 생성용 (라우트에서 미지정 시 `{시술명} 시술후기`).
