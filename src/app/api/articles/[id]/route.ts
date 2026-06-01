@@ -143,7 +143,7 @@ export async function PUT(
   // 카드 조회 — 권한 검증용.
   const { data: card, error: fetchErr } = await supabase
     .from("cards")
-    .select("id, type, category, author_id, doctor_id, deleted_at, status, post_year")
+    .select("id, type, category, author_id, doctor_id, deleted_at, status, post_year, created_at")
     .eq("id", cardId)
     .maybeSingle();
   if (fetchErr) {
@@ -403,7 +403,14 @@ export async function PUT(
   // 최종 type 판정: 이번 수정에서 category 변경으로 type 이 바뀌면 update.type 을, 아니면 기존 card.type 을 사용.
   const finalType =
     (update.type as string | undefined) ?? (card.type as string | null);
-  if (finalType === "qa" && update.status === "published") {
+  // 일시 제한(2026-06-01): 2025년 이전 과거 영상 카드 정리 중 — created_at < 2026-01-01(KST) 인 카드는
+  //   편집해도 reviewed_at 을 갱신하지 않음(영상날짜 고정). 2026년 자료부터만 편집=검수일 갱신.
+  //   안정화 후 이 created_at 게이트는 제거 예정.
+  const KST_2026 = new Date("2026-01-01T00:00:00+09:00").getTime();
+  const cardCreatedAt = (card.created_at as string | null) ?? null;
+  const isRecentEnough =
+    cardCreatedAt !== null && new Date(cardCreatedAt).getTime() >= KST_2026;
+  if (finalType === "qa" && update.status === "published" && isRecentEnough) {
     update.reviewed_at = new Date().toISOString();
   }
 
