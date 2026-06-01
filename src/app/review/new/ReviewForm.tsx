@@ -85,15 +85,39 @@ const REVISIT_OPTIONS: ChoiceOption[] = [
   { value: "maybe", label: "고민 중", color: "#9AA1AC" },
 ];
 
-/* 한줄후기 placeholder 프롬프트 — 작성을 유도하는 문구. 2.5초마다 회전. */
+/* 생생한 후기 placeholder 프롬프트 — 작성을 유도하는 문구. 마운트 시 랜덤 순서로 2.5초마다 회전. */
 const ONELINER_PROMPTS: string[] = [
-  "이런 분께 추천해요.",
-  "시술 받기 전에 이런 건 알고 가세요.",
-  "이런 분에겐 맞지 않아요.",
-  "이런 게 참 좋았어요.",
-  "이건 좀 아쉬웠어요.",
-  "솔직한 한마디 남겨주세요.",
+  "이런 분께 추천하고 싶어요.",
+  "이런 분이라면 한 번 더 고민해보세요.",
+  "받기 전에 이건 꼭 알고 가셨으면 해요.",
+  "미리 알았으면 좋았을 텐데 싶은 게 있어요.",
+  "솔직히 이 부분이 제일 만족스러웠어요.",
+  "살짝 아쉬웠던 점도 같이 적어볼게요.",
+  "기대했던 것과 어떻게 달랐는지 들려주세요.",
+  "통증이나 다운타임은 어느 정도였나요?",
+  "비용 대비 만족스러웠는지 솔직하게요.",
+  "효과는 언제쯤, 어떻게 느껴지기 시작했나요?",
+  "상담받을 때 이런 걸 물어보면 좋아요.",
+  "결과를 보고 가장 먼저 든 생각은요?",
+  "다시 받는다면 어떤 점을 다르게 할까요?",
+  "같은 고민을 가진 분께 해주고 싶은 말이 있다면요.",
+  "시술 후 일상으로 돌아오는 데 얼마나 걸렸나요?",
+  "사진이나 후기로 본 것과 실제는 어땠나요?",
+  "의외로 별것 아니었던 점이 있었나요?",
+  "반대로 생각보다 신경 쓰였던 점은요?",
+  "누군가 망설이고 있다면 어떻게 말해주실래요?",
+  "가감 없이, 느낀 그대로 한마디 남겨주세요.",
 ];
+
+/* Fisher-Yates 셔플 — 프롬프트 순서를 랜덤화. */
+function shuffled<T>(arr: readonly T[]): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 /**
  * 체감 효과 옵션 — SKIN_CONCERNS 기반.
@@ -146,15 +170,19 @@ export default function ReviewForm({
   const [effectAreas, setEffectAreas] = useState<string[]>([]);
   const [oneliner, setOneliner] = useState("");
 
-  /* 한줄후기 placeholder 회전 — 유도 문구를 2.5초마다 순환. */
+  /* 생생한 후기 placeholder — 마운트 시 랜덤 순서로 섞어 2.5초마다 순환(반복 없이 한 바퀴씩). */
   const [phIndex, setPhIndex] = useState(0);
+  // SSR/CSR 일치 위해 초기엔 원본 순서, 마운트 후 셔플.
+  const [order, setOrder] = useState<string[]>(ONELINER_PROMPTS);
   useEffect(() => {
+    setOrder(shuffled(ONELINER_PROMPTS));
     const id = setInterval(() => setPhIndex((i) => i + 1), 2500);
     return () => clearInterval(id);
   }, []);
-  const onelinerPlaceholder = useMemo(() => {
-    return ONELINER_PROMPTS[phIndex % ONELINER_PROMPTS.length];
-  }, [phIndex]);
+  const onelinerPlaceholder = useMemo(
+    () => order[phIndex % order.length],
+    [phIndex, order],
+  );
 
   /* 선택된 시술 옵션 (제목 표시용). */
   const selectedProcedure = useMemo(
