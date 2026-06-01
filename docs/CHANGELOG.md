@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-06-01] — 정렬 RPC reviewed_at 기준 통일 (P1-c)
+
+### Changed
+- `feed_cards_scored` / `search_cards_scored` / `tag_cards_scored` 의 시간감쇠·New부스트 기준을 `created_at` → `COALESCE(reviewed_at, created_at)` 로 변경. RETURNS TABLE + 반환 목록에 `reviewed_at` 추가(마이그 0197). Q&A 는 검수일 기준 정렬(과거 영상 카드도 최근 검수면 신선하게 취급), post 는 reviewed_at NULL 이라 created_at 유지. **표시일과 정렬 기준이 완전 일치**.
+- 반환 타입(RETURNS TABLE) 변경이라 `CREATE OR REPLACE` 불가 → `DROP FUNCTION` 후 재생성. proacl=null(기본 PUBLIC EXECUTE)이라 재GRANT 불필요.
+- 앱은 피드/검색/태그가 RPC 결과를 `data as CardData[]` 로 그대로 매핑 → reviewed_at 자동 포함(앱 코드 변경 없음).
+
+> 카테고리 라벨 직접검색(`search-query.ts` 카테고리 경로 `.order("created_at")`)·마이페이지 본인글 정렬은 P2 카테고리 개편 시 함께 정리 예정.
+
+---
+
 ## [2026-06-01] — reviewed_at(의료 검토일 SSOT) 도입 + 표시처 통일 (P1-b)
 
 ### Added
