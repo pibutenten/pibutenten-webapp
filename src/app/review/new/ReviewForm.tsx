@@ -61,9 +61,11 @@ type Props = {
   procedures: ProcedureOption[];
   /** active 명함 handle — 제출 성공 시 /{handle}/{shortcode} 이동 */
   handle: string;
+  /** 태그 미리선택 대비 초기 시술 ko — procedures 에 존재할 때만 잠금 표시 */
+  initialProcedure?: string;
 };
 
-const ONELINER_MAX = 400;
+const ONELINER_MAX = 300;
 
 /* 통증 — 표정 이모지 1~5 컴팩트 스케일. */
 const PAIN_FACES: { face: string; label: string }[] = [
@@ -75,12 +77,12 @@ const PAIN_FACES: { face: string; label: string }[] = [
 ];
 
 /* ── 값 키(고정 — DB CHECK 와 일치) ── */
-type ChoiceOption = { value: string; label: string };
+type ChoiceOption = { value: string; label: string; color?: string };
 
 const REVISIT_OPTIONS: ChoiceOption[] = [
-  { value: "yes", label: "예" },
-  { value: "no", label: "아니오" },
-  { value: "maybe", label: "고민중" },
+  { value: "yes", label: "예", color: "var(--primary)" },
+  { value: "no", label: "아니오", color: "#E5484D" },
+  { value: "maybe", label: "고민중", color: "#5C6470" },
 ];
 
 /* 한줄후기 placeholder 프롬프트 — 작성을 유도하는 문구. 2.5초마다 회전. */
@@ -105,14 +107,39 @@ const EFFECT_AREA_LABEL_OVERRIDE: Record<string, string> = {
 const EFFECT_AREA_OPTIONS: string[] = SKIN_CONCERNS.map(
   (c) => EFFECT_AREA_LABEL_OVERRIDE[c.key] ?? c.label,
 );
+/**
+ * 효과 칩 색 — EFFECT_AREA_OPTIONS(SKIN_CONCERNS 순서)와 동일 인덱스 매칭.
+ * 탄력·볼륨·주름·피부톤·모공·윤곽·피부결·동안·트러블·피부장벽 순서.
+ */
+const EFFECT_AREA_COLORS: string[] = [
+  "#7E57C2",
+  "#29B6F6",
+  "#EC407A",
+  "#BF6E5C",
+  "#9E9D24",
+  "#26A69A",
+  "#FF7043",
+  "#5C6BC0",
+  "#66BB6A",
+  "#FFA726",
+];
 
-export default function ReviewForm({ procedures, handle }: Props) {
+export default function ReviewForm({
+  procedures,
+  handle,
+  initialProcedure,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   /* ── 필수 항목 ── */
-  const [procedureKo, setProcedureKo] = useState("");
+  // 초기 시술: initialProcedure 가 procedures 에 실제 존재할 때만 사용(없으면 빈 값).
+  const [procedureKo, setProcedureKo] = useState(() =>
+    initialProcedure && procedures.some((p) => p.value === initialProcedure)
+      ? initialProcedure
+      : "",
+  );
   const [satisfaction, setSatisfaction] = useState<number>(0);
   const [pain, setPain] = useState<number>(0);
   const [revisit, setRevisit] = useState("");
@@ -299,15 +326,16 @@ export default function ReviewForm({ procedures, handle }: Props) {
             </span>
           </label>
           <div className="flex flex-wrap gap-2">
-            {EFFECT_AREA_OPTIONS.map((opt) => (
-              <Chip
+            {EFFECT_AREA_OPTIONS.map((opt, i) => (
+              <EffectChip
                 key={opt}
                 active={effectAreas.includes(opt)}
+                color={EFFECT_AREA_COLORS[i % EFFECT_AREA_COLORS.length]}
                 onClick={() => toggleEffectArea(opt)}
                 disabled={pending}
               >
                 {opt}
-              </Chip>
+              </EffectChip>
             ))}
           </div>
         </div>
@@ -331,7 +359,7 @@ export default function ReviewForm({ procedures, handle }: Props) {
             className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
           />
           <p className="mt-1 text-xs text-[var(--text-muted)]">
-            병원·의사 실명은 자동으로 가려집니다.
+            의료광고성 표현·병원·의사 실명 언급은 금합니다.
           </p>
         </div>
 
@@ -348,7 +376,7 @@ export default function ReviewForm({ procedures, handle }: Props) {
             type="button"
             onClick={submit}
             disabled={pending}
-            className="h-10 rounded-md bg-[var(--primary)] px-8 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+            className="h-10 cursor-pointer rounded-md bg-[var(--primary)] px-8 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
           >
             {pending ? "등록 중…" : "후기 올리기"}
           </button>
@@ -516,30 +544,106 @@ function TabbedProcedurePicker({
 
 /* ─────────────────────────────────────────────────────────────
  * Chip — 둥근 pill 선택 칩 (OnboardingClient 피부고민 칩과 동일 톤).
- *   비활성: #E8EAEE / #5C6470 / 500. 활성: #4CBFF2 / 흰색 / 600.
+ *   비활성: #E8EAEE / #5C6470 / 500.
+ *   color 미지정 활성: #4CBFF2 / 흰색 / 600.
+ *   color 지정: 선택됨 = 색 solid 배경 + 흰 글씨. 호버(미선택) = 색 연한 톤(color+"22")
+ *     배경 + color 글씨 미리보기. 평소 미선택 = 회색.
  * ───────────────────────────────────────────────────────────── */
 function Chip({
   active,
   onClick,
   disabled,
+  color,
   children,
 }: {
   active: boolean;
   onClick: () => void;
   disabled?: boolean;
+  color?: string;
   children: React.ReactNode;
 }) {
+  const [hover, setHover] = useState(false);
+
+  let style: CSSProperties;
+  if (active) {
+    style = color
+      ? { backgroundColor: color, color: "#FFFFFF", fontWeight: 600 }
+      : { backgroundColor: "#4CBFF2", color: "#FFFFFF", fontWeight: 600 };
+  } else if (color && hover && !disabled) {
+    style = { backgroundColor: color + "22", color, fontWeight: 600 };
+  } else {
+    style = { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 };
+  }
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:opacity-50"
-      style={
-        active
-          ? { backgroundColor: "#4CBFF2", color: "#FFFFFF", fontWeight: 600 }
-          : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }
-      }
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:opacity-50"
+      style={style}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * EffectChip — 효과(멀티) 칩. 옵션별 고유색 + 호버 미리보기.
+ *   선택됨 = color+"1A" 배경 + color 글씨 + 같은색 테두리 + bold.
+ *   호버(미선택) = color+"14" 더 연한 미리보기.
+ *   평소 미선택 = 회색(#E8EAEE / #5C6470).
+ * ───────────────────────────────────────────────────────────── */
+function EffectChip({
+  active,
+  color,
+  onClick,
+  disabled,
+  children,
+}: {
+  active: boolean;
+  color: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  const [hover, setHover] = useState(false);
+
+  let style: CSSProperties;
+  if (active) {
+    style = {
+      backgroundColor: color + "1A",
+      color,
+      border: `1px solid ${color}`,
+      fontWeight: 700,
+    };
+  } else if (hover && !disabled) {
+    style = {
+      backgroundColor: color + "14",
+      color,
+      border: "1px solid transparent",
+      fontWeight: 600,
+    };
+  } else {
+    style = {
+      backgroundColor: "#E8EAEE",
+      color: "#5C6470",
+      border: "1px solid transparent",
+      fontWeight: 500,
+    };
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:opacity-50"
+      style={style}
     >
       {children}
     </button>
@@ -548,6 +652,12 @@ function Chip({
 
 /* ─────────────────────────────────────────────────────────────
  * StarField — 1~5 별점 입력.
+ *   호버 미리채움: 마우스 올린 위치까지 연한 확정색으로 미리보기,
+ *   클릭하면 그 값이 진한 확정색으로 확정.
+ *   - hover>0 인 별: n<=hover 면 채움(연한 var(--accent-save), opacity-50).
+ *   - hover==0 인 별: n<=value 면 채움(진한 var(--accent-save)).
+ *   - 빈 별: var(--bg-soft).
+ *   5칸 모두 w-12 가운데 정렬 → FaceField 와 칸 위치 정렬.
  * ───────────────────────────────────────────────────────────── */
 function StarField({
   label,
@@ -562,34 +672,38 @@ function StarField({
   disabled?: boolean;
   required?: boolean;
 }) {
+  const [hover, setHover] = useState(0);
   return (
     <div>
       <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
         {label}{" "}
         {required && <span className="text-[var(--accent)]">*</span>}
       </label>
-      <div className="flex items-center gap-1">
+      <div
+        className="flex justify-start gap-2"
+        onMouseLeave={() => setHover(0)}
+      >
         {[1, 2, 3, 4, 5].map((n) => {
-          const on = n <= value;
+          const filled = hover > 0 ? n <= hover : n <= value;
+          const color = filled ? "var(--accent-save)" : "var(--bg-soft)";
+          const previewing = filled && hover > 0;
           return (
             <button
               key={n}
               type="button"
               aria-label={`${label} ${n}점`}
               onClick={() => onChange(n)}
+              onMouseEnter={() => setHover(n)}
               disabled={disabled}
-              className="text-2xl leading-none transition-transform hover:scale-110 disabled:opacity-50"
-              style={{ color: on ? "var(--accent-save)" : "var(--bg-soft)" }}
+              className={`flex w-12 cursor-pointer items-center justify-center text-2xl leading-none transition-transform hover:scale-110 disabled:opacity-50 ${
+                previewing ? "opacity-50" : "opacity-100"
+              }`}
+              style={{ color }}
             >
               ★
             </button>
           );
         })}
-        {value > 0 && (
-          <span className="ml-2 text-sm font-medium text-[var(--text-secondary)]">
-            {value} / 5
-          </span>
-        )}
       </div>
     </div>
   );
@@ -598,8 +712,13 @@ function StarField({
 /* ─────────────────────────────────────────────────────────────
  * FaceField — 표정 이모지 1~5 컴팩트 스케일 (통증 등).
  *   라벨 + 버튼 5개(이모지 + 아래 작은 라벨). 박스(border·bg) 없는 투명 버튼.
- *   선택 표시는 박스 대신 미선택을 흐리게(opacity-40), 선택은 진하게(opacity-100)
- *   + 라벨 색 강조로. 이모지는 작게(text-lg), gap 줄여 컴팩트.
+ *   상태별:
+ *     선택됨(n===value)   → 진한 확정. 불투명 + 라벨 var(--primary-dark) +
+ *                           옅은 primary 배경 pill.
+ *     호버됨(n===hover, 미선택) → 연한 primary 미리보기. 라벨 primary,
+ *                           살짝 불투명 + 옅은 배경.
+ *     그 외               → 회색(opacity-40).
+ *   5칸 모두 w-12 → StarField 와 칸 위치 정렬. 이모지 text-lg 유지.
  * ───────────────────────────────────────────────────────────── */
 function FaceField({
   label,
@@ -616,35 +735,52 @@ function FaceField({
   disabled?: boolean;
   required?: boolean;
 }) {
+  const [hover, setHover] = useState(0);
   return (
     <div>
       <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
         {label} {required && <span className="text-[var(--accent)]">*</span>}
       </label>
-      <div className="flex justify-start gap-1">
+      <div
+        className="flex justify-start gap-2"
+        onMouseLeave={() => setHover(0)}
+      >
         {faces.map((f, i) => {
           const n = i + 1;
-          const on = n === value;
+          const selected = n === value;
+          const previewing = !selected && n === hover && !disabled;
+
+          let wrapClass: string;
+          let labelClass: string;
+          let pillStyle: CSSProperties;
+          if (selected) {
+            wrapClass = "opacity-100";
+            labelClass = "text-[var(--primary-dark)]";
+            pillStyle = { backgroundColor: "rgba(76,191,242,0.16)" };
+          } else if (previewing) {
+            wrapClass = "opacity-90";
+            labelClass = "text-[var(--primary)]";
+            pillStyle = { backgroundColor: "rgba(76,191,242,0.08)" };
+          } else {
+            wrapClass = "opacity-40 hover:opacity-70";
+            labelClass = "text-[var(--text-secondary)]";
+            pillStyle = { backgroundColor: "transparent" };
+          }
+
           return (
             <button
               key={n}
               type="button"
               onClick={() => onChange(n)}
+              onMouseEnter={() => setHover(n)}
               disabled={disabled}
               aria-label={`${label} ${n} ${f.label}`}
-              aria-pressed={on}
-              className={`flex w-11 flex-col items-center justify-center py-1 transition-opacity disabled:opacity-50 ${
-                on ? "opacity-100" : "opacity-40 hover:opacity-70"
-              }`}
+              aria-pressed={selected}
+              className={`flex w-12 cursor-pointer flex-col items-center justify-center rounded-md py-1 transition-[opacity,background-color] disabled:opacity-50 ${wrapClass}`}
+              style={pillStyle}
             >
               <span className="text-lg leading-none">{f.face}</span>
-              <span
-                className={`mt-0.5 text-[10px] font-medium ${
-                  on
-                    ? "text-[var(--primary-dark)]"
-                    : "text-[var(--text-secondary)]"
-                }`}
-              >
+              <span className={`mt-0.5 text-[10px] font-medium ${labelClass}`}>
                 {f.label}
               </span>
             </button>
@@ -684,6 +820,7 @@ function ChoiceField({
           <Chip
             key={opt.value}
             active={value === opt.value}
+            color={opt.color}
             onClick={() => onChange(opt.value)}
             disabled={disabled}
           >
