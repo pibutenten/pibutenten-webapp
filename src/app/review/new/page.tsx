@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
  *   2. active identity 없음 → /login?error=...
  *   3. 미온보딩(birthdate NULL)은 middleware 가 /onboarding 으로 자동 게이트 —
  *      여기서 별도 처리 안 함 (write 페이지와 동일).
- *   4. procedure_taxonomy 를 조회해 카테고리(리프팅→스킨부스터)+sort_order 로 정렬,
- *      정식 시술(parent_ko NULL) 아래 하위(parent_ko=해당 ko)를 묶어 그룹화한
- *      평면 옵션 리스트를 ReviewForm 에 전달. 정식·하위 모두 독립 선택 가능.
+ *   4. procedure_taxonomy(정식+하위) 조회. 카테고리(리프팅→스킨부스터) 순으로 묶고,
+ *      각 카테고리 안에서는 **태그 인기순**(발행 카드 keywords 빈도 desc, 동률 ko)으로 정렬.
+ *      — 태그 검색 화면(getPopularByCategory)과 동일 규칙. 정식·하위 모두 독립 선택 가능.
  *   5. active handle 도 전달 — 제출 성공 시 /{handle}/{shortcode} 상세 이동에 사용.
  */
 
@@ -23,7 +23,6 @@ type TaxonomyRow = {
   ko: string;
   parent_ko: string | null;
   category: string;
-  sort_order: number;
 };
 
 // 카테고리 표시 순서 (리프팅 → 스킨부스터). taxonomy.category enum 과 일치.
@@ -50,53 +49,42 @@ export default async function ReviewNewPage() {
   // 시술 분류 조회 (anon/authenticated SELECT 허용 — RLS procedure_taxonomy_read).
   const { data: taxData } = await supabase
     .from("procedure_taxonomy")
-    .select("ko, parent_ko, category, sort_order")
+    .select("ko, parent_ko, category")
     .eq("active", true)
     .returns<TaxonomyRow[]>();
-
   const rows = taxData ?? [];
 
-  // 정식 시술(parent_ko NULL) 을 카테고리(리프팅→스킨부스터) + sort_order 로 정렬.
-  const parents = rows
-    .filter((r) => r.parent_ko === null)
+  // 태그 인기순 — 발행 카드 keywords 빈도(태그 검색 getPopularByCategory 와 동일 규칙).
+  const { data: kwData } = await supabase
+    .from("cards")
+    .select("keywords")
+    .eq("status", "published");
+  const counts = new Map<string, number>();
+  for (const row of (kwData ?? []) as { keywords: string[] | null }[]) {
+    for (const kw of row.keywords ?? []) {
+      counts.set(kw, (counts.get(kw) ?? 0) + 1);
+    }
+  }
+
+  // 카테고리(리프팅→스킨부스터) → 그 안에서 빈도 desc, 동률은 ko 사전순.
+  const collator = new Intl.Collator("ko");
+  const procedures: ProcedureOption[] = rows
+    .slice()
     .sort((a, b) => {
       const ca = CATEGORY_ORDER[a.category] ?? 99;
       const cb = CATEGORY_ORDER[b.category] ?? 99;
       if (ca !== cb) return ca - cb;
-      return a.sort_order - b.sort_order;
-    });
-
-  // 상위 ko → 하위 목록 (sort_order 정렬).
-  const childrenByParent = new Map<string, TaxonomyRow[]>();
-  for (const r of rows) {
-    if (!r.parent_ko) continue;
-    const list = childrenByParent.get(r.parent_ko) ?? [];
-    list.push(r);
-    childrenByParent.set(r.parent_ko, list);
-  }
-  for (const list of childrenByParent.values()) {
-    list.sort((a, b) => a.sort_order - b.sort_order);
-  }
-
-  // 평면 옵션 — 각 정식 시술 바로 뒤에 그 하위를 묶어 배치.
-  // value=ko(서버 검증값), label=표시명, parentKo=소속(하위면 상위 ko), categoryLabel=그룹 헤더.
-  const procedures: ProcedureOption[] = [];
-  for (const p of parents) {
-    procedures.push({
-      value: p.ko,
-      label: p.ko,
-      parentKo: null,
-      categoryLabel: CATEGORY_LABEL[p.category] ?? p.category,
-    });
-    for (const c of childrenByParent.get(p.ko) ?? []) {
-      procedures.push({
-        value: c.ko,
-        label: c.ko,
-        parentKo: p.ko,
-        categoryLabel: CATEGORY_LABEL[c.category] ?? c.category,
-      });
-    }
-  }
+      const fa = counts.get(a.ko) ?? 0;
+      const fb = counts.get(b.ko) ?? 0;
+      if (fb !== fa) return fb - fa;
+      return collator.compare(a.ko, b.ko);
+    })
+    .map((r) => ({
+      value: r.ko,
+      label: r.ko,
+      parentKo: r.parent_ko,
+      categoryLabel: CATEGORY_LABEL[r.category] ?? r.category,
+    }));
 
   return <ReviewForm procedures={procedures} handle={idCtx.active.handle} />;
 }

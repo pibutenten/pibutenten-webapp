@@ -114,7 +114,7 @@ export async function POST(req: Request) {
 
   // 6. title 기본값.
   const rawTitle = (payload.title ?? "").trim() || `${procedureKo} 시술후기`;
-  const rawBody = (payload.body ?? "").trim();
+  const rawBody = payload.body.trim();
 
   // 7. 블라인드(마스킹) — 병원·의사명 지목 표현을 "○○" 로 가린다.
   //    하드블록(제출 차단)을 폐기하고, 마스킹된 텍스트로 교체 후 발생수를 집계.
@@ -168,7 +168,7 @@ export async function POST(req: Request) {
   }
 
   // 10. RPC — 카드 + procedure_reviews 원자적 생성. auth.uid() 소유자 검증은 RPC 내부.
-  //     p_title/p_body 는 마스킹된 값. 신규 척도·선택 항목을 매핑.
+  //     p_title/p_body 는 마스킹된 값. 단순화된 척도(만족도·통증·재시술·체감효과)만 매핑.
   const { data: rpcData, error: rpcErr } = await supabase.rpc("create_procedure_review", {
     p_author_id: idCtx.active.profileId,
     p_procedure_ko: procedureKo,
@@ -180,15 +180,8 @@ export async function POST(req: Request) {
     p_post_year: new Date().getUTCFullYear(),
     p_satisfaction: payload.satisfaction,
     p_pain: payload.pain,
-    p_downtime: payload.downtime,
-    p_sessions: payload.sessions,
-    p_timing: payload.timing,
     p_revisit: payload.revisit,
-    p_cost_satisfaction: payload.cost_satisfaction ?? null,
-    p_effect_areas: payload.effect_areas ?? null,
-    p_concurrent_procedures: payload.concurrent_procedures ?? null,
-    p_adverse_reactions: payload.adverse_reactions ?? null,
-    p_oneliner_type: payload.oneliner_type ?? null,
+    p_effect_areas: payload.effect_areas,
   });
   if (rpcErr) {
     // 중복(author+procedure) — RPC 가 ERRCODE 23505 또는 메시지에 duplicate_review 로 raise.
