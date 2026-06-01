@@ -147,38 +147,44 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
         - 데스크탑(≥640px): absolute 무효화하고 세로 스택(라벨 알약 + 아이콘 원).
       */}
       <style jsx>{`
-        /* ── 모바일 부채꼴 (기본) ── */
+        /* ── 모바일 부채꼴 (기본) — FAB 가까이 타이트하게, 라벨은 바깥쪽 ── */
         .fab-root :global(.fab-sat) {
           position: absolute;
-          flex-direction: column-reverse;
           align-items: center;
-          gap: 4px;
+          gap: 3px;
           animation: fab-pop 0.18s ease-out both;
         }
-        /* 보관함 → 맨 왼쪽(바깥) */
-        .fab-root :global(.fab-sat-library) {
-          bottom: 4px;
-          right: 84px;
-        }
-        /* 글쓰기 → 좌상단(중간) */
+        /* 보관함·글쓰기 → 라벨을 아이콘 왼쪽(바깥) */
+        .fab-root :global(.fab-sat-library),
         .fab-root :global(.fab-sat-write) {
-          bottom: 60px;
-          right: 60px;
+          flex-direction: row;
         }
-        /* 시술 후기 → 위(메인 버튼 쪽) */
+        /* 시술 후기 → 라벨을 아이콘 위(바깥) */
         .fab-root :global(.fab-sat-review) {
-          bottom: 84px;
-          right: 4px;
+          flex-direction: column;
         }
-        /* 모바일: 라벨 = 평문(상자 없음). 아이콘 아래에 작게. */
+        /* 위치 (FAB 가까이) — 보관함 왼쪽 / 글쓰기 좌상단 / 시술후기 위 */
+        .fab-root :global(.fab-sat-library) {
+          bottom: 5px;
+          right: 70px;
+        }
+        .fab-root :global(.fab-sat-write) {
+          bottom: 52px;
+          right: 52px;
+        }
+        .fab-root :global(.fab-sat-review) {
+          bottom: 70px;
+          right: 5px;
+        }
+        /* 모바일: 라벨 = 평문(상자 없음) + 강한 흰 외곽선(내용 위에서도 보이게) */
         .fab-root :global(.fab-sat .fab-label) {
           display: block;
-          font-size: 10px;
-          font-weight: 600;
+          font-size: 11px;
+          font-weight: 700;
           color: var(--text);
           white-space: nowrap;
-          text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95),
-            0 0 2px rgba(255, 255, 255, 0.95);
+          text-shadow: 0 1px 2px #fff, 0 -1px 2px #fff, 1px 0 2px #fff,
+            -1px 0 2px #fff, 0 0 5px #fff;
         }
 
         @keyframes fab-pop {
