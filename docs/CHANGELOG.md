@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-01] — 시술후기 입력 폼 (P3-d)
+
+### Added
+- `/review/new` 페이지(서버 컴포넌트): 로그인·active 가드 후 `procedure_taxonomy`(정식 31 + 하위 14, 카테고리·sort_order 정렬, 정식 아래 하위 그룹화)를 폼에 전달.
+- `ReviewForm`(클라이언트): 시술 선택(검색 드롭다운, 상위 › 하위 표기) + 필수 5(만족도·효과 별점 / 통증 세그먼트 / 회복기간 일수 / 추천 토글) + 선택(시술부위·비용만족·효과체감분야 칩 동안·피부장벽·자유후기). `/api/reviews` 제출 → screening 안내·차단 사유 노출 → `/{handle}/{shortcode}` 이동. 앱 CSS 토큰·showToast·pickErrorMessage 재사용.
+- 진입점은 임시(URL 직접). 정식 진입(FAB)은 P4.
+
+### Note
+- 비로그인 시 `/login?next=/review/new` 리다이렉트 확인. 빌드·tsc·라우트 컴파일 정상. 로그인 후 화면·제출 e2e 는 OAuth 세션 필요(원장님 직접 확인 권장).
+
+---
+
 ## [2026-06-01] — 시술후기 쓰기 경로 (P3-c)
 
 > 회원이 시술후기를 작성하면 개별 후기 카드(type=review) + procedure_reviews 행이 원자적으로 생성. 입력 폼 UI 는 P3-d.

@@ -59,6 +59,7 @@
 /notifications                      알림 목록
 /write                              글쓰기
 /write/[shortcode]                  글 수정 (자기 글)
+/review/new                         시술후기 작성 (P3-d, 전용 폼. 정식 진입은 P4 FAB 예정)
 ```
 
 ### 2.4. 관리자 영역 (role=admin 또는 doctor)
@@ -83,6 +84,7 @@
 ```
 POST   /api/articles                글 생성 (post/qa)
 PUT    /api/articles/[id]           글 수정
+POST   /api/reviews                 시술후기 생성 (P3-c, create_procedure_review RPC)
 GET    /api/cards                   search_cards_scored RPC
 *      /api/comments                댓글 CRUD
 *      /api/comments/[id]
