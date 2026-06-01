@@ -31,6 +31,8 @@ export type CardData = {
   /** DB enum `qa_card_type` 와 1:1 정합. 옛 "card"/"link" 리터럴 폐기 (P2-6, 2026-05-29). */
   type?: "qa" | "post";
   created_at?: string;
+  /** 의료 검토일 SSOT (P1-b). Q&A=검수일, post=NULL. 표시일 = reviewed_at ?? created_at. */
+  reviewed_at?: string | null;
   /** §2 SEO URL — /doctors/{slug}/{year}/{postSlug} canonical 생성용 */
   post_year?: number | null;
   post_slug?: string | null;

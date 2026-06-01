@@ -113,8 +113,12 @@ function buildJsonLd(
   postSlug: string,
 ) {
   const url = `${SITE}/doctors/${doctorSlug}/${year}/${encodeURIComponent(postSlug)}`;
-  const created = card.created_at ?? new Date().toISOString();
-  const modified = card.updated_at ?? created;
+  // 표시일 SSOT (P1-b): reviewed_at(의료 검토일) 우선, 없으면 created_at.
+  //   datePublished/lastReviewed 모두 이 displayDate 기준.
+  const displayDate =
+    card.reviewed_at ?? card.created_at ?? new Date().toISOString();
+  // dateModified 는 실제 마지막 수정일(updated_at) 의미 유지. 없으면 표시일로 fallback.
+  const modified = card.updated_at ?? displayDate;
   const docName = card.doctor?.name ?? "";
   const answerText = stripMarkdown(card.body);
 
@@ -157,9 +161,9 @@ function buildJsonLd(
     url,
     name: card.title,
     inLanguage: "ko-KR",
-    datePublished: created,
-    dateModified: modified, // cards.updated_at 활용 (AI freshness)
-    lastReviewed: modified.slice(0, 10),
+    datePublished: displayDate, // 표시일 = reviewed_at ?? created_at (P1-b)
+    dateModified: modified, // cards.updated_at 활용 (AI freshness) — 실제 마지막 수정일
+    lastReviewed: displayDate.slice(0, 10), // 의료 검토일 = reviewed_at ?? created_at
     reviewedBy: { "@id": `${SITE}/doctors/${doctorSlug}#person` },
     isPartOf: { "@id": `${SITE}/#website` },
     primaryImageOfPage: {
@@ -187,13 +191,13 @@ function buildJsonLd(
       mainEntityOfPage: { "@id": `${url}#webpage` },
       answerCount: 1,
       upvoteCount: card.like_count ?? 0,
-      dateCreated: created,
+      dateCreated: displayDate,
       author: { "@id": `${SITE}/doctors/${doctorSlug}#person` },
       acceptedAnswer: {
         "@type": "Answer",
         text: answerText.slice(0, 4000),
         author: { "@id": `${SITE}/doctors/${doctorSlug}#person` },
-        dateCreated: created,
+        dateCreated: displayDate,
         upvoteCount: card.like_count ?? 0,
         url,
         // 학술 인용(Schema.org Citation) — pubmed_refs 배열 (ADR 0012 단일 출처).

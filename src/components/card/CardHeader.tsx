@@ -85,11 +85,14 @@ export default function CardHeader({
   const avatarTy =
     theme?.avatarOffsetY ?? (theme?.offsetY ?? 0) * 0.46;
 
-  const hasDate = !!card.created_at;
-  const dateAbsolute = card.created_at
-    ? absoluteDateTimeLabel(card.created_at)
+  // 표시일 SSOT (P1-b): reviewed_at(의료 검토일) 우선, 없으면 created_at.
+  //   Q&A 카드는 검수일, post 카드는 reviewed_at NULL 이라 자동으로 created_at.
+  const effectiveDate = card.reviewed_at ?? card.created_at ?? null;
+  const hasDate = !!effectiveDate;
+  const dateAbsolute = effectiveDate
+    ? absoluteDateTimeLabel(effectiveDate)
     : null;
-  const dateIso = card.created_at ?? undefined;
+  const dateIso = effectiveDate ?? undefined;
 
   // ── 메뉴 ──
   const [menuOpen, setMenuOpen] = useState(false);
@@ -318,14 +321,14 @@ export default function CardHeader({
             return (
               <div className="mt-[5px] truncate text-[11.5px] leading-[1.2] text-[var(--text-muted)]">
                 {catLabel}
-                {hasDate && card.created_at && (
+                {hasDate && effectiveDate && (
                   <>
                     {catLabel ? " · " : ""}
                     <time
                       dateTime={dateIso}
                       title={dateAbsolute ?? undefined}
                     >
-                      <RelativeTime iso={card.created_at} />
+                      <RelativeTime iso={effectiveDate} />
                     </time>
                   </>
                 )}

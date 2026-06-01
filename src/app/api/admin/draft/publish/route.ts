@@ -357,6 +357,10 @@ export async function POST(req: Request) {
         doctorIdToProfileId.get(doctorId) ?? guard.adminProfileId,
       created_at: `${yyyymmdd} 00:00:00+09`,
       updated_at: now.toISOString(),
+      // 의료 검토일(SSOT) — 마이그레이션 0196 신설 `cards.reviewed_at`.
+      //   published 로 즉시 발행 = 검수 완료 시점이므로 now.
+      //   draft / pending_review = 아직 검수 전이므로 null.
+      reviewed_at: status === "published" ? now.toISOString() : null,
     });
   }
 

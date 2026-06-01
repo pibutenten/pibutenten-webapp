@@ -37,6 +37,7 @@ type CardRow = {
   title: string | null;
   body: string | null;
   created_at: string;
+  reviewed_at: string | null;
   post_year: number | null;
   post_slug: string | null;
   doctor: DoctorRel;
@@ -50,7 +51,7 @@ export async function GET() {
   const { data: cards } = await supabase
     .from("cards")
     .select(
-      "id, title, body, created_at, post_year, post_slug, doctor_id, doctor:doctors(slug,name)",
+      "id, title, body, created_at, reviewed_at, post_year, post_slug, doctor_id, doctor:doctors(slug,name)",
     )
     .eq("status", "published")
     .eq("category", "qa")
@@ -63,7 +64,8 @@ export async function GET() {
       const doc = Array.isArray(c.doctor) ? c.doctor[0] : c.doctor;
       if (!doc?.slug || !c.post_year || !c.post_slug) return [];
       const url = `${SITE_URL}/doctors/${doc.slug}/${c.post_year}/${encodeURIComponent(c.post_slug)}`;
-      const pubDate = new Date(c.created_at).toUTCString();
+      // 표시일 SSOT (P1-b): pubDate = reviewed_at(검수일) ?? created_at.
+      const pubDate = new Date(c.reviewed_at ?? c.created_at).toUTCString();
       const desc = (c.body ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
       return [
         `<item>

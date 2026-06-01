@@ -117,7 +117,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { data: publishedCards } = await supabase
       .from("cards")
       .select(
-        "id, created_at, updated_at, doctor_id, post_year, post_slug, doctor:doctors(slug)",
+        "id, created_at, reviewed_at, updated_at, doctor_id, post_year, post_slug, doctor:doctors(slug)",
       )
       .eq("status", "published")
       .eq("category", "qa")
@@ -129,9 +129,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .select("slug, updated_at, created_at");
 
     const cardRoutes: MetadataRoute.Sitemap = (publishedCards ?? []).flatMap((q) => {
-      // 2026-05-28: lastModified 정확화 — updated_at 우선, 없으면 created_at
-      // (Freshness signal 강화 — BrightEdge: 60일 내 업데이트 페이지 AI 답변 등장 확률 1.9배)
-      const lastModifiedSource = q.updated_at ?? q.created_at;
+      // 표시일 SSOT (P1-b): lastModified = reviewed_at(검수일) ?? created_at.
+      //   날짜 표시처를 한 규칙으로 통일 (Q&A=검수일, post=created_at).
+      const lastModifiedSource = q.reviewed_at ?? q.created_at;
       const lastModified = lastModifiedSource ? new Date(lastModifiedSource) : now;
       // 의사 글 + post_year + post_slug → canonical URL
       // (Supabase nested doctors join은 1:1이지만 array로 올 수 있어 조심)

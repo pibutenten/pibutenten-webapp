@@ -393,6 +393,20 @@ export async function PUT(
     }
   }
 
+  // 의료 검토일(SSOT) 기록 — 마이그레이션 0196 신설 `cards.reviewed_at`.
+  // 정책: Q&A 카드(type='qa')를 사람(의사/관리자/작성자)이 손으로 편집·발행해
+  //   이번 수정 결과 최종 status 가 'published' 가 되는 경우 = 검수 확정 시각.
+  //   "한 글자만 고쳐도 검토를 확정한 것" 정책.
+  // 위치 주의: 반드시 screening 강제 전환 로직 *이후*. screening 으로
+  //   status 가 'pending_review' 로 강제되면 아래 조건(=== 'published')에서 자연히 제외됨.
+  // post 카드(type='post')는 어떤 경우에도 reviewed_at 을 건드리지 않음 (NULL 유지).
+  // 최종 type 판정: 이번 수정에서 category 변경으로 type 이 바뀌면 update.type 을, 아니면 기존 card.type 을 사용.
+  const finalType =
+    (update.type as string | undefined) ?? (card.type as string | null);
+  if (finalType === "qa" && update.status === "published") {
+    update.reviewed_at = new Date().toISOString();
+  }
+
   const { error: updErr } = await supabase
     .from("cards")
     .update(update)

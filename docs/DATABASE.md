@@ -293,6 +293,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0193 | `cards_doctor_year_slug_uidx` 부분 UNIQUE 인덱스 — `(doctor_id, post_year, post_slug) WHERE doctor_id IS NOT NULL AND post_slug IS NOT NULL`. slug 동시저장 충돌 최후 방어선 (23505). 회원글/빈 slug 제외 | **적용 완료 (2026-05-30, 중복 0 확인 후)** |
 | 0194 | `feed_cards_scored` + `search_cards_scored` 점수 공식 교체 — 참여 가중치(저장·공유·댓글 ×2, 좋아요 ×1, 조회 ×0.1) + New 부스트(`1.5·0.5^(글나이[h])`, 반감기 1h). 공유=기존 `share_count`, 댓글=`comments(status='visible')` 즉시 count(컬럼/트리거 추가 없음). 함수 본문만 교체 | **적용 완료 (2026-05-31)** |
 | 0195 | `notifications_push_webhook()` 함수 `v_url` 도메인 이전 (`pbtt.kr` → `pibutenten.kr`). net.http_post 는 POST 라 301 미추종 → 새 도메인 직접 호출. 함수 본문은 0105 그대로, URL 한 줄만 교체 (도메인 이전 A-2) | **적용 완료 (2026-05-31)** |
+| 0196 | `cards.reviewed_at timestamptz` 신설 + 백필. 의료 검토일 SSOT (Q&A=검수 확정 시각, post=NULL). 백필(Q&A published): 3월까지=영상 게시일(KST 자정), 4월이후=검수일(updated_at)/발행일(bold덮임 15건 보정). 표시·정렬 = `COALESCE(reviewed_at, created_at)`. 트리거 안전 위해 단일 UPDATE+CASE. P1-b | **적용 완료 (2026-06-01)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

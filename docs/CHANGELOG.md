@@ -6,6 +6,24 @@
 
 ---
 
+## [2026-06-01] — reviewed_at(의료 검토일 SSOT) 도입 + 표시처 통일 (P1-b)
+
+### Added
+- `cards.reviewed_at timestamptz` 컬럼 신설(마이그 0196). **의료 검토일 SSOT**. Q&A = 의사 검수 확정 시각, post(끄적끄적) = NULL.
+- 과거 백필(Q&A published): 3월까지 = 영상 게시일(KST 자정) / 4월 이후 = 검수일(updated_at), 단 bold 일괄수정으로 검수일이 덮인 15건은 발행일(created_at) 근사.
+
+### Changed
+- **표시처 SSOT 통일**: 모든 사용자 노출 날짜 = `COALESCE(reviewed_at, created_at)`. 적용처 — 목록 카드(`CardHeader`), 의사 글 상세 JSON-LD(`datePublished`/`lastReviewed`), RSS `pubDate`, sitemap `lastmod`. JSON-LD `lastReviewed` 가 기존 `updated_at` 가공값이었던 것을 `reviewed_at` 으로 교정. `dateModified` 는 `updated_at`(실제 수정일) 의미 유지.
+- **검수 시 reviewed_at 자동 기록**: 의사/관리자가 Q&A 를 published 로 확정·편집(`PUT /api/articles/[id]`)하면 `reviewed_at = now()`. 관리자 발행(`/api/admin/draft/publish`)은 published 면 now, draft·pending_review 면 null. 기계적 수정(직접 SQL)엔 트리거가 updated_at 만 갱신하므로 reviewed_at 보존.
+- `card-select.ts`(CARD_LIST/DETAIL_SELECT) + `types/card.ts` 에 `reviewed_at` 추가.
+
+### Fixed
+- 백필 1차 실행 시 `cards_set_updated_at` 트리거가 updated_at 을 now() 로 덮어 4월 이후 15건의 reviewed_at 이 now() 로 잘못 들어간 것을 즉시 created_at 으로 보정. 0196 파일은 트리거 안전한 단일 UPDATE+CASE 로 정합화.
+
+> 검수일 전용 기록 부재 규명: 기존엔 status 전환 시각이 `cards.updated_at` 에만 남았고 audit_logs 는 2026-05-30 부터 카드 3건뿐(트리거는 알림 발송용). reviewed_at 도입으로 향후 검수일이 기계적 수정에 덮이지 않고 보존됨.
+
+---
+
 ## [2026-06-01] — Q&A 영상 게시일(upload_date) 백필 + 발행 영상정보 정합성 (P1-a)
 
 ### Fixed
