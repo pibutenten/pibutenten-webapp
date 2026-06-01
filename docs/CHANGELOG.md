@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-01] — 시술 후기 DB 기반 procedure_reviews 신설 (P3-b)
+
+> 개별 시술후기의 정량 데이터 저장소. 카드(type=review)와 1:1. 리포트 집계는 P3-d.
+
+### Added
+- `qa_type` enum 에 `review`·`review_summary` 추가(미사용 시 무해, 마이그 0200).
+- `procedure_reviews` 테이블: `card_id`(1:1 unique FK→cards)·`procedure_ko`(→procedure_taxonomy)·`author_id`(→profiles). 필수 `satisfaction`/`effect`/`pain`(1~5)·`recovery_days`(0~365)·`would_recommend`(bool). 선택 `area`·`cost_satisfaction`(1~5)·`effect_areas`(text[]). updated_at 트리거. 인덱스 procedure_ko/author_id.
+- RLS: ① 공개(published·미삭제) 카드에 연결된 후기 읽기 공개 ② 본인 후기 열람. 쓰기 정책 없음(작성은 API service_role).
+
+### Note
+- `cards.category` CHECK 에 review/review_summary 추가는 **P3-c 에서 `post-category.ts` 와 동반 변경**(CLAUDE.md §5 동기화 페어). 본 단계에서는 category CHECK 미변경(qa/doodle 유지).
+
+---
+
 ## [2026-06-01] — 시술 분류 체계 procedure_taxonomy 신설 (P3-a)
 
 > P3(시술 후기)의 뿌리. 후기 대상 정식 시술 31종 + 하위 종류 14개를 2계층 테이블로 DB화. 이후 단계(이중집계·검색확장)가 이 테이블을 JOIN.
