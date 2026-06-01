@@ -80,9 +80,9 @@ const PAIN_FACES: { face: string; label: string }[] = [
 type ChoiceOption = { value: string; label: string; color?: string };
 
 const REVISIT_OPTIONS: ChoiceOption[] = [
-  { value: "yes", label: "예", color: "var(--primary)" },
-  { value: "no", label: "아니오", color: "#E5484D" },
-  { value: "maybe", label: "고민중", color: "#5C6470" },
+  { value: "yes", label: "있어요", color: "var(--primary)" },
+  { value: "no", label: "없어요", color: "#E5484D" },
+  { value: "maybe", label: "고민 중이에요", color: "#9AA1AC" },
 ];
 
 /* 한줄후기 placeholder 프롬프트 — 작성을 유도하는 문구. 2.5초마다 회전. */
@@ -613,26 +613,13 @@ function EffectChip({
 
   let style: CSSProperties;
   if (active) {
-    style = {
-      backgroundColor: color + "1A",
-      color,
-      border: `1px solid ${color}`,
-      fontWeight: 700,
-    };
+    // 선택됨 = 칸 색 solid + 흰 글씨 (테두리 없이, 다른 항목과 통일).
+    style = { backgroundColor: color, color: "#FFFFFF", fontWeight: 600 };
   } else if (hover && !disabled) {
-    style = {
-      backgroundColor: color + "14",
-      color,
-      border: "1px solid transparent",
-      fontWeight: 600,
-    };
+    // 호버(미선택) = 그 색 연한 미리보기.
+    style = { backgroundColor: color + "22", color, fontWeight: 600 };
   } else {
-    style = {
-      backgroundColor: "#E8EAEE",
-      color: "#5C6470",
-      border: "1px solid transparent",
-      fontWeight: 500,
-    };
+    style = { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 };
   }
 
   return (
@@ -684,9 +671,12 @@ function StarField({
         onMouseLeave={() => setHover(0)}
       >
         {[1, 2, 3, 4, 5].map((n) => {
-          const filled = hover > 0 ? n <= hover : n <= value;
-          const color = filled ? "var(--accent-save)" : "var(--bg-soft)";
-          const previewing = filled && hover > 0;
+          // 확정(n<=value): 호버 중에도 진한 확정색(클릭하면 바로 확정된 느낌).
+          // 호버 추가분(value 초과 ~ hover): 연한 미리보기. 그 외: 회색.
+          const confirmed = n <= value;
+          const hoverExtra = hover > 0 && n > value && n <= hover;
+          const gold = confirmed || hoverExtra;
+          const color = gold ? "var(--accent-save)" : "var(--bg-soft)";
           return (
             <button
               key={n}
@@ -696,7 +686,7 @@ function StarField({
               onMouseEnter={() => setHover(n)}
               disabled={disabled}
               className={`flex w-12 cursor-pointer items-center justify-center text-2xl leading-none transition-transform hover:scale-110 disabled:opacity-50 ${
-                previewing ? "opacity-50" : "opacity-100"
+                hoverExtra ? "opacity-50" : "opacity-100"
               }`}
               style={{ color }}
             >
@@ -779,7 +769,14 @@ function FaceField({
               className={`flex w-12 cursor-pointer flex-col items-center justify-center rounded-md py-1 transition-[opacity,background-color] disabled:opacity-50 ${wrapClass}`}
               style={pillStyle}
             >
-              <span className="text-lg leading-none">{f.face}</span>
+              <span
+                className="text-lg leading-none"
+                style={{
+                  filter: selected || previewing ? "none" : "grayscale(1)",
+                }}
+              >
+                {f.face}
+              </span>
               <span className={`mt-0.5 text-[10px] font-medium ${labelClass}`}>
                 {f.label}
               </span>

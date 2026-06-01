@@ -170,11 +170,9 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
           bottom: 84px;
           right: 4px;
         }
-        /* 모바일 라벨: 작은 글씨 + 알약 배경 약화 */
+        /* 모바일: 라벨 숨김 (아이콘만으로 충분) */
         .fab-root :global(.fab-sat .fab-label) {
-          font-size: 11px;
-          padding: 1px 8px;
-          white-space: nowrap;
+          display: none;
         }
 
         @keyframes fab-pop {
@@ -198,8 +196,11 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
             animation: none;
           }
           .fab-root :global(.fab-sat .fab-label) {
+            display: inline-flex;
+            align-items: center;
             font-size: 14px;
             padding: 4px 12px;
+            white-space: nowrap;
           }
         }
       `}</style>
