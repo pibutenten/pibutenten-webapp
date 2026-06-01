@@ -96,7 +96,14 @@ ${safeTranscript}
 JSON 단일 객체만 출력. 마크다운 펜스 금지.`;
 }
 
-function normalize(parsed: unknown): DraftCard[] {
+/** 유튜브 video ID 형식: 11자 [A-Za-z0-9_-]. */
+const YOUTUBE_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+
+/**
+ * @param inputVideoId analyze 단계에서 정규 추출된 입력 videoId.
+ *   LLM 이 반환한 source.video_id 가 11자 형식이 아니면 이 값으로 교정한다.
+ */
+function normalize(parsed: unknown, inputVideoId: string): DraftCard[] {
   if (!parsed || typeof parsed !== "object") {
     throw new Error("Step1 output is not an object");
   }
@@ -142,7 +149,13 @@ function normalize(parsed: unknown): DraftCard[] {
       keywords,
       category: typeof obj.category === "string" ? obj.category : undefined,
       source: {
-        video_id: typeof src.video_id === "string" ? src.video_id : "",
+        // video_id 형식 검증 (재발 방지): LLM 이 빈 문자열·한글 파일명 등을 반환한
+        // 사례가 있어, 11자 유튜브ID 형식이 아니면 입력 videoId 로 교정한다.
+        // 정상 11자 ID 는 그대로 통과 (기존 동작 보존).
+        video_id:
+          typeof src.video_id === "string" && YOUTUBE_ID_RE.test(src.video_id)
+            ? src.video_id
+            : inputVideoId,
         video_title: typeof src.video_title === "string" ? src.video_title : "",
         source_file: typeof src.source_file === "string" ? src.source_file : "",
         video_url: typeof src.video_url === "string" ? src.video_url : "",
@@ -204,7 +217,7 @@ export async function runStep1(opts: {
     .trim();
   if (!text) throw new Error("Step1 returned empty content");
   const parsed = extractJson(text);
-  const drafts = normalize(parsed);
+  const drafts = normalize(parsed, opts.videoId);
   return {
     drafts,
     usage: {

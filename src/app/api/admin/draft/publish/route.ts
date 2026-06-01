@@ -44,6 +44,7 @@ import { isSlugUniqueViolation, SLUG_TAKEN_MESSAGE } from "@/lib/slug-conflict";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { logAudit } from "@/lib/audit-log";
+import { fetchYoutubeUploadDateKst } from "@/lib/ai/youtube-upload-date";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -103,6 +104,11 @@ export async function POST(req: Request) {
   if (!videoId || !Array.isArray(body.cards)) {
     return errorResponse(null, "invalid_input", "[admin/draft/publish] videoId/cards required", 400, undefined, { userMessage: "videoId, cards[] required" });
   }
+  // videoId 형식 검증 (재발 방지): 빈 문자열·한글 파일명 등이 meta.video_id 에
+  // 들어간 사례가 있어, 11자 유튜브ID 형식이 아니면 발행을 차단한다.
+  if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+    return errorResponse(null, "invalid_input", "[admin/draft/publish] invalid videoId format", 400, undefined, { userMessage: `videoId 형식이 올바르지 않습니다 (11자 유튜브ID 필요): "${videoId}"` });
+  }
   const cards = body.cards as CardIn[];
   if (cards.length === 0) {
     return errorResponse(null, "invalid_input", "[admin/draft/publish] cards empty", 400, undefined, { userMessage: "cards is empty" });
@@ -131,6 +137,23 @@ export async function POST(req: Request) {
 
   // videos UPSERT — youtube_id 기준. 모든 cards.video_id에 이 row.id 채움.
   const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+  // upload_date(영상 게시일) best-effort 채움.
+  //   - OAuth(YouTube Data API) refresh_token 만료로 watch 페이지 메타에서 추출.
+  //   - 회귀 보호: 기존에 이미 upload_date 가 있는 영상을 null 로 덮으면 안 됨.
+  //     기존값 조회 → (새로 구한 값 ?? 기존값 ?? null) 우선순위로 결정.
+  //   - 못 구해도(null) 발행은 정상 진행.
+  const { data: existingVideoRow } = await supabase
+    .from("videos")
+    .select("upload_date")
+    .eq("youtube_id", videoId)
+    .maybeSingle();
+  const existingUploadDate =
+    (existingVideoRow as { upload_date: string | null } | null)?.upload_date ??
+    null;
+  const fetchedUploadDate = await fetchYoutubeUploadDateKst(videoId);
+  const uploadDate = fetchedUploadDate ?? existingUploadDate ?? null;
+
   const { data: videoRow, error: vidErr } = await supabase
     .from("videos")
     .upsert(
@@ -138,6 +161,7 @@ export async function POST(req: Request) {
         youtube_id: videoId,
         youtube_url: youtubeUrl,
         topic: videoTitle || null,
+        upload_date: uploadDate,
       },
       { onConflict: "youtube_id" },
     )

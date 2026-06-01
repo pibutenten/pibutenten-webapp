@@ -6,6 +6,32 @@
 
 ---
 
+## [2026-06-01] — Q&A 영상 게시일(upload_date) 백필 + 발행 영상정보 정합성 (P1-a)
+
+### Fixed
+- 영상 게시일(`videos.upload_date`)이 비어있던 Q&A 영상 9개(귀속 카드 37장) 백필. 각 영상 watch 페이지 메타에서 게시일을 추출해 채움. 형식은 기존 944건과 동일하게 "게시시각의 KST 변환 날짜"(`AT TIME ZONE 'Asia/Seoul'`) 기준으로 통일. 스크립트: `scripts/backfill_video_upload_dates_260601.sql`. 결과: `upload_date` NULL 인 활성 Q&A 카드 0.
+- 영상정보 누락 원인 규명: `meta.video_id` 의 빈값·한글 파일명은 검수 중 소실이 아니라 발행 시점의 video_id 형식 무검증 + videos UPSERT 시 `upload_date` 미기록 때문. 카드의 정식 연결(`cards.video_id` FK)은 정상이었음.
+
+### Added
+- `src/lib/ai/youtube-upload-date.ts`: 영상 watch 페이지에서 게시일을 KST 날짜(YYYY-MM-DD)로 추출하는 best-effort 유틸. 실패 시 throw 없이 null 반환. (기존 YouTube Data API OAuth refresh_token 만료(invalid_grant) 대체 수단)
+
+### Changed
+- `/api/admin/draft/publish`: videos UPSERT 시 `upload_date` 를 best-effort 자동 채움(새값 ?? 기존값 ?? null 우선순위로 기존값 null 덮어쓰기 방지). 발행 입력 `videoId` 에 11자 유튜브ID 형식 검증 추가(빈값·한글 파일명 차단).
+- `src/lib/ai/step1.ts`: LLM 이 반환한 `source.video_id` 가 11자 형식이 아니면 analyze 단계의 입력 videoId 로 교정.
+
+> 알려진 한계: watch fetch 가 production(Vercel) 데이터센터 IP 에서 봇 차단/동의 인터스티셜로 막힐 수 있음. 그 경우 유틸은 null 을 반환하고 발행은 정상 진행되며, 필요 시 게시일은 주기적 백필로 보완. 개별 fetch timeout 가드는 없으나 라우트 `maxDuration=60` 가 상한.
+
+---
+
+## [2026-05-31] — AI 협업 룰: 조사 깊이 기본 절차 추가 (CLAUDE.md §2)
+
+### Changed
+- 루트 `CLAUDE.md` §2 "수정 요청 처리 절차" 에 **"조사 깊이 기본 절차 (필수)"** subsection 추가. 조사·질문 요청 시 컬럼명 패턴 매칭 등 단일 출처로 끝내지 말고 4계층(① 스키마 전수 ② JSON·구조 내부 ③ 관련 테이블·로그·트리거 ④ 코드 워크플로 추적) 전수 확인 후 "DB 직접 저장값 vs 코드 파생·가공값 vs 미기록" 구분 명시하도록 규정.
+
+> 배경: `cards` date 필드 조사에서 컬럼명 패턴만 보고 끝내 JSON-LD `lastReviewed`(= `updated_at` 가공 SEO 값) 와 검수 시점 기록 부재를 초기에 놓친 사례. 향후 모든 세션에 적용되는 영구 룰로 승격.
+
+---
+
 ## [2026-05-31] — PWA 설치 아이콘 여백 보정 (maskable 안전영역)
 
 ### 배경
