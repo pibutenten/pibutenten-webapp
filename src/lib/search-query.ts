@@ -48,12 +48,15 @@ export async function fetchCardList(
 
   // 카테고리 라벨 검색 — q 를 본문 매칭 대신 category 컬럼만.
   // doctor_slug 와 동시 사용 케이스는 현재 없으나 향후 확장 대비 doctor_id 매칭도 함께.
+  // 정렬: 표시일 = reviewed_at ?? created_at 과 일치하도록 reviewed_at 우선
+  //   (qa 는 검수일 = reviewed_at, doodle 은 reviewed_at NULL → created_at 으로 자연 정렬).
   if (categorySlug) {
     let qb = supabase
       .from("cards")
       .select(CARD_LIST_SELECT)
       .eq("status", "published")
       .eq("category", categorySlug)
+      .order("reviewed_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
     // doctor_slug 가 지정되면 doctor.id 조인 후 필터 — 현재 호출 케이스에 없지만 확장 대비.

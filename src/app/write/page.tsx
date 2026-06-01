@@ -63,8 +63,8 @@ export default async function WritePage({
   }
 
   // URL 파라미터 → 초기 카테고리.
-  //   1) ?category=qa|tip|diary|ask|link 우선
-  //   2) ?type=qa (legacy) → 'qa'로 매핑 / 그 외 type은 무시 (post는 카테고리 다중)
+  //   1) ?category=qa|doodle 우선 (isPostCategorySlug 검증 — 폐지 카테고리는 자동 거부)
+  //   2) ?type=qa (legacy) → 'qa'로 매핑 / 그 외 type은 무시
   //   3) role 권한 검증 — qa는 doctor/admin 한정
   let initialCategory: PostCategorySlug | undefined;
   if (rawCategory && isPostCategorySlug(rawCategory)) {

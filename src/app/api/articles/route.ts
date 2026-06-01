@@ -186,9 +186,9 @@ export async function POST(req: Request) {
   }
 
   // 카테고리 결정 — payload.category 우선, 없으면 type에서 자동 매핑.
-  // v5.2: 6개 카테고리 qa/tip/diary/ask/link/doodle (doodle=끄적끄적)
-  //   ※ 2026-05-22 fix: 이전엔 'doodle' 누락으로 끄적끄적 글이 'diary'로 잘못 저장되던 버그.
-  const VALID_CATEGORIES = ["qa", "tip", "diary", "ask", "link", "doodle"];
+  // v6: 2개 카테고리 qa/doodle (qa=의사 Q&A, doodle=끄적끄적). 마이그 0198.
+  //   폐지: tip/diary/ask/link (전부 doodle 로 통합).
+  const VALID_CATEGORIES = ["qa", "doodle"];
   let category: string;
   if (payload.category && VALID_CATEGORIES.includes(payload.category)) {
     category = payload.category;

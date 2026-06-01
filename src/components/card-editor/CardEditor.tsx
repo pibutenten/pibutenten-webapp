@@ -14,11 +14,10 @@
  * 책임:
  *   - 카테고리 picker (role 별 옵션 필터)
  *   - 제목 / 본문 (Q&A 면 MarkdownBoldEditor + 형광펜, 그 외 textarea)
- *   - 외부 링크 (ExternalLinkField — qa 영상 시작시간 + 새소식 미리보기)
+ *   - 외부 링크 (ExternalLinkField — qa 영상 시작시간)
  *   - PubMed 참고문헌 (PubmedRefsField)
  *   - 태그 (KeywordsEditor)
  *   - 의사 명의 글쓰기 (doctorSlug — admin/doctor)
- *   - 새소식 첫 댓글 (link 카테고리)
  *   - **adminExtras 일 때만**: author picker / doctor picker / isPick / status change /
  *     comment count / 시작시각(MM:SS) / 태그 자동추출 / soft-delete
  *
@@ -104,8 +103,6 @@ export type CardEditorPayload = {
   pubmedRefs: NonNullable<PubmedRefObj>[];
   /** create 모드 (admin/doctor 의사 명의로 작성 시) */
   doctorSlug?: string | null;
-  /** create 모드 link 카테고리 — 첫 댓글 */
-  firstComment?: string;
   /** admin extras 일 때만 추가됨 */
   status?: CardStatus;
   isPick?: boolean;
@@ -353,8 +350,6 @@ export default function CardEditor({
   // admin 의 글쓴이 dropdown 선택값 — "" 면 본인(관리자) 명의, slug 면 그 의사 명의.
   // doctor 본인은 자동 (myDoctor.slug). 회원은 항상 본인 명의.
   const [createAuthorSlug, setCreateAuthorSlug] = useState<string>("");
-  // link 카테고리 첫 댓글
-  const [firstComment, setFirstComment] = useState("");
 
   /* ── admin extras state (edit 모드 admin) ───────────────────── */
   const [authorProfileId, setAuthorProfileId] = useState<string | null>(
@@ -375,43 +370,23 @@ export default function CardEditor({
 
   /* ── 파생 ──────────────────────────────────────────────────── */
   const isQa = category === "qa";
-  const isLink = category === "link";
   const showRefs = isQa;
-  // 외부 링크 — 카테고리 기준만 (admin 모드 우대 X).
-  // qa = 영상 URL + 시작시각 / link = 외부 콘텐츠 큐레이션
-  const showExternal = isQa || isLink;
+  // 외부 링크 — qa 영상 URL + 시작시각 전용 (doodle 등 일반 글은 외부 링크 영역 없음).
+  const showExternal = isQa;
   const showStartTime = isQa; // 시작시각은 qa 영상용
   // 2026-05-22 사용자 결정: 라벨 통일 — qa 도 "제목"/"본문" (옛 "질문"/"답변" 폐기)
   const titleLabel = "제목";
   const bodyLabel = "본문";
-  // 2026-05-22: 본문 글자수 한도 4000자 통일 (옛 link 카테고리 800자 폐기)
+  // 본문 글자수 한도 4000자 통일.
   const bodyMax = BODY_MAX_DEFAULT;
   const highlightSeed = String(initialCard?.cardId ?? "new");
 
   /* ── 카테고리 picker ──────────────────────────────────────── */
-  // same-group = 단순 텍스트 카테고리 (제목+본문+태그 구조 동일). 자유 전환.
-  // cross-group = qa(외부영상+PubMed) / link(외부URL+첫댓글). 구조 다름 → confirm.
-  const SAME_GROUP: ReadonlySet<PostCategorySlug> = new Set<PostCategorySlug>([
-    "doodle",
-    "diary",
-    "tip",
-    "ask",
-  ]);
-  function isCrossGroupSwitch(
-    a: PostCategorySlug | null,
-    b: PostCategorySlug,
-  ): boolean {
-    if (!a) return false;
-    return !(SAME_GROUP.has(a) && SAME_GROUP.has(b));
-  }
+  // 현 카테고리는 qa / doodle 2종. qa(외부영상+PubMed) ↔ doodle(단순 텍스트) 간
+  // 전환은 구조가 다르므로 입력값이 있으면 confirm.
   function changeCategory(next: PostCategorySlug) {
     if (next === category) return;
-    // cross-group 전환 시에만 confirm (소식공유/Q&A 와 다른 카테고리 간 이동)
-    const crossGroup = isCrossGroupSwitch(category, next);
-    if (
-      crossGroup &&
-      (title.trim() || body.trim() || keywords.length > 0)
-    ) {
+    if (title.trim() || body.trim() || keywords.length > 0) {
       const ok = window.confirm(
         "주의: 카테고리를 변경하면 일부 정보가 소실될 수 있습니다. 계속하시겠습니까?",
       );
@@ -421,8 +396,6 @@ export default function CardEditor({
     if (next !== "qa") {
       setReferences([""]);
       setRefsMeta([null]);
-    }
-    if (next !== "qa" && next !== "link") {
       setExternalUrl("");
       setExternalMeta(null);
     }
@@ -555,8 +528,6 @@ export default function CardEditor({
       } else if (viewerRole === "admin" && createAuthorSlug) {
         payload.doctorSlug = createAuthorSlug;
       }
-      if (isLink && firstComment.trim())
-        payload.firstComment = firstComment.trim();
     }
 
     if (isAdminMode) {
@@ -728,29 +699,13 @@ export default function CardEditor({
 
         {/* 첨부 영역 — 외부 링크 + 시작시각 (제목 바로 위, 원본 순서 유지) */}
         <CardEditorAttachments
-          mode={mode}
           pending={pending}
           onError={setError}
           showExternal={showExternal}
-          isQa={isQa}
-          isLink={isLink}
           externalUrl={externalUrl}
           onChangeExternalUrl={setExternalUrl}
           externalMeta={externalMeta}
           onChangeExternalMeta={setExternalMeta}
-          bodyMax={bodyMax}
-          onAutoFill={
-            mode === "create" && isLink
-              ? ({ title: t, body: b, keywords: k }) => {
-                  setTitle("");
-                  setBody("");
-                  setKeywords([]);
-                  if (t) setTitle(t);
-                  if (b) setBody(b);
-                  if (k.length > 0) setKeywords(k);
-                }
-              : undefined
-          }
           isAdminMode={isAdminMode}
           showStartTime={showStartTime}
           startInput={startInput}
@@ -765,8 +720,6 @@ export default function CardEditor({
             setReferences(v);
             setRefsMeta(m);
           }}
-          firstComment={firstComment}
-          onChangeFirstComment={setFirstComment}
           renderSection="external"
         />
 
@@ -798,19 +751,15 @@ export default function CardEditor({
           />
         )}
 
-        {/* 첨부 영역 — Q&A 참고문헌 + link 첫 댓글 (본문 아래) */}
+        {/* 첨부 영역 — Q&A 참고문헌 (본문 아래) */}
         <CardEditorAttachments
-          mode={mode}
           pending={pending}
           onError={setError}
           showExternal={false}
-          isQa={isQa}
-          isLink={isLink}
           externalUrl={externalUrl}
           onChangeExternalUrl={setExternalUrl}
           externalMeta={externalMeta}
           onChangeExternalMeta={setExternalMeta}
-          bodyMax={bodyMax}
           isAdminMode={isAdminMode}
           showStartTime={false}
           startInput={startInput}
@@ -825,8 +774,6 @@ export default function CardEditor({
             setReferences(v);
             setRefsMeta(m);
           }}
-          firstComment={firstComment}
-          onChangeFirstComment={setFirstComment}
           renderSection="post-body"
         />
 

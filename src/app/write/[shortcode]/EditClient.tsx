@@ -87,8 +87,8 @@ export default function EditClient({
           payload.externalMeta?.description ?? null;
         apiPayload.external_image = payload.externalMeta?.image ?? null;
         apiPayload.external_site_name = payload.externalMeta?.siteName ?? null;
-      } else if (payload.category === "qa" || payload.category === "link") {
-        // 카테고리상 외부 링크 영역 노출되는데 URL 비웠으면 명시적 null 로 비움.
+      } else if (payload.category === "qa") {
+        // 카테고리상 외부 링크 영역(Q&A 영상)이 노출되는데 URL 비웠으면 명시적 null 로 비움.
         apiPayload.external_url = null;
         apiPayload.external_title = null;
         apiPayload.external_description = null;

@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-06-01] — 카테고리 정리: qa/doodle 2종으로 축소 (P2)
+
+### Changed
+- `cards.category` 를 **`qa`(의사 Q&A, 인덱싱) + `doodle`(일반 '끄적끄적', noindex) 2종**으로 축소(마이그 0198). 일반 포스팅 15개(diary/ask/tip/doodle) → doodle 통합, link 3개(draft/hidden 내부글) soft-delete. 백업 `_bak_category_260601`(post 21행).
+- `post-category.ts` SSOT 축소(POST_CATEGORIES=qa/doodle) + 사용처 정리: write 페이지·CardEditor·CardEditorAttachments·admin 카드필터·api/articles VALID_CATEGORIES·topics/[tag] 인덱싱(qa만)·[handle]/[shortcode] noindex.
+- `search-query.ts` 카테고리 직접검색 정렬을 `reviewed_at` 우선(`nullsFirst:false`) + `created_at` 보조로 정리(P1-c 잔여, 표시일과 일치).
+
+### Removed
+- `diary`/`ask`/`tip`/`link` 카테고리 폐지.
+- **link 전용 기능 제거**: 외부 링크 큐레이션 카드(ExternalLinkField link 모드)·첫 댓글(firstComment) 입력. ExternalLinkField 의 qa 모드(영상 메타·시작시간)는 보존.
+
+> review(시술후기) 카테고리는 P3 에서 신설 예정. `new_ask` notification kind 는 카테고리 enum 이 아니라 별도 안건으로 잔존(향후 정리).
+
+---
+
 ## [2026-06-01] — reviewed_at 갱신 일시 제한: 2025년 이전 카드 영상날짜 고정 (P1-b 후속)
 
 ### Changed

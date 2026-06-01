@@ -34,7 +34,7 @@ type TypeFilter = "qa" | "post" | "all";
 // 'deleted' 는 가짜 status — 실제 DB 상태 컬럼이 아니라 deleted_at IS NOT NULL row 의 카드.
 // 0132 soft-delete 도입과 함께 추가 (260518).
 type StatusFilter = QAStatus | "all" | "deleted";
-type CategoryFilter = "doodle" | "tip" | "diary" | "ask" | "link" | "all";
+type CategoryFilter = "doodle" | "all";
 
 type AdminQARow = {
   id: number;
@@ -95,14 +95,7 @@ function isTypeFilter(v: string | undefined): v is TypeFilter {
 }
 
 function isCategoryFilter(v: string | undefined): v is CategoryFilter {
-  return (
-    v === "doodle" ||
-    v === "tip" ||
-    v === "diary" ||
-    v === "ask" ||
-    v === "link" ||
-    v === "all"
-  );
+  return v === "doodle" || v === "all";
 }
 
 const PAGE_SIZE = 50;
@@ -331,7 +324,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     { key: "qa", label: "Q&A" },
   ];
 
-  // 포스팅 카테고리 — Q&A 카테고리는 type=qa이므로 제외, 포스팅 5종만.
+  // 포스팅 카테고리 — Q&A 카테고리는 type=qa이므로 제외, 포스팅(현 doodle)만.
   // SSOT: POST_CATEGORIES (Sub-6, 2026-05-27). qa 제외 + "전체" prepend.
   const CATEGORY_LIST: { key: CategoryFilter; label: string }[] = [
     { key: "all", label: "전체 카테고리" },

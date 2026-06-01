@@ -9,7 +9,7 @@
  *  3) Q&A 외 카테고리 + external_url → ↗ 더 알아보기
  *
  * (정정 — 2026-05-15: 옛 코드 'card.category === "card"' 는 항상 false 였음.
- *   category enum = 'qa'|'tip'|'diary'|'ask'|'link'. 이로 인해 external_url 분기를
+ *   category enum = 'qa'|'doodle' (v6, 2026-06-01). 이로 인해 external_url 분기를
  *   못 타고 videos.youtube_url(timestamp 없음)으로 fallback 되어 모든 Q&A 영상의
  *   시작 시간이 표시되지 않던 회귀 fix.)
  */

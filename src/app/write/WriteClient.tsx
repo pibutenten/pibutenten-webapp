@@ -180,28 +180,6 @@ export default function WriteClient({
         } | null;
       };
 
-      // 새소식 첫 댓글
-      if (payload.firstComment && status !== "draft") {
-        try {
-          await fetch("/api/comments", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              cardId: data.id,
-              body: payload.firstComment,
-            }),
-          });
-        } catch (e) {
-          // 첫 댓글 실패해도 글 저장은 성공 — 사용자는 댓글 누락을 모르므로 기록.
-          const isDev = process.env.NODE_ENV !== "production";
-          if (isDev) {
-            console.warn("[comment-first-save] 새소식 첫 댓글 저장 실패:", e instanceof Error ? e.message : e);
-          } else {
-            console.error("[comment-first-save] 새소식 첫 댓글 저장 실패:", e instanceof Error ? e.message : e);
-          }
-        }
-      }
-
       // 배치 ⑤ H4 (2026-05-28): "방금 쓴 글" prepend 시그널.
       //   publish 성공 시 sessionStorage 에 {id, ts} 저장 → 홈 mount 시 5분 이내 + shown 미마킹이면
       //   첫 자리 1회 노출. 새로고침·재방문 시 'shown' 마킹으로 미노출. 다른 사용자에겐 영향 0.

@@ -30,13 +30,13 @@
 ### 3.1. 일반 회원 (user)
 - 피부 고민/시술 질문 작성, 다른 회원/원장 답변 검색
 - 피부 일기, 시술 후기, 외부 글 공유
-- 카테고리: `diary` (피부일기) / `ask` (물어봐요) / `link` (공유하기) / `doodle` (끄적끄적)
+- 카테고리: `doodle` (끄적끄적) — 일반 포스팅 단일 카테고리 (P2, 2026-06-01 통합)
 
 ### 3.2. 피부과 전문의 (doctor)
 - Q&A 답변, 칼럼 작성, 회원 질문 검수
 - 본인 글의 SEO URL: `/doctors/{slug}/{year}/{post-slug}`
 - 같은 사람이 의사 역할 profile + 일반 회원 역할 profile 두 신분으로 동등하게 활동 가능 (같은 auth_user_id 묶음, 위계 없음, ADR 0001)
-- 카테고리: `qa` (Q&A) / `tip` (꿀팁) 추가 작성 권한
+- 카테고리: `qa` (Q&A) 추가 작성 권한 (의사·관리자 전용, 인덱싱)
 
 ### 3.3. 관리자 (admin)
 - 운영 전반: 카드/댓글/회원 관리, AI 글 초안 생성, KPI 대시보드
@@ -50,7 +50,7 @@
 ### 4.1. 글 (카드) 시스템
 - 통합 테이블 `cards` (구 `qas`, 2026 리네임 — ADR 0004)
 - 타입: `qa` (Q&A), `post` (일반 글)
-- 카테고리 5분류: `qa` / `tip` / `diary` / `ask` / `link` / `doodle`
+- 카테고리 2종: `qa` (의사 Q&A, 인덱싱) / `doodle` (일반 '끄적끄적', noindex). 시술후기(review)는 P3 신설 예정
 - 상태: `draft` / `pending_review` / `published` / `hidden` / `archived`
 - soft-delete + in-place 익명화 (ADR 0002)
 - 외부 링크 OG 카드 첨부, YouTube 영상 시작시간 sync

@@ -21,7 +21,7 @@ import {
  *    · tag_cards_scored RPC (HALF_LIFE=14일, JITTER_AMP=0.2)
  *    · 봇·사용자 동일 RPC — Google이 다른 순서를 봐도 무방
  *    · canonical은 그대로 → SEO 영향 X
- *  - doctor 매핑된 글 + category IN ('qa','tip') 만 인덱싱
+ *  - doctor 매핑된 글 + category = 'qa' 만 인덱싱 (tip 폐지, 2026-06-01)
  *  - JSON-LD CollectionPage + ItemList (itemListOrder=Unordered)
  *  - ISR 비활성: dynamic — 매 요청마다 새 셔플 (jitter 살리기)
  */
@@ -66,7 +66,7 @@ async function fetchPostsForTag(
     .from("cards")
     .select("id", { count: "exact", head: true })
     .eq("status", "published")
-    .in("category", ["qa", "tip"])
+    .eq("category", "qa")
     .not("doctor_id", "is", null)
     .contains("keywords", [tag]);
 

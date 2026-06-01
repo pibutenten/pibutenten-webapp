@@ -87,10 +87,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const doc = Array.isArray(card.doctor) ? card.doctor[0] : card.doctor;
   // M11 (2026-05-28): 의사 카드 단독 페이지는 회원 라우트에서 noindex.
   //   - 의사 qa: 아래 page component 가 doctor canonical 로 308 redirect → 어차피 인덱싱 안 됨.
-  //   - 의사 비-qa (tip/diary 등): 회원 라우트에서 noindex 강제 (회원 글과 동일 취급).
-  // 회원 글 정책은 기존 그대로 — tip 만 index 허용, 나머지 noindex.
-  const isDoctorCard = !!doc;
-  const indexable = !isDoctorCard && card.category === "tip";
+  //   - 의사 비-qa (doodle): 회원 라우트에서 noindex 강제 (회원 글과 동일 취급).
+  // 회원 글 정책 (2026-06-01): tip 폐지 + doodle = noindex → 회원 라우트 단일 글은 전부 noindex.
+  const indexable = false;
   return {
     title: card.title,
     description,

@@ -4,13 +4,14 @@
  * ExternalLinkField — URL 입력 + 메타 등록 + 미리보기 (260518).
  *
  * 모드 (mode prop):
- *   - "link"  : "새소식" 카테고리. [등록] 시 onAutoFill 콜백으로 제목·본문·태그 자동 채움
- *   - "qa"    : Q&A 카테고리. 메타만 가져오고 본문은 안 덮음
+ *   - "qa"    : Q&A 카테고리. 메타만 가져오고 본문은 안 덮음 + 영상 시작시간
  *   - "url-only" : 단순 URL 입력만 (현재 사용처 없음, legacy)
+ *
+ * (폐지) "link" (소식공유) 모드 — link 카테고리 제거(2026-06-01)와 함께 삭제.
  *
  * UI 흐름 (참고문헌과 동일 패턴, 260518 재설계):
  *   1) URL 미입력 / 메타 없음 → [등록] 버튼. 클릭 시 POST /api/preview-link 호출해
- *      메타(title/description/image/siteName) 받음. mode='link' 면 자동 채움 콜백도 호출.
+ *      메타(title/description/image/siteName) 받음.
  *   2) 메타 등록 후 → [미리보기] 버튼. 클릭 시 URL 새 탭으로 이동 (영상이면 시작시간 포함).
  *      메타 한 줄 표시. X 버튼으로 메타 지우면 다시 [등록] 모드.
  *
@@ -36,26 +37,11 @@ type Props = {
   onUrlChange: (next: string) => void;
   meta: ExternalMeta | null;
   onMetaChange: (next: ExternalMeta | null) => void;
-  /** "link" / "qa" / "url-only" */
-  mode: "link" | "qa" | "url-only";
-  /**
-   * mode="link" 에서 [등록] 성공 시 호출. 부모가 title/body/keywords 세팅.
-   * (수정 모드에서는 부모가 콜백 미지정 → 본문 안 덮음)
-   */
-  onAutoFill?: (data: {
-    title: string;
-    body: string;
-    keywords: string[];
-  }) => void;
-  /** mode="link" 에서 본문 한도 (기본 4000 — 2026-05-22 다른 카테고리와 통일) */
-  bodyMax?: number;
+  /** "qa" / "url-only" */
+  mode: "qa" | "url-only";
   onError?: (msg: string | null) => void;
   disabled?: boolean;
 };
-
-// 2026-05-22 사용자 결정: 소식공유 자동 태그를 6~7개로 (이전 3~7)
-const AUTO_TAG_MIN = 6;
-const AUTO_TAG_MAX = 7;
 
 export default function ExternalLinkField({
   url,
@@ -63,8 +49,6 @@ export default function ExternalLinkField({
   meta,
   onMetaChange,
   mode,
-  onAutoFill,
-  bodyMax = 4000,
   onError,
   disabled = false,
 }: Props) {
@@ -101,7 +85,7 @@ export default function ExternalLinkField({
     };
   }
 
-  /** [등록] 버튼 — 메타 가져오기. mode='link' 면 자동 채움 콜백도 호출. */
+  /** [등록] 버튼 — 메타 가져오기. */
   async function registerMeta() {
     onError?.(null);
     setResolving(true);
@@ -109,36 +93,6 @@ export default function ExternalLinkField({
       const m = await fetchMeta();
       if (!m) return;
       onMetaChange(m);
-
-      // mode='link' + onAutoFill 지정됐을 때만 제목/본문/태그 자동 채움.
-      if (mode === "link" && onAutoFill) {
-        const title = m.title ?? "";
-        let body = "";
-        if (m.description) {
-          const sourceTag = m.siteName ? `\n\n(출처 = ${m.siteName})` : "";
-          const limit = bodyMax - sourceTag.length;
-          const desc =
-            m.description.length > limit
-              ? m.description.slice(0, limit).replace(/\s+\S*$/, "") + "…"
-              : m.description;
-          body = desc + sourceTag;
-        }
-        let keywords: string[] = [];
-        try {
-          const { extractTagsFromText } = await import("@/lib/auto-tag");
-          const haystack = [m.title, m.description]
-            .filter((s): s is string => Boolean(s))
-            .join("\n");
-          const auto = extractTagsFromText(haystack, { limit: AUTO_TAG_MAX });
-          keywords = auto.slice(
-            0,
-            Math.max(AUTO_TAG_MIN, Math.min(auto.length, AUTO_TAG_MAX)),
-          );
-        } catch {
-          /* 키워드 추출 실패는 무시 */
-        }
-        onAutoFill({ title, body, keywords });
-      }
     } catch (e) {
       onError?.(e instanceof Error ? e.message : "URL 정보 가져오기 실패");
     } finally {
@@ -164,9 +118,7 @@ export default function ExternalLinkField({
   const hint =
     mode === "qa"
       ? "선택 — [등록] 으로 영상 정보 가져옴. [미리보기] 누르면 영상 새 탭 (시작시간 포함)"
-      : mode === "link"
-        ? "URL 입력 후 [등록] 누르면 제목·본문·태그 자동 채움. [미리보기] 로 원문 새 탭"
-        : "선택";
+      : "선택";
 
   // 영상 시작 시간 — Q&A 모드에서만 노출. URL ↔ MM:SS 양방향 sync.
   const currentStartSec = useMemo(() => extractStartSeconds(url), [url]);
