@@ -4,7 +4,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProcedureReport } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
-import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import BackButton from "@/components/BackButton";
@@ -69,15 +68,6 @@ export default async function ProcedureReportPage({ params }: Props) {
     .returns<CardData[]>();
   const reviews = reviewData ?? [];
 
-  const {
-    data: { user: viewer },
-  } = await supabase.auth.getUser();
-  const viewerStates = await fetchViewerStatesRecord(
-    supabase,
-    viewer?.id ?? null,
-    reviews.map((r) => r.id),
-  );
-
   // JSON-LD — AggregateRating (별점·후기 수). 시술 리포트 인덱싱 신호.
   const jsonLd = {
     "@context": "https://schema.org",
@@ -105,7 +95,7 @@ export default async function ProcedureReportPage({ params }: Props) {
 
       <ProcedureReportCard report={report} />
 
-      <ProcedureReviewStream reviews={reviews} viewerStates={viewerStates} />
+      <ProcedureReviewStream reviews={reviews} />
     </section>
   );
 }

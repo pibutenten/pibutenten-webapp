@@ -16,6 +16,14 @@ type Row = {
   card: { status: string | null; deleted_at: string | null } | null;
 };
 
+export type Demographics = {
+  male: number;
+  female: number;
+  total: number;
+  /** count>0 인 연령대만, 표시순. */
+  ageBands: { label: string; count: number }[];
+};
+
 export type ProcedureReport = {
   procedureKo: string;
   count: number;
@@ -28,6 +36,15 @@ export type ProcedureReport = {
   revisit: { yes: number; maybe: number; no: number };
   /** 빈도 desc 정렬 */
   effects: { label: string; count: number; pct: number }[];
+  /** 작성자 인구통계 (집계 RPC — 개별 PII 비노출) */
+  demographics: Demographics;
+};
+
+type DemoRow = {
+  male: number; female: number; other_gender: number;
+  age_u20: number; age_20s: number; age_30s: number;
+  age_40s: number; age_50p: number; age_unknown: number;
+  total: number;
 };
 
 export async function getProcedureReport(
@@ -84,6 +101,31 @@ export async function getProcedureReport(
     }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "ko"));
 
+  // 작성자 인구통계 — 집계 RPC(개별 PII 비노출).
+  const { data: demoData } = await supabase.rpc(
+    "get_procedure_review_demographics",
+    { p_procedure_ko: procedureKo },
+  );
+  const demoRow = (Array.isArray(demoData) ? demoData[0] : demoData) as
+    | DemoRow
+    | null
+    | undefined;
+  const ageRaw: { label: string; count: number }[] = demoRow
+    ? [
+        { label: "10대", count: demoRow.age_u20 ?? 0 },
+        { label: "20대", count: demoRow.age_20s ?? 0 },
+        { label: "30대", count: demoRow.age_30s ?? 0 },
+        { label: "40대", count: demoRow.age_40s ?? 0 },
+        { label: "50대+", count: demoRow.age_50p ?? 0 },
+      ]
+    : [];
+  const demographics: Demographics = {
+    male: demoRow?.male ?? 0,
+    female: demoRow?.female ?? 0,
+    total: demoRow?.total ?? 0,
+    ageBands: ageRaw.filter((b) => b.count > 0),
+  };
+
   return {
     procedureKo,
     count: n,
@@ -93,5 +135,6 @@ export async function getProcedureReport(
     painDist,
     revisit,
     effects,
+    demographics,
   };
 }

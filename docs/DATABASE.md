@@ -309,6 +309,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0209 | 시술후기 수정 RPC `update_procedure_review(p_shortcode,…)` 신설 — cards(title/body/keywords/status)+procedure_reviews(satisfaction/pain/revisit/effect_areas) 원자적 갱신. 권한: 작성자 묶음 또는 admin(SECURITY DEFINER). 시술명·author 잠금. GRANT EXECUTE authenticated. | **적용 완료 (2026-06-02)** |
 | 0210 | 시술 분류 `procedure_taxonomy` 에 '더엘주사'(injectables, 정식) 추가 — 후기 작성 대상 포함. | **적용 완료 (2026-06-02)** |
 | 0211 | `update_procedure_review` 모호 컬럼 참조(42702) 수정 — RETURNS TABLE 의 OUT 컬럼 `card_id` 와 `procedure_reviews.card_id` 충돌로 후기 수정이 save_failed(500) 되던 버그. WHERE 절 컬럼을 테이블명으로 한정. 작성자/admin 시뮬레이션 성공 검증. | **적용 완료 (2026-06-02)** |
+| 0212 | 시술 리포트용 작성자 인구통계 집계 RPC `get_procedure_review_demographics(p_procedure_ko)` — 발행 후기 작성자의 성별·연령대 **집계 카운트만** 반환(개별 PII 비노출). SECURITY DEFINER, GRANT anon/authenticated. anon 호출 검증. | **적용 완료 (2026-06-02)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 
