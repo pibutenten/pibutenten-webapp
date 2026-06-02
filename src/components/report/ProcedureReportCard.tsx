@@ -23,7 +23,7 @@ const EFFECT_BAR_COLORS = [
 ];
 
 const SECTION = "border-b border-[var(--border)] px-5 py-4";
-const TITLE = "mb-2.5 text-[14px] font-bold text-[var(--text)]";
+const TITLE = "mb-2.5 text-[15px] font-bold text-[var(--text)]";
 
 // 통계 수치를 편안한 자연어로 — 값에 따라 멘트가 달라진다.
 function revisitPhrase(pct: number): string {
@@ -43,7 +43,7 @@ function painPhrase(avg: number): string {
   if (avg <= 1.5) return `평균 ${x}점, 거의 안 아팠다는 후기가 많아요.`;
   if (avg <= 2.5) return `평균 ${x}점, 가볍게 느껴지는 정도예요.`;
   if (avg <= 3.5) return `평균 ${x}점, 참을 만하지만 살짝 뻐근해요.`;
-  if (avg <= 4.5) return `평균 ${x}점의 통증, 참을 만하지만 꽤 뻐근해요.`;
+  if (avg <= 4.5) return `평균 ${x}점, 참을 만하지만 꽤 뻐근해요.`;
   return `평균 ${x}점, 통증이 꽤 강한 편이에요.`;
 }
 function fmtDate(iso: string | null | undefined): string {
@@ -111,12 +111,8 @@ export default function ProcedureReportCard({
     <article className="overflow-hidden rounded-[16px] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]">
       {/* 헤더 — 브랜드 워드마크+리포트(위), 시술명(좌)+후기 수(우) */}
       <header className="border-b border-[var(--border)] bg-gradient-to-br from-[#EAF7FE] to-[#F7FCFF] px-5 py-4">
-        <div className="mb-2 flex items-center gap-1.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand-logo.svg" alt="피부텐텐" className="h-[18px] w-auto" />
-          <span className="text-[15px] font-medium leading-none" style={{ color: "#2BA3DC" }}>
-            리포트
-          </span>
+        <div className="mb-1.5 text-[13px] font-bold tracking-tight" style={{ color: "#2BA3DC" }}>
+          피부텐텐 리포트
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <h1 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em]" style={{ color: accent }}>
@@ -130,7 +126,7 @@ export default function ProcedureReportCard({
 
       {/* 재시술 의향 — 상단, 만족도보다 살짝만 강조 */}
       <section className={SECTION}>
-        <p className="mb-2.5 text-[13px] font-medium leading-[1.5] text-[var(--text)]">
+        <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
           {revisitPhrase(yesPct)}
         </p>
         <div className="flex h-[20px] overflow-hidden rounded-lg text-[11px] font-bold text-white">
@@ -147,7 +143,7 @@ export default function ProcedureReportCard({
 
       {/* 만족도 — 접힘 시 여기까지 노출 */}
       <section className={expanded ? SECTION : "px-5 py-4"}>
-        <p className="mb-2.5 text-[13px] font-medium leading-[1.5] text-[var(--text)]">
+        <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
           {satisfactionPhrase(avgSatisfaction)}
         </p>
         <div className="flex items-center gap-4">
@@ -182,7 +178,7 @@ export default function ProcedureReportCard({
         <>
           {/* 통증 */}
           <section className={SECTION}>
-            <p className="mb-2.5 text-[13px] font-medium leading-[1.5] text-[var(--text)]">
+            <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
               {painPhrase(avgPain)}
             </p>
             <div className="relative h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${PAIN_SOFT.join(", ")})` }}>
@@ -214,7 +210,7 @@ export default function ProcedureReportCard({
           {/* 작성자 통계 — 약간의 차트(성별 막대 + 연령대 미니 바) */}
           {demoTotal > 0 && (
             <section className={SECTION}>
-              <div className="mb-2.5 text-[13px] font-semibold text-[var(--text-secondary)]">작성자 통계</div>
+              <div className="mb-2.5 text-[15px] font-bold text-[var(--text)]">작성자 통계</div>
 
               {/* 성별 — 가로 막대 */}
               <div className="flex h-[14px] overflow-hidden rounded-full text-[9.5px] font-bold text-white">

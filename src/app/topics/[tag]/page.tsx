@@ -4,6 +4,9 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type CardData } from "@/components/Card";
 import CardMasonry from "@/components/CardMasonry";
+import { getProcedureReport } from "@/lib/procedure-report";
+import { CARD_LIST_SELECT } from "@/lib/card-select";
+import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import {
@@ -105,6 +108,22 @@ export default async function TagPage({ params }: Props) {
   // 2) 해당 태그의 의사 글 fetch (최신순)
   const { posts, count } = await fetchPostsForTag(tag);
   if (posts.length === 0) notFound();
+
+  // 2-b) 이 태그가 시술이고 후기가 있으면 → 시술 리포트 카드를 최상단에 노출.
+  const supabase = await createSupabaseServerClient();
+  const report = await getProcedureReport(supabase, tag);
+  let reportReviews: CardData[] = [];
+  if (report) {
+    const { data } = await supabase
+      .from("cards")
+      .select(CARD_LIST_SELECT)
+      .eq("category", "review")
+      .eq("status", "published")
+      .contains("keywords", [tag])
+      .order("created_at", { ascending: false })
+      .returns<CardData[]>();
+    reportReviews = data ?? [];
+  }
 
   // 3) JSON-LD: @graph 로 CollectionPage + FAQPage 묶음 출력.
   //    AEO/GEO/SEO 강화:
@@ -225,6 +244,13 @@ export default async function TagPage({ params }: Props) {
           개.
         </p>
       </header>
+
+      {/* 시술 리포트 — 후기가 쌓인 시술이면 최상단에 한 장 노출 */}
+      {report && (
+        <div className="mx-auto mb-6 max-w-[600px]">
+          <ProcedureReportCard report={report} reviews={reportReviews} />
+        </div>
+      )}
 
       {/* 메인 피드와 동일한 Masonry — CardMasonry는 client wrapper */}
       <CardMasonry posts={posts} />
