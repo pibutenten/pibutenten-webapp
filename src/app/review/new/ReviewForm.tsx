@@ -414,9 +414,13 @@ export default function ReviewForm({
           </div>
         </div>
 
-        {/* 시술을 고른 뒤에만 나머지 항목 입력 노출 — 미선택 시 전부 숨김. */}
-        {procedureKo && (
-          <>
+        {/* 시술을 고르기 전에는 비활성(흐림+클릭 불가), 고르면 활성으로. */}
+        <div
+          aria-disabled={!procedureKo}
+          className={`space-y-5 transition-opacity duration-200 ${
+            procedureKo ? "" : "pointer-events-none opacity-50"
+          }`}
+        >
         {/* ── 2. 만족도 ── */}
         <StarField
           label="만족도"
@@ -521,8 +525,7 @@ export default function ReviewForm({
                 : "후기 올리기"}
           </button>
         </div>
-          </>
-        )}
+        </div>
       </div>
     </section>
   );
