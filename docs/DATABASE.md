@@ -305,6 +305,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0205 | 후기 항목 대폭 단순화(원장님 피드백). `procedure_reviews` 에서 `downtime`/`sessions`/`timing`/`concurrent_procedures`/`adverse_reactions` 제거. 남는 정량: `satisfaction`·`pain`·`revisit` + `effect_areas`(체감 효과). 한줄후기=cards.body(필수). RPC 시그니처 축소(p_downtime 등 제거). 폼은 시술·만족도·통증·재시술의향·체감효과·한줄후기 6개 전부 필수. | **적용 완료 (2026-06-01)** |
 | 0206 | 정렬 RPC `feed_cards_scored`·`search_cards_scored` 에 `procedure_review jsonb`(satisfaction·pain·revisit·effect_areas·procedure_ko) 추가 — LEFT JOIN `procedure_reviews`(card_id 1:1). 피드/검색에서도 후기 요약 노출. 점수공식·정렬 무변경. `tag_cards_scored`(qa/tip 만)는 대상 외. anon/authenticated 조회 검증 완료. | **적용 완료 (2026-06-02)** |
 | 0207 | 피부 고민 11종 개편에 따른 `profiles.skin_concerns` 정리 — 신규 set(sagging/elasticity/volume/texture/wrinkle/tone/pores/contour/inner_dry/trouble/redness) 외 키 제거(순서 보존). 폐지 aging(4)·sensitive(6) 정리, 나머지 유지. | **적용 완료 (2026-06-02)** |
+| 0208 | 효과 11종 개편에 따른 기존 후기 `procedure_reviews.effect_areas` 정리 — 신규 11종(리프팅·…·홍조) 외 값 제거(순서 보존). 폐지 "동안"·"피부장벽" 제거(써마지 후기에서 "동안" 삭제). | **적용 완료 (2026-06-02)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 
