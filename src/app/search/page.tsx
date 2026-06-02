@@ -10,6 +10,9 @@ import { SITE_URL } from "@/lib/site";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
 import { fetchCardList, resolveCategorySlug } from "@/lib/search-query";
+import { getProcedureReport } from "@/lib/procedure-report";
+import { CARD_LIST_SELECT } from "@/lib/card-select";
+import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 
 export const dynamic = "force-dynamic";
 
@@ -128,6 +131,21 @@ export default async function HomePage({ searchParams }: Props) {
     }
   }
 
+  // 시술 검색이면(=후기 있는 시술명) 결과 최상단에 시술 리포트 카드 노출.
+  const report = q ? await getProcedureReport(supabase, q) : null;
+  let reportReviews: CardData[] = [];
+  if (report) {
+    const { data } = await supabase
+      .from("cards")
+      .select(CARD_LIST_SELECT)
+      .eq("category", "review")
+      .eq("status", "published")
+      .contains("keywords", [q])
+      .order("created_at", { ascending: false })
+      .returns<CardData[]>();
+    reportReviews = data ?? [];
+  }
+
   const popularByCategory = await popularByCategoryPromise;
   const hotIds = Array.from(await getHotQaIds(20));
 
@@ -159,6 +177,12 @@ export default async function HomePage({ searchParams }: Props) {
       )}
 
       <div className={q ? "mt-5" : "mt-4 sm:mt-14"}>
+        {/* 시술 검색 — 결과 최상단에 시술 리포트 카드 한 장 */}
+        {report && (
+          <div className="mx-auto mb-5 max-w-[600px]">
+            <ProcedureReportCard report={report} reviews={reportReviews} />
+          </div>
+        )}
         {error && (
           <div className="rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Q&A 불러오기 실패: {error.message}
