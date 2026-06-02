@@ -91,15 +91,6 @@ const PAIN_FACES: { face: string; label: string }[] = [
   { face: "😖", label: "심함" },
 ];
 
-/* 통증 단계별 색 — 크림 옐로우(없음)→다크 레드(심함). 얼굴 뒤 원형 배경에 사용. */
-const PAIN_COLORS: string[] = [
-  "#BAE6FD", // 없음
-  "#FDE047", // 조금
-  "#F97316", // 보통
-  "#EF4444", // 꽤
-  "#991B1B", // 심함
-];
-
 /* ── 값 키(고정 — DB CHECK 와 일치) ── */
 type ChoiceOption = { value: string; label: string; color?: string };
 
@@ -436,7 +427,6 @@ export default function ReviewForm({
           value={pain}
           onChange={setPain}
           faces={PAIN_FACES}
-          colors={PAIN_COLORS}
           disabled={pending}
         />
 
@@ -726,7 +716,7 @@ function Chip({
       disabled={disabled}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1.5 text-[14px] transition-colors active:scale-[0.97] disabled:opacity-50"
+      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1.5 text-[14px] transition-transform active:scale-110 disabled:opacity-50"
       style={style}
     >
       {children}
@@ -764,7 +754,7 @@ function EffectChip({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] transition-colors active:scale-[0.97] disabled:opacity-50"
+      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1.5 text-[14px] transition-transform active:scale-110 disabled:opacity-50"
       style={style}
     >
       {children}
@@ -818,16 +808,19 @@ function StarField({
               onClick={() => onChange(n)}
               onMouseEnter={() => setHover(n)}
               disabled={disabled}
-              className="flex w-10 cursor-pointer items-center justify-center text-[28px] leading-none transition-transform hover:scale-110 disabled:opacity-50"
+              className="flex w-11 cursor-pointer items-center justify-center text-[34px] leading-none transition-transform active:scale-125 disabled:opacity-50"
             >
-              {/* 라운드한 이모지 별(⭐) — 채움=원색, 빈칸=그레이스케일(통증 이모지와 톤 일치). */}
+              {/* flat 2D 별(★) — 채움=금색 / 호버 미리보기=옅은 금색 / 빈칸=연한 회색. */}
               <span
                 style={{
-                  filter: gold ? "none" : "grayscale(1)",
-                  opacity: gold ? (hoverExtra ? 0.5 : 1) : 0.4,
+                  color: gold
+                    ? hoverExtra
+                      ? "#F7CE8A"
+                      : "var(--accent-save)"
+                    : "#E3E7EB",
                 }}
               >
-                ⭐
+                ★
               </span>
             </button>
           );
@@ -853,7 +846,6 @@ function FaceField({
   value,
   onChange,
   faces,
-  colors,
   disabled,
   required,
 }: {
@@ -861,8 +853,6 @@ function FaceField({
   value: number;
   onChange: (v: number) => void;
   faces: { face: string; label: string }[];
-  /** 단계별 원형 배경색 (index 매칭). 없으면 배경 없음. */
-  colors?: string[];
   disabled?: boolean;
   required?: boolean;
 }) {
@@ -879,9 +869,8 @@ function FaceField({
           const n = i + 1;
           const selected = n === value;
           const previewing = !selected && n === hover && !disabled;
-          const bg = colors?.[i];
-          // 단계색 원형: 선택=원색+살짝 키움+링, 호버=중간, 그 외=흐리게.
-          const circleOpacity = selected ? 1 : previewing ? 0.72 : 0.4;
+          // 배경 없는 flat 이모지 — 선택/호버는 불투명, 그 외 흐리게(그레이스케일).
+          const on = selected || previewing;
 
           return (
             <button
@@ -892,27 +881,20 @@ function FaceField({
               disabled={disabled}
               aria-label={`${label} ${n} ${f.label}`}
               aria-pressed={selected}
-              className="flex w-10 cursor-pointer flex-col items-center justify-center gap-1 py-1 disabled:opacity-50"
+              className="flex w-11 cursor-pointer flex-col items-center justify-center gap-1 py-1 transition-transform active:scale-125 disabled:opacity-50"
             >
               <span
-                className="flex h-9 w-9 items-center justify-center rounded-full text-[19px] leading-none transition-all"
+                className="text-[30px] leading-none"
                 style={{
-                  backgroundColor: bg ?? "transparent",
-                  opacity: circleOpacity,
-                  transform: selected ? "scale(1.1)" : "scale(1)",
-                  boxShadow:
-                    selected && bg ? `0 0 0 2px ${bg}66` : "none",
+                  filter: on ? "none" : "grayscale(1)",
+                  opacity: selected ? 1 : previewing ? 0.85 : 0.4,
                 }}
               >
                 {f.face}
               </span>
               <span
                 className="text-[10px] font-medium"
-                style={{
-                  color: selected
-                    ? "var(--text)"
-                    : "var(--text-secondary)",
-                }}
+                style={{ color: selected ? "var(--text)" : "var(--text-secondary)" }}
               >
                 {f.label}
               </span>

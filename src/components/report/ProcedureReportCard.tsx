@@ -8,7 +8,7 @@
  *   - 펼침: 통증 · 많이 본 효과 · 작성자 통계 · 면책 · 개별 후기(컴팩트) 까지.
  * 강조: 재시술 의향(상단, 만족도보다 살짝만) → 만족도. 후기는 좋아요/댓글/공유 없는 미니멀 목록.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/components/Card";
@@ -67,11 +67,32 @@ export default function ProcedureReportCard({
   reviews?: CardData[];
   accent?: string;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const {
     procedureKo, count, avgSatisfaction, satisfactionDist,
     avgPain, revisit, effects, demographics,
   } = report;
+
+  // 펼침 상태 유지 — 후기 클릭→단독글→뒤로 돌아와도 펼친 상태 복원(sessionStorage).
+  const storageKey = `report-expanded:${procedureKo}`;
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(storageKey) === "1") setExpanded(true);
+    } catch {
+      /* noop */
+    }
+  }, [storageKey]);
+  function toggleExpanded() {
+    setExpanded((v) => {
+      const next = !v;
+      try {
+        sessionStorage.setItem(storageKey, next ? "1" : "0");
+      } catch {
+        /* noop */
+      }
+      return next;
+    });
+  }
 
   const satRounded = Math.round(avgSatisfaction);
   const maxSat = Math.max(1, ...satisfactionDist);
@@ -87,19 +108,16 @@ export default function ProcedureReportCard({
   const ageTotal = Math.max(1, demographics.ageBands.reduce((a, b) => a + b.count, 0));
 
   return (
-    <div>
-      {/* 라운드 상자 밖 — 브랜드 워드마크(피부텐텐 글씨체) + 리포트 */}
-      <div className="mb-2 flex items-center gap-1.5 pl-0.5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand-logo.svg" alt="피부텐텐" className="h-[15px] w-auto" />
-        <span className="text-[15px] font-bold" style={{ color: "#2BA3DC" }}>
-          리포트
-        </span>
-      </div>
-
-      <article className="overflow-hidden rounded-[16px] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]">
-      {/* 헤더 — 시술명(좌) + 후기 수(우) 한 줄 */}
+    <article className="overflow-hidden rounded-[16px] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]">
+      {/* 헤더 — 브랜드 워드마크+리포트(위), 시술명(좌)+후기 수(우) */}
       <header className="border-b border-[var(--border)] bg-gradient-to-br from-[#EAF7FE] to-[#F7FCFF] px-5 py-4">
+        <div className="mb-2 flex items-center gap-1.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand-logo.svg" alt="피부텐텐" className="h-[18px] w-auto" />
+          <span className="text-[15px] font-bold leading-none" style={{ color: "#2BA3DC" }}>
+            리포트
+          </span>
+        </div>
         <div className="flex items-baseline justify-between gap-3">
           <h1 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em]" style={{ color: accent }}>
             {procedureKo}
@@ -112,8 +130,7 @@ export default function ProcedureReportCard({
 
       {/* 재시술 의향 — 상단, 만족도보다 살짝만 강조 */}
       <section className={SECTION}>
-        <div className="text-[14px] font-bold text-[var(--text)]">재시술 의향</div>
-        <p className="mb-2.5 mt-1 text-[12.5px] leading-[1.5] text-[var(--text-secondary)]">
+        <p className="mb-2.5 text-[13px] font-medium leading-[1.5] text-[var(--text)]">
           {revisitPhrase(yesPct)}
         </p>
         <div className="flex h-[20px] overflow-hidden rounded-lg text-[11px] font-bold text-white">
@@ -130,18 +147,18 @@ export default function ProcedureReportCard({
 
       {/* 만족도 — 접힘 시 여기까지 노출 */}
       <section className={expanded ? SECTION : "px-5 py-4"}>
-        <div className="text-[14px] font-bold text-[var(--text)]">만족도</div>
-        <p className="mb-2.5 mt-1 text-[12.5px] leading-[1.5] text-[var(--text-secondary)]">
+        <p className="mb-2.5 text-[13px] font-medium leading-[1.5] text-[var(--text)]">
           {satisfactionPhrase(avgSatisfaction)}
         </p>
         <div className="flex items-center gap-4">
-          <div className="flex shrink-0 items-center gap-2">
+          {/* 별 아래에 점수(크게) */}
+          <div className="flex shrink-0 flex-col items-center gap-1">
             <span className="text-[16px] leading-none tracking-[1px]">
               {[1, 2, 3, 4, 5].map((nn) => (
                 <span key={nn} style={{ color: nn <= satRounded ? "var(--accent-save)" : "#DDE2E7" }}>★</span>
               ))}
             </span>
-            <span className="text-[18px] font-bold text-[var(--text)]">{avgSatisfaction.toFixed(1)}</span>
+            <span className="text-[22px] font-extrabold leading-none text-[var(--text)]">{avgSatisfaction.toFixed(1)}</span>
           </div>
           <div className="flex flex-1 flex-col gap-[3px]">
             {[5, 4, 3, 2, 1].map((score) => {
@@ -165,8 +182,7 @@ export default function ProcedureReportCard({
         <>
           {/* 통증 */}
           <section className={SECTION}>
-            <div className="text-[14px] font-bold text-[var(--text)]">통증</div>
-            <p className="mb-2.5 mt-1 text-[12.5px] leading-[1.5] text-[var(--text-secondary)]">
+            <p className="mb-2.5 text-[13px] font-medium leading-[1.5] text-[var(--text)]">
               {painPhrase(avgPain)}
             </p>
             <div className="relative h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${PAIN_SOFT.join(", ")})` }}>
@@ -180,7 +196,7 @@ export default function ProcedureReportCard({
           {/* 많이 본 효과 */}
           {topEffects.length > 0 && (
             <section className={SECTION}>
-              <div className={TITLE}>많이 본 효과</div>
+              <div className={TITLE}>이런 효과를 받았어요!</div>
               <div className="flex flex-col gap-2.5">
                 {topEffects.map((e, i) => (
                   <div key={e.label} className="flex items-center gap-2.5">
@@ -298,14 +314,13 @@ export default function ProcedureReportCard({
       {/* 펼치기/접기 토글 */}
       <button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
+        onClick={toggleExpanded}
         className="flex w-full cursor-pointer items-center justify-center gap-1 border-t border-[var(--border)] bg-white py-3 text-[13px] font-semibold text-[var(--primary-dark)] transition-colors hover:bg-[var(--bg-soft)]"
         aria-expanded={expanded}
       >
         {expanded ? "접기" : "리포트 자세히 보기"}
         <span aria-hidden style={{ transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
       </button>
-      </article>
-    </div>
+    </article>
   );
 }
