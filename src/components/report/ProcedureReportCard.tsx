@@ -78,7 +78,7 @@ export default function ProcedureReportCard({
         <div className="mb-2 flex items-baseline justify-between">
           <span className={TITLE.replace("mb-2.5 ", "")}>재시술 의향</span>
           <span className="text-[13px] text-[var(--text-secondary)]">
-            <b className="text-[22px] font-extrabold align-middle" style={{ color: "#4CBFF2" }}>{yesPct}%</b>
+            <b className="text-[16px] font-bold align-middle" style={{ color: "#4CBFF2" }}>{yesPct}%</b>
             <span className="ml-1 align-middle">다시 받을래요</span>
           </span>
         </div>
@@ -104,7 +104,7 @@ export default function ProcedureReportCard({
                 <span key={nn} style={{ color: nn <= satRounded ? "var(--accent-save)" : "#DDE2E7" }}>★</span>
               ))}
             </span>
-            <span className="text-[20px] font-bold text-[var(--text)]">{avgSatisfaction.toFixed(1)}</span>
+            <span className="text-[16px] font-bold text-[var(--text)]">{avgSatisfaction.toFixed(1)}</span>
           </div>
           <div className="flex flex-1 flex-col gap-[3px]">
             {[5, 4, 3, 2, 1].map((score) => {
@@ -158,7 +158,7 @@ export default function ProcedureReportCard({
       {/* 5) 작성자 통계 — 남녀·연령 (컴팩트) */}
       {demoTotal > 0 && (
         <section className={SECTION}>
-          <div className="mb-2 text-[13px] font-semibold text-[var(--text-secondary)]">작성자</div>
+          <div className="mb-2 text-[13px] font-semibold text-[var(--text-secondary)]">작성자 통계</div>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-[var(--text-secondary)]">
             <span>
               여성 <b className="text-[var(--text)]">{femalePct}%</b> · 남성 <b className="text-[var(--text)]">{malePct}%</b>
