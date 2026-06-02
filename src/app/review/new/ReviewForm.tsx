@@ -56,12 +56,28 @@ export type ProcedureOption = {
   categoryLabel: string;
 };
 
+/** 편집 모드 초기값 — 기존 후기 프리필. */
+export type ReviewEditInitial = {
+  procedureKo: string;
+  satisfaction: number;
+  pain: number;
+  revisit: string;
+  effectAreas: string[];
+  body: string;
+};
+
 type Props = {
   procedures: ProcedureOption[];
   /** active 명함 handle — 제출 성공 시 /{handle}/{shortcode} 이동 */
   handle: string;
   /** 태그 미리선택 대비 초기 시술 ko — procedures 에 존재할 때만 잠금 표시 */
   initialProcedure?: string;
+  /** 'edit' 면 수정 모드(PATCH). 기본 'create'. */
+  mode?: "create" | "edit";
+  /** 수정 대상 shortcode (mode='edit' 필수). */
+  shortcode?: string;
+  /** 수정 모드 프리필 값 (mode='edit'). */
+  initial?: ReviewEditInitial;
 };
 
 const ONELINER_MAX = 400;
@@ -155,23 +171,28 @@ export default function ReviewForm({
   procedures,
   handle,
   initialProcedure,
+  mode = "create",
+  shortcode,
+  initial,
 }: Props) {
   const router = useRouter();
+  const isEdit = mode === "edit";
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   /* ── 필수 항목 ── */
-  // 초기 시술: initialProcedure 가 procedures 에 실제 존재할 때만 사용(없으면 빈 값).
-  const [procedureKo, setProcedureKo] = useState(() =>
-    initialProcedure && procedures.some((p) => p.value === initialProcedure)
+  // 수정 모드면 기존 시술 ko 로 잠금 시작. 생성 모드면 initialProcedure(태그 미리선택) 검증.
+  const [procedureKo, setProcedureKo] = useState(() => {
+    if (isEdit && initial?.procedureKo) return initial.procedureKo;
+    return initialProcedure && procedures.some((p) => p.value === initialProcedure)
       ? initialProcedure
-      : "",
-  );
-  const [satisfaction, setSatisfaction] = useState<number>(0);
-  const [pain, setPain] = useState<number>(0);
-  const [revisit, setRevisit] = useState("");
-  const [effectAreas, setEffectAreas] = useState<string[]>([]);
-  const [oneliner, setOneliner] = useState("");
+      : "";
+  });
+  const [satisfaction, setSatisfaction] = useState<number>(initial?.satisfaction ?? 0);
+  const [pain, setPain] = useState<number>(initial?.pain ?? 0);
+  const [revisit, setRevisit] = useState(initial?.revisit ?? "");
+  const [effectAreas, setEffectAreas] = useState<string[]>(initial?.effectAreas ?? []);
+  const [oneliner, setOneliner] = useState(initial?.body ?? "");
 
   /* 생생한 후기 placeholder — 마운트 시 랜덤 순서로 섞어 2.5초마다 순환(반복 없이 한 바퀴씩). */
   const [phIndex, setPhIndex] = useState(0);
@@ -234,11 +255,15 @@ export default function ReviewForm({
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/reviews", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        // 생성=POST /api/reviews, 수정=PATCH /api/reviews/{shortcode}.
+        const res = await fetch(
+          isEdit ? `/api/reviews/${shortcode}` : "/api/reviews",
+          {
+            method: isEdit ? "PATCH" : "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
 
         if (!res.ok) {
           const data = (await res.json().catch(() => null)) as {
@@ -299,7 +324,7 @@ export default function ReviewForm({
     // 단독 글 상세는 680px, 작성 폼은 640px 로 화면 폭 체계 일관.
     <section className="mx-auto w-full max-w-[640px] py-6">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">
-        시술 후기를 남겨주세요
+        {isEdit ? "시술 후기 수정" : "시술 후기를 남겨주세요"}
       </h1>
 
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
@@ -425,7 +450,13 @@ export default function ReviewForm({
             disabled={pending}
             className="h-10 cursor-pointer rounded-md bg-[var(--primary)] px-8 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
           >
-            {pending ? "등록 중…" : "후기 올리기"}
+            {pending
+              ? isEdit
+                ? "수정 중…"
+                : "등록 중…"
+              : isEdit
+                ? "후기 수정"
+                : "후기 올리기"}
           </button>
         </div>
       </div>

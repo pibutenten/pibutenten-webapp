@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-02] — 시술후기 수정 = 후기 전용 에디터 + 지시 정합 보정
+
+### Added
+- **시술후기 수정 플로우**: 후기(type=review) 수정 시 일반 글 에디터(/write)가 아닌 **후기 전용 에디터**로. 신규 라우트 `/review/[shortcode]/edit`(소유권: 작성자 묶음/admin) + `ReviewForm` 편집 모드(기존 값 프리필, 시술명 잠금) + `PATCH /api/reviews/[shortcode]` + RPC `update_procedure_review`(0209). 시술 선택지 빌드는 `lib/review-procedures.ts` 로 추출해 new/edit 공유(누더기 방지).
+- 진입점 라우팅: `getQaEditUrl` 에서 type=review→`/review/{shortcode}/edit`. 관리자 카드 편집(`/admin/cards/[id]/edit`)도 후기 카드면 후기 에디터로 리다이렉트.
+- 시술 분류에 **'더엘주사'**(스킨부스터/injectables) 추가(0210) — 후기 작성 대상 포함.
+
+### Changed
+- 후기 한줄후기 글자수 300→**400자**(폼·스키마, 지시 [69] 정합). 안내문구 **'의료광고성 표현·병원·의사 실명 언급은 금합니다.'**(지시 [76] 원문 복원).
+- 0208: 기존 후기 `procedure_reviews.effect_areas` 에서 폐지값(동안·피부장벽) 제거.
+
+---
+
 ## [2026-06-02] — 피부고민·효과 항목 개편 + 후기 요약 위치/색 조정
 
 ### Changed

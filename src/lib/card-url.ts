@@ -48,6 +48,8 @@ export function getQaUrl(qa: QaUrlInput): string {
  */
 export function getQaEditUrl(qa: QaUrlInput): string | null {
   if (!qa.shortcode) return null;
+  // 시술후기(type=review)는 일반 글 에디터가 아니라 후기 전용 에디터로.
+  if (qa.type === "review") return `/review/${qa.shortcode}/edit`;
   return `/write/${qa.shortcode}`;
 }
 

@@ -39,7 +39,7 @@ export default async function AdminEditQAPage({ params }: Props) {
   const { data: qaRaw } = await supabase
     .from("cards")
     .select(
-      `id, title, body, meta, keywords, status, type, category, is_pick,
+      `id, title, body, meta, keywords, status, type, category, is_pick, shortcode,
        doctor_id, author_id, video_id, post_slug, post_year, like_count, view_count, created_at,
        deleted_at,
        external_url, external_title, external_image, external_site_name,
@@ -51,6 +51,11 @@ export default async function AdminEditQAPage({ params }: Props) {
     .eq("id", numId)
     .maybeSingle();
   if (!qaRaw) notFound();
+
+  // 시술후기(type=review)는 일반 카드 에디터가 아니라 후기 전용 에디터로 — 사용자 정책.
+  if (qaRaw.type === "review" && qaRaw.shortcode) {
+    redirect(`/review/${qaRaw.shortcode}/edit`);
+  }
 
   // 원장 admin은 본인 doctor 글만 편집 가능 (super admin은 모두)
   if (isDoctorAdmin && !isSuperAdmin) {
