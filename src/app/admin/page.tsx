@@ -60,6 +60,8 @@ export default async function AdminPage() {
     { count: doctorCount },
     { count: qaPublished },
     { count: postPublished },
+    { count: reviewPublished },
+    { count: reportPublished },
     { count: pendingReview },
     { count: totalComments },
     searchResults,
@@ -80,6 +82,16 @@ export default async function AdminPage() {
       .from("cards")
       .select("id", { count: "exact", head: true })
       .eq("type", "post")
+      .eq("status", "published"),
+    supabase
+      .from("cards")
+      .select("id", { count: "exact", head: true })
+      .eq("category", "review")
+      .eq("status", "published"),
+    supabase
+      .from("cards")
+      .select("id", { count: "exact", head: true })
+      .eq("category", "review_summary")
       .eq("status", "published"),
     supabase
       .from("cards")
@@ -156,13 +168,15 @@ export default async function AdminPage() {
         </p>
       </div>
 
-      {/* 운영 통계 — 누적 카드 6개. 모바일 3개씩 (2줄), 데스크탑 6개 한 줄.
-          원장 → 의사 프로필 관리, 댓글 → 제목+댓글 리스트 페이지. */}
-      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
-        <Stat label="전체 회원" value={userCount ?? 0} href="/admin/users" />
+      {/* 운영 통계 — 누적 카드 8개. 모바일 4개씩 (2줄), 데스크탑 8개 한 줄.
+          순서: 회원·원장·Q&A·끄적끄적·시술후기·시술 리포트·검수 대기·댓글. */}
+      <div className="mb-6 grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8">
+        <Stat label="회원" value={userCount ?? 0} href="/admin/users" />
         <Stat label="원장" value={doctorCount ?? 0} href="/admin/doctors" />
-        <Stat label="발행 Q&A" value={qaPublished ?? 0} href="/admin/cards?type=qa&status=published" />
-        <Stat label="발행 끄적끄적" value={postPublished ?? 0} href="/admin/cards?type=post&status=published" />
+        <Stat label="Q&A" value={qaPublished ?? 0} href="/admin/cards?type=qa&status=published" />
+        <Stat label="끄적끄적" value={postPublished ?? 0} href="/admin/cards?type=post&status=published" />
+        <Stat label="시술후기" value={reviewPublished ?? 0} href="/admin/cards?type=review&status=published" />
+        <Stat label="시술 리포트" value={reportPublished ?? 0} href="/admin/cards?type=review_summary&status=published" />
         <Stat
           label="검수 대기"
           value={pendingReview ?? 0}
@@ -308,16 +322,19 @@ function Stat({
   href?: string;
 }) {
   const cls =
-    "block rounded-[var(--radius)] border bg-white p-4 transition-colors " +
+    "block overflow-hidden rounded-[var(--radius)] border bg-white p-3 transition-colors " +
     (highlight
       ? "border-amber-300 hover:bg-amber-50/40"
       : "border-[var(--border)] hover:bg-[var(--bg-soft)]");
   const inner = (
     <>
-      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      <div className="whitespace-nowrap text-[11px] leading-tight text-[var(--text-muted)]">
+        {label}
+      </div>
+      {/* 1000+ 4~6자리에도 칸 넘치지 않게 — 모바일은 한 단계 작게 + nowrap. */}
       <div
         className={
-          "mt-1 text-2xl font-bold tabular-nums " +
+          "mt-1 whitespace-nowrap text-xl font-bold tabular-nums sm:text-2xl " +
           (highlight ? "text-amber-700" : "text-[var(--text)]")
         }
       >
