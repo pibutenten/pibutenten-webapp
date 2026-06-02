@@ -364,7 +364,7 @@ export default function ReviewForm({
         {/* ── 5. 체감 효과 (필수, 멀티 칩) ── */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            어떤 효과를 느끼셨나요?{" "}
+            어떤 효과를 보셨나요?{" "}
             <span className="text-xs font-normal text-[var(--text-muted)]">
               모두 선택해주세요!
             </span>
