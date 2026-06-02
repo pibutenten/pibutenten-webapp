@@ -144,36 +144,46 @@ function shuffled<T>(arr: readonly T[]): T[] {
 }
 
 /**
- * 체감 효과 옵션 — 독립 목록 (2026-06-02, 온보딩 피부고민과 별개).
- * 순서: 리프팅·탄력·볼륨·피부결·주름·피부톤·모공·윤곽·속건조·트러블·홍조.
+ * 체감 효과 옵션 — 독립 목록 16종 (2026-06-02, 온보딩 피부고민과 별개).
+ * 순서: 리프팅·탄력·쫀쫀함·볼륨·작은얼굴·턱선·이중턱·피부톤·피부결·잔주름·모공·생기·속건조·붉은기·트러블·피지.
  * 저장값(effect_areas)은 이 라벨 문자열 그대로.
  */
 const EFFECT_AREA_OPTIONS: string[] = [
   "리프팅",
   "탄력",
+  "쫀쫀함",
   "볼륨",
-  "피부결",
-  "주름",
+  "작은얼굴",
+  "턱선",
+  "이중턱",
   "피부톤",
+  "피부결",
+  "잔주름",
   "모공",
-  "윤곽",
+  "생기",
   "속건조",
+  "붉은기",
   "트러블",
-  "홍조",
+  "피지",
 ];
-/** 효과 칩 색 — EFFECT_AREA_OPTIONS 와 동일 인덱스 매칭 (11색 파스텔). */
+/** 효과 칩 색 — EFFECT_AREA_OPTIONS 와 동일 인덱스 매칭 (16색 파스텔, 서로 다르게). */
 const EFFECT_AREA_COLORS: string[] = [
   "#B0A0DE",
   "#7FD0F8",
   "#F59CB6",
-  "#D6B0A1",
-  "#CDC97A",
+  "#FFCB8C",
+  "#A6D9A9",
+  "#C3B0E8",
   "#79CCC3",
   "#FFAF97",
   "#9AA6DE",
-  "#A6D9A9",
-  "#FFCB8C",
-  "#E59CC4",
+  "#CDC97A",
+  "#8FD4C8",
+  "#F4B8A0",
+  "#B8D88A",
+  "#F2A9C0",
+  "#D6B0A1",
+  "#E0C088",
 ];
 
 export default function ReviewForm({
@@ -253,13 +263,15 @@ export default function ReviewForm({
   }
 
   /* ── 제출 ── */
+  // 필수: 시술·만족도·통증·재시술 의향. 효과·생생한 후기는 선택.
+  const canSubmit =
+    !!procedureKo && satisfaction >= 1 && pain >= 1 && !!revisit;
+
   function validate(): string | null {
     if (!procedureKo) return "시술을 선택해주세요.";
     if (satisfaction < 1) return "만족도를 선택해주세요.";
     if (pain < 1) return "통증 정도를 선택해주세요.";
     if (!revisit) return "재시술 의향을 선택해주세요.";
-    if (effectAreas.length < 1) return "체감 효과를 한 개 이상 선택해주세요.";
-    if (!oneliner.trim()) return "한줄 후기를 입력해주세요.";
     return null;
   }
 
@@ -402,7 +414,10 @@ export default function ReviewForm({
           </div>
         </div>
 
-        {/* ── 2. 만족도 (필수) ── */}
+        {/* 시술을 고른 뒤에만 나머지 항목 입력 노출 — 미선택 시 전부 숨김. */}
+        {procedureKo && (
+          <>
+        {/* ── 2. 만족도 ── */}
         <StarField
           label="만족도"
           required
@@ -435,7 +450,7 @@ export default function ReviewForm({
         {/* ── 5. 체감 효과 (필수, 멀티 칩) ── */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            이번 시술로 달라진 점, 전부 찾아주세요.
+            이번 시술로 달라진 점을 모두 골라주세요!
             <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">
               생각보다 많을 거예요 — 보통 4개 이상 고르세요.
             </span>
@@ -490,8 +505,12 @@ export default function ReviewForm({
           <button
             type="button"
             onClick={submit}
-            disabled={pending}
-            className="h-10 cursor-pointer rounded-md bg-[var(--primary)] px-8 text-sm font-semibold text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+            disabled={pending || !canSubmit}
+            className={`h-10 rounded-md px-8 text-sm font-semibold text-white transition-colors disabled:opacity-80 ${
+              canSubmit
+                ? "cursor-pointer bg-[var(--primary)] hover:bg-[var(--primary-dark)]"
+                : "cursor-not-allowed bg-[#CBD2D9]"
+            }`}
           >
             {pending
               ? isEdit
@@ -502,6 +521,8 @@ export default function ReviewForm({
                 : "후기 올리기"}
           </button>
         </div>
+          </>
+        )}
       </div>
     </section>
   );

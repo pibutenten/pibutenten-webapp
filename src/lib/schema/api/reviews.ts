@@ -41,10 +41,10 @@ export const ReviewCreateSchema = z
     pain: z.number().int().min(1).max(5),
     // 재시술 의향: 예 / 고민중 / 아니오.
     revisit: z.enum(["yes", "maybe", "no"]),
-    // 체감 효과 — 후기 전용 11종 라벨(리프팅·탄력·…·홍조), 복수(1~11개, 각 ≤20자).
-    effect_areas: z.array(z.string().min(1).max(20)).min(1).max(11),
-    // 생생한 후기 본문 (body 컬럼에 저장, 1~400자 — 비어있으면 안 됨).
-    body: z.string().min(1).max(400),
+    // 체감 효과 — 후기 전용 16종 라벨, 선택(0~16개, 각 ≤20자).
+    effect_areas: z.array(z.string().min(1).max(20)).max(16),
+    // 생생한 후기 본문 (body 컬럼, 선택 — 0~400자). 비어 있으면 제목만 저장.
+    body: z.string().max(400),
 
     // ── 선택 ──
     // title 기본값 생성용 (라우트에서 미지정 시 `{시술명} 시술후기`).
