@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import LoginPromptDialog from "@/components/LoginPromptDialog";
 
 type Props = {
   hasSession: boolean;
@@ -13,21 +14,31 @@ type Props = {
 const HIDDEN_PREFIXES = ["/write", "/review", "/onboarding", "/signup", "/login"];
 
 const FAB_COLOR = "#4CBFF2";
+// 위성은 메인 버튼보다 조금 연한 하늘색.
+const FAB_SAT_COLOR = "#7FD0F8";
 
 /**
  * 우하단 플로팅 작성 버튼 — 위성 메뉴(P4).
- * - 탭하면 위성 3개가 펼쳐짐: "시술 후기" → /review/new, "글쓰기" → /write, "보관함" → /{handle}.
+ * - 탭하면 위성 3개가 펼쳐짐: "시술 후기" → /review/new, "글쓰기" → /write, "보관함" → /{handle}?tab=saves.
  * - 검색/태그 페이지에서 진입하면 현재 태그를 ?procedure 로 미리선택 전달.
- * - 비로그인은 /login?next=... 로 유도.
+ * - 비로그인: 위성은 열리지만 클릭하면 페이지 이동 대신 로그인 유도 모달(LoginPromptDialog).
  * - 글쓰기/후기/온보딩 등 자기 자신 맥락 페이지에서는 숨김.
  * - 데스크탑(sm:↑): 메인 버튼 위로 라벨 알약 + 아이콘 원 세로 스택.
- * - 모바일(기본): 메인 버튼 둘레로 부채꼴(arc) 배치 (아이콘 원 + 아래 작은 라벨).
- * - iOS safe-area 대응.
+ * - 모바일(기본): 메인 버튼 둘레로 부채꼴(arc) 배치 (아이콘 원, 라벨 숨김).
  */
 export default function FloatingWriteButton({ hasSession, handle }: Props) {
   const pathname = usePathname() || "";
   const sp = useSearchParams();
   const [open, setOpen] = useState(false);
+  const [authPrompt, setAuthPrompt] = useState<string | null>(null);
+
+  // 위성이 열린 상태에서 화면 스크롤하면 자동으로 닫는다.
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, { passive: true });
+    return () => window.removeEventListener("scroll", close);
+  }, [open]);
 
   if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
 
@@ -38,19 +49,13 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
     tag = decodeURIComponent(pathname.slice("/topics/".length)).trim();
 
   // 시술 후기 — 태그가 있으면 ?procedure 로 미리선택 전달.
-  const reviewBase = tag
+  const reviewHref = tag
     ? `/review/new?procedure=${encodeURIComponent(tag)}`
     : "/review/new";
-  const reviewHref = hasSession
-    ? reviewBase
-    : `/login?next=${encodeURIComponent(reviewBase)}`;
-
   // 글쓰기.
-  const writeHref = hasSession ? "/write" : "/login?next=/write";
-
-  // 보관함 — 로그인 + handle 있으면 /{handle}, 아니면 로그인 후 홈.
-  const libraryHref =
-    hasSession && handle ? `/${handle}` : "/login?next=/";
+  const writeHref = "/write";
+  // 보관함 — 본인 프로필의 '저장' 탭으로.
+  const libraryHref = handle ? `/${handle}?tab=saves` : "/";
 
   return (
     <>
@@ -72,41 +77,53 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
       >
         {open && (
           <>
-            {/* ① 시술 후기 — 모바일 왼쪽 / 데스크탑 세로 스택 */}
+            {/* ① 시술 후기 */}
             <SatelliteItem
               className="fab-sat fab-sat-review"
               href={reviewHref}
               label="시술 후기"
-              onClick={() => setOpen(false)}
+              authed={hasSession}
+              onClose={() => setOpen(false)}
+              onAuthRequired={() => {
+                setOpen(false);
+                setAuthPrompt("시술 후기를 남기려면 로그인이 필요해요");
+              }}
             >
-              {/* 별(후기) 아이콘 */}
               <svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden>
                 <path d="M12 17.3l-5.6 3.3 1.5-6.3-4.9-4.3 6.4-.5L12 3.5l2.6 6 6.4.5-4.9 4.3 1.5 6.3z" />
               </svg>
             </SatelliteItem>
 
-            {/* ② 글쓰기 — 모바일 좌상단 / 데스크탑 세로 스택 */}
+            {/* ② 글쓰기 */}
             <SatelliteItem
               className="fab-sat fab-sat-write"
               href={writeHref}
               label="글쓰기"
-              onClick={() => setOpen(false)}
+              authed={hasSession}
+              onClose={() => setOpen(false)}
+              onAuthRequired={() => {
+                setOpen(false);
+                setAuthPrompt("글을 쓰려면 로그인이 필요해요");
+              }}
             >
-              {/* 연필 아이콘 */}
               <svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden>
                 <path d="M12 20h9" />
                 <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
               </svg>
             </SatelliteItem>
 
-            {/* ③ 보관함 — 모바일 위 / 데스크탑 세로 스택 */}
+            {/* ③ 보관함 */}
             <SatelliteItem
               className="fab-sat fab-sat-library"
               href={libraryHref}
               label="보관함"
-              onClick={() => setOpen(false)}
+              authed={hasSession}
+              onClose={() => setOpen(false)}
+              onAuthRequired={() => {
+                setOpen(false);
+                setAuthPrompt("보관함을 보려면 로그인이 필요해요");
+              }}
             >
-              {/* 북마크(저장) 아이콘 */}
               <svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden>
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
               </svg>
@@ -140,12 +157,13 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
         </button>
       </div>
 
-      {/*
-        반응형 레이아웃 — styled-jsx.
-        - 모바일(기본): 위성을 컨테이너(메인 버튼) 우하단 기준 absolute 부채꼴로 배치.
-          아이콘 원(46px) + 그 아래 작은 라벨. 메인 버튼은 컨테이너 흐름에 그대로 둠.
-        - 데스크탑(≥640px): absolute 무효화하고 세로 스택(라벨 알약 + 아이콘 원).
-      */}
+      {/* 비로그인 클릭 시 로그인 유도 모달 */}
+      <LoginPromptDialog
+        open={!!authPrompt}
+        message={authPrompt ?? ""}
+        onClose={() => setAuthPrompt(null)}
+      />
+
       <style jsx>{`
         /* ── 모바일 부채꼴 (기본) — 아이콘만(라벨 없음) ── */
         .fab-root :global(.fab-sat) {
@@ -155,7 +173,6 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
           gap: 4px;
           animation: fab-pop 0.18s ease-out both;
         }
-        /* 보관함 왼쪽 / 글쓰기 좌상단 / 시술후기 위 */
         .fab-root :global(.fab-sat-library) {
           bottom: 4px;
           right: 84px;
@@ -168,7 +185,6 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
           bottom: 84px;
           right: 4px;
         }
-        /* 모바일: 라벨 숨김 (아이콘만으로 충분) */
         .fab-root :global(.fab-sat .fab-label) {
           display: none;
         }
@@ -212,34 +228,60 @@ export default function FloatingWriteButton({ hasSession, handle }: Props) {
   );
 }
 
-/** 위성 항목 — 라벨 알약 + 아이콘 원형(링크). 배치/방향은 부모 className(반응형 CSS)이 제어. */
+/**
+ * 위성 항목 — 로그인 상태면 Link(이동), 비로그인이면 button(로그인 모달).
+ * 배치/방향은 부모 className(반응형 CSS)이 제어.
+ */
 function SatelliteItem({
   href,
   label,
-  onClick,
+  authed,
+  onClose,
+  onAuthRequired,
   className,
   children,
 }: {
   href: string;
   label: string;
-  onClick: () => void;
+  authed: boolean;
+  onClose: () => void;
+  onAuthRequired: () => void;
   className?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={`flex cursor-pointer ${className ?? ""}`}
-      aria-label={label}
-    >
+  const inner = (
+    <>
       <span className="fab-label">{label}</span>
       <span
         className="flex cursor-pointer items-center justify-center rounded-full shadow-[0_6px_16px_rgba(139,195,222,0.35)] transition-transform active:scale-95"
-        style={{ width: 46, height: 46, backgroundColor: FAB_COLOR }}
+        style={{ width: 46, height: 46, backgroundColor: FAB_SAT_COLOR }}
       >
         {children}
       </span>
+    </>
+  );
+
+  if (!authed) {
+    return (
+      <button
+        type="button"
+        onClick={onAuthRequired}
+        className={`flex cursor-pointer ${className ?? ""}`}
+        aria-label={label}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      onClick={onClose}
+      className={`flex cursor-pointer ${className ?? ""}`}
+      aria-label={label}
+    >
+      {inner}
     </Link>
   );
 }

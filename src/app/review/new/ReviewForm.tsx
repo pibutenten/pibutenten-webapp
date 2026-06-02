@@ -91,6 +91,15 @@ const PAIN_FACES: { face: string; label: string }[] = [
   { face: "😖", label: "심함" },
 ];
 
+/* 통증 단계별 색 — 크림 옐로우(없음)→다크 레드(심함). 얼굴 뒤 원형 배경에 사용. */
+const PAIN_COLORS: string[] = [
+  "#FEF08A", // 없음
+  "#FDE047", // 조금
+  "#F97316", // 보통
+  "#EF4444", // 꽤
+  "#991B1B", // 심함
+];
+
 /* ── 값 키(고정 — DB CHECK 와 일치) ── */
 type ChoiceOption = { value: string; label: string; color?: string };
 
@@ -219,6 +228,24 @@ export default function ReviewForm({
     setError(null);
   }
 
+  // 시술 다시 선택(생성 모드 전용) — 확인 후 입력값 전체 초기화하고 피커 재오픈.
+  function reselectProcedure() {
+    if (
+      !window.confirm(
+        "시술을 다시 선택하면 지금까지 입력한 내용이 모두 지워집니다. 계속할까요?",
+      )
+    ) {
+      return;
+    }
+    setProcedureKo("");
+    setSatisfaction(0);
+    setPain(0);
+    setRevisit("");
+    setEffectAreas([]);
+    setOneliner("");
+    setError(null);
+  }
+
   function toggleEffectArea(v: string) {
     setEffectAreas((prev) =>
       prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
@@ -333,7 +360,22 @@ export default function ReviewForm({
             제목으로 남으며 아래 입력창들이 자연스럽게 올라옴. */}
         <div>
           {selectedProcedure && (
-            <SelectedProcedureTitle option={selectedProcedure} />
+            <>
+              <SelectedProcedureTitle option={selectedProcedure} />
+              {/* 생성 모드에서만 다시 선택 허용(수정 모드는 시술 잠금). */}
+              {!isEdit && (
+                <div className="mb-1 text-center">
+                  <button
+                    type="button"
+                    onClick={reselectProcedure}
+                    disabled={pending}
+                    className="cursor-pointer text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--text-secondary)] disabled:opacity-50"
+                  >
+                    시술 다시 선택
+                  </button>
+                </div>
+              )}
+            </>
           )}
           <div
             className="grid transition-[grid-template-rows] duration-300 ease-out"
@@ -376,6 +418,7 @@ export default function ReviewForm({
           value={pain}
           onChange={setPain}
           faces={PAIN_FACES}
+          colors={PAIN_COLORS}
           disabled={pending}
         />
 
@@ -392,9 +435,9 @@ export default function ReviewForm({
         {/* ── 5. 체감 효과 (필수, 멀티 칩) ── */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            어떤 효과를 보셨나요?{" "}
-            <span className="text-xs font-normal text-[var(--text-muted)]">
-              모두 선택해주세요!
+            이번 시술로 달라진 점, 전부 찾아주세요.
+            <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">
+              생각보다 많을 거예요 — 보통 4개 이상 고르세요.
             </span>
           </label>
           <div className="flex flex-wrap gap-2">
@@ -744,16 +787,15 @@ function StarField({
         {label}{" "}
              </label>
       <div
-        className="flex justify-start gap-2"
+        className="flex justify-start gap-1"
         onMouseLeave={() => setHover(0)}
       >
         {[1, 2, 3, 4, 5].map((n) => {
-          // 확정(n<=value): 호버 중에도 진한 확정색(클릭하면 바로 확정된 느낌).
+          // 확정(n<=value): 호버 중에도 채움(클릭하면 바로 확정된 느낌).
           // 호버 추가분(value 초과 ~ hover): 연한 미리보기. 그 외: 회색.
           const confirmed = n <= value;
           const hoverExtra = hover > 0 && n > value && n <= hover;
           const gold = confirmed || hoverExtra;
-          const color = gold ? "var(--accent-save)" : "var(--bg-soft)";
           return (
             <button
               key={n}
@@ -762,12 +804,17 @@ function StarField({
               onClick={() => onChange(n)}
               onMouseEnter={() => setHover(n)}
               disabled={disabled}
-              className={`flex w-12 cursor-pointer items-center justify-center text-2xl leading-none transition-transform hover:scale-110 disabled:opacity-50 ${
-                hoverExtra ? "opacity-50" : "opacity-100"
-              }`}
-              style={{ color }}
+              className="flex w-10 cursor-pointer items-center justify-center text-[28px] leading-none transition-transform hover:scale-110 disabled:opacity-50"
             >
-              ★
+              {/* 라운드한 이모지 별(⭐) — 채움=원색, 빈칸=그레이스케일(통증 이모지와 톤 일치). */}
+              <span
+                style={{
+                  filter: gold ? "none" : "grayscale(1)",
+                  opacity: gold ? (hoverExtra ? 0.5 : 1) : 0.4,
+                }}
+              >
+                ⭐
+              </span>
             </button>
           );
         })}
@@ -792,6 +839,7 @@ function FaceField({
   value,
   onChange,
   faces,
+  colors,
   disabled,
   required,
 }: {
@@ -799,6 +847,8 @@ function FaceField({
   value: number;
   onChange: (v: number) => void;
   faces: { face: string; label: string }[];
+  /** 단계별 원형 배경색 (index 매칭). 없으면 배경 없음. */
+  colors?: string[];
   disabled?: boolean;
   required?: boolean;
 }) {
@@ -808,30 +858,16 @@ function FaceField({
       <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
         {label}      </label>
       <div
-        className="flex justify-start gap-2"
+        className="flex justify-start gap-1"
         onMouseLeave={() => setHover(0)}
       >
         {faces.map((f, i) => {
           const n = i + 1;
           const selected = n === value;
           const previewing = !selected && n === hover && !disabled;
-
-          let wrapClass: string;
-          let labelClass: string;
-          let pillStyle: CSSProperties;
-          if (selected) {
-            wrapClass = "opacity-100";
-            labelClass = "text-[var(--primary-dark)]";
-            pillStyle = { backgroundColor: "transparent" };
-          } else if (previewing) {
-            wrapClass = "opacity-90";
-            labelClass = "text-[var(--primary)]";
-            pillStyle = { backgroundColor: "transparent" };
-          } else {
-            wrapClass = "opacity-40 hover:opacity-70";
-            labelClass = "text-[var(--text-secondary)]";
-            pillStyle = { backgroundColor: "transparent" };
-          }
+          const bg = colors?.[i];
+          // 단계색 원형: 선택=원색+살짝 키움+링, 호버=중간, 그 외=흐리게.
+          const circleOpacity = selected ? 1 : previewing ? 0.72 : 0.4;
 
           return (
             <button
@@ -842,18 +878,28 @@ function FaceField({
               disabled={disabled}
               aria-label={`${label} ${n} ${f.label}`}
               aria-pressed={selected}
-              className={`flex w-12 cursor-pointer flex-col items-center justify-center rounded-md py-1 transition-[opacity,background-color] disabled:opacity-50 ${wrapClass}`}
-              style={pillStyle}
+              className="flex w-10 cursor-pointer flex-col items-center justify-center gap-1 py-1 disabled:opacity-50"
             >
               <span
-                className="text-lg leading-none"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-[19px] leading-none transition-all"
                 style={{
-                  filter: selected || previewing ? "none" : "grayscale(1)",
+                  backgroundColor: bg ?? "transparent",
+                  opacity: circleOpacity,
+                  transform: selected ? "scale(1.1)" : "scale(1)",
+                  boxShadow:
+                    selected && bg ? `0 0 0 2px ${bg}66` : "none",
                 }}
               >
                 {f.face}
               </span>
-              <span className={`mt-0.5 text-[10px] font-medium ${labelClass}`}>
+              <span
+                className="text-[10px] font-medium"
+                style={{
+                  color: selected
+                    ? "var(--text)"
+                    : "var(--text-secondary)",
+                }}
+              >
                 {f.label}
               </span>
             </button>

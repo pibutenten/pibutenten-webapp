@@ -91,7 +91,7 @@ export const TAB_LABELS: { key: keyof FieldVisibility; label: string }[] = [
   { key: "tab_comments", label: "댓글" },
   { key: "tab_likes", label: "좋아요" },
   { key: "tab_saves", label: "저장" },
-  { key: "tab_skin", label: "피부고민" },
+  { key: "tab_skin", label: "내 피부" },
 ];
 
 // ─────────────────────────────────────────────────────────────

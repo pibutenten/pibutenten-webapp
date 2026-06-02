@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
@@ -59,7 +60,7 @@ type Props = {
 const TAB_LABEL: Record<Tab, string> = {
   posts: "작성 글",
   reviews: "내 후기",
-  skin: "피부고민",
+  skin: "내 피부",
   comments: "댓글",
   likes: "좋아요",
   saves: "저장",
@@ -173,7 +174,13 @@ export default function ProfileTabs({
   const defaultTab: Tab =
     tabs.find((t) => tabHasContent(t)) ?? tabs[0] ?? "posts";
 
-  const [tab, setTab] = useState<Tab>(defaultTab);
+  // URL ?tab= 딥링크(예: FAB 보관함 → /{handle}?tab=saves). 노출 탭에 있을 때만 적용.
+  const sp = useSearchParams();
+  const urlTab = sp.get("tab") as Tab | null;
+  const initialTab: Tab =
+    urlTab && tabs.includes(urlTab) ? urlTab : defaultTab;
+
+  const [tab, setTab] = useState<Tab>(initialTab);
 
   // 댓글 lazy fetch
   const [comments, setComments] = useState<CommentRow[] | null>(null);
