@@ -25,8 +25,26 @@ const EFFECT_BAR_COLORS = [
 const SECTION = "border-b border-[var(--border)] px-5 py-4";
 const TITLE = "mb-2.5 text-[14px] font-bold text-[var(--text)]";
 
-function painLabelFor(avg: number): string {
-  return PAIN_LABELS[Math.min(4, Math.max(0, Math.round(avg) - 1))] ?? "보통";
+// 통계 수치를 편안한 자연어로 — 값에 따라 멘트가 달라진다.
+function revisitPhrase(pct: number): string {
+  if (pct >= 70) return `경험하신 분들의 ${pct}%가 다시 받고 싶어 해요.`;
+  if (pct >= 40) return `${pct}%가 다시 받을 의향이 있어요. 호불호가 갈리는 편이에요.`;
+  return `다시 받겠다는 분은 ${pct}%예요. 신중히 고민해 보세요.`;
+}
+function satisfactionPhrase(avg: number): string {
+  const x = avg.toFixed(1);
+  if (avg >= 4.5) return `별점 ${x}점! 다들 결과에 크게 만족하셨어요.`;
+  if (avg >= 4.0) return `별점 ${x}점, 대체로 만족하는 분위기예요.`;
+  if (avg >= 3.0) return `별점 ${x}점, 기대와 결과가 갈리는 편이에요.`;
+  return `별점 ${x}점으로 아쉬웠다는 의견이 많아요.`;
+}
+function painPhrase(avg: number): string {
+  const x = avg.toFixed(1);
+  if (avg <= 1.5) return `평균 ${x}점, 거의 안 아팠다는 후기가 많아요.`;
+  if (avg <= 2.5) return `평균 ${x}점, 가볍게 느껴지는 정도예요.`;
+  if (avg <= 3.5) return `평균 ${x}점, 참을 만하지만 살짝 뻐근해요.`;
+  if (avg <= 4.5) return `평균 ${x}점의 통증, 참을 만하지만 꽤 뻐근해요.`;
+  return `평균 ${x}점, 통증이 꽤 강한 편이에요.`;
 }
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -69,13 +87,20 @@ export default function ProcedureReportCard({
   const ageTotal = Math.max(1, demographics.ageBands.reduce((a, b) => a + b.count, 0));
 
   return (
-    <article className="overflow-hidden rounded-[16px] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]">
+    <div>
+      {/* 라운드 상자 밖 — 브랜드 워드마크(피부텐텐 글씨체) + 리포트 */}
+      <div className="mb-2 flex items-center gap-1.5 pl-0.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand-logo.svg" alt="피부텐텐" className="h-[15px] w-auto" />
+        <span className="text-[15px] font-bold" style={{ color: "#2BA3DC" }}>
+          리포트
+        </span>
+      </div>
+
+      <article className="overflow-hidden rounded-[16px] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]">
       {/* 헤더 — 시술명(좌) + 후기 수(우) 한 줄 */}
       <header className="border-b border-[var(--border)] bg-gradient-to-br from-[#EAF7FE] to-[#F7FCFF] px-5 py-4">
-        <span className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white" style={{ backgroundColor: accent }}>
-          피부텐텐 리포트
-        </span>
-        <div className="mt-2 flex items-baseline justify-between gap-3">
+        <div className="flex items-baseline justify-between gap-3">
           <h1 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em]" style={{ color: accent }}>
             {procedureKo}
           </h1>
@@ -87,13 +112,10 @@ export default function ProcedureReportCard({
 
       {/* 재시술 의향 — 상단, 만족도보다 살짝만 강조 */}
       <section className={SECTION}>
-        <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[14px] font-bold text-[var(--text)]">재시술 의향</span>
-          <span className="text-[13px] text-[var(--text-secondary)]">
-            <b className="align-middle text-[16px] font-bold" style={{ color: "#4CBFF2" }}>{yesPct}%</b>
-            <span className="ml-1 align-middle">다시 받을래요</span>
-          </span>
-        </div>
+        <div className="text-[14px] font-bold text-[var(--text)]">재시술 의향</div>
+        <p className="mb-2.5 mt-1 text-[12.5px] leading-[1.5] text-[var(--text-secondary)]">
+          {revisitPhrase(yesPct)}
+        </p>
         <div className="flex h-[20px] overflow-hidden rounded-lg text-[11px] font-bold text-white">
           {yesPct > 0 && <div className="flex items-center justify-center" style={{ width: `${yesPct}%`, backgroundColor: "#4CBFF2" }}>{yesPct >= 14 ? "있어요" : ""}</div>}
           {maybePct > 0 && <div className="flex items-center justify-center" style={{ width: `${maybePct}%`, backgroundColor: "#9AA1AC" }}>{maybePct >= 14 ? "고민" : ""}</div>}
@@ -108,15 +130,18 @@ export default function ProcedureReportCard({
 
       {/* 만족도 — 접힘 시 여기까지 노출 */}
       <section className={expanded ? SECTION : "px-5 py-4"}>
-        <div className={TITLE}>만족도</div>
+        <div className="text-[14px] font-bold text-[var(--text)]">만족도</div>
+        <p className="mb-2.5 mt-1 text-[12.5px] leading-[1.5] text-[var(--text-secondary)]">
+          {satisfactionPhrase(avgSatisfaction)}
+        </p>
         <div className="flex items-center gap-4">
           <div className="flex shrink-0 items-center gap-2">
-            <span className="text-[15px] leading-none tracking-[1px]">
+            <span className="text-[16px] leading-none tracking-[1px]">
               {[1, 2, 3, 4, 5].map((nn) => (
                 <span key={nn} style={{ color: nn <= satRounded ? "var(--accent-save)" : "#DDE2E7" }}>★</span>
               ))}
             </span>
-            <span className="text-[16px] font-bold text-[var(--text)]">{avgSatisfaction.toFixed(1)}</span>
+            <span className="text-[18px] font-bold text-[var(--text)]">{avgSatisfaction.toFixed(1)}</span>
           </div>
           <div className="flex flex-1 flex-col gap-[3px]">
             {[5, 4, 3, 2, 1].map((score) => {
@@ -140,10 +165,10 @@ export default function ProcedureReportCard({
         <>
           {/* 통증 */}
           <section className={SECTION}>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-secondary)]">통증</span>
-              <span className="text-[12px] text-[var(--text-secondary)]">{painLabelFor(avgPain)} · {avgPain.toFixed(1)}/5</span>
-            </div>
+            <div className="text-[14px] font-bold text-[var(--text)]">통증</div>
+            <p className="mb-2.5 mt-1 text-[12.5px] leading-[1.5] text-[var(--text-secondary)]">
+              {painPhrase(avgPain)}
+            </p>
             <div className="relative h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${PAIN_SOFT.join(", ")})` }}>
               <span className="absolute -top-[3px] h-[14px] w-[3px] rounded-[2px] bg-[#64748B] shadow-[0_0_0_2px_#fff]" style={{ left: `calc(${painPct}% - 1.5px)` }} />
             </div>
@@ -170,23 +195,46 @@ export default function ProcedureReportCard({
             </section>
           )}
 
-          {/* 작성자 통계 */}
+          {/* 작성자 통계 — 약간의 차트(성별 막대 + 연령대 미니 바) */}
           {demoTotal > 0 && (
             <section className={SECTION}>
-              <div className="mb-2 text-[13px] font-semibold text-[var(--text-secondary)]">작성자 통계</div>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-[var(--text-secondary)]">
-                <span>여성 <b className="text-[var(--text)]">{femalePct}%</b> · 남성 <b className="text-[var(--text)]">{malePct}%</b></span>
-                {demographics.ageBands.length > 0 && (
-                  <span>
-                    {demographics.ageBands.map((b, i) => (
-                      <span key={b.label}>
-                        {i > 0 && " · "}
-                        {b.label} <b className="text-[var(--text)]">{Math.round((b.count / ageTotal) * 100)}%</b>
-                      </span>
-                    ))}
-                  </span>
+              <div className="mb-2.5 text-[13px] font-semibold text-[var(--text-secondary)]">작성자 통계</div>
+
+              {/* 성별 — 가로 막대 */}
+              <div className="flex h-[14px] overflow-hidden rounded-full text-[9.5px] font-bold text-white">
+                {femalePct > 0 && (
+                  <div className="flex items-center justify-center" style={{ width: `${femalePct}%`, backgroundColor: "#F59CB6" }}>
+                    {femalePct >= 22 ? `여성 ${femalePct}%` : ""}
+                  </div>
+                )}
+                {malePct > 0 && (
+                  <div className="flex items-center justify-center" style={{ width: `${malePct}%`, backgroundColor: "#7FD0F8" }}>
+                    {malePct >= 22 ? `남성 ${malePct}%` : ""}
+                  </div>
                 )}
               </div>
+              <div className="mt-1.5 flex gap-3.5 text-[11px] text-[var(--text-secondary)]">
+                <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#F59CB6" }} />여성 {femalePct}%</span>
+                <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#7FD0F8" }} />남성 {malePct}%</span>
+              </div>
+
+              {/* 연령대 — 미니 바 */}
+              {demographics.ageBands.length > 0 && (
+                <div className="mt-3 flex flex-col gap-1.5">
+                  {demographics.ageBands.map((b) => {
+                    const pct = Math.round((b.count / ageTotal) * 100);
+                    return (
+                      <div key={b.label} className="flex items-center gap-2 text-[11px]">
+                        <span className="w-9 text-[var(--text-secondary)]">{b.label}</span>
+                        <span className="h-[8px] flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
+                          <span className="block h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: "#9AA6DE" }} />
+                        </span>
+                        <span className="w-9 text-right font-semibold text-[var(--text-secondary)]">{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </section>
           )}
 
@@ -257,6 +305,7 @@ export default function ProcedureReportCard({
         {expanded ? "접기" : "리포트 자세히 보기"}
         <span aria-hidden style={{ transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
       </button>
-    </article>
+      </article>
+    </div>
   );
 }
