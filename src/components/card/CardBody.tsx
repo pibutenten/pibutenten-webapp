@@ -8,6 +8,7 @@
  *  2) 답변 본문 (단락 분리 + bold + 형광펜 + clamp / 클릭 펼침)
  *  3) 참고문헌 (pubmed_refs 배열 — ADR 0012 정합)
  */
+import type { ReactNode } from "react";
 import Link from "next/link";
 import type { CardData } from "@/components/Card";
 import { getQaUrl } from "@/lib/card-url";
@@ -30,6 +31,8 @@ type Props = {
   highlightColor: string;
   /** 펼침 토글 시 호출 — Card.tsx가 setExpanded + recordView 처리. */
   onExpandToggle: () => void;
+  /** 제목 바로 아래에 끼워 넣을 노드 (시술후기 정량 요약 등). */
+  afterTitle?: ReactNode;
 };
 
 export default function CardBody({
@@ -41,6 +44,7 @@ export default function CardBody({
   forceExpanded,
   highlightColor,
   onExpandToggle,
+  afterTitle,
 }: Props) {
   // 표시할 참고문헌 ref 배열 — ADR 0012 정합. 옛 단일 pubmed_ref fallback 폐기.
   const refs: NonNullable<CardData["pubmed_refs"]> = card.pubmed_refs ?? [];
@@ -70,6 +74,9 @@ export default function CardBody({
       ) : (
         <h2 className={titleClass}>{titleInner}</h2>
       )}
+
+      {/* 제목 바로 아래 슬롯 — 시술후기(type=review) 정량 요약 한 줄 등. */}
+      {afterTitle}
 
       {/* 3. 본문 — 단락(\n\n) 분리 + **bold** 인라인(형광펜 하이라이트) 렌더링.
           isLongAnswer && !expanded → 첫 단락만 line-clamp-4(mobile)/md:line-clamp-5(desktop)로 가림.

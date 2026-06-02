@@ -25,17 +25,22 @@ export const SKIN_TYPES: { key: string; label: string }[] = [
   { key: "extreme_oily", label: "극지성" },
 ];
 
+// 피부 고민 — 온보딩/설정 공유 (2026-06-02 11종 개편).
+//   순서: 처짐·탄력·볼륨·피부결·주름·피부톤·모공·윤곽·속건조·트러블·홍조.
+//   기존 키 유지(elasticity/volume/wrinkle/tone/pores/contour/texture/trouble) +
+//   신규 sagging/inner_dry/redness. 폐지 aging/sensitive 는 0207 로 기존 데이터 정리.
 export const SKIN_CONCERNS: { key: string; label: string }[] = [
+  { key: "sagging", label: "처짐" },
   { key: "elasticity", label: "탄력" },
   { key: "volume", label: "볼륨" },
+  { key: "texture", label: "피부결" },
   { key: "wrinkle", label: "주름" },
   { key: "tone", label: "피부톤" },
   { key: "pores", label: "모공" },
   { key: "contour", label: "윤곽" },
-  { key: "texture", label: "피부결" },
-  { key: "aging", label: "노안" },
+  { key: "inner_dry", label: "속건조" },
   { key: "trouble", label: "트러블" },
-  { key: "sensitive", label: "민감성" },
+  { key: "redness", label: "홍조" },
 ];
 
 export const PROCEDURES: { key: string; label: string }[] = [

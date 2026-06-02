@@ -1,17 +1,17 @@
 /**
  * ReviewSummary — 시술후기 카드(type=review)의 정량 요약 한 줄 텍스트.
  *
- * Card 본문(CardBody) 바로 위에 박스 없이 인라인 텍스트로 표시:
- *   ★★★★☆ · 통증 꽤 · 재시술 있어요 · 탄력·동안
+ * 카드 제목 바로 아래(CardBody afterTitle 슬롯)에 박스 없이 인라인 텍스트로 표시:
+ *   ★★★★☆ · 통증 꽤 · 재시술 의향 있어요 · 효과 탄력·리프팅
  *
  *   - 만족도: 별점만 (라벨 생략, ★×satisfaction 금색 / 나머지 옅은 회색)
- *   - 통증: 흐린 라벨 "통증" + 값(1=없음 … 5=심함)
- *   - 재시술 의향: 흐린 라벨 "재시술" + 색 값(yes=있어요 파랑 / no=없어요 빨강 / maybe=고민 중 회색)
- *   - 효과 체감: 흐린 라벨 "효과" + effect_areas 값을 가운뎃점(·)으로 연결
+ *   - 통증: 흐린 라벨 "통증" + 하늘색 값(1=없음 … 5=심함)
+ *   - 재시술 의향: 흐린 라벨 "재시술 의향" + 색 값(yes=있어요 파랑 / no=없어요 빨강 / maybe=고민 중 회색)
+ *   - 효과 체감: 흐린 라벨 "효과" + effect_areas 값(하늘색)을 가운뎃점(·)으로 연결
  *   - 항목 구분: 가운뎃점(·)
  *
  * 색·라벨은 review/new/ReviewForm.tsx 의 PAIN_FACES / REVISIT_OPTIONS 와 정합.
- * 디자인 토큰: --accent-save / --text-secondary / --text-muted.
+ * 디자인 토큰: --primary(하늘색) / --accent-save / --text-secondary / --text-muted.
  */
 import type { ReviewSummaryData } from "@/lib/types/card";
 
@@ -66,21 +66,21 @@ export default function ReviewSummary({ review }: { review: ReviewSummaryData })
     );
   }
 
-  // 통증 — 흐린 라벨 + 값.
+  // 통증 — 흐린 라벨 + 하늘색 값.
   if (painLabel) {
     segments.push(
       <span key="pain" className="whitespace-nowrap">
         <span className="text-[var(--text-muted)]">통증 </span>
-        {painLabel}
+        <span style={{ color: "var(--primary)" }}>{painLabel}</span>
       </span>,
     );
   }
 
-  // 재시술 의향 — 흐린 라벨 + 색 값.
+  // 재시술 의향 — 흐린 라벨 + 색 값(의향별 파랑/빨강/회색).
   if (revisit) {
     segments.push(
       <span key="revisit" className="whitespace-nowrap">
-        <span className="text-[var(--text-muted)]">재시술 </span>
+        <span className="text-[var(--text-muted)]">재시술 의향 </span>
         <span className="font-semibold" style={{ color: revisit.color }}>
           {revisit.label}
         </span>
@@ -88,12 +88,12 @@ export default function ReviewSummary({ review }: { review: ReviewSummaryData })
     );
   }
 
-  // 효과 체감 — 흐린 라벨 + 가운뎃점으로 연결한 값.
+  // 효과 체감 — 흐린 라벨 + 가운뎃점으로 연결한 하늘색 값.
   if (effects.length > 0) {
     segments.push(
       <span key="effects">
         <span className="text-[var(--text-muted)]">효과 </span>
-        {effects.join("·")}
+        <span style={{ color: "var(--primary)" }}>{effects.join("·")}</span>
       </span>,
     );
   }

@@ -304,15 +304,6 @@ export default function Card({
             onHideClick={performHide}
           />
 
-          {/* 시술후기(type=review) 정량 요약 — 본문 위에 컴팩트 박스로 표시.
-              임베드(procedure_review) 가 객체/배열 어느 쪽이든 깨지지 않게 정규화. */}
-          {card.type === "review" &&
-            (() => {
-              const pr = card.procedure_review;
-              const review = Array.isArray(pr) ? pr[0] : pr;
-              return review ? <ReviewSummary review={review} /> : null;
-            })()}
-
           <CardBody
             card={card}
             activeQuery={activeQuery}
@@ -321,6 +312,14 @@ export default function Card({
             expanded={expanded}
             forceExpanded={forceExpanded}
             highlightColor={highlightColor}
+            /* 시술후기(type=review) 정량 요약 — 제목 바로 아래에 한 줄 텍스트로.
+               임베드(procedure_review) 가 객체/배열 어느 쪽이든 깨지지 않게 정규화. */
+            afterTitle={(() => {
+              if (card.type !== "review") return null;
+              const pr = card.procedure_review;
+              const review = Array.isArray(pr) ? pr[0] : pr;
+              return review ? <ReviewSummary review={review} /> : null;
+            })()}
             onExpandToggle={() => {
               // 펼침 클릭 = 명확한 의도 → 조회 카운트 (recordView가 session dedup)
               // + 비로그인 흥미 점수 +2 (깊이 읽음 신호)

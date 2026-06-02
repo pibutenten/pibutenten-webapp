@@ -35,7 +35,6 @@ import {
 import { useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
-import { SKIN_CONCERNS } from "@/lib/profile-options";
 import { CATEGORIES } from "@/lib/categories";
 
 /**
@@ -120,21 +119,24 @@ function shuffled<T>(arr: readonly T[]): T[] {
 }
 
 /**
- * 체감 효과 옵션 — SKIN_CONCERNS 기반.
- * 라벨 치환: aging → "동안", sensitive → "피부장벽". 나머지는 원 라벨 그대로.
- * 저장값(effect_areas)은 여기 치환된 라벨 문자열.
+ * 체감 효과 옵션 — 독립 목록 (2026-06-02, 온보딩 피부고민과 별개).
+ * 순서: 리프팅·탄력·볼륨·피부결·주름·피부톤·모공·윤곽·속건조·트러블·홍조.
+ * 저장값(effect_areas)은 이 라벨 문자열 그대로.
  */
-const EFFECT_AREA_LABEL_OVERRIDE: Record<string, string> = {
-  aging: "동안",
-  sensitive: "피부장벽",
-};
-const EFFECT_AREA_OPTIONS: string[] = SKIN_CONCERNS.map(
-  (c) => EFFECT_AREA_LABEL_OVERRIDE[c.key] ?? c.label,
-);
-/**
- * 효과 칩 색 — EFFECT_AREA_OPTIONS(SKIN_CONCERNS 순서)와 동일 인덱스 매칭.
- * 탄력·볼륨·주름·피부톤·모공·윤곽·피부결·동안·트러블·피부장벽 순서.
- */
+const EFFECT_AREA_OPTIONS: string[] = [
+  "리프팅",
+  "탄력",
+  "볼륨",
+  "피부결",
+  "주름",
+  "피부톤",
+  "모공",
+  "윤곽",
+  "속건조",
+  "트러블",
+  "홍조",
+];
+/** 효과 칩 색 — EFFECT_AREA_OPTIONS 와 동일 인덱스 매칭 (11색 파스텔). */
 const EFFECT_AREA_COLORS: string[] = [
   "#B0A0DE",
   "#7FD0F8",
@@ -146,6 +148,7 @@ const EFFECT_AREA_COLORS: string[] = [
   "#9AA6DE",
   "#A6D9A9",
   "#FFCB8C",
+  "#E59CC4",
 ];
 
 export default function ReviewForm({
