@@ -41,8 +41,8 @@ export const ReviewCreateSchema = z
     pain: z.number().int().min(1).max(5),
     // 재시술 의향: 예 / 고민중 / 아니오.
     revisit: z.enum(["yes", "maybe", "no"]),
-    // 체감 효과 — SKIN_CONCERNS 라벨(동안/피부장벽 치환), 복수(1~10개, 각 ≤20자).
-    effect_areas: z.array(z.string().min(1).max(20)).min(1).max(10),
+    // 체감 효과 — 후기 전용 11종 라벨(리프팅·탄력·…·홍조), 복수(1~11개, 각 ≤20자).
+    effect_areas: z.array(z.string().min(1).max(20)).min(1).max(11),
     // 생생한 후기 본문 (body 컬럼에 저장, 1~300자 — 비어있으면 안 됨).
     body: z.string().min(1).max(300),
 
