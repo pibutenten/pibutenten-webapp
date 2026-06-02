@@ -13,7 +13,6 @@ import Link from "next/link";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/components/Card";
 import type { ReviewSummaryData } from "@/lib/types/card";
-import ReviewSummary from "@/components/card/ReviewSummary";
 import { getQaUrl } from "@/lib/card-url";
 
 const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
@@ -210,13 +209,31 @@ export default function ProcedureReportCard({
                   return (
                     <li key={card.id} className="py-3 first:pt-0">
                       <Link href={getQaUrl(card)} className="block">
-                        <div className="mb-0.5 flex items-center justify-between text-[11.5px] text-[var(--text-muted)]">
-                          <span className="font-semibold text-[var(--text-secondary)]">{name}</span>
+                        <div className="mb-1 flex items-center justify-between text-[11.5px] text-[var(--text-muted)]">
+                          {/* 닉네임 옆에 만족도 별표 (요약 줄 생략 — 한 줄 절약) */}
+                          <span className="flex items-center gap-1.5">
+                            <span className="font-semibold text-[var(--text-secondary)]">{name}</span>
+                            {review && (
+                              <span
+                                className="text-[11px] leading-none tracking-[0.5px]"
+                                aria-label={`만족도 ${review.satisfaction}점`}
+                              >
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <span
+                                    key={s}
+                                    aria-hidden
+                                    style={{ color: s <= (review.satisfaction || 0) ? "var(--accent-save)" : "#DDE2E7" }}
+                                  >
+                                    ★
+                                  </span>
+                                ))}
+                              </span>
+                            )}
+                          </span>
                           <span>{fmtDate(card.created_at)}</span>
                         </div>
-                        {review && <ReviewSummary review={review} />}
                         {body && (
-                          <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-[13px] leading-[1.55] text-[var(--text)]">
+                          <p className="line-clamp-2 whitespace-pre-wrap text-[13px] leading-[1.55] text-[var(--text)]">
                             {body}
                           </p>
                         )}
