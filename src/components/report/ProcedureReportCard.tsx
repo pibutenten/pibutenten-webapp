@@ -114,7 +114,7 @@ export default function ProcedureReportCard({
         <div className="mb-2 flex items-center gap-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand-logo.svg" alt="피부텐텐" className="h-[18px] w-auto" />
-          <span className="text-[15px] font-bold leading-none" style={{ color: "#2BA3DC" }}>
+          <span className="text-[15px] font-medium leading-none" style={{ color: "#2BA3DC" }}>
             리포트
           </span>
         </div>
@@ -151,8 +151,8 @@ export default function ProcedureReportCard({
           {satisfactionPhrase(avgSatisfaction)}
         </p>
         <div className="flex items-center gap-4">
-          {/* 별 아래에 점수(크게) */}
-          <div className="flex shrink-0 flex-col items-center gap-1">
+          {/* 별 아래에 점수(크게) — 별·점수 간격 살짝 */}
+          <div className="flex shrink-0 flex-col items-center gap-2">
             <span className="text-[16px] leading-none tracking-[1px]">
               {[1, 2, 3, 4, 5].map((nn) => (
                 <span key={nn} style={{ color: nn <= satRounded ? "var(--accent-save)" : "#DDE2E7" }}>★</span>
