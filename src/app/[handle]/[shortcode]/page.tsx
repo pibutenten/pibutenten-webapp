@@ -155,7 +155,9 @@ export default async function MemberPostPage({ params }: Props) {
   }
 
   return (
-    <section className="w-full py-6">
+    // 단독 글 폭은 원장 Q&A 단독 페이지(max-w-[680px])와 동일하게 맞춤 —
+    // 회원 글(후기 포함)이 컨테이너 끝(1080px)까지 퍼져 더 넓게 보이던 문제 교정.
+    <section className="mx-auto w-full max-w-[680px] py-6">
       {/* 좌상단 ← 뒤로 — 다른 페이지와 동일하게 mb-1 -ml-1 통일. */}
       <div className="mb-1 -ml-1">
         <BackButton fallbackHref={`/${handle}`} />

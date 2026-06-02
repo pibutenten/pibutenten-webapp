@@ -292,7 +292,9 @@ export default function ReviewForm({
   }
 
   return (
-    <section className="w-full py-6">
+    // 폭은 폼 계열 표준(온보딩·설정 = max-w-[640px])과 동일하게 맞춤 —
+    // 단독 글 상세는 680px, 작성 폼은 640px 로 화면 폭 체계 일관.
+    <section className="mx-auto w-full max-w-[640px] py-6">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">
         시술 후기를 남겨주세요
       </h1>

@@ -33,6 +33,7 @@ import { useCardViewer } from "@/components/card/hooks/useCardViewer";
 import CardHeader from "@/components/card/CardHeader";
 import CardMedia from "@/components/card/CardMedia";
 import CardBody from "@/components/card/CardBody";
+import ReviewSummary from "@/components/card/ReviewSummary";
 import CardActions from "@/components/card/CardActions";
 import Keywords from "@/components/card/CardKeywords";
 
@@ -302,6 +303,15 @@ export default function Card({
             isHidden={isHidden}
             onHideClick={performHide}
           />
+
+          {/* 시술후기(type=review) 정량 요약 — 본문 위에 컴팩트 박스로 표시.
+              임베드(procedure_review) 가 객체/배열 어느 쪽이든 깨지지 않게 정규화. */}
+          {card.type === "review" &&
+            (() => {
+              const pr = card.procedure_review;
+              const review = Array.isArray(pr) ? pr[0] : pr;
+              return review ? <ReviewSummary review={review} /> : null;
+            })()}
 
           <CardBody
             card={card}

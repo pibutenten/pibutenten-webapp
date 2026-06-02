@@ -14,6 +14,23 @@ import type { PubmedRefObj } from "@/lib/schema/api/articles";
  */
 export type PubmedRef = PubmedRefObj;
 
+/**
+ * ReviewSummaryData — 시술후기 카드(type=review)의 정량 요약.
+ *
+ * `procedure_reviews` 테이블(card_id unique FK→cards)에서 임베드.
+ *   - satisfaction/pain: 1~5
+ *   - revisit: 'yes' | 'maybe' | 'no' (구버전 호환 위해 string 폭넓게 허용)
+ *   - effect_areas: 체감 효과 라벨 배열 (NULL 가능)
+ *   - procedure_ko: 시술명 (한글)
+ */
+export type ReviewSummaryData = {
+  satisfaction: number;
+  pain: number;
+  revisit: "yes" | "maybe" | "no" | string;
+  effect_areas: string[] | null;
+  procedure_ko: string;
+};
+
 export type CardData = {
   id: number;
   /** P2-4 (2026-05-27): 옛 `question` 컬럼 → 범용 `title` 로 리네임. */
@@ -28,8 +45,9 @@ export type CardData = {
   comment_count?: number;
   /** v4 — 저장(북마크) 누적 수 (cards.save_count) */
   save_count?: number;
-  /** DB enum `qa_card_type` 와 1:1 정합. 옛 "card"/"link" 리터럴 폐기 (P2-6, 2026-05-29). */
-  type?: "qa" | "post";
+  /** DB enum `qa_card_type` 와 1:1 정합. 옛 "card"/"link" 리터럴 폐기 (P2-6, 2026-05-29).
+   *  "review" = 시술후기 카드(`/api/reviews` 전용 폼 생성, procedure_reviews 1:1). */
+  type?: "qa" | "post" | "review";
   created_at?: string;
   /** 의료 검토일 SSOT (P1-b). Q&A=검수일, post=NULL. 표시일 = reviewed_at ?? created_at. */
   reviewed_at?: string | null;
@@ -76,6 +94,9 @@ export type CardData = {
     topic: string | null;
     upload_date: string | null;
   } | null;
+  /** 시술후기 정량 요약 (type=review 카드만). PostgREST 임베드 — card_id 가
+   *  unique FK 라 보통 객체 1개로 오나, 배열로 올 수도 있어 둘 다 방어 (렌더에서 정규화). */
+  procedure_review?: ReviewSummaryData | ReviewSummaryData[] | null;
 };
 
 /**

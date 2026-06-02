@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-02] — 후기 요약 텍스트화 + 피드 노출 + 폭 체계 일관화
+
+### Added
+- 시술후기 카드 정량 요약 한 줄 텍스트(`ReviewSummary`): `★★★★☆ · 통증 꽤 · 재시술 있어요 · 효과 탄력·동안`. 박스 폐지, 본문 위 인라인. 만족도=별점, 재시술 값만 색(파랑/빨강/회색), 통증·효과는 흐린 라벨+값.
+- 0206 마이그레이션: `feed_cards_scored`·`search_cards_scored` RPC 에 `procedure_review jsonb` 컬럼 추가(LEFT JOIN `procedure_reviews`). 피드/검색에서도 후기 요약이 보이도록 — 기존엔 RPC 가 cards 만 읽어 요약이 비어 있었음. anon/authenticated 권한 검증 완료. `tag_cards_scored` 는 qa/tip 만 반환해 대상 외.
+
+### Changed
+- 회원 글 단독 페이지(`/[handle]/[shortcode]`) 폭 `w-full`→`max-w-[680px]` — 원장 Q&A 단독(680px)과 동일. 후기 등 회원 글이 1080px 컨테이너 끝까지 퍼지던 문제 교정.
+- 후기 작성 폼(`/review/new`) 폭 `w-full`→`max-w-[640px]` — 폼 계열 표준(온보딩·설정)과 일관.
+
+---
+
 ## [2026-06-01] — P4 후속 보정 2: 폼 인터랙션·FAB·관리자 필터·포스팅 개명
 
 ### Changed (후기 폼)
