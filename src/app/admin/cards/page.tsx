@@ -327,7 +327,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   const TYPE_LIST: { key: TypeFilter; label: string }[] = [
     { key: "all", label: "전체 타입" },
     { key: "qa", label: "Q&A" },
-    { key: "post", label: "포스팅" },
+    { key: "post", label: "끄적끄적" },
     { key: "review", label: "시술후기" },
     { key: "review_summary", label: "시술 리포트" },
   ];
@@ -607,7 +607,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                             Q&A이면 'Q&A'. 컬럼 가로폭 절약. */}
                         {r.type === "qa"
                           ? "Q&A"
-                          : labelForCategory(r.category) || "포스팅"}
+                          : labelForCategory(r.category) || "끄적끄적"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 align-middle text-[var(--text)]">
                         {/* 글쓴이 — 의사 글이면 원장 이름, 그 외엔 닉네임(handle/display_name) */}

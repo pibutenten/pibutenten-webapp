@@ -162,7 +162,7 @@ export default async function AdminPage() {
         <Stat label="전체 회원" value={userCount ?? 0} href="/admin/users" />
         <Stat label="원장" value={doctorCount ?? 0} href="/admin/doctors" />
         <Stat label="발행 Q&A" value={qaPublished ?? 0} href="/admin/cards?type=qa&status=published" />
-        <Stat label="발행 포스팅" value={postPublished ?? 0} href="/admin/cards?type=post&status=published" />
+        <Stat label="발행 끄적끄적" value={postPublished ?? 0} href="/admin/cards?type=post&status=published" />
         <Stat
           label="검수 대기"
           value={pendingReview ?? 0}
@@ -185,7 +185,7 @@ export default async function AdminPage() {
             href="/admin/cards"
             emoji="📚"
             title="전체 글 관리"
-            desc="Q&A·포스팅 검색·필터·발행/보관"
+            desc="Q&A·끄적끄적 검색·필터·발행/보관"
           />
           {/* 새 Q&A 추출하기 — super admin 전용 (원장 계정엔 숨김) */}
           {isSuperAdmin && (

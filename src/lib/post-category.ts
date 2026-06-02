@@ -45,7 +45,7 @@ export type PostCategory = {
 import { ROLES } from "./identity-shared";
 
 export const POST_CATEGORIES: readonly PostCategory[] = [
-  { slug: "doodle",         label: "포스팅",       publicForUsers: true,  defaultHideDoctorCredential: true  },
+  { slug: "doodle",         label: "끄적끄적",     publicForUsers: true,  defaultHideDoctorCredential: true  },
   { slug: "qa",             label: "Q&A",         publicForUsers: false, defaultHideDoctorCredential: false },
   { slug: "review",         label: "시술후기",     publicForUsers: true,  defaultHideDoctorCredential: false },
   { slug: "review_summary", label: "시술 리포트",  publicForUsers: false, defaultHideDoctorCredential: false },

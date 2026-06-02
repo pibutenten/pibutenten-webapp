@@ -407,7 +407,7 @@ export default async function AdminUserDetailPage({
               <li key={q.id} className="py-2">
                 <div className="flex items-baseline justify-between gap-2 text-xs text-[var(--text-muted)]">
                   <span className="rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[10px] font-medium">
-                    {q.type === "post" ? "포스팅" : "Q&A"}
+                    {q.type === "post" ? "끄적끄적" : "Q&A"}
                   </span>
                   <span>{formatIsoDate(q.created_at)}</span>
                 </div>

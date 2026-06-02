@@ -6,6 +6,14 @@
 
 ---
 
+## [2026-06-02] — '포스팅' → '끄적끄적' 재통일 (피드 노출 단어 교체)
+
+### Changed
+- doodle 카테고리 표시 라벨 '포스팅' → **'끄적끄적'** 원복(피드 카드 칩에 '포스팅' 노출이 어색하다는 피드백). SSOT `post-category.ts::POST_CATEGORIES` doodle.label 한 곳 수정으로 피드 칩·검색 매핑(`POST_CATEGORY_LABELS`/`CATEGORY_LABEL_TO_SLUG`) 전파. 라벨은 렌더 시점 derive 라 데이터 마이그레이션 불필요.
+- 관리자 메뉴 라벨도 통일: 대시보드 Stat '발행 포스팅'→'발행 끄적끄적', '전체 글 관리' desc, `/admin/cards` 타입 필터 칩·목록 fallback, 회원 상세 글 배지.
+
+---
+
 ## [2026-06-02] — 후기 요약 텍스트화 + 피드 노출 + 폭 체계 일관화
 
 ### Added
