@@ -93,7 +93,7 @@ const PAIN_FACES: { face: string; label: string }[] = [
 
 /* 통증 단계별 색 — 크림 옐로우(없음)→다크 레드(심함). 얼굴 뒤 원형 배경에 사용. */
 const PAIN_COLORS: string[] = [
-  "#FEF08A", // 없음
+  "#BAE6FD", // 없음
   "#FDE047", // 조금
   "#F97316", // 보통
   "#EF4444", // 꽤
@@ -372,22 +372,21 @@ export default function ReviewForm({
             제목으로 남으며 아래 입력창들이 자연스럽게 올라옴. */}
         <div>
           {selectedProcedure && (
-            <>
+            // 제목 가운데 + '다시 선택'은 우측에(한 줄로 공간 절약).
+            <div className="relative flex items-center justify-center">
               <SelectedProcedureTitle option={selectedProcedure} />
               {/* 생성 모드에서만 다시 선택 허용(수정 모드는 시술 잠금). */}
               {!isEdit && (
-                <div className="mb-1 text-center">
-                  <button
-                    type="button"
-                    onClick={reselectProcedure}
-                    disabled={pending}
-                    className="cursor-pointer text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--text-secondary)] disabled:opacity-50"
-                  >
-                    시술 다시 선택
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={reselectProcedure}
+                  disabled={pending}
+                  className="absolute right-0 cursor-pointer text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--text-secondary)] disabled:opacity-50"
+                >
+                  다시 선택
+                </button>
               )}
-            </>
+            </div>
           )}
           <div
             className="grid transition-[grid-template-rows] duration-300 ease-out"
@@ -459,7 +458,7 @@ export default function ReviewForm({
               생각보다 많을 거예요 — 보통 4개 이상 고르세요.
             </span>
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {EFFECT_AREA_OPTIONS.map((opt, i) => (
               <EffectChip
                 key={opt}
@@ -487,10 +486,10 @@ export default function ReviewForm({
             value={oneliner}
             onChange={(e) => setOneliner(e.target.value)}
             maxLength={ONELINER_MAX}
-            rows={4}
+            rows={3}
             disabled={pending}
             placeholder={onelinerPlaceholder}
-            className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+            className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
           />
           <p className="mt-1 text-xs text-[var(--text-muted)]">
             의료광고성 표현·병원·의사 실명 언급은 금합니다.
@@ -727,7 +726,7 @@ function Chip({
       disabled={disabled}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:opacity-50"
+      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1.5 text-[14px] transition-colors active:scale-[0.97] disabled:opacity-50"
       style={style}
     >
       {children}
@@ -754,27 +753,18 @@ function EffectChip({
   disabled?: boolean;
   children: React.ReactNode;
 }) {
-  const [hover, setHover] = useState(false);
-
-  let style: CSSProperties;
-  if (active) {
-    // 선택됨 = 칸 색 solid + 흰 글씨.
-    style = { backgroundColor: color, color: "#FFFFFF", fontWeight: 600 };
-  } else if (hover && !disabled) {
-    // 호버(미선택) = 중립 회색만 살짝 진하게 (해제 시 색 잔상 없이 회색으로).
-    style = { backgroundColor: "#DCE0E6", color: "#5C6470", fontWeight: 500 };
-  } else {
-    style = { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 };
-  }
+  // 선택=칸 색 solid+흰 글씨 / 미선택=회색. 호버 상태 없음
+  //   (모바일에서 탭 후 hover 가 남아 해제해도 진한 회색으로 보이던 버그 제거).
+  const style: CSSProperties = active
+    ? { backgroundColor: color, color: "#FFFFFF", fontWeight: 600 }
+    : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 };
 
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:opacity-50"
+      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] transition-colors active:scale-[0.97] disabled:opacity-50"
       style={style}
     >
       {children}
