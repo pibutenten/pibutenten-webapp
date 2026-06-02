@@ -8,7 +8,6 @@ import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import BackButton from "@/components/BackButton";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
-import ProcedureReviewStream from "@/components/report/ProcedureReviewStream";
 
 export const dynamic = "force-dynamic";
 
@@ -93,9 +92,7 @@ export default async function ProcedureReportPage({ params }: Props) {
         <BackButton fallbackHref="/" />
       </div>
 
-      <ProcedureReportCard report={report} />
-
-      <ProcedureReviewStream reviews={reviews} />
+      <ProcedureReportCard report={report} reviews={reviews} />
     </section>
   );
 }
