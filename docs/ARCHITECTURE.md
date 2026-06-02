@@ -27,8 +27,9 @@
 ```
 /                                   홈 (검색 + CategoryWithChips + 피드)
 /about                              소개
-/search                             검색 결과
-/topics/[tag]                       태그별 글 목록 (SEO 인덱싱)
+/search                             검색 결과 (시술명이면 결과 최상단에 시술 리포트 카드)
+/topics/[tag]                       태그별 글 목록 (SEO 인덱싱, 시술이면 최상단에 시술 리포트 카드)
+/reports/[procedure]                시술별 후기 리포트 (실시간 집계, index, AggregateRating)
 /doctors                            원장님 목록
 /doctors/[slug]                     원장님 소개 (OG: /og/{slug}.png)
 /doctors/[slug]/[year]/[postSlug]   원장님 글 단독 (SEO URL)
