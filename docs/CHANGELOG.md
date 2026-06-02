@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-02] — 시술별 후기 리포트 페이지 (/reports/[procedure])
+
+### Added
+- **시술별 통계 리포트 페이지** `/reports/[procedure]` (index 대상). 별도 집계 카드를 저장하지 않고 `procedure_reviews` 를 **실시간 집계**(중복·동기화 누더기 방지) — `lib/procedure-report.ts::getProcedureReport`.
+- `ProcedureReportCard`(서버 컴포넌트): 만족도(평균+5점 분포 막대) · 통증(크림→다크레드 그라데이션 바+마커) · 재시술 의향(가로 막대) · 많이 본 효과(빈도 바 TOP6) · 면책.
+- `ProcedureReviewStream`(클라이언트): 리포트 아래 개별 후기를 **댓글 아님 — 후기 카드 재사용** 스트림으로. Q&A 카드처럼 접힘(앞 2개 노출 + "후기 N개 더보기"). 데이터는 후기 한 벌만.
+- `AggregateRating` JSON-LD(평균 별점·후기 수) + canonical/OG 메타 → 시술 리포트 SEO/AEO 신호.
+
+---
+
 ## [2026-06-02] — FAB·프로필탭·후기폼·관리자 통계 UI 보강
 
 ### Changed
