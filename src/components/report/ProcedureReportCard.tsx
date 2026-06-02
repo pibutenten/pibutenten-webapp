@@ -73,16 +73,16 @@ export default function ProcedureReportCard({
         </div>
       </header>
 
-      {/* 1) 재시술 의향 — 최상단·최강조 */}
+      {/* 1) 재시술 의향 — 상단, 만족도보다 살짝만 강조 */}
       <section className={SECTION}>
-        <div className={TITLE}>재시술 의향</div>
-        <div className="mb-2 flex items-end gap-2">
-          <span className="text-[34px] font-extrabold leading-none" style={{ color: "#4CBFF2" }}>
-            {yesPct}%
+        <div className="mb-2 flex items-baseline justify-between">
+          <span className={TITLE.replace("mb-2.5 ", "")}>재시술 의향</span>
+          <span className="text-[13px] text-[var(--text-secondary)]">
+            <b className="text-[22px] font-extrabold align-middle" style={{ color: "#4CBFF2" }}>{yesPct}%</b>
+            <span className="ml-1 align-middle">다시 받을래요</span>
           </span>
-          <span className="pb-1 text-[15px] font-bold text-[var(--text)]">다시 받을래요</span>
         </div>
-        <div className="flex h-[22px] overflow-hidden rounded-lg text-[11px] font-bold text-white">
+        <div className="flex h-[20px] overflow-hidden rounded-lg text-[11px] font-bold text-white">
           {yesPct > 0 && <div className="flex items-center justify-center" style={{ width: `${yesPct}%`, backgroundColor: "#4CBFF2" }}>{yesPct >= 14 ? "있어요" : ""}</div>}
           {maybePct > 0 && <div className="flex items-center justify-center" style={{ width: `${maybePct}%`, backgroundColor: "#9AA1AC" }}>{maybePct >= 14 ? "고민" : ""}</div>}
           {noPct > 0 && <div className="flex items-center justify-center" style={{ width: `${noPct}%`, backgroundColor: "#EA7E7B" }}>{noPct >= 14 ? "없어요" : ""}</div>}
@@ -148,7 +148,7 @@ export default function ProcedureReportCard({
                 <span className="h-[10px] flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
                   <span className="block h-full rounded-full" style={{ width: `${e.pct}%`, backgroundColor: EFFECT_BAR_COLORS[i % EFFECT_BAR_COLORS.length] }} />
                 </span>
-                <span className="w-10 text-right text-[13px] font-extrabold" style={{ color: EFFECT_BAR_COLORS[i % EFFECT_BAR_COLORS.length] }}>{e.pct}%</span>
+                <span className="w-10 text-right text-[12.5px] font-bold text-[var(--text-secondary)]">{e.pct}%</span>
               </div>
             ))}
           </div>
