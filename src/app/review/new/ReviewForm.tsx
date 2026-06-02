@@ -64,7 +64,7 @@ type Props = {
   initialProcedure?: string;
 };
 
-const ONELINER_MAX = 300;
+const ONELINER_MAX = 400;
 
 /* 통증 — 표정 이모지 1~5 컴팩트 스케일. */
 const PAIN_FACES: { face: string; label: string }[] = [
@@ -406,7 +406,7 @@ export default function ReviewForm({
             className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[15px] leading-[1.7] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
           />
           <p className="mt-1 text-xs text-[var(--text-muted)]">
-            의료광고성 표현·병원과 의사를 특정하는 언급은 금지합니다.
+            의료광고성 표현·병원·의사 실명 언급은 금합니다.
           </p>
         </div>
 
