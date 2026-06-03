@@ -29,7 +29,7 @@
 /about                              소개
 /search                             검색 결과 (시술명이면 결과 최상단에 시술 리포트 카드)
 /topics/[tag]                       태그별 글 목록 (SEO 인덱싱, 시술이면 최상단에 시술 리포트 카드)
-/reports/[procedure]                시술별 후기 리포트 (실시간 집계, index, AggregateRating)
+/reports/[procedure]                시술별 후기 리포트 (실시간 집계 + review_summary 앵커 카드; URL=/reports/{en}, 기존 한글 ko 도 허용; index, AggregateRating)
 /doctors                            원장님 목록
 /doctors/[slug]                     원장님 소개 (OG: /og/{slug}.png)
 /doctors/[slug]/[year]/[postSlug]   원장님 글 단독 (SEO URL)
@@ -43,6 +43,14 @@
 /corrections                        정정 정책 (30일 이력 공개)
 /disclosures                        이해상충 공개
 ```
+
+#### 시술 리포트 앵커 카드 (review_summary, C1~C4 / ★공개 플립 대기)
+- '시술 리포트'를 정식 `cards` 행(type=`review_summary`, 1급 카드)으로 승격. author=pibutenten 관리자, 발행 후기 ≥1 시술마다 1행(마이그 0214 백필 25개, 멱등 부분 유니크 `cards(post_slug) WHERE type='review_summary'`). 생성은 `create/update_procedure_review` RPC 가 발행 시 lazy(ON CONFLICT DO NOTHING).
+- **수치는 행에 저장하지 않음** — `getProcedureReport` 가 `procedure_reviews` 를 실시간 집계(중복·동기화 누더기 방지). 앵커는 저장·공유·색인·피드·admin 의 "그릇"일 뿐.
+- URL: `/reports/{en}`(en=`procedure_taxonomy.en`=앵커 `post_slug`), 기존 한글 URL 비파괴(en·ko 양립). canonical=en. `getQaUrl` 의 review_summary 분기.
+- 저장·공유: 앵커 card_id 로 단독 글과 동일 `useCardEngagement`(toggle_card_save·card_shares). 좋아요·조회수는 데이터만(버튼 미노출). 앵커가 **published 일 때만** 버튼 노출(공개 RLS 경로 조회).
+- 피드: `feed_cards_scored` 가 review_summary 도 의사 Q&A 와 동등 ×2(0215) + `feed-shuffle` 20슬롯당 1개 밀도 캡. 검색 결과 목록에선 제외(최상단 라이브 리포트 카드와 중복 방지). 색인(sitemap/rss)은 `INCLUDE_REPORT_ANCHORS`(기본 off) + `status='published'` 이중 게이트.
+- ★**현재 앵커 status='draft'(비공개) — 어떤 공개 화면에도 노출 0.** 위 machinery(URL·저장공유·피드 ×2·밀도캡·색인·검색제외)는 전부 코드로 준비됐으나, **공개 플립(draft→published)은 미실행이며 원장 신호 전용**. 플립 시 한 번에 활성화 + 색인 게이트 on(추후).
 
 ### 2.2. 인증 / 온보딩
 ```
