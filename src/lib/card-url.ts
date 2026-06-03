@@ -10,8 +10,8 @@
  */
 export type QaUrlInput = {
   id: number;
-  /** 'qa' / 'post' / 'link' */
-  type?: "qa" | "post" | "link" | string;
+  /** 'qa' / 'post' / 'link' / 'review' / 'review_summary' */
+  type?: "qa" | "post" | "link" | "review" | "review_summary" | string;
   doctor?: { slug: string } | null;
   post_year?: number | null;
   post_slug?: string | null;
@@ -22,6 +22,12 @@ export type QaUrlInput = {
 };
 
 export function getQaUrl(qa: QaUrlInput): string {
+  // 0) 시술 리포트 앵커(type=review_summary) — /reports/{en}.
+  //    영문 슬러그(en)는 앵커 cards.post_slug 에 저장(마이그 0214).
+  if (qa.type === "review_summary" && qa.post_slug) {
+    return `/reports/${qa.post_slug}`;
+  }
+
   // 1) 의사 글 — keyword slug
   if (qa.doctor?.slug && qa.post_year && qa.post_slug) {
     return `/doctors/${qa.doctor.slug}/${qa.post_year}/${qa.post_slug}`;
@@ -47,6 +53,8 @@ export function getQaUrl(qa: QaUrlInput): string {
  * 정보 부족 시 null 반환 — 호출 측에서 메뉴 노출/숨김 처리.
  */
 export function getQaEditUrl(qa: QaUrlInput): string | null {
+  // 시술 리포트 앵커(review_summary)는 본문 편집 N/A — 메뉴 미노출.
+  if (qa.type === "review_summary") return null;
   if (!qa.shortcode) return null;
   // 시술후기(type=review)는 일반 글 에디터가 아니라 후기 전용 에디터로.
   if (qa.type === "review") return `/review/${qa.shortcode}/edit`;

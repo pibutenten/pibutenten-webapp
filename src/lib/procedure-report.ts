@@ -5,6 +5,8 @@
  * 발행(published)·미삭제 후기만 대상. count===0 이면 null.
  */
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import { CARD_LIST_SELECT } from "@/lib/card-select";
+import type { CardData } from "@/components/Card";
 import {
   DOWNTIME_OPTIONS,
   EFFECT_ONSET_OPTIONS,
@@ -35,6 +37,11 @@ export type ProcedureCategory = "lifting" | "injectables";
 
 export type ProcedureReport = {
   procedureKo: string;
+  /** procedure_taxonomy.en — 영문 슬러그(/reports/{en} 링크·canonical). 미발견 시 "". */
+  en: string;
+  /** 시술 리포트 앵커 카드(type=review_summary). 저장·공유 버튼용 card_id 출처.
+   *  draft 라 RLS 우회(admin client)로 조회. 없으면(후기 0/미백필) null → 버튼 미노출. */
+  anchor: CardData | null;
   /** procedure_taxonomy.category — 카드 테두리 색 분기용. 미발견 시 null. */
   category: ProcedureCategory | null;
   count: number;
@@ -88,13 +95,28 @@ export async function getProcedureReport(
   // 시술 분류(category) 1회 조회 — 카드 테두리 색 분기용. anon SELECT 허용(0204).
   const { data: taxRow } = await supabase
     .from("procedure_taxonomy")
-    .select("category")
+    .select("category, en")
     .eq("ko", procedureKo)
-    .maybeSingle<{ category: string | null }>();
+    .maybeSingle<{ category: string | null; en: string | null }>();
   const category: ProcedureCategory | null =
     taxRow?.category === "lifting" || taxRow?.category === "injectables"
       ? taxRow.category
       : null;
+  const en = taxRow?.en ?? "";
+
+  // 시술 리포트 앵커(type=review_summary) 조회 — ★일반(공개 RLS) 경로 + published 한정.
+  //   저장·공유 버튼의 대상 card_id. 앵커가 draft 인 동안은 published 필터·RLS 로 반환 0 →
+  //   버튼 미노출(플립 전엔 카드 동일). published 플립(C6) 시 한 번에 노출. elevated/admin fetch 지양.
+  const { data: anchorRow } = await supabase
+    .from("cards")
+    .select(CARD_LIST_SELECT)
+    .eq("type", "review_summary")
+    .eq("status", "published")
+    .is("deleted_at", null)
+    .contains("keywords", [procedureKo])
+    .limit(1)
+    .maybeSingle();
+  const anchor = (anchorRow as CardData | null) ?? null;
 
   const n = rows.length;
   const satisfactionDist = [0, 0, 0, 0, 0];
@@ -180,6 +202,8 @@ export async function getProcedureReport(
 
   return {
     procedureKo,
+    en,
+    anchor,
     category,
     count: n,
     avgSatisfaction: satSum / Math.max(1, satisfactionDist.reduce((a, b) => a + b, 0)),

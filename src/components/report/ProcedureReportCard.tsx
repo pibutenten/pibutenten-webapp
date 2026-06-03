@@ -19,6 +19,8 @@ import { useSession } from "@/lib/session-context";
 import type { EngagementMe } from "@/components/card/hooks/useCardEngagement";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import ReportReviewItem from "@/components/report/ReportReviewItem";
+import ReportAnchorActions from "@/components/report/ReportAnchorActions";
+import { getQaUrl } from "@/lib/card-url";
 
 const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
 const PAIN_SOFT = ["#BAE6FD", "#FDE68A", "#FDBA74", "#FCA5A5", "#F08A8A"];
@@ -118,10 +120,12 @@ export default function ProcedureReportCard({
   defaultExpanded?: boolean;
 }) {
   const {
-    procedureKo, category, count, avgSatisfaction, satisfactionDist,
+    procedureKo, en, anchor, category, count, avgSatisfaction, satisfactionDist,
     avgPain, revisit, effects, demographics,
     noEffectCount, downtimeAnswered, downtimeDist, onsetAnswered, onsetDist,
   } = report;
+  // 단독 리포트 페이지 링크 = /reports/{en} (앵커 post_slug=en SSOT, getQaUrl 경유).
+  const reportHref = getQaUrl({ id: anchor?.id ?? 0, type: "review_summary", post_slug: en });
 
   // 초기 펼침은 prop 으로만 결정 — sessionStorage 끌고다니기 제거(페이지 간 누수 원인).
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -175,7 +179,7 @@ export default function ProcedureReportCard({
     <article className="overflow-hidden rounded-[var(--radius)] bg-white">
       {/* 헤더 칸 — 솔리드 틴트(분류색), 구분선 없음. 칸 전체가 단독 리포트 페이지 링크(펼침 상태). */}
       <header style={{ backgroundColor: theme.soft }}>
-        <Link href={`/reports/${encodeURIComponent(procedureKo)}`} className="block px-5 py-4">
+        <Link href={reportHref} className="block px-5 py-4">
           {/* eyebrow — 진한 본문색(시술명만 카테고리색) */}
           <div className="mb-1.5 text-[13px] font-bold tracking-tight text-[var(--text)]">
             피부텐텐 리포트
@@ -189,6 +193,12 @@ export default function ProcedureReportCard({
             </span>
           </div>
         </Link>
+        {/* 저장·공유 — 앵커 카드(card_id) 대상. 앵커 없으면 미노출(graceful). Link 밖(중첩 방지). */}
+        {anchor && (
+          <div className="-mt-2 flex justify-end px-5 pb-3">
+            <ReportAnchorActions anchor={anchor} me={me} onLoginRequired={setAuthPrompt} />
+          </div>
+        )}
       </header>
 
       {/* 재시술 의향 — 상단, 만족도보다 살짝만 강조. 우세 세그먼트에만 '재시술 의향' 접두. */}

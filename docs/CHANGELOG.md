@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-06-03] — 시술 리포트 카드 1급화: 영문 URL + 저장/공유 (C2)
+
+### Added
+- **영문 URL `/reports/{en}`** — `getQaUrl`(`lib/card-url.ts`)에 `type==='review_summary' → /reports/{post_slug}`(post_slug=en, 마이그 0214) 분기 추가. `getQaEditUrl` 은 review_summary→null(본문 편집 N/A). `QaUrlInput.type` 에 review_summary·review 추가.
+- **`/reports/[procedure]` 라우트 en·ko 양립** — `resolveProcedure` 가 `procedure_taxonomy` 를 `or(en.eq.{소문자}, ko.eq.{원문})` 로 조회. 영문 슬러그(신규 canonical)와 기존 한글 URL 모두 200, 미존재만 not-found. canonical·내부 링크 = `/reports/{en}`. 후기 스트림·집계·JSON-LD 는 ko 유지(비파괴).
+- **저장·공유 버튼**(`components/report/ReportAnchorActions.tsx` 신규 + `ProcedureReportCard` 헤더 우상단) — 단독 글과 **동일한 `useCardEngagement`**(toggle_card_save RPC · card_shares insert) + `shareCard` 재사용. 대상 = 해당 시술 review_summary 앵커 card_id. 좋아요·조회수는 버튼 미노출(데이터만).
+
+### Changed
+- `getProcedureReport`(`lib/procedure-report.ts`) 가 앵커를 **일반(공개 RLS) 경로 + `status='published'` 한정**으로 조회해 `report.anchor`·`report.en` 반환. → 앵커가 **draft 인 동안 anchor=null → 저장/공유 버튼 숨김**(플립 전 카드 동일). published 플립(C6) 시 한 번에 노출. (admin/elevated fetch 지양 — 공개 페이지 보안.)
+- `ProcedureReportCard` 헤더 단독 리포트 링크를 `/reports/{ko}` → `getQaUrl`(=/reports/{en})로 통일.
+
+### 검증
+- `npx tsc --noEmit`·`npm run build` 통과. 로컬 :3000: `/reports/rejuran`(en)·`/reports/리쥬란`(ko) 둘 다 실제 리포트 200(비파괴), 미존재 슬러그는 not-found 페이지. 저장/공유 실토글은 로그인 + 앵커 published 필요 → 공개 플립 후 스폿체크(현재 draft 라 버튼 숨김 상태가 정상).
+
+---
+
 ## [2026-06-03] — 시술 리포트 앵커 피드 노출 machinery (C3)
 
 ### Added

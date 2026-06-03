@@ -15,28 +15,34 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ procedure: string }> };
 
-async function resolveProcedure(raw: string): Promise<string | null> {
-  const ko = decodeURIComponent(raw).trim();
-  if (!ko) return null;
+// param 은 영문 슬러그(taxonomy.en) 또는 기존 한글(ko) 둘 다 허용 — 한글 URL 비파괴.
+// en 은 소문자 매칭, ko 는 원문 매칭. 미존재만 null(→404). ko 는 후기 스트림·집계·JSON-LD,
+// en 은 canonical·내부 링크에 사용.
+async function resolveProcedure(
+  raw: string,
+): Promise<{ ko: string; en: string } | null> {
+  const v = decodeURIComponent(raw).trim();
+  if (!v) return null;
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("procedure_taxonomy")
-    .select("ko")
-    .eq("ko", ko)
+    .select("ko, en")
+    .or(`en.eq.${v.toLowerCase()},ko.eq.${v}`)
     .eq("active", true)
-    .maybeSingle();
-  return data?.ko ?? null;
+    .maybeSingle<{ ko: string; en: string }>();
+  return data ? { ko: data.ko, en: data.en } : null;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { procedure } = await params;
-  const ko = await resolveProcedure(procedure);
-  if (!ko) return { title: "찾을 수 없는 시술 리포트" };
+  const resolved = await resolveProcedure(procedure);
+  if (!resolved) return { title: "찾을 수 없는 시술 리포트" };
+  const { ko, en } = resolved;
   const supabase = await createSupabaseServerClient();
   const report = await getProcedureReport(supabase, ko);
   if (!report) return { title: `${ko} 시술 리포트`, robots: { index: false, follow: true } };
 
-  const url = `${SITE_URL}/reports/${encodeURIComponent(ko)}`;
+  const url = `${SITE_URL}/reports/${en}`;
   const desc = `${ko} 시술 회원 후기 ${report.count}건 집계 — 평균 만족도 ${report.avgSatisfaction.toFixed(
     1,
   )}/5, 재시술 의향·통증·체감 효과 정리.`;
@@ -51,8 +57,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProcedureReportPage({ params }: Props) {
   const { procedure } = await params;
-  const ko = await resolveProcedure(procedure);
-  if (!ko) notFound();
+  const resolved = await resolveProcedure(procedure);
+  if (!resolved) notFound();
+  const { ko } = resolved;
 
   const supabase = await createSupabaseServerClient();
   const report = await getProcedureReport(supabase, ko);
