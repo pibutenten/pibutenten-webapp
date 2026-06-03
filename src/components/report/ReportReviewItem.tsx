@@ -6,8 +6,8 @@
  * 좋아요는 단독 글 페이지와 **같은 card_likes 행**을 쓰도록 useCardEngagement
  * (toggle_card_like RPC)을 그대로 재사용한다. 저장/공유는 사용하지 않음(noopShare).
  *   - (a) 작성자 행(닉네임·별점·상대시간) = 단독 글 URL 로 이동하는 <Link>.
- *   - (b) 좋아요 버튼 = Link 밖, stopPropagation 으로 네비/본문펼침과 분리.
- *   - (c) 본문 = onClick 으로 인라인 펼침 토글(부모 state). Link 아님.
+ *   - (b) 좋아요 버튼 = Link 밖, stopPropagation 으로 네비와 분리.
+ *   - (c) 본문 = 항상 전문 표시(클릭 펼침 없음). 줄바꿈은 공백으로 합쳐 한 문단처럼 컴팩트.
  *
  * liked 초기값은 부모가 fetchViewerStates 로 미리 받은 값을 prefetch 로 전달 →
  * 훅이 per-row 자체 조회(N쿼리)를 하지 않는다.
@@ -36,17 +36,12 @@ export default function ReportReviewItem({
   liked,
   me,
   onLoginRequired,
-  expanded,
-  onToggleBody,
 }: {
   card: CardData;
   /** 초기 좋아요 여부(부모 prefetch). */
   liked: boolean;
   me: EngagementMe;
   onLoginRequired: (reason: string) => void;
-  /** 본문 인라인 펼침 여부(부모 state). */
-  expanded: boolean;
-  onToggleBody: () => void;
 }) {
   // 단독 카드와 동일한 좋아요 토글(toggle_card_like) 재사용. save/share 는 무시.
   const eng = useCardEngagement(card, { liked }, me, onLoginRequired, noopShare);
@@ -54,7 +49,11 @@ export default function ReportReviewItem({
   const author = Array.isArray(card.author) ? card.author[0] : card.author;
   const name = author?.display_name || author?.handle || "익명";
   const review = reviewOf(card);
-  const body = (card.body ?? "").trim();
+  // 줄바꿈(\n)을 단일 공백으로 합쳐 한 문단처럼 컴팩트하게.
+  const body = (card.body ?? "")
+    .replace(/\s*\n+\s*/g, " ")
+    .replace(/ {2,}/g, " ")
+    .trim();
 
   return (
     <li className="py-3 first:pt-0">
@@ -114,15 +113,9 @@ export default function ReportReviewItem({
         </button>
       </div>
 
-      {/* 본문 — 클릭 시 인라인 펼침 토글(Link 아님) */}
+      {/* 본문 — 항상 전문 표시, 줄바꿈은 공백으로 합쳐 한 문단 */}
       {body && (
-        <p
-          onClick={onToggleBody}
-          className={
-            "cursor-pointer whitespace-pre-wrap text-[13px] leading-[1.55] text-[var(--text)]" +
-            (expanded ? "" : " line-clamp-2")
-          }
-        >
+        <p className="text-[13px] leading-[1.55] text-[var(--text)]">
           {body}
         </p>
       )}

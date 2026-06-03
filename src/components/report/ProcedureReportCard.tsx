@@ -104,16 +104,6 @@ export default function ProcedureReportCard({
     setExpanded(false);
     setVisibleCount(5);
   }
-  // 후기 본문 인라인 펼침 — card.id Set 토글 (펼침이면 line-clamp 해제).
-  const [expandedReviews, setExpandedReviews] = useState<Set<number | string>>(new Set());
-  function toggleReviewBody(id: number | string) {
-    setExpandedReviews((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   // me — 단독 카드와 동일하게 SessionContext(SSR) 단일 출처. 비로그인 → null(즉시 모달).
   const session = useSession();
@@ -288,8 +278,6 @@ export default function ProcedureReportCard({
                     liked={reviewLiked[card.id] ?? false}
                     me={me}
                     onLoginRequired={(reason) => setAuthPrompt(reason)}
-                    expanded={expandedReviews.has(card.id)}
-                    onToggleBody={() => toggleReviewBody(card.id)}
                   />
                 ))}
               </ul>

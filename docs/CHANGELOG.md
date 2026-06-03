@@ -6,6 +6,14 @@
 
 ---
 
+## [2026-06-03] — 시술 리포트 후기 본문 단순화 (B6: 클릭 펼침 제거·전문·컴팩트)
+
+### Changed
+- **[1] 후기 본문 표시 단순화** (`ReportReviewItem.tsx`): 본문 클릭 펼침/접힘 상호작용 전부 제거 — `expanded`/`onToggleBody` prop, `onClick`, `cursor-pointer`, `line-clamp-2`, `whitespace-pre-wrap` 삭제. 본문은 항상 전문 표시. 원본 줄바꿈(`\n`)을 단일 공백으로 합쳐 한 문단처럼 컴팩트하게(`body.replace(/\s*\n+\s*/g, " ").replace(/ {2,}/g, " ").trim()`).
+- 부모(`ProcedureReportCard.tsx`): 제거된 prop 전달과 미사용 `expandedReviews` state·`toggleReviewBody` 정리. 유지: 닉네임 행 Link·별점·상대시간·후기별 좋아요·페이지네이션(더보기/접기)·`divide-y`·'후기 N개' 위 구분선.
+
+---
+
 ## [2026-06-03] — 시술 리포트 카드 마지막 심미 (B5: 푸터 구분선·eyebrow 색)
 
 ### Changed
