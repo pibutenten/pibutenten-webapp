@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-06-03] — 시술 리포트 앵커 카드 데이터층 (C1)
+
+### Added
+- **마이그레이션 `0214_review_summary_anchor.sql`**(production 적용 완료) — '시술 리포트'를 정식 `cards` 행(앵커)으로 승격하기 위한 데이터층. 이후 저장·공유·피드·색인·admin(C2~)을 붙일 토대.
+  - **백필**: 발행 후기(`type='review'`, `status='published'`, 미삭제) ≥1건인 시술마다 앵커 `cards` 1행 생성 — `type='review_summary'`, `category='review_summary'`, `author_id`=pibutenten 관리자(`handle='pibutenten'`), `status='draft'`(★비공개 — 공개 노출 0), `post_slug`=taxonomy.en, `keywords=[ko,en]`, `body=''`, `is_pick=false`. **25개 생성**.
+  - **멱등**: 부분 유니크 인덱스 `cards_review_summary_slug_uidx ON cards(post_slug) WHERE type='review_summary'`(시술당 1행 보장). post_slug 전역 유니크 없음 + 앵커 doctor_id NULL 이라 의사글 슬러그와 충돌 없음.
+  - **RPC lazy 생성**: `create_procedure_review`·`update_procedure_review` 를 0213 본문 VERBATIM + "발행이면 해당 시술 앵커 lazy INSERT(`ON CONFLICT DO NOTHING`)" 블록만 추가해 `CREATE OR REPLACE`(시그니처·ACL 불변). update 는 procedure_ko 를 후기 행에서 파생. 수치는 행에 저장하지 않고 `getProcedureReport` 실시간 집계 유지.
+
+### Security/검증
+- staging 상태 `draft` 가 모든 공개 경로에서 제외됨을 쿼리 필터로 확인: feed/search RPC(`status='published'`), sitemap/rss(`status='published'`+qa), 프로필 목록(`[handle]` `status='published'`+category 제외), RLS `cards_public_read`(anon·비admin 은 published 만). admin `review_summary` 탭에만 draft 노출(운영).
+- 적용 후 실측: 앵커 25 / draft 25 / 중복 0 / post_slug↔en 25 / author=pibutenten, 부분 유니크 인덱스 존재, RPC 앵커블록 포함 + ACL(create=authenticated, update=PUBLIC+authenticated).
+- 라이브 `create_procedure_review` 스모크 테스트(실 jwt auth 흐름, 나보타): 리뷰 INSERT→procedure_reviews→앵커 lazy INSERT(anchor_count=1, draft) 정상 동작 확인 후 **ROLLBACK**(영구 저장 0 — anchors 25 불변, smoke 카드 0).
+
+---
+
 ## [2026-06-03] — 후기 효과시기 문구·라벨 다듬기 (2c, 슬러그 불변)
 
 ### Changed
