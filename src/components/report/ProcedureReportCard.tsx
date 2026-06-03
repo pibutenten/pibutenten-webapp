@@ -136,7 +136,12 @@ export default function ProcedureReportCard({
   const topEffects = effects.slice(0, 6);
   // 최빈 구간 라벨(헤드라인용) — answered>0 일 때만 섹션이 렌더되므로 동률은 앞 구간(빠름) 우선.
   const dtTopLabel = DOWNTIME_OPTIONS[downtimeDist.indexOf(Math.max(...downtimeDist))]?.label ?? "";
-  const onsetTopLabel = EFFECT_ONSET_OPTIONS[onsetDist.indexOf(Math.max(...onsetDist))]?.label ?? "";
+  // 효과시기 = '언제부터 느끼기 시작'(onset). '아직 지켜보는 중'이 최빈이면 별도 문구.
+  const onsetTop = EFFECT_ONSET_OPTIONS[onsetDist.indexOf(Math.max(...onsetDist))];
+  const onsetHeadline =
+    onsetTop?.value === "still_watching"
+      ? "아직 효과를 지켜보는 분이 가장 많아요."
+      : `효과는 대부분 ${onsetTop?.label ?? ""}부터 느끼기 시작했어요.`;
   const demoTotal = Math.max(1, demographics.male + demographics.female);
   const femalePct = Math.round((demographics.female / demoTotal) * 100);
   const malePct = Math.max(0, 100 - femalePct);
@@ -287,7 +292,7 @@ export default function ProcedureReportCard({
 
           {/* 효과시기(effect_onset) — 효과 다음. answered===0 이면 숨김. */}
           <CompactDist
-            headline={`효과는 주로 ${onsetTopLabel}에 가장 크게 느꼈어요.`}
+            headline={onsetHeadline}
             options={EFFECT_ONSET_OPTIONS}
             dist={onsetDist}
             answered={onsetAnswered}

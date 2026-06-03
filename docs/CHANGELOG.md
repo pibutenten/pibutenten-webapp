@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-03] — 후기 효과시기 문구·라벨 다듬기 (2c, 슬러그 불변)
+
+### Changed
+- **효과시기 라벨 2개** (`src/lib/review-options.ts`, `EFFECT_ONSET_OPTIONS`): `month_1` "한 달쯤"→"한 달쯤 후", `months_2_3` "2~3달 후"→"두세 달 후". **value(슬러그)·필드명·DB CHECK·zod enum 불변** — 마이그레이션 없음, 기존 응답은 새 라벨로 자동 표시, 수정 진입 시 기존 답 프리필 유지(재질문 없음). 나머지 3개(immediate/weeks_1_2/still_watching) 그대로.
+- **효과시기 질문 문구** (`src/app/review/new/ReviewForm.tsx`): "효과를 언제 가장 크게 느꼈나요?" → "효과는 언제부터 느끼셨어요?"(언제부터 느끼기 시작=onset 의미로).
+- **리포트 효과시기 헤드라인** (`src/components/report/ProcedureReportCard.tsx`): "효과는 주로 {최빈 라벨}에 가장 크게 느꼈어요." → "효과는 대부분 {최빈 라벨}부터 느끼기 시작했어요.". 최빈이 `still_watching`이면 "아직 효과를 지켜보는 분이 가장 많아요."로 분기(어색함 방지). 분포 범례 라벨은 `review-options.ts` SSOT 자동 반영.
+
+### 검증
+- `npx tsc --noEmit`·`npm run build` 통과. `/reports/티타늄`(onset 최빈=시술 직후) 헤드라인 "효과는 대부분 시술 직후부터 느끼기 시작했어요."·범례 "시술 직후 1명" 라이브 확인(구 문구 제거 확인). 변경 라벨(한 달쯤 후/두세 달 후)은 해당 슬러그 데이터 부재로 화면 노출은 없으나 SSOT·빌드 검증.
+
+---
+
 ## [2026-06-03] — 후기 읽기경로 (2b: 다운타임·효과시기 리포트 집계·표시 + 효과 '없음' 분리 + SSOT 배선)
 
 ### Added

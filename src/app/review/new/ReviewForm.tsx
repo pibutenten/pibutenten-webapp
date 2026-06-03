@@ -471,7 +471,7 @@ export default function ReviewForm({
 
         {/* ── 7. 효과시기 (필수) ── */}
         <ChoiceField
-          label="효과를 언제 가장 크게 느꼈나요?"
+          label="효과는 언제부터 느끼셨어요?"
           required
           value={effectOnset}
           onChange={setEffectOnset}

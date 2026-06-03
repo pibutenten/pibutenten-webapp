@@ -20,8 +20,8 @@ export const DOWNTIME_OPTIONS: ReviewChoice[] = [
 export const EFFECT_ONSET_OPTIONS: ReviewChoice[] = [
   { value: "immediate", label: "시술 직후" },
   { value: "weeks_1_2", label: "1~2주 후" },
-  { value: "month_1", label: "한 달쯤" },
-  { value: "months_2_3", label: "2~3달 후" },
+  { value: "month_1", label: "한 달쯤 후" },
+  { value: "months_2_3", label: "두세 달 후" },
   { value: "still_watching", label: "아직 지켜보는 중" },
 ];
 
