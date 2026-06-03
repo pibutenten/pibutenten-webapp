@@ -120,8 +120,17 @@ const EFFECT_ONSET_OPTIONS: ChoiceOption[] = [
   { value: "still_watching", label: "아직 지켜보는 중" },
 ];
 
-/* 생생한 후기 placeholder — 고정 문구(작성 유도). */
-const ONELINER_PLACEHOLDER = "고민하는 분들께 해주고 싶은 한마디를 남겨주세요.";
+/* 생생한 후기 placeholder — 마운트 시 무작위 1개 고정(세션 내 유지). */
+const ONELINER_PLACEHOLDERS: string[] = [
+  "고민하는 분들께 해주고 싶은 한마디를 남겨주세요.",
+  "솔직한 한 줄이 같은 고민을 가진 분께 큰 도움이 돼요.",
+  "어떤 점이 가장 만족스러우셨나요?",
+  "받기 전과 후, 무엇이 가장 달라졌나요?",
+  "기대했던 것과 비교해 어떠셨어요?",
+  "이건 미리 알았으면 좋았겠다 싶은 점이 있었나요?",
+  "한 줄로 남긴다면, 이번 시술은 어땠나요?",
+  "다른 분들이 궁금해할 만한 점을 들려주세요.",
+];
 
 /**
  * 체감 효과 옵션 — 독립 목록 16종 + '없음'(17번째) (온보딩 피부고민과 별개).
@@ -196,6 +205,15 @@ export default function ReviewForm({
   const [effectAreas, setEffectAreas] = useState<string[]>(initial?.effectAreas ?? []);
   const [effectOnset, setEffectOnset] = useState(initial?.effectOnset ?? "");
   const [oneliner, setOneliner] = useState(initial?.body ?? "");
+
+  /* 한줄후기 placeholder — 마운트 시 무작위 1개 고정(세션 내 유지). */
+  const onelinerPlaceholder = useMemo(
+    () =>
+      ONELINER_PLACEHOLDERS[
+        Math.floor(Math.random() * ONELINER_PLACEHOLDERS.length)
+      ],
+    [],
+  );
 
   /* 선택된 시술 옵션 (제목 표시용). */
   const selectedProcedure = useMemo(
@@ -450,7 +468,7 @@ export default function ReviewForm({
               생각보다 많을 거예요 — 보통 4개 이상 고르세요.
             </span>
           </label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             {EFFECT_AREA_OPTIONS.map((opt, i) => (
               <EffectChip
                 key={opt}
@@ -490,7 +508,7 @@ export default function ReviewForm({
             maxLength={ONELINER_MAX}
             rows={3}
             disabled={pending}
-            placeholder={ONELINER_PLACEHOLDER}
+            placeholder={onelinerPlaceholder}
             className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
           />
           <p className="mt-1 text-xs text-[var(--text-muted)]">
@@ -653,7 +671,7 @@ function TabbedProcedurePicker({
           선택할 수 있는 시술이 없습니다.
         </div>
       ) : (
-        <div className="flex flex-wrap justify-center gap-1.5">
+        <div className="flex flex-wrap justify-center gap-1">
           {visibleChips.map((p) => {
             const selected = value === p.value;
             const color = categoryColor(p.categoryLabel);
@@ -728,7 +746,7 @@ function Chip({
       disabled={disabled}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1.5 text-[14px] transition-transform active:scale-110 disabled:opacity-50"
+      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1 text-[13px] transition-transform active:scale-110 disabled:opacity-50"
       style={style}
     >
       {children}
@@ -766,7 +784,7 @@ function EffectChip({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1.5 text-[14px] transition-transform active:scale-110 disabled:opacity-50"
+      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1 text-[13px] transition-transform active:scale-110 disabled:opacity-50"
       style={style}
     >
       {children}
@@ -941,7 +959,7 @@ function ChoiceField({
     <div>
       <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
         {label}      </label>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {options.map((opt) => (
           <Chip
             key={opt.value}

@@ -6,6 +6,14 @@
 
 ---
 
+## [2026-06-03] — 후기 폼 마감 (2a.1: 한줄후기 placeholder 회전 · 칩 크기 축소)
+
+### Changed
+- **[A] 한줄후기 placeholder 회전 복원** (`ReviewForm.tsx`): 단일 고정 문구 → `ONELINER_PLACEHOLDERS`(8개) 중 마운트 시 `useMemo(()=>random, [])` 로 무작위 1개 고정(세션 내 유지). textarea `placeholder` 연결.
+- **[B] 칩 크기 '조금만' 축소** (`ReviewForm.tsx`): 칩이 공유 베이스 없이 3종(시술 picker 인라인 / `Chip`=재시술·다운타임·효과시기 / `EffectChip`=효과)이라, 큰 칩(`Chip`·`EffectChip`)을 picker 칩 크기로 **통일**. `px-4 py-1.5 text-[14px]`→`px-4 py-1 text-[13px]`(가로 패딩·`rounded-full` pill 유지 — pill 은 높이/2라 높이 축소로 모서리도 자동 살짝↓). picker 칩(`px-3 py-1 text-[13px]`)은 모바일 탭 타깃 floor(~40px) 보호로 크기 유지. gap 한 단계씩↓: 재시술/다운타임/효과시기 컨테이너 `gap-2`→`gap-1.5`, 효과 컨테이너 `gap-1.5`→`gap-1`, picker 칩 컨테이너 `gap-1.5`→`gap-1`. 만족도(별점)·통증(표정)·칩 색·라벨·개수·검증 불변.
+
+---
+
 ## [2026-06-03] — 후기 폼 확장 쓰기경로 (2a: 다운타임·효과시기·효과 '없음')
 
 > ✅ 마이그레이션 `0213` **production 적용 완료 (2026-06-03)**. 적용 후 컬럼·CHECK·RPC 시그니처(`p_downtime`/`p_effect_onset`)·ACL(create=authenticated / update=PUBLIC+authenticated) 검증 통과 — 코드(zod 필수·API 전달)와 정합.
