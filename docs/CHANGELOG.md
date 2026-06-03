@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-06-03] — 시술 리포트 앵커 색인·admin·검색 중복 제거 (C4)
+
+### Added
+- **색인 게이트 상수** `INCLUDE_REPORT_ANCHORS`(`lib/site.ts`, 기본 `false`) — 앵커를 sitemap/rss 에 포함할지 단일 토글. 공개 플립 후 원장이 켠다.
+- **sitemap.ts**: `INCLUDE_REPORT_ANCHORS` && `status='published'` 이중 게이트로 앵커 URL(`/reports/{en}`) 추가(lastModified=updated_at??created_at). 기본 off → 현재 미노출.
+- **rss/route.ts**: 동일 이중 게이트로 앵커 item(`/reports/{en}`) 추가. 기본 off.
+- **admin/cards**: 카드 목록에 **저장(save_count) 지표 컬럼** 추가(조회·공유는 기존). review_summary 탭·Pick(`is_pick`, PickToggle)·숨김(`status='hidden'`)·hidden 필터는 기존 제네릭 기능으로 이미 review_summary 앵커에 적용됨.
+
+### Changed
+- **/search 결과 목록에서 review_summary 제외**(`search/page.tsx`) — 최상단 라이브 집계 리포트 카드와 중복 방지. 피드(home)는 그대로 노출(×2 의도 유지). 앵커 draft 동안엔 search RPC(status='published')가 이미 제외 → inert, published 플립 후 실효.
+
+### 비고
+- 전부 코드 변경(새 마이그·DB 쓰기 없음). 앵커가 draft 이고 색인 게이트 off 라 **공개 플립(C6) 전까지 실효 없음**(logic/build 검증). tsc·build 통과.
+
+---
+
 ## [2026-06-03] — 시술 리포트 카드 1급화: 영문 URL + 저장/공유 (C2)
 
 ### Added

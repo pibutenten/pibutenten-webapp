@@ -90,6 +90,11 @@ export default async function HomePage({ searchParams }: Props) {
   });
   let cards = (rawCards ?? []) as CardData[];
 
+  // 검색 결과 목록에서 시술 리포트 앵커(review_summary) 제외 — 최상단에 라이브 집계 리포트
+  //   카드를 별도로 보여주므로 목록 중복 방지. (앵커 draft 동안엔 search RPC 가 이미 제외 → inert,
+  //   published 플립 후 중복 방지로 실효.) 피드(home)는 그대로 노출(×2 의도 유지).
+  cards = cards.filter((c) => (c.type as string | undefined) !== "review_summary");
+
   // 피드 다양화 — 검색 없을 때: head 1명/1회 / 검색 있을 때: head 1명/2회. 같은 원장 3연속 방지.
   // (홈/검색 모두 적용. 원장 개인 페이지는 별도 라우트라 영향 없음)
   cards = diversifyByDoctor(cards, {

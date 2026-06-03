@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { SITE_URL } from "@/lib/site";
+import { SITE_URL, INCLUDE_REPORT_ANCHORS } from "@/lib/site";
 
 // SITE_PUBLIC env + 신규 발행 글 lastmod 를 매 요청 반영.
 export const dynamic = "force-dynamic";
@@ -178,7 +178,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
-    return [...staticRoutes, ...doctorRoutes, ...tagRoutes, ...cardRoutes];
+    // 시술 리포트 앵커 — /reports/{en}. ★게이트 off 기본 + published 한정(이중 차단).
+    //   앵커 draft 동안엔 게이트가 꺼져 있고 켜더라도 published 만 → 플립 전 색인 노출 0.
+    let anchorRoutes: MetadataRoute.Sitemap = [];
+    if (INCLUDE_REPORT_ANCHORS) {
+      const { data: anchors } = await supabase
+        .from("cards")
+        .select("post_slug, updated_at, created_at")
+        .eq("type", "review_summary")
+        .eq("status", "published")
+        .is("deleted_at", null);
+      anchorRoutes = ((anchors ?? []) as Array<{
+        post_slug: string | null;
+        updated_at: string | null;
+        created_at: string | null;
+      }>).flatMap((a) =>
+        a.post_slug
+          ? [
+              {
+                url: `${SITE_URL}/reports/${a.post_slug}`,
+                lastModified: a.updated_at
+                  ? new Date(a.updated_at)
+                  : a.created_at
+                    ? new Date(a.created_at)
+                    : now,
+                changeFrequency: "weekly" as const,
+                priority: 0.6,
+              },
+            ]
+          : [],
+      );
+    }
+
+    return [...staticRoutes, ...doctorRoutes, ...tagRoutes, ...cardRoutes, ...anchorRoutes];
   } catch (e) {
     // DB 접근 실패 시에도 정적 라우트는 노출
     console.warn("[sitemap] DB fetch failed, fallback to static routes:", e);

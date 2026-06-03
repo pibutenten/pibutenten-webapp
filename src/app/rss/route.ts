@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { SITE_URL } from "@/lib/site";
+import { SITE_URL, INCLUDE_REPORT_ANCHORS } from "@/lib/site";
 
 /**
  * RSS Feed — 의사 작성 Q&A 글 최신 50건.
@@ -80,6 +80,40 @@ export async function GET() {
     })
     .join("\n");
 
+  // 시술 리포트 앵커 — /reports/{en}. ★게이트 off 기본 + published 한정(이중 차단).
+  let anchorItems = "";
+  if (INCLUDE_REPORT_ANCHORS) {
+    const { data: anchors } = await supabase
+      .from("cards")
+      .select("title, post_slug, created_at, updated_at")
+      .eq("type", "review_summary")
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    anchorItems = ((anchors ?? []) as Array<{
+      title: string | null;
+      post_slug: string | null;
+      created_at: string;
+      updated_at: string | null;
+    }>)
+      .flatMap((a) => {
+        if (!a.post_slug) return [];
+        const url = `${SITE_URL}/reports/${a.post_slug}`;
+        const pubDate = new Date(a.updated_at ?? a.created_at).toUTCString();
+        return [
+          `<item>
+  <title>${escapeXml(a.title ?? "")}</title>
+  <link>${url}</link>
+  <guid isPermaLink="true">${url}</guid>
+  <pubDate>${pubDate}</pubDate>
+  <description><![CDATA[회원 후기를 집계한 시술 리포트]]></description>
+</item>`,
+        ];
+      })
+      .join("\n");
+  }
+
   const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
@@ -89,6 +123,7 @@ export async function GET() {
     <language>ko-KR</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     ${items}
+    ${anchorItems}
   </channel>
 </rss>`;
 

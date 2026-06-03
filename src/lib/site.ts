@@ -19,3 +19,12 @@ export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
   "https://pibutenten-webapp.vercel.app";
 
+/**
+ * 시술 리포트 앵커(type=review_summary, /reports/{en})를 sitemap.xml·RSS 에 포함할지 여부.
+ *
+ * ★기본 off — 앵커는 현재 draft(비공개)이고 색인 노출은 공개 플립 이후 단계.
+ *   sitemap/rss 쿼리 자체도 status='published' 로 한 번 더 거르므로 이중 차단.
+ *   공개 플립(앵커 draft→published) 후 원장이 true 로 바꿔 색인 노출을 켠다. (C4)
+ */
+export const INCLUDE_REPORT_ANCHORS = false;
+

@@ -46,6 +46,7 @@ type AdminQARow = {
   body: string | null;
   like_count: number | null;
   view_count: number | null;
+  save_count: number | null;
   share_count: number | null;
   comments_count: { count: number }[] | null;
   created_at: string;
@@ -267,7 +268,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   let listQuery = supabase
     .from("cards")
     .select(
-      `id, status, type, category, is_pick, title, body, like_count, view_count, share_count, created_at, deleted_at,
+      `id, status, type, category, is_pick, title, body, like_count, view_count, save_count, share_count, created_at, deleted_at,
        comments_count:comments(count),
        doctor:doctors(slug, name, branch),
        author:profiles!cards_author_id_profiles_fkey(display_name, handle)`,
@@ -561,6 +562,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                   {/* 2026-05-28: whitespace-nowrap — 좁은 칸에서 2줄로 깨지지 않게 1줄 강제. */}
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">좋아요</th>
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">조회수</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">저장</th>
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">댓글</th>
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">공유</th>
                   <th className="px-3 py-2 text-left font-medium">생성일</th>
@@ -635,6 +637,9 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                       </td>
                       <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--text-secondary)]">
                         {(r.view_count ?? 0).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--text-secondary)]">
+                        {(r.save_count ?? 0).toLocaleString()}
                       </td>
                       <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--text-secondary)]">
                         {(r.comments_count?.[0]?.count ?? 0).toLocaleString()}
