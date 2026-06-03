@@ -182,6 +182,8 @@ export async function POST(req: Request) {
     p_pain: payload.pain,
     p_revisit: payload.revisit,
     p_effect_areas: payload.effect_areas,
+    p_downtime: payload.downtime,
+    p_effect_onset: payload.effect_onset,
   });
   if (rpcErr) {
     // 중복(author+procedure) — RPC 가 ERRCODE 23505 또는 메시지에 duplicate_review 로 raise.

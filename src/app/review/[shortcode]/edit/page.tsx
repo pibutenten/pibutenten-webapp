@@ -27,8 +27,10 @@ type ReviewRow = {
   procedure_ko: string;
   satisfaction: number;
   pain: number;
+  downtime: string | null;
   revisit: string;
   effect_areas: string[] | null;
+  effect_onset: string | null;
 };
 
 export default async function ReviewEditPage({
@@ -84,7 +86,7 @@ export default async function ReviewEditPage({
   // 정량 항목 로드.
   const { data: pr } = await supabase
     .from("procedure_reviews")
-    .select("procedure_ko, satisfaction, pain, revisit, effect_areas")
+    .select("procedure_ko, satisfaction, pain, downtime, revisit, effect_areas, effect_onset")
     .eq("card_id", card.id)
     .maybeSingle()
     .returns<ReviewRow>();
@@ -102,8 +104,10 @@ export default async function ReviewEditPage({
         procedureKo: pr.procedure_ko,
         satisfaction: pr.satisfaction,
         pain: pr.pain,
+        downtime: pr.downtime ?? "",
         revisit: pr.revisit,
         effectAreas: pr.effect_areas ?? [],
+        effectOnset: pr.effect_onset ?? "",
         body: card.body ?? "",
       }}
     />

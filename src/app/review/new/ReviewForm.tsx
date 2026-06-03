@@ -3,24 +3,24 @@
 /**
  * ReviewForm — 시술후기 입력 폼 (P3, client).
  *
- * 2026-06-01 단순화 명세 — 항목 전부 필수:
+ * 항목 순서 (한줄후기만 선택, 나머지 필수):
  *   1. 시술 (택1, 잠금형: 선택 후 picker 언마운트 → 선택 시술명만 제목처럼 표시, 변경 불가)
- *   2. 만족도 (별점 1~5)
- *   3. 통증 (표정 1~5, 박스 없는 투명 버튼: 미선택 흐리게 / 선택 진하게)
- *   4. 재시술 의향 (예/고민중/아니오)
- *   5. 체감 효과 (멀티 칩, ≥1)
- *   6. 한줄 후기 (text ≤150, 비어있으면 안 됨)
- *
- *   다운타임·받은 회차·받은 시점·함께 받은 시술·이상반응·가성비·한줄후기 유형 입력 삭제.
+ *   2. 만족도 (별점 1~5, 필수)
+ *   3. 통증 (표정 1~5, 필수)
+ *   4. 다운타임 (일상 복귀 소요, 단일선택 5옵션, 필수)
+ *   5. 재시술 의향 (예/고민중/아니오, 필수)
+ *   6. 체감 효과 (멀티 칩, ≥1, '없음' 포함, 필수)
+ *   7. 효과시기 (효과 체감 시기, 단일선택 5옵션, 필수)
+ *   8. 한줄 후기 (text ≤400, 선택)
  *
  * 검수: 병원·의사명은 서버에서 "○○" 로 자동 블라인드(마스킹). 제출 차단 아님.
  *   blinded 응답이면 고지 토스트 1회.
  *
- * 백엔드: POST /api/reviews. body 계약(전부 필수):
- *   procedure_ko / satisfaction(1~5) / pain(1~5) / revisit(enum) /
- *   effect_areas(string[], ≥1) / body(한줄후기 1~150).
+ * 백엔드: POST /api/reviews (수정=PATCH). body 계약:
+ *   procedure_ko / satisfaction(1~5) / pain(1~5) / downtime(슬러그) / revisit(enum) /
+ *   effect_areas(string[], ≥1) / effect_onset(슬러그) — 필수, body(한줄후기 0~400) 선택.
  *   응답 { card_id, shortcode, status, blinded, screening }.
- *   중복(409) 면 서버 userMessage 노출.
+ *   중복(409) 면 서버 userMessage 노출. downtime/effect_onset 저장은 영문 슬러그.
  *
  * 디자인은 globals.css 토큰 + 기존 Chip/StarField 톤 재사용. 모바일 우선.
  */
@@ -61,8 +61,10 @@ export type ReviewEditInitial = {
   procedureKo: string;
   satisfaction: number;
   pain: number;
+  downtime: string;
   revisit: string;
   effectAreas: string[];
+  effectOnset: string;
   body: string;
 };
 
@@ -100,44 +102,31 @@ const REVISIT_OPTIONS: ChoiceOption[] = [
   { value: "maybe", label: "고민 중", color: "#9AA1AC" },
 ];
 
-/* 생생한 후기 placeholder 프롬프트 — 작성을 유도하는 문구. 마운트 시 랜덤 순서로 2.5초마다 회전. */
-const ONELINER_PROMPTS: string[] = [
-  "이런 분께 추천하고 싶어요.",
-  "이런 분이라면 한 번 더 고민해보세요.",
-  "받기 전에 이건 꼭 알고 가셨으면 해요.",
-  "미리 알았으면 좋았을 텐데 싶은 게 있어요.",
-  "솔직히 이 부분이 제일 만족스러웠어요.",
-  "살짝 아쉬웠던 점도 같이 적어볼게요.",
-  "기대했던 것과 어떻게 달랐는지 들려주세요.",
-  "통증이나 다운타임은 어느 정도였나요?",
-  "비용 대비 만족스러웠는지 솔직하게요.",
-  "효과는 언제쯤, 어떻게 느껴지기 시작했나요?",
-  "상담받을 때 이런 걸 물어보면 좋아요.",
-  "결과를 보고 가장 먼저 든 생각은요?",
-  "다시 받는다면 어떤 점을 다르게 할까요?",
-  "같은 고민을 가진 분께 해주고 싶은 말이 있다면요.",
-  "시술 후 일상으로 돌아오는 데 얼마나 걸렸나요?",
-  "사진이나 후기로 본 것과 실제는 어땠나요?",
-  "의외로 별것 아니었던 점이 있었나요?",
-  "반대로 생각보다 신경 쓰였던 점은요?",
-  "누군가 망설이고 있다면 어떻게 말해주실래요?",
-  "가감 없이, 느낀 그대로 한마디 남겨주세요.",
+/* 다운타임(일상 복귀 소요) — 저장은 영문 슬러그(DB downtime_chk 와 일치), 표시는 한국어. */
+const DOWNTIME_OPTIONS: ChoiceOption[] = [
+  { value: "same_day", label: "바로 가능" },
+  { value: "days_1_2", label: "1~2일" },
+  { value: "days_3_5", label: "3~5일" },
+  { value: "week_1", label: "약 1주" },
+  { value: "weeks_2_plus", label: "2주 이상" },
 ];
 
-/* Fisher-Yates 셔플 — 프롬프트 순서를 랜덤화. */
-function shuffled<T>(arr: readonly T[]): T[] {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
+/* 효과 체감 시기 — 저장은 영문 슬러그(DB effect_onset_chk 와 일치), 표시는 한국어. */
+const EFFECT_ONSET_OPTIONS: ChoiceOption[] = [
+  { value: "immediate", label: "시술 직후" },
+  { value: "weeks_1_2", label: "1~2주 후" },
+  { value: "month_1", label: "한 달쯤" },
+  { value: "months_2_3", label: "2~3달 후" },
+  { value: "still_watching", label: "아직 지켜보는 중" },
+];
+
+/* 생생한 후기 placeholder — 고정 문구(작성 유도). */
+const ONELINER_PLACEHOLDER = "고민하는 분들께 해주고 싶은 한마디를 남겨주세요.";
 
 /**
- * 체감 효과 옵션 — 독립 목록 16종 (2026-06-02, 온보딩 피부고민과 별개).
- * 순서: 리프팅·탄력·쫀쫀함·볼륨·작은얼굴·턱선·이중턱·피부톤·피부결·잔주름·모공·생기·속건조·붉은기·트러블·피지.
- * 저장값(effect_areas)은 이 라벨 문자열 그대로.
+ * 체감 효과 옵션 — 독립 목록 16종 + '없음'(17번째) (온보딩 피부고민과 별개).
+ * 순서: 리프팅·탄력·쫀쫀함·볼륨·작은얼굴·턱선·이중턱·피부톤·피부결·잔주름·모공·생기·속건조·붉은기·트러블·피지·없음.
+ * 저장값(effect_areas)은 이 라벨 문자열 그대로. '없음'도 일반 칩(배타 로직 없음).
  */
 const EFFECT_AREA_OPTIONS: string[] = [
   "리프팅",
@@ -156,8 +145,9 @@ const EFFECT_AREA_OPTIONS: string[] = [
   "붉은기",
   "트러블",
   "피지",
+  "없음",
 ];
-/** 효과 칩 색 — EFFECT_AREA_OPTIONS 와 동일 인덱스 매칭 (16색 파스텔, 서로 다르게). */
+/** 효과 칩 색 — EFFECT_AREA_OPTIONS 와 동일 인덱스 매칭 (16색 파스텔 + '없음' 중립 회색). */
 const EFFECT_AREA_COLORS: string[] = [
   "#B0A0DE",
   "#7FD0F8",
@@ -175,6 +165,7 @@ const EFFECT_AREA_COLORS: string[] = [
   "#F2A9C0",
   "#D6B0A1",
   "#E0C088",
+  "#C2C7CE",
 ];
 
 export default function ReviewForm({
@@ -200,23 +191,11 @@ export default function ReviewForm({
   });
   const [satisfaction, setSatisfaction] = useState<number>(initial?.satisfaction ?? 0);
   const [pain, setPain] = useState<number>(initial?.pain ?? 0);
+  const [downtime, setDowntime] = useState(initial?.downtime ?? "");
   const [revisit, setRevisit] = useState(initial?.revisit ?? "");
   const [effectAreas, setEffectAreas] = useState<string[]>(initial?.effectAreas ?? []);
+  const [effectOnset, setEffectOnset] = useState(initial?.effectOnset ?? "");
   const [oneliner, setOneliner] = useState(initial?.body ?? "");
-
-  /* 생생한 후기 placeholder — 마운트 시 랜덤 순서로 섞어 2.5초마다 순환(반복 없이 한 바퀴씩). */
-  const [phIndex, setPhIndex] = useState(0);
-  // SSR/CSR 일치 위해 초기엔 원본 순서, 마운트 후 셔플.
-  const [order, setOrder] = useState<string[]>(ONELINER_PROMPTS);
-  useEffect(() => {
-    setOrder(shuffled(ONELINER_PROMPTS));
-    const id = setInterval(() => setPhIndex((i) => i + 1), 2500);
-    return () => clearInterval(id);
-  }, []);
-  const onelinerPlaceholder = useMemo(
-    () => order[phIndex % order.length],
-    [phIndex, order],
-  );
 
   /* 선택된 시술 옵션 (제목 표시용). */
   const selectedProcedure = useMemo(
@@ -241,8 +220,10 @@ export default function ReviewForm({
     setProcedureKo("");
     setSatisfaction(0);
     setPain(0);
+    setDowntime("");
     setRevisit("");
     setEffectAreas([]);
+    setEffectOnset("");
     setOneliner("");
     setError(null);
   }
@@ -254,15 +235,24 @@ export default function ReviewForm({
   }
 
   /* ── 제출 ── */
-  // 필수: 시술·만족도·통증·재시술 의향. 효과·생생한 후기는 선택.
+  // 필수: 시술·만족도·통증·다운타임·재시술·효과(≥1, '없음'도 1개)·효과시기. 한줄후기만 선택.
   const canSubmit =
-    !!procedureKo && satisfaction >= 1 && pain >= 1 && !!revisit;
+    !!procedureKo &&
+    satisfaction >= 1 &&
+    pain >= 1 &&
+    !!downtime &&
+    !!revisit &&
+    effectAreas.length >= 1 &&
+    !!effectOnset;
 
   function validate(): string | null {
     if (!procedureKo) return "시술을 선택해주세요.";
     if (satisfaction < 1) return "만족도를 선택해주세요.";
     if (pain < 1) return "통증 정도를 선택해주세요.";
+    if (!downtime) return "일상으로 돌아오기까지 걸린 시간을 선택해주세요.";
     if (!revisit) return "재시술 의향을 선택해주세요.";
+    if (effectAreas.length < 1) return "느낀 효과를 1개 이상 골라주세요.";
+    if (!effectOnset) return "효과를 느낀 시기를 선택해주세요.";
     return null;
   }
 
@@ -278,8 +268,10 @@ export default function ReviewForm({
       procedure_ko: procedureKo,
       satisfaction,
       pain,
+      downtime,
       revisit,
       effect_areas: effectAreas,
+      effect_onset: effectOnset,
       body: oneliner.trim(),
     };
 
@@ -430,7 +422,17 @@ export default function ReviewForm({
           disabled={pending}
         />
 
-        {/* ── 4. 재시술 의향 (필수) ── */}
+        {/* ── 4. 다운타임 (필수) — 질문에 '다운타임' 단어 노출 금지 ── */}
+        <ChoiceField
+          label="일상으로 돌아오기까지 얼마나 걸렸나요?"
+          required
+          value={downtime}
+          onChange={setDowntime}
+          options={DOWNTIME_OPTIONS}
+          disabled={pending}
+        />
+
+        {/* ── 5. 재시술 의향 (필수) ── */}
         <ChoiceField
           label="재시술 의향"
           required
@@ -440,7 +442,7 @@ export default function ReviewForm({
           disabled={pending}
         />
 
-        {/* ── 5. 체감 효과 (필수, 멀티 칩) ── */}
+        {/* ── 6. 체감 효과 (필수, 멀티 칩, '없음' 포함) ── */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
             이번 시술로 달라진 점을 모두 골라주세요!
@@ -463,7 +465,17 @@ export default function ReviewForm({
           </div>
         </div>
 
-        {/* ── 6. 생생한 후기 (필수) ── */}
+        {/* ── 7. 효과시기 (필수) ── */}
+        <ChoiceField
+          label="효과를 언제 가장 크게 느꼈나요?"
+          required
+          value={effectOnset}
+          onChange={setEffectOnset}
+          options={EFFECT_ONSET_OPTIONS}
+          disabled={pending}
+        />
+
+        {/* ── 8. 생생한 후기 (선택) ── */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
             생생한 후기를 남겨주세요{" "}
@@ -478,7 +490,7 @@ export default function ReviewForm({
             maxLength={ONELINER_MAX}
             rows={3}
             disabled={pending}
-            placeholder={onelinerPlaceholder}
+            placeholder={ONELINER_PLACEHOLDER}
             className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
           />
           <p className="mt-1 text-xs text-[var(--text-muted)]">

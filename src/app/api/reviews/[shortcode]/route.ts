@@ -131,6 +131,8 @@ export async function PATCH(
     p_pain: payload.pain,
     p_revisit: payload.revisit,
     p_effect_areas: payload.effect_areas,
+    p_downtime: payload.downtime,
+    p_effect_onset: payload.effect_onset,
   });
   if (rpcErr) {
     const msg = typeof rpcErr.message === "string" ? rpcErr.message : "";

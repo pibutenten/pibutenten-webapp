@@ -6,6 +6,25 @@
 
 ---
 
+## [2026-06-03] — 후기 폼 확장 쓰기경로 (2a: 다운타임·효과시기·효과 '없음')
+
+> ⚠️ 마이그레이션 `0213` **미적용**(파일 생성만). production 적용·실제 제출(RPC 기록) 테스트는 별도 단계. 적용 전까지 폼 제출 시 RPC가 신규 파라미터 미인지로 실패할 수 있음.
+
+### Added
+- **마이그레이션 `0213_procedure_review_downtime_onset.sql`**(미적용) — `procedure_reviews` 에 `downtime`·`effect_onset` text 컬럼 추가(nullable, 기존 69건 NULL 유지) + CHECK(`revisit_chk` 스타일, NULL 허용). `create_procedure_review`·`update_procedure_review` 둘 다 DROP+재생성(시그니처 끝에 `p_downtime/p_effect_onset DEFAULT NULL` 만 추가, 기존 소유자검증·cards INSERT·shortcode·FK·status 로직 불변, GRANT 원본대로 재발급, SECURITY DEFINER 유지, BEGIN/COMMIT).
+- **폼 신규 질문 2개**(`ReviewForm.tsx`): 다운타임("일상으로 돌아오기까지 얼마나 걸렸나요?", 5옵션 `DOWNTIME_OPTIONS`) / 효과시기("효과를 언제 가장 크게 느꼈나요?", 5옵션 `EFFECT_ONSET_OPTIONS`). 저장은 영문 슬러그, 표시는 한국어. 효과 칩에 '없음'(17번째, 중립 회색 `#C2C7CE`, 배타 로직 없음).
+
+### Changed
+- **폼 순서**: 시술 → 만족도 → 통증 → **다운타임** → 재시술 → 효과 → **효과시기** → 한줄후기. 검증 필수 = 시술·만족도·통증·다운타임·재시술·효과(≥1, '없음'도 1개)·효과시기. 한줄후기만 선택. 한줄후기 placeholder 고정("고민하는 분들께 해주고 싶은 한마디를 남겨주세요.") — 기존 회전 프롬프트 제거. 상단 doc 주석 실제 필수와 일치하게 갱신.
+- **zod `ReviewCreateSchema`**(생성·수정 공용): `downtime`/`effect_onset` 5슬러그 enum 필수, `effect_areas` `min(1).max(17)`(효과 필수·'없음' 포함), `body` `max(400)` 유지.
+- **API**(`/api/reviews` POST·PATCH): RPC 호출에 `p_downtime`/`p_effect_onset` 전달.
+- **수정 페이지 프리필**(`review/[shortcode]/edit`): `downtime`·`effect_onset` SELECT + `initial` 프리필(NULL→"").
+
+### Removed
+- `src/app/api/reviews/route.ts.tmp.*` 에디터 임시파일 6개 정리.
+
+---
+
 ## [2026-06-03] — 검색 헤딩 검색어 카테고리 색 (#1)
 
 ### Changed
