@@ -24,8 +24,12 @@ export type Demographics = {
   ageBands: { label: string; count: number }[];
 };
 
+export type ProcedureCategory = "lifting" | "injectables";
+
 export type ProcedureReport = {
   procedureKo: string;
+  /** procedure_taxonomy.category — 카드 테두리 색 분기용. 미발견 시 null. */
+  category: ProcedureCategory | null;
   count: number;
   avgSatisfaction: number;
   /** index 0=1점 … 4=5점 */
@@ -63,6 +67,17 @@ export async function getProcedureReport(
 
   const rows = data ?? [];
   if (rows.length === 0) return null;
+
+  // 시술 분류(category) 1회 조회 — 카드 테두리 색 분기용. anon SELECT 허용(0204).
+  const { data: taxRow } = await supabase
+    .from("procedure_taxonomy")
+    .select("category")
+    .eq("ko", procedureKo)
+    .maybeSingle<{ category: string | null }>();
+  const category: ProcedureCategory | null =
+    taxRow?.category === "lifting" || taxRow?.category === "injectables"
+      ? taxRow.category
+      : null;
 
   const n = rows.length;
   const satisfactionDist = [0, 0, 0, 0, 0];
@@ -128,6 +143,7 @@ export async function getProcedureReport(
 
   return {
     procedureKo,
+    category,
     count: n,
     avgSatisfaction: satSum / Math.max(1, satisfactionDist.reduce((a, b) => a + b, 0)),
     satisfactionDist,

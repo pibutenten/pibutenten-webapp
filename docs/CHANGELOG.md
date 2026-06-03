@@ -6,6 +6,110 @@
 
 ---
 
+## [2026-06-03] — 시술 리포트 카드 마지막 심미 (B5: 푸터 구분선·eyebrow 색)
+
+### Changed
+- **[1] 더보기/접기 푸터 구분선 제거**: 카드 하단 컨트롤 행의 `border-t border-[var(--border)]` 제거 → 여백으로만 분리. '후기 N개' 섹션 위 구분선·후기 항목 `divide-y` 는 그대로 유지.
+- **[2] eyebrow 색**: '피부텐텐 리포트' eyebrow 글자색 `var(--text-muted)` → `var(--text)`(진한 본문색). 크기·굵기·tracking 유지. 시술명(h1) 카테고리색 유지.
+
+---
+
+## [2026-06-03] — 시술 리포트 카드 심미 보정 (B4: 구분선 정리·헤더 톤·타이틀)
+
+### Changed
+- **[1] 섹션 구분선 정리**: 집계 섹션(헤더·재시술·만족도·통증·효과·작성자 통계) 하단 구분선(`border-b`) 전부 제거 → 여백으로만 구분. `SECTION` 상수 `border-b border-[var(--border)] px-5 py-4` → `px-5 py-5`(줄 제거 보정 py 한 단계 ↑). 헤더 `border-b` 제거. 통증 섹션의 `expanded ? SECTION : "px-5 py-4"` 분기 제거(둘 다 `SECTION`). '후기 N개' 섹션 위에만 구분선 1개 유지(`border-t border-[var(--border)]`). 후기 항목 사이 `divide-y` 는 그대로 유지.
+- **[2] 헤더 배경 더 연하게**: `procedure-theme.ts` soft — lifting `#F2FAFE`→`#F7FCFF`, injectables `#FFF5F9`→`#FFFAFC`.
+- **[3] 타이틀 심미**: eyebrow('피부텐텐 리포트') 글자색 카테고리색 → `var(--text-muted)`(중립 회색, 크기·굵기·tracking 유지). 시술명(h1)은 `theme.color`(카테고리색) 그대로 — 색은 시술명만. lifting·injectables 동일 구조.
+
+---
+
+## [2026-06-03] — 시술 리포트 카드 마감 (B3: 삭제누수·기본접힘·제목링크·컨트롤·색)
+
+### Fixed
+- **[1] 후기 목록 삭제건 누수 차단**: `search`·`topics/[tag]`·`reports/[procedure]` 의 후기(category='review') fetch 에 `.is("deleted_at", null)` 추가 → 집계(`getProcedureReport`, deleted_at IS NULL)와 동일 필터. soft-delete 됐는데 status='published' 인 카드가 리스트에만 노출되어 헤더 집계(8)와 목록(9)이 어긋나던 문제 해소(예: 티타늄 9→8).
+
+### Changed
+- **[2] 기본 접힘 + 단독 펼침**: `ProcedureReportCard` 에 `defaultExpanded?: boolean`(기본 false) 추가, 초기 `expanded`=prop. 페이지 간 끌고다니던 `sessionStorage`(report-expanded:{ko}) 초기-읽기 제거(누수 원인). `reports/[procedure]` → `defaultExpanded`(펼침), `search`·`topics` → 미전달(접힘).
+- **[3] 접기/더보기 컨트롤 재설계**: 후기 목록 '접기' 제거(더보기로 늘리기만). 하단을 한 줄 컨트롤로 — 접힘: `[더보기 ▾]`(카드 펼치기) / 펼침: `[더보기]`(후기 +10, `reviews.length>visibleCount` 일 때) + `[접기 ▴]`(카드 접기, 같은 행). 카드 접기 시 `visibleCount=5` 리셋. 'card 접기'와 'review 접기'가 같은 글자로 겹치던 문제 제거.
+- **[4] 제목 칸 링크**: 헤더 칸('피부텐텐 리포트'+시술명+후기수)을 `<Link href={/reports/{encodeURIComponent(procedureKo)}}>` 로 감쌈 — 클릭 시 단독 리포트 페이지(펼침). (공유·저장 버튼은 미추가.)
+- **[5] 카테고리 색 진하게 + 헤더 솔리드 틴트**: `procedure-theme.ts` — lifting `#1E9FD8`/soft `#F2FAFE`, injectables `#E5689B`/soft `#FFF5F9`, 그외 `var(--primary)`/soft `transparent`. 헤더 칸 배경 = `theme.soft` **솔리드**(그라디언트 제거), 라벨·시술명 글자색 = `theme.color`. 틴트는 헤더 칸에만.
+- **[6] 재시술 '고민 중' 막대 라벨**: 막대 안 표시 임계 18%→**12%**(범례와 동일 "고민 중" 표기). 좁으면 생략.
+
+---
+
+## [2026-06-03] — 시술 리포트 후기별 좋아요 (B2b: 단독 글과 같은 card_likes 행 재사용)
+
+### Added
+- **`components/report/ReportReviewItem.tsx`** 신설 — 리포트 후기 한 줄을 컴포넌트로 추출(hooks 규칙). 내부에서 단독 카드와 **동일한 `useCardEngagement`(toggle_card_like RPC)** 를 `noopShare` 와 함께 호출해 `like.active/count/toggle` 만 사용(저장/공유 무시). 초기 `liked` 는 부모 prefetch 로 받아 per-row 자체 조회(N쿼리) 방지.
+- **후기별 좋아요 버튼**: 작성자 행을 `justify-between` 으로 — 좌측 `<Link>`(닉네임·별점·상대시간), 우측 좋아요 하트(`CardActions` 동일 스타일 축소 `h-[18px]`, 활성 `text-[var(--accent)]`+fill, 비활성 outline). `onClick` 에서 `stopPropagation`+`preventDefault` 후 토글 → Link 네비·본문 펼침과 분리.
+- **3개 페이지 viewer 좋아요여부 배선**: `search`·`topics/[tag]`·`reports/[procedure]` 가 `reportReviews.map(r=>r.id)` 로 `fetchViewerStatesRecord(supabase, viewerId, ids)`(`lib/viewer-states.ts`) 호출 → `reviewLiked: Record<number, boolean>` 생성 → `<ProcedureReportCard reviewLiked={...} />` 전달. 비로그인이면 전부 false.
+
+### Changed
+- **[0] 더보기/접기 정렬**: 세로로 겹치던 두 버튼을 같은 가로 행(`flex justify-center gap-4`)에 나란히. 각각 독립 조건·동작.
+- `ProcedureReportCard`: `me` 를 `useSession()`(SSR SessionContext, 단독 카드와 동일 출처)로 확보 — 비로그인 → null. 부모에 `authPrompt` state + `<LoginPromptDialog/>`(Card.tsx 패턴) 추가. 후기 `<li>` 인라인 렌더를 `ReportReviewItem` 호출로 교체(본문 펼침 state 는 부모 유지 — B2a 동작 보존). 미사용이 된 `reviewOf`/`getQaUrl`/`RelativeTime`/`Link` import 정리.
+
+### 비고
+- 미니 목록 좋아요 = 후기 단독 글 페이지 좋아요와 **같은 `card_likes` 행 + 같은 `cards.like_count`** (동일 RPC·테이블·컬럼). 한쪽에서 토글하면 다른쪽 재방문 시 동기화.
+
+---
+
+## [2026-06-03] — 시술 리포트 후기 목록 표시 보정 (B2a: 상대시간·페이지네이션·클릭영역 분리)
+
+### Changed
+- **[1] 상대시간**: 개별 후기 작성자 행의 날짜를 `YYYY.MM.DD`(`fmtDate`) → `<RelativeTime iso={card.created_at} />`("6시간 전/어제/N달 전"). 미사용이 된 로컬 `fmtDate` 헬퍼 제거.
+- **[2] 더보기/접기**: 후기 목록을 `reviews.slice(0, visibleCount)`(기본 5)만 렌더. `reviews.length > visibleCount` 면 '더보기'(+10), `visibleCount > 5` 면 '접기'(→5). 무한스크롤 아님. 헤더 "후기 {reviews.length}개" 는 전체 수 유지.
+- **[3] 클릭 영역 분리 + 본문 인라인 펼침**: `<li>` 전체를 감싸던 `<Link>` 제거 → 작성자 행(닉네임·별점·상대시간)만 `<Link href={getQaUrl(card)}>` 로 감싸 단독 글 이동. 본문 `<p>` 는 Link 가 아니라 `onClick` 으로 펼침 토글(`expandedReviews: Set<id>`) — 펼침 시 `line-clamp-2` 해제, 접힘 시 2줄. (후기별 좋아요 자리 마련 — 좋아요는 B2b.)
+
+---
+
+## [2026-06-03] — 시술 리포트 카드 마감 보정 (B1.1: 헤더 평탄화·면책 블렌딩·범례·만족도)
+
+### Changed
+- **[A] 헤더 평탄화**: 리포트 카드 `<header>` 의 `bg-gradient-to-br`(soft→흰색) 그라디언트 제거 → 카드 본문과 동일한 플랫 배경(배경 fill 없음). 하단 `border-b` 와 라벨·시술명 글자색(`theme.color`)은 유지.
+- **[B] 면책 블렌딩**: 면책 문구의 회색 박스(`bg-[var(--bg-soft)]`) 제거 → 작성자 통계 바로 아래(개별 후기 위) 작은 회색 평문 한 단락(`text-[12px] leading-relaxed text-[var(--text-muted)]`, 배경·테두리 없음). 위치·항상 노출(펼침 시) 동작 유지.
+- **[C] 재시술 범례**: 맨 앞에 회색 리드 "재시술 의향" 추가, '고민 중'은 `revisit.maybe > 0` 일 때만 렌더(0명이면 항목 자체 숨김). 막대 in-bar 접두("재시술 의향 있어요/없어요")·막대 색은 불변.
+- **[D] 만족도 문구·라벨**: 자연어 문구의 "별점 X.X점…" → **"만족도 X.X점…"**(전 구간, 표시 텍스트만). A배치에서 추가했던 점수 숫자 아래 "시술 만족도" 라벨 제거. 별·점수·분포 막대, JSON-LD `AggregateRating` 불변.
+
+---
+
+## [2026-06-03] — 시술 리포트 카드 화면 교정 (B1: 테두리 제거·헤더 톤·재시술 라벨·접힘 경계)
+
+### Added
+- **`lib/procedure-theme.ts`** 신설 — `categoryTheme(category)` 가 분류별 `{color, soft}` SSOT 반환(lifting `#29B6F6`/`#E8F6FD`, injectables `#F48FB1`/`#FFEBF2`, null `var(--primary)`/`var(--primary-soft)`). A배치의 `CATEGORY_BORDER` 대체.
+- **`components/report/ReportSampleNotice.tsx`** 신설 — 표본 적을 때(`count<10`) 카드 **바로 위**에 안내 한 줄. 문구·구간(1~3/4~9)·해시 회전(`WARN_1_3`/`WARN_4_9`/`hashIndex`)을 이 컴포넌트로 일원화. ≥10 이면 렌더 안 함. `/search`·`/topics`·`/reports` 세 페이지에서 카드 래퍼 안 카드 위에 렌더.
+
+### Changed
+- **카드 틀**: `<article>` 카테고리 테두리 완전 제거 → 일반 카드와 동일(테두리·그림자 없음, `rounded-[var(--radius)]` 유지).
+- **헤더 톤**: 헤더 영역에만 `categoryTheme` 적용 — '피부텐텐 리포트' 라벨·시술명 글자색 = `color`, 헤더 배경 = `soft→흰색` 그라디언트. '회원 후기 N건' 은 기존 회색 유지.
+- **재시술 의향 라벨**: 우세 판정(`yes >= no`) 세그먼트에만 '재시술 의향' 접두 → "재시술 의향 있어요"/"재시술 의향 없어요"(세그먼트 폭 부족 시 생략, 범례로 대체). 막대 색(#4CBFF2 등) 불변. 범례는 있어요/고민 중/없어요 **3개 모두 표시(0명 포함)**.
+- **효과 헤딩**: "{시술명}{은/는} 이런 효과를 느꼈어요!" → **"{시술명} 받은 분들이 느낀 효과예요."** (`josaEunNeun` 헬퍼 제거).
+- **접힘 경계 [9a]**: 접힘=만족도까지 → **접힘=통증까지**. 통증 섹션을 펼침 블록 밖(항상 표시)으로 이동, 하단 테두리 제거 로직을 만족도→통증으로 이전(만족도는 항상 테두리). 펼침 시작=많이 본 효과. sessionStorage 키 불변.
+
+### Removed
+- `ProcedureReportCard` 내부의 `CATEGORY_BORDER`·`josaEunNeun`·`WARN_1_3`/`WARN_4_9`/`hashIndex`/`sampleWarning`·테두리 style·`accent` prop 제거(테마/별도 컴포넌트로 이전).
+
+---
+
+## [2026-06-03] — 시술 리포트 카드 UI 보강 (A배치: 틀·너비·라벨·문구·경고)
+
+### Added
+- `getProcedureReport` 반환 타입에 **`category: 'lifting'|'injectables'|null`** 추가 — `procedure_taxonomy` 에서 시술명(ko)으로 1회 SELECT(anon 허용, 0204). 카드 테두리 색 분기용 (`lib/procedure-report.ts`).
+- **표본 경고 캡션**: 후기 `count < 10` 일 때 리포트 카드 헤더 바로 아래 작은 글씨(`var(--text-muted)`) 안내. 1~3개·4~9개 두 구간, 각 3개 문구 중 시술명 해시(`hashIndex`)로 1개 고정 선택. ≥10 미표시. `/reports`·`/search`·`/topics` 공통 적용 (컴포넌트 내부 — `ProcedureReportCard.tsx::sampleWarning`).
+
+### Changed
+- **카드 틀**: `rounded-[16px]`→`rounded-[var(--radius)]`(12px), `shadow-[var(--shadow-sm)]` 제거, 테두리 1.5px 카테고리 색(lifting `#29B6F6` / injectables `#F48FB1` / null `var(--border)` — `CATEGORY_BORDER`). 막대 in-bar 색은 불변.
+- **데스크탑 너비 통일**: `/search`·`/topics` 삽입 리포트 카드 래퍼 `max-w-[600px]`→`max-w-[680px]`(단독 글 페이지와 동일).
+- **만족도 라벨**: 평균 점수 아래 "시술 만족도" 한 줄 추가(`var(--text-muted)`).
+- **통증 문구**: 출력을 "통증 : 평균 {avgPain}점, {문구}" 형식으로 변경. 문구 매핑 재정의(<1.5 거의 안 아파요 / 1.5~2.5 살짝 따끔 / 2.5~3.5 참을 만해요 / 3.5~4.5 꽤 뻐근 / ≥4.5 마취 필요).
+- **효과 헤딩**: "이런 효과를 받았어요!"→"{시술명}{은/는} 이런 효과를 느꼈어요!". 받침 유무 조사 헬퍼 `josaEunNeun` 신설.
+- **검색 결과 순서**: `/search` 에서 리포트 카드 블록을 "{q}에 대한 N개의 답변" 헤더 **위**로 이동(리포트 → 헤더 → 피드).
+
+### 신규 헬퍼/매핑 위치
+- `lib/procedure-report.ts`: `ProcedureCategory` 타입 + taxonomy category SELECT.
+- `components/report/ProcedureReportCard.tsx`: `CATEGORY_BORDER`, `josaEunNeun`, `WARN_1_3`/`WARN_4_9`, `hashIndex`, `sampleWarning`. `painPhrase` 재작성.
+
+---
+
 ## [2026-06-02] — 시술별 후기 리포트 페이지 (/reports/[procedure])
 
 ### Added

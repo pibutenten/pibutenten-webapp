@@ -8,6 +8,8 @@ import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import BackButton from "@/components/BackButton";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
+import ReportSampleNotice from "@/components/report/ReportSampleNotice";
+import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 
 export const dynamic = "force-dynamic";
 
@@ -62,10 +64,25 @@ export default async function ProcedureReportPage({ params }: Props) {
     .select(CARD_LIST_SELECT)
     .eq("category", "review")
     .eq("status", "published")
+    .is("deleted_at", null)
     .contains("keywords", [ko])
     .order("created_at", { ascending: false })
     .returns<CardData[]>();
   const reviews = reviewData ?? [];
+
+  // 시술 리포트 후기 — viewer 좋아요 여부 일괄 조회(단독 글과 같은 card_likes 행).
+  const reviewLiked: Record<number, boolean> = {};
+  if (reviews.length > 0) {
+    const {
+      data: { user: viewer },
+    } = await supabase.auth.getUser();
+    const st = await fetchViewerStatesRecord(
+      supabase,
+      viewer?.id ?? null,
+      reviews.map((r) => r.id),
+    );
+    for (const r of reviews) reviewLiked[r.id] = !!st[r.id]?.liked;
+  }
 
   // JSON-LD — AggregateRating (별점·후기 수). 시술 리포트 인덱싱 신호.
   const jsonLd = {
@@ -92,7 +109,8 @@ export default async function ProcedureReportPage({ params }: Props) {
         <BackButton fallbackHref="/" />
       </div>
 
-      <ProcedureReportCard report={report} reviews={reviews} />
+      <ReportSampleNotice count={report.count} procedureKo={report.procedureKo} />
+      <ProcedureReportCard report={report} reviews={reviews} reviewLiked={reviewLiked} defaultExpanded />
     </section>
   );
 }

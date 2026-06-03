@@ -7,6 +7,8 @@ import CardMasonry from "@/components/CardMasonry";
 import { getProcedureReport } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
+import ReportSampleNotice from "@/components/report/ReportSampleNotice";
+import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import {
@@ -119,10 +121,25 @@ export default async function TagPage({ params }: Props) {
       .select(CARD_LIST_SELECT)
       .eq("category", "review")
       .eq("status", "published")
+      .is("deleted_at", null)
       .contains("keywords", [tag])
       .order("created_at", { ascending: false })
       .returns<CardData[]>();
     reportReviews = data ?? [];
+  }
+
+  // 시술 리포트 후기 — viewer 좋아요 여부 일괄 조회(단독 글과 같은 card_likes 행).
+  const reportReviewLiked: Record<number, boolean> = {};
+  if (reportReviews.length > 0) {
+    const {
+      data: { user: viewer },
+    } = await supabase.auth.getUser();
+    const st = await fetchViewerStatesRecord(
+      supabase,
+      viewer?.id ?? null,
+      reportReviews.map((r) => r.id),
+    );
+    for (const r of reportReviews) reportReviewLiked[r.id] = !!st[r.id]?.liked;
   }
 
   // 3) JSON-LD: @graph 로 CollectionPage + FAQPage 묶음 출력.
@@ -247,8 +264,9 @@ export default async function TagPage({ params }: Props) {
 
       {/* 시술 리포트 — 후기가 쌓인 시술이면 최상단에 한 장 노출 */}
       {report && (
-        <div className="mx-auto mb-6 max-w-[600px]">
-          <ProcedureReportCard report={report} reviews={reportReviews} />
+        <div className="mx-auto mb-6 max-w-[680px]">
+          <ReportSampleNotice count={report.count} procedureKo={report.procedureKo} />
+          <ProcedureReportCard report={report} reviews={reportReviews} reviewLiked={reportReviewLiked} />
         </div>
       )}
 

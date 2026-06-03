@@ -13,6 +13,7 @@ import { fetchCardList, resolveCategorySlug } from "@/lib/search-query";
 import { getProcedureReport } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
+import ReportSampleNotice from "@/components/report/ReportSampleNotice";
 
 export const dynamic = "force-dynamic";
 
@@ -140,6 +141,7 @@ export default async function HomePage({ searchParams }: Props) {
       .select(CARD_LIST_SELECT)
       .eq("category", "review")
       .eq("status", "published")
+      .is("deleted_at", null)
       .contains("keywords", [q])
       .order("created_at", { ascending: false })
       .returns<CardData[]>();
@@ -159,6 +161,17 @@ export default async function HomePage({ searchParams }: Props) {
     (cards ?? []).map((q) => q.id),
   );
 
+  // 시술 리포트 후기 — viewer 좋아요 여부 일괄 조회(단독 글과 같은 card_likes 행).
+  const reportReviewLiked: Record<number, boolean> = {};
+  if (reportReviews.length > 0) {
+    const st = await fetchViewerStatesRecord(
+      supabase,
+      viewer?.id ?? null,
+      reportReviews.map((r) => r.id),
+    );
+    for (const r of reportReviews) reportReviewLiked[r.id] = !!st[r.id]?.liked;
+  }
+
   return (
     <section>
       <HeroSearch />
@@ -167,6 +180,14 @@ export default async function HomePage({ searchParams }: Props) {
       <div className="mt-6 sm:mt-12">
         <CategoryWithChips popularByCategory={popularByCategory} />
       </div>
+
+      {/* 시술 검색 — 결과 최상단(‘N개의 답변’ 헤더보다 위)에 시술 리포트 카드 한 장 */}
+      {report && (
+        <div className="mx-auto mb-5 mt-8 max-w-[680px] sm:mt-12">
+          <ReportSampleNotice count={report.count} procedureKo={report.procedureKo} />
+          <ProcedureReportCard report={report} reviews={reportReviews} reviewLiked={reportReviewLiked} />
+        </div>
+      )}
 
       {q && (
         <p className="mt-10 text-left text-sm text-[var(--text-secondary)] sm:mt-12">
@@ -177,12 +198,6 @@ export default async function HomePage({ searchParams }: Props) {
       )}
 
       <div className={q ? "mt-5" : "mt-4 sm:mt-14"}>
-        {/* 시술 검색 — 결과 최상단에 시술 리포트 카드 한 장 */}
-        {report && (
-          <div className="mx-auto mb-5 max-w-[600px]">
-            <ProcedureReportCard report={report} reviews={reportReviews} />
-          </div>
-        )}
         {error && (
           <div className="rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Q&A 불러오기 실패: {error.message}

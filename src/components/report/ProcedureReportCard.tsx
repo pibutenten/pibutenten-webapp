@@ -4,16 +4,20 @@
  * ProcedureReportCard — 시술별 후기 집계 + 개별 후기를 담은 **단일 카드**(접힘 내장).
  *
  * 태그 검색 최상단/피드에 한 장의 카드로 삽입되도록 전체가 하나의 <article>.
- *   - 접힘(기본): 헤더 + 재시술 의향 + 만족도 까지만.
- *   - 펼침: 통증 · 많이 본 효과 · 작성자 통계 · 면책 · 개별 후기(컴팩트) 까지.
+ *   - 접힘(기본): 헤더 + 재시술 의향 + 만족도 + 통증 까지.
+ *   - 펼침: 많이 본 효과 · 작성자 통계 · 면책 · 개별 후기(컴팩트) 까지.
  * 강조: 재시술 의향(상단, 만족도보다 살짝만) → 만족도. 후기는 좋아요/댓글/공유 없는 미니멀 목록.
+ * 표본 적을 때 안내는 카드 밖 <ReportSampleNotice/> 가 카드 위에서 담당(컴포넌트 분리).
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/components/Card";
-import type { ReviewSummaryData } from "@/lib/types/card";
-import { getQaUrl } from "@/lib/card-url";
+import { categoryTheme } from "@/lib/procedure-theme";
+import { useSession } from "@/lib/session-context";
+import type { EngagementMe } from "@/components/card/hooks/useCardEngagement";
+import LoginPromptDialog from "@/components/LoginPromptDialog";
+import ReportReviewItem from "@/components/report/ReportReviewItem";
 
 const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
 const PAIN_SOFT = ["#BAE6FD", "#FDE68A", "#FDBA74", "#FCA5A5", "#F08A8A"];
@@ -22,7 +26,8 @@ const EFFECT_BAR_COLORS = [
   "#F59CB6", "#A6D9A9", "#F4B8A0", "#C3B0E8", "#CDC97A",
 ];
 
-const SECTION = "border-b border-[var(--border)] px-5 py-4";
+// 집계 섹션 — 구분선 없이 여백(py-5)으로만 구분.
+const SECTION = "px-5 py-5";
 const TITLE = "mb-2.5 text-[15px] font-bold text-[var(--text)]";
 
 // 통계 수치를 편안한 자연어로 — 값에 따라 멘트가 달라진다.
@@ -33,66 +38,42 @@ function revisitPhrase(pct: number): string {
 }
 function satisfactionPhrase(avg: number): string {
   const x = avg.toFixed(1);
-  if (avg >= 4.5) return `별점 ${x}점! 다들 결과에 크게 만족하셨어요.`;
-  if (avg >= 4.0) return `별점 ${x}점, 대체로 만족하는 분위기예요.`;
-  if (avg >= 3.0) return `별점 ${x}점, 기대와 결과가 갈리는 편이에요.`;
-  return `별점 ${x}점으로 아쉬웠다는 의견이 많아요.`;
+  if (avg >= 4.5) return `만족도 ${x}점! 다들 결과에 크게 만족하셨어요.`;
+  if (avg >= 4.0) return `만족도 ${x}점, 대체로 만족하는 분위기예요.`;
+  if (avg >= 3.0) return `만족도 ${x}점, 기대와 결과가 갈리는 편이에요.`;
+  return `만족도 ${x}점으로 아쉬웠다는 의견이 많아요.`;
 }
 function painPhrase(avg: number): string {
   const x = avg.toFixed(1);
-  if (avg <= 1.5) return `평균 ${x}점, 거의 안 아팠다는 후기가 많아요.`;
-  if (avg <= 2.5) return `평균 ${x}점, 가볍게 느껴지는 정도예요.`;
-  if (avg <= 3.5) return `평균 ${x}점, 참을 만하지만 살짝 뻐근해요.`;
-  if (avg <= 4.5) return `평균 ${x}점, 참을 만하지만 꽤 뻐근해요.`;
-  return `평균 ${x}점, 통증이 꽤 강한 편이에요.`;
-}
-function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-}
-function reviewOf(card: CardData): ReviewSummaryData | null {
-  const pr = card.procedure_review;
-  const r = Array.isArray(pr) ? pr[0] : pr;
-  return r ?? null;
+  let desc: string;
+  if (avg < 1.5) desc = "거의 안 아파요.";
+  else if (avg < 2.5) desc = "살짝 따끔한 정도예요.";
+  else if (avg < 3.5) desc = "참을 만해요.";
+  else if (avg < 4.5) desc = "참을 만하지만 꽤 뻐근해요.";
+  else desc = "꽤 아픈 편이라 마취가 필요해요.";
+  return `통증 : 평균 ${x}점, ${desc}`;
 }
 
 export default function ProcedureReportCard({
   report,
   reviews = [],
-  accent = "var(--primary)",
+  reviewLiked = {},
+  defaultExpanded = false,
 }: {
   report: ProcedureReport;
   reviews?: CardData[];
-  accent?: string;
+  /** 후기 id별 viewer 좋아요 여부(부모 페이지 prefetch). 비로그인이면 빈 객체. */
+  reviewLiked?: Record<number, boolean>;
+  /** 초기 펼침 여부. 단독 /reports 페이지=true, 검색·태그 삽입=false(접힘). */
+  defaultExpanded?: boolean;
 }) {
   const {
-    procedureKo, count, avgSatisfaction, satisfactionDist,
+    procedureKo, category, count, avgSatisfaction, satisfactionDist,
     avgPain, revisit, effects, demographics,
   } = report;
 
-  // 펼침 상태 유지 — 후기 클릭→단독글→뒤로 돌아와도 펼친 상태 복원(sessionStorage).
-  const storageKey = `report-expanded:${procedureKo}`;
-  const [expanded, setExpanded] = useState(false);
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem(storageKey) === "1") setExpanded(true);
-    } catch {
-      /* noop */
-    }
-  }, [storageKey]);
-  function toggleExpanded() {
-    setExpanded((v) => {
-      const next = !v;
-      try {
-        sessionStorage.setItem(storageKey, next ? "1" : "0");
-      } catch {
-        /* noop */
-      }
-      return next;
-    });
-  }
+  // 초기 펼침은 prop 으로만 결정 — sessionStorage 끌고다니기 제거(페이지 간 누수 원인).
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   const satRounded = Math.round(avgSatisfaction);
   const maxSat = Math.max(1, ...satisfactionDist);
@@ -107,42 +88,81 @@ export default function ProcedureReportCard({
   const malePct = Math.max(0, 100 - femalePct);
   const ageTotal = Math.max(1, demographics.ageBands.reduce((a, b) => a + b.count, 0));
 
+  // 시술 분류별 테마(헤더 톤). 미발견(null)은 기본 파란 톤.
+  const theme = categoryTheme(category);
+  // 재시술 우세 판정 — yes >= no 면 '있어요' 우세, 아니면 '없어요' 우세.
+  const yesDominant = revisit.yes >= revisit.no;
+  const yesBarLabel = yesDominant ? "재시술 의향 있어요" : "있어요";
+  const noBarLabel = yesDominant ? "없어요" : "재시술 의향 없어요";
+
+  // 후기 목록 — 5개부터, '더보기'로 10씩 증가만. 카드 전체 접기 시 5 로 리셋.
+  const [visibleCount, setVisibleCount] = useState(5);
+  function expandCard() {
+    setExpanded(true);
+  }
+  function collapseCard() {
+    setExpanded(false);
+    setVisibleCount(5);
+  }
+  // 후기 본문 인라인 펼침 — card.id Set 토글 (펼침이면 line-clamp 해제).
+  const [expandedReviews, setExpandedReviews] = useState<Set<number | string>>(new Set());
+  function toggleReviewBody(id: number | string) {
+    setExpandedReviews((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // me — 단독 카드와 동일하게 SessionContext(SSR) 단일 출처. 비로그인 → null(즉시 모달).
+  const session = useSession();
+  const me: EngagementMe =
+    session === null ? null : { id: session.activeIdentityId, role: session.role };
+  // 비로그인 좋아요 클릭 시 띄울 모달 (Card.tsx 패턴).
+  const [authPrompt, setAuthPrompt] = useState<string | null>(null);
+
   return (
-    <article className="overflow-hidden rounded-[16px] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]">
-      {/* 헤더 — 브랜드 워드마크+리포트(위), 시술명(좌)+후기 수(우) */}
-      <header className="border-b border-[var(--border)] bg-gradient-to-br from-[#EAF7FE] to-[#F7FCFF] px-5 py-4">
-        <div className="mb-1.5 text-[13px] font-bold tracking-tight" style={{ color: "#2BA3DC" }}>
-          피부텐텐 리포트
-        </div>
-        <div className="flex items-baseline justify-between gap-3">
-          <h1 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em]" style={{ color: accent }}>
-            {procedureKo}
-          </h1>
-          <span className="shrink-0 text-[13px] text-[var(--text-secondary)]">
-            회원 후기 <b className="text-[var(--text)]">{count}건</b>
-          </span>
-        </div>
+    <article className="overflow-hidden rounded-[var(--radius)] bg-white">
+      {/* 헤더 칸 — 솔리드 틴트(분류색), 구분선 없음. 칸 전체가 단독 리포트 페이지 링크(펼침 상태). */}
+      <header style={{ backgroundColor: theme.soft }}>
+        <Link href={`/reports/${encodeURIComponent(procedureKo)}`} className="block px-5 py-4">
+          {/* eyebrow — 진한 본문색(시술명만 카테고리색) */}
+          <div className="mb-1.5 text-[13px] font-bold tracking-tight text-[var(--text)]">
+            피부텐텐 리포트
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <h1 className="text-[24px] font-extrabold leading-tight tracking-[-0.02em]" style={{ color: theme.color }}>
+              {procedureKo}
+            </h1>
+            <span className="shrink-0 text-[13px] text-[var(--text-secondary)]">
+              회원 후기 <b className="text-[var(--text)]">{count}건</b>
+            </span>
+          </div>
+        </Link>
       </header>
 
-      {/* 재시술 의향 — 상단, 만족도보다 살짝만 강조 */}
+      {/* 재시술 의향 — 상단, 만족도보다 살짝만 강조. 우세 세그먼트에만 '재시술 의향' 접두. */}
       <section className={SECTION}>
         <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
           {revisitPhrase(yesPct)}
         </p>
         <div className="flex h-[20px] overflow-hidden rounded-lg text-[11px] font-bold text-white">
-          {yesPct > 0 && <div className="flex items-center justify-center" style={{ width: `${yesPct}%`, backgroundColor: "#4CBFF2" }}>{yesPct >= 14 ? "있어요" : ""}</div>}
-          {maybePct > 0 && <div className="flex items-center justify-center" style={{ width: `${maybePct}%`, backgroundColor: "#9AA1AC" }}>{maybePct >= 14 ? "고민" : ""}</div>}
-          {noPct > 0 && <div className="flex items-center justify-center" style={{ width: `${noPct}%`, backgroundColor: "#EA7E7B" }}>{noPct >= 14 ? "없어요" : ""}</div>}
+          {yesPct > 0 && <div className="flex items-center justify-center overflow-hidden whitespace-nowrap" style={{ width: `${yesPct}%`, backgroundColor: "#4CBFF2" }}>{yesPct >= (yesDominant ? 42 : 14) ? yesBarLabel : ""}</div>}
+          {maybePct > 0 && <div className="flex items-center justify-center overflow-hidden whitespace-nowrap" style={{ width: `${maybePct}%`, backgroundColor: "#9AA1AC" }}>{maybePct >= 12 ? "고민 중" : ""}</div>}
+          {noPct > 0 && <div className="flex items-center justify-center overflow-hidden whitespace-nowrap" style={{ width: `${noPct}%`, backgroundColor: "#EA7E7B" }}>{noPct >= (yesDominant ? 14 : 42) ? noBarLabel : ""}</div>}
         </div>
-        <div className="mt-2 flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+        {/* 범례 — 맨 앞 리드 '재시술 의향', 고민 중은 maybe>0 일 때만. */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+          <span className="text-[var(--text-muted)]">재시술 의향</span>
           <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#4CBFF2" }} />있어요 {revisit.yes}명</span>
           {revisit.maybe > 0 && <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#9AA1AC" }} />고민 중 {revisit.maybe}명</span>}
           <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#EA7E7B" }} />없어요 {revisit.no}명</span>
         </div>
       </section>
 
-      {/* 만족도 — 접힘 시 여기까지 노출 */}
-      <section className={expanded ? SECTION : "px-5 py-4"}>
+      {/* 만족도 — 항상 테두리 있는 SECTION (접힘 마지막 노출은 아래 통증) */}
+      <section className={SECTION}>
         <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
           {satisfactionPhrase(avgSatisfaction)}
         </p>
@@ -173,26 +193,26 @@ export default function ProcedureReportCard({
         </div>
       </section>
 
+      {/* 통증 — 접힘 시 마지막 노출 섹션(구분선 없음, 여백으로만 구분). */}
+      <section className={SECTION}>
+        <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+          {painPhrase(avgPain)}
+        </p>
+        <div className="relative h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${PAIN_SOFT.join(", ")})` }}>
+          <span className="absolute -top-[3px] h-[14px] w-[3px] rounded-[2px] bg-[#64748B] shadow-[0_0_0_2px_#fff]" style={{ left: `calc(${painPct}% - 1.5px)` }} />
+        </div>
+        <div className="mt-1.5 flex justify-between text-[9.5px] text-[var(--text-muted)]">
+          {PAIN_LABELS.map((l) => <span key={l}>{l}</span>)}
+        </div>
+      </section>
+
       {/* ── 펼침 영역 ── */}
       {expanded && (
         <>
-          {/* 통증 */}
-          <section className={SECTION}>
-            <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
-              {painPhrase(avgPain)}
-            </p>
-            <div className="relative h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${PAIN_SOFT.join(", ")})` }}>
-              <span className="absolute -top-[3px] h-[14px] w-[3px] rounded-[2px] bg-[#64748B] shadow-[0_0_0_2px_#fff]" style={{ left: `calc(${painPct}% - 1.5px)` }} />
-            </div>
-            <div className="mt-1.5 flex justify-between text-[9.5px] text-[var(--text-muted)]">
-              {PAIN_LABELS.map((l) => <span key={l}>{l}</span>)}
-            </div>
-          </section>
-
           {/* 많이 본 효과 */}
           {topEffects.length > 0 && (
             <section className={SECTION}>
-              <div className={TITLE}>이런 효과를 받았어요!</div>
+              <div className={TITLE}>{procedureKo} 받은 분들이 느낀 효과예요.</div>
               <div className="flex flex-col gap-2.5">
                 {topEffects.map((e, i) => (
                   <div key={e.label} className="flex items-center gap-2.5">
@@ -250,73 +270,76 @@ export default function ProcedureReportCard({
             </section>
           )}
 
-          {/* 면책 */}
-          <div className="bg-[var(--bg-soft)] px-5 py-3 text-[10.5px] leading-[1.5] text-[var(--text-muted)]">
+          {/* 면책 — 별도 박스 없이 작성자 통계 바로 아래 작은 회색 글씨 한 단락으로 녹임 */}
+          <p className="px-5 pb-4 text-[12px] leading-relaxed text-[var(--text-muted)]">
             이 리포트는 회원 후기 {count}건을 집계한 결과입니다. 개인차가 있으며 의학적
             효과·안전성을 보장하지 않습니다. 시술 결정은 전문의 상담 후 하시기 바랍니다.
-          </div>
+          </p>
 
-          {/* 개별 후기 — 미니멀 목록 (좋아요/댓글/공유 없음) */}
+          {/* 개별 후기 — 미니멀 목록 (좋아요만, 댓글/공유 없음). 집계→후기 전환 구분선 1개만 위에. */}
           {reviews.length > 0 && (
-            <section className="px-5 py-4">
+            <section className="border-t border-[var(--border)] px-5 py-4">
               <div className={TITLE}>후기 {reviews.length}개</div>
               <ul className="divide-y divide-[var(--border)]">
-                {reviews.map((card) => {
-                  const author = Array.isArray(card.author) ? card.author[0] : card.author;
-                  const name = author?.display_name || author?.handle || "익명";
-                  const review = reviewOf(card);
-                  const body = (card.body ?? "").trim();
-                  return (
-                    <li key={card.id} className="py-3 first:pt-0">
-                      <Link href={getQaUrl(card)} className="block">
-                        <div className="mb-1 flex items-center justify-between text-[11.5px] text-[var(--text-muted)]">
-                          {/* 닉네임 옆에 만족도 별표 (요약 줄 생략 — 한 줄 절약) */}
-                          <span className="flex items-center gap-1.5">
-                            <span className="font-semibold text-[var(--text-secondary)]">{name}</span>
-                            {review && (
-                              <span
-                                className="text-[11px] leading-none tracking-[0.5px]"
-                                aria-label={`만족도 ${review.satisfaction}점`}
-                              >
-                                {[1, 2, 3, 4, 5].map((s) => (
-                                  <span
-                                    key={s}
-                                    aria-hidden
-                                    style={{ color: s <= (review.satisfaction || 0) ? "var(--accent-save)" : "#DDE2E7" }}
-                                  >
-                                    ★
-                                  </span>
-                                ))}
-                              </span>
-                            )}
-                          </span>
-                          <span>{fmtDate(card.created_at)}</span>
-                        </div>
-                        {body && (
-                          <p className="line-clamp-2 whitespace-pre-wrap text-[13px] leading-[1.55] text-[var(--text)]">
-                            {body}
-                          </p>
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
+                {reviews.slice(0, visibleCount).map((card) => (
+                  <ReportReviewItem
+                    key={card.id}
+                    card={card}
+                    liked={reviewLiked[card.id] ?? false}
+                    me={me}
+                    onLoginRequired={(reason) => setAuthPrompt(reason)}
+                    expanded={expandedReviews.has(card.id)}
+                    onToggleBody={() => toggleReviewBody(card.id)}
+                  />
+                ))}
               </ul>
             </section>
           )}
         </>
       )}
 
-      {/* 펼치기/접기 토글 */}
-      <button
-        type="button"
-        onClick={toggleExpanded}
-        className="flex w-full cursor-pointer items-center justify-center gap-1 border-t border-[var(--border)] bg-white py-3 text-[13px] font-semibold text-[var(--primary-dark)] transition-colors hover:bg-[var(--bg-soft)]"
-        aria-expanded={expanded}
-      >
-        {expanded ? "접기" : "리포트 자세히 보기"}
-        <span aria-hidden style={{ transform: expanded ? "rotate(180deg)" : "none" }}>▾</span>
-      </button>
+      {/* 하단 컨트롤 — 한 줄. 접힘: 카드 펼치기 / 펼침: 후기 더보기(있을 때) + 카드 접기. 구분선 없이 여백만. */}
+      <div className="flex items-center justify-center gap-6 bg-white py-3 text-[13px] font-semibold">
+        {!expanded ? (
+          <button
+            type="button"
+            onClick={expandCard}
+            aria-expanded={false}
+            className="flex cursor-pointer items-center gap-1 text-[var(--primary-dark)] transition-colors hover:text-[var(--primary)]"
+          >
+            더보기
+            <span aria-hidden>▾</span>
+          </button>
+        ) : (
+          <>
+            {reviews.length > visibleCount && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount((v) => v + 10)}
+                className="cursor-pointer text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+              >
+                더보기
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={collapseCard}
+              aria-expanded={true}
+              className="flex cursor-pointer items-center gap-1 text-[var(--primary-dark)] transition-colors hover:text-[var(--primary)]"
+            >
+              접기
+              <span aria-hidden>▴</span>
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* 비로그인 상태에서 후기 좋아요 시도 시 — Card.tsx 와 동일 패턴 */}
+      <LoginPromptDialog
+        open={!!authPrompt}
+        message={authPrompt ?? ""}
+        onClose={() => setAuthPrompt(null)}
+      />
     </article>
   );
 }
