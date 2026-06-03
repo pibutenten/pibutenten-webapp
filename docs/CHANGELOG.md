@@ -19,9 +19,11 @@
 - **피드 리포트 카드 = 기존 `ProcedureReportCard` 컴팩트 재사용**(요약만, eyebrow "피부텐텐 리포트", 저장/공유=`ReportAnchorActions` 앵커 card_id). 신규 prop `feedHref`: '더보기'가 인라인 펼침이 아니라 `/reports/{en}` 링크, **카드 전체 클릭도 단독 페이지로 이동**(저장/공유 버튼은 stopPropagation 분리). `CardData.type` 유니온에 `review_summary` 추가.
 - **라벨 "시술 리포트" → "피부텐텐 리포트"**: admin 카드 탭(`admin/cards`) + 앵커 title 브랜드(**0219**: 25행 UPDATE + create/update RPC 템플릿 "피부텐텐 리포트 | {ko}").
 - **공개 플립(0216)**: 앵커 25행 `draft → published`. 롤백=status='draft' 1줄.
+- **피드 표본 임계값 `FEED_MIN_REVIEWS=4`**(`getReviewSummaryFeedPool`): 후기 **<4 시술은 피드 미주입**(표본 적은 리포트 도배 방지). 단, `/reports/{en}` 단독 페이지·검색 결과 상단 리포트 카드는 `getProcedureReport` 경로라 **후기 1건부터 그대로 노출**(피드만 제한). 현재 ≥4 = 7개(티타늄·써마지·울쎄라·스컬트라·더엘주사·세르프·리투오).
+- **리포트 헤더 틴트 살짝 진하게**(`procedure-theme.ts` soft): lifting `#F7FCFF`→`#EAF5FC`, injectables `#FFFAFC`→`#FCEFF5`. 아주 옅은 한 단계만 채도↑(글자색·구조 불변).
 
 ### 검증
-- `npx tsc --noEmit`·`npm run build` 통과. 로컬 :3000 다화면 스크롤 실측: 유기 51장당 리포트 2장(≈20:1, 윈도 내 변동 위치), 시술 다양(티타늄·미라젯, 로드마다 첫 카드 변동), 일반 앵커 누출 0(`/api/cards` offset 0/20/40 모두 review_summary 0), 컴팩트 카드·더보기/전체클릭→`/reports/{en}`·라벨 확인. create RPC 스모크(롤백) 정상.
+- `npx tsc --noEmit`·`npm run build` 통과. 로컬 :3000 다화면 스크롤 실측: 유기 ≈20장당 리포트 1장(윈도 내 변동 위치), 피드 리포트 카드는 **전부 ≥4 시술**(써마지·스컬트라 등, <4 누출 0), 시술 다양(로드마다 셔플), 일반 앵커 누출 0(`/api/cards` offset 0/20/40 모두 review_summary 0), 컴팩트 카드·더보기/전체클릭→`/reports/{en}`·라벨 확인. <4 시술 `/reports/emface`(1건)·`/reports/coretox`(2건) 단독 URL 200 + 검색 상단 카드 노출 확인. create RPC 스모크(롤백) 정상.
 
 ### Removed/대체
 - 0215(앵커 ×2 스코어 피드)는 0217 로 대체(점수 주입 도배 → 결정적 주입). `feed-shuffle` review_summary 캡 로직 제거.

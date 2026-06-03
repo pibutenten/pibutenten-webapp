@@ -240,12 +240,18 @@ type PoolRow = {
 };
 
 /**
+/** 피드에 리포트 카드를 띄울 최소 후기 수. 미만 시술은 피드 미노출(단, /reports/{en} 단독
+ *  페이지·검색 결과 상단 리포트 카드는 getProcedureReport 경로라 후기 1건부터 그대로 노출). */
+const FEED_MIN_REVIEWS = 4;
+
+/**
  * 홈 피드 결정적 주입용 시술 리포트 풀 — `get_review_summary_pool` RPC(단일 쿼리, 마이그 0218)
  * 결과를 컴팩트 ProcedureReportCard 가 쓰는 ProcedureReport 형태로 매핑.
  *
  * 컴팩트(접힘) 카드는 헤더·재시술·만족도(분포)·통증만 표시 → 효과·인구통계·다운타임/효과시기
  * 분포는 미사용이라 빈 기본값으로 채운다(더보기는 인라인 펼침이 아니라 /reports/{en} 링크).
  * published 앵커만 반환(draft 면 빈 배열) → 공개 플립 전엔 피드에 리포트 카드 미주입.
+ * 후기 < FEED_MIN_REVIEWS 시술은 피드에서 제외(표본 적은 리포트 도배 방지). 단독 URL·검색은 무관.
  */
 export async function getReviewSummaryFeedPool(
   supabase: ServerClient,
@@ -260,7 +266,7 @@ export async function getReviewSummaryFeedPool(
     [rows[i], rows[j]] = [rows[j], rows[i]];
   }
   return rows
-    .filter((r) => !!r.en)
+    .filter((r) => !!r.en && Number(r.review_count) >= FEED_MIN_REVIEWS)
     .map((r) => {
       const en = r.en as string;
       const category: ProcedureCategory | null =

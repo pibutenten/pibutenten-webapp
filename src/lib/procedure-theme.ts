@@ -16,7 +16,7 @@ export type CategoryTheme = {
 export function categoryTheme(
   category: ProcedureCategory | null | undefined,
 ): CategoryTheme {
-  if (category === "lifting") return { color: "#1E9FD8", soft: "#F7FCFF" };
-  if (category === "injectables") return { color: "#E5689B", soft: "#FFFAFC" };
+  if (category === "lifting") return { color: "#1E9FD8", soft: "#EAF5FC" };
+  if (category === "injectables") return { color: "#E5689B", soft: "#FCEFF5" };
   return { color: "var(--primary)", soft: "transparent" };
 }
