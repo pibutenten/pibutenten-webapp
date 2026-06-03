@@ -178,7 +178,7 @@ export default function ProcedureReportCard({
   return (
     <article className="overflow-hidden rounded-[var(--radius)] bg-white">
       {/* 헤더 칸 — 솔리드 틴트(분류색), 구분선 없음. 칸 전체가 단독 리포트 페이지 링크(펼침 상태). */}
-      <header style={{ backgroundColor: theme.soft }}>
+      <header style={{ backgroundColor: theme.soft }} className="relative">
         <Link href={reportHref} className="block px-5 py-4">
           {/* eyebrow — 진한 본문색(시술명만 카테고리색) */}
           <div className="mb-1.5 text-[13px] font-bold tracking-tight text-[var(--text)]">
@@ -193,9 +193,9 @@ export default function ProcedureReportCard({
             </span>
           </div>
         </Link>
-        {/* 저장·공유 — 앵커 카드(card_id) 대상. 앵커 없으면 미노출(graceful). Link 밖(중첩 방지). */}
+        {/* 저장·공유 — 박스 우상단 코너에 고정(absolute). Link 밖(중첩 방지). 앵커 없으면 미노출. */}
         {anchor && (
-          <div className="-mt-2 flex justify-end px-5 pb-3">
+          <div className="absolute right-4 top-3.5">
             <ReportAnchorActions anchor={anchor} me={me} onLoginRequired={setAuthPrompt} />
           </div>
         )}
