@@ -50,7 +50,7 @@
 ### 4.1. 글 (카드) 시스템
 - 통합 테이블 `cards` (구 `qas`, 2026 리네임 — ADR 0004)
 - 타입: `qa` (Q&A), `post` (일반 글)
-- 카테고리 2종: `qa` (의사 Q&A, 인덱싱) / `doodle` (일반 '끄적끄적', noindex). 시술후기(review)는 P3 신설 예정
+- 카테고리 4종: `qa`(의사 Q&A, index) / `doodle`(일반 '끄적끄적', noindex) / `review`(개별 시술후기, noindex) / `review_summary`(시술 리포트 집계, index) — P3 완료
 - 상태: `draft` / `pending_review` / `published` / `hidden` / `archived`
 - soft-delete + in-place 익명화 (ADR 0002)
 - 외부 링크 OG 카드 첨부, YouTube 영상 시작시간 sync
@@ -60,6 +60,11 @@
 - HOT 카드 자동 마킹 (`get_hot_card_ids_v2`)
 - 같은 원장 3연속 방지, 첫 4카드 다양화
 - 인기 키워드 칩 5탭 (피부고민/리프팅/스킨부스터/홈케어/피부상식)
+
+### 4.3. 시술 후기 & 리포트 (P3)
+- 전용 폼: `/review/new`(작성) · `/review/[shortcode]/edit`(수정). 시술 선택(잠금형 탭) + 만족도·통증·재시술 의향(필수) + 효과·생생한 후기(선택). 병원·의사명 자동 마스킹 + 소프트 검수. 수정 진입은 일반 글 에디터가 아닌 후기 전용 에디터로(카드 ⋮·관리자 모두).
+- `procedure_reviews`(card_id 1:1)에 정량값 저장. 개별 후기 = noindex.
+- **시술 리포트** `/reports/[procedure]`: `procedure_reviews` 를 **실시간 집계**(저장 카드 없음 → 후기 추가 시 자동 반영)한 단일 카드. 만족도(분포)·통증·재시술 의향·체감 효과 + 작성자 성별·연령(집계 RPC, 개별 PII 비노출). index + `AggregateRating` JSON-LD. 시술명 검색(`/search`)·태그 허브(`/topics/[tag]`) 결과 **최상단** 노출. (후속: 최소 표본 임계값·피드 삽입)
 
 ### 4.3. 사용자 시스템 (Identity — ADR 0001, ADR 0011, **ADR 0012**)
 - 한 auth user 가 여러 profile row 보유 가능 — 모든 profile 은 **동등하게 독립**. 위계 / "본계·부계" 개념 없음
