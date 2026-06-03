@@ -10,6 +10,8 @@ import { SITE_URL } from "@/lib/site";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
 import { fetchCardList, resolveCategorySlug } from "@/lib/search-query";
+import { categorize } from "@/lib/category-sets";
+import { CATEGORIES } from "@/lib/categories";
 import { getProcedureReport } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
@@ -172,6 +174,10 @@ export default async function HomePage({ searchParams }: Props) {
     for (const r of reportReviews) reportReviewLiked[r.id] = !!st[r.id]?.liked;
   }
 
+  // 검색어 q의 칩 카테고리 색 — 같은 페이지 칩과 동일 SSOT(categorize → CATEGORIES.color).
+  // 사전에 없으면 categorize 가 knowledge(피부상식)로 반환 → 그 색 그대로 사용.
+  const catColor = CATEGORIES.find((c) => c.slug === categorize(q))?.color;
+
   return (
     <section>
       <HeroSearch />
@@ -191,7 +197,7 @@ export default async function HomePage({ searchParams }: Props) {
 
       {q && (
         <p className="mt-10 text-left text-sm text-[var(--text-secondary)] sm:mt-12">
-          <span className="font-bold text-[var(--primary)]">“{q}”</span>
+          <span className="font-bold" style={{ color: catColor }}>“{q}”</span>
           에 대한 <span className="font-bold">{count ?? cards?.length ?? 0}</span>
           개의 답변
         </p>

@@ -6,6 +6,13 @@
 
 ---
 
+## [2026-06-03] — 검색 헤딩 검색어 카테고리 색 (#1)
+
+### Changed
+- **검색 결과 헤딩의 검색어 색**: `/search` 의 "'{q}'에 대한 N개의 답변" 에서 q 를 하드코딩 스카이블루(`text-[var(--primary)]`) → **그 검색어가 속한 칩 카테고리 색**으로 표시(같은 페이지 카테고리 칩과 동일 SSOT). 기존 칩 경로 재사용: `categorize(q)`(`lib/category-sets.ts`) → `CATEGORIES[slug].color`(`lib/categories.ts`). 사전에 없는 검색어는 `categorize` 의 기존 fallback(knowledge=피부상식 `#9E9D24`) 그대로. `search/page.tsx` 만 변경(새 색 상수/매핑 신설 없음). N(개수)·나머지 텍스트 색 미변경.
+
+---
+
 ## [2026-06-03] — 시술 리포트 후기 본문 단순화 (B6: 클릭 펼침 제거·전문·컴팩트)
 
 ### Changed
