@@ -5,6 +5,11 @@
  * 발행(published)·미삭제 후기만 대상. count===0 이면 null.
  */
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  DOWNTIME_OPTIONS,
+  EFFECT_ONSET_OPTIONS,
+  EFFECT_NONE_LABEL,
+} from "@/lib/review-options";
 
 type ServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -13,6 +18,8 @@ type Row = {
   pain: number | null;
   revisit: string | null;
   effect_areas: string[] | null;
+  downtime: string | null;
+  effect_onset: string | null;
   card: { status: string | null; deleted_at: string | null } | null;
 };
 
@@ -38,8 +45,18 @@ export type ProcedureReport = {
   /** index 0=1단계(없음) … 4=5단계(심함) */
   painDist: number[];
   revisit: { yes: number; maybe: number; no: number };
-  /** 빈도 desc 정렬 */
+  /** 빈도 desc 정렬 ('없음'은 제외 — noEffectCount 로 분리) */
   effects: { label: string; count: number; pct: number }[];
+  /** 효과 '없음'(EFFECT_NONE_LABEL)을 1개 이상 고른 후기 수 */
+  noEffectCount: number;
+  /** 다운타임 답변자 수(비-NULL). 0 이면 카드에서 섹션 숨김 */
+  downtimeAnswered: number;
+  /** DOWNTIME_OPTIONS 순서(0=바로 가능 … 4=2주 이상) count[5] */
+  downtimeDist: number[];
+  /** 효과시기 답변자 수(비-NULL). 0 이면 카드에서 섹션 숨김 */
+  onsetAnswered: number;
+  /** EFFECT_ONSET_OPTIONS 순서(0=시술 직후 … 4=아직 지켜보는 중) count[5] */
+  onsetDist: number[];
   /** 작성자 인구통계 (집계 RPC — 개별 PII 비노출) */
   demographics: Demographics;
 };
@@ -58,7 +75,7 @@ export async function getProcedureReport(
   const { data } = await supabase
     .from("procedure_reviews")
     .select(
-      "satisfaction, pain, revisit, effect_areas, card:cards!inner(status, deleted_at)",
+      "satisfaction, pain, revisit, effect_areas, downtime, effect_onset, card:cards!inner(status, deleted_at)",
     )
     .eq("procedure_ko", procedureKo)
     .eq("card.status", "published")
@@ -87,6 +104,13 @@ export async function getProcedureReport(
   const revisit = { yes: 0, maybe: 0, no: 0 };
   const effectCount = new Map<string, number>();
 
+  // 다운타임·효과시기 분포 — 슬러그→인덱스(SSOT 순서). NULL=미답(분모 제외).
+  const dtIndex = new Map(DOWNTIME_OPTIONS.map((o, i) => [o.value, i]));
+  const onsetIndex = new Map(EFFECT_ONSET_OPTIONS.map((o, i) => [o.value, i]));
+  const downtimeDist = [0, 0, 0, 0, 0];
+  const onsetDist = [0, 0, 0, 0, 0];
+  let noEffectCount = 0;
+
   for (const r of rows) {
     const s = Number(r.satisfaction ?? 0);
     if (s >= 1 && s <= 5) {
@@ -101,12 +125,25 @@ export async function getProcedureReport(
     if (r.revisit === "yes") revisit.yes += 1;
     else if (r.revisit === "maybe") revisit.maybe += 1;
     else if (r.revisit === "no") revisit.no += 1;
+    // 효과 — '없음'은 일반 효과 목록에서 분리(noEffectCount 로만 집계).
+    let rowHasNone = false;
     for (const e of r.effect_areas ?? []) {
-      if (typeof e === "string" && e.trim()) {
-        effectCount.set(e, (effectCount.get(e) ?? 0) + 1);
+      if (typeof e !== "string" || !e.trim()) continue;
+      if (e === EFFECT_NONE_LABEL) {
+        rowHasNone = true;
+        continue;
       }
+      effectCount.set(e, (effectCount.get(e) ?? 0) + 1);
     }
+    if (rowHasNone) noEffectCount += 1;
+    const di = r.downtime ? dtIndex.get(r.downtime) : undefined;
+    if (di !== undefined) downtimeDist[di] += 1;
+    const oi = r.effect_onset ? onsetIndex.get(r.effect_onset) : undefined;
+    if (oi !== undefined) onsetDist[oi] += 1;
   }
+
+  const downtimeAnswered = downtimeDist.reduce((a, b) => a + b, 0);
+  const onsetAnswered = onsetDist.reduce((a, b) => a + b, 0);
 
   const effects = [...effectCount.entries()]
     .map(([label, count]) => ({
@@ -151,6 +188,11 @@ export async function getProcedureReport(
     painDist,
     revisit,
     effects,
+    noEffectCount,
+    downtimeAnswered,
+    downtimeDist,
+    onsetAnswered,
+    onsetDist,
     demographics,
   };
 }

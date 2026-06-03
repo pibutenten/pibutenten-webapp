@@ -14,6 +14,7 @@ import Link from "next/link";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/components/Card";
 import { categoryTheme } from "@/lib/procedure-theme";
+import { DOWNTIME_OPTIONS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
 import { useSession } from "@/lib/session-context";
 import type { EngagementMe } from "@/components/card/hooks/useCardEngagement";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
@@ -29,6 +30,55 @@ const EFFECT_BAR_COLORS = [
 // 집계 섹션 — 구분선 없이 여백(py-5)으로만 구분.
 const SECTION = "px-5 py-5";
 const TITLE = "mb-2.5 text-[15px] font-bold text-[var(--text)]";
+
+// 다운타임·효과시기 5구간 분포 막대 색 — 차가운→따뜻한 순한 5색(순서=빠름→느림).
+const DIST_BAR_COLORS = ["#7FD0F8", "#8FD4C8", "#A6D9A9", "#FFCB8C", "#F4B8A0"];
+
+/* CompactDist — 5구간 단일선택 분포를 '얇은 단일 바 + 범례 한 줄대'로 표시(통증 톤).
+   answered===0 이면 섹션 통째 숨김(빈 섹션·에러 방지). 다운타임·효과시기 공용. */
+function CompactDist({
+  headline,
+  options,
+  dist,
+  answered,
+}: {
+  headline: string;
+  options: { value: string; label: string }[];
+  dist: number[];
+  answered: number;
+}) {
+  if (answered === 0) return null;
+  return (
+    <section className={SECTION}>
+      <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+        {headline}
+      </p>
+      <div className="flex h-[14px] overflow-hidden rounded-full">
+        {dist.map((c, i) =>
+          c > 0 ? (
+            <div
+              key={options[i].value}
+              style={{ width: `${(c / answered) * 100}%`, backgroundColor: DIST_BAR_COLORS[i] }}
+            />
+          ) : null,
+        )}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+        {options.map((o, i) =>
+          dist[i] > 0 ? (
+            <span key={o.value}>
+              <i
+                className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle"
+                style={{ backgroundColor: DIST_BAR_COLORS[i] }}
+              />
+              {o.label} {dist[i]}명
+            </span>
+          ) : null,
+        )}
+      </div>
+    </section>
+  );
+}
 
 // 통계 수치를 편안한 자연어로 — 값에 따라 멘트가 달라진다.
 function revisitPhrase(pct: number): string {
@@ -70,6 +120,7 @@ export default function ProcedureReportCard({
   const {
     procedureKo, category, count, avgSatisfaction, satisfactionDist,
     avgPain, revisit, effects, demographics,
+    noEffectCount, downtimeAnswered, downtimeDist, onsetAnswered, onsetDist,
   } = report;
 
   // 초기 펼침은 prop 으로만 결정 — sessionStorage 끌고다니기 제거(페이지 간 누수 원인).
@@ -83,6 +134,9 @@ export default function ProcedureReportCard({
   const maybePct = Math.round((revisit.maybe / rTotal) * 100);
   const noPct = Math.max(0, 100 - yesPct - maybePct);
   const topEffects = effects.slice(0, 6);
+  // 최빈 구간 라벨(헤드라인용) — answered>0 일 때만 섹션이 렌더되므로 동률은 앞 구간(빠름) 우선.
+  const dtTopLabel = DOWNTIME_OPTIONS[downtimeDist.indexOf(Math.max(...downtimeDist))]?.label ?? "";
+  const onsetTopLabel = EFFECT_ONSET_OPTIONS[onsetDist.indexOf(Math.max(...onsetDist))]?.label ?? "";
   const demoTotal = Math.max(1, demographics.male + demographics.female);
   const femalePct = Math.round((demographics.female / demoTotal) * 100);
   const malePct = Math.max(0, 100 - femalePct);
@@ -199,6 +253,14 @@ export default function ProcedureReportCard({
       {/* ── 펼침 영역 ── */}
       {expanded && (
         <>
+          {/* 일상 복귀(다운타임) — 통증 다음. answered===0 이면 숨김. */}
+          <CompactDist
+            headline={`일상 복귀까지 — 대부분 ${dtTopLabel}이었어요.`}
+            options={DOWNTIME_OPTIONS}
+            dist={downtimeDist}
+            answered={downtimeAnswered}
+          />
+
           {/* 많이 본 효과 */}
           {topEffects.length > 0 && (
             <section className={SECTION}>
@@ -214,8 +276,22 @@ export default function ProcedureReportCard({
                   </div>
                 ))}
               </div>
+              {/* 효과 '없음' — 효과 목록 아래 옅은 한 줄(쉽게 제거 가능). */}
+              {noEffectCount > 0 && (
+                <p className="mt-2.5 text-[12px] text-[var(--text-muted)]">
+                  효과를 느끼지 못했다고 답한 분도 {noEffectCount}명 있었어요.
+                </p>
+              )}
             </section>
           )}
+
+          {/* 효과시기(effect_onset) — 효과 다음. answered===0 이면 숨김. */}
+          <CompactDist
+            headline={`효과는 주로 ${onsetTopLabel}에 가장 크게 느꼈어요.`}
+            options={EFFECT_ONSET_OPTIONS}
+            dist={onsetDist}
+            answered={onsetAnswered}
+          />
 
           {/* 작성자 통계 — 약간의 차트(성별 막대 + 연령대 미니 바) */}
           {demoTotal > 0 && (

@@ -6,6 +6,24 @@
 
 ---
 
+## [2026-06-03] — 후기 읽기경로 (2b: 다운타임·효과시기 리포트 집계·표시 + 효과 '없음' 분리 + SSOT 배선)
+
+### Added
+- **SSOT 배선** (`src/lib/review-options.ts`): 직전 세션이 만든(고아) 옵션 SSOT를 실제 사용처에 연결. `ReviewForm.tsx`의 인라인 `DOWNTIME_OPTIONS`·`EFFECT_ONSET_OPTIONS` 정의 제거 → `review-options.ts`에서 import(동작 변화 없는 단순 치환, 슬러그·라벨 동일). 리포트(LIB·CARD)도 동일 파일에서 `DOWNTIME_OPTIONS`·`EFFECT_ONSET_OPTIONS`·`EFFECT_NONE_LABEL` import. 슬러그는 DB CHECK(0213)·zod와 일치(CLAUDE.md §5 동기화 페어 충족).
+- **리포트 집계** (`lib/procedure-report.ts`, `getProcedureReport`): SELECT에 `downtime`·`effect_onset` 추가. NULL=미답(답한 사람만 분모) 기준 `downtimeAnswered`/`downtimeDist[5]`·`onsetAnswered`/`onsetDist[5]`(SSOT 슬러그 순서) 집계. `ProcedureReport` 타입에 5필드 추가.
+- **리포트 카드 섹션 2개** (`components/report/ProcedureReportCard.tsx`, 펼침 영역): 통증 다음 **일상 복귀**("일상 복귀까지 — 대부분 {최빈 라벨}이었어요."), 효과 다음 **효과시기**("효과는 주로 {최빈 라벨}에 가장 크게 느꼈어요."). 공용 `CompactDist`로 '얇은 단일 바 + 범례 한 줄'(통증·재시술 톤, h-[14px], `DIST_BAR_COLORS` 5색). `answered===0`이면 섹션 통째 숨김(빈 섹션·에러 방지). 기존 카드 톤·간격·구분선 규칙(집계 섹션 사이 구분선 없이 여백 `py-5`) 동일.
+
+### Changed
+- **효과 '없음' 분리** (LIB+CARD): `effect_areas`의 `EFFECT_NONE_LABEL`('없음')을 일반 효과 목록(`effects`)에서 제외하고 `noEffectCount`(해당 라벨 포함 후기 수)로 분리 집계. 카드의 효과 섹션 하단에 `noEffectCount>0`이면 옅은(`var(--text-muted)`) 한 줄 "효과를 느끼지 못했다고 답한 분도 {N}명 있었어요." 추가(쉽게 제거 가능).
+
+### Removed
+- 잔존 에디터 임시파일 `.tmp.*` 11개 삭제(`admin/users/[id]`·`api/admin/draft/publish`·`lib/content-screening.ts`·`lib/schema/api/reviews.ts` 등 산재). `.gitignore` 대상이라 git/빌드 무관, 운영정책(`supabase/MIGRATION_HISTORY.md`) 준수 차원 정리.
+
+### 검증
+- `npx tsc --noEmit`·`npm run build` 통과(ReviewForm import 치환 포함). `/reports/스컬트라`(downtime/onset 답변 0)→두 섹션 **숨김**·나머지 정상, `/reports/티타늄`(답변 1)→두 섹션 **표시**·순서(통증→일상복귀→효과→효과시기) 정확·단일 바+범례("바로 가능 1명"/"시술 직후 1명") 정상. 콘솔 무관 CSP report-only 안내 1건뿐. 효과 '없음' 한 줄은 현재 '없음' 선택 후기가 없어 표시 검증 보류(코드 게이팅만 확인).
+
+---
+
 ## [2026-06-03] — 후기 폼 마감 (2a.1: 한줄후기 placeholder 회전 · 칩 크기 축소)
 
 ### Changed

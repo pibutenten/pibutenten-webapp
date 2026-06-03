@@ -36,6 +36,7 @@ import { useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
 import { CATEGORIES } from "@/lib/categories";
+import { DOWNTIME_OPTIONS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
 
 /**
  * categoryLabel(예: "리프팅" / "스킨부스터") → CategoryWithChips 와 같은 색.
@@ -102,23 +103,8 @@ const REVISIT_OPTIONS: ChoiceOption[] = [
   { value: "maybe", label: "고민 중", color: "#9AA1AC" },
 ];
 
-/* 다운타임(일상 복귀 소요) — 저장은 영문 슬러그(DB downtime_chk 와 일치), 표시는 한국어. */
-const DOWNTIME_OPTIONS: ChoiceOption[] = [
-  { value: "same_day", label: "바로 가능" },
-  { value: "days_1_2", label: "1~2일" },
-  { value: "days_3_5", label: "3~5일" },
-  { value: "week_1", label: "약 1주" },
-  { value: "weeks_2_plus", label: "2주 이상" },
-];
-
-/* 효과 체감 시기 — 저장은 영문 슬러그(DB effect_onset_chk 와 일치), 표시는 한국어. */
-const EFFECT_ONSET_OPTIONS: ChoiceOption[] = [
-  { value: "immediate", label: "시술 직후" },
-  { value: "weeks_1_2", label: "1~2주 후" },
-  { value: "month_1", label: "한 달쯤" },
-  { value: "months_2_3", label: "2~3달 후" },
-  { value: "still_watching", label: "아직 지켜보는 중" },
-];
+/* 다운타임(DOWNTIME_OPTIONS)·효과시기(EFFECT_ONSET_OPTIONS) 옵션은 @/lib/review-options 가 SSOT.
+   슬러그는 DB CHECK(0213)·리포트 집계와 동일. (CLAUDE.md §5 동기화 페어) */
 
 /* 생생한 후기 placeholder — 마운트 시 무작위 1개 고정(세션 내 유지). */
 const ONELINER_PLACEHOLDERS: string[] = [
