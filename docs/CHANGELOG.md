@@ -6,6 +6,28 @@
 
 ---
 
+## [2026-06-03] — 시술 리포트 앵커 공개 플립(go-live) + 피드 결정적 주입 (C5)
+
+> ✅ 인앱 공개(피드·/reports·저장/공유). 검색엔진/AEO 색인(sitemap·rss·llms·robots)은 `INCLUDE_REPORT_ANCHORS=false` 게이트로 **보류**(원장 추후 on).
+
+### Changed
+- **피드 노출을 점수 모델 → 결정적 주입으로 전환** — 앵커를 ×2 스코어로 피드에 넣었더니(0215) 백필 당일 created_at 신선도+×2 로 점수를 독식해 홈 피드 첫 페이지가 앵커 16장으로 도배되는 회귀 발견(공개 후 즉시 롤백). 재설계:
+  - **0217**: `feed_cards_scored` 에서 review_summary 제외 + ×2 doctor-only 복원(0215 폐기).
+  - **0220**: `search_cards_scored` 에서도 review_summary 제외 → 홈 무한스크롤(`/api/cards`)·`/search` 결과에 앵커가 일반 카드로 누출되던 문제 차단.
+  - **0218**: 경량 집계 RPC `get_review_summary_pool()`(단일 lateral 쿼리) 신설.
+  - `Feed.tsx`: 유기 카드 **20장당 1장** 시술 리포트 컴팩트 카드를 **윈도 내 변동 위치(결정적, 하이드레이션 안정)**에 주입. 풀은 서버에서 **1회 셔플**(요청마다 시술 순서 변동, 보는 중에는 불변) 후 prop 전달, 윈도 순번대로 순회(시술 다양). `page.tsx` 가 `getReviewSummaryFeedPool`(`lib/procedure-report.ts`) 로 풀 전달. `feed-shuffle.ts` 의 옛 review_summary 밀도 캡 제거.
+- **피드 리포트 카드 = 기존 `ProcedureReportCard` 컴팩트 재사용**(요약만, eyebrow "피부텐텐 리포트", 저장/공유=`ReportAnchorActions` 앵커 card_id). 신규 prop `feedHref`: '더보기'가 인라인 펼침이 아니라 `/reports/{en}` 링크, **카드 전체 클릭도 단독 페이지로 이동**(저장/공유 버튼은 stopPropagation 분리). `CardData.type` 유니온에 `review_summary` 추가.
+- **라벨 "시술 리포트" → "피부텐텐 리포트"**: admin 카드 탭(`admin/cards`) + 앵커 title 브랜드(**0219**: 25행 UPDATE + create/update RPC 템플릿 "피부텐텐 리포트 | {ko}").
+- **공개 플립(0216)**: 앵커 25행 `draft → published`. 롤백=status='draft' 1줄.
+
+### 검증
+- `npx tsc --noEmit`·`npm run build` 통과. 로컬 :3000 다화면 스크롤 실측: 유기 51장당 리포트 2장(≈20:1, 윈도 내 변동 위치), 시술 다양(티타늄·미라젯, 로드마다 첫 카드 변동), 일반 앵커 누출 0(`/api/cards` offset 0/20/40 모두 review_summary 0), 컴팩트 카드·더보기/전체클릭→`/reports/{en}`·라벨 확인. create RPC 스모크(롤백) 정상.
+
+### Removed/대체
+- 0215(앵커 ×2 스코어 피드)는 0217 로 대체(점수 주입 도배 → 결정적 주입). `feed-shuffle` review_summary 캡 로직 제거.
+
+---
+
 ## [2026-06-03] — 시술 리포트 앵커 색인·admin·검색 중복 제거 (C4)
 
 ### Added

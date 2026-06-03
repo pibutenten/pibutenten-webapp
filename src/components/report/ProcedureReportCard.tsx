@@ -11,6 +11,7 @@
  */
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/components/Card";
 import { categoryTheme } from "@/lib/procedure-theme";
@@ -111,6 +112,7 @@ export default function ProcedureReportCard({
   reviews = [],
   reviewLiked = {},
   defaultExpanded = false,
+  feedHref,
 }: {
   report: ProcedureReport;
   reviews?: CardData[];
@@ -118,6 +120,9 @@ export default function ProcedureReportCard({
   reviewLiked?: Record<number, boolean>;
   /** 초기 펼침 여부. 단독 /reports 페이지=true, 검색·태그 삽입=false(접힘). */
   defaultExpanded?: boolean;
+  /** 홈 피드 주입용 — set 시 '더보기'가 인라인 펼침이 아니라 이 URL(/reports/{en}) 링크.
+   *  컴팩트 모드(펼침 비활성, 집계 요약만). 미설정(단독/검색/태그)=기존 펼침 동작. */
+  feedHref?: string;
 }) {
   const {
     procedureKo, en, anchor, category, count, avgSatisfaction, satisfactionDist,
@@ -174,9 +179,17 @@ export default function ProcedureReportCard({
     session === null ? null : { id: session.activeIdentityId, role: session.role };
   // 비로그인 좋아요 클릭 시 띄울 모달 (Card.tsx 패턴).
   const [authPrompt, setAuthPrompt] = useState<string | null>(null);
+  const router = useRouter();
 
   return (
-    <article className="overflow-hidden rounded-[var(--radius)] bg-white">
+    <article
+      className={
+        "overflow-hidden rounded-[var(--radius)] bg-white" +
+        (feedHref ? " cursor-pointer" : "")
+      }
+      // 피드 모드: 카드 어디를 눌러도 단독 리포트 페이지로 이동(저장/공유 버튼은 stopPropagation 으로 제외).
+      onClick={feedHref ? () => router.push(feedHref) : undefined}
+    >
       {/* 헤더 칸 — 솔리드 틴트(분류색), 구분선 없음. 칸 전체가 단독 리포트 페이지 링크(펼침 상태). */}
       <header style={{ backgroundColor: theme.soft }} className="relative">
         <Link href={reportHref} className="block px-5 py-4">
@@ -193,9 +206,13 @@ export default function ProcedureReportCard({
             </span>
           </div>
         </Link>
-        {/* 저장·공유 — 박스 우상단 코너에 고정(absolute). Link 밖(중첩 방지). 앵커 없으면 미노출. */}
+        {/* 저장·공유 — 박스 우상단 코너에 고정(absolute). Link 밖(중첩 방지). 앵커 없으면 미노출.
+            피드 모드의 카드 전체 클릭 네비와 분리(stopPropagation) → 버튼은 토글만. */}
         {anchor && (
-          <div className="absolute right-4 top-3.5">
+          <div
+            className="absolute right-4 top-3.5"
+            onClick={(e) => e.stopPropagation()}
+          >
             <ReportAnchorActions anchor={anchor} me={me} onLoginRequired={setAuthPrompt} />
           </div>
         )}
@@ -377,9 +394,18 @@ export default function ProcedureReportCard({
         </>
       )}
 
-      {/* 하단 컨트롤 — 한 줄. 접힘: 카드 펼치기 / 펼침: 후기 더보기(있을 때) + 카드 접기. 구분선 없이 여백만. */}
+      {/* 하단 컨트롤 — 한 줄. 접힘: 카드 펼치기 / 펼침: 후기 더보기(있을 때) + 카드 접기. 구분선 없이 여백만.
+          ★피드 주입(feedHref) 모드: 인라인 펼침 대신 단독 리포트 페이지로 이동하는 링크. */}
       <div className="flex items-center justify-center gap-6 bg-white py-3 text-[13px] font-semibold">
-        {!expanded ? (
+        {feedHref ? (
+          <Link
+            href={feedHref}
+            className="flex cursor-pointer items-center gap-1 text-[var(--primary-dark)] transition-colors hover:text-[var(--primary)]"
+          >
+            더보기
+            <span aria-hidden>▾</span>
+          </Link>
+        ) : !expanded ? (
           <button
             type="button"
             onClick={expandCard}

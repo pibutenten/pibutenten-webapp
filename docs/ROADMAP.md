@@ -6,11 +6,11 @@
 
 ## Now (현재 진행 중)
 
-### 시술 리포트 앵커 카드 — 공개 플립 대기 (C1~C4 완료, ★원장 신호 전용)
-- 데이터층·노출 machinery 완료(C1 앵커 백필 25 + RPC lazy / C2 영문 URL·저장공유 / C3 피드 ×2·밀도캡 / C4 색인 게이트·admin 저장지표·검색 중복제거). CHANGELOG 2026-06-03 C1~C4 참조.
-- [ ] **공개 플립**: 앵커 `status` `draft → published` (원장 신호 시). 플립하면 저장/공유 버튼·피드 ×2·검색 중복제거가 한 번에 활성화.
-- [ ] **색인 게이트 on**: `lib/site.ts` `INCLUDE_REPORT_ANCHORS=false → true` (플립 후, sitemap/rss 에 `/reports/{en}` 노출).
+### 시술 리포트 앵커 카드 — 인앱 공개 완료, 검색엔진 색인만 보류 (C1~C5)
+- C1~C5 완료(데이터층·영문 URL·저장공유·피드 결정적 주입·라벨·**인앱 공개 0216**). 피드(유기 20장당 1장 컴팩트 카드)·`/reports/{en}`·저장/공유 라이브. CHANGELOG 2026-06-03 C1~C5 참조.
+- [ ] **검색엔진/AEO 색인 on** (원장 신호 시): `lib/site.ts` `INCLUDE_REPORT_ANCHORS=false → true` → sitemap/rss 에 `/reports/{en}` 노출(llms.txt/robots 도 함께 검토).
 - [ ] **배포 후 스폿체크**: 로그인 상태로 `/reports/{en}` 저장·공유 토글 1회 동작 확인.
+- [ ] (후속) 피드 주입 카덴스·표본 임계값(후기 N건 미만 앵커 노출 여부) 튜닝 검토.
 
 ### 베타 → 공개 전환 준비 (~2026-06-01)
 - [ ] `robots.ts` 베타 차단 환원

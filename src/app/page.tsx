@@ -6,6 +6,7 @@ import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
+import { getReviewSummaryFeedPool } from "@/lib/procedure-report";
 import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
 
@@ -52,6 +53,10 @@ export default async function FeedPage() {
   cards = diversifyByDoctor(cards, { maxPerDoctorInHead: 1, headSize: 4 });
 
   const hotIds = Array.from(await getHotQaIds(20));
+
+  // 시술 리포트 컴팩트 카드 풀 — Feed 가 유기 카드 20장마다 1장 결정적 주입(점수 무관).
+  //   앵커 draft 면 빈 배열 → 주입 안 함(공개 플립 전 동작 불변).
+  const reportPool = await getReviewSummaryFeedPool(supabase);
 
   // viewer prefetch — 카드 첫 렌더 시 좋아요/저장/평점 즉시 표시
   const {
@@ -102,6 +107,7 @@ export default async function FeedPage() {
           hotIds={hotIds}
           viewerStates={viewerStates}
           enableJustPublished
+          reportPool={reportPool}
         />
       )}
     </section>

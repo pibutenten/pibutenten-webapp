@@ -4,6 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Masonry from "react-masonry-css";
 import Card, { type CardDataList } from "./Card";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
+import ProcedureReportCard from "@/components/report/ProcedureReportCard";
+import type { ProcedureReport } from "@/lib/procedure-report";
+
+/** 유기 카드 N장마다 시술 리포트 컴팩트 카드 1장 주입(점수 무관, 결정적 카덴스). */
+const REPORT_EVERY = 20;
 
 type ViewerState = { liked?: boolean; saved?: boolean };
 
@@ -24,6 +29,9 @@ type Props = {
   /** 홈 전용 — 발행 직후 본인 글을 그리드 첫 칸에 1회 노출 (sessionStorage 시그널).
    *  공유 컴포넌트이므로 홈 Feed 인스턴스에서만 true. 검색·의사·프로필탭은 미전달(동작 불변). */
   enableJustPublished?: boolean;
+  /** 홈 전용 — 시술 리포트 컴팩트 카드 풀. 유기 카드 REPORT_EVERY 장마다 1장 결정적 주입.
+   *  비어있으면(앵커 draft/없음) 주입 안 함 → 피드 동작 기존과 동일. */
+  reportPool?: ProcedureReport[];
 };
 
 /**
@@ -43,6 +51,7 @@ export default function Feed({
   hotIds,
   viewerStates,
   enableJustPublished,
+  reportPool = [],
 }: Props) {
   const hotSet = new Set(hotIds ?? []);
   const [items, setItems] = useState<CardDataList[]>(initial);
@@ -212,17 +221,38 @@ export default function Feed({
         className="feed-masonry"
         columnClassName="feed-masonry__col"
       >
-        {items.map((card) => (
-          <Card
-            key={card.id}
-            card={card}
-            activeQuery={searchQuery}
-            boostDoctorSlug={doctorSlug}
-            isHot={hotSet.has(card.id)}
-            viewerLiked={viewerStates?.[card.id]?.liked}
-            viewerSaved={viewerStates?.[card.id]?.saved}
-          />
-        ))}
+        {items.flatMap((card, i) => {
+          const node = (
+            <Card
+              key={card.id}
+              card={card}
+              activeQuery={searchQuery}
+              boostDoctorSlug={doctorSlug}
+              isHot={hotSet.has(card.id)}
+              viewerLiked={viewerStates?.[card.id]?.liked}
+              viewerSaved={viewerStates?.[card.id]?.saved}
+            />
+          );
+          // 유기 카드 REPORT_EVERY(20)장당 1장 결정적 주입 — 단, 매 20장 "경계(끝)"가 아니라
+          //   각 20장 윈도 "안의 변동 위치"에 섞어 넣는다(자연스럽게). 위치는 윈도 인덱스로
+          //   결정적 산출(하이드레이션 안정 — Math.random 금지). 풀은 윈도 순번대로 순회.
+          if (reportPool.length > 0) {
+            const windowIdx = Math.floor(i / REPORT_EVERY);
+            const posInWindow = (windowIdx * 7 + 5) % REPORT_EVERY; // 0..19, 윈도마다 변동
+            if (i % REPORT_EVERY === posInWindow) {
+              const report = reportPool[windowIdx % reportPool.length];
+              return [
+                node,
+                <ProcedureReportCard
+                  key={`rsfeed-${report.anchor?.id ?? report.en}-${windowIdx}`}
+                  report={report}
+                  feedHref={`/reports/${report.en}`}
+                />,
+              ];
+            }
+          }
+          return [node];
+        })}
       </Masonry>
 
       {/* 더 불러오기 sentinel + 로딩/끝 표시 */}

@@ -330,7 +330,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     { key: "qa", label: "Q&A" },
     { key: "post", label: "끄적끄적" },
     { key: "review", label: "시술후기" },
-    { key: "review_summary", label: "시술 리포트" },
+    { key: "review_summary", label: "피부텐텐 리포트" },
   ];
 
   return (

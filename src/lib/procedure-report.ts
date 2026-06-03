@@ -220,3 +220,90 @@ export async function getProcedureReport(
     demographics,
   };
 }
+
+type PoolRow = {
+  anchor_card_id: number;
+  anchor_title: string | null;
+  en: string | null;
+  ko: string;
+  category: string | null;
+  like_count: number | null;
+  save_count: number | null;
+  share_count: number | null;
+  review_count: number;
+  sat_avg: number | null;
+  sat_dist: number[] | null;
+  pain_avg: number | null;
+  revisit_yes: number;
+  revisit_maybe: number;
+  revisit_no: number;
+};
+
+/**
+ * 홈 피드 결정적 주입용 시술 리포트 풀 — `get_review_summary_pool` RPC(단일 쿼리, 마이그 0218)
+ * 결과를 컴팩트 ProcedureReportCard 가 쓰는 ProcedureReport 형태로 매핑.
+ *
+ * 컴팩트(접힘) 카드는 헤더·재시술·만족도(분포)·통증만 표시 → 효과·인구통계·다운타임/효과시기
+ * 분포는 미사용이라 빈 기본값으로 채운다(더보기는 인라인 펼침이 아니라 /reports/{en} 링크).
+ * published 앵커만 반환(draft 면 빈 배열) → 공개 플립 전엔 피드에 리포트 카드 미주입.
+ */
+export async function getReviewSummaryFeedPool(
+  supabase: ServerClient,
+): Promise<ProcedureReport[]> {
+  const { data } = await supabase.rpc("get_review_summary_pool");
+  const rows = (data ?? []) as PoolRow[];
+  // 시술이 피드에서 골고루 섞이도록 서버에서 1회 셔플(요청마다 순서 변동).
+  //   서버에서 한 번만 섞고 그 결과를 prop 으로 내려보냄 → SSR/클라이언트 하이드레이션 일관
+  //   (Math.random 을 렌더 중 호출하지 않음). Feed 는 윈도 순번대로 이 배열을 순회.
+  for (let i = rows.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+  }
+  return rows
+    .filter((r) => !!r.en)
+    .map((r) => {
+      const en = r.en as string;
+      const category: ProcedureCategory | null =
+        r.category === "lifting" || r.category === "injectables"
+          ? r.category
+          : null;
+      const anchor: CardData = {
+        id: r.anchor_card_id,
+        title: r.anchor_title ?? `${r.ko} 시술 리포트`,
+        body: "",
+        meta: null,
+        keywords: [r.ko, en],
+        like_count: r.like_count ?? 0,
+        view_count: 0,
+        save_count: r.save_count ?? 0,
+        share_count: r.share_count ?? 0,
+        type: "review_summary",
+        post_slug: en,
+        doctor: null,
+        video: null,
+      };
+      return {
+        procedureKo: r.ko,
+        en,
+        anchor,
+        category,
+        count: Number(r.review_count) || 0,
+        avgSatisfaction: Number(r.sat_avg) || 0,
+        satisfactionDist: (r.sat_dist ?? [0, 0, 0, 0, 0]).map((x) => Number(x) || 0),
+        avgPain: Number(r.pain_avg) || 0,
+        painDist: [0, 0, 0, 0, 0],
+        revisit: {
+          yes: Number(r.revisit_yes) || 0,
+          maybe: Number(r.revisit_maybe) || 0,
+          no: Number(r.revisit_no) || 0,
+        },
+        effects: [],
+        noEffectCount: 0,
+        downtimeAnswered: 0,
+        downtimeDist: [0, 0, 0, 0, 0],
+        onsetAnswered: 0,
+        onsetDist: [0, 0, 0, 0, 0],
+        demographics: { male: 0, female: 0, total: 0, ageBands: [] },
+      } satisfies ProcedureReport;
+    });
+}
