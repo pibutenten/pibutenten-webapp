@@ -310,6 +310,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0210 | 시술 분류 `procedure_taxonomy` 에 '더엘주사'(injectables, 정식) 추가 — 후기 작성 대상 포함. | **적용 완료 (2026-06-02)** |
 | 0211 | `update_procedure_review` 모호 컬럼 참조(42702) 수정 — RETURNS TABLE 의 OUT 컬럼 `card_id` 와 `procedure_reviews.card_id` 충돌로 후기 수정이 save_failed(500) 되던 버그. WHERE 절 컬럼을 테이블명으로 한정. 작성자/admin 시뮬레이션 성공 검증. | **적용 완료 (2026-06-02)** |
 | 0212 | 시술 리포트용 작성자 인구통계 집계 RPC `get_procedure_review_demographics(p_procedure_ko)` — 발행 후기 작성자의 성별·연령대 **집계 카운트만** 반환(개별 PII 비노출). SECURITY DEFINER, GRANT anon/authenticated. anon 호출 검증. | **적용 완료 (2026-06-02)** |
+| 0213 | 후기 폼 확장(2a) — `procedure_reviews` 에 `downtime`·`effect_onset` text 컬럼 추가(nullable, 기존 69건 NULL) + CHECK(NULL 허용, 5슬러그씩: downtime same_day/days_1_2/days_3_5/week_1/weeks_2_plus, effect_onset immediate/weeks_1_2/month_1/months_2_3/still_watching). `create_procedure_review`·`update_procedure_review` DROP+재생성(시그니처 끝에 `p_downtime`/`p_effect_onset` DEFAULT NULL, 기존 본문 불변). GRANT 재발급(create=authenticated, update=PUBLIC+authenticated, 원본 동일). SECURITY DEFINER. 적용 후 컬럼·CHECK·RPC 시그니처·ACL 검증 통과. | **적용 완료 (2026-06-03)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

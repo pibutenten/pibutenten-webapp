@@ -8,10 +8,10 @@
 
 ## [2026-06-03] — 후기 폼 확장 쓰기경로 (2a: 다운타임·효과시기·효과 '없음')
 
-> ⚠️ 마이그레이션 `0213` **미적용**(파일 생성만). production 적용·실제 제출(RPC 기록) 테스트는 별도 단계. 적용 전까지 폼 제출 시 RPC가 신규 파라미터 미인지로 실패할 수 있음.
+> ✅ 마이그레이션 `0213` **production 적용 완료 (2026-06-03)**. 적용 후 컬럼·CHECK·RPC 시그니처(`p_downtime`/`p_effect_onset`)·ACL(create=authenticated / update=PUBLIC+authenticated) 검증 통과 — 코드(zod 필수·API 전달)와 정합.
 
 ### Added
-- **마이그레이션 `0213_procedure_review_downtime_onset.sql`**(미적용) — `procedure_reviews` 에 `downtime`·`effect_onset` text 컬럼 추가(nullable, 기존 69건 NULL 유지) + CHECK(`revisit_chk` 스타일, NULL 허용). `create_procedure_review`·`update_procedure_review` 둘 다 DROP+재생성(시그니처 끝에 `p_downtime/p_effect_onset DEFAULT NULL` 만 추가, 기존 소유자검증·cards INSERT·shortcode·FK·status 로직 불변, GRANT 원본대로 재발급, SECURITY DEFINER 유지, BEGIN/COMMIT).
+- **마이그레이션 `0213_procedure_review_downtime_onset.sql`**(적용 완료) — `procedure_reviews` 에 `downtime`·`effect_onset` text 컬럼 추가(nullable, 기존 69건 NULL 유지) + CHECK(`revisit_chk` 스타일, NULL 허용). `create_procedure_review`·`update_procedure_review` 둘 다 DROP+재생성(시그니처 끝에 `p_downtime/p_effect_onset DEFAULT NULL` 만 추가, 기존 소유자검증·cards INSERT·shortcode·FK·status 로직 불변, GRANT 원본대로 재발급, SECURITY DEFINER 유지, BEGIN/COMMIT).
 - **폼 신규 질문 2개**(`ReviewForm.tsx`): 다운타임("일상으로 돌아오기까지 얼마나 걸렸나요?", 5옵션 `DOWNTIME_OPTIONS`) / 효과시기("효과를 언제 가장 크게 느꼈나요?", 5옵션 `EFFECT_ONSET_OPTIONS`). 저장은 영문 슬러그, 표시는 한국어. 효과 칩에 '없음'(17번째, 중립 회색 `#C2C7CE`, 배타 로직 없음).
 
 ### Changed
