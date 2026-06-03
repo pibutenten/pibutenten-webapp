@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-03] — 시술 리포트 앵커 피드 노출 machinery (C3)
+
+### Added
+- **마이그레이션 `0215_feed_review_summary_score.sql`**(production 적용 완료) — `feed_cards_scored` 점수식의 '의사글 ×2' CASE 에 `OR c.type = 'review_summary'::qa_type` 추가 → 시술 리포트 앵커도 의사 Q&A 와 동등하게 ×2 가중. 0214 직전 정의(=0206) VERBATIM + 해당 한 줄만 수정(WHERE `status='published'`·정렬·LEFT JOIN·임베드 불변), `CREATE OR REPLACE`(시그니처·ACL 불변, 기본 PUBLIC EXECUTE). `search_cards_scored`·`tag_cards_scored` 미변경(피드만). 적용 전 라이브 정의와 정규화 비교로 ×2 라인만 차이임을 확인, 적용 후 ×2 OR 절·ACL 검증.
+- **밀도 캡** (`src/lib/feed-shuffle.ts`): `diversifyByDoctor` 에 (3)단계 추가 — review_summary 가 출력 20슬롯당 최대 1개가 되도록, 초과분은 상대순서 유지해 배열 뒤로. `isReviewSummary`(문자열 비교, CardData.type 유니온 미변경) + `REVIEW_SUMMARY_WINDOW=20`. 비-review_summary 순서 불변. home(`page.tsx`)·search(`search/page.tsx`) 둘 다 본 헬퍼 호출이라 양쪽 적용. 단위 시뮬레이션(25개/42개 입력)으로 20:1 캡 + 순서 보존 확인.
+
+### 비고
+- 프로필 목록 제외(`[handle]/page.tsx`)는 기존 쿼리가 이미 `category in (review,review_summary)` 제외 + 후기 쿼리 `category='review'` 라 앵커 노출 없음 → **추가 변경 불필요**(중복 조건 미추가).
+- 앵커는 현재 `draft` 이고 `feed_cards_scored`·`diversifyByDoctor` 모두 published 만 다루므로, 본 변경은 앵커 published 플립(C6) 전까지 **inert**(logic/build 검증 단계). tsc·build 통과.
+
+---
+
 ## [2026-06-03] — 시술 리포트 앵커 카드 데이터층 (C1)
 
 ### Added

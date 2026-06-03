@@ -9,12 +9,23 @@
  *      않도록 head/tail 분리. tail 은 원래 순서 유지.
  *   2) head + tail 합친 결과에서 같은 doctor.slug 가 3연속(직전 2개) 등장하지 않도록
  *      뒤쪽에서 다른 slug 카드를 끼워넣음 (가능할 때만).
+ *   3) 시술 리포트 앵커(type=review_summary) 밀도 캡 — 출력 20슬롯당 최대 1개.
+ *      초과분은 상대순서 유지한 채 배열 뒤로 미룸(다른 타입 순서 영향 없음).
  *
  * 둘 다 통과: 피드 상단이 다양하고, 같은 의사 3연속 노출 방지.
  *
  * 호출 측에서 doctor.slug 가 없는(`undefined`) 카드는 `_unknown` 으로 묶임.
+ * 참고: home(page.tsx)·search(search/page.tsx) 둘 다 본 헬퍼를 호출하므로 (3) 캡은 양쪽 적용.
  */
 import type { CardDataList } from "@/components/Card";
+
+/** 시술 리포트 앵커 여부. CardData.type 유니온에 review_summary 가 없어 문자열 비교. */
+function isReviewSummary(c: CardDataList): boolean {
+  return (c.type as string | undefined) === "review_summary";
+}
+
+/** review_summary 가 출력 windowSize 슬롯당 최대 1개가 되도록 캡. 초과분은 뒤로. */
+const REVIEW_SUMMARY_WINDOW = 20;
 
 export type DiversifyOptions = {
   /** head 영역 안에서 의사 1명당 허용 등장 횟수 (기본 1) */
@@ -80,6 +91,26 @@ export function diversifyByDoctor(
       reordered.push(remaining.shift() as CardDataList);
     }
     out = reordered;
+  }
+
+  // (3) 시술 리포트(review_summary) 밀도 캡 — 출력 20슬롯당 최대 1개. 초과분은 뒤로.
+  if (out.some(isReviewSummary)) {
+    const kept: CardDataList[] = [];
+    const deferred: CardDataList[] = [];
+    let lastRsSlot = -REVIEW_SUMMARY_WINDOW; // 첫 review_summary 는 즉시 허용
+    for (const it of out) {
+      if (isReviewSummary(it)) {
+        if (kept.length - lastRsSlot >= REVIEW_SUMMARY_WINDOW) {
+          lastRsSlot = kept.length;
+          kept.push(it);
+        } else {
+          deferred.push(it);
+        }
+      } else {
+        kept.push(it);
+      }
+    }
+    out = deferred.length > 0 ? [...kept, ...deferred] : kept;
   }
 
   return out;
