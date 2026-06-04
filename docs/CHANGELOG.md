@@ -6,6 +6,27 @@
 
 ---
 
+## [2026-06-04] — 회원 동의 구조 개편 (F-1): 가입 동의 분리·기록 + DB 컬럼
+
+> 향후 익명·집계 데이터 활용을 위해 회원이 적은 지금 가입 동의 구조를 정확히 잡음(소급 불가). 리서치 동의는 이번 미수집(별도 고지). 설정 화면 연동은 다음 작업.
+
+### Added
+- **`profiles` 동의 컬럼 6종 신설 (0221, 미적용)**: `privacy_agreed_at`(개인정보 동의, 약관과 분리) / `news_email_consent`(+`_at`) / `marketing_email_consent_at` / `terms_agreed_version` / `privacy_agreed_version`. `news_email_consent` 는 `marketing_email_consent` 와 동일하게 **3-state**(NULL=미질문/false=거부/true=동의, DEFAULT 없음 — 결정 2).
+- **동의 버전 SSOT `src/lib/consent-versions.ts`**: `TERMS_VERSION`·`PRIVACY_VERSION`(시행일자 ISO) + `toKoreanDate()` 포매터 + 편집성 안내문 상수. `terms/page.tsx`·`privacy/page.tsx` 의 "시행일자" 표기가 이 상수를 import 해 렌더(하드코딩 폐기) → 문서 개정 시 1곳만 갱신하면 페이지 표기·신규 동의 기록 버전 동시 반영.
+
+### Changed
+- **가입 폼(`signup/SignupForm.tsx`) 개편**: 약관+개인정보가 묶여 있던 단일 필수 체크박스를 **이용약관 / 개인정보 수집·이용** 2개로 분리. "전체 동의" 마스터 추가(체크 시 5개 on, 개별 해제 가능). 진행 버튼은 **필수 3개(약관·개인정보·만14세) 모두 체크 시에만 활성**. 선택 동의 2종(news/marketing) 디폴트 해제(opt-out 금지) + 가입 시 명시값(false/true)으로 저장, 동의 시각·문서 버전 기록.
+- **`propagate_onboarding_to_doctor_bundle` 갱신 (0222, 미적용)**: 라이브 production 정의 VERBATIM + 신규 동의 컬럼만 COALESCE 복제 목록에 추가(기존 복사 항목 누락 0건). 의사 멀티 계정 묶음 한정.
+
+### Security/PIPA
+- **기존 회원 백필 (0223, 미적용, ⚠ 기존 데이터 변경)**: terms 보유 활성 회원(2026-06-04 기준 47명)에 `privacy_agreed_at`=now() + 버전 상수 채움. 0221 과 분리·경고 표기. 멱등(privacy 이미 있으면 제외). marketing/news 의사 추정 금지(백필 안 함), `marketing_email_consent_at` 백데이트 불가→NULL 유지.
+- **미들웨어 게이트는 `terms_agreed_at` 트리거 유지(결정 1 옵션 B)**: privacy 를 하드 게이트에 추가하지 않음 → 기존 회원이 `/signup`(terms 있으면 즉시 `/` 반송)으로 튕기는 무한 루프 회피. 신규 가입자는 새 폼에서 약관·개인정보를 동시 기록하므로 자동 정합.
+
+### 검증
+- `npx tsc --noEmit`·`npm run build` 통과. 마이그 0221~0223 은 미적용(사람이 적용).
+
+---
+
 ## [2026-06-03] — 시술 리포트 앵커 공개 플립(go-live) + 피드 결정적 주입 (C5)
 
 > ✅ 인앱 공개(피드·/reports·저장/공유). 검색엔진/AEO 색인(sitemap·rss·llms·robots)은 `INCLUDE_REPORT_ANCHORS=false` 게이트로 **보류**(원장 추후 on).

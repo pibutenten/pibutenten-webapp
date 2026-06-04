@@ -24,16 +24,21 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | `avatar_url` | text | OAuth 사진 또는 사용자 업로드 |
 | `bio` | text | 기본값 "만나서 반갑습니다." |
 | `level`, `activity_score` | int | |
-| `terms_agreed_at` | timestamptz | 약관 동의 시점 |
+| `terms_agreed_at` | timestamptz | 이용약관 동의 시점 |
+| `terms_agreed_version` | text | 동의한 약관 버전 (SSOT: `src/lib/consent-versions.ts`). F-1 0221 |
+| `privacy_agreed_at` | timestamptz | 개인정보 수집·이용 동의 시점 (약관과 분리). F-1 0221 |
+| `privacy_agreed_version` | text | 동의한 개인정보 처리방침 버전. F-1 0221 |
+| `marketing_email_consent` | bool | 광고성 정보 수신 3-state (NULL=미질문/false=거부/true=동의, 0181) |
+| `marketing_email_consent_at` | timestamptz | 마케팅 동의 시점 (동의 시에만 기록). F-1 0221 |
+| `news_email_consent` | bool | 새 콘텐츠·업데이트 소식 수신 3-state (NULL/false/true). F-1 0221 |
+| `news_email_consent_at` | timestamptz | 소식 수신 동의 시점 (동의 시에만 기록). F-1 0221 |
 | `birthdate` | date | 온보딩 필수, 14세 미만 CHECK |
 | `gender` | text CHECK | male/female/other |
 | `face_shape` | text CHECK | oval/peanut/oblong/square/round |
 | `skin_type` | text CHECK | 7종 |
 | `skin_concerns` | text[] | 멀티 |
 | `interested_procedures` | text[] | 멀티 (Phase 5.1 부터 한국어 키워드) |
-| `liked_procedures` | text[] | |
 | `field_visibility` | jsonb | 프로필 필드별 공개 여부 |
-| `is_public` | bool | |
 | `contact_email` | text | 중복 가입자 식별용 (OAuth provider email). ADR 0003 |
 | `skin_info_consent_at` | timestamptz | 피부정보 활용 동의 시점 |
 | `deleted_at` | timestamptz | 탈퇴 시각. NULL=활성. 설정 시 in-place 익명화. ADR 0002 |
@@ -43,6 +48,8 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 - `alt_display_name`, `alt_avatar_url`, `alt_avatar_bg_color`, `alt_bio`, `alt_handle` — 0090 drop (persona 시스템 폐기)
 - `legal_name` — 0110 drop (이메일 dedup 전환)
 - `avatar_bg_color` — 0096 drop (죽은 기능)
+- `liked_procedures` — 0184 drop (live 스키마 미존재 확인 2026-06-04)
+- `is_public` — 0183 drop (live 스키마 미존재 확인 2026-06-04)
 
 ### 1.2. `cards` (구 qas — Q&A · 포스팅 · 칼럼 통합)
 
@@ -318,6 +325,9 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0218 | 피드 주입용 경량 집계 RPC `get_review_summary_pool()` — published 앵커별 (card_id·en·ko·category·후기수·만족도 avg+분포·통증 avg·재시술 분포)를 단일 lateral 쿼리로 반환(홈 로드마다 시술별 getProcedureReport 25회 직격 방지). 효과·인구통계·다운타임/효과시기 미집계(컴팩트 카드 미사용, 더보기는 /reports/{en}). GRANT anon/authenticated. | **적용 완료 (2026-06-03)** |
 | 0219 | 앵커 title 브랜드 통일 "피부텐텐 리포트 \| {ko}" — (1) 기존 25행 UPDATE (2) `create_procedure_review`·`update_procedure_review` 의 앵커 lazy INSERT title 템플릿 변경(라이브 VERBATIM + 제목 한 곳만, `CREATE OR REPLACE` 시그니처·ACL 보존). 카드 eyebrow("피부텐텐 리포트")는 컴포넌트 하드코딩이라 무관. 적용 후 25행 branded + create RPC 스모크(롤백) 정상. | **적용 완료 (2026-06-03)** |
 | 0220 | `search_cards_scored` 에서 review_summary 제외(WHERE `c.type <> 'review_summary'`) — 홈 무한스크롤(/api/cards, q='')·/search 결과가 모두 이 RPC 를 거쳐 앵커가 일반 카드로 누출되던 문제 차단. 라이브 VERBATIM + 한 줄. `CREATE OR REPLACE`. feed/tag RPC 미변경. | **적용 완료 (2026-06-03)** |
+| 0221 | (F-1) 회원 동의 구조 개편 — `profiles` 동의 컬럼 6종 신설: `privacy_agreed_at`, `news_email_consent`(+`_at`), `marketing_email_consent_at`, `terms_agreed_version`, `privacy_agreed_version`. `news_email_consent` 는 marketing 과 동일 3-state(DEFAULT 없음). 기존 데이터 변경 없음. | **미적용** |
+| 0222 | (F-1) `propagate_onboarding_to_doctor_bundle` 갱신 — 라이브 VERBATIM + 동의 컬럼만 추가(privacy_agreed_at·marketing_email_consent_at·news_email_consent(+_at)·terms/privacy_agreed_version). 기존 복사 항목 누락 0건. `CREATE OR REPLACE`. | **미적용** |
+| 0223 | (F-1) ⚠ **기존 데이터 변경** — terms 보유 활성 회원(47명) 백필: `privacy_agreed_at`=now(), terms/privacy_agreed_version=현 상수값. 0221 과 분리. 멱등(privacy 이미 있으면 제외). | **미적용** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

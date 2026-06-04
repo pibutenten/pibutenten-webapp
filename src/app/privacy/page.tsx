@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
+import {
+  PRIVACY_VERSION,
+  PRIVACY_EFFECTIVE_NOTE,
+  toKoreanDate,
+} from "@/lib/consent-versions";
 
 export const metadata: Metadata = {
   title: "개인정보 처리방침",
@@ -22,7 +27,7 @@ export default function PrivacyPage() {
     <InfoPageLayout
       current="privacy"
       title="개인정보 처리방침"
-      subtitle="시행일자: 2026년 5월 19일 · 최종 개정일: 2026년 5월 19일 (국외이전 고지 보완 · 탈퇴 절차 명문화)"
+      subtitle={`시행일자: ${toKoreanDate(PRIVACY_VERSION)} · 최종 개정일: ${toKoreanDate(PRIVACY_VERSION)} (${PRIVACY_EFFECTIVE_NOTE})`}
     >
 
       <p className="mb-8 rounded-md bg-[var(--bg-soft)] p-4 text-[14px] leading-[1.7] text-[var(--text-secondary)]">

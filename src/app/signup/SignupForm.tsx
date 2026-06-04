@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ROLES } from "@/lib/identity-shared";
+import { TERMS_VERSION, PRIVACY_VERSION } from "@/lib/consent-versions";
 
 type Props = {
   initialDisplayName: string;
@@ -11,11 +12,33 @@ type Props = {
 
 export default function SignupForm({ initialDisplayName, next }: Props) {
   const [displayName, setDisplayName] = useState(initialDisplayName);
+  // 필수 동의 3종 — 모두 디폴트 해제. 진행 버튼은 셋 다 체크돼야 활성.
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
+  // 선택 동의 2종 — 디폴트 해제(opt-out 금지). 가입 시 명시값(false/true)으로 저장.
+  const [newsConsent, setNewsConsent] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // 필수 3종 충족 여부 — 진행 버튼 활성 조건.
+  const requiredOk = ageConfirmed && termsAgreed && privacyAgreed;
+  // "전체 동의" 마스터 체크 상태 — 5개 모두 체크 시 on.
+  const allChecked =
+    ageConfirmed &&
+    termsAgreed &&
+    privacyAgreed &&
+    newsConsent &&
+    marketingConsent;
+
+  function setAll(v: boolean) {
+    setAgeConfirmed(v);
+    setTermsAgreed(v);
+    setPrivacyAgreed(v);
+    setNewsConsent(v);
+    setMarketingConsent(v);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +54,11 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
       return;
     }
     if (!termsAgreed) {
-      setError("이용약관·개인정보 처리방침 동의가 필요해요.");
+      setError("이용약관 동의가 필요해요.");
+      return;
+    }
+    if (!privacyAgreed) {
+      setError("개인정보 수집·이용 동의가 필요해요.");
       return;
     }
 
@@ -47,13 +74,23 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
 
       // B-5 (2026-05-29): age_confirmed_at 컬럼 DROP (마이그 0189). 만 14세 차단은
       // OnboardingClient 의 birthdate 검사로 재계산되므로 별도 timestamp 보존 불필요.
+      //
+      // F-1 (2026-06-04): 약관·개인정보를 별도 컬럼으로 분리 기록 + 동의 문서 버전 저장.
+      //   선택 동의(news/marketing)는 가입 시 명시값(false/true)으로 저장 — NULL 은 옛 미질문 row 전용.
+      //   각 동의 _at 은 동의(true) 시에만 now() 기록.
       const now = new Date().toISOString();
       const { error: updErr } = await supabase
         .from("profiles")
         .update({
           display_name: trimmed,
           terms_agreed_at: now,
+          terms_agreed_version: TERMS_VERSION,
+          privacy_agreed_at: now,
+          privacy_agreed_version: PRIVACY_VERSION,
           marketing_email_consent: marketingConsent,
+          marketing_email_consent_at: marketingConsent ? now : null,
+          news_email_consent: newsConsent,
+          news_email_consent_at: newsConsent ? now : null,
         })
         .eq("id", user.id);
 
@@ -121,68 +158,108 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
         </span>
       </label>
 
-      {/* 만 14세 */}
-      <label className="flex items-start gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={ageConfirmed}
-          onChange={(e) => setAgeConfirmed(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
-        />
-        <span>
-          <span className="font-semibold text-[var(--text)]">[필수]</span>{" "}
-          만 14세 이상입니다.
-        </span>
-      </label>
+      {/* 동의 묶음 */}
+      <div className="rounded-md border border-[var(--border)]">
+        {/* 전체 동의 마스터 */}
+        <label className="flex items-start gap-2 border-b border-[var(--border)] bg-[var(--bg-subtle,_#fafafa)] p-3 text-sm">
+          <input
+            type="checkbox"
+            checked={allChecked}
+            onChange={(e) => setAll(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+          />
+          <span className="font-semibold text-[var(--text)]">전체 동의</span>
+        </label>
 
-      {/* 약관 */}
-      <label className="flex items-start gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={termsAgreed}
-          onChange={(e) => setTermsAgreed(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
-        />
-        <span>
-          <span className="font-semibold text-[var(--text)]">[필수]</span>{" "}
-          <a
-            href="/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[var(--primary)] underline hover:text-[var(--primary-dark)]"
-          >
-            이용약관
-          </a>{" "}
-          ·{" "}
-          <a
-            href="/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[var(--primary)] underline hover:text-[var(--primary-dark)]"
-          >
-            개인정보 처리방침
-          </a>
-          에 동의합니다.
-        </span>
-      </label>
+        <div className="space-y-3 p-3">
+          {/* [필수] 만 14세 */}
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={ageConfirmed}
+              onChange={(e) => setAgeConfirmed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+            />
+            <span>
+              <span className="font-semibold text-[var(--text)]">[필수]</span>{" "}
+              만 14세 이상입니다.
+            </span>
+          </label>
 
-      {/* 마케팅 동의 (선택) */}
-      <label className="flex items-start gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-subtle,_#fafafa)] p-3 text-sm">
-        <input
-          type="checkbox"
-          checked={marketingConsent}
-          onChange={(e) => setMarketingConsent(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
-        />
-        <span>
-          <span className="font-semibold text-[var(--text)]">
-            피부 미용 트렌드, 피부텐텐이 가장 먼저 전해드릴게요 ✨
-          </span>
-          <span className="mt-1 block text-xs text-[var(--text-muted)]">
-            (이메일 수신 · 광고성 정보 포함 · 언제든지 해지 가능)
-          </span>
-        </span>
-      </label>
+          {/* [필수] 이용약관 */}
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={termsAgreed}
+              onChange={(e) => setTermsAgreed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+            />
+            <span>
+              <span className="font-semibold text-[var(--text)]">[필수]</span>{" "}
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--primary)] underline hover:text-[var(--primary-dark)]"
+              >
+                이용약관
+              </a>
+              에 동의합니다.
+            </span>
+          </label>
+
+          {/* [필수] 개인정보 수집·이용 */}
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={privacyAgreed}
+              onChange={(e) => setPrivacyAgreed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+            />
+            <span>
+              <span className="font-semibold text-[var(--text)]">[필수]</span>{" "}
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--primary)] underline hover:text-[var(--primary-dark)]"
+              >
+                개인정보 수집·이용
+              </a>
+              에 동의합니다.
+            </span>
+          </label>
+
+          {/* [선택] 새 콘텐츠·업데이트 소식 수신 (디폴트 해제) */}
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={newsConsent}
+              onChange={(e) => setNewsConsent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+            />
+            <span className="text-[var(--text-secondary)]">
+              <span className="font-semibold text-[var(--text)]">[선택]</span>{" "}
+              피부텐텐의 새 Q&amp;A·콘텐츠 소식을 이메일로 받아봅니다. (선택)
+            </span>
+          </label>
+
+          {/* [선택] 혜택·이벤트·광고성 정보 수신 (디폴트 해제) */}
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={marketingConsent}
+              onChange={(e) => setMarketingConsent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+            />
+            <span className="text-[var(--text-secondary)]">
+              <span className="font-semibold text-[var(--text)]">[선택]</span>{" "}
+              피부텐텐의 혜택·이벤트 등 광고성 정보를 이메일로 받아봅니다. 언제든
+              해지할 수 있습니다. (선택)
+            </span>
+          </label>
+        </div>
+      </div>
 
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -192,7 +269,7 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
 
       <button
         type="submit"
-        disabled={isPending}
+        disabled={isPending || !requiredOk}
         className="mt-2 w-full rounded-md bg-[var(--primary)] py-2 font-semibold text-white transition-opacity disabled:opacity-60"
       >
         {isPending ? "저장 중…" : "가입 완료하고 시작하기"}

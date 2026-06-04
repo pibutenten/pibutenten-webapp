@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
+import {
+  TERMS_VERSION,
+  TERMS_EFFECTIVE_NOTE,
+  toKoreanDate,
+} from "@/lib/consent-versions";
 
 export const metadata: Metadata = {
   title: "이용약관",
@@ -20,7 +25,7 @@ export default function TermsPage() {
     <InfoPageLayout
       current="terms"
       title="이용약관"
-      subtitle="시행일자: 2026년 5월 28일 (의료광고 검수 사전 고지·영구 숨김 정책 정합)"
+      subtitle={`시행일자: ${toKoreanDate(TERMS_VERSION)} (${TERMS_EFFECTIVE_NOTE})`}
     >
 
       <nav
