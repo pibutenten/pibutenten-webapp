@@ -17,6 +17,11 @@ type ProfileRow = {
   role: "admin" | "doctor" | "user";
   display_name: string | null;
   marketing_email_consent: boolean | null;
+  news_email_consent: boolean | null;
+  terms_agreed_at: string | null;
+  terms_agreed_version: string | null;
+  privacy_agreed_at: string | null;
+  privacy_agreed_version: string | null;
   handle: string | null;
   birthdate: string | null;
   gender: "male" | "female" | "other" | null;
@@ -50,7 +55,7 @@ export default async function MyProfilePage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, role, display_name, marketing_email_consent, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, field_visibility",
+      "id, role, display_name, marketing_email_consent, news_email_consent, terms_agreed_at, terms_agreed_version, privacy_agreed_at, privacy_agreed_version, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, field_visibility",
     )
     .eq("id", targetProfileId)
     .maybeSingle()
@@ -80,6 +85,11 @@ export default async function MyProfilePage() {
         initial={{
           displayName: profile.display_name ?? "",
           marketingConsent: !!profile.marketing_email_consent,
+          newsConsent: !!profile.news_email_consent,
+          termsAgreedAt: profile.terms_agreed_at ?? null,
+          termsAgreedVersion: profile.terms_agreed_version ?? null,
+          privacyAgreedAt: profile.privacy_agreed_at ?? null,
+          privacyAgreedVersion: profile.privacy_agreed_version ?? null,
           birthdate: profile.birthdate ?? "",
           gender: profile.gender ?? null,
           faceShape: profile.face_shape ?? null,

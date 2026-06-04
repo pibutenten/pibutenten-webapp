@@ -116,6 +116,22 @@ export default async function AdminPage() {
     ),
   ]);
 
+  // 리서치 패널 (F-2B) — 사람(번들) 기준 집계. read-only RPC get_research_panel.
+  //   total_members(탈퇴 제외)·active_90d(최근 90일 site_visits)·reviewers(후기 작성).
+  //   상단 "회원" 카드(명함 row 수)와 달리 distinct auth_user_id 기준 → 숫자 다를 수 있음.
+  const { data: researchRows } = await supabase.rpc("get_research_panel");
+  const researchRow = (Array.isArray(researchRows)
+    ? researchRows[0]
+    : researchRows) as
+    | { total_members: number; active_90d: number; reviewers: number }
+    | null
+    | undefined;
+  const research = {
+    totalMembers: Number(researchRow?.total_members ?? 0),
+    active90d: Number(researchRow?.active_90d ?? 0),
+    reviewers: Number(researchRow?.reviewers ?? 0),
+  };
+
   // YouTube OAuth 상태 — 카드 라벨 동적 표시용
   const oauthHealth = await checkOauthHealth();
 
@@ -184,6 +200,33 @@ export default async function AdminPage() {
           href="/admin/cards?status=pending_review"
         />
         <Stat label="댓글" value={totalComments ?? 0} href="/admin/comments" />
+      </div>
+
+      {/* 리서치 패널 (F-2B) — 사람(번들) 기준 집계. 상단 "회원"(명함 row)과 기준 다름. */}
+      <div className="mb-6">
+        <h2 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
+          리서치 패널{" "}
+          <span className="font-normal text-[var(--text-muted)]">
+            (사람 기준 · 같은 사람의 여러 명함은 1명으로 집계)
+          </span>
+        </h2>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <Stat
+            label="총 가입자"
+            value={research.totalMembers}
+            title="탈퇴 제외 · 사람 기준(distinct 가입 계정). 상단 '회원'은 명함 수 기준이라 다를 수 있습니다."
+          />
+          <Stat
+            label="활성 회원 (90일)"
+            value={research.active90d}
+            title="최근 90일 방문 기준(site_visits) · 사람 기준. site_visits 적재 시작(2026-05-23) 이후라 윈도가 점차 채워집니다."
+          />
+          <Stat
+            label="후기 작성 회원"
+            value={research.reviewers}
+            title="시술 후기(procedure_reviews) 작성자 · 사람 기준(distinct 가입 계정)."
+          />
+        </div>
       </div>
 
       {/* 활동 KPI (기간 토글) — 방문자/조회수/댓글/좋아요/저장/공유. 모든 기간 prefetch. */}
@@ -315,11 +358,14 @@ function Stat({
   value,
   highlight,
   href,
+  title,
 }: {
   label: string;
   value: number;
   highlight?: boolean;
   href?: string;
+  /** hover 툴팁 (집계 기준 설명 등). */
+  title?: string;
 }) {
   const cls =
     "block overflow-hidden rounded-[var(--radius)] border bg-white p-3 transition-colors " +
@@ -344,12 +390,16 @@ function Stat({
   );
   if (href) {
     return (
-      <Link href={href} className={cls}>
+      <Link href={href} className={cls} title={title}>
         {inner}
       </Link>
     );
   }
-  return <div className={cls}>{inner}</div>;
+  return (
+    <div className={cls} title={title}>
+      {inner}
+    </div>
+  );
 }
 
 function Tool({

@@ -14,10 +14,20 @@ import {
   PROCEDURES,
   type FieldVisibility,
 } from "@/lib/profile-options";
+import {
+  TERMS_VERSION,
+  PRIVACY_VERSION,
+} from "@/lib/consent-versions";
 
 type Initial = {
   displayName: string;
   marketingConsent: boolean;
+  newsConsent: boolean;
+  /** 필수 동의 읽기전용 표시용 (값은 DB row, 문구/링크 SSOT는 consent-versions.ts). */
+  termsAgreedAt: string | null;
+  termsAgreedVersion: string | null;
+  privacyAgreedAt: string | null;
+  privacyAgreedVersion: string | null;
   birthdate: string;
   gender: "male" | "female" | "other" | null;
   faceShape: string | null;
@@ -244,19 +254,29 @@ export default function ProfileEditClient({
     });
   }
 
-  // ── 마케팅 동의 ──
+  // ── 선택 동의 (news / marketing) — 단일 공유 저장 경로 ──
+  // F-2A (2026-06-04): news·marketing 둘 다 같은 active 명함 (targetProfileId) 에 저장하고,
+  //   값 변경 시 해당 _at = now() 동시 기록 (3-state: 켜면 true+_at=now, 끄면 false+_at=now).
+  //   기존 marketing 의 _at 누락도 이 헬퍼로 보강. 새 분기 만들지 않음 (동일 경로).
   const [marketing, setMarketing] = useState(initial.marketingConsent);
+  const [news, setNews] = useState(initial.newsConsent);
   const [mktPending, startMkt] = useTransition();
-  function saveMarketing(next: boolean) {
-    setMarketing(next);
-    startMkt(async () => {
-      // POLICY-1 잔여 정리 (2026-05-29): 옛 `.eq("id", userId)` (base only) →
-      // 같은 active 명함 (targetProfileId) 에 저장. 위 saveAll() 와 동일 명함.
+  const [newsPending, startNews] = useTransition();
+
+  function saveConsent(
+    field: "marketing_email_consent" | "news_email_consent",
+    atField: "marketing_email_consent_at" | "news_email_consent_at",
+    next: boolean,
+    setLocal: (v: boolean) => void,
+    runTransition: (cb: () => void) => void,
+  ) {
+    setLocal(next);
+    runTransition(async () => {
       const { error } = await sb
         .from("profiles")
-        .update({ marketing_email_consent: next })
+        .update({ [field]: next, [atField]: new Date().toISOString() })
         .eq("id", targetProfileId);
-      if (error) setMarketing(!next);
+      if (error) setLocal(!next); // 롤백
       router.refresh();
     });
   }
@@ -572,20 +592,67 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 마케팅 이메일 수신 동의 — 박스 없이 마지막 박스 밑에 inline */}
-      <label className="flex items-center justify-center gap-2 px-4 pt-2 text-[13px]">
-        <input
-          type="checkbox"
-          checked={marketing}
-          onChange={(e) => saveMarketing(e.target.checked)}
-          disabled={mktPending}
-          style={{ accentColor: CHECK_ACCENT }}
-          className="h-4 w-4"
+      {/* 선택 동의 (news / marketing) — 변경 즉시 저장 (값 + _at 기록) */}
+      <div className="flex flex-col items-center gap-2 px-4 pt-2 text-[13px]">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={news}
+            onChange={(e) =>
+              saveConsent(
+                "news_email_consent",
+                "news_email_consent_at",
+                e.target.checked,
+                setNews,
+                startNews,
+              )
+            }
+            disabled={newsPending}
+            style={{ accentColor: CHECK_ACCENT }}
+            className="h-4 w-4"
+          />
+          <span className="text-[var(--text-secondary)]">
+            새 Q&amp;A·콘텐츠 소식을 이메일로 받을게요
+          </span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={marketing}
+            onChange={(e) =>
+              saveConsent(
+                "marketing_email_consent",
+                "marketing_email_consent_at",
+                e.target.checked,
+                setMarketing,
+                startMkt,
+              )
+            }
+            disabled={mktPending}
+            style={{ accentColor: CHECK_ACCENT }}
+            className="h-4 w-4"
+          />
+          <span className="text-[var(--text-secondary)]">
+            혜택·이벤트 등 광고성 정보를 이메일로 받을게요
+          </span>
+        </label>
+      </div>
+
+      {/* 필수 동의 상태 (읽기 전용) — 동의 일시 + 버전 + 문서 링크. 철회는 탈퇴 경로. */}
+      <div className="mx-4 mt-3 rounded-md border border-[var(--border)] bg-[var(--bg-soft)] px-4 py-3 text-[12px] text-[var(--text-muted)]">
+        <ConsentStatusRow
+          label="이용약관 동의"
+          at={initial.termsAgreedAt}
+          version={initial.termsAgreedVersion ?? TERMS_VERSION}
+          href="/terms"
         />
-        <span className="text-[var(--text-secondary)]">
-          새 글·이벤트 등의 안내를 이메일로 받을게요
-        </span>
-      </label>
+        <ConsentStatusRow
+          label="개인정보 수집·이용 동의"
+          at={initial.privacyAgreedAt}
+          version={initial.privacyAgreedVersion ?? PRIVACY_VERSION}
+          href="/privacy"
+        />
+      </div>
 
       {/* 일괄 저장 — 박스 (가운데 큰 버튼) */}
       <div className="flex justify-center pt-3">
@@ -790,5 +857,43 @@ function Msg({ status }: { status: Status }) {
     >
       {status.msg}
     </p>
+  );
+}
+
+/** ISO timestamp → "2026년 6월 4일". 값 없으면 빈 문자열. */
+function formatConsentDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+}
+
+/** 필수 동의 1줄 — 라벨 + 동의 일시 + 버전 + 문서 링크 (읽기 전용). */
+function ConsentStatusRow({
+  label,
+  at,
+  version,
+  href,
+}: {
+  label: string;
+  at: string | null;
+  version: string;
+  href: string;
+}) {
+  const dateStr = formatConsentDate(at);
+  return (
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 py-0.5">
+      <span className="text-[var(--text-secondary)]">{label}</span>
+      {dateStr && <span>· {dateStr} 동의</span>}
+      <span>· v{version}</span>
+      <Link
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[var(--primary)] underline hover:text-[var(--primary-dark)]"
+      >
+        문서 보기
+      </Link>
+    </div>
   );
 }

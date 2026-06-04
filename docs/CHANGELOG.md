@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-06-04] — 설정 동의 연동 + 관리자 리서치 패널 (F-2)
+
+### Added
+- **설정 화면 선택 동의 토글 2종 (F-2A)** — `settings/profile`(active 명함, `getIdentityContext` SSOT)에 `news_email_consent`·`marketing_email_consent` 토글. 단일 공유 헬퍼 `saveConsent(field, atField, next, ...)`로 두 토글이 같은 active 경로 사용 + 값·`_at`(now) 동시 기록(3-state). 기존 marketing 토글의 `_at` 누락도 이 헬퍼로 보강.
+- **필수 동의 읽기전용 표시 (F-2A)** — 약관·개인정보 동의 일시(DB)+버전(DB, fallback consent-versions.ts)+문서 링크. 철회/재동의 UI 없음(철회=탈퇴 경로).
+- **관리자 대시보드 '리서치 패널' 행 (F-2B)** — 카드 3개: 총 가입자 / 활성 회원(최근 90일) / 후기 작성 회원. **사람(번들=`COALESCE(auth_user_id,id)`) 기준**(distinct, 탈퇴 제외) — 상단 "회원"(명함 row 수)과 기준이 달라 툴팁으로 명시. 활성 신호 = `site_visits`(미들웨어 1일1회 방문, 2026-05-23~ 적재라 90일 윈도 점진 충전). 읽기 전용 RPC `get_research_panel()`(0224, SECURITY DEFINER 집계, get_admin_kpi 패턴) 신설·적용.
+
+### Fixed (docs)
+- `DATABASE.md`: F-1 마이그(0221~0223) 상태 `미적용` → `적용 완료`로 정정.
+
+### 검증
+- `npx tsc --noEmit`·`npm run build` 통과. `get_research_panel()` = total 38 / active90d 19 / reviewers 16, 직접 쿼리 교차 일치.
+
+---
+
 ## [2026-06-04] — 회원 동의 구조 개편 (F-1): 가입 동의 분리·기록 + DB 컬럼
 
 > 향후 익명·집계 데이터 활용을 위해 회원이 적은 지금 가입 동의 구조를 정확히 잡음(소급 불가). 리서치 동의는 이번 미수집(별도 고지). 설정 화면 연동은 다음 작업.

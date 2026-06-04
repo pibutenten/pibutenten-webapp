@@ -157,6 +157,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | `propagate_onboarding_to_doctor_bundle` | 의사 멀티 계정 묶음 onboarding propagation (0106) |
 | `find_duplicate_profiles(p_email, p_birthdate, p_gender)` | 중복 가입자 식별 (0111). ADR 0003 |
 | `rotate_push_webhook_secret()` | secret 로테이션 (0120) |
+| `get_research_panel()` | 대시보드 리서치 패널 — 사람(번들) 기준 총가입자·활성 90일·후기 작성 회원 (0224, F-2B). SECURITY DEFINER 집계만 |
 
 **폐기**: `increment_card_share` (0095), `decrement_card_like`, `increment_card_like`, `get_recent_card_likers` singular (0102)
 
@@ -325,9 +326,10 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0218 | 피드 주입용 경량 집계 RPC `get_review_summary_pool()` — published 앵커별 (card_id·en·ko·category·후기수·만족도 avg+분포·통증 avg·재시술 분포)를 단일 lateral 쿼리로 반환(홈 로드마다 시술별 getProcedureReport 25회 직격 방지). 효과·인구통계·다운타임/효과시기 미집계(컴팩트 카드 미사용, 더보기는 /reports/{en}). GRANT anon/authenticated. | **적용 완료 (2026-06-03)** |
 | 0219 | 앵커 title 브랜드 통일 "피부텐텐 리포트 \| {ko}" — (1) 기존 25행 UPDATE (2) `create_procedure_review`·`update_procedure_review` 의 앵커 lazy INSERT title 템플릿 변경(라이브 VERBATIM + 제목 한 곳만, `CREATE OR REPLACE` 시그니처·ACL 보존). 카드 eyebrow("피부텐텐 리포트")는 컴포넌트 하드코딩이라 무관. 적용 후 25행 branded + create RPC 스모크(롤백) 정상. | **적용 완료 (2026-06-03)** |
 | 0220 | `search_cards_scored` 에서 review_summary 제외(WHERE `c.type <> 'review_summary'`) — 홈 무한스크롤(/api/cards, q='')·/search 결과가 모두 이 RPC 를 거쳐 앵커가 일반 카드로 누출되던 문제 차단. 라이브 VERBATIM + 한 줄. `CREATE OR REPLACE`. feed/tag RPC 미변경. | **적용 완료 (2026-06-03)** |
-| 0221 | (F-1) 회원 동의 구조 개편 — `profiles` 동의 컬럼 6종 신설: `privacy_agreed_at`, `news_email_consent`(+`_at`), `marketing_email_consent_at`, `terms_agreed_version`, `privacy_agreed_version`. `news_email_consent` 는 marketing 과 동일 3-state(DEFAULT 없음). 기존 데이터 변경 없음. | **미적용** |
-| 0222 | (F-1) `propagate_onboarding_to_doctor_bundle` 갱신 — 라이브 VERBATIM + 동의 컬럼만 추가(privacy_agreed_at·marketing_email_consent_at·news_email_consent(+_at)·terms/privacy_agreed_version). 기존 복사 항목 누락 0건. `CREATE OR REPLACE`. | **미적용** |
-| 0223 | (F-1) ⚠ **기존 데이터 변경** — terms 보유 활성 회원(47명) 백필: `privacy_agreed_at`=now(), terms/privacy_agreed_version=현 상수값. 0221 과 분리. 멱등(privacy 이미 있으면 제외). | **미적용** |
+| 0221 | (F-1) 회원 동의 구조 개편 — `profiles` 동의 컬럼 6종 신설: `privacy_agreed_at`, `news_email_consent`(+`_at`), `marketing_email_consent_at`, `terms_agreed_version`, `privacy_agreed_version`. `news_email_consent` 는 marketing 과 동일 3-state(DEFAULT 없음). 기존 데이터 변경 없음. | **적용 완료 (2026-06-04)** |
+| 0222 | (F-1) `propagate_onboarding_to_doctor_bundle` 갱신 — 라이브 VERBATIM + 동의 컬럼만 추가(privacy_agreed_at·marketing_email_consent_at·news_email_consent(+_at)·terms/privacy_agreed_version). 기존 복사 항목 누락 0건. `CREATE OR REPLACE`. | **적용 완료 (2026-06-04)** |
+| 0223 | (F-1) ⚠ **기존 데이터 변경** — terms 보유 활성 회원(47명) 백필: `privacy_agreed_at`=now(), terms/privacy_agreed_version=현 상수값. 0221 과 분리. 멱등(privacy 이미 있으면 제외). 적용 후 47/47 채움·잔여 0 확인. | **적용 완료 (2026-06-04)** |
+| 0224 | (F-2B) `get_research_panel()` read-only 집계 RPC — 사람(번들=COALESCE(auth_user_id,id)) 기준 총가입자(탈퇴 제외)·활성 90일(site_visits)·후기 작성 회원. SECURITY DEFINER + GRANT authenticated, 집계만 반환(get_admin_kpi 패턴). | **적용 완료 (2026-06-04)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 
