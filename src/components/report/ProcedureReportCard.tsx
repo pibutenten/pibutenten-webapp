@@ -310,14 +310,11 @@ export default function ProcedureReportCard({
             {maybePct > 0 && <div className="flex items-center justify-center overflow-hidden whitespace-nowrap" style={{ width: `${maybePct}%`, backgroundColor: "#9AA1AC" }}>{maybePct >= 12 ? "고민 중" : ""}</div>}
             {noPct > 0 && <div className="flex items-center justify-center overflow-hidden whitespace-nowrap" style={{ width: `${noPct}%`, backgroundColor: "#EA7E7B" }}>{noPct >= (yesDominant ? 14 : 42) ? noBarLabel : ""}</div>}
           </div>
-          {/* 범례 — 좌측 값(있어요/없어요…), 우측에 '재시술 의향' 라벨. */}
-          <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-[var(--text-secondary)]">
-            <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
-              <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#4CBFF2" }} />있어요 {revisit.yes}명</span>
-              {revisit.maybe > 0 && <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#9AA1AC" }} />고민 중 {revisit.maybe}명</span>}
-              <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#EA7E7B" }} />없어요 {revisit.no}명</span>
-            </div>
-            <span className="shrink-0 text-[var(--text-muted)]">재시술 의향</span>
+          {/* 범례 — 좌측 값(있어요/고민 중/없어요). 우측 '재시술 의향' 라벨 제거(2026-06-04). */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+            <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#4CBFF2" }} />있어요 {revisit.yes}명</span>
+            {revisit.maybe > 0 && <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#9AA1AC" }} />고민 중 {revisit.maybe}명</span>}
+            <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#EA7E7B" }} />없어요 {revisit.no}명</span>
           </div>
         </section>
 
