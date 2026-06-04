@@ -56,6 +56,11 @@ export default async function AdminEditQAPage({ params }: Props) {
   if (qaRaw.type === "review" && qaRaw.shortcode) {
     redirect(`/review/${qaRaw.shortcode}/edit`);
   }
+  // 시술 리포트(type=review_summary)는 자동 집계물 → 편집 불가. 공개 리포트로 보냄(slug 없으면 404).
+  if (qaRaw.type === "review_summary") {
+    if (qaRaw.post_slug) redirect(`/reports/${qaRaw.post_slug}`);
+    notFound();
+  }
 
   // 원장 admin은 본인 doctor 글만 편집 가능 (super admin은 모두)
   if (isDoctorAdmin && !isSuperAdmin) {

@@ -81,14 +81,14 @@ function satisfactionPhrase(avg: number): string {
 }
 // 다운타임 평균(일) → 자연어 범위 헤드라인.
 function downtimeHeadline(avg: number): string {
-  if (avg < 0.5) return "다운타임 없이 바로 일상생활이 가능했어요.";
-  if (avg < 1) return "다운타임은 대부분 1일 미만이었어요.";
-  if (avg < 2) return "다운타임은 대부분 1~2일이었어요.";
-  if (avg < 3) return "다운타임은 대부분 2~3일이었어요.";
-  if (avg < 5) return "다운타임은 대부분 3~5일이었어요.";
-  if (avg < 8) return "다운타임은 대부분 1주 정도였어요.";
-  if (avg < 11) return "다운타임은 대부분 1~2주였어요.";
-  return "다운타임이 2주 이상인 경우가 많았어요.";
+  if (avg < 0.5) return "다운타임 거의 없이 바로 일상생활이 가능했어요.";
+  if (avg < 1) return "다운타임은 평균 1일 미만이었어요.";
+  if (avg < 2) return "다운타임은 평균 1~2일 정도였어요.";
+  if (avg < 3) return "다운타임은 평균 2~3일 정도였어요.";
+  if (avg < 5) return "다운타임은 평균 3~5일 정도였어요.";
+  if (avg < 8) return "다운타임은 평균 1주 정도였어요.";
+  if (avg < 11) return "다운타임은 평균 1~2주 정도였어요.";
+  return "다운타임은 평균 2주 이상이었어요.";
 }
 function painPhrase(avg: number): string {
   const x = avg.toFixed(1);
@@ -97,8 +97,8 @@ function painPhrase(avg: number): string {
   else if (avg < 2.5) desc = "살짝 따끔한 정도예요.";
   else if (avg < 3.5) desc = "참을 만해요.";
   else if (avg < 4.5) desc = "참을 만하지만 꽤 뻐근해요.";
-  else desc = "꽤 아픈 편이라 마취가 필요해요.";
-  return `통증 : 평균 ${x}점, ${desc}`;
+  else desc = "꽤 아픈 편이라 마취가 도움이 될 수 있어요.";
+  return `통증 평균 ${x}점, ${desc}`;
 }
 
 export default function ProcedureReportCard({

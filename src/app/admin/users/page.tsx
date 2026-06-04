@@ -341,7 +341,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                           : "border-t border-dashed border-[var(--border)]/50"
                       } ${isUnregistered ? "bg-amber-50/30" : ""}`}
                     >
-                      <td className="px-3 py-2 align-middle text-[var(--text)]">
+                      <td className="px-3 py-1.5 align-middle text-[var(--text)]">
                         <Link
                           href={`/admin/users/${p.id}`}
                           className="font-medium hover:text-[var(--primary)] hover:underline"
@@ -358,34 +358,26 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                             (온보딩 미완료)
                           </span>
                         )}
-                        {/* 작업 C — provider·로그인이메일·생일·성별 상세(닉네임 하단 컴팩트 행). */}
+                        {/* 작업 C — provider·생일·성별 한 줄(닉네임 하단). 이메일은 화면 제거(RPC 데이터는 유지). */}
                         {(() => {
                           const ai = authMap.get(p.id);
                           const provs = (ai?.providers ?? []).map(providerLabel);
                           const parts: string[] = [];
                           if (provs.length) parts.push(provs.join("·"));
-                          if (ai?.email) parts.push(ai.email);
                           if (p.birthdate) parts.push(p.birthdate);
                           if (p.gender) parts.push(GENDER_LABEL[p.gender] ?? p.gender);
                           if (parts.length === 0) return null;
                           return (
-                            <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] text-[var(--text-muted)]">
-                              {provs.length > 0 && (
-                                <span className="inline-flex items-center rounded bg-[var(--bg-soft)] px-1.5 py-px font-medium text-[var(--text-secondary)]">
-                                  {provs.join("·")}
-                                </span>
-                              )}
-                              {ai?.email && <span className="break-all">{ai.email}</span>}
-                              {p.birthdate && <span>· {p.birthdate}</span>}
-                              {p.gender && <span>· {GENDER_LABEL[p.gender] ?? p.gender}</span>}
+                            <div className="truncate text-[9.5px] leading-tight text-[var(--text-muted)]">
+                              {parts.join(" · ")}
                             </div>
                           );
                         })()}
                       </td>
-                      <td className="px-3 py-2 align-middle text-xs text-[var(--text-muted)]">
+                      <td className="px-3 py-1.5 align-middle text-xs text-[var(--text-muted)]">
                         {p.handle ? `@${p.handle}` : "—"}
                       </td>
-                      <td className="px-3 py-2 align-middle">
+                      <td className="px-3 py-1.5 align-middle">
                         <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
                           {p.role}
                         </span>
@@ -399,29 +391,29 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--text-secondary)]">
+                      <td className="px-3 py-1.5 align-middle text-right tabular-nums text-[var(--text-secondary)]">
                         {(postCountMap.get(p.id) ?? 0).toLocaleString()}
                       </td>
                       {/* 5개 KPI — 기간 토글 적용 (default 7일) */}
-                      <td className="px-2 py-2 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.visit_sessions ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.views_received ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.comments_written ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.likes_received ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
                         {(kpiMap.get(p.id)?.shares_received ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-3 py-2 align-middle text-xs text-[var(--text-muted)]">
+                      <td className="px-3 py-1.5 align-middle text-xs text-[var(--text-muted)]">
                         {p.created_at?.slice(0, 10) ?? "—"}
                       </td>
-                      <td className="px-3 py-2 align-middle text-xs text-[var(--text-muted)]">
+                      <td className="px-3 py-1.5 align-middle text-xs text-[var(--text-muted)]">
                         {idx === 0 ? (
                           <span title={`auth_user_id: ${groupKey}`}>
                             {groupLabel}

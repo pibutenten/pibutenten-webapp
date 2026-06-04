@@ -41,6 +41,7 @@ type AdminQARow = {
   status: QAStatus;
   type: QAType;
   category: string | null;
+  post_slug: string | null;
   is_pick: boolean | null;
   title: string;
   body: string | null;
@@ -268,7 +269,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   let listQuery = supabase
     .from("cards")
     .select(
-      `id, status, type, category, is_pick, title, body, like_count, view_count, save_count, share_count, created_at, deleted_at,
+      `id, status, type, category, post_slug, is_pick, title, body, like_count, view_count, save_count, share_count, created_at, deleted_at,
        comments_count:comments(count),
        doctor:doctors(slug, name, branch),
        author:profiles!cards_author_id_profiles_fkey(display_name, handle)`,
@@ -576,18 +577,32 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                   const style = r.deleted_at
                     ? STATUS_STYLE.deleted
                     : (STATUS_STYLE[r.status] ?? STATUS_STYLE_FALLBACK);
+                  // 시술 리포트(review_summary)는 자동 집계물 → 편집 진입 차단.
+                  //   클릭 시 빈 편집화면 대신 공개 리포트(/reports/{slug})로, slug 없으면 비클릭.
+                  const isReport = r.category === "review_summary";
+                  const editHref = `/admin/cards/${r.id}/edit`;
+                  const linkHref = isReport
+                    ? r.post_slug
+                      ? `/reports/${r.post_slug}`
+                      : null
+                    : editHref;
                   return (
                     <tr
                       key={r.id}
                       className="border-t border-[var(--border)] transition-colors hover:bg-[var(--bg-soft)]"
                     >
                       <td className="px-3 py-2 align-middle text-[var(--text-muted)]">
-                        <Link
-                          href={`/admin/cards/${r.id}/edit`}
-                          className="hover:text-[var(--primary)] hover:underline"
-                        >
-                          #{r.id}
-                        </Link>
+                        {linkHref ? (
+                          <Link
+                            href={linkHref}
+                            className="hover:text-[var(--primary)] hover:underline"
+                            title={isReport ? "공개 리포트 보기(편집 불가)" : undefined}
+                          >
+                            #{r.id}
+                          </Link>
+                        ) : (
+                          <span title="시술 리포트는 자동 집계물이라 편집할 수 없어요.">#{r.id}</span>
+                        )}
                       </td>
                       <td className="px-3 py-2 align-middle text-center">
                         <PickToggle cardId={r.id} initial={!!r.is_pick} />
@@ -624,13 +639,19 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                         )}
                       </td>
                       <td className="px-3 py-2 align-middle text-[var(--text)]">
-                        <Link
-                          href={`/admin/cards/${r.id}/edit`}
-                          className="block hover:text-[var(--primary)] hover:underline"
-                          title={r.title}
-                        >
-                          {truncate(r.title ?? "", 50)}
-                        </Link>
+                        {linkHref ? (
+                          <Link
+                            href={linkHref}
+                            className="block hover:text-[var(--primary)] hover:underline"
+                            title={isReport ? "공개 리포트 보기(편집 불가)" : r.title}
+                          >
+                            {truncate(r.title ?? "", 50)}
+                          </Link>
+                        ) : (
+                          <span className="block" title="시술 리포트는 자동 집계물이라 편집할 수 없어요.">
+                            {truncate(r.title ?? "", 50)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--text-secondary)]">
                         {(r.like_count ?? 0).toLocaleString()}
