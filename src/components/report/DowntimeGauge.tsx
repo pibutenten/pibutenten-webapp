@@ -52,15 +52,16 @@ export default function DowntimeGauge({
     <div>
       {/* 통증 막대와 동일 두께(h-2) — 마커·눈금 없이 채움 바만. */}
       <div className="relative h-2 rounded-full bg-[#EEF1F4]">
+        {/* 다운타임은 부정 지표 → 통증 바 우측 끝 빨강(#F08A8A)으로 채움. */}
         {showFade && fadeWidth > 0 && (
           <span
-            className="absolute top-0 h-full rounded-full bg-[#7FD0F8]/30"
+            className="absolute top-0 h-full rounded-full bg-[#F08A8A]/30"
             style={{ left: `${fadeLeft}%`, width: `${fadeWidth}%` }}
           />
         )}
         {/* 0→평균 채움 */}
         <span
-          className="absolute left-0 top-0 h-full rounded-full bg-[#7FD0F8]"
+          className="absolute left-0 top-0 h-full rounded-full bg-[#F08A8A]"
           style={{ width: `${avgPct}%` }}
         />
       </div>
