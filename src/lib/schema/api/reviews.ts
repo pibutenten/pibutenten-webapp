@@ -30,7 +30,7 @@ import { z } from "zod";
  * 선택: title (기본값 생성용).
  *
  * 2026-06-XX 폼 확장(2a): downtime/effect_onset 신규(영문 슬러그, DB CHECK 와 일치).
- *   effect_areas min 1(효과 필수, '없음' 칩 포함) · max 17.
+ *   effect_areas min 1(효과 필수, '없음' 칩 포함) · max 19(18종+없음).
  */
 export const ReviewCreateSchema = z
   .object({
@@ -44,8 +44,8 @@ export const ReviewCreateSchema = z
     downtime: z.enum(["same_day", "days_1_2", "days_3_5", "week_1", "weeks_2_plus"]),
     // 재시술 의향: 예 / 고민중 / 아니오.
     revisit: z.enum(["yes", "maybe", "no"]),
-    // 체감 효과 — 후기 전용 17종 라벨('없음' 포함), 필수(1~17개, 각 ≤20자).
-    effect_areas: z.array(z.string().min(1).max(20)).min(1).max(17),
+    // 체감 효과 — 후기 전용 19종 라벨('없음' 포함), 필수(1~19개, 각 ≤20자).
+    effect_areas: z.array(z.string().min(1).max(20)).min(1).max(19),
     // 효과 체감 시기 — 영문 슬러그(DB effect_onset_chk 와 일치).
     effect_onset: z.enum(["immediate", "weeks_1_2", "month_1", "months_2_3", "still_watching"]),
     // 생생한 후기 본문 (body 컬럼, 선택 — 0~400자). 비어 있으면 제목만 저장.

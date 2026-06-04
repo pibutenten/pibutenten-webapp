@@ -197,7 +197,8 @@ export default async function HomePage({ searchParams }: Props) {
       {report && (
         <div className="mx-auto mb-5 mt-8 max-w-[680px] sm:mt-12">
           <ReportSampleNotice count={report.count} procedureKo={report.procedureKo} />
-          <ProcedureReportCard report={report} reviews={reportReviews} reviewLiked={reportReviewLiked} />
+          {/* key=시술 — 쿼리 변경 시 카드 remount → 펼침 상태 '접힘'으로 리셋(작업 4). */}
+          <ProcedureReportCard key={report.en} report={report} reviews={reportReviews} reviewLiked={reportReviewLiked} />
         </div>
       )}
 

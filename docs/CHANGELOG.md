@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-06-04] — 리포트 표시 정비 7건 (시각화·옵션·메타)
+
+### Changed
+- **효과 옵션 추가** — `EFFECT_AREA_OPTIONS`(ReviewForm.tsx, 전역 단일 목록)에 '깊은주름'·'불독살' 추가('잔주름' 기존재). 16→18종+없음, zod `effect_areas.max(17→19)`. effect_areas DB CHECK 없음 → 마이그 0.
+- **다운타임 게이지** — 바 높이를 통증 막대와 동일(h-2)로 얇게 + 0일 위치(`pos(0)`≈11.1%)에 '당일' 기준 마커(1주·2주와 동일 스타일)·라벨 추가.
+- **효과 발현 시기 시각화 교체** — 분포막대 → **칩 스택 타임라인**(`EffectOnsetTimeline`): 4구간(시술 직후/1~2주/한 달/두세 달) landscape pill 세로 스택 + 시간축 화살표 + 구간별 "N명", CAP 8 초과 "×N". '효과 못 느낌'(still_watching)은 축 밖 회색 "효과 못 느낌 · N명"(평균 제외). 헤드라인은 시간 구간 최다 기준.
+- **태그/검색 펼침 리셋** — /search·/topics 리포트 카드에 `key={report.en}` → 시술 변경 시 remount, 펼침이 '접힘'으로 리셋.
+- **헤더 보관·공유 아이콘 색** — 회색 → 시술명 타이틀과 동일 액센트(`categoryTheme(category).color`: lifting #1E9FD8·injectables #E5689B). `ReportAnchorActions` 에 `accentColor` prop.
+- **연령대 시각화** — 개별 가로 막대 → 성별과 동일한 **단일 분할 바 + 범례**(구간 비율 분할 + ●범례).
+- **/reports 메타** — title `피부텐텐 리포트 | {시술명}`(`absolute`로 레이아웃 템플릿 중복 방지), description `후기 {N}건 - 평균 만족도 {X}/5. …`. og·twitter 동일 반영(메타 '후기' 유지 = B 결정 정합).
+
+### 검증
+- `tsc`/`build` 통과. /reports/thermage·shurink 런타임: 당일 마커·칩 타임라인·효과 못 느낌 별도줄·연령 분할바·아이콘 액센트(#1E9FD8)·메타 title/desc/twitter 새 형식 확인. Playwright: /topics 카드 펼침 동작 + 시술 변경 후 접힘. 마이그 0.
+
+---
+
 ## [2026-06-04] — 빠른 수정 3건 + 보톡스 재편·시술 롤업 (작업 D)
 
 ### Fixed (빠른 수정)

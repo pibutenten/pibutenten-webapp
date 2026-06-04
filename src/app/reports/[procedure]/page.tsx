@@ -43,15 +43,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!report) return { title: `${ko} 시술 리포트`, robots: { index: false, follow: true } };
 
   const url = `${SITE_URL}/reports/${en}`;
-  const desc = `${ko} 시술 회원 후기 ${report.count}건 집계 — 평균 만족도 ${report.avgSatisfaction.toFixed(
+  const title = `피부텐텐 리포트 | ${ko}`;
+  const desc = `후기 ${report.count}건 - 평균 만족도 ${report.avgSatisfaction.toFixed(
     1,
-  )}/5, 재시술 의향·통증·체감 효과 정리.`;
+  )}/5. 재시술 의향·통증·체감 효과 정리.`;
   return {
-    title: `${ko} 후기 ${report.count}건 — 만족도·통증·재시술 정리`,
+    // absolute — 루트 레이아웃 "피부텐텐 | %s" 템플릿 중복 방지(이미 '피부텐텐 리포트' 포함).
+    title: { absolute: title },
     description: desc,
     alternates: { canonical: url },
     robots: { index: true, follow: true },
-    openGraph: { title: `${ko} 시술 후기 리포트`, description: desc, url, type: "article" },
+    openGraph: { title, description: desc, url, type: "article" },
+    twitter: { card: "summary", title, description: desc },
   };
 }
 

@@ -267,7 +267,8 @@ export default async function TagPage({ params }: Props) {
       {report && (
         <div className="mx-auto mb-6 max-w-[680px]">
           <ReportSampleNotice count={report.count} procedureKo={report.procedureKo} />
-          <ProcedureReportCard report={report} reviews={reportReviews} reviewLiked={reportReviewLiked} />
+          {/* key=시술 — 태그 변경 시 카드 remount → 펼침 상태 '접힘'으로 리셋(작업 4). */}
+          <ProcedureReportCard key={report.en} report={report} reviews={reportReviews} reviewLiked={reportReviewLiked} />
         </div>
       )}
 

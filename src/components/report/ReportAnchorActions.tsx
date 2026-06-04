@@ -21,27 +21,28 @@ export default function ReportAnchorActions({
   anchor,
   me,
   onLoginRequired,
+  accentColor,
 }: {
   anchor: CardData;
   me: EngagementMe;
   onLoginRequired: (reason: string) => void;
+  /** 시술명 타이틀과 동일한 액센트 색(테마/카테고리). 아이콘·숫자 색에 적용. */
+  accentColor?: string;
 }) {
   const eng = useCardEngagement(anchor, {}, me, onLoginRequired, shareCard);
   return (
-    <div className="flex items-center gap-3 text-[var(--text-icon)]">
-      {/* 저장(북마크) — amber, CardActions 와 동일 */}
+    <div
+      className="flex items-center gap-3"
+      style={{ color: accentColor ?? "var(--text-icon)" }}
+    >
+      {/* 저장(북마크) — 타이틀 액센트 색(active 시 채움) */}
       <button
         type="button"
         onClick={eng.save.toggle}
         aria-label={eng.save.active ? "저장 취소" : "저장"}
         aria-pressed={eng.save.active}
         title={eng.save.active ? "저장 취소" : "저장"}
-        className={
-          "flex cursor-pointer items-center gap-1 transition-colors " +
-          (eng.save.active
-            ? "text-[#F59E0B]"
-            : "text-[var(--text-icon)] hover:text-[#F59E0B]")
-        }
+        className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
       >
         <svg
           viewBox="0 0 24 24"
@@ -64,7 +65,7 @@ export default function ReportAnchorActions({
         onClick={() => void eng.share.share()}
         aria-label="공유"
         title="공유"
-        className="flex cursor-pointer items-center gap-1 transition-colors hover:text-[var(--primary)]"
+        className="flex cursor-pointer items-center gap-1 transition-opacity hover:opacity-70"
       >
         <svg
           viewBox="0 0 24 24"

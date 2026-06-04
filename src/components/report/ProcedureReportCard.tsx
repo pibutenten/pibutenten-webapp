@@ -28,6 +28,7 @@ import ReportReviewItem from "@/components/report/ReportReviewItem";
 import ReportAnchorActions from "@/components/report/ReportAnchorActions";
 import DistBars from "@/components/report/DistBars";
 import DowntimeGauge from "@/components/report/DowntimeGauge";
+import EffectOnsetTimeline from "@/components/report/EffectOnsetTimeline";
 import { getQaUrl } from "@/lib/card-url";
 import { experienceCount } from "@/lib/report-copy";
 
@@ -37,6 +38,9 @@ const EFFECT_BAR_COLORS = [
   "#7FD0F8", "#B0A0DE", "#9AA6DE", "#FFCB8C", "#8FD4C8",
   "#F59CB6", "#A6D9A9", "#F4B8A0", "#C3B0E8", "#CDC97A",
 ];
+
+// 연령대 분할 바 색 — 10대~50대+ 순(차가운→따뜻한 5색).
+const AGE_COLORS = ["#A8C2E6", "#9AA6DE", "#C3B0E8", "#F2A9C0", "#FFCB8C"];
 
 // 삽입 카드 펼침 시 보여줄 후기 최대 개수.
 const INSERT_REVIEW_CAP = 3;
@@ -139,19 +143,16 @@ export default function ProcedureReportCard({
       ? "다운타임은 대부분 없었어요."
       : `다운타임은 대부분 ${dtAvgLabel}일이었어요.`;
 
-  // 효과시점(C-2) — 만족도식 분포막대 재사용. 4시점 사이트블루 + '아직 관찰 중' 회색.
-  const onsetTop = EFFECT_ONSET_OPTIONS[onsetDist.indexOf(Math.max(...onsetDist))];
+  // 효과시점(작업 3) — 칩 스택 타임라인. 헤드라인은 시간 구간(0~3) 최다 기준(still_watching 제외).
+  const onsetTimeSum = onsetDist.slice(0, 4).reduce((a, b) => a + b, 0);
+  const onsetTopIdx = [0, 1, 2, 3].reduce(
+    (best, i) => ((onsetDist[i] ?? 0) > (onsetDist[best] ?? 0) ? i : best),
+    0,
+  );
   const onsetHeadline =
-    onsetTop?.value === "still_watching"
-      ? "아직 효과를 지켜보는 분이 가장 많아요."
-      : `효과는 대부분 ${onsetTop?.label ?? ""}부터 느끼기 시작했어요.`;
-  const onsetRows = EFFECT_ONSET_OPTIONS.map((o, i) => ({
-    key: o.value,
-    label: o.label,
-    count: onsetDist[i] ?? 0,
-    color: o.value === "still_watching" ? "#9AA1AC" : "#4CBFF2",
-  }));
-  const onsetMax = Math.max(1, ...onsetDist);
+    onsetTimeSum === 0
+      ? "아직 효과를 느꼈다는 후기가 적어요."
+      : `효과는 대부분 ${EFFECT_ONSET_OPTIONS[onsetTopIdx]?.label ?? ""}부터 느끼기 시작했어요.`;
   const demoTotal = Math.max(1, demographics.male + demographics.female);
   const femalePct = Math.round((demographics.female / demoTotal) * 100);
   const malePct = Math.max(0, 100 - femalePct);
@@ -272,7 +273,7 @@ export default function ProcedureReportCard({
         </Link>
         {anchor && (
           <div className="absolute right-4 top-3.5" onClick={(e) => e.stopPropagation()}>
-            <ReportAnchorActions anchor={anchor} me={me} onLoginRequired={setAuthPrompt} />
+            <ReportAnchorActions anchor={anchor} me={me} onLoginRequired={setAuthPrompt} accentColor={theme.color} />
           </div>
         )}
       </header>
@@ -378,13 +379,13 @@ export default function ProcedureReportCard({
               </section>
             )}
 
-            {/* 효과시점 — 만족도식 분포막대 재사용(4시점 블루 + 관찰중 회색). answered===0 숨김. */}
+            {/* 효과시점 — 칩 스택 타임라인(4구간) + '효과 못 느낌' 별도. answered===0 숨김. */}
             {onsetAnswered > 0 && (
               <section className={SECTION}>
-                <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+                <p className="mb-3 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
                   {onsetHeadline}
                 </p>
-                <DistBars rows={onsetRows} max={onsetMax} labelClass="w-16" countClass="w-6" />
+                <EffectOnsetTimeline dist={onsetDist} />
               </section>
             )}
 
@@ -407,20 +408,37 @@ export default function ProcedureReportCard({
                   <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#F59CB6" }} />여성 {femalePct}%</span>
                   <span><i className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: "#7FD0F8" }} />남성 {malePct}%</span>
                 </div>
+                {/* 연령대 — 성별과 동일한 단일 가로 분할 바 + 범례. */}
                 {demographics.ageBands.length > 0 && (
-                  <div className="mt-3 flex flex-col gap-1.5">
-                    {demographics.ageBands.map((b) => {
-                      const pct = Math.round((b.count / ageTotal) * 100);
-                      return (
-                        <div key={b.label} className="flex items-center gap-2 text-[11px]">
-                          <span className="w-9 text-[var(--text-secondary)]">{b.label}</span>
-                          <span className="h-[8px] flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
-                            <span className="block h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: "#9AA6DE" }} />
+                  <div className="mt-3">
+                    <div className="flex h-[14px] overflow-hidden rounded-full text-[9.5px] font-bold text-white">
+                      {demographics.ageBands.map((b, i) => {
+                        const pct = Math.round((b.count / ageTotal) * 100);
+                        return pct > 0 ? (
+                          <div
+                            key={b.label}
+                            className="flex items-center justify-center"
+                            style={{ width: `${pct}%`, backgroundColor: AGE_COLORS[i % AGE_COLORS.length] }}
+                          >
+                            {pct >= 16 ? `${pct}%` : ""}
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-[var(--text-secondary)]">
+                      {demographics.ageBands.map((b, i) => {
+                        const pct = Math.round((b.count / ageTotal) * 100);
+                        return (
+                          <span key={b.label}>
+                            <i
+                              className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle"
+                              style={{ backgroundColor: AGE_COLORS[i % AGE_COLORS.length] }}
+                            />
+                            {b.label} {pct}%
                           </span>
-                          <span className="w-9 text-right font-semibold text-[var(--text-secondary)]">{pct}%</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </section>

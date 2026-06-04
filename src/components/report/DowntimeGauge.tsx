@@ -52,12 +52,14 @@ export default function DowntimeGauge({
     fadeWidth = Math.max(0, hi - lo);
   }
 
+  const guide0 = pos(0);
   const guide7 = pos(7);
   const guide14 = pos(14);
 
   return (
     <div>
-      <div className="relative h-3 rounded-full bg-[#EEF1F4]">
+      {/* 통증 막대와 동일 두께(h-2). */}
+      <div className="relative h-2 rounded-full bg-[#EEF1F4]">
         {/* 편차 밴드(n>15) */}
         {showFade && fadeWidth > 0 && (
           <span
@@ -70,17 +72,19 @@ export default function DowntimeGauge({
           className="absolute left-0 top-0 h-full rounded-full bg-[#7FD0F8]"
           style={{ width: `${avgPct}%` }}
         />
-        {/* 7·14일 가이드선 */}
-        <span className="absolute top-[-2px] h-[16px] w-px bg-[#A6B0BC]" style={{ left: `${guide7}%` }} />
-        <span className="absolute top-[-2px] h-[16px] w-px bg-[#A6B0BC]" style={{ left: `${guide14}%` }} />
+        {/* 당일·1주·2주 기준 마커(동일 스타일) */}
+        <span className="absolute top-[-3px] h-[14px] w-px bg-[#A6B0BC]" style={{ left: `${guide0}%` }} />
+        <span className="absolute top-[-3px] h-[14px] w-px bg-[#A6B0BC]" style={{ left: `${guide7}%` }} />
+        <span className="absolute top-[-3px] h-[14px] w-px bg-[#A6B0BC]" style={{ left: `${guide14}%` }} />
         {/* 평균 마커 */}
         <span
-          className="absolute -top-[3px] h-[18px] w-[3px] rounded-[2px] bg-[#3593C9] shadow-[0_0_0_2px_#fff]"
+          className="absolute -top-[3px] h-[14px] w-[3px] rounded-[2px] bg-[#3593C9] shadow-[0_0_0_2px_#fff]"
           style={{ left: `calc(${avgPct}% - 1.5px)` }}
         />
       </div>
-      {/* 가이드 눈금 라벨 */}
+      {/* 기준 눈금 라벨 — 당일·1주·2주 */}
       <div className="relative mt-1 h-[12px] text-[9.5px] text-[var(--text-muted)]">
+        <span className="absolute -translate-x-1/2" style={{ left: `${guide0}%` }}>당일</span>
         <span className="absolute -translate-x-1/2" style={{ left: `${guide7}%` }}>1주</span>
         <span className="absolute -translate-x-1/2" style={{ left: `${guide14}%` }}>2주</span>
       </div>
