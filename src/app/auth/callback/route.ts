@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { errorRedirectLogin, type AuthErrorTrack } from "@/lib/error-response";
 import { ROLES } from "@/lib/identity-shared";
 import { logAudit } from "@/lib/audit-log";
@@ -249,6 +250,80 @@ export async function GET(request: NextRequest) {
           console.error("[auth-callback] profile 메타 동기화 실패:", e instanceof Error ? e.message : e);
         }
       }
+    }
+  }
+
+  // 3-b) (작업 b) 동일 이메일 '다른 provider' 기존 계정 감지 — 표준 OAuth(Google/Kakao) 중복 방어.
+  //   Naver 는 자체 콜백에서 이미 차단(A5). 표준 콜백은 신규 auth_user 가 이미 생성된 뒤이므로
+  //   '현재 user 제외' RPC(find_other_auth_user_by_email, 0233)로 기존 계정 존재를 확인한다.
+  //   존재하면: 현재(새) 세션 signOut + /login/conflict 안내. 단, 현재 계정이 '약관 미동의 +
+  //   작성물 0' 일 때만 빈 신규 계정을 fail-safe 삭제(의심 시 보존 — 빈 계정은 무해).
+  if (user.email) {
+    try {
+      const admin = createSupabaseAdminClient();
+      const { data: otherRows } = await admin.rpc("find_other_auth_user_by_email", {
+        p_email: user.email,
+        p_exclude_user_id: user.id,
+      });
+      const other = (otherRows as { user_id: string; providers: string[] }[] | null)?.[0];
+      if (other) {
+        const appMeta = (user.app_metadata ?? {}) as Record<string, unknown>;
+        const userMeta = (user.user_metadata ?? {}) as Record<string, unknown>;
+        const attemptedProvider =
+          (typeof appMeta.provider === "string" && appMeta.provider) ||
+          (typeof userMeta.provider === "string" && userMeta.provider) ||
+          "unknown";
+        const existingProvider =
+          (other.providers ?? []).find((p) => p !== "email") ??
+          (other.providers ?? [])[0] ??
+          "other";
+
+        // fail-safe 정리 조건: (현재 약관 미동의) + (작성물 0건). 하나라도 불확실하면 삭제 안 함.
+        const isUnused = !profile || !profile.terms_agreed_at;
+        let emptyContent = false;
+        if (isUnused) {
+          const [{ count: cardN }, { count: cmtN }] = await Promise.all([
+            admin.from("cards").select("id", { count: "exact", head: true }).eq("author_id", user.id),
+            admin.from("comments").select("id", { count: "exact", head: true }).eq("author_id", user.id),
+          ]);
+          emptyContent = (cardN ?? 0) === 0 && (cmtN ?? 0) === 0;
+        }
+
+        // 현재(새) 세션 로그아웃 — /login/conflict 가 로그인 상태로 안 갇히게.
+        await supabase.auth.signOut();
+
+        if (isUnused && emptyContent) {
+          // 멱등·실패 무시. FK/캐스케이드 문제로 실패하면 빈 계정 남겨도 무해(보존).
+          try {
+            await admin.from("profiles").delete().eq("id", user.id);
+            await admin.auth.admin.deleteUser(user.id);
+            await logAudit({
+              action: "auth.duplicate_cleanup",
+              actorAuthUserId: user.id,
+              targetTable: "auth.users",
+              targetId: user.id,
+              request,
+              metadata: { existing_provider: existingProvider, attempted_provider: attemptedProvider },
+            });
+          } catch (cleanupErr) {
+            console.warn(
+              "[auth/callback] 빈 중복계정 정리 실패(보존):",
+              cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
+            );
+          }
+        }
+
+        const url = new URL("/login/conflict", SITE_URL);
+        url.searchParams.set("existing_provider", existingProvider);
+        url.searchParams.set("attempted_provider", attemptedProvider);
+        return NextResponse.redirect(url);
+      }
+    } catch (dupErr) {
+      // 가용성 우선 — 충돌 감지 실패해도 로그인 흐름은 계속(단, 중복 방어 누락 가능성 기록).
+      console.error(
+        "[auth/callback] 중복 계정 감지 실패:",
+        dupErr instanceof Error ? dupErr.message : dupErr,
+      );
     }
   }
 

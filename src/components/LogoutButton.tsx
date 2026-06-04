@@ -24,7 +24,18 @@ function deleteClientCookie(name: string) {
   document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
 
-export default function LogoutButton() {
+export default function LogoutButton({
+  redirectTo = "/",
+  label = "로그아웃",
+  className,
+}: {
+  /** 로그아웃 후 이동 경로. 기본 "/". 온보딩 trap 탈출 시 "/login" 사용. */
+  redirectTo?: string;
+  /** 버튼 라벨(기본 "로그아웃"). */
+  label?: string;
+  /** 클래스 오버라이드(미지정 시 기본 텍스트 버튼 스타일). */
+  className?: string;
+} = {}) {
   const [pending, start] = useTransition();
   function onClick() {
     if (pending) return;
@@ -35,7 +46,9 @@ export default function LogoutButton() {
       for (const name of CLIENT_VISIBLE_COOKIES_TO_CLEAR) {
         deleteClientCookie(name);
       }
-      window.location.assign("/");
+      // 첫 가입 강제 게이트 쿠키도 만료 — 로그아웃 후 /login 에서 갇히지 않게.
+      deleteClientCookie("pibutenten_must_onboard");
+      window.location.assign(redirectTo);
     });
   }
   return (
@@ -43,9 +56,12 @@ export default function LogoutButton() {
       type="button"
       onClick={onClick}
       disabled={pending}
-      className="text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)] hover:underline disabled:opacity-50"
+      className={
+        className ??
+        "text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)] hover:underline disabled:opacity-50"
+      }
     >
-      {pending ? "로그아웃 중…" : "로그아웃"}
+      {pending ? "처리 중…" : label}
     </button>
   );
 }

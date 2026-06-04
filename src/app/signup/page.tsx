@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import SignupForm from "./SignupForm";
+import LogoutButton from "@/components/LogoutButton";
 import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +61,16 @@ export default async function SignupPage({ searchParams }: Props) {
         피부텐텐에 오신 걸 환영해요. 잠깐만 확인해 주세요.
       </p>
       <SignupForm initialDisplayName={initialName} next={next} />
+
+      {/* 탈출구 — 다른 provider 로 잘못 들어온 경우 로그아웃 후 로그인 화면으로(루프 방지). */}
+      <p className="mt-5 text-center text-xs text-[var(--text-muted)]">
+        이 계정이 아니신가요?{" "}
+        <LogoutButton
+          redirectTo="/login"
+          label="다른 방법으로 로그인"
+          className="text-xs font-medium text-[var(--primary)] underline hover:text-[var(--primary-dark)] disabled:opacity-50"
+        />
+      </p>
     </section>
   );
 }

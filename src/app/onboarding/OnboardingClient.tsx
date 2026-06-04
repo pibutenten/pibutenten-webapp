@@ -738,9 +738,28 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   setDuplicate(null);
-                  // 기존 계정으로 다시 로그인 — 로그인 페이지로
+                  // 기존 계정으로 다시 로그인 — 현재(새) 세션을 먼저 로그아웃해야
+                  //   /login 이 다시 /signup 으로 튕기는 루프를 막는다.
+                  try {
+                    const sb = createSupabaseBrowserClient();
+                    await sb.auth.signOut();
+                    const secure =
+                      typeof window !== "undefined" &&
+                      window.location.protocol === "https:"
+                        ? "; Secure"
+                        : "";
+                    for (const name of [
+                      "pibutenten:identity-mirror",
+                      "pibutenten_onboarded",
+                      "pibutenten_must_onboard",
+                    ]) {
+                      document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+                    }
+                  } catch {
+                    /* ignore */
+                  }
                   window.location.assign("/login");
                 }}
                 className="rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"

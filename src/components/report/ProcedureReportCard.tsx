@@ -476,7 +476,8 @@ export default function ProcedureReportCard({
       {/* 개별 후기 — 토글 영역 밖(후기 클릭은 후기 네비/좋아요). */}
       {expanded && displayReviews.length > 0 && (
         <section className="border-t border-[var(--border)] px-5 py-4">
-          <div className={TITLE}>후기 {isPage && total !== undefined ? total : displayReviews.length}개</div>
+          {/* 헤더는 항상 전체 후기 수(count) — 카드엔 일부(최대 3)만 보여도 총개수로 기대감. */}
+          <div className={TITLE}>후기 {count}개</div>
           <ul className="divide-y divide-[var(--border)]">
             {displayReviews.map((card) => (
               <ReportReviewItem

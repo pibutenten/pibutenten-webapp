@@ -6,6 +6,27 @@
 
 ---
 
+## [2026-06-04] — 온보딩 trap 탈출구 + OAuth 중복계정 방어 (a·b) + 리포트 표시
+
+### Fixed (a) 온보딩/동의 trap 탈출구
+- 미온보딩 사용자가 `/signup`·`/onboarding`에 갇혀(로그아웃 도달 불가) 강제 가입되던 문제 — 두 페이지에 **"이 계정이 아니신가요? 다른 방법으로 로그인"** 링크 추가(`LogoutButton` signOut+쿠키정리 후 `/login`, 로그아웃 상태라 루프 없음). `LogoutButton`에 `redirectTo`/`label`/`className` prop 확장.
+- 온보딩 dedup 다이얼로그 "기존 계정으로 로그인"이 navigate 전 **signOut 먼저**(루프 방지).
+
+### Added (b) OAuth 동일 이메일 중복계정 방어
+- 표준 OAuth(Google/Kakao) `auth/callback`에 **동일 이메일 다른 provider 기존 계정 감지** 추가. 신규 RPC `find_other_auth_user_by_email(email, exclude_user_id)`(0233, read-only) — 기존 `find_auth_user_by_email_with_providers`는 LIMIT 1·현재 미제외라 신규 user 생성 후 시점에서 부정확 → 현재 제외 RPC 신설. 충돌 시 signOut + `/login/conflict`(기존 provider 안내).
+- **fail-safe 빈 계정 정리**: (현재 약관 미동의) + (cards·comments 작성물 0건)일 때만 빈 신규 auth_user/profile 삭제(admin). 의심·실패 시 보존(무해), 멱등·로깅(`auth.duplicate_cleanup`).
+
+### Changed (리포트 표시)
+- 시술 리포트 카드 후기 목록 헤더 "후기 N개"를 **표시 개수(최대 3)가 아닌 전체 후기 수(count)**로 — 일부만 보여도 총개수로 기대감.
+
+### 검증
+- `tsc`·클린 `build` 통과. 0233 적용. /reports/sculptra 후기 헤더=집계=6 일치. (a)(b) 인증 흐름은 정적 검증 + RPC 동작 확인.
+
+### 보고만(미실행)
+- 이미 생긴 직원 중복 계정 식별·병합안은 보고 후 승인받아 별도 진행(데이터 파괴적).
+
+---
+
 ## [2026-06-04] — 후기 카드 재시술 의향 제거 + 리포트 범례 레이아웃
 
 ### Changed
