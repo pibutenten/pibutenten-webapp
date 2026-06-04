@@ -6,6 +6,24 @@
 
 ---
 
+## [2026-06-04] — 시술 리포트 카드 동작 통일 + 전용 페이지 무한스크롤 (작업 A)
+
+### Added
+- **GET `/api/reports/[procedure]/reviews?offset=&limit=&include_report=`** (read-only) — 시술별 발행 후기 페이징. `include_report=1` 시 `getProcedureReport` 집계 동봉. procedure=en/ko 둘 다 resolve. 정렬은 기존 페이지와 동일(created_at desc). 신규 테이블/마이그 0.
+
+### Changed
+- **`ProcedureReportCard` 2모드 통일** — `variant="insert"`(피드·/search·/topics) / `variant="page"`(/reports).
+  - insert: 컴팩트+접힘, **본문 클릭=펼침/접힘 토글**, 타이틀 클릭=`/reports/{en}`. 펼침 = 집계 + 후기 **최대 3개** + 하단 "더보기"(조용한 링크)→`/reports/{en}`. 카드 내 +10 로드 제거.
+    - 피드(feedHref): 컴팩트 풀(후기·효과·인구통계 없음) → **펼칠 때만 1회 lazy fetch**(`include_report=1&limit=3`). 홈 최초 렌더 미fetch.
+    - /search·/topics: `reviews` prop 보유 → fetch 생략, 즉시 펼침.
+  - page: 후기 첫 10개 서버 렌더 + **무한 스크롤**(로그인=IntersectionObserver / 비로그인=10경계 클릭형 넛지, `LoginPromptDialog` 재사용, 스크롤 자동 모달 없음).
+- **`/reports/[procedure]`** — 후기 첫 10개 + 전체 count 서버 렌더(크롤러·비로그인 노출, JSON-LD AggregateRating 유지), `variant="page"` 전달. 하단 **"관련 전문의 Q&A" 역링크**(같은 시술 keywords 발행 Q&A 상위 6, `CARD_LIST_SELECT` 재사용).
+
+### 검증
+- `tsc`/`build` 통과(`/api/reports/[procedure]/reviews` 라우트 등록). API 런타임: lazy(reviews 3 + 풀집계 effects 포함), 페이징 비중복(offset 0/2 → [2401,2393]/[2383,2369]), `/reports/thermage` 200 + "후기 8개"·역링크 노출.
+
+---
+
 ## [2026-06-04] — 설정 동의 연동 + 관리자 리서치 패널 (F-2)
 
 ### Added
