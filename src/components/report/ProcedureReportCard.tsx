@@ -34,6 +34,12 @@ import { experienceCount } from "@/lib/report-copy";
 
 const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
 const PAIN_SOFT = ["#BAE6FD", "#FDE68A", "#FDBA74", "#FCA5A5", "#F08A8A"];
+// 통증 위치 매핑 — 다운타임 게이지와 동일한 안쪽 정렬(없음=11.1%, 심함=88.9%).
+//   pos = 100/9 + (v-1)/4 × 700/9  (v: 1=없음 … 5=심함). 100/9=11.1, 800/9=88.9.
+function painPos(value1to5: number): number {
+  const v = Math.min(5, Math.max(1, value1to5));
+  return 100 / 9 + ((v - 1) / 4) * (700 / 9);
+}
 const EFFECT_BAR_COLORS = [
   "#7FD0F8", "#B0A0DE", "#9AA6DE", "#FFCB8C", "#8FD4C8",
   "#F59CB6", "#A6D9A9", "#F4B8A0", "#C3B0E8", "#CDC97A",
@@ -135,7 +141,7 @@ export default function ProcedureReportCard({
 
   const satRounded = Math.round(avgSatisfaction);
   const maxSat = Math.max(1, ...satisfactionDist);
-  const painPct = Math.min(100, Math.max(0, (avgPain / 5) * 100));
+  const painPct = painPos(avgPain); // 다운타임과 동일한 안쪽 매핑(없음 11.1% ~ 심함 88.9%)
   const rTotal = Math.max(1, revisit.yes + revisit.maybe + revisit.no);
   const yesPct = Math.round((revisit.yes / rTotal) * 100);
   const maybePct = Math.round((revisit.maybe / rTotal) * 100);
@@ -341,8 +347,13 @@ export default function ProcedureReportCard({
           <div className="relative h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${PAIN_SOFT.join(", ")})` }}>
             <span className="absolute -top-[3px] h-[14px] w-[3px] rounded-[2px] bg-[#64748B] shadow-[0_0_0_2px_#fff]" style={{ left: `calc(${painPct}% - 1.5px)` }} />
           </div>
-          <div className="mt-1.5 flex justify-between text-[9.5px] text-[var(--text-muted)]">
-            {PAIN_LABELS.map((l) => <span key={l}>{l}</span>)}
+          {/* 라벨 — 통증값 위치(없음 11.1% … 심함 88.9%)에 정렬(다운타임과 동일). */}
+          <div className="relative mt-1.5 h-[12px] text-[9.5px] text-[var(--text-muted)]">
+            {PAIN_LABELS.map((l, i) => (
+              <span key={l} className="absolute -translate-x-1/2" style={{ left: `${painPos(i + 1)}%` }}>
+                {l}
+              </span>
+            ))}
           </div>
         </section>
 
