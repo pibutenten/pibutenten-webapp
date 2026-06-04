@@ -18,7 +18,8 @@
 - **슬러그 일원화**: `square-jaw-botox`→`jaw-botox` 전수 치환(JSON·slug-mapping 주석·qa 카드 3건 post_slug, 0231). 정식 오픈 전 URL 변경 허용.
 - **시술 롤업**: `procedure_family(ko)`(0225, SQL) = [ko]+직속 자식. **부모 리포트=자기+직속하위, 자식=자기만**. 3 집계 경로 공용 — `getProcedureReport`(`.in` + RPC)·`get_procedure_review_demographics`(0227)·`get_review_summary_pool`(0228). **0206 피드/검색 JOIN 은 개별 유지**(롤업 안 함). `FEED_MIN_REVIEWS=4`=family count.
 - **후기 목록도 family 정합**(필수 보강): /reports·/api/reports/[procedure]/reviews·/search·/topics 의 후기 목록을 keyword 기반 → **procedure_ko family 기반**(`getFamilyReviewCardIds`)으로 전환 → 집계 헤더 count 와 목록 일치(레스틸렌·쥬베룩 "1건인데 목록 0" 문제 해소).
-- **부모 앵커 보장**(0229): create/update_procedure_review 가 자식 후기 발행 시 부모 앵커도 lazy 생성(draft, 멱등). 백필(0230, ⚠데이터+공개): family≥1·자기앵커 없는 부모(레스틸렌·쥬베룩) published 앵커 생성.
+- **부모 앵커 보장**(0229): create/update_procedure_review 가 자식 후기 발행 시 부모 앵커도 lazy 생성(멱등). 백필(0230, ⚠데이터+공개): family≥1·자기앵커 없는 부모(레스틸렌·쥬베룩) published 앵커 생성.
+- **앵커 승격 커버**(0232): 앵커 draft→published 자동 승격 흐름이 없어(0216 일회성 flip뿐) 0216 이후 RPC 신규 앵커가 draft로 비공개 잔류 → lazy 앵커를 **published** 로 생성하도록 변경(자식·부모 모두 즉시 노출). sitemap/rss 는 `INCLUDE_REPORT_ANCHORS=false` 게이트라 영향 없음.
 
 ### 검증
 - `tsc`/`build` 통과. 롤업 직접 대조: 집계 헤더 = API 목록 = demographics = pool — 보톡스 5(own2+코어톡스3)·세르프 4→5·리쥬란 2→3·레스틸렌·쥬베룩 0→1·코어톡스 3(자기). 6 브랜드 후기 불변(코어톡스 3, 나머지 0). square-jaw-botox DB 잔존 0.
