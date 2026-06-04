@@ -68,13 +68,13 @@ type ReviewsApiResponse = {
 
 // 통계 수치를 편안한 자연어로 — 값에 따라 멘트가 달라진다.
 function revisitPhrase(pct: number): string {
-  if (pct >= 70) return `경험하신 분들의 ${pct}%가 다시 받고 싶어 해요.`;
+  if (pct >= 70) return `경험한 분들의 ${pct}%가 다시 받고 싶어 해요.`;
   if (pct >= 40) return `${pct}%가 다시 받을 의향이 있어요. 호불호가 갈리는 편이에요.`;
   return `다시 받겠다는 분은 ${pct}%예요. 신중히 고민해 보세요.`;
 }
 function satisfactionPhrase(avg: number): string {
   const x = avg.toFixed(1);
-  if (avg >= 4.5) return `만족도 ${x}점! 다들 결과에 크게 만족하셨어요.`;
+  if (avg >= 4.5) return `만족도 ${x}점! 다들 결과에 크게 만족했어요.`;
   if (avg >= 4.0) return `만족도 ${x}점, 대체로 만족하는 분위기예요.`;
   if (avg >= 3.0) return `만족도 ${x}점, 기대와 결과가 갈리는 편이에요.`;
   return `만족도 ${x}점으로 아쉬웠다는 의견이 많아요.`;
