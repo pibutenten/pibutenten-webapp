@@ -426,9 +426,10 @@ export default function ReviewForm({
           disabled={pending}
         />
 
-        {/* ── 4. 다운타임 (필수) — 질문에 '다운타임' 단어 노출 금지 ── */}
+        {/* ── 4. 다운타임 (필수) ── */}
         <ChoiceField
-          label="일상으로 돌아오기까지 얼마나 걸렸나요?"
+          label="다운타임이 얼마나 됐나요?"
+          hint="붓기·멍·딱지 등이 가라앉고 일상이 편해질 때까지"
           required
           value={downtime}
           onChange={setDowntime}
@@ -928,6 +929,7 @@ function FaceField({
  * ───────────────────────────────────────────────────────────── */
 function ChoiceField({
   label,
+  hint,
   value,
   onChange,
   options,
@@ -935,6 +937,8 @@ function ChoiceField({
   required,
 }: {
   label: string;
+  /** 질문 아래 흐린 보조 설명 한 줄(선택). */
+  hint?: string;
   value: string;
   onChange: (v: string) => void;
   options: ChoiceOption[];
@@ -944,7 +948,13 @@ function ChoiceField({
   return (
     <div>
       <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-        {label}      </label>
+        {label}
+        {hint && (
+          <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">
+            {hint}
+          </span>
+        )}
+      </label>
       <div className="flex flex-wrap gap-1.5">
         {options.map((opt) => (
           <Chip

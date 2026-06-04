@@ -20,13 +20,16 @@ import Link from "next/link";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/components/Card";
 import { categoryTheme } from "@/lib/procedure-theme";
-import { DOWNTIME_OPTIONS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
+import { DOWNTIME_DAYS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
 import { useSession } from "@/lib/session-context";
 import type { EngagementMe } from "@/components/card/hooks/useCardEngagement";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import ReportReviewItem from "@/components/report/ReportReviewItem";
 import ReportAnchorActions from "@/components/report/ReportAnchorActions";
+import DistBars from "@/components/report/DistBars";
+import DowntimeGauge from "@/components/report/DowntimeGauge";
 import { getQaUrl } from "@/lib/card-url";
+import { experienceCount } from "@/lib/report-copy";
 
 const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
 const PAIN_SOFT = ["#BAE6FD", "#FDE68A", "#FDBA74", "#FCA5A5", "#F08A8A"];
@@ -44,60 +47,11 @@ const PAGE_SIZE = 10;
 const SECTION = "px-5 py-5";
 const TITLE = "mb-2.5 text-[15px] font-bold text-[var(--text)]";
 
-// 다운타임·효과시기 5구간 분포 막대 색 — 차가운→따뜻한 순한 5색(순서=빠름→느림).
-const DIST_BAR_COLORS = ["#7FD0F8", "#8FD4C8", "#A6D9A9", "#FFCB8C", "#F4B8A0"];
-
 type ReviewsApiResponse = {
   reviews: CardData[];
   reviewLiked: Record<number, boolean>;
   report?: ProcedureReport | null;
 };
-
-/* CompactDist — 5구간 단일선택 분포를 '얇은 단일 바 + 범례 한 줄대'로 표시(통증 톤).
-   answered===0 이면 섹션 통째 숨김(빈 섹션·에러 방지). 다운타임·효과시기 공용. */
-function CompactDist({
-  headline,
-  options,
-  dist,
-  answered,
-}: {
-  headline: string;
-  options: { value: string; label: string }[];
-  dist: number[];
-  answered: number;
-}) {
-  if (answered === 0) return null;
-  return (
-    <section className={SECTION}>
-      <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
-        {headline}
-      </p>
-      <div className="flex h-[14px] overflow-hidden rounded-full">
-        {dist.map((c, i) =>
-          c > 0 ? (
-            <div
-              key={options[i].value}
-              style={{ width: `${(c / answered) * 100}%`, backgroundColor: DIST_BAR_COLORS[i] }}
-            />
-          ) : null,
-        )}
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-secondary)]">
-        {options.map((o, i) =>
-          dist[i] > 0 ? (
-            <span key={o.value}>
-              <i
-                className="mr-1 inline-block h-2 w-2 rounded-[3px] align-middle"
-                style={{ backgroundColor: DIST_BAR_COLORS[i] }}
-              />
-              {o.label} {dist[i]}명
-            </span>
-          ) : null,
-        )}
-      </div>
-    </section>
-  );
-}
 
 // 통계 수치를 편안한 자연어로 — 값에 따라 멘트가 달라진다.
 function revisitPhrase(pct: number): string {
@@ -172,12 +126,28 @@ export default function ProcedureReportCard({
   const maybePct = Math.round((revisit.maybe / rTotal) * 100);
   const noPct = Math.max(0, 100 - yesPct - maybePct);
   const topEffects = effects.slice(0, 6);
-  const dtTopLabel = DOWNTIME_OPTIONS[downtimeDist.indexOf(Math.max(...downtimeDist))]?.label ?? "";
+
+  // 다운타임(C-1·E) — 평균 일수(day 코딩) 기반 헤드라인 "다운타임은 대부분 N일이었어요".
+  const dtAvg =
+    downtimeAnswered > 0
+      ? downtimeDist.reduce((s, c, i) => s + c * (DOWNTIME_DAYS[i] ?? 0), 0) / downtimeAnswered
+      : 0;
+  const dtAvgLabel = Number.isInteger(dtAvg) ? String(dtAvg) : `약 ${dtAvg.toFixed(1)}`;
+  const dtHeadline = `다운타임은 대부분 ${dtAvgLabel}일이었어요.`;
+
+  // 효과시점(C-2) — 만족도식 분포막대 재사용. 4시점 사이트블루 + '아직 관찰 중' 회색.
   const onsetTop = EFFECT_ONSET_OPTIONS[onsetDist.indexOf(Math.max(...onsetDist))];
   const onsetHeadline =
     onsetTop?.value === "still_watching"
       ? "아직 효과를 지켜보는 분이 가장 많아요."
       : `효과는 대부분 ${onsetTop?.label ?? ""}부터 느끼기 시작했어요.`;
+  const onsetRows = EFFECT_ONSET_OPTIONS.map((o, i) => ({
+    key: o.value,
+    label: o.label,
+    count: onsetDist[i] ?? 0,
+    color: o.value === "still_watching" ? "#9AA1AC" : "#4CBFF2",
+  }));
+  const onsetMax = Math.max(1, ...onsetDist);
   const demoTotal = Math.max(1, demographics.male + demographics.female);
   const femalePct = Math.round((demographics.female / demoTotal) * 100);
   const malePct = Math.max(0, 100 - femalePct);
@@ -292,7 +262,7 @@ export default function ProcedureReportCard({
               {procedureKo}
             </h1>
             <span className="shrink-0 text-[13px] text-[var(--text-secondary)]">
-              회원 후기 <b className="text-[var(--text)]">{count}건</b>
+              회원 경험 <b className="text-[var(--text)]">{count}건</b>
             </span>
           </div>
         </Link>
@@ -337,20 +307,15 @@ export default function ProcedureReportCard({
               </span>
               <span className="text-[22px] font-extrabold leading-none text-[var(--text)]">{avgSatisfaction.toFixed(1)}</span>
             </div>
-            <div className="flex flex-1 flex-col gap-[3px]">
-              {[5, 4, 3, 2, 1].map((score) => {
-                const c = satisfactionDist[score - 1] ?? 0;
-                return (
-                  <div key={score} className="flex items-center gap-2 text-[10.5px] text-[var(--text-muted)]">
-                    <span className="w-5 text-right">{score}</span>
-                    <span className="h-[6px] flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
-                      <span className="block h-full rounded-full bg-[var(--accent-save)]" style={{ width: `${(c / maxSat) * 100}%` }} />
-                    </span>
-                    <span className="w-4 text-right">{c}</span>
-                  </div>
-                );
-              })}
-            </div>
+            <DistBars
+              rows={[5, 4, 3, 2, 1].map((score) => ({
+                key: String(score),
+                label: String(score),
+                count: satisfactionDist[score - 1] ?? 0,
+                color: "var(--accent-save)",
+              }))}
+              max={maxSat}
+            />
           </div>
         </section>
 
@@ -377,12 +342,15 @@ export default function ProcedureReportCard({
         {/* ── 펼침 영역(집계) ── */}
         {expanded && (
           <>
-            <CompactDist
-              headline={`일상 복귀까지 — 대부분 ${dtTopLabel}이었어요.`}
-              options={DOWNTIME_OPTIONS}
-              dist={downtimeDist}
-              answered={downtimeAnswered}
-            />
+            {/* 다운타임 — 평균 게이지 + 1주·2주 가이드선. answered===0 이면 섹션 숨김. */}
+            {downtimeAnswered > 0 && (
+              <section className={SECTION}>
+                <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+                  {dtHeadline}
+                </p>
+                <DowntimeGauge dist={downtimeDist} answered={downtimeAnswered} days={DOWNTIME_DAYS} />
+              </section>
+            )}
 
             {topEffects.length > 0 && (
               <section className={SECTION}>
@@ -406,12 +374,15 @@ export default function ProcedureReportCard({
               </section>
             )}
 
-            <CompactDist
-              headline={onsetHeadline}
-              options={EFFECT_ONSET_OPTIONS}
-              dist={onsetDist}
-              answered={onsetAnswered}
-            />
+            {/* 효과시점 — 만족도식 분포막대 재사용(4시점 블루 + 관찰중 회색). answered===0 숨김. */}
+            {onsetAnswered > 0 && (
+              <section className={SECTION}>
+                <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+                  {onsetHeadline}
+                </p>
+                <DistBars rows={onsetRows} max={onsetMax} labelClass="w-16" countClass="w-6" />
+              </section>
+            )}
 
             {demoTotal > 0 && (
               <section className={SECTION}>
@@ -452,7 +423,7 @@ export default function ProcedureReportCard({
             )}
 
             <p className="px-5 pb-4 text-[12px] leading-relaxed text-[var(--text-muted)]">
-              이 리포트는 회원 후기 {count}건을 집계한 결과입니다. 개인차가 있으며 의학적
+              이 리포트는 {experienceCount(count)}을 집계한 결과입니다. 개인차가 있으며 의학적
               효과·안전성을 보장하지 않습니다. 시술 결정은 전문의 상담 후 하시기 바랍니다.
             </p>
           </>
