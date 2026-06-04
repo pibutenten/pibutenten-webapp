@@ -2,15 +2,15 @@
  * ReviewSummary — 시술후기 카드(type=review)의 정량 요약 한 줄 텍스트.
  *
  * 카드 제목 바로 아래(CardBody afterTitle 슬롯)에 박스 없이 인라인 텍스트로 표시:
- *   ★★★★☆ · 통증 꽤 · 재시술 의향 있어요 · 효과 탄력·리프팅
+ *   ★★★★☆ · 통증 꽤 · 효과 탄력·리프팅
  *
  *   - 만족도: 별점만 (라벨 생략, ★×satisfaction 금색 / 나머지 옅은 회색)
  *   - 통증: 흐린 라벨 "통증" + 하늘색 값(1=없음 … 5=심함)
- *   - 재시술 의향: 흐린 라벨 "재시술 의향" + 색 값(yes=있어요 파랑 / no=없어요 빨강 / maybe=고민 중 회색)
  *   - 효과 체감: 흐린 라벨 "효과" + effect_areas 값(하늘색)을 가운뎃점(·)으로 연결
  *   - 항목 구분: 가운뎃점(·)
+ *   ※ '재시술 의향'은 카드에선 제거(카드 길이 단축, 2026-06-04). 리포트 집계엔 유지.
  *
- * 색·라벨은 review/new/ReviewForm.tsx 의 PAIN_FACES / REVISIT_OPTIONS 와 정합.
+ * 색·라벨은 review/new/ReviewForm.tsx 의 PAIN_FACES 와 정합.
  * 디자인 토큰: --primary(하늘색) / --accent-save / --text-secondary / --text-muted.
  */
 import type { ReviewSummaryData } from "@/lib/types/card";
@@ -24,20 +24,12 @@ const PAIN_LABELS: Record<number, string> = {
   5: "심함",
 };
 
-/* 재시술 의향 값 — ReviewForm REVISIT_OPTIONS 와 동일 색·라벨. */
-const REVISIT_TEXT: Record<string, { label: string; color: string }> = {
-  yes: { label: "있어요", color: "#4CBFF2" },
-  no: { label: "없어요", color: "#EA7E7B" },
-  maybe: { label: "고민 중", color: "#9AA1AC" },
-};
-
 export default function ReviewSummary({ review }: { review: ReviewSummaryData }) {
   const satisfaction = Math.max(
     0,
     Math.min(5, Math.round(review.satisfaction || 0)),
   );
   const painLabel = PAIN_LABELS[review.pain] ?? null;
-  const revisit = REVISIT_TEXT[review.revisit] ?? null;
   const effects = (review.effect_areas ?? []).filter(
     (e) => typeof e === "string" && e.trim(),
   );
@@ -72,18 +64,6 @@ export default function ReviewSummary({ review }: { review: ReviewSummaryData })
       <span key="pain" className="whitespace-nowrap">
         <span className="text-[var(--text-muted)]">통증 </span>
         <span style={{ color: "var(--primary)" }}>{painLabel}</span>
-      </span>,
-    );
-  }
-
-  // 재시술 의향 — 흐린 라벨 + 색 값(의향별 파랑/빨강/회색).
-  if (revisit) {
-    segments.push(
-      <span key="revisit" className="whitespace-nowrap">
-        <span className="text-[var(--text-muted)]">재시술 의향 </span>
-        <span className="font-semibold" style={{ color: revisit.color }}>
-          {revisit.label}
-        </span>
       </span>,
     );
   }
