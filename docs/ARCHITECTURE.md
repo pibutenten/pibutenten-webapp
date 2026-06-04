@@ -51,6 +51,7 @@
 - 저장·공유: 앵커 card_id 로 단독 글과 동일 `useCardEngagement`(toggle_card_save·card_shares). 좋아요·조회수는 데이터만(버튼 미노출). 앵커가 **published 일 때만** 버튼 노출(공개 RLS 경로 조회).
 - **피드 노출 = 결정적 주입(점수 무관)**: 앵커는 `feed_cards_scored`·`search_cards_scored` 에서 **제외**(0217/0220 — 점수 독식 도배 방지). 대신 클라이언트 `Feed` 가 유기 카드 **20장당 1장**, 윈도 내 변동 위치(결정적·하이드레이션 안정)에 컴팩트 `ProcedureReportCard`(prop `feedHref` → 카드 전체/더보기 클릭 시 `/reports/{en}`, 저장/공유는 stopPropagation) 주입. 풀은 경량 RPC `get_review_summary_pool()`(0218) → 서버 1회 셔플 후 prop. 검색 결과 목록·프로필 목록에선 제외(중복 방지). 색인(sitemap/rss)은 `INCLUDE_REPORT_ANCHORS`(기본 off) + `status='published'` 이중 게이트.
 - ★**인앱 공개 완료(0216, 앵커 published 25)** — 피드·`/reports`·저장/공유 노출 중. **검색엔진/AEO 색인(sitemap·rss·llms·robots)은 보류**(`INCLUDE_REPORT_ANCHORS=false`, 원장 추후 on). 비공개 환원=`status='draft'` 1줄.
+- **admin 편집 차단(자동 집계물)** — `/admin/cards` 목록에서 review_summary 카드는 편집 대신 공개 리포트(`/reports/{post_slug}`)로 연결(slug 없으면 비클릭). 편집 URL 직접 진입(`/admin/cards/[id]/edit`)도 `type='review_summary'` 가드로 `/reports` redirect(없으면 404).
 
 ### 2.2. 인증 / 온보딩
 ```
@@ -80,7 +81,7 @@
 /admin/doctors                      원장 목록 관리
 /admin/doctors/[slug]/edit          원장 프로필 편집
 /admin/draft                        AI 글 초안 생성
-/admin/users                        회원 관리
+/admin/users                        회원 관리 (행마다 provider·생일·성별 표시; 이메일은 RPC 보유·화면 미표시)
 /admin/users/[id]                   사용자 상세 + 원장 명함 신설·연결 폼 (2026-05-30, ADR 0016 — CRITICAL-3 대체. 회원 role·글 불변)
 /admin/stats/[kind]                 세부 통계
 /admin/auth-errors                  회원가입 에러 로그
