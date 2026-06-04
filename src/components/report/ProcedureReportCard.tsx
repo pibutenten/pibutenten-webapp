@@ -49,7 +49,7 @@ const PAGE_SIZE = 10;
 
 // 집계 섹션 — 구분선 없이 여백(py-5)으로만 구분.
 const SECTION = "px-5 py-5";
-const TITLE = "mb-3.5 text-[15px] font-bold text-[var(--text)]";
+const TITLE = "mb-5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]";
 
 type ReviewsApiResponse = {
   reviews: CardData[];
@@ -288,7 +288,7 @@ export default function ProcedureReportCard({
       <div {...toggleProps}>
         {/* 재시술 의향 */}
         <section className={SECTION}>
-          <p className="mb-3.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+          <p className="mb-5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
             {revisitPhrase(yesPct)}
           </p>
           <div className="flex h-[20px] overflow-hidden rounded-lg text-[11px] font-bold text-white">
@@ -306,7 +306,7 @@ export default function ProcedureReportCard({
 
         {/* 만족도 */}
         <section className={SECTION}>
-          <p className="mb-3.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+          <p className="mb-5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
             {satisfactionPhrase(avgSatisfaction)}
           </p>
           <div className="flex items-center gap-4">
@@ -332,7 +332,7 @@ export default function ProcedureReportCard({
 
         {/* 통증 — 접힘 시 마지막 노출 섹션. */}
         <section className={SECTION}>
-          <p className="mb-3.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+          <p className="mb-5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
             {painPhrase(avgPain)}
           </p>
           <div className="relative h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${PAIN_SOFT.join(", ")})` }}>
@@ -356,7 +356,7 @@ export default function ProcedureReportCard({
             {/* 다운타임 — 평균 게이지 + 1주·2주 가이드선. answered===0 이면 섹션 숨김. */}
             {downtimeAnswered > 0 && (
               <section className={SECTION}>
-                <p className="mb-3.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+                <p className="mb-5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
                   {dtHeadline}
                 </p>
                 <DowntimeGauge dist={downtimeDist} answered={downtimeAnswered} days={DOWNTIME_DAYS} />
@@ -388,7 +388,7 @@ export default function ProcedureReportCard({
             {/* 효과시점 — 칩 스택 타임라인(4구간) + '효과 못 느낌' 별도. answered===0 숨김. */}
             {onsetAnswered > 0 && (
               <section className={SECTION}>
-                <p className="mb-3.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+                <p className="mb-5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
                   {onsetHeadline}
                 </p>
                 <EffectOnsetTimeline dist={onsetDist} />
@@ -397,7 +397,7 @@ export default function ProcedureReportCard({
 
             {demoTotal > 0 && (
               <section className={SECTION}>
-                <div className="mb-3.5 text-[15px] font-bold text-[var(--text)]">작성자 통계</div>
+                <div className="mb-5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">작성자 통계</div>
                 {/* 분할 바 — 색 세그먼트만(안쪽 텍스트 없음, 라벨/%는 아래 범례). */}
                 <div className="flex h-[14px] overflow-hidden rounded-full">
                   {femalePct > 0 && (

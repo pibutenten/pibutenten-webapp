@@ -64,8 +64,16 @@ export default function DowntimeGauge({
           style={{ width: `${avgPct}%` }}
         />
       </div>
+      {/* 스케일 참조 라벨 — 통증의 없음/조금/… 라벨처럼 균등 배치(값 인디케이터 없음). */}
+      <div className="mt-1.5 flex justify-between text-[9.5px] text-[var(--text-muted)]">
+        <span>당일</span>
+        <span>1주</span>
+        <span>2주</span>
+      </div>
       <p className="mt-1.5 text-[11px] text-[var(--text-secondary)]">
-        평균 약 {formatDays(avg)}일 · {answered}명
+        {Math.round(avg) === 0
+          ? `당일 일상 복귀 · ${answered}명`
+          : `평균 약 ${formatDays(avg)}일 · ${answered}명`}
       </p>
     </div>
   );
