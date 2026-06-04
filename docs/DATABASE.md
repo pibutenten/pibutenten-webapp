@@ -339,6 +339,8 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0230 | (D) ⚠ **데이터+공개 변경** — family≥1·자기앵커 없는 부모 앵커 백필(레스틸렌·쥬베룩, status=published). 멱등. | **적용 완료 (2026-06-04)** |
 | 0231 | (D) ⚠ **데이터 변경** — qa 카드 post_slug `square-jaw-botox`→`jaw-botox` 치환(3건, 정식 오픈 전 URL 변경). | **적용 완료 (2026-06-04)** |
 | 0232 | (D 후속) `create/update_procedure_review` lazy 앵커 status `draft`→`published` — 자동 승격 흐름 부재(0216 일회성 flip뿐) 보완. 향후 자식 후기로 생기는 부모 앵커도 즉시 노출. sitemap/rss 는 `INCLUDE_REPORT_ANCHORS=false` 게이트 분리. 0229 VERBATIM + status 리터럴만 변경. | **적용 완료 (2026-06-04)** |
+| 0233 | `find_other_auth_user_by_email(email, exclude_user_id)` — OAuth callback(b)용. 동일 이메일 '다른' 기존 계정 + provider 목록 반환(현재 user 제외, created_at ASC LIMIT 1). read-only SECURITY DEFINER, service_role/admin 전용. | **적용 완료 (2026-06-04)** |
+| 0234 | `get_users_auth_info(uuid[])` — 관리자 회원관리(C)용. profile_id별 auth 로그인 이메일 + provider[] 반환(번들은 auth_user_id 매핑). read-only SECURITY DEFINER, `is_admin()`/service_role 가드. PostgREST 가 auth 스키마 직접 조회 불가하므로 RPC 경유. | **적용 완료 (2026-06-04)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

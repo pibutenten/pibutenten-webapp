@@ -6,6 +6,32 @@
 
 ---
 
+## [2026-06-04] — 중복계정 정리(A) + 재발방지 안내(B) + 회원관리 강화(C) + 리포트 표시(D)
+
+### Removed (A) OAuth provider 차이 동일인 중복 계정 정리 — 데이터 파괴적, 승인 후 실행
+- provider별 이메일이 달라 (b) 이메일 방어로 못 막힌 동일인 중복 4쌍 정리. 멱등(IF EXISTS) + 트랜잭션(DO 블록) + 작업 전 카운트 재확인 + 삭제 전 row 덤프(복구용) + `audit_logs(action='auth.duplicate_cleanup')` 4건 기록. SQL: `supabase/migrations/_cleanup_2026-06-04_dup_accounts.sql`.
+  - **A-1** `lhjcjstk79`(이혜정, kakao, 빈) 삭제 / `lhjhyeya`(google, 10글10후기) 유지.
+  - **A-2** `seami2007`(박새미, google, 빈) 삭제 / `blue2767`(email, 7글7후기) 유지·대표 + display_name `qkqh****`→**박새미** 개명.
+  - **A-3** `snsanfdlvld`(꽃미래, email) 좋아요 21건을 `qkralfo01`(박미래, google)로 이관(ON CONFLICT DO NOTHING, 13건 이관·8건 중복) 후 삭제.
+  - **A-4** `mirida`(mir****, email/nate, 빈) 삭제 / `daeatmiri`(밀보리보리, google) 유지.
+  - 삭제 대상 4건 모두 글·후기·댓글 0 재확인 후 진행. `rhee-doyoung/dandygom`(동일 auth_user 의사 번들)은 정상 — 미포함.
+
+### Added (B) 중복 가입 재발방지 안내
+- `/signup`·`/onboarding` 상단에 `ReturningUserNotice` 추가: "이미 가입했다면 새 계정 만들지 말고 쓰던 로그인 방법(구글·카카오·이메일)으로 다시 로그인" 안내 + 눈에 띄는 '다른 방법으로 다시 로그인'(로그아웃→`/login`) 버튼. (a)의 하단 텍스트 링크는 상단 callout 으로 승격(중복 제거).
+
+### Added (C) 관리자 회원관리 — provider/이메일/생일/성별 표시
+- `/admin/users` 각 회원 닉네임 하단에 간편로그인 provider(구글/카카오/네이버/이메일) + 로그인 이메일 + 생년월일 + 성별 컴팩트 표시. provider/email 은 auth 스키마라 신규 RPC `get_users_auth_info(uuid[])`(0234, SECURITY DEFINER, admin/service_role 전용) 로 조회. 생일·성별은 `profiles` 직접 SELECT.
+
+### Changed (D) 리포트 표시 3건
+- **D-1** 통증 5라벨(없음~심함)을 **다운타임 당일/2주와 동일한 안쪽 위치**에 정렬(없음=6.25% / 보통=50% / 심함=93.75%, `pos=6.25+(v-1)/4×87.5`). 다운타임 스케일 -1~15 `pos(v)=(v+1)/16`(당일 6.25%/1주 50%/2주 93.75%) 유지(스테일 주석 정정).
+- **D-2** 통증 그라데이션을 라벨 위치에 정렬 — 없음(파랑)이 없음 위치(6.25%)에, 심함(빨강)이 심함 위치(93.75%)에. 양끝은 끝색 그대로 평평(없음 앞이 초록/노랑으로 변하지 않게).
+- **D-3** 후기 목록 헤더 = 전체 개수(`count`) — 표시 3개여도 "후기 N개". (기적용 재확인: /reports/botox "후기 7개")
+
+### 검증
+- `tsc`·클린 `build` 통과. 마이그 0234 + 정리 SQL production 적용. 삭제 4건 profiles+auth.users 0 잔존·감사로그 4건·개명·콘텐츠 유지·좋아요 43(30+13)으로 확인. /reports/botox 렌더: 통증 없음(파랑)~심함(빨강) 안쪽 정렬·후기 7개. 신규 RPC smoke test 통과.
+
+---
+
 ## [2026-06-04] — 온보딩 trap 탈출구 + OAuth 중복계정 방어 (a·b) + 리포트 표시
 
 ### Fixed (a) 온보딩/동의 trap 탈출구

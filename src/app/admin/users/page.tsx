@@ -30,6 +30,32 @@ type ProfileRow = {
   created_at: string;
   terms_agreed_at: string | null;
   auth_user_id: string | null;
+  birthdate: string | null;
+  gender: string | null;
+};
+
+// 작업 C — auth.users/identities 에서만 얻는 provider/로그인이메일 (RPC get_users_auth_info).
+type AuthInfo = {
+  profile_id: string;
+  auth_user_id: string | null;
+  email: string | null;
+  providers: string[] | null;
+};
+
+// 간편로그인 provider 한글 라벨.
+const PROVIDER_LABEL: Record<string, string> = {
+  google: "구글",
+  kakao: "카카오",
+  naver: "네이버",
+  email: "이메일",
+};
+function providerLabel(p: string): string {
+  return PROVIDER_LABEL[p] ?? p;
+}
+const GENDER_LABEL: Record<string, string> = {
+  male: "남",
+  female: "여",
+  other: "기타",
 };
 
 type Props = {
@@ -76,7 +102,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   let q = supabase
     .from("profiles")
     .select(
-      "id, handle, display_name, role, bio, created_at, terms_agreed_at, auth_user_id",
+      "id, handle, display_name, role, bio, created_at, terms_agreed_at, auth_user_id, birthdate, gender",
     )
     .order("created_at", { ascending: false })
     .limit(500);
@@ -115,6 +141,17 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   const kpiResult = await supabase.rpc("get_users_kpi", { p_days: daysParam });
   const kpiRows = (kpiResult.data ?? []) as UserKpi[];
   for (const r of kpiRows) kpiMap.set(r.profile_id, r);
+
+  // 작업 C — 회원별 provider/로그인이메일 (auth 스키마 → RPC). 생일·성별은 profiles 직접.
+  const authMap = new Map<string, AuthInfo>();
+  if (allIds.length > 0) {
+    const authResult = await supabase.rpc("get_users_auth_info", {
+      p_profile_ids: allIds,
+    });
+    for (const r of (authResult.data ?? []) as AuthInfo[]) {
+      authMap.set(r.profile_id, r);
+    }
+  }
 
   // 기간 필터 — 가입일(created_at) 기준. days=0 (전체) 면 필터 X.
   // 사용자 요청 (2026-05-15): 기간 토글 = 가입 기간 필터.
@@ -321,6 +358,29 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                             (온보딩 미완료)
                           </span>
                         )}
+                        {/* 작업 C — provider·로그인이메일·생일·성별 상세(닉네임 하단 컴팩트 행). */}
+                        {(() => {
+                          const ai = authMap.get(p.id);
+                          const provs = (ai?.providers ?? []).map(providerLabel);
+                          const parts: string[] = [];
+                          if (provs.length) parts.push(provs.join("·"));
+                          if (ai?.email) parts.push(ai.email);
+                          if (p.birthdate) parts.push(p.birthdate);
+                          if (p.gender) parts.push(GENDER_LABEL[p.gender] ?? p.gender);
+                          if (parts.length === 0) return null;
+                          return (
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] text-[var(--text-muted)]">
+                              {provs.length > 0 && (
+                                <span className="inline-flex items-center rounded bg-[var(--bg-soft)] px-1.5 py-px font-medium text-[var(--text-secondary)]">
+                                  {provs.join("·")}
+                                </span>
+                              )}
+                              {ai?.email && <span className="break-all">{ai.email}</span>}
+                              {p.birthdate && <span>· {p.birthdate}</span>}
+                              {p.gender && <span>· {GENDER_LABEL[p.gender] ?? p.gender}</span>}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-2 align-middle text-xs text-[var(--text-muted)]">
                         {p.handle ? `@${p.handle}` : "—"}

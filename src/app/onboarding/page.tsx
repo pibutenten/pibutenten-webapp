@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import OnboardingClient from "./OnboardingClient";
-import LogoutButton from "@/components/LogoutButton";
+import ReturningUserNotice from "@/components/auth/ReturningUserNotice";
 import { IDENTITY_COOKIE, ROLES, UUID_RE } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
@@ -103,6 +103,9 @@ export default async function OnboardingPage() {
         </p>
       </header>
 
+      {/* 작업 B — 중복 가입 재발방지 안내 + 탈출 버튼(상단 눈에 띄게). */}
+      <ReturningUserNotice />
+
       <OnboardingClient
         userId={user.id}
         targetProfileId={targetProfileId}
@@ -120,16 +123,6 @@ export default async function OnboardingPage() {
           skinInfoConsentAt: profile?.skin_info_consent_at ?? null,
         }}
       />
-
-      {/* 탈출구 — 다른 provider 로 잘못 들어온 경우 로그아웃 후 로그인 화면으로(루프 방지). */}
-      <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
-        이 계정이 아니신가요?{" "}
-        <LogoutButton
-          redirectTo="/login"
-          label="다른 방법으로 로그인"
-          className="text-xs font-medium text-[var(--primary)] underline hover:text-[var(--primary-dark)] disabled:opacity-50"
-        />
-      </p>
     </section>
   );
 }

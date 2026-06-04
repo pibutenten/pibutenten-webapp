@@ -70,7 +70,7 @@ export default function DowntimeGauge({
           style={{ width: `${avgPct}%` }}
         />
       </div>
-      {/* 스케일 참조 라벨 — pos 매핑 위치(당일 11.1% / 1주 50% / 2주 88.9%)에 정렬. */}
+      {/* 스케일 참조 라벨 — pos 매핑 위치(당일 6.25% / 1주 50% / 2주 93.75%)에 정렬. */}
       <div className="relative mt-1.5 h-[12px] text-[9.5px] text-[var(--text-muted)]">
         <span className="absolute -translate-x-1/2" style={{ left: `${pct(0)}%` }}>당일</span>
         <span className="absolute -translate-x-1/2" style={{ left: `${pct(7)}%` }}>1주</span>

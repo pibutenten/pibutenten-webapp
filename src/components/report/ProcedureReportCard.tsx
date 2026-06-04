@@ -34,8 +34,8 @@ import { experienceCount } from "@/lib/report-copy";
 
 const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
 const PAIN_SOFT = ["#BAE6FD", "#FDE68A", "#FDBA74", "#FCA5A5", "#F08A8A"];
-// 통증 위치 매핑 — 다운타임 게이지와 동일한 안쪽 정렬(없음=6.25%, 심함=93.75%).
-//   pos = 6.25 + (v-1)/4 × 87.5  (v: 1=없음 … 5=심함).
+// 통증 위치 매핑 — 다운타임 게이지 당일/2주와 동일한 안쪽 정렬(없음=6.25%, 심함=93.75%).
+//   pos = 6.25 + (v-1)/4 × 87.5  (v: 1=없음 6.25% / 3=보통 50% / 5=심함 93.75%).
 const PAIN_INSET_LEFT = 6.25;
 const PAIN_INSET_SPAN = 87.5;
 function painPos(value1to5: number): number {
@@ -143,8 +143,8 @@ export default function ProcedureReportCard({
 
   const satRounded = Math.round(avgSatisfaction);
   const maxSat = Math.max(1, ...satisfactionDist);
-  const painPct = painPos(avgPain); // 다운타임과 동일한 안쪽 매핑(없음 6.25% ~ 심함 93.75%)
-  // 그라데이션을 라벨 위치에 정렬 — 없음(파랑)이 없음 위치에, 심함(빨강)이 심함 위치에.
+  const painPct = painPos(avgPain); // 안쪽 매핑(없음 6.25% ~ 심함 93.75%)
+  // 그라데이션(D-2)을 라벨 위치에 정렬 — 없음(파랑)이 없음 위치(6.25%)에, 심함(빨강)이 심함 위치(93.75%)에.
   //   양끝(0~없음, 심함~100%)은 끝색 그대로 평평하게(없음 앞이 초록/노랑으로 변하지 않도록).
   const painGradient = `linear-gradient(90deg, ${PAIN_SOFT[0]} 0%, ${PAIN_SOFT.map(
     (c, i) => `${c} ${painPos(i + 1)}%`,
@@ -354,7 +354,7 @@ export default function ProcedureReportCard({
           <div className="relative h-2 rounded-full" style={{ background: painGradient }}>
             <span className="absolute -top-[3px] h-[14px] w-[3px] rounded-[2px] bg-[#64748B] shadow-[0_0_0_2px_#fff]" style={{ left: `calc(${painPct}% - 1.5px)` }} />
           </div>
-          {/* 라벨 — 통증값 위치(없음 11.1% … 심함 88.9%)에 정렬(다운타임과 동일). */}
+          {/* 라벨 — 통증값 위치(없음 6.25% … 심함 93.75%)에 정렬(다운타임 당일/2주와 동일). */}
           <div className="relative mt-1.5 h-[12px] text-[9.5px] text-[var(--text-muted)]">
             {PAIN_LABELS.map((l, i) => (
               <span key={l} className="absolute -translate-x-1/2" style={{ left: `${painPos(i + 1)}%` }}>
