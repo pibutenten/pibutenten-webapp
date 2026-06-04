@@ -33,7 +33,8 @@ import { getQaUrl } from "@/lib/card-url";
 import { experienceCount } from "@/lib/report-copy";
 
 const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
-const PAIN_SOFT = ["#BAE6FD", "#FDE68A", "#FDBA74", "#FCA5A5", "#F08A8A"];
+// 없음(첫 색)은 다운타임 채움색과 동일한 진한 파랑(#7FD0F8) — 좌측끝~없음(6.25%)이 또렷한 파랑.
+const PAIN_SOFT = ["#7FD0F8", "#FDE68A", "#FDBA74", "#FCA5A5", "#F08A8A"];
 // 통증 위치 매핑 — 다운타임 게이지 당일/2주와 동일한 안쪽 정렬(없음=6.25%, 심함=93.75%).
 //   pos = 6.25 + (v-1)/4 × 87.5  (v: 1=없음 6.25% / 3=보통 50% / 5=심함 93.75%).
 const PAIN_INSET_LEFT = 6.25;
