@@ -6,11 +6,14 @@
  * 캡션 "평균 약 N일 · N명". answered===0 이면 null(섹션 숨김).
  */
 
-const GAUGE_MAX = 16; // 상한 — "2주 이상(16)" 까지. 마커 없으므로 단순 선형 매핑.
+const GAUGE_MAX = 16; // 상한 — "2주 이상(16)" 까지.
+const GAUGE_PAD = 2; // 좌측 패딩 — 트랙이 -2일~16일 표현 → 당일(0)이 왼끝에 안 붙음.
+//   pos(v)=(v+2)/18: 당일(0)=11.1%, 1주(7)=50%, 2주(14)=88.9% (좌우 여백 대칭).
 
-/** 일수 → 트랙상 위치(%) — 선형(0=0%, MAX=100%). */
+/** 일수 → 트랙상 위치(%). 0 도 PAD 만큼 안쪽(빈 막대 방지). */
 function pct(v: number): number {
-  return Math.min(100, Math.max(0, (v / GAUGE_MAX) * 100));
+  const clamped = Math.min(GAUGE_MAX, Math.max(0, v));
+  return ((clamped + GAUGE_PAD) / (GAUGE_MAX + GAUGE_PAD)) * 100;
 }
 
 function formatDays(v: number): string {
@@ -64,11 +67,11 @@ export default function DowntimeGauge({
           style={{ width: `${avgPct}%` }}
         />
       </div>
-      {/* 스케일 참조 라벨 — 통증의 없음/조금/… 라벨처럼 균등 배치(값 인디케이터 없음). */}
-      <div className="mt-1.5 flex justify-between text-[9.5px] text-[var(--text-muted)]">
-        <span>당일</span>
-        <span>1주</span>
-        <span>2주</span>
+      {/* 스케일 참조 라벨 — pos 매핑 위치(당일 11.1% / 1주 50% / 2주 88.9%)에 정렬. */}
+      <div className="relative mt-1.5 h-[12px] text-[9.5px] text-[var(--text-muted)]">
+        <span className="absolute -translate-x-1/2" style={{ left: `${pct(0)}%` }}>당일</span>
+        <span className="absolute -translate-x-1/2" style={{ left: `${pct(7)}%` }}>1주</span>
+        <span className="absolute -translate-x-1/2" style={{ left: `${pct(14)}%` }}>2주</span>
       </div>
       <p className="mt-1.5 text-[11px] text-[var(--text-secondary)]">
         {Math.round(avg) === 0
