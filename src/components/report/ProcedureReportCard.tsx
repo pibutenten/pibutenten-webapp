@@ -49,7 +49,7 @@ const PAGE_SIZE = 10;
 
 // 집계 섹션 — 구분선 없이 여백(py-5)으로만 구분.
 const SECTION = "px-5 py-5";
-const TITLE = "mb-2.5 text-[15px] font-bold text-[var(--text)]";
+const TITLE = "mb-3.5 text-[15px] font-bold text-[var(--text)]";
 
 type ReviewsApiResponse = {
   reviews: CardData[];
@@ -69,6 +69,17 @@ function satisfactionPhrase(avg: number): string {
   if (avg >= 4.0) return `만족도 ${x}점, 대체로 만족하는 분위기예요.`;
   if (avg >= 3.0) return `만족도 ${x}점, 기대와 결과가 갈리는 편이에요.`;
   return `만족도 ${x}점으로 아쉬웠다는 의견이 많아요.`;
+}
+// 다운타임 평균(일) → 자연어 범위 헤드라인.
+function downtimeHeadline(avg: number): string {
+  if (avg < 0.5) return "다운타임 없이 바로 일상생활이 가능했어요.";
+  if (avg < 1) return "다운타임은 대부분 1일 미만이었어요.";
+  if (avg < 2) return "다운타임은 대부분 1~2일이었어요.";
+  if (avg < 3) return "다운타임은 대부분 2~3일이었어요.";
+  if (avg < 5) return "다운타임은 대부분 3~5일이었어요.";
+  if (avg < 8) return "다운타임은 대부분 1주 정도였어요.";
+  if (avg < 11) return "다운타임은 대부분 1~2주였어요.";
+  return "다운타임이 2주 이상인 경우가 많았어요.";
 }
 function painPhrase(avg: number): string {
   const x = avg.toFixed(1);
@@ -131,17 +142,12 @@ export default function ProcedureReportCard({
   const noPct = Math.max(0, 100 - yesPct - maybePct);
   const topEffects = effects.slice(0, 6);
 
-  // 다운타임(C-1·E) — 평균 일수(day 코딩) 기반 헤드라인 "다운타임은 대부분 N일이었어요".
+  // 다운타임 — 평균 일수(day 코딩) → 자연어 범위 헤드라인. 정밀값은 게이지 캡션에서.
   const dtAvg =
     downtimeAnswered > 0
       ? downtimeDist.reduce((s, c, i) => s + c * (DOWNTIME_DAYS[i] ?? 0), 0) / downtimeAnswered
       : 0;
-  const dtAvgLabel = Number.isInteger(dtAvg) ? String(dtAvg) : `약 ${dtAvg.toFixed(1)}`;
-  // 평균이 0으로 반올림되면 옵션 라벨('없음')과 일관되게 "없었어요".
-  const dtHeadline =
-    Math.round(dtAvg) === 0
-      ? "다운타임은 대부분 없었어요."
-      : `다운타임은 대부분 ${dtAvgLabel}일이었어요.`;
+  const dtHeadline = downtimeHeadline(dtAvg);
 
   // 효과시점(작업 3) — 칩 스택 타임라인. 헤드라인은 시간 구간(0~3) 최다 기준(still_watching 제외).
   const onsetTimeSum = onsetDist.slice(0, 4).reduce((a, b) => a + b, 0);
@@ -282,7 +288,7 @@ export default function ProcedureReportCard({
       <div {...toggleProps}>
         {/* 재시술 의향 */}
         <section className={SECTION}>
-          <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+          <p className="mb-3.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
             {revisitPhrase(yesPct)}
           </p>
           <div className="flex h-[20px] overflow-hidden rounded-lg text-[11px] font-bold text-white">
@@ -300,7 +306,7 @@ export default function ProcedureReportCard({
 
         {/* 만족도 */}
         <section className={SECTION}>
-          <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+          <p className="mb-3.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
             {satisfactionPhrase(avgSatisfaction)}
           </p>
           <div className="flex items-center gap-4">
@@ -326,7 +332,7 @@ export default function ProcedureReportCard({
 
         {/* 통증 — 접힘 시 마지막 노출 섹션. */}
         <section className={SECTION}>
-          <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+          <p className="mb-3.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
             {painPhrase(avgPain)}
           </p>
           <div className="relative h-2 rounded-full" style={{ background: `linear-gradient(90deg, ${PAIN_SOFT.join(", ")})` }}>
@@ -350,7 +356,7 @@ export default function ProcedureReportCard({
             {/* 다운타임 — 평균 게이지 + 1주·2주 가이드선. answered===0 이면 섹션 숨김. */}
             {downtimeAnswered > 0 && (
               <section className={SECTION}>
-                <p className="mb-2.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+                <p className="mb-3.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
                   {dtHeadline}
                 </p>
                 <DowntimeGauge dist={downtimeDist} answered={downtimeAnswered} days={DOWNTIME_DAYS} />
@@ -382,7 +388,7 @@ export default function ProcedureReportCard({
             {/* 효과시점 — 칩 스택 타임라인(4구간) + '효과 못 느낌' 별도. answered===0 숨김. */}
             {onsetAnswered > 0 && (
               <section className={SECTION}>
-                <p className="mb-3 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
+                <p className="mb-3.5 text-[14.5px] font-semibold leading-[1.45] text-[var(--text)]">
                   {onsetHeadline}
                 </p>
                 <EffectOnsetTimeline dist={onsetDist} />
@@ -391,17 +397,14 @@ export default function ProcedureReportCard({
 
             {demoTotal > 0 && (
               <section className={SECTION}>
-                <div className="mb-2.5 text-[15px] font-bold text-[var(--text)]">작성자 통계</div>
-                <div className="flex h-[14px] overflow-hidden rounded-full text-[9.5px] font-bold text-white">
+                <div className="mb-3.5 text-[15px] font-bold text-[var(--text)]">작성자 통계</div>
+                {/* 분할 바 — 색 세그먼트만(안쪽 텍스트 없음, 라벨/%는 아래 범례). */}
+                <div className="flex h-[14px] overflow-hidden rounded-full">
                   {femalePct > 0 && (
-                    <div className="flex items-center justify-center" style={{ width: `${femalePct}%`, backgroundColor: "#F59CB6" }}>
-                      {femalePct >= 22 ? `여성 ${femalePct}%` : ""}
-                    </div>
+                    <div style={{ width: `${femalePct}%`, backgroundColor: "#F59CB6" }} />
                   )}
                   {malePct > 0 && (
-                    <div className="flex items-center justify-center" style={{ width: `${malePct}%`, backgroundColor: "#7FD0F8" }}>
-                      {malePct >= 22 ? `남성 ${malePct}%` : ""}
-                    </div>
+                    <div style={{ width: `${malePct}%`, backgroundColor: "#7FD0F8" }} />
                   )}
                 </div>
                 <div className="mt-1.5 flex gap-3.5 text-[11px] text-[var(--text-secondary)]">
@@ -411,17 +414,14 @@ export default function ProcedureReportCard({
                 {/* 연령대 — 성별과 동일한 단일 가로 분할 바 + 범례. */}
                 {demographics.ageBands.length > 0 && (
                   <div className="mt-3">
-                    <div className="flex h-[14px] overflow-hidden rounded-full text-[9.5px] font-bold text-white">
+                    <div className="flex h-[14px] overflow-hidden rounded-full">
                       {demographics.ageBands.map((b, i) => {
                         const pct = Math.round((b.count / ageTotal) * 100);
                         return pct > 0 ? (
                           <div
                             key={b.label}
-                            className="flex items-center justify-center"
                             style={{ width: `${pct}%`, backgroundColor: AGE_COLORS[i % AGE_COLORS.length] }}
-                          >
-                            {pct >= 16 ? `${pct}%` : ""}
-                          </div>
+                          />
                         ) : null;
                       })}
                     </div>

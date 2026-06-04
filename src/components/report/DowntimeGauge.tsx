@@ -1,20 +1,16 @@
 /**
- * DowntimeGauge — 다운타임 평균 게이지 (작업 C-1).
+ * DowntimeGauge — 다운타임 평균 게이지.
  *
- * 0 → 평균 일수까지 채움 + 7일·14일 가이드선. 표본 n>15 일 때만 편차(±표준편차) 페이드 밴드,
- * n≤15 면 평균 채움 + 마커만(표본 적을 때 가짜 정밀도 회피). 캡션 "평균 약 N일 · N명".
- *
- * answered===0 이면 null(섹션 숨김 — NaN/빈 게이지 방지). day 코딩은 DOWNTIME_DAYS SSOT.
+ * 통증 바처럼 깔끔하게 — 0→평균 일수까지 채운 얇은 바만 표시(마커·눈금·라벨 없음).
+ * 표본 n>15 일 때만 ±표준편차 페이드 밴드. 값 전달은 헤드라인·캡션이 담당.
+ * 캡션 "평균 약 N일 · N명". answered===0 이면 null(섹션 숨김).
  */
 
-const GAUGE_MAX = 16; // 상한 — "2주 이상(16)" 까지.
-// 좌우 대칭 여백 — 1주(7일)가 트랙 정중앙(50%)에 오도록. pos(v)=(v+PAD)/(MAX+PAD), PAD=MAX-14.
-//   PAD=2 → pos(0)=11.1%, pos(7)=50%, pos(14)=88.9%, pos(16)=100%.
-const GAUGE_PAD = GAUGE_MAX - 14;
-/** 일수 → 트랙상 위치(%) — 0일이 좌측 끝에 붙지 않도록 PAD 적용. */
-function pos(v: number): number {
-  const clamped = Math.min(GAUGE_MAX, Math.max(0, v));
-  return ((clamped + GAUGE_PAD) / (GAUGE_MAX + GAUGE_PAD)) * 100;
+const GAUGE_MAX = 16; // 상한 — "2주 이상(16)" 까지. 마커 없으므로 단순 선형 매핑.
+
+/** 일수 → 트랙상 위치(%) — 선형(0=0%, MAX=100%). */
+function pct(v: number): number {
+  return Math.min(100, Math.max(0, (v / GAUGE_MAX) * 100));
 }
 
 function formatDays(v: number): string {
@@ -36,7 +32,7 @@ export default function DowntimeGauge({
   if (answered <= 0) return null; // 폴백 — 섹션 숨김
 
   const avg = dist.reduce((s, c, i) => s + c * (days[i] ?? 0), 0) / answered;
-  const avgPct = pos(avg);
+  const avgPct = pct(avg);
 
   // 편차 밴드 — 표본 충분(n>15)할 때만.
   const showFade = answered > 15;
@@ -46,21 +42,16 @@ export default function DowntimeGauge({
     const variance =
       dist.reduce((s, c, i) => s + c * Math.pow((days[i] ?? 0) - avg, 2), 0) / answered;
     const sd = Math.sqrt(Math.max(0, variance));
-    const lo = pos(Math.max(0, avg - sd));
-    const hi = pos(Math.min(GAUGE_MAX, avg + sd));
+    const lo = pct(Math.max(0, avg - sd));
+    const hi = pct(Math.min(GAUGE_MAX, avg + sd));
     fadeLeft = lo;
     fadeWidth = Math.max(0, hi - lo);
   }
 
-  const guide0 = pos(0);
-  const guide7 = pos(7);
-  const guide14 = pos(14);
-
   return (
     <div>
-      {/* 통증 막대와 동일 두께(h-2). */}
+      {/* 통증 막대와 동일 두께(h-2) — 마커·눈금 없이 채움 바만. */}
       <div className="relative h-2 rounded-full bg-[#EEF1F4]">
-        {/* 편차 밴드(n>15) */}
         {showFade && fadeWidth > 0 && (
           <span
             className="absolute top-0 h-full rounded-full bg-[#7FD0F8]/30"
@@ -72,23 +63,8 @@ export default function DowntimeGauge({
           className="absolute left-0 top-0 h-full rounded-full bg-[#7FD0F8]"
           style={{ width: `${avgPct}%` }}
         />
-        {/* 당일·1주·2주 기준 마커(동일 스타일) */}
-        <span className="absolute top-[-3px] h-[14px] w-px bg-[#A6B0BC]" style={{ left: `${guide0}%` }} />
-        <span className="absolute top-[-3px] h-[14px] w-px bg-[#A6B0BC]" style={{ left: `${guide7}%` }} />
-        <span className="absolute top-[-3px] h-[14px] w-px bg-[#A6B0BC]" style={{ left: `${guide14}%` }} />
-        {/* 평균 마커 */}
-        <span
-          className="absolute -top-[3px] h-[14px] w-[3px] rounded-[2px] bg-[#3593C9] shadow-[0_0_0_2px_#fff]"
-          style={{ left: `calc(${avgPct}% - 1.5px)` }}
-        />
       </div>
-      {/* 기준 눈금 라벨 — 당일·1주·2주 */}
-      <div className="relative mt-1 h-[12px] text-[9.5px] text-[var(--text-muted)]">
-        <span className="absolute -translate-x-1/2" style={{ left: `${guide0}%` }}>당일</span>
-        <span className="absolute -translate-x-1/2" style={{ left: `${guide7}%` }}>1주</span>
-        <span className="absolute -translate-x-1/2" style={{ left: `${guide14}%` }}>2주</span>
-      </div>
-      <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
+      <p className="mt-1.5 text-[11px] text-[var(--text-secondary)]">
         평균 약 {formatDays(avg)}일 · {answered}명
       </p>
     </div>
