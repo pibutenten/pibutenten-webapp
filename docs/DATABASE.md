@@ -158,6 +158,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | `find_duplicate_profiles(p_email, p_birthdate, p_gender)` | 중복 가입자 식별 (0111). ADR 0003 |
 | `rotate_push_webhook_secret()` | secret 로테이션 (0120) |
 | `get_research_panel()` | 대시보드 리서치 패널 — 사람(번들) 기준 총가입자·활성 90일·후기 작성 회원 (0224, F-2B). SECURITY DEFINER 집계만 |
+| `procedure_family(ko)` | 시술 롤업 family = [ko]+직속 자식 (0225, D). getProcedureReport·demographics·pool 3경로 공용 SSOT. 0206 피드/검색 JOIN 은 개별 유지 |
 
 **폐기**: `increment_card_share` (0095), `decrement_card_like`, `increment_card_like`, `get_recent_card_likers` singular (0102)
 
@@ -330,6 +331,13 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0222 | (F-1) `propagate_onboarding_to_doctor_bundle` 갱신 — 라이브 VERBATIM + 동의 컬럼만 추가(privacy_agreed_at·marketing_email_consent_at·news_email_consent(+_at)·terms/privacy_agreed_version). 기존 복사 항목 누락 0건. `CREATE OR REPLACE`. | **적용 완료 (2026-06-04)** |
 | 0223 | (F-1) ⚠ **기존 데이터 변경** — terms 보유 활성 회원(47명) 백필: `privacy_agreed_at`=now(), terms/privacy_agreed_version=현 상수값. 0221 과 분리. 멱등(privacy 이미 있으면 제외). 적용 후 47/47 채움·잔여 0 확인. | **적용 완료 (2026-06-04)** |
 | 0224 | (F-2B) `get_research_panel()` read-only 집계 RPC — 사람(번들=COALESCE(auth_user_id,id)) 기준 총가입자(탈퇴 제외)·활성 90일(site_visits)·후기 작성 회원. SECURITY DEFINER + GRANT authenticated, 집계만 반환(get_admin_kpi 패턴). | **적용 완료 (2026-06-04)** |
+| 0225 | (D) `procedure_family(ko) returns text[]` 신설 — [ko]+직속 자식(parent_ko=ko, active). 롤업 SSOT. GRANT anon/authenticated. | **적용 완료 (2026-06-04)** |
+| 0226 | (D) 보톡스 하위 3태그 INSERT — 사각턱보톡스=jaw-botox·주름보톡스=wrinkle-botox·스킨보톡스=skin-botox (injectables, parent_ko=보톡스, active). 6 브랜드 자식 불변. | **적용 완료 (2026-06-04)** |
+| 0227 | (D) `get_procedure_review_demographics` family 롤업 — 라이브 VERBATIM + `procedure_ko = ANY(procedure_family(...))`. | **적용 완료 (2026-06-04)** |
+| 0228 | (D) `get_review_summary_pool` family 롤업 — 라이브 VERBATIM + LATERAL `procedure_ko = ANY(procedure_family(t.ko))`. FEED_MIN_REVIEWS=4=family count. | **적용 완료 (2026-06-04)** |
+| 0229 | (D) `create/update_procedure_review` 부모 앵커 lazy — 라이브 VERBATIM + 앵커 INSERT 대상 ko 를 자기+부모로 확장(자식 후기 발행 시 부모 앵커도 보장, draft, 멱등). | **적용 완료 (2026-06-04)** |
+| 0230 | (D) ⚠ **데이터+공개 변경** — family≥1·자기앵커 없는 부모 앵커 백필(레스틸렌·쥬베룩, status=published). 멱등. | **적용 완료 (2026-06-04)** |
+| 0231 | (D) ⚠ **데이터 변경** — qa 카드 post_slug `square-jaw-botox`→`jaw-botox` 치환(3건, 정식 오픈 전 URL 변경). | **적용 완료 (2026-06-04)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

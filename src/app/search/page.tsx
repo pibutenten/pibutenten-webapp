@@ -12,7 +12,7 @@ import { diversifyByDoctor } from "@/lib/feed-shuffle";
 import { fetchCardList, resolveCategorySlug } from "@/lib/search-query";
 import { categorize } from "@/lib/category-sets";
 import { CATEGORIES } from "@/lib/categories";
-import { getProcedureReport } from "@/lib/procedure-report";
+import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import ReportSampleNotice from "@/components/report/ReportSampleNotice";
@@ -143,16 +143,17 @@ export default async function HomePage({ searchParams }: Props) {
   const report = q ? await getProcedureReport(supabase, q) : null;
   let reportReviews: CardData[] = [];
   if (report) {
-    const { data } = await supabase
-      .from("cards")
-      .select(CARD_LIST_SELECT)
-      .eq("category", "review")
-      .eq("status", "published")
-      .is("deleted_at", null)
-      .contains("keywords", [q])
-      .order("created_at", { ascending: false })
-      .returns<CardData[]>();
-    reportReviews = data ?? [];
+    // 작업 D 롤업: 집계와 동일 procedure_ko family 기준(카드 id IN).
+    const cardIds = await getFamilyReviewCardIds(supabase, q);
+    if (cardIds.length > 0) {
+      const { data } = await supabase
+        .from("cards")
+        .select(CARD_LIST_SELECT)
+        .in("id", cardIds)
+        .order("created_at", { ascending: false })
+        .returns<CardData[]>();
+      reportReviews = data ?? [];
+    }
   }
 
   const popularByCategory = await popularByCategoryPromise;

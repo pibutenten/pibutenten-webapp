@@ -399,7 +399,13 @@
     },
     {
       "ko": "사각턱보톡스",
-      "en": "square-jaw-botox",
+      "en": "jaw-botox",
+      "category": "injectables",
+      "type": "general"
+    },
+    {
+      "ko": "주름보톡스",
+      "en": "wrinkle-botox",
       "category": "injectables",
       "type": "general"
     },

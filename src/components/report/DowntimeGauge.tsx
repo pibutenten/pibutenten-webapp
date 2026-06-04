@@ -7,7 +7,15 @@
  * answered===0 이면 null(섹션 숨김 — NaN/빈 게이지 방지). day 코딩은 DOWNTIME_DAYS SSOT.
  */
 
-const GAUGE_MAX = 16; // 상한 — 7·14 가이드선이 의미 있게 보이도록 "2주 이상(16)" 까지.
+const GAUGE_MAX = 16; // 상한 — "2주 이상(16)" 까지.
+// 좌우 대칭 여백 — 1주(7일)가 트랙 정중앙(50%)에 오도록. pos(v)=(v+PAD)/(MAX+PAD), PAD=MAX-14.
+//   PAD=2 → pos(0)=11.1%, pos(7)=50%, pos(14)=88.9%, pos(16)=100%.
+const GAUGE_PAD = GAUGE_MAX - 14;
+/** 일수 → 트랙상 위치(%) — 0일이 좌측 끝에 붙지 않도록 PAD 적용. */
+function pos(v: number): number {
+  const clamped = Math.min(GAUGE_MAX, Math.max(0, v));
+  return ((clamped + GAUGE_PAD) / (GAUGE_MAX + GAUGE_PAD)) * 100;
+}
 
 function formatDays(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
@@ -28,7 +36,7 @@ export default function DowntimeGauge({
   if (answered <= 0) return null; // 폴백 — 섹션 숨김
 
   const avg = dist.reduce((s, c, i) => s + c * (days[i] ?? 0), 0) / answered;
-  const avgPct = Math.min(100, Math.max(0, (avg / GAUGE_MAX) * 100));
+  const avgPct = pos(avg);
 
   // 편차 밴드 — 표본 충분(n>15)할 때만.
   const showFade = answered > 15;
@@ -38,14 +46,14 @@ export default function DowntimeGauge({
     const variance =
       dist.reduce((s, c, i) => s + c * Math.pow((days[i] ?? 0) - avg, 2), 0) / answered;
     const sd = Math.sqrt(Math.max(0, variance));
-    const lo = Math.max(0, avg - sd);
-    const hi = Math.min(GAUGE_MAX, avg + sd);
-    fadeLeft = (lo / GAUGE_MAX) * 100;
-    fadeWidth = Math.max(0, ((hi - lo) / GAUGE_MAX) * 100);
+    const lo = pos(Math.max(0, avg - sd));
+    const hi = pos(Math.min(GAUGE_MAX, avg + sd));
+    fadeLeft = lo;
+    fadeWidth = Math.max(0, hi - lo);
   }
 
-  const guide7 = (7 / GAUGE_MAX) * 100;
-  const guide14 = (14 / GAUGE_MAX) * 100;
+  const guide7 = pos(7);
+  const guide14 = pos(14);
 
   return (
     <div>

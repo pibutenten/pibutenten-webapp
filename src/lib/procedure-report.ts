@@ -79,12 +79,22 @@ export async function getProcedureReport(
   supabase: ServerClient,
   procedureKo: string,
 ): Promise<ProcedureReport | null> {
+  // 작업 D — 롤업: 부모 시술이면 자기+직속하위 후기를 집계(자식은 자기만).
+  //   procedure_family(ko) SQL 헬퍼(0225) 가 SSOT — demographics/pool RPC 와 동일.
+  const { data: famData } = await supabase.rpc("procedure_family", {
+    p_ko: procedureKo,
+  });
+  const family: string[] =
+    Array.isArray(famData) && famData.length > 0
+      ? (famData as string[])
+      : [procedureKo];
+
   const { data } = await supabase
     .from("procedure_reviews")
     .select(
       "satisfaction, pain, revisit, effect_areas, downtime, effect_onset, card:cards!inner(status, deleted_at)",
     )
-    .eq("procedure_ko", procedureKo)
+    .in("procedure_ko", family)
     .eq("card.status", "published")
     .is("card.deleted_at", null)
     .returns<Row[]>();
@@ -219,6 +229,34 @@ export async function getProcedureReport(
     onsetDist,
     demographics,
   };
+}
+
+/**
+ * 작업 D 롤업 — 시술 family(자기+직속하위) 의 발행 후기 카드 id 목록.
+ *   집계(getProcedureReport)와 후기 목록(/reports·/api/reports/[procedure]/reviews)이
+ *   같은 procedure_ko family 기준을 쓰도록(카드 keywords 기반 목록과의 불일치 제거).
+ *   순서·페이징은 호출부가 cards.id IN (...) + created_at desc 로 처리.
+ */
+export async function getFamilyReviewCardIds(
+  supabase: ServerClient,
+  procedureKo: string,
+): Promise<number[]> {
+  const { data: famData } = await supabase.rpc("procedure_family", {
+    p_ko: procedureKo,
+  });
+  const family: string[] =
+    Array.isArray(famData) && famData.length > 0
+      ? (famData as string[])
+      : [procedureKo];
+
+  const { data } = await supabase
+    .from("procedure_reviews")
+    .select("card_id, card:cards!inner(status, deleted_at)")
+    .in("procedure_ko", family)
+    .eq("card.status", "published")
+    .is("card.deleted_at", null)
+    .returns<{ card_id: number }[]>();
+  return (data ?? []).map((r) => r.card_id);
 }
 
 type PoolRow = {

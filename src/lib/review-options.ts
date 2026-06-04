@@ -29,7 +29,7 @@ export const EFFECT_ONSET_OPTIONS: ReviewChoice[] = [
   { value: "weeks_1_2", label: "1~2주 후" },
   { value: "month_1", label: "한 달쯤 후" },
   { value: "months_2_3", label: "두세 달 후" },
-  { value: "still_watching", label: "아직 지켜보는 중" },
+  { value: "still_watching", label: "효과 못 느낌" },
 ];
 
 /** 효과 칩의 '효과 없음' 라벨 — 리포트에서 일반 효과 목록과 분리. */

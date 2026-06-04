@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getProcedureReport } from "@/lib/procedure-report";
+import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
-import { getQaUrl } from "@/lib/card-url";
 import BackButton from "@/components/BackButton";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import ReportSampleNotice from "@/components/report/ReportSampleNotice";
@@ -67,44 +65,23 @@ export default async function ProcedureReportPage({ params }: Props) {
   const report = await getProcedureReport(supabase, ko);
   if (!report) notFound();
 
-  // 개별 후기 스트림 — 같은 시술(keywords 포함) 발행 후기. CARD_LIST_SELECT(요약 임베드 포함).
-  // 작업 A: 첫 10개만 서버 렌더(크롤러·비로그인 노출) + 전체 count → 무한스크롤 hasMore 판정.
+  // 개별 후기 스트림 — 작업 D 롤업: 집계와 동일한 procedure_ko family 기준(카드 id IN).
+  //   작업 A: 첫 10개만 서버 렌더(크롤러·비로그인 노출) + 전체 count → 무한스크롤 hasMore 판정.
   const PAGE_SIZE = 10;
-  const reviewQuery = supabase
-    .from("cards")
-    .select(CARD_LIST_SELECT)
-    .eq("category", "review")
-    .eq("status", "published")
-    .is("deleted_at", null)
-    .contains("keywords", [ko])
-    .order("created_at", { ascending: false })
-    .range(0, PAGE_SIZE - 1)
-    .returns<CardData[]>();
-  const countQuery = supabase
-    .from("cards")
-    .select("id", { count: "exact", head: true })
-    .eq("category", "review")
-    .eq("status", "published")
-    .is("deleted_at", null)
-    .contains("keywords", [ko]);
-  const [{ data: reviewData }, { count: reviewTotal }] = await Promise.all([
-    reviewQuery,
-    countQuery,
-  ]);
-  const reviews = reviewData ?? [];
-
-  // 하단 "관련 전문의 Q&A" 역링크 — 같은 시술 키워드의 발행 Q&A 카드 상위 6.
-  const { data: relatedQaData } = await supabase
-    .from("cards")
-    .select(CARD_LIST_SELECT)
-    .eq("type", "qa")
-    .eq("status", "published")
-    .is("deleted_at", null)
-    .contains("keywords", [ko])
-    .order("created_at", { ascending: false })
-    .range(0, 5)
-    .returns<CardData[]>();
-  const relatedQa = relatedQaData ?? [];
+  const cardIds = await getFamilyReviewCardIds(supabase, ko);
+  const reviewTotal = cardIds.length;
+  const reviews: CardData[] =
+    cardIds.length > 0
+      ? ((
+          await supabase
+            .from("cards")
+            .select(CARD_LIST_SELECT)
+            .in("id", cardIds)
+            .order("created_at", { ascending: false })
+            .range(0, PAGE_SIZE - 1)
+            .returns<CardData[]>()
+        ).data ?? [])
+      : [];
 
   // 시술 리포트 후기 — viewer 좋아요 여부 일괄 조회(단독 글과 같은 card_likes 행).
   const reviewLiked: Record<number, boolean> = {};
@@ -154,34 +131,6 @@ export default async function ProcedureReportPage({ params }: Props) {
         variant="page"
         total={reviewTotal ?? reviews.length}
       />
-
-      {/* 관련 전문의 Q&A — 같은 시술 키워드의 발행 Q&A 역링크. */}
-      {relatedQa.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-3 text-[15px] font-bold text-[var(--text)]">
-            {ko} 관련 전문의 Q&amp;A
-          </h2>
-          <ul className="divide-y divide-[var(--border)] overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white">
-            {relatedQa.map((qa) => (
-              <li key={qa.id}>
-                <Link
-                  href={getQaUrl(qa)}
-                  className="block px-4 py-3 transition-colors hover:bg-[var(--bg-soft)]"
-                >
-                  <span className="line-clamp-2 text-[14px] font-semibold text-[var(--text)]">
-                    {qa.title}
-                  </span>
-                  {qa.doctor?.name && (
-                    <span className="mt-1 block text-[12px] text-[var(--text-muted)]">
-                      {qa.doctor.name}
-                    </span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </section>
   );
 }

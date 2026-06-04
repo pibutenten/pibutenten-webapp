@@ -17,7 +17,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
-import { getProcedureReport } from "@/lib/procedure-report";
+import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-report";
 
 export const dynamic = "force-dynamic";
 
@@ -48,18 +48,20 @@ export async function GET(
   if (!tax) return NextResponse.json({ reviews: [], reviewLiked: {} });
   const ko = tax.ko;
 
-  // 후기 페이지 — 기존 페이지들과 동일 쿼리 + range 페이징.
-  const { data: reviewData } = await supabase
-    .from("cards")
-    .select(CARD_LIST_SELECT)
-    .eq("category", "review")
-    .eq("status", "published")
-    .is("deleted_at", null)
-    .contains("keywords", [ko])
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1)
-    .returns<CardData[]>();
-  const reviews = reviewData ?? [];
+  // 후기 페이지 — 작업 D 롤업: 집계와 동일한 procedure_ko family 기준(카드 id IN) + range 페이징.
+  const cardIds = await getFamilyReviewCardIds(supabase, ko);
+  const reviews: CardData[] =
+    cardIds.length > 0
+      ? ((
+          await supabase
+            .from("cards")
+            .select(CARD_LIST_SELECT)
+            .in("id", cardIds)
+            .order("created_at", { ascending: false })
+            .range(offset, offset + limit - 1)
+            .returns<CardData[]>()
+        ).data ?? [])
+      : [];
 
   // viewer 좋아요 여부 — 단독 글과 같은 card_likes 행.
   const reviewLiked: Record<number, boolean> = {};

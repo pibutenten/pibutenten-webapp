@@ -133,7 +133,11 @@ export default function ProcedureReportCard({
       ? downtimeDist.reduce((s, c, i) => s + c * (DOWNTIME_DAYS[i] ?? 0), 0) / downtimeAnswered
       : 0;
   const dtAvgLabel = Number.isInteger(dtAvg) ? String(dtAvg) : `약 ${dtAvg.toFixed(1)}`;
-  const dtHeadline = `다운타임은 대부분 ${dtAvgLabel}일이었어요.`;
+  // 평균이 0으로 반올림되면 옵션 라벨('없음')과 일관되게 "없었어요".
+  const dtHeadline =
+    Math.round(dtAvg) === 0
+      ? "다운타임은 대부분 없었어요."
+      : `다운타임은 대부분 ${dtAvgLabel}일이었어요.`;
 
   // 효과시점(C-2) — 만족도식 분포막대 재사용. 4시점 사이트블루 + '아직 관찰 중' 회색.
   const onsetTop = EFFECT_ONSET_OPTIONS[onsetDist.indexOf(Math.max(...onsetDist))];

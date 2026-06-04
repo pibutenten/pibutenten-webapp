@@ -86,7 +86,7 @@ function wordCount(parts: string[]): number {
  * - 영문 단어 기준 기본 3개, 최대 4개 (의미 더해질 때만).
  * - **부분 중복 제거**: 새 영문의 단어 중 기존에 이미 있는 단어는 제거.
  *   예: parts=[hand] + hand-cream → cream 만 → 결과 hand-cream
- *   예: parts=[square-jaw, botox] + square-jaw-botox → 완전 중복 → skip
+ *   예: parts=[jaw, botox] + jaw-botox → 완전 중복 → skip
  * - 한 한글 키워드가 영문 3+ 단어 차지하는 케이스(예: 손등=back-of-hand, 폐기된 매핑이지만)는
  *   차별화를 위해 한 개 더 시도.
  * - 매핑 없는 항목은 무시.

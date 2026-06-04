@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type CardData } from "@/components/Card";
 import CardMasonry from "@/components/CardMasonry";
-import { getProcedureReport } from "@/lib/procedure-report";
+import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import ReportSampleNotice from "@/components/report/ReportSampleNotice";
@@ -116,16 +116,17 @@ export default async function TagPage({ params }: Props) {
   const report = await getProcedureReport(supabase, tag);
   let reportReviews: CardData[] = [];
   if (report) {
-    const { data } = await supabase
-      .from("cards")
-      .select(CARD_LIST_SELECT)
-      .eq("category", "review")
-      .eq("status", "published")
-      .is("deleted_at", null)
-      .contains("keywords", [tag])
-      .order("created_at", { ascending: false })
-      .returns<CardData[]>();
-    reportReviews = data ?? [];
+    // 작업 D 롤업: 집계와 동일 procedure_ko family 기준(카드 id IN).
+    const cardIds = await getFamilyReviewCardIds(supabase, tag);
+    if (cardIds.length > 0) {
+      const { data } = await supabase
+        .from("cards")
+        .select(CARD_LIST_SELECT)
+        .in("id", cardIds)
+        .order("created_at", { ascending: false })
+        .returns<CardData[]>();
+      reportReviews = data ?? [];
+    }
   }
 
   // 시술 리포트 후기 — viewer 좋아요 여부 일괄 조회(단독 글과 같은 card_likes 행).

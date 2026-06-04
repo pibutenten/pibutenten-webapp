@@ -6,6 +6,25 @@
 
 ---
 
+## [2026-06-04] — 빠른 수정 3건 + 보톡스 재편·시술 롤업 (작업 D)
+
+### Fixed (빠른 수정)
+- **/reports "관련 전문의 Q&A" 역링크 섹션 제거** — 단독 페이지는 단독으로. 섹션 + qa fetch(orphan 쿼리) 동시 제거.
+- **효과시점 'still_watching' 라벨** "아직 지켜보는 중" → **"효과 못 느낌"**(review-options.ts SSOT — 폼·리포트 동시). slug/평균제외 동작 불변.
+- **다운타임 게이지 보강** — 좌우 대칭 여백 `pos(v)=(v+PAD)/(MAX+PAD)`(PAD=MAX-14)로 **1주(7일)=트랙 정중앙(50%)**. 0일이 좌측 끝에 붙던 문제 해소. 평균 0 반올림 시 헤드라인 "다운타임은 대부분 **없었어요**"(옵션 라벨 '없음' 일관).
+
+### Added/Changed (D — 보톡스 재편 + 일반 롤업)
+- **보톡스 하위 3태그**(0226): 사각턱보톡스=`jaw-botox`/주름보톡스=`wrinkle-botox`/스킨보톡스=`skin-botox`(injectables, parent_ko=보톡스, active) — DB taxonomy + 코드 `procedure-mappings.json` 동시. 기존 6 브랜드 자식·후기 불변.
+- **슬러그 일원화**: `square-jaw-botox`→`jaw-botox` 전수 치환(JSON·slug-mapping 주석·qa 카드 3건 post_slug, 0231). 정식 오픈 전 URL 변경 허용.
+- **시술 롤업**: `procedure_family(ko)`(0225, SQL) = [ko]+직속 자식. **부모 리포트=자기+직속하위, 자식=자기만**. 3 집계 경로 공용 — `getProcedureReport`(`.in` + RPC)·`get_procedure_review_demographics`(0227)·`get_review_summary_pool`(0228). **0206 피드/검색 JOIN 은 개별 유지**(롤업 안 함). `FEED_MIN_REVIEWS=4`=family count.
+- **후기 목록도 family 정합**(필수 보강): /reports·/api/reports/[procedure]/reviews·/search·/topics 의 후기 목록을 keyword 기반 → **procedure_ko family 기반**(`getFamilyReviewCardIds`)으로 전환 → 집계 헤더 count 와 목록 일치(레스틸렌·쥬베룩 "1건인데 목록 0" 문제 해소).
+- **부모 앵커 보장**(0229): create/update_procedure_review 가 자식 후기 발행 시 부모 앵커도 lazy 생성(draft, 멱등). 백필(0230, ⚠데이터+공개): family≥1·자기앵커 없는 부모(레스틸렌·쥬베룩) published 앵커 생성.
+
+### 검증
+- `tsc`/`build` 통과. 롤업 직접 대조: 집계 헤더 = API 목록 = demographics = pool — 보톡스 5(own2+코어톡스3)·세르프 4→5·리쥬란 2→3·레스틸렌·쥬베룩 0→1·코어톡스 3(자기). 6 브랜드 후기 불변(코어톡스 3, 나머지 0). square-jaw-botox DB 잔존 0.
+
+---
+
 ## [2026-06-04] — 시술 리포트 시각화·문구 정비 (C·E·B)
 
 ### Changed
