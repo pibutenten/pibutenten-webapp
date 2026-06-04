@@ -6,14 +6,17 @@
  * 캡션 "평균 약 N일 · N명". answered===0 이면 null(섹션 숨김).
  */
 
-const GAUGE_MAX = 16; // 상한 — "2주 이상(16)" 까지.
-const GAUGE_PAD = 2; // 좌측 패딩 — 트랙이 -2일~16일 표현 → 당일(0)이 왼끝에 안 붙음.
-//   pos(v)=(v+2)/18: 당일(0)=11.1%, 1주(7)=50%, 2주(14)=88.9% (좌우 여백 대칭).
+const GAUGE_MAX = 16; // daycode 상한(2주 이상=16).
+// 트랙 표현 범위 -1일 ~ 15일 → pos(v)=(v+1)/16.
+//   당일(0)=6.25%, 1주(7)=50%, 2주(14)=93.75% (양끝에 더 가깝게, 단 안 붙음).
+const GAUGE_LEFT = -1;
+const GAUGE_RIGHT = 15;
 
-/** 일수 → 트랙상 위치(%). 0 도 PAD 만큼 안쪽(빈 막대 방지). */
+/** 일수 → 트랙상 위치(%). 0 도 안쪽(빈 막대 방지), 끝값은 클램프. */
 function pct(v: number): number {
   const clamped = Math.min(GAUGE_MAX, Math.max(0, v));
-  return ((clamped + GAUGE_PAD) / (GAUGE_MAX + GAUGE_PAD)) * 100;
+  const p = ((clamped - GAUGE_LEFT) / (GAUGE_RIGHT - GAUGE_LEFT)) * 100;
+  return Math.min(100, Math.max(0, p));
 }
 
 function formatDays(v: number): string {
