@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-05] — 위생 정리 (A6 dead 헬퍼 / A8 N+1 / A10 죽은 컬럼·tmp)
+
+### Removed
+- **A6 dead 색인 헬퍼 제거**(`src/lib/post-category.ts`): `isIndexableForDoctor` / `isIndexableForMember` 호출처 0건. 특히 `isIndexableForMember`(review_summary→true)는 회원 라우트(`/[handle]/[shortcode]` = 정책상 전부 noindex, review_summary 는 `/reports/{en}` 에서만 인덱싱)에 wire 하면 중복 인덱싱되는 오작동 — 살리지 않고 dead 제거. 하드코딩 `indexable=false` 는 정책상 정합이라 유지.
+- **A10 죽은 컬럼 DROP**(마이그 0237): `content_reports.temp_block_until` — 0137 도입 후 코드·RPC·뷰 참조 0건(배치 ④ 영구 숨김 채택). DATABASE.md §1.3 컬럼 목록도 정정.
+- **A10 tmp 잔재 삭제**: src/docs 의 `*.tmp.*` 스크래치 파일 48개 삭제(전부 gitignore 무시 대상 — 추적 파일 무영향).
+
+### Changed
+- **A8 N+1 제거**(`src/lib/identity-server.ts`): `resolveActiveIdentity` 가 profiles SELECT 후 `getDoctorIdForProfile`(동일 row·동일 key 재조회)로 doctor_id 를 2회차 조회하던 것을, 첫 SELECT 에 `doctor_id` 인라인하여 단일 조회화(profiles.doctor_id SSOT, 0176). 동작 동일, 쿼리 1회 감소. 미사용 import 제거.
+
+---
+
 ## [2026-06-05] — get_research_panel 명함(profiles.id) 단위 집계 (ADR 0012 정렬)
 
 ### Fixed

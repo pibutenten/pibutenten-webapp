@@ -92,10 +92,10 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 - 폐기: `posted_as` (0090)
 
 **`content_reports`** (신고 큐, 0137):
-- 컬럼: `id, card_id, comment_id, reporter_profile_id, reporter_email, target_url, reason, detail, status, action_taken, resolution_note, resolved_at, resolved_by, temp_block_until, created_at`
+- 컬럼: `id, card_id, comment_id, reporter_profile_id, reporter_email, target_url, reason, detail, status, action_taken, resolution_note, resolved_at, resolved_by, created_at`
 - `status` (text, NOT NULL DEFAULT `'pending'`): `pending` / `resolved_hidden` / `resolved_deleted` / `dismissed` (CHECK 마이그 0185, 2026-05-29). 옛 enum (`investigating/resolved/rejected/temp_blocked`) 은 row 0 상태에서 정리됨 — 호환 불필요.
 - `action_taken` (text): `hide` / `delete` / `dismiss`.
-- `temp_block_until`: 0137 시 30일 임시조치 의도로 도입. 배치 ④에서 영구 숨김 채택 — 향후 미사용 컬럼.
+- (`temp_block_until` 은 0137 도입 후 미사용 — 0237 에서 DROP.)
 
 ### 1.4. 인터랙션 (로그인 필수)
 | 테이블 | PK | 비고 |
@@ -342,6 +342,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0234 | `get_users_auth_info(uuid[])` — 관리자 회원관리(C)용. profile_id별 auth 로그인 이메일 + provider[] 반환(번들은 auth_user_id 매핑). read-only SECURITY DEFINER, `is_admin()`/service_role 가드. PostgREST 가 auth 스키마 직접 조회 불가하므로 RPC 경유. | **적용 완료 (2026-06-04)** |
 | 0235 | `get_indexable_tags(int)` qa-only 정리 — `category IN ('qa','tip')` → `= 'qa'`(tip 폐지 카테고리 0행, 무변화) + 멱등 base CREATE(기존 0092 조건부 정의만 존재하던 것 보완). SECURITY DEFINER STABLE, anon/authenticated GRANT. 반환 태그 집합 변경 전후 동일(397/min4) 검증. | **적용 완료 (2026-06-05)** |
 | 0236 | `get_research_panel()` 명함(profiles.id) 단위 정렬 — 0224 의 `COALESCE(auth_user_id,id)` 번들 롤업 제거, profiles.id distinct 카운트로 교체(ADR 0012). 시그니처·SECURITY DEFINER·ACL(0224 그대로 CREATE OR REPLACE 보존) 동일. before(번들) 55/23/35 → after(명함) 65/30/37. 0224 파일 미수정. | **적용 완료 (2026-06-05)** |
+| 0237 | `content_reports.temp_block_until` DROP COLUMN — 0137 도입 후 코드·RPC·뷰 참조 0건(배치 ④ 영구 숨김 채택으로 임시조치 폐기). 죽은 컬럼 제거. | **적용 완료 (2026-06-05)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 
