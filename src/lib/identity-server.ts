@@ -16,7 +16,6 @@ import {
   UUID_RE,
   type ActiveIdentity,
 } from "./identity-shared";
-import { getDoctorIdForProfile } from "./doctor-mapping";
 
 /**
  * Critical-5 호환성 정규화 SSOT (2026-05-28 통합).
@@ -94,7 +93,7 @@ export async function resolveActiveIdentity(
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, handle, display_name, avatar_url, role, auth_user_id, birthdate, terms_agreed_at",
+      "id, handle, display_name, avatar_url, role, auth_user_id, birthdate, terms_agreed_at, doctor_id",
     )
     .eq("id", targetProfileId)
     .maybeSingle();
@@ -108,7 +107,8 @@ export async function resolveActiveIdentity(
     return null;
   }
 
-  const doctorId = await getDoctorIdForProfile(supabase, targetProfileId);
+  // doctor_id 는 위 profiles SELECT 에 인라인 — 별도 lookup 제거 (profiles.doctor_id SSOT, 0176). 쿼리 1회 감소.
+  const doctorId = (profile.doctor_id as string | null) ?? null;
   const role = (profile.role as string) ?? "user";
 
   return {

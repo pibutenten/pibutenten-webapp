@@ -92,24 +92,6 @@ export function labelForCategory(s: string | null | undefined): string {
   return isPostCategorySlug(s) ? SLUG_TO_LABEL[s] : "";
 }
 
-
-/**
- * 인덱싱 가능한 카테고리 (의사 글) — Q&A + 시술 리포트(review_summary).
- *   review_summary 는 집계 카드라 작성자 역할과 무관하게 인덱싱.
- *   개별 후기(review) 는 noindex.
- */
-export function isIndexableForDoctor(s: string | null | undefined): boolean {
-  return s === "qa" || s === "review_summary";
-}
-
-/**
- * 인덱싱 가능한 카테고리 (회원 글) — 시술 리포트(review_summary) 만.
- *   doodle·review(개별 후기) 는 noindex. review_summary 는 집계 카드라 인덱싱.
- */
-export function isIndexableForMember(s: string | null | undefined): boolean {
-  return s === "review_summary";
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 카테고리 라벨 SSOT (Sub-6, 2026-05-27) — 구 src/lib/category-labels.ts 통합
 //
