@@ -6,6 +6,13 @@
 
 ---
 
+## [2026-06-05] — /reports 메타 title "집계" 문구 제거
+
+### Changed
+- `/reports/{ko}` 메타 title: `{시술명} 후기 {N}건 집계 | 피부텐텐 리포트` → **`{시술명} 후기 {N}건 | 피부텐텐 리포트`** ("집계" 단어 제거). `reports/[procedure]/page.tsx`. description·JSON-LD·집계 로직 변경 없음. 검증: `tsc` 0 + `build` Compiled successfully.
+
+---
+
 ## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정 + /reports 슬러그 한글 전환 + /topics↔/reports 분리·양방향 링크 + get_indexable_tags qa-only 정리 + 페이지별 메타 통일 + /reports 구조화 데이터 Product 폐기
 
 ### Changed /reports 구조화 데이터 `Product` 폐기 → `MedicalWebPage` + `Service`(MedicalProcedure)
