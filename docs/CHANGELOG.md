@@ -6,7 +6,13 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록
+
+### Fixed 시술 리포트(review_summary) 앵커의 조회수가 구조적으로 0 고정이던 문제
+- 시술 리포트 카드/페이지가 view 기록 경로를 전혀 호출하지 않아 `cards.view_count` 가 항상 0 이던 것을, 일반 단일 글과 **동일한 `useCardViewer` 경로**(recordView → `card_views` INSERT → DB 트리거가 `view_count` 동기화)를 재사용해 기록하도록 추가.
+- 신규: `src/components/report/ReportViewTracker.tsx`(렌더 출력 없는 클라이언트 트래커, 앵커 card_id 로 `useCardViewer` 호출). `ProcedureReportCard` 가 `anchor && (isPage || expanded)` 일 때만 mount → 단독 `/reports` 페이지=진입 시 1회 / 피드·검색 삽입 카드='더보기' 펼침 시 1회. session dedup(`pibutenten:view:${id}`)으로 페이지+펼침 겹쳐도 같은 앵커는 1회. 디렉터 의도 "리포트 진입(더보기)=1 조회".
+- 저장·공유(`ReportAnchorActions`/`useCardEngagement`)는 손대지 않음(회귀 0). 좋아요·조회수 버튼은 여전히 미노출(데이터만).
+- 검증: `tsc` 0 + `build` Compiled successfully. DB 트리거 실증 — 앵커(titanium 2404)에 `card_views` 1행 INSERT 시 `view_count` 0→1 증가, ROLLBACK 으로 원복 확인(review_summary 앵커에도 트리거 정상). 저장·공유 카운터 불변. dev `/reports/titanium` 200·서버에러 0. (클라이언트 실브라우저 기록은 일반 카드와 동일 SSOT 훅 재사용으로 보장.)
 
 ### Changed `/api/articles` POST 카테고리 검증을 post-category SSOT 로 통일 (PUT 과 정합)
 - POST 의 `const VALID_CATEGORIES = ["qa","doodle"]` 인라인 하드코딩(옛 2종, stale)을 제거하고, PUT(`articles/[id]`)과 동일하게 `isPostCategorySlug` + `categoriesForRole(role)` SSOT 로 검증.

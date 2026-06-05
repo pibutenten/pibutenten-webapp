@@ -26,6 +26,7 @@ import type { EngagementMe } from "@/components/card/hooks/useCardEngagement";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import ReportReviewItem from "@/components/report/ReportReviewItem";
 import ReportAnchorActions from "@/components/report/ReportAnchorActions";
+import ReportViewTracker from "@/components/report/ReportViewTracker";
 import DistBars from "@/components/report/DistBars";
 import DowntimeGauge from "@/components/report/DowntimeGauge";
 import EffectOnsetTimeline from "@/components/report/EffectOnsetTimeline";
@@ -276,6 +277,12 @@ export default function ProcedureReportCard({
 
   return (
     <article className="overflow-hidden rounded-[var(--radius)] bg-white">
+      {/* 조회수 기록 — 앵커 card_id 기준, 일반 단일 글과 동일 useCardViewer 경로.
+          단독 페이지(isPage)=진입 시 / 삽입 카드=펼침(expanded) 시에만 mount → 1회 기록.
+          session dedup 으로 페이지+펼침 겹쳐도 같은 앵커는 1회. */}
+      {anchor && (isPage || expanded) && (
+        <ReportViewTracker card={anchor} auto={isPage} />
+      )}
       {/* 헤더 — 타이틀 클릭=/reports 이동(토글 영역 밖). */}
       <header style={{ backgroundColor: theme.soft }} className="relative">
         <Link href={reportHref} className="block px-5 py-4">
