@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { ROLES } from "@/lib/identity-shared";
 
 /**
@@ -19,6 +19,9 @@ type Prefs = {
   pref_save: boolean;
   pref_review_request: boolean;
   pref_published: boolean;
+  pref_keyword_interest: boolean;
+  pref_keyword_concern: boolean;
+  pref_keyword_skin_type: boolean;
 };
 
 const DEFAULTS: Prefs = {
@@ -28,6 +31,9 @@ const DEFAULTS: Prefs = {
   pref_save: true,
   pref_review_request: true,
   pref_published: true,
+  pref_keyword_interest: true,
+  pref_keyword_concern: true,
+  pref_keyword_skin_type: true,
 };
 
 type Row = {
@@ -37,6 +43,8 @@ type Row = {
   desc: string;
   /** 일반 회원 노출 여부 — false면 doctor/admin role 한정 */
   visibleToUser: boolean;
+  /** 섹션 헤딩 — 직전 행과 다르면 헤딩 1개 렌더 (없으면 기본군) */
+  section?: string;
 };
 
 const ROWS: Row[] = [
@@ -81,6 +89,32 @@ const ROWS: Row[] = [
     label: "내 카드 발행됨",
     desc: "검수 후 내 카드가 발행되면 알림",
     visibleToUser: true,
+  },
+  // 관심 Q&A 알림 (4-2 / 3b-1) — 내 관심사·피부고민·피부타입에 맞는 새 Q&A 를
+  // 하루 한 번 주제별로 알림. 발생(digest)은 3b-2, 지금은 토글 토대만.
+  {
+    key: "pref_keyword_skin_type",
+    emoji: "🏷️",
+    label: "내 피부타입 관련 새 글",
+    desc: "내 피부타입에 맞는 새 Q&A 가 올라오면 알림 (하루 1회)",
+    visibleToUser: true,
+    section: "관심 Q&A 알림",
+  },
+  {
+    key: "pref_keyword_concern",
+    emoji: "🏷️",
+    label: "내 피부고민 관련 새 글",
+    desc: "내 피부고민에 맞는 새 Q&A 가 올라오면 알림 (하루 1회)",
+    visibleToUser: true,
+    section: "관심 Q&A 알림",
+  },
+  {
+    key: "pref_keyword_interest",
+    emoji: "🏷️",
+    label: "내 관심사 관련 새 글",
+    desc: "내 관심 시술에 맞는 새 Q&A 가 올라오면 알림 (하루 1회)",
+    visibleToUser: true,
+    section: "관심 Q&A 알림",
   },
 ];
 
@@ -155,11 +189,19 @@ export default function NotificationPreferences({
         </span>
       </div>
       <ul className="divide-y divide-[var(--border)]/60">
-        {visibleRows.map((r) => {
+        {visibleRows.map((r, i) => {
           const value = prefs ? prefs[r.key] : true;
+          // 직전 행과 section 이 다르면 그룹 헤딩 1개 삽입.
+          const prevSection = i > 0 ? visibleRows[i - 1].section : undefined;
+          const showHeading = !!r.section && r.section !== prevSection;
           return (
+            <Fragment key={r.key}>
+              {showHeading && (
+                <li className="pt-3 pb-1 text-[11px] font-semibold text-[var(--text-secondary)]">
+                  {r.section}
+                </li>
+              )}
             <li
-              key={r.key}
               className="flex items-center justify-between gap-3 py-2.5"
             >
               <div className="min-w-0 flex-1">
@@ -205,6 +247,7 @@ export default function NotificationPreferences({
                 />
               </button>
             </li>
+            </Fragment>
           );
         })}
       </ul>

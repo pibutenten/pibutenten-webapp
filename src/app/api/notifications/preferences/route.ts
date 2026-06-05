@@ -16,6 +16,10 @@ type Prefs = {
   pref_save: boolean;
   pref_review_request: boolean;
   pref_published: boolean;
+  // 4-2 / 3b-1: 관심 Q&A 알림 토글 3종 (피부타입/피부고민/관심사). 발생은 3b-2.
+  pref_keyword_interest: boolean;
+  pref_keyword_concern: boolean;
+  pref_keyword_skin_type: boolean;
 };
 
 export async function GET() {
@@ -38,6 +42,9 @@ export async function GET() {
     pref_save: row?.pref_save ?? true,
     pref_review_request: row?.pref_review_request ?? true,
     pref_published: row?.pref_published ?? true,
+    pref_keyword_interest: row?.pref_keyword_interest ?? true,
+    pref_keyword_concern: row?.pref_keyword_concern ?? true,
+    pref_keyword_skin_type: row?.pref_keyword_skin_type ?? true,
   };
   return NextResponse.json(prefs, {
     headers: { "cache-control": "no-store" },
@@ -72,6 +79,9 @@ export async function POST(req: Request) {
     p_save: toBool(body.pref_save, true),
     p_review_request: toBool(body.pref_review_request, true),
     p_published: toBool(body.pref_published, true),
+    p_keyword_interest: toBool(body.pref_keyword_interest, true),
+    p_keyword_concern: toBool(body.pref_keyword_concern, true),
+    p_keyword_skin_type: toBool(body.pref_keyword_skin_type, true),
   });
   if (error) {
     return errorResponse(error, "save_failed", "[prefs POST] rpc", 500);

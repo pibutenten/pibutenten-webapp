@@ -6,6 +6,31 @@
 
 ---
 
+## [2026-06-06] — 관심(Q&A) 알림 스키마·토글·'keyword' kind (4-2 / 3b-1)
+
+> 관심 알림 토대만 구축(색인·토글·종류). 실제 발생(digest+cron)은 3b-2 — **이번엔 생산자 없음 = keyword 알림 0건**(순수 additive·무위험).
+
+### Added
+- **마이그 0244 — 관심 알림 토대**:
+  - GIN 인덱스 2개: `profiles_interested_procedures_gin_idx`, `profiles_skin_concerns_gin_idx`(태그 overlap digest 대비). `cards.keywords` GIN 은 기존.
+  - `notification_preferences` 신규 pref 3컬럼 `pref_keyword_interest`/`pref_keyword_concern`/`pref_keyword_skin_type`(boolean NOT NULL DEFAULT true, 기존 행 backfill).
+  - `notifications_kind_check` 7종→**8종**: 'keyword' 추가(기존 7종 comment/reply/like/save/review_request/published/report 전부 보존).
+- **UI — 관심 Q&A 알림**: `/settings/notifications` 에 "관심 Q&A 알림" 섹션 + 토글 3개(피부타입/피부고민/관심사, 기본 ON). `/notifications` 에 "관심" 필터 칩. push fallback 타이틀 "🏷️ 관심 주제 새 글"(실제 body 는 3b-2 digest message).
+- **SSOT `notification-kinds.ts`**: 'keyword' 타입 + 모든 맵(short/long label·icon 🏷️) + `KIND_DISPLAY_MODE='message'`(3a 로 앱 목록에 message 본문 표시).
+
+### Changed
+- **prefs RPC 확장(DROP+CREATE, `authenticated` GRANT 재부여, 나머지 본문 VERBATIM)**: `get_my_notification_prefs` 6→**9컬럼**, `save_my_notification_prefs` 6→**9인자**(p_keyword_interest/concern/skin_type). preferences route(GET/POST) 동반 3 pref 처리.
+- `is_notification_enabled` 는 **keyword 단일 게이트 미추가**(ELSE true 유지) — 관심 알림은 3개 토글을 dimension(피부타입/피부고민/관심사)별로 따져야 해 단일 bool 게이트가 부적합. 게이팅은 3b-2 digest 가 pref 3컬럼을 직접 판독.
+
+### 검증
+- GIN 2개 생성(pg_indexes)·pref 3컬럼 default true(NOT NULL)·kind_check 8종(pg_get_constraintdef)·RPC 9컬럼/9인자(pg_get_function_result/identity_arguments) + `authenticated` GRANT.
+- `is_notification_enabled` 본문에 keyword 분기 없음(ELSE true) 확인.
+- SET ROLE authenticated: 본인 9컬럼 prefs read/save(롤백 tx) 통과, 타인 prefs **0행**(RLS).
+- **생산자 없음**: notifications INSERT 함수 6개(comment/like/save/status/report/webhook) 중 keyword 생성 0개, `notifications` 의 keyword 행 0개.
+- 신규 `user_id` 미도입(grep 0). `tsc` 0 + `build` Compiled successfully. /settings/notifications·/notifications 부팅 200.
+
+---
+
 ## [2026-06-06] — 앱 알림함 message 표시 (4-2 / 3a)
 
 ### Changed

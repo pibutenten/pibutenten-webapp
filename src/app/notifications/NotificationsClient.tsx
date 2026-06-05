@@ -45,7 +45,7 @@ type Notification = {
 
 const KIND_LABEL = KIND_LONG_LABEL;
 
-type FilterKey = "all" | "comment" | "reply" | "like" | "save" | "ops";
+type FilterKey = "all" | "comment" | "reply" | "like" | "save" | "keyword" | "ops";
 
 const FILTER_KINDS: Record<FilterKey, Kind[] | null> = {
   all: null,
@@ -53,6 +53,7 @@ const FILTER_KINDS: Record<FilterKey, Kind[] | null> = {
   reply: ["reply"],
   like: ["like"],
   save: ["save"],
+  keyword: ["keyword"],
   ops: ["review_request", "published", "report"],
 };
 
@@ -266,6 +267,11 @@ export default function NotificationsClient({
           label="저장"
           active={filter === "save"}
           onClick={() => setFilter("save")}
+        />
+        <FilterChip
+          label="관심"
+          active={filter === "keyword"}
+          onClick={() => setFilter("keyword")}
         />
         {showOps && (
           <FilterChip
