@@ -13,6 +13,7 @@ import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
+import { readTargetProfileId } from "@/lib/identity-server";
 import { logAudit } from "@/lib/audit-log";
 import {
   CommentCreateSchema,
@@ -177,11 +178,15 @@ export async function GET(req: Request) {
   const allCommentIds = [...rootRows, ...replyRows].map((r) => r.id);
   let likedSet = new Set<number>();
   if (viewer && allCommentIds.length > 0) {
+    // 좋아요 저장(toggle_comment_like)은 active 명함(current_active_profile_id)으로 기록되므로
+    // prefetch 조회도 base auth id 가 아니라 active 명함 id 로 해야 정합 (카드 좋아요 prefetch 와 동일).
+    // 단일 명함 회원은 active==base 라 동일 결과 → 무영향.
+    const viewerProfileId = await readTargetProfileId(viewer.id);
     const { data: likedRows } = await supabase
       .from("comment_likes")
       .select("comment_id")
       // ADR 0014 Phase 3 (마이그 0187): comment_likes.user_id → profile_id.
-      .eq("profile_id", viewer.id)
+      .eq("profile_id", viewerProfileId)
       .in("comment_id", allCommentIds);
     likedSet = new Set(
       (likedRows ?? []).map((r) => (r as { comment_id: number }).comment_id),

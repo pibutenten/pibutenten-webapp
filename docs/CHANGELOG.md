@@ -6,7 +6,13 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합
+
+### Fixed 댓글 좋아요 prefetch 가 base 명함 id 로 조회하던 비대칭 (다명함 사용자 빈 하트)
+- `/api/comments` GET 의 좋아요 prefetch 가 `comment_likes.profile_id` 를 base auth id(`viewer.id`)로 조회하던 것을 active 명함 id 로 변경.
+- 원인: 좋아요 저장(`toggle_comment_like`, 0162)은 `current_active_profile_id()` = active 명함으로 기록하는데, 목록 GET 의 prefetch 만 base id 로 조회 → 다명함(의사 묶음 등) 사용자가 부 명함으로 active 일 때 자기가 누른 댓글 좋아요가 빈 하트로 표시되고 재클릭 시 좋아요가 취소되는 토글 꼬임. 카드 좋아요 prefetch(`viewer-states.ts`)는 이미 active 단위였던 것과 비대칭.
+- 조치: `src/app/api/comments/route.ts` 의 prefetch 에서 `readTargetProfileId(viewer.id)`(viewer-states 와 동일 헬퍼)로 base→active 변환 후 `.eq("profile_id", …)` 조회. 쓰기(POST)·반환 형태·카드 좋아요 경로는 불변. 단일 명함 회원은 active==base 라 무영향(회귀 0).
+- 검증: `tsc` 0 + `build` Compiled successfully. DB 실증 — 부 명함(`jminbae` active `134850cb`)이 좋아요한 댓글 36/47/59/63 이 옛 base 쿼리에선 누락, active 쿼리에선 전부 포함됨을 확인.
 
 ### Fixed 신고 카드 숨김·완전삭제가 항상 500 으로 실패하던 문제
 - `/admin/reports` 신고 큐에서 신고된 **카드**를 "숨김"·"완전삭제" 하면 항상 500 (`unauthenticated`) 으로 실패하던 버그 수정.
