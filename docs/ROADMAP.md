@@ -13,11 +13,9 @@
 - [x] 표본 임계값: 피드는 후기 **≥4** 시술만 주입(`FEED_MIN_REVIEWS=4`), <4 는 단독 URL·검색만 노출. (2026-06-03)
 - [ ] (후속) 피드 주입 카덴스(20장당 1장)·임계값(현 4) 운영 보며 튜닝 검토.
 
-### 베타 → 공개 전환 준비 (~2026-06-01)
-- [ ] `robots.ts` 베타 차단 환원
-- [ ] Google Search Console / Naver Search Advisor / Bing Webmaster 등록 (사용자 직접)
-- [ ] Vercel Spend Management 설정 (사용자 직접)
-- [ ] Supabase Daily Backups 활성화 (사용자 직접)
+### 베타 → 공개 전환 준비
+- [ ] Vercel Spend Management 설정 (사용자 직접) — 팀 Pro 확인(2026-06-05)이나 지출 상한 설정값은 API 미노출 → 콘솔(Settings → Billing) 확인 필요.
+  - (완료 이관: robots 공개 정책·Google/Naver/Bing 등록·Analytics 가동 = DEPLOYMENT §9, Supabase Daily Backups = API 활성 확인. CHANGELOG 2026-06-05 참조.)
 
 ### 콘텐츠 검수기 v1 운영 정착
 - [ ] 1주 운영 후 거짓양성 비율 점검 → 임계점·키워드 사전 조정 (카드 + 댓글 양쪽 모두)

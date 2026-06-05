@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-06-05] — 문서 정합 sweep (코드·마이그 무변경) + ROADMAP 완료분 이관
+
+### Changed
+- **soft_delete 정책 문서 정정**(PRD §4.1·§4.8·§5.2, DATABASE.md): `soft_delete_card` 는 `deleted_at` 만 set(본문·작성자 보존, status 미변경, 공개 차단=RLS+피드 `deleted_at IS NULL` 필터 0172). 회원 탈퇴는 **작성자 profile PII만** 익명화(콘텐츠 본문 미변경). "in-place 익명화=본문 스크럽" 오해 표현 제거.
+- **카테고리 표기 현행화**(PRD·DATABASE.md·TECH_SPEC.md): 옛 6종(qa/tip/diary/ask/link/doodle) → **현 4종 `qa`/`doodle`/`review`/`review_summary`** (SSOT=`src/lib/post-category.ts`). tip/diary/ask/link 폐지 반영. `/topics` 인덱싱 `qa/tip`→`qa`(0235).
+- **알림 실패 테이블명 정정**(DATABASE.md §1.6·§5, RUNBOOK.md): `push_error_log`/`push_errors` 오기 → 실제명 **`push_webhook_errors`**(0105 가 처음부터 이 이름으로 생성).
+- **anon PII lockdown 7개로 정정**(PRD §5.2, DATABASE.md §3.1): `liked_procedures` 0184 drop 반영(8→7).
+- **인터랙션 정책 컬럼명 정정**(DATABASE.md §3.3): card_likes/saves/comment_likes 정책 설명 `user_id`→`profile_id`(0187 RENAME 반영).
+- **RUNBOOK notifications 스키마 점검 종결**: 실측 결과 `card_id`+`comment_id` 존재·`qa_id` 부재(0171 반영) → 미해결 점검 항목 해소.
+
+### Added (ROADMAP "Now" 완료분 이관)
+- **베타→공개 전환 완료 항목** ROADMAP 제거 후 이관: robots.txt fail-safe 공개 정책 / Google Search Console·Naver Search Advisor·Bing Webmaster 등록 / Vercel·Naver Analytics 가동 (DEPLOYMENT §9 2026-05-28 완료) + **Supabase Daily Backups 활성**(Management API 확인: 최근 7일 물리백업 COMPLETED, PITR 미사용). Vercel Spend Management(상한 설정값 미확인)만 ROADMAP 잔류.
+
+---
+
 ## [2026-06-05] — /reports 메타 title "집계" 문구 제거
 
 ### Changed

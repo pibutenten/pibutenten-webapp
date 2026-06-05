@@ -52,7 +52,7 @@
 - 타입: `qa` (Q&A), `post` (일반 글)
 - 카테고리 4종: `qa`(의사 Q&A, index) / `doodle`(일반 '끄적끄적', noindex) / `review`(개별 시술후기, noindex) / `review_summary`(시술 리포트 집계, index) — P3 완료
 - 상태: `draft` / `pending_review` / `published` / `hidden` / `archived`
-- soft-delete + in-place 익명화 (ADR 0002)
+- soft-delete (`deleted_at` in-place, ADR 0002) — **본문 보존**. 회원 탈퇴 시에는 **작성자 profile PII만** 익명화(네이버 카페식: 콘텐츠 보존, 작성자는 '(탈퇴한 사용자)' 표시).
 - 외부 링크 OG 카드 첨부, YouTube 영상 시작시간 sync
 
 ### 4.2. 검색 / 피드
@@ -111,7 +111,7 @@
 ### 4.8. 운영 모더레이션 (배치 ④, 2026-05-28)
 - 운영 화면: `/admin/reports` — 신고 큐 + 액션 2개 + 기각.
 - **숨김** (`moderation.hide`): 영구 비공개(`status='hidden'`, 복구가능). 30일 임시조치 폐기 — 기한 제한 없음.
-- **완전삭제** (`moderation.delete`, 카드 한정): soft-delete 익명화 (ADR 0002 `soft_delete_card` RPC 재사용).
+- **완전삭제** (`moderation.delete`, 카드 한정): `soft_delete_card` RPC(ADR 0002)로 `deleted_at` 소프트삭제. **본문·작성자 보존**(스크럽 없음), 공개에서 비공개(RLS + 피드 `deleted_at` 필터). `audit_logs`(`moderation.delete`) 적재.
 - **기각** (`moderation.dismiss`): 신고만 처리, 대상 변경 없음.
 - 모든 액션 `audit_logs` 적재. 작성자에게 개별 푸시·알림 통지 안 함.
 - 숨김된 카드 단일 URL 직접 접근 시 placeholder ("운영정책에 따라 비공개된 게시물입니다") + `noindex`.
@@ -130,8 +130,8 @@
 - 상세 보안 정책: `SECURITY.md`
 
 ### 5.2. 개인정보보호 (PIPA)
-- 탈퇴 시 soft-delete in-place 익명화 (네이버 카페식, ADR 0002)
-- anon 권한 컬럼 화이트리스트 (PII 8개 컬럼 anon SELECT 차단)
+- 탈퇴 시 **작성자 profile PII** in-place 익명화 + auth 계정 삭제 (네이버 카페식: 작성 콘텐츠 본문 보존, 작성자만 '(탈퇴한 사용자)' 표시. ADR 0002)
+- anon 권한 컬럼 화이트리스트 (PII 7개 컬럼 anon SELECT 차단)
 - 처리방침 국외이전 표 명시 (Supabase/Vercel/Anthropic/Google/Web Push/PubMed)
 - 30일 임시조치 절차 (정통망법 §44조의2)
 

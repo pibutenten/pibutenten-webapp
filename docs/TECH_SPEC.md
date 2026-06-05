@@ -91,18 +91,18 @@ GOOGLE_CLIENT_SECRET=...
   - 두 RPC 동일 가중·부스트 → 첫 페이지·스크롤·검색에서 신규 글 노출 일관. 검색은 키워드 매칭 점수가 위에 얹힘.
 - 같은 원장 3연속 방지, 첫 4카드 다양화
 - HOT 카드: `get_hot_card_ids(p_limit)` 결과로 마킹 (v2 정책 본문 = 시간 가중 + 최소 점수 5)
-- **검색 SSOT 헬퍼** (배치 ⑤ H3, 2026-05-28): `src/lib/search-query.ts::fetchCardList(supabase, { q, doctorSlug, boostDoctorSlug, offset, limit })` — 3 호출처 (`/search/page.tsx`, `/api/cards`, `/doctors/[slug]/page.tsx`) 가 동일 헬퍼 사용. q 가 카테고리 라벨 ("피부일기" 등) 이면 `.eq("category", slug)` 직접 필터, 아니면 RPC. 옛 회귀(첫 페이지 vs 무한스크롤 결과 집합 불일치) 해소.
+- **검색 SSOT 헬퍼** (배치 ⑤ H3, 2026-05-28): `src/lib/search-query.ts::fetchCardList(supabase, { q, doctorSlug, boostDoctorSlug, offset, limit })` — 3 호출처 (`/search/page.tsx`, `/api/cards`, `/doctors/[slug]/page.tsx`) 가 동일 헬퍼 사용. q 가 카테고리 라벨 ("끄적끄적" 등) 이면 `.eq("category", slug)` 직접 필터, 아니면 RPC. 옛 회귀(첫 페이지 vs 무한스크롤 결과 집합 불일치) 해소.
 - **"방금 쓴 글" 1회 노출**: WriteClient publish 성공 → sessionStorage `pbtt:justPublished = {id, ts}` 저장. 홈 `<Feed enableJustPublished>` 가 5분 윈도우 + 'shown' 마킹으로 본인 글을 그리드 첫 칸에 1회 노출(이미 피드에 있으면 맨 앞 이동, 없으면 fetch unshift). 클라이언트 전용·타인 영향 0. (2026-05-31 `JustPublishedPrepend` 별도 컴포넌트 → Feed 흡수. 전역 신규 노출은 New 부스트가 담당.)
 
-### 4.2. 카테고리 (Phase 5.1 - 6분류)
+### 4.2. 카테고리 (현 4종 — SSOT=`src/lib/post-category.ts`)
 | slug | 라벨 | 작성 권한 |
 |---|---|---|
 | `qa` | Q&A | doctor / admin |
-| `tip` | 꿀팁 | doctor / admin |
-| `diary` | 피부일기 | 모두 |
-| `ask` | 물어봐요 | 모두 |
-| `link` | 공유하기 | 모두 (외부 URL 첨부 가능) |
-| `doodle` | 끄적끄적 | 모두 (0108 추가) |
+| `doodle` | 끄적끄적 | 모두 |
+| `review` | 개별 시술후기 | 모두 (전용 폼, noindex) |
+| `review_summary` | 시술 리포트 | 시스템 집계 (index) |
+
+> diary/ask/tip/link 폐지 (0198 6종→2종 qa/doodle 통합, 0201 review/review_summary 추가).
 
 ### 4.3. 인기 키워드 (CategoryWithChips)
 - 5개 카테고리 탭 (피부고민/리프팅/스킨부스터/홈케어/피부상식)
@@ -135,7 +135,7 @@ ex) /minji-skin/Ab3xK9Pq
 ```
 /{handle}                 사용자/원장 프로필 (active identity)
 /u/{id}                   구식 URL (compat)
-/topics/{tag}             정식 인덱싱 (qa/tip 만)
+/topics/{tag}             정식 인덱싱 (qa 만, 0235)
 ```
 
 ---
@@ -188,7 +188,7 @@ ex) /minji-skin/Ab3xK9Pq
 ### 6.7. 절대 금지
 - **추상 메타**: 효과지속, 위치미스, 시술선택, 적응증, 시술비교 (`~기간` 은 허용)
 - **광범위 일반명사 단독**: 피부, 고민, 관리, 시술, 효과, 부위
-- **카테고리 라벨**: "Q&A", "피부일기", "꿀팁" 등 → `category` 컬럼이 표시 시점에 자동 append
+- **카테고리 라벨**: "Q&A", "끄적끄적" 등 → `category` 컬럼이 표시 시점에 자동 append
 
 ### 6.8. post_slug SSOT 룰 (`src/data/procedure-mappings/slug-mapping.ts`)
 - **생성 (`buildSlug()`)**: 영문 단어 기본 3개, 최대 4개. 부분 중복 제거. 50자 초과 시 마지막 `-` 경계 cut. 충돌 시 `resolveSlugCollision()` 이 `-2`, `-3` 부여.
@@ -229,7 +229,7 @@ ex) /minji-skin/Ab3xK9Pq
 - 댓글 알림 (내 글 댓글, 내 댓글 답글)
 - 좋아요 알림 (그룹화 0083)
 - 저장 알림
-- ask 카테고리 답변 알림 (지속형 0080)
+- 답변 알림 (내 질문에 답변 달림, 지속형 0080. 옛 `ask` 카테고리 폐지 — 알림 자체는 유지)
 
 ### 8.2. 트리거
 - DB 트리거 (0086 push webhook trigger)

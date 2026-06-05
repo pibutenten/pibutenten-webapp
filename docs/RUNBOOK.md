@@ -8,7 +8,7 @@
 
 1. [push_subscriptions endpoint hostname 화이트리스트 적용](#1-push_subscriptions-endpoint-hostname-화이트리스트-적용)
 2. [0086 webhook secret 폐기 검증](#2-0086-webhook-secret-폐기-검증)
-3. [notifications 테이블 스키마 확인 (qa_id vs card_id)](#3-notifications-테이블-스키마-확인)
+3. [notifications 테이블 스키마 확인](#3-notifications-테이블-스키마-확인)
 4. [의료진(doctor) 계정 등록 SOP](#4-의료진doctor-계정-등록-sop)
 5. [시크릿 사고 대응 (Secret Rotation)](#5-시크릿-사고-대응-secret-rotation)
 6. [보류 항목 결정 기록](#6-보류-항목-결정-기록)
@@ -78,7 +78,7 @@ SELECT vault.create_secret(
 
 ### Step 4: 검증
 - 테스트 알림 1건 발송 → push 수신 확인
-- `push_errors` 테이블에 401/403 미발생 확인
+- `push_webhook_errors` 테이블에 401/403 미발생 확인
 
 ### 위험
 - 3곳 순서가 어긋나면 **1~2분간 push 알림 다운**. 새벽 시간대 작업 권장.
@@ -96,13 +96,11 @@ ORDER BY ordinal_position;
 ```
 
 ### 확인 사항
-- `card_id` 컬럼 있는지 (0073 에서 추가됐는지)
-- `qa_id` 컬럼이 잔존하는지
+- `card_id` / `comment_id` 컬럼 존재 여부
 
-### 후속 조치
-- `qa_id` 만 있고 코드는 `card_id` 참조 → rename 마이그레이션 필요 (운영 위험)
-- 둘 다 있음 → `qa_id` 폐기 마이그레이션
-- `card_id` 만 있음 → 정상, 조치 불필요
+### 현 상태 (2026-06-05 확인 완료)
+- notifications 실제 컬럼 = `card_id` + `comment_id`. **`qa_id` 는 부재** (cards 리네임 0171 반영 완료). 정상, 조치 불필요.
+- (옛 `qa_id` 잔존 점검 항목은 해소됨 — 위 점검 SQL 은 회귀 의심 시에만 재실행.)
 
 ---
 

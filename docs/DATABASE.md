@@ -41,7 +41,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | `field_visibility` | jsonb | 프로필 필드별 공개 여부 |
 | `contact_email` | text | 중복 가입자 식별용 (OAuth provider email). ADR 0003 |
 | `skin_info_consent_at` | timestamptz | 피부정보 활용 동의 시점 |
-| `deleted_at` | timestamptz | 탈퇴 시각. NULL=활성. 설정 시 in-place 익명화. ADR 0002 |
+| `deleted_at` | timestamptz | 탈퇴 시각. NULL=활성. 설정 시 **해당 profile PII in-place 익명화**(handle·display_name·PII 마스킹 + auth_user_id NULL; 작성 카드·댓글 본문은 미변경). ADR 0002 |
 | `created_at`, `updated_at` | timestamptz | |
 
 **폐기된 컬럼** (DB 미존재):
@@ -57,7 +57,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 |---|---|
 | `id` | bigserial PK |
 | `type` | enum: `qa` / `post` (`article` 폐기 — 0076) |
-| `category` | text — `qa`/`tip`/`diary`/`ask`/`link`/`doodle` (Phase 5.1, doodle 추가 0108) |
+| `category` | text — **현 4종: `qa`/`doodle`/`review`/`review_summary`**. (0198 6종→2종 qa/doodle, 0201 review/review_summary 추가. SSOT=`src/lib/post-category.ts`. diary/ask/tip/link 폐지.) |
 | `status` | enum: `draft` / `pending_review` / `published` / `hidden` / `archived` (hidden 추가 0152) |
 | `author_id` | uuid → profiles(id) |
 | `doctor_id` | uuid → doctors(id) NULLABLE |
@@ -73,7 +73,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | `video_id` | nullable refs |
 | `is_pick` | bool |
 | `screening_flags` | text[] — 자동 검수 플래그 (의료법/약사법/환자후기) |
-| `deleted_at` | timestamptz — soft-delete (0132). ADR 0002 |
+| `deleted_at` | timestamptz — soft-delete — `soft_delete_card` 가 `deleted_at` 만 set(본문·작성자 보존, status 미변경). 공개 차단=RLS + 피드/검색 `deleted_at IS NULL` 필터(0172). (0132). ADR 0002 |
 | `created_at`, `updated_at` | timestamptz |
 
 **리네임된 컬럼**:
@@ -121,7 +121,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 - `notifications`, `notification_preferences` (0062, 0063, 0079, 0080)
 - `push_subscriptions` (0084)
 - `push_webhook_secret` Vault 이전 (0103)
-- `push_error_log`, `rate_limit_log` (0105)
+- `push_webhook_errors`(알림 webhook 실패 로깅), `rate_limit_log` (0105). ※ 알림 실패 테이블 실제명=`push_webhook_errors` (과거 문서의 `push_error_log`/`push_errors` 표기는 오기).
 
 ### 1.7. 운영
 - `doctors`, `doctor_accounts`, `videos`
@@ -169,7 +169,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 ### 3.1. profiles
 - `profiles_public_select` (qual=true) — anon 안전 컬럼만 SELECT
 - `profiles_self_select`
-- anon PII lockdown (0122/0123): `birthdate`/`gender`/`face_shape`/`skin_type`/`skin_concerns`/`interested_procedures`/`liked_procedures`/`contact_email` anon 차단
+- anon PII lockdown (0122/0123): `birthdate`/`gender`/`face_shape`/`skin_type`/`skin_concerns`/`interested_procedures`/`contact_email` anon 차단 (7개. `liked_procedures` 는 0184 drop)
 - `public_profiles_view` (안전 컬럼 19개만 노출)
 - `chk_min_age` CHECK constraint (14세 미만 차단, 0121)
 
@@ -185,7 +185,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 ### 3.3. comments / card_likes / card_saves / comment_likes (0161 계정 단위 재작성)
 - `comments_insert/update_self/delete_self`: `author_id = COALESCE(current_active_profile_id(), auth.uid())`
 - `comments_select`: visible OR is_admin OR active 작성자 OR active 가 카드 owner(doctor·author)
-- `card_likes_insert/delete`: `user_id = COALESCE(current_active_profile_id(), auth.uid())`. select 는 true (public, 카운트 노출)
+- `card_likes_insert/delete`: `profile_id = COALESCE(current_active_profile_id(), auth.uid())` (0187 RENAME 반영). select 는 true (public, 카운트 노출)
 - `card_saves_insert/delete/select`: 동일 (select 는 본인 active 만 또는 admin)
 - `comment_likes_insert/delete/select`: 동일
 
@@ -236,7 +236,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0100, 0101 | card_likes/saves/comment_likes profiles FK 복구 + p_identity_id |
 | **0103** | **push_webhook_secret Vault 이전 — rotation 지원** |
 | 0104 | cards.published 컬럼 drop (status 단일 SSOT) |
-| 0105 | rate_limit_log + push_error_log |
+| 0105 | rate_limit_log + push_webhook_errors |
 | 0106, 0106b | propagate_onboarding_to_doctor_bundle + 백필 |
 | 0107a~c | sentinel 도입 (※ 0109 으로 폐기) |
 | 0108 | cards.category CHECK 에 doodle 추가 + comments service_role GRANT |
@@ -281,7 +281,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | **0169** | **pubmed_refs jsonb 정규화 — year string→int (858 ref), doi_url ""→null (64 ref). SSOT 정합 (Critical-4)** |
 | **0170** | **feed_cards_scored / tag_cards_scored 의 RETURNS TABLE 에 pubmed_refs jsonb[] 추가 — 피드/태그 리스트에서 참고문헌 재노출 회귀 fix** |
 | **0171** | **cards.question → title, cards.answer → body 리네임 + 인덱스 2개 RENAME + 카드 참조 RPC 10개 재정의 (feed/search/tag_cards_scored, get_notifications, get_top_cards_by_{comments\|likes\|saves\|shares\|views}_inner, get_top_new_cards_inner). P2-4 SSOT** |
-| **0172** | **feed/search/tag_cards_scored 에 `AND c.deleted_at IS NULL` 명시 + get_top_visitors_inner 비로그인 행 display_name → NULL (옛 한글 라벨 인코딩 사고 차단, UI 가 라벨링)** |
+| **0172** | **feed/search/tag_cards_scored 에 `AND c.deleted_at IS NULL` 명시 + get_top_visitors_inner 비로그인 행 display_name → NULL (옛 한글 라벨 인코딩 사고 차단, UI 가 라벨링)** (주의: `soft_delete_card` 는 `deleted_at` 만 set, status='hidden' 으로 바꾸지 않음 — 일부 옛 주석의 'status=hidden 동반' 표현은 부정확. 공개 차단은 본 0172 의 `deleted_at IS NULL` 필터가 담당.) |
 | **0173** | **`COMMENT ON TABLE cards` + `NOTIFY pgrst 'reload schema'` + `'reload config'` 양방향 강제 — 0171/0172 직후 PostgREST schema cache stale 회귀 차단. 실질 DDL 변경 없음 (deep scan 결과 question/answer 잔재 0건 확인 후 캐시 reload 한정)** |
 | **0174** | **`get_top_cards_by_{comments\|likes\|saves\|shares\|views}` + `get_top_new_cards` wrapper 6개의 `RETURNS TABLE` 시그니처 `question text → title text` 교체. 0171 이 `*_inner` 만 재정의하고 wrapper 누락 → PostgREST 가 옛 컬럼명으로 직렬화 → UI "(제목 없음)" 회귀의 정확한 fix** |
 | **0175** | **통계 TOP RPC 7개 (`*_inner` + 7개 wrapper = 14 함수) 의 `WHERE c.deleted_at IS NULL` 제거 + `RETURNS TABLE` 에 `deleted_at timestamptz` 컬럼 추가. KPI ↔ TOP 정의 정합 (옵션 A: 사용자 결정). UI 는 deleted_at 으로 '삭제됨' 배지 표시** |
