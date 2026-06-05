@@ -96,7 +96,7 @@
 ## 분기 정기 점검
 
 - [ ] `pg_proc` SECURITY DEFINER + authenticated EXECUTE sweep (보안 1차 사례)
-- [ ] secret 로테이션 (VAPID/NAVER/ANTHROPIC/SERVICE_ROLE/PUSH_WEBHOOK)
+- [ ] secret 노출 점검 (분기 스캔만, 평시 정기 로테이션 안 함 — 노출 의심 시 즉시 로테이션). 대상: VAPID/NAVER/ANTHROPIC/SERVICE_ROLE/PUSH_WEBHOOK/GOOGLE_CLIENT_SECRET
 - [ ] Dependabot / npm audit 알림 처리
 - [ ] audit_logs 1년 이전 row 정리
 

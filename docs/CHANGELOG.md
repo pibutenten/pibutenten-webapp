@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-05] — api_rate_limits 오기 정정 + secret 정책(노출 점검 기준) 통일
+
+### Changed
+- **테이블명 오기 정정**(DATABASE.md §1.6·§5): 0105 가 만든 rate limit 테이블 실제명 = **`api_rate_limits`** (과거 `rate_limit_log` 표기 오기). §5 0105 이력 행도 동일 정정.
+- **유령 테이블 행 제거**(DATABASE.md §1.5): `card_activity_users` 는 production 부재(pg_class·information_schema 0건; 0087 생성 후 삭제, 현재는 RPC `get_card_activity_users` 가 card_likes/saves/shares/views 직접 집계) → §1.5 목록에서 제거. (RPC 행 §2·마이그 이력 §5 0087 은 유지.)
+- **§1 테이블명 live 대조**: 위 2건 외 §1 의 모든 테이블명은 live `information_schema` 와 일치(`doctor_accounts` 는 0176 이후 VIEW 로 실재 — 이름 유효).
+- **secret 정책 통일**(DEPLOYMENT §9.5, SECURITY.md, ROADMAP.md): "평시 정기 로테이션 안 함 / 분기엔 노출 점검(스캔)만 / 노출 의심 시 즉시 로테이션" 으로 cadence 표현 통일. 로테이션 대상에 `GOOGLE_CLIENT_SECRET` 추가(3문서 일관). 로테이션 절차·책임자·즉시 로테이션 항목은 유지.
+
+---
+
 ## [2026-06-05] — 문서 정합 sweep (코드·마이그 무변경) + ROADMAP 완료분 이관
 
 ### Changed

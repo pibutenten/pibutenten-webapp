@@ -115,13 +115,12 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | `card_impressions` | 카드 노출 |
 | `card_shares` | channel: `native`/`link-copy`. session_id 컬럼 (0142). 트리거로 share_count 자동 +1 (0095) |
 | `site_visits` | 24h 1회 사이트 진입 (0157). ADR 0010 |
-| `card_activity_users` | 카드별 활동 사용자 집계 |
 
 ### 1.6. 알림 / 푸시
 - `notifications`, `notification_preferences` (0062, 0063, 0079, 0080)
 - `push_subscriptions` (0084)
 - `push_webhook_secret` Vault 이전 (0103)
-- `push_webhook_errors`(알림 webhook 실패 로깅), `rate_limit_log` (0105). ※ 알림 실패 테이블 실제명=`push_webhook_errors` (과거 문서의 `push_error_log`/`push_errors` 표기는 오기).
+- `push_webhook_errors`(알림 webhook 실패 로깅), `api_rate_limits`(rate limit 카운터) (0105). ※ 알림 실패 테이블 실제명=`push_webhook_errors` (과거 문서의 `push_error_log`/`push_errors` 표기는 오기).
 
 ### 1.7. 운영
 - `doctors`, `doctor_accounts`, `videos`
@@ -236,7 +235,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0100, 0101 | card_likes/saves/comment_likes profiles FK 복구 + p_identity_id |
 | **0103** | **push_webhook_secret Vault 이전 — rotation 지원** |
 | 0104 | cards.published 컬럼 drop (status 단일 SSOT) |
-| 0105 | rate_limit_log + push_webhook_errors |
+| 0105 | api_rate_limits + push_webhook_errors |
 | 0106, 0106b | propagate_onboarding_to_doctor_bundle + 백필 |
 | 0107a~c | sentinel 도입 (※ 0109 으로 폐기) |
 | 0108 | cards.category CHECK 에 doodle 추가 + comments service_role GRANT |

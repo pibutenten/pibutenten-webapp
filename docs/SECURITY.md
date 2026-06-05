@@ -47,7 +47,7 @@
 
 ## 향후 점검 권고
 
-- 정기 시크릿 로테이션 (분기 1회): VAPID, NAVER_CLIENT_SECRET, ANTHROPIC_API_KEY, SUPABASE_SERVICE_ROLE_KEY, PUSH_WEBHOOK_SECRET
+- 시크릿 노출 점검 (분기 1회 스캔): 평시 정기 로테이션은 하지 않고, 분기엔 노출 여부 점검만. 노출 의심 시에만 즉시 로테이션. 대상: VAPID, NAVER_CLIENT_SECRET, ANTHROPIC_API_KEY, SUPABASE_SERVICE_ROLE_KEY, PUSH_WEBHOOK_SECRET, GOOGLE_CLIENT_SECRET
 - Dependabot/Snyk 등 의존성 보안 알림 모니터링
 - CSP `Content-Security-Policy-Report-Only` → enforce 모드 전환 검토 (Report-Only 로그 수집 후)
 - 분기마다 `pg_proc` SECURITY DEFINER 함수 전수 점검 (admin 가드 누락 회귀 방지)
