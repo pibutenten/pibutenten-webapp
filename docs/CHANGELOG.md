@@ -6,7 +6,15 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON
+
+### Changed 시술 리포트(/reports/{en}) 검색엔진·AEO 색인 ON (리포트 존재 시 전부, 임계값 없음)
+- `src/lib/site.ts`: `INCLUDE_REPORT_ANCHORS = false → true`. sitemap.xml·RSS 에 published review_summary 앵커(`/reports/{en}`) 전부 노출. 후기 수 임계값 없음(리포트가 존재=후기 ≥1 인 시술 전부). 쿼리는 `status='published'` 이중 게이트라 draft 앵커는 자동 제외.
+- `src/app/robots.ts`: `DISALLOW_COMMON` 의 `/report` → `/report$`. robots.txt Disallow 는 접두 매칭이라 단수 `/report`(신고 페이지)가 `/reports/*`(시술 리포트)까지 차단하던 것을, `$` 종단 앵커로 단수 페이지만 정확 차단하도록 교정. (파일 자체의 `/doctor`→`/doctors` 접두 함정 경고와 동일 부류.)
+- `/reports/[procedure]` 페이지 robots 는 이미 정합(리포트 존재 시 `index:true`, `getProcedureReport=null`(후기 0개)이면 `index:false`) — 변경 없음. AggregateRating JSON-LD 도 기존대로.
+- `public/llms.txt` 는 인용정책 안내 문서로 경로 차단 기능 없음(=`/reports` 미차단) — 변경 없음.
+- **전제**: 전체 색인은 글로벌 `SITE_PUBLIC=true` 공개 플립이 선행. HOLD(`SITE_PUBLIC!=="true"`) 동안은 robots.txt 가 전체 `Disallow:/` 라 본 변경분도 크롤 안 됨(공개 시 자동 활성).
+- 검증: `tsc` 0 + `build` Compiled successfully. dev sitemap.xml 에 `/reports/{en}` 35개 포함, `/reports/restylane` `<meta robots="index, follow">` + AggregateRating JSON-LD 확인. (dev robots.txt 는 HOLD 라 `/report$` 미노출 — 공개 분기에서만 emit.)
 
 ### Fixed 시술 리포트(review_summary) 앵커의 조회수가 구조적으로 0 고정이던 문제
 - 시술 리포트 카드/페이지가 view 기록 경로를 전혀 호출하지 않아 `cards.view_count` 가 항상 0 이던 것을, 일반 단일 글과 **동일한 `useCardViewer` 경로**(recordView → `card_views` INSERT → DB 트리거가 `view_count` 동기화)를 재사용해 기록하도록 추가.

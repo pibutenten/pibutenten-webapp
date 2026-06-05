@@ -22,9 +22,10 @@ export const SITE_URL =
 /**
  * 시술 리포트 앵커(type=review_summary, /reports/{en})를 sitemap.xml·RSS 에 포함할지 여부.
  *
- * ★기본 off — 앵커는 현재 draft(비공개)이고 색인 노출은 공개 플립 이후 단계.
- *   sitemap/rss 쿼리 자체도 status='published' 로 한 번 더 거르므로 이중 차단.
- *   공개 플립(앵커 draft→published) 후 원장이 true 로 바꿔 색인 노출을 켠다. (C4)
+ * ★ON (2026-06-05, 원장 결정) — 리포트가 존재하는 시술(후기 ≥1)은 전부 검색엔진/AEO 색인.
+ *   별도 후기 수 임계값 없음. sitemap/rss 쿼리는 status='published' 로 한 번 더 거르므로
+ *   draft 앵커는 자동 제외(이중 게이트). 후기 0개로 리포트가 사라진 경우는
+ *   /reports/[procedure] 가 getProcedureReport=null → robots:{index:false} 로 page 수준 차단.
  */
-export const INCLUDE_REPORT_ANCHORS = false;
+export const INCLUDE_REPORT_ANCHORS = true;
 

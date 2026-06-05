@@ -30,13 +30,15 @@ export const dynamic = "force-dynamic";
  *
  *  Disallow 공통 경로 (모든 봇):
  *    /api/  /admin/  /auth/  /onboarding  /signup  /login
- *    /write  /notifications  /settings  /report
+ *    /write  /notifications  /settings  /report$
  *    /search?  /debug  /u/
  *
  *  ⚠️ 접두 매칭 주의:
  *    /doctor (단수) 를 Disallow 하면 /doctors/* · /doctor-guidelines 까지 차단됨.
  *    /me 를 Disallow 하면 /medical-review 까지 차단됨.
- *    → 두 경로는 공통 Disallow 에 넣지 않음. 페이지 자체가 인증 필요 (auth gate)
+ *    /report (단수 신고 페이지) 를 Disallow 하면 /reports/* (시술 리포트, 색인 대상) 까지 차단됨
+ *      → "$" 종단 앵커(/report$)로 단수 페이지만 정확 매칭(2026-06-05 색인 ON).
+ *    → 위 doctor/me 경로는 공통 Disallow 에 넣지 않음. 페이지 자체가 인증 필요 (auth gate)
  *      또는 generateMetadata 의 robots:{index:false} 로 page 수준 차단.
  *
  *  회원 글 `/{handle}/{shortcode}` 처리:
@@ -56,7 +58,8 @@ const DISALLOW_COMMON = [
   "/write",
   "/notifications",
   "/settings",
-  "/report",
+  // 단수 신고 페이지만 차단. "$" 종단 앵커로 /reports/* (시술 리포트, 색인 대상) 접두 매칭 방지.
+  "/report$",
   "/search?",
   "/debug",
   "/u/",
