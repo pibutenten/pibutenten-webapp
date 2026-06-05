@@ -15,6 +15,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
@@ -70,6 +71,12 @@ export async function PATCH(
   const { action, note } = parsed.data;
 
   const admin = createSupabaseAdminClient();
+  // 카드 모더레이션 RPC(toggle_card_hide / soft_delete_card)는 SECURITY DEFINER 본문
+  // 첫 줄에서 auth.uid() 를 읽어 NULL 이면 'unauthenticated' 예외를 던진다(0162).
+  // service_role(admin) 클라이언트는 사용자 세션이 없어 auth.uid()=NULL → 항상 실패.
+  // 따라서 카드 RPC 는 운영자 세션 클라이언트로 호출한다(requireAdmin 통과 = active admin 명함,
+  // x-active-profile-id 헤더로 is_admin(uid) 통과). 댓글 hide·신고 갱신은 admin 직접 UPDATE 유지.
+  const session = await createSupabaseServerClient();
 
   // 신고 조회 — 대상 식별.
   const { data: report, error: fetchErr } = await admin
@@ -93,8 +100,8 @@ export async function PATCH(
   // 액션 실행
   if (action === "hide") {
     if (targetCardId) {
-      // 카드 숨김 — toggle_card_hide RPC 재사용 (0162).
-      const { error: hideErr } = await admin.rpc("toggle_card_hide", {
+      // 카드 숨김 — toggle_card_hide RPC 재사용 (0162). 세션 클라이언트(운영자 인증) 사용.
+      const { error: hideErr } = await session.rpc("toggle_card_hide", {
         p_card_id: targetCardId,
         p_next_status: "hidden",
       });
@@ -121,7 +128,7 @@ export async function PATCH(
         userMessage: "완전삭제는 카드 대상만 지원합니다. 댓글은 '숨김'을 사용하세요.",
       });
     }
-    const { error: delErr } = await admin.rpc("soft_delete_card", {
+    const { error: delErr } = await session.rpc("soft_delete_card", {
       p_card_id: targetCardId,
     });
     if (delErr) {

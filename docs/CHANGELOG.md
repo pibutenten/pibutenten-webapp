@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정
+
+### Fixed 신고 카드 숨김·완전삭제가 항상 500 으로 실패하던 문제
+- `/admin/reports` 신고 큐에서 신고된 **카드**를 "숨김"·"완전삭제" 하면 항상 500 (`unauthenticated`) 으로 실패하던 버그 수정.
+- 원인: `src/app/api/admin/reports/[id]/route.ts` 가 `toggle_card_hide`·`soft_delete_card` RPC 를 service_role(admin) 클라이언트로 호출. 두 RPC(0162)는 SECURITY DEFINER 본문 첫 줄에서 `auth.uid()` 를 읽어 NULL 이면 `RAISE EXCEPTION 'unauthenticated'(42501)`. service_role 은 사용자 세션이 없어 `auth.uid()=NULL` → 카드 hide/delete 가 항상 예외. (댓글 hide 는 admin 직접 UPDATE 라 영향 없었음.)
+- 조치: 카드 RPC 2곳만 운영자 **세션 클라이언트**(`createSupabaseServerClient`)로 전환. `requireAdmin` 통과 = active admin 명함이고, 세션 클라이언트가 `x-active-profile-id` 헤더를 주입해 `is_admin(uid)`(=`COALESCE(current_active_profile_id(),uid)` 프로필 role 검사) 가 통과. 신고 조회·댓글 hide·`content_reports` 상태 갱신·audit 적재는 admin 클라이언트 그대로 유지.
+- 검증: `tsc --noEmit` 0 에러 + `npm run build` Compiled successfully. (배포 후 실증: 숨김→복구 가역 / 더미 카드 완전삭제 / 댓글 숨김 정상.)
+
+---
+
 ## [2026-06-04] — 중복계정 정리(A) + 재발방지 안내(B) + 회원관리 강화(C) + 리포트 표시(D)
 
 ### Removed (A) OAuth provider 차이 동일인 중복 계정 정리 — 데이터 파괴적, 승인 후 실행
