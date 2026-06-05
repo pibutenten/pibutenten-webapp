@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-06] — 힐하우스 그룹 Wikidata sameAs 연결 (GEO 엔티티)
+
+### Added
+- **힐하우스피부과 그룹 엔티티 ↔ Wikidata 연결**: `lib/schema/clinic.ts` `groupOnlySchema()` 의 `MedicalOrganization`(@id `#healhouse-group`)에 `sameAs:["https://www.wikidata.org/wiki/Q140071426"]` 추가. Wikidata 항목 Q140071426(힐하우스피부과 — 분류 진료소+의학조직, 국가 KR, 위치 5지점, 공식 healhouseskin.com, 설립 2020, 분야 피부과, 영문 라벨/설명) 신규 생성 후 연결. 지점 5개는 `parentOrganization` 으로 그룹 참조 → **그룹에만 sameAs 1회**(layout 전역 @graph 로 전 페이지 노출). GEO C1(엔티티 sameAs) 보강 — 4인 독립 평가에서 지적된 "sameAs 빈약(YouTube만)" 약점 일부 해소.
+
+### 검증
+- `tsc --noEmit` 0 + `npm run build` 성공. dev SSR(`/`) 원시 HTML 의 `ld-org-website` 스크립트에 `"sameAs":["https://www.wikidata.org/wiki/Q140071426"]` 포함 확인. 서버 에러 0.
+
+---
+
 ## [2026-06-06] — 저장 알림 신설 (이름 비노출·숫자만, 4-2)
 
 ### Added

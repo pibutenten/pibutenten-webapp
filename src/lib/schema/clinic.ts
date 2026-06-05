@@ -231,6 +231,9 @@ export function groupOnlySchema(): Record<string, unknown> {
     "@id": HEALHOUSE_GROUP_ID,
     name: "힐하우스피부과",
     url: "https://www.healhouseskin.com",
+    // 엔티티 합의(GEO C1): 그룹 = Wikidata Q140071426 (힐하우스피부과).
+    // 지점 5개는 parentOrganization 으로 이 그룹을 참조 → 그룹에만 sameAs 1회.
+    sameAs: ["https://www.wikidata.org/wiki/Q140071426"],
   };
 }
 
