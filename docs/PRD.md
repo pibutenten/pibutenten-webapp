@@ -143,6 +143,7 @@
 
 ### 5.4. SEO · AEO · GEO
 - 동적 sitemap, robots, manifest
+- **메타 규칙 (2026-06-05 통일)**: title 템플릿 `%s | 피부텐텐` — 콘텐츠 페이지는 주제(키워드) first·브랜드 last, 홈만 brand-first(absolute). title↔description 비중복(title=주제/질문, desc=답변/데이터). desc 에 브랜드 반복 금지, 수치(Q&A수·후기수·만족도·재시술%·전문의수)는 전부 라이브 동적, 최상급·효과 단정·후기 보증 문구 금지. 원장 글 desc 는 본문 문장경계 트림(~150, 단어 중간 잘림 방지).
 - OG 메타: 원장님 페이지·단일 글 페이지 모두 `generateMetadata`
 - 의사 글 URL: `/doctors/{slug}/{year}/{post-slug}` 키워드 기반 slug
 - 회원 글 URL: `/{handle}/{shortcode}` 8자 base58

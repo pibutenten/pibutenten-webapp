@@ -67,6 +67,26 @@ const fetchQaByDoctorYearSlug = cache(async (
 // P2-5 (2026-05-29): hidden placeholder 로직 DRY → @/lib/hidden-card 로 추출.
 const checkHiddenPlaceholder = checkHiddenByDoctorPost;
 
+/**
+ * 답변 본문 → meta description. 단어 중간 잘림 방지 — 문장부호(.!?…) 경계로 트림(~150자).
+ *   ≤150 안에 문장 끝이 있으면 거기서 컷(첫 문장이 <20자면 그리디 매칭이 다음 문장까지 포함).
+ *   문장 끝이 없으면 단어 경계로 컷. 잘렸으면 말줄임표(…) 부가.
+ */
+function metaDescriptionFromBody(body: string, max = 150): string {
+  const text = stripMarkdown(body).replace(/\s+/g, " ").trim();
+  if (text.length <= max) return text;
+  const slice = text.slice(0, max);
+  const sentence = slice.match(/^[\s\S]*[.!?。…](?=\s|$)/);
+  let cut: string;
+  if (sentence && sentence[0].trim().length >= 20) {
+    cut = sentence[0].trim();
+  } else {
+    const lastSpace = slice.lastIndexOf(" ");
+    cut = (lastSpace > 0 ? slice.slice(0, lastSpace) : slice).trim();
+  }
+  return cut.length < text.length ? `${cut}…` : cut;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, year, postSlug } = await params;
   const yearInt = Number.parseInt(year, 10);
@@ -88,7 +108,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const docName = card.doctor?.name ? `${card.doctor.name} 원장님` : "피부텐텐";
   // 2026-05-18: description 은 답변 본문만 — title 영역에 이미 질문이 표시되고 원장 이름은
   //   OG 이미지(profile photo + 직함 배지)에 노출되므로 prefix 중복 제거.
-  const desc = stripMarkdown(card.body).slice(0, 110);
+  const desc = metaDescriptionFromBody(card.body);
   const canonical = `${SITE}/doctors/${slug}/${year}/${encodeURIComponent(postSlug)}`;
   // 2026-05-28: openGraph/twitter boilerplate 는 lib/og-meta.ts 헬퍼로 통합.
   return {

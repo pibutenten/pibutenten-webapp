@@ -16,14 +16,23 @@ export const fetchCache = "force-no-store";
 
 const INITIAL_PAGE_SIZE = 20;
 
-export const metadata: Metadata = {
-  // 메인 페이지 절대 title — template "피부텐텐 | %s" 우회.
-  // 2026-05-20: 브랜드 + 슬로건 형태로 통일 (브라우저 탭 잘림 방지 + og:title 일관성).
-  title: { absolute: "피부텐텐 | 피부가 예뻐지는 모든 이야기" },
-  description:
-    "피부과 전문의가 직접 답하는 피부 미용 커뮤니티. 시술·홈케어·안티에이징 관련 검수된 답변 모음.",
-  alternates: { canonical: `${SITE_URL}/` },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  // 홈만 brand-first(absolute, 템플릿 미적용). description 의 전문의 수(D)는 라이브 동적.
+  const supabase = await createSupabaseServerClient();
+  const { count } = await supabase
+    .from("doctors")
+    .select("id", { count: "exact", head: true });
+  const d = count ?? 0;
+  const title = "피부텐텐 | 피부가 예뻐지는 모든 이야기";
+  const description = `피부과 전문의 ${d}명이 리프팅·스킨부스터·안티에이징 시술 질문에 직접 답합니다. 시술별 후기 집계까지.`;
+  return {
+    title: { absolute: title },
+    description,
+    alternates: { canonical: `${SITE_URL}/` },
+    openGraph: { title, description, url: `${SITE_URL}/`, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
 
 /**
  * 피드 페이지 — 검색창/카테고리 없이 카드만 시원하게.

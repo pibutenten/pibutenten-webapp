@@ -26,7 +26,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: "피부텐텐 | 피부가 예뻐지는 모든 이야기",
-    template: "피부텐텐 | %s",
+    // 콘텐츠 페이지는 키워드(주제) first · 브랜드 last (2026-06-05 메타 통일).
+    //   홈만 brand-first(default, 템플릿 미적용). reports/홈 등 absolute title 은 영향 없음.
+    template: "%s | 피부텐텐",
   },
   description:
     "피부과 전문의가 직접 답하는 리프팅·스킨부스터·안티에이징·피부시술 커뮤니티. 광고 없이 검증된 답변만 모았습니다.",

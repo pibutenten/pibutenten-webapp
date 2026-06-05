@@ -80,16 +80,23 @@ export async function generateMetadata({
   const { tag: rawTag } = await params;
   const tag = decodeURIComponent(rawTag);
   const url = `${SITE_URL}/topics/${encodeURIComponent(tag)}`;
+  // N = 이 시술의 의사 qa 글 수(동적). /topics 의 count 조회와 동일 조건.
+  const supabase = await createSupabaseServerClient();
+  const { count } = await supabase
+    .from("cards")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "published")
+    .eq("category", "qa")
+    .not("doctor_id", "is", null)
+    .contains("keywords", [tag]);
+  const n = count ?? 0;
+  const title = `${tag} Q&A 총정리`;
+  const description = `원리·효과·지속기간·부작용·통증까지, 피부과 전문의가 직접 답한 질문 ${n}개를 한곳에.`;
   return {
-    title: `${tag} — 피부과 전문의 답변 모음`,
-    description: `${tag} 관련 피부과 전문의의 검증된 답변과 칼럼. 시술 원리·효과·부작용·관리법까지 한곳에서.`,
+    title,
+    description,
     alternates: { canonical: url },
-    openGraph: {
-      title: `${tag} — 피부과 전문의 답변 모음 | 피부텐텐`,
-      description: `${tag} 관련 피부과 전문의의 검증된 답변·칼럼.`,
-      url,
-      type: "website",
-    },
+    openGraph: { title: `${title} | 피부텐텐`, description, url, type: "website" },
   };
 }
 

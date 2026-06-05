@@ -45,10 +45,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   // canonical = 한글 슬러그 (2026-06-05). 영문 en 은 308 로 한글로 보내는 리다이렉트 전용.
   const url = `${SITE_URL}/reports/${encodeURIComponent(ko)}`;
-  const title = `피부텐텐 리포트 | ${ko}`;
-  const desc = `후기 ${report.count}건 - 평균 만족도 ${report.avgSatisfaction.toFixed(
+  // 주제(시술·후기수) first · 브랜드("피부텐텐 리포트") last. 수치 전부 라이브 집계.
+  const title = `${ko} 후기 ${report.count}건 집계 | 피부텐텐 리포트`;
+  const rTotal = report.revisit.yes + report.revisit.maybe + report.revisit.no;
+  const revisitPct = rTotal > 0 ? Math.round((report.revisit.yes / rTotal) * 100) : 0;
+  const desc = `재시술 의향 ${revisitPct}% · 평균 만족도 ${report.avgSatisfaction.toFixed(
     1,
-  )}/5. 재시술 의향·통증·체감 효과 정리.`;
+  )}/5 · 통증·다운타임까지 실제 경험자 데이터로 정리.`;
   return {
     // absolute — 루트 레이아웃 "피부텐텐 | %s" 템플릿 중복 방지(이미 '피부텐텐 리포트' 포함).
     title: { absolute: title },

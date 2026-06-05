@@ -38,11 +38,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .maybeSingle()
     .returns<{ name: string; title: string; clinic: string; intro: string | null }>();
   if (!doctor) return {};
-  // v5.1: 병원명 제거. 사이트명은 layout template이 prefix로 자동 추가 ("피부텐텐 | …")
-  const title = `${doctor.name} · ${doctor.title}`;
+  // 주제(원장명·직함) first · 브랜드 last(템플릿이 "| 피부텐텐" 부가). 병원명 제외.
+  const title = `${doctor.name} ${doctor.title}`;
   const description =
     doctor.intro?.trim() ||
-    `${doctor.name} ${doctor.title}의 피부 Q&A와 칼럼을 만나보세요. 피부텐텐.`;
+    "직접 답한 전문의 Q&A·칼럼과 다루는 주요 시술을 한곳에서 볼 수 있습니다.";
   const canonical = `${SITE_URL}/doctors/${slug}`;
   // 2026-05-28: openGraph/twitter boilerplate 는 lib/og-meta.ts 헬퍼로 통합.
   return {

@@ -6,7 +6,16 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정 + /reports 슬러그 한글 전환 + /topics↔/reports 분리·양방향 링크 + get_indexable_tags qa-only 정리
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정 + /reports 슬러그 한글 전환 + /topics↔/reports 분리·양방향 링크 + get_indexable_tags qa-only 정리 + 페이지별 메타 통일
+
+### Changed 페이지별 메타(title·description) 통일 — 주제 first·브랜드 last + 라이브 동적 수치
+- 루트 title 템플릿 `피부텐텐 | %s` → **`%s | 피부텐텐`**(콘텐츠 페이지 주제 first·브랜드 last). 홈만 brand-first(absolute), reports 도 absolute 유지. 신뢰 페이지(about 등)는 기존 OG title(이미 brand-last)과 자동 정합.
+- **원장 Q&A**(`/doctors/{slug}/{year}/{slug}`): title=`{질문} | 피부텐텐`(템플릿). description 을 `slice(0,110)`(단어 중간 잘림) → `metaDescriptionFromBody`(문장부호 경계 트림 ~150, 단어 중간 잘림 방지)로 교체.
+- **`/topics/{ko}`**: title `… 답변 모음` → `{시술명} Q&A 총정리`. desc=`원리·효과·지속기간·부작용·통증까지, 피부과 전문의가 직접 답한 질문 {N}개를 한곳에.`(N=의사 qa 수 동적, generateMetadata 에서 count 조회).
+- **`/reports/{ko}`**: title=`{시술명} 후기 {N}건 집계 | 피부텐텐 리포트`(absolute). desc=`재시술 의향 {R}% · 평균 만족도 {X}/5 · 통증·다운타임까지 실제 경험자 데이터로 정리.`(R/X 라이브 집계).
+- **원장 프로필**(`/doctors/{slug}`): title `{name} · {title}` → `{name} {title}`(템플릿이 `| 피부텐텐` 부가, 병원명 제외). desc fallback 의 브랜드("피부텐텐.") 제거 → 브랜드·병원명 없는 1문장(intro 우선 유지).
+- **홈**(`/`): static metadata → `generateMetadata`(전문의 수 D 동적). title 불변(brand-first). desc=`피부과 전문의 {D}명이 리프팅·스킨부스터·안티에이징 시술 질문에 직접 답합니다. 시술별 후기 집계까지.` OG/twitter 동기화.
+- 의료법: 최상급·효과 단정·후기 보증 문구 없음. 검증: `tsc` 0 + `build` Compiled successfully. dev 실측 — 홈(D=9)·/topics/티타늄(N=26)·/reports/티타늄(R75%·X4.2)·원장프로필(`배정민 피부과 전문의 | 피부텐텐`)·원장 Q&A(`{질문} | 피부텐텐` + desc 문장끝 트림)·/about(`사이트 안내 | 피부텐텐`) 전부 정합·동적값 채워짐·서버 에러 0.
 
 ### Changed `get_indexable_tags` qa-only 정리 + 멱등 base 마이그레이션 (마이그 0235)
 - 함수가 `category IN ('qa','tip')` 로 집계했으나 `'tip'` 은 폐지 카테고리(0198 에서 doodle 통합, 현 0행) → `category = 'qa'` 로 죽은 필터 제거. review_summary 미추가(qa-only 결정).
