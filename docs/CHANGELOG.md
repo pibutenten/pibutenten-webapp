@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-06] — ask/new_ask 死 알림 잔재 완전 제거 (4-2)
+
+### Removed
+- **死 ask 알림 트리거·함수**(마이그 0241): `on_card_ask_for_notification`(+`trg_card_ask_notification`)·`on_ask_owner_self_reply`(+`trg_ask_owner_self_reply`) — category='ask' 폐지(0198)로 영구 미발화였던 객체 DROP.
+- **`new_ask` kind**: `notifications` 의 과거 36행 DELETE(디렉터 승인) + `notifications_kind_check` 7종→6종(new_ask 제외, `report` 보존). `is_notification_enabled` 의 new_ask 분기 제거.
+- **`notification_preferences.pref_new_ask` 컬럼** DROP. 동반 RPC `get_my_notification_prefs`/`save_my_notification_prefs` 도 new_ask 인자·컬럼 참조 제거(DROP+CREATE, authenticated GRANT 재부여).
+- **UI/코드 잔재**: `notification-kinds.ts` SSOT(타입·3맵·목록), NotificationsClient '궁금해요' 필터, NotificationPreferences '회원의 궁금해요 글' 토글, preferences route(Prefs 타입·GET·POST), push/send KIND_TITLES 에서 new_ask 일체 제거.
+
+### 검증
+- 삭제 전 new_ask 알림 36행 → 삭제 후 0. 死 함수 0·pref_new_ask 컬럼 부재·kind_check 6종(report 포함)·prefs RPC 시그니처 new_ask 제거 확인. src 전역 new_ask grep 0건. `tsc` 0 + `build` Compiled successfully. /notifications·/settings/notifications 부팅 200·서버 에러 0. 옛 이력 마이그(0079/0080/0062/0063/0071) 미수정.
+
+---
+
 ## [2026-06-06] — 푸시 발송 실패 로깅 (4-2 STEP F)
 
 ### Added

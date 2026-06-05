@@ -13,7 +13,6 @@ type Prefs = {
   pref_comment: boolean;
   pref_reply: boolean;
   pref_like: boolean;
-  pref_new_ask: boolean;
   pref_review_request: boolean;
   pref_published: boolean;
 };
@@ -35,7 +34,6 @@ export async function GET() {
     pref_comment: row?.pref_comment ?? true,
     pref_reply: row?.pref_reply ?? true,
     pref_like: row?.pref_like ?? true,
-    pref_new_ask: row?.pref_new_ask ?? true,
     pref_review_request: row?.pref_review_request ?? true,
     pref_published: row?.pref_published ?? true,
   };
@@ -69,7 +67,6 @@ export async function POST(req: Request) {
     p_comment: toBool(body.pref_comment, true),
     p_reply: toBool(body.pref_reply, true),
     p_like: toBool(body.pref_like, true),
-    p_new_ask: toBool(body.pref_new_ask, true),
     p_review_request: toBool(body.pref_review_request, true),
     p_published: toBool(body.pref_published, true),
   });

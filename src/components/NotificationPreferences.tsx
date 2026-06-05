@@ -7,7 +7,7 @@ import { ROLES } from "@/lib/identity-shared";
  * 알림 종류별 on/off 설정.
  *
  * /settings/profile 페이지의 한 섹션으로 들어감.
- * - admin/doctor 만 review_request·new_ask·published 항목 노출
+ * - admin/doctor 만 review_request·published 항목 노출
  *   (회원에겐 의미 없는 항목)
  * - 모든 사용자 공통: comment / reply / like
  */
@@ -16,7 +16,6 @@ type Prefs = {
   pref_comment: boolean;
   pref_reply: boolean;
   pref_like: boolean;
-  pref_new_ask: boolean;
   pref_review_request: boolean;
   pref_published: boolean;
 };
@@ -25,7 +24,6 @@ const DEFAULTS: Prefs = {
   pref_comment: true,
   pref_reply: true,
   pref_like: true,
-  pref_new_ask: true,
   pref_review_request: true,
   pref_published: true,
 };
@@ -60,13 +58,6 @@ const ROWS: Row[] = [
     label: "내 글에 좋아요",
     desc: "누군가 내 글에 좋아요를 누르면 알림 (24시간에 1회)",
     visibleToUser: true,
-  },
-  {
-    key: "pref_new_ask",
-    emoji: "❓",
-    label: "회원의 궁금해요 글",
-    desc: "회원이 '궁금해요' 글을 올리면 알림 (원장님 한정)",
-    visibleToUser: false,
   },
   {
     key: "pref_review_request",
