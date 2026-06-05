@@ -6,6 +6,15 @@
 
 ---
 
+## [2026-06-05] — get_research_panel 명함(profiles.id) 단위 집계 (ADR 0012 정렬)
+
+### Fixed
+- **`get_research_panel()` 번들 롤업 제거**(마이그 0236): 0224 의 `COALESCE(auth_user_id, id)` 번들 기준 집계 → **profiles.id distinct(명함 단위)** 로 교체. ADR 0012(명함/active identity 단위) 정렬. 다명함 사용자(주로 원장)가 명함 수만큼 분리됨.
+  - before(번들) → after(명함): total_members 55→65, active_90d 23→30, reviewers 35→37.
+  - 반환 시그니처·SECURITY DEFINER·ACL(PUBLIC+authenticated, CREATE OR REPLACE 보존) 동일. 0224 파일 미수정. SET ROLE authenticated/anon 호출 검증 통과. `tsc` 0 + `build` Compiled successfully(admin 대시보드 시그니처 무변경).
+
+---
+
 ## [2026-06-05] — api_rate_limits 오기 정정 + secret 정책(노출 점검 기준) 통일
 
 ### Changed
