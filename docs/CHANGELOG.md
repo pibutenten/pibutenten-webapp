@@ -6,7 +6,13 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정
+
+### Changed 공개 정책 문구 정정 — "환자 후기 미도입/미게재" → 익명·집계 시술 경험 데이터 제공 (법적 모순 해소)
+- `/reports` 시술 후기 집계가 라이브(SITE_PUBLIC=true)인데 `public/llms.txt`·`public/.well-known/agent-card.json` 가 "환자 후기 시스템 미도입"·"환자 후기 미게재"로 적혀 AI 엔진에 모순 노출되던 것을 정정.
+- `public/llms.txt`: 컴플라이언스 문구를 "특정 의료기관·의료인 대상 환자 후기는 운영하지 않음. 의료기관·의료인명을 비식별(마스킹)한 익명·집계 시술 경험 데이터(만족도·통증·재시술 의향 등)는 제공. 시술 전후 사진 미게재."로 교체. 인용 허용 경로에 `/reports/*`(익명·집계 데이터) 추가.
+- `public/.well-known/agent-card.json`: compliance.notes 를 동일 취지로 교체(JSON 유효성 유지). 시술 전후 사진 미게재·자율심의 문구는 유지.
+- 범위: terms 165-169↔263-264 내부 어조 긴장(모순 아님)은 차후 별도. 검증: JSON 파싱 정상, 옛 모순 문구 완전 제거, dev `/llms.txt`·`/.well-known/agent-card.json` 정정 내용 서빙 확인.
 
 ### Changed 시술 리포트(/reports/{en}) 검색엔진·AEO 색인 ON (리포트 존재 시 전부, 임계값 없음)
 - `src/lib/site.ts`: `INCLUDE_REPORT_ANCHORS = false → true`. sitemap.xml·RSS 에 published review_summary 앵커(`/reports/{en}`) 전부 노출. 후기 수 임계값 없음(리포트가 존재=후기 ≥1 인 시술 전부). 쿼리는 `status='published'` 이중 게이트라 draft 앵커는 자동 제외.

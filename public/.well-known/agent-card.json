@@ -43,7 +43,7 @@
   ],
   "compliance": {
     "regulation": "Korean Medical Service Act Article 56 (의료법 제56조)",
-    "notes": "환자 후기·시술 전후 사진 미게재. 광고 분류 게시물 자율심의 대상."
+    "notes": "특정 의료기관·의료인 대상 환자 후기는 미운영. 의료기관·의료인명 비식별 익명·집계 시술 경험 데이터(만족도 등) 제공. 시술 전후 사진 미게재. 광고 분류 게시물 자율심의 대상."
   },
   "citationPolicy": {
     "allowedPaths": [
