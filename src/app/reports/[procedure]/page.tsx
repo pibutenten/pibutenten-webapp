@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
@@ -104,6 +105,14 @@ export default async function ProcedureReportPage({ params }: Props) {
     for (const r of reviews) reviewLiked[r.id] = !!st[r.id]?.liked;
   }
 
+  // /topics(전문의 Q&A 허브) 얇은 링크 — 실제 존재(의사 qa ≥4 = get_indexable_tags 포함)할 때만.
+  //   /topics 의 404 게이트(MIN_DOCTOR_POSTS=4)와 동일 기준 → 깨진 링크 0. 정적 링크 1줄
+  //   (2026-06-04 제거된 '관련 전문의 Q&A' 섹션·orphan qa fetch 부활 아님).
+  const { data: idxTags } = await supabase.rpc("get_indexable_tags", { p_min_count: 4 });
+  const topicsExists =
+    Array.isArray(idxTags) &&
+    (idxTags as Array<{ keyword: string }>).some((t) => t.keyword === ko);
+
   // JSON-LD — AggregateRating (별점·후기 수). 시술 리포트 인덱싱 신호.
   const jsonLd = {
     "@context": "https://schema.org",
@@ -138,6 +147,21 @@ export default async function ProcedureReportPage({ params }: Props) {
         variant="page"
         total={reviewTotal ?? reviews.length}
       />
+
+      {/* 전문의 Q&A 허브 얇은 링크 — /topics 가 존재(의사 qa ≥4)할 때만. 한글 직접 타깃. */}
+      {topicsExists && (
+        <div className="mt-5">
+          <Link
+            href={`/topics/${encodeURIComponent(ko)}`}
+            className="flex items-center justify-between rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3 text-[14px] font-medium text-[var(--text)] transition-colors hover:border-[var(--primary)]"
+          >
+            <span>
+              <b className="text-[var(--primary)]">{ko}</b> 전문의 Q&A 보기
+            </span>
+            <span aria-hidden className="text-[var(--text-muted)]">→</span>
+          </Link>
+        </div>
+      )}
     </section>
   );
 }

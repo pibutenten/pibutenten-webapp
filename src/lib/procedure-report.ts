@@ -259,6 +259,24 @@ export async function getFamilyReviewCardIds(
   return (data ?? []).map((r) => r.card_id);
 }
 
+/**
+ * /topics → /reports 얇은 링크용 — 해당 시술(ko)의 published 리포트 존재 + 후기 수(N).
+ *   경량 단일 쿼리 `get_review_summary_pool`(0218, family 롤업 0228) 에서 ko===procedureKo 매칭.
+ *   무거운 getProcedureReport 미사용. 존재(후기 ≥1)면 { count } 반환, 없으면 null.
+ *   링크 URL 은 /reports/{ko}(=procedureKo) — pool 의 review_count 가 N(라벨용).
+ */
+export async function getReportSummaryForTag(
+  supabase: ServerClient,
+  procedureKo: string,
+): Promise<{ count: number } | null> {
+  const { data } = await supabase.rpc("get_review_summary_pool");
+  const rows = (data ?? []) as PoolRow[];
+  const row = rows.find((r) => r.ko === procedureKo && !!r.en);
+  if (!row) return null;
+  const count = Number(row.review_count) || 0;
+  return count >= 1 ? { count } : null;
+}
+
 type PoolRow = {
   anchor_card_id: number;
   anchor_title: string | null;

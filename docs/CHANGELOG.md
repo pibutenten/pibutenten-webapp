@@ -6,7 +6,14 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정 + /reports 슬러그 한글 전환
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정 + /reports 슬러그 한글 전환 + /topics↔/reports 분리·양방향 링크
+
+### Changed /topics(전문의 Q&A)↔/reports(후기 집계) 콘텐츠 분리 + 양방향 얇은 링크
+- 의도 다른 두 페이지의 자기잠식 방지: `/topics`(전문의 qa 허브)에서 시술 리포트 카드·개별 후기 미리보기를 제거하고, 양쪽에 한글 직접 링크(308 미경유) 1줄씩만 둠.
+- `topics/[tag]/page.tsx`: 리포트 카드 블록(ReportSampleNotice+ProcedureReportCard) + 전용 fetch(getProcedureReport·getFamilyReviewCardIds·reportReviews·reviewLiked) 제거. qa masonry(`tag_cards_scored`)는 유지. 대신 이 시술의 /reports 가 존재하면(후기 ≥1) "이 시술 후기 N건 보기 →"(→`/reports/{ko}`) 얇은 링크. 존재·N 은 경량 `getReportSummaryForTag`(get_review_summary_pool 의 ko===tag 매칭, 무거운 getProcedureReport 미사용).
+- `reports/[procedure]/page.tsx`: 해당 시술의 /topics 가 **실제 존재(의사 qa ≥4 = get_indexable_tags 포함, /topics 404 게이트와 동일 기준)**할 때만 "전문의 Q&A 보기 →"(→`/topics/{ko}`) 얇은 링크. 미포함이면 생략(404 방지). 2026-06-04 제거된 '관련 전문의 Q&A' 섹션·orphan qa fetch 부활 아님 — 정적 링크 1줄.
+- 신규 헬퍼 `getReportSummaryForTag`(procedure-report.ts) — pool 단일 쿼리로 리포트 존재+후기 수 판단.
+- 검증: `tsc` 0 + `build` Compiled successfully. dev 실측 — /topics/티타늄: 리포트 카드 0·qa masonry 유지·"후기 12건 보기"→`/reports/%ED%8B%B0%ED%83%80%EB%8A%84`·structured data AggregateRating 0(FAQPage/CollectionPage qa만) / /reports/티타늄: "전문의 Q&A 보기"→`/topics/%ED%8B%B0%ED%83%80%EB%8A%84` / /reports/리쥬란HB(qa<4): Q&A 링크 0(생략) / 서버 에러 0.
 
 ### Changed 시술 리포트 URL 영문→한글 전환 (영문은 308 리다이렉트 전용)
 - 정식 URL = `/reports/{ko}`(한글). 한국어 검색·네이버 CTR 유리 + `/topics`(한글)와 일관. 색인 켠 직후라 누적 신호 ~0 → 최저비용 전환.

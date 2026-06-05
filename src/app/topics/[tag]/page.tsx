@@ -4,11 +4,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type CardData } from "@/components/Card";
 import CardMasonry from "@/components/CardMasonry";
-import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-report";
-import { CARD_LIST_SELECT } from "@/lib/card-select";
-import ProcedureReportCard from "@/components/report/ProcedureReportCard";
-import ReportSampleNotice from "@/components/report/ReportSampleNotice";
-import { fetchViewerStatesRecord } from "@/lib/viewer-states";
+import { getReportSummaryForTag } from "@/lib/procedure-report";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import {
@@ -111,37 +107,11 @@ export default async function TagPage({ params }: Props) {
   const { posts, count } = await fetchPostsForTag(tag);
   if (posts.length === 0) notFound();
 
-  // 2-b) 이 태그가 시술이고 후기가 있으면 → 시술 리포트 카드를 최상단에 노출.
+  // 2-b) /topics(전문의 Q&A 허브)와 /reports(후기 집계)는 의도 다른 독립 페이지(자기잠식 방지).
+  //   리포트 카드·개별 후기는 /topics 에 렌더하지 않고, 이 시술의 /reports 가 존재하면
+  //   얇은 링크 1줄만 노출. 존재·N 은 경량 get_review_summary_pool(ko===tag) 로 판단.
   const supabase = await createSupabaseServerClient();
-  const report = await getProcedureReport(supabase, tag);
-  let reportReviews: CardData[] = [];
-  if (report) {
-    // 작업 D 롤업: 집계와 동일 procedure_ko family 기준(카드 id IN).
-    const cardIds = await getFamilyReviewCardIds(supabase, tag);
-    if (cardIds.length > 0) {
-      const { data } = await supabase
-        .from("cards")
-        .select(CARD_LIST_SELECT)
-        .in("id", cardIds)
-        .order("created_at", { ascending: false })
-        .returns<CardData[]>();
-      reportReviews = data ?? [];
-    }
-  }
-
-  // 시술 리포트 후기 — viewer 좋아요 여부 일괄 조회(단독 글과 같은 card_likes 행).
-  const reportReviewLiked: Record<number, boolean> = {};
-  if (reportReviews.length > 0) {
-    const {
-      data: { user: viewer },
-    } = await supabase.auth.getUser();
-    const st = await fetchViewerStatesRecord(
-      supabase,
-      viewer?.id ?? null,
-      reportReviews.map((r) => r.id),
-    );
-    for (const r of reportReviews) reportReviewLiked[r.id] = !!st[r.id]?.liked;
-  }
+  const reportLink = await getReportSummaryForTag(supabase, tag);
 
   // 3) JSON-LD: @graph 로 CollectionPage + FAQPage 묶음 출력.
   //    AEO/GEO/SEO 강화:
@@ -263,12 +233,19 @@ export default async function TagPage({ params }: Props) {
         </p>
       </header>
 
-      {/* 시술 리포트 — 후기가 쌓인 시술이면 최상단에 한 장 노출 */}
-      {report && (
-        <div className="mx-auto mb-6 max-w-[680px]">
-          <ReportSampleNotice count={report.count} procedureKo={report.procedureKo} />
-          {/* key=시술 — 태그 변경 시 카드 remount → 펼침 상태 '접힘'으로 리셋(작업 4). */}
-          <ProcedureReportCard key={report.en} report={report} reviews={reportReviews} reviewLiked={reportReviewLiked} />
+      {/* 시술 리포트 얇은 링크 — 이 시술의 /reports 가 존재할 때만(후기 ≥1). 한글 직접 타깃(308 미경유). */}
+      {reportLink && (
+        <div className="mx-auto mb-5 max-w-[680px]">
+          <Link
+            href={`/reports/${encodeURIComponent(tag)}`}
+            className="flex items-center justify-between rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3 text-[14px] font-medium text-[var(--text)] transition-colors hover:border-[var(--primary)]"
+          >
+            <span>
+              이 시술 후기{" "}
+              <b className="text-[var(--primary)]">{reportLink.count}건</b> 보기
+            </span>
+            <span aria-hidden className="text-[var(--text-muted)]">→</span>
+          </Link>
         </div>
       )}
 
