@@ -228,9 +228,9 @@ ex) /minji-skin/Ab3xK9Pq
 ### 8.1. 종류
 - 댓글 알림 (내 글 댓글, 내 댓글 답글)
 - 좋아요 알림 (그룹화 0083)
-- 저장 알림
+- **저장 알림 (`save`, 0242 — 4-2)**: 누군가 내 글 저장 시 작성자에게 알림. **이름 비노출**(`actor_id`=NULL) — 누적 `save_count` 로 인원수만(message="회원님 글을 N명이 저장했어요"). 좋아요(0083) 24h 묶음 패턴 그대로(recipient+card+kind='save' 24h 내 UPDATE-or-INSERT). self-save skip, `pref_save` 토글(default ON), EXCEPTION 격리. 숫자(N명)는 message→웹푸시 body 로 전달(`get_notifications` RPC 가 message 미반환이라 /notifications 페이지는 라벨만 — 좋아요와 동일 구조).
 - **신고 알림 (`report`, 0239 — 4-2 STEP D)**: content_reports 신고 접수 시 관리자(role='admin') fan-out. 신고자=admin 이면 본인 제외. 전용 pref 토글 없음(상시 수신). UI 는 /notifications '운영' 필터에 포함.
-- ~~ask 전용 답변·지속 알림 (0080)~~ — **물리 제거 완료(0241, 2026-06-06)**: category='ask' 폐지(0198)로 영구 死였던 트리거 `on_card_ask_for_notification`·`on_ask_owner_self_reply`, `new_ask` kind(과거 36행 삭제), `pref_new_ask` 컬럼, `is_notification_enabled` 의 new_ask 분기, UI 잔재(필터·토글·push 타이틀·SSOT) 일체 제거. 현 알림 kind 6종 = comment/reply/like/review_request/published/report.
+- ~~ask 전용 답변·지속 알림 (0080)~~ — **물리 제거 완료(0241, 2026-06-06)**: category='ask' 폐지(0198)로 영구 死였던 트리거 `on_card_ask_for_notification`·`on_ask_owner_self_reply`, `new_ask` kind(과거 36행 삭제), `pref_new_ask` 컬럼, `is_notification_enabled` 의 new_ask 분기, UI 잔재(필터·토글·push 타이틀·SSOT) 일체 제거. 현 알림 kind 7종 = comment/reply/like/save/review_request/published/report.
 
 ### 8.2. 트리거
 - DB 트리거 (0086 push webhook trigger)

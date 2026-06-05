@@ -16,6 +16,7 @@ type Prefs = {
   pref_comment: boolean;
   pref_reply: boolean;
   pref_like: boolean;
+  pref_save: boolean;
   pref_review_request: boolean;
   pref_published: boolean;
 };
@@ -24,6 +25,7 @@ const DEFAULTS: Prefs = {
   pref_comment: true,
   pref_reply: true,
   pref_like: true,
+  pref_save: true,
   pref_review_request: true,
   pref_published: true,
 };
@@ -57,6 +59,13 @@ const ROWS: Row[] = [
     emoji: "❤",
     label: "내 글에 좋아요",
     desc: "누군가 내 글에 좋아요를 누르면 알림 (24시간에 1회)",
+    visibleToUser: true,
+  },
+  {
+    key: "pref_save",
+    emoji: "🔖",
+    label: "내 글 저장",
+    desc: "누군가 내 글을 저장하면 알림 (이름 없이 인원수만, 24시간에 1회)",
     visibleToUser: true,
   },
   {

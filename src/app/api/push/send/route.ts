@@ -105,6 +105,7 @@ export async function POST(req: Request) {
     comment: "💬 새 댓글",
     reply: "↳ 새 답글",
     like: "❤ 좋아요",
+    save: "🔖 새 저장",
     review_request: "🩺 검수 요청",
     published: "🚀 발행 완료",
     report: "🚩 새 신고 접수",

@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-06] — 저장 알림 신설 (이름 비노출·숫자만, 4-2)
+
+### Added
+- **저장 알림**(마이그 0242): 누군가 내 글을 저장하면 작성자에게 `save` 알림. **이름 절대 비노출**(`actor_id`=NULL) — 누적 `save_count` 로 인원수만 표시(message="회원님 글을 N명이 저장했어요"). 좋아요 알림(0083)의 24h 묶음 패턴 그대로(recipient+card+kind='save' 24h 내 UPDATE-or-INSERT). `card_saves` AFTER INSERT 트리거 `trg_card_saves_notification`(기존 save_count 동기화 트리거 다음 실행) + `on_card_save_for_notification()`(SECURITY DEFINER). self-save skip, EXCEPTION 격리(알림 실패가 저장 롤백 안 함).
+- `notifications_kind_check` 6종→**7종**('save' 추가). `notification_preferences.pref_save` 컬럼(default true) + `is_notification_enabled` save 분기. `get/save_my_notification_prefs` RPC 5→6 컬럼/인자(p_save, DROP+CREATE+authenticated GRANT).
+- UI: `notification-kinds.ts` SSOT 에 save(🔖) 추가, NotificationsClient '저장' 개인 필터 칩, NotificationPreferences '내 글 저장' 토글(default ON), push/send KIND_TITLES save 추가.
+
+### 검증
+- SET ROLE(전부 tx ROLLBACK, production 무오염): 비-작성자 저장→작성자 알림 1행·actor_id NULL·"1명" / 24h 내 2번째 저장→1행 묶음·"2명" / self-save→0행 / 작성자 SELECT 1·비-작성자 SELECT 0(RLS). 회귀: 저장 시 save_count +1 동기화 + 알림 공존 정상. 신규 `user_id` 컬럼 0(ADR 0014). `tsc` 0 + `build` Compiled successfully. /notifications·/settings/notifications 부팅 200·에러 0.
+- ⚠ 표시 한계(기존 구조): `get_notifications` RPC 가 message 미반환 → /notifications 페이지·종 드롭다운은 라벨만 표시, 숫자(N명)는 message→웹푸시 body 로 전달(좋아요 알림과 동일).
+
+---
+
 ## [2026-06-06] — ask/new_ask 死 알림 잔재 완전 제거 (4-2)
 
 ### Removed
