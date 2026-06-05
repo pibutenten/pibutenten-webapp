@@ -343,6 +343,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0235 | `get_indexable_tags(int)` qa-only 정리 — `category IN ('qa','tip')` → `= 'qa'`(tip 폐지 카테고리 0행, 무변화) + 멱등 base CREATE(기존 0092 조건부 정의만 존재하던 것 보완). SECURITY DEFINER STABLE, anon/authenticated GRANT. 반환 태그 집합 변경 전후 동일(397/min4) 검증. | **적용 완료 (2026-06-05)** |
 | 0236 | `get_research_panel()` 명함(profiles.id) 단위 정렬 — 0224 의 `COALESCE(auth_user_id,id)` 번들 롤업 제거, profiles.id distinct 카운트로 교체(ADR 0012). 시그니처·SECURITY DEFINER·ACL(0224 그대로 CREATE OR REPLACE 보존) 동일. before(번들) 55/23/35 → after(명함) 65/30/37. 0224 파일 미수정. | **적용 완료 (2026-06-05)** |
 | 0237 | `content_reports.temp_block_until` DROP COLUMN — 0137 도입 후 코드·RPC·뷰 참조 0건(배치 ④ 영구 숨김 채택으로 임시조치 폐기). 죽은 컬럼 제거. | **적용 완료 (2026-06-05)** |
+| 0238 | `get_review_report_overview()` 운영자 '시술 리포트' 대시보드 전용 집계 RPC(읽기 전용, 4-1). get_review_summary_pool 집계 로직 재사용 + `view_count` 추가. 시술별 후기수·재시술의향·만족도·통증·조회/저장/공유 반환, procedure_taxonomy.category·sort_order 동적 정렬. **admin 전용**: SECURITY DEFINER + `is_admin(auth.uid())` 가드, GRANT authenticated(비-admin 본문 차단). 데이터 변경 없음(SELECT). SET ROLE anon=permission denied / authenticated(비-admin)=forbidden 검증. | **적용 완료 (2026-06-05)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

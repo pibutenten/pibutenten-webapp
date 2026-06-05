@@ -244,6 +244,13 @@ export default async function AdminPage() {
             title="전체 글 관리"
             desc="Q&A·끄적끄적 검색·필터·발행/보관"
           />
+          {/* 시술 리포트 전용 요약 표 (읽기 전용) — 시술별 후기·재시술·만족도·통증·engagement */}
+          <Tool
+            href="/admin/review-reports"
+            emoji="📊"
+            title="시술 리포트"
+            desc="시술별 후기 집계 요약 (후기수·재시술·만족도·통증·조회/저장/공유)"
+          />
           {/* 새 Q&A 추출하기 — super admin 전용 (원장 계정엔 숨김) */}
           {isSuperAdmin && (
             <Tool

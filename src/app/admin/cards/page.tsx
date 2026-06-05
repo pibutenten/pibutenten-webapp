@@ -577,15 +577,11 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                   const style = r.deleted_at
                     ? STATUS_STYLE.deleted
                     : (STATUS_STYLE[r.status] ?? STATUS_STYLE_FALLBACK);
-                  // 시술 리포트(review_summary)는 자동 집계물 → 편집 진입 차단.
-                  //   클릭 시 빈 편집화면 대신 공개 리포트(/reports/{slug})로, slug 없으면 비클릭.
+                  // 시술 리포트(review_summary)는 자동 집계물 → 편집 진입 차단 + 클릭 무반응.
+                  //   (집계 요약·공개 리포트는 /admin/review-reports 전용 표에서 확인. 여기선 비클릭.)
                   const isReport = r.category === "review_summary";
                   const editHref = `/admin/cards/${r.id}/edit`;
-                  const linkHref = isReport
-                    ? r.post_slug
-                      ? `/reports/${r.post_slug}`
-                      : null
-                    : editHref;
+                  const linkHref = isReport ? null : editHref;
                   return (
                     <tr
                       key={r.id}

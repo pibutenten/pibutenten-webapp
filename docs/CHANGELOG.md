@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-06-05] — 운영자 '시술 리포트' 대시보드 표 (4-1, 읽기 전용)
+
+### Added
+- **`/admin/review-reports` 시술 리포트 요약 표**: 시술별 후기 집계를 운영자 전용 표로 노출. 컬럼 = 시술명(ko)·후기수·재시술의향%·만족도평균·통증평균·조회·저장·공유. `procedure_taxonomy.category` 동적 그룹핑(카테고리 헤더 + 시술 행, 하드코딩 없음 — 카테고리 증가 시 자동 반영). 행 클릭 → `/reports/{en}`. (Pick·타입·글쓴이·좋아요·댓글 컬럼 미포함, 제목 접두 없음.) `/admin` 운영 프로그램 그리드에 진입 링크 추가.
+- **`get_review_report_overview()` RPC**(마이그 0238): admin 전용 읽기 집계. get_review_summary_pool 로직 재사용 + `view_count` 추가. SECURITY DEFINER + `is_admin(auth.uid())` 가드(비-admin 차단), GRANT authenticated. 데이터 변경 없음. SET ROLE anon=permission denied / authenticated(비-admin)=forbidden 검증, 집계 dry-run 정상.
+
+### Changed
+- **`/admin/cards` review_summary 행 클릭 무반응**: 기존 `/reports/{slug}` 링크 제거(편집 차단 가드는 유지). 집계 요약·공개 리포트는 신규 `/admin/review-reports` 표로 일원화.
+
+---
+
 ## [2026-06-05] — 위생 정리 (A6 dead 헬퍼 / A8 N+1 / A10 죽은 컬럼·tmp)
 
 ### Removed
