@@ -121,6 +121,13 @@ export async function POST(req: Request) {
 
   // 병렬 발송 + 만료 구독 정리
   const expiredIds: number[] = [];
+  // STEP F (0240): 410/404(만료) 외 발송 실패 영속 로깅. 발송·삭제 동작은 미변경(순수 가산).
+  const failures: {
+    recipient_id: string | null;
+    endpoint: string | null;
+    status: number | null;
+    error: string;
+  }[] = [];
   const results = await Promise.allSettled(
     subs.map((s) =>
       webpush.sendNotification(
@@ -134,10 +141,18 @@ export async function POST(req: Request) {
   );
   results.forEach((r, idx) => {
     if (r.status === "rejected") {
-      const err = r.reason as { statusCode?: number };
-      // 410 Gone / 404 — 만료된 구독
+      const err = r.reason as { statusCode?: number; message?: string };
+      // 410 Gone / 404 — 만료된 구독 (기존 동작: 삭제). 로깅 대상 아님.
       if (err.statusCode === 410 || err.statusCode === 404) {
         expiredIds.push(subs[idx].id as number);
+      } else {
+        // 그 외 rejected (500 · payload too large · 기타 non-2xx · 네트워크) → 관측용 로깅.
+        failures.push({
+          recipient_id: recipient_id ?? null,
+          endpoint: (subs[idx].endpoint as string | null) ?? null,
+          status: typeof err.statusCode === "number" ? err.statusCode : null,
+          error: (err.message ?? String(r.reason)).slice(0, 1000),
+        });
       }
     }
   });
@@ -145,9 +160,27 @@ export async function POST(req: Request) {
     await sb.from("push_subscriptions").delete().in("id", expiredIds);
   }
 
+  // 발송 실패 best-effort 로깅 — 로깅 자체가 실패해도 발송 응답을 깨지 않는다.
+  if (failures.length > 0) {
+    try {
+      const { error: logErr } = await sb
+        .from("push_send_failures")
+        .insert(failures);
+      if (logErr) {
+        console.error("[push/send] failure logging insert error:", logErr.message);
+      }
+    } catch (e) {
+      console.error(
+        "[push/send] failure logging threw:",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     sent: results.filter((r) => r.status === "fulfilled").length,
     expired: expiredIds.length,
+    failed: failures.length,
   });
 }

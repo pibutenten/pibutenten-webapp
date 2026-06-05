@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-06-06] — 푸시 발송 실패 로깅 (4-2 STEP F)
+
+### Added
+- **`push_send_failures` 테이블**(마이그 0240): `/api/push/send` 의 410/404(만료) 외 발송 실패(500·payload too large·기타 non-2xx·네트워크)를 영속 로깅. pg_net 비동기로 `push_webhook_errors` 에 미포착되던 HTTP non-2xx 발송 실패율을 관측 가능화. 컬럼 `id/recipient_id/endpoint/status/error/created_at`(신규 `user_id` 미도입, ADR 0014).
+- `/api/push/send`: rejected 결과 중 410/404 외를 `push_send_failures` 에 best-effort INSERT(로깅 실패가 발송 응답을 깨지 않도록 try/catch + insert 에러 로깅). **410/404 만료 삭제 로직·발송 동작은 미변경(순수 가산)**. 응답에 `failed` 카운트 추가({sent, expired, failed} — 호환: webhook/클라 미소비).
+
+### Security
+- `push_send_failures` RLS enabled + `push_send_failures_admin_select`(is_admin). 권한: **service_role 만** SELECT/INSERT GRANT(앱이 service_role 로 기록·조회), anon/authenticated 미부여 → privilege 레벨 차단(RLS 보다 강함). SET ROLE 검증(tx ROLLBACK): service_role INSERT/SELECT 성공 · anon SELECT 차단 · authenticated SELECT/INSERT 차단. `tsc` 0 + `build` Compiled successfully.
+
+---
+
 ## [2026-06-06] — 관리자 신고 알림 신설 (4-2 STEP D)
 
 ### Added
