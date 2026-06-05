@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-06] — 관리자 신고 알림 신설 (4-2 STEP D)
+
+### Added
+- **관리자 신고 알림**(마이그 0239): `content_reports` 신고 접수 시 관리자(`role='admin'`)에게 실시간 `report` 알림 fan-out. AFTER INSERT 트리거 `trg_content_report_notification` + `on_content_report_for_notification()`(SECURITY DEFINER). 신고자가 admin 이면 본인 제외. 알림 fan-out 실패가 신고 INSERT 를 롤백시키지 않도록 EXCEPTION 격리(best-effort). `report` 전용 pref 컬럼 미신설 → 운영 의무 알림으로 상시 수신(토글 없음).
+- `notifications_kind_check` 6종 → **7종**(`report` 추가). 기존 이력(new_ask 36행 등) 제약 위반 0.
+- UI: `notification-kinds.ts` SSOT 에 `report`(라벨·아이콘 🚩) 추가, NotificationsClient '운영' 필터에 포함, push/send KIND_TITLES 에 `report` 타이틀 추가.
+
+### Security/검증
+- RLS=기존 `notifications_select_own`(`recipient_id = COALESCE(current_active_profile_id(), auth.uid())`) 그대로 — `report` 알림은 수신 admin 명함만 조회(명함 단위, 번들 합산 아님). 신규 정책 없음.
+- SET ROLE 검증(전부 tx ROLLBACK, production 무오염): 팬아웃 admin 2명·신고자=admin 본인 제외(admin1=1/admin2=2)·admin 본인 SELECT 1·비-admin SELECT 0. 신규 `user_id` 컬럼 0(ADR 0014). `tsc` 0 + `build` Compiled successfully.
+
+---
+
 ## [2026-06-05] — 운영자 '시술 리포트' 대시보드 표 (4-1, 읽기 전용)
 
 ### Added

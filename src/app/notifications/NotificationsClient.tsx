@@ -50,7 +50,7 @@ const FILTER_KINDS: Record<FilterKey, Kind[] | null> = {
   reply: ["reply"],
   like: ["like"],
   new_ask: ["new_ask"],
-  ops: ["review_request", "published"],
+  ops: ["review_request", "published", "report"],
 };
 
 type PeriodKey = "all" | "1d" | "7d" | "30d";

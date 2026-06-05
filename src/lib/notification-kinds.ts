@@ -11,7 +11,8 @@ export type NotificationKind =
   | "like"
   | "new_ask"
   | "review_request"
-  | "published";
+  | "published"
+  | "report";
 
 export const NOTIFICATION_KINDS: NotificationKind[] = [
   "comment",
@@ -20,6 +21,7 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
   "new_ask",
   "review_request",
   "published",
+  "report",
 ];
 
 /** 종 dropdown (NotificationsBell) — 이모지 + 한 단어. 짧고 시각적. */
@@ -30,6 +32,7 @@ export const KIND_SHORT_LABEL: Record<NotificationKind, string> = {
   new_ask: "❓ 새 궁금해요",
   review_request: "🩺 검수 요청",
   published: "🚀 발행됨",
+  report: "🚩 신고 접수",
 };
 
 /** /notifications 페이지 (NotificationsClient) — 한 문장 풀 설명. */
@@ -40,6 +43,7 @@ export const KIND_LONG_LABEL: Record<NotificationKind, string> = {
   new_ask: "새 궁금해요 글이 올라왔어요",
   review_request: "새 검수 요청이 도착했어요",
   published: "내 글이 발행되었어요",
+  report: "새 신고가 접수되었어요 (운영)",
 };
 
 /** 아이콘만 따로 — NotificationsClient timeline. */
@@ -50,4 +54,5 @@ export const KIND_ICON: Record<NotificationKind, string> = {
   new_ask: "❓",
   review_request: "🩺",
   published: "🚀",
+  report: "🚩",
 };

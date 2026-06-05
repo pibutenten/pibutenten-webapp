@@ -108,6 +108,7 @@ export async function POST(req: Request) {
     new_ask: "❓ 새 궁금해요",
     review_request: "🩺 검수 요청",
     published: "🚀 발행 완료",
+    report: "🚩 새 신고 접수",
   };
   const title = (kind && KIND_TITLES[kind]) || "피부텐텐";
 

@@ -229,6 +229,7 @@ ex) /minji-skin/Ab3xK9Pq
 - 댓글 알림 (내 글 댓글, 내 댓글 답글)
 - 좋아요 알림 (그룹화 0083)
 - 저장 알림
+- **신고 알림 (`report`, 0239 — 4-2 STEP D)**: content_reports 신고 접수 시 관리자(role='admin') fan-out. 신고자=admin 이면 본인 제외. 전용 pref 토글 없음(상시 수신). UI 는 /notifications '운영' 필터에 포함.
 - ~~ask 전용 답변·지속 알림 (0080)~~ — **비동작(死)**: category='ask' 폐지(0198)로 트리거 본문 도달 불가. 데이터 근거: `cards_category_check` 가 'ask' 미허용 + 해당 카드 0건(`on_card_ask_for_notification`·`on_ask_owner_self_reply` 가드 영구 참). 트리거 물리 제거는 4-2 STEP E 예정. (일반 댓글/답글/좋아요/게시 알림은 별개로 정상 동작.)
 
 ### 8.2. 트리거
