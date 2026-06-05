@@ -56,3 +56,22 @@ export const KIND_ICON: Record<NotificationKind, string> = {
   published: "🚀",
   report: "🚩",
 };
+
+/**
+ * 앱 알림함 표시 모드 (4-2 / 3a) — 종류별로 내용을 어떻게 보여줄지.
+ * - "actor"  : 행위자(아바타+이름) + 라벨. 댓글/답글/좋아요 (이름 노출).
+ * - "message": notifications.message 본문 그대로. 행위자 비노출(actor_id NULL).
+ *              저장(인원수만), 곧 추가될 관심 키워드(주제명) 등.
+ * - "label"  : KIND_LONG_LABEL 고정 문구 (운영성 알림). 게시/검수요청/신고.
+ */
+export type NotificationDisplayMode = "actor" | "message" | "label";
+
+export const KIND_DISPLAY_MODE: Record<NotificationKind, NotificationDisplayMode> = {
+  comment: "actor",
+  reply: "actor",
+  like: "actor",
+  save: "message",
+  review_request: "label",
+  published: "label",
+  report: "label",
+};

@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-06] — 앱 알림함 message 표시 (4-2 / 3a)
+
+### Changed
+- **앱 알림 목록에 본문 표시**(마이그 0243 + 클라이언트): 페이지 목록 RPC `get_notifications` 에 `message` 컬럼 추가(DROP+CREATE, 정렬·`recipient_id` 본인 스코핑·SECURITY DEFINER VERBATIM). message 가 푸시 팝업에만 보이고 앱 목록엔 라벨만 보이던 문제 해소. dropdown `get_my_notifications` 는 기존부터 message 반환(무변경).
+- **표시 모드 SSOT**(`notification-kinds.ts::KIND_DISPLAY_MODE`): `actor`(댓글/답글/좋아요 — 아바타+이름+라벨, **기존 동일·무회귀**) / `message`(저장·향후 관심 키워드 — `notifications.message` 본문 그대로, `actor_id` NULL 로 이름 비노출) / `label`(게시/검수요청/신고 — 고정 라벨, 기존 동일). NotificationsClient 가 mode 로 분기.
+- 결과: 저장 알림이 앱 목록·종에서 "회원님 글을 N명이 저장했어요" 로 표시(이름·아바타 여전히 비노출). 댓글/답글/좋아요/게시/검수요청/신고 6종 표시는 기존과 동일(정보 손실·이중표시 없음).
+
+### 검증
+- get_notifications 반환 message 포함 + recipient 스코핑 불변 확인. `tsc` 0 + `build` Compiled successfully. /notifications·종 부팅 200·서버/콘솔 에러 0.
+
+---
+
 ## [2026-06-06] — 피부텐텐 Organization Wikidata sameAs 연결 (GEO 엔티티)
 
 ### Added

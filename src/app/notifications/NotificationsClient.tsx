@@ -6,6 +6,7 @@ import { formatRelativeTime } from "@/lib/relative-time";
 import {
   KIND_LONG_LABEL,
   KIND_ICON,
+  KIND_DISPLAY_MODE,
   type NotificationKind,
 } from "@/lib/notification-kinds";
 
@@ -35,6 +36,8 @@ type Notification = {
   actor_handle: string | null;
   // P2-4 (2026-05-27): get_notifications RPC 반환 alias card_question → card_title.
   card_title: string | null;
+  // 4-2 / 3a (0243): message 모드 알림(저장·관심 키워드)의 본문. 그 외 종류는 null 또는 미사용.
+  message: string | null;
   url: string | null;
   read_at: string | null;
   created_at: string;
@@ -420,7 +423,13 @@ function NotificationRow({
   onToggleSelect: () => void;
   onDismiss: () => void;
 }) {
-  const text = (KIND_LABEL as Record<string, string>)[n.kind] ?? "새 알림";
+  // 4-2 / 3a: 표시 모드 SSOT. actor=아바타+이름+라벨 / message=본문 그대로 / label=고정 문구.
+  const mode =
+    (KIND_DISPLAY_MODE as Record<string, "actor" | "message" | "label">)[n.kind] ??
+    "label";
+  const label = (KIND_LABEL as Record<string, string>)[n.kind] ?? "새 알림";
+  // message 모드는 notifications.message 본문, 그 외(label/actor)는 라벨.
+  const text = mode === "message" ? n.message ?? label : label;
   const icon = (KIND_ICON as Record<string, string>)[n.kind] ?? "•";
   const actorName = n.actor_display_name ?? "회원";
   const initial = actorName.slice(0, 1);
@@ -428,8 +437,8 @@ function NotificationRow({
   const target = n.url ?? (n.card_id ? `/?_=${n.card_id}` : "/");
   const time = formatRelativeTime(n.created_at);
   const unread = !n.read_at;
-  const showActorAvatar =
-    n.kind === "comment" || n.kind === "reply" || n.kind === "like";
+  // actor 모드만 아바타·이름 노출 (기존 comment/reply/like 와 동일 — 무회귀).
+  const showActorAvatar = mode === "actor";
 
   return (
     <li

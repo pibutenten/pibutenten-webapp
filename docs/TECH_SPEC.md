@@ -243,6 +243,7 @@ ex) /minji-skin/Ab3xK9Pq
 - `/notifications` — 목록 페이지
 - `/settings/notifications` — 설정
 - `PushNotificationToggle.tsx` — 구독 토글
+- **목록 RPC message 반환 + 표시 모드(4-2 / 3a, 0243)**: 페이지 목록 RPC `get_notifications` 가 `message` 컬럼 반환(dropdown `get_my_notifications` 는 기존부터 반환). `recipient_id` 스코핑(본인 알림만) 불변. 종류별 표시 모드 SSOT = `notification-kinds.ts::KIND_DISPLAY_MODE` — `actor`(댓글/답글/좋아요: 아바타+이름+라벨) / `message`(저장·관심 키워드: message 본문 그대로, actor_id NULL 로 이름 비노출) / `label`(게시/검수요청/신고: 고정 라벨). 저장 알림이 앱 목록에도 "회원님 글을 N명이 저장했어요" 로 표시됨.
 
 ---
 
