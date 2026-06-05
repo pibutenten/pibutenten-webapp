@@ -178,8 +178,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
-    // 시술 리포트 앵커 — /reports/{en}. ★게이트 off 기본 + published 한정(이중 차단).
+    // 시술 리포트 앵커 — /reports/{ko}(한글 정식 URL). ★게이트 off 기본 + published 한정(이중 차단).
     //   앵커 draft 동안엔 게이트가 꺼져 있고 켜더라도 published 만 → 플립 전 색인 노출 0.
+    //   앵커 post_slug 에는 영문 en 이 저장돼 있어 procedure_taxonomy 로 en→ko 매핑 후 한글 URL 만 등재
+    //   (영문 en URL 은 308 리다이렉트 전용이라 sitemap 에 넣지 않음 — 중복 콘텐츠 방지).
     let anchorRoutes: MetadataRoute.Sitemap = [];
     if (INCLUDE_REPORT_ANCHORS) {
       const { data: anchors } = await supabase
@@ -188,26 +190,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .eq("type", "review_summary")
         .eq("status", "published")
         .is("deleted_at", null);
+      const { data: taxRows } = await supabase
+        .from("procedure_taxonomy")
+        .select("en, ko")
+        .eq("active", true);
+      const enToKo = new Map<string, string>(
+        ((taxRows ?? []) as Array<{ en: string | null; ko: string | null }>)
+          .filter((t): t is { en: string; ko: string } => !!t.en && !!t.ko)
+          .map((t) => [t.en, t.ko]),
+      );
       anchorRoutes = ((anchors ?? []) as Array<{
         post_slug: string | null;
         updated_at: string | null;
         created_at: string | null;
-      }>).flatMap((a) =>
-        a.post_slug
-          ? [
-              {
-                url: `${SITE_URL}/reports/${a.post_slug}`,
-                lastModified: a.updated_at
-                  ? new Date(a.updated_at)
-                  : a.created_at
-                    ? new Date(a.created_at)
-                    : now,
-                changeFrequency: "weekly" as const,
-                priority: 0.6,
-              },
-            ]
-          : [],
-      );
+      }>).flatMap((a) => {
+        if (!a.post_slug) return [];
+        const ko = enToKo.get(a.post_slug) ?? a.post_slug; // 매핑 없으면 en fallback(308 로 흡수)
+        return [
+          {
+            url: `${SITE_URL}/reports/${encodeURIComponent(ko)}`,
+            lastModified: a.updated_at
+              ? new Date(a.updated_at)
+              : a.created_at
+                ? new Date(a.created_at)
+                : now,
+            changeFrequency: "weekly" as const,
+            priority: 0.6,
+          },
+        ];
+      });
     }
 
     return [...staticRoutes, ...doctorRoutes, ...tagRoutes, ...cardRoutes, ...anchorRoutes];

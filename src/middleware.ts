@@ -198,6 +198,39 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // ⚡ 빠른 경로 1c: 시술 리포트 영문 슬러그 → 한글 308 영구 리다이렉트 (2026-06-05).
+  //   정식 URL = /reports/{ko}(한글). 영문 en 은 리다이렉트 전용(중복 콘텐츠 방지).
+  //   페이지 레벨 redirect 는 스트리밍 SSR 에서 200+meta-refresh 로 폴백 → 하드 308 불가하므로
+  //   페이지보다 먼저 도는 미들웨어에서 처리.
+  //   ASCII(영문 en) 후보만 taxonomy 조회 → 한글 ko(정식 URL)는 조회 없이 통과(추가 비용 0).
+  //   1홉만(en→ko). ko 는 ASCII 가 아니라 절대 재진입하지 않음(루프 없음).
+  if (method === "GET" || method === "HEAD") {
+    const reportMatch = path.match(/^\/reports\/([^/]+)\/?$/);
+    if (reportMatch) {
+      const slug = decodeURIComponent(reportMatch[1]);
+      if (/^[a-z0-9-]+$/i.test(slug)) {
+        const sb = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { cookies: { getAll: () => [], setAll: () => {} } },
+        );
+        const { data } = await sb
+          .from("procedure_taxonomy")
+          .select("ko")
+          .eq("en", slug.toLowerCase())
+          .eq("active", true)
+          .maybeSingle();
+        const ko = (data as { ko?: string | null } | null)?.ko ?? null;
+        if (ko && ko !== slug) {
+          return NextResponse.redirect(
+            new URL(`/reports/${encodeURIComponent(ko)}`, request.url),
+            308,
+          );
+        }
+      }
+    }
+  }
+
   // ⚡ 빠른 경로 2a: 첫 가입 강제 온보딩 쿠키가 있으면 무조건 /onboarding으로
   //   supabase 호출 없이 즉시 redirect — fast path 우선
   const mustOnboardCookie = request.cookies.get(MUST_ONBOARD_COOKIE)?.value;

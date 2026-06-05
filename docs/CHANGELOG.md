@@ -6,7 +6,16 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정 + /reports 슬러그 한글 전환
+
+### Changed 시술 리포트 URL 영문→한글 전환 (영문은 308 리다이렉트 전용)
+- 정식 URL = `/reports/{ko}`(한글). 한국어 검색·네이버 CTR 유리 + `/topics`(한글)와 일관. 색인 켠 직후라 누적 신호 ~0 → 최저비용 전환.
+- `reports/[procedure]/page.tsx`: canonical = `/reports/{encodeURIComponent(ko)}`. 후기 0(getProcedureReport=null) noindex 유지. param 은 en·ko 양립(resolveProcedure) 유지.
+- **en→ko 308 영구 리다이렉트는 `middleware.ts`에서 처리** — 페이지 레벨 `permanentRedirect()`는 스트리밍 SSR 에서 200+meta-refresh 로 폴백(prod 빌드 실측)해 하드 308 불가. 미들웨어 fast-path 1c 에 추가: `/reports/{slug}` 가 ASCII(영문 en) 후보일 때만 `procedure_taxonomy` en→ko 1회 조회 후 `NextResponse.redirect(…, 308)`. 한글 ko(정식 URL)는 ASCII 아니라 조회 없이 통과(추가 비용 0)·재진입 없음(1홉, 루프 없음).
+- 내부 링크 전부 ko: `ProcedureReportCard.reportHref`(getQaUrl→직접 `/reports/{ko}`), `Feed.feedHref`. `/search`·`/topics` featured 카드는 ProcedureReportCard 렌더라 자동 ko. (admin/cards 내부 링크·`/api/reports/[procedure]/reviews` fetch 는 en 유지 — 비색인 내부 경로 + 미들웨어 308 이 흡수.)
+- `sitemap.ts`·`rss/route.ts`: 앵커 post_slug(=en) → `procedure_taxonomy` en→ko 매핑 후 **한글 URL 만 등재**(영문 URL 미포함 → 중복 콘텐츠 방지). 매핑 없으면 en fallback(308 로 흡수).
+- JSON-LD @id·내부 식별자는 en 유지(URL 과 무관). 표기 URL 만 ko.
+- 검증: `tsc` 0 + `build` Compiled successfully. dev 실측 — `/reports/titanium`→**308**→`/reports/티타늄`(1홉, num_redirects=1, 최종 200) / `/reports/리쥬란`·`/reports/레스틸렌` 등 ko 200 / sitemap `/reports/` 35개 전부 한글 인코딩·`titanium`(en) 미포함 / `/search?q=티타늄` featured 링크 `href="/reports/%ED%8B%B0%ED%83%80%EB%8A%84"`(ko) / canonical=ko + AggregateRating / 서버 에러 0. (308=Next 영구 리다이렉트, 구글 301 동일 취급.)
 
 ### Changed 공개 정책 문구 정정 — "환자 후기 미도입/미게재" → 익명·집계 시술 경험 데이터 제공 (법적 모순 해소)
 - `/reports` 시술 후기 집계가 라이브(SITE_PUBLIC=true)인데 `public/llms.txt`·`public/.well-known/agent-card.json` 가 "환자 후기 시스템 미도입"·"환자 후기 미게재"로 적혀 AI 엔진에 모순 노출되던 것을 정정.

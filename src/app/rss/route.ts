@@ -80,7 +80,8 @@ export async function GET() {
     })
     .join("\n");
 
-  // 시술 리포트 앵커 — /reports/{en}. ★게이트 off 기본 + published 한정(이중 차단).
+  // 시술 리포트 앵커 — /reports/{ko}(한글 정식 URL). ★게이트 off 기본 + published 한정(이중 차단).
+  //   post_slug=영문 en → procedure_taxonomy 로 en→ko 매핑 후 한글 link 만 출력(영문은 308 전용).
   let anchorItems = "";
   if (INCLUDE_REPORT_ANCHORS) {
     const { data: anchors } = await supabase
@@ -91,6 +92,15 @@ export async function GET() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50);
+    const { data: taxRows } = await supabase
+      .from("procedure_taxonomy")
+      .select("en, ko")
+      .eq("active", true);
+    const enToKo = new Map<string, string>(
+      ((taxRows ?? []) as Array<{ en: string | null; ko: string | null }>)
+        .filter((t): t is { en: string; ko: string } => !!t.en && !!t.ko)
+        .map((t) => [t.en, t.ko]),
+    );
     anchorItems = ((anchors ?? []) as Array<{
       title: string | null;
       post_slug: string | null;
@@ -99,7 +109,8 @@ export async function GET() {
     }>)
       .flatMap((a) => {
         if (!a.post_slug) return [];
-        const url = `${SITE_URL}/reports/${a.post_slug}`;
+        const ko = enToKo.get(a.post_slug) ?? a.post_slug;
+        const url = `${SITE_URL}/reports/${encodeURIComponent(ko)}`;
         const pubDate = new Date(a.updated_at ?? a.created_at).toUTCString();
         return [
           `<item>

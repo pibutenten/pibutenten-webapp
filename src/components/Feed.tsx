@@ -246,7 +246,7 @@ export default function Feed({
                 <ProcedureReportCard
                   key={`rsfeed-${report.anchor?.id ?? report.en}-${windowIdx}`}
                   report={report}
-                  feedHref={`/reports/${report.en}`}
+                  feedHref={`/reports/${encodeURIComponent(report.procedureKo)}`}
                 />,
               ];
             }

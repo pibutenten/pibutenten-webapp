@@ -30,7 +30,6 @@ import ReportViewTracker from "@/components/report/ReportViewTracker";
 import DistBars from "@/components/report/DistBars";
 import DowntimeGauge from "@/components/report/DowntimeGauge";
 import EffectOnsetTimeline from "@/components/report/EffectOnsetTimeline";
-import { getQaUrl } from "@/lib/card-url";
 import { experienceCount } from "@/lib/report-copy";
 
 const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
@@ -138,7 +137,8 @@ export default function ProcedureReportCard({
     avgPain, revisit, effects, demographics,
     noEffectCount, downtimeAnswered, downtimeDist, onsetAnswered, onsetDist,
   } = rep;
-  const reportHref = getQaUrl({ id: anchor?.id ?? 0, type: "review_summary", post_slug: en });
+  // 정식 URL = 한글 슬러그(/reports/{ko}). 영문 en 은 308 리다이렉트 전용이라 내부 링크는 ko 로.
+  const reportHref = `/reports/${encodeURIComponent(procedureKo)}`;
 
   // 초기 펼침은 prop 으로만 결정.
   const [expanded, setExpanded] = useState(defaultExpanded || isPage);

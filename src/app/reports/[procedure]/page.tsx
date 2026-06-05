@@ -37,12 +37,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { procedure } = await params;
   const resolved = await resolveProcedure(procedure);
   if (!resolved) return { title: "찾을 수 없는 시술 리포트" };
-  const { ko, en } = resolved;
+  const { ko } = resolved;
   const supabase = await createSupabaseServerClient();
   const report = await getProcedureReport(supabase, ko);
   if (!report) return { title: `${ko} 시술 리포트`, robots: { index: false, follow: true } };
 
-  const url = `${SITE_URL}/reports/${en}`;
+  // canonical = 한글 슬러그 (2026-06-05). 영문 en 은 308 로 한글로 보내는 리다이렉트 전용.
+  const url = `${SITE_URL}/reports/${encodeURIComponent(ko)}`;
   const title = `피부텐텐 리포트 | ${ko}`;
   const desc = `후기 ${report.count}건 - 평균 만족도 ${report.avgSatisfaction.toFixed(
     1,
@@ -63,6 +64,9 @@ export default async function ProcedureReportPage({ params }: Props) {
   const resolved = await resolveProcedure(procedure);
   if (!resolved) notFound();
   const { ko } = resolved;
+
+  // 영문 en → 한글 ko 308 영구 리다이렉트는 middleware.ts 가 처리(페이지 레벨 redirect 는
+  //   스트리밍 SSR 에서 200+meta-refresh 로 폴백 → 하드 308 불가). 이 페이지는 ko 만 받는다.
 
   const supabase = await createSupabaseServerClient();
   const report = await getProcedureReport(supabase, ko);
