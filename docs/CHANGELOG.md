@@ -6,7 +6,13 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일
+
+### Changed `/api/articles` POST 카테고리 검증을 post-category SSOT 로 통일 (PUT 과 정합)
+- POST 의 `const VALID_CATEGORIES = ["qa","doodle"]` 인라인 하드코딩(옛 2종, stale)을 제거하고, PUT(`articles/[id]`)과 동일하게 `isPostCategorySlug` + `categoriesForRole(role)` SSOT 로 검증.
+- 동작: payload.category 가 유효 슬러그 아니면 400, 역할 허용 범위(회원=doodle / 의사·관리자=qa+doodle) 벗어나면 403. category 미지정 시 기존 type 폴백(qa→qa, 그 외→doodle) 유지. `review`/`review_summary` 는 `categoriesForRole` 에 없어 일반 글쓰기 POST 로 직접 시도 시 403(전용 폼 경유 유지) — 옛 코드가 조용히 doodle/qa 로 강제하던 것을 명시적 차단으로 교정.
+- CLAUDE.md §5 동기화 페어(`post-category.ts ↔ cards.category CHECK`) 의 세 번째 비공식 목록 제거. 카테고리 추가·변경 시 누락 함정 해소.
+- 검증: `tsc` 0 + `build` Compiled successfully. SSOT 실측 매트릭스(회원 doodle O/qa 403, 의사·관리자 qa·doodle O, review/review_summary 403, 정의외 400) 확인. dev POST 라우트 컴파일·로드 정상(미인증 401).
 
 ### Fixed middleware `site_visits` INSERT 가 raw 쿠키를 검증 없이 profile_id 로 사용하던 비대칭
 - `src/middleware.ts` 방문 통계 INSERT 가 IDENTITY_COOKIE 값을 UUID 검증 없이 `profile_id` 로 INSERT 하던 것을, 같은 파일이 이미 검증해 둔 `activeIdHint`(UUID_RE 통과값) 재사용으로 변경. 비-UUID/없음/"primary" 면 `user.id`(base profile.id) 안전 폴백.

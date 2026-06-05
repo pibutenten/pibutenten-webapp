@@ -10,7 +10,11 @@ import {
 } from "@/data/procedure-mappings/slug-mapping";
 import { ArticleCreateSchema } from "@/lib/schema/api/articles";
 import { screenContent } from "@/lib/content-screening";
-import { stripCategoryLabels } from "@/lib/post-category";
+import {
+  stripCategoryLabels,
+  isPostCategorySlug,
+  categoriesForRole,
+} from "@/lib/post-category";
 import { ROLES } from "@/lib/identity-shared";
 import { logAudit } from "@/lib/audit-log";
 
@@ -185,20 +189,28 @@ export async function POST(req: Request) {
     }
   }
 
-  // 카테고리 결정 — payload.category 우선, 없으면 type에서 자동 매핑.
-  // v6: 2개 카테고리 qa/doodle (qa=의사 Q&A, doodle=끄적끄적). 마이그 0198.
-  //   폐지: tip/diary/ask/link (전부 doodle 로 통합).
-  const VALID_CATEGORIES = ["qa", "doodle"];
+  // 카테고리 결정 — payload.category 우선(SSOT 검증), 없으면 type 에서 폴백.
+  //   검증·역할 게이트는 PUT(articles/[id]) 와 동일하게 post-category SSOT 사용:
+  //     · isPostCategorySlug : 유효 슬러그(qa/doodle/review/review_summary) 검증 → 아니면 400.
+  //     · categoriesForRole  : 역할 허용 범위(회원=doodle / 의사·관리자=qa+doodle) → 벗어나면 403.
+  //   review/review_summary 는 categoriesForRole 에 없어 일반 글쓰기 POST 로는 자연 차단(전용 폼만).
   let category: string;
-  if (payload.category && VALID_CATEGORIES.includes(payload.category)) {
+  if (typeof payload.category === "string") {
+    if (!isPostCategorySlug(payload.category)) {
+      return errorResponse(null, "invalid_input", "[articles POST] invalid category", 400, undefined, {
+        userMessage: "유효하지 않은 카테고리",
+      });
+    }
     category = payload.category;
   } else {
     category = t === "qa" ? "qa" : "doodle";
   }
-  // user role은 category='qa' 사용 불가 (type=post + category=qa 우회 차단)
-  if (category === "qa" && role !== ROLES.ADMIN && role !== ROLES.DOCTOR) {
-    return errorResponse(null, "forbidden", "[articles POST] qa category denied", 403, undefined, {
-      userMessage: "Q&A 카테고리는 원장 또는 관리자만 작성 가능합니다.",
+  if (!categoriesForRole(role).some((c) => c.slug === category)) {
+    return errorResponse(null, "forbidden", "[articles POST] category not allowed", 403, undefined, {
+      userMessage:
+        category === "qa"
+          ? "Q&A 카테고리는 원장 또는 관리자만 작성 가능합니다."
+          : "이 카테고리는 사용 권한이 없습니다.",
     });
   }
 
