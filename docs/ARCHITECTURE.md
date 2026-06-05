@@ -29,7 +29,7 @@
 /about                              소개
 /search                             검색 결과 (시술명이면 결과 최상단에 시술 리포트 카드)
 /topics/[tag]                       태그별 전문의 Q&A 허브 (qa 만, SEO 인덱싱). 시술 리포트 카드·후기 미노출 — /reports 존재 시 "후기 N건 보기 →"(→/reports/{ko}) 얇은 링크만 (2026-06-05 분리)
-/reports/[procedure]                시술별 후기 리포트 (실시간 집계 + review_summary 앵커 카드; 정식 URL=/reports/{ko}(한글), canonical=ko; 영문 /reports/{en} 은 middleware 가 308 영구 리다이렉트 전용(1홉)→ko; index, AggregateRating; /topics 존재(qa≥4) 시 "전문의 Q&A 보기 →"(→/topics/{ko}) 얇은 링크)
+/reports/[procedure]                시술별 후기 리포트 (실시간 집계 + review_summary 앵커 카드; 정식 URL=/reports/{ko}(한글), canonical=ko; 영문 /reports/{en} 은 middleware 가 308 영구 리다이렉트 전용(1홉)→ko; index; JSON-LD=MedicalWebPage + Service(additionalType=MedicalProcedure) + AggregateRating + BreadcrumbList(Product 폐기 2026-06-05); /topics 존재(qa≥4) 시 "전문의 Q&A 보기 →"(→/topics/{ko}) 얇은 링크)
 /doctors                            원장님 목록
 /doctors/[slug]                     원장님 소개 (OG: /og/{slug}.png)
 /doctors/[slug]/[year]/[postSlug]   원장님 글 단독 (SEO URL)

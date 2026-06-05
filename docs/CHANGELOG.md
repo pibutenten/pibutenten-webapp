@@ -6,7 +6,13 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정 + /reports 슬러그 한글 전환 + /topics↔/reports 분리·양방향 링크 + get_indexable_tags qa-only 정리 + 페이지별 메타 통일
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정 + /reports 슬러그 한글 전환 + /topics↔/reports 분리·양방향 링크 + get_indexable_tags qa-only 정리 + 페이지별 메타 통일 + /reports 구조화 데이터 Product 폐기
+
+### Changed /reports 구조화 데이터 `Product` 폐기 → `MedicalWebPage` + `Service`(MedicalProcedure)
+- 의료 시술에 `Product` + `AggregateRating` 스키마는 구글 정책 오용 소지 → `reports/[procedure]/page.tsx` JSON-LD 를 `MedicalWebPage`(name·url·dateModified) + `mainEntity: Service`(additionalType=`https://schema.org/MedicalProcedure`)로 교체.
+- Service 안에 `aggregateRating`(만족도 별점·후기수, 페이지·AI 인용 신호 유지), `additionalProperty`(재시술 의향 R%·평균 통증/maxValue 5), `provider`(layout 의 Organization `@id #organization` 참조만, 신규 정의 없음), `category`(procedure_taxonomy 값 lifting/injectables 그대로, 미분류면 생략) + `BreadcrumbList`(홈 > 시술 리포트 > {시술명}; /reports 인덱스 페이지 없어 중간 크럼브 name-only).
+- 모든 수치 라이브 집계 동적. 후기 0(getProcedureReport=null)은 기존대로 `notFound()`(404)·generateMetadata noindex → 스키마 미출력.
+- 구글 별 아이콘은 의료 시술 타입에 원래 미노출이라 실질 손실 없음(의료법상 안전). 검증: `tsc` 0 + `build` Compiled successfully. dev `/reports/티타늄` JSON-LD — Product 흔적 0, MedicalWebPage+Service/MedicalProcedure, aggregateRating(4.2/12), 재시술 75%·통증 3.6/5, provider @id #organization, BreadcrumbList 정상, 서버 에러 0. (Rich Results Test·GSC Product 수동조치 확인은 라이브 URL 에서 운영자 점검 권장.)
 
 ### Changed 페이지별 메타(title·description) 통일 — 주제 first·브랜드 last + 라이브 동적 수치
 - 루트 title 템플릿 `피부텐텐 | %s` → **`%s | 피부텐텐`**(콘텐츠 페이지 주제 first·브랜드 last). 홈만 brand-first(absolute), reports 도 absolute 유지. 신뢰 페이지(about 등)는 기존 OG title(이미 brand-last)과 자동 정합.

@@ -116,18 +116,51 @@ export default async function ProcedureReportPage({ params }: Props) {
     Array.isArray(idxTags) &&
     (idxTags as Array<{ keyword: string }>).some((t) => t.keyword === ko);
 
-  // JSON-LD — AggregateRating (별점·후기 수). 시술 리포트 인덱싱 신호.
+  // JSON-LD — MedicalWebPage + Service(MedicalProcedure) (2026-06-05, Product 폐기).
+  //   의료 시술에 Product 스키마는 구글 정책 오용 소지 → 의료 페이지 + 시술(Service) 로 전환.
+  //   별점(AggregateRating)·재시술%·통증은 페이지·AI 인용 신호로 유지. 모든 수치 라이브 집계.
+  //   provider 는 layout 의 Organization(@id #organization) 참조만(신규 정의 없음).
+  const url = `${SITE_URL}/reports/${encodeURIComponent(ko)}`;
+  const rTotal = report.revisit.yes + report.revisit.maybe + report.revisit.no;
+  const revisitPct = rTotal > 0 ? Math.round((report.revisit.yes / rTotal) * 100) : 0;
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Product",
-    name: `${ko} 시술`,
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: report.avgSatisfaction.toFixed(1),
-      bestRating: 5,
-      worstRating: 1,
-      ratingCount: report.count,
-      reviewCount: report.count,
+    "@type": "MedicalWebPage",
+    name: `${ko} 후기 리포트 | 피부텐텐`,
+    url,
+    // 집계 갱신 신호 — 요청 시점(실시간 집계라 항상 최신). AI freshness.
+    dateModified: new Date().toISOString(),
+    mainEntity: {
+      "@type": "Service",
+      additionalType: "https://schema.org/MedicalProcedure",
+      name: ko,
+      // procedure_taxonomy.category 값 그대로(lifting/injectables). 미분류면 생략.
+      ...(report.category ? { category: report.category } : {}),
+      provider: { "@id": `${SITE_URL}/#organization` },
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: report.avgSatisfaction.toFixed(1),
+        bestRating: 5,
+        ratingCount: report.count,
+      },
+      additionalProperty: [
+        { "@type": "PropertyValue", name: "재시술 의향", value: `${revisitPct}%` },
+        {
+          "@type": "PropertyValue",
+          name: "평균 통증",
+          value: Number(report.avgPain.toFixed(1)),
+          maxValue: 5,
+        },
+      ],
+    },
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "홈", item: `${SITE_URL}/` },
+        // /reports 인덱스 페이지 없음 → 중간 크럼브는 name-only(깨진 링크 방지).
+        { "@type": "ListItem", position: 2, name: "시술 리포트" },
+        { "@type": "ListItem", position: 3, name: ko, item: url },
+      ],
     },
   };
 
