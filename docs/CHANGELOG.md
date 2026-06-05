@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-06] — 피부텐텐 Organization Wikidata sameAs 연결 (GEO 엔티티)
+
+### Added
+- **피부텐텐 사이트 엔티티 ↔ Wikidata 연결**: `app/layout.tsx` 전역 `#organization`(Organization) `sameAs` 에 `https://www.wikidata.org/wiki/Q140072864` 추가(기존 YouTube와 함께). Wikidata 항목 Q140072864(피부텐텐 — 분류 웹사이트 Q35127, 공식 pibutenten.kr, 국가 KR, 사용언어 한국어, 주요주제 피부과 dermatology, 공식이름 피부텐텐, 설립 2026, ko/en 라벨·설명) 신규 생성 후 연결. 전역 @graph 로 전 페이지 노출. GEO C1(엔티티 sameAs) 보강 — 힐하우스(Q140071426)에 이어 사이트 운영 주체 엔티티도 Wikidata 연결.
+
+### 검증
+- `tsc --noEmit` 0 + `npm run build` 성공. dev SSR(`/`) `ld-org-website` 스크립트의 `#organization.sameAs` 에 YouTube + `wiki/Q140072864` 동시 포함 확인. 서버 에러 0.
+
+---
+
 ## [2026-06-06] — 힐하우스 그룹 Wikidata sameAs 연결 (GEO 엔티티)
 
 ### Added

@@ -161,7 +161,10 @@ window.addEventListener('appinstalled', function() {
                   logo: `${SITE_URL}/logo.png`,
                   description:
                     "피부과 전문의가 함께 만드는 피부 미용 커뮤니티",
-                  sameAs: ["https://www.youtube.com/@pibutenten"],
+                  sameAs: [
+                    "https://www.youtube.com/@pibutenten",
+                    "https://www.wikidata.org/wiki/Q140072864",
+                  ],
                 },
                 {
                   "@type": "WebSite",
