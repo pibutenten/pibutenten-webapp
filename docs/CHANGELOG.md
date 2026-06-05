@@ -6,7 +6,12 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정 + /reports 슬러그 한글 전환 + /topics↔/reports 분리·양방향 링크
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증 + 글 생성 카테고리 SSOT 통일 + 시술 리포트 조회수 기록 + 시술 리포트 외부 색인 ON + 공개 정책 문구 정정 + /reports 슬러그 한글 전환 + /topics↔/reports 분리·양방향 링크 + get_indexable_tags qa-only 정리
+
+### Changed `get_indexable_tags` qa-only 정리 + 멱등 base 마이그레이션 (마이그 0235)
+- 함수가 `category IN ('qa','tip')` 로 집계했으나 `'tip'` 은 폐지 카테고리(0198 에서 doodle 통합, 현 0행) → `category = 'qa'` 로 죽은 필터 제거. review_summary 미추가(qa-only 결정).
+- 기존 정의가 조건부 마이그(0092 `if exists ... create or replace`)에만 있어 멱등 base CREATE 부재 → 신규 환경 재구축 시 함수 미생성 위험을 0235 무조건 `CREATE OR REPLACE` 로 보완(폴더-DB 정합). SECURITY DEFINER·STABLE·search_path=public·anon/authenticated GRANT 불변, 반환 시그니처 `TABLE(keyword text, cnt bigint)` 불변.
+- 검증: 변경 전후 반환 태그 집합 **완전 동일**(min4 = 397개, md5 `26e810e8…89` 일치 → 회귀 0). `get_indexable_tags(1)` 1939 == qa 카드 distinct keyword 1939(누출 0). `SET LOCAL ROLE authenticated` 호출 397 정상(권한 OK, Management API postgres 우회 아닌 실제 role). production 적용 완료.
 
 ### Changed /topics(전문의 Q&A)↔/reports(후기 집계) 콘텐츠 분리 + 양방향 얇은 링크
 - 의도 다른 두 페이지의 자기잠식 방지: `/topics`(전문의 qa 허브)에서 시술 리포트 카드·개별 후기 미리보기를 제거하고, 양쪽에 한글 직접 링크(308 미경유) 1줄씩만 둠.

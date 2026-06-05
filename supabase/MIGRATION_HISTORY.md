@@ -39,6 +39,7 @@
 - **`find_duplicate_profiles`**: 0098 → 0102 → 0105 → 0110(DROP) → 0111 (5번 재정의)
 - **알림 트리거 함수들**: 0062 → 0063 → 0071 → 0078 rename → 0080/0083 부분 재정의
 - **scored RPCs**: 0072 → 0090 → 0094
+- **`get_indexable_tags`**: 0092(조건부 `if exists` 정의만, 멱등 base 부재) → **0235 무조건 CREATE OR REPLACE**(qa-only `category='qa'` + 폴더-DB 정합 확보)
 
 향후 안정화 확인 후 squash 마이그레이션 1개로 통합 검토.
 
