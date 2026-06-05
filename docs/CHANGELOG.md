@@ -6,7 +6,13 @@
 
 ---
 
-## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합
+## [2026-06-05] — 신고 카드 모더레이션 치명 버그 수정 + 댓글 좋아요 prefetch active 정합 + 방문 통계 쿠키 검증
+
+### Fixed middleware `site_visits` INSERT 가 raw 쿠키를 검증 없이 profile_id 로 사용하던 비대칭
+- `src/middleware.ts` 방문 통계 INSERT 가 IDENTITY_COOKIE 값을 UUID 검증 없이 `profile_id` 로 INSERT 하던 것을, 같은 파일이 이미 검증해 둔 `activeIdHint`(UUID_RE 통과값) 재사용으로 변경. 비-UUID/없음/"primary" 면 `user.id`(base profile.id) 안전 폴백.
+- 원인: 온보딩 게이트(217·270·291)는 `UUID_RE.test` + 묶음 검증을 거치는데 이 INSERT(363)만 `const activeId = v && v !== "primary" ? v : user.id` 로 raw 쿠키를 그대로 사용. 위조/오염 쿠키 시 KPI 오염, 비-UUID 쿠키면 `site_visits.profile_id`(uuid) 타입에러로 try/catch 에 삼켜져 방문 1건 누락. (보안 유출 아님 — 통계 한정.)
+- 조치: `const activeId = activeIdHint ?? user.id;` 1줄. 중복 쿠키 읽기·정규식 제거. 묶음 소속 검증은 핫패스 쿼리 회피 위해 별도 백로그. 그 외 로직 불변.
+- 검증: `tsc` 0 + `build` Compiled successfully. `site_visits.profile_id`=uuid 확인(비-UUID INSERT 시 타입에러 근거), 최근 24h 11건/9명 적재로 INSERT 경로 정상 가동 확인. dev 미들웨어 `/` 200·에러 0.
 
 ### Fixed 댓글 좋아요 prefetch 가 base 명함 id 로 조회하던 비대칭 (다명함 사용자 빈 하트)
 - `/api/comments` GET 의 좋아요 prefetch 가 `comment_likes.profile_id` 를 base auth id(`viewer.id`)로 조회하던 것을 active 명함 id 로 변경.

@@ -359,8 +359,10 @@ export async function middleware(request: NextRequest) {
   //   과거 데이터는 base id 로 남아 있음 — 시점 기준 단절 (CHANGELOG 참조).
   const visitedCookie = request.cookies.get("pibutenten_visited")?.value;
   if (!visitedCookie) {
-    const v = request.cookies.get(IDENTITY_COOKIE)?.value;
-    const activeId = v && v !== "primary" ? v : user.id;
+    // 위(217)에서 이미 UUID_RE 로 검증한 activeIdHint 재사용 — 비-UUID/없음/"primary" 면 null
+    //   → user.id (base profile.id) 로 안전 폴백. raw 쿠키 직접 INSERT 로 인한 타입에러 방문
+    //   누락·KPI 오염 방지. (묶음 소속 검증은 핫패스 쿼리 회피 위해 별도 백로그.)
+    const activeId = activeIdHint ?? user.id;
     try {
       await supabase.from("site_visits").insert({
         profile_id: activeId,
