@@ -6,6 +6,27 @@
 
 ---
 
+## [2026-06-06] — 관심(Q&A) 알림 생산자: 일일 digest + cron (4-2 / 3b-2)
+
+> 3b-1 토대 위에 실제 생산자(매일 1회 새 Q&A 매칭→주제별 알림) 추가. 기존 notifications→webhook→Web Push 경로를 그대로 타 푸시 자동.
+
+### Added
+- **마이그 0245 — digest 생산자**:
+  - 커서 테이블 `keyword_digest_state(id boolean PK, last_run_at timestamptz NOT NULL DEFAULT now())` 단일행. RLS on + anon/authenticated REVOKE(service_role 전용). **`last_run_at` 초기값 `now()` — 첫 실행이 과거 qa 999개를 "새 글"로 처리하는 알림 폭탄 방지(핵심 안전장치).**
+  - `run_keyword_digest()` (SECURITY DEFINER, service_role/postgres만 EXECUTE — PUBLIC/anon/authenticated REVOKE): 커서 `FOR UPDATE` → 윈도우(`reviewed_at > cursor AND <= run_start`) 내 published qa 의 `unnest(keywords)` 태그를 회원과 매칭(`interested_procedures`/`skin_concerns`/`skin_type`, `notification_preferences` LEFT JOIN + `COALESCE(pref_keyword_*,true)` 게이트), 자기 글 제외, (회원,태그)별 distinct 새 글 수 N → `notifications(kind='keyword', actor_id=NULL, message="'태그'에 새 Q&A N건", url='/search?q='||url_encode_component(태그))` set-based INSERT → 커서 전진. 단일 tx + 커서 잠금 → 실패 롤백·재시도 = **정확히 1회**.
+  - `url_encode_component(text)` IMMUTABLE — 한글 태그를 UTF8 percent-encode(`/search?q=` 정확 이동).
+- **cron 라우트** `/api/cron/keyword-digest`(GET): `Authorization: Bearer ${CRON_SECRET}` 검증(불일치/누락 → 401, indexnow 동일) → service_role 로 `run_keyword_digest()` → `{ processed, notifications_created }`.
+- **vercel.json crons**: `{ path: "/api/cron/keyword-digest", schedule: "0 21 * * *" }`(21 UTC=06:00 KST, indexnow 04:00 과 분리).
+
+### 검증
+- 커서 `last_run_at` = **now()**(age 수초, 과거 epoch 아님) 값 확인.
+- **dry-run(영속 없음·순수 SELECT, 커서 now()-7d 가정)**: 7일 윈도우 processed=19·매칭 72건/25명. ①self 제외 0행 ②토글 게이트 interest ON=72 / 강제 OFF=0(게이트 작동) ③(회원,태그) grouping·N(distinct 카드) ④중복 그룹 0.
+- 권한: `run_keyword_digest` acl `{postgres,service_role}`(anon/authenticated/PUBLIC EXECUTE 불가), `keyword_digest_state` RLS on·anon/authenticated grant 0. 'keyword' 알림은 recipient 본인만 SELECT(RLS).
+- **route 0-effect 실증**: 커서=now() 상태에서 `run_keyword_digest()` 호출 → `{processed:0, notifications_created:0}` + keyword 알림 0 증가 + 커서 전진. cron 라우트 401(secret 없음/오류)·200(정답+0-effect) 실증.
+- kind 'keyword' 8종(3b-1) 재확인. 신규 `user_id` 미도입(grep 0). `tsc` 0 + `build` Compiled successfully. 부팅 200·에러 0.
+
+---
+
 ## [2026-06-06] — 관심(Q&A) 알림 스키마·토글·'keyword' kind (4-2 / 3b-1)
 
 > 관심 알림 토대만 구축(색인·토글·종류). 실제 발생(digest+cron)은 3b-2 — **이번엔 생산자 없음 = keyword 알림 0건**(순수 additive·무위험).

@@ -115,10 +115,14 @@ npm run build          # 전체 빌드 (Compiled successfully 확인)
 - GA4 (`G-K85SS38584`) — `anonymize_ip` + `/search` query string sanitize PII 보호.
 - 네이버 Analytics (`5d1db0791001f8`) — wcs.pstatic.net script.
 
-### 9.4. IndexNow Cron (완료)
-- 매일 KST 04:00 자동 ping (Bing/Yandex/Seznam/Yep).
-- `public/{INDEXNOW_KEY}.txt` 소유권 증명.
-- `Authorization: Bearer ${CRON_SECRET}` 외부 무단 호출 차단.
+### 9.4. Cron 작업 (Vercel `vercel.json` crons)
+| path | schedule (UTC) | KST | 역할 |
+|---|---|---|---|
+| `/api/cron/indexnow` | `0 19 * * *` | 04:00 | 직전 26h 발행/갱신 의사 Q&A 를 Bing/Yandex/Seznam/Yep 에 ping. `public/{INDEXNOW_KEY}.txt` 소유권 증명. |
+| `/api/cron/keyword-digest` | `0 21 * * *` | 06:00 | 관심(Q&A) 알림 digest (4-2/3b-2). service_role 로 `run_keyword_digest()` 호출 → 직전 커서 이후 새 qa 를 회원 태그와 매칭 → `notifications(kind='keyword')` INSERT → 기존 webhook→Web Push 자동. |
+
+- 두 라우트 모두 `Authorization: Bearer ${CRON_SECRET}` 검증(불일치/누락 → 401). Vercel Cron 이 자동 첨부.
+- `CRON_SECRET` 은 Vercel 환경변수 전용(로컬 `.env.local` 미존재 — 로컬 호출 시 401 정상).
 
 ### 9.5. 운영 KPI 모니터링
 - 콘텐츠 자동 검수기 거짓양성 비율 점검 (1주 후)

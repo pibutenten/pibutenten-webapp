@@ -233,11 +233,12 @@ ex) /minji-skin/Ab3xK9Pq
 - **관심(Q&A) 알림 토대 (`keyword`, 0244 — 4-2 / 3b-1)**: 회원의 관심사·피부고민·피부타입 태그에 맞는 새 Q&A 를 하루 한 번 주제별로 알림 + `/search?q={태그}` 이동(예정). 본 단계는 **토대만**(색인·토글·종류) — GIN 인덱스 2개(`profiles.interested_procedures`·`skin_concerns`), pref 3컬럼(`pref_keyword_interest`/`pref_keyword_concern`/`pref_keyword_skin_type`, default ON), kind 'keyword'(message 모드·🏷️), UI(설정 "관심 Q&A 알림" 섹션 3토글 + /notifications "관심" 필터 + push fallback 타이틀). **발생(digest+cron)은 3b-2 — 현재 생산자 없음 = keyword 알림 0건**. 게이팅은 `is_notification_enabled` 단일 bool 이 아니라(미수정·ELSE true) 3b-2 digest 가 pref 3컬럼을 dimension 별로 직접 판독.
 - ~~ask 전용 답변·지속 알림 (0080)~~ — **물리 제거 완료(0241, 2026-06-06)**: category='ask' 폐지(0198)로 영구 死였던 트리거 `on_card_ask_for_notification`·`on_ask_owner_self_reply`, `new_ask` kind(과거 36행 삭제), `pref_new_ask` 컬럼, `is_notification_enabled` 의 new_ask 분기, UI 잔재(필터·토글·push 타이틀·SSOT) 일체 제거. 현 알림 kind **8종** = comment/reply/like/save/review_request/published/report/keyword(0244).
 
-### 8.2. 트리거
+### 8.2. 트리거 / 생산자
 - DB 트리거 (0086 push webhook trigger)
 - `notification_preferences` 채널별 on/off
 - `push_subscriptions` Web Push VAPID 구독 저장
 - `push_webhook_secret` Vault 관리 (0103, 0120 rotation RPC)
+- **관심 알림 digest 생산자 (`run_keyword_digest()` + cron, 0245 — 4-2/3b-2)**: 매일 cron `/api/cron/keyword-digest`(21:00 UTC=06:00 KST, `Authorization: Bearer ${CRON_SECRET}`)가 service_role 로 `run_keyword_digest()` 호출. 함수는 커서 `keyword_digest_state.last_run_at`(초기값 **now()** — 폭탄 방지) 이후 발행된 qa 카드를 `unnest(keywords)` 태그별로 회원과 매칭: `interested_procedures`(pref_keyword_interest) / `skin_concerns`(pref_keyword_concern) / `skin_type`(pref_keyword_skin_type), 게이트는 `notification_preferences` LEFT JOIN + `COALESCE(...,true)`. 자기 글 제외(`m.id<>author_id`), (회원,태그)별 distinct 새 글 수 N 집계 → `notifications(kind='keyword', actor_id=NULL, message="'태그'에 새 Q&A N건", url='/search?q='||url_encode_component(태그))` set-based INSERT → 기존 webhook→Web Push 자동. 단일 트랜잭션 + 커서 `FOR UPDATE` → 실패 시 롤백·재시도 = 정확히 1회. 한글 태그는 `url_encode_component()`(UTF8 percent-encode)로 `/search?q=` 정확 이동.
 
 ### 8.3. 클라이언트
 - `NotificationsBell.tsx`, `NotificationBadge.tsx` — 헤더 표시
