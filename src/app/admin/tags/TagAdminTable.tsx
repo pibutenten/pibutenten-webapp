@@ -143,83 +143,40 @@ function ParentCombo({
   );
 }
 
-/** 태그(ko) rename — 미리보기 게이트 모달. */
+/**
+ * 태그(ko) rename 입력 모달 (D2).
+ * [확인]은 행 draft 에만 반영(즉시 DB 아님) — 다른 셀처럼 행 끝 [저장] 으로 최종 확정.
+ * 영향 카드 수는 모달을 열면 바로 표시(사용량 컬럼과 동일 값). 미리보기 API 호출 없음.
+ * 사전 내 중복(koSet)은 즉시 차단, 시술 분류표 충돌 등은 저장(rename API)에서 검증.
+ */
 function RenameModal({
   row,
+  usage,
+  koSet,
+  onConfirm,
   onClose,
-  onRenamed,
 }: {
   row: { id: number; ko: string };
+  usage: number;
+  koSet: Set<string>;
+  onConfirm: (newKo: string) => void;
   onClose: () => void;
-  onRenamed: (newKo: string) => void;
 }) {
   const [newKo, setNewKo] = useState(row.ko);
-  const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<{
-    affectedCards: number;
-    affectedReviews: number;
-    isProcedure: boolean;
-    conflict: boolean;
-    conflictReason: string | null;
-  } | null>(null);
 
-  useEffect(() => {
-    setPreview(null);
-  }, [newKo]);
-
-  async function runPreview() {
+  function confirm() {
     const v = newKo.trim();
-    if (!v || v === row.ko) {
+    if (!v) {
       showToast("새 태그 이름을 입력해 주세요.", { tone: "danger" });
       return;
     }
-    setBusy(true);
-    try {
-      const r = await fetch(`/api/admin/tag-dictionary/${row.id}/rename`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newKo: v, confirm: false }),
-      });
-      const j = (await r.json().catch(() => null)) as Record<string, unknown> | null;
-      if (!r.ok || !j) {
-        showToast((j?.message as string) ?? `미리보기 실패 (HTTP ${r.status})`, { tone: "danger" });
-        return;
-      }
-      setPreview({
-        affectedCards: Number(j.affectedCards ?? 0),
-        affectedReviews: Number(j.affectedReviews ?? 0),
-        isProcedure: Boolean(j.isProcedure),
-        conflict: Boolean(j.conflict),
-        conflictReason: (j.conflictReason as string) ?? null,
-      });
-    } finally {
-      setBusy(false);
+    if (v !== row.ko && koSet.has(v)) {
+      showToast("사전에 이미 같은 이름의 태그가 있어요.", { tone: "danger" });
+      return;
     }
+    onConfirm(v);
+    onClose();
   }
-
-  async function confirm() {
-    const v = newKo.trim();
-    setBusy(true);
-    try {
-      const r = await fetch(`/api/admin/tag-dictionary/${row.id}/rename`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newKo: v, confirm: true }),
-      });
-      const j = (await r.json().catch(() => null)) as Record<string, unknown> | null;
-      if (!r.ok || !j) {
-        showToast((j?.message as string) ?? `변경 실패 (HTTP ${r.status})`, { tone: "danger" });
-        return;
-      }
-      showToast(`'${row.ko}' → '${v}' 변경됨 (카드 ${Number(j.affectedCards ?? 0)}건 반영)`);
-      onRenamed(v);
-      onClose();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const canConfirm = !!preview && !preview.conflict;
 
   return (
     <div
@@ -231,70 +188,41 @@ function RenameModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="mb-1 text-sm font-bold text-[var(--text)]">태그 이름 변경</h3>
-        {/* 줄바꿈 보장 — 긴 안내문이 잘리지 않게 break-keep + leading 여유 */}
         <p className="mb-3 break-keep text-xs leading-relaxed text-[var(--text-muted)]">
-          현재 <b className="text-[var(--text)]">{row.ko}</b> · 변경 시 카드 글상자 태그(keywords)에
-          전파됩니다. 사이트 색상·칩은 다음 배포에 반영됩니다.
+          현재 <b className="text-[var(--text)]">{row.ko}</b> · 이 태그가 달린 카드 약{" "}
+          <b className="tabular-nums text-[var(--text)]">{usage.toLocaleString()}</b>건에 반영됩니다.
+          [확인] 후 행의 <b>[저장]</b>을 눌러야 최종 적용됩니다(사이트 색상·칩은 다음 배포 반영).
         </p>
         <input
           value={newKo}
           onChange={(e) => setNewKo(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              confirm();
+            } else if (e.key === "Escape") {
+              onClose();
+            }
+          }}
           placeholder="새 태그 이름"
           autoFocus
           className="mb-3 h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
         />
-
-        {preview ? (
-          <div className="mb-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] p-3 text-xs">
-            {preview.conflict ? (
-              <p className="break-keep font-medium text-red-600">{preview.conflictReason}</p>
-            ) : (
-              <ul className="space-y-1 break-keep text-[var(--text-secondary)]">
-                <li>
-                  영향 카드:{" "}
-                  <b className="tabular-nums text-[var(--text)]">{preview.affectedCards.toLocaleString()}</b>건
-                  (keywords 전파)
-                </li>
-                {preview.isProcedure ? (
-                  <li>
-                    시술 후기:{" "}
-                    <b className="tabular-nums text-[var(--text)]">{preview.affectedReviews.toLocaleString()}</b>건
-                    (시술 분류표 동시 변경 → 자동 전파)
-                  </li>
-                ) : null}
-              </ul>
-            )}
-          </div>
-        ) : null}
-
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            disabled={busy}
             className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
           >
             취소
           </button>
-          {canConfirm ? (
-            <button
-              type="button"
-              onClick={confirm}
-              disabled={busy}
-              className="h-9 rounded-[var(--radius-sm)] bg-[var(--primary-active)] px-4 text-sm font-medium text-white disabled:opacity-60"
-            >
-              {busy ? "변경 중" : "확정"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={runPreview}
-              disabled={busy}
-              className="h-9 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-medium text-white disabled:opacity-60"
-            >
-              {busy ? "확인 중" : "미리보기"}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={confirm}
+            className="h-9 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-medium text-white"
+          >
+            확인
+          </button>
         </div>
       </div>
     </div>
@@ -302,6 +230,8 @@ function RenameModal({
 }
 
 function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<string> }) {
+  // ko 도 draft — rename 은 모달 [확인]으로 draft 반영, 행 [저장] 시 rename API 로 확정 (D2)
+  const [savedKo, setSavedKo] = useState(row.ko);
   const [ko, setKo] = useState(row.ko);
   const base: Editable = {
     category: row.category,
@@ -316,12 +246,14 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
   const [busy, setBusy] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
 
-  const dirty =
+  const koDirty = ko !== savedKo;
+  const fieldsDirty =
     draft.category !== saved.category ||
     (draft.en ?? "") !== (saved.en ?? "") ||
     (draft.parent_ko ?? "") !== (saved.parent_ko ?? "") ||
     draft.is_procedure !== saved.is_procedure ||
     (draft.onboarding ?? "") !== (saved.onboarding ?? "");
+  const dirty = koDirty || fieldsDirty;
 
   async function save() {
     if (!dirty || busy) return;
@@ -331,20 +263,42 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
       showToast("존재하는 태그만 부모로 지정할 수 있어요.", { tone: "danger" });
       return;
     }
-    const body: Record<string, unknown> = {};
-    if (draft.category !== saved.category) body.category = draft.category;
-    if ((draft.en ?? "") !== (saved.en ?? "")) body.en = (draft.en ?? "").trim();
-    if ((draft.parent_ko ?? "") !== (saved.parent_ko ?? "")) body.parent_ko = p;
-    if (draft.is_procedure !== saved.is_procedure) body.is_procedure = draft.is_procedure;
-    if ((draft.onboarding ?? "") !== (saved.onboarding ?? "")) body.onboarding = draft.onboarding ?? "";
-
     setBusy(true);
-    const ok = await patchFields(row.id, body);
-    setBusy(false);
-    if (ok) {
-      setSaved({ ...draft, en: body.en !== undefined ? (body.en as string) : draft.en, parent_ko: body.parent_ko !== undefined ? (body.parent_ko as string) : draft.parent_ko });
-      setDraft((d) => ({ ...d, en: (d.en ?? "").trim(), parent_ko: (d.parent_ko ?? "").trim() }));
+    try {
+      // 1) ko rename (변경 시) — 단일 tx 전파(cards.keywords + 시술 분류표)
+      if (koDirty) {
+        const r = await fetch(`/api/admin/tag-dictionary/${row.id}/rename`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newKo: ko, confirm: true }),
+        });
+        const j = (await r.json().catch(() => null)) as { message?: string } | null;
+        if (!r.ok) {
+          showToast(j?.message ?? `이름 변경 실패 (HTTP ${r.status})`, { tone: "danger" });
+          return;
+        }
+        setSavedKo(ko);
+      }
+      // 2) 나머지 필드 부분 PATCH
+      const body: Record<string, unknown> = {};
+      if (draft.category !== saved.category) body.category = draft.category;
+      if ((draft.en ?? "") !== (saved.en ?? "")) body.en = (draft.en ?? "").trim();
+      if ((draft.parent_ko ?? "") !== (saved.parent_ko ?? "")) body.parent_ko = p;
+      if (draft.is_procedure !== saved.is_procedure) body.is_procedure = draft.is_procedure;
+      if ((draft.onboarding ?? "") !== (saved.onboarding ?? "")) body.onboarding = draft.onboarding ?? "";
+      if (Object.keys(body).length > 0) {
+        const ok = await patchFields(row.id, body);
+        if (!ok) return;
+        setSaved({
+          ...draft,
+          en: body.en !== undefined ? (body.en as string) : draft.en,
+          parent_ko: body.parent_ko !== undefined ? (body.parent_ko as string) : draft.parent_ko,
+        });
+        setDraft((d) => ({ ...d, en: (d.en ?? "").trim(), parent_ko: (d.parent_ko ?? "").trim() }));
+      }
       showToast(`'${ko}' 저장됨`);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -365,8 +319,10 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
         {renameOpen ? (
           <RenameModal
             row={{ id: row.id, ko }}
+            usage={row.usage}
+            koSet={koSet}
+            onConfirm={(v) => setKo(v)}
             onClose={() => setRenameOpen(false)}
-            onRenamed={(v) => setKo(v)}
           />
         ) : null}
       </td>
@@ -590,18 +546,19 @@ export default function TagAdminTable({
   const koSet = new Set(allKo);
   return (
     <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
-      <table className="w-full min-w-[1020px] table-fixed border-collapse text-sm">
+      {/* 합 952px — 컨테이너(max-w-1080·px-4 → 가용 ~1048) 안에 들어가 가로 스크롤 없음(D3) */}
+      <table className="w-full min-w-[952px] table-fixed border-collapse text-sm">
         <colgroup>
-          <col style={{ width: "140px" }} />
-          <col style={{ width: "110px" }} />
           <col style={{ width: "130px" }} />
+          <col style={{ width: "100px" }} />
           <col style={{ width: "120px" }} />
-          <col style={{ width: "84px" }} />
           <col style={{ width: "110px" }} />
-          <col style={{ width: "82px" }} />
-          <col style={{ width: "82px" }} />
-          <col style={{ width: "92px" }} />
-          <col style={{ width: "70px" }} />
+          <col style={{ width: "76px" }} />
+          <col style={{ width: "100px" }} />
+          <col style={{ width: "76px" }} />
+          <col style={{ width: "76px" }} />
+          <col style={{ width: "88px" }} />
+          <col style={{ width: "76px" }} />
         </colgroup>
         <thead className="bg-[var(--bg-soft)] text-[var(--text-secondary)]">
           <tr>

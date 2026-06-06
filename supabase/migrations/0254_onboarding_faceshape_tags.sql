@@ -13,10 +13,10 @@ CREATE TABLE IF NOT EXISTS public.tag_dictionary_bak_0254 AS
 
 INSERT INTO public.tag_dictionary (ko, category, en, is_procedure, onboarding)
 VALUES
-  ('달걀형', '미지정', 'oval',   false, '얼굴형'),
-  ('땅콩형', '미지정', 'peanut', false, '얼굴형'),
-  ('장방형', '미지정', 'oblong', false, '얼굴형'),
-  ('각진형', '미지정', 'square', false, '얼굴형'),
-  ('둥근형', '미지정', 'round',  false, '얼굴형')
+  ('달걀형', '미지정', 'oval',    false, '얼굴형'),
+  ('땅콩형', '미지정', 'diamond', false, '얼굴형'),  -- D6 정정: peanut → diamond
+  ('장방형', '미지정', 'oblong',  false, '얼굴형'),
+  ('각진형', '미지정', 'square',  false, '얼굴형'),
+  ('둥근형', '미지정', 'round',   false, '얼굴형')
 ON CONFLICT (ko) DO UPDATE
   SET onboarding = '얼굴형', updated_at = now();
