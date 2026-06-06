@@ -120,23 +120,23 @@ export function PopularTagsCard({
         <PeriodChips value={days} onChange={setDays} />
       </div>
       {data.length === 0 ? (
-        <p className="text-xs text-[var(--text-muted)]">인덱싱 태그 없음.</p>
+        <p className="text-xs text-[var(--text-muted)]">태그 없음.</p>
       ) : (
-        <ol className="space-y-1">
+        <ol className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((t, i) => (
             <li
               key={t.keyword}
               className="flex items-center justify-between gap-2 text-[13px]"
             >
               <span className="flex items-center gap-2 truncate">
-                <span className="w-4 text-right text-[11px] text-[var(--text-muted)]">
+                <span className="w-5 text-right text-[11px] text-[var(--text-muted)]">
                   {i + 1}
                 </span>
                 <Link
                   href={`/topics/${encodeURIComponent(t.keyword)}`}
                   className="truncate hover:text-[var(--primary)] hover:underline"
                 >
-                  #{t.keyword}
+                  {t.keyword}
                 </Link>
               </span>
               <span className="tabular-nums text-[11px] text-[var(--text-muted)]">

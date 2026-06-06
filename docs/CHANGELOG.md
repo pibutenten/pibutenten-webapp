@@ -6,6 +6,28 @@
 
 ---
 
+## [2026-06-06] — 2단계: 태그 매니저 관리자 화면 (`/admin/tags`)
+
+> 운영자가 배포 없이 `tag_dictionary`(SSOT)를 인라인 편집하는 화면. 전체 카드 목록과 동일 톤. 1차 구현(컬럼·드로어 최종 모양은 육안 후 조정).
+
+### Added
+- **마이그 0251 — 태그 매니저 백엔드**:
+  - `tag_dictionary` **admin 쓰기 RLS**(`FOR ALL TO authenticated USING/ WITH CHECK is_admin()` + INSERT/UPDATE/DELETE GRANT). 공개 SELECT(0247/0249) 유지.
+  - **집계 RPC `get_tag_admin_overview(p_days)`**(is_admin 가드): 태그별 사용량(시간창 내 published **전체 글** keywords 등장 카드수)·검색량(`search_logs` query=ko)·생성일 대체값(`first_card_at`=첫 등장 카드 MIN created_at).
+  - **검수큐 처리 RPC `resolve_tag_review(ko,category,en,...)`**(is_admin 가드, 단일 tx): tag_dictionary upsert + tag_review_queue 제거.
+  - **`get_top_tags_inner` 정비**(C): `category in ('qa','tip')`·`doctor_id IS NOT NULL` 제거 → **published 전체 글 태그**로 확대(+`deleted_at IS NULL`). 'tip' 잔재 청소.
+- **PATCH `/api/admin/tag-dictionary/[id]`**: 분류·영문·부모·시술·온보딩 부분 수정. `requireAdmin`(active 명함, ADR 0012) + zod strict + `logAudit('tag_dictionary.update')`.
+- **화면 `/admin/tags`**(super admin 전용, admin 인덱스에 메뉴 추가): 요약 카드(전체2117·분류완료819·미지정1298·영문공란1229·검수대기N) + 분류 탭 6+전체 + 상태칩(영문공란·미지정·검수대기) + 기간칩 6종 + 태그 검색 + 인라인 편집 테이블(분류 select·영문 text·부모 datalist·시술 check·온보딩 select, 행 단위 [저장] optimistic) + 검수큐 섹션. 사용량 desc 기본 정렬, 100/page.
+
+### Changed
+- **인기 태그 패널(C)**: `#` 표시 제거 · 표시 10→**30**(get_top_tags p_limit·slice) · 1→**3열 그리드** · 대상 전체 글 태그로 확대.
+
+### 검증
+- RLS SET ROLE: 비-admin UPDATE 차단(값 불변)·admin UPDATE 허용(값 변경)·anon SELECT 유지(2117). 인라인 저장 e2e(써마지 분류 변경→원복). 집계 정확(써마지 usage104·search191·first 2023-01-18). 요약수치 일치. `tsc`+`build` 통과.
+- 백업 `tag_dictionary_bak_0251`(편집 전 스냅샷). tag_dictionary 데이터 무변경(검증 후 원복, queue 0).
+
+---
+
 ## [2026-06-06] — 1단계 후반: 분류 SSOT 전환(빌드타임 스냅샷) + 미지 태그 자동등록
 
 > 분류·슬러그 SSOT 를 `tag_dictionary`(DB)로 전환. `categoryFor`/`slugFor` 가 빌드타임 스냅샷을 읽도록 변경(동기·시그니처 불변). 미지 태그 자동등록 hook 추가. 디렉터 승인: 분류변경 채택·스냅샷 방식·자동등록 포함·후기/리포트 전환 **보류**.

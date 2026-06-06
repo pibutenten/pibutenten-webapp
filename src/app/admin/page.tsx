@@ -108,7 +108,7 @@ export default async function AdminPage() {
     ),
     Promise.all(
       SEARCH_TAG_DAYS.map((d) =>
-        supabase.rpc("get_top_tags", { p_days: d, p_min_count: 1, p_limit: 10 })
+        supabase.rpc("get_top_tags", { p_days: d, p_min_count: 1, p_limit: 30 })
       )
     ),
     Promise.all(
@@ -142,7 +142,7 @@ export default async function AdminPage() {
   });
   const tagsByDays: Record<number, TagRow[]> = {};
   SEARCH_TAG_DAYS.forEach((d, i) => {
-    tagsByDays[d] = ((tagResults[i]?.data ?? []) as TagRow[]).slice(0, 10);
+    tagsByDays[d] = ((tagResults[i]?.data ?? []) as TagRow[]).slice(0, 30);
   });
 
   // 활동 KPI — Record<days, Kpi> 맵 변환 (RPC가 set returning 또는 single row 모두 지원)
@@ -244,6 +244,15 @@ export default async function AdminPage() {
             title="전체 글 관리"
             desc="Q&A·끄적끄적 검색·필터·발행/보관"
           />
+          {/* 태그 매니저 — tag_dictionary 인라인 편집 (super admin 전용) */}
+          {isSuperAdmin && (
+            <Tool
+              href="/admin/tags"
+              emoji="🏷"
+              title="태그 매니저"
+              desc="태그 분류·영문·부모·시술·온보딩 인라인 편집 + 검수큐"
+            />
+          )}
           {/* 시술 리포트 전용 요약 표 (읽기 전용) — 시술별 후기·재시술·만족도·통증·engagement */}
           <Tool
             href="/admin/review-reports"
