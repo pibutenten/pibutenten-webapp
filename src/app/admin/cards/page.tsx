@@ -89,7 +89,18 @@ type Props = {
     doctor?: string;
     pick?: string;
     page?: string;
+    sort?: string;
+    dir?: string;
   }>;
+};
+
+// 헤더 클릭 정렬 — 키→DB 컬럼. 댓글(comments_count)은 관계 집계라 DB order 불가 → 제외.
+const SORTABLE_COLS: Record<string, string> = {
+  like: "like_count",
+  view: "view_count",
+  save: "save_count",
+  share: "share_count",
+  created: "created_at",
 };
 
 function isTypeFilter(v: string | undefined): v is TypeFilter {
@@ -150,6 +161,47 @@ function buildQueryString(params: Record<string, string | number | undefined>): 
   return s ? `?${s}` : "";
 }
 
+/** 정렬 헤더 — 클릭 시 sort/dir 갱신(replace, history 미적립). 첫 클릭 내림차순, 재클릭 오름차순. */
+function SortableTh({
+  col,
+  label,
+  baseQuery,
+  sortKey,
+  sortDir,
+  align = "right",
+}: {
+  col: string;
+  label: string;
+  baseQuery: Record<string, string | number | undefined>;
+  sortKey: string;
+  sortDir: "asc" | "desc";
+  align?: "left" | "right";
+}) {
+  const active = sortKey === col;
+  const nextDir = active && sortDir === "desc" ? "asc" : "desc";
+  const arrow = active ? (sortDir === "desc" ? " ↓" : " ↑") : "";
+  return (
+    <th
+      className={
+        "whitespace-nowrap px-3 py-2 font-medium " +
+        (align === "left" ? "text-left" : "text-right")
+      }
+    >
+      <Link
+        replace
+        href={`/admin/cards${buildQueryString({ ...baseQuery, sort: col, dir: nextDir, page: undefined })}`}
+        className={
+          "inline-flex items-center hover:text-[var(--primary)] " +
+          (active ? "text-[var(--primary)]" : "")
+        }
+      >
+        {label}
+        <span className="w-3 text-[10px]">{arrow}</span>
+      </Link>
+    </th>
+  );
+}
+
 export default async function AdminQAsPage({ searchParams }: Props) {
   const sp = await searchParams;
 
@@ -197,6 +249,10 @@ export default async function AdminQAsPage({ searchParams }: Props) {
   const pickOnly = sp.pick === "1";
   const pageNum = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const offset = (pageNum - 1) * PAGE_SIZE;
+  // 정렬 — 기본 생성일 내림차순. 헤더 클릭 시 sort/dir 갱신.
+  const sortKey = sp.sort && SORTABLE_COLS[sp.sort] ? sp.sort : "created";
+  const sortDir: "asc" | "desc" = sp.dir === "asc" ? "asc" : "desc";
+  const orderCol = SORTABLE_COLS[sortKey];
 
   // ── 원장 목록 (필터 dropdown용 — 관리자만) ──
   const doctorsListResult = isAdmin
@@ -301,7 +357,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     count: totalCount,
     error: listError,
   } = await listQuery
-    .order("created_at", { ascending: false })
+    .order(orderCol, { ascending: sortDir === "asc" })
     .range(offset, offset + PAGE_SIZE - 1)
     .returns<AdminQARow[]>();
 
@@ -323,6 +379,9 @@ export default async function AdminQAsPage({ searchParams }: Props) {
     pick: pickOnly ? "1" : undefined,
     q: qParam || undefined,
     doctor: doctorSlugParam || undefined,
+    // 정렬 유지 (기본값이면 생략해 URL 깔끔)
+    sort: sortKey === "created" ? undefined : sortKey,
+    dir: sortDir === "desc" ? undefined : sortDir,
   };
 
   // 타입 5종 (전체 카테고리 줄은 폐지, 2026-06-01).
@@ -370,6 +429,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           })}`;
           return (
             <Link
+              replace
               key={s.key}
               href={href}
               className={
@@ -405,6 +465,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
             })}`;
             return (
               <Link
+                replace
                 key={t.key}
                 href={href}
                 className={
@@ -424,6 +485,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
         </div>
 
         <Link
+          replace
           href={`/admin/cards${buildQueryString({
             ...baseQuery,
             pick: pickOnly ? undefined : "1",
@@ -457,6 +519,8 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           <input type="hidden" name="category" value={categoryParam} />
         )}
         {pickOnly && <input type="hidden" name="pick" value="1" />}
+        {sortKey !== "created" && <input type="hidden" name="sort" value={sortKey} />}
+        {sortDir !== "desc" && <input type="hidden" name="dir" value={sortDir} />}
         {/* 원장 필터:
              - 관리자: select, onChange 즉시 navigate (검색 버튼 없이 자동 적용)
              - 원장 본인: readonly chip으로 본인 이름 표시. doctor 파라미터는 서버에서 강제 적용 */}
@@ -504,6 +568,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
         </button>
         {(qParam || doctorSlugParam) && (
           <Link
+            replace
             href={`/admin/cards${buildQueryString({
               status: statusParam === "all" ? undefined : statusParam,
             })}`}
@@ -560,13 +625,14 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                   <th className="px-3 py-2 text-left font-medium">타입</th>
                   <th className="px-3 py-2 text-left font-medium">글쓴이</th>
                   <th className="px-3 py-2 text-left font-medium">제목</th>
-                  {/* 2026-05-28: whitespace-nowrap — 좁은 칸에서 2줄로 깨지지 않게 1줄 강제. */}
-                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">좋아요</th>
-                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">조회수</th>
-                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">저장</th>
+                  {/* 2026-05-28: whitespace-nowrap — 좁은 칸에서 2줄로 깨지지 않게 1줄 강제.
+                      2026-06-06: 헤더 클릭 정렬(좋아요/조회수/저장/공유/생성일). 댓글은 관계 집계라 제외. */}
+                  <SortableTh col="like" label="좋아요" baseQuery={baseQuery} sortKey={sortKey} sortDir={sortDir} />
+                  <SortableTh col="view" label="조회수" baseQuery={baseQuery} sortKey={sortKey} sortDir={sortDir} />
+                  <SortableTh col="save" label="저장" baseQuery={baseQuery} sortKey={sortKey} sortDir={sortDir} />
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">댓글</th>
-                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">공유</th>
-                  <th className="px-3 py-2 text-left font-medium">생성일</th>
+                  <SortableTh col="share" label="공유" baseQuery={baseQuery} sortKey={sortKey} sortDir={sortDir} />
+                  <SortableTh col="created" label="생성일" baseQuery={baseQuery} sortKey={sortKey} sortDir={sortDir} align="left" />
                 </tr>
               </thead>
               <tbody>

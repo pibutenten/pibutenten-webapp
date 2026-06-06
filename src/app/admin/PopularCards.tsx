@@ -64,7 +64,7 @@ export function PopularSearchesCard({
   return (
     <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-bold text-[var(--text)]">🔍 인기 검색어</h2>
+        <h2 className="text-sm font-bold text-[var(--text)]">인기 검색어</h2>
         <PeriodChips value={days} onChange={setDays} />
       </div>
       {data.length === 0 ? (
@@ -72,29 +72,25 @@ export function PopularSearchesCard({
           검색 기록이 아직 없습니다.
         </p>
       ) : (
-        <ol className="space-y-1">
+        // 인기 태그와 동일 형식 — 3열 그리드, 등수(순위 번호) 없음(카운트와 혼동 방지).
+        <ul className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((s, i) => (
             <li
               key={`${s.query}-${i}`}
               className="flex items-center justify-between gap-2 text-[13px]"
             >
-              <span className="flex items-center gap-2 truncate">
-                <span className="w-4 text-right text-[11px] text-[var(--text-muted)]">
-                  {i + 1}
-                </span>
-                <Link
-                  href={`/search?q=${encodeURIComponent(s.query)}`}
-                  className="truncate hover:text-[var(--primary)] hover:underline"
-                >
-                  {s.query}
-                </Link>
-              </span>
+              <Link
+                href={`/search?q=${encodeURIComponent(s.query)}`}
+                className="truncate hover:text-[var(--primary)] hover:underline"
+              >
+                {s.query}
+              </Link>
               <span className="tabular-nums text-[11px] text-[var(--text-muted)]">
                 {s.cnt}
               </span>
             </li>
           ))}
-        </ol>
+        </ul>
       )}
     </div>
   );
@@ -116,35 +112,31 @@ export function PopularTagsCard({
   return (
     <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-bold text-[var(--text)]">🏷 인기 태그</h2>
+        <h2 className="text-sm font-bold text-[var(--text)]">사용량</h2>
         <PeriodChips value={days} onChange={setDays} />
       </div>
       {data.length === 0 ? (
         <p className="text-xs text-[var(--text-muted)]">태그 없음.</p>
       ) : (
-        <ol className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
-          {data.map((t, i) => (
+        // 등수(순위 번호) 없음 — 카운트와 혼동 방지. 클릭 시 태그 검색(/search?q=)으로 통일.
+        <ul className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+          {data.map((t) => (
             <li
               key={t.keyword}
               className="flex items-center justify-between gap-2 text-[13px]"
             >
-              <span className="flex items-center gap-2 truncate">
-                <span className="w-5 text-right text-[11px] text-[var(--text-muted)]">
-                  {i + 1}
-                </span>
-                <Link
-                  href={`/topics/${encodeURIComponent(t.keyword)}`}
-                  className="truncate hover:text-[var(--primary)] hover:underline"
-                >
-                  {t.keyword}
-                </Link>
-              </span>
+              <Link
+                href={`/search?q=${encodeURIComponent(t.keyword)}`}
+                className="truncate hover:text-[var(--primary)] hover:underline"
+              >
+                {t.keyword}
+              </Link>
               <span className="tabular-nums text-[11px] text-[var(--text-muted)]">
                 {t.cnt}
               </span>
             </li>
           ))}
-        </ol>
+        </ul>
       )}
     </div>
   );

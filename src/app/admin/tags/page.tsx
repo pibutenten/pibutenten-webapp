@@ -30,8 +30,12 @@ type Props = {
     q?: string;
     days?: string;
     page?: string;
+    sort?: string;
+    dir?: string;
   }>;
 };
+
+type SortCol = "usage" | "search" | "created";
 
 function chip(active: boolean) {
   return (
@@ -60,6 +64,9 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   const q = (sp.q ?? "").trim();
   const days = Number.parseInt(sp.days ?? "0", 10) || 0;
   const pageNum = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
+  const sortCol: SortCol =
+    sp.sort === "search" || sp.sort === "created" ? sp.sort : "usage";
+  const sortDir: "asc" | "desc" = sp.dir === "asc" ? "asc" : "desc";
 
   const supabase = await createSupabaseServerClient();
   const { data: rpcData, error } = await supabase.rpc("get_tag_admin_overview", {
@@ -91,21 +98,47 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   if (cat !== "all") rows = rows.filter((r) => r.category === cat);
   if (status === "en_blank") rows = rows.filter((r) => !r.en);
   else if (status === "unspec") rows = rows.filter((r) => r.category === "미지정");
+  else if (status === "proc") rows = rows.filter((r) => r.is_procedure);
+  else if (status === "onb") rows = rows.filter((r) => !!r.onboarding);
   if (q) rows = rows.filter((r) => r.ko.includes(q));
+
+  // 정렬 (헤더 클릭 / '새 태그' 칩) — 기본 사용량 내림차순(RPC 순서와 동일).
+  const keyOf = (r: TagRow): number =>
+    sortCol === "search"
+      ? r.search_cnt
+      : sortCol === "created"
+        ? new Date(r.first_card_at ?? r.created_at).getTime()
+        : r.usage;
+  rows = [...rows].sort((a, b) => {
+    const d = keyOf(a) - keyOf(b);
+    return sortDir === "asc" ? d : -d;
+  });
 
   const filteredCount = rows.length;
   const totalPages = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
   const page = Math.min(pageNum, totalPages);
   const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const base = { cat: sp.cat, status: sp.status, q: sp.q, days: sp.days };
+  const base = {
+    cat: sp.cat,
+    status: sp.status,
+    q: sp.q,
+    days: sp.days,
+    sort: sp.sort,
+    dir: sp.dir,
+  };
+  // 부모 autocomplete + 검증용 전체 태그 ko (전 페이지 기준)
+  const allKo = allRows.map((r) => r.ko);
 
   return (
     <div className="mx-auto max-w-[1080px] px-4 py-6">
-      <div className="mb-4 flex items-center gap-2">
-        <BackButton />
-        <h1 className="text-lg font-bold text-[var(--text)]">태그 매니저</h1>
-        <span className="text-xs text-[var(--text-muted)]">tag_dictionary SSOT · 편집 즉시 / 사이트 색상은 다음 배포 반영</span>
+      {/* 제목 — 다른 admin 페이지처럼 '< 뒤로' 아래 줄에 배치 */}
+      <div className="mb-1 -ml-1"><BackButton /></div>
+      <div className="mb-4 pl-1">
+        <h1 className="text-2xl font-bold text-[var(--text)]">태그 매니저</h1>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          tag_dictionary SSOT · 편집 즉시 / 사이트 색상은 다음 배포 반영
+        </p>
       </div>
 
       {/* 요약 카드 */}
@@ -124,32 +157,39 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         ))}
       </div>
 
-      {/* 분류 탭 */}
+      {/* 분류 탭 — 필터 변경은 history push 대신 replace (뒤로가기 역순 복원 방지) */}
       <div className="mb-2 flex flex-wrap gap-1.5">
-        <Link href={qs(base, { cat: undefined, page: undefined })} className={chip(cat === "all")}>
+        <Link replace href={qs(base, { cat: undefined, page: undefined })} className={chip(cat === "all")}>
           전체 <span className="text-[10px] opacity-70">{catCounts.all.toLocaleString()}</span>
         </Link>
         {CATEGORIES.map((c) => (
-          <Link key={c} href={qs(base, { cat: c, page: undefined })} className={chip(cat === c)}>
+          <Link replace key={c} href={qs(base, { cat: c, page: undefined })} className={chip(cat === c)}>
             {c} <span className="text-[10px] opacity-70">{(catCounts[c] ?? 0).toLocaleString()}</span>
           </Link>
         ))}
       </div>
 
-      {/* 상태 칩 + 기간 칩 */}
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <span className="text-[11px] text-[var(--text-muted)]">상태</span>
-        <Link href={qs(base, { status: undefined, page: undefined })} className={chip(status === "all")}>전체</Link>
-        <Link href={qs(base, { status: "en_blank", page: undefined })} className={chip(status === "en_blank")}>영문공란</Link>
-        <Link href={qs(base, { status: "unspec", page: undefined })} className={chip(status === "unspec")}>미지정</Link>
-        <a href="#tag-queue" className={chip(false)}>검수대기 {queue.length}</a>
-        <span className="mx-2 h-4 w-px bg-[var(--border)]" />
-        <span className="text-[11px] text-[var(--text-muted)]">기간</span>
-        {PERIODS.map((p) => (
-          <Link key={p.days} href={qs(base, { days: p.days === 0 ? undefined : String(p.days), page: undefined })} className={chip(days === p.days)}>
-            {p.label}
-          </Link>
-        ))}
+      {/* 상태 칩(좌) + 기간 칩(우) — 기간은 전체 카드 목록처럼 우측으로 분리 */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-[var(--text-muted)]">상태</span>
+          <Link replace href={qs(base, { status: undefined, page: undefined })} className={chip(status === "all")}>전체</Link>
+          <Link replace href={qs(base, { status: "en_blank", page: undefined })} className={chip(status === "en_blank")}>영문공란</Link>
+          <Link replace href={qs(base, { status: "unspec", page: undefined })} className={chip(status === "unspec")}>미지정</Link>
+          <Link replace href={qs(base, { status: "proc", page: undefined })} className={chip(status === "proc")}>시술 후기</Link>
+          <Link replace href={qs(base, { status: "onb", page: undefined })} className={chip(status === "onb")}>온보딩</Link>
+          {/* 새 태그 = 생성일 최근순 정렬 단축 */}
+          <Link replace href={qs(base, { sort: "created", dir: "desc", page: undefined })} className={chip(sortCol === "created" && sortDir === "desc")}>새 태그</Link>
+          <a href="#tag-queue" className={chip(false)}>검수대기 {queue.length}</a>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-[var(--text-muted)]">기간</span>
+          {PERIODS.map((p) => (
+            <Link replace key={p.days} href={qs(base, { days: p.days === 0 ? undefined : String(p.days), page: undefined })} className={chip(days === p.days)}>
+              {p.label}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* 검색 */}
@@ -157,6 +197,8 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         {sp.cat ? <input type="hidden" name="cat" value={sp.cat} /> : null}
         {sp.status ? <input type="hidden" name="status" value={sp.status} /> : null}
         {sp.days ? <input type="hidden" name="days" value={sp.days} /> : null}
+        {sp.sort ? <input type="hidden" name="sort" value={sp.sort} /> : null}
+        {sp.dir ? <input type="hidden" name="dir" value={sp.dir} /> : null}
         <input
           type="text"
           name="q"
@@ -170,20 +212,21 @@ export default async function AdminTagsPage({ searchParams }: Props) {
       </form>
 
       <p className="mb-2 text-xs text-[var(--text-muted)]">
-        {filteredCount.toLocaleString()}개 · 사용량 내림차순 (기간 {PERIODS.find((p) => p.days === days)?.label})
+        {filteredCount.toLocaleString()}개 · {sortCol === "search" ? "검색량" : sortCol === "created" ? "생성일" : "사용량"}{" "}
+        {sortDir === "asc" ? "오름차순" : "내림차순"} (기간 {PERIODS.find((p) => p.days === days)?.label})
       </p>
 
-      <TagAdminTable rows={pageRows} />
+      <TagAdminTable rows={pageRows} allKo={allKo} sort={sortCol} dir={sortDir} />
 
       {/* 페이지네이션 */}
       {totalPages > 1 ? (
         <nav className="mt-4 flex items-center justify-center gap-1 text-sm">
-          <Link href={qs(base, { page: page > 1 ? String(page - 1) : undefined })} aria-disabled={page <= 1}
+          <Link replace href={qs(base, { page: page > 1 ? String(page - 1) : undefined })} aria-disabled={page <= 1}
             className={"rounded border border-[var(--border)] px-3 py-1 " + (page <= 1 ? "pointer-events-none opacity-40" : "hover:border-[var(--primary)]")}>
             이전
           </Link>
           <span className="px-3 py-1 text-[var(--text-muted)]">{page} / {totalPages}</span>
-          <Link href={qs(base, { page: page < totalPages ? String(page + 1) : undefined })} aria-disabled={page >= totalPages}
+          <Link replace href={qs(base, { page: page < totalPages ? String(page + 1) : undefined })} aria-disabled={page >= totalPages}
             className={"rounded border border-[var(--border)] px-3 py-1 " + (page >= totalPages ? "pointer-events-none opacity-40" : "hover:border-[var(--primary)]")}>
             다음
           </Link>

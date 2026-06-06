@@ -103,7 +103,7 @@ export default async function AdminPage() {
       .eq("status", "visible"),
     Promise.all(
       SEARCH_TAG_DAYS.map((d) =>
-        supabase.rpc("get_top_search_queries", { p_days: d || 36500, p_limit: 10 })
+        supabase.rpc("get_top_search_queries", { p_days: d || 36500, p_limit: 30 })
       )
     ),
     Promise.all(

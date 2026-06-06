@@ -6,6 +6,33 @@
 
 ---
 
+## [2026-06-06] — 2단계 태그 매니저 육안 후 조정 (디렉터 피드백 일괄)
+
+> 1차 화면(0251)을 디렉터 육안 후 조정. 0번(저장 버그) 최우선 + 인라인 편집 UX·정렬·필터·온보딩·인기패널·라벨.
+
+### Fixed
+- **[버그·최우선] 인라인 저장 실패** — `/admin/tags` [저장] 시 "저장에 실패했어요"(save_failed). 원인: `service_role` 에 `tag_dictionary` 테이블 GRANT 누락(REFERENCES/TRIGGER/TRUNCATE만). PATCH 라우트는 service_role(admin client)로 UPDATE 하는데 service_role 은 BYPASSRLS 라 RLS policy 는 통과해도 **테이블 GRANT 는 별개** → 42501 permission denied. (0247/0248 이 authenticated CRUD·anon SELECT 만, 0249 가 anon/authenticated SELECT 만 보강, service_role 은 계속 누락.) **마이그 0252** 로 service_role CRUD GRANT(tag_dictionary·tag_review_queue·term_glossary·procedure_taxonomy). service_role REST PATCH 재현 42501→200 실증.
+
+### Added
+- **마이그 0253 — `rename_tag(p_id,p_new_ko)` RPC**(SECURITY DEFINER, EXECUTE=service_role 만): 단일 tx 로 ① `tag_dictionary.ko` ② 시술 태그면 `procedure_taxonomy.ko` 동시(`procedure_reviews` FK ON UPDATE CASCADE 자동 전파 — FK 가 tag_dictionary 가 아니라 procedure_taxonomy 를 참조하는 점 반영, 시술 태그는 양 테이블에 동일 ko 49/49) ③ `cards.keywords` array_replace + array_agg(DISTINCT) dedup. cards 트리거 3종(`cards_set_updated_at`·`cards_register_unknown_tags`·`trg_card_status_notification`) tx 한정 disable(updated_at 보존 · 재등록/`COALESCE(NEW.type,'?')` enum 캐스팅 회피 · 불필요 알림 회피). FK CASCADE 보존 위해 `session_replication_role` 전역 off 대신 명시 disable.
+- **POST `/api/admin/tag-dictionary/[id]/rename`**: 미리보기 게이트(confirm=false → 영향 카드/후기 수·충돌, DB 무변경). 확정(confirm=true) → rename_tag + `logAudit('tag_dictionary.rename')`. `requireAdmin`(ADR 0012).
+- **마이그 0254 — 온보딩 얼굴형 태그 5종**: `FACE_SHAPES`(달걀형/땅콩형/장방형/각진형/둥근형, en=oval/peanut/oblong/square/round) `onboarding='얼굴형'`·`category='미지정'` 적재(출처 `src/lib/profile-options.ts`). 백업 `tag_dictionary_bak_0254`(2117).
+
+### Changed
+- **인라인 편집 UX(#2)**: 항상-input → **값 표시 + 셀 클릭 편집(F2식)**. 분류·온보딩 select / 영문 text / 부모 text. 부모 = 전체 태그 autocomplete(존재 태그만 매칭 검증). 태그(ko) 편집 = **rename 미리보기 모달**(영향 카드/후기 수 → 확정). 행 단위 [저장] 버튼 폐지(셀별 즉시 저장).
+- **헤더 클릭 정렬(#2)**: 사용량·검색량·생성일 헤더 클릭 내림차순/재클릭 오름차순(replace). **전체 카드 목록(`/admin/cards`)** 도 동일(좋아요·조회수·저장·공유·생성일; 댓글은 관계 집계라 DB 정렬 불가로 제외).
+- **레이아웃(#1)**: 제목을 '< 뒤로' 아래 줄로(text-2xl, 다른 admin 페이지 패턴). 필터·정렬·기간·페이지 칩 클릭을 history push→**replace**(뒤로가기 역순 복원 방지) — 태그 매니저·전체 카드 목록 공통. 페이지네이션은 명시적 이동이라 push 유지.
+- **필터/기간 배치(#3)**: 상태칩에 시술 후기(is_procedure)·온보딩·새 태그(생성일 최근순) 추가. 기간칩을 상태칩 줄에서 **우측으로 분리**(전체 카드 목록 톤).
+- **온보딩 4종(#4)**: 편집 select = 얼굴형·피부타입·피부고민·관심시술.
+- **인기 패널(#5, PopularCards)**: 인기 검색어도 3열·30개(get_top_search_queries p_limit 10→30). 양쪽 **등수(순위 번호) 제거**. "인기 태그"→**"사용량"**. 태그 클릭 `/topics/`→**`/search?q=`** 통일(검색어와 동일).
+- **라벨(#6)**: 태그 매니저 is_procedure 헤더 '시술'→'시술 후기'.
+
+### 검증
+- service_role REST PATCH 42501→200(0번 실증). rename 비파괴 실증(시술 태그 '써마지' → cards 104·reviews 13·procedure_taxonomy 동시 변경, `RAISE EXCEPTION` 롤백 → production 무변경 확인: dict/taxonomy/cards 모두 그대로). `tsc`+`build` 통과(무관 기존 미커밋 `robots.ts`/`llms.txt` 는 stash 후 검증, 커밋 미포함).
+- **알려진 별개 사안**: `cards_register_tags_trg()` 의 `COALESCE(NEW.type,'?')` enum 캐스팅 — type NULL 카드 UPDATE 시 잠재 에러. rename 은 트리거 disable 로 회피했으나 일반 카드 경로는 별도 점검 권장.
+
+---
+
 ## [2026-06-06] — robots 학습봇 개방 + llms.txt/llms-full.txt 정비 (AI 인용·도달 최대화)
 
 ### Changed
