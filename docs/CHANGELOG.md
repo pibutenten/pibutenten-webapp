@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-06] — I: 프로필 영문코드 → 한글 통일 (관심 알림 매칭 부활)
+
+> profiles.skin_type(영문7)·skin_concerns(영문11)·interested_procedures(영한혼재)가 글 태그(한글)와 달라 `run_keyword_digest`(관심 알림) 매칭이 死였음. 한글로 통일해 부활.
+
+### Changed
+- **마이그 0262 — 프로필 3컬럼 한글 변환**: 백업(profiles_concern_bak_0262) 후 ① skin_type CHECK 영문7→한글7 교체 + 값 변환(59명) ② skin_concerns 영문11→한글11(array_agg DISTINCT dedup) ③ interested_procedures 영문6→한글6(lifting→리프팅 등, PDLLA/PLLA 등 미매핑은 영문 유지). face_shape 는 범위 제외(영문 유지).
+- **`profile-options.ts` SKIN_TYPES/SKIN_CONCERNS/PROCEDURES key 한글화**: 온보딩·프로필 편집 폼이 한글 value 로 선택·저장 → 기존 회원 선택 표시·신규 저장 모두 한글. 라벨맵(SKIN_LABEL/CONCERN_LABEL/PROCEDURE_LABEL)도 한글 key 로 정합.
+
+### 검증
+- 변환 후 영문 잔존 0(skin_type·concerns·매핑 procedures). **digest 매칭 부활 실증**: 변환 전 0 → concern 178·skin_type 10·proc 206 매칭 쌍(profiles 한글 ↔ 발행 카드 keyword 한글). 샘플 회원 지성/[모공·주름·피부결·피부톤]/[리프팅·화장품]. `tsc`+`build` 통과, preview /onboarding·/settings/profile·/admin/tags 200·서버 에러 0.
+
+---
+
 ## [2026-06-06] — H: 병합 후보 '제외'(무시목록)
 
 ### Added

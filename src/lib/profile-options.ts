@@ -15,41 +15,41 @@ export const FACE_SHAPES: { key: string; label: string }[] = [
   { key: "round", label: "둥근형" },
 ];
 
+// I-Phase2(2026-06-06): key 를 한글로 통일 — profiles 저장값을 글 태그(cards.keywords 한글)와
+//   동일 도메인으로 맞춰 관심 알림(run_keyword_digest) 매칭 부활. 마이그 0262 로 기존 영문 데이터 변환.
+//   (face_shape 는 이번 범위 제외 — 영문 key 유지.)
 export const SKIN_TYPES: { key: string; label: string }[] = [
-  { key: "extreme_dry", label: "극건성" },
-  { key: "dry", label: "건성" },
-  { key: "normal", label: "중성" },
-  { key: "combination", label: "복합성" },
-  { key: "dehydrated_oily", label: "수부지" },
-  { key: "oily", label: "지성" },
-  { key: "extreme_oily", label: "극지성" },
+  { key: "극건성", label: "극건성" },
+  { key: "건성", label: "건성" },
+  { key: "중성", label: "중성" },
+  { key: "복합성", label: "복합성" },
+  { key: "수부지", label: "수부지" },
+  { key: "지성", label: "지성" },
+  { key: "극지성", label: "극지성" },
 ];
 
-// 피부 고민 — 온보딩/설정 공유 (2026-06-02 11종 개편).
-//   순서: 처짐·탄력·볼륨·피부결·주름·피부톤·모공·윤곽·속건조·트러블·홍조.
-//   기존 키 유지(elasticity/volume/wrinkle/tone/pores/contour/texture/trouble) +
-//   신규 sagging/inner_dry/redness. 폐지 aging/sensitive 는 0207 로 기존 데이터 정리.
+// 피부 고민 — 온보딩/설정 공유. key 한글 통일(I-Phase2). 순서: 처짐·탄력·볼륨·피부결·주름·피부톤·모공·윤곽·속건조·트러블·홍조.
 export const SKIN_CONCERNS: { key: string; label: string }[] = [
-  { key: "sagging", label: "처짐" },
-  { key: "elasticity", label: "탄력" },
-  { key: "volume", label: "볼륨" },
-  { key: "texture", label: "피부결" },
-  { key: "wrinkle", label: "주름" },
-  { key: "tone", label: "피부톤" },
-  { key: "pores", label: "모공" },
-  { key: "contour", label: "윤곽" },
-  { key: "inner_dry", label: "속건조" },
-  { key: "trouble", label: "트러블" },
-  { key: "redness", label: "홍조" },
+  { key: "처짐", label: "처짐" },
+  { key: "탄력", label: "탄력" },
+  { key: "볼륨", label: "볼륨" },
+  { key: "피부결", label: "피부결" },
+  { key: "주름", label: "주름" },
+  { key: "피부톤", label: "피부톤" },
+  { key: "모공", label: "모공" },
+  { key: "윤곽", label: "윤곽" },
+  { key: "속건조", label: "속건조" },
+  { key: "트러블", label: "트러블" },
+  { key: "홍조", label: "홍조" },
 ];
 
 export const PROCEDURES: { key: string; label: string }[] = [
-  { key: "lifting", label: "리프팅" },
-  { key: "laser", label: "레이저" },
-  { key: "booster", label: "스킨부스터" },
-  { key: "botox", label: "보톡스" },
-  { key: "filler", label: "필러" },
-  { key: "cosmetic", label: "화장품" },
+  { key: "리프팅", label: "리프팅" },
+  { key: "레이저", label: "레이저" },
+  { key: "스킨부스터", label: "스킨부스터" },
+  { key: "보톡스", label: "보톡스" },
+  { key: "필러", label: "필러" },
+  { key: "화장품", label: "화장품" },
 ];
 
 export type FieldVisibility = {
