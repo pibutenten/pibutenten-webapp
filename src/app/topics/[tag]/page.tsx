@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { type CardData } from "@/components/Card";
 import CardMasonry from "@/components/CardMasonry";
 import { getReportSummaryForTag } from "@/lib/procedure-report";
@@ -24,10 +24,12 @@ import {
  *    · canonical은 그대로 → SEO 영향 X
  *  - doctor 매핑된 글 + category = 'qa' 만 인덱싱 (tip 폐지, 2026-06-01)
  *  - JSON-LD CollectionPage + ItemList (itemListOrder=Unordered)
- *  - ISR 비활성: dynamic — 매 요청마다 새 셔플 (jitter 살리기)
+ *  - R-Phase(2026-06-06): ISR(revalidate 1h) + jitter OFF(결정적 순서) → 엣지 캐시 HIT
  */
 
-export const dynamic = "force-dynamic";
+// R-Phase (2026-06-06): force-dynamic 제거 → ISR(revalidate 1h). jitter OFF(결정적 순서)라
+//   캐시 안전. 개인 상태는 Card("use client")가 클라에서 가져옴. 발행/수정 시 layout revalidate 로 갱신.
+export const revalidate = 3600;
 export const dynamicParams = true;
 
 const PAGE_LIMIT = 50; // 페이지당 카드 수 (단순 — 페이지네이션은 추후)
@@ -40,7 +42,7 @@ type Props = {
 type IndexableTag = { keyword: string; cnt: number };
 
 async function fetchAllIndexableTags(): Promise<IndexableTag[]> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAnonClient();
   const { data } = await supabase.rpc("get_indexable_tags", {
     p_min_count: MIN_DOCTOR_POSTS,
   });
@@ -50,15 +52,14 @@ async function fetchAllIndexableTags(): Promise<IndexableTag[]> {
 async function fetchPostsForTag(
   tag: string,
 ): Promise<{ posts: CardData[]; count: number }> {
-  const supabase = await createSupabaseServerClient();
-  // 시간가중 + jitter 셔플 — tag_cards_scored RPC
-  // (메인 피드 feed_cards_scored 와 동일 공식: HALF_LIFE=14일, jitter=0.2 → ±10%)
+  const supabase = createSupabaseAnonClient();
+  // 시간가중 정렬 — tag_cards_scored RPC. jitter=0(결정적) → ISR 캐시 안전 + 핵심 글 상위 고정.
   const rpcRes = await supabase.rpc("tag_cards_scored", {
     p_tag: tag,
     p_limit: PAGE_LIMIT,
     p_offset: 0,
     p_half_life_days: 14,
-    p_jitter_amp: 0.2,
+    p_jitter_amp: 0,
   });
   const posts = (rpcRes.data ?? []) as CardData[];
 
@@ -81,7 +82,7 @@ export async function generateMetadata({
   const tag = decodeURIComponent(rawTag);
   const url = `${SITE_URL}/topics/${encodeURIComponent(tag)}`;
   // N = 이 시술의 의사 qa 글 수(동적). /topics 의 count 조회와 동일 조건.
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAnonClient();
   const { count } = await supabase
     .from("cards")
     .select("id", { count: "exact", head: true })
@@ -117,7 +118,7 @@ export default async function TagPage({ params }: Props) {
   // 2-b) /topics(전문의 Q&A 허브)와 /reports(후기 집계)는 의도 다른 독립 페이지(자기잠식 방지).
   //   리포트 카드·개별 후기는 /topics 에 렌더하지 않고, 이 시술의 /reports 가 존재하면
   //   얇은 링크 1줄만 노출. 존재·N 은 경량 get_review_summary_pool(ko===tag) 로 판단.
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAnonClient();
   const reportLink = await getReportSummaryForTag(supabase, tag);
 
   // 3) JSON-LD: @graph 로 CollectionPage + FAQPage 묶음 출력.

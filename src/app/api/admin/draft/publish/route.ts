@@ -45,6 +45,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { logAudit } from "@/lib/audit-log";
 import { fetchYoutubeUploadDateKst } from "@/lib/ai/youtube-upload-date";
+import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -400,6 +401,16 @@ export async function POST(req: Request) {
   }
 
   const insertedIds = (inserted ?? []).map((r) => r.id);
+
+  // R-Phase (2026-06-06): 의사 Q&A 발행 시 ISR 페이지(상세·토픽·홈) 즉시 갱신.
+  //   상세(revalidate 24h)·토픽(1h) 캐시이므로, layout 단위 revalidate 로 새 글을 바로 반영.
+  if (status === "published" && insertedIds.length > 0) {
+    try {
+      revalidatePath("/", "layout");
+    } catch {
+      /* revalidate 실패는 발행 성공에 영향 없음 */
+    }
+  }
 
   // PIPA 안전성 확보조치 §8: admin 의 대량 카드 발행 audit (의료 콘텐츠 책임 추적).
   await logAudit({

@@ -2,11 +2,10 @@ import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { checkHiddenByDoctorPost } from "@/lib/hidden-card";
 import Card, { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
-import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import {
@@ -19,7 +18,10 @@ import { jsonLdString } from "@/lib/json-ld";
 import { CARD_DETAIL_SELECT } from "@/lib/card-select";
 import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 
-export const dynamic = "force-dynamic";
+// R-Phase (2026-06-06): ISR 24h. 공개 콘텐츠(질문·답변·의사·스키마)는 모두에게 동일 →
+//   force-dynamic 제거하고 캐시. 개인 상태(좋아요/저장)는 Card("use client")가 클라에서 가져옴.
+//   발행/수정 시 articles 라우트의 revalidatePath('/','layout') + 발행 라우트 revalidate 로 즉시 갱신.
+export const revalidate = 86400;
 
 type Props = {
   params: Promise<{ slug: string; year: string; postSlug: string }>;
@@ -39,7 +41,8 @@ const fetchQaByDoctorYearSlug = cache(async (
   postSlug: string,
 ): Promise<QaWithModified | null> => {
   try {
-    const supabase = await createSupabaseServerClient();
+    // 쿠키리스 anon 클라이언트 — 정적/ISR 렌더 유지(공개 published 행만 읽음).
+    const supabase = createSupabaseAnonClient();
     const { data: doctor } = await supabase
       .from("doctors")
       .select("id")
@@ -368,7 +371,6 @@ export default async function DermatologistPostPage({ params }: Props) {
     );
   }
 
-  const hotIds = Array.from(await getHotQaIds(20));
   const jsonLd = buildJsonLd(card, slug, yearInt, postSlug);
 
   return (
@@ -383,7 +385,7 @@ export default async function DermatologistPostPage({ params }: Props) {
       </div>
       <Card
         card={card}
-        isHot={hotIds.includes(card.id)}
+        isHot={false}
         autoExpandComments
         forceExpanded
         asH1
