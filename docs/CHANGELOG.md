@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-06] — E: 태그 매니저 추가 조정 (영문 slug 정규화·모달 문구·열 폭)
+
+### Added
+- **E1 영문 slug 정규화**: `lib/tag-slug.ts::slugifyEn` 공유 함수(trim→소문자→공백을 하이픈→영숫자·하이픈 외 제거→연속/양끝 하이픈 정리. 예 "Centella Asiatica"→"centella-asiatica"). PATCH `/api/admin/tag-dictionary/[id]`(서버 SSOT)와 TagAdminTable 저장(즉시 표시 정합) 양쪽 적용. 빈 결과는 null.
+
+### Changed
+- **E2**: rename 모달 안내문에서 "(사이트 색상·칩은 다음 배포 반영)" 문구 제거.
+- **E3**: TagAdminTable colgroup 폭 재배분(총 952px 유지) — 부모 110→90, 시술 후기 76→96 + 헤더 `whitespace-nowrap` 으로 '시술 후기' 한 줄 표시.
+
+### 검증
+- `tsc`+`build` 통과. preview /admin/tags 200·서버 에러 0.
+
+---
+
 ## [2026-06-06] — C: procedure_taxonomy 청산 (시술 분류 SSOT 단일화 → tag_dictionary)
 
 > 시술 분류를 `procedure_taxonomy` → `tag_dictionary(is_procedure=true)` 단일 SSOT 로 통합하고 procedure_taxonomy 를 DROP. 시술은 양 테이블에 동일 ko 49/49 중복 저장이었음. 디렉터 결정: category 단일화·en=the-l-solution·sort_order 이관·active 폐기.

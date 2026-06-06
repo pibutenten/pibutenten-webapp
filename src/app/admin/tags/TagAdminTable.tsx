@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { formatYmd } from "@/lib/format-date";
+import { slugifyEn } from "@/lib/tag-slug";
 
 export type TagRow = {
   id: number;
@@ -191,7 +192,7 @@ function RenameModal({
         <p className="mb-3 break-keep text-xs leading-relaxed text-[var(--text-muted)]">
           현재 <b className="text-[var(--text)]">{row.ko}</b> · 이 태그가 달린 카드 약{" "}
           <b className="tabular-nums text-[var(--text)]">{usage.toLocaleString()}</b>건에 반영됩니다.
-          [확인] 후 행의 <b>[저장]</b>을 눌러야 최종 적용됩니다(사이트 색상·칩은 다음 배포 반영).
+          [확인] 후 행의 <b>[저장]</b>을 눌러야 최종 적용됩니다.
         </p>
         <input
           value={newKo}
@@ -282,19 +283,21 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
       // 2) 나머지 필드 부분 PATCH
       const body: Record<string, unknown> = {};
       if (draft.category !== saved.category) body.category = draft.category;
-      if ((draft.en ?? "") !== (saved.en ?? "")) body.en = (draft.en ?? "").trim();
+      // 영문은 slug 로 정규화 (E1) — 서버와 동일 규칙으로 즉시 표시 정합.
+      if ((draft.en ?? "") !== (saved.en ?? "")) body.en = slugifyEn(draft.en ?? "");
       if ((draft.parent_ko ?? "") !== (saved.parent_ko ?? "")) body.parent_ko = p;
       if (draft.is_procedure !== saved.is_procedure) body.is_procedure = draft.is_procedure;
       if ((draft.onboarding ?? "") !== (saved.onboarding ?? "")) body.onboarding = draft.onboarding ?? "";
       if (Object.keys(body).length > 0) {
         const ok = await patchFields(row.id, body);
         if (!ok) return;
+        const normalizedEn = body.en !== undefined ? (body.en as string) : (draft.en ?? "");
         setSaved({
           ...draft,
-          en: body.en !== undefined ? (body.en as string) : draft.en,
+          en: normalizedEn,
           parent_ko: body.parent_ko !== undefined ? (body.parent_ko as string) : draft.parent_ko,
         });
-        setDraft((d) => ({ ...d, en: (d.en ?? "").trim(), parent_ko: (d.parent_ko ?? "").trim() }));
+        setDraft((d) => ({ ...d, en: normalizedEn, parent_ko: (d.parent_ko ?? "").trim() }));
       }
       showToast(`'${ko}' 저장됨`);
     } finally {
@@ -552,8 +555,8 @@ export default function TagAdminTable({
           <col style={{ width: "130px" }} />
           <col style={{ width: "100px" }} />
           <col style={{ width: "120px" }} />
-          <col style={{ width: "110px" }} />
-          <col style={{ width: "76px" }} />
+          <col style={{ width: "90px" }} />{/* 부모 — 좁힘 */}
+          <col style={{ width: "96px" }} />{/* 시술 후기 — 넓혀 헤더 한 줄(E3) */}
           <col style={{ width: "100px" }} />
           <col style={{ width: "76px" }} />
           <col style={{ width: "76px" }} />
@@ -568,7 +571,7 @@ export default function TagAdminTable({
             <th className="px-2 py-2 text-left font-medium">
               <FilterHeader label="부모" status="parent" sortCol="parent_name" curStatus={status} />
             </th>
-            <th className="px-2 py-2 text-center font-medium">
+            <th className="whitespace-nowrap px-2 py-2 text-center font-medium">
               <FilterHeader label="시술 후기" status="proc" sortCol="ko_name" curStatus={status} />
             </th>
             <th className="px-2 py-2 text-left font-medium">

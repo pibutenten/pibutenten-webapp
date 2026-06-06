@@ -18,6 +18,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { logAudit } from "@/lib/audit-log";
+import { slugifyEn } from "@/lib/tag-slug";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +89,8 @@ export async function PATCH(
   const d = parsed.data;
   if (d.category !== undefined) patch.category = d.category;
   if (d.is_procedure !== undefined) patch.is_procedure = d.is_procedure;
-  if (d.en !== undefined) patch.en = d.en ? d.en : null;
+  // 영문은 slug 로 정규화 (E1). 정규화 결과가 빈 문자열이면 null.
+  if (d.en !== undefined) patch.en = d.en ? slugifyEn(d.en) || null : null;
   if (d.parent_ko !== undefined) patch.parent_ko = d.parent_ko ? d.parent_ko : null;
   if (d.onboarding !== undefined) patch.onboarding = d.onboarding ? d.onboarding : null;
 
