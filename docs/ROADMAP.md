@@ -6,6 +6,20 @@
 
 ## Now (현재 진행 중)
 
+### 알림 전면 정비 (4-2) — ✅ 완료 (2026-06-06)
+- 마이그 0239~0245 production 적용 완료. 알림 kind **8종**(comment/reply/like/save/review_request/published/report/keyword). 신고 트리거(0239)·`push_send_failures`(0240)·`new_ask` 잔재 제거(0241)·저장 트리거(0242)·앱목록 message 표시(0243)·관심 알림 토대(0244)·관심 digest+cron(0245). 상세 = CHANGELOG 2026-06-06 + DEPLOYMENT §9.4(cron).
+- [ ] (후속) 관심 digest 첫 발화(06:00 KST) 후 실제 keyword 알림 발생량·매칭 정확도 운영 관찰. `CRON_SECRET` Vercel 환경변수 존재 확인(미설정 시 cron 무효).
+
+### OG 이미지 정비 (4-3) — ⏸ HOLD
+- 디렉터의 OG 예시(레이아웃·문구 샘플) 대기 중. 예시 확정 후 착수. 그 전까지 진행 보류.
+
+### 태그·시술 통합 사전 매니저 (4-4) — 🟡 설계 단계 (코드 미착수)
+- **현재**: 진단1~3 = **읽기전용**(SELECT/grep/pg_get_functiondef + xlsx export 만, **커밋·DB 변경 0**). 디렉터 측 **0단계 정리본** 확정 진행 중.
+- 진단 산출: `전달용/태그_사전_검토용_20260606.xlsx`(2147행 = cards.keywords distinct ∪ 사전 819, 분류 821/미분류 1326).
+- 진단 핵심: 태그→분류 매핑은 이미 존재(`procedure-mappings.json` 819항목, 5분류 SSOT). 단 ① `cards.keywords ↔ procedure_taxonomy` FK 정합 장치 전무(고아 98%) ② profiles 영문 enum(skin_concerns/skin_type) ↔ 한글 태그 어휘 단절 ③ review_summary 앵커카드 keywords 자유텍스트 의존. (상세 = 진단 보고/세션 핸드오프.)
+- 검색량 영속: `search_logs`(query 원문·profile_id·created_at, 24일치). 인기검색어/인기태그 패널은 `PERIOD_DAYS[1,7,30,90,365,0]` 시간창 토글 기구현(`PopularCards.tsx`).
+- **다음 착수 = 디렉터 확정 정리본의 "안전 적용부"부터**: 글상자(카드) 태그 문자열만 정정, 본문 불변, 백업 선행, 미리보기, 단일 트랜잭션, 되돌리기 가능. (불변 원칙은 SESSION_HANDOFF 참조.)
+
 ### 시술 리포트 앵커 카드 — 인앱 공개 완료, 검색엔진 색인만 보류 (C1~C5)
 - C1~C5 완료(데이터층·영문 URL·저장공유·피드 결정적 주입·라벨·**인앱 공개 0216**). 피드(유기 20장당 1장 컴팩트 카드)·`/reports/{en}`·저장/공유 라이브. CHANGELOG 2026-06-03 C1~C5 참조.
 - [x] **검색엔진/AEO 색인 on** (2026-06-05): `INCLUDE_REPORT_ANCHORS=true` (후기 수 임계값 없음, 리포트 존재 시 전부). robots.txt `/report`→`/report$` 로 `/reports/*` 접두 차단 해제. 단, 전체 색인은 `SITE_PUBLIC=true` 공개 플립이 선행 조건. CHANGELOG 2026-06-05 참조.

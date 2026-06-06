@@ -238,6 +238,7 @@ ex) /minji-skin/Ab3xK9Pq
 - `notification_preferences` 채널별 on/off
 - `push_subscriptions` Web Push VAPID 구독 저장
 - `push_webhook_secret` Vault 관리 (0103, 0120 rotation RPC)
+- **발송 실패 로깅 (`push_send_failures`, 0240 — 4-2 STEP F)**: `/api/push/send` 의 410/404(만료) 외 발송 실패(500·non-2xx·네트워크)를 영속 로깅. service_role 기록·조회, anon/authenticated 차단. (DB 트리거 net.http_post 예외·secret 누락은 `push_webhook_errors`, 앱 webpush 발송 실패는 `push_send_failures` — 포착 계층 구분.)
 - **관심 알림 digest 생산자 (`run_keyword_digest()` + cron, 0245 — 4-2/3b-2)**: 매일 cron `/api/cron/keyword-digest`(21:00 UTC=06:00 KST, `Authorization: Bearer ${CRON_SECRET}`)가 service_role 로 `run_keyword_digest()` 호출. 함수는 커서 `keyword_digest_state.last_run_at`(초기값 **now()** — 폭탄 방지) 이후 발행된 qa 카드를 `unnest(keywords)` 태그별로 회원과 매칭: `interested_procedures`(pref_keyword_interest) / `skin_concerns`(pref_keyword_concern) / `skin_type`(pref_keyword_skin_type), 게이트는 `notification_preferences` LEFT JOIN + `COALESCE(...,true)`. 자기 글 제외(`m.id<>author_id`), (회원,태그)별 distinct 새 글 수 N 집계 → `notifications(kind='keyword', actor_id=NULL, message="'태그'에 새 Q&A N건", url='/search?q='||url_encode_component(태그))` set-based INSERT → 기존 webhook→Web Push 자동. 단일 트랜잭션 + 커서 `FOR UPDATE` → 실패 시 롤백·재시도 = 정확히 1회. 한글 태그는 `url_encode_component()`(UTF8 percent-encode)로 `/search?q=` 정확 이동.
 
 ### 8.3. 클라이언트
