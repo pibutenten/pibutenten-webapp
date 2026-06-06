@@ -6,6 +6,25 @@
 
 ---
 
+## [2026-06-06] — 1단계 사전 테이블 신설: tag_dictionary + term_glossary (additive)
+
+> 6분류 태그 사전과 용어집 참조 테이블을 **신규 추가**. 기존 코드·`procedure-mappings.json`·`cards` 무변경 = 기존 동작 무영향. 인라인 저장(태그 관리자)·영문 슬러그 정합의 DB 토대.
+
+### Added
+- **마이그 0247 — `tag_dictionary`**(6분류 사전): `id`(PK)/`ko`(UNIQUE NOT NULL)/`category`(CHECK 6종: 피부고민·리프팅·스킨부스터·홈케어·피부상식·미지정)/`en`/`parent_ko`/`is_procedure`(DEFAULT false)/`onboarding`/`created_at`/`updated_at`. 인덱스 category·parent_ko. RLS on + anon/authenticated SELECT(공개 사전, 쓰기 service_role).
+  - 정리본(`태그사전_정리본_20260606.xlsx`) **2117행 시드**. 매핑: 카테고리→category·태그(대표어)→ko·영문→en·부모연결→parent_ko·시술등록('시술')→is_procedure·온보딩→onboarding·사용빈도→미적재(실시간 집계).
+  - **★정정**: 울트라셀(ultracel) 정리본=스킨부스터지만 `category=리프팅` 적재(디렉터 확정) → 분포 스킨부스터73→**72**·리프팅60→**61**.
+  - no-op 2건: 도착표기 K뷰티·마리오네트주름만 존재(출발 K-뷰티·마리오네트 미적재). 멱등(`ON CONFLICT(ko) DO NOTHING`).
+- **마이그 0248 — `term_glossary`**(용어집 참조원): `id`(PK)/`en`/`ko`/`meaning_no`(뜻번호)/`recommended`(권장★)/`note`(비고)/`created_at`. 인덱스 lower(en)·ko. RLS on + anon/authenticated SELECT.
+  - 미용피부과학용어집(대한피부항노화학회 2022) `용어집_행분리` 시트(영어1:한글N) **2519행 시드**(원본 표제 1792). 멱등(빈 테이블일 때만 `NOT EXISTS` 가드 시드).
+
+### 검증
+- `tag_dictionary` 2117행·분포(미지정1298·피부고민259·홈케어227·피부상식200·스킨부스터72·리프팅61)·영문888·is_procedure49·onboarding22·**울트라셀=리프팅**·**ko UNIQUE 위반 0**·parent_ko 고아 0·no-op 출발표기 미적재.
+- `term_glossary` 2519행·권장★653·비고184·뜻번호81.
+- 마이그 파일 재실행 멱등(증가 0)·구문 OK. 기존 테이블·코드 무변경(신규 2테이블만). tsc/build 통과.
+
+---
+
 ## [2026-06-06] — 0단계 글상자 태그 정정 (cards.keywords)
 
 > 태그 사전 정비 0단계. `cards.keywords`(자유텍스트 한글 태그 배열)의 노이즈·중복·표기흔들림 정리. 확정매핑표 102행 중 keywords 를 실제 변경하는 30행만 적용(영문변경1+영문채움69=70행은 슬러그 사전 사안 → 1단계 분리). 본문·title·meta 불변, keywords 만.

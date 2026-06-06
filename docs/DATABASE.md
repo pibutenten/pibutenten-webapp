@@ -131,6 +131,11 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 - `content_reports` (0137 — 신고 큐)
 - `audit_logs` (0140 — 민감 API 1년 보관)
 
+### 1.8. 사전 / 참조 (additive, 신규 — 1단계)
+- `tag_dictionary` (0247 — 6분류 태그 사전, 2117행): `ko`(UNIQUE)/`category`(CHECK 6종)/`en`/`parent_ko`/`is_procedure`/`onboarding`. RLS on + anon/authenticated SELECT. 정리본 시드(울트라셀=리프팅 정정). ※`procedure_taxonomy`(0199, lifting/injectables 45)와 별개의 전(全)분류 사전.
+- `term_glossary` (0248 — 미용피부과학용어집 영한 참조원, 2519행): `en`/`ko`/`meaning_no`/`recommended`(권장★)/`note`. RLS on + anon/authenticated SELECT.
+- `cards_keywords_bak_0246` (0단계 롤백 백업, 1,232행 — 1단계 안정 확인 전까지 유지·삭제 금지).
+
 ---
 
 ## 2. 핵심 RPC
@@ -356,6 +361,9 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0245 | 관심(Q&A) 알림 **생산자**(4-2/3b-2). ①커서 테이블 `keyword_digest_state(id boolean PK, last_run_at timestamptz NOT NULL DEFAULT **now()**)` 단일행 + RLS on·anon/authenticated REVOKE(service_role 전용). **last_run_at 초기값 now() = 폭탄 방지**(과거 qa 999개 무시). ②`run_keyword_digest()` SECURITY DEFINER(service_role/postgres만 EXECUTE, PUBLIC/anon/authenticated REVOKE): 커서 `FOR UPDATE` → 윈도우(`reviewed_at > cursor AND <= run_start`) 내 published qa 의 `unnest(keywords)` 태그를 회원 `interested_procedures`/`skin_concerns`/`skin_type` 와 매칭(`notification_preferences` LEFT JOIN + `COALESCE(pref_keyword_*,true)` 게이트), 자기 글 제외, (회원,태그) distinct 새 글 수 N → `notifications(kind='keyword', actor_id=NULL, message, url='/search?q='||url_encode_component(tag))` set-based INSERT → 커서=run_start UPDATE. 단일 tx → 정확히 1회. ③`url_encode_component(text)` IMMUTABLE(UTF8 percent-encode 헬퍼, 한글 태그용). cron `/api/cron/keyword-digest`(0245 동반, Bearer CRON_SECRET). 검증: 커서 now() 초기값·acl(service_role만)·RLS·dry-run(self 제외 0·토글 게이트 interest ON 72/OFF 0·중복 0)·0-effect 직접 호출(processed 0·created 0·커서 전진). | **적용 완료 (2026-06-06)** |
 
 | 0246 | **0단계 글상자 태그 정정**(`cards.keywords`). 단일 tx·영향 29행 스코프(`WHERE keywords && ARRAY[source 30]`). ①병합 11(영문슬러그→한글, `array_replace`, 출발∩도착 10건 `array_agg(DISTINCT)` dedup) ②삭제 15(노이즈/1글자, `array_remove`) ③표기통일 4(울세라→울쎄라·민감피부→민감성피부·K-뷰티→K뷰티·마리오네트→마리오네트주름; 뒤 2건 카드 미존재=no-op). `cards_set_updated_at` 트리거 tx 내 DISABLE/ENABLE 로 **updated_at 보존**. 멱등(재실행 source 부재→0행). 영문변경1+영문채움69=70행은 슬러그 사전 사안 → 1단계. 검증: source 잔존 0·중복 0·변경 29·updated_at 전건(1,232) 일치·distinct 2003→1975·body/title/meta diff 0. 부수 1건(id=2296 draft doodle 유일태그 '테스트' 삭제→빈 배열, 정당). 백업 `cards_keywords_bak_0246`. | **적용 완료 (2026-06-06)** |
+
+| 0247 | **`tag_dictionary` 신설**(6분류 태그 사전, additive). 컬럼 `id`(PK)·`ko`(UNIQUE NOT NULL)·`category`(CHECK 6종 피부고민/리프팅/스킨부스터/홈케어/피부상식/미지정)·`en`·`parent_ko`(plain text+idx, 자기FK 미사용)·`is_procedure`(DEF false)·`onboarding`·`created_at`·`updated_at`. 인덱스 category·parent_ko. RLS on + anon/authenticated SELECT(공개 사전·PII 없음, 쓰기 service_role). 정리본(`태그사전_정리본_20260606.xlsx`) **2117행 시드**(매핑: 카테고리→category·태그→ko·영문→en·부모연결→parent_ko·시술등록 '시술'→is_procedure·온보딩→onboarding·사용빈도 미적재). **★울트라셀=리프팅 정정**(정리본 스킨부스터, 디렉터 확정). 멱등 `ON CONFLICT(ko) DO NOTHING`. 분포 미지정1298·피부고민259·홈케어227·피부상식200·스킨부스터72·리프팅61, 영문888·is_procedure49·onboarding22. | **적용 완료 (2026-06-06)** |
+| 0248 | **`term_glossary` 신설**(미용피부과학용어집 영한 참조원, additive). 컬럼 `id`(PK)·`en`·`ko`·`meaning_no`·`recommended`(권장★)·`note`(비고)·`created_at`. 인덱스 lower(en)·ko. RLS on + anon/authenticated SELECT. `용어집_행분리`(영어1:한글N) **2519행 시드**(원본 표제 1792, 권장★653·비고184·뜻번호81). 멱등(빈 테이블 `NOT EXISTS` 가드). | **적용 완료 (2026-06-06)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 
