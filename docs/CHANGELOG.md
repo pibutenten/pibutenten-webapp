@@ -6,6 +6,24 @@
 
 ---
 
+## [2026-06-06] — 0단계 글상자 태그 정정 (cards.keywords)
+
+> 태그 사전 정비 0단계. `cards.keywords`(자유텍스트 한글 태그 배열)의 노이즈·중복·표기흔들림 정리. 확정매핑표 102행 중 keywords 를 실제 변경하는 30행만 적용(영문변경1+영문채움69=70행은 슬러그 사전 사안 → 1단계 분리). 본문·title·meta 불변, keywords 만.
+
+### Changed
+- **마이그 0246 — 0단계 태그 정정**: 단일 트랜잭션, 영향 **29행** 스코프(`WHERE keywords && ARRAY[source 30]`).
+  - **병합 11**(영문 슬러그→한글 도착태그, `array_replace`): jaw-botox→턱보톡스 · skin-botox→스킨보톡스 · wrinkle-botox→주름보톡스 · the-l-injection→더엘주사 · rejuran-eye→리쥬란아이 · rejuran-hb→리쥬란HB · juvelook-volume→쥬베룩볼륨 · restylane-vital→레스틸렌비탈 · vital-light→비탈라이트 · gold-ptt→골드PTT · xerf-eye→세르프아이. 출발∩도착 동시보유 **10건** → `array_agg(DISTINCT)` **dedup**.
+  - **삭제 15**(`array_remove`): 테스트/노이즈/1글자 태그(테스트·테스트 입니다·1분테스트·거품테스트·파팅테스트·아무태그나가능한?·띄어쓰기…태그·100일의기적·1회적정량·0.025%·뇌·홀·광·겔·팁).
+  - **표기통일 4**(`array_replace`): 울세라→울쎄라 · 민감피부→민감성피부 · K-뷰티→K뷰티 · 마리오네트→마리오네트주름. **K-뷰티·마리오네트는 카드 미존재 = no-op(0행)** — 사전 표기 정합은 1단계.
+  - **updated_at 보존**: `cards_set_updated_at` 트리거를 tx 내 `DISABLE/ENABLE` 로 우회(JSON-LD `lastReviewed` 영향 0). 멱등(재실행 시 source 부재 → 0행).
+- **백업 `cards_keywords_bak_0246`**: 적용 직전 `cards` 전수(1,232행, `id`/`keywords`/`updated_at`/`deleted_at`/`backed_up_at`) 스냅샷. **1단계 안정 확인 전까지 유지(삭제 금지)**. 롤백 = 백업 기준 `keywords`·`updated_at` 원복.
+
+### 검증
+- source 태그 잔존 **0** · 배열 중복 잔존 **0** · 변경 카드 **29**(백업 대비 keywords 상이) · `cards.updated_at`=`bak.updated_at` 전건(1,232) 일치 · distinct 태그 **2003→1975**(−28) · body·title·meta diff **0**(UPDATE 가 keywords 만 SET).
+- 부수효과 1건: id=2296(draft doodle, title '대박슨') 유일 태그 '테스트' 삭제 → 빈 배열(`COALESCE(...,'{}')`, 기존 빈 카드 7건과 동일한 유효 상태, noindex 초안). 정당 결과로 보존.
+
+---
+
 ## [2026-06-06] — 관심(Q&A) 알림 생산자: 일일 digest + cron (4-2 / 3b-2)
 
 > 3b-1 토대 위에 실제 생산자(매일 1회 새 Q&A 매칭→주제별 알림) 추가. 기존 notifications→webhook→Web Push 경로를 그대로 타 푸시 자동.
