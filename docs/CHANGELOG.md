@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-06-06] — B: 자동등록 영문 태그 한글 흡수 (입력 시점 중복 방지)
+
+### Added
+- **마이그 0263 — 입력 시점 흡수 트리거**: 새 글 `cards.keywords` 에 영문 태그가 들어올 때 `slugify_en(태그)` 가 기존 `tag_dictionary.en`(한글 대표어)과 일치하면 새 미지정 태그 생성 대신 **한글 대표어로 치환**(BEFORE INSERT/UPDATE OF keywords 트리거 `cards_absorb_eng_tags`, dedup). 매칭 없으면 기존(0250 register)대로 미지정 등록 — 글 저장은 항상 통과.
+  - SQL `slugify_en(text)`(TS slugifyEn 동일 규칙) + 흡수 로그 `tag_absorb_log(source_ko, target_ko)`.
+  - 사후 병합(F) 부담 감소 — 입력 단계에서 영문 중복을 막음.
+
+### 검증
+- 비파괴 실증: `[thermage, 모공, Centella Asiatica]` → `{모공, 병풀추출물, 써마지}`(thermage→써마지, Centella Asiatica→병풀추출물), 롤백으로 무변경.
+
+### 점검·조사 (디렉터 복귀 후 결정)
+- **C 보류**: `procedure-mappings.json` 의 normalizeTag/pubmedKeywordsFor/isBlacklisted 는 JSON 고유 데이터(`synonyms`·`pubmedKeywords`·`blacklist`)를 사용하는데 tag_dictionary 엔 해당 컬럼이 없어 SSOT 정리 시 기능 손실(회귀). 이관하려면 컬럼/데이터 마이그 선행 — 별도 안건.
+- **D 약어 분류 제안(미적용)**: 미매칭 영문 약어 59개 분류 제안 — 성분/주입물(PDRN·PLLA·PDLLA·PCL·PLA·CaHA·HA·PN·EGF·IGF-1)→스킨부스터 / 기술·장비(HIFU·SMAS·LDM·IPL·EMS·3DEEP·M22)→리프팅 / 자외선·홈케어(BHA·AHA·PHA·SPF·PA·UVB)→홈케어 / 그 외(FDA·GMP·BMI·DHT·HPV·PIH·PIE·FMT 등)→피부상식. 정책이라 디렉터 확정 후 적용.
+- **E 점검**: CRON_SECRET `.env.local` 존재·keyword-digest route Bearer 검증·vercel.json cron `0 21 * * *`(06:00 KST) 정상. ※Vercel 프로덕션 env 의 CRON_SECRET 존재는 코드로 확인 불가 → 대시보드 확인 권장. /admin/review-reports·/notifications·관심 3토글 정상.
+
+---
+
 ## [2026-06-06] — I: 프로필 영문코드 → 한글 통일 (관심 알림 매칭 부활)
 
 > profiles.skin_type(영문7)·skin_concerns(영문11)·interested_procedures(영한혼재)가 글 태그(한글)와 달라 `run_keyword_digest`(관심 알림) 매칭이 死였음. 한글로 통일해 부활.
