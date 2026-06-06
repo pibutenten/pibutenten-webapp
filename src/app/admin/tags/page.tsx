@@ -84,22 +84,41 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: rpcData, error } = await supabase.rpc("get_tag_admin_overview", {
-    p_days: days,
-  });
-  const allRows = (error ? [] : ((rpcData ?? []) as TagRow[]));
+  // Supabase 응답 행 상한이 1000 이라 단일 호출로는 전체 태그(>1000)를 못 받음.
+  // → range 청크로 전체 수신(카운터·목록 모두 전체 모수 기준). RPC 는 ORDER BY usage DESC, ko ASC 로 결정적.
+  const allRows: TagRow[] = await (async () => {
+    const PAGE = 1000;
+    const acc: TagRow[] = [];
+    for (let from = 0; from < 100000; from += PAGE) {
+      const { data, error } = await supabase
+        .rpc("get_tag_admin_overview", { p_days: days })
+        .range(from, from + PAGE - 1);
+      if (error || !data || data.length === 0) break;
+      acc.push(...(data as TagRow[]));
+      if (data.length < PAGE) break;
+    }
+    return acc;
+  })();
 
-  // 요약 수치
-  const total = allRows.length;
-  const classified = allRows.filter((r) => r.category !== "미지정").length;
-  const unspec = total - classified;
-  const enBlank = allRows.filter((r) => !r.en).length;
-  const procCount = allRows.filter((r) => r.is_procedure).length;
-
-  // 카테고리 탭 카운트
+  // 요약 수치 + 분류 칩 카운트 — tag_dictionary 직접 count(head:true). 행 상한(1000) 무관,
+  // 전체 모수 기준 항상 정확(allRows.length 집계 폐기 — 자동등록으로 행이 늘어도 견고).
+  const [allC, enNullC, procC, ...catCs] = await Promise.all([
+    supabase.from("tag_dictionary").select("id", { count: "exact", head: true }),
+    supabase.from("tag_dictionary").select("id", { count: "exact", head: true }).is("en", null),
+    supabase.from("tag_dictionary").select("id", { count: "exact", head: true }).eq("is_procedure", true),
+    ...CATEGORIES.map((c) =>
+      supabase.from("tag_dictionary").select("id", { count: "exact", head: true }).eq("category", c),
+    ),
+  ]);
+  const total = allC.count ?? 0;
+  const enBlank = enNullC.count ?? 0;
+  const procCount = procC.count ?? 0;
   const catCounts: Record<string, number> = { all: total };
-  for (const c of CATEGORIES) catCounts[c] = 0;
-  for (const r of allRows) catCounts[r.category] = (catCounts[r.category] ?? 0) + 1;
+  CATEGORIES.forEach((c, i) => {
+    catCounts[c] = catCs[i]?.count ?? 0;
+  });
+  const unspec = catCounts["미지정"] ?? 0;
+  const classified = total - unspec;
 
   // 필터 (분류 → 상태 → 검색)
   let rows = allRows;
