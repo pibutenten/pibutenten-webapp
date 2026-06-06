@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "gen:tag-dict": "node scripts/gen-tag-dictionary.mjs",
+    "prebuild": "node scripts/gen-tag-dictionary.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

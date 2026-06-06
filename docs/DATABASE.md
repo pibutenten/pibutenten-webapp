@@ -132,8 +132,9 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 - `audit_logs` (0140 — 민감 API 1년 보관)
 
 ### 1.8. 사전 / 참조 (additive, 신규 — 1단계)
-- `tag_dictionary` (0247 — 6분류 태그 사전, 2117행): `ko`(UNIQUE)/`category`(CHECK 6종)/`en`/`parent_ko`/`is_procedure`/`onboarding`. RLS on + anon/authenticated SELECT. 정리본 시드(울트라셀=리프팅 정정). ※`procedure_taxonomy`(0199, lifting/injectables 45)와 별개의 전(全)분류 사전.
-- `term_glossary` (0248 — 미용피부과학용어집 영한 참조원, 2519행): `en`/`ko`/`meaning_no`/`recommended`(권장★)/`note`. RLS on + anon/authenticated SELECT.
+- `tag_dictionary` (0247 — 6분류 태그 사전, 2117행): `ko`(UNIQUE)/`category`(CHECK 6종)/`en`/`parent_ko`/`is_procedure`/`onboarding`. RLS on + anon/authenticated SELECT(GRANT 0249). 정리본 시드(울트라셀=리프팅 정정). **분류·슬러그 SSOT** — `categoryFor`/`slugFor` 가 빌드타임 스냅샷(`src/data/tag-dictionary.generated.json`, 생성기 `scripts/gen-tag-dictionary.mjs`·prebuild)을 통해 읽음. ※`procedure_taxonomy`(0199, lifting/injectables 45)와 별개의 전(全)분류 사전.
+- `term_glossary` (0248 — 미용피부과학용어집 영한 참조원, 2519행): `en`/`ko`/`meaning_no`/`recommended`(권장★)/`note`. RLS on + anon/authenticated SELECT(GRANT 0249).
+- `tag_review_queue` (0250 — 미지 태그 검수큐): `ko`(UNIQUE)/`suggested_en`/`source`/`created_at`. RLS on·anon REVOKE·`is_admin()` SELECT(admin 만). `register_unknown_tags(text[],text)` RPC + `cards` AFTER INSERT/UPDATE OF keywords 트리거가 미지 키워드를 ②tag_dictionary(미지정+용어집 en)/③검수큐로 자동 분기.
 - `cards_keywords_bak_0246` (0단계 롤백 백업, 1,232행 — 1단계 안정 확인 전까지 유지·삭제 금지).
 
 ---
@@ -364,6 +365,8 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 
 | 0247 | **`tag_dictionary` 신설**(6분류 태그 사전, additive). 컬럼 `id`(PK)·`ko`(UNIQUE NOT NULL)·`category`(CHECK 6종 피부고민/리프팅/스킨부스터/홈케어/피부상식/미지정)·`en`·`parent_ko`(plain text+idx, 자기FK 미사용)·`is_procedure`(DEF false)·`onboarding`·`created_at`·`updated_at`. 인덱스 category·parent_ko. RLS on + anon/authenticated SELECT(공개 사전·PII 없음, 쓰기 service_role). 정리본(`태그사전_정리본_20260606.xlsx`) **2117행 시드**(매핑: 카테고리→category·태그→ko·영문→en·부모연결→parent_ko·시술등록 '시술'→is_procedure·온보딩→onboarding·사용빈도 미적재). **★울트라셀=리프팅 정정**(정리본 스킨부스터, 디렉터 확정). 멱등 `ON CONFLICT(ko) DO NOTHING`. 분포 미지정1298·피부고민259·홈케어227·피부상식200·스킨부스터72·리프팅61, 영문888·is_procedure49·onboarding22. | **적용 완료 (2026-06-06)** |
 | 0248 | **`term_glossary` 신설**(미용피부과학용어집 영한 참조원, additive). 컬럼 `id`(PK)·`en`·`ko`·`meaning_no`·`recommended`(권장★)·`note`(비고)·`created_at`. 인덱스 lower(en)·ko. RLS on + anon/authenticated SELECT. `용어집_행분리`(영어1:한글N) **2519행 시드**(원본 표제 1792, 권장★653·비고184·뜻번호81). 멱등(빈 테이블 `NOT EXISTS` 가드). | **적용 완료 (2026-06-06)** |
+| 0249 | **GRANT 보강**(1단계 A). `tag_dictionary`/`term_glossary` `GRANT SELECT TO anon, authenticated`(0247/0248 이 RLS policy 만 만들고 테이블 GRANT 누락 → PostgREST anon REST 401). 공개 참조 데이터(PII 없음). 멱등. | **적용 완료 (2026-06-06)** |
+| 0250 | **미지 태그 자동등록**(1단계 B, additive). `tag_review_queue(ko UNIQUE·suggested_en·source)` 신설(RLS on·anon REVOKE·`is_admin()` SELECT). `register_unknown_tags(text[],text)` RPC(SECURITY DEFINER·방어적 EXCEPTION→카드저장 무중단) + `cards` AFTER INSERT/UPDATE OF keywords 트리거. 분기 ①tag_dictionary 존재 무동작 ②미존재+term_glossary(en)→tag_dictionary(미지정) upsert ③둘 다 없음→tag_review_queue upsert. 멱등 ON CONFLICT. 6 저장경로가 cards.keywords 쓰기로 수렴 → 트리거 1점 커버. 검증: 격리 시뮬 ①울쎄라 불변·②제거레이저→미지정(en=ablative laser)·③미지→큐, 흔적 정리. | **적용 완료 (2026-06-06)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

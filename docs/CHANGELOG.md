@@ -6,6 +6,29 @@
 
 ---
 
+## [2026-06-06] — 1단계 후반: 분류 SSOT 전환(빌드타임 스냅샷) + 미지 태그 자동등록
+
+> 분류·슬러그 SSOT 를 `tag_dictionary`(DB)로 전환. `categoryFor`/`slugFor` 가 빌드타임 스냅샷을 읽도록 변경(동기·시그니처 불변). 미지 태그 자동등록 hook 추가. 디렉터 승인: 분류변경 채택·스냅샷 방식·자동등록 포함·후기/리포트 전환 **보류**.
+
+### Changed
+- **분류 SSOT 전환(A)**: `procedure-dict.ts::categoryFor`/`slugFor` 가 `procedure-mappings.json` 대신 **빌드타임 스냅샷 `src/data/tag-dictionary.generated.json`** 을 읽음. 스냅샷 = `tag_dictionary`(DB SSOT) ⊕ JSON 베이스라인(synonym 보존) 병합, DB override.
+  - 생성기 `scripts/gen-tag-dictionary.mjs` + `package.json` `prebuild` 연결(배포 시 자동 갱신). DB 미접근 시 커밋된 스냅샷 보존(빌드 무중단). **생성 파일은 커밋**(DB-less 빌드·diff 가시성).
+  - 한글 category→슬러그 매핑(피부고민→concerns·리프팅→lifting·스킨부스터→injectables·홈케어→homecare·피부상식→knowledge·미지정→knowledge).
+  - `normalizeTag`/`pubmedKeywordsFor`/`isBlacklisted`/`allMappings` 는 그대로 `procedure-mappings.json` 사용(미삭제, 안정 확인까지 유지).
+  - **동작동일 diff(라이브 1,975 태그)**: 동일 1,971 · **회귀(분류 사라짐) 0** · 신규 커버리지 2(텐쎄라→lifting·더엘주사→injectables) · 분류 바뀜 2(쥬브젠 injectables→lifting·울트라콜 lifting→injectables, 정리본=정답). 그 외 0.
+
+### Added
+- **마이그 0249 — GRANT 보강**: `tag_dictionary`/`term_glossary` 에 `GRANT SELECT TO anon, authenticated`(0247/0248 누락분). PostgREST anon REST(스냅샷 생성기)가 401→정상.
+- **마이그 0250 — 미지 태그 자동등록(B)**: `tag_review_queue(ko UNIQUE·suggested_en·source·created_at)` 신설(RLS on·anon REVOKE·authenticated SELECT+`is_admin()` 정책=admin 만). `register_unknown_tags(text[],text)` RPC(SECURITY DEFINER·방어적 EXCEPTION) + `cards` **AFTER INSERT/UPDATE OF keywords 트리거**.
+  - 분기: ① `tag_dictionary` 존재→무동작 ② 미존재+`term_glossary(en)`→`tag_dictionary`(category='미지정', en=용어집) upsert ③ 둘 다 없음→`tag_review_queue` upsert. 멱등(ON CONFLICT). 저장 6경로(articles POST/PUT·draft publish·EditClient·DraftClient·reviews·update_procedure_review)가 전부 cards.keywords 쓰기로 수렴 → 트리거 1점이 일괄 커버(클라이언트 DB 쓰기 불필요). 카드 저장 동작 불변.
+
+### 검증
+- A: 동작동일 diff(동일1971·회귀0·개선2·분류바뀜2) / 스냅샷 dbRows 2117·keywords 2123 / `tsc`+`build` 통과(prebuild 스냅샷 재생성 정상).
+- B: 격리 시뮬 — ①울쎄라 불변 · ②제거레이저→tag_dictionary(미지정, en=ablative laser) · ③미지태그→tag_review_queue. 시뮬 흔적 정리(tag_dictionary 2117·queue 0).
+- C(읽기전용): `procedure_reviews.procedure_ko` = **text + 실제 FK** `→procedure_taxonomy(ko) ON UPDATE CASCADE`(0단계 "FK 아님"은 오기 정정, Phase1 정확). 후기/리포트 전환 보류 근거 확정.
+
+---
+
 ## [2026-06-06] — 1단계 사전 테이블 신설: tag_dictionary + term_glossary (additive)
 
 > 6분류 태그 사전과 용어집 참조 테이블을 **신규 추가**. 기존 코드·`procedure-mappings.json`·`cards` 무변경 = 기존 동작 무영향. 인라인 저장(태그 관리자)·영문 슬러그 정합의 DB 토대.

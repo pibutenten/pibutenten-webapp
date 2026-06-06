@@ -22,6 +22,7 @@
  */
 
 import raw from "@/data/procedure-mappings/procedure-mappings.json";
+import snapshot from "@/data/tag-dictionary.generated.json";
 import type { CategorySlug } from "./categories";
 
 type Mapping = {
@@ -57,13 +58,17 @@ for (const m of data.mappings) {
 
 const BLACKLIST_SET = new Set<string>(data.blacklist);
 
+// ── 빌드타임 스냅샷 (SSOT=DB tag_dictionary ⊕ JSON 베이스라인) ──
+//   categoryFor / slugFor 는 이 스냅샷을 읽는다 (동기·시그니처 불변).
+//   생성: scripts/gen-tag-dictionary.mjs (package.json prebuild). DB 미접근 시 커밋된 스냅샷 사용.
+const SNAP_CATEGORY = (snapshot as { category: Record<string, string> }).category;
+const SNAP_SLUG = (snapshot as { slug: Record<string, string> }).slug;
+
 // ── public API ───────────────────────────────────────────────
 
-/** 키워드 → 5분류 카테고리 슬러그. 사전에 없으면 "knowledge". */
+/** 키워드 → 5분류 카테고리 슬러그. 사전에 없으면 "knowledge". (DB 스냅샷 기준) */
 export function categoryFor(keyword: string): CategorySlug {
-  const entry = KO_INDEX.get(keyword);
-  if (!entry) return "knowledge";
-  const cat = entry.category;
+  const cat = SNAP_CATEGORY[keyword];
   if (
     cat === "lifting" ||
     cat === "injectables" ||
@@ -76,9 +81,9 @@ export function categoryFor(keyword: string): CategorySlug {
   return "knowledge";
 }
 
-/** 한글 키워드 → 영문 slug. 사전에 없으면 null. */
+/** 한글 키워드 → 영문 slug. 사전에 없으면 null. (DB 스냅샷 기준) */
 export function slugFor(keyword: string): string | null {
-  return KO_INDEX.get(keyword)?.en ?? null;
+  return SNAP_SLUG[keyword] ?? null;
 }
 
 /** 키워드 → PubMed 영문 검색어 배열. 사전에 없거나 항목 없으면 null. */
