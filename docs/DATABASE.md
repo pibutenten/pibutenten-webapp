@@ -377,6 +377,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0258 | **시술 RPC 5개 SSOT 전환**(C-Phase2 STEP2). create/update_procedure_review·get_review_report_overview·get_review_summary_pool·procedure_family 를 procedure_taxonomy→tag_dictionary(is_procedure). active→is_procedure. category 는 tag_dict 한글→영문 slug 매핑 반환(reports·테마·schema 정합, 교차 2건 자동 정정). | **적용 완료 (2026-06-06)** |
 | 0259 | **procedure_taxonomy DROP**(C-Phase2 STEP3). ①더엘주사 리포트 post_slug the-l-injection→the-l-solution(en 단일화) ②procedure_reviews.procedure_ko FK procedure_taxonomy→tag_dictionary(ko) ON UPDATE CASCADE 재지정(orphan 0) ③rename_tag 단순화(tag_dict 단일, CASCADE 자동 전파) ④procedure_taxonomy DROP. 검증: pool 36·rename CASCADE(써마지 reviews13 자동 전파, 롤백). | **적용 완료 (2026-06-06)** |
 | 0260 | **`merge_tag(p_source_id,p_target_ko)` RPC**(F-Phase2, SECURITY DEFINER·EXECUTE service_role 만). 영문/중복 태그(source)를 한글 대표어(target)로 병합 — procedure_reviews 방어 이관 + cards.keywords array_replace·dedup(트리거 3종 tx disable) + source DELETE. 단일 tx. 검증: thermage→써마지 비파괴(affected 1·삭제·롤백). | **적용 완료 (2026-06-06)** |
+| 0261 | **`tag_merge_dismissed(ko)` 병합 후보 무시목록**(H). is_admin RLS + service_role/authenticated CRUD GRANT. 운영자 '제외' 태그 ko 기록 → 자동등록 재유입돼도 병합 후보 미노출. | **적용 완료 (2026-06-06)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

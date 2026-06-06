@@ -182,13 +182,17 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   // 부모 autocomplete + 검증용 전체 태그 ko (전 페이지 기준)
   const allKo = allRows.map((r) => r.ko);
 
+  // 병합 후보 무시목록 (H) — 운영자가 '제외'한 영문 ko 는 후보에서 빠짐(재유입돼도 안 뜸).
+  const { data: dismissedRows } = await supabase.from("tag_merge_dismissed").select("ko");
+  const dismissedSet = new Set((dismissedRows ?? []).map((d) => d.ko as string));
+
   // 영문 → 한글 대표어 병합 후보 (F-Phase2): slugifyEn(영문 ko) === 한글 대표어의 en
   const repByEn = new Map<string, string>();
   for (const r of allRows) {
     if (r.en && /[가-힣]/.test(r.ko)) repByEn.set(r.en, r.ko);
   }
   const mergeCandidates: MergeCandidate[] = allRows
-    .filter((r) => /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(r.ko))
+    .filter((r) => /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(r.ko) && !dismissedSet.has(r.ko))
     .map((r) => {
       const repKo = repByEn.get(slugifyEn(r.ko));
       return repKo && repKo !== r.ko

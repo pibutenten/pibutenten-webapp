@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-06] — H: 병합 후보 '제외'(무시목록)
+
+### Added
+- **마이그 0261 — `tag_merge_dismissed(ko)` 무시목록 테이블**(is_admin RLS + service_role/authenticated CRUD GRANT). 운영자가 '제외'한 영문 태그 ko 기록 → 자동등록으로 재유입돼도 병합 후보로 안 뜸.
+- **POST `/api/admin/tag-dictionary/merge-dismiss`**: 무시목록 upsert(멱등). requireAdmin.
+- **MergeCandidates '제외' 버튼**: 후보 행별 제외 → 무시목록 기록 → router.refresh. 후보가 0이 되면 섹션 자동 숨김(예: CO2 제외 시). 새 영문 태그가 한글 대표어와 매칭되면 섹션 재등장. (page.tsx 후보 계산이 dismissed 제외)
+
+### 검증
+- `tsc`+`build` 통과. preview /admin/tags 200·서버 에러 0. 0261 테이블·service_role grant 확인.
+
+---
+
 ## [2026-06-06] — 태그 매니저 1000행 상한 해소 (카운터·목록 전체 모수)
 
 ### Fixed

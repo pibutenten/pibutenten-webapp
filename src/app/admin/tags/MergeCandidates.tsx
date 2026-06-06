@@ -37,6 +37,26 @@ export default function MergeCandidates({ candidates }: { candidates: MergeCandi
     setChecked(allOn ? new Set() : new Set(candidates.map((c) => c.id)));
   }
 
+  async function dismiss(c: MergeCandidate) {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/admin/tag-dictionary/merge-dismiss`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ko: c.engKo }),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => null)) as { message?: string } | null;
+        showToast(j?.message ?? `제외 실패 (HTTP ${r.status})`, { tone: "danger" });
+        return;
+      }
+      showToast(`'${c.engKo}' 병합 후보에서 제외됨`);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function mergeSelected() {
     const targets = candidates.filter((c) => checked.has(c.id));
     if (targets.length === 0) {
@@ -101,8 +121,8 @@ export default function MergeCandidates({ candidates }: { candidates: MergeCandi
         </div>
         <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
           {candidates.map((c) => (
-            <li key={c.id}>
-              <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs hover:bg-white">
+            <li key={c.id} className="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-white">
+              <label className="flex flex-1 cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   checked={checked.has(c.id)}
@@ -115,6 +135,15 @@ export default function MergeCandidates({ candidates }: { candidates: MergeCandi
                   카드 {c.cards.toLocaleString()}
                 </span>
               </label>
+              <button
+                type="button"
+                onClick={() => dismiss(c)}
+                disabled={busy}
+                title="이 후보를 무시(재유입돼도 후보로 안 뜸)"
+                className="shrink-0 rounded border border-[var(--border)] px-1.5 py-0.5 text-[11px] text-[var(--text-muted)] hover:bg-[var(--bg-soft)] disabled:opacity-60"
+              >
+                제외
+              </button>
             </li>
           ))}
         </ul>
