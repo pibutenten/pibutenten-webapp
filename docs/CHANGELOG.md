@@ -6,6 +6,26 @@
 
 ---
 
+## [2026-06-06] — F·G: 영문 태그 병합 + 태그 매니저 정렬/필터 확장
+
+> 자동등록으로 ko 가 영문인 중복 태그(thermage·rejuran 등)를 한글 대표어(써마지·리쥬란)로 병합. rename(개명)과 분리한 merge 도입.
+
+### Added
+- **마이그 0260 — `merge_tag(p_source_id, p_target_ko)` RPC**(SECURITY DEFINER·EXECUTE service_role 만): source 태그를 target 대표어로 병합 — ① procedure_reviews 방어 이관 ② cards.keywords array_replace+dedup(트리거 3종 tx disable) ③ source 태그 DELETE. 단일 tx.
+- **POST `/api/admin/tag-dictionary/[id]/merge`**: 미리보기(confirm=false)/확정(confirm=true). requireAdmin + audit_logs('tag_dictionary.merge').
+- **일괄 병합 검토(F2)**: `MergeCandidates` — slugifyEn(영문 ko)=한글 대표어 en 매칭 후보를 체크박스로 표시 → [선택 병합] 순차 실행(자동 아님). /admin/tags 상단 접이식 섹션.
+- **rename 모달 병합(F2 단건)**: 입력값이 기존 태그와 충돌하면 거부 대신 "기존 '{대표어}'로 병합(카드 N건 이관·원태그 삭제)" 확인 → merge.
+
+### Changed
+- **G1 헤더 정렬 확장**: 태그(ko)·분류(category)·영문(en)·부모(parent_ko) 헤더 클릭 정렬(가나다/알파벳, replace·토글). 부모는 필터→정렬 전환. 온보딩·시술 후기는 필터 유지, 사용량·검색량·생성일은 기존 정렬 유지.
+- **G2 상태칩 '영문 태그'**: ko 가 영문(한글 미포함)인 태그만 필터(status=eng) — 병합/한글화 대상 한눈에.
+- **G3 공란 맨 아래**: 텍스트 컬럼 정렬 시 빈 값(영문 공란 등) 행은 정렬 방향과 무관하게 항상 맨 아래로 모음.
+
+### 검증
+- merge 비파괴 실증(thermage→써마지: affected_cards 1·thermage 삭제·써마지 104 dedup 유지, RAISE EXCEPTION 롤백 → 무변경). `tsc`+`build` 통과. preview /admin/tags·status=eng·sort=en_name·sort=cat_name 200·서버 에러 0.
+
+---
+
 ## [2026-06-06] — E: 태그 매니저 추가 조정 (영문 slug 정규화·모달 문구·열 폭)
 
 ### Added

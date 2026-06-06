@@ -25,7 +25,15 @@ const CATEGORIES = ["피부고민", "리프팅", "스킨부스터", "홈케어",
 // 온보딩 4종 — 얼굴형·피부타입·피부고민·관심시술 (얼굴형 추가, 2026-06-06).
 const ONBOARDING = ["", "얼굴형", "피부타입", "피부고민", "관심시술"];
 
-type SortCol = "usage" | "search" | "created" | "onb_name" | "parent_name" | "ko_name";
+type SortCol =
+  | "usage"
+  | "search"
+  | "created"
+  | "onb_name"
+  | "parent_name"
+  | "ko_name"
+  | "cat_name"
+  | "en_name";
 
 type Editable = Pick<TagRow, "category" | "en" | "parent_ko" | "is_procedure" | "onboarding">;
 
@@ -155,15 +163,20 @@ function RenameModal({
   usage,
   koSet,
   onConfirm,
+  onMerged,
   onClose,
 }: {
   row: { id: number; ko: string };
   usage: number;
   koSet: Set<string>;
   onConfirm: (newKo: string) => void;
+  onMerged: () => void;
   onClose: () => void;
 }) {
   const [newKo, setNewKo] = useState(row.ko);
+  // 입력값이 기존 태그와 충돌하면 병합 확인 모드 (F-Phase2)
+  const [mergeTarget, setMergeTarget] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   function confirm() {
     const v = newKo.trim();
@@ -171,12 +184,39 @@ function RenameModal({
       showToast("새 태그 이름을 입력해 주세요.", { tone: "danger" });
       return;
     }
-    if (v !== row.ko && koSet.has(v)) {
-      showToast("사전에 이미 같은 이름의 태그가 있어요.", { tone: "danger" });
+    if (v === row.ko) {
+      onClose();
+      return;
+    }
+    if (koSet.has(v)) {
+      // 거부 대신 병합 확인
+      setMergeTarget(v);
       return;
     }
     onConfirm(v);
     onClose();
+  }
+
+  async function doMerge() {
+    if (!mergeTarget) return;
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/admin/tag-dictionary/${row.id}/merge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetKo: mergeTarget, confirm: true }),
+      });
+      const j = (await r.json().catch(() => null)) as Record<string, unknown> | null;
+      if (!r.ok) {
+        showToast((j?.message as string) ?? `병합 실패 (HTTP ${r.status})`, { tone: "danger" });
+        return;
+      }
+      showToast(`'${row.ko}' → '${mergeTarget}' 병합됨 (카드 ${Number(j?.affectedCards ?? 0)}건 이관)`);
+      onMerged();
+      onClose();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -188,43 +228,76 @@ function RenameModal({
         className="w-full max-w-lg rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 text-left shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mb-1 text-sm font-bold text-[var(--text)]">태그 이름 변경</h3>
-        <p className="mb-3 break-keep text-xs leading-relaxed text-[var(--text-muted)]">
-          현재 <b className="text-[var(--text)]">{row.ko}</b> · 이 태그가 달린 카드 약{" "}
-          <b className="tabular-nums text-[var(--text)]">{usage.toLocaleString()}</b>건에 반영됩니다.
-          [확인] 후 행의 <b>[저장]</b>을 눌러야 최종 적용됩니다.
-        </p>
-        <input
-          value={newKo}
-          onChange={(e) => setNewKo(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              confirm();
-            } else if (e.key === "Escape") {
-              onClose();
-            }
-          }}
-          placeholder="새 태그 이름"
-          autoFocus
-          className="mb-3 h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-        />
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={confirm}
-            className="h-9 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-medium text-white"
-          >
-            확인
-          </button>
-        </div>
+        {mergeTarget ? (
+          <>
+            <h3 className="mb-1 text-sm font-bold text-[var(--text)]">태그 병합</h3>
+            <p className="mb-3 break-keep text-xs leading-relaxed text-[var(--text-muted)]">
+              기존 <b className="text-[var(--text)]">{mergeTarget}</b> 태그가 이미 있어요. 병합하면
+              <b className="text-[var(--text)]"> {row.ko}</b> 가 달린 카드 약{" "}
+              <b className="tabular-nums text-[var(--text)]">{usage.toLocaleString()}</b>건이{" "}
+              <b className="text-[var(--text)]">{mergeTarget}</b> 로 이관되고{" "}
+              <b className="text-[var(--text)]">{row.ko}</b> 태그는 삭제됩니다. (되돌릴 수 없음)
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMergeTarget(null)}
+                disabled={busy}
+                className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+              >
+                뒤로
+              </button>
+              <button
+                type="button"
+                onClick={doMerge}
+                disabled={busy}
+                className="h-9 rounded-[var(--radius-sm)] bg-[var(--primary-active)] px-4 text-sm font-medium text-white disabled:opacity-60"
+              >
+                {busy ? "병합 중" : "병합"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 className="mb-1 text-sm font-bold text-[var(--text)]">태그 이름 변경</h3>
+            <p className="mb-3 break-keep text-xs leading-relaxed text-[var(--text-muted)]">
+              현재 <b className="text-[var(--text)]">{row.ko}</b> · 이 태그가 달린 카드 약{" "}
+              <b className="tabular-nums text-[var(--text)]">{usage.toLocaleString()}</b>건에 반영됩니다.
+              [확인] 후 행의 <b>[저장]</b>을 눌러야 최종 적용됩니다. (기존 태그명을 입력하면 병합)
+            </p>
+            <input
+              value={newKo}
+              onChange={(e) => setNewKo(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  confirm();
+                } else if (e.key === "Escape") {
+                  onClose();
+                }
+              }}
+              placeholder="새 태그 이름"
+              autoFocus
+              className="mb-3 h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={confirm}
+                className="h-9 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-medium text-white"
+              >
+                확인
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -246,6 +319,7 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
   const [editing, setEditing] = useState<null | "category" | "en" | "parent" | "onboarding">(null);
   const [busy, setBusy] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const router = useRouter();
 
   const koDirty = ko !== savedKo;
   const fieldsDirty =
@@ -325,6 +399,7 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
             usage={row.usage}
             koSet={koSet}
             onConfirm={(v) => setKo(v)}
+            onMerged={() => router.refresh()}
             onClose={() => setRenameOpen(false)}
           />
         ) : null}
@@ -565,11 +640,18 @@ export default function TagAdminTable({
         </colgroup>
         <thead className="bg-[var(--bg-soft)] text-[var(--text-secondary)]">
           <tr>
-            <th className="px-2 py-2 text-left font-medium">태그</th>
-            <th className="px-2 py-2 text-left font-medium">분류</th>
-            <th className="px-2 py-2 text-left font-medium">영문</th>
+            {/* G1: 태그·분류·영문·부모 = 정렬(가나다/알파벳). 온보딩·시술 후기 = 필터 유지. */}
             <th className="px-2 py-2 text-left font-medium">
-              <FilterHeader label="부모" status="parent" sortCol="parent_name" curStatus={status} />
+              <SortHeader col="ko_name" label="태그" sort={sort} dir={dir} />
+            </th>
+            <th className="px-2 py-2 text-left font-medium">
+              <SortHeader col="cat_name" label="분류" sort={sort} dir={dir} />
+            </th>
+            <th className="px-2 py-2 text-left font-medium">
+              <SortHeader col="en_name" label="영문" sort={sort} dir={dir} />
+            </th>
+            <th className="px-2 py-2 text-left font-medium">
+              <SortHeader col="parent_name" label="부모" sort={sort} dir={dir} />
             </th>
             <th className="whitespace-nowrap px-2 py-2 text-center font-medium">
               <FilterHeader label="시술 후기" status="proc" sortCol="ko_name" curStatus={status} />

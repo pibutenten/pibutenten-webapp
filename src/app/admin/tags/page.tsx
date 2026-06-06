@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import BackButton from "@/components/BackButton";
 import TagAdminTable, { type TagRow } from "./TagAdminTable";
+import MergeCandidates, { type MergeCandidate } from "./MergeCandidates";
+import { slugifyEn } from "@/lib/tag-slug";
 
 export const dynamic = "force-dynamic";
 
@@ -34,8 +36,16 @@ type Props = {
   }>;
 };
 
-type SortCol = "usage" | "search" | "created" | "onb_name" | "parent_name" | "ko_name";
-const TEXT_SORTS: SortCol[] = ["onb_name", "parent_name", "ko_name"];
+type SortCol =
+  | "usage"
+  | "search"
+  | "created"
+  | "onb_name"
+  | "parent_name"
+  | "ko_name"
+  | "cat_name"
+  | "en_name";
+const TEXT_SORTS: SortCol[] = ["onb_name", "parent_name", "ko_name", "cat_name", "en_name"];
 
 function chip(active: boolean) {
   return (
@@ -64,7 +74,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   const q = (sp.q ?? "").trim();
   const days = Number.parseInt(sp.days ?? "0", 10) || 0;
   const pageNum = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
-  const ALL_SORTS: SortCol[] = ["usage", "search", "created", "onb_name", "parent_name", "ko_name"];
+  const ALL_SORTS: SortCol[] = ["usage", "search", "created", "onb_name", "parent_name", "ko_name", "cat_name", "en_name"];
   let sortCol: SortCol = ALL_SORTS.includes(sp.sort as SortCol) ? (sp.sort as SortCol) : "usage";
   let sortDir: "asc" | "desc" = sp.dir === "asc" ? "asc" : "desc";
   // '새 태그' = 생성일 최근순 강제 (D5 — 상태칩 배타 단일선택)
@@ -99,14 +109,29 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   else if (status === "proc") rows = rows.filter((r) => r.is_procedure);
   else if (status === "onb") rows = rows.filter((r) => !!r.onboarding);
   else if (status === "parent") rows = rows.filter((r) => !!r.parent_ko);
+  else if (status === "eng") rows = rows.filter((r) => /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(r.ko)); // G2: ko 가 영문(한글 미포함)
   if (q) rows = rows.filter((r) => r.ko.includes(q));
 
-  // 정렬 (헤더 클릭 / '새 태그' 칩) — 숫자 컬럼 vs 텍스트(가나다) 컬럼 분기. 기본 사용량 내림차순.
+  // 정렬 (헤더 클릭 / '새 태그' 칩) — 숫자 컬럼 vs 텍스트(가나다/알파벳) 컬럼 분기. 기본 사용량 내림차순.
   if (TEXT_SORTS.includes(sortCol)) {
     const textOf = (r: TagRow): string =>
-      sortCol === "onb_name" ? (r.onboarding ?? "") : sortCol === "parent_name" ? (r.parent_ko ?? "") : r.ko;
+      sortCol === "onb_name"
+        ? (r.onboarding ?? "")
+        : sortCol === "parent_name"
+          ? (r.parent_ko ?? "")
+          : sortCol === "cat_name"
+            ? r.category
+            : sortCol === "en_name"
+              ? (r.en ?? "")
+              : r.ko;
+    // G3: 정렬 시 공란(빈 값) 행은 방향과 무관하게 항상 맨 아래로 모음.
     rows = [...rows].sort((a, b) => {
-      const d = textOf(a).localeCompare(textOf(b), "ko");
+      const ta = textOf(a);
+      const tb = textOf(b);
+      if (!ta && !tb) return 0;
+      if (!ta) return 1;
+      if (!tb) return -1;
+      const d = ta.localeCompare(tb, "ko");
       return sortDir === "asc" ? d : -d;
     });
   } else {
@@ -137,6 +162,22 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   };
   // 부모 autocomplete + 검증용 전체 태그 ko (전 페이지 기준)
   const allKo = allRows.map((r) => r.ko);
+
+  // 영문 → 한글 대표어 병합 후보 (F-Phase2): slugifyEn(영문 ko) === 한글 대표어의 en
+  const repByEn = new Map<string, string>();
+  for (const r of allRows) {
+    if (r.en && /[가-힣]/.test(r.ko)) repByEn.set(r.en, r.ko);
+  }
+  const mergeCandidates: MergeCandidate[] = allRows
+    .filter((r) => /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(r.ko))
+    .map((r) => {
+      const repKo = repByEn.get(slugifyEn(r.ko));
+      return repKo && repKo !== r.ko
+        ? { id: r.id, engKo: r.ko, repKo, cards: r.usage }
+        : null;
+    })
+    .filter((c): c is MergeCandidate => c !== null)
+    .sort((a, b) => b.cards - a.cards);
 
   return (
     <div className="mx-auto max-w-[1080px] px-4 py-6">
@@ -187,6 +228,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
             ["unspec", "미지정"],
             ["proc", "시술 후기"],
             ["onb", "온보딩"],
+            ["eng", "영문 태그"],
             ["new", "새 태그"],
           ] as const).map(([key, label]) => {
             const active = status === key;
@@ -245,6 +287,8 @@ export default async function AdminTagsPage({ searchParams }: Props) {
                   : "사용량"}{" "}
         {sortDir === "asc" ? "오름차순" : "내림차순"} (기간 {PERIODS.find((p) => p.days === days)?.label})
       </p>
+
+      <MergeCandidates candidates={mergeCandidates} />
 
       <TagAdminTable rows={pageRows} allKo={allKo} sort={sortCol} dir={sortDir} status={status} />
 
