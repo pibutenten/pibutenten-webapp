@@ -196,7 +196,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
           { label: "전체", v: total },
           { label: "분류완료", v: classified },
           { label: "미지정", v: unspec },
-          { label: "영문공란", v: enBlank },
+          { label: "영문 공란", v: enBlank },
           { label: "시술 후기", v: procCount },
         ].map((s) => (
           <div key={s.label} className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-3">
@@ -224,7 +224,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
           <span className="text-[11px] text-[var(--text-muted)]">상태</span>
           <Link replace href={qs(base, { status: undefined, sort: undefined, dir: undefined, page: undefined })} className={chip(status === "all")}>전체</Link>
           {([
-            ["en_blank", "영문공란"],
+            ["en_blank", "영문 공란"],
             ["unspec", "미지정"],
             ["proc", "시술 후기"],
             ["onb", "온보딩"],
