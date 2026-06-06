@@ -6,7 +6,19 @@
 
 ---
 
-## [2026-06-06] — 2단계 태그 매니저 육안 후 조정 3차 (D: UI·온보딩 보완)
+## [2026-06-06] — 원장 확장 프로필: 학술 ID·자격·임원직 (저자 권위 GEO/E-E-A-T)
+
+### Added
+- **`doctors.profile_data`(JSONB) 5개 키 확장**(하드코딩 아님 · SSOT `lib/doctor-profile.ts`): `orcid`·`googleScholarUrl`·`pmids`(string[])·`societyRoles`(string[])·`boardCertifiedYear`(number). 새 원장도 폼 입력만으로 적용(코드 0) — 새 컬럼·마이그레이션 없음.
+- **편집 진입(관리자 + 원장 본인)**: 기존 `/admin/doctors/{slug}/edit` 폼(`DoctorProfileEditForm`)에 입력 필드 추가. 권한은 기존 그대로 — PUT 라우트·페이지 모두 super admin(전체) 또는 본인 doctor(`activeDoctorId`)만. 원장 대시보드(`/doctor`)의 "원장 프로필 편집" 링크로 본인 편집 진입. PUT zod 화이트리스트(`.strict()`)에 5키 추가(orcid 형식·PMID 숫자·연도 1900~2100 검증).
+- **JSON-LD(`buildDoctorFull`)**: `identifier`(ORCID PropertyValue) + `sameAs`(orcid.org·Google Scholar) + `hasCredential`(EducationalOccupationalCredential, 보건복지부) + `memberOf` OrganizationRole(임원직). `buildDoctorScholarlyArticles` 헬퍼로 PMID→`ScholarlyArticle`(@id=PubMed URL, author=의사 @id) 노드를 `/doctors/[slug]` @graph 에 주입.
+- **화면 노출 정책**: ORCID·Google Scholar·"○○년 전문의 취득"·"학회 활동"은 프로필에 노출(E-E-A-T C3). **PMID 는 화면 비노출 — ScholarlyArticle 스키마 전용**(봇 저자-논문 그래프, GEO A3). 이해상충 공시는 미도입(운영자 결정).
+
+### 데이터
+- 참여 전문의 9명 `profile_data` 머지 시드(Management API `||` jsonb — 기존 education/career 등 보존). 9명 전원 고유 ORCID(고혜림·배정민 중복 해소)·취득연도·PMID(2~3) + 임원직 4명.
+
+### 검증
+- 내 변경 파일 `tsc --noEmit` 0 에러. dev SSR `/doctors/jung-hanmi`: JSON-LD 에 orcid identifier·ScholarlyArticle(PMID)·EducationalOccupationalCredential·OrganizationRole 출력 + 화면에 ORCID·Google Scholar·취득연도·학회 활동 노출, PMID 비노출, 기존 학력 보존 확인. (※ 동시 진행 4-4 미커밋 `admin/tags` WIP 가 working tree 에 타입에러를 남겨 전체 `npm run build` 는 그 파일에서만 실패 — 본 변경과 무관, 커밋 미포함.)
 
 > 디렉터 3차 육안 반영. C(procedure_taxonomy 청산)는 별도 진행.
 

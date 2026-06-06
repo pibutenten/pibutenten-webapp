@@ -57,6 +57,15 @@ const ProfileDataSchema = z
     clinicUrl: z.string().url().max(500).optional(),
     addressRegion: z.string().max(100).optional(),
     addressLocality: z.string().max(100).optional(),
+    // 학술·자격 (2026-06-06)
+    orcid: z
+      .string()
+      .regex(/^\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$/)
+      .optional(),
+    googleScholarUrl: z.string().url().max(500).optional(),
+    pmids: z.array(z.string().regex(/^\d{1,12}$/)).max(10).optional(),
+    societyRoles: z.array(z.string().min(1).max(200)).max(20).optional(),
+    boardCertifiedYear: z.number().int().gte(1900).lte(2100).optional(),
   })
   .strict();
 

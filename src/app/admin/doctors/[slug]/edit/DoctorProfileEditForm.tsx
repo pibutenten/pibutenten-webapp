@@ -15,7 +15,11 @@ type FormState = {
   career: string[];
   expertise: string[];
   memberOf: string[];
+  societyRoles: string[];
   publications: string[];
+  pmids: string[];
+  orcid: string;
+  googleScholarUrl: string;
   youtube: string;
   instagram: string;
   blog: string;
@@ -23,6 +27,8 @@ type FormState = {
   clinicUrl: string;
   addressRegion: string;
   addressLocality: string;
+  /** 전문의 취득연도 — 폼에선 문자열, 저장 시 number 변환 */
+  boardCertifiedYear: string;
 };
 
 const ARRAY_FIELDS = [
@@ -30,10 +36,14 @@ const ARRAY_FIELDS = [
   "career",
   "expertise",
   "memberOf",
+  "societyRoles",
   "publications",
+  "pmids",
 ] as const;
 
 const STRING_FIELDS = [
+  "orcid",
+  "googleScholarUrl",
   "youtube",
   "instagram",
   "blog",
@@ -67,15 +77,36 @@ const ARRAY_LABELS: Record<ArrayField, { label: string; helper: string; placehol
     helper: "예: 대한피부과학회 정회원",
     placeholder: "학회·협회명",
   },
+  societyRoles: {
+    label: "학회 임원직",
+    helper: "예: 대한피부과의사회 홍보간사 (학회명 + 직책)",
+    placeholder: "학회명 + 직책",
+  },
   publications: {
     label: "출판 · 저서",
     helper: "예: 『피부과학 임상 가이드』 공저 (2022)",
     placeholder: "저서·논문 제목",
     multiline: true,
   },
+  pmids: {
+    label: "대표 논문 (PMID)",
+    helper: "PubMed 번호만. 화면 비노출 — 검색·AI 인용용 (예: 28355423)",
+    placeholder: "숫자만 (예: 28355423)",
+  },
 };
 
 const STRING_LABELS: Record<StringField, { label: string; helper: string; placeholder: string; type?: string }> = {
+  orcid: {
+    label: "ORCID iD",
+    helper: "예: 0000-0002-0968-9647 (숫자·하이픈 16자리)",
+    placeholder: "0000-0000-0000-0000",
+  },
+  googleScholarUrl: {
+    label: "Google Scholar",
+    helper: "Google Scholar 프로필 URL",
+    placeholder: "https://scholar.google.com/citations?user=...",
+    type: "url",
+  },
   youtube: {
     label: "유튜브",
     helper: "예: https://youtube.com/@channel",
@@ -124,7 +155,11 @@ function toFormState(d: DoctorProfileData): FormState {
     career: d.career?.length ? [...d.career] : [""],
     expertise: d.expertise?.length ? [...d.expertise] : [""],
     memberOf: d.memberOf?.length ? [...d.memberOf] : [""],
+    societyRoles: d.societyRoles?.length ? [...d.societyRoles] : [""],
     publications: d.publications?.length ? [...d.publications] : [""],
+    pmids: d.pmids?.length ? [...d.pmids] : [""],
+    orcid: d.orcid ?? "",
+    googleScholarUrl: d.googleScholarUrl ?? "",
     youtube: d.youtube ?? "",
     instagram: d.instagram ?? "",
     blog: d.blog ?? "",
@@ -132,6 +167,7 @@ function toFormState(d: DoctorProfileData): FormState {
     clinicUrl: d.clinicUrl ?? "",
     addressRegion: d.addressRegion ?? "",
     addressLocality: d.addressLocality ?? "",
+    boardCertifiedYear: d.boardCertifiedYear ? String(d.boardCertifiedYear) : "",
   };
 }
 
@@ -150,6 +186,11 @@ function cleanState(s: FormState): DoctorProfileData {
     const v = s[k].trim();
     if (v.length > 0) out[k] = v;
   }
+  // 전문의 취득연도 — number 변환 (1900~2100 유효 범위만).
+  const year = parseInt(s.boardCertifiedYear.trim(), 10);
+  if (Number.isFinite(year) && year >= 1900 && year <= 2100) {
+    out.boardCertifiedYear = year;
+  }
   return out;
 }
 
@@ -163,6 +204,7 @@ function statesEqual(a: FormState, b: FormState): boolean {
   for (const k of STRING_FIELDS) {
     if (a[k] !== b[k]) return false;
   }
+  if (a.boardCertifiedYear !== b.boardCertifiedYear) return false;
   return true;
 }
 
@@ -311,6 +353,28 @@ export default function DoctorProfileEditForm({ slug, initial }: Props) {
           </div>
         );
       })}
+
+      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
+        <h2 className="mb-1 text-sm font-bold text-[var(--text)]">
+          전문의 자격 취득연도
+        </h2>
+        <input
+          type="number"
+          inputMode="numeric"
+          value={state.boardCertifiedYear}
+          onChange={(e) =>
+            setState((s) => ({ ...s, boardCertifiedYear: e.target.value }))
+          }
+          placeholder="예: 2017"
+          min={1900}
+          max={2100}
+          disabled={pending}
+          className="h-9 w-40 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+        />
+        <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+          화면에 &quot;○○년 전문의 취득&quot;으로 표시됩니다.
+        </p>
+      </div>
 
       <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
         <h2 className="mb-3 text-sm font-bold text-[var(--text)]">

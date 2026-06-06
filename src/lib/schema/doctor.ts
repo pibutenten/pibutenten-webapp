@@ -103,7 +103,12 @@ export function buildDoctorFull(d: DoctorBasic): Record<string, unknown> {
     "@type": "Organization" as const,
     name,
   }));
-  const memberOf = [...COMMON_MEMBER_OF, ...extraMemberOf];
+  // 학회 임원직 — OrganizationRole(roleName)로 역할 표현 (memberOf 값으로 허용).
+  const roleEntries = (profile.societyRoles ?? []).map((roleName) => ({
+    "@type": "OrganizationRole" as const,
+    roleName,
+  }));
+  const memberOf = [...COMMON_MEMBER_OF, ...extraMemberOf, ...roleEntries];
 
   const englishName = DOCTOR_ENGLISH_NAME[d.slug];
   const obj: Record<string, unknown> = {
@@ -130,7 +135,45 @@ export function buildDoctorFull(d: DoctorBasic): Record<string, unknown> {
       name: edu,
     }));
   }
+  // ORCID — 저자 식별자 (Google/AI 가 실존 연구자로 검증). sameAs 에도 orcid.org URL 포함됨.
+  if (profile.orcid) {
+    obj.identifier = {
+      "@type": "PropertyValue",
+      propertyID: "ORCID",
+      value: `https://orcid.org/${profile.orcid}`,
+    };
+  }
+  // 전문의 자격 취득연도 — EducationalOccupationalCredential.
+  if (profile.boardCertifiedYear) {
+    obj.hasCredential = {
+      "@type": "EducationalOccupationalCredential",
+      credentialCategory: "피부과 전문의",
+      recognizedBy: {
+        "@type": "GovernmentOrganization",
+        name: "대한민국 보건복지부",
+      },
+      dateCreated: String(profile.boardCertifiedYear),
+    };
+  }
   return obj;
+}
+
+/**
+ * 의사 대표 논문(PMID) → ScholarlyArticle 노드 배열.
+ * 화면 비노출 — /doctors/[slug] 페이지 @graph 에 주입해 "의사 = 실제 PubMed 논문 저자"
+ * 그래프를 봇에게 제공(GEO A3). 제목 등 콘텐츠는 넣지 않고 식별자·author 관계만(비가시 마크업 위험 최소화).
+ */
+export function buildDoctorScholarlyArticles(
+  d: DoctorBasic,
+): Record<string, unknown>[] {
+  const profile: DoctorProfileData = asDoctorProfileData(d.profile_data);
+  return (profile.pmids ?? []).map((pmid) => ({
+    "@type": "ScholarlyArticle",
+    "@id": `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+    url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+    identifier: { "@type": "PropertyValue", propertyID: "PMID", value: pmid },
+    author: { "@id": doctorPersonId(d.slug) },
+  }));
 }
 
 /**

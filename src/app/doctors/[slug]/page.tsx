@@ -12,9 +12,13 @@ import { jsonLdString } from "@/lib/json-ld";
 import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import {
   asDoctorProfileData,
+  orcidUrl,
   type DoctorProfileData,
 } from "@/lib/doctor-profile";
-import { buildDoctorFull } from "@/lib/schema/doctor";
+import {
+  buildDoctorFull,
+  buildDoctorScholarlyArticles,
+} from "@/lib/schema/doctor";
 import { clinicSchemaForDoctor } from "@/lib/schema/clinic";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { fetchCardList } from "@/lib/search-query";
@@ -131,6 +135,14 @@ export default async function DoctorDetailPage({ params }: Props) {
     intro: doctor.intro,
     profile_data: doctor.profile_data,
   });
+  // 대표 논문(PMID) → ScholarlyArticle (화면 비노출, 봇 전용 저자-논문 그래프 — GEO A3).
+  const scholarlyArticles = buildDoctorScholarlyArticles({
+    slug: doctor.slug,
+    name: doctor.name,
+    title: doctor.title,
+    intro: doctor.intro,
+    profile_data: doctor.profile_data,
+  });
 
   // 해당 의사의 단일 지점 MedicalClinic — physicianLd.worksFor 가 가리키는 entity 보장.
   // 5개 지점 전체 inject 안 함 (페이지 핵심 entity 신호 분산 회피).
@@ -162,6 +174,7 @@ export default async function DoctorDetailPage({ params }: Props) {
           },
         ],
       },
+      ...scholarlyArticles,
       ...(singleClinic ? [singleClinic] : []),
     ],
   };
@@ -315,11 +328,18 @@ function DoctorProfileSection({ profile }: { profile: DoctorProfileData }) {
     leftItems.push({ title: "경력", values: profile.career });
   if (profile.expertise && profile.expertise.length > 0)
     leftItems.push({ title: "전문 분야", values: profile.expertise });
+  if (profile.boardCertifiedYear)
+    leftItems.push({
+      title: "자격",
+      values: [`${profile.boardCertifiedYear}년 전문의 취득`],
+    });
 
-  // 우측 컬럼: 학회 → 출판·저서 (소속/저작 신호)
+  // 우측 컬럼: 학회 → 학회 활동(임원직) → 출판·저서 (소속/저작 신호)
   const rightItems: { title: string; values: string[] }[] = [];
   if (profile.memberOf && profile.memberOf.length > 0)
     rightItems.push({ title: "학회", values: profile.memberOf });
+  if (profile.societyRoles && profile.societyRoles.length > 0)
+    rightItems.push({ title: "학회 활동", values: profile.societyRoles });
   if (profile.publications && profile.publications.length > 0)
     rightItems.push({ title: "출판·저서", values: profile.publications });
 
@@ -335,6 +355,11 @@ function DoctorProfileSection({ profile }: { profile: DoctorProfileData }) {
     externalLinks.push({ label: "YouTube", url: profile.youtube });
   if (profile.blog)
     externalLinks.push({ label: "블로그", url: profile.blog });
+  // 학술 프로필 — 저자 권위 신호 (사람·AI 모두). PMID 는 화면 비노출(스키마 전용).
+  const orcid = orcidUrl(profile);
+  if (orcid) externalLinks.push({ label: "ORCID", url: orcid });
+  if (profile.googleScholarUrl)
+    externalLinks.push({ label: "Google Scholar", url: profile.googleScholarUrl });
 
   if (
     leftItems.length === 0 &&
