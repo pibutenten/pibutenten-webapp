@@ -1,9 +1,9 @@
 /**
  * 시술후기 폼의 시술 선택지(ProcedureOption[]) 빌드 — /review/new 와 /review/[shortcode]/edit 공유.
  *
- * procedure_taxonomy(정식+하위) 를 카테고리(리프팅→스킨부스터) 순으로 묶고,
+ * tag_dictionary(is_procedure=true) 를 카테고리(리프팅→스킨부스터) 순으로 묶고,
  * 각 카테고리 안에서 발행 카드 keywords 빈도(태그 인기순) desc, 동률은 ko 사전순으로 정렬.
- * (태그 검색 getPopularByCategory 와 동일 규칙)
+ * (태그 검색 getPopularByCategory 와 동일 규칙. SSOT=tag_dictionary, procedure_taxonomy 청산 2026-06-06)
  */
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ProcedureOption } from "@/app/review/new/ReviewForm";
@@ -16,20 +16,16 @@ type TaxonomyRow = {
   category: string;
 };
 
-// 카테고리 표시 순서/라벨 — taxonomy.category enum 과 일치.
-const CATEGORY_ORDER: Record<string, number> = { lifting: 0, injectables: 1 };
-const CATEGORY_LABEL: Record<string, string> = {
-  lifting: "리프팅",
-  injectables: "스킨부스터",
-};
+// 카테고리 표시 순서 — tag_dictionary.category(한글) 기준. 시술은 리프팅/스킨부스터 2종.
+const CATEGORY_ORDER: Record<string, number> = { 리프팅: 0, 스킨부스터: 1 };
 
 export async function getReviewProcedures(
   supabase: ServerClient,
 ): Promise<ProcedureOption[]> {
   const { data: taxData } = await supabase
-    .from("procedure_taxonomy")
+    .from("tag_dictionary")
     .select("ko, parent_ko, category")
-    .eq("active", true)
+    .eq("is_procedure", true)
     .returns<TaxonomyRow[]>();
   const rows = taxData ?? [];
 
@@ -61,6 +57,6 @@ export async function getReviewProcedures(
       value: r.ko,
       label: r.ko,
       parentKo: r.parent_ko,
-      categoryLabel: CATEGORY_LABEL[r.category] ?? r.category,
+      categoryLabel: r.category, // tag_dictionary.category 가 이미 한글(리프팅/스킨부스터)
     }));
 }

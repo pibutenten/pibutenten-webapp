@@ -102,16 +102,20 @@ export async function getProcedureReport(
   const rows = data ?? [];
   if (rows.length === 0) return null;
 
-  // 시술 분류(category) 1회 조회 — 카드 테두리 색 분기용. anon SELECT 허용(0204).
+  // 시술 분류(category) 1회 조회 — 카드 테두리 색 분기용. SSOT=tag_dictionary(is_procedure).
+  //   tag_dictionary.category 는 한글(리프팅/스킨부스터) → 기존 영문 slug 로 매핑(테마·schema 정합).
   const { data: taxRow } = await supabase
-    .from("procedure_taxonomy")
+    .from("tag_dictionary")
     .select("category, en")
     .eq("ko", procedureKo)
+    .eq("is_procedure", true)
     .maybeSingle<{ category: string | null; en: string | null }>();
   const category: ProcedureCategory | null =
-    taxRow?.category === "lifting" || taxRow?.category === "injectables"
-      ? taxRow.category
-      : null;
+    taxRow?.category === "리프팅"
+      ? "lifting"
+      : taxRow?.category === "스킨부스터"
+        ? "injectables"
+        : null;
   const en = taxRow?.en ?? "";
 
   // 시술 리포트 앵커(type=review_summary) 조회 — ★일반(공개 RLS) 경로 + published 한정.

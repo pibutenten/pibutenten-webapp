@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-06-06] — C: procedure_taxonomy 청산 (시술 분류 SSOT 단일화 → tag_dictionary)
+
+> 시술 분류를 `procedure_taxonomy` → `tag_dictionary(is_procedure=true)` 단일 SSOT 로 통합하고 procedure_taxonomy 를 DROP. 시술은 양 테이블에 동일 ko 49/49 중복 저장이었음. 디렉터 결정: category 단일화·en=the-l-solution·sort_order 이관·active 폐기.
+
+### Changed
+- **마이그 0257(준비)**: 백업(`procedure_taxonomy_bak_0257` 49 · `procedure_reviews_ko_bak_0257` 155) + `tag_dictionary.sort_order` 컬럼 추가·시술 49개 값 이관. `active`(전부 true)는 폐기 → `is_procedure=true` 로 대체.
+- **마이그 0258(RPC 전환)**: 시술 후기/리포트 RPC 5개(`create_procedure_review`·`update_procedure_review`·`get_review_report_overview`·`get_review_summary_pool`·`procedure_family`)를 `procedure_taxonomy` → `tag_dictionary(is_procedure)` 로 전환. category 는 tag_dictionary 한글값을 **영문 slug 로 매핑 반환**(`리프팅→lifting`·`스킨부스터→injectables`) — 기존 reports·테마·schema.org procedureType 정합 유지(코드 회귀 0). 교차 2건(쥬브젠·울트라콜)은 tag_dictionary 기준으로 자동 정정.
+- **코드 9파일 전환**: middleware(en→ko 308)·sitemap·rss·api/reviews(ko 검증)·api/reports/[procedure]/reviews·reports/[procedure]/page·lib/procedure-report·lib/review-procedures·rename route 의 `procedure_taxonomy` 쿼리를 `tag_dictionary(is_procedure)` 로. `active`→`is_procedure`. admin/review-reports 는 RPC 사용이라 무수정.
+- **마이그 0259(청산)**: ① 더엘주사 리포트 카드 post_slug `the-l-injection`→`the-l-solution`(en 단일화 정합, JOIN 복구) ② `procedure_reviews.procedure_ko` FK 를 `procedure_taxonomy(ko)`→`tag_dictionary(ko) ON UPDATE CASCADE` 재지정(orphan 0) ③ `rename_tag` 단순화(procedure_taxonomy UPDATE/충돌체크 제거 — 이제 tag_dictionary.ko 변경 시 procedure_reviews FK CASCADE 자동 전파) ④ `procedure_taxonomy` DROP(self FK 동반 제거, 잔여 의존 0).
+
+### 검증
+- procedure_taxonomy 제거(존재 0)·FK 재지정 확인·RPC procedure_taxonomy 참조 0. get_review_summary_pool 36건·더엘주사 리포트 JOIN 복구(the_l=1). rename CASCADE 비파괴 실증(써마지 → cards 104·**procedure_reviews 13 자동 전파**, RAISE EXCEPTION 롤백 → 무변경). `tsc`+`build` 통과. preview /reports/써마지 200·thermage 308·review/new·review-reports·sitemap·rss 정상.
+- **알려진 사항**: tag_dictionary.parent_ko self-FK 는 비시술 태그 혼재로 추가 보류(자유 text 유지) — 시술 부모 정합은 rename 코드·autocomplete koSet 검증으로 담보. category 내부 표현은 영문 slug 유지(한글 컬럼→slug 매핑) — 디렉터의 "한글 읽게" 목적(청산+교차정정)은 동일 달성하되 schema/테마 회귀 0 우선.
+
+---
+
 ## [2026-06-06] — 원장 확장 프로필: 학술 ID·자격·임원직 (저자 권위 GEO/E-E-A-T)
 
 ### Added

@@ -132,7 +132,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 - `audit_logs` (0140 — 민감 API 1년 보관)
 
 ### 1.8. 사전 / 참조 (additive, 신규 — 1단계)
-- `tag_dictionary` (0247 — 6분류 태그 사전, 2122행): `ko`(UNIQUE)/`category`(CHECK 6종)/`en`/`parent_ko`/`is_procedure`/`onboarding`(피부고민/피부타입/관심시술/얼굴형, 얼굴형 5종 0254). service_role CRUD GRANT(0252). RLS on + anon/authenticated SELECT(GRANT 0249). 정리본 시드(울트라셀=리프팅 정정). **분류·슬러그 SSOT** — `categoryFor`/`slugFor` 가 빌드타임 스냅샷(`src/data/tag-dictionary.generated.json`, 생성기 `scripts/gen-tag-dictionary.mjs`·prebuild)을 통해 읽음. ※`procedure_taxonomy`(0199, lifting/injectables 45)와 별개의 전(全)분류 사전.
+- `tag_dictionary` (0247 — 6분류 태그 사전, 2125행): `ko`(UNIQUE)/`category`(CHECK 6종)/`en`/`parent_ko`/`is_procedure`/`onboarding`(피부고민/피부타입7종/관심시술/얼굴형5종, 0254/0256)/`sort_order`(시술 폼 순서, 0257). service_role CRUD GRANT(0252). RLS on + anon/authenticated SELECT(GRANT 0249). **분류·슬러그 + 시술 분류 통합 SSOT** — `categoryFor`/`slugFor` 가 빌드타임 스냅샷(`src/data/tag-dictionary.generated.json`, 생성기 `scripts/gen-tag-dictionary.mjs`·prebuild)을 통해 읽음. **시술(is_procedure=true 49) SSOT 도 본 표로 통합**(구 `procedure_taxonomy` 청산 0257~0259, 2026-06-06) — `procedure_reviews.procedure_ko` FK 가 `tag_dictionary(ko) ON UPDATE CASCADE` 참조.
 - `term_glossary` (0248 — 미용피부과학용어집 영한 참조원, 2519행): `en`/`ko`/`meaning_no`/`recommended`(권장★)/`note`. RLS on + anon/authenticated SELECT(GRANT 0249).
 - `tag_review_queue` (0250 — 미지 태그 검수큐): `ko`(UNIQUE)/`suggested_en`/`source`/`created_at`. RLS on·anon REVOKE·`is_admin()` SELECT(admin 만). `register_unknown_tags(text[],text)` RPC + `cards` AFTER INSERT/UPDATE OF keywords 트리거가 미지 키워드를 ②tag_dictionary(미지정+용어집 en)/③검수큐로 자동 분기.
 - `cards_keywords_bak_0246` (0단계 롤백 백업, 1,232행 — 1단계 안정 확인 전까지 유지·삭제 금지).
@@ -373,6 +373,9 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0254 | **온보딩 얼굴형 태그 5종**(2단계 #4). FACE_SHAPES(달걀형/땅콩형/장방형/각진형/둥근형) onboarding='얼굴형'·category='미지정' 적재(en=oval/**diamond**(D6 정정)/oblong/square/round). 백업 `tag_dictionary_bak_0254`(2117). 검증: 적재 5·기존 onboarding(피부고민11·관심시술7·피부타입4) 유지. | **적용 완료 (2026-06-06)** |
 | 0255 | **`cards_register_tags_trg()` enum 버그 fix**(2단계 B). `COALESCE(NEW.type,'?')`(enum,text 공통타입 qa_type 추론 → '?' 캐스팅 실패) → `NEW.type::text` 명시 캐스팅(동작 불변). type NULL 카드 0건이나 keywords 수정 경로 잠재 버그. 검증: 카드 keywords UPDATE 트리거 통과(롤백). | **적용 완료 (2026-06-06)** |
 | 0256 | **온보딩 피부타입 태그 7종 완성**(2단계 D7). 누락 3종(극건성=extreme-dry·중성=normal·극지성=extreme-oily) 적재. onboarding='피부타입'·category='미지정'. profiles.skin_type 실제값 7종 대응. 백업 `tag_dictionary_bak_0256`. | **적용 완료 (2026-06-06)** |
+| 0257 | **procedure_taxonomy 청산 준비**(C-Phase2 STEP1). 백업(procedure_taxonomy_bak_0257 49·procedure_reviews_ko_bak_0257 155) + `tag_dictionary.sort_order` 컬럼 추가·시술 49 값 이관. active 폐기→is_procedure 대체. 비파괴. | **적용 완료 (2026-06-06)** |
+| 0258 | **시술 RPC 5개 SSOT 전환**(C-Phase2 STEP2). create/update_procedure_review·get_review_report_overview·get_review_summary_pool·procedure_family 를 procedure_taxonomy→tag_dictionary(is_procedure). active→is_procedure. category 는 tag_dict 한글→영문 slug 매핑 반환(reports·테마·schema 정합, 교차 2건 자동 정정). | **적용 완료 (2026-06-06)** |
+| 0259 | **procedure_taxonomy DROP**(C-Phase2 STEP3). ①더엘주사 리포트 post_slug the-l-injection→the-l-solution(en 단일화) ②procedure_reviews.procedure_ko FK procedure_taxonomy→tag_dictionary(ko) ON UPDATE CASCADE 재지정(orphan 0) ③rename_tag 단순화(tag_dict 단일, CASCADE 자동 전파) ④procedure_taxonomy DROP. 검증: pool 36·rename CASCADE(써마지 reviews13 자동 전파, 롤백). | **적용 완료 (2026-06-06)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

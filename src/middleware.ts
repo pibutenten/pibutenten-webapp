@@ -215,10 +215,10 @@ export async function middleware(request: NextRequest) {
           { cookies: { getAll: () => [], setAll: () => {} } },
         );
         const { data } = await sb
-          .from("procedure_taxonomy")
+          .from("tag_dictionary")
           .select("ko")
           .eq("en", slug.toLowerCase())
-          .eq("active", true)
+          .eq("is_procedure", true)
           .maybeSingle();
         const ko = (data as { ko?: string | null } | null)?.ko ?? null;
         if (ko && ko !== slug) {

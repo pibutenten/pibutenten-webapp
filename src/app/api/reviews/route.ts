@@ -100,11 +100,12 @@ export async function POST(req: Request) {
   const payload = parsed.data;
   const procedureKo = payload.procedure_ko.trim();
 
-  // 5. 시술명 존재 검증 — procedure_taxonomy.ko 와 매칭.
+  // 5. 시술명 존재 검증 — tag_dictionary(is_procedure=true).ko 와 매칭.
   const { data: taxRow } = await supabase
-    .from("procedure_taxonomy")
+    .from("tag_dictionary")
     .select("ko")
     .eq("ko", procedureKo)
+    .eq("is_procedure", true)
     .maybeSingle();
   if (!taxRow) {
     return errorResponse(null, "invalid_input", "[reviews POST] procedure not found", 400, undefined, {

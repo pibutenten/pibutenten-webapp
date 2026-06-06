@@ -40,10 +40,10 @@ export async function GET(
   const raw = decodeURIComponent(procedure).trim();
   if (!raw) return NextResponse.json({ reviews: [], reviewLiked: {} });
   const { data: tax } = await supabase
-    .from("procedure_taxonomy")
+    .from("tag_dictionary")
     .select("ko, en")
     .or(`en.eq.${raw.toLowerCase()},ko.eq.${raw}`)
-    .eq("active", true)
+    .eq("is_procedure", true)
     .maybeSingle<{ ko: string; en: string }>();
   if (!tax) return NextResponse.json({ reviews: [], reviewLiked: {} });
   const ko = tax.ko;

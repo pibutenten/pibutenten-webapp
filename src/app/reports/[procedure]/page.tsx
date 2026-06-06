@@ -26,10 +26,10 @@ async function resolveProcedure(
   if (!v) return null;
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
-    .from("procedure_taxonomy")
+    .from("tag_dictionary")
     .select("ko, en")
     .or(`en.eq.${v.toLowerCase()},ko.eq.${v}`)
-    .eq("active", true)
+    .eq("is_procedure", true)
     .maybeSingle<{ ko: string; en: string }>();
   return data ? { ko: data.ko, en: data.en } : null;
 }

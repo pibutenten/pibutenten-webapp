@@ -191,9 +191,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .eq("status", "published")
         .is("deleted_at", null);
       const { data: taxRows } = await supabase
-        .from("procedure_taxonomy")
+        .from("tag_dictionary")
         .select("en, ko")
-        .eq("active", true);
+        .eq("is_procedure", true);
       const enToKo = new Map<string, string>(
         ((taxRows ?? []) as Array<{ en: string | null; ko: string | null }>)
           .filter((t): t is { en: string; ko: string } => !!t.en && !!t.ko)

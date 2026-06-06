@@ -106,21 +106,9 @@ export async function POST(
     .eq("ko", newKo)
     .neq("id", id)
     .maybeSingle();
-  let taxonomyConflict = false;
-  if (isProc) {
-    const { data: tdup } = await admin
-      .from("procedure_taxonomy")
-      .select("id")
-      .eq("ko", newKo)
-      .maybeSingle();
-    taxonomyConflict = !!tdup;
-  }
-  const conflict = !!dup || taxonomyConflict;
-  const conflictReason = !conflict
-    ? null
-    : dup
-      ? "사전에 이미 같은 이름의 태그가 있어요."
-      : "시술 분류표에 이미 같은 이름이 있어요.";
+  // 시술 태그는 tag_dictionary 단일 SSOT (procedure_taxonomy 청산 2026-06-06). 사전 충돌만 검사.
+  const conflict = !!dup;
+  const conflictReason = conflict ? "사전에 이미 같은 이름의 태그가 있어요." : null;
 
   // 영향 규모
   const { count: cardsCount } = await admin
