@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-06] — robots 학습봇 개방 + llms.txt/llms-full.txt 정비 (AI 인용·도달 최대화)
+
+### Changed
+- **robots.ts 2-tier 전환**: 3-tier(학습봇 전면 차단) → 2-tier. Tier 1(Allow, 운영경로만 제외)에 주요 AI 학습봇(GPTBot·ClaudeBot·anthropic-ai·CCBot·Google-Extended·Applebot-Extended·Meta-ExternalAgent·Amazonbot·cohere-ai)을 검색·인용봇과 함께 `userAgent` 배열 단일 규칙으로 그룹화. Tier 2(Disallow:/)는 저가치 스크래퍼 4종(Bytespider·Diffbot·Omgilibot·ImagesiftBot)만. `*`는 기본 허용(미래 신규 AI봇 포함). 운영경로·`/report$` 불변(리포트 색인 유지). Vercel Firewall 강제차단 미적용(운영자 결정 — 권고 수준 충분).
+- **llms.txt**: '학습 데이터 무단 사용 금지(학습봇 차단)' 문구 → 'AI 학습·인용 허용 + 출처/면책 요청'으로 교체. 라이선스 줄에 '학습 사용 포함' 추가. robots 정책과 일치화.
+
+### Fixed
+- **/llms-full.txt soft-404 해소**: 기존엔 `/{handle}` 회원 프로필 라우트가 "llms-full.txt"를 핸들로 오인 → "찾을 수 없는 회원" HTML(앱셸)을 200 으로 반환(.txt 인데 HTML = 잘못된 신호). `public/llms-full.txt` 정적 파일 신설 → 동적 라우트보다 우선되어 `text/plain` 실제 텍스트 반환. 내용: llms.txt 헤더 + 정책·신뢰 페이지(about·editorial-policy·medical-review·disclaimer) 전문 + 진입점(doctors·sitemap·rss·topics·reports) + 인용정책·의학면책·NAP. 의사 답변 1,000+건 전문 덤프는 미포함(거대·stale·중복 회피).
+
+### 검증
+- `tsc --noEmit` 0 + `npm run build` 성공. 공개모드(`SITE_PUBLIC=true`) curl: Tier 1 에 GPTBot·ClaudeBot·anthropic-ai·CCBot·Google-Extended·Applebot-Extended·Meta-ExternalAgent·Amazonbot·cohere-ai(Allow) / Tier 2 Disallow:/ 는 Bytespider·Diffbot·Omgilibot·ImagesiftBot 4종만 / `/report$` 보존 확인. `/llms-full.txt` 200·`text/plain`·12,187B(soft-404 해소). `/llms.txt` 200·text/plain·갱신.
+
+---
+
 ## [2026-06-06] — 2단계: 태그 매니저 관리자 화면 (`/admin/tags`)
 
 > 운영자가 배포 없이 `tag_dictionary`(SSOT)를 인라인 편집하는 화면. 전체 카드 목록과 동일 톤. 1차 구현(컬럼·드로어 최종 모양은 육안 후 조정).

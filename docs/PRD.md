@@ -148,10 +148,10 @@
 - 의사 글 URL: `/doctors/{slug}/{year}/{post-slug}` 키워드 기반 slug
 - 회원 글 URL: `/{handle}/{shortcode}` 8자 base58
 - **공개 HOLD 스위치** (2026-05-28): `SITE_PUBLIC` 환경변수. `!== "true"` 면 robots fail-safe 전체 차단. 공개는 운영자가 Vercel 환경변수 추가 후 redeploy.
-- 공개 시 3-tier AI 크롤러 정책 (학습 차단 / 검색·답변 허용 / 일반 검색 허용)
+- 공개 시 2-tier AI 크롤러 정책 (인용·도달 최대화, 2026-06-06): 검색봇 + AI 인용봇 + 주요 학습봇(GPTBot·ClaudeBot·CCBot·Google-Extended·Applebot-Extended·Meta-ExternalAgent·Amazonbot·cohere-ai) 허용, 저가치 스크래퍼 4종(Bytespider·Diffbot·Omgilibot·ImagesiftBot)만 차단
 - RSS: `app/rss.xml/route.ts` — 의사 Q&A 글 최신 50건 (네이버 freshness signal)
 - `/.well-known/`: security.txt (RFC 9116) / agent-card.json / ai-policy.json
-- llms.txt 풀버전 (llmstxt.org 표준)
+- llms.txt + llms-full.txt (정적 큐레이션: 정책·신뢰 페이지 전문 + 진입점 + NAP, llmstxt.org 표준). `public/llms-full.txt` 정적 파일이 `/{handle}` 라우트보다 우선되어 text/plain 서빙 (soft-404 해소)
 - 신뢰 페이지 풀세트 (Mayo/Cleveland Clinic 벤치마크): `/about` · `/editorial-policy` · `/medical-review` · `/corrections` · `/disclosures` · `/disclaimer` · `/doctor-guidelines` · `/contact` · `/terms` · `/privacy`
 - CSP report-uri / report-to → `/api/csp-report` endpoint 적재
 - 검색엔진 verification 토큰 자리 (env 기반, 발급 후 활성): Naver / Google / Bing
