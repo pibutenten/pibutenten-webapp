@@ -35,7 +35,8 @@ type Props = {
   }>;
 };
 
-type SortCol = "usage" | "search" | "created";
+type SortCol = "usage" | "search" | "created" | "onb_name" | "parent_name" | "ko_name";
+const TEXT_SORTS: SortCol[] = ["onb_name", "parent_name", "ko_name"];
 
 function chip(active: boolean) {
   return (
@@ -64,8 +65,8 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   const q = (sp.q ?? "").trim();
   const days = Number.parseInt(sp.days ?? "0", 10) || 0;
   const pageNum = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
-  const sortCol: SortCol =
-    sp.sort === "search" || sp.sort === "created" ? sp.sort : "usage";
+  const ALL_SORTS: SortCol[] = ["usage", "search", "created", "onb_name", "parent_name", "ko_name"];
+  const sortCol: SortCol = ALL_SORTS.includes(sp.sort as SortCol) ? (sp.sort as SortCol) : "usage";
   const sortDir: "asc" | "desc" = sp.dir === "asc" ? "asc" : "desc";
 
   const supabase = await createSupabaseServerClient();
@@ -100,19 +101,29 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   else if (status === "unspec") rows = rows.filter((r) => r.category === "미지정");
   else if (status === "proc") rows = rows.filter((r) => r.is_procedure);
   else if (status === "onb") rows = rows.filter((r) => !!r.onboarding);
+  else if (status === "parent") rows = rows.filter((r) => !!r.parent_ko);
   if (q) rows = rows.filter((r) => r.ko.includes(q));
 
-  // 정렬 (헤더 클릭 / '새 태그' 칩) — 기본 사용량 내림차순(RPC 순서와 동일).
-  const keyOf = (r: TagRow): number =>
-    sortCol === "search"
-      ? r.search_cnt
-      : sortCol === "created"
-        ? new Date(r.first_card_at ?? r.created_at).getTime()
-        : r.usage;
-  rows = [...rows].sort((a, b) => {
-    const d = keyOf(a) - keyOf(b);
-    return sortDir === "asc" ? d : -d;
-  });
+  // 정렬 (헤더 클릭 / '새 태그' 칩) — 숫자 컬럼 vs 텍스트(가나다) 컬럼 분기. 기본 사용량 내림차순.
+  if (TEXT_SORTS.includes(sortCol)) {
+    const textOf = (r: TagRow): string =>
+      sortCol === "onb_name" ? (r.onboarding ?? "") : sortCol === "parent_name" ? (r.parent_ko ?? "") : r.ko;
+    rows = [...rows].sort((a, b) => {
+      const d = textOf(a).localeCompare(textOf(b), "ko");
+      return sortDir === "asc" ? d : -d;
+    });
+  } else {
+    const keyOf = (r: TagRow): number =>
+      sortCol === "search"
+        ? r.search_cnt
+        : sortCol === "created"
+          ? new Date(r.first_card_at ?? r.created_at).getTime()
+          : r.usage;
+    rows = [...rows].sort((a, b) => {
+      const d = keyOf(a) - keyOf(b);
+      return sortDir === "asc" ? d : -d;
+    });
+  }
 
   const filteredCount = rows.length;
   const totalPages = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
@@ -212,11 +223,22 @@ export default async function AdminTagsPage({ searchParams }: Props) {
       </form>
 
       <p className="mb-2 text-xs text-[var(--text-muted)]">
-        {filteredCount.toLocaleString()}개 · {sortCol === "search" ? "검색량" : sortCol === "created" ? "생성일" : "사용량"}{" "}
+        {filteredCount.toLocaleString()}개 ·{" "}
+        {sortCol === "search"
+          ? "검색량"
+          : sortCol === "created"
+            ? "생성일"
+            : sortCol === "onb_name"
+              ? "온보딩 가나다"
+              : sortCol === "parent_name"
+                ? "부모 가나다"
+                : sortCol === "ko_name"
+                  ? "태그 가나다"
+                  : "사용량"}{" "}
         {sortDir === "asc" ? "오름차순" : "내림차순"} (기간 {PERIODS.find((p) => p.days === days)?.label})
       </p>
 
-      <TagAdminTable rows={pageRows} allKo={allKo} sort={sortCol} dir={sortDir} />
+      <TagAdminTable rows={pageRows} allKo={allKo} sort={sortCol} dir={sortDir} status={status} />
 
       {/* 페이지네이션 */}
       {totalPages > 1 ? (

@@ -6,6 +6,27 @@
 
 ---
 
+## [2026-06-06] — 2단계 태그 매니저 육안 후 조정 2차 (A: UI · B: 트리거 버그)
+
+> 1차 조정 후 디렉터 2차 육안 반영(A, 데이터 무변경) + rename 중 발견된 트리거 enum 버그 선결(B).
+
+### Fixed
+- **B. `cards_register_tags_trg()` enum 캐스팅 버그**(마이그 0255) — `'card:' || COALESCE(NEW.type, '?')` 의 `COALESCE(enum, text)` 가 공통 타입을 `qa_type` 으로 추론 → fallback `'?'` 를 enum 캐스팅 시도 → `invalid input value for enum qa_type: "?"`. `NEW.type::text` 로 명시 캐스팅(text 결합)하여 수정. type NULL 카드는 현재 0건이나 keywords 수정 경로의 잠재 버그(rename 일괄 UPDATE 시 노출). 비파괴 검증: 일반 카드(id=1235) keywords UPDATE 트리거 발동 통과(롤백).
+
+### Changed
+- **A1 rename 모달**: 모달 폭 `max-w-md`→`max-w-lg`, 안내문 `break-keep`+여유 leading 으로 텍스트 잘림 해소.
+- **A2 부모 autocomplete**: `datalist`(통짜 노출) → 커스텀 콤보박스. 타이핑 필터 + 드롭다운(max-height ≈7개·스크롤). `createPortal` 로 테이블 `overflow` 잘림 회피. 저장 시 존재 태그만 검증.
+- **A3 열 너비 고정**: `table-layout:fixed` + `<colgroup>` 고정 px. 읽기↔편집 셀 폭 불변(위젯·표시 모두 `w-full`).
+- **A4 편집 placeholder**: 편집 input 은 안내 placeholder("영문"/"부모 태그"), `—` 는 읽기 모드 빈 값 표시 전용.
+- **A5 저장 방식**: 셀 클릭 즉시 저장 → **셀 편집은 draft 변경만**, dirty 시 행 amber 하이라이트 + 행 끝 **[저장]** 버튼 클릭 시 변경 필드만 일괄 PATCH(부분 수정). ko(rename)는 별도 모달 즉시.
+- **A6 헤더 분기**: 온보딩·부모·시술 후기 헤더 클릭 = 값 있는 행만 필터 + **가나다순**(replace, 토글 해제 지원). 사용량·검색량·생성일 = 정렬 내림/오름 토글(기존). tags/page 에 `status=parent` 필터 + 텍스트 정렬(`onb_name`/`parent_name`/`ko_name`, `localeCompare('ko')`) 추가.
+- **A7 인기 패널(PopularCards)**: 가로 흐름 → **세로 흐름**(좌열 1~10·중열 11~20·우열 21~30, `grid-flow-col`+10행) + 30칸 빈 슬롯 렌더로 **패널 높이 고정**(기간칩으로 항목 줄어도 일정). 검색어·태그 공통 `RankGrid` 로 통합.
+
+### 검증
+- B 비파괴 실증(카드 keywords UPDATE 트리거 통과, 롤백). `tsc`+`build` 통과. preview 변경 라우트 200·서버 에러 0.
+
+---
+
 ## [2026-06-06] — 2단계 태그 매니저 육안 후 조정 (디렉터 피드백 일괄)
 
 > 1차 화면(0251)을 디렉터 육안 후 조정. 0번(저장 버그) 최우선 + 인라인 편집 UX·정렬·필터·온보딩·인기패널·라벨.

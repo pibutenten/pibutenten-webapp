@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { formatYmd } from "@/lib/format-date";
@@ -23,10 +24,13 @@ const CATEGORIES = ["피부고민", "리프팅", "스킨부스터", "홈케어",
 // 온보딩 4종 — 얼굴형·피부타입·피부고민·관심시술 (얼굴형 추가, 2026-06-06).
 const ONBOARDING = ["", "얼굴형", "피부타입", "피부고민", "관심시술"];
 
-type SortCol = "usage" | "search" | "created";
+type SortCol = "usage" | "search" | "created" | "onb_name" | "parent_name" | "ko_name";
 
-/** 개별 필드 PATCH (보낸 필드만 갱신). 성공 true. 실패 시 toast 후 false. */
-async function patchField(id: number, body: Record<string, unknown>): Promise<boolean> {
+type Editable = Pick<TagRow, "category" | "en" | "parent_ko" | "is_procedure" | "onboarding">;
+
+/** 변경 필드만 묶어 PATCH. 성공 true. */
+async function patchFields(id: number, body: Record<string, unknown>): Promise<boolean> {
+  if (Object.keys(body).length === 0) return true;
   try {
     const r = await fetch(`/api/admin/tag-dictionary/${id}`, {
       method: "PATCH",
@@ -45,156 +49,101 @@ async function patchField(id: number, body: Record<string, unknown>): Promise<bo
   }
 }
 
-const cellBox =
+// 읽기↔편집 폭 불변(table-layout:fixed) — 셀 위젯·표시 모두 w-full.
+const editBox =
   "w-full rounded border border-[var(--border)] bg-white px-1.5 py-1 text-xs focus:border-[var(--primary)] focus:outline-none";
-const displayBox =
-  "block w-full cursor-text rounded px-1.5 py-1 text-xs hover:bg-[var(--bg-soft)] min-h-[26px]";
+const readBox =
+  "block w-full cursor-pointer truncate rounded px-1.5 py-1 text-xs hover:bg-[var(--bg-soft)]";
 
-/** 텍스트 셀 — 표시값 클릭 시 그 자리 input(F2식). Enter/blur 저장, Esc 취소. */
-function TextCell({
+/** 부모 autocomplete — 타이핑 필터 + 드롭다운(최대 높이·스크롤). 통짜 노출 방지. */
+function ParentCombo({
   value,
-  placeholder,
-  list,
-  validate,
-  onSave,
+  allKo,
+  onChange,
+  onClose,
 }: {
   value: string;
-  placeholder?: string;
-  list?: string;
-  /** 저장 전 검증. 메시지 반환 시 거부(toast). null 이면 통과. */
-  validate?: (v: string) => string | null;
-  onSave: (v: string) => Promise<boolean>;
+  allKo: string[];
+  onChange: (v: string) => void;
+  onClose: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const ref = useRef<HTMLInputElement>(null);
+  const [q, setQ] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
-    if (editing) {
-      ref.current?.focus();
-      ref.current?.select();
-    }
-  }, [editing]);
+    inputRef.current?.focus();
+    inputRef.current?.select();
+    const r = inputRef.current?.getBoundingClientRect();
+    if (r) setRect({ top: r.bottom + 2, left: r.left, width: Math.max(r.width, 160) });
+  }, []);
 
-  async function commit() {
-    const v = draft.trim();
-    if (v === value) {
-      setEditing(false);
-      return;
-    }
-    if (validate) {
-      const msg = validate(v);
-      if (msg) {
-        showToast(msg, { tone: "danger" });
-        return; // 편집 유지
-      }
-    }
-    const ok = await onSave(v);
-    if (ok) setEditing(false);
+  const norm = q.trim();
+  const matches = (norm ? allKo.filter((k) => k.includes(norm)) : allKo).slice(0, 100);
+
+  function pick(k: string) {
+    setQ(k);
+    onChange(k);
+    onClose();
   }
 
-  if (!editing) {
-    return (
-      <span
-        role="button"
-        tabIndex={0}
-        onClick={() => {
-          setDraft(value);
-          setEditing(true);
+  return (
+    <>
+      <input
+        ref={inputRef}
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value);
+          onChange(e.target.value);
         }}
+        onBlur={onClose}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === "F2") {
-            setDraft(value);
-            setEditing(true);
+          if (e.key === "Escape" || e.key === "Enter") {
+            e.preventDefault();
+            onClose();
           }
         }}
-        className={displayBox + (value ? "" : " text-[var(--text-muted)]")}
-        title="클릭하여 편집"
-      >
-        {value || placeholder || "—"}
-      </span>
-    );
-  }
-  return (
-    <input
-      ref={ref}
-      list={list}
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          void commit();
-        } else if (e.key === "Escape") {
-          setEditing(false);
-        }
-      }}
-      placeholder={placeholder}
-      className={cellBox}
-    />
+        placeholder="부모 태그"
+        className={editBox}
+      />
+      {rect && matches.length > 0
+        ? createPortal(
+            <ul
+              style={{
+                position: "fixed",
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                maxHeight: "11rem", // 약 7개 + 스크롤
+                overflowY: "auto",
+                zIndex: 60,
+              }}
+              className="rounded-md border border-[var(--border)] bg-white py-1 text-xs shadow-lg"
+            >
+              {matches.map((k) => (
+                <li key={k}>
+                  <button
+                    type="button"
+                    // blur 보다 먼저 선택되도록 mousedown + preventDefault
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pick(k);
+                    }}
+                    className="block w-full truncate px-2 py-1 text-left hover:bg-[var(--bg-soft)]"
+                  >
+                    {k}
+                  </button>
+                </li>
+              ))}
+            </ul>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
-/** 셀렉트 셀 — 표시값 클릭 시 select 노출. 변경 즉시 저장. */
-function SelectCell({
-  value,
-  options,
-  onSave,
-}: {
-  value: string;
-  options: string[];
-  onSave: (v: string) => Promise<boolean>;
-}) {
-  const [editing, setEditing] = useState(false);
-  const ref = useRef<HTMLSelectElement>(null);
-
-  useEffect(() => {
-    if (editing) ref.current?.focus();
-  }, [editing]);
-
-  if (!editing) {
-    return (
-      <span
-        role="button"
-        tabIndex={0}
-        onClick={() => setEditing(true)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === "F2") setEditing(true);
-        }}
-        className={displayBox + (value ? "" : " text-[var(--text-muted)]")}
-        title="클릭하여 편집"
-      >
-        {value || "—"}
-      </span>
-    );
-  }
-  return (
-    <select
-      ref={ref}
-      defaultValue={value}
-      onBlur={() => setEditing(false)}
-      onChange={async (e) => {
-        const v = e.target.value;
-        if (v === value) {
-          setEditing(false);
-          return;
-        }
-        const ok = await onSave(v);
-        if (ok) setEditing(false);
-      }}
-      className={cellBox}
-    >
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {o || "—"}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-/** 태그(ko) rename — 위험 작업이라 미리보기 게이트 모달로 분리. */
+/** 태그(ko) rename — 미리보기 게이트 모달. */
 function RenameModal({
   row,
   onClose,
@@ -214,7 +163,6 @@ function RenameModal({
     conflictReason: string | null;
   } | null>(null);
 
-  // 입력이 바뀌면 직전 미리보기 무효화 (확정 전 재미리보기 강제)
   useEffect(() => {
     setPreview(null);
   }, [newKo]);
@@ -279,11 +227,12 @@ function RenameModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 text-left shadow-lg"
+        className="w-full max-w-lg rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 text-left shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="mb-1 text-sm font-bold text-[var(--text)]">태그 이름 변경</h3>
-        <p className="mb-3 text-xs text-[var(--text-muted)]">
+        {/* 줄바꿈 보장 — 긴 안내문이 잘리지 않게 break-keep + leading 여유 */}
+        <p className="mb-3 break-keep text-xs leading-relaxed text-[var(--text-muted)]">
           현재 <b className="text-[var(--text)]">{row.ko}</b> · 변경 시 카드 글상자 태그(keywords)에
           전파됩니다. 사이트 색상·칩은 다음 배포에 반영됩니다.
         </p>
@@ -298,9 +247,9 @@ function RenameModal({
         {preview ? (
           <div className="mb-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] p-3 text-xs">
             {preview.conflict ? (
-              <p className="font-medium text-red-600">{preview.conflictReason}</p>
+              <p className="break-keep font-medium text-red-600">{preview.conflictReason}</p>
             ) : (
-              <ul className="space-y-1 text-[var(--text-secondary)]">
+              <ul className="space-y-1 break-keep text-[var(--text-secondary)]">
                 <li>
                   영향 카드:{" "}
                   <b className="tabular-nums text-[var(--text)]">{preview.affectedCards.toLocaleString()}</b>건
@@ -352,27 +301,63 @@ function RenameModal({
   );
 }
 
-function Row({ row, koSet }: { row: TagRow; koSet: Set<string> }) {
+function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<string> }) {
   const [ko, setKo] = useState(row.ko);
-  const [category, setCategory] = useState(row.category);
-  const [en, setEn] = useState(row.en ?? "");
-  const [parent, setParent] = useState(row.parent_ko ?? "");
-  const [isProc, setIsProc] = useState(row.is_procedure);
-  const [onboarding, setOnboarding] = useState(row.onboarding ?? "");
+  const base: Editable = {
+    category: row.category,
+    en: row.en,
+    parent_ko: row.parent_ko,
+    is_procedure: row.is_procedure,
+    onboarding: row.onboarding,
+  };
+  const [saved, setSaved] = useState<Editable>(base);
+  const [draft, setDraft] = useState<Editable>(base);
+  const [editing, setEditing] = useState<null | "category" | "en" | "parent" | "onboarding">(null);
+  const [busy, setBusy] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
 
-  const createdLabel = row.first_card_at
-    ? formatYmd(row.first_card_at)
-    : formatYmd(row.created_at);
+  const dirty =
+    draft.category !== saved.category ||
+    (draft.en ?? "") !== (saved.en ?? "") ||
+    (draft.parent_ko ?? "") !== (saved.parent_ko ?? "") ||
+    draft.is_procedure !== saved.is_procedure ||
+    (draft.onboarding ?? "") !== (saved.onboarding ?? "");
+
+  async function save() {
+    if (!dirty || busy) return;
+    // 부모 존재 검증 (입력했는데 사전에 없는 태그면 거부)
+    const p = (draft.parent_ko ?? "").trim();
+    if (p && !koSet.has(p)) {
+      showToast("존재하는 태그만 부모로 지정할 수 있어요.", { tone: "danger" });
+      return;
+    }
+    const body: Record<string, unknown> = {};
+    if (draft.category !== saved.category) body.category = draft.category;
+    if ((draft.en ?? "") !== (saved.en ?? "")) body.en = (draft.en ?? "").trim();
+    if ((draft.parent_ko ?? "") !== (saved.parent_ko ?? "")) body.parent_ko = p;
+    if (draft.is_procedure !== saved.is_procedure) body.is_procedure = draft.is_procedure;
+    if ((draft.onboarding ?? "") !== (saved.onboarding ?? "")) body.onboarding = draft.onboarding ?? "";
+
+    setBusy(true);
+    const ok = await patchFields(row.id, body);
+    setBusy(false);
+    if (ok) {
+      setSaved({ ...draft, en: body.en !== undefined ? (body.en as string) : draft.en, parent_ko: body.parent_ko !== undefined ? (body.parent_ko as string) : draft.parent_ko });
+      setDraft((d) => ({ ...d, en: (d.en ?? "").trim(), parent_ko: (d.parent_ko ?? "").trim() }));
+      showToast(`'${ko}' 저장됨`);
+    }
+  }
+
+  const createdLabel = row.first_card_at ? formatYmd(row.first_card_at) : formatYmd(row.created_at);
 
   return (
-    <tr className="hover:bg-[var(--bg-soft)]">
+    <tr className={dirty ? "bg-amber-50/70" : "hover:bg-[var(--bg-soft)]"}>
       {/* 태그(ko) — 클릭 시 rename 모달 */}
-      <td className="px-2 py-1.5 whitespace-nowrap">
+      <td className="px-2 py-1.5">
         <button
           type="button"
           onClick={() => setRenameOpen(true)}
-          className="rounded px-1.5 py-1 text-xs font-medium text-[var(--text)] hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
+          className="block w-full truncate rounded px-1.5 py-1 text-left text-xs font-medium text-[var(--text)] hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
           title="클릭하여 이름 변경"
         >
           {ko}
@@ -387,70 +372,110 @@ function Row({ row, koSet }: { row: TagRow; koSet: Set<string> }) {
       </td>
       {/* 분류 */}
       <td className="px-2 py-1.5">
-        <SelectCell
-          value={category}
-          options={CATEGORIES}
-          onSave={async (v) => {
-            const ok = await patchField(row.id, { category: v });
-            if (ok) {
-              setCategory(v);
-              showToast(`'${ko}' 분류 저장됨`);
-            }
-            return ok;
-          }}
-        />
+        {editing === "category" ? (
+          <select
+            autoFocus
+            value={draft.category}
+            onChange={(e) => {
+              setDraft({ ...draft, category: e.target.value });
+              setEditing(null);
+            }}
+            onBlur={() => setEditing(null)}
+            className={editBox}
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        ) : (
+          <span role="button" tabIndex={0} onClick={() => setEditing("category")} className={readBox}>
+            {draft.category}
+          </span>
+        )}
       </td>
       {/* 영문 */}
       <td className="px-2 py-1.5">
-        <TextCell
-          value={en}
-          placeholder="—"
-          onSave={async (v) => {
-            const ok = await patchField(row.id, { en: v });
-            if (ok) setEn(v);
-            return ok;
-          }}
-        />
+        {editing === "en" ? (
+          <input
+            autoFocus
+            value={draft.en ?? ""}
+            onChange={(e) => setDraft({ ...draft, en: e.target.value })}
+            onBlur={() => setEditing(null)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === "Escape") {
+                e.preventDefault();
+                setEditing(null);
+              }
+            }}
+            placeholder="영문"
+            className={editBox}
+          />
+        ) : (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={() => setEditing("en")}
+            className={readBox + ((draft.en ?? "") ? "" : " text-[var(--text-muted)]")}
+          >
+            {(draft.en ?? "") || "—"}
+          </span>
+        )}
       </td>
-      {/* 부모 — 존재 태그만 매칭 (autocomplete) */}
+      {/* 부모 — autocomplete */}
       <td className="px-2 py-1.5">
-        <TextCell
-          value={parent}
-          placeholder="—"
-          list="tag-parent-list"
-          validate={(v) =>
-            v === "" || koSet.has(v) ? null : "존재하는 태그만 부모로 지정할 수 있어요."
-          }
-          onSave={async (v) => {
-            const ok = await patchField(row.id, { parent_ko: v });
-            if (ok) setParent(v);
-            return ok;
-          }}
-        />
+        {editing === "parent" ? (
+          <ParentCombo
+            value={draft.parent_ko ?? ""}
+            allKo={allKo}
+            onChange={(v) => setDraft({ ...draft, parent_ko: v })}
+            onClose={() => setEditing(null)}
+          />
+        ) : (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={() => setEditing("parent")}
+            className={readBox + ((draft.parent_ko ?? "") ? "" : " text-[var(--text-muted)]")}
+          >
+            {(draft.parent_ko ?? "") || "—"}
+          </span>
+        )}
       </td>
       {/* 시술 후기 (is_procedure) */}
       <td className="px-2 py-1.5 text-center">
         <input
           type="checkbox"
-          checked={isProc}
-          onChange={async (e) => {
-            const v = e.target.checked;
-            const ok = await patchField(row.id, { is_procedure: v });
-            if (ok) setIsProc(v);
-          }}
+          checked={draft.is_procedure}
+          onChange={(e) => setDraft({ ...draft, is_procedure: e.target.checked })}
         />
       </td>
       {/* 온보딩 */}
       <td className="px-2 py-1.5">
-        <SelectCell
-          value={onboarding}
-          options={ONBOARDING}
-          onSave={async (v) => {
-            const ok = await patchField(row.id, { onboarding: v });
-            if (ok) setOnboarding(v);
-            return ok;
-          }}
-        />
+        {editing === "onboarding" ? (
+          <select
+            autoFocus
+            value={draft.onboarding ?? ""}
+            onChange={(e) => {
+              setDraft({ ...draft, onboarding: e.target.value });
+              setEditing(null);
+            }}
+            onBlur={() => setEditing(null)}
+            className={editBox}
+          >
+            {ONBOARDING.map((o) => (
+              <option key={o} value={o}>{o || "—"}</option>
+            ))}
+          </select>
+        ) : (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={() => setEditing("onboarding")}
+            className={readBox + ((draft.onboarding ?? "") ? "" : " text-[var(--text-muted)]")}
+          >
+            {(draft.onboarding ?? "") || "—"}
+          </span>
+        )}
       </td>
       <td className="px-2 py-1.5 text-right tabular-nums">{row.usage.toLocaleString()}</td>
       <td className="px-2 py-1.5 text-right tabular-nums text-[var(--text-muted)]">
@@ -459,48 +484,91 @@ function Row({ row, koSet }: { row: TagRow; koSet: Set<string> }) {
       <td className="px-2 py-1.5 text-right text-[11px] text-[var(--text-muted)] whitespace-nowrap">
         {createdLabel}
       </td>
+      {/* 관리 — 행 단위 저장 */}
+      <td className="px-2 py-1.5 text-center">
+        <button
+          type="button"
+          onClick={save}
+          disabled={!dirty || busy}
+          className={
+            "rounded px-2 py-1 text-[11px] font-medium transition-colors " +
+            (dirty && !busy
+              ? "bg-[var(--primary)] text-white hover:bg-[var(--primary-active)]"
+              : "cursor-default bg-[var(--bg-soft)] text-[var(--text-muted)]")
+          }
+        >
+          {busy ? "저장중" : "저장"}
+        </button>
+      </td>
     </tr>
   );
 }
 
-/** 정렬 헤더 — 클릭 시 URL sort/dir 갱신(replace, history 미적립). */
-function SortHeader({
-  col,
-  label,
-  sort,
-  dir,
-}: {
-  col: SortCol;
-  label: string;
-  sort: SortCol;
-  dir: "asc" | "desc";
-}) {
+/** 정렬 헤더(숫자 컬럼) — 클릭 내림차순, 재클릭 오름차순(replace). */
+function SortHeader({ col, label, sort, dir }: { col: SortCol; label: string; sort: SortCol; dir: "asc" | "desc" }) {
   const router = useRouter();
   const sp = useSearchParams();
   const active = sort === col;
   const arrow = active ? (dir === "desc" ? " ↓" : " ↑") : "";
-
   function onClick() {
-    const params = new URLSearchParams(sp.toString());
-    // 처음 클릭 = 내림차순(큰/최신 순), 재클릭 = 오름차순 토글.
+    const p = new URLSearchParams(sp.toString());
     const nextDir = active && dir === "desc" ? "asc" : "desc";
-    params.set("sort", col);
-    params.set("dir", nextDir);
-    params.delete("page");
-    router.replace(`/admin/tags?${params.toString()}`, { scroll: false });
+    p.set("sort", col);
+    p.set("dir", nextDir);
+    p.delete("page");
+    router.replace(`/admin/tags?${p.toString()}`, { scroll: false });
   }
-
   return (
     <button
       type="button"
       onClick={onClick}
-      className={
-        "inline-flex items-center font-medium hover:text-[var(--primary)] " +
-        (active ? "text-[var(--primary)]" : "")
-      }
+      className={"inline-flex items-center font-medium hover:text-[var(--primary)] " + (active ? "text-[var(--primary)]" : "")}
     >
       {label}
       <span className="w-3 text-[10px]">{arrow}</span>
+    </button>
+  );
+}
+
+/** 필터 헤더(온보딩·부모·시술후기) — 클릭 시 값 있는 행만 필터 + 가나다순(replace). */
+function FilterHeader({
+  label,
+  status,
+  sortCol,
+  curStatus,
+}: {
+  label: string;
+  status: "onb" | "parent" | "proc";
+  sortCol: SortCol;
+  curStatus: string;
+}) {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const active = curStatus === status;
+  function onClick() {
+    const p = new URLSearchParams(sp.toString());
+    if (active) {
+      // 토글 해제
+      p.delete("status");
+      p.delete("sort");
+      p.delete("dir");
+    } else {
+      p.set("status", status);
+      p.set("sort", sortCol);
+      p.set("dir", "asc");
+    }
+    p.delete("page");
+    router.replace(`/admin/tags?${p.toString()}`, { scroll: false });
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="클릭: 값 있는 행만 가나다순"
+      className={"inline-flex items-center font-medium hover:text-[var(--primary)] " + (active ? "text-[var(--primary)]" : "")}
+    >
+      {label}
+      <span className="w-3 text-[10px]">{active ? " ▾" : ""}</span>
     </button>
   );
 }
@@ -510,49 +578,63 @@ export default function TagAdminTable({
   allKo,
   sort,
   dir,
+  status,
 }: {
   rows: TagRow[];
-  /** 부모 autocomplete + 검증용 전체 태그 ko 목록 */
   allKo: string[];
   sort: SortCol;
   dir: "asc" | "desc";
+  /** 현재 상태 필터(필터 헤더 활성 표시용) */
+  status: string;
 }) {
   const koSet = new Set(allKo);
   return (
-    <>
-      <datalist id="tag-parent-list">
-        {allKo.map((p) => (
-          <option key={p} value={p} />
-        ))}
-      </datalist>
-      <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
-        <table className="w-full min-w-[920px] border-collapse text-sm">
-          <thead className="bg-[var(--bg-soft)] text-[var(--text-secondary)]">
-            <tr>
-              <th className="px-2 py-2 text-left font-medium">태그</th>
-              <th className="px-2 py-2 text-left font-medium">분류</th>
-              <th className="px-2 py-2 text-left font-medium">영문</th>
-              <th className="px-2 py-2 text-left font-medium">부모</th>
-              <th className="px-2 py-2 text-center font-medium">시술 후기</th>
-              <th className="px-2 py-2 text-left font-medium">온보딩</th>
-              <th className="px-2 py-2 text-right font-medium">
-                <SortHeader col="usage" label="사용량" sort={sort} dir={dir} />
-              </th>
-              <th className="px-2 py-2 text-right font-medium">
-                <SortHeader col="search" label="검색량" sort={sort} dir={dir} />
-              </th>
-              <th className="px-2 py-2 text-right font-medium">
-                <SortHeader col="created" label="생성일" sort={sort} dir={dir} />
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border)]">
-            {rows.map((r) => (
-              <Row key={r.id} row={r} koSet={koSet} />
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+    <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
+      <table className="w-full min-w-[1020px] table-fixed border-collapse text-sm">
+        <colgroup>
+          <col style={{ width: "140px" }} />
+          <col style={{ width: "110px" }} />
+          <col style={{ width: "130px" }} />
+          <col style={{ width: "120px" }} />
+          <col style={{ width: "84px" }} />
+          <col style={{ width: "110px" }} />
+          <col style={{ width: "82px" }} />
+          <col style={{ width: "82px" }} />
+          <col style={{ width: "92px" }} />
+          <col style={{ width: "70px" }} />
+        </colgroup>
+        <thead className="bg-[var(--bg-soft)] text-[var(--text-secondary)]">
+          <tr>
+            <th className="px-2 py-2 text-left font-medium">태그</th>
+            <th className="px-2 py-2 text-left font-medium">분류</th>
+            <th className="px-2 py-2 text-left font-medium">영문</th>
+            <th className="px-2 py-2 text-left font-medium">
+              <FilterHeader label="부모" status="parent" sortCol="parent_name" curStatus={status} />
+            </th>
+            <th className="px-2 py-2 text-center font-medium">
+              <FilterHeader label="시술 후기" status="proc" sortCol="ko_name" curStatus={status} />
+            </th>
+            <th className="px-2 py-2 text-left font-medium">
+              <FilterHeader label="온보딩" status="onb" sortCol="onb_name" curStatus={status} />
+            </th>
+            <th className="px-2 py-2 text-right font-medium">
+              <SortHeader col="usage" label="사용량" sort={sort} dir={dir} />
+            </th>
+            <th className="px-2 py-2 text-right font-medium">
+              <SortHeader col="search" label="검색량" sort={sort} dir={dir} />
+            </th>
+            <th className="px-2 py-2 text-right font-medium">
+              <SortHeader col="created" label="생성일" sort={sort} dir={dir} />
+            </th>
+            <th className="px-2 py-2 text-center font-medium">관리</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--border)]">
+          {rows.map((r) => (
+            <Row key={r.id} row={r} allKo={allKo} koSet={koSet} />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
