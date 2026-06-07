@@ -463,8 +463,8 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
                     <button type="button" onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
                   </div>
                   <div className="flex gap-1.5">
+                    <input className={inputSm + " w-[120px] shrink-0"} placeholder="용량 (예: 600샷)" value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value })} />
                     <input inputMode="numeric" className={inputSm + " min-w-0 flex-1"} placeholder="가격" value={p.price ? Number(p.price).toLocaleString() : ""} onChange={(e) => upd(p.id, { price: e.target.value.replace(/[^0-9]/g, "") })} />
-                    <input className={inputSm + " w-[116px] shrink-0"} placeholder="단위 (예: 600샷)" value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value })} />
                   </div>
                   <input className={inputSm + " w-full"} placeholder="비고 (그 외 메모)" value={p.note} onChange={(e) => upd(p.id, { note: e.target.value })} />
                 </div>
