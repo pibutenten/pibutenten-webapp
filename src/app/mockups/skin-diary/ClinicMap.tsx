@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -38,6 +38,16 @@ function Recenter({ lat, lng, zoom }: { lat: number; lng: number; zoom: number }
   return null;
 }
 
+/** 전체화면 토글 등 컨테이너 크기 변경 시 타일 재계산. */
+function InvalidateOnResize({ dep }: { dep: unknown }) {
+  const map = useMap();
+  useEffect(() => {
+    const t = setTimeout(() => map.invalidateSize(), 80);
+    return () => clearTimeout(t);
+  }, [dep, map]);
+  return null;
+}
+
 export default function ClinicMap({
   center,
   pins,
@@ -51,19 +61,31 @@ export default function ClinicMap({
   height?: number;
   onPick?: (label: string) => void;
 }) {
+  const [full, setFull] = useState(false);
   return (
-    <div className="overflow-hidden rounded-md" style={{ height }}>
+    <div
+      className={full ? "fixed inset-0 z-[1000] bg-white p-3" : "relative overflow-hidden rounded-md"}
+      style={full ? undefined : { height }}
+    >
       {/* 병원 이름 라벨(상시 tooltip) — 작고 깔끔하게. */}
       <style>{`
         .leaflet-tooltip.clinic-tip{background:#fff;border:1px solid #E5E3DD;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:600;color:#383F47;box-shadow:0 1px 3px rgba(0,0,0,.2);white-space:nowrap}
         .leaflet-tooltip.clinic-tip::before{display:none}
       `}</style>
+      <button
+        type="button"
+        onClick={() => setFull((f) => !f)}
+        className="absolute right-2 top-2 z-[1001] rounded-md bg-white/95 px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)] shadow-[0_2px_6px_rgba(0,0,0,0.2)]"
+      >
+        {full ? "닫기 ✕" : "전체화면 ⤢"}
+      </button>
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={zoom}
         scrollWheelZoom
         style={{ height: "100%", width: "100%" }}
       >
+        <InvalidateOnResize dep={full} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

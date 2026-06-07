@@ -1,0 +1,147 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type { MapPin } from "./ClinicMap";
+
+/**
+ * 시술일기 병원 위치 지도 — 네이버 클라우드(NCP) Web Dynamic Map.
+ * - NEXT_PUBLIC_NAVER_MAP_CLIENT_ID(공개 Client ID)로 maps.js 로드.
+ * - clinics 좌표(위도 lat / 경도 lng)로 커스텀 핀 + 병원 이름 라벨 표시.
+ * - 휠 줌, 전체화면 토글 지원. SSR 비호환 → 부모에서 ssr:false 로 로드.
+ */
+
+declare global {
+  interface Window {
+    naver?: typeof naver;
+    navermap_authFailure?: () => void;
+  }
+}
+// 네이버 maps 전역 타입은 SDK 가 런타임 주입 → any 로 최소 처리.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const naver: any;
+
+const CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID;
+
+let loader: Promise<void> | null = null;
+function loadNaverMaps(): Promise<void> {
+  if (typeof window === "undefined") return Promise.reject(new Error("no window"));
+  if (window.naver?.maps) return Promise.resolve();
+  if (loader) return loader;
+  loader = new Promise<void>((resolve, reject) => {
+    const s = document.createElement("script");
+    s.id = "naver-maps-sdk";
+    s.async = true;
+    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("naver maps load fail"));
+    document.head.appendChild(s);
+  });
+  return loader;
+}
+
+const esc = (s: string) =>
+  s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+
+function markerContent(p: MapPin): string {
+  const size = p.active ? 34 : 28;
+  const c = p.active ? "#1B87C9" : "#4CBFF2";
+  return `<div style="position:relative;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;line-height:1">
+    <span style="background:#fff;border:1px solid #E5E3DD;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:600;color:#383F47;box-shadow:0 1px 3px rgba(0,0,0,.2);white-space:nowrap;margin-bottom:2px">${esc(p.label)}</span>
+    <svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${c}" stroke="#fff" stroke-width="1.5" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))"><path d="M12 22s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12z"/><circle cx="12" cy="10" r="2.6" fill="#fff" stroke="none"/></svg>
+  </div>`;
+}
+
+export default function NaverMap({
+  center,
+  pins,
+  zoom = 14,
+  height = 200,
+  onPick,
+}: {
+  center: { lat: number; lng: number };
+  pins: MapPin[];
+  zoom?: number;
+  height?: number;
+  onPick?: (label: string) => void;
+}) {
+  const elRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markersRef = useRef<any[]>([]);
+  const [err, setErr] = useState(false);
+  const [full, setFull] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.navermap_authFailure = () => setErr(true);
+    loadNaverMaps()
+      .then(() => {
+        if (cancelled || !elRef.current || !window.naver?.maps) {
+          if (!window.naver?.maps) setErr(true);
+          return;
+        }
+        if (!mapRef.current) {
+          mapRef.current = new naver.maps.Map(elRef.current, {
+            center: new naver.maps.LatLng(center.lat, center.lng),
+            zoom,
+            scrollWheel: true,
+          });
+        } else {
+          mapRef.current.setCenter(new naver.maps.LatLng(center.lat, center.lng));
+          mapRef.current.setZoom(zoom);
+        }
+        markersRef.current.forEach((m) => m.setMap(null));
+        markersRef.current = pins.map((p) => {
+          const mk = new naver.maps.Marker({
+            position: new naver.maps.LatLng(p.lat, p.lng),
+            map: mapRef.current,
+            icon: { content: markerContent(p) },
+          });
+          if (onPick) naver.maps.Event.addListener(mk, "click", () => onPick(p.label));
+          return mk;
+        });
+      })
+      .catch(() => setErr(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [center.lat, center.lng, zoom, pins, onPick]);
+
+  // 전체화면 전환 시 지도 크기 재계산 + 중심 복원.
+  useEffect(() => {
+    if (!mapRef.current || !window.naver?.maps) return;
+    const t = setTimeout(() => {
+      naver.maps.Event.trigger(mapRef.current, "resize");
+      mapRef.current.setCenter(new naver.maps.LatLng(center.lat, center.lng));
+    }, 80);
+    return () => clearTimeout(t);
+  }, [full, center.lat, center.lng]);
+
+  if (err) {
+    return (
+      <div
+        className="flex items-center justify-center rounded-md bg-[var(--bg-soft)] px-3 text-center text-[12px] text-[var(--text-muted)]"
+        style={{ height }}
+      >
+        지도를 불러오지 못했어요. (네이버 지도 키·도메인 설정 확인 필요)
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={full ? "fixed inset-0 z-[1000] bg-white p-3" : "relative overflow-hidden rounded-md"}
+      style={full ? undefined : { height }}
+    >
+      <div ref={elRef} className="h-full w-full overflow-hidden rounded-md" style={full ? { height: "100%" } : { height }} />
+      <button
+        type="button"
+        onClick={() => setFull((f) => !f)}
+        className="absolute right-2 top-2 z-[1001] rounded-md bg-white/95 px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)] shadow-[0_2px_6px_rgba(0,0,0,0.2)]"
+      >
+        {full ? "닫기 ✕" : "전체화면 ⤢"}
+      </button>
+    </div>
+  );
+}

@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-08] — 시술일기 네이버 지도 전환 + 전체화면 + 상시 표시
+
+### Added
+- **네이버 클라우드 Web Dynamic Map** `src/app/mockups/skin-diary/NaverMap.tsx`: NCP maps.js(`ncpKeyId`) 로드, clinics 좌표 커스텀 핀 + 병원 이름 라벨, 휠 줌, 인증 실패 시 안내. 환경변수 `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID` 있으면 네이버, 없으면 OSM(ClinicMap) 자동 폴백.
+- **지도 전체화면 토글**: 네이버·OSM 지도 모두 우상단 "전체화면 ⤢" 버튼(fixed 전체화면, 전환 시 리사이즈 재계산).
+- **환경변수 `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID`** (Vercel prod/preview/dev + .env.local.example). 공개 Client ID(secret 미사용).
+
+### Changed
+- 병원 섹션: 지도를 **항상 표시**(선택/검색/주변 결과 없으면 서울 기본 중심). 지도 높이 300으로 확대. "내 주변 피부과 찾기" → **"지도에서 찾기"**. 선택 카드 내부 중복 지도 제거(상단 상시 지도로 일원화).
+- CSP(Report-Only)에 네이버 지도 도메인 허용: `oapi.map.naver.com`, `*.map.naver.com`, `*.map.naver.net`, `*.pstatic.net` (script/img/connect).
+
+---
+
 ## [2026-06-08] — 시술일기 OSM 지도 + 위치 권한 헤더 + 폼 다듬기
 
 ### Added

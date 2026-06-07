@@ -25,13 +25,14 @@ import dynamic from "next/dynamic";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { MapPin } from "./ClinicMap";
 
-// Leaflet 은 window 의존(SSR 비호환) → 클라이언트에서만 로드.
-const ClinicMap = dynamic(() => import("./ClinicMap"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-[200px] items-center justify-center rounded-md bg-[var(--bg-soft)] text-[12px] text-[var(--text-muted)]">지도 불러오는 중…</div>
-  ),
-});
+// 지도는 window 의존(SSR 비호환) → 클라이언트에서만 로드.
+// NEXT_PUBLIC_NAVER_MAP_CLIENT_ID 가 있으면 네이버 지도, 없으면 OSM(Leaflet) 폴백.
+const mapLoading = () => (
+  <div className="flex h-[200px] items-center justify-center rounded-md bg-[var(--bg-soft)] text-[12px] text-[var(--text-muted)]">지도 불러오는 중…</div>
+);
+const OsmMap = dynamic(() => import("./ClinicMap"), { ssr: false, loading: mapLoading });
+const NaverMap = dynamic(() => import("./NaverMap"), { ssr: false, loading: mapLoading });
+const ClinicMap = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ? NaverMap : OsmMap;
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -485,7 +486,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           </div>
         </div>
 
-        {/* 2. 병원 — 지도에서 쉽게 찾기 + 선택 시 전화번호 자동 채움 */}
+        {/* 2. 병원 — 항상 떠 있는 지도 + 이름 검색 + 내 위치 + 선택 시 전화번호 자동 채움 */}
         <div>
           <label className={labelCls}>어디서 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <input className={inputCls} placeholder="병원 이름으로 검색" value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} />
@@ -493,7 +494,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
             <button type="button" onClick={findNearby}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-md bg-[var(--primary-soft)] py-2.5 text-[13px] font-semibold text-[var(--primary-active)]">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-              내 주변 피부과 찾기
+              지도에서 찾기
             </button>
           )}
           {!picked && searching && (
@@ -502,17 +503,26 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           {!picked && geoMsg && (
             <p className="mt-2 text-center text-[12px] text-[var(--accent)]">{geoMsg}</p>
           )}
-          {!picked && results.length > 0 && (() => {
-            const geoPins: MapPin[] = results.filter((h) => h.x != null && h.y != null).map((h) => ({ lat: h.y as number, lng: h.x as number, label: h.name }));
-            if (geoPins.length === 0) return null;
+
+          {/* 항상 표시되는 지도 — 선택 병원 / 검색·주변 결과 / 기본(서울) 순으로 중심·핀 결정 */}
+          {(() => {
+            const mapPins: MapPin[] = picked
+              ? (pickedXY ? [{ lat: pickedXY.y, lng: pickedXY.x, label: picked, active: true }] : [])
+              : results.filter((h) => h.x != null && h.y != null).map((h) => ({ lat: h.y as number, lng: h.x as number, label: h.name }));
+            const mapCenter = picked && pickedXY
+              ? { lat: pickedXY.y, lng: pickedXY.x }
+              : mapPins.length > 0
+                ? { lat: mapPins[0].lat, lng: mapPins[0].lng }
+                : { lat: 37.5665, lng: 126.978 }; // 기본: 서울시청
+            const mapZoom = picked ? 16 : mapPins.length > 0 ? 14 : 11;
             return (
               <div className="mt-2">
                 <ClinicMap
-                  center={{ lat: geoPins[0].lat, lng: geoPins[0].lng }}
-                  zoom={geoActiveRef.current ? 14 : 15}
-                  height={200}
-                  pins={geoPins}
-                  onPick={(label) => {
+                  center={mapCenter}
+                  zoom={mapZoom}
+                  height={300}
+                  pins={mapPins}
+                  onPick={picked ? undefined : (label) => {
                     const h = results.find((r) => r.name === label);
                     if (!h) return;
                     geoActiveRef.current = false;
@@ -523,6 +533,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
               </div>
             );
           })()}
+
           {!picked && results.length > 0 && (
             <div className="mt-2 overflow-hidden rounded-md bg-[var(--bg)]">
               {results.map((h, i) => (
@@ -542,11 +553,6 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
             <div className="mt-2 rounded-md bg-[var(--bg)] p-3">
               <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--text)]">{picked}</span>
                 <button type="button" onClick={() => { setPicked(null); setPickedXY(null); setQ(""); setTel(""); setAddr(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
-              {pickedXY && (
-                <div className="mt-2">
-                  <ClinicMap center={{ lat: pickedXY.y, lng: pickedXY.x }} zoom={16} height={180} pins={[{ lat: pickedXY.y, lng: pickedXY.x, label: picked, active: true }]} />
-                </div>
-              )}
               <div className="mt-2 space-y-2">
                 <div>
                   <label className="mb-1 block text-[11.5px] font-semibold text-[var(--text-secondary)]">주소</label>

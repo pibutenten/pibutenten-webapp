@@ -125,14 +125,14 @@ const nextConfig: NextConfig = {
     //   - Naver Analytics: wcs.pstatic.net (script CDN), wcs.naver.com (beacon)
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://www.googletagmanager.com https://wcs.pstatic.net",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://www.googletagmanager.com https://wcs.pstatic.net https://oapi.map.naver.com",
       "style-src 'self' 'unsafe-inline'",
       // PR-A E3 (2026-05-19): 끝의 `https:` 와일드카드 제거.
       // 이전엔 모든 HTTPS 이미지 도메인 허용 → CSP 무력화. Supabase Storage + YouTube 썸네일만 허용.
       // GA4 의 GIF beacon → google-analytics.com / googletagmanager.com 도 img-src 허용.
-      `img-src 'self' data: blob: https://${supabaseHost} https://i.ytimg.com https://img.youtube.com https://www.google-analytics.com https://www.googletagmanager.com`,
+      `img-src 'self' data: blob: https://${supabaseHost} https://i.ytimg.com https://img.youtube.com https://www.google-analytics.com https://www.googletagmanager.com https://oapi.map.naver.com https://*.map.naver.com https://*.map.naver.net https://*.pstatic.net`,
       "font-src 'self' data:",
-      `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://vitals.vercel-insights.com https://va.vercel-scripts.com https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://wcs.naver.com`,
+      `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://vitals.vercel-insights.com https://va.vercel-scripts.com https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://wcs.naver.com https://oapi.map.naver.com https://*.map.naver.com https://*.map.naver.net https://*.pstatic.net`,
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
