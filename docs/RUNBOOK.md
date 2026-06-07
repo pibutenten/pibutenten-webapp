@@ -13,6 +13,7 @@
 5. [시크릿 사고 대응 (Secret Rotation)](#5-시크릿-사고-대응-secret-rotation)
 6. [보류 항목 결정 기록](#6-보류-항목-결정-기록)
 7. [태그 사전 운영 (스냅샷 재생·마이그)](#7-태그-사전-운영-스냅샷-재생마이그)
+8. [배포 운영 — 프리뷰 env · 카나리 · 캐시](#8-배포-운영--프리뷰-env--카나리--캐시-v-phase-2026-06-07)
 
 ---
 
@@ -374,6 +375,30 @@ curl -s -X POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/data
 ### 7.3. 자동추천 큐레이션(`is_recommendable`)
 - auto-tag(회원 무료) 후보 = `is_recommendable=true`(현 804). 신규 태그 기본 false → 노이즈 차단.
 - 추천 편입은 현재 SQL `UPDATE tag_dictionary SET is_recommendable=true WHERE ko = ANY(...)` 로 수행(관리 화면 토글은 제거됨, 향후 거버넌스 별도). 편입 후 스냅샷 재생(7.1)으로 반영.
+
+---
+
+## 8. 배포 운영 — 프리뷰 env · 카나리 · 캐시 (V-Phase 2026-06-07)
+
+### 8.1. 프리뷰 env 누락 → 미들웨어 500 (해소 완료)
+- **증상**: Vercel 프리뷰 배포에서 전 페이지 500 `MIDDLEWARE_INVOCATION_FAILED` — 미들웨어가 `createServerClient(NEXT_PUBLIC_SUPABASE_URL!, ...ANON_KEY!)` 를 `undefined` 로 호출(`Your project's URL and Key are required`).
+- **원인**: 두 env 가 **dev + prod 스코프만** 설정 → Preview 환경엔 미주입. (프로덕션·로컬은 정상이라 못 보던 갭.)
+- **조치(완료)**: Vercel Project → Settings → Environment Variables 에서 `NEXT_PUBLIC_SUPABASE_URL`·`NEXT_PUBLIC_SUPABASE_ANON_KEY` 를 **Preview 스코프에도 추가**(prod 와 동일 공개값. anon key 는 RLS 보호 공개키라 저위험). 추가 후 프리뷰 재배포.
+- **교훈**: 새 env 추가 시 **dev/preview/prod 3스코프** 모두 확인.
+
+### 8.2. 배포 후 카나리 (관행 채택)
+- 캐싱·렌더링·미들웨어처럼 **프로덕션에서만 드러나는 결함**(예: 한글 URL ISR 헤더 깨짐)이 있으므로, 배포 직후 **최위험 URL 1개를 즉시 점검**한다.
+- 예: `curl -sI https://pibutenten.kr/topics/콜라겐`(URL인코딩) → 200 확인. 상세는 `x-vercel-cache` HIT 확인. 500 발견 시 즉시 롤백(8.3).
+- V3 배포 시 이 카나리로 토픽 500 을 즉시 포착·복구한 사례.
+
+### 8.3. 롤백
+- **방법 A (즉시)**: Vercel 대시보드 → Deployments → 직전 정상 배포 **Promote to Production**(재빌드 없음).
+- **방법 B (이력 명시)**: `git revert <commit> && git push`.
+- **V-Phase 롤백 커밋**: 카운트 라이브 `fdaa6fa` · 홈 CLS `7fd86ce` · (V3 전체 되돌리려면 상세 ISR 도입 머지 `6170738`). 전부 클라/캐시 한정이라 저위험.
+
+### 8.4. 캐시 무효화 (수동)
+- 상세 ISR 은 콘텐츠 변경 라우트가 `revalidateTag("qa-content","max")` 로 자동 무효화. 그래도 강제 갱신이 필요하면 해당 글을 관리자에서 한 번 저장(PUT `/api/articles/[id]`)하면 동일 태그 무효화 발화.
+- **한글 URL + ISR 금지**(ADR 0020 §3): 토픽 등 한글 경로는 절대 ISR(`generateStaticParams`+`revalidate`)로 바꾸지 말 것 — `x-next-cache-tags` 헤더가 깨져 500.
 
 ---
 

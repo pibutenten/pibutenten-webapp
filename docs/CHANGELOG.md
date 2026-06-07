@@ -6,6 +6,34 @@
 
 ---
 
+## [2026-06-07] — V-Phase: 렌더링·캐싱·CWV (공유 셸 + 클라 개인화)
+
+렌더링/캐싱을 **"캐시 가능한 공유 셸 + 클라이언트 개인화"**(SNS 표준)로 전환. 상세 페이지를 ISR 캐시하고 개인화(세션·좋아요/저장 수)는 클라에서 라이브. 결정 배경 = ADR 0020. 전부 프로덕션 라이브.
+
+### Added
+- **세션 API** `src/app/api/session/route.ts` — `GET` → `getSessionInfo()` JSON (private/no-store). 클라 `SessionProvider` 의 리치 표시(아바타·명함·역할) 비동기 소스. (V1, 3b199c3)
+- **쿠키리스 anon Supabase 클라이언트** `src/lib/supabase/anon.ts` — `cookies()` 미사용 → ISR/캐시 렌더 유지(쿠키 읽으면 라우트가 동적 강제됨). RLS 상 공개 published 행만 읽힘 → 캐시 결과에 개인정보 0. (V3)
+- **상세 페이지 ISR 캐시** `doctors/[slug]/[year]/[postSlug]` — `generateStaticParams()=[]`(빌드 프리렌더 0, 런타임 on-demand) + `revalidate=86400` + 공유 읽기 `unstable_cache(tags:["qa-content"])`. 프로덕션 `x-vercel-cache: HIT`·`s-maxage=86400` 확인. (V3, b3cd905→6170738)
+- **콘텐츠 변경 시 캐시 무효화** — 발행/생성/수정·숨김·삭제 라우트(`admin/draft/publish`, `articles`, `articles/[id]`)에 `revalidateTag("qa-content"/"topics","max")` 추가(Next 16 은 2인자 필수). 발행→상세 즉시 반영(24h 대기 0) 실증.
+
+### Changed
+- **V1 — layout 서버 세션 읽기 제거** `src/app/layout.tsx` — `await getSessionInfo()` 삭제. `session-context.tsx` 를 클라 하이브리드로: 비-httpOnly mirror 쿠키로 마운트 즉시 `me`(로그인 여부+active id) 확정 → 비로그인 좋아요/저장/댓글 클릭 시 로그인모달 **즉발**(2026-05-20 silent-fail 회귀 보존), `/api/session` 으로 리치 표시 비동기 보강. `TopNav`·`FloatingWriteButton`·`InstallPrompt` → `useSession()`. (3b199c3)
+- **V3 — 전역 force-dynamic 제거** `layout.tsx` — 공개 콘텐츠가 페이지별 캐시 정책을 따르도록. `useSearchParams` 쓰는 `FloatingWriteButton` 은 `<Suspense fallback={null}>` 로 감싸 정적 프리렌더 통과. 개인 페이지(/, /search, /[handle], settings, admin, notifications, write, review, onboarding)는 각자 `force-dynamic` 유지.
+- **카운트 라이브 동기화** `src/components/card/hooks/useCardEngagement.ts` — 캐시된 상세는 좋아요/저장/공유 수가 렌더타임에 박제(최대 24h 묵음). server prefetch 없을 때(=캐시 상세)만 마운트 시 `cards` 라이브 카운트 1회 재조회 → 화면 교체. `interactedRef` 레이스 가드(토글 후 권위값 안 덮음). 댓글 수는 기존 `CommentsBlock.onCountChange` 로 라이브. 콘텐츠 캐시·revalidate 무변경. (fdaa6fa)
+- **홈 피드 CLS 수정** `src/app/page.tsx`·`src/components/Feed.tsx` — react-masonry-css 가 SSR 에 window 없어 `default=2`(2컬럼) 렌더→모바일 클라 1컬럼 재배치 reflow(CLS 0.17, 카드 y545→0). 홈은 동적이라 요청 UA 로 `isMobileUA` 판별 → `breakpointCols.default=(isMobileUA?1:2)`. `899:1`·리사이즈 리스너 미변경(데스크탑 반응형 보존). 모바일 SSR=1=클라 → reflow 0. **CLS 0.171→0.041**. (7fd86ce)
+
+### Fixed
+- **토픽 ISR 500 → 동적 복원** `topics/[tag]` — 한글 URL 경로가 ISR 의 implicit `x-next-cache-tags` 헤더(ASCII 전용)를 깨뜨려 500(`ERR_INVALID_CHAR`). unstable_cache 인자 ASCII 인코딩(c815155)으로는 페이지경로 태그가 남아 미해결 → **원본 force-dynamic 복원**(632700b). 토픽 캐싱은 보류(상세는 ASCII slug 라 무관·정상). 프로덕션 장애 카나리로 즉시 복구.
+
+### CWV 실측 (합성 모바일 랩 — CPU4x+slow4G; PSI/Lighthouse 는 GA4 collect 비콘 행잉으로 불가)
+- **캐시 상세**: LCP 0.41s · CLS 0 · INP(최악탭 대리) 72ms — 전부 🟢.
+- 홈(동적): LCP 2.14s · CLS 0.041(수정후) · INP 288ms. 토픽(동적): LCP 2.56s · CLS 0.029 · INP 344ms.
+- TBT(홈 1410·토픽 3339ms)는 INP 를 약 10배 과대평가 — 실제 최악 탭 지연 🟡(비-🔴), 전형 탭 🟢. 진짜 INP 는 공개 후 CrUX 필드값으로 확정(현재 베타·데이터 없음=정상).
+
+### 운영
+- 프리뷰 env 에 `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY` 가 dev+prod 스코프만 → 프리뷰 미들웨어 500. **Preview 스코프 추가**로 해소(RUNBOOK §8). 롤백 커밋: 카운트 `fdaa6fa`·CLS `7fd86ce` (각 `git revert`).
+- 배포 후 **카나리**(최위험 URL 1개 즉시 점검) 관행 채택.
+
 ## [2026-06-07] — 발주 G: 검토 탭 검색량·생성일 → 추천·잔류 컬럼 치환
 
 ### Changed

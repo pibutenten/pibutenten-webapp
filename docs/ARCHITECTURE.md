@@ -328,15 +328,17 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 
 ---
 
-## 7. Supabase 클라이언트 3종
+## 7. Supabase 클라이언트 4종
 
 | 파일 | 사용처 | 권한 |
 |---|---|---|
 | `src/lib/supabase/client.ts` | 브라우저 (브라우저 쿠키) | anon |
 | `src/lib/supabase/server.ts` | 서버 컴포넌트·API (Next.js cookies()) | anon (사용자 세션 기반) |
 | `src/lib/supabase/admin.ts` | 서버 측 service_role 필요한 작업 | service_role |
+| `src/lib/supabase/anon.ts` | **캐시/ISR 공개 렌더** (쿠키리스) | anon (세션 없음) |
 
 - `admin.ts` 는 `server-only` import 로 클라이언트 번들 노출 차단
+- `anon.ts`(V3, 2026-06-07)는 `cookies()` 를 건드리지 않아 라우트가 동적 강제되지 않음 → 상세 등 ISR 캐시 페이지의 공개 데이터 읽기 전용. RLS 상 published 행만 → 캐시 결과 개인정보 0 (§11·ADR 0020).
 - **클라이언트 base URL**: 세 클라이언트 모두 `NEXT_PUBLIC_SUPABASE_URL` 사용. production 값은 Supabase **Custom Domain** `https://auth.pibutenten.kr` (auth/rest/storage/realtime 전부 프록시). 로컬·템플릿은 프로젝트 ref 의 `*.supabase.co` 직결. 도메인 이전(2026-05-31, ADR 0018)으로 OAuth redirect URI·CSP `connect-src` 도 `auth.pibutenten.kr` 기준.
 
 ---
@@ -389,6 +391,8 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - **0016** 의사 프로필 연결
 - **0017** 콘텐츠에 자기 사이트 절대 URL 저장 금지 — 도메인 이전 시 DB 무수정
 - **0018** 도메인 이전 `pbtt.kr` → `pibutenten.kr` (전략·단계·인프라). auth 커스텀 도메인·SITE_URL 단일 출처·308 영구 리다이렉트.
+- **0019** P3 시술 후기 — 분류 체계·이중집계·노출 정책
+- **0020** 렌더링·캐싱 = 공유 셸 + 클라이언트 개인화 (V-Phase 2026-06-07). 상세 ISR 캐시 + 개인화는 클라. §11.
 
 ---
 
@@ -402,6 +406,26 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - **자동태깅**: `lib/auto-tag.ts`(회원 글쓰기 무료)는 스냅샷 `autotag`(=`is_recommendable=true` 대표어 + aliases)만 후보. 일반어 노이즈 차단(추천 804).
 - **흡수 트리거 통일**(SSOT 한 경로 — 일반인·원장·관리자 동일): `cards` BEFORE INSERT/UPDATE OF keywords → `cards_absorb_eng_tags()` 가 ① alias(언어 무관) 매칭 시 대표어로 ② 영문 slugify→en 매칭 폴백. 미매칭 신규 태그는 AFTER `cards_register_tags_trg` 가 미지정으로 등록. 로그 `tag_absorb_log`.
 - **관리자 편집**: `/admin/tags`(태그 관리) + PATCH `/api/admin/tag-dictionary/[id]`(분류·영문·부모·시술·온보딩·is_recommendable) + rename/merge RPC(`rename_tag`·`merge_tag`, cards.keywords 단일 tx 전파·트리거 disable·updated_at 보존). 목록은 `get_tag_admin_overview` RPC(사용량·검색량) range 청크(행 상한 1000 회피).
+
+---
+
+## 11. 렌더링·캐싱 전략 (공유 셸 + 클라 개인화) — V-Phase (2026-06-07)
+
+원칙: **서버는 모두에게 동일한 공유 셸만 렌더(캐시 가능), 개인화는 전부 클라.** 같은 HTML 을 전원에게 캐시 서빙해도 개인정보 누출 불가. 결정 배경·기각안 = ADR 0020.
+
+| 영역 | 렌더 | 캐시 | 비고 |
+|---|---|---|---|
+| 의사 Q&A **상세** `doctors/[slug]/[year]/[postSlug]` | ISR (`●`) | `revalidate=86400` + `unstable_cache(tags:["qa-content"])` | `x-vercel-cache: HIT`. `generateStaticParams()=[]`(on-demand). 쿠키리스 `anon.ts` 읽기 |
+| **홈** `/` · **토픽** `/topics/[tag]` · 개인 페이지 | 동적 (`ƒ`) | 없음(no-store) | 홈=force-dynamic. 토픽=한글 URL ISR 헤더 깨짐(아래)으로 동적 유지 |
+| **세션**(로그인·아바타·명함) | 클라 | — | `SessionProvider` 가 mirror 쿠키(동기)+`/api/session`(비동기) |
+| **좋아요/저장/공유 수** | 클라 | — | 캐시 상세에서만 마운트 시 라이브 재조회(`useCardEngagement`) |
+| **내 좋아요/저장 여부** | 클라 | — | `Card`("use client") |
+
+- **레이아웃**: `layout.tsx` 는 V1 이후 서버 세션·쿠키를 안 읽음. `force-dynamic` 도 V3 에서 제거(전역). `useSearchParams` 쓰는 `FloatingWriteButton` 은 `<Suspense>` 로 감싸 정적 프리렌더 통과. **개인 페이지**(/, /search, /[handle], settings, admin, notifications, write, review, onboarding)는 각자 `export const dynamic="force-dynamic"`.
+- **캐시 무효화**: 콘텐츠 변경(발행/생성/수정/숨김/삭제) 라우트가 `revalidateTag("qa-content"/"topics","max")`(Next 16 2인자) → 상세 수정 **즉시** 반영. 카운트는 24h fallback이지만 클라 라이브라 실질 즉시.
+- **★한글 URL + ISR 금지**: ISR 캐시 페이지는 Next 16 이 페이지 경로를 implicit `x-next-cache-tags` HTTP 헤더(ASCII 전용)에 넣음. 토픽 URL 은 한글(`/topics/콜라겐`)이라 헤더가 깨져 **500(`ERR_INVALID_CHAR`)** → 토픽은 동적 유지. 상세는 ASCII slug 라 무관.
+- **홈 피드 masonry SSR 컬럼**: react-masonry-css 는 SSR 에 window 없어 `default`(2) 사용 → 모바일 클라 1컬럼 재배치 reflow(CLS). `page.tsx` 가 요청 UA 로 `isMobileUA` → `Feed.breakpointCols.default=(isMobileUA?1:2)`. `899:1`·리사이즈 리스너 불변(반응형 유지).
+- **CWV(합성 모바일 랩)**: 캐시 상세 LCP 0.41s·CLS 0·INP 72ms 🟢. 홈/토픽은 동적이라 LCP ~2.1–2.6s. 상세 = 표준 PSI/Lighthouse 가 GA4 비콘 행잉으로 불가 → Playwright Performance API 로 실측. 진짜 INP 는 공개 후 CrUX 필드값으로 확정.
 
 ---
 
