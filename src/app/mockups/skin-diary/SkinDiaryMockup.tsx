@@ -351,6 +351,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
   const [picked, setPicked] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
   const [tel, setTel] = useState("");
+  const [addr, setAddr] = useState("");
   const [procs, setProcs] = useState<DiaryProc[]>([]);
   const [pid, setPid] = useState(0);
   const [tag, setTag] = useState("");
@@ -417,7 +418,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           {!picked && results.length > 0 && (
             <div className="mt-2 overflow-hidden rounded-md bg-[var(--bg)]">
               {results.map((h) => (
-                <button key={h.n} type="button" onClick={() => { setPicked(h.n); setTel(h.tel); setQ(h.n); setShowMap(false); }} className="flex w-full items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)]">
+                <button key={h.n} type="button" onClick={() => { setPicked(h.n); setTel(h.tel); setAddr(h.a); setQ(h.n); setShowMap(false); }} className="flex w-full items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)]">
                   <span><span className="block text-[14px] font-semibold text-[var(--text)]">{h.n}</span><span className="block text-[11.5px] text-[var(--text-muted)]">{h.a}</span></span>
                   {showMap && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.d}km</span>}
                 </button>
@@ -427,15 +428,15 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           {picked && (
             <div className="mt-2 rounded-md bg-[var(--bg)] p-3">
               <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--text)]">{picked}</span>
-                <button type="button" onClick={() => { setPicked(null); setQ(""); setTel(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
+                <button type="button" onClick={() => { setPicked(null); setQ(""); setTel(""); setAddr(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
               <div className="mt-2 space-y-2">
+                <div>
+                  <label className="mb-1 block text-[11.5px] font-semibold text-[var(--text-secondary)]">주소</label>
+                  <input className={inputCls} value={addr} onChange={(e) => setAddr(e.target.value)} />
+                </div>
                 <div>
                   <label className="mb-1 block text-[11.5px] font-semibold text-[var(--text-secondary)]">전화번호</label>
                   <input className={inputCls} value={tel} onChange={(e) => setTel(e.target.value)} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[11.5px] font-semibold text-[var(--text-secondary)]">카카오톡 채널</label>
-                  <input className={inputCls} />
                 </div>
               </div>
             </div>
@@ -582,7 +583,7 @@ const SUMMARY: { year: number; items: SummaryItem[] }[] = [
 ];
 
 function RecordView({ go }: { go: (s: Screen) => void }) {
-  const [mode, setMode] = useState<"cal" | "list">("list");
+  const [mode, setMode] = useState<"cal" | "list">("cal");
   return (
     <section className="mx-auto w-full max-w-[640px]">
       <div className="mb-3 flex items-center justify-between">
@@ -758,7 +759,7 @@ function DetailView({ go }: { go: (s: Screen) => void }) {
         <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">붓기는 이틀쯤. 다음엔 6개월 뒤 보자고 하셨다. 스컬트라는 확실히 볼륨이 산다…</p>
       </div>
 
-      <button type="button" onClick={() => go("record")} className="w-full rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">← 내 일기으로</button>
+      <button type="button" onClick={() => go("record")} className="w-full rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">← 내 일기로</button>
     </section>
   );
 }
