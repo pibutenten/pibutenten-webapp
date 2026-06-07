@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { formatYmd } from "@/lib/format-date";
-import BackButton from "@/components/BackButton";
 import SyncButton from "./SyncButton";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const PAGE_SIZE = 50;
 
 type Props = {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 };
 
 type ClinicRow = {
@@ -36,10 +36,13 @@ export default async function AdminClinicsPage({ searchParams }: Props) {
   await requireAdminPage("/admin/clinics", { superAdminOnly: true });
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
+  const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
 
   const supabase = await createSupabaseServerClient();
 
-  // 총 병원 수 (정확 count) + 최근 동기화 시각.
+  // 전체 병원 수(상단 Stat) + 최근 동기화 시각.
   const [{ count: total }, latest] = await Promise.all([
     supabase.from("clinics").select("id", { count: "exact", head: true }),
     supabase
@@ -50,22 +53,44 @@ export default async function AdminClinicsPage({ searchParams }: Props) {
       .maybeSingle(),
   ]);
 
-  // 목록 — 검색어 있으면 병원명 부분검색(ilike), 없으면 이름순 상위 N.
+  // 현재 조건(검색 포함)의 건수 — 페이지네이션 계산용.
+  let countQuery = supabase.from("clinics").select("id", { count: "exact", head: true });
+  if (q) countQuery = countQuery.ilike("name", `%${q}%`);
+  const { count: listTotal } = await countQuery;
+
+  // 목록 — 검색어 있으면 병원명 부분검색(ilike), 이름순 + 현재 페이지 범위만.
   let listQuery = supabase
     .from("clinics")
     .select("id,name,addr,tel,clinic_type,synced_at")
     .order("name", { ascending: true })
-    .limit(PAGE_SIZE);
+    .range(from, to);
   if (q) listQuery = listQuery.ilike("name", `%${q}%`);
   const { data: rows } = await listQuery;
   const clinics = (rows ?? []) as ClinicRow[];
 
   const lastSynced = latest.data?.synced_at ?? null;
+  const totalCount = listTotal ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const rangeStart = totalCount === 0 ? 0 : from + 1;
+  const rangeEnd = Math.min(from + PAGE_SIZE, totalCount);
+  const hrefFor = (p: number) => `/admin/clinics?${q ? `q=${encodeURIComponent(q)}&` : ""}page=${p}`;
+  // 현재 페이지 주변 번호 윈도우 (±2).
+  const pageNums: number[] = [];
+  for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) pageNums.push(p);
 
   return (
     <section className="w-full py-6">
       <div className="mb-1 -ml-1">
-        <BackButton />
+        <Link
+          href="/admin"
+          aria-label="관리자 대시보드로"
+          className="inline-flex min-h-[32px] items-center gap-1 rounded-md px-2 py-1.5 text-[13px] text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--primary)]"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          <span>관리자 대시보드</span>
+        </Link>
       </div>
       <div className="mb-5 pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">병원 정보 동기화</h1>
@@ -106,8 +131,9 @@ export default async function AdminClinicsPage({ searchParams }: Props) {
       </form>
 
       <p className="mb-2 text-xs text-[var(--text-muted)]">
-        {q ? `"${q}" 검색 결과` : "이름순 상위"} {clinics.length.toLocaleString()}곳 표시
-        {!q && (total ?? 0) > PAGE_SIZE ? ` (전체 ${(total ?? 0).toLocaleString()}곳 중)` : ""}
+        {q ? `"${q}" 검색 결과 ` : ""}
+        전체 {totalCount.toLocaleString()}곳 중 {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()}곳 표시
+        {totalPages > 1 ? ` · ${page} / ${totalPages} 페이지` : ""}
       </p>
 
       {/* 목록 테이블 */}
@@ -150,7 +176,78 @@ export default async function AdminClinicsPage({ searchParams }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* 페이지네이션 — 이전 / 번호 / 다음 */}
+      {totalPages > 1 && (
+        <nav className="mt-4 flex items-center justify-center gap-1" aria-label="페이지 이동">
+          <PageLink href={hrefFor(page - 1)} disabled={page <= 1} label="이전">‹</PageLink>
+          {pageNums[0] > 1 && (
+            <>
+              <PageLink href={hrefFor(1)}>1</PageLink>
+              {pageNums[0] > 2 && <span className="px-1 text-[var(--text-muted)]">…</span>}
+            </>
+          )}
+          {pageNums.map((p) => (
+            <PageLink key={p} href={hrefFor(p)} current={p === page}>
+              {p}
+            </PageLink>
+          ))}
+          {pageNums[pageNums.length - 1] < totalPages && (
+            <>
+              {pageNums[pageNums.length - 1] < totalPages - 1 && <span className="px-1 text-[var(--text-muted)]">…</span>}
+              <PageLink href={hrefFor(totalPages)}>{totalPages}</PageLink>
+            </>
+          )}
+          <PageLink href={hrefFor(page + 1)} disabled={page >= totalPages} label="다음">›</PageLink>
+        </nav>
+      )}
     </section>
+  );
+}
+
+function PageLink({
+  href,
+  children,
+  current = false,
+  disabled = false,
+  label,
+}: {
+  href: string;
+  children: React.ReactNode;
+  current?: boolean;
+  disabled?: boolean;
+  label?: string;
+}) {
+  const base =
+    "inline-flex h-9 min-w-9 items-center justify-center rounded-[var(--radius-sm)] border px-3 text-sm font-medium transition-colors";
+  if (disabled) {
+    return (
+      <span
+        aria-disabled
+        className={`${base} cursor-not-allowed border-[var(--border)] text-[var(--text-muted)] opacity-50`}
+      >
+        {children}
+      </span>
+    );
+  }
+  if (current) {
+    return (
+      <span
+        aria-current="page"
+        className={`${base} border-[var(--primary)] bg-[var(--primary)] text-white`}
+      >
+        {children}
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      className={`${base} border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]`}
+    >
+      {children}
+    </Link>
   );
 }
 

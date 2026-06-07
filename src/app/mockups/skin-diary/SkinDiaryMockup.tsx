@@ -20,7 +20,8 @@
  *  - 상세: 평가지표 제외, 비공개 메모(병원·의사·실장·연락처·가격·비고·일기)만.
  */
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -107,33 +108,39 @@ export default function SkinDiaryMockup() {
         <div className="fixed bottom-8 left-1/2 z-[200] -translate-x-1/2 rounded-md bg-[var(--secondary)] px-5 py-3 text-[13.5px] font-semibold text-white shadow-[var(--shadow-lg)]">{toast}</div>
       )}
 
-      <MockFab open={fabOpen} setOpen={setFabOpen} go={setScreen} />
+      <MockFab open={fabOpen} setOpen={setFabOpen} go={setScreen} toast={showToast} />
     </div>
   );
 }
 
 /* ════════════════ 플로팅(+) 메뉴 — 우하단. 실제 FAB 대체 데모 ════════════════
    실제 layout 의 FloatingWriteButton(끄적끄적/시술후기/보관)을 목업에선 숨기고,
-   '나의 시술일기 / 시술 후기 / 끄적끄적' 3개로 펼치는 메뉴로 대체.
+   '나의 시술일기 보기 / 시술일기 남기기 / 시술 후기 남기기 / 끄적끄적' 4개로 펼치는 메뉴로 대체.
    (앱 전환 시 하단 중앙 + 버튼으로 이동 예정.) */
 
-function MockFab({ open, setOpen, go }: { open: boolean; setOpen: (b: boolean) => void; go: (s: Screen) => void }) {
-  const items: [Screen, string, React.ReactNode][] = [
-    ["diary", "나의 시술일기 남기기", (
+function MockFab({ open, setOpen, go, toast }: { open: boolean; setOpen: (b: boolean) => void; go: (s: Screen) => void; toast: (m: string) => void }) {
+  const items: { label: string; icon: React.ReactNode; onClick: () => void }[] = [
+    { label: "나의 시술일기 보기", onClick: () => go("record"), icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+    ) },
+    { label: "시술일기 남기기", onClick: () => go("diary"), icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
-    )],
-    ["reviewonly", "시술 후기 남기기", (
+    ) },
+    { label: "시술 후기 남기기", onClick: () => go("reviewonly"), icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 17.3l-5.6 3.3 1.5-6.3-4.9-4.3 6.4-.5L12 3.5l2.6 6 6.4.5-4.9 4.3 1.5 6.3z" /></svg>
-    )],
+    ) },
+    { label: "끄적끄적", onClick: () => toast("끄적끄적은 기존 글쓰기 화면으로 연결돼요"), icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+    ) },
   ];
   return (
     <>
       {open && <div className="fixed inset-0 z-30" aria-hidden onClick={() => setOpen(false)} />}
       <div className="fixed z-40 flex flex-col items-end gap-3" style={{ bottom: "calc(env(safe-area-inset-bottom,0px) + 20px)", right: 20 }}>
-        {open && items.map(([s, label, icon]) => (
-          <button key={s} type="button" onClick={() => { go(s); setOpen(false); }} className="flex items-center gap-2" style={{ animation: "fab-pop .18s ease-out both" }}>
-            <span className="hidden rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold text-[var(--text)] shadow-[0_4px_12px_rgba(0,0,0,0.12)] sm:block">{label}</span>
-            <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full shadow-[0_6px_16px_rgba(139,195,222,0.35)]" style={{ background: "#7FD0F8" }}>{icon}</span>
+        {open && items.map((it) => (
+          <button key={it.label} type="button" onClick={() => { it.onClick(); setOpen(false); }} className="flex items-center gap-2" style={{ animation: "fab-pop .18s ease-out both" }}>
+            <span className="hidden rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold text-[var(--text)] shadow-[0_4px_12px_rgba(0,0,0,0.12)] sm:block">{it.label}</span>
+            <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full shadow-[0_6px_16px_rgba(139,195,222,0.35)]" style={{ background: "#7FD0F8" }}>{it.icon}</span>
           </button>
         ))}
         <button type="button" onClick={() => setOpen(!open)} aria-label={open ? "작성 메뉴 닫기" : "작성 메뉴 열기"} aria-expanded={open}
@@ -335,16 +342,21 @@ function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Scr
 
 /* ════════════════ ④ 나의 시술일기 ════════════════ */
 
-const HOSPITALS = [
-  { n: "라온피부과의원", a: "서울 강남구", tel: "02-000-1111", d: 0.4 },
-  { n: "예담피부과의원", a: "서울 강남구", tel: "02-000-2222", d: 0.7 },
-  { n: "맑은서울피부과의원", a: "서울 강남구", tel: "02-000-3333", d: 1.2 },
-  { n: "온유피부과의원", a: "서울 서초구", tel: "02-000-4444", d: 1.9 },
-  { n: "수피부과의원", a: "경기 성남시 분당구", tel: "031-000-5555", d: 8.1 },
-];
+// 실제 clinics DB(전국 16,964 피부과) 검색 결과 한 건.
+type ClinicHit = { name: string; addr: string; tel: string; x: number | null; y: number | null; dist?: number };
+// 네이버 지도 검색(디폴트 지도) — 키 없이 링크 아웃. 병원명+주소로 정확히 찾게 함.
+const naverMapUrl = (h: ClinicHit) => `https://map.naver.com/p/search/${encodeURIComponent(`${h.name} ${h.addr}`.trim())}`;
+// 좌표 거리(km) — 심평원 XPos=경도, YPos=위도. 근사식(평면 보정)으로 정렬용.
+function distKm(lat1: number, lng1: number, lat2: number | null, lng2: number | null): number | undefined {
+  if (lat2 == null || lng2 == null) return undefined;
+  const R = 6371, rad = Math.PI / 180;
+  const x = (lng2 - lng1) * Math.cos(((lat1 + lat2) / 2) * rad);
+  const y = lat2 - lat1;
+  return Math.sqrt(x * x + y * y) * rad * R;
+}
 const EN2KO: Record<string, string> = { thermage: "써마지", botox: "보톡스", filler: "필러", rejuran: "리쥬란", sculptra: "스컬트라" };
 
-type DiaryProc = ReviewState & { id: number; label: string; price: string; unit: string; note: string; open: boolean; later: boolean };
+type DiaryProc = ReviewState & { id: number; label: string; cat: string; price: string; unit: string; note: string; open: boolean; later: boolean };
 
 function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
   const [q, setQ] = useState("");
@@ -352,24 +364,82 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
   const [showMap, setShowMap] = useState(false);
   const [tel, setTel] = useState("");
   const [addr, setAddr] = useState("");
+  // 실제 clinics DB 검색 결과 (이름 검색 or 내 주변).
+  const [results, setResults] = useState<ClinicHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [geoMsg, setGeoMsg] = useState<string | null>(null);
   const [procs, setProcs] = useState<DiaryProc[]>([]);
   const [pid, setPid] = useState(0);
   const [tag, setTag] = useState("");
+  // 시술을 추가하면 해당 행의 '용량' 칸으로 커서를 옮겨 이어서 입력하게 함.
+  const [focusId, setFocusId] = useState<number | null>(null);
+  const unitRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  // 날짜 picker — 데스크탑 크롬은 필드 클릭만으론 안 열려서 showPicker()로 강제로 연다.
+  const dateRef = useRef<HTMLInputElement | null>(null);
+  const openDatePicker = () => { try { dateRef.current?.showPicker?.(); } catch { /* 미지원 브라우저는 네이티브 클릭 폴백 */ } };
+  useEffect(() => {
+    if (focusId != null && unitRefs.current[focusId]) {
+      unitRefs.current[focusId]!.focus();
+      setFocusId(null);
+    }
+  }, [focusId, procs]);
   const _d = new Date();
   const [date, setDate] = useState(`${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`);
   const [_y, _m, _dd] = date.split("-");
   const dateLabel = `${+_y}년 ${+_m}월 ${+_dd}일`;
 
-  let results = q ? HOSPITALS.filter((h) => h.n.includes(q)) : showMap ? [...HOSPITALS] : [];
-  if (showMap) results = [...results].sort((a, b) => a.d - b.d);
+  // 병원 이름 검색 — 실제 clinics DB(전국 피부과)를 250ms 디바운스로 ilike 조회.
+  useEffect(() => {
+    if (picked) return;
+    const term = q.trim();
+    if (term.length < 1) { if (!showMap) setResults([]); return; }
+    let alive = true;
+    setSearching(true); setShowMap(false); setGeoMsg(null);
+    const t = setTimeout(async () => {
+      const sb = createSupabaseBrowserClient();
+      const { data } = await sb
+        .from("clinics").select("name,addr,tel,x_pos,y_pos")
+        .ilike("name", `%${term}%`).order("name").limit(20);
+      if (!alive) return;
+      setResults((data ?? []).map((d) => ({ name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x: d.x_pos as number | null, y: d.y_pos as number | null })));
+      setSearching(false);
+    }, 250);
+    return () => { alive = false; clearTimeout(t); };
+  }, [q, picked, showMap]);
+
+  // 내 주변 — 브라우저 위치 → clinics 좌표 bbox(약 5km) 조회 후 거리순 정렬.
+  function findNearby() {
+    setGeoMsg(null);
+    if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoMsg("이 브라우저는 위치를 지원하지 않아요. 병원 이름으로 검색해 주세요."); return; }
+    setSearching(true); setQ(""); setPicked(null); setShowMap(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude, dd = 0.045;
+        const sb = createSupabaseBrowserClient();
+        const { data } = await sb
+          .from("clinics").select("name,addr,tel,x_pos,y_pos")
+          .gte("x_pos", lng - dd).lte("x_pos", lng + dd)
+          .gte("y_pos", lat - dd).lte("y_pos", lat + dd).limit(80);
+        const hits = (data ?? [])
+          .map((d) => ({ name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x: d.x_pos as number | null, y: d.y_pos as number | null, dist: distKm(lat, lng, d.y_pos as number | null, d.x_pos as number | null) }))
+          .sort((a, b) => (a.dist ?? 9e9) - (b.dist ?? 9e9)).slice(0, 20);
+        setResults(hits); setSearching(false);
+        if (hits.length === 0) setGeoMsg("주변 5km 안에 등록된 피부과가 없어요.");
+      },
+      () => { setSearching(false); setShowMap(false); setGeoMsg("위치 권한이 필요해요. 병원 이름으로 검색해 주세요."); },
+      { enableHighAccuracy: false, timeout: 8000 },
+    );
+  }
 
   function addTag(raw: string) {
     const t = raw.trim(); if (!t) return; const low = t.toLowerCase();
     let label = t; if (/[a-z]/i.test(t) && EN2KO[low]) label = EN2KO[low];
     if (procs.some((p) => p.label === label)) { setTag(""); return; }
+    const cat = PROCEDURES.find((p) => p.label === label)?.cat ?? "";
     const nid = pid + 1; setPid(nid);
-    setProcs([...procs, { ...emptyReview(), id: nid, label, price: "", unit: "", note: "", open: false, later: false }]);
+    setProcs([...procs, { ...emptyReview(), id: nid, label, cat, price: "", unit: "", note: "", open: false, later: false }]);
     setTag("");
+    setFocusId(nid);
   }
   const upd = (id: number, p: Partial<DiaryProc>) => setProcs((ps) => ps.map((x) => (x.id === id ? { ...x, ...p } : x)));
   const reviewed = (p: DiaryProc) => !!(p.satisfaction || p.pain || p.downtime || p.revisit || p.effectAreas.length || p.effectOnset || p.oneliner);
@@ -387,41 +457,43 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
         <div>
           <label className={labelCls}>시술 받은 날짜 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <div className="relative">
-            <div className={inputCls + " flex items-center justify-between"}>
+            <button type="button" onClick={openDatePicker} className={inputCls + " flex w-full cursor-pointer items-center justify-between"}>
               <span className="text-[var(--text)]">{dateLabel}</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0"><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M4 9h16" /></svg>
-            </div>
-            <input type="date" aria-label="시술 받은 날짜" value={date} onChange={(e) => setDate(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+            </button>
+            <input ref={dateRef} type="date" aria-label="시술 받은 날짜" value={date} onChange={(e) => setDate(e.target.value)} className="pointer-events-none absolute inset-0 h-full w-full opacity-0" tabIndex={-1} />
           </div>
         </div>
 
         {/* 2. 병원 — 지도에서 쉽게 찾기 + 선택 시 전화번호 자동 채움 */}
         <div>
           <label className={labelCls}>어디서 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
-          <input className={inputCls} placeholder="병원 이름" value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} />
+          <input className={inputCls} placeholder="병원 이름으로 검색" value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} />
           {!picked && (
-            <button type="button" onClick={() => { setShowMap(!showMap); setPicked(null); }}
+            <button type="button" onClick={findNearby}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-md bg-[var(--primary-soft)] py-2.5 text-[13px] font-semibold text-[var(--primary-active)]">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-              지도에서 찾기
+              내 주변 피부과 찾기
             </button>
           )}
-          {showMap && !picked && (
-            <div className="relative mt-2 flex h-[150px] items-center justify-center overflow-hidden rounded-md bg-[var(--bg-soft)]">
-              <div className="absolute inset-0 opacity-60" style={{ backgroundImage: "linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px)", backgroundSize: "26px 26px" }} />
-              <div className="relative text-center">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="mx-auto h-7 w-7"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-                <p className="mt-1 text-[12px] font-semibold text-[var(--text-secondary)]">현재 위치 주변 피부과</p>
-              </div>
-            </div>
+          {!picked && searching && (
+            <p className="mt-2 text-center text-[12px] text-[var(--text-muted)]">불러오는 중…</p>
+          )}
+          {!picked && geoMsg && (
+            <p className="mt-2 text-center text-[12px] text-[var(--accent)]">{geoMsg}</p>
           )}
           {!picked && results.length > 0 && (
             <div className="mt-2 overflow-hidden rounded-md bg-[var(--bg)]">
-              {results.map((h) => (
-                <button key={h.n} type="button" onClick={() => { setPicked(h.n); setTel(h.tel); setAddr(h.a); setQ(h.n); setShowMap(false); }} className="flex w-full items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)]">
-                  <span><span className="block text-[14px] font-semibold text-[var(--text)]">{h.n}</span><span className="block text-[11.5px] text-[var(--text-muted)]">{h.a}</span></span>
-                  {showMap && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.d}km</span>}
-                </button>
+              {results.map((h, i) => (
+                <div key={`${h.name}-${i}`} className="flex items-stretch border-b border-[var(--border)] last:border-0">
+                  <button type="button" onClick={() => { setPicked(h.name); setTel(h.tel); setAddr(h.addr); setQ(h.name); setShowMap(false); setResults([]); }} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[var(--primary-soft)]">
+                    <span className="min-w-0"><span className="block truncate text-[14px] font-semibold text-[var(--text)]">{h.name}</span><span className="block truncate text-[11.5px] text-[var(--text-muted)]">{h.addr}</span></span>
+                    {h.dist != null && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.dist < 1 ? `${Math.round(h.dist * 1000)}m` : `${h.dist.toFixed(1)}km`}</span>}
+                  </button>
+                  <a href={naverMapUrl(h)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} aria-label="네이버 지도에서 보기" className="flex shrink-0 items-center justify-center px-3 text-[#03C75A] hover:bg-[var(--primary-soft)]" title="네이버 지도">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+                  </a>
+                </div>
               ))}
             </div>
           )}
@@ -438,6 +510,10 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
                   <label className="mb-1 block text-[11.5px] font-semibold text-[var(--text-secondary)]">전화번호</label>
                   <input className={inputCls} value={tel} onChange={(e) => setTel(e.target.value)} />
                 </div>
+                <a href={naverMapUrl({ name: picked, addr, tel, x: null, y: null })} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-1.5 rounded-md bg-white py-2 text-[12.5px] font-semibold text-[#03C75A]">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+                  네이버 지도에서 보기
+                </a>
               </div>
             </div>
           )}
@@ -460,14 +536,14 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
               {procs.map((p) => (
                 <div key={p.id} className="space-y-1.5 rounded-md bg-[var(--bg)] p-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="rounded-full bg-[var(--primary)] px-2.5 py-1 text-[12.5px] font-semibold text-white">{p.label}</span>
+                    <span className="rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
                     <button type="button" onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
                   </div>
                   <div className="flex gap-1.5">
-                    <input className={inputSm + " w-[120px] shrink-0"} placeholder="용량 (예: 600샷)" value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value })} />
-                    <input inputMode="numeric" className={inputSm + " min-w-0 flex-1"} placeholder="가격" value={p.price ? Number(p.price).toLocaleString() : ""} onChange={(e) => upd(p.id, { price: e.target.value.replace(/[^0-9]/g, "") })} />
+                    <input ref={(el) => { unitRefs.current[p.id] = el; }} className={inputSm + " w-[72px] shrink-0"} placeholder="용량" value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value })} />
+                    <input inputMode="numeric" className={inputSm + " w-[88px] shrink-0"} placeholder="가격" value={p.price ? Number(p.price).toLocaleString() : ""} onChange={(e) => upd(p.id, { price: e.target.value.replace(/[^0-9]/g, "") })} />
+                    <input className={inputSm + " min-w-0 flex-1"} placeholder="메모" value={p.note} onChange={(e) => upd(p.id, { note: e.target.value })} />
                   </div>
-                  <input className={inputSm + " w-full"} placeholder="비고 (그 외 메모)" value={p.note} onChange={(e) => upd(p.id, { note: e.target.value })} />
                 </div>
               ))}
             </div>
@@ -740,6 +816,16 @@ function DetailView({ go }: { go: (s: Screen) => void }) {
         <div className="mt-3 flex gap-2">
           <button type="button" className="flex-1 rounded-md bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">전화하기</button>
           <button type="button" className="flex-1 rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">채널 들어가기</button>
+        </div>
+        <div className="mt-2 flex gap-2">
+          <a href="https://map.naver.com/p/search/라온피부과의원" target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-white py-2.5 text-[12.5px] font-semibold text-[#03C75A] ring-1 ring-inset ring-[var(--border)]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+            네이버 지도
+          </a>
+          <a href="tmap://search?name=라온피부과의원" className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-white py-2.5 text-[12.5px] font-semibold text-[#1A56DB] ring-1 ring-inset ring-[var(--border)]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+            티맵 길찾기
+          </a>
         </div>
       </div>
 

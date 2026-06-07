@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-06-07] — 시술일기 목업 다듬기 + 병원검색 실제 DB 연동 + 운영 페이지 페이지네이션
+
+### Added
+- **시술일기 목업 병원검색 실제 연동** (`src/app/mockups/skin-diary/SkinDiaryMockup.tsx`): 가짜 HOSPITALS 상수 제거 → 브라우저 anon Supabase 클라이언트로 `clinics` 실조회. (1) 병원명 250ms 디바운스 `ilike` 검색(상위 20), (2) "내 주변 피부과 찾기" = `navigator.geolocation` → `x_pos/y_pos` bbox(±0.045≈5km) 조회 후 거리순 정렬. 결과·선택카드에 **네이버 지도(디폴트)** 링크(`map.naver.com/p/search/{병원명 주소}`). 의료법 판단(원장 지시): 실제 병원명 노출은 단순 목록이라 환자유인 아님.
+- **상세보기 길찾기**: 네이버 지도 / 티맵(`tmap://search`) 버튼 추가.
+- **운영 병원정보 페이지 페이지네이션** (`/admin/clinics`): 50개 고정 → `page` 쿼리 + `.range()` + 조건부 count. 이전/번호(±2 윈도우, 처음·끝 + …)/다음. "전체 N곳 중 X–Y 표시 · p/총 페이지" 안내.
+
+### Changed
+- **시술일기 목업 UI**: 받은 시술 칩색을 카테고리색으로(리프팅 #29B6F6 / 스킨부스터 #F48FB1, 그 외 --primary). 용량·가격·메모를 한 줄로 통합. 시술 추가 시 커서를 해당 행 '용량' 칸으로 이동(ref+useEffect). 플로팅 메뉴 4개(나의 시술일기 보기 / 시술일기 남기기 / 시술 후기 남기기 / 끄적끄적).
+- **날짜 picker 데스크탑 버그 수정**: `opacity-0` 오버레이는 데스크탑 크롬에서 클릭만으론 안 열려 → 보이는 버튼 클릭 시 `input.showPicker()` 호출. 모바일·데스크탑 동일 동작.
+- **운영 페이지 뒤로가기**: 공유 `BackButton`(router.back, 글 상세 스크롤 복원용)을 `/admin` 대시보드 고정 Link 로 교체(이 페이지 한정).
+
+### Added (운영)
+- **Vercel 환경변수 `DATA_GO_KR_SERVICE_KEY`** 등록(production·preview·development) — 운영 sync 페이지가 배포 환경에서 동작하도록.
+
+---
+
 ## [2026-06-07] — 병원(clinic) 정보 동기화 기능 + 전국 피부과 의원 적재
 
 ### Added
