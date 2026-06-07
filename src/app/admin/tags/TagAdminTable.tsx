@@ -421,10 +421,10 @@ function Row({
   return (
     <tr
       className={
-        cancelSnap
-          ? "bg-emerald-50/50"
-          : dirty
-            ? "bg-amber-50/70"
+        dirty
+          ? "bg-amber-50/70"
+          : cancelSnap
+            ? "bg-emerald-50/50"
             : "hover:bg-[var(--bg-soft)]"
       }
     >
@@ -572,9 +572,10 @@ function Row({
           title="추천(자동태깅 후보)"
         />
       </td>
-      {/* 관리 — 저장(=검수완료) ↔ 취소 토글. 취소는 이 화면 머무는 동안만(새로고침 시 확정). */}
+      {/* 관리 — 저장(=검수완료) ↔ 취소 토글. 취소는 이 화면 머무는 동안만(새로고침 시 확정).
+          단, '취소' 상태에서 추가 편집(dirty)이 생기면 다시 '저장'으로 전환(발주 M). */}
       <td className="px-2 py-1.5 text-center">
-        {cancelSnap ? (
+        {cancelSnap && !dirty ? (
           <button
             type="button"
             onClick={cancel}
