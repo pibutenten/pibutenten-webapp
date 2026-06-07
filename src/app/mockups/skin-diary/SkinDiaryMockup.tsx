@@ -21,7 +21,17 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import dynamic from "next/dynamic";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import type { MapPin } from "./ClinicMap";
+
+// Leaflet 은 window 의존(SSR 비호환) → 클라이언트에서만 로드.
+const ClinicMap = dynamic(() => import("./ClinicMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[200px] items-center justify-center rounded-md bg-[var(--bg-soft)] text-[12px] text-[var(--text-muted)]">지도 불러오는 중…</div>
+  ),
+});
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -363,6 +373,7 @@ type DiaryProc = ReviewState & { id: number; label: string; cat: string; price: 
 function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
+  const [pickedXY, setPickedXY] = useState<{ x: number; y: number } | null>(null); // 선택 병원 좌표(경도 x/위도 y)
   const [tel, setTel] = useState("");
   const [addr, setAddr] = useState("");
   // 실제 clinics DB 검색 결과 (이름 검색 or 내 주변).
@@ -491,11 +502,32 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           {!picked && geoMsg && (
             <p className="mt-2 text-center text-[12px] text-[var(--accent)]">{geoMsg}</p>
           )}
+          {!picked && results.length > 0 && (() => {
+            const geoPins: MapPin[] = results.filter((h) => h.x != null && h.y != null).map((h) => ({ lat: h.y as number, lng: h.x as number, label: h.name }));
+            if (geoPins.length === 0) return null;
+            return (
+              <div className="mt-2">
+                <ClinicMap
+                  center={{ lat: geoPins[0].lat, lng: geoPins[0].lng }}
+                  zoom={geoActiveRef.current ? 14 : 15}
+                  height={200}
+                  pins={geoPins}
+                  onPick={(label) => {
+                    const h = results.find((r) => r.name === label);
+                    if (!h) return;
+                    geoActiveRef.current = false;
+                    setPicked(h.name); setPickedXY(h.x != null && h.y != null ? { x: h.x, y: h.y } : null);
+                    setTel(h.tel); setAddr(h.addr); setQ(h.name); setResults([]);
+                  }}
+                />
+              </div>
+            );
+          })()}
           {!picked && results.length > 0 && (
             <div className="mt-2 overflow-hidden rounded-md bg-[var(--bg)]">
               {results.map((h, i) => (
                 <div key={`${h.name}-${h.addr}-${i}`} className="flex items-stretch border-b border-[var(--border)] last:border-0">
-                  <button type="button" onClick={() => { geoActiveRef.current = false; setPicked(h.name); setTel(h.tel); setAddr(h.addr); setQ(h.name); setResults([]); }} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[var(--primary-soft)]">
+                  <button type="button" onClick={() => { geoActiveRef.current = false; setPicked(h.name); setPickedXY(h.x != null && h.y != null ? { x: h.x, y: h.y } : null); setTel(h.tel); setAddr(h.addr); setQ(h.name); setResults([]); }} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[var(--primary-soft)]">
                     <span className="min-w-0"><span className="block truncate text-[14px] font-semibold text-[var(--text)]">{h.name}</span><span className="block truncate text-[11.5px] text-[var(--text-muted)]">{h.addr}</span></span>
                     {h.dist != null && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.dist < 1 ? `${Math.round(h.dist * 1000)}m` : `${h.dist.toFixed(1)}km`}</span>}
                   </button>
@@ -509,7 +541,12 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           {picked && (
             <div className="mt-2 rounded-md bg-[var(--bg)] p-3">
               <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--text)]">{picked}</span>
-                <button type="button" onClick={() => { setPicked(null); setQ(""); setTel(""); setAddr(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
+                <button type="button" onClick={() => { setPicked(null); setPickedXY(null); setQ(""); setTel(""); setAddr(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
+              {pickedXY && (
+                <div className="mt-2">
+                  <ClinicMap center={{ lat: pickedXY.y, lng: pickedXY.x }} zoom={16} height={180} pins={[{ lat: pickedXY.y, lng: pickedXY.x, label: picked, active: true }]} />
+                </div>
+              )}
               <div className="mt-2 space-y-2">
                 <div>
                   <label className="mb-1 block text-[11.5px] font-semibold text-[var(--text-secondary)]">주소</label>

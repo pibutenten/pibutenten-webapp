@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-08] — 시술일기 OSM 지도 + 위치 권한 헤더 + 폼 다듬기
+
+### Added
+- **시술일기 병원 위치 지도(OpenStreetMap/Leaflet)** `src/app/mockups/skin-diary/ClinicMap.tsx`: 외부 키·결제 불필요. `clinics` 좌표(위도 y_pos/경도 x_pos)로 핀 표시. 커스텀 SVG divIcon(기본 마커 번들 깨짐 회피), OSM 타일+저작자 표기, `next/dynamic` ssr:false 로드(window 의존). 검색/내주변 결과는 다중 핀(클릭 시 선택), 선택 병원은 단일 핀 지도. 신규 의존성 `leaflet` `react-leaflet`(+`@types/leaflet`).
+- 시술일기 폼: 선택 병원 좌표 상태(`pickedXY`) 추가 — 핀·지도 중심 좌표 보존.
+
+### Fixed
+- **[치명] 위치 권한 전면 차단** (`next.config.ts`): `Permissions-Policy: geolocation=()` 가 사이트 전체 위치를 막아 '내 주변 피부과 찾기'가 즉시 실패하던 문제 → `geolocation=(self)`(1st-party 허용, 외부 iframe 차단). RUNBOOK 보안헤더 항목 동기화.
+
+### Changed
+- 시술일기 폼: 의사/실장 placeholder "시술의사(선택)/상담실장(선택)" → "원장님/실장님". '오늘의 시술 일기' 메모 최대 1000자 + 800자부터 글자수 카운터(950자 경고색).
+
+---
+
 ## [2026-06-07] — 시술일기 목업 다듬기 + 병원검색 실제 DB 연동 + 운영 페이지 페이지네이션
 
 ### Added
