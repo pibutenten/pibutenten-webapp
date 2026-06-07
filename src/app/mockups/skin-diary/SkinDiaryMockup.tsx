@@ -503,7 +503,6 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           <textarea rows={3} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
         </div>
 
-        <SubmitBar label="저장하기" onClick={() => { toast("저장했어요"); setTimeout(() => go("record"), 800); }} />
       </div>
 
       {procs.length > 0 && (
@@ -558,6 +557,10 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           </div>
         );
       })}
+
+      <div className="mt-5 flex justify-center">
+        <button type="button" onClick={() => { toast("저장했어요"); setTimeout(() => go("record"), 800); }} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)]">기록 저장하기</button>
+      </div>
     </section>
   );
 }
