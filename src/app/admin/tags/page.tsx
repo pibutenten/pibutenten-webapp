@@ -9,7 +9,7 @@ import { slugifyEn } from "@/lib/tag-slug";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "태그 매니저",
+  title: "태그 관리",
   robots: { index: false, follow: false },
 };
 
@@ -207,18 +207,17 @@ export default async function AdminTagsPage({ searchParams }: Props) {
     <section className="w-full py-6">
       <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 pl-1">
-        <h1 className="text-2xl font-bold text-[var(--text)]">태그 매니저</h1>
+        <h1 className="text-2xl font-bold text-[var(--text)]">태그 관리</h1>
         <p className="mt-1 text-xs text-[var(--text-muted)]">
           tag_dictionary SSOT · 편집 즉시 / 사이트 색상은 다음 배포 반영
         </p>
       </div>
 
-      {/* 요약 카드 */}
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+      {/* 요약 카드 — 4개(데스크탑 한 줄·모바일 2×2). '미지정'은 상태 칩으로 접근. */}
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: "전체", v: total },
           { label: "분류완료", v: classified },
-          { label: "미지정", v: unspec },
           { label: "영문 공란", v: enBlank },
           { label: "시술 후기", v: procCount },
         ].map((s) => (
@@ -241,8 +240,8 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         ))}
       </div>
 
-      {/* 상태 칩(좌, 단일선택 배타) + 기간 칩(우). 활성 칩 재클릭 시 해제→전체 (D5). */}
-      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {/* 상태 칩(좌) + 기간 칩(우). 모바일: 각 줄 세로 stack(어긋남 방지) / 데스크탑: 한 줄 좌우. (K3) */}
+      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-[var(--text-muted)]">상태</span>
           <Link replace scroll={false} href={qs(base,{ status: undefined, sort: undefined, dir: undefined, page: undefined })} className={chip(status === "all")}>전체</Link>
@@ -266,7 +265,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
             );
           })}
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
           <span className="text-[11px] text-[var(--text-muted)]">기간</span>
           {PERIODS.map((p) => (
             <Link replace scroll={false} key={p.days} href={qs(base, { days: p.days === 0 ? undefined : String(p.days), page: undefined })} className={chip(days === p.days)}>

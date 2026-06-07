@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-07] — K: 태그 관리 화면 정리 (이름·KPI·모바일)
+
+### Changed
+- **이름 '태그 매니저' → '태그 관리'**: `/admin/tags` h1·metadata title·관리자 대시보드 메뉴(Tool) 전부.
+- **요약 KPI 5개 → 4개**: '미지정' 카드 제거(상태 칩으로 접근). `sm:grid-cols-5`→`sm:grid-cols-4`(데스크탑 한 줄·모바일 2×2).
+- **상태·기간 줄 모바일 정렬**: `flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center`로 — 모바일은 상태/기간 각 줄 세로 stack(어긋남 해소), 데스크탑은 한 줄 좌우(기간 `sm:ml-auto`).
+
+### 검증
+- `tsc`+`build` 통과. preview /admin·/admin/tags 200·서버 에러 0.
+
+---
+
 ## [2026-06-07] — J: 태그 매니저 디자인 통일 + 스크롤 튐 해소
 
 ### Fixed
