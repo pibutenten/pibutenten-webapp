@@ -537,66 +537,72 @@ function Row({
         )}
       </td>
       <td className="px-2 py-1.5 text-right tabular-nums">{row.usage.toLocaleString()}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums text-[var(--text-muted)]">
-        {row.search_cnt.toLocaleString()}
-      </td>
-      <td className="px-2 py-1.5 text-right text-[11px] text-[var(--text-muted)] whitespace-nowrap">
-        {createdLabel}
-      </td>
-      {/* 관리 — 행 단위 저장 (+ 미지정 검토 트리아지) */}
-      <td className="px-2 py-1.5 text-center">
-        <div className="flex flex-col items-center gap-1">
-          <button
-            type="button"
-            onClick={save}
-            disabled={!dirty || busy}
-            className={
-              "rounded px-2 py-1 text-[11px] font-medium transition-colors " +
-              (dirty && !busy
-                ? "bg-[var(--primary)] text-white hover:bg-[var(--primary-active)]"
-                : "cursor-default bg-[var(--bg-soft)] text-[var(--text-muted)]")
-            }
-          >
-            {busy ? "저장중" : "저장"}
-          </button>
-          {triage && (
-            <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-              <label className="flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
-                <input
-                  type="checkbox"
-                  checked={rec}
-                  disabled={triageBusy}
-                  onChange={(e) => {
-                    const on = e.target.checked;
-                    setRec(on);
-                    // 추천 ON → 검토완료(now)도 함께. OFF → 추천만 해제.
-                    triagePatch(on ? { is_recommendable: true, reviewed: true } : { is_recommendable: false });
-                  }}
-                />
-                추천
-              </label>
-              {reviewed ? (
-                <button
-                  type="button"
-                  onClick={() => triagePatch({ reviewed: false })}
-                  disabled={triageBusy}
-                  className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-                >
-                  되돌리기
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => triagePatch({ reviewed: true })}
-                  disabled={triageBusy}
-                  className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-                >
-                  검토 완료(잔류)
-                </button>
-              )}
-            </div>
+      {/* 검토 탭: 검색량 자리 → 추천(중앙 체크), 생성일 자리 → 잔류(중앙 버튼). 그 외엔 원래대로. */}
+      {triage ? (
+        <td className="px-2 py-1.5 text-center">
+          <label className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+            <input
+              type="checkbox"
+              checked={rec}
+              disabled={triageBusy}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setRec(on);
+                // 추천 ON → 검토완료(now)도 함께. OFF → 추천만 해제.
+                triagePatch(on ? { is_recommendable: true, reviewed: true } : { is_recommendable: false });
+              }}
+            />
+            추천
+          </label>
+        </td>
+      ) : (
+        <td className="px-2 py-1.5 text-right tabular-nums text-[var(--text-muted)]">
+          {row.search_cnt.toLocaleString()}
+        </td>
+      )}
+      {triage ? (
+        <td className="px-2 py-1.5 text-center">
+          {reviewed ? (
+            <button
+              type="button"
+              onClick={() => triagePatch({ reviewed: false })}
+              disabled={triageBusy}
+              className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+            >
+              되돌리기
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => triagePatch({ reviewed: true })}
+              disabled={triageBusy}
+              title="검토 완료(분류 안 하고 미지정에 잔류)"
+              className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+            >
+              잔류
+            </button>
           )}
-        </div>
+        </td>
+      ) : (
+        <td className="px-2 py-1.5 text-right text-[11px] text-[var(--text-muted)] whitespace-nowrap">
+          {createdLabel}
+        </td>
+      )}
+      {/* 관리 — 행 단위 저장 */}
+      <td className="px-2 py-1.5 text-center">
+        <button
+          type="button"
+          onClick={save}
+          disabled={!dirty || busy}
+          className={
+            "rounded px-2 py-1 text-[11px] font-medium transition-colors " +
+            (dirty && !busy
+              ? "bg-[var(--primary)] text-white hover:bg-[var(--primary-active)]"
+              : "cursor-default bg-[var(--bg-soft)] text-[var(--text-muted)]")
+          }
+        >
+          {busy ? "저장중" : "저장"}
+        </button>
       </td>
     </tr>
   );
@@ -689,12 +695,7 @@ export default function TagAdminTable({
   return (
     <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
       {/* 합 952px — 컨테이너(max-w-1080·px-4 → 가용 ~1048) 안에 들어가 가로 스크롤 없음(D3) */}
-      <table
-        className={
-          "w-full table-fixed border-collapse text-sm " +
-          (status === "triage" ? "min-w-[1044px]" : "min-w-[952px]")
-        }
-      >
+      <table className="w-full min-w-[952px] table-fixed border-collapse text-sm">
         <colgroup>
           <col style={{ width: "130px" }} />
           <col style={{ width: "100px" }} />
@@ -702,11 +703,10 @@ export default function TagAdminTable({
           <col style={{ width: "90px" }} />{/* 부모 — 좁힘 */}
           <col style={{ width: "96px" }} />{/* 시술 후기 — 넓혀 헤더 한 줄(E3) */}
           <col style={{ width: "100px" }} />
-          <col style={{ width: "76px" }} />
-          <col style={{ width: "76px" }} />
-          <col style={{ width: "88px" }} />
-          {/* 관리 — '검토' 뷰에선 가로 트리아지 컨트롤 위해 넓힘 */}
-          <col style={{ width: status === "triage" ? "168px" : "76px" }} />
+          <col style={{ width: "76px" }} />{/* 사용량 */}
+          <col style={{ width: "76px" }} />{/* 검색량 / (검토)추천 */}
+          <col style={{ width: "88px" }} />{/* 생성일 / (검토)잔류 */}
+          <col style={{ width: "76px" }} />{/* 관리 */}
         </colgroup>
         <thead className="bg-[var(--bg-soft)] text-[var(--text-secondary)]">
           <tr>
@@ -732,12 +732,22 @@ export default function TagAdminTable({
             <th className="px-2 py-2 text-right font-medium">
               <SortHeader col="usage" label="사용량" sort={sort} dir={dir} />
             </th>
-            <th className="px-2 py-2 text-right font-medium">
-              <SortHeader col="search" label="검색량" sort={sort} dir={dir} />
-            </th>
-            <th className="px-2 py-2 text-right font-medium">
-              <SortHeader col="created" label="생성일" sort={sort} dir={dir} />
-            </th>
+            {/* 검토 탭: 검색량·생성일 헤더 → 추천·잔류(정렬 비대상·중앙). 그 외엔 원래대로. */}
+            {status === "triage" ? (
+              <>
+                <th className="px-2 py-2 text-center font-medium">추천</th>
+                <th className="px-2 py-2 text-center font-medium">잔류</th>
+              </>
+            ) : (
+              <>
+                <th className="px-2 py-2 text-right font-medium">
+                  <SortHeader col="search" label="검색량" sort={sort} dir={dir} />
+                </th>
+                <th className="px-2 py-2 text-right font-medium">
+                  <SortHeader col="created" label="생성일" sort={sort} dir={dir} />
+                </th>
+              </>
+            )}
             <th className="px-2 py-2 text-center font-medium">관리</th>
           </tr>
         </thead>
