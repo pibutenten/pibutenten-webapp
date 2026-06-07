@@ -309,6 +309,15 @@ export default async function AdminPage() {
             title="의사 프로필 관리"
             desc="학력·경력·전문분야 등 확장 프로필"
           />
+          {/* 병원 정보 동기화 — 심평원 병원정보서비스 기반 피부과 의원 참조 데이터 (super admin) */}
+          {isSuperAdmin && (
+            <Tool
+              href="/admin/clinics"
+              emoji="🏥"
+              title="병원 정보 동기화"
+              desc="심평원 피부과 의원 정보 가져오기 (피부일기 검색용)"
+            />
+          )}
           {/* PR-OPS (2026-05-19): OAuth 콜백 에러 운영 추적기 — super admin 만 */}
           {isSuperAdmin && (
             <Tool

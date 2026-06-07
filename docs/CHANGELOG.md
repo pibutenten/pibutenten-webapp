@@ -6,6 +6,13 @@
 
 ---
 
+## [2026-06-07] — 마이그레이션 0270: clinics 신규 테이블
+
+### Added
+- **`clinics` 테이블 신설** (마이그레이션 0270): 피부일기 병원 검색·선택용 건강보험심사평가원 병원정보 참조 테이블. 관리자 "병원 정보 가져오기" 메뉴에서 service_role 로 upsert. 주요 컬럼: `ykiho`(UNIQUE, 요양기호)/`name`/`addr`/`tel`/`url`/`sido_cd`/`sgu_cd`/`x_pos`/`y_pos`/`clinic_type`/`raw`(jsonb)/`synced_at`. RLS + GRANT: anon/authenticated SELECT 허용, INSERT/UPDATE/DELETE 는 service_role 전용. 인덱스 4종(name btree·name GIN pg_trgm·sido_sgu·xy). `set_updated_at()` 트리거.
+
+---
+
 ## [2026-06-07] — 발주 L: 이름 변경·병합도 저장 경유 통일 + 입력 시 사용량/병합 안내
 
 ### Changed

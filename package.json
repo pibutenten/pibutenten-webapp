@@ -21,6 +21,7 @@
     "@supabase/supabase-js": "^2.105.3",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "fast-xml-parser": "^5.8.0",
     "jsdom": "^29.1.1",
     "nanoid": "^5.1.11",
     "next": "16.2.6",
