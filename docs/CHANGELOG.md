@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-07] — 발주 E: 미지정 태그 검토(트리아지) 흐름
+
+### Added
+- **마이그 0269 — `tag_dictionary.reviewed_at timestamptz NULL`**: 미지정 검토 추적(NULL=미검토). get_tag_admin_overview RPC 에 컬럼 추가.
+- **미지정 전용 트리아지 UI**(태그 관리, status=unspec 일 때만): 행 '관리' 칸에 ① 추천(is_recommendable) 체크박스 ② '검토 완료(잔류)'/'되돌리기' 버튼. 다른 필터에는 미노출(평소 화면 그대로).
+- **미검토 기준 목록**: 미지정 기본 = `reviewed_at IS NULL`(미검토만). '검토완료 포함 보기' 토글(`rv=all`) + 미검토 개수 표시.
+
+### Changed
+- PATCH `/api/admin/tag-dictionary/[id]` 에 `reviewed`(true=now·false=NULL) 수용. 추천 ON 시 reviewed 도 함께 세팅. **새 컬럼은 reviewed_at 1개, 새 API 0**(기존 PATCH·is_recommendable 그대로 차용).
+- 검토 규칙: 분류 이동·병합·삭제 → 미지정서 자동 제외 / 추천 ON·잔류 → reviewed_at=now(미지정 잔류·검토됨) / 되돌리기 → reviewed_at NULL.
+
+### 검증
+- 트리아지 컨트롤 status=unspec 에서만 노출. 추천 ON·잔류 → reviewed 세팅 → 기본 목록서 제외, 포함보기로 재노출·되돌리기. tsc·build·/admin/tags 200.
+
 ## [2026-06-07] — 발주 D: 버튼 라벨 + 죽은 주석 정리
 
 ### Changed

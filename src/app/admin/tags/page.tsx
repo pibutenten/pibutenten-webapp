@@ -31,6 +31,7 @@ type Props = {
     page?: string;
     sort?: string;
     dir?: string;
+    rv?: string; // 미지정 검토: 'all' 이면 검토완료 포함(기본=미검토만)
   }>;
 };
 
@@ -74,6 +75,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const cat = sp.cat ?? "all";
   const status = sp.status ?? "all";
+  const inclReviewed = sp.rv === "all"; // 미지정: 검토완료 포함 보기
   const q = (sp.q ?? "").trim();
   const days = Number.parseInt(sp.days ?? "0", 10) || 0;
   const pageNum = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
@@ -118,6 +120,10 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   const enBlank = enNullC.count ?? 0;
   const procCount = procC.count ?? 0;
   const parentCount = parentC.count ?? 0;
+  // 미검토 미지정 개수(전체 미지정과 구분) — allRows(전체 모수)에서 reviewed_at NULL.
+  const unspecUnreviewed = allRows.filter(
+    (r) => r.category === "미지정" && !r.reviewed_at,
+  ).length;
   const catCounts: Record<string, number> = { all: total };
   CATEGORIES.forEach((c, i) => {
     catCounts[c] = catCs[i]?.count ?? 0;
@@ -129,7 +135,9 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   let rows = allRows;
   if (cat !== "all") rows = rows.filter((r) => r.category === cat);
   if (status === "en_blank") rows = rows.filter((r) => !r.en);
-  else if (status === "unspec") rows = rows.filter((r) => r.category === "미지정");
+  else if (status === "unspec")
+    // 미지정 검토: 기본 미검토(reviewed_at NULL)만. '포함 보기'(rv=all)면 검토완료도.
+    rows = rows.filter((r) => r.category === "미지정" && (inclReviewed || !r.reviewed_at));
   else if (status === "classified") rows = rows.filter((r) => r.category !== "미지정");
   else if (status === "proc") rows = rows.filter((r) => r.is_procedure);
   else if (status === "onb") rows = rows.filter((r) => !!r.onboarding);
@@ -184,6 +192,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
     days: sp.days,
     sort: sp.sort,
     dir: sp.dir,
+    rv: sp.rv,
   };
   // 부모 autocomplete + 검증용 전체 태그 ko (전 페이지 기준)
   const allKo = allRows.map((r) => r.ko);
@@ -282,6 +291,23 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         </div>
       </div>
 
+      {/* 미지정 검토 바 — 미지정 필터일 때만. 미검토 개수 + 검토완료 포함/미검토만 토글. */}
+      {status === "unspec" && (
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-[11.5px] text-[var(--text-muted)]">
+          <span>
+            미검토 <b className="tabular-nums text-[var(--text)]">{unspecUnreviewed.toLocaleString()}</b>개
+          </span>
+          <Link
+            replace
+            scroll={false}
+            href={qs(base, { rv: inclReviewed ? undefined : "all", page: undefined })}
+            className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-0.5 hover:bg-[var(--bg-soft)]"
+          >
+            {inclReviewed ? "미검토만 보기" : "검토완료 포함 보기"}
+          </Link>
+        </div>
+      )}
+
       {/* 검색 */}
       <form action="/admin/tags" method="get" className="mb-3 flex items-center gap-2">
         {sp.cat ? <input type="hidden" name="cat" value={sp.cat} /> : null}
@@ -289,6 +315,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         {sp.days ? <input type="hidden" name="days" value={sp.days} /> : null}
         {sp.sort ? <input type="hidden" name="sort" value={sp.sort} /> : null}
         {sp.dir ? <input type="hidden" name="dir" value={sp.dir} /> : null}
+        {sp.rv ? <input type="hidden" name="rv" value={sp.rv} /> : null}
         <input
           type="text"
           name="q"

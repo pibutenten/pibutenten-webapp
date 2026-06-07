@@ -385,6 +385,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0266 | **JSON-only orphan 태그 2건 DB 보강**(L2-4 선행). procedure-mappings.json 에만 있고 tag_dictionary 에 없던 `K-뷰티`(홈케어)·`1회적정량`(피부상식) INSERT(2083→2085). JSON 제거 시 categoryFor/slugFor 회귀 방지용. id IDENTITY 자동·ko UNIQUE ON CONFLICT DO NOTHING. | **적용 완료 (2026-06-07)** |
 | 0267 | **auto-tag 추천 큐레이션 플래그 is_recommendable**(L2-4 B안). `tag_dictionary.is_recommendable boolean NOT NULL DEFAULT false` 추가 + OLD 큐레이션 819개를 3단계 병합 반영해 현재 ko 로 매핑 → 804개 true 시드(나머지 1281 false). 회원 자동태깅(auto-tag)이 DB 전체(2085)가 아닌 추천 804개만 후보로 → 일반어 노이즈 차단. 신규 태그 기본 false. | **적용 완료 (2026-06-07)** |
 | 0268 | **get_tag_admin_overview + is_recommendable**(L2-4 토글). 태그 관리 '자동추천' 토글·필터용 컬럼을 RPC RETURNS TABLE 에 추가(DROP 후 재생성, 0251 본문 동일 + d.is_recommendable). | **적용 완료 (2026-06-07)** |
+| 0269 | **미지정 태그 검토 플래그 reviewed_at**(발주 E). `tag_dictionary.reviewed_at timestamptz NULL`(NULL=미검토, 값=검토완료/잔류). get_tag_admin_overview 에 컬럼 추가(DROP 후 재생성). 미지정 목록 기본=미검토만, '검토완료 포함 보기' 토글. PATCH 의 `reviewed`(now/null) 로 갱신. additive·전체 NULL 시작. | **적용 완료 (2026-06-07)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

@@ -14,6 +14,8 @@ export type TagRow = {
   en: string | null;
   parent_ko: string | null;
   is_procedure: boolean;
+  is_recommendable: boolean;
+  reviewed_at: string | null;
   onboarding: string | null;
   created_at: string;
   first_card_at: string | null;
@@ -303,7 +305,22 @@ function RenameModal({
   );
 }
 
-function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<string> }) {
+function Row({
+  row,
+  allKo,
+  koSet,
+  status,
+}: {
+  row: TagRow;
+  allKo: string[];
+  koSet: Set<string>;
+  status: string;
+}) {
+  // 미지정 검토(트리아지) — 미지정 필터에서만 노출. 기존 PATCH(is_recommendable·reviewed) 차용.
+  const triage = status === "unspec";
+  const [rec, setRec] = useState(row.is_recommendable);
+  const [triageBusy, setTriageBusy] = useState(false);
+  const reviewed = !!row.reviewed_at;
   // ko 도 draft — rename 은 모달 [확인]으로 draft 반영, 행 [저장] 시 rename API 로 확정 (D2)
   const [savedKo, setSavedKo] = useState(row.ko);
   const [ko, setKo] = useState(row.ko);
@@ -320,6 +337,14 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
   const [busy, setBusy] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const router = useRouter();
+
+  // 트리아지 PATCH(추천·검토) → 성공 시 refresh(목록서 검토완료분 빠짐). 기존 patchFields 차용.
+  async function triagePatch(body: Record<string, unknown>) {
+    setTriageBusy(true);
+    const ok = await patchFields(row.id, body);
+    setTriageBusy(false);
+    if (ok) router.refresh();
+  }
 
   const koDirty = ko !== savedKo;
   const fieldsDirty =
@@ -518,21 +543,60 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
       <td className="px-2 py-1.5 text-right text-[11px] text-[var(--text-muted)] whitespace-nowrap">
         {createdLabel}
       </td>
-      {/* 관리 — 행 단위 저장 */}
+      {/* 관리 — 행 단위 저장 (+ 미지정 검토 트리아지) */}
       <td className="px-2 py-1.5 text-center">
-        <button
-          type="button"
-          onClick={save}
-          disabled={!dirty || busy}
-          className={
-            "rounded px-2 py-1 text-[11px] font-medium transition-colors " +
-            (dirty && !busy
-              ? "bg-[var(--primary)] text-white hover:bg-[var(--primary-active)]"
-              : "cursor-default bg-[var(--bg-soft)] text-[var(--text-muted)]")
-          }
-        >
-          {busy ? "저장중" : "저장"}
-        </button>
+        <div className="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={save}
+            disabled={!dirty || busy}
+            className={
+              "rounded px-2 py-1 text-[11px] font-medium transition-colors " +
+              (dirty && !busy
+                ? "bg-[var(--primary)] text-white hover:bg-[var(--primary-active)]"
+                : "cursor-default bg-[var(--bg-soft)] text-[var(--text-muted)]")
+            }
+          >
+            {busy ? "저장중" : "저장"}
+          </button>
+          {triage && (
+            <>
+              <label className="flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+                <input
+                  type="checkbox"
+                  checked={rec}
+                  disabled={triageBusy}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setRec(on);
+                    // 추천 ON → 검토완료(now)도 함께. OFF → 추천만 해제.
+                    triagePatch(on ? { is_recommendable: true, reviewed: true } : { is_recommendable: false });
+                  }}
+                />
+                추천
+              </label>
+              {reviewed ? (
+                <button
+                  type="button"
+                  onClick={() => triagePatch({ reviewed: false })}
+                  disabled={triageBusy}
+                  className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+                >
+                  되돌리기
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => triagePatch({ reviewed: true })}
+                  disabled={triageBusy}
+                  className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+                >
+                  검토 완료(잔류)
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -673,7 +737,7 @@ export default function TagAdminTable({
         </thead>
         <tbody className="divide-y divide-[var(--border)]">
           {rows.map((r) => (
-            <Row key={r.id} row={r} allKo={allKo} koSet={koSet} />
+            <Row key={r.id} row={r} allKo={allKo} koSet={koSet} status={status} />
           ))}
         </tbody>
       </table>

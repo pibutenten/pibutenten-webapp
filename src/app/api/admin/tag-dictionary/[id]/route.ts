@@ -39,6 +39,8 @@ const BodySchema = z
     parent_ko: z.string().trim().max(120).nullable().optional(),
     is_procedure: z.boolean().optional(),
     is_recommendable: z.boolean().optional(),
+    // 미지정 검토(트리아지): true=검토완료(now), false=되돌리기(NULL). 서버가 시각 결정.
+    reviewed: z.boolean().optional(),
     onboarding: z.string().trim().max(40).nullable().optional(),
   })
   .strict()
@@ -91,6 +93,7 @@ export async function PATCH(
   if (d.category !== undefined) patch.category = d.category;
   if (d.is_procedure !== undefined) patch.is_procedure = d.is_procedure;
   if (d.is_recommendable !== undefined) patch.is_recommendable = d.is_recommendable;
+  if (d.reviewed !== undefined) patch.reviewed_at = d.reviewed ? new Date().toISOString() : null;
   // 영문은 slug 로 정규화 (E1). 정규화 결과가 빈 문자열이면 null.
   if (d.en !== undefined) patch.en = d.en ? slugifyEn(d.en) || null : null;
   if (d.parent_ko !== undefined) patch.parent_ko = d.parent_ko ? d.parent_ko : null;
@@ -101,7 +104,7 @@ export async function PATCH(
     .from("tag_dictionary")
     .update(patch)
     .eq("id", id)
-    .select("id, ko, category, en, parent_ko, is_procedure, is_recommendable, onboarding")
+    .select("id, ko, category, en, parent_ko, is_procedure, is_recommendable, reviewed_at, onboarding")
     .maybeSingle();
   if (error) {
     return errorResponse(error, "save_failed", "[tag-dictionary PATCH] update", 500);
