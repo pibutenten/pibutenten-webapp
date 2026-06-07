@@ -265,7 +265,7 @@ function RenameModal({
             <p className="mb-3 break-keep text-xs leading-relaxed text-[var(--text-muted)]">
               현재 <b className="text-[var(--text)]">{row.ko}</b> · 이 태그가 달린 카드 약{" "}
               <b className="tabular-nums text-[var(--text)]">{usage.toLocaleString()}</b>건에 반영됩니다.
-              [확인] 후 행의 <b>[저장]</b>을 눌러야 최종 적용됩니다. (기존 태그명을 입력하면 병합)
+              [확인] 시 바로 적용됩니다. (기존 태그명을 입력하면 병합)
             </p>
             <input
               value={newKo}
@@ -334,7 +334,7 @@ function Row({
   const [saved, setSaved] = useState<Editable>(base);
   const [draft, setDraft] = useState<Editable>(base);
   const [editing, setEditing] = useState<null | "category" | "en" | "parent" | "onboarding">(null);
-  const [busy, setBusy] = useState(false);
+  const [savingField, setSavingField] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const router = useRouter();
 
@@ -346,68 +346,42 @@ function Row({
     if (ok) router.refresh();
   }
 
-  const koDirty = ko !== savedKo;
-  const fieldsDirty =
-    draft.category !== saved.category ||
-    (draft.en ?? "") !== (saved.en ?? "") ||
-    (draft.parent_ko ?? "") !== (saved.parent_ko ?? "") ||
-    draft.is_procedure !== saved.is_procedure ||
-    (draft.onboarding ?? "") !== (saved.onboarding ?? "");
-  const dirty = koDirty || fieldsDirty;
-
-  async function save() {
-    if (!dirty || busy) return;
-    // 부모 존재 검증 (입력했는데 사전에 없는 태그면 거부)
-    const p = (draft.parent_ko ?? "").trim();
-    if (p && !koSet.has(p)) {
-      showToast("존재하는 태그만 부모로 지정할 수 있어요.", { tone: "danger" });
-      return;
-    }
-    setBusy(true);
+  // 즉시 저장 — 인라인 편집은 변경 즉시 해당 필드만 PATCH(저장 버튼 없음). 기존 PATCH/rename API 그대로.
+  async function commit(partial: Record<string, unknown>, opts?: { refresh?: boolean }) {
+    setSavingField(true);
+    const ok = await patchFields(row.id, partial);
+    setSavingField(false);
+    if (ok && opts?.refresh) router.refresh();
+    return ok;
+  }
+  // 이름 변경 즉시 커밋(태그명 클릭 → 모달 [확인]). 기존 rename API. 성공 시 ko·refresh.
+  async function commitRename(newKo: string) {
+    const v = newKo.trim();
+    if (!v || v === savedKo) return;
+    setSavingField(true);
     try {
-      // 1) ko rename (변경 시) — 단일 tx 전파(cards.keywords + 시술 분류표)
-      if (koDirty) {
-        const r = await fetch(`/api/admin/tag-dictionary/${row.id}/rename`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ newKo: ko, confirm: true }),
-        });
-        const j = (await r.json().catch(() => null)) as { message?: string } | null;
-        if (!r.ok) {
-          showToast(j?.message ?? `이름 변경 실패 (HTTP ${r.status})`, { tone: "danger" });
-          return;
-        }
-        setSavedKo(ko);
+      const r = await fetch(`/api/admin/tag-dictionary/${row.id}/rename`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newKo: v, confirm: true }),
+      });
+      const j = (await r.json().catch(() => null)) as { message?: string } | null;
+      if (!r.ok) {
+        showToast(j?.message ?? `이름 변경 실패 (HTTP ${r.status})`, { tone: "danger" });
+        return;
       }
-      // 2) 나머지 필드 부분 PATCH
-      const body: Record<string, unknown> = {};
-      if (draft.category !== saved.category) body.category = draft.category;
-      // 영문은 slug 로 정규화 (E1) — 서버와 동일 규칙으로 즉시 표시 정합.
-      if ((draft.en ?? "") !== (saved.en ?? "")) body.en = slugifyEn(draft.en ?? "");
-      if ((draft.parent_ko ?? "") !== (saved.parent_ko ?? "")) body.parent_ko = p;
-      if (draft.is_procedure !== saved.is_procedure) body.is_procedure = draft.is_procedure;
-      if ((draft.onboarding ?? "") !== (saved.onboarding ?? "")) body.onboarding = draft.onboarding ?? "";
-      if (Object.keys(body).length > 0) {
-        const ok = await patchFields(row.id, body);
-        if (!ok) return;
-        const normalizedEn = body.en !== undefined ? (body.en as string) : (draft.en ?? "");
-        setSaved({
-          ...draft,
-          en: normalizedEn,
-          parent_ko: body.parent_ko !== undefined ? (body.parent_ko as string) : draft.parent_ko,
-        });
-        setDraft((d) => ({ ...d, en: normalizedEn, parent_ko: (d.parent_ko ?? "").trim() }));
-      }
-      showToast(`'${ko}' 저장됨`);
+      setKo(v);
+      setSavedKo(v);
+      router.refresh();
     } finally {
-      setBusy(false);
+      setSavingField(false);
     }
   }
 
   const createdLabel = row.first_card_at ? formatYmd(row.first_card_at) : formatYmd(row.created_at);
 
   return (
-    <tr className={dirty ? "bg-amber-50/70" : "hover:bg-[var(--bg-soft)]"}>
+    <tr className={savingField ? "bg-amber-50/40" : "hover:bg-[var(--bg-soft)]"}>
       {/* 태그(ko) — 클릭 시 rename 모달 */}
       <td className="px-2 py-1.5">
         <button
@@ -423,7 +397,7 @@ function Row({
             row={{ id: row.id, ko }}
             usage={row.usage}
             koSet={koSet}
-            onConfirm={(v) => setKo(v)}
+            onConfirm={(v) => commitRename(v)}
             onMerged={() => router.refresh()}
             onClose={() => setRenameOpen(false)}
           />
@@ -436,8 +410,13 @@ function Row({
             autoFocus
             value={draft.category}
             onChange={(e) => {
-              setDraft({ ...draft, category: e.target.value });
+              const v = e.target.value;
               setEditing(null);
+              if (v === saved.category) return;
+              setDraft((d) => ({ ...d, category: v }));
+              setSaved((s) => ({ ...s, category: v }));
+              // 분류 변경 → 미지정/검토 목록 모수 바뀜 → refresh.
+              commit({ category: v }, { refresh: true });
             }}
             onBlur={() => setEditing(null)}
             className={editBox}
@@ -459,11 +438,21 @@ function Row({
             autoFocus
             value={draft.en ?? ""}
             onChange={(e) => setDraft({ ...draft, en: e.target.value })}
-            onBlur={() => setEditing(null)}
+            onBlur={() => {
+              setEditing(null);
+              const en2 = slugifyEn(draft.en ?? "");
+              if (en2 === (saved.en ?? "")) {
+                if (en2 !== (draft.en ?? "")) setDraft((d) => ({ ...d, en: en2 }));
+                return;
+              }
+              setDraft((d) => ({ ...d, en: en2 }));
+              setSaved((s) => ({ ...s, en: en2 }));
+              commit({ en: en2 || null });
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === "Escape") {
                 e.preventDefault();
-                setEditing(null);
+                (e.target as HTMLInputElement).blur();
               }
             }}
             placeholder="영문"
@@ -487,7 +476,19 @@ function Row({
             value={draft.parent_ko ?? ""}
             allKo={allKo}
             onChange={(v) => setDraft({ ...draft, parent_ko: v })}
-            onClose={() => setEditing(null)}
+            onClose={() => {
+              setEditing(null);
+              const p = (draft.parent_ko ?? "").trim();
+              if (p === (saved.parent_ko ?? "")) return;
+              if (p && !koSet.has(p)) {
+                showToast("존재하는 태그만 부모로 지정할 수 있어요.", { tone: "danger" });
+                setDraft((d) => ({ ...d, parent_ko: saved.parent_ko }));
+                return;
+              }
+              setDraft((d) => ({ ...d, parent_ko: p }));
+              setSaved((s) => ({ ...s, parent_ko: p }));
+              commit({ parent_ko: p || null });
+            }}
           />
         ) : (
           <span
@@ -505,7 +506,12 @@ function Row({
         <input
           type="checkbox"
           checked={draft.is_procedure}
-          onChange={(e) => setDraft({ ...draft, is_procedure: e.target.checked })}
+          onChange={(e) => {
+            const v = e.target.checked;
+            setDraft((d) => ({ ...d, is_procedure: v }));
+            setSaved((s) => ({ ...s, is_procedure: v }));
+            commit({ is_procedure: v }, { refresh: true });
+          }}
         />
       </td>
       {/* 온보딩 */}
@@ -515,8 +521,12 @@ function Row({
             autoFocus
             value={draft.onboarding ?? ""}
             onChange={(e) => {
-              setDraft({ ...draft, onboarding: e.target.value });
+              const v = e.target.value;
               setEditing(null);
+              if (v === (saved.onboarding ?? "")) return;
+              setDraft((d) => ({ ...d, onboarding: v }));
+              setSaved((s) => ({ ...s, onboarding: v }));
+              commit({ onboarding: v }, { refresh: true });
             }}
             onBlur={() => setEditing(null)}
             className={editBox}
@@ -540,20 +550,25 @@ function Row({
       {/* 검토 탭: 검색량 자리 → 추천(중앙 체크), 생성일 자리 → 잔류(중앙 버튼). 그 외엔 원래대로. */}
       {triage ? (
         <td className="px-2 py-1.5 text-center">
-          <label className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
-            <input
-              type="checkbox"
-              checked={rec}
-              disabled={triageBusy}
-              onChange={(e) => {
-                const on = e.target.checked;
-                setRec(on);
-                // 추천 ON → 검토완료(now)도 함께. OFF → 추천만 해제.
-                triagePatch(on ? { is_recommendable: true, reviewed: true } : { is_recommendable: false });
-              }}
-            />
-            추천
-          </label>
+          {/* 추천 — 잔류/되돌리기와 동일 버튼 형태(체크박스→토글 버튼). ON 시 검토완료 동반. */}
+          <button
+            type="button"
+            disabled={triageBusy}
+            onClick={() => {
+              const on = !rec;
+              setRec(on);
+              triagePatch(on ? { is_recommendable: true, reviewed: true } : { is_recommendable: false });
+            }}
+            title="추천(자동태깅 후보) — 켜면 검토완료 처리"
+            className={
+              "rounded border px-2 py-0.5 text-[11px] transition-colors " +
+              (rec
+                ? "border-[var(--border)] bg-[var(--chip-active-bg)] font-semibold text-[var(--text)]"
+                : "border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
+            }
+          >
+            추천{rec ? " ✓" : ""}
+          </button>
         </td>
       ) : (
         <td className="px-2 py-1.5 text-right tabular-nums text-[var(--text-muted)]">
@@ -588,22 +603,7 @@ function Row({
           {createdLabel}
         </td>
       )}
-      {/* 관리 — 행 단위 저장 */}
-      <td className="px-2 py-1.5 text-center">
-        <button
-          type="button"
-          onClick={save}
-          disabled={!dirty || busy}
-          className={
-            "rounded px-2 py-1 text-[11px] font-medium transition-colors " +
-            (dirty && !busy
-              ? "bg-[var(--primary)] text-white hover:bg-[var(--primary-active)]"
-              : "cursor-default bg-[var(--bg-soft)] text-[var(--text-muted)]")
-          }
-        >
-          {busy ? "저장중" : "저장"}
-        </button>
-      </td>
+      {/* (관리 칸 '저장' 제거 — 인라인 편집 즉시 저장) */}
     </tr>
   );
 }
@@ -694,8 +694,8 @@ export default function TagAdminTable({
   const koSet = new Set(allKo);
   return (
     <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
-      {/* 합 952px — 컨테이너(max-w-1080·px-4 → 가용 ~1048) 안에 들어가 가로 스크롤 없음(D3) */}
-      <table className="w-full min-w-[952px] table-fixed border-collapse text-sm">
+      {/* 합 876px — 컨테이너(max-w-1080·px-4 → 가용 ~1048) 안 가로 스크롤 없음. 관리 칸 제거(즉시저장). */}
+      <table className="w-full min-w-[876px] table-fixed border-collapse text-sm">
         <colgroup>
           <col style={{ width: "130px" }} />
           <col style={{ width: "100px" }} />
@@ -706,7 +706,6 @@ export default function TagAdminTable({
           <col style={{ width: "76px" }} />{/* 사용량 */}
           <col style={{ width: "76px" }} />{/* 검색량 / (검토)추천 */}
           <col style={{ width: "88px" }} />{/* 생성일 / (검토)잔류 */}
-          <col style={{ width: "76px" }} />{/* 관리 */}
         </colgroup>
         <thead className="bg-[var(--bg-soft)] text-[var(--text-secondary)]">
           <tr>
@@ -748,7 +747,6 @@ export default function TagAdminTable({
                 </th>
               </>
             )}
-            <th className="px-2 py-2 text-center font-medium">관리</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border)]">
