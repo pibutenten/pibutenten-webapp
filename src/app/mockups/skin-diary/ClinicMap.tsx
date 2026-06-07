@@ -54,12 +54,14 @@ export default function ClinicMap({
   zoom = 14,
   height = 200,
   onPick,
+  onLocate,
 }: {
   center: { lat: number; lng: number };
   pins: MapPin[];
   zoom?: number;
   height?: number;
   onPick?: (label: string) => void;
+  onLocate?: () => void;
 }) {
   const [full, setFull] = useState(false);
   return (
@@ -79,6 +81,19 @@ export default function ClinicMap({
       >
         {full ? "닫기 ✕" : "전체화면 ⤢"}
       </button>
+      {onLocate && (
+        <button
+          type="button"
+          onClick={onLocate}
+          aria-label="내 위치로 이동"
+          title="내 위치"
+          className="absolute bottom-3 right-3 z-[1001] flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary-active)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+            <circle cx="12" cy="12" r="3.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          </svg>
+        </button>
+      )}
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={zoom}

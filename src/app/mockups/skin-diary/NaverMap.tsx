@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MapPin } from "./ClinicMap";
+import { loadNaverMaps } from "./naver-maps";
 
 /**
  * 시술일기 병원 위치 지도 — 네이버 클라우드(NCP) Web Dynamic Map.
@@ -19,25 +20,6 @@ declare global {
 // 네이버 maps 전역 타입은 SDK 가 런타임 주입 → any 로 최소 처리.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const naver: any;
-
-const CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID;
-
-let loader: Promise<void> | null = null;
-function loadNaverMaps(): Promise<void> {
-  if (typeof window === "undefined") return Promise.reject(new Error("no window"));
-  if (window.naver?.maps) return Promise.resolve();
-  if (loader) return loader;
-  loader = new Promise<void>((resolve, reject) => {
-    const s = document.createElement("script");
-    s.id = "naver-maps-sdk";
-    s.async = true;
-    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("naver maps load fail"));
-    document.head.appendChild(s);
-  });
-  return loader;
-}
 
 const esc = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
@@ -57,12 +39,14 @@ export default function NaverMap({
   zoom = 14,
   height = 200,
   onPick,
+  onLocate,
 }: {
   center: { lat: number; lng: number };
   pins: MapPin[];
   zoom?: number;
   height?: number;
   onPick?: (label: string) => void;
+  onLocate?: () => void;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -142,6 +126,19 @@ export default function NaverMap({
       >
         {full ? "닫기 ✕" : "전체화면 ⤢"}
       </button>
+      {onLocate && (
+        <button
+          type="button"
+          onClick={onLocate}
+          aria-label="내 위치로 이동"
+          title="내 위치"
+          className="absolute bottom-3 right-3 z-[1001] flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary-active)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+            <circle cx="12" cy="12" r="3.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }

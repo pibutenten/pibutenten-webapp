@@ -24,6 +24,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import dynamic from "next/dynamic";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { MapPin } from "./ClinicMap";
+import { geocodePlace } from "./naver-maps";
 
 // 지도는 window 의존(SSR 비호환) → 클라이언트에서만 로드.
 // NEXT_PUBLIC_NAVER_MAP_CLIENT_ID 가 있으면 네이버 지도, 없으면 OSM(Leaflet) 폴백.
@@ -369,18 +370,30 @@ function distKm(lat1: number, lng1: number, lat2: number | null, lng2: number | 
 }
 const EN2KO: Record<string, string> = { thermage: "써마지", botox: "보톡스", filler: "필러", rejuran: "리쥬란", sculptra: "스컬트라" };
 
+// 주소 → '시도(약칭) 시군구' 짧은 지역 라벨 (이름 같은 지점 구분용).
+function regionLabel(addr: string): string {
+  const t = (addr ?? "").trim().split(/\s+/);
+  if (t.length === 0 || !t[0]) return "";
+  const sido = t[0].replace(/(특별자치도|특별자치시|특별시|광역시|도|시)$/, "");
+  return t[1] ? `${sido} ${t[1]}` : sido;
+}
+
 type DiaryProc = ReviewState & { id: number; label: string; cat: string; price: string; unit: string; note: string; open: boolean; later: boolean };
 
 function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
-  const [pickedXY, setPickedXY] = useState<{ x: number; y: number } | null>(null); // 선택 병원 좌표(경도 x/위도 y)
+  const [pickedXY, setPickedXY] = useState<{ x: number; y: number } | null>(null); // 확정 병원 좌표(경도 x/위도 y)
   const [tel, setTel] = useState("");
   const [addr, setAddr] = useState("");
-  // 실제 clinics DB 검색 결과 (이름 검색 or 내 주변).
+  // 실제 clinics DB 검색 결과 (이름 검색 / 지명·주소 / 내 위치).
   const [results, setResults] = useState<ClinicHit[]>([]);
   const [searching, setSearching] = useState(false);
   const [geoMsg, setGeoMsg] = useState<string | null>(null);
+  // 미리보기(확인 대기) — 결과를 클릭하면 바로 확정하지 않고 지도만 이동, '이 병원 선택'으로 확정.
+  const [preview, setPreview] = useState<ClinicHit | null>(null);
+  // 지도 중심(지명 검색·내 위치로 이동). null 이면 결과/기본값으로 자동.
+  const [searchCenter, setSearchCenter] = useState<{ lat: number; lng: number } | null>(null);
   // 현재 결과가 '내 주변'(geolocation)에서 온 것인지 표시 — q 가 비었을 때 결과 유지 판정용.
   // ref 라서 검색 effect 의존성에 넣지 않아 자기-트리거 루프를 만들지 않음.
   const geoActiveRef = useRef(false);
@@ -409,7 +422,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
   useEffect(() => {
     if (picked) return;
     const term = q.trim();
-    // q 가 비면 이름검색 결과는 비우고, '내 주변' 결과만 유지.
+    // q 가 비면 이름검색 결과는 비우고, 지명·내위치 결과(searchCenter)는 유지.
     if (term.length < 1) { if (!geoActiveRef.current) setResults([]); return; }
     let alive = true;
     geoActiveRef.current = false;
@@ -426,29 +439,60 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
     return () => { alive = false; clearTimeout(t); };
   }, [q, picked]);
 
-  // 내 주변 — 브라우저 위치 → clinics 좌표 bbox(약 5km) 조회 후 거리순 정렬.
-  function findNearby() {
-    setGeoMsg(null);
-    if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoMsg("이 브라우저는 위치를 지원하지 않아요. 병원 이름으로 검색해 주세요."); return; }
+  // 특정 좌표 주변 clinics 를 bbox(약 5km) 조회 후 거리순 정렬 + 지도 중심 이동.
+  async function loadNear(lat: number, lng: number) {
     geoActiveRef.current = true;
-    setSearching(true); setQ(""); setPicked(null);
+    setSearchCenter({ lat, lng });
+    setPicked(null); setPreview(null);
+    const dd = 0.045;
+    const sb = createSupabaseBrowserClient();
+    const { data } = await sb
+      .from("clinics").select("name,addr,tel,x_pos,y_pos")
+      .gte("x_pos", lng - dd).lte("x_pos", lng + dd)
+      .gte("y_pos", lat - dd).lte("y_pos", lat + dd).limit(80);
+    const hits = (data ?? [])
+      .map((d) => ({ name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x: d.x_pos as number | null, y: d.y_pos as number | null, dist: distKm(lat, lng, d.y_pos as number | null, d.x_pos as number | null) }))
+      .sort((a, b) => (a.dist ?? 9e9) - (b.dist ?? 9e9)).slice(0, 20);
+    setResults(hits);
+    if (hits.length === 0) setGeoMsg("이 주변에 등록된 피부과가 없어요.");
+  }
+
+  // 지도 위 '내 위치' 버튼 — 브라우저 위치로 이동 + 주변 조회.
+  function locateMe() {
+    setGeoMsg(null);
+    if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoMsg("이 브라우저는 위치를 지원하지 않아요."); return; }
+    setSearching(true); setQ("");
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude, lng = pos.coords.longitude, dd = 0.045;
-        const sb = createSupabaseBrowserClient();
-        const { data } = await sb
-          .from("clinics").select("name,addr,tel,x_pos,y_pos")
-          .gte("x_pos", lng - dd).lte("x_pos", lng + dd)
-          .gte("y_pos", lat - dd).lte("y_pos", lat + dd).limit(80);
-        const hits = (data ?? [])
-          .map((d) => ({ name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x: d.x_pos as number | null, y: d.y_pos as number | null, dist: distKm(lat, lng, d.y_pos as number | null, d.x_pos as number | null) }))
-          .sort((a, b) => (a.dist ?? 9e9) - (b.dist ?? 9e9)).slice(0, 20);
-        setResults(hits); setSearching(false);
-        if (hits.length === 0) setGeoMsg("주변 5km 안에 등록된 피부과가 없어요.");
-      },
-      () => { geoActiveRef.current = false; setSearching(false); setGeoMsg("위치 권한이 필요해요. 병원 이름으로 검색해 주세요."); },
+      async (pos) => { await loadNear(pos.coords.latitude, pos.coords.longitude); setSearching(false); },
+      () => { setSearching(false); setGeoMsg("위치 권한이 필요해요. 지명이나 병원명으로 검색해 주세요."); },
       { enableHighAccuracy: false, timeout: 8000 },
     );
+  }
+
+  // 지명·주소 검색(Enter) — 네이버 지오코딩으로 좌표 변환 후 그 주변 조회.
+  async function searchPlace() {
+    const term = q.trim();
+    if (!term) return;
+    setGeoMsg(null); setSearching(true);
+    const c = await geocodePlace(term);
+    if (!c) { setSearching(false); setGeoMsg("그 지명·주소를 찾지 못했어요. 병원명으로 검색하거나 지도에서 골라보세요."); return; }
+    await loadNear(c.lat, c.lng);
+    setSearching(false);
+  }
+
+  // 검색 결과/지도 핀 클릭 → 바로 확정하지 않고 미리보기(지도 이동).
+  function previewHit(h: ClinicHit) {
+    setPreview(h);
+    if (h.x != null && h.y != null) setSearchCenter({ lat: h.y, lng: h.x });
+  }
+
+  // '이 병원 선택' → 미리보기 병원을 확정.
+  function confirmPick(h: ClinicHit) {
+    geoActiveRef.current = false;
+    setPicked(h.name);
+    setPickedXY(h.x != null && h.y != null ? { x: h.x, y: h.y } : null);
+    setTel(h.tel); setAddr(h.addr); setQ(h.name);
+    setResults([]); setPreview(null); setSearchCenter(null);
   }
 
   function addTag(raw: string) {
@@ -475,7 +519,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
       <div className={formBox}>
         {/* 1. 날짜 — 클릭하면 달력 picker(투명 오버레이), 표시는 괄호 없이 */}
         <div>
-          <label className={labelCls}>시술 받은 날짜 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
+          <label className={labelCls}>언제 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <div className="relative">
             <div className={inputCls + " flex items-center justify-between"} aria-hidden>
               <span className="text-[var(--text)]">{dateLabel}</span>
@@ -489,14 +533,13 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
         {/* 2. 병원 — 항상 떠 있는 지도 + 이름 검색 + 내 위치 + 선택 시 전화번호 자동 채움 */}
         <div>
           <label className={labelCls}>어디서 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
-          <input className={inputCls} placeholder="병원 이름으로 검색" value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} />
-          {!picked && (
-            <button type="button" onClick={findNearby}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-md bg-[var(--primary-soft)] py-2.5 text-[13px] font-semibold text-[var(--primary-active)]">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-              지도에서 찾기
-            </button>
-          )}
+          <input
+            className={inputCls}
+            placeholder="지명, 병원명으로 검색"
+            value={q}
+            onChange={(e) => { setQ(e.target.value); setPicked(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); searchPlace(); } }}
+          />
           {!picked && searching && (
             <p className="mt-2 text-center text-[12px] text-[var(--text-muted)]">불러오는 중…</p>
           )}
@@ -504,17 +547,20 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
             <p className="mt-2 text-center text-[12px] text-[var(--accent)]">{geoMsg}</p>
           )}
 
-          {/* 항상 표시되는 지도 — 선택 병원 / 검색·주변 결과 / 기본(서울) 순으로 중심·핀 결정 */}
+          {/* 항상 표시되는 지도 — 확정 / 미리보기 / 지명·내위치 / 결과 / 기본(서울) 순 중심 결정 */}
           {(() => {
             const mapPins: MapPin[] = picked
               ? (pickedXY ? [{ lat: pickedXY.y, lng: pickedXY.x, label: picked, active: true }] : [])
-              : results.filter((h) => h.x != null && h.y != null).map((h) => ({ lat: h.y as number, lng: h.x as number, label: h.name }));
-            const mapCenter = picked && pickedXY
-              ? { lat: pickedXY.y, lng: pickedXY.x }
-              : mapPins.length > 0
-                ? { lat: mapPins[0].lat, lng: mapPins[0].lng }
-                : { lat: 37.5665, lng: 126.978 }; // 기본: 서울시청
-            const mapZoom = picked ? 16 : mapPins.length > 0 ? 14 : 11;
+              : results.filter((h) => h.x != null && h.y != null).map((h) => ({
+                  lat: h.y as number, lng: h.x as number, label: h.name,
+                  active: !!preview && h.name === preview.name && h.x === preview.x && h.y === preview.y,
+                }));
+            const mapCenter = picked && pickedXY ? { lat: pickedXY.y, lng: pickedXY.x }
+              : preview && preview.x != null && preview.y != null ? { lat: preview.y, lng: preview.x }
+              : searchCenter ? searchCenter
+              : mapPins.length > 0 ? { lat: mapPins[0].lat, lng: mapPins[0].lng }
+              : { lat: 37.5665, lng: 126.978 }; // 기본: 서울시청
+            const mapZoom = picked ? 16 : preview ? 16 : searchCenter ? 15 : mapPins.length > 0 ? 14 : 13;
             return (
               <div className="mt-2">
                 <ClinicMap
@@ -522,31 +568,47 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
                   zoom={mapZoom}
                   height={300}
                   pins={mapPins}
+                  onLocate={picked ? undefined : locateMe}
                   onPick={picked ? undefined : (label) => {
                     const h = results.find((r) => r.name === label);
-                    if (!h) return;
-                    geoActiveRef.current = false;
-                    setPicked(h.name); setPickedXY(h.x != null && h.y != null ? { x: h.x, y: h.y } : null);
-                    setTel(h.tel); setAddr(h.addr); setQ(h.name); setResults([]);
+                    if (h) previewHit(h);
                   }}
                 />
               </div>
             );
           })()}
 
+          {/* 미리보기 확인 바 — 위치 확인 후 '이 병원 선택'으로 확정 */}
+          {!picked && preview && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-[var(--primary-soft)] p-3">
+              <span className="min-w-0">
+                <span className="block truncate text-[14px] font-bold text-[var(--text)]">{preview.name} <span className="ml-1 rounded bg-white px-1.5 py-0.5 text-[10.5px] font-medium text-[var(--text-secondary)]">{regionLabel(preview.addr)}</span></span>
+                <span className="block truncate text-[11.5px] text-[var(--text-secondary)]">{preview.addr}</span>
+              </span>
+              <button type="button" onClick={() => confirmPick(preview)} className="shrink-0 rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[var(--primary-dark)]">이 병원 선택</button>
+            </div>
+          )}
+
+          {/* 결과 목록 — 클릭하면 지도만 이동(미리보기), 길면 스크롤 */}
           {!picked && results.length > 0 && (
-            <div className="mt-2 overflow-hidden rounded-md bg-[var(--bg)]">
-              {results.map((h, i) => (
-                <div key={`${h.name}-${h.addr}-${i}`} className="flex items-stretch border-b border-[var(--border)] last:border-0">
-                  <button type="button" onClick={() => { geoActiveRef.current = false; setPicked(h.name); setPickedXY(h.x != null && h.y != null ? { x: h.x, y: h.y } : null); setTel(h.tel); setAddr(h.addr); setQ(h.name); setResults([]); }} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[var(--primary-soft)]">
-                    <span className="min-w-0"><span className="block truncate text-[14px] font-semibold text-[var(--text)]">{h.name}</span><span className="block truncate text-[11.5px] text-[var(--text-muted)]">{h.addr}</span></span>
-                    {h.dist != null && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.dist < 1 ? `${Math.round(h.dist * 1000)}m` : `${h.dist.toFixed(1)}km`}</span>}
-                  </button>
-                  <a href={naverMapUrl(h)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} aria-label="네이버 지도에서 보기" className="flex shrink-0 items-center justify-center px-3 text-[#03C75A] hover:bg-[var(--primary-soft)]" title="네이버 지도">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-                  </a>
-                </div>
-              ))}
+            <div className="mt-2 max-h-[232px] overflow-y-auto rounded-md bg-[var(--bg)]">
+              {results.map((h, i) => {
+                const on = !!preview && h.name === preview.name && h.x === preview.x && h.y === preview.y;
+                return (
+                  <div key={`${h.name}-${h.addr}-${i}`} className="flex items-stretch border-b border-[var(--border)] last:border-0" style={on ? { background: "var(--primary-soft)" } : undefined}>
+                    <button type="button" onClick={() => previewHit(h)} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[var(--primary-soft)]">
+                      <span className="min-w-0">
+                        <span className="block truncate text-[14px] font-semibold text-[var(--text)]">{h.name} <span className="ml-1 rounded bg-white px-1.5 py-0.5 text-[10.5px] font-medium text-[var(--text-secondary)]">{regionLabel(h.addr)}</span></span>
+                        <span className="block truncate text-[11.5px] text-[var(--text-muted)]">{h.addr}</span>
+                      </span>
+                      {h.dist != null && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.dist < 1 ? `${Math.round(h.dist * 1000)}m` : `${h.dist.toFixed(1)}km`}</span>}
+                    </button>
+                    <a href={naverMapUrl(h)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} aria-label="네이버 지도에서 보기" className="flex shrink-0 items-center justify-center px-3 text-[#03C75A] hover:bg-[var(--primary-soft)]" title="네이버 지도">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+                    </a>
+                  </div>
+                );
+              })}
             </div>
           )}
           {picked && (
@@ -573,7 +635,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
 
         {/* 3. 의사 / 실장 */}
         <div>
-          <label className={labelCls}>시술의사 · 상담실장 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
+          <label className={labelCls}>누구에게 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <div className="grid grid-cols-2 gap-2">
             <input className={inputCls} placeholder="원장님" />
             <input className={inputCls} placeholder="실장님" />
@@ -582,20 +644,20 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
 
         {/* 4. 받은 시술 (행마다 가격·비고) */}
         <div>
-          <label className={labelCls}>오늘 받은 시술 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">가격·비고는 나만 봐요</span></label>
+          <label className={labelCls}>어떤 시술을 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">가격·비고는 나만 봐요</span></label>
           {procs.length > 0 && (
             <div className="mb-2 space-y-2">
               {procs.map((p) => (
                 <div key={p.id} className="space-y-1.5 rounded-md bg-[var(--bg)] p-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
-                    <button type="button" onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
-                  </div>
-                  <div className="flex gap-1.5">
+                  {/* 1행: 칩 + 용량·가격(칩 우측) + 삭제 */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
                     <input ref={(el) => { unitRefs.current[p.id] = el; }} className={inputSm + " w-[72px] shrink-0"} placeholder="용량" value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value })} />
-                    <input inputMode="numeric" className={inputSm + " w-[88px] shrink-0"} placeholder="가격" value={p.price ? Number(p.price).toLocaleString() : ""} onChange={(e) => upd(p.id, { price: e.target.value.replace(/[^0-9]/g, "") })} />
-                    <input className={inputSm + " min-w-0 flex-1"} placeholder="메모" value={p.note} onChange={(e) => upd(p.id, { note: e.target.value })} />
+                    <input inputMode="numeric" className={inputSm + " min-w-0 flex-1"} placeholder="가격" value={p.price ? Number(p.price).toLocaleString() : ""} onChange={(e) => upd(p.id, { price: e.target.value.replace(/[^0-9]/g, "") })} />
+                    <button type="button" onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="shrink-0 px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
                   </div>
+                  {/* 2행: 메모 전체 너비 */}
+                  <input className={inputSm + " w-full"} placeholder="메모" value={p.note} onChange={(e) => upd(p.id, { note: e.target.value })} />
                 </div>
               ))}
             </div>
@@ -625,21 +687,18 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           </div>
         </div>
 
-        {/* 5. 오늘의 시술 일기 — 비공개 메모, 최대 1000자 */}
+        {/* 5. 오늘의 시술 일기 — 비공개 메모, 최대 400자 (후기 카운터와 동일 표기) */}
         <div>
-          <label className={labelCls}>오늘의 시술 일기 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
-          <textarea rows={3} maxLength={1000} value={diary} onChange={(e) => setDiary(e.target.value)} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
-          {diary.length >= 800 && (
-            <p className="mt-1 text-right text-[11px]" style={{ color: diary.length >= 950 ? "var(--accent)" : "var(--text-muted)" }}>{diary.length}/1000</p>
-          )}
+          <label className={labelCls}>오늘의 시술 일기 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span> <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">({diary.length} / 400)</span></label>
+          <textarea rows={3} maxLength={400} value={diary} onChange={(e) => setDiary(e.target.value)} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
         </div>
 
       </div>
 
       {procs.length > 0 && (
-        <p className="mb-1 mt-5 px-2 text-center text-[12.5px] leading-relaxed text-[var(--text-secondary)]">
+        <p className="mb-1 mt-5 px-2 text-center text-[14px] leading-relaxed text-[var(--text-secondary)]">
           다른 분들을 위해 시술 후기를 남겨주세요.<br />
-          <span className="text-[var(--text-muted)]">지금 당장 쓰기 어려우면 ‘나중에 쓰기’로 알림을 받을 수 있어요.</span>
+          <span className="text-[var(--text-muted)]">지금 당장 쓰기 어려우면 나중에 알려드릴게요!</span>
         </p>
       )}
 
