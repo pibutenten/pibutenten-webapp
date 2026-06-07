@@ -382,6 +382,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0263 | **자동등록 영문 태그 한글 흡수**(B). `slugify_en(text)` + `tag_absorb_log` + BEFORE INSERT/UPDATE OF keywords 트리거 `cards_absorb_eng_tags` — slugify(영문태그)=tag_dictionary.en(한글) 매칭 시 한글 대표어로 치환·dedup(미매칭은 0250 register 유지). 검증: [thermage,모공,Centella Asiatica]→{모공,병풀추출물,써마지} 롤백. | **적용 완료 (2026-06-06)** |
 | 0264 | **JSON 사전 → DB 이관**(L2-1). `tag_dictionary.aliases`(동의어15)·`pubmed_keywords`(논문검색어51) 컬럼 + `tag_blacklist(word)`5 + `tag_normalization(canonical,variants)`100. anon/auth SELECT·admin write·service_role CRUD. procedure-mappings.json 흡수 1단계(additive). | **적용 완료 (2026-06-07)** |
 | 0265 | **동의어 태그 병합 + 흡수 트리거 통일**(L2-3). `merge_tag` 14건(카드보유 7 방향교정 + 0카드 중복 ko 7)으로 동의어→대표어 병합·source 행 삭제(2097→2083). 대표어 aliases/pubmed 이전(마리오네트주름 등). `cards_absorb_eng_tags` 통일 — alias(언어무관) 우선 + 영문 slugify 폴백. 헤르페스·단순포진 분리 유지(헤르페스.aliases NULL). 회귀: 참조 FK=procedure_reviews(사용0)·parent dangling 0. 실증: 1쌍 롤백 / 실 UPDATE 흡수(자외선차단제→선크림·항노화→안티에이징·FMT→대변이식술) 롤백. | **적용 완료 (2026-06-07)** |
+| 0266 | **JSON-only orphan 태그 2건 DB 보강**(L2-4 선행). procedure-mappings.json 에만 있고 tag_dictionary 에 없던 `K-뷰티`(홈케어)·`1회적정량`(피부상식) INSERT(2083→2085). JSON 제거 시 categoryFor/slugFor 회귀 방지용. id IDENTITY 자동·ko UNIQUE ON CONFLICT DO NOTHING. | **적용 완료 (2026-06-07)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 
