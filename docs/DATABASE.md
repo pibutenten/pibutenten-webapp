@@ -380,6 +380,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0261 | **`tag_merge_dismissed(ko)` 병합 후보 무시목록**(H). is_admin RLS + service_role/authenticated CRUD GRANT. 운영자 '제외' 태그 ko 기록 → 자동등록 재유입돼도 병합 후보 미노출. | **적용 완료 (2026-06-06)** |
 | 0262 | **프로필 영문코드→한글 통일**(I-Phase2). 백업 profiles_concern_bak_0262 후 skin_type CHECK 영문7→한글7 교체·값 변환(59), skin_concerns 영문11→한글11, interested_procedures 영문6→한글6(PDLLA/PLLA 등 유지). face_shape 제외. run_keyword_digest 매칭 부활(concern 178·skin_type 10·proc 206). | **적용 완료 (2026-06-06)** |
 | 0263 | **자동등록 영문 태그 한글 흡수**(B). `slugify_en(text)` + `tag_absorb_log` + BEFORE INSERT/UPDATE OF keywords 트리거 `cards_absorb_eng_tags` — slugify(영문태그)=tag_dictionary.en(한글) 매칭 시 한글 대표어로 치환·dedup(미매칭은 0250 register 유지). 검증: [thermage,모공,Centella Asiatica]→{모공,병풀추출물,써마지} 롤백. | **적용 완료 (2026-06-06)** |
+| 0264 | **JSON 사전 → DB 이관**(L2-1). `tag_dictionary.aliases`(동의어15)·`pubmed_keywords`(논문검색어51) 컬럼 + `tag_blacklist(word)`5 + `tag_normalization(canonical,variants)`100. anon/auth SELECT·admin write·service_role CRUD. procedure-mappings.json 흡수 1단계(additive). | **적용 완료 (2026-06-07)** |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

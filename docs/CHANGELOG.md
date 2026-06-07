@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-07] — L-Phase2 1단계: procedure-mappings.json → DB 이관 (스키마·데이터)
+
+> 동의어·논문검색어·금지어·표기정규화를 tag_dictionary SSOT 로 흡수하는 1단계(additive·무손실). TS 함수 전환(2단계)·트리거 통일(3단계)·JSON 제거(4단계)는 후속.
+
+### Added
+- **마이그 0264 — JSON 사전 DB 이관**:
+  - `tag_dictionary.aliases text[]`(동의어 15) · `tag_dictionary.pubmed_keywords text[]`(논문 검색어 51).
+  - `tag_blacklist(word)` 5건 · `tag_normalization(canonical, variants text[])` 100건.
+  - RLS: anon/authenticated SELECT(빌드 스냅샷·anon REST 용) + admin write + service_role CRUD.
+- 정합 검증: aliases 15·pubmed 51·blacklist 5·normalization 100 = JSON 원본과 정확히 일치(L-Phase1 조사 충돌 0 확인분).
+
+---
+
 ## [2026-06-07] — M: 병합 후보 섹션 제거 + KPI 클릭 필터
 
 ### Removed
