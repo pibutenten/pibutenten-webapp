@@ -100,10 +100,11 @@ export default async function AdminTagsPage({ searchParams }: Props) {
 
   // 요약 수치 + 분류 칩 카운트 — tag_dictionary 직접 count(head:true). 행 상한(1000) 무관,
   // 전체 모수 기준 항상 정확(allRows.length 집계 폐기 — 자동등록으로 행이 늘어도 견고).
-  const [allC, enNullC, procC, ...catCs] = await Promise.all([
+  const [allC, enNullC, procC, parentC, ...catCs] = await Promise.all([
     supabase.from("tag_dictionary").select("id", { count: "exact", head: true }),
     supabase.from("tag_dictionary").select("id", { count: "exact", head: true }).is("en", null),
     supabase.from("tag_dictionary").select("id", { count: "exact", head: true }).eq("is_procedure", true),
+    supabase.from("tag_dictionary").select("id", { count: "exact", head: true }).not("parent_ko", "is", null),
     ...CATEGORIES.map((c) =>
       supabase.from("tag_dictionary").select("id", { count: "exact", head: true }).eq("category", c),
     ),
@@ -111,6 +112,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   const total = allC.count ?? 0;
   const enBlank = enNullC.count ?? 0;
   const procCount = procC.count ?? 0;
+  const parentCount = parentC.count ?? 0;
   const catCounts: Record<string, number> = { all: total };
   CATEGORIES.forEach((c, i) => {
     catCounts[c] = catCs[i]?.count ?? 0;
@@ -189,14 +191,14 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         <h1 className="text-2xl font-bold text-[var(--text)]">태그 관리</h1>
       </div>
 
-      {/* 요약 카드 — 4개(데스크탑 한 줄·모바일 2×2). '미지정'은 상태 칩으로 접근. */}
-      {/* KPI 카드 클릭 = 해당 조건 필터 (대시보드 통계 카드 패턴). 클릭 시 분류 해제·스크롤 유지. */}
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {/* 요약 — '전체 카드 목록' 상단 탭형(작은 글씨·작은 숫자·하늘색 강조). 클릭 = 해당 조건 필터. */}
+      <div className="mb-3 flex gap-0 border-b border-[var(--border)] overflow-x-auto sm:gap-1 [&::-webkit-scrollbar]:hidden">
         {([
           { label: "전체", v: total, status: undefined },
           { label: "분류완료", v: classified, status: "classified" },
           { label: "영문 공란", v: enBlank, status: "en_blank" },
           { label: "시술 후기", v: procCount, status: "proc" },
+          { label: "부모 태그", v: parentCount, status: "parent" },
         ] as const).map((s) => {
           const active = cat === "all" && status === (s.status ?? "all");
           return (
@@ -206,14 +208,17 @@ export default async function AdminTagsPage({ searchParams }: Props) {
               key={s.label}
               href={qs(base, { cat: undefined, status: s.status, sort: undefined, dir: undefined, page: undefined })}
               className={
-                "block rounded-[var(--radius)] border bg-white p-3 transition-colors " +
+                "relative shrink-0 px-2 py-1.5 text-center text-[12px] transition-colors sm:px-3 sm:py-2 sm:text-sm " +
                 (active
-                  ? "border-[var(--primary)]"
-                  : "border-[var(--border)] hover:bg-[var(--bg-soft)]")
+                  ? "font-semibold text-[#3a93b8]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text)]")
               }
             >
-              <div className="text-[11px] text-[var(--text-muted)]">{s.label}</div>
-              <div className="text-lg font-bold tabular-nums text-[var(--text)]">{s.v.toLocaleString()}</div>
+              <div className="whitespace-nowrap leading-tight">{s.label}</div>
+              <div className="text-[10px] text-[var(--text-muted)] sm:ml-1 sm:inline sm:align-middle sm:text-xs">
+                {s.v.toLocaleString()}
+              </div>
+              {active && <span className="absolute -bottom-px left-0 right-0 h-0.5 bg-[#7DC1DD]" />}
             </Link>
           );
         })}

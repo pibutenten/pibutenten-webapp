@@ -104,12 +104,15 @@ export default function ActivityKpis({
           const href = kind
             ? `/admin/stats/${kind}?days=${days || 0}`
             : null;
+          // '운영 통계'(Stat) 박스와 높이 통일 — p-3 + 동일 글씨 크기(P).
           const cls =
-            "block rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 transition-colors hover:bg-[var(--bg-soft)]";
+            "block overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 transition-colors hover:bg-[var(--bg-soft)]";
           const inner = (
             <>
-              <div className="text-xs text-[var(--text-muted)]">{it.label}</div>
-              <div className="mt-1 text-2xl font-bold tabular-nums text-[var(--text)]">
+              <div className="whitespace-nowrap text-[11px] leading-tight text-[var(--text-muted)]">
+                {it.label}
+              </div>
+              <div className="mt-1 whitespace-nowrap text-xl font-bold tabular-nums text-[var(--text)] sm:text-2xl">
                 {it.value.toLocaleString()}
               </div>
             </>
