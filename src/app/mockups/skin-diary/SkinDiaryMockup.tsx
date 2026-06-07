@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 피부일기 통합 — 검토용 디자인 목업 (시스템 미반영).
+ * 시술일기 통합 — 검토용 디자인 목업 (시스템 미반영).
  *
  * 실제 앱 패턴 준수:
  *  - 글상자 = 피드 Card.tsx 와 동일(테두리 X·음영 X, 흰 박스 on 회색 배경).
@@ -11,8 +11,8 @@
  * layout.tsx 가 TopNav/푸터/1080px/반응형 자동 적용 → 여기는 <main> 콘텐츠만.
  *
  * 구조 (원장 지시 2026-06-07):
- *  - 시술후기만: 기존 후기폼 그대로. 가격은 후기에 두지 않음(피부일기 비공개로 이동).
- *  - 피부일기: 날짜 → 병원(지도검색) → 의사/실장 → 받은 시술(행마다 가격·비고, 나만 보기)
+ *  - 시술후기만: 기존 후기폼 그대로. 가격은 후기에 두지 않음(시술일기 비공개로 이동).
+ *  - 시술일기: 날짜 → 병원(지도검색) → 의사/실장 → 받은 시술(행마다 가격·비고, 나만 보기)
  *              → 오늘의 시술 일기 → 저장하기. 받은 시술마다 "아래에 형제 글상자"로 후기칸이
  *              닫힌 채 생성 → [후기 작성하기]로 열고 한 번 더 누르면 닫힘 / [나중에 쓰기]는
  *              3·7·30일 뒤 알림.
@@ -78,7 +78,7 @@ export default function SkinDiaryMockup() {
   const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 1900); };
 
   const TABS: [Screen, string][] = [
-    ["diary","피부일기"],["reviewonly","시술후기만"],
+    ["diary","시술일기"],["reviewonly","시술후기만"],
     ["record","내 일기"],["detail","상세"],["noti","알림"],
   ];
 
@@ -114,12 +114,12 @@ export default function SkinDiaryMockup() {
 
 /* ════════════════ 플로팅(+) 메뉴 — 우하단. 실제 FAB 대체 데모 ════════════════
    실제 layout 의 FloatingWriteButton(끄적끄적/시술후기/보관)을 목업에선 숨기고,
-   '나의 피부일기 / 시술 후기 / 끄적끄적' 3개로 펼치는 메뉴로 대체.
+   '나의 시술일기 / 시술 후기 / 끄적끄적' 3개로 펼치는 메뉴로 대체.
    (앱 전환 시 하단 중앙 + 버튼으로 이동 예정.) */
 
 function MockFab({ open, setOpen, go }: { open: boolean; setOpen: (b: boolean) => void; go: (s: Screen) => void }) {
   const items: [Screen, string, React.ReactNode][] = [
-    ["diary", "나의 피부일기 남기기", (
+    ["diary", "나의 시술일기 남기기", (
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
     )],
     ["reviewonly", "시술 후기 남기기", (
@@ -241,7 +241,7 @@ function EffectField({ value, onChange }: { value: string[]; onChange: (v: strin
   );
 }
 
-/** 후기 정량 컨트롤 — 후기폼/일기 공용. 가격 없음(가격은 피부일기 비공개로 이동). */
+/** 후기 정량 컨트롤 — 후기폼/일기 공용. 가격 없음(가격은 시술일기 비공개로 이동). */
 function ReviewControls({ v, set }: { v: ReviewState; set: (p: Partial<ReviewState>) => void }) {
   return (
     <>
@@ -333,7 +333,7 @@ function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Scr
   );
 }
 
-/* ════════════════ ④ 나의 피부일기 ════════════════ */
+/* ════════════════ ④ 나의 시술일기 ════════════════ */
 
 const HOSPITALS = [
   { n: "라온피부과의원", a: "서울 강남구", tel: "02-000-1111", d: 0.4 },
