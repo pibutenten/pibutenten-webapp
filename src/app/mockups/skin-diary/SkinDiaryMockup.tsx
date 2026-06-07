@@ -804,23 +804,83 @@ const SUMMARY: { year: number; items: SummaryItem[] }[] = [
 ];
 
 function RecordView({ go }: { go: (s: Screen) => void }) {
-  const [mode, setMode] = useState<"cal" | "list">("cal");
+  const [mode, setMode] = useState<"tl" | "cal" | "list">("tl");
+  const TABS: [typeof mode, string][] = [["tl", "연표"], ["cal", "달력"], ["list", "목록"]];
   return (
     <section className="mx-auto w-full max-w-[640px]">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-[16px] font-bold text-[var(--text)]">내 일기</span>
         <div className="flex gap-1 rounded-full bg-[#E8EAEE] p-1">
-          {(["cal","list"] as const).map((m) => (
+          {TABS.map(([m, label]) => (
             <button key={m} type="button" onClick={() => setMode(m)}
               className="rounded-full px-3 py-1 text-[12px] font-semibold transition-colors"
               style={mode === m ? { background: "#fff", color: "var(--primary-active)" } : { background: "transparent", color: "#5C6470" }}>
-              {m === "cal" ? "달력" : "목록"}
+              {label}
             </button>
           ))}
         </div>
       </div>
-      {mode === "cal" ? <CalendarPanel go={go} /> : <SummaryPanel go={go} />}
+      {mode === "tl" ? <TimelinePanel go={go} /> : mode === "cal" ? <CalendarPanel go={go} /> : <SummaryPanel go={go} />}
     </section>
+  );
+}
+
+/* ─── 연표(세로 월 리스트) — 연도 이동 + 그 해 월별 받은 시술 ─── */
+const priceNum = (s: string) => Number((s ?? "").replace(/[^0-9]/g, "")) || 0;
+
+function TimelinePanel({ go }: { go: (s: Screen) => void }) {
+  const years = SUMMARY.map((g) => g.year);
+  const minYear = Math.min(...years), maxYear = Math.max(...years);
+  const [year, setYear] = useState(maxYear);
+  const items = SUMMARY.find((g) => g.year === year)?.items ?? [];
+  // 월(1~12) → 그 달 기록들.
+  const byMonth: Record<number, SummaryItem[]> = {};
+  for (const it of items) {
+    const m = parseInt(it.date.split(".")[0], 10);
+    (byMonth[m] ??= []).push(it);
+  }
+  const yearSum = items.reduce((s, it) => s + priceNum(it.price), 0);
+
+  return (
+    <>
+      {/* 연도 이동 + 요약 */}
+      <div className={cardBox + " mb-3 flex items-center justify-between"}>
+        <button type="button" disabled={year <= minYear} onClick={() => setYear((y) => y - 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30">‹</button>
+        <div className="text-center">
+          <div className="text-[18px] font-extrabold text-[var(--text)]">{year}<span className="ml-1 text-[12px] font-medium text-[var(--text-muted)]">{year === maxYear ? "올해" : `${maxYear - year}년 전`}</span></div>
+          <div className="mt-0.5 text-[12px] text-[var(--text-secondary)]">{items.length === 0 ? "기록 없음" : `시술 ${items.length}회 · ${yearSum.toLocaleString()}원`}</div>
+        </div>
+        <button type="button" disabled={year >= maxYear} onClick={() => setYear((y) => y + 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30">›</button>
+      </div>
+
+      {/* 12~1월 세로 타임라인 (빈 달은 흐리게 → 주기·간격이 보이게) */}
+      <div className={cardBox}>
+        {Array.from({ length: 12 }, (_, i) => 12 - i).map((m) => {
+          const recs = byMonth[m] ?? [];
+          const has = recs.length > 0;
+          return (
+            <div key={m} className="flex gap-3 border-b border-[var(--border)] py-2.5 last:border-0">
+              <div className="w-9 shrink-0 pt-0.5 text-[12px] font-bold" style={{ color: has ? "var(--primary-active)" : "var(--text-muted)" }}>{m}월</div>
+              <div className="min-w-0 flex-1">
+                {has ? recs.map((it) => (
+                  <button key={it.id} type="button" onClick={() => go("detail")} className="mb-1.5 block w-full rounded-md bg-[var(--bg)] p-2.5 text-left last:mb-0 hover:bg-[var(--primary-soft)]">
+                    <div className="flex flex-wrap gap-1">
+                      {it.items.map((iv) => (
+                        <span key={iv.name} className="rounded-full bg-white px-2.5 py-0.5 text-[12px] font-semibold text-[var(--text)]">{iv.name}{iv.unit ? <span className="ml-1 font-medium text-[var(--text-secondary)]">{iv.unit}</span> : null}</span>
+                      ))}
+                    </div>
+                    <div className="mt-1 text-[11.5px] text-[var(--text-muted)]">{it.date.replace(".", "/")} · {it.hospital}</div>
+                  </button>
+                )) : (
+                  <div className="py-1 text-[12px] text-[var(--text-muted)]">—</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-4 text-center text-[12px] text-[var(--text-muted)]">한 해 동안 어떤 시술을 언제 받았는지 한눈에 볼 수 있어요.</p>
+    </>
   );
 }
 
