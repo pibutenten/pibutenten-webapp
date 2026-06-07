@@ -12,7 +12,6 @@ import { SessionProvider } from "@/lib/session-context";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import { groupOnlySchema } from "@/lib/schema/clinic";
-import { getSessionInfo } from "@/lib/session-info";
 import "./globals.css";
 
 const GA4_ID = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID?.trim();
@@ -96,13 +95,16 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// layout이 매 요청마다 session을 새로 읽도록 강제 (캐시 방지)
+// V1(2026-06-07): layout 은 더 이상 서버에서 세션/쿠키를 읽지 않으나,
+//   force-dynamic 은 잠정 유지. 제거 시 공유 클라 컴포넌트(useSearchParams 등)의
+//   Suspense 경계 미비로 /_not-found 프리렌더가 깨짐 → V3 에서 Suspense 정비 후 제거 예정.
 export const dynamic = "force-dynamic";
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const session = await getSessionInfo();
+  // V-Phase(2026-06-07): layout 은 더 이상 서버에서 세션/쿠키를 읽지 않음.
+  //   세션은 클라 SessionProvider 가 쿠키(동기)+/api/session(리치)로 결정 → layout 캐시 가능 토대.
   return (
     <html
       lang="ko"
@@ -191,19 +193,19 @@ window.addEventListener('appinstalled', function() {
         />
       </head>
       <body className="min-h-full flex flex-col">
-        {/* SessionProvider — SSR 에서 결정된 session 정보를 클라이언트 컴포넌트에 즉시 전달.
-            useCardViewer 의 me 결정 시 비동기 auth.getUser() 기다리지 않고 즉시 로그인 여부 판단 가능.
-            (비로그인 사용자가 좋아요 클릭 즉시 LoginPromptDialog 트리거 보장 — 2026-05-20 회귀 fix) */}
-        <SessionProvider session={session}>
+        {/* SessionProvider — 클라에서 세션 결정: 마운트 즉시 쿠키(비-httpOnly, UI전용)로 로그인 여부+active id
+            동기 판단(네트워크 없음) → 비로그인=null 즉시 → 좋아요 클릭 시 LoginPromptDialog 즉시(2026-05-20 회귀 유지).
+            role/avatar/identities 등 리치는 /api/session 으로 비동기 보강. (V-Phase 2026-06-07) */}
+        <SessionProvider>
           <ScrollManager />
-          <TopNav session={session} />
+          <TopNav />
           <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 pt-2 pb-8 sm:px-6">
             {children}
           </main>
           <SiteFooter />
-          <FloatingWriteButton hasSession={!!session?.role} handle={session?.handle ?? null} />
+          <FloatingWriteButton />
           {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
-          <InstallPrompt signedIn={!!session?.role} />
+          <InstallPrompt />
           {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}
           <EngagementPromptListener />
         </SessionProvider>

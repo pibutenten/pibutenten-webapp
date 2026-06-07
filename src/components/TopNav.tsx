@@ -7,6 +7,9 @@ import { useEffect, useState } from "react";
 import IdentitySwitcher from "./IdentitySwitcher";
 import NotificationsBell from "./NotificationsBell";
 import { ROLES } from "@/lib/identity-shared";
+// V-Phase(2026-06-07): 세션은 SSR prop 이 아니라 클라 SessionProvider 에서 받음
+//   (layout 이 서버에서 세션을 안 읽게 함). 타입(SessionInfo)만 역방향 import 라 순환 없음.
+import { useSession } from "@/lib/session-context";
 
 type NavItem = {
   href: string;
@@ -37,10 +40,6 @@ export type SessionInfo = {
   /** 현재 활성 identity id — 실제 profile.id (UUID). Critical-5 (2026-05-27) 이후 sentinel "primary" 폐지. */
   activeIdentityId: string;
 } | null;
-
-type TopNavProps = {
-  session: SessionInfo;
-};
 
 // 우상단 네비 아이콘 — 디자인 SVG(18×18) 1:1 사용. 활성/비활성 색 변화 없음 (자체 #474B4C 고정).
 const SearchIcon = (
@@ -212,7 +211,9 @@ function InstallAppButton() {
   );
 }
 
-export default function TopNav({ session }: TopNavProps) {
+export default function TopNav() {
+  // 세션은 클라에서: 마운트 즉시 쿠키로 로그인 여부 확정(네트워크 없음) + /api/session 리치 보강.
+  const session = useSession();
   const pathname = usePathname();
   // 로그아웃 동작은 본인 프로필 페이지(/{handle}) 하단 LogoutButton으로 이동됨 (A5)
   // router/isLoggingOut/handleLogout/dashboardHref는 더 이상 사용 안 함 — 정리.

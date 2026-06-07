@@ -20,8 +20,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
-
-type Props = { signedIn: boolean };
+import { useSession } from "@/lib/session-context";
 
 const STORAGE_DISMISSED_AT = "pwa-install-dismissed-at";
 const STORAGE_QA_VIEW_COUNT = "pwa-qa-view-count";
@@ -114,7 +113,10 @@ function detectPlatform(): "android" | "ios" | "other" {
   return "other";
 }
 
-export default function InstallPrompt({ signedIn }: Props) {
+export default function InstallPrompt() {
+  // V-Phase: 세션은 클라 context 에서. role 존재 = 로그인.
+  const session = useSession();
+  const signedIn = !!session?.role;
   const [show, setShow] = useState(false);
   const [platform, setPlatform] = useState<"android" | "ios" | "other">(
     "other",
