@@ -69,14 +69,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       activeIdentityId: id,
     });
     // 2) 비동기 리치 보강 — role/avatar/identities 등.
+    //    ★서버 진실 반영(가드 수정 2026-06-07):
+    //      - 200 + SessionInfo(로그인) → 리치 세션 반영(아바타·명함 등).
+    //      - 200 + null(로그아웃 확정 — 묵은 onboarded/mirror 쿠키였던 경우) → 세션 제거
+    //        → TopNav 가 IdentitySwitcher 대신 '로그인' 링크 노출(회귀 복구).
+    //      - !ok(500 등 서버 오류) → undefined → 최소 세션 유지(거짓 로그아웃 방지).
     let alive = true;
     fetch("/api/session", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((full: SessionInfo) => {
-        if (alive && full) setSession(full);
+      .then((r) => (r.ok ? (r.json() as Promise<SessionInfo>) : undefined))
+      .then((full) => {
+        if (alive && full !== undefined) setSession(full);
       })
       .catch(() => {
-        /* 보강 실패해도 최소 세션 유지 */
+        /* 네트워크 오류 — 최소 세션 유지 */
       });
     return () => {
       alive = false;
