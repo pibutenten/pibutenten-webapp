@@ -1,20 +1,17 @@
 /**
- * 빌드타임 태그 사전 스냅샷 생성기 (1단계 A).
+ * 빌드타임 태그 사전 스냅샷 생성기 (L2-4: DB 단독).
  *
- * SSOT = DB `tag_dictionary`. 빌드 시 이 스크립트가:
- *   1) procedure-mappings.json 베이스라인(ko + synonyms → category 슬러그 / en)을 깔고
- *   2) tag_dictionary(DB, anon SELECT)로 override(겹치면 DB 승)하여
- *   3) src/data/tag-dictionary.generated.json 스냅샷을 산출한다.
+ * SSOT = DB `tag_dictionary`(+ `tag_blacklist`, `tag_normalization`). 빌드 시 anon SELECT 로
+ *   읽어 src/data/tag-dictionary.generated.json 스냅샷을 산출한다. procedure-mappings.json 의존 제거.
  *
- * procedure-dict 의 categoryFor/slugFor/pubmedKeywordsFor/normalizeTag/isBlacklisted/getPubmedDict
- * 는 모두 이 스냅샷을 읽는다(동기·시그니처 불변). 스냅샷에 포함되는 필드:
- *   category·slug  — ko(+synonyms) → 카테고리 슬러그 / 영문 slug
+ * procedure-dict/auto-tag 의 모든 lookup 이 이 스냅샷을 읽는다(동기·시그니처 불변). 스냅샷 필드:
+ *   category·slug  — ko(+aliases) → 카테고리 슬러그 / 영문 slug
  *   pubmed         — ko → PubMed 영문 검색어 배열 (canonical, getPubmedDict 원본)
- *   aliases        — ko → 동의어 배열 (pubmedKeywordsFor 의 alias 해석용)
+ *   pubmedLookup   — ko/alias → PubMed 배열 (pubmedKeywordsFor, ko 우선·first-wins)
+ *   aliases        — ko → 동의어 배열
  *   blacklist      — 차단 태그 배열
  *   normalizations — 변형어 → 정규화 결과 배열
- * 베이스라인(JSON) ⊕ DB(tag_dictionary.aliases·pubmed_keywords, tag_blacklist, tag_normalization)
- * union (겹치면 DB 승). JSON 제거(L2-4) 후엔 DB 단독.
+ *   autotag        — [{display:ko, variants:[ko,...aliases]}] — is_recommendable=true 만(회원 자동태깅 사전)
  *
  * DB 접근 실패(무네트워크/무env) 시: 경고만 남기고 기존 커밋된 스냅샷을 보존(exit 0) → 빌드 무중단.
  *
@@ -26,7 +23,6 @@ import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const JSON_SRC = join(ROOT, "src/data/procedure-mappings/procedure-mappings.json");
 const OUT = join(ROOT, "src/data/tag-dictionary.generated.json");
 
 const KR2SLUG = {
@@ -35,9 +31,8 @@ const KR2SLUG = {
   스킨부스터: "injectables",
   홈케어: "homecare",
   피부상식: "knowledge",
-  미지정: "knowledge", // 기존 미존재 fallback 과 동일
+  미지정: "knowledge", // 미존재 fallback 과 동일
 };
-const VALID = new Set(["concerns", "lifting", "injectables", "homecare", "knowledge"]);
 
 function loadEnv() {
   const out = {};
@@ -51,40 +46,6 @@ function loadEnv() {
     out[t.slice(0, i)] = t.slice(i + 1).trim().replace(/^"|"$/g, "");
   }
   return out;
-}
-
-function baseline() {
-  // procedure-mappings.json: ko + synonyms → {category(슬러그), en, pubmed, aliases, blacklist, normalizations}
-  const data = JSON.parse(readFileSync(JSON_SRC, "utf-8"));
-  const category = {};
-  const slug = {};
-  const pubmed = {}; // ko → string[] (canonical only, getPubmedDict 동일)
-  const aliases = {}; // ko → string[] (synonyms, 문서·3단계 참고용)
-  // keyOwner: 키(ko 또는 synonym) → 소유 ko. OLD KO_INDEX 의미 재현(ko 우선·first-wins).
-  //   pubmedKeywordsFor(key) === pubmed[keyOwner[key]] 이 되도록 pubmedLookup 산출에 사용.
-  const keyOwner = {};
-  for (const m of data.mappings ?? []) {
-    const c = VALID.has(m.category) ? m.category : "knowledge";
-    const keys = [m.ko, ...(m.synonyms ?? [])].filter((s) => typeof s === "string" && s.length > 0);
-    keyOwner[m.ko] = m.ko; // ko 무조건 덮어쓰기(OLD KO_INDEX.set(m.ko,m))
-    for (const s of m.synonyms ?? []) if (s && !(s in keyOwner)) keyOwner[s] = m.ko; // synonym 조건부
-    for (const k of keys) {
-      if (!(k in category)) category[k] = c;
-      if (m.en && !(k in slug)) slug[k] = m.en;
-    }
-    if (Array.isArray(m.pubmedKeywords) && m.pubmedKeywords.length > 0) {
-      pubmed[m.ko] = m.pubmedKeywords; // last-wins (getPubmedDict 와 동일)
-    }
-    if (Array.isArray(m.synonyms) && m.synonyms.length > 0) {
-      aliases[m.ko] = (aliases[m.ko] ?? []).concat(m.synonyms);
-    }
-  }
-  const blacklist = Array.isArray(data.blacklist) ? [...data.blacklist] : [];
-  const normalizations = {};
-  for (const [k, v] of Object.entries(data.normalizations ?? {})) {
-    normalizations[k] = Array.isArray(v) ? v : [];
-  }
-  return { category, slug, pubmed, aliases, blacklist, normalizations, keyOwner };
 }
 
 async function restFetch(env, query) {
@@ -105,70 +66,93 @@ async function restFetch(env, query) {
   return rows;
 }
 
-const fetchTagDictionary = (env) =>
-  restFetch(env, "tag_dictionary?select=ko,category,en,aliases,pubmed_keywords");
+function buildFromDb(rows, blacklistRows, normRows) {
+  const category = {};
+  const slug = {};
+  const pubmed = {}; // ko → string[] (canonical, getPubmedDict)
+  const aliases = {}; // ko → string[]
+  const keyOwner = {}; // ko/alias → 소유 ko (ko 우선·first-wins)
+  const autotag = []; // {display:ko, variants:[ko,...aliases]} — is_recommendable 만
 
-async function main() {
-  const env = loadEnv();
-  const { category, slug, pubmed, aliases, blacklist, normalizations, keyOwner } = baseline();
-  let dbCount = 0;
-  try {
-    const rows = await fetchTagDictionary(env);
-    for (const row of rows) {
-      const c = KR2SLUG[row.category] ?? "knowledge";
-      category[row.ko] = c; // DB override
-      if (row.en) slug[row.ko] = row.en;
-      if (Array.isArray(row.pubmed_keywords) && row.pubmed_keywords.length > 0) {
-        pubmed[row.ko] = row.pubmed_keywords;
-      }
-      if (Array.isArray(row.aliases) && row.aliases.length > 0) {
-        aliases[row.ko] = row.aliases;
-        for (const a of row.aliases) if (a && !(a in keyOwner)) keyOwner[a] = row.ko;
-      }
-      if (!(row.ko in keyOwner)) keyOwner[row.ko] = row.ko;
+  // pass 1 — canonical ko
+  for (const row of rows) {
+    const cat = KR2SLUG[row.category] ?? "knowledge";
+    category[row.ko] = cat;
+    if (row.en) slug[row.ko] = row.en;
+    if (Array.isArray(row.pubmed_keywords) && row.pubmed_keywords.length > 0) {
+      pubmed[row.ko] = row.pubmed_keywords;
     }
-    dbCount = rows.length;
-    // tag_blacklist (union, DB 승)
-    for (const r of await restFetch(env, "tag_blacklist?select=word")) {
-      if (r.word && !blacklist.includes(r.word)) blacklist.push(r.word);
-    }
-    // tag_normalization: canonical=변형어(JSON 키), variants=정규화 결과(JSON 값)
-    for (const r of await restFetch(env, "tag_normalization?select=canonical,variants")) {
-      if (r.canonical != null) normalizations[r.canonical] = Array.isArray(r.variants) ? r.variants : [];
-    }
-  } catch (e) {
-    if (existsSync(OUT)) {
-      console.warn(`[gen-tag-dictionary] DB 조회 실패(${e.message}) → 기존 스냅샷 보존, 빌드 계속`);
-      return;
-    }
-    console.warn(`[gen-tag-dictionary] DB 조회 실패(${e.message}) + 스냅샷 없음 → JSON 베이스라인만으로 생성`);
+    const al = (row.aliases ?? []).filter((s) => typeof s === "string" && s.length > 0);
+    if (al.length > 0) aliases[row.ko] = al;
+    keyOwner[row.ko] = row.ko; // ko 우선
+    if (row.is_recommendable) autotag.push({ display: row.ko, variants: [row.ko, ...al] });
   }
-  // pubmedLookup: 키(ko/synonym/alias) → pubmed 배열. OLD KO_INDEX.get(key).pubmedKeywords 동치.
-  //   key 소유 ko 에 pubmed 가 있을 때만 등록(ko 우선·first-wins → 동의어 선점 규칙 보존).
+  // pass 2 — alias 는 소유 ko 의 category/slug 상속(ko 미선점 시에만)
+  for (const row of rows) {
+    const cat = KR2SLUG[row.category] ?? "knowledge";
+    for (const a of row.aliases ?? []) {
+      if (!a) continue;
+      if (!(a in category)) category[a] = cat;
+      if (row.en && !(a in slug)) slug[a] = row.en;
+      if (!(a in keyOwner)) keyOwner[a] = row.ko;
+    }
+  }
+  const blacklist = [];
+  for (const r of blacklistRows) if (r.word && !blacklist.includes(r.word)) blacklist.push(r.word);
+  const normalizations = {};
+  for (const r of normRows) {
+    if (r.canonical != null) normalizations[r.canonical] = Array.isArray(r.variants) ? r.variants : [];
+  }
+  // pubmedLookup: key 소유 ko 에 pubmed 있을 때만 (pubmedKeywordsFor 동치)
   const pubmedLookup = {};
   for (const [key, ownerKo] of Object.entries(keyOwner)) {
     const kws = pubmed[ownerKo];
     if (kws && kws.length > 0) pubmedLookup[key] = kws;
   }
+  return { category, slug, pubmed, pubmedLookup, aliases, blacklist, normalizations, autotag };
+}
+
+async function main() {
+  const env = loadEnv();
+  let built;
+  let dbCount = 0;
+  try {
+    const rows = await restFetch(
+      env,
+      "tag_dictionary?select=ko,category,en,aliases,pubmed_keywords,is_recommendable",
+    );
+    const blacklistRows = await restFetch(env, "tag_blacklist?select=word");
+    const normRows = await restFetch(env, "tag_normalization?select=canonical,variants");
+    dbCount = rows.length;
+    built = buildFromDb(rows, blacklistRows, normRows);
+  } catch (e) {
+    if (existsSync(OUT)) {
+      console.warn(`[gen-tag-dictionary] DB 조회 실패(${e.message}) → 기존 스냅샷 보존, 빌드 계속`);
+      return;
+    }
+    console.error(`[gen-tag-dictionary] DB 조회 실패(${e.message}) + 스냅샷 없음 → 생성 불가`);
+    return;
+  }
   const snapshot = {
     generatedAt: new Date().toISOString(),
-    source: "tag_dictionary(DB) ⊕ procedure-mappings.json baseline",
+    source: "tag_dictionary(DB) + tag_blacklist + tag_normalization",
     dbRows: dbCount,
-    keywords: Object.keys(category).length,
-    category,
-    slug,
-    pubmed,
-    pubmedLookup,
-    aliases,
-    blacklist,
-    normalizations,
+    keywords: Object.keys(built.category).length,
+    category: built.category,
+    slug: built.slug,
+    pubmed: built.pubmed,
+    pubmedLookup: built.pubmedLookup,
+    aliases: built.aliases,
+    blacklist: built.blacklist,
+    normalizations: built.normalizations,
+    autotag: built.autotag,
   };
   writeFileSync(OUT, JSON.stringify(snapshot, null, 0) + "\n", "utf-8");
   console.log(
     `[gen-tag-dictionary] OK keywords=${snapshot.keywords} dbRows=${dbCount}` +
-      ` pubmed=${Object.keys(pubmed).length} lookup=${Object.keys(pubmedLookup).length}` +
-      ` aliases=${Object.keys(aliases).length} blacklist=${blacklist.length}` +
-      ` norm=${Object.keys(normalizations).length} → ${OUT}`,
+      ` pubmed=${Object.keys(built.pubmed).length} lookup=${Object.keys(built.pubmedLookup).length}` +
+      ` aliases=${Object.keys(built.aliases).length} blacklist=${built.blacklist.length}` +
+      ` norm=${Object.keys(built.normalizations).length} autotag=${built.autotag.length} → ${OUT}`,
   );
 }
 

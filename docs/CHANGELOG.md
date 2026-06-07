@@ -6,6 +6,29 @@
 
 ---
 
+## [2026-06-07] — L-Phase2 4단계: auto-tag DB SSOT 전환 + procedure-mappings.json 제거 (B안)
+
+> 회원 자동태깅을 DB 추천 사전(is_recommendable)으로 통일하고, procedure-mappings.json 을 완전 제거. 일반인·원장·관리자 모두 동일 DB 스냅샷 SSOT 사용. (4단계 선행의 '보류' 해소.)
+
+### Added
+- **마이그 0267 — `is_recommendable` 플래그**: OLD 큐레이션 819개를 3단계 병합 반영 매핑 → 804개 true 시드. auto-tag 후보를 추천 태그로 한정(일반어 노이즈 차단). 신규 태그 기본 false.
+
+### Changed
+- **`gen-tag-dictionary.mjs` DB 단독화**: procedure-mappings.json 베이스라인 제거, tag_dictionary(+tag_blacklist·tag_normalization)만으로 스냅샷 산출. 스냅샷에 `autotag`(is_recommendable=true 대표어 {display, variants}) 추가. category/slug 는 alias 까지 상속.
+- **`auto-tag.ts` 전환**: procedure-mappings.json → `generated.json` 의 `autotag` 읽기. 회원 무료 자동태깅이 DB 추천 사전 기준.
+- **`slug-mapping.ts` 전환**: ko→en 인덱스를 `generated.json` 의 `slug` 로. SEO slug 생성(buildSlug)·검증 함수 유지. 미사용 type 의존 함수(getMappingsByType/Category·searchMappings·getAllMappings·getKoreanTerm·getMappingsMetadata) 제거.
+- **`schema/procedure.ts` 전환**: `getMappingsByType` 의존 제거 → `categoryFor`/`slugFor`(procedure-dict) 사용. JSON-LD about 스키마 동일.
+
+### Removed
+- **`src/data/procedure-mappings/procedure-mappings.json` 삭제** — 코드 참조 0(slug-mapping 주석만). `procedure-dict.allMappings()`(호출 0)도 제거.
+
+### 검증
+- auto-tag 파리티: 전체 후보 집합(remap) OLD 819 와 불일치 0 / 비큐레이션 노이즈어(피부·장건강 등) 유입 0 / top-5 는 DB 정렬차만.
+- slug en 파리티: JSON 823키 → 스냅샷 누락 0, 차이 8건(전부 3단계 병합어의 대표어 en 정규화 — 의도).
+- `tsc` + `build` 통과 · /write·/topics·/admin/tags 200 · 서버 에러 0 · `procedure-mappings.json` 코드 참조 grep 0.
+
+---
+
 ## [2026-06-07] — L-Phase2 4단계 선행: JSON orphan 태그 DB 보강
 
 > JSON 제거(4단계) 전, procedure-mappings.json 에만 있던 키워드를 DB 로 옮겨 SSOT 완전성 확보. 본 제거(auto-tag.ts 전환)는 어휘 확장·품질 영향 검토로 보류 중.

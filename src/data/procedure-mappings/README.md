@@ -1,6 +1,8 @@
 # 시술명·태그 영문 매핑 사전 — 개발자 통합 가이드
 
-> 이 폴더는 피부텐텐의 자동 슬러그 생성을 위한 한글-영문 매핑 사전과 통합 헬퍼입니다.
+> ⚠️ **L2-4(2026-06-07) 변경**: SSOT 가 DB `tag_dictionary` → 빌드타임 스냅샷 `tag-dictionary.generated.json` 으로 일원화되어 **`procedure-mappings.json` 은 삭제**되었습니다. `slug-mapping.ts`(buildSlug 등)는 이제 스냅샷의 `slug` 를 읽습니다. 매핑 추가·수정은 **DB tag_dictionary**(관리자 '태그 관리' 화면)에서 하고 prebuild 가 스냅샷을 재생성합니다. 아래 JSON 구조·편집 설명은 **이력(deprecated)** 입니다.
+
+> 이 폴더는 피부텐텐의 자동 슬러그 생성을 위한 헬퍼(`slug-mapping.ts`)를 포함합니다.
 > SEO/AEO/GEO 통합 개발 요청서 §2-3 (글 슬러그 자동 생성) 항목과 연결됩니다.
 
 ---

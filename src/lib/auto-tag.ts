@@ -1,8 +1,8 @@
 /**
- * 자동 태그 추출 — AI 없이, procedure-mappings.json 사전 매칭으로.
+ * 자동 태그 추출 — AI 없이, DB 스냅샷(tag-dictionary.generated.json) 사전 매칭으로.
  *
  * 동작:
- *   1) procedure-mappings.json의 한국어 키워드(ko) + synonyms를 사전으로 사용
+ *   1) DB tag_dictionary 의 is_recommendable=true 대표어(ko) + aliases 를 사전으로 사용
  *   2) 본문(+ 외부 메타 description)에서 매칭 빈도·길이 가중치로 정렬
  *   3) 상위 N개 태그 반환 (기본 5개)
  *
@@ -16,40 +16,19 @@
  *   두 경로는 **상호 배타**. 동일 글에 둘 다 호출하지 말 것 (UX 혼란 + 중복 비용).
  *   AI 라우트는 admin 전용이며, 일반 회원 글쓰기 흐름에 절대 추가하지 말 것.
  */
-import mappings from "@/data/procedure-mappings/procedure-mappings.json";
+import snapshot from "@/data/tag-dictionary.generated.json";
 
-type Mapping = {
-  ko: string;
-  en: string;
-  category: string;
-  type: string;
-  synonyms?: string[];
-  notes?: string;
-};
-
-type RawData = {
-  mappings: Mapping[];
-};
-
-/** 사전 항목 — ko + synonyms를 모두 펼쳐서 후보 태그 풀 구성 */
+/** 사전 항목 — 대표어 ko + aliases 를 펼쳐 후보 태그 풀 구성 */
 type DictEntry = {
-  /** 사용자에게 노출되는 태그명 (정규화된 한국어) */
+  /** 사용자에게 노출되는 태그명 (대표어 한국어) */
   display: string;
-  /** 원문에서 검색할 변형들 (ko + synonyms) */
+  /** 원문에서 검색할 변형들 (ko + aliases) */
   variants: string[];
 };
 
-const RAW = mappings as RawData;
-
-const DICT: DictEntry[] = RAW.mappings.map((m) => {
-  const variants = [m.ko, ...(m.synonyms ?? [])].filter(
-    (s) => typeof s === "string" && s.length > 0,
-  );
-  return {
-    display: m.ko, // ko를 그대로 표시 (영문 약어 RF 등은 synonym에서 매칭됨)
-    variants,
-  };
-});
+// 빌드타임 DB 스냅샷(generated.json)의 autotag = is_recommendable=true 대표어만.
+// gen-tag-dictionary.mjs 가 {display:ko, variants:[ko,...aliases]} 로 산출(영문 약어 RF 등은 aliases 매칭).
+const DICT: DictEntry[] = (snapshot as { autotag: DictEntry[] }).autotag;
 
 /** 매칭 시 최소 키워드 길이 — 너무 짧은 단어(예: "실")의 false positive 방지 */
 const MIN_KEYWORD_LEN = 2;

@@ -2,8 +2,7 @@
  * 피부텐텐 시술명/태그 통합 사전 — 단일 SSOT.
  *
  * 소스: DB `tag_dictionary`(+tag_blacklist·tag_normalization) → 빌드타임 스냅샷
- *   `src/data/tag-dictionary.generated.json` (gen-tag-dictionary.mjs). 모든 lookup 이 스냅샷 기준.
- *   `procedure-mappings.json` 은 스냅샷 베이스라인 + allMappings() 전용(L2-4 정리 예정).
+ *   `src/data/tag-dictionary.generated.json` (gen-tag-dictionary.mjs). 모든 lookup 이 스냅샷 기준(DB 단독).
  *
  * 이 모듈이 제공하는 단일 진입점을 통해 lookup 하세요.
  *
@@ -13,34 +12,16 @@
  *  - normalizeTag(rawTag)         — 합성어/표기 → 정규화된 태그 배열 (블랙리스트면 빈 배열)
  *  - normalizeTags(tags)          — 배열 정규화 + 중복 제거
  *  - isBlacklisted(tag)           — 블랙리스트 포함 여부
- *  - allMappings()                — 전체 entry 배열 (read-only)
  *
  * 다른 모듈(category-sets, tag-dictionary)은 이 파일을 thin wrapper 로 사용.
  *
- * 신규 시술명 추가:
- *   1) procedure-mappings.json 의 mappings 에 entry 추가
- *   2) (선택) pubmedKeywords / synonyms 필드 추가
- *   3) 코드 변경 불필요 — 이 모듈이 자동 반영
+ * 신규 시술명 추가: tag_dictionary(DB)에 행 추가 → prebuild 스냅샷 재생성으로 자동 반영.
  */
 
-import raw from "@/data/procedure-mappings/procedure-mappings.json";
 import snapshot from "@/data/tag-dictionary.generated.json";
 import type { CategorySlug } from "./categories";
 
-type Mapping = {
-  ko: string;
-  en: string;
-  category: string;
-  type: string;
-  synonyms?: string[];
-  notes?: string;
-  pubmedKeywords?: string[];
-};
-
-// procedure-mappings.json: allMappings() (디버그·관리자 도구) 전용. 나머지 lookup 은 스냅샷 사용.
-const data = raw as unknown as { mappings: Mapping[] };
-
-// ── 빌드타임 스냅샷 (SSOT=DB tag_dictionary ⊕ JSON 베이스라인) ──
+// ── 빌드타임 스냅샷 (SSOT=DB tag_dictionary) ──
 //   categoryFor/slugFor/pubmedKeywordsFor/normalizeTag/isBlacklisted/getPubmedDict 모두 이 스냅샷을 읽는다
 //   (동기·시그니처 불변). 생성: scripts/gen-tag-dictionary.mjs (package.json prebuild).
 //   DB 미접근 시 커밋된 스냅샷 보존. JSON 베이스라인 ⊕ DB union 으로 전환 전후 동일 보장(_parity-check).
@@ -110,11 +91,6 @@ export function normalizeTags(tags: readonly string[]): string[] {
 /** 블랙리스트 포함 여부. (DB 스냅샷 기준) */
 export function isBlacklisted(tag: string): boolean {
   return SNAP_BLACKLIST.has(tag);
-}
-
-/** 전체 entry 배열 (read-only). 디버그/관리자 도구용. (procedure-mappings.json — L2-4 에서 정리 예정) */
-export function allMappings(): readonly Mapping[] {
-  return data.mappings;
 }
 
 /** PubMed dict 전체 (canonical ko → 검색어) — step1_v5 프롬프트 빌드 시 사용. (DB 스냅샷 기준) */

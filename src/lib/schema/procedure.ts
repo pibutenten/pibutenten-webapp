@@ -1,50 +1,15 @@
-import {
-  getEnglishSlug,
-  getMappingsByType,
-} from "@/data/procedure-mappings/slug-mapping";
+import { categoryFor, slugFor } from "@/lib/procedure-dict";
 
 /**
  * 태그 → MedicalProcedure / MedicalCondition / Thing schema 변환.
  *
- * 매핑 type별 처리:
- *  - "brand", "medical", "general" 중 lifting/injectables 카테고리 → MedicalProcedure
- *  - concerns 카테고리 → MedicalCondition (피부 질환·고민)
- *  - 그 외 → Thing (기본)
+ * 카테고리별 처리 (SSOT=DB tag_dictionary 스냅샷):
+ *  - lifting/injectables → MedicalProcedure (+ procedureType)
+ *  - concerns → MedicalCondition (피부 질환·고민)
+ *  - 그 외(homecare/knowledge/미등록) → Thing (기본)
  *
  * about 필드에 들어가는 객체로 — Q&A 단독 페이지의 의료 콘텐츠 신뢰도 강화.
  */
-
-const PROCEDURE_TYPE_MAP: Record<string, string> = {
-  // 시술 카테고리는 대부분 PercutaneousProcedure (피부 침습) 또는 NonInvasiveProcedure
-  lifting: "https://schema.org/PercutaneousProcedure",
-  injectables: "https://schema.org/PercutaneousProcedure",
-};
-
-type MappingForLookup = {
-  ko: string;
-  en: string;
-  category: string;
-  type: string;
-};
-
-let _index: Map<string, MappingForLookup> | null = null;
-function getIndex(): Map<string, MappingForLookup> {
-  if (_index) return _index;
-  const map = new Map<string, MappingForLookup>();
-  for (const m of [
-    ...getMappingsByType("brand"),
-    ...getMappingsByType("medical"),
-    ...getMappingsByType("general"),
-    ...getMappingsByType("synonym"),
-  ]) {
-    map.set(m.ko, m as MappingForLookup);
-    if ("synonyms" in m && Array.isArray(m.synonyms)) {
-      for (const s of m.synonyms) map.set(s, m as MappingForLookup);
-    }
-  }
-  _index = map;
-  return map;
-}
 
 /**
  * 단일 태그를 schema.org 객체로 변환.
@@ -54,28 +19,20 @@ function getIndex(): Map<string, MappingForLookup> {
  *  - 외 (homecare/knowledge): Thing
  */
 export function keywordToAboutSchema(keyword: string): Record<string, unknown> {
-  const idx = getIndex();
-  const m = idx.get(keyword);
-  if (!m) return { "@type": "Thing", name: keyword };
+  const en = slugFor(keyword); // 사전 미등록이면 null
+  const baseName = en ? { name: keyword, alternateName: en } : { name: keyword };
+  const category = categoryFor(keyword); // 미등록은 "knowledge"
 
-  const en = getEnglishSlug(keyword);
-  const baseName = en
-    ? { name: keyword, alternateName: en }
-    : { name: keyword };
-
-  if (m.category === "lifting" || m.category === "injectables") {
-    const obj: Record<string, unknown> = {
+  if (category === "lifting" || category === "injectables") {
+    return {
       "@type": "MedicalProcedure",
       ...baseName,
-      procedureType:
-        PROCEDURE_TYPE_MAP[m.category] ??
-        "https://schema.org/PercutaneousProcedure",
+      procedureType: "https://schema.org/PercutaneousProcedure",
       bodyLocation: "Skin",
     };
-    return obj;
   }
 
-  if (m.category === "concerns") {
+  if (category === "concerns") {
     return { "@type": "MedicalCondition", ...baseName };
   }
 
