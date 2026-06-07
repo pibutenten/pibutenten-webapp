@@ -82,11 +82,6 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   const ALL_SORTS: SortCol[] = ["usage", "search", "created", "onb_name", "parent_name", "ko_name", "cat_name", "en_name"];
   let sortCol: SortCol = ALL_SORTS.includes(sp.sort as SortCol) ? (sp.sort as SortCol) : "usage";
   let sortDir: "asc" | "desc" = sp.dir === "asc" ? "asc" : "desc";
-  // 검토 탭엔 검색량·생성일 컬럼이 없음 → 그 정렬로 진입 시 사용량 내림차순 폴백(없는 컬럼 정렬 방지).
-  if (status === "triage" && (sortCol === "search" || sortCol === "created")) {
-    sortCol = "usage";
-    sortDir = "desc";
-  }
   const supabase = await createSupabaseServerClient();
   // Supabase 응답 행 상한이 1000 이라 단일 호출로는 전체 태그(>1000)를 못 받음.
   // → range 청크로 전체 수신(카운터·목록 모두 전체 모수 기준). RPC 는 ORDER BY usage DESC, ko ASC 로 결정적.

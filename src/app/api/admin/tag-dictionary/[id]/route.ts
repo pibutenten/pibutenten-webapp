@@ -39,8 +39,9 @@ const BodySchema = z
     parent_ko: z.string().trim().max(120).nullable().optional(),
     is_procedure: z.boolean().optional(),
     is_recommendable: z.boolean().optional(),
-    // 미지정 검토(트리아지): true=검토완료(now), false=되돌리기(NULL). 서버가 시각 결정.
+    // 검수: reviewed=true → 검수완료(now, 서버 시각). reviewed_at = 정확값 복원(취소 시 저장 직전 ISO|null).
     reviewed: z.boolean().optional(),
+    reviewed_at: z.string().datetime().nullable().optional(),
     onboarding: z.string().trim().max(40).nullable().optional(),
   })
   .strict()
@@ -94,6 +95,8 @@ export async function PATCH(
   if (d.is_procedure !== undefined) patch.is_procedure = d.is_procedure;
   if (d.is_recommendable !== undefined) patch.is_recommendable = d.is_recommendable;
   if (d.reviewed !== undefined) patch.reviewed_at = d.reviewed ? new Date().toISOString() : null;
+  // reviewed_at 정확값(취소 복원). reviewed 와 동시 전달 안 함(클라가 둘 중 하나만).
+  if (d.reviewed_at !== undefined) patch.reviewed_at = d.reviewed_at;
   // 영문은 slug 로 정규화 (E1). 정규화 결과가 빈 문자열이면 null.
   if (d.en !== undefined) patch.en = d.en ? slugifyEn(d.en) || null : null;
   if (d.parent_ko !== undefined) patch.parent_ko = d.parent_ko ? d.parent_ko : null;

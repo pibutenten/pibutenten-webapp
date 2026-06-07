@@ -37,7 +37,10 @@ type SortCol =
   | "cat_name"
   | "en_name";
 
-type Editable = Pick<TagRow, "category" | "en" | "parent_ko" | "is_procedure" | "onboarding">;
+type Editable = Pick<
+  TagRow,
+  "category" | "en" | "parent_ko" | "is_procedure" | "is_recommendable" | "onboarding"
+>;
 
 /** 변경 필드만 묶어 PATCH. 성공 true. */
 async function patchFields(id: number, body: Record<string, unknown>): Promise<boolean> {
@@ -316,12 +319,8 @@ function Row({
   koSet: Set<string>;
   status: string;
 }) {
-  // 검토(트리아지) — '검토'(status=triage) 필터에서만 노출. 기존 PATCH(is_recommendable·reviewed) 차용.
-  const triage = status === "triage";
-  const [rec, setRec] = useState(row.is_recommendable);
-  const [triageBusy, setTriageBusy] = useState(false);
-  const reviewed = !!row.reviewed_at;
-  // ko 도 draft — rename 은 모달 [확인]으로 draft 반영, 행 [저장] 시 rename API 로 확정 (D2)
+  void status; // 컬럼은 모든 상태 동일(검토 탭은 page.tsx 필터 차이뿐)
+  // ko 도 draft — rename 은 모달 [확인]으로 draft 반영, 행 [저장] 시 rename API 로 확정.
   const [savedKo, setSavedKo] = useState(row.ko);
   const [ko, setKo] = useState(row.ko);
   const base: Editable = {
@@ -329,59 +328,132 @@ function Row({
     en: row.en,
     parent_ko: row.parent_ko,
     is_procedure: row.is_procedure,
+    is_recommendable: row.is_recommendable,
     onboarding: row.onboarding,
   };
   const [saved, setSaved] = useState<Editable>(base);
   const [draft, setDraft] = useState<Editable>(base);
   const [editing, setEditing] = useState<null | "category" | "en" | "parent" | "onboarding">(null);
-  const [savingField, setSavingField] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [reviewedAt, setReviewedAt] = useState<string | null>(row.reviewed_at);
+  // 저장 직후 '취소' 가능 스냅샷 — 이 화면 머무는 동안만(클라). null=저장 상태, 값=취소 가능.
+  const [cancelSnap, setCancelSnap] = useState<
+    { ko: string; fields: Editable; reviewedAt: string | null } | null
+  >(null);
   const router = useRouter();
 
-  // 트리아지 PATCH(추천·검토) → 성공 시 refresh(목록서 검토완료분 빠짐). 기존 patchFields 차용.
-  async function triagePatch(body: Record<string, unknown>) {
-    setTriageBusy(true);
-    const ok = await patchFields(row.id, body);
-    setTriageBusy(false);
-    if (ok) router.refresh();
+  const koDirty = ko !== savedKo;
+  const fieldsDirty =
+    draft.category !== saved.category ||
+    (draft.en ?? "") !== (saved.en ?? "") ||
+    (draft.parent_ko ?? "") !== (saved.parent_ko ?? "") ||
+    draft.is_procedure !== saved.is_procedure ||
+    draft.is_recommendable !== saved.is_recommendable ||
+    (draft.onboarding ?? "") !== (saved.onboarding ?? "");
+  const dirty = koDirty || fieldsDirty;
+
+  // 저장 = 편집 확정 + 검수완료(reviewed_at=now). 모든 탭/상태 동일. 편집 없어도 누르면 검수완료(잔류).
+  async function save() {
+    if (busy) return;
+    const p = (draft.parent_ko ?? "").trim();
+    if (p && !koSet.has(p)) {
+      showToast("존재하는 태그만 부모로 지정할 수 있어요.", { tone: "danger" });
+      return;
+    }
+    setBusy(true);
+    try {
+      const snap = { ko: savedKo, fields: { ...saved }, reviewedAt };
+      if (koDirty) {
+        const r = await fetch(`/api/admin/tag-dictionary/${row.id}/rename`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newKo: ko, confirm: true }),
+        });
+        const j = (await r.json().catch(() => null)) as { message?: string } | null;
+        if (!r.ok) {
+          showToast(j?.message ?? `이름 변경 실패 (HTTP ${r.status})`, { tone: "danger" });
+          return;
+        }
+        setSavedKo(ko);
+      }
+      const body: Record<string, unknown> = { reviewed: true };
+      if (draft.category !== saved.category) body.category = draft.category;
+      if ((draft.en ?? "") !== (saved.en ?? "")) body.en = slugifyEn(draft.en ?? "");
+      if ((draft.parent_ko ?? "") !== (saved.parent_ko ?? "")) body.parent_ko = p;
+      if (draft.is_procedure !== saved.is_procedure) body.is_procedure = draft.is_procedure;
+      if (draft.is_recommendable !== saved.is_recommendable) body.is_recommendable = draft.is_recommendable;
+      if ((draft.onboarding ?? "") !== (saved.onboarding ?? "")) body.onboarding = draft.onboarding ?? "";
+      const ok = await patchFields(row.id, body);
+      if (!ok) return;
+      const normalizedEn = body.en !== undefined ? (body.en as string) : (draft.en ?? "");
+      const newSaved: Editable = {
+        ...draft,
+        en: normalizedEn,
+        parent_ko: body.parent_ko !== undefined ? (body.parent_ko as string) : draft.parent_ko,
+      };
+      setSaved(newSaved);
+      setDraft((d) => ({ ...d, en: normalizedEn, parent_ko: (d.parent_ko ?? "").trim() }));
+      setReviewedAt(new Date().toISOString());
+      setCancelSnap(snap); // 버튼 → '취소'
+      showToast(`'${ko}' 검수완료`);
+    } finally {
+      setBusy(false);
+    }
   }
 
-  // 즉시 저장 — 인라인 편집은 변경 즉시 해당 필드만 PATCH(저장 버튼 없음). 기존 PATCH/rename API 그대로.
-  async function commit(partial: Record<string, unknown>, opts?: { refresh?: boolean }) {
-    setSavingField(true);
-    const ok = await patchFields(row.id, partial);
-    setSavingField(false);
-    if (ok && opts?.refresh) router.refresh();
-    return ok;
-  }
-  // 이름 변경 즉시 커밋(태그명 클릭 → 모달 [확인]). 기존 rename API. 성공 시 ko·refresh.
-  async function commitRename(newKo: string) {
-    const v = newKo.trim();
-    if (!v || v === savedKo) return;
-    setSavingField(true);
+  // 취소 = 방금 저장 통째 복원(편집 항목 전부 + reviewed_at). 저장 직전 스냅샷으로.
+  async function cancel() {
+    if (busy || !cancelSnap) return;
+    const snap = cancelSnap;
+    setBusy(true);
     try {
-      const r = await fetch(`/api/admin/tag-dictionary/${row.id}/rename`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newKo: v, confirm: true }),
-      });
-      const j = (await r.json().catch(() => null)) as { message?: string } | null;
-      if (!r.ok) {
-        showToast(j?.message ?? `이름 변경 실패 (HTTP ${r.status})`, { tone: "danger" });
-        return;
+      if (savedKo !== snap.ko) {
+        const r = await fetch(`/api/admin/tag-dictionary/${row.id}/rename`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newKo: snap.ko, confirm: true }),
+        });
+        const j = (await r.json().catch(() => null)) as { message?: string } | null;
+        if (!r.ok) {
+          showToast(j?.message ?? `취소 실패 (HTTP ${r.status})`, { tone: "danger" });
+          return;
+        }
+        setKo(snap.ko);
+        setSavedKo(snap.ko);
       }
-      setKo(v);
-      setSavedKo(v);
-      router.refresh();
+      const ok = await patchFields(row.id, {
+        category: snap.fields.category,
+        en: snap.fields.en,
+        parent_ko: snap.fields.parent_ko,
+        is_procedure: snap.fields.is_procedure,
+        is_recommendable: snap.fields.is_recommendable,
+        onboarding: snap.fields.onboarding ?? "",
+        reviewed_at: snap.reviewedAt,
+      });
+      if (!ok) return;
+      setSaved(snap.fields);
+      setDraft(snap.fields);
+      setReviewedAt(snap.reviewedAt);
+      setCancelSnap(null);
+      showToast(`'${snap.ko}' 저장 취소됨`);
     } finally {
-      setSavingField(false);
+      setBusy(false);
     }
   }
 
   const createdLabel = row.first_card_at ? formatYmd(row.first_card_at) : formatYmd(row.created_at);
 
   return (
-    <tr className={savingField ? "bg-amber-50/40" : "hover:bg-[var(--bg-soft)]"}>
+    <tr
+      className={
+        cancelSnap
+          ? "bg-emerald-50/50"
+          : dirty
+            ? "bg-amber-50/70"
+            : "hover:bg-[var(--bg-soft)]"
+      }
+    >
       {/* 태그(ko) — 클릭 시 rename 모달 */}
       <td className="px-2 py-1.5">
         <button
@@ -397,7 +469,7 @@ function Row({
             row={{ id: row.id, ko }}
             usage={row.usage}
             koSet={koSet}
-            onConfirm={(v) => commitRename(v)}
+            onConfirm={(v) => setKo(v)}
             onMerged={() => router.refresh()}
             onClose={() => setRenameOpen(false)}
           />
@@ -410,13 +482,8 @@ function Row({
             autoFocus
             value={draft.category}
             onChange={(e) => {
-              const v = e.target.value;
+              setDraft({ ...draft, category: e.target.value });
               setEditing(null);
-              if (v === saved.category) return;
-              setDraft((d) => ({ ...d, category: v }));
-              setSaved((s) => ({ ...s, category: v }));
-              // 분류 변경 → 미지정/검토 목록 모수 바뀜 → refresh.
-              commit({ category: v }, { refresh: true });
             }}
             onBlur={() => setEditing(null)}
             className={editBox}
@@ -438,21 +505,11 @@ function Row({
             autoFocus
             value={draft.en ?? ""}
             onChange={(e) => setDraft({ ...draft, en: e.target.value })}
-            onBlur={() => {
-              setEditing(null);
-              const en2 = slugifyEn(draft.en ?? "");
-              if (en2 === (saved.en ?? "")) {
-                if (en2 !== (draft.en ?? "")) setDraft((d) => ({ ...d, en: en2 }));
-                return;
-              }
-              setDraft((d) => ({ ...d, en: en2 }));
-              setSaved((s) => ({ ...s, en: en2 }));
-              commit({ en: en2 || null });
-            }}
+            onBlur={() => setEditing(null)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === "Escape") {
                 e.preventDefault();
-                (e.target as HTMLInputElement).blur();
+                setEditing(null);
               }
             }}
             placeholder="영문"
@@ -476,19 +533,7 @@ function Row({
             value={draft.parent_ko ?? ""}
             allKo={allKo}
             onChange={(v) => setDraft({ ...draft, parent_ko: v })}
-            onClose={() => {
-              setEditing(null);
-              const p = (draft.parent_ko ?? "").trim();
-              if (p === (saved.parent_ko ?? "")) return;
-              if (p && !koSet.has(p)) {
-                showToast("존재하는 태그만 부모로 지정할 수 있어요.", { tone: "danger" });
-                setDraft((d) => ({ ...d, parent_ko: saved.parent_ko }));
-                return;
-              }
-              setDraft((d) => ({ ...d, parent_ko: p }));
-              setSaved((s) => ({ ...s, parent_ko: p }));
-              commit({ parent_ko: p || null });
-            }}
+            onClose={() => setEditing(null)}
           />
         ) : (
           <span
@@ -501,17 +546,12 @@ function Row({
           </span>
         )}
       </td>
-      {/* 시술 후기 (is_procedure) */}
+      {/* 시술 후기 (is_procedure) — draft 편집, [저장]으로 확정 */}
       <td className="px-2 py-1.5 text-center">
         <input
           type="checkbox"
           checked={draft.is_procedure}
-          onChange={(e) => {
-            const v = e.target.checked;
-            setDraft((d) => ({ ...d, is_procedure: v }));
-            setSaved((s) => ({ ...s, is_procedure: v }));
-            commit({ is_procedure: v }, { refresh: true });
-          }}
+          onChange={(e) => setDraft({ ...draft, is_procedure: e.target.checked })}
         />
       </td>
       {/* 온보딩 */}
@@ -521,12 +561,8 @@ function Row({
             autoFocus
             value={draft.onboarding ?? ""}
             onChange={(e) => {
-              const v = e.target.value;
+              setDraft({ ...draft, onboarding: e.target.value });
               setEditing(null);
-              if (v === (saved.onboarding ?? "")) return;
-              setDraft((d) => ({ ...d, onboarding: v }));
-              setSaved((s) => ({ ...s, onboarding: v }));
-              commit({ onboarding: v }, { refresh: true });
             }}
             onBlur={() => setEditing(null)}
             className={editBox}
@@ -547,67 +583,50 @@ function Row({
         )}
       </td>
       <td className="px-2 py-1.5 text-right tabular-nums">{row.usage.toLocaleString()}</td>
-      {/* 검토 탭: 검색량 자리 → 추천(중앙 체크), 생성일 자리 → 잔류(중앙 버튼). 그 외엔 원래대로. */}
-      {triage ? (
-        <td className="px-2 py-1.5">
-          {/* 추천 — 잔류/되돌리기와 동일 버튼 형태(체크박스→토글 버튼). ON 시 검토완료 동반. */}
-          <div className="flex justify-center">
-            <button
-              type="button"
-              disabled={triageBusy}
-              onClick={() => {
-                const on = !rec;
-                setRec(on);
-                triagePatch(on ? { is_recommendable: true, reviewed: true } : { is_recommendable: false });
-              }}
-              title="추천(자동태깅 후보) — 켜면 검토완료 처리"
-              className={
-                "rounded border px-2 py-0.5 text-[11px] transition-colors " +
-                (rec
-                  ? "border-[var(--border)] bg-[var(--chip-active-bg)] font-semibold text-[var(--text)]"
-                  : "border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
-              }
-            >
-              추천{rec ? " ✓" : ""}
-            </button>
-          </div>
-        </td>
-      ) : (
-        <td className="px-2 py-1.5 text-right tabular-nums text-[var(--text-muted)]">
-          {row.search_cnt.toLocaleString()}
-        </td>
-      )}
-      {triage ? (
-        <td className="px-2 py-1.5">
-          <div className="flex justify-center">
-            {reviewed ? (
-              <button
-                type="button"
-                onClick={() => triagePatch({ reviewed: false })}
-                disabled={triageBusy}
-                className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-              >
-                되돌리기
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => triagePatch({ reviewed: true })}
-                disabled={triageBusy}
-                title="검토 완료(분류 안 하고 미지정에 잔류)"
-                className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-              >
-                잔류
-              </button>
-            )}
-          </div>
-        </td>
-      ) : (
-        <td className="px-2 py-1.5 text-right text-[11px] text-[var(--text-muted)] whitespace-nowrap">
-          {createdLabel}
-        </td>
-      )}
-      {/* (관리 칸 '저장' 제거 — 인라인 편집 즉시 저장) */}
+      <td className="px-2 py-1.5 text-right tabular-nums text-[var(--text-muted)]">
+        {row.search_cnt.toLocaleString()}
+      </td>
+      <td className="px-2 py-1.5 text-right text-[11px] text-[var(--text-muted)] whitespace-nowrap">
+        {createdLabel}
+      </td>
+      {/* 추천 (is_recommendable) — 전 상태 상시 표시. draft 편집, [저장]으로 확정. */}
+      <td className="px-2 py-1.5 text-center">
+        <input
+          type="checkbox"
+          checked={draft.is_recommendable}
+          onChange={(e) => setDraft({ ...draft, is_recommendable: e.target.checked })}
+          title="추천(자동태깅 후보)"
+        />
+      </td>
+      {/* 관리 — 저장(=검수완료) ↔ 취소 토글. 취소는 이 화면 머무는 동안만(새로고침 시 확정). */}
+      <td className="px-2 py-1.5 text-center">
+        {cancelSnap ? (
+          <button
+            type="button"
+            onClick={cancel}
+            disabled={busy}
+            title="방금 저장(편집+검수완료) 되돌리기 — 새로고침 전까지만 가능"
+            className="rounded border border-[var(--border)] px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-soft)] disabled:opacity-50"
+          >
+            {busy ? "취소중" : "취소"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy}
+            title="편집 확정 + 검수완료(reviewed_at)"
+            className={
+              "rounded px-2 py-1 text-[11px] font-medium text-white transition-colors disabled:opacity-50 " +
+              (dirty
+                ? "bg-[var(--primary)] hover:bg-[var(--primary-active)]"
+                : "bg-[var(--primary-light)] hover:bg-[var(--primary)]")
+            }
+          >
+            {busy ? "저장중" : "저장"}
+          </button>
+        )}
+      </td>
     </tr>
   );
 }
@@ -698,18 +717,20 @@ export default function TagAdminTable({
   const koSet = new Set(allKo);
   return (
     <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
-      {/* 합 876px — 컨테이너(max-w-1080·px-4 → 가용 ~1048) 안 가로 스크롤 없음. 관리 칸 제거(즉시저장). */}
-      <table className="w-full min-w-[876px] table-fixed border-collapse text-sm">
+      {/* 11컬럼(전 상태 동일): 태그·분류·영문·부모·시술후기·온보딩·사용량·검색량·생성일·추천·관리. */}
+      <table className="w-full min-w-[1008px] table-fixed border-collapse text-sm">
         <colgroup>
-          <col style={{ width: "130px" }} />
-          <col style={{ width: "100px" }} />
-          <col style={{ width: "120px" }} />
-          <col style={{ width: "90px" }} />{/* 부모 — 좁힘 */}
-          <col style={{ width: "96px" }} />{/* 시술 후기 — 넓혀 헤더 한 줄(E3) */}
-          <col style={{ width: "100px" }} />
-          <col style={{ width: "76px" }} />{/* 사용량 */}
-          <col style={{ width: "76px" }} />{/* 검색량 / (검토)추천 */}
-          <col style={{ width: "88px" }} />{/* 생성일 / (검토)잔류 */}
+          <col style={{ width: "126px" }} />
+          <col style={{ width: "94px" }} />
+          <col style={{ width: "112px" }} />
+          <col style={{ width: "84px" }} />{/* 부모 */}
+          <col style={{ width: "84px" }} />{/* 시술 후기 */}
+          <col style={{ width: "92px" }} />{/* 온보딩 */}
+          <col style={{ width: "72px" }} />{/* 사용량 */}
+          <col style={{ width: "72px" }} />{/* 검색량 */}
+          <col style={{ width: "84px" }} />{/* 생성일 */}
+          <col style={{ width: "56px" }} />{/* 추천 */}
+          <col style={{ width: "72px" }} />{/* 관리(저장↔취소) */}
         </colgroup>
         <thead className="bg-[var(--bg-soft)] text-[var(--text-secondary)]">
           <tr>
@@ -735,22 +756,14 @@ export default function TagAdminTable({
             <th className="px-2 py-2 text-right font-medium">
               <SortHeader col="usage" label="사용량" sort={sort} dir={dir} />
             </th>
-            {/* 검토 탭: 검색량·생성일 헤더 → 추천·잔류(정렬 비대상·중앙). 그 외엔 원래대로. */}
-            {status === "triage" ? (
-              <>
-                <th className="px-2 py-2 text-center font-medium">추천</th>
-                <th className="px-2 py-2 text-center font-medium">잔류</th>
-              </>
-            ) : (
-              <>
-                <th className="px-2 py-2 text-right font-medium">
-                  <SortHeader col="search" label="검색량" sort={sort} dir={dir} />
-                </th>
-                <th className="px-2 py-2 text-right font-medium">
-                  <SortHeader col="created" label="생성일" sort={sort} dir={dir} />
-                </th>
-              </>
-            )}
+            <th className="px-2 py-2 text-right font-medium">
+              <SortHeader col="search" label="검색량" sort={sort} dir={dir} />
+            </th>
+            <th className="px-2 py-2 text-right font-medium">
+              <SortHeader col="created" label="생성일" sort={sort} dir={dir} />
+            </th>
+            <th className="whitespace-nowrap px-2 py-2 text-center font-medium">추천</th>
+            <th className="px-2 py-2 text-center font-medium">관리</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border)]">
