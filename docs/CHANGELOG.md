@@ -6,6 +6,29 @@
 
 ---
 
+## [2026-06-07] — 발주 A: 대시보드 기간 칩 표준화 + 카드목록 안내문구 삭제
+
+### Changed
+- **대시보드 기간 칩 3곳 표준화**: '활동 통계'(`ActivityKpis`)·'인기 검색어'·'태그 사용량'(`PopularCards.PeriodChips`)의 24시간~전체 칩을 `/admin/cards` '전체 타입' 칩과 1:1 동일하게(rounded-full 파랑 → 세그먼트 `rounded-[var(--radius-sm)]` + `--chip-active-bg`). 기간 전환·활성 강조 동작 유지.
+
+### Removed
+- **`/admin/cards` 상단 안내문구 삭제**: h1 아래 '관리자 전용 — 총 N건'(본인 글 — 총 N건) `<p>` 줄 제거.
+
+### 검증
+- 대시보드 칩 클래스 = cards 칩 클래스(문자 동일). 옛 rounded-full 파랑 기간칩·'관리자 전용 — 총' grep 0. tsc·build.
+
+## [2026-06-07] — 발주 B: 알림 설정 UI 재배치 + 06시 관심 알림 확인
+
+### Changed
+- **관심 Q&A 알림 3개 → 프로필 섹션 인라인**: 피부타입·피부고민·관심시술 섹션의 '공개' 옆에 '알림' 체크박스(공개 컨트롤과 동일 형식, 기본 ON) 추가. 얼굴형은 알림 없음. (`SectionWithVisibility` 에 notify 옵션, 토글 시 기존 `/api/notifications/preferences` 같은 키 저장.)
+- **활동 알림(댓글·답글·좋아요·저장·발행, doctor 한정 검수요청) → 별도 카드**: '관심있는 시술' 섹션 바로 밑 '🔔 활동 알림' 카드로 이동. 기존 알림 토글(스위치) 마크업 차용.
+- **맨 밑 '알림 설정' 카드 제거**: `/settings/profile` 에서 `NotificationPreferences` 렌더 제거(8토글 전부 위 두 곳으로 이전). 컴포넌트 자체는 `/settings/notifications` 전용 페이지에서 계속 사용.
+
+### 검증
+- 저장 구조 불변: 같은 9개 pref 키 + 같은 POST API. 새 토글 컴포넌트 파일 신설 0(기존 마크업 차용). 관심 3개 = 공개 체크박스와 동일 형식, 기본 ON.
+- **06시 관심 알림 cron**: vercel.json `keyword-digest 0 21 * * *`(=06:00 KST) + 라우트 `Bearer ${CRON_SECRET}` 검증 정상. **Vercel production `CRON_SECRET` 존재 확인 완료**(env target=production, encrypted).
+- tsc·build·정보수정 페이지 200.
+
 ## [2026-06-07] — Q: admin 칩·색 디자인 토큰 통일 (cards 기준)
 
 ### Added

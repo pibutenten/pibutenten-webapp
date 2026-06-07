@@ -39,7 +39,7 @@
 
 ## 2. 잔여 / 보류 항목
 
-- **⚠ Vercel `CRON_SECRET` 확인**: 관심 digest cron(`/api/cron/keyword-digest`) 인증용. 미설정 시 항상 401 → 무효. production 환경변수 존재 디렉터 확인 필요(대시보드).
+- **✅ Vercel `CRON_SECRET` 확인 완료(2026-06-07)**: production env 에 존재(encrypted). 관심 digest cron(`/api/cron/keyword-digest`, `0 21 * * *`=06:00 KST) Bearer 인증 정상.
 - **미지정 태그 거버넌스**: `tag_dictionary` 미지정(category='미지정') 1281여 행 정리 방식 미정(일괄 분류·삭제 기준 등) — 별도 안건.
 - **신규 추천 편입 방식**: `is_recommendable` 신규 태그 기본 false. 추천 편입은 현재 SQL UPDATE(관리 토글 제거). 운영 거버넌스(편입 기준·주기·UI) 미정.
 - **4-3 OG 정비 — ⏸ HOLD**: 디렉터 OG 예시(레이아웃·문구) 대기. 확정 전 착수 금지.

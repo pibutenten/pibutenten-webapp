@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import ProfileEditClient from "./ProfileEditClient";
-import NotificationPreferences from "@/components/NotificationPreferences";
 import BackButton from "@/components/BackButton";
 import {
   DEFAULT_VISIBILITY,
@@ -82,6 +81,7 @@ export default async function MyProfilePage() {
         loginProviders={loginProviders}
         profileHref={profile.handle ? `/${profile.handle}` : "/"}
         readOnlyNameAndAvatar={isDoctorTarget}
+        role={profile.role}
         initial={{
           displayName: profile.display_name ?? "",
           marketingConsent: !!profile.marketing_email_consent,
@@ -101,8 +101,6 @@ export default async function MyProfilePage() {
           fieldVisibility: profile.field_visibility ?? DEFAULT_VISIBILITY,
         }}
       />
-      {/* 알림 설정 — 모든 종류 on/off (doctor/admin 한정 항목은 자동 노출) */}
-      <NotificationPreferences role={profile.role} />
     </section>
   );
 }

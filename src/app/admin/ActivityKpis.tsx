@@ -77,7 +77,8 @@ export default function ActivityKpis({
         <h2 className="text-sm font-semibold text-[var(--text-secondary)]">
           활동 통계
         </h2>
-        <div className="flex flex-wrap gap-1">
+        {/* /admin/cards '전체 타입' 칩 표준 차용 (세그먼트 + --chip-active-bg). */}
+        <div className="inline-flex flex-wrap rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-0.5">
           {PERIODS.map((p) => {
             const active = p.days === days;
             return (
@@ -86,11 +87,12 @@ export default function ActivityKpis({
                 type="button"
                 onClick={() => setDays(p.days)}
                 className={
-                  "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors " +
+                  "rounded-[var(--radius-sm)] px-3 py-1 text-xs transition-colors " +
                   (active
-                    ? "bg-[var(--primary-active)] font-semibold text-white"
-                    : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
+                    ? "font-semibold text-[var(--text)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
                 }
+                style={active ? { backgroundColor: "var(--chip-active-bg)" } : undefined}
               >
                 {p.label}
               </button>

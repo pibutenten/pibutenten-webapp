@@ -402,11 +402,6 @@ export default async function AdminQAsPage({ searchParams }: Props) {
           <h1 className="text-2xl font-bold text-[var(--text)]">
             {isAdmin ? "전체 카드 목록" : "내 글 관리"}
           </h1>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
-            {isAdmin
-              ? `관리자 전용 — 총 ${total.toLocaleString()}건`
-              : `본인 글 — 총 ${total.toLocaleString()}건`}
-          </p>
         </div>
         {isAdmin && (
           <Link
