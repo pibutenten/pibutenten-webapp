@@ -4,11 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
-
-type Props = {
-  hasSession: boolean;
-  handle: string | null;
-};
+import { useSession } from "@/lib/session-context";
 
 /** 플로팅 버튼을 숨길 경로 — 글쓰기/후기작성/온보딩 본인 화면에서는 중복 노출 X */
 const HIDDEN_PREFIXES = ["/write", "/review", "/onboarding", "/signup", "/login"];
@@ -26,7 +22,11 @@ const FAB_SAT_COLOR = "#7FD0F8";
  * - 데스크탑(sm:↑): 메인 버튼 위로 라벨 알약 + 아이콘 원 세로 스택.
  * - 모바일(기본): 메인 버튼 둘레로 부채꼴(arc) 배치 (아이콘 원, 라벨 숨김).
  */
-export default function FloatingWriteButton({ hasSession, handle }: Props) {
+export default function FloatingWriteButton() {
+  // V-Phase: 세션은 클라 context 에서. role 존재=로그인(마운트 즉시 쿠키로 확정).
+  const session = useSession();
+  const hasSession = !!session?.role;
+  const handle = session?.handle ?? null;
   const pathname = usePathname() || "";
   const sp = useSearchParams();
   const [open, setOpen] = useState(false);
