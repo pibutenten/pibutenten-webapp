@@ -323,6 +323,26 @@ function SubmitBar({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
+/**
+ * 후기 작성 폼 본문(SSOT) — 시술후기만/시술일기-시술별 후기가 동일하게 사용.
+ * 시술명(가운데·카테고리색·18px) + 우상단 액션(다시선택/접기) + ReviewControls + 하단 버튼.
+ */
+function ReviewFormBody({ cat, label, v, set, submitLabel, onSubmit, topRight }: {
+  cat: string; label: string; v: ReviewState; set: (p: Partial<ReviewState>) => void;
+  submitLabel: string; onSubmit: () => void; topRight?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="relative flex items-center justify-center">
+        <div className="py-1 text-center"><span className="text-[18px] font-bold leading-[1.4]" style={{ color: CAT_COLOR[cat] ?? "var(--primary)" }}>{label}</span></div>
+        {topRight && <div className="absolute right-0">{topRight}</div>}
+      </div>
+      <ReviewControls v={v} set={set} />
+      <SubmitBar label={submitLabel} onClick={onSubmit} />
+    </div>
+  );
+}
+
 /* ════════════════ ② 시술 후기만 (실제 ReviewForm 그대로, 가격 없음) ════════════════ */
 
 function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
@@ -334,19 +354,25 @@ function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Scr
     <section className="mx-auto w-full max-w-[640px]">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">시술 후기를 남겨주세요</h1>
       <div className={formBox}>
-        <div>
-          {selected && (
-            <div className="relative flex items-center justify-center">
-              <div className="py-1 text-center"><span className="text-[18px] font-bold leading-[1.4]" style={{ color: CAT_COLOR[selected.cat] ?? "var(--primary)" }}>{selected.label}</span></div>
-              <button type="button" onClick={() => setProc("")} className="absolute right-0 cursor-pointer text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--text-secondary)]">다시 선택</button>
+        {selected ? (
+          <ReviewFormBody
+            cat={selected.cat}
+            label={selected.label}
+            v={v}
+            set={set}
+            submitLabel="후기 올리기"
+            onSubmit={() => { toast("후기를 올렸어요"); setTimeout(() => go("record"), 800); }}
+            topRight={<button type="button" onClick={() => setProc("")} className="cursor-pointer text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--text-secondary)]">다시 선택</button>}
+          />
+        ) : (
+          <>
+            <ProcedurePicker value={proc} onChange={setProc} />
+            <div className="pointer-events-none space-y-5 opacity-50">
+              <ReviewControls v={v} set={set} />
             </div>
-          )}
-          {!proc && <ProcedurePicker value={proc} onChange={setProc} />}
-        </div>
-        <div className={`space-y-5 transition-opacity ${proc ? "" : "pointer-events-none opacity-50"}`}>
-          <ReviewControls v={v} set={set} />
-        </div>
-        <SubmitBar label="후기 올리기" onClick={() => { toast("후기를 올렸어요"); setTimeout(() => go("record"), 800); }} />
+            <SubmitBar label="후기 올리기" onClick={() => {}} />
+          </>
+        )}
       </div>
     </section>
   );
@@ -480,10 +506,11 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
     setSearching(false);
   }
 
-  // 검색 결과/지도 핀 클릭 → 바로 확정하지 않고 미리보기(지도 이동).
+  // 셀 클릭 → 지도를 그 병원 중심으로 이동(미리보기) + 리스트 최상단으로 이동.
   function previewHit(h: ClinicHit) {
     setPreview(h);
     if (h.x != null && h.y != null) setSearchCenter({ lat: h.y, lng: h.x });
+    setResults((prev) => [h, ...prev.filter((x) => !(x.name === h.name && x.addr === h.addr))]);
   }
 
   // '이 병원 선택' → 미리보기 병원을 확정.
@@ -494,6 +521,21 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
     setTel(h.tel); setAddr(h.addr); setQ(h.name);
     setResults([]); setPreview(null); setSearchCenter(null);
   }
+
+  // 첫 진입 시 현재 위치로 지도 중심 + 주변 병원 (거부 시 서울 기본 유지).
+  const didInitLocate = useRef(false);
+  useEffect(() => {
+    if (didInitLocate.current) return;
+    didInitLocate.current = true;
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { loadNear(pos.coords.latitude, pos.coords.longitude); },
+      () => { /* 거부/실패 → 서울 기본 */ },
+      { enableHighAccuracy: false, timeout: 8000 },
+    );
+    // loadNear 는 컴포넌트 내 선언(호이스팅)이라 1회 마운트 시 호출.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function addTag(raw: string) {
     const t = raw.trim(); if (!t) return; const low = t.toLowerCase();
@@ -578,18 +620,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
             );
           })()}
 
-          {/* 미리보기 확인 바 — 위치 확인 후 '이 병원 선택'으로 확정 */}
-          {!picked && preview && (
-            <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-[var(--primary-soft)] p-3">
-              <span className="min-w-0">
-                <span className="block truncate text-[14px] font-bold text-[var(--text)]">{preview.name} <span className="ml-1 rounded bg-white px-1.5 py-0.5 text-[10.5px] font-medium text-[var(--text-secondary)]">{regionLabel(preview.addr)}</span></span>
-                <span className="block truncate text-[11.5px] text-[var(--text-secondary)]">{preview.addr}</span>
-              </span>
-              <button type="button" onClick={() => confirmPick(preview)} className="shrink-0 rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[var(--primary-dark)]">이 병원 선택</button>
-            </div>
-          )}
-
-          {/* 결과 목록 — 클릭하면 지도만 이동(미리보기), 길면 스크롤 */}
+          {/* 결과 목록 — 셀 클릭=지도 이동(미리보기), 우측 '선택'=확정. 길면 스크롤 */}
           {!picked && results.length > 0 && (
             <div className="mt-2 max-h-[232px] overflow-y-auto rounded-md bg-[var(--bg)]">
               {results.map((h, i) => {
@@ -603,9 +634,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
                       </span>
                       {h.dist != null && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.dist < 1 ? `${Math.round(h.dist * 1000)}m` : `${h.dist.toFixed(1)}km`}</span>}
                     </button>
-                    <a href={naverMapUrl(h)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} aria-label="네이버 지도에서 보기" className="flex shrink-0 items-center justify-center px-3 text-[#03C75A] hover:bg-[var(--primary-soft)]" title="네이버 지도">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-                    </a>
+                    <button type="button" onClick={() => confirmPick(h)} className="shrink-0 px-3 text-[13px] font-semibold text-[var(--primary-active)] hover:bg-[var(--primary-soft)]">선택</button>
                   </div>
                 );
               })}
@@ -708,10 +737,15 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
         return (
           <div key={p.id} className={cardBox + " mt-3"}>
             {p.open ? (
-              <button type="button" onClick={() => upd(p.id, { open: false })} className="flex w-full items-center justify-between gap-2 text-left">
-                <span className="text-[15px] font-bold text-[var(--text)]">{p.label} 후기</span>
-                <span className="shrink-0 text-[12px] font-medium text-[var(--text-muted)]">▴ 접기</span>
-              </button>
+              <ReviewFormBody
+                cat={p.cat}
+                label={p.label}
+                v={p}
+                set={(patch) => upd(p.id, patch)}
+                submitLabel="후기 올리기"
+                onSubmit={() => { upd(p.id, { open: false }); toast("후기를 저장했어요"); }}
+                topRight={<button type="button" onClick={() => upd(p.id, { open: false })} className="cursor-pointer text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--text-secondary)]">접기</button>}
+              />
             ) : (
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[15px] font-bold text-[var(--text)]">{p.label} 후기</span>
@@ -737,12 +771,6 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
             )}
             {p.later && !p.open && (
               <p className="mt-2 text-[12px] text-[var(--text-muted)]">3일·7일·30일 뒤 알림으로 채울 수 있게 알려드릴게요.</p>
-            )}
-            {p.open && (
-              <div className="mt-4 space-y-5">
-                <ReviewControls v={p} set={(patch) => upd(p.id, patch)} />
-                <button type="button" onClick={() => { upd(p.id, { open: false }); toast("후기를 저장했어요"); }} className="w-full rounded-md bg-[var(--primary)] py-3 text-[13px] font-semibold text-white hover:bg-[var(--primary-dark)]">저장하기</button>
-              </div>
             )}
           </div>
         );
