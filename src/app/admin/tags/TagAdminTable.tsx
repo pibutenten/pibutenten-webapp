@@ -231,12 +231,18 @@ function RenameModal({
         {/* 입력 안내 — 기존 태그면 사용량·병합, 새 이름이면 단순 변경 */}
         {changed &&
           (isMerge ? (
-            <p className="mb-3 break-keep rounded-[var(--radius-sm)] bg-amber-50 px-2.5 py-2 text-[11.5px] leading-relaxed text-amber-800">
-              기존 <b>{v}</b> 태그(사용량{" "}
-              <b className="tabular-nums">{targetUsage.toLocaleString()}</b>개)가 있어요 — [저장] 시{" "}
-              <b>{row.ko}</b> 가 <b>{v}</b> 로 <b>병합(흡수)</b>됩니다. (카드 약{" "}
-              <b className="tabular-nums">{usage.toLocaleString()}</b>건 이관 · {row.ko} 삭제 · 병합은 되돌릴 수 없음)
-            </p>
+            <div className="mb-3 break-keep rounded-[var(--radius-sm)] bg-amber-50 px-2.5 py-2 text-[11.5px] leading-relaxed text-amber-800">
+              <p>
+                기존 <b>{v}</b> 태그(사용량{" "}
+                <b className="tabular-nums">{targetUsage.toLocaleString()}</b>개)가 있어요 — [저장] 시{" "}
+                <b>{row.ko}</b> 가 <b>{v}</b> 로 <b>병합(흡수)</b>됩니다. (카드 약{" "}
+                <b className="tabular-nums">{usage.toLocaleString()}</b>건 이관 · {row.ko} 삭제 · 병합은 되돌릴 수 없음)
+              </p>
+              <p className="mt-1.5">
+                병합 후 <b>생성일·사용량·영문</b>은 기존 <b>{v}</b> 기준입니다. (단, 대상 태그 영문이
+                비어 있으면 <b>{row.ko}</b> 의 영문을 승계)
+              </p>
+            </div>
           ) : (
             <p className="mb-3 break-keep rounded-[var(--radius-sm)] bg-[var(--bg-soft)] px-2.5 py-2 text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
               새 이름 <b className="text-[var(--text)]">{v}</b> 으로 변경됩니다 — [저장] 시 적용, 저장 직후 취소 가능.
