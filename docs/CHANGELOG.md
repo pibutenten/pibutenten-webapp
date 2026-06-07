@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-07] — M: 병합 후보 섹션 제거 + KPI 클릭 필터
+
+### Removed
+- **'영문 → 한글 대표어 병합 후보'(MergeCandidates) 섹션 화면 제거** — `/admin/tags` 에서 렌더 호출·후보 계산(slugifyEn 매칭)·무시목록 조회 전부 삭제. 어떤 상태(후보 0/N)에서도 화면에 표시되지 않음. (단건 병합은 rename 모달 충돌 흐름으로 유지. merge API·merge_tag RPC·tag_merge_dismissed 는 보존.)
+
+### Changed
+- **KPI 4개 카드 클릭 = 해당 조건 필터**(대시보드 통계 카드 패턴): 전체→전체(분류·상태 해제) / 분류완료→`status=classified`(category≠미지정, 신규 추가) / 영문 공란→`status=en_blank` / 시술 후기→`status=proc`. 카드를 `<Link replace scroll={false}>`(클릭 시 스크롤 유지), 현재 조건이면 카드 테두리 강조.
+
+### 검증
+- `tsc`+`build` 통과. preview /admin/tags·status=classified·proc·en_blank 200·서버 에러 0. MergeCandidates 미렌더 확인.
+
+---
+
 ## [2026-06-07] — K: 태그 관리 화면 정리 (이름·KPI·모바일)
 
 ### Changed
