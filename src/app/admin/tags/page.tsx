@@ -125,7 +125,6 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   else if (status === "unspec") rows = rows.filter((r) => r.category === "미지정");
   else if (status === "classified") rows = rows.filter((r) => r.category !== "미지정");
   else if (status === "proc") rows = rows.filter((r) => r.is_procedure);
-  else if (status === "rec") rows = rows.filter((r) => r.is_recommendable);
   else if (status === "onb") rows = rows.filter((r) => !!r.onboarding);
   else if (status === "parent") rows = rows.filter((r) => !!r.parent_ko);
   else if (status === "eng") rows = rows.filter((r) => /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(r.ko)); // G2: ko 가 영문(한글 미포함)
@@ -188,9 +187,6 @@ export default async function AdminTagsPage({ searchParams }: Props) {
       <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">태그 관리</h1>
-        <p className="mt-1 text-xs text-[var(--text-muted)]">
-          tag_dictionary SSOT · 편집 즉시 / 사이트 색상은 다음 배포 반영
-        </p>
       </div>
 
       {/* 요약 카드 — 4개(데스크탑 한 줄·모바일 2×2). '미지정'은 상태 칩으로 접근. */}

@@ -142,10 +142,11 @@ ex) /minji-skin/Ab3xK9Pq
 
 ## 6. 키워드 추출 정책 (SSOT)
 
-키워드는 `cards.keywords text[]` 컬럼. 3곳 동일 정책:
+키워드는 `cards.keywords text[]` 컬럼. SSOT=DB `tag_dictionary`(+빌드 스냅샷, §6.9). 3곳 동일 정책:
 - **AI 추출**: `POST /api/admin/extract-keywords` (`extract-keywords/route.ts` SYSTEM_PROMPT)
-- **사전 매칭**: `src/lib/auto-tag.ts` (회원 글쓰기 무료 경로)
+- **사전 매칭**: `src/lib/auto-tag.ts` (회원 글쓰기 무료 경로) — 스냅샷 `autotag`(추천 태그만, §6.9)
 - **저장 후처리**: `src/lib/procedure-dict.ts::normalizeTags()` + `src/lib/category-labels.ts::stripCategoryLabels()`
+- **저장 시 DB 흡수**: `cards` BEFORE 트리거가 동의어(alias)·영문을 대표어로 통일(§6.9)
 
 ### 6.1. 개수 / 표기
 - **6~8개** (본문이 짧으면 6, 풍부하면 8)
@@ -202,6 +203,14 @@ ex) /minji-skin/Ab3xK9Pq
 - **draft 발송 시 데이터 보호**: 제목 기반 dedup 으로 skip 된 카드는 화면에 유지 + 안내 (조용히 사라지지 않음). 일부 저장 실패해도 소실 0.
 - **공용 API**: `GET /api/admin/slug-check?doctorId|doctorSlug&year&slug&excludeCardId` → `{available, reason, normalized, suggestion}`. 검사 범위 = DB 인덱스와 동일 (`doctor_id`·`post_slug` not null).
 - **편집 진입 주소**: 공개 SEO URL `/doctors/{slug}/{year}/{post_slug}` 와 별개로, 편집은 `/write/{shortcode}`(안정적 내부 핸들) 또는 `/admin/cards/[id]/edit`. shortcode 는 slug 가 바뀌어도 안 깨지는 카드별 고정 핸들. 두 경로 모두 저장은 `PUT /api/articles/[id]` 단일 통로(slug 방어 동일 적용).
+
+### 6.9. 태그 사전 SSOT·정규화·흡수·자동태깅 (L-Phase2, 2026-06-07)
+- **SSOT = DB `tag_dictionary`** (과거 `procedure-mappings.json`·`procedure_taxonomy` 청산). 컬럼: ko·category(한글)·en(slug)·parent_ko·is_procedure·onboarding·sort_order·`aliases text[]`·`pubmed_keywords text[]`·`is_recommendable`. 참조표 `tag_blacklist(word)`·`tag_normalization(canonical=변형어, variants=결과[])`.
+- **빌드 스냅샷 파이프라인**: prebuild `scripts/gen-tag-dictionary.mjs` → `src/data/tag-dictionary.generated.json`(category·slug·pubmed·pubmedLookup·aliases·blacklist·normalizations·autotag). 모든 TS lookup(`procedure-dict.ts`)·slug 생성·auto-tag 가 이 스냅샷을 읽음(동기·DB 무접근). DB 변경은 다음 배포 prebuild 에서 반영.
+- **정규화(`normalizeTag`)**: 블랙리스트(§6.7)면 제거, `tag_normalization` 변형어면 결과 배열로 치환(§6.5 합성어 분리도 여기). 둘 다 DB 테이블 기반.
+- **저장 시 DB 흡수 트리거**(통일·SSOT 한 경로 — 일반인·원장·관리자 동일): `cards` BEFORE INSERT/UPDATE OF keywords → `cards_absorb_eng_tags()` ① alias(언어 무관) 매칭 시 대표어로 ② 영문 slugify→en 매칭 폴백. 신규 미매칭은 AFTER `cards_register_tags_trg` 가 미지정 등록. 로그 `tag_absorb_log`.
+- **자동태깅 큐레이션(`is_recommendable`)**: auto-tag(회원 무료) 후보를 추천 태그(804, 옛 큐레이션 819를 병합 반영)로 한정 → 일반어 노이즈 차단. 신규 태그 기본 false(향후 거버넌스에서 편입). 관리 화면 토글은 비실용으로 제거(데이터·필터는 유지).
+- **관리자 편집**: `/admin/tags` + PATCH `/api/admin/tag-dictionary/[id]` + rename/merge RPC(`rename_tag`·`merge_tag` — cards.keywords 단일 tx 전파·트리거 disable·updated_at 보존). 목록 `get_tag_admin_overview`(사용량·검색량) range 청크(1000 상한 회피).
 
 ---
 

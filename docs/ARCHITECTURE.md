@@ -47,7 +47,7 @@
 #### 시술 리포트 앵커 카드 (review_summary, C1~C5 / 인앱 공개 완료, 색인 보류)
 - '시술 리포트'를 정식 `cards` 행(type=`review_summary`, 1급 카드)으로 승격. author=pibutenten 관리자, 발행 후기 ≥1 시술마다 1행(마이그 0214 백필 25개, 멱등 부분 유니크 `cards(post_slug) WHERE type='review_summary'`). 생성은 `create/update_procedure_review` RPC 가 발행 시 lazy(ON CONFLICT DO NOTHING). title="피부텐텐 리포트 | {ko}"(0219).
 - **수치는 행에 저장하지 않음** — `getProcedureReport` 가 `procedure_reviews` 를 실시간 집계(중복·동기화 누더기 방지). 앵커는 저장·공유·색인·피드·admin 의 "그릇"일 뿐.
-- URL (2026-06-05 한글 전환): **정식 = `/reports/{ko}`(한글), canonical=ko**. 영문 `/reports/{en}`(en=`procedure_taxonomy.en`=앵커 `post_slug`)은 `middleware.ts` 가 **308 영구 리다이렉트 전용(1홉→ko)** — ASCII slug 만 taxonomy en→ko 조회(한글은 조회 없이 통과). 내부 링크(`ProcedureReportCard.reportHref`·`Feed.feedHref`·sitemap·rss)는 전부 ko. 페이지 레벨 redirect 는 스트리밍 SSR 200+meta-refresh 폴백이라 미들웨어에서 처리.
+- URL (2026-06-05 한글 전환): **정식 = `/reports/{ko}`(한글), canonical=ko**. 영문 `/reports/{en}`(en=`tag_dictionary.en`(is_procedure)=앵커 `post_slug`)은 `middleware.ts` 가 **308 영구 리다이렉트 전용(1홉→ko)** — ASCII slug 만 tag_dictionary en→ko 조회(한글은 조회 없이 통과). (procedure_taxonomy 는 C단계 0257-0259 에서 청산·DROP, tag_dictionary 로 일원화.) 내부 링크(`ProcedureReportCard.reportHref`·`Feed.feedHref`·sitemap·rss)는 전부 ko. 페이지 레벨 redirect 는 스트리밍 SSR 200+meta-refresh 폴백이라 미들웨어에서 처리.
 - 저장·공유: 앵커 card_id 로 단독 글과 동일 `useCardEngagement`(toggle_card_save·card_shares). 좋아요·조회수는 데이터만(버튼 미노출). 앵커가 **published 일 때만** 버튼 노출(공개 RLS 경로 조회).
 - **피드 노출 = 결정적 주입(점수 무관)**: 앵커는 `feed_cards_scored`·`search_cards_scored` 에서 **제외**(0217/0220 — 점수 독식 도배 방지). 대신 클라이언트 `Feed` 가 유기 카드 **20장당 1장**, 윈도 내 변동 위치(결정적·하이드레이션 안정)에 컴팩트 `ProcedureReportCard`(prop `feedHref` → 카드 전체/더보기 클릭 시 `/reports/{en}`, 저장/공유는 stopPropagation) 주입. 풀은 경량 RPC `get_review_summary_pool()`(0218) → 서버 1회 셔플 후 prop. 검색 결과 목록·프로필 목록에선 제외(중복 방지). 색인(sitemap/rss)은 `INCLUDE_REPORT_ANCHORS`(기본 off) + `status='published'` 이중 게이트.
 - ★**인앱 공개 + 검색엔진/AEO 색인 ON 완료(2026-06-05)** — 피드·`/reports`·저장/공유 노출 + sitemap/rss 한글 URL 등재. `INCLUDE_REPORT_ANCHORS=true`(리포트 존재=후기 ≥1 전부, 임계값 없음) + robots `/report$`(접두 차단 해제). 단 전체 색인은 글로벌 `SITE_PUBLIC=true`(라이브) 전제. 비공개 환원=`status='draft'` 1줄.
@@ -192,7 +192,7 @@ src/
 │   │                                  헬퍼: groupOnlySchema/allClinicsSchema/
 │   │                                  clinicSchemaForDoctor/clinicIdRefForDoctor
 │   └── identity*.ts                Identity 시스템 (Phase 9)
-├── data/                           정적 매핑 (procedure-mappings)
+├── data/                           slug-mapping.ts(슬러그 헬퍼) + tag-dictionary.generated.json(빌드 스냅샷, gen-tag-dictionary)
 └── middleware.ts                   약관/온보딩 가드 + CSRF Origin 검증
 
 supabase/
@@ -385,6 +385,19 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - **0016** 의사 프로필 연결
 - **0017** 콘텐츠에 자기 사이트 절대 URL 저장 금지 — 도메인 이전 시 DB 무수정
 - **0018** 도메인 이전 `pbtt.kr` → `pibutenten.kr` (전략·단계·인프라). auth 커스텀 도메인·SITE_URL 단일 출처·308 영구 리다이렉트.
+
+---
+
+## 10. 태그 사전 SSOT (`tag_dictionary`) — L-Phase2 (2026-06-07)
+
+태그·시술명 사전이 **DB `tag_dictionary` 단일 SSOT** 로 일원화됨. 과거 `procedure-mappings.json`(819 큐레이션)·`procedure_taxonomy`(중복 시술표)는 청산.
+
+- **DB 스키마**: `tag_dictionary(ko PK-uniq, category(한글), en(slug), parent_ko, is_procedure, onboarding, sort_order, aliases text[], pubmed_keywords text[], is_recommendable)` + 참조 테이블 `tag_blacklist(word)`·`tag_normalization(canonical=변형어, variants=결과[])`.
+- **빌드타임 스냅샷**: `scripts/gen-tag-dictionary.mjs`(package.json prebuild)가 DB 를 anon REST 로 읽어 `src/data/tag-dictionary.generated.json` 산출(필드: category·slug·pubmed·pubmedLookup·aliases·blacklist·normalizations·autotag). DB 미접근 시 커밋된 스냅샷 보존(빌드 무중단).
+- **TS lookup 레이어**(`src/lib/procedure-dict.ts`): `categoryFor`·`slugFor`·`pubmedKeywordsFor`·`normalizeTag(s)`·`isBlacklisted`·`getPubmedDict` 전부 스냅샷 읽기(동기). thin wrapper: `tag-dictionary.ts`·`category-sets.ts`·`schema/procedure.ts`. 슬러그 생성 `data/procedure-mappings/slug-mapping.ts`(buildSlug)도 스냅샷 `slug` 사용.
+- **자동태깅**: `lib/auto-tag.ts`(회원 글쓰기 무료)는 스냅샷 `autotag`(=`is_recommendable=true` 대표어 + aliases)만 후보. 일반어 노이즈 차단(추천 804).
+- **흡수 트리거 통일**(SSOT 한 경로 — 일반인·원장·관리자 동일): `cards` BEFORE INSERT/UPDATE OF keywords → `cards_absorb_eng_tags()` 가 ① alias(언어 무관) 매칭 시 대표어로 ② 영문 slugify→en 매칭 폴백. 미매칭 신규 태그는 AFTER `cards_register_tags_trg` 가 미지정으로 등록. 로그 `tag_absorb_log`.
+- **관리자 편집**: `/admin/tags`(태그 관리) + PATCH `/api/admin/tag-dictionary/[id]`(분류·영문·부모·시술·온보딩·is_recommendable) + rename/merge RPC(`rename_tag`·`merge_tag`, cards.keywords 단일 tx 전파·트리거 disable·updated_at 보존). 목록은 `get_tag_admin_overview` RPC(사용량·검색량) range 청크(행 상한 1000 회피).
 
 ---
 

@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-07] — O: 태그 관리 정리(자동추천 열 제거·부제 제거) + 문서 현행화
+
+### Removed
+- **'자동추천' 열·필터·부제 제거**: `/admin/tags` 표의 is_recommendable 체크박스 열과 헤더 필터(status=rec), h1 아래 부제("tag_dictionary SSOT · 편집 즉시…") 제거(토글 비실용). **데이터(is_recommendable 804)·auto-tag 큐레이션은 그대로 유지** — 회원 자동태깅 추천 804개 정상 작동. (PATCH 의 is_recommendable 수용·0268 RPC 컬럼은 향후 거버넌스용으로 보존.)
+
+### Changed
+- 도메인 문서(ARCHITECTURE/TECH_SPEC/PRD/DATABASE/RUNBOOK/SESSION_HANDOFF) 현행화 — L-Phase2(사전 DB 승격·procedure_taxonomy 청산·영문 병합·프로필 한글 통일·JSON→DB 통합·흡수 트리거 통일) 반영.
+
+---
+
 ## [2026-06-07] — L-Phase2 4단계: auto-tag DB SSOT 전환 + procedure-mappings.json 제거 (B안)
 
 > 회원 자동태깅을 DB 추천 사전(is_recommendable)으로 통일하고, procedure-mappings.json 을 완전 제거. 일반인·원장·관리자 모두 동일 DB 스냅샷 SSOT 사용. (4단계 선행의 '보류' 해소.)

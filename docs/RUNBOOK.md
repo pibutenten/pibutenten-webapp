@@ -12,6 +12,7 @@
 4. [의료진(doctor) 계정 등록 SOP](#4-의료진doctor-계정-등록-sop)
 5. [시크릿 사고 대응 (Secret Rotation)](#5-시크릿-사고-대응-secret-rotation)
 6. [보류 항목 결정 기록](#6-보류-항목-결정-기록)
+7. [태그 사전 운영 (스냅샷 재생·마이그)](#7-태그-사전-운영-스냅샷-재생마이그)
 
 ---
 
@@ -348,6 +349,31 @@ ORDER BY ordinal_position;
 - 의료 정보 보안 audit 요구 발생 시
 - 트래픽 증가 + XSS 공격 시도 패턴 감지 시
 - 그때는 nonce 기반 CSP 도입 + GoogleBot User-Agent 예외 처리 검토
+
+---
+
+## 7. 태그 사전 운영 (스냅샷 재생·마이그)
+
+SSOT = DB `tag_dictionary`(+`tag_blacklist`·`tag_normalization`). 코드는 빌드타임 스냅샷 `src/data/tag-dictionary.generated.json` 을 읽음(상세 ARCHITECTURE §10, TECH_SPEC §6.9).
+
+### 7.1. 사전 변경 → 사이트 반영 절차
+1. DB 수정 — 관리자 `/admin/tags`(인라인·개명·병합) 또는 마이그/Management API(대량).
+2. **스냅샷 재생**: 로컬 `node scripts/gen-tag-dictionary.mjs` (DB anon REST 로 읽어 generated.json 산출). `npm run build` 의 prebuild 가 자동 실행하므로, **배포(=Vercel 빌드)되면 자동 반영**.
+3. 커밋: generated.json 변경분 포함(타임스탬프만 바뀐 경우 `git checkout -- src/data/tag-dictionary.generated.json` 로 제외).
+4. 즉시성: 글 저장 흡수·정규화(트리거)는 DB 라 **즉시**. categoryFor/slugFor/auto-tag(스냅샷)는 **다음 배포** 반영.
+
+### 7.2. 마이그 적용 (Management API)
+```bash
+curl -s -X POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query" \
+  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+  --data-binary @migration.json   # {"query":"...SQL..."} (한글·정규식은 python json.dumps 로 파일 생성 후 --data-binary)
+```
+- 병합·삭제 같은 파괴적 변경은 **비파괴 실증 선행**(DO 블록 + `RAISE EXCEPTION` 롤백)으로 영향 확인 후 적용.
+- service_role 은 RLS 우회하나 **테이블 GRANT 는 별도 필요**(마이그 0252 교훈) — 새 테이블 추가 시 `GRANT ... TO service_role` 누락 주의.
+
+### 7.3. 자동추천 큐레이션(`is_recommendable`)
+- auto-tag(회원 무료) 후보 = `is_recommendable=true`(현 804). 신규 태그 기본 false → 노이즈 차단.
+- 추천 편입은 현재 SQL `UPDATE tag_dictionary SET is_recommendable=true WHERE ko = ANY(...)` 로 수행(관리 화면 토글은 제거됨, 향후 거버넌스 별도). 편입 후 스냅샷 재생(7.1)으로 반영.
 
 ---
 

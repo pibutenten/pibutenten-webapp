@@ -14,7 +14,6 @@ export type TagRow = {
   en: string | null;
   parent_ko: string | null;
   is_procedure: boolean;
-  is_recommendable: boolean;
   onboarding: string | null;
   created_at: string;
   first_card_at: string | null;
@@ -36,10 +35,7 @@ type SortCol =
   | "cat_name"
   | "en_name";
 
-type Editable = Pick<
-  TagRow,
-  "category" | "en" | "parent_ko" | "is_procedure" | "is_recommendable" | "onboarding"
->;
+type Editable = Pick<TagRow, "category" | "en" | "parent_ko" | "is_procedure" | "onboarding">;
 
 /** 변경 필드만 묶어 PATCH. 성공 true. */
 async function patchFields(id: number, body: Record<string, unknown>): Promise<boolean> {
@@ -316,7 +312,6 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
     en: row.en,
     parent_ko: row.parent_ko,
     is_procedure: row.is_procedure,
-    is_recommendable: row.is_recommendable,
     onboarding: row.onboarding,
   };
   const [saved, setSaved] = useState<Editable>(base);
@@ -332,7 +327,6 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
     (draft.en ?? "") !== (saved.en ?? "") ||
     (draft.parent_ko ?? "") !== (saved.parent_ko ?? "") ||
     draft.is_procedure !== saved.is_procedure ||
-    draft.is_recommendable !== saved.is_recommendable ||
     (draft.onboarding ?? "") !== (saved.onboarding ?? "");
   const dirty = koDirty || fieldsDirty;
 
@@ -367,7 +361,6 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
       if ((draft.en ?? "") !== (saved.en ?? "")) body.en = slugifyEn(draft.en ?? "");
       if ((draft.parent_ko ?? "") !== (saved.parent_ko ?? "")) body.parent_ko = p;
       if (draft.is_procedure !== saved.is_procedure) body.is_procedure = draft.is_procedure;
-      if (draft.is_recommendable !== saved.is_recommendable) body.is_recommendable = draft.is_recommendable;
       if ((draft.onboarding ?? "") !== (saved.onboarding ?? "")) body.onboarding = draft.onboarding ?? "";
       if (Object.keys(body).length > 0) {
         const ok = await patchFields(row.id, body);
@@ -490,15 +483,6 @@ function Row({ row, allKo, koSet }: { row: TagRow; allKo: string[]; koSet: Set<s
           onChange={(e) => setDraft({ ...draft, is_procedure: e.target.checked })}
         />
       </td>
-      {/* 자동추천 (is_recommendable) — 회원 글쓰기 자동태깅 후보 여부 */}
-      <td className="px-2 py-1.5 text-center">
-        <input
-          type="checkbox"
-          checked={draft.is_recommendable}
-          onChange={(e) => setDraft({ ...draft, is_recommendable: e.target.checked })}
-          title="회원 글쓰기 자동태깅 추천 후보"
-        />
-      </td>
       {/* 온보딩 */}
       <td className="px-2 py-1.5">
         {editing === "onboarding" ? (
@@ -588,7 +572,7 @@ function FilterHeader({
   curStatus,
 }: {
   label: string;
-  status: "onb" | "parent" | "proc" | "rec";
+  status: "onb" | "parent" | "proc";
   sortCol: SortCol;
   curStatus: string;
 }) {
@@ -641,14 +625,13 @@ export default function TagAdminTable({
   return (
     <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
       {/* 합 952px — 컨테이너(max-w-1080·px-4 → 가용 ~1048) 안에 들어가 가로 스크롤 없음(D3) */}
-      <table className="w-full min-w-[1048px] table-fixed border-collapse text-sm">
+      <table className="w-full min-w-[952px] table-fixed border-collapse text-sm">
         <colgroup>
           <col style={{ width: "130px" }} />
           <col style={{ width: "100px" }} />
           <col style={{ width: "120px" }} />
           <col style={{ width: "90px" }} />{/* 부모 — 좁힘 */}
           <col style={{ width: "96px" }} />{/* 시술 후기 — 넓혀 헤더 한 줄(E3) */}
-          <col style={{ width: "96px" }} />{/* 자동추천 */}
           <col style={{ width: "100px" }} />
           <col style={{ width: "76px" }} />
           <col style={{ width: "76px" }} />
@@ -672,9 +655,6 @@ export default function TagAdminTable({
             </th>
             <th className="whitespace-nowrap px-2 py-2 text-center font-medium">
               <FilterHeader label="시술 후기" status="proc" sortCol="ko_name" curStatus={status} />
-            </th>
-            <th className="whitespace-nowrap px-2 py-2 text-center font-medium">
-              <FilterHeader label="자동추천" status="rec" sortCol="ko_name" curStatus={status} />
             </th>
             <th className="px-2 py-2 text-left font-medium">
               <FilterHeader label="온보딩" status="onb" sortCol="onb_name" curStatus={status} />
