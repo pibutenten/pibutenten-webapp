@@ -45,7 +45,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { logAudit } from "@/lib/audit-log";
 import { fetchYoutubeUploadDateKst } from "@/lib/ai/youtube-upload-date";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -402,10 +402,14 @@ export async function POST(req: Request) {
 
   const insertedIds = (inserted ?? []).map((r) => r.id);
 
-  // R-Phase (2026-06-06): 의사 Q&A 발행 시 ISR 페이지(상세·토픽·홈) 즉시 갱신.
-  //   상세(revalidate 24h)·토픽(1h) 캐시이므로, layout 단위 revalidate 로 새 글을 바로 반영.
+  // V3 (2026-06-07): 의사 Q&A 발행 시 ISR 캐시(상세·토픽) 즉시 무효화.
+  //   - revalidateTag('qa-content'): 상세 unstable_cache 무효화.
+  //   - revalidateTag('topics'): 토픽 목록·count·리포트링크 unstable_cache 무효화.
+  //   - revalidatePath('/','layout'): 홈/레이아웃 경로 갱신(기존).
   if (status === "published" && insertedIds.length > 0) {
     try {
+      revalidateTag("qa-content", "max");
+      revalidateTag("topics", "max");
       revalidatePath("/", "layout");
     } catch {
       /* revalidate 실패는 발행 성공에 영향 없음 */

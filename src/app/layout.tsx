@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
@@ -95,10 +96,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// V1(2026-06-07): layout 은 더 이상 서버에서 세션/쿠키를 읽지 않으나,
-//   force-dynamic 은 잠정 유지. 제거 시 공유 클라 컴포넌트(useSearchParams 등)의
-//   Suspense 경계 미비로 /_not-found 프리렌더가 깨짐 → V3 에서 Suspense 정비 후 제거 예정.
-export const dynamic = "force-dynamic";
+// V3(2026-06-07): 전역 force-dynamic 제거 → 공개 콘텐츠(상세·토픽)는 페이지별 revalidate 로 ISR 캐시.
+//   layout 은 V1 이후 서버에서 세션/쿠키를 안 읽으므로 캐시 안전. 개인 표시는 전부 클라(SessionProvider/
+//   useSession/useCardViewer). 개인·동적 페이지는 각자 export const dynamic="force-dynamic" 로 동적 유지.
+//   useSearchParams 쓰는 공유 컴포넌트(FloatingWriteButton)는 <Suspense> 로 감싸 정적 프리렌더 통과.
 
 export default function RootLayout({
   children,
@@ -203,7 +204,10 @@ window.addEventListener('appinstalled', function() {
             {children}
           </main>
           <SiteFooter />
-          <FloatingWriteButton />
+          {/* useSearchParams 사용 → 정적 프리렌더 시 Suspense 경계 필요 (V3) */}
+          <Suspense fallback={null}>
+            <FloatingWriteButton />
+          </Suspense>
           {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
           <InstallPrompt />
           {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}
