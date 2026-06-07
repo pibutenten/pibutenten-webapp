@@ -60,24 +60,25 @@ const EFFECT_AREA_COLORS = ["#B0A0DE","#7FD0F8","#F59CB6","#FFCB8C","#A6D9A9","#
 /* 시술 picker — 실제 tag_dictionary(is_procedure) 기준. 카테고리 리프팅/스킨부스터 2종. */
 const CAT_COLOR: Record<string, string> = { 리프팅: "#29B6F6", 스킨부스터: "#F48FB1" };
 const PROCEDURES: { value: string; label: string; cat: string }[] = [
-  ...["써마지","울쎄라","슈링크","올리지오","포텐자","텐써마","덴서티","울트라셀"].map((l) => ({ value: l, label: l, cat: "리프팅" })),
-  ...["리쥬란","쥬베룩","스컬트라","보톡스","프로파일로","울트라콜","스킨바이브"].map((l) => ({ value: l, label: l, cat: "스킨부스터" })),
+  ...["써마지","울쎄라","슈링크","올리지오","포텐자","텐써마","덴서티","울트라셀","티타늄","미라젯","세르프","올타이트","엠페이스","골드PTT"].map((l) => ({ value: l, label: l, cat: "리프팅" })),
+  ...["리쥬란","쥬베룩","스컬트라","보톡스","프로파일로","울트라콜","스킨바이브","더엘주사","레디어스","레스틸렌","벨로테로","올리디아","힐로웨이브"].map((l) => ({ value: l, label: l, cat: "스킨부스터" })),
 ];
 
 type ReviewState = { satisfaction: number; pain: number; downtime: string; revisit: string; effectAreas: string[]; effectOnset: string; oneliner: string };
 const emptyReview = (): ReviewState => ({ satisfaction: 0, pain: 0, downtime: "", revisit: "", effectAreas: [], effectOnset: "", oneliner: "" });
 
-type Screen = "entry" | "diary" | "reviewonly" | "doodle" | "record" | "detail" | "noti";
+type Screen = "diary" | "reviewonly" | "doodle" | "record" | "detail" | "noti";
 
 /* ════════════════ 메인 ════════════════ */
 
 export default function SkinDiaryMockup() {
-  const [screen, setScreen] = useState<Screen>("entry");
+  const [screen, setScreen] = useState<Screen>("record");
+  const [fabOpen, setFabOpen] = useState(false);
   const [toast, setToast] = useState("");
   const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 1900); };
 
   const TABS: [Screen, string][] = [
-    ["entry","진입"],["diary","피부일기"],["reviewonly","시술후기만"],["doodle","끄적끄적"],
+    ["diary","피부일기"],["reviewonly","시술후기만"],["doodle","끄적끄적"],
     ["record","내 기록"],["detail","상세"],["noti","알림"],
   ];
 
@@ -96,7 +97,6 @@ export default function SkinDiaryMockup() {
         </div>
       </div>
 
-      {screen === "entry" && <EntryView go={setScreen} />}
       {screen === "diary" && <DiaryForm toast={showToast} go={setScreen} />}
       {screen === "reviewonly" && <ReviewOnlyForm toast={showToast} go={setScreen} />}
       {screen === "doodle" && <DoodleForm toast={showToast} />}
@@ -107,36 +107,50 @@ export default function SkinDiaryMockup() {
       {toast && (
         <div className="fixed bottom-8 left-1/2 z-[200] -translate-x-1/2 rounded-md bg-[var(--secondary)] px-5 py-3 text-[13.5px] font-semibold text-white shadow-[var(--shadow-lg)]">{toast}</div>
       )}
+
+      <MockFab open={fabOpen} setOpen={setFabOpen} go={setScreen} />
     </div>
   );
 }
 
-/* ════════════════ ① 진입 ════════════════ */
+/* ════════════════ 플로팅(+) 메뉴 — 우하단. 실제 FAB 대체 데모 ════════════════
+   실제 layout 의 FloatingWriteButton(끄적끄적/시술후기/보관)을 목업에선 숨기고,
+   '나의 피부일기 / 시술 후기 / 끄적끄적' 3개로 펼치는 메뉴로 대체.
+   (앱 전환 시 하단 중앙 + 버튼으로 이동 예정.) */
 
-function EntryView({ go }: { go: (s: Screen) => void }) {
-  const opts: [Screen, string, string][] = [
-    ["diary", "나의 피부일기 남기기", "날짜·병원·시술·메모까지. 일기장처럼 차곡차곡."],
-    ["reviewonly", "시술 후기만 남기기", "지금 쓰는 시술 후기 그대로. 데이터는 일기 체계에 함께 쌓여요."],
-    ["doodle", "끄적끄적", "자유로운 메모와 포스팅."],
+function MockFab({ open, setOpen, go }: { open: boolean; setOpen: (b: boolean) => void; go: (s: Screen) => void }) {
+  const items: [Screen, string, React.ReactNode][] = [
+    ["diary", "나의 피부일기 남기기", (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>
+    )],
+    ["reviewonly", "시술 후기 남기기", (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 17.3l-5.6 3.3 1.5-6.3-4.9-4.3 6.4-.5L12 3.5l2.6 6 6.4.5-4.9 4.3 1.5 6.3z" /></svg>
+    )],
+    ["doodle", "끄적끄적", (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+    )],
   ];
   return (
-    <section className="mx-auto w-full max-w-[640px]">
-      <h1 className="mb-1 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">무엇을 남길까요?</h1>
-      <p className="mb-5 text-center text-[13px] text-[var(--text-muted)]">피부과 전문의와 함께하는 나의 피부일기</p>
-      <div className="space-y-3">
-        {opts.map(([s, tt, ds]) => (
-          <button key={s} type="button" onClick={() => go(s)}
-            className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-white p-4 text-left transition-colors hover:bg-[var(--primary-soft)]">
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-semibold text-[var(--text)]">{tt}</span>
-              <span className="mt-1 block text-[12.5px] leading-relaxed text-[var(--text-muted)]">{ds}</span>
-            </span>
-            <span className="text-[var(--text-muted)]">›</span>
+    <>
+      {open && <div className="fixed inset-0 z-30" aria-hidden onClick={() => setOpen(false)} />}
+      <div className="fixed z-40 flex flex-col items-end gap-3" style={{ bottom: "calc(env(safe-area-inset-bottom,0px) + 20px)", right: 20 }}>
+        {open && items.map(([s, label, icon]) => (
+          <button key={s} type="button" onClick={() => { go(s); setOpen(false); }} className="flex items-center gap-2" style={{ animation: "fab-pop .18s ease-out both" }}>
+            <span className="rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold text-[var(--text)] shadow-[0_4px_12px_rgba(0,0,0,0.12)]">{label}</span>
+            <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full shadow-[0_6px_16px_rgba(139,195,222,0.35)]" style={{ background: "#7FD0F8" }}>{icon}</span>
           </button>
         ))}
+        <button type="button" onClick={() => setOpen(!open)} aria-label={open ? "작성 메뉴 닫기" : "작성 메뉴 열기"} aria-expanded={open}
+          className="flex items-center justify-center rounded-full text-white shadow-[0_8px_20px_rgba(139,195,222,0.35)] transition-all active:scale-95"
+          style={{ width: 56, height: 56, backgroundColor: "#4CBFF2" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 transition-transform" style={{ transform: open ? "rotate(45deg)" : "none" }}>
+            <path d="M12 5v14" /><path d="M5 12h14" />
+          </svg>
+        </button>
       </div>
-      <p className="mt-4 text-center text-[12px] leading-relaxed text-[var(--text-muted)]">어떤 칸도 필수가 아니에요. 비워둬도 저장돼요.<br />옛날 시술이라 기억이 안 나도, 병원을 몰라도 괜찮아요.</p>
-    </section>
+      {/* 실제 layout FAB 숨김(목업 전용) + 위성 등장 애니메이션 */}
+      <style>{`.fab-root{display:none!important}@keyframes fab-pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}`}</style>
+    </>
   );
 }
 
@@ -382,14 +396,16 @@ type DiaryProc = ReviewState & { id: number; label: string; price: string; note:
 function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
-  const [near, setNear] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [tel, setTel] = useState("");
   const [procs, setProcs] = useState<DiaryProc[]>([]);
   const [pid, setPid] = useState(0);
   const [tag, setTag] = useState("");
-  const today = new Date().toISOString().slice(0, 10);
+  const _d = new Date();
+  const dateLabel = `${_d.getFullYear()}년 ${_d.getMonth() + 1}월 ${_d.getDate()}일`;
 
-  let results = q ? HOSPITALS.filter((h) => h.n.includes(q)) : near ? [...HOSPITALS] : [];
-  if (near) results = [...results].sort((a, b) => a.d - b.d);
+  let results = q ? HOSPITALS.filter((h) => h.n.includes(q)) : showMap ? [...HOSPITALS] : [];
+  if (showMap) results = [...results].sort((a, b) => a.d - b.d);
 
   function addTag(raw: string) {
     const t = raw.trim(); if (!t) return; const low = t.toLowerCase();
@@ -401,6 +417,9 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
   }
   const upd = (id: number, p: Partial<DiaryProc>) => setProcs((ps) => ps.map((x) => (x.id === id ? { ...x, ...p } : x)));
   const reviewed = (p: DiaryProc) => !!(p.satisfaction || p.pain || p.downtime || p.revisit || p.effectAreas.length || p.effectOnset || p.oneliner);
+  const tq = tag.trim(); const tlow = tq.toLowerCase();
+  const acMatches = tq ? PROCEDURES.filter((p) => (p.label.includes(tq) || (EN2KO[tlow] && p.label === EN2KO[tlow])) && !procs.some((x) => x.label === p.label)).slice(0, 8) : [];
+  const acExact = PROCEDURES.some((p) => p.label === tq) || !!EN2KO[tlow];
 
   return (
     <section className="mx-auto w-full max-w-[640px]">
@@ -411,28 +430,40 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
         {/* 1. 날짜 */}
         <div>
           <label className={labelCls}>시술 받은 날짜 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
-          <input type="date" className={inputCls} defaultValue={today} />
+          <button type="button" className={inputCls + " flex items-center justify-between text-left"}>
+            <span className="text-[var(--text)]">{dateLabel}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0"><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M4 9h16" /></svg>
+          </button>
           <p className="mt-1 text-xs text-[var(--text-muted)]">옛날 시술이면 기억나는 대로 과거 날짜로 적어도 돼요.</p>
         </div>
 
-        {/* 2. 병원 (지도 검색) */}
+        {/* 2. 병원 — 지도에서 쉽게 찾기 + 선택 시 전화번호 자동 채움 */}
         <div>
           <label className={labelCls}>어디서 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
-          <div className="flex gap-2">
-            <input className={inputCls + " flex-1"} placeholder="병원 이름 검색 (예: 강남, 힐하우스…)" value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} />
-            <button type="button" onClick={() => { setNear(!near); setPicked(null); }}
-              className="shrink-0 rounded-md px-3 text-[12.5px] font-semibold transition-colors"
-              style={near ? { background: "var(--primary)", color: "#fff" } : { background: "var(--primary-soft)", color: "var(--primary-active)" }}>
-              내 주변
+          <input className={inputCls} placeholder="병원 이름 검색 (예: 강남, 힐하우스…)" value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} />
+          {!picked && (
+            <button type="button" onClick={() => { setShowMap(!showMap); setPicked(null); }}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-md bg-[var(--primary-soft)] py-2.5 text-[13px] font-semibold text-[var(--primary-active)]">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+              지도에서 찾기
             </button>
-          </div>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">‘내 주변’을 누르면 현재 위치에서 가까운 피부과를 거리순으로 보여줘요.</p>
+          )}
+          {showMap && !picked && (
+            <div className="relative mt-2 flex h-[150px] items-center justify-center overflow-hidden rounded-md bg-[var(--bg-soft)]">
+              <div className="absolute inset-0 opacity-60" style={{ backgroundImage: "linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px)", backgroundSize: "26px 26px" }} />
+              <div className="relative text-center">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="mx-auto h-7 w-7"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+                <p className="mt-1 text-[12px] font-semibold text-[var(--text-secondary)]">현재 위치 주변 피부과</p>
+                <p className="text-[11px] text-[var(--text-muted)]">실제로는 여기에 지도가 떠요 · 아래 목록은 거리순</p>
+              </div>
+            </div>
+          )}
           {!picked && results.length > 0 && (
             <div className="mt-2 overflow-hidden rounded-md bg-[var(--bg)]">
               {results.map((h) => (
-                <button key={h.n} type="button" onClick={() => { setPicked(h.n); setQ(h.n); }} className="flex w-full items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)]">
+                <button key={h.n} type="button" onClick={() => { setPicked(h.n); setTel(h.tel); setQ(h.n); setShowMap(false); }} className="flex w-full items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)]">
                   <span><span className="block text-[14px] font-semibold text-[var(--text)]">{h.n}</span><span className="block text-[11.5px] text-[var(--text-muted)]">{h.a}</span></span>
-                  {near && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.d}km</span>}
+                  {showMap && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.d}km</span>}
                 </button>
               ))}
             </div>
@@ -440,10 +471,16 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           {picked && (
             <div className="mt-2 rounded-md bg-[var(--bg)] p-3">
               <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--text)]">{picked}</span>
-                <button type="button" onClick={() => { setPicked(null); setQ(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
+                <button type="button" onClick={() => { setPicked(null); setQ(""); setTel(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
               <div className="mt-2 space-y-2">
-                <input className={inputCls} defaultValue={HOSPITALS.find((h) => h.n === picked)?.tel} placeholder="전화번호 (직통으로 수정 가능)" />
-                <input className={inputCls} placeholder="카카오톡 채널 · 있으면 직접 입력" />
+                <div>
+                  <label className="mb-1 block text-[11.5px] font-semibold text-[var(--text-secondary)]">전화번호 <span className="font-normal text-[var(--text-muted)]">· 병원 선택 시 자동 입력, 다음 예약·문의 때 바로 전화</span></label>
+                  <input className={inputCls} value={tel} onChange={(e) => setTel(e.target.value)} placeholder="병원을 선택하면 자동으로 채워져요" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11.5px] font-semibold text-[var(--text-secondary)]">카카오톡 채널 <span className="font-normal text-[var(--text-muted)]">· 있으면 직접 입력</span></label>
+                  <input className={inputCls} placeholder="예: http://pf.kakao.com/..." />
+                </div>
               </div>
             </div>
           )}
@@ -466,16 +503,37 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
               {procs.map((p) => (
                 <div key={p.id} className="flex items-center gap-1.5">
                   <span className="shrink-0 rounded-full bg-[var(--primary)] px-2.5 py-1.5 text-[12.5px] font-semibold text-white">{p.label}</span>
-                  <input className={inputSm + " w-[86px] shrink-0"} placeholder="가격" value={p.price} onChange={(e) => upd(p.id, { price: e.target.value })} />
+                  <input inputMode="numeric" className={inputSm + " w-[104px] shrink-0"} placeholder="가격" value={p.price ? Number(p.price).toLocaleString() : ""} onChange={(e) => upd(p.id, { price: e.target.value.replace(/[^0-9]/g, "") })} />
                   <input className={inputSm + " min-w-0 flex-1"} placeholder="비고 (메모)" value={p.note} onChange={(e) => upd(p.id, { note: e.target.value })} />
                   <button type="button" onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="shrink-0 px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
                 </div>
               ))}
             </div>
           )}
-          <input className={inputCls} placeholder="시술명 입력 후 Enter (예: 써마지, thermage)" value={tag}
-            onChange={(e) => setTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(tag); } }} />
-          <p className="mt-1 text-xs text-[var(--text-muted)]">시술을 넣으면 아래에 후기 글상자가 하나씩 생겨요.</p>
+          <div className="relative">
+            <input className={inputCls} placeholder="시술명 한두 글자만 입력해도 돼요 (예: 써, 보톡)" value={tag} autoComplete="off"
+              onChange={(e) => setTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(tag); } }} />
+            {tq && (
+              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto rounded-md bg-white shadow-[var(--shadow-lg)]">
+                {acMatches.map((m) => (
+                  <button key={m.value} type="button" onMouseDown={(e) => { e.preventDefault(); addTag(m.value); }}
+                    className="flex w-full items-center gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)]">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CAT_COLOR[m.cat] ?? "var(--primary)" }} />
+                    <span className="text-[14px] font-medium text-[var(--text)]">{m.label}</span>
+                    <span className="ml-auto text-[11px] text-[var(--text-muted)]">{m.cat}</span>
+                  </button>
+                ))}
+                {!acExact && (
+                  <button type="button" onMouseDown={(e) => { e.preventDefault(); addTag(tag); }}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--primary-soft)]">
+                    <span className="text-[13px] font-semibold text-[var(--primary-active)]">＋ “{tq}” 직접 추가</span>
+                    <span className="ml-auto text-[11px] text-[var(--text-muted)]">목록에 없음</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">시술 목록에서 고르거나, 없으면 직접 추가할 수 있어요. 넣으면 아래에 후기 글상자가 하나씩 생겨요.</p>
         </div>
 
         {/* 5. 오늘의 시술 일기 */}
@@ -487,39 +545,53 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
         <SubmitBar label="저장하기" onClick={() => { toast("저장했어요"); setTimeout(() => go("record"), 800); }} />
       </div>
 
+      {procs.length > 0 && (
+        <p className="mb-1 mt-5 px-2 text-center text-[12.5px] leading-relaxed text-[var(--text-secondary)]">
+          다른 분들을 위해 시술 후기를 남겨주세요.<br />
+          <span className="text-[var(--text-muted)]">지금 당장 쓰기 어려우면 ‘나중에 쓰기’로 알림을 받을 수 있어요.</span>
+        </p>
+      )}
+
       {/* 형제 글상자 — 시술별 후기 (받은 시술마다 하나씩, 닫힌 상태) */}
       {procs.map((p) => {
-        const badge = p.open ? ["작성 중", "#1B87C9", "var(--primary-soft)"] as const
-          : p.later ? ["나중에 알림", "#B6790F", "#FBEFD9"] as const
-          : reviewed(p) ? ["작성됨", "#2E9E68", "#E2F4EA"] as const
-          : ["기록만", "#8A9099", "#EEF0F3"] as const;
+        const isReviewed = reviewed(p);
         return (
           <div key={p.id} className={cardBox + " mt-3"}>
-            <div className="flex items-center justify-between">
-              <span className="text-[15px] font-bold text-[var(--text)]">{p.label} 후기</span>
-              <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: badge[1], background: badge[2] }}>{badge[0]}</span>
-            </div>
-
-            {!p.open && (
-              <div className="mt-3">
-                {p.later ? (
-                  <div className="flex items-center justify-between gap-2 rounded-md bg-[#FBEFD9] px-3.5 py-3">
-                    <span className="text-[12.5px] font-medium text-[#9A7320]">3일·7일·30일 뒤 알림으로 채울 수 있게 알려드릴게요.</span>
-                    <button type="button" onClick={() => upd(p.id, { later: false })} className="shrink-0 text-[12px] font-semibold text-[var(--text-secondary)] underline">취소</button>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => upd(p.id, { open: true, later: false })} className="rounded-md bg-[var(--primary)] px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-[var(--primary-dark)]">후기 작성하기</button>
-                    <button type="button" onClick={() => upd(p.id, { later: true })} className="rounded-md bg-[var(--bg)] px-4 py-2 text-[12.5px] font-semibold text-[var(--text-secondary)]">나중에 쓰기</button>
-                  </div>
-                )}
+            {p.open ? (
+              <button type="button" onClick={() => upd(p.id, { open: false })} className="flex w-full items-center justify-between gap-2 text-left">
+                <span className="text-[15px] font-bold text-[var(--text)]">{p.label} 후기</span>
+                <span className="shrink-0 text-[12px] font-medium text-[var(--text-muted)]">▴ 접기</span>
+              </button>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[15px] font-bold text-[var(--text)]">{p.label} 후기</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  {p.later ? (
+                    <>
+                      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: "#B6790F", background: "#FBEFD9" }}>나중에 알림</span>
+                      <button type="button" onClick={() => upd(p.id, { later: false })} className="text-[12px] font-semibold text-[var(--text-secondary)] underline">취소</button>
+                    </>
+                  ) : isReviewed ? (
+                    <>
+                      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: "#2E9E68", background: "#E2F4EA" }}>작성됨</span>
+                      <button type="button" onClick={() => upd(p.id, { open: true })} className="rounded-md bg-[var(--bg)] px-3 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">수정</button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => upd(p.id, { open: true, later: false })} className="rounded-md bg-[var(--primary)] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[var(--primary-dark)]">후기 작성하기</button>
+                      <button type="button" onClick={() => upd(p.id, { later: true })} className="rounded-md bg-[var(--bg)] px-3 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">나중에 쓰기</button>
+                    </>
+                  )}
+                </span>
               </div>
             )}
-
+            {p.later && !p.open && (
+              <p className="mt-2 text-[12px] text-[var(--text-muted)]">3일·7일·30일 뒤 알림으로 채울 수 있게 알려드릴게요.</p>
+            )}
             {p.open && (
               <div className="mt-4 space-y-5">
                 <ReviewControls v={p} set={(patch) => upd(p.id, patch)} />
-                <button type="button" onClick={() => upd(p.id, { open: false })} className="w-full rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">접기</button>
+                <button type="button" onClick={() => { upd(p.id, { open: false }); toast("후기를 저장했어요"); }} className="w-full rounded-md bg-[var(--primary)] py-3 text-[13px] font-semibold text-white hover:bg-[var(--primary-dark)]">저장하기</button>
               </div>
             )}
           </div>
