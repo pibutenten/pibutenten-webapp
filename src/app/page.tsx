@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -40,6 +41,13 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function FeedPage() {
   const supabase = await createSupabaseServerClient();
+
+  // CLS 수정(2026-06-07): react-masonry-css 는 SSR 에 window 가 없어 breakpointCols.default(2)
+  //   로 렌더 → 모바일 클라가 1컬럼으로 재배치하며 피드 전체가 점프(CLS). 홈은 동적 라우트라
+  //   요청 UA 로 기기를 판별해 SSR 첫 컬럼수를 기기에 맞춤 → 첫 로드 점프 제거.
+  //   클라의 폭 기반 반응형(899:1)은 그대로 유지 → 데스크탑 창 축소 시 1컬럼 전환 동작 불변.
+  const ua = (await headers()).get("user-agent") ?? "";
+  const isMobileUA = /Mobi|Android|iPhone|iPod|IEMobile|BlackBerry|Opera Mini/i.test(ua);
 
   // SNS-style 시간 가중치 + 인기 + doctor 가중 + jitter (lib는 0038_feed_cards_scored RPC)
   // - HALF_LIFE 14일: 14일 전 글은 가중 절반
@@ -117,6 +125,7 @@ export default async function FeedPage() {
           viewerStates={viewerStates}
           enableJustPublished
           reportPool={reportPool}
+          initialMobile={isMobileUA}
         />
       )}
     </section>

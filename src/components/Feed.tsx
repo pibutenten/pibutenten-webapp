@@ -32,6 +32,10 @@ type Props = {
   /** 홈 전용 — 시술 리포트 컴팩트 카드 풀. 유기 카드 REPORT_EVERY 장마다 1장 결정적 주입.
    *  비어있으면(앵커 draft/없음) 주입 안 함 → 피드 동작 기존과 동일. */
   reportPool?: ProcedureReport[];
+  /** CLS 수정(2026-06-07) — 서버가 요청 UA 로 판별한 모바일 여부. SSR 첫 컬럼수를 기기에 맞춰
+   *  (모바일=1, 데스크탑=2) 모바일 첫 로드 재배치 점프를 제거. 미전달 시 기존(2)과 동일.
+   *  ★클라의 폭 기반 반응형(899:1)은 그대로 — 마운트 후 window 폭으로 재계산되어 동작 불변. */
+  initialMobile?: boolean;
 };
 
 /**
@@ -52,6 +56,7 @@ export default function Feed({
   viewerStates,
   enableJustPublished,
   reportPool = [],
+  initialMobile = false,
 }: Props) {
   const hotSet = new Set(hotIds ?? []);
   const [items, setItems] = useState<CardDataList[]>(initial);
@@ -217,7 +222,7 @@ export default function Feed({
       {/* 카드 피드 — react-masonry-css 가로 flow.
           데스크탑(≥900px) 2-column, 모바일 1-column 자동. DOM 한 벌. */}
       <Masonry
-        breakpointCols={{ default: 2, 899: 1 }}
+        breakpointCols={{ default: initialMobile ? 1 : 2, 899: 1 }}
         className="feed-masonry"
         columnClassName="feed-masonry__col"
       >
