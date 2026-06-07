@@ -344,7 +344,7 @@ ORDER BY ordinal_position;
 - `X-Content-Type-Options: nosniff`
 - `Strict-Transport-Security` — HTTPS 강제
 - `Referrer-Policy: strict-origin-when-cross-origin`
-- `Permissions-Policy` — geolocation/microphone/camera 비활성
+- `Permissions-Policy` — geolocation=(self)(시술일기 '내 주변' 1st-party 허용, 외부 iframe 차단) · microphone/camera 비활성
 
 **향후 재검토 시점**:
 - 의료 정보 보안 audit 요구 발생 시

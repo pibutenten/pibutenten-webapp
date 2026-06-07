@@ -168,10 +168,12 @@ const nextConfig: NextConfig = {
           },
           // 2026-05-28: Permissions-Policy 확장 — payment/usb/interest-cohort/browsing-topics
           // (FLoC/Topics API 거부 + 결제·USB 권한 0 — pibutenten 미사용 기능)
+          // 2026-06-08: geolocation=(self) — 시술일기 '내 주변 피부과 찾기'(1st-party)만 허용.
+          //   외부 iframe 은 계속 차단. mic/camera 는 미사용이라 () 유지.
           {
             key: "Permissions-Policy",
             value:
-              "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=(), browsing-topics=()",
+              "geolocation=(self), microphone=(), camera=(), payment=(), usb=(), interest-cohort=(), browsing-topics=()",
           },
           // 2026-05-28: Cross-Origin-* 헤더 — 사이트 isolation 강화
           // CORP same-origin 은 정적 자산 (fonts/icons/og) 의 vercel.json 별도 cross-origin 으로 override 됨.
