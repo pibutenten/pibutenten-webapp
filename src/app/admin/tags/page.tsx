@@ -213,6 +213,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
           { label: "영문 공란", v: enBlank, status: "en_blank" },
           { label: "시술 후기", v: procCount, status: "proc" },
           { label: "부모 태그", v: parentCount, status: "parent" },
+          { label: "미검토", v: unspecUnreviewed, status: "triage" },
         ] as const).map((s) => {
           const active = cat === "all" && status === (s.status ?? "all");
           return (
@@ -291,24 +292,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* 검토 바 — '검토' 필터일 때만. 미검토 개수 + 검토완료 포함/미검토만 토글. */}
-      {status === "triage" && (
-        <div className="mb-2 flex flex-wrap items-center gap-2 text-[11.5px] text-[var(--text-muted)]">
-          <span>
-            미검토 <b className="tabular-nums text-[var(--text)]">{unspecUnreviewed.toLocaleString()}</b>개
-          </span>
-          <Link
-            replace
-            scroll={false}
-            href={qs(base, { rv: inclReviewed ? undefined : "all", page: undefined })}
-            className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-0.5 hover:bg-[var(--bg-soft)]"
-          >
-            {inclReviewed ? "미검토만 보기" : "검토완료 포함 보기"}
-          </Link>
-        </div>
-      )}
-
-      {/* 검색 */}
+      {/* 검색 (+ 검토 탭이면 검토완료 포함 보기 토글) */}
       <form action="/admin/tags" method="get" className="mb-3 flex items-center gap-2">
         {sp.cat ? <input type="hidden" name="cat" value={sp.cat} /> : null}
         {sp.status ? <input type="hidden" name="status" value={sp.status} /> : null}
@@ -326,23 +310,17 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         <button type="submit" className="h-9 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-medium text-white hover:bg-[var(--primary-dark)]">
           검색
         </button>
+        {status === "triage" && (
+          <Link
+            replace
+            scroll={false}
+            href={qs(base, { rv: inclReviewed ? undefined : "all", page: undefined })}
+            className="h-9 inline-flex items-center whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+          >
+            {inclReviewed ? "미검토만 보기" : "검토완료 포함 보기"}
+          </Link>
+        )}
       </form>
-
-      <p className="mb-2 text-xs text-[var(--text-muted)]">
-        {filteredCount.toLocaleString()}개 ·{" "}
-        {sortCol === "search"
-          ? "검색량"
-          : sortCol === "created"
-            ? "생성일"
-            : sortCol === "onb_name"
-              ? "온보딩 가나다"
-              : sortCol === "parent_name"
-                ? "부모 가나다"
-                : sortCol === "ko_name"
-                  ? "태그 가나다"
-                  : "사용량"}{" "}
-        {sortDir === "asc" ? "오름차순" : "내림차순"} (기간 {PERIODS.find((p) => p.days === days)?.label})
-      </p>
 
       <TagAdminTable rows={pageRows} allKo={allKo} sort={sortCol} dir={sortDir} status={status} />
 
