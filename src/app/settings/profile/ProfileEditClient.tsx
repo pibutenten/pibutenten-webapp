@@ -444,7 +444,7 @@ export default function ProfileEditClient({
 
   return (
     <div className="space-y-5">
-      {/* 헤더 — 변경 즉시 저장(저장하기 버튼 제거). */}
+      {/* 헤더 — 변경 즉시 저장(수동 저장 버튼 없음). */}
       <div className="mb-1 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold text-[var(--text)]">내 정보</h1>
       </div>

@@ -303,7 +303,7 @@ export default async function HandleProfilePage({ params }: Props) {
               href="/settings/profile"
               className="rounded-full border border-[var(--border)] px-3 py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
             >
-              ✏️ 프로필 수정
+              ✏️ 프로필·설정
             </Link>
             {/* admin은 위에서 /admin으로 redirect 되므로 여기 도달 X */}
           </div>

@@ -8,7 +8,7 @@
 
 ## 1. 현재 상태 (스냅샷)
 
-- **git**: `HEAD == origin/main`. 최근 커밋(2026-06-07): L-Phase2 + 태그 관리 UI + 'O' 정리. (해시: `c2eeed7`→`e653680`→`d159fb9`→`ae07840`→`848afae`→ 본 O 커밋.)
+- **git**: `HEAD == origin/main`. 최근 커밋(2026-06-07): L-Phase2 → 태그 관리 UI(O·P·Q) → 칩 통일 → 발주 A·B(`99dbcde`) → C(`c1306e7`) → D(라벨·주석). 알림 설정은 정보수정 페이지로 일원화·즉시저장.
 - **DB 마이그**: **0268** 까지 production 적용 완료.
 - **빌드**: `tsc --noEmit` 0 + `npm run build` Compiled successfully.
 
