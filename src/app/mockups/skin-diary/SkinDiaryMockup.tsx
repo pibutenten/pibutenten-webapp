@@ -375,6 +375,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
   const [procs, setProcs] = useState<DiaryProc[]>([]);
   const [pid, setPid] = useState(0);
   const [tag, setTag] = useState("");
+  const [diary, setDiary] = useState(""); // 오늘의 시술 일기(비공개 메모) — 최대 1000자.
   // 시술을 추가하면 해당 행의 '용량' 칸으로 커서를 옮겨 이어서 입력하게 함.
   const [focusId, setFocusId] = useState<number | null>(null);
   const unitRefs = useRef<Record<number, HTMLInputElement | null>>({});
@@ -531,8 +532,8 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
         <div>
           <label className={labelCls}>시술의사 · 상담실장 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <div className="grid grid-cols-2 gap-2">
-            <input className={inputCls} placeholder="시술의사 (선택)" />
-            <input className={inputCls} placeholder="상담실장 (선택)" />
+            <input className={inputCls} placeholder="원장님" />
+            <input className={inputCls} placeholder="실장님" />
           </div>
         </div>
 
@@ -581,10 +582,13 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           </div>
         </div>
 
-        {/* 5. 오늘의 시술 일기 */}
+        {/* 5. 오늘의 시술 일기 — 비공개 메모, 최대 1000자 */}
         <div>
           <label className={labelCls}>오늘의 시술 일기 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
-          <textarea rows={3} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
+          <textarea rows={3} maxLength={1000} value={diary} onChange={(e) => setDiary(e.target.value)} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
+          {diary.length >= 800 && (
+            <p className="mt-1 text-right text-[11px]" style={{ color: diary.length >= 950 ? "var(--accent)" : "var(--text-muted)" }}>{diary.length}/1000</p>
+          )}
         </div>
 
       </div>
