@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -53,10 +53,15 @@ export default function ClinicMap({
 }) {
   return (
     <div className="overflow-hidden rounded-md" style={{ height }}>
+      {/* 병원 이름 라벨(상시 tooltip) — 작고 깔끔하게. */}
+      <style>{`
+        .leaflet-tooltip.clinic-tip{background:#fff;border:1px solid #E5E3DD;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:600;color:#383F47;box-shadow:0 1px 3px rgba(0,0,0,.2);white-space:nowrap}
+        .leaflet-tooltip.clinic-tip::before{display:none}
+      `}</style>
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={zoom}
-        scrollWheelZoom={false}
+        scrollWheelZoom
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
@@ -71,7 +76,10 @@ export default function ClinicMap({
             icon={pinIcon(!!p.active)}
             eventHandlers={onPick ? { click: () => onPick(p.label) } : undefined}
           >
-            <Popup>{p.label}</Popup>
+            {/* 클릭 안 해도 병원 이름이 보이도록 상시 라벨(permanent tooltip). */}
+            <Tooltip permanent direction="top" offset={[0, -(p.active ? 34 : 28) + 4]} className="clinic-tip">
+              {p.label}
+            </Tooltip>
           </Marker>
         ))}
       </MapContainer>
