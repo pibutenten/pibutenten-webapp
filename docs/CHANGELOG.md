@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-07] — 발주 C: 프로필 즉시저장 + 알림/공개 정렬 + 활동카드 접기 + notifications 라우트 제거
+
+### Changed
+- **'내 정보' 즉시 저장(저장하기 버튼 제거)**: 상단·하단 '저장하기' 버튼 삭제. 기존 `saveAll`(profiles 일괄 update) 그대로 재사용 — 호출 시점만 변경: 텍스트(닉네임·자기소개)는 `onBlur`, 선택·체크(얼굴형·피부타입·피부고민·관심시술·공개·사진)는 변경 시 디바운스(500ms) autosave. 성공 무표시, 실패만 기존 에러(Msg). 새 필드별 API 0.
+- **'알림'·'공개' 순서 [알림][공개]**: 알림 있는 3섹션 우상단을 알림(좌)·공개(우)로 — 공개를 항상 우측 끝 고정해 알림 없는 섹션(자기소개·얼굴형)과 세로 정렬.
+- **'🔔 활동 알림' 카드 기본 접힘**: 헤더 클릭 토글(▼/▲). 내부 토글 내용 불변.
+
+### Removed
+- **`/settings/notifications` 라우트·페이지 삭제** + 알림함(`/notifications`) 의 '⚙ 알림 설정' 링크 제거(알림 설정은 정보수정 페이지로 일원화). 전용으로만 쓰이던 `NotificationPreferences` 컴포넌트 삭제(고아 제거). (notifications 는 admin/내부 페이지라 SEO·리다이렉트 무관.)
+
+### 검증
+- 저장 API 동일(profiles update + `/api/notifications/preferences`), 새 API 0. '저장하기' 버튼 grep 0 / `settings/notifications`·`NotificationPreferences` import grep 0. tsc·build·/settings/profile 200.
+
 ## [2026-06-07] — 발주 A: 대시보드 기간 칩 표준화 + 카드목록 안내문구 삭제
 
 ### Changed

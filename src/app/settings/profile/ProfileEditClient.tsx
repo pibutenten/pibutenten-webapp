@@ -131,6 +131,7 @@ export default function ProfileEditClient({
   // ── 알림 설정 (기존 NotificationPreferences 로직 차용 — 같은 API·키, 저장 구조 불변) ──
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs | null>(null);
   const [notifSaving, setNotifSaving] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false); // 활동 알림 카드 기본 접힘
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -173,7 +174,7 @@ export default function ProfileEditClient({
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cameraRef = useRef<HTMLInputElement | null>(null);
-  // 사진 변경: storage 업로드만 하고 state에 보관 — DB는 [저장하기] 버튼 누를 때 일괄 update
+  // 사진 변경: storage 업로드 후 pendingAvatarUrl state 에 보관 — DB 는 즉시저장(autosave effect)에서 반영
   const [pendingAvatarUrl, setPendingAvatarUrl] = useState<string | null>(null);
 
   // 사진 자르기 다이얼로그 (인스타식 — 드래그·확대로 위치 조정 후 업로드)
@@ -240,7 +241,7 @@ export default function ProfileEditClient({
     initial.fieldVisibility,
   );
   const [skinStatus, setSkinStatus] = useState<Status>({ type: "idle" });
-  const [skinPending, startSkin] = useTransition();
+  const [, startSkin] = useTransition();
 
   function toggleArr(arr: string[], k: string): string[] {
     return arr.includes(k) ? arr.filter((x) => x !== k) : [...arr, k];
@@ -331,10 +332,31 @@ export default function ProfileEditClient({
         console.warn("[profile-edit] propagate RPC threw:", e);
       }
       setPendingAvatarUrl(null);
-      setSkinStatus({ type: "ok", msg: "저장되었어요." });
+      setSkinStatus({ type: "idle" }); // 즉시저장 — 성공 무표시(실패만 표시)
       router.refresh();
     });
   }
+
+  // 즉시 저장 — 선택·체크(얼굴형·피부타입·피부고민·관심시술·공개·사진)는 변경 시 디바운스 저장.
+  //   텍스트(닉네임·자기소개)는 onBlur 에서 저장(입력 핸들러). 새 API 없음 — 기존 saveAll 재사용.
+  const autosaveKey = JSON.stringify([
+    faceShape,
+    skinType,
+    skinConcerns,
+    interestedProcedures,
+    visibility,
+    pendingAvatarUrl,
+  ]);
+  const autosaveMounted = useRef(false);
+  useEffect(() => {
+    if (!autosaveMounted.current) {
+      autosaveMounted.current = true;
+      return;
+    }
+    const t = setTimeout(() => saveAll(), 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autosaveKey]);
 
   // ── 선택 동의 (news / marketing) — 단일 공유 저장 경로 ──
   // F-2A (2026-06-04): news·marketing 둘 다 같은 active 명함 (targetProfileId) 에 저장하고,
@@ -422,20 +444,9 @@ export default function ProfileEditClient({
 
   return (
     <div className="space-y-5">
-      {/* 헤더 — [내 정보] [← 프로필] [저장하기] (← 프로필 / 저장하기 동일 스타일) */}
+      {/* 헤더 — 변경 즉시 저장(저장하기 버튼 제거). */}
       <div className="mb-1 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold text-[var(--text)]">내 정보</h1>
-        <div className="flex items-baseline gap-3">
-          
-          <button
-            type="button"
-            onClick={saveAll}
-            disabled={skinPending}
-            className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50"
-          >
-            {skinPending ? "저장 중…" : "저장하기"}
-          </button>
-        </div>
       </div>
 
       {/* 1. 프로필 사진 — 큰 원, 사진 변경 / 사진 찍기.
@@ -540,6 +551,7 @@ export default function ProfileEditClient({
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
+            onBlur={saveAll}
             disabled={readOnlyNameAndAvatar}
             maxLength={20}
             className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:bg-[var(--bg-soft)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed"
@@ -557,6 +569,7 @@ export default function ProfileEditClient({
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}
+          onBlur={saveAll}
           rows={3}
           maxLength={200}
           className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] focus:border-[var(--primary)] focus:outline-none"
@@ -680,15 +693,24 @@ export default function ProfileEditClient({
         </div>
       </SectionWithVisibility>
 
-      {/* 활동 알림 — 관심시술 바로 밑 별도 카드. 기존 알림 토글(스위치) 마크업 차용. */}
+      {/* 활동 알림 — 관심시술 바로 밑 별도 카드. 기본 접힘, 헤더 클릭 시 펼침. */}
       <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
-        <div className="mb-3 flex items-baseline justify-between">
+        <button
+          type="button"
+          onClick={() => setActivityOpen((o) => !o)}
+          aria-expanded={activityOpen}
+          className="flex w-full items-center justify-between gap-2 text-left"
+        >
           <h3 className="text-sm font-bold text-[var(--text)]">🔔 활동 알림</h3>
-          <span className="text-[11px] text-[var(--text-muted)]">
+          <span className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
             {notifSaving ? "저장 중…" : ""}
+            <span aria-hidden className="text-[var(--text-muted)]">
+              {activityOpen ? "▲" : "▼"}
+            </span>
           </span>
-        </div>
-        <ul className="divide-y divide-[var(--border)]/60">
+        </button>
+        {activityOpen && (
+        <ul className="mt-3 divide-y divide-[var(--border)]/60">
           {ACTIVITY_ROWS.filter(
             (r) => r.visibleToUser || role === "doctor" || role === "admin",
           ).map((r) => {
@@ -732,6 +754,7 @@ export default function ProfileEditClient({
             );
           })}
         </ul>
+        )}
       </div>
 
       {/* 선택 동의 (news / marketing) — 변경 즉시 저장 (값 + _at 기록) */}
@@ -796,17 +819,7 @@ export default function ProfileEditClient({
         />
       </div>
 
-      {/* 일괄 저장 — 박스 (가운데 큰 버튼) */}
-      <div className="flex justify-center pt-3">
-        <button
-          type="button"
-          onClick={saveAll}
-          disabled={skinPending}
-          className="h-11 rounded-full bg-[var(--primary-light)] px-10 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
-        >
-          {skinPending ? "저장 중…" : "저장하기"}
-        </button>
-      </div>
+      {/* 변경 즉시 저장 — 저장 버튼 없음. 실패 시에만 에러 표시. */}
       <Msg status={skinStatus} />
 
       {/* 회원 탈퇴 footer — 로그아웃은 본인 프로필 페이지(/{handle}) 하단으로 이동됨 */}
@@ -947,19 +960,8 @@ function SectionWithVisibility({
             </span>
           )}
         </h3>
+        {/* 순서: [알림][공개] — 공개를 항상 우측 끝 고정(알림 없는 섹션과 세로 정렬). */}
         <div className="flex shrink-0 items-center gap-2.5">
-          <label className="flex shrink-0 items-center gap-1 text-[11.5px] text-[var(--text-muted)]">
-            <input
-              type="checkbox"
-              checked={visibility[visField]}
-              onChange={(e) =>
-                setVisibility({ ...visibility, [visField]: e.target.checked })
-              }
-              style={{ accentColor: CHECK_ACCENT }}
-              className="h-3.5 w-3.5"
-            />
-            공개
-          </label>
           {onToggleNotify && (
             <label className="flex shrink-0 items-center gap-1 text-[11.5px] text-[var(--text-muted)]">
               <input
@@ -972,6 +974,18 @@ function SectionWithVisibility({
               알림
             </label>
           )}
+          <label className="flex shrink-0 items-center gap-1 text-[11.5px] text-[var(--text-muted)]">
+            <input
+              type="checkbox"
+              checked={visibility[visField]}
+              onChange={(e) =>
+                setVisibility({ ...visibility, [visField]: e.target.checked })
+              }
+              style={{ accentColor: CHECK_ACCENT }}
+              className="h-3.5 w-3.5"
+            />
+            공개
+          </label>
         </div>
       </div>
       {children}

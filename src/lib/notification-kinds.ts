@@ -1,5 +1,5 @@
 /**
- * 알림 kind 단일 source — NotificationsBell, NotificationsClient, NotificationPreferences 공통.
+ * 알림 kind 단일 source — NotificationsBell, NotificationsClient, 정보수정(알림 설정) 공통.
  *
  * DB notifications.kind 컬럼 enum 과 일치해야 함.
  * 추가 시: 여기 + DB enum + 알림 트리거(0086~) 모두 수정 필요.

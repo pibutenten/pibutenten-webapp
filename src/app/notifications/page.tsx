@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import NotificationsClient from "./NotificationsClient";
@@ -31,15 +30,8 @@ export default async function NotificationsPage() {
       <div className="mb-1 -ml-1">
         <BackButton />
       </div>
-      <div className="mb-4 flex items-baseline justify-between">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-[var(--text)]">알림</h1>
-        <Link
-          href="/settings/notifications"
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
-          aria-label="알림 설정"
-        >
-          ⚙ 알림 설정
-        </Link>
       </div>
       <NotificationsClient showOps={showOps} />
     </section>
