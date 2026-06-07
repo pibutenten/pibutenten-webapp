@@ -790,11 +790,11 @@ const RECORDS: Record<number, { proc: string; st: "done" | "watch" }> = {
   12: { proc: "보톡스", st: "done" }, 20: { proc: "리쥬란", st: "done" },
 };
 
-type SummaryItem = { id: string; date: string; proc: string; hospital: string; doctor: string; tel: string; price: string; memo: string; items: { name: string; unit: string }[] };
+type SummaryItem = { id: string; date: string; proc: string; hospital: string; doctor: string; manager?: string; tel: string; price: string; memo: string; items: { name: string; unit: string }[] };
 const SUMMARY: { year: number; items: SummaryItem[] }[] = [
   { year: 2026, items: [
     { id: "a", date: "06.12", proc: "보톡스", hospital: "예담피부과의원", doctor: "김민재 원장", tel: "02-000-2222", price: "220,000원", memo: "이마·미간", items: [{ name: "보톡스", unit: "이마 50u · 미간 20u" }] },
-    { id: "b", date: "06.04", proc: "써마지 · 스컬트라", hospital: "라온피부과의원", doctor: "이서연 원장", tel: "02-000-1111", price: "1,650,000원", memo: "1년 주기로 받기로 함", items: [{ name: "써마지", unit: "600샷" }, { name: "스컬트라", unit: "2바이알" }] },
+    { id: "b", date: "06.04", proc: "써마지 · 스컬트라", hospital: "라온피부과의원", doctor: "이서연 원장", manager: "윤소희 실장", tel: "02-000-1111", price: "1,650,000원", memo: "1년 주기로 받기로 함", items: [{ name: "써마지", unit: "600샷" }, { name: "스컬트라", unit: "2바이알" }] },
     { id: "c", date: "05.20", proc: "리쥬란", hospital: "맑은서울피부과의원", doctor: "박지호 원장", tel: "02-000-3333", price: "350,000원", memo: "리쥬란힐러", items: [{ name: "리쥬란", unit: "2cc" }] },
   ] },
   { year: 2025, items: [
@@ -904,19 +904,20 @@ function SummaryPanel({ go }: { go: (s: Screen) => void }) {
                     </button>
                     {isOpen && (
                       <div className="border-t border-[var(--border)] px-4 pb-3 pt-3">
-                        <div className="mb-2.5 rounded-md bg-[var(--bg)] p-3">
+                        {/* 받은 시술 — 각각 칩 (써마지 600샷) */}
+                        <div className="flex flex-wrap gap-1.5">
                           {it.items.map((iv) => (
-                            <div key={iv.name} className="flex items-baseline justify-between gap-2 py-0.5">
-                              <span className="text-[13.5px] font-bold text-[var(--text)]">{iv.name}</span>
-                              <span className="text-[12.5px] text-[var(--text-secondary)]">{iv.unit}</span>
-                            </div>
+                            <span key={iv.name} className="rounded-full bg-[var(--bg)] px-3 py-1 text-[12.5px] font-semibold text-[var(--text)]">
+                              {iv.name}{iv.unit ? <span className="ml-1 font-medium text-[var(--text-secondary)]">{iv.unit}</span> : null}
+                            </span>
                           ))}
                         </div>
-                        <CompactRow k="병원" v={it.hospital} />
-                        <CompactRow k="원장" v={it.doctor} />
-                        <CompactRow k="전화" v={it.tel} />
-                        <CompactRow k="가격" v={it.price} />
-                        <CompactRow k="메모" v={it.memo} />
+                        {/* 의료진 · 가격 · 메모 — 라벨 없이 컴팩트 (병원명·전화 제거) */}
+                        <div className="mt-2.5 space-y-0.5 text-[13px]">
+                          <p className="font-semibold text-[var(--text)]">{it.doctor}님{it.manager ? ` · ${it.manager}` : ""}</p>
+                          <p className="font-semibold text-[var(--text)]">{it.price}</p>
+                          {it.memo && <p className="text-[var(--text-secondary)]">{it.memo}</p>}
+                        </div>
                         <button type="button" onClick={() => go("detail")} className="mt-2.5 w-full rounded-md bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">상세 보기</button>
                       </div>
                     )}
@@ -934,9 +935,6 @@ function SummaryPanel({ go }: { go: (s: Screen) => void }) {
 
 /* ════════════════ ⑥ 상세 (평가 제외, 비공개 메모) ════════════════ */
 
-function CompactRow({ k, v }: { k: string; v: string }) {
-  return <div className="flex justify-between gap-3 py-1 text-[13px]"><span className="shrink-0 font-medium text-[var(--text-muted)]">{k}</span><span className="text-right font-semibold text-[var(--text)]">{v}</span></div>;
-}
 
 function Row({ k, v }: { k: string; v: string }) {
   return <div className="flex justify-between gap-3 border-b border-[var(--border)] py-2.5 text-[13px] last:border-0"><span className="shrink-0 font-medium text-[var(--text-muted)]">{k}</span><span className="text-right font-semibold text-[var(--text)]">{v}</span></div>;
