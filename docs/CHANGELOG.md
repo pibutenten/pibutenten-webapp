@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-07] — L-Phase2 2단계: TS 함수 스냅샷 전환 (전후 100% 동일 실증)
+
+> JSON 직접 import 로 동작하던 lookup 함수를 빌드타임 DB 스냅샷(generated.json) 읽기로 전환. 트리거 통일(3단계)·JSON 제거(4단계)는 후속.
+
+### Changed
+- **`scripts/gen-tag-dictionary.mjs` 확장**: 스냅샷에 `pubmed`(canonical ko→검색어 51) · `pubmedLookup`(ko/synonym/alias→검색어 53) · `aliases`(15) · `blacklist`(5) · `normalizations`(100) 추가. 베이스라인(procedure-mappings.json) ⊕ DB(tag_dictionary.aliases·pubmed_keywords, tag_blacklist, tag_normalization) union(겹치면 DB 승). `pubmedLookup` 은 OLD `KO_INDEX` 의미(ko 무조건·synonym 조건부·first-wins)를 `keyOwner` 로 정확 재현.
+- **`src/lib/procedure-dict.ts` 4개 함수 전환**: `pubmedKeywordsFor`·`normalizeTag`·`isBlacklisted`·`getPubmedDict` 가 procedure-mappings.json 대신 generated.json 스냅샷을 읽음. `KO_INDEX`·`BLACKLIST_SET` 제거. `allMappings()` 만 JSON 잔존(L2-4 정리 예정).
+
+### 검증
+- 임시 패리티 스크립트로 키 2201개(전 ko·synonym·normalization·blacklist·DB ko + 엣지 5) × 4함수 전수 비교 → **전후 100% 동일**. 엣지 2건(독립 ko 가 동의어 슬롯 선점: `마리오네트`·`시술후` → null / ko 무조건 덮어쓰기: `레이저토닝`) 재현 확인.
+- `tsc --noEmit` + `npm run build` 통과.
+
+---
+
 ## [2026-06-07] — L-Phase2 1단계: procedure-mappings.json → DB 이관 (스키마·데이터)
 
 > 동의어·논문검색어·금지어·표기정규화를 tag_dictionary SSOT 로 흡수하는 1단계(additive·무손실). TS 함수 전환(2단계)·트리거 통일(3단계)·JSON 제거(4단계)는 후속.
