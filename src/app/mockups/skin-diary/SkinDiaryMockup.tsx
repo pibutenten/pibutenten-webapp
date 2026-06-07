@@ -21,11 +21,9 @@ const inputCls =
 const textareaCls =
   "w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none";
 const labelCls = "mb-2 block text-sm font-semibold text-[var(--text)]";
-/** 폼 컨테이너 (실제 폼과 동일: border + shadow-sm) */
-const formBox =
-  "space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]";
-/** 표시용 글상자 (피드 카드처럼 음영 없음) */
-const dispBox = "rounded-[var(--radius)] border border-[var(--border)] bg-white p-5";
+/** 글상자 — 피드 카드(Card.tsx)와 동일: 테두리 X, 음영 X. 흰 박스 on 회색 배경. */
+const formBox = "space-y-5 rounded-[var(--radius)] bg-white p-5";
+const dispBox = "rounded-[var(--radius)] bg-white p-5";
 
 /* ── 옵션 (실제 SSOT 값 그대로) ── */
 const PAIN_FACES = [
@@ -50,11 +48,12 @@ const EFFECT_ONSET_OPTIONS = [
 const EFFECT_AREA_OPTIONS = ["리프팅","탄력","쫀쫀함","볼륨","작은얼굴","턱선","이중턱","피부톤","피부결","잔주름","깊은주름","불독살","모공","생기","속건조","붉은기","트러블","피지","없음"];
 const EFFECT_AREA_COLORS = ["#B0A0DE","#7FD0F8","#F59CB6","#FFCB8C","#A6D9A9","#C3B0E8","#79CCC3","#FFAF97","#9AA6DE","#CDC97A","#C9A8D6","#A8C2E6","#8FD4C8","#F4B8A0","#B8D88A","#F2A9C0","#D6B0A1","#E0C088","#C2C7CE"];
 
-/* 시술 picker 데이터 (시술 후기만 — 잠금형 탭) */
+/* 시술 picker 데이터 — 실제 tag_dictionary(is_procedure) 기준. 카테고리는 리프팅/스킨부스터 2종뿐.
+   색도 실제 CATEGORIES 와 동일(리프팅 #29B6F6 / 스킨부스터 #F48FB1). */
+const CAT_COLOR: Record<string, string> = { 리프팅: "#29B6F6", 스킨부스터: "#F48FB1" };
 const PROCEDURES: { value: string; label: string; cat: string }[] = [
-  ...["써마지","울쎄라","슈링크","포텐자","올리지오","울트라셀"].map((l) => ({ value: l, label: l, cat: "리프팅" })),
-  ...["리쥬란","쥬베룩","물광주사"].map((l) => ({ value: l, label: l, cat: "스킨부스터" })),
-  ...["보톡스","필러","스컬트라"].map((l) => ({ value: l, label: l, cat: "주입" })),
+  ...["써마지","울쎄라","슈링크","올리지오","포텐자","텐써마","덴서티","울트라셀"].map((l) => ({ value: l, label: l, cat: "리프팅" })),
+  ...["리쥬란","쥬베룩","스컬트라","보톡스","프로파일로","울트라콜","스킨바이브"].map((l) => ({ value: l, label: l, cat: "스킨부스터" })),
 ];
 
 type ReviewState = { satisfaction: number; pain: number; downtime: string; revisit: string; effectAreas: string[]; effectOnset: string; oneliner: string; price: string };
@@ -78,7 +77,7 @@ export default function SkinDiaryMockup() {
     <div className="pb-12">
       <div className="mb-5 mt-1">
         <p className="mb-2 text-center text-[11px] font-semibold text-[var(--text-muted)]">검토용 미리보기 · 시스템 미반영</p>
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" } as CSSProperties}>
+        <div className="flex flex-wrap justify-center gap-1.5">
           {TABS.map(([v, label]) => (
             <button key={v} type="button" onClick={() => setScreen(v)}
               className="shrink-0 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors"
@@ -120,7 +119,7 @@ function EntryView({ go }: { go: (s: Screen) => void }) {
       <div className="space-y-3">
         {opts.map(([s, tt, ds]) => (
           <button key={s} type="button" onClick={() => go(s)}
-            className="flex w-full items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 text-left shadow-[var(--shadow-sm)] transition-colors hover:border-[var(--primary)]">
+            className="flex w-full items-center gap-3 rounded-[var(--radius)] bg-white p-4 text-left transition-colors hover:bg-[var(--primary-soft)]">
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-semibold text-[var(--text)]">{tt}</span>
               <span className="mt-1 block text-[12.5px] leading-relaxed text-[var(--text-muted)]">{ds}</span>
@@ -258,11 +257,11 @@ function ProcedurePicker({ value, onChange }: { value: string; onChange: (v: str
     <div>
       <div className="flex justify-center gap-x-7">
         {tabs.map((t) => {
-          const on = t === tab;
+          const on = t === tab; const c = CAT_COLOR[t] ?? "var(--primary)";
           return (
             <button key={t} type="button" onClick={() => setTab(t)}
               className="shrink-0 cursor-pointer border-b-2 px-1 py-[6px] text-[14px] font-semibold transition-colors"
-              style={{ color: on ? "var(--primary-active)" : "var(--text-secondary)", borderBottomColor: on ? "var(--primary-active)" : "transparent" }}>
+              style={{ color: on ? c : "var(--text-secondary)", borderBottomColor: on ? c : "transparent" }}>
               {t}
             </button>
           );
@@ -271,11 +270,11 @@ function ProcedurePicker({ value, onChange }: { value: string; onChange: (v: str
       <div aria-hidden className="mb-3 mt-0 h-px w-full" style={{ background: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.10) 18%, rgba(0,0,0,0.10) 82%, transparent 100%)" }} />
       <div className="flex flex-wrap justify-center gap-1">
         {chips.map((p) => {
-          const sel = value === p.value;
+          const sel = value === p.value; const c = CAT_COLOR[p.cat] ?? "var(--primary)";
           return (
             <button key={p.value} type="button" onClick={() => onChange(p.value)}
               className="cursor-pointer rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97]"
-              style={sel ? { backgroundColor: "#4CBFF21A", color: "var(--primary-active)", fontWeight: 700 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>
+              style={sel ? { backgroundColor: c + "1A", color: c, fontWeight: 700 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>
               {p.label}
             </button>
           );
@@ -307,7 +306,7 @@ function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Scr
         <div>
           {selected && (
             <div className="relative flex items-center justify-center">
-              <div className="py-1 text-center"><span className="text-[18px] font-bold leading-[1.4] text-[var(--primary-active)]">{selected.label}</span></div>
+              <div className="py-1 text-center"><span className="text-[18px] font-bold leading-[1.4]" style={{ color: CAT_COLOR[selected.cat] ?? "var(--primary)" }}>{selected.label}</span></div>
               <button type="button" onClick={() => setProc("")} className="absolute right-0 cursor-pointer text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--text-secondary)]">다시 선택</button>
             </div>
           )}
@@ -417,7 +416,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           <label className={labelCls}>어디서 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <input className={inputCls} placeholder="병원 이름 검색 (예: 강남, 힐하우스…)" value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} />
           {!picked && results.length > 0 && (
-            <div className="mt-2 overflow-hidden rounded-md border border-[var(--border)]">
+            <div className="mt-2 overflow-hidden rounded-md bg-[var(--bg)]">
               {results.map((h) => (
                 <button key={h.n} type="button" onClick={() => { setPicked(h.n); setQ(h.n); }} className="flex w-full items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)]">
                   <span><span className="block text-[14px] font-semibold text-[var(--text)]">{h.n}</span><span className="block text-[11.5px] text-[var(--text-muted)]">{h.a}</span></span>
@@ -427,7 +426,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
             </div>
           )}
           {picked && (
-            <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--bg)] p-3">
+            <div className="mt-2 rounded-md bg-[var(--bg)] p-3">
               <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--text)]">{picked}</span>
                 <button type="button" onClick={() => { setPicked(null); setQ(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
               <div className="mt-2 space-y-2">
@@ -468,20 +467,20 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
 
         {/* 시술별 후기 */}
         {procs.length === 0 ? (
-          <p className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg)] py-6 text-center text-[13px] text-[var(--text-muted)]">위에서 시술을 먼저 선택해 주세요.</p>
+          <p className="rounded-md bg-[var(--bg)] py-6 text-center text-[13px] text-[var(--text-muted)]">위에서 시술을 먼저 선택해 주세요.</p>
         ) : (
           <div className="space-y-2.5">
             {procs.map((p) => {
               const [st, fg, bg] = status(p);
               return (
-                <div key={p.id} className="overflow-hidden rounded-md border border-[var(--border)]">
+                <div key={p.id} className="overflow-hidden rounded-md bg-[var(--bg)]">
                   <button type="button" onClick={() => upd(p.id, { open: !p.open })} className="flex w-full items-center justify-between gap-2 px-4 py-3">
                     <span className="text-[15px] font-bold text-[var(--primary-active)]">{p.label}</span>
                     <span className="flex items-center gap-2"><span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: fg, background: bg }}>{st}</span><span className="text-[12px] text-[var(--text-muted)]">{p.open ? "▴" : "▾"}</span></span>
                   </button>
                   {p.open && (
                     <div className="space-y-5 border-t border-[var(--border)] px-4 pb-4 pt-4">
-                      <div className="rounded-md bg-[var(--bg)] px-3 py-2.5 text-[11.5px] leading-relaxed text-[var(--text-secondary)]">효과·효과시기처럼 시간이 지나야 아는 칸은 비워둬도 돼요. “나중에 마저 쓸게요”로 저장하면 4일·1주·1달 뒤 알림이 와요.</div>
+                      <div className="rounded-md bg-white px-3 py-2.5 text-[11.5px] leading-relaxed text-[var(--text-secondary)]">효과·효과시기처럼 시간이 지나야 아는 칸은 비워둬도 돼요. “나중에 마저 쓸게요”로 저장하면 4일·1주·1달 뒤 알림이 와요.</div>
                       <ReviewControls v={p} set={(patch) => upd(p.id, patch)} />
                     </div>
                   )}
@@ -592,7 +591,7 @@ function TimelineView({ go, toast }: { go: (s: Screen) => void; toast: (m: strin
       </div>
       <div className="space-y-2.5">
         {TL.map((t, i) => (
-          <div key={t.d} className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white">
+          <div key={t.d} className="overflow-hidden rounded-[var(--radius)] bg-white">
             <button type="button" onClick={() => setOpen(open === i ? null : i)} className="flex w-full items-center gap-3 p-4 text-left">
               <span className="w-[44px] shrink-0 text-center"><span className="block text-[14px] font-bold leading-none text-[var(--primary-active)]">{t.d}</span><span className="mt-1 block text-[10px] font-medium text-[var(--text-muted)]">{t.dow}</span></span>
               <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-semibold text-[var(--text)]">{t.proc}</span><span className="block truncate text-[11.5px] text-[var(--text-muted)]">{t.sub}</span></span>
@@ -647,7 +646,7 @@ function DetailView({ go }: { go: (s: Screen) => void }) {
         <Row k="만족도" v="★★★★★" /><Row k="효과" v="볼륨 · 탄력" /><Row k="효과시점" v="한 달쯤 후" />
       </div>
 
-      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg)] p-5">
+      <div className="rounded-[var(--radius)] bg-white p-5">
         <p className="mb-1 text-[13px] font-semibold text-[var(--text-secondary)]">오늘의 시술 일기 · 나만 봐요</p>
         <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">붓기는 이틀쯤. 김원장님이 다음엔 6개월 뒤 보자고 하셨다. 스컬트라는 확실히 볼륨이 산다…</p>
       </div>
