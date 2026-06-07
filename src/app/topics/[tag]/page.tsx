@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { type CardData } from "@/components/Card";
 import CardMasonry from "@/components/CardMasonry";
 import { getReportSummaryForTag } from "@/lib/procedure-report";
@@ -24,11 +25,19 @@ import {
  *    · canonical은 그대로 → SEO 영향 X
  *  - doctor 매핑된 글 + category = 'qa' 만 인덱싱 (tip 폐지, 2026-06-01)
  *  - JSON-LD CollectionPage + ItemList (itemListOrder=Unordered)
- *  - ISR 비활성: dynamic — 매 요청마다 새 셔플 (jitter 살리기)
+ *  - R-Phase(2026-06-06): ISR(revalidate 1h) + jitter OFF(결정적 순서) → 엣지 캐시 HIT
  */
 
-export const dynamic = "force-dynamic";
+// V3 (2026-06-07): ISR 1h 실활성화. jitter OFF(결정적 순서)라 캐시 안전. 공유 공개 데이터만
+//   unstable_cache 로 캐시(RPC/POST 도 함수결과 캐시라 OK). 개인 상태는 Card("use client")가
+//   클라에서 가져옴 → 캐시 HTML 에 개인정보 0. 발행/수정 시 revalidateTag('topics').
+export const revalidate = 3600;
 export const dynamicParams = true;
+
+// 동적 라우트를 ISR(on-demand 생성+캐시) 모드로 진입시키는 스위치. 빌드 프리렌더 0(런타임 생성).
+export function generateStaticParams() {
+  return [];
+}
 
 const PAGE_LIMIT = 50; // 페이지당 카드 수 (단순 — 페이지네이션은 추후)
 const MIN_DOCTOR_POSTS = 4;
@@ -39,40 +48,74 @@ type Props = {
 
 type IndexableTag = { keyword: string; cnt: number };
 
-async function fetchAllIndexableTags(): Promise<IndexableTag[]> {
-  const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.rpc("get_indexable_tags", {
-    p_min_count: MIN_DOCTOR_POSTS,
-  });
-  return (data ?? []) as IndexableTag[];
-}
+// 공유 공개 읽기 — 인덱싱 가능 태그 목록(전 사용자 동일). ISR 1h 캐시.
+const fetchAllIndexableTags = unstable_cache(
+  async (): Promise<IndexableTag[]> => {
+    const supabase = createSupabaseAnonClient();
+    const { data } = await supabase.rpc("get_indexable_tags", {
+      p_min_count: MIN_DOCTOR_POSTS,
+    });
+    return (data ?? []) as IndexableTag[];
+  },
+  ["topics-indexable-tags"],
+  { revalidate: 3600, tags: ["topics"] },
+);
 
-async function fetchPostsForTag(
-  tag: string,
-): Promise<{ posts: CardData[]; count: number }> {
-  const supabase = await createSupabaseServerClient();
-  // 시간가중 + jitter 셔플 — tag_cards_scored RPC
-  // (메인 피드 feed_cards_scored 와 동일 공식: HALF_LIFE=14일, jitter=0.2 → ±10%)
-  const rpcRes = await supabase.rpc("tag_cards_scored", {
-    p_tag: tag,
-    p_limit: PAGE_LIMIT,
-    p_offset: 0,
-    p_half_life_days: 14,
-    p_jitter_amp: 0.2,
-  });
-  const posts = (rpcRes.data ?? []) as CardData[];
+// 공유 공개 읽기 — 태그별 의사 글(jitter=0 결정적, 전 사용자 동일) + count. ISR 1h 캐시.
+const fetchPostsForTag = unstable_cache(
+  async (tag: string): Promise<{ posts: CardData[]; count: number }> => {
+    const supabase = createSupabaseAnonClient();
+    // 시간가중 정렬 — tag_cards_scored RPC. jitter=0(결정적) → ISR 캐시 안전 + 핵심 글 상위 고정.
+    const rpcRes = await supabase.rpc("tag_cards_scored", {
+      p_tag: tag,
+      p_limit: PAGE_LIMIT,
+      p_offset: 0,
+      p_half_life_days: 14,
+      p_jitter_amp: 0,
+    });
+    const posts = (rpcRes.data ?? []) as CardData[];
 
-  // count 는 RPC가 limit 까지만 주므로 별도 조회 (인덱싱 조건 동일)
-  const { count } = await supabase
-    .from("cards")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "published")
-    .eq("category", "qa")
-    .not("doctor_id", "is", null)
-    .contains("keywords", [tag]);
+    // count 는 RPC가 limit 까지만 주므로 별도 조회 (인덱싱 조건 동일)
+    const { count } = await supabase
+      .from("cards")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "published")
+      .eq("category", "qa")
+      .not("doctor_id", "is", null)
+      .contains("keywords", [tag]);
 
-  return { posts, count: count ?? 0 };
-}
+    return { posts, count: count ?? 0 };
+  },
+  ["topics-posts-for-tag"],
+  { revalidate: 3600, tags: ["topics"] },
+);
+
+// 공유 공개 읽기 — 이 시술의 후기 리포트 요약(존재·건수). ISR 1h 캐시.
+const fetchReportLinkForTag = unstable_cache(
+  async (tag: string) => {
+    const supabase = createSupabaseAnonClient();
+    return getReportSummaryForTag(supabase, tag);
+  },
+  ["topics-report-link"],
+  { revalidate: 3600, tags: ["topics"] },
+);
+
+// 공유 공개 읽기 — generateMetadata 용 의사 qa 글 수. ISR 1h 캐시.
+const fetchTagQaCount = unstable_cache(
+  async (tag: string): Promise<number> => {
+    const supabase = createSupabaseAnonClient();
+    const { count } = await supabase
+      .from("cards")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "published")
+      .eq("category", "qa")
+      .not("doctor_id", "is", null)
+      .contains("keywords", [tag]);
+    return count ?? 0;
+  },
+  ["topics-tag-qa-count"],
+  { revalidate: 3600, tags: ["topics"] },
+);
 
 export async function generateMetadata({
   params,
@@ -80,16 +123,8 @@ export async function generateMetadata({
   const { tag: rawTag } = await params;
   const tag = decodeURIComponent(rawTag);
   const url = `${SITE_URL}/topics/${encodeURIComponent(tag)}`;
-  // N = 이 시술의 의사 qa 글 수(동적). /topics 의 count 조회와 동일 조건.
-  const supabase = await createSupabaseServerClient();
-  const { count } = await supabase
-    .from("cards")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "published")
-    .eq("category", "qa")
-    .not("doctor_id", "is", null)
-    .contains("keywords", [tag]);
-  const n = count ?? 0;
+  // N = 이 시술의 의사 qa 글 수. 공유 캐시(fetchTagQaCount)로 ISR 안전.
+  const n = await fetchTagQaCount(tag);
   const title = `${tag} Q&A 총정리`;
   const description = `원리·효과·지속기간·부작용·통증까지, 피부과 전문의가 직접 답한 질문 ${n}개를 한곳에.`;
   return {
@@ -117,8 +152,8 @@ export default async function TagPage({ params }: Props) {
   // 2-b) /topics(전문의 Q&A 허브)와 /reports(후기 집계)는 의도 다른 독립 페이지(자기잠식 방지).
   //   리포트 카드·개별 후기는 /topics 에 렌더하지 않고, 이 시술의 /reports 가 존재하면
   //   얇은 링크 1줄만 노출. 존재·N 은 경량 get_review_summary_pool(ko===tag) 로 판단.
-  const supabase = await createSupabaseServerClient();
-  const reportLink = await getReportSummaryForTag(supabase, tag);
+  //   공유 캐시(fetchReportLinkForTag)로 ISR 안전.
+  const reportLink = await fetchReportLinkForTag(tag);
 
   // 3) JSON-LD: @graph 로 CollectionPage + FAQPage 묶음 출력.
   //    AEO/GEO/SEO 강화:

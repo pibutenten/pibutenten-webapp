@@ -1,12 +1,12 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { checkHiddenByDoctorPost } from "@/lib/hidden-card";
 import Card, { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
-import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import {
@@ -19,7 +19,15 @@ import { jsonLdString } from "@/lib/json-ld";
 import { CARD_DETAIL_SELECT } from "@/lib/card-select";
 import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 
-export const dynamic = "force-dynamic";
+// V3 (2026-06-07): ISR 24h 실활성화. 공개 콘텐츠(질문·답변·의사·스키마)는 모두에게 동일 →
+//   캐시. 개인 상태(좋아요/저장)는 Card("use client")가 클라에서 가져옴 → 캐시 HTML 에 개인정보 0.
+//   발행/수정 시 발행 라우트의 revalidateTag('qa-content') + revalidatePath('/','layout') 로 즉시 갱신.
+export const revalidate = 86400;
+
+// 동적 라우트를 ISR(on-demand 생성+캐시) 모드로 진입시키는 스위치. 빌드 프리렌더 0(런타임 생성).
+export function generateStaticParams() {
+  return [];
+}
 
 type Props = {
   params: Promise<{ slug: string; year: string; postSlug: string }>;
@@ -29,40 +37,48 @@ const SITE = SITE_URL;
 
 type QaWithModified = CardData & { updated_at?: string | null };
 
-// React `cache()` 메모이즈 (2026-05-28).
-//   같은 request 안에서 generateMetadata 와 page component 가 동일 인자로 호출하면
-//   두 번째 호출은 첫 호출의 결과를 재사용 (DB 왕복 2회 → 1회). 다른 request 는
-//   항상 fresh — force-dynamic 정책 유지.
-const fetchQaByDoctorYearSlug = cache(async (
-  doctorSlug: string,
-  year: number,
-  postSlug: string,
-): Promise<QaWithModified | null> => {
-  try {
-    const supabase = await createSupabaseServerClient();
-    const { data: doctor } = await supabase
-      .from("doctors")
-      .select("id")
-      .eq("slug", doctorSlug)
-      .maybeSingle();
-    if (!doctor) return null;
-    const { data } = await supabase
-      .from("cards")
-      .select(CARD_DETAIL_SELECT)
-      .eq("doctor_id", doctor.id)
-      .eq("post_year", year)
-      .eq("post_slug", postSlug)
-      .eq("status", "published")
-      // 정책 (2026-05-15): doctor 라우트는 의사 Q&A canonical 만 노출.
-      // 의사의 비-qa 카테고리 글 (diary/tip/ask/link) 은 회원 라우트로 분리됨.
-      .eq("category", "qa")
-      .maybeSingle()
-      .returns<QaWithModified>();
-    return data;
-  } catch {
-    return null;
-  }
-});
+// V3 (2026-06-07): 공유 공개 데이터(published qa)만 unstable_cache 로 캐시.
+//   ★개인별 읽기 없음(anon 쿠키리스 클라 → published 행만) → 캐시 결과에 개인정보 0.
+//   RPC/POST 아니어도 fetch 캐시 대신 함수결과 캐시라 ISR 안정. 발행 시 revalidateTag('qa-content').
+const fetchQaCached = unstable_cache(
+  async (
+    doctorSlug: string,
+    year: number,
+    postSlug: string,
+  ): Promise<QaWithModified | null> => {
+    try {
+      // 쿠키리스 anon 클라이언트 — 공개 published 행만 읽음(개인 컨텍스트 없음).
+      const supabase = createSupabaseAnonClient();
+      const { data: doctor } = await supabase
+        .from("doctors")
+        .select("id")
+        .eq("slug", doctorSlug)
+        .maybeSingle();
+      if (!doctor) return null;
+      const { data } = await supabase
+        .from("cards")
+        .select(CARD_DETAIL_SELECT)
+        .eq("doctor_id", doctor.id)
+        .eq("post_year", year)
+        .eq("post_slug", postSlug)
+        .eq("status", "published")
+        // 정책 (2026-05-15): doctor 라우트는 의사 Q&A canonical 만 노출.
+        // 의사의 비-qa 카테고리 글 (diary/tip/ask/link) 은 회원 라우트로 분리됨.
+        .eq("category", "qa")
+        .maybeSingle()
+        .returns<QaWithModified>();
+      return data;
+    } catch {
+      return null;
+    }
+  },
+  ["qa-detail"],
+  { revalidate: 86400, tags: ["qa-content"] },
+);
+
+// React `cache()` 메모이즈 — 같은 request 안에서 generateMetadata 와 page component 가
+//   동일 인자로 호출 시 두 번째는 첫 결과 재사용(요청 내 dedup). 영속 캐시는 위 unstable_cache.
+const fetchQaByDoctorYearSlug = cache(fetchQaCached);
 
 // P2-5 (2026-05-29): hidden placeholder 로직 DRY → @/lib/hidden-card 로 추출.
 const checkHiddenPlaceholder = checkHiddenByDoctorPost;
@@ -368,7 +384,6 @@ export default async function DermatologistPostPage({ params }: Props) {
     );
   }
 
-  const hotIds = Array.from(await getHotQaIds(20));
   const jsonLd = buildJsonLd(card, slug, yearInt, postSlug);
 
   return (
@@ -383,7 +398,7 @@ export default async function DermatologistPostPage({ params }: Props) {
       </div>
       <Card
         card={card}
-        isHot={hotIds.includes(card.id)}
+        isHot={false}
         autoExpandComments
         forceExpanded
         asH1

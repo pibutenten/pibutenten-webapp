@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
@@ -394,6 +394,9 @@ export async function POST(req: Request) {
   // 캐시 무효화 — 대시보드 KPI/카드 목록/회원 프로필 즉시 갱신.
   // (point-in-time 카운트는 매번 fresh fetch지만, Next.js RSC payload 캐시·full route cache 모두 무효화)
   try {
+    // V3: ISR 상세·토픽 캐시(tag) 무효화 — 새 카드가 토픽/상세에 즉시 반영.
+    revalidateTag("qa-content", "max");
+    revalidateTag("topics", "max");
     revalidatePath("/");
     revalidatePath("/admin");
     revalidatePath("/admin/cards");

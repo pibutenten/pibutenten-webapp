@@ -23,7 +23,7 @@
  * Rate limit: 사용자당 분당 10회 (수정은 작성보다 자주 발생 가능).
  */
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
@@ -470,8 +470,10 @@ export async function PUT(
   }
 
   // SEO·피드 정적 캐시 무효화 — 카드 viewer URL 과 doctor·handle 페이지.
-  // 너무 좁게 짚지 말고 광범위 revalidate.
+  // 너무 좁게 짚지 말고 광범위 revalidate. V3: ISR 상세·토픽 캐시(tag)도 무효화.
   try {
+    revalidateTag("qa-content", "max");
+    revalidateTag("topics", "max");
     revalidatePath("/", "layout");
   } catch {
     /* revalidate 실패는 무시 — 다음 dynamic 요청에 자동 갱신됨 */
