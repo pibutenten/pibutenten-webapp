@@ -45,15 +45,19 @@ type SortCol =
   | "en_name";
 const TEXT_SORTS: SortCol[] = ["onb_name", "parent_name", "ko_name", "cat_name", "en_name"];
 
-// 칩 — /admin/cards '전체 타입' 칩과 동일(radius-sm·연한 하늘 활성). 색은 공유 토큰(globals.css).
-function chip(active: boolean) {
+// 칩 — /admin/cards '전체 타입' 칩 마크업·클래스 1:1 차용(세그먼트 컨테이너 chipGroup + chipCls + chipStyle).
+const chipGroup =
+  "inline-flex flex-wrap rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-0.5";
+function chipCls(active: boolean) {
   return (
-    "rounded-[var(--radius-sm)] border px-3 py-1 text-xs font-medium transition-colors " +
+    "rounded-[var(--radius-sm)] px-3 py-1 text-xs transition-colors " +
     (active
-      ? "border-[var(--chip-active-accent)] bg-[var(--chip-active-bg)] font-semibold text-[var(--chip-active-text)]"
-      : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
+      ? "font-semibold text-[var(--text)]"
+      : "text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
   );
 }
+const chipStyle = (active: boolean) =>
+  active ? { backgroundColor: "var(--chip-active-bg)" } : undefined;
 
 function qs(base: Record<string, string | undefined>, override: Record<string, string | undefined>) {
   const merged = { ...base, ...override };
@@ -227,48 +231,54 @@ export default async function AdminTagsPage({ searchParams }: Props) {
 
       {/* 분류 탭 — 단일선택 배타 + 활성 재클릭 시 해제(전체) (D5). 필터 변경은 replace. */}
       <div className="mb-2 flex flex-wrap gap-1.5">
-        <Link replace scroll={false} href={qs(base,{ cat: undefined, page: undefined })} className={chip(cat === "all")}>
-          전체 <span className="text-[10px] opacity-70">{catCounts.all.toLocaleString()}</span>
-        </Link>
-        {CATEGORIES.map((c) => (
-          <Link replace scroll={false} key={c} href={qs(base, { cat: cat === c ? undefined : c, page: undefined })} className={chip(cat === c)}>
-            {c} <span className="text-[10px] opacity-70">{(catCounts[c] ?? 0).toLocaleString()}</span>
+        <div className={chipGroup}>
+          <Link replace scroll={false} href={qs(base,{ cat: undefined, page: undefined })} className={chipCls(cat === "all")} style={chipStyle(cat === "all")}>
+            전체 <span className="text-[10px] opacity-70">{catCounts.all.toLocaleString()}</span>
           </Link>
-        ))}
+          {CATEGORIES.map((c) => (
+            <Link replace scroll={false} key={c} href={qs(base, { cat: cat === c ? undefined : c, page: undefined })} className={chipCls(cat === c)} style={chipStyle(cat === c)}>
+              {c} <span className="text-[10px] opacity-70">{(catCounts[c] ?? 0).toLocaleString()}</span>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* 상태 칩(좌) + 기간 칩(우). 모바일: 각 줄 세로 stack(어긋남 방지) / 데스크탑: 한 줄 좌우. (K3) */}
       <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-[var(--text-muted)]">상태</span>
-          <Link replace scroll={false} href={qs(base,{ status: undefined, sort: undefined, dir: undefined, page: undefined })} className={chip(status === "all")}>전체</Link>
-          {([
-            ["en_blank", "영문 공란"],
-            ["unspec", "미지정"],
-            ["proc", "시술 후기"],
-            ["onb", "온보딩"],
-            ["eng", "영문 태그"],
-            ["new", "새 태그"],
-          ] as const).map(([key, label]) => {
-            const active = status === key;
-            // 활성 재클릭 → 해제(전체). 선택 시 이전 정렬 잔재 제거(sort/dir 초기화)로 배타 보장.
-            const href = active
-              ? qs(base, { status: undefined, sort: undefined, dir: undefined, page: undefined })
-              : qs(base, { status: key, sort: undefined, dir: undefined, page: undefined });
-            return (
-              <Link replace scroll={false} key={key} href={href} className={chip(active)}>
-                {label}
-              </Link>
-            );
-          })}
+          <div className={chipGroup}>
+            <Link replace scroll={false} href={qs(base,{ status: undefined, sort: undefined, dir: undefined, page: undefined })} className={chipCls(status === "all")} style={chipStyle(status === "all")}>전체</Link>
+            {([
+              ["en_blank", "영문 공란"],
+              ["unspec", "미지정"],
+              ["proc", "시술 후기"],
+              ["onb", "온보딩"],
+              ["eng", "영문 태그"],
+              ["new", "새 태그"],
+            ] as const).map(([key, label]) => {
+              const active = status === key;
+              // 활성 재클릭 → 해제(전체). 선택 시 이전 정렬 잔재 제거(sort/dir 초기화)로 배타 보장.
+              const href = active
+                ? qs(base, { status: undefined, sort: undefined, dir: undefined, page: undefined })
+                : qs(base, { status: key, sort: undefined, dir: undefined, page: undefined });
+              return (
+                <Link replace scroll={false} key={key} href={href} className={chipCls(active)} style={chipStyle(active)}>
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
           <span className="text-[11px] text-[var(--text-muted)]">기간</span>
-          {PERIODS.map((p) => (
-            <Link replace scroll={false} key={p.days} href={qs(base, { days: p.days === 0 ? undefined : String(p.days), page: undefined })} className={chip(days === p.days)}>
-              {p.label}
-            </Link>
-          ))}
+          <div className={chipGroup}>
+            {PERIODS.map((p) => (
+              <Link replace scroll={false} key={p.days} href={qs(base, { days: p.days === 0 ? undefined : String(p.days), page: undefined })} className={chipCls(days === p.days)} style={chipStyle(days === p.days)}>
+                {p.label}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 

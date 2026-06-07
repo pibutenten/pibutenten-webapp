@@ -86,10 +86,8 @@
   --accent-save: #F59E0B;
   --doctor-badge: #4CBFF2; /* 2026-05-22: 브랜드 sky 통일 (옛 #5BB0D1) */
   --card-highlight: #FFF3A3;
-  /* admin 칩/탭 활성 — 연한 하늘색. /admin/cards '전체 타입' 칩 기준, cards·tags 공유(SSOT). */
+  /* admin 칩 활성 배경 — 연한 하늘색. /admin/cards '전체 타입' 칩 기준, cards·tags 공유(SSOT). */
   --chip-active-bg: #7DC1DD33; /* 연한 하늘 배경(20% alpha) */
-  --chip-active-text: var(--text); /* 짙은 본문색 텍스트 */
-  --chip-active-accent: #7DC1DD; /* 솔리드 하늘(탭 밑줄·테두리) */
   --shadow-sm: 0 1px 3px rgba(27, 73, 101, 0.06);
   --shadow: 0 2px 12px rgba(27, 73, 101, 0.08);
   --shadow-lg: 0 8px 24px rgba(27, 73, 101, 0.12);

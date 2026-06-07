@@ -9,14 +9,15 @@
 ## [2026-06-07] — Q: admin 칩·색 디자인 토큰 통일 (cards 기준)
 
 ### Added
-- **공유 칩 토큰**(`globals.css`): `--chip-active-bg #7DC1DD33` · `--chip-active-text var(--text)` · `--chip-active-accent #7DC1DD`. `/admin/cards`·`/admin/tags` 가 동일 토큰 참조(SSOT) → 화면 추가해도 자동 통일.
+- **공유 칩 토큰**(`globals.css`): `--chip-active-bg #7DC1DD33`(연한 하늘). `/admin/cards`·`/admin/tags` 가 동일 토큰 참조(SSOT) → 화면 추가해도 자동 통일.
 
 ### Changed
-- **기준 hex 추출**: `/admin/cards` '전체 타입' 칩의 연한 하늘색 `#7DC1DD`(배경 20% alpha)를 기준으로 토큰화. cards 인라인 `#7DC1DD33` → `var(--chip-active-bg)`.
-- **`/admin/tags` 적용**: 분류·상태·기간 칩(`chip()`)을 카드 '전체 타입' 칩과 동일 모양·색으로(rounded-full→`rounded-[var(--radius-sm)]`, px-2.5→px-3, 활성 진한 파랑→연한 하늘 토큰). 요약 KPI 활성색 P의 임의색(`#3a93b8`/`#7DC1DD`) 제거 → `var(--primary)`(카드 status 탭과 동일). 검색 버튼 hover 정합(`--primary-dark`).
+- **기준 hex 추출**: `/admin/cards` '전체 타입' 칩의 연한 하늘색 `#7DC1DD`(배경 20% alpha)를 토큰화. cards 인라인 `#7DC1DD33` → `var(--chip-active-bg)`.
+- **`/admin/tags` 칩 = cards 칩 1:1 차용**: 분류·상태·기간 칩의 자체 `chip()`(rounded-full·진한 파랑) 제거 → 카드 '전체 타입' 칩의 마크업·클래스를 그대로 사용(세그먼트 컨테이너 `inline-flex … border bg-white p-0.5` + `chipCls`/`chipStyle` = 카드와 문자 동일, 활성 배경 `--chip-active-bg` 인라인 style). 클릭 필터·활성 강조·scroll=false 유지.
+- **요약 KPI 탭**: P의 임의색(`#3a93b8`/`#7DC1DD`) 제거 → `var(--primary)`(카드 status 탭과 동일). 검색 버튼 hover 정합(`--primary-dark`).
 
 ### 검증
-- `tsc` + `build` 통과. `#7DC1DD` 인라인 잔재 grep 0(토큰만). cards·tags 동일 토큰 참조.
+- `tsc` + `build` 통과. tags 칩 클래스 = cards 칩 클래스(문자 동일, 대조). `chip(` 헬퍼 잔재·인라인 색(`#7DC1DD`/`#3a93b8`) grep 0(globals.css 토큰 정의만).
 
 ---
 
