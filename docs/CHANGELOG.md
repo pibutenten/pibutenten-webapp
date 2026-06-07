@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-07] — J: 태그 매니저 디자인 통일 + 스크롤 튐 해소
+
+### Fixed
+- **칩/필터 클릭 시 화면이 맨 위로 튀던 문제** — 태그 매니저의 분류·상태·기간·페이지네이션 `<Link replace>` 가 `scroll` 기본(true)이라 클릭 시 top 스크롤. 모든 Link 에 **`scroll={false}` 명시**(SortHeader/FilterHeader 는 이미 `router.replace(...,{scroll:false})`). cards/users 와 동일하게 스크롤 위치 유지. (클라 useState 재구성 등 새 패턴 도입 없음 — Link 옵션만.)
+
+### Changed
+- **레이아웃 통일(J)**: 컨테이너 `mx-auto max-w-[1080px] px-4 py-6` → **`<section className="w-full py-6">`**. app/layout `<main mx-auto max-w-1080 px-4 sm:px-6>` 와의 이중 패딩 제거 — `/admin`·`/admin/cards`·`/admin/users` 등과 동일 폭·여백. 헤더 간격 mb-4→mb-5 통일.
+- **인기 패널(PopularCards)**: '사용량'→**'태그 사용량'**. RankGrid 를 3열 균등(1fr)+`truncate`(라벨만)+cnt `shrink-0` 으로 — **우측 숫자 잘림 해소**.
+
+### 검증
+- `tsc`+`build` 통과. preview /admin·/admin/tags·status=eng 200·서버 에러 0. (조사: cards/users 도 Link 에 scroll prop 은 없으나, 명시 `scroll={false}` 가 스크롤 유지를 확실히 보장.)
+
+---
+
 ## [2026-06-06] — B: 자동등록 영문 태그 한글 흡수 (입력 시점 중복 방지)
 
 ### Added

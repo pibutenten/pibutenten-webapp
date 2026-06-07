@@ -203,10 +203,10 @@ export default async function AdminTagsPage({ searchParams }: Props) {
     .sort((a, b) => b.cards - a.cards);
 
   return (
-    <div className="mx-auto max-w-[1080px] px-4 py-6">
-      {/* 제목 — 다른 admin 페이지처럼 '< 뒤로' 아래 줄에 배치 */}
+    // 공통 컨테이너(app/layout main: mx-auto max-w-1080 px-4)를 그대로 채움 — 다른 admin 화면과 동일(J).
+    <section className="w-full py-6">
       <div className="mb-1 -ml-1"><BackButton /></div>
-      <div className="mb-4 pl-1">
+      <div className="mb-5 pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">태그 매니저</h1>
         <p className="mt-1 text-xs text-[var(--text-muted)]">
           tag_dictionary SSOT · 편집 즉시 / 사이트 색상은 다음 배포 반영
@@ -231,11 +231,11 @@ export default async function AdminTagsPage({ searchParams }: Props) {
 
       {/* 분류 탭 — 단일선택 배타 + 활성 재클릭 시 해제(전체) (D5). 필터 변경은 replace. */}
       <div className="mb-2 flex flex-wrap gap-1.5">
-        <Link replace href={qs(base, { cat: undefined, page: undefined })} className={chip(cat === "all")}>
+        <Link replace scroll={false} href={qs(base,{ cat: undefined, page: undefined })} className={chip(cat === "all")}>
           전체 <span className="text-[10px] opacity-70">{catCounts.all.toLocaleString()}</span>
         </Link>
         {CATEGORIES.map((c) => (
-          <Link replace key={c} href={qs(base, { cat: cat === c ? undefined : c, page: undefined })} className={chip(cat === c)}>
+          <Link replace scroll={false} key={c} href={qs(base, { cat: cat === c ? undefined : c, page: undefined })} className={chip(cat === c)}>
             {c} <span className="text-[10px] opacity-70">{(catCounts[c] ?? 0).toLocaleString()}</span>
           </Link>
         ))}
@@ -245,7 +245,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-[var(--text-muted)]">상태</span>
-          <Link replace href={qs(base, { status: undefined, sort: undefined, dir: undefined, page: undefined })} className={chip(status === "all")}>전체</Link>
+          <Link replace scroll={false} href={qs(base,{ status: undefined, sort: undefined, dir: undefined, page: undefined })} className={chip(status === "all")}>전체</Link>
           {([
             ["en_blank", "영문 공란"],
             ["unspec", "미지정"],
@@ -260,7 +260,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
               ? qs(base, { status: undefined, sort: undefined, dir: undefined, page: undefined })
               : qs(base, { status: key, sort: undefined, dir: undefined, page: undefined });
             return (
-              <Link replace key={key} href={href} className={chip(active)}>
+              <Link replace scroll={false} key={key} href={href} className={chip(active)}>
                 {label}
               </Link>
             );
@@ -269,7 +269,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-[var(--text-muted)]">기간</span>
           {PERIODS.map((p) => (
-            <Link replace key={p.days} href={qs(base, { days: p.days === 0 ? undefined : String(p.days), page: undefined })} className={chip(days === p.days)}>
+            <Link replace scroll={false} key={p.days} href={qs(base, { days: p.days === 0 ? undefined : String(p.days), page: undefined })} className={chip(days === p.days)}>
               {p.label}
             </Link>
           ))}
@@ -318,17 +318,17 @@ export default async function AdminTagsPage({ searchParams }: Props) {
       {/* 페이지네이션 */}
       {totalPages > 1 ? (
         <nav className="mt-4 flex items-center justify-center gap-1 text-sm">
-          <Link replace href={qs(base, { page: page > 1 ? String(page - 1) : undefined })} aria-disabled={page <= 1}
+          <Link replace scroll={false} href={qs(base,{ page: page > 1 ? String(page - 1) : undefined })} aria-disabled={page <= 1}
             className={"rounded border border-[var(--border)] px-3 py-1 " + (page <= 1 ? "pointer-events-none opacity-40" : "hover:border-[var(--primary)]")}>
             이전
           </Link>
           <span className="px-3 py-1 text-[var(--text-muted)]">{page} / {totalPages}</span>
-          <Link replace href={qs(base, { page: page < totalPages ? String(page + 1) : undefined })} aria-disabled={page >= totalPages}
+          <Link replace scroll={false} href={qs(base,{ page: page < totalPages ? String(page + 1) : undefined })} aria-disabled={page >= totalPages}
             className={"rounded border border-[var(--border)] px-3 py-1 " + (page >= totalPages ? "pointer-events-none opacity-40" : "hover:border-[var(--primary)]")}>
             다음
           </Link>
         </nav>
       ) : null}
-    </div>
+    </section>
   );
 }
