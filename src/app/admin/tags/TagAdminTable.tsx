@@ -316,8 +316,8 @@ function Row({
   koSet: Set<string>;
   status: string;
 }) {
-  // 미지정 검토(트리아지) — 미지정 필터에서만 노출. 기존 PATCH(is_recommendable·reviewed) 차용.
-  const triage = status === "unspec";
+  // 검토(트리아지) — '검토'(status=triage) 필터에서만 노출. 기존 PATCH(is_recommendable·reviewed) 차용.
+  const triage = status === "triage";
   const [rec, setRec] = useState(row.is_recommendable);
   const [triageBusy, setTriageBusy] = useState(false);
   const reviewed = !!row.reviewed_at;
@@ -560,7 +560,7 @@ function Row({
             {busy ? "저장중" : "저장"}
           </button>
           {triage && (
-            <>
+            <div className="flex items-center justify-center gap-2 whitespace-nowrap">
               <label className="flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
                 <input
                   type="checkbox"
@@ -594,7 +594,7 @@ function Row({
                   검토 완료(잔류)
                 </button>
               )}
-            </>
+            </div>
           )}
         </div>
       </td>
@@ -689,7 +689,12 @@ export default function TagAdminTable({
   return (
     <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
       {/* 합 952px — 컨테이너(max-w-1080·px-4 → 가용 ~1048) 안에 들어가 가로 스크롤 없음(D3) */}
-      <table className="w-full min-w-[952px] table-fixed border-collapse text-sm">
+      <table
+        className={
+          "w-full table-fixed border-collapse text-sm " +
+          (status === "triage" ? "min-w-[1044px]" : "min-w-[952px]")
+        }
+      >
         <colgroup>
           <col style={{ width: "130px" }} />
           <col style={{ width: "100px" }} />
@@ -700,7 +705,8 @@ export default function TagAdminTable({
           <col style={{ width: "76px" }} />
           <col style={{ width: "76px" }} />
           <col style={{ width: "88px" }} />
-          <col style={{ width: "76px" }} />
+          {/* 관리 — '검토' 뷰에선 가로 트리아지 컨트롤 위해 넓힘 */}
+          <col style={{ width: status === "triage" ? "168px" : "76px" }} />
         </colgroup>
         <thead className="bg-[var(--bg-soft)] text-[var(--text-secondary)]">
           <tr>

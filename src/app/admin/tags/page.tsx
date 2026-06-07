@@ -82,12 +82,6 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   const ALL_SORTS: SortCol[] = ["usage", "search", "created", "onb_name", "parent_name", "ko_name", "cat_name", "en_name"];
   let sortCol: SortCol = ALL_SORTS.includes(sp.sort as SortCol) ? (sp.sort as SortCol) : "usage";
   let sortDir: "asc" | "desc" = sp.dir === "asc" ? "asc" : "desc";
-  // '새 태그' = 생성일 최근순 강제 (D5 — 상태칩 배타 단일선택)
-  if (status === "new") {
-    sortCol = "created";
-    sortDir = "desc";
-  }
-
   const supabase = await createSupabaseServerClient();
   // Supabase 응답 행 상한이 1000 이라 단일 호출로는 전체 태그(>1000)를 못 받음.
   // → range 청크로 전체 수신(카운터·목록 모두 전체 모수 기준). RPC 는 ORDER BY usage DESC, ko ASC 로 결정적.
@@ -135,8 +129,9 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   let rows = allRows;
   if (cat !== "all") rows = rows.filter((r) => r.category === cat);
   if (status === "en_blank") rows = rows.filter((r) => !r.en);
-  else if (status === "unspec")
-    // 미지정 검토: 기본 미검토(reviewed_at NULL)만. '포함 보기'(rv=all)면 검토완료도.
+  else if (status === "unspec") rows = rows.filter((r) => r.category === "미지정");
+  else if (status === "triage")
+    // 검토 전용: 미검토 미지정(분류=미지정 & reviewed_at NULL). '포함 보기'(rv=all)면 검토완료도.
     rows = rows.filter((r) => r.category === "미지정" && (inclReviewed || !r.reviewed_at));
   else if (status === "classified") rows = rows.filter((r) => r.category !== "미지정");
   else if (status === "proc") rows = rows.filter((r) => r.is_procedure);
@@ -145,7 +140,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   else if (status === "eng") rows = rows.filter((r) => /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(r.ko)); // G2: ko 가 영문(한글 미포함)
   if (q) rows = rows.filter((r) => r.ko.includes(q));
 
-  // 정렬 (헤더 클릭 / '새 태그' 칩) — 숫자 컬럼 vs 텍스트(가나다/알파벳) 컬럼 분기. 기본 사용량 내림차순.
+  // 정렬 (헤더 클릭) — 숫자 컬럼 vs 텍스트(가나다/알파벳) 컬럼 분기. 기본 사용량 내림차순.
   if (TEXT_SORTS.includes(sortCol)) {
     const textOf = (r: TagRow): string =>
       sortCol === "onb_name"
@@ -264,7 +259,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
               ["proc", "시술 후기"],
               ["onb", "온보딩"],
               ["eng", "영문 태그"],
-              ["new", "새 태그"],
+              ["triage", "검토"],
             ] as const).map(([key, label]) => {
               const active = status === key;
               // 활성 재클릭 → 해제(전체). 선택 시 이전 정렬 잔재 제거(sort/dir 초기화)로 배타 보장.
@@ -291,8 +286,8 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* 미지정 검토 바 — 미지정 필터일 때만. 미검토 개수 + 검토완료 포함/미검토만 토글. */}
-      {status === "unspec" && (
+      {/* 검토 바 — '검토' 필터일 때만. 미검토 개수 + 검토완료 포함/미검토만 토글. */}
+      {status === "triage" && (
         <div className="mb-2 flex flex-wrap items-center gap-2 text-[11.5px] text-[var(--text-muted)]">
           <span>
             미검토 <b className="tabular-nums text-[var(--text)]">{unspecUnreviewed.toLocaleString()}</b>개
