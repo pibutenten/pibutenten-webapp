@@ -549,26 +549,28 @@ function Row({
       <td className="px-2 py-1.5 text-right tabular-nums">{row.usage.toLocaleString()}</td>
       {/* 검토 탭: 검색량 자리 → 추천(중앙 체크), 생성일 자리 → 잔류(중앙 버튼). 그 외엔 원래대로. */}
       {triage ? (
-        <td className="px-2 py-1.5 text-center">
+        <td className="px-2 py-1.5">
           {/* 추천 — 잔류/되돌리기와 동일 버튼 형태(체크박스→토글 버튼). ON 시 검토완료 동반. */}
-          <button
-            type="button"
-            disabled={triageBusy}
-            onClick={() => {
-              const on = !rec;
-              setRec(on);
-              triagePatch(on ? { is_recommendable: true, reviewed: true } : { is_recommendable: false });
-            }}
-            title="추천(자동태깅 후보) — 켜면 검토완료 처리"
-            className={
-              "rounded border px-2 py-0.5 text-[11px] transition-colors " +
-              (rec
-                ? "border-[var(--border)] bg-[var(--chip-active-bg)] font-semibold text-[var(--text)]"
-                : "border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
-            }
-          >
-            추천{rec ? " ✓" : ""}
-          </button>
+          <div className="flex justify-center">
+            <button
+              type="button"
+              disabled={triageBusy}
+              onClick={() => {
+                const on = !rec;
+                setRec(on);
+                triagePatch(on ? { is_recommendable: true, reviewed: true } : { is_recommendable: false });
+              }}
+              title="추천(자동태깅 후보) — 켜면 검토완료 처리"
+              className={
+                "rounded border px-2 py-0.5 text-[11px] transition-colors " +
+                (rec
+                  ? "border-[var(--border)] bg-[var(--chip-active-bg)] font-semibold text-[var(--text)]"
+                  : "border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
+              }
+            >
+              추천{rec ? " ✓" : ""}
+            </button>
+          </div>
         </td>
       ) : (
         <td className="px-2 py-1.5 text-right tabular-nums text-[var(--text-muted)]">
@@ -576,27 +578,29 @@ function Row({
         </td>
       )}
       {triage ? (
-        <td className="px-2 py-1.5 text-center">
-          {reviewed ? (
-            <button
-              type="button"
-              onClick={() => triagePatch({ reviewed: false })}
-              disabled={triageBusy}
-              className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-            >
-              되돌리기
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => triagePatch({ reviewed: true })}
-              disabled={triageBusy}
-              title="검토 완료(분류 안 하고 미지정에 잔류)"
-              className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-            >
-              잔류
-            </button>
-          )}
+        <td className="px-2 py-1.5">
+          <div className="flex justify-center">
+            {reviewed ? (
+              <button
+                type="button"
+                onClick={() => triagePatch({ reviewed: false })}
+                disabled={triageBusy}
+                className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+              >
+                되돌리기
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => triagePatch({ reviewed: true })}
+                disabled={triageBusy}
+                title="검토 완료(분류 안 하고 미지정에 잔류)"
+                className="rounded border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
+              >
+                잔류
+              </button>
+            )}
+          </div>
         </td>
       ) : (
         <td className="px-2 py-1.5 text-right text-[11px] text-[var(--text-muted)] whitespace-nowrap">
