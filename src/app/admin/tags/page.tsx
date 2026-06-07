@@ -125,6 +125,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   else if (status === "unspec") rows = rows.filter((r) => r.category === "미지정");
   else if (status === "classified") rows = rows.filter((r) => r.category !== "미지정");
   else if (status === "proc") rows = rows.filter((r) => r.is_procedure);
+  else if (status === "rec") rows = rows.filter((r) => r.is_recommendable);
   else if (status === "onb") rows = rows.filter((r) => !!r.onboarding);
   else if (status === "parent") rows = rows.filter((r) => !!r.parent_ko);
   else if (status === "eng") rows = rows.filter((r) => /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(r.ko)); // G2: ko 가 영문(한글 미포함)

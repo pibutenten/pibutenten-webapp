@@ -12,6 +12,7 @@
 
 ### Added
 - **마이그 0267 — `is_recommendable` 플래그**: OLD 큐레이션 819개를 3단계 병합 반영 매핑 → 804개 true 시드. auto-tag 후보를 추천 태그로 한정(일반어 노이즈 차단). 신규 태그 기본 false.
+- **태그 관리 '자동추천' 토글 + 필터**: `/admin/tags` 표에 `is_recommendable` 체크박스 열(시술 후기 옆) — 운영자가 행별 추천 여부 토글(기존 저장 흐름·PATCH 재사용). 헤더 클릭 시 추천 태그만 필터(status=rec). 마이그 0268: get_tag_admin_overview 에 컬럼 추가. PATCH /api/admin/tag-dictionary/[id] 가 is_recommendable 수용. 신규 태그 기본 false → 검토 후 편입(폭증 시 노이즈 차단).
 
 ### Changed
 - **`gen-tag-dictionary.mjs` DB 단독화**: procedure-mappings.json 베이스라인 제거, tag_dictionary(+tag_blacklist·tag_normalization)만으로 스냅샷 산출. 스냅샷에 `autotag`(is_recommendable=true 대표어 {display, variants}) 추가. category/slug 는 alias 까지 상속.
