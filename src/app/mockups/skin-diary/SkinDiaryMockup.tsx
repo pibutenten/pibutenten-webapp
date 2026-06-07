@@ -3,27 +3,36 @@
 /**
  * 피부일기 통합 — 검토용 디자인 목업 (시스템 미반영).
  *
- * 실제 앱 폼을 그대로 따른다:
- *  - 폼 컨테이너 = 흰 박스 1개 + space-y-5 (섹션마다 카드 쪼개지 않음).
- *    `rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]`
- *  - 별점/통증(표정)/칩/효과칩/단일선택 = ReviewForm 컨트롤 그대로 복제.
- *  - 끄적끄적 = CardEditor(제목/본문/태그) 구조.
- *  - 표시(캘린더/타임라인/상세/알림)는 피드 글상자처럼 음영 없이 흰 박스.
+ * 실제 앱 패턴 준수:
+ *  - 글상자 = 피드 Card.tsx 와 동일(테두리 X·음영 X, 흰 박스 on 회색 배경).
+ *  - 폼 컨트롤(별점/통증/칩/효과칩/단일선택) = ReviewForm 그대로 복제.
+ *  - 끄적끄적 = CardEditor(제목/본문/태그) 구조. 시술후기만 = ReviewForm(가격 없음).
  *  - 장식 이모지 없음(통증 표정만 실제 폼 컨트롤이라 유지).
  * layout.tsx 가 TopNav/푸터/1080px/반응형 자동 적용 → 여기는 <main> 콘텐츠만.
+ *
+ * 구조 (원장 지시 2026-06-07):
+ *  - 시술후기만: 기존 후기폼 그대로. 가격은 후기에 두지 않음(피부일기 비공개로 이동).
+ *  - 피부일기: 날짜 → 병원(지도검색) → 의사/실장 → 받은 시술(행마다 가격·비고, 나만 보기)
+ *              → 오늘의 시술 일기 → 저장하기. 받은 시술마다 "아래에 형제 글상자"로 후기칸이
+ *              닫힌 채 생성 → [후기 작성하기]로 열고 한 번 더 누르면 닫힘 / [나중에 쓰기]는
+ *              3·7·30일 뒤 알림.
+ *  - 내 기록: 우상단 토글(달력/목록). 목록=요약본(연도 표시·모두 펼치기/닫기). 항목 클릭→상세.
+ *  - 상세: 평가지표 제외, 비공개 메모(병원·의사·실장·연락처·가격·비고·일기)만.
  */
 
 import { useMemo, useState, type CSSProperties } from "react";
 
-/* ── 실제 폼 공통 클래스 (ReviewForm/CardEditor 동일) ── */
+/* ── 실제 폼 공통 클래스 ── */
 const inputCls =
   "w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[14px] focus:border-[var(--primary)] focus:outline-none";
+const inputSm =
+  "rounded-md border border-[var(--border)] bg-white px-2.5 py-1.5 text-[13px] focus:border-[var(--primary)] focus:outline-none";
 const textareaCls =
   "w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none";
 const labelCls = "mb-2 block text-sm font-semibold text-[var(--text)]";
-/** 글상자 — 피드 카드(Card.tsx)와 동일: 테두리 X, 음영 X. 흰 박스 on 회색 배경. */
+/** 글상자 — 피드 카드와 동일: 테두리 X·음영 X. */
 const formBox = "space-y-5 rounded-[var(--radius)] bg-white p-5";
-const dispBox = "rounded-[var(--radius)] bg-white p-5";
+const cardBox = "rounded-[var(--radius)] bg-white p-5";
 
 /* ── 옵션 (실제 SSOT 값 그대로) ── */
 const PAIN_FACES = [
@@ -48,18 +57,17 @@ const EFFECT_ONSET_OPTIONS = [
 const EFFECT_AREA_OPTIONS = ["리프팅","탄력","쫀쫀함","볼륨","작은얼굴","턱선","이중턱","피부톤","피부결","잔주름","깊은주름","불독살","모공","생기","속건조","붉은기","트러블","피지","없음"];
 const EFFECT_AREA_COLORS = ["#B0A0DE","#7FD0F8","#F59CB6","#FFCB8C","#A6D9A9","#C3B0E8","#79CCC3","#FFAF97","#9AA6DE","#CDC97A","#C9A8D6","#A8C2E6","#8FD4C8","#F4B8A0","#B8D88A","#F2A9C0","#D6B0A1","#E0C088","#C2C7CE"];
 
-/* 시술 picker 데이터 — 실제 tag_dictionary(is_procedure) 기준. 카테고리는 리프팅/스킨부스터 2종뿐.
-   색도 실제 CATEGORIES 와 동일(리프팅 #29B6F6 / 스킨부스터 #F48FB1). */
+/* 시술 picker — 실제 tag_dictionary(is_procedure) 기준. 카테고리 리프팅/스킨부스터 2종. */
 const CAT_COLOR: Record<string, string> = { 리프팅: "#29B6F6", 스킨부스터: "#F48FB1" };
 const PROCEDURES: { value: string; label: string; cat: string }[] = [
   ...["써마지","울쎄라","슈링크","올리지오","포텐자","텐써마","덴서티","울트라셀"].map((l) => ({ value: l, label: l, cat: "리프팅" })),
   ...["리쥬란","쥬베룩","스컬트라","보톡스","프로파일로","울트라콜","스킨바이브"].map((l) => ({ value: l, label: l, cat: "스킨부스터" })),
 ];
 
-type ReviewState = { satisfaction: number; pain: number; downtime: string; revisit: string; effectAreas: string[]; effectOnset: string; oneliner: string; price: string };
-const emptyReview = (): ReviewState => ({ satisfaction: 0, pain: 0, downtime: "", revisit: "", effectAreas: [], effectOnset: "", oneliner: "", price: "" });
+type ReviewState = { satisfaction: number; pain: number; downtime: string; revisit: string; effectAreas: string[]; effectOnset: string; oneliner: string };
+const emptyReview = (): ReviewState => ({ satisfaction: 0, pain: 0, downtime: "", revisit: "", effectAreas: [], effectOnset: "", oneliner: "" });
 
-type Screen = "entry" | "diary" | "reviewonly" | "doodle" | "cal" | "timeline" | "detail" | "noti";
+type Screen = "entry" | "diary" | "reviewonly" | "doodle" | "record" | "detail" | "noti";
 
 /* ════════════════ 메인 ════════════════ */
 
@@ -70,7 +78,7 @@ export default function SkinDiaryMockup() {
 
   const TABS: [Screen, string][] = [
     ["entry","진입"],["diary","피부일기"],["reviewonly","시술후기만"],["doodle","끄적끄적"],
-    ["cal","캘린더"],["timeline","타임라인"],["detail","상세"],["noti","알림"],
+    ["record","내 기록"],["detail","상세"],["noti","알림"],
   ];
 
   return (
@@ -92,8 +100,7 @@ export default function SkinDiaryMockup() {
       {screen === "diary" && <DiaryForm toast={showToast} go={setScreen} />}
       {screen === "reviewonly" && <ReviewOnlyForm toast={showToast} go={setScreen} />}
       {screen === "doodle" && <DoodleForm toast={showToast} />}
-      {screen === "cal" && <CalendarView go={setScreen} />}
-      {screen === "timeline" && <TimelineView go={setScreen} toast={showToast} />}
+      {screen === "record" && <RecordView go={setScreen} />}
       {screen === "detail" && <DetailView go={setScreen} />}
       {screen === "noti" && <NotiView go={setScreen} toast={showToast} />}
 
@@ -108,7 +115,7 @@ export default function SkinDiaryMockup() {
 
 function EntryView({ go }: { go: (s: Screen) => void }) {
   const opts: [Screen, string, string][] = [
-    ["diary", "나의 피부일기 남기기", "병원·날짜·시술·후기·메모까지. 일기장처럼 차곡차곡."],
+    ["diary", "나의 피부일기 남기기", "날짜·병원·시술·메모까지. 일기장처럼 차곡차곡."],
     ["reviewonly", "시술 후기만 남기기", "지금 쓰는 시술 후기 그대로. 데이터는 일기 체계에 함께 쌓여요."],
     ["doodle", "끄적끄적", "자유로운 메모와 포스팅."],
   ];
@@ -139,7 +146,7 @@ function StarField({ value, onChange }: { value: number; onChange: (v: number) =
   const [hover, setHover] = useState(0);
   return (
     <div>
-      <label className={"mb-1 " + labelCls.replace("mb-2 ", "")}>만족도</label>
+      <label className="mb-1 block text-sm font-semibold text-[var(--text)]">만족도</label>
       <div className="flex justify-start gap-1" onMouseLeave={() => setHover(0)}>
         {[1,2,3,4,5].map((n) => {
           const gold = n <= value || (hover > 0 && n > value && n <= hover);
@@ -224,7 +231,7 @@ function EffectField({ value, onChange }: { value: string[]; onChange: (v: strin
   );
 }
 
-/** 후기 정량 컨트롤 묶음 — 후기폼/일기 공용 */
+/** 후기 정량 컨트롤 — 후기폼/일기 공용. 가격 없음(가격은 피부일기 비공개로 이동). */
 function ReviewControls({ v, set }: { v: ReviewState; set: (p: Partial<ReviewState>) => void }) {
   return (
     <>
@@ -235,11 +242,6 @@ function ReviewControls({ v, set }: { v: ReviewState; set: (p: Partial<ReviewSta
       <EffectField value={v.effectAreas} onChange={(x) => set({ effectAreas: x })} />
       <ChoiceField label="효과는 언제부터 느끼셨어요?" value={v.effectOnset} onChange={(x) => set({ effectOnset: x })} options={EFFECT_ONSET_OPTIONS} />
       <div>
-        <label className={labelCls}>이 시술 단독 가격 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
-        <input type="number" className={inputCls} placeholder="단독 결제가 (알면)" value={v.price} onChange={(e) => set({ price: e.target.value })} />
-        <p className="mt-1 text-xs text-[var(--text-muted)]">패키지로 묶여 단가를 모르면 비워두세요. 단독가만 가격 집계에 들어가요.</p>
-      </div>
-      <div>
         <label className={labelCls}>생생한 후기를 남겨주세요 <span className="text-xs font-normal text-[var(--text-muted)]">({v.oneliner.length} / 400)</span></label>
         <textarea maxLength={400} rows={3} className={textareaCls} placeholder="다른 분들이 궁금해할 만한 점을 들려주세요." value={v.oneliner} onChange={(e) => set({ oneliner: e.target.value })} />
         <p className="mt-1 text-xs text-[var(--text-muted)]">의료광고성 표현·병원·의사 실명 언급은 금합니다.</p>
@@ -248,7 +250,7 @@ function ReviewControls({ v, set }: { v: ReviewState; set: (p: Partial<ReviewSta
   );
 }
 
-/* 시술 잠금형 탭 picker (ReviewForm 복제, 단색 primary 톤) */
+/* 시술 잠금형 탭 picker (ReviewForm 복제, 실제 카테고리 색) */
 function ProcedurePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const tabs = useMemo(() => { const o: string[] = []; PROCEDURES.forEach((p) => { if (!o.includes(p.cat)) o.push(p.cat); }); return o; }, []);
   const [tab, setTab] = useState(tabs[0]);
@@ -292,7 +294,7 @@ function SubmitBar({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
-/* ════════════════ ② 시술 후기만 (실제 ReviewForm 그대로) ════════════════ */
+/* ════════════════ ② 시술 후기만 (실제 ReviewForm 그대로, 가격 없음) ════════════════ */
 
 function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
   const [proc, setProc] = useState("");
@@ -315,7 +317,7 @@ function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Scr
         <div className={`space-y-5 transition-opacity ${proc ? "" : "pointer-events-none opacity-50"}`}>
           <ReviewControls v={v} set={set} />
         </div>
-        <SubmitBar label="후기 올리기" onClick={() => { toast("후기를 올렸어요"); setTimeout(() => go("timeline"), 800); }} />
+        <SubmitBar label="후기 올리기" onClick={() => { toast("후기를 올렸어요"); setTimeout(() => go("record"), 800); }} />
       </div>
     </section>
   );
@@ -334,14 +336,9 @@ function DoodleForm({ toast }: { toast: (m: string) => void }) {
       <div className={formBox}>
         <div>
           <label className={labelCls}>카테고리</label>
-          <div className="flex flex-wrap gap-2">
-            <span className="rounded-full px-4 py-1 text-[13px] font-semibold text-white" style={{ background: "var(--primary)" }}>끄적끄적</span>
-          </div>
+          <div className="flex flex-wrap gap-2"><span className="rounded-full px-4 py-1 text-[13px] font-semibold text-white" style={{ background: "var(--primary)" }}>끄적끄적</span></div>
         </div>
-        <div>
-          <label className={labelCls}>제목</label>
-          <input className={inputCls} placeholder="제목을 입력하세요" value={title} onChange={(e) => setTitle(e.target.value)} />
-        </div>
+        <div><label className={labelCls}>제목</label><input className={inputCls} placeholder="제목을 입력하세요" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
         <div>
           <label className={labelCls}>본문</label>
           <textarea rows={6} maxLength={4000} className={textareaCls} placeholder="본문을 입력하세요" value={body} onChange={(e) => setBody(e.target.value)} />
@@ -368,59 +365,74 @@ function DoodleForm({ toast }: { toast: (m: string) => void }) {
   );
 }
 
-/* ════════════════ ④ 나의 피부일기 (visit + 다중 후기) ════════════════ */
+/* ════════════════ ④ 나의 피부일기 ════════════════ */
 
 const HOSPITALS = [
-  { n: "힐하우스피부과의원", a: "서울 강남구 테헤란로", tel: "02-1234-5678", d: 0.4 },
-  { n: "강남리더스피부과의원", a: "서울 강남구 강남대로", tel: "02-555-0101", d: 0.7 },
-  { n: "청담미라클피부과", a: "서울 강남구 청담동", tel: "02-540-2020", d: 1.2 },
+  { n: "힐하우스피부과의원", a: "서울 강남구 테헤란로 152", tel: "02-1234-5678", d: 0.4 },
+  { n: "강남리더스피부과의원", a: "서울 강남구 강남대로 390", tel: "02-555-0101", d: 0.7 },
+  { n: "청담미라클피부과", a: "서울 강남구 청담동 88", tel: "02-540-2020", d: 1.2 },
+  { n: "서초라인피부과의원", a: "서울 서초구 서초대로 77", tel: "02-3478-3030", d: 1.9 },
+  { n: "분당제일피부과의원", a: "경기 성남시 분당구 정자일로", tel: "031-707-5050", d: 8.1 },
 ];
 const KO_TAGS = ["써마지","울쎄라","슈링크","리쥬란","스컬트라","보톡스","필러"];
 const EN2KO: Record<string, string> = { thermage: "써마지", botox: "보톡스", filler: "필러", rejuran: "리쥬란", sculptra: "스컬트라" };
 
-type DiaryProc = ReviewState & { id: number; label: string; open: boolean };
+type DiaryProc = ReviewState & { id: number; label: string; price: string; note: string; open: boolean; later: boolean };
 
 function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
+  const [near, setNear] = useState(false);
   const [procs, setProcs] = useState<DiaryProc[]>([]);
   const [pid, setPid] = useState(0);
   const [tag, setTag] = useState("");
-  const [finish, setFinish] = useState<"done" | "later">("later");
   const today = new Date().toISOString().slice(0, 10);
-  const results = q ? HOSPITALS.filter((h) => h.n.includes(q)) : [];
+
+  let results = q ? HOSPITALS.filter((h) => h.n.includes(q)) : near ? [...HOSPITALS] : [];
+  if (near) results = [...results].sort((a, b) => a.d - b.d);
 
   function addTag(raw: string) {
     const t = raw.trim(); if (!t) return; const low = t.toLowerCase();
     let label = t; if (/[a-z]/i.test(t) && EN2KO[low]) label = EN2KO[low];
     if (procs.some((p) => p.label === label)) { setTag(""); return; }
     const nid = pid + 1; setPid(nid);
-    setProcs([...procs, { ...emptyReview(), id: nid, label, open: true }]);
+    setProcs([...procs, { ...emptyReview(), id: nid, label, price: "", note: "", open: false, later: false }]);
     setTag("");
   }
   const upd = (id: number, p: Partial<DiaryProc>) => setProcs((ps) => ps.map((x) => (x.id === id ? { ...x, ...p } : x)));
-  function status(p: DiaryProc) {
-    const now = p.satisfaction || p.pain || p.downtime || p.revisit || p.price;
-    const later = p.effectAreas.length || p.effectOnset || p.oneliner;
-    if (now && later) return ["후기 작성됨", "#2E9E68", "#E2F4EA"] as const;
-    if (now || later) return ["지켜보는 중", "#B6790F", "#FBEFD9"] as const;
-    return ["기록만", "#8A9099", "#EEF0F3"] as const;
-  }
+  const reviewed = (p: DiaryProc) => !!(p.satisfaction || p.pain || p.downtime || p.revisit || p.effectAreas.length || p.effectOnset || p.oneliner);
 
   return (
     <section className="mx-auto w-full max-w-[640px]">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">오늘의 시술을 기록해요</h1>
+
+      {/* 메인 일기 글상자 */}
       <div className={formBox}>
-        {/* 병원 */}
+        {/* 1. 날짜 */}
+        <div>
+          <label className={labelCls}>시술 받은 날짜 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
+          <input type="date" className={inputCls} defaultValue={today} />
+          <p className="mt-1 text-xs text-[var(--text-muted)]">옛날 시술이면 기억나는 대로 과거 날짜로 적어도 돼요.</p>
+        </div>
+
+        {/* 2. 병원 (지도 검색) */}
         <div>
           <label className={labelCls}>어디서 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
-          <input className={inputCls} placeholder="병원 이름 검색 (예: 강남, 힐하우스…)" value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} />
+          <div className="flex gap-2">
+            <input className={inputCls + " flex-1"} placeholder="병원 이름 검색 (예: 강남, 힐하우스…)" value={q} onChange={(e) => { setQ(e.target.value); setPicked(null); }} />
+            <button type="button" onClick={() => { setNear(!near); setPicked(null); }}
+              className="shrink-0 rounded-md px-3 text-[12.5px] font-semibold transition-colors"
+              style={near ? { background: "var(--primary)", color: "#fff" } : { background: "var(--primary-soft)", color: "var(--primary-active)" }}>
+              내 주변
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">‘내 주변’을 누르면 현재 위치에서 가까운 피부과를 거리순으로 보여줘요.</p>
           {!picked && results.length > 0 && (
             <div className="mt-2 overflow-hidden rounded-md bg-[var(--bg)]">
               {results.map((h) => (
                 <button key={h.n} type="button" onClick={() => { setPicked(h.n); setQ(h.n); }} className="flex w-full items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)]">
                   <span><span className="block text-[14px] font-semibold text-[var(--text)]">{h.n}</span><span className="block text-[11.5px] text-[var(--text-muted)]">{h.a}</span></span>
-                  <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.d}km</span>
+                  {near && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.d}km</span>}
                 </button>
               ))}
             </div>
@@ -430,111 +442,148 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
               <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--text)]">{picked}</span>
                 <button type="button" onClick={() => { setPicked(null); setQ(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
               <div className="mt-2 space-y-2">
-                <input className={inputCls} defaultValue={HOSPITALS.find((h) => h.n === picked)?.tel} />
+                <input className={inputCls} defaultValue={HOSPITALS.find((h) => h.n === picked)?.tel} placeholder="전화번호 (직통으로 수정 가능)" />
                 <input className={inputCls} placeholder="카카오톡 채널 · 있으면 직접 입력" />
               </div>
             </div>
           )}
         </div>
 
-        {/* 방문 정보 */}
+        {/* 3. 의사 / 실장 */}
         <div>
-          <label className={labelCls}>방문 정보 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
+          <label className={labelCls}>시술의사 · 상담실장 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <div className="grid grid-cols-2 gap-2">
-            <input type="date" className={inputCls} defaultValue={today} />
-            <input type="number" className={inputCls} placeholder="총 결제금액(선택)" />
-            <input className={inputCls} placeholder="시술의사(선택)" />
-            <input className={inputCls} placeholder="상담실장(선택)" />
+            <input className={inputCls} placeholder="시술의사 (선택)" />
+            <input className={inputCls} placeholder="상담실장 (선택)" />
           </div>
         </div>
 
-        {/* 받은 시술 */}
+        {/* 4. 받은 시술 (행마다 가격·비고) */}
         <div>
-          <label className={labelCls}>오늘 받은 시술</label>
+          <label className={labelCls}>오늘 받은 시술 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">가격·비고는 나만 봐요</span></label>
           {procs.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-1.5">
+            <div className="mb-2 space-y-2">
               {procs.map((p) => (
-                <span key={p.id} className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[13px] font-semibold text-white" style={{ background: "var(--primary)" }}>
-                  {p.label}<button type="button" onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="text-[14px] leading-none opacity-80">×</button>
-                </span>
+                <div key={p.id} className="flex items-center gap-1.5">
+                  <span className="shrink-0 rounded-full bg-[var(--primary)] px-2.5 py-1.5 text-[12.5px] font-semibold text-white">{p.label}</span>
+                  <input className={inputSm + " w-[86px] shrink-0"} placeholder="가격" value={p.price} onChange={(e) => upd(p.id, { price: e.target.value })} />
+                  <input className={inputSm + " min-w-0 flex-1"} placeholder="비고 (메모)" value={p.note} onChange={(e) => upd(p.id, { note: e.target.value })} />
+                  <button type="button" onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="shrink-0 px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
+                </div>
               ))}
             </div>
           )}
-          <input className={inputCls} placeholder="예: 써마지, thermage, 보톡스… (Enter)" value={tag}
+          <input className={inputCls} placeholder="시술명 입력 후 Enter (예: 써마지, thermage)" value={tag}
             onChange={(e) => setTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(tag); } }} />
-          <p className="mt-1 text-xs text-[var(--text-muted)]">시술을 넣으면 아래에 후기 카드가 생겨요. 펼쳐서 쓰거나 비워두면 기록만 됩니다.</p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">시술을 넣으면 아래에 후기 글상자가 하나씩 생겨요.</p>
         </div>
 
-        {/* 시술별 후기 */}
-        {procs.length === 0 ? (
-          <p className="rounded-md bg-[var(--bg)] py-6 text-center text-[13px] text-[var(--text-muted)]">위에서 시술을 먼저 선택해 주세요.</p>
-        ) : (
-          <div className="space-y-2.5">
-            {procs.map((p) => {
-              const [st, fg, bg] = status(p);
-              return (
-                <div key={p.id} className="overflow-hidden rounded-md bg-[var(--bg)]">
-                  <button type="button" onClick={() => upd(p.id, { open: !p.open })} className="flex w-full items-center justify-between gap-2 px-4 py-3">
-                    <span className="text-[15px] font-bold text-[var(--primary-active)]">{p.label}</span>
-                    <span className="flex items-center gap-2"><span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: fg, background: bg }}>{st}</span><span className="text-[12px] text-[var(--text-muted)]">{p.open ? "▴" : "▾"}</span></span>
-                  </button>
-                  {p.open && (
-                    <div className="space-y-5 border-t border-[var(--border)] px-4 pb-4 pt-4">
-                      <div className="rounded-md bg-white px-3 py-2.5 text-[11.5px] leading-relaxed text-[var(--text-secondary)]">효과·효과시기처럼 시간이 지나야 아는 칸은 비워둬도 돼요. “나중에 마저 쓸게요”로 저장하면 4일·1주·1달 뒤 알림이 와요.</div>
-                      <ReviewControls v={p} set={(patch) => upd(p.id, patch)} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* 일기 메모 */}
+        {/* 5. 오늘의 시술 일기 */}
         <div>
           <label className={labelCls}>오늘의 시술 일기 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <textarea rows={3} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
         </div>
 
-        {/* 완료/나중에 */}
-        <div>
-          <label className={labelCls}>저장</label>
-          <div className="flex gap-2">
-            {([["done","다 썼어요"],["later","나중에 마저 쓸게요"]] as const).map(([val, t]) => (
-              <button key={val} type="button" onClick={() => setFinish(val)} className="flex-1 rounded-md border px-3 py-2.5 text-center text-[13px] font-semibold transition-colors"
-                style={finish === val ? { borderColor: "var(--primary)", color: "var(--primary-active)", background: "var(--primary-soft)" } : { borderColor: "var(--border)", color: "var(--text-secondary)", background: "#fff" }}>{t}</button>
-            ))}
-          </div>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">{finish === "later" ? "비운 칸은 4일·1주·1달 뒤 알림으로 채울 수 있어요." : "지금 상태로 완료 저장돼요."}</p>
-        </div>
-
-        <SubmitBar label="기록 저장하기" onClick={() => { toast(finish === "done" ? "완료로 저장했어요" : "저장! 나중에 알림으로 알려드릴게요"); setTimeout(() => go("timeline"), 900); }} />
+        <SubmitBar label="저장하기" onClick={() => { toast("저장했어요"); setTimeout(() => go("record"), 800); }} />
       </div>
+
+      {/* 형제 글상자 — 시술별 후기 (받은 시술마다 하나씩, 닫힌 상태) */}
+      {procs.map((p) => {
+        const badge = p.open ? ["작성 중", "#1B87C9", "var(--primary-soft)"] as const
+          : p.later ? ["나중에 알림", "#B6790F", "#FBEFD9"] as const
+          : reviewed(p) ? ["작성됨", "#2E9E68", "#E2F4EA"] as const
+          : ["기록만", "#8A9099", "#EEF0F3"] as const;
+        return (
+          <div key={p.id} className={cardBox + " mt-3"}>
+            <div className="flex items-center justify-between">
+              <span className="text-[15px] font-bold text-[var(--text)]">{p.label} 후기</span>
+              <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: badge[1], background: badge[2] }}>{badge[0]}</span>
+            </div>
+
+            {!p.open && (
+              <div className="mt-3">
+                {p.later ? (
+                  <div className="flex items-center justify-between gap-2 rounded-md bg-[#FBEFD9] px-3.5 py-3">
+                    <span className="text-[12.5px] font-medium text-[#9A7320]">3일·7일·30일 뒤 알림으로 채울 수 있게 알려드릴게요.</span>
+                    <button type="button" onClick={() => upd(p.id, { later: false })} className="shrink-0 text-[12px] font-semibold text-[var(--text-secondary)] underline">취소</button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => upd(p.id, { open: true, later: false })} className="rounded-md bg-[var(--primary)] px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-[var(--primary-dark)]">후기 작성하기</button>
+                    <button type="button" onClick={() => upd(p.id, { later: true })} className="rounded-md bg-[var(--bg)] px-4 py-2 text-[12.5px] font-semibold text-[var(--text-secondary)]">나중에 쓰기</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {p.open && (
+              <div className="mt-4 space-y-5">
+                <ReviewControls v={p} set={(patch) => upd(p.id, patch)} />
+                <button type="button" onClick={() => upd(p.id, { open: false })} className="w-full rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">접기</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </section>
   );
 }
 
-/* ════════════════ ⑤ 캘린더 ════════════════ */
+/* ════════════════ ⑤ 내 기록 (달력 / 목록 토글) ════════════════ */
 
 const RECORDS: Record<number, { proc: string; st: "done" | "watch" }> = {
   2: { proc: "울쎄라", st: "watch" }, 4: { proc: "써마지 · 스컬트라", st: "watch" },
   12: { proc: "보톡스", st: "done" }, 20: { proc: "리쥬란", st: "done" },
 };
 
-function CalendarView({ go }: { go: (s: Screen) => void }) {
+type SummaryItem = { id: string; date: string; proc: string; hospital: string; doctor: string; price: string; note: string };
+const SUMMARY: { year: number; items: SummaryItem[] }[] = [
+  { year: 2026, items: [
+    { id: "a", date: "06.12", proc: "보톡스", hospital: "강남리더스피부과", doctor: "이도영 원장", price: "220,000원", note: "이마·미간" },
+    { id: "b", date: "06.04", proc: "써마지 · 스컬트라", hospital: "힐하우스피부과", doctor: "김종식 원장", price: "1,650,000원", note: "써마지 600샷 + 스컬트라 2바이알" },
+    { id: "c", date: "05.20", proc: "리쥬란", hospital: "청담미라클피부과", doctor: "정한미 원장", price: "350,000원", note: "리쥬란힐러 2cc" },
+  ] },
+  { year: 2025, items: [
+    { id: "d", date: "11.03", proc: "써마지", hospital: "힐하우스피부과", doctor: "김종식 원장", price: "980,000원", note: "1년 주기로 받기로" },
+    { id: "e", date: "06.04", proc: "울쎄라", hospital: "분당제일피부과", doctor: "권수현 원장", price: "1,200,000원", note: "300샷" },
+  ] },
+];
+
+function RecordView({ go }: { go: (s: Screen) => void }) {
+  const [mode, setMode] = useState<"cal" | "list">("list");
+  return (
+    <section className="mx-auto w-full max-w-[640px]">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-[16px] font-bold text-[var(--text)]">내 기록</span>
+        <div className="flex gap-1 rounded-full bg-[#E8EAEE] p-1">
+          {(["cal","list"] as const).map((m) => (
+            <button key={m} type="button" onClick={() => setMode(m)}
+              className="rounded-full px-3 py-1 text-[12px] font-semibold transition-colors"
+              style={mode === m ? { background: "#fff", color: "var(--primary-active)" } : { background: "transparent", color: "#5C6470" }}>
+              {m === "cal" ? "달력" : "목록"}
+            </button>
+          ))}
+        </div>
+      </div>
+      {mode === "cal" ? <CalendarPanel go={go} /> : <SummaryPanel go={go} />}
+    </section>
+  );
+}
+
+function CalendarPanel({ go }: { go: (s: Screen) => void }) {
   const [sel, setSel] = useState<number | null>(4);
   const dow = ["일","월","화","수","목","금","토"];
   const first = new Date(2026, 5, 1).getDay();
   const cells: (number | null)[] = [...Array(first).fill(null), ...Array.from({ length: 30 }, (_, i) => i + 1)];
   const selRec = sel ? RECORDS[sel] : null;
   return (
-    <section className="mx-auto w-full max-w-[640px]">
-      <div className={dispBox}>
+    <>
+      <div className={cardBox}>
         <div className="mb-4 flex items-center justify-between">
           <span className="text-[17px] font-bold text-[var(--text)]">2026년 6월</span>
           <span className="flex gap-1.5">
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-secondary)]">‹</button>
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-secondary)]">›</button>
+            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)]">‹</button>
+            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)]">›</button>
           </span>
         </div>
         <div className="grid grid-cols-7">{dow.map((d, i) => <div key={d} className="pb-2 text-center text-[11.5px] font-semibold" style={{ color: i === 0 ? "#D98A9C" : i === 6 ? "#7FA8D0" : "var(--text-muted)" }}>{d}</div>)}</div>
@@ -559,136 +608,148 @@ function CalendarView({ go }: { go: (s: Screen) => void }) {
         </div>
       </div>
       {selRec && (
-        <button type="button" onClick={() => go("detail")} className={"mt-3 flex w-full items-center gap-3 text-left " + dispBox + " hover:border-[var(--primary)]"}>
+        <button type="button" onClick={() => go("detail")} className={"mt-3 flex w-full items-center gap-3 text-left " + cardBox + " hover:bg-[var(--primary-soft)]"}>
           <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md" style={{ background: selRec.st === "watch" ? "#FBEFD9" : "var(--primary-soft)" }}>
             <span className="text-[15px] font-bold leading-none" style={{ color: selRec.st === "watch" ? "#B6790F" : "var(--primary-active)" }}>{sel}</span><span className="mt-0.5 text-[9px] font-semibold text-[var(--text-muted)]">6월</span>
           </span>
-          <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-semibold text-[var(--text)]">{selRec.proc}</span><span className="mt-0.5 block text-[12px] text-[var(--text-muted)]">{selRec.st === "watch" ? "효과를 지켜보는 중" : "기록을 마쳤어요"}</span></span>
+          <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-semibold text-[var(--text)]">{selRec.proc}</span><span className="mt-0.5 block text-[12px] text-[var(--text-muted)]">탭하면 그날 기록을 봐요</span></span>
           <span className="text-[var(--text-muted)]">›</span>
         </button>
       )}
-      <p className="mt-3 text-center text-[12px] text-[var(--text-muted)]">날짜를 누르면 그날 기록이 열려요. 진료 갈 때 내 이력을 한눈에.</p>
-    </section>
+    </>
   );
 }
 
-/* ════════════════ ⑥ 타임라인 ════════════════ */
-
-const TL = [
-  { d: "06.12", dow: "금", proc: "보톡스", sub: "강남리더스 · 만족도 ★★★★★", st: "done" as const, rows: [["만족도","★★★★★"],["통증","조금"],["효과","잔주름"],["단독가","220,000원"]] },
-  { d: "06.04", dow: "목", proc: "써마지 · 스컬트라", sub: "힐하우스 · 1건 작성 / 1건 지켜보는 중", st: "watch" as const, rows: [["병원","힐하우스피부과"],["총액","1,650,000원"],["써마지","지켜보는 중"],["스컬트라","후기 작성됨"]] },
-  { d: "05.20", dow: "화", proc: "리쥬란", sub: "청담미라클 · 만족도 ★★★★☆", st: "done" as const, rows: [["만족도","★★★★☆"],["효과","피부결 · 속건조"],["효과시점","두세 달 후"]] },
-  { d: "05.02", dow: "토", proc: "울쎄라", sub: "분당제일 · 효과 지켜보는 중", st: "watch" as const, rows: [["만족도","★★★★☆"],["통증","꽤"],["효과 / 효과시점","아직 비어 있어요"]] },
-];
-
-function TimelineView({ go, toast }: { go: (s: Screen) => void; toast: (m: string) => void }) {
-  const [open, setOpen] = useState<number | null>(1);
+function SummaryPanel({ go }: { go: (s: Screen) => void }) {
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const allIds = SUMMARY.flatMap((g) => g.items.map((i) => i.id));
+  const allOpen = open.size === allIds.length;
+  const toggleAll = () => setOpen(allOpen ? new Set() : new Set(allIds));
+  const toggle = (id: string) => setOpen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   return (
-    <section className="mx-auto w-full max-w-[640px]">
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-[15px] font-bold text-[var(--text)]">시술 타임라인</span>
-        <button type="button" onClick={() => toast("내 기록을 텍스트로 복사했어요")} className="rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">텍스트로 내보내기</button>
+    <>
+      <div className="mb-2 flex justify-end">
+        <button type="button" onClick={toggleAll} className="rounded-md bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">{allOpen ? "모두 닫기" : "모두 펼치기"}</button>
       </div>
-      <div className="space-y-2.5">
-        {TL.map((t, i) => (
-          <div key={t.d} className="overflow-hidden rounded-[var(--radius)] bg-white">
-            <button type="button" onClick={() => setOpen(open === i ? null : i)} className="flex w-full items-center gap-3 p-4 text-left">
-              <span className="w-[44px] shrink-0 text-center"><span className="block text-[14px] font-bold leading-none text-[var(--primary-active)]">{t.d}</span><span className="mt-1 block text-[10px] font-medium text-[var(--text-muted)]">{t.dow}</span></span>
-              <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-semibold text-[var(--text)]">{t.proc}</span><span className="block truncate text-[11.5px] text-[var(--text-muted)]">{t.sub}</span></span>
-              <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={t.st === "done" ? { background: "#E2F4EA", color: "#2E9E68" } : { background: "#FBEFD9", color: "#B6790F" }}>{t.st === "done" ? "완료" : "지켜보는 중"}</span>
-            </button>
-            {open === i && (
-              <div className="border-t border-[var(--border)] px-4 pb-4 pt-1">
-                {t.rows.map((r) => <div key={r[0]} className="flex justify-between py-2 text-[13px]"><span className="font-medium text-[var(--text-muted)]">{r[0]}</span><span className="font-semibold text-[var(--text)]">{r[1]}</span></div>)}
-                <div className="mt-2 flex gap-2">
-                  <button type="button" onClick={() => go("detail")} className="flex-1 rounded-md border border-[var(--primary)] bg-[var(--primary-soft)] py-2 text-[12.5px] font-semibold text-[var(--primary-active)]">상세 보기</button>
-                  <button type="button" className="flex-1 rounded-md border border-[var(--border)] bg-white py-2 text-[12.5px] font-semibold text-[var(--text-secondary)]">수정</button>
-                </div>
-              </div>
-            )}
+      <div className="space-y-5">
+        {SUMMARY.map((g) => (
+          <div key={g.year}>
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[15px] font-extrabold text-[var(--text)]">{g.year}</span>
+              <span className="text-[11.5px] text-[var(--text-muted)]">{g.year === 2026 ? "올해" : `${2026 - g.year}년 전`}</span>
+            </div>
+            <div className="space-y-2">
+              {g.items.map((it) => {
+                const isOpen = open.has(it.id);
+                return (
+                  <div key={it.id} className={cardBox + " !p-0 overflow-hidden"}>
+                    <button type="button" onClick={() => toggle(it.id)} className="flex w-full items-center gap-3 p-4 text-left">
+                      <span className="w-[42px] shrink-0 text-center text-[14px] font-bold text-[var(--primary-active)]">{it.date}</span>
+                      <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-semibold text-[var(--text)]">{it.proc}</span><span className="block truncate text-[11.5px] text-[var(--text-muted)]">{it.hospital}</span></span>
+                      <span className="text-[12px] text-[var(--text-muted)]">{isOpen ? "▴" : "▾"}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="border-t border-[var(--border)] px-4 pb-4 pt-2">
+                        <Row k="병원" v={it.hospital} /><Row k="시술의사" v={it.doctor} /><Row k="가격" v={it.price} /><Row k="비고" v={it.note} />
+                        <button type="button" onClick={() => go("detail")} className="mt-3 w-full rounded-md bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">상세 보기</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>
-    </section>
+      <p className="mt-4 text-center text-[12px] text-[var(--text-muted)]">진료 갈 때 ‘모두 펼치기’로 그동안 받은 시술을 한눈에 정리해 보여줄 수 있어요.</p>
+    </>
   );
 }
 
-/* ════════════════ ⑦ 상세 ════════════════ */
+/* ════════════════ ⑥ 상세 (평가 제외, 비공개 메모) ════════════════ */
 
-function Row({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
-  return <div className="flex justify-between border-b border-[var(--border)] py-2.5 text-[13px] last:border-0"><span className="font-medium text-[var(--text-muted)]">{k}</span><span className="font-semibold" style={{ color: warn ? "var(--accent-save)" : "var(--text)" }}>{v}</span></div>;
+function Row({ k, v }: { k: string; v: string }) {
+  return <div className="flex justify-between gap-3 border-b border-[var(--border)] py-2.5 text-[13px] last:border-0"><span className="shrink-0 font-medium text-[var(--text-muted)]">{k}</span><span className="text-right font-semibold text-[var(--text)]">{v}</span></div>;
 }
 
 function DetailView({ go }: { go: (s: Screen) => void }) {
   return (
     <section className="mx-auto w-full max-w-[640px] space-y-3">
-      <div className={dispBox}>
+      <div className={cardBox}>
         <p className="text-[12px] font-bold text-[var(--primary-active)]">2026.06.04 · 목요일</p>
         <p className="mt-1 text-[20px] font-bold text-[var(--text)]">써마지 · 스컬트라</p>
-        <span className="mt-2 inline-block rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: "#FBEFD9", color: "#B6790F" }}>지켜보는 중</span>
+        <span className="mt-2 inline-block rounded bg-[var(--bg-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 보는 기록</span>
         <div className="mt-3">
-          <Row k="병원 · 나만 봐요" v="힐하우스피부과의원" /><Row k="시술의사 · 실장" v="김OO 원장 · 박OO" /><Row k="총 결제금액" v="1,650,000원" />
+          <Row k="병원" v="힐하우스피부과의원" />
+          <Row k="연락처" v="02-1234-5678" />
+          <Row k="시술의사" v="김종식 원장" />
+          <Row k="상담실장" v="박OO 실장" />
         </div>
         <div className="mt-3 flex gap-2">
-          <button type="button" className="flex-1 rounded-md border border-[var(--primary)] bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">전화하기</button>
-          <button type="button" className="flex-1 rounded-md border border-[var(--border)] bg-white py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">채널 들어가기</button>
+          <button type="button" className="flex-1 rounded-md bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">전화하기</button>
+          <button type="button" className="flex-1 rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">채널 들어가기</button>
         </div>
       </div>
 
-      <div className={dispBox}>
-        <div className="mb-1 flex items-center gap-2"><span className="text-[15px] font-bold text-[var(--primary-active)]">써마지</span><span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "#FBEFD9", color: "#B6790F" }}>지켜보는 중</span></div>
-        <Row k="만족도" v="★★★★☆" /><Row k="통증" v="꽤" /><Row k="효과 / 효과시점" v="아직 비어 있어요" warn /><Row k="단독가 · 나만 봐요" v="980,000원" />
-        <button type="button" onClick={() => go("diary")} className="mt-3 w-full rounded-md bg-[var(--primary)] py-2.5 text-[12.5px] font-semibold text-white hover:bg-[var(--primary-dark)]">이어서 작성하기</button>
+      <div className={cardBox}>
+        <p className="mb-2 text-[14px] font-bold text-[var(--text)]">받은 시술 메모</p>
+        <div className="space-y-3">
+          <div className="rounded-md bg-[var(--bg)] p-3">
+            <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--primary-active)]">써마지</span><span className="text-[13px] font-semibold text-[var(--text)]">980,000원</span></div>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">600샷. 김원장님이 1년 주기로 받자고 하셨다.</p>
+          </div>
+          <div className="rounded-md bg-[var(--bg)] p-3">
+            <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--primary-active)]">스컬트라</span><span className="text-[13px] font-semibold text-[var(--text)]">670,000원</span></div>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">2바이알. 볼 꺼진 부분 위주.</p>
+          </div>
+        </div>
       </div>
 
-      <div className={dispBox}>
-        <div className="mb-1 flex items-center gap-2"><span className="text-[15px] font-bold text-[var(--primary-active)]">스컬트라</span><span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "#E2F4EA", color: "#2E9E68" }}>후기 작성됨</span></div>
-        <Row k="만족도" v="★★★★★" /><Row k="효과" v="볼륨 · 탄력" /><Row k="효과시점" v="한 달쯤 후" />
+      <div className={cardBox}>
+        <p className="mb-1 text-[13px] font-semibold text-[var(--text-secondary)]">오늘의 시술 일기</p>
+        <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">붓기는 이틀쯤. 다음엔 6개월 뒤 보자고 하셨다. 스컬트라는 확실히 볼륨이 산다…</p>
       </div>
 
-      <div className="rounded-[var(--radius)] bg-white p-5">
-        <p className="mb-1 text-[13px] font-semibold text-[var(--text-secondary)]">오늘의 시술 일기 · 나만 봐요</p>
-        <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">붓기는 이틀쯤. 김원장님이 다음엔 6개월 뒤 보자고 하셨다. 스컬트라는 확실히 볼륨이 산다…</p>
-      </div>
+      <button type="button" onClick={() => go("record")} className="w-full rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">← 내 기록으로</button>
     </section>
   );
 }
 
-/* ════════════════ ⑧ 알림 ════════════════ */
+/* ════════════════ ⑦ 알림 ════════════════ */
 
 function NotiView({ go, toast }: { go: (s: Screen) => void; toast: (m: string) => void }) {
   const items = [
-    { tag: "1단계 · 4일 뒤", t: "회복은 어떠세요?", m: "써마지 받으신 지 4일 됐어요. 붓기·통증이 어땠는지 기록해 둘까요?", meta: "힐하우스피부과 · 2026.06.04", last: false },
-    { tag: "2단계 · 1주 뒤", t: "일주일 지났어요", m: "효과가 조금 느껴지시나요? 달라진 점을 골라두면 나중에 비교하기 좋아요.", meta: "써마지 · 다운타임 종료 시점", last: false },
-    { tag: "3단계 · 1달 뒤 (마지막)", t: "한 달 됐어요", m: "이제 효과가 안정됐을 거예요. 최종 만족도와 효과를 마무리해 볼까요? 이 알림은 마지막이에요.", meta: "써마지 · 효과 안정 시점", last: true },
+    { tag: "1단계 · 3일 뒤", t: "회복은 어떠세요?", m: "써마지 받으신 지 3일 됐어요. 붓기·통증이 어땠는지 후기를 채워볼까요?", meta: "힐하우스피부과 · 2026.06.04", last: false },
+    { tag: "2단계 · 7일 뒤", t: "일주일 지났어요", m: "효과가 조금 느껴지시나요? 달라진 점을 골라두면 나중에 비교하기 좋아요.", meta: "써마지 · 다운타임 종료 시점", last: false },
+    { tag: "3단계 · 30일 뒤 (마지막)", t: "한 달 됐어요", m: "이제 효과가 안정됐을 거예요. 최종 만족도와 효과를 마무리해 볼까요? 이 알림은 마지막이에요.", meta: "써마지 · 효과 안정 시점", last: true },
   ];
   return (
     <section className="mx-auto w-full max-w-[640px]">
-      <p className="mb-3 text-[15px] font-bold text-[var(--text)]">미완성 회수 알림 <span className="text-[12px] font-normal text-[var(--text-muted)]">4일 · 1주 · 1달, 3번까지</span></p>
+      <p className="mb-3 text-[15px] font-bold text-[var(--text)]">‘나중에 쓰기’ 후기 알림 <span className="text-[12px] font-normal text-[var(--text-muted)]">3일 · 7일 · 30일, 3번까지</span></p>
       <div className="space-y-2.5">
         {items.map((n) => (
-          <div key={n.tag} className={dispBox}>
+          <div key={n.tag} className={cardBox}>
             <span className="inline-block rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "#FBEFD9", color: "#B6790F" }}>{n.tag}</span>
             <p className="mt-2 text-[14.5px] font-semibold text-[var(--text)]">{n.t}</p>
             <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">{n.m}</p>
             <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">{n.meta}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" onClick={() => go("diary")} className="rounded-md bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[var(--primary-dark)]">{n.last ? "마무리하기" : "지금 채우기"}</button>
-              {!n.last && <button type="button" className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[12px] font-semibold text-[var(--text-secondary)]">나중에</button>}
-              <button type="button" onClick={() => toast("이 기록은 그만 알릴게요")} className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[12px] font-semibold text-[var(--text-secondary)]">그만 알림</button>
+              {!n.last && <button type="button" className="rounded-md bg-[var(--bg)] px-4 py-2 text-[12px] font-semibold text-[var(--text-secondary)]">나중에</button>}
+              <button type="button" onClick={() => toast("이 후기는 그만 알릴게요")} className="rounded-md bg-[var(--bg)] px-4 py-2 text-[12px] font-semibold text-[var(--text-secondary)]">그만 알림</button>
             </div>
           </div>
         ))}
       </div>
 
       <p className="mb-3 mt-7 text-[15px] font-bold text-[var(--text)]">시술 주기 리마인드 <span className="text-[12px] font-normal text-[var(--text-muted)]">별개 트랙</span></p>
-      <div className={dispBox}>
+      <div className={cardBox}>
         <p className="text-[14.5px] font-semibold text-[var(--text)]">써마지 받으신 지 1년 됐어요</p>
         <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">작년 6월에 받으셨어요. 보통 이맘때 다시 찾는 분이 많아요. (권유가 아니라 시술 주기 안내예요.)</p>
         <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">내 기록 기준 · 2025.06.04</p>
         <div className="mt-3 flex gap-2">
-          <button type="button" onClick={() => go("timeline")} className="rounded-md bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[var(--primary-dark)]">내 기록 보기</button>
-          <button type="button" className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[12px] font-semibold text-[var(--text-secondary)]">닫기</button>
+          <button type="button" onClick={() => go("record")} className="rounded-md bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[var(--primary-dark)]">내 기록 보기</button>
+          <button type="button" className="rounded-md bg-[var(--bg)] px-4 py-2 text-[12px] font-semibold text-[var(--text-secondary)]">닫기</button>
         </div>
       </div>
     </section>
