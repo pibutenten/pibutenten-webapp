@@ -36,14 +36,12 @@ export default async function AdminClinicsPage({ searchParams }: Props) {
   await requireAdminPage("/admin/clinics", { superAdminOnly: true });
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
-  const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
+  const reqPage = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
 
   const supabase = await createSupabaseServerClient();
 
-  // 전체 병원 수(상단 Stat) + 최근 동기화 시각.
-  const [{ count: total }, latest] = await Promise.all([
+  // 전체 병원 수(상단 Stat) + 최근 동기화 시각 + (검색 시) 조건부 건수 — 병렬.
+  const [{ count: total }, latest, filtered] = await Promise.all([
     supabase.from("clinics").select("id", { count: "exact", head: true }),
     supabase
       .from("clinics")
@@ -51,12 +49,19 @@ export default async function AdminClinicsPage({ searchParams }: Props) {
       .order("synced_at", { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle(),
+    q
+      ? supabase.from("clinics").select("id", { count: "exact", head: true }).ilike("name", `%${q}%`)
+      : Promise.resolve({ count: null } as { count: number | null }),
   ]);
 
-  // 현재 조건(검색 포함)의 건수 — 페이지네이션 계산용.
-  let countQuery = supabase.from("clinics").select("id", { count: "exact", head: true });
-  if (q) countQuery = countQuery.ilike("name", `%${q}%`);
-  const { count: listTotal } = await countQuery;
+  const totalAll = total ?? 0;
+  // 검색 없으면 전체 건수 재사용(중복 count 쿼리 회피).
+  const totalCount = q ? (filtered.count ?? 0) : totalAll;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  // 범위를 벗어난 page 요청은 마지막 페이지로 클램프.
+  const page = Math.min(reqPage, totalPages);
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
 
   // 목록 — 검색어 있으면 병원명 부분검색(ilike), 이름순 + 현재 페이지 범위만.
   let listQuery = supabase
@@ -69,8 +74,6 @@ export default async function AdminClinicsPage({ searchParams }: Props) {
   const clinics = (rows ?? []) as ClinicRow[];
 
   const lastSynced = latest.data?.synced_at ?? null;
-  const totalCount = listTotal ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rangeStart = totalCount === 0 ? 0 : from + 1;
   const rangeEnd = Math.min(from + PAGE_SIZE, totalCount);
   const hrefFor = (p: number) => `/admin/clinics?${q ? `q=${encodeURIComponent(q)}&` : ""}page=${p}`;

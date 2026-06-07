@@ -346,13 +346,15 @@ function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Scr
 type ClinicHit = { name: string; addr: string; tel: string; x: number | null; y: number | null; dist?: number };
 // 네이버 지도 검색(디폴트 지도) — 키 없이 링크 아웃. 병원명+주소로 정확히 찾게 함.
 const naverMapUrl = (h: ClinicHit) => `https://map.naver.com/p/search/${encodeURIComponent(`${h.name} ${h.addr}`.trim())}`;
-// 좌표 거리(km) — 심평원 XPos=경도, YPos=위도. 근사식(평면 보정)으로 정렬용.
+// 좌표 거리(km) — 심평원 XPos=경도, YPos=위도. 근사식(equirectangular)으로 정렬용.
+// x,y 는 '도(deg) 차이'이며, 위도 보정 후 한 변환계수(deg→km = π/180 × 지구반경)로 km 환산.
 function distKm(lat1: number, lng1: number, lat2: number | null, lng2: number | null): number | undefined {
   if (lat2 == null || lng2 == null) return undefined;
-  const R = 6371, rad = Math.PI / 180;
-  const x = (lng2 - lng1) * Math.cos(((lat1 + lat2) / 2) * rad);
-  const y = lat2 - lat1;
-  return Math.sqrt(x * x + y * y) * rad * R;
+  const R = 6371; // 지구 반경(km)
+  const DEG2KM = (Math.PI / 180) * R; // 위도 1도 ≈ 111.19km
+  const x = (lng2 - lng1) * Math.cos(((lat1 + lat2) / 2) * (Math.PI / 180)); // 경도차(위도 보정)
+  const y = lat2 - lat1; // 위도차
+  return Math.sqrt(x * x + y * y) * DEG2KM;
 }
 const EN2KO: Record<string, string> = { thermage: "써마지", botox: "보톡스", filler: "필러", rejuran: "리쥬란", sculptra: "스컬트라" };
 
@@ -361,13 +363,15 @@ type DiaryProc = ReviewState & { id: number; label: string; cat: string; price: 
 function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
-  const [showMap, setShowMap] = useState(false);
   const [tel, setTel] = useState("");
   const [addr, setAddr] = useState("");
   // 실제 clinics DB 검색 결과 (이름 검색 or 내 주변).
   const [results, setResults] = useState<ClinicHit[]>([]);
   const [searching, setSearching] = useState(false);
   const [geoMsg, setGeoMsg] = useState<string | null>(null);
+  // 현재 결과가 '내 주변'(geolocation)에서 온 것인지 표시 — q 가 비었을 때 결과 유지 판정용.
+  // ref 라서 검색 effect 의존성에 넣지 않아 자기-트리거 루프를 만들지 않음.
+  const geoActiveRef = useRef(false);
   const [procs, setProcs] = useState<DiaryProc[]>([]);
   const [pid, setPid] = useState(0);
   const [tag, setTag] = useState("");
@@ -392,9 +396,11 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
   useEffect(() => {
     if (picked) return;
     const term = q.trim();
-    if (term.length < 1) { if (!showMap) setResults([]); return; }
+    // q 가 비면 이름검색 결과는 비우고, '내 주변' 결과만 유지.
+    if (term.length < 1) { if (!geoActiveRef.current) setResults([]); return; }
     let alive = true;
-    setSearching(true); setShowMap(false); setGeoMsg(null);
+    geoActiveRef.current = false;
+    setSearching(true); setGeoMsg(null);
     const t = setTimeout(async () => {
       const sb = createSupabaseBrowserClient();
       const { data } = await sb
@@ -405,13 +411,14 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
       setSearching(false);
     }, 250);
     return () => { alive = false; clearTimeout(t); };
-  }, [q, picked, showMap]);
+  }, [q, picked]);
 
   // 내 주변 — 브라우저 위치 → clinics 좌표 bbox(약 5km) 조회 후 거리순 정렬.
   function findNearby() {
     setGeoMsg(null);
     if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoMsg("이 브라우저는 위치를 지원하지 않아요. 병원 이름으로 검색해 주세요."); return; }
-    setSearching(true); setQ(""); setPicked(null); setShowMap(true);
+    geoActiveRef.current = true;
+    setSearching(true); setQ(""); setPicked(null);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const lat = pos.coords.latitude, lng = pos.coords.longitude, dd = 0.045;
@@ -426,7 +433,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
         setResults(hits); setSearching(false);
         if (hits.length === 0) setGeoMsg("주변 5km 안에 등록된 피부과가 없어요.");
       },
-      () => { setSearching(false); setShowMap(false); setGeoMsg("위치 권한이 필요해요. 병원 이름으로 검색해 주세요."); },
+      () => { geoActiveRef.current = false; setSearching(false); setGeoMsg("위치 권한이 필요해요. 병원 이름으로 검색해 주세요."); },
       { enableHighAccuracy: false, timeout: 8000 },
     );
   }
@@ -457,11 +464,12 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
         <div>
           <label className={labelCls}>시술 받은 날짜 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <div className="relative">
-            <button type="button" onClick={openDatePicker} className={inputCls + " flex w-full cursor-pointer items-center justify-between"}>
+            <div className={inputCls + " flex items-center justify-between"} aria-hidden>
               <span className="text-[var(--text)]">{dateLabel}</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0"><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M4 9h16" /></svg>
-            </button>
-            <input ref={dateRef} type="date" aria-label="시술 받은 날짜" value={date} onChange={(e) => setDate(e.target.value)} className="pointer-events-none absolute inset-0 h-full w-full opacity-0" tabIndex={-1} />
+            </div>
+            {/* input 자체를 투명 클릭 영역으로 둠 → onClick 으로 showPicker(데스크탑), 미지원 브라우저는 input 네이티브 클릭이 폴백. */}
+            <input ref={dateRef} type="date" aria-label="시술 받은 날짜" value={date} onClick={openDatePicker} onChange={(e) => setDate(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
           </div>
         </div>
 
@@ -485,8 +493,8 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
           {!picked && results.length > 0 && (
             <div className="mt-2 overflow-hidden rounded-md bg-[var(--bg)]">
               {results.map((h, i) => (
-                <div key={`${h.name}-${i}`} className="flex items-stretch border-b border-[var(--border)] last:border-0">
-                  <button type="button" onClick={() => { setPicked(h.name); setTel(h.tel); setAddr(h.addr); setQ(h.name); setShowMap(false); setResults([]); }} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[var(--primary-soft)]">
+                <div key={`${h.name}-${h.addr}-${i}`} className="flex items-stretch border-b border-[var(--border)] last:border-0">
+                  <button type="button" onClick={() => { geoActiveRef.current = false; setPicked(h.name); setTel(h.tel); setAddr(h.addr); setQ(h.name); setResults([]); }} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[var(--primary-soft)]">
                     <span className="min-w-0"><span className="block truncate text-[14px] font-semibold text-[var(--text)]">{h.name}</span><span className="block truncate text-[11.5px] text-[var(--text-muted)]">{h.addr}</span></span>
                     {h.dist != null && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.dist < 1 ? `${Math.round(h.dist * 1000)}m` : `${h.dist.toFixed(1)}km`}</span>}
                   </button>
@@ -822,7 +830,7 @@ function DetailView({ go }: { go: (s: Screen) => void }) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
             네이버 지도
           </a>
-          <a href="tmap://search?name=라온피부과의원" className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-white py-2.5 text-[12.5px] font-semibold text-[#1A56DB] ring-1 ring-inset ring-[var(--border)]">
+          <a href="tmap://search?name=라온피부과의원" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-white py-2.5 text-[12.5px] font-semibold text-[#1A56DB] ring-1 ring-inset ring-[var(--border)]">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
             티맵 길찾기
           </a>

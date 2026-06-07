@@ -180,7 +180,12 @@ npm run build          # 전체 빌드 (Compiled successfully 확인)
 |---|---|---|
 | `VERCEL_TOKEN` | `.env.local` 만 | AI 협업용 (env 추가/재배포 자동화). 회수: vercel.com/account/tokens |
 
-### 10.7. 기타 (기존)
+### 10.7. 공공데이터 (병원정보)
+| Name | Production | Preview | Dev | 비고 |
+|---|---|---|---|---|
+| `DATA_GO_KR_SERVICE_KEY` | ✓ | ✓ | ✓ | **서버 전용**. 심평원 병원정보서비스. `/admin/clinics` sync 용. data.go.kr 일반 인증키(Decoding). 비어 있으면 sync API 차단 |
+
+### 10.8. 기타 (기존)
 | Name | 비고 |
 |---|---|
 | `CSRF_ALLOWED_ORIGINS` | 미설정 시 production 도메인만 허용 |

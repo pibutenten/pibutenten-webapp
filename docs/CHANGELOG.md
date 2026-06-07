@@ -15,11 +15,17 @@
 
 ### Changed
 - **시술일기 목업 UI**: 받은 시술 칩색을 카테고리색으로(리프팅 #29B6F6 / 스킨부스터 #F48FB1, 그 외 --primary). 용량·가격·메모를 한 줄로 통합. 시술 추가 시 커서를 해당 행 '용량' 칸으로 이동(ref+useEffect). 플로팅 메뉴 4개(나의 시술일기 보기 / 시술일기 남기기 / 시술 후기 남기기 / 끄적끄적).
-- **날짜 picker 데스크탑 버그 수정**: `opacity-0` 오버레이는 데스크탑 크롬에서 클릭만으론 안 열려 → 보이는 버튼 클릭 시 `input.showPicker()` 호출. 모바일·데스크탑 동일 동작.
+- **날짜 picker 데스크탑 버그 수정**: 투명 `input[type=date]` 오버레이는 데스크탑 크롬에서 클릭만으론 안 열려 → input onClick 에서 `input.showPicker()` 호출(데스크탑·모바일 동일). showPicker 미지원 브라우저는 input 네이티브 클릭이 폴백.
 - **운영 페이지 뒤로가기**: 공유 `BackButton`(router.back, 글 상세 스크롤 복원용)을 `/admin` 대시보드 고정 Link 로 교체(이 페이지 한정).
 
 ### Added (운영)
-- **Vercel 환경변수 `DATA_GO_KR_SERVICE_KEY`** 등록(production·preview·development) — 운영 sync 페이지가 배포 환경에서 동작하도록.
+- **Vercel 환경변수 `DATA_GO_KR_SERVICE_KEY`** 등록(production·preview·development) — 운영 sync 페이지가 배포 환경에서 동작하도록. `.env.local.example` + `DEPLOYMENT.md §10.7` 동기화(CLAUDE.md §5).
+
+### Fixed (코드리뷰 반영 — 서브에이전트 4종 독립 검수)
+- **[치명] 병원검색 useEffect 경쟁상태**: `showMap` state 를 검색 effect 의존성에서 제거(자기-트리거 루프 차단) → `geoActiveRef`(ref) 로 '내 주변 결과 유지' 판정. q 비움 시 이름검색 결과만 비우고 geo 결과는 유지.
+- **[경고] 날짜 picker 폴백**: 위 'Changed' 의 showPicker 방식을 Firefox/Safari(showPicker 예외) 에서도 동작하도록 input 투명 클릭 오버레이로 보강(`pointer-events-none`/`tabIndex=-1` 제거).
+- **[경고] /admin/clinics 범위 클램프**: `page>totalPages` 요청을 마지막 페이지로 클램프. count+list 병렬화 + 검색 없을 때 전체 count 재사용(중복 쿼리 제거).
+- **[권장]** tmap 링크 `rel` 추가, 결과 React key 를 name+addr 로, `distKm` 변환계수 주석 명확화, `robots.ts` `DISALLOW_COMMON` 에 `/mockups` 추가(noindex 이중 차단).
 
 ---
 
