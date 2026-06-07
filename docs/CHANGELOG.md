@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-06-07] — 병원(clinic) 정보 동기화 기능 + 전국 피부과 의원 적재
+
+### Added
+- **심평원 병원정보 클라이언트** `src/lib/clinics/hira.ts`: 건강보험심사평가원 `getHospBasisList` 호출 → 피부과 의원 페이지네이션 수집(server-only). XML 파싱은 `fast-xml-parser`(신규 의존성). ServiceKey 는 `DATA_GO_KR_SERVICE_KEY` 를 encodeURIComponent 처리. 필터: **clCd=31(의원) + dgsbjtCd=14(피부과 진료과목)**. 전국 단일 조회(totalCount 16964) → numOfRows=1000 × 17페이지, 페이지 간 지연·ykiho dedup.
+- **동기화 API** `POST /api/admin/clinics/sync`: `requireAdmin`(ADR 0012 active 명함 단위) + `rateLimit`(분당 3회) + service_role upsert(onConflict ykiho). 응답 `{ fetched, upserted, pages, mode }`. 키 부재/심평원 오류 표준 핸들링.
+- **관리자 운영 페이지** `/admin/clinics`: `requireAdminPage(..., { superAdminOnly: true })`. 총 병원 수·최근 동기화 시각 + "병원 정보 가져오기" 버튼(client `SyncButton`, 로딩·토스트·router.refresh) + 병원명 검색·상위 50개 목록. 관리자 대시보드 운영 프로그램에 타일(🏥, super admin) 추가.
+- **일회성 적재 스크립트** `scripts/sync-clinics.mjs`: hira 로직 자립 구현 + service_role upsert. 실행 결과 **전국 피부과 의원 16964건 production clinics 적재 완료**(좌표 16964/전화 16782/시도 17개 전체). 병원명에 '피부과' 포함은 1552건뿐 — 나머지는 진료과목으로 피부과 표방 의원(의도된 범위).
+
+### Fixed
+- **clinics service_role DML GRANT** (마이그레이션 0272): 0270 이 service_role GRANT 를 누락해 sync upsert 가 `permission denied for table clinics` 로 실패하던 문제 수정. `GRANT SELECT,INSERT,UPDATE,DELETE ON clinics` + 시퀀스 GRANT 추가. anon/authenticated SELECT-only 정책은 0270 그대로 유지.
+
+### Notes
+- 진료과목코드 dgsbjtCd 검증(디렉터): 서울 clCd=31 기준 dgsbjtCd 없음=10638, 01=4752(내과), 08=2001(성형외과), 14=4845(피부과), 20=61(결핵과) → 진료과목코드표 일치. dgsbjtCd=14=피부과 확정.
+- 새 의존성: `fast-xml-parser`. 피부일기 검색 연동(clinics 활용)은 이번 범위 아님.
+
+---
+
 ## [2026-06-07] — 발주 N: 태그 병합 데이터 정합(en 승계) + 모달 안내
 
 ### Changed
