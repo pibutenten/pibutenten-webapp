@@ -359,10 +359,16 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
   --border: #E5E3DD;
   --accent: #FF6B81;
   --accent-soft: #FFE4E8;
+  /* admin 칩/탭 활성(연한 하늘) — /admin/cards·/admin/tags 공유 SSOT. */
+  --chip-active-bg: #7DC1DD33;   /* 칩 활성 배경 */
+  --chip-active-text: var(--text);
+  --chip-active-accent: #7DC1DD;  /* 칩 테두리 */
 }
 ```
 
 카드 강조 하이라이트 5색 (`src/lib/card-highlight.ts`): Sky `#E0F2FE` / Mint `#DCFCE7` / Pink `#FFEBF2` / Apricot `#FFEDD5` / Lavender `#F3E8FF`.
+
+**admin 칩·탭 통일(Q, 2026-06-07)**: 필터 칩 활성색은 `--chip-active-*` 토큰을 `/admin/cards`('전체 타입' 칩)·`/admin/tags`(분류·상태·기간 칩) 가 공유. 요약 탭(KPI) 활성 = `--primary` 텍스트+밑줄(카드 status 탭과 동일). 화면별 인라인 색 금지 — 토큰만 참조.
 
 ---
 

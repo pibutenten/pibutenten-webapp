@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-07] — Q: admin 칩·색 디자인 토큰 통일 (cards 기준)
+
+### Added
+- **공유 칩 토큰**(`globals.css`): `--chip-active-bg #7DC1DD33` · `--chip-active-text var(--text)` · `--chip-active-accent #7DC1DD`. `/admin/cards`·`/admin/tags` 가 동일 토큰 참조(SSOT) → 화면 추가해도 자동 통일.
+
+### Changed
+- **기준 hex 추출**: `/admin/cards` '전체 타입' 칩의 연한 하늘색 `#7DC1DD`(배경 20% alpha)를 기준으로 토큰화. cards 인라인 `#7DC1DD33` → `var(--chip-active-bg)`.
+- **`/admin/tags` 적용**: 분류·상태·기간 칩(`chip()`)을 카드 '전체 타입' 칩과 동일 모양·색으로(rounded-full→`rounded-[var(--radius-sm)]`, px-2.5→px-3, 활성 진한 파랑→연한 하늘 토큰). 요약 KPI 활성색 P의 임의색(`#3a93b8`/`#7DC1DD`) 제거 → `var(--primary)`(카드 status 탭과 동일). 검색 버튼 hover 정합(`--primary-dark`).
+
+### 검증
+- `tsc` + `build` 통과. `#7DC1DD` 인라인 잔재 grep 0(토큰만). cards·tags 동일 토큰 참조.
+
+---
+
 ## [2026-06-07] — P: 태그 관리 KPI 탭형 통일 + 대시보드 박스 높이 균일
 
 ### Changed

@@ -45,12 +45,13 @@ type SortCol =
   | "en_name";
 const TEXT_SORTS: SortCol[] = ["onb_name", "parent_name", "ko_name", "cat_name", "en_name"];
 
+// 칩 — /admin/cards '전체 타입' 칩과 동일(radius-sm·연한 하늘 활성). 색은 공유 토큰(globals.css).
 function chip(active: boolean) {
   return (
-    "rounded-full px-2.5 py-1 text-xs font-medium transition-colors " +
+    "rounded-[var(--radius-sm)] border px-3 py-1 text-xs font-medium transition-colors " +
     (active
-      ? "bg-[var(--primary-active)] font-semibold text-white"
-      : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
+      ? "border-[var(--chip-active-accent)] bg-[var(--chip-active-bg)] font-semibold text-[var(--chip-active-text)]"
+      : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
   );
 }
 
@@ -210,7 +211,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
               className={
                 "relative shrink-0 px-2 py-1.5 text-center text-[12px] transition-colors sm:px-3 sm:py-2 sm:text-sm " +
                 (active
-                  ? "font-semibold text-[#3a93b8]"
+                  ? "font-semibold text-[var(--primary)]"
                   : "text-[var(--text-secondary)] hover:text-[var(--text)]")
               }
             >
@@ -218,7 +219,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
               <div className="text-[10px] text-[var(--text-muted)] sm:ml-1 sm:inline sm:align-middle sm:text-xs">
                 {s.v.toLocaleString()}
               </div>
-              {active && <span className="absolute -bottom-px left-0 right-0 h-0.5 bg-[#7DC1DD]" />}
+              {active && <span className="absolute -bottom-px left-0 right-0 h-0.5 bg-[var(--primary)]" />}
             </Link>
           );
         })}
@@ -285,7 +286,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
           placeholder="태그(한글) 검색"
           className="h-9 flex-1 min-w-[180px] rounded-[var(--radius-sm)] border border-[var(--border)] px-3 text-sm"
         />
-        <button type="submit" className="h-9 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-medium text-white">
+        <button type="submit" className="h-9 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-medium text-white hover:bg-[var(--primary-dark)]">
           검색
         </button>
       </form>

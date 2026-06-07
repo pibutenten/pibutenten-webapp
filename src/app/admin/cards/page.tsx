@@ -475,7 +475,7 @@ export default async function AdminQAsPage({ searchParams }: Props) {
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]")
                 }
                 style={
-                  active ? { backgroundColor: "#7DC1DD33" } : undefined
+                  active ? { backgroundColor: "var(--chip-active-bg)" } : undefined
                 }
               >
                 {t.label}
