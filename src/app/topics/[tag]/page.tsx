@@ -62,8 +62,11 @@ const fetchAllIndexableTags = unstable_cache(
 );
 
 // 공유 공개 읽기 — 태그별 의사 글(jitter=0 결정적, 전 사용자 동일) + count. ISR 1h 캐시.
+// ★인자는 encodeURIComponent 된 ASCII 태그로 받음 — unstable_cache 가 인자를 x-next-cache-tags
+//   헤더에 넣는데, 한글 원문은 HTTP 헤더(ASCII 전용)를 깨뜨려 500(ERR_INVALID_CHAR) 발생.
 const fetchPostsForTag = unstable_cache(
-  async (tag: string): Promise<{ posts: CardData[]; count: number }> => {
+  async (encodedTag: string): Promise<{ posts: CardData[]; count: number }> => {
+    const tag = decodeURIComponent(encodedTag);
     const supabase = createSupabaseAnonClient();
     // 시간가중 정렬 — tag_cards_scored RPC. jitter=0(결정적) → ISR 캐시 안전 + 핵심 글 상위 고정.
     const rpcRes = await supabase.rpc("tag_cards_scored", {
@@ -90,9 +93,10 @@ const fetchPostsForTag = unstable_cache(
   { revalidate: 3600, tags: ["topics"] },
 );
 
-// 공유 공개 읽기 — 이 시술의 후기 리포트 요약(존재·건수). ISR 1h 캐시.
+// 공유 공개 읽기 — 이 시술의 후기 리포트 요약(존재·건수). ISR 1h 캐시. 인자=ASCII 인코딩 태그.
 const fetchReportLinkForTag = unstable_cache(
-  async (tag: string) => {
+  async (encodedTag: string) => {
+    const tag = decodeURIComponent(encodedTag);
     const supabase = createSupabaseAnonClient();
     return getReportSummaryForTag(supabase, tag);
   },
@@ -100,9 +104,10 @@ const fetchReportLinkForTag = unstable_cache(
   { revalidate: 3600, tags: ["topics"] },
 );
 
-// 공유 공개 읽기 — generateMetadata 용 의사 qa 글 수. ISR 1h 캐시.
+// 공유 공개 읽기 — generateMetadata 용 의사 qa 글 수. ISR 1h 캐시. 인자=ASCII 인코딩 태그.
 const fetchTagQaCount = unstable_cache(
-  async (tag: string): Promise<number> => {
+  async (encodedTag: string): Promise<number> => {
+    const tag = decodeURIComponent(encodedTag);
     const supabase = createSupabaseAnonClient();
     const { count } = await supabase
       .from("cards")
@@ -123,8 +128,8 @@ export async function generateMetadata({
   const { tag: rawTag } = await params;
   const tag = decodeURIComponent(rawTag);
   const url = `${SITE_URL}/topics/${encodeURIComponent(tag)}`;
-  // N = 이 시술의 의사 qa 글 수. 공유 캐시(fetchTagQaCount)로 ISR 안전.
-  const n = await fetchTagQaCount(tag);
+  // N = 이 시술의 의사 qa 글 수. 공유 캐시(fetchTagQaCount)로 ISR 안전. 캐시 키=ASCII 인코딩 태그.
+  const n = await fetchTagQaCount(encodeURIComponent(tag));
   const title = `${tag} Q&A 총정리`;
   const description = `원리·효과·지속기간·부작용·통증까지, 피부과 전문의가 직접 답한 질문 ${n}개를 한곳에.`;
   return {
@@ -146,14 +151,14 @@ export default async function TagPage({ params }: Props) {
   if (!found) notFound();
 
   // 2) 해당 태그의 의사 글 fetch (최신순)
-  const { posts, count } = await fetchPostsForTag(tag);
+  const { posts, count } = await fetchPostsForTag(encodeURIComponent(tag));
   if (posts.length === 0) notFound();
 
   // 2-b) /topics(전문의 Q&A 허브)와 /reports(후기 집계)는 의도 다른 독립 페이지(자기잠식 방지).
   //   리포트 카드·개별 후기는 /topics 에 렌더하지 않고, 이 시술의 /reports 가 존재하면
   //   얇은 링크 1줄만 노출. 존재·N 은 경량 get_review_summary_pool(ko===tag) 로 판단.
-  //   공유 캐시(fetchReportLinkForTag)로 ISR 안전.
-  const reportLink = await fetchReportLinkForTag(tag);
+  //   공유 캐시(fetchReportLinkForTag)로 ISR 안전. 캐시 키=ASCII 인코딩 태그.
+  const reportLink = await fetchReportLinkForTag(encodeURIComponent(tag));
 
   // 3) JSON-LD: @graph 로 CollectionPage + FAQPage 묶음 출력.
   //    AEO/GEO/SEO 강화:
