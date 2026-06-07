@@ -678,7 +678,7 @@ function SummaryPanel({ go }: { go: (s: Screen) => void }) {
                   <div key={it.id} className={cardBox + " !p-0 overflow-hidden"}>
                     <button type="button" onClick={() => toggle(it.id)} className="flex w-full items-center gap-3 p-4 text-left">
                       <span className="w-[42px] shrink-0 text-center text-[14px] font-bold text-[var(--primary-active)]">{it.date}</span>
-                      <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-semibold text-[var(--text)]">{it.proc}</span><span className="block truncate text-[11.5px] text-[var(--text-muted)]">{it.hospital}</span></span>
+                      <span className="min-w-0 flex-1"><span className="block truncate text-[14.5px] font-semibold text-[var(--text)]">{it.items.map((iv) => (iv.unit ? `${iv.name} ${iv.unit}` : iv.name)).join(" · ")}</span><span className="block truncate text-[11.5px] text-[var(--text-muted)]">{it.hospital}</span></span>
                       <span className="text-[12px] text-[var(--text-muted)]">{isOpen ? "▴" : "▾"}</span>
                     </button>
                     {isOpen && (
