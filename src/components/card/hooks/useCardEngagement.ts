@@ -20,7 +20,7 @@
  *   eng.save.active / count / pending / toggle()
  *   eng.share.count / share()
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CardData } from "@/components/Card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { showToast } from "@/lib/toast";
@@ -107,11 +107,48 @@ export function useCardEngagement(
   const [savePending, setSavePending] = useState(false);
   const [shareCount, setShareCount] = useState(card.share_count ?? 0);
 
+  // 사용자가 토글(좋아요/저장/공유)을 한 번이라도 하면 true — 아래 라이브 카운트 useEffect 가
+  //   그 이후엔 화면값을 덮어쓰지 않게 가드(토글 RPC 가 이미 권위 카운트로 갱신함).
+  const interactedRef = useRef(false);
+
   // ── 초기 viewer 상태 fetch ──
   // server prefetch가 있으면 client fetch 생략.
   // 미로그인 사용자만 localStorage에서 좋아요 기억 복원.
   const hasViewerPrefetch =
     viewer.liked !== undefined || viewer.saved !== undefined;
+
+  // ── 라이브 카운트 동기화 (V3 후속, 2026-06-07) ──
+  // 상세 페이지는 ISR 캐시(24h)라 card.like_count/save_count/share_count 가 렌더타임에 박혀
+  //   타인의 신규 좋아요/저장이 즉시 반영 안 됨. server prefetch 가 없는 경우(=캐시된 공개 렌더)
+  //   에만 마운트 시 현재 카운트를 1회 재조회해 화면값을 신선하게 교체.
+  //   동적 페이지(홈·토픽)는 prefetch 가 있어 skip — 서버가 이미 라이브 카운트를 렌더.
+  //   카운트는 공유 공개값(개인정보 아님) → 캐시 오염과 무관.
+  useEffect(() => {
+    if (hasViewerPrefetch) return; // 동적 렌더 = 이미 신선 → skip
+    let alive = true;
+    (async () => {
+      if (typeof window === "undefined") return;
+      const supabase = createSupabaseBrowserClient();
+      const { data } = await supabase
+        .from("cards")
+        .select("like_count, save_count, share_count")
+        .eq("id", card.id)
+        .maybeSingle();
+      // 이미 사용자가 토글했으면 그 권위값을 덮지 않음 (race 가드).
+      if (!alive || interactedRef.current || !data) return;
+      const d = data as {
+        like_count: number | null;
+        save_count: number | null;
+        share_count: number | null;
+      };
+      if (typeof d.like_count === "number") setLikeCount(d.like_count);
+      if (typeof d.save_count === "number") setSaveCount(d.save_count);
+      if (typeof d.share_count === "number") setShareCount(d.share_count);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [card.id, hasViewerPrefetch]);
   useEffect(() => {
     if (hasViewerPrefetch) return; // 서버에서 이미 받음 → fetch 생략
     let alive = true;
@@ -165,6 +202,7 @@ export function useCardEngagement(
       return;
     }
     if (likePending) return; // 연타 가드
+    interactedRef.current = true; // 라이브 카운트 useEffect 가 이후 덮어쓰지 않게
     setLikePending(true);
     const supabase = createSupabaseBrowserClient();
     const wasLiked = liked;
@@ -211,6 +249,7 @@ export function useCardEngagement(
       return;
     }
     if (savePending) return;
+    interactedRef.current = true; // 라이브 카운트 useEffect 가 이후 덮어쓰지 않게
     setSavePending(true);
     try {
       const supabase = createSupabaseBrowserClient();
@@ -265,6 +304,7 @@ export function useCardEngagement(
   const doShare = useCallback(async () => {
     const channel = await shareCard(card);
     if (!channel) return;
+    interactedRef.current = true; // 라이브 카운트 useEffect 가 이후 덮어쓰지 않게
     const supabase = createSupabaseBrowserClient();
     const { data: u } = await supabase.auth.getUser();
     const activeId = getActiveIdentityId();
