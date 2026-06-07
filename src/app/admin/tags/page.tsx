@@ -3,13 +3,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import BackButton from "@/components/BackButton";
 import TagAdminTable, { type TagRow } from "./TagAdminTable";
-import MergeCandidates, { type MergeCandidate } from "./MergeCandidates";
-import { slugifyEn } from "@/lib/tag-slug";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "태그 매니저",
+  title: "태그 관리",
   robots: { index: false, follow: false },
 };
 
@@ -125,6 +123,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   if (cat !== "all") rows = rows.filter((r) => r.category === cat);
   if (status === "en_blank") rows = rows.filter((r) => !r.en);
   else if (status === "unspec") rows = rows.filter((r) => r.category === "미지정");
+  else if (status === "classified") rows = rows.filter((r) => r.category !== "미지정");
   else if (status === "proc") rows = rows.filter((r) => r.is_procedure);
   else if (status === "onb") rows = rows.filter((r) => !!r.onboarding);
   else if (status === "parent") rows = rows.filter((r) => !!r.parent_ko);
@@ -182,70 +181,64 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   // 부모 autocomplete + 검증용 전체 태그 ko (전 페이지 기준)
   const allKo = allRows.map((r) => r.ko);
 
-  // 병합 후보 무시목록 (H) — 운영자가 '제외'한 영문 ko 는 후보에서 빠짐(재유입돼도 안 뜸).
-  const { data: dismissedRows } = await supabase.from("tag_merge_dismissed").select("ko");
-  const dismissedSet = new Set((dismissedRows ?? []).map((d) => d.ko as string));
-
-  // 영문 → 한글 대표어 병합 후보 (F-Phase2): slugifyEn(영문 ko) === 한글 대표어의 en
-  const repByEn = new Map<string, string>();
-  for (const r of allRows) {
-    if (r.en && /[가-힣]/.test(r.ko)) repByEn.set(r.en, r.ko);
-  }
-  const mergeCandidates: MergeCandidate[] = allRows
-    .filter((r) => /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(r.ko) && !dismissedSet.has(r.ko))
-    .map((r) => {
-      const repKo = repByEn.get(slugifyEn(r.ko));
-      return repKo && repKo !== r.ko
-        ? { id: r.id, engKo: r.ko, repKo, cards: r.usage }
-        : null;
-    })
-    .filter((c): c is MergeCandidate => c !== null)
-    .sort((a, b) => b.cards - a.cards);
-
   return (
-    <div className="mx-auto max-w-[1080px] px-4 py-6">
-      {/* 제목 — 다른 admin 페이지처럼 '< 뒤로' 아래 줄에 배치 */}
+    // 공통 컨테이너(app/layout main: mx-auto max-w-1080 px-4)를 그대로 채움 — 다른 admin 화면과 동일(J).
+    <section className="w-full py-6">
       <div className="mb-1 -ml-1"><BackButton /></div>
-      <div className="mb-4 pl-1">
-        <h1 className="text-2xl font-bold text-[var(--text)]">태그 매니저</h1>
+      <div className="mb-5 pl-1">
+        <h1 className="text-2xl font-bold text-[var(--text)]">태그 관리</h1>
         <p className="mt-1 text-xs text-[var(--text-muted)]">
           tag_dictionary SSOT · 편집 즉시 / 사이트 색상은 다음 배포 반영
         </p>
       </div>
 
-      {/* 요약 카드 */}
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-        {[
-          { label: "전체", v: total },
-          { label: "분류완료", v: classified },
-          { label: "미지정", v: unspec },
-          { label: "영문 공란", v: enBlank },
-          { label: "시술 후기", v: procCount },
-        ].map((s) => (
-          <div key={s.label} className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-3">
-            <div className="text-[11px] text-[var(--text-muted)]">{s.label}</div>
-            <div className="text-lg font-bold tabular-nums text-[var(--text)]">{s.v.toLocaleString()}</div>
-          </div>
-        ))}
+      {/* 요약 카드 — 4개(데스크탑 한 줄·모바일 2×2). '미지정'은 상태 칩으로 접근. */}
+      {/* KPI 카드 클릭 = 해당 조건 필터 (대시보드 통계 카드 패턴). 클릭 시 분류 해제·스크롤 유지. */}
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {([
+          { label: "전체", v: total, status: undefined },
+          { label: "분류완료", v: classified, status: "classified" },
+          { label: "영문 공란", v: enBlank, status: "en_blank" },
+          { label: "시술 후기", v: procCount, status: "proc" },
+        ] as const).map((s) => {
+          const active = cat === "all" && status === (s.status ?? "all");
+          return (
+            <Link
+              replace
+              scroll={false}
+              key={s.label}
+              href={qs(base, { cat: undefined, status: s.status, sort: undefined, dir: undefined, page: undefined })}
+              className={
+                "block rounded-[var(--radius)] border bg-white p-3 transition-colors " +
+                (active
+                  ? "border-[var(--primary)]"
+                  : "border-[var(--border)] hover:bg-[var(--bg-soft)]")
+              }
+            >
+              <div className="text-[11px] text-[var(--text-muted)]">{s.label}</div>
+              <div className="text-lg font-bold tabular-nums text-[var(--text)]">{s.v.toLocaleString()}</div>
+            </Link>
+          );
+        })}
       </div>
 
       {/* 분류 탭 — 단일선택 배타 + 활성 재클릭 시 해제(전체) (D5). 필터 변경은 replace. */}
       <div className="mb-2 flex flex-wrap gap-1.5">
-        <Link replace href={qs(base, { cat: undefined, page: undefined })} className={chip(cat === "all")}>
+        <Link replace scroll={false} href={qs(base,{ cat: undefined, page: undefined })} className={chip(cat === "all")}>
           전체 <span className="text-[10px] opacity-70">{catCounts.all.toLocaleString()}</span>
         </Link>
         {CATEGORIES.map((c) => (
-          <Link replace key={c} href={qs(base, { cat: cat === c ? undefined : c, page: undefined })} className={chip(cat === c)}>
+          <Link replace scroll={false} key={c} href={qs(base, { cat: cat === c ? undefined : c, page: undefined })} className={chip(cat === c)}>
             {c} <span className="text-[10px] opacity-70">{(catCounts[c] ?? 0).toLocaleString()}</span>
           </Link>
         ))}
       </div>
 
-      {/* 상태 칩(좌, 단일선택 배타) + 기간 칩(우). 활성 칩 재클릭 시 해제→전체 (D5). */}
-      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {/* 상태 칩(좌) + 기간 칩(우). 모바일: 각 줄 세로 stack(어긋남 방지) / 데스크탑: 한 줄 좌우. (K3) */}
+      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-[var(--text-muted)]">상태</span>
-          <Link replace href={qs(base, { status: undefined, sort: undefined, dir: undefined, page: undefined })} className={chip(status === "all")}>전체</Link>
+          <Link replace scroll={false} href={qs(base,{ status: undefined, sort: undefined, dir: undefined, page: undefined })} className={chip(status === "all")}>전체</Link>
           {([
             ["en_blank", "영문 공란"],
             ["unspec", "미지정"],
@@ -260,16 +253,16 @@ export default async function AdminTagsPage({ searchParams }: Props) {
               ? qs(base, { status: undefined, sort: undefined, dir: undefined, page: undefined })
               : qs(base, { status: key, sort: undefined, dir: undefined, page: undefined });
             return (
-              <Link replace key={key} href={href} className={chip(active)}>
+              <Link replace scroll={false} key={key} href={href} className={chip(active)}>
                 {label}
               </Link>
             );
           })}
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
           <span className="text-[11px] text-[var(--text-muted)]">기간</span>
           {PERIODS.map((p) => (
-            <Link replace key={p.days} href={qs(base, { days: p.days === 0 ? undefined : String(p.days), page: undefined })} className={chip(days === p.days)}>
+            <Link replace scroll={false} key={p.days} href={qs(base, { days: p.days === 0 ? undefined : String(p.days), page: undefined })} className={chip(days === p.days)}>
               {p.label}
             </Link>
           ))}
@@ -311,24 +304,22 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         {sortDir === "asc" ? "오름차순" : "내림차순"} (기간 {PERIODS.find((p) => p.days === days)?.label})
       </p>
 
-      <MergeCandidates candidates={mergeCandidates} />
-
       <TagAdminTable rows={pageRows} allKo={allKo} sort={sortCol} dir={sortDir} status={status} />
 
       {/* 페이지네이션 */}
       {totalPages > 1 ? (
         <nav className="mt-4 flex items-center justify-center gap-1 text-sm">
-          <Link replace href={qs(base, { page: page > 1 ? String(page - 1) : undefined })} aria-disabled={page <= 1}
+          <Link replace scroll={false} href={qs(base,{ page: page > 1 ? String(page - 1) : undefined })} aria-disabled={page <= 1}
             className={"rounded border border-[var(--border)] px-3 py-1 " + (page <= 1 ? "pointer-events-none opacity-40" : "hover:border-[var(--primary)]")}>
             이전
           </Link>
           <span className="px-3 py-1 text-[var(--text-muted)]">{page} / {totalPages}</span>
-          <Link replace href={qs(base, { page: page < totalPages ? String(page + 1) : undefined })} aria-disabled={page >= totalPages}
+          <Link replace scroll={false} href={qs(base,{ page: page < totalPages ? String(page + 1) : undefined })} aria-disabled={page >= totalPages}
             className={"rounded border border-[var(--border)] px-3 py-1 " + (page >= totalPages ? "pointer-events-none opacity-40" : "hover:border-[var(--primary)]")}>
             다음
           </Link>
         </nav>
       ) : null}
-    </div>
+    </section>
   );
 }

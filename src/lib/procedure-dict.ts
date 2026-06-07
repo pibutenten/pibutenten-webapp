@@ -1,7 +1,9 @@
 /**
  * 피부텐텐 시술명/태그 통합 사전 — 단일 SSOT.
  *
- * 소스: `src/data/procedure-mappings/procedure-mappings.json` (v2.0+).
+ * 소스: DB `tag_dictionary`(+tag_blacklist·tag_normalization) → 빌드타임 스냅샷
+ *   `src/data/tag-dictionary.generated.json` (gen-tag-dictionary.mjs). 모든 lookup 이 스냅샷 기준.
+ *   `procedure-mappings.json` 은 스냅샷 베이스라인 + allMappings() 전용(L2-4 정리 예정).
  *
  * 이 모듈이 제공하는 단일 진입점을 통해 lookup 하세요.
  *
@@ -35,34 +37,24 @@ type Mapping = {
   pubmedKeywords?: string[];
 };
 
-type Data = {
-  categories: Record<string, string>;
-  mappings: Mapping[];
-  normalizations: Record<string, string[]>;
-  blacklist: string[];
-};
-
-const data = raw as unknown as Data;
-
-// ── 빠른 lookup 인덱스 (모듈 로드 시 1회 빌드) ─────────────────
-
-const KO_INDEX = new Map<string, Mapping>();
-for (const m of data.mappings) {
-  KO_INDEX.set(m.ko, m);
-  if (m.synonyms) {
-    for (const s of m.synonyms) {
-      if (!KO_INDEX.has(s)) KO_INDEX.set(s, m);
-    }
-  }
-}
-
-const BLACKLIST_SET = new Set<string>(data.blacklist);
+// procedure-mappings.json: allMappings() (디버그·관리자 도구) 전용. 나머지 lookup 은 스냅샷 사용.
+const data = raw as unknown as { mappings: Mapping[] };
 
 // ── 빌드타임 스냅샷 (SSOT=DB tag_dictionary ⊕ JSON 베이스라인) ──
-//   categoryFor / slugFor 는 이 스냅샷을 읽는다 (동기·시그니처 불변).
-//   생성: scripts/gen-tag-dictionary.mjs (package.json prebuild). DB 미접근 시 커밋된 스냅샷 사용.
-const SNAP_CATEGORY = (snapshot as { category: Record<string, string> }).category;
-const SNAP_SLUG = (snapshot as { slug: Record<string, string> }).slug;
+//   categoryFor/slugFor/pubmedKeywordsFor/normalizeTag/isBlacklisted/getPubmedDict 모두 이 스냅샷을 읽는다
+//   (동기·시그니처 불변). 생성: scripts/gen-tag-dictionary.mjs (package.json prebuild).
+//   DB 미접근 시 커밋된 스냅샷 보존. JSON 베이스라인 ⊕ DB union 으로 전환 전후 동일 보장(_parity-check).
+const SNAP = snapshot as unknown as {
+  category: Record<string, string>;
+  slug: Record<string, string>;
+  pubmed: Record<string, string[]>; // ko(canonical) → PubMed (getPubmedDict)
+  pubmedLookup: Record<string, string[]>; // ko/synonym/alias → PubMed (pubmedKeywordsFor)
+  blacklist: string[];
+  normalizations: Record<string, string[]>; // 변형어 → 정규화 결과
+};
+const SNAP_CATEGORY = SNAP.category;
+const SNAP_SLUG = SNAP.slug;
+const SNAP_BLACKLIST = new Set<string>(SNAP.blacklist);
 
 // ── public API ───────────────────────────────────────────────
 
@@ -86,17 +78,17 @@ export function slugFor(keyword: string): string | null {
   return SNAP_SLUG[keyword] ?? null;
 }
 
-/** 키워드 → PubMed 영문 검색어 배열. 사전에 없거나 항목 없으면 null. */
+/** 키워드 → PubMed 영문 검색어 배열. 사전에 없거나 항목 없으면 null. (DB 스냅샷 기준) */
 export function pubmedKeywordsFor(keyword: string): string[] | null {
-  return KO_INDEX.get(keyword)?.pubmedKeywords ?? null;
+  return SNAP.pubmedLookup[keyword] ?? null;
 }
 
-/** 정규화 룰 + 블랙리스트 적용. 한 raw → 결과 배열 (빈 배열 = 제거). */
+/** 정규화 룰 + 블랙리스트 적용. 한 raw → 결과 배열 (빈 배열 = 제거). (DB 스냅샷 기준) */
 export function normalizeTag(raw: string): string[] {
   const v = (raw ?? "").trim().replace(/^#/, "");
   if (!v) return [];
-  if (BLACKLIST_SET.has(v)) return [];
-  if (v in data.normalizations) return data.normalizations[v];
+  if (SNAP_BLACKLIST.has(v)) return [];
+  if (v in SNAP.normalizations) return SNAP.normalizations[v];
   return [v];
 }
 
@@ -115,23 +107,17 @@ export function normalizeTags(tags: readonly string[]): string[] {
   return out;
 }
 
-/** 블랙리스트 포함 여부. */
+/** 블랙리스트 포함 여부. (DB 스냅샷 기준) */
 export function isBlacklisted(tag: string): boolean {
-  return BLACKLIST_SET.has(tag);
+  return SNAP_BLACKLIST.has(tag);
 }
 
-/** 전체 entry 배열 (read-only). 디버그/관리자 도구용. */
+/** 전체 entry 배열 (read-only). 디버그/관리자 도구용. (procedure-mappings.json — L2-4 에서 정리 예정) */
 export function allMappings(): readonly Mapping[] {
   return data.mappings;
 }
 
-/** PubMed dict 전체 — step1_v5 프롬프트 빌드 시 사용. */
+/** PubMed dict 전체 (canonical ko → 검색어) — step1_v5 프롬프트 빌드 시 사용. (DB 스냅샷 기준) */
 export function getPubmedDict(): Record<string, string[]> {
-  const out: Record<string, string[]> = {};
-  for (const m of data.mappings) {
-    if (m.pubmedKeywords && m.pubmedKeywords.length > 0) {
-      out[m.ko] = m.pubmedKeywords;
-    }
-  }
-  return out;
+  return { ...SNAP.pubmed };
 }

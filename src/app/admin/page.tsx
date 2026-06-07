@@ -244,13 +244,13 @@ export default async function AdminPage() {
             title="전체 글 관리"
             desc="Q&A·끄적끄적 검색·필터·발행/보관"
           />
-          {/* 태그 매니저 — tag_dictionary 인라인 편집 (super admin 전용) */}
+          {/* 태그 관리 — tag_dictionary 인라인 편집 (super admin 전용) */}
           {isSuperAdmin && (
             <Tool
               href="/admin/tags"
               emoji="🏷"
-              title="태그 매니저"
-              desc="태그 분류·영문·부모·시술·온보딩 인라인 편집 + 검수큐"
+              title="태그 관리"
+              desc="태그 분류·영문·부모·시술·온보딩 인라인 편집 + 병합"
             />
           )}
           {/* 시술 리포트 전용 요약 표 (읽기 전용) — 시술별 후기·재시술·만족도·통증·engagement */}

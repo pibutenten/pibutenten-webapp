@@ -57,24 +57,25 @@ const SLOTS = 30; // 30개 기준 — 항목이 줄어도 패널 높이 고정.
 function RankGrid({ items }: { items: { label: string; cnt: number }[] }) {
   return (
     <ul
-      className="grid grid-flow-col gap-x-4 overflow-x-auto [grid-template-rows:repeat(10,1.5rem)]"
+      // 세로 흐름(좌1-10·중11-20·우21-30) 3열 균등(1fr) — 우측 숫자 잘림 방지(truncate는 라벨만).
+      className="grid grid-flow-col gap-x-3 [grid-template-columns:repeat(3,minmax(0,1fr))] [grid-template-rows:repeat(10,1.5rem)]"
     >
       {Array.from({ length: SLOTS }).map((_, i) => {
         const it = items[i];
         return (
           <li
             key={i}
-            className="flex min-w-[8rem] items-center justify-between gap-2 text-[13px]"
+            className="flex min-w-0 items-center justify-between gap-2 text-[13px]"
           >
             {it ? (
               <>
                 <Link
                   href={`/search?q=${encodeURIComponent(it.label)}`}
-                  className="truncate hover:text-[var(--primary)] hover:underline"
+                  className="min-w-0 flex-1 truncate hover:text-[var(--primary)] hover:underline"
                 >
                   {it.label}
                 </Link>
-                <span className="tabular-nums text-[11px] text-[var(--text-muted)]">
+                <span className="shrink-0 tabular-nums text-[11px] text-[var(--text-muted)]">
                   {it.cnt}
                 </span>
               </>
@@ -133,7 +134,7 @@ export function PopularTagsCard({
   return (
     <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-bold text-[var(--text)]">사용량</h2>
+        <h2 className="text-sm font-bold text-[var(--text)]">태그 사용량</h2>
         <PeriodChips value={days} onChange={setDays} />
       </div>
       <RankGrid items={items} />

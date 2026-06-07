@@ -6,6 +6,120 @@
 
 ---
 
+## [2026-06-07] — L-Phase2 4단계 선행: JSON orphan 태그 DB 보강
+
+> JSON 제거(4단계) 전, procedure-mappings.json 에만 있던 키워드를 DB 로 옮겨 SSOT 완전성 확보. 본 제거(auto-tag.ts 전환)는 어휘 확장·품질 영향 검토로 보류 중.
+
+### Added
+- **마이그 0266 — orphan 2건 DB 보강**: JSON 823키 중 tag_dictionary(ko∪aliases) 미포함분 `K-뷰티`(홈케어)·`1회적정량`(피부상식)을 INSERT(2083→2085). 제거 후 categoryFor/slugFor 회귀 방지용. (additive·무해)
+
+### 보류
+- **auto-tag.ts → 스냅샷 전환 보류**: DB 사전(2085)이 JSON 큐레이션(819)의 2.5배라 회원 자동태깅 어휘가 확장되고 `피부`·`자외선`·`비교` 등 일반어가 추천에 유입. "전후 불일치 0" 불가 + 품질 영향 → 디렉터 방향 확인 후 진행.
+
+---
+
+## [2026-06-07] — L-Phase2 3단계: 동의어 태그 병합 + 흡수 트리거 통일
+
+> 디렉터 결정대로 동의어 태그를 사용량 기준 대표어로 병합하고, 자동 흡수 트리거를 alias(언어 무관) 기준으로 통일. 일반인·원장·관리자 글 저장이 동일 SSOT 규칙으로 정규화됨.
+
+### Changed
+- **동의어 병합(마이그 0265, `merge_tag` 재사용)** — 대표어 ← 흡수(방향 교정):
+  - 카드 보유 7쌍: 선크림←자외선차단제 · 레이저토닝←토닝레이저 · 마리오네트주름←마리오네트라인 · 안티에이징←항노화 · 민감성피부←예민피부 · 대변이식술←FMT · V라인←브이라인.
+  - 0카드 중복 ko 7건 흡수(별칭만 편입): 겨땀→겨드랑이땀 · 보툴리늄→보툴리눔 · 시술후→시술후관리 · 요소크림→유리아 · 장벽손상→피부장벽손상 · 민감·민감성→민감성피부.
+  - `tag_dictionary` 2097→2083(−14). 카드 keywords 백필(자외선차단제0/선크림56 · 토닝레이저0/레이저토닝22 · 마리오네트라인0/마리오네트주름23 · 예민피부0/민감성피부44). 대표어에 흡수어·pubmed 이전(마리오네트주름·레이저토닝 검색어 보존).
+- **흡수 트리거 통일** — `cards_absorb_eng_tags` 본문 교체: ① alias(언어 무관) 매칭 시 대표어로 ② 없으면 기존 영문 slugify 폴백. 트리거 바인딩·로그(tag_absorb_log) 유지.
+- **헤르페스·단순포진 분리 유지**(디렉터 추가 지시) — 병합 안 함. `헤르페스.aliases`에서 단순포진 제거(흡수 차단).
+
+### 검증
+- 회귀: `tag_dictionary` 참조 FK는 `procedure_reviews.procedure_ko`(NO ACTION) 뿐 + 삭제 ko 사용 0건 / 삭제 ko 의 parent 자식 0건 → dangling 없음.
+- 비파괴 실증: ① 1쌍(선크림←자외선차단제) merge_tag 후 RAISE 롤백 — 선크림=union(56) 정합 ② 실 카드 UPDATE 로 통일 트리거 흡수(자외선차단제→선크림·항노화→안티에이징·FMT→대변이식술, 단순포진·보톡스 유지) 후 RAISE 롤백.
+- 스냅샷 재생(dbRows 2083) · `tsc` · `build` 통과 · /topics 토픽 URL 200(404 없음).
+
+---
+
+## [2026-06-07] — L-Phase2 2단계: TS 함수 스냅샷 전환 (전후 100% 동일 실증)
+
+> JSON 직접 import 로 동작하던 lookup 함수를 빌드타임 DB 스냅샷(generated.json) 읽기로 전환. 트리거 통일(3단계)·JSON 제거(4단계)는 후속.
+
+### Changed
+- **`scripts/gen-tag-dictionary.mjs` 확장**: 스냅샷에 `pubmed`(canonical ko→검색어 51) · `pubmedLookup`(ko/synonym/alias→검색어 53) · `aliases`(15) · `blacklist`(5) · `normalizations`(100) 추가. 베이스라인(procedure-mappings.json) ⊕ DB(tag_dictionary.aliases·pubmed_keywords, tag_blacklist, tag_normalization) union(겹치면 DB 승). `pubmedLookup` 은 OLD `KO_INDEX` 의미(ko 무조건·synonym 조건부·first-wins)를 `keyOwner` 로 정확 재현.
+- **`src/lib/procedure-dict.ts` 4개 함수 전환**: `pubmedKeywordsFor`·`normalizeTag`·`isBlacklisted`·`getPubmedDict` 가 procedure-mappings.json 대신 generated.json 스냅샷을 읽음. `KO_INDEX`·`BLACKLIST_SET` 제거. `allMappings()` 만 JSON 잔존(L2-4 정리 예정).
+
+### 검증
+- 임시 패리티 스크립트로 키 2201개(전 ko·synonym·normalization·blacklist·DB ko + 엣지 5) × 4함수 전수 비교 → **전후 100% 동일**. 엣지 2건(독립 ko 가 동의어 슬롯 선점: `마리오네트`·`시술후` → null / ko 무조건 덮어쓰기: `레이저토닝`) 재현 확인.
+- `tsc --noEmit` + `npm run build` 통과.
+
+---
+
+## [2026-06-07] — L-Phase2 1단계: procedure-mappings.json → DB 이관 (스키마·데이터)
+
+> 동의어·논문검색어·금지어·표기정규화를 tag_dictionary SSOT 로 흡수하는 1단계(additive·무손실). TS 함수 전환(2단계)·트리거 통일(3단계)·JSON 제거(4단계)는 후속.
+
+### Added
+- **마이그 0264 — JSON 사전 DB 이관**:
+  - `tag_dictionary.aliases text[]`(동의어 15) · `tag_dictionary.pubmed_keywords text[]`(논문 검색어 51).
+  - `tag_blacklist(word)` 5건 · `tag_normalization(canonical, variants text[])` 100건.
+  - RLS: anon/authenticated SELECT(빌드 스냅샷·anon REST 용) + admin write + service_role CRUD.
+- 정합 검증: aliases 15·pubmed 51·blacklist 5·normalization 100 = JSON 원본과 정확히 일치(L-Phase1 조사 충돌 0 확인분).
+
+---
+
+## [2026-06-07] — M: 병합 후보 섹션 제거 + KPI 클릭 필터
+
+### Removed
+- **'영문 → 한글 대표어 병합 후보'(MergeCandidates) 섹션 화면 제거** — `/admin/tags` 에서 렌더 호출·후보 계산(slugifyEn 매칭)·무시목록 조회 전부 삭제. 어떤 상태(후보 0/N)에서도 화면에 표시되지 않음. (단건 병합은 rename 모달 충돌 흐름으로 유지. merge API·merge_tag RPC·tag_merge_dismissed 는 보존.)
+
+### Changed
+- **KPI 4개 카드 클릭 = 해당 조건 필터**(대시보드 통계 카드 패턴): 전체→전체(분류·상태 해제) / 분류완료→`status=classified`(category≠미지정, 신규 추가) / 영문 공란→`status=en_blank` / 시술 후기→`status=proc`. 카드를 `<Link replace scroll={false}>`(클릭 시 스크롤 유지), 현재 조건이면 카드 테두리 강조.
+
+### 검증
+- `tsc`+`build` 통과. preview /admin/tags·status=classified·proc·en_blank 200·서버 에러 0. MergeCandidates 미렌더 확인.
+
+---
+
+## [2026-06-07] — K: 태그 관리 화면 정리 (이름·KPI·모바일)
+
+### Changed
+- **이름 '태그 매니저' → '태그 관리'**: `/admin/tags` h1·metadata title·관리자 대시보드 메뉴(Tool) 전부.
+- **요약 KPI 5개 → 4개**: '미지정' 카드 제거(상태 칩으로 접근). `sm:grid-cols-5`→`sm:grid-cols-4`(데스크탑 한 줄·모바일 2×2).
+- **상태·기간 줄 모바일 정렬**: `flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center`로 — 모바일은 상태/기간 각 줄 세로 stack(어긋남 해소), 데스크탑은 한 줄 좌우(기간 `sm:ml-auto`).
+
+### 검증
+- `tsc`+`build` 통과. preview /admin·/admin/tags 200·서버 에러 0.
+
+---
+
+## [2026-06-07] — J: 태그 매니저 디자인 통일 + 스크롤 튐 해소
+
+### Fixed
+- **칩/필터 클릭 시 화면이 맨 위로 튀던 문제** — 태그 매니저의 분류·상태·기간·페이지네이션 `<Link replace>` 가 `scroll` 기본(true)이라 클릭 시 top 스크롤. 모든 Link 에 **`scroll={false}` 명시**(SortHeader/FilterHeader 는 이미 `router.replace(...,{scroll:false})`). cards/users 와 동일하게 스크롤 위치 유지. (클라 useState 재구성 등 새 패턴 도입 없음 — Link 옵션만.)
+
+### Changed
+- **레이아웃 통일(J)**: 컨테이너 `mx-auto max-w-[1080px] px-4 py-6` → **`<section className="w-full py-6">`**. app/layout `<main mx-auto max-w-1080 px-4 sm:px-6>` 와의 이중 패딩 제거 — `/admin`·`/admin/cards`·`/admin/users` 등과 동일 폭·여백. 헤더 간격 mb-4→mb-5 통일.
+- **인기 패널(PopularCards)**: '사용량'→**'태그 사용량'**. RankGrid 를 3열 균등(1fr)+`truncate`(라벨만)+cnt `shrink-0` 으로 — **우측 숫자 잘림 해소**.
+
+### 검증
+- `tsc`+`build` 통과. preview /admin·/admin/tags·status=eng 200·서버 에러 0. (조사: cards/users 도 Link 에 scroll prop 은 없으나, 명시 `scroll={false}` 가 스크롤 유지를 확실히 보장.)
+
+---
+
+## [2026-06-06] — B: 자동등록 영문 태그 한글 흡수 (입력 시점 중복 방지)
+
+### Added
+- **마이그 0263 — 입력 시점 흡수 트리거**: 새 글 `cards.keywords` 에 영문 태그가 들어올 때 `slugify_en(태그)` 가 기존 `tag_dictionary.en`(한글 대표어)과 일치하면 새 미지정 태그 생성 대신 **한글 대표어로 치환**(BEFORE INSERT/UPDATE OF keywords 트리거 `cards_absorb_eng_tags`, dedup). 매칭 없으면 기존(0250 register)대로 미지정 등록 — 글 저장은 항상 통과.
+  - SQL `slugify_en(text)`(TS slugifyEn 동일 규칙) + 흡수 로그 `tag_absorb_log(source_ko, target_ko)`.
+  - 사후 병합(F) 부담 감소 — 입력 단계에서 영문 중복을 막음.
+
+### 검증
+- 비파괴 실증: `[thermage, 모공, Centella Asiatica]` → `{모공, 병풀추출물, 써마지}`(thermage→써마지, Centella Asiatica→병풀추출물), 롤백으로 무변경.
+
+### 점검·조사 (디렉터 복귀 후 결정)
+- **C 보류**: `procedure-mappings.json` 의 normalizeTag/pubmedKeywordsFor/isBlacklisted 는 JSON 고유 데이터(`synonyms`·`pubmedKeywords`·`blacklist`)를 사용하는데 tag_dictionary 엔 해당 컬럼이 없어 SSOT 정리 시 기능 손실(회귀). 이관하려면 컬럼/데이터 마이그 선행 — 별도 안건.
+- **D 약어 분류 제안(미적용)**: 미매칭 영문 약어 59개 분류 제안 — 성분/주입물(PDRN·PLLA·PDLLA·PCL·PLA·CaHA·HA·PN·EGF·IGF-1)→스킨부스터 / 기술·장비(HIFU·SMAS·LDM·IPL·EMS·3DEEP·M22)→리프팅 / 자외선·홈케어(BHA·AHA·PHA·SPF·PA·UVB)→홈케어 / 그 외(FDA·GMP·BMI·DHT·HPV·PIH·PIE·FMT 등)→피부상식. 정책이라 디렉터 확정 후 적용.
+- **E 점검**: CRON_SECRET `.env.local` 존재·keyword-digest route Bearer 검증·vercel.json cron `0 21 * * *`(06:00 KST) 정상. ※Vercel 프로덕션 env 의 CRON_SECRET 존재는 코드로 확인 불가 → 대시보드 확인 권장. /admin/review-reports·/notifications·관심 3토글 정상.
+
+---
+
 ## [2026-06-06] — I: 프로필 영문코드 → 한글 통일 (관심 알림 매칭 부활)
 
 > profiles.skin_type(영문7)·skin_concerns(영문11)·interested_procedures(영한혼재)가 글 태그(한글)와 달라 `run_keyword_digest`(관심 알림) 매칭이 死였음. 한글로 통일해 부활.
