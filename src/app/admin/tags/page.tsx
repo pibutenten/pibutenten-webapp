@@ -191,6 +191,9 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   };
   // 부모 autocomplete + 검증용 전체 태그 ko (전 페이지 기준)
   const allKo = allRows.map((r) => r.ko);
+  // 이름 변경 모달 병합 안내용 — 전체 태그 ko → 사용량.
+  const usageByKo: Record<string, number> = {};
+  for (const r of allRows) usageByKo[r.ko] = r.usage;
 
   return (
     // 공통 컨테이너(app/layout main: mx-auto max-w-1080 px-4)를 그대로 채움 — 다른 admin 화면과 동일(J).
@@ -317,7 +320,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
         )}
       </form>
 
-      <TagAdminTable rows={pageRows} allKo={allKo} sort={sortCol} dir={sortDir} status={status} />
+      <TagAdminTable rows={pageRows} allKo={allKo} usageByKo={usageByKo} sort={sortCol} dir={sortDir} status={status} />
 
       {/* 페이지네이션 */}
       {totalPages > 1 ? (
