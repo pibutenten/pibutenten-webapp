@@ -381,8 +381,6 @@ function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Scr
 
 // 실제 clinics DB(전국 16,964 피부과) 검색 결과 한 건.
 type ClinicHit = { name: string; addr: string; tel: string; x: number | null; y: number | null; dist?: number };
-// 네이버 지도 검색(디폴트 지도) — 키 없이 링크 아웃. 병원명+주소로 정확히 찾게 함.
-const naverMapUrl = (h: ClinicHit) => `https://map.naver.com/p/search/${encodeURIComponent(`${h.name} ${h.addr}`.trim())}`;
 // 좌표 거리(km) — 심평원 XPos=경도, YPos=위도. 근사식(equirectangular)으로 정렬용.
 // x,y 는 '도(deg) 차이'이며, 위도 보정 후 한 변환계수(deg→km = π/180 × 지구반경)로 km 환산.
 function distKm(lat1: number, lng1: number, lat2: number | null, lng2: number | null): number | undefined {
@@ -601,20 +599,23 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
         {/* 2. 병원 — 항상 떠 있는 지도 + 이름 검색 + 내 위치 + 선택 시 전화번호 자동 채움 */}
         <div>
           <label className={labelCls}>어디서 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
-          <input
-            className={inputCls}
-            placeholder="지명, 병원명으로 검색"
-            value={q}
-            onChange={(e) => { setQ(e.target.value); setPicked(null); }}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              // 한글 IME 조합 중 Enter(keyCode 229)는 조합 확정용 — 무시(포커스 이동·중복검색 방지).
-              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-              e.preventDefault();
-              e.stopPropagation();
-              searchPlace();
-            }}
-          />
+          {/* 병원 확정 전에만 검색창·지도 노출. 확정되면 '다시 선택' 으로 다시 연다. */}
+          {!picked && (
+            <input
+              className={inputCls}
+              placeholder="지명, 병원명으로 검색"
+              value={q}
+              onChange={(e) => { setQ(e.target.value); setPicked(null); }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                // 한글 IME 조합 중 Enter(keyCode 229)는 조합 확정용 — 무시(포커스 이동·중복검색 방지).
+                if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                e.preventDefault();
+                e.stopPropagation();
+                searchPlace();
+              }}
+            />
+          )}
           {!picked && searching && (
             <p className="mt-2 text-center text-[12px] text-[var(--text-muted)]">불러오는 중…</p>
           )}
@@ -622,20 +623,17 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
             <p className="mt-2 text-center text-[12px] text-[var(--accent)]">{geoMsg}</p>
           )}
 
-          {/* 항상 표시되는 지도 — 확정 / 미리보기 / 지명·내위치 / 결과 / 기본(서울) 순 중심 결정 */}
-          {(() => {
-            const mapPins: MapPin[] = picked
-              ? (pickedXY ? [{ lat: pickedXY.y, lng: pickedXY.x, label: picked, active: true }] : [])
-              : results.filter((h) => h.x != null && h.y != null).map((h) => ({
-                  lat: h.y as number, lng: h.x as number, label: h.name,
-                  active: !!preview && h.name === preview.name && h.x === preview.x && h.y === preview.y,
-                }));
-            const mapCenter = picked && pickedXY ? { lat: pickedXY.y, lng: pickedXY.x }
-              : preview && preview.x != null && preview.y != null ? { lat: preview.y, lng: preview.x }
+          {/* 미확정 상태에서만 표시되는 지도 — 미리보기 / 지명·내위치 / 결과 / 기본(서울) 순 중심 결정 */}
+          {!picked && (() => {
+            const mapPins: MapPin[] = results.filter((h) => h.x != null && h.y != null).map((h) => ({
+              lat: h.y as number, lng: h.x as number, label: h.name,
+              active: !!preview && h.name === preview.name && h.x === preview.x && h.y === preview.y,
+            }));
+            const mapCenter = preview && preview.x != null && preview.y != null ? { lat: preview.y, lng: preview.x }
               : searchCenter ? searchCenter
               : mapPins.length > 0 ? { lat: mapPins[0].lat, lng: mapPins[0].lng }
               : { lat: 37.5665, lng: 126.978 }; // 기본: 서울시청
-            const mapZoom = picked ? 16 : preview ? 16 : searchCenter ? 15 : mapPins.length > 0 ? 14 : 13;
+            const mapZoom = preview ? 16 : searchCenter ? 15 : mapPins.length > 0 ? 14 : 13;
             return (
               <div className="mt-2">
                 <ClinicMap
@@ -643,9 +641,9 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
                   zoom={mapZoom}
                   height={300}
                   pins={mapPins}
-                  onLocate={picked ? undefined : locateMe}
-                  onRequery={picked ? undefined : (c) => { loadNear(c.lat, c.lng); }}
-                  onPick={picked ? undefined : (label) => {
+                  onLocate={locateMe}
+                  onRequery={(c) => { loadNear(c.lat, c.lng); }}
+                  onPick={(label) => {
                     const h = results.find((r) => r.name === label);
                     if (h) previewHit(h);
                   }}
@@ -679,18 +677,14 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
               <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--text)]">{picked}</span>
                 <button type="button" onClick={() => { setPicked(null); setPickedXY(null); setQ(""); setTel(""); setAddr(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
               <div className="mt-2 space-y-2">
-                <div>
-                  <label className="mb-1 block text-[11.5px] font-semibold text-[var(--text-secondary)]">주소</label>
+                <div className="flex items-center gap-2">
+                  <label className="w-12 shrink-0 text-[11.5px] font-semibold text-[var(--text-secondary)]">주소</label>
                   <input className={inputCls} value={addr} onChange={(e) => setAddr(e.target.value)} />
                 </div>
-                <div>
-                  <label className="mb-1 block text-[11.5px] font-semibold text-[var(--text-secondary)]">전화번호</label>
+                <div className="flex items-center gap-2">
+                  <label className="w-12 shrink-0 text-[11.5px] font-semibold text-[var(--text-secondary)]">전화번호</label>
                   <input className={inputCls} value={tel} onChange={(e) => setTel(e.target.value)} />
                 </div>
-                <a href={naverMapUrl({ name: picked, addr, tel, x: null, y: null })} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-1.5 rounded-md bg-white py-2 text-[12.5px] font-semibold text-[#03C75A]">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-                  네이버 지도에서 보기
-                </a>
               </div>
             </div>
           )}
@@ -715,7 +709,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
                   {/* 1행: 칩 + 용량·가격(칩 우측) + 삭제 */}
                   <div className="flex items-center gap-1.5">
                     <span className="shrink-0 rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
-                    <input ref={(el) => { unitRefs.current[p.id] = el; }} className={inputSm + " w-[72px] shrink-0"} placeholder="용량" value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value })} />
+                    <input ref={(el) => { unitRefs.current[p.id] = el; }} className={inputSm + " min-w-0 flex-1"} placeholder="용량" value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value })} />
                     <input inputMode="numeric" className={inputSm + " min-w-0 flex-1"} placeholder="가격" value={p.price ? Number(p.price).toLocaleString() : ""} onChange={(e) => upd(p.id, { price: e.target.value.replace(/[^0-9]/g, "") })} />
                     <button type="button" onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="shrink-0 px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
                   </div>
@@ -726,7 +720,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
             </div>
           )}
           <div className="relative">
-            <input className={inputCls} placeholder="시술명" value={tag} autoComplete="off"
+            <input className={inputCls} placeholder={procs.length === 0 ? "시술명을 검색해보세요" : "함께 받은 다른 시술"} value={tag} autoComplete="off"
               onChange={(e) => setTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(tag); } }} />
             {tq && (
               <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto rounded-md bg-white shadow-[var(--shadow-lg)]">
@@ -905,7 +899,7 @@ function TimelinePanel({ go }: { go: (s: Screen) => void }) {
             <div className="min-w-0 flex-1 space-y-1.5">
               {(byMonth.get(m) ?? []).map((it) => (
                 <button key={it.id} type="button" onClick={() => go("detail")} className="flex w-full items-center gap-2 rounded-md bg-[var(--bg)] px-2.5 py-2 text-left hover:bg-[var(--primary-soft)]">
-                  <span className="shrink-0 text-[12px] font-bold text-[var(--primary-active)]">{it.date.replace(".", "/")}</span>
+                  <span className="shrink-0 text-[12px] font-bold text-[var(--primary-active)]">{parseInt(it.date.split(".")[1], 10)}일</span>
                   <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
                     {it.items.map((iv) => (
                       <span key={iv.name} className="rounded-full bg-white px-2 py-0.5 text-[11.5px] font-semibold text-[var(--text)]">{iv.name}{iv.unit ? <span className="ml-1 font-medium text-[var(--text-secondary)]">{iv.unit}</span> : null}</span>
@@ -1011,11 +1005,12 @@ function SummaryPanel({ go }: { go: (s: Screen) => void }) {
                             </span>
                           ))}
                         </div>
-                        {/* 의료진 · 가격 · 메모 — 라벨 없이 컴팩트 (병원명·전화 제거) */}
-                        <div className="mt-2.5 space-y-0.5 text-[13px]">
-                          <p className="font-semibold text-[var(--text)]">{it.doctor}님{it.manager ? ` · ${it.manager}` : ""}</p>
-                          <p className="font-semibold text-[var(--text)]">{it.price}</p>
-                          {it.memo && <p className="text-[var(--text-secondary)]">{it.memo}</p>}
+                        {/* 의료진 · 가격 · 메모 — 라벨 없이 한 줄로 옆으로 나열(컴팩트). 상세는 '상세 보기'에서. */}
+                        <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+                          <span className="font-semibold text-[var(--text)]">{it.doctor}님{it.manager ? ` · ${it.manager}` : ""}</span>
+                          <span className="text-[var(--text-muted)]">·</span>
+                          <span className="font-semibold text-[var(--text)]">{it.price}</span>
+                          {it.memo && <><span className="text-[var(--text-muted)]">·</span><span className="text-[var(--text-secondary)]">{it.memo}</span></>}
                         </div>
                         <button type="button" onClick={() => go("detail")} className="mt-2.5 w-full rounded-md bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">상세 보기</button>
                       </div>
