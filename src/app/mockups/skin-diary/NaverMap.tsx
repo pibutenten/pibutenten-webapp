@@ -40,6 +40,7 @@ export default function NaverMap({
   height = 200,
   onPick,
   onLocate,
+  onRequery,
 }: {
   center: { lat: number; lng: number };
   pins: MapPin[];
@@ -47,6 +48,7 @@ export default function NaverMap({
   height?: number;
   onPick?: (label: string) => void;
   onLocate?: () => void;
+  onRequery?: (center: { lat: number; lng: number }) => void;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -55,7 +57,11 @@ export default function NaverMap({
   const markersRef = useRef<any[]>([]);
   const [err, setErr] = useState(false);
   const [full, setFull] = useState(false);
+  const [moved, setMoved] = useState(false); // 사용자가 지도를 끌었는지 → '이 지역 재검색' 노출
+  // 최신 콜백을 ref 로 보관(리스너 재등록 없이 호출).
+  const onPickRef = useRef(onPick); onPickRef.current = onPick;
 
+  // 지도 생성(1회) + 마커 갱신(pins). center/zoom 은 아래 별도 effect 에서만 반영 → 사용자 패닝 유지.
   useEffect(() => {
     let cancelled = false;
     window.navermap_authFailure = () => setErr(true);
@@ -71,9 +77,8 @@ export default function NaverMap({
             zoom,
             scrollWheel: true,
           });
-        } else {
-          mapRef.current.setCenter(new naver.maps.LatLng(center.lat, center.lng));
-          mapRef.current.setZoom(zoom);
+          // 사용자가 지도를 끌면 '이 지역 재검색' 노출(프로그램 이동은 dragend 미발생).
+          naver.maps.Event.addListener(mapRef.current, "dragend", () => setMoved(true));
         }
         markersRef.current.forEach((m) => m.setMap(null));
         markersRef.current = pins.map((p) => {
@@ -82,7 +87,7 @@ export default function NaverMap({
             map: mapRef.current,
             icon: { content: markerContent(p) },
           });
-          if (onPick) naver.maps.Event.addListener(mk, "click", () => onPick(p.label));
+          naver.maps.Event.addListener(mk, "click", () => onPickRef.current?.(p.label));
           return mk;
         });
       })
@@ -90,7 +95,18 @@ export default function NaverMap({
     return () => {
       cancelled = true;
     };
-  }, [center.lat, center.lng, zoom, pins, onPick]);
+    // center/zoom/onPick 제외 — 패닝 유지·리스너 안정.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pins]);
+
+  // center/zoom prop 변경(명시적 이동)에만 지도 이동 + '재검색' 버튼 숨김.
+  useEffect(() => {
+    if (mapRef.current && window.naver?.maps) {
+      mapRef.current.setCenter(new naver.maps.LatLng(center.lat, center.lng));
+      mapRef.current.setZoom(zoom);
+    }
+    setMoved(false);
+  }, [center.lat, center.lng, zoom]);
 
   // 전체화면 전환 시 지도 크기 재계산 + 중심 복원.
   useEffect(() => {
@@ -119,6 +135,16 @@ export default function NaverMap({
       style={full ? undefined : { height }}
     >
       <div ref={elRef} className="h-full w-full overflow-hidden rounded-md" style={full ? { height: "100%" } : { height }} />
+      {moved && onRequery && (
+        <button
+          type="button"
+          onClick={() => { const c = mapRef.current?.getCenter(); if (c) onRequery({ lat: c.lat(), lng: c.lng() }); setMoved(false); }}
+          className="absolute left-1/2 top-2 z-[1001] flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-[var(--primary)] px-4 py-2 text-[12.5px] font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 12a9 9 0 1 1-3-6.7L21 7" /><path d="M21 3v4h-4" /></svg>
+          이 지역 재검색
+        </button>
+      )}
       <button
         type="button"
         onClick={() => setFull((f) => !f)}

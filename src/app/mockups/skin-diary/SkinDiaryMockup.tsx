@@ -611,6 +611,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
                   height={300}
                   pins={mapPins}
                   onLocate={picked ? undefined : locateMe}
+                  onRequery={picked ? undefined : (c) => { loadNear(c.lat, c.lng); }}
                   onPick={picked ? undefined : (label) => {
                     const h = results.find((r) => r.name === label);
                     if (h) previewHit(h);
@@ -794,7 +795,7 @@ type SummaryItem = { id: string; date: string; proc: string; hospital: string; d
 const SUMMARY: { year: number; items: SummaryItem[] }[] = [
   { year: 2026, items: [
     { id: "a", date: "06.12", proc: "보톡스", hospital: "예담피부과의원", doctor: "김민재 원장", tel: "02-000-2222", price: "220,000원", memo: "이마·미간", items: [{ name: "보톡스", unit: "이마 50u · 미간 20u" }] },
-    { id: "b", date: "06.04", proc: "써마지 · 스컬트라", hospital: "라온피부과의원", doctor: "이서연 원장", manager: "윤소희 실장", tel: "02-000-1111", price: "1,650,000원", memo: "1년 주기로 받기로 함", items: [{ name: "써마지", unit: "600샷" }, { name: "스컬트라", unit: "2바이알" }] },
+    { id: "b", date: "06.04", proc: "써마지 · 스컬트라", hospital: "라온피부과의원", doctor: "이서연 원장", manager: "윤소희 실장님", tel: "02-000-1111", price: "1,650,000원", memo: "1년 주기로 받기로 함", items: [{ name: "써마지", unit: "600샷" }, { name: "스컬트라", unit: "2바이알" }] },
     { id: "c", date: "05.20", proc: "리쥬란", hospital: "맑은서울피부과의원", doctor: "박지호 원장", tel: "02-000-3333", price: "350,000원", memo: "리쥬란힐러", items: [{ name: "리쥬란", unit: "2cc" }] },
   ] },
   { year: 2025, items: [
@@ -825,59 +826,64 @@ function RecordView({ go }: { go: (s: Screen) => void }) {
   );
 }
 
-/* ─── 연표(세로 월 리스트) — 연도 이동 + 그 해 월별 받은 시술 ─── */
-const priceNum = (s: string) => Number((s ?? "").replace(/[^0-9]/g, "")) || 0;
-
+/* ─── 연표(세로 월 리스트) — 연도 이동 + 그 해 기록 있는 달만 ─── */
 function TimelinePanel({ go }: { go: (s: Screen) => void }) {
   const years = SUMMARY.map((g) => g.year);
   const minYear = Math.min(...years), maxYear = Math.max(...years);
   const [year, setYear] = useState(maxYear);
   const items = SUMMARY.find((g) => g.year === year)?.items ?? [];
-  // 월(1~12) → 그 달 기록들.
-  const byMonth: Record<number, SummaryItem[]> = {};
+  // 기록 있는 달만, 최신 월 → 과거 월 순.
+  const byMonth = new Map<number, SummaryItem[]>();
   for (const it of items) {
     const m = parseInt(it.date.split(".")[0], 10);
-    (byMonth[m] ??= []).push(it);
+    byMonth.set(m, [...(byMonth.get(m) ?? []), it]);
   }
-  const yearSum = items.reduce((s, it) => s + priceNum(it.price), 0);
+  const months = [...byMonth.keys()].sort((a, b) => b - a);
 
   return (
     <>
-      {/* 연도 이동 + 요약 */}
+      {/* 연도 이동 + 요약 (금액 제외) */}
       <div className={cardBox + " mb-3 flex items-center justify-between"}>
         <button type="button" disabled={year <= minYear} onClick={() => setYear((y) => y - 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30">‹</button>
         <div className="text-center">
           <div className="text-[18px] font-extrabold text-[var(--text)]">{year}<span className="ml-1 text-[12px] font-medium text-[var(--text-muted)]">{year === maxYear ? "올해" : `${maxYear - year}년 전`}</span></div>
-          <div className="mt-0.5 text-[12px] text-[var(--text-secondary)]">{items.length === 0 ? "기록 없음" : `시술 ${items.length}회 · ${yearSum.toLocaleString()}원`}</div>
+          <div className="mt-0.5 text-[12px] text-[var(--text-secondary)]">{items.length === 0 ? "기록 없음" : `시술 ${items.length}회`}</div>
         </div>
         <button type="button" disabled={year >= maxYear} onClick={() => setYear((y) => y + 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30">›</button>
       </div>
 
-      {/* 12~1월 세로 타임라인 (빈 달은 흐리게 → 주기·간격이 보이게) */}
-      <div className={cardBox}>
-        {Array.from({ length: 12 }, (_, i) => 12 - i).map((m) => {
-          const recs = byMonth[m] ?? [];
-          const has = recs.length > 0;
+      {/* 12개월 미니 막대 — 받은 달 강조(연간 리듬 한눈에) */}
+      <div className="mb-3 flex gap-1">
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+          const has = byMonth.has(m);
           return (
-            <div key={m} className="flex gap-3 border-b border-[var(--border)] py-2.5 last:border-0">
-              <div className="w-9 shrink-0 pt-0.5 text-[12px] font-bold" style={{ color: has ? "var(--primary-active)" : "var(--text-muted)" }}>{m}월</div>
-              <div className="min-w-0 flex-1">
-                {has ? recs.map((it) => (
-                  <button key={it.id} type="button" onClick={() => go("detail")} className="mb-1.5 block w-full rounded-md bg-[var(--bg)] p-2.5 text-left last:mb-0 hover:bg-[var(--primary-soft)]">
-                    <div className="flex flex-wrap gap-1">
-                      {it.items.map((iv) => (
-                        <span key={iv.name} className="rounded-full bg-white px-2.5 py-0.5 text-[12px] font-semibold text-[var(--text)]">{iv.name}{iv.unit ? <span className="ml-1 font-medium text-[var(--text-secondary)]">{iv.unit}</span> : null}</span>
-                      ))}
-                    </div>
-                    <div className="mt-1 text-[11.5px] text-[var(--text-muted)]">{it.date.replace(".", "/")} · {it.hospital}</div>
-                  </button>
-                )) : (
-                  <div className="py-1 text-[12px] text-[var(--text-muted)]">—</div>
-                )}
-              </div>
-            </div>
+            <div key={m} className="flex-1 rounded py-1 text-center text-[10px]" style={has ? { background: "var(--primary)", color: "#fff", fontWeight: 700 } : { background: "var(--bg-soft)", color: "var(--text-muted)" }}>{m}</div>
           );
         })}
+      </div>
+
+      {/* 기록 있는 달만 — 각 줄: 날짜 · 시술 칩 · 병원명(한 줄) */}
+      <div className={cardBox}>
+        {months.length === 0 ? (
+          <p className="py-6 text-center text-[13px] text-[var(--text-muted)]">이 해엔 기록이 없어요.</p>
+        ) : months.map((m) => (
+          <div key={m} className="flex gap-3 border-b border-[var(--border)] py-2.5 last:border-0">
+            <div className="w-9 shrink-0 pt-1.5 text-[12px] font-bold text-[var(--primary-active)]">{m}월</div>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              {(byMonth.get(m) ?? []).map((it) => (
+                <button key={it.id} type="button" onClick={() => go("detail")} className="flex w-full items-center gap-2 rounded-md bg-[var(--bg)] px-2.5 py-2 text-left hover:bg-[var(--primary-soft)]">
+                  <span className="shrink-0 text-[12px] font-bold text-[var(--primary-active)]">{it.date.replace(".", "/")}</span>
+                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                    {it.items.map((iv) => (
+                      <span key={iv.name} className="rounded-full bg-white px-2 py-0.5 text-[11.5px] font-semibold text-[var(--text)]">{iv.name}{iv.unit ? <span className="ml-1 font-medium text-[var(--text-secondary)]">{iv.unit}</span> : null}</span>
+                    ))}
+                  </span>
+                  <span className="max-w-[34%] shrink-0 truncate text-[11.5px] text-[var(--text-muted)]">{it.hospital}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
       <p className="mt-4 text-center text-[12px] text-[var(--text-muted)]">한 해 동안 어떤 시술을 언제 받았는지 한눈에 볼 수 있어요.</p>
     </>
@@ -996,55 +1002,36 @@ function SummaryPanel({ go }: { go: (s: Screen) => void }) {
 /* ════════════════ ⑥ 상세 (평가 제외, 비공개 메모) ════════════════ */
 
 
-function Row({ k, v }: { k: string; v: string }) {
-  return <div className="flex justify-between gap-3 border-b border-[var(--border)] py-2.5 text-[13px] last:border-0"><span className="shrink-0 font-medium text-[var(--text-muted)]">{k}</span><span className="text-right font-semibold text-[var(--text)]">{v}</span></div>;
-}
-
 function DetailView({ go }: { go: (s: Screen) => void }) {
   return (
     <section className="mx-auto w-full max-w-[640px] space-y-3">
+      {/* 헤더 — 날짜·시술·병원·의료진(라벨 없이) + 빠른 액션 */}
       <div className={cardBox}>
-        <p className="text-[12px] font-bold text-[var(--primary-active)]">2026.06.04 · 목요일</p>
+        <p className="text-[12px] font-bold text-[var(--primary-active)]">2026.06.04 · 목요일 <span className="ml-1 font-medium text-[var(--text-muted)]">· 나만 봐요</span></p>
         <p className="mt-1 text-[20px] font-bold text-[var(--text)]">써마지 · 스컬트라</p>
-        <span className="mt-2 inline-block rounded bg-[var(--bg-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 보는 기록</span>
-        <div className="mt-3">
-          <Row k="병원" v="라온피부과의원" />
-          <Row k="연락처" v="02-000-1111" />
-          <Row k="시술의사" v="이서연 원장" />
-          <Row k="상담실장" v="○○ 실장" />
-        </div>
+        <p className="mt-2 text-[14px] font-semibold text-[var(--text)]">라온피부과의원</p>
+        <p className="text-[13px] text-[var(--text-secondary)]">이서연 원장님 · ○○ 실장님</p>
         <div className="mt-3 flex gap-2">
-          <button type="button" className="flex-1 rounded-md bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">전화하기</button>
-          <button type="button" className="flex-1 rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">채널 들어가기</button>
-        </div>
-        <div className="mt-2 flex gap-2">
-          <a href="https://map.naver.com/p/search/라온피부과의원" target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-white py-2.5 text-[12.5px] font-semibold text-[#03C75A] ring-1 ring-inset ring-[var(--border)]">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-            네이버 지도
-          </a>
-          <a href="tmap://search?name=라온피부과의원" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-white py-2.5 text-[12.5px] font-semibold text-[#1A56DB] ring-1 ring-inset ring-[var(--border)]">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-            티맵 길찾기
-          </a>
+          <a href="tel:02-000-1111" className="flex flex-1 items-center justify-center rounded-md bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">전화하기</a>
+          <a href="https://map.naver.com/p/search/라온피부과의원" target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1 rounded-md bg-white py-2.5 text-[12.5px] font-semibold text-[#03C75A] ring-1 ring-inset ring-[var(--border)]">네이버 지도</a>
+          <a href="tmap://search?name=라온피부과의원" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1 rounded-md bg-white py-2.5 text-[12.5px] font-semibold text-[#1A56DB] ring-1 ring-inset ring-[var(--border)]">티맵</a>
         </div>
       </div>
 
-      <div className={cardBox}>
-        <p className="mb-2 text-[14px] font-bold text-[var(--text)]">받은 시술 메모</p>
-        <div className="space-y-3">
-          <div className="rounded-md bg-[var(--bg)] p-3">
-            <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--primary-active)]">써마지</span><span className="text-[13px] font-semibold text-[var(--text)]">980,000원</span></div>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">600샷. 1년 주기로 받자고 하셨다.</p>
-          </div>
-          <div className="rounded-md bg-[var(--bg)] p-3">
-            <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--primary-active)]">스컬트라</span><span className="text-[13px] font-semibold text-[var(--text)]">670,000원</span></div>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">2바이알. 볼 꺼진 부분 위주.</p>
-          </div>
+      {/* 받은 시술 — 시술명 · 가격 · 메모 */}
+      <div className={cardBox + " space-y-2"}>
+        <div className="rounded-md bg-[var(--bg)] p-3">
+          <div className="flex items-baseline justify-between"><span className="text-[14px] font-bold text-[var(--primary-active)]">써마지 <span className="text-[12.5px] font-medium text-[var(--text-secondary)]">600샷</span></span><span className="text-[13px] font-semibold text-[var(--text)]">980,000원</span></div>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">1년 주기로 받자고 하셨다.</p>
+        </div>
+        <div className="rounded-md bg-[var(--bg)] p-3">
+          <div className="flex items-baseline justify-between"><span className="text-[14px] font-bold text-[var(--primary-active)]">스컬트라 <span className="text-[12.5px] font-medium text-[var(--text-secondary)]">2바이알</span></span><span className="text-[13px] font-semibold text-[var(--text)]">670,000원</span></div>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">볼 꺼진 부분 위주.</p>
         </div>
       </div>
 
+      {/* 오늘의 시술 일기 */}
       <div className={cardBox}>
-        <p className="mb-1 text-[13px] font-semibold text-[var(--text-secondary)]">오늘의 시술 일기</p>
         <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">붓기는 이틀쯤. 다음엔 6개월 뒤 보자고 하셨다. 스컬트라는 확실히 볼륨이 산다…</p>
       </div>
 

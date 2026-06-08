@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Tooltip, useMap } from "react-leaflet";
+import { useEffect, useRef, useState } from "react";
+import { MapContainer, TileLayer, Marker, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -48,6 +48,14 @@ function InvalidateOnResize({ dep }: { dep: unknown }) {
   return null;
 }
 
+/** 지도 인스턴스 캡처 + 사용자 드래그 감지('이 지역 재검색'용). */
+function MapBridge({ mapRef, onDrag }: { mapRef: React.MutableRefObject<L.Map | null>; onDrag: () => void }) {
+  const map = useMap();
+  mapRef.current = map;
+  useMapEvents({ dragend: onDrag });
+  return null;
+}
+
 export default function ClinicMap({
   center,
   pins,
@@ -55,6 +63,7 @@ export default function ClinicMap({
   height = 200,
   onPick,
   onLocate,
+  onRequery,
 }: {
   center: { lat: number; lng: number };
   pins: MapPin[];
@@ -62,8 +71,13 @@ export default function ClinicMap({
   height?: number;
   onPick?: (label: string) => void;
   onLocate?: () => void;
+  onRequery?: (center: { lat: number; lng: number }) => void;
 }) {
   const [full, setFull] = useState(false);
+  const [moved, setMoved] = useState(false);
+  const mapRef = useRef<L.Map | null>(null);
+  // center prop(명시적 이동) 변경 시 '재검색' 버튼 숨김.
+  useEffect(() => { setMoved(false); }, [center.lat, center.lng, zoom]);
   return (
     <div
       className={full ? "fixed inset-0 z-[1000] bg-white p-3" : "relative overflow-hidden rounded-md"}
@@ -100,6 +114,16 @@ export default function ClinicMap({
           </svg>
         </button>
       )}
+      {moved && onRequery && (
+        <button
+          type="button"
+          onClick={() => { const c = mapRef.current?.getCenter(); if (c) onRequery({ lat: c.lat, lng: c.lng }); setMoved(false); }}
+          className="absolute left-1/2 top-2 z-[1001] flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-[var(--primary)] px-4 py-2 text-[12.5px] font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 12a9 9 0 1 1-3-6.7L21 7" /><path d="M21 3v4h-4" /></svg>
+          이 지역 재검색
+        </button>
+      )}
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={zoom}
@@ -107,6 +131,7 @@ export default function ClinicMap({
         style={{ height: "100%", width: "100%" }}
       >
         <InvalidateOnResize dep={full} />
+        <MapBridge mapRef={mapRef} onDrag={() => setMoved(true)} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
