@@ -40,34 +40,5 @@ export function loadNaverMaps(): Promise<void> {
   });
   return loader;
 }
-
-export async function geocodePlace(query: string): Promise<{ lat: number; lng: number } | null> {
-  const q = query.trim();
-  if (!q) return null;
-  try {
-    await loadNaverMaps();
-  } catch {
-    return null;
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const naver = (window as any).naver;
-  if (!naver?.maps?.Service) return null;
-  return new Promise((resolve) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    naver.maps.Service.geocode({ query: q }, (status: any, res: any) => {
-      if (status !== naver.maps.Service.Status.OK) {
-        resolve(null);
-        return;
-      }
-      const a = res?.v2?.addresses?.[0];
-      if (!a) {
-        resolve(null);
-        return;
-      }
-      const lat = parseFloat(a.y);
-      const lng = parseFloat(a.x);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) resolve({ lat, lng });
-      else resolve(null);
-    });
-  });
-}
+// 지명·랜드마크 검색(강남역 등)은 geocode(주소 전용)로 안 잡혀서
+// 서버 라우트 /api/place-search(네이버 지역검색)로 처리한다.

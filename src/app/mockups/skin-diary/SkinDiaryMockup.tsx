@@ -24,7 +24,6 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import dynamic from "next/dynamic";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { MapPin } from "./ClinicMap";
-import { geocodePlace } from "./naver-maps";
 
 // 지도는 window 의존(SSR 비호환) → 클라이언트에서만 로드.
 // NEXT_PUBLIC_NAVER_MAP_CLIENT_ID 가 있으면 네이버 지도, 없으면 OSM(Leaflet) 폴백.
@@ -525,8 +524,13 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
       setSearchCenter(null); setResults(named); setSearching(false);
       return;
     }
-    // 2) 이름 매칭 없음 → 지명/주소 지오코딩(완전한 주소만 인식됨).
-    const c = await geocodePlace(term);
+    // 2) 이름 매칭 없음 → 지명/랜드마크/주소를 네이버 지역검색으로 좌표화(서버 라우트).
+    let c: { lat: number; lng: number } | null = null;
+    try {
+      const r = await fetch(`/api/place-search?q=${encodeURIComponent(term)}`);
+      const j = await r.json();
+      if (j?.place) c = { lat: j.place.lat, lng: j.place.lng };
+    } catch { /* 네트워크 실패 → 아래 안내 */ }
     if (!c) { setSearching(false); setGeoMsg("검색 결과가 없어요. 병원명을 더 입력하거나 지도에서 골라보세요."); return; }
     await loadNear(c.lat, c.lng);
     setSearching(false);
