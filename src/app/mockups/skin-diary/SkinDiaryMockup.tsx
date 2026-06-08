@@ -483,15 +483,11 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
     geoActiveRef.current = true;
     setSearchCenter({ lat, lng });
     setPicked(null); setPreview(null);
-    const dd = 0.045;
+    // DB 레벨 거리정렬 RPC(clinics_nearby) — 진짜 최근접 상위 20개를 정확히 반환.
     const sb = createSupabaseBrowserClient();
-    const { data } = await sb
-      .from("clinics").select("name,addr,tel,x_pos,y_pos")
-      .gte("x_pos", lng - dd).lte("x_pos", lng + dd)
-      .gte("y_pos", lat - dd).lte("y_pos", lat + dd).limit(80);
-    const hits = (data ?? [])
-      .map((d) => ({ name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x: d.x_pos as number | null, y: d.y_pos as number | null, dist: distKm(lat, lng, d.y_pos as number | null, d.x_pos as number | null) }))
-      .sort((a, b) => (a.dist ?? 9e9) - (b.dist ?? 9e9)).slice(0, 20);
+    const { data } = await sb.rpc("clinics_nearby", { in_lat: lat, in_lng: lng, in_km: 5, in_lim: 20 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hits = ((data ?? []) as any[]).map((d) => ({ name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x: d.x_pos as number | null, y: d.y_pos as number | null, dist: d.dist_km as number | undefined }));
     setResults(hits);
     if (hits.length === 0) setGeoMsg("이 주변에 등록된 피부과가 없어요.");
   }

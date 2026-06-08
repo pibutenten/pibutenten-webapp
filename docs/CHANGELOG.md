@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-06-08] -- clinics_nearby RPC (DB 레벨 거리정렬)
+
+### Added
+- **clinics_nearby RPC** (마이그레이션 0273): 좌표 기준 거리순 최근접 병원 반환 함수 신설.
+  - 함수 시그니처: clinics_nearby(in_lat double precision, in_lng double precision, in_km double precision DEFAULT 5, in_lim int DEFAULT 20)
+  - 반환: name, addr, tel, x_pos, y_pos, dist_km (가까운 순 정렬)
+  - 알고리즘: bbox 사전필터(clinics_xy btree 인덱스) + haversine 거리 계산(LEAST/GREATEST 클램핑) + 원형 최종필터 + ORDER BY dist_km ASC + LIMIT
+  - 보안: LANGUAGE sql STABLE SECURITY INVOKER, GRANT EXECUTE TO anon, authenticated
+  - 해결된 문제: 클라이언트 bbox+limit 방식에서 박스 내 수천 병원 중 DB가 임의 N개만 반환하여 진짜 최근접 병원이 누락되던 문제
+  - 검증(논현역 37.5113, 127.0215, 5km, 5건): 노즈랩의원 0.031km, 미인도의원 0.046km, 뉴브의원 0.046km, 강남라해의원 0.046km, 조수영성형외과의원 0.064km
+
 ## [2026-06-08] — 시술일기 네이버 지도 전환 + 전체화면 + 상시 표시
 
 ### Added
