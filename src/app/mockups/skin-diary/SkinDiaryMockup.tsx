@@ -420,6 +420,8 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
   const [preview, setPreview] = useState<ClinicHit | null>(null);
   // 지도 중심(지명 검색·내 위치로 이동). null 이면 결과/기본값으로 자동.
   const [searchCenter, setSearchCenter] = useState<{ lat: number; lng: number } | null>(null);
+  // 내 현재 위치 — 이름 검색 결과의 거리 표시·정렬 기준(ref, 재조회 불필요).
+  const myLocRef = useRef<{ lat: number; lng: number } | null>(null);
   // 현재 결과가 '내 주변'(geolocation)에서 온 것인지 표시 — q 가 비었을 때 결과 유지 판정용.
   // ref 라서 검색 effect 의존성에 넣지 않아 자기-트리거 루프를 만들지 않음.
   const geoActiveRef = useRef(false);
@@ -444,6 +446,18 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
   const [_y, _m, _dd] = date.split("-");
   const dateLabel = `${+_y}년 ${+_m}월 ${+_dd}일`;
 
+  // clinics row[] → ClinicHit[] (내 위치 있으면 거리 계산 + 거리순 정렬).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function withDistSort(rows: any[]): ClinicHit[] {
+    const ml = myLocRef.current;
+    const hits = rows.map((d) => {
+      const x = d.x_pos as number | null, y = d.y_pos as number | null;
+      return { name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x, y, dist: ml ? distKm(ml.lat, ml.lng, y, x) : undefined };
+    });
+    if (ml) hits.sort((a, b) => (a.dist ?? 9e9) - (b.dist ?? 9e9));
+    return hits;
+  }
+
   // 병원 이름 검색 — 실제 clinics DB(전국 피부과)를 250ms 디바운스로 ilike 조회.
   useEffect(() => {
     if (picked) return;
@@ -459,7 +473,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
         .from("clinics").select("name,addr,tel,x_pos,y_pos")
         .ilike("name", `%${term}%`).order("name").limit(20);
       if (!alive) return;
-      setResults((data ?? []).map((d) => ({ name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x: d.x_pos as number | null, y: d.y_pos as number | null })));
+      setResults(withDistSort(data ?? []));
       setSearching(false);
     }, 250);
     return () => { alive = false; clearTimeout(t); };
@@ -489,7 +503,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
     if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoMsg("이 브라우저는 위치를 지원하지 않아요."); return; }
     setSearching(true); setQ("");
     navigator.geolocation.getCurrentPosition(
-      async (pos) => { await loadNear(pos.coords.latitude, pos.coords.longitude); setSearching(false); },
+      async (pos) => { myLocRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }; await loadNear(pos.coords.latitude, pos.coords.longitude); setSearching(false); },
       () => { setSearching(false); setGeoMsg("위치 권한이 필요해요. 지명이나 병원명으로 검색해 주세요."); },
       { enableHighAccuracy: false, timeout: 8000 },
     );
@@ -505,7 +519,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
     const { data } = await sb
       .from("clinics").select("name,addr,tel,x_pos,y_pos")
       .ilike("name", `%${term}%`).order("name").limit(20);
-    const named = (data ?? []).map((d) => ({ name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x: d.x_pos as number | null, y: d.y_pos as number | null }));
+    const named = withDistSort(data ?? []);
     if (named.length > 0) {
       geoActiveRef.current = false;
       setSearchCenter(null); setResults(named); setSearching(false);
@@ -541,7 +555,7 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
     didInitLocate.current = true;
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
-      (pos) => { loadNear(pos.coords.latitude, pos.coords.longitude); },
+      (pos) => { myLocRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }; loadNear(pos.coords.latitude, pos.coords.longitude); },
       () => { /* 거부/실패 → 서울 기본 */ },
       { enableHighAccuracy: false, timeout: 8000 },
     );
@@ -592,7 +606,14 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
             placeholder="지명, 병원명으로 검색"
             value={q}
             onChange={(e) => { setQ(e.target.value); setPicked(null); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); searchPlace(); } }}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              // 한글 IME 조합 중 Enter(keyCode 229)는 조합 확정용 — 무시(포커스 이동·중복검색 방지).
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+              e.preventDefault();
+              e.stopPropagation();
+              searchPlace();
+            }}
           />
           {!picked && searching && (
             <p className="mt-2 text-center text-[12px] text-[var(--text-muted)]">불러오는 중…</p>
