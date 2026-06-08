@@ -495,13 +495,25 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
     );
   }
 
-  // 지명·주소 검색(Enter) — 네이버 지오코딩으로 좌표 변환 후 그 주변 조회.
+  // Enter 검색 — 병원명 매칭을 먼저 확인하고, 매칭이 전혀 없을 때만 지명/주소 지오코딩.
   async function searchPlace() {
     const term = q.trim();
     if (!term) return;
     setGeoMsg(null); setSearching(true);
+    // 1) 병원명 매칭 우선 (부분어 OK) — 있으면 그대로 사용, 지오코딩·에러 없음.
+    const sb = createSupabaseBrowserClient();
+    const { data } = await sb
+      .from("clinics").select("name,addr,tel,x_pos,y_pos")
+      .ilike("name", `%${term}%`).order("name").limit(20);
+    const named = (data ?? []).map((d) => ({ name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x: d.x_pos as number | null, y: d.y_pos as number | null }));
+    if (named.length > 0) {
+      geoActiveRef.current = false;
+      setSearchCenter(null); setResults(named); setSearching(false);
+      return;
+    }
+    // 2) 이름 매칭 없음 → 지명/주소 지오코딩(완전한 주소만 인식됨).
     const c = await geocodePlace(term);
-    if (!c) { setSearching(false); setGeoMsg("그 지명·주소를 찾지 못했어요. 병원명으로 검색하거나 지도에서 골라보세요."); return; }
+    if (!c) { setSearching(false); setGeoMsg("검색 결과가 없어요. 병원명을 더 입력하거나 지도에서 골라보세요."); return; }
     await loadNear(c.lat, c.lng);
     setSearching(false);
   }
