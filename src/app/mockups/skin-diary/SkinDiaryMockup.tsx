@@ -918,11 +918,11 @@ function TimelinePanel({ go }: { go: (s: Screen) => void }) {
           <p className="py-6 text-center text-[13px] text-[var(--text-muted)]">이 해엔 기록이 없어요.</p>
         ) : months.map((m) => (
           <div key={m} className="flex gap-3 border-b border-[var(--border)] py-2.5 last:border-0">
-            <div className="w-9 shrink-0 pt-1.5 text-[12px] font-bold text-[var(--primary-active)]">{m}월</div>
+            <div className="w-9 shrink-0 pt-2 text-[12px] font-bold leading-5 text-[var(--primary-active)]">{m}월</div>
             <div className="min-w-0 flex-1 space-y-1.5">
               {(byMonth.get(m) ?? []).map((it) => (
-                <button key={it.id} type="button" onClick={() => go("detail")} className="flex w-full items-center gap-2 rounded-md bg-[var(--bg)] px-2.5 py-2 text-left hover:bg-[var(--primary-soft)]">
-                  <span className="shrink-0 text-[12px] font-bold text-[var(--primary-active)]">{parseInt(it.date.split(".")[1], 10)}일</span>
+                <button key={it.id} type="button" onClick={() => go("detail")} className="flex w-full items-start gap-2 rounded-md bg-[var(--bg)] px-2.5 py-2 text-left hover:bg-[var(--primary-soft)]">
+                  <span className="shrink-0 text-[12px] font-bold leading-5 text-[var(--primary-active)]">{parseInt(it.date.split(".")[1], 10)}일</span>
                   <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
                     {it.items.map((iv) => (
                       <span key={iv.name} className="rounded-full bg-white px-2 py-0.5 text-[11.5px] font-semibold text-[var(--text)]">{iv.name}{iv.unit ? <span className="ml-1 font-medium text-[var(--text-secondary)]">{iv.unit}</span> : null}</span>
