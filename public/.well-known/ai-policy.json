@@ -4,8 +4,8 @@
   "site": "https://pibutenten.kr",
   "owner": "주식회사 진솔컴퍼니",
   "preferences": {
-    "training": "disallow",
-    "tdm": "disallow",
+    "training": "allow",
+    "tdm": "allow",
     "search": "allow",
     "answerWithCitation": "allow",
     "userTriggeredFetch": "allow",
@@ -23,20 +23,24 @@
   ],
   "policies": {
     "training": {
-      "disallowed": [
+      "allowed": [
         "GPTBot",
         "ClaudeBot",
         "anthropic-ai",
-        "Google-Extended",
         "CCBot",
-        "Bytespider",
+        "Google-Extended",
         "Applebot-Extended",
         "Meta-ExternalAgent",
         "Amazonbot",
-        "Diffbot",
         "cohere-ai"
       ],
-      "rationale": "YMYL 의료 콘텐츠 — AI 학습 데이터로 무단 사용되어 정확성·맥락을 잃은 의료 정보 생성을 방지"
+      "disallowed": [
+        "Bytespider",
+        "Diffbot",
+        "Omgilibot",
+        "ImagesiftBot"
+      ],
+      "rationale": "인용·도달 최대화(2026-06-06) — 주요 AI 학습봇은 허용해 브랜드 도달과 정확한 인용을 넓히고, 저가치 순수 스크래퍼만 차단. robots.txt 정책과 동일."
     },
     "answerEngine": {
       "allowed": [
@@ -50,7 +54,7 @@
       "requirements": "Cite source URL and authoring dermatologist name. Include medical disclaimer when reproducing content."
     },
     "search": {
-      "allowed": ["Googlebot", "Bingbot", "Yeti", "Daumoa", "DuckDuckBot"]
+      "allowed": ["Googlebot", "Bingbot", "Yeti", "Daumoa", "DuckDuckBot", "YandexBot"]
     }
   },
   "memberContent": {
@@ -59,5 +63,5 @@
   },
   "contact": "pibutenten@gmail.com",
   "policyUrl": "https://pibutenten.kr/disclosures",
-  "lastUpdated": "2026-05-29"
+  "lastUpdated": "2026-06-08"
 }

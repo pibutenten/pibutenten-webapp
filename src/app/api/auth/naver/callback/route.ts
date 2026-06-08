@@ -106,9 +106,9 @@ export async function GET(request: NextRequest) {
       if (lookupErr) {
         throw new Error(`사용자 조회 실패: ${lookupErr.message}`);
       }
-      const row = (rpcRows as { user_id: string; providers: string[] }[] | null)?.[0];
+      const row = (rpcRows as { auth_user_id: string; providers: string[] }[] | null)?.[0];
       if (row) {
-        userId = row.user_id;
+        userId = row.auth_user_id;
         providers = row.providers ?? [];
       }
     }

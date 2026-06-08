@@ -64,7 +64,7 @@
     "requireAttribution": true,
     "attributionFormat": "{author} (피부과 전문의), 피부텐텐 — {url}",
     "maxQuotedChars": 200,
-    "aiTrainingAllowed": false,
+    "aiTrainingAllowed": true,
     "aiAnswerInclusionAllowed": true,
     "requireDisclaimerInclusion": true,
     "disclaimerText": "본 답변은 일반 의학 정보이며 개별 환자 상담을 대체하지 않습니다."
@@ -90,5 +90,5 @@
     { "slug": "kang-hyunjin",  "name": "강현진", "alternateName": "Hyunjin Kang", "url": "https://pibutenten.kr/doctors/kang-hyunjin" },
     { "slug": "park-hyojin",   "name": "박효진", "alternateName": "Hyojin Park",  "url": "https://pibutenten.kr/doctors/park-hyojin" }
   ],
-  "lastUpdated": "2026-05-29"
+  "lastUpdated": "2026-06-08"
 }

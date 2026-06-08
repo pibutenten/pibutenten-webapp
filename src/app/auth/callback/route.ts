@@ -265,7 +265,7 @@ export async function GET(request: NextRequest) {
         p_email: user.email,
         p_exclude_user_id: user.id,
       });
-      const other = (otherRows as { user_id: string; providers: string[] }[] | null)?.[0];
+      const other = (otherRows as { auth_user_id: string; providers: string[] }[] | null)?.[0];
       if (other) {
         const appMeta = (user.app_metadata ?? {}) as Record<string, unknown>;
         const userMeta = (user.user_metadata ?? {}) as Record<string, unknown>;

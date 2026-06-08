@@ -6,6 +6,26 @@
 
 ---
 
+## [2026-06-08] — 보안·정합성 점검 후속 정리 (마이그 0274~0276)
+
+> 4개 서브에이전트(코드검수/DB/디버거/SEO) 전수 점검 결과 도출된 항목 일괄 정리. 하드코딩 시크릿 없음 확인, 빌드·타입체크 통과.
+
+### Security
+- **recalc_user_level 권한 잠금** (마이그 0274): PUBLIC/authenticated EXECUTE 회수 + 내부 권한 가드(service_role / is_admin / 본인 auth.uid()=p_user_id 만 허용) + search_path 고정. 기존엔 anon 포함 누구나 임의 UUID 로 타인 레벨 재계산 호출 가능했음. 호출처(트리거/함수/코드) 0건 확인 후 가드 추가.
+- **SECURITY DEFINER search_path 고정** (0274): `anonymize_user_content_before_delete`, `propagate_onboarding_to_doctor_bundle` 에 `search_path=public, pg_temp` 고정 (search_path hijacking 방어). 본문 변경 없이 ALTER FUNCTION.
+- **로그인 RPC 과잉 권한 정리** (0276): `find_other_auth_user_by_email` 의 PUBLIC/authenticated EXECUTE 제거 → service_role only (내부 admin 가드는 유지).
+
+### Changed
+- **로그인 RPC 반환 컬럼 user_id → auth_user_id** (마이그 0276 + 코드): `find_auth_user_by_email_with_providers`, `find_other_auth_user_by_email`. ADR 0014 사람 ID 명명 규칙 정합(auth.users.id = auth_user_id). 반환타입 변경이라 DROP+CREATE. 호출 코드 캐스팅 동시 수정(`src/app/auth/callback/route.ts`, `src/app/api/auth/naver/callback/route.ts`). 멀티 명함 스위칭 경로와 무관함 확인.
+- **AI 크롤러 정책 문서 동기화**: `public/.well-known/ai-policy.json`·`agent-card.json` 을 robots.txt 현행 2-tier 정책(2026-06-06)과 일치시킴 — 주요 학습봇 9종(GPTBot·ClaudeBot·anthropic-ai·CCBot·Google-Extended·Applebot-Extended·Meta-ExternalAgent·Amazonbot·cohere-ai) 허용, 저가치 스크래퍼 4종(Bytespider·Diffbot·Omgilibot·ImagesiftBot) 차단. `preferences.training/tdm` allow, `aiTrainingAllowed` true. 기존 두 파일은 "전체 학습 금지"(2026-05-29 구버전)로 robots 와 모순이었음.
+- **모델 ID 소프트코딩**: `api/admin/draft/step2` 응답의 하드코딩 `"claude-opus-4-7"` → `MODEL_ID` 상수(`@/lib/ai/pricing`) 참조. 모델 변경 시 한 곳만 수정.
+- **robots.ts /report 주석 정리**: robots 표준(RFC 9309)에 정규식·"$" 종단 앵커가 없어 `/report$` 제거. `/report` 신고 페이지는 page-level `robots:{index:false}` 로 차단, `/reports/*` 시술 리포트는 색인 유지. ai-policy.json `search.allowed` 에 YandexBot 추가(robots TIER1 정합).
+
+### Removed
+- **백업 테이블 14개 폐기** (마이그 0275): `_bak_category/_keywords/_keywords_needle/_keywords_unify/_reviewed_at_260601`(5), `cards_keyword_backfill_backup_260517`·`cards_keywords_bak_0246`(2), `procedure_reviews_ko_bak_0257`·`procedure_taxonomy_bak_0257`(2), `profiles_backup_20260529`·`profiles_concern_bak_0262`(PII 2), `tag_dictionary_bak_0251/0254/0256`(3). 운영 테이블에 동등/최신 데이터 존재 + 참조 FK·뷰 0건 확인. `profiles_backup_20260529` 의 탈퇴(auth 삭제)회원 PII 4건 포함 — PIPA 불필요 PII 최소보관 원칙상 폐기(원장 승인).
+
+---
+
 ## [2026-06-08] -- clinics_nearby RPC (DB 레벨 거리정렬)
 
 ### Added

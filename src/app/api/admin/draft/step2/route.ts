@@ -20,6 +20,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { fetchPubmedCandidates } from "@/lib/ai/pubmed";
 import { runStep2 } from "@/lib/ai/step2";
+import { MODEL_ID } from "@/lib/ai/pricing";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import {
@@ -167,7 +168,7 @@ export async function POST(req: Request) {
       results,
       usage: { input_tokens: totalIn, output_tokens: totalOut },
       llm_calls: totalCalls,
-      model: "claude-opus-4-7",
+      model: MODEL_ID,
     },
     { headers: { "cache-control": "no-store" } },
   );
