@@ -391,6 +391,26 @@ function distKm(lat1: number, lng1: number, lat2: number | null, lng2: number | 
   const y = lat2 - lat1; // 위도차
   return Math.sqrt(x * x + y * y) * DEG2KM;
 }
+// 핀 분포에 맞춰 지도 줌 자동 계산 — 병원 밀집 지역은 더 확대해 핀이 겹치지 않게.
+// - 중심에서 각 핀까지의 위/경도 차이를 모아 75퍼센타일(군집 기준)로 화면에 맞춘다.
+//   (먼 1~2개 outlier 때문에 군집이 과도하게 축소되지 않도록 max 대신 퍼센타일 사용)
+// - Web Mercator: metersPerPx = 156543·cos(lat)/2^z. 세로(300px)·가로(360px) 둘 다 들어오는 줌을 택함.
+function zoomForSpread(center: { lat: number; lng: number }, pins: MapPin[]): number {
+  if (pins.length === 0) return 15;
+  if (pins.length === 1) return 16;
+  const lats = pins.map((p) => Math.abs(p.lat - center.lat)).sort((a, b) => a - b);
+  const lngs = pins.map((p) => Math.abs(p.lng - center.lng)).sort((a, b) => a - b);
+  const i = Math.floor((pins.length - 1) * 0.75); // 75% 핀이 들어오게(밀집 군집 우선)
+  const pad = 1.35;
+  const spanLat = Math.max(lats[i] * 2 * pad, 0.0006); // 최소 span ≈ 65m → 과확대 방지
+  const spanLng = Math.max(lngs[i] * 2 * pad, 0.0006);
+  const cos = Math.cos((center.lat * Math.PI) / 180);
+  const K = 156543.03 / 111320; // metersPerPx 상수 ÷ 위도 1도 m
+  const zLat = Math.log2((K * 300 * cos) / spanLat);
+  const zLng = Math.log2((K * 360) / spanLng);
+  return Math.max(14, Math.min(17, Math.floor(Math.min(zLat, zLng))));
+}
+
 const EN2KO: Record<string, string> = { thermage: "써마지", botox: "보톡스", filler: "필러", rejuran: "리쥬란", sculptra: "스컬트라" };
 
 // 주소 → '시도(약칭) 시군구' 짧은 지역 라벨 (이름 같은 지점 구분용).
@@ -633,7 +653,10 @@ function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) 
               : searchCenter ? searchCenter
               : mapPins.length > 0 ? { lat: mapPins[0].lat, lng: mapPins[0].lng }
               : { lat: 37.5665, lng: 126.978 }; // 기본: 서울시청
-            const mapZoom = preview ? 16 : searchCenter ? 15 : mapPins.length > 0 ? 14 : 13;
+            // 미리보기는 해당 핀 확대(16). 그 외엔 핀 밀집도에 맞춰 자동 확대(밀집=더 확대).
+            const mapZoom = preview ? 16
+              : (searchCenter || mapPins.length > 0) ? zoomForSpread(mapCenter, mapPins)
+              : 13;
             return (
               <div className="mt-2">
                 <ClinicMap
