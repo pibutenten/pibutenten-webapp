@@ -156,7 +156,7 @@ GET    /api/dev-sql/[name]          로컬 SQL 실행
                                     cards.lastModified = updated_at ?? created_at (2026-05-28)
 /robots.txt                         robots — SITE_PUBLIC env 기반 HOLD 스위치
                                     HOLD: User-agent:* Disallow:/
-                                    PUBLIC: 3-tier AI 크롤러 정책
+                                    PUBLIC: 2-tier AI 크롤러 정책 (TIER1 허용·TIER2 차단, 2026-06-06)
 /manifest.json                      PWA manifest
 /rss.xml                            RSS 2.0 — 의사 Q&A 최신 50건 (네이버 freshness signal)
 /llms.txt                           llmstxt.org 풀버전 (인용 정책 + 운영 정보)

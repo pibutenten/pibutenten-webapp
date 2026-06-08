@@ -50,4 +50,5 @@
 - 시크릿 노출 점검 (분기 1회 스캔): 평시 정기 로테이션은 하지 않고, 분기엔 노출 여부 점검만. 노출 의심 시에만 즉시 로테이션. 대상: VAPID, NAVER_CLIENT_SECRET, ANTHROPIC_API_KEY, SUPABASE_SERVICE_ROLE_KEY, PUSH_WEBHOOK_SECRET, GOOGLE_CLIENT_SECRET
 - Dependabot/Snyk 등 의존성 보안 알림 모니터링
 - CSP `Content-Security-Policy-Report-Only` → enforce 모드 전환 검토 (Report-Only 로그 수집 후)
-- 분기마다 `pg_proc` SECURITY DEFINER 함수 전수 점검 (admin 가드 누락 회귀 방지)
+- 분기마다 `pg_proc` SECURITY DEFINER 함수 전수 점검 (admin 가드 누락 + `search_path` 미고정 회귀 방지). search_path 미고정 시 search_path hijacking 위험 — SECURITY DEFINER 함수는 `SET search_path = public, pg_temp`(auth 접근 함수는 `public, auth, pg_temp`) 고정 필수. (마이그 0274 에서 recalc_user_level·anonymize_user_content_before_delete·propagate_onboarding_to_doctor_bundle 고정 완료)
+- 임의 호출 가능 RPC 점검: `proacl` 에 PUBLIC(`=X`)/anon EXECUTE 가 부여된 SECURITY DEFINER 함수는 내부 `auth.uid()`/`is_admin()` 가드 + GRANT 최소화 (0274 recalc_user_level, 0276 find_other_auth_user_by_email 정리 완료)
