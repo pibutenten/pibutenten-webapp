@@ -137,7 +137,7 @@ function MockFab({ open, setOpen, go, toast }: { open: boolean; setOpen: (b: boo
     { label: "시술일기 남기기", onClick: () => go("diary"), icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
     ) },
-    { label: "시술 후기 남기기", onClick: () => go("reviewonly"), icon: (
+    { label: "시술후기 남기기", onClick: () => go("reviewonly"), icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 17.3l-5.6 3.3 1.5-6.3-4.9-4.3 6.4-.5L12 3.5l2.6 6 6.4.5-4.9 4.3 1.5 6.3z" /></svg>
     ) },
     { label: "끄적끄적", onClick: () => toast("끄적끄적은 기존 글쓰기 화면으로 연결돼요"), icon: (
@@ -351,7 +351,7 @@ export function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: 
   const selected = PROCEDURES.find((p) => p.value === proc);
   return (
     <section className="mx-auto w-full max-w-[640px]">
-      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">시술 후기를 남겨주세요</h1>
+      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">시술후기를 남겨주세요</h1>
       <div className={formBox}>
         {selected ? (
           <ReviewFormBody
@@ -777,7 +777,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
 
       {procs.length > 0 && (
         <p className="mb-1 mt-5 px-2 text-center text-[14px] leading-relaxed text-[var(--text-secondary)]">
-          다른 분들을 위해 시술 후기를 남겨주세요.<br />
+          다른 분들을 위해 시술후기를 남겨주세요.<br />
           <span className="text-[var(--text-muted)]">지금 당장 쓰기 어려우면 나중에 알려드릴게요!</span>
         </p>
       )}

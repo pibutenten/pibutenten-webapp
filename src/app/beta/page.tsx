@@ -3,6 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
+import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
@@ -12,9 +13,11 @@ import { fetchCardList } from "@/lib/search-query";
 import { isPostCategorySlug, labelForCategory } from "@/lib/post-category";
 
 /**
- * /beta 피드 — 홈과 동일한 실제 Feed/Card 그대로(데스크탑 2열) + 상단 카테고리 선택.
- * 카테고리 필터는 기존 메커니즘(fetchCardList q=라벨 → category 필터, /api/cards 무한스크롤 동일) 재사용.
- * 레이아웃·카드·폭은 기존 그대로. 내비만 BetaNav(5탭). noindex.
+ * /beta 피드 — 홈과 동일한 실제 Feed/Card(2열) + 상단 카테고리 선택.
+ *  - 전체: feed_cards_scored + 리포트 주입
+ *  - Q&A/시술후기/끄적끄적: fetchCardList(q=라벨) → category 필터 (무한스크롤 동일)
+ *  - 리포트: 실제 ProcedureReportCard(통계형) 그대로
+ * 카테고리 전환 시 Feed 는 key 로 리마운트(첫 initial 고정 문제 해소). noindex.
  */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,16 +29,15 @@ export const metadata: Metadata = {
 };
 
 const PAGE = 20;
+const PRIMARY = "#4cbff2";
 
-// 피드 상단 카테고리 — 표시 라벨 / cards.category slug 매핑.
 const CATS: { label: string; cat: string }[] = [
   { label: "전체", cat: "" },
   { label: "Q&A", cat: "qa" },
   { label: "시술후기", cat: "review" },
-  { label: "커뮤니티", cat: "doodle" },
+  { label: "끄적끄적", cat: "doodle" },
   { label: "리포트", cat: "review_summary" },
 ];
-const PRIMARY = "#4cbff2";
 
 function CategoryBar({ active }: { active: string }) {
   return (
@@ -58,11 +60,35 @@ function CategoryBar({ active }: { active: string }) {
   );
 }
 
-export default async function BetaFeedPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
+export default async function BetaFeedPage({ searchParams }: { searchParams: Promise<{ cat?: string; q?: string }> }) {
   const sp = await searchParams;
   const cat = sp.cat ?? "";
+  const query = (sp.q ?? "").trim();
   const supabase = await createSupabaseServerClient();
 
+  // ── 리포트: 실제 ProcedureReportCard(통계형) 그대로 (검색 중엔 제외) ──
+  if (cat === "review_summary" && !query) {
+    const pool = await getReviewSummaryFeedPool(supabase);
+    return (
+      <div className="pb-16 sm:pb-0">
+        <h1 className="sr-only">피부텐텐 베타 — 시술 리포트</h1>
+        <CategoryBar active={cat} />
+        {pool.length === 0 ? (
+          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">집계된 리포트가 없습니다.</div>
+        ) : (
+          <div className="sm:columns-2 sm:[column-gap:1rem]">
+            {pool.map((r) => (
+              <div key={r.anchor?.id ?? r.en} className="mb-4 break-inside-avoid">
+                <ProcedureReportCard report={r} feedHref={`/reports/${encodeURIComponent(r.procedureKo)}`} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── 그 외: 실제 Feed ──
   const ua = (await headers()).get("user-agent") ?? "";
   const isMobileUA = /Mobi|Android|iPhone|iPod|IEMobile|BlackBerry|Opera Mini/i.test(ua);
   const { data: { user: viewer } } = await supabase.auth.getUser();
@@ -71,14 +97,17 @@ export default async function BetaFeedPage({ searchParams }: { searchParams: Pro
   let searchQuery: string | undefined;
   let reportPool: ProcedureReport[] = [];
 
-  if (isPostCategorySlug(cat)) {
-    // 카테고리 선택 — 기존 fetchCardList(q=라벨)로 category 필터 (무한스크롤도 동일 q 로 정합).
+  if (query) {
+    // 상단 검색창 입력 — 기존 검색 메커니즘(fetchCardList → search_cards_scored, 무한스크롤 동일).
+    searchQuery = query;
+    const { data } = await fetchCardList(supabase, { q: query, offset: 0, limit: PAGE });
+    cards = (data ?? []) as unknown as CardData[];
+  } else if (isPostCategorySlug(cat)) {
     const label = labelForCategory(cat);
     searchQuery = label;
     const { data } = await fetchCardList(supabase, { q: label, offset: 0, limit: PAGE });
     cards = (data ?? []) as unknown as CardData[];
   } else {
-    // 전체 — 홈과 동일한 스코어드 피드 + 리포트 주입.
     const rpcRes = await supabase.rpc("feed_cards_scored", { p_limit: PAGE, p_offset: 0, p_half_life_days: 14, p_jitter_amp: 0.35 });
     cards = (rpcRes.data ?? []) as CardData[];
     cards = diversifyByDoctor(cards, { maxPerDoctorInHead: 1, headSize: 4 });
@@ -96,6 +125,7 @@ export default async function BetaFeedPage({ searchParams }: { searchParams: Pro
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">표시할 글이 없습니다.</div>
       ) : (
         <Feed
+          key={query ? `q:${query}` : cat || "all"}
           initial={cards}
           pageSize={PAGE}
           searchQuery={searchQuery}
