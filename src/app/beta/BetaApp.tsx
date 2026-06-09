@@ -1,25 +1,17 @@
 "use client";
 
 /**
- * 피부텐텐 앱/웹 통합 정보구조(IA) — 검토용 셸 목업.
- * "새 옷(새 디자인)" 안에 실제 운영 DB 피드 데이터를 끼워 렌더(page.tsx 서버 fetch → props).
- *
- * 확정 사항 반영:
- * - 5탭: 시술 기록 / 글쓰기 / 피드 / 쇼핑 / 마이페이지
- * - 모바일·앱: 하단 5탭 / 데스크탑: 상단 내비(좌 로고·시술기록·글쓰기·피드·쇼핑 / 우 검색·알림·마이)
- * - 로고: 실제 브랜드 로고(/brand-logo.svg)
- * - 글쓰기 분류: 끄적끄적 / 시술기록하기 / 시술후기
- * - 시술일기 → "시술기록" 용어 통일, 자유메모 칸 "오늘의 시술기록"
- * - 공개 프로필 제거 / 마이페이지 = 알림·내 글·저장·설정·로그아웃 / 쇼핑 = 준비중
- *
- * 피드 = 실제 DB 카드(Q&A·후기·끄적끄적·리포트). 그 외 탭은 디자인 예시(개인/입력 화면).
+ * 피부텐텐 베타 — 새 앱/웹 통합 구조를 "실제처럼" 체험하는 화면.
+ *  - 액자·토글 없음. 기기 화면에 꽉 차는 진짜 반응형(폰=하단 5탭, 데스크탑=상단 내비).
+ *  - 피드는 실제 운영 DB 데이터(page.tsx 서버 fetch → props).
+ *  - 같은 호스트(pibutenten.kr/beta)라 로그인 상태 그대로 유지. 개인 탭은 로그인 게이팅.
+ *  - noindex (page.tsx).
  */
 
 import { useState } from "react";
 
 const C = "#4cbff2";
 
-/** 서버(page.tsx)에서 CardData → 매핑해 넘기는 실데이터 카드. */
 export type FeedPost = {
   id: number;
   kind: "qa" | "post" | "review" | "review_summary";
@@ -33,7 +25,7 @@ export type FeedPost = {
   rating: number | null;
 };
 
-/* ───────────── 아이콘 (인라인 SVG, 의존성 0) ───────────── */
+/* ── 아이콘 (인라인 SVG) ── */
 type IcoName = "book" | "pen" | "grid" | "bag" | "user" | "search" | "bell" | "heart" | "chat" | "bookmark" | "star" | "chevL" | "chevR" | "x";
 function Ico({ name, size = 20, className = "", fill = false }: { name: IcoName; size?: number; className?: string; fill?: boolean }) {
   const p = { width: size, height: size, viewBox: "0 0 24 24", fill: fill ? "currentColor" : "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, className };
@@ -54,21 +46,16 @@ function Ico({ name, size = 20, className = "", fill = false }: { name: IcoName;
     case "x": return <svg {...p}><path d="M18 6 6 18M6 6l12 12" /></svg>;
   }
 }
-
 function Logo({ h = 28 }: { h?: number }) {
-  // 실제 브랜드 로고(기존 상단 내비와 동일 자산)
   // eslint-disable-next-line @next/next/no-img-element
   return <img src="/brand-logo.svg" alt="피부텐텐" style={{ height: h, width: "auto" }} />;
 }
-
 function Stars({ n, size = 12 }: { n: number; size?: number }) {
   return <span className="flex">{[1, 2, 3, 4, 5].map((s) => <span key={s} style={{ color: s <= n ? "#fbbf24" : "#e5e7eb" }}><Ico name="star" size={size} fill={s <= n} /></span>)}</span>;
 }
 function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNode; onClick: () => void }) {
   return <button type="button" onClick={onClick} className="rounded-full border px-3 py-1.5 text-sm transition-all" style={on ? { background: C, color: "#fff", borderColor: C } : { background: "#fff", color: "#4b5563", borderColor: "#e5e7eb" }}>{children}</button>;
 }
-
-/* ───────────── 카드 분류 라벨/색 ───────────── */
 const KIND_BADGE: Record<FeedPost["kind"], { label: string; bg: string; fg: string }> = {
   qa: { label: "Q&A", bg: "#f3e8ff", fg: "#a855f7" },
   review: { label: "후기", bg: "#e8f6fd", fg: C },
@@ -76,7 +63,7 @@ const KIND_BADGE: Record<FeedPost["kind"], { label: string; bg: string; fg: stri
   review_summary: { label: "리포트", bg: "#e0f2fe", fg: "#0284c7" },
 };
 
-/* ───────────── 메인 ───────────── */
+/* ── 메인 셸 (실제 반응형) ── */
 type Tab = "record" | "write" | "feed" | "shop" | "my";
 const TABS: { key: Tab; label: string; icon: IcoName }[] = [
   { key: "record", label: "시술 기록", icon: "book" },
@@ -86,77 +73,76 @@ const TABS: { key: Tab; label: string; icon: IcoName }[] = [
   { key: "my", label: "마이페이지", icon: "user" },
 ];
 
-export default function AppShellMockup({ posts, reports }: { posts: FeedPost[]; reports: FeedPost[] }) {
-  const [mode, setMode] = useState<"mobile" | "desktop">("mobile");
+export default function BetaApp({ posts, reports, isLoggedIn }: { posts: FeedPost[]; reports: FeedPost[]; isLoggedIn: boolean }) {
   const [tab, setTab] = useState<Tab>("feed");
   const [search, setSearch] = useState(false);
 
   const screen = (
-    tab === "record" ? <RecordScreen /> :
+    tab === "record" ? <RecordScreen isLoggedIn={isLoggedIn} /> :
     tab === "write" ? <WriteScreen /> :
     tab === "feed" ? <FeedScreen posts={posts} reports={reports} /> :
     tab === "shop" ? <ShopScreen /> :
-    <MyScreen />
+    <MyScreen isLoggedIn={isLoggedIn} />
   );
 
   return (
-    <div className="py-6">
-      <div className="mx-auto mb-5 max-w-2xl px-4">
-        <p className="mb-3 text-center text-[13px] text-gray-500">앱/웹 통합 구조 미리보기 · 피드는 <b>실제 운영 데이터</b> · 그 외 탭은 디자인 예시</p>
-        <div className="mx-auto flex w-fit gap-1 rounded-full bg-gray-100 p-1 text-sm font-medium">
-          {(["mobile", "desktop"] as const).map((m) => (
-            <button key={m} type="button" onClick={() => setMode(m)} className="rounded-full px-4 py-1.5 transition-all"
-              style={mode === m ? { background: "#fff", color: "#111", boxShadow: "0 1px 2px rgba(0,0,0,.08)" } : { color: "#6b7280" }}>
-              {m === "mobile" ? "📱 모바일 / 앱" : "🖥 데스크탑 웹"}
-            </button>
+    <div className="fixed inset-0 z-[100] flex flex-col bg-[#f4f5f7]">
+      {/* 데스크탑 상단 내비 */}
+      <header className="hidden h-16 items-center gap-6 border-b border-gray-100 bg-white px-6 md:flex">
+        <Logo h={30} />
+        <nav className="flex items-center gap-5">
+          {TABS.filter((t) => t.key !== "my").map((t) => (
+            <button key={t.key} type="button" onClick={() => setTab(t.key)} className="text-[15px] font-semibold transition-colors" style={{ color: tab === t.key ? C : "#4b5563" }}>{t.label}</button>
           ))}
-        </div>
-      </div>
+        </nav>
+        <div className="flex-1" />
+        <button type="button" className="p-1 text-gray-600"><Ico name="search" /></button>
+        <button type="button" className="p-1 text-gray-600"><Ico name="bell" /></button>
+        <button type="button" onClick={() => setTab("my")} className="p-1" style={{ color: tab === "my" ? C : "#4b5563" }}><Ico name="user" /></button>
+      </header>
 
-      {mode === "mobile" ? (
-        <div className="mx-auto flex w-full max-w-[400px] flex-col overflow-hidden rounded-[28px] border border-gray-200 bg-[#f4f5f7] shadow-xl" style={{ height: 760 }}>
-          <header className="flex h-14 shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-4">
-            {!search && <Logo h={26} />}
-            {search && <input autoFocus placeholder="시술명, 키워드 검색" className="flex-1 text-sm outline-none placeholder-gray-400" />}
-            <div className="flex-1" />
-            <button type="button" onClick={() => setSearch((v) => !v)} className="p-1 text-gray-600"><Ico name={search ? "x" : "search"} /></button>
-          </header>
-          <div className="flex-1 overflow-y-auto">{screen}</div>
-          <nav className="flex shrink-0 border-t border-gray-100 bg-white">
-            {TABS.map((t) => (
-              <button key={t.key} type="button" onClick={() => { setTab(t.key); setSearch(false); }} className="flex flex-1 flex-col items-center gap-0.5 py-2" style={{ color: tab === t.key ? C : "#9ca3af" }}>
-                <Ico name={t.icon} size={20} /><span className="text-[10px] font-medium">{t.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-      ) : (
-        <div className="mx-auto max-w-5xl overflow-hidden rounded-2xl border border-gray-200 bg-[#f4f5f7] shadow-xl">
-          <header className="flex h-16 items-center gap-6 border-b border-gray-100 bg-white px-6">
-            <Logo h={30} />
-            <nav className="flex items-center gap-5">
-              {TABS.filter((t) => t.key !== "my").map((t) => (
-                <button key={t.key} type="button" onClick={() => setTab(t.key)} className="text-[15px] font-semibold transition-colors" style={{ color: tab === t.key ? C : "#4b5563" }}>{t.label}</button>
-              ))}
-            </nav>
-            <div className="flex-1" />
-            <button type="button" className="p-1 text-gray-600"><Ico name="search" /></button>
-            <button type="button" className="p-1 text-gray-600"><Ico name="bell" /></button>
-            <button type="button" onClick={() => setTab("my")} className="p-1" style={{ color: tab === "my" ? C : "#4b5563" }}><Ico name="user" /></button>
-          </header>
-          <div className="mx-auto max-w-2xl px-4 py-5" style={{ minHeight: 620 }}>{screen}</div>
-        </div>
-      )}
+      {/* 모바일 상단 헤더 */}
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-4 md:hidden">
+        {!search && <Logo h={26} />}
+        {search && <input autoFocus placeholder="시술명, 키워드 검색" className="flex-1 text-sm outline-none placeholder-gray-400" />}
+        <div className="flex-1" />
+        <button type="button" onClick={() => setSearch((v) => !v)} className="p-1 text-gray-600"><Ico name={search ? "x" : "search"} /></button>
+      </header>
+
+      {/* 콘텐츠 */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-2xl">{screen}</div>
+      </main>
+
+      {/* 모바일 하단 5탭 */}
+      <nav className="flex shrink-0 border-t border-gray-100 bg-white md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        {TABS.map((t) => (
+          <button key={t.key} type="button" onClick={() => { setTab(t.key); setSearch(false); }} className="flex flex-1 flex-col items-center gap-0.5 py-2" style={{ color: tab === t.key ? C : "#9ca3af" }}>
+            <Ico name={t.icon} size={20} /><span className="text-[10px] font-medium">{t.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
 
-/* ───────────── 피드 (실제 DB 데이터) ───────────── */
+/* ── 로그인 게이트 ── */
+function LoginGate({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl" style={{ background: "#e8f6fd", color: C }}><Ico name="user" size={30} /></div>
+      <p className="text-base font-bold text-gray-800">{title}</p>
+      <p className="mt-2 text-sm text-gray-400">로그인하면 내 정보가 표시됩니다.</p>
+      <a href="/login" className="mt-5 rounded-full px-6 py-2.5 text-sm font-semibold text-white" style={{ background: C }}>로그인</a>
+    </div>
+  );
+}
+
+/* ── 피드 (실제 DB 데이터) ── */
 function FeedScreen({ posts, reports }: { posts: FeedPost[]; reports: FeedPost[] }) {
   const [tab, setTab] = useState<"전체" | "Q&A" | "시술 후기" | "커뮤니티" | "리포트">("전체");
   const [liked, setLiked] = useState<number[]>([]);
   const [saved, setSaved] = useState<number[]>([]);
-
   const organic = posts.filter((p) => p.kind !== "review_summary");
   const list =
     tab === "전체" ? organic :
@@ -164,19 +150,15 @@ function FeedScreen({ posts, reports }: { posts: FeedPost[]; reports: FeedPost[]
     tab === "시술 후기" ? organic.filter((p) => p.kind === "review") :
     tab === "커뮤니티" ? organic.filter((p) => p.kind === "post") :
     reports;
-
   return (
     <div>
       <div className="flex gap-2 overflow-x-auto px-4 pb-2 pt-3">
         {(["전체", "Q&A", "시술 후기", "커뮤니티", "리포트"] as const).map((t) => (
-          <button key={t} type="button" onClick={() => setTab(t)} className="whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition-all"
-            style={tab === t ? { background: C, color: "#fff", borderColor: C } : { background: "#fff", color: "#6b7280", borderColor: "#e5e7eb" }}>{t}</button>
+          <button key={t} type="button" onClick={() => setTab(t)} className="whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition-all" style={tab === t ? { background: C, color: "#fff", borderColor: C } : { background: "#fff", color: "#6b7280", borderColor: "#e5e7eb" }}>{t}</button>
         ))}
       </div>
-      <div className="px-4 pb-6 pt-3">
-        {list.length === 0 ? (
-          <p className="mt-16 text-center text-sm text-gray-400">표시할 글이 없어요.</p>
-        ) : (
+      <div className="px-4 pb-8 pt-3">
+        {list.length === 0 ? <p className="mt-16 text-center text-sm text-gray-400">표시할 글이 없어요.</p> : (
           <div className="space-y-3">
             {list.map((p) => {
               const b = KIND_BADGE[p.kind];
@@ -215,71 +197,28 @@ function FeedScreen({ posts, reports }: { posts: FeedPost[]; reports: FeedPost[]
   );
 }
 
-/* ───────────── 시술 기록 (연표/달력/목록) — 디자인 예시 ───────────── */
-type Rec = { id: number; month: number; day: number; items: string[]; clinic: string; year?: number };
-const RECORDS: Rec[] = [
-  { id: 1, month: 6, day: 12, items: ["보톡스 이마 50u · 미간 20u"], clinic: "예담피부과의원" },
-  { id: 2, month: 6, day: 4, items: ["써마지 600샷", "스컬트라 2바이알"], clinic: "라온피부과의원" },
-  { id: 3, month: 5, day: 20, items: ["리쥬란 2cc"], clinic: "맑은서울피부과의원" },
-];
-function RecordScreen() {
-  const [view, setView] = useState<"연표" | "달력" | "목록">("연표");
-  const months = [...new Set(RECORDS.map((r) => r.month))].sort((a, b) => b - a);
+/* ── 시술 기록 (로그인 게이팅 · 실제 기록 연결 예정) ── */
+function RecordScreen({ isLoggedIn }: { isLoggedIn: boolean }) {
+  if (!isLoggedIn) return <LoginGate title="내 시술 기록" />;
   return (
     <div className="p-4">
       <div className="mb-3 flex items-center justify-between">
-        <span className="font-bold text-gray-900">시술 기록 <span className="ml-1 text-[11px] font-normal text-gray-400">예시</span></span>
+        <span className="font-bold text-gray-900">시술 기록</span>
         <div className="flex gap-1 rounded-full bg-gray-100 p-0.5">
-          {(["연표", "달력", "목록"] as const).map((v) => (
-            <button key={v} type="button" onClick={() => setView(v)} className="rounded-full px-3 py-1 text-sm transition-all" style={view === v ? { background: "#fff", color: "#111", fontWeight: 600, boxShadow: "0 1px 2px rgba(0,0,0,.06)" } : { color: "#6b7280" }}>{v}</button>
+          {["연표", "달력", "목록"].map((v, i) => (
+            <span key={v} className="rounded-full px-3 py-1 text-sm" style={i === 0 ? { background: "#fff", color: "#111", fontWeight: 600 } : { color: "#9ca3af" }}>{v}</span>
           ))}
         </div>
       </div>
-      {view === "연표" && (
-        <>
-          <div className="mb-3 flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm">
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500"><Ico name="chevL" size={16} /></button>
-            <div className="text-center"><div className="text-xl font-bold text-gray-900">2026 <span className="text-sm font-normal text-gray-500">올해</span></div><div className="text-sm text-gray-500">시술 {RECORDS.length}회</div></div>
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500"><Ico name="chevR" size={16} /></button>
-          </div>
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-            {months.map((m, i) => (
-              <div key={m}>
-                {i > 0 && <div className="border-t border-gray-100" />}
-                <div className="flex gap-3 p-4">
-                  <span className="w-8 shrink-0 pt-1 text-sm font-bold leading-5" style={{ color: C }}>{m}월</span>
-                  <div className="flex-1 space-y-2">
-                    {RECORDS.filter((r) => r.month === m).map((r) => (
-                      <div key={r.id} className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2">
-                          <span className="shrink-0 text-sm font-semibold leading-5" style={{ color: C }}>{r.day}일</span>
-                          <span className="flex flex-wrap gap-1.5">{r.items.map((it) => <span key={it} className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">{it}</span>)}</span>
-                        </div>
-                        <span className="shrink-0 text-xs text-gray-400">{r.clinic}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-      {view === "달력" && <p className="rounded-2xl bg-white p-8 text-center text-sm text-gray-400 shadow-sm">달력 보기 — 시술 받은 날에 표시</p>}
-      {view === "목록" && (
-        <div className="space-y-2">{RECORDS.map((r) => (
-          <div key={r.id} className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm">
-            <div className="flex items-center gap-3"><span className="shrink-0 text-sm font-semibold" style={{ color: C }}>{String(r.month).padStart(2, "0")}.{String(r.day).padStart(2, "0")}</span><div><p className="text-sm font-medium text-gray-800">{r.items.join(" · ")}</p><p className="text-xs text-gray-400">{r.clinic}</p></div></div>
-            <Ico name="chevR" size={14} className="text-gray-300" />
-          </div>
-        ))}</div>
-      )}
-      <p className="mt-4 text-center text-xs text-gray-400">로그인하면 내가 받은 시술이 여기에 쌓여요.</p>
+      <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
+        <p className="text-sm font-medium text-gray-700">아직 시술 기록이 없어요.</p>
+        <p className="mt-1 text-xs text-gray-400">글쓰기 → ‘시술기록하기’에서 첫 기록을 남겨보세요.</p>
+      </div>
     </div>
   );
 }
 
-/* ───────────── 글쓰기 (끄적끄적/시술기록하기/시술후기) — 입력 화면 ───────────── */
+/* ── 글쓰기 (끄적끄적 / 시술기록하기 / 시술후기) ── */
 const TREAT_LIFTING = ["써마지", "올쎄라", "슈링크", "올리지오", "포텐자", "텐써마", "덴서티", "울트라셀"];
 const TREAT_SKIN = ["보톡스", "리쥬란", "물광주사", "엑소좀", "스킨보톡스", "피코토닝"];
 const PAIN_ICONS = ["😊", "🙂", "😐", "😬", "😣"];
@@ -288,7 +227,6 @@ const DOWNTIME = ["없음", "1~2일", "3~5일", "약 1주", "2주 이상"];
 const REDO = ["있어요", "없어요", "고민 중"];
 const EFFECTS = ["리프팅", "탄력", "쫀쫀함", "볼륨", "작은얼굴", "턱선", "피부톤", "피부결", "잔주름", "모공", "생기", "없음"];
 const TIMING = ["시술 직후", "1~2주 후", "한 달쯤 후", "두세 달 후", "효과 못 느낌"];
-
 function WriteScreen() {
   const [cat, setCat] = useState<"끄적끄적" | "시술기록하기" | "시술후기">("끄적끄적");
   return (
@@ -372,7 +310,7 @@ function ReviewForm() {
   );
 }
 
-/* ───────────── 쇼핑 (준비중) ───────────── */
+/* ── 쇼핑 (준비중) ── */
 function ShopScreen() {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
@@ -383,8 +321,9 @@ function ShopScreen() {
   );
 }
 
-/* ───────────── 마이페이지 (공개 프로필 없음 · 설정 중심) ───────────── */
-function MyScreen() {
+/* ── 마이페이지 (로그인 게이팅 · 설정 중심) ── */
+function MyScreen({ isLoggedIn }: { isLoggedIn: boolean }) {
+  if (!isLoggedIn) return <LoginGate title="마이페이지" />;
   const groups: { title: string; items: string[] }[] = [
     { title: "내 활동", items: ["알림", "내가 쓴 글", "저장한 글"] },
     { title: "설정", items: ["닉네임·계정", "알림 설정", "개인정보 설정"] },
@@ -392,8 +331,8 @@ function MyScreen() {
   return (
     <div className="p-4">
       <div className="mb-4 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "#e8f6fd" }}><span className="text-xl" style={{ color: C }}>👤</span></div>
-        <div><p className="font-bold text-gray-900">반짝이</p><p className="text-xs text-gray-400">피부텐텐 회원 · 시술 3회</p></div>
+        <div className="flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "#e8f6fd", color: C }}><Ico name="user" size={26} /></div>
+        <div><p className="font-bold text-gray-900">내 계정</p><p className="text-xs text-gray-400">로그인됨</p></div>
       </div>
       {groups.map((g) => (
         <div key={g.title} className="mb-3">
