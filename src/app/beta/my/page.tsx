@@ -16,7 +16,7 @@ export default async function BetaMyPage() {
 
   if (!user) {
     return (
-      <div className="pb-16 sm:pb-0">
+      <div className="mx-auto max-w-[680px] pb-16 sm:pb-0">
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <p className="text-base font-bold text-[var(--text)]">마이페이지</p>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">로그인하면 내 정보가 표시됩니다.</p>
@@ -32,7 +32,7 @@ export default async function BetaMyPage() {
   ];
 
   return (
-    <div className="pb-16 sm:pb-0">
+    <div className="mx-auto max-w-[680px] pb-16 sm:pb-0">
       <div className="mb-4 flex items-center gap-3 rounded-[var(--radius)] bg-white p-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "#e8f6fd", color: C }}>
           <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>

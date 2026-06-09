@@ -3,16 +3,32 @@
 import { useState } from "react";
 // 우리 목업의 시술기록 작성 폼 / 시술후기 폼을 그대로 재사용.
 import { DiaryForm, ReviewOnlyForm } from "../../mockups/skin-diary/SkinDiaryMockup";
+// 끄적끄적은 기존 글쓰기 컴포넌트(WriteClient)를 그대로 사용.
+import WriteClient from "../../write/WriteClient";
+
+type Doctor = { id: string; slug: string; name: string; branch: string | null };
 
 const C = "#4cbff2";
 const noop = () => {};
 
-export default function WriteTabs() {
-  const [cat, setCat] = useState<"끄적끄적" | "시술기록하기" | "시술후기">("시술기록하기");
+export default function WriteTabs({
+  isLoggedIn,
+  role,
+  displayName,
+  myDoctor,
+  doctors,
+}: {
+  isLoggedIn: boolean;
+  role: "admin" | "doctor" | "user";
+  displayName: string;
+  myDoctor: { slug: string; name: string } | null;
+  doctors: Doctor[];
+}) {
+  const [cat, setCat] = useState<"시술기록하기" | "시술후기" | "끄적끄적">("시술기록하기");
   return (
-    <div className="pb-16 sm:pb-0">
+    <div className="mx-auto max-w-[680px] pb-16 sm:pb-0">
       <div className="mb-4 flex gap-2">
-        {(["끄적끄적", "시술기록하기", "시술후기"] as const).map((c) => (
+        {(["시술기록하기", "시술후기", "끄적끄적"] as const).map((c) => (
           <button
             key={c}
             type="button"
@@ -25,14 +41,18 @@ export default function WriteTabs() {
         ))}
       </div>
 
-      {cat === "끄적끄적" && (
-        <div className="rounded-[var(--radius)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">
-          끄적끄적(자유 글쓰기)은 기존 글쓰기(/write)를 사용합니다.
-          <div className="mt-3"><a href="/write" className="inline-block rounded-full px-5 py-2 text-sm font-semibold text-white" style={{ background: C }}>기존 글쓰기로 이동</a></div>
-        </div>
-      )}
       {cat === "시술기록하기" && <DiaryForm toast={noop} go={noop} />}
       {cat === "시술후기" && <ReviewOnlyForm toast={noop} go={noop} />}
+      {cat === "끄적끄적" && (
+        isLoggedIn ? (
+          <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="doodle" />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="text-sm font-medium text-[var(--text)]">로그인 후 작성할 수 있어요.</p>
+            <a href="/login" className="mt-4 rounded-full px-6 py-2.5 text-sm font-semibold text-white" style={{ background: C }}>로그인</a>
+          </div>
+        )
+      )}
     </div>
   );
 }
