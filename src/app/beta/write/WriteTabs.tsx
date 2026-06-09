@@ -24,11 +24,11 @@ export default function WriteTabs({
   myDoctor: { slug: string; name: string } | null;
   doctors: Doctor[];
 }) {
-  const [cat, setCat] = useState<"시술기록하기" | "시술후기" | "끄적끄적">("시술기록하기");
+  const [cat, setCat] = useState<"시술기록" | "시술후기" | "끄적끄적">("시술기록");
   return (
     <div className="mx-auto max-w-[680px] pb-16 sm:pb-0">
       <div className="mb-4 flex gap-2">
-        {(["시술기록하기", "시술후기", "끄적끄적"] as const).map((c) => (
+        {(["시술기록", "시술후기", "끄적끄적"] as const).map((c) => (
           <button
             key={c}
             type="button"
@@ -41,7 +41,7 @@ export default function WriteTabs({
         ))}
       </div>
 
-      {cat === "시술기록하기" && <DiaryForm toast={noop} go={noop} />}
+      {cat === "시술기록" && <DiaryForm toast={noop} go={noop} />}
       {cat === "시술후기" && <ReviewOnlyForm toast={noop} go={noop} />}
       {cat === "끄적끄적" && (
         isLoggedIn ? (
