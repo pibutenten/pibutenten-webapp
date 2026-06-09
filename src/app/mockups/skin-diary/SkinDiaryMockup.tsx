@@ -344,7 +344,7 @@ function ReviewFormBody({ cat, label, v, set, submitLabel, onSubmit, topRight }:
 
 /* ════════════════ ② 시술 후기만 (실제 ReviewForm 그대로, 가격 없음) ════════════════ */
 
-function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
+export function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
   const [proc, setProc] = useState("");
   const [v, setV] = useState<ReviewState>(emptyReview());
   const set = (p: Partial<ReviewState>) => setV((s) => ({ ...s, ...p }));
@@ -423,7 +423,7 @@ function regionLabel(addr: string): string {
 
 type DiaryProc = ReviewState & { id: number; label: string; cat: string; price: string; unit: string; note: string; open: boolean; later: boolean };
 
-function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
+export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
   const [pickedXY, setPickedXY] = useState<{ x: number; y: number } | null>(null); // 확정 병원 좌표(경도 x/위도 y)
@@ -854,7 +854,7 @@ const SUMMARY: { year: number; items: SummaryItem[] }[] = [
   ] },
 ];
 
-function RecordView({ go }: { go: (s: Screen) => void }) {
+export function RecordView({ go }: { go: (s: Screen) => void }) {
   const [mode, setMode] = useState<"tl" | "cal" | "list">("tl");
   const TABS: [typeof mode, string][] = [["tl", "연표"], ["cal", "달력"], ["list", "목록"]];
   return (

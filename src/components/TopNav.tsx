@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 // v4 다중 identity 전환은 IdentitySwitcher로 (1개일 땐 단순 Link)
 import IdentitySwitcher from "./IdentitySwitcher";
 import NotificationsBell from "./NotificationsBell";
+import BetaNav from "./BetaNav";
 import { ROLES } from "@/lib/identity-shared";
 // V-Phase(2026-06-07): 세션은 SSR prop 이 아니라 클라 SessionProvider 에서 받음
 //   (layout 이 서버에서 세션을 안 읽게 함). 타입(SessionInfo)만 역방향 import 라 순환 없음.
@@ -215,6 +216,10 @@ export default function TopNav() {
   // 세션은 클라에서: 마운트 즉시 쿠키로 로그인 여부 확정(네트워크 없음) + /api/session 리치 보강.
   const session = useSession();
   const pathname = usePathname();
+
+  // /beta 미리보기 — 레이아웃은 그대로 두고 내비만 새 5탭(BetaNav)으로 교체.
+  if (pathname.startsWith("/beta")) return <BetaNav />;
+
   // 로그아웃 동작은 본인 프로필 페이지(/{handle}) 하단 LogoutButton으로 이동됨 (A5)
   // router/isLoggingOut/handleLogout/dashboardHref는 더 이상 사용 안 함 — 정리.
 
