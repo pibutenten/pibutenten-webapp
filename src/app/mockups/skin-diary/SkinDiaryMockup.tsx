@@ -350,7 +350,7 @@ export function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: 
   const set = (p: Partial<ReviewState>) => setV((s) => ({ ...s, ...p }));
   const selected = PROCEDURES.find((p) => p.value === proc);
   return (
-    <section className="mx-auto w-full max-w-[640px]">
+    <section className="mx-auto w-full max-w-[680px]">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">시술후기를 남겨주세요</h1>
       <div className={formBox}>
         {selected ? (
@@ -598,7 +598,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   const acExact = PROCEDURES.some((p) => p.label === tq) || !!EN2KO[tlow];
 
   return (
-    <section className="mx-auto w-full max-w-[640px]">
+    <section className="mx-auto w-full max-w-[680px]">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">오늘의 시술을 기록해요</h1>
 
       {/* 메인 일기 글상자 */}
@@ -858,7 +858,7 @@ export function RecordView({ go }: { go: (s: Screen) => void }) {
   const [mode, setMode] = useState<"tl" | "cal" | "list">("tl");
   const TABS: [typeof mode, string][] = [["tl", "연표"], ["cal", "달력"], ["list", "목록"]];
   return (
-    <section className="mx-auto w-full max-w-[640px]">
+    <section className="mx-auto w-full max-w-[680px]">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-[16px] font-bold text-[var(--text)]">내 일기</span>
         <div className="flex gap-1 rounded-full bg-[#E8EAEE] p-1">
@@ -1055,7 +1055,7 @@ function SummaryPanel({ go }: { go: (s: Screen) => void }) {
 
 function DetailView({ go }: { go: (s: Screen) => void }) {
   return (
-    <section className="mx-auto w-full max-w-[640px] space-y-3">
+    <section className="mx-auto w-full max-w-[680px] space-y-3">
       {/* 헤더 — 날짜·시술·병원·의료진(라벨 없이) + 빠른 액션 */}
       <div className={cardBox}>
         <p className="text-[12px] font-bold text-[var(--primary-active)]">2026.06.04 · 목요일 <span className="ml-1 font-medium text-[var(--text-muted)]">· 나만 봐요</span></p>
@@ -1100,7 +1100,7 @@ function NotiView({ go, toast }: { go: (s: Screen) => void; toast: (m: string) =
     { tag: "3단계 · 30일 뒤 (마지막)", t: "한 달 됐어요", m: "이제 효과가 안정됐을 거예요. 최종 만족도와 효과를 마무리해 볼까요? 이 알림은 마지막이에요.", meta: "써마지 · 효과 안정 시점", last: true },
   ];
   return (
-    <section className="mx-auto w-full max-w-[640px]">
+    <section className="mx-auto w-full max-w-[680px]">
       <p className="mb-3 text-[15px] font-bold text-[var(--text)]">‘나중에 쓰기’ 후기 알림 <span className="text-[12px] font-normal text-[var(--text-muted)]">3일 · 7일 · 30일, 3번까지</span></p>
       <div className="space-y-2.5">
         {items.map((n) => (
