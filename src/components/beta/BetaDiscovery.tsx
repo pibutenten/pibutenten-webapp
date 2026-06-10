@@ -17,20 +17,33 @@ const C = "#4cbff2";
 type DiscoverData = { popular: string[]; cats: Record<string, string[]> };
 const chip = "shrink-0 rounded-full bg-[#f1f3f5] px-2 py-[3px] text-[12px] text-[#46505d]";
 
+// 발견 데이터 모듈 캐시 — 검색창을 열 때마다 재fetch 하던 깜빡임/딜레이 제거.
+//   최초 1회만 네트워크, 이후 재열기는 캐시로 즉시 표시. prefetchDiscover() 로 페이지 진입 시 선로딩 가능.
+let discoverCache: DiscoverData | null = null;
+let discoverPromise: Promise<DiscoverData> | null = null;
+export function prefetchDiscover(): Promise<DiscoverData> {
+  if (discoverCache) return Promise.resolve(discoverCache);
+  if (!discoverPromise) {
+    discoverPromise = fetch("/api/beta-discover")
+      .then((r) => r.json())
+      .then((d: DiscoverData) => { discoverCache = d; return d; })
+      .catch(() => { discoverPromise = null; return { popular: [], cats: {} }; });
+  }
+  return discoverPromise;
+}
+
 export default function BetaDiscovery({ query = "", onPicked }: { query?: string; onPicked?: (term: string) => void }) {
   const router = useRouter();
-  const [data, setData] = useState<DiscoverData | null>(null);
+  const [data, setData] = useState<DiscoverData | null>(discoverCache);
   const [recent, setRecent] = useState<string[]>([]);
   const [activeCat, setActiveCat] = useState<CategorySlug>("lifting");
 
   useEffect(() => {
     setRecent(getRecent());
     setActiveCat(Math.random() < 0.5 ? "lifting" : "injectables");
+    if (discoverCache) { setData(discoverCache); return; } // 캐시 즉시 표시(깜빡임 없음)
     let alive = true;
-    fetch("/api/beta-discover")
-      .then((r) => r.json())
-      .then((d: DiscoverData) => { if (alive) setData(d); })
-      .catch(() => { /* 실패해도 최근검색은 표시 */ });
+    prefetchDiscover().then((d) => { if (alive) setData(d); });
     return () => { alive = false; };
   }, []);
 
@@ -53,25 +66,25 @@ export default function BetaDiscovery({ query = "", onPicked }: { query?: string
   const q = query.trim();
 
   // ── 입력 중: 자동완성(접두 우선 → 부분일치) ──
+  //   매칭이 있을 때만 자동완성 목록 표시. 없으면 안내문 없이 아래 발견 화면(카테고리 등)으로 폴백.
   if (q) {
     const low = q.toLowerCase();
     const starts = allKeywords.filter((k) => k.toLowerCase().startsWith(low));
     const incl = allKeywords.filter((k) => !k.toLowerCase().startsWith(low) && k.toLowerCase().includes(low));
     const matches = [...starts, ...incl].slice(0, 20);
-    return (
-      <div>
-        {matches.length === 0 ? (
-          <p className="px-1 py-6 text-center text-sm text-[var(--text-secondary)]">‘{q}’(으)로 시작하는 검색어가 없어요. 카테고리에서 골라보세요.</p>
-        ) : (
-          matches.map((m) => (
+    if (matches.length > 0) {
+      return (
+        <div>
+          {matches.map((m) => (
             <button key={m} type="button" onClick={() => pick(m)} className="flex w-full items-center gap-2.5 rounded-md px-1 py-2.5 text-left hover:bg-[#f7f9fb]">
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#9aa3b0" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4-4" /></svg>
               <span className="text-[15px] text-[var(--text)]">{m}</span>
             </button>
-          ))
-        )}
-      </div>
-    );
+          ))}
+        </div>
+      );
+    }
+    // 매칭 없음 → 폴백(아래 발견 화면 공통 렌더로 진행).
   }
 
   // ── 발견 화면 ──
@@ -130,7 +143,7 @@ export default function BetaDiscovery({ query = "", onPicked }: { query?: string
             return (
               <button key={c.slug} type="button" onClick={() => setActiveCat(c.slug)} className="relative shrink-0 whitespace-nowrap pb-2.5 pt-0.5 text-[15px]" style={{ color: on ? c.color : "#9aa3b0", fontWeight: on ? 800 : 600 }}>
                 {c.label}
-                {on && <span className="absolute bottom-[-1px] left-0 right-0 h-[3px] rounded-t-[3px]" style={{ background: c.color }} />}
+                {on && <span className="absolute bottom-[-1px] left-[-4px] right-[-4px] h-[3px] rounded-t-[3px]" style={{ background: c.color }} />}
               </button>
             );
           })}

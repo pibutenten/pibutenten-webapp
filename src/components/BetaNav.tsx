@@ -15,7 +15,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import NotificationsBell from "./NotificationsBell";
-import BetaDiscovery from "./beta/BetaDiscovery";
+import BetaDiscovery, { prefetchDiscover } from "./beta/BetaDiscovery";
 import { useSession } from "@/lib/session-context";
 import { addRecent } from "@/lib/beta-recent";
 
@@ -90,7 +90,7 @@ function ChipRow({ active, q = "" }: { active: string; q?: string }) {
             >
               {c.label}
               <ChipPending />
-              {on && <span className="absolute bottom-[-1px] left-[6px] right-[6px] h-[3px] rounded-t-[3px]" style={{ background: C }} />}
+              {on && <span className="absolute bottom-[-1px] left-0 right-0 h-[3px] rounded-t-[3px]" style={{ background: C }} />}
             </Link>
           );
         })}
@@ -130,6 +130,9 @@ export default function BetaNav() {
 
   // URL q → 검색창에 반영(검색 결과 동안 검색어 노출 유지). 결과 페이지면 모바일 검색바도 표시.
   const onSync = useCallback((v: string) => { setUrlQ(v); setQ(v); }, []);
+
+  // 발견 데이터 선프리페치 — 검색창 첫 열기도 즉시 표시(끊김 없이 깔끔하게).
+  useEffect(() => { void prefetchDiscover(); }, []);
 
   // 데스크탑 검색 드롭다운 — 바깥 클릭 시 닫기.
   useEffect(() => {
