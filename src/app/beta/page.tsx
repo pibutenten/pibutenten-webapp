@@ -43,11 +43,14 @@ export default async function BetaFeedPage({ searchParams }: { searchParams: Pro
       <div className="pb-16 sm:pb-0">
         <h1 className="sr-only">피부텐텐 베타 — 시술 리포트</h1>
         {pool.length === 0 ? (
-          <div className="mx-auto max-w-[680px] rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">집계된 리포트가 없습니다.</div>
+          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">집계된 리포트가 없습니다.</div>
         ) : (
-          <div className="mx-auto max-w-[680px] space-y-4">
+          // 리포트 카드 목록 — 피드와 동일하게 데스크탑 2열(모바일 1열).
+          <div className="sm:columns-2 sm:gap-4">
             {pool.map((r) => (
-              <ProcedureReportCard key={r.anchor?.id ?? r.en} report={r} feedHref={`/reports/${encodeURIComponent(r.procedureKo)}`} />
+              <div key={r.anchor?.id ?? r.en} className="mb-4 break-inside-avoid">
+                <ProcedureReportCard report={r} feedHref={`/reports/${encodeURIComponent(r.procedureKo)}`} />
+              </div>
             ))}
           </div>
         )}

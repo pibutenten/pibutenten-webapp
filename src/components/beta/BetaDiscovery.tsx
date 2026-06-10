@@ -15,7 +15,7 @@ import { addRecent, clearRecent, getRecent, removeRecent } from "@/lib/beta-rece
 
 const C = "#4cbff2";
 type DiscoverData = { popular: string[]; cats: Record<string, string[]> };
-const chip = "shrink-0 rounded-full bg-[#f1f3f5] px-3 py-1.5 text-sm text-[#46505d]";
+const chip = "shrink-0 rounded-full bg-[#f1f3f5] px-2.5 py-1 text-[13px] text-[#46505d]";
 
 export default function BetaDiscovery({ query = "", onPicked }: { query?: string; onPicked?: () => void }) {
   const router = useRouter();
@@ -91,7 +91,7 @@ export default function BetaDiscovery({ query = "", onPicked }: { query?: string
         ) : (
           <div className="flex flex-wrap gap-2">
             {recent.map((r) => (
-              <span key={r} className="flex items-center gap-1 rounded-full bg-[#f1f3f5] py-1.5 pl-3 pr-2 text-sm text-[#46505d]">
+              <span key={r} className="flex items-center gap-1 rounded-full bg-[#f1f3f5] py-1 pl-2.5 pr-1.5 text-[13px] text-[#46505d]">
                 <button type="button" onClick={() => pick(r)} className="flex items-center gap-1.5">
                   <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9aa3b0" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
                   {r}
@@ -113,7 +113,7 @@ export default function BetaDiscovery({ query = "", onPicked }: { query?: string
         ) : (
           <div className="flex flex-wrap gap-2">
             {data.popular.map((p, i) => (
-              <button key={p} type="button" onClick={() => pick(p)} className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#f1f3f5] px-3 py-1.5 text-sm text-[#46505d]">
+              <button key={p} type="button" onClick={() => pick(p)} className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#f1f3f5] px-2.5 py-1 text-[13px] text-[#46505d]">
                 <b style={{ color: i < 3 ? C : "#aab2bd" }}>{i + 1}</b>
                 {p}
               </button>
