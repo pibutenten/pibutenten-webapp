@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-11] — /beta 피드 즉시 전환 + 시술일기 테이블 신설
+
+### Added
+- **diaries / diary_procedures 테이블** (마이그 0278): 개인 비공개 "시술일기" 저장용. 부모(방문 1건: 날짜·병원 스냅샷·의사/실장·일기 ≤400자) + 자식(받은 시술 N개: 시술명·tag_dictionary FK·용량·가격·메모). 작성자=`profile_id`(ADR 0014). **전체 비공개**: RLS ENABLE + anon REVOKE + authenticated 본인 active 명함 단위 정책 4종(운영자 열람 정책 없음). 인덱스 4종 + set_updated_at 트리거. (폼 연결은 후속 작업 — 현재 시술일기 폼은 아직 목업)
+- **피드 탭 즉시 전환**: `/beta` 탭(전체/Q&A/시술후기/끄적끄적/리포트)을 300개 클라 캐시에서 즉시 필터(서버 왕복 0). 헤더 칩↔피드 공유 store(`beta-feed-tab.ts`, useSyncExternalStore). `BetaFeed` 신설(공용 Feed 미수정). 탭 전환 시 콘텐츠 슬라이드업 효과.
+
+### Changed
+- **시술후기 탭 = 실제 ReviewForm 연결**: 목업 폼 대신 `/review/new` 의 ReviewForm 사용 → DB 실제 저장.
+- **/beta 잔여 UI**: 하단탭 '시술기록'→'내 일기'+양끝 여백, 글쓰기 탭 '시술일기 쓰기/시술후기 남기기/끄적끄적', 칩 cursor-pointer, /beta FAB 숨김.
+
+---
+
 ## [2026-06-10] — /beta 검색 UX (검색바 유지 + 검색·카테고리 동시 필터)
 
 ### Added
