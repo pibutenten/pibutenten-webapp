@@ -65,6 +65,10 @@ export default async function BetaFeedPage({ searchParams }: { searchParams: Pro
   let reportPool: ProcedureReport[] = [];
 
   if (query) {
+    // 검색어 로그(인기검색어 통계용) — /search 와 동일 패턴, fire-and-forget.
+    if (query.length <= 100) {
+      void supabase.from("search_logs").insert({ query, profile_id: viewer?.id ?? null }).then(() => { /* 실패해도 검색 진행 */ });
+    }
     // 상단 검색창 입력 — 기존 검색 메커니즘(fetchCardList → search_cards_scored, 무한스크롤 동일).
     searchQuery = query;
     const { data } = await fetchCardList(supabase, { q: query, offset: 0, limit: PAGE });
