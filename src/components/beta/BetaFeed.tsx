@@ -66,6 +66,7 @@ export default function BetaFeed({
     window.scrollTo({ top: 0 });
     const el = contentRef.current;
     if (el && typeof el.animate === "function") {
+      el.getAnimations().forEach((a) => a.cancel()); // 빠른 연속 전환 시 애니메이션 누적 방지
       el.animate(
         [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "translateY(0)" }],
         { duration: 220, easing: "ease-out" },

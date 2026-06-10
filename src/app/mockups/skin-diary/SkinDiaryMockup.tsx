@@ -406,6 +406,8 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   const [closing, setClosing] = useState(false);
   // 병원 검색 결과 키보드 네비게이션 — ↑↓ 로 하이라이트 이동, Enter 로 선택.
   const [hi, setHi] = useState(-1);
+  // 결과 목록이 (비동기 검색으로) 바뀌면 하이라이트 초기화 — 옛 인덱스로 엉뚱한 선택 방지.
+  useEffect(() => { setHi(-1); }, [results]);
   // 내 현재 위치 — 이름 검색 결과의 거리 표시·정렬 기준(ref, 재조회 불필요).
   const myLocRef = useRef<{ lat: number; lng: number } | null>(null);
   // 현재 결과가 '내 주변'(geolocation)에서 온 것인지 표시 — q 가 비었을 때 결과 유지 판정용.
@@ -649,7 +651,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
           )}
           <div className="relative">
             <input className={inputCls} placeholder={procs.length === 0 ? "시술명을 검색해보세요" : "함께 받은 다른 시술"} value={tag} autoComplete="off"
-              onChange={(e) => setTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(tag); } }} />
+              onChange={(e) => setTag(e.target.value)} onKeyDown={(e) => { if (e.key !== "Enter") return; if (e.nativeEvent.isComposing || e.keyCode === 229) return; e.preventDefault(); addTag(tag); }} />
             {tq && (
               <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto rounded-md bg-white shadow-[var(--shadow-lg)]">
                 {acMatches.map((m) => (
