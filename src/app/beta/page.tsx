@@ -67,8 +67,9 @@ export default async function BetaFeedPage({ searchParams }: { searchParams: Pro
   }
 
   // ── 그 외: 실제 Feed ──
-  const ua = (await headers()).get("user-agent") ?? "";
-  const isMobileUA = /Mobi|Android|iPhone|iPod|IEMobile|BlackBerry|Opera Mini/i.test(ua);
+  // 카드 조회와 독립인 쿼리(ua·hotIds)는 먼저 띄워 병렬화(탭 전환 체감 단축).
+  const hotIdsPromise = getHotQaIds(20);
+  const uaPromise = headers().then((h) => h.get("user-agent") ?? "");
 
   let cards: CardData[] = [];
   let searchQuery: string | undefined;
@@ -93,13 +94,19 @@ export default async function BetaFeedPage({ searchParams }: { searchParams: Pro
     const { data } = await fetchCardList(supabase, { q: label, offset: 0, limit: PAGE });
     cards = (data ?? []) as unknown as CardData[];
   } else {
-    const rpcRes = await supabase.rpc("feed_cards_scored", { p_limit: PAGE, p_offset: 0, p_half_life_days: 14, p_jitter_amp: 0.35 });
-    cards = (rpcRes.data ?? []) as CardData[];
-    cards = diversifyByDoctor(cards, { maxPerDoctorInHead: 1, headSize: 4 });
-    reportPool = await getReviewSummaryFeedPool(supabase);
+    // 피드 RPC 와 리포트 풀은 서로 독립 → 병렬.
+    const [rpcRes, pool] = await Promise.all([
+      supabase.rpc("feed_cards_scored", { p_limit: PAGE, p_offset: 0, p_half_life_days: 14, p_jitter_amp: 0.35 }),
+      getReviewSummaryFeedPool(supabase),
+    ]);
+    cards = diversifyByDoctor((rpcRes.data ?? []) as CardData[], { maxPerDoctorInHead: 1, headSize: 4 });
+    reportPool = pool;
   }
 
-  const hotIds = Array.from(await getHotQaIds(20));
+  // 먼저 띄워둔 독립 쿼리 수확(ua·hotIds) — 카드 조회와 병렬로 끝나 있음.
+  const [hotIdsArr, ua] = await Promise.all([hotIdsPromise, uaPromise]);
+  const hotIds = Array.from(hotIdsArr);
+  const isMobileUA = /Mobi|Android|iPhone|iPod|IEMobile|BlackBerry|Opera Mini/i.test(ua);
   const viewerStates = await fetchViewerStatesRecord(supabase, viewer?.id ?? null, cards.map((q) => q.id));
 
   return (

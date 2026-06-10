@@ -12,7 +12,7 @@
  */
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import NotificationsBell from "./NotificationsBell";
 import BetaDiscovery from "./beta/BetaDiscovery";
@@ -52,6 +52,18 @@ const CATS: { label: string; cat: string }[] = [
   { label: "리포트", cat: "review_summary" },
 ];
 
+// 칩 클릭 즉시 피드백 — 네비게이션(서버 RSC fetch) 진행 중 스피너. Link 자식에서만 동작(useLinkStatus).
+//   로딩 경계가 없어 "먹통"처럼 보이던 탭 전환에 클릭 즉시 반응을 줌.
+function ChipPending() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <svg className="animate-spin" width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={C} strokeWidth={2.5} strokeLinecap="round" aria-hidden>
+      <path d="M21 12a9 9 0 1 1-6.2-8.5" />
+    </svg>
+  );
+}
+
 // 칩줄 — 활성 표시에 useSearchParams 사용 → Suspense 로 감싸 격리(상위 BetaNav 하이드레이션 보호).
 function ChipRow({ active, q = "" }: { active: string; q?: string }) {
   return (
@@ -73,10 +85,11 @@ function ChipRow({ active, q = "" }: { active: string; q?: string }) {
               key={c.cat || "all"}
               href={href}
               scroll={false}
-              className="relative shrink-0 whitespace-nowrap px-[6px] pb-[9px] pt-[4px] text-sm"
+              className="relative flex shrink-0 items-center gap-1 whitespace-nowrap px-[6px] pb-[9px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
               {c.label}
+              <ChipPending />
               {on && <span className="absolute bottom-[-1px] left-[6px] right-[6px] h-[3px] rounded-t-[3px]" style={{ background: C }} />}
             </Link>
           );

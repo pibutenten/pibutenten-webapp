@@ -15,7 +15,7 @@ import { addRecent, clearRecent, getRecent, removeRecent } from "@/lib/beta-rece
 
 const C = "#4cbff2";
 type DiscoverData = { popular: string[]; cats: Record<string, string[]> };
-const chip = "shrink-0 rounded-full bg-[#f1f3f5] px-2.5 py-1 text-[13px] text-[#46505d]";
+const chip = "shrink-0 rounded-full bg-[#f1f3f5] px-2 py-[3px] text-[12px] text-[#46505d]";
 
 export default function BetaDiscovery({ query = "", onPicked }: { query?: string; onPicked?: (term: string) => void }) {
   const router = useRouter();
