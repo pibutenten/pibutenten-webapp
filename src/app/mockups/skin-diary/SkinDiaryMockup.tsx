@@ -696,19 +696,14 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
             </div>
           )}
           {picked && (
-            <div className="mt-2 rounded-md bg-[var(--bg)] p-3">
-              <div className="flex items-center justify-between"><span className="text-[14px] font-bold text-[var(--text)]">{picked}</span>
-                <button type="button" onClick={() => { setPicked(null); setPickedXY(null); setQ(""); setTel(""); setAddr(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button></div>
-              <div className="mt-2 space-y-2">
-                <div className="flex items-center gap-2">
-                  <label className="w-12 shrink-0 text-[11.5px] font-semibold text-[var(--text-secondary)]">주소</label>
-                  <input className={inputCls} value={addr} onChange={(e) => setAddr(e.target.value)} />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="w-12 shrink-0 text-[11.5px] font-semibold text-[var(--text-secondary)]">전화번호</label>
-                  <input className={inputCls} value={tel} onChange={(e) => setTel(e.target.value)} />
-                </div>
+            <div className="mt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[14px] font-bold text-[var(--text)]">{picked}</span>
+                <button type="button" onClick={() => { setPicked(null); setPickedXY(null); setQ(""); setTel(""); setAddr(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button>
               </div>
+              {/* 회색 박스·라벨 제거 — 주소/전화는 거의 안 건드리므로 보더리스 미니멀 라인으로. */}
+              <input className="mt-1.5 w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" value={addr} placeholder="주소" onChange={(e) => setAddr(e.target.value)} />
+              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" value={tel} placeholder="전화번호" onChange={(e) => setTel(e.target.value)} />
             </div>
           )}
         </div>

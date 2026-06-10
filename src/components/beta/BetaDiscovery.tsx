@@ -143,7 +143,7 @@ export default function BetaDiscovery({ query = "", onPicked }: { query?: string
             return (
               <button key={c.slug} type="button" onClick={() => setActiveCat(c.slug)} className="relative shrink-0 whitespace-nowrap pb-2.5 pt-0.5 text-[15px]" style={{ color: on ? c.color : "#9aa3b0", fontWeight: on ? 800 : 600 }}>
                 {c.label}
-                {on && <span className="absolute bottom-[-1px] left-[-4px] right-[-4px] h-[3px] rounded-t-[3px]" style={{ background: c.color }} />}
+                {on && <span className="absolute bottom-[-1px] left-[-4px] right-[-4px] h-[2px]" style={{ background: c.color }} />}
               </button>
             );
           })}

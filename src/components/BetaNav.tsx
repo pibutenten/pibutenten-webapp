@@ -85,12 +85,12 @@ function ChipRow({ active, q = "" }: { active: string; q?: string }) {
               key={c.cat || "all"}
               href={href}
               scroll={false}
-              className="relative flex shrink-0 items-center gap-1 whitespace-nowrap px-[6px] pb-[9px] pt-[4px] text-sm"
+              className="relative flex shrink-0 items-center gap-1 whitespace-nowrap px-[6px] pb-[6px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
               {c.label}
               <ChipPending />
-              {on && <span className="absolute bottom-[-1px] left-0 right-0 h-[3px] rounded-t-[3px]" style={{ background: C }} />}
+              {on && <span className="absolute bottom-[-1px] left-0 right-0 h-[2px]" style={{ background: C }} />}
             </Link>
           );
         })}
@@ -119,13 +119,12 @@ function WriteTabBar({ active }: { active: string }) {
             <Link
               key={t.tab}
               href={`/beta/write?tab=${t.tab}`}
-              scroll={false}
-              className="relative flex flex-1 items-center justify-center gap-1 whitespace-nowrap pb-[9px] pt-[4px] text-sm"
+              className="relative flex flex-1 items-center justify-center gap-1 whitespace-nowrap pb-[6px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
               {t.label}
               <ChipPending />
-              {on && <span className="absolute bottom-[-1px] left-0 right-0 h-[3px] rounded-t-[3px]" style={{ background: C }} />}
+              {on && <span className="absolute bottom-[-1px] left-0 right-0 h-[2px]" style={{ background: C }} />}
             </Link>
           );
         })}
@@ -202,6 +201,13 @@ export default function BetaNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // 로고 클릭 — 어느 화면에서든 피드 전체 홈 + 스크롤 최상단(이미 /beta 여도 맨 위로).
+  const goHome = () => {
+    setUrlQ(""); setQ(""); setSearchOpen(false);
+    router.push("/beta");
+    window.scrollTo({ top: 0 });
+  };
+
   const submit = () => {
     const v = q.trim();
     if (!v) return;
@@ -217,15 +223,16 @@ export default function BetaNav() {
   return (
     <>
       <header className="sticky top-0 z-50 bg-white">
-        <div className="mx-auto w-full max-w-[1080px] px-4 pt-1.5 sm:px-6">
+        <div className="mx-auto w-full max-w-[1080px] px-4 pb-2 pt-1.5 sm:px-6">
           {/* (A) 로고줄 — 스크롤 시 접힘 */}
           <div
             className="flex h-12 items-center gap-4 overflow-hidden transition-[height,opacity] duration-[260ms] ease-out sm:h-14 sm:overflow-visible"
             style={folded ? { height: 0, opacity: 0 } : undefined}
           >
             {searchOpen ? (
-              // 결과 화면의 회색 알약 바와 동일 스타일 — 열림/결과 간 모양 변화 없이 일관 유지.
-              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f1f3f5] px-3 py-1.5">
+              // 결과 화면과 동일 — 회색 알약 + (벨). 열림/결과 간 너비·모양 변화 없이 고정.
+              <>
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f1f3f5] px-3 py-1.5">
                 <span className="shrink-0 text-[#9aa3b0]">{ICON.search}</span>
                 <input
                   autoFocus
@@ -241,7 +248,9 @@ export default function BetaNav() {
                   className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder-[#9aa3b0]"
                 />
                 <button type="button" onClick={() => { setSearchOpen(false); setQ(urlQ); }} aria-label="검색 닫기" className="shrink-0 text-[#9aa3b0]">{ICON.x}</button>
-              </div>
+                </div>
+                {session && <NotificationsBell />}
+              </>
             ) : (
               <>
                 {/* 모바일 좌측: 검색 결과 페이지면 '검색어+X' 바, 아니면 로고 */}
@@ -252,17 +261,17 @@ export default function BetaNav() {
                     <button type="button" aria-label="검색 해제" onClick={() => { setUrlQ(""); setQ(""); router.push("/beta"); }} className="shrink-0 text-[#9aa3b0]">{ICON.x}</button>
                   </div>
                 ) : (
-                  <Link href="/beta" aria-label="피부텐텐 베타 홈" className="flex shrink-0 items-center sm:hidden">
+                  <button type="button" onClick={goHome} aria-label="피부텐텐 베타 홈" className="flex shrink-0 items-center sm:hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/brand-logo.svg" alt="피부텐텐" className="h-7 w-auto" />
-                  </Link>
+                  </button>
                 )}
 
                 {/* 데스크탑 로고 */}
-                <Link href="/beta" aria-label="피부텐텐 베타 홈" className="hidden shrink-0 items-center sm:flex">
+                <button type="button" onClick={goHome} aria-label="피부텐텐 베타 홈" className="hidden shrink-0 items-center sm:flex">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/brand-logo.svg" alt="피부텐텐" className="h-8 w-auto" />
-                </Link>
+                </button>
 
                 {/* 데스크탑 메뉴 (모바일은 하단 탭) */}
                 <nav className="hidden items-center gap-5 sm:ml-6 sm:flex">
