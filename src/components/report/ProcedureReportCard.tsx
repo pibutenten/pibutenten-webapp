@@ -369,16 +369,12 @@ export default function ProcedureReportCard({
           </div>
         </section>
 
-        {/* 펼침 로딩(피드 lazy fetch 중) */}
-        {expanded && loadingExpand && !fetched && (
-          <div className="px-5 pb-5 text-center text-[12px] text-[var(--text-muted)]">
-            불러오는 중…
-          </div>
-        )}
-
-        {/* ── 펼침 영역(집계) ── */}
-        {expanded && (
-          <>
+        {/* ── 펼침 영역(집계) — grid-rows 0fr↔1fr 로 아래로 스르륵 펼침/접힘(플래시 없음) ── */}
+        <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}>
+          <div className="min-h-0 overflow-hidden">
+            {loadingExpand && !fetched && (
+              <div className="px-5 pb-5 text-center text-[12px] text-[var(--text-muted)]">불러오는 중…</div>
+            )}
             {/* 다운타임 — 평균 게이지 + 1주·2주 가이드선. answered===0 이면 섹션 숨김. */}
             {downtimeAnswered > 0 && (
               <section className={SECTION}>
@@ -474,12 +470,14 @@ export default function ProcedureReportCard({
               이 리포트는 {experienceCount(count)}을 집계한 결과입니다. 개인차가 있으며 의학적
               효과·안전성을 보장하지 않습니다. 시술 결정은 전문의 상담 후 하시기 바랍니다.
             </p>
-          </>
-        )}
+          </div>
+        </div>
       </div>
 
-      {/* 개별 후기 — 토글 영역 밖(후기 클릭은 후기 네비/좋아요). */}
-      {expanded && displayReviews.length > 0 && (
+      {/* 개별 후기 — grid-rows 로 아래로 스르륵 펼침(토글 영역 밖). */}
+      <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: expanded && displayReviews.length > 0 ? "1fr" : "0fr" }}>
+        <div className="min-h-0 overflow-hidden">
+        {displayReviews.length > 0 && (
         <section className="border-t border-[var(--border)] px-5 py-4">
           {/* 헤더는 항상 전체 후기 수(count) — 카드엔 일부(최대 3)만 보여도 총개수로 기대감. */}
           <div className={TITLE}>후기 {count}개</div>
@@ -514,7 +512,9 @@ export default function ProcedureReportCard({
             )
           )}
         </section>
-      )}
+        )}
+        </div>
+      </div>
 
       {/* 하단 컨트롤 — insert 모드만. page 모드는 무한스크롤이 대체. */}
       {!isPage && (
