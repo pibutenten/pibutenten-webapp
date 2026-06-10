@@ -13,7 +13,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function BetaWritePage() {
+export default async function BetaWritePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab } = await searchParams;
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -42,5 +43,5 @@ export default async function BetaWritePage() {
     }
   }
 
-  return <WriteTabs isLoggedIn={!!user} role={role} displayName={displayName} myDoctor={myDoctor} doctors={doctors} />;
+  return <WriteTabs tab={tab} isLoggedIn={!!user} role={role} displayName={displayName} myDoctor={myDoctor} doctors={doctors} />;
 }

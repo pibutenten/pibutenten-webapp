@@ -103,6 +103,42 @@ function BetaChips() {
   return <ChipRow active={sp.get("cat") ?? ""} q={sp.get("q") ?? ""} />;
 }
 
+// 글쓰기 서브탭(시술기록/시술후기/끄적끄적) — 피드 칩줄과 동일 높이의 2차 바. 단 풀폭 3등분(flex-1).
+const WRITE_TABS: { label: string; tab: string }[] = [
+  { label: "시술기록", tab: "record" },
+  { label: "시술후기", tab: "review" },
+  { label: "끄적끄적", tab: "doodle" },
+];
+function WriteTabBar({ active }: { active: string }) {
+  return (
+    <div className="border-b border-[#eef1f4]">
+      <div className="flex pt-[6px]">
+        {WRITE_TABS.map((t) => {
+          const on = active === t.tab;
+          return (
+            <Link
+              key={t.tab}
+              href={`/beta/write?tab=${t.tab}`}
+              scroll={false}
+              className="relative flex flex-1 items-center justify-center gap-1 whitespace-nowrap pb-[9px] pt-[4px] text-sm"
+              style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
+            >
+              {t.label}
+              <ChipPending />
+              {on && <span className="absolute bottom-[-1px] left-0 right-0 h-[3px] rounded-t-[3px]" style={{ background: C }} />}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+function WriteTabsBar() {
+  const sp = useSearchParams();
+  const tab = sp.get("tab") || "record";
+  return <WriteTabBar active={WRITE_TABS.some((t) => t.tab === tab) ? tab : "record"} />;
+}
+
 // URL 의 q(검색어)를 검색창에 동기화 — Suspense 격리(BetaNav 하이드레이션 보호).
 function SearchQuerySync({ onSync }: { onSync: (q: string) => void }) {
   const sp = useSearchParams();
@@ -127,6 +163,7 @@ export default function BetaNav() {
   const [urlQ, setUrlQ] = useState("");
 
   const isFeed = pathname === "/beta";
+  const isWrite = pathname === "/beta/write";
 
   // URL q → 검색창에 반영(검색 결과 동안 검색어 노출 유지). 결과 페이지면 모바일 검색바도 표시.
   const onSync = useCallback((v: string) => { setUrlQ(v); setQ(v); }, []);
@@ -283,6 +320,13 @@ export default function BetaNav() {
           {isFeed && !searchOpen && (
             <Suspense fallback={<ChipRow active="" />}>
               <BetaChips />
+            </Suspense>
+          )}
+
+          {/* (B) 글쓰기 서브탭 — 피드 2차 바와 동일 높이, 풀폭 3등분. 스크롤 시 (A) 접히고 이 바만 sticky. */}
+          {isWrite && !searchOpen && (
+            <Suspense fallback={<WriteTabBar active="record" />}>
+              <WriteTabsBar />
             </Suspense>
           )}
         </div>
