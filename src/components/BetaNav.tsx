@@ -155,7 +155,7 @@ export default function BetaNav() {
   return (
     <>
       <header className="sticky top-0 z-50 bg-white">
-        <div className="mx-auto w-full max-w-[1080px] px-4 sm:px-6">
+        <div className="mx-auto w-full max-w-[1080px] px-4 pt-1.5 sm:px-6">
           {/* (A) 로고줄 — 스크롤 시 접힘 */}
           <div
             className="flex h-12 items-center gap-4 overflow-hidden transition-[height,opacity] duration-[260ms] ease-out sm:h-14 sm:overflow-visible"
