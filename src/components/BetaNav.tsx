@@ -15,7 +15,9 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import NotificationsBell from "./NotificationsBell";
+import BetaDiscovery from "./beta/BetaDiscovery";
 import { useSession } from "@/lib/session-context";
+import { addRecent } from "@/lib/beta-recent";
 
 const C = "#4cbff2";
 
@@ -118,8 +120,10 @@ export default function BetaNav() {
   const submit = () => {
     const v = q.trim();
     if (!v) return;
+    addRecent(v);
     router.push(`/beta?q=${encodeURIComponent(v)}`);
     setSearchOpen(false);
+    setQ("");
   };
 
   const folded = collapsed && !searchOpen;
@@ -166,8 +170,27 @@ export default function BetaNav() {
 
                 <div className="flex-1" />
 
-                {/* (변경2) 우측: 검색 + 알림만. 마이 아이콘은 데스크탑에서만(하단탭 없는 환경 대비) */}
-                <button type="button" onClick={() => setSearchOpen(true)} aria-label="검색" title="검색" className="flex items-center rounded-md p-2 text-[var(--text)]">{ICON.search}</button>
+                {/* 모바일: 검색 아이콘 → 발견 오버레이 */}
+                <button type="button" onClick={() => setSearchOpen(true)} aria-label="검색" title="검색" className="flex items-center rounded-md p-2 text-[var(--text)] sm:hidden">{ICON.search}</button>
+
+                {/* 데스크탑: 상시 검색 입력 + 자동완성 드롭다운 */}
+                <div className="relative hidden sm:block">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa3b0]">{ICON.search}</span>
+                  <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    onKeyDown={(e) => { if (e.key !== "Enter") return; if (e.nativeEvent.isComposing || e.keyCode === 229) return; e.preventDefault(); submit(); }}
+                    placeholder="검색"
+                    aria-label="검색"
+                    className="w-52 rounded-full bg-[#f1f3f5] py-2 pl-9 pr-3 text-sm text-[var(--text)] outline-none placeholder-[#9aa3b0]"
+                  />
+                  {q.trim() && (
+                    <div className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-80 overflow-y-auto rounded-xl bg-white p-2 shadow-[0_8px_30px_rgba(20,40,70,0.18)]">
+                      <BetaDiscovery query={q} onPicked={() => setQ("")} />
+                    </div>
+                  )}
+                </div>
+
                 {session && <NotificationsBell />}
                 <div className="hidden items-center sm:flex">
                   {session ? (
@@ -180,14 +203,21 @@ export default function BetaNav() {
             )}
           </div>
 
-          {/* (B) 칩줄 — 피드에서만. 탭 언더라인(구분선에 붙는 3px 바). useSearchParams 격리. */}
-          {isFeed && (
+          {/* (B) 칩줄 — 피드에서만(검색 중엔 숨김). 탭 언더라인. useSearchParams 격리. */}
+          {isFeed && !searchOpen && (
             <Suspense fallback={<ChipRow active="" />}>
               <BetaChips />
             </Suspense>
           )}
         </div>
       </header>
+
+      {/* 모바일 검색 오버레이 — 풀블리드(스크림/그림자 없음). 입력 비면 발견, 입력 중이면 자동완성. */}
+      {searchOpen && (
+        <div className="fixed inset-x-0 bottom-0 top-12 z-40 overflow-y-auto bg-white px-4 pb-28 pt-4 sm:hidden">
+          <BetaDiscovery query={q} onPicked={() => { setSearchOpen(false); setQ(""); }} />
+        </div>
+      )}
 
       {/* 모바일 하단 5탭 (fixed) */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-[var(--border)] bg-white sm:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
