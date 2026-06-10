@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { ROLES } from "@/lib/identity-shared";
+import { getReviewProcedures } from "@/lib/review-procedures";
+import type { ProcedureOption } from "@/app/review/new/ReviewForm";
 import WriteTabs from "./WriteTabs";
 
 type Doctor = { id: string; slug: string; name: string; branch: string | null };
@@ -22,12 +24,17 @@ export default async function BetaWritePage({ searchParams }: { searchParams: Pr
   let displayName = "";
   let myDoctor: { slug: string; name: string } | null = null;
   let doctors: Doctor[] = [];
+  let handle = ""; // 시술후기(ReviewForm) 제출 성공 시 /{handle}/{shortcode} 이동에 사용.
+
+  // 시술후기 폼 시술 선택지 — /review/new 와 동일 헬퍼(태그 인기순). 로그인 무관 빌드(가벼움).
+  const procedures: ProcedureOption[] = await getReviewProcedures(supabase);
 
   if (user) {
     const idCtx = await getIdentityContext(supabase);
     if (idCtx?.active) {
       role = (idCtx.active.role ?? "user") as "admin" | "doctor" | "user";
       displayName = idCtx.active.displayName ?? "";
+      handle = idCtx.active.handle ?? "";
       if (role === ROLES.DOCTOR && idCtx.active.doctorId) {
         const { data: d } = await supabase
           .from("doctors").select("slug, name").eq("id", idCtx.active.doctorId)
@@ -43,5 +50,5 @@ export default async function BetaWritePage({ searchParams }: { searchParams: Pr
     }
   }
 
-  return <WriteTabs tab={tab} isLoggedIn={!!user} role={role} displayName={displayName} myDoctor={myDoctor} doctors={doctors} />;
+  return <WriteTabs tab={tab} isLoggedIn={!!user} role={role} displayName={displayName} myDoctor={myDoctor} doctors={doctors} procedures={procedures} handle={handle} />;
 }
