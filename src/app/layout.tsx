@@ -200,7 +200,7 @@ window.addEventListener('appinstalled', function() {
         <SessionProvider>
           <ScrollManager />
           <TopNav />
-          <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 pt-2 pb-8 sm:px-6">
+          <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 pt-3 pb-8 sm:px-6">
             {children}
           </main>
           <SiteFooter />

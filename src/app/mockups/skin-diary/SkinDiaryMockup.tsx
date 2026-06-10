@@ -517,20 +517,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
     }, 200);
   }
 
-  // 첫 진입 시 현재 위치로 지도 중심 + 주변 병원 (거부 시 서울 기본 유지).
-  const didInitLocate = useRef(false);
-  useEffect(() => {
-    if (didInitLocate.current) return;
-    didInitLocate.current = true;
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => { myLocRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }; loadNear(pos.coords.latitude, pos.coords.longitude); },
-      () => { /* 거부/실패 → 서울 기본 */ },
-      { enableHighAccuracy: false, timeout: 8000 },
-    );
-    // loadNear 는 컴포넌트 내 선언(호이스팅)이라 1회 마운트 시 호출.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // (검색 전 자동 '주변 병원' 노출 제거 — 검색해야만 결과창이 열림.)
 
   function addTag(raw: string) {
     const t = raw.trim(); if (!t) return; const low = t.toLowerCase();

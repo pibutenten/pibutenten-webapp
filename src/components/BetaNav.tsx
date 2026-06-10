@@ -103,23 +103,23 @@ function BetaChips() {
   return <ChipRow active={sp.get("cat") ?? ""} q={sp.get("q") ?? ""} />;
 }
 
-// 글쓰기 서브탭(시술기록/시술후기/끄적끄적) — 피드 칩줄과 동일 높이의 2차 바. 단 풀폭 3등분(flex-1).
+// 글쓰기 서브탭 — 피드 칩줄과 동일(좌측 정렬 탭 언더라인).
 const WRITE_TABS: { label: string; tab: string }[] = [
-  { label: "시술기록", tab: "record" },
-  { label: "시술후기", tab: "review" },
+  { label: "시술 기록하기", tab: "record" },
+  { label: "시술 후기쓰기", tab: "review" },
   { label: "끄적끄적", tab: "doodle" },
 ];
 function WriteTabBar({ active }: { active: string }) {
   return (
     <div className="border-b border-[#eef1f4]">
-      <div className="flex pt-[6px]">
+      <div className="flex gap-2 overflow-x-auto pt-[6px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {WRITE_TABS.map((t) => {
           const on = active === t.tab;
           return (
             <Link
               key={t.tab}
               href={`/beta/write?tab=${t.tab}`}
-              className="relative flex flex-1 items-center justify-center gap-1 whitespace-nowrap pb-[6px] pt-[4px] text-sm"
+              className="relative flex shrink-0 items-center gap-1 whitespace-nowrap px-[6px] pb-[6px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
               {t.label}
@@ -223,7 +223,7 @@ export default function BetaNav() {
   return (
     <>
       <header className="sticky top-0 z-50 bg-white">
-        <div className="mx-auto w-full max-w-[1080px] px-4 pb-2 pt-1.5 sm:px-6">
+        <div className="mx-auto w-full max-w-[1080px] px-4 pt-1.5 sm:px-6">
           {/* (A) 로고줄 — 스크롤 시 접힘 */}
           <div
             className="flex h-12 items-center gap-4 overflow-hidden transition-[height,opacity] duration-[260ms] ease-out sm:h-14 sm:overflow-visible"
