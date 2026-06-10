@@ -21,18 +21,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import dynamic from "next/dynamic";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { MapPin } from "./ClinicMap";
-
-// 지도는 window 의존(SSR 비호환) → 클라이언트에서만 로드.
-// NEXT_PUBLIC_NAVER_MAP_CLIENT_ID 가 있으면 네이버 지도, 없으면 OSM(Leaflet) 폴백.
-const mapLoading = () => (
-  <div className="flex h-[200px] items-center justify-center rounded-md bg-[var(--bg-soft)] text-[12px] text-[var(--text-muted)]">지도 불러오는 중…</div>
-);
-const OsmMap = dynamic(() => import("./ClinicMap"), { ssr: false, loading: mapLoading });
-const NaverMap = dynamic(() => import("./NaverMap"), { ssr: false, loading: mapLoading });
-const ClinicMap = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ? NaverMap : OsmMap;
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -391,26 +380,6 @@ function distKm(lat1: number, lng1: number, lat2: number | null, lng2: number | 
   const y = lat2 - lat1; // 위도차
   return Math.sqrt(x * x + y * y) * DEG2KM;
 }
-// 핀 분포에 맞춰 지도 줌 자동 계산 — 병원 밀집 지역은 더 확대해 핀이 겹치지 않게.
-// - 중심에서 각 핀까지의 위/경도 차이를 모아 75퍼센타일(군집 기준)로 화면에 맞춘다.
-//   (먼 1~2개 outlier 때문에 군집이 과도하게 축소되지 않도록 max 대신 퍼센타일 사용)
-// - Web Mercator: metersPerPx = 156543·cos(lat)/2^z. 세로(300px)·가로(360px) 둘 다 들어오는 줌을 택함.
-function zoomForSpread(center: { lat: number; lng: number }, pins: MapPin[]): number {
-  if (pins.length === 0) return 15;
-  if (pins.length === 1) return 16;
-  const lats = pins.map((p) => Math.abs(p.lat - center.lat)).sort((a, b) => a - b);
-  const lngs = pins.map((p) => Math.abs(p.lng - center.lng)).sort((a, b) => a - b);
-  const i = Math.floor((pins.length - 1) * 0.75); // 75% 핀이 들어오게(밀집 군집 우선)
-  const pad = 1.35;
-  const spanLat = Math.max(lats[i] * 2 * pad, 0.0006); // 최소 span ≈ 65m → 과확대 방지
-  const spanLng = Math.max(lngs[i] * 2 * pad, 0.0006);
-  const cos = Math.cos((center.lat * Math.PI) / 180);
-  const K = 156543.03 / 111320; // metersPerPx 상수 ÷ 위도 1도 m
-  const zLat = Math.log2((K * 300 * cos) / spanLat);
-  const zLng = Math.log2((K * 360) / spanLng);
-  return Math.max(14, Math.min(17, Math.floor(Math.min(zLat, zLng))));
-}
-
 const EN2KO: Record<string, string> = { thermage: "써마지", botox: "보톡스", filler: "필러", rejuran: "리쥬란", sculptra: "스컬트라" };
 
 // 주소 → '시도(약칭) 시군구' 짧은 지역 라벨 (이름 같은 지점 구분용).
@@ -433,10 +402,8 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   const [results, setResults] = useState<ClinicHit[]>([]);
   const [searching, setSearching] = useState(false);
   const [geoMsg, setGeoMsg] = useState<string | null>(null);
-  // 미리보기(확인 대기) — 결과를 클릭하면 바로 확정하지 않고 지도만 이동, '이 병원 선택'으로 확정.
-  const [preview, setPreview] = useState<ClinicHit | null>(null);
-  // 지도 중심(지명 검색·내 위치로 이동). null 이면 결과/기본값으로 자동.
-  const [searchCenter, setSearchCenter] = useState<{ lat: number; lng: number } | null>(null);
+  // 결과창 부드러운 닫힘 — 병원 선택 시 잠깐 접었다가(슥) 확정.
+  const [closing, setClosing] = useState(false);
   // 내 현재 위치 — 이름 검색 결과의 거리 표시·정렬 기준(ref, 재조회 불필요).
   const myLocRef = useRef<{ lat: number; lng: number } | null>(null);
   // 현재 결과가 '내 주변'(geolocation)에서 온 것인지 표시 — q 가 비었을 때 결과 유지 판정용.
@@ -499,8 +466,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   // 특정 좌표 주변 clinics 를 bbox(약 5km) 조회 후 거리순 정렬 + 지도 중심 이동.
   async function loadNear(lat: number, lng: number) {
     geoActiveRef.current = true;
-    setSearchCenter({ lat, lng });
-    setPicked(null); setPreview(null);
+    setPicked(null);
     // DB 레벨 거리정렬 RPC(clinics_nearby) — 진짜 최근접 상위 20개를 정확히 반환.
     const sb = createSupabaseBrowserClient();
     const { data } = await sb.rpc("clinics_nearby", { in_lat: lat, in_lng: lng, in_km: 5, in_lim: 20 });
@@ -508,18 +474,6 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
     const hits = ((data ?? []) as any[]).map((d) => ({ name: d.name as string, addr: (d.addr as string) ?? "", tel: (d.tel as string) ?? "", x: d.x_pos as number | null, y: d.y_pos as number | null, dist: d.dist_km as number | undefined }));
     setResults(hits);
     if (hits.length === 0) setGeoMsg("이 주변에 등록된 피부과가 없어요.");
-  }
-
-  // 지도 위 '내 위치' 버튼 — 브라우저 위치로 이동 + 주변 조회.
-  function locateMe() {
-    setGeoMsg(null);
-    if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoMsg("이 브라우저는 위치를 지원하지 않아요."); return; }
-    setSearching(true); setQ("");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => { myLocRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }; await loadNear(pos.coords.latitude, pos.coords.longitude); setSearching(false); },
-      () => { setSearching(false); setGeoMsg("위치 권한이 필요해요. 지명이나 병원명으로 검색해 주세요."); },
-      { enableHighAccuracy: false, timeout: 8000 },
-    );
   }
 
   // Enter 검색 — 병원명 매칭을 먼저 확인하고, 매칭이 전혀 없을 때만 지명/주소 지오코딩.
@@ -535,7 +489,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
     const named = withDistSort(data ?? []);
     if (named.length > 0) {
       geoActiveRef.current = false;
-      setSearchCenter(null); setResults(named); setSearching(false);
+      setResults(named); setSearching(false);
       return;
     }
     // 2) 이름 매칭 없음 → 지명/랜드마크/주소를 네이버 지역검색으로 좌표화(서버 라우트).
@@ -545,25 +499,22 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
       const j = await r.json();
       if (j?.place) c = { lat: j.place.lat, lng: j.place.lng };
     } catch { /* 네트워크 실패 → 아래 안내 */ }
-    if (!c) { setSearching(false); setGeoMsg("검색 결과가 없어요. 병원명을 더 입력하거나 지도에서 골라보세요."); return; }
+    if (!c) { setSearching(false); setGeoMsg("검색 결과가 없어요. 병원명을 더 입력해 주세요."); return; }
     await loadNear(c.lat, c.lng);
     setSearching(false);
   }
 
-  // 셀 클릭 → 지도를 그 병원 중심으로 이동(미리보기) + 리스트 최상단으로 이동.
-  function previewHit(h: ClinicHit) {
-    setPreview(h);
-    if (h.x != null && h.y != null) setSearchCenter({ lat: h.y, lng: h.x });
-    setResults((prev) => [h, ...prev.filter((x) => !(x.name === h.name && x.addr === h.addr))]);
-  }
-
-  // '이 병원 선택' → 미리보기 병원을 확정.
+  // 병원 선택 → 결과창을 잠깐 접었다가(슥) 확정. (지도 없이 행 클릭 = 바로 선택)
   function confirmPick(h: ClinicHit) {
     geoActiveRef.current = false;
-    setPicked(h.name);
-    setPickedXY(h.x != null && h.y != null ? { x: h.x, y: h.y } : null);
-    setTel(h.tel); setAddr(h.addr); setQ(h.name);
-    setResults([]); setPreview(null); setSearchCenter(null);
+    setClosing(true);
+    setTimeout(() => {
+      setPicked(h.name);
+      setPickedXY(h.x != null && h.y != null ? { x: h.x, y: h.y } : null);
+      setTel(h.tel); setAddr(h.addr); setQ(h.name);
+      setResults([]);
+      setClosing(false);
+    }, 200);
   }
 
   // 첫 진입 시 현재 위치로 지도 중심 + 주변 병원 (거부 시 서울 기본 유지).
@@ -616,83 +567,42 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
           </div>
         </div>
 
-        {/* 2. 병원 — 항상 떠 있는 지도 + 이름 검색 + 내 위치 + 선택 시 전화번호 자동 채움 */}
+        {/* 2. 병원 — 이름/지명 검색 → 결과에서 바로 선택(지도 없음). 선택 시 결과창이 부드럽게 접힘. */}
         <div>
           <label className={labelCls}>어디서 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
-          {/* 병원 확정 전에만 검색창·지도 노출. 확정되면 '다시 선택' 으로 다시 연다. */}
-          {!picked && (
-            <input
-              className={inputCls}
-              placeholder="지명, 병원명으로 검색"
-              value={q}
-              onChange={(e) => { setQ(e.target.value); setPicked(null); }}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                // 한글 IME 조합 중 Enter(keyCode 229)는 조합 확정용 — 무시(포커스 이동·중복검색 방지).
-                if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                e.preventDefault();
-                e.stopPropagation();
-                searchPlace();
-              }}
-            />
-          )}
-          {!picked && searching && (
-            <p className="mt-2 text-center text-[12px] text-[var(--text-muted)]">불러오는 중…</p>
-          )}
-          {!picked && geoMsg && (
-            <p className="mt-2 text-center text-[12px] text-[var(--accent)]">{geoMsg}</p>
-          )}
-
-          {/* 미확정 상태에서만 표시되는 지도 — 미리보기 / 지명·내위치 / 결과 / 기본(서울) 순 중심 결정 */}
-          {!picked && (() => {
-            const mapPins: MapPin[] = results.filter((h) => h.x != null && h.y != null).map((h) => ({
-              lat: h.y as number, lng: h.x as number, label: h.name,
-              active: !!preview && h.name === preview.name && h.x === preview.x && h.y === preview.y,
-            }));
-            const mapCenter = preview && preview.x != null && preview.y != null ? { lat: preview.y, lng: preview.x }
-              : searchCenter ? searchCenter
-              : mapPins.length > 0 ? { lat: mapPins[0].lat, lng: mapPins[0].lng }
-              : { lat: 37.5665, lng: 126.978 }; // 기본: 서울시청
-            // 미리보기는 해당 핀 확대(16). 그 외엔 핀 밀집도에 맞춰 자동 확대(밀집=더 확대).
-            const mapZoom = preview ? 16
-              : (searchCenter || mapPins.length > 0) ? zoomForSpread(mapCenter, mapPins)
-              : 13;
-            return (
-              <div className="mt-2">
-                <ClinicMap
-                  center={mapCenter}
-                  zoom={mapZoom}
-                  height={300}
-                  pins={mapPins}
-                  onLocate={locateMe}
-                  onRequery={(c) => { loadNear(c.lat, c.lng); }}
-                  onPick={(label) => {
-                    const h = results.find((r) => r.name === label);
-                    if (h) previewHit(h);
-                  }}
-                />
-              </div>
-            );
-          })()}
-
-          {/* 결과 목록 — 셀 클릭=지도 이동(미리보기), 우측 '선택'=확정. 길면 스크롤 */}
-          {!picked && results.length > 0 && (
-            <div className="mt-2 max-h-[232px] overflow-y-auto rounded-md bg-[var(--bg)]">
-              {results.map((h, i) => {
-                const on = !!preview && h.name === preview.name && h.x === preview.x && h.y === preview.y;
-                return (
-                  <div key={`${h.name}-${h.addr}-${i}`} className="flex items-stretch border-b border-[var(--border)] last:border-0" style={on ? { background: "var(--primary-soft)" } : undefined}>
-                    <button type="button" onClick={() => previewHit(h)} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[var(--primary-soft)]">
+          {/* 확정 전 검색 UI — 선택 시 closing 으로 잠깐 접었다가(슥) picked 확정. */}
+          {(!picked || closing) && (
+            <div className={`overflow-hidden transition-all duration-200 ease-out ${closing ? "max-h-0 opacity-0" : "max-h-[600px] opacity-100"}`}>
+              <input
+                className={inputCls}
+                placeholder="지명, 병원명으로 검색"
+                value={q}
+                onChange={(e) => { setQ(e.target.value); setPicked(null); }}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  // 한글 IME 조합 중 Enter(keyCode 229)는 조합 확정용 — 무시(포커스 이동·중복검색 방지).
+                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  searchPlace();
+                }}
+              />
+              {searching && <p className="mt-2 text-center text-[12px] text-[var(--text-muted)]">불러오는 중…</p>}
+              {geoMsg && <p className="mt-2 text-center text-[12px] text-[var(--accent)]">{geoMsg}</p>}
+              {/* 결과 목록 — 행 클릭 = 바로 선택. 길면 스크롤 */}
+              {results.length > 0 && (
+                <div className="mt-2 max-h-[232px] overflow-y-auto rounded-md bg-[var(--bg)]">
+                  {results.map((h, i) => (
+                    <button key={`${h.name}-${h.addr}-${i}`} type="button" onClick={() => confirmPick(h)} className="flex w-full items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)]">
                       <span className="min-w-0">
                         <span className="block truncate text-[14px] font-semibold text-[var(--text)]">{h.name} <span className="ml-1 rounded bg-white px-1.5 py-0.5 text-[10.5px] font-medium text-[var(--text-secondary)]">{regionLabel(h.addr)}</span></span>
                         <span className="block truncate text-[11.5px] text-[var(--text-muted)]">{h.addr}</span>
                       </span>
                       {h.dist != null && <span className="shrink-0 text-[11.5px] font-bold text-[var(--primary-active)]">{h.dist < 1 ? `${Math.round(h.dist * 1000)}m` : `${h.dist.toFixed(1)}km`}</span>}
                     </button>
-                    <button type="button" onClick={() => confirmPick(h)} className="shrink-0 px-3 text-[13px] font-semibold text-[var(--primary-active)] hover:bg-[var(--primary-soft)]">선택</button>
-                  </div>
-                );
-              })}
+                  ))}
+                </div>
+              )}
             </div>
           )}
           {picked && (
