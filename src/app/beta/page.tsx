@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { headers } from "next/headers";
 import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
@@ -29,36 +28,6 @@ export const metadata: Metadata = {
 };
 
 const PAGE = 20;
-const PRIMARY = "#4cbff2";
-
-const CATS: { label: string; cat: string }[] = [
-  { label: "전체", cat: "" },
-  { label: "Q&A", cat: "qa" },
-  { label: "시술후기", cat: "review" },
-  { label: "끄적끄적", cat: "doodle" },
-  { label: "리포트", cat: "review_summary" },
-];
-
-function CategoryBar({ active }: { active: string }) {
-  return (
-    <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-      {CATS.map((c) => {
-        const on = active === c.cat;
-        return (
-          <Link
-            key={c.cat || "all"}
-            href={c.cat ? `/beta?cat=${c.cat}` : "/beta"}
-            scroll={false}
-            className="whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition-all"
-            style={on ? { background: PRIMARY, color: "#fff", borderColor: PRIMARY } : { background: "#fff", color: "#6b7280", borderColor: "#e5e7eb" }}
-          >
-            {c.label}
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
 
 export default async function BetaFeedPage({ searchParams }: { searchParams: Promise<{ cat?: string; q?: string }> }) {
   const sp = await searchParams;
@@ -72,7 +41,6 @@ export default async function BetaFeedPage({ searchParams }: { searchParams: Pro
     return (
       <div className="pb-16 sm:pb-0">
         <h1 className="sr-only">피부텐텐 베타 — 시술 리포트</h1>
-        <CategoryBar active={cat} />
         {pool.length === 0 ? (
           <div className="mx-auto max-w-[680px] rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">집계된 리포트가 없습니다.</div>
         ) : (
@@ -118,7 +86,6 @@ export default async function BetaFeedPage({ searchParams }: { searchParams: Pro
   return (
     <div className="pb-16 sm:pb-0">
       <h1 className="sr-only">피부텐텐 베타 피드</h1>
-      <CategoryBar active={cat} />
       {cards.length === 0 ? (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">표시할 글이 없습니다.</div>
       ) : (
