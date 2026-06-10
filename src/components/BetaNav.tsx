@@ -54,7 +54,7 @@ const CATS: { label: string; cat: string }[] = [
 function ChipRow({ active }: { active: string }) {
   return (
     <div className="border-b border-[#eef1f4]">
-      <div className="flex gap-2 overflow-x-auto pt-[9px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex gap-2 overflow-x-auto pt-[6px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {CATS.map((c) => {
           const on = active === c.cat;
           return (
@@ -62,7 +62,7 @@ function ChipRow({ active }: { active: string }) {
               key={c.cat || "all"}
               href={c.cat ? `/beta?cat=${c.cat}` : "/beta"}
               scroll={false}
-              className="relative shrink-0 whitespace-nowrap px-[6px] pb-[11px] pt-[5px] text-sm"
+              className="relative shrink-0 whitespace-nowrap px-[6px] pb-[9px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
               {c.label}
