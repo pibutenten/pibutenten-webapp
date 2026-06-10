@@ -11,7 +11,7 @@
  * 하단 5탭은 fixed.
  */
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import NotificationsBell from "./NotificationsBell";
@@ -81,6 +81,14 @@ function BetaChips() {
   return <ChipRow active={sp.get("cat") ?? ""} />;
 }
 
+// URL 의 q(검색어)를 검색창에 동기화 — Suspense 격리(BetaNav 하이드레이션 보호).
+function SearchQuerySync({ onSync }: { onSync: (q: string) => void }) {
+  const sp = useSearchParams();
+  const urlQ = sp.get("q") ?? "";
+  useEffect(() => { onSync(urlQ); }, [urlQ, onSync]);
+  return null;
+}
+
 export default function BetaNav() {
   const pathname = usePathname();
   const session = useSession();
@@ -94,8 +102,12 @@ export default function BetaNav() {
   const tickRef = useRef(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);
+  const [urlQ, setUrlQ] = useState("");
 
   const isFeed = pathname === "/beta";
+
+  // URL q → 검색창에 반영(검색 결과 동안 검색어 노출 유지). 결과 페이지면 모바일 검색바도 표시.
+  const onSync = useCallback((v: string) => { setUrlQ(v); setQ(v); }, []);
 
   // 데스크탑 검색 드롭다운 — 바깥 클릭 시 닫기.
   useEffect(() => {
@@ -134,7 +146,7 @@ export default function BetaNav() {
     addRecent(v);
     router.push(`/beta?q=${encodeURIComponent(v)}`);
     setSearchOpen(false);
-    setQ("");
+    // q 는 비우지 않음 — 결과 페이지에서 검색어 노출 유지(SearchQuerySync 가 URL q 로 맞춤).
   };
 
   const folded = collapsed && !searchOpen;
@@ -163,13 +175,28 @@ export default function BetaNav() {
                   placeholder="시술명, 키워드 검색"
                   className="flex-1 bg-transparent text-[15px] text-[var(--text)] outline-none placeholder-[var(--text-muted)]"
                 />
-                <button type="button" onClick={() => { setSearchOpen(false); setQ(""); }} aria-label="검색 닫기" className="flex items-center rounded-md p-2 text-[var(--text)]">{ICON.x}</button>
+                <button type="button" onClick={() => { setSearchOpen(false); setQ(urlQ); }} aria-label="검색 닫기" className="flex items-center rounded-md p-2 text-[var(--text)]">{ICON.x}</button>
               </>
             ) : (
               <>
-                <Link href="/beta" aria-label="피부텐텐 베타 홈" className="flex shrink-0 items-center">
+                {/* 모바일 좌측: 검색 결과 페이지면 '검색어+X' 바, 아니면 로고 */}
+                {urlQ ? (
+                  <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f1f3f5] px-3 py-1.5 sm:hidden">
+                    <span className="shrink-0 text-[#9aa3b0]">{ICON.search}</span>
+                    <button type="button" onClick={() => setSearchOpen(true)} className="min-w-0 flex-1 truncate text-left text-sm text-[var(--text)]">{urlQ}</button>
+                    <button type="button" aria-label="검색 해제" onClick={() => { setUrlQ(""); setQ(""); router.push("/beta"); }} className="shrink-0 text-[#9aa3b0]">{ICON.x}</button>
+                  </div>
+                ) : (
+                  <Link href="/beta" aria-label="피부텐텐 베타 홈" className="flex shrink-0 items-center sm:hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/brand-logo.svg" alt="피부텐텐" className="h-7 w-auto" />
+                  </Link>
+                )}
+
+                {/* 데스크탑 로고 */}
+                <Link href="/beta" aria-label="피부텐텐 베타 홈" className="hidden shrink-0 items-center sm:flex">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/brand-logo.svg" alt="피부텐텐" className="h-7 w-auto sm:h-8" />
+                  <img src="/brand-logo.svg" alt="피부텐텐" className="h-8 w-auto" />
                 </Link>
 
                 {/* 데스크탑 메뉴 (모바일은 하단 탭) */}
@@ -179,26 +206,35 @@ export default function BetaNav() {
                   ))}
                 </nav>
 
-                <div className="flex-1" />
+                {/* 데스크탑은 항상 spacer / 모바일은 검색바 없을 때만(검색바가 flex-1 로 채움) */}
+                <div className={urlQ ? "hidden flex-1 sm:block" : "flex-1"} />
 
-                {/* 모바일: 검색 아이콘 → 발견 오버레이 */}
-                <button type="button" onClick={() => setSearchOpen(true)} aria-label="검색" title="검색" className="flex items-center rounded-md p-2 text-[var(--text)] sm:hidden">{ICON.search}</button>
+                {/* 모바일: 검색 아이콘 → 발견 오버레이 (검색바 없을 때만) */}
+                {!urlQ && <button type="button" onClick={() => setSearchOpen(true)} aria-label="검색" title="검색" className="flex items-center rounded-md p-2 text-[var(--text)] sm:hidden">{ICON.search}</button>}
 
                 {/* 데스크탑: 상시 검색 입력 + 포커스 시 발견/자동완성 드롭다운(네이버·유튜브 패턴) */}
                 <div ref={searchRef} className="relative hidden sm:block">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa3b0]">{ICON.search}</span>
                   <input
                     value={q}
-                    onChange={(e) => setQ(e.target.value)}
+                    onChange={(e) => { setQ(e.target.value); setFocused(true); }}
                     onFocus={() => setFocused(true)}
-                    onKeyDown={(e) => { if (e.key !== "Enter") return; if (e.nativeEvent.isComposing || e.keyCode === 229) return; e.preventDefault(); submit(); setFocused(false); }}
+                    onClick={() => setFocused(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") { setFocused(false); return; }
+                      if (e.key !== "Enter") return;
+                      if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                      e.preventDefault();
+                      submit();
+                      setFocused(false);
+                    }}
                     placeholder="검색"
                     aria-label="검색"
                     className="w-52 rounded-full bg-[#f1f3f5] py-2 pl-9 pr-3 text-sm text-[var(--text)] outline-none placeholder-[#9aa3b0]"
                   />
                   {focused && (
                     <div className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-[360px] overflow-y-auto rounded-xl bg-white p-3 shadow-[0_8px_30px_rgba(20,40,70,0.18)]">
-                      <BetaDiscovery query={q} onPicked={() => { setQ(""); setFocused(false); }} />
+                      <BetaDiscovery query={q} onPicked={() => setFocused(false)} />
                     </div>
                   )}
                 </div>
@@ -224,10 +260,15 @@ export default function BetaNav() {
         </div>
       </header>
 
+      {/* URL q(검색어) → 검색창 동기화 (검색 결과 동안 검색어 노출 유지). Suspense 격리. */}
+      <Suspense fallback={null}>
+        <SearchQuerySync onSync={onSync} />
+      </Suspense>
+
       {/* 모바일 검색 오버레이 — 풀블리드(스크림/그림자 없음). 입력 비면 발견, 입력 중이면 자동완성. */}
       {searchOpen && (
         <div className="fixed inset-x-0 bottom-0 top-12 z-40 overflow-y-auto bg-white px-4 pb-28 pt-4 sm:hidden">
-          <BetaDiscovery query={q} onPicked={() => { setSearchOpen(false); setQ(""); }} />
+          <BetaDiscovery query={q} onPicked={() => setSearchOpen(false)} />
         </div>
       )}
 
