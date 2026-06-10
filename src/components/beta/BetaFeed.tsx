@@ -55,13 +55,23 @@ export default function BetaFeed({
   const [hasMore, setHasMore] = useState(initialPool.length >= pageSize);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
 
   // 피드 마운트(첫 진입·검색 변경·다른 페이지 다녀온 뒤 등)마다 탭을 '전체'로 초기화.
   useEffect(() => { setBetaTab(""); }, []);
 
-  // 탭 바뀌면 맨 위로(새 목록 느낌). 클라 필터라 즉시.
-  useEffect(() => { window.scrollTo({ top: 0 }); }, [activeCat]);
+  // 탭 바뀌면 맨 위로 + 콘텐츠가 살짝 아래에서 올라오는 효과(즉시 전환이어도 의도적으로 느끼게).
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+    const el = contentRef.current;
+    if (el && typeof el.animate === "function") {
+      el.animate(
+        [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "translateY(0)" }],
+        { duration: 220, easing: "ease-out" },
+      );
+    }
+  }, [activeCat]);
 
   // 최신 풀 길이를 ref 로 — 스크롤 콜백이 항상 최신 offset 사용.
   const poolRef = useRef(pool);
@@ -177,6 +187,7 @@ export default function BetaFeed({
 
   return (
     <div className="pb-16 sm:pb-0">
+      <div ref={contentRef}>
       {isReport ? (
         reports.length === 0 ? (
           <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">{emptyMsg}</div>
@@ -219,6 +230,7 @@ export default function BetaFeed({
           })}
         </Masonry>
       )}
+      </div>
 
       <div ref={sentinelRef} className="h-10" />
       {loading && <div className="py-4 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>}
