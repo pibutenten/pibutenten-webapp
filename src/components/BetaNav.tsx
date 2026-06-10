@@ -18,6 +18,7 @@ import NotificationsBell from "./NotificationsBell";
 import BetaDiscovery, { prefetchDiscover } from "./beta/BetaDiscovery";
 import { useSession } from "@/lib/session-context";
 import { addRecent } from "@/lib/beta-recent";
+import { setBetaTab, useBetaTab, type BetaTab } from "@/lib/beta-feed-tab";
 
 const C = "#4cbff2";
 
@@ -64,43 +65,31 @@ function ChipPending() {
   );
 }
 
-// 칩줄 — 활성 표시에 useSearchParams 사용 → Suspense 로 감싸 격리(상위 BetaNav 하이드레이션 보호).
-function ChipRow({ active, q = "" }: { active: string; q?: string }) {
+// 칩줄 — 탭 전환을 "URL 이동"이 아니라 "공유 메모(store) 변경"으로 처리 → 서버 왕복 0, 즉시(동그라미 없음).
+//   활성 탭은 useBetaTab() (BetaFeed 와 공유). 검색(?q=)은 URL 로 유지되고, 검색 결과 풀을 같은 방식으로 필터.
+function ChipRow() {
+  const active = useBetaTab();
   return (
     <div className="border-b border-[#eef1f4]">
       <div className="flex gap-2 overflow-x-auto pt-[6px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {CATS.map((c) => {
           const on = active === c.cat;
-          // 검색 중(q)이면 모든 탭(리포트 포함)이 검색어를 유지하며 카테고리만 좁힘.
-          //   리포트는 시술별 통계라 검색어로 시술명 매칭 필터(page.tsx). 결과 없으면 "없음" 표시.
-          const href = q
-            ? c.cat
-              ? `/beta?q=${encodeURIComponent(q)}&cat=${c.cat}`
-              : `/beta?q=${encodeURIComponent(q)}`
-            : c.cat
-              ? `/beta?cat=${c.cat}`
-              : "/beta";
           return (
-            <Link
+            <button
               key={c.cat || "all"}
-              href={href}
-              scroll={false}
+              type="button"
+              onClick={() => setBetaTab(c.cat as BetaTab)}
               className="relative flex shrink-0 items-center gap-1 whitespace-nowrap px-[6px] pb-[6px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
               {c.label}
-              <ChipPending />
               {on && <span className="absolute bottom-[-1px] left-0 right-0 h-[2px]" style={{ background: C }} />}
-            </Link>
+            </button>
           );
         })}
       </div>
     </div>
   );
-}
-function BetaChips() {
-  const sp = useSearchParams();
-  return <ChipRow active={sp.get("cat") ?? ""} q={sp.get("q") ?? ""} />;
 }
 
 // 글쓰기 서브탭 — 피드 칩줄과 동일(좌측 정렬 탭 언더라인).
@@ -325,12 +314,9 @@ export default function BetaNav() {
             )}
           </div>
 
-          {/* (B) 칩줄 — 피드에서만. 검색 입력 오버레이(searchOpen) 중에만 숨김(검색 결과 화면에선 표시 — 탭으로 결과 좁힘). 탭 언더라인. useSearchParams 격리. */}
-          {isFeed && !searchOpen && (
-            <Suspense fallback={<ChipRow active="" />}>
-              <BetaChips />
-            </Suspense>
-          )}
+          {/* (B) 칩줄 — 피드에서만. 검색 입력 오버레이(searchOpen) 중에만 숨김(검색 결과 화면에선 표시 — 탭으로 결과 좁힘).
+              탭 전환은 store(useBetaTab) 기반 클라 상태라 useSearchParams 불필요 → Suspense 없이 즉시. */}
+          {isFeed && !searchOpen && <ChipRow />}
 
           {/* (B) 글쓰기 서브탭 — 피드 2차 바와 동일 높이, 풀폭 3등분. 스크롤 시 (A) 접히고 이 바만 sticky. */}
           {isWrite && !searchOpen && (

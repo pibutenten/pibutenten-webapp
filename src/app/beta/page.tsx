@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import Feed from "@/components/Feed";
+import BetaFeed from "@/components/beta/BetaFeed";
+import type { CardDataList } from "@/components/Card";
 import type { CardData } from "@/components/Card";
-import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
 import { getReviewSummaryFeedPool, type ProcedureReport } from "@/lib/procedure-report";
 import { fetchCardList } from "@/lib/search-query";
-import { isPostCategorySlug, labelForCategory } from "@/lib/post-category";
 
 /**
- * /beta 피드 — 홈과 동일한 실제 Feed/Card(2열) + 상단 카테고리 선택.
- *  - 전체: feed_cards_scored + 리포트 주입
- *  - Q&A/시술후기/끄적끄적: fetchCardList(q=라벨) → category 필터 (무한스크롤 동일)
- *  - 리포트: 실제 ProcedureReportCard(통계형) 그대로
- * 카테고리 전환 시 Feed 는 key 로 리마운트(첫 initial 고정 문제 해소). noindex.
+ * /beta 피드 — "한 번에 300개 점수순으로 받아두고, 탭은 BetaFeed 가 브라우저에서 즉시 필터" 모델.
+ *  - 전체: feed_cards_scored 300 (+ 리포트풀) — 탭(Q&A/시술후기/끄적끄적)은 이 풀을 클라 필터.
+ *  - 검색(?q=): search_cards_scored 300 — 검색 결과 풀을 같은 방식으로 탭 필터(검색바·URL 유지).
+ *  - 리포트 탭: BetaFeed 가 reportPool 로 렌더(검색 중이면 시술명 필터).
+ *  탭 전환은 서버 왕복 없음(클라 store) → 동그라미 없이 즉시. noindex.
  */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -27,107 +26,60 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const PAGE = 20;
+const POOL = 300;
 
-export default async function BetaFeedPage({ searchParams }: { searchParams: Promise<{ cat?: string; q?: string }> }) {
+export default async function BetaFeedPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const sp = await searchParams;
-  const cat = sp.cat ?? "";
   const query = (sp.q ?? "").trim();
   const supabase = await createSupabaseServerClient();
   const { data: { user: viewer } } = await supabase.auth.getUser();
 
-  // ── 리포트: 실제 ProcedureReportCard(통계형). 검색 중이면 시술명(한글/영문) 부분일치로 필터 — 검색어 유지. ──
-  if (cat === "review_summary") {
-    const pool = await getReviewSummaryFeedPool(supabase);
-    const ql = query.toLowerCase();
-    const reports = query
-      ? pool.filter((r) => r.procedureKo.includes(query) || r.en.toLowerCase().includes(ql))
-      : pool;
-    // 검색어 로그(인기검색어 통계용) — 카드 검색과 동일 패턴, fire-and-forget.
-    if (query && query.length <= 100) {
-      void supabase.from("search_logs").insert({ query, profile_id: viewer?.id ?? null }).then(() => { /* 실패해도 진행 */ });
-    }
-    return (
-      <div className="pb-16 sm:pb-0">
-        <h1 className="sr-only">피부텐텐 베타 — 시술 리포트</h1>
-        {reports.length === 0 ? (
-          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">{query ? `‘${query}’ 검색 결과가 없습니다.` : "집계된 리포트가 없습니다."}</div>
-        ) : (
-          // 리포트 카드 목록 — 피드와 동일하게 데스크탑 2열(모바일 1열).
-          <div className="sm:columns-2 sm:gap-4">
-            {reports.map((r) => (
-              <div key={r.anchor?.id ?? r.en} className="mb-4 break-inside-avoid">
-                <ProcedureReportCard report={r} feedHref={`/reports/${encodeURIComponent(r.procedureKo)}`} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── 그 외: 실제 Feed ──
-  // 카드 조회와 독립인 쿼리(ua·hotIds)는 먼저 띄워 병렬화(탭 전환 체감 단축).
+  // 카드 조회와 독립인 쿼리(ua·hotIds)는 먼저 띄워 병렬화.
   const hotIdsPromise = getHotQaIds(20);
   const uaPromise = headers().then((h) => h.get("user-agent") ?? "");
 
   let cards: CardData[] = [];
-  let searchQuery: string | undefined;
   let reportPool: ProcedureReport[] = [];
-
-  // 검색 중 카테고리 탭(전체 외) — 검색어 유지하며 해당 카테고리만. 리포트(review_summary)는 칩이 q 를 떼므로 여기 안 옴.
-  const searchCategory = query && isPostCategorySlug(cat) && cat !== "review_summary" ? cat : undefined;
+  const searchQuery = query || undefined;
 
   if (query) {
-    // 검색어 로그(인기검색어 통계용) — /search 와 동일 패턴, fire-and-forget.
+    // 검색어 로그(인기검색어 통계용) — fire-and-forget.
     if (query.length <= 100) {
-      void supabase.from("search_logs").insert({ query, profile_id: viewer?.id ?? null }).then(() => { /* 실패해도 검색 진행 */ });
+      void supabase.from("search_logs").insert({ query, profile_id: viewer?.id ?? null }).then(() => { /* 실패해도 진행 */ });
     }
-    // 상단 검색창 입력 — 기존 검색 메커니즘(fetchCardList → search_cards_scored, 무한스크롤 동일).
-    //   카테고리 탭이 함께면 p_category 로 좁힘(무한스크롤도 ?cat= 동일 전달).
-    searchQuery = query;
-    const { data } = await fetchCardList(supabase, { q: query, category: searchCategory, offset: 0, limit: PAGE });
-    cards = (data ?? []) as unknown as CardData[];
-  } else if (isPostCategorySlug(cat)) {
-    const label = labelForCategory(cat);
-    searchQuery = label;
-    const { data } = await fetchCardList(supabase, { q: label, offset: 0, limit: PAGE });
-    cards = (data ?? []) as unknown as CardData[];
+    const [listRes, pool] = await Promise.all([
+      fetchCardList(supabase, { q: query, offset: 0, limit: POOL }),
+      getReviewSummaryFeedPool(supabase),
+    ]);
+    cards = (listRes.data ?? []) as unknown as CardData[];
+    reportPool = pool;
   } else {
-    // 피드 RPC 와 리포트 풀은 서로 독립 → 병렬.
     const [rpcRes, pool] = await Promise.all([
-      supabase.rpc("feed_cards_scored", { p_limit: PAGE, p_offset: 0, p_half_life_days: 14, p_jitter_amp: 0.35 }),
+      supabase.rpc("feed_cards_scored", { p_limit: POOL, p_offset: 0, p_half_life_days: 14, p_jitter_amp: 0.35 }),
       getReviewSummaryFeedPool(supabase),
     ]);
     cards = diversifyByDoctor((rpcRes.data ?? []) as CardData[], { maxPerDoctorInHead: 1, headSize: 4 });
     reportPool = pool;
   }
 
-  // 먼저 띄워둔 독립 쿼리 수확(ua·hotIds) — 카드 조회와 병렬로 끝나 있음.
   const [hotIdsArr, ua] = await Promise.all([hotIdsPromise, uaPromise]);
   const hotIds = Array.from(hotIdsArr);
   const isMobileUA = /Mobi|Android|iPhone|iPod|IEMobile|BlackBerry|Opera Mini/i.test(ua);
-  const viewerStates = await fetchViewerStatesRecord(supabase, viewer?.id ?? null, cards.map((q) => q.id));
+  const viewerStates = await fetchViewerStatesRecord(supabase, viewer?.id ?? null, cards.map((c) => c.id));
 
   return (
     <div className="pb-16 sm:pb-0">
       <h1 className="sr-only">피부텐텐 베타 피드</h1>
-      {cards.length === 0 ? (
-        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">표시할 글이 없습니다.</div>
-      ) : (
-        <Feed
-          key={query ? `q:${query}:${searchCategory ?? ""}` : cat || "all"}
-          initial={cards}
-          pageSize={PAGE}
-          searchQuery={searchQuery}
-          category={searchCategory}
-          hotIds={hotIds}
-          viewerStates={viewerStates}
-          enableJustPublished={!searchQuery}
-          reportPool={reportPool}
-          initialMobile={isMobileUA}
-        />
-      )}
+      <BetaFeed
+        key={query ? `q:${query}` : "feed"}
+        initialPool={cards as unknown as CardDataList[]}
+        pageSize={20}
+        searchQuery={searchQuery}
+        reportPool={reportPool}
+        hotIds={hotIds}
+        viewerStates={viewerStates}
+        initialMobile={isMobileUA}
+      />
     </div>
   );
 }
