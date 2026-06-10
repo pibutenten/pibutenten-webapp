@@ -6,8 +6,9 @@ import { useEffect, useState } from "react";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { useSession } from "@/lib/session-context";
 
-/** 플로팅 버튼을 숨길 경로 — 글쓰기/후기작성/온보딩 본인 화면에서는 중복 노출 X */
-const HIDDEN_PREFIXES = ["/write", "/review", "/onboarding", "/signup", "/login"];
+/** 플로팅 버튼을 숨길 경로 — 글쓰기/후기작성/온보딩 본인 화면에서는 중복 노출 X.
+ *  /beta 는 하단 5탭에 '글쓰기'가 따로 있어 FAB 중복 → 숨김(메인 승격 시 FAB 자체 폐기 예정). */
+const HIDDEN_PREFIXES = ["/write", "/review", "/onboarding", "/signup", "/login", "/beta"];
 
 const FAB_COLOR = "#4CBFF2";
 // 위성은 메인 버튼보다 조금 연한 하늘색.
