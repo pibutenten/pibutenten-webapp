@@ -92,8 +92,19 @@ export default function BetaNav() {
   const lastY = useRef(0);
   const lockRef = useRef(false);
   const tickRef = useRef(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const [focused, setFocused] = useState(false);
 
   const isFeed = pathname === "/beta";
+
+  // 데스크탑 검색 드롭다운 — 바깥 클릭 시 닫기.
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setFocused(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
 
   // (변경1) 스크롤 내리면 로고줄 접힘 — 모바일 전용(<640px).
   //   떨림 방지: rAF 스로틀 + 미세 델타 무시(<6px) + 헤더 아래(>88px) 안정구간에서만 접기
@@ -173,20 +184,21 @@ export default function BetaNav() {
                 {/* 모바일: 검색 아이콘 → 발견 오버레이 */}
                 <button type="button" onClick={() => setSearchOpen(true)} aria-label="검색" title="검색" className="flex items-center rounded-md p-2 text-[var(--text)] sm:hidden">{ICON.search}</button>
 
-                {/* 데스크탑: 상시 검색 입력 + 자동완성 드롭다운 */}
-                <div className="relative hidden sm:block">
+                {/* 데스크탑: 상시 검색 입력 + 포커스 시 발견/자동완성 드롭다운(네이버·유튜브 패턴) */}
+                <div ref={searchRef} className="relative hidden sm:block">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa3b0]">{ICON.search}</span>
                   <input
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    onKeyDown={(e) => { if (e.key !== "Enter") return; if (e.nativeEvent.isComposing || e.keyCode === 229) return; e.preventDefault(); submit(); }}
+                    onFocus={() => setFocused(true)}
+                    onKeyDown={(e) => { if (e.key !== "Enter") return; if (e.nativeEvent.isComposing || e.keyCode === 229) return; e.preventDefault(); submit(); setFocused(false); }}
                     placeholder="검색"
                     aria-label="검색"
                     className="w-52 rounded-full bg-[#f1f3f5] py-2 pl-9 pr-3 text-sm text-[var(--text)] outline-none placeholder-[#9aa3b0]"
                   />
-                  {q.trim() && (
-                    <div className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-80 overflow-y-auto rounded-xl bg-white p-2 shadow-[0_8px_30px_rgba(20,40,70,0.18)]">
-                      <BetaDiscovery query={q} onPicked={() => setQ("")} />
+                  {focused && (
+                    <div className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-[360px] overflow-y-auto rounded-xl bg-white p-3 shadow-[0_8px_30px_rgba(20,40,70,0.18)]">
+                      <BetaDiscovery query={q} onPicked={() => { setQ(""); setFocused(false); }} />
                     </div>
                   )}
                 </div>

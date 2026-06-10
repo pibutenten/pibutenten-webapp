@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
-import BetaDiscovery from "@/components/beta/BetaDiscovery";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
@@ -94,12 +93,6 @@ export default async function BetaFeedPage({ searchParams }: { searchParams: Pro
   return (
     <div className="pb-16 sm:pb-0">
       <h1 className="sr-only">피부텐텐 베타 피드</h1>
-      {/* 데스크탑: 피드 위 발견 영역 상시 노출(검색 결과일 땐 숨김) */}
-      {!query && (
-        <div className="mb-6 hidden rounded-[var(--radius)] bg-white p-5 sm:block">
-          <BetaDiscovery />
-        </div>
-      )}
       {cards.length === 0 ? (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">표시할 글이 없습니다.</div>
       ) : (
