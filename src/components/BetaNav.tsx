@@ -86,22 +86,31 @@ export default function BetaNav() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState("");
   const [collapsed, setCollapsed] = useState(false);
+  const collapsedRef = useRef(false);
   const lastY = useRef(0);
+  const lockRef = useRef(false);
+  const tickRef = useRef(false);
 
   const isFeed = pathname === "/beta";
 
-  // (변경1) 스크롤 내리면 로고줄 접힘 — 모바일 전용(<640px). window 스크롤 기준.
+  // (변경1) 스크롤 내리면 로고줄 접힘 — 모바일 전용(<640px).
+  //   떨림 방지: rAF 스로틀 + 미세 델타 무시(<6px) + 헤더 아래(>88px) 안정구간에서만 접기
+  //   + 토글 후 320ms 락아웃(접힘 애니메이션 중 레이아웃 이동이 재트리거하는 진동 차단).
   useEffect(() => {
-    const onScroll = () => {
-      if (window.innerWidth >= 640) { setCollapsed(false); return; }
+    const setCol = (v: boolean) => { collapsedRef.current = v; setCollapsed(v); };
+    const lock = () => { lockRef.current = true; setTimeout(() => { lockRef.current = false; }, 320); };
+    const update = () => {
+      tickRef.current = false;
+      if (window.innerWidth >= 640) { if (collapsedRef.current) setCol(false); return; }
       const y = window.scrollY;
-      setCollapsed((prev) => {
-        if (y > 54 && y > lastY.current) return true;       // 내림 → 접기
-        if (y < lastY.current - 4 || y < 10) return false;  // 올림/최상단 → 펴기
-        return prev;
-      });
+      if (lockRef.current) { lastY.current = y; return; }
+      const dy = y - lastY.current;
+      if (Math.abs(dy) < 6) return;                                      // 미세 스크롤(모멘텀) 무시
       lastY.current = y;
+      if (!collapsedRef.current && y > 88 && dy > 0) { setCol(true); lock(); }        // 충분히 내림 → 접기
+      else if (collapsedRef.current && (dy < 0 || y < 20)) { setCol(false); lock(); } // 올림/최상단 → 펴기
     };
+    const onScroll = () => { if (!tickRef.current) { tickRef.current = true; requestAnimationFrame(update); } };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
