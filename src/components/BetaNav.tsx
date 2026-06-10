@@ -11,7 +11,7 @@
  * 하단 5탭은 fixed.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import NotificationsBell from "./NotificationsBell";
@@ -50,9 +50,37 @@ const CATS: { label: string; cat: string }[] = [
   { label: "리포트", cat: "review_summary" },
 ];
 
+// 칩줄 — 활성 표시에 useSearchParams 사용 → Suspense 로 감싸 격리(상위 BetaNav 하이드레이션 보호).
+function ChipRow({ active }: { active: string }) {
+  return (
+    <div className="border-b border-[#eef1f4]">
+      <div className="flex gap-2 overflow-x-auto pt-[9px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {CATS.map((c) => {
+          const on = active === c.cat;
+          return (
+            <Link
+              key={c.cat || "all"}
+              href={c.cat ? `/beta?cat=${c.cat}` : "/beta"}
+              scroll={false}
+              className="relative shrink-0 whitespace-nowrap px-[6px] pb-[11px] pt-[5px] text-sm"
+              style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
+            >
+              {c.label}
+              {on && <span className="absolute bottom-[-1px] left-[6px] right-[6px] h-[3px] rounded-t-[3px]" style={{ background: C }} />}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+function BetaChips() {
+  const sp = useSearchParams();
+  return <ChipRow active={sp.get("cat") ?? ""} />;
+}
+
 export default function BetaNav() {
   const pathname = usePathname();
-  const sp = useSearchParams();
   const session = useSession();
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -61,7 +89,6 @@ export default function BetaNav() {
   const lastY = useRef(0);
 
   const isFeed = pathname === "/beta";
-  const activeCat = sp.get("cat") ?? "";
 
   // (변경1) 스크롤 내리면 로고줄 접힘 — 모바일 전용(<640px). window 스크롤 기준.
   useEffect(() => {
@@ -144,27 +171,11 @@ export default function BetaNav() {
             )}
           </div>
 
-          {/* (B) 칩줄 — 피드에서만. 탭 언더라인(구분선에 붙는 3px 바). */}
+          {/* (B) 칩줄 — 피드에서만. 탭 언더라인(구분선에 붙는 3px 바). useSearchParams 격리. */}
           {isFeed && (
-            <div className="border-b border-[#eef1f4]">
-              <div className="flex gap-2 overflow-x-auto pt-[9px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {CATS.map((c) => {
-                  const on = activeCat === c.cat;
-                  return (
-                    <Link
-                      key={c.cat || "all"}
-                      href={c.cat ? `/beta?cat=${c.cat}` : "/beta"}
-                      scroll={false}
-                      className="relative shrink-0 whitespace-nowrap px-[6px] pb-[11px] pt-[5px] text-sm"
-                      style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
-                    >
-                      {c.label}
-                      {on && <span className="absolute bottom-[-1px] left-[6px] right-[6px] h-[3px] rounded-t-[3px]" style={{ background: C }} />}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
+            <Suspense fallback={<ChipRow active="" />}>
+              <BetaChips />
+            </Suspense>
           )}
         </div>
       </header>
