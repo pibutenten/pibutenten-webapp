@@ -144,6 +144,7 @@ export default function BetaNav() {
     const v = q.trim();
     if (!v) return;
     addRecent(v);
+    setUrlQ(v);                                  // 낙관적 — 검색바 즉시 노출(홈 깜빡임 방지). SearchQuerySync 가 이후 URL q 로 재확정.
     router.push(`/beta?q=${encodeURIComponent(v)}`);
     setSearchOpen(false);
     // q 는 비우지 않음 — 결과 페이지에서 검색어 노출 유지(SearchQuerySync 가 URL q 로 맞춤).
@@ -234,7 +235,7 @@ export default function BetaNav() {
                   />
                   {focused && (
                     <div className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-[360px] overflow-y-auto rounded-xl bg-white p-3 shadow-[0_8px_30px_rgba(20,40,70,0.18)]">
-                      <BetaDiscovery query={q} onPicked={() => setFocused(false)} />
+                      <BetaDiscovery query={q} onPicked={(t) => { setUrlQ(t); setQ(t); setFocused(false); }} />
                     </div>
                   )}
                 </div>
@@ -268,7 +269,7 @@ export default function BetaNav() {
       {/* 모바일 검색 오버레이 — 풀블리드(스크림/그림자 없음). 입력 비면 발견, 입력 중이면 자동완성. */}
       {searchOpen && (
         <div className="fixed inset-x-0 bottom-0 top-12 z-40 overflow-y-auto bg-white px-4 pb-28 pt-4 sm:hidden">
-          <BetaDiscovery query={q} onPicked={() => setSearchOpen(false)} />
+          <BetaDiscovery query={q} onPicked={(t) => { setUrlQ(t); setQ(t); setSearchOpen(false); }} />
         </div>
       )}
 

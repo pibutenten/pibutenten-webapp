@@ -17,7 +17,7 @@ const C = "#4cbff2";
 type DiscoverData = { popular: string[]; cats: Record<string, string[]> };
 const chip = "shrink-0 rounded-full bg-[#f1f3f5] px-2.5 py-1 text-[13px] text-[#46505d]";
 
-export default function BetaDiscovery({ query = "", onPicked }: { query?: string; onPicked?: () => void }) {
+export default function BetaDiscovery({ query = "", onPicked }: { query?: string; onPicked?: (term: string) => void }) {
   const router = useRouter();
   const [data, setData] = useState<DiscoverData | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
@@ -39,7 +39,7 @@ export default function BetaDiscovery({ query = "", onPicked }: { query?: string
     if (!t) return;
     addRecent(t);
     setRecent(getRecent());
-    onPicked?.();
+    onPicked?.(t);
     router.push(`/beta?q=${encodeURIComponent(t)}`);
   }, [router, onPicked]);
 
