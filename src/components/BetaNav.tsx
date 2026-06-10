@@ -37,7 +37,7 @@ const ICON = {
 
 type Tab = { href: string; label: string; icon: React.ReactNode; match: (p: string) => boolean };
 const TABS: Tab[] = [
-  { href: "/beta/record", label: "시술기록", icon: ICON.book, match: (p) => p.startsWith("/beta/record") },
+  { href: "/beta/record", label: "내 일기", icon: ICON.book, match: (p) => p.startsWith("/beta/record") },
   { href: "/beta/write", label: "글쓰기", icon: ICON.pen, match: (p) => p.startsWith("/beta/write") },
   { href: "/beta", label: "피드", icon: ICON.grid, match: (p) => p === "/beta" },
   { href: "/beta/shop", label: "쇼핑", icon: ICON.bag, match: (p) => p.startsWith("/beta/shop") },
@@ -79,7 +79,7 @@ function ChipRow() {
               key={c.cat || "all"}
               type="button"
               onClick={() => setBetaTab(c.cat as BetaTab)}
-              className="relative flex shrink-0 items-center gap-1 whitespace-nowrap px-[6px] pb-[6px] pt-[4px] text-sm"
+              className="relative flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap px-[6px] pb-[6px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
               {c.label}
@@ -94,8 +94,8 @@ function ChipRow() {
 
 // 글쓰기 서브탭 — 피드 칩줄과 동일(좌측 정렬 탭 언더라인).
 const WRITE_TABS: { label: string; tab: string }[] = [
-  { label: "시술 기록하기", tab: "record" },
-  { label: "시술 후기쓰기", tab: "review" },
+  { label: "시술일기 쓰기", tab: "record" },
+  { label: "시술후기 남기기", tab: "review" },
   { label: "끄적끄적", tab: "doodle" },
 ];
 function WriteTabBar({ active }: { active: string }) {
@@ -340,7 +340,7 @@ export default function BetaNav() {
       )}
 
       {/* 모바일 하단 5탭 (fixed) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-[var(--border)] bg-white sm:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-[var(--border)] bg-white px-3 sm:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {TABS.map((t) => (
           <Link key={t.href} href={t.href} className="flex flex-1 flex-col items-center gap-0.5 py-2" style={{ color: t.match(pathname) ? C : "#9ca3af" }}>
             {t.icon}
