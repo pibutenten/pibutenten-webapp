@@ -24,6 +24,8 @@ export type CardQueryInput = {
   doctorSlug?: string | null;
   /** 원장 페이지 칩 클릭으로 넘어왔을 때 가산 슬러그. */
   boostDoctorSlug?: string | null;
+  /** 텍스트 검색과 동시에 거를 카테고리 슬러그(qa/review/doodle). /beta 검색+탭 조합용. */
+  category?: string | null;
   offset: number;
   limit: number;
 };
@@ -43,7 +45,7 @@ export async function fetchCardList(
   supabase: SupabaseClient,
   input: CardQueryInput,
 ): Promise<{ data: unknown[] | null; error: { message: string } | null }> {
-  const { q, doctorSlug, boostDoctorSlug, offset, limit } = input;
+  const { q, doctorSlug, boostDoctorSlug, category, offset, limit } = input;
   const categorySlug = resolveCategorySlug(q);
 
   // 카테고리 라벨 검색 — q 를 본문 매칭 대신 category 컬럼만.
@@ -74,12 +76,14 @@ export async function fetchCardList(
   }
 
   // 일반 텍스트 검색 또는 빈 q (홈/원장 페이지의 default 정렬).
+  // category 가 지정되면(검색+탭 조합) 해당 카테고리만 — p_category 로 전달.
   const res = await supabase.rpc("search_cards_scored", {
     p_q: q,
     p_doctor_slug: doctorSlug ?? null,
     p_offset: offset,
     p_limit: limit,
     p_boost_doctor_slug: boostDoctorSlug ?? null,
+    p_category: category ?? null,
   });
   return { data: res.data, error: res.error };
 }

@@ -23,6 +23,7 @@ export async function GET(req: Request) {
   const q = (url.searchParams.get("q") ?? "").trim();
   const doctorSlug = (url.searchParams.get("doctor_slug") ?? "").trim();
   const boostDoctorSlug = (url.searchParams.get("boost") ?? "").trim();
+  const category = (url.searchParams.get("cat") ?? "").trim(); // 검색+카테고리 조합(/beta) — 무한스크롤 동일 필터 유지.
 
   const supabase = await createSupabaseServerClient();
 
@@ -59,6 +60,7 @@ export async function GET(req: Request) {
     q,
     doctorSlug: doctorSlug || null,
     boostDoctorSlug: boostDoctorSlug || null,
+    category: category || null,
     offset,
     limit,
   });

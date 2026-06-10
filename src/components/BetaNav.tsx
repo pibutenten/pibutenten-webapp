@@ -53,16 +53,25 @@ const CATS: { label: string; cat: string }[] = [
 ];
 
 // 칩줄 — 활성 표시에 useSearchParams 사용 → Suspense 로 감싸 격리(상위 BetaNav 하이드레이션 보호).
-function ChipRow({ active }: { active: string }) {
+function ChipRow({ active, q = "" }: { active: string; q?: string }) {
   return (
     <div className="border-b border-[#eef1f4]">
       <div className="flex gap-2 overflow-x-auto pt-[6px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {CATS.map((c) => {
           const on = active === c.cat;
+          // 검색 중(q)이면 모든 탭(리포트 포함)이 검색어를 유지하며 카테고리만 좁힘.
+          //   리포트는 시술별 통계라 검색어로 시술명 매칭 필터(page.tsx). 결과 없으면 "없음" 표시.
+          const href = q
+            ? c.cat
+              ? `/beta?q=${encodeURIComponent(q)}&cat=${c.cat}`
+              : `/beta?q=${encodeURIComponent(q)}`
+            : c.cat
+              ? `/beta?cat=${c.cat}`
+              : "/beta";
           return (
             <Link
               key={c.cat || "all"}
-              href={c.cat ? `/beta?cat=${c.cat}` : "/beta"}
+              href={href}
               scroll={false}
               className="relative shrink-0 whitespace-nowrap px-[6px] pb-[9px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
@@ -78,7 +87,7 @@ function ChipRow({ active }: { active: string }) {
 }
 function BetaChips() {
   const sp = useSearchParams();
-  return <ChipRow active={sp.get("cat") ?? ""} />;
+  return <ChipRow active={sp.get("cat") ?? ""} q={sp.get("q") ?? ""} />;
 }
 
 // URL 의 q(검색어)를 검색창에 동기화 — Suspense 격리(BetaNav 하이드레이션 보호).
@@ -162,7 +171,9 @@ export default function BetaNav() {
             style={folded ? { height: 0, opacity: 0 } : undefined}
           >
             {searchOpen ? (
-              <>
+              // 결과 화면의 회색 알약 바와 동일 스타일 — 열림/결과 간 모양 변화 없이 일관 유지.
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f1f3f5] px-3 py-1.5">
+                <span className="shrink-0 text-[#9aa3b0]">{ICON.search}</span>
                 <input
                   autoFocus
                   value={q}
@@ -174,10 +185,10 @@ export default function BetaNav() {
                     submit();
                   }}
                   placeholder="시술명, 키워드 검색"
-                  className="flex-1 bg-transparent text-[15px] text-[var(--text)] outline-none placeholder-[var(--text-muted)]"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder-[#9aa3b0]"
                 />
-                <button type="button" onClick={() => { setSearchOpen(false); setQ(urlQ); }} aria-label="검색 닫기" className="flex items-center rounded-md p-2 text-[var(--text)]">{ICON.x}</button>
-              </>
+                <button type="button" onClick={() => { setSearchOpen(false); setQ(urlQ); }} aria-label="검색 닫기" className="shrink-0 text-[#9aa3b0]">{ICON.x}</button>
+              </div>
             ) : (
               <>
                 {/* 모바일 좌측: 검색 결과 페이지면 '검색어+X' 바, 아니면 로고 */}
@@ -252,7 +263,7 @@ export default function BetaNav() {
             )}
           </div>
 
-          {/* (B) 칩줄 — 피드에서만(검색 중엔 숨김). 탭 언더라인. useSearchParams 격리. */}
+          {/* (B) 칩줄 — 피드에서만. 검색 입력 오버레이(searchOpen) 중에만 숨김(검색 결과 화면에선 표시 — 탭으로 결과 좁힘). 탭 언더라인. useSearchParams 격리. */}
           {isFeed && !searchOpen && (
             <Suspense fallback={<ChipRow active="" />}>
               <BetaChips />

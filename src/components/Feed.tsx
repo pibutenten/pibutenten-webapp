@@ -21,6 +21,8 @@ type Props = {
   doctorSlug?: string;
   /** 검색 점수 boost 대상 원장 slug (이 원장 글에 +150). 칩 클릭 시 카드에도 전달. */
   boostDoctorSlug?: string;
+  /** /beta 검색+카테고리 조합 — 검색어 유지한 채 해당 카테고리(qa/review/doodle)만. 무한스크롤도 ?cat= 으로 동일 필터. */
+  category?: string;
   /** HOT 카드의 ID 목록 (서버에서 계산) */
   hotIds?: number[];
   /** v4 — viewer의 좋아요/저장 상태 (card_id → state). server prefetch.
@@ -52,6 +54,7 @@ export default function Feed({
   searchQuery,
   doctorSlug,
   boostDoctorSlug,
+  category,
   hotIds,
   viewerStates,
   enableJustPublished,
@@ -71,6 +74,7 @@ export default function Feed({
     searchQuery,
     doctorSlug,
     boostDoctorSlug,
+    category,
   });
   stateRef.current = {
     items,
@@ -79,6 +83,7 @@ export default function Feed({
     searchQuery,
     doctorSlug,
     boostDoctorSlug,
+    category,
   };
 
   const loadMore = useCallback(async () => {
@@ -90,6 +95,7 @@ export default function Feed({
       searchQuery: sq,
       doctorSlug: ds,
       boostDoctorSlug: bd,
+      category: cat,
     } = stateRef.current;
     if (!hm) return;
     loadingRef.current = true;
@@ -102,6 +108,7 @@ export default function Feed({
       if (sq) params.set("q", sq);
       if (ds) params.set("doctor_slug", ds);
       if (bd) params.set("boost", bd);
+      if (cat) params.set("cat", cat);
       const res = await fetch(`/api/cards?${params.toString()}`, {
         cache: "no-store",
       });
