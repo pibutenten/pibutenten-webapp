@@ -121,7 +121,7 @@ export default function BetaNav() {
         <div className="mx-auto w-full max-w-[1080px] px-4 sm:px-6">
           {/* (A) 로고줄 — 스크롤 시 접힘 */}
           <div
-            className="flex h-14 items-center gap-4 overflow-hidden transition-[height,opacity] duration-[260ms] ease-out sm:h-16"
+            className="flex h-12 items-center gap-4 overflow-hidden transition-[height,opacity] duration-[260ms] ease-out sm:h-14"
             style={folded ? { height: 0, opacity: 0 } : undefined}
           >
             {searchOpen ? (
