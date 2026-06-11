@@ -5,11 +5,23 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/lib/session-context";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import ProfileEditClient, { type ProfileEditProps } from "@/app/settings/profile/ProfileEditClient";
+import ProfileTabs from "@/components/ProfileTabs";
+import type { CardData } from "@/components/Card";
 
 const C = "#4cbff2";
 
 /** 프로필·계정 설정 폼(ProfileEditClient)의 props — 서버(/my/page.tsx)에서 채워 넘김. */
 export type ProfileSettings = ProfileEditProps;
+
+/** 내 활동(작성글·댓글·좋아요·저장) — 서버(/my/page.tsx)에서 prefetch. */
+export type MyActivity = {
+  profileId: string;
+  posts: CardData[];
+  postsCount: number;
+  commentsCount: number;
+  likesCount: number;
+  savesCount: number;
+};
 
 function Row({ href, label }: { href: string; label: string }) {
   return (
@@ -33,7 +45,13 @@ function Section({ title, children }: { title?: string; children: React.ReactNod
 //   계정 스위처 + 내 활동 + '프로필·계정 설정'(아코디언). 펼치면 그 자리서 설정 폼을
 //   바로 편집(별도 페이지 이동 X). settings 는 서버(page.tsx)에서 채워 넘김.
 //   세션(아바타·identities)은 클라 출처라 클라 렌더.
-export default function MyPageClient({ settings }: { settings?: ProfileSettings | null }) {
+export default function MyPageClient({
+  settings,
+  activity,
+}: {
+  settings?: ProfileSettings | null;
+  activity?: MyActivity | null;
+}) {
   const session = useSession();
   const [mounted, setMounted] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -68,12 +86,30 @@ export default function MyPageClient({ settings }: { settings?: ProfileSettings 
       {/* 활성 계정 + 계정 전환 (공용 카드) */}
       <AccountSwitcherCard />
 
-      {/* 내 활동 */}
-      <Section title="내 활동">
+      {/* 바로가기 — 알림 / 내 프로필 */}
+      <Section title="바로가기">
         <Row href="/notifications" label="알림" />
         {handle && <Row href={`/${handle}`} label="내 프로필" />}
-        {handle && <Row href={`/${handle}?tab=saves`} label="저장한 글" />}
       </Section>
+
+      {/* 내 활동 — 작성글·댓글·좋아요·저장 4탭 (ProfileTabs 재사용, 본인분만 RLS) */}
+      {activity && (
+        <div className="mb-3">
+          <p className="mb-1.5 px-1 text-xs font-medium text-[var(--text-muted)]">내 활동</p>
+          <ProfileTabs
+            activityOnly
+            isOwner
+            posts={activity.posts}
+            reviews={[]}
+            postsCount={activity.postsCount}
+            reviewsCount={0}
+            commentsCount={activity.commentsCount}
+            likesCount={activity.likesCount}
+            savesCount={activity.savesCount}
+            profileId={activity.profileId}
+          />
+        </div>
+      )}
 
       {/* 프로필·계정 설정 — 클릭 시 그 자리서 펼쳐 폼을 바로 편집(별도 페이지 이동 X). */}
       <div className="mb-3">

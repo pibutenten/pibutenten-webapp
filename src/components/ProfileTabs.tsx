@@ -55,6 +55,11 @@ type Props = {
    * A1 (2026-05-17).
    */
   viewerIsAnon?: boolean;
+  /**
+   * 마이페이지(/my) '내 활동' 임베드용 — true 면 작성글·댓글·좋아요·저장 4탭만 노출
+   * (내 후기·내 피부 탭 제외). 데이터 fetch 로직은 동일하게 재사용.
+   */
+  activityOnly?: boolean;
 };
 
 const TAB_LABEL: Record<Tab, string> = {
@@ -116,6 +121,7 @@ export default function ProfileTabs({
   skinInfo,
   viewerStates,
   viewerIsAnon,
+  activityOnly = false,
 }: Props) {
   // visibility flag — owner는 항상 모든 탭 표시. 외부인은 visibility !== false일 때만.
   const v = skinInfo?.visibility ?? {};
@@ -139,13 +145,15 @@ export default function ProfileTabs({
   const tabs: Tab[] = (() => {
     const base: Tab[] = [];
     if (showTab("tab_posts")) base.push("posts");
-    if (showTab("tab_reviews")) base.push("reviews");
+    // activityOnly(마이페이지 내 활동): 내 후기 탭 제외.
+    if (!activityOnly && showTab("tab_reviews")) base.push("reviews");
     if (showTab("tab_comments")) base.push("comments");
     if (showTab("tab_likes") && isOwner) base.push("likes");
     if (showTab("tab_saves") && isOwner) base.push("saves");
-    if (hasSkinContent && showTab("tab_skin")) base.push("skin");
+    // activityOnly: 내 피부 탭 제외.
+    if (!activityOnly && hasSkinContent && showTab("tab_skin")) base.push("skin");
     // anon 보기에 한해, 피부고민이 있는지 모름 → 무조건 탭 노출 (클릭 시 로그인 CTA).
-    else if (showSkinTabForAnon) base.push("skin");
+    else if (!activityOnly && showSkinTabForAnon) base.push("skin");
     return base;
   })();
 

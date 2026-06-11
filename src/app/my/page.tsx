@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { ROLES } from "@/lib/identity-shared";
 import { DEFAULT_VISIBILITY, type FieldVisibility } from "@/lib/profile-options";
+import { CARD_LIST_SELECT } from "@/lib/card-select";
+import type { CardData } from "@/components/Card";
 import MyPageClient, { type ProfileSettings } from "./MyPageClient";
 
 export const dynamic = "force-dynamic";
@@ -96,5 +98,41 @@ export default async function MyPage() {
     };
   }
 
-  return <MyPageClient settings={settings} />;
+  // 내 활동(작성글·댓글·좋아요·저장) — 작성글 prefetch + 4종 카운트. ProfileTabs 재사용.
+  //   댓글·좋아요·저장은 ProfileTabs 가 탭 클릭 시 lazy fetch(RLS 가 본인분만 반환).
+  const [postsRes, postsCntRes, commentsCntRes, likesCntRes, savesCntRes] = await Promise.all([
+    supabase
+      .from("cards")
+      .select(CARD_LIST_SELECT)
+      .eq("author_id", targetProfileId)
+      .eq("status", "published")
+      .not("category", "in", "(review,review_summary)")
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .returns<CardData[]>(),
+    supabase
+      .from("cards")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", targetProfileId)
+      .eq("status", "published")
+      .not("category", "in", "(review,review_summary)"),
+    supabase
+      .from("comments")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", targetProfileId)
+      .eq("status", "visible"),
+    supabase.from("card_likes").select("card_id", { count: "exact", head: true }).eq("profile_id", targetProfileId),
+    supabase.from("card_saves").select("card_id", { count: "exact", head: true }).eq("profile_id", targetProfileId),
+  ]);
+
+  const activity = {
+    profileId: targetProfileId,
+    posts: postsRes.data ?? [],
+    postsCount: postsCntRes.count ?? 0,
+    commentsCount: commentsCntRes.count ?? 0,
+    likesCount: likesCntRes.count ?? 0,
+    savesCount: savesCntRes.count ?? 0,
+  };
+
+  return <MyPageClient settings={settings} activity={activity} />;
 }
