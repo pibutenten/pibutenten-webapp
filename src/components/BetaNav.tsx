@@ -124,9 +124,9 @@ function WriteTabBar({ active, tabs = WRITE_TABS }: { active: string; tabs?: { l
 function WriteTabsBar() {
   const sp = useSearchParams();
   const session = useSession();
-  // Q&A 작성 탭은 원장·관리자에게만 노출(맨 앞). 기존 admin 동선(원장 명의 Q&A 카드 작성) 복원.
+  // Q&A 작성 탭은 원장·관리자에게만 노출(맨 우측). 기존 admin 동선(원장 명의 Q&A 카드 작성) 복원.
   const isStaff = session?.role === "admin" || session?.role === "doctor";
-  const tabs = isStaff ? [{ label: "Q&A 작성", tab: "qa" }, ...WRITE_TABS] : WRITE_TABS;
+  const tabs = isStaff ? [...WRITE_TABS, { label: "Q&A 작성", tab: "qa" }] : WRITE_TABS;
   const tab = sp.get("tab") || "record";
   return <WriteTabBar active={tabs.some((t) => t.tab === tab) ? tab : "record"} tabs={tabs} />;
 }
