@@ -159,6 +159,27 @@ export default function BetaNav() {
   // 발견 데이터 선프리페치 — 검색창 첫 열기도 즉시 표시(끊김 없이 깔끔하게).
   useEffect(() => { void prefetchDiscover(); }, []);
 
+  // 앱 탭 선프리페치 — 피드 첫 화면 뒤 유휴(idle)에 나머지 탭을 "하나씩" 워밍.
+  //   탭 페이지는 force-dynamic 이라 Next 의 Link 자동 프리페치는 정적 셸까지만 받음(동적 데이터는 클릭 시 렌더).
+  //   router.prefetch 로 동적 페이지까지 미리 받아 클릭을 즉각처럼. 순차(한 번에 하나)로 메인 스레드 부담 최소화.
+  useEffect(() => {
+    const routes = ["/record", "/write", "/shop", "/my"];
+    let i = 0;
+    let cancelled = false;
+    const schedule = (cb: () => void) => {
+      if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(cb, { timeout: 1500 });
+      else window.setTimeout(cb, 300);
+    };
+    const step = () => {
+      if (cancelled || i >= routes.length) return;
+      router.prefetch(routes[i]);
+      i += 1;
+      schedule(step);
+    };
+    schedule(step);
+    return () => { cancelled = true; };
+  }, [router]);
+
   // 검색창 표시값 복원용 ref — 바깥 클릭 핸들러(빈 deps)가 최신 urlQ(확정 검색어)를 참조(stale 방지).
   const urlQRef = useRef(urlQ);
   urlQRef.current = urlQ;
