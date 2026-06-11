@@ -814,13 +814,10 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
 
 /* ════════════════ ⑤ 내 일기 (달력 / 목록 토글) ════════════════ */
 
-const RECORDS: Record<number, { proc: string; st: "done" | "watch" }> = {
-  2: { proc: "울쎄라", st: "watch" }, 4: { proc: "써마지 · 스컬트라", st: "watch" },
-  12: { proc: "보톡스", st: "done" }, 20: { proc: "리쥬란", st: "done" },
-};
-
-type SummaryItem = { id: string; date: string; proc: string; hospital: string; doctor: string; manager?: string; tel: string; price: string; memo: string; items: { name: string; unit: string }[] };
-const SUMMARY: { year: number; items: SummaryItem[] }[] = [
+// SummaryItem.date = "MM.DD"(연도는 SummaryGroup.year). 실데이터(/record)·목업 공용 타입.
+export type SummaryItem = { id: string; date: string; proc: string; hospital: string; doctor: string; manager?: string; tel: string; price: string; memo: string; items: { name: string; unit: string }[] };
+export type SummaryGroup = { year: number; items: SummaryItem[] };
+const SUMMARY: SummaryGroup[] = [
   { year: 2026, items: [
     { id: "a", date: "06.12", proc: "보톡스", hospital: "예담피부과의원", doctor: "김민재 원장", tel: "02-000-2222", price: "220,000원", memo: "이마·미간", items: [{ name: "보톡스", unit: "이마 50u · 미간 20u" }] },
     { id: "b", date: "06.04", proc: "써마지 · 스컬트라", hospital: "라온피부과의원", doctor: "이서연 원장", manager: "윤소희 실장님", tel: "02-000-1111", price: "1,650,000원", memo: "1년 주기로 받기로 함", items: [{ name: "써마지", unit: "600샷" }, { name: "스컬트라", unit: "2바이알" }] },
@@ -832,34 +829,50 @@ const SUMMARY: { year: number; items: SummaryItem[] }[] = [
   ] },
 ];
 
-export function RecordView({ go }: { go: (s: Screen) => void }) {
+// summary 미지정(목업)이면 데모 데이터, /record 는 실제 diaries 를 prop 으로 전달.
+export function RecordView({ go, summary = SUMMARY }: { go: (s: Screen) => void; summary?: SummaryGroup[] }) {
   const [mode, setMode] = useState<"tl" | "cal" | "list">("tl");
   const TABS: [typeof mode, string][] = [["tl", "연표"], ["cal", "달력"], ["list", "목록"]];
+  const total = summary.reduce((n, g) => n + g.items.length, 0);
   return (
     <section className="mx-auto w-full max-w-[680px]">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-[16px] font-bold text-[var(--text)]">내 일기</span>
-        <div className="flex gap-1 rounded-full bg-[#E8EAEE] p-1">
-          {TABS.map(([m, label]) => (
-            <button key={m} type="button" onClick={() => setMode(m)}
-              className="rounded-full px-3 py-1 text-[12px] font-semibold transition-colors"
-              style={mode === m ? { background: "#fff", color: "var(--primary-active)" } : { background: "transparent", color: "#5C6470" }}>
-              {label}
-            </button>
-          ))}
-        </div>
+        {total > 0 && (
+          <div className="flex gap-1 rounded-full bg-[#E8EAEE] p-1">
+            {TABS.map(([m, label]) => (
+              <button key={m} type="button" onClick={() => setMode(m)}
+                className="rounded-full px-3 py-1 text-[12px] font-semibold transition-colors"
+                style={mode === m ? { background: "#fff", color: "var(--primary-active)" } : { background: "transparent", color: "#5C6470" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      {mode === "tl" ? <TimelinePanel go={go} /> : mode === "cal" ? <CalendarPanel go={go} /> : <SummaryPanel go={go} />}
+      {total === 0 ? (
+        <div className={cardBox + " flex flex-col items-center py-12 text-center"}>
+          <p className="text-[15px] font-semibold text-[var(--text)]">아직 시술일기가 없어요.</p>
+          <p className="mt-1.5 text-[13px] text-[var(--text-secondary)]">받은 시술을 기록하면 연표·달력·목록으로 한눈에 정리돼요.</p>
+          <a href="/write" className="mt-5 rounded-full bg-[var(--primary)] px-6 py-2.5 text-[13px] font-semibold text-white">첫 일기 쓰러 가기</a>
+        </div>
+      ) : mode === "tl" ? (
+        <TimelinePanel go={go} summary={summary} />
+      ) : mode === "cal" ? (
+        <CalendarPanel go={go} summary={summary} />
+      ) : (
+        <SummaryPanel go={go} summary={summary} />
+      )}
     </section>
   );
 }
 
 /* ─── 연표(세로 월 리스트) — 연도 이동 + 그 해 기록 있는 달만 ─── */
-function TimelinePanel({ go }: { go: (s: Screen) => void }) {
-  const years = SUMMARY.map((g) => g.year);
+function TimelinePanel({ go, summary }: { go: (s: Screen) => void; summary: SummaryGroup[] }) {
+  const years = summary.map((g) => g.year);
   const minYear = Math.min(...years), maxYear = Math.max(...years);
   const [year, setYear] = useState(maxYear);
-  const items = SUMMARY.find((g) => g.year === year)?.items ?? [];
+  const items = summary.find((g) => g.year === year)?.items ?? [];
   // 기록 있는 달만, 최신 월 → 과거 월 순.
   const byMonth = new Map<number, SummaryItem[]>();
   for (const it of items) {
@@ -867,6 +880,7 @@ function TimelinePanel({ go }: { go: (s: Screen) => void }) {
     byMonth.set(m, [...(byMonth.get(m) ?? []), it]);
   }
   const months = [...byMonth.keys()].sort((a, b) => b - a);
+  const thisYear = new Date().getFullYear();
 
   return (
     <>
@@ -874,7 +888,7 @@ function TimelinePanel({ go }: { go: (s: Screen) => void }) {
       <div className={cardBox + " mb-3 flex items-center justify-between"}>
         <button type="button" disabled={year <= minYear} onClick={() => setYear((y) => y - 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30">‹</button>
         <div className="text-center">
-          <div className="text-[18px] font-extrabold text-[var(--text)]">{year}<span className="ml-1 text-[12px] font-medium text-[var(--text-muted)]">{year === maxYear ? "올해" : `${maxYear - year}년 전`}</span></div>
+          <div className="text-[18px] font-extrabold text-[var(--text)]">{year}<span className="ml-1 text-[12px] font-medium text-[var(--text-muted)]">{year === thisYear ? "올해" : year < thisYear ? `${thisYear - year}년 전` : ""}</span></div>
           <div className="mt-0.5 text-[12px] text-[var(--text-secondary)]">{items.length === 0 ? "기록 없음" : `시술 ${items.length}회`}</div>
         </div>
         <button type="button" disabled={year >= maxYear} onClick={() => setYear((y) => y + 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30">›</button>
@@ -918,49 +932,82 @@ function TimelinePanel({ go }: { go: (s: Screen) => void }) {
   );
 }
 
-function CalendarPanel({ go }: { go: (s: Screen) => void }) {
-  const [sel, setSel] = useState<number | null>(4);
-  const dow = ["일","월","화","수","목","금","토"];
-  const first = new Date(2026, 5, 1).getDay();
-  const cells: (number | null)[] = [...Array(first).fill(null), ...Array.from({ length: 30 }, (_, i) => i + 1)];
-  const selRec = sel ? RECORDS[sel] : null;
+function CalendarPanel({ go, summary }: { go: (s: Screen) => void; summary: SummaryGroup[] }) {
+  // 전체 일기 → "Y-M-D"(0패딩 없음) 키 맵. 같은 날 여러 방문도 누적.
+  const dayMap = useMemo(() => {
+    const map = new Map<string, SummaryItem[]>();
+    for (const g of summary)
+      for (const it of g.items) {
+        const [mm, dd] = it.date.split(".");
+        const key = `${g.year}-${Number(mm)}-${Number(dd)}`;
+        map.set(key, [...(map.get(key) ?? []), it]);
+      }
+    return map;
+  }, [summary]);
+
+  // 초기 표시 = 가장 최근 기록의 연·월(없으면 올해 이번 달).
+  const latest = summary[0]?.items[0];
+  const initY = summary[0]?.year ?? new Date().getFullYear();
+  const initM = latest ? Number(latest.date.split(".")[0]) : new Date().getMonth() + 1;
+  const [ym, setYm] = useState<{ y: number; m: number }>({ y: initY, m: initM });
+  const [sel, setSel] = useState<number | null>(latest ? Number(latest.date.split(".")[1]) : null);
+
+  const dow = ["일", "월", "화", "수", "목", "금", "토"];
+  const first = new Date(ym.y, ym.m - 1, 1).getDay();
+  const daysInMonth = new Date(ym.y, ym.m, 0).getDate();
+  const cells: (number | null)[] = [...Array(first).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+
+  const move = (delta: number) => {
+    setSel(null);
+    setYm(({ y, m }) => {
+      const nm = m + delta;
+      if (nm < 1) return { y: y - 1, m: 12 };
+      if (nm > 12) return { y: y + 1, m: 1 };
+      return { y, m: nm };
+    });
+  };
+  const dayItems = (d: number) => dayMap.get(`${ym.y}-${ym.m}-${d}`) ?? [];
+  const selItems = sel ? dayItems(sel) : [];
+
   return (
     <>
       <div className={cardBox}>
         <div className="mb-4 flex items-center justify-between">
-          <span className="text-[17px] font-bold text-[var(--text)]">2026년 6월</span>
+          <span className="text-[17px] font-bold text-[var(--text)]">{ym.y}년 {ym.m}월</span>
           <span className="flex gap-1.5">
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)]">‹</button>
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)]">›</button>
+            <button type="button" onClick={() => move(-1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)]">‹</button>
+            <button type="button" onClick={() => move(1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)]">›</button>
           </span>
         </div>
         <div className="grid grid-cols-7">{dow.map((d, i) => <div key={d} className="pb-2 text-center text-[11.5px] font-semibold" style={{ color: i === 0 ? "#D98A9C" : i === 6 ? "#7FA8D0" : "var(--text-muted)" }}>{d}</div>)}</div>
         <div className="grid grid-cols-7 gap-y-1.5">
           {cells.map((d, i) => {
             if (d === null) return <div key={`e${i}`} />;
-            const rec = RECORDS[d]; const isSel = sel === d;
+            const has = dayItems(d).length > 0; const isSel = sel === d;
             return (
               <div key={`d${d}`} className="flex justify-center">
-                <button type="button" disabled={!rec} onClick={() => rec && setSel(d)}
+                <button type="button" disabled={!has} onClick={() => has && setSel(d)}
                   className="relative flex h-10 w-10 items-center justify-center rounded-full text-[14px] transition-all"
-                  style={rec ? { background: rec.st === "watch" ? "#FBEFD9" : "var(--primary-soft)", color: rec.st === "watch" ? "#B6790F" : "var(--primary-active)", fontWeight: 700, boxShadow: isSel ? `0 0 0 2px ${rec.st === "watch" ? "var(--accent-save)" : "var(--primary)"}` : "none" } : { color: "var(--text-secondary)" }}>
-                  {d}{rec && <span className="absolute bottom-1.5 h-[5px] w-[5px] rounded-full" style={{ background: rec.st === "watch" ? "var(--accent-save)" : "var(--primary)" }} />}
+                  style={has ? { background: "var(--primary-soft)", color: "var(--primary-active)", fontWeight: 700, boxShadow: isSel ? "0 0 0 2px var(--primary)" : "none" } : { color: "var(--text-secondary)" }}>
+                  {d}{has && <span className="absolute bottom-1.5 h-[5px] w-[5px] rounded-full" style={{ background: "var(--primary)" }} />}
                 </button>
               </div>
             );
           })}
         </div>
         <div className="mt-4 flex justify-center gap-5 border-t border-[var(--border)] pt-3 text-[11.5px] text-[var(--text-secondary)]">
-          <span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "var(--primary)" }} />기록 완료</span>
-          <span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "var(--accent-save)" }} />지켜보는 중</span>
+          <span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "var(--primary)" }} />시술 받은 날</span>
         </div>
       </div>
-      {selRec && (
+      {selItems.length > 0 && (
         <button type="button" onClick={() => go("detail")} className={"mt-3 flex w-full items-center gap-3 text-left " + cardBox + " hover:bg-[var(--primary-soft)]"}>
-          <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md" style={{ background: selRec.st === "watch" ? "#FBEFD9" : "var(--primary-soft)" }}>
-            <span className="text-[15px] font-bold leading-none" style={{ color: selRec.st === "watch" ? "#B6790F" : "var(--primary-active)" }}>{sel}</span><span className="mt-0.5 text-[9px] font-semibold text-[var(--text-muted)]">6월</span>
+          <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md" style={{ background: "var(--primary-soft)" }}>
+            <span className="text-[15px] font-bold leading-none" style={{ color: "var(--primary-active)" }}>{sel}</span><span className="mt-0.5 text-[9px] font-semibold text-[var(--text-muted)]">{ym.m}월</span>
           </span>
-          <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-semibold text-[var(--text)]">{selRec.proc}</span><span className="mt-0.5 block text-[12px] text-[var(--text-muted)]">탭하면 그날 기록을 봐요</span></span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[14.5px] font-semibold text-[var(--text)]">{selItems.flatMap((it) => it.items.map((iv) => iv.name)).join(" · ")}</span>
+            <span className="mt-0.5 block truncate text-[12px] text-[var(--text-muted)]">{selItems[0].hospital}</span>
+          </span>
           <span className="text-[var(--text-muted)]">›</span>
         </button>
       )}
@@ -968,23 +1015,24 @@ function CalendarPanel({ go }: { go: (s: Screen) => void }) {
   );
 }
 
-function SummaryPanel({ go }: { go: (s: Screen) => void }) {
+function SummaryPanel({ go, summary }: { go: (s: Screen) => void; summary: SummaryGroup[] }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
-  const allIds = SUMMARY.flatMap((g) => g.items.map((i) => i.id));
+  const allIds = summary.flatMap((g) => g.items.map((i) => i.id));
   const allOpen = open.size === allIds.length;
   const toggleAll = () => setOpen(allOpen ? new Set() : new Set(allIds));
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const thisYear = new Date().getFullYear();
   return (
     <>
       <div className="mb-2 flex justify-end">
         <button type="button" onClick={toggleAll} className="rounded-md bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">{allOpen ? "모두 닫기" : "모두 펼치기"}</button>
       </div>
       <div className="space-y-5">
-        {SUMMARY.map((g) => (
+        {summary.map((g) => (
           <div key={g.year}>
             <div className="mb-2 flex items-center gap-2">
               <span className="text-[15px] font-extrabold text-[var(--text)]">{g.year}</span>
-              <span className="text-[11.5px] text-[var(--text-muted)]">{g.year === 2026 ? "올해" : `${2026 - g.year}년 전`}</span>
+              <span className="text-[11.5px] text-[var(--text-muted)]">{g.year === thisYear ? "올해" : `${thisYear - g.year}년 전`}</span>
             </div>
             <div className="space-y-2">
               {g.items.map((it) => {
