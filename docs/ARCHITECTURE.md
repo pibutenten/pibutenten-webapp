@@ -67,10 +67,15 @@
 /settings/profile                   프로필 수정
 /settings/notifications             알림 설정
 /notifications                      알림 목록
-/write                              글쓰기
-/write/[shortcode]                  글 수정 (자기 글)
-/review/new                         시술후기 작성 (P3-d, 전용 폼. 정식 진입은 P4 FAB 예정)
+/write                              통합 글쓰기 — 3탭(시술일기/시술후기/끄적끄적) WriteTabs. ?tab=record|review|doodle
+/write/[shortcode]                  글 수정 (자기 글) — TopNav 유지(EditClient)
+/record                             내 일기(시술일기 목록·연표) — noindex. 폼 DB 저장 배선은 후속
+/my                                 마이페이지(설정 허브, 현재 placeholder) — noindex
+/shop                               쇼핑 준비중 — noindex
+/review/new                         시술후기 작성 (P3-d, 전용 폼. /write 시술후기 탭이 이 ReviewForm 공유)
 ```
+
+> **메인 승격(2026-06-11)**: 기존 `/beta` 미리보기 앱이 루트로 이전. 핵심 앱 라우트(`/`,`/write`,`/record`,`/my`,`/shop`)는 새 5탭 `BetaNav`(하단 고정탭 + 헤더 칩/검색), 콘텐츠 페이지(`/doctors`·`/search`·`/topics`·`/reports`·상세·프로필)는 기존 `TopNav` 유지. `/beta`·`/beta/:path*` → 루트 308. 우하단 FAB(FloatingWriteButton) 폐기.
 
 ### 2.4. 관리자 영역 (role=admin 또는 doctor)
 ```
@@ -421,7 +426,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 | **좋아요/저장/공유 수** | 클라 | — | 캐시 상세에서만 마운트 시 라이브 재조회(`useCardEngagement`) |
 | **내 좋아요/저장 여부** | 클라 | — | `Card`("use client") |
 
-- **레이아웃**: `layout.tsx` 는 V1 이후 서버 세션·쿠키를 안 읽음. `force-dynamic` 도 V3 에서 제거(전역). `useSearchParams` 쓰는 `FloatingWriteButton` 은 `<Suspense>` 로 감싸 정적 프리렌더 통과. **개인 페이지**(/, /search, /[handle], settings, admin, notifications, write, review, onboarding)는 각자 `export const dynamic="force-dynamic"`.
+- **레이아웃**: `layout.tsx` 는 V1 이후 서버 세션·쿠키를 안 읽음. `force-dynamic` 도 V3 에서 제거(전역). (2026-06-11 FAB `FloatingWriteButton` 폐기 — 글쓰기 진입은 `BetaNav` 5탭.) **개인·동적 페이지**(/, /search, /[handle], /write, /record, /my, /shop, settings, admin, notifications, review, onboarding)는 각자 `export const dynamic="force-dynamic"`.
 - **캐시 무효화**: 콘텐츠 변경(발행/생성/수정/숨김/삭제) 라우트가 `revalidateTag("qa-content"/"topics","max")`(Next 16 2인자) → 상세 수정 **즉시** 반영. 카운트는 24h fallback이지만 클라 라이브라 실질 즉시.
 - **★한글 URL + ISR 금지**: ISR 캐시 페이지는 Next 16 이 페이지 경로를 implicit `x-next-cache-tags` HTTP 헤더(ASCII 전용)에 넣음. 토픽 URL 은 한글(`/topics/콜라겐`)이라 헤더가 깨져 **500(`ERR_INVALID_CHAR`)** → 토픽은 동적 유지. 상세는 ASCII slug 라 무관.
 - **홈 피드 masonry SSR 컬럼**: react-masonry-css 는 SSR 에 window 없어 `default`(2) 사용 → 모바일 클라 1컬럼 재배치 reflow(CLS). `page.tsx` 가 요청 UA 로 `isMobileUA` → `Feed.breakpointCols.default=(isMobileUA?1:2)`. `899:1`·리사이즈 리스너 불변(반응형 유지).
