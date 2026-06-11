@@ -15,6 +15,18 @@
 ### Changed
 - **시술후기 탭 = 실제 ReviewForm 연결**: 목업 폼 대신 `/review/new` 의 ReviewForm 사용 → DB 실제 저장.
 - **/beta 잔여 UI**: 하단탭 '시술기록'→'내 일기'+양끝 여백, 글쓰기 탭 '시술일기 쓰기/시술후기 남기기/끄적끄적', 칩 cursor-pointer, /beta FAB 숨김.
+- **메인 승격(라우트 컷오버)**: `/beta` 앱을 루트로 이전. 핵심 앱 라우트를 새 5탭 BetaNav로 전환.
+  - 루트 `/` = 새 피드(BetaFeed 300 풀+클라 필터). 기존 SEO(brand-first title·전문의수 description·canonical·OG/og.png·clinics JSON-LD·sr-only H1·index)는 구홈 그대로 보존. `?q=` 검색 결과는 noindex,follow + canonical=`/`.
+  - 통합 글쓰기 `/write` = 3탭(시술일기/시술후기/끄적끄적) WriteTabs. 기존 단독 /write(카테고리 선택) 폐기. `/write/[shortcode]`(수정)·끄적끄적은 기존 WriteClient 재사용.
+  - 신규 `/record`(내 일기)·`/my`(마이페이지)·`/shop`(준비중) — 모두 noindex.
+  - `next.config.ts`: `/beta`·`/beta/:path*` → 루트 308(쿼리 보존). TopNav는 `/`,`/write`,`/record`,`/my`,`/shop` 에서 BetaNav 위임(콘텐츠 페이지는 기존 TopNav 유지).
+  - `robots.ts` Disallow에 `/record`,`/my`,`/shop` 추가. WebSite JSON-LD SearchAction target `/search?q=`→`/?q=`.
+
+### Removed
+- **FloatingWriteButton(FAB) 폐기**: 우하단 플로팅 작성 버튼 제거(글쓰기 진입은 BetaNav 5탭이 담당). `src/app/beta/` 디렉터리 전체 삭제.
+
+### 후속(메인에서 진행 예정)
+- 시술일기 폼 DB 저장 배선(DiaryForm → /api/diaries → create_diary RPC, 마이그 0279 준비 완료), 마이페이지 설정 개편, EEAT 보강(푸터 전문의 링크·바이라인 `<Link>`·홈 헤더 전문의 진입점), noindex 해제(별도 보고 후).
 
 ---
 

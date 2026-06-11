@@ -4,7 +4,7 @@
  * /beta 검색 발견/자동완성 — 모바일 오버레이·데스크탑 블록 공용.
  *  - query 비었을 때: ① 최근 검색어(localStorage) ② 인기검색어 10(7일) ③ 카테고리 칩(탭, 기본 리프팅/스킨부스터 랜덤)
  *  - query 있을 때: 카테고리 칩 키워드 부분일치 자동완성(초성 X — 기존 방식)
- *  - 항목 선택 → 최근검색 저장 + /beta?q= 로 이동(기존 검색 실행)
+ *  - 항목 선택 → 최근검색 저장 + /?q= 로 이동(기존 검색 실행)
  * 데이터는 전부 기존 소스 재사용(/api/beta-discover).
  */
 
@@ -53,7 +53,7 @@ export default function BetaDiscovery({ query = "", onPicked }: { query?: string
     addRecent(t);
     setRecent(getRecent());
     onPicked?.(t);
-    router.push(`/beta?q=${encodeURIComponent(t)}`);
+    router.push(`/?q=${encodeURIComponent(t)}`);
   }, [router, onPicked]);
 
   const allKeywords = useMemo(() => {

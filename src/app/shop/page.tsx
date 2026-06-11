@@ -4,11 +4,11 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "쇼핑 — 피부텐텐 베타",
+  title: "쇼핑",
   robots: { index: false, follow: false },
 };
 
-export default function BetaShopPage() {
+export default function ShopPage() {
   return (
     <div className="pb-16 sm:pb-0">
       <div className="flex flex-col items-center justify-center py-24 text-center">

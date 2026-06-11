@@ -68,7 +68,7 @@ const DoctorIcon = (
 );
 
 function buildNavItems(_hasSession: boolean): NavItem[] {
-  // 글쓰기는 우하단 플로팅 버튼(FloatingWriteButton)으로 이동
+  // 글쓰기 진입은 앱 라우트(/, /write 등)의 BetaNav 5탭이 담당. 콘텐츠 페이지 TopNav 는 검색·전문의만.
   void _hasSession;
   return [
     { href: "/search", label: "검색", icon: SearchIcon },
@@ -217,8 +217,16 @@ export default function TopNav() {
   const session = useSession();
   const pathname = usePathname();
 
-  // /beta 미리보기 — 레이아웃은 그대로 두고 내비만 새 5탭(BetaNav)으로 교체.
-  if (pathname.startsWith("/beta")) return <BetaNav />;
+  // 메인 승격(2026-06-11): 핵심 앱 라우트(피드/글쓰기/내일기/마이/쇼핑)는 새 5탭 BetaNav.
+  //   콘텐츠 페이지(전문의·검색·토픽·리포트·상세·프로필)는 기존 TopNav 유지(무위험).
+  //   /write 글쓰기 단독만 BetaNav — /write/{shortcode}(수정)은 하단바 여백 충돌 회피 위해 TopNav.
+  const isAppRoute =
+    pathname === "/" ||
+    pathname === "/write" ||
+    pathname === "/record" ||
+    pathname === "/my" ||
+    pathname === "/shop";
+  if (isAppRoute) return <BetaNav />;
 
   // 로그아웃 동작은 본인 프로필 페이지(/{handle}) 하단 LogoutButton으로 이동됨 (A5)
   // router/isLoggingOut/handleLogout/dashboardHref는 더 이상 사용 안 함 — 정리.

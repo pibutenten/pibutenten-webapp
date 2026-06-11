@@ -1,10 +1,10 @@
 "use client";
 
 // 시술기록(개인 일기)은 목업 폼 재사용. 시술후기는 기존 실제 폼(/review/new 의 ReviewForm) 그대로 연결.
-import { DiaryForm } from "../../mockups/skin-diary/SkinDiaryMockup";
-import ReviewForm, { type ProcedureOption } from "../../review/new/ReviewForm";
+import { DiaryForm } from "../mockups/skin-diary/SkinDiaryMockup";
+import ReviewForm, { type ProcedureOption } from "../review/new/ReviewForm";
 // 끄적끄적은 기존 글쓰기 컴포넌트(WriteClient)를 그대로 사용.
-import WriteClient from "../../write/WriteClient";
+import WriteClient from "./WriteClient";
 
 type Doctor = { id: string; slug: string; name: string; branch: string | null };
 

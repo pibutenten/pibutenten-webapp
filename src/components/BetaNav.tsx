@@ -37,11 +37,11 @@ const ICON = {
 
 type Tab = { href: string; label: string; icon: React.ReactNode; match: (p: string) => boolean };
 const TABS: Tab[] = [
-  { href: "/beta/record", label: "내 일기", icon: ICON.book, match: (p) => p.startsWith("/beta/record") },
-  { href: "/beta/write", label: "글쓰기", icon: ICON.pen, match: (p) => p.startsWith("/beta/write") },
-  { href: "/beta", label: "피드", icon: ICON.grid, match: (p) => p === "/beta" },
-  { href: "/beta/shop", label: "쇼핑", icon: ICON.bag, match: (p) => p.startsWith("/beta/shop") },
-  { href: "/beta/my", label: "마이페이지", icon: ICON.user, match: (p) => p.startsWith("/beta/my") },
+  { href: "/record", label: "내 일기", icon: ICON.book, match: (p) => p.startsWith("/record") },
+  { href: "/write", label: "글쓰기", icon: ICON.pen, match: (p) => p === "/write" },
+  { href: "/", label: "피드", icon: ICON.grid, match: (p) => p === "/" },
+  { href: "/shop", label: "쇼핑", icon: ICON.bag, match: (p) => p.startsWith("/shop") },
+  { href: "/my", label: "마이페이지", icon: ICON.user, match: (p) => p.startsWith("/my") },
 ];
 
 // 피드 상단 카테고리 칩 (페이지 데이터 fetch 는 ?cat= 로 동일).
@@ -107,7 +107,7 @@ function WriteTabBar({ active }: { active: string }) {
           return (
             <Link
               key={t.tab}
-              href={`/beta/write?tab=${t.tab}`}
+              href={`/write?tab=${t.tab}`}
               className="relative flex shrink-0 items-center gap-1 whitespace-nowrap px-[6px] pb-[6px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
@@ -150,8 +150,8 @@ export default function BetaNav() {
   const [focused, setFocused] = useState(false);
   const [urlQ, setUrlQ] = useState("");
 
-  const isFeed = pathname === "/beta";
-  const isWrite = pathname === "/beta/write";
+  const isFeed = pathname === "/";
+  const isWrite = pathname === "/write";
 
   // URL q → 검색창에 반영(검색 결과 동안 검색어 노출 유지). 결과 페이지면 모바일 검색바도 표시.
   const onSync = useCallback((v: string) => { setUrlQ(v); setQ(v); }, []);
@@ -195,10 +195,10 @@ export default function BetaNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // 로고 클릭 — 어느 화면에서든 피드 전체 홈 + 스크롤 최상단(이미 /beta 여도 맨 위로).
+  // 로고 클릭 — 어느 화면에서든 피드 전체 홈 + 스크롤 최상단(이미 / 여도 맨 위로).
   const goHome = () => {
     setUrlQ(""); setQ(""); setSearchOpen(false);
-    router.push("/beta");
+    router.push("/");
     window.scrollTo({ top: 0 });
   };
 
@@ -207,7 +207,7 @@ export default function BetaNav() {
     if (!v) return;
     addRecent(v);
     setUrlQ(v);                                  // 낙관적 — 검색바 즉시 노출(홈 깜빡임 방지). SearchQuerySync 가 이후 URL q 로 재확정.
-    router.push(`/beta?q=${encodeURIComponent(v)}`);
+    router.push(`/?q=${encodeURIComponent(v)}`);
     setSearchOpen(false);
     // q 는 비우지 않음 — 결과 페이지에서 검색어 노출 유지(SearchQuerySync 가 URL q 로 맞춤).
   };
@@ -252,24 +252,24 @@ export default function BetaNav() {
                   <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f1f3f5] px-3 py-1.5 sm:hidden">
                     <span className="shrink-0 text-[#9aa3b0]">{ICON.search}</span>
                     <button type="button" onClick={() => { setSearchOpen(true); setQ(""); }} className="min-w-0 flex-1 truncate text-left text-sm text-[var(--text)]">{urlQ}</button>
-                    <button type="button" aria-label="검색 해제" onClick={() => { setUrlQ(""); setQ(""); router.push("/beta"); }} className="shrink-0 text-[#9aa3b0]">{ICON.x}</button>
+                    <button type="button" aria-label="검색 해제" onClick={() => { setUrlQ(""); setQ(""); router.push("/"); }} className="shrink-0 text-[#9aa3b0]">{ICON.x}</button>
                   </div>
                 ) : (
-                  <button type="button" onClick={goHome} aria-label="피부텐텐 베타 홈" className="flex shrink-0 items-center sm:hidden">
+                  <button type="button" onClick={goHome} aria-label="피부텐텐 홈" className="flex shrink-0 items-center sm:hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/brand-logo.svg" alt="피부텐텐" className="h-7 w-auto" />
                   </button>
                 )}
 
                 {/* 데스크탑 로고 */}
-                <button type="button" onClick={goHome} aria-label="피부텐텐 베타 홈" className="hidden shrink-0 items-center sm:flex">
+                <button type="button" onClick={goHome} aria-label="피부텐텐 홈" className="hidden shrink-0 items-center sm:flex">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/brand-logo.svg" alt="피부텐텐" className="h-8 w-auto" />
                 </button>
 
                 {/* 데스크탑 메뉴 (모바일은 하단 탭) */}
                 <nav className="hidden items-center gap-5 sm:ml-6 sm:flex">
-                  {TABS.filter((t) => t.href !== "/beta/my").map((t) => (
+                  {TABS.filter((t) => t.href !== "/my").map((t) => (
                     <Link key={t.href} href={t.href} className="text-[15px] font-semibold transition-colors" style={{ color: t.match(pathname) ? C : "var(--text)" }}>{t.label}</Link>
                   ))}
                 </nav>
@@ -310,7 +310,7 @@ export default function BetaNav() {
                 {session && <NotificationsBell />}
                 <div className="hidden items-center sm:flex">
                   {session ? (
-                    <Link href="/beta/my" aria-label="마이페이지" title="마이페이지" className="flex items-center rounded-md p-2" style={{ color: pathname.startsWith("/beta/my") ? C : "var(--text)" }}>{ICON.user}</Link>
+                    <Link href="/my" aria-label="마이페이지" title="마이페이지" className="flex items-center rounded-md p-2" style={{ color: pathname.startsWith("/my") ? C : "var(--text)" }}>{ICON.user}</Link>
                   ) : (
                     <Link href="/login" title="로그인" className="flex items-center rounded-md p-2 text-[14px] font-medium text-[var(--text)]">로그인</Link>
                   )}

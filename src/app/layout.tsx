@@ -1,11 +1,9 @@
-import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import TopNav from "@/components/TopNav";
 import ScrollManager from "@/components/ScrollManager";
-import FloatingWriteButton from "@/components/FloatingWriteButton";
 import InstallPrompt from "@/components/InstallPrompt";
 import SiteFooter from "@/components/SiteFooter";
 import EngagementPromptListener from "@/components/EngagementPromptListener";
@@ -99,7 +97,6 @@ export const viewport: Viewport = {
 // V3(2026-06-07): 전역 force-dynamic 제거 → 공개 콘텐츠(상세·토픽)는 페이지별 revalidate 로 ISR 캐시.
 //   layout 은 V1 이후 서버에서 세션/쿠키를 안 읽으므로 캐시 안전. 개인 표시는 전부 클라(SessionProvider/
 //   useSession/useCardViewer). 개인·동적 페이지는 각자 export const dynamic="force-dynamic" 로 동적 유지.
-//   useSearchParams 쓰는 공유 컴포넌트(FloatingWriteButton)는 <Suspense> 로 감싸 정적 프리렌더 통과.
 
 export default function RootLayout({
   children,
@@ -178,8 +175,9 @@ window.addEventListener('appinstalled', function() {
                   publisher: { "@id": `${SITE_URL}/#organization` },
                   potentialAction: {
                     "@type": "SearchAction",
-                    // /search 는 page-level noindex(follow=true) 이므로 크롤이 결과 페이지를 따라가서 개별 카드로 진입.
-                    target: `${SITE_URL}/search?q={search_term_string}`,
+                    // 메인 승격(2026-06-11): 인사이트 검색은 루트 /?q= 인라인 검색으로 이전.
+                    //   ?q= 결과는 page-level noindex(follow=true) → 크롤이 결과를 따라 개별 카드로 진입.
+                    target: `${SITE_URL}/?q={search_term_string}`,
                     "query-input": "required name=search_term_string",
                   },
                 },
@@ -204,10 +202,6 @@ window.addEventListener('appinstalled', function() {
             {children}
           </main>
           <SiteFooter />
-          {/* useSearchParams 사용 → 정적 프리렌더 시 Suspense 경계 필요 (V3) */}
-          <Suspense fallback={null}>
-            <FloatingWriteButton />
-          </Suspense>
           {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
           <InstallPrompt />
           {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}

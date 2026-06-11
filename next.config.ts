@@ -54,6 +54,11 @@ const nextConfig: NextConfig = {
   // Preview 배포는 영향 받지 않음 (Production만 적용 — vercel host 매칭)
   async redirects() {
     return [
+      // /beta 미리보기 라우트 → 메인 승격(2026-06-11). 새 앱이 루트로 이전됨 → 영구 308.
+      //   쿼리(?q=, ?tab=)는 Next 가 자동 보존 → /beta?q=x → /?q=x.
+      //   bare /beta → /, 그 외 모든 /beta/* 하위 경로는 와일드카드로 대응 경로에 매핑(잔여 URL 안전망).
+      { source: "/beta", destination: "/", permanent: true },
+      { source: "/beta/:path*", destination: "/:path*", permanent: true },
       {
         source: "/:path*",
         has: [

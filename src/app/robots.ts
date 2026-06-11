@@ -57,6 +57,9 @@ const DISALLOW_COMMON = [
   "/signup",
   "/login",
   "/write",
+  "/record",
+  "/my",
+  "/shop",
   "/notifications",
   "/settings",
   // 신고 페이지 /report 는 robots 표준(RFC 9309)에 정규식·"$" 종단 앵커가 없어 여기서

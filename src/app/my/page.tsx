@@ -4,13 +4,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "마이페이지 — 피부텐텐 베타",
+  title: "마이페이지",
   robots: { index: false, follow: false },
 };
 
 const C = "#4cbff2";
 
-export default async function BetaMyPage() {
+export default async function MyPage() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 

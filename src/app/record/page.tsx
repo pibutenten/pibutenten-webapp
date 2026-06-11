@@ -5,10 +5,10 @@ import RecordTab from "./RecordTab";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "시술기록 — 피부텐텐 베타",
+  title: "내 일기",
   robots: { index: false, follow: false },
 };
 
-export default function BetaRecordPage() {
+export default function RecordPage() {
   return <RecordTab />;
 }
