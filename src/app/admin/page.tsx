@@ -176,7 +176,7 @@ export default async function AdminPage() {
   });
 
   return (
-    <section className="w-full py-6">
+    <section className="w-full pt-6 pb-16 sm:pb-6">
       <div className="mb-1 -ml-1"><BackButton /></div>
       {/* 계정 스위처 — 어느 명함에서든 전환 가능(마이페이지와 동일). */}
       <AccountSwitcherCard compact />

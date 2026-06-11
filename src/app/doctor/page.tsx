@@ -123,7 +123,7 @@ export default async function DoctorDashboardPage() {
   const pendingCount = kpiByDays[0]?.pending_review ?? 0;
 
   return (
-    <section className="w-full py-6">
+    <section className="w-full pt-6 pb-16 sm:pb-6">
       <div className="mb-1 -ml-1">
         <BackButton fallbackHref="/" />
       </div>

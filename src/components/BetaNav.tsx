@@ -70,7 +70,7 @@ function ChipPending() {
 function ChipRow() {
   const active = useBetaTab();
   return (
-    <div className="border-b border-[#eef1f4]">
+    <div>
       <div className="flex gap-2 overflow-x-auto pt-[6px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {CATS.map((c) => {
           const on = active === c.cat;
@@ -100,7 +100,7 @@ const WRITE_TABS: { label: string; tab: string }[] = [
 ];
 function WriteTabBar({ active, tabs = WRITE_TABS }: { active: string; tabs?: { label: string; tab: string }[] }) {
   return (
-    <div className="border-b border-[#eef1f4]">
+    <div>
       <div className="flex gap-2 overflow-x-auto pt-[6px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((t) => {
           const on = active === t.tab;
@@ -247,7 +247,7 @@ export default function BetaNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-white">
+      <header className="sticky top-0 z-50 border-b border-[#eef1f4] bg-white">
         <div className="mx-auto w-full max-w-[1080px] px-4 pt-1.5 sm:px-6">
           {/* (A) 로고줄 — 스크롤 시 접힘 */}
           <div

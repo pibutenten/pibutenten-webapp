@@ -218,14 +218,16 @@ export default function TopNav() {
   const pathname = usePathname();
 
   // 메인 승격(2026-06-11): 핵심 앱 라우트(피드/글쓰기/내일기/마이/쇼핑)는 새 5탭 BetaNav.
-  //   콘텐츠 페이지(전문의·검색·토픽·리포트·상세·프로필)는 기존 TopNav 유지(무위험).
-  //   /write 글쓰기 단독만 BetaNav — /write/{shortcode}(수정)은 하단바 여백 충돌 회피 위해 TopNav.
+  //   관리자·원장 대시보드(/admin·/doctor)는 역할별 '마이페이지' 착지점이라 새 내비로 통일.
+  //   콘텐츠 페이지(전문의·검색·토픽·리포트·상세·프로필)·관리자 하위 도구는 기존 TopNav 유지.
   const isAppRoute =
     pathname === "/" ||
     pathname === "/write" ||
     pathname === "/record" ||
     pathname === "/my" ||
-    pathname === "/shop";
+    pathname === "/shop" ||
+    pathname === "/admin" ||
+    pathname === "/doctor";
   if (isAppRoute) return <BetaNav />;
 
   // 로그아웃 동작은 본인 프로필 페이지(/{handle}) 하단 LogoutButton으로 이동됨 (A5)
