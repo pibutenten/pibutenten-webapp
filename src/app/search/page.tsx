@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import HeroSearch from "@/components/HeroSearch";
 import CategoryWithChips from "@/components/CategoryWithChips";
 import Feed from "@/components/Feed";
 import type { CardData } from "@/components/Card";
@@ -186,10 +185,10 @@ export default async function HomePage({ searchParams }: Props) {
 
   return (
     <section>
-      <HeroSearch />
+      {/* 검색은 상단바(/?q=)가 담당 — 옛 회전 히어로/검색창 제거. 이 페이지는 '시술 둘러보기 + 결과'. */}
+      <h1 className="sr-only">검색 · 시술 둘러보기</h1>
 
-      {/* 카테고리 — 데스크탑은 위 여백 더 (HeroSearch와 거리), 모바일은 그대로 */}
-      <div className="mt-6 sm:mt-12">
+      <div className="pt-1 sm:pt-3">
         <CategoryWithChips popularByCategory={popularByCategory} />
       </div>
 
