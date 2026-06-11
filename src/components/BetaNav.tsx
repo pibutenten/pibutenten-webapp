@@ -195,9 +195,15 @@ export default function BetaNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // 로고 클릭 — 어느 화면에서든 피드 전체 홈 + 스크롤 최상단(이미 / 여도 맨 위로).
-  //   탭은 클라 store 라 같은 "/" 안에서 RSC 리마운트가 없으면 자동 초기화 안 됨 → setBetaTab("") 로 전체 강제.
+  // 로고/피드탭 클릭 — 피드 전체 홈 + 최상단.
+  //   이미 "/"(검색 결과 ?q= 포함)면 풀 리로드 → 새 jitter 로 피드를 새로 뿌림 + 최상단(구 홈 로고 동작과 동일).
+  //     (same-URL 소프트 내비는 서버 재실행이 없어 jitter 가 안 바뀌고, 탭 store 도 그대로라 "반응 없음"처럼 느껴짐.)
+  //   다른 페이지(/write 등)에서는 소프트 내비 → BetaFeed 가 마운트되며 전체+최상단+새 풀 처리.
   const goHome = () => {
+    if (pathname === "/") {
+      window.location.assign("/");
+      return;
+    }
     setUrlQ(""); setQ(""); setSearchOpen(false);
     setBetaTab("");
     router.push("/");
@@ -257,14 +263,14 @@ export default function BetaNav() {
                     <button type="button" aria-label="검색 해제" onClick={() => { setUrlQ(""); setQ(""); router.push("/"); }} className="shrink-0 text-[#9aa3b0]">{ICON.x}</button>
                   </div>
                 ) : (
-                  <button type="button" onClick={goHome} aria-label="피부텐텐 홈" className="flex shrink-0 items-center sm:hidden">
+                  <button type="button" onClick={goHome} aria-label="피부텐텐 홈" className="flex shrink-0 cursor-pointer items-center sm:hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/brand-logo.svg" alt="피부텐텐" className="h-7 w-auto" />
                   </button>
                 )}
 
                 {/* 데스크탑 로고 */}
-                <button type="button" onClick={goHome} aria-label="피부텐텐 홈" className="hidden shrink-0 items-center sm:flex">
+                <button type="button" onClick={goHome} aria-label="피부텐텐 홈" className="hidden shrink-0 cursor-pointer items-center sm:flex">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/brand-logo.svg" alt="피부텐텐" className="h-8 w-auto" />
                 </button>
@@ -272,7 +278,7 @@ export default function BetaNav() {
                 {/* 데스크탑 메뉴 (모바일은 하단 탭) */}
                 <nav className="hidden items-center gap-5 sm:ml-6 sm:flex">
                   {TABS.filter((t) => t.href !== "/my").map((t) => (
-                    <Link key={t.href} href={t.href} className="text-[15px] font-semibold transition-colors" style={{ color: t.match(pathname) ? C : "var(--text)" }}>{t.label}</Link>
+                    <Link key={t.href} href={t.href} onClick={t.href === "/" ? (e) => { e.preventDefault(); goHome(); } : undefined} className="cursor-pointer text-[15px] font-semibold transition-colors" style={{ color: t.match(pathname) ? C : "var(--text)" }}>{t.label}</Link>
                   ))}
                 </nav>
 
@@ -349,7 +355,7 @@ export default function BetaNav() {
       {/* 모바일 하단 5탭 (fixed) */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-[var(--border)] bg-white px-3 sm:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {TABS.map((t) => (
-          <Link key={t.href} href={t.href} className="flex flex-1 flex-col items-center gap-0.5 py-2" style={{ color: t.match(pathname) ? C : "#9ca3af" }}>
+          <Link key={t.href} href={t.href} onClick={t.href === "/" ? (e) => { e.preventDefault(); goHome(); } : undefined} className="flex flex-1 cursor-pointer flex-col items-center gap-0.5 py-2" style={{ color: t.match(pathname) ? C : "#9ca3af" }}>
             {t.icon}
             <span className="text-[10px] font-medium">{t.label}</span>
           </Link>
