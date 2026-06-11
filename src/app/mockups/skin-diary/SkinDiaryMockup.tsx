@@ -463,7 +463,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
       if (!alive) return;
       setResults(withDistSort(data ?? []));
       setSearching(false);
-    }, 250);
+    }, 120); // 더 실시간처럼 — 16,964건 DB 조회라 0 은 불가, 디바운스 최소화(쿼리 자체는 ~30ms).
     return () => { alive = false; clearTimeout(t); };
   }, [q, picked]);
 

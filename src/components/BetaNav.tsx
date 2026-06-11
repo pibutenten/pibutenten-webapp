@@ -159,10 +159,15 @@ export default function BetaNav() {
   // 발견 데이터 선프리페치 — 검색창 첫 열기도 즉시 표시(끊김 없이 깔끔하게).
   useEffect(() => { void prefetchDiscover(); }, []);
 
-  // 데스크탑 검색 드롭다운 — 바깥 클릭 시 닫기.
+  // 검색창 표시값 복원용 ref — 바깥 클릭 핸들러(빈 deps)가 최신 urlQ(확정 검색어)를 참조(stale 방지).
+  const urlQRef = useRef(urlQ);
+  urlQRef.current = urlQ;
+
+  // 데스크탑 검색 드롭다운 — 바깥 클릭 시 닫고, 입력 초안은 확정 검색어로 복원
+  //   (검색 안 하고 나가면 입력칸은 기존 검색어로 되돌아가고 결과는 그대로 유지).
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setFocused(false);
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) { setFocused(false); setQ(urlQRef.current); }
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -246,7 +251,7 @@ export default function BetaNav() {
                 {urlQ ? (
                   <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[#f1f3f5] px-3 py-1.5 sm:hidden">
                     <span className="shrink-0 text-[#9aa3b0]">{ICON.search}</span>
-                    <button type="button" onClick={() => setSearchOpen(true)} className="min-w-0 flex-1 truncate text-left text-sm text-[var(--text)]">{urlQ}</button>
+                    <button type="button" onClick={() => { setSearchOpen(true); setQ(""); }} className="min-w-0 flex-1 truncate text-left text-sm text-[var(--text)]">{urlQ}</button>
                     <button type="button" aria-label="검색 해제" onClick={() => { setUrlQ(""); setQ(""); router.push("/beta"); }} className="shrink-0 text-[#9aa3b0]">{ICON.x}</button>
                   </div>
                 ) : (
@@ -281,7 +286,7 @@ export default function BetaNav() {
                   <input
                     value={q}
                     onChange={(e) => { setQ(e.target.value); setFocused(true); }}
-                    onFocus={() => setFocused(true)}
+                    onFocus={() => { setFocused(true); setQ(""); }}
                     onClick={() => setFocused(true)}
                     onKeyDown={(e) => {
                       if (e.key === "Escape") { setFocused(false); return; }
