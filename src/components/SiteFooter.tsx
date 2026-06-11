@@ -21,6 +21,13 @@ export default function SiteFooter() {
           · 피부과 전문의가 직접 답하는 리프팅 · 스킨부스터 · 안티에이징 · 피부시술 커뮤니티 · 주식회사 진솔컴퍼니
         </p>
         <nav aria-label="사이트 정책" className="flex flex-wrap gap-3">
+          {/* 전문의 진입점 — 상단바 통일로 nav 에서 빠진 EEAT(전문성) 내부링크 보강. */}
+          <Link
+            href="/doctors"
+            className="font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] hover:underline"
+          >
+            전문의
+          </Link>
           {FOOTER_ITEMS.map((item) => (
             <Link
               key={item.key}
