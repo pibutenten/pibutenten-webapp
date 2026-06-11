@@ -37,7 +37,7 @@ export async function GET(req: Request) {
       .split(",")
       .map((s) => Number.parseInt(s.trim(), 10))
       .filter((n) => Number.isFinite(n) && n > 0)
-      .slice(0, 10); // 안전 상한
+      .slice(0, 60); // 안전 상한(무한스크롤 한 묶음 ≤ pageSize=20, 여유 포함)
     if (ids.length === 0) {
       return NextResponse.json({ cards: [] }, { headers: { "cache-control": "no-store" } });
     }

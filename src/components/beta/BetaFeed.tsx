@@ -27,11 +27,13 @@ type ViewerState = { liked?: boolean; saved?: boolean };
 type CardWithCat = CardDataList & { category?: string | null };
 
 type Props = {
-  /** 서버에서 받은 첫 풀 (전체=점수순 300 / 검색=검색결과 300). */
+  /** 화면 초기 렌더분(앞 INITIAL 장). 나머지는 orderedIds 순서대로 스크롤 시 이어 받음. */
   initialPool: CardDataList[];
+  /** 줄세우기(랭킹) 전체 순서의 카드 ID 목록(최대 ORDER). 무한스크롤이 이 순서대로 ID 로 이어 받음. */
+  orderedIds?: number[];
   /** 페이지당 확장 크기(무한스크롤). */
   pageSize?: number;
-  /** 검색 중이면 검색어 — 풀 확장 시 ?q= 로 함께, 리포트 탭 시술명 필터에도 사용. */
+  /** 검색 중이면 검색어 — 리포트 탭 시술명 필터에도 사용. */
   searchQuery?: string;
   /** 리포트 탭에서 보여줄 시술 리포트 카드 풀. */
   reportPool?: ProcedureReport[];
@@ -42,6 +44,7 @@ type Props = {
 
 export default function BetaFeed({
   initialPool,
+  orderedIds = [],
   pageSize = 20,
   searchQuery,
   reportPool = [],
@@ -52,21 +55,27 @@ export default function BetaFeed({
   const hotSet = new Set(hotIds ?? []);
   const activeCat = useBetaTab(); // "" | qa | review | doodle | review_summary
   const [pool, setPool] = useState<CardDataList[]>(initialPool);
-  const [hasMore, setHasMore] = useState(initialPool.length >= pageSize);
+  const [hasMore, setHasMore] = useState(orderedIds.length > initialPool.length);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
+  // 순서목록에서 이미 "소비한"(받기 시도한) 개수 = 다음에 받을 시작 위치. 초기 렌더분만큼부터.
+  //   pool.length 가 아니라 별도 커서로 둬서, 삭제된 ID(조회 누락)가 있어도 같은 자리 무한재시도 방지.
+  const cursorRef = useRef(initialPool.length);
+  const orderedIdsRef = useRef(orderedIds);
+  orderedIdsRef.current = orderedIds;
 
   // 피드 마운트(첫 진입·검색 변경·다른 페이지 다녀온 뒤 등)마다 탭을 '전체'로 초기화.
   useEffect(() => { setBetaTab(""); }, []);
 
-  // 서버 재실행(router.refresh / 소프트 내비)으로 새 풀이 오면 반영 — 로고 클릭 시 풀 리로드 없이 새 jitter.
-  //   initialPool 은 서버가 다시 렌더할 때만 새 배열 참조 → 일반 클라 re-render 에선 동일 참조라 불필요 setState 없음.
+  // 서버 재실행(router.refresh / 소프트 내비)으로 새 순서·초기풀이 오면 반영 — 풀 리로드 없이 새 jitter.
+  //   initialPool/orderedIds 는 서버가 다시 렌더할 때만 새 배열 참조 → 일반 클라 re-render 에선 동일 참조.
   useEffect(() => {
     setPool(initialPool);
-    setHasMore(initialPool.length >= pageSize);
-  }, [initialPool, pageSize]);
+    cursorRef.current = initialPool.length;
+    setHasMore(orderedIds.length > initialPool.length);
+  }, [initialPool, orderedIds]);
 
   // 탭 바뀌면 맨 위로 + 콘텐츠가 살짝 아래에서 올라오는 효과(즉시 전환이어도 의도적으로 느끼게).
   useEffect(() => {
@@ -81,34 +90,38 @@ export default function BetaFeed({
     }
   }, [activeCat]);
 
-  // 최신 풀 길이를 ref 로 — 스크롤 콜백이 항상 최신 offset 사용.
+  // 최신 값을 ref 로 — mount-once 스크롤 콜백이 항상 최신 풀/탭/hasMore 참조.
   const poolRef = useRef(pool);
   poolRef.current = pool;
-  const sqRef = useRef(searchQuery);
-  sqRef.current = searchQuery;
   const hasMoreRef = useRef(hasMore);
   hasMoreRef.current = hasMore;
   const catRef = useRef(activeCat);
   catRef.current = activeCat;
 
-  // 풀 확장 — 같은 랭킹의 다음 묶음을 받아 append (탭 무관, 전체 풀 기준).
-  //   리포트 탭은 통계 목록이라 확장 안 함(자체 가드).
+  // 풀 확장 — 저장된 "순서(orderedIds)"대로 다음 묶음을 ID 로 받아 append (탭 무관, 전체 순서 기준).
+  //   리포트 탭은 통계 목록이라 확장 안 함(자체 가드). 순서목록 끝(=ORDER)까지 받으면 종료.
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMoreRef.current || catRef.current === "review_summary") return;
+    const ids = orderedIdsRef.current;
+    const start = cursorRef.current;
+    const nextIds = ids.slice(start, start + pageSize);
+    if (nextIds.length === 0) { setHasMore(false); return; }
     loadingRef.current = true;
     setLoading(true);
+    // 삭제된 ID 조회 누락이 있어도 같은 자리 재시도 안 하도록 커서를 먼저 전진.
+    cursorRef.current = start + nextIds.length;
     try {
-      const params = new URLSearchParams({ offset: String(poolRef.current.length), limit: String(pageSize) });
-      if (sqRef.current) params.set("q", sqRef.current);
-      const res = await fetch(`/api/cards?${params.toString()}`, { cache: "no-store" });
+      const res = await fetch(`/api/cards?ids=${nextIds.join(",")}`, { cache: "no-store" });
       if (!res.ok) { setHasMore(false); return; }
       const data = (await res.json()) as { cards: CardDataList[] };
-      const next = data.cards ?? [];
+      const byId = new Map((data.cards ?? []).map((c) => [c.id, c]));
+      // .in() 조회는 순서 보장 X → 저장된 순서(nextIds)대로 재정렬.
+      const ordered = nextIds.map((id) => byId.get(id)).filter((c): c is CardDataList => Boolean(c));
       setPool((prev) => {
         const seen = new Set(prev.map((c) => c.id));
-        return [...prev, ...next.filter((c) => !seen.has(c.id))];
+        return [...prev, ...ordered.filter((c) => !seen.has(c.id))];
       });
-      if (next.length < pageSize) setHasMore(false);
+      if (cursorRef.current >= ids.length) setHasMore(false);
     } catch {
       setHasMore(false);
     } finally {

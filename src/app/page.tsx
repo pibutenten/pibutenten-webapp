@@ -24,9 +24,11 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-// 초기 풀 — 300장 전체 SSR 렌더는 너무 무거워(초기 HTML 거대, total 8~11s) 한 페이지 분량만.
-//   랭킹(줄세우기)은 그대로 점수순이고, 나머지는 스크롤 시 같은 순서로 /api/cards 가 이어 받음.
-const POOL = 30;
+// 줄세우기(랭킹)는 ORDER 깊이만큼 한 번에 계산 → "순서(카드 ID 목록)"만 가볍게 저장하고,
+//   화면엔 처음 INITIAL 장만 전체 데이터로 렌더(초기 무거운 SSR 방지). 스크롤 시 같은 순서대로
+//   ID 로 다음 묶음을 이어 받음(/api/cards?ids=) → 경계 순서 어긋남 없이 안정적 + 가벼움.
+const ORDER = 300;
+const INITIAL = 20;
 
 export async function generateMetadata({
   searchParams,
@@ -99,7 +101,7 @@ export default async function HomeFeedPage({
         });
     }
     const [listRes, pool] = await Promise.all([
-      fetchCardList(supabase, { q: query, offset: 0, limit: POOL }),
+      fetchCardList(supabase, { q: query, offset: 0, limit: ORDER }),
       getReviewSummaryFeedPool(supabase),
     ]);
     cards = (listRes.data ?? []) as unknown as CardData[];
@@ -107,7 +109,7 @@ export default async function HomeFeedPage({
   } else {
     const [rpcRes, pool] = await Promise.all([
       supabase.rpc("feed_cards_scored", {
-        p_limit: POOL,
+        p_limit: ORDER,
         p_offset: 0,
         p_half_life_days: 14,
         p_jitter_amp: 0.35,
@@ -121,13 +123,17 @@ export default async function HomeFeedPage({
     reportPool = pool;
   }
 
+  // 순서(랭킹) ID 목록은 전체(최대 ORDER), 화면 초기 렌더는 앞 INITIAL 장만.
+  const orderedIds = cards.map((c) => c.id);
+  const initialCards = cards.slice(0, INITIAL);
+
   const [hotIdsArr, ua] = await Promise.all([hotIdsPromise, uaPromise]);
   const hotIds = Array.from(hotIdsArr);
   const isMobileUA = /Mobi|Android|iPhone|iPod|IEMobile|BlackBerry|Opera Mini/i.test(ua);
   const viewerStates = await fetchViewerStatesRecord(
     supabase,
     viewer?.id ?? null,
-    cards.map((c) => c.id),
+    initialCards.map((c) => c.id),
   );
 
   // JSON-LD: 홈은 그룹 브랜드의 메인 진입점 — 5개 지점 MedicalClinic + 그룹 풀세트.
@@ -150,7 +156,8 @@ export default async function HomeFeedPage({
       </h1>
       <BetaFeed
         key={query ? `q:${query}` : "feed"}
-        initialPool={cards as unknown as CardDataList[]}
+        initialPool={initialCards as unknown as CardDataList[]}
+        orderedIds={orderedIds}
         pageSize={20}
         searchQuery={searchQuery}
         reportPool={reportPool}
