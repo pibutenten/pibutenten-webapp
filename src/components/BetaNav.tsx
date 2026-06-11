@@ -196,8 +196,10 @@ export default function BetaNav() {
   }, []);
 
   // 로고 클릭 — 어느 화면에서든 피드 전체 홈 + 스크롤 최상단(이미 / 여도 맨 위로).
+  //   탭은 클라 store 라 같은 "/" 안에서 RSC 리마운트가 없으면 자동 초기화 안 됨 → setBetaTab("") 로 전체 강제.
   const goHome = () => {
     setUrlQ(""); setQ(""); setSearchOpen(false);
+    setBetaTab("");
     router.push("/");
     window.scrollTo({ top: 0 });
   };
