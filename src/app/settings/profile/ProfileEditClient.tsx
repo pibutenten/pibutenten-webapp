@@ -39,7 +39,7 @@ type Initial = {
   fieldVisibility: FieldVisibility;
 };
 
-type Props = {
+export type ProfileEditProps = {
   /** auth.users.id — Storage path / auth 작업 (탈퇴 등) 용. */
   userId: string;
   /**
@@ -59,6 +59,8 @@ type Props = {
   /** 알림 항목 노출 판정 — 검수 요청은 doctor/admin 한정. */
   role: "admin" | "doctor" | "user";
   initial: Initial;
+  /** 마이페이지 아코디언 등 다른 페이지에 임베드 시 true — 자체 'h1 내 정보' 헤더 숨김. */
+  embedded?: boolean;
 };
 
 // 알림 설정 — 키·기본값·저장 API 모두 기존(NotificationPreferences) 그대로 차용(저장 구조 불변).
@@ -124,7 +126,8 @@ export default function ProfileEditClient({
   readOnlyNameAndAvatar,
   role,
   initial,
-}: Props) {
+  embedded = false,
+}: ProfileEditProps) {
   const router = useRouter();
   const sb = createSupabaseBrowserClient();
 
@@ -444,10 +447,12 @@ export default function ProfileEditClient({
 
   return (
     <div className="space-y-5">
-      {/* 헤더 — 변경 즉시 저장(수동 저장 버튼 없음). */}
-      <div className="mb-1 flex items-baseline justify-between">
-        <h1 className="text-2xl font-bold text-[var(--text)]">내 정보</h1>
-      </div>
+      {/* 헤더 — 변경 즉시 저장(수동 저장 버튼 없음). 임베드(마이페이지 아코디언) 시 숨김. */}
+      {!embedded && (
+        <div className="mb-1 flex items-baseline justify-between">
+          <h1 className="text-2xl font-bold text-[var(--text)]">내 정보</h1>
+        </div>
+      )}
 
       {/* 1. 프로필 사진 — 큰 원, 사진 변경 / 사진 찍기.
           원장 1차 계정(readOnlyNameAndAvatar)은 사진 변경 비활성 — 관리자가 doctors 테이블에서 관리. */}

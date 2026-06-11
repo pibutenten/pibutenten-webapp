@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { ROLES } from "@/lib/identity-shared";
-import MyPageClient from "./MyPageClient";
+import { DEFAULT_VISIBILITY, type FieldVisibility } from "@/lib/profile-options";
+import MyPageClient, { type ProfileSettings } from "./MyPageClient";
 
 export const dynamic = "force-dynamic";
 
@@ -12,20 +13,88 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// 마이페이지 — 활성 명함(계정) 역할에 따라:
-//   관리자 → /admin(KPI 대시보드), 원장 → /doctor(원장 대시보드)로 바로 이동.
-//   회원·비로그인 → 마이페이지(계정 스위처 + 활동 + 설정). 계정 스위처는 각 대시보드 상단에도 있어
-//   어디서든 전환 가능(전환 시 /my 로 reload → 새 역할로 재라우팅).
+type ProfileRow = {
+  id: string;
+  role: "admin" | "doctor" | "user";
+  display_name: string | null;
+  marketing_email_consent: boolean | null;
+  news_email_consent: boolean | null;
+  terms_agreed_at: string | null;
+  terms_agreed_version: string | null;
+  privacy_agreed_at: string | null;
+  privacy_agreed_version: string | null;
+  handle: string | null;
+  birthdate: string | null;
+  gender: "male" | "female" | "other" | null;
+  face_shape: string | null;
+  skin_type: string | null;
+  skin_concerns: string[] | null;
+  interested_procedures: string[] | null;
+  bio: string | null;
+  avatar_url: string | null;
+  field_visibility: FieldVisibility | null;
+};
+
+// 마이페이지 — 활성 명함(계정) 역할에 따라 관리자→/admin, 원장→/doctor 로 바로 이동.
+//   회원·비로그인 → 마이페이지(계정 스위처 + 활동 + 프로필·계정 설정 인라인 폼).
+//   '프로필·계정 설정'은 별도 페이지 이동 없이 마이페이지 안에서 펼쳐 바로 수정(ProfileEditClient 임베드).
 export default async function MyPage() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user) {
-    const idCtx = await getIdentityContext(supabase);
-    const role = idCtx?.active?.role;
-    if (role === ROLES.ADMIN) redirect("/admin");
-    if (role === ROLES.DOCTOR) redirect("/doctor");
+  if (!user) return <MyPageClient />;
+
+  const idCtx = await getIdentityContext(supabase);
+  const role = idCtx?.active?.role;
+  if (role === ROLES.ADMIN) redirect("/admin");
+  if (role === ROLES.DOCTOR) redirect("/doctor");
+
+  // 회원 — '프로필·계정 설정' 인라인 폼용 데이터(/settings/profile 와 동일 쿼리·매핑).
+  const targetProfileId = idCtx?.active?.profileId ?? user.id;
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select(
+      "id, role, display_name, marketing_email_consent, news_email_consent, terms_agreed_at, terms_agreed_version, privacy_agreed_at, privacy_agreed_version, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, field_visibility",
+    )
+    .eq("id", targetProfileId)
+    .maybeSingle()
+    .returns<ProfileRow>();
+
+  let settings: ProfileSettings | null = null;
+  if (!profile) {
+    // 로그인 확인 후인데 profile row 가 없으면 데이터 정합성 문제 — 추적용 로그.
+    console.error("[my] profile row missing", { targetProfileId });
   }
-  return <MyPageClient />;
+  if (profile) {
+    settings = {
+      userId: user.id,
+      targetProfileId,
+      currentEmail: user.email ?? "",
+      loginProviders: (user.identities ?? []).map((i) => i.provider),
+      profileHref: profile.handle ? `/${profile.handle}` : "/",
+      readOnlyNameAndAvatar: profile.role === ROLES.DOCTOR,
+      role: profile.role,
+      initial: {
+        displayName: profile.display_name ?? "",
+        marketingConsent: !!profile.marketing_email_consent,
+        newsConsent: !!profile.news_email_consent,
+        termsAgreedAt: profile.terms_agreed_at ?? null,
+        termsAgreedVersion: profile.terms_agreed_version ?? null,
+        privacyAgreedAt: profile.privacy_agreed_at ?? null,
+        privacyAgreedVersion: profile.privacy_agreed_version ?? null,
+        birthdate: profile.birthdate ?? "",
+        gender: profile.gender ?? null,
+        faceShape: profile.face_shape ?? null,
+        skinType: profile.skin_type ?? null,
+        skinConcerns: profile.skin_concerns ?? [],
+        interestedProcedures: profile.interested_procedures ?? [],
+        bio: profile.bio ?? "",
+        avatarUrl: profile.avatar_url ?? null,
+        fieldVisibility: profile.field_visibility ?? DEFAULT_VISIBILITY,
+      },
+    };
+  }
+
+  return <MyPageClient settings={settings} />;
 }
