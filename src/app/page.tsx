@@ -143,7 +143,7 @@ export default async function HomeFeedPage({
     : { "@context": "https://schema.org", "@graph": allClinicsSchema() };
 
   return (
-    <div className="pb-16 sm:pb-0">
+    <div>
       {clinicsJsonLd && (
         <script
           type="application/ld+json"

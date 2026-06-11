@@ -35,7 +35,7 @@ export default function MyPageClient() {
 
   if (!mounted) {
     return (
-      <div className="mx-auto max-w-[680px] animate-pulse pb-16 sm:pb-0">
+      <div className="mx-auto max-w-[680px] animate-pulse">
         <div className="mb-4 h-[72px] rounded-[var(--radius)] bg-white" />
         <div className="h-40 rounded-[var(--radius)] bg-white" />
       </div>
@@ -44,7 +44,7 @@ export default function MyPageClient() {
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-[680px] pb-16 sm:pb-0">
+      <div className="mx-auto max-w-[680px]">
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <p className="text-base font-bold text-[var(--text)]">마이페이지</p>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">로그인하면 내 정보가 표시됩니다.</p>
@@ -58,7 +58,7 @@ export default function MyPageClient() {
   const handle = active?.handle ?? session.handle ?? null;
 
   return (
-    <div className="mx-auto max-w-[680px] pb-16 sm:pb-0">
+    <div className="mx-auto max-w-[680px]">
       {/* 활성 계정 + 계정 전환 (공용 카드) */}
       <AccountSwitcherCard />
 

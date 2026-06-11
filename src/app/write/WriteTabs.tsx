@@ -48,7 +48,7 @@ export default function WriteTabs({
     : tab === "doodle" ? "끄적끄적"
     : "시술기록";
   return (
-    <div className="mx-auto max-w-[680px] pb-16 sm:pb-0">
+    <div className="mx-auto max-w-[680px]">
       {cat === "qa" && (
         <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="qa" />
       )}

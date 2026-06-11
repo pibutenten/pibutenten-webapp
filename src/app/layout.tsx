@@ -198,7 +198,8 @@ window.addEventListener('appinstalled', function() {
         <SessionProvider>
           <ScrollManager />
           <TopNav />
-          <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 pt-3 pb-8 sm:px-6">
+          {/* 하단 pb-20(모바일) — BetaNav 고정 하단 5탭 가림 방지 일괄 처리. 데스크탑(하단탭 없음)은 pb-8. */}
+          <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 pt-3 pb-20 sm:px-6 sm:pb-8">
             {children}
           </main>
           <SiteFooter />

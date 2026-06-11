@@ -5,7 +5,7 @@ import { RecordView } from "../mockups/skin-diary/SkinDiaryMockup";
 
 export default function RecordTab() {
   return (
-    <div className="mx-auto max-w-[680px] pb-16 sm:pb-0">
+    <div className="mx-auto max-w-[680px]">
       <RecordView go={() => {}} />
     </div>
   );

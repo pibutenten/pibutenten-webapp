@@ -207,7 +207,7 @@ export default function BetaFeed({
   const emptyMsg = searchQuery ? `‘${searchQuery}’ 검색 결과가 없습니다.` : isReport ? "집계된 리포트가 없습니다." : "표시할 글이 없습니다.";
 
   return (
-    <div className="pb-16 sm:pb-0">
+    <div>
       <div ref={contentRef}>
       {isReport ? (
         reports.length === 0 ? (

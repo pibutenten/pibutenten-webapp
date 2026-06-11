@@ -217,18 +217,16 @@ export default function TopNav() {
   const session = useSession();
   const pathname = usePathname();
 
-  // 메인 승격(2026-06-11): 핵심 앱 라우트(피드/글쓰기/내일기/마이/쇼핑)는 새 5탭 BetaNav.
-  //   관리자·원장 대시보드(/admin·/doctor)는 역할별 '마이페이지' 착지점이라 새 내비로 통일.
-  //   콘텐츠 페이지(전문의·검색·토픽·리포트·상세·프로필)·관리자 하위 도구는 기존 TopNav 유지.
-  const isAppRoute =
-    pathname === "/" ||
-    pathname === "/write" ||
-    pathname === "/record" ||
-    pathname === "/my" ||
-    pathname === "/shop" ||
-    pathname === "/admin" ||
-    pathname === "/doctor";
-  if (isAppRoute) return <BetaNav />;
+  // 메인 승격(2026-06-11): 사이트 전 페이지를 새 BetaNav 로 통일(상단바 일관성).
+  //   예외 — 인증/온보딩 흐름(/login·/signup·/onboarding·/auth·/u 리다이렉트)만 기존 미니멀 TopNav.
+  //   (이 화면들엔 앱 하단 5탭이 어울리지 않음). 그 외 전부 BetaNav.
+  const isAuthFlow =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/u/");
+  if (!isAuthFlow) return <BetaNav />;
 
   // 로그아웃 동작은 본인 프로필 페이지(/{handle}) 하단 LogoutButton으로 이동됨 (A5)
   // router/isLoggingOut/handleLogout/dashboardHref는 더 이상 사용 안 함 — 정리.
