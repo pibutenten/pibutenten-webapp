@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
 import RecordTab from "./RecordTab";
 import type { SummaryGroup, SummaryItem } from "../mockups/skin-diary/SkinDiaryMockup";
 
@@ -70,6 +71,17 @@ export default async function RecordPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // 인사용 이름 — active 명함 표시명(없으면 '회원').
+  const idCtx = await getIdentityContext(supabase);
+  const activeId = idCtx?.active?.profileId ?? user.id;
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", activeId)
+    .maybeSingle()
+    .returns<{ display_name: string | null }>();
+  const userName = prof?.display_name?.trim() || "회원";
+
   const { data } = await supabase
     .from("diaries")
     .select(
@@ -78,5 +90,17 @@ export default async function RecordPage() {
     .order("visited_on", { ascending: false })
     .returns<DiaryRow[]>();
 
-  return <RecordTab summary={toSummaryGroups(data ?? [])} />;
+  const rows = data ?? [];
+  // 상태 문구 계산용 — 가장 최근 방문의 첫 시술명 + 방문일.
+  const latestRow = rows[0];
+  const latest = latestRow
+    ? {
+        name:
+          [...latestRow.diary_procedures].sort((a, b) => a.sort_order - b.sort_order)[0]
+            ?.procedure_ko ?? "시술",
+        visitedOn: latestRow.visited_on,
+      }
+    : null;
+
+  return <RecordTab summary={toSummaryGroups(rows)} userName={userName} latest={latest} />;
 }
