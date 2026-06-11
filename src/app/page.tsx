@@ -24,7 +24,9 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-const POOL = 300;
+// 초기 풀 — 300장 전체 SSR 렌더는 너무 무거워(초기 HTML 거대, total 8~11s) 한 페이지 분량만.
+//   랭킹(줄세우기)은 그대로 점수순이고, 나머지는 스크롤 시 같은 순서로 /api/cards 가 이어 받음.
+const POOL = 30;
 
 export async function generateMetadata({
   searchParams,
