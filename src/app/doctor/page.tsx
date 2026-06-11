@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveActiveIdentity } from "@/lib/identity-server";
 import { ROLES } from "@/lib/identity-shared";
 import BackButton from "@/components/BackButton";
+import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import DoctorActivityKpis, { type DoctorKpi } from "./DoctorActivityKpis";
 import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
 
@@ -126,6 +127,8 @@ export default async function DoctorDashboardPage() {
       <div className="mb-1 -ml-1">
         <BackButton fallbackHref="/" />
       </div>
+      {/* 계정 스위처 — 어느 명함에서든 전환 가능(마이페이지와 동일). */}
+      <AccountSwitcherCard compact />
       <div className="mb-5 pl-1">
         <h1 className="text-2xl font-bold text-[var(--text)]">
           원장 대시보드

@@ -298,10 +298,10 @@ export default function BetaNav() {
                   <img src="/brand-logo.svg" alt="피부텐텐" className="h-8 w-auto" />
                 </button>
 
-                {/* 데스크탑 메뉴 (모바일은 하단 탭) */}
+                {/* 데스크탑 메뉴 — '피드'(/) 는 좌상단 로고가 담당하므로 제외, '마이'(/my) 는 우측 아바타가 담당. */}
                 <nav className="hidden items-center gap-5 sm:ml-6 sm:flex">
-                  {TABS.filter((t) => t.href !== "/my").map((t) => (
-                    <Link key={t.href} href={t.href} onPointerEnter={() => warm(t.href)} onClick={t.href === "/" ? (e) => { e.preventDefault(); goHome(); } : undefined} className="cursor-pointer text-[15px] font-semibold transition-colors" style={{ color: t.match(pathname) ? C : "var(--text)" }}>{t.label}</Link>
+                  {TABS.filter((t) => t.href !== "/my" && t.href !== "/").map((t) => (
+                    <Link key={t.href} href={t.href} onPointerEnter={() => warm(t.href)} className="cursor-pointer text-[15px] font-semibold transition-colors" style={{ color: t.match(pathname) ? C : "var(--text)" }}>{t.label}</Link>
                   ))}
                 </nav>
 
