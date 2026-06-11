@@ -159,26 +159,10 @@ export default function BetaNav() {
   // 발견 데이터 선프리페치 — 검색창 첫 열기도 즉시 표시(끊김 없이 깔끔하게).
   useEffect(() => { void prefetchDiscover(); }, []);
 
-  // 앱 탭 선프리페치 — 피드 첫 화면 뒤 유휴(idle)에 나머지 탭을 "하나씩" 워밍.
-  //   탭 페이지는 force-dynamic 이라 Next 의 Link 자동 프리페치는 정적 셸까지만 받음(동적 데이터는 클릭 시 렌더).
-  //   router.prefetch 로 동적 페이지까지 미리 받아 클릭을 즉각처럼. 순차(한 번에 하나)로 메인 스레드 부담 최소화.
-  useEffect(() => {
-    const routes = ["/record", "/write", "/shop", "/my"];
-    let i = 0;
-    let cancelled = false;
-    const schedule = (cb: () => void) => {
-      if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(cb, { timeout: 1500 });
-      else window.setTimeout(cb, 300);
-    };
-    const step = () => {
-      if (cancelled || i >= routes.length) return;
-      router.prefetch(routes[i]);
-      i += 1;
-      schedule(step);
-    };
-    schedule(step);
-    return () => { cancelled = true; };
-  }, [router]);
+  // (2026-06-11 제거) 앱 탭 강제 router.prefetch 는 force-dynamic 페이지를 매 로드/이동마다
+  //   서버 렌더(엣지 호출)시켜 edge request 가 급증(Vercel Usage Anomaly) → 제거.
+  //   탭 셸은 Next 의 기본 Link 프리페치(hover/뷰포트, 동적은 셸만)로 충분. 워밍이 필요하면
+  //   훗날 hover 기반(onMouseEnter router.prefetch)으로 좁혀 비용 없이 처리.
 
   // 검색창 표시값 복원용 ref — 바깥 클릭 핸들러(빈 deps)가 최신 urlQ(확정 검색어)를 참조(stale 방지).
   const urlQRef = useRef(urlQ);
@@ -229,6 +213,15 @@ export default function BetaNav() {
     setBetaTab("");
     router.push("/");
     window.scrollTo({ top: 0 });
+  };
+
+  // 의도 기반 탭 프리페치(SNS 표준) — hover/터치 시 "그 탭만 1회" 워밍. 로드당 비용 0(누를 듯할 때만).
+  //   dedup(warmedRef) 으로 같은 탭 반복 prefetch 차단. 피드("/")는 현재 페이지/리로드라 제외.
+  const warmedRef = useRef<Set<string>>(new Set());
+  const warm = (href: string) => {
+    if (href === "/" || warmedRef.current.has(href)) return;
+    warmedRef.current.add(href);
+    router.prefetch(href);
   };
 
   const submit = () => {
@@ -299,7 +292,7 @@ export default function BetaNav() {
                 {/* 데스크탑 메뉴 (모바일은 하단 탭) */}
                 <nav className="hidden items-center gap-5 sm:ml-6 sm:flex">
                   {TABS.filter((t) => t.href !== "/my").map((t) => (
-                    <Link key={t.href} href={t.href} onClick={t.href === "/" ? (e) => { e.preventDefault(); goHome(); } : undefined} className="cursor-pointer text-[15px] font-semibold transition-colors" style={{ color: t.match(pathname) ? C : "var(--text)" }}>{t.label}</Link>
+                    <Link key={t.href} href={t.href} onPointerEnter={() => warm(t.href)} onClick={t.href === "/" ? (e) => { e.preventDefault(); goHome(); } : undefined} className="cursor-pointer text-[15px] font-semibold transition-colors" style={{ color: t.match(pathname) ? C : "var(--text)" }}>{t.label}</Link>
                   ))}
                 </nav>
 
@@ -376,7 +369,7 @@ export default function BetaNav() {
       {/* 모바일 하단 5탭 (fixed) */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-[var(--border)] bg-white px-3 sm:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {TABS.map((t) => (
-          <Link key={t.href} href={t.href} onClick={t.href === "/" ? (e) => { e.preventDefault(); goHome(); } : undefined} className="flex flex-1 cursor-pointer flex-col items-center gap-0.5 py-2" style={{ color: t.match(pathname) ? C : "#9ca3af" }}>
+          <Link key={t.href} href={t.href} onPointerEnter={() => warm(t.href)} onClick={t.href === "/" ? (e) => { e.preventDefault(); goHome(); } : undefined} className="flex flex-1 cursor-pointer flex-col items-center gap-0.5 py-2" style={{ color: t.match(pathname) ? C : "#9ca3af" }}>
             {t.icon}
             <span className="text-[10px] font-medium">{t.label}</span>
           </Link>
