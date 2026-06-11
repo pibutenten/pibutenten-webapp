@@ -830,10 +830,21 @@ const SUMMARY: SummaryGroup[] = [
 ];
 
 // summary 미지정(목업)이면 데모 데이터, /record 는 실제 diaries 를 prop 으로 전달.
-export function RecordView({ go, summary = SUMMARY }: { go: (s: Screen) => void; summary?: SummaryGroup[] }) {
+//   openDetail: 항목 클릭 시 상세 진입. 미지정(목업)이면 go("detail")(목업 상세 화면).
+//   /record 는 (id)=>router.push(`/record/${id}`) 를 전달해 실제 상세 라우트로 이동.
+export function RecordView({
+  go,
+  summary = SUMMARY,
+  openDetail,
+}: {
+  go: (s: Screen) => void;
+  summary?: SummaryGroup[];
+  openDetail?: (id: string) => void;
+}) {
   const [mode, setMode] = useState<"tl" | "cal" | "list">("tl");
   const TABS: [typeof mode, string][] = [["tl", "연표"], ["cal", "달력"], ["list", "목록"]];
   const total = summary.reduce((n, g) => n + g.items.length, 0);
+  const open = openDetail ?? (() => go("detail"));
   return (
     <section className="mx-auto w-full max-w-[680px]">
       <div className="mb-3 flex items-center justify-between">
@@ -857,18 +868,18 @@ export function RecordView({ go, summary = SUMMARY }: { go: (s: Screen) => void;
           <a href="/write" className="mt-5 rounded-full bg-[var(--primary)] px-6 py-2.5 text-[13px] font-semibold text-white">첫 일기 쓰러 가기</a>
         </div>
       ) : mode === "tl" ? (
-        <TimelinePanel go={go} summary={summary} />
+        <TimelinePanel onOpen={open} summary={summary} />
       ) : mode === "cal" ? (
-        <CalendarPanel go={go} summary={summary} />
+        <CalendarPanel onOpen={open} summary={summary} />
       ) : (
-        <SummaryPanel go={go} summary={summary} />
+        <SummaryPanel onOpen={open} summary={summary} />
       )}
     </section>
   );
 }
 
 /* ─── 연표(세로 월 리스트) — 연도 이동 + 그 해 기록 있는 달만 ─── */
-function TimelinePanel({ go, summary }: { go: (s: Screen) => void; summary: SummaryGroup[] }) {
+function TimelinePanel({ onOpen, summary }: { onOpen: (id: string) => void; summary: SummaryGroup[] }) {
   const years = summary.map((g) => g.year);
   const minYear = Math.min(...years), maxYear = Math.max(...years);
   const [year, setYear] = useState(maxYear);
@@ -913,7 +924,7 @@ function TimelinePanel({ go, summary }: { go: (s: Screen) => void; summary: Summ
             <div className="w-9 shrink-0 pt-2 text-[12px] font-bold leading-5 text-[var(--primary-active)]">{m}월</div>
             <div className="min-w-0 flex-1 space-y-1.5">
               {(byMonth.get(m) ?? []).map((it) => (
-                <button key={it.id} type="button" onClick={() => go("detail")} className="flex w-full items-start gap-2 rounded-md bg-[var(--bg)] px-2.5 py-2 text-left hover:bg-[var(--primary-soft)]">
+                <button key={it.id} type="button" onClick={() => onOpen(it.id)} className="flex w-full items-start gap-2 rounded-md bg-[var(--bg)] px-2.5 py-2 text-left hover:bg-[var(--primary-soft)]">
                   <span className="shrink-0 text-[12px] font-bold leading-5 text-[var(--primary-active)]">{parseInt(it.date.split(".")[1], 10)}일</span>
                   <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
                     {it.items.map((iv) => (
@@ -932,7 +943,7 @@ function TimelinePanel({ go, summary }: { go: (s: Screen) => void; summary: Summ
   );
 }
 
-function CalendarPanel({ go, summary }: { go: (s: Screen) => void; summary: SummaryGroup[] }) {
+function CalendarPanel({ onOpen, summary }: { onOpen: (id: string) => void; summary: SummaryGroup[] }) {
   // 전체 일기 → "Y-M-D"(0패딩 없음) 키 맵. 같은 날 여러 방문도 누적.
   const dayMap = useMemo(() => {
     const map = new Map<string, SummaryItem[]>();
@@ -1000,7 +1011,7 @@ function CalendarPanel({ go, summary }: { go: (s: Screen) => void; summary: Summ
         </div>
       </div>
       {selItems.length > 0 && (
-        <button type="button" onClick={() => go("detail")} className={"mt-3 flex w-full items-center gap-3 text-left " + cardBox + " hover:bg-[var(--primary-soft)]"}>
+        <button type="button" onClick={() => onOpen(selItems[0].id)} className={"mt-3 flex w-full items-center gap-3 text-left " + cardBox + " hover:bg-[var(--primary-soft)]"}>
           <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md" style={{ background: "var(--primary-soft)" }}>
             <span className="text-[15px] font-bold leading-none" style={{ color: "var(--primary-active)" }}>{sel}</span><span className="mt-0.5 text-[9px] font-semibold text-[var(--text-muted)]">{ym.m}월</span>
           </span>
@@ -1015,7 +1026,7 @@ function CalendarPanel({ go, summary }: { go: (s: Screen) => void; summary: Summ
   );
 }
 
-function SummaryPanel({ go, summary }: { go: (s: Screen) => void; summary: SummaryGroup[] }) {
+function SummaryPanel({ onOpen, summary }: { onOpen: (id: string) => void; summary: SummaryGroup[] }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const allIds = summary.flatMap((g) => g.items.map((i) => i.id));
   const allOpen = open.size === allIds.length;
@@ -1061,7 +1072,7 @@ function SummaryPanel({ go, summary }: { go: (s: Screen) => void; summary: Summa
                           <span className="font-semibold text-[var(--text)]">{it.price}</span>
                           {it.memo && <><span className="text-[var(--text-muted)]">·</span><span className="text-[var(--text-secondary)]">{it.memo}</span></>}
                         </div>
-                        <button type="button" onClick={() => go("detail")} className="mt-2.5 w-full rounded-md bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">상세 보기</button>
+                        <button type="button" onClick={() => onOpen(it.id)} className="mt-2.5 w-full rounded-md bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">상세 보기</button>
                       </div>
                     )}
                   </div>
