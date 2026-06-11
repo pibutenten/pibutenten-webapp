@@ -79,7 +79,7 @@ function ChipRow() {
               key={c.cat || "all"}
               type="button"
               onClick={() => setBetaTab(c.cat as BetaTab)}
-              className="relative flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap px-[6px] pb-[10px] pt-[7px] text-sm"
+              className="relative flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap px-[6px] pb-[6px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
               {c.label}
@@ -108,7 +108,7 @@ function WriteTabBar({ active, tabs = WRITE_TABS }: { active: string; tabs?: { l
             <Link
               key={t.tab}
               href={`/write?tab=${t.tab}`}
-              className="relative flex shrink-0 items-center gap-1 whitespace-nowrap px-[6px] pb-[10px] pt-[7px] text-sm"
+              className="relative flex shrink-0 items-center gap-1 whitespace-nowrap px-[6px] pb-[6px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
               {t.label}
@@ -251,7 +251,7 @@ export default function BetaNav() {
         <div className="mx-auto w-full max-w-[1080px] px-4 pt-1.5 sm:px-6">
           {/* (A) 로고줄 — 스크롤 시 접힘 */}
           <div
-            className="flex h-[54px] items-center gap-4 overflow-hidden transition-[height,opacity] duration-[260ms] ease-out sm:h-[62px] sm:overflow-visible"
+            className="flex h-12 items-center gap-4 overflow-hidden transition-[height,opacity] duration-[260ms] ease-out sm:h-14 sm:overflow-visible"
             style={folded ? { height: 0, opacity: 0 } : undefined}
           >
             {searchOpen ? (
