@@ -98,11 +98,11 @@ const WRITE_TABS: { label: string; tab: string }[] = [
   { label: "시술후기 남기기", tab: "review" },
   { label: "끄적끄적", tab: "doodle" },
 ];
-function WriteTabBar({ active }: { active: string }) {
+function WriteTabBar({ active, tabs = WRITE_TABS }: { active: string; tabs?: { label: string; tab: string }[] }) {
   return (
     <div className="border-b border-[#eef1f4]">
       <div className="flex gap-2 overflow-x-auto pt-[6px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {WRITE_TABS.map((t) => {
+        {tabs.map((t) => {
           const on = active === t.tab;
           return (
             <Link
@@ -123,8 +123,12 @@ function WriteTabBar({ active }: { active: string }) {
 }
 function WriteTabsBar() {
   const sp = useSearchParams();
+  const session = useSession();
+  // Q&A 작성 탭은 원장·관리자에게만 노출(맨 앞). 기존 admin 동선(원장 명의 Q&A 카드 작성) 복원.
+  const isStaff = session?.role === "admin" || session?.role === "doctor";
+  const tabs = isStaff ? [{ label: "Q&A 작성", tab: "qa" }, ...WRITE_TABS] : WRITE_TABS;
   const tab = sp.get("tab") || "record";
-  return <WriteTabBar active={WRITE_TABS.some((t) => t.tab === tab) ? tab : "record"} />;
+  return <WriteTabBar active={tabs.some((t) => t.tab === tab) ? tab : "record"} tabs={tabs} />;
 }
 
 // URL 의 q(검색어)를 검색창에 동기화 — Suspense 격리(BetaNav 하이드레이션 보호).
@@ -205,14 +209,19 @@ export default function BetaNav() {
   //     (same-URL 소프트 내비는 서버 재실행이 없어 jitter 가 안 바뀌고, 탭 store 도 그대로라 "반응 없음"처럼 느껴짐.)
   //   다른 페이지(/write 등)에서는 소프트 내비 → BetaFeed 가 마운트되며 전체+최상단+새 풀 처리.
   const goHome = () => {
-    if (pathname === "/") {
-      window.location.assign("/");
+    setSearchOpen(false);
+    setBetaTab("");
+    window.scrollTo({ top: 0 });
+    if (pathname === "/" && !urlQ) {
+      // 이미 깨끗한 홈 — 풀 리로드(스켈레톤·전체 다운로드) 대신 소프트 새로고침.
+      //   router.refresh() 가 서버만 재실행(force-dynamic+no-store) → 새 jitter 피드를 받아
+      //   BetaFeed 가 풀만 교체(스켈레톤/문서 리로드 없음). SNS 표준(가볍게 위로+새 콘텐츠).
+      router.refresh();
       return;
     }
-    setUrlQ(""); setQ(""); setSearchOpen(false);
-    setBetaTab("");
+    // 검색 결과(?q=) 또는 다른 페이지 → 깨끗한 홈으로 소프트 내비(BetaFeed 마운트/풀 동기화가 새 피드 처리).
+    setUrlQ(""); setQ("");
     router.push("/");
-    window.scrollTo({ top: 0 });
   };
 
   // 의도 기반 탭 프리페치(SNS 표준) — hover/터치 시 "그 탭만 1회" 워밍. 로드당 비용 0(누를 듯할 때만).

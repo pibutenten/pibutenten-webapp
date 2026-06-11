@@ -269,9 +269,9 @@ export default async function AdminPage() {
               desc="소스에서 Q&A 카드를 추출하여 검수를 보냅니다"
             />
           )}
-          {/* 새 Q&A 카드 직접 작성 — 기존 /write?category=qa 재사용 (admin/doctor 노출) */}
+          {/* 새 Q&A 카드 직접 작성 — 통합 글쓰기 Q&A 탭 (admin/doctor 노출) */}
           <Tool
-            href="/write?category=qa"
+            href="/write?tab=qa"
             emoji="📝"
             title="Q&A 카드 작성하기"
             desc="원장 명의 Q&A 카드를 직접 작성합니다"

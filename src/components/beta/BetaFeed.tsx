@@ -61,6 +61,13 @@ export default function BetaFeed({
   // 피드 마운트(첫 진입·검색 변경·다른 페이지 다녀온 뒤 등)마다 탭을 '전체'로 초기화.
   useEffect(() => { setBetaTab(""); }, []);
 
+  // 서버 재실행(router.refresh / 소프트 내비)으로 새 풀이 오면 반영 — 로고 클릭 시 풀 리로드 없이 새 jitter.
+  //   initialPool 은 서버가 다시 렌더할 때만 새 배열 참조 → 일반 클라 re-render 에선 동일 참조라 불필요 setState 없음.
+  useEffect(() => {
+    setPool(initialPool);
+    setHasMore(initialPool.length >= pageSize);
+  }, [initialPool, pageSize]);
+
   // 탭 바뀌면 맨 위로 + 콘텐츠가 살짝 아래에서 올라오는 효과(즉시 전환이어도 의도적으로 느끼게).
   useEffect(() => {
     window.scrollTo({ top: 0 });

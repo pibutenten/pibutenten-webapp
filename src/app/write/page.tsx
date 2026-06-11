@@ -25,9 +25,11 @@ export const metadata: Metadata = {
 export default async function WritePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; category?: string }>;
 }) {
-  const { tab } = await searchParams;
+  const sp = await searchParams;
+  // 기존 admin 링크(/write?category=qa) 호환 — category=qa → tab=qa 로 정규화.
+  const tab = sp.tab ?? (sp.category === "qa" ? "qa" : undefined);
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },

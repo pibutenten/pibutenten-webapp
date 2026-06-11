@@ -40,9 +40,18 @@ export default function WriteTabs({
   procedures: ProcedureOption[];
   handle: string;
 }) {
-  const cat = tab === "review" ? "시술후기" : tab === "doodle" ? "끄적끄적" : "시술기록";
+  // Q&A 탭은 원장·관리자 전용. 권한 없는 사용자가 ?tab=qa 로 들어오면 기본(시술기록)으로.
+  const canQa = isLoggedIn && (role === "admin" || role === "doctor");
+  const cat =
+    tab === "qa" ? (canQa ? "qa" : "시술기록")
+    : tab === "review" ? "시술후기"
+    : tab === "doodle" ? "끄적끄적"
+    : "시술기록";
   return (
     <div className="mx-auto max-w-[680px] pb-16 sm:pb-0">
+      {cat === "qa" && (
+        <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="qa" />
+      )}
       {cat === "시술기록" && <DiaryForm toast={noop} go={noop} />}
       {cat === "시술후기" && (
         isLoggedIn ? <ReviewForm procedures={procedures} handle={handle} /> : <LoginGate />
