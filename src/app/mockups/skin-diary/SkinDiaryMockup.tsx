@@ -419,7 +419,10 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   const [procs, setProcs] = useState<DiaryProc[]>([]);
   const [pid, setPid] = useState(0);
   const [tag, setTag] = useState("");
-  const [diary, setDiary] = useState(""); // 오늘의 시술 일기(비공개 메모) — 최대 1000자.
+  const [diary, setDiary] = useState(""); // 오늘의 시술 일기(비공개 메모) — 최대 400자.
+  const [doctorName, setDoctorName] = useState(""); // 원장님(자유 입력)
+  const [managerName, setManagerName] = useState(""); // 실장님(자유 입력)
+  const [saving, setSaving] = useState(false);
   // 시술을 추가하면 해당 행의 '용량' 칸으로 커서를 옮겨 이어서 입력하게 함.
   const [focusId, setFocusId] = useState<number | null>(null);
   const unitRefs = useRef<Record<number, HTMLInputElement | null>>({});
@@ -555,6 +558,49 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   const acMatches = tq ? PROCEDURES.filter((p) => (p.label.includes(tq) || (EN2KO[tlow] && p.label === EN2KO[tlow])) && !procs.some((x) => x.label === p.label)).slice(0, 8) : [];
   const acExact = PROCEDURES.some((p) => p.label === tq) || !!EN2KO[tlow];
 
+  // 저장 — /api/diaries POST (create_diary RPC). 시술 1개 이상 필수.
+  async function handleSave() {
+    if (saving) return;
+    if (procs.length === 0) { toast("받은 시술을 1개 이상 추가해주세요"); return; }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/diaries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          visited_on: date,
+          clinic_name: picked || null,
+          clinic_addr: addr.trim() || null,
+          clinic_tel: tel.trim() || null,
+          clinic_x: pickedXY?.x ?? null,
+          clinic_y: pickedXY?.y ?? null,
+          doctor_name: doctorName.trim() || null,
+          manager_name: managerName.trim() || null,
+          diary_body: diary.trim() || null,
+          procedures: procs.map((pr) => ({
+            procedure_ko: pr.label,
+            unit_text: pr.unit.trim() || null,
+            // price 입력은 숫자만 남도록 필터됨(정수문자열, "0" 포함) — 방어적으로 정수 보장.
+            price: pr.price ? Math.floor(Number(pr.price)) : null,
+            note: pr.note.trim() || null,
+          })),
+        }),
+      });
+      if (res.status === 401) { toast("로그인 후 저장할 수 있어요"); setSaving(false); return; }
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { message?: string };
+        toast(j?.message || "저장에 실패했어요");
+        setSaving(false);
+        return;
+      }
+      toast("기록을 저장했어요");
+      setTimeout(() => go("record"), 700);
+    } catch {
+      toast("네트워크 오류가 발생했어요");
+      setSaving(false);
+    }
+  }
+
   return (
     <section className="mx-auto w-full max-w-[680px]">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">오늘의 시술을 기록해요</h1>
@@ -641,8 +687,8 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
         <div>
           <label className={labelCls}>누구에게 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <div className="grid grid-cols-2 gap-2">
-            <input className={inputCls} placeholder="원장님" />
-            <input className={inputCls} placeholder="실장님" />
+            <input className={inputCls} placeholder="원장님" value={doctorName} maxLength={100} onChange={(e) => setDoctorName(e.target.value)} />
+            <input className={inputCls} placeholder="실장님" value={managerName} maxLength={100} onChange={(e) => setManagerName(e.target.value)} />
           </div>
         </div>
 
@@ -752,7 +798,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
       })}
 
       <div className="mt-5 flex justify-center">
-        <button type="button" onClick={() => { toast("저장했어요"); setTimeout(() => go("record"), 800); }} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)]">기록 저장하기</button>
+        <button type="button" onClick={handleSave} disabled={saving} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-wait disabled:opacity-60">{saving ? "저장 중…" : "기록 저장하기"}</button>
       </div>
     </section>
   );

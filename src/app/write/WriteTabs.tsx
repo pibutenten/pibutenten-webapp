@@ -1,15 +1,16 @@
 "use client";
 
 // 시술기록(개인 일기)은 목업 폼 재사용. 시술후기는 기존 실제 폼(/review/new 의 ReviewForm) 그대로 연결.
+import { useRouter } from "next/navigation";
 import { DiaryForm } from "../mockups/skin-diary/SkinDiaryMockup";
 import ReviewForm, { type ProcedureOption } from "../review/new/ReviewForm";
 // 끄적끄적은 기존 글쓰기 컴포넌트(WriteClient)를 그대로 사용.
 import WriteClient from "./WriteClient";
+import { showToast } from "@/lib/toast";
 
 type Doctor = { id: string; slug: string; name: string; branch: string | null };
 
 const C = "#4cbff2";
-const noop = () => {};
 
 function LoginGate() {
   return (
@@ -40,6 +41,7 @@ export default function WriteTabs({
   procedures: ProcedureOption[];
   handle: string;
 }) {
+  const router = useRouter();
   // Q&A 탭은 원장·관리자 전용. 권한 없는 사용자가 ?tab=qa 로 들어오면 기본(시술기록)으로.
   const canQa = isLoggedIn && (role === "admin" || role === "doctor");
   const cat =
@@ -52,7 +54,8 @@ export default function WriteTabs({
       {cat === "qa" && (
         <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="qa" />
       )}
-      {cat === "시술기록" && <DiaryForm toast={noop} go={noop} />}
+      {/* 시술기록(일기)은 비공개라 비로그인도 폼은 열림 — 저장 시 API 401 → "로그인 후 저장" 토스트로 안내. */}
+      {cat === "시술기록" && <DiaryForm toast={(m) => showToast(m)} go={() => { void router.push("/record"); }} />}
       {cat === "시술후기" && (
         isLoggedIn ? <ReviewForm procedures={procedures} handle={handle} /> : <LoginGate />
       )}
