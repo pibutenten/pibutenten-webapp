@@ -429,6 +429,10 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   // 날짜 picker — 데스크탑 크롬은 필드 클릭만으론 안 열려서 showPicker()로 강제로 연다.
   const dateRef = useRef<HTMLInputElement | null>(null);
   const openDatePicker = () => { try { dateRef.current?.showPicker?.(); } catch { /* 미지원 브라우저는 네이티브 클릭 폴백 */ } };
+  // 입력 후 다음 칸으로 커서 자동 이동(빠른 연속 입력): 병원 선택→원장님, 원장님 Enter→실장님, 실장님 Enter→시술명.
+  const doctorRef = useRef<HTMLInputElement | null>(null);
+  const managerRef = useRef<HTMLInputElement | null>(null);
+  const tagRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
     if (focusId != null && unitRefs.current[focusId]) {
       unitRefs.current[focusId]!.focus();
@@ -537,6 +541,8 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
       setTel(h.tel); setAddr(h.addr); setQ(h.name);
       setResults([]);
       setClosing(false);
+      // 병원 확정 → 바로 원장님 칸으로 커서 이동(다음 렌더 후).
+      requestAnimationFrame(() => doctorRef.current?.focus());
     }, 200);
   }
 
@@ -687,8 +693,10 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
         <div>
           <label className={labelCls}>누구에게 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
           <div className="grid grid-cols-2 gap-2">
-            <input className={inputCls} placeholder="원장님" value={doctorName} maxLength={100} onChange={(e) => setDoctorName(e.target.value)} />
-            <input className={inputCls} placeholder="실장님" value={managerName} maxLength={100} onChange={(e) => setManagerName(e.target.value)} />
+            <input ref={doctorRef} className={inputCls} placeholder="원장님" value={doctorName} maxLength={100} onChange={(e) => setDoctorName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); managerRef.current?.focus(); } }} />
+            <input ref={managerRef} className={inputCls} placeholder="실장님" value={managerName} maxLength={100} onChange={(e) => setManagerName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); tagRef.current?.focus(); } }} />
           </div>
         </div>
 
@@ -713,7 +721,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
             </div>
           )}
           <div className="relative">
-            <input className={inputCls} placeholder={procs.length === 0 ? "시술명을 검색해보세요" : "함께 받은 다른 시술"} value={tag} autoComplete="off"
+            <input ref={tagRef} className={inputCls} placeholder={procs.length === 0 ? "시술명을 검색해보세요" : "함께 받은 다른 시술"} value={tag} autoComplete="off"
               onChange={(e) => setTag(e.target.value)} onKeyDown={(e) => { if (e.key !== "Enter") return; if (e.nativeEvent.isComposing || e.keyCode === 229) return; e.preventDefault(); addTag(tag); }} />
             {tq && (
               <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto rounded-md bg-white shadow-[var(--shadow-lg)]">
