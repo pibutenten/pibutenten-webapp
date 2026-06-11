@@ -74,6 +74,8 @@ export default function NotificationsClient({
   showOps: boolean;
 }) {
   const [items, setItems] = useState<Notification[]>([]);
+  // 상단 2탭(Figma 구조): 활동(기존 실제 알림) / 내 기록(주기·예정 — 현재 더미).
+  const [tab, setTab] = useState<"activity" | "records">("activity");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [loading, setLoading] = useState(true);
@@ -239,8 +241,45 @@ export default function NotificationsClient({
     });
   }
 
+  const unreadActivity = items.filter((n) => !n.read_at).length;
+
   return (
     <div>
+      {/* 상단 2탭 — 내 기록 / 활동 (Figma 구조) */}
+      <div className="mb-4 flex border-b border-[var(--border)]">
+        {([
+          { id: "records" as const, label: "내 기록" },
+          { id: "activity" as const, label: "활동" },
+        ]).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={
+              "relative flex flex-1 items-center justify-center gap-1.5 py-3 text-[13px] transition-colors " +
+              (tab === t.id ? "font-bold text-[var(--text)]" : "font-normal text-[var(--text-muted)]")
+            }
+          >
+            {t.label}
+            {t.id === "activity" && unreadActivity > 0 && (
+              <span
+                className={
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none " +
+                  (tab === "activity" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-soft)] text-[var(--text-muted)]")
+                }
+              >
+                {unreadActivity}
+              </span>
+            )}
+            {tab === t.id && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-[var(--primary)]" />}
+          </button>
+        ))}
+      </div>
+
+      {tab === "records" ? (
+        <RecordNotis />
+      ) : (
+        <>
       {/* 필터 칩 — kind */}
       <div className="mb-2 flex flex-wrap gap-1.5">
         <FilterChip
@@ -362,6 +401,53 @@ export default function NotificationsClient({
           더 불러오는 중…
         </div>
       )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* '내 기록' 탭 — 시술 주기·예정·답변 알림. 현재 더미(자리만, 데이터 미생성).
+   추후 diaries 주기 계산 + 예약/검수 연동으로 실데이터화 예정. */
+const RECORD_NOTIS: {
+  tone: "amber" | "primary" | "violet";
+  bold: string;
+  sub: string;
+  time: string;
+}[] = [
+  { tone: "amber", bold: "스킨부스터 권장 주기가 다가왔어요", sub: "마지막 시술 후 8주", time: "2시간 전" },
+  { tone: "primary", bold: "예정된 시술이 5일 남았어요", sub: "쥬베룩 스킨부스터 · 강남 피부과", time: "어제" },
+  { tone: "violet", bold: "#리프팅 새로운 전문의 답변이 올라왔어요", sub: "Q. 울쎄라와 써마지, 어떤 차이가 있나요?", time: "3일 전" },
+];
+const NOTI_TONE: Record<string, { bg: string; fg: string }> = {
+  amber: { bg: "#FBEFD9", fg: "#B6790F" },
+  primary: { bg: "var(--primary-soft)", fg: "var(--primary-active)" },
+  violet: { bg: "#EEE9FB", fg: "#6D54C7" },
+};
+
+function RecordNotis() {
+  return (
+    <div>
+      <p className="mb-3 text-[12px] text-[var(--text-muted)]">
+        시술 주기·예정 알림 (준비 중 — 곧 내 기록 기반으로 제공돼요)
+      </p>
+      <ul className="divide-y divide-[var(--border)] rounded-[var(--radius)] border border-[var(--border)] bg-white">
+        {RECORD_NOTIS.map((n, i) => {
+          const t = NOTI_TONE[n.tone];
+          return (
+            <li key={i} className="flex items-start gap-3 px-4 py-3.5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: t.bg }}>
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: t.fg }} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] leading-tight font-semibold text-[var(--text)]">{n.bold}</p>
+                <p className="mt-0.5 truncate text-[12px] text-[var(--text-muted)]">{n.sub}</p>
+              </div>
+              <span className="shrink-0 text-[11px] text-[var(--text-muted)]">{n.time}</span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
