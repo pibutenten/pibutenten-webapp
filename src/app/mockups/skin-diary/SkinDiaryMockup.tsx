@@ -413,6 +413,9 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   // 현재 결과가 '내 주변'(geolocation)에서 온 것인지 표시 — q 가 비었을 때 결과 유지 판정용.
   // ref 라서 검색 effect 의존성에 넣지 않아 자기-트리거 루프를 만들지 않음.
   const geoActiveRef = useRef(false);
+  // 거리순 정렬용 위치 — 검색 시작(입력 포커스) 시 1회 요청. 자동 목록은 안 띄움. 권한 받으면 locReady++ 로 결과 재정렬.
+  const [locReady, setLocReady] = useState(0);
+  const locTriedRef = useRef(false);
   const [procs, setProcs] = useState<DiaryProc[]>([]);
   const [pid, setPid] = useState(0);
   const [tag, setTag] = useState("");
@@ -446,6 +449,18 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
     return hits;
   }
 
+  // 검색 시작 시 1회 위치 요청 — 거리순 정렬용. 자동 목록은 안 띄움(검색해야 결과 표시). 거부 시 이름순 폴백.
+  function requestLoc() {
+    if (locTriedRef.current) return;
+    locTriedRef.current = true;
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { myLocRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }; setLocReady((c) => c + 1); },
+      () => { /* 거부/실패 → 이름순 폴백 */ },
+      { enableHighAccuracy: false, timeout: 8000 },
+    );
+  }
+
   // 병원 이름 검색 — 실제 clinics DB(전국 피부과)를 250ms 디바운스로 ilike 조회.
   useEffect(() => {
     if (picked) return;
@@ -459,13 +474,14 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
       const sb = createSupabaseBrowserClient();
       const { data } = await sb
         .from("clinics").select("name,addr,tel,x_pos,y_pos")
-        .ilike("name", `%${term}%`).order("name").limit(20);
+        .ilike("name", `%${term}%`).order("name").limit(50); // 거리순 정렬 후보 넉넉히 → 가장 가까운 곳 우선(이름 같은 지점 다수 대비)
       if (!alive) return;
       setResults(withDistSort(data ?? []));
       setSearching(false);
     }, 120); // 더 실시간처럼 — 16,964건 DB 조회라 0 은 불가, 디바운스 최소화(쿼리 자체는 ~30ms).
     return () => { alive = false; clearTimeout(t); };
-  }, [q, picked]);
+    // locReady: 위치 권한이 들어오면 재조회+거리순 재정렬.
+  }, [q, picked, locReady]);
 
   // 특정 좌표 주변 clinics 를 bbox(약 5km) 조회 후 거리순 정렬 + 지도 중심 이동.
   async function loadNear(lat: number, lng: number) {
@@ -568,6 +584,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
                 className={inputCls}
                 placeholder="지명, 병원명으로 검색"
                 value={q}
+                onFocus={requestLoc}
                 onChange={(e) => { setQ(e.target.value); setPicked(null); setHi(-1); }}
                 onKeyDown={(e) => {
                   // ↑↓ 결과 하이라이트 이동(결과 있을 때만).
