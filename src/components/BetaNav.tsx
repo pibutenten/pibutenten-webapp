@@ -341,7 +341,18 @@ export default function BetaNav() {
                 {session && <NotificationsBell />}
                 <div className="hidden items-center sm:flex">
                   {session ? (
-                    <Link href="/my" aria-label="마이페이지" title="마이페이지" className="flex items-center rounded-md p-2" style={{ color: pathname.startsWith("/my") ? C : "var(--text)" }}>{ICON.user}</Link>
+                    <Link href="/my" aria-label="마이페이지" title="마이페이지" className="flex items-center rounded-md p-1" style={{ color: pathname.startsWith("/my") ? C : "var(--text)" }}>
+                      {(() => {
+                        // 우상단 아바타 = 활성 명함(계정) 기준. 없으면 기본 아이콘.
+                        const av = session.identities.find((i) => i.id === session.activeIdentityId)?.avatarUrl ?? session.avatarUrl;
+                        return av ? (
+                          <span className="inline-flex h-7 w-7 overflow-hidden rounded-full bg-[var(--bg-soft)]">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={av} alt="" className="h-full w-full object-cover" style={{ objectPosition: "50% 12%", transform: "scale(1.18)", transformOrigin: "50% 30%" }} />
+                          </span>
+                        ) : ICON.user;
+                      })()}
+                    </Link>
                   ) : (
                     <Link href="/login" title="로그인" className="flex items-center rounded-md p-2 text-[14px] font-medium text-[var(--text)]">로그인</Link>
                   )}

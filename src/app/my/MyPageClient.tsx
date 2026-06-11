@@ -213,10 +213,9 @@ export default function MyPageClient() {
         {handle && <Row href={`/${handle}?tab=saves`} label="저장한 글" />}
       </Section>
 
-      {/* 설정 */}
+      {/* 설정 — /settings 는 본인 프로필로 보내는 redirect(실페이지 아님)라 제외. 실제 편집은 /settings/profile. */}
       <Section title="설정">
         <Row href="/settings/profile" label="프로필·계정 설정" />
-        <Row href="/settings" label="전체 설정" />
       </Section>
     </div>
   );
