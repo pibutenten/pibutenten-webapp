@@ -26,22 +26,64 @@ function I({ d, size = 22 }: { d: React.ReactNode; size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">{d}</svg>;
 }
 const ICON = {
-  book: <I d={<><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></>} />,
-  pen: <I d={<><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></>} />,
-  grid: <I d={<><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>} />,
-  bag: <I d={<><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></>} />,
+  // user 는 데스크탑 아바타 폴백(아래 353줄)에도 사용 → 보존.
   user: <I d={<><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>} />,
   search: <I size={20} d={<><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></>} />,
   x: <I size={20} d={<path d="M18 6 6 18M6 6l12 12" />} />,
 };
 
-type Tab = { href: string; label: string; icon: React.ReactNode; match: (p: string) => boolean };
+// 하단 탭 아이콘 — 둥근 선(line) / 활성 면(filled) 쌍 (v2.3 소프트 리디자인).
+//   filled 는 부모 svg 가 fill=currentColor·stroke=none. bag 손잡이만 알약 배경색으로 컷아웃.
+const PILL_BG = "#EAF7FE";
+const TAB_ICONS: Record<string, { line: React.ReactNode; filled: React.ReactNode }> = {
+  book: {
+    line: <path d="M5 5.5C5 4.7 5.7 4 6.5 4H17.5C18.3 4 19 4.7 19 5.5V19.5C19 20.1 18.3 20.5 17.8 20.1L12.6 16.6C12.2 16.4 11.8 16.4 11.4 16.6L6.2 20.1C5.7 20.5 5 20.1 5 19.5V5.5Z" />,
+    filled: <path d="M5 5.5C5 4.7 5.7 4 6.5 4H17.5C18.3 4 19 4.7 19 5.5V19.5C19 20.1 18.3 20.5 17.8 20.1L12.6 16.6C12.2 16.4 11.8 16.4 11.4 16.6L6.2 20.1C5.7 20.5 5 20.1 5 19.5V5.5Z" />,
+  },
+  pen: {
+    line: <path d="M4 20C4 20 4.5 16.5 6 15L15.5 5.5C16.3 4.7 17.7 4.7 18.5 5.5C19.3 6.3 19.3 7.7 18.5 8.5L9 18C7.5 19.5 4 20 4 20Z" />,
+    filled: <path d="M4 20C4 20 4.5 16.5 6 15L15.5 5.5C16.3 4.7 17.7 4.7 18.5 5.5C19.3 6.3 19.3 7.7 18.5 8.5L9 18C7.5 19.5 4 20 4 20Z" />,
+  },
+  grid: {
+    line: <><rect x="4" y="4" width="7" height="7" rx="2.5" /><rect x="13" y="4" width="7" height="7" rx="2.5" /><rect x="4" y="13" width="7" height="7" rx="2.5" /><rect x="13" y="13" width="7" height="7" rx="2.5" /></>,
+    filled: <><rect x="4" y="4" width="7" height="7" rx="2.5" /><rect x="13" y="4" width="7" height="7" rx="2.5" /><rect x="4" y="13" width="7" height="7" rx="2.5" /><rect x="13" y="13" width="7" height="7" rx="2.5" /></>,
+  },
+  bag: {
+    line: <><path d="M5 8.5C5 7.7 5.7 7 6.5 7H17.5C18.3 7 19 7.7 19 8.5L18.3 18.6C18.2 19.7 17.3 20.5 16.2 20.5H7.8C6.7 20.5 5.8 19.7 5.7 18.6L5 8.5Z" /><path d="M9 10V6.5C9 4.8 10.3 3.5 12 3.5C13.7 3.5 15 4.8 15 6.5V10" /></>,
+    filled: <><path d="M5 8.5C5 7.7 5.7 7 6.5 7H17.5C18.3 7 19 7.7 19 8.5L18.3 18.6C18.2 19.7 17.3 20.5 16.2 20.5H7.8C6.7 20.5 5.8 19.7 5.7 18.6L5 8.5Z" /><path d="M9 10V6.5C9 4.8 10.3 3.5 12 3.5C13.7 3.5 15 4.8 15 6.5V10" fill="none" stroke={PILL_BG} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" /></>,
+  },
+  user: {
+    line: <><circle cx="12" cy="8" r="3.6" /><path d="M5 20C5.5 16.5 8.4 14.5 12 14.5C15.6 14.5 18.5 16.5 19 20" /></>,
+    filled: <><circle cx="12" cy="8" r="3.6" /><path d="M4.7 20.5C5 16.6 8.2 14 12 14C15.8 14 19 16.6 19.3 20.5Z" /></>,
+  },
+};
+
+function TabIcon({ name, active }: { name: keyof typeof TAB_ICONS; active: boolean }) {
+  const ic = TAB_ICONS[name];
+  return (
+    <svg
+      width={24}
+      height={24}
+      viewBox="0 0 24 24"
+      fill={active ? "currentColor" : "none"}
+      stroke={active ? "none" : "currentColor"}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={active ? "tabbar-icon-pop" : undefined}
+    >
+      {active ? ic.filled : ic.line}
+    </svg>
+  );
+}
+
+type Tab = { href: string; label: string; icon: keyof typeof TAB_ICONS; match: (p: string) => boolean };
 const TABS: Tab[] = [
-  { href: "/record", label: "내 일기", icon: ICON.book, match: (p) => p.startsWith("/record") },
-  { href: "/write", label: "글쓰기", icon: ICON.pen, match: (p) => p === "/write" },
-  { href: "/", label: "피드", icon: ICON.grid, match: (p) => p === "/" },
-  { href: "/shop", label: "쇼핑", icon: ICON.bag, match: (p) => p.startsWith("/shop") },
-  { href: "/my", label: "마이페이지", icon: ICON.user, match: (p) => p.startsWith("/my") },
+  { href: "/record", label: "내 일기", icon: "book", match: (p) => p.startsWith("/record") },
+  { href: "/write", label: "글쓰기", icon: "pen", match: (p) => p === "/write" },
+  { href: "/", label: "피드", icon: "grid", match: (p) => p === "/" },
+  { href: "/shop", label: "쇼핑", icon: "bag", match: (p) => p.startsWith("/shop") },
+  { href: "/my", label: "마이페이지", icon: "user", match: (p) => p.startsWith("/my") },
 ];
 
 // 피드 상단 카테고리 칩 (페이지 데이터 fetch 는 ?cat= 로 동일).
@@ -386,14 +428,34 @@ export default function BetaNav() {
         </div>
       )}
 
-      {/* 모바일 하단 5탭 (fixed) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-[var(--border)] bg-white px-3 sm:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-        {TABS.map((t) => (
-          <Link key={t.href} href={t.href} onPointerEnter={() => warm(t.href)} onClick={t.href === "/" ? (e) => { e.preventDefault(); goHome(); } : undefined} className="flex flex-1 cursor-pointer flex-col items-center gap-0.5 py-2" style={{ color: t.match(pathname) ? C : "#9ca3af" }}>
-            {t.icon}
-            <span className="text-[10px] font-medium">{t.label}</span>
-          </Link>
-        ))}
+      {/* 모바일 하단 5탭 (fixed) — v2.3 소프트: 라운드 상단 + 위 그림자 + 활성 알약 + filled 아이콘 */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 flex rounded-t-[24px] bg-white px-2 pt-2.5 shadow-[0_-6px_24px_rgba(34,43,53,0.07)] sm:hidden"
+        style={{ paddingBottom: "calc(14px + env(safe-area-inset-bottom))" }}
+      >
+        {TABS.map((t) => {
+          const on = t.match(pathname);
+          return (
+            <Link
+              key={t.href}
+              href={t.href}
+              onPointerEnter={() => warm(t.href)}
+              onClick={t.href === "/" ? (e) => { e.preventDefault(); goHome(); } : undefined}
+              aria-current={on ? "page" : undefined}
+              className="flex flex-1 cursor-pointer items-center justify-center"
+              style={{ color: on ? "#1E9FE0" : "#A8B6C2" }}
+            >
+              {/* 알약은 아이콘+라벨만 감쌈(히트영역은 Link 전체 = 균등 5분할 유지) */}
+              <span
+                className="flex flex-col items-center rounded-[18px] px-2.5 pb-[5px] pt-[7px] transition-colors duration-200"
+                style={{ background: on ? PILL_BG : "transparent" }}
+              >
+                <TabIcon name={t.icon} active={on} />
+                <span className="mt-1 whitespace-nowrap text-[11.5px] font-bold leading-none">{t.label}</span>
+              </span>
+            </Link>
+          );
+        })}
       </nav>
     </>
   );
