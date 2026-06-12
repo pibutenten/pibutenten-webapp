@@ -143,9 +143,8 @@ export default function RecordTab({
       {/* ⑤ 관심 키워드 새 글 — 회원 관심사 매칭 최근 Q&A (실데이터). 매칭 없으면 숨김. */}
       {qa.length > 0 && (
         <>
-          <div className="mb-1 mt-8 flex items-baseline justify-between px-0.5">
+          <div className="mb-1 mt-8 px-0.5">
             <h2 className="text-[19px] font-extrabold tracking-tight text-[var(--text)]">관심 키워드 새 글</h2>
-            <Link href="/search" className="text-[13.5px] font-semibold text-[var(--primary-active)]">전체보기</Link>
           </div>
           <Carousel className="-mx-1 px-1 pb-2">
             {qa.map((item) => (

@@ -7,7 +7,7 @@ import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
-import { getReviewSummaryFeedPool, type ProcedureReport } from "@/lib/procedure-report";
+import { getReviewSummaryFeedPool, getProcedureReport, type ProcedureReport } from "@/lib/procedure-report";
 import { fetchCardList } from "@/lib/search-query";
 import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
@@ -88,6 +88,8 @@ export default async function HomeFeedPage({
 
   let cards: CardData[] = [];
   let reportPool: ProcedureReport[] = [];
+  // 검색 시 시술명이 리포트와 매칭되면 '전체' 탭 첫 카드(후기 1건부터, getProcedureReport).
+  let searchReport: ProcedureReport | null = null;
   const searchQuery = query || undefined;
 
   if (query) {
@@ -100,12 +102,14 @@ export default async function HomeFeedPage({
           /* 실패해도 진행 */
         });
     }
-    const [listRes, pool] = await Promise.all([
+    const [listRes, pool, sReport] = await Promise.all([
       fetchCardList(supabase, { q: query, offset: 0, limit: ORDER }),
       getReviewSummaryFeedPool(supabase),
+      getProcedureReport(supabase, query),
     ]);
     cards = (listRes.data ?? []) as unknown as CardData[];
     reportPool = pool;
+    searchReport = sReport;
   } else {
     const [rpcRes, pool] = await Promise.all([
       supabase.rpc("feed_cards_scored", {
@@ -161,6 +165,7 @@ export default async function HomeFeedPage({
         pageSize={20}
         searchQuery={searchQuery}
         reportPool={reportPool}
+        searchReport={searchReport}
         hotIds={hotIds}
         viewerStates={viewerStates}
         initialMobile={isMobileUA}

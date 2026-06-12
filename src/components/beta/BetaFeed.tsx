@@ -37,6 +37,8 @@ type Props = {
   searchQuery?: string;
   /** 리포트 탭에서 보여줄 시술 리포트 카드 풀. */
   reportPool?: ProcedureReport[];
+  /** 검색 시 시술명이 리포트와 매칭되면 '전체' 탭 첫 카드로 노출(후기 1건부터, getProcedureReport). */
+  searchReport?: ProcedureReport | null;
   hotIds?: number[];
   viewerStates?: Record<number, ViewerState>;
   initialMobile?: boolean;
@@ -48,6 +50,7 @@ export default function BetaFeed({
   pageSize = 20,
   searchQuery,
   reportPool = [],
+  searchReport: searchReportProp = null,
   hotIds,
   viewerStates,
   initialMobile = false,
@@ -204,6 +207,9 @@ export default function BetaFeed({
       : pool;
   // 리포트 카드 주입은 '전체'(검색 아님)에서만 — 카테고리 탭은 집중 목록.
   const injectReports = activeCat === "" && !searchQuery && reportPool.length > 0;
+  // 검색('전체' 탭)일 때 시술명이 리포트와 매칭되면, 결과 맨 위에 리포트 카드 1장(구 /search 동작).
+  //   매칭은 서버(getProcedureReport, 후기 1건부터)가 판정 → prop 으로 받음.
+  const searchReport = activeCat === "" ? searchReportProp : null;
   const emptyMsg = searchQuery ? `‘${searchQuery}’ 검색 결과가 없습니다.` : isReport ? "집계된 리포트가 없습니다." : "표시할 글이 없습니다.";
 
   return (
@@ -221,10 +227,18 @@ export default function BetaFeed({
             ))}
           </div>
         )
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && !searchReport ? (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center text-sm text-[var(--text-secondary)]">{emptyMsg}</div>
       ) : (
         <Masonry breakpointCols={{ default: initialMobile ? 1 : 2, 899: 1 }} className="feed-masonry" columnClassName="feed-masonry__col">
+          {/* 검색 시 매칭 리포트 — 피드 카드와 동일하게 마손리 첫 카드로(전체 탭). */}
+          {searchReport && (
+            <ProcedureReportCard
+              key={`search-report-${searchReport.anchor?.id ?? searchReport.en}`}
+              report={searchReport}
+              feedHref={`/reports/${encodeURIComponent(searchReport.procedureKo)}`}
+            />
+          )}
           {filtered.flatMap((card, i) => {
             const node = (
               <Card
