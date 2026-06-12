@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-06-12] — /search 폐기 + 인기글 통계 RPC 범용화
+
+### Removed
+- **/search 라우트 완전 폐기**: 검색은 루트 `/?q=` 로 일원화. `/search`·`/search?q=x` → `/`·`/?q=x` 308 리다이렉트(next.config). `src/app/search/page.tsx` 삭제, 레거시 TopNav '검색' 링크 루트로. (CategoryWithChips 는 고아 컴포넌트로 잔존.)
+
+### Changed
+- **검색 시 전체 탭 첫 카드 = 시술 리포트 카드**(구 /search 동작 복원): 루트 `/?q=시술명` 에서 `getProcedureReport`(후기 1건부터) 매칭 시 BetaFeed 마손리 첫 카드로 리포트 노출.
+- **마이그 0280 — top_cards 통계 RPC 사이트 전체 게이트 완화**: `get_top_cards_by_{views,likes,saves,shares,comments}` 의 사이트 전체(both NULL) 호출을 `is_admin()` 전용 → 로그인 회원 누구나(발행 카드 공개 통계). 원장/작성자 단위 필터 경로의 `_check_doctor_kpi_access` 권한 체크는 유지. 내 일기 '인기글' 등 범용 재사용 목적.
+
+---
+
 ## [2026-06-11] — 시술일기 저장·조회·상세 + 내 일기/알림/마이페이지 Figma 구조 반영
 
 ### Added
