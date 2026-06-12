@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 /**
  * 지명·랜드마크 검색 → 좌표 (네이버 지역검색 Open API, 서버 전용).
- * - 시술일기 "어디서 받으셨어요?" 에서 '강남역' 같은 지명을 좌표로 바꿔 지도 이동용.
+ * - 시술노트 "어디서 받으셨어요?" 에서 '강남역' 같은 지명을 좌표로 바꿔 지도 이동용.
  * - openapi.naver.com 은 브라우저 CORS 차단 → 서버에서 NAVER_CLIENT_ID/SECRET 로 호출.
  * - local.json mapx/mapy 는 WGS84 ×10^7 (예: 1270276242 → 127.0276242).
  */

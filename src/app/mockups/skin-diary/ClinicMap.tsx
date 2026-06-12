@@ -6,7 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 /**
- * 시술일기 병원 위치 지도 — OpenStreetMap(Leaflet).
+ * 시술노트 병원 위치 지도 — OpenStreetMap(Leaflet).
  * - 외부 키/카드 불필요. 우리 clinics 좌표(위도 y / 경도 x)만으로 핀 표시.
  * - 기본 Leaflet 마커 아이콘은 번들러에서 깨지므로 커스텀 SVG divIcon 사용.
  * - SSR 비호환(window 의존) → 부모에서 next/dynamic ssr:false 로 로드.

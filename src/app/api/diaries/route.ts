@@ -8,7 +8,7 @@ import { DiaryCreateSchema } from "@/lib/schema/api/diaries";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/diaries — 시술일기(비공개) 생성.
+ * POST /api/diaries — 시술노트(비공개) 생성.
  *
  * 시술후기(/api/reviews)와 달리 공개 콘텐츠가 아니므로 shortcode·검수·마스킹 없음.
  * diaries 1행 + diary_procedures N행을 create_diary RPC 가 원자적으로 INSERT.

@@ -35,7 +35,7 @@ function cardHref(c: { doctor?: { slug: string | null } | null; post_year: numbe
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "내 일기",
+  title: "내 노트",
   robots: { index: false, follow: false },
 };
 
@@ -51,7 +51,7 @@ type DiaryRow = {
   diary_procedures: { procedure_ko: string; unit_text: string | null; price: number | null; sort_order: number }[];
 };
 
-// diaries 행 → 내 일기 패널이 쓰는 SummaryGroup[](연도 내림차순, 같은 해는 최신 방문순).
+// diaries 행 → 내 노트 패널이 쓰는 SummaryGroup[](연도 내림차순, 같은 해는 최신 방문순).
 function toSummaryGroups(rows: DiaryRow[]): SummaryGroup[] {
   const byYear = new Map<number, SummaryItem[]>();
   for (const r of rows) {
@@ -127,7 +127,7 @@ const DEMO_SUMMARY: SummaryGroup[] = [
   },
 ];
 
-// /record — 내 일기(비공개). 비로그인은 가입 유도 데모, 로그인은 active 명함 기준 실데이터.
+// /record — 내 노트(비공개). 비로그인은 가입 유도 데모, 로그인은 active 명함 기준 실데이터.
 export default async function RecordPage() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -200,7 +200,7 @@ export default async function RecordPage() {
     ]),
   );
 
-  // 병렬: 일기 / 내가 쓴 후기 수 / 인기글 3기간(TOP10) / 관심 키워드 새 Q&A(컴팩트).
+  // 병렬: 노트 / 내가 쓴 후기 수 / 인기글 3기간(TOP10) / 관심 키워드 새 Q&A(컴팩트).
   const [diariesRes, reviewCntRes, top7Res, top30Res, top90Res, kwRes] = await Promise.all([
     supabase
       .from("diaries")

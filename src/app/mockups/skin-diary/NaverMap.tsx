@@ -5,7 +5,7 @@ import type { MapPin } from "./ClinicMap";
 import { loadNaverMaps } from "./naver-maps";
 
 /**
- * 시술일기 병원 위치 지도 — 네이버 클라우드(NCP) Web Dynamic Map.
+ * 시술노트 병원 위치 지도 — 네이버 클라우드(NCP) Web Dynamic Map.
  * - NEXT_PUBLIC_NAVER_MAP_CLIENT_ID(공개 Client ID)로 maps.js 로드.
  * - clinics 좌표(위도 lat / 경도 lng)로 커스텀 핀 + 병원 이름 라벨 표시.
  * - 휠 줌, 전체화면 토글 지원. SSR 비호환 → 부모에서 ssr:false 로 로드.

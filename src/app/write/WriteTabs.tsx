@@ -1,6 +1,6 @@
 "use client";
 
-// 시술기록(개인 일기)은 목업 폼 재사용. 시술후기는 기존 실제 폼(/review/new 의 ReviewForm) 그대로 연결.
+// 시술기록(개인 노트)은 목업 폼 재사용. 시술후기는 기존 실제 폼(/review/new 의 ReviewForm) 그대로 연결.
 import { useRouter } from "next/navigation";
 import { DiaryForm } from "../mockups/skin-diary/SkinDiaryMockup";
 import ReviewForm, { type ProcedureOption } from "../review/new/ReviewForm";
@@ -54,7 +54,7 @@ export default function WriteTabs({
       {cat === "qa" && (
         <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="qa" />
       )}
-      {/* 시술기록(일기)은 비공개라 비로그인도 폼은 열림 — 저장 시 API 401 → "로그인 후 저장" 토스트로 안내. */}
+      {/* 시술기록(노트)은 비공개라 비로그인도 폼은 열림 — 저장 시 API 401 → "로그인 후 저장" 토스트로 안내. */}
       {cat === "시술기록" && <DiaryForm toast={(m) => showToast(m)} go={() => { void router.push("/record"); }} procedures={procedures} />}
       {cat === "시술후기" && (
         isLoggedIn ? <ReviewForm procedures={procedures} handle={handle} /> : <LoginGate />

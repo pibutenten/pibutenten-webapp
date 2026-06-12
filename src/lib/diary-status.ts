@@ -1,5 +1,5 @@
 /**
- * 시술일기 경과 단계 로직 (SSOT) — 내 일기 히어로 문구 + 타임라인 배지 공용.
+ * 시술노트 경과 단계 로직 (SSOT) — 내 노트 히어로 문구 + 타임라인 배지 공용.
  *
  * 마지막 시술명+방문일로 5단계 자동 판정(Figma 시안 상태머신).
  * 시술 5종(보톡스·스킨부스터·리프팅·써마지·스컬트라) + fallback.
@@ -47,7 +47,7 @@ export type DiaryStatus = {
   tappable: boolean;
 };
 
-/** 내 일기 히어로 — 마지막 시술 기준 5단계 인사/상태 문구. */
+/** 내 노트 히어로 — 마지막 시술 기준 5단계 인사/상태 문구. */
 export function computeStatus(latest: DiaryLatest | null): DiaryStatus {
   if (!latest) {
     return {

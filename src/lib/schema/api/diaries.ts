@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * 시술일기(diaries) 생성 페이로드 검증 — /api/diaries POST.
+ * 시술노트(diaries) 생성 페이로드 검증 — /api/diaries POST.
  *   비공개 개인 데이터. create_diary RPC(0279) 가 DB CHECK 와 이중 검증하지만,
  *   API 경계에서 형식·크기 화이트리스트로 1차 차단.
  */

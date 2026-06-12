@@ -79,7 +79,7 @@ function TabIcon({ name, active }: { name: keyof typeof TAB_ICONS; active: boole
 
 type Tab = { href: string; label: string; icon: keyof typeof TAB_ICONS; match: (p: string) => boolean };
 const TABS: Tab[] = [
-  { href: "/record", label: "내 일기", icon: "book", match: (p) => p.startsWith("/record") },
+  { href: "/record", label: "내 노트", icon: "book", match: (p) => p.startsWith("/record") },
   { href: "/write", label: "글쓰기", icon: "pen", match: (p) => p === "/write" },
   { href: "/", label: "피드", icon: "grid", match: (p) => p === "/" },
   { href: "/shop", label: "쇼핑", icon: "bag", match: (p) => p.startsWith("/shop") },
@@ -136,7 +136,7 @@ function ChipRow() {
 
 // 글쓰기 서브탭 — 피드 칩줄과 동일(좌측 정렬 탭 언더라인).
 const WRITE_TABS: { label: string; tab: string }[] = [
-  { label: "시술일기 쓰기", tab: "record" },
+  { label: "시술노트 쓰기", tab: "record" },
   { label: "시술후기 남기기", tab: "review" },
   { label: "끄적끄적", tab: "doodle" },
 ];

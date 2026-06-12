@@ -63,7 +63,7 @@ export default function RecordTab({
   const [period, setPeriod] = useState<keyof PopularData>("d7");
   const [popExpanded, setPopExpanded] = useState(false);
 
-  // 최다 시술 — 일기 기준 가장 많이 기록된 시술명.
+  // 최다 시술 — 노트 기준 가장 많이 기록된 시술명.
   const procFreq = new Map<string, number>();
   for (const g of summary) for (const it of g.items) for (const iv of it.items) procFreq.set(iv.name, (procFreq.get(iv.name) ?? 0) + 1);
   const topProc = [...procFreq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
@@ -87,15 +87,15 @@ export default function RecordTab({
         >
           <span className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/15" />
           <span className="pointer-events-none absolute bottom-[-46px] right-6 h-28 w-28 rounded-full bg-white/10" />
-          <p className="text-[14px] font-semibold opacity-90">내 시술일기 ✨</p>
+          <p className="text-[14px] font-semibold opacity-90">내 시술노트 ✨</p>
           <h1 className="mt-1.5 whitespace-pre-line text-[22px] font-extrabold leading-snug tracking-tight">받은 시술을 기록하고{"\n"}경과를 한눈에 관리하세요</h1>
-          <p className="mt-2 text-[13.5px] font-medium leading-relaxed opacity-90">병원·시술·다운타임·효과·재방문 주기까지. 가입하면 나만의 시술일기가 시작돼요.</p>
+          <p className="mt-2 text-[13.5px] font-medium leading-relaxed opacity-90">병원·시술·다운타임·효과·재방문 주기까지. 가입하면 나만의 시술노트가 시작돼요.</p>
           <div className="relative z-[1] mt-5">
             <Link
               href="/signup"
               className="flex w-full items-center justify-center gap-2 rounded-full bg-white py-3.5 text-[16px] font-extrabold text-[var(--text)] shadow-[0_5px_16px_rgba(0,70,110,.18)]"
             >
-              가입하고 내 일기 시작하기
+              가입하고 내 노트 시작하기
             </Link>
             <p className="mt-2.5 text-center text-[12.5px] font-medium opacity-90">이미 계정이 있으세요? <Link href="/login" className="font-bold underline">로그인</Link></p>
           </div>
@@ -116,7 +116,7 @@ export default function RecordTab({
               onClick={scrollToDiary}
               className="flex w-full items-center justify-center gap-2 rounded-full bg-white py-3.5 text-[16px] font-extrabold text-[var(--text)] shadow-[0_5px_16px_rgba(0,70,110,.18)]"
             >
-              📖 내 일기 보기
+              📖 내 노트 보기
             </button>
             <div className="mt-2.5 flex gap-2.5">
               <Link
@@ -144,7 +144,7 @@ export default function RecordTab({
       {!guest && (
         <div className="mb-1 mt-[18px] flex gap-2.5">
           {[
-            { n: String(diaryCount), l: "내가 쓴 일기", txt: false },
+            { n: String(diaryCount), l: "내가 쓴 노트", txt: false },
             { n: String(reviewsCount), l: "내가 쓴 후기", txt: false },
             { n: topProc, l: "최다 시술", txt: true },
           ].map((s) => (
@@ -161,7 +161,7 @@ export default function RecordTab({
         </div>
       )}
 
-      {/* ④ 내 일기 — 타임라인/달력(연달력)/목록. 게스트는 '예시' 라벨 + 클릭 시 가입 유도. */}
+      {/* ④ 내 노트 — 타임라인/달력(연달력)/목록. 게스트는 '예시' 라벨 + 클릭 시 가입 유도. */}
       <div id="record-diary" className="mt-7 scroll-mt-20">
         {guest && (
           <div className="mb-3 flex items-center gap-2 px-0.5">
@@ -191,7 +191,7 @@ export default function RecordTab({
         <div className="mt-9 overflow-hidden rounded-[var(--radius)] bg-white p-6 text-center shadow-[0_2px_10px_rgba(34,43,53,.05)]">
           <p className="text-[16px] font-extrabold text-[var(--text)]">가입하면 더 많은 걸 볼 수 있어요</p>
           <p className="mt-1.5 text-[13.5px] leading-relaxed text-[var(--text-secondary)]">내 시술 기록·경과 관리, 관심 키워드 새 글, 인기글까지<br />피부텐텐과 함께 시작해보세요.</p>
-          <Link href="/signup" className="mt-4 inline-block w-full rounded-full bg-[var(--primary)] py-3.5 text-[15px] font-extrabold text-white">가입하고 내 일기 시작하기</Link>
+          <Link href="/signup" className="mt-4 inline-block w-full rounded-full bg-[var(--primary)] py-3.5 text-[15px] font-extrabold text-white">가입하고 내 노트 시작하기</Link>
         </div>
       ) : (
         <>

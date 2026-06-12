@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 시술일기 통합 — 검토용 디자인 목업 (시스템 미반영).
+ * 시술노트 통합 — 검토용 디자인 목업 (시스템 미반영).
  *
  * 실제 앱 패턴 준수:
  *  - 글상자 = 피드 Card.tsx 와 동일(테두리 X·음영 X, 흰 박스 on 회색 배경).
@@ -11,13 +11,13 @@
  * layout.tsx 가 TopNav/푸터/1080px/반응형 자동 적용 → 여기는 <main> 콘텐츠만.
  *
  * 구조 (원장 지시 2026-06-07):
- *  - 시술후기만: 기존 후기폼 그대로. 가격은 후기에 두지 않음(시술일기 비공개로 이동).
- *  - 시술일기: 날짜 → 병원(지도검색) → 의사/실장 → 받은 시술(행마다 가격·비고, 나만 보기)
- *              → 오늘의 시술 일기 → 저장하기. 받은 시술마다 "아래에 형제 글상자"로 후기칸이
+ *  - 시술후기만: 기존 후기폼 그대로. 가격은 후기에 두지 않음(시술노트 비공개로 이동).
+ *  - 시술노트: 날짜 → 병원(지도검색) → 의사/실장 → 받은 시술(행마다 가격·비고, 나만 보기)
+ *              → 오늘의 시술 노트 → 저장하기. 받은 시술마다 "아래에 형제 글상자"로 후기칸이
  *              닫힌 채 생성 → [후기 작성하기]로 열고 한 번 더 누르면 닫힘 / [나중에 쓰기]는
  *              3·7·30일 뒤 알림.
- *  - 내 일기: 우상단 토글(달력/목록). 목록=요약본(연도 표시·모두 펼치기/닫기). 항목 클릭→상세.
- *  - 상세: 평가지표 제외, 비공개 메모(병원·의사·실장·연락처·가격·비고·일기)만.
+ *  - 내 노트: 우상단 토글(달력/목록). 목록=요약본(연도 표시·모두 펼치기/닫기). 항목 클릭→상세.
+ *  - 상세: 평가지표 제외, 비공개 메모(병원·의사·실장·연락처·가격·비고·노트)만.
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -81,8 +81,8 @@ export default function SkinDiaryMockup() {
   const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 1900); };
 
   const TABS: [Screen, string][] = [
-    ["diary","시술일기"],["reviewonly","시술후기만"],
-    ["record","내 일기"],["detail","상세"],["noti","알림"],
+    ["diary","시술노트"],["reviewonly","시술후기만"],
+    ["record","내 노트"],["detail","상세"],["noti","알림"],
   ];
 
   return (
@@ -117,15 +117,15 @@ export default function SkinDiaryMockup() {
 
 /* ════════════════ 플로팅(+) 메뉴 — 우하단. 실제 FAB 대체 데모 ════════════════
    실제 layout 의 FloatingWriteButton(끄적끄적/시술후기/보관)을 목업에선 숨기고,
-   '나의 시술일기 보기 / 시술일기 남기기 / 시술 후기 남기기 / 끄적끄적' 4개로 펼치는 메뉴로 대체.
+   '나의 시술노트 보기 / 시술노트 남기기 / 시술 후기 남기기 / 끄적끄적' 4개로 펼치는 메뉴로 대체.
    (앱 전환 시 하단 중앙 + 버튼으로 이동 예정.) */
 
 function MockFab({ open, setOpen, go, toast }: { open: boolean; setOpen: (b: boolean) => void; go: (s: Screen) => void; toast: (m: string) => void }) {
   const items: { label: string; icon: React.ReactNode; onClick: () => void }[] = [
-    { label: "나의 시술일기 보기", onClick: () => go("record"), icon: (
+    { label: "나의 시술노트 보기", onClick: () => go("record"), icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
     ) },
-    { label: "시술일기 남기기", onClick: () => go("diary"), icon: (
+    { label: "시술노트 남기기", onClick: () => go("diary"), icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
     ) },
     { label: "시술후기 남기기", onClick: () => go("reviewonly"), icon: (
@@ -250,7 +250,7 @@ function EffectField({ value, onChange }: { value: string[]; onChange: (v: strin
   );
 }
 
-/** 후기 정량 컨트롤 — 후기폼/일기 공용. 가격 없음(가격은 시술일기 비공개로 이동). */
+/** 후기 정량 컨트롤 — 후기폼/노트 공용. 가격 없음(가격은 시술노트 비공개로 이동). */
 function ReviewControls({ v, set }: { v: ReviewState; set: (p: Partial<ReviewState>) => void }) {
   return (
     <>
@@ -314,7 +314,7 @@ function SubmitBar({ label, onClick }: { label: string; onClick: () => void }) {
 }
 
 /**
- * 후기 작성 폼 본문(SSOT) — 시술후기만/시술일기-시술별 후기가 동일하게 사용.
+ * 후기 작성 폼 본문(SSOT) — 시술후기만/시술노트-시술별 후기가 동일하게 사용.
  * 시술명(가운데·카테고리색·18px) + 우상단 액션(다시선택/접기) + ReviewControls + 하단 버튼.
  */
 function ReviewFormBody({ cat, label, v, set, submitLabel, onSubmit, topRight }: {
@@ -368,7 +368,7 @@ export function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: 
   );
 }
 
-/* ════════════════ ④ 나의 시술일기 ════════════════ */
+/* ════════════════ ④ 나의 시술노트 ════════════════ */
 
 // 실제 clinics DB(전국 16,964 피부과) 검색 결과 한 건.
 type ClinicHit = { name: string; addr: string; tel: string; x: number | null; y: number | null; dist?: number };
@@ -424,7 +424,7 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
   const [procs, setProcs] = useState<DiaryProc[]>([]);
   const pidRef = useRef(0); // 행 id 카운터 — 동기 증가라 연속 추가에도 충돌 없음.
   const [tag, setTag] = useState("");
-  const [diary, setDiary] = useState(""); // 오늘의 시술 일기(비공개 메모) — 최대 400자.
+  const [diary, setDiary] = useState(""); // 오늘의 시술 노트(비공개 메모) — 최대 400자.
   const [doctorName, setDoctorName] = useState(""); // 원장님(자유 입력)
   const [managerName, setManagerName] = useState(""); // 실장님(자유 입력)
   const [saving, setSaving] = useState(false);
@@ -660,9 +660,9 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
   return (
     <section className="mx-auto w-full max-w-[680px]">
       <h1 className="mb-1 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">내가 받은 시술을 기록해요</h1>
-      <p className="mb-5 text-center text-[13px] text-[var(--text-muted)]">시술일기는 나만 볼 수 있어요</p>
+      <p className="mb-5 text-center text-[13px] text-[var(--text-muted)]">시술노트는 나만 볼 수 있어요</p>
 
-      {/* 메인 일기 글상자 */}
+      {/* 메인 노트 글상자 */}
       <div className={formBox}>
         {/* 1. 날짜 — 클릭하면 달력 picker(투명 오버레이), 표시는 괄호 없이 */}
         <div>
@@ -845,9 +845,9 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
           <p className="mt-2 px-0.5 text-[12px] leading-relaxed text-[var(--text-muted)]">메모는 선택사항이에요. 샷수·바이알 수·부위 등 기억하고 싶은 것만 적어주세요.</p>
         </div>
 
-        {/* 5. 오늘의 시술 일기 — 비공개 메모, 최대 400자 (후기 카운터와 동일 표기) */}
+        {/* 5. 오늘의 시술 노트 — 비공개 메모, 최대 400자 (후기 카운터와 동일 표기) */}
         <div>
-          <label className={labelCls}>오늘의 시술 일기 <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">({diary.length} / 400)</span></label>
+          <label className={labelCls}>오늘의 시술 노트 <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">({diary.length} / 400)</span></label>
           <textarea rows={3} maxLength={400} value={diary} onChange={(e) => setDiary(e.target.value)} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
         </div>
 
@@ -857,12 +857,12 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
         <button type="button" onClick={handleSave} disabled={saving} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-wait disabled:opacity-60">{saving ? "저장 중…" : "기록 저장하기"}</button>
       </div>
 
-      {/* 저장 완료 모달 — 일기 저장 후 시술후기로 자연스럽게 유도(지금/나중에). */}
+      {/* 저장 완료 모달 — 노트 저장 후 시술후기로 자연스럽게 유도(지금/나중에). */}
       {savedModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={() => { setSavedModal(false); go("record"); }}>
           <div className="w-full max-w-[340px] rounded-[var(--radius)] bg-white p-6 text-center" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[28px]" style={{ background: "var(--primary-soft)" }}>✅</div>
-            <p className="text-[17px] font-extrabold text-[var(--text)]">일기 기록을 완료했어요</p>
+            <p className="text-[17px] font-extrabold text-[var(--text)]">노트 기록을 완료했어요</p>
             <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
               다른 분들을 위해 시술후기를 남겨주세요.<br />
               <span className="text-[var(--text-muted)]">지금 당장 쓰기 어려우면 나중에 알려드릴게요!</span>
@@ -878,7 +878,7 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
   );
 }
 
-/* ════════════════ ⑤ 내 일기 (달력 / 목록 토글) ════════════════ */
+/* ════════════════ ⑤ 내 노트 (달력 / 목록 토글) ════════════════ */
 
 // SummaryItem.date = "MM.DD"(연도는 SummaryGroup.year). 실데이터(/record)·목업 공용 타입.
 export type SummaryItem = { id: string; date: string; proc: string; hospital: string; doctor: string; manager?: string; tel: string; price: string; memo: string; items: { name: string; unit: string }[] };
@@ -914,7 +914,7 @@ export function RecordView({
   return (
     <section className="mx-auto w-full max-w-[680px]">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-[16px] font-bold text-[var(--text)]">내 일기</span>
+        <span className="text-[16px] font-bold text-[var(--text)]">내 노트</span>
         {total > 0 && (
           <div className="flex gap-1 rounded-full bg-[#E8EAEE] p-1">
             {TABS.map(([m, label]) => (
@@ -930,9 +930,9 @@ export function RecordView({
       {total === 0 ? (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center shadow-[0_2px_12px_rgba(27,43,58,.06)]">
           <div className="mx-auto mb-4 flex h-[88px] w-[88px] items-center justify-center rounded-[28px] text-[40px]" style={{ background: "linear-gradient(135deg,#EAF7FE,#D3EEFB)" }}>📒</div>
-          <h3 className="text-[19px] font-extrabold leading-snug tracking-tight text-[var(--text)]">첫 일기를 쓰면<br />이렇게 정리돼요</h3>
+          <h3 className="text-[19px] font-extrabold leading-snug tracking-tight text-[var(--text)]">첫 노트를 쓰면<br />이렇게 정리돼요</h3>
           <p className="mt-2 text-[14.5px] leading-relaxed text-[var(--text-secondary)]">받은 시술이 타임라인·달력·목록으로<br />한눈에 보이고, 다음 주기도 알려드려요.</p>
-          <a href="/write" className="mt-[18px] inline-block rounded-full bg-[var(--primary)] px-[30px] py-3.5 text-[15.5px] font-extrabold text-white shadow-[0_6px_16px_rgba(76,191,242,.35)]">첫 일기 쓰러 가기</a>
+          <a href="/write" className="mt-[18px] inline-block rounded-full bg-[var(--primary)] px-[30px] py-3.5 text-[15.5px] font-extrabold text-white shadow-[0_6px_16px_rgba(76,191,242,.35)]">첫 노트 쓰러 가기</a>
 
           {/* 고스트 미리보기 타임라인 — 기록 시 무엇이 생기는지 점선으로 예시 */}
           <div className="mt-[22px] text-left">
@@ -1249,12 +1249,12 @@ function DetailView({ go }: { go: (s: Screen) => void }) {
         </div>
       </div>
 
-      {/* 오늘의 시술 일기 */}
+      {/* 오늘의 시술 노트 */}
       <div className={cardBox}>
         <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">붓기는 이틀쯤. 다음엔 6개월 뒤 보자고 하셨다. 스컬트라는 확실히 볼륨이 산다…</p>
       </div>
 
-      <button type="button" onClick={() => go("record")} className="w-full rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">← 내 일기로</button>
+      <button type="button" onClick={() => go("record")} className="w-full rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">← 내 노트로</button>
     </section>
   );
 }
@@ -1290,9 +1290,9 @@ function NotiView({ go, toast }: { go: (s: Screen) => void; toast: (m: string) =
       <div className={cardBox}>
         <p className="text-[14.5px] font-semibold text-[var(--text)]">써마지 받으신 지 1년 됐어요</p>
         <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">작년 6월에 받으셨어요. 보통 이맘때 다시 찾는 분이 많아요. (권유가 아니라 시술 주기 안내예요.)</p>
-        <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">내 일기 기준 · 2025.06.04</p>
+        <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">내 노트 기준 · 2025.06.04</p>
         <div className="mt-3 flex gap-2">
-          <button type="button" onClick={() => go("record")} className="rounded-md bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[var(--primary-dark)]">내 일기 보기</button>
+          <button type="button" onClick={() => go("record")} className="rounded-md bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[var(--primary-dark)]">내 노트 보기</button>
           <button type="button" className="rounded-md bg-[var(--bg)] px-4 py-2 text-[12px] font-semibold text-[var(--text-secondary)]">닫기</button>
         </div>
       </div>

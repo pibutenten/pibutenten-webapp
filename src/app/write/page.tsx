@@ -16,9 +16,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * /write — 통합 글쓰기(2026-06-11 메인 승격). 한 화면 3탭(시술일기·시술후기·끄적끄적).
+ * /write — 통합 글쓰기(2026-06-11 메인 승격). 한 화면 3탭(시술노트·시술후기·끄적끄적).
  *   탭 전환은 BetaNav 2차 바의 ?tab= (record|review|doodle). 기존 단독 /write(qa/카테고리 선택) 폐기.
- *   - 시술일기: 목업 DiaryForm (DB 저장 배선은 후속).
+ *   - 시술노트: 목업 DiaryForm (DB 저장 배선은 후속).
  *   - 시술후기: 기존 ReviewForm(/review/new 공유) — 로그인 필요.
  *   - 끄적끄적: 기존 WriteClient(initialCategory=doodle) — 로그인 필요.
  */

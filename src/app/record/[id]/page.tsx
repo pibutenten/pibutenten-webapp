@@ -35,7 +35,7 @@ type DetailRow = {
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 const cardBox = "rounded-[var(--radius)] bg-white p-5";
 
-// /record/[id] — 시술일기 상세(비공개). 로그인 필수. 본인 명함 소유분만 RLS 로 노출.
+// /record/[id] — 시술노트 상세(비공개). 로그인 필수. 본인 명함 소유분만 RLS 로 노출.
 export default async function DiaryDetailPage({ params }: Props) {
   const { id } = await params;
   const numId = Number.parseInt(id, 10);
@@ -118,7 +118,7 @@ export default async function DiaryDetailPage({ params }: Props) {
         </div>
       )}
 
-      {/* 오늘의 시술 일기(비공개 메모) */}
+      {/* 오늘의 시술 노트(비공개 메모) */}
       {d.diary_body && (
         <div className={cardBox}>
           <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-[var(--text-secondary)]">{d.diary_body}</p>
@@ -126,7 +126,7 @@ export default async function DiaryDetailPage({ params }: Props) {
       )}
 
       <Link href="/record" className="block w-full rounded-md bg-[var(--bg)] py-2.5 text-center text-[12.5px] font-semibold text-[var(--text-secondary)]">
-        ← 내 일기로
+        ← 내 노트로
       </Link>
     </section>
   );
