@@ -12,6 +12,7 @@
 
 import CardAvatar from "@/components/card/CardAvatar";
 import { pickHighlight } from "@/lib/card-highlight";
+import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
 import type { CardData } from "@/lib/types/card";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
@@ -56,7 +57,9 @@ export default function PostDetail({ card }: { card: CardData | null }) {
   const isDoctor = card ? !!card.doctor && !card.hide_doctor_credential : true;
   const avatarUrl = card?.author?.avatar_url ?? null;
   const title = card?.title ?? SAMPLE_TITLE;
-  const body = card?.body && card.body.length > 0 ? card.body : SAMPLE_BODY;
+  // 피드백 1) 본문 끝 평문 참고문헌 꼬리 제거(운영 Critical-6) → PubmedRefs 와 이중 출력 방지.
+  const rawBody = card?.body && card.body.length > 0 ? card.body : SAMPLE_BODY;
+  const body = stripLegacyReferencesTail(rawBody);
   const tags = (card?.keywords ?? ["쥬브젠", "다운타임", "재생테이프"]).slice(
     0,
     7,

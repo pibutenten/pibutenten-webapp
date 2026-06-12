@@ -17,9 +17,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { CardData } from "@/lib/types/card";
+import type { ProcedureReport } from "@/lib/procedure-report";
 import BetaSkinShell from "./BetaSkinShell";
 import styles from "./beta-skin.module.css";
-import { PostCard, cardHref, catTagClass } from "./beta-ui";
+import { PostCard, BetaReportCard, cardHref, catTagClass } from "./beta-ui";
 
 /* 한 번에 노출할 카드 수 (초기 + 추가 배치 단위) */
 const PAGE = 14;
@@ -58,8 +59,11 @@ function matchesQuery(c: CardData, q: string): boolean {
 /* ---------- 클라이언트 루트 ---------- */
 export default function BetaSkinFeed({
   initialPool,
+  reportPool = [],
 }: {
   initialPool: CardData[];
+  /** 피드백 4) 시술 리포트 풀 — '리포트' 탭에서 노출. 0건이면 빈 안내. */
+  reportPool?: ProcedureReport[];
 }) {
   const searchParams = useSearchParams();
   const [chip, setChip] = useState<ChipKey>("all");
@@ -88,6 +92,16 @@ export default function BetaSkinFeed({
       ),
     [initialPool, chip, query],
   );
+
+  // 피드백 4) '리포트' 탭 — 리포트 풀을 노출(검색어 있으면 시술명 부분일치 필터).
+  const isReportTab = chip === "review_summary";
+  const filteredReports = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return reportPool;
+    return reportPool.filter((r) =>
+      [r.procedureKo, r.en].join(" ").toLowerCase().includes(needle),
+    );
+  }, [reportPool, query]);
 
   // 칩/검색어가 바뀌면 노출 개수 초기화 (필터된 목록 기준으로 다시 점진 노출).
   useEffect(() => {
@@ -172,15 +186,7 @@ export default function BetaSkinFeed({
             </button>
           ))}
         </div>
-        {query.trim() && (
-          <button
-            type="button"
-            className={styles.tagClear}
-            onClick={() => setQuery("")}
-          >
-            ‘{query.trim()}’ 검색 해제 ✕
-          </button>
-        )}
+        {/* 피드백 3) 별도 '검색 해제 ✕' 칩 제거 — 해제는 검색창 자체의 ✕ 로만. */}
       </section>
 
       <section className={`${styles.card} ${styles.sideCard}`}>
@@ -215,7 +221,20 @@ export default function BetaSkinFeed({
       searchSuggestions={popularTags}
     >
       <div className={styles.feedList}>
-        {filtered.length === 0 ? (
+        {isReportTab ? (
+          // 피드백 4) 리포트 탭 — 시술 리포트 카드. 데이터 0건이면 빈 안내.
+          filteredReports.length === 0 ? (
+            <p className={styles.empty}>
+              {query.trim()
+                ? `‘${query.trim()}’ 시술 리포트가 없습니다.`
+                : "아직 집계된 시술 리포트가 없습니다."}
+            </p>
+          ) : (
+            filteredReports.map((r) => (
+              <BetaReportCard key={r.procedureKo} report={r} />
+            ))
+          )
+        ) : filtered.length === 0 ? (
           <p className={styles.empty}>
             {query.trim()
               ? `‘${query.trim()}’ 검색 결과가 없습니다.`
@@ -228,8 +247,8 @@ export default function BetaSkinFeed({
         )}
       </div>
 
-      {/* 무한스크롤 sentinel — 보이면 다음 14장 노출. 풀 소진 시 렌더 안 함. */}
-      {hasMore && (
+      {/* 무한스크롤 sentinel — 일반 탭에서만(리포트는 전부 노출). 풀 소진 시 렌더 안 함. */}
+      {!isReportTab && hasMore && (
         <div ref={sentinelRef} className={styles.feedSentinel} aria-hidden="true" />
       )}
     </BetaSkinShell>

@@ -371,6 +371,24 @@
     transform: rotate(360deg);
   }
 }
+
+/* 피드백 2) 등장 애니메이션 — 운영 globals.css 의 fadeInUp 자체 정의(베타 격리).
+   opacity 0→1 + translateY(10px)→0, 0.4s ease-out. 피드 카드·뷰 전환·무한스크롤
+   추가 카드에 적용. prefers-reduced-motion 가드는 파일 하단 미디어쿼리에서 처리. */
+@keyframes betaFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fadeInUp {
+  animation: betaFadeInUp 0.4s ease-out both;
+}
+
 .card {
   background: var(--card);
   border-radius: var(--r-card);
@@ -387,6 +405,174 @@
 .postCard {
   position: relative;
   display: block;
+}
+
+/* ---------- 피드백 4) 시술 리포트 카드 ---------- */
+.reportCard {
+  display: block;
+  position: relative;
+}
+.reportHead {
+  margin-bottom: 16px;
+}
+.reportKicker {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--tt-blue-deep);
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+.reportTitleRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.reportTitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink-900);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.reportCount {
+  flex: none;
+  font-size: 12.5px;
+  color: var(--ink-500);
+}
+.reportCount b {
+  color: var(--ink-900);
+  font-weight: 800;
+}
+.reportSection {
+  margin-top: 16px;
+}
+.reportLabel {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-500);
+  margin-bottom: 8px;
+}
+/* 재시술 의향 막대 */
+.reportBar {
+  display: flex;
+  height: 18px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #eef3f7;
+}
+.reportBarYes {
+  background: #4cbff2;
+}
+.reportBarMaybe {
+  background: #9aa1ac;
+}
+.reportBarNo {
+  background: #ea7e7b;
+}
+.reportLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--ink-500);
+}
+.reportLegend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.reportDotYes {
+  background: #4cbff2;
+}
+.reportDotMaybe {
+  background: #9aa1ac;
+}
+.reportDotNo {
+  background: #ea7e7b;
+}
+/* 만족도 */
+.reportSatRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.reportSatScore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.reportStars {
+  font-size: 15px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+.reportSatNum {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink-900);
+  line-height: 1;
+}
+.reportDist {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.reportDistRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.reportDistKey {
+  width: 12px;
+  font-size: 11px;
+  color: var(--ink-500);
+  text-align: center;
+  flex: none;
+}
+.reportDistTrack {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: #eef3f7;
+  overflow: hidden;
+}
+.reportDistFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #f5a623;
+}
+/* 통증 */
+.reportPain {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.reportPainNum {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink-900);
+}
+.reportPainWord {
+  font-size: 13px;
+  color: var(--ink-500);
+}
+.reportMore {
+  display: inline-block;
+  margin-top: 18px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tt-blue-deep);
 }
 
 .author {
@@ -911,7 +1097,8 @@ button.t:hover {
     display: none;
   }
   .page {
-    max-width: 1180px;
+    /* 피드백 5) 표준 컨테이너 너비 1200px (본문 + 사이드바 약 332px, gap 28px). */
+    max-width: 1200px;
     margin: 0 auto;
     padding: 28px 32px 80px;
   }
@@ -924,7 +1111,7 @@ button.t:hover {
     border-bottom: 1px solid rgba(255, 255, 255, 0.7);
   }
   .headerInner {
-    max-width: 1180px;
+    max-width: 1200px;
     margin: 0 auto;
     gap: 24px;
     padding: 12px 32px;

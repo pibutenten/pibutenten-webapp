@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getReviewSummaryFeedPool } from "@/lib/procedure-report";
+import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/lib/types/card";
 import BetaSkinFeed from "./BetaSkinFeed";
 
@@ -24,15 +26,19 @@ const POOL = 80;
 
 export default async function BetaSkinPage() {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.rpc("feed_cards_scored", {
-    p_limit: POOL,
-    p_offset: 0,
-    p_half_life_days: 14,
-    p_jitter_amp: 0.35,
-  });
+  // 피드 카드 + 시술 리포트 풀을 병렬 조회. 리포트는 '리포트' 탭에서 노출.
+  const [{ data }, reportPool] = await Promise.all([
+    supabase.rpc("feed_cards_scored", {
+      p_limit: POOL,
+      p_offset: 0,
+      p_half_life_days: 14,
+      p_jitter_amp: 0.35,
+    }),
+    getReviewSummaryFeedPool(supabase).catch(() => [] as ProcedureReport[]),
+  ]);
 
   // 풀 전체를 클라이언트로 전달 → IntersectionObserver 무한스크롤로 14장씩 reveal.
   const pool = (data ?? []) as CardData[];
 
-  return <BetaSkinFeed initialPool={pool} />;
+  return <BetaSkinFeed initialPool={pool} reportPool={reportPool} />;
 }

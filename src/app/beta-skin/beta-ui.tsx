@@ -19,7 +19,9 @@ import { pickHighlight } from "@/lib/card-highlight";
 import { getQaUrl } from "@/lib/card-url";
 import { parseYoutubeTimestamp, formatTimestamp } from "@/lib/youtube-time";
 import { categorize } from "@/lib/category-sets";
+import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
 import type { CardData } from "@/lib/types/card";
+import type { ProcedureReport } from "@/lib/procedure-report";
 import styles from "./beta-skin.module.css";
 
 /* ---------- 피드백 5) 키워드 → 카테고리별 연한 배경 칩 클래스 ----------
@@ -342,7 +344,10 @@ export function PostCard({
   const isDoctor = !!card.doctor && !card.hide_doctor_credential;
   const allTags = card.keywords ?? [];
   const tags = expanded ? allTags : allTags.slice(0, 7);
-  const body = card.body ?? "";
+  // 피드백 1) 본문 끝 평문 "참고문헌\n1. ..." 꼬리 제거(운영 Critical-6 정합).
+  //   → 본문 렌더(renderBetaBody)와 PubmedRefs 가 참고문헌을 이중 출력하지 않게.
+  //   pubmed_refs 가 SSOT 이므로 본문 평문 꼬리는 잘라낸다.
+  const body = stripLegacyReferencesTail(card.body ?? "");
   const isLong = body.length > 120 || body.split(/\n{2,}/).length > 1;
   const hlColor = pickHighlight(String(card.id));
   const vid = videoInfo(card);
@@ -386,7 +391,8 @@ export function PostCard({
   );
 
   return (
-    <article className={`${styles.card} ${styles.postCard}`}>
+    // 피드백 2) 등장 애니메이션 — 살짝 올라오며 페이드인(무한스크롤 추가 카드 포함).
+    <article className={`${styles.card} ${styles.postCard} ${styles.fadeInUp}`}>
       {/* 항목 5) NEW 배지 — 24h 내 작성. 카드 우상단 안쪽에서 매달림. */}
       {showNew && <span className={styles.newBadge}>NEW</span>}
 
@@ -511,5 +517,149 @@ export function PostCard({
         )}
       </div>
     </article>
+  );
+}
+
+/* ---------- 피드백 4) 시술 리포트 카드 (review_summary) ----------
+ * getReviewSummaryFeedPool 가 주는 컴팩트 ProcedureReport 로 베타 톤 카드 1장 렌더.
+ *   - 헤더: "피부텐텐 리포트" + 시술명 + 회원 경험 N건
+ *   - 재시술 의향 막대(있어요/고민중/없어요)
+ *   - 만족도(별점 + 평균 + 분포 막대)
+ *   - 통증 평균
+ *   - 카드 클릭/타이틀 → /reports/{한글 시술명} (운영 정합: 정식 URL=한글 슬러그)
+ * 운영 ProcedureReportCard 의 표시 요소를 프리뷰용으로 축약(무거운 lazy fetch 없음). */
+const PAIN_WORDS = ["거의 안 아파요", "살짝 따끔", "참을 만해요", "꽤 뻐근", "꽤 아픈 편"];
+function painWord(avg: number): string {
+  if (avg <= 0) return "통증 정보 적음";
+  const idx = Math.min(4, Math.max(0, Math.round(avg) - 1));
+  return PAIN_WORDS[idx];
+}
+
+export function BetaReportCard({ report }: { report: ProcedureReport }) {
+  const {
+    procedureKo,
+    count,
+    avgSatisfaction,
+    satisfactionDist,
+    avgPain,
+    revisit,
+  } = report;
+  // 정식 URL = 한글 슬러그(/reports/{ko}) — 운영 ProcedureReportCard 와 동일.
+  const reportHref = `/reports/${encodeURIComponent(procedureKo)}`;
+
+  const satRounded = Math.round(avgSatisfaction);
+  const maxSat = Math.max(1, ...satisfactionDist);
+  const rTotal = Math.max(1, revisit.yes + revisit.maybe + revisit.no);
+  const yesPct = Math.round((revisit.yes / rTotal) * 100);
+  const maybePct = Math.round((revisit.maybe / rTotal) * 100);
+  const noPct = Math.max(0, 100 - yesPct - maybePct);
+
+  return (
+    <a
+      className={`${styles.card} ${styles.reportCard} ${styles.fadeInUp}`}
+      href={reportHref}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <div className={styles.reportHead}>
+        <span className={styles.reportKicker}>피부텐텐 리포트</span>
+        <div className={styles.reportTitleRow}>
+          <h2 className={styles.reportTitle}>{procedureKo}</h2>
+          <span className={styles.reportCount}>
+            회원 경험 <b>{count}건</b>
+          </span>
+        </div>
+      </div>
+
+      {/* 재시술 의향 */}
+      <div className={styles.reportSection}>
+        <div className={styles.reportLabel}>재시술 의향</div>
+        <div className={styles.reportBar}>
+          {yesPct > 0 && (
+            <span
+              className={styles.reportBarYes}
+              style={{ width: `${yesPct}%` }}
+            />
+          )}
+          {maybePct > 0 && (
+            <span
+              className={styles.reportBarMaybe}
+              style={{ width: `${maybePct}%` }}
+            />
+          )}
+          {noPct > 0 && (
+            <span
+              className={styles.reportBarNo}
+              style={{ width: `${noPct}%` }}
+            />
+          )}
+        </div>
+        <div className={styles.reportLegend}>
+          <span>
+            <i className={styles.reportDotYes} />
+            있어요 {revisit.yes}명
+          </span>
+          {revisit.maybe > 0 && (
+            <span>
+              <i className={styles.reportDotMaybe} />
+              고민 중 {revisit.maybe}명
+            </span>
+          )}
+          <span>
+            <i className={styles.reportDotNo} />
+            없어요 {revisit.no}명
+          </span>
+        </div>
+      </div>
+
+      {/* 만족도 */}
+      <div className={styles.reportSection}>
+        <div className={styles.reportLabel}>만족도</div>
+        <div className={styles.reportSatRow}>
+          <div className={styles.reportSatScore}>
+            <span className={styles.reportStars}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <span
+                  key={n}
+                  style={{ color: n <= satRounded ? "#F5A623" : "#E3E7EB" }}
+                >
+                  ★
+                </span>
+              ))}
+            </span>
+            <span className={styles.reportSatNum}>
+              {avgSatisfaction.toFixed(1)}
+            </span>
+          </div>
+          <div className={styles.reportDist}>
+            {[5, 4, 3, 2, 1].map((score) => {
+              const c = satisfactionDist[score - 1] ?? 0;
+              return (
+                <div className={styles.reportDistRow} key={score}>
+                  <span className={styles.reportDistKey}>{score}</span>
+                  <span className={styles.reportDistTrack}>
+                    <span
+                      className={styles.reportDistFill}
+                      style={{ width: `${(c / maxSat) * 100}%` }}
+                    />
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 통증 */}
+      <div className={styles.reportSection}>
+        <div className={styles.reportLabel}>통증</div>
+        <div className={styles.reportPain}>
+          <span className={styles.reportPainNum}>{avgPain.toFixed(1)}</span>
+          <span className={styles.reportPainWord}>{painWord(avgPain)}</span>
+        </div>
+      </div>
+
+      <span className={styles.reportMore}>리포트 자세히 보기 →</span>
+    </a>
   );
 }
