@@ -59,6 +59,8 @@ const nextConfig: NextConfig = {
       //   bare /beta → /, 그 외 모든 /beta/* 하위 경로는 와일드카드로 대응 경로에 매핑(잔여 URL 안전망).
       { source: "/beta", destination: "/", permanent: true },
       { source: "/beta/:path*", destination: "/:path*", permanent: true },
+      // /search 완전 폐기(2026-06-12). 검색은 루트 /?q= 가 담당 → 308(쿼리 보존: /search?q=x → /?q=x).
+      { source: "/search", destination: "/", permanent: true },
       {
         source: "/:path*",
         has: [

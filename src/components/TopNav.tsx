@@ -71,7 +71,8 @@ function buildNavItems(_hasSession: boolean): NavItem[] {
   // 글쓰기 진입은 앱 라우트(/, /write 등)의 BetaNav 5탭이 담당. 콘텐츠 페이지 TopNav 는 검색·전문의만.
   void _hasSession;
   return [
-    { href: "/search", label: "검색", icon: SearchIcon },
+    // 검색은 루트 /?q= 가 담당(/search 폐기 2026-06-12). 레거시 TopNav(인증 흐름)도 루트로.
+    { href: "/", label: "검색", icon: SearchIcon },
     { href: "/doctors", label: "전문의", icon: DoctorIcon },
   ];
 }
