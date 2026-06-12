@@ -610,13 +610,14 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
 
   return (
     <section className="mx-auto w-full max-w-[680px]">
-      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">오늘의 시술을 기록해요</h1>
+      <h1 className="mb-1 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">내가 받은 시술을 기록해요</h1>
+      <p className="mb-5 text-center text-[13px] text-[var(--text-muted)]">시술일기는 나만 볼 수 있어요</p>
 
       {/* 메인 일기 글상자 */}
       <div className={formBox}>
         {/* 1. 날짜 — 클릭하면 달력 picker(투명 오버레이), 표시는 괄호 없이 */}
         <div>
-          <label className={labelCls}>언제 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
+          <label className={labelCls}>언제 받으셨어요?</label>
           <div className="relative">
             <div className={inputCls + " flex items-center justify-between"} aria-hidden>
               <span className="text-[var(--text)]">{dateLabel}</span>
@@ -629,7 +630,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
 
         {/* 2. 병원 — 이름/지명 검색 → 결과에서 바로 선택(지도 없음). 선택 시 결과창이 부드럽게 접힘. */}
         <div>
-          <label className={labelCls}>어디서 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
+          <label className={labelCls}>어디서 받으셨어요?</label>
           {/* 확정 전 검색 UI — 선택 시 closing 으로 잠깐 접었다가(슥) picked 확정. */}
           {(!picked || closing) && (
             <div className={`overflow-hidden transition-all duration-200 ease-out ${closing ? "max-h-0 opacity-0" : "max-h-[600px] opacity-100"}`}>
@@ -692,7 +693,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
 
         {/* 3. 의사 / 실장 */}
         <div>
-          <label className={labelCls}>누구에게 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span></label>
+          <label className={labelCls}>누구에게 받으셨어요?</label>
           <div className="grid grid-cols-2 gap-2">
             <input ref={doctorRef} className={inputCls} placeholder="원장님" value={doctorName} maxLength={100} onChange={(e) => setDoctorName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); managerRef.current?.focus(); } }} />
@@ -703,7 +704,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
 
         {/* 4. 받은 시술 (행마다 가격·비고) */}
         <div>
-          <label className={labelCls}>어떤 시술을 받으셨어요? <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">가격·비고는 나만 봐요</span></label>
+          <label className={labelCls}>어떤 시술을 받으셨어요?</label>
           {procs.length > 0 && (
             <div className="mb-2 space-y-2">
               {procs.map((p) => (
@@ -744,7 +745,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
 
         {/* 5. 오늘의 시술 일기 — 비공개 메모, 최대 400자 (후기 카운터와 동일 표기) */}
         <div>
-          <label className={labelCls}>오늘의 시술 일기 <span className="ml-1 rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)]">나만 봐요</span> <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">({diary.length} / 400)</span></label>
+          <label className={labelCls}>오늘의 시술 일기 <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">({diary.length} / 400)</span></label>
           <textarea rows={3} maxLength={400} value={diary} onChange={(e) => setDiary(e.target.value)} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
         </div>
 
