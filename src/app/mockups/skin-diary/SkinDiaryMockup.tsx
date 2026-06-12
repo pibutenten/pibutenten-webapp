@@ -424,6 +424,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   const [doctorName, setDoctorName] = useState(""); // 원장님(자유 입력)
   const [managerName, setManagerName] = useState(""); // 실장님(자유 입력)
   const [saving, setSaving] = useState(false);
+  const [savedModal, setSavedModal] = useState(false); // 저장 완료 모달(→ 시술후기 유도).
   // 시술을 추가하면 해당 행의 '용량' 칸으로 커서를 옮겨 이어서 입력하게 함.
   const [focusId, setFocusId] = useState<number | null>(null);
   const unitRefs = useRef<Record<number, HTMLInputElement | null>>({});
@@ -560,7 +561,6 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
     setFocusId(nid);
   }
   const upd = (id: number, p: Partial<DiaryProc>) => setProcs((ps) => ps.map((x) => (x.id === id ? { ...x, ...p } : x)));
-  const reviewed = (p: DiaryProc) => !!(p.satisfaction || p.pain || p.downtime || p.revisit || p.effectAreas.length || p.effectOnset || p.oneliner);
   const tq = tag.trim(); const tlow = tq.toLowerCase();
   const acMatches = tq ? PROCEDURES.filter((p) => (p.label.includes(tq) || (EN2KO[tlow] && p.label === EN2KO[tlow])) && !procs.some((x) => x.label === p.label)).slice(0, 8) : [];
   const acExact = PROCEDURES.some((p) => p.label === tq) || !!EN2KO[tlow];
@@ -600,8 +600,8 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
         setSaving(false);
         return;
       }
-      toast("기록을 저장했어요");
-      setTimeout(() => go("record"), 700);
+      setSaving(false);
+      setSavedModal(true); // 저장 완료 → 시술후기 유도 모달.
     } catch {
       toast("네트워크 오류가 발생했어요");
       setSaving(false);
@@ -750,61 +750,27 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
 
       </div>
 
-      {procs.length > 0 && (
-        <p className="mb-1 mt-5 px-2 text-center text-[14px] leading-relaxed text-[var(--text-secondary)]">
-          다른 분들을 위해 시술후기를 남겨주세요.<br />
-          <span className="text-[var(--text-muted)]">지금 당장 쓰기 어려우면 나중에 알려드릴게요!</span>
-        </p>
-      )}
-
-      {/* 형제 글상자 — 시술별 후기 (받은 시술마다 하나씩, 닫힌 상태) */}
-      {procs.map((p) => {
-        const isReviewed = reviewed(p);
-        return (
-          <div key={p.id} className={cardBox + " mt-3"}>
-            {p.open ? (
-              <ReviewFormBody
-                cat={p.cat}
-                label={p.label}
-                v={p}
-                set={(patch) => upd(p.id, patch)}
-                submitLabel="후기 올리기"
-                onSubmit={() => { upd(p.id, { open: false }); toast("후기를 저장했어요"); }}
-                topRight={<button type="button" onClick={() => upd(p.id, { open: false })} className="cursor-pointer text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--text-secondary)]">접기</button>}
-              />
-            ) : (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[15px] font-bold text-[var(--text)]">{p.label} 후기</span>
-                <span className="flex shrink-0 items-center gap-2">
-                  {p.later ? (
-                    <>
-                      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: "#B6790F", background: "#FBEFD9" }}>나중에 알림</span>
-                      <button type="button" onClick={() => upd(p.id, { later: false })} className="text-[12px] font-semibold text-[var(--text-secondary)] underline">취소</button>
-                    </>
-                  ) : isReviewed ? (
-                    <>
-                      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: "#2E9E68", background: "#E2F4EA" }}>작성됨</span>
-                      <button type="button" onClick={() => upd(p.id, { open: true })} className="rounded-md bg-[var(--bg)] px-3 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">수정</button>
-                    </>
-                  ) : (
-                    <>
-                      <button type="button" onClick={() => upd(p.id, { open: true, later: false })} className="rounded-md bg-[var(--primary)] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[var(--primary-dark)]">후기 작성하기</button>
-                      <button type="button" onClick={() => upd(p.id, { later: true })} className="rounded-md bg-[var(--bg)] px-3 py-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">나중에 쓰기</button>
-                    </>
-                  )}
-                </span>
-              </div>
-            )}
-            {p.later && !p.open && (
-              <p className="mt-2 text-[12px] text-[var(--text-muted)]">3일·7일·30일 뒤 알림으로 채울 수 있게 알려드릴게요.</p>
-            )}
-          </div>
-        );
-      })}
-
       <div className="mt-5 flex justify-center">
         <button type="button" onClick={handleSave} disabled={saving} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-wait disabled:opacity-60">{saving ? "저장 중…" : "기록 저장하기"}</button>
       </div>
+
+      {/* 저장 완료 모달 — 일기 저장 후 시술후기로 자연스럽게 유도(지금/나중에). */}
+      {savedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={() => { setSavedModal(false); go("record"); }}>
+          <div className="w-full max-w-[340px] rounded-[var(--radius)] bg-white p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[28px]" style={{ background: "var(--primary-soft)" }}>✅</div>
+            <p className="text-[17px] font-extrabold text-[var(--text)]">일기 기록을 완료했어요</p>
+            <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
+              다른 분들을 위해 시술후기를 남겨주세요.<br />
+              <span className="text-[var(--text-muted)]">지금 당장 쓰기 어려우면 나중에 알려드릴게요!</span>
+            </p>
+            <div className="mt-5 space-y-2">
+              <a href="/write?tab=review" className="block w-full rounded-md bg-[var(--primary)] py-3 text-[14.5px] font-bold text-white">시술후기 남기기</a>
+              <button type="button" onClick={() => { setSavedModal(false); go("record"); }} className="w-full rounded-md bg-[var(--bg-soft)] py-3 text-[14.5px] font-semibold text-[var(--text-secondary)]">나중에 쓸게요</button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
