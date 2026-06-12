@@ -13,7 +13,7 @@
  *   - 영상 pill 타임스탬프: external_url(youtube t/start) → 없으면 video.youtube_url 에서 mm:ss.
  */
 
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import CardAvatar from "@/components/card/CardAvatar";
 import { pickHighlight } from "@/lib/card-highlight";
@@ -21,6 +21,11 @@ import { getQaUrl } from "@/lib/card-url";
 import { parseYoutubeTimestamp, formatTimestamp } from "@/lib/youtube-time";
 import { categorize } from "@/lib/category-sets";
 import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getActiveIdentityId } from "@/lib/active-identity";
+import { getSessionId } from "@/lib/impression-queue";
+import { showToast } from "@/lib/toast";
+import CommentsBlock from "@/components/comments/CommentsBlock";
 import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import styles from "./beta-skin.module.css";
@@ -40,8 +45,11 @@ const NONFEED_SUGGEST = ["리프팅", "스킨부스터", "보톡스", "리쥬란
 export function useBetaSearchRouting() {
   const router = useRouter();
   return {
-    onSearchSubmit: (q: string) =>
-      router.push(`/beta-skin?q=${encodeURIComponent(q)}`),
+    onSearchSubmit: (q: string) => {
+      // 빈/공백 검색어는 서버 재검색·search_logs 오염 방지를 위해 차단.
+      const t = q.trim();
+      if (t) router.push(`/beta-skin?q=${encodeURIComponent(t)}`);
+    },
     searchCategories: NONFEED_CATEGORIES,
     onPickCategory: (key: string) => router.push(`/beta-skin?cat=${key}`),
     searchSuggestions: NONFEED_SUGGEST,
@@ -355,80 +363,143 @@ export const TAG_TONES = [
  *   - 항목 3) '더보기/접기' 라벨은 muted 회색·일반 굵기·작게(절제).
  *   - 항목 4) 태그 클릭 → onTagClick(키워드) 로 헤더 검색창에 채워 필터.
  *   - 아바타는 운영 CardAvatar 로 교체(원장 얼굴 보정). */
-/* ---------- 피드백 2) 댓글 블록 (운영 CommentsBlock 톤의 프리뷰판) ----------
- * 샘플 댓글 2~3 + 입력창. 입력은 타이핑 가능, 제출 시 로컬 추가(프리뷰 — 서버 미전송).
- * 피드 카드(펼침 후 댓글 아이콘 토글)·글 상세 둘 다 재사용. */
-const SAMPLE_COMMENTS = [
-  {
-    name: "글로우업",
-    text: "저도 멍 잘 드는 체질인데 재생테이프 붙이니 5일 만에 가라앉았어요!",
-    when: "1주 전",
-  },
-  {
-    name: "달빛피부",
-    text: "다음 날 바로 출근했어요. 마스크 쓰니까 티 안 났어요 ㅎㅎ",
-    when: "5일 전",
-  },
-];
-
-export function BetaComments({ count }: { count?: number }) {
-  const [items, setItems] = useState(SAMPLE_COMMENTS);
-  const [draft, setDraft] = useState("");
-
-  const submit = () => {
-    const t = draft.trim();
-    if (!t) return;
-    // 프리뷰: 로컬에만 추가(서버 미전송).
-    setItems((prev) => [{ name: "나", text: t, when: "방금" }, ...prev]);
-    setDraft("");
+/* ---------- 카드 액션 훅 (좋아요·저장·공유 실제 동작) ----------
+ * 운영 useCardEngagement 의 좋아요/저장/공유 RPC 흐름을 베타 카드용으로 옮긴 경량 훅.
+ *   - me 3-state: undefined(로딩중·클릭 무시) / null(비로그인·토스트 안내) / {id}(로그인·정상).
+ *   - 좋아요/저장: 낙관적 업데이트 후 toggle_card_like / toggle_card_save RPC 권위값으로 동기화.
+ *       실패 시 롤백 + 토스트. p_identity_id 는 active 명함(getActiveIdentityId).
+ *   - 공유: shareBetaCard(navigator.share / clipboard) 후 card_shares INSERT(channel='link-copy').
+ *       비로그인이면 profile_id=null, session_id 로 dedup(운영 0117 정책 정합). */
+export type BetaViewerState = { liked?: boolean; saved?: boolean };
+export function useBetaCardActions(card: CardData, viewer?: BetaViewerState) {
+  const [me, setMe] = useState<{ id: string } | null | undefined>(undefined);
+  const [liked, setLiked] = useState(viewer?.liked ?? false);
+  const [likeCount, setLikeCount] = useState(card.like_count ?? 0);
+  const [likePending, setLikePending] = useState(false);
+  const [saved, setSaved] = useState(viewer?.saved ?? false);
+  const [saveCount, setSaveCount] = useState(card.save_count ?? 0);
+  const [savePending, setSavePending] = useState(false);
+  const [shareCount, setShareCount] = useState(card.share_count ?? 0);
+  useEffect(() => {
+    let alive = true;
+    createSupabaseBrowserClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        if (alive) setMe(data.user ? { id: data.user.id } : null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const toggleLike = useCallback(() => {
+    if (me === undefined) return;
+    if (me === null) {
+      showToast("좋아요는 로그인 후 이용할 수 있어요", { tone: "default" });
+      return;
+    }
+    if (likePending) return;
+    setLikePending(true);
+    const was = liked;
+    setLiked(!was);
+    setLikeCount((c) => (was ? Math.max(0, c - 1) : c + 1));
+    (async () => {
+      try {
+        const { data, error } = await createSupabaseBrowserClient().rpc(
+          "toggle_card_like",
+          { p_card_id: card.id, p_identity_id: getActiveIdentityId() },
+        );
+        if (error) throw error;
+        const row = (data as { liked: boolean; like_count: number }[] | null)?.[0];
+        if (row) {
+          setLiked(row.liked);
+          setLikeCount(row.like_count);
+        }
+      } catch {
+        setLiked(was);
+        setLikeCount((c) => (was ? c + 1 : Math.max(0, c - 1)));
+        showToast("잠시 후 다시 시도해 주세요", { tone: "danger" });
+      } finally {
+        setLikePending(false);
+      }
+    })();
+  }, [card.id, liked, likePending, me]);
+  const toggleSave = useCallback(() => {
+    if (me === undefined) return;
+    if (me === null) {
+      showToast("저장은 로그인 후 이용할 수 있어요", { tone: "default" });
+      return;
+    }
+    if (savePending) return;
+    setSavePending(true);
+    const was = saved;
+    setSaved(!was);
+    setSaveCount((c) => (was ? Math.max(0, c - 1) : c + 1));
+    (async () => {
+      try {
+        const { data, error } = await createSupabaseBrowserClient().rpc(
+          "toggle_card_save",
+          { p_card_id: card.id, p_identity_id: getActiveIdentityId() },
+        );
+        if (error) throw error;
+        const row = (data as { saved: boolean; save_count: number }[] | null)?.[0];
+        if (row) {
+          setSaved(row.saved);
+          setSaveCount(row.save_count);
+        }
+      } catch {
+        setSaved(was);
+        setSaveCount((c) => (was ? c + 1 : Math.max(0, c - 1)));
+        showToast("잠시 후 다시 시도해 주세요", { tone: "danger" });
+      } finally {
+        setSavePending(false);
+      }
+    })();
+  }, [card.id, saved, savePending, me]);
+  const doShare = useCallback(async () => {
+    const href = cardHref(card);
+    await shareBetaCard(href, card.title ?? undefined);
+    try {
+      const sb = createSupabaseBrowserClient();
+      const { data: u } = await sb.auth.getUser();
+      const profileId = u.user ? (getActiveIdentityId() ?? u.user.id) : null;
+      setShareCount((c) => c + 1);
+      await sb.from("card_shares").insert({
+        card_id: card.id,
+        profile_id: profileId,
+        session_id: getSessionId(),
+        channel: "link-copy",
+      });
+    } catch {
+      /* 공유 카운트 실패 무시 */
+    }
+  }, [card]);
+  return {
+    me,
+    like: { active: liked, count: likeCount, pending: likePending, toggle: toggleLike },
+    save: { active: saved, count: saveCount, pending: savePending, toggle: toggleSave },
+    share: { count: shareCount, share: doShare },
   };
-
-  return (
-    <div className={styles.comments} onClick={(e) => e.stopPropagation()}>
-      <h3 className={styles.commentHead}>댓글 {count ?? items.length}</h3>
-      {items.map((c, i) => (
-        <div className={styles.comment} key={`${c.name}-${i}`}>
-          <span className={`${styles.avatar} ${styles.avatarGray}`} />
-          <div>
-            <div className={styles.commentName}>{c.name}</div>
-            <p className={styles.commentText}>{c.text}</p>
-            <div className={styles.commentWhen}>{c.when}</div>
-          </div>
-        </div>
-      ))}
-      <div className={styles.commentInput}>
-        <input
-          type="text"
-          placeholder="따뜻한 댓글을 남겨 주세요"
-          aria-label="댓글 입력"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-        />
-        <button type="button" onClick={submit}>
-          등록
-        </button>
-      </div>
-    </div>
-  );
 }
 
 export function PostCard({
   card,
   onTagClick,
+  viewer,
 }: {
   card: CardData;
   /** 항목 4) 카드 태그 클릭 → 그 키워드로 검색·필터 (헤더 검색창에 채움). */
   onTagClick?: (keyword: string) => void;
+  /** 서버 prefetch 한 좋아요/저장 상태 — 첫 렌더부터 정확한 active 표시. */
+  viewer?: BetaViewerState;
 }) {
   const [expanded, setExpanded] = useState(false);
-  // 피드백 2) 댓글 펼침 — 댓글 아이콘 클릭 시 샘플 댓글 + 입력창 노출.
+  // 피드백 2) 댓글 펼침 — 댓글 아이콘 클릭 시 실제 댓글(CommentsBlock) 노출.
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // cards 테이블에 comment_count 컬럼이 없어 정적값은 항상 0 → 운영 Card.tsx 패턴 이식.
+  //   CommentsBlock 의 onCountChange 로 실제 댓글 수를 받아 갱신.
+  const [commentCount, setCommentCount] = useState(card.comment_count ?? 0);
+  // 좋아요·저장·공유 실제 동작.
+  const act = useBetaCardActions(card, viewer);
 
   const authorName = card.doctor?.name ?? card.author?.display_name ?? "회원";
   const isDoctor = !!card.doctor && !card.hide_doctor_credential;
@@ -571,9 +642,19 @@ export function PostCard({
       )}
 
       <div className={styles.postFoot}>
-        <span className={styles.pf}>
-          <IconHeart /> {card.like_count ?? 0}
-        </span>
+        {/* 좋아요 — 실제 toggle_card_like RPC. active 시 pfOn. */}
+        <button
+          type="button"
+          className={`${styles.pf} ${styles.pfBtn} ${act.like.active ? styles.pfOn : ""}`}
+          aria-pressed={act.like.active}
+          aria-label="좋아요"
+          onClick={(e) => {
+            e.stopPropagation();
+            act.like.toggle();
+          }}
+        >
+          <IconHeart /> {act.like.count}
+        </button>
         {/* 피드백 2) 댓글 아이콘 클릭 → 댓글 섹션 토글. */}
         <button
           type="button"
@@ -585,19 +666,29 @@ export function PostCard({
             setCommentsOpen((v) => !v);
           }}
         >
-          <IconComment /> {card.comment_count ?? 0}
+          <IconComment /> {commentCount}
         </button>
-        <span className={styles.pf}>
-          <IconBookmark /> {card.save_count ?? 0}
-        </span>
-        {/* 항목 5) 공유 — 실제 URL 을 navigator.share / clipboard 로. */}
+        {/* 저장 — 실제 toggle_card_save RPC. active 시 pfSaved. */}
+        <button
+          type="button"
+          className={`${styles.pf} ${styles.pfBtn} ${act.save.active ? styles.pfSaved : ""}`}
+          aria-pressed={act.save.active}
+          aria-label="저장"
+          onClick={(e) => {
+            e.stopPropagation();
+            act.save.toggle();
+          }}
+        >
+          <IconBookmark /> {act.save.count}
+        </button>
+        {/* 항목 5) 공유 — 실제 URL 을 navigator.share / clipboard 로 + card_shares INSERT. */}
         <button
           type="button"
           className={styles.pfBtn}
           aria-label="공유"
           onClick={(e) => {
             e.stopPropagation();
-            void shareBetaCard(href, card.title ?? undefined);
+            void act.share.share();
           }}
         >
           <IconShare />
@@ -617,8 +708,20 @@ export function PostCard({
         )}
       </div>
 
-      {/* 피드백 2) 댓글 섹션 — 댓글 아이콘 클릭 시 펼침. */}
-      {commentsOpen && <BetaComments count={card.comment_count ?? undefined} />}
+      {/* 피드백 2) 댓글 섹션 — 댓글 아이콘 클릭 시 실제 댓글(운영 CommentsBlock) 펼침. */}
+      {commentsOpen && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <CommentsBlock
+            cardId={card.id}
+            doctorSlug={card.doctor?.slug ?? null}
+            cardDoctorId={card.doctor?.id ?? null}
+            isPublishedQa
+            showInput
+            disableAutoFocus
+            onCountChange={setCommentCount}
+          />
+        </div>
+      )}
     </article>
   );
 }

@@ -4,8 +4,11 @@
  * MyView — /beta-skin/my "마이" 본문 (클라이언트).
  *
  * 공용 셸(BetaSkinShell)을 active="마이" 로 사용.
- * 전부 샘플 데이터: 프로필 카드 + 통계 3개 + 메뉴 리스트 2묶음 + 사이드(CTA·팔로우).
- * 메뉴 항목은 프리뷰 라우트로 연결(내 노트→record / 노트 기록→write).
+ * 프로필 카드·통계는 샘플. 메뉴 리스트 2묶음은 실제 목적지로 연결:
+ *   - 내 노트→/beta-skin/record(베타), 노트 기록→/beta-skin/write(베타)
+ *   - 북마크→/my, 키워드/프로필 편집→/settings/profile
+ *   - 알림→/notifications, 계정→/settings, 문의→/contact, 약관→/terms
+ * 쇼핑 주문 내역(미완성)·팔로우(운영 미지원) 항목은 제거.
  */
 
 import BetaSkinShell from "../BetaSkinShell";
@@ -20,16 +23,16 @@ const STATS = [
 
 const MENU_MAIN = [
   { icon: "💉", bg: "var(--tag-pink-bg)", label: "내 시술 노트", href: "/beta-skin/record" },
-  { icon: "🔖", bg: "var(--tag-blue-bg)", label: "북마크한 글", href: "#" },
-  { icon: "🏷️", bg: "var(--tag-green-bg)", label: "관심 키워드 관리", href: "#" },
-  { icon: "🛍️", bg: "var(--tag-purple-bg)", label: "쇼핑 주문 내역", href: "#" },
+  { icon: "🔖", bg: "var(--tag-blue-bg)", label: "북마크한 글", href: "/my" },
+  { icon: "🏷️", bg: "var(--tag-green-bg)", label: "관심 키워드 관리", href: "/settings/profile" },
+  // 쇼핑 주문 내역: 쇼핑 미완성으로 항목 제거(연결할 운영 화면 없음).
 ];
 
 const MENU_SUB = [
-  { icon: "🔔", label: "알림 설정" },
-  { icon: "🔒", label: "계정 및 개인정보" },
-  { icon: "💬", label: "고객센터 · 문의하기" },
-  { icon: "📄", label: "이용약관 · 개인정보처리방침" },
+  { icon: "🔔", label: "알림 설정", href: "/notifications" },
+  { icon: "🔒", label: "계정 및 개인정보", href: "/settings" },
+  { icon: "💬", label: "고객센터 · 문의하기", href: "/contact" },
+  { icon: "📄", label: "이용약관 · 개인정보처리방침", href: "/terms" },
 ];
 
 export default function MyView() {
@@ -51,24 +54,6 @@ export default function MyView() {
           노트 기록하기
         </a>
       </section>
-
-      <section className={`${styles.card} ${styles.sideEmoji}`}>
-        <h3>내가 팔로우한 전문의</h3>
-        <div className={styles.sideList}>
-          <a href="#">
-            <span aria-hidden="true">👩‍⚕️</span>
-            <span>
-              <b>정한미</b> · 힐하우스피부과의원
-            </span>
-          </a>
-          <a href="#">
-            <span aria-hidden="true">👨‍⚕️</span>
-            <span>
-              <b>이도영</b> · 피부과 전문의
-            </span>
-          </a>
-        </div>
-      </section>
     </>
   );
 
@@ -84,7 +69,7 @@ export default function MyView() {
               피부텐텐과 함께한 지 248일째
             </div>
           </div>
-          <a className={styles.profileEdit} href="#">
+          <a className={styles.profileEdit} href="/settings/profile">
             프로필 편집 ›
           </a>
         </div>
@@ -114,7 +99,7 @@ export default function MyView() {
       {/* 메뉴 (설정) */}
       <section className={`${styles.card} ${styles.menu}`}>
         {MENU_SUB.map((m) => (
-          <a href="#" key={m.label}>
+          <a href={m.href} key={m.label}>
             <span className={styles.mi} style={{ background: "#F2F5F8" }}>
               {m.icon}
             </span>

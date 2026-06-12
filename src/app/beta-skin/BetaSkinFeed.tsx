@@ -1,29 +1,37 @@
 "use client";
 
 /**
- * BetaSkinFeed — /beta-skin 신규 스킨 프리뷰 (피드 본문, 클라이언트).
+ * BetaSkinFeed — /beta-skin 신규 스킨 (피드 본문, 클라이언트).
  *
  * 공용 셸(BetaSkinShell)을 사용 → 헤더·탭바·캔버스 오버레이는 셸이 담당.
  * 이 컴포넌트는 칩(필터)·피드 카드 리스트·데스크탑 사이드바 "내용"만 담당.
  *
- * 데이터: 서버(page.tsx)에서 feed_cards_scored 로 받은 풀(CardData[]) 을 prop 으로 받아
- *   카테고리 칩 + 키워드 칩으로 클라 필터(useState) + IntersectionObserver 무한스크롤로 점진 노출.
- *   서버 왕복 없음 — 받아온 풀을 14장씩 reveal, 풀 소진 시 중단.
- *
- * 키워드 필터: 사이드바 '인기 태그' 클릭 + 내 노트(/beta-skin/record) 관심 키워드 칩에서
- *   넘어온 ?kw= 쿼리로 시드. 카테고리 칩과 AND 결합(둘 다 만족하는 카드만 노출).
+ * 데이터(운영 정합):
+ *   - 서버(page.tsx)에서 전체=feed_cards_scored / 검색(?q=)=fetchCardList 로 받은
+ *     초기 풀(initialPool, 앞 24장)과 전체 순서(orderedIds)를 prop 으로 받는다.
+ *   - 무한스크롤은 운영 BetaFeed 와 동일하게 orderedIds 순서대로 /api/cards?ids= 로 다음 묶음을
+ *     이어 받아 풀에 append (서버 검색·일반 탭 공통, 리포트 탭 제외).
+ *   - 검색은 서버 라우팅: 엔터/추천/태그 클릭 → /beta-skin?q= 로 이동(서버 재검색).
+ *   - 칩(카테고리)은 클라 필터(받아온 풀을 즉시 거름).
+ *   - 좋아요/저장 viewer 상태(viewerStates)는 PostCard 로 내려 첫 렌더부터 정확히 표시.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import BetaSkinShell from "./BetaSkinShell";
 import styles from "./beta-skin.module.css";
-import { PostCard, BetaReportCard, cardHref, catTagClass } from "./beta-ui";
+import {
+  PostCard,
+  BetaReportCard,
+  cardHref,
+  catTagClass,
+  type BetaViewerState,
+} from "./beta-ui";
 
-/* 한 번에 노출할 카드 수 (초기 + 추가 배치 단위) */
-const PAGE = 14;
+/* 무한스크롤 한 번에 확장할 카드 수 */
+const PAGE = 20;
 
 /* ---------- 칩 정의 (전체 + 4종) ---------- */
 type ChipKey = "all" | "qa" | "review" | "doodle" | "review_summary";
@@ -41,49 +49,59 @@ function matchesChip(c: CardData, chip: ChipKey): boolean {
   return key === chip;
 }
 
-/* 항목 5) 검색 일치 — 카드 title/body/keywords 에 부분일치(대소문자 무시).
- * 항목 4) 태그 클릭도 이 같은 메커니즘(검색어를 헤더 검색창에 채움)을 탄다. */
-function matchesQuery(c: CardData, q: string): boolean {
-  const needle = q.trim().toLowerCase();
-  if (!needle) return true;
-  const hay = [
-    c.title ?? "",
-    c.body ?? "",
-    ...(c.keywords ?? []),
-  ]
-    .join(" ")
-    .toLowerCase();
-  return hay.includes(needle);
-}
-
 /* ---------- 클라이언트 루트 ---------- */
 export default function BetaSkinFeed({
   initialPool,
+  orderedIds = [],
   reportPool = [],
+  searchReport = null,
+  searchQuery,
+  viewerStates,
+  popularQueries = [],
 }: {
   initialPool: CardData[];
-  /** 피드백 4) 시술 리포트 풀 — '리포트' 탭에서 노출. 0건이면 빈 안내. */
+  /** 줄세우기(랭킹) 전체 순서의 카드 ID 목록. 무한스크롤이 이 순서대로 ID 로 이어 받음. */
+  orderedIds?: number[];
+  /** '리포트' 탭에서 노출할 시술 리포트 풀. 0건이면 빈 안내. */
   reportPool?: ProcedureReport[];
+  /** 검색 시 시술명이 리포트와 매칭되면 '전체' 탭 맨 위에 노출할 리포트 1장. */
+  searchReport?: ProcedureReport | null;
+  /** 서버 검색 중이면 검색어 — 비어 있으면 일반 피드. */
+  searchQuery?: string;
+  /** 서버 prefetch 한 좋아요/저장 상태(card.id → 상태). */
+  viewerStates?: Record<number, BetaViewerState>;
+  /** 헤더 검색 드롭다운에 노출할 실제 인기검색어(get_top_search_queries). */
+  popularQueries?: string[];
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [chip, setChip] = useState<ChipKey>("all");
-  // 항목 5) 검색어 — 헤더 검색창 + 태그 클릭이 모두 이 값을 채운다.
-  //   카드 title/body/keywords 부분일치(대소문자 무시)로 피드를 필터.
-  const [query, setQuery] = useState("");
-  // 무한스크롤: 현재 노출 개수. 칩/검색 전환 시 초기값(PAGE)으로 리셋.
-  const [visible, setVisible] = useState(PAGE);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  // 헤더 검색 입력값 — 초기값은 현재 서버 검색어. 변경은 로컬, 제출 시 서버 라우팅.
+  const [searchValue, setSearchValue] = useState(searchQuery ?? "");
 
-  // 내 노트 키워드 칩(?kw=) + 피드백 4) 비-피드 페이지 헤더 검색(?q=) 둘 다 검색어로 시드.
-  //   ?q= 우선(명시적 검색 라우팅), 없으면 ?kw=.
-  const qParam = searchParams.get("q");
-  const kwParam = searchParams.get("kw");
+  // 풀 + 무한스크롤 커서(운영 BetaFeed 패턴).
+  const [pool, setPool] = useState<CardData[]>(initialPool);
+  const [hasMore, setHasMore] = useState(orderedIds.length > initialPool.length);
+  const [loading, setLoading] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingRef = useRef(false);
+  const cursorRef = useRef(initialPool.length);
+  const orderedIdsRef = useRef(orderedIds);
+  orderedIdsRef.current = orderedIds;
+
+  // 서버가 새 순서·초기풀을 내려주면(검색 라우팅 등) 풀·커서 리셋.
   useEffect(() => {
-    const seed = (qParam ?? kwParam ?? "").trim();
-    if (seed) setQuery(seed);
-  }, [qParam, kwParam]);
+    setPool(initialPool);
+    cursorRef.current = initialPool.length;
+    setHasMore(orderedIds.length > initialPool.length);
+  }, [initialPool, orderedIds]);
 
-  // 피드백 1/4) 비-피드 드롭다운 '카테고리 바로가기' → /beta-skin?cat= 로 넘어온 칩 시드.
+  // 서버 검색어가 바뀌면 입력값 동기화(라우팅으로 새 검색 진입 시).
+  useEffect(() => {
+    setSearchValue(searchQuery ?? "");
+  }, [searchQuery]);
+
+  // 비-피드 드롭다운 '카테고리 바로가기' → /beta-skin?cat= 로 넘어온 칩 시드.
   const catParam = searchParams.get("cat");
   useEffect(() => {
     const valid: ChipKey[] = ["all", "qa", "review", "doodle", "review_summary"];
@@ -92,88 +110,117 @@ export default function BetaSkinFeed({
     }
   }, [catParam]);
 
-  // 항목 4) 태그 클릭 → 그 키워드를 검색창에 채워 같은 필터를 태운다.
-  //   같은 키워드 재클릭 시 해제(빈 검색어 → 전체 복귀).
-  const applyTag = (k: string) =>
-    setQuery((cur) => (cur.trim() === k ? "" : k));
+  // 최신값 ref — mount-once 스크롤 콜백이 항상 최신 hasMore/chip 참조.
+  const hasMoreRef = useRef(hasMore);
+  hasMoreRef.current = hasMore;
+  const chipRef = useRef(chip);
+  chipRef.current = chip;
 
+  // 풀 확장 — 저장된 순서(orderedIds)대로 다음 묶음을 ID 로 받아 append (운영 BetaFeed loadMore).
+  //   리포트 탭은 통계 목록이라 확장 안 함. 순서목록 끝까지 받으면 종료.
+  const loadMore = useCallback(async () => {
+    if (loadingRef.current || !hasMoreRef.current || chipRef.current === "review_summary")
+      return;
+    const ids = orderedIdsRef.current;
+    const start = cursorRef.current;
+    const nextIds = ids.slice(start, start + PAGE);
+    if (nextIds.length === 0) {
+      setHasMore(false);
+      return;
+    }
+    loadingRef.current = true;
+    setLoading(true);
+    // 삭제된 ID 조회 누락이 있어도 같은 자리 재시도 안 하도록 커서를 먼저 전진.
+    cursorRef.current = start + nextIds.length;
+    try {
+      const res = await fetch(`/api/cards?ids=${nextIds.join(",")}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        setHasMore(false);
+        return;
+      }
+      const data = (await res.json()) as { cards: CardData[] };
+      const byId = new Map((data.cards ?? []).map((c) => [c.id, c]));
+      // .in() 조회는 순서 보장 X → 저장된 순서(nextIds)대로 재정렬.
+      const ordered = nextIds
+        .map((id) => byId.get(id))
+        .filter((c): c is CardData => Boolean(c));
+      setPool((prev) => {
+        const seen = new Set(prev.map((c) => c.id));
+        return [...prev, ...ordered.filter((c) => !seen.has(c.id))];
+      });
+      if (cursorRef.current >= ids.length) setHasMore(false);
+    } catch {
+      setHasMore(false);
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
+  }, []);
+
+  // sentinel 관찰 — mount 시 1회만 설정(운영 BetaFeed 와 동일). loadMore 가 ref 로 최신값 참조.
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const ob = new IntersectionObserver(
+      (e) => {
+        if (e[0]?.isIntersecting) loadMore();
+      },
+      { rootMargin: "320px 0px" },
+    );
+    ob.observe(node);
+    return () => ob.disconnect();
+  }, [loadMore]);
+
+  // 검색 제출(엔터/추천 클릭) → 서버 재검색 라우팅.
+  const submitSearch = (q: string) => {
+    const t = q.trim();
+    router.push(t ? `/beta-skin?q=${encodeURIComponent(t)}` : "/beta-skin");
+  };
+  // 태그 클릭 → 그 키워드로 서버 검색 라우팅(운영 동일).
+  const applyTag = (k: string) => submitSearch(k);
+
+  // ── 일반 탭 — 풀을 카테고리 칩으로 즉시 필터 ──
+  const isReportTab = chip === "review_summary";
   const filtered = useMemo(
-    () =>
-      initialPool.filter(
-        (c) => matchesChip(c, chip) && matchesQuery(c, query),
-      ),
-    [initialPool, chip, query],
+    () => (isReportTab ? [] : pool.filter((c) => matchesChip(c, chip))),
+    [pool, chip, isReportTab],
   );
 
-  // 피드백 4) '리포트' 탭 — 리포트 풀을 노출(검색어 있으면 시술명 부분일치 필터).
-  const isReportTab = chip === "review_summary";
+  // ── 리포트 탭 — 검색 중이면 시술명(한글/영문) 부분일치 필터 ──
   const filteredReports = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+    const needle = (searchQuery ?? "").trim().toLowerCase();
     if (!needle) return reportPool;
     return reportPool.filter((r) =>
       [r.procedureKo, r.en].join(" ").toLowerCase().includes(needle),
     );
-  }, [reportPool, query]);
+  }, [reportPool, searchQuery]);
 
-  // 칩/검색어가 바뀌면 노출 개수 초기화 (필터된 목록 기준으로 다시 점진 노출).
-  useEffect(() => {
-    setVisible(PAGE);
-  }, [chip, query]);
+  // 검색('전체' 탭)일 때 시술명이 리포트와 매칭되면 결과 맨 위에 리포트 카드 1장.
+  const topReport = searchQuery && chip === "all" ? searchReport : null;
 
-  const shown = useMemo(
-    () => filtered.slice(0, visible),
-    [filtered, visible],
-  );
-  const hasMore = visible < filtered.length;
-
-  // 하단 sentinel 이 뷰포트(오버레이 = 풀뷰포트)에 들어오면 14장 추가 노출.
-  useEffect(() => {
-    if (!hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setVisible((v) => Math.min(v + PAGE, filtered.length));
-        }
-      },
-      { rootMargin: "320px 0px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, filtered.length]);
-
-  // 전체 풀 keywords 빈도 순위(중복 회피용 단일 출처).
-  const rankedTags = useMemo(() => {
+  // 전체 풀 keywords 빈도 순위(사이드 인기 태그용).
+  const popularTags = useMemo(() => {
     const freq = new Map<string, number>();
-    for (const c of initialPool) {
+    for (const c of pool) {
       for (const k of c.keywords ?? []) {
         freq.set(k, (freq.get(k) ?? 0) + 1);
       }
     }
     return [...freq.entries()]
       .sort((a, b) => b[1] - a[1])
-      .map(([k]) => k);
-  }, [initialPool]);
+      .map(([k]) => k)
+      .slice(0, 8);
+  }, [pool]);
 
-  // 사이드바 인기 태그: 상위 8.
-  const popularTags = useMemo(() => rankedTags.slice(0, 8), [rankedTags]);
-  // 피드백 1) 드롭다운 추천 키워드: 사이드(0~8)와 겹치지 않는 다음 셋(8~16).
-  //   풀이 작아 8개 미만이면, 앞쪽에서 부족분을 채우되 사이드와의 중복은 시각상 허용 최소화.
-  const dropdownSuggest = useMemo(() => {
-    const next = rankedTags.slice(8, 16);
-    if (next.length >= 4) return next;
-    // 풀이 작은 경우 폴백: 사이드 셋의 후반부라도 노출(빈 드롭다운 방지).
-    return rankedTags.slice(0, 8).slice(-Math.max(0, 8 - next.length)).concat(next);
-  }, [rankedTags]);
-
-  // 이번 주 전문의 답변: doctor 글(Q&A) 제목 상위 5개
+  // 인기 Q&A: doctor 글(Q&A) 상위 5개.
   const doctorAnswers = useMemo(
     () =>
-      initialPool
+      pool
         .filter((c) => !!c.doctor && (c.category ?? c.type) === "qa")
         .slice(0, 5),
-    [initialPool],
+    [pool],
   );
 
   const chips = CHIPS.map((c) => (
@@ -193,26 +240,24 @@ export default function BetaSkinFeed({
       <section className={`${styles.card} ${styles.sideCard}`}>
         <h3>인기 태그</h3>
         <div className={styles.sideTags}>
-          {/* 항목 4) 인기 태그에 # 표기 금지 — 키워드만. 클릭 시 검색창에 채워 필터. */}
+          {/* 인기 태그에 # 표기 금지 — 키워드만. 클릭 시 서버 검색. */}
           {popularTags.map((tag) => (
             <button
               type="button"
               className={`${styles.tagBtn} ${catTagClass(tag)} ${
-                query.trim() === tag ? styles.tagBtnActive : ""
+                (searchQuery ?? "").trim() === tag ? styles.tagBtnActive : ""
               }`}
               key={tag}
               onClick={() => applyTag(tag)}
-              aria-pressed={query.trim() === tag}
+              aria-pressed={(searchQuery ?? "").trim() === tag}
             >
               {tag}
             </button>
           ))}
         </div>
-        {/* 피드백 3) 별도 '검색 해제 ✕' 칩 제거 — 해제는 검색창 자체의 ✕ 로만. */}
       </section>
 
       <section className={`${styles.card} ${styles.sideCard}`}>
-        {/* 피드백 6) '이번 주 전문의 답변' → 답변 약속·freshness 톤다운. */}
         <h3>인기 Q&A</h3>
         <div className={styles.sideList}>
           {doctorAnswers.map((c) => (
@@ -225,7 +270,6 @@ export default function BetaSkinFeed({
       </section>
 
       <section className={`${styles.card} ${styles.sideCta}`}>
-        {/* 피드백 6) 전문의 직접 답변을 약속하지 않는 중립 문구. */}
         <h3>궁금한 시술이 있나요?</h3>
         <p>Q&A로 남기면 회원·전문의의 이야기를 들어볼 수 있어요.</p>
         <a className={styles.sideCtaBtn} href="/beta-skin/write">
@@ -235,7 +279,7 @@ export default function BetaSkinFeed({
     </>
   );
 
-  // 피드백 1) 드롭다운 카테고리 바로가기 — 클릭 시 해당 칩 필터(전체 제외).
+  // 드롭다운 카테고리 바로가기 — 클릭 시 해당 칩 필터(전체 제외).
   const searchCategories = CHIPS.filter((c) => c.key !== "all").map((c) => ({
     key: c.key,
     label: c.label,
@@ -246,26 +290,22 @@ export default function BetaSkinFeed({
       active="피드"
       chips={chips}
       sidebar={sidebar}
-      searchValue={query}
-      onSearchChange={setQuery}
-      searchSuggestions={dropdownSuggest}
+      searchValue={searchValue}
+      onSearchChange={setSearchValue}
+      onSearchSubmit={submitSearch}
+      searchSuggestions={popularQueries}
       searchCategories={searchCategories}
-      onPickCategory={(key) => {
-        setChip(key as ChipKey);
-        setQuery("");
-      }}
-      recentSearches={["리프팅", "스킨부스터"]}
+      onPickCategory={(key) => setChip(key as ChipKey)}
     >
-      {/* 피드백 5) 칩/검색 전환 시 리스트 컨테이너 remount(key=칩+검색어) →
-          각 카드의 fadeInUp 이 재발화되어 매 전환마다 살짝 올라오며 등장.
-          무한스크롤(visible 변경)은 같은 key 라 추가분만 append(스크롤 유지). */}
-      <div className={styles.feedList} key={`${chip}|${query.trim()}`}>
+      {/* 칩/검색 전환 시 리스트 컨테이너 remount(key=칩+검색어) → fadeInUp 재발화.
+          무한스크롤(pool append)은 같은 key 라 추가분만 append(스크롤 유지). */}
+      <div className={styles.feedList} key={`${chip}|${searchQuery ?? ""}`}>
         {isReportTab ? (
-          // 피드백 4) 리포트 탭 — 시술 리포트 카드. 데이터 0건이면 빈 안내.
+          // 리포트 탭 — 시술 리포트 카드. 데이터 0건이면 빈 안내.
           filteredReports.length === 0 ? (
             <p className={styles.empty}>
-              {query.trim()
-                ? `‘${query.trim()}’ 시술 리포트가 없습니다.`
+              {searchQuery
+                ? `‘${searchQuery}’ 시술 리포트가 없습니다.`
                 : "아직 집계된 시술 리포트가 없습니다."}
             </p>
           ) : (
@@ -273,23 +313,33 @@ export default function BetaSkinFeed({
               <BetaReportCard key={r.procedureKo} report={r} />
             ))
           )
-        ) : filtered.length === 0 ? (
+        ) : filtered.length === 0 && !topReport ? (
           <p className={styles.empty}>
-            {query.trim()
-              ? `‘${query.trim()}’ 검색 결과가 없습니다.`
+            {searchQuery
+              ? `‘${searchQuery}’ 검색 결과가 없습니다.`
               : "이 카테고리에 표시할 글이 없습니다."}
           </p>
         ) : (
-          shown.map((card) => (
-            <PostCard key={card.id} card={card} onTagClick={applyTag} />
-          ))
+          <>
+            {/* 검색 매칭 리포트 — 결과 맨 위 1장. */}
+            {topReport && <BetaReportCard report={topReport} />}
+            {filtered.map((card) => (
+              <PostCard
+                key={card.id}
+                card={card}
+                onTagClick={applyTag}
+                viewer={viewerStates?.[card.id]}
+              />
+            ))}
+          </>
         )}
       </div>
 
-      {/* 무한스크롤 sentinel — 일반 탭에서만(리포트는 전부 노출). 풀 소진 시 렌더 안 함. */}
+      {/* 무한스크롤 sentinel — 일반·검색 탭에서만(리포트 제외). 풀 소진 시 렌더 안 함. */}
       {!isReportTab && hasMore && (
         <div ref={sentinelRef} className={styles.feedSentinel} aria-hidden="true" />
       )}
+      {loading && <p className={styles.empty}>불러오는 중…</p>}
     </BetaSkinShell>
   );
 }

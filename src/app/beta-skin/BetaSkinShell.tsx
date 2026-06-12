@@ -20,6 +20,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import styles from "./beta-skin.module.css";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 /* ---------- 공유 라우트 맵 ---------- */
 export const BETA_ROUTES = {
@@ -152,6 +153,24 @@ export default function BetaSkinShell({
   const scrollRef = useRef<HTMLDivElement>(null);
   // 항목 1) 스크롤 다운 → 헤더 숨김(위로 슬라이드), 스크롤 업 → 복귀.
   const [headerHidden, setHeaderHidden] = useState(false);
+  // 작업 C) 로그인 여부 — null=로딩, true=로그인, false=비로그인.
+  //   헤더 우측 진입(마이 아바타 vs 로그인)을 분기. 로딩 중엔 둘 다 숨김.
+  const [me, setMe] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    createSupabaseBrowserClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        if (alive) setMe(!!data.user);
+      })
+      .catch(() => {
+        if (alive) setMe(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
   // 피드백 1) 모바일 검색 — 헤더 "안"을 검색 input 으로 전환(헤더 아래 별도 바 X).
   const [searchOpen, setSearchOpen] = useState(false);
   // 피드백 2) 검색 추천 드롭다운 열림 상태(포커스 시 열림, 바깥 클릭 시 닫힘).
@@ -406,15 +425,28 @@ export default function BetaSkinShell({
             </Link>
 
             <nav className={styles.gnb}>
-              {GNB.map((g) => (
-                <Link
-                  key={g.label}
-                  href={g.href}
-                  className={active === g.label ? styles.gnbActive : ""}
-                >
-                  {g.label}
-                </Link>
-              ))}
+              {GNB.map((g) =>
+                // 작업 A) 쇼핑몰 미완성(href "#") → 클릭 불가 비활성 span 으로 렌더.
+                g.href === "#" ? (
+                  <span
+                    key={g.label}
+                    className={styles.gnbDisabled}
+                    aria-disabled="true"
+                    title="준비 중"
+                  >
+                    {g.label}
+                    <span className={styles.gnbSoon}>준비 중</span>
+                  </span>
+                ) : (
+                  <Link
+                    key={g.label}
+                    href={g.href}
+                    className={active === g.label ? styles.gnbActive : ""}
+                  >
+                    {g.label}
+                  </Link>
+                ),
+              )}
             </nav>
 
             <div className={styles.headerSpacer} />
@@ -479,13 +511,31 @@ export default function BetaSkinShell({
                 <IconSearch />
               </button>
             )}
-            <button
+            {/* 작업 B) 알림 벨 → 운영 /notifications 로 이동. */}
+            <Link
               className={`${styles.iconBtn} ${styles.iconBtnBell}`}
               aria-label="알림"
-              type="button"
+              href="/notifications"
             >
               <IconBell />
-            </button>
+            </Link>
+
+            {/* 작업 C) 로그인 상태 → 마이(아바타), 비로그인 → 로그인.
+                로딩(null) 중엔 진입을 숨겨 깜빡임 방지. */}
+            {me === true && (
+              <Link
+                className={styles.iconBtn}
+                aria-label="마이"
+                href={BETA_ROUTES.my}
+              >
+                <IconUser />
+              </Link>
+            )}
+            {me === false && (
+              <Link className={styles.btnLoginTop} href="/login">
+                로그인
+              </Link>
+            )}
           </div>
         )}
       </header>
@@ -509,18 +559,31 @@ export default function BetaSkinShell({
 
       {/* ---------- 하단 둥근 탭바 (모바일) ---------- */}
       <nav className={styles.tabbar}>
-        {TABS.map((t) => (
-          <Link
-            key={t.label}
-            href={t.href}
-            className={`${styles.tab} ${
-              active === t.label ? styles.tabActive : ""
-            }`}
-          >
-            {t.icon}
-            {t.label}
-          </Link>
-        ))}
+        {TABS.map((t) =>
+          // 작업 A) 쇼핑몰 미완성(href "#") → 클릭 불가 비활성 span 으로 렌더.
+          t.href === "#" ? (
+            <span
+              key={t.label}
+              className={`${styles.tab} ${styles.tabDisabled}`}
+              aria-disabled="true"
+              title="준비 중"
+            >
+              {t.icon}
+              {t.label}
+            </span>
+          ) : (
+            <Link
+              key={t.label}
+              href={t.href}
+              className={`${styles.tab} ${
+                active === t.label ? styles.tabActive : ""
+              }`}
+            >
+              {t.icon}
+              {t.label}
+            </Link>
+          ),
+        )}
       </nav>
     </div>
   );

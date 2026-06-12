@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/lib/types/card";
 import PostDetail from "./PostDetail";
 
@@ -8,8 +9,12 @@ import PostDetail from "./PostDetail";
  *
  * 격리: 운영 파일 무수정. BetaSkinShell(fixed z-100 오버레이)로 글로벌 크롬을 덮음.
  * 데이터:
- *   - 글 본문: feed_cards_scored 의 실제 카드 1건(가능하면 Q&A 카드). 본문 전체 렌더.
- *   - 댓글: 샘플 2~3개(디자인만, 동작 X).
+ *   - ?id= 가 있으면 cards 테이블에서 그 카드를 직접 조회(운영 /api/cards ids 분기와 동일 select).
+ *     feed_cards_scored 24장 밖(검색결과·25번째 이후)에서 진입해도 정확히 표시.
+ *   - id 직접 조회 결과가 없거나 id 미지정이면 폴백(Q&A 우선 → 본문 있는 첫 카드 → 첫 카드).
+ *   - related: feed_cards_scored 24장 풀에서 현재 카드를 제외한 Q&A 카드 상위 3개("함께 보면 좋은 Q&A").
+ *   - id 직접조회와 feed 조회는 Promise.all 로 병렬.
+ *   - 댓글: 실제 카드일 때만 운영 CommentsBlock 렌더(PostDetail 내부).
  */
 export const dynamic = "force-dynamic";
 
@@ -18,18 +23,40 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function BetaSkinPostPage() {
+export default async function BetaSkinPostPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ id?: string }>;
+}) {
+  const { id } = await searchParams;
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.rpc("feed_cards_scored", {
-    p_limit: 5,
-    p_offset: 0,
-    p_half_life_days: 14,
-    p_jitter_amp: 0.35,
-  });
+  const numericId = id ? Number(id) : NaN;
 
-  const cards = (data ?? []) as CardData[];
-  // 본문이 있는 Q&A(의사 글) 우선 → 없으면 본문 있는 첫 카드 → 없으면 첫 카드
+  // id 직접 조회(있을 때만) + related 풀(feed_cards_scored 24)을 병렬로.
+  const [byIdRes, feedRes] = await Promise.all([
+    Number.isFinite(numericId)
+      ? supabase
+          .from("cards")
+          .select(CARD_LIST_SELECT)
+          .eq("id", numericId)
+          .eq("status", "published")
+          .is("deleted_at", null)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase.rpc("feed_cards_scored", {
+      p_limit: 24,
+      p_offset: 0,
+      p_half_life_days: 14,
+      p_jitter_amp: 0.35,
+    }),
+  ]);
+
+  const idCard = (byIdRes.data ?? null) as unknown as CardData | null;
+  const cards = (feedRes.data ?? []) as CardData[];
+
+  // id 직접 조회 카드 우선 → 없으면 본문 있는 Q&A → 본문 있는 첫 카드 → 첫 카드.
   const card =
+    idCard ??
     cards.find(
       (c) => (c.category ?? c.type) === "qa" && c.body && c.body.length > 30,
     ) ??
@@ -37,5 +64,10 @@ export default async function BetaSkinPostPage() {
     cards[0] ??
     null;
 
-  return <PostDetail card={card} />;
+  // 함께 보면 좋은 Q&A — 현재 카드를 제외한 Q&A 카드 상위 3개.
+  const related = cards
+    .filter((c) => c.id !== card?.id && (c.category ?? c.type) === "qa")
+    .slice(0, 3);
+
+  return <PostDetail card={card} related={related} />;
 }

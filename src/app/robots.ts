@@ -70,6 +70,9 @@ const DISALLOW_COMMON = [
   "/u/",
   // 검토용 목업(noindex). page-level noindex 와 이중으로 크롤 자체 차단.
   "/mockups",
+  // 신규 스킨 프리뷰(noindex). page-level noindex 와 이중으로 크롤 자체 차단.
+  //   승격 시 이 라인 제거 + 각 page robots 해제.
+  "/beta-skin",
 ];
 
 // Tier 1 — 검색엔진 + AI 인용봇 + 주요 학습봇 (Allow, 운영 경로만 제외).

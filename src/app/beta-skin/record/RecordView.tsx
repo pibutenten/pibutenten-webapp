@@ -51,8 +51,8 @@ const ENTRIES: RecEntry[] = [
     day: 12,
     procs: ["리쥬란 힐러"],
     tone: styles.dotPink,
-    place: "힐하우스피부과의원",
-    doctor: "정한미 원장님",
+    place: "OO피부과의원",
+    doctor: "예시 원장님",
     memo: "피부결 개선 목적 · 2cc",
   },
   {
@@ -62,8 +62,8 @@ const ENTRIES: RecEntry[] = [
     day: 12,
     procs: ["인모드 FX"],
     tone: styles.dotBlue,
-    place: "힐하우스피부과의원",
-    doctor: "정한미 원장님",
+    place: "OO피부과의원",
+    doctor: "예시 원장님",
     memo: "탄력 · 다운타임 거의 없음",
   },
   {
@@ -73,8 +73,8 @@ const ENTRIES: RecEntry[] = [
     day: 28,
     procs: ["피코레이저"],
     tone: styles.dotGreen,
-    place: "힐하우스피부과의원",
-    doctor: "정한미 원장님",
+    place: "OO피부과의원",
+    doctor: "예시 원장님",
     memo: "색소·잡티 1회차",
   },
   {
@@ -84,8 +84,8 @@ const ENTRIES: RecEntry[] = [
     day: 3,
     procs: ["써마지", "스컬트라"],
     tone: styles.dotPurple,
-    place: "라온피부과의원",
-    doctor: "이서연 원장님",
+    place: "△△피부과의원",
+    doctor: "예시 원장님",
     memo: "1년 주기로 받기로",
   },
 ];
@@ -96,14 +96,14 @@ const SAMPLE_KW_CARDS = [
     tag: "리프팅",
     tagTone: styles.tagBlue,
     title: "리프팅 받았는데 효과 없는 사람은 왜 그런 건가요?",
-    author: "이도영",
+    author: "예시 전문의",
     when: "1달 전",
   },
   {
     tag: "스킨부스터",
     tagTone: styles.tagPink,
     title: "리쥬란이랑 쥬브젠, 둘 중 뭐가 더 오래가나요?",
-    author: "정한미",
+    author: "예시 전문의",
     when: "2주 전",
   },
 ];
@@ -475,18 +475,19 @@ export default function RecordView({
       <section className={`${styles.card} ${styles.sideCard}`}>
         <h3>인기 Q&A</h3>
         <div className={styles.sideList}>
-          <a href="/beta-skin/post">
-            <span className={styles.n}>1</span>
-            <span>쥬브젠 시술 후 다운타임은 어떤가요?</span>
-          </a>
-          <a href="/beta-skin/post">
-            <span className={styles.n}>2</span>
-            <span>올타이트 리프팅이 통증 없이 가능한 이유</span>
-          </a>
-          <a href="/beta-skin/post">
-            <span className={styles.n}>3</span>
-            <span>리쥬란 직후 세안, 언제부터 가능할까요?</span>
-          </a>
+          {popularCards.length > 0 ? (
+            popularCards.slice(0, 3).map((c, i) => (
+              <a href={`/beta-skin/post?id=${c.id}`} key={c.id}>
+                <span className={styles.n}>{i + 1}</span>
+                <span>{c.title}</span>
+              </a>
+            ))
+          ) : (
+            <a href="/beta-skin">
+              <span className={styles.n}>›</span>
+              <span>피드에서 인기 Q&A 보기</span>
+            </a>
+          )}
         </div>
       </section>
     </>
@@ -536,7 +537,7 @@ export default function RecordView({
       {/* 관심 키워드 새 글 */}
       <div className={styles.sectionHead}>
         <h2>관심 키워드 새 글</h2>
-        <a className={styles.more} href="#">
+        <a className={styles.more} href="/settings/profile">
           키워드 편집
         </a>
       </div>
@@ -608,7 +609,7 @@ export default function RecordView({
           : SAMPLE_KW_CARDS.map((c) => (
               <a
                 className={`${styles.card} ${styles.kwCard}`}
-                href="/beta-skin/post"
+                href="/beta-skin"
                 key={c.title}
               >
                 <span className={`${styles.tag} ${c.tagTone}`}>{c.tag}</span>
@@ -649,7 +650,7 @@ export default function RecordView({
                 <a
                   className={styles.popRow}
                   key={c.id}
-                  href={hasHref ? href : "/beta-skin/post"}
+                  href={hasHref ? href : "/beta-skin"}
                   target={hasHref ? "_blank" : undefined}
                   rel={hasHref ? "noopener noreferrer" : undefined}
                 >

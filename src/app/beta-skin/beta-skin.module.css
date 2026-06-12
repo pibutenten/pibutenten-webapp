@@ -21,7 +21,10 @@
   --ink-900: #1e2a35;
   --ink-700: #3c4856;
   --ink-500: #7b8794;
-  --ink-300: #aeb8c2;
+  /* WCAG AA: 흰 배경 대비 4.73:1 (구 #aeb8c2 = 2.01:1 미달).
+     이 토큰은 파일 전역에서 color/stroke(텍스트·아이콘)로만 사용되며
+     background/border 용도가 없어 어둡게 조정해도 비텍스트 UI 영향 없음. */
+  --ink-300: #6b747e;
   --line: #edf2f5;
 
   /* Surfaces */
@@ -33,15 +36,15 @@
 
   /* Tag palette (5색) */
   --tag-pink-bg: #ffe2ef;
-  --tag-pink: #ef5390;
+  --tag-pink: #b81c5e;
   --tag-blue-bg: #dce8ff;
-  --tag-blue: #4a77e8;
+  --tag-blue: #2f5fd6;
   --tag-green-bg: #dcf4d6;
-  --tag-green: #3d9b44;
+  --tag-green: #2a7330;
   --tag-purple-bg: #eadffc;
-  --tag-purple: #8a5ce8;
+  --tag-purple: #6b3fd0;
   --tag-yellow-bg: #fbf0cc;
-  --tag-yellow: #b98a12;
+  --tag-yellow: #7d5d08;
 
   --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
@@ -286,7 +289,8 @@
 /* 데스크탑 전용 헤더 요소 — 모바일에선 숨김 */
 .gnb,
 .headerSearch,
-.btnWriteTop {
+.btnWriteTop,
+.btnLoginTop {
   display: none;
 }
 
@@ -371,7 +375,8 @@
  *   비활성: .chip (흰 배경 + 회색 글씨, 위 정의)
  *   활성: 브랜드 짙은 톤 1가지 + 흰 글씨 */
 .chipActive {
-  background: var(--tt-blue-deep);
+  /* WCAG AA: #16699c 위 흰글자 약 5.9:1 (구 var(--tt-blue-deep) #1f8fc6 = 3.54:1). */
+  background: #16699c;
   color: #fff;
 }
 
@@ -558,13 +563,13 @@
   white-space: nowrap;
 }
 .reportBarYes {
-  background: #4cbff2;
+  background: #147aa8;
 }
 .reportBarMaybe {
-  background: #9aa1ac;
+  background: #6a727e;
 }
 .reportBarNo {
-  background: #ea7e7b;
+  background: #c5403d;
 }
 .reportLegend {
   display: flex;
@@ -583,13 +588,13 @@
   vertical-align: middle;
 }
 .reportDotYes {
-  background: #4cbff2;
+  background: #147aa8;
 }
 .reportDotMaybe {
-  background: #9aa1ac;
+  background: #6a727e;
 }
 .reportDotNo {
-  background: #ea7e7b;
+  background: #c5403d;
 }
 /* 만족도 — 별점 골드 + 평균 + 분포 막대(골드, 운영 DistBars). */
 .reportSatRow {
@@ -915,6 +920,28 @@ button.t:hover {
 .pfBtn:hover {
   color: var(--tt-blue-deep);
 }
+/* 좋아요 active — 빨강 하트. svg stroke/fill 이 currentColor 를 따르게 강제. */
+.pfOn {
+  color: #f0506e;
+}
+.pfOn svg {
+  stroke: #f0506e;
+  fill: #f0506e;
+}
+.pfOn:hover {
+  color: #f0506e;
+}
+/* 저장(북마크) active — 파랑 채움. */
+.pfSaved {
+  color: #1f8fc6;
+}
+.pfSaved svg {
+  stroke: #1f8fc6;
+  fill: #1f8fc6;
+}
+.pfSaved:hover {
+  color: #1f8fc6;
+}
 .grow {
   flex: 1;
 }
@@ -995,7 +1022,8 @@ button.t:hover {
   gap: 4px;
   font-size: 12px;
   font-weight: 700;
-  color: rgba(19, 75, 102, 0.55);
+  /* WCAG AA: --tt-nav(#a9ddf4) 배경 대비 약 9.9:1 (구 rgba(19,75,102,0.55) = 2.02:1 미달). */
+  color: #11465f;
   min-width: 56px;
 }
 .tab svg {
@@ -1012,6 +1040,15 @@ button.t:hover {
   border-radius: 3px;
   background: var(--tt-nav-ink);
   margin-top: 1px;
+}
+/* 쇼핑 비활성 탭 — opacity 대신 회색 처리 + 클릭 불가 커서.
+   --tt-nav(#a9ddf4) 배경 대비 약 4.6:1 (#3f5a68) 로 muted 하되 가독 유지. */
+.tabDisabled {
+  color: #3f5a68;
+  cursor: default;
+}
+.tabDisabled:hover {
+  color: #3f5a68;
 }
 
 /* ---------- 사이드바 내부 ---------- */
@@ -1081,19 +1118,20 @@ button.t:hover {
 }
 .catLifting {
   background: rgba(41, 182, 246, 0.15);
-  color: #1f86bb;
+  color: #176d99;
 }
 .catInjectables {
   background: rgba(244, 143, 177, 0.18);
-  color: #d56a92;
+  /* WCAG AA: 연분홍 틴트 배경 대비 약 4.6:1 (구 #d56a92 = 약 3.0:1). */
+  color: #b03e68;
 }
 .catHomecare {
   background: rgba(191, 110, 92, 0.15);
-  color: #a85a48;
+  color: #974732;
 }
 .catKnowledge {
   background: rgba(158, 157, 36, 0.16);
-  color: #7e7d1d;
+  color: #6a6915;
 }
 /* 활성(현재 검색어 = 그 태그): 브랜드 단색으로 강조(카테고리색 덮어씀). */
 .tagBtnActive,
@@ -1229,9 +1267,9 @@ button.t:hover {
 }
 
 /* ============================================================
-   데스크탑 (≥1024px) — 2단 + 풀 GNB
+   데스크탑 (≥900px) — 2단 + 풀 GNB (운영/PRD 분기점 900px 통일)
    ============================================================ */
-@media (min-width: 1024px) {
+@media (min-width: 900px) {
   .tabbar {
     display: none;
   }
@@ -1240,8 +1278,8 @@ button.t:hover {
     display: none;
   }
   .page {
-    /* 피드백 5) 표준 컨테이너 너비 1200px (본문 + 사이드바 약 332px, gap 28px). */
-    max-width: 1200px;
+    /* PRD 기준 컨테이너 최대너비 1080px (본문 + 사이드바 300px, gap 28px). */
+    max-width: 1080px;
     margin: 0 auto;
     padding: 28px 32px 80px;
   }
@@ -1254,7 +1292,7 @@ button.t:hover {
     border-bottom: 1px solid rgba(255, 255, 255, 0.7);
   }
   .headerInner {
-    max-width: 1200px;
+    max-width: 1080px;
     margin: 0 auto;
     gap: 24px;
     padding: 12px 32px;
@@ -1282,6 +1320,32 @@ button.t:hover {
     color: var(--tt-blue-deep) !important;
     background: #fff;
     box-shadow: var(--card-shadow);
+  }
+  /* 쇼핑(준비 중) GNB 항목 — muted 회색, 클릭 불가, hover 효과 없음.
+     --ink-300(#6b747e) 사용 → 흰/연파랑 헤더 배경 대비 4.5:1 이상. */
+  .gnbDisabled {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--ink-300);
+    cursor: default;
+  }
+  .gnbDisabled:hover {
+    background: none;
+    color: var(--ink-300);
+  }
+  /* "준비 중" 작은 pill 배지 — GNB 쇼핑 라벨 옆. */
+  .gnbSoon {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: var(--r-chip);
+    background: #e6eef4;
+    /* #e6eef4 배경 대비 약 4.6:1 (#5b6570). */
+    color: #5b6570;
   }
   .headerSearch {
     display: flex;
@@ -1320,12 +1384,13 @@ button.t:hover {
   .headerSearchLive input::placeholder {
     color: var(--ink-300);
   }
-  /* 피드백 7) 브랜드색(#45B7E8) 배경 + 흰 글씨. 과한 글로우 제거(은은한 그림자만). */
+  /* 피드백 7) 브랜드 진파랑 배경 + 흰 글씨.
+     WCAG AA: #16699c 위 흰글자 약 5.9:1 (구 var(--tt-blue) #45b7e8 = 2.28:1 미달). */
   .btnWriteTop {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    background: var(--tt-blue);
+    background: #16699c;
     color: #fff;
     font-weight: 700;
     font-size: 13.5px;
@@ -1336,16 +1401,43 @@ button.t:hover {
     transition: background 0.14s ease;
   }
   .btnWriteTop:hover {
-    background: var(--tt-blue-deep);
+    background: #115580;
   }
   .btnWriteTop svg {
     width: 15px;
     height: 15px;
   }
 
+  /* 헤더 우측 "로그인" 진입 — 글쓰기 버튼과 형태는 유사하되 secondary 톤.
+     흰 배경 + 진파랑 보더 + 진파랑 글자(#16699c, 흰 배경 대비 약 5.9:1). */
+  .btnLoginTop {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: #fff;
+    color: #16699c;
+    font-weight: 700;
+    font-size: 13.5px;
+    padding: 9px 17px;
+    border-radius: var(--r-chip);
+    border: 1.5px solid #16699c;
+    box-shadow: 0 2px 6px rgba(53, 118, 160, 0.1);
+    flex: none;
+    transition: background 0.14s ease, color 0.14s ease;
+  }
+  .btnLoginTop:hover {
+    background: var(--tt-blue-tint);
+  }
+  .btnLoginTop svg {
+    width: 15px;
+    height: 15px;
+  }
+
   .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 332px;
+    /* 900px 진입 시 사이드바를 clamp 로 280~300px 범위로 줄여 본문 폭 확보
+       (구 고정 332px → 좁은 뷰포트에서 본문 과소). */
+    grid-template-columns: minmax(0, 1fr) clamp(280px, 28vw, 300px);
     gap: 28px;
     align-items: start;
   }
@@ -1448,25 +1540,31 @@ button.t:hover {
 /* ============================================================
    내 노트 (/beta-skin/record)
    ============================================================ */
+/* greet 영역 — 브랜드 파랑 배경 + 흰 텍스트로 일관.
+   본문 <p> 는 마크업이 흰색(rgba(255,255,255,0.92))을 지정하므로,
+   .card 의 흰 배경(1.11:1 미달)을 파랑 그라데이션으로 덮어 대비 확보.
+   #1f8fc6 위 흰글자 약 3.5:1↑, 진한 영역(#1a6f9c)에선 4.5:1↑. */
 .greetCard {
   margin-bottom: 8px;
+  background: linear-gradient(135deg, #19729f 0%, #155a82 100%);
+  color: #fff;
 }
 .greetTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--ink-700);
+  color: rgba(255, 255, 255, 1);
   font-size: 14px;
 }
 .greetTop .chev {
-  color: var(--ink-300);
+  color: rgba(255, 255, 255, 0.92);
 }
 .greetTitle {
   font-size: 21px;
   font-weight: 800;
   line-height: 1.42;
   margin: 10px 0 18px;
-  color: var(--ink-900);
+  color: #fff;
 }
 .greetActions {
   display: flex;
@@ -2499,8 +2597,8 @@ button.t:hover {
   margin-bottom: 18px;
 }
 
-/* 데스크탑 보정 */
-@media (min-width: 1024px) {
+/* 데스크탑 보정 (분기점 900px 통일) */
+@media (min-width: 900px) {
   .greetCard {
     padding: 30px 34px;
   }

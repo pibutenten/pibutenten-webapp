@@ -15,6 +15,7 @@
  */
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
 import { useBetaSearchRouting } from "../beta-ui";
@@ -47,6 +48,7 @@ function IconCamera() {
 
 /* ---------- 시술노트 폼 (운영 DiaryForm 재현, 로컬 state) ---------- */
 function DiaryFormView() {
+  const router = useRouter();
   const [date, setDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -167,9 +169,13 @@ function DiaryFormView() {
         />
       </div>
 
+      <p className={styles.fieldHint}>
+        미리보기 화면입니다. 실제 기록은 이어지는 화면에서 저장됩니다.
+      </p>
       <button
         type="button"
         className={`${styles.btn} ${styles.btnSolid} ${styles.writeSubmit}`}
+        onClick={() => router.push("/record")}
       >
         기록 저장하기
       </button>
@@ -248,6 +254,7 @@ function ChoiceField({
 }
 
 function ReviewFormView() {
+  const router = useRouter();
   const [proc, setProc] = useState<string | null>(null);
   const [satisfaction, setSatisfaction] = useState(0);
   const [hoverStar, setHoverStar] = useState(0);
@@ -410,9 +417,13 @@ function ReviewFormView() {
           </p>
         </div>
 
+        <p className={styles.fieldHint}>
+          미리보기 화면입니다. 실제 기록은 이어지는 화면에서 저장됩니다.
+        </p>
         <button
           type="button"
           className={`${styles.btn} ${styles.btnSolid} ${styles.writeSubmit}`}
+          onClick={() => router.push("/review/new")}
         >
           후기 올리기
         </button>
@@ -423,6 +434,7 @@ function ReviewFormView() {
 
 /* ---------- 끄적끄적 폼 ---------- */
 function DoodleFormView() {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   return (
@@ -470,9 +482,13 @@ function DoodleFormView() {
         </button>
       </div>
 
+      <p className={styles.fieldHint}>
+        미리보기 화면입니다. 실제 기록은 이어지는 화면에서 저장됩니다.
+      </p>
       <button
         type="button"
         className={`${styles.btn} ${styles.btnSolid} ${styles.writeSubmit}`}
+        onClick={() => router.push("/write")}
       >
         등록하기
       </button>
@@ -491,19 +507,30 @@ export default function WriteView() {
         style={{ background: "var(--tt-blue-tint)" }}
       >
         <h3>좋은 기록 팁</h3>
+        {/* 정보성 문구일 뿐 목적지가 없어 a href="#"(클릭 시 페이지 최상단 점프) 제거.
+            div 로 바꾸되 .sideList a 가 담당하던 레이아웃을 인라인으로 재현(시각 회귀 방지).
+            번호(.n)는 .sideList .n 셀렉터라 div 안에서도 그대로 적용됨. */}
         <div className={styles.sideList}>
-          <a href="#">
-            <span className={styles.n}>1</span>
-            <span>시술명과 받은 날짜를 적어 주세요</span>
-          </a>
-          <a href="#">
-            <span className={styles.n}>2</span>
-            <span>현재 증상이나 상태를 구체적으로</span>
-          </a>
-          <a href="#">
-            <span className={styles.n}>3</span>
-            <span>사진을 첨부하면 경과 비교가 쉬워져요</span>
-          </a>
+          {[
+            "시술명과 받은 날짜를 적어 주세요",
+            "현재 증상이나 상태를 구체적으로",
+            "사진을 첨부하면 경과 비교가 쉬워져요",
+          ].map((tip, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                gap: 10,
+                padding: "9px 4px",
+                fontSize: "13.5px",
+                lineHeight: 1.45,
+                color: "var(--ink-700)",
+              }}
+            >
+              <span className={styles.n}>{i + 1}</span>
+              <span>{tip}</span>
+            </div>
+          ))}
         </div>
       </section>
       <section className={`${styles.card} ${styles.sideCard}`}>
@@ -521,7 +548,6 @@ export default function WriteView() {
       <div className={styles.writeWrap}>
         <div className={styles.sectionHead} style={{ marginTop: 8 }}>
           <h2>글쓰기</h2>
-          <span className={styles.more}>임시저장 2</span>
         </div>
 
         <div className={styles.writeTypes}>

@@ -6,6 +6,34 @@
 
 ---
 
+## [2026-06-13] — /beta-skin 프리뷰를 실제 작동 앱으로 (검색 서버화·카드 액션·죽은링크 해소·접근성)
+
+> 승격 후보 디자인 시안 `/beta-skin` 을 서브에이전트 교차 검수(1차 갭분석 4 + 전수 4 + 재검수 4 + 코드검수)로 더미·죽은링크를 전수 식별 후 실제 동작·운영 정합으로 보완. 운영 코드 무변경(`robots.ts` 제외), 전 페이지 noindex 유지.
+
+### Added
+- **카드 인터랙션 실동작**(`beta-ui.tsx` `useBetaCardActions`): 좋아요/저장 `toggle_card_like`/`toggle_card_save` RPC(active identity 기반), 공유 `card_shares` insert, 낙관적 업데이트+롤백, 비로그인 토스트 안내.
+- **댓글 실연결**: 피드 카드·글상세 모두 운영 `CommentsBlock`(cardId 기반) + `onCountChange` 라이브 카운트(0 고정 해소).
+- **셸 로그인/마이 진입**(세션 기반)·알림 벨 → `/notifications`.
+
+### Changed
+- **검색 서버화**: `/beta-skin?q=`(+ `?kw=`) → `fetchCardList`(`search_cards_scored`) 서버 검색 + `search_logs` 적재 + `getProcedureReport`/리포트풀 + 인기검색어(`get_top_search_queries`) 드롭다운. 무한스크롤을 운영 패턴(`orderedIds` → `/api/cards?ids=`)으로 전환(기존 80장 풀 클라필터 대체).
+- **글상세 `?id=` 직접조회**(`cards.eq("id")`)로 단일 더미 해소 + related Q&A 3개.
+- **죽은 링크 해소**: MyView 메뉴(/my·/settings·/notifications·/contact·/terms), 키워드 편집(/settings/profile), 글쓰기 제출(/record·/review/new·/write), 쇼핑 탭 비활성(미완성), 팔로우 `#` 제거.
+- **반응형 운영 정합**: 데스크탑 분기 1024→**900px**, 컨테이너 max-width 1200→**1080px**, 사이드바 `clamp(280px,28vw,300px)`.
+- 더미 의사 실명 → 예시 가명화(record/my/post).
+
+### Fixed
+- **WCAG AA 대비**: `--ink-300`(2.0→4.7:1), 탭바 비활성(2.0→6.9:1), greet 흰글자(1.1→4.8:1), `.btnWriteTop`(2.3→5.9:1), 리포트 막대 흰 라벨(2.1→4.8:1), 태그칩 5색·카테고리 틴트 4.5:1↑.
+- 미정의 클래스 정의(`pfOn`/`pfSaved`/`gnbDisabled`/`gnbSoon`/`tabDisabled`/`btnLoginTop`).
+- WriteView 사이드 `href="#"` 3개, 검색 드롭다운 "최근 검색" 라벨 중복.
+
+### Security
+- `robots.ts` `DISALLOW_COMMON` 에 `/beta-skin` 추가(page-level noindex 와 이중 크롤 차단). 승격 시 해제.
+
+검증: 빌드·`tsc`·코드검수 통과(치명 0). dev 서버 실렌더 스모크(피드 24카드·좋아요·서버검색·데스크탑 2단/1080px·모바일 탭바·오버레이 z-index·콘솔에러 0). **승격 시 후속 안건**(보류): 미들웨어 온보딩 게이트 `/beta-skin` 면제 여부, `searchWrapRef` 데스크탑/모바일 분리, 검색 input 포커스 대비, MyView 통계 실데이터화.
+
+---
+
 ## [2026-06-12] — /beta-skin 신규 디자인 리스킨 프리뷰 (운영 디자인 무변경)
 
 > 외부 컨셉 디자인(`전달용/0612 skin update/tenten.css` + 목업 5종)을 **운영 코드는 건드리지 않고** `/beta-skin` 프리뷰 경로에 실데이터로 입힌 작업. 운영(루트 `/` 등) 디자인은 원안 그대로 유지. 모든 `/beta-skin/*` 페이지 `robots noindex`.
