@@ -6,6 +6,32 @@
 
 ---
 
+## [2026-06-12] — /beta-skin 신규 디자인 리스킨 프리뷰 (운영 디자인 무변경)
+
+> 외부 컨셉 디자인(`전달용/0612 skin update/tenten.css` + 목업 5종)을 **운영 코드는 건드리지 않고** `/beta-skin` 프리뷰 경로에 실데이터로 입힌 작업. 운영(루트 `/` 등) 디자인은 원안 그대로 유지. 모든 `/beta-skin/*` 페이지 `robots noindex`.
+
+### Added
+- **`/beta-skin` 5개 라우트 신설**(전부 noindex, 운영과 격리):
+  - `page.tsx`+`BetaSkinFeed.tsx`+`beta-ui.tsx` — 피드(전체/Q&A/시술후기/끄적끄적/리포트 탭, `feed_cards_scored` 실데이터 80 + `getReviewSummaryFeedPool` 리포트풀, 무한스크롤, 카테고리 칩, 검색 필터).
+  - `record/`(RecordView) — 내 노트(게스트 예시+CTA / 타임라인·달력·목록 3토글 / 인기글).
+  - `post/`(PostDetail)·`write/`(WriteView 3탭)·`my/`(MyView).
+  - `BetaSkinShell.tsx` — 공통 크롬(로고·GNB·검색 pill·라운드 탭바·스크롤 시 헤더 숨김/복귀·검색 드롭다운·`/beta-skin?q=` 라우팅).
+  - `beta-skin.module.css` — tenten 디자인 토큰 CSS Module 스코프(브랜드 #45B7E8, 카드 radius 24px, 5색 태그 팔레트, 라운드 탭바, 컨테이너 max-width 1200px).
+- **격리 방식**: `position:fixed; inset:0; z-index:100; overflow-y:auto` 오버레이로 루트 `layout.tsx` 의 전역 TopNav/SiteFooter 를 덮음. CSS Module 스코핑으로 스타일 누출 차단.
+
+### Changed
+- **반응형**: 1024px 기준 모바일 앱 레이아웃 / 데스크탑 2열 GNB. 폰트는 컨셉 대비 톤다운(데스크탑 가독성).
+- **로고**: 운영 `/brand-logo.svg` 사용(컨셉 로고 아님). 크기 데스크탑 32px / 모바일 30px 로 원복.
+- **운영 기능 패리티 복원**(서브에이전트 갭분석 후 핀셋 보완): 카드 인라인 펼침/접힘(단일 URL 이동 아님), 본문 bold·형광펜 하이라이트, 영상 보러가기 타임스탬프, pubmed 참고문헌(운영 절제 스타일·중복 제거), 작성자/원장 프로필 링크·아바타(얼굴 안 잘림), NEW 배지, 공유, 카드별 실제 링크, 내 노트 게스트 예시+인기글, 검색 라우팅(내 노트 검색→피드 결과), 탭 전환 fadeInUp 애니, 인기태그 칩(#표기 제거·카테고리 연한 배경색·클릭 시 검색창 반영), +글쓰기 버튼 브랜드색+흰글씨.
+
+### Fixed
+- **리포트 카드 더보기 인라인 펼침**(`beta-ui.tsx` `BetaReportCard`): grid-rows `0fr↔1fr` 트릭이 실측에서 카드 높이를 늘리지 못해(475→475) 더보기를 눌러도 만족도 분포·통증 막대가 드러나지 않던 문제 → 펼침 영역을 조건부 렌더(`{expanded && ...}`)로 전환. 293→554px 확장·전체 리포트(재시술 의향·만족도 5~1점 분포·통증 5색 그라데이션 막대+마커·전체 리포트 링크) 인라인 표시 확인. 통증 막대 운영 원안 색/모양 재현.
+- 검색창 중복(운영 TopNav 비침)·모바일 inline 검색·드롭다운 섹션화·댓글 열림·포커스 파란선 제거 등 다회차 보완.
+
+커밋: `5a7bcd9`(피드) → `f6cee5a`(5화면) → `5b35e49` → `1bb74cd` → `9e804c1` → `20440cf` → `632ac7d` → `8feb975` → `6bb7ff8`(리포트 더보기).
+
+---
+
 ## [2026-06-12] — /search 폐기 + 인기글 통계 RPC 범용화
 
 ### Removed
