@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { formatRelativeTime } from "@/lib/relative-time";
+import { getPopularByCategory } from "@/lib/popular-keywords";
 import RecordTab, { type PopularData, type PopularItem } from "./RecordTab";
 import type { KeywordPost } from "./KeywordCarousel";
 import type { SummaryGroup, SummaryItem } from "../mockups/skin-diary/SkinDiaryMockup";
@@ -90,13 +91,90 @@ type TopCardRow = {
 
 const DAY_MS = 86_400_000;
 
-// /record — 내 일기(비공개). 로그인 필수. active 명함 기준 조회·집계.
+// KeywordCardRow → KeywordPost. matchedKeywords = 칩(관심/인기) ∩ 카드 keywords (필터용).
+function toKeywordPost(c: KeywordCardRow, chipSet: Set<string>, now: number): KeywordPost {
+  const matched = (c.keywords ?? []).filter((k) => chipSet.has(k));
+  return {
+    id: c.id,
+    title: c.title ?? "",
+    type: "qa",
+    authorName: c.doctor?.name ?? c.author?.display_name ?? "회원",
+    // 원장 글은 피드와 동일한 아바타 보정(getDoctorPhoto/theme)을 위해 slug 전달. 회원 글은 avatar_url.
+    doctorSlug: c.doctor?.slug ?? null,
+    avatarUrl: c.doctor ? null : c.author?.avatar_url ?? null,
+    isNew: c.created_at ? now - new Date(c.created_at).getTime() < DAY_MS : false,
+    timeAgo: c.created_at ? formatRelativeTime(c.created_at) : "",
+    keyword: matched[0] ?? (c.keywords?.[0] ?? ""),
+    matchedKeywords: matched.length > 0 ? matched : (c.keywords ?? []),
+    href: cardHref(c),
+  };
+}
+
+// 비로그인 게스트 데모 — 가입 유도용 '예시' 타임라인(개인 데이터 없음).
+const DEMO_SUMMARY: SummaryGroup[] = [
+  {
+    year: 2026,
+    items: [
+      { id: "demo-1", date: "06.10", proc: "써마지", hospital: "예시 강남피부과", doctor: "김○○ 원장", tel: "", price: "", memo: "이마·턱라인, 다운타임 거의 없었어요", items: [{ name: "써마지", unit: "600샷" }] },
+      { id: "demo-2", date: "05.18", proc: "리쥬란 · 보톡스", hospital: "예시 서초피부과", doctor: "박○○ 원장", tel: "", price: "", memo: "리쥬란힐러, 2주 뒤 결이 좋아짐", items: [{ name: "리쥬란", unit: "2cc" }, { name: "보톡스", unit: "이마 50u" }] },
+    ],
+  },
+  {
+    year: 2025,
+    items: [
+      { id: "demo-3", date: "11.02", proc: "울쎄라", hospital: "예시 분당피부과", doctor: "정○○ 원장", tel: "", price: "", memo: "300샷, 1년 주기로 받기로", items: [{ name: "울쎄라", unit: "300샷" }] },
+    ],
+  },
+];
+
+// /record — 내 일기(비공개). 비로그인은 가입 유도 데모, 로그인은 active 명함 기준 실데이터.
 export default async function RecordPage() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+
+  // ── 게스트(비로그인) — 가입 유도 데모. 인기글 RPC(authenticated 전용)는 호출하지 않고,
+  //    공개 인기 키워드 + 그 키워드의 최신 Q&A(공개 RLS)만 예시로 노출.
+  if (!user) {
+    const popularByCat = await getPopularByCategory();
+    const guestKeywords = Array.from(
+      new Set([
+        ...popularByCat.lifting.slice(0, 4),
+        ...popularByCat.injectables.slice(0, 4),
+        ...popularByCat.concerns.slice(0, 3),
+      ]),
+    ).slice(0, 10);
+    let guestPosts: KeywordPost[] = [];
+    if (guestKeywords.length > 0) {
+      const { data: qaRows } = await supabase
+        .from("cards")
+        .select(KEYWORD_SELECT)
+        .eq("category", "qa")
+        .eq("status", "published")
+        .is("deleted_at", null)
+        .overlaps("keywords", guestKeywords)
+        .order("reviewed_at", { ascending: false, nullsFirst: false })
+        .limit(20)
+        .returns<KeywordCardRow[]>();
+      const gSet = new Set(guestKeywords);
+      const gNow = Date.now();
+      guestPosts = (qaRows ?? []).map((c) => toKeywordPost(c, gSet, gNow));
+    }
+    return (
+      <RecordTab
+        guest
+        summary={DEMO_SUMMARY}
+        userName=""
+        latest={null}
+        diaryCount={0}
+        reviewsCount={0}
+        keywordPosts={guestPosts}
+        popular={{ d7: [], d30: [], d90: [] }}
+        myKeywords={guestKeywords}
+      />
+    );
+  }
 
   const idCtx = await getIdentityContext(supabase);
   const activeId = idCtx?.active?.profileId ?? user.id;
@@ -147,7 +225,7 @@ export default async function RecordPage() {
           .is("deleted_at", null)
           .overlaps("keywords", interests)
           .order("reviewed_at", { ascending: false, nullsFirst: false })
-          .limit(10)
+          .limit(20)
           .returns<KeywordCardRow[]>()
       : Promise.resolve({ data: [] as KeywordCardRow[] }),
   ]);
@@ -170,19 +248,7 @@ export default async function RecordPage() {
   // 관심 키워드 새 Q&A(컴팩트 카드). NEW=24h. 원장 글은 doctor 사진, 회원 글은 author 아바타.
   const interestSet = new Set(interests);
   const now = Date.now();
-  const keywordPosts: KeywordPost[] = ((kwRes.data ?? []) as KeywordCardRow[]).map((c) => ({
-    id: c.id,
-    title: c.title ?? "",
-    type: "qa",
-    authorName: c.doctor?.name ?? c.author?.display_name ?? "회원",
-    // 원장 글은 피드와 동일한 아바타 보정(getDoctorPhoto/theme)을 위해 slug 전달. 회원 글은 avatar_url.
-    doctorSlug: c.doctor?.slug ?? null,
-    avatarUrl: c.doctor ? null : c.author?.avatar_url ?? null,
-    isNew: c.created_at ? now - new Date(c.created_at).getTime() < DAY_MS : false,
-    timeAgo: c.created_at ? formatRelativeTime(c.created_at) : "",
-    keyword: (c.keywords ?? []).find((k) => interestSet.has(k)) ?? (c.keywords?.[0] ?? ""),
-    href: cardHref(c),
-  }));
+  const keywordPosts: KeywordPost[] = ((kwRes.data ?? []) as KeywordCardRow[]).map((c) => toKeywordPost(c, interestSet, now));
 
   // 인기글 — 3기간 RPC + 카드 enrich(공개 카드만). deleted 제외, 조회수(cnt) 표시.
   const periods: [keyof PopularData, TopCardRow[]][] = [

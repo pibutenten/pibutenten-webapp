@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CardAvatar from "@/components/card/CardAvatar";
+import { categorize } from "@/lib/category-sets";
+import { CATEGORIES } from "@/lib/categories";
 
 /** 관심 키워드 새 글(컴팩트) — 피드 풀카드와 분리된 전용 카드. */
 export type KeywordPost = {
@@ -14,9 +16,15 @@ export type KeywordPost = {
   avatarUrl: string | null; // 회원 글 아바타
   isNew: boolean;
   timeAgo: string;
-  keyword: string; // 매칭된 관심 키워드
+  keyword: string; // 대표(표시용) 매칭 키워드
+  matchedKeywords: string[]; // 칩 필터용 — 이 글이 매칭한 모든 키워드
   href: string;
 };
+
+// 키워드 → 카테고리 색(피드 카드와 동일 SSOT: categorize + CATEGORIES). 항상 hex.
+const kwColor = (k: string) => CATEGORIES.find((c) => c.slug === categorize(k))?.color ?? "#1E9FE0";
+// #RRGGBB + 알파(0~1) → #RRGGBBAA (연한 배경 틴트용).
+const hexA = (hex: string, a: number) => hex + Math.round(a * 255).toString(16).padStart(2, "0");
 
 const CARD_W = 272;
 const GAP = 11;
@@ -33,14 +41,23 @@ export default function KeywordCarousel({
   posts,
   myKeywords,
   viewAllHref,
+  guest = false,
 }: {
   posts: KeywordPost[];
   myKeywords: string[];
   viewAllHref: string;
+  guest?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
-  const dotCount = posts.length + 1; // 글 카드 + 전체보기 CTA
+  const [sel, setSel] = useState<string | null>(null); // 선택된 키워드(단일 토글 필터). null=전체.
+  const shown = sel ? posts.filter((p) => p.matchedKeywords.includes(sel)) : posts;
+  const dotCount = shown.length + 1; // 글 카드 + 전체보기 CTA
+  // 필터 변경 시 캐러셀을 맨 앞으로 — 줄어든 dotCount 와 옛 스크롤 위치(active) 불일치 방지.
+  useEffect(() => {
+    ref.current?.scrollTo({ left: 0 });
+    setActive(0);
+  }, [sel]);
 
   const onScroll = () => {
     const el = ref.current;
@@ -51,19 +68,36 @@ export default function KeywordCarousel({
 
   return (
     <div className="group/kw relative">
-      {/* 키워드 칩 — 한 줄 가로 스크롤(해시태그 표기 없음) */}
+      {/* 키워드 칩 — 카테고리별 색(피드와 동일). 탭 시 그 키워드 글만, 다시 탭 시 전체. */}
       <div className="no-scrollbar mb-3 flex gap-1.5 overflow-x-auto pb-1">
-        {myKeywords.slice(0, 12).map((k) => (
-          <span key={k} className="shrink-0 whitespace-nowrap rounded-full bg-[var(--primary-soft)] px-3 py-1.5 text-[13.5px] font-bold text-[var(--primary-active)]">{k}</span>
-        ))}
-        <Link href="/settings/profile" className="shrink-0 whitespace-nowrap rounded-full border-[1.5px] border-dashed border-[#C5DFEF] bg-white px-3 py-1.5 text-[13.5px] font-bold text-[var(--text-muted)]">
-          ＋ 키워드 편집
+        {myKeywords.slice(0, 12).map((k) => {
+          const c = kwColor(k);
+          const on = sel === k;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setSel(on ? null : k)}
+              className="shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13.5px] font-bold transition-colors"
+              style={on ? { color: "#fff", background: c } : { color: c, background: hexA(c, 0.12) }}
+            >
+              {k}
+            </button>
+          );
+        })}
+        <Link href={guest ? "/signup" : "/settings/profile"} className="shrink-0 whitespace-nowrap rounded-full border-[1.5px] border-dashed border-[#C5DFEF] bg-white px-3 py-1.5 text-[13.5px] font-bold text-[var(--text-muted)]">
+          {guest ? "＋ 내 키워드 만들기" : "＋ 키워드 편집"}
         </Link>
       </div>
 
       {/* 카러셀 */}
       <div ref={ref} onScroll={onScroll} className="no-scrollbar -mx-0.5 flex gap-[11px] overflow-x-auto px-0.5 pb-2" style={{ scrollSnapType: "x mandatory" }}>
-        {posts.map((p) => {
+        {shown.length === 0 && (
+          <div className="flex shrink-0 items-center justify-center rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-white p-4 text-center text-[13px] font-medium text-[var(--text-muted)]" style={{ width: CARD_W, scrollSnapAlign: "start" }}>
+            ‘{sel}’ 키워드의 새 글이 아직 없어요.
+          </div>
+        )}
+        {shown.map((p) => {
           const chip = TYPE_CHIP[p.type] ?? TYPE_CHIP.qa;
           return (
             <Link
