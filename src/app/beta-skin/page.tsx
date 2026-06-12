@@ -19,19 +19,20 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const INITIAL = 14;
+// 무한스크롤용 풀 크기 — 프리뷰라 한 번에 충분히 받아 클라에서 점진 노출.
+const POOL = 80;
 
 export default async function BetaSkinPage() {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.rpc("feed_cards_scored", {
-    p_limit: 40,
+    p_limit: POOL,
     p_offset: 0,
     p_half_life_days: 14,
     p_jitter_amp: 0.35,
   });
 
-  const cards = (data ?? []) as CardData[];
-  const initialPool = cards.slice(0, INITIAL);
+  // 풀 전체를 클라이언트로 전달 → IntersectionObserver 무한스크롤로 14장씩 reveal.
+  const pool = (data ?? []) as CardData[];
 
-  return <BetaSkinFeed initialPool={initialPool} />;
+  return <BetaSkinFeed initialPool={pool} />;
 }
