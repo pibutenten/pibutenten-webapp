@@ -26,6 +26,9 @@ import {
   renderBetaBody,
   videoInfo,
   PubmedRefs,
+  cardHref,
+  authorHref,
+  shareBetaCard,
 } from "../beta-ui";
 
 /* 샘플 댓글 (디자인만) */
@@ -68,6 +71,34 @@ export default function PostDetail({ card }: { card: CardData | null }) {
   const hlColor = pickHighlight(String(card?.id ?? "sample-post"));
   // 영상 pill — 실제 카드면 external_url/video 에서 타임스탬프 추출.
   const vid = card ? videoInfo(card) : null;
+  // 항목 4) 작성자 프로필 URL · 항목 1) 글 canonical URL (실제 카드일 때만).
+  const profileHref = card ? authorHref(card) : null;
+  const postHref = card ? cardHref(card) : "/";
+  // 항목 5) 공유 — 실제 카드면 그 글 URL, 샘플이면 현재 페이지.
+  const onShare = () => void shareBetaCard(postHref, title);
+  // 작성자 행 내용(링크/일반 div 공용).
+  const authorRow = (
+    <>
+      <CardAvatar
+        doctorSlug={card?.doctor?.slug}
+        memberAvatarUrl={avatarUrl}
+        name={authorName}
+        size={46}
+      />
+      <div>
+        <div className={styles.authorName}>
+          {authorName}
+          {isDoctor && (
+            <span className={styles.verified}>
+              <IconVerified />
+              피부과 전문의
+            </span>
+          )}
+        </div>
+        <div className={styles.authorSub}>{subParts.join(" · ")}</div>
+      </div>
+    </>
+  );
 
   const sidebar = (
     <>
@@ -120,26 +151,19 @@ export default function PostDetail({ card }: { card: CardData | null }) {
   return (
     <BetaSkinShell active="피드" sidebar={sidebar}>
       <article className={`${styles.card} ${styles.postCard}`}>
-        <a className={styles.author} href="#">
-          <CardAvatar
-            doctorSlug={card?.doctor?.slug}
-            memberAvatarUrl={avatarUrl}
-            name={authorName}
-            size={46}
-          />
-          <div>
-            <div className={styles.authorName}>
-              {authorName}
-              {isDoctor && (
-                <span className={styles.verified}>
-                  <IconVerified />
-                  피부과 전문의
-                </span>
-              )}
-            </div>
-            <div className={styles.authorSub}>{subParts.join(" · ")}</div>
-          </div>
-        </a>
+        {/* 항목 4) 작성자 — 실제 프로필 URL 로 새 탭(정보 부족이면 일반 div). */}
+        {profileHref ? (
+          <a
+            className={styles.author}
+            href={profileHref}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {authorRow}
+          </a>
+        ) : (
+          <div className={styles.author}>{authorRow}</div>
+        )}
 
         <h1 className={styles.articleTitle}>{title}</h1>
 
@@ -191,9 +215,10 @@ export default function PostDetail({ card }: { card: CardData | null }) {
             <IconBookmark /> {card?.save_count ?? 4}
           </span>
           <span className={styles.grow} />
-          <span className={styles.pf}>
+          {/* 항목 5) 공유 — 실제 글 URL 을 navigator.share / clipboard 로. */}
+          <button type="button" className={styles.pfBtn} onClick={onShare}>
             <IconShare /> 공유
-          </span>
+          </button>
         </div>
 
         <div className={styles.divider} />

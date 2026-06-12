@@ -32,6 +32,56 @@ export function cardHref(c: CardData): string {
   return getQaUrl(c);
 }
 
+/* ---------- 카드 → 작성자 프로필 URL (운영 CardHeader 동선 재현) ----------
+ * 항목 4) 작성자(아바타+이름) 클릭 → 실제 프로필로 이동.
+ *   - 의사(credential 노출): /doctors/{slug}
+ *   - 회원(handle 있음):     /{handle}
+ *   - 정보 부족: null → 호출부에서 링크 대신 일반 텍스트로 렌더. */
+export function authorHref(c: CardData): string | null {
+  const isDoctor = !!c.doctor && !c.hide_doctor_credential;
+  if (isDoctor && c.doctor?.slug) return `/doctors/${c.doctor.slug}`;
+  if (c.author?.handle) return `/${c.author.handle}`;
+  return null;
+}
+
+/* ---------- 24시간 내 작성 → NEW (운영 Card.isNew 재현) ----------
+ * 항목 5) created_at 이 24h 이내면 NEW 배지. created_at 없으면 false. */
+export function isNewCard(iso?: string | null): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return false;
+  return Date.now() - t < 24 * 60 * 60 * 1000;
+}
+
+/* ---------- 공유 (실제 URL, 운영 shareCard 의 프리뷰판) ----------
+ * 항목 5) navigator.share 있으면 호출, 없으면 clipboard 복사 + alert 안내.
+ *   href 는 cardHref 결과(상대경로) → 절대 URL 로 변환해 공유/복사.
+ *   "/"(정보 부족) 이면 현재 페이지 URL 로 폴백. */
+export async function shareBetaCard(href: string, title?: string): Promise<void> {
+  if (typeof window === "undefined") return;
+  const url =
+    href && href !== "/"
+      ? new URL(href, window.location.origin).toString()
+      : window.location.href;
+  try {
+    const nav = window.navigator as Navigator & {
+      share?: (data: ShareData) => Promise<void>;
+    };
+    if (typeof nav.share === "function") {
+      await nav.share({ title: title || "피부텐텐", url });
+      return;
+    }
+    if (nav.clipboard?.writeText) {
+      await nav.clipboard.writeText(url);
+      window.alert("링크를 복사했어요.");
+      return;
+    }
+    window.prompt("아래 링크를 복사하세요", url);
+  } catch {
+    /* 사용자가 공유 시트를 닫은 경우 등 — 조용히 무시 */
+  }
+}
+
 /* ---------- 카테고리 라벨 ---------- */
 export function categoryLabel(c: CardData): string {
   const key = c.category ?? c.type ?? "";
@@ -283,43 +333,62 @@ export function PostCard({
   // 항목 1) 실제 canonical URL. "/"(정보 부족) 이면 '원문 보기' 링크 숨김.
   const href = cardHref(card);
   const hasHref = href !== "/";
+  // 항목 4) 작성자 프로필 URL. null 이면 링크 대신 일반 div.
+  const profileHref = authorHref(card);
+  // 항목 5) 24h 내 작성 → NEW 배지.
+  const showNew = isNewCard(card.created_at);
 
   const toggle = () => {
     if (isLong) setExpanded((v) => !v);
   };
 
-  return (
-    <article className={`${styles.card} ${styles.postCard}`}>
-      {/* 작성자 — 이동 없음(카드 단위 펼침으로 통일). 토글에 포함. */}
-      <div
-        className={styles.author}
-        onClick={toggle}
-        role={isLong ? "button" : undefined}
-        tabIndex={isLong ? 0 : undefined}
-        style={isLong ? { cursor: "pointer" } : undefined}
-      >
-        <CardAvatar
-          doctorSlug={card.doctor?.slug}
-          memberAvatarUrl={card.author?.avatar_url}
-          name={authorName}
-          size={46}
-        />
-        <div>
-          <div className={styles.authorName}>
-            {authorName}
-            {isDoctor && (
-              <span className={styles.verified}>
-                <IconVerified />
-                피부과 전문의
-              </span>
-            )}
-          </div>
-          <div className={styles.authorSub}>
-            <span className={styles.catLabel}>{categoryLabel(card)}</span>
-            {timeAgo(card.created_at) ? ` · ${timeAgo(card.created_at)}` : ""}
-          </div>
+  // 작성자 행 내용 — 링크/일반 div 공용.
+  const authorInner = (
+    <>
+      <CardAvatar
+        doctorSlug={card.doctor?.slug}
+        memberAvatarUrl={card.author?.avatar_url}
+        name={authorName}
+        size={46}
+      />
+      <div>
+        <div className={styles.authorName}>
+          {authorName}
+          {isDoctor && (
+            <span className={styles.verified}>
+              <IconVerified />
+              피부과 전문의
+            </span>
+          )}
+        </div>
+        <div className={styles.authorSub}>
+          <span className={styles.catLabel}>{categoryLabel(card)}</span>
+          {timeAgo(card.created_at) ? ` · ${timeAgo(card.created_at)}` : ""}
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <article className={`${styles.card} ${styles.postCard}`}>
+      {/* 항목 5) NEW 배지 — 24h 내 작성. 카드 우상단 안쪽에서 매달림. */}
+      {showNew && <span className={styles.newBadge}>NEW</span>}
+
+      {/* 작성자 — 항목 4) 실제 프로필 URL 로 새 탭 이동(정보 부족이면 일반 div).
+          본문 펼침 토글과 충돌 안 나게 작성자 영역은 별도(토글에서 분리). */}
+      {profileHref ? (
+        <a
+          className={styles.author}
+          href={profileHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {authorInner}
+        </a>
+      ) : (
+        <div className={styles.author}>{authorInner}</div>
+      )}
 
       <div
         className={isLong ? styles.bodyToggle : undefined}
@@ -399,6 +468,18 @@ export function PostCard({
         <span className={styles.pf}>
           <IconBookmark /> {card.save_count ?? 0}
         </span>
+        {/* 항목 5) 공유 — 실제 URL 을 navigator.share / clipboard 로. */}
+        <button
+          type="button"
+          className={styles.pfBtn}
+          aria-label="공유"
+          onClick={(e) => {
+            e.stopPropagation();
+            void shareBetaCard(href, card.title ?? undefined);
+          }}
+        >
+          <IconShare />
+        </button>
         <span className={styles.grow} />
         {/* 항목 1) 절제된 '원문 보기' — 카드별 실제 URL 로 새 탭. (전체 카드 동일 이동 X) */}
         {hasHref && (
