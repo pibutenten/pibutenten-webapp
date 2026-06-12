@@ -155,6 +155,11 @@ a:focus-visible,
   /* 페이지 이동 시 콘텐츠 좌우 흔들림 방지 — 스크롤바 공간 항상 예약 */
   html {
     scrollbar-gutter: stable;
+    /* 모바일 브라우저 자동 글씨 확대(font boosting) 차단.
+       미설정 시 textarea 등 넓은 텍스트 블록만 모바일에서 글씨가 부풀어
+       input 과 폰트 크기가 달라 보임. 100% 로 고정해 지정 크기 그대로 표시. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   /* iOS safe area 대응 — top/bottom 모두.
