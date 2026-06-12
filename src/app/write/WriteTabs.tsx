@@ -55,7 +55,7 @@ export default function WriteTabs({
         <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="qa" />
       )}
       {/* 시술기록(일기)은 비공개라 비로그인도 폼은 열림 — 저장 시 API 401 → "로그인 후 저장" 토스트로 안내. */}
-      {cat === "시술기록" && <DiaryForm toast={(m) => showToast(m)} go={() => { void router.push("/record"); }} />}
+      {cat === "시술기록" && <DiaryForm toast={(m) => showToast(m)} go={() => { void router.push("/record"); }} procedures={procedures} />}
       {cat === "시술후기" && (
         isLoggedIn ? <ReviewForm procedures={procedures} handle={handle} /> : <LoginGate />
       )}

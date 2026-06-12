@@ -23,6 +23,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { recordBadge } from "@/lib/diary-status";
+import { chosungOf, isAllChosung } from "@/lib/hangul-chosung";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -391,9 +392,12 @@ function regionLabel(addr: string): string {
   return t[1] ? `${sido} ${t[1]}` : sido;
 }
 
-type DiaryProc = ReviewState & { id: number; label: string; cat: string; price: string; unit: string; note: string; open: boolean; later: boolean };
+type DiaryProc = ReviewState & { id: number; label: string; cat: string; note: string; open: boolean; later: boolean };
 
-export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
+/** 자동완성 사전 항목 — getReviewProcedures(ProcedureOption) 와 구조 호환(value/label/categoryLabel). */
+type ProcDictItem = { value: string; label: string; categoryLabel?: string | null };
+
+export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => void; go: (s: Screen) => void; procedures?: ProcDictItem[] }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
   const [pickedXY, setPickedXY] = useState<{ x: number; y: number } | null>(null); // 확정 병원 좌표(경도 x/위도 y)
@@ -418,16 +422,16 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   const [locReady, setLocReady] = useState(0);
   const locTriedRef = useRef(false);
   const [procs, setProcs] = useState<DiaryProc[]>([]);
-  const [pid, setPid] = useState(0);
+  const pidRef = useRef(0); // 행 id 카운터 — 동기 증가라 연속 추가에도 충돌 없음.
   const [tag, setTag] = useState("");
   const [diary, setDiary] = useState(""); // 오늘의 시술 일기(비공개 메모) — 최대 400자.
   const [doctorName, setDoctorName] = useState(""); // 원장님(자유 입력)
   const [managerName, setManagerName] = useState(""); // 실장님(자유 입력)
   const [saving, setSaving] = useState(false);
   const [savedModal, setSavedModal] = useState(false); // 저장 완료 모달(→ 시술후기 유도).
-  // 시술을 추가하면 해당 행의 '용량' 칸으로 커서를 옮겨 이어서 입력하게 함.
-  const [focusId, setFocusId] = useState<number | null>(null);
-  const unitRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const [dupId, setDupId] = useState<number | null>(null); // 중복 추가 시 기존 행 0.5초 강조.
+  const [tagFocus, setTagFocus] = useState(false); // 시술명 입력 포커스 — '엔터로 추가' 힌트 노출.
+  const [acHi, setAcHi] = useState(-1); // 자동완성 키보드 하이라이트 인덱스(-1=없음).
   // 날짜 picker — 데스크탑 크롬은 필드 클릭만으론 안 열려서 showPicker()로 강제로 연다.
   const dateRef = useRef<HTMLInputElement | null>(null);
   const openDatePicker = () => { try { dateRef.current?.showPicker?.(); } catch { /* 미지원 브라우저는 네이티브 클릭 폴백 */ } };
@@ -435,12 +439,6 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
   const doctorRef = useRef<HTMLInputElement | null>(null);
   const managerRef = useRef<HTMLInputElement | null>(null);
   const tagRef = useRef<HTMLInputElement | null>(null);
-  useEffect(() => {
-    if (focusId != null && unitRefs.current[focusId]) {
-      unitRefs.current[focusId]!.focus();
-      setFocusId(null);
-    }
-  }, [focusId, procs]);
   const _d = new Date();
   const [date, setDate] = useState(`${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`);
   const [_y, _m, _dd] = date.split("-");
@@ -550,20 +548,73 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
 
   // (검색 전 자동 '주변 병원' 노출 제거 — 검색해야만 결과창이 열림.)
 
-  function addTag(raw: string) {
-    const t = raw.trim(); if (!t) return; const low = t.toLowerCase();
+  // 자동완성 사전 — 서버 주입(tag_dictionary 라이브) 우선, 없으면(목업 단독) 정적 PROCEDURES 폴백.
+  const procList = useMemo<{ label: string; cat: string }[]>(
+    () =>
+      procedures && procedures.length > 0
+        ? procedures.map((p) => ({ label: p.label, cat: p.categoryLabel ?? "" }))
+        : PROCEDURES.map((p) => ({ label: p.label, cat: p.cat })),
+    [procedures],
+  );
+
+  // GA4 가벼운 이벤트 — 미로드 환경에선 조용히 무시.
+  const trackProc = (event: string, params: Record<string, unknown>) => {
+    try {
+      (window as unknown as { gtag?: (...a: unknown[]) => void }).gtag?.("event", event, params);
+    } catch {
+      /* noop */
+    }
+  };
+
+  function addTag(raw: string, method: "autocomplete" | "enter" | "free_text" = "enter") {
+    const t = raw.trim(); if (!t) return;
+    const low = t.toLowerCase();
     let label = t; if (/[a-z]/i.test(t) && EN2KO[low]) label = EN2KO[low];
-    if (procs.some((p) => p.label === label)) { setTag(""); return; }
-    const cat = PROCEDURES.find((p) => p.label === label)?.cat ?? "";
-    const nid = pid + 1; setPid(nid);
-    setProcs([...procs, { ...emptyReview(), id: nid, label, cat, price: "", unit: "", note: "", open: false, later: false }]);
+    // 중복 — 추가하지 않고 기존 행 0.5초 강조.
+    const exist = procs.find((p) => p.label === label);
+    if (exist) { setTag(""); setDupId(exist.id); setTimeout(() => setDupId((c) => (c === exist.id ? null : c)), 600); return; }
+    if (procs.length >= 10) { toast("시술은 최대 10개까지 추가할 수 있어요"); return; }
+    const cat = procList.find((p) => p.label === label)?.cat ?? "";
+    const nid = (pidRef.current += 1);
+    // 함수형 업데이트 + 동기 id — 연속 고속 추가에도 id 충돌·항목 유실 없음. 중복·상한은 최신 상태 기준 재확인.
+    setProcs((prev) => (prev.some((p) => p.label === label) || prev.length >= 10 ? prev : [...prev, { ...emptyReview(), id: nid, label, cat, note: "", open: false, later: false }]));
     setTag("");
-    setFocusId(nid);
+    setAcHi(-1);
+    requestAnimationFrame(() => tagRef.current?.focus()); // 입력창 비우고 포커스 유지 → 이어서 다음 시술.
+    trackProc("procedure_add", { method });
+  }
+  function removeProc(p: DiaryProc) {
+    const hadNote = !!p.note.trim();
+    setProcs((ps) => ps.filter((x) => x.id !== p.id));
+    trackProc("procedure_remove", {});
+    if (hadNote) toast("메모와 함께 삭제됐어요");
   }
   const upd = (id: number, p: Partial<DiaryProc>) => setProcs((ps) => ps.map((x) => (x.id === id ? { ...x, ...p } : x)));
   const tq = tag.trim(); const tlow = tq.toLowerCase();
-  const acMatches = tq ? PROCEDURES.filter((p) => (p.label.includes(tq) || (EN2KO[tlow] && p.label === EN2KO[tlow])) && !procs.some((x) => x.label === p.label)).slice(0, 8) : [];
-  const acExact = PROCEDURES.some((p) => p.label === tq) || !!EN2KO[tlow];
+  // 부분일치 + 영문 별칭 + 초성('ㅇㅆ'→울쎄라). 이미 추가된 건 제외, 최대 8건.
+  const acMatches = useMemo(() => {
+    if (!tq) return [] as { label: string; cat: string }[];
+    const cho = isAllChosung(tq);
+    return procList
+      .filter((p) => !procs.some((x) => x.label === p.label))
+      .filter((p) => p.label.includes(tq) || (EN2KO[tlow] && p.label === EN2KO[tlow]) || (cho && chosungOf(p.label).includes(tq)))
+      .slice(0, 8);
+  }, [tq, tlow, procList, procs]);
+  const acExact = procList.some((p) => p.label === tq) || !!EN2KO[tlow];
+  // 입력이 바뀌면 키보드 하이라이트 초기화 — 옛 인덱스로 엉뚱한 선택 방지.
+  useEffect(() => { setAcHi(-1); }, [tq]);
+  // 자동완성 0건(직접 추가만 가능) — 사전 보강 소스용 1회 트래킹.
+  const noMatchRef = useRef("");
+  useEffect(() => {
+    if (tq && acMatches.length === 0 && !acExact && noMatchRef.current !== tq) {
+      noMatchRef.current = tq;
+      try {
+        (window as unknown as { gtag?: (...a: unknown[]) => void }).gtag?.("event", "procedure_autocomplete_no_match", { q: tq });
+      } catch {
+        /* noop */
+      }
+    }
+  }, [tq, acMatches.length, acExact]);
 
   // 저장 — /api/diaries POST (create_diary RPC). 시술 1개 이상 필수.
   async function handleSave() {
@@ -584,11 +635,9 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
           doctor_name: doctorName.trim() || null,
           manager_name: managerName.trim() || null,
           diary_body: diary.trim() || null,
+          // 용량/가격 입력 폐지(v2.2) — 메모(note)만 전송. unit_text/price 컬럼·RPC 는 유지(미사용).
           procedures: procs.map((pr) => ({
             procedure_ko: pr.label,
-            unit_text: pr.unit.trim() || null,
-            // price 입력은 숫자만 남도록 필터됨(정수문자열, "0" 포함) — 방어적으로 정수 보장.
-            price: pr.price ? Math.floor(Number(pr.price)) : null,
             note: pr.note.trim() || null,
           })),
         }),
@@ -702,38 +751,90 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
           </div>
         </div>
 
-        {/* 4. 받은 시술 (행마다 가격·비고) */}
+        {/* 4. 받은 시술 — 태그 입력(자동완성·초성) + 행마다 메모 3상태(선택). */}
         <div>
           <label className={labelCls}>어떤 시술을 받으셨어요?</label>
           {procs.length > 0 && (
             <div className="mb-2 space-y-2">
               {procs.map((p) => (
-                // 한 행: 칩 + 용량 + 가격 + 삭제 (시술별 메모 제거).
-                <div key={p.id} className="flex items-center gap-1.5 rounded-md bg-[var(--bg)] p-2.5">
-                  <span className="shrink-0 rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
-                  <input ref={(el) => { unitRefs.current[p.id] = el; }} className={inputSm + " min-w-0 flex-1"} placeholder="용량" value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value })} />
-                  <input inputMode="numeric" className={inputSm + " min-w-0 flex-1"} placeholder="가격" value={p.price ? Number(p.price).toLocaleString() : ""} onChange={(e) => upd(p.id, { price: e.target.value.replace(/[^0-9]/g, "") })} />
-                  <button type="button" tabIndex={-1} onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="shrink-0 px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
+                <div key={p.id} className={"rounded-md bg-[var(--bg)] p-2.5 transition-shadow " + (dupId === p.id ? "ring-2 ring-[var(--primary)]" : "")}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
+                    {/* ③ 메모 작성됨(접힘) — 회색 알약, 탭하면 재수정. */}
+                    {!p.open && p.note.trim() && (
+                      <button type="button" onClick={() => upd(p.id, { open: true })} className="ml-auto max-w-[58%] truncate rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)]">{p.note.trim()}</button>
+                    )}
+                    {/* ① 메모 없음(기본) — ＋메모 점선 버튼. */}
+                    {!p.open && !p.note.trim() && (
+                      <button type="button" onClick={() => { upd(p.id, { open: true }); trackProc("procedure_memo_open", {}); }} className="ml-auto rounded-full border border-dashed border-[#CBD8E2] bg-white px-3 py-1.5 text-[13px] font-semibold text-[var(--text-muted)]">＋ 메모</button>
+                    )}
+                    <button type="button" tabIndex={-1} onClick={() => removeProc(p)} className="shrink-0 px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
+                  </div>
+                  {/* ② 메모 입력 중 — 행 아래 펼침. 빈 값으로 포커스 아웃 → ①, 입력 후 → ③. */}
+                  {p.open && (
+                    <input
+                      className={inputSm + " mt-2 w-full"}
+                      placeholder="샷수, 바이알, 부위, 메모… (선택)"
+                      value={p.note}
+                      maxLength={60}
+                      autoFocus
+                      onChange={(e) => upd(p.id, { note: e.target.value })}
+                      onBlur={(e) => { const v = e.target.value.trim(); upd(p.id, { open: false }); if (v) trackProc("procedure_memo_save", { length: v.length }); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
+                    />
+                  )}
                 </div>
               ))}
             </div>
           )}
           <div className="relative">
-            <input ref={tagRef} className={inputCls} placeholder={procs.length === 0 ? "시술명을 검색해보세요" : "함께 받은 다른 시술"} value={tag} autoComplete="off"
-              onChange={(e) => setTag(e.target.value)} onKeyDown={(e) => { if (e.key !== "Enter") return; if (e.nativeEvent.isComposing || e.keyCode === 229) return; e.preventDefault(); addTag(tag); }} />
+            <input
+              ref={tagRef}
+              className={inputCls + (tagFocus ? " pr-[88px]" : "")}
+              placeholder="시술명 입력 후 엔터 (예: 울쎄라)"
+              value={tag}
+              autoComplete="off"
+              enterKeyHint="done"
+              onFocus={() => setTagFocus(true)}
+              onBlur={() => setTagFocus(false)}
+              onChange={(e) => setTag(e.target.value)}
+              onKeyDown={(e) => {
+                // 자동완성 키보드 네비 — ↑↓ 로 후보(+'직접 추가' 줄) 이동.
+                const navLen = acMatches.length + (acExact ? 0 : 1);
+                if (tq && navLen > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                  e.preventDefault();
+                  setAcHi((cur) => Math.max(0, Math.min(navLen - 1, e.key === "ArrowDown" ? cur + 1 : cur - 1)));
+                  return;
+                }
+                if (e.key !== "Enter") return;
+                // 한글 IME 조합 중 Enter(229)는 조합 확정용 — 무시(중복 추가 방지).
+                if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                e.preventDefault();
+                // 하이라이트된 후보가 있으면 그걸 선택, 없으면 입력값 그대로 추가.
+                if (tq && acHi >= 0) {
+                  if (acHi < acMatches.length) addTag(acMatches[acHi].label, "autocomplete");
+                  else addTag(tag, "free_text");
+                } else {
+                  addTag(tag, acExact ? "enter" : "free_text");
+                }
+              }}
+            />
+            {tagFocus && (
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md bg-[var(--primary-soft)] px-2 py-1 text-[11px] font-bold text-[var(--primary-active)]">엔터로 추가 ↵</span>
+            )}
             {tq && (
               <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto rounded-md bg-white shadow-[var(--shadow-lg)]">
-                {acMatches.map((m) => (
-                  <button key={m.value} type="button" onMouseDown={(e) => { e.preventDefault(); addTag(m.value); }}
-                    className="flex w-full items-center gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)]">
+                {acMatches.map((m, i) => (
+                  <button key={m.label} type="button" onMouseEnter={() => setAcHi(i)} onMouseDown={(e) => { e.preventDefault(); addTag(m.label, "autocomplete"); }}
+                    className={"flex w-full items-center gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 " + (acHi === i ? "bg-[var(--primary-soft)]" : "hover:bg-[var(--primary-soft)]")}>
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CAT_COLOR[m.cat] ?? "var(--primary)" }} />
                     <span className="text-[14px] font-medium text-[var(--text)]">{m.label}</span>
-                    <span className="ml-auto text-[11px] text-[var(--text-muted)]">{m.cat}</span>
+                    {m.cat && <span className="ml-auto text-[11px] text-[var(--text-muted)]">{m.cat}</span>}
                   </button>
                 ))}
                 {!acExact && (
-                  <button type="button" onMouseDown={(e) => { e.preventDefault(); addTag(tag); }}
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--primary-soft)]">
+                  <button type="button" onMouseEnter={() => setAcHi(acMatches.length)} onMouseDown={(e) => { e.preventDefault(); addTag(tag, "free_text"); }}
+                    className={"flex w-full items-center gap-2 px-3 py-2.5 text-left " + (acHi === acMatches.length ? "bg-[var(--primary-soft)]" : "hover:bg-[var(--primary-soft)]")}>
                     <span className="text-[13px] font-semibold text-[var(--primary-active)]">＋ “{tq}” 직접 추가</span>
                     <span className="ml-auto text-[11px] text-[var(--text-muted)]">목록에 없음</span>
                   </button>
@@ -741,6 +842,7 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
               </div>
             )}
           </div>
+          <p className="mt-2 px-0.5 text-[12px] leading-relaxed text-[var(--text-muted)]">메모는 선택사항이에요. 샷수·바이알 수·부위 등 기억하고 싶은 것만 적어주세요.</p>
         </div>
 
         {/* 5. 오늘의 시술 일기 — 비공개 메모, 최대 400자 (후기 카운터와 동일 표기) */}
