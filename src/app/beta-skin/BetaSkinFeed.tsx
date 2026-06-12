@@ -19,7 +19,7 @@ import { useSearchParams } from "next/navigation";
 import type { CardData } from "@/lib/types/card";
 import BetaSkinShell from "./BetaSkinShell";
 import styles from "./beta-skin.module.css";
-import { PostCard, cardHref } from "./beta-ui";
+import { PostCard, cardHref, catTagClass } from "./beta-ui";
 
 /* 한 번에 노출할 카드 수 (초기 + 추가 배치 단위) */
 const PAGE = 14;
@@ -161,7 +161,7 @@ export default function BetaSkinFeed({
           {popularTags.map((tag) => (
             <button
               type="button"
-              className={`${styles.tagBtn} ${
+              className={`${styles.tagBtn} ${catTagClass(tag)} ${
                 query.trim() === tag ? styles.tagBtnActive : ""
               }`}
               key={tag}
@@ -212,6 +212,7 @@ export default function BetaSkinFeed({
       sidebar={sidebar}
       searchValue={query}
       onSearchChange={setQuery}
+      searchSuggestions={popularTags}
     >
       <div className={styles.feedList}>
         {filtered.length === 0 ? (

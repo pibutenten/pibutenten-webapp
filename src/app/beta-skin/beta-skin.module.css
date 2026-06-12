@@ -66,11 +66,14 @@
   box-sizing: border-box;
 }
 
-.root a {
+/* reset — :where() 로 감싸 specificity 0 으로 낮춤.
+   (그래야 .t / .tagBtn / .catXxx / .btnWriteTop / .ytPill 등 컴포넌트 클래스의
+    background·color 가 reset 에 패배하지 않고 정상 적용된다.) */
+:where(.root) a {
   color: inherit;
   text-decoration: none;
 }
-.root button {
+:where(.root) button {
   font-family: inherit;
   border: 0;
   cursor: pointer;
@@ -86,6 +89,18 @@
   outline-offset: 2px;
   border-radius: 8px;
 }
+/* 피드백 6) 검색 input 은 위 3px 파란 외곽선 제외 — 지저분한 링 제거.
+   대신 검색 pill 컨테이너에 은은한 브랜드 보더+그림자로 포커스 표현(접근성 유지). */
+.root .headerSearchLive input:focus,
+.root .headerSearchLive input:focus-visible,
+.root .headerSearchInline input:focus,
+.root .headerSearchInline input:focus-visible {
+  outline: none;
+}
+.headerSearchLive:focus-within,
+.headerSearchInline:focus-within {
+  box-shadow: 0 0 0 2px rgba(69, 183, 232, 0.28), var(--card-shadow);
+}
 
 /* ---------- 헤더 (모바일 기본) ----------
  * 항목 1) 헤더는 sticky 가 아니라 일반 흐름 — 스크롤 다운 시 transform 으로 위로 슬라이드되어 사라짐.
@@ -94,7 +109,11 @@
   position: relative;
   z-index: 40;
   padding: 12px 18px;
-  background: linear-gradient(
+  /* 불투명 베이스(#e8f5fd) 위에 반투명 틴트를 얹어, 아래 깔린 운영 TopNav 가
+     beta 헤더 뒤로 비치지 않게 한다(운영 파일 무수정 → beta 측에서 완전 차폐).
+     blur 글래스 질감은 유지. */
+  background-color: #e8f5fd;
+  background-image: linear-gradient(
     180deg,
     rgba(232, 245, 253, 0.92),
     rgba(232, 245, 253, 0.75)
@@ -107,37 +126,15 @@
   transform: translateY(-100%);
 }
 
-/* 모바일 검색 입력 바 (검색 아이콘 토글 시 펼침) */
-.searchBar {
+/* 피드백 1) 모바일 검색 모드 — 헤더 "안"이 검색 input 으로 전환된 행.
+   기존 헤더 아래 별도 바(.searchBar)는 폐기. 헤더 내부에서 처리. */
+.headerInnerSearch {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-  background: #fff;
-  border-radius: var(--r-chip);
-  padding: 10px 16px;
-  box-shadow: var(--card-shadow);
-  color: var(--ink-300);
+  gap: 8px;
+  width: 100%;
 }
-.searchBar svg {
-  width: 18px;
-  height: 18px;
-  flex: none;
-  stroke: var(--ink-300);
-}
-.searchBar input {
-  flex: 1;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 14px;
-  outline: none;
-  color: var(--ink-900);
-}
-.searchBar input::placeholder {
-  color: var(--ink-300);
-}
-/* 검색어 지우기 버튼 (모바일 바 + 데스크탑 pill 공용) */
+/* 검색어 지우기 버튼 (데스크탑 pill + 모바일 inline 공용) */
 .searchClear {
   flex: none;
   width: 22px;
@@ -153,6 +150,58 @@
   background: rgba(0, 0, 0, 0.1);
   color: var(--ink-700);
 }
+
+/* 피드백 2) 검색 포커스 추천 드롭다운 — 검색 pill 바로 아래 부유.
+   데스크탑 pill·모바일 inline 공용(부모 .headerSearch 가 position:relative). */
+.searchSuggest {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(53, 118, 160, 0.16);
+  padding: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.searchSuggestHead {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--ink-300);
+  letter-spacing: 0.04em;
+  padding: 6px 10px 4px;
+}
+.searchSuggestItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-700);
+  transition: background 0.12s ease;
+}
+.searchSuggestItem svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  stroke: var(--ink-300);
+}
+.searchSuggestItem:hover,
+.searchSuggestItem[aria-selected="true"] {
+  background: var(--tt-blue-tint);
+  color: var(--tt-blue-deep);
+}
+.searchSuggestItem:hover svg,
+.searchSuggestItem[aria-selected="true"] svg {
+  stroke: var(--tt-blue-deep);
+}
+
 .headerInner {
   display: flex;
   align-items: center;
@@ -193,6 +242,39 @@
 .headerSearch,
 .btnWriteTop {
   display: none;
+}
+
+/* 피드백 1) 모바일 검색 모드에서만, 헤더 안 inline 검색 pill 을 표시.
+   (위 .headerSearch display:none 을 검색 모드 한정으로 덮어쓴다.) */
+.headerSearchInline {
+  display: flex !important;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  background: #fff;
+  border-radius: var(--r-chip);
+  padding: 10px 16px;
+  box-shadow: var(--card-shadow);
+  position: relative;
+}
+.headerSearchInline svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  stroke: var(--ink-300);
+}
+.headerSearchInline input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink-900);
+}
+.headerSearchInline input::placeholder {
+  color: var(--ink-300);
 }
 
 /* ---------- 콘텐츠 컨테이너 ---------- */
@@ -414,15 +496,21 @@
 .bodyToggle:hover .moreToggle {
   color: var(--ink-500);
 }
+/* 피드백 4) 영상 보러가기 — 텍스트 톤 muted·굵기 낮춤(검정 bold 금지).
+   빨간 유튜브 마크(.ytMark)는 그대로 유지. */
 .ytPill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   margin-top: 13px;
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--ink-700);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-500);
   max-width: 100%;
+  transition: color 0.12s ease;
+}
+.ytPill:hover {
+  color: var(--ink-700);
 }
 .ytMark {
   width: 23px;
@@ -637,8 +725,10 @@ button.t:hover {
   color: var(--tag-yellow);
 }
 
-/* ---------- 클릭형 키워드 칩 (인기 태그 — 항목 1) ----------
- * 통일 톤(중립) 한 가지 + 활성 시 브랜드. 클릭으로 피드 키워드 필터 토글. */
+/* ---------- 클릭형 키워드 칩 (인기 태그) ----------
+ * 피드백 5) 태그마다 카테고리(categorize)별 연한 배경 틴트 + 그 색 진한 글씨.
+ *   운영 categories.ts 5색(concerns/lifting/injectables/homecare/knowledge) 기반.
+ *   기본(.tagBtn)은 카테고리 클래스가 안 붙은 폴백(중립). 클릭 활성 시 브랜드 단색. */
 .tagBtn {
   font-size: 12.5px;
   font-weight: 700;
@@ -647,16 +737,42 @@ button.t:hover {
   white-space: nowrap;
   background: #eef3f7;
   color: var(--ink-700);
-  transition: transform 0.12s ease;
-}
-.tagBtn:hover {
-  background: var(--tt-blue-tint);
-  color: var(--tt-blue-deep);
+  transition: transform 0.12s ease, filter 0.12s ease;
 }
 .tagBtn:active {
   transform: scale(0.96);
 }
-.tagBtnActive {
+.tagBtn:hover {
+  filter: brightness(0.96);
+}
+/* 카테고리별 연한 배경 + 진한 글씨 (운영 5색). */
+.catConcerns {
+  background: rgba(126, 87, 194, 0.13);
+  color: #6a45b0;
+}
+.catLifting {
+  background: rgba(41, 182, 246, 0.15);
+  color: #1f86bb;
+}
+.catInjectables {
+  background: rgba(244, 143, 177, 0.18);
+  color: #d56a92;
+}
+.catHomecare {
+  background: rgba(191, 110, 92, 0.15);
+  color: #a85a48;
+}
+.catKnowledge {
+  background: rgba(158, 157, 36, 0.16);
+  color: #7e7d1d;
+}
+/* 활성(현재 검색어 = 그 태그): 브랜드 단색으로 강조(카테고리색 덮어씀). */
+.tagBtnActive,
+.tagBtnActive.catConcerns,
+.tagBtnActive.catLifting,
+.tagBtnActive.catInjectables,
+.tagBtnActive.catHomecare,
+.tagBtnActive.catKnowledge {
   background: var(--tt-blue-deep);
   color: #fff;
 }
@@ -802,7 +918,9 @@ button.t:hover {
 
   .header {
     padding: 0;
-    background: rgba(238, 247, 252, 0.85);
+    /* 불투명 베이스로 아래 운영 TopNav(검색 input 포함) 완전 차폐 — "검색창 2개" 잔상 제거 */
+    background-color: #eef7fc;
+    background-image: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.7);
   }
   .headerInner {
@@ -846,6 +964,8 @@ button.t:hover {
     box-shadow: var(--card-shadow);
     color: var(--ink-300);
     font-size: 13.5px;
+    /* 피드백 2) 드롭다운 앵커 */
+    position: relative;
   }
   .headerSearch svg {
     width: 17px;
@@ -869,6 +989,7 @@ button.t:hover {
   .headerSearchLive input::placeholder {
     color: var(--ink-300);
   }
+  /* 피드백 7) 브랜드색(#45B7E8) 배경 + 흰 글씨. 과한 글로우 제거(은은한 그림자만). */
   .btnWriteTop {
     display: inline-flex;
     align-items: center;
@@ -879,8 +1000,12 @@ button.t:hover {
     font-size: 13.5px;
     padding: 10px 18px;
     border-radius: var(--r-chip);
-    box-shadow: 0 4px 12px rgba(69, 183, 232, 0.28);
+    box-shadow: 0 2px 6px rgba(53, 118, 160, 0.14);
     flex: none;
+    transition: background 0.14s ease;
+  }
+  .btnWriteTop:hover {
+    background: var(--tt-blue-deep);
   }
   .btnWriteTop svg {
     width: 15px;

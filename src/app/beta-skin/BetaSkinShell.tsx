@@ -122,6 +122,7 @@ export default function BetaSkinShell({
   sidebar,
   searchValue,
   onSearchChange,
+  searchSuggestions,
 }: {
   active: BetaActive;
   children: ReactNode;
@@ -130,42 +131,121 @@ export default function BetaSkinShell({
   /** 항목 5) 헤더 검색창을 실제 동작시킴 — 피드에서만 주입. 없으면 검색 비활성. */
   searchValue?: string;
   onSearchChange?: (q: string) => void;
+  /** 피드백 2) 검색 포커스 시 뜨는 추천 드롭다운 항목(인기 키워드 상위 N). */
+  searchSuggestions?: string[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // 항목 1) 스크롤 다운 → 헤더 숨김(위로 슬라이드), 스크롤 업 → 복귀.
   const [headerHidden, setHeaderHidden] = useState(false);
-  // 모바일 검색 입력 바 펼침 토글.
+  // 피드백 1) 모바일 검색 — 헤더 "안"을 검색 input 으로 전환(헤더 아래 별도 바 X).
   const [searchOpen, setSearchOpen] = useState(false);
+  // 피드백 2) 검색 추천 드롭다운 열림 상태(포커스 시 열림, 바깥 클릭 시 닫힘).
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  // 드롭다운 바깥 클릭 감지용(데스크탑 pill·모바일 inline 공용 래퍼).
+  const searchWrapRef = useRef<HTMLDivElement>(null);
   // 검색 핸들러가 있을 때만 검색 UI 동작.
   const searchEnabled = typeof onSearchChange === "function";
   const value = searchValue ?? "";
+  const suggestions = (searchSuggestions ?? []).filter(Boolean);
+  const hasSuggest = searchEnabled && suggestions.length > 0;
 
+  // 피드백 2) 바깥 클릭 시 드롭다운 닫기.
+  useEffect(() => {
+    if (!suggestOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target as Node)) {
+        setSuggestOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [suggestOpen]);
+
+  // 추천 항목 선택 → 검색창 채움 + 드롭다운 닫기.
+  const pickSuggestion = (kw: string) => {
+    onSearchChange?.(kw);
+    setSuggestOpen(false);
+  };
+
+  // 드롭다운 노드(데스크탑 pill·모바일 inline 공용).
+  const suggestDropdown =
+    hasSuggest && suggestOpen ? (
+      <div className={styles.searchSuggest} role="listbox" aria-label="추천 키워드">
+        <div className={styles.searchSuggestHead}>인기 키워드</div>
+        {suggestions.map((kw) => (
+          <button
+            key={kw}
+            type="button"
+            role="option"
+            aria-selected={value.trim() === kw}
+            className={styles.searchSuggestItem}
+            onMouseDown={(e) => {
+              // mousedown 으로 처리 → input blur 보다 먼저 실행(클릭 유실 방지).
+              e.preventDefault();
+              pickSuggestion(kw);
+            }}
+          >
+            <IconSearch />
+            <span>{kw}</span>
+          </button>
+        ))}
+      </div>
+    ) : null;
+
+  // 피드백 8) 스크롤 다운 → 헤더 숨김, 스크롤 "업" → 즉시 복귀.
+  //   모든 프리뷰 페이지가 이 셸을 쓰므로 5개 페이지 + 데스크탑 전부 동일 동작.
+  //   - 검색 모드/드롭다운 중에는 절대 숨기지 않음(헤더가 사라지면 검색 input 도 사라짐).
+  //   - 방향 전환을 놓치지 않도록 매 scroll 이벤트마다 즉시 판정(rAF 디바운스 없음).
+  //     위로 가는 즉시(1px) 헤더 복귀 → "살짝 올려도 바로 메뉴 노출".
+  //   - 무한스크롤로 콘텐츠 높이가 늘며 scrollTop 이 튀는 경우에도, 직전값 대비
+  //     "방향"만 보므로 위로 휠 한 번이면 바로 복귀.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     let lastY = el.scrollTop;
-    let ticking = false;
     const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const y = el.scrollTop;
-        const delta = y - lastY;
-        // 상단 근처에선 항상 표시. 일정 이상 내려가면 숨김, 올리면 복귀.
-        if (y < 24) {
-          setHeaderHidden(false);
-        } else if (delta > 6) {
-          setHeaderHidden(true);
-        } else if (delta < -6) {
-          setHeaderHidden(false);
-        }
-        lastY = y;
-        ticking = false;
-      });
+      const y = el.scrollTop;
+      const delta = y - lastY;
+      lastY = y;
+      if (searchOpen || suggestOpen || y < 24) {
+        // 검색 중·상단 근처: 항상 표시.
+        setHeaderHidden(false);
+      } else if (delta < 0) {
+        // 위로 조금이라도 움직이면 즉시 복귀.
+        setHeaderHidden(false);
+      } else if (delta > 4) {
+        // 아래로 일정 이상 내려가면 숨김.
+        setHeaderHidden(true);
+      }
+    };
+    // wheel/touch 의 "위로" 의도를 직접 감지 → 무한스크롤 콘텐츠 점프로
+    // scrollTop 이 일시적으로 튀어도, 사용자가 위로 올리면 즉시 헤더 복귀.
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0 && !(searchOpen || suggestOpen)) setHeaderHidden(false);
+    };
+    let touchStartY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const cur = e.touches[0]?.clientY ?? 0;
+      // 손가락이 아래로 내려가면(콘텐츠는 위로) = scroll up 의도.
+      if (cur - touchStartY > 4 && !(searchOpen || suggestOpen)) {
+        setHeaderHidden(false);
+      }
+      touchStartY = cur;
     };
     el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+    el.addEventListener("wheel", onWheel, { passive: true });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+    };
+  }, [searchOpen, suggestOpen]);
 
   return (
     <div className={styles.root} ref={scrollRef}>
@@ -173,44 +253,41 @@ export default function BetaSkinShell({
       <header
         className={`${styles.header} ${headerHidden ? styles.headerHidden : ""}`}
       >
-        <div className={styles.headerInner}>
-          <Link
-            className={styles.logoLink}
-            href={BETA_ROUTES.feed}
-            aria-label="피부텐텐"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className={styles.logoImg}
-              src="/brand-logo.svg"
-              alt="피부텐텐"
-            />
-          </Link>
-
-          <nav className={styles.gnb}>
-            {GNB.map((g) => (
-              <Link
-                key={g.label}
-                href={g.href}
-                className={active === g.label ? styles.gnbActive : ""}
-              >
-                {g.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className={styles.headerSpacer} />
-
-          {/* 데스크탑 검색 pill — 항목 5) 실제 input. 검색 비활성 페이지에선 정적 안내. */}
-          {searchEnabled ? (
-            <div className={`${styles.headerSearch} ${styles.headerSearchLive}`}>
+        {/* 피드백 1) 모바일 검색 모드 — 헤더 "안"을 검색 input 으로 전환.
+            (데스크탑은 iconBtnSearch 가 display:none → 이 모드 진입 불가, 항상 기본 레이아웃.) */}
+        {searchEnabled && searchOpen ? (
+          <div className={`${styles.headerInner} ${styles.headerInnerSearch}`}>
+            <button
+              type="button"
+              className={`${styles.iconBtn} ${styles.iconBtnSearch}`}
+              aria-label="검색 닫기"
+              onClick={() => {
+                setSearchOpen(false);
+                setSuggestOpen(false);
+              }}
+            >
+              {/* 뒤로(←) */}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M19 12H5" />
+                <path d="m12 19-7-7 7-7" />
+              </svg>
+            </button>
+            <div
+              className={`${styles.headerSearch} ${styles.headerSearchLive} ${styles.headerSearchInline}`}
+              ref={searchWrapRef}
+            >
               <IconSearch />
               <input
                 type="text"
                 value={value}
-                onChange={(e) => onSearchChange?.(e.target.value)}
+                onChange={(e) => {
+                  onSearchChange?.(e.target.value);
+                  if (hasSuggest) setSuggestOpen(true);
+                }}
+                onFocus={() => hasSuggest && setSuggestOpen(true)}
                 placeholder="시술·고민 키워드 검색"
                 aria-label="검색어 입력"
+                autoFocus
               />
               {value && (
                 <button
@@ -222,64 +299,99 @@ export default function BetaSkinShell({
                   ✕
                 </button>
               )}
+              {suggestDropdown}
             </div>
-          ) : (
-            <div className={styles.headerSearch}>
-              <IconSearch />
-              시술·고민 키워드 검색
-            </div>
-          )}
-          <Link className={styles.btnWriteTop} href={BETA_ROUTES.write}>
-            <IconPlus />
-            글쓰기
-          </Link>
+          </div>
+        ) : (
+          <div className={styles.headerInner}>
+            <Link
+              className={styles.logoLink}
+              href={BETA_ROUTES.feed}
+              aria-label="피부텐텐"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={styles.logoImg}
+                src="/brand-logo.svg"
+                alt="피부텐텐"
+              />
+            </Link>
 
-          <button
-            className={`${styles.iconBtn} ${styles.iconBtnSearch}`}
-            aria-label="검색"
-            aria-expanded={searchOpen}
-            type="button"
-            onClick={() => setSearchOpen((v) => !v)}
-          >
-            <IconSearch />
-          </button>
-          <button
-            className={`${styles.iconBtn} ${styles.iconBtnBell}`}
-            aria-label="알림"
-            type="button"
-          >
-            <IconBell />
-          </button>
-        </div>
+            <nav className={styles.gnb}>
+              {GNB.map((g) => (
+                <Link
+                  key={g.label}
+                  href={g.href}
+                  className={active === g.label ? styles.gnbActive : ""}
+                >
+                  {g.label}
+                </Link>
+              ))}
+            </nav>
 
-        {/* 모바일 검색 입력 바 — 검색 아이콘 탭 시 펼침. 항목 5) 실제 동작.
-            검색어가 있으면(태그 클릭 등) 자동으로 펼쳐 활성 검색어를 보여준다. */}
-        {(searchOpen || (searchEnabled && !!value)) && (
-          <div className={styles.searchBar}>
-            <IconSearch />
-            <input
-              type="text"
-              value={searchEnabled ? value : undefined}
-              onChange={
-                searchEnabled
-                  ? (e) => onSearchChange?.(e.target.value)
-                  : undefined
-              }
-              placeholder="시술·고민 키워드 검색"
-              aria-label="검색어 입력"
-              readOnly={!searchEnabled}
-              autoFocus
-            />
-            {searchEnabled && value && (
-              <button
-                type="button"
-                className={styles.searchClear}
-                aria-label="검색어 지우기"
-                onClick={() => onSearchChange?.("")}
+            <div className={styles.headerSpacer} />
+
+            {/* 데스크탑 검색 pill — 항목 5) 실제 input + 피드백 2) 포커스 드롭다운.
+                검색 비활성 페이지에선 정적 안내. */}
+            {searchEnabled ? (
+              <div
+                className={`${styles.headerSearch} ${styles.headerSearchLive}`}
+                ref={searchWrapRef}
               >
-                ✕
+                <IconSearch />
+                <input
+                  type="text"
+                  value={value}
+                  onChange={(e) => {
+                    onSearchChange?.(e.target.value);
+                    if (hasSuggest) setSuggestOpen(true);
+                  }}
+                  onFocus={() => hasSuggest && setSuggestOpen(true)}
+                  placeholder="시술·고민 키워드 검색"
+                  aria-label="검색어 입력"
+                />
+                {value && (
+                  <button
+                    type="button"
+                    className={styles.searchClear}
+                    aria-label="검색어 지우기"
+                    onClick={() => onSearchChange?.("")}
+                  >
+                    ✕
+                  </button>
+                )}
+                {suggestDropdown}
+              </div>
+            ) : (
+              <div className={styles.headerSearch}>
+                <IconSearch />
+                시술·고민 키워드 검색
+              </div>
+            )}
+            <Link className={styles.btnWriteTop} href={BETA_ROUTES.write}>
+              <IconPlus />
+              글쓰기
+            </Link>
+
+            {/* 모바일 검색 아이콘 — 탭 시 헤더 "안"을 검색 input 으로 전환(위 분기). */}
+            {searchEnabled && (
+              <button
+                className={`${styles.iconBtn} ${styles.iconBtnSearch}`}
+                aria-label="검색"
+                aria-expanded={searchOpen}
+                type="button"
+                onClick={() => setSearchOpen(true)}
+              >
+                <IconSearch />
               </button>
             )}
+            <button
+              className={`${styles.iconBtn} ${styles.iconBtnBell}`}
+              aria-label="알림"
+              type="button"
+            >
+              <IconBell />
+            </button>
           </div>
         )}
       </header>

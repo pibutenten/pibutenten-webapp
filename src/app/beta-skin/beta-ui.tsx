@@ -18,8 +18,24 @@ import CardAvatar from "@/components/card/CardAvatar";
 import { pickHighlight } from "@/lib/card-highlight";
 import { getQaUrl } from "@/lib/card-url";
 import { parseYoutubeTimestamp, formatTimestamp } from "@/lib/youtube-time";
+import { categorize } from "@/lib/category-sets";
 import type { CardData } from "@/lib/types/card";
 import styles from "./beta-skin.module.css";
+
+/* ---------- 피드백 5) 키워드 → 카테고리별 연한 배경 칩 클래스 ----------
+ * 운영 categorize(@/lib/category-sets)로 키워드를 5분류한 뒤
+ * beta-skin.module.css 의 카테고리 톤 클래스(catLifting 등)로 매핑.
+ * 인기 태그(피드 사이드)·관심 키워드(내 노트) 칩이 같은 톤을 공유. */
+const CAT_TAG_CLASS: Record<string, string> = {
+  concerns: styles.catConcerns,
+  lifting: styles.catLifting,
+  injectables: styles.catInjectables,
+  homecare: styles.catHomecare,
+  knowledge: styles.catKnowledge,
+};
+export function catTagClass(keyword: string): string {
+  return CAT_TAG_CLASS[categorize(keyword)] ?? styles.catKnowledge;
+}
 
 /* ---------- 카드 → 실제 운영 URL ----------
  * 항목 1) 모든 카드를 한 데모(/beta-skin/post)로 보내던 버그 수정.
