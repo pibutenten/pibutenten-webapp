@@ -693,6 +693,17 @@ export function BetaReportCard({ report }: { report: ProcedureReport }) {
 
   const toggle = () => setExpanded((v) => !v);
 
+  // 만족도 별점 노드(접힘 미리보기·펼침 상세 공용).
+  const stars = (
+    <span className={styles.reportStars}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span key={n} style={{ color: n <= satRounded ? "#F59E0B" : "#DDE2E7" }}>
+          ★
+        </span>
+      ))}
+    </span>
+  );
+
   return (
     <article className={`${styles.card} ${styles.reportCard} ${styles.fadeInUp}`}>
       {/* 헤더 — 타이틀 클릭=/reports 이동(토글 영역 밖). */}
@@ -780,89 +791,98 @@ export function BetaReportCard({ report }: { report: ProcedureReport }) {
           </div>
         </div>
 
-        {/* 만족도 */}
-        <div className={styles.reportSection}>
-          <p className={styles.reportPhrase}>
-            {satisfactionPhrase(avgSatisfaction)}
-          </p>
-          <div className={styles.reportSatRow}>
-            <div className={styles.reportSatScore}>
-              <span className={styles.reportStars}>
-                {[1, 2, 3, 4, 5].map((n) => (
+        {/* 접힘 미리보기 — 만족도 별점 한 줄(펼치면 숨고 상세가 대신 드러남). */}
+        {!expanded && (
+          <div className={`${styles.reportSection} ${styles.reportPeek}`}>
+            {stars}
+            <span className={styles.reportPeekNum}>
+              {avgSatisfaction.toFixed(1)}
+            </span>
+            <span className={styles.reportPeekHint}>
+              만족도·통증 자세히는 더보기
+            </span>
+          </div>
+        )}
+
+        {/* 펼침 영역 — 더보기 시 그 자리서 만족도 분포 + 통증 상세가 드러남(조건부 렌더). */}
+        {expanded && (
+        <div className={`${styles.reportExpand} ${styles.fadeInUp}`}>
+          <div className={styles.reportExpandInner}>
+            {/* 만족도 — 별점 + 평균 + 5~1점 분포 막대 */}
+            <div className={styles.reportSection}>
+              <p className={styles.reportPhrase}>
+                {satisfactionPhrase(avgSatisfaction)}
+              </p>
+              <div className={styles.reportSatRow}>
+                <div className={styles.reportSatScore}>
+                  {stars}
+                  <span className={styles.reportSatNum}>
+                    {avgSatisfaction.toFixed(1)}
+                  </span>
+                </div>
+                <div className={styles.reportDist}>
+                  {[5, 4, 3, 2, 1].map((score) => {
+                    const c = satisfactionDist[score - 1] ?? 0;
+                    return (
+                      <div className={styles.reportDistRow} key={score}>
+                        <span className={styles.reportDistKey}>{score}</span>
+                        <span className={styles.reportDistTrack}>
+                          <span
+                            className={styles.reportDistFill}
+                            style={{ width: `${(c / maxSat) * 100}%` }}
+                          />
+                        </span>
+                        <span className={styles.reportDistCount}>{c}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* 통증 — 5색 그라데이션 막대 + 평균 마커 + 5단계 라벨 */}
+            <div className={styles.reportSection}>
+              <p className={styles.reportPhrase}>{painPhrase(avgPain)}</p>
+              <div
+                className={styles.reportPainBar}
+                style={{ background: painGradient }}
+              >
+                {avgPain > 0 && (
                   <span
-                    key={n}
-                    style={{ color: n <= satRounded ? "#F59E0B" : "#DDE2E7" }}
-                  >
-                    ★
+                    className={styles.reportPainMarker}
+                    style={{ left: `calc(${painPct}% - 1.5px)` }}
+                  />
+                )}
+              </div>
+              <div className={styles.reportPainLabels}>
+                {BETA_PAIN_LABELS.map((l, i) => (
+                  <span key={l} style={{ left: `${betaPainPos(i + 1)}%` }}>
+                    {l}
                   </span>
                 ))}
-              </span>
-              <span className={styles.reportSatNum}>
-                {avgSatisfaction.toFixed(1)}
-              </span>
+              </div>
             </div>
-            <div className={styles.reportDist}>
-              {[5, 4, 3, 2, 1].map((score) => {
-                const c = satisfactionDist[score - 1] ?? 0;
-                return (
-                  <div className={styles.reportDistRow} key={score}>
-                    <span className={styles.reportDistKey}>{score}</span>
-                    <span className={styles.reportDistTrack}>
-                      <span
-                        className={styles.reportDistFill}
-                        style={{ width: `${(c / maxSat) * 100}%` }}
-                      />
-                    </span>
-                    <span className={styles.reportDistCount}>{c}</span>
-                  </div>
-                );
-              })}
+
+            {/* 안내 + 전체 리포트 링크 */}
+            <div className={styles.reportSection}>
+              <p className={styles.reportNote}>
+                이 리포트는 회원 경험 {count}건을 집계한 결과입니다. 개인차가
+                있으며 의학적 효과·안전성을 보장하지 않습니다. 시술 결정은 전문의
+                상담 후 하시기 바랍니다.
+              </p>
+              <a
+                className={styles.reportFullLink}
+                href={reportHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                효과·다운타임·작성자 통계까지 전체 리포트 보기 →
+              </a>
             </div>
           </div>
         </div>
-
-        {/* 통증 — 운영과 동일: 5색 그라데이션 막대 + 평균 마커 + 5단계 라벨. */}
-        <div className={styles.reportSection}>
-          <p className={styles.reportPhrase}>{painPhrase(avgPain)}</p>
-          <div className={styles.reportPainBar} style={{ background: painGradient }}>
-            {avgPain > 0 && (
-              <span
-                className={styles.reportPainMarker}
-                style={{ left: `calc(${painPct}% - 1.5px)` }}
-              />
-            )}
-          </div>
-          <div className={styles.reportPainLabels}>
-            {BETA_PAIN_LABELS.map((l, i) => (
-              <span key={l} style={{ left: `${betaPainPos(i + 1)}%` }}>
-                {l}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* 펼침 영역 — 운영 grid-rows 0fr↔1fr 트랜지션(아래로 스르륵). */}
-        <div
-          className={styles.reportExpand}
-          style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
-        >
-          <div className={styles.reportExpandInner}>
-            <p className={styles.reportNote}>
-              이 리포트는 회원 경험 {count}건을 집계한 결과입니다. 개인차가
-              있으며 의학적 효과·안전성을 보장하지 않습니다. 시술 결정은 전문의
-              상담 후 하시기 바랍니다.
-            </p>
-            <a
-              className={styles.reportFullLink}
-              href={reportHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              효과·다운타임·작성자 통계까지 전체 리포트 보기 →
-            </a>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* 하단 더보기/접기 — 운영 insert 모드 컨트롤. */}

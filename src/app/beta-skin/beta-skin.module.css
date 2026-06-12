@@ -505,6 +505,32 @@
 .reportSection + .reportSection {
   padding-top: 0;
 }
+/* 접힘 미리보기 — 만족도 별점 한 줄(가로 정렬). */
+.reportPeek {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 0;
+}
+.reportPeekNum {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink-900);
+}
+.reportPeekHint {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-300);
+}
+/* 펼침 영역 안의 섹션 — 좌우 패딩은 부모(.reportExpand)가 가지므로 제거. */
+.reportExpandInner .reportSection {
+  padding-left: 0;
+  padding-right: 0;
+}
+.reportExpandInner .reportSection:first-child {
+  padding-top: 6px;
+}
 /* 운영 자연어 헤드라인 */
 .reportPhrase {
   margin: 0 0 14px;
