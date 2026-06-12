@@ -868,7 +868,13 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
               <span className="text-[var(--text-muted)]">지금 당장 쓰기 어려우면 나중에 알려드릴게요!</span>
             </p>
             <div className="mt-5 space-y-2">
-              <a href="/write?tab=review" className="block w-full rounded-md bg-[var(--primary)] py-3 text-[14.5px] font-bold text-white">시술후기 남기기</a>
+              {/* 후기로 넘어갈 때 시술을 미리 지정(다시 고르지 않게). 1개면 바로, 여러개면 골라서. */}
+              {procs.length > 1 && <p className="mb-1 text-[12.5px] font-semibold text-[var(--text-muted)]">어떤 시술 후기를 남기시겠어요?</p>}
+              {procs.map((p) => (
+                <a key={p.id} href={`/write?tab=review&proc=${encodeURIComponent(p.label)}`} className="block w-full rounded-md bg-[var(--primary)] py-3 text-[14.5px] font-bold text-white">
+                  {procs.length > 1 ? `${p.label} 후기 남기기` : "시술후기 남기기"}
+                </a>
+              ))}
               <button type="button" onClick={() => { setSavedModal(false); go("record"); }} className="w-full rounded-md bg-[var(--bg-soft)] py-3 text-[14.5px] font-semibold text-[var(--text-secondary)]">나중에 쓸게요</button>
             </div>
           </div>

@@ -25,11 +25,13 @@ export const metadata: Metadata = {
 export default async function WritePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; category?: string }>;
+  searchParams: Promise<{ tab?: string; category?: string; proc?: string }>;
 }) {
   const sp = await searchParams;
   // 기존 admin 링크(/write?category=qa) 호환 — category=qa → tab=qa 로 정규화.
   const tab = sp.tab ?? (sp.category === "qa" ? "qa" : undefined);
+  // 시술노트 저장 후 후기 유도 시 미리 정해진 시술(?proc=) — ReviewForm 잠금 프리필.
+  const initialProcedure = sp.proc?.trim() || undefined;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -65,5 +67,5 @@ export default async function WritePage({
     }
   }
 
-  return <WriteTabs tab={tab} isLoggedIn={!!user} role={role} displayName={displayName} myDoctor={myDoctor} doctors={doctors} procedures={procedures} handle={handle} />;
+  return <WriteTabs tab={tab} isLoggedIn={!!user} role={role} displayName={displayName} myDoctor={myDoctor} doctors={doctors} procedures={procedures} handle={handle} initialProcedure={initialProcedure} />;
 }

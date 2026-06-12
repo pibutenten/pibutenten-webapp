@@ -31,6 +31,7 @@ export default function WriteTabs({
   doctors,
   procedures,
   handle,
+  initialProcedure,
 }: {
   tab?: string;
   isLoggedIn: boolean;
@@ -40,6 +41,8 @@ export default function WriteTabs({
   doctors: Doctor[];
   procedures: ProcedureOption[];
   handle: string;
+  /** 시술노트 저장 후 후기 유도 시 미리 정해진 시술 ko (?proc=). */
+  initialProcedure?: string;
 }) {
   const router = useRouter();
   // Q&A 탭은 원장·관리자 전용. 권한 없는 사용자가 ?tab=qa 로 들어오면 기본(시술기록)으로.
@@ -57,7 +60,7 @@ export default function WriteTabs({
       {/* 시술기록(노트)은 비공개라 비로그인도 폼은 열림 — 저장 시 API 401 → "로그인 후 저장" 토스트로 안내. */}
       {cat === "시술기록" && <DiaryForm toast={(m) => showToast(m)} go={() => { void router.push("/record"); }} procedures={procedures} />}
       {cat === "시술후기" && (
-        isLoggedIn ? <ReviewForm procedures={procedures} handle={handle} /> : <LoginGate />
+        isLoggedIn ? <ReviewForm procedures={procedures} handle={handle} initialProcedure={initialProcedure} /> : <LoginGate />
       )}
       {cat === "끄적끄적" && (
         isLoggedIn ? (

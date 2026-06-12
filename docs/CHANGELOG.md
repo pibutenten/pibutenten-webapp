@@ -19,8 +19,11 @@
 - **관심/인기 키워드 칩 카테고리 색상 + 단일선택 필터**(`KeywordCarousel`): 칩을 `categorize`+`CATEGORIES`(피드 SSOT) 카테고리 색으로 표시(리프팅 하늘/스킨부스터 핑크/피부고민 보라/홈케어 테라코타/피부상식 올리브). 칩 클릭 = 그 키워드 글만 필터, 재클릭 = 전체(필터 시 캐러셀 리셋). `KeywordPost.matchedKeywords` 추가, Q&A 10→20개, `toKeywordPost` 헬퍼 공용화.
 - **하단 탭바 소프트 리디자인 v2.3**(`BetaNav.tsx`, 순수 UI): 모바일 공통 5탭 윗모서리 24px 라운드 + 위 그림자(상단 보더 제거). 활성 탭 연하늘 알약(#EAF7FE) + 면(filled) 아이콘 + 스프링 스케일 모션(`tab-pop` keyframe, `prefers-reduced-motion` 가드), 비활성 웜그레이(#A8B6C2)·둥근 선 아이콘 / 활성 #1E9FE0. 아이콘 line/filled 쌍(`TAB_ICONS`+`TabIcon`), bag 손잡이 알약색 컷아웃. 알약은 아이콘+라벨만 감싸 히트영역 균등 5분할 유지, 라벨 1줄. safe-area `calc(14px + env(safe-area-inset-bottom))`. 라우팅·탭 구성 무변경.
 
+- **용어 변경 '시술일기'→'시술노트', '내 일기'→'내 노트'**: 전 화면·검토용 목업·코드 주석 일괄 변경. 내부 식별자(`/record`·`diaries` 테이블·`create_diary` RPC·`DiaryForm`·`diary` 변수)는 보존(문구만). 무관 카테고리 '피부일기'는 제외.
+- **시술노트 저장 → 후기 작성 시 시술 미리 지정**: 저장 완료 모달이 노트에 기록한 시술을 버튼으로 제시(1개면 바로, 여러개면 골라서) → `/write?tab=review&proc=<시술>`. `WritePage` 가 `?proc=` 를 읽어 `WriteTabs`→`ReviewForm initialProcedure` 로 전달, ReviewForm 이 해당 시술을 잠금 프리필(다시 고르지 않음). 카탈로그 외 자유입력 시술은 잠금 미적용(picker 폴백).
+
 ### Fixed
-- **모바일 textarea 글씨 자동 확대 차단**: 모바일 브라우저 font boosting 으로 시술일기 textarea placeholder 만 input 보다 크게 부풀던 문제 → `html { text-size-adjust: 100% }`(globals.css). 데스크탑 영향 없음.
+- **모바일 textarea 글씨 자동 확대 차단**: 모바일 브라우저 font boosting 으로 시술노트 textarea placeholder 만 input 보다 크게 부풀던 문제 → `html { text-size-adjust: 100% }`(globals.css). 데스크탑 영향 없음.
 
 ---
 
