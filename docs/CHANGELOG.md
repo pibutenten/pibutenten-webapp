@@ -15,6 +15,8 @@
 - **검색 시 전체 탭 첫 카드 = 시술 리포트 카드**(구 /search 동작 복원): 루트 `/?q=시술명` 에서 `getProcedureReport`(후기 1건부터) 매칭 시 BetaFeed 마손리 첫 카드로 리포트 노출.
 - **마이그 0280 — top_cards 통계 RPC 사이트 전체 게이트 완화**: `get_top_cards_by_{views,likes,saves,shares,comments}` 의 사이트 전체(both NULL) 호출을 `is_admin()` 전용 → 로그인 회원 누구나(발행 카드 공개 통계). 원장/작성자 단위 필터 경로의 `_check_doctor_kpi_access` 권한 체크는 유지. 내 일기 '인기글' 등 범용 재사용 목적.
 - **시술일기 입력 개편 v2.2**(`SkinDiaryMockup.tsx` DiaryForm): '어떤 시술을 받으셨어요?' 를 태그 입력 + 자동완성 + 시술별 메모로 재구성. 행별 용량/가격 입력 폐지(`unit_text`/`price` 컬럼·`create_diary` RPC 는 유지, 폼 미전송 → null) → 자유 메모 1칸(선택, 최대 60자, 기존 `note` 컬럼 재활용). 메모 3상태(＋메모 버튼 → 입력창 → 회색 알약·탭 재수정). 자동완성 소스 정적목록 → `tag_dictionary` 라이브(`/write` 가 `getReviewProcedures` 로 fetch 후 `WriteTabs`→`DiaryForm` 주입, 목업 단독은 정적 폴백). 초성검색(`ㅇㅆ`→울쎄라, `lib/hangul-chosung.ts` 신규)·영문 별칭·부분일치. 키보드 ↑↓ 후보 이동 + Enter 선택 + 하이라이트('직접 추가' 줄 포함). 추가 후 포커스 유지·중복 방지·최대 10개. 함수형 `setProcs`+id 카운터 ref(연속 추가 충돌 방지). GA4 트래킹(`procedure_add`/`remove`/`memo_save`/`autocomplete_no_match`).
+- **내 일기(/record) 비로그인 게스트 열람(가입 유도)**: 기존 `redirect("/login")` 폐지. 게스트는 '예시' 데모 타임라인(하드코딩 가짜 데이터, 클릭 시 `/signup`) + 가입 히어로/하단 CTA + 인기 키워드(`getPopularByCategory`) 기반 공개 최신 Q&A 예시. 인기글 섹션(authenticated RPC)·대시보드는 게스트 숨김. noindex 유지.
+- **관심/인기 키워드 칩 카테고리 색상 + 단일선택 필터**(`KeywordCarousel`): 칩을 `categorize`+`CATEGORIES`(피드 SSOT) 카테고리 색으로 표시(리프팅 하늘/스킨부스터 핑크/피부고민 보라/홈케어 테라코타/피부상식 올리브). 칩 클릭 = 그 키워드 글만 필터, 재클릭 = 전체(필터 시 캐러셀 리셋). `KeywordPost.matchedKeywords` 추가, Q&A 10→20개, `toKeywordPost` 헬퍼 공용화.
 
 ### Fixed
 - **모바일 textarea 글씨 자동 확대 차단**: 모바일 브라우저 font boosting 으로 시술일기 textarea placeholder 만 input 보다 크게 부풀던 문제 → `html { text-size-adjust: 100% }`(globals.css). 데스크탑 영향 없음.
