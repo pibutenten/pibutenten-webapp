@@ -623,19 +623,44 @@ export function PostCard({
   );
 }
 
-/* ---------- 피드백 4) 시술 리포트 카드 (review_summary) ----------
- * getReviewSummaryFeedPool 가 주는 컴팩트 ProcedureReport 로 베타 톤 카드 1장 렌더.
- *   - 헤더: "피부텐텐 리포트" + 시술명 + 회원 경험 N건
- *   - 재시술 의향 막대(있어요/고민중/없어요)
- *   - 만족도(별점 + 평균 + 분포 막대)
- *   - 통증 평균
- *   - 카드 클릭/타이틀 → /reports/{한글 시술명} (운영 정합: 정식 URL=한글 슬러그)
- * 운영 ProcedureReportCard 의 표시 요소를 프리뷰용으로 축약(무거운 lazy fetch 없음). */
-const PAIN_WORDS = ["거의 안 아파요", "살짝 따끔", "참을 만해요", "꽤 뻐근", "꽤 아픈 편"];
-function painWord(avg: number): string {
-  if (avg <= 0) return "통증 정보 적음";
-  const idx = Math.min(4, Math.max(0, Math.round(avg) - 1));
-  return PAIN_WORDS[idx];
+/* ---------- 피드백 1·2) 시술 리포트 카드 (review_summary) ----------
+ * 운영 ProcedureReportCard(variant="insert")의 지표 시각화·색·모양을 그대로 재현.
+ *   - 재시술: 가로 분할 막대(있어요 #4CBFF2 / 고민중 #9AA1AC / 없어요 #EA7E7B) + 범례
+ *   - 만족도: 별점(골드 #F59E0B) + 평균 + 5~1점 분포 막대(골드)
+ *   - 통증: 5색 그라데이션 막대(#7FD0F8→#F08A8A) + 평균 위치 마커 + 없음/조금/보통/꽤/심함 라벨
+ *   - 더보기: 그 자리서 인라인 펼침(운영 grid-rows 0fr↔1fr) → 자연어 요약, 다시 누르면 접힘.
+ * 베타 캔버스 톤(둥근 흰 카드)은 유지하되 지표 모양·색은 운영을 따른다. */
+
+// 운영 ProcedureReportCard 와 동일한 통증 팔레트·위치 매핑(없음 6.25% ~ 심함 93.75%).
+const BETA_PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
+const BETA_PAIN_SOFT = ["#7FD0F8", "#FDE68A", "#FDBA74", "#FCA5A5", "#F08A8A"];
+function betaPainPos(value1to5: number): number {
+  const v = Math.min(5, Math.max(1, value1to5));
+  return 6.25 + ((v - 1) / 4) * 87.5;
+}
+// 운영 자연어 헤드라인(revisitPhrase/satisfactionPhrase/painPhrase) 재현.
+function revisitPhrase(pct: number): string {
+  if (pct >= 70) return `경험한 분들의 ${pct}%가 다시 받고 싶어 해요.`;
+  if (pct >= 40) return `${pct}%가 다시 받을 의향이 있어요. 호불호가 갈리는 편이에요.`;
+  return `다시 받겠다는 분은 ${pct}%예요. 신중히 고민해 보세요.`;
+}
+function satisfactionPhrase(avg: number): string {
+  const x = avg.toFixed(1);
+  if (avg >= 4.5) return `만족도 ${x}점! 다들 결과에 크게 만족했어요.`;
+  if (avg >= 4.0) return `만족도 ${x}점, 대체로 만족하는 분위기예요.`;
+  if (avg >= 3.0) return `만족도 ${x}점, 기대와 결과가 갈리는 편이에요.`;
+  return `만족도 ${x}점으로 아쉬웠다는 의견이 많아요.`;
+}
+function painPhrase(avg: number): string {
+  if (avg <= 0) return "통증 후기가 아직 적어요.";
+  const x = avg.toFixed(1);
+  let desc: string;
+  if (avg < 1.5) desc = "거의 안 아파요.";
+  else if (avg < 2.5) desc = "살짝 따끔한 정도예요.";
+  else if (avg < 3.5) desc = "참을 만해요.";
+  else if (avg < 4.5) desc = "참을 만하지만 꽤 뻐근해요.";
+  else desc = "꽤 아픈 편이라 마취가 도움이 될 수 있어요.";
+  return `통증 평균 ${x}점, ${desc}`;
 }
 
 export function BetaReportCard({ report }: { report: ProcedureReport }) {
@@ -647,6 +672,8 @@ export function BetaReportCard({ report }: { report: ProcedureReport }) {
     avgPain,
     revisit,
   } = report;
+  const [expanded, setExpanded] = useState(false);
+
   // 정식 URL = 한글 슬러그(/reports/{ko}) — 운영 ProcedureReportCard 와 동일.
   const reportHref = `/reports/${encodeURIComponent(procedureKo)}`;
 
@@ -656,15 +683,26 @@ export function BetaReportCard({ report }: { report: ProcedureReport }) {
   const yesPct = Math.round((revisit.yes / rTotal) * 100);
   const maybePct = Math.round((revisit.maybe / rTotal) * 100);
   const noPct = Math.max(0, 100 - yesPct - maybePct);
+  const yesDominant = revisit.yes >= revisit.no;
+
+  // 통증 그라데이션(운영 painGradient 재현) — 라벨 위치에 색 정렬.
+  const painPct = betaPainPos(avgPain > 0 ? avgPain : 1);
+  const painGradient = `linear-gradient(90deg, ${BETA_PAIN_SOFT[0]} 0%, ${BETA_PAIN_SOFT.map(
+    (c, i) => `${c} ${betaPainPos(i + 1)}%`,
+  ).join(", ")}, ${BETA_PAIN_SOFT[BETA_PAIN_SOFT.length - 1]} 100%)`;
+
+  const toggle = () => setExpanded((v) => !v);
 
   return (
-    <a
-      className={`${styles.card} ${styles.reportCard} ${styles.fadeInUp}`}
-      href={reportHref}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <div className={styles.reportHead}>
+    <article className={`${styles.card} ${styles.reportCard} ${styles.fadeInUp}`}>
+      {/* 헤더 — 타이틀 클릭=/reports 이동(토글 영역 밖). */}
+      <a
+        className={styles.reportHead}
+        href={reportHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+      >
         <span className={styles.reportKicker}>피부텐텐 리포트</span>
         <div className={styles.reportTitleRow}>
           <h2 className={styles.reportTitle}>{procedureKo}</h2>
@@ -672,97 +710,170 @@ export function BetaReportCard({ report }: { report: ProcedureReport }) {
             회원 경험 <b>{count}건</b>
           </span>
         </div>
-      </div>
+      </a>
 
-      {/* 재시술 의향 */}
-      <div className={styles.reportSection}>
-        <div className={styles.reportLabel}>재시술 의향</div>
-        <div className={styles.reportBar}>
-          {yesPct > 0 && (
-            <span
-              className={styles.reportBarYes}
-              style={{ width: `${yesPct}%` }}
-            />
-          )}
-          {maybePct > 0 && (
-            <span
-              className={styles.reportBarMaybe}
-              style={{ width: `${maybePct}%` }}
-            />
-          )}
-          {noPct > 0 && (
-            <span
-              className={styles.reportBarNo}
-              style={{ width: `${noPct}%` }}
-            />
-          )}
-        </div>
-        <div className={styles.reportLegend}>
-          <span>
-            <i className={styles.reportDotYes} />
-            있어요 {revisit.yes}명
-          </span>
-          {revisit.maybe > 0 && (
+      {/* 지표 본문 — 클릭 시 인라인 펼침/접힘(운영 insert 모드). */}
+      <div
+        className={styles.reportBody}
+        onClick={toggle}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggle();
+          }
+        }}
+      >
+        {/* 재시술 의향 */}
+        <div className={styles.reportSection}>
+          <p className={styles.reportPhrase}>{revisitPhrase(yesPct)}</p>
+          <div className={styles.reportBar}>
+            {yesPct > 0 && (
+              <span
+                className={styles.reportBarYes}
+                style={{ width: `${yesPct}%` }}
+              >
+                {yesPct >= (yesDominant ? 42 : 14)
+                  ? yesDominant
+                    ? "재시술 의향 있어요"
+                    : "있어요"
+                  : ""}
+              </span>
+            )}
+            {maybePct > 0 && (
+              <span
+                className={styles.reportBarMaybe}
+                style={{ width: `${maybePct}%` }}
+              >
+                {maybePct >= 12 ? "고민 중" : ""}
+              </span>
+            )}
+            {noPct > 0 && (
+              <span
+                className={styles.reportBarNo}
+                style={{ width: `${noPct}%` }}
+              >
+                {noPct >= (yesDominant ? 14 : 42)
+                  ? yesDominant
+                    ? "없어요"
+                    : "재시술 의향 없어요"
+                  : ""}
+              </span>
+            )}
+          </div>
+          <div className={styles.reportLegend}>
             <span>
-              <i className={styles.reportDotMaybe} />
-              고민 중 {revisit.maybe}명
+              <i className={styles.reportDotYes} />
+              있어요 {revisit.yes}명
             </span>
-          )}
-          <span>
-            <i className={styles.reportDotNo} />
-            없어요 {revisit.no}명
-          </span>
-        </div>
-      </div>
-
-      {/* 만족도 */}
-      <div className={styles.reportSection}>
-        <div className={styles.reportLabel}>만족도</div>
-        <div className={styles.reportSatRow}>
-          <div className={styles.reportSatScore}>
-            <span className={styles.reportStars}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <span
-                  key={n}
-                  style={{ color: n <= satRounded ? "#F5A623" : "#E3E7EB" }}
-                >
-                  ★
-                </span>
-              ))}
-            </span>
-            <span className={styles.reportSatNum}>
-              {avgSatisfaction.toFixed(1)}
+            {revisit.maybe > 0 && (
+              <span>
+                <i className={styles.reportDotMaybe} />
+                고민 중 {revisit.maybe}명
+              </span>
+            )}
+            <span>
+              <i className={styles.reportDotNo} />
+              없어요 {revisit.no}명
             </span>
           </div>
-          <div className={styles.reportDist}>
-            {[5, 4, 3, 2, 1].map((score) => {
-              const c = satisfactionDist[score - 1] ?? 0;
-              return (
-                <div className={styles.reportDistRow} key={score}>
-                  <span className={styles.reportDistKey}>{score}</span>
-                  <span className={styles.reportDistTrack}>
-                    <span
-                      className={styles.reportDistFill}
-                      style={{ width: `${(c / maxSat) * 100}%` }}
-                    />
+        </div>
+
+        {/* 만족도 */}
+        <div className={styles.reportSection}>
+          <p className={styles.reportPhrase}>
+            {satisfactionPhrase(avgSatisfaction)}
+          </p>
+          <div className={styles.reportSatRow}>
+            <div className={styles.reportSatScore}>
+              <span className={styles.reportStars}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <span
+                    key={n}
+                    style={{ color: n <= satRounded ? "#F59E0B" : "#DDE2E7" }}
+                  >
+                    ★
                   </span>
-                </div>
-              );
-            })}
+                ))}
+              </span>
+              <span className={styles.reportSatNum}>
+                {avgSatisfaction.toFixed(1)}
+              </span>
+            </div>
+            <div className={styles.reportDist}>
+              {[5, 4, 3, 2, 1].map((score) => {
+                const c = satisfactionDist[score - 1] ?? 0;
+                return (
+                  <div className={styles.reportDistRow} key={score}>
+                    <span className={styles.reportDistKey}>{score}</span>
+                    <span className={styles.reportDistTrack}>
+                      <span
+                        className={styles.reportDistFill}
+                        style={{ width: `${(c / maxSat) * 100}%` }}
+                      />
+                    </span>
+                    <span className={styles.reportDistCount}>{c}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* 통증 — 운영과 동일: 5색 그라데이션 막대 + 평균 마커 + 5단계 라벨. */}
+        <div className={styles.reportSection}>
+          <p className={styles.reportPhrase}>{painPhrase(avgPain)}</p>
+          <div className={styles.reportPainBar} style={{ background: painGradient }}>
+            {avgPain > 0 && (
+              <span
+                className={styles.reportPainMarker}
+                style={{ left: `calc(${painPct}% - 1.5px)` }}
+              />
+            )}
+          </div>
+          <div className={styles.reportPainLabels}>
+            {BETA_PAIN_LABELS.map((l, i) => (
+              <span key={l} style={{ left: `${betaPainPos(i + 1)}%` }}>
+                {l}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* 펼침 영역 — 운영 grid-rows 0fr↔1fr 트랜지션(아래로 스르륵). */}
+        <div
+          className={styles.reportExpand}
+          style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
+        >
+          <div className={styles.reportExpandInner}>
+            <p className={styles.reportNote}>
+              이 리포트는 회원 경험 {count}건을 집계한 결과입니다. 개인차가
+              있으며 의학적 효과·안전성을 보장하지 않습니다. 시술 결정은 전문의
+              상담 후 하시기 바랍니다.
+            </p>
+            <a
+              className={styles.reportFullLink}
+              href={reportHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              효과·다운타임·작성자 통계까지 전체 리포트 보기 →
+            </a>
           </div>
         </div>
       </div>
 
-      {/* 통증 */}
-      <div className={styles.reportSection}>
-        <div className={styles.reportLabel}>통증</div>
-        <div className={styles.reportPain}>
-          <span className={styles.reportPainNum}>{avgPain.toFixed(1)}</span>
-          <span className={styles.reportPainWord}>{painWord(avgPain)}</span>
-        </div>
-      </div>
-
-      <span className={styles.reportMore}>리포트 자세히 보기 →</span>
-    </a>
+      {/* 하단 더보기/접기 — 운영 insert 모드 컨트롤. */}
+      <button
+        type="button"
+        className={styles.reportToggleBtn}
+        aria-expanded={expanded}
+        onClick={toggle}
+      >
+        {expanded ? "접기 ▴" : "더보기 ▾"}
+      </button>
+    </article>
   );
 }
