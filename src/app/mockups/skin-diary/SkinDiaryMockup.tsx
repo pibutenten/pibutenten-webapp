@@ -22,6 +22,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { recordBadge } from "@/lib/diary-status";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -842,7 +843,7 @@ export function RecordView({
   openDetail?: (id: string) => void;
 }) {
   const [mode, setMode] = useState<"tl" | "cal" | "list">("tl");
-  const TABS: [typeof mode, string][] = [["tl", "연표"], ["cal", "달력"], ["list", "목록"]];
+  const TABS: [typeof mode, string][] = [["tl", "타임라인"], ["cal", "달력"], ["list", "목록"]];
   const total = summary.reduce((n, g) => n + g.items.length, 0);
   const open = openDetail ?? (() => go("detail"));
   return (
@@ -862,10 +863,31 @@ export function RecordView({
         )}
       </div>
       {total === 0 ? (
-        <div className={cardBox + " flex flex-col items-center py-12 text-center"}>
-          <p className="text-[15px] font-semibold text-[var(--text)]">아직 시술일기가 없어요.</p>
-          <p className="mt-1.5 text-[13px] text-[var(--text-secondary)]">받은 시술을 기록하면 연표·달력·목록으로 한눈에 정리돼요.</p>
-          <a href="/write" className="mt-5 rounded-full bg-[var(--primary)] px-6 py-2.5 text-[13px] font-semibold text-white">첫 일기 쓰러 가기</a>
+        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-6 text-center shadow-[0_2px_12px_rgba(27,43,58,.06)]">
+          <div className="mx-auto mb-4 flex h-[88px] w-[88px] items-center justify-center rounded-[28px] text-[40px]" style={{ background: "linear-gradient(135deg,#EAF7FE,#D3EEFB)" }}>📒</div>
+          <h3 className="text-[19px] font-extrabold leading-snug tracking-tight text-[var(--text)]">첫 일기를 쓰면<br />이렇게 정리돼요</h3>
+          <p className="mt-2 text-[14.5px] leading-relaxed text-[var(--text-secondary)]">받은 시술이 타임라인·달력·목록으로<br />한눈에 보이고, 다음 주기도 알려드려요.</p>
+          <a href="/write" className="mt-[18px] inline-block rounded-full bg-[var(--primary)] px-[30px] py-3.5 text-[15.5px] font-extrabold text-white shadow-[0_6px_16px_rgba(76,191,242,.35)]">첫 일기 쓰러 가기</a>
+
+          {/* 고스트 미리보기 타임라인 — 기록 시 무엇이 생기는지 점선으로 예시 */}
+          <div className="mt-[22px] text-left">
+            <p className="mb-2.5 text-center text-[12.5px] font-bold text-[var(--text-muted)]">미리보기</p>
+            <div className="relative pl-[50px] opacity-85">
+              <span className="pointer-events-none absolute bottom-1.5 left-[19px] top-1.5 w-0.5 rounded bg-[#D8EAF5]" />
+              {[
+                { d: "오늘", t: "오늘 받은 시술 기록", s: "메모 · 회복 체크 · 다음 주기" },
+                { d: "지난", t: "지난 기록이 쌓여요", s: "시술별 효과 비교까지" },
+              ].map((g) => (
+                <div key={g.t} className="relative mb-2.5">
+                  <div className="absolute left-[-50px] top-2.5 flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-[#BFDFF1] bg-[#F0F7FC] text-[12px] font-extrabold text-[#9CC8E2]">{g.d}</div>
+                  <div className="rounded-[14px] border border-dashed border-[#CBE6F5] bg-[#F7FBFE] px-3.5 py-3">
+                    <p className="text-[14px] font-bold text-[#7FAECB]">{g.t}</p>
+                    <p className="mt-0.5 text-[12.5px] text-[#A4C4D8]">{g.s}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : mode === "tl" ? (
         <TimelinePanel onOpen={open} summary={summary} />
@@ -878,68 +900,78 @@ export function RecordView({
   );
 }
 
-/* ─── 연표(세로 월 리스트) — 연도 이동 + 그 해 기록 있는 달만 ─── */
+/* ─── 타임라인(시그니처) — 좌측 날짜 원 + 세로 연결선, 미래→과거 한 줄 ─── */
 function TimelinePanel({ onOpen, summary }: { onOpen: (id: string) => void; summary: SummaryGroup[] }) {
-  const years = summary.map((g) => g.year);
-  const minYear = Math.min(...years), maxYear = Math.max(...years);
-  const [year, setYear] = useState(maxYear);
-  const items = summary.find((g) => g.year === year)?.items ?? [];
-  // 기록 있는 달만, 최신 월 → 과거 월 순.
-  const byMonth = new Map<number, SummaryItem[]>();
-  for (const it of items) {
-    const m = parseInt(it.date.split(".")[0], 10);
-    byMonth.set(m, [...(byMonth.get(m) ?? []), it]);
+  // 전체 기록을 하나의 세로 타임라인으로(연도 내림차순·날짜 내림차순). 연도 바뀌면 라벨.
+  const rows: ({ kind: "year"; year: number } | { kind: "rec"; it: SummaryItem; year: number })[] = [];
+  for (const g of summary) {
+    rows.push({ kind: "year", year: g.year });
+    for (const it of g.items) rows.push({ kind: "rec", it, year: g.year });
   }
-  const months = [...byMonth.keys()].sort((a, b) => b - a);
-  const thisYear = new Date().getFullYear();
 
   return (
-    <>
-      {/* 연도 이동 + 요약 (금액 제외) */}
-      <div className={cardBox + " mb-3 flex items-center justify-between"}>
-        <button type="button" disabled={year <= minYear} onClick={() => setYear((y) => y - 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30">‹</button>
-        <div className="text-center">
-          <div className="text-[18px] font-extrabold text-[var(--text)]">{year}<span className="ml-1 text-[12px] font-medium text-[var(--text-muted)]">{year === thisYear ? "올해" : year < thisYear ? `${thisYear - year}년 전` : ""}</span></div>
-          <div className="mt-0.5 text-[12px] text-[var(--text-secondary)]">{items.length === 0 ? "기록 없음" : `시술 ${items.length}회`}</div>
-        </div>
-        <button type="button" disabled={year >= maxYear} onClick={() => setYear((y) => y + 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30">›</button>
-      </div>
-
-      {/* 12개월 미니 막대 — 받은 달 강조(연간 리듬 한눈에) */}
-      <div className="mb-3 flex gap-1">
-        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
-          const has = byMonth.has(m);
-          return (
-            <div key={m} className="flex-1 rounded py-1 text-center text-[10px]" style={has ? { background: "var(--primary)", color: "#fff", fontWeight: 700 } : { background: "var(--bg-soft)", color: "var(--text-muted)" }}>{m}</div>
-          );
-        })}
-      </div>
-
-      {/* 기록 있는 달만 — 각 줄: 날짜 · 시술 칩 · 병원명(한 줄) */}
-      <div className={cardBox}>
-        {months.length === 0 ? (
-          <p className="py-6 text-center text-[13px] text-[var(--text-muted)]">이 해엔 기록이 없어요.</p>
-        ) : months.map((m) => (
-          <div key={m} className="flex gap-3 border-b border-[var(--border)] py-2.5 last:border-0">
-            <div className="w-9 shrink-0 pt-2 text-[12px] font-bold leading-5 text-[var(--primary-active)]">{m}월</div>
-            <div className="min-w-0 flex-1 space-y-1.5">
-              {(byMonth.get(m) ?? []).map((it) => (
-                <button key={it.id} type="button" onClick={() => onOpen(it.id)} className="flex w-full items-start gap-2 rounded-md bg-[var(--bg)] px-2.5 py-2 text-left hover:bg-[var(--primary-soft)]">
-                  <span className="shrink-0 text-[12px] font-bold leading-5 text-[var(--primary-active)]">{parseInt(it.date.split(".")[1], 10)}일</span>
-                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                    {it.items.map((iv) => (
-                      <span key={iv.name} className="rounded-full bg-white px-2 py-0.5 text-[11.5px] font-semibold text-[var(--text)]">{iv.name}{iv.unit ? <span className="ml-1 font-medium text-[var(--text-secondary)]">{iv.unit}</span> : null}</span>
-                    ))}
-                  </span>
-                  <span className="max-w-[34%] shrink-0 truncate text-[11.5px] text-[var(--text-muted)]">{it.hospital}</span>
-                </button>
-              ))}
-            </div>
+    <div className="relative pl-[58px]">
+      {/* 세로 연결선 */}
+      <span
+        className="pointer-events-none absolute bottom-2 left-[23px] top-2 w-0.5 rounded"
+        style={{ background: "linear-gradient(var(--primary) 0%, #CDEBFA 100%)" }}
+      />
+      {rows.map((row) =>
+        row.kind === "year" ? (
+          <div key={`y${row.year}`} className="mb-2 mt-1 text-[12px] font-extrabold text-[var(--text-muted)]">
+            {row.year}
           </div>
-        ))}
+        ) : (
+          <RecTimelineCard key={row.it.id} it={row.it} year={row.year} onOpen={onOpen} />
+        ),
+      )}
+    </div>
+  );
+}
+
+function RecTimelineCard({ it, year, onOpen }: { it: SummaryItem; year: number; onOpen: (id: string) => void }) {
+  const [mm, dd] = it.date.split(".");
+  const visitedOn = `${year}-${mm}-${dd}`;
+  const firstName = it.items[0]?.name ?? it.proc;
+  const badge = recordBadge(firstName, visitedOn);
+  const title = it.items.map((iv) => (iv.unit ? `${iv.name} ${iv.unit}` : iv.name)).join(" · ") || it.proc;
+  const clinic = it.hospital + (it.doctor ? ` · ${it.doctor}` : "");
+  return (
+    <div className="relative mb-4">
+      {/* 날짜 원(시그니처) */}
+      <div className="absolute left-[-58px] top-3.5 flex h-[46px] w-[46px] flex-col items-center justify-center rounded-full border-2 border-[var(--primary)] bg-white shadow-[0_2px_12px_rgba(27,43,58,.06)]">
+        <span className="text-[10px] font-bold leading-none text-[var(--text-muted)]">{Number(mm)}월</span>
+        <span className="text-[17px] font-extrabold leading-tight text-[var(--primary-active)]">{Number(dd)}</span>
       </div>
-      <p className="mt-4 text-center text-[12px] text-[var(--text-muted)]">한 해 동안 어떤 시술을 언제 받았는지 한눈에 볼 수 있어요.</p>
-    </>
+      <button
+        type="button"
+        onClick={() => onOpen(it.id)}
+        className="block w-full rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 text-left shadow-[0_2px_12px_rgba(27,43,58,.06)] transition-colors hover:border-[var(--primary)]"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="truncate text-[16.5px] font-extrabold tracking-tight text-[var(--text)]">{title}</h3>
+          <span
+            className="shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold"
+            style={badge.tone === "mint" ? { background: "#E7FAF4", color: "#13967A" } : { background: "#FFF4E5", color: "#C97A1B" }}
+          >
+            {badge.label}
+          </span>
+        </div>
+        {clinic && <p className="mt-1 text-[13px] font-medium text-[var(--text-muted)]">{clinic}</p>}
+        {it.memo && (
+          <p className="mt-2.5 rounded-xl bg-[var(--bg-soft)] px-3 py-2.5 text-[14px] leading-relaxed text-[var(--text-secondary)]">{it.memo}</p>
+        )}
+        {it.items.length > 0 && (
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {it.items.map((iv) => (
+              <span key={iv.name} className="rounded-full bg-[var(--primary-soft)] px-2.5 py-1 text-[12px] font-semibold text-[var(--primary-active)]">
+                #{iv.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </button>
+    </div>
   );
 }
 

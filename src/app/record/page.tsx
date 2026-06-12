@@ -91,14 +91,18 @@ export default async function RecordPage() {
     .returns<DiaryRow[]>();
 
   const rows = data ?? [];
-  // 상태 문구 계산용 — 가장 최근 방문의 첫 시술명 + 방문일.
+  // 상태 문구 계산용 — 가장 최근 방문의 첫 시술명 + 방문일 + 그 시술 누적 횟수('N회차').
   const latestRow = rows[0];
+  const latestName =
+    latestRow &&
+    ([...latestRow.diary_procedures].sort((a, b) => a.sort_order - b.sort_order)[0]?.procedure_ko ??
+      "시술");
   const latest = latestRow
     ? {
-        name:
-          [...latestRow.diary_procedures].sort((a, b) => a.sort_order - b.sort_order)[0]
-            ?.procedure_ko ?? "시술",
+        name: latestName as string,
         visitedOn: latestRow.visited_on,
+        count: rows.filter((r) => r.diary_procedures.some((p) => p.procedure_ko === latestName))
+          .length,
       }
     : null;
 
