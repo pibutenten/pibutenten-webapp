@@ -2,8 +2,36 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
-import RecordTab from "./RecordTab";
+import RecordTab, { type QaItem } from "./RecordTab";
 import type { SummaryGroup, SummaryItem } from "../mockups/skin-diary/SkinDiaryMockup";
+
+// 관심 키워드 매칭 Q&A 카드 조회용 행.
+type QaCardRow = {
+  id: number;
+  title: string | null;
+  body: string | null;
+  post_year: number | null;
+  post_slug: string | null;
+  shortcode: string | null;
+  keywords: string[] | null;
+  doctor: { slug: string | null; name: string | null } | null;
+  author: { handle: string | null; display_name: string | null } | null;
+};
+
+/** Q&A 카드 → 카드 상세 링크(원장 글: keyword slug / 회원 글: handle+shortcode). */
+function qaCardHref(c: QaCardRow): string {
+  if (c.doctor?.slug && c.post_year && c.post_slug)
+    return `/doctors/${c.doctor.slug}/${c.post_year}/${c.post_slug}`;
+  if (c.shortcode && c.author?.handle) return `/${c.author.handle}/${c.shortcode}`;
+  return "/";
+}
+
+/** 본문에서 태그 제거 후 짧은 미리보기. */
+function snippet(body: string | null, n = 70): string {
+  if (!body) return "";
+  const text = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return text.length > n ? text.slice(0, n) + "…" : text;
+}
 
 // BetaNav 가 useSearchParams 사용 → 정적 프리렌더 회피(동적 렌더).
 export const dynamic = "force-dynamic";
@@ -71,16 +99,30 @@ export default async function RecordPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // 인사용 이름 — active 명함 표시명(없으면 '회원').
+  // 인사용 이름 + 관심 키워드(온보딩) — active 명함 기준.
   const idCtx = await getIdentityContext(supabase);
   const activeId = idCtx?.active?.profileId ?? user.id;
   const { data: prof } = await supabase
     .from("profiles")
-    .select("display_name")
+    .select("display_name, interested_procedures, skin_concerns, skin_type")
     .eq("id", activeId)
     .maybeSingle()
-    .returns<{ display_name: string | null }>();
+    .returns<{
+      display_name: string | null;
+      interested_procedures: string[] | null;
+      skin_concerns: string[] | null;
+      skin_type: string | null;
+    }>();
   const userName = prof?.display_name?.trim() || "회원";
+
+  // 관심 키워드 합집합(관심시술 + 피부고민 + 피부타입). 카드 keywords 와 같은 한글 키(0262).
+  const interests = Array.from(
+    new Set([
+      ...(prof?.interested_procedures ?? []),
+      ...(prof?.skin_concerns ?? []),
+      ...(prof?.skin_type ? [prof.skin_type] : []),
+    ]),
+  );
 
   const { data } = await supabase
     .from("diaries")
@@ -106,5 +148,31 @@ export default async function RecordPage() {
       }
     : null;
 
-  return <RecordTab summary={toSummaryGroups(rows)} userName={userName} latest={latest} />;
+  // 관심 키워드 새 글 — 회원 관심사에 매칭되는 최근 공개 Q&A(키워드 배열 overlap).
+  let qa: QaItem[] = [];
+  if (interests.length > 0) {
+    const { data: qaRows } = await supabase
+      .from("cards")
+      .select(
+        "id, title, body, post_year, post_slug, shortcode, keywords, doctor:doctors(slug, name), author:profiles!cards_author_id_profiles_fkey(handle, display_name)",
+      )
+      .eq("category", "qa")
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .overlaps("keywords", interests)
+      .order("reviewed_at", { ascending: false })
+      .limit(8)
+      .returns<QaCardRow[]>();
+    const interestSet = new Set(interests);
+    qa = (qaRows ?? []).map((c) => ({
+      id: c.id,
+      title: c.title ?? "",
+      snippet: snippet(c.body),
+      keyword: (c.keywords ?? []).find((k) => interestSet.has(k)) ?? (c.keywords?.[0] ?? ""),
+      doctorName: c.doctor?.name ? `${c.doctor.name} 원장` : c.author?.display_name ?? "",
+      href: qaCardHref(c),
+    }));
+  }
+
+  return <RecordTab summary={toSummaryGroups(rows)} userName={userName} latest={latest} qa={qa} />;
 }

@@ -965,7 +965,7 @@ function RecTimelineCard({ it, year, onOpen }: { it: SummaryItem; year: number; 
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {it.items.map((iv) => (
               <span key={iv.name} className="rounded-full bg-[var(--primary-soft)] px-2.5 py-1 text-[12px] font-semibold text-[var(--primary-active)]">
-                #{iv.name}
+                {iv.name}
               </span>
             ))}
           </div>

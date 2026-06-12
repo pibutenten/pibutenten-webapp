@@ -18,21 +18,26 @@ const REMINDERS: {
   { tag: "📅 예정된 시술", tone: "primary", title: "쥬베룩 스킨부스터", sub: "2026.06.20 · 강남 피부과", dday: "D-5" },
 ];
 
-/* ── 관심 키워드 Q&A 새 글 (더미 — 추후 본인 관심 키워드 실데이터) ── */
-const QA_DUMMY = [
-  { tag: "#스킨부스터", q: "스킨부스터, 몇 주 간격으로 받는 게 좋나요?", a: "초기 3회를 2~4주 간격으로 받고, 이후 유지 관리는 2~3개월 주기가 일반적입니다.", doctor: "김민정 원장" },
-  { tag: "#리프팅", q: "울쎄라와 써마지, 어떤 차이가 있나요?", a: "울쎄라는 초음파로 SMAS층을, 써마지는 고주파로 진피층을 자극합니다.", doctor: "박수연 원장" },
-  { tag: "#레이저토닝", q: "레이저 토닝 후 자외선 차단이 중요한가요?", a: "시술 후 피부가 민감해져 과색소 반응이 생길 수 있어 SPF50 이상을 권합니다.", doctor: "이지현 원장" },
-];
+/** 관심 키워드 새 글(Q&A) — 서버(/record/page.tsx)에서 회원 관심사 매칭으로 조회. */
+export type QaItem = {
+  id: number;
+  title: string;
+  snippet: string;
+  keyword: string;
+  doctorName: string;
+  href: string;
+};
 
 export default function RecordTab({
   summary,
   userName,
   latest,
+  qa,
 }: {
   summary: SummaryGroup[];
   userName: string;
   latest: DiaryLatest | null;
+  qa: QaItem[];
 }) {
   const router = useRouter();
   const status = computeStatus(latest);
@@ -74,7 +79,7 @@ export default function RecordTab({
         <h2 className="text-[19px] font-extrabold tracking-tight text-[var(--text)]">리마인더</h2>
         <span className="text-[13.5px] font-semibold text-[var(--primary-active)]">전체보기</span>
       </div>
-      <div className="-mx-1 mb-1 flex gap-3 overflow-x-auto px-1 pb-2" style={{ scrollSnapType: "x mandatory" }}>
+      <div className="no-scrollbar -mx-1 mb-1 flex gap-3 overflow-x-auto px-1 pb-2" style={{ scrollSnapType: "x mandatory" }}>
         {REMINDERS.map((r) => {
           const warm = r.tone === "amber";
           return (
@@ -134,25 +139,32 @@ export default function RecordTab({
         <RecordView go={() => {}} summary={summary} openDetail={(id) => router.push(`/record/${id}`)} />
       </div>
 
-      {/* ⑤ 관심 키워드 Q&A 새 글 (캐러셀) */}
-      <div className="mb-1 mt-8 flex items-baseline justify-between px-0.5">
-        <h2 className="text-[19px] font-extrabold tracking-tight text-[var(--text)]">관심 키워드 새 글</h2>
-        <Link href="/search" className="text-[13.5px] font-semibold text-[var(--primary-active)]">전체보기</Link>
-      </div>
-      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2" style={{ scrollSnapType: "x mandatory" }}>
-        {QA_DUMMY.map((item) => (
-          <div
-            key={item.q}
-            className="min-w-[268px] rounded-[var(--radius)] border border-[var(--border)] bg-white p-[18px] shadow-[0_2px_12px_rgba(27,43,58,.06)]"
-            style={{ scrollSnapAlign: "start" }}
-          >
-            <span className="inline-block rounded-full bg-[var(--primary-soft)] px-3 py-1 text-[12px] font-bold text-[var(--primary-active)]">{item.tag}</span>
-            <p className="mt-2.5 line-clamp-2 text-[14px] font-extrabold leading-snug text-[var(--text)]">Q. {item.q}</p>
-            <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">{item.a}</p>
-            <div className="mt-3 border-t border-[var(--border)] pt-2.5 text-[12px] font-bold text-[var(--text-secondary)]">{item.doctor}</div>
+      {/* ⑤ 관심 키워드 새 글 — 회원 관심사 매칭 최근 Q&A (실데이터). 매칭 없으면 숨김. */}
+      {qa.length > 0 && (
+        <>
+          <div className="mb-1 mt-8 flex items-baseline justify-between px-0.5">
+            <h2 className="text-[19px] font-extrabold tracking-tight text-[var(--text)]">관심 키워드 새 글</h2>
+            <Link href="/search" className="text-[13.5px] font-semibold text-[var(--primary-active)]">전체보기</Link>
           </div>
-        ))}
-      </div>
+          <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-2" style={{ scrollSnapType: "x mandatory" }}>
+            {qa.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="block min-w-[268px] rounded-[var(--radius)] border border-[var(--border)] bg-white p-[18px] shadow-[0_2px_12px_rgba(27,43,58,.06)] transition-colors hover:border-[var(--primary)]"
+                style={{ scrollSnapAlign: "start" }}
+              >
+                {item.keyword && (
+                  <span className="inline-block rounded-full bg-[var(--primary-soft)] px-3 py-1 text-[12px] font-bold text-[var(--primary-active)]">{item.keyword}</span>
+                )}
+                <p className="mt-2.5 line-clamp-2 text-[14px] font-extrabold leading-snug text-[var(--text)]">Q. {item.title}</p>
+                {item.snippet && <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">{item.snippet}</p>}
+                {item.doctorName && <div className="mt-3 border-t border-[var(--border)] pt-2.5 text-[12px] font-bold text-[var(--text-secondary)]">{item.doctorName}</div>}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

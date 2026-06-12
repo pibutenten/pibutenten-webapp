@@ -306,6 +306,15 @@ a:focus-visible,
   opacity: 0.7;
 }
 
+/* 가로 스크롤 영역의 스크롤바 숨김(캐러셀 등). 스크롤 기능은 유지. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* PWA standalone splash — manifest 의 background_color(#4CBFF2) + icon-512 가
    OS native splash 를 이미 처리한다. 별도 body::before overlay 를 두면 native
    splash 종료 후 또 다른 splash 가 깜빡 보이는 이중 노출 문제 (사용자 보고
