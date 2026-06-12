@@ -975,85 +975,119 @@ function RecTimelineCard({ it, year, onOpen }: { it: SummaryItem; year: number; 
   );
 }
 
+/* ─── 연달력 — 12개월 그리드(점·건수 배지) + 월 탭 시 하단 상세 ─── */
 function CalendarPanel({ onOpen, summary }: { onOpen: (id: string) => void; summary: SummaryGroup[] }) {
-  // 전체 일기 → "Y-M-D"(0패딩 없음) 키 맵. 같은 날 여러 방문도 누적.
-  const dayMap = useMemo(() => {
-    const map = new Map<string, SummaryItem[]>();
-    for (const g of summary)
-      for (const it of g.items) {
-        const [mm, dd] = it.date.split(".");
-        const key = `${g.year}-${Number(mm)}-${Number(dd)}`;
-        map.set(key, [...(map.get(key) ?? []), it]);
-      }
-    return map;
-  }, [summary]);
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const thisMonth = now.getMonth() + 1;
 
-  // 초기 표시 = 가장 최근 기록의 연·월(없으면 올해 이번 달).
+  // 기록 있는 연도 범위(없으면 올해만). 연 이동은 이 범위 안에서만. 미래 연도는 올해로 클램프.
+  const years = summary.map((g) => g.year);
+  const minYear = years.reduce((a, b) => Math.min(a, b), thisYear);
+  const maxYear = Math.min(years.reduce((a, b) => Math.max(a, b), thisYear), thisYear);
+
   const latest = summary[0]?.items[0];
-  const initY = summary[0]?.year ?? new Date().getFullYear();
-  const initM = latest ? Number(latest.date.split(".")[0]) : new Date().getMonth() + 1;
-  const [ym, setYm] = useState<{ y: number; m: number }>({ y: initY, m: initM });
-  const [sel, setSel] = useState<number | null>(latest ? Number(latest.date.split(".")[1]) : null);
+  const [year, setYear] = useState(summary[0]?.year ?? thisYear);
 
-  const dow = ["일", "월", "화", "수", "목", "금", "토"];
-  const first = new Date(ym.y, ym.m - 1, 1).getDay();
-  const daysInMonth = new Date(ym.y, ym.m, 0).getDate();
-  const cells: (number | null)[] = [...Array(first).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  // 표시 연도의 월별 기록.
+  const monthItems = useMemo(() => {
+    const map = new Map<number, SummaryItem[]>();
+    for (const it of summary.find((g) => g.year === year)?.items ?? []) {
+      const m = Number(it.date.split(".")[0]);
+      map.set(m, [...(map.get(m) ?? []), it]);
+    }
+    return map;
+  }, [summary, year]);
 
-  const move = (delta: number) => {
-    setSel(null);
-    setYm(({ y, m }) => {
-      const nm = m + delta;
-      if (nm < 1) return { y: y - 1, m: 12 };
-      if (nm > 12) return { y: y + 1, m: 1 };
-      return { y, m: nm };
-    });
+  // 선택 월 — 기본은 표시 연도에서 가장 최근(=첫) 기록 월.
+  const defaultSel = useMemo(() => {
+    const ms = [...monthItems.keys()].sort((a, b) => b - a);
+    return ms[0] ?? null;
+  }, [monthItems]);
+  const [selMonth, setSelMonth] = useState<number | null>(
+    year === (summary[0]?.year ?? thisYear) && latest ? Number(latest.date.split(".")[0]) : null,
+  );
+  const sel = selMonth ?? defaultSel;
+  const selItems = sel ? (monthItems.get(sel) ?? []) : [];
+
+  const moveYear = (delta: number) => {
+    const ny = year + delta;
+    if (ny < minYear || ny > maxYear) return;
+    setYear(ny);
+    setSelMonth(null);
   };
-  const dayItems = (d: number) => dayMap.get(`${ym.y}-${ym.m}-${d}`) ?? [];
-  const selItems = sel ? dayItems(sel) : [];
 
   return (
     <>
       <div className={cardBox}>
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-[17px] font-bold text-[var(--text)]">{ym.y}년 {ym.m}월</span>
-          <span className="flex gap-1.5">
-            <button type="button" onClick={() => move(-1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)]">‹</button>
-            <button type="button" onClick={() => move(1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg)] text-[var(--text-secondary)]">›</button>
-          </span>
+        {/* 연도 네비 */}
+        <div className="mb-4 flex items-center justify-center gap-6">
+          <button type="button" disabled={year <= minYear} onClick={() => moveYear(-1)} className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30">‹</button>
+          <span className="text-[19px] font-extrabold tracking-wide text-[var(--text)]">{year}</span>
+          <button type="button" disabled={year >= maxYear} onClick={() => moveYear(1)} className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30">›</button>
         </div>
-        <div className="grid grid-cols-7">{dow.map((d, i) => <div key={d} className="pb-2 text-center text-[11.5px] font-semibold" style={{ color: i === 0 ? "#D98A9C" : i === 6 ? "#7FA8D0" : "var(--text-muted)" }}>{d}</div>)}</div>
-        <div className="grid grid-cols-7 gap-y-1.5">
-          {cells.map((d, i) => {
-            if (d === null) return <div key={`e${i}`} />;
-            const has = dayItems(d).length > 0; const isSel = sel === d;
+        {/* 12개월 그리드 */}
+        <div className="grid grid-cols-4 gap-2">
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+            const items = monthItems.get(m) ?? [];
+            const count = items.length;
+            const has = count > 0;
+            const isNow = year === thisYear && m === thisMonth;
+            const isFuture = year > thisYear || (year === thisYear && m > thisMonth);
+            const isSel = sel === m;
+            const base = "relative rounded-2xl px-1 py-3 text-center transition-all border-[1.5px] ";
+            const style: CSSProperties = isNow
+              ? { background: "var(--primary-soft)", borderColor: "var(--primary)" }
+              : has
+                ? { background: "#fff", borderColor: "#D9EDF9", boxShadow: isSel ? "0 0 0 2px var(--primary)" : "0 1px 4px rgba(34,43,53,.05)" }
+                : { background: "var(--bg-soft)", borderColor: "transparent" };
             return (
-              <div key={`d${d}`} className="flex justify-center">
-                <button type="button" disabled={!has} onClick={() => has && setSel(d)}
-                  className="relative flex h-10 w-10 items-center justify-center rounded-full text-[14px] transition-all"
-                  style={has ? { background: "var(--primary-soft)", color: "var(--primary-active)", fontWeight: 700, boxShadow: isSel ? "0 0 0 2px var(--primary)" : "none" } : { color: "var(--text-secondary)" }}>
-                  {d}{has && <span className="absolute bottom-1.5 h-[5px] w-[5px] rounded-full" style={{ background: "var(--primary)" }} />}
-                </button>
-              </div>
+              <button key={m} type="button" disabled={!has} onClick={() => setSelMonth(m)} className={base} style={style}>
+                <span className="text-[14.5px] font-bold" style={{ color: isNow ? "var(--primary-active)" : isFuture ? "#C3CFDA" : has ? "var(--text)" : "var(--text-muted)" }}>{m}월</span>
+                <span className="mt-1.5 flex h-[7px] items-center justify-center gap-[3px]">
+                  {Array.from({ length: Math.min(count, 3) }, (_, i) => (
+                    <i key={i} className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--primary)" }} />
+                  ))}
+                </span>
+                {has && (
+                  <span className="absolute -right-1 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10.5px] font-extrabold text-white" style={{ background: "var(--primary)" }}>{count}</span>
+                )}
+              </button>
             );
           })}
         </div>
-        <div className="mt-4 flex justify-center gap-5 border-t border-[var(--border)] pt-3 text-[11.5px] text-[var(--text-secondary)]">
-          <span className="flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "var(--primary)" }} />시술 받은 날</span>
-        </div>
       </div>
-      {selItems.length > 0 && (
-        <button type="button" onClick={() => onOpen(selItems[0].id)} className={"mt-3 flex w-full items-center gap-3 text-left " + cardBox + " hover:bg-[var(--primary-soft)]"}>
-          <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md" style={{ background: "var(--primary-soft)" }}>
-            <span className="text-[15px] font-bold leading-none" style={{ color: "var(--primary-active)" }}>{sel}</span><span className="mt-0.5 text-[9px] font-semibold text-[var(--text-muted)]">{ym.m}월</span>
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[14.5px] font-semibold text-[var(--text)]">{selItems.flatMap((it) => it.items.map((iv) => iv.name)).join(" · ")}</span>
-            <span className="mt-0.5 block truncate text-[12px] text-[var(--text-muted)]">{selItems[0].hospital}</span>
-          </span>
-          <span className="text-[var(--text-muted)]">›</span>
-        </button>
-      )}
+
+      {/* 선택 월 상세 */}
+      <div className={cardBox + " mt-3"}>
+        {sel ? (
+          <>
+            <p className="mb-2.5 text-[13.5px] font-extrabold text-[var(--primary-active)]">{sel}월 · 기록 {selItems.length}건</p>
+            {selItems.length === 0 ? (
+              <div className="py-4 text-center">
+                <p className="text-[13px] text-[var(--text-muted)]">이 달의 기록이 없어요.</p>
+                <a href="/write" className="mt-2 inline-block text-[13px] font-bold text-[var(--primary-active)]">기록 추가하기</a>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {selItems.map((it) => {
+                  const [mm, dd] = it.date.split(".");
+                  const badge = recordBadge(it.items[0]?.name ?? it.proc, `${year}-${mm}-${dd}`);
+                  return (
+                    <button key={it.id} type="button" onClick={() => onOpen(it.id)} className="flex w-full items-center gap-3 rounded-[14px] bg-[var(--bg-soft)] px-3.5 py-3 text-left hover:bg-[var(--primary-soft)]">
+                      <span className="min-w-[34px] text-[13px] font-extrabold text-[var(--primary-active)]">{Number(mm)}.{Number(dd)}</span>
+                      <span className="min-w-0 flex-1 truncate text-[15px] font-bold text-[var(--text)]">{it.items.map((iv) => iv.name).join(" · ")}</span>
+                      <span className="shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold" style={badge.tone === "mint" ? { background: "#E7FAF4", color: "#13967A" } : { background: "#FFF4E5", color: "#C97A1B" }}>{badge.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="py-4 text-center text-[13px] text-[var(--text-muted)]">기록 있는 달을 눌러 상세를 확인하세요.</p>
+        )}
+      </div>
     </>
   );
 }
