@@ -707,16 +707,12 @@ export function DiaryForm({ toast, go }: { toast: (m: string) => void; go: (s: S
           {procs.length > 0 && (
             <div className="mb-2 space-y-2">
               {procs.map((p) => (
-                <div key={p.id} className="space-y-1.5 rounded-md bg-[var(--bg)] p-2.5">
-                  {/* 1행: 칩 + 용량·가격(칩 우측) + 삭제 */}
-                  <div className="flex items-center gap-1.5">
-                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
-                    <input ref={(el) => { unitRefs.current[p.id] = el; }} className={inputSm + " min-w-0 flex-1"} placeholder="용량" value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value })} />
-                    <input inputMode="numeric" className={inputSm + " min-w-0 flex-1"} placeholder="가격" value={p.price ? Number(p.price).toLocaleString() : ""} onChange={(e) => upd(p.id, { price: e.target.value.replace(/[^0-9]/g, "") })} />
-                    <button type="button" tabIndex={-1} onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="shrink-0 px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
-                  </div>
-                  {/* 2행: 메모 전체 너비 */}
-                  <input className={inputSm + " w-full"} placeholder="메모" value={p.note} onChange={(e) => upd(p.id, { note: e.target.value })} />
+                // 한 행: 칩 + 용량 + 가격 + 삭제 (시술별 메모 제거).
+                <div key={p.id} className="flex items-center gap-1.5 rounded-md bg-[var(--bg)] p-2.5">
+                  <span className="shrink-0 rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
+                  <input ref={(el) => { unitRefs.current[p.id] = el; }} className={inputSm + " min-w-0 flex-1"} placeholder="용량" value={p.unit} onChange={(e) => upd(p.id, { unit: e.target.value })} />
+                  <input inputMode="numeric" className={inputSm + " min-w-0 flex-1"} placeholder="가격" value={p.price ? Number(p.price).toLocaleString() : ""} onChange={(e) => upd(p.id, { price: e.target.value.replace(/[^0-9]/g, "") })} />
+                  <button type="button" tabIndex={-1} onClick={() => setProcs(procs.filter((x) => x.id !== p.id))} className="shrink-0 px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
                 </div>
               ))}
             </div>

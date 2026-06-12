@@ -147,7 +147,7 @@ export default async function RecordPage() {
           .is("deleted_at", null)
           .overlaps("keywords", interests)
           .order("reviewed_at", { ascending: false, nullsFirst: false })
-          .limit(6)
+          .limit(10)
           .returns<KeywordCardRow[]>()
       : Promise.resolve({ data: [] as KeywordCardRow[] }),
   ]);
@@ -175,7 +175,9 @@ export default async function RecordPage() {
     title: c.title ?? "",
     type: "qa",
     authorName: c.doctor?.name ?? c.author?.display_name ?? "회원",
-    avatarUrl: c.doctor?.photo_url ?? c.author?.avatar_url ?? null,
+    // 원장 글은 피드와 동일한 아바타 보정(getDoctorPhoto/theme)을 위해 slug 전달. 회원 글은 avatar_url.
+    doctorSlug: c.doctor?.slug ?? null,
+    avatarUrl: c.doctor ? null : c.author?.avatar_url ?? null,
     isNew: c.created_at ? now - new Date(c.created_at).getTime() < DAY_MS : false,
     timeAgo: c.created_at ? formatRelativeTime(c.created_at) : "",
     keyword: (c.keywords ?? []).find((k) => interestSet.has(k)) ?? (c.keywords?.[0] ?? ""),

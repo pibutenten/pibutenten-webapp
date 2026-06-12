@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import CardAvatar from "@/components/card/CardAvatar";
 
 /** 관심 키워드 새 글(컴팩트) — 피드 풀카드와 분리된 전용 카드. */
 export type KeywordPost = {
@@ -9,7 +10,8 @@ export type KeywordPost = {
   title: string;
   type: string; // cards.category (현재 qa 전용)
   authorName: string;
-  avatarUrl: string | null;
+  doctorSlug: string | null; // 원장 글이면 slug(피드와 동일 아바타 보정)
+  avatarUrl: string | null; // 회원 글 아바타
   isNew: boolean;
   timeAgo: string;
   keyword: string; // 매칭된 관심 키워드
@@ -71,12 +73,7 @@ export default function KeywordCarousel({
               style={{ width: CARD_W, scrollSnapAlign: "start" }}
             >
               <div className="flex items-center gap-1.5">
-                {p.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.avatarUrl} alt="" className="h-[30px] w-[30px] shrink-0 rounded-full object-cover" />
-                ) : (
-                  <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[13px]" style={{ background: "linear-gradient(135deg,#DCEFF9,#BFE4F6)" }}>{p.authorName.slice(0, 1)}</span>
-                )}
+                <CardAvatar doctorSlug={p.doctorSlug} memberAvatarUrl={p.avatarUrl} name={p.authorName} size={30} />
                 <span className="truncate text-[13px] font-bold text-[var(--text)]">{p.authorName}</span>
                 <span className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold" style={{ background: chip.bg, color: chip.fg }}>{chip.label}</span>
                 {p.isNew && <span className="ml-auto shrink-0 rounded-full bg-[#F76D9B] px-1.5 py-0.5 text-[10px] font-extrabold text-white">NEW</span>}
@@ -93,14 +90,15 @@ export default function KeywordCarousel({
             </Link>
           );
         })}
-        {/* 전체보기 CTA 카드 */}
+        {/* 피드 보러 가기 CTA 카드 */}
         <Link
           href={viewAllHref}
           className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-[var(--radius)] border-[1.5px] border-dashed border-[#B9E2F7] bg-[var(--primary-soft)] p-4 text-center"
-          style={{ width: 140, scrollSnapAlign: "start" }}
+          style={{ width: 150, scrollSnapAlign: "start" }}
         >
-          <span className="text-[24px] text-[var(--primary-active)]">＋</span>
-          <span className="text-[13.5px] font-extrabold leading-snug text-[var(--primary-active)]">새 글<br />전체보기</span>
+          <span className="text-[22px]">🔎</span>
+          <span className="text-[13.5px] font-extrabold leading-snug text-[var(--primary-active)]">피드<br />보러 가기</span>
+          <span className="text-[var(--primary-active)]">›</span>
         </Link>
       </div>
 

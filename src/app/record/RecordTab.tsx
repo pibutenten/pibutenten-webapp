@@ -33,7 +33,6 @@ function PopRow({ it }: { it: PopularItem }) {
         <h3 className="truncate text-[14.5px] font-bold tracking-tight text-[var(--text)]">{it.title}</h3>
         <p className="mt-0.5 text-[11.5px] font-semibold text-[var(--text-muted)]">{it.authorName} · {catLabel(it.type)}</p>
       </div>
-      <span className="shrink-0 text-[12px] font-bold text-[var(--text-muted)]">조회 {it.views.toLocaleString("ko-KR")}</span>
     </Link>
   );
 }
