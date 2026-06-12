@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { RecordView, type SummaryGroup } from "../mockups/skin-diary/SkinDiaryMockup";
 import { computeStatus, type DiaryLatest } from "@/lib/diary-status";
-import Card, { type CardData } from "@/components/Card";
+import KeywordCarousel, { type KeywordPost } from "./KeywordCarousel";
 
 /** 인기글 1건. */
 export type PopularItem = {
@@ -13,15 +13,30 @@ export type PopularItem = {
   title: string;
   authorName: string;
   type: string; // cards.category
+  views: number;
   href: string;
 };
 export type PopularData = { d7: PopularItem[]; d30: PopularItem[]; d90: PopularItem[] };
 
-type ViewerState = { liked?: boolean; saved?: boolean };
-
 // 글 타입(category) → 라벨.
 const CAT_LABEL: Record<string, string> = { qa: "Q&A", review: "시술후기", doodle: "끄적끄적", review_summary: "리포트" };
 const catLabel = (c: string) => CAT_LABEL[c] ?? "글";
+
+// 순위 색 — 1핑크 / 2하늘 / 3골드 / 4+ 회색.
+const rankColor = (r: number) => (r === 1 ? "#F76D9B" : r === 2 ? "var(--primary-active)" : r === 3 ? "#F5A623" : "var(--text-muted)");
+
+function PopRow({ it }: { it: PopularItem }) {
+  return (
+    <Link href={it.href} className="flex items-center gap-3 border-b border-[var(--border)] py-3 last:border-0">
+      <span className="min-w-[20px] shrink-0 text-center font-extrabold italic" style={{ color: rankColor(it.rank), fontSize: it.rank === 1 ? 18 : 16 }}>{it.rank}</span>
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate text-[14.5px] font-bold tracking-tight text-[var(--text)]">{it.title}</h3>
+        <p className="mt-0.5 text-[11.5px] font-semibold text-[var(--text-muted)]">{it.authorName} · {catLabel(it.type)}</p>
+      </div>
+      <span className="shrink-0 text-[12px] font-bold text-[var(--text-muted)]">조회 {it.views.toLocaleString("ko-KR")}</span>
+    </Link>
+  );
+}
 
 export default function RecordTab({
   summary,
@@ -29,8 +44,7 @@ export default function RecordTab({
   latest,
   diaryCount,
   reviewsCount,
-  keywordCards,
-  viewerStates,
+  keywordPosts,
   popular,
   myKeywords,
 }: {
@@ -39,14 +53,14 @@ export default function RecordTab({
   latest: DiaryLatest | null;
   diaryCount: number;
   reviewsCount: number;
-  keywordCards: CardData[];
-  viewerStates: Record<number, ViewerState>;
+  keywordPosts: KeywordPost[];
   popular: PopularData;
   myKeywords: string[];
 }) {
   const router = useRouter();
   const status = computeStatus(latest);
   const [period, setPeriod] = useState<keyof PopularData>("d7");
+  const [popExpanded, setPopExpanded] = useState(false);
 
   // 최다 시술 — 일기 기준 가장 많이 기록된 시술명.
   const procFreq = new Map<string, number>();
@@ -55,6 +69,12 @@ export default function RecordTab({
 
   const scrollToDiary = () => document.getElementById("record-diary")?.scrollIntoView({ behavior: "smooth", block: "start" });
   const popItems = popular[period];
+  const popTop = popItems.slice(0, 5);
+  const popRest = popItems.slice(5);
+  const changePeriod = (k: keyof PopularData) => {
+    setPeriod(k);
+    setPopExpanded(false);
+  };
 
   return (
     <div className="mx-auto max-w-[680px]">
@@ -121,37 +141,21 @@ export default function RecordTab({
         <RecordView go={() => {}} summary={summary} openDetail={(id) => router.push(`/record/${id}`)} />
       </div>
 
-      {/* ⑤ 관심 키워드 새 Q&A — 표준 카드 형식 */}
-      <div className="mb-3 mt-8 px-0.5">
-        <h2 className="text-[20px] font-extrabold tracking-tight text-[var(--text)]">관심 키워드 새 Q&amp;A</h2>
-      </div>
-      {/* 키워드 칩 + 편집 (해시태그 표기 없음) */}
-      <div className="mb-3.5 flex flex-wrap gap-1.5">
-        {myKeywords.slice(0, 8).map((k) => (
-          <span key={k} className="rounded-full bg-[var(--primary-soft)] px-3 py-1.5 text-[13.5px] font-bold text-[var(--primary-active)]">{k}</span>
-        ))}
-        <Link href="/settings/profile" className="rounded-full border-[1.5px] border-dashed border-[#C5DFEF] bg-white px-3 py-1.5 text-[13.5px] font-bold text-[var(--text-muted)]">
-          ＋ 키워드 편집
-        </Link>
+      {/* ⑤ 관심 키워드 새 글 — 가로 카러셀(컴팩트 카드) */}
+      <div className="mb-3 mt-8 flex items-center justify-between px-0.5">
+        <h2 className="text-[20px] font-extrabold tracking-tight text-[var(--text)]">관심 키워드 새 글</h2>
+        {keywordPosts.length > 0 && <Link href="/" className="text-[13.5px] font-bold text-[var(--primary-active)]">전체보기</Link>}
       </div>
       {myKeywords.length === 0 ? (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 text-center text-[13.5px] text-[var(--text-secondary)] shadow-[0_2px_10px_rgba(34,43,53,.05)]">
-          <p>관심 키워드를 등록하면 관련 Q&amp;A 를 모아 보여드려요.</p>
+          <p>관심 키워드를 등록하면 관련 새 글을 모아 보여드려요.</p>
           <Link href="/settings/profile" className="mt-3 inline-block rounded-full bg-[var(--primary)] px-5 py-2 text-[13px] font-semibold text-white">키워드 등록하기</Link>
         </div>
-      ) : keywordCards.length === 0 ? (
-        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 text-center text-[13.5px] text-[var(--text-secondary)] shadow-[0_2px_10px_rgba(34,43,53,.05)]">
-          관심 키워드에 맞는 새 Q&amp;A 가 아직 없어요.
-        </div>
       ) : (
-        <div className="space-y-4">
-          {keywordCards.map((c) => (
-            <Card key={c.id} card={c} viewerLiked={viewerStates[c.id]?.liked} viewerSaved={viewerStates[c.id]?.saved} />
-          ))}
-        </div>
+        <KeywordCarousel posts={keywordPosts} myKeywords={myKeywords} viewAllHref="/" />
       )}
 
-      {/* ⑥ 인기글 — 기간 탭 + TOP10(조회수 미표시) */}
+      {/* ⑥ 인기글 — 기간 탭 + TOP5(+ 6~10위 접기), 조회수 표시 */}
       <div className="mb-3 mt-9 px-0.5">
         <h2 className="text-[20px] font-extrabold tracking-tight text-[var(--text)]">인기글</h2>
       </div>
@@ -160,7 +164,7 @@ export default function RecordTab({
           <button
             key={k}
             type="button"
-            onClick={() => setPeriod(k)}
+            onClick={() => changePeriod(k)}
             className={"flex-1 rounded-full py-2 text-[14px] font-bold transition-colors " + (period === k ? "bg-white text-[var(--text)] shadow-[0_2px_8px_rgba(34,43,53,.10)]" : "text-[var(--text-muted)]")}
           >
             {label}
@@ -173,15 +177,19 @@ export default function RecordTab({
         </div>
       ) : (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 shadow-[0_2px_10px_rgba(34,43,53,.05)]">
-          {popItems.map((it) => (
-            <Link key={it.rank} href={it.href} className="flex items-center gap-3.5 border-b border-[var(--border)] py-[14px] last:border-0">
-              <span className={"min-w-[22px] shrink-0 text-center text-[19px] font-extrabold italic " + (it.rank === 1 ? "text-[#F76D9B]" : "text-[var(--primary-active)]")}>{it.rank}</span>
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-[15px] font-bold tracking-tight text-[var(--text)]">{it.title}</h3>
-                <p className="mt-1 text-[12.5px] font-semibold text-[var(--text-muted)]">{it.authorName} · {catLabel(it.type)}</p>
-              </div>
-            </Link>
+          {popTop.map((it) => (
+            <PopRow key={it.rank} it={it} />
           ))}
+          {popExpanded && popRest.map((it) => <PopRow key={it.rank} it={it} />)}
+          {popItems.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setPopExpanded((v) => !v)}
+              className="flex w-full items-center justify-center gap-1.5 border-t border-[var(--border)] py-3 text-[13.5px] font-bold text-[var(--text-secondary)]"
+            >
+              {popExpanded ? "접기 ▲" : `6~${popItems.length}위 보기 ▼`}
+            </button>
+          )}
         </div>
       )}
     </div>

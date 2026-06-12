@@ -2,11 +2,26 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
-import { CARD_LIST_SELECT } from "@/lib/card-select";
-import { fetchViewerStatesRecord } from "@/lib/viewer-states";
-import type { CardData } from "@/components/Card";
+import { formatRelativeTime } from "@/lib/relative-time";
 import RecordTab, { type PopularData, type PopularItem } from "./RecordTab";
+import type { KeywordPost } from "./KeywordCarousel";
 import type { SummaryGroup, SummaryItem } from "../mockups/skin-diary/SkinDiaryMockup";
+
+// 관심 키워드 카드(컴팩트) 조회 행.
+type KeywordCardRow = {
+  id: number;
+  title: string | null;
+  created_at: string | null;
+  keywords: string[] | null;
+  post_year: number | null;
+  post_slug: string | null;
+  shortcode: string | null;
+  doctor: { slug: string | null; name: string | null; photo_url: string | null } | null;
+  author: { handle: string | null; display_name: string | null; avatar_url: string | null } | null;
+};
+
+const KEYWORD_SELECT =
+  "id, title, created_at, keywords, post_year, post_slug, shortcode, doctor:doctors(slug, name, photo_url), author:profiles!cards_author_id_profiles_fkey(handle, display_name, avatar_url)";
 
 /** 카드 → 상세 링크(원장 글: keyword slug / 회원 글: handle+shortcode). */
 function cardHref(c: { doctor?: { slug: string | null } | null; post_year: number | null; post_slug: string | null; shortcode: string | null; author?: { handle: string | null } | null }): string {
@@ -73,6 +88,8 @@ type TopCardRow = {
   deleted_at: string | null;
 };
 
+const DAY_MS = 86_400_000;
+
 // /record — 내 일기(비공개). 로그인 필수. active 명함 기준 조회·집계.
 export default async function RecordPage() {
   const supabase = await createSupabaseServerClient();
@@ -105,7 +122,7 @@ export default async function RecordPage() {
     ]),
   );
 
-  // 병렬: 일기 / 내가 쓴 후기 수 / 인기글 3기간(TOP10) / 관심 키워드 새 Q&A.
+  // 병렬: 일기 / 내가 쓴 후기 수 / 인기글 3기간(TOP10) / 관심 키워드 새 Q&A(컴팩트).
   const [diariesRes, reviewCntRes, top7Res, top30Res, top90Res, kwRes] = await Promise.all([
     supabase
       .from("diaries")
@@ -121,24 +138,22 @@ export default async function RecordPage() {
     supabase.rpc("get_top_cards_by_views", { p_days: 7, p_limit: 10 }),
     supabase.rpc("get_top_cards_by_views", { p_days: 30, p_limit: 10 }),
     supabase.rpc("get_top_cards_by_views", { p_days: 90, p_limit: 10 }),
-    // 관심 키워드 새 Q&A — 관심사 매칭 공개 Q&A 최신순(검수 기준 reviewed_at). 표준 Card 로 렌더.
     interests.length > 0
       ? supabase
           .from("cards")
-          .select(CARD_LIST_SELECT)
+          .select(KEYWORD_SELECT)
           .eq("category", "qa")
           .eq("status", "published")
           .is("deleted_at", null)
           .overlaps("keywords", interests)
           .order("reviewed_at", { ascending: false, nullsFirst: false })
           .limit(6)
-          .returns<CardData[]>()
-      : Promise.resolve({ data: [] as CardData[] }),
+          .returns<KeywordCardRow[]>()
+      : Promise.resolve({ data: [] as KeywordCardRow[] }),
   ]);
 
   const rows = diariesRes.data ?? [];
   const reviewsCount = reviewCntRes.count ?? 0;
-  const keywordCards = (kwRes.data ?? []) as CardData[];
 
   // 상태 문구 계산용 — 가장 최근 방문의 첫 시술명 + 방문일 + 그 시술 누적 횟수('N회차').
   const latestRow = rows[0];
@@ -152,7 +167,22 @@ export default async function RecordPage() {
       }
     : null;
 
-  // 인기글 — 3기간 RPC 결과 + 카드 enrich(공개 카드만, 링크·타입). deleted 제외.
+  // 관심 키워드 새 Q&A(컴팩트 카드). NEW=24h. 원장 글은 doctor 사진, 회원 글은 author 아바타.
+  const interestSet = new Set(interests);
+  const now = Date.now();
+  const keywordPosts: KeywordPost[] = ((kwRes.data ?? []) as KeywordCardRow[]).map((c) => ({
+    id: c.id,
+    title: c.title ?? "",
+    type: "qa",
+    authorName: c.doctor?.name ?? c.author?.display_name ?? "회원",
+    avatarUrl: c.doctor?.photo_url ?? c.author?.avatar_url ?? null,
+    isNew: c.created_at ? now - new Date(c.created_at).getTime() < DAY_MS : false,
+    timeAgo: c.created_at ? formatRelativeTime(c.created_at) : "",
+    keyword: (c.keywords ?? []).find((k) => interestSet.has(k)) ?? (c.keywords?.[0] ?? ""),
+    href: cardHref(c),
+  }));
+
+  // 인기글 — 3기간 RPC + 카드 enrich(공개 카드만). deleted 제외, 조회수(cnt) 표시.
   const periods: [keyof PopularData, TopCardRow[]][] = [
     ["d7", ((top7Res.data ?? []) as TopCardRow[]).filter((r) => !r.deleted_at)],
     ["d30", ((top30Res.data ?? []) as TopCardRow[]).filter((r) => !r.deleted_at)],
@@ -173,7 +203,6 @@ export default async function RecordPage() {
   const popular = Object.fromEntries(
     periods.map(([key, rs]) => [
       key,
-      // enrich(공개) 에 없는(=비공개/삭제) 카드는 제외 후 순위 재부여.
       rs
         .filter((r) => enrichMap.has(r.card_id))
         .map((r, i): PopularItem => ({
@@ -181,13 +210,11 @@ export default async function RecordPage() {
           title: r.title ?? "",
           authorName: r.author_name ?? "회원",
           type: enrichMap.get(r.card_id)?.type ?? "",
+          views: Number(r.cnt) || 0,
           href: enrichMap.get(r.card_id)?.href ?? "/",
         })),
     ]),
   ) as PopularData;
-
-  // 관심 키워드 카드의 viewer 좋아요/저장 prefetch.
-  const viewerStates = await fetchViewerStatesRecord(supabase, user.id, keywordCards.map((c) => c.id));
 
   return (
     <RecordTab
@@ -196,8 +223,7 @@ export default async function RecordPage() {
       latest={latest}
       diaryCount={rows.length}
       reviewsCount={reviewsCount}
-      keywordCards={keywordCards}
-      viewerStates={viewerStates}
+      keywordPosts={keywordPosts}
       popular={popular}
       myKeywords={interests}
     />
