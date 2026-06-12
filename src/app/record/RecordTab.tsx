@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RecordView, type SummaryGroup } from "../mockups/skin-diary/SkinDiaryMockup";
 import { computeStatus, type DiaryLatest } from "@/lib/diary-status";
+import Carousel from "./Carousel";
 
 /* ── 리마인더 캐러셀 (데이터 공백분 더미 — 결정: 자리만 잡고 더미) ── */
 const REMINDERS: {
@@ -79,7 +80,7 @@ export default function RecordTab({
         <h2 className="text-[19px] font-extrabold tracking-tight text-[var(--text)]">리마인더</h2>
         <span className="text-[13.5px] font-semibold text-[var(--primary-active)]">전체보기</span>
       </div>
-      <div className="no-scrollbar -mx-1 mb-1 flex gap-3 overflow-x-auto px-1 pb-2" style={{ scrollSnapType: "x mandatory" }}>
+      <Carousel className="-mx-1 mb-1 px-1 pb-2">
         {REMINDERS.map((r) => {
           const warm = r.tone === "amber";
           return (
@@ -111,7 +112,7 @@ export default function RecordTab({
             </div>
           );
         })}
-      </div>
+      </Carousel>
 
       {/* ③ 월 요약 스트립 (실데이터) — 기록이 있을 때만 */}
       {total > 0 && (
@@ -146,7 +147,7 @@ export default function RecordTab({
             <h2 className="text-[19px] font-extrabold tracking-tight text-[var(--text)]">관심 키워드 새 글</h2>
             <Link href="/search" className="text-[13.5px] font-semibold text-[var(--primary-active)]">전체보기</Link>
           </div>
-          <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-2" style={{ scrollSnapType: "x mandatory" }}>
+          <Carousel className="-mx-1 px-1 pb-2">
             {qa.map((item) => (
               <Link
                 key={item.id}
@@ -162,7 +163,7 @@ export default function RecordTab({
                 {item.doctorName && <div className="mt-3 border-t border-[var(--border)] pt-2.5 text-[12px] font-bold text-[var(--text-secondary)]">{item.doctorName}</div>}
               </Link>
             ))}
-          </div>
+          </Carousel>
         </>
       )}
     </div>
