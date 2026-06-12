@@ -38,6 +38,15 @@ export default async function BetaSkinRecordPage() {
   const qaCards = cards.filter((c) => (c.category ?? c.type) === "qa");
   const kwCards = (qaCards.length >= 2 ? qaCards : cards).slice(0, 4);
 
+  // 피드백 3) 인기글 섹션 — 로그인 통계 RPC 대신 피드 풀을 좋아요+저장+댓글 합으로 정렬한 상위 5.
+  const popularCards = [...cards]
+    .sort(
+      (a, b) =>
+        (b.like_count ?? 0) + (b.save_count ?? 0) + (b.comment_count ?? 0) -
+        ((a.like_count ?? 0) + (a.save_count ?? 0) + (a.comment_count ?? 0)),
+    )
+    .slice(0, 5);
+
   // 관심 키워드 칩: 카테고리별 인기 키워드 1~2개씩 모아 5개
   const keywordChips: string[] = [];
   if (popular) {
@@ -53,5 +62,11 @@ export default async function BetaSkinRecordPage() {
     }
   }
 
-  return <RecordView kwCards={kwCards} keywordChips={keywordChips} />;
+  return (
+    <RecordView
+      kwCards={kwCards}
+      keywordChips={keywordChips}
+      popularCards={popularCards}
+    />
+  );
 }

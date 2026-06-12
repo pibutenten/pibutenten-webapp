@@ -14,6 +14,7 @@
  */
 
 import { Fragment, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import CardAvatar from "@/components/card/CardAvatar";
 import { pickHighlight } from "@/lib/card-highlight";
 import { getQaUrl } from "@/lib/card-url";
@@ -23,6 +24,30 @@ import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
 import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import styles from "./beta-skin.module.css";
+
+/* ---------- 피드백 4) 비-피드 페이지 헤더 검색 → 피드로 라우팅 ----------
+ * record/write/my/post 가 공유하는 검색 props 묶음.
+ *   - 검색 제출(엔터/추천 클릭) → /beta-skin?q=키워드 (피드가 ?q= 를 읽어 자동 필터)
+ *   - 카테고리 바로가기 → /beta-skin?cat=칩키
+ * BetaSkinShell 의 onSearchSubmit / searchCategories / onPickCategory / 드롭다운 props 를 한 번에 반환. */
+const NONFEED_CATEGORIES = [
+  { key: "qa", label: "Q&A" },
+  { key: "review", label: "시술후기" },
+  { key: "doodle", label: "끄적끄적" },
+  { key: "review_summary", label: "리포트" },
+];
+const NONFEED_SUGGEST = ["리프팅", "스킨부스터", "보톡스", "리쥬란", "써마지", "피코레이저"];
+export function useBetaSearchRouting() {
+  const router = useRouter();
+  return {
+    onSearchSubmit: (q: string) =>
+      router.push(`/beta-skin?q=${encodeURIComponent(q)}`),
+    searchCategories: NONFEED_CATEGORIES,
+    onPickCategory: (key: string) => router.push(`/beta-skin?cat=${key}`),
+    searchSuggestions: NONFEED_SUGGEST,
+    recentSearches: ["리프팅", "스킨부스터"],
+  };
+}
 
 /* ---------- 피드백 5) 키워드 → 카테고리별 연한 배경 칩 클래스 ----------
  * 운영 categorize(@/lib/category-sets)로 키워드를 5분류한 뒤
@@ -330,6 +355,69 @@ export const TAG_TONES = [
  *   - 항목 3) '더보기/접기' 라벨은 muted 회색·일반 굵기·작게(절제).
  *   - 항목 4) 태그 클릭 → onTagClick(키워드) 로 헤더 검색창에 채워 필터.
  *   - 아바타는 운영 CardAvatar 로 교체(원장 얼굴 보정). */
+/* ---------- 피드백 2) 댓글 블록 (운영 CommentsBlock 톤의 프리뷰판) ----------
+ * 샘플 댓글 2~3 + 입력창. 입력은 타이핑 가능, 제출 시 로컬 추가(프리뷰 — 서버 미전송).
+ * 피드 카드(펼침 후 댓글 아이콘 토글)·글 상세 둘 다 재사용. */
+const SAMPLE_COMMENTS = [
+  {
+    name: "글로우업",
+    text: "저도 멍 잘 드는 체질인데 재생테이프 붙이니 5일 만에 가라앉았어요!",
+    when: "1주 전",
+  },
+  {
+    name: "달빛피부",
+    text: "다음 날 바로 출근했어요. 마스크 쓰니까 티 안 났어요 ㅎㅎ",
+    when: "5일 전",
+  },
+];
+
+export function BetaComments({ count }: { count?: number }) {
+  const [items, setItems] = useState(SAMPLE_COMMENTS);
+  const [draft, setDraft] = useState("");
+
+  const submit = () => {
+    const t = draft.trim();
+    if (!t) return;
+    // 프리뷰: 로컬에만 추가(서버 미전송).
+    setItems((prev) => [{ name: "나", text: t, when: "방금" }, ...prev]);
+    setDraft("");
+  };
+
+  return (
+    <div className={styles.comments} onClick={(e) => e.stopPropagation()}>
+      <h3 className={styles.commentHead}>댓글 {count ?? items.length}</h3>
+      {items.map((c, i) => (
+        <div className={styles.comment} key={`${c.name}-${i}`}>
+          <span className={`${styles.avatar} ${styles.avatarGray}`} />
+          <div>
+            <div className={styles.commentName}>{c.name}</div>
+            <p className={styles.commentText}>{c.text}</p>
+            <div className={styles.commentWhen}>{c.when}</div>
+          </div>
+        </div>
+      ))}
+      <div className={styles.commentInput}>
+        <input
+          type="text"
+          placeholder="따뜻한 댓글을 남겨 주세요"
+          aria-label="댓글 입력"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+        />
+        <button type="button" onClick={submit}>
+          등록
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function PostCard({
   card,
   onTagClick,
@@ -339,6 +427,8 @@ export function PostCard({
   onTagClick?: (keyword: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // 피드백 2) 댓글 펼침 — 댓글 아이콘 클릭 시 샘플 댓글 + 입력창 노출.
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   const authorName = card.doctor?.name ?? card.author?.display_name ?? "회원";
   const isDoctor = !!card.doctor && !card.hide_doctor_credential;
@@ -484,9 +574,19 @@ export function PostCard({
         <span className={styles.pf}>
           <IconHeart /> {card.like_count ?? 0}
         </span>
-        <span className={styles.pf}>
+        {/* 피드백 2) 댓글 아이콘 클릭 → 댓글 섹션 토글. */}
+        <button
+          type="button"
+          className={`${styles.pf} ${styles.pfBtn}`}
+          aria-label="댓글"
+          aria-expanded={commentsOpen}
+          onClick={(e) => {
+            e.stopPropagation();
+            setCommentsOpen((v) => !v);
+          }}
+        >
           <IconComment /> {card.comment_count ?? 0}
-        </span>
+        </button>
         <span className={styles.pf}>
           <IconBookmark /> {card.save_count ?? 0}
         </span>
@@ -516,6 +616,9 @@ export function PostCard({
           </a>
         )}
       </div>
+
+      {/* 피드백 2) 댓글 섹션 — 댓글 아이콘 클릭 시 펼침. */}
+      {commentsOpen && <BetaComments count={card.comment_count ?? undefined} />}
     </article>
   );
 }

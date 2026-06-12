@@ -10,6 +10,7 @@
 
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
+import { useBetaSearchRouting } from "../beta-ui";
 
 const STATS = [
   { num: "12", lab: "시술 노트" },
@@ -32,6 +33,7 @@ const MENU_SUB = [
 ];
 
 export default function MyView() {
+  const search = useBetaSearchRouting();
   const sidebar = (
     <>
       <section
@@ -71,7 +73,7 @@ export default function MyView() {
   );
 
   return (
-    <BetaSkinShell active="마이" sidebar={sidebar}>
+    <BetaSkinShell active="마이" sidebar={sidebar} {...search}>
       {/* 프로필 + 통계 */}
       <section className={`${styles.card} ${styles.mb20}`}>
         <div className={styles.profileCard}>

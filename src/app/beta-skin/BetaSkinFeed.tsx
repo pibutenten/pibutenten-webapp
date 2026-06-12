@@ -74,11 +74,23 @@ export default function BetaSkinFeed({
   const [visible, setVisible] = useState(PAGE);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // 내 노트 등에서 ?kw= 로 넘어온 키워드를 검색어로 1회 시드.
+  // 내 노트 키워드 칩(?kw=) + 피드백 4) 비-피드 페이지 헤더 검색(?q=) 둘 다 검색어로 시드.
+  //   ?q= 우선(명시적 검색 라우팅), 없으면 ?kw=.
+  const qParam = searchParams.get("q");
   const kwParam = searchParams.get("kw");
   useEffect(() => {
-    if (kwParam && kwParam.trim()) setQuery(kwParam.trim());
-  }, [kwParam]);
+    const seed = (qParam ?? kwParam ?? "").trim();
+    if (seed) setQuery(seed);
+  }, [qParam, kwParam]);
+
+  // 피드백 1/4) 비-피드 드롭다운 '카테고리 바로가기' → /beta-skin?cat= 로 넘어온 칩 시드.
+  const catParam = searchParams.get("cat");
+  useEffect(() => {
+    const valid: ChipKey[] = ["all", "qa", "review", "doodle", "review_summary"];
+    if (catParam && (valid as string[]).includes(catParam)) {
+      setChip(catParam as ChipKey);
+    }
+  }, [catParam]);
 
   // 항목 4) 태그 클릭 → 그 키워드를 검색창에 채워 같은 필터를 태운다.
   //   같은 키워드 재클릭 시 해제(빈 검색어 → 전체 복귀).
@@ -131,8 +143,8 @@ export default function BetaSkinFeed({
     return () => io.disconnect();
   }, [hasMore, filtered.length]);
 
-  // 인기 태그: 전체 풀 keywords 빈도 상위 8개
-  const popularTags = useMemo(() => {
+  // 전체 풀 keywords 빈도 순위(중복 회피용 단일 출처).
+  const rankedTags = useMemo(() => {
     const freq = new Map<string, number>();
     for (const c of initialPool) {
       for (const k of c.keywords ?? []) {
@@ -141,9 +153,19 @@ export default function BetaSkinFeed({
     }
     return [...freq.entries()]
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
       .map(([k]) => k);
   }, [initialPool]);
+
+  // 사이드바 인기 태그: 상위 8.
+  const popularTags = useMemo(() => rankedTags.slice(0, 8), [rankedTags]);
+  // 피드백 1) 드롭다운 추천 키워드: 사이드(0~8)와 겹치지 않는 다음 셋(8~16).
+  //   풀이 작아 8개 미만이면, 앞쪽에서 부족분을 채우되 사이드와의 중복은 시각상 허용 최소화.
+  const dropdownSuggest = useMemo(() => {
+    const next = rankedTags.slice(8, 16);
+    if (next.length >= 4) return next;
+    // 풀이 작은 경우 폴백: 사이드 셋의 후반부라도 노출(빈 드롭다운 방지).
+    return rankedTags.slice(0, 8).slice(-Math.max(0, 8 - next.length)).concat(next);
+  }, [rankedTags]);
 
   // 이번 주 전문의 답변: doctor 글(Q&A) 제목 상위 5개
   const doctorAnswers = useMemo(
@@ -190,7 +212,8 @@ export default function BetaSkinFeed({
       </section>
 
       <section className={`${styles.card} ${styles.sideCard}`}>
-        <h3>이번 주 전문의 답변</h3>
+        {/* 피드백 6) '이번 주 전문의 답변' → 답변 약속·freshness 톤다운. */}
+        <h3>인기 Q&A</h3>
         <div className={styles.sideList}>
           {doctorAnswers.map((c) => (
             <a key={c.id} href={cardHref(c)}>
@@ -202,14 +225,21 @@ export default function BetaSkinFeed({
       </section>
 
       <section className={`${styles.card} ${styles.sideCta}`}>
+        {/* 피드백 6) 전문의 직접 답변을 약속하지 않는 중립 문구. */}
         <h3>궁금한 시술이 있나요?</h3>
-        <p>피부과 전문의가 직접 답변해 드려요.</p>
+        <p>Q&A로 남기면 회원·전문의의 이야기를 들어볼 수 있어요.</p>
         <a className={styles.sideCtaBtn} href="/beta-skin/write">
-          질문 올리기
+          Q&A 작성하기
         </a>
       </section>
     </>
   );
+
+  // 피드백 1) 드롭다운 카테고리 바로가기 — 클릭 시 해당 칩 필터(전체 제외).
+  const searchCategories = CHIPS.filter((c) => c.key !== "all").map((c) => ({
+    key: c.key,
+    label: c.label,
+  }));
 
   return (
     <BetaSkinShell
@@ -218,9 +248,18 @@ export default function BetaSkinFeed({
       sidebar={sidebar}
       searchValue={query}
       onSearchChange={setQuery}
-      searchSuggestions={popularTags}
+      searchSuggestions={dropdownSuggest}
+      searchCategories={searchCategories}
+      onPickCategory={(key) => {
+        setChip(key as ChipKey);
+        setQuery("");
+      }}
+      recentSearches={["리프팅", "스킨부스터"]}
     >
-      <div className={styles.feedList}>
+      {/* 피드백 5) 칩/검색 전환 시 리스트 컨테이너 remount(key=칩+검색어) →
+          각 카드의 fadeInUp 이 재발화되어 매 전환마다 살짝 올라오며 등장.
+          무한스크롤(visible 변경)은 같은 key 라 추가분만 append(스크롤 유지). */}
+      <div className={styles.feedList} key={`${chip}|${query.trim()}`}>
         {isReportTab ? (
           // 피드백 4) 리포트 탭 — 시술 리포트 카드. 데이터 0건이면 빈 안내.
           filteredReports.length === 0 ? (

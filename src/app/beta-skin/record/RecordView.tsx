@@ -19,7 +19,13 @@ import CardAvatar from "@/components/card/CardAvatar";
 import type { CardData } from "@/lib/types/card";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
-import { IconVerified, timeAgo, cardHref } from "../beta-ui";
+import {
+  IconVerified,
+  timeAgo,
+  cardHref,
+  categoryLabel,
+  useBetaSearchRouting,
+} from "../beta-ui";
 
 const SAMPLE_CHIPS = ["리프팅", "보톡스", "스킨부스터", "볼륨", "더모코스메틱"];
 
@@ -439,32 +445,35 @@ function RecordNotes({ entries }: { entries: RecEntry[] }) {
 export default function RecordView({
   kwCards,
   keywordChips,
+  popularCards = [],
 }: {
   kwCards: CardData[];
   keywordChips: string[];
+  /** 피드백 3) 인기글 섹션 데이터(피드 풀 상위). */
+  popularCards?: CardData[];
 }) {
   const chips = keywordChips.length >= 3 ? keywordChips : SAMPLE_CHIPS;
+  // 피드백 4) 헤더 검색 → 피드로 라우팅(공용 헬퍼). 피드가 ?q=/?cat= 을 읽어 자동 필터.
+  const search = useBetaSearchRouting();
 
   const sidebar = (
     <>
-      <section className={`${styles.card} ${styles.sideEmoji}`}>
-        <h3>다가오는 일정</h3>
-        <div className={styles.sideList}>
-          <a href="#">
-            <span aria-hidden="true">💉</span>
-            <span>
-              <b>써마지 경과 노트</b> 작성 권장일이 내일이에요
-            </span>
-          </a>
-          <a href="#">
-            <span aria-hidden="true">📅</span>
-            <span>피코레이저 2회차 — 6. 26 (금)</span>
-          </a>
-        </div>
+      {/* 피드백 3) 게스트 모드 — 로그인 가정 위젯 대신 가입 유도. */}
+      <section className={`${styles.card} ${styles.sideCard}`}>
+        <h3>내 노트를 시작해보세요</h3>
+        <p className={styles.muted} style={{ marginBottom: 14 }}>
+          가입하면 받은 시술과 경과를 나만의 노트로 기록할 수 있어요.
+        </p>
+        <a
+          className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`}
+          href="/beta-skin/write"
+        >
+          노트 작성해보기
+        </a>
       </section>
 
       <section className={`${styles.card} ${styles.sideCard}`}>
-        <h3>지금 많이 보는 Q&A</h3>
+        <h3>인기 Q&A</h3>
         <div className={styles.sideList}>
           <a href="/beta-skin/post">
             <span className={styles.n}>1</span>
@@ -484,32 +493,43 @@ export default function RecordView({
   );
 
   return (
-    <BetaSkinShell active="내 노트" sidebar={sidebar}>
-      {/* 인사 카드 (샘플) */}
+    <BetaSkinShell
+      active="내 노트"
+      sidebar={sidebar}
+      {...search}
+      searchSuggestions={chips}
+    >
+      {/* 피드백 3) 게스트 예시 히어로 — 로그인 가정("텐즈님 248일째") 대신 가입 유도. */}
       <section className={`${styles.card} ${styles.greetCard}`}>
-        <div className={styles.greetTop}>
-          안녕하세요, 텐즈님! <span className="chev">›</span>
-        </div>
+        <div className={styles.greetTop}>내 시술노트 ✨</div>
         <h1 className={styles.greetTitle}>
-          써마지 시술 3일차,
+          받은 시술을 기록하면
           <br />
-          회복은 잘 되고 있나요?
+          이렇게 한눈에 보여요
         </h1>
+        <p
+          className={styles.muted}
+          style={{ margin: "10px 0 4px", color: "rgba(255,255,255,0.92)" }}
+        >
+          병원·시술·다운타임·효과·재방문 주기까지. 가입하면 나만의 시술노트가
+          시작돼요.
+        </p>
         <div className={styles.greetActions}>
-          <a className={`${styles.btn} ${styles.btnGhost}`} href="#">
-            내 시술 노트
-          </a>
           <a
             className={`${styles.btn} ${styles.btnPrimary}`}
             href="/beta-skin/write"
           >
-            노트 기록하기
+            노트 작성해보기
           </a>
         </div>
       </section>
 
-      {/* 시술 노트 — 타임라인/달력/목록 3토글 (항목 1, 샘플 데이터 기준) */}
+      {/* 시술 노트 — '예시' 라벨 + 타임라인/달력/목록 3토글(더미 데이터). */}
       <div style={{ marginTop: 24 }}>
+        <div className={styles.recExampleHead}>
+          <h2 className={styles.recNotesTitle}>이렇게 기록돼요</h2>
+          <span className={styles.recExampleTag}>예시</span>
+        </div>
         <RecordNotes entries={ENTRIES} />
       </div>
 
@@ -609,6 +629,43 @@ export default function RecordView({
               </a>
             ))}
       </div>
+
+      {/* 피드백 3) 인기글 섹션 복원 — 피드 풀 상위(좋아요+저장+댓글) 5개. */}
+      {popularCards.length > 0 && (
+        <>
+          <div className={styles.sectionHead}>
+            <h2>인기글</h2>
+            <a className={styles.more} href="/beta-skin">
+              전체보기
+            </a>
+          </div>
+          <div className={`${styles.card} ${styles.popList}`}>
+            {popularCards.map((c, i) => {
+              const author =
+                c.doctor?.name ?? c.author?.display_name ?? "회원";
+              const href = cardHref(c);
+              const hasHref = href !== "/";
+              return (
+                <a
+                  className={styles.popRow}
+                  key={c.id}
+                  href={hasHref ? href : "/beta-skin/post"}
+                  target={hasHref ? "_blank" : undefined}
+                  rel={hasHref ? "noopener noreferrer" : undefined}
+                >
+                  <span className={styles.popRank}>{i + 1}</span>
+                  <span className={styles.popInfo}>
+                    <span className={styles.popTitle}>{c.title}</span>
+                    <span className={styles.popMeta}>
+                      {author} · {categoryLabel(c)}
+                    </span>
+                  </span>
+                </a>
+              );
+            })}
+          </div>
+        </>
+      )}
     </BetaSkinShell>
   );
 }

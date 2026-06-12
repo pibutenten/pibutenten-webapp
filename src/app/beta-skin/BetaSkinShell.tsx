@@ -115,6 +115,9 @@ const GNB: { label: BetaActive; href: string }[] = [
   { label: "쇼핑", href: BETA_ROUTES.shop },
 ];
 
+/* 드롭다운 카테고리 바로가기 1개 */
+export type SearchCategory = { key: string; label: string };
+
 export default function BetaSkinShell({
   active,
   children,
@@ -122,7 +125,11 @@ export default function BetaSkinShell({
   sidebar,
   searchValue,
   onSearchChange,
+  onSearchSubmit,
   searchSuggestions,
+  searchCategories,
+  onPickCategory,
+  recentSearches,
 }: {
   active: BetaActive;
   children: ReactNode;
@@ -131,8 +138,16 @@ export default function BetaSkinShell({
   /** 항목 5) 헤더 검색창을 실제 동작시킴 — 피드에서만 주입. 없으면 검색 비활성. */
   searchValue?: string;
   onSearchChange?: (q: string) => void;
-  /** 피드백 2) 검색 포커스 시 뜨는 추천 드롭다운 항목(인기 키워드 상위 N). */
+  /** 피드백 4) 검색 제출(엔터/추천 클릭) — 비-피드 페이지는 /beta-skin?q= 로 라우팅.
+   *  주입되면 onSearchChange 없이도 검색 UI 활성(입력값은 셸 로컬 state 로 관리). */
+  onSearchSubmit?: (q: string) => void;
+  /** 피드백 1) 추천 키워드(사이드 인기태그와 다른 셋). */
   searchSuggestions?: string[];
+  /** 피드백 1) 카테고리 바로가기(클릭 시 onPickCategory). */
+  searchCategories?: SearchCategory[];
+  onPickCategory?: (key: string) => void;
+  /** 피드백 1) 최근 검색(샘플). 비면 섹션 생략. */
+  recentSearches?: string[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // 항목 1) 스크롤 다운 → 헤더 숨김(위로 슬라이드), 스크롤 업 → 복귀.
@@ -143,11 +158,23 @@ export default function BetaSkinShell({
   const [suggestOpen, setSuggestOpen] = useState(false);
   // 드롭다운 바깥 클릭 감지용(데스크탑 pill·모바일 inline 공용 래퍼).
   const searchWrapRef = useRef<HTMLDivElement>(null);
-  // 검색 핸들러가 있을 때만 검색 UI 동작.
-  const searchEnabled = typeof onSearchChange === "function";
-  const value = searchValue ?? "";
+  // 피드백 4) 비-피드 페이지(검색 결과는 피드로 라우팅)는 입력값을 셸 로컬 state 로.
+  const [localQuery, setLocalQuery] = useState("");
+  // 피드(onSearchChange) 또는 라우팅(onSearchSubmit) 중 하나라도 있으면 검색 UI 활성.
+  const isControlled = typeof onSearchChange === "function";
+  const searchEnabled = isControlled || typeof onSearchSubmit === "function";
+  const value = isControlled ? (searchValue ?? "") : localQuery;
+  const setValue = (q: string) => {
+    if (isControlled) onSearchChange?.(q);
+    else setLocalQuery(q);
+  };
   const suggestions = (searchSuggestions ?? []).filter(Boolean);
-  const hasSuggest = searchEnabled && suggestions.length > 0;
+  const categories = searchCategories ?? [];
+  const recents = (recentSearches ?? []).filter(Boolean);
+  // 드롭다운에 띄울 섹션이 하나라도 있으면 활성.
+  const hasDropdown =
+    searchEnabled &&
+    (recents.length > 0 || categories.length > 0 || suggestions.length > 0);
 
   // 피드백 2) 바깥 클릭 시 드롭다운 닫기.
   useEffect(() => {
@@ -161,34 +188,89 @@ export default function BetaSkinShell({
     return () => document.removeEventListener("mousedown", onDown);
   }, [suggestOpen]);
 
-  // 추천 항목 선택 → 검색창 채움 + 드롭다운 닫기.
-  const pickSuggestion = (kw: string) => {
-    onSearchChange?.(kw);
+  // 검색 실행 — 피드(controlled)면 그 자리서 필터, 비-피드면 onSearchSubmit 로 라우팅.
+  const runSearch = (term: string) => {
+    const t = term.trim();
     setSuggestOpen(false);
+    setSearchOpen(false);
+    if (!t) return;
+    if (typeof onSearchSubmit === "function") onSearchSubmit(t);
+    else setValue(t);
   };
 
-  // 드롭다운 노드(데스크탑 pill·모바일 inline 공용).
+  // 추천/최근 키워드 선택 → 검색 실행.
+  const pickSuggestion = (kw: string) => runSearch(kw);
+
+  // 피드백 1) 드롭다운 — BetaDiscovery 구조 차용: 최근검색 / 카테고리 바로가기 / 추천 키워드.
+  //   사이드 인기태그와 동일 목록만 보이지 않도록 추천 셋은 호출부에서 다른 셋을 주입.
   const suggestDropdown =
-    hasSuggest && suggestOpen ? (
-      <div className={styles.searchSuggest} role="listbox" aria-label="추천 키워드">
-        <div className={styles.searchSuggestHead}>인기 키워드</div>
-        {suggestions.map((kw) => (
-          <button
-            key={kw}
-            type="button"
-            role="option"
-            aria-selected={value.trim() === kw}
-            className={styles.searchSuggestItem}
-            onMouseDown={(e) => {
-              // mousedown 으로 처리 → input blur 보다 먼저 실행(클릭 유실 방지).
-              e.preventDefault();
-              pickSuggestion(kw);
-            }}
-          >
-            <IconSearch />
-            <span>{kw}</span>
-          </button>
-        ))}
+    hasDropdown && suggestOpen ? (
+      <div className={styles.searchSuggest} role="listbox" aria-label="검색 추천">
+        {recents.length > 0 && (
+          <div className={styles.searchSuggestGroup}>
+            <div className={styles.searchSuggestHead}>최근 검색</div>
+            <div className={styles.searchSuggestChips}>
+              {recents.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  className={styles.searchRecentChip}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pickSuggestion(r);
+                  }}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {categories.length > 0 && (
+          <div className={styles.searchSuggestGroup}>
+            <div className={styles.searchSuggestHead}>카테고리 바로가기</div>
+            <div className={styles.searchSuggestChips}>
+              {categories.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  className={styles.searchCatChip}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setSuggestOpen(false);
+                    setSearchOpen(false);
+                    onPickCategory?.(c.key);
+                  }}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {suggestions.length > 0 && (
+          <div className={styles.searchSuggestGroup}>
+            <div className={styles.searchSuggestHead}>추천 키워드</div>
+            {suggestions.map((kw) => (
+              <button
+                key={kw}
+                type="button"
+                role="option"
+                aria-selected={value.trim() === kw}
+                className={styles.searchSuggestItem}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pickSuggestion(kw);
+                }}
+              >
+                <IconSearch />
+                <span>{kw}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     ) : null;
 
@@ -281,10 +363,16 @@ export default function BetaSkinShell({
                 type="text"
                 value={value}
                 onChange={(e) => {
-                  onSearchChange?.(e.target.value);
-                  if (hasSuggest) setSuggestOpen(true);
+                  setValue(e.target.value);
+                  if (hasDropdown) setSuggestOpen(true);
                 }}
-                onFocus={() => hasSuggest && setSuggestOpen(true)}
+                onFocus={() => hasDropdown && setSuggestOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    runSearch(value);
+                  }
+                }}
                 placeholder="시술·고민 키워드 검색"
                 aria-label="검색어 입력"
                 autoFocus
@@ -294,7 +382,7 @@ export default function BetaSkinShell({
                   type="button"
                   className={styles.searchClear}
                   aria-label="검색어 지우기"
-                  onClick={() => onSearchChange?.("")}
+                  onClick={() => setValue("")}
                 >
                   ✕
                 </button>
@@ -343,10 +431,16 @@ export default function BetaSkinShell({
                   type="text"
                   value={value}
                   onChange={(e) => {
-                    onSearchChange?.(e.target.value);
-                    if (hasSuggest) setSuggestOpen(true);
+                    setValue(e.target.value);
+                    if (hasDropdown) setSuggestOpen(true);
                   }}
-                  onFocus={() => hasSuggest && setSuggestOpen(true)}
+                  onFocus={() => hasDropdown && setSuggestOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      runSearch(value);
+                    }
+                  }}
                   placeholder="시술·고민 키워드 검색"
                   aria-label="검색어 입력"
                 />
@@ -355,7 +449,7 @@ export default function BetaSkinShell({
                     type="button"
                     className={styles.searchClear}
                     aria-label="검색어 지우기"
-                    onClick={() => onSearchChange?.("")}
+                    onClick={() => setValue("")}
                   >
                     ✕
                   </button>

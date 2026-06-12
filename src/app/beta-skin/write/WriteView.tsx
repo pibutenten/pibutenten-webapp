@@ -17,6 +17,7 @@
 import { useState } from "react";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
+import { useBetaSearchRouting } from "../beta-ui";
 
 /* 글 유형 3탭 — 운영 WriteTabs 와 동일 구성. */
 const TYPES = [
@@ -481,6 +482,7 @@ function DoodleFormView() {
 
 export default function WriteView() {
   const [type, setType] = useState<TypeKey>("record");
+  const search = useBetaSearchRouting();
 
   const sidebar = (
     <>
@@ -515,7 +517,7 @@ export default function WriteView() {
   );
 
   return (
-    <BetaSkinShell active="글쓰기" sidebar={sidebar}>
+    <BetaSkinShell active="글쓰기" sidebar={sidebar} {...search}>
       <div className={styles.writeWrap}>
         <div className={styles.sectionHead} style={{ marginTop: 8 }}>
           <h2>글쓰기</h2>

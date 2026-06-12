@@ -30,21 +30,9 @@ import {
   cardHref,
   authorHref,
   shareBetaCard,
+  BetaComments,
+  useBetaSearchRouting,
 } from "../beta-ui";
-
-/* 샘플 댓글 (디자인만) */
-const COMMENTS = [
-  {
-    name: "글로우업",
-    text: "저도 멍 잘 드는 체질인데 5일 정도 가더라고요. 재생테이프 꼭 붙이세요!",
-    when: "1주 전",
-  },
-  {
-    name: "달빛피부",
-    text: "출근은 다음 날 바로 했어요. 마스크 쓰니까 아무도 몰랐어요 ㅎㅎ",
-    when: "5일 전",
-  },
-];
 
 const SAMPLE_TITLE = "쥬브젠 시술 후 일상생활과 다운타임은 어떤가요?";
 // 형광펜·볼드 데모를 위해 **강조** 마크업 포함 (실제 카드는 DB 본문의 ** 를 그대로 사용).
@@ -52,6 +40,7 @@ const SAMPLE_BODY =
   "쥬브젠 효과는 일반적으로 **3년에서 5년 정도** 유지된다고 설명합니다. 피부 속을 단순히 채워두는 시술이 아니라, 내 살이 차오르도록 유도하는 방식이기 때문에 일반 필러나 스킨부스터보다 훨씬 오래 가는 편입니다.\n\n주사 부위에 붉은기와 미세한 부기가 하루 이틀 정도 있을 수 있습니다. 대부분 **다음 날부터 일상생활과 출근이 가능**하며, 메이크업은 시술 다음 날부터 권장합니다. 멍은 개인차가 있지만 보통 **3~5일 안에 옅어지고**, 재생테이프와 진정 관리를 병행하면 회복 속도가 더 빨라집니다.";
 
 export default function PostDetail({ card }: { card: CardData | null }) {
+  const search = useBetaSearchRouting();
   const authorName =
     card?.doctor?.name ?? card?.author?.display_name ?? "정한미";
   const isDoctor = card ? !!card.doctor && !card.hide_doctor_credential : true;
@@ -152,7 +141,7 @@ export default function PostDetail({ card }: { card: CardData | null }) {
   );
 
   return (
-    <BetaSkinShell active="피드" sidebar={sidebar}>
+    <BetaSkinShell active="피드" sidebar={sidebar} {...search}>
       <article className={`${styles.card} ${styles.postCard}`}>
         {/* 항목 4) 작성자 — 실제 프로필 URL 로 새 탭(정보 부족이면 일반 div). */}
         {profileHref ? (
@@ -226,27 +215,8 @@ export default function PostDetail({ card }: { card: CardData | null }) {
 
         <div className={styles.divider} />
 
-        <h3 className={styles.commentHead}>댓글 {card?.comment_count ?? 6}</h3>
-        {COMMENTS.map((c) => (
-          <div className={styles.comment} key={c.name}>
-            <span className={`${styles.avatar} ${styles.avatarGray}`} />
-            <div>
-              <div className={styles.commentName}>{c.name}</div>
-              <p className={styles.commentText}>{c.text}</p>
-              <div className={styles.commentWhen}>{c.when}</div>
-            </div>
-          </div>
-        ))}
-
-        <div className={styles.commentInput}>
-          <input
-            type="text"
-            placeholder="따뜻한 댓글을 남겨 주세요"
-            aria-label="댓글 입력"
-            disabled
-          />
-          <button type="button">등록</button>
-        </div>
+        {/* 피드백 2) 댓글 — 입력 가능(타이핑 + 로컬 추가). 운영 CommentsBlock 톤. */}
+        <BetaComments count={card?.comment_count ?? 6} />
       </article>
     </BetaSkinShell>
   );
