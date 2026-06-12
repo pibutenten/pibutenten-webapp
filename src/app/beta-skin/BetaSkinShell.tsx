@@ -120,17 +120,25 @@ export default function BetaSkinShell({
   children,
   chips,
   sidebar,
+  searchValue,
+  onSearchChange,
 }: {
   active: BetaActive;
   children: ReactNode;
   chips?: ReactNode;
   sidebar?: ReactNode;
+  /** 항목 5) 헤더 검색창을 실제 동작시킴 — 피드에서만 주입. 없으면 검색 비활성. */
+  searchValue?: string;
+  onSearchChange?: (q: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // 항목 1) 스크롤 다운 → 헤더 숨김(위로 슬라이드), 스크롤 업 → 복귀.
   const [headerHidden, setHeaderHidden] = useState(false);
-  // 항목 6) 모바일 검색 입력 바 펼침 토글 (동작은 디자인만).
+  // 모바일 검색 입력 바 펼침 토글.
   const [searchOpen, setSearchOpen] = useState(false);
+  // 검색 핸들러가 있을 때만 검색 UI 동작.
+  const searchEnabled = typeof onSearchChange === "function";
+  const value = searchValue ?? "";
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -193,10 +201,34 @@ export default function BetaSkinShell({
 
           <div className={styles.headerSpacer} />
 
-          <div className={styles.headerSearch}>
-            <IconSearch />
-            시술·고민 키워드 검색
-          </div>
+          {/* 데스크탑 검색 pill — 항목 5) 실제 input. 검색 비활성 페이지에선 정적 안내. */}
+          {searchEnabled ? (
+            <div className={`${styles.headerSearch} ${styles.headerSearchLive}`}>
+              <IconSearch />
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => onSearchChange?.(e.target.value)}
+                placeholder="시술·고민 키워드 검색"
+                aria-label="검색어 입력"
+              />
+              {value && (
+                <button
+                  type="button"
+                  className={styles.searchClear}
+                  aria-label="검색어 지우기"
+                  onClick={() => onSearchChange?.("")}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className={styles.headerSearch}>
+              <IconSearch />
+              시술·고민 키워드 검색
+            </div>
+          )}
           <Link className={styles.btnWriteTop} href={BETA_ROUTES.write}>
             <IconPlus />
             글쓰기
@@ -220,16 +252,34 @@ export default function BetaSkinShell({
           </button>
         </div>
 
-        {/* 모바일 검색 입력 바 — 검색 아이콘 탭 시 펼침 (디자인만) */}
-        {searchOpen && (
+        {/* 모바일 검색 입력 바 — 검색 아이콘 탭 시 펼침. 항목 5) 실제 동작.
+            검색어가 있으면(태그 클릭 등) 자동으로 펼쳐 활성 검색어를 보여준다. */}
+        {(searchOpen || (searchEnabled && !!value)) && (
           <div className={styles.searchBar}>
             <IconSearch />
             <input
               type="text"
+              value={searchEnabled ? value : undefined}
+              onChange={
+                searchEnabled
+                  ? (e) => onSearchChange?.(e.target.value)
+                  : undefined
+              }
               placeholder="시술·고민 키워드 검색"
               aria-label="검색어 입력"
+              readOnly={!searchEnabled}
               autoFocus
             />
+            {searchEnabled && value && (
+              <button
+                type="button"
+                className={styles.searchClear}
+                aria-label="검색어 지우기"
+                onClick={() => onSearchChange?.("")}
+              >
+                ✕
+              </button>
+            )}
           </div>
         )}
       </header>

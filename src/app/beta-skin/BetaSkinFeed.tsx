@@ -40,6 +40,21 @@ function matchesChip(c: CardData, chip: ChipKey): boolean {
   return key === chip;
 }
 
+/* 항목 5) 검색 일치 — 카드 title/body/keywords 에 부분일치(대소문자 무시).
+ * 항목 4) 태그 클릭도 이 같은 메커니즘(검색어를 헤더 검색창에 채움)을 탄다. */
+function matchesQuery(c: CardData, q: string): boolean {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  const hay = [
+    c.title ?? "",
+    c.body ?? "",
+    ...(c.keywords ?? []),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return hay.includes(needle);
+}
+
 /* ---------- 클라이언트 루트 ---------- */
 export default function BetaSkinFeed({
   initialPool,
@@ -48,36 +63,36 @@ export default function BetaSkinFeed({
 }) {
   const searchParams = useSearchParams();
   const [chip, setChip] = useState<ChipKey>("all");
-  // 키워드 필터(인기 태그/관심 키워드 클릭). null = 키워드 필터 없음.
-  const [keyword, setKeyword] = useState<string | null>(null);
-  // 무한스크롤: 현재 노출 개수. 칩/키워드 전환 시 초기값(PAGE)으로 리셋.
+  // 항목 5) 검색어 — 헤더 검색창 + 태그 클릭이 모두 이 값을 채운다.
+  //   카드 title/body/keywords 부분일치(대소문자 무시)로 피드를 필터.
+  const [query, setQuery] = useState("");
+  // 무한스크롤: 현재 노출 개수. 칩/검색 전환 시 초기값(PAGE)으로 리셋.
   const [visible, setVisible] = useState(PAGE);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // 내 노트 등에서 ?kw= 로 넘어온 키워드를 1회 시드.
+  // 내 노트 등에서 ?kw= 로 넘어온 키워드를 검색어로 1회 시드.
   const kwParam = searchParams.get("kw");
   useEffect(() => {
-    setKeyword(kwParam && kwParam.trim() ? kwParam.trim() : null);
+    if (kwParam && kwParam.trim()) setQuery(kwParam.trim());
   }, [kwParam]);
 
-  // 키워드 칩 토글 — 같은 키워드 재클릭 시 해제.
-  const toggleKeyword = (k: string) =>
-    setKeyword((cur) => (cur === k ? null : k));
+  // 항목 4) 태그 클릭 → 그 키워드를 검색창에 채워 같은 필터를 태운다.
+  //   같은 키워드 재클릭 시 해제(빈 검색어 → 전체 복귀).
+  const applyTag = (k: string) =>
+    setQuery((cur) => (cur.trim() === k ? "" : k));
 
   const filtered = useMemo(
     () =>
       initialPool.filter(
-        (c) =>
-          matchesChip(c, chip) &&
-          (!keyword || (c.keywords ?? []).includes(keyword)),
+        (c) => matchesChip(c, chip) && matchesQuery(c, query),
       ),
-    [initialPool, chip, keyword],
+    [initialPool, chip, query],
   );
 
-  // 칩/키워드 필터가 바뀌면 노출 개수 초기화 (필터된 목록 기준으로 다시 점진 노출).
+  // 칩/검색어가 바뀌면 노출 개수 초기화 (필터된 목록 기준으로 다시 점진 노출).
   useEffect(() => {
     setVisible(PAGE);
-  }, [chip, keyword]);
+  }, [chip, query]);
 
   const shown = useMemo(
     () => filtered.slice(0, visible),
@@ -142,27 +157,28 @@ export default function BetaSkinFeed({
       <section className={`${styles.card} ${styles.sideCard}`}>
         <h3>인기 태그</h3>
         <div className={styles.sideTags}>
+          {/* 항목 4) 인기 태그에 # 표기 금지 — 키워드만. 클릭 시 검색창에 채워 필터. */}
           {popularTags.map((tag) => (
             <button
               type="button"
               className={`${styles.tagBtn} ${
-                keyword === tag ? styles.tagBtnActive : ""
+                query.trim() === tag ? styles.tagBtnActive : ""
               }`}
               key={tag}
-              onClick={() => toggleKeyword(tag)}
-              aria-pressed={keyword === tag}
+              onClick={() => applyTag(tag)}
+              aria-pressed={query.trim() === tag}
             >
-              #{tag}
+              {tag}
             </button>
           ))}
         </div>
-        {keyword && (
+        {query.trim() && (
           <button
             type="button"
             className={styles.tagClear}
-            onClick={() => setKeyword(null)}
+            onClick={() => setQuery("")}
           >
-            ‘{keyword}’ 필터 해제 ✕
+            ‘{query.trim()}’ 검색 해제 ✕
           </button>
         )}
       </section>
@@ -190,28 +206,24 @@ export default function BetaSkinFeed({
   );
 
   return (
-    <BetaSkinShell active="피드" chips={chips} sidebar={sidebar}>
-      {/* 키워드 필터 활성 배너 — 모바일(사이드바 숨김)에서도 해제 가능 */}
-      {keyword && (
-        <div className={styles.kwBanner}>
-          <span>
-            <b>#{keyword}</b> 키워드 글만 보는 중
-          </span>
-          <button type="button" onClick={() => setKeyword(null)}>
-            전체 보기 ✕
-          </button>
-        </div>
-      )}
-
+    <BetaSkinShell
+      active="피드"
+      chips={chips}
+      sidebar={sidebar}
+      searchValue={query}
+      onSearchChange={setQuery}
+    >
       <div className={styles.feedList}>
         {filtered.length === 0 ? (
           <p className={styles.empty}>
-            {keyword
-              ? `‘${keyword}’ 키워드에 해당하는 글이 없습니다.`
+            {query.trim()
+              ? `‘${query.trim()}’ 검색 결과가 없습니다.`
               : "이 카테고리에 표시할 글이 없습니다."}
           </p>
         ) : (
-          shown.map((card) => <PostCard key={card.id} card={card} />)
+          shown.map((card) => (
+            <PostCard key={card.id} card={card} onTagClick={applyTag} />
+          ))
         )}
       </div>
 

@@ -180,7 +180,8 @@ export default function RecordView({
           키워드 편집
         </a>
       </div>
-      {/* 관심 키워드 칩 — 클릭 시 피드로 이동해 해당 키워드 글만 필터(?kw=). */}
+      {/* 관심 키워드 칩 — 클릭 시 피드로 이동해 그 키워드로 검색·필터(?kw=).
+          항목 4) # 표기 금지 — 키워드만 표시. */}
       <div className={styles.chipRow}>
         {chips.map((c) => (
           <Link
@@ -188,7 +189,7 @@ export default function RecordView({
             key={c}
             href={`/beta-skin?kw=${encodeURIComponent(c)}`}
           >
-            #{c}
+            {c}
           </Link>
         ))}
       </div>

@@ -16,15 +16,20 @@
 import { Fragment, useState, type ReactNode } from "react";
 import CardAvatar from "@/components/card/CardAvatar";
 import { pickHighlight } from "@/lib/card-highlight";
+import { getQaUrl } from "@/lib/card-url";
 import { parseYoutubeTimestamp, formatTimestamp } from "@/lib/youtube-time";
 import type { CardData } from "@/lib/types/card";
 import styles from "./beta-skin.module.css";
 
-/* ---------- 카드 → 상세 링크 ----------
- * 프리뷰에서는 실제 운영 URL 대신 항상 /beta-skin/post 로 보내
- * 글로벌 크롬(운영 레이아웃)으로 튕겨 나가지 않게 한다. */
-export function cardHref(_c: CardData): string {
-  return "/beta-skin/post";
+/* ---------- 카드 → 실제 운영 URL ----------
+ * 항목 1) 모든 카드를 한 데모(/beta-skin/post)로 보내던 버그 수정.
+ *   - 카드별 실제 canonical URL 을 생성(운영 getQaUrl 재사용):
+ *       의사 글: /doctors/{slug}/{year}/{post-slug}
+ *       회원 글: /{handle}/{shortcode}
+ *   - '원문 보기' 링크가 이 URL 로 새 탭 이동. 본문 펼침/접힘은 인라인(아래 PostCard).
+ *   - URL 정보가 부족하면 "/"(홈) 반환 → 호출부에서 링크 자체를 숨긴다. */
+export function cardHref(c: CardData): string {
+  return getQaUrl(c);
 }
 
 /* ---------- 카테고리 라벨 ---------- */
@@ -250,11 +255,21 @@ export const TAG_TONES = [
 
 /* ---------- 개별 피드 카드 (인라인 펼침/접힘) ----------
  * 운영 방식 이식: 클릭 시 단일 URL 이동이 아니라 그 자리서 본문 펼침/접힘.
- *   - 기본: 본문 4줄 클램프 + 태그 7개.
- *   - 펼침: 전체 본문 + 전체 태그.
- *   - 제목/본문 클릭이 토글. 본문 길 때만 토글 활성. 작성자/영상/액션 클릭은 토글 제외.
+ *   - 항목 1) 모든 카드를 한 데모로 보내던 Link/onClick 제거.
+ *       카드 클릭(제목/본문) = per-card expanded 토글만. 작성자도 토글(이동 X).
+ *       대신 절제된 '원문 보기' 링크 하나가 그 카드의 실제 URL 로 새 탭 이동.
+ *   - 기본: 본문 4줄 클램프 + 태그 7개. 펼침: 전체 본문 + 전체 태그.
+ *   - 항목 3) '더보기/접기' 라벨은 muted 회색·일반 굵기·작게(절제).
+ *   - 항목 4) 태그 클릭 → onTagClick(키워드) 로 헤더 검색창에 채워 필터.
  *   - 아바타는 운영 CardAvatar 로 교체(원장 얼굴 보정). */
-export function PostCard({ card }: { card: CardData }) {
+export function PostCard({
+  card,
+  onTagClick,
+}: {
+  card: CardData;
+  /** 항목 4) 카드 태그 클릭 → 그 키워드로 검색·필터 (헤더 검색창에 채움). */
+  onTagClick?: (keyword: string) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   const authorName = card.doctor?.name ?? card.author?.display_name ?? "회원";
@@ -265,6 +280,9 @@ export function PostCard({ card }: { card: CardData }) {
   const isLong = body.length > 120 || body.split(/\n{2,}/).length > 1;
   const hlColor = pickHighlight(String(card.id));
   const vid = videoInfo(card);
+  // 항목 1) 실제 canonical URL. "/"(정보 부족) 이면 '원문 보기' 링크 숨김.
+  const href = cardHref(card);
+  const hasHref = href !== "/";
 
   const toggle = () => {
     if (isLong) setExpanded((v) => !v);
@@ -272,7 +290,14 @@ export function PostCard({ card }: { card: CardData }) {
 
   return (
     <article className={`${styles.card} ${styles.postCard}`}>
-      <a className={styles.author} href={cardHref(card)}>
+      {/* 작성자 — 이동 없음(카드 단위 펼침으로 통일). 토글에 포함. */}
+      <div
+        className={styles.author}
+        onClick={toggle}
+        role={isLong ? "button" : undefined}
+        tabIndex={isLong ? 0 : undefined}
+        style={isLong ? { cursor: "pointer" } : undefined}
+      >
         <CardAvatar
           doctorSlug={card.doctor?.slug}
           memberAvatarUrl={card.author?.avatar_url}
@@ -294,7 +319,7 @@ export function PostCard({ card }: { card: CardData }) {
             {timeAgo(card.created_at) ? ` · ${timeAgo(card.created_at)}` : ""}
           </div>
         </div>
-      </a>
+      </div>
 
       <div
         className={isLong ? styles.bodyToggle : undefined}
@@ -342,11 +367,25 @@ export function PostCard({ card }: { card: CardData }) {
 
       {tags.length > 0 && (
         <div className={styles.postTags}>
-          {tags.map((t) => (
-            <span className={styles.t} key={t}>
-              {t}
-            </span>
-          ))}
+          {tags.map((t) =>
+            onTagClick ? (
+              <button
+                type="button"
+                className={styles.t}
+                key={t}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTagClick(t);
+                }}
+              >
+                {t}
+              </button>
+            ) : (
+              <span className={styles.t} key={t}>
+                {t}
+              </span>
+            ),
+          )}
         </div>
       )}
 
@@ -361,6 +400,18 @@ export function PostCard({ card }: { card: CardData }) {
           <IconBookmark /> {card.save_count ?? 0}
         </span>
         <span className={styles.grow} />
+        {/* 항목 1) 절제된 '원문 보기' — 카드별 실제 URL 로 새 탭. (전체 카드 동일 이동 X) */}
+        {hasHref && (
+          <a
+            className={styles.cardSource}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            원문 보기
+          </a>
+        )}
       </div>
     </article>
   );

@@ -137,6 +137,22 @@
 .searchBar input::placeholder {
   color: var(--ink-300);
 }
+/* 검색어 지우기 버튼 (모바일 바 + 데스크탑 pill 공용) */
+.searchClear {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--ink-500);
+  background: rgba(0, 0, 0, 0.05);
+}
+.searchClear:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--ink-700);
+}
 .headerInner {
   display: flex;
   align-items: center;
@@ -387,12 +403,16 @@
 .bodyHidden {
   display: none;
 }
+/* 항목 3) '더보기/접기' — 절제: muted 회색·일반 굵기·작게 (진한/볼드 제거). */
 .moreToggle {
   display: inline-block;
   margin-top: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--tt-blue-deep);
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--ink-300);
+}
+.bodyToggle:hover .moreToggle {
+  color: var(--ink-500);
 }
 .ytPill {
   display: inline-flex;
@@ -426,6 +446,7 @@
   margin-top: 14px;
 }
 .t {
+  display: inline-block;
   background: #f2f5f8;
   color: var(--ink-500);
   font-size: 12.5px;
@@ -434,6 +455,16 @@
   border-radius: var(--r-chip);
   max-width: 100%;
   overflow-wrap: anywhere;
+  line-height: 1.4;
+  text-align: left;
+}
+/* 항목 4) 클릭 가능한 태그(button.t) — 검색 필터 트리거. 호버 시 브랜드 톤. */
+button.t {
+  transition: background 0.12s ease, color 0.12s ease;
+}
+button.t:hover {
+  background: var(--tt-blue-tint);
+  color: var(--tt-blue-deep);
 }
 .postFoot {
   display: flex;
@@ -454,6 +485,18 @@
 }
 .grow {
   flex: 1;
+}
+/* 항목 1) 절제된 '원문 보기' 링크 — 카드 우하단, 실제 URL 새 탭. */
+.cardSource {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-300);
+  white-space: nowrap;
+  flex: none;
+}
+.cardSource:hover {
+  color: var(--tt-blue-deep);
+  text-decoration: underline;
 }
 
 .hot {
@@ -777,6 +820,23 @@
     width: 17px;
     height: 17px;
     flex: none;
+  }
+  /* 항목 5) 데스크탑 검색 pill 실제 input */
+  .headerSearchLive {
+    color: var(--ink-900);
+  }
+  .headerSearchLive input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 13.5px;
+    outline: none;
+    color: var(--ink-900);
+  }
+  .headerSearchLive input::placeholder {
+    color: var(--ink-300);
   }
   .btnWriteTop {
     display: inline-flex;
