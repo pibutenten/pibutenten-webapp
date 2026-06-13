@@ -568,11 +568,28 @@ export default function RecordView({
             <button
               type="button"
               className={`${styles.btn} ${styles.btnPrimary}`}
-              onClick={() =>
-                document
-                  .getElementById("rec-notes")
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
+              onClick={() => {
+                // 셸 스크롤 컨테이너(.root: overflow:auto)를 직접 스크롤 — scrollIntoView 는
+                //   position:fixed 컨테이너 안에서 일부 브라우저가 무시하므로 조상 탐색 후 scrollTo.
+                const el = document.getElementById("rec-notes");
+                if (!el) return;
+                let sc: HTMLElement | null = el.parentElement;
+                while (sc) {
+                  const oy = getComputedStyle(sc).overflowY;
+                  if ((oy === "auto" || oy === "scroll") && sc.scrollHeight > sc.clientHeight) break;
+                  sc = sc.parentElement;
+                }
+                if (sc) {
+                  const top =
+                    sc.scrollTop +
+                    el.getBoundingClientRect().top -
+                    sc.getBoundingClientRect().top -
+                    60;
+                  sc.scrollTo({ top, behavior: "smooth" });
+                } else {
+                  el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }}
             >
               내 노트 보기
             </button>

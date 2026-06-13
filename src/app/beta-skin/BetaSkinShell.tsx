@@ -265,13 +265,13 @@ export default function BetaSkinShell({
     else setValue(t);
   };
 
-  // 검색어 ✕로 지우기 — 입력값 비우기 + 전체 피드(/beta-skin)로 복귀.
-  //   (검색 결과 페이지 ?q= 에 머물지 않고 곧장 전체 피드를 보여줌.)
+  // 검색어 ✕로 지우기 — 입력값·패널 닫기. 피드에서만 전체 피드(/beta-skin)로 복귀.
+  //   (비-피드 페이지(글쓰기/내노트/마이)에선 라우팅하지 않음 — 작성 중 폼 상태 소실 방지.)
   const clearSearch = () => {
     setValue("");
     setSuggestOpen(false);
     setSearchOpen(false);
-    router.push(BETA_ROUTES.feed);
+    if (active === "피드") router.push(BETA_ROUTES.feed);
   };
 
   // 쇼핑(준비 중) — GNB·탭바 클릭 시 안내 토스트. 라우팅 없음.

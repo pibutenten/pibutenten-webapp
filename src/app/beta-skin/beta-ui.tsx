@@ -846,10 +846,10 @@ export function PostCard({
           href={`/beta-skin/post?id=${card.id}`}
           onClick={(e) => e.stopPropagation()}
         >
-          <h2 className={styles.postTitle}>{highlight(card.title, searchQuery)}</h2>
+          <h2 className={styles.postTitle}>{highlight(card.title ?? "", searchQuery)}</h2>
         </a>
       ) : (
-        <h2 className={styles.postTitle}>{highlight(card.title, searchQuery)}</h2>
+        <h2 className={styles.postTitle}>{highlight(card.title ?? "", searchQuery)}</h2>
       )}
 
       <div

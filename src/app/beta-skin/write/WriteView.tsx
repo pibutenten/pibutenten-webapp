@@ -508,8 +508,9 @@ export default function WriteView() {
   //   제출 완료(record) 시 베타 내 노트로 이동, 폼 간 전환은 탭 state 로.
   const go = (s: "diary" | "reviewonly" | "record" | "detail" | "noti") => {
     if (s === "record" || s === "detail") router.push("/beta-skin/record");
+    else if (s === "noti") router.push("/notifications");
     else if (s === "reviewonly") setType("review");
-    else setType("record");
+    else setType("record"); // diary
   };
 
   const sidebar = (
