@@ -21,6 +21,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import styles from "./beta-skin.module.css";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import BetaDiscovery, { prefetchDiscover } from "@/components/beta/BetaDiscovery";
+import { showToast } from "@/lib/toast";
 
 /* ---------- 공유 라우트 맵 ---------- */
 export const BETA_ROUTES = {
@@ -116,9 +118,6 @@ const GNB: { label: BetaActive; href: string }[] = [
   { label: "쇼핑", href: BETA_ROUTES.shop },
 ];
 
-/* 드롭다운 카테고리 바로가기 1개 */
-export type SearchCategory = { key: string; label: string };
-
 export default function BetaSkinShell({
   active,
   children,
@@ -127,28 +126,17 @@ export default function BetaSkinShell({
   searchValue,
   onSearchChange,
   onSearchSubmit,
-  searchSuggestions,
-  searchCategories,
-  onPickCategory,
-  recentSearches,
 }: {
   active: BetaActive;
   children: ReactNode;
   chips?: ReactNode;
   sidebar?: ReactNode;
-  /** 항목 5) 헤더 검색창을 실제 동작시킴 — 피드에서만 주입. 없으면 검색 비활성. */
+  /** 헤더 검색 입력값(피드만 controlled — 그 자리서 필터). 없으면 셸 로컬 state. */
   searchValue?: string;
   onSearchChange?: (q: string) => void;
-  /** 피드백 4) 검색 제출(엔터/추천 클릭) — 비-피드 페이지는 /beta-skin?q= 로 라우팅.
-   *  주입되면 onSearchChange 없이도 검색 UI 활성(입력값은 셸 로컬 state 로 관리). */
+  /** 검색 제출(엔터/추천·태그 클릭) — 모든 페이지가 /beta-skin?q= 로 라우팅(운영 정합).
+   *  주입되면 onSearchChange 없이도 검색 UI 활성. 실제 드롭다운/자동완성은 BetaDiscovery 가 담당. */
   onSearchSubmit?: (q: string) => void;
-  /** 피드백 1) 추천 키워드(사이드 인기태그와 다른 셋). */
-  searchSuggestions?: string[];
-  /** 피드백 1) 카테고리 바로가기(클릭 시 onPickCategory). */
-  searchCategories?: SearchCategory[];
-  onPickCategory?: (key: string) => void;
-  /** 피드백 1) 최근 검색(샘플). 비면 섹션 생략. */
-  recentSearches?: string[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // 항목 1) 스크롤 다운 → 헤더 숨김(위로 슬라이드), 스크롤 업 → 복귀.
@@ -187,13 +175,14 @@ export default function BetaSkinShell({
     if (isControlled) onSearchChange?.(q);
     else setLocalQuery(q);
   };
-  const suggestions = (searchSuggestions ?? []).filter(Boolean);
-  const categories = searchCategories ?? [];
-  const recents = (recentSearches ?? []).filter(Boolean);
-  // 드롭다운에 띄울 섹션이 하나라도 있으면 활성.
-  const hasDropdown =
-    searchEnabled &&
-    (recents.length > 0 || categories.length > 0 || suggestions.length > 0);
+  // 드롭다운(최근검색·인기검색·카테고리 인기태그·자동완성) 콘텐츠는 운영 BetaDiscovery 가 전부 담당.
+  //   검색이 활성이면 포커스/타이핑 시 항상 드롭다운을 띄운다(셸이 자체 더미 목록을 만들지 않음).
+  const hasDropdown = searchEnabled;
+
+  // 셸 mount 시 발견 데이터 선프리페치(운영 BetaNav 와 동일) — 검색창 첫 열기도 즉시 표시.
+  useEffect(() => {
+    if (searchEnabled) void prefetchDiscover();
+  }, [searchEnabled]);
 
   // 피드백 2) 바깥 클릭 시 드롭다운 닫기.
   useEffect(() => {
@@ -207,7 +196,8 @@ export default function BetaSkinShell({
     return () => document.removeEventListener("mousedown", onDown);
   }, [suggestOpen]);
 
-  // 검색 실행 — 피드(controlled)면 그 자리서 필터, 비-피드면 onSearchSubmit 로 라우팅.
+  // 검색 실행 — 피드(controlled)면 그 자리서 필터, 그 외엔 onSearchSubmit 로 /beta-skin?q= 라우팅.
+  //   BetaDiscovery 가 직접 라우팅(basePath="/beta-skin")하므로, 셸 input 의 엔터 제출 경로에서만 사용.
   const runSearch = (term: string) => {
     const t = term.trim();
     setSuggestOpen(false);
@@ -217,79 +207,24 @@ export default function BetaSkinShell({
     else setValue(t);
   };
 
-  // 추천/최근 키워드 선택 → 검색 실행.
-  const pickSuggestion = (kw: string) => runSearch(kw);
+  // 쇼핑(준비 중) — GNB·탭바 클릭 시 안내 토스트. 라우팅 없음.
+  const onShopClick = () =>
+    showToast("쇼핑 준비 중이에요. 곧 만나보실 수 있어요.");
 
-  // 피드백 1) 드롭다운 — BetaDiscovery 구조 차용: 최근검색 / 카테고리 바로가기 / 추천 키워드.
-  //   사이드 인기태그와 동일 목록만 보이지 않도록 추천 셋은 호출부에서 다른 셋을 주입.
-  const suggestDropdown =
+  // 운영 검색 드롭다운(BetaDiscovery) 임베드 — 최근검색 + 인기검색어 + 카테고리별 인기태그 5탭 + 타이핑 자동완성.
+  //   onPicked: 입력값 동기화 + 닫기. 실제 검색 라우팅은 BetaDiscovery 가 basePath="/beta-skin" 로 /beta-skin?q= 수행.
+  const discoveryDropdown =
     hasDropdown && suggestOpen ? (
       <div className={styles.searchSuggest} role="listbox" aria-label="검색 추천">
-        {recents.length > 0 && (
-          <div className={styles.searchSuggestGroup}>
-            <div className={styles.searchSuggestHead}>최근 검색</div>
-            <div className={styles.searchSuggestChips}>
-              {recents.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  className={styles.searchRecentChip}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    pickSuggestion(r);
-                  }}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {categories.length > 0 && (
-          <div className={styles.searchSuggestGroup}>
-            <div className={styles.searchSuggestHead}>카테고리 바로가기</div>
-            <div className={styles.searchSuggestChips}>
-              {categories.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  className={styles.searchCatChip}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setSuggestOpen(false);
-                    setSearchOpen(false);
-                    onPickCategory?.(c.key);
-                  }}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {suggestions.length > 0 && (
-          <div className={styles.searchSuggestGroup}>
-            <div className={styles.searchSuggestHead}>추천 키워드</div>
-            {suggestions.map((kw) => (
-              <button
-                key={kw}
-                type="button"
-                role="option"
-                aria-selected={value.trim() === kw}
-                className={styles.searchSuggestItem}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  pickSuggestion(kw);
-                }}
-              >
-                <IconSearch />
-                <span>{kw}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <BetaDiscovery
+          query={value}
+          basePath="/beta-skin"
+          onPicked={(t) => {
+            setValue(t);
+            setSuggestOpen(false);
+            setSearchOpen(false);
+          }}
+        />
       </div>
     ) : null;
 
@@ -406,7 +341,7 @@ export default function BetaSkinShell({
                   ✕
                 </button>
               )}
-              {suggestDropdown}
+              {discoveryDropdown}
             </div>
           </div>
         ) : (
@@ -426,17 +361,18 @@ export default function BetaSkinShell({
 
             <nav className={styles.gnb}>
               {GNB.map((g) =>
-                // 작업 A) 쇼핑몰 미완성(href "#") → 클릭 불가 비활성 span 으로 렌더.
+                // 쇼핑(준비 중, href "#") → 클릭 시 안내 토스트(라우팅 없음).
                 g.href === "#" ? (
-                  <span
+                  <button
                     key={g.label}
+                    type="button"
                     className={styles.gnbDisabled}
-                    aria-disabled="true"
                     title="준비 중"
+                    onClick={onShopClick}
                   >
                     {g.label}
                     <span className={styles.gnbSoon}>준비 중</span>
-                  </span>
+                  </button>
                 ) : (
                   <Link
                     key={g.label}
@@ -486,7 +422,7 @@ export default function BetaSkinShell({
                     ✕
                   </button>
                 )}
-                {suggestDropdown}
+                {discoveryDropdown}
               </div>
             ) : (
               <div className={styles.headerSearch}>
@@ -560,17 +496,18 @@ export default function BetaSkinShell({
       {/* ---------- 하단 둥근 탭바 (모바일) ---------- */}
       <nav className={styles.tabbar}>
         {TABS.map((t) =>
-          // 작업 A) 쇼핑몰 미완성(href "#") → 클릭 불가 비활성 span 으로 렌더.
+          // 쇼핑(준비 중, href "#") → 클릭 시 안내 토스트(라우팅 없음).
           t.href === "#" ? (
-            <span
+            <button
               key={t.label}
+              type="button"
               className={`${styles.tab} ${styles.tabDisabled}`}
-              aria-disabled="true"
               title="준비 중"
+              onClick={onShopClick}
             >
               {t.icon}
               {t.label}
-            </span>
+            </button>
           ) : (
             <Link
               key={t.label}

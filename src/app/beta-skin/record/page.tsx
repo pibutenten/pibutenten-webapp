@@ -1,17 +1,31 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
 import { getPopularByCategory } from "@/lib/popular-keywords";
-import type { CardData } from "@/lib/types/card";
+import type { KeywordPost } from "@/app/record/KeywordCarousel";
+import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
+import {
+  KEYWORD_SELECT,
+  DIARY_SELECT,
+  toSummaryGroups,
+  toKeywordPost,
+  buildPopularData,
+  type KeywordCardRow,
+  type DiaryRow,
+  type TopCardRow,
+} from "@/lib/record-data";
 import RecordView from "./RecordView";
 
 /**
- * /beta-skin/record — 신규 스킨 "내 노트" 프리뷰 (index.html 컨셉).
+ * /beta-skin/record — 신규 스킨 "내 노트" (베타 스킨 UI + 운영 데이터·로직 재사용).
  *
  * 격리: 운영 파일 무수정. BetaSkinShell(fixed z-100 오버레이)로 글로벌 크롬을 덮음.
- * 데이터:
- *   - 관심 키워드 칩: getPopularByCategory() 실데이터(상위 일부) → 없으면 샘플.
- *   - 관심 키워드 새 글 카드: feed_cards_scored 의 qa 카드 실데이터 → 없으면 샘플.
- *   - 인사 카드 / 시술 타임라인 / 사이드바: 로그인 필요 데이터라 샘플(예시).
+ * 데이터: 운영 /record(page.tsx)와 동일한 조회·매핑(record-data SSOT)을 사용한다.
+ *   - 시술 노트: diaries + diary_procedures → toSummaryGroups(SummaryGroup[]). RLS active 명함 소유분.
+ *   - 인기글: get_top_cards_by_views 7/30/90일 각 TOP10 → buildPopularData(PopularData).
+ *   - 관심 키워드 새 글: interests(관심시술+피부고민+피부타입) overlaps + KEYWORD_SELECT, limit 20.
+ *   - 히어로 상태: computeStatus(latest)는 RecordView(클라)에서 계산.
+ *   - 비로그인: 가입 유도 데모 — 공개 인기 키워드 + 그 키워드 최신 Q&A(공개 RLS)만 예시 노출.
  */
 export const dynamic = "force-dynamic";
 
@@ -22,51 +36,146 @@ export const metadata: Metadata = {
 
 export default async function BetaSkinRecordPage() {
   const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const [{ data: feedData }, popular] = await Promise.all([
-    supabase.rpc("feed_cards_scored", {
-      p_limit: 12,
-      p_offset: 0,
-      p_half_life_days: 14,
-      p_jitter_amp: 0.35,
-    }),
-    getPopularByCategory().catch(() => null),
+  // ── 게스트(비로그인) — 가입 유도 데모. 인기글 RPC(authenticated 전용)는 호출하지 않고,
+  //    공개 인기 키워드 + 그 키워드의 최신 Q&A(공개 RLS)만 예시로 노출(운영 /record 정합).
+  if (!user) {
+    const popularByCat = await getPopularByCategory().catch(() => null);
+    const guestKeywords = popularByCat
+      ? Array.from(
+          new Set([
+            ...popularByCat.lifting.slice(0, 4),
+            ...popularByCat.injectables.slice(0, 4),
+            ...popularByCat.concerns.slice(0, 3),
+          ]),
+        ).slice(0, 10)
+      : [];
+    let guestPosts: KeywordPost[] = [];
+    if (guestKeywords.length > 0) {
+      const { data: qaRows } = await supabase
+        .from("cards")
+        .select(KEYWORD_SELECT)
+        .eq("category", "qa")
+        .eq("status", "published")
+        .is("deleted_at", null)
+        .overlaps("keywords", guestKeywords)
+        .order("reviewed_at", { ascending: false, nullsFirst: false })
+        .limit(20)
+        .returns<KeywordCardRow[]>();
+      const gSet = new Set(guestKeywords);
+      const gNow = Date.now();
+      guestPosts = (qaRows ?? []).map((c) => toKeywordPost(c, gSet, gNow));
+    }
+    return (
+      <RecordView
+        guest
+        userName=""
+        // 게스트는 가입 유도 히어로 + RecordView 의 빈-노트 '예시' 안내가 별도로 있으므로
+        // 운영 DEMO_SUMMARY(예시 타임라인)는 의도적으로 생략(빈 배열). DEMO 복원은 선택 사항.
+        summary={[]}
+        latest={null}
+        diaryCount={0}
+        reviewsCount={0}
+        keywordPosts={guestPosts}
+        popular={{ d7: [], d30: [], d90: [] }}
+        myKeywords={guestKeywords}
+      />
+    );
+  }
+
+  const idCtx = await getIdentityContext(supabase);
+  const activeId = idCtx?.active?.profileId ?? user.id;
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("display_name, interested_procedures, skin_concerns, skin_type")
+    .eq("id", activeId)
+    .maybeSingle()
+    .returns<{
+      display_name: string | null;
+      interested_procedures: string[] | null;
+      skin_concerns: string[] | null;
+      skin_type: string | null;
+    }>();
+  const userName = prof?.display_name?.trim() || "회원";
+
+  // 관심 키워드 합집합(관심시술 + 피부고민 + 피부타입). 카드 keywords 와 같은 한글 키(0262).
+  const interests = Array.from(
+    new Set([
+      ...(prof?.interested_procedures ?? []),
+      ...(prof?.skin_concerns ?? []),
+      ...(prof?.skin_type ? [prof.skin_type] : []),
+    ]),
+  );
+
+  // 병렬: 노트 / 내가 쓴 후기 수 / 인기글 3기간(TOP10) / 관심 키워드 새 Q&A(컴팩트, limit 20).
+  const [diariesRes, reviewCntRes, top7Res, top30Res, top90Res, kwRes] = await Promise.all([
+    supabase.from("diaries").select(DIARY_SELECT).order("visited_on", { ascending: false }).returns<DiaryRow[]>(),
+    supabase
+      .from("cards")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", activeId)
+      .eq("category", "review")
+      .eq("status", "published"),
+    supabase.rpc("get_top_cards_by_views", { p_days: 7, p_limit: 10 }),
+    supabase.rpc("get_top_cards_by_views", { p_days: 30, p_limit: 10 }),
+    supabase.rpc("get_top_cards_by_views", { p_days: 90, p_limit: 10 }),
+    interests.length > 0
+      ? supabase
+          .from("cards")
+          .select(KEYWORD_SELECT)
+          .eq("category", "qa")
+          .eq("status", "published")
+          .is("deleted_at", null)
+          .overlaps("keywords", interests)
+          .order("reviewed_at", { ascending: false, nullsFirst: false })
+          .limit(20)
+          .returns<KeywordCardRow[]>()
+      : Promise.resolve({ data: [] as KeywordCardRow[] }),
   ]);
 
-  const cards = (feedData ?? []) as CardData[];
-  // 관심 키워드 새 글: 의사 Q&A 우선, 부족하면 일반 카드로 채움
-  const qaCards = cards.filter((c) => (c.category ?? c.type) === "qa");
-  const kwCards = (qaCards.length >= 2 ? qaCards : cards).slice(0, 4);
+  const rows = diariesRes.data ?? [];
+  const reviewsCount = reviewCntRes.count ?? 0;
 
-  // 피드백 3) 인기글 섹션 — 로그인 통계 RPC 대신 피드 풀을 좋아요+저장+댓글 합으로 정렬한 상위 5.
-  const popularCards = [...cards]
-    .sort(
-      (a, b) =>
-        (b.like_count ?? 0) + (b.save_count ?? 0) + (b.comment_count ?? 0) -
-        ((a.like_count ?? 0) + (a.save_count ?? 0) + (a.comment_count ?? 0)),
-    )
-    .slice(0, 5);
+  // 상태 문구 계산용 — 가장 최근 방문의 첫 시술명 + 방문일 + 그 시술 누적 횟수('N회차').
+  const latestRow = rows[0];
+  const latestName =
+    latestRow && ([...latestRow.diary_procedures].sort((a, b) => a.sort_order - b.sort_order)[0]?.procedure_ko ?? "시술");
+  const latest = latestRow
+    ? {
+        name: latestName as string,
+        visitedOn: latestRow.visited_on,
+        count: rows.filter((r) => r.diary_procedures.some((p) => p.procedure_ko === latestName)).length,
+      }
+    : null;
 
-  // 관심 키워드 칩: 카테고리별 인기 키워드 1~2개씩 모아 5개
-  const keywordChips: string[] = [];
-  if (popular) {
-    for (const list of [
-      popular.lifting,
-      popular.injectables,
-      popular.concerns,
-      popular.homecare,
-      popular.knowledge,
-    ]) {
-      const k = list?.[0];
-      if (k && !keywordChips.includes(k)) keywordChips.push(k);
-    }
-  }
+  // 관심 키워드 새 Q&A(컴팩트 카드). NEW=24h. 원장 글은 doctor 사진, 회원 글은 author 아바타.
+  const interestSet = new Set(interests);
+  const now = Date.now();
+  const keywordPosts: KeywordPost[] = ((kwRes.data ?? []) as KeywordCardRow[]).map((c) =>
+    toKeywordPost(c, interestSet, now),
+  );
+
+  // 인기글 — 3기간 RPC + 카드 enrich(공개 카드만). record-data.buildPopularData(SSOT, 운영 공용).
+  const popular = await buildPopularData(
+    supabase,
+    (top7Res.data ?? []) as TopCardRow[],
+    (top30Res.data ?? []) as TopCardRow[],
+    (top90Res.data ?? []) as TopCardRow[],
+  );
 
   return (
     <RecordView
-      kwCards={kwCards}
-      keywordChips={keywordChips}
-      popularCards={popularCards}
+      userName={userName}
+      summary={toSummaryGroups(rows) as SummaryGroup[]}
+      latest={latest}
+      diaryCount={rows.length}
+      reviewsCount={reviewsCount}
+      keywordPosts={keywordPosts}
+      popular={popular}
+      myKeywords={interests}
     />
   );
 }

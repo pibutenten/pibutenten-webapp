@@ -4,7 +4,7 @@
  * /beta 검색 발견/자동완성 — 모바일 오버레이·데스크탑 블록 공용.
  *  - query 비었을 때: ① 최근 검색어(localStorage) ② 인기검색어 10(7일) ③ 카테고리 칩(탭, 기본 리프팅/스킨부스터 랜덤)
  *  - query 있을 때: 카테고리 칩 키워드 부분일치 자동완성(초성 X — 기존 방식)
- *  - 항목 선택 → 최근검색 저장 + /?q= 로 이동(기존 검색 실행)
+ *  - 항목 선택 → 최근검색 저장 + basePath?q= 로 이동(기본 "/", 베타스킨은 "/beta-skin")
  * 데이터는 전부 기존 소스 재사용(/api/beta-discover).
  */
 
@@ -32,7 +32,7 @@ export function prefetchDiscover(): Promise<DiscoverData> {
   return discoverPromise;
 }
 
-export default function BetaDiscovery({ query = "", onPicked }: { query?: string; onPicked?: (term: string) => void }) {
+export default function BetaDiscovery({ query = "", onPicked, basePath = "/" }: { query?: string; onPicked?: (term: string) => void; basePath?: string }) {
   const router = useRouter();
   const [data, setData] = useState<DiscoverData | null>(discoverCache);
   const [recent, setRecent] = useState<string[]>([]);
@@ -53,8 +53,11 @@ export default function BetaDiscovery({ query = "", onPicked }: { query?: string
     addRecent(t);
     setRecent(getRecent());
     onPicked?.(t);
-    router.push(`/?q=${encodeURIComponent(t)}`);
-  }, [router, onPicked]);
+    // 검색 실행 라우팅 — 운영(기본 "/")은 /?q=, 베타스킨은 basePath="/beta-skin" 로 /beta-skin?q=.
+    //   onPicked 는 표시 상태 동기화용(운영 BetaNav)이며 라우팅은 항상 여기서 일관 처리.
+    const sep = basePath.includes("?") ? "&" : "?";
+    router.push(`${basePath}${sep}q=${encodeURIComponent(t)}`);
+  }, [router, onPicked, basePath]);
 
   const allKeywords = useMemo(() => {
     if (!data) return [] as string[];

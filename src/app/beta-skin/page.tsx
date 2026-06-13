@@ -99,14 +99,8 @@ export default async function BetaSkinPage({
     initialCards.map((c) => c.id),
   );
 
-  // 인기검색어 — 운영 관리자/베타 디스커버리와 동일 RPC(7일·10개).
-  const { data: topQ } = await supabase.rpc("get_top_search_queries", {
-    p_days: 7,
-    p_limit: 10,
-  });
-  const popularQueries = ((topQ ?? []) as { query: string }[])
-    .map((r) => r.query)
-    .filter((q) => typeof q === "string" && q.trim());
+  // 인기검색어/카테고리 인기태그/최근검색/자동완성은 헤더 검색 드롭다운(BetaDiscovery)이
+  //   자체적으로 /api/beta-discover + localStorage 로 처리 → page 에서 별도 전달 불필요(운영 정합).
 
   return (
     <BetaSkinFeed
@@ -116,7 +110,6 @@ export default async function BetaSkinPage({
       searchReport={searchReport}
       searchQuery={query || undefined}
       viewerStates={viewerStates}
-      popularQueries={popularQueries}
     />
   );
 }

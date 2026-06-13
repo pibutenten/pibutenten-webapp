@@ -28,20 +28,31 @@ import { showToast } from "@/lib/toast";
 import CommentsBlock from "@/components/comments/CommentsBlock";
 import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
+// 시술 리포트 — 운영 자연어 문구·통증 팔레트·위치 매핑 재사용(베타 자체 복제 제거).
+import {
+  revisitPhrase,
+  satisfactionPhrase,
+  painPhrase,
+  downtimeHeadline,
+  PAIN_LABELS,
+  PAIN_SOFT,
+  painPos,
+} from "@/components/report/ProcedureReportCard";
+// 더보기 펼침 영역 — 운영 보조 시각화 컴포넌트 그대로 임베드(데이터 정합·중복 재구현 방지).
+import DowntimeGauge from "@/components/report/DowntimeGauge";
+import EffectOnsetTimeline from "@/components/report/EffectOnsetTimeline";
+import ReportReviewItem from "@/components/report/ReportReviewItem";
+import { DOWNTIME_DAYS } from "@/lib/review-options";
+import LoginPromptDialog from "@/components/LoginPromptDialog";
+import { useSession } from "@/lib/session-context";
+import type { EngagementMe } from "@/components/card/hooks/useCardEngagement";
 import styles from "./beta-skin.module.css";
 
-/* ---------- 피드백 4) 비-피드 페이지 헤더 검색 → 피드로 라우팅 ----------
+/* ---------- 비-피드 페이지 헤더 검색 → 피드로 라우팅 ----------
  * record/write/my/post 가 공유하는 검색 props 묶음.
- *   - 검색 제출(엔터/추천 클릭) → /beta-skin?q=키워드 (피드가 ?q= 를 읽어 자동 필터)
- *   - 카테고리 바로가기 → /beta-skin?cat=칩키
- * BetaSkinShell 의 onSearchSubmit / searchCategories / onPickCategory / 드롭다운 props 를 한 번에 반환. */
-const NONFEED_CATEGORIES = [
-  { key: "qa", label: "Q&A" },
-  { key: "review", label: "시술후기" },
-  { key: "doodle", label: "끄적끄적" },
-  { key: "review_summary", label: "리포트" },
-];
-const NONFEED_SUGGEST = ["리프팅", "스킨부스터", "보톡스", "리쥬란", "써마지", "피코레이저"];
+ *   - 검색 제출(엔터) → /beta-skin?q=키워드 (피드가 ?q= 를 읽어 자동 필터)
+ * 드롭다운(최근검색·인기검색·카테고리 인기태그·자동완성)은 운영 BetaDiscovery 가 셸 안에서 담당하므로
+ *   여기서는 onSearchSubmit 만 반환한다(자체 더미 카테고리/추천 셋 제거). */
 export function useBetaSearchRouting() {
   const router = useRouter();
   return {
@@ -50,10 +61,6 @@ export function useBetaSearchRouting() {
       const t = q.trim();
       if (t) router.push(`/beta-skin?q=${encodeURIComponent(t)}`);
     },
-    searchCategories: NONFEED_CATEGORIES,
-    onPickCategory: (key: string) => router.push(`/beta-skin?cat=${key}`),
-    searchSuggestions: NONFEED_SUGGEST,
-    recentSearches: ["리프팅", "스킨부스터"],
   };
 }
 
@@ -573,6 +580,22 @@ export function PostCard({
         <div className={styles.author}>{authorInner}</div>
       )}
 
+      {/* 항목10) 제목 — 클릭 시 단독 URL(getQaUrl)로 이동(운영 CardBody 정합).
+          내부 링크 신호 누적 + 크롤러 색인. 본문 펼침 토글과 분리(제목은 토글 div 밖). */}
+      {hasHref ? (
+        <a
+          className={styles.postTitleLink}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className={styles.postTitle}>{card.title}</h2>
+        </a>
+      ) : (
+        <h2 className={styles.postTitle}>{card.title}</h2>
+      )}
+
       <div
         className={isLong ? styles.bodyToggle : undefined}
         onClick={toggle}
@@ -589,16 +612,14 @@ export function PostCard({
             : undefined
         }
       >
-        <h2 className={styles.postTitle}>{card.title}</h2>
         {body && (
           <div className={styles.postBodyRich}>
             {renderBetaBody(body, hlColor, isLong && !expanded)}
           </div>
         )}
-        {isLong && (
-          <span className={styles.moreToggle}>
-            {expanded ? "접기" : "더보기"}
-          </span>
+        {/* 항목9) 더보기만 노출 — 펼친 글은 본문 클릭으로 접히므로 '접기' 라벨 불필요. */}
+        {isLong && !expanded && (
+          <span className={styles.moreToggle}>더보기</span>
         )}
         {/* 참고문헌 — 펼침 시(또는 짧은 글이라 항상 보일 때) 노출. 운영 CardBody 정합. */}
         {(!isLong || expanded) && <PubmedRefs card={card} />}
@@ -726,56 +747,61 @@ export function PostCard({
   );
 }
 
-/* ---------- 피드백 1·2) 시술 리포트 카드 (review_summary) ----------
- * 운영 ProcedureReportCard(variant="insert")의 지표 시각화·색·모양을 그대로 재현.
- *   - 재시술: 가로 분할 막대(있어요 #4CBFF2 / 고민중 #9AA1AC / 없어요 #EA7E7B) + 범례
- *   - 만족도: 별점(골드 #F59E0B) + 평균 + 5~1점 분포 막대(골드)
- *   - 통증: 5색 그라데이션 막대(#7FD0F8→#F08A8A) + 평균 위치 마커 + 없음/조금/보통/꽤/심함 라벨
- *   - 더보기: 그 자리서 인라인 펼침(운영 grid-rows 0fr↔1fr) → 자연어 요약, 다시 누르면 접힘.
- * 베타 캔버스 톤(둥근 흰 카드)은 유지하되 지표 모양·색은 운영을 따른다. */
+/* ---------- 시술 리포트 카드 (review_summary) ----------
+ * UI(둥근 흰 카드·재시술 막대·만족도 분포·통증 막대)는 베타 스킨 유지, 데이터·로직은 운영 재사용.
+ *   - 자연어 문구(revisitPhrase/satisfactionPhrase/painPhrase/downtimeHeadline)·통증 팔레트
+ *     (PAIN_LABELS/PAIN_SOFT/painPos)는 운영 ProcedureReportCard 에서 import(중복 복제 제거).
+ *   - 더보기(펼침): 운영 insert 카드와 동일하게 1회 lazy fetch
+ *     (/api/reports/{en}/reviews?include_report=1&limit=3) 로 풀집계+후기 3개를 받아
+ *     다운타임·효과·효과시점·작성자 통계·개별 후기를 **인라인 렌더**(운영 보조 컴포넌트 임베드).
+ *   - "전체 리포트 보기 →" 링크는 펼친 맨 아래에만(접힘 상태 비노출).
+ *
+ * getReviewSummaryFeedPool 가 내려주는 피드 풀은 effects/demographics/downtime/onset 이 비어 있어
+ * (컴팩트), 펼칠 때 lazy fetch 한 풀집계로 교체해 운영과 동일한 알맹이를 채운다. */
 
-// 운영 ProcedureReportCard 와 동일한 통증 팔레트·위치 매핑(없음 6.25% ~ 심함 93.75%).
-const BETA_PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
-const BETA_PAIN_SOFT = ["#7FD0F8", "#FDE68A", "#FDBA74", "#FCA5A5", "#F08A8A"];
-function betaPainPos(value1to5: number): number {
-  const v = Math.min(5, Math.max(1, value1to5));
-  return 6.25 + ((v - 1) / 4) * 87.5;
-}
-// 운영 자연어 헤드라인(revisitPhrase/satisfactionPhrase/painPhrase) 재현.
-function revisitPhrase(pct: number): string {
-  if (pct >= 70) return `경험한 분들의 ${pct}%가 다시 받고 싶어 해요.`;
-  if (pct >= 40) return `${pct}%가 다시 받을 의향이 있어요. 호불호가 갈리는 편이에요.`;
-  return `다시 받겠다는 분은 ${pct}%예요. 신중히 고민해 보세요.`;
-}
-function satisfactionPhrase(avg: number): string {
-  const x = avg.toFixed(1);
-  if (avg >= 4.5) return `만족도 ${x}점! 다들 결과에 크게 만족했어요.`;
-  if (avg >= 4.0) return `만족도 ${x}점, 대체로 만족하는 분위기예요.`;
-  if (avg >= 3.0) return `만족도 ${x}점, 기대와 결과가 갈리는 편이에요.`;
-  return `만족도 ${x}점으로 아쉬웠다는 의견이 많아요.`;
-}
-function painPhrase(avg: number): string {
-  if (avg <= 0) return "통증 후기가 아직 적어요.";
-  const x = avg.toFixed(1);
-  let desc: string;
-  if (avg < 1.5) desc = "거의 안 아파요.";
-  else if (avg < 2.5) desc = "살짝 따끔한 정도예요.";
-  else if (avg < 3.5) desc = "참을 만해요.";
-  else if (avg < 4.5) desc = "참을 만하지만 꽤 뻐근해요.";
-  else desc = "꽤 아픈 편이라 마취가 도움이 될 수 있어요.";
-  return `통증 평균 ${x}점, ${desc}`;
-}
+// lazy fetch 응답(운영 /api/reports/[procedure]/reviews 와 동일 형태).
+type BetaReviewsApiResponse = {
+  reviews: CardData[];
+  reviewLiked: Record<number, boolean>;
+  report?: ProcedureReport | null;
+};
+const BETA_INSERT_REVIEW_CAP = 3;
+
+// 효과 영역 막대 색 — 운영 ProcedureReportCard EFFECT_BAR_COLORS 와 동일 톤.
+const BETA_EFFECT_COLORS = [
+  "#7FD0F8", "#B0A0DE", "#9AA6DE", "#FFCB8C", "#8FD4C8",
+  "#F59CB6", "#A6D9A9", "#F4B8A0", "#C3B0E8", "#CDC97A",
+];
+const BETA_AGE_COLORS = ["#A8C2E6", "#9AA6DE", "#C3B0E8", "#F2A9C0", "#FFCB8C"];
 
 export function BetaReportCard({ report }: { report: ProcedureReport }) {
+  const [expanded, setExpanded] = useState(false);
+  // 펼침 시 1회 lazy fetch 한 풀집계+후기(있으면 prop 대신 사용) — 운영 loadFeedDetail 이식.
+  const [fetched, setFetched] = useState<BetaReviewsApiResponse | null>(null);
+  const [loadingExpand, setLoadingExpand] = useState(false);
+  // 개별 후기 좋아요용 — me(active 명함) 단일 출처(SSR session). 비로그인 → null.
+  const session = useSession();
+  const me: EngagementMe =
+    session === null ? null : { id: session.activeIdentityId, role: session.role };
+  const [authPrompt, setAuthPrompt] = useState<string | null>(null);
+
+  // 표시에 쓰는 집계 — lazy fetch 성공 시 풀집계로 교체(컴팩트 풀의 빈 effects/demographics 보강).
+  const rep = fetched?.report ?? report;
   const {
     procedureKo,
+    en,
     count,
     avgSatisfaction,
     satisfactionDist,
     avgPain,
     revisit,
-  } = report;
-  const [expanded, setExpanded] = useState(false);
+    effects,
+    noEffectCount,
+    downtimeAnswered,
+    downtimeDist,
+    onsetAnswered,
+    demographics,
+  } = rep;
 
   // 정식 URL = 한글 슬러그(/reports/{ko}) — 운영 ProcedureReportCard 와 동일.
   const reportHref = `/reports/${encodeURIComponent(procedureKo)}`;
@@ -788,13 +814,55 @@ export function BetaReportCard({ report }: { report: ProcedureReport }) {
   const noPct = Math.max(0, 100 - yesPct - maybePct);
   const yesDominant = revisit.yes >= revisit.no;
 
-  // 통증 그라데이션(운영 painGradient 재현) — 라벨 위치에 색 정렬.
-  const painPct = betaPainPos(avgPain > 0 ? avgPain : 1);
-  const painGradient = `linear-gradient(90deg, ${BETA_PAIN_SOFT[0]} 0%, ${BETA_PAIN_SOFT.map(
-    (c, i) => `${c} ${betaPainPos(i + 1)}%`,
-  ).join(", ")}, ${BETA_PAIN_SOFT[BETA_PAIN_SOFT.length - 1]} 100%)`;
+  // 통증 그라데이션·마커 — 운영 painPos/PAIN_SOFT/PAIN_LABELS 그대로.
+  const painPct = painPos(avgPain > 0 ? avgPain : 1);
+  const painGradient = `linear-gradient(90deg, ${PAIN_SOFT[0]} 0%, ${PAIN_SOFT.map(
+    (c, i) => `${c} ${painPos(i + 1)}%`,
+  ).join(", ")}, ${PAIN_SOFT[PAIN_SOFT.length - 1]} 100%)`;
 
-  const toggle = () => setExpanded((v) => !v);
+  // 다운타임 평균(일) → 자연어 헤드라인(운영과 동일 계산).
+  const dtAvg =
+    downtimeAnswered > 0
+      ? downtimeDist.reduce((s, c, i) => s + c * (DOWNTIME_DAYS[i] ?? 0), 0) /
+        downtimeAnswered
+      : 0;
+  const topEffects = effects.slice(0, 6);
+  const demoTotal = Math.max(1, demographics.male + demographics.female);
+  const femalePct = Math.round((demographics.female / demoTotal) * 100);
+  const malePct = Math.max(0, 100 - femalePct);
+  const ageTotal = Math.max(
+    1,
+    demographics.ageBands.reduce((a, b) => a + b.count, 0),
+  );
+
+  // 펼침 후기 — lazy fetch 결과 최대 3개.
+  const insertReviews = (fetched?.reviews ?? []).slice(0, BETA_INSERT_REVIEW_CAP);
+  const insertLiked = fetched?.reviewLiked ?? {};
+
+  // 처음 펼칠 때만 1회 lazy fetch(운영 loadFeedDetail) — en 슬러그로 풀집계+후기 3.
+  const loadFeedDetail = useCallback(async () => {
+    if (loadingExpand || fetched || !en) return;
+    setLoadingExpand(true);
+    try {
+      const qs = new URLSearchParams({
+        offset: "0",
+        limit: String(BETA_INSERT_REVIEW_CAP),
+        include_report: "1",
+      });
+      const res = await fetch(`/api/reports/${encodeURIComponent(en)}/reviews?${qs}`);
+      if (res.ok) setFetched((await res.json()) as BetaReviewsApiResponse);
+    } catch {
+      /* 실패 시 컴팩트 집계만 유지 */
+    } finally {
+      setLoadingExpand(false);
+    }
+  }, [loadingExpand, fetched, en]);
+
+  const toggle = () => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next) void loadFeedDetail();
+  };
 
   // 만족도 별점 노드(접힘 미리보기·펼침 상세 공용).
   const stars = (
@@ -901,13 +969,10 @@ export function BetaReportCard({ report }: { report: ProcedureReport }) {
             <span className={styles.reportPeekNum}>
               {avgSatisfaction.toFixed(1)}
             </span>
-            <span className={styles.reportPeekHint}>
-              만족도·통증 자세히는 더보기
-            </span>
           </div>
         )}
 
-        {/* 펼침 영역 — 더보기 시 그 자리서 만족도 분포 + 통증 상세가 드러남(조건부 렌더). */}
+        {/* 펼침 영역 — 더보기 시 그 자리서 만족도·통증 + (lazy) 다운타임·효과·효과시점·작성자통계가 드러남. */}
         {expanded && (
         <div className={`${styles.reportExpand} ${styles.fadeInUp}`}>
           <div className={styles.reportExpandInner}>
@@ -958,15 +1023,153 @@ export function BetaReportCard({ report }: { report: ProcedureReport }) {
                 )}
               </div>
               <div className={styles.reportPainLabels}>
-                {BETA_PAIN_LABELS.map((l, i) => (
-                  <span key={l} style={{ left: `${betaPainPos(i + 1)}%` }}>
+                {PAIN_LABELS.map((l, i) => (
+                  <span key={l} style={{ left: `${painPos(i + 1)}%` }}>
                     {l}
                   </span>
                 ))}
               </div>
             </div>
 
-            {/* 안내 + 전체 리포트 링크 */}
+            {/* lazy fetch 로딩 표시 — 풀집계 도착 전 잠깐. */}
+            {loadingExpand && !fetched && (
+              <p className={styles.reportNote}>불러오는 중…</p>
+            )}
+
+            {/* 다운타임 — 운영 DowntimeGauge 임베드. answered===0 이면 컴포넌트가 null. */}
+            {downtimeAnswered > 0 && (
+              <div className={styles.reportSection}>
+                <p className={styles.reportPhrase}>{downtimeHeadline(dtAvg)}</p>
+                <DowntimeGauge
+                  dist={downtimeDist}
+                  answered={downtimeAnswered}
+                  days={DOWNTIME_DAYS}
+                />
+              </div>
+            )}
+
+            {/* 효과 영역 — 빈도 상위 6개 막대(운영 effects 시각화 재현). */}
+            {topEffects.length > 0 && (
+              <div className={styles.reportSection}>
+                <p className={styles.reportPhrase}>
+                  {procedureKo} 받은 분들이 느낀 효과예요.
+                </p>
+                <div className={styles.reportEffectList}>
+                  {topEffects.map((e, i) => (
+                    <div key={e.label} className={styles.reportEffectRow}>
+                      <span className={styles.reportEffectLabel}>{e.label}</span>
+                      <span className={styles.reportEffectTrack}>
+                        <span
+                          className={styles.reportEffectFill}
+                          style={{
+                            width: `${e.pct}%`,
+                            backgroundColor:
+                              BETA_EFFECT_COLORS[i % BETA_EFFECT_COLORS.length],
+                          }}
+                        />
+                      </span>
+                      <span className={styles.reportEffectPct}>{e.pct}%</span>
+                    </div>
+                  ))}
+                </div>
+                {noEffectCount > 0 && (
+                  <p className={styles.reportEffectNone}>
+                    효과를 느끼지 못했다고 답한 분도 {noEffectCount}명 있었어요.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 효과 시점 — 운영 EffectOnsetTimeline 임베드. answered===0 숨김. */}
+            {onsetAnswered > 0 && (
+              <div className={styles.reportSection}>
+                <p className={styles.reportPhrase}>효과를 느끼기 시작한 시점이에요.</p>
+                <EffectOnsetTimeline dist={rep.onsetDist} />
+              </div>
+            )}
+
+            {/* 작성자 통계 — 성별·연령 분할 바(운영 demographics 재현). */}
+            {demographics.total > 0 && (
+              <div className={styles.reportSection}>
+                <p className={styles.reportPhrase}>작성자 통계</p>
+                <div className={styles.reportDemoBar}>
+                  {femalePct > 0 && (
+                    <span style={{ width: `${femalePct}%`, backgroundColor: "#F59CB6" }} />
+                  )}
+                  {malePct > 0 && (
+                    <span style={{ width: `${malePct}%`, backgroundColor: "#7FD0F8" }} />
+                  )}
+                </div>
+                <div className={styles.reportDemoLegend}>
+                  <span>
+                    <i style={{ backgroundColor: "#F59CB6" }} />
+                    여성 {femalePct}%
+                  </span>
+                  <span>
+                    <i style={{ backgroundColor: "#7FD0F8" }} />
+                    남성 {malePct}%
+                  </span>
+                </div>
+                {demographics.ageBands.length > 0 && (
+                  <>
+                    <div className={`${styles.reportDemoBar} ${styles.reportDemoBarAge}`}>
+                      {demographics.ageBands.map((b, i) => {
+                        const pct = Math.round((b.count / ageTotal) * 100);
+                        return pct > 0 ? (
+                          <span
+                            key={b.label}
+                            style={{
+                              width: `${pct}%`,
+                              backgroundColor:
+                                BETA_AGE_COLORS[i % BETA_AGE_COLORS.length],
+                            }}
+                          />
+                        ) : null;
+                      })}
+                    </div>
+                    <div className={styles.reportDemoLegend}>
+                      {demographics.ageBands.map((b, i) => {
+                        const pct = Math.round((b.count / ageTotal) * 100);
+                        return (
+                          <span key={b.label}>
+                            <i
+                              style={{
+                                backgroundColor:
+                                  BETA_AGE_COLORS[i % BETA_AGE_COLORS.length],
+                              }}
+                            />
+                            {b.label} {pct}%
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* 개별 후기 — 운영 ReportReviewItem 임베드(최대 3). 좋아요는 단독 글과 동일 RPC. */}
+            {insertReviews.length > 0 && (
+              <div
+                className={styles.reportSection}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className={styles.reportPhrase}>후기 {count}개</p>
+                <ul className={styles.reportReviewList}>
+                  {insertReviews.map((card) => (
+                    <ReportReviewItem
+                      key={card.id}
+                      card={card}
+                      liked={insertLiked[card.id] ?? false}
+                      me={me}
+                      onLoginRequired={(reason) => setAuthPrompt(reason)}
+                    />
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 안내 + 전체 리포트 링크 — 펼친 맨 아래에만. */}
             <div className={styles.reportSection}>
               <p className={styles.reportNote}>
                 이 리포트는 회원 경험 {count}건을 집계한 결과입니다. 개인차가
@@ -980,7 +1183,7 @@ export function BetaReportCard({ report }: { report: ProcedureReport }) {
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
               >
-                효과·다운타임·작성자 통계까지 전체 리포트 보기 →
+                전체 리포트 보기 →
               </a>
             </div>
           </div>
@@ -997,6 +1200,12 @@ export function BetaReportCard({ report }: { report: ProcedureReport }) {
       >
         {expanded ? "접기 ▴" : "더보기 ▾"}
       </button>
+
+      <LoginPromptDialog
+        open={!!authPrompt}
+        message={authPrompt ?? ""}
+        onClose={() => setAuthPrompt(null)}
+      />
     </article>
   );
 }

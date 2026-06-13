@@ -6,17 +6,10 @@ import { useRouter } from "next/navigation";
 import { RecordView, type SummaryGroup } from "../mockups/skin-diary/SkinDiaryMockup";
 import { computeStatus, type DiaryLatest } from "@/lib/diary-status";
 import KeywordCarousel, { type KeywordPost } from "./KeywordCarousel";
+import type { PopularData, PopularItem } from "@/lib/record-data";
 
-/** 인기글 1건. */
-export type PopularItem = {
-  rank: number;
-  title: string;
-  authorName: string;
-  type: string; // cards.category
-  views: number;
-  href: string;
-};
-export type PopularData = { d7: PopularItem[]; d30: PopularItem[]; d90: PopularItem[] };
+// 인기글 타입은 record-data(SSOT)에서 정의 — 운영·베타 공용. 기존 import 경로 호환 위해 재노출.
+export type { PopularItem, PopularData } from "@/lib/record-data";
 
 // 글 타입(category) → 라벨.
 const CAT_LABEL: Record<string, string> = { qa: "Q&A", review: "시술후기", doodle: "끄적끄적", review_summary: "리포트" };

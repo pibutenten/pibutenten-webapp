@@ -3,139 +3,82 @@
 /**
  * RecordView — /beta-skin/record "내 노트" 본문 (클라이언트).
  *
- * 공용 셸(BetaSkinShell)을 active="내 노트" 로 사용.
- * - 인사 카드 / 시술 노트(타임라인·달력·목록 3토글) / 사이드바: 샘플(로그인 필요 데이터라 예시).
- * - 관심 키워드 칩: 실데이터(props.keywordChips) 우선, 비면 샘플 폴백.
- * - 관심 키워드 새 글 카드: 실데이터(props.kwCards) qa 카드, 비면 샘플 폴백.
- *
- * 항목 1) 운영 SkinDiaryMockup.RecordView(타임라인=좌측 점·세로선 / 달력=연 12개월 그리드+점 /
- *   목록=연도별 요약 카드, 우상단 토글)를 신규 스킨 디자인으로 재현. 샘플 데이터 기준 3뷰 전환.
- * 항목 3) 키워드 카드 링크 = 각 카드의 실제 cardHref(단일 /beta-skin/post 고정 버그 수정).
+ * 원칙: UI 는 베타 스킨 유지, 데이터·로직은 운영(record) 재사용.
+ *   - 시술 노트(타임라인/달력/목록 3토글): 운영 diaries → SummaryGroup[](record-data SSOT)을
+ *     RecEntry 로 어댑트해 기존 베타 3토글 뷰에 그대로 흘려보낸다. 배지는 운영 recordBadge(diary-status SSOT).
+ *   - 히어로: 회원이면 computeStatus(latest) 5단계 인사, 비로그인이면 가입 유도 데모.
+ *   - 관심 키워드 새 글: 운영 KeywordPost(limit 20) — 베타 카드 UI 로 렌더. 칩 탭 = 단일 키워드 필터.
+ *   - 인기글: 운영 get_top_cards_by_views PopularData(7/30/90일). 작은 기간 토글 + 5위 + 6~N위 더보기.
  */
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import CardAvatar from "@/components/card/CardAvatar";
-import type { CardData } from "@/lib/types/card";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
-import {
-  IconVerified,
-  timeAgo,
-  cardHref,
-  categoryLabel,
-  useBetaSearchRouting,
-} from "../beta-ui";
+import { IconVerified, useBetaSearchRouting } from "../beta-ui";
+import { computeStatus, recordBadge, type DiaryLatest } from "@/lib/diary-status";
+import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
+import type { KeywordPost } from "@/app/record/KeywordCarousel";
+import type { PopularData, PopularItem } from "@/lib/record-data";
 
 const SAMPLE_CHIPS = ["리프팅", "보톡스", "스킨부스터", "볼륨", "더모코스메틱"];
 
-/* ---------- 샘플 시술 기록 (로그인 필요 데이터 → 예시) ----------
- * 운영 SummaryItem 과 유사한 구조. 연/월/일 + 시술 칩 + 병원·의사 메타. */
+/* ---------- 시술 노트 1건(뷰 전용) — 운영 SummaryItem 에서 어댑트 ----------
+ * year/month/day + 시술 칩 + 병원·의사 메타 + 배지용 visitedOn("YYYY-MM-DD"). */
 type RecEntry = {
   id: string;
   year: number;
   month: number; // 1~12
   day: number;
-  procs: string[]; // 받은 시술명
+  visitedOn: string; // "YYYY-MM-DD" — recordBadge 입력
+  procName: string; // 배지 판정용 대표(첫) 시술명
+  procs: string[]; // 받은 시술명 목록
   tone: string; // 점 색 (styles.dotXxx)
   place: string;
   doctor: string;
   memo?: string;
 };
 
-const ENTRIES: RecEntry[] = [
-  {
-    id: "e1",
-    year: 2026,
-    month: 6,
-    day: 12,
-    procs: ["리쥬란 힐러"],
-    tone: styles.dotPink,
-    place: "OO피부과의원",
-    doctor: "예시 원장님",
-    memo: "피부결 개선 목적 · 2cc",
-  },
-  {
-    id: "e2",
-    year: 2026,
-    month: 5,
-    day: 12,
-    procs: ["인모드 FX"],
-    tone: styles.dotBlue,
-    place: "OO피부과의원",
-    doctor: "예시 원장님",
-    memo: "탄력 · 다운타임 거의 없음",
-  },
-  {
-    id: "e3",
-    year: 2026,
-    month: 4,
-    day: 28,
-    procs: ["피코레이저"],
-    tone: styles.dotGreen,
-    place: "OO피부과의원",
-    doctor: "예시 원장님",
-    memo: "색소·잡티 1회차",
-  },
-  {
-    id: "e4",
-    year: 2025,
-    month: 11,
-    day: 3,
-    procs: ["써마지", "스컬트라"],
-    tone: styles.dotPurple,
-    place: "△△피부과의원",
-    doctor: "예시 원장님",
-    memo: "1년 주기로 받기로",
-  },
-];
+const DOT_TONES = [styles.dotPink, styles.dotBlue, styles.dotGreen, styles.dotPurple];
 
-/* 키워드 카드 샘플 폴백 */
-const SAMPLE_KW_CARDS = [
-  {
-    tag: "리프팅",
-    tagTone: styles.tagBlue,
-    title: "리프팅 받았는데 효과 없는 사람은 왜 그런 건가요?",
-    author: "예시 전문의",
-    when: "1달 전",
-  },
-  {
-    tag: "스킨부스터",
-    tagTone: styles.tagPink,
-    title: "리쥬란이랑 쥬브젠, 둘 중 뭐가 더 오래가나요?",
-    author: "예시 전문의",
-    when: "2주 전",
-  },
-];
-
-const KW_TONES = [
-  styles.tagBlue,
-  styles.tagPink,
-  styles.tagGreen,
-  styles.tagPurple,
-];
-
-/* "회복 중 / 효과 관찰 중 / 회복 완료" 배지 — 운영 recordBadge 의 간이판(샘플 데이터 기준).
- * 실제 의학 파라미터(diary-status) 대신, 경과 일수로만 단순 판정(프리뷰 표시용). */
-function badgeFor(year: number, month: number, day: number): {
-  label: string;
-  tone: "heal" | "mint";
-} {
-  const t = new Date(year, month - 1, day).getTime();
-  const days = Math.max(0, Math.floor((Date.now() - t) / 86_400_000));
-  if (days <= 7) return { label: "회복 중", tone: "heal" };
-  if (days <= 42) return { label: "효과 관찰 중", tone: "heal" };
-  return { label: "회복 완료", tone: "mint" };
+/** 운영 SummaryGroup[] → 베타 3토글 뷰가 쓰는 RecEntry[](연/월/일 + 배지용 visitedOn). */
+function toRecEntries(summary: SummaryGroup[]): RecEntry[] {
+  const out: RecEntry[] = [];
+  let toneIdx = 0;
+  for (const g of summary) {
+    for (const it of g.items) {
+      const [mm, dd] = it.date.split("."); // SummaryItem.date = "MM.DD"
+      const month = Number(mm);
+      const day = Number(dd);
+      const procs = it.items.length > 0 ? it.items.map((i) => i.name) : it.proc ? [it.proc] : [];
+      const procName = procs[0] ?? "시술";
+      out.push({
+        id: it.id,
+        year: g.year,
+        month,
+        day,
+        visitedOn: `${g.year}-${mm}-${dd}`,
+        procName,
+        procs,
+        tone: DOT_TONES[toneIdx++ % DOT_TONES.length],
+        place: it.hospital,
+        doctor: it.doctor,
+        memo: it.memo || undefined,
+      });
+    }
+  }
+  return out;
 }
 
-function Badge({ tone, label }: { tone: "heal" | "mint"; label: string }) {
+/* 회복 단계 배지 — 운영 recordBadge(diary-status SSOT) 사용(시술명 + 방문일 기준). */
+function Badge({ entry }: { entry: RecEntry }) {
+  const b = recordBadge(entry.procName, entry.visitedOn);
   return (
     <span
-      className={`${styles.recBadge} ${
-        tone === "mint" ? styles.recBadgeMint : styles.recBadgeHeal
-      }`}
+      className={`${styles.recBadge} ${b.tone === "mint" ? styles.recBadgeMint : styles.recBadgeHeal}`}
     >
-      {label}
+      {b.label}
     </span>
   );
 }
@@ -143,12 +86,7 @@ function Badge({ tone, label }: { tone: "heal" | "mint"; label: string }) {
 /* ---------- 타임라인 뷰 — 좌측 날짜 원 + 세로 연결선 ---------- */
 function TimelineView({ entries }: { entries: RecEntry[] }) {
   // 연도 내림차순 → 같은 해 최신 날짜순. 연도 바뀌면 라벨.
-  const sorted = [...entries].sort(
-    (a, b) =>
-      b.year - a.year ||
-      b.month - a.month ||
-      b.day - a.day,
-  );
+  const sorted = [...entries].sort((a, b) => b.year - a.year || b.month - a.month || b.day - a.day);
   const rows: ({ kind: "year"; year: number } | { kind: "rec"; e: RecEntry })[] = [];
   let lastYear: number | null = null;
   for (const e of sorted) {
@@ -174,12 +112,16 @@ function TimelineView({ entries }: { entries: RecEntry[] }) {
             <div className={`${styles.card} ${styles.recTlCard}`}>
               <div className={styles.recTlHead}>
                 <h3 className={styles.recTlName}>{row.e.procs.join(" · ")}</h3>
-                <Badge {...badgeFor(row.e.year, row.e.month, row.e.day)} />
+                <Badge entry={row.e} />
               </div>
               <div className={styles.recMeta}>
                 {row.e.place}
-                <span className={styles.sep}>·</span>
-                {row.e.doctor}
+                {row.e.doctor && (
+                  <>
+                    <span className={styles.sep}>·</span>
+                    {row.e.doctor}
+                  </>
+                )}
               </div>
               {row.e.memo && <p className={styles.recMemo}>{row.e.memo}</p>}
             </div>
@@ -192,10 +134,7 @@ function TimelineView({ entries }: { entries: RecEntry[] }) {
 
 /* ---------- 달력 뷰 — 연 네비 + 12개월 그리드(점·건수) + 선택 월 상세 ---------- */
 function CalendarView({ entries }: { entries: RecEntry[] }) {
-  const years = useMemo(
-    () => [...new Set(entries.map((e) => e.year))].sort((a, b) => b - a),
-    [entries],
-  );
+  const years = useMemo(() => [...new Set(entries.map((e) => e.year))].sort((a, b) => b - a), [entries]);
   const thisYear = new Date().getFullYear();
   const thisMonth = new Date().getMonth() + 1;
   const minYear = years.length ? Math.min(...years) : thisYear;
@@ -230,21 +169,11 @@ function CalendarView({ entries }: { entries: RecEntry[] }) {
     <>
       <div className={`${styles.card} ${styles.recCalCard}`}>
         <div className={styles.recCalNav}>
-          <button
-            type="button"
-            disabled={year <= minYear}
-            onClick={() => moveYear(-1)}
-            aria-label="이전 연도"
-          >
+          <button type="button" disabled={year <= minYear} onClick={() => moveYear(-1)} aria-label="이전 연도">
             ‹
           </button>
           <span className={styles.recCalYear}>{year}</span>
-          <button
-            type="button"
-            disabled={year >= maxYear}
-            onClick={() => moveYear(1)}
-            aria-label="다음 연도"
-          >
+          <button type="button" disabled={year >= maxYear} onClick={() => moveYear(1)} aria-label="다음 연도">
             ›
           </button>
         </div>
@@ -264,13 +193,7 @@ function CalendarView({ entries }: { entries: RecEntry[] }) {
               .filter(Boolean)
               .join(" ");
             return (
-              <button
-                key={m}
-                type="button"
-                disabled={!has}
-                onClick={() => setSelMonth(m)}
-                className={cls}
-              >
+              <button key={m} type="button" disabled={!has} onClick={() => setSelMonth(m)} className={cls}>
                 <span className={styles.recCalMonthLabel}>{m}월</span>
                 <span className={styles.recCalDots}>
                   {Array.from({ length: Math.min(count, 3) }, (_, i) => (
@@ -296,18 +219,14 @@ function CalendarView({ entries }: { entries: RecEntry[] }) {
                   <span className={styles.recCalRowDate}>
                     {e.month}.{e.day}
                   </span>
-                  <span className={styles.recCalRowName}>
-                    {e.procs.join(" · ")}
-                  </span>
-                  <Badge {...badgeFor(e.year, e.month, e.day)} />
+                  <span className={styles.recCalRowName}>{e.procs.join(" · ")}</span>
+                  <Badge entry={e} />
                 </div>
               ))}
             </div>
           </>
         ) : (
-          <p className={styles.recCalEmpty}>
-            기록 있는 달을 눌러 상세를 확인하세요.
-          </p>
+          <p className={styles.recCalEmpty}>기록 있는 달을 눌러 상세를 확인하세요.</p>
         )}
       </div>
     </>
@@ -323,9 +242,7 @@ function ListView({ entries }: { entries: RecEntry[] }) {
       .sort((a, b) => b[0] - a[0])
       .map(([year, items]) => ({
         year,
-        items: items.sort(
-          (a, b) => b.month - a.month || b.day - a.day,
-        ),
+        items: items.sort((a, b) => b.month - a.month || b.day - a.day),
       }));
   }, [entries]);
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -353,23 +270,15 @@ function ListView({ entries }: { entries: RecEntry[] }) {
               const isOpen = open.has(e.id);
               return (
                 <div className={`${styles.card} ${styles.recListCard}`} key={e.id}>
-                  <button
-                    type="button"
-                    className={styles.recListBtn}
-                    onClick={() => toggle(e.id)}
-                  >
+                  <button type="button" className={styles.recListBtn} onClick={() => toggle(e.id)}>
                     <span className={styles.recListDate}>
                       {e.month}.{e.day}
                     </span>
                     <span className={styles.recListInfo}>
-                      <span className={styles.recListName}>
-                        {e.procs.join(" · ")}
-                      </span>
+                      <span className={styles.recListName}>{e.procs.join(" · ")}</span>
                       <span className={styles.recListPlace}>{e.place}</span>
                     </span>
-                    <span className={styles.recListChev}>
-                      {isOpen ? "▴" : "▾"}
-                    </span>
+                    <span className={styles.recListChev}>{isOpen ? "▴" : "▾"}</span>
                   </button>
                   {isOpen && (
                     <div className={styles.recListBody}>
@@ -381,8 +290,8 @@ function ListView({ entries }: { entries: RecEntry[] }) {
                         ))}
                       </div>
                       <div className={styles.recListLine}>
-                        <b>{e.doctor}</b>
-                        <span className={styles.sep}>·</span>
+                        {e.doctor && <b>{e.doctor}</b>}
+                        {e.doctor && <span className={styles.sep}>·</span>}
                         {e.place}
                         {e.memo && (
                           <>
@@ -420,9 +329,7 @@ function RecordNotes({ entries }: { entries: RecEntry[] }) {
             <button
               key={m}
               type="button"
-              className={`${styles.recToggleBtn} ${
-                mode === m ? styles.recToggleBtnOn : ""
-              }`}
+              className={`${styles.recToggleBtn} ${mode === m ? styles.recToggleBtnOn : ""}`}
               onClick={() => setMode(m)}
               aria-pressed={mode === m}
             >
@@ -442,230 +349,348 @@ function RecordNotes({ entries }: { entries: RecEntry[] }) {
   );
 }
 
+/* ---------- 인기글 섹션 — 7/30/90일 토글 + 상위 5 + 6~N위 더보기 ---------- */
+const CAT_LABEL: Record<string, string> = {
+  qa: "Q&A",
+  review: "시술후기",
+  doodle: "끄적끄적",
+  review_summary: "리포트",
+};
+const catLabel = (c: string) => CAT_LABEL[c] ?? "글";
+
+function PopularSection({ popular }: { popular: PopularData }) {
+  const [period, setPeriod] = useState<keyof PopularData>("d7");
+  const [expanded, setExpanded] = useState(false);
+  const items = popular[period];
+  const top = items.slice(0, 5);
+  const rest = items.slice(5);
+  const change = (k: keyof PopularData) => {
+    setPeriod(k);
+    setExpanded(false);
+  };
+
+  const Row = ({ it }: { it: PopularItem }) => {
+    const hasHref = it.href !== "/";
+    return (
+      <a
+        className={styles.popRow}
+        href={hasHref ? it.href : "/beta-skin"}
+        target={hasHref ? "_blank" : undefined}
+        rel={hasHref ? "noopener noreferrer" : undefined}
+      >
+        <span className={styles.popRank}>{it.rank}</span>
+        <span className={styles.popInfo}>
+          <span className={styles.popTitle}>{it.title}</span>
+          <span className={styles.popMeta}>
+            {it.authorName} · {catLabel(it.type)}
+          </span>
+        </span>
+      </a>
+    );
+  };
+
+  return (
+    <>
+      <div className={styles.sectionHead}>
+        <h2>인기글</h2>
+        <a className={styles.more} href="/beta-skin">
+          전체보기
+        </a>
+      </div>
+      {/* 작은 기간 토글 — 베타 3토글 칩 스타일 재사용 */}
+      <div className={styles.recToggle} style={{ margin: "0 4px 12px", width: "fit-content" }}>
+        {(
+          [
+            ["d7", "7일"],
+            ["d30", "30일"],
+            ["d90", "90일"],
+          ] as [keyof PopularData, string][]
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            className={`${styles.recToggleBtn} ${period === k ? styles.recToggleBtnOn : ""}`}
+            onClick={() => change(k)}
+            aria-pressed={period === k}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {items.length === 0 ? (
+        <div className={`${styles.card} ${styles.sideCard}`} style={{ textAlign: "center" }}>
+          <p className={styles.muted}>이 기간엔 인기글이 아직 없어요.</p>
+        </div>
+      ) : (
+        <div className={`${styles.card} ${styles.popList}`}>
+          {top.map((it) => (
+            <Row it={it} key={it.rank} />
+          ))}
+          {expanded && rest.map((it) => <Row it={it} key={it.rank} />)}
+          {items.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              style={{
+                display: "block",
+                width: "100%",
+                padding: "12px 0",
+                marginTop: 2,
+                borderTop: "1px solid var(--line)",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "var(--ink-500)",
+                background: "transparent",
+              }}
+            >
+              {expanded ? "접기 ▲" : `6~${items.length}위 보기 ▼`}
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function RecordView({
-  kwCards,
-  keywordChips,
-  popularCards = [],
+  guest = false,
+  userName,
+  summary,
+  latest,
+  diaryCount,
+  reviewsCount,
+  keywordPosts,
+  popular,
+  myKeywords,
 }: {
-  kwCards: CardData[];
-  keywordChips: string[];
-  /** 피드백 3) 인기글 섹션 데이터(피드 풀 상위). */
-  popularCards?: CardData[];
+  guest?: boolean;
+  userName: string;
+  summary: SummaryGroup[];
+  latest: DiaryLatest | null;
+  diaryCount: number;
+  reviewsCount: number;
+  keywordPosts: KeywordPost[];
+  popular: PopularData;
+  myKeywords: string[];
 }) {
-  const chips = keywordChips.length >= 3 ? keywordChips : SAMPLE_CHIPS;
   // 피드백 4) 헤더 검색 → 피드로 라우팅(공용 헬퍼). 피드가 ?q=/?cat= 을 읽어 자동 필터.
   const search = useBetaSearchRouting();
+  // 관심 키워드 칩 — 실데이터 우선, 비면 샘플 폴백(게스트/미등록 회원).
+  const chips = myKeywords.length >= 1 ? myKeywords : SAMPLE_CHIPS;
+  // 시술 노트 — 운영 SummaryGroup[] → RecEntry[](배지용 visitedOn 포함).
+  const entries = useMemo(() => toRecEntries(summary), [summary]);
+  // 관심 키워드 새 글 — 단일 키워드 필터(운영 KeywordCarousel 동작 재현).
+  const [selKw, setSelKw] = useState<string | null>(null);
+  const shownPosts = selKw ? keywordPosts.filter((p) => p.matchedKeywords.includes(selKw)) : keywordPosts;
+  // 회원 히어로 상태(운영 computeStatus 5단계). 게스트는 가입 유도.
+  const status = computeStatus(latest);
 
   const sidebar = (
     <>
-      {/* 피드백 3) 게스트 모드 — 로그인 가정 위젯 대신 가입 유도. */}
-      <section className={`${styles.card} ${styles.sideCard}`}>
-        <h3>내 노트를 시작해보세요</h3>
-        <p className={styles.muted} style={{ marginBottom: 14 }}>
-          가입하면 받은 시술과 경과를 나만의 노트로 기록할 수 있어요.
-        </p>
-        <a
-          className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`}
-          href="/beta-skin/write"
-        >
-          노트 작성해보기
-        </a>
-      </section>
-
-      <section className={`${styles.card} ${styles.sideCard}`}>
-        <h3>인기 Q&A</h3>
-        <div className={styles.sideList}>
-          {popularCards.length > 0 ? (
-            popularCards.slice(0, 3).map((c, i) => (
-              <a href={`/beta-skin/post?id=${c.id}`} key={c.id}>
-                <span className={styles.n}>{i + 1}</span>
-                <span>{c.title}</span>
-              </a>
-            ))
-          ) : (
-            <a href="/beta-skin">
-              <span className={styles.n}>›</span>
-              <span>피드에서 인기 Q&A 보기</span>
-            </a>
-          )}
-        </div>
-      </section>
+      {guest ? (
+        <section className={`${styles.card} ${styles.sideCard}`}>
+          <h3>내 노트를 시작해보세요</h3>
+          <p className={styles.muted} style={{ marginBottom: 14 }}>
+            가입하면 받은 시술과 경과를 나만의 노트로 기록할 수 있어요.
+          </p>
+          <a className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`} href="/beta-skin/write">
+            노트 작성해보기
+          </a>
+        </section>
+      ) : (
+        <section className={`${styles.card} ${styles.sideCard}`}>
+          <h3>오늘 시술 기록하기</h3>
+          <p className={styles.muted} style={{ marginBottom: 14 }}>
+            받은 시술·다운타임·효과를 노트에 남기면 경과를 한눈에 볼 수 있어요.
+          </p>
+          <a className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`} href="/write">
+            노트 작성하기
+          </a>
+        </section>
+      )}
     </>
   );
 
   return (
-    <BetaSkinShell
-      active="내 노트"
-      sidebar={sidebar}
-      {...search}
-      searchSuggestions={chips}
-    >
-      {/* 피드백 3) 게스트 예시 히어로 — 로그인 가정("텐즈님 248일째") 대신 가입 유도. */}
-      <section className={`${styles.card} ${styles.greetCard}`}>
-        <div className={styles.greetTop}>내 시술노트 ✨</div>
-        <h1 className={styles.greetTitle}>
-          받은 시술을 기록하면
-          <br />
-          이렇게 한눈에 보여요
-        </h1>
-        <p
-          className={styles.muted}
-          style={{ margin: "10px 0 4px", color: "rgba(255,255,255,0.92)" }}
-        >
-          병원·시술·다운타임·효과·재방문 주기까지. 가입하면 나만의 시술노트가
-          시작돼요.
-        </p>
-        <div className={styles.greetActions}>
-          <a
-            className={`${styles.btn} ${styles.btnPrimary}`}
-            href="/beta-skin/write"
-          >
-            노트 작성해보기
-          </a>
-        </div>
-      </section>
+    <BetaSkinShell active="내 노트" sidebar={sidebar} {...search}>
+      {/* 히어로 — 게스트=가입 유도, 회원=computeStatus 5단계 인사 */}
+      {guest ? (
+        <section className={`${styles.card} ${styles.greetCard}`}>
+          <div className={styles.greetTop}>내 시술노트 ✨</div>
+          <h1 className={styles.greetTitle}>
+            받은 시술을 기록하면
+            <br />
+            이렇게 한눈에 보여요
+          </h1>
+          <p className={styles.muted} style={{ margin: "10px 0 4px", color: "rgba(255,255,255,0.92)" }}>
+            병원·시술·다운타임·효과·재방문 주기까지. 가입하면 나만의 시술노트가 시작돼요.
+          </p>
+          <div className={styles.greetActions}>
+            <a className={`${styles.btn} ${styles.btnPrimary}`} href="/beta-skin/write">
+              노트 작성해보기
+            </a>
+          </div>
+        </section>
+      ) : (
+        <section className={`${styles.card} ${styles.greetCard}`}>
+          <div className={styles.greetTop}>안녕하세요, {userName}님 👋</div>
+          <h1 className={styles.greetTitle} style={{ whiteSpace: "pre-line" }}>
+            {status.headline}
+          </h1>
+          <p className={styles.muted} style={{ margin: "10px 0 4px", color: "rgba(255,255,255,0.92)" }}>
+            {status.sub}
+          </p>
+          <div className={styles.greetActions}>
+            <a className={`${styles.btn} ${styles.btnPrimary}`} href="/write">
+              오늘 시술 기록하기
+            </a>
+            <a className={`${styles.btn} ${styles.btnGhost}`} href="/write?tab=review">
+              시술 후기 남기기
+            </a>
+          </div>
+        </section>
+      )}
 
-      {/* 시술 노트 — '예시' 라벨 + 타임라인/달력/목록 3토글(더미 데이터). */}
+      {/* 카운팅 대시보드 — 회원만(개인 데이터). 내가 쓴 노트 / 내가 쓴 후기 / 최다 시술 */}
+      {!guest && (
+        <section className={`${styles.card} ${styles.mb20}`} style={{ marginTop: 18 }}>
+          <div className={styles.statRow}>
+            <div>
+              <div className={styles.num}>{diaryCount}</div>
+              <div className={styles.lab}>내가 쓴 노트</div>
+            </div>
+            <div>
+              <div className={styles.num}>{reviewsCount}</div>
+              <div className={styles.lab}>내가 쓴 후기</div>
+            </div>
+            <div>
+              <div className={styles.num}>
+                {(() => {
+                  const f = new Map<string, number>();
+                  for (const e of entries) for (const p of e.procs) f.set(p, (f.get(p) ?? 0) + 1);
+                  return [...f.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+                })()}
+              </div>
+              <div className={styles.lab}>최다 시술</div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 시술 노트 — 회원=실데이터 3토글, 게스트=빈 예시 안내 */}
       <div style={{ marginTop: 24 }}>
-        <div className={styles.recExampleHead}>
-          <h2 className={styles.recNotesTitle}>이렇게 기록돼요</h2>
-          <span className={styles.recExampleTag}>예시</span>
-        </div>
-        <RecordNotes entries={ENTRIES} />
+        {entries.length === 0 ? (
+          <>
+            <div className={styles.recExampleHead}>
+              <h2 className={styles.recNotesTitle}>이렇게 기록돼요</h2>
+              <span className={styles.recExampleTag}>예시</span>
+            </div>
+            <section className={`${styles.card} ${styles.sideCard}`} style={{ textAlign: "center" }}>
+              <p className={styles.muted}>
+                {guest
+                  ? "가입하고 첫 시술을 기록하면 타임라인·달력·목록으로 한눈에 정리돼요."
+                  : "첫 노트를 쓰면 타임라인·달력·목록으로 한눈에 정리돼요."}
+              </p>
+              <a
+                className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`}
+                href={guest ? "/beta-skin/write" : "/write"}
+                style={{ marginTop: 12 }}
+              >
+                첫 노트 쓰러 가기
+              </a>
+            </section>
+          </>
+        ) : (
+          <RecordNotes entries={entries} />
+        )}
       </div>
 
       {/* 관심 키워드 새 글 */}
       <div className={styles.sectionHead}>
-        <h2>관심 키워드 새 글</h2>
-        <a className={styles.more} href="/settings/profile">
-          키워드 편집
+        <h2>{guest ? "인기 키워드 새 글" : "관심 키워드 새 글"}</h2>
+        <a className={styles.more} href={guest ? "/signup" : "/settings/profile"}>
+          {guest ? "내 키워드 만들기" : "키워드 편집"}
         </a>
       </div>
-      {/* 관심 키워드 칩 — 클릭 시 피드로 이동해 그 키워드로 검색·필터(?kw=).
-          항목 4) # 표기 금지 — 키워드만 표시. */}
+      {/* 관심 키워드 칩 — 탭하면 그 키워드 글만, 다시 탭하면 전체(운영 KeywordCarousel 동작). */}
       <div className={styles.chipRow}>
-        {chips.map((c) => (
-          <Link
-            className={`${styles.chip} ${styles.chipNav}`}
-            key={c}
-            href={`/beta-skin?kw=${encodeURIComponent(c)}`}
-          >
-            {c}
-          </Link>
-        ))}
+        {chips.slice(0, 12).map((c) => {
+          const on = selKw === c;
+          return (
+            <button
+              type="button"
+              key={c}
+              className={`${styles.chip} ${styles.chipNav}`}
+              onClick={() => setSelKw(on ? null : c)}
+              aria-pressed={on}
+              style={on ? { background: "var(--tt-blue)", color: "#fff" } : undefined}
+            >
+              {c}
+            </button>
+          );
+        })}
       </div>
 
-      <div className={styles.kwScroll}>
-        {kwCards.length >= 2
-          ? kwCards.map((c, i) => {
-              const author =
-                c.doctor?.name ?? c.author?.display_name ?? "회원";
-              const isDoctor = !!c.doctor && !c.hide_doctor_credential;
-              const kw = c.keywords?.[0] ?? "키워드";
-              // 항목 3) 각 카드의 실제 canonical URL (단일 /beta-skin/post 고정 버그 수정).
-              const href = cardHref(c);
-              const hasHref = href !== "/";
-              return (
-                <a
-                  className={`${styles.card} ${styles.kwCard}`}
-                  href={hasHref ? href : undefined}
-                  target={hasHref ? "_blank" : undefined}
-                  rel={hasHref ? "noopener noreferrer" : undefined}
-                  key={c.id}
-                >
-                  <span
-                    className={`${styles.tag} ${KW_TONES[i % KW_TONES.length]}`}
-                  >
-                    {kw}
-                  </span>
-                  <h3 className={styles.kwTitle}>{c.title}</h3>
-                  <div className={styles.kwFoot}>
-                    <CardAvatar
-                      doctorSlug={c.doctor?.slug}
-                      memberAvatarUrl={c.author?.avatar_url}
-                      name={author}
-                      size={36}
-                    />
-                    <div>
-                      <div className={styles.authorName} style={{ fontSize: 14 }}>
-                        {author}
-                        {isDoctor && (
-                          <span className={styles.verified}>
-                            <IconVerified />
-                          </span>
-                        )}
-                      </div>
-                      <div className={styles.authorSub}>
-                        {isDoctor ? "피부과 전문의" : "회원"}
-                      </div>
-                    </div>
-                    <span className={styles.when}>
-                      {timeAgo(c.created_at) || "최근"}
-                    </span>
-                  </div>
-                </a>
-              );
-            })
-          : SAMPLE_KW_CARDS.map((c) => (
+      {shownPosts.length === 0 ? (
+        <section className={`${styles.card} ${styles.sideCard}`} style={{ textAlign: "center" }}>
+          <p className={styles.muted}>
+            {selKw ? `‘${selKw}’ 키워드의 새 글이 아직 없어요.` : "관심 키워드에 맞는 새 글이 아직 없어요."}
+          </p>
+        </section>
+      ) : (
+        <div className={styles.kwScroll}>
+          {shownPosts.map((p) => {
+            const hasHref = p.href !== "/";
+            return (
               <a
                 className={`${styles.card} ${styles.kwCard}`}
-                href="/beta-skin"
-                key={c.title}
+                href={hasHref ? p.href : undefined}
+                target={hasHref ? "_blank" : undefined}
+                rel={hasHref ? "noopener noreferrer" : undefined}
+                key={p.id}
               >
-                <span className={`${styles.tag} ${c.tagTone}`}>{c.tag}</span>
-                <h3 className={styles.kwTitle}>{c.title}</h3>
+                {p.keyword && <span className={`${styles.tag} ${styles.tagBlue}`}>{p.keyword}</span>}
+                <h3 className={styles.kwTitle}>{p.title}</h3>
                 <div className={styles.kwFoot}>
-                  <span className={`${styles.avatar} ${styles.avatarGray}`} />
+                  <CardAvatar doctorSlug={p.doctorSlug} memberAvatarUrl={p.avatarUrl} name={p.authorName} size={36} />
                   <div>
                     <div className={styles.authorName} style={{ fontSize: 14 }}>
-                      {c.author}
-                      <span className={styles.verified}>
-                        <IconVerified />
-                      </span>
+                      {p.authorName}
+                      {p.doctorSlug && (
+                        <span className={styles.verified}>
+                          <IconVerified />
+                        </span>
+                      )}
                     </div>
-                    <div className={styles.authorSub}>피부과 전문의</div>
+                    <div className={styles.authorSub}>{p.doctorSlug ? "피부과 전문의" : "회원"}</div>
                   </div>
-                  <span className={styles.when}>{c.when}</span>
+                  <span className={styles.when}>
+                    {p.isNew ? "오늘" : p.timeAgo || "최근"}
+                  </span>
                 </div>
               </a>
-            ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* 피드백 3) 인기글 섹션 복원 — 피드 풀 상위(좋아요+저장+댓글) 5개. */}
-      {popularCards.length > 0 && (
+      {/* 인기글 — 회원 전용(사이트 통계 RPC는 로그인 필요). 게스트는 가입 CTA. */}
+      {guest ? (
         <>
           <div className={styles.sectionHead}>
             <h2>인기글</h2>
-            <a className={styles.more} href="/beta-skin">
-              전체보기
+          </div>
+          <section className={`${styles.card} ${styles.sideCard}`} style={{ textAlign: "center" }}>
+            <p className={styles.muted} style={{ marginBottom: 14 }}>
+              가입하면 7일·30일·90일 인기글과 내 시술 기록·관심 키워드 새 글까지 볼 수 있어요.
+            </p>
+            <a className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`} href="/signup">
+              가입하고 내 노트 시작하기
             </a>
-          </div>
-          <div className={`${styles.card} ${styles.popList}`}>
-            {popularCards.map((c, i) => {
-              const author =
-                c.doctor?.name ?? c.author?.display_name ?? "회원";
-              const href = cardHref(c);
-              const hasHref = href !== "/";
-              return (
-                <a
-                  className={styles.popRow}
-                  key={c.id}
-                  href={hasHref ? href : "/beta-skin"}
-                  target={hasHref ? "_blank" : undefined}
-                  rel={hasHref ? "noopener noreferrer" : undefined}
-                >
-                  <span className={styles.popRank}>{i + 1}</span>
-                  <span className={styles.popInfo}>
-                    <span className={styles.popTitle}>{c.title}</span>
-                    <span className={styles.popMeta}>
-                      {author} · {categoryLabel(c)}
-                    </span>
-                  </span>
-                </a>
-              );
-            })}
-          </div>
+          </section>
         </>
+      ) : (
+        <PopularSection popular={popular} />
       )}
     </BetaSkinShell>
   );

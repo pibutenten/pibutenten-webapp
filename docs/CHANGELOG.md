@@ -6,6 +6,28 @@
 
 ---
 
+## [2026-06-13] — /beta-skin 누더기 제거: 운영 함수 전면 재사용 (검색·리포트·내노트·마이·색)
+
+> 베타 스킨이 운영의 데이터·로직 함수를 쓰지 않고 더미로 자체 구현(누더기)한 것이 전수조사로 드러나(검색 드롭다운·리포트 더보기·내노트·마이) 동작·콘텐츠가 운영과 달랐던 문제를 교정. **UI 는 베타 스킨 유지, 데이터·로직은 운영 재사용** 원칙. 운영(`/`·`/record`·`/my`) 동작 불변(회귀 0), 베타 전 페이지 noindex 유지.
+
+### Added
+- **공용 lib `src/lib/record-data.ts`(SSOT)**: 운영 `record/page.tsx` 내부에 비-export 로 흩어져 있던 `toSummaryGroups`·`toKeywordPost`·`cardHref`·`buildPopularData`(인기글 3기간 enrich)·`KEYWORD_SELECT`·`DIARY_SELECT` + 타입(`KeywordCardRow`/`DiaryRow`/`TopCardRow`/`PopularItem`/`PopularData`)을 추출. 운영·베타 양쪽이 import 해 동일 데이터 생성(중복 제거).
+
+### Changed
+- **운영 `record/page.tsx`·`RecordTab.tsx`**: 위 함수·타입을 `record-data` 에서 import 하도록 교체(로직·동작 완전 불변, 미사용 `redirect` import 제거). `PopularItem`/`PopularData` 타입의 SSOT 를 `record-data` 로 이전(RecordTab 은 호환 재노출).
+- **베타 `record/page.tsx`**: 더미 제거. 운영과 동일하게 active 명함 기준 `diaries`(시술 노트)·`get_top_cards_by_views` 7/30/90일(인기글)·관심 키워드(관심시술+피부고민+피부타입) 새 Q&A **limit 20** 조회. 비로그인은 공개 인기 키워드 예시 폴백.
+- **베타 `record/RecordView.tsx`**: 더미 `ENTRIES`/`SAMPLE_*`/`badgeFor` 제거. 시술 노트 3토글(타임라인/달력/목록)을 `SummaryGroup → RecEntry` 어댑터로 운영 실데이터 구동, 배지는 운영 `recordBadge`(diary-status SSOT). 히어로는 회원 `computeStatus` 5단계. 인기글에 **7/30/90일 작은 토글 + 상위 5위 + 6~N위 더보기**. 관심 키워드 새 글 20개 + 칩 단일 필터.
+- **베타 `my/page.tsx`·`MyView.tsx`**: 정적 더미 제거. active 명함 기준 **내 활동 4탭**(내가 쓴 노트=`diaries` / 내가 쓴 후기=`cards review` / 내가 쓴 글=`cards not in(review,review_summary)` / 내 글에 달린 댓글) + 실통계 4카드 + 세션 프로필. 비로그인은 로그인 CTA. 베타 카드 UI 유지. 기존 메뉴 링크 유지.
+- **검색 드롭다운**: 베타 자체 더미 드롭다운(하드코딩 추천·최근검색) 제거 → 운영 `components/beta/BetaDiscovery` 재사용(최근검색 `beta-recent` + 인기검색어 + 카테고리별 인기태그 5탭 + 타이핑 자동완성). `BetaDiscovery` 에 `basePath` prop 추가(운영 `/?q=`·베타 `/beta-skin?q=` 분기) — 운영 `BetaNav` 무수정·회귀 0. 베타 `page.tsx` 의 `popularQueries` 산출/전달 제거(BetaDiscovery 가 자체 fetch).
+- **리포트 더보기**: `BetaReportCard` 펼침에 운영 lazy fetch(`/api/reports/{en}/reviews?offset=0&limit=3&include_report=1`) 이식 → 다운타임(`DowntimeGauge`)·효과 영역·효과시점(`EffectOnsetTimeline`)·작성자 성별/연령 통계·개별 후기 3개(`ReportReviewItem`) 인라인. 운영 `revisitPhrase`/`satisfactionPhrase`/`painPhrase`/`downtimeHeadline`/`PAIN_*`/`painPos` 를 `ProcedureReportCard` 에서 `export` 해 재사용(베타 중복 복제 삭제, 운영 동작 불변). 군더더기 "만족도·통증 자세히는 더보기" 삭제. "전체 리포트 보기 →" 는 펼친 맨 아래만.
+- **글상자**: 제목 클릭 → 단독 글 URL(`getQaUrl`, 본문 펼침과 분리), 펼친 글 '접기' 라벨 제거(본문 클릭으로 접힘), 사이드 인기태그 8→**16개**(선택해도 순서 유지). 검색 실행 시 `addRecent` 로 최근검색 저장.
+- **색 톤다운(과한 진파랑 완화)**: 전체 탭·글쓰기 버튼 `#16699c`→`#2a9fd6`(로고 톤), 재시술 의향 3색 파스텔 배경+진한 글자, 내 노트 첫 글상자 진파랑 그라데이션→연한 하늘+진한 글자, 인기태그 선택 시 단색 파랑→**카테고리 색에서 진해짐**(정체성 유지). 피드 카테고리 칩 `min-width` 로 폭 리듬 통일(끄적끄적 튐 해소).
+
+### Notes
+- **"내 글에 달린 댓글"** 은 신규 SELECT 쿼리(`comments JOIN cards!inner(author_id=active) AND comments.author_id != active`). DB 마이그레이션 없이 기존 `comments_select` RLS 정책이 "본인 글에 달린 댓글" SELECT 를 허용함을 정책 분석 + production SQL(샘플 9건)로 검증.
+
+---
+
 ## [2026-06-13] — /beta-skin 프리뷰를 실제 작동 앱으로 (검색 서버화·카드 액션·죽은링크 해소·접근성)
 
 > 승격 후보 디자인 시안 `/beta-skin` 을 서브에이전트 교차 검수(1차 갭분석 4 + 전수 4 + 재검수 4 + 코드검수)로 더미·죽은링크를 전수 식별 후 실제 동작·운영 정합으로 보완. 운영 코드 무변경(`robots.ts` 제외), 전 페이지 noindex 유지.

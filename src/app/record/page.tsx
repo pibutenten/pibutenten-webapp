@@ -1,35 +1,20 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
-import { formatRelativeTime } from "@/lib/relative-time";
 import { getPopularByCategory } from "@/lib/popular-keywords";
-import RecordTab, { type PopularData, type PopularItem } from "./RecordTab";
+import RecordTab from "./RecordTab";
 import type { KeywordPost } from "./KeywordCarousel";
-import type { SummaryGroup, SummaryItem } from "../mockups/skin-diary/SkinDiaryMockup";
-
-// 관심 키워드 카드(컴팩트) 조회 행.
-type KeywordCardRow = {
-  id: number;
-  title: string | null;
-  created_at: string | null;
-  keywords: string[] | null;
-  post_year: number | null;
-  post_slug: string | null;
-  shortcode: string | null;
-  doctor: { slug: string | null; name: string | null; photo_url: string | null } | null;
-  author: { handle: string | null; display_name: string | null; avatar_url: string | null } | null;
-};
-
-const KEYWORD_SELECT =
-  "id, title, created_at, keywords, post_year, post_slug, shortcode, doctor:doctors(slug, name, photo_url), author:profiles!cards_author_id_profiles_fkey(handle, display_name, avatar_url)";
-
-/** 카드 → 상세 링크(원장 글: keyword slug / 회원 글: handle+shortcode). */
-function cardHref(c: { doctor?: { slug: string | null } | null; post_year: number | null; post_slug: string | null; shortcode: string | null; author?: { handle: string | null } | null }): string {
-  if (c.doctor?.slug && c.post_year && c.post_slug) return `/doctors/${c.doctor.slug}/${c.post_year}/${c.post_slug}`;
-  if (c.shortcode && c.author?.handle) return `/${c.author.handle}/${c.shortcode}`;
-  return "/";
-}
+import type { SummaryGroup } from "../mockups/skin-diary/SkinDiaryMockup";
+import {
+  KEYWORD_SELECT,
+  DIARY_SELECT,
+  toSummaryGroups,
+  toKeywordPost,
+  buildPopularData,
+  type KeywordCardRow,
+  type DiaryRow,
+  type TopCardRow,
+} from "@/lib/record-data";
 
 // BetaNav 가 useSearchParams 사용 → 정적 프리렌더 회피(동적 렌더).
 export const dynamic = "force-dynamic";
@@ -38,77 +23,6 @@ export const metadata: Metadata = {
   title: "내 노트",
   robots: { index: false, follow: false },
 };
-
-// diaries(부모) + diary_procedures(자식 N) 조인 행. RLS 가 active 명함 소유분만 반환.
-type DiaryRow = {
-  id: number;
-  visited_on: string; // "YYYY-MM-DD"
-  clinic_name: string | null;
-  clinic_tel: string | null;
-  doctor_name: string | null;
-  manager_name: string | null;
-  diary_body: string | null;
-  diary_procedures: { procedure_ko: string; unit_text: string | null; price: number | null; sort_order: number }[];
-};
-
-// diaries 행 → 내 노트 패널이 쓰는 SummaryGroup[](연도 내림차순, 같은 해는 최신 방문순).
-function toSummaryGroups(rows: DiaryRow[]): SummaryGroup[] {
-  const byYear = new Map<number, SummaryItem[]>();
-  for (const r of rows) {
-    const [y, m, d] = r.visited_on.split("-");
-    const year = Number(y);
-    const procs = [...r.diary_procedures].sort((a, b) => a.sort_order - b.sort_order);
-    const items = procs.map((p) => ({ name: p.procedure_ko, unit: p.unit_text ?? "" }));
-    const totalPrice = procs.reduce((s, p) => s + (p.price ?? 0), 0);
-    const hasPrice = procs.some((p) => p.price != null);
-    const item: SummaryItem = {
-      id: String(r.id),
-      date: `${m}.${d}`,
-      proc: items.map((i) => i.name).join(" · "),
-      hospital: r.clinic_name ?? "병원 미입력",
-      doctor: r.doctor_name ?? "",
-      manager: r.manager_name ?? undefined,
-      tel: r.clinic_tel ?? "",
-      price: hasPrice ? `${totalPrice.toLocaleString("ko-KR")}원` : "",
-      memo: r.diary_body ?? "",
-      items,
-    };
-    byYear.set(year, [...(byYear.get(year) ?? []), item]);
-  }
-  return [...byYear.entries()]
-    .sort((a, b) => b[0] - a[0])
-    .map(([year, items]) => ({ year, items: [...items].sort((a, b) => b.date.localeCompare(a.date)) }));
-}
-
-// get_top_cards_by_views 반환 행(0280 으로 회원도 사이트 전체 호출 가능).
-type TopCardRow = {
-  card_id: number;
-  title: string | null;
-  author_name: string | null;
-  cnt: number;
-  deleted_at: string | null;
-};
-
-const DAY_MS = 86_400_000;
-
-// KeywordCardRow → KeywordPost. matchedKeywords = 칩(관심/인기) ∩ 카드 keywords (필터용).
-function toKeywordPost(c: KeywordCardRow, chipSet: Set<string>, now: number): KeywordPost {
-  const matched = (c.keywords ?? []).filter((k) => chipSet.has(k));
-  return {
-    id: c.id,
-    title: c.title ?? "",
-    type: "qa",
-    authorName: c.doctor?.name ?? c.author?.display_name ?? "회원",
-    // 원장 글은 피드와 동일한 아바타 보정(getDoctorPhoto/theme)을 위해 slug 전달. 회원 글은 avatar_url.
-    doctorSlug: c.doctor?.slug ?? null,
-    avatarUrl: c.doctor ? null : c.author?.avatar_url ?? null,
-    isNew: c.created_at ? now - new Date(c.created_at).getTime() < DAY_MS : false,
-    timeAgo: c.created_at ? formatRelativeTime(c.created_at) : "",
-    keyword: matched[0] ?? (c.keywords?.[0] ?? ""),
-    matchedKeywords: matched.length > 0 ? matched : (c.keywords ?? []),
-    href: cardHref(c),
-  };
-}
 
 // 비로그인 게스트 데모 — 가입 유도용 '예시' 타임라인(개인 데이터 없음).
 const DEMO_SUMMARY: SummaryGroup[] = [
@@ -204,7 +118,7 @@ export default async function RecordPage() {
   const [diariesRes, reviewCntRes, top7Res, top30Res, top90Res, kwRes] = await Promise.all([
     supabase
       .from("diaries")
-      .select("id, visited_on, clinic_name, clinic_tel, doctor_name, manager_name, diary_body, diary_procedures(procedure_ko, unit_text, price, sort_order)")
+      .select(DIARY_SELECT)
       .order("visited_on", { ascending: false })
       .returns<DiaryRow[]>(),
     supabase
@@ -251,38 +165,13 @@ export default async function RecordPage() {
   const keywordPosts: KeywordPost[] = ((kwRes.data ?? []) as KeywordCardRow[]).map((c) => toKeywordPost(c, interestSet, now));
 
   // 인기글 — 3기간 RPC + 카드 enrich(공개 카드만). deleted 제외, 조회수(cnt) 표시.
-  const periods: [keyof PopularData, TopCardRow[]][] = [
-    ["d7", ((top7Res.data ?? []) as TopCardRow[]).filter((r) => !r.deleted_at)],
-    ["d30", ((top30Res.data ?? []) as TopCardRow[]).filter((r) => !r.deleted_at)],
-    ["d90", ((top90Res.data ?? []) as TopCardRow[]).filter((r) => !r.deleted_at)],
-  ];
-  const allIds = Array.from(new Set(periods.flatMap(([, rs]) => rs.map((r) => r.card_id))));
-  const enrichMap = new Map<number, { href: string; type: string }>();
-  if (allIds.length > 0) {
-    const { data: enrichRows } = await supabase
-      .from("cards")
-      .select("id, category, post_year, post_slug, shortcode, doctor:doctors(slug), author:profiles!cards_author_id_profiles_fkey(handle)")
-      .in("id", allIds)
-      .eq("status", "published")
-      .is("deleted_at", null)
-      .returns<{ id: number; category: string | null; post_year: number | null; post_slug: string | null; shortcode: string | null; doctor: { slug: string | null } | null; author: { handle: string | null } | null }[]>();
-    for (const e of enrichRows ?? []) enrichMap.set(e.id, { href: cardHref(e), type: e.category ?? "" });
-  }
-  const popular = Object.fromEntries(
-    periods.map(([key, rs]) => [
-      key,
-      rs
-        .filter((r) => enrichMap.has(r.card_id))
-        .map((r, i): PopularItem => ({
-          rank: i + 1,
-          title: r.title ?? "",
-          authorName: r.author_name ?? "회원",
-          type: enrichMap.get(r.card_id)?.type ?? "",
-          views: Number(r.cnt) || 0,
-          href: enrichMap.get(r.card_id)?.href ?? "/",
-        })),
-    ]),
-  ) as PopularData;
+  //   가공 로직은 record-data.buildPopularData(SSOT)로 추출 — 베타 스킨과 공용.
+  const popular = await buildPopularData(
+    supabase,
+    (top7Res.data ?? []) as TopCardRow[],
+    (top30Res.data ?? []) as TopCardRow[],
+    (top90Res.data ?? []) as TopCardRow[],
+  );
 
   return (
     <RecordTab

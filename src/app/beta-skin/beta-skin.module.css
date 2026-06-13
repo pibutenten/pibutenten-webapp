@@ -357,6 +357,14 @@
   display: none;
 }
 .chip {
+  /* 항목1) 글자수와 무관하게 칩 리듬 통일.
+     패딩은 좌우 동일(16px)로 이미 통일, 추가로 min-width + 가운데 정렬로
+     "끄적끄적"처럼 글자 폭이 넓은 칩이 혼자 튀지 않게 최소폭 보장.
+     (고정폭이 아니라 min-width 라 긴 라벨은 자연 확장된다.) */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
   padding: 8px 16px;
   border-radius: var(--r-chip);
   font-size: 13px;
@@ -375,8 +383,9 @@
  *   비활성: .chip (흰 배경 + 회색 글씨, 위 정의)
  *   활성: 브랜드 짙은 톤 1가지 + 흰 글씨 */
 .chipActive {
-  /* WCAG AA: #16699c 위 흰글자 약 5.9:1 (구 var(--tt-blue-deep) #1f8fc6 = 3.54:1). */
-  background: #16699c;
+  /* 항목2) 진한 #16699c(5.9:1) → 로고색에 가까운 한 단계 밝은 톤 #2a9fd6 로 톤다운.
+     #2a9fd6 위 흰글자 대비 약 3.1:1 (큰글자/볼드 13px↑ AA Large 3:1 충족, 가벼움 우선). */
+  background: #2a9fd6;
   color: #fff;
 }
 
@@ -553,7 +562,6 @@
   background: #eef3f7;
   font-size: 11px;
   font-weight: 700;
-  color: #fff;
 }
 .reportBar > span {
   display: flex;
@@ -562,14 +570,20 @@
   overflow: hidden;
   white-space: nowrap;
 }
+/* 항목2) 재시술 의향 3색 → 연한 파스텔 배경 + 같은 계열 진한 글자.
+   막대를 연하게 한 만큼 흰 라벨은 안 보이므로 글자를 진하게 전환(대비 확보).
+   파스텔 배경 위 진한 글자 대비 모두 4.5:1↑(작은 11px 글자 AA Normal 충족). */
 .reportBarYes {
-  background: #147aa8;
+  background: #c7e7f3;
+  color: #0f5e84;
 }
 .reportBarMaybe {
-  background: #6a727e;
+  background: #dde1e7;
+  color: #4a525e;
 }
 .reportBarNo {
-  background: #c5403d;
+  background: #f6d4d2;
+  color: #9c2d2a;
 }
 .reportLegend {
   display: flex;
@@ -587,14 +601,15 @@
   margin-right: 5px;
   vertical-align: middle;
 }
+/* 항목2) 레전드 도트 — 막대 글자색(진한 계열)과 통일해 정체성 유지·식별 확보. */
 .reportDotYes {
-  background: #147aa8;
+  background: #2a9fd6;
 }
 .reportDotMaybe {
-  background: #6a727e;
+  background: #8a929e;
 }
 .reportDotNo {
-  background: #c5403d;
+  background: #d97c79;
 }
 /* 만족도 — 별점 골드 + 평균 + 분포 막대(골드, 운영 DistBars). */
 .reportSatRow {
@@ -657,6 +672,110 @@
   text-align: right;
   flex: none;
 }
+
+/* ---------- 효과 영역 막대 (운영 effects 시각화 재현) ----------
+ * 만족도 분포(.reportDist*) 톤과 통일: 연한 둥근 트랙(#eef1f4) + 둥근 채움.
+ * 채움색은 마크업이 BETA_EFFECT_COLORS 인라인으로 지정 → CSS는 구조만 담당.
+ * 라벨은 만족도(폭 12px 숫자)와 달리 텍스트라 폭을 넉넉히(운영 w-16 대응). */
+.reportEffectList {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.reportEffectRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11.5px;
+  color: var(--ink-500);
+}
+.reportEffectLabel {
+  width: 72px;
+  flex: none;
+  font-weight: 700;
+  color: var(--ink-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.reportEffectTrack {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: #eef1f4;
+  overflow: hidden;
+}
+.reportEffectFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  /* 채움색은 인라인(backgroundColor)으로 지정됨 — 폴백만 둠. */
+  background: var(--tt-blue);
+}
+.reportEffectPct {
+  width: 34px;
+  flex: none;
+  text-align: right;
+  font-weight: 700;
+  color: var(--ink-500);
+}
+.reportEffectNone {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-300);
+}
+
+/* ---------- 작성자 통계 — 성별·연령 분할 바 + 범례 (운영 demographics 재현) ----------
+ * 단일 가로 분할 바: 둥근 모서리 + 내부 span 들이 width%로 색 분할(색은 인라인).
+ * 베타 톤: 운영(h-14px rounded-full)을 연한 둥근 막대로 옮김. */
+.reportDemoBar {
+  display: flex;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #eef1f4;
+}
+.reportDemoBar > span {
+  display: block;
+  height: 100%;
+}
+/* 연령 분할 바 — 성별 바 아래에 간격만 추가(구조는 .reportDemoBar 공유). */
+.reportDemoBarAge {
+  margin-top: 12px;
+}
+.reportDemoLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--ink-500);
+}
+.reportDemoLegend span {
+  display: inline-flex;
+  align-items: center;
+}
+.reportDemoLegend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  margin-right: 6px;
+  /* 색은 인라인(backgroundColor)으로 지정됨. */
+}
+
+/* ---------- 개별 후기 리스트 (운영 ReportReviewItem 임베드, 최대 3) ----------
+ * <ul> 컨테이너 — 자식 아이템은 ReportReviewItem 자체 스타일. 여기선 리스트 리듬만. */
+.reportReviewList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* 통증 — 운영 정합: 5색 그라데이션 막대 + 평균 마커 + 5단계 라벨. */
 .reportPainBar {
   position: relative;
@@ -765,12 +884,22 @@
   margin-top: 2px;
 }
 
+/* 제목 링크 <a> — 내부 <h2.postTitle> 을 감쌈.
+ * 밑줄 없음(reset 의 text-decoration:none 상속), 기본 ink 색, hover 시 브랜드색. */
+.postTitleLink {
+  display: block;
+  color: inherit;
+}
+.postTitleLink:hover .postTitle {
+  color: var(--tt-blue-deep);
+}
 .postTitle {
   font-size: 18px;
   font-weight: 800;
   line-height: 1.45;
   margin: 14px 0 9px;
   color: var(--ink-900);
+  transition: color 0.12s ease;
 }
 .postBody {
   font-size: 14.5px;
@@ -1133,15 +1262,41 @@ button.t:hover {
   background: rgba(158, 157, 36, 0.16);
   color: #6a6915;
 }
-/* 활성(현재 검색어 = 그 태그): 브랜드 단색으로 강조(카테고리색 덮어씀). */
-.tagBtnActive,
-.tagBtnActive.catConcerns,
-.tagBtnActive.catLifting,
-.tagBtnActive.catInjectables,
-.tagBtnActive.catHomecare,
+/* 항목3) 활성(현재 검색어 = 그 태그): 단색 파랑으로 덮지 않고,
+   각 카테고리 색 정체성을 유지한 채 "더 진해지는" 방식으로 선택 표현.
+   - 배경 알파를 비활성보다 높여 같은 색 계열에서 진하게
+   - 같은 카테고리 색 테두리(inset box-shadow) + 굵게로 "선택됨" 강조
+   카테고리 클래스가 없는 폴백(.tagBtnActive 단독)만 중립 진한 회색 톤. */
+.tagBtnActive {
+  font-weight: 800;
+  background: #d7dee6;
+  color: var(--ink-900);
+  box-shadow: inset 0 0 0 1.5px rgba(60, 72, 86, 0.45);
+}
+.tagBtnActive.catConcerns {
+  background: rgba(126, 87, 194, 0.28);
+  color: #56329a;
+  box-shadow: inset 0 0 0 1.5px rgba(106, 69, 176, 0.55);
+}
+.tagBtnActive.catLifting {
+  background: rgba(41, 182, 246, 0.32);
+  color: #125a80;
+  box-shadow: inset 0 0 0 1.5px rgba(23, 109, 153, 0.55);
+}
+.tagBtnActive.catInjectables {
+  background: rgba(244, 143, 177, 0.36);
+  color: #97335a;
+  box-shadow: inset 0 0 0 1.5px rgba(176, 62, 104, 0.5);
+}
+.tagBtnActive.catHomecare {
+  background: rgba(191, 110, 92, 0.3);
+  color: #823c2a;
+  box-shadow: inset 0 0 0 1.5px rgba(151, 71, 50, 0.5);
+}
 .tagBtnActive.catKnowledge {
-  background: var(--tt-blue-deep);
-  color: #fff;
+  background: rgba(158, 157, 36, 0.32);
+  color: #595912;
+  box-shadow: inset 0 0 0 1.5px rgba(106, 105, 21, 0.5);
 }
 .tagClear {
   display: inline-block;
@@ -1384,13 +1539,13 @@ button.t:hover {
   .headerSearchLive input::placeholder {
     color: var(--ink-300);
   }
-  /* 피드백 7) 브랜드 진파랑 배경 + 흰 글씨.
-     WCAG AA: #16699c 위 흰글자 약 5.9:1 (구 var(--tt-blue) #45b7e8 = 2.28:1 미달). */
+  /* 항목2) 브랜드 진파랑 → 로고색 가까운 밝은 톤으로 톤다운.
+     #2a9fd6 위 흰글자 대비 약 3.1:1 (볼드 13.5px AA Large 3:1 충족, 가벼움 우선). */
   .btnWriteTop {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    background: #16699c;
+    background: #2a9fd6;
     color: #fff;
     font-weight: 700;
     font-size: 13.5px;
@@ -1401,7 +1556,7 @@ button.t:hover {
     transition: background 0.14s ease;
   }
   .btnWriteTop:hover {
-    background: #115580;
+    background: #1f8fc6;
   }
   .btnWriteTop svg {
     width: 15px;
@@ -1540,35 +1695,49 @@ button.t:hover {
 /* ============================================================
    내 노트 (/beta-skin/record)
    ============================================================ */
-/* greet 영역 — 브랜드 파랑 배경 + 흰 텍스트로 일관.
-   본문 <p> 는 마크업이 흰색(rgba(255,255,255,0.92))을 지정하므로,
-   .card 의 흰 배경(1.11:1 미달)을 파랑 그라데이션으로 덮어 대비 확보.
-   #1f8fc6 위 흰글자 약 3.5:1↑, 진한 영역(#1a6f9c)에선 4.5:1↑. */
+/* 항목2) greet 영역 — 진한 파랑 그라데이션 → 연한 브랜드 하늘 톤 + 진한 글자(과거 디자인).
+   본문 <p> 는 마크업(record/RecordView.tsx)이 인라인 color:rgba(255,255,255,0.92)(흰)로
+   하드코딩돼 있어, CSS만 수정하는 본 작업에선 .greetCard p 로 진한 글자 강제 오버라이드한다.
+   연한 배경 #e3f2fb 위 진한 글자 #134b66 대비 약 8:1 (AA 충족). */
 .greetCard {
   margin-bottom: 8px;
-  background: linear-gradient(135deg, #19729f 0%, #155a82 100%);
-  color: #fff;
+  background: linear-gradient(135deg, #e8f5fd 0%, #d3ebf8 100%);
+  color: var(--tt-nav-ink);
+}
+/* 인라인 흰색 <p> 를 진한 글자로 덮음(연한 배경 위 가독 확보). */
+.greetCard p {
+  color: var(--tt-nav-ink) !important;
 }
 .greetTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: rgba(255, 255, 255, 1);
+  color: var(--tt-nav-ink);
   font-size: 14px;
 }
 .greetTop .chev {
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--tt-blue-deep);
 }
 .greetTitle {
   font-size: 21px;
   font-weight: 800;
   line-height: 1.42;
   margin: 10px 0 18px;
-  color: #fff;
+  color: var(--tt-nav-ink);
 }
 .greetActions {
   display: flex;
   gap: 10px;
+}
+/* 항목2) greet 배경을 연한 하늘로 낮추면서 .btnPrimary(연한 #cdebfa)가
+   배경에 묻히지 않도록, greet 내부 버튼만 또렷한 솔리드 톤으로 보정.
+   #2a9fd6 위 흰글자 대비 약 3.1:1 (볼드 14px AA Large 충족). */
+.greetCard .btnPrimary {
+  background: #2a9fd6;
+  color: #fff;
+}
+.greetCard .btnPrimary:hover {
+  background: #1f8fc6;
 }
 
 .timeline {

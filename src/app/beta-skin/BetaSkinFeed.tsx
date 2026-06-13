@@ -20,6 +20,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
+// 검색 실행 시 최근 검색어 저장(운영 BetaNav.submit 과 동일 진입점).
+import { addRecent } from "@/lib/beta-recent";
 import BetaSkinShell from "./BetaSkinShell";
 import styles from "./beta-skin.module.css";
 import {
@@ -57,7 +59,6 @@ export default function BetaSkinFeed({
   searchReport = null,
   searchQuery,
   viewerStates,
-  popularQueries = [],
 }: {
   initialPool: CardData[];
   /** 줄세우기(랭킹) 전체 순서의 카드 ID 목록. 무한스크롤이 이 순서대로 ID 로 이어 받음. */
@@ -70,8 +71,6 @@ export default function BetaSkinFeed({
   searchQuery?: string;
   /** 서버 prefetch 한 좋아요/저장 상태(card.id → 상태). */
   viewerStates?: Record<number, BetaViewerState>;
-  /** 헤더 검색 드롭다운에 노출할 실제 인기검색어(get_top_search_queries). */
-  popularQueries?: string[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -173,9 +172,10 @@ export default function BetaSkinFeed({
     return () => ob.disconnect();
   }, [loadMore]);
 
-  // 검색 제출(엔터/추천 클릭) → 서버 재검색 라우팅.
+  // 검색 제출(엔터/추천 클릭) → 서버 재검색 라우팅 + 최근 검색어 저장(localStorage).
   const submitSearch = (q: string) => {
     const t = q.trim();
+    if (t) addRecent(t); // 운영 BetaNav 와 동일 — 검색 실행 시 최근 검색어에 기록.
     router.push(t ? `/beta-skin?q=${encodeURIComponent(t)}` : "/beta-skin");
   };
   // 태그 클릭 → 그 키워드로 서버 검색 라우팅(운영 동일).
@@ -200,7 +200,8 @@ export default function BetaSkinFeed({
   // 검색('전체' 탭)일 때 시술명이 리포트와 매칭되면 결과 맨 위에 리포트 카드 1장.
   const topReport = searchQuery && chip === "all" ? searchReport : null;
 
-  // 전체 풀 keywords 빈도 순위(사이드 인기 태그용).
+  // 전체 풀 keywords 빈도 순위(사이드 인기 태그용) — 항목3) 16개.
+  //   pool 기반(검색어 무관) → 태그 클릭(applyTag=query 변경)해도 이 순서는 불변(맨 위로 안 올라옴).
   const popularTags = useMemo(() => {
     const freq = new Map<string, number>();
     for (const c of pool) {
@@ -211,7 +212,7 @@ export default function BetaSkinFeed({
     return [...freq.entries()]
       .sort((a, b) => b[1] - a[1])
       .map(([k]) => k)
-      .slice(0, 8);
+      .slice(0, 16);
   }, [pool]);
 
   // 인기 Q&A: doctor 글(Q&A) 상위 5개.
@@ -279,12 +280,6 @@ export default function BetaSkinFeed({
     </>
   );
 
-  // 드롭다운 카테고리 바로가기 — 클릭 시 해당 칩 필터(전체 제외).
-  const searchCategories = CHIPS.filter((c) => c.key !== "all").map((c) => ({
-    key: c.key,
-    label: c.label,
-  }));
-
   return (
     <BetaSkinShell
       active="피드"
@@ -293,9 +288,6 @@ export default function BetaSkinFeed({
       searchValue={searchValue}
       onSearchChange={setSearchValue}
       onSearchSubmit={submitSearch}
-      searchSuggestions={popularQueries}
-      searchCategories={searchCategories}
-      onPickCategory={(key) => setChip(key as ChipKey)}
     >
       {/* 칩/검색 전환 시 리스트 컨테이너 remount(key=칩+검색어) → fadeInUp 재발화.
           무한스크롤(pool append)은 같은 key 라 추가분만 append(스크롤 유지). */}
