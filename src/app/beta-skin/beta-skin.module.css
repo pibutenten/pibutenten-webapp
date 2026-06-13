@@ -2829,15 +2829,8 @@ button.t:hover {
   .greetActions {
     max-width: 440px;
   }
-  .kwScroll {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    overflow: visible;
-  }
-  .kwCard {
-    min-width: 0;
-    max-width: none;
-  }
+  /* 관심 키워드 새 글 — 데스크탑에서도 가로 캐러셀(좌우 스크롤) 유지.
+     (옛 grid 2열 override 제거 — .kwScroll/.kwCard 는 기본 정의의 flex nowrap·240px 고정폭 사용) */
   .articleTitle {
     font-size: 25px;
   }
