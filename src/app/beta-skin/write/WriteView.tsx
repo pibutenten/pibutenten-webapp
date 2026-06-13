@@ -19,6 +19,10 @@ import { useRouter } from "next/navigation";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
 import { useBetaSearchRouting } from "../beta-ui";
+// 시술노트/시술후기 폼은 자체 재구현(누더기) 폐기 → 운영 작성 폼을 그대로 재사용.
+//   날짜 표시(괄호 없음)·병원 검색(clinics DB, name_nospace)·정량 컨트롤이 운영과 100% 동일.
+import { DiaryForm, ReviewOnlyForm } from "@/app/mockups/skin-diary/SkinDiaryMockup";
+import { showToast } from "@/lib/toast";
 
 /* 글 유형 3탭 — 운영 WriteTabs 와 동일 구성. */
 const TYPES = [
@@ -499,6 +503,14 @@ function DoodleFormView() {
 export default function WriteView() {
   const [type, setType] = useState<TypeKey>("record");
   const search = useBetaSearchRouting();
+  const router = useRouter();
+  // 운영 DiaryForm/ReviewOnlyForm 의 화면 전환 콜백 — 베타 라우트로 매핑.
+  //   제출 완료(record) 시 베타 내 노트로 이동, 폼 간 전환은 탭 state 로.
+  const go = (s: "diary" | "reviewonly" | "record" | "detail" | "noti") => {
+    if (s === "record" || s === "detail") router.push("/beta-skin/record");
+    else if (s === "reviewonly") setType("review");
+    else setType("record");
+  };
 
   const sidebar = (
     <>
@@ -566,8 +578,9 @@ export default function WriteView() {
           ))}
         </div>
 
-        {type === "record" && <DiaryFormView />}
-        {type === "review" && <ReviewFormView />}
+        {/* 시술노트·시술후기 — 운영 작성 폼 그대로(날짜 괄호 없음·병원 검색 동작). */}
+        {type === "record" && <DiaryForm toast={showToast} go={go} />}
+        {type === "review" && <ReviewOnlyForm toast={showToast} go={go} />}
         {type === "doodle" && <DoodleFormView />}
       </div>
     </BetaSkinShell>
