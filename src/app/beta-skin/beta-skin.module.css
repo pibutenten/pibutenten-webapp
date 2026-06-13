@@ -123,8 +123,15 @@
   --accent: #9aa3b0;
   --text-muted: #9aa3b0;
 }
-.root .betaComments :focus-visible {
+/* 입력창(textarea/input)만 3px 파란 링 제거 — 폼 자체 보더로 포커스 표현.
+   버튼류는 접근성(WCAG 2.4.7 Focus Visible) 위해 은은한 회색 포커스 링 유지. */
+.root .betaComments textarea:focus-visible,
+.root .betaComments input:focus-visible {
   outline: none;
+}
+.root .betaComments button:focus-visible {
+  outline: 2px solid #c2cad4;
+  outline-offset: 2px;
 }
 /* 좋아요 하트 — 변수가 더 구체적인 규칙에 밀려 어둡게 나오므로 색을 직접 강제(회색). svg currentColor 가 따라옴.
    + 답글↔하트 간격(인라인 marginLeft:2px 너무 좁음)도 함께. */
