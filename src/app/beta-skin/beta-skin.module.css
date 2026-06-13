@@ -182,6 +182,26 @@
   max-height: 420px;
   overflow-y: auto;
 }
+/* 항목 12) 모바일 검색 풀스크린 패널 — 헤더 아래로 큰 발견 화면(운영 모바일 검색 정합).
+   헤더(약 60px) 아래부터 화면 하단까지, 흰 배경, 스크롤. 데스크탑은 미사용. */
+.mobileSearchPanel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 60px;
+  bottom: 0;
+  z-index: 45;
+  background: #fff;
+  overflow-y: auto;
+  padding: 16px 16px 96px;
+  -webkit-overflow-scrolling: touch;
+}
+@media (min-width: 900px) {
+  /* 데스크탑은 헤더 검색 pill 드롭다운만 사용 — 모바일 패널 숨김(안전 가드). */
+  .mobileSearchPanel {
+    display: none;
+  }
+}
 /* 피드백 1) 드롭다운 섹션(최근검색/카테고리/추천) */
 .searchSuggestGroup + .searchSuggestGroup {
   margin-top: 10px;
@@ -297,6 +317,23 @@
 .iconBtn svg {
   width: 21px;
   height: 21px;
+}
+/* 항목 3) 헤더 우상단 아바타(동그라미) — 운영 BetaNav 와 동일 표시. */
+.headerAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--ink-100, #eef1f4);
+  display: inline-flex;
+}
+.headerAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 12%;
+  transform: scale(1.18);
+  transform-origin: 50% 30%;
 }
 /* 알림 벨 — 미읽음 배지 절대배치 기준점. */
 .bellWrap {
@@ -1186,58 +1223,58 @@ button.t:hover {
 }
 
 /* ---------- 하단 둥근 탭바 (모바일) ---------- */
+/* 사용자) 진한 솔리드 블루는 너무 무겁다 → 산뜻한 화이트 글래스 베이스 + 은은한 로즈 포인트.
+   여성 취향·미니멀 톤. 활성은 로즈(#e25a86), 비활성은 옅은 회색. */
 .tabbar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 60;
-  /* 사용자) 밝은 하늘(--tt-nav) → 진한 브랜드 톤으로 전환해 흰 글씨를 얹는다.
-     단색 #1a7fb5 (12px 작은 글자라 흰글씨 4.5:1↑ 확보 위해 그라데이션보다 진한 단색). */
-  background: #1a7fb5;
-  border-radius: 28px 28px 0 0;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid #f3e7ec;
+  border-radius: 22px 22px 0 0;
   display: flex;
   justify-content: space-around;
-  padding: 12px 8px calc(14px + env(safe-area-inset-bottom));
-  box-shadow: 0 -8px 28px rgba(31, 107, 150, 0.28);
+  padding: 11px 8px calc(13px + env(safe-area-inset-bottom));
+  box-shadow: 0 -6px 22px rgba(226, 88, 138, 0.08);
 }
 .tab {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 700;
-  /* 사용자) 진한 배경 위 흰 글씨.
-     비활성: rgba(255,255,255,0.75) — #1a7fb5 배경 대비 약 3.5:1(아이콘+12px 보조 라벨, 활성과 위계 구분 우선). */
-  color: rgba(255, 255, 255, 0.75);
-  min-width: 56px;
+  gap: 3px;
+  font-size: 11.5px;
+  font-weight: 600;
+  /* 비활성 — 옅은 회색(화이트 배경 대비 가독 + 활성 로즈와 위계). */
+  color: #aab0bb;
+  min-width: 54px;
+  /* 운영 탭바와 동일하게 활성 시 알약 배경이 아이콘+라벨을 감싸도록 패딩·라운드. */
+  padding: 5px 13px;
+  border-radius: 16px;
+  transition: color 0.16s ease, background 0.18s ease;
 }
 .tab svg {
-  width: 23px;
-  height: 23px;
+  width: 22px;
+  height: 22px;
+  /* 미니멀 — 탭바 아이콘 stroke 가늘게(attribute strokeWidth 보다 우선). */
+  stroke-width: 1.7px;
 }
-/* 활성 탭 — 흰색 + 굵게 + 하단 흰 인디케이터.
-   #1a7fb5 배경 위 #fff 대비 약 4.6:1 (12px 라벨 AA Normal 충족). */
+/* 활성 탭 — 로즈 글씨 + 은은한 로즈 알약 배경(운영 소프트 탭바 구조 차용, 여성 톤). */
 .tabActive {
-  color: #fff;
-  font-weight: 800;
+  color: #e25a86;
+  font-weight: 700;
+  background: #ffeaf1;
 }
-.tabActive::after {
-  content: "";
-  width: 18px;
-  height: 3px;
-  border-radius: 3px;
-  background: #fff;
-  margin-top: 1px;
-}
-/* 쇼핑 비활성 탭(현재 마크업 미사용 — 무해 유지). 진한 배경 위 더 흐린 흰글씨. */
+/* 쇼핑 비활성 탭(현재 마크업 미사용 — 무해 유지). */
 .tabDisabled {
-  color: rgba(255, 255, 255, 0.5);
+  color: #c7ccd4;
   cursor: default;
 }
 .tabDisabled:hover {
-  color: rgba(255, 255, 255, 0.5);
+  color: #c7ccd4;
 }
 
 /* ---------- 사이드바 내부 ---------- */

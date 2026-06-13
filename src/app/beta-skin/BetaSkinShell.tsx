@@ -19,8 +19,10 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import styles from "./beta-skin.module.css";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useSession } from "@/lib/session-context";
 import BetaDiscovery, { prefetchDiscover } from "@/components/beta/BetaDiscovery";
 import { showToast } from "@/lib/toast";
 
@@ -139,6 +141,13 @@ export default function BetaSkinShell({
   onSearchSubmit?: (q: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  // 우상단 아바타 — 운영 BetaNav 와 동일하게 active 명함 기준(useSession). 없으면 기본 아이콘.
+  const session = useSession();
+  const activeAvatar = session
+    ? (session.identities.find((i) => i.id === session.activeIdentityId)?.avatarUrl ??
+       session.avatarUrl)
+    : null;
   // 항목 1) 스크롤 다운 → 헤더 숨김(위로 슬라이드), 스크롤 업 → 복귀.
   const [headerHidden, setHeaderHidden] = useState(false);
   // 작업 C) 로그인 여부 — null=로딩, true=로그인, false=비로그인.
@@ -256,12 +265,21 @@ export default function BetaSkinShell({
     else setValue(t);
   };
 
+  // 검색어 ✕로 지우기 — 입력값 비우기 + 전체 피드(/beta-skin)로 복귀.
+  //   (검색 결과 페이지 ?q= 에 머물지 않고 곧장 전체 피드를 보여줌.)
+  const clearSearch = () => {
+    setValue("");
+    setSuggestOpen(false);
+    setSearchOpen(false);
+    router.push(BETA_ROUTES.feed);
+  };
+
   // 쇼핑(준비 중) — GNB·탭바 클릭 시 안내 토스트. 라우팅 없음.
   const onShopClick = () =>
     showToast("쇼핑 준비 중이에요. 곧 만나보실 수 있어요.");
 
-  // 운영 검색 드롭다운(BetaDiscovery) 임베드 — 최근검색 + 인기검색어 + 카테고리별 인기태그 5탭 + 타이핑 자동완성.
-  //   onPicked: 입력값 동기화 + 닫기. 실제 검색 라우팅은 BetaDiscovery 가 basePath="/beta-skin" 로 /beta-skin?q= 수행.
+  // 데스크탑 검색 pill 드롭다운(BetaDiscovery, 최근검색만) — 사용자: "데스크탑은 지금 방식이 좋다".
+  //   onPicked: 입력값 동기화 + 닫기. 실제 검색 라우팅은 BetaDiscovery 가 basePath="/beta-skin" 로 수행.
   const discoveryDropdown =
     hasDropdown && suggestOpen ? (
       <div className={styles.searchSuggest} role="listbox" aria-label="검색 추천">
@@ -269,6 +287,23 @@ export default function BetaSkinShell({
           query={value}
           basePath="/beta-skin"
           recentOnly
+          onPicked={(t) => {
+            setValue(t);
+            setSuggestOpen(false);
+            setSearchOpen(false);
+          }}
+        />
+      </div>
+    ) : null;
+
+  // 항목 12) 모바일 검색 — 운영처럼 헤더 아래로 "큰 창"이 열린다(풀스크린 패널 + 전체 발견 화면).
+  //   최근검색 + 인기검색어 + 카테고리별 인기태그까지 모두(recentOnly 아님). 검색 아이콘 탭 시 searchOpen.
+  const mobileSearchPanel =
+    searchEnabled && searchOpen ? (
+      <div className={styles.mobileSearchPanel} role="listbox" aria-label="검색 발견">
+        <BetaDiscovery
+          query={value}
+          basePath="/beta-skin"
           onPicked={(t) => {
             setValue(t);
             setSuggestOpen(false);
@@ -393,12 +428,12 @@ export default function BetaSkinShell({
                   type="button"
                   className={styles.searchClear}
                   aria-label="검색어 지우기"
-                  onClick={() => setValue("")}
+                  onClick={clearSearch}
                 >
                   ✕
                 </button>
               )}
-              {discoveryDropdown}
+              {/* 모바일 발견 화면은 헤더 아래 풀스크린 패널(mobileSearchPanel)이 담당 — 인라인 드롭다운 미사용. */}
             </div>
           </div>
         ) : (
@@ -473,7 +508,7 @@ export default function BetaSkinShell({
                     type="button"
                     className={styles.searchClear}
                     aria-label="검색어 지우기"
-                    onClick={() => setValue("")}
+                    onClick={clearSearch}
                   >
                     ✕
                   </button>
@@ -529,7 +564,16 @@ export default function BetaSkinShell({
                 aria-label="마이"
                 href={BETA_ROUTES.my}
               >
-                <IconUser />
+                {/* 항목 3) 로그인 시 active 명함 아바타(동그라미). 사진 없으면 기본 아이콘.
+                    운영 BetaNav 와 동일한 표시(objectPosition·scale). */}
+                {activeAvatar ? (
+                  <span className={styles.headerAvatar}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={activeAvatar} alt="" />
+                  </span>
+                ) : (
+                  <IconUser />
+                )}
               </Link>
             )}
             {me === false && (
@@ -540,6 +584,9 @@ export default function BetaSkinShell({
           </div>
         )}
       </header>
+
+      {/* 항목 12) 모바일 검색 풀스크린 패널 — 헤더 아래로 큰 발견 화면(운영 BetaNav 모바일 검색 정합). */}
+      {mobileSearchPanel}
 
       {/* ---------- 본문 ---------- */}
       <main className={styles.page}>
