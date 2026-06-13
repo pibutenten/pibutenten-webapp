@@ -6,6 +6,13 @@
 
 ---
 
+## [2026-06-13] — 병원명 공백 무시 검색 (clinics name_nospace)
+
+### Added
+- **clinics 공백 무시 검색**: `name_nospace` STORED generated column(`regexp_replace(name,'s','','g')`) + GIN pg_trgm 인덱스 `clinics_name_nospace_trgm` 추가(마이그레이션 0281). DB에 공백이 있는 병원명(393행)을 공백 없이 검색하거나, 반대 방향도 양방향 매칭. 클라이언트(`SkinDiaryMockup.tsx` 482·514행)에서 검색어 공백 제거 후 `.ilike("name_nospace", ...)` 로 조회. 결과 컬럼 name/addr/tel/x_pos/y_pos 동일 — 기존 `withDistSort` 매핑 무변경.
+
+---
+
 ## [2026-06-13] — /beta-skin 운영 누락 기능·UI 장치 보완 (전수조사 후)
 
 > 운영 대비 베타에 빠진 기능·UI 장치를 전수조사해 **운영 함수·컴포넌트 재사용**으로 보완. 운영 무수정(읽기·임베드만), 권한·삭제·전환은 운영 RPC/API + RLS로 서버 강제, 베타 전 페이지 noindex 유지.

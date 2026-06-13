@@ -479,9 +479,10 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
     setSearching(true); setGeoMsg(null);
     const t = setTimeout(async () => {
       const sb = createSupabaseBrowserClient();
+      const nsTerm = term.replace(/\s/g, ""); // 공백 무시 검색: 입력어 공백 제거 → name_nospace 컬럼과 매칭
       const { data } = await sb
         .from("clinics").select("name,addr,tel,x_pos,y_pos")
-        .ilike("name", `%${term}%`).order("name").limit(50); // 거리순 정렬 후보 넉넉히 → 가장 가까운 곳 우선(이름 같은 지점 다수 대비)
+        .ilike("name_nospace", `%${nsTerm}%`).order("name").limit(50); // 거리순 정렬 후보 넉넉히 → 가장 가까운 곳 우선(이름 같은 지점 다수 대비)
       if (!alive) return;
       setResults(withDistSort(data ?? []));
       setSearching(false);
@@ -510,9 +511,10 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
     setGeoMsg(null); setSearching(true);
     // 1) 병원명 매칭 우선 (부분어 OK) — 있으면 그대로 사용, 지오코딩·에러 없음.
     const sb = createSupabaseBrowserClient();
+    const nsTerm = term.replace(/\s/g, ""); // 공백 무시 검색
     const { data } = await sb
       .from("clinics").select("name,addr,tel,x_pos,y_pos")
-      .ilike("name", `%${term}%`).order("name").limit(20);
+      .ilike("name_nospace", `%${nsTerm}%`).order("name").limit(20);
     const named = withDistSort(data ?? []);
     if (named.length > 0) {
       geoActiveRef.current = false;
