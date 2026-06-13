@@ -20,6 +20,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
+// 카드 삭제 broadcast 이벤트 — 다른 작업자가 카드 ⋮메뉴 삭제 시 emit, 본 피드는 수신만.
+import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 // 검색 실행 시 최근 검색어 저장(운영 BetaNav.submit 과 동일 진입점).
 import { addRecent } from "@/lib/beta-recent";
 // 사이드 '인기 태그' 카드의 카테고리별 인기태그 — 검색 드롭다운(BetaDiscovery)과 동일 소스 재사용.
@@ -92,6 +94,9 @@ export default function BetaSkinFeed({
   const [hasMore, setHasMore] = useState(orderedIds.length > initialPool.length);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // 탭 전환 애니메이션 대상(운영 BetaFeed contentRef). 리스트 컨테이너의 key remount 와 무관한
+  //   안정 래퍼라야 animate 타이밍이 어긋나지 않음 → feedList(키 remount) 바깥에 부착.
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
   const cursorRef = useRef(initialPool.length);
   const orderedIdsRef = useRef(orderedIds);
@@ -123,6 +128,9 @@ export default function BetaSkinFeed({
   hasMoreRef.current = hasMore;
   const chipRef = useRef(chip);
   chipRef.current = chip;
+  // "방금 쓴 글" prepend 가드용 — 현재 풀에 이미 그 카드가 있는지 최신값으로 검사(운영 BetaFeed poolRef).
+  const poolRef = useRef(pool);
+  poolRef.current = pool;
 
   // 풀 확장 — 저장된 순서(orderedIds)대로 다음 묶음을 ID 로 받아 append (운영 BetaFeed loadMore).
   //   리포트 탭은 통계 목록이라 확장 안 함. 순서목록 끝까지 받으면 종료.
@@ -180,6 +188,86 @@ export default function BetaSkinFeed({
     ob.observe(node);
     return () => ob.disconnect();
   }, [loadMore]);
+
+  // ① 칩(탭) 전환 시 맨 위로 + 콘텐츠가 살짝 아래에서 올라오는 효과(운영 BetaFeed 동일).
+  //   translateY(10px)→0 + opacity 0→1, 220ms ease-out. 리스트 key remount 의 fadeInUp 과 별개로
+  //   안정 래퍼(contentRef)를 직접 animate → 즉시 전환이어도 의도적으로 전환을 느끼게.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+    const el = contentRef.current;
+    if (el && typeof el.animate === "function") {
+      el.getAnimations().forEach((a) => a.cancel()); // 빠른 연속 전환 시 애니메이션 누적 방지
+      el.animate(
+        [
+          { opacity: 0, transform: "translateY(10px)" },
+          { opacity: 1, transform: "translateY(0)" },
+        ],
+        { duration: 220, easing: "ease-out" },
+      );
+    }
+  }, [chip]);
+
+  // ② 카드 삭제 broadcast 수신 → 풀에서 제거(운영 BetaFeed 동일). 발사는 카드 ⋮메뉴 쪽(다른 작업자).
+  useEffect(() => {
+    function onDeleted(e: Event) {
+      const id = (e as CustomEvent<{ id: number }>).detail?.id;
+      if (typeof id !== "number") return;
+      setPool((prev) => prev.filter((c) => c.id !== id));
+    }
+    window.addEventListener(CARD_BUS_EVENTS.CARD_DELETED, onDeleted);
+    return () =>
+      window.removeEventListener(CARD_BUS_EVENTS.CARD_DELETED, onDeleted);
+  }, []);
+
+  // ③ "방금 쓴 글" 1회 prepend (검색 아닐 때만) — 본인 화면에서만, 풀 맨 앞으로(운영 BetaFeed 동일).
+  //   sessionStorage['pbtt:justPublished'](id+ts) → 5분 만료·:shown 중복 가드.
+  //   이미 풀에 있으면 맨 앞으로 이동, 없으면 /api/cards?ids= 로 fetch 후 prepend.
+  useEffect(() => {
+    if (searchQuery) return;
+    let aborted = false;
+    try {
+      const raw = window.sessionStorage.getItem("pbtt:justPublished");
+      if (!raw) return;
+      const p = JSON.parse(raw) as { id?: unknown; ts?: unknown };
+      const id =
+        typeof p.id === "number" && Number.isFinite(p.id) ? p.id : null;
+      const ts =
+        typeof p.ts === "number" && Number.isFinite(p.ts) ? p.ts : null;
+      if (id === null || ts === null) return;
+      if (Date.now() - ts > 5 * 60 * 1000) {
+        window.sessionStorage.removeItem("pbtt:justPublished");
+        return;
+      }
+      if (window.sessionStorage.getItem("pbtt:justPublished:shown") === String(id))
+        return;
+      if (poolRef.current.some((c) => c.id === id)) {
+        setPool((prev) => {
+          const idx = prev.findIndex((c) => c.id === id);
+          if (idx <= 0) return prev;
+          const n = [...prev];
+          const [m] = n.splice(idx, 1);
+          return [m, ...n];
+        });
+        window.sessionStorage.setItem("pbtt:justPublished:shown", String(id));
+        return;
+      }
+      void fetch(`/api/cards?ids=${id}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j: { cards?: CardData[] } | null) => {
+          if (aborted) return;
+          const c = j?.cards?.[0];
+          if (!c) return;
+          setPool((prev) => (prev.some((x) => x.id === c.id) ? prev : [c, ...prev]));
+          window.sessionStorage.setItem("pbtt:justPublished:shown", String(id));
+        })
+        .catch(() => {});
+    } catch {
+      /* sessionStorage 비활성 */
+    }
+    return () => {
+      aborted = true;
+    };
+  }, [searchQuery]);
 
   // 검색 제출(엔터/추천 클릭) → 서버 재검색 라우팅 + 최근 검색어 저장(localStorage).
   const submitSearch = (q: string) => {
@@ -348,6 +436,9 @@ export default function BetaSkinFeed({
       onSearchChange={setSearchValue}
       onSearchSubmit={submitSearch}
     >
+      {/* 탭 전환 애니메이션 대상(운영 BetaFeed contentRef) — remount 되지 않는 안정 래퍼.
+          이 래퍼를 직접 animate(translateY+fade) 하여 칩 전환 효과를 준다. */}
+      <div ref={contentRef}>
       {/* 칩/검색 전환 시 리스트 컨테이너 remount(key=칩+검색어) → fadeInUp 재발화.
           무한스크롤(pool append)은 같은 key 라 추가분만 append(스크롤 유지). */}
       <div className={styles.feedList} key={`${chip}|${searchQuery ?? ""}`}>
@@ -385,6 +476,7 @@ export default function BetaSkinFeed({
             ))}
           </>
         )}
+      </div>
       </div>
 
       {/* 무한스크롤 sentinel — 일반·검색 탭에서만(리포트 제외). 풀 소진 시 렌더 안 함. */}

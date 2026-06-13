@@ -11,10 +11,12 @@
  */
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import CardAvatar from "@/components/card/CardAvatar";
 import { pickHighlight } from "@/lib/card-highlight";
 import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
 import CommentsBlock from "@/components/comments/CommentsBlock";
+import RecentLikers from "@/components/RecentLikers";
 import type { CardData } from "@/lib/types/card";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
@@ -34,6 +36,7 @@ import {
   shareBetaCard,
   useBetaSearchRouting,
   useBetaCardActions,
+  PostCardMenu,
   type BetaViewerState,
 } from "../beta-ui";
 
@@ -52,6 +55,7 @@ export default function PostDetail({
   viewer?: BetaViewerState;
 }) {
   const search = useBetaSearchRouting();
+  const router = useRouter();
   // 댓글 수 — CommentsBlock 이 실제 fetch 후 onCountChange 로 갱신(0 고정 방지).
   const [commentCount, setCommentCount] = useState(card?.comment_count ?? 0);
   const authorName =
@@ -161,6 +165,17 @@ export default function PostDetail({
   return (
     <BetaSkinShell active="피드" sidebar={sidebar} {...search}>
       <article className={`${styles.card} ${styles.postCard}`}>
+        {/* ⋮ 더보기 — 글상세에도 피드와 동일하게 본인/관리자 수정·삭제·숨김(운영 CardHeader 이식).
+            .postCard(position:relative) 우상단에 .kebabWrap 으로 절대배치(피드 PostCard 와 동일 CSS).
+            권한 없으면(비로그인/타인 글) 내부에서 null 반환 → 미노출. 실제 카드일 때만 렌더.
+            삭제 성공 시 글상세에 머물 수 없으므로 피드(/beta-skin)로 이동(운영도 단일글 삭제 후 목록 복귀). */}
+        {card && (
+          <PostCardMenu
+            card={card}
+            onDeleted={() => router.push("/beta-skin")}
+          />
+        )}
+
         {/* 항목 4) 작성자 — 실제 프로필 URL 로 새 탭(정보 부족이면 일반 div). */}
         {profileHref ? (
           <a
@@ -281,40 +296,47 @@ function ArticleFooter({
 }) {
   const act = useBetaCardActions(card, viewer);
   return (
-    <div className={styles.postFoot}>
-      {/* 좋아요 — 실제 toggle_card_like RPC. active 시 pfOn. */}
-      <button
-        type="button"
-        className={`${styles.pf} ${styles.pfBtn} ${act.like.active ? styles.pfOn : ""}`}
-        aria-pressed={act.like.active}
-        aria-label="좋아요"
-        onClick={() => act.like.toggle()}
-      >
-        <IconHeart /> {act.like.count}
-      </button>
-      <span className={styles.pf}>
-        <IconComment /> {commentCount}
-      </span>
-      {/* 저장 — 실제 toggle_card_save RPC. active 시 pfSaved. */}
-      <button
-        type="button"
-        className={`${styles.pf} ${styles.pfBtn} ${act.save.active ? styles.pfSaved : ""}`}
-        aria-pressed={act.save.active}
-        aria-label="저장"
-        onClick={() => act.save.toggle()}
-      >
-        <IconBookmark /> {act.save.count}
-      </button>
-      <span className={styles.grow} />
-      {/* 공유 — 실제 글 URL navigator.share / clipboard + card_shares INSERT. */}
-      <button
-        type="button"
-        className={styles.pfBtn}
-        aria-label="공유"
-        onClick={() => void act.share.share()}
-      >
-        <IconShare /> 공유
-      </button>
-    </div>
+    <>
+      <div className={styles.postFoot}>
+        {/* 좋아요 — 실제 toggle_card_like RPC. active 시 pfOn. */}
+        <button
+          type="button"
+          className={`${styles.pf} ${styles.pfBtn} ${act.like.active ? styles.pfOn : ""}`}
+          aria-pressed={act.like.active}
+          aria-label="좋아요"
+          onClick={() => act.like.toggle()}
+        >
+          <IconHeart /> {act.like.count}
+        </button>
+        <span className={styles.pf}>
+          <IconComment /> {commentCount}
+        </span>
+        {/* 저장 — 실제 toggle_card_save RPC. active 시 pfSaved. */}
+        <button
+          type="button"
+          className={`${styles.pf} ${styles.pfBtn} ${act.save.active ? styles.pfSaved : ""}`}
+          aria-pressed={act.save.active}
+          aria-label="저장"
+          onClick={() => act.save.toggle()}
+        >
+          <IconBookmark /> {act.save.count}
+        </button>
+        <span className={styles.grow} />
+        {/* 공유 — 실제 글 URL navigator.share / clipboard + card_shares INSERT. */}
+        <button
+          type="button"
+          className={styles.pfBtn}
+          aria-label="공유"
+          onClick={() => void act.share.share()}
+        >
+          <IconShare /> 공유
+        </button>
+      </div>
+
+      {/* 인스타식 좋아요 표시 — 글상세에도 운영 RecentLikers 그대로 재사용(자체 재구현 X).
+          피드 PostCard 와 동일하게 footer 아래에 마운트. likeCount 는 act.like.count(toggle 시 갱신)
+          → 좋아요 변동 시 자동 refetch. 데이터 fetch 경로는 운영과 동일(RLS 우회 없음). */}
+      <RecentLikers cardId={card.id} likeCount={act.like.count} />
+    </>
   );
 }

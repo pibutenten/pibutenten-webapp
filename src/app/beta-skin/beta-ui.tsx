@@ -35,6 +35,8 @@ import { getSessionId } from "@/lib/impression-queue";
 import { showToast } from "@/lib/toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import CommentsBlock from "@/components/comments/CommentsBlock";
+import RecentLikers from "@/components/RecentLikers";
+import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
 // 시술 리포트 — 운영 자연어 문구·통증 팔레트·위치 매핑 재사용(베타 자체 복제 제거).
@@ -512,7 +514,7 @@ export function useBetaCardActions(card: CardData, viewer?: BetaViewerState) {
  *   - 삭제 → ConfirmDialog 확인 후 soft_delete_card RPC(운영과 동일 인자) → onDeleted() 로 카드 제거.
  *   - 숨김 → toggle_card_hide RPC(운영과 동일 인자) → router.refresh().
  * 외부클릭/ESC 로 드롭다운 닫기(운영 CardHeader 정합). */
-function PostCardMenu({
+export function PostCardMenu({
   card,
   onDeleted,
 }: {
@@ -614,6 +616,15 @@ function PostCardMenu({
       }
       showToast("글을 삭제했어요");
       setConfirmDeleteOpen(false);
+      // 운영 카드 버스와 연동 — 다른 작업자의 BetaSkinFeed 가 이 이벤트를 수신해
+      // 피드 풀에서도 같은 카드를 제거하도록 broadcast(운영 CARD_DELETED detail 형식 일치: { id }).
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent(CARD_BUS_EVENTS.CARD_DELETED, {
+            detail: { id: card.id },
+          }),
+        );
+      }
       onDeleted();
     } catch {
       setDeleting(false);
@@ -964,6 +975,12 @@ export function PostCard({
           </a>
         )}
       </div>
+
+      {/* 인스타식 좋아요 표시 — 운영 RecentLikers 그대로 재사용(자체 재구현 X).
+          운영 Card.tsx 와 동일하게 footer 아래·댓글 블록 위에 마운트. likeCount 는
+          act.like.count(toggle 시 갱신) → 좋아요 변동 시 RecentLikers 가 자동 refetch.
+          데이터 fetch 경로(get_recent_card_likers_batch)는 운영과 동일(RLS 우회 없음). */}
+      <RecentLikers cardId={card.id} likeCount={act.like.count} />
 
       {/* 피드백 2) 댓글 섹션 — 댓글 아이콘 클릭 시 실제 댓글(운영 CommentsBlock) 펼침. */}
       {commentsOpen && (
