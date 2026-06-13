@@ -6,6 +6,26 @@
 
 ---
 
+## [2026-06-13] — /beta-skin 운영 누락 기능·UI 장치 보완 (전수조사 후)
+
+> 운영 대비 베타에 빠진 기능·UI 장치를 전수조사해 **운영 함수·컴포넌트 재사용**으로 보완. 운영 무수정(읽기·임베드만), 권한·삭제·전환은 운영 RPC/API + RLS로 서버 강제, 베타 전 페이지 noindex 유지.
+
+### Added
+- **HOT 배지**: `getHotQaIds(20)` → `BetaSkinFeed` hotSet → `PostCard isHot`. NEW/HOT 운영처럼 `.badges` flex 나란히.
+- **글상세 좋아요/저장 실동작**: `PostDetail` 의 footer 를 `ArticleFooter`(card 보장 하위 컴포넌트)로 분리해 `useBetaCardActions(card, viewer)` 연결(훅 규칙 준수). `post/page.tsx` `fetchViewerStatesRecord` prefetch.
+- **알림 미읽음 배지**: `BetaSkinShell` 벨에 `/api/notifications` 미읽음 폴링(운영 NotificationsBell 로직 — active 명함 RLS, 60s 폴링·탭 visibility·읽음 이벤트 동기화). 비로그인 숨김.
+- **마이 계정(명함) 스위처**: 운영 `AccountSwitcherCard` 그대로 임베드(`useSession` + `/api/identity/switch` httpOnly 쿠키 전환, ADR 0012 명함 독립). 비로그인 숨김.
+- **카드 ⋮ 메뉴**: `PostCardMenu` — 본인/admin 수정(`getQaEditUrl`)·삭제(`soft_delete_card` + 운영 `ConfirmDialog`)·admin 숨김(`toggle_card_hide`). 피드 카드 + 글상세 공용(export 재사용). 비로그인/타인 미노출.
+- **RecentLikers**: 운영 컴포넌트 임베드(피드·글상세) — "○○님 외 N명 좋아함" + `LikersDialog`(`get_recent_card_likers_batch` RLS 경로).
+- **피드 탭 전환 애니메이션**(운영 `contentRef.animate` translateY+fade 220ms, 안정 래퍼로 fadeInUp remount 공존), **"방금 쓴 글" 1회 prepend**(`sessionStorage pbtt:justPublished`, 5분·중복 가드), **카드 삭제 풀 반영**(`CARD_DELETED` 이벤트 — PostCardMenu emit ↔ BetaSkinFeed 수신).
+
+### Notes
+- 검증: 빌드·tsc·코드검수 통과(치명 0, 권한·전환·삭제 운영 정합·우회 없음). dev 양쪽(모바일/데스크탑) 실측 — HOT 9개·글상세 좋아요버튼·RecentLikers 표시·Q&A 칩 필터·⋮메뉴/계정스위처 비로그인 미노출 확인.
+- 커밋: `df67480`(1라운드 HOT·글상세·알림) → `b5000b8`(2라운드 계정스위처·⋮메뉴) → `9c326c0`(권장 탭애니·방금쓴글·삭제반영·RecentLikers·글상세⋮메뉴).
+- **남은 선택 항목**(미적용): Pick 배지, 마손리 2단 컬럼, 비-Q&A 외부링크 "더 알아보기", 시술명 자동완성.
+
+---
+
 ## [2026-06-13] — /beta-skin 누더기 제거: 운영 함수 전면 재사용 (검색·리포트·내노트·마이·색)
 
 > 베타 스킨이 운영의 데이터·로직 함수를 쓰지 않고 더미로 자체 구현(누더기)한 것이 전수조사로 드러나(검색 드롭다운·리포트 더보기·내노트·마이) 동작·콘텐츠가 운영과 달랐던 문제를 교정. **UI 는 베타 스킨 유지, 데이터·로직은 운영 재사용** 원칙. 운영(`/`·`/record`·`/my`) 동작 불변(회귀 0), 베타 전 페이지 noindex 유지.
