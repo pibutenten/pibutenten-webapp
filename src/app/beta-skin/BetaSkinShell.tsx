@@ -239,49 +239,39 @@ export default function BetaSkinShell({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    // 표준 hide-on-scroll: 아래로 내려가면 헤더 숨김, 위로 올라가면 즉시 복귀.
+    //   - lastY 는 "임계(THRESH)를 넘은 마지막 위치"만 기록 → 관성/떨림(작은 반대 delta)이
+    //     방향을 뒤집지 못한다(이전 dispatchEvent 시뮬은 통과했으나 실제 휠/터치 관성에서
+    //     마지막 이벤트가 반대로 튀어 동작이 뒤집히던 버그 수정).
+    const THRESH = 8;
     let lastY = el.scrollTop;
-    const onScroll = () => {
+    let ticking = false;
+    const update = () => {
+      ticking = false;
       const y = el.scrollTop;
-      const delta = y - lastY;
-      lastY = y;
-      if (searchOpen || suggestOpen || y < 24) {
+      if (searchOpen || suggestOpen || y < 60) {
         // 검색 중·상단 근처: 항상 표시.
         setHeaderHidden(false);
-      } else if (delta < 0) {
-        // 위로 조금이라도 움직이면 즉시 복귀.
-        setHeaderHidden(false);
-      } else if (delta > 4) {
-        // 아래로 일정 이상 내려가면 숨김.
-        setHeaderHidden(true);
+        lastY = y;
+        return;
       }
-    };
-    // wheel/touch 의 "위로" 의도를 직접 감지 → 무한스크롤 콘텐츠 점프로
-    // scrollTop 이 일시적으로 튀어도, 사용자가 위로 올리면 즉시 헤더 복귀.
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY < 0 && !(searchOpen || suggestOpen)) setHeaderHidden(false);
-    };
-    let touchStartY = 0;
-    const onTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0]?.clientY ?? 0;
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      const cur = e.touches[0]?.clientY ?? 0;
-      // 손가락이 아래로 내려가면(콘텐츠는 위로) = scroll up 의도.
-      if (cur - touchStartY > 4 && !(searchOpen || suggestOpen)) {
-        setHeaderHidden(false);
+      if (y > lastY + THRESH) {
+        setHeaderHidden(true); // 아래로 → 숨김
+        lastY = y;
+      } else if (y < lastY - THRESH) {
+        setHeaderHidden(false); // 위로 → 복귀
+        lastY = y;
       }
-      touchStartY = cur;
+      // |y-lastY| < THRESH 면 lastY 유지(방향 누적, 작은 떨림 무시).
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
     };
     el.addEventListener("scroll", onScroll, { passive: true });
-    el.addEventListener("wheel", onWheel, { passive: true });
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: true });
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-    };
+    return () => el.removeEventListener("scroll", onScroll);
   }, [searchOpen, suggestOpen]);
 
   return (

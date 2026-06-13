@@ -55,6 +55,9 @@
   z-index: 100;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* 불필요한 세로 스크롤바 숨김(스크롤은 유지) — 운영처럼 깔끔하게. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 
   font-family: var(--font);
   background: var(--tt-canvas) fixed;
@@ -1196,6 +1199,10 @@ button.t:hover {
   margin-bottom: 13px;
   color: var(--ink-900);
 }
+/* .root 세로 스크롤바 숨김(webkit) — 위 scrollbar-width:none 과 함께. */
+.root::-webkit-scrollbar {
+  display: none;
+}
 .sideTags {
   display: flex;
   flex-wrap: wrap;
@@ -1880,6 +1887,73 @@ button.t:hover {
   margin: 11px 0 15px;
   color: var(--ink-900);
 }
+
+/* 관심 키워드 캐러셀 — 운영 KeywordCarousel 장치(데스크탑 좌우 화살표 + 페이지 도트) 복원.
+   .kwScroll 기본 정의(flex nowrap·overflow-x·240px 고정폭)는 위에서 그대로 유지하고,
+   여기서는 감싸는 relative 컨테이너 + 화살표/도트만 신규 추가. */
+.kwCarousel {
+  position: relative;
+}
+/* 좌우 화살표 — 모바일은 숨김(터치 스크롤), 데스크탑(≥900px)에서만 노출.
+   기본 opacity 0 → 컨테이너 hover 시 노출(transition). */
+.kwArrow {
+  display: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-500);
+  font-size: 20px;
+  line-height: 1;
+  box-shadow: 0 4px 14px rgba(31, 143, 198, 0.16);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  z-index: 2;
+}
+.kwArrow:hover {
+  color: var(--tt-blue-deep);
+  border-color: var(--tt-blue-soft);
+}
+.kwArrowLeft {
+  left: -10px;
+}
+.kwArrowRight {
+  right: -10px;
+}
+@media (min-width: 900px) {
+  .kwArrow {
+    display: flex;
+  }
+  .kwCarousel:hover .kwArrow {
+    opacity: 1;
+  }
+}
+/* 페이지 도트 — 캐러셀 하단 가운데. active 는 가로로 늘어난 브랜드색 바. */
+.kwDots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+.kwDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--tt-blue-soft);
+  transition: width 0.2s ease, background 0.2s ease;
+}
+.kwDotActive {
+  width: 16px;
+  background: var(--tt-blue);
+}
+
 .kwFoot {
   display: flex;
   align-items: center;

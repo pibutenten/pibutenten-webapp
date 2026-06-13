@@ -11,7 +11,7 @@
  *   - 인기글: 운영 get_top_cards_by_views PopularData(7/30/90일). 작은 기간 토글 + 5위 + 6~N위 더보기.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import CardAvatar from "@/components/card/CardAvatar";
 import BetaSkinShell from "../BetaSkinShell";
@@ -358,6 +358,11 @@ const CAT_LABEL: Record<string, string> = {
 };
 const catLabel = (c: string) => CAT_LABEL[c] ?? "글";
 
+/* 인기글 순위 색 — 운영(record/RecordTab.tsx) 차등 재현.
+ *   1위=핑크 강조 / 2위=하늘(브랜드) / 3위=골드 / 4위↑=중립 회색. 1위만 글자 살짝 크게. */
+const popRankColor = (r: number) =>
+  r === 1 ? "#F76D9B" : r === 2 ? "var(--tt-blue-deep)" : r === 3 ? "#F5A623" : "var(--ink-300)";
+
 function PopularSection({ popular }: { popular: PopularData }) {
   const [period, setPeriod] = useState<keyof PopularData>("d7");
   const [expanded, setExpanded] = useState(false);
@@ -378,7 +383,12 @@ function PopularSection({ popular }: { popular: PopularData }) {
         target={hasHref ? "_blank" : undefined}
         rel={hasHref ? "noopener noreferrer" : undefined}
       >
-        <span className={styles.popRank}>{it.rank}</span>
+        <span
+          className={styles.popRank}
+          style={{ color: popRankColor(it.rank), fontSize: it.rank === 1 ? 18 : 16 }}
+        >
+          {it.rank}
+        </span>
         <span className={styles.popInfo}>
           <span className={styles.popTitle}>{it.title}</span>
           <span className={styles.popMeta}>
@@ -483,6 +493,18 @@ export default function RecordView({
   // 관심 키워드 새 글 — 단일 키워드 필터(운영 KeywordCarousel 동작 재현).
   const [selKw, setSelKw] = useState<string | null>(null);
   const shownPosts = selKw ? keywordPosts.filter((p) => p.matchedKeywords.includes(selKw)) : keywordPosts;
+  // 캐러셀 좌우 화살표(데스크탑)·페이지 도트 — 운영 KeywordCarousel 장치 재현.
+  //   STEP = 카드폭(240) + gap(14) = 254. 화살표 클릭 시 한 카드씩 smooth 스크롤.
+  const KW_STEP = 254;
+  const kwRef = useRef<HTMLDivElement>(null);
+  const [kwActive, setKwActive] = useState(0);
+  const kwDotCount = shownPosts.length;
+  const nudge = (dir: 1 | -1) => kwRef.current?.scrollBy({ left: dir * KW_STEP, behavior: "smooth" });
+  const onKwScroll = () => {
+    const el = kwRef.current;
+    if (!el) return;
+    setKwActive(Math.min(Math.max(Math.round(el.scrollLeft / KW_STEP), 0), Math.max(kwDotCount - 1, 0)));
+  };
   // 회원 히어로 상태(운영 computeStatus 5단계). 게스트는 가입 유도.
   const status = computeStatus(latest);
 
@@ -637,39 +659,71 @@ export default function RecordView({
           </p>
         </section>
       ) : (
-        <div className={styles.kwScroll}>
-          {shownPosts.map((p) => {
-            const hasHref = p.href !== "/";
-            return (
-              <a
-                className={`${styles.card} ${styles.kwCard}`}
-                href={hasHref ? p.href : undefined}
-                target={hasHref ? "_blank" : undefined}
-                rel={hasHref ? "noopener noreferrer" : undefined}
-                key={p.id}
-              >
-                {p.keyword && <span className={`${styles.tag} ${styles.tagBlue}`}>{p.keyword}</span>}
-                <h3 className={styles.kwTitle}>{p.title}</h3>
-                <div className={styles.kwFoot}>
-                  <CardAvatar doctorSlug={p.doctorSlug} memberAvatarUrl={p.avatarUrl} name={p.authorName} size={36} />
-                  <div>
-                    <div className={styles.authorName} style={{ fontSize: 14 }}>
-                      {p.authorName}
-                      {p.doctorSlug && (
-                        <span className={styles.verified}>
-                          <IconVerified />
-                        </span>
-                      )}
+        <div className={styles.kwCarousel}>
+          <div className={styles.kwScroll} ref={kwRef} onScroll={onKwScroll}>
+            {shownPosts.map((p) => {
+              const hasHref = p.href !== "/";
+              return (
+                <a
+                  className={`${styles.card} ${styles.kwCard}`}
+                  href={hasHref ? p.href : undefined}
+                  target={hasHref ? "_blank" : undefined}
+                  rel={hasHref ? "noopener noreferrer" : undefined}
+                  key={p.id}
+                >
+                  {p.keyword && <span className={`${styles.tag} ${styles.tagBlue}`}>{p.keyword}</span>}
+                  <h3 className={styles.kwTitle}>{p.title}</h3>
+                  <div className={styles.kwFoot}>
+                    <CardAvatar doctorSlug={p.doctorSlug} memberAvatarUrl={p.avatarUrl} name={p.authorName} size={36} />
+                    <div>
+                      <div className={styles.authorName} style={{ fontSize: 14 }}>
+                        {p.authorName}
+                        {p.doctorSlug && (
+                          <span className={styles.verified}>
+                            <IconVerified />
+                          </span>
+                        )}
+                      </div>
+                      <div className={styles.authorSub}>{p.doctorSlug ? "피부과 전문의" : "회원"}</div>
                     </div>
-                    <div className={styles.authorSub}>{p.doctorSlug ? "피부과 전문의" : "회원"}</div>
+                    <span className={styles.when}>
+                      {p.isNew ? "오늘" : p.timeAgo || "최근"}
+                    </span>
                   </div>
-                  <span className={styles.when}>
-                    {p.isNew ? "오늘" : p.timeAgo || "최근"}
-                  </span>
-                </div>
-              </a>
-            );
-          })}
+                </a>
+              );
+            })}
+          </div>
+
+          {/* 데스크탑 좌우 화살표 — ≥900px 에서만 표시, 컨테이너 hover 시 노출. */}
+          <button
+            type="button"
+            aria-label="이전"
+            className={`${styles.kwArrow} ${styles.kwArrowLeft}`}
+            onClick={() => nudge(-1)}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            aria-label="다음"
+            className={`${styles.kwArrow} ${styles.kwArrowRight}`}
+            onClick={() => nudge(1)}
+          >
+            ›
+          </button>
+
+          {/* 페이지 도트 — onScroll 로 계산한 active 강조. */}
+          {kwDotCount > 1 && (
+            <div className={styles.kwDots}>
+              {Array.from({ length: kwDotCount }, (_, i) => (
+                <span
+                  key={i}
+                  className={`${styles.kwDot} ${i === kwActive ? styles.kwDotActive : ""}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
