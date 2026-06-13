@@ -1873,9 +1873,10 @@ button.t:hover {
    본문 <p> 는 마크업(record/RecordView.tsx)이 인라인 color:rgba(255,255,255,0.92)(흰)로
    하드코딩돼 있고, 본 작업에서 카드 전체를 흰글씨 기조로 통일한다.
    그라데이션 어두운 쪽 #1f7fb8 위 흰글자 대비 약 4.5:1 (AA Normal 충족). */
+/* 항목9) 더 산뜻한 히어로 — 진한 그라데이션 → 운영 RecordTab 톤(밝은 하늘 그라데이션). */
 .greetCard {
   margin-bottom: 8px;
-  background: linear-gradient(135deg, #2aa8e0 0%, #1f7fb8 100%);
+  background: linear-gradient(135deg, #1e9fe0 0%, #5ed0ff 60%, #8fe0ff 100%);
   color: #fff;
 }
 /* 인라인 흰색 <p>(rgba(255,255,255,0.92)) 와 일치하도록 흰색으로 오버라이드.
@@ -1903,6 +1904,16 @@ button.t:hover {
 .greetActions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
+}
+/* greet 위 ghost 버튼 — 반투명 흰 + 흰 글씨 + 흰 보더(운영 RecordTab 보조 버튼 톤). */
+.greetCard .btnGhost {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+.greetCard .btnGhost:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 /* 사용자 추가) greet 배경이 진한 브랜드 그라데이션으로 바뀌어, 같은 파랑 계열
    솔리드(#2a9fd6) 버튼은 배경에 묻힌다. → 흰 배경 + 진파랑 글자로 반전해
@@ -2972,18 +2983,22 @@ button.t:hover {
 .statRow {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  margin-top: 18px;
   text-align: center;
 }
+/* 항목9) 대시보드 — 숫자 크게, 상자(패딩) 작게. */
+.statCard {
+  padding: 15px 14px;
+}
 .statRow .num {
-  font-size: 19px;
+  font-size: 27px;
   font-weight: 800;
+  line-height: 1.1;
   color: var(--tt-blue-deep);
 }
 .statRow .lab {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-500);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 .menu {
   padding: 6px 6px;

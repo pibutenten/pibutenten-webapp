@@ -539,7 +539,7 @@ export default function RecordView({
       {/* 히어로 — 게스트=가입 유도, 회원=computeStatus 5단계 인사 */}
       {guest ? (
         <section className={`${styles.card} ${styles.greetCard}`}>
-          <div className={styles.greetTop}>내 시술노트 ✨</div>
+          <div className={styles.greetTop}>내 시술노트</div>
           <h1 className={styles.greetTitle}>
             받은 시술을 기록하면
             <br />
@@ -550,21 +550,33 @@ export default function RecordView({
           </p>
           <div className={styles.greetActions}>
             <a className={`${styles.btn} ${styles.btnPrimary}`} href="/beta-skin/write">
-              노트 작성해보기
+              노트 작성하기
             </a>
           </div>
         </section>
       ) : (
         <section className={`${styles.card} ${styles.greetCard}`}>
-          <div className={styles.greetTop}>안녕하세요, {userName}님 👋</div>
+          <div className={styles.greetTop}>안녕하세요, {userName}님</div>
           <h1 className={styles.greetTitle} style={{ whiteSpace: "pre-line" }}>
             {status.headline}
           </h1>
           <p className={styles.muted} style={{ margin: "10px 0 4px", color: "rgba(255,255,255,0.92)" }}>
             {status.sub}
           </p>
+          {/* 항목9) 버튼 3개·이모지 제거·자연스러운 문구(운영 RecordTab 동선 정합). */}
           <div className={styles.greetActions}>
-            <a className={`${styles.btn} ${styles.btnPrimary}`} href="/write">
+            <button
+              type="button"
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              onClick={() =>
+                document
+                  .getElementById("rec-notes")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            >
+              내 노트 보기
+            </button>
+            <a className={`${styles.btn} ${styles.btnGhost}`} href="/write">
               오늘 시술 기록하기
             </a>
             <a className={`${styles.btn} ${styles.btnGhost}`} href="/write?tab=review">
@@ -576,7 +588,7 @@ export default function RecordView({
 
       {/* 카운팅 대시보드 — 회원만(개인 데이터). 내가 쓴 노트 / 내가 쓴 후기 / 내가 쓴 글 / 내 글에 달린 댓글 */}
       {!guest && (
-        <section className={`${styles.card} ${styles.mb20}`} style={{ marginTop: 18 }}>
+        <section className={`${styles.card} ${styles.statCard} ${styles.mb20}`} style={{ marginTop: 18 }}>
           <div className={styles.statRow} style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
             <div>
               <div className={styles.num}>{diaryCount}</div>
@@ -598,8 +610,8 @@ export default function RecordView({
         </section>
       )}
 
-      {/* 시술 노트 — 회원=실데이터 3토글, 게스트=빈 예시 안내 */}
-      <div style={{ marginTop: 24 }}>
+      {/* 시술 노트 — 회원=실데이터 3토글, 게스트=빈 예시 안내 ('내 노트 보기' 스크롤 타깃) */}
+      <div id="rec-notes" style={{ marginTop: 24, scrollMarginTop: 70 }}>
         {entries.length === 0 ? (
           <>
             <div className={styles.recExampleHead}>
