@@ -2953,3 +2953,68 @@ button.t:hover {
     animation: none !important;
   }
 }
+
+/* ---------- 카드 ⋮ 더보기 메뉴 (PostCardMenu) ----------
+   운영 CardHeader 의 kebab + 드롭다운을 베타 톤(흰 카드)으로 이식.
+   .postCard 가 position:relative 라 우상단 절대배치. NEW/HOT 배지는 카드 위로
+   매달리므로(.badges translateY -40%) 카드 안쪽 상단 우측에 둬도 겹치지 않음. */
+.kebabWrap {
+  position: absolute;
+  top: 16px;
+  right: 14px;
+  z-index: 5;
+}
+.kebabBtn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--ink-300);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.kebabBtn:hover {
+  background: var(--tt-blue-tint);
+  color: var(--ink-700);
+}
+.kebabBtn svg {
+  width: 20px;
+  height: 20px;
+}
+.cardMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 116px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(53, 118, 160, 0.16);
+  padding: 6px;
+  z-index: 6;
+}
+.cardMenuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-700);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.cardMenuItem:hover {
+  background: var(--tt-blue-tint);
+}
+.cardMenuDanger {
+  color: #d61f5c;
+}
+.cardMenuDanger:hover {
+  background: #ffe6ee;
+}

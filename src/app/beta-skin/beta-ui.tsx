@@ -13,18 +13,27 @@
  *   - 영상 pill 타임스탬프: external_url(youtube t/start) → 없으면 video.youtube_url 에서 mm:ss.
  */
 
-import { Fragment, useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import CardAvatar from "@/components/card/CardAvatar";
 import { pickHighlight } from "@/lib/card-highlight";
-import { getQaUrl } from "@/lib/card-url";
+import { getQaUrl, getQaEditUrl } from "@/lib/card-url";
 import { parseYoutubeTimestamp, formatTimestamp } from "@/lib/youtube-time";
 import { categorize } from "@/lib/category-sets";
 import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
+import { ROLES } from "@/lib/identity-shared";
 import { getSessionId } from "@/lib/impression-queue";
 import { showToast } from "@/lib/toast";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import CommentsBlock from "@/components/comments/CommentsBlock";
 import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
@@ -488,6 +497,215 @@ export function useBetaCardActions(card: CardData, viewer?: BetaViewerState) {
   };
 }
 
+/* ---------- 카드 ⋮ 더보기 메뉴 (본인 글 수정/삭제 · 관리자 숨김) ----------
+ * 운영 CardHeader/Card 의 관리 수단을 베타 PostCard 로 이식(읽기→재현, 직접 수정 X).
+ *
+ * 권한 판정(운영 Card.tsx 정합):
+ *   - me = useSession() (SSR SessionContext 단일 출처) → { activeIdentityId, role }.
+ *     로그아웃 = null. role 은 마운트 직후 동기 쿠키로 "user", 곧 /api/session 로 보강(admin 반영).
+ *   - canEdit  = admin 이거나 (card.author.id === active 명함 id)  ← 본인/관리자
+ *   - canHide  = admin 만
+ *   - 비로그인·타인 글 → 아무 항목도 없음 → 버튼 자체 미렌더.
+ *
+ * 동작(운영과 동일 경로 — RLS 가 최종 강제):
+ *   - 수정 → getQaEditUrl(card) 로 라우팅(의사 글 /write/{shortcode}, 후기 /review/{shortcode}/edit).
+ *   - 삭제 → ConfirmDialog 확인 후 soft_delete_card RPC(운영과 동일 인자) → onDeleted() 로 카드 제거.
+ *   - 숨김 → toggle_card_hide RPC(운영과 동일 인자) → router.refresh().
+ * 외부클릭/ESC 로 드롭다운 닫기(운영 CardHeader 정합). */
+function PostCardMenu({
+  card,
+  onDeleted,
+}: {
+  card: CardData;
+  /** 삭제 성공 시 호출 — 호출부가 카드를 화면에서 제거. */
+  onDeleted: () => void;
+}) {
+  const router = useRouter();
+  const session = useSession();
+  // me — SSR SessionContext 단일 출처(운영 useCardViewer 정합). 로그아웃 → null.
+  const me = session
+    ? { id: session.activeIdentityId, role: session.role }
+    : null;
+
+  // 본인 판정 — card 작성자 명함 id 와 active 명함 id 비교(운영 Card.tsx canEdit 정합).
+  const authorId = card.author?.id ?? null;
+  const isOwner = !!me && authorId != null && me.id === authorId;
+  const isAdmin = !!me && me.role === ROLES.ADMIN;
+  const canEdit = isOwner || isAdmin;
+  const canHide = isAdmin;
+  const editHref = getQaEditUrl(card);
+  const isHidden = card.status === "hidden";
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // 외부 클릭 + ESC 로 메뉴 닫기(운영 CardHeader 정합, A11y).
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  // 숨김 토글 — 운영 Card.performHide 와 동일 RPC(toggle_card_hide)·인자·확인 흐름.
+  async function performHide() {
+    const next = isHidden ? "published" : "hidden";
+    const confirmMsg = isHidden
+      ? "이 글의 숨김을 해제하고 다시 공개로 전환할까요?"
+      : "이 글을 숨김 처리할까요?\n관리자/작성자/해당 원장 외에는 보이지 않게 됩니다.";
+    if (!window.confirm(confirmMsg)) return;
+    const sb = createSupabaseBrowserClient();
+    const { error } = await sb.rpc("toggle_card_hide", {
+      p_card_id: card.id,
+      p_next_status: next,
+    });
+    if (error) {
+      const msg = error.message || "";
+      if (msg.includes("forbidden")) {
+        showToast("권한이 없어 처리할 수 없어요. 본인/관리자 글만 가능합니다.", {
+          tone: "danger",
+        });
+      } else if (msg.includes("card_not_found")) {
+        showToast("카드를 찾을 수 없습니다.", { tone: "danger" });
+      } else {
+        showToast("숨김 처리 실패: " + msg, { tone: "danger" });
+      }
+      return;
+    }
+    showToast(isHidden ? "공개로 전환했어요" : "숨김 처리했어요");
+    router.refresh();
+  }
+
+  // 삭제 — 운영 Card.performDelete 와 동일 RPC(soft_delete_card)·인자.
+  //   성공 시 onDeleted() 로 카드를 화면에서 제거(운영의 vanishing 애니메이션 대신 베타는 즉시 언마운트).
+  async function performDelete() {
+    setDeleting(true);
+    try {
+      const sb = createSupabaseBrowserClient();
+      const { error } = await sb.rpc("soft_delete_card", { p_card_id: card.id });
+      if (error) {
+        const msg = error.message || "";
+        if (msg.includes("forbidden")) {
+          showToast("권한이 없어 삭제할 수 없어요. 본인/관리자 글만 가능합니다.", {
+            tone: "danger",
+          });
+        } else if (msg.includes("card_not_found")) {
+          showToast("이미 삭제되었거나 존재하지 않는 카드입니다.", {
+            tone: "danger",
+          });
+        } else {
+          showToast("삭제 실패: " + msg, { tone: "danger" });
+        }
+        setDeleting(false);
+        return;
+      }
+      showToast("글을 삭제했어요");
+      setConfirmDeleteOpen(false);
+      onDeleted();
+    } catch {
+      setDeleting(false);
+    }
+  }
+
+  // 비로그인·타인 글(관리자 아님) → 메뉴 자체 미노출.
+  if (!canEdit && !canHide) return null;
+
+  return (
+    <div
+      ref={menuRef}
+      className={styles.kebabWrap}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        className={styles.kebabBtn}
+        aria-label="더보기"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        title="더보기"
+        onClick={(e) => {
+          e.stopPropagation();
+          setMenuOpen((v) => !v);
+        }}
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="5" cy="12" r="1.6" />
+          <circle cx="12" cy="12" r="1.6" />
+          <circle cx="19" cy="12" r="1.6" />
+        </svg>
+      </button>
+      {menuOpen && (
+        <div className={styles.cardMenu} role="menu">
+          {canEdit && editHref && (
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.cardMenuItem}
+              onClick={() => {
+                setMenuOpen(false);
+                router.push(editHref);
+              }}
+            >
+              수정
+            </button>
+          )}
+          {canHide && (
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.cardMenuItem}
+              onClick={() => {
+                setMenuOpen(false);
+                void performHide();
+              }}
+            >
+              {isHidden ? "해제" : "숨기기"}
+            </button>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              role="menuitem"
+              className={`${styles.cardMenuItem} ${styles.cardMenuDanger}`}
+              onClick={() => {
+                setMenuOpen(false);
+                setConfirmDeleteOpen(true);
+              }}
+            >
+              삭제
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 삭제 확인 다이얼로그 — 운영 Card.tsx 와 동일 문구·tone. */}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="이 글을 삭제할까요?"
+        description={"삭제하면 되돌릴 수 없어요.\n댓글과 좋아요도 함께 사라집니다."}
+        confirmLabel={deleting ? "삭제 중…" : "삭제"}
+        cancelLabel="취소"
+        tone="danger"
+        onConfirm={performDelete}
+        onCancel={() => !deleting && setConfirmDeleteOpen(false)}
+      />
+    </div>
+  );
+}
+
 export function PostCard({
   card,
   onTagClick,
@@ -503,6 +721,8 @@ export function PostCard({
   viewer?: BetaViewerState;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // ⋮ 메뉴 삭제 성공 시 카드를 화면에서 제거(운영의 vanishing 대신 베타는 즉시 언마운트).
+  const [removed, setRemoved] = useState(false);
   // 피드백 2) 댓글 펼침 — 댓글 아이콘 클릭 시 실제 댓글(CommentsBlock) 노출.
   const [commentsOpen, setCommentsOpen] = useState(false);
   // cards 테이블에 comment_count 컬럼이 없어 정적값은 항상 0 → 운영 Card.tsx 패턴 이식.
@@ -529,6 +749,9 @@ export function PostCard({
   const profileHref = authorHref(card);
   // 항목 5) 24h 내 작성 → NEW 배지.
   const showNew = isNewCard(card.created_at);
+
+  // ⋮ 메뉴에서 삭제 성공 시 카드 언마운트(모든 훅 호출 이후라 조건부 훅 아님 — 안전).
+  if (removed) return null;
 
   const toggle = () => {
     if (isLong) setExpanded((v) => !v);
@@ -572,6 +795,10 @@ export function PostCard({
           {isHot && <span className={styles.hot}>HOT</span>}
         </div>
       )}
+
+      {/* ⋮ 더보기 — 본인 글 수정/삭제 + 관리자 숨김(운영 CardHeader 이식).
+          권한 없으면(비로그인/타인 글) 내부에서 null 반환 → 미노출. */}
+      <PostCardMenu card={card} onDeleted={() => setRemoved(true)} />
 
       {/* 작성자 — 항목 4) 실제 프로필 URL 로 새 탭 이동(정보 부족이면 일반 div).
           본문 펼침 토글과 충돌 안 나게 작성자 영역은 별도(토글에서 분리). */}

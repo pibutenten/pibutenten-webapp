@@ -13,6 +13,7 @@
 
 import { useState } from "react";
 import CardAvatar from "@/components/card/CardAvatar";
+import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
 import { useBetaSearchRouting } from "../beta-ui";
@@ -104,6 +105,12 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
 
   return (
     <BetaSkinShell active="마이" sidebar={sidebar} {...search}>
+      {/* 계정(명함) 스위처 — 운영 공용 카드를 그대로 임베드(데이터·전환 로직 100% 재사용).
+          useSession() 기반이라 props 불필요. 전환 시 /api/identity/switch → /my reload(운영 동일).
+          비로그인은 activity=null 게스트 분기라 이 블록에 도달하지 않음(스위처 자동 숨김).
+          카드 자체 하단 여백(mb-4)을 사용하므로 별도 wrapper 간격은 주지 않음. */}
+      <AccountSwitcherCard />
+
       {/* 프로필 + 통계(실데이터) */}
       <section className={`${styles.card} ${styles.mb20}`}>
         <div className={styles.profileCard}>
