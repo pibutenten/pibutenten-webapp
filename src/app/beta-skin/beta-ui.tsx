@@ -39,6 +39,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import CommentsBlock from "@/components/comments/CommentsBlock";
 import RecentLikers from "@/components/RecentLikers";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
+import { useCardViewer } from "@/components/card/hooks/useCardViewer";
 import type { CardData } from "@/lib/types/card";
 // (리포트 카드는 운영 ProcedureReportCard 를 BetaSkinFeed 에서 직접 재사용 — 베타 자체 BetaReportCard 폐기.)
 import { useSession } from "@/lib/session-context";
@@ -731,6 +732,10 @@ export function PostCard({
   }, [previewReady]);
   // 좋아요·저장·공유 실제 동작.
   const act = useBetaCardActions(card, viewer);
+  // 조회수/노출 기록 — 운영 useCardViewer 그대로 재사용. mount 시 impression(노출) 자동 enqueue,
+  //   본문 펼침·댓글 열기 등 "읽음 의도" 시 recordView()로 card_views 기록(세션 dedup, DB 트리거가 카운트).
+  //   (베타 유입이 조회수·노출 통계에서 누락되던 문제 해소.)
+  const { recordView } = useCardViewer(card, { forceExpanded: false, cardRef });
 
   const authorName = card.doctor?.name ?? card.author?.display_name ?? "회원";
   const isDoctor = !!card.doctor && !card.hide_doctor_credential;
@@ -755,7 +760,10 @@ export function PostCard({
   if (removed) return null;
 
   const toggle = () => {
-    if (isLong) setExpanded((v) => !v);
+    if (isLong) {
+      setExpanded((v) => !v);
+      recordView(); // 본문 펼침 = 읽음 의도 → 조회 기록(세션 1회 dedup).
+    }
   };
 
   // 작성자 행 내용 — 링크/일반 div 공용.
@@ -929,6 +937,7 @@ export function PostCard({
           onClick={(e) => {
             e.stopPropagation();
             setCommentsOpen((v) => !v);
+            recordView(); // 댓글 열기 = 읽음 의도 → 조회 기록.
           }}
         >
           <IconComment /> {commentCount}

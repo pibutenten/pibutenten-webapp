@@ -10,7 +10,7 @@
  * - 사이드: 작성자 프로필 카드(있으면 프로필 보기 링크) + 함께 보면 좋은 Q&A(related 실데이터).
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import CardAvatar from "@/components/card/CardAvatar";
 import { showToast } from "@/lib/toast";
@@ -18,8 +18,20 @@ import { pickHighlight } from "@/lib/card-highlight";
 import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
 import CommentsBlock from "@/components/comments/CommentsBlock";
 import RecentLikers from "@/components/RecentLikers";
+import { useCardViewer } from "@/components/card/hooks/useCardViewer";
 import type { CardData } from "@/lib/types/card";
 import BetaSkinShell from "../BetaSkinShell";
+
+/* 글 상세 진입 = 명백한 조회·노출 신호 → 운영 useCardViewer 로 impression(mount) + view 기록.
+   card 가 null(샘플)일 땐 렌더 안 함 → 조건부 훅 회피(트래커를 분리 컴포넌트로). */
+function PostViewTracker({ card }: { card: CardData }) {
+  const ref = useRef<HTMLElement>(null);
+  const { recordView } = useCardViewer(card, { forceExpanded: true, cardRef: ref });
+  useEffect(() => {
+    recordView();
+  }, [recordView]);
+  return null;
+}
 import styles from "../beta-skin.module.css";
 import {
   IconVerified,
@@ -173,6 +185,7 @@ export default function PostDetail({
 
   return (
     <BetaSkinShell active="피드" sidebar={sidebar} {...search}>
+      {card && <PostViewTracker card={card} />}
       <article className={`${styles.card} ${styles.postCard}`}>
         {/* ⋮ 더보기 — 글상세에도 피드와 동일하게 본인/관리자 수정·삭제·숨김(운영 CardHeader 이식).
             .postCard(position:relative) 우상단에 .kebabWrap 으로 절대배치(피드 PostCard 와 동일 CSS).
