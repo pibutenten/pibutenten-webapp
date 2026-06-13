@@ -269,17 +269,20 @@ export default function PostDetail({
 
         <div className={styles.divider} />
 
-        {/* 피드백 2) 댓글 — 실제 운영 CommentsBlock. 실제 카드일 때만 렌더(샘플 폴백은 생략). */}
+        {/* 피드백 2) 댓글 — 실제 운영 CommentsBlock. 실제 카드일 때만 렌더(샘플 폴백은 생략).
+            항목5) betaComments 스코프: 하트 회색·파란 포커스선 완화·답글↔하트 간격(운영 무수정 override). */}
         {card && (
-          <CommentsBlock
-            cardId={card.id}
-            doctorSlug={card.doctor?.slug ?? null}
-            cardDoctorId={card.doctor?.id ?? null}
-            isPublishedQa
-            showInput
-            disableAutoFocus
-            onCountChange={setCommentCount}
-          />
+          <div className={styles.betaComments}>
+            <CommentsBlock
+              cardId={card.id}
+              doctorSlug={card.doctor?.slug ?? null}
+              cardDoctorId={card.doctor?.id ?? null}
+              isPublishedQa
+              showInput
+              disableAutoFocus
+              onCountChange={setCommentCount}
+            />
+          </div>
         )}
       </article>
     </BetaSkinShell>

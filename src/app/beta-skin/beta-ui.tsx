@@ -712,11 +712,31 @@ export function PostCard({
   const [expanded, setExpanded] = useState(false);
   // ⋮ 메뉴 삭제 성공 시 카드를 화면에서 제거(운영의 vanishing 대신 베타는 즉시 언마운트).
   const [removed, setRemoved] = useState(false);
-  // 피드백 2) 댓글 펼침 — 댓글 아이콘 클릭 시 실제 댓글(CommentsBlock) 노출.
+  // 피드백 2) 댓글 펼침 — 댓글 아이콘 클릭 시 입력창까지 펼침(showInput).
   const [commentsOpen, setCommentsOpen] = useState(false);
-  // cards 테이블에 comment_count 컬럼이 없어 정적값은 항상 0 → 운영 Card.tsx 패턴 이식.
-  //   CommentsBlock 의 onCountChange 로 실제 댓글 수를 받아 갱신.
+  // 항목4) 댓글 수 0 고정 + 클릭해야만 보임 → 카드가 뷰포트 근처에 오면 CommentsBlock 을 미리보기 모드로
+  //   마운트(showInput=false): 운영 CommentsBlock 이 인기순(like_count DESC) 상위 3개를 표시 +
+  //   onCountChange 로 실제 댓글 수를 채운다. 전 카드 즉시 fetch 부담을 피하려 IntersectionObserver 지연.
+  const [previewReady, setPreviewReady] = useState(false);
+  const cardRef = useRef<HTMLElement>(null);
+  // cards 테이블에 comment_count 컬럼이 없어 정적값은 항상 0 → CommentsBlock onCountChange 로 갱신.
   const [commentCount, setCommentCount] = useState(card.comment_count ?? 0);
+  useEffect(() => {
+    if (previewReady) return;
+    const el = cardRef.current;
+    if (!el) return;
+    const ob = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setPreviewReady(true);
+          ob.disconnect();
+        }
+      },
+      { rootMargin: "240px 0px" },
+    );
+    ob.observe(el);
+    return () => ob.disconnect();
+  }, [previewReady]);
   // 좋아요·저장·공유 실제 동작.
   const act = useBetaCardActions(card, viewer);
 
@@ -775,7 +795,10 @@ export function PostCard({
 
   return (
     // 피드백 2) 등장 애니메이션 — 살짝 올라오며 페이드인(무한스크롤 추가 카드 포함).
-    <article className={`${styles.card} ${styles.postCard} ${styles.fadeInUp}`}>
+    <article
+      ref={cardRef}
+      className={`${styles.card} ${styles.postCard} ${styles.fadeInUp}`}
+    >
       {/* 배지 — 운영 CardHeader 정합: NEW(24h 내) + HOT(운영 데이터)를 우상단에 나란히.
           둘 다면 NEW → HOT 순으로 겹침 없이 가로 배치(운영은 상호배제 아님). */}
       {(showNew || isHot) && (
@@ -949,15 +972,19 @@ export function PostCard({
           데이터 fetch 경로(get_recent_card_likers_batch)는 운영과 동일(RLS 우회 없음). */}
       <RecentLikers cardId={card.id} likeCount={act.like.count} />
 
-      {/* 피드백 2) 댓글 섹션 — 댓글 아이콘 클릭 시 실제 댓글(운영 CommentsBlock) 펼침. */}
-      {commentsOpen && (
-        <div onClick={(e) => e.stopPropagation()}>
+      {/* 항목4) 댓글 섹션 — 뷰포트 근접 시 미리보기(인기순 3개)부터 노출, 💬 클릭 시 입력창까지 펼침.
+          showInput={commentsOpen}: false=미리보기 3개 / true=전체+입력. onCountChange 로 실제 수 반영. */}
+      {(previewReady || commentsOpen) && (
+        <div
+          className={styles.betaComments}
+          onClick={(e) => e.stopPropagation()}
+        >
           <CommentsBlock
             cardId={card.id}
             doctorSlug={card.doctor?.slug ?? null}
             cardDoctorId={card.doctor?.id ?? null}
             isPublishedQa
-            showInput
+            showInput={commentsOpen}
             disableAutoFocus
             onCountChange={setCommentCount}
           />

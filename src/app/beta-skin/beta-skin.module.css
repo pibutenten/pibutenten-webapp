@@ -114,6 +114,26 @@
   box-shadow: 0 0 0 2px rgba(69, 183, 232, 0.28), var(--card-shadow);
 }
 
+/* 항목5) 댓글(운영 CommentsBlock/CommentItem/CommentForm) 베타 스코프 override — 운영 파일 무수정.
+   - 좋아요 하트: 핑크/검정 → 회색(--accent 를 댓글 스코프에서만 회색으로). 채움(liked)으로 상태 구분.
+   - 입력창 포커스: 3px 파란 링 제거(지저분한 파란 선). 폼 자체 보더로 포커스 표현(접근성 유지).
+   - 답글 ↔ 하트 간격: 인라인 marginLeft:2px 가 너무 좁아 넉넉히(좋아요 버튼은 stable aria-label). */
+.betaComments {
+  /* 하트 liked=--accent / unliked=--text-muted 둘 다 같은 회색으로(검정 하트 방지). */
+  --accent: #9aa3b0;
+  --text-muted: #9aa3b0;
+}
+.root .betaComments :focus-visible {
+  outline: none;
+}
+/* 좋아요 하트 — 변수가 더 구체적인 규칙에 밀려 어둡게 나오므로 색을 직접 강제(회색). svg currentColor 가 따라옴.
+   + 답글↔하트 간격(인라인 marginLeft:2px 너무 좁음)도 함께. */
+.root .betaComments button[aria-label="좋아요"],
+.root .betaComments button[aria-label="좋아요 취소"] {
+  color: #9aa3b0 !important;
+  margin-left: 10px !important;
+}
+
 /* ---------- 헤더 (모바일 기본) ----------
  * 항목 1) 헤더는 sticky 가 아니라 일반 흐름 — 스크롤 다운 시 transform 으로 위로 슬라이드되어 사라짐.
  *   (칩바만 sticky top:0 으로 고정 → top:0 충돌 회피.) */
