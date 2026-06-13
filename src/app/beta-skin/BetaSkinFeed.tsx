@@ -535,6 +535,7 @@ export default function BetaSkinFeed({
                 onTagClick={applyTag}
                 isHot={hotSet.has(card.id)}
                 viewer={viewerStates?.[card.id]}
+                searchQuery={searchQuery}
               />
             ))}
           </>

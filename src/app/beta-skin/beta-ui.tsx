@@ -24,6 +24,7 @@ import {
 import { useRouter } from "next/navigation";
 import CardAvatar from "@/components/card/CardAvatar";
 import { pickHighlight } from "@/lib/card-highlight";
+import { highlight } from "@/components/card/utils/card-render";
 import { getQaUrl, getQaEditUrl } from "@/lib/card-url";
 import { parseYoutubeTimestamp, formatTimestamp } from "@/lib/youtube-time";
 import { categorize } from "@/lib/category-sets";
@@ -246,6 +247,7 @@ export function renderBetaBody(
   text: string,
   highlightColor: string,
   clamped: boolean,
+  query?: string,
 ): ReactNode {
   const paragraphs = (text ?? "").split(/\n{2,}/).map((s) => s.trimEnd());
   return (
@@ -261,7 +263,8 @@ export function renderBetaBody(
           if (m.index > lastIdx) {
             inline.push(
               <Fragment key={`t${pi}-${key++}`}>
-                {para.slice(lastIdx, m.index)}
+                {/* 항목1) 검색어 노란 하이라이트(운영 highlight 재사용) — 본문 평문 부분에만. */}
+                {highlight(para.slice(lastIdx, m.index), query)}
               </Fragment>,
             );
           }
@@ -280,7 +283,9 @@ export function renderBetaBody(
         }
         if (lastIdx < para.length) {
           inline.push(
-            <Fragment key={`t${pi}-${key++}`}>{para.slice(lastIdx)}</Fragment>,
+            <Fragment key={`t${pi}-${key++}`}>
+              {highlight(para.slice(lastIdx), query)}
+            </Fragment>,
           );
         }
         const cls = [
@@ -700,6 +705,7 @@ export function PostCard({
   onTagClick,
   isHot = false,
   viewer,
+  searchQuery,
 }: {
   card: CardData;
   /** 항목 4) 카드 태그 클릭 → 그 키워드로 검색·필터 (헤더 검색창에 채움). */
@@ -708,6 +714,8 @@ export function PostCard({
   isHot?: boolean;
   /** 서버 prefetch 한 좋아요/저장 상태 — 첫 렌더부터 정확한 active 표시. */
   viewer?: BetaViewerState;
+  /** 항목1) 현재 검색어 — 본문·제목 노란 하이라이트 + 일치 태그 활성화(검색 결과일 때만). */
+  searchQuery?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   // ⋮ 메뉴 삭제 성공 시 카드를 화면에서 제거(운영의 vanishing 대신 베타는 즉시 언마운트).
@@ -838,10 +846,10 @@ export function PostCard({
           href={`/beta-skin/post?id=${card.id}`}
           onClick={(e) => e.stopPropagation()}
         >
-          <h2 className={styles.postTitle}>{card.title}</h2>
+          <h2 className={styles.postTitle}>{highlight(card.title, searchQuery)}</h2>
         </a>
       ) : (
-        <h2 className={styles.postTitle}>{card.title}</h2>
+        <h2 className={styles.postTitle}>{highlight(card.title, searchQuery)}</h2>
       )}
 
       <div
@@ -862,7 +870,7 @@ export function PostCard({
       >
         {body && (
           <div className={styles.postBodyRich}>
-            {renderBetaBody(body, hlColor, isLong && !expanded)}
+            {renderBetaBody(body, hlColor, isLong && !expanded, searchQuery)}
           </div>
         )}
         {/* 항목9) 더보기만 노출 — 펼친 글은 본문 클릭으로 접히므로 '접기' 라벨 불필요. */}
@@ -888,11 +896,15 @@ export function PostCard({
 
       {tags.length > 0 && (
         <div className={styles.postTags}>
-          {tags.map((t) =>
-            onTagClick ? (
+          {tags.map((t) => {
+            // 항목1) 검색어와 일치하는 태그는 카테고리 색으로 "활성화"(솔리드 채움). 띄어쓰기 무시 매칭.
+            const norm = (s: string) => s.replace(/\s/g, "").toLowerCase();
+            const isMatch = !!searchQuery && norm(t) === norm(searchQuery);
+            const cls = `${styles.t} ${catTagClass(t)} ${isMatch ? styles.tagBtnActive : ""}`;
+            return onTagClick ? (
               <button
                 type="button"
-                className={styles.t}
+                className={cls}
                 key={t}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -902,11 +914,11 @@ export function PostCard({
                 {t}
               </button>
             ) : (
-              <span className={styles.t} key={t}>
+              <span className={cls} key={t}>
                 {t}
               </span>
-            ),
-          )}
+            );
+          })}
         </div>
       )}
 
