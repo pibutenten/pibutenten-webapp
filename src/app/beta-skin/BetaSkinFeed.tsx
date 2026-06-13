@@ -29,10 +29,10 @@ import { addRecent } from "@/lib/beta-recent";
 import { prefetchDiscover } from "@/components/beta/BetaDiscovery";
 import { CATEGORIES, type CategorySlug } from "@/lib/categories";
 import BetaSkinShell from "./BetaSkinShell";
+import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import styles from "./beta-skin.module.css";
 import {
   PostCard,
-  BetaReportCard,
   cardHref,
   catTagClass,
   type BetaViewerState,
@@ -506,7 +506,11 @@ export default function BetaSkinFeed({
             </p>
           ) : (
             filteredReports.map((r) => (
-              <BetaReportCard key={r.procedureKo} report={r} />
+              <ProcedureReportCard
+                key={r.procedureKo}
+                report={r}
+                feedHref={`/reports/${encodeURIComponent(r.procedureKo)}`}
+              />
             ))
           )
         ) : filtered.length === 0 && !topReport ? (
@@ -517,8 +521,13 @@ export default function BetaSkinFeed({
           </p>
         ) : (
           <>
-            {/* 검색 매칭 리포트 — 결과 맨 위 1장. */}
-            {topReport && <BetaReportCard report={topReport} />}
+            {/* 검색 매칭 리포트 — 결과 맨 위 1장(운영 ProcedureReportCard 재사용). */}
+            {topReport && (
+              <ProcedureReportCard
+                report={topReport}
+                feedHref={`/reports/${encodeURIComponent(topReport.procedureKo)}`}
+              />
+            )}
             {filtered.map((card) => (
               <PostCard
                 key={card.id}
