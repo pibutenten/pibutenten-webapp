@@ -30,6 +30,7 @@ import { categorize } from "@/lib/category-sets";
 import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
+import { shareCard } from "@/components/card/utils/card-share";
 import { ROLES } from "@/lib/identity-shared";
 import { getSessionId } from "@/lib/impression-queue";
 import { showToast } from "@/lib/toast";
@@ -122,34 +123,9 @@ export function isNewCard(iso?: string | null): boolean {
   return Date.now() - t < 24 * 60 * 60 * 1000;
 }
 
-/* ---------- 공유 (실제 URL, 운영 shareCard 의 프리뷰판) ----------
- * 항목 5) navigator.share 있으면 호출, 없으면 clipboard 복사 + alert 안내.
- *   href 는 cardHref 결과(상대경로) → 절대 URL 로 변환해 공유/복사.
- *   "/"(정보 부족) 이면 현재 페이지 URL 로 폴백. */
-export async function shareBetaCard(href: string, title?: string): Promise<void> {
-  if (typeof window === "undefined") return;
-  const url =
-    href && href !== "/"
-      ? new URL(href, window.location.origin).toString()
-      : window.location.href;
-  try {
-    const nav = window.navigator as Navigator & {
-      share?: (data: ShareData) => Promise<void>;
-    };
-    if (typeof nav.share === "function") {
-      await nav.share({ title: title || "피부텐텐", url });
-      return;
-    }
-    if (nav.clipboard?.writeText) {
-      await nav.clipboard.writeText(url);
-      window.alert("링크를 복사했어요.");
-      return;
-    }
-    window.prompt("아래 링크를 복사하세요", url);
-  } catch {
-    /* 사용자가 공유 시트를 닫은 경우 등 — 조용히 무시 */
-  }
-}
+/* ---------- 공유: 운영 shareCard(@/components/card/utils/card-share) 재사용 ----------
+ * 자체 구현(shareBetaCard) 폐기 — 모바일 네이티브 시트 / 데스크탑 클립보드+토스트,
+ * 사용자 취소(AbortError) 구분, card_shares.channel 채널 반환까지 운영과 100% 동일. */
 
 /* ---------- 카테고리 라벨 ---------- */
 export function categoryLabel(c: CardData): string {
@@ -474,8 +450,10 @@ export function useBetaCardActions(card: CardData, viewer?: BetaViewerState) {
     })();
   }, [card.id, saved, savePending, me]);
   const doShare = useCallback(async () => {
-    const href = cardHref(card);
-    await shareBetaCard(href, card.title ?? undefined);
+    // 운영 shareCard 재사용 — 모바일: 네이티브 공유 시트 / 데스크탑: 클립보드 복사 + "링크가 복사되었어요" 토스트.
+    //   반환 채널(native/link-copy)을 그대로 기록. 사용자 취소·실패(null)면 카운트/기록 안 함.
+    const channel = await shareCard(card);
+    if (!channel) return;
     try {
       const sb = createSupabaseBrowserClient();
       const { data: u } = await sb.auth.getUser();
@@ -485,7 +463,7 @@ export function useBetaCardActions(card: CardData, viewer?: BetaViewerState) {
         card_id: card.id,
         profile_id: profileId,
         session_id: getSessionId(),
-        channel: "link-copy",
+        channel,
       });
     } catch {
       /* 공유 카운트 실패 무시 */

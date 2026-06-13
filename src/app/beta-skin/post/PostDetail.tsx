@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CardAvatar from "@/components/card/CardAvatar";
+import { showToast } from "@/lib/toast";
 import { pickHighlight } from "@/lib/card-highlight";
 import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
 import CommentsBlock from "@/components/comments/CommentsBlock";
@@ -33,7 +34,6 @@ import {
   PubmedRefs,
   cardHref,
   authorHref,
-  shareBetaCard,
   useBetaSearchRouting,
   useBetaCardActions,
   PostCardMenu,
@@ -83,9 +83,18 @@ export default function PostDetail({
   // 항목 4) 작성자 프로필 URL · 항목 1) 글 canonical URL (실제 카드일 때만).
   const profileHref = card ? authorHref(card) : null;
   const postHref = card ? cardHref(card) : "/";
-  // 항목 5) 공유 — 샘플(card=null) 폴백 전용. 실제 카드의 공유는 ArticleFooter 내부
-  // useBetaCardActions 의 share(card_shares INSERT 포함)가 담당한다.
-  const onShare = () => void shareBetaCard(postHref, title);
+  // 항목 5) 공유 — 샘플(card=null) 폴백 전용(실제 카드의 공유는 ArticleFooter 의 운영 shareCard 담당).
+  //   샘플은 카드 객체가 없어 현재 페이지 URL 을 클립보드 복사 + 운영 토스트.
+  const onShare = () => {
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        showToast("링크가 복사되었어요");
+      } catch {
+        /* 권한 거부 등 — 무시 */
+      }
+    })();
+  };
   // 작성자 행 내용(링크/일반 div 공용).
   const authorRow = (
     <>

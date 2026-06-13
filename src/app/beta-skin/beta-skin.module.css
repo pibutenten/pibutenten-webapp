@@ -1174,39 +1174,39 @@ button.t:hover {
 
 /* 배지 컨테이너 — 운영 CardHeader 정합: NEW/HOT 를 우상단에 가로로 나란히(겹침 방지).
    절대배치·매달림은 컨테이너가 담당하고, 개별 배지(.newBadge/.hot)는 inline-flex 딱지. */
+/* 항목11) 배지 위치 — 카드 위에 매달던 방식 폐기. 좌측 아바타와 "같은 높이"로 우측에 둠.
+   카드 padding 22 + 아바타(46)/2 = 45px 가 아바타 세로 중심. ⋮(top:16) 보다 아래라 겹치지 않음. */
 .badges {
   position: absolute;
-  top: 0;
-  right: 22px;
-  transform: translateY(-40%);
+  top: 45px;
+  right: 20px;
+  transform: translateY(-50%);
   display: flex;
   gap: 5px;
   z-index: 2;
 }
 
-/* HOT 배지 — 운영 CardHeader HOT(#F48FB1) 핑크 톤. */
+/* HOT/NEW — 작고 둥근 "연한 파스텔" 딱지(연한 배경 + 같은 색 글씨). 우측 아바타 높이. */
 .hot {
   display: inline-flex;
   align-items: center;
-  background: #ff8fb5;
-  color: #fff;
-  font-size: 11px;
+  background: #ffe0ea;
+  color: #d83a6a;
+  font-size: 10px;
   font-weight: 800;
-  padding: 5px 11px;
-  border-radius: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
   letter-spacing: 0.04em;
 }
-
-/* 항목 5) NEW 배지 — 운영 CardHeader NEW(#81C784) 톤. */
 .newBadge {
   display: inline-flex;
   align-items: center;
-  background: #5db98a;
-  color: #fff;
-  font-size: 11px;
+  background: #d8f0e2;
+  color: #2f9e6a;
+  font-size: 10px;
   font-weight: 800;
-  padding: 5px 11px;
-  border-radius: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
   letter-spacing: 0.04em;
 }
 
@@ -1295,28 +1295,50 @@ button.t:hover {
 }
 /* 사이드 인기 태그 카드 — 카테고리 탭(전체/피부고민/리프팅/스킨부스터/홈케어/피부상식).
  *   선택 카테고리의 인기 태그를 아래 .sideTags 에 표시(검색 드롭다운의 인기검색어 대체). */
+/* 카테고리 선택 = "탭(밑줄)" 형식 — 아래 키워드 "칩(알약)"과 시각적으로 구분.
+   8개 카테고리까지 늘어도 가로 스크롤로 자연스럽게(줄바꿈 X). */
 .tagCatTabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 16px;
   margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tagCatTabs::-webkit-scrollbar {
+  display: none;
 }
 .tagCatTab {
-  padding: 5px 11px;
-  border-radius: 999px;
-  font-size: 12px;
+  flex: 0 0 auto;
+  position: relative;
+  padding: 3px 1px 9px;
+  border-radius: 0;
+  font-size: 13px;
   font-weight: 600;
-  background: #eef2f6;
+  background: transparent;
   color: var(--ink-500);
+  white-space: nowrap;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: color 0.15s;
 }
 .tagCatTab:hover {
-  background: #e3e9ef;
+  background: transparent;
+  color: var(--ink-700);
 }
 .tagCatTabActive {
+  background: transparent;
+  color: var(--tt-blue-deep);
+  font-weight: 800;
+}
+.tagCatTabActive::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
   background: var(--tt-blue-deep);
-  color: #fff;
 }
 .tag {
   font-size: 12.5px;
@@ -1388,41 +1410,33 @@ button.t:hover {
   background: rgba(158, 157, 36, 0.16);
   color: #6a6915;
 }
-/* 항목3) 활성(현재 검색어 = 그 태그): 단색 파랑으로 덮지 않고,
-   각 카테고리 색 정체성을 유지한 채 "더 진해지는" 방식으로 선택 표현.
-   - 배경 알파를 비활성보다 높여 같은 색 계열에서 진하게
-   - 같은 카테고리 색 테두리(inset box-shadow) + 굵게로 "선택됨" 강조
-   카테고리 클래스가 없는 폴백(.tagBtnActive 단독)만 중립 진한 회색 톤. */
+/* 항목7) 활성(현재 검색어 = 그 태그): 테두리가 아니라 "색이 진해지고 안에 흰 글씨".
+   각 카테고리 색의 진한 솔리드 배경 + 흰 글씨로 채워 "선택됨"을 명확히(흰글씨 대비 4.5:1↑). */
 .tagBtnActive {
   font-weight: 800;
-  background: #d7dee6;
-  color: var(--ink-900);
-  box-shadow: inset 0 0 0 1.5px rgba(60, 72, 86, 0.45);
+  background: var(--tt-blue-deep);
+  color: #fff;
+  box-shadow: none;
 }
 .tagBtnActive.catConcerns {
-  background: rgba(126, 87, 194, 0.28);
-  color: #56329a;
-  box-shadow: inset 0 0 0 1.5px rgba(106, 69, 176, 0.55);
+  background: #6a45b0;
+  color: #fff;
 }
 .tagBtnActive.catLifting {
-  background: rgba(41, 182, 246, 0.32);
-  color: #125a80;
-  box-shadow: inset 0 0 0 1.5px rgba(23, 109, 153, 0.55);
+  background: #176d99;
+  color: #fff;
 }
 .tagBtnActive.catInjectables {
-  background: rgba(244, 143, 177, 0.36);
-  color: #97335a;
-  box-shadow: inset 0 0 0 1.5px rgba(176, 62, 104, 0.5);
+  background: #b03e68;
+  color: #fff;
 }
 .tagBtnActive.catHomecare {
-  background: rgba(191, 110, 92, 0.3);
-  color: #823c2a;
-  box-shadow: inset 0 0 0 1.5px rgba(151, 71, 50, 0.5);
+  background: #974732;
+  color: #fff;
 }
 .tagBtnActive.catKnowledge {
-  background: rgba(158, 157, 36, 0.32);
-  color: #595912;
-  box-shadow: inset 0 0 0 1.5px rgba(106, 105, 21, 0.5);
+  background: #6a6915;
+  color: #fff;
 }
 .tagClear {
   display: inline-block;

@@ -73,6 +73,16 @@ function scrollFeedTop(from: HTMLElement | null) {
   window.scrollTo({ top: 0 });
 }
 
+/* 사이드 글쓰기 유도 박스 문구 — Q&A 한정에서 일반 "피부 글쓰기" 유도로.
+ *   랜덤 셔플로 매 진입마다 다른 톤(꿀팁/고민/후기/일기/질문) 노출. CTA 는 글쓰기. */
+const SIDE_PROMPTS: { h3: string; p: string }[] = [
+  { h3: "공유하고 싶은 피부 꿀팁이 있으세요?", p: "나만 아는 노하우를 글로 남겨보세요." },
+  { h3: "요즘 피부 고민, 어떠세요?", p: "고민을 남기면 회원·전문의와 이야기 나눌 수 있어요." },
+  { h3: "최근 받은 시술, 어땠나요?", p: "솔직한 경험을 글로 들려주세요." },
+  { h3: "오늘의 피부, 한 줄 남겨볼까요?", p: "작은 변화도 기록하면 큰 도움이 돼요." },
+  { h3: "궁금한 점이 있으세요?", p: "글로 남기면 회원·전문의의 이야기를 들어볼 수 있어요." },
+];
+
 /* ---------- 클라이언트 루트 ---------- */
 export default function BetaSkinFeed({
   initialPool,
@@ -370,6 +380,13 @@ export default function BetaSkinFeed({
     return (cats?.[tagTab] ?? []).slice(0, 16);
   }, [tagTab, cats, popularTags]);
 
+  // 사이드 글쓰기 유도 박스 — 매 진입 랜덤 문구(SSR 은 0번, 마운트 후 셔플 → 하이드레이션 안전).
+  const [promptIdx, setPromptIdx] = useState(0);
+  useEffect(() => {
+    setPromptIdx(Math.floor(Math.random() * SIDE_PROMPTS.length));
+  }, []);
+  const sidePrompt = SIDE_PROMPTS[promptIdx];
+
   // 인기 Q&A: doctor 글(Q&A) 상위 5개.
   const doctorAnswers = useMemo(
     () =>
@@ -455,10 +472,10 @@ export default function BetaSkinFeed({
       </section>
 
       <section className={`${styles.card} ${styles.sideCta}`}>
-        <h3>궁금한 시술이 있나요?</h3>
-        <p>Q&A로 남기면 회원·전문의의 이야기를 들어볼 수 있어요.</p>
+        <h3>{sidePrompt.h3}</h3>
+        <p>{sidePrompt.p}</p>
         <a className={styles.sideCtaBtn} href="/beta-skin/write">
-          Q&A 작성하기
+          글쓰기
         </a>
       </section>
     </>
