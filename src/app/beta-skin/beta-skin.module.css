@@ -46,6 +46,12 @@
   --tag-yellow-bg: #fbf0cc;
   --tag-yellow: #7d5d08;
 
+  /* 운영 컴포넌트(댓글 좋아요 등)가 쓰는 accent — 베타 .root 스코프에 정의해
+     var(--accent)/currentColor 가 ink-900(검정)으로 떨어지지 않게(운영 globals 값과 동일). */
+  --accent: #ff6b81;
+  --accent-soft: #ffe4e8;
+  --accent-like: #ff6b81;
+
   --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
 
@@ -112,7 +118,11 @@
  * 항목 1) 헤더는 sticky 가 아니라 일반 흐름 — 스크롤 다운 시 transform 으로 위로 슬라이드되어 사라짐.
  *   (칩바만 sticky top:0 으로 고정 → top:0 충돌 회피.) */
 .header {
-  position: relative;
+  /* sticky 로 상단 고정 — relative 면 스크롤 시 헤더가 위로 사라진 뒤
+     transform 복귀가 화면 밖이라 안 보이던 버그. sticky + headerHidden(transform)
+     로 숨김/복귀가 둘 다 정상 동작. 데스크탑은 JS 에서 headerHidden 을 걸지 않아 항상 고정. */
+  position: sticky;
+  top: 0;
   z-index: 40;
   padding: 12px 18px;
   /* 불투명 베이스(#e8f5fd) 위에 반투명 틴트를 얹어, 아래 깔린 운영 TopNav 가
@@ -363,16 +373,22 @@
  *   캔버스 틴트 배경(좌우 풀블리드)으로 아래 피드가 비치지 않게. */
 .chipBar {
   position: sticky;
-  top: 0;
+  /* 헤더(sticky top:0, 높이 ~56px) 바로 아래 고정. 헤더 숨김(모바일) 시
+     chipBarUp 으로 top:0 끌어올려 빈 공간 없이 최상단 고정. */
+  top: 56px;
   z-index: 30;
   margin: 0 -18px;
   padding: 0 18px;
+  transition: top 0.28s ease;
   background: linear-gradient(
     180deg,
     #e9f4fc 0%,
     #e9f4fc 72%,
     rgba(233, 244, 252, 0)
   );
+}
+.chipBarUp {
+  top: 0;
 }
 .chipRow {
   display: flex;

@@ -950,6 +950,8 @@ export function PostCard({
           <IconBookmark /> {act.save.count}
         </button>
         {/* 항목 5) 공유 — 실제 URL 을 navigator.share / clipboard 로 + card_shares INSERT. */}
+        <span className={styles.grow} />
+        {/* 공유 — 실제 URL 을 navigator.share / clipboard 로 + card_shares INSERT. 우측 정렬. */}
         <button
           type="button"
           className={styles.pfBtn}
@@ -961,19 +963,6 @@ export function PostCard({
         >
           <IconShare />
         </button>
-        <span className={styles.grow} />
-        {/* 항목 1) 절제된 '원문 보기' — 카드별 실제 URL 로 새 탭. (전체 카드 동일 이동 X) */}
-        {hasHref && (
-          <a
-            className={styles.cardSource}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-          >
-            원문 보기
-          </a>
-        )}
       </div>
 
       {/* 인스타식 좋아요 표시 — 운영 RecentLikers 그대로 재사용(자체 재구현 X).

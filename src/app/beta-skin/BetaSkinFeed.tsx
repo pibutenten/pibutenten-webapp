@@ -57,6 +57,22 @@ function matchesChip(c: CardData, chip: ChipKey): boolean {
   return key === chip;
 }
 
+/** 피드를 감싼 실제 스크롤 컨테이너(셸 .root: overflow:auto)를 찾아 맨 위로.
+ *  베타 셸은 window 가 아니라 .root 가 스크롤되므로 window.scrollTo 로는 안 올라간다.
+ *  from(피드 내부 노드)에서 부모로 올라가며 스크롤 가능한 첫 조상을 찾아 top:0, 못 찾으면 window 폴백. */
+function scrollFeedTop(from: HTMLElement | null) {
+  let el: HTMLElement | null = from;
+  while (el) {
+    const oy = getComputedStyle(el).overflowY;
+    if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight) {
+      el.scrollTo({ top: 0 });
+      return;
+    }
+    el = el.parentElement;
+  }
+  window.scrollTo({ top: 0 });
+}
+
 /* ---------- 클라이언트 루트 ---------- */
 export default function BetaSkinFeed({
   initialPool,
@@ -109,9 +125,12 @@ export default function BetaSkinFeed({
     setHasMore(orderedIds.length > initialPool.length);
   }, [initialPool, orderedIds]);
 
-  // 서버 검색어가 바뀌면 입력값 동기화(라우팅으로 새 검색 진입 시).
+  // 서버 검색어가 바뀌면 입력값 동기화 + 피드 스크롤 최상단 복귀(라우팅으로 새 검색 진입 시).
+  //   스크롤 컨테이너가 window 가 아니라 셸의 .root(overflow:auto)라, window.scrollTo 로는 안 올라가던
+  //   문제를 scrollFeedTop(실제 스크롤 조상 탐색)으로 해결. 어느 위치에서 검색해도 결과는 맨 위부터.
   useEffect(() => {
     setSearchValue(searchQuery ?? "");
+    scrollFeedTop(contentRef.current);
   }, [searchQuery]);
 
   // 비-피드 드롭다운 '카테고리 바로가기' → /beta-skin?cat= 로 넘어온 칩 시드.
@@ -193,7 +212,7 @@ export default function BetaSkinFeed({
   //   translateY(10px)→0 + opacity 0→1, 220ms ease-out. 리스트 key remount 의 fadeInUp 과 별개로
   //   안정 래퍼(contentRef)를 직접 animate → 즉시 전환이어도 의도적으로 전환을 느끼게.
   useEffect(() => {
-    window.scrollTo({ top: 0 });
+    scrollFeedTop(contentRef.current);
     const el = contentRef.current;
     if (el && typeof el.animate === "function") {
       el.getAnimations().forEach((a) => a.cancel()); // 빠른 연속 전환 시 애니메이션 누적 방지
@@ -298,19 +317,37 @@ export default function BetaSkinFeed({
   const topReport = searchQuery && chip === "all" ? searchReport : null;
 
   // 전체 풀 keywords 빈도 순위(사이드 인기 태그용) — 항목3) 16개.
-  //   pool 기반(검색어 무관) → 태그 클릭(applyTag=query 변경)해도 이 순서는 불변(맨 위로 안 올라옴).
+  //   태그 클릭 = 검색이라 pool 이 검색결과로 바뀌면 빈도가 달라져 클릭한 태그가 맨 위로 올라오던 버그.
+  //   → "검색 중이 아닐 때 처음" 계산한 목록을 frozen 으로 고정 → 태그를 눌러 검색이 돼도 순서·구성 불변.
+  //   - hasFrozenRef 플래그로 "비검색 상태 최초 1회만" 고정. (length===0 판단은 키워드 없는 일시적 빈 풀에서
+  //     반복 재계산되거나 직접 ?q= 진입→검색해제 시점 풀로 잘못 고정될 여지가 있어 플래그로 명확히 함.)
+  //   - 의도된 trade-off: 고정 후 무한스크롤로 새로 들어온 카드 키워드는 인기 태그에 반영하지 않음
+  //     (요구가 "목록 위치·구성 불변" 이라 안정성 우선).
+  const frozenTagsRef = useRef<string[]>([]);
+  const hasFrozenRef = useRef(false);
   const popularTags = useMemo(() => {
-    const freq = new Map<string, number>();
-    for (const c of pool) {
-      for (const k of c.keywords ?? []) {
-        freq.set(k, (freq.get(k) ?? 0) + 1);
+    const compute = () => {
+      const freq = new Map<string, number>();
+      for (const c of pool) {
+        for (const k of c.keywords ?? []) {
+          freq.set(k, (freq.get(k) ?? 0) + 1);
+        }
       }
+      return [...freq.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([k]) => k)
+        .slice(0, 16);
+    };
+    if (!searchQuery) {
+      if (!hasFrozenRef.current) {
+        frozenTagsRef.current = compute();
+        hasFrozenRef.current = true;
+      }
+      return frozenTagsRef.current;
     }
-    return [...freq.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([k]) => k)
-      .slice(0, 16);
-  }, [pool]);
+    // 검색 중: 비검색 고정본이 있으면 그대로(순서 불변), 없으면(직접 ?q= 진입) 현재 풀 기준 best-effort.
+    return hasFrozenRef.current ? frozenTagsRef.current : compute();
+  }, [pool, searchQuery]);
 
   // 사이드 '인기 태그' 카드 — 카테고리 탭. "전체"는 위 빈도순 popularTags(16개),
   //   카테고리 탭은 /api/beta-discover 의 cats(검색 드롭다운과 동일 소스)에서 해당 slug 목록.

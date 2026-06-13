@@ -278,40 +278,57 @@ export default function BetaSkinShell({
       </div>
     ) : null;
 
-  // 피드백 8) 스크롤 다운 → 헤더 숨김, 스크롤 "업" → 즉시 복귀.
-  //   모든 프리뷰 페이지가 이 셸을 쓰므로 5개 페이지 + 데스크탑 전부 동일 동작.
-  //   - 검색 모드/드롭다운 중에는 절대 숨기지 않음(헤더가 사라지면 검색 input 도 사라짐).
-  //   - 방향 전환을 놓치지 않도록 매 scroll 이벤트마다 즉시 판정(rAF 디바운스 없음).
-  //     위로 가는 즉시(1px) 헤더 복귀 → "살짝 올려도 바로 메뉴 노출".
-  //   - 무한스크롤로 콘텐츠 높이가 늘며 scrollTop 이 튀는 경우에도, 직전값 대비
-  //     "방향"만 보므로 위로 휠 한 번이면 바로 복귀.
+  // 헤더 hide-on-scroll — 운영 BetaNav 의 스크롤 로직을 그대로 이식(스크롤 소스만 window→.root).
+  //   - 데스크탑(≥900px): 항상 표시(접지 않음).
+  //   - 모바일: 충분히 내림(y>88 & dy>0) → 숨김 / 올림(dy<0) 또는 최상단(y<20) → 복귀.
+  //   - lock(320ms): 토글 직후 락아웃 → 헤더 사라짐 레이아웃 이동이 재트리거하는 진동 차단.
+  //   - 미세 델타(<6px, 모멘텀) 무시. 검색 중엔 항상 표시.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    // 표준 hide-on-scroll: 아래로 내려가면 헤더 숨김, 위로 올라가면 즉시 복귀.
-    //   - lastY 는 "임계(THRESH)를 넘은 마지막 위치"만 기록 → 관성/떨림(작은 반대 delta)이
-    //     방향을 뒤집지 못한다(이전 dispatchEvent 시뮬은 통과했으나 실제 휠/터치 관성에서
-    //     마지막 이벤트가 반대로 튀어 동작이 뒤집히던 버그 수정).
-    const THRESH = 8;
     let lastY = el.scrollTop;
     let ticking = false;
+    let hidden = false;
+    let locked = false;
+    const setH = (v: boolean) => {
+      hidden = v;
+      setHeaderHidden(v);
+    };
+    const lock = () => {
+      locked = true;
+      setTimeout(() => {
+        locked = false;
+      }, 320);
+    };
     const update = () => {
       ticking = false;
+      // 데스크탑: 항상 표시.
+      if (window.innerWidth >= 900) {
+        if (hidden) setH(false);
+        lastY = el.scrollTop;
+        return;
+      }
       const y = el.scrollTop;
-      if (searchOpen || suggestOpen || y < 60) {
-        // 검색 중·상단 근처: 항상 표시.
-        setHeaderHidden(false);
+      // 검색 중엔 헤더가 사라지면 안 됨(검색 input 도 사라짐).
+      if (searchOpen || suggestOpen) {
+        if (hidden) setH(false);
         lastY = y;
         return;
       }
-      if (y > lastY + THRESH) {
-        setHeaderHidden(true); // 아래로 → 숨김
+      if (locked) {
         lastY = y;
-      } else if (y < lastY - THRESH) {
-        setHeaderHidden(false); // 위로 → 복귀
-        lastY = y;
+        return;
       }
-      // |y-lastY| < THRESH 면 lastY 유지(방향 누적, 작은 떨림 무시).
+      const dy = y - lastY;
+      if (Math.abs(dy) < 6) return; // 미세 스크롤(모멘텀) 무시
+      lastY = y;
+      if (!hidden && y > 88 && dy > 0) {
+        setH(true); // 충분히 내림 → 숨김
+        lock();
+      } else if (hidden && (dy < 0 || y < 20)) {
+        setH(false); // 올림/최상단 → 복귀
+        lock();
+      }
     };
     const onScroll = () => {
       if (!ticking) {
@@ -527,8 +544,10 @@ export default function BetaSkinShell({
       {/* ---------- 본문 ---------- */}
       <main className={styles.page}>
         {chips ? (
-          // 항목 1) 칩바는 sticky top:0 — 헤더가 스크롤로 사라지면 화면 최상단 고정.
-          <div className={styles.chipBar}>
+          // 칩바 — 헤더 아래 sticky. 헤더 숨김(모바일) 시 chipBarUp 으로 top:0 끌어올림.
+          <div
+            className={`${styles.chipBar} ${headerHidden ? styles.chipBarUp : ""}`}
+          >
             <div className={styles.chipRow}>{chips}</div>
           </div>
         ) : null}
