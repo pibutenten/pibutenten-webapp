@@ -62,6 +62,7 @@ export default function BetaSkinFeed({
   reportPool = [],
   searchReport = null,
   searchQuery,
+  hotIds,
   viewerStates,
 }: {
   initialPool: CardData[];
@@ -73,10 +74,14 @@ export default function BetaSkinFeed({
   searchReport?: ProcedureReport | null;
   /** 서버 검색 중이면 검색어 — 비어 있으면 일반 피드. */
   searchQuery?: string;
+  /** 운영 홈과 동일 — HOT 카드 id 목록. PostCard 의 isHot 판정에 사용. */
+  hotIds?: number[];
   /** 서버 prefetch 한 좋아요/저장 상태(card.id → 상태). */
   viewerStates?: Record<number, BetaViewerState>;
 }) {
   const router = useRouter();
+  // 운영 BetaFeed 와 동일 — hotIds 배열을 Set 으로 만들어 카드별 isHot O(1) 판정.
+  const hotSet = useMemo(() => new Set(hotIds ?? []), [hotIds]);
   const searchParams = useSearchParams();
   const [chip, setChip] = useState<ChipKey>("all");
   // 헤더 검색 입력값 — 초기값은 현재 서버 검색어. 변경은 로컬, 제출 시 서버 라우팅.
@@ -374,6 +379,7 @@ export default function BetaSkinFeed({
                 key={card.id}
                 card={card}
                 onTagClick={applyTag}
+                isHot={hotSet.has(card.id)}
                 viewer={viewerStates?.[card.id]}
               />
             ))}

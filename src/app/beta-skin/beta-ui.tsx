@@ -491,11 +491,14 @@ export function useBetaCardActions(card: CardData, viewer?: BetaViewerState) {
 export function PostCard({
   card,
   onTagClick,
+  isHot = false,
   viewer,
 }: {
   card: CardData;
   /** 항목 4) 카드 태그 클릭 → 그 키워드로 검색·필터 (헤더 검색창에 채움). */
   onTagClick?: (keyword: string) => void;
+  /** 운영 홈과 동일 — HOT 카드면 우상단 HOT 딱지. (BetaSkinFeed 의 hotSet 판정 결과) */
+  isHot?: boolean;
   /** 서버 prefetch 한 좋아요/저장 상태 — 첫 렌더부터 정확한 active 표시. */
   viewer?: BetaViewerState;
 }) {
@@ -561,8 +564,14 @@ export function PostCard({
   return (
     // 피드백 2) 등장 애니메이션 — 살짝 올라오며 페이드인(무한스크롤 추가 카드 포함).
     <article className={`${styles.card} ${styles.postCard} ${styles.fadeInUp}`}>
-      {/* 항목 5) NEW 배지 — 24h 내 작성. 카드 우상단 안쪽에서 매달림. */}
-      {showNew && <span className={styles.newBadge}>NEW</span>}
+      {/* 배지 — 운영 CardHeader 정합: NEW(24h 내) + HOT(운영 데이터)를 우상단에 나란히.
+          둘 다면 NEW → HOT 순으로 겹침 없이 가로 배치(운영은 상호배제 아님). */}
+      {(showNew || isHot) && (
+        <div className={styles.badges}>
+          {showNew && <span className={styles.newBadge}>NEW</span>}
+          {isHot && <span className={styles.hot}>HOT</span>}
+        </div>
+      )}
 
       {/* 작성자 — 항목 4) 실제 프로필 URL 로 새 탭 이동(정보 부족이면 일반 div).
           본문 펼침 토글과 충돌 안 나게 작성자 영역은 별도(토글에서 분리). */}

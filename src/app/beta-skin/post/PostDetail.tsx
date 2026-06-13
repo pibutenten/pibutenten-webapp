@@ -33,6 +33,8 @@ import {
   authorHref,
   shareBetaCard,
   useBetaSearchRouting,
+  useBetaCardActions,
+  type BetaViewerState,
 } from "../beta-ui";
 
 const SAMPLE_TITLE = "쥬브젠 시술 후 일상생활과 다운타임은 어떤가요?";
@@ -43,9 +45,11 @@ const SAMPLE_BODY =
 export default function PostDetail({
   card,
   related = [],
+  viewer,
 }: {
   card: CardData | null;
   related?: CardData[];
+  viewer?: BetaViewerState;
 }) {
   const search = useBetaSearchRouting();
   // 댓글 수 — CommentsBlock 이 실제 fetch 후 onCountChange 로 갱신(0 고정 방지).
@@ -75,7 +79,8 @@ export default function PostDetail({
   // 항목 4) 작성자 프로필 URL · 항목 1) 글 canonical URL (실제 카드일 때만).
   const profileHref = card ? authorHref(card) : null;
   const postHref = card ? cardHref(card) : "/";
-  // 항목 5) 공유 — 실제 카드면 그 글 URL, 샘플이면 현재 페이지.
+  // 항목 5) 공유 — 샘플(card=null) 폴백 전용. 실제 카드의 공유는 ArticleFooter 내부
+  // useBetaCardActions 의 share(card_shares INSERT 포함)가 담당한다.
   const onShare = () => void shareBetaCard(postHref, title);
   // 작성자 행 내용(링크/일반 div 공용).
   const authorRow = (
@@ -210,22 +215,33 @@ export default function PostDetail({
           </div>
         )}
 
-        <div className={styles.postFoot}>
-          <span className={styles.pf}>
-            <IconHeart /> {card?.like_count ?? 24}
-          </span>
-          <span className={styles.pf}>
-            <IconComment /> {commentCount}
-          </span>
-          <span className={styles.pf}>
-            <IconBookmark /> {card?.save_count ?? 4}
-          </span>
-          <span className={styles.grow} />
-          {/* 항목 5) 공유 — 실제 글 URL 을 navigator.share / clipboard 로. */}
-          <button type="button" className={styles.pfBtn} onClick={onShare}>
-            <IconShare /> 공유
-          </button>
-        </div>
+        {/* 하단 액션 — 실제 카드면 좋아요·저장 toggle 동작(피드 PostCard 동일).
+            샘플(card=null)이면 정적 숫자 폴백 유지. 훅 규칙상 동작 footer는
+            card 보장 하위 컴포넌트(ArticleFooter)로 분리해 조건부 호출을 피한다. */}
+        {card ? (
+          <ArticleFooter
+            card={card}
+            viewer={viewer}
+            commentCount={commentCount}
+          />
+        ) : (
+          <div className={styles.postFoot}>
+            <span className={styles.pf}>
+              <IconHeart /> 24
+            </span>
+            <span className={styles.pf}>
+              <IconComment /> {commentCount}
+            </span>
+            <span className={styles.pf}>
+              <IconBookmark /> 4
+            </span>
+            <span className={styles.grow} />
+            {/* 샘플 공유 — 현재 페이지 URL 을 navigator.share / clipboard 로. */}
+            <button type="button" className={styles.pfBtn} onClick={onShare}>
+              <IconShare /> 공유
+            </button>
+          </div>
+        )}
 
         <div className={styles.divider} />
 
@@ -243,5 +259,62 @@ export default function PostDetail({
         )}
       </article>
     </BetaSkinShell>
+  );
+}
+
+/**
+ * ArticleFooter — 글 상세 하단 액션(좋아요·댓글·저장·공유).
+ *
+ * useBetaCardActions 는 훅이라 조건부 호출이 금지된다. PostDetail 의 card 는
+ * CardData | null 이므로, 동작 footer 를 card(CardData 필수) 보장 하위 컴포넌트로
+ * 분리해 card 존재 시에만 렌더한다 → 훅을 항상 무조건 호출(규칙 준수).
+ * 좋아요/저장/공유 패턴은 피드 PostCard 와 동일(toggle RPC, pfOn/pfSaved, aria-pressed).
+ */
+function ArticleFooter({
+  card,
+  viewer,
+  commentCount,
+}: {
+  card: CardData;
+  viewer?: BetaViewerState;
+  commentCount: number;
+}) {
+  const act = useBetaCardActions(card, viewer);
+  return (
+    <div className={styles.postFoot}>
+      {/* 좋아요 — 실제 toggle_card_like RPC. active 시 pfOn. */}
+      <button
+        type="button"
+        className={`${styles.pf} ${styles.pfBtn} ${act.like.active ? styles.pfOn : ""}`}
+        aria-pressed={act.like.active}
+        aria-label="좋아요"
+        onClick={() => act.like.toggle()}
+      >
+        <IconHeart /> {act.like.count}
+      </button>
+      <span className={styles.pf}>
+        <IconComment /> {commentCount}
+      </span>
+      {/* 저장 — 실제 toggle_card_save RPC. active 시 pfSaved. */}
+      <button
+        type="button"
+        className={`${styles.pf} ${styles.pfBtn} ${act.save.active ? styles.pfSaved : ""}`}
+        aria-pressed={act.save.active}
+        aria-label="저장"
+        onClick={() => act.save.toggle()}
+      >
+        <IconBookmark /> {act.save.count}
+      </button>
+      <span className={styles.grow} />
+      {/* 공유 — 실제 글 URL navigator.share / clipboard + card_shares INSERT. */}
+      <button
+        type="button"
+        className={styles.pfBtn}
+        aria-label="공유"
+        onClick={() => void act.share.share()}
+      >
+        <IconShare /> 공유
+      </button>
+    </div>
   );
 }

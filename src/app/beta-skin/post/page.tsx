@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
+import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import type { CardData } from "@/lib/types/card";
 import PostDetail from "./PostDetail";
 
@@ -69,5 +70,20 @@ export default async function BetaSkinPostPage({
     .filter((c) => c.id !== card?.id && (c.category ?? c.type) === "qa")
     .slice(0, 3);
 
-  return <PostDetail card={card} related={related} />;
+  // 현재 카드의 viewer 좋아요/저장 초기상태 prefetch(피드 카드와 동일 패턴).
+  // 실제 카드일 때만 조회. 샘플(card=null)이면 viewer 생략.
+  let viewer: { liked?: boolean; saved?: boolean } | undefined;
+  if (card) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const viewerStates = await fetchViewerStatesRecord(
+      supabase,
+      user?.id ?? null,
+      [card.id],
+    );
+    viewer = viewerStates[card.id];
+  }
+
+  return <PostDetail card={card} related={related} viewer={viewer} />;
 }

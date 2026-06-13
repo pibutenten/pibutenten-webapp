@@ -144,6 +144,10 @@ export default function BetaSkinShell({
   // 작업 C) 로그인 여부 — null=로딩, true=로그인, false=비로그인.
   //   헤더 우측 진입(마이 아바타 vs 로그인)을 분기. 로딩 중엔 둘 다 숨김.
   const [me, setMe] = useState<boolean | null>(null);
+  // 알림 벨 미읽음 카운트 — 운영 NotificationsBell 과 동일하게 /api/notifications?limit=1
+  //   의 unread 필드를 사용(active profile 기준 get_my_unread_count RPC + RLS, 우회 없음).
+  //   비로그인(me!==true)이면 0 으로 유지 → 배지 숨김(깜빡임 방지).
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -159,6 +163,51 @@ export default function BetaSkinShell({
       alive = false;
     };
   }, []);
+
+  // 작업 B) 미읽음 알림 카운트 폴링(운영 NotificationsBell 로직 재사용).
+  //   - 로그인 확정(me===true) 시에만 fetch — 비로그인/로딩 중엔 호출 안 함.
+  //   - 60초 폴링 + 탭 hidden 시 skip + 탭 복귀 시 즉시 refetch.
+  //   - /notifications 페이지가 읽음 처리하면 emit 하는 이벤트로 배지 동기화.
+  //   - AbortController 로 in-flight fetch 취소.
+  useEffect(() => {
+    if (me !== true) {
+      setUnread(0);
+      return;
+    }
+    const ac = new AbortController();
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch("/api/notifications?limit=1", {
+          cache: "no-store",
+          signal: ac.signal,
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { unread: number };
+        if (ac.signal.aborted) return;
+        setUnread(Number(data.unread ?? 0));
+      } catch (e) {
+        // abort(탭 전환·네비게이션)는 정상 — 그 외만 무시.
+        if (e instanceof Error && e.name === "AbortError") return;
+      }
+    };
+    void fetchUnread();
+    const id = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void fetchUnread();
+    }, 60_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void fetchUnread();
+    };
+    const onRead = () => void fetchUnread();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pibutenten:notifications-read", onRead);
+    return () => {
+      ac.abort();
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pibutenten:notifications-read", onRead);
+    };
+  }, [me]);
   // 피드백 1) 모바일 검색 — 헤더 "안"을 검색 input 으로 전환(헤더 아래 별도 바 X).
   const [searchOpen, setSearchOpen] = useState(false);
   // 피드백 2) 검색 추천 드롭다운 열림 상태(포커스 시 열림, 바깥 클릭 시 닫힘).
@@ -437,13 +486,22 @@ export default function BetaSkinShell({
                 <IconSearch />
               </button>
             )}
-            {/* 작업 B) 알림 벨 → 운영 /notifications 로 이동. */}
+            {/* 작업 B) 알림 벨 → 운영 /notifications 로 이동 + 미읽음 카운트 배지.
+                미읽음 조회는 운영 NotificationsBell 과 동일 경로(/api/notifications). */}
             <Link
-              className={`${styles.iconBtn} ${styles.iconBtnBell}`}
-              aria-label="알림"
+              className={`${styles.iconBtn} ${styles.iconBtnBell} ${styles.bellWrap}`}
+              aria-label={unread > 0 ? `알림 (미확인 ${unread}개)` : "알림"}
               href="/notifications"
             >
               <IconBell />
+              {me === true && unread > 0 && (
+                <span
+                  className={styles.bellBadge}
+                  aria-hidden
+                >
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
             </Link>
 
             {/* 작업 C) 로그인 상태 → 마이(아바타), 비로그인 → 로그인.

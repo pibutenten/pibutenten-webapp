@@ -288,6 +288,31 @@
   width: 21px;
   height: 21px;
 }
+/* 알림 벨 — 미읽음 배지 절대배치 기준점. */
+.bellWrap {
+  position: relative;
+}
+/* 미읽음 카운트 배지(작은 빨간 원 + 흰 숫자, 9+ 처리).
+   운영 NotificationsBell 과 동일한 핑크(#F48FB1, HOT 라벨 톤)로 톤앤매너 일관. */
+.bellBadge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #f48fb1;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
 
 /* 데스크탑 전용 헤더 요소 — 모바일에선 숨김 */
 .gnb,
@@ -1094,11 +1119,22 @@ button.t:hover {
   text-decoration: underline;
 }
 
-.hot {
+/* 배지 컨테이너 — 운영 CardHeader 정합: NEW/HOT 를 우상단에 가로로 나란히(겹침 방지).
+   절대배치·매달림은 컨테이너가 담당하고, 개별 배지(.newBadge/.hot)는 inline-flex 딱지. */
+.badges {
   position: absolute;
   top: 0;
   right: 22px;
   transform: translateY(-40%);
+  display: flex;
+  gap: 5px;
+  z-index: 2;
+}
+
+/* HOT 배지 — 운영 CardHeader HOT(#F48FB1) 핑크 톤. */
+.hot {
+  display: inline-flex;
+  align-items: center;
   background: #ff8fb5;
   color: #fff;
   font-size: 11px;
@@ -1106,15 +1142,12 @@ button.t:hover {
   padding: 5px 11px;
   border-radius: 10px;
   letter-spacing: 0.04em;
-  z-index: 2;
 }
 
-/* 항목 5) NEW 배지 — 운영 CardHeader NEW(#81C784) 톤. 카드 우상단 안쪽 매달림. */
+/* 항목 5) NEW 배지 — 운영 CardHeader NEW(#81C784) 톤. */
 .newBadge {
-  position: absolute;
-  top: 0;
-  right: 22px;
-  transform: translateY(-40%);
+  display: inline-flex;
+  align-items: center;
   background: #5db98a;
   color: #fff;
   font-size: 11px;
@@ -1122,7 +1155,6 @@ button.t:hover {
   padding: 5px 11px;
   border-radius: 10px;
   letter-spacing: 0.04em;
-  z-index: 2;
 }
 
 .catLabel {

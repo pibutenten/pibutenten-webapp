@@ -8,6 +8,7 @@ import type { ProcedureReport } from "@/lib/procedure-report";
 import { fetchCardList } from "@/lib/search-query";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
+import { getHotQaIds } from "@/lib/hot-ids";
 import type { CardData } from "@/lib/types/card";
 import BetaSkinFeed from "./BetaSkinFeed";
 
@@ -48,6 +49,9 @@ export default async function BetaSkinPage({
   const {
     data: { user: viewer },
   } = await supabase.auth.getUser();
+
+  // 운영 홈(app/page.tsx)과 동일 — HOT 카드 id 조회. 카드 조회와 독립이라 먼저 띄워 병렬화.
+  const hotIdsPromise = getHotQaIds(20);
 
   let cards: CardData[] = [];
   let reportPool: ProcedureReport[] = [];
@@ -93,6 +97,8 @@ export default async function BetaSkinPage({
   const orderedIds = cards.map((c) => c.id);
   const initialCards = cards.slice(0, INITIAL);
 
+  const hotIds = Array.from(await hotIdsPromise);
+
   const viewerStates = await fetchViewerStatesRecord(
     supabase,
     viewer?.id ?? null,
@@ -109,6 +115,7 @@ export default async function BetaSkinPage({
       reportPool={reportPool}
       searchReport={searchReport}
       searchQuery={query || undefined}
+      hotIds={hotIds}
       viewerStates={viewerStates}
     />
   );
