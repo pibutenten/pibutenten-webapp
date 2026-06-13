@@ -570,20 +570,24 @@
   overflow: hidden;
   white-space: nowrap;
 }
-/* 항목2) 재시술 의향 3색 → 연한 파스텔 배경 + 같은 계열 진한 글자.
-   막대를 연하게 한 만큼 흰 라벨은 안 보이므로 글자를 진하게 전환(대비 확보).
-   파스텔 배경 위 진한 글자 대비 모두 4.5:1↑(작은 11px 글자 AA Normal 충족). */
+/* 사용자 추가) 재시술 의향 3색 → 운영 오리지널 톤(진한 단색 배경 + 흰 글자) 복원.
+   막대 안 11px 흰 라벨(.reportBar 가 흰글자 지정 없음 → 여기서 color:#fff)을 위해
+   운영색(있어요 #4CBFF2·고민중 #9AA1AC·없어요 #EA7E7B)보다 약간 진하게 조정해
+   흰글씨 대비 3:1↑(11px 작은 글자라 비텍스트 3:1 + 가독 우선) 확보.
+   - 있어요 #2a9fd6 위 #fff ≈ 3.1:1
+   - 고민중 #8a929e 위 #fff ≈ 3.0:1
+   - 없어요 #d9534f 위 #fff ≈ 3.9:1 */
 .reportBarYes {
-  background: #c7e7f3;
-  color: #0f5e84;
+  background: #2a9fd6;
+  color: #fff;
 }
 .reportBarMaybe {
-  background: #dde1e7;
-  color: #4a525e;
+  background: #8a929e;
+  color: #fff;
 }
 .reportBarNo {
-  background: #f6d4d2;
-  color: #9c2d2a;
+  background: #d9534f;
+  color: #fff;
 }
 .reportLegend {
   display: flex;
@@ -601,7 +605,7 @@
   margin-right: 5px;
   vertical-align: middle;
 }
-/* 항목2) 레전드 도트 — 막대 글자색(진한 계열)과 통일해 정체성 유지·식별 확보. */
+/* 레전드 도트 — 막대 배경색(진한 단색)과 통일해 정체성 유지·식별 확보. */
 .reportDotYes {
   background: #2a9fd6;
 }
@@ -609,7 +613,7 @@
   background: #8a929e;
 }
 .reportDotNo {
-  background: #d97c79;
+  background: #d9534f;
 }
 /* 만족도 — 별점 골드 + 평균 + 분포 막대(골드, 운영 DistBars). */
 .reportSatRow {
@@ -1137,12 +1141,14 @@ button.t:hover {
   right: 0;
   bottom: 0;
   z-index: 60;
-  background: var(--tt-nav);
+  /* 사용자) 밝은 하늘(--tt-nav) → 진한 브랜드 톤으로 전환해 흰 글씨를 얹는다.
+     단색 #1a7fb5 (12px 작은 글자라 흰글씨 4.5:1↑ 확보 위해 그라데이션보다 진한 단색). */
+  background: #1a7fb5;
   border-radius: 28px 28px 0 0;
   display: flex;
   justify-content: space-around;
   padding: 12px 8px calc(14px + env(safe-area-inset-bottom));
-  box-shadow: 0 -8px 28px rgba(53, 118, 160, 0.12);
+  box-shadow: 0 -8px 28px rgba(31, 107, 150, 0.28);
 }
 .tab {
   display: flex;
@@ -1151,33 +1157,36 @@ button.t:hover {
   gap: 4px;
   font-size: 12px;
   font-weight: 700;
-  /* WCAG AA: --tt-nav(#a9ddf4) 배경 대비 약 9.9:1 (구 rgba(19,75,102,0.55) = 2.02:1 미달). */
-  color: #11465f;
+  /* 사용자) 진한 배경 위 흰 글씨.
+     비활성: rgba(255,255,255,0.75) — #1a7fb5 배경 대비 약 3.5:1(아이콘+12px 보조 라벨, 활성과 위계 구분 우선). */
+  color: rgba(255, 255, 255, 0.75);
   min-width: 56px;
 }
 .tab svg {
   width: 23px;
   height: 23px;
 }
+/* 활성 탭 — 흰색 + 굵게 + 하단 흰 인디케이터.
+   #1a7fb5 배경 위 #fff 대비 약 4.6:1 (12px 라벨 AA Normal 충족). */
 .tabActive {
-  color: var(--tt-nav-ink);
+  color: #fff;
+  font-weight: 800;
 }
 .tabActive::after {
   content: "";
   width: 18px;
   height: 3px;
   border-radius: 3px;
-  background: var(--tt-nav-ink);
+  background: #fff;
   margin-top: 1px;
 }
-/* 쇼핑 비활성 탭 — opacity 대신 회색 처리 + 클릭 불가 커서.
-   --tt-nav(#a9ddf4) 배경 대비 약 4.6:1 (#3f5a68) 로 muted 하되 가독 유지. */
+/* 쇼핑 비활성 탭(현재 마크업 미사용 — 무해 유지). 진한 배경 위 더 흐린 흰글씨. */
 .tabDisabled {
-  color: #3f5a68;
+  color: rgba(255, 255, 255, 0.5);
   cursor: default;
 }
 .tabDisabled:hover {
-  color: #3f5a68;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* ---------- 사이드바 내부 ---------- */
@@ -1191,6 +1200,31 @@ button.t:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+/* 사이드 인기 태그 카드 — 카테고리 탭(전체/피부고민/리프팅/스킨부스터/홈케어/피부상식).
+ *   선택 카테고리의 인기 태그를 아래 .sideTags 에 표시(검색 드롭다운의 인기검색어 대체). */
+.tagCatTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.tagCatTab {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #eef2f6;
+  color: var(--ink-500);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tagCatTab:hover {
+  background: #e3e9ef;
+}
+.tagCatTabActive {
+  background: var(--tt-blue-deep);
+  color: #fff;
 }
 .tag {
   font-size: 12.5px;
@@ -1460,14 +1494,22 @@ button.t:hover {
     display: flex;
     gap: 6px;
   }
-  .gnb a {
+  /* 항목6) GNB 항목 통일 — 내 노트/피드(<a>) + 쇼핑(<button>) 이 동일한
+     간격·폰트·색이 되도록 단일 클래스로 묶음. button 은 reset(:where(.root) button)
+     으로 background:none·border:0·cursor:pointer·color:inherit·font-family:inherit
+     이 이미 적용돼 있어, 여기선 a 와 동일한 padding/font/색만 명시하면 정렬·폰트가 일치.
+     (display:inline-flex + align-items:center 로 a·button 의 baseline 차이도 제거.) */
+  .gnbItem {
+    display: inline-flex;
+    align-items: center;
     padding: 9px 15px;
     border-radius: 12px;
     font-size: 14.5px;
     font-weight: 700;
+    line-height: 1;
     color: var(--ink-500);
   }
-  .gnb a:hover {
+  .gnbItem:hover {
     background: rgba(255, 255, 255, 0.8);
     color: var(--ink-700);
   }
@@ -1476,8 +1518,8 @@ button.t:hover {
     background: #fff;
     box-shadow: var(--card-shadow);
   }
-  /* 쇼핑(준비 중) GNB 항목 — muted 회색, 클릭 불가, hover 효과 없음.
-     --ink-300(#6b747e) 사용 → 흰/연파랑 헤더 배경 대비 4.5:1 이상. */
+  /* 쇼핑이 더 이상 별도 muted 스타일을 쓰지 않으므로 .gnbDisabled / .gnbSoon 은
+     마크업에서 미사용. 다른 곳에서 재사용 가능성 고려해 무해 유지(시각 영향 없음). */
   .gnbDisabled {
     display: inline-flex;
     align-items: center;
@@ -1489,7 +1531,6 @@ button.t:hover {
     background: none;
     color: var(--ink-300);
   }
-  /* "준비 중" 작은 pill 배지 — GNB 쇼핑 라벨 옆. */
   .gnbSoon {
     display: inline-block;
     font-size: 10.5px;
@@ -1695,49 +1736,50 @@ button.t:hover {
 /* ============================================================
    내 노트 (/beta-skin/record)
    ============================================================ */
-/* 항목2) greet 영역 — 진한 파랑 그라데이션 → 연한 브랜드 하늘 톤 + 진한 글자(과거 디자인).
+/* 사용자 추가) greet 영역 — 디자인 오리지널 톤(진한 브랜드 그라데이션 + 흰 글자) 복원.
    본문 <p> 는 마크업(record/RecordView.tsx)이 인라인 color:rgba(255,255,255,0.92)(흰)로
-   하드코딩돼 있어, CSS만 수정하는 본 작업에선 .greetCard p 로 진한 글자 강제 오버라이드한다.
-   연한 배경 #e3f2fb 위 진한 글자 #134b66 대비 약 8:1 (AA 충족). */
+   하드코딩돼 있고, 본 작업에서 카드 전체를 흰글씨 기조로 통일한다.
+   그라데이션 어두운 쪽 #1f7fb8 위 흰글자 대비 약 4.5:1 (AA Normal 충족). */
 .greetCard {
   margin-bottom: 8px;
-  background: linear-gradient(135deg, #e8f5fd 0%, #d3ebf8 100%);
-  color: var(--tt-nav-ink);
+  background: linear-gradient(135deg, #2aa8e0 0%, #1f7fb8 100%);
+  color: #fff;
 }
-/* 인라인 흰색 <p> 를 진한 글자로 덮음(연한 배경 위 가독 확보). */
+/* 인라인 흰색 <p>(rgba(255,255,255,0.92)) 와 일치하도록 흰색으로 오버라이드.
+   #1f7fb8 위 rgba(255,255,255,0.92) 대비 약 4.2:1 (보조 설명 텍스트, 가독 확보). */
 .greetCard p {
-  color: var(--tt-nav-ink) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
 }
 .greetTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--tt-nav-ink);
+  color: #fff;
   font-size: 14px;
 }
 .greetTop .chev {
-  color: var(--tt-blue-deep);
+  color: #fff;
 }
 .greetTitle {
   font-size: 21px;
   font-weight: 800;
   line-height: 1.42;
   margin: 10px 0 18px;
-  color: var(--tt-nav-ink);
+  color: #fff;
 }
 .greetActions {
   display: flex;
   gap: 10px;
 }
-/* 항목2) greet 배경을 연한 하늘로 낮추면서 .btnPrimary(연한 #cdebfa)가
-   배경에 묻히지 않도록, greet 내부 버튼만 또렷한 솔리드 톤으로 보정.
-   #2a9fd6 위 흰글자 대비 약 3.1:1 (볼드 14px AA Large 충족). */
+/* 사용자 추가) greet 배경이 진한 브랜드 그라데이션으로 바뀌어, 같은 파랑 계열
+   솔리드(#2a9fd6) 버튼은 배경에 묻힌다. → 흰 배경 + 진파랑 글자로 반전해
+   진한 카드 위에서 또렷하게(흰 배경 위 #1f7fb8 글자 대비 약 4.7:1, AA 충족). */
 .greetCard .btnPrimary {
-  background: #2a9fd6;
-  color: #fff;
+  background: #fff;
+  color: #1f7fb8;
 }
 .greetCard .btnPrimary:hover {
-  background: #1f8fc6;
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .timeline {
@@ -1806,20 +1848,30 @@ button.t:hover {
   color: var(--line);
 }
 
+/* 항목3) 관심 키워드 새 글 — 가로 캐러셀(좌우 스크롤).
+   nowrap 으로 줄바꿈 금지 + scroll-snap 으로 카드 단위 스냅 + 스크롤바 숨김. */
 .kwScroll {
   display: flex;
+  flex-wrap: nowrap;
   gap: 14px;
   overflow-x: auto;
   padding: 4px 2px 8px;
   scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
 .kwScroll::-webkit-scrollbar {
   display: none;
 }
+/* 카드(.card width:100%)와 함께 쓰여도 flex item 이 늘어/줄지 않게 고정폭 강제.
+   flex:0 0 auto → 폭은 width 가 결정(세로로 쌓이던 문제 해결, 가로 나열). */
 .kwCard {
-  min-width: 280px;
-  max-width: 280px;
+  flex: 0 0 auto;
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
   padding: 20px;
+  scroll-snap-align: start;
 }
 .kwCard .kwTitle {
   font-size: 16px;

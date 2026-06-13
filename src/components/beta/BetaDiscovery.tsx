@@ -32,7 +32,7 @@ export function prefetchDiscover(): Promise<DiscoverData> {
   return discoverPromise;
 }
 
-export default function BetaDiscovery({ query = "", onPicked, basePath = "/" }: { query?: string; onPicked?: (term: string) => void; basePath?: string }) {
+export default function BetaDiscovery({ query = "", onPicked, basePath = "/", recentOnly = false }: { query?: string; onPicked?: (term: string) => void; basePath?: string; recentOnly?: boolean }) {
   const router = useRouter();
   const [data, setData] = useState<DiscoverData | null>(discoverCache);
   const [recent, setRecent] = useState<string[]>([]);
@@ -103,7 +103,7 @@ export default function BetaDiscovery({ query = "", onPicked, basePath = "/" }: 
           )}
         </div>
         {recent.length === 0 ? (
-          <p className="text-sm text-[#9aa3b0]">검색 기록이 없습니다.</p>
+          <p className="text-sm text-[#9aa3b0]">{recentOnly ? "최근 검색어가 없어요." : "검색 기록이 없습니다."}</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {recent.map((r) => (
@@ -119,7 +119,8 @@ export default function BetaDiscovery({ query = "", onPicked, basePath = "/" }: 
         )}
       </section>
 
-      {/* ② 인기 검색어 10 (7일) */}
+      {/* ② 인기 검색어 10 (7일) — recentOnly 면 숨김(베타 셸 드롭다운은 최근검색어만). */}
+      {!recentOnly && (
       <section>
         <h3 className="mb-2.5 text-[15px] font-bold text-[var(--text)]">인기 검색어</h3>
         {!data ? (
@@ -137,8 +138,10 @@ export default function BetaDiscovery({ query = "", onPicked, basePath = "/" }: 
           </div>
         )}
       </section>
+      )}
 
-      {/* ③ 카테고리 (탭 + 칩 전부 펼침) */}
+      {/* ③ 카테고리 (탭 + 칩 전부 펼침) — recentOnly 면 숨김. */}
+      {!recentOnly && (
       <section>
         <div className="mb-3 flex gap-5 overflow-x-auto border-b border-[#eef1f4] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {CATEGORIES.map((c) => {
@@ -162,6 +165,7 @@ export default function BetaDiscovery({ query = "", onPicked, basePath = "/" }: 
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

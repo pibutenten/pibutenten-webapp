@@ -219,6 +219,7 @@ export default function BetaSkinShell({
         <BetaDiscovery
           query={value}
           basePath="/beta-skin"
+          recentOnly
           onPicked={(t) => {
             setValue(t);
             setSuggestOpen(false);
@@ -362,22 +363,21 @@ export default function BetaSkinShell({
             <nav className={styles.gnb}>
               {GNB.map((g) =>
                 // 쇼핑(준비 중, href "#") → 클릭 시 안내 토스트(라우팅 없음).
+                //   다른 GNB(내 노트/피드)와 동일한 간격·폰트·색으로(준비중 배지 없음).
                 g.href === "#" ? (
                   <button
                     key={g.label}
                     type="button"
-                    className={styles.gnbDisabled}
-                    title="준비 중"
+                    className={styles.gnbItem}
                     onClick={onShopClick}
                   >
                     {g.label}
-                    <span className={styles.gnbSoon}>준비 중</span>
                   </button>
                 ) : (
                   <Link
                     key={g.label}
                     href={g.href}
-                    className={active === g.label ? styles.gnbActive : ""}
+                    className={`${styles.gnbItem} ${active === g.label ? styles.gnbActive : ""}`}
                   >
                     {g.label}
                   </Link>
@@ -501,8 +501,7 @@ export default function BetaSkinShell({
             <button
               key={t.label}
               type="button"
-              className={`${styles.tab} ${styles.tabDisabled}`}
-              title="준비 중"
+              className={styles.tab}
               onClick={onShopClick}
             >
               {t.icon}

@@ -580,14 +580,14 @@ export function PostCard({
         <div className={styles.author}>{authorInner}</div>
       )}
 
-      {/* 항목10) 제목 — 클릭 시 단독 URL(getQaUrl)로 이동(운영 CardBody 정합).
-          내부 링크 신호 누적 + 크롤러 색인. 본문 펼침 토글과 분리(제목은 토글 div 밖). */}
-      {hasHref ? (
+      {/* 항목8) 제목 — 클릭 시 베타 글상세(/beta-skin/post?id=)로 같은 탭 이동.
+          예전 PostDetail 디자인 확인용 임시 단독 URL. 운영 단독 URL(새 탭)이 아니라
+          베타 페이지 내부 이동(target/rel 제거). 본문 펼침 토글과 분리(제목은 토글 div 밖).
+          card.id 없으면(이론상 거의 없음) 링크 대신 일반 제목. */}
+      {card.id != null ? (
         <a
           className={styles.postTitleLink}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`/beta-skin/post?id=${card.id}`}
           onClick={(e) => e.stopPropagation()}
         >
           <h2 className={styles.postTitle}>{card.title}</h2>

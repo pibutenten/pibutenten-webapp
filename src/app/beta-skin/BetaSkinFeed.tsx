@@ -22,6 +22,10 @@ import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
 // 검색 실행 시 최근 검색어 저장(운영 BetaNav.submit 과 동일 진입점).
 import { addRecent } from "@/lib/beta-recent";
+// 사이드 '인기 태그' 카드의 카테고리별 인기태그 — 검색 드롭다운(BetaDiscovery)과 동일 소스 재사용.
+//   prefetchDiscover() 가 /api/beta-discover 를 모듈 캐시로 1회 fetch → cats(카테고리별 태그) 재활용.
+import { prefetchDiscover } from "@/components/beta/BetaDiscovery";
+import { CATEGORIES, type CategorySlug } from "@/lib/categories";
 import BetaSkinShell from "./BetaSkinShell";
 import styles from "./beta-skin.module.css";
 import {
@@ -215,6 +219,27 @@ export default function BetaSkinFeed({
       .slice(0, 16);
   }, [pool]);
 
+  // 사이드 '인기 태그' 카드 — 카테고리 탭. "전체"는 위 빈도순 popularTags(16개),
+  //   카테고리 탭은 /api/beta-discover 의 cats(검색 드롭다운과 동일 소스)에서 해당 slug 목록.
+  type TagTab = "all" | CategorySlug;
+  const [tagTab, setTagTab] = useState<TagTab>("all");
+  const [cats, setCats] = useState<Record<string, string[]> | null>(null);
+  useEffect(() => {
+    let alive = true;
+    prefetchDiscover().then((d) => {
+      if (alive) setCats(d.cats ?? {});
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // 현재 선택 탭의 태그 목록 — "전체"면 빈도순 16개, 카테고리면 cats[slug] 상위 16개.
+  const sideTags = useMemo<string[]>(() => {
+    if (tagTab === "all") return popularTags;
+    return (cats?.[tagTab] ?? []).slice(0, 16);
+  }, [tagTab, cats, popularTags]);
+
   // 인기 Q&A: doctor 글(Q&A) 상위 5개.
   const doctorAnswers = useMemo(
     () =>
@@ -240,21 +265,50 @@ export default function BetaSkinFeed({
     <>
       <section className={`${styles.card} ${styles.sideCard}`}>
         <h3>인기 태그</h3>
-        <div className={styles.sideTags}>
-          {/* 인기 태그에 # 표기 금지 — 키워드만. 클릭 시 서버 검색. */}
-          {popularTags.map((tag) => (
+        {/* 카테고리 탭 — "전체"(빈도순 16개) + 운영 5개 카테고리.
+            탭 칩 색 클래스(styles.tagCatTab)는 CSS 작업자가 정의. 여기선 className 만 부여. */}
+        <div className={styles.tagCatTabs}>
+          <button
+            type="button"
+            className={`${styles.tagCatTab} ${tagTab === "all" ? styles.tagCatTabActive : ""}`}
+            onClick={() => setTagTab("all")}
+            aria-pressed={tagTab === "all"}
+          >
+            전체
+          </button>
+          {CATEGORIES.map((c) => (
             <button
               type="button"
-              className={`${styles.tagBtn} ${catTagClass(tag)} ${
-                (searchQuery ?? "").trim() === tag ? styles.tagBtnActive : ""
-              }`}
-              key={tag}
-              onClick={() => applyTag(tag)}
-              aria-pressed={(searchQuery ?? "").trim() === tag}
+              key={c.slug}
+              className={`${styles.tagCatTab} ${tagTab === c.slug ? styles.tagCatTabActive : ""}`}
+              onClick={() => setTagTab(c.slug)}
+              aria-pressed={tagTab === c.slug}
             >
-              {tag}
+              {c.label}
             </button>
           ))}
+        </div>
+        <div className={styles.sideTags}>
+          {/* 인기 태그에 # 표기 금지 — 키워드만. 클릭 시 서버 검색. */}
+          {sideTags.length === 0 ? (
+            <p className={styles.empty}>
+              {cats === null ? "불러오는 중…" : "표시할 태그가 없습니다."}
+            </p>
+          ) : (
+            sideTags.map((tag) => (
+              <button
+                type="button"
+                className={`${styles.tagBtn} ${catTagClass(tag)} ${
+                  (searchQuery ?? "").trim() === tag ? styles.tagBtnActive : ""
+                }`}
+                key={tag}
+                onClick={() => applyTag(tag)}
+                aria-pressed={(searchQuery ?? "").trim() === tag}
+              >
+                {tag}
+              </button>
+            ))
+          )}
         </div>
       </section>
 

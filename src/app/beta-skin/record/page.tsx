@@ -79,6 +79,8 @@ export default async function BetaSkinRecordPage() {
         latest={null}
         diaryCount={0}
         reviewsCount={0}
+        postCount={0}
+        receivedCount={0}
         keywordPosts={guestPosts}
         popular={{ d7: [], d30: [], d90: [] }}
         myKeywords={guestKeywords}
@@ -110,8 +112,20 @@ export default async function BetaSkinRecordPage() {
     ]),
   );
 
-  // 병렬: 노트 / 내가 쓴 후기 수 / 인기글 3기간(TOP10) / 관심 키워드 새 Q&A(컴팩트, limit 20).
-  const [diariesRes, reviewCntRes, top7Res, top30Res, top90Res, kwRes] = await Promise.all([
+  // 받은 댓글(2단계) 1단계 — 내 모든 글 id(카테고리 무관, 삭제 제외). my/page.tsx 패턴 재사용.
+  //   embedded relation 필터에 의존하지 않고 명시적 card_id IN 으로 좁혀 RLS 누수 차단.
+  const { data: myCardRows } = await supabase
+    .from("cards")
+    .select("id")
+    .eq("author_id", activeId)
+    .is("deleted_at", null)
+    .limit(1000)
+    .returns<{ id: number }[]>();
+  const myCardIds = (myCardRows ?? []).map((r) => r.id);
+
+  // 병렬: 노트 / 내가 쓴 후기 수 / 내가 쓴 글 수 / 내 글에 달린 댓글 수 /
+  //       인기글 3기간(TOP10) / 관심 키워드 새 Q&A(컴팩트, limit 20).
+  const [diariesRes, reviewCntRes, postCntRes, receivedCntRes, top7Res, top30Res, top90Res, kwRes] = await Promise.all([
     supabase.from("diaries").select(DIARY_SELECT).order("visited_on", { ascending: false }).returns<DiaryRow[]>(),
     supabase
       .from("cards")
@@ -119,6 +133,23 @@ export default async function BetaSkinRecordPage() {
       .eq("author_id", activeId)
       .eq("category", "review")
       .eq("status", "published"),
+    // 내가 쓴 글 수 — 후기·리포트 제외(글쓰기 목록과 동일 정책), published.
+    supabase
+      .from("cards")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", activeId)
+      .eq("status", "published")
+      .not("category", "in", "(review,review_summary)"),
+    // 내 글에 달린 댓글 수(2단계) — 내 글 id 로 좁히고 타인(active 외) visible 댓글만.
+    //   RLS 가 본인 글 댓글 SELECT 허용(comments_select 정책, my/page.tsx 검증 완료).
+    myCardIds.length > 0
+      ? supabase
+          .from("comments")
+          .select("id", { count: "exact", head: true })
+          .in("card_id", myCardIds)
+          .neq("author_id", activeId)
+          .eq("status", "visible")
+      : Promise.resolve({ count: 0 }),
     supabase.rpc("get_top_cards_by_views", { p_days: 7, p_limit: 10 }),
     supabase.rpc("get_top_cards_by_views", { p_days: 30, p_limit: 10 }),
     supabase.rpc("get_top_cards_by_views", { p_days: 90, p_limit: 10 }),
@@ -138,6 +169,8 @@ export default async function BetaSkinRecordPage() {
 
   const rows = diariesRes.data ?? [];
   const reviewsCount = reviewCntRes.count ?? 0;
+  const postCount = postCntRes.count ?? 0;
+  const receivedCount = receivedCntRes.count ?? 0;
 
   // 상태 문구 계산용 — 가장 최근 방문의 첫 시술명 + 방문일 + 그 시술 누적 횟수('N회차').
   const latestRow = rows[0];
@@ -173,6 +206,8 @@ export default async function BetaSkinRecordPage() {
       latest={latest}
       diaryCount={rows.length}
       reviewsCount={reviewsCount}
+      postCount={postCount}
+      receivedCount={receivedCount}
       keywordPosts={keywordPosts}
       popular={popular}
       myKeywords={interests}

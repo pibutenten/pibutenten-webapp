@@ -391,31 +391,28 @@ function PopularSection({ popular }: { popular: PopularData }) {
 
   return (
     <>
-      <div className={styles.sectionHead}>
-        <h2>인기글</h2>
-        <a className={styles.more} href="/beta-skin">
-          전체보기
-        </a>
-      </div>
-      {/* 작은 기간 토글 — 베타 3토글 칩 스타일 재사용 */}
-      <div className={styles.recToggle} style={{ margin: "0 4px 12px", width: "fit-content" }}>
-        {(
-          [
-            ["d7", "7일"],
-            ["d30", "30일"],
-            ["d90", "90일"],
-          ] as [keyof PopularData, string][]
-        ).map(([k, label]) => (
-          <button
-            key={k}
-            type="button"
-            className={`${styles.recToggleBtn} ${period === k ? styles.recToggleBtnOn : ""}`}
-            onClick={() => change(k)}
-            aria-pressed={period === k}
-          >
-            {label}
-          </button>
-        ))}
+      {/* 섹션헤더 — 우측에 7/30/90 토글(내 시술 노트의 타임라인/달력/목록 토글과 동일 위치·패턴). */}
+      <div className={styles.recNotesHead}>
+        <h2 className={styles.recNotesTitle}>인기글</h2>
+        <div className={styles.recToggle}>
+          {(
+            [
+              ["d7", "7일"],
+              ["d30", "30일"],
+              ["d90", "90일"],
+            ] as [keyof PopularData, string][]
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              className={`${styles.recToggleBtn} ${period === k ? styles.recToggleBtnOn : ""}`}
+              onClick={() => change(k)}
+              aria-pressed={period === k}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
       {items.length === 0 ? (
         <div className={`${styles.card} ${styles.sideCard}`} style={{ textAlign: "center" }}>
@@ -459,6 +456,8 @@ export default function RecordView({
   latest,
   diaryCount,
   reviewsCount,
+  postCount,
+  receivedCount,
   keywordPosts,
   popular,
   myKeywords,
@@ -469,6 +468,8 @@ export default function RecordView({
   latest: DiaryLatest | null;
   diaryCount: number;
   reviewsCount: number;
+  postCount: number;
+  receivedCount: number;
   keywordPosts: KeywordPost[];
   popular: PopularData;
   myKeywords: string[];
@@ -551,10 +552,10 @@ export default function RecordView({
         </section>
       )}
 
-      {/* 카운팅 대시보드 — 회원만(개인 데이터). 내가 쓴 노트 / 내가 쓴 후기 / 최다 시술 */}
+      {/* 카운팅 대시보드 — 회원만(개인 데이터). 내가 쓴 노트 / 내가 쓴 후기 / 내가 쓴 글 / 내 글에 달린 댓글 */}
       {!guest && (
         <section className={`${styles.card} ${styles.mb20}`} style={{ marginTop: 18 }}>
-          <div className={styles.statRow}>
+          <div className={styles.statRow} style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
             <div>
               <div className={styles.num}>{diaryCount}</div>
               <div className={styles.lab}>내가 쓴 노트</div>
@@ -564,14 +565,12 @@ export default function RecordView({
               <div className={styles.lab}>내가 쓴 후기</div>
             </div>
             <div>
-              <div className={styles.num}>
-                {(() => {
-                  const f = new Map<string, number>();
-                  for (const e of entries) for (const p of e.procs) f.set(p, (f.get(p) ?? 0) + 1);
-                  return [...f.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
-                })()}
-              </div>
-              <div className={styles.lab}>최다 시술</div>
+              <div className={styles.num}>{postCount}</div>
+              <div className={styles.lab}>내가 쓴 글</div>
+            </div>
+            <div>
+              <div className={styles.num}>{receivedCount}</div>
+              <div className={styles.lab}>내 글에 달린 댓글</div>
             </div>
           </div>
         </section>
