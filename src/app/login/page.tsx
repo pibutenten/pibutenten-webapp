@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import LoginForm from "./LoginForm";
+import LoginView from "./LoginView";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +23,5 @@ export default async function LoginPage({ searchParams }: Props) {
     redirect(sp.next || "/");
   }
 
-  return (
-    <section className="mx-auto w-full max-w-[400px] py-10">
-      <h1 className="mb-6 text-center text-xl font-bold text-[var(--text)]">
-        피부텐텐 로그인
-      </h1>
-      <LoginForm next={sp.next} error={sp.error} errorId={sp.error_id} />
-    </section>
-  );
+  return <LoginView next={sp.next} error={sp.error} errorId={sp.error_id} />;
 }

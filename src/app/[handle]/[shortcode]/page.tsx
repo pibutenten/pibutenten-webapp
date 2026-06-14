@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkHiddenByShortcode } from "@/lib/hidden-card";
-import Card, { type CardData } from "@/components/Card";
+import { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
+import { renderBetaPost } from "@/app/beta-skin/post/post-data";
 import { SITE_URL } from "@/lib/site";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { CARD_DETAIL_SELECT } from "@/lib/card-select";
@@ -154,18 +155,12 @@ export default async function MemberPostPage({ params }: Props) {
     }
   }
 
-  return (
-    // 단독 글 폭은 원장 Q&A 단독 페이지(max-w-[680px])와 동일하게 맞춤 —
-    // 회원 글(후기 포함)이 컨테이너 끝(1080px)까지 퍼져 더 넓게 보이던 문제 교정.
-    <section className="mx-auto w-full max-w-[680px] py-6">
-      {/* 좌상단 ← 뒤로 — 다른 페이지와 동일하게 mb-1 -ml-1 통일. */}
-      <div className="mb-1 -ml-1">
-        <BackButton fallbackHref={`/${handle}`} />
-      </div>
-      {/* 단독 카드 상세 — 본문 펼침 + 댓글 자동 펼침 (의사 글 페이지와 동일 정책) */}
-      <Card card={card} forceExpanded autoExpandComments asH1 />
-    </section>
-  );
+  // 본문은 베타 글상세(renderBetaPost → PostDetail → PostCard forceExpanded)로 승격.
+  //   generateMetadata / canonical / robots / notFound / hidden placeholder / 의사 qa 308 redirect 는 위에서 그대로 보존.
+  //   베타 셸(BetaSkinShell)이 자체 '< 뒤로' + 헤더·탭바를 담당하므로 BackButton/래퍼 section 은 제거.
+  //   video_id 는 CARD_DETAIL_SELECT 에 없으므로 null — "같은 영상 추천"만 생략, 키워드 기반 연관 Q&A 는 정상.
+  const supabase = await createSupabaseServerClient();
+  return renderBetaPost(supabase, card, null);
 }
 
 // 정식 URL 패턴은 `/{handle}/{shortcode}` (회원 글) 와 `/doctors/{slug}/{year}/{post_slug}` (의사 Q&A) 두 가지.

@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import SignupForm from "./SignupForm";
 import ReturningUserNotice from "@/components/auth/ReturningUserNotice";
 import { ROLES } from "@/lib/identity-shared";
+import SignupView from "./SignupView";
 
 export const dynamic = "force-dynamic";
 
@@ -53,18 +54,11 @@ export default async function SignupPage({ searchParams }: Props) {
     "";
 
   return (
-    <section className="mx-auto w-full max-w-[440px] py-10">
-      <h1 className="mb-2 text-center text-xl font-bold text-[var(--text)]">
-        가입 마무리하기
-      </h1>
-      <p className="mb-6 text-center text-sm text-[var(--text-secondary)]">
-        피부텐텐에 오신 걸 환영해요. 잠깐만 확인해 주세요.
-      </p>
-
+    <SignupView>
       {/* 작업 B — 중복 가입 재발방지 안내 + 탈출 버튼(상단 눈에 띄게). */}
       <ReturningUserNotice />
 
       <SignupForm initialDisplayName={initialName} next={next} />
-    </section>
+    </SignupView>
   );
 }

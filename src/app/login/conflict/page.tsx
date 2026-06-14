@@ -10,7 +10,7 @@
  *   attempted_provider: 'naver' (현재) | 향후 추가
  */
 import type { Metadata } from "next";
-import Link from "next/link";
+import LoginConflictView from "./LoginConflictView";
 
 export const dynamic = "force-dynamic";
 
@@ -41,46 +41,5 @@ export default async function LoginConflictPage({
   const existing = PROVIDER_LABEL[sp.existing_provider ?? "other"] ?? "다른 채널";
   const attempted = PROVIDER_LABEL[sp.attempted_provider ?? "other"] ?? "이 채널";
 
-  return (
-    <section className="mx-auto flex max-w-md flex-col items-center px-6 py-16 text-center">
-      <div className="mb-4 text-4xl">🔐</div>
-      <h1 className="mb-2 text-xl font-bold text-[var(--text)]">
-        이미 {existing}(으)로 가입된 이메일이에요
-      </h1>
-      <p className="mb-6 text-sm text-[var(--text-secondary)]">
-        같은 이메일이 다른 채널로 먼저 가입되어 있어서,
-        <br />
-        {attempted} 로그인은 자동으로 연결되지 않습니다.
-      </p>
-      <p className="mb-6 text-xs text-[var(--text-muted)]">
-        보안을 위해 기존 채널로 로그인하신 뒤,
-        <br />
-        설정에서 직접 연결해 주세요.
-      </p>
-      <div className="flex w-full flex-col gap-2">
-        <Link
-          href="/login"
-          className="rounded-full bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
-        >
-          {existing}(으)로 로그인하기
-        </Link>
-        <Link
-          href="/"
-          className="rounded-full border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-        >
-          홈으로 돌아가기
-        </Link>
-      </div>
-      <p className="mt-6 text-xs text-[var(--text-muted)]">
-        도움이 필요하시면{" "}
-        <a
-          href="mailto:pibutenten@gmail.com?subject=계정 채널 안내 문의"
-          className="underline hover:text-[var(--primary)]"
-        >
-          pibutenten@gmail.com
-        </a>{" "}
-        으로 알려주세요.
-      </p>
-    </section>
-  );
+  return <LoginConflictView existing={existing} attempted={attempted} />;
 }

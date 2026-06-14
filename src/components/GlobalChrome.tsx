@@ -37,6 +37,11 @@ const BETA_PROMOTED_EXACT = new Set<string>([
   "/doctor-guidelines",
   "/doctors", // 전문의 목록 (Phase 4)
   "/notifications", // 알림 (Phase 5)
+  // 진입(인증·온보딩) (Phase 5)
+  "/login",
+  "/login/conflict",
+  "/signup",
+  "/onboarding",
 ]);
 
 /** prefix 로 승격된 동적 라우트군(하위 전체 포함). */
@@ -46,14 +51,41 @@ const BETA_PROMOTED_PREFIX = [
   "/review/", // 후기 작성·수정 (Phase 5: /review/new, /review/{shortcode}/edit)
 ];
 
+/**
+ * 회원 글상세 /{handle}/{shortcode} 매칭 시 첫 세그먼트가 핸들이 아닌 "예약 라우트"면 제외.
+ *   (Next.js 정적 라우트 우선이라 이 이름의 핸들은 실제로 존재 불가하지만, GlobalChrome 은
+ *    usePathname 만 보므로 /admin/reports 같은 2세그 경로가 shortcode 정규식에 오매칭돼 admin
+ *    헤더가 사라지는 사고를 막기 위해 명시적으로 배제한다.)
+ */
+const RESERVED_FIRST_SEGMENT = new Set<string>([
+  "admin", "api", "auth", "cards", "doctor", "doctors", "topics", "reports",
+  "review", "settings", "u", "login", "signup", "onboarding", "write", "record",
+  "my", "shop", "notifications", "search", "debug", "mockups", "beta-skin",
+  "old-skin", "report", "about", "terms", "privacy", "contact", "disclaimer",
+  "editorial-policy", "medical-review", "corrections", "disclosures",
+  "doctor-guidelines",
+]);
+
+/** 회원 글 shortcode = base58 6~12자 (운영 [handle]/[shortcode] page 의 fetchQa 가드와 동일). */
+const SHORTCODE_RE = /^[1-9A-HJ-NP-Za-km-z]{6,12}$/;
+
 function isBetaPromoted(pathname: string | null): boolean {
   if (!pathname) return false;
   if (BETA_PROMOTED_EXACT.has(pathname)) return true;
   if (BETA_PROMOTED_PREFIX.some((p) => pathname.startsWith(p))) return true;
-  // 의사 공개 프로필 /doctors/{slug} 만 승격(정확히 2세그먼트).
-  //   /doctors(목록)는 위 EXACT 에서 처리. /doctors/{slug}/{year}/{postSlug}(글상세)는 아직 미승격이라 제외.
   const seg = pathname.split("/").filter(Boolean);
+  // 의사 공개 프로필 /doctors/{slug} (2세그) — /doctors(목록)는 EXACT.
   if (seg.length === 2 && seg[0] === "doctors") return true;
+  // 의사 글상세 /doctors/{slug}/{year}/{postSlug} (4세그).
+  if (seg.length === 4 && seg[0] === "doctors") return true;
+  // 회원 글상세 /{handle}/{shortcode} (2세그, 첫 세그 예약어 아님 + shortcode base58).
+  if (
+    seg.length === 2 &&
+    !RESERVED_FIRST_SEGMENT.has(seg[0]) &&
+    SHORTCODE_RE.test(seg[1])
+  ) {
+    return true;
+  }
   return false;
 }
 

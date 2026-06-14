@@ -5,6 +5,7 @@ import { getPopularByCategory } from "@/lib/popular-keywords";
 import OnboardingClient from "./OnboardingClient";
 import ReturningUserNotice from "@/components/auth/ReturningUserNotice";
 import { IDENTITY_COOKIE, ROLES, UUID_RE } from "@/lib/identity-shared";
+import OnboardingView from "./OnboardingView";
 
 export const dynamic = "force-dynamic";
 
@@ -89,20 +90,7 @@ export default async function OnboardingPage() {
   const popularByCategory = await getPopularByCategory();
 
   return (
-    <section className="mx-auto w-full max-w-[640px] py-6">
-      <header className="mb-5">
-        <h1 className="text-2xl font-bold text-[var(--text)]">
-          피부텐텐에 오신 걸 환영해요
-        </h1>
-        {/* 두 안내문 같은 크기/색으로 통일 — text-sm + text-[var(--text-secondary)] */}
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          나에게 꼭 맞는 피부 정보를 추천하기 위해 몇 가지만 알려주세요.
-        </p>
-        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
-          추후에도 언제든지 변경하실 수 있어요.
-        </p>
-      </header>
-
+    <OnboardingView>
       {/* 작업 B — 중복 가입 재발방지 안내 + 탈출 버튼(상단 눈에 띄게). */}
       <ReturningUserNotice />
 
@@ -123,6 +111,6 @@ export default async function OnboardingPage() {
           skinInfoConsentAt: profile?.skin_info_consent_at ?? null,
         }}
       />
-    </section>
+    </OnboardingView>
   );
 }

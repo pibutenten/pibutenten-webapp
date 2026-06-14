@@ -5,8 +5,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { checkHiddenByDoctorPost } from "@/lib/hidden-card";
-import Card, { type CardData } from "@/components/Card";
-import BackButton from "@/components/BackButton";
+import { type CardData } from "@/components/Card";
+import { renderBetaPost } from "@/app/beta-skin/post/post-data";
 import { SITE_URL } from "@/lib/site";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import {
@@ -386,23 +386,19 @@ export default async function DermatologistPostPage({ params }: Props) {
 
   const jsonLd = buildJsonLd(card, slug, yearInt, postSlug);
 
+  // 본문은 베타 글상세(renderBetaPost → PostDetail → PostCard forceExpanded)로 승격.
+  //   SEO 자산은 100% 보존: generateMetadata / canonical / robots / notFound / hidden 은 위에서 그대로.
+  //   JSON-LD <script> 는 베타 셸(fixed 오버레이) 바깥(server Fragment)에 유지 → 셸이 덮어도 head 외 DOM 에 남아 크롤러가 읽음.
+  //   anon(쿠키리스) supabase 를 그대로 넘김 → renderBetaPost 내부도 published 행만 읽어 캐시 HTML 에 개인정보 0(viewer 는 클라가 마운트 후 별도 취득).
+  //   video_id 는 CARD_DETAIL_SELECT 에 없으므로 null — "같은 영상 추천"만 생략되고 키워드 기반 연관 Q&A 는 정상.
+  const supabase = createSupabaseAnonClient();
   return (
-    <section className="mx-auto w-full max-w-[680px] py-6">
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
-      {/* 좌상단 ← 뒤로 — 다른 페이지와 동일하게 mb-1 -ml-1 통일. */}
-      <div className="mb-1 -ml-1">
-        <BackButton fallbackHref={`/doctors/${slug}`} />
-      </div>
-      <Card
-        card={card}
-        isHot={false}
-        autoExpandComments
-        forceExpanded
-        asH1
-      />
-    </section>
+      {await renderBetaPost(supabase, card, null)}
+    </>
   );
 }
