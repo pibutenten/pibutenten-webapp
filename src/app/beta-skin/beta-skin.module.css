@@ -2773,17 +2773,19 @@ button.t[data-cat="knowledge"]:hover {
   color: var(--tt-blue-deep);
 }
 
-/* 신규3c) 누끼 원장 사진 — 운영 프로필과 동일한 /doctors/{slug}.png(object-contain).
-   배경 없이 흰 카드 위에 상반신만(사용자 요청 — 배경 제거). */
+/* 신규3c) 누끼 원장 사진 — 운영 프로필과 동일한 /doctors/{slug}.png.
+   배경 없이 흰 카드 위에, 확대해서 얼굴~상반신만(가슴 이하 크롭 — 사용자 요청). */
 .authorSidePhoto {
   position: relative;
   width: 100%;
-  height: 168px;
+  height: 200px;
   margin-bottom: 10px;
+  overflow: hidden;
 }
 .authorSidePhotoImg {
-  object-fit: contain;
-  object-position: center bottom;
+  /* cover 로 확대해 인물을 크게, 얼굴 약간 위 여백 남기고 가슴 이하는 컨테이너 밖으로 크롭. */
+  object-fit: cover;
+  object-position: center 16%;
 }
 /* 한줄 메시지(intro) — 인용 톤. 접힘 상태에서도 항상 노출. */
 .authorMessage {
