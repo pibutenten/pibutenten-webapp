@@ -889,10 +889,10 @@ export function PostCard({
       {tags.length > 0 && (
         <div className={styles.postTags}>
           {tags.map((t) => {
-            // 항목1) 검색어와 일치하는 태그는 카테고리 색으로 "활성화"(솔리드 채움). 띄어쓰기 무시 매칭.
+            // 통일 태그: 평소 연한 회색(.t), 검색어와 일치할 때만 연한 카테고리 틴트(catTagClass). 띄어쓰기 무시 매칭.
             const norm = (s: string) => s.replace(/\s/g, "").toLowerCase();
             const isMatch = !!searchQuery && norm(t) === norm(searchQuery);
-            const cls = `${styles.t} ${catTagClass(t)} ${isMatch ? styles.tagBtnActive : ""}`;
+            const cls = `${styles.t} ${isMatch ? catTagClass(t) : ""}`;
             return onTagClick ? (
               <button
                 type="button"

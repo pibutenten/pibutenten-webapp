@@ -1108,17 +1108,18 @@
   gap: 8px;
   margin-top: 14px;
 }
+/* 통일 태그(.t) — 연한 회색·작게·볼드 없음·컴팩트(개별글 URL 태그 기준). 선택 시 연한 카테고리 틴트. */
 .t {
   display: inline-block;
-  background: #f2f5f8;
-  color: var(--ink-500);
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 6px 12px;
+  background: #f3f5f8;
+  color: #8b93a1;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 4px 10px;
   border-radius: var(--r-chip);
   max-width: 100%;
   overflow-wrap: anywhere;
-  line-height: 1.4;
+  line-height: 1.35;
   text-align: left;
 }
 /* 항목 4) 클릭 가능한 태그(button.t) — 검색 필터 트리거. 호버 시 브랜드 톤. */

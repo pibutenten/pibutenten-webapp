@@ -442,19 +442,21 @@ export default function BetaSkinFeed({
               {cats === null ? "불러오는 중…" : "표시할 태그가 없습니다."}
             </p>
           ) : (
-            sideTags.map((tag) => (
-              <button
-                type="button"
-                className={`${styles.tagBtn} ${catTagClass(tag)} ${
-                  (searchQuery ?? "").trim() === tag ? styles.tagBtnActive : ""
-                }`}
-                key={tag}
-                onClick={() => applyTag(tag)}
-                aria-pressed={(searchQuery ?? "").trim() === tag}
-              >
-                {tag}
-              </button>
-            ))
+            sideTags.map((tag) => {
+              // 통일 태그: 평소 연한 회색(.t), 선택(현재 검색어=그 태그)일 때만 연한 카테고리 틴트.
+              const on = (searchQuery ?? "").trim() === tag;
+              return (
+                <button
+                  type="button"
+                  className={`${styles.t} ${on ? catTagClass(tag) : ""}`}
+                  key={tag}
+                  onClick={() => applyTag(tag)}
+                  aria-pressed={on}
+                >
+                  {tag}
+                </button>
+              );
+            })
           )}
         </div>
       </section>
