@@ -93,10 +93,6 @@ export default function WriteView({
   return (
     <BetaSkinShell active="글쓰기" sidebar={sidebar} {...search}>
       <div className={styles.writeWrap}>
-        <div className={styles.sectionHead} style={{ marginTop: 8 }}>
-          <h2>글쓰기</h2>
-        </div>
-
         <div
           className={styles.writeTypes}
           style={{ gridTemplateColumns: `repeat(${types.length}, 1fr)` }}

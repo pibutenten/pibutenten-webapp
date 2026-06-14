@@ -84,10 +84,16 @@ export default function WriteClient({
   initialCategory,
 }: Props) {
   const router = useRouter();
-  const [headerPhrase, setHeaderPhrase] = useState(WRITE_PHRASES[0]);
+  // Q&A 는 원장·관리자 전용 작성 → 회원 질문 톤의 회전 카피 대신 고정 제목.
+  // 끄적끄적 등 다른 카테고리는 기존 회전 카피 유지.
+  const isQa = initialCategory === "qa";
+  const [headerPhrase, setHeaderPhrase] = useState(
+    isQa ? "새 Q&A 작성하기" : WRITE_PHRASES[0],
+  );
 
-  // 헤더 카피 5.5초 회전 (mount-time shuffle + 순회)
+  // 헤더 카피 5.5초 회전 (mount-time shuffle + 순회) — Q&A 는 고정 제목이라 회전 비활성.
   useEffect(() => {
+    if (isQa) return;
     let queue: string[] = shuffle(WRITE_PHRASES);
     let prev = WRITE_PHRASES[0];
     setHeaderPhrase(queue[0]);
@@ -104,7 +110,7 @@ export default function WriteClient({
       setHeaderPhrase(next);
     }, 5500);
     return () => window.clearInterval(id);
-  }, []);
+  }, [isQa]);
 
   async function handleSubmit(
     payload: CardEditorPayload,
