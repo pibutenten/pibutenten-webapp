@@ -396,14 +396,31 @@ export default function BetaSkinFeed({
   }, []);
   const sidePrompt = SIDE_PROMPTS[promptIdx];
 
-  // 인기 Q&A: doctor 글(Q&A) 상위 5개.
-  const doctorAnswers = useMemo(
+  // 인기 Q&A 후보 풀 — doctor 글(Q&A) 상위 20개(기존 5개에서 확대).
+  //   회전은 이 풀 안에서만 일어나므로, 풀이 클수록 매 진입 노출 다양성이 커진다.
+  const doctorAnswerPool = useMemo(
     () =>
       pool
         .filter((c) => !!c.doctor && (c.category ?? c.type) === "qa")
-        .slice(0, 5),
+        .slice(0, 20),
     [pool],
   );
+  // 매 진입(마운트)마다 풀 안에서 시작점을 무작위로 옮겨 5개를 회전 노출.
+  //   하이드레이션 안전: SSR·초기 렌더는 항상 offset 0(앞 5개, 결정적). 마운트 후 useEffect 로만 회전.
+  //   (sidePrompt 와 동일 패턴 — 서버/클라 첫 렌더 일치 보장.)
+  const [hotQaOffset, setHotQaOffset] = useState(0);
+  useEffect(() => {
+    setHotQaOffset(Math.floor(Math.random() * 20));
+  }, []);
+  // 풀에서 offset 부터 5개를 wrap-around(순환)로 잘라 노출. 풀이 5개 이하면 그대로.
+  const doctorAnswers = useMemo(() => {
+    const n = doctorAnswerPool.length;
+    if (n <= 5) return doctorAnswerPool;
+    const start = hotQaOffset % n;
+    const out: typeof doctorAnswerPool = [];
+    for (let i = 0; i < 5; i++) out.push(doctorAnswerPool[(start + i) % n]);
+    return out;
+  }, [doctorAnswerPool, hotQaOffset]);
 
   const chips = CHIPS.map((c) => (
     <button
@@ -522,11 +539,14 @@ export default function BetaSkinFeed({
             </p>
           ) : (
             filteredReports.map((r) => (
-              <ProcedureReportCard
-                key={r.procedureKo}
-                report={r}
-                feedHref={`/reports/${encodeURIComponent(r.procedureKo)}`}
-              />
+              // 운영 ProcedureReportCard 는 무수정 — 베타 wrapper(.reportCardWrap)로 감싸
+              //   내부 <article> 의 R값(--radius)·여백을 베타 .card 와 동일(--r-card 24px)하게 맞춤.
+              <div key={r.procedureKo} className={styles.reportCardWrap}>
+                <ProcedureReportCard
+                  report={r}
+                  feedHref={`/reports/${encodeURIComponent(r.procedureKo)}`}
+                />
+              </div>
             ))
           )
         ) : filtered.length === 0 && !topReport ? (
@@ -537,12 +557,15 @@ export default function BetaSkinFeed({
           </p>
         ) : (
           <>
-            {/* 검색 매칭 리포트 — 결과 맨 위 1장(운영 ProcedureReportCard 재사용). */}
+            {/* 검색 매칭 리포트 — 결과 맨 위 1장(운영 ProcedureReportCard 재사용).
+                베타 wrapper(.reportCardWrap)로 R값·여백을 베타 카드와 통일. */}
             {topReport && (
-              <ProcedureReportCard
-                report={topReport}
-                feedHref={`/reports/${encodeURIComponent(topReport.procedureKo)}`}
-              />
+              <div className={styles.reportCardWrap}>
+                <ProcedureReportCard
+                  report={topReport}
+                  feedHref={`/reports/${encodeURIComponent(topReport.procedureKo)}`}
+                />
+              </div>
             )}
             {filtered.map((card) => (
               <PostCard

@@ -21,7 +21,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "./beta-skin.module.css";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useSession } from "@/lib/session-context";
 import BetaDiscovery, { prefetchDiscover } from "@/components/beta/BetaDiscovery";
 import { showToast } from "@/lib/toast";
@@ -153,36 +152,30 @@ export default function BetaSkinShell({
     : null;
   // 항목 1) 스크롤 다운 → 헤더 숨김(위로 슬라이드), 스크롤 업 → 복귀.
   const [headerHidden, setHeaderHidden] = useState(false);
-  // 작업 C) 로그인 여부 — null=로딩, true=로그인, false=비로그인.
-  //   헤더 우측 진입(마이 아바타 vs 로그인)을 분기. 로딩 중엔 둘 다 숨김.
-  const [me, setMe] = useState<boolean | null>(null);
+  // 작업 C) 로그인 여부 — useSession() 의 session 존재로 판정(쿠키 동기, 네트워크 없음).
+  //   session != null → 로그인, session == null → 비로그인.
+  //   라우팅마다 셸이 재마운트되어도 SessionProvider 는 상위에 유지되므로 깜빡임 없음.
+  const isLoggedIn = session != null;
+  // 첫 페인트 가림 — SSR/하이드레이션 직후 한 번은 session 이 쿠키 접근 전이라 null 일 수 있어,
+  //   마이/로그인 분기를 첫 페인트만 숨겨 비로그인 플래시를 막는다(라우팅마다 재발 X, 1회성).
+  const [mounted, setMounted] = useState(false);
   // 알림 벨 미읽음 카운트 — 운영 NotificationsBell 과 동일하게 /api/notifications?limit=1
   //   의 unread 필드를 사용(active profile 기준 get_my_unread_count RPC + RLS, 우회 없음).
-  //   비로그인(me!==true)이면 0 으로 유지 → 배지 숨김(깜빡임 방지).
+  //   비로그인(!session)이면 0 으로 유지 → 배지 숨김(깜빡임 방지).
   const [unread, setUnread] = useState(0);
 
+  /* eslint-disable-next-line react-hooks/set-state-in-effect */
   useEffect(() => {
-    let alive = true;
-    createSupabaseBrowserClient()
-      .auth.getUser()
-      .then(({ data }) => {
-        if (alive) setMe(!!data.user);
-      })
-      .catch(() => {
-        if (alive) setMe(false);
-      });
-    return () => {
-      alive = false;
-    };
+    setMounted(true);
   }, []);
 
   // 작업 B) 미읽음 알림 카운트 폴링(운영 NotificationsBell 로직 재사용).
-  //   - 로그인 확정(me===true) 시에만 fetch — 비로그인/로딩 중엔 호출 안 함.
+  //   - 로그인(session 존재) 시에만 fetch — 비로그인엔 호출 안 함.
   //   - 60초 폴링 + 탭 hidden 시 skip + 탭 복귀 시 즉시 refetch.
   //   - /notifications 페이지가 읽음 처리하면 emit 하는 이벤트로 배지 동기화.
   //   - AbortController 로 in-flight fetch 취소.
   useEffect(() => {
-    if (me !== true) {
+    if (!isLoggedIn) {
       setUnread(0);
       return;
     }
@@ -219,7 +212,7 @@ export default function BetaSkinShell({
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pibutenten:notifications-read", onRead);
     };
-  }, [me]);
+  }, [isLoggedIn]);
   // 피드백 1) 모바일 검색 — 헤더 "안"을 검색 input 으로 전환(헤더 아래 별도 바 X).
   const [searchOpen, setSearchOpen] = useState(false);
   // 피드백 2) 검색 추천 드롭다운 열림 상태(포커스 시 열림, 바깥 클릭 시 닫힘).
@@ -549,7 +542,7 @@ export default function BetaSkinShell({
               href="/notifications"
             >
               <IconBell />
-              {me === true && unread > 0 && (
+              {isLoggedIn && unread > 0 && (
                 <span
                   className={styles.bellBadge}
                   aria-hidden
@@ -560,8 +553,9 @@ export default function BetaSkinShell({
             </Link>
 
             {/* 작업 C) 로그인 상태 → 마이(아바타), 비로그인 → 로그인.
-                로딩(null) 중엔 진입을 숨겨 깜빡임 방지. */}
-            {me === true && (
+                session 존재로 판정(쿠키 동기). 첫 페인트(!mounted)만 둘 다 숨겨
+                하이드레이션 직후 1회성 비로그인 플래시 방지(라우팅마다 재발 X). */}
+            {mounted && isLoggedIn && (
               <Link
                 className={styles.iconBtn}
                 aria-label="마이"
@@ -579,7 +573,7 @@ export default function BetaSkinShell({
                 )}
               </Link>
             )}
-            {me === false && (
+            {mounted && !isLoggedIn && (
               <Link className={styles.btnLoginTop} href="/login">
                 로그인
               </Link>
