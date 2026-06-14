@@ -25,7 +25,7 @@ import type { PopularData, PopularItem } from "@/lib/record-data";
 const SAMPLE_CHIPS = ["리프팅", "보톡스", "스킨부스터", "볼륨", "더모코스메틱"];
 
 /* "이렇게 기록돼요" 빈 상태용 샘플 노트(더미) — 실데이터 아님이 분명하도록 '예시' 배지와 함께 미리보기.
- *   날짜·병원·시술명·메모가 든 더미 카드 2개. 클릭 동작 없음(시각적 이해 전용). */
+ *   날짜·병원·시술명·메모가 든 더미 카드 4개. 클릭 동작 없음(시각적 이해 전용). */
 const SAMPLE_NOTES: {
   month: number;
   day: number;
@@ -46,11 +46,29 @@ const SAMPLE_NOTES: {
   },
   {
     month: 4,
+    day: 28,
+    procs: ["레이저토닝", "스킨케어"],
+    place: "○○피부과의원",
+    doctor: "○○○ 원장",
+    memo: "색소·잡티 관리 목적. 시술 후 이틀간 살짝 따끔, 보습 신경 써서 관리.",
+    badge: { label: "회복 중", tone: "heal" },
+  },
+  {
+    month: 4,
     day: 3,
     procs: ["보톡스"],
     place: "○○의원",
     doctor: "○○○ 원장",
     memo: "이마 주름 부위. 일주일 뒤부터 효과 체감.",
+    badge: { label: "회복 완료", tone: "mint" },
+  },
+  {
+    month: 3,
+    day: 15,
+    procs: ["필러"],
+    place: "○○피부과의원",
+    doctor: "○○○ 원장",
+    memo: "팔자 부위 볼륨. 시술 당일 약간 부었고 3일 뒤 자연스럽게 자리잡음.",
     badge: { label: "회복 완료", tone: "mint" },
   },
 ];

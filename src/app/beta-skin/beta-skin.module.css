@@ -2906,6 +2906,31 @@ button.t[data-cat="knowledge"]:hover {
 .writeWrap h1 + p {
   display: none;
 }
+/* 항목2) 제목(운영 폼 h1)과 첫 글상자 사이 간격 확대.
+   DiaryForm h1 은 mb-1(4px)뿐이라 너무 붙음 → 베타 스코프에서 18px 로 통일.
+   ReviewForm·WriteClient h1(mb-5=20px)과도 자연스럽게 맞음. 운영 컴포넌트 무수정. */
+.writeWrap h1 {
+  margin-bottom: 18px;
+}
+/* 항목1) 비로그인 게이트 — 베타 톤 .card 안 안내 + 로그인/회원가입 버튼. */
+.writeLoginGate {
+  text-align: center;
+  padding: 30px 22px;
+}
+.writeLoginGateTitle {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink-900);
+  margin-bottom: 8px;
+}
+.writeLoginGateActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.writeLoginGateActions .btn {
+  min-width: 120px;
+}
 .field {
   margin-bottom: 18px;
 }

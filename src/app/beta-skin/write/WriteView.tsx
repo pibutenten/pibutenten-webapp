@@ -111,18 +111,45 @@ export default function WriteView({
           ))}
         </div>
 
-        {/* 운영 WriteTabs 그대로 — 자체 폼 미사용. key={active} 로 탭 전환 시 폼 리셋. */}
-        <WriteTabs
-          key={active}
-          tab={activeTab}
-          isLoggedIn={isLoggedIn}
-          role={role}
-          displayName={displayName}
-          myDoctor={myDoctor}
-          doctors={doctors}
-          procedures={procedures}
-          handle={handle}
-        />
+        {/* 비로그인 게이트 — 작성=로그인 필요(운영 정합). 운영 WriteTabs 의 시술노트는
+            비공개라 비로그인도 폼을 열지만(저장 시 401 토스트), 베타는 모든 탭에서 일관되게
+            로그인 CTA 를 노출한다(운영 무수정, 베타 셸 헤더 로그인 동선과 동일 next 경로). */}
+        {!isLoggedIn ? (
+          <section className={`${styles.card} ${styles.writeLoginGate}`}>
+            <h3 className={styles.writeLoginGateTitle}>로그인하고 작성해 보세요</h3>
+            <p className={styles.muted} style={{ marginBottom: 16 }}>
+              시술노트·후기·끄적끄적은 로그인 후 작성할 수 있어요. 로그인하면 받은
+              시술과 경과를 나만의 노트로 기록할 수 있어요.
+            </p>
+            <div className={styles.writeLoginGateActions}>
+              <a
+                className={`${styles.btn} ${styles.btnSolid}`}
+                href="/login?next=/beta-skin/write"
+              >
+                로그인
+              </a>
+              <a
+                className={`${styles.btn} ${styles.btnPrimary}`}
+                href="/signup?next=/beta-skin/write"
+              >
+                회원가입
+              </a>
+            </div>
+          </section>
+        ) : (
+          /* 운영 WriteTabs 그대로 — 자체 폼 미사용. key={active} 로 탭 전환 시 폼 리셋. */
+          <WriteTabs
+            key={active}
+            tab={activeTab}
+            isLoggedIn={isLoggedIn}
+            role={role}
+            displayName={displayName}
+            myDoctor={myDoctor}
+            doctors={doctors}
+            procedures={procedures}
+            handle={handle}
+          />
+        )}
       </div>
     </BetaSkinShell>
   );
