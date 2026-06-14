@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
-import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import type { CardData } from "@/lib/types/card";
-import PostDetail from "./PostDetail";
+import { renderBetaPost } from "./post-data";
 
 /**
  * /beta-skin/post — 신규 스킨 "글 상세" 프리뷰 (post.html 컨셉).
@@ -70,89 +69,6 @@ export default async function BetaSkinPostPage({
     cards[0] ??
     null;
 
-  // 함께 보면 좋은 Q&A — (1) 같은 유튜브 영상에서 나온 Q&A, (2) 키워드가 겹치는 Q&A.
-  //   기존엔 feed 24장 풀에서 뽑아 연관도 0(무관)까지 그대로 노출됐다(힐로웨이브 글에 쥬브젠 Q&A 등).
-  //   → 전용 쿼리로 교체: 같은 영상(video_id 직접 일치) 우선 → 키워드 겹침 많은 순. 연관 0 채우기 없음.
-  //   video_id 컬럼으로 직접 필터(임베드 관계 필터 불확실성 회피).
-  const cardKeywords = card?.keywords ?? [];
-  const [sameVideoRes, keywordRes] = await Promise.all([
-    idCardVideoId != null && card
-      ? supabase
-          .from("cards")
-          .select(CARD_LIST_SELECT)
-          .eq("video_id", idCardVideoId)
-          .eq("status", "published")
-          .is("deleted_at", null)
-          .or("category.eq.qa,type.eq.qa")
-          .neq("id", card.id)
-          .limit(6)
-      : Promise.resolve({ data: [] as unknown[] }),
-    cardKeywords.length && card
-      ? supabase
-          .from("cards")
-          .select(CARD_LIST_SELECT)
-          .overlaps("keywords", cardKeywords)
-          .eq("status", "published")
-          .is("deleted_at", null)
-          .or("category.eq.qa,type.eq.qa")
-          .neq("id", card.id)
-          .limit(20)
-      : Promise.resolve({ data: [] as unknown[] }),
-  ]);
-  const kwSet = new Set(cardKeywords);
-  const seen = new Set<number>([card?.id ?? -1]);
-  const related: CardData[] = [];
-  // 같은 영상 Q&A 먼저(가장 직접적인 연관).
-  for (const c of (sameVideoRes.data ?? []) as unknown as CardData[]) {
-    if (!seen.has(c.id)) {
-      seen.add(c.id);
-      related.push(c);
-    }
-  }
-  // 그다음 키워드 겹침 많은 순.
-  ((keywordRes.data ?? []) as unknown as CardData[])
-    .filter((c) => !seen.has(c.id))
-    .map((c) => ({ c, n: (c.keywords ?? []).filter((k) => kwSet.has(k)).length }))
-    .sort((a, b) => b.n - a.n)
-    .forEach(({ c }) => {
-      seen.add(c.id);
-      related.push(c);
-    });
-  const related3 = related.slice(0, 3);
-
-  // 현재 카드의 viewer 좋아요/저장 초기상태 prefetch(피드 카드와 동일 패턴).
-  // 실제 카드일 때만 조회. 샘플(card=null)이면 viewer 생략.
-  let viewer: { liked?: boolean; saved?: boolean } | undefined;
-  if (card) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const viewerStates = await fetchViewerStatesRecord(
-      supabase,
-      user?.id ?? null,
-      [card.id],
-    );
-    viewer = viewerStates[card.id];
-  }
-
-  // 작성자(원장) 소개 — 사이드 프로필 카드 펼침 내용(운영 doctors.intro 재사용). 회원 글이면 없음.
-  let doctorIntro: string | null = null;
-  if (card?.doctor?.slug) {
-    const { data: dp } = await supabase
-      .from("doctors")
-      .select("intro")
-      .eq("slug", card.doctor.slug)
-      .maybeSingle()
-      .returns<{ intro: string | null } | null>();
-    doctorIntro = dp?.intro ?? null;
-  }
-
-  return (
-    <PostDetail
-      card={card}
-      related={related3}
-      viewer={viewer}
-      doctorIntro={doctorIntro}
-    />
-  );
+  // 연관 Q&A·viewer·원장 소개는 canonical 라우트와 공용(renderBetaPost).
+  return renderBetaPost(supabase, card, idCardVideoId);
 }

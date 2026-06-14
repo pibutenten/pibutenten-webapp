@@ -88,6 +88,16 @@ export function cardHref(c: CardData): string {
   return getQaUrl(c);
 }
 
+/* ---------- 카드 → 베타 글상세 "고유 URL" ----------
+ * 운영 canonical(getQaUrl)을 /beta-skin/post 접두로 차용(의미있는 고유 주소).
+ *   - 의사 글: /beta-skin/post/doctors/{slug}/{year}/{post_slug}
+ *   - 회원 글: /beta-skin/post/{handle}/{shortcode}
+ * canonical 정보가 부족하면(getQaUrl="/") ?id= 숫자 URL 로 폴백. */
+export function betaPostHref(c: CardData): string {
+  const u = getQaUrl(c);
+  return u && u !== "/" ? `/beta-skin/post${u}` : `/beta-skin/post?id=${c.id}`;
+}
+
 /* ---------- 카드 → 작성자 프로필 URL (운영 CardHeader 동선 재현) ----------
  * 항목 4) 작성자(아바타+이름) 클릭 → 실제 프로필로 이동.
  *   - 의사(credential 노출): /doctors/{slug}
@@ -835,7 +845,7 @@ export function PostCard({
       {card.id != null ? (
         <a
           className={styles.postTitleLink}
-          href={`/beta-skin/post?id=${card.id}`}
+          href={betaPostHref(card)}
           onClick={(e) => e.stopPropagation()}
         >
           <h2 className={styles.postTitle}>{highlight(card.title ?? "", searchQuery)}</h2>

@@ -45,6 +45,7 @@ import {
   videoInfo,
   PubmedRefs,
   cardHref,
+  betaPostHref,
   authorHref,
   useBetaSearchRouting,
   useBetaCardActions,
@@ -193,7 +194,7 @@ export default function PostDetail({
           <h3>함께 보면 좋은 Q&A</h3>
           <div className={styles.sideList}>
             {related.map((c) => (
-              <a href={`/beta-skin/post?id=${c.id}`} key={c.id}>
+              <a href={betaPostHref(c)} key={c.id}>
                 <span className={styles.n}>Q</span>
                 <span>{c.title}</span>
               </a>
