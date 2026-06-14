@@ -82,7 +82,6 @@ export default function BetaProfileView({
   avatarUrl,
   bio,
   isOwner,
-  isDoctor,
   profileId,
   posts,
   reviews,
@@ -100,7 +99,6 @@ export default function BetaProfileView({
   avatarUrl: string | null;
   bio: string | null;
   isOwner: boolean;
-  isDoctor: boolean;
   profileId: string;
   posts: CardData[];
   reviews: CardData[];
@@ -254,8 +252,10 @@ export default function BetaProfileView({
         style={{ textAlign: "center" }}
       >
         <div className={styles.authorSideAvatarWrap}>
+          {/* avatarUrl 은 서버에서 의사매핑이면 누끼 사진(docMeta.photoUrl), 회원이면 profile.avatar_url 로
+              이미 정확히 계산됨 → 그대로 사용. doctorSlug 를 주면 getDoctorPhoto(handle) 가 회원 핸들로
+              /doctors/{핸들}.png 잘못된 경로를 만들어 깨지므로 주지 않는다. */}
           <CardAvatar
-            doctorSlug={isDoctor ? handle : undefined}
             memberAvatarUrl={avatarUrl}
             name={displayName}
             size={84}

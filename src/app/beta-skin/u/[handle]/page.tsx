@@ -81,8 +81,14 @@ export default async function BetaProfilePage({
     !!viewer &&
     (viewer.id === profile.id || profile.auth_user_id === viewer.id);
 
+  // 의사 매핑(회원 명함이 의사 매핑된 케이스) — 누끼 사진 + 아래 admin 가드 판단에 사용.
+  //   (진짜 원장 slug 는 위에서 /doctors 로 redirect 됨.)
+  const metaMap = await getDoctorMetaBatch(supabase, [profile.id]);
+  const docMeta = metaMap.get(profile.id);
+
   // admin 본인 1차 handle → 운영 /admin (베타 admin 은 Phase 3에서 신설).
-  if (isOwner && viewer) {
+  //   단 의사 매핑(docMeta)이 있으면 의사로서 본인 공개 프로필을 노출(운영 [handle]/page 의 `&& !identity` 정합).
+  if (isOwner && viewer && !docMeta?.slug) {
     const { data: vp } = await supabase
       .from("profiles")
       .select("role")
@@ -91,9 +97,6 @@ export default async function BetaProfilePage({
     if ((vp?.role as string | undefined) === "admin") redirect("/admin");
   }
 
-  // 의사 매핑(회원 명함이 의사 매핑된 케이스) — 누끼 사진 우선. (원장 slug 는 위에서 redirect 됨)
-  const metaMap = await getDoctorMetaBatch(supabase, [profile.id]);
-  const docMeta = metaMap.get(profile.id);
   const avatarUrl = docMeta?.slug
     ? docMeta.photoUrl ?? `/doctors/${docMeta.slug}.png`
     : profile.avatar_url;
@@ -186,7 +189,6 @@ export default async function BetaProfilePage({
       avatarUrl={avatarUrl}
       bio={profile.bio}
       isOwner={isOwner}
-      isDoctor={!!docMeta?.slug}
       profileId={profile.id}
       posts={posts}
       reviews={reviews}
