@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-14] — 베타 admin 화면 전체 폭(wide) 레이아웃 재설계
+
+### Changed
+- **BetaSkinShell `wide` prop 추가**: admin 전용 전체 폭 모드. `wide=true` 면 사이드바 없는 본문이 `.layoutSingle`(데스크탑 max-width 820px)로 좁혀지지 않고 운영 admin(`max-w-[1080px] w-full`)과 같은 풀폭(1080px)으로 펼쳐짐. 기본 false → 피드/공개프로필/글쓰기/내노트/마이/글상세 등 기존 화면은 영향 없음(현행 좁은 중앙 정렬 유지). wide 일 때 피드용 하단 5탭(모바일 탭바)도 숨김(관리자 화면에 부자연스러워) — 상단 베타 헤더는 유지.
+- **beta-skin.module.css `.pageWide`/`.layoutWide` 추가**: 데스크탑 `.layoutWide` 는 단일 칼럼 + `max-width: none`(820px 제한 해제). `.pageWide` 는 탭바 제거에 맞춰 하단 패딩 축소. `.page`(1080px) 컨테이너 폭은 그대로.
+- **베타 admin 3화면 wide + 표 직접 노출**: `/beta-skin/admin`(BetaAdminView)·`/beta-skin/admin/cards`(BetaAdminCardsView)·`/beta-skin/admin/comments`(BetaAdminCommentsView) 모두 `wide` 전달. 글관리는 표를 감싼 좁은 `.card` 래퍼를 제거하고 운영 admin/cards 처럼 표 자체를 흰 박스(테두리+그림자)로 직접 노출 — wide 컨테이너(1080px)에서 표 `minWidth(860)` < 컨테이너라 데스크탑 가로 스크롤 해소. 댓글은 좁은 `.card` 래퍼 제거(CommentsClient 각 그룹이 이미 흰 박스 → 이중 박스 답답함 제거). 대시보드는 운영 프로그램 Tool 그리드를 데스크탑 3열(`lg:grid-cols-3`)로 확장해 넓은 폭 활용.
+- 운영 파일 무수정(운영 임베드 컴포넌트 PickToggle/AdminCardsDoctorFilter/CommentsClient/ActivityKpis/PopularCards 내부 그대로). 데이터·가드·권한 로직 변경 없음(레이아웃 폭만).
+
+---
+
 ## [2026-06-14] — 원장 2명 profile_data 2차 정정 (0283)
 
 ### Fixed

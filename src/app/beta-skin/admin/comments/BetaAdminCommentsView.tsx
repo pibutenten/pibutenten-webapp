@@ -52,7 +52,7 @@ export default function BetaAdminCommentsView({
   const search = useBetaSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" {...search}>
+    <BetaSkinShell active="마이" wide {...search}>
       {/* 제목 + noindex 설명 */}
       <section className={`${styles.card} ${styles.mb20}`}>
         <div className={styles.profileName} style={{ marginBottom: 4 }}>
@@ -114,8 +114,10 @@ export default function BetaAdminCommentsView({
       </section>
 
       {/* 운영 CommentsClient 임베드 — 무한스크롤(/api/admin/comments)·복구 액션(/api/comments/[id])
-          자체 처리. firstPage·hasMore·statusFilter 만 props 로 전달(운영 admin/comments/page 와 동일 계약). */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+          자체 처리. firstPage·hasMore·statusFilter 만 props 로 전달(운영 admin/comments/page 와 동일 계약).
+          운영처럼 좁은 card 래퍼 없이 직접 노출 — CommentsClient 의 각 댓글 그룹이 이미 흰 박스라
+          이중 박스(답답함) 제거. wide 컨테이너 풀폭을 그대로 사용. */}
+      <section className={styles.mb20}>
         <CommentsClient
           initial={firstPage}
           initialHasMore={hasMore}

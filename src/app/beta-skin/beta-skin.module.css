@@ -433,6 +433,11 @@
 .page {
   padding: 4px 18px 116px;
 }
+/* wide(admin) — 하단 탭바를 숨기므로(BetaSkinShell wide) 탭바 가림용 큰 하단 패딩(116px) 불필요.
+   좌우 패딩은 좁혀 표가 모바일 폭을 최대한 쓰게(가로 스크롤은 표 wrapper 의 overflow-x 가 처리). */
+.pageWide {
+  padding: 4px 12px 40px;
+}
 /* 항목 1) 칩바 — sticky top:0 으로 화면 최상단 고정.
  *   캔버스 틴트 배경(좌우 풀블리드)으로 아래 피드가 비치지 않게. */
 .chipBar {
@@ -499,6 +504,13 @@
 
 .layout {
   display: block;
+}
+/* wide(admin) — 본문 자체는 .layout(단일 칼럼)을 그대로 쓰되, 데스크탑에서 .layoutSingle(820px)
+   처럼 좁혀지지 않게 풀폭을 강제(운영 admin 과 같은 넓이감). 모바일에선 .layout 과 동일. */
+.layoutWide {
+  display: block;
+  width: 100%;
+  max-width: 100%;
 }
 .feedCol {
   min-width: 0;
@@ -1647,6 +1659,11 @@ button.t[data-cat="knowledge"]:hover {
     margin: 0 auto;
     padding: 28px 32px 80px;
   }
+  /* wide(admin) — 운영 admin(<main class="mx-auto w-full max-w-[1080px] px-4 sm:px-6">)과 동일하게
+     컨테이너 최대 1080px + 좌우 패딩. .page(1080px) 폭은 그대로 두고 하단 패딩만 탭바 제거에 맞춰 축소. */
+  .pageWide {
+    padding: 28px 32px 48px;
+  }
 
   .header {
     padding: 0;
@@ -1822,6 +1839,13 @@ button.t[data-cat="knowledge"]:hover {
   .layoutSingle {
     grid-template-columns: minmax(0, 1fr);
     max-width: 820px;
+  }
+  /* wide(admin) — 단일 칼럼이지만 .layoutSingle 의 820px 제한 없이 컨테이너(.page 1080px) 풀폭 사용.
+     운영 admin(max-w-[1080px] w-full) 과 같은 넓이감으로 표/대시보드가 가로 스크롤 없이 펼쳐진다. */
+  .layoutWide {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: none;
   }
   .sidebar {
     display: flex;

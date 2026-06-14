@@ -245,7 +245,7 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
   };
 
   return (
-    <BetaSkinShell active="마이" {...search}>
+    <BetaSkinShell active="마이" wide {...search}>
       {/* 제목 + noindex 설명 */}
       <section className={`${styles.card} ${styles.mb20}`}>
         <div className={styles.profileName} style={{ marginBottom: 4 }}>
@@ -560,8 +560,19 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
         </section>
       ) : (
         !listError && (
-          <section className={`${styles.card} ${styles.mb20}`}>
-            <div style={{ overflowX: "auto" }}>
+          <section className={styles.mb20}>
+            {/* 표 — 운영 admin/cards 와 동일하게 좁은 card 래퍼 없이 표 자체가 흰 박스(테두리+그림자).
+                wide 컨테이너(1080px)에서 표 minWidth(860) < 컨테이너 → 데스크탑 가로 스크롤 해소.
+                모바일에서만 overflow-x 가 가로 스크롤을 허용(좁은 화면 보호). */}
+            <div
+              style={{
+                overflowX: "auto",
+                borderRadius: 14,
+                border: "1px solid var(--line)",
+                background: "#fff",
+                boxShadow: "var(--card-shadow)",
+              }}
+            >
               <table
                 style={{
                   width: "100%",

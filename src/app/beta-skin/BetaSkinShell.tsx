@@ -125,6 +125,7 @@ export default function BetaSkinShell({
   chips,
   sidebar,
   sidebarMobileBelow = false,
+  wide = false,
   searchValue,
   onSearchChange,
   onSearchSubmit,
@@ -135,6 +136,9 @@ export default function BetaSkinShell({
   sidebar?: ReactNode;
   /** 모바일에서 사이드바를 숨기지 않고 본문 아래로 표시(글상세의 작성자 프로필·연관 Q&A 용). */
   sidebarMobileBelow?: boolean;
+  /** admin 전용 전체 폭 모드 — 본문을 좁은 .layoutSingle(820px) 대신 운영 admin 과 같은 풀폭(1080px)으로.
+   *  기본 false → 피드/공개프로필/글쓰기/내노트/마이/글상세 등 기존 화면은 영향 없음(현행 좁은 중앙 정렬 유지). */
+  wide?: boolean;
   /** 헤더 검색 입력값(피드만 controlled — 그 자리서 필터). 없으면 셸 로컬 state. */
   searchValue?: string;
   onSearchChange?: (q: string) => void;
@@ -586,7 +590,9 @@ export default function BetaSkinShell({
       {mobileSearchPanel}
 
       {/* ---------- 본문 ---------- */}
-      <main className={styles.page}>
+      {/* wide(admin) 모드 — .page 의 좁은 max-width(1080) 컨테이너는 유지하되,
+          사이드바 없는 admin 이 .layoutSingle(820px)로 더 좁아지는 것을 막아 운영 admin 과 같은 풀폭으로. */}
+      <main className={`${styles.page} ${wide ? styles.pageWide : ""}`}>
         {chips ? (
           // 칩바 — 헤더 아래 sticky. 헤더 숨김(모바일) 시 chipBarUp 으로 top:0 끌어올림.
           <div
@@ -597,7 +603,13 @@ export default function BetaSkinShell({
         ) : null}
 
         <div
-          className={`${styles.layout} ${sidebar ? "" : styles.layoutSingle}`}
+          className={`${styles.layout} ${
+            wide
+              ? styles.layoutWide
+              : sidebar
+              ? ""
+              : styles.layoutSingle
+          }`}
         >
           <div className={styles.feedCol}>{children}</div>
           {sidebar ? (
@@ -610,7 +622,10 @@ export default function BetaSkinShell({
         </div>
       </main>
 
-      {/* ---------- 하단 둥근 탭바 (모바일) ---------- */}
+      {/* ---------- 하단 둥근 탭바 (모바일) ----------
+          wide(admin) 모드에선 피드용 5탭(내노트/글쓰기/피드/쇼핑/마이)이 운영 관리자 화면에 부자연스러워 숨김.
+          admin 내 이동은 본문의 운영 프로그램 그리드·탭으로 수행(상단 베타 헤더는 그대로 유지). */}
+      {!wide && (
       <nav className={styles.tabbar}>
         {TABS.map((t) =>
           // 쇼핑(준비 중, href "#") → 클릭 시 안내 토스트(라우팅 없음).
@@ -638,6 +653,7 @@ export default function BetaSkinShell({
           ),
         )}
       </nav>
+      )}
     </div>
   );
 }

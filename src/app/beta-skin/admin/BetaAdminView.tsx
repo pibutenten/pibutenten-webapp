@@ -66,7 +66,7 @@ export default function BetaAdminView({
   const pendingReview = stats.pendingReview;
 
   return (
-    <BetaSkinShell active="마이" {...search}>
+    <BetaSkinShell active="마이" wide {...search}>
       {/* 계정(명함) 스위처 — 운영 공용 카드 임베드(전환 로직 100% 재사용). */}
       <AccountSwitcherCard compact />
 
@@ -282,7 +282,8 @@ export default function BetaAdminView({
    카드 자체 톤은 Stat/Tool 의 베타 .card 스타일(아래)이 책임진다. */
 const GRID8 = "grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8";
 const GRID3 = "grid grid-cols-3 gap-2 sm:gap-3";
-const TOOL_GRID = "grid grid-cols-1 gap-3 sm:grid-cols-2";
+// wide(1080px) 데스크탑에선 운영 도구를 3열로 펼쳐 넓은 폭을 활용(좁은 2열 답답함 해소). 태블릿 2열·모바일 1열.
+const TOOL_GRID = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3";
 const POPULAR_GRID = "grid grid-cols-1 gap-4 md:grid-cols-2";
 const SECTION_HEAD =
   "mb-3 text-sm font-bold";
