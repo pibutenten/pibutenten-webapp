@@ -2778,14 +2778,16 @@ button.t[data-cat="knowledge"]:hover {
 .authorSidePhoto {
   position: relative;
   width: 100%;
-  height: 200px;
+  height: 188px;
   margin-bottom: 10px;
   overflow: hidden;
 }
 .authorSidePhotoImg {
-  /* cover 로 확대해 인물을 크게, 얼굴 약간 위 여백 남기고 가슴 이하는 컨테이너 밖으로 크롭. */
-  object-fit: cover;
-  object-position: center 16%;
+  /* contain 으로 전체를 담되 scale 로 적당히만 확대(cover 는 과확대였음). 위쪽 기준으로 키워 얼굴~상반신. */
+  object-fit: contain;
+  object-position: center top;
+  transform: scale(1.32);
+  transform-origin: center 20%;
 }
 /* 한줄 메시지(intro) — 인용 톤. 접힘 상태에서도 항상 노출. */
 .authorMessage {
