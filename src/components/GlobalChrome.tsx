@@ -61,13 +61,16 @@ const RESERVED_FIRST_SEGMENT = new Set<string>([
   "admin", "api", "auth", "cards", "doctor", "doctors", "topics", "reports",
   "review", "settings", "u", "login", "signup", "onboarding", "write", "record",
   "my", "shop", "notifications", "search", "debug", "mockups", "beta-skin",
-  "old-skin", "report", "about", "terms", "privacy", "contact", "disclaimer",
-  "editorial-policy", "medical-review", "corrections", "disclosures",
-  "doctor-guidelines",
+  "old-skin", "report", "rss", "about", "terms", "privacy", "contact",
+  "disclaimer", "editorial-policy", "medical-review", "corrections",
+  "disclosures", "doctor-guidelines",
 ]);
 
 /** 회원 글 shortcode = base58 6~12자 (운영 [handle]/[shortcode] page 의 fetchQa 가드와 동일). */
 const SHORTCODE_RE = /^[1-9A-HJ-NP-Za-km-z]{6,12}$/;
+
+/** 회원 핸들 = 소문자 영숫자/하이픈 3~30자 (운영 [handle] page 의 가드와 동일). */
+const HANDLE_RE = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
 
 function isBetaPromoted(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -84,6 +87,10 @@ function isBetaPromoted(pathname: string | null): boolean {
     !RESERVED_FIRST_SEGMENT.has(seg[0]) &&
     SHORTCODE_RE.test(seg[1])
   ) {
+    return true;
+  }
+  // 회원 공개 프로필 /{handle} (1세그, 예약어 아님 + handle 정규식). /[handle] catch-all 승격.
+  if (seg.length === 1 && !RESERVED_FIRST_SEGMENT.has(seg[0]) && HANDLE_RE.test(seg[0])) {
     return true;
   }
   return false;

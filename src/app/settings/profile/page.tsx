@@ -1,38 +1,25 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
-import ProfileEditClient from "./ProfileEditClient";
-import BackButton from "@/components/BackButton";
-import {
-  DEFAULT_VISIBILITY,
-  type FieldVisibility,
-} from "@/lib/profile-options";
+import { getDoctorSlugForProfile } from "@/lib/doctor-mapping";
 import { ROLES } from "@/lib/identity-shared";
 
 export const dynamic = "force-dynamic";
 
-type ProfileRow = {
-  id: string;
-  role: "admin" | "doctor" | "user";
-  display_name: string | null;
-  marketing_email_consent: boolean | null;
-  news_email_consent: boolean | null;
-  terms_agreed_at: string | null;
-  terms_agreed_version: string | null;
-  privacy_agreed_at: string | null;
-  privacy_agreed_version: string | null;
-  handle: string | null;
-  birthdate: string | null;
-  gender: "male" | "female" | "other" | null;
-  face_shape: string | null;
-  skin_type: string | null;
-  skin_concerns: string[] | null;
-  interested_procedures: string[] | null;
-  bio: string | null;
-  avatar_url: string | null;
-  field_visibility: FieldVisibility | null;
-};
-
+/**
+ * /settings/profile — 본인 프로필로 redirect.
+ *
+ * 신규 스킨 승격(2026-06-15): 프로필·설정 편집은 별도 페이지가 아니라 본인 공개 프로필(/{handle})의
+ *   '프로필·설정' 아코디언으로 인라인 처리한다(승격된 BetaProfileView, ProfileEditClient embedded).
+ *   기존 저장 API(/api/profile…) 와 ProfileEditClient 는 무수정 — 아코디언이 그대로 재사용한다.
+ *   따라서 이 라우트로의 직접 접속·기존 링크는 본인 공개 프로필로 redirect 한다(동선 통일).
+ *
+ *  - admin → /admin
+ *  - doctor (doctor_accounts 매핑 있음) → /doctors/{slug}
+ *  - 그 외(회원) → /{handle} (active 명함 handle, getIdentityContext SSOT)
+ *  - handle 미설정 → /
+ *  - 비로그인 → /login?next=/settings/profile
+ */
 export default async function MyProfilePage() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -40,67 +27,34 @@ export default async function MyProfilePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/settings/profile");
 
-  // POLICY-1 잔여 정리 (2026-05-29): 옛 .eq("id", user.id) (base only) →
-  //   active 명함 단위. SSOT 헬퍼 `getIdentityContext` 사용 — 내부
-  //   `resolveActiveIdentity` 가 IDENTITY_COOKIE → UUID 검증 → 본인 묶음
-  //   (auth_user_id == user.id) 검증 → active 명함 결정 + 남의 명함 위조 차단까지
-  //   일괄 처리. middleware (B-2) / onboarding (B-2) 와 같은 SSOT.
-  //
-  //   읽기·쓰기 한 세트 보장: 읽기 ID = 쓰기 ID = targetProfileId.
-  //   active 명함이 base 와 같거나 idCtx 가 null 이면 base (user.id) 로 fallback.
   const idCtx = await getIdentityContext(supabase);
-  const targetProfileId = idCtx?.active?.profileId ?? user.id;
+  const active = idCtx?.active;
 
+  if (active?.role === ROLES.ADMIN) redirect("/admin");
+  if (active?.role === ROLES.DOCTOR) {
+    const slug = await getDoctorSlugForProfile(supabase, user.id);
+    if (slug) redirect(`/doctors/${slug}`);
+  }
+  if (active?.handle) redirect(`/${active.handle}`);
+
+  // active 컨텍스트 없음/handle 미설정 — base 프로필 handle fallback.
   const { data: profile } = await supabase
     .from("profiles")
-    .select(
-      "id, role, display_name, marketing_email_consent, news_email_consent, terms_agreed_at, terms_agreed_version, privacy_agreed_at, privacy_agreed_version, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, field_visibility",
-    )
-    .eq("id", targetProfileId)
+    .select("role, handle")
+    .eq("id", user.id)
     .maybeSingle()
-    .returns<ProfileRow>();
+    .returns<{
+      role: "user" | "doctor" | "admin";
+      handle: string | null;
+    }>();
 
   if (!profile) redirect("/login?error=프로필을 찾을 수 없습니다");
+  if (profile.role === ROLES.ADMIN) redirect("/admin");
+  if (profile.role === ROLES.DOCTOR) {
+    const slug = await getDoctorSlugForProfile(supabase, user.id);
+    if (slug) redirect(`/doctors/${slug}`);
+  }
+  if (profile.handle) redirect(`/${profile.handle}`);
 
-  const loginProviders = (user.identities ?? []).map((i) => i.provider);
-
-  // 의사 명함의 사진·이름은 별도 관리 (doctors 테이블 / admin 전용). settings 에서
-  // 변경 불가. 옛 정책 (의사 1차 명함 한정 read-only) 을 active 명함 단위로 확장 —
-  // 의사 명함 active 시 항상 사진·이름 read-only.
-  const isDoctorTarget = profile.role === ROLES.DOCTOR;
-
-  return (
-    <section className="mx-auto w-full max-w-[640px] space-y-5 py-6">
-      <div className="mb-1 -ml-1">
-        <BackButton />
-      </div>
-      <ProfileEditClient
-        userId={user.id}
-        targetProfileId={targetProfileId}
-        currentEmail={user.email ?? ""}
-        loginProviders={loginProviders}
-        profileHref={profile.handle ? `/${profile.handle}` : "/"}
-        readOnlyNameAndAvatar={isDoctorTarget}
-        role={profile.role}
-        initial={{
-          displayName: profile.display_name ?? "",
-          marketingConsent: !!profile.marketing_email_consent,
-          newsConsent: !!profile.news_email_consent,
-          termsAgreedAt: profile.terms_agreed_at ?? null,
-          termsAgreedVersion: profile.terms_agreed_version ?? null,
-          privacyAgreedAt: profile.privacy_agreed_at ?? null,
-          privacyAgreedVersion: profile.privacy_agreed_version ?? null,
-          birthdate: profile.birthdate ?? "",
-          gender: profile.gender ?? null,
-          faceShape: profile.face_shape ?? null,
-          skinType: profile.skin_type ?? null,
-          skinConcerns: profile.skin_concerns ?? [],
-          interestedProcedures: profile.interested_procedures ?? [],
-          bio: profile.bio ?? "",
-          avatarUrl: profile.avatar_url ?? null,
-          fieldVisibility: profile.field_visibility ?? DEFAULT_VISIBILITY,
-        }}
-      />
-    </section>
-  );
+  redirect("/");
 }

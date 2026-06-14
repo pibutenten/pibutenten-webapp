@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { type CardData } from "@/components/Card";
-import ProfileTabs from "@/components/ProfileTabs";
-import LogoutButton from "@/components/LogoutButton";
-import BackButton from "@/components/BackButton";
+import { getIdentityContext } from "@/lib/identity";
+import { ROLES } from "@/lib/identity-shared";
 import { SITE_URL } from "@/lib/site";
 import type { UserRole } from "@/lib/user-grades";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
+import { DEFAULT_VISIBILITY, type FieldVisibility } from "@/lib/profile-options";
+import type { CardData } from "@/lib/types/card";
+import BetaProfileView, {
+  type BetaSkinInfo,
+  type ProfileSettings,
+} from "@/app/beta-skin/u/[handle]/BetaProfileView";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -38,6 +41,29 @@ type ProfileRow = {
   auth_user_id: string | null;
 };
 
+// '프로필·설정' 아코디언 폼(ProfileEditClient)용 — 운영 my/page 의 ProfileRow 와 동일 컬럼.
+type SettingsProfileRow = {
+  id: string;
+  role: "admin" | "doctor" | "user";
+  display_name: string | null;
+  marketing_email_consent: boolean | null;
+  news_email_consent: boolean | null;
+  terms_agreed_at: string | null;
+  terms_agreed_version: string | null;
+  privacy_agreed_at: string | null;
+  privacy_agreed_version: string | null;
+  handle: string | null;
+  birthdate: string | null;
+  gender: "male" | "female" | "other" | null;
+  face_shape: string | null;
+  skin_type: string | null;
+  skin_concerns: string[] | null;
+  interested_procedures: string[] | null;
+  bio: string | null;
+  avatar_url: string | null;
+  field_visibility: FieldVisibility | null;
+};
+
 /**
  * 회원 프로필 페이지 — 핸들 기반 (v4 spec).
  *
@@ -48,8 +74,12 @@ type ProfileRow = {
  * Phase 9: 모든 ID는 profiles에 독립 row로 존재 (auth_user_id로 묶음).
  * 한 사람이 의사·일반 두 모드로 활동하고 싶으면 별개 profile row로 분리.
  *
- * 본인 보기일 때만 [수정], [활동], [설정], [로그아웃] 노출.
- * 외부인 보기는 작성 글·댓글 탭만.
+ * 신규 스킨 승격(2026-06-15): 본문 렌더를 베타 BetaProfileView 로 교체.
+ *   - 데이터 조립(작성글·후기·댓글·좋아요·저장·피부 + isOwner 시 settings 아코디언)은
+ *     베타 /beta-skin/u/[handle]/page.tsx 패턴을 이식.
+ *   - generateMetadata·canonical·robots·404·doctor slug redirect·handle 정규식 가드는 운영 그대로 보존.
+ *
+ * 본인 보기(isOwner)일 때만 '프로필·설정' 아코디언 + 최하단 로그아웃 노출(BetaProfileView 내부 처리).
  */
 async function fetchProfileByHandle(
   handle: string,
@@ -154,23 +184,22 @@ export default async function HandleProfilePage({ params }: Props) {
   // Phase 9: 같은 auth_user_id 묶음이면 본인 (다른 ID여도 같은 사람)
   // - 본인 auth user의 메인 profile 접근: profile.id === viewer.id
   // - 본인 묶음 다른 profile 접근(부계정 등): profile.auth_user_id === viewer.id
-  const profileAuthUserId = (profile as { auth_user_id?: string | null }).auth_user_id ?? null;
-  const isOwner = !!viewer && (
-    viewer.id === profile.id || profileAuthUserId === viewer.id
-  );
+  const profileAuthUserId =
+    (profile as { auth_user_id?: string | null }).auth_user_id ?? null;
+  const isOwner =
+    !!viewer && (viewer.id === profile.id || profileAuthUserId === viewer.id);
 
   // 본인일 때 role 조회 — admin이 본인 1차 handle로 접근하면 /admin으로 redirect.
   // 단 묶음의 별개 identity handle(예: 회원용 명함 profile)로 접근한 경우엔 회원 프로필 그대로 노출.
   // (admin이 회원용 명함으로 SNS 활동하는 케이스 — 그때는 일반 회원 화면이 맞음)
-  let viewerRole: "admin" | "doctor" | "user" | null = null;
   if (isOwner && viewer) {
     const { data: vp } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", viewer.id)
       .maybeSingle();
-    viewerRole =
-      ((vp?.role as "admin" | "doctor" | "user" | undefined) ?? null) ?? null;
+    const viewerRole =
+      (vp?.role as "admin" | "doctor" | "user" | undefined) ?? null;
     // identity가 있으면 redirect 안 함 (의사 매핑된 본인 화면)
     if (viewerRole === "admin" && !identity) {
       redirect("/admin");
@@ -185,7 +214,7 @@ export default async function HandleProfilePage({ params }: Props) {
   const bio = identity ? identity.bio : profile.bio;
 
   // 작성 글 / 내 후기 분리 — 이 profile.id로 작성된 published 글, 최근 20개씩.
-  //  - 작성 글: 일반 글 (category != review/review_summary). 기존 "작성 글" 탭과 동일 의미.
+  //  - 작성 글: 일반 글 (category != review/review_summary).
   //  - 내 후기: 개별 시술후기 (category = review). 둘 다 CARD_LIST_SELECT·정렬·limit 재사용.
   const [postsRes, reviewsRes] = await Promise.all([
     supabase
@@ -259,96 +288,83 @@ export default async function HandleProfilePage({ params }: Props) {
     [...posts, ...reviews].map((p) => p.id),
   );
 
+  const skinInfo: BetaSkinInfo | undefined = viewerIsAnon
+    ? undefined
+    : {
+        faceShape: profile.face_shape ?? null,
+        skinType: profile.skin_type ?? null,
+        skinConcerns: profile.skin_concerns ?? [],
+        interestedProcedures: profile.interested_procedures ?? [],
+        receivedProcedures,
+        visibility: (profile.field_visibility ?? {}) as Record<string, boolean>,
+      };
+
+  // 본인일 때만 '프로필·설정' 아코디언용 settings props 를 채움(운영 my/page 와 동일 쿼리·매핑).
+  //   active 명함 단위(getIdentityContext SSOT) — 위 viewer.id 와 다를 수 있어 별도 결정.
+  //   비-owner/anon 이면 null → 폼 미노출.
+  //   저장 후 [← 프로필] 은 운영 공개 프로필(/{handle})로(베타와 달리 운영 경로 유지).
+  let settings: ProfileSettings | null = null;
+  if (isOwner && viewer) {
+    const idCtx = await getIdentityContext(supabase);
+    const targetProfileId = idCtx?.active?.profileId ?? viewer.id;
+    const { data: sp } = await supabase
+      .from("profiles")
+      .select(
+        "id, role, display_name, marketing_email_consent, news_email_consent, terms_agreed_at, terms_agreed_version, privacy_agreed_at, privacy_agreed_version, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, field_visibility",
+      )
+      .eq("id", targetProfileId)
+      .maybeSingle()
+      .returns<SettingsProfileRow>();
+    if (sp) {
+      settings = {
+        userId: viewer.id,
+        targetProfileId,
+        currentEmail: viewer.email ?? "",
+        loginProviders: (viewer.identities ?? []).map((i) => i.provider),
+        profileHref: sp.handle ? `/${sp.handle}` : "/",
+        readOnlyNameAndAvatar: sp.role === ROLES.DOCTOR,
+        role: sp.role,
+        initial: {
+          displayName: sp.display_name ?? "",
+          marketingConsent: !!sp.marketing_email_consent,
+          newsConsent: !!sp.news_email_consent,
+          termsAgreedAt: sp.terms_agreed_at ?? null,
+          termsAgreedVersion: sp.terms_agreed_version ?? null,
+          privacyAgreedAt: sp.privacy_agreed_at ?? null,
+          privacyAgreedVersion: sp.privacy_agreed_version ?? null,
+          birthdate: sp.birthdate ?? "",
+          gender: sp.gender ?? null,
+          faceShape: sp.face_shape ?? null,
+          skinType: sp.skin_type ?? null,
+          skinConcerns: sp.skin_concerns ?? [],
+          interestedProcedures: sp.interested_procedures ?? [],
+          bio: sp.bio ?? "",
+          avatarUrl: sp.avatar_url ?? null,
+          fieldVisibility: sp.field_visibility ?? DEFAULT_VISIBILITY,
+        },
+      };
+    }
+  }
+
   return (
-    <section className="w-full py-6">
-      <div className="mb-1 -ml-1">
-        <BackButton />
-      </div>
-      {/* 프로필 헤더 — 사진 가운데, 카드 wrapper 없이 */}
-      <div className="mb-6 flex flex-col items-center text-center">
-        <div className="h-[128px] w-[128px] overflow-hidden rounded-full bg-[var(--bg-soft)] sm:h-[144px] sm:w-[144px]">
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt=""
-              className="h-full w-full object-cover"
-              // doctor 누끼 사진은 상반신 — 작은 원형에서 얼굴이 잘리지 않도록 위쪽으로 정렬
-              style={
-                identity?.doctor_id
-                  ? { objectPosition: "50% 12%" }
-                  : undefined
-              }
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-5xl text-[var(--text-muted)]">
-              👤
-            </div>
-          )}
-        </div>
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-          <h1 className="text-xl font-bold text-[var(--text)]">
-            {displayName}
-          </h1>
-        </div>
-        <div className="mt-0.5 text-sm text-[var(--text-muted)]">@{handle}</div>
-        {bio && (
-          <p className="mt-2 max-w-md text-sm text-[var(--text-secondary)]">
-            {bio}
-          </p>
-        )}
-        {isOwner && (
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
-            <Link
-              href="/settings/profile"
-              className="rounded-full border border-[var(--border)] px-3 py-1 text-[var(--text-secondary)] hover:bg-[var(--bg-soft)]"
-            >
-              ✏️ 프로필·설정
-            </Link>
-            {/* admin은 위에서 /admin으로 redirect 되므로 여기 도달 X */}
-          </div>
-        )}
-
-        {/* 피부 정보는 [피부고민] 탭으로 이동됨.
-            의사 본인 대시보드는 별도 /doctor 라우트로 분리 (2026-05-22). */}
-      </div>
-
-      {/* 탭 — 작성 글 / 내 후기 / 댓글 / 좋아요(owner) / 저장(owner) / 피부고민 */}
-      <ProfileTabs
-        posts={posts}
-        postsCount={posts.length}
-        reviews={reviews}
-        reviewsCount={reviews.length}
-        commentsCount={commentsCount ?? 0}
-        likesCount={likesCount}
-        savesCount={savesCount}
-        isOwner={isOwner}
-        profileId={profile.id}
-        skinInfo={
-          viewerIsAnon
-            ? undefined
-            : {
-                faceShape: profile.face_shape,
-                skinType: profile.skin_type,
-                skinConcerns: profile.skin_concerns ?? [],
-                interestedProcedures: profile.interested_procedures ?? [],
-                receivedProcedures,
-                visibility: (profile.field_visibility ?? {}) as Record<
-                  string,
-                  boolean
-                >,
-              }
-        }
-        viewerStates={viewerStates}
-        viewerIsAnon={viewerIsAnon}
-      />
-
-      {/* 본인 접속 시 페이지 최하단에 로그아웃 (탈퇴는 /settings/profile에 유지) */}
-      {isOwner && (
-        <div className="mt-12 flex justify-center border-t border-[var(--border)] pt-6">
-          <LogoutButton />
-        </div>
-      )}
-    </section>
+    <BetaProfileView
+      handle={handle}
+      displayName={displayName}
+      avatarUrl={avatarUrl}
+      bio={bio}
+      isOwner={isOwner}
+      profileId={profile.id}
+      posts={posts}
+      reviews={reviews}
+      postsCount={posts.length}
+      reviewsCount={reviews.length}
+      commentsCount={commentsCount ?? 0}
+      likesCount={likesCount}
+      savesCount={savesCount}
+      viewerStates={viewerStates}
+      viewerIsAnon={viewerIsAnon}
+      skinInfo={skinInfo}
+      settings={settings}
+    />
   );
 }
