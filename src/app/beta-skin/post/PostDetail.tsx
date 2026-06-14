@@ -32,6 +32,7 @@ export default function PostDetail({
   viewer,
   doctorIntro = null,
   doctorProfile = null,
+  doctorAffiliation = null,
 }: {
   card: CardData | null;
   related?: CardData[];
@@ -40,6 +41,8 @@ export default function PostDetail({
   doctorIntro?: string | null;
   /** 작성자(원장) 확장 프로필(학력·경력·학회·링크) — "더보기" 펼침 내용(운영 doctors.profile_data). 회원이면 null. */
   doctorProfile?: DoctorProfileData | null;
+  /** 작성자(원장) 소속(병원 + 지점) — 더보기 프로필 상세 맨 위 "소속" 행. 회원이면 null. */
+  doctorAffiliation?: string | null;
 }) {
   const search = useBetaSearchRouting();
   const router = useRouter();
@@ -78,8 +81,22 @@ export default function PostDetail({
             : undefined
         }
       >
-        {/* 한줄 메시지(intro) — 맨 위에. 접힘 상태에서도 항상 노출. */}
+        {/* 운영 프로필 순서: 메시지(맨 위) → 이름 → 피부과 전문의 → 사진(아래). */}
+        {/* 한줄 메시지(intro) — 맨 위. 접힘 상태에서도 항상 노출. */}
         {doctorIntro && <p className={styles.authorMessage}>{doctorIntro}</p>}
+        <div className={`${styles.authorName} ${styles.authorSideName}`}>
+          {authorName}
+        </div>
+        <div className={styles.authorSub}>
+          {isDoctor ? (
+            <span className={styles.verified}>
+              <IconVerified />
+              피부과 전문의
+            </span>
+          ) : (
+            "회원"
+          )}
+        </div>
         {doctorPhoto ? (
           <div className={styles.authorSidePhoto}>
             <Image
@@ -100,21 +117,13 @@ export default function PostDetail({
             />
           </div>
         )}
-        <div className={`${styles.authorName} ${styles.authorSideName}`}>
-          {authorName}
-          {isDoctor && (
-            <span className={styles.verified}>
-              <IconVerified />
-            </span>
-          )}
-        </div>
-        <div className={styles.authorSub}>
-          {isDoctor ? "피부과 전문의" : "회원"}
-        </div>
         {/* 펼침 — 확장 프로필(학력·경력·학회·외부 링크). 상단 구분선은 .authorIntro 보더. */}
         {profileOpen && hasProfileDetail && (
           <div className={styles.authorIntro}>
-            <DoctorProfileDetail profile={doctorProfile!} />
+            <DoctorProfileDetail
+              profile={doctorProfile!}
+              affiliation={doctorAffiliation}
+            />
           </div>
         )}
         {/* 더보기/접기 — 본문 더보기와 같은 미니멀 톤(.moreToggle). 실제 토글은 카드 전체 클릭. */}
@@ -203,8 +212,17 @@ function profileHasContent(p: DoctorProfileData): boolean {
  * 운영 프로필 페이지의 학력·경력·학회·외부 링크와 동일한 항목/순서를 베타 사이드 톤으로 렌더.
  * (링크 클릭은 카드 전체 토글과 충돌하지 않게 stopPropagation.)
  */
-function DoctorProfileDetail({ profile }: { profile: DoctorProfileData }) {
-  const rows = buildProfileRows(profile);
+function DoctorProfileDetail({
+  profile,
+  affiliation = null,
+}: {
+  profile: DoctorProfileData;
+  affiliation?: string | null;
+}) {
+  // 소속(병원 + 지점)을 맨 위 "소속" 행으로 추가(학력 위).
+  const rows = affiliation
+    ? [{ title: "소속", values: [affiliation] }, ...buildProfileRows(profile)]
+    : buildProfileRows(profile);
   const links = buildProfileLinks(profile);
   return (
     <div className={styles.profileDetail}>

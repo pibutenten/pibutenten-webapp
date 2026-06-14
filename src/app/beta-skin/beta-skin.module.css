@@ -2717,10 +2717,8 @@ button.t[data-cat="knowledge"]:hover {
   cursor: pointer;
 }
 .authorIntro {
-  /* 신규: 한줄 메시지와 학력 사이 구분선(상단 보더). */
-  margin-top: 14px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  /* 펼침 프로필 — 사진 아래. 구분선 없음(사용자 요청) + 사진과 간격 조금 더. */
+  margin-top: 22px;
   text-align: left;
   font-size: 13.5px;
   line-height: 1.55;
@@ -2743,7 +2741,9 @@ button.t[data-cat="knowledge"]:hover {
   position: relative;
   width: 100%;
   height: 204px;
-  margin-bottom: 10px;
+  /* 운영 순서(메시지→이름→전문의→사진): 사진은 맨 아래. 전문의와 사진 사이 간격. */
+  margin-top: 18px;
+  margin-bottom: 6px;
   overflow: hidden;
 }
 .authorSidePhotoImg {
@@ -2753,13 +2753,23 @@ button.t[data-cat="knowledge"]:hover {
   transform: scale(1.42);
   transform-origin: center 20%;
 }
-/* 한줄 메시지(intro) — 맨 위 인용 톤. 위·아래 간격 확보(위로 살짝 내려 시작). */
+/* 한줄 메시지(intro) — 맨 위 인용 톤. 운영 기준으로 글씨 한 단계 키움. */
 .authorMessage {
-  margin: 14px 0 22px;
-  font-size: 13px;
-  line-height: 1.65;
+  margin: 14px 0 20px;
+  font-size: 14.5px;
+  line-height: 1.75;
   color: var(--ink-700);
   white-space: pre-line;
+}
+/* 사이드 프로필 이름·소속 — 운영 기준으로 한 단계 키움(피드 .authorName 공용은 건드리지 않음). */
+.authorSide .authorSideName {
+  font-size: 19px;
+}
+.authorSide .authorSub {
+  font-size: 13.5px;
+}
+.authorSide .verified {
+  font-size: 13px;
 }
 /* 프로필 카드 안 "더보기/접기" — 본문보다 한 단계 아래로 띄움(미니멀 톤은 .moreToggle 공용). */
 .authorSide .moreToggle {
@@ -2797,9 +2807,7 @@ button.t[data-cat="knowledge"]:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  margin-top: 10px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin-top: 14px;
 }
 .profileLinks a {
   font-size: 11.5px;

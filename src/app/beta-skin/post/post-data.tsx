@@ -77,18 +77,25 @@ export async function renderBetaPost(
 
   let doctorIntro: string | null = null;
   let doctorProfile: DoctorProfileData | null = null;
+  let doctorAffiliation: string | null = null;
   if (card?.doctor?.slug) {
     const { data: dp } = await supabase
       .from("doctors")
-      .select("intro, profile_data")
+      .select("intro, profile_data, clinic, branch")
       .eq("slug", card.doctor.slug)
       .maybeSingle()
       .returns<{
         intro: string | null;
         profile_data: DoctorProfileData | null;
+        clinic: string | null;
+        branch: string | null;
       } | null>();
     doctorIntro = dp?.intro ?? null;
     doctorProfile = dp?.profile_data ?? null;
+    // 소속(병원 + 지점) — 더보기 프로필 상세 맨 위 "소속" 행으로.
+    doctorAffiliation = dp
+      ? [dp.clinic, dp.branch].filter(Boolean).join(" ") || null
+      : null;
   }
 
   return (
@@ -98,6 +105,7 @@ export async function renderBetaPost(
       viewer={viewer}
       doctorIntro={doctorIntro}
       doctorProfile={doctorProfile}
+      doctorAffiliation={doctorAffiliation}
     />
   );
 }
