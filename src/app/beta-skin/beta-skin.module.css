@@ -3157,6 +3157,36 @@ button.t[data-cat="knowledge"]:hover {
   margin-bottom: 18px;
 }
 
+/* 마이 활동 탭 — 짧은 라벨 4개를 한 줄 균등 배치(가로 스크롤 제거). */
+.myTabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.myTab {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 4px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-500);
+  background: #f3f5f8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.myTab:hover {
+  background: #e8edf2;
+}
+.myTabOn,
+.myTabOn:hover {
+  background: var(--tt-blue);
+  color: #fff;
+}
+
 /* 데스크탑 보정 (분기점 900px 통일) */
 @media (min-width: 900px) {
   .greetCard {

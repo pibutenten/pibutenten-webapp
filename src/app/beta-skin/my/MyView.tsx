@@ -14,6 +14,7 @@
 import { useState } from "react";
 import CardAvatar from "@/components/card/CardAvatar";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
+import { useSession } from "@/lib/session-context";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
 import { useBetaSearchRouting } from "../beta-ui";
@@ -34,23 +35,31 @@ export type MyActivity = {
 };
 
 const MENU_MAIN = [
-  { icon: "💉", bg: "var(--tag-pink-bg)", label: "내 시술 노트", href: "/beta-skin/record" },
-  { icon: "🔖", bg: "var(--tag-blue-bg)", label: "북마크한 글", href: "/my" },
-  { icon: "🏷️", bg: "var(--tag-green-bg)", label: "관심 키워드 관리", href: "/settings/profile" },
+  { label: "내 시술 노트", href: "/beta-skin/record" },
+  { label: "북마크한 글", href: "/my" },
+  { label: "관심 키워드 관리", href: "/settings/profile" },
 ];
 
 const MENU_SUB = [
-  { icon: "🔔", label: "알림 설정", href: "/notifications" },
-  { icon: "🔒", label: "계정 및 개인정보", href: "/settings" },
-  { icon: "💬", label: "고객센터 · 문의하기", href: "/contact" },
-  { icon: "📄", label: "이용약관 · 개인정보처리방침", href: "/terms" },
+  { label: "알림 설정", href: "/notifications" },
+  { label: "계정 및 개인정보", href: "/settings" },
+  { label: "고객센터 · 문의하기", href: "/contact" },
+  { label: "이용약관 · 개인정보처리방침", href: "/terms" },
 ];
 
 type TabKey = "notes" | "reviews" | "posts" | "received";
 
 export default function MyView({ activity }: { activity?: MyActivity | null }) {
   const search = useBetaSearchRouting();
+  const session = useSession();
   const [tab, setTab] = useState<TabKey>("notes");
+  // 명함 단위(ADR 0012): 프로필 아바타·이름·핸들은 헤더/계정 스위처와 동일하게 active 명함 기준(useSession).
+  //   page.tsx 의 profiles.avatar_url(개인 업로드)을 쓰면 원장 명함인데 개인 사진이 뜨는 버그 → active 우선.
+  const active =
+    session?.identities.find((i) => i.id === session.activeIdentityId) ?? null;
+  const profAvatar = active?.avatarUrl ?? session?.avatarUrl ?? activity?.avatarUrl ?? null;
+  const profName = active?.displayName || activity?.displayName || "회원";
+  const profHandle = active?.handle ?? activity?.handle ?? null;
 
   const sidebar = (
     <section className={`${styles.card} ${styles.sideCard}`} style={{ background: "var(--tt-blue-tint)" }}>
@@ -82,9 +91,6 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
         <section className={`${styles.card} ${styles.menu}`}>
           {MENU_SUB.map((m) => (
             <a href={m.href} key={m.label}>
-              <span className={styles.mi} style={{ background: "#F2F5F8" }}>
-                {m.icon}
-              </span>
               {m.label}
               <span className={styles.chev}>›</span>
             </a>
@@ -94,11 +100,12 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
     );
   }
 
-  const TABS: [TabKey, string, ActivityItem[]][] = [
-    ["notes", "내가 쓴 노트", activity.notes],
-    ["reviews", "내가 쓴 후기", activity.reviews],
-    ["posts", "내가 쓴 글", activity.posts],
-    ["received", "내 글에 달린 댓글", activity.received],
+  // 탭 라벨은 짧게(가로 스크롤 방지) — 빈 상태 문구는 별도 풀네임(emptyLabel) 사용.
+  const TABS: [TabKey, string, ActivityItem[], string][] = [
+    ["notes", "노트", activity.notes, "작성한 노트가"],
+    ["reviews", "후기", activity.reviews, "작성한 후기가"],
+    ["posts", "글", activity.posts, "작성한 글이"],
+    ["received", "받은 댓글", activity.received, "받은 댓글이"],
   ];
   const current = TABS.find(([k]) => k === tab) ?? TABS[0];
   const items = current[2];
@@ -114,10 +121,10 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
       {/* 프로필 + 통계(실데이터) */}
       <section className={`${styles.card} ${styles.mb20}`}>
         <div className={styles.profileCard}>
-          <CardAvatar memberAvatarUrl={activity.avatarUrl} name={activity.displayName} size={56} />
+          <CardAvatar memberAvatarUrl={profAvatar} name={profName} size={56} />
           <div>
-            <div className={styles.profileName}>{activity.displayName}님</div>
-            <div className={styles.profileSub}>{activity.handle ? `@${activity.handle}` : "피부텐텐 회원"}</div>
+            <div className={styles.profileName}>{profName}님</div>
+            <div className={styles.profileSub}>{profHandle ? `@${profHandle}` : "피부텐텐 회원"}</div>
           </div>
           <a className={styles.profileEdit} href="/settings/profile">
             프로필 편집 ›
@@ -145,16 +152,15 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
 
       {/* 내 활동 4탭 대시보드 (베타 카드 UI, 운영 데이터) */}
       <section className={`${styles.card} ${styles.mb20}`}>
-        {/* 탭 토글 — 베타 3토글 칩 스타일 재사용(가로 스크롤) */}
-        <div className={styles.recToggle} style={{ overflowX: "auto", marginBottom: 14 }}>
+        {/* 탭 토글 — 짧은 라벨로 한 줄에 균등 배치(가로 스크롤 제거). */}
+        <div className={styles.myTabs}>
           {TABS.map(([k, label, list]) => (
             <button
               key={k}
               type="button"
-              className={`${styles.recToggleBtn} ${tab === k ? styles.recToggleBtnOn : ""}`}
+              className={`${styles.myTab} ${tab === k ? styles.myTabOn : ""}`}
               onClick={() => setTab(k)}
               aria-pressed={tab === k}
-              style={{ whiteSpace: "nowrap" }}
             >
               {label} {list.length}
             </button>
@@ -163,7 +169,7 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
 
         {items.length === 0 ? (
           <p className={styles.muted} style={{ textAlign: "center", padding: "24px 8px" }}>
-            {current[1]}이(가) 아직 없어요.
+            아직 {current[3]} 없어요.
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -202,13 +208,10 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
         )}
       </section>
 
-      {/* 메뉴 (주요) */}
+      {/* 메뉴 (주요) — 습관적 컬러 아이콘 제거(텍스트 + chevron 만). */}
       <section className={`${styles.card} ${styles.menu} ${styles.mb20}`}>
         {MENU_MAIN.map((m) => (
           <a href={m.href} key={m.label}>
-            <span className={styles.mi} style={{ background: m.bg }}>
-              {m.icon}
-            </span>
             {m.label}
             <span className={styles.chev}>›</span>
           </a>
@@ -219,9 +222,6 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
       <section className={`${styles.card} ${styles.menu}`}>
         {MENU_SUB.map((m) => (
           <a href={m.href} key={m.label}>
-            <span className={styles.mi} style={{ background: "#F2F5F8" }}>
-              {m.icon}
-            </span>
             {m.label}
             <span className={styles.chev}>›</span>
           </a>
