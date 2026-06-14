@@ -2742,7 +2742,7 @@ button.t[data-cat="knowledge"]:hover {
 .authorSidePhoto {
   position: relative;
   width: 100%;
-  height: 188px;
+  height: 204px;
   margin-bottom: 10px;
   overflow: hidden;
 }
@@ -2750,16 +2750,20 @@ button.t[data-cat="knowledge"]:hover {
   /* contain 으로 전체를 담되 scale 로 적당히만 확대(cover 는 과확대였음). 위쪽 기준으로 키워 얼굴~상반신. */
   object-fit: contain;
   object-position: center top;
-  transform: scale(1.32);
+  transform: scale(1.42);
   transform-origin: center 20%;
 }
-/* 한줄 메시지(intro) — 맨 위 인용 톤. 아래 사진과 간격 확보. */
+/* 한줄 메시지(intro) — 맨 위 인용 톤. 위·아래 간격 확보(위로 살짝 내려 시작). */
 .authorMessage {
-  margin: 2px 0 20px;
+  margin: 14px 0 22px;
   font-size: 13px;
   line-height: 1.65;
   color: var(--ink-700);
   white-space: pre-line;
+}
+/* 프로필 카드 안 "더보기/접기" — 본문보다 한 단계 아래로 띄움(미니멀 톤은 .moreToggle 공용). */
+.authorSide .moreToggle {
+  margin-top: 16px;
 }
 /* "더보기" 펼침 — 확장 프로필(학력·경력·학회 dl + 외부 링크 칩). */
 .profileDetail {
