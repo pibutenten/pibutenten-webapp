@@ -96,7 +96,7 @@ export default function BetaAdminView({
             highlight={pendingReview > 0}
             href="/beta-skin/admin/cards?status=pending_review"
           />
-          <Stat label="댓글" value={stats.totalComments} href="/admin/comments" />
+          <Stat label="댓글" value={stats.totalComments} href="/beta-skin/admin/comments" />
         </div>
       </section>
 
