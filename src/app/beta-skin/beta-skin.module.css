@@ -3216,6 +3216,85 @@ button.t[data-cat="knowledge"]:hover {
   color: #fff;
 }
 
+/* ============================================================
+   공개 프로필 (/beta-skin/u/[handle])
+   ============================================================ */
+.profileEmpty {
+  text-align: center;
+  padding: 36px 12px;
+  font-size: 13.5px;
+  color: var(--ink-300);
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+}
+.commentGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.commentLink {
+  display: block;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.commentLink:hover {
+  border-color: var(--tt-blue);
+  background: var(--tt-blue-tint);
+}
+.commentTitle {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.commentBody {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-700);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.profilePii {
+  text-align: center;
+  padding: 32px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--tt-blue-tint);
+}
+.profilePiiTitle {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+.skinSection {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px 16px;
+}
+.skinTitle {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-500);
+}
+.skinChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
 /* 데스크탑 보정 (분기점 900px 통일) */
 @media (min-width: 900px) {
   .greetCard {
