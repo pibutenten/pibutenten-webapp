@@ -24,6 +24,37 @@ import type { PopularData, PopularItem } from "@/lib/record-data";
 
 const SAMPLE_CHIPS = ["리프팅", "보톡스", "스킨부스터", "볼륨", "더모코스메틱"];
 
+/* "이렇게 기록돼요" 빈 상태용 샘플 노트(더미) — 실데이터 아님이 분명하도록 '예시' 배지와 함께 미리보기.
+ *   날짜·병원·시술명·메모가 든 더미 카드 2개. 클릭 동작 없음(시각적 이해 전용). */
+const SAMPLE_NOTES: {
+  month: number;
+  day: number;
+  procs: string[];
+  place: string;
+  doctor: string;
+  memo: string;
+  badge: { label: string; tone: "mint" | "heal" };
+}[] = [
+  {
+    month: 5,
+    day: 12,
+    procs: ["리프팅", "스킨부스터"],
+    place: "○○피부과의원",
+    doctor: "○○○ 원장",
+    memo: "시술 직후 약간 붉었지만 다음 날 가라앉음. 탄력 변화 관찰 중.",
+    badge: { label: "효과 관찰 중", tone: "mint" },
+  },
+  {
+    month: 4,
+    day: 3,
+    procs: ["보톡스"],
+    place: "○○의원",
+    doctor: "○○○ 원장",
+    memo: "이마 주름 부위. 일주일 뒤부터 효과 체감.",
+    badge: { label: "회복 완료", tone: "mint" },
+  },
+];
+
 /* ---------- 시술 노트 1건(뷰 전용) — 운영 SummaryItem 에서 어댑트 ----------
  * year/month/day + 시술 칩 + 병원·의사 메타 + 배지용 visitedOn("YYYY-MM-DD"). */
 type RecEntry = {
@@ -634,6 +665,36 @@ export default function RecordView({
             <div className={styles.recExampleHead}>
               <h2 className={styles.recNotesTitle}>이렇게 기록돼요</h2>
               <span className={styles.recExampleTag}>예시</span>
+            </div>
+            {/* 샘플 미리보기 — 실데이터 아님(더미)이 분명하도록 흐리게 + '예시' 배지. 클릭 동작 없음.
+                베타 타임라인 토큰(recTl*) 재사용 → "이렇게 기록된다"를 시각적으로 보여줌. */}
+            <div className={styles.recExamplePreview} aria-hidden="true">
+              <div className={styles.recTl}>
+                {SAMPLE_NOTES.map((n, i) => (
+                  <div className={styles.recTlItem} key={i}>
+                    <span className={styles.recTlDot}>
+                      <span className={styles.recTlDotMonth}>{n.month}월</span>
+                      <span className={styles.recTlDotDay}>{n.day}</span>
+                    </span>
+                    <div className={`${styles.card} ${styles.recTlCard}`}>
+                      <div className={styles.recTlHead}>
+                        <h3 className={styles.recTlName}>{n.procs.join(" · ")}</h3>
+                        <span
+                          className={`${styles.recBadge} ${n.badge.tone === "mint" ? styles.recBadgeMint : styles.recBadgeHeal}`}
+                        >
+                          {n.badge.label}
+                        </span>
+                      </div>
+                      <div className={styles.recMeta}>
+                        {n.place}
+                        <span className={styles.sep}>·</span>
+                        {n.doctor}
+                      </div>
+                      <p className={styles.recMemo}>{n.memo}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
             <section className={`${styles.card} ${styles.sideCard}`} style={{ textAlign: "center" }}>
               <p className={styles.muted}>

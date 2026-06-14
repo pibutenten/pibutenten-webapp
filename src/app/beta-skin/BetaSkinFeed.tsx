@@ -144,6 +144,30 @@ export default function BetaSkinFeed({
     scrollFeedTop(contentRef.current);
   }, [searchQuery]);
 
+  // 검색 해제 시 전체 피드 복귀 — 검색어가 "있다가 사라지는 순간"에만 chip 을 'all' 로 리셋.
+  //   리포트 탭(chip='review_summary')에서 검색하면 isSearching 동안 effectiveChip='all'(전체)로 보이지만,
+  //   ✕로 검색을 해제하면 isSearching=false 가 되며 effectiveChip 이 보존된 chip(리포트)로 복귀해 리포트 화면으로
+  //   튀던 문제(셸 clearSearch 는 /beta-skin 라우팅만, 피드 chip 은 못 건드림)를 여기서 해소.
+  //   prevSearchRef 로 직전 검색 유무를 추적 → truthy→falsy 전이일 때만 리셋.
+  //   단 "카테고리 칩을 직접 눌러 검색을 해제하는" 동선(아래 chips onClick)은 그 칩으로 가야 하므로
+  //   chipExplicitRef 플래그로 한 번 건너뛴다(검색+카테고리 동시 미지원이라 칩 클릭이 검색을 해제함).
+  const prevSearchingRef = useRef(!!(searchQuery ?? "").trim());
+  const chipExplicitRef = useRef(false);
+  useEffect(() => {
+    const nowSearching = !!(searchQuery ?? "").trim();
+    if (prevSearchingRef.current && !nowSearching) {
+      // 검색이 막 해제됨.
+      if (chipExplicitRef.current) {
+        // 칩 클릭에 의한 해제 → 그 칩 유지(setChip 은 이미 onClick 에서 처리). 강제 'all' 건너뜀.
+        chipExplicitRef.current = false;
+      } else {
+        // ✕·라우팅 등으로 해제 → 항상 전체 피드로(이전 카테고리로 복귀 금지).
+        setChip("all");
+      }
+    }
+    prevSearchingRef.current = nowSearching;
+  }, [searchQuery]);
+
   // 비-피드 드롭다운 '카테고리 바로가기' → /beta-skin?cat= 로 넘어온 칩 시드.
   const catParam = searchParams.get("cat");
   useEffect(() => {
@@ -430,7 +454,11 @@ export default function BetaSkinFeed({
       onClick={() => {
         setChip(c.key);
         // 검색 중 카테고리 칩을 누르면 검색을 해제하고 그 카테고리로(검색+카테고리 동시 필터는 미지원).
-        if (isSearching) router.push("/beta-skin");
+        //   chipExplicitRef 로 "칩에 의한 해제"임을 표시 → 검색 해제 effect 가 'all' 로 덮어쓰지 않도록.
+        if (isSearching) {
+          chipExplicitRef.current = true;
+          router.push("/beta-skin");
+        }
       }}
       aria-pressed={effectiveChip === c.key}
     >

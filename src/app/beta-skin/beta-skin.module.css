@@ -2217,6 +2217,17 @@ button.t[data-cat="knowledge"]:hover {
   padding: 3px 9px;
   border-radius: 999px;
 }
+/* 피드백 3) 빈 상태 '이렇게 기록돼요' 샘플 미리보기 — 더미임이 분명하도록 흐리게 + 클릭 불가.
+   베타 타임라인 토큰(recTl*)을 그대로 재사용하되, 실데이터와 헷갈리지 않게 톤다운. */
+.recExamplePreview {
+  position: relative;
+  margin-bottom: 14px;
+  opacity: 0.72;
+  pointer-events: none;
+  user-select: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent);
+  mask-image: linear-gradient(to bottom, #000 60%, transparent);
+}
 /* 피드백 3) 인기글 리스트 */
 .popList {
   padding: 6px 18px;
