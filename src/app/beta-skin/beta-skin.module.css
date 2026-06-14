@@ -1250,42 +1250,33 @@ button.t[data-cat="knowledge"]:hover {
   text-decoration: underline;
 }
 
-/* 배지 컨테이너 — 운영 CardHeader 정합: NEW/HOT 를 우상단에 가로로 나란히(겹침 방지).
-   절대배치·매달림은 컨테이너가 담당하고, 개별 배지(.newBadge/.hot)는 inline-flex 딱지. */
-/* 항목11) 배지 위치 — 카드 위에 매달던 방식 폐기. 좌측 아바타와 "같은 높이"로 우측에 둠.
-   카드 padding 22 + 아바타(46)/2 = 45px 가 아바타 세로 중심. ⋮(top:16) 보다 아래라 겹치지 않음. */
-.badges {
-  position: absolute;
-  top: 45px;
-  right: 20px;
-  transform: translateY(-50%);
-  display: flex;
-  gap: 5px;
-  z-index: 2;
-}
-
-/* HOT/NEW — 작고 둥근 "연한 파스텔" 딱지(연한 배경 + 같은 색 글씨). 우측 아바타 높이. */
-.hot {
-  display: inline-flex;
-  align-items: center;
-  background: #ffe0ea;
-  color: #d83a6a;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 3px 9px;
-  border-radius: 999px;
-  letter-spacing: 0.04em;
-}
+/* HOT/NEW — 작성자 메타 줄(authorSub)에 인라인 칩으로 배치(2026-06-14 재배치).
+   기존 .badges 우상단 절대배치는 ⋮ 메뉴(top:16)와 겹쳐(메뉴 펼치면 HOT 가림) 폐기.
+   이제 "Q&A · 1개월 전 · NEW · HOT" 처럼 카테고리·시간 옆에 인라인으로 흐른다.
+   작고 둥근 "연한 파스텔" 딱지(연한 배경 + 같은 색 글씨). 인라인 세로 정렬 보정 포함. */
+.hot,
 .newBadge {
   display: inline-flex;
   align-items: center;
-  background: #d8f0e2;
-  color: #2f9e6a;
-  font-size: 10px;
+  vertical-align: middle;
+  margin-left: 5px;
+  font-size: 9.5px;
   font-weight: 800;
-  padding: 3px 9px;
+  padding: 1px 7px;
   border-radius: 999px;
   letter-spacing: 0.04em;
+  /* 인라인 텍스트(12.5px) 기준선과 칩 높이를 맞춰 메타 줄이 들쭉날쭉하지 않게. */
+  line-height: 1.5;
+  position: relative;
+  top: -0.5px;
+}
+.hot {
+  background: #ffe0ea;
+  color: #d83a6a;
+}
+.newBadge {
+  background: #d8f0e2;
+  color: #2f9e6a;
 }
 
 .catLabel {
@@ -3418,4 +3409,158 @@ button.t[data-cat="knowledge"]:hover {
 }
 .cardMenuDanger:hover {
   background: #ffe6ee;
+}
+
+/* ---------- 신고 모달 (BetaReportModal) ----------
+   타인 글 ⋮ → "신고하기" 클릭 시 노출되는 바텀시트형 모달. 운영 신고 API(/api/reports) 호출.
+   베타 톤(흰 카드 + 로즈 포인트)만 사용 — 운영 ReportForm(Tailwind)과 완전 격리. */
+.reportOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(27, 51, 71, 0.42);
+  backdrop-filter: blur(2px);
+  animation: betaFadeIn 0.16s ease;
+}
+.reportSheet {
+  width: 100%;
+  max-width: 460px;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 32px rgba(27, 73, 101, 0.18);
+  animation: betaSheetUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (min-width: 600px) {
+  /* 데스크탑은 화면 중앙 카드형. */
+  .reportOverlay {
+    align-items: center;
+  }
+  .reportSheet {
+    border-radius: 18px;
+    margin: 0 16px;
+  }
+}
+.reportHead {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink-700);
+  margin-bottom: 4px;
+}
+.reportLead {
+  font-size: 13px;
+  color: var(--ink-500);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.reportReasons {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+.reportReason {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-700);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.reportReason:hover {
+  background: var(--tt-blue-tint);
+}
+.reportReasonOn {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.reportRadio {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  box-sizing: border-box;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.reportReasonOn .reportRadio {
+  border-color: var(--accent);
+  background:
+    radial-gradient(circle at center, var(--accent) 0 4px, transparent 4px);
+}
+.reportDetail {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 64px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-700);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  font-family: inherit;
+}
+.reportDetail:focus {
+  outline: none;
+  border-color: var(--tt-blue);
+}
+.reportActions {
+  display: flex;
+  gap: 10px;
+}
+.reportCancel,
+.reportSubmit {
+  flex: 1;
+  height: 46px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+.reportCancel {
+  background: var(--tt-blue-tint);
+  color: var(--ink-700);
+}
+.reportSubmit {
+  background: var(--accent);
+  color: #fff;
+}
+.reportCancel:disabled,
+.reportSubmit:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+@keyframes betaFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes betaSheetUp {
+  from {
+    transform: translateY(16px);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }

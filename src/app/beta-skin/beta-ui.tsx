@@ -21,7 +21,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import CardAvatar from "@/components/card/CardAvatar";
 import { pickHighlight } from "@/lib/card-highlight";
 import { highlight } from "@/components/card/utils/card-render";
@@ -483,15 +483,183 @@ export function useBetaCardActions(card: CardData, viewer?: BetaViewerState) {
   };
 }
 
-/* ---------- 카드 ⋮ 더보기 메뉴 (본인 글 수정/삭제 · 관리자 숨김) ----------
+/* ---------- 신고 사유 (운영 /api/reports enum 정합) ----------
+ * 운영 신고 API(src/app/api/reports/route.ts)의 reason enum 9종과 1:1.
+ * 한글 라벨은 운영 ReportForm(페이지 전용, 무수정)을 참고하되 베타 모달용으로 간결화. */
+const BETA_REPORT_REASONS: { value: ReportReason; label: string }[] = [
+  { value: "spam", label: "스팸·도배" },
+  { value: "harassment", label: "괴롭힘·욕설·혐오" },
+  { value: "medical_ad", label: "의료광고·과장" },
+  { value: "false_info", label: "허위·잘못된 정보" },
+  { value: "csam", label: "불법촬영물·아동 성착취" },
+  { value: "self_harm", label: "자해·자살 조장" },
+  { value: "copyright", label: "저작권 침해" },
+  { value: "personal_info", label: "개인정보 노출" },
+  { value: "other", label: "기타" },
+];
+
+type ReportReason =
+  | "spam"
+  | "harassment"
+  | "medical_ad"
+  | "false_info"
+  | "csam"
+  | "self_harm"
+  | "copyright"
+  | "personal_info"
+  | "other";
+
+/* ---------- 신고 모달 (SNS 표준 — 사유 선택 후 /api/reports POST) ----------
+ * 타인 글 ⋮ → "신고하기" 클릭 시 노출되는 바텀시트형 모달.
+ *   - 사유 라디오 리스트(필수) + 상세 detail(선택, 최대 2000자).
+ *   - 전송: 운영 신고 API(/api/reports)에 { reason, card_id, detail? } POST.
+ *       성공 → "신고가 접수되었어요" 토스트 + 모달 닫힘.
+ *       실패 → API 메시지(또는 폴백) 토스트(danger). rate-limit(분당 3건) 초과도 여기로.
+ *   - 운영 API 는 로그인/비로그인 모두 허용하나, 호출부(PostCardMenu)에서 비로그인은
+ *     모달을 열기 전에 로그인 유도로 분기하므로 이 모달은 로그인 회원 전용 경로로만 진입.
+ *   - 베타 톤(beta-skin.module.css 토큰)만 사용 — 운영 ReportForm(Tailwind)과 격리. */
+function BetaReportModal({
+  card,
+  onClose,
+}: {
+  card: CardData;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState<ReportReason | "">("");
+  const [detail, setDetail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // ESC 로 닫기(A11y) — 제출 중에는 유지.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !submitting) onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose, submitting]);
+
+  async function submit() {
+    if (!reason) {
+      showToast("신고 사유를 선택해 주세요", { tone: "danger" });
+      return;
+    }
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason,
+          card_id: card.id,
+          detail: detail.trim() || null,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok || !json.ok) {
+        showToast(json.message || json.error || "신고 접수에 실패했어요", {
+          tone: "danger",
+        });
+        setSubmitting(false);
+        return;
+      }
+      showToast("신고가 접수되었어요");
+      onClose();
+    } catch {
+      showToast("네트워크 오류가 발생했어요. 잠시 후 다시 시도해 주세요", {
+        tone: "danger",
+      });
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      className={styles.reportOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-label="게시물 신고"
+      onClick={(e) => {
+        // 오버레이(바깥) 클릭 시 닫기 — 시트 내부 클릭은 전파 차단.
+        e.stopPropagation();
+        if (!submitting) onClose();
+      }}
+    >
+      <div
+        className={styles.reportSheet}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.reportHead}>신고하기</div>
+        <p className={styles.reportLead}>
+          신고 사유를 선택해 주세요. 접수된 신고는 운영팀이 검토합니다.
+        </p>
+
+        <div className={styles.reportReasons} role="radiogroup" aria-label="신고 사유">
+          {BETA_REPORT_REASONS.map((opt) => (
+            <button
+              type="button"
+              key={opt.value}
+              role="radio"
+              aria-checked={reason === opt.value}
+              className={`${styles.reportReason} ${
+                reason === opt.value ? styles.reportReasonOn : ""
+              }`}
+              onClick={() => setReason(opt.value)}
+            >
+              <span className={styles.reportRadio} aria-hidden="true" />
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <textarea
+          className={styles.reportDetail}
+          value={detail}
+          onChange={(e) => setDetail(e.target.value)}
+          rows={3}
+          maxLength={2000}
+          placeholder="상세 내용 (선택)"
+        />
+
+        <div className={styles.reportActions}>
+          <button
+            type="button"
+            className={styles.reportCancel}
+            onClick={onClose}
+            disabled={submitting}
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            className={styles.reportSubmit}
+            onClick={submit}
+            disabled={submitting || !reason}
+          >
+            {submitting ? "접수 중…" : "신고"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- 카드 ⋮ 더보기 메뉴 (본인 글 수정/삭제 · 관리자 숨김 · 타인 글 신고) ----------
  * 운영 CardHeader/Card 의 관리 수단을 베타 PostCard 로 이식(읽기→재현, 직접 수정 X).
+ * + SNS 표준(인스타·X) 정합: ⋮ 를 모든 로그인 회원에게 노출하고 권한별 항목 분기.
  *
  * 권한 판정(운영 Card.tsx 정합):
  *   - me = useSession() (SSR SessionContext 단일 출처) → { activeIdentityId, role }.
  *     로그아웃 = null. role 은 마운트 직후 동기 쿠키로 "user", 곧 /api/session 로 보강(admin 반영).
  *   - canEdit  = admin 이거나 (card.author.id === active 명함 id)  ← 본인/관리자
  *   - canHide  = admin 만
- *   - 비로그인·타인 글 → 아무 항목도 없음 → 버튼 자체 미렌더.
+ *   - canReport = 로그인 회원이면서 본인·관리자가 아님(= 타인 글)  ← 신고 대상
+ *   - 비로그인 → ⋮ 는 보이되 "신고하기" 클릭 시 로그인 유도(/login?next=현재경로).
+ *     (운영 신고 API 는 비로그인도 열려있으나, UX 는 로그인 후가 깔끔 — 본인/타인 판정도 명확.)
  *
  * 동작(운영과 동일 경로 — RLS 가 최종 강제):
  *   - 수정 → getQaEditUrl(card) 로 라우팅(의사 글 /write/{shortcode}, 후기 /review/{shortcode}/edit).
@@ -507,25 +675,42 @@ export function PostCardMenu({
   onDeleted: () => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const session = useSession();
   // me — SSR SessionContext 단일 출처(운영 useCardViewer 정합). 로그아웃 → null.
   const me = session
     ? { id: session.activeIdentityId, role: session.role }
     : null;
+  const isLoggedIn = !!me;
 
   // 본인 판정 — card 작성자 명함 id 와 active 명함 id 비교(운영 Card.tsx canEdit 정합).
   const authorId = card.author?.id ?? null;
-  const isOwner = !!me && authorId != null && me.id === authorId;
-  const isAdmin = !!me && me.role === ROLES.ADMIN;
+  const isOwner = isLoggedIn && authorId != null && me.id === authorId;
+  const isAdmin = isLoggedIn && me.role === ROLES.ADMIN;
   const canEdit = isOwner || isAdmin;
   const canHide = isAdmin;
+  // 신고 — 로그인 회원이면서 본인·관리자가 아닌 "타인 글"에만(SNS 표준). 비로그인은 메뉴는 보이되
+  //   클릭 시 로그인 유도하므로, 메뉴에 "신고하기" 항목 자체는 로그인 여부와 무관하게 노출한다.
+  const canReport = !canEdit; // 본인/관리자가 아니면(비로그인 포함) 신고 항목 노출.
   const editHref = getQaEditUrl(card);
   const isHidden = card.status === "hidden";
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // "신고하기" 클릭 — 비로그인은 로그인 유도(/login?next=현재경로), 로그인 회원은 신고 모달.
+  function onReportClick() {
+    setMenuOpen(false);
+    if (!isLoggedIn) {
+      const next = encodeURIComponent(pathname || "/beta-skin");
+      router.push(`/login?next=${next}`);
+      return;
+    }
+    setReportOpen(true);
+  }
 
   // 외부 클릭 + ESC 로 메뉴 닫기(운영 CardHeader 정합, A11y).
   useEffect(() => {
@@ -615,8 +800,9 @@ export function PostCardMenu({
     }
   }
 
-  // 비로그인·타인 글(관리자 아님) → 메뉴 자체 미노출.
-  if (!canEdit && !canHide) return null;
+  // 항목이 하나라도 있을 때만 ⋮ 노출. 본인/관리자(canEdit·canHide) 또는 타인 글 신고(canReport).
+  //   → 본인/관리자는 기존 그대로, 그 외(타인 글·비로그인)는 "신고하기"만 가진 ⋮ 가 보인다.
+  if (!canEdit && !canHide && !canReport) return null;
 
   return (
     <div
@@ -683,7 +869,23 @@ export function PostCardMenu({
               삭제
             </button>
           )}
+          {/* 타인 글(본인·관리자 아님) → 신고하기. 비로그인은 클릭 시 로그인 유도(onReportClick). */}
+          {canReport && (
+            <button
+              type="button"
+              role="menuitem"
+              className={`${styles.cardMenuItem} ${styles.cardMenuDanger}`}
+              onClick={onReportClick}
+            >
+              신고하기
+            </button>
+          )}
         </div>
+      )}
+
+      {/* 신고 모달 — 로그인 회원이 타인 글을 신고할 때만. 사유 선택 → /api/reports POST. */}
+      {reportOpen && (
+        <BetaReportModal card={card} onClose={() => setReportOpen(false)} />
       )}
 
       {/* 삭제 확인 다이얼로그 — 운영 Card.tsx 와 동일 문구·tone. */}
@@ -816,6 +1018,10 @@ export function PostCard({
         <div className={styles.authorSub}>
           <span className={styles.catLabel}>{categoryLabel(card)}</span>
           {timeAgo(card.created_at) ? ` · ${timeAgo(card.created_at)}` : ""}
+          {/* HOT/NEW — ⋮ 와 겹치던 우상단 절대배치(.badges) 폐기. 작성자 메타 줄에 인라인 칩으로.
+              둘 다면 NEW → HOT 순. 글상세(forceExpanded)에는 HOT/NEW 미노출(피드 PostCard 만). */}
+          {!forceExpanded && showNew && <span className={styles.newBadge}>NEW</span>}
+          {!forceExpanded && isHot && <span className={styles.hot}>HOT</span>}
         </div>
       </div>
     </>
@@ -827,17 +1033,11 @@ export function PostCard({
       ref={cardRef}
       className={`${styles.card} ${styles.postCard} ${styles.fadeInUp}`}
     >
-      {/* 배지 — 운영 CardHeader 정합: NEW(24h 내) + HOT(운영 데이터)를 우상단에 나란히.
-          둘 다면 NEW → HOT 순으로 겹침 없이 가로 배치(운영은 상호배제 아님). */}
-      {(showNew || isHot) && (
-        <div className={styles.badges}>
-          {showNew && <span className={styles.newBadge}>NEW</span>}
-          {isHot && <span className={styles.hot}>HOT</span>}
-        </div>
-      )}
+      {/* HOT/NEW 배지는 작성자 메타 줄(authorSub)로 인라인 이동 — ⋮ 우상단 절대배치와의 겹침 해소.
+          기존 .badges absolute 블록은 폐기(아래 authorInner 의 authorSub 참고). */}
 
-      {/* ⋮ 더보기 — 본인 글 수정/삭제 + 관리자 숨김(운영 CardHeader 이식).
-          권한 없으면(비로그인/타인 글) 내부에서 null 반환 → 미노출. */}
+      {/* ⋮ 더보기 — 본인 글 수정/삭제 + 관리자 숨김 + 타인 글 신고(SNS 표준, 운영 신고 API 호출).
+          항목이 없으면(이론상 거의 없음) 내부에서 null 반환 → 미노출. */}
       <PostCardMenu card={card} onDeleted={onDeleted ?? (() => setRemoved(true))} />
 
       {/* 작성자 — 항목 4) 실제 프로필 URL 로 새 탭 이동(정보 부족이면 일반 div).
