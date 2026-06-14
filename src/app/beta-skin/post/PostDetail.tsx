@@ -78,6 +78,8 @@ export default function PostDetail({
             : undefined
         }
       >
+        {/* 한줄 메시지(intro) — 맨 위에. 접힘 상태에서도 항상 노출. */}
+        {doctorIntro && <p className={styles.authorMessage}>{doctorIntro}</p>}
         {doctorPhoto ? (
           <div className={styles.authorSidePhoto}>
             <Image
@@ -109,9 +111,7 @@ export default function PostDetail({
         <div className={styles.authorSub}>
           {isDoctor ? "피부과 전문의" : "회원"}
         </div>
-        {/* 한줄 메시지(intro) — 접힘 상태에서도 항상 노출. */}
-        {doctorIntro && <p className={styles.authorMessage}>{doctorIntro}</p>}
-        {/* 펼침 — 확장 프로필(학력·경력·학회·외부 링크). 메시지와 학력 사이 구분선은 .authorIntro 상단 보더. */}
+        {/* 펼침 — 확장 프로필(학력·경력·학회·외부 링크). 상단 구분선은 .authorIntro 보더. */}
         {profileOpen && hasProfileDetail && (
           <div className={styles.authorIntro}>
             <DoctorProfileDetail profile={doctorProfile!} />
