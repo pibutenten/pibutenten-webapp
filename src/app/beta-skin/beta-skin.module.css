@@ -2753,9 +2753,9 @@ button.t[data-cat="knowledge"]:hover {
   transform: scale(1.32);
   transform-origin: center 20%;
 }
-/* 한줄 메시지(intro) — 인용 톤. 접힘 상태에서도 항상 노출. */
+/* 한줄 메시지(intro) — 맨 위 인용 톤. 아래 사진과 간격 확보. */
 .authorMessage {
-  margin: 10px 0 0;
+  margin: 2px 0 20px;
   font-size: 13px;
   line-height: 1.65;
   color: var(--ink-700);
