@@ -1,13 +1,10 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveActiveIdentity } from "@/lib/identity-server";
 import { ROLES } from "@/lib/identity-shared";
-import BackButton from "@/components/BackButton";
-import AccountSwitcherCard from "@/components/AccountSwitcherCard";
-import DoctorActivityKpis, { type DoctorKpi } from "./DoctorActivityKpis";
-import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
+import { type DoctorKpi } from "./DoctorActivityKpis";
+import DoctorDashboardView from "./DoctorDashboardView";
 
 export const dynamic = "force-dynamic";
 
@@ -122,120 +119,16 @@ export default async function DoctorDashboardPage() {
 
   const pendingCount = kpiByDays[0]?.pending_review ?? 0;
 
+  // 본문은 운영 형태 그대로 유지하되 베타 셸(wide)로 감싸 렌더(BetaAdminView 선례 동일).
+  //   데이터·권한 가드·통계 가공은 위 server 로직이 100% 책임, 표시만 View 에 위임.
   return (
-    <section className="w-full py-6">
-      <div className="mb-1 -ml-1">
-        <BackButton fallbackHref="/" />
-      </div>
-      {/* 계정 스위처 — 어느 명함에서든 전환 가능(마이페이지와 동일). */}
-      <AccountSwitcherCard compact />
-      <div className="mb-5 pl-1">
-        <h1 className="text-2xl font-bold text-[var(--text)]">
-          원장 대시보드
-        </h1>
-        <p className="mt-1 text-xs text-[var(--text-muted)]">
-          {doctorName} · 본인 글 활동·관리 (영구 noindex)
-        </p>
-      </div>
-
-      {/* 1) 본인 글 KPI — 기간 토글 6종 */}
-      <DoctorActivityKpis initialDays={1} dataByDays={kpiByDays} />
-
-      {/* 2) 운영 프로그램 — Tool 카드 (admin 동일 패턴, doctor 한정 메뉴) */}
-      <div className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-[var(--text-secondary)]">
-          운영 프로그램
-        </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {/* Q&A 카드 직접 작성 — admin 과 동일하게 원장 대시보드에도 노출. 통합 글쓰기 Q&A 탭. */}
-          <Tool
-            href="/write?tab=qa"
-            emoji="📝"
-            title="Q&A 카드 작성하기"
-            desc="원장 명의 Q&A 카드를 직접 작성합니다"
-          />
-          <Tool
-            href="/admin/cards"
-            emoji="📚"
-            title="전체 글 관리"
-            desc="본인 카드 검색·필터·발행/보관 (본인 글 강제 필터링)"
-          />
-          <Tool
-            href="/admin/cards?status=pending_review"
-            emoji="⏳"
-            title="검수 대기"
-            desc={
-              pendingCount > 0
-                ? `검수 대기 ${pendingCount}건`
-                : "검수 후 발행 대기"
-            }
-            highlight={pendingCount > 0}
-          />
-          {doctorSlug && (
-            <Tool
-              href={`/admin/doctors/${doctorSlug}/edit`}
-              emoji="👤"
-              title="원장 프로필 편집"
-              desc="본인 소개·사진·전문분야 수정"
-            />
-          )}
-          <Tool
-            href="/admin/comments"
-            emoji="💬"
-            title="댓글 관리"
-            desc="본인 카드의 댓글 모더레이션"
-          />
-        </div>
-        <p className="mt-3 text-[11px] text-[var(--text-muted)]">
-          새 글 쓰기는 우하단 글쓰기 버튼 또는{" "}
-          <Link
-            href="/write"
-            className="underline hover:text-[var(--primary)]"
-          >
-            /write
-          </Link>{" "}
-          로.
-        </p>
-      </div>
-
-      {/* 3) 인기 검색어 / 인기 태그 — 사이트 전체 (admin 동일 컴포넌트 재사용) */}
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <PopularSearchesCard initialDays={1} dataByDays={searchesByDays} />
-        <PopularTagsCard initialDays={0} dataByDays={tagsByDays} />
-      </div>
-    </section>
-  );
-}
-
-/** admin/page.tsx 의 Tool 컴포넌트 동일 스타일. */
-function Tool({
-  href,
-  emoji,
-  title,
-  desc,
-  highlight,
-}: {
-  href: string;
-  emoji: string;
-  title: string;
-  desc: string;
-  highlight?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={
-        "group flex items-center gap-3 rounded-[var(--radius)] border bg-white p-4 transition-colors " +
-        (highlight
-          ? "border-amber-300 hover:border-amber-400"
-          : "border-[var(--border)] hover:border-[var(--primary)]")
-      }
-    >
-      <div className="text-2xl">{emoji}</div>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-[var(--text)]">{title}</div>
-        <div className="mt-0.5 text-xs text-[var(--text-muted)]">{desc}</div>
-      </div>
-    </Link>
+    <DoctorDashboardView
+      doctorName={doctorName}
+      doctorSlug={doctorSlug}
+      pendingCount={pendingCount}
+      kpiByDays={kpiByDays}
+      searchesByDays={searchesByDays}
+      tagsByDays={tagsByDays}
+    />
   );
 }

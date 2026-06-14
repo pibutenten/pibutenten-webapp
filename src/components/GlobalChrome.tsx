@@ -23,6 +23,7 @@ const BETA_PROMOTED_EXACT = new Set<string>([
   "/", // 홈 피드 (Phase 1)
   "/record", // 내 노트 (Phase 1b)
   "/write", // 글쓰기 (Phase 1b)
+  "/doctor", // 원장 대시보드 (Phase 3, 관리자 방식 셸)
 ]);
 
 function isBetaPromoted(pathname: string | null): boolean {
