@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
+import { Fragment } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
+import DoctorsListView from "./DoctorsListView";
 
 export const dynamic = "force-dynamic";
 
@@ -120,67 +119,24 @@ export default async function DoctorsPage() {
     ],
   };
 
+  // 본문(의사 카드 그리드)만 베타 셸 클라이언트 뷰로 위임.
+  //   JSON-LD <script> 는 셸 바깥 Fragment 에 유지(선례 DoctorProfileView 동일 — SEO 보존).
   return (
-    <section className="space-y-6">
+    <Fragment>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
-
-      <header className="text-center">
-        <h1 className="text-2xl font-bold text-[var(--text)]">피부과 전문의</h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          피부텐텐의 피부과 전문의들이 직접 답합니다.
-        </p>
-      </header>
-
-      <div className="grid grid-cols-2 gap-3 min-[900px]:grid-cols-4 min-[900px]:gap-4">
-        {doctors.map((d) => {
-          const theme = getDoctorTheme(d.slug);
-          const photo = d.photo_url || getDoctorPhoto(d.slug);
-
-          return (
-            <Link
-              key={d.id}
-              href={`/doctors/${d.slug}`}
-              aria-label={`${d.name} 원장님 소개로 이동`}
-              // 17번 — 마우스 호버 시 살짝 음영 (그림자 + 살짝 위로). 기본 상태는 그림자 X.
-              className="block overflow-hidden rounded-[var(--radius)] bg-white shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.18),0_2px_6px_-2px_rgba(0,0,0,0.08)]"
-            >
-              <div
-                // 18번 — 프로필 사진 뒤 원장 컬러 그라데이션 (위는 진하게, 아래로 페이드).
-                //  상단 색상 ~ 하단 white 부드러운 그라데이션. theme.bg 사용.
-                className="relative aspect-square w-full overflow-hidden"
-                style={{
-                  background: `linear-gradient(180deg, ${theme.bg}66 0%, ${theme.bg}33 45%, #ffffff 100%)`,
-                }}
-              >
-                <Image
-                  src={photo}
-                  alt={`${d.name} 원장님`}
-                  fill
-                  sizes="(max-width: 900px) 50vw, 360px"
-                  className="object-cover"
-                  style={{
-                    objectPosition: "50% 10%",
-                    transform: `translate(${theme.offsetX ?? 0}px, ${theme.offsetY ?? 0}px)`,
-                  }}
-                  priority={d.sort_order <= 20}
-                />
-              </div>
-
-              <div className="px-3 py-3 text-center">
-                <h2 className="text-base font-bold text-[var(--text)]">
-                  {d.name}
-                </h2>
-                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                  {d.title}
-                </p>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
+      <DoctorsListView
+        doctors={doctors.map((d) => ({
+          id: d.id,
+          slug: d.slug,
+          name: d.name,
+          title: d.title,
+          photo_url: d.photo_url,
+          sort_order: d.sort_order,
+        }))}
+      />
+    </Fragment>
   );
 }

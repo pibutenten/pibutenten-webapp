@@ -1,11 +1,15 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { getReviewProcedures } from "@/lib/review-procedures";
 import { ROLES } from "@/lib/identity-shared";
-import ReviewForm from "@/app/review/new/ReviewForm";
+import ReviewEditView from "./ReviewEditView";
 
 export const dynamic = "force-dynamic";
+
+// 소유자 전용 수정 폼 — robots.ts 가 /review 를 막지 않으므로 page-level noindex 로 색인 차단.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 /**
  * /review/{shortcode}/edit — 시술후기 수정 페이지 (서버 컴포넌트).
@@ -94,11 +98,12 @@ export default async function ReviewEditPage({
 
   const procedures = await getReviewProcedures(supabase);
 
+  // 본문(ReviewForm mode='edit')은 운영 형태 그대로 유지하되 베타 셸로 감싸 렌더(WriteView 선례 동일).
+  //   카드/정량값 로드·소유권 가드·404 는 위 server 로직이 책임, 표시(셸 래핑)만 View 에 위임.
   return (
-    <ReviewForm
+    <ReviewEditView
       procedures={procedures}
       handle={idCtx.active.handle}
-      mode="edit"
       shortcode={shortcode}
       initial={{
         procedureKo: pr.procedure_ko,
