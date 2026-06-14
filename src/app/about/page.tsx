@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import { allClinicsSchema } from "@/lib/schema/clinic";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
+import InfoBetaShell from "@/components/info/InfoBetaShell";
 
 export const dynamic = "force-dynamic";
 
@@ -166,6 +167,7 @@ export default async function AboutPage() {
   };
 
   return (
+    <InfoBetaShell>
     <InfoPageLayout
       current="about"
       title="사이트 안내"
@@ -398,6 +400,7 @@ export default async function AboutPage() {
       </Section>
 
     </InfoPageLayout>
+    </InfoBetaShell>
   );
 }
 

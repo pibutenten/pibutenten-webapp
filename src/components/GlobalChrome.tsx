@@ -24,6 +24,17 @@ const BETA_PROMOTED_EXACT = new Set<string>([
   "/record", // 내 노트 (Phase 1b)
   "/write", // 글쓰기 (Phase 1b)
   "/doctor", // 원장 대시보드 (Phase 3, 관리자 방식 셸)
+  // 신뢰·법적·안내 페이지 (InfoBetaShell)
+  "/about",
+  "/terms",
+  "/privacy",
+  "/contact",
+  "/disclaimer",
+  "/editorial-policy",
+  "/medical-review",
+  "/corrections",
+  "/disclosures",
+  "/doctor-guidelines",
 ]);
 
 /** prefix 로 승격된 동적 라우트군(하위 전체 포함). */

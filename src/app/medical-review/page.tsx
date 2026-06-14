@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
+import InfoBetaShell from "@/components/info/InfoBetaShell";
 
 export const metadata: Metadata = {
   title: "의학 검수 프로세스",
@@ -35,6 +36,7 @@ export default function MedicalReviewPage() {
   };
 
   return (
+    <InfoBetaShell>
     <InfoPageLayout
       current="medical-review"
       title="의학 검수 프로세스"
@@ -167,6 +169,7 @@ export default function MedicalReviewPage() {
         </ul>
       </Section>
     </InfoPageLayout>
+    </InfoBetaShell>
   );
 }
 

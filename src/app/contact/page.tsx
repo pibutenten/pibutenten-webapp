@@ -4,6 +4,7 @@ import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
+import InfoBetaShell from "@/components/info/InfoBetaShell";
 
 export const metadata: Metadata = {
   title: "문의",
@@ -44,6 +45,7 @@ export default function ContactPage() {
   };
 
   return (
+    <InfoBetaShell>
     <InfoPageLayout
       current="contact"
       title="문의"
@@ -253,6 +255,7 @@ export default function ContactPage() {
         </dl>
       </Section>
     </InfoPageLayout>
+    </InfoBetaShell>
   );
 }
 
