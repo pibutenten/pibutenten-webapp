@@ -303,19 +303,24 @@ export default function BetaSkinFeed({
   const submitSearch = (q: string) => {
     const t = q.trim();
     if (t) addRecent(t); // 운영 BetaNav 와 동일 — 검색 실행 시 최근 검색어에 기록.
-    // 검색/태그 클릭은 항상 "전체" 카테고리에서 — 카테고리 칩(예: 리포트)이 남아 "리포트 안의 쥬브젠"으로
-    //   좁혀지던 버그 방지. chip 은 클라 state 라 라우팅만으론 리셋되지 않으므로 명시적으로 all 로.
-    setChip("all");
+    // 라우팅만(서버 재검색). chip 은 바꾸지 않는다 — setChip 을 여기서 하면 라우팅 "전"에 현재 풀이
+    //   전체로 한 번 렌더(전체 피드 깜빡) 후 검색 결과로 바뀌는 2단계가 생긴다. 대신 아래 effectiveChip
+    //   으로 "검색 중엔 카테고리를 전체로 간주" → 리포트 탭에서도 깜빡 없이 바로 전체 검색 결과.
     router.push(t ? `/beta-skin?q=${encodeURIComponent(t)}` : "/beta-skin");
   };
   // 태그 클릭 → 그 키워드로 서버 검색 라우팅(운영 동일).
   const applyTag = (k: string) => submitSearch(k);
 
+  // 검색 중이면 카테고리를 "전체"로 간주(태그/검색은 전체 피드 기준). chip 자체는 보존 →
+  //   검색 해제 시 원래 카테고리로 자연 복귀. 칩 활성 표시·필터·리포트 판정 모두 이 값 기준.
+  const isSearching = !!(searchQuery ?? "").trim();
+  const effectiveChip: ChipKey = isSearching ? "all" : chip;
+
   // ── 일반 탭 — 풀을 카테고리 칩으로 즉시 필터 ──
-  const isReportTab = chip === "review_summary";
+  const isReportTab = effectiveChip === "review_summary";
   const filtered = useMemo(
-    () => (isReportTab ? [] : pool.filter((c) => matchesChip(c, chip))),
-    [pool, chip, isReportTab],
+    () => (isReportTab ? [] : pool.filter((c) => matchesChip(c, effectiveChip))),
+    [pool, effectiveChip, isReportTab],
   );
 
   // ── 리포트 탭 — 검색 중이면 시술명(한글/영문) 부분일치 필터 ──
@@ -328,7 +333,7 @@ export default function BetaSkinFeed({
   }, [reportPool, searchQuery]);
 
   // 검색('전체' 탭)일 때 시술명이 리포트와 매칭되면 결과 맨 위에 리포트 카드 1장.
-  const topReport = searchQuery && chip === "all" ? searchReport : null;
+  const topReport = searchQuery && effectiveChip === "all" ? searchReport : null;
 
   // 전체 풀 keywords 빈도 순위(사이드 인기 태그용) — 항목3) 16개.
   //   태그 클릭 = 검색이라 pool 이 검색결과로 바뀌면 빈도가 달라져 클릭한 태그가 맨 위로 올라오던 버그.
@@ -404,9 +409,13 @@ export default function BetaSkinFeed({
     <button
       key={c.key}
       type="button"
-      className={`${styles.chip} ${chip === c.key ? styles.chipActive : ""}`}
-      onClick={() => setChip(c.key)}
-      aria-pressed={chip === c.key}
+      className={`${styles.chip} ${effectiveChip === c.key ? styles.chipActive : ""}`}
+      onClick={() => {
+        setChip(c.key);
+        // 검색 중 카테고리 칩을 누르면 검색을 해제하고 그 카테고리로(검색+카테고리 동시 필터는 미지원).
+        if (isSearching) router.push("/beta-skin");
+      }}
+      aria-pressed={effectiveChip === c.key}
     >
       {c.label}
     </button>
