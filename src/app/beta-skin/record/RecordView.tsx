@@ -700,7 +700,7 @@ export default function RecordView({
                   rel={hasHref ? "noopener noreferrer" : undefined}
                   key={p.id}
                 >
-                  {p.keyword && <span className={`${styles.tag} ${styles.tagBlue}`}>{p.keyword}</span>}
+                  {p.keyword && <span className={styles.t}>{p.keyword}</span>}
                   <h3 className={styles.kwTitle}>{p.title}</h3>
                   <div className={styles.kwFoot}>
                     <CardAvatar doctorSlug={p.doctorSlug} memberAvatarUrl={p.avatarUrl} name={p.authorName} size={36} />

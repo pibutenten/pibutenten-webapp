@@ -1827,7 +1827,7 @@ button.t:hover {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 24px 4px 14px;
+  margin: 34px 4px 16px;
 }
 .sectionHead h2 {
   font-size: 17px;
@@ -2078,7 +2078,7 @@ button.t:hover {
   display: flex;
   justify-content: center;
   gap: 5px;
-  margin-top: 2px;
+  margin: 16px 0 8px;
 }
 .kwDot {
   width: 6px;
@@ -2184,7 +2184,7 @@ button.t:hover {
   gap: 3px;
 }
 .popTitle {
-  font-size: 14.5px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--ink-900);
   overflow: hidden;
@@ -2192,7 +2192,7 @@ button.t:hover {
   white-space: nowrap;
 }
 .popMeta {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink-500);
 }
@@ -2716,8 +2716,8 @@ button.t:hover {
 .wt {
   background: #fff;
   border: 2px solid transparent;
-  border-radius: 18px;
-  padding: 16px 8px;
+  border-radius: 16px;
+  padding: 12px 8px;
   text-align: center;
   box-shadow: var(--card-shadow);
   transition: transform 0.12s ease;
@@ -2739,8 +2739,9 @@ button.t:hover {
   color: var(--ink-300);
   margin-top: 3px;
 }
+/* 항목4) 활성 타입카드 — 진한 브랜드 블루 → 연한 로고 하늘색(은은하게). */
 .wtActive {
-  border-color: var(--tt-blue);
+  border-color: #9bd8f5;
   background: var(--tt-blue-tint);
 }
 .field {
