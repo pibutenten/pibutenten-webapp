@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-14] — 베타 admin 운영형 재설계 (.card 박스 제거 + 흰 배경 + BackButton)
+
+> 사용자 결정: admin 대시보드·표는 박스(.card) 안에 넣지 말고 운영 모습 그대로가 낫다. 상단바만 베타 스킨 유지, 배경은 흰색(연회색). 모든 서브 페이지에 운영 `< 뒤로` 버튼. 커밋 `fc7c17e`. 운영 무수정.
+
+### Changed
+- **BetaSkinShell `back` prop 추가**: 운영 `@/components/BackButton` 재사용. `back` 지정 시 본문 좌상단 `.backRow` 에 `< 뒤로` 렌더(같은 탭 SPA 이동이면 `router.back()`, 직접 진입·새 탭이면 fallback). `back={true}` → fallback `/beta-skin`(피드), 문자열 → 그 경로. 미지정(피드/홈)은 미노출. 적용: 글상세·공개프로필·admin 메인(`back="/beta-skin"`)·admin/cards·admin/comments(`back="/beta-skin/admin"`).
+- **wide(admin) 흰 배경**: BetaSkinShell root 에 `wide ? .rootWide` 적용. `.rootWide { background: #f4f5f7 }` — admin 만 캔버스 그라데이션(하늘·민트·레몬) 대신 운영과 동일한 연회색. 헤더(`.header`)는 자체 background 라 베타 톤 유지(상단바만 베타).
+- **admin 3화면 `.card` 섹션 래퍼 제거**: BetaAdminView(대시보드 6섹션)·BetaAdminCardsView(필터/제목)·BetaAdminCommentsView(제목/탭) 의 `<section className={styles.card} ...>` 에서 `.card` 제거(→ `styles.mb20` 만). 큰 박스 없이 운영처럼 콘텐츠가 회색 배경 위에 직접 노출. 내부 Stat/Tool 개별 카드·표 흰 박스는 유지(회색 배경 대비로 또렷이 떠 보임).
+- **운영 프로그램 Tool 그리드 2열**: 대시보드 도구 그리드를 `lg:grid-cols-3`(3열) → 운영 `/admin` 과 동일한 `sm:grid-cols-2`(2열)로(직전 wide 블록에서 3열로 했던 것을 운영 정합으로 환원).
+- `beta-skin.module.css`: `.backRow`(좌상단 뒤로 줄)·`.rootWide`(흰 배경) 추가.
+- 검증: `tsc --noEmit` 0 + `npm run build` Compiled successfully. Playwright 실측 — 피드 회귀 없음(뒤로/wide 미적용, 캔버스 유지)·글상세 `< 뒤로` 정상 노출. 코드검수관 검토 통과(치명 없음, 들여쓰기·fallback 명시 반영).
+
+---
+
 ## [2026-06-14] — 베타 admin 화면 전체 폭(wide) 레이아웃 재설계
 
 ### Changed

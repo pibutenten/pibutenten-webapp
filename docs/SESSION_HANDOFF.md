@@ -2,32 +2,49 @@
 
 > 세션 간 인수인계용. 현재 상태·주의사항·다음 작업·불변 원칙을 한 장으로. 변경 이력 상세는 `CHANGELOG.md`.
 
-**최종 갱신**: 2026-06-12
+**최종 갱신**: 2026-06-14
 
 ---
 
-## 0. 직전 세션 (2026-06-12) — 한눈에
+## 0. 직전 세션 (2026-06-14) — 한눈에
 
-- **git**: `HEAD == origin/main == 6bb7ff8`. 작업 트리 클린(미커밋 없음). 마이그 **0280** 까지 적용.
-- **빌드**: `tsc --noEmit` 0 에러. (full `npm run build` 미실행 — 베타스킨은 noindex 프리뷰라 타입체크 + Playwright 실측으로 검증.)
+- **git**: `HEAD == origin/main == fc7c17e`. 마이그 **0283** 까지 적용. (미커밋: 타 세션 산출물 `.claude/worktrees/`·`docs/reports/...보안감사.md`·`scripts/export-tag-dictionary-xlsx.py`·`tag-dictionary.generated.json` — 이 세션 작업 아님, 손대지 않음.)
+- **빌드**: `tsc --noEmit` 0 + `npm run build` Compiled successfully.
 
-### 이번 세션에 한 일
-1. **`/beta-skin` 신규 디자인 리스킨 프리뷰** (메인 작업, 운영 무변경) — 컨셉 디자인(`전달용/0612 skin update/`)을 실데이터로 입힌 5개 라우트(feed/record/post/write/my). 운영 격리(z-index:100 오버레이 + CSS Module). 다회차 기능 패리티 복원·리포트 더보기 인라인 펼침 수정. 상세 CHANGELOG `[2026-06-12] /beta-skin`.
-2. 시술일기 폼 v2.2(태그입력+자동완성+초성검색), 내 노트 게스트 열람, 키워드 칩 필터, 하단 탭바 v2.3, 용어변경(시술일기→시술노트), 시술노트→후기 시술 프리필, 모바일 textarea 폰트. (CHANGELOG `[2026-06-12] /search 폐기` 블록.)
+### 이번 세션에 한 일 (전부 `/beta-skin` 내부, 운영 무수정)
+> **목표(사용자)**: 베타스킨이 운영 기능/컴포넌트/데이터를 **그대로 재사용**(누더기 신규코드 금지). 운영 사이트는 100% 무변경. Phase별 커밋·푸시·검수.
 
-### 다음 세션 — 베타스킨 이어서 (사용자 방침)
-> **방침 확정**: 베타스킨은 계속 디벨롭, **운영(루트 `/`) 디자인은 원안 그대로 유지**. 베타스킨은 `/beta-skin` 안에서만 작업.
+1. **Phase A 디테일**: 리포트 카드 R값 베타 통일, 헤더 로그인상태 깜빡임 제거(useSession), 인기 Q&A 회전.
+2. **Phase 0 — 원장 9명 DB 정정**(마이그 0282·0283): education " 수료/수련" 제거, career 현소속 중복 제거 + "전 " 접두 제거. 운영+베타 동시.
+3. **Phase 1 — 공개 프로필**: `/beta-skin/u/[handle]` 신설(운영 `/[handle]` 데이터 미러: 작성글/후기/댓글/좋아요/저장/피부 6탭 + 20개+더보기). 명함 클릭 동선(`authorHref` 회원→베타 프로필), 헤더 '마이' 역할 분기(`/beta-skin/my`: admin→admin, doctor→/doctor, 회원→공개프로필), 운영 LogoutButton 재사용.
+4. **Phase 2 — 설정 아코디언**: 별도 페이지 대신 본인 공개 프로필의 '프로필·설정' 아코디언 인라인 펼침(운영 `ProfileEditClient embedded` 재사용). `/beta-skin/settings` 는 본인 프로필로 redirect.
+5. **Phase 3 — admin 이식 (메인·글관리·댓글)**: `/beta-skin/admin`(운영 RPC get_admin_kpi/get_research_panel + ActivityKpis/PopularCards/AccountSwitcherCard 임베드)·`/admin/cards`(운영 데이터·PickToggle·DoctorFilter)·`/admin/comments`(CommentsClient). 운영 `requireAdminPage` 가드 재사용.
+6. **글상세 = 피드 카드 재사용**: PostDetail 본문을 `<PostCard forceExpanded>` 로 통일(누더기 .articleBody/.articleTitle 폐기 — 피드 펼침과 100% 동일).
+7. **⋮ 메뉴·신고 통합**: SNS 표준대로 ⋮ 모두 노출(본인=수정/삭제/숨김, 타인=신고하기→`/api/reports`), HOT/NEW 배지 인라인 재배치.
+8. **admin 운영형 재설계(최종, fc7c17e)**: `.card` 큰 박스 제거 + admin 흰 배경(`.rootWide`) + 운영 `BackButton`(`< 뒤로`) 전 서브페이지 + 운영 프로그램 2열. (상단바만 베타 유지.)
 
-- **운영 대비 미구현/미검증 핀셋**: `post`(PostDetail)·`write`(WriteView 3탭 실제 저장 배선)·`my`(MyView) 페이지를 운영 대응 화면과 1:1 재비교 — 실제 동작(글 저장·댓글·좋아요·저장 토글)까지 작동 확인. 운영의 **알림(`/notifications` 2탭)** 대응 화면은 베타스킨에 아직 없음(필요 시 추가 판단).
-- **디자인 완성도**: 데스크탑 2열 우측 사이드 콘텐츠(인기태그/전문의 답변 등) 구성 확정, 폰트·여백 미세 조정.
-- **승격 여부 판단**: 베타스킨이 충분히 다듬어지면 운영 승격 vs 프리뷰 유지 결정(별도 안건).
+### 현재 베타 라우트 (11 page.tsx)
+✅ `/beta-skin`(피드)·`post/[...slug]`(글상세)·`u/[handle]`(공개프로필)·`my`(역할분기)·`settings`(redirect)·`record`(내노트)·`write`(글쓰기)·`admin`(대시보드)·`admin/cards`(글관리)·`admin/comments`(댓글)
+
+### 다음 세션 — 남은 작업
+1. **admin 나머지 화면 이식 (운영 15화면 중 3개만 이식)** — 미이식 12개는 현재 베타 대시보드 Tool 이 **운영 `/admin/*` 로 링크**(동작은 됨, 스킨만 운영으로 튕김): `users`(+`users/[id]`)·`doctors`(+`doctors/[slug]/edit`)·`draft`·`reports`·`review-reports`·`tags`·`clinics`·`auth-errors`·`stats/[kind]`·`cards/[id]/edit`(글편집) + **원장 대시보드 `/doctor`**.
+2. **설정 아코디언 실측** — 로그인 필요라 Playwright 미검증(8fcab8e). 로그인 세션에서 펼침·저장·탈퇴 동작 확인.
+3. **성능 — 셸 재마운트** — `/beta-skin/layout.tsx` 없어 페이지 전환마다 BetaSkinShell 재마운트(무거움). 공용 layout 으로 셸 고정 검토.
+
+### ⚠ cutover 결정 대기 (사용자 확정 필요) — "베타스킨 전체 운영으로 갈아엎기"
+현재 베타는 `/beta-skin/*` 별도 경로 + **영구 noindex** 프리뷰. 운영 본체 승격에 필요한 결정:
+- **① admin 범위(가장 먼저)**: admin까지 전부 베타로 이식할지 vs **사용자 화면(피드·프로필·글상세·마이·설정)만 베타로 교체하고 admin은 운영 그대로** 둘지. → 후자면 남은 작업 거의 끝, 전자면 화면 12개 추가 이식. **남은 작업량이 여기서 갈림.**
+- **② 라우트 승격 방식**: `/beta-skin/*` → 운영 루트(`/`,`/{handle}`,`/my`…)로 올릴지 / 운영을 베타로 교체할지(middleware·리다이렉트 전략).
+- **③ noindex 해제 + canonical**: 승격 시점에 robots noindex 해제 + canonical 운영 URL.
+- **④ 글 편집/작성**: 베타엔 편집 페이지 없음(운영 `/admin/cards/[id]/edit` 사용 중) — 이식 여부.
+- **⑤ 회귀·동등성 전수 검수**: 운영 전 기능이 베타에 누락 없는지(알림 `/notifications` 2탭은 베타에 화면 없음).
 
 ---
 
 ## 1. 현재 상태 (스냅샷)
 
 - **git**: `HEAD == origin/main`. 태그 관리 UI(O·P·Q)·칩 통일 → 발주 A·B·C·D → 태그 검수 발주 E→F→G·H·I·J(중간 경로)→K(검수 모델 재정비)→L(이름변경·병합 저장 경유)→M(저장↔취소 재편집 버그)→N(병합 en 승계). (동시 진행: `clinics`(0270·`/admin/clinics`)는 **별도 세션 소관** — 이 세션 작업 아님.)
-- **DB 마이그**: **0280** 까지 production 적용 완료. (0269 `reviewed_at` · 0270 clinics[타 세션] · 0271 merge_tag en 승계 · 0280 top_cards 통계 RPC 사이트 전체 게이트 완화)
+- **DB 마이그**: **0283** 까지 production 적용 완료. (0269 `reviewed_at` · 0270 clinics[타 세션] · 0271 merge_tag en 승계 · 0280 top_cards 통계 RPC 게이트 완화 · 0282·0283 원장 9명 profile_data 정정)
 - **빌드**: `tsc --noEmit` 0 + `npm run build` Compiled successfully.
 
 ### 태그 사전 DB SSOT 통합 (L-Phase2) — ✅ 완료
