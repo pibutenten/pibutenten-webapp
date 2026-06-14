@@ -303,6 +303,9 @@ export default function BetaSkinFeed({
   const submitSearch = (q: string) => {
     const t = q.trim();
     if (t) addRecent(t); // 운영 BetaNav 와 동일 — 검색 실행 시 최근 검색어에 기록.
+    // 검색/태그 클릭은 항상 "전체" 카테고리에서 — 카테고리 칩(예: 리포트)이 남아 "리포트 안의 쥬브젠"으로
+    //   좁혀지던 버그 방지. chip 은 클라 state 라 라우팅만으론 리셋되지 않으므로 명시적으로 all 로.
+    setChip("all");
     router.push(t ? `/beta-skin?q=${encodeURIComponent(t)}` : "/beta-skin");
   };
   // 태그 클릭 → 그 키워드로 서버 검색 라우팅(운영 동일).
