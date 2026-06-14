@@ -2711,6 +2711,31 @@ button.t:hover {
 .authorSideName {
   justify-content: center;
 }
+/* 작성자 프로필 아코디언 — 접힘 기본, 펼치면 원장 소개를 길게. 별도 "프로필 보기" 버튼 대체. */
+.authorToggle {
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tt-blue-deep);
+  cursor: pointer;
+}
+.authorIntro {
+  margin-top: 14px;
+  text-align: left;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-700);
+}
+.authorIntro p {
+  white-space: pre-line;
+  margin: 0 0 10px;
+}
+.authorIntroLink {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tt-blue-deep);
+}
 
 /* ============================================================
    글쓰기 (/beta-skin/write)

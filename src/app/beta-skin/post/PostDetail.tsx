@@ -61,15 +61,20 @@ export default function PostDetail({
   card,
   related = [],
   viewer,
+  doctorIntro = null,
 }: {
   card: CardData | null;
   related?: CardData[];
   viewer?: BetaViewerState;
+  /** 작성자(원장) 소개 — 사이드 프로필 카드 펼침 내용(운영 doctors.intro). 회원이면 null. */
+  doctorIntro?: string | null;
 }) {
   const search = useBetaSearchRouting();
   const router = useRouter();
   // 댓글 수 — CommentsBlock 이 실제 fetch 후 onCountChange 로 갱신(0 고정 방지).
   const [commentCount, setCommentCount] = useState(card?.comment_count ?? 0);
+  // 사이드 작성자 프로필 — 접힘 기본, 펼치면 소개를 길게(아코디언). 별도 "프로필 보기" 버튼 폐기.
+  const [profileOpen, setProfileOpen] = useState(false);
   const authorName =
     card?.doctor?.name ?? card?.author?.display_name ?? "예시 전문의";
   const isDoctor = card ? !!card.doctor && !card.hide_doctor_credential : true;
@@ -150,19 +155,36 @@ export default function PostDetail({
             </span>
           )}
         </div>
-        <div className={styles.authorSub} style={{ marginBottom: 16 }}>
+        <div className={styles.authorSub}>
           {isDoctor ? "피부과 전문의" : "회원"}
         </div>
-        {/* 운영에 팔로우 기능 없음 → 작성자 프로필이 있으면 "프로필 보기"로 연결, 없으면 버튼 생략. */}
-        {profileHref && (
-          <a
-            className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`}
-            href={profileHref}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            프로필 보기
-          </a>
+        {/* 아코디언 — 접힘 기본. 원장 소개가 있으면 펼쳐서 길게 + 프로필 전체 보기. */}
+        {(doctorIntro || profileHref) && (
+          <>
+            {profileOpen && (
+              <div className={styles.authorIntro}>
+                {doctorIntro && <p>{doctorIntro}</p>}
+                {profileHref && (
+                  <a
+                    className={styles.authorIntroLink}
+                    href={profileHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    프로필 전체 보기 →
+                  </a>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              className={styles.authorToggle}
+              onClick={() => setProfileOpen((v) => !v)}
+              aria-expanded={profileOpen}
+            >
+              {profileOpen ? "접기" : doctorIntro ? "소개 펼치기" : "프로필 보기"}
+            </button>
+          </>
         )}
       </section>
 

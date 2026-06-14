@@ -135,5 +135,24 @@ export default async function BetaSkinPostPage({
     viewer = viewerStates[card.id];
   }
 
-  return <PostDetail card={card} related={related3} viewer={viewer} />;
+  // 작성자(원장) 소개 — 사이드 프로필 카드 펼침 내용(운영 doctors.intro 재사용). 회원 글이면 없음.
+  let doctorIntro: string | null = null;
+  if (card?.doctor?.slug) {
+    const { data: dp } = await supabase
+      .from("doctors")
+      .select("intro")
+      .eq("slug", card.doctor.slug)
+      .maybeSingle()
+      .returns<{ intro: string | null } | null>();
+    doctorIntro = dp?.intro ?? null;
+  }
+
+  return (
+    <PostDetail
+      card={card}
+      related={related3}
+      viewer={viewer}
+      doctorIntro={doctorIntro}
+    />
+  );
 }
