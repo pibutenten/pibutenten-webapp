@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-14] — 보안 감사: award_points 임의 호출 권한 회수 (P2-1)
+
+> 2026-06-14 보안 감사(`docs/reports/2026-06-14-보안감사-종합보고서.md`) 결과 확정된 실제 취약점 1건 조치. 코드 변경 0 (DB 권한만). 베타스킨 운영 전환 작업과 독립.
+
+### Security
+- **`award_points(uuid,text,numeric,text,text,integer)` EXECUTE 권한 회수** (마이그 0284). 해당 SECURITY DEFINER 함수가 `proacl` 상 PUBLIC(`=X`)+`authenticated` 에 EXECUTE 부여 + 내부 `auth.uid()`/`is_admin()` 가드 전무 → 누구나(비로그인 anon 포함) `rpc('award_points', {...})` 직접 호출로 자신·타인의 `activity_score`/`level` 임의 조작 가능했음(데이터 무결성). PUBLIC/anon/authenticated 회수 → `{postgres=X, service_role=X}` 로 최소화.
+- **`award_daily_login(uuid)` EXECUTE 권한 회수** (마이그 0285). 0284 검토 중 발견된 동일 부류 우회 경로 — award_points 의 유일한 내부 호출자이자 그 자체도 PUBLIC/authenticated EXECUTE + `COALESCE(p_user_id, auth.uid())` 로 파라미터 무검증 신뢰 → 타인 profile_id 로 타인 일일로그인·포인트 적립 가능했음. award_points 만 잠그면 남는 옆문이라 한 세트로 봉쇄. 회수 결과 `{postgres=X}`(owner only — 원래 service_role 명시 GRANT 없이 PUBLIC 경유였음).
+- **기능 영향 0 검증**: 앱 코드 직접 호출처 없음. award_points 의 유일한 내부 호출자 `award_daily_login`(SECURITY DEFINER, owner 권한 실행)을 트랜잭션 내 실제 호출→`1` 정상 반환 후 ROLLBACK 으로 실증. award_daily_login 은 앱·트리거·타 함수 어디서도 호출 안 됨(미사용 dead 함수, 3중 확인) → REVOKE 무영향. anon/authenticated `has_function_privilege` 양쪽 모두 false 확인.
+- **현재 P2, 포인트몰·결제 도입 시 P0 격상**(포인트가 금전 가치 획득 시). `SECURITY.md §향후 점검 권고` "임의 호출 가능 RPC" 잔여분 정리(0274·0276 후속).
+- **추가 발견(미조치, 별도 안건)**: supabase-specialist 재점검에서 KPI 읽기 함수 3종(`get_admin_kpi_inner`·`get_doctor_kpi_inner`·`get_top_new_members_inner`)이 `authenticated` 에 내부 admin 가드 없이 노출(읽기 전용, KPI·신규회원 준-PII), `save_my_notification_prefs` 의 active 명함 비결정 결함 발견. write 취약은 아니라 베타 운영 전환 후 일괄 처리 예정.
+
+---
+
 ## [2026-06-14] — 베타 admin 운영형 재설계 (.card 박스 제거 + 흰 배경 + BackButton)
 
 > 사용자 결정: admin 대시보드·표는 박스(.card) 안에 넣지 말고 운영 모습 그대로가 낫다. 상단바만 베타 스킨 유지, 배경은 흰색(연회색). 모든 서브 페이지에 운영 `< 뒤로` 버튼. 커밋 `fc7c17e`. 운영 무수정.

@@ -51,4 +51,7 @@
 - Dependabot/Snyk 등 의존성 보안 알림 모니터링
 - CSP `Content-Security-Policy-Report-Only` → enforce 모드 전환 검토 (Report-Only 로그 수집 후)
 - 분기마다 `pg_proc` SECURITY DEFINER 함수 전수 점검 (admin 가드 누락 + `search_path` 미고정 회귀 방지). search_path 미고정 시 search_path hijacking 위험 — SECURITY DEFINER 함수는 `SET search_path = public, pg_temp`(auth 접근 함수는 `public, auth, pg_temp`) 고정 필수. (마이그 0274 에서 recalc_user_level·anonymize_user_content_before_delete·propagate_onboarding_to_doctor_bundle 고정 완료)
-- 임의 호출 가능 RPC 점검: `proacl` 에 PUBLIC(`=X`)/anon EXECUTE 가 부여된 SECURITY DEFINER 함수는 내부 `auth.uid()`/`is_admin()` 가드 + GRANT 최소화 (0274 recalc_user_level, 0276 find_other_auth_user_by_email 정리 완료)
+- 임의 호출 가능 RPC 점검: `proacl` 에 PUBLIC(`=X`)/anon EXECUTE 가 부여된 SECURITY DEFINER 함수는 내부 `auth.uid()`/`is_admin()` 가드 + GRANT 최소화 (0274 recalc_user_level, 0276 find_other_auth_user_by_email, **0284 award_points · 0285 award_daily_login** 정리 완료 — 2026-06-14 보안 감사)
+  - **award_points (0284) · award_daily_login (0285), P2-1**: 가드 없는 write 함수(activity_score/level/daily_logins 적립)가 PUBLIC+authenticated EXECUTE 였음 → REVOKE. award_points 는 `{postgres=X, service_role=X}`, award_daily_login 은 `{postgres=X}`(미사용 dead 함수). award_daily_login 은 award_points 의 유일 호출자이자 옆문이라 한 세트로 봉쇄. **포인트가 금전 가치를 갖는 커머스 오픈 시 P0 격상**. 상세: `reports/2026-06-14-보안감사-종합보고서.md`.
+  - **미조치 [권고] (별도 안건, 베타 운영 전환 후)**: KPI 읽기 함수 `get_admin_kpi_inner`·`get_doctor_kpi_inner`·`get_top_new_members_inner` 가 `authenticated` 에 내부 admin 가드 없이 노출(읽기 전용 — KPI·신규회원 준-PII). `save_my_notification_prefs` 는 `current_active_profile_id()`/`validate_active_profile_id()` 미사용으로 다중 명함 시 저장 대상 비결정(ADR 0011 미준수 설계 결함, 보안 취약은 아님).
+  - 잔여 권고: `proacl` 에 PUBLIC/anon EXECUTE + 내부 가드 없는 write SECURITY DEFINER 함수를 자동 검출하는 점검 쿼리를 분기 루틴/CI 에 편입.
