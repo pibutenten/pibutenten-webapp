@@ -35,6 +35,7 @@ import {
   PostCard,
   cardHref,
   catTagClass,
+  catKey,
   type BetaViewerState,
 } from "./beta-ui";
 
@@ -449,6 +450,7 @@ export default function BetaSkinFeed({
                 <button
                   type="button"
                   className={`${styles.t} ${on ? catTagClass(tag) : ""}`}
+                  data-cat={catKey(tag)}
                   key={tag}
                   onClick={() => applyTag(tag)}
                   aria-pressed={on}

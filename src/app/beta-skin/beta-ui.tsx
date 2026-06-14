@@ -76,6 +76,12 @@ const CAT_TAG_CLASS: Record<string, string> = {
 export function catTagClass(keyword: string): string {
   return CAT_TAG_CLASS[categorize(keyword)] ?? styles.catKnowledge;
 }
+/* 신규1) 태그 호버색 = 카테고리 활성색 일치용 — 키워드의 카테고리 키(concerns/lifting/…)를
+ * data-cat 속성으로 내보내, 평소엔 회색(.t)·호버 시에만 그 카테고리 틴트가 되도록 CSS 가 매칭.
+ * (선택 시 catTagClass 와 같은 톤 → 호버색과 선택색이 일치.) */
+export function catKey(keyword: string): string {
+  return categorize(keyword);
+}
 
 /* ---------- 카드 → 실제 운영 URL ----------
  * 항목 1) 모든 카드를 한 데모(/beta-skin/post)로 보내던 버그 수정.
@@ -907,6 +913,7 @@ export function PostCard({
               <button
                 type="button"
                 className={cls}
+                data-cat={catKey(t)}
                 key={t}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -916,7 +923,7 @@ export function PostCard({
                 {t}
               </button>
             ) : (
-              <span className={cls} key={t}>
+              <span className={cls} data-cat={catKey(t)} key={t}>
                 {t}
               </span>
             );

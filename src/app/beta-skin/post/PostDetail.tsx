@@ -47,6 +47,7 @@ import {
   cardHref,
   betaPostHref,
   authorHref,
+  catKey,
   useBetaSearchRouting,
   useBetaCardActions,
   PostCardMenu,
@@ -236,14 +237,6 @@ export default function PostDetail({
 
         <h1 className={styles.articleTitle}>{title}</h1>
 
-        {/* QA 박스 — 실제 카드면 카테고리가 qa 일 때만, 샘플(card=null)이면 Q&A 데모로 노출. */}
-        {(card ? (card.category ?? card.type) === "qa" : true) && (
-          <div className={styles.qaQ}>
-            Q. 다음 주에 예약했는데, 시술 직후 일상생활이 가능할지, 멍이나 붓기는
-            보통 며칠 가는지 궁금해요.
-          </div>
-        )}
-
         {/* 본문 — 전체 펼침(clamp 없음) + 볼드·형광펜 (운영 방식 재현) */}
         <div className={styles.articleBody}>
           {renderBetaBody(body, hlColor, false)}
@@ -264,12 +257,19 @@ export default function PostDetail({
           </a>
         )}
 
+        {/* 신규3b) 태그 클릭 → 피드 태그검색(/beta-skin?q=)으로 이동(피드·사이드 태그와 동일 동작). */}
         {tags.length > 0 && (
           <div className={styles.postTags}>
             {tags.map((t) => (
-              <span className={styles.t} key={t}>
+              <button
+                type="button"
+                className={styles.t}
+                data-cat={catKey(t)}
+                key={t}
+                onClick={() => search.onSearchSubmit?.(t)}
+              >
                 {t}
-              </span>
+              </button>
             ))}
           </div>
         )}

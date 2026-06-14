@@ -1127,13 +1127,30 @@
   line-height: 1.35;
   text-align: left;
 }
-/* 항목 4) 클릭 가능한 태그(button.t) — 검색 필터 트리거. 호버 시 브랜드 톤. */
+/* 신규1) 클릭 가능한 태그(button.t) — 검색 필터 트리거.
+   호버 시: 그 태그가 속한 카테고리의 연한 틴트(data-cat)로 → 선택(catTagClass) 색과 동일 톤으로 일치. */
 button.t {
   transition: background 0.12s ease, color 0.12s ease;
 }
-button.t:hover {
-  background: var(--tt-blue-tint);
-  color: var(--tt-blue-deep);
+button.t[data-cat="concerns"]:hover {
+  background: rgba(126, 87, 194, 0.13);
+  color: #6a45b0;
+}
+button.t[data-cat="lifting"]:hover {
+  background: rgba(41, 182, 246, 0.15);
+  color: #176d99;
+}
+button.t[data-cat="injectables"]:hover {
+  background: rgba(244, 143, 177, 0.18);
+  color: #b03e68;
+}
+button.t[data-cat="homecare"]:hover {
+  background: rgba(191, 110, 92, 0.15);
+  color: #974732;
+}
+button.t[data-cat="knowledge"]:hover {
+  background: rgba(158, 157, 36, 0.16);
+  color: #6a6915;
 }
 .postFoot {
   display: flex;
@@ -1686,8 +1703,10 @@ button.t:hover {
     display: flex;
     align-items: center;
     gap: 10px;
-    flex: 1;
-    max-width: 340px;
+    /* 신규2) 검색 pill 고정폭 — grow 0(자라지 않음) + basis 300px.
+       기존 flex:1 은 spacer(flex:1)와 남는 공간을 나눠 검색어 유무/우측 버튼 변화에
+       따라 폭이 출렁였다. grow 0 으로 고정해 검색해도 같은 크기, 키워드만 안에서 채움. */
+    flex: 0 1 300px;
     background: #fff;
     border-radius: var(--r-chip);
     padding: 10px 16px;
@@ -1792,6 +1811,9 @@ button.t:hover {
     gap: 18px;
     position: sticky;
     top: 84px;
+    /* 신규3d) 데스크탑에선 모바일용 margin-top(.sidebarMobileShow=22px)을 리셋 →
+       좌측 본문 카드와 우측 사이드 카드의 상단을 같은 높이로 정렬. */
+    margin-top: 0;
   }
   .sidebar .card {
     padding: 20px;
@@ -2580,8 +2602,9 @@ button.t:hover {
 /* ============================================================
    글 상세 (/beta-skin/post)
    ============================================================ */
+/* 신규3a) 글상세 제목 — 피드 카드 제목(18/19px)에 근접하게 축소(단독 진입이라 위계만 살짝). */
 .articleTitle {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1.4;
   margin: 18px 0 0;
@@ -3085,7 +3108,7 @@ button.t:hover {
   /* 관심 키워드 새 글 — 데스크탑에서도 가로 캐러셀(좌우 스크롤) 유지.
      (옛 grid 2열 override 제거 — .kwScroll/.kwCard 는 기본 정의의 flex nowrap·240px 고정폭 사용) */
   .articleTitle {
-    font-size: 25px;
+    font-size: 21px;
   }
   .articleBody {
     font-size: 16px;
