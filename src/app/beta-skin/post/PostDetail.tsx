@@ -11,8 +11,11 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import CardAvatar from "@/components/card/CardAvatar";
+import { getDoctorPhoto } from "@/lib/doctor-theme";
+import { orcidUrl, type DoctorProfileData } from "@/lib/doctor-profile";
 import { showToast } from "@/lib/toast";
 import { pickHighlight } from "@/lib/card-highlight";
 import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
@@ -64,12 +67,15 @@ export default function PostDetail({
   related = [],
   viewer,
   doctorIntro = null,
+  doctorProfile = null,
 }: {
   card: CardData | null;
   related?: CardData[];
   viewer?: BetaViewerState;
-  /** 작성자(원장) 소개 — 사이드 프로필 카드 펼침 내용(운영 doctors.intro). 회원이면 null. */
+  /** 작성자(원장) 한줄 메시지 — 사이드 프로필 카드에 항상 노출(운영 doctors.intro). 회원이면 null. */
   doctorIntro?: string | null;
+  /** 작성자(원장) 확장 프로필(학력·경력·학회·링크) — "더보기" 펼침 내용(운영 doctors.profile_data). 회원이면 null. */
+  doctorProfile?: DoctorProfileData | null;
 }) {
   const search = useBetaSearchRouting();
   const router = useRouter();
@@ -138,17 +144,36 @@ export default function PostDetail({
     </>
   );
 
+  // 누끼딴 원장 사진(의사일 때만, 운영 프로필과 동일한 /doctors/{slug}.png). 회원은 동그라미 아바타.
+  const doctorPhoto =
+    isDoctor && card?.doctor?.slug ? getDoctorPhoto(card.doctor.slug) : null;
+  // "더보기" 펼침에 표시할 확장 프로필이 실제로 있는지(운영 DoctorProfileSection 과 같은 항목 기준).
+  const hasProfileDetail = !!doctorProfile && profileHasContent(doctorProfile);
+
   const sidebar = (
     <>
+      {/* 우측 작성자 카드 — 누끼 사진 + 이름 + 전문의 + 한줄 메시지. "더보기"로 확장 프로필·링크 펼침. */}
       <section className={`${styles.card} ${styles.authorSide}`}>
-        <div className={styles.authorSideAvatarWrap}>
-          <CardAvatar
-            doctorSlug={card?.doctor?.slug}
-            memberAvatarUrl={avatarUrl}
-            name={authorName}
-            size={68}
-          />
-        </div>
+        {doctorPhoto ? (
+          <div className={styles.authorSidePhoto}>
+            <Image
+              src={doctorPhoto}
+              alt={`${authorName} 원장님`}
+              fill
+              sizes="300px"
+              className={styles.authorSidePhotoImg}
+            />
+          </div>
+        ) : (
+          <div className={styles.authorSideAvatarWrap}>
+            <CardAvatar
+              doctorSlug={card?.doctor?.slug}
+              memberAvatarUrl={avatarUrl}
+              name={authorName}
+              size={68}
+            />
+          </div>
+        )}
         <div className={`${styles.authorName} ${styles.authorSideName}`}>
           {authorName}
           {isDoctor && (
@@ -160,22 +185,14 @@ export default function PostDetail({
         <div className={styles.authorSub}>
           {isDoctor ? "피부과 전문의" : "회원"}
         </div>
-        {/* 아코디언 — 접힘 기본. 원장 소개가 있으면 펼쳐서 길게 + 프로필 전체 보기. */}
-        {(doctorIntro || profileHref) && (
+        {/* 한줄 메시지(intro) — 접힘 상태에서도 항상 노출. */}
+        {doctorIntro && <p className={styles.authorMessage}>{doctorIntro}</p>}
+        {/* 더보기 — 확장 프로필(학력·경력·학회·외부 링크)만 펼침. (메시지와 학력 사이 구분선은 .authorIntro 상단 보더.) */}
+        {hasProfileDetail && (
           <>
             {profileOpen && (
               <div className={styles.authorIntro}>
-                {doctorIntro && <p>{doctorIntro}</p>}
-                {profileHref && (
-                  <a
-                    className={styles.authorIntroLink}
-                    href={profileHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    프로필 전체 보기 →
-                  </a>
-                )}
+                <DoctorProfileDetail profile={doctorProfile!} />
               </div>
             )}
             <button
@@ -184,14 +201,15 @@ export default function PostDetail({
               onClick={() => setProfileOpen((v) => !v)}
               aria-expanded={profileOpen}
             >
-              {profileOpen ? "접기" : doctorIntro ? "소개 펼치기" : "프로필 보기"}
+              {profileOpen ? "접기" : "더보기"}
             </button>
           </>
         )}
       </section>
 
+      {/* 함께 보면 좋은 Q&A — 데스크탑은 프로필 아래, 모바일은 .sideQa order 로 프로필보다 위로. */}
       {related.length > 0 && (
-        <section className={`${styles.card} ${styles.sideCard}`}>
+        <section className={`${styles.card} ${styles.sideCard} ${styles.sideQa}`}>
           <h3>함께 보면 좋은 Q&A</h3>
           <div className={styles.sideList}>
             {related.map((c) => (
@@ -385,5 +403,81 @@ function ArticleFooter({
           → 좋아요 변동 시 자동 refetch. 데이터 fetch 경로는 운영과 동일(RLS 우회 없음). */}
       <RecentLikers cardId={card.id} likeCount={act.like.count} />
     </>
+  );
+}
+
+/* ---------- 원장 확장 프로필 항목 구성 (운영 DoctorProfileSection 과 동일 로직) ----------
+ * profile_data 중 채워진 항목만, 운영과 같은 순서/라벨로 행(rows)·링크(links)를 만든다.
+ * 데이터 매핑(필드→라벨·orcidUrl 변환)은 운영과 100% 동일하고, 시각만 베타 톤(아래 CSS). */
+function buildProfileRows(p: DoctorProfileData) {
+  const rows: { title: string; values: string[] }[] = [];
+  if (p.education?.length) rows.push({ title: "학력", values: p.education });
+  if (p.career?.length) rows.push({ title: "경력", values: p.career });
+  if (p.expertise?.length)
+    rows.push({ title: "전문 분야", values: p.expertise });
+  // 자격(전문의 취득연도) 행은 노출하지 않음 — 이름 옆 "피부과 전문의" 배지로 충분(중복 제거).
+  if (p.memberOf?.length) rows.push({ title: "학회", values: p.memberOf });
+  if (p.societyRoles?.length)
+    rows.push({ title: "학회 활동", values: p.societyRoles });
+  if (p.publications?.length)
+    rows.push({ title: "출판·저서", values: p.publications });
+  return rows;
+}
+function buildProfileLinks(p: DoctorProfileData) {
+  const links: { label: string; url: string }[] = [];
+  if (p.clinicUrl) links.push({ label: "병원 홈페이지", url: p.clinicUrl });
+  if (p.instagram) links.push({ label: "병원 인스타그램", url: p.instagram });
+  if (p.threads) links.push({ label: "스레드", url: p.threads });
+  if (p.youtube) links.push({ label: "YouTube", url: p.youtube });
+  if (p.blog) links.push({ label: "블로그", url: p.blog });
+  const orcid = orcidUrl(p);
+  if (orcid) links.push({ label: "ORCID", url: orcid });
+  if (p.googleScholarUrl)
+    links.push({ label: "Google Scholar", url: p.googleScholarUrl });
+  return links;
+}
+/** "더보기"에 보여줄 확장 프로필이 실제로 하나라도 있는지(빈 더보기 버튼 방지). */
+function profileHasContent(p: DoctorProfileData): boolean {
+  return buildProfileRows(p).length > 0 || buildProfileLinks(p).length > 0;
+}
+
+/**
+ * DoctorProfileDetail — 우측 작성자 카드 "더보기" 펼침 내용.
+ * 운영 프로필 페이지의 학력·경력·학회·외부 링크와 동일한 항목/순서를 베타 사이드 톤으로 렌더.
+ */
+function DoctorProfileDetail({ profile }: { profile: DoctorProfileData }) {
+  const rows = buildProfileRows(profile);
+  const links = buildProfileLinks(profile);
+  return (
+    <div className={styles.profileDetail}>
+      {rows.length > 0 && (
+        <dl className={styles.profileDl}>
+          {rows.map((r) => (
+            <div className={styles.profileRow} key={r.title}>
+              <dt>{r.title}</dt>
+              <dd>
+                {r.values.map((v, i) => (
+                  <span key={`${r.title}-${i}`}>{v}</span>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {links.length > 0 && (
+        <div className={styles.profileLinks}>
+          {links.map((l) => (
+            <a
+              key={l.url}
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {l.label}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

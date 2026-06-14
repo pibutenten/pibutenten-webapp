@@ -510,8 +510,14 @@
 }
 /* 모바일에서도 사이드바를 본문 아래로 노출(글상세 작성자 프로필·연관 Q&A). 데스크탑은 .sidebar 미디어쿼리가 우선. */
 .sidebarMobileShow {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
   margin-top: 22px;
+}
+/* 신규5) 모바일에선 "함께 보면 좋은 Q&A"(.sideQa)를 작성자 프로필보다 위로. */
+.sidebarMobileShow .sideQa {
+  order: -1;
 }
 
 /* ---------- 카드 ---------- */
@@ -1815,6 +1821,10 @@ button.t[data-cat="knowledge"]:hover {
        좌측 본문 카드와 우측 사이드 카드의 상단을 같은 높이로 정렬. */
     margin-top: 0;
   }
+  /* 신규5) 데스크탑은 DOM 순서(작성자 프로필 먼저 → Q&A 아래) 유지 — 모바일 order:-1 리셋. */
+  .sidebar .sideQa {
+    order: 0;
+  }
   .sidebar .card {
     padding: 20px;
   }
@@ -2743,7 +2753,10 @@ button.t[data-cat="knowledge"]:hover {
   cursor: pointer;
 }
 .authorIntro {
+  /* 신규: 한줄 메시지와 학력 사이 구분선(상단 보더). */
   margin-top: 14px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
   text-align: left;
   font-size: 13.5px;
   line-height: 1.55;
@@ -2757,6 +2770,76 @@ button.t[data-cat="knowledge"]:hover {
   display: inline-block;
   font-size: 13px;
   font-weight: 700;
+  color: var(--tt-blue-deep);
+}
+
+/* 신규3c) 누끼 원장 사진 — 운영 프로필과 동일한 /doctors/{slug}.png(object-contain).
+   배경 없이 흰 카드 위에 상반신만(사용자 요청 — 배경 제거). */
+.authorSidePhoto {
+  position: relative;
+  width: 100%;
+  height: 168px;
+  margin-bottom: 10px;
+}
+.authorSidePhotoImg {
+  object-fit: contain;
+  object-position: center bottom;
+}
+/* 한줄 메시지(intro) — 인용 톤. 접힘 상태에서도 항상 노출. */
+.authorMessage {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink-700);
+  white-space: pre-line;
+}
+/* "더보기" 펼침 — 확장 프로필(학력·경력·학회 dl + 외부 링크 칩). */
+.profileDetail {
+  margin-top: 2px;
+}
+.profileDl {
+  margin: 0;
+}
+.profileRow {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 9px;
+}
+.profileRow dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-500);
+}
+.profileRow dd {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-700);
+}
+.profileRow dd span {
+  display: block;
+}
+.profileLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.profileLinks a {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-500);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 999px;
+  padding: 4px 10px;
+  transition: border-color 0.12s ease, color 0.12s ease;
+}
+.profileLinks a:hover {
+  border-color: var(--tt-blue-deep);
   color: var(--tt-blue-deep);
 }
 

@@ -2,6 +2,7 @@ import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import type { CardData } from "@/lib/types/card";
+import type { DoctorProfileData } from "@/lib/doctor-profile";
 import PostDetail from "./PostDetail";
 
 type Supa = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -75,14 +76,19 @@ export async function renderBetaPost(
   }
 
   let doctorIntro: string | null = null;
+  let doctorProfile: DoctorProfileData | null = null;
   if (card?.doctor?.slug) {
     const { data: dp } = await supabase
       .from("doctors")
-      .select("intro")
+      .select("intro, profile_data")
       .eq("slug", card.doctor.slug)
       .maybeSingle()
-      .returns<{ intro: string | null } | null>();
+      .returns<{
+        intro: string | null;
+        profile_data: DoctorProfileData | null;
+      } | null>();
     doctorIntro = dp?.intro ?? null;
+    doctorProfile = dp?.profile_data ?? null;
   }
 
   return (
@@ -91,6 +97,7 @@ export async function renderBetaPost(
       related={related3}
       viewer={viewer}
       doctorIntro={doctorIntro}
+      doctorProfile={doctorProfile}
     />
   );
 }
