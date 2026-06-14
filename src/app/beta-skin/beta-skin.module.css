@@ -1750,13 +1750,12 @@ button.t[data-cat="knowledge"]:hover {
   .headerSearchLive input::placeholder {
     color: var(--ink-300);
   }
-  /* 항목2) 브랜드 진파랑 → 로고색 가까운 밝은 톤으로 톤다운.
-     #2a9fd6 위 흰글자 대비 약 3.1:1 (볼드 13.5px AA Large 3:1 충족, 가벼움 우선). */
+  /* 글쓰기 버튼 — 로고색 하늘(--tt-blue #45b7e8). hover 시 한 단계 진하게(--tt-blue-deep). */
   .btnWriteTop {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    background: #2a9fd6;
+    background: var(--tt-blue);
     color: #fff;
     font-weight: 700;
     font-size: 13.5px;
@@ -1767,7 +1766,7 @@ button.t[data-cat="knowledge"]:hover {
     transition: background 0.14s ease;
   }
   .btnWriteTop:hover {
-    background: #1f8fc6;
+    background: var(--tt-blue-deep);
   }
   .btnWriteTop svg {
     width: 15px;
@@ -2612,48 +2611,9 @@ button.t[data-cat="knowledge"]:hover {
 /* ============================================================
    글 상세 (/beta-skin/post)
    ============================================================ */
-/* 신규3a) 글상세 제목 — 피드 카드 제목(18/19px)에 근접하게 축소(단독 진입이라 위계만 살짝). */
-.articleTitle {
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1.4;
-  margin: 18px 0 0;
-  color: var(--ink-900);
-}
-.qaQ {
-  background: var(--tt-blue-tint);
-  border-radius: 18px;
-  padding: 16px 18px;
-  font-weight: 700;
-  color: var(--tt-blue-deep);
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  margin: 16px 0;
-  font-size: 14.5px;
-  line-height: 1.6;
-}
-.articleBody {
-  font-size: 15px;
-  line-height: 1.85;
-  color: var(--ink-700);
-  word-break: break-word;
-}
-/* 글 상세는 본문 단락을 한 단계 키우고 줄간격 넉넉히 */
-.articleBody .bodyPara {
-  font-size: 15px;
-  line-height: 1.85;
-}
-.articleBody .bodyPara + .bodyPara {
-  margin-top: 14px;
-}
-.articleBody h3 {
-  font-size: 16px;
-  margin: 22px 0 8px;
-  color: var(--ink-900);
-}
-.articleBody p {
-  margin: 0 0 12px;
-}
+/* 글상세 본문은 피드 PostCard(forceExpanded)를 그대로 재사용 →
+   글상세 전용 제목/본문/QA 박스 스타일(.articleTitle/.articleBody/.qaQ)은 폐기(누더기 제거).
+   제목=.postTitle, 본문=.postBodyRich+.bodyPara 로 피드와 100% 동일. */
 
 /* 피드백 2) 피드 카드 내 댓글 영역 래퍼 — 본문과 상단 구분선으로 분리. */
 .comments {
@@ -2729,6 +2689,10 @@ button.t[data-cat="knowledge"]:hover {
 /* 작성자 프로필 사이드 카드 */
 .authorSide {
   text-align: center;
+}
+/* 더보기 가능(확장 프로필 있음) → 카드 전체가 클릭 토글 영역. */
+.authorSideClickable {
+  cursor: pointer;
 }
 .authorSideAvatar {
   width: 68px;
@@ -3194,12 +3158,6 @@ button.t[data-cat="knowledge"]:hover {
   }
   /* 관심 키워드 새 글 — 데스크탑에서도 가로 캐러셀(좌우 스크롤) 유지.
      (옛 grid 2열 override 제거 — .kwScroll/.kwCard 는 기본 정의의 flex nowrap·240px 고정폭 사용) */
-  .articleTitle {
-    font-size: 21px;
-  }
-  .articleBody {
-    font-size: 16px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

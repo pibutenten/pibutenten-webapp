@@ -707,6 +707,8 @@ export function PostCard({
   isHot = false,
   viewer,
   searchQuery,
+  forceExpanded = false,
+  onDeleted,
 }: {
   card: CardData;
   /** 항목 4) 카드 태그 클릭 → 그 키워드로 검색·필터 (헤더 검색창에 채움). */
@@ -717,12 +719,17 @@ export function PostCard({
   viewer?: BetaViewerState;
   /** 항목1) 현재 검색어 — 본문·제목 노란 하이라이트 + 일치 태그 활성화(검색 결과일 때만). */
   searchQuery?: string;
+  /** 글상세(/beta-skin/post) 재사용 — 항상 펼친 상태(접기 없음) + 댓글 전체+입력 기본.
+   *  글상세를 별도 컴포넌트로 재구현하지 않고 이 PostCard 를 그대로 써서 피드와 100% 동일하게. */
+  forceExpanded?: boolean;
+  /** ⋮ 삭제 후 동작 — 미지정 시 카드 언마운트(피드). 글상세는 목록(/beta-skin)으로 이동 등 주입. */
+  onDeleted?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(forceExpanded);
   // ⋮ 메뉴 삭제 성공 시 카드를 화면에서 제거(운영의 vanishing 대신 베타는 즉시 언마운트).
   const [removed, setRemoved] = useState(false);
-  // 피드백 2) 댓글 펼침 — 댓글 아이콘 클릭 시 입력창까지 펼침(showInput).
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  // 피드백 2) 댓글 펼침 — 댓글 아이콘 클릭 시 입력창까지 펼침(showInput). 글상세(forceExpanded)는 기본 전체+입력.
+  const [commentsOpen, setCommentsOpen] = useState(forceExpanded);
   // 항목4) 댓글 수 0 고정 + 클릭해야만 보임 → 카드가 뷰포트 근처에 오면 CommentsBlock 을 미리보기 모드로
   //   마운트(showInput=false): 운영 CommentsBlock 이 인기순(like_count DESC) 상위 3개를 표시 +
   //   onCountChange 로 실제 댓글 수를 채운다. 전 카드 즉시 fetch 부담을 피하려 IntersectionObserver 지연.
@@ -751,7 +758,11 @@ export function PostCard({
   // 조회수/노출 기록 — 운영 useCardViewer 그대로 재사용. mount 시 impression(노출) 자동 enqueue,
   //   본문 펼침·댓글 열기 등 "읽음 의도" 시 recordView()로 card_views 기록(세션 dedup, DB 트리거가 카운트).
   //   (베타 유입이 조회수·노출 통계에서 누락되던 문제 해소.)
-  const { recordView } = useCardViewer(card, { forceExpanded: false, cardRef });
+  const { recordView } = useCardViewer(card, { forceExpanded, cardRef });
+  // 글상세(forceExpanded) 진입 = 명백한 조회·읽음 신호 → mount 시 1회 view 기록(세션 dedup).
+  useEffect(() => {
+    if (forceExpanded) recordView();
+  }, [forceExpanded, recordView]);
 
   const authorName = card.doctor?.name ?? card.author?.display_name ?? "회원";
   const isDoctor = !!card.doctor && !card.hide_doctor_credential;
@@ -776,6 +787,7 @@ export function PostCard({
   if (removed) return null;
 
   const toggle = () => {
+    if (forceExpanded) return; // 글상세는 항상 펼침 — 접기 없음.
     if (isLong) {
       setExpanded((v) => !v);
       recordView(); // 본문 펼침 = 읽음 의도 → 조회 기록(세션 1회 dedup).
@@ -826,7 +838,7 @@ export function PostCard({
 
       {/* ⋮ 더보기 — 본인 글 수정/삭제 + 관리자 숨김(운영 CardHeader 이식).
           권한 없으면(비로그인/타인 글) 내부에서 null 반환 → 미노출. */}
-      <PostCardMenu card={card} onDeleted={() => setRemoved(true)} />
+      <PostCardMenu card={card} onDeleted={onDeleted ?? (() => setRemoved(true))} />
 
       {/* 작성자 — 항목 4) 실제 프로필 URL 로 새 탭 이동(정보 부족이면 일반 div).
           본문 펼침 토글과 충돌 안 나게 작성자 영역은 별도(토글에서 분리). */}
@@ -848,7 +860,7 @@ export function PostCard({
           예전 PostDetail 디자인 확인용 임시 단독 URL. 운영 단독 URL(새 탭)이 아니라
           베타 페이지 내부 이동(target/rel 제거). 본문 펼침 토글과 분리(제목은 토글 div 밖).
           card.id 없으면(이론상 거의 없음) 링크 대신 일반 제목. */}
-      {card.id != null ? (
+      {!forceExpanded && card.id != null ? (
         <a
           className={styles.postTitleLink}
           href={betaPostHref(card)}
