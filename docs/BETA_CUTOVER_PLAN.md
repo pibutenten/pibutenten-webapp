@@ -1,0 +1,102 @@
+# 베타스킨 → 운영 공개 전환 (BETA CUTOVER) 실행 계획
+
+> 베타스킨 디자인을 운영 본체로 승격하는 다세션 작업의 단일 출처. 세션이 끊겨도 이 문서로 이어간다.
+> 상세 변경 이력은 `CHANGELOG.md`, 세션 인수인계는 `SESSION_HANDOFF.md`.
+
+**시작**: 2026-06-14 · **상태**: 진행 중 (Phase 1 착수 전)
+
+---
+
+## 0. 사용자(원장) 확정 결정 — 변경 금지
+
+1. **admin 범위 = 옵션 B**: 관리자 화면(`/admin/*`)은 **전 과정 무수정**. 사용자 화면만 베타로 교체.
+2. **원장 대시보드(`/doctor`) = 베타 포함**, 단 **관리자 재설계 방식**(상단바만 베타, 본문은 운영 형태 유지, 큰 글상자 지양).
+3. **승격 방식 = 파일 물리 이동 기반** (베타 → 운영 경로, 옛 운영 → `/old-skin`).
+4. **미적용 화면 범위 = 전부 (완전 교체)** — 사용자 대면 전 화면을 베타로.
+5. **틀 구조 = 전역 셸(길 A)** 지향. 단 실행은 **오버레이 유지로 화면 단위 점진 이전**, 맨 마지막에 전역 셸로 정리(저위험).
+6. **공개 전환까지 전부 일임** — 운영에 직접 배포. 빌드 실패 시 고쳐서 배포. (회원=직원뿐이라 라이브 리스크 낮음. 원장이 운영에서 직접 링크 깨짐 점검.)
+7. **톤**: 이상하고 과도하게 바꾸지 말 것. 자연스럽게, 기존 느낌 유지.
+
+## 0-1. 진행 원칙 (필수)
+
+- 단계마다: 구현(서브에이전트) → `tsc --noEmit` + `npm run build` 통과 → **모든 공개 화면 실제로 띄워 스크린샷 검증** → 코드검수관·SEO검수관 다중 검토 → 최종 점검 → **녹색일 때만** commit + push(배포).
+- 빌드 깨지면 배포 금지(학력·경력 사고 재발 방지 — 실데이터 육안 확인 포함).
+- 단계마다 git commit(되돌릴 안전망). 파괴적 DB 변경 없음(이번 작업은 코드/라우트 중심).
+
+---
+
+## 1. 핵심 기술 사실 (인벤토리)
+
+### 루트 레이아웃 `src/app/layout.tsx`
+- 전역 크롬: `TopNav`(src/components/TopNav.tsx) + `SiteFooter`(src/components/SiteFooter.tsx) + `SessionProvider`(src/lib/session-context.ts).
+- `<main className="mx-auto max-w-[1080px] ...">` 안에 children. force-dynamic 아님(공개 콘텐츠 ISR).
+
+### 베타 셸 `src/app/beta-skin/BetaSkinShell.tsx` (use client, 677줄)
+- **fixed inset:0 z-100 오버레이** → 루트 TopNav/SiteFooter/main 을 시각적으로 덮음. (→ 화면 단위 점진 이전 가능: 옮긴 페이지만 오버레이가 옛 크롬을 가림.)
+- props: active("내 노트"|"피드"|"글쓰기"|"쇼핑"|"마이") · children · chips · sidebar · sidebarMobileBelow · back · wide(admin 풀폭) · searchValue/onSearchChange/onSearchSubmit.
+- `BETA_ROUTES` 상수에 `/beta-skin/*` 하드코딩(record/feed/write/shop/my). 알림 벨은 `/notifications`, 로그인 `/login`.
+
+### 베타 라우트 11개(page.tsx) + 대응 운영
+| 베타 | 컴포넌트 | 운영 대응 |
+|---|---|---|
+| `/beta-skin` | BetaSkinFeed | `/` (운영은 BetaFeed = 다른 컴포넌트) |
+| `/beta-skin/record` | RecordView | `/record` |
+| `/beta-skin/write` | WriteView | `/write` |
+| `/beta-skin/post` `/post/[...slug]` | PostDetail | `/[handle]/[shortcode]` + `/doctors/[slug]/[year]/[postSlug]` (+`/cards/[id]`) |
+| `/beta-skin/my` | MyView | `/my` (역할분기) |
+| `/beta-skin/u/[handle]` | BetaProfileView | `/[handle]` (+ 설정 아코디언 = `/settings/profile`) |
+| `/beta-skin/settings` | (redirect) | `/settings` |
+| `/beta-skin/admin*` 3종 | BetaAdmin* | `/admin*` — **옵션 B라 폐기/무시** |
+
+### 베타 미적용 사용자 화면 (= 새로 베타화 필요)
+- **공개 SEO**: `/doctors`(목록) · `/doctors/[slug]`(의사프로필, 학력·경력 깨짐 버그 났던 곳) · `/topics/[tag]` · `/reports/[procedure]`
+- **로그인 유틸**: `/notifications` · `/search`(운영 별도? 베타는 `/?q=`) · `/review/new` · `/review/[shortcode]/edit` · `/record/[id]` · `/write/[shortcode]` · `/u/[id]`
+- **원장**: `/doctor` (관리자 방식으로 신규)
+- **신뢰·법적**: `/about` `/terms` `/privacy` `/contact` `/disclaimer` `/editorial-policy` `/medical-review` `/corrections` `/disclosures` `/doctor-guidelines`
+- **진입**: `/login` `/login/conflict` `/signup` `/onboarding`
+- **기타**: `/shop`(준비중)
+
+### 글상세 라우트 3개 (물리 이동 불가 → 디자인 이식)
+- `/[handle]/[shortcode]`(회원) · `/doctors/[slug]/[year]/[postSlug]`(의사 SEO) · `/cards/[id]`(숫자).
+- 베타는 `/beta-skin/post/[...slug]` 단일 + `renderBetaPost`(post-data.tsx). → 운영 3라우트 각각에 `renderBetaPost`/`PostDetail` 본문을 이식.
+
+### 링크 재배선 범위
+- `beta-skin` 문자열 26개 파일 123곳. 대부분 베타 폴더 내부(상대 import + `/beta-skin/*` 링크). 비-베타: `src/lib/record-data.ts`, `src/components/beta/BetaDiscovery.tsx`(basePath), `src/app/robots.ts`.
+
+### noindex 2겹
+- `robots.ts` `DISALLOW_COMMON` 에 `/beta-skin` 라인(승격 시 제거 + `/old-skin` 추가).
+- 각 베타 page metadata `robots:{index:false}`(승격 시 운영 정책으로).
+
+### 데이터 사고 기록 (해결됨)
+- 직전 세션 마이그 0282 적용 시 한글 인코딩 깨짐 → 원장 9명 학력·경력 mojibake. 2026-06-14 UTF-8 파일전송(`curl --data-binary @file`)으로 정정 완료. **교훈: Management API 로 한글 SQL 보낼 때 inline `-d` 금지, 반드시 UTF-8 파일 `--data-binary @`.**
+
+---
+
+## 2. 전환 메커니즘 (저위험 점진 방식)
+
+1. **링크 재배선**: `BETA_ROUTES` 및 모든 `/beta-skin/X` 링크 → 운영 경로(`/X`). 베타 컴포넌트가 운영 경로를 가리키게.
+2. **화면 단위 승격**: 각 운영 page.tsx 가 베타 컴포넌트(본문)를 렌더하도록 교체. 베타 셸 오버레이가 옛 TopNav 를 덮으므로 루트 레이아웃 무수정으로 공존 가능.
+3. **옛 디자인 보관**: 옛 운영 본문 → `/old-skin/*` (전체 noindex). (우선순위 낮음 — 옛 디자인은 git 에도 보존. 마지막 단계.)
+4. **미적용 화면 신규 베타화**: 위 목록 전부.
+5. **최종 정리**: 오버레이 → 루트 레이아웃 전역 셸로 통합 + 옛 TopNav/SiteFooter 정리 + 베타 noindex 해제 + canonical 운영 URL + robots `/beta-skin` 제거·`/old-skin` 추가.
+
+---
+
+## 3. Phase 진행표 (체크리스트)
+
+- [ ] **Phase 1** — 링크 재배선 + 핵심 7화면 운영 승격(피드·공개프로필·마이·내노트·글쓰기·설정 + 역할분기). 빌드·검증·배포.
+- [ ] **Phase 2** — 글상세 3라우트 베타 본문 이식(회원/의사/cards).
+- [ ] **Phase 3** — `/doctor` 원장 대시보드 베타(관리자 방식).
+- [ ] **Phase 4** — 공개 SEO: `/doctors` · `/doctors/[slug]` · `/topics/[tag]` · `/reports/[procedure]`.
+- [ ] **Phase 5** — 유틸·후기: `/notifications` · 검색 · `/review/*` · `/record/[id]` · `/write/[shortcode]` · `/u/[id]`.
+- [ ] **Phase 6** — 신뢰·법적·진입: trust 페이지 10종 · `/login` · `/signup` · `/onboarding` · `/shop`.
+- [ ] **Phase 7** — `/old-skin` 보관 + noindex.
+- [ ] **Phase 8** — 전역 셸 통합 + 베타 noindex 해제 + canonical + robots 갱신 → **공개 전환 완료**.
+
+각 Phase: 구현 → 빌드 → 공개화면 스크린샷 검증 → 다중 서브에이전트 검토 → commit+push(배포) → 이 표 체크 + CHANGELOG 기록.
+
+---
+
+## 4. 현재 상태 / 다음 작업
+- (착수 전) Phase 1 시작 예정. git HEAD = `fc7c17e` 기준(직전 세션) + 마이그 0282·0283 한글 정정 완료.
+- 다음: 링크 재배선 방식 확정 → 핵심 7화면 승격.

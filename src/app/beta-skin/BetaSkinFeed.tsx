@@ -11,7 +11,7 @@
  *     초기 풀(initialPool, 앞 24장)과 전체 순서(orderedIds)를 prop 으로 받는다.
  *   - 무한스크롤은 운영 BetaFeed 와 동일하게 orderedIds 순서대로 /api/cards?ids= 로 다음 묶음을
  *     이어 받아 풀에 append (서버 검색·일반 탭 공통, 리포트 탭 제외).
- *   - 검색은 서버 라우팅: 엔터/추천/태그 클릭 → /beta-skin?q= 로 이동(서버 재검색).
+ *   - 검색은 서버 라우팅: 엔터/추천/태그 클릭 → /?q= 로 이동(서버 재검색). (홈 승격 2026-06-14)
  *   - 칩(카테고리)은 클라 필터(받아온 풀을 즉시 거름).
  *   - 좋아요/저장 viewer 상태(viewerStates)는 PostCard 로 내려 첫 렌더부터 정확히 표시.
  */
@@ -330,7 +330,7 @@ export default function BetaSkinFeed({
     // 라우팅만(서버 재검색). chip 은 바꾸지 않는다 — setChip 을 여기서 하면 라우팅 "전"에 현재 풀이
     //   전체로 한 번 렌더(전체 피드 깜빡) 후 검색 결과로 바뀌는 2단계가 생긴다. 대신 아래 effectiveChip
     //   으로 "검색 중엔 카테고리를 전체로 간주" → 리포트 탭에서도 깜빡 없이 바로 전체 검색 결과.
-    router.push(t ? `/beta-skin?q=${encodeURIComponent(t)}` : "/beta-skin");
+    router.push(t ? `/?q=${encodeURIComponent(t)}` : "/");
   };
   // 태그 클릭 → 그 키워드로 서버 검색 라우팅(운영 동일).
   const applyTag = (k: string) => submitSearch(k);
@@ -457,7 +457,7 @@ export default function BetaSkinFeed({
         //   chipExplicitRef 로 "칩에 의한 해제"임을 표시 → 검색 해제 effect 가 'all' 로 덮어쓰지 않도록.
         if (isSearching) {
           chipExplicitRef.current = true;
-          router.push("/beta-skin");
+          router.push("/");
         }
       }}
       aria-pressed={effectiveChip === c.key}
@@ -535,7 +535,7 @@ export default function BetaSkinFeed({
       <section className={`${styles.card} ${styles.sideCta}`}>
         <h3>{sidePrompt.h3}</h3>
         <p>{sidePrompt.p}</p>
-        <a className={styles.sideCtaBtn} href="/beta-skin/write">
+        <a className={styles.sideCtaBtn} href="/write">
           글쓰기
         </a>
       </section>

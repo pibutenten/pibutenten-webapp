@@ -50,13 +50,18 @@ import styles from "./beta-skin.module.css";
  * record/write/my/post 가 공유하는 검색 props 묶음.
  *   - 검색 제출(엔터) → /beta-skin?q=키워드 (피드가 ?q= 를 읽어 자동 필터)
  * 드롭다운(최근검색·인기검색·카테고리 인기태그·자동완성)은 운영 BetaDiscovery 가 셸 안에서 담당하므로
- *   여기서는 onSearchSubmit 만 반환한다(자체 더미 카테고리/추천 셋 제거). */
+ *   여기서는 onSearchSubmit 만 반환한다(자체 더미 카테고리/추천 셋 제거).
+ *
+ * [전환 범위 주의] 이 훅은 아직 운영 승격 전인 /beta-skin 서브페이지(record/write/my/post/u)가
+ *   공유한다. 승격된 화면(홈 / 등)은 자체 라우팅(/?q=)을 쓰므로 이 훅을 사용하지 않는다.
+ *   각 서브페이지가 운영 경로로 승격되는 Phase 에서 이 라우팅도 /?q= 로 함께 전환한다. */
 export function useBetaSearchRouting() {
   const router = useRouter();
   return {
     onSearchSubmit: (q: string) => {
       // 빈/공백 검색어는 서버 재검색·search_logs 오염 방지를 위해 차단.
       const t = q.trim();
+      // 의도된 미전환: 미승격 /beta-skin 서브페이지 전용. 승격 화면은 이 훅 미사용.
       if (t) router.push(`/beta-skin?q=${encodeURIComponent(t)}`);
     },
   };

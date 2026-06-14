@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
-import BetaFeed from "@/components/beta/BetaFeed";
-import type { CardData, CardDataList } from "@/components/Card";
+import BetaSkinFeed from "@/app/beta-skin/BetaSkinFeed";
+import type { CardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
@@ -13,11 +12,11 @@ import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
 
 /**
- * 메인 피드(/) — "한 번에 300개 점수순으로 받아두고, 탭은 BetaFeed 가 브라우저에서 즉시 필터" 모델.
- *   (2026-06-11 메인 승격: 기존 /beta 앱이 루트로 이전. SEO(index·JSON-LD·H1)는 구 홈 그대로 보존.)
+ * 메인 피드(/) — "한 번에 300개 점수순으로 받아두고, 탭은 BetaSkinFeed 가 브라우저에서 즉시 필터" 모델.
+ *   (2026-06-14 베타 스킨 승격: 홈을 신규 스킨 BetaSkinFeed 로 교체. SEO(index·JSON-LD·H1)는 구 홈 그대로 보존.)
  *  - 전체: feed_cards_scored 300 (+ 리포트풀) — 탭(Q&A/시술후기/끄적끄적)은 이 풀을 클라 필터.
  *  - 검색(?q=): search_cards_scored 300 — 검색 결과 풀을 같은 방식으로 탭 필터(검색바·URL 유지).
- *  - 리포트 탭: BetaFeed 가 reportPool 로 렌더(검색 중이면 시술명 필터).
+ *  - 리포트 탭: BetaSkinFeed 가 reportPool 로 렌더(검색 중이면 시술명 필터).
  *  탭 전환은 서버 왕복 없음(클라 store) → 동그라미 없이 즉시.
  */
 export const dynamic = "force-dynamic";
@@ -82,9 +81,8 @@ export default async function HomeFeedPage({
     data: { user: viewer },
   } = await supabase.auth.getUser();
 
-  // 카드 조회와 독립인 쿼리(ua·hotIds)는 먼저 띄워 병렬화.
+  // 카드 조회와 독립인 쿼리(hotIds)는 먼저 띄워 병렬화.
   const hotIdsPromise = getHotQaIds(20);
-  const uaPromise = headers().then((h) => h.get("user-agent") ?? "");
 
   let cards: CardData[] = [];
   let reportPool: ProcedureReport[] = [];
@@ -131,9 +129,8 @@ export default async function HomeFeedPage({
   const orderedIds = cards.map((c) => c.id);
   const initialCards = cards.slice(0, INITIAL);
 
-  const [hotIdsArr, ua] = await Promise.all([hotIdsPromise, uaPromise]);
+  const hotIdsArr = await hotIdsPromise;
   const hotIds = Array.from(hotIdsArr);
-  const isMobileUA = /Mobi|Android|iPhone|iPod|IEMobile|BlackBerry|Opera Mini/i.test(ua);
   const viewerStates = await fetchViewerStatesRecord(
     supabase,
     viewer?.id ?? null,
@@ -158,17 +155,15 @@ export default async function HomeFeedPage({
       <h1 className="sr-only">
         피부텐텐 — 피부과 전문의가 답하는 피부 Q&amp;A 라운지
       </h1>
-      <BetaFeed
+      <BetaSkinFeed
         key={query ? `q:${query}` : "feed"}
-        initialPool={initialCards as unknown as CardDataList[]}
+        initialPool={initialCards}
         orderedIds={orderedIds}
-        pageSize={20}
         searchQuery={searchQuery}
         reportPool={reportPool}
         searchReport={searchReport}
         hotIds={hotIds}
         viewerStates={viewerStates}
-        initialMobile={isMobileUA}
       />
     </div>
   );

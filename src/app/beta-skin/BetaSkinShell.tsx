@@ -28,11 +28,11 @@ import BackButton from "@/components/BackButton";
 
 /* ---------- 공유 라우트 맵 ---------- */
 export const BETA_ROUTES = {
-  record: "/beta-skin/record",
-  feed: "/beta-skin",
-  write: "/beta-skin/write",
+  record: "/record",
+  feed: "/",
+  write: "/write",
   shop: "#",
-  my: "/beta-skin/my",
+  my: "/my",
 } as const;
 
 export type BetaActive = "내 노트" | "피드" | "글쓰기" | "쇼핑" | "마이";
@@ -260,7 +260,7 @@ export default function BetaSkinShell({
   }, [suggestOpen]);
 
   // 검색 실행 — 피드(controlled)면 그 자리서 필터, 그 외엔 onSearchSubmit 로 /beta-skin?q= 라우팅.
-  //   BetaDiscovery 가 직접 라우팅(basePath="/beta-skin")하므로, 셸 input 의 엔터 제출 경로에서만 사용.
+  //   BetaDiscovery 가 직접 라우팅(basePath="/")하므로, 셸 input 의 엔터 제출 경로에서만 사용.
   const runSearch = (term: string) => {
     const t = term.trim();
     setSuggestOpen(false);
@@ -284,13 +284,13 @@ export default function BetaSkinShell({
     showToast("쇼핑 준비 중이에요. 곧 만나보실 수 있어요.");
 
   // 데스크탑 검색 pill 드롭다운(BetaDiscovery, 최근검색만) — 사용자: "데스크탑은 지금 방식이 좋다".
-  //   onPicked: 입력값 동기화 + 닫기. 실제 검색 라우팅은 BetaDiscovery 가 basePath="/beta-skin" 로 수행.
+  //   onPicked: 입력값 동기화 + 닫기. 실제 검색 라우팅은 BetaDiscovery 가 basePath="/" 로 수행.
   const discoveryDropdown =
     hasDropdown && suggestOpen ? (
       <div className={styles.searchSuggest} role="listbox" aria-label="검색 추천">
         <BetaDiscovery
           query={value}
-          basePath="/beta-skin"
+          basePath="/"
           recentOnly
           onPicked={(t) => {
             setValue(t);
@@ -308,7 +308,7 @@ export default function BetaSkinShell({
       <div className={styles.mobileSearchPanel} role="listbox" aria-label="검색 발견">
         <BetaDiscovery
           query={value}
-          basePath="/beta-skin"
+          basePath="/"
           onPicked={(t) => {
             setValue(t);
             setSuggestOpen(false);
