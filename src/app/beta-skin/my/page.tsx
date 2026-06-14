@@ -79,8 +79,8 @@ export default async function BetaSkinMyPage() {
   const idCtx = await getIdentityContext(supabase);
   const active = idCtx?.active;
   // 운영 /my 패턴: 마이 = 본인 공개 프로필. 관리자/원장은 대시보드로, 회원은 본인 /beta-skin/u/{handle} 로.
-  //   (Phase 3 에서 관리자/원장은 베타 admin 으로 교체 예정 — 현재는 운영 /admin·/doctor 로.)
-  if (active?.role === "admin") redirect("/admin");
+  //   (Phase 3 ① — 관리자는 베타 admin(/beta-skin/admin)으로. 원장 베타 대시보드는 다음 단계라 운영 /doctor 유지.)
+  if (active?.role === "admin") redirect("/beta-skin/admin");
   if (active?.role === "doctor") redirect("/doctor");
   if (active?.handle) redirect(`/beta-skin/u/${active.handle}`);
   // handle 없는 예외(거의 도달 안 함) — 기존 활동 대시보드 폴백.
