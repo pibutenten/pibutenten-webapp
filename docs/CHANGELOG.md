@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-06-14] — 원장 2명 profile_data 2차 정정 (0283)
+
+### Fixed
+- **park-hyojin education "수련" 제거**: "서울성모병원·부천성모병원 피부과 전공의 수련" → "서울성모병원·부천성모병원 피부과 전공의". 0282에서는 "수료"만 제거 대상으로 처리했으나 "수련"도 불필요함을 원장이 추가 확인.
+- **park-hyojin career 힐하우스 직위 제거**: "힐하우스피부과의원 수원점 원장" → "힐하우스피부과의원 수원점". 비힐하우스 경력 "더퍼스트피부과 대구점 원장"의 직위는 그대로 유지(규칙 4).
+- **kang-hyunjin career 수원점 과거 경력 추가**: 0282에서 현소속 제거 후 빈 배열로 처리했으나, 힐하우스피부과 수원점이 과거 경력이므로 복원. career = ["힐하우스피부과의원 수원점"].
+- 마이그레이션 0283 (supabase/migrations/0283_doctor_profile_cleanup2.sql) production 적용 완료. 스키마 무변경, 데이터 정정 2행만(park-hyojin·kang-hyunjin).
+- 검증: education "수련"/"수료" 잔존 0건, career 힐하우스 항목 "원장"/"대표원장" 잔존 0건, kang-hyunjin career ["힐하우스피부과의원 수원점"] 확인.
+
+---
+
 ## [2026-06-14] — 원장 9명 profile_data education/career 데이터 정정
 
 ### Fixed
