@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-14] — 원장 9명 profile_data education/career 데이터 정정
+
+### Fixed
+- **doctors.profile_data education 수료 오기 제거**: education 배열 각 항목 끝의 " 수료" 문구를 제거. 전공의·임상강사 등 직함은 수료 대상이 아니므로 오기 수정. 대상: bae-jungmin·jung-hanmi·kang-hyunjin·kim-jongsic·ko-hyerim·kwon-soohyun·rhee-doyoung 7명(kim-soohyung은 원래 수료 없음, park-hyojin의 "수련"은 규칙 대상 아님).
+- **doctors.profile_data career 중복 현소속 제거**: career 배열에서 "힐하우스피부과의원 {지점}점 …" 으로 시작하는 현재 소속 항목을 삭제. doctors.clinic/branch 컬럼에 별도 저장되어 중복 표시 제거. kang-hyunjin는 해당 항목이 유일하여 제거 후 빈 배열.
+- **doctors.profile_data career "전 " 접두 제거**: 나머지 경력 항목 앞의 "전 " 접두를 제거. rhee-doyoung의 "울산대학교 의과대학 피부과 외래교수"는 원래 "전 " 없어 그대로 유지.
+- 마이그레이션 0282 (supabase/migrations/0282_doctor_profile_cleanup.sql) production 적용 완료. 스키마 무변경, 데이터 정정만.
+
+---
+
 ## [2026-06-13] — /beta-skin 피드·글상세 버그 수정 (인기태그 고정·스크롤 리셋·연관 Q&A)
 
 > 사용자 실사용 검토에서 보고된 확정 버그 수정. UI 는 베타 유지, 동작만 교정. 운영 무수정, noindex 유지.
