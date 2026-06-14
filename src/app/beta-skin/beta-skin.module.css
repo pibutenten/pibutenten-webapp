@@ -508,6 +508,11 @@
 .sidebar {
   display: none;
 }
+/* 모바일에서도 사이드바를 본문 아래로 노출(글상세 작성자 프로필·연관 Q&A). 데스크탑은 .sidebar 미디어쿼리가 우선. */
+.sidebarMobileShow {
+  display: block;
+  margin-top: 22px;
+}
 
 /* ---------- 카드 ---------- */
 .feedList {
@@ -1700,6 +1705,12 @@ button.t:hover {
   /* 항목 5) 데스크탑 검색 pill 실제 input */
   .headerSearchLive {
     color: var(--ink-900);
+    cursor: text;
+    transition: box-shadow 0.15s ease;
+  }
+  /* 호버 반응 — 어느 페이지든 동일하게 은은한 브랜드 링(검색이 인터랙티브함을 알림). */
+  .headerSearchLive:hover {
+    box-shadow: 0 0 0 1.5px rgba(69, 183, 232, 0.35), var(--card-shadow);
   }
   .headerSearchLive input {
     flex: 1;

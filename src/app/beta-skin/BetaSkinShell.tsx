@@ -125,6 +125,7 @@ export default function BetaSkinShell({
   children,
   chips,
   sidebar,
+  sidebarMobileBelow = false,
   searchValue,
   onSearchChange,
   onSearchSubmit,
@@ -133,6 +134,8 @@ export default function BetaSkinShell({
   children: ReactNode;
   chips?: ReactNode;
   sidebar?: ReactNode;
+  /** 모바일에서 사이드바를 숨기지 않고 본문 아래로 표시(글상세의 작성자 프로필·연관 Q&A 용). */
+  sidebarMobileBelow?: boolean;
   /** 헤더 검색 입력값(피드만 controlled — 그 자리서 필터). 없으면 셸 로컬 state. */
   searchValue?: string;
   onSearchChange?: (q: string) => void;
@@ -603,7 +606,13 @@ export default function BetaSkinShell({
           className={`${styles.layout} ${sidebar ? "" : styles.layoutSingle}`}
         >
           <div className={styles.feedCol}>{children}</div>
-          {sidebar ? <aside className={styles.sidebar}>{sidebar}</aside> : null}
+          {sidebar ? (
+            <aside
+              className={`${styles.sidebar} ${sidebarMobileBelow ? styles.sidebarMobileShow : ""}`}
+            >
+              {sidebar}
+            </aside>
+          ) : null}
         </div>
       </main>
 

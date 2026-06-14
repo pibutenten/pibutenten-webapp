@@ -82,10 +82,10 @@ export default function PostDetail({
     0,
     7,
   );
+  // 지점(병원 지점명)은 표시하지 않음 — 피부텐텐은 병원 앱이 아니므로 메타에서 제외.
   const subParts = [
     card ? categoryLabel(card) : "Q&A",
     card?.created_at ? timeAgo(card.created_at) : "2주 전",
-    card?.doctor?.branch ?? "OO피부과의원",
   ].filter(Boolean);
 
   // 형광펜 색 — 실제 카드면 id 기반, 샘플이면 고정 seed.
@@ -151,8 +151,7 @@ export default function PostDetail({
           )}
         </div>
         <div className={styles.authorSub} style={{ marginBottom: 16 }}>
-          {isDoctor ? "피부과 전문의" : "회원"} ·{" "}
-          {card?.doctor?.branch ?? "OO피부과의원"}
+          {isDoctor ? "피부과 전문의" : "회원"}
         </div>
         {/* 운영에 팔로우 기능 없음 → 작성자 프로필이 있으면 "프로필 보기"로 연결, 없으면 버튼 생략. */}
         {profileHref && (
@@ -184,7 +183,7 @@ export default function PostDetail({
   );
 
   return (
-    <BetaSkinShell active="피드" sidebar={sidebar} {...search}>
+    <BetaSkinShell active="피드" sidebar={sidebar} sidebarMobileBelow {...search}>
       {card && <PostViewTracker card={card} />}
       <article className={`${styles.card} ${styles.postCard}`}>
         {/* ⋮ 더보기 — 글상세에도 피드와 동일하게 본인/관리자 수정·삭제·숨김(운영 CardHeader 이식).
