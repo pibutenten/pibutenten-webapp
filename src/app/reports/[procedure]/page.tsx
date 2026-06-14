@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
-import BackButton from "@/components/BackButton";
-import ProcedureReportCard from "@/components/report/ProcedureReportCard";
-import ReportSampleNotice from "@/components/report/ReportSampleNotice";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
+import ProcedureReportView from "./ProcedureReportView";
 
 export const dynamic = "force-dynamic";
 
@@ -164,40 +161,22 @@ export default async function ProcedureReportPage({ params }: Props) {
     },
   };
 
+  // JSON-LD <script> 는 server 에 남겨 SEO 신호 100% 보존. 본문은 베타 셸(BetaSkinShell)로
+  //   감싼 ProcedureReportView 가 표시(정보 구조·데이터 무변경). DoctorDashboardView 선례 동일 패턴.
   return (
-    <section className="mx-auto w-full max-w-[680px] py-6">
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
-      <div className="mb-1 -ml-1">
-        <BackButton fallbackHref="/" />
-      </div>
-
-      <ReportSampleNotice count={report.count} procedureKo={report.procedureKo} />
-      <ProcedureReportCard
+      <ProcedureReportView
+        ko={ko}
         report={report}
         reviews={reviews}
         reviewLiked={reviewLiked}
-        defaultExpanded
-        variant="page"
-        total={reviewTotal ?? reviews.length}
+        reviewTotal={reviewTotal}
+        topicsExists={topicsExists}
       />
-
-      {/* 전문의 Q&A 허브 얇은 링크 — /topics 가 존재(의사 qa ≥4)할 때만. 한글 직접 타깃. */}
-      {topicsExists && (
-        <div className="mt-5">
-          <Link
-            href={`/topics/${encodeURIComponent(ko)}`}
-            className="flex items-center justify-between rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3 text-[14px] font-medium text-[var(--text)] transition-colors hover:border-[var(--primary)]"
-          >
-            <span>
-              <b className="text-[var(--primary)]">{ko}</b> 전문의 Q&A 보기
-            </span>
-            <span aria-hidden className="text-[var(--text-muted)]">→</span>
-          </Link>
-        </div>
-      )}
-    </section>
+    </>
   );
 }

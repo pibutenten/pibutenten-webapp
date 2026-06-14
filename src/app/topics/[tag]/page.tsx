@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type CardData } from "@/components/Card";
-import CardMasonry from "@/components/CardMasonry";
 import { getReportSummaryForTag } from "@/lib/procedure-report";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
@@ -11,6 +9,7 @@ import {
   clinicIdRefForDoctor,
   clinicSchemaForDoctor,
 } from "@/lib/schema/clinic";
+import TopicTagView from "./TopicTagView";
 
 /**
  * /topics/{태그} — 태그별 의사 글 hub.
@@ -214,64 +213,16 @@ export default async function TagPage({ params }: Props) {
     "@graph": [collectionPage, faqPage, ...clinicSchemas],
   };
 
+  // JSON-LD <script> 는 server 에 남겨 SEO 신호 100% 보존. 본문은 베타 셸(BetaSkinShell)로
+  //   감싼 TopicTagView 가 표시(정보 구조·데이터 무변경). DoctorDashboardView 선례 동일 패턴.
   return (
-    <section className="w-full py-6">
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
-
-      <header className="mb-6">
-        <p className="mb-2 text-xs text-[var(--text-muted)]">
-          <Link href="/" className="hover:text-[var(--primary)]">
-            홈
-          </Link>{" "}
-          / 태그
-        </p>
-        <h1 className="text-2xl font-bold text-[var(--text)]">
-          #{tag}
-        </h1>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          피부과 전문의가 답한 <strong>{tag}</strong> 관련 글{" "}
-          <span className="font-bold text-[var(--primary)]">
-            {count}
-          </span>
-          개.
-        </p>
-      </header>
-
-      {/* 시술 리포트 얇은 링크 — 이 시술의 /reports 가 존재할 때만(후기 ≥1). 한글 직접 타깃(308 미경유). */}
-      {reportLink && (
-        <div className="mx-auto mb-5 max-w-[680px]">
-          <Link
-            href={`/reports/${encodeURIComponent(tag)}`}
-            className="flex items-center justify-between rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3 text-[14px] font-medium text-[var(--text)] transition-colors hover:border-[var(--primary)]"
-          >
-            <span>
-              이 시술 후기{" "}
-              <b className="text-[var(--primary)]">{reportLink.count}건</b> 보기
-            </span>
-            <span aria-hidden className="text-[var(--text-muted)]">→</span>
-          </Link>
-        </div>
-      )}
-
-      {/* 메인 피드와 동일한 Masonry — CardMasonry는 client wrapper */}
-      <CardMasonry posts={posts} />
-
-      {count > PAGE_LIMIT && (
-        <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
-          {PAGE_LIMIT}개 중 처음 {PAGE_LIMIT}개를 표시합니다. 더 보려면{" "}
-          <Link
-            href={`/search?q=${encodeURIComponent(tag)}`}
-            className="font-medium text-[var(--primary)] hover:underline"
-          >
-            검색 페이지
-          </Link>
-          를 이용해주세요.
-        </p>
-      )}
-    </section>
+      <TopicTagView tag={tag} posts={posts} count={count} reportLink={reportLink} />
+    </>
   );
 }
 

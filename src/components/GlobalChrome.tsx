@@ -26,9 +26,21 @@ const BETA_PROMOTED_EXACT = new Set<string>([
   "/doctor", // 원장 대시보드 (Phase 3, 관리자 방식 셸)
 ]);
 
+/** prefix 로 승격된 동적 라우트군(하위 전체 포함). */
+const BETA_PROMOTED_PREFIX = [
+  "/topics/", // 토픽 허브 (Phase 4)
+  "/reports/", // 시술 리포트 (Phase 4)
+];
+
 function isBetaPromoted(pathname: string | null): boolean {
   if (!pathname) return false;
-  return BETA_PROMOTED_EXACT.has(pathname);
+  if (BETA_PROMOTED_EXACT.has(pathname)) return true;
+  if (BETA_PROMOTED_PREFIX.some((p) => pathname.startsWith(p))) return true;
+  // 의사 공개 프로필 /doctors/{slug} 만 승격(정확히 2세그먼트).
+  //   /doctors(목록)·/doctors/{slug}/{year}/{postSlug}(글상세)는 아직 미승격이라 제외.
+  const seg = pathname.split("/").filter(Boolean);
+  if (seg.length === 2 && seg[0] === "doctors") return true;
+  return false;
 }
 
 export function ChromeHeader() {
