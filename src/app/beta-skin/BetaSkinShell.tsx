@@ -24,6 +24,7 @@ import styles from "./beta-skin.module.css";
 import { useSession } from "@/lib/session-context";
 import BetaDiscovery, { prefetchDiscover } from "@/components/beta/BetaDiscovery";
 import { showToast } from "@/lib/toast";
+import BackButton from "@/components/BackButton";
 
 /* ---------- 공유 라우트 맵 ---------- */
 export const BETA_ROUTES = {
@@ -126,6 +127,7 @@ export default function BetaSkinShell({
   sidebar,
   sidebarMobileBelow = false,
   wide = false,
+  back,
   searchValue,
   onSearchChange,
   onSearchSubmit,
@@ -136,6 +138,9 @@ export default function BetaSkinShell({
   sidebar?: ReactNode;
   /** 모바일에서 사이드바를 숨기지 않고 본문 아래로 표시(글상세의 작성자 프로필·연관 Q&A 용). */
   sidebarMobileBelow?: boolean;
+  /** 본문 좌상단 '< 뒤로' 버튼(운영 BackButton 재사용). 서브 페이지(글상세/공개프로필/설정/admin)에서 사용.
+   *  true → 기본 fallback(/beta-skin). 문자열 → 그 경로를 fallback(직접 진입·새 탭일 때 이동 대상). */
+  back?: boolean | string;
   /** admin 전용 전체 폭 모드 — 본문을 좁은 .layoutSingle(820px) 대신 운영 admin 과 같은 풀폭(1080px)으로.
    *  기본 false → 피드/공개프로필/글쓰기/내노트/마이/글상세 등 기존 화면은 영향 없음(현행 좁은 중앙 정렬 유지). */
   wide?: boolean;
@@ -376,7 +381,10 @@ export default function BetaSkinShell({
   }, [searchOpen, suggestOpen]);
 
   return (
-    <div className={styles.root} ref={scrollRef}>
+    <div
+      className={`${styles.root} ${wide ? styles.rootWide : ""}`}
+      ref={scrollRef}
+    >
       {/* ---------- 헤더 (스크롤 다운 시 위로 슬라이드되어 사라짐) ---------- */}
       <header
         className={`${styles.header} ${headerHidden ? styles.headerHidden : ""}`}
@@ -602,6 +610,16 @@ export default function BetaSkinShell({
           </div>
         ) : null}
 
+        {/* 본문 좌상단 '< 뒤로' — 운영 BackButton 재사용(같은 탭 SPA 이동이면 router.back, 직접 진입이면 fallback).
+            서브 페이지(글상세/공개프로필/설정/admin)에서만 노출. 피드(홈)는 back 미지정 → 숨김. */}
+        {back ? (
+          <div className={styles.backRow}>
+            <BackButton
+              fallbackHref={typeof back === "string" ? back : BETA_ROUTES.feed}
+            />
+          </div>
+        ) : null}
+
         <div
           className={`${styles.layout} ${
             wide
@@ -626,33 +644,33 @@ export default function BetaSkinShell({
           wide(admin) 모드에선 피드용 5탭(내노트/글쓰기/피드/쇼핑/마이)이 운영 관리자 화면에 부자연스러워 숨김.
           admin 내 이동은 본문의 운영 프로그램 그리드·탭으로 수행(상단 베타 헤더는 그대로 유지). */}
       {!wide && (
-      <nav className={styles.tabbar}>
-        {TABS.map((t) =>
-          // 쇼핑(준비 중, href "#") → 클릭 시 안내 토스트(라우팅 없음).
-          t.href === "#" ? (
-            <button
-              key={t.label}
-              type="button"
-              className={styles.tab}
-              onClick={onShopClick}
-            >
-              {t.icon}
-              {t.label}
-            </button>
-          ) : (
-            <Link
-              key={t.label}
-              href={t.href}
-              className={`${styles.tab} ${
-                active === t.label ? styles.tabActive : ""
-              }`}
-            >
-              {t.icon}
-              {t.label}
-            </Link>
-          ),
-        )}
-      </nav>
+        <nav className={styles.tabbar}>
+          {TABS.map((t) =>
+            // 쇼핑(준비 중, href "#") → 클릭 시 안내 토스트(라우팅 없음).
+            t.href === "#" ? (
+              <button
+                key={t.label}
+                type="button"
+                className={styles.tab}
+                onClick={onShopClick}
+              >
+                {t.icon}
+                {t.label}
+              </button>
+            ) : (
+              <Link
+                key={t.label}
+                href={t.href}
+                className={`${styles.tab} ${
+                  active === t.label ? styles.tabActive : ""
+                }`}
+              >
+                {t.icon}
+                {t.label}
+              </Link>
+            ),
+          )}
+        </nav>
       )}
     </div>
   );

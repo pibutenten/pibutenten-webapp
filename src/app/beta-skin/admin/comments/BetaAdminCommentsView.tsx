@@ -52,9 +52,9 @@ export default function BetaAdminCommentsView({
   const search = useBetaSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" wide {...search}>
+    <BetaSkinShell active="마이" wide back="/beta-skin/admin" {...search}>
       {/* 제목 + noindex 설명 */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+      <section className={styles.mb20}>
         <div className={styles.profileName} style={{ marginBottom: 4 }}>
           전체 댓글
         </div>
@@ -66,7 +66,7 @@ export default function BetaAdminCommentsView({
       </section>
 
       {/* status 필터 탭 — 베타 톤(밑줄 강조). visible / hidden(자동검수). 운영 status 키 동일. */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+      <section className={styles.mb20}>
         <div
           style={{
             display: "flex",

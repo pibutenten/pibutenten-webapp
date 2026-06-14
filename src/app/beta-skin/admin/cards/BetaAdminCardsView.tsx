@@ -245,9 +245,9 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
   };
 
   return (
-    <BetaSkinShell active="마이" wide {...search}>
+    <BetaSkinShell active="마이" wide back="/beta-skin/admin" {...search}>
       {/* 제목 + noindex 설명 */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+      <section className={styles.mb20}>
         <div className={styles.profileName} style={{ marginBottom: 4 }}>
           전체 글 관리
         </div>
@@ -259,7 +259,7 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
       </section>
 
       {/* status 필터 탭 — 베타 톤(밑줄 강조). 가로 스크롤 허용. */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+      <section className={styles.mb20}>
         <div
           style={{
             display: "flex",
@@ -508,7 +508,7 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
 
       {/* 에러 */}
       {listError && (
-        <section className={`${styles.card} ${styles.mb20}`}>
+        <section className={styles.mb20}>
           <div
             style={{
               borderRadius: 12,
@@ -536,7 +536,7 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
 
       {/* 결과 테이블 */}
       {!listError && rows.length === 0 ? (
-        <section className={`${styles.card} ${styles.mb20}`}>
+        <section className={styles.mb20}>
           <div
             style={{
               padding: 40,

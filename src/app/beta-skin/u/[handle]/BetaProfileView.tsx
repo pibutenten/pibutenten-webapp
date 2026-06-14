@@ -256,7 +256,7 @@ export default function BetaProfileView({
   );
 
   return (
-    <BetaSkinShell active="마이" {...search}>
+    <BetaSkinShell active="마이" back="/beta-skin" {...search}>
       {/* 프로필 헤더 — 아바타 + 이름 + @handle + 소개. 본인이면 [설정]. */}
       <section
         className={`${styles.card} ${styles.mb20}`}

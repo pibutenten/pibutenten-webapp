@@ -72,6 +72,14 @@
   line-height: 1.5;
 }
 
+/* wide(admin) — 대시보드·운영프로그램·표는 운영 모습이 더 낫다는 사용자 결정(2026-06-14).
+   캔버스 그라데이션(하늘·민트·레몬) 대신 운영과 동일한 연회색 배경(#F4F5F7)으로.
+   → 흰 Stat/Tool 카드·표가 또렷이 떠 보이고, 큰 .card 박스 래퍼 없이 운영처럼 깔끔.
+   상단 헤더(.header)는 자체 background 라 그대로 베타 톤 유지(사용자: "상단바만 베타스킨"). */
+.rootWide {
+  background: #f4f5f7;
+}
+
 .root *,
 .root *::before,
 .root *::after {
@@ -437,6 +445,10 @@
    좌우 패딩은 좁혀 표가 모바일 폭을 최대한 쓰게(가로 스크롤은 표 wrapper 의 overflow-x 가 처리). */
 .pageWide {
   padding: 4px 12px 40px;
+}
+/* 본문 좌상단 '< 뒤로' 줄 — 운영 admin/글상세의 BackButton 위치(컨텐츠 시작점, 살짝 좌측 당김). */
+.backRow {
+  margin: 0 0 4px -4px;
 }
 /* 항목 1) 칩바 — sticky top:0 으로 화면 최상단 고정.
  *   캔버스 틴트 배경(좌우 풀블리드)으로 아래 피드가 비치지 않게. */

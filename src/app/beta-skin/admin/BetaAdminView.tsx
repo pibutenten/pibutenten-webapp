@@ -66,12 +66,12 @@ export default function BetaAdminView({
   const pendingReview = stats.pendingReview;
 
   return (
-    <BetaSkinShell active="마이" wide {...search}>
+    <BetaSkinShell active="마이" wide back="/beta-skin" {...search}>
       {/* 계정(명함) 스위처 — 운영 공용 카드 임베드(전환 로직 100% 재사용). */}
       <AccountSwitcherCard compact />
 
       {/* 제목 + noindex 설명 */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+      <section className={styles.mb20}>
         <div className={styles.profileName} style={{ marginBottom: 4 }}>
           관리자 대시보드
         </div>
@@ -82,7 +82,7 @@ export default function BetaAdminView({
 
       {/* 운영 통계 — 누적 카드 8개. 모바일 4개씩 2줄, 데스크탑 8개 한 줄.
           순서: 회원·원장·Q&A·끄적끄적·시술후기·시술 리포트·검수 대기·댓글(운영 동일). */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+      <section className={styles.mb20}>
         <div className={GRID8}>
           <Stat label="회원" value={stats.userCount} href="/admin/users" />
           <Stat label="원장" value={stats.doctorCount} href="/admin/doctors" />
@@ -101,7 +101,7 @@ export default function BetaAdminView({
       </section>
 
       {/* 리서치 패널 (F-2B) — 사람(번들) 기준 집계. 상단 "회원"(명함 row)과 기준 다름(운영 동일). */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+      <section className={styles.mb20}>
         <h2 className={SECTION_HEAD} style={{ color: "var(--ink-900)" }}>
           리서치 패널{" "}
           <span style={{ fontWeight: 400, color: "var(--ink-500)" }}>
@@ -128,12 +128,12 @@ export default function BetaAdminView({
       </section>
 
       {/* 활동 KPI (기간 토글) — 운영 ActivityKpis 임베드(Tailwind 톤 그대로, 차트·토글 로직 재사용). */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+      <section className={styles.mb20}>
         <ActivityKpis initialDays={1} dataByDays={kpiByDays} />
       </section>
 
       {/* 운영 프로그램 — 액션·관리 도구. 운영 page.tsx 와 동일 노출 조건·href(베타 톤 카드). */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+      <section className={styles.mb20}>
         <h2 className={SECTION_HEAD} style={{ color: "var(--ink-900)" }}>운영 프로그램</h2>
         <div className={TOOL_GRID}>
           <Tool
@@ -255,7 +255,7 @@ export default function BetaAdminView({
       </section>
 
       {/* 인기 검색어·태그 — 운영 PopularCards 임베드(Tailwind 톤 그대로). */}
-      <section className={`${styles.card} ${styles.mb20}`}>
+      <section className={styles.mb20}>
         <div className={POPULAR_GRID}>
           <PopularSearchesCard initialDays={1} dataByDays={searchesByDays} />
           <PopularTagsCard initialDays={0} dataByDays={tagsByDays} />
@@ -282,8 +282,8 @@ export default function BetaAdminView({
    카드 자체 톤은 Stat/Tool 의 베타 .card 스타일(아래)이 책임진다. */
 const GRID8 = "grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8";
 const GRID3 = "grid grid-cols-3 gap-2 sm:gap-3";
-// wide(1080px) 데스크탑에선 운영 도구를 3열로 펼쳐 넓은 폭을 활용(좁은 2열 답답함 해소). 태블릿 2열·모바일 1열.
-const TOOL_GRID = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3";
+// 운영 /admin 과 동일하게 2열(데스크탑·태블릿)·모바일 1열 — 사용자 결정(2026-06-14, 운영 모습 정합).
+const TOOL_GRID = "grid grid-cols-1 gap-3 sm:grid-cols-2";
 const POPULAR_GRID = "grid grid-cols-1 gap-4 md:grid-cols-2";
 const SECTION_HEAD =
   "mb-3 text-sm font-bold";

@@ -152,7 +152,7 @@ export default function PostDetail({
   ) : null;
 
   return (
-    <BetaSkinShell active="피드" sidebar={sidebar} sidebarMobileBelow {...search}>
+    <BetaSkinShell active="피드" sidebar={sidebar} sidebarMobileBelow back="/beta-skin" {...search}>
       {card ? (
         // 본문 = 피드와 동일한 PostCard(forceExpanded): 항상 펼침 + 댓글 전체+입력.
         //   태그 클릭은 피드와 동일하게 /beta-skin?q= 로, 삭제 시 목록으로 이동.
