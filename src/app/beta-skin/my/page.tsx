@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { cardHref } from "@/lib/record-data";
@@ -76,7 +77,14 @@ export default async function BetaSkinMyPage() {
   if (!user) return <MyView />;
 
   const idCtx = await getIdentityContext(supabase);
-  const activeId = idCtx?.active?.profileId ?? user.id;
+  const active = idCtx?.active;
+  // 운영 /my 패턴: 마이 = 본인 공개 프로필. 관리자/원장은 대시보드로, 회원은 본인 /beta-skin/u/{handle} 로.
+  //   (Phase 3 에서 관리자/원장은 베타 admin 으로 교체 예정 — 현재는 운영 /admin·/doctor 로.)
+  if (active?.role === "admin") redirect("/admin");
+  if (active?.role === "doctor") redirect("/doctor");
+  if (active?.handle) redirect(`/beta-skin/u/${active.handle}`);
+  // handle 없는 예외(거의 도달 안 함) — 기존 활동 대시보드 폴백.
+  const activeId = active?.profileId ?? user.id;
 
   // 1단계 — 받은 댓글 조회의 기준이 될 "내 모든 글 id"(카테고리 무관, 삭제 제외).
   //   embedded relation 필터(.eq("card.author_id", ...))에 의존하지 않고 명시적 card_id IN 으로 좁힌다

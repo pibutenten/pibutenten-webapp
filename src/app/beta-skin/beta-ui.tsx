@@ -105,14 +105,14 @@ export function betaPostHref(c: CardData): string {
 }
 
 /* ---------- 카드 → 작성자 프로필 URL (운영 CardHeader 동선 재현) ----------
- * 항목 4) 작성자(아바타+이름) 클릭 → 실제 프로필로 이동.
- *   - 의사(credential 노출): /doctors/{slug}
- *   - 회원(handle 있음):     /{handle}
+ * 작성자(아바타+이름) 클릭 → 프로필로 이동.
+ *   - 의사(credential 노출): /doctors/{slug} (운영 — 베타엔 원장 프로필이 없고 글상세 우측 프로필이 대체)
+ *   - 회원(handle 있음):     /beta-skin/u/{handle} (베타 공개 프로필 — 클릭이 베타 안에 머물게)
  *   - 정보 부족: null → 호출부에서 링크 대신 일반 텍스트로 렌더. */
 export function authorHref(c: CardData): string | null {
   const isDoctor = !!c.doctor && !c.hide_doctor_credential;
   if (isDoctor && c.doctor?.slug) return `/doctors/${c.doctor.slug}`;
-  if (c.author?.handle) return `/${c.author.handle}`;
+  if (c.author?.handle) return `/beta-skin/u/${c.author.handle}`;
   return null;
 }
 
