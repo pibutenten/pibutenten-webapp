@@ -26,6 +26,20 @@ const BASE_TYPES: { key: string; t: string; d: string; tab?: string }[] = [
 ];
 const QA_TYPE = { key: "qa", t: "Q&A", d: "전문가 답변", tab: "qa" };
 
+/** URL ?tab= 값 → 글 유형 탭 key(useState 초기값). 미지정·미상은 record(시술노트). */
+function tabToKey(tab?: string): string {
+  switch (tab) {
+    case "review":
+      return "review";
+    case "doodle":
+      return "doodle";
+    case "qa":
+      return "qa";
+    default:
+      return "record";
+  }
+}
+
 export default function WriteView({
   isLoggedIn = false,
   role = "user",
@@ -34,6 +48,8 @@ export default function WriteView({
   myDoctor = null,
   doctors = [],
   procedures = [],
+  initialTab,
+  initialProcedure,
 }: {
   isLoggedIn?: boolean;
   role?: "admin" | "doctor" | "user";
@@ -42,12 +58,20 @@ export default function WriteView({
   myDoctor?: { slug: string; name: string } | null;
   doctors?: Doctor[];
   procedures?: ProcedureOption[];
+  /** 운영 라우트 딥링크 ?tab= (qa|review|doodle) — 초기 선택 탭. 미지정 시 시술노트. */
+  initialTab?: string;
+  /** 시술노트 저장 후 후기 유도 시 미리 정해진 시술 ko (?proc=). 시술후기 탭 잠금 프리필. */
+  initialProcedure?: string;
 }) {
   const search = useBetaSearchRouting();
   // Q&A 탭은 원장·관리자 전용(운영 정합).
   const canQa = isLoggedIn && (role === "admin" || role === "doctor");
   const types = canQa ? [...BASE_TYPES, QA_TYPE] : BASE_TYPES;
-  const [active, setActive] = useState<string>("record");
+  // 초기 탭 — 운영 딥링크 ?tab= 해석(권한 없는 qa 는 record 로 폴백, 운영 WriteTabs 정합).
+  const initialKey = tabToKey(initialTab);
+  const [active, setActive] = useState<string>(
+    initialKey === "qa" && !canQa ? "record" : initialKey,
+  );
   const activeTab = types.find((t) => t.key === active)?.tab;
 
   const sidebar = (
@@ -124,13 +148,13 @@ export default function WriteView({
             <div className={styles.writeLoginGateActions}>
               <a
                 className={`${styles.btn} ${styles.btnSolid}`}
-                href="/login?next=/beta-skin/write"
+                href="/login?next=/write"
               >
                 로그인
               </a>
               <a
                 className={`${styles.btn} ${styles.btnPrimary}`}
-                href="/signup?next=/beta-skin/write"
+                href="/signup?next=/write"
               >
                 회원가입
               </a>
@@ -148,6 +172,7 @@ export default function WriteView({
             doctors={doctors}
             procedures={procedures}
             handle={handle}
+            initialProcedure={initialProcedure}
           />
         )}
       </div>

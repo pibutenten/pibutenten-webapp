@@ -84,7 +84,8 @@
 
 ## 3. Phase 진행표 (체크리스트)
 
-- [ ] **Phase 1** — 링크 재배선 + 핵심 7화면 운영 승격(피드·공개프로필·마이·내노트·글쓰기·설정 + 역할분기). 빌드·검증·배포.
+- [x] **Phase 1** — 홈(/) 피드 승격(BetaSkinFeed) + 핵심 링크 재배선(BETA_ROUTES·검색·글쓰기). 빌드·검수·배포 완료 (커밋 `e96b347`, 2026-06-14).
+- [ ] **Phase 1b** — 나머지 핵심화면 승격: 마이(/my)·내노트(/record)·글쓰기(/write)·공개프로필(/[handle])·설정(/settings).
 - [ ] **Phase 2** — 글상세 3라우트 베타 본문 이식(회원/의사/cards).
 - [ ] **Phase 3** — `/doctor` 원장 대시보드 베타(관리자 방식).
 - [ ] **Phase 4** — 공개 SEO: `/doctors` · `/doctors/[slug]` · `/topics/[tag]` · `/reports/[procedure]`.

@@ -2,10 +2,9 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import TopNav from "@/components/TopNav";
+import { ChromeHeader, ChromeFooter } from "@/components/GlobalChrome";
 import ScrollManager from "@/components/ScrollManager";
 import InstallPrompt from "@/components/InstallPrompt";
-import SiteFooter from "@/components/SiteFooter";
 import EngagementPromptListener from "@/components/EngagementPromptListener";
 import { SessionProvider } from "@/lib/session-context";
 import { SITE_URL } from "@/lib/site";
@@ -197,12 +196,13 @@ window.addEventListener('appinstalled', function() {
             role/avatar/identities 등 리치는 /api/session 으로 비동기 보강. (V-Phase 2026-06-07) */}
         <SessionProvider>
           <ScrollManager />
-          <TopNav />
+          {/* 전역 크롬은 경로별 분기(GlobalChrome): 베타 승격 라우트에선 렌더 안 함(옛 헤더 깜빡임 제거). */}
+          <ChromeHeader />
           {/* 하단 pb-20(모바일) — BetaNav 고정 하단 5탭 가림 방지 일괄 처리. 데스크탑(하단탭 없음)은 pb-8. */}
           <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 pt-3 pb-20 sm:px-6 sm:pb-8">
             {children}
           </main>
-          <SiteFooter />
+          <ChromeFooter />
           {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
           <InstallPrompt />
           {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}

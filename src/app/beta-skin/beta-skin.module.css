@@ -1355,11 +1355,12 @@ button.t[data-cat="knowledge"]:hover {
   /* 미니멀 — 탭바 아이콘 stroke 가늘게(attribute strokeWidth 보다 우선). */
   stroke-width: 1.7px;
 }
-/* 활성 탭 — 로즈 글씨 + 은은한 로즈 알약 배경(운영 소프트 탭바 구조 차용, 여성 톤). */
+/* 활성 탭 — 옛 하단바 파란 활성 복원(브랜드 블루 #2a9fd6, 칩 활성·로고색과 동일).
+   구조(소프트 알약)는 유지하고 색만 로즈→블루. (사용자 요청 2026-06-15) */
 .tabActive {
-  color: #e25a86;
+  color: #2a9fd6;
   font-weight: 700;
-  background: #ffeaf1;
+  background: #e6f2fb;
 }
 /* 쇼핑 비활성 탭(현재 마크업 미사용 — 무해 유지). */
 .tabDisabled {

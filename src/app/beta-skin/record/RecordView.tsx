@@ -428,7 +428,7 @@ function PopularSection({ popular }: { popular: PopularData }) {
     return (
       <a
         className={styles.popRow}
-        href={hasHref ? it.href : "/beta-skin"}
+        href={hasHref ? it.href : "/"}
         target={hasHref ? "_blank" : undefined}
         rel={hasHref ? "noopener noreferrer" : undefined}
       >
@@ -565,7 +565,7 @@ export default function RecordView({
           <p className={styles.muted} style={{ marginBottom: 14 }}>
             가입하면 받은 시술과 경과를 나만의 노트로 기록할 수 있어요.
           </p>
-          <a className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`} href="/beta-skin/write">
+          <a className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`} href="/write">
             노트 작성해보기
           </a>
         </section>
@@ -598,7 +598,7 @@ export default function RecordView({
             병원·시술·다운타임·효과·재방문 주기까지. 가입하면 나만의 시술노트가 시작돼요.
           </p>
           <div className={styles.greetActions}>
-            <a className={`${styles.btn} ${styles.btnPrimary}`} href="/beta-skin/write">
+            <a className={`${styles.btn} ${styles.btnPrimary}`} href="/write">
               노트 작성하기
             </a>
           </div>
@@ -722,7 +722,7 @@ export default function RecordView({
               </p>
               <a
                 className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`}
-                href={guest ? "/beta-skin/write" : "/write"}
+                href="/write"
                 style={{ marginTop: 12 }}
               >
                 첫 노트 쓰러 가기
