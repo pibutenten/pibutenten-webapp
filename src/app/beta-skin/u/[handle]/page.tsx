@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getIdentityContext } from "@/lib/identity";
+import { ROLES } from "@/lib/identity-shared";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
+import { DEFAULT_VISIBILITY, type FieldVisibility } from "@/lib/profile-options";
 import type { CardData } from "@/lib/types/card";
-import BetaProfileView, { type BetaSkinInfo } from "./BetaProfileView";
+import BetaProfileView, {
+  type BetaSkinInfo,
+  type ProfileSettings,
+} from "./BetaProfileView";
 
 /**
  * /beta-skin/u/[handle] — 신규 스킨 "공개 프로필" (명함 클릭 화면).
@@ -38,6 +44,29 @@ type ProfileRow = {
   skin_type?: string | null;
   skin_concerns?: string[] | null;
   interested_procedures?: string[] | null;
+};
+
+// '프로필·설정' 아코디언 폼(ProfileEditClient)용 — 운영 my/page 의 ProfileRow 와 동일 컬럼.
+type SettingsProfileRow = {
+  id: string;
+  role: "admin" | "doctor" | "user";
+  display_name: string | null;
+  marketing_email_consent: boolean | null;
+  news_email_consent: boolean | null;
+  terms_agreed_at: string | null;
+  terms_agreed_version: string | null;
+  privacy_agreed_at: string | null;
+  privacy_agreed_version: string | null;
+  handle: string | null;
+  birthdate: string | null;
+  gender: "male" | "female" | "other" | null;
+  face_shape: string | null;
+  skin_type: string | null;
+  skin_concerns: string[] | null;
+  interested_procedures: string[] | null;
+  bio: string | null;
+  avatar_url: string | null;
+  field_visibility: FieldVisibility | null;
 };
 
 export default async function BetaProfilePage({
@@ -182,6 +211,53 @@ export default async function BetaProfilePage({
         visibility: (profile.field_visibility ?? {}) as Record<string, boolean>,
       };
 
+  // 본인일 때만 '프로필·설정' 아코디언용 settings props 를 채움(운영 my/page 와 동일 쿼리·매핑).
+  //   active 명함 단위(getIdentityContext SSOT) — 위 viewer.id 와 다를 수 있어 별도 결정.
+  //   비-owner/anon 이면 undefined → 폼 미노출.
+  let settings: ProfileSettings | null = null;
+  if (isOwner && viewer) {
+    const idCtx = await getIdentityContext(supabase);
+    const targetProfileId = idCtx?.active?.profileId ?? viewer.id;
+    const { data: sp } = await supabase
+      .from("profiles")
+      .select(
+        "id, role, display_name, marketing_email_consent, news_email_consent, terms_agreed_at, terms_agreed_version, privacy_agreed_at, privacy_agreed_version, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, field_visibility",
+      )
+      .eq("id", targetProfileId)
+      .maybeSingle()
+      .returns<SettingsProfileRow>();
+    if (sp) {
+      settings = {
+        userId: viewer.id,
+        targetProfileId,
+        currentEmail: viewer.email ?? "",
+        loginProviders: (viewer.identities ?? []).map((i) => i.provider),
+        // 저장 후 [← 프로필] 은 베타 공개 프로필로(운영은 /{handle}).
+        profileHref: sp.handle ? `/beta-skin/u/${sp.handle}` : "/",
+        readOnlyNameAndAvatar: sp.role === ROLES.DOCTOR,
+        role: sp.role,
+        initial: {
+          displayName: sp.display_name ?? "",
+          marketingConsent: !!sp.marketing_email_consent,
+          newsConsent: !!sp.news_email_consent,
+          termsAgreedAt: sp.terms_agreed_at ?? null,
+          termsAgreedVersion: sp.terms_agreed_version ?? null,
+          privacyAgreedAt: sp.privacy_agreed_at ?? null,
+          privacyAgreedVersion: sp.privacy_agreed_version ?? null,
+          birthdate: sp.birthdate ?? "",
+          gender: sp.gender ?? null,
+          faceShape: sp.face_shape ?? null,
+          skinType: sp.skin_type ?? null,
+          skinConcerns: sp.skin_concerns ?? [],
+          interestedProcedures: sp.interested_procedures ?? [],
+          bio: sp.bio ?? "",
+          avatarUrl: sp.avatar_url ?? null,
+          fieldVisibility: sp.field_visibility ?? DEFAULT_VISIBILITY,
+        },
+      };
+    }
+  }
+
   return (
     <BetaProfileView
       handle={handle}
@@ -200,6 +276,7 @@ export default async function BetaProfilePage({
       viewerStates={viewerStates}
       viewerIsAnon={viewerIsAnon}
       skinInfo={skinInfo}
+      settings={settings}
     />
   );
 }

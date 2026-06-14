@@ -14,6 +14,9 @@ import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import LogoutButton from "@/components/LogoutButton";
 import CardAvatar from "@/components/card/CardAvatar";
+import ProfileEditClient, {
+  type ProfileEditProps,
+} from "@/app/settings/profile/ProfileEditClient";
 import {
   FACE_LABEL,
   SKIN_LABEL,
@@ -37,6 +40,9 @@ export type BetaSkinInfo = {
   receivedProcedures: string[];
   visibility: Record<string, boolean>;
 };
+
+/** '프로필·설정' 아코디언 폼(ProfileEditClient)의 props — 서버(page.tsx)에서 채워 넘김. */
+export type ProfileSettings = ProfileEditProps;
 
 type Tab = "posts" | "reviews" | "comments" | "likes" | "saves" | "skin";
 
@@ -93,6 +99,7 @@ export default function BetaProfileView({
   viewerStates,
   viewerIsAnon,
   skinInfo,
+  settings,
 }: {
   handle: string;
   displayName: string;
@@ -110,8 +117,12 @@ export default function BetaProfileView({
   viewerStates?: Record<number, BetaViewerState>;
   viewerIsAnon: boolean;
   skinInfo?: BetaSkinInfo;
+  /** 본인일 때만 채워짐 — '프로필·설정' 아코디언 폼 props. */
+  settings?: ProfileSettings | null;
 }) {
   const search = useBetaSearchRouting();
+  // '프로필·설정' 아코디언 펼침 상태. 닫혀 있으면 ProfileEditClient 를 마운트하지 않음(가벼움).
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const v = skinInfo?.visibility ?? {};
   const showTab = (key: string) => isOwner || v[key] !== false;
@@ -275,15 +286,35 @@ export default function BetaProfileView({
         )}
         {isOwner && (
           <div style={{ marginTop: 14 }}>
-            <Link
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((o) => !o)}
+              aria-expanded={settingsOpen}
               className={`${styles.btn} ${styles.btnGhost}`}
-              href="/beta-skin/settings"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
             >
               프로필·설정
-            </Link>
+              <span aria-hidden>{settingsOpen ? "▴" : "▾"}</span>
+            </button>
           </div>
         )}
       </section>
+
+      {/* 프로필·설정 아코디언 — 펼치면 그 자리서 운영 설정 폼(ProfileEditClient embedded)을
+          바로 편집(별도 페이지 이동 X). 닫혀 있으면 미마운트. settings 는 서버(page.tsx)에서 채워 넘김. */}
+      {isOwner && settingsOpen && (
+        <section className={`${styles.card} ${styles.mb20}`}>
+          {settings ? (
+            <ProfileEditClient {...settings} embedded />
+          ) : (
+            <div style={{ textAlign: "center", padding: "8px 0" }}>
+              <p className={styles.muted}>
+                설정을 불러올 수 없어요. 페이지를 새로고침해 주세요.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* 탭 */}
       <section className={`${styles.card} ${styles.mb20}`}>
