@@ -86,15 +86,15 @@ export default function BetaAdminView({
         <div className={GRID8}>
           <Stat label="회원" value={stats.userCount} href="/admin/users" />
           <Stat label="원장" value={stats.doctorCount} href="/admin/doctors" />
-          <Stat label="Q&A" value={stats.qaPublished} href="/admin/cards?type=qa&status=published" />
-          <Stat label="끄적끄적" value={stats.postPublished} href="/admin/cards?type=post&status=published" />
-          <Stat label="시술후기" value={stats.reviewPublished} href="/admin/cards?type=review&status=published" />
-          <Stat label="시술 리포트" value={stats.reportPublished} href="/admin/cards?type=review_summary&status=published" />
+          <Stat label="Q&A" value={stats.qaPublished} href="/beta-skin/admin/cards?type=qa&status=published" />
+          <Stat label="끄적끄적" value={stats.postPublished} href="/beta-skin/admin/cards?type=post&status=published" />
+          <Stat label="시술후기" value={stats.reviewPublished} href="/beta-skin/admin/cards?type=review&status=published" />
+          <Stat label="시술 리포트" value={stats.reportPublished} href="/beta-skin/admin/cards?type=review_summary&status=published" />
           <Stat
             label="검수 대기"
             value={pendingReview}
             highlight={pendingReview > 0}
-            href="/admin/cards?status=pending_review"
+            href="/beta-skin/admin/cards?status=pending_review"
           />
           <Stat label="댓글" value={stats.totalComments} href="/admin/comments" />
         </div>
@@ -137,7 +137,7 @@ export default function BetaAdminView({
         <h2 className={SECTION_HEAD} style={{ color: "var(--ink-900)" }}>운영 프로그램</h2>
         <div className={TOOL_GRID}>
           <Tool
-            href="/admin/cards"
+            href="/beta-skin/admin/cards"
             emoji="📚"
             title="전체 글 관리"
             desc="Q&A·끄적끄적 검색·필터·발행/보관"
@@ -171,7 +171,7 @@ export default function BetaAdminView({
             desc="원장 명의 Q&A 카드를 직접 작성합니다"
           />
           <Tool
-            href="/admin/cards?status=pending_review"
+            href="/beta-skin/admin/cards?status=pending_review"
             emoji="⏳"
             title="검수 대기"
             desc={
