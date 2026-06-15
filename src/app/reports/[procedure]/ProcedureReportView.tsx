@@ -18,9 +18,9 @@ import type { CardData } from "@/components/Card";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import ReportSampleNotice from "@/components/report/ReportSampleNotice";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import FeedSidebar from "@/app/beta-skin/FeedSidebar";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import FeedSidebar from "@/components/skin/FeedSidebar";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
 
 export default function ProcedureReportView({
   ko,

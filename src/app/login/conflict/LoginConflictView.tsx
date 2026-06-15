@@ -13,7 +13,7 @@
  */
 
 import Link from "next/link";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
 
 export default function LoginConflictView({
   existing,

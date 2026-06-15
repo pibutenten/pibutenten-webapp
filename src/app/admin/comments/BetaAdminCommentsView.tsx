@@ -18,9 +18,9 @@ import Link from "next/link";
 import CommentsClient, {
   type CommentRow,
 } from "@/app/admin/comments/CommentsClient";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
-import styles from "@/app/beta-skin/beta-skin.module.css";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import styles from "@/components/skin/beta-skin.module.css";
 
 const BASE_PATH = "/admin/comments";
 

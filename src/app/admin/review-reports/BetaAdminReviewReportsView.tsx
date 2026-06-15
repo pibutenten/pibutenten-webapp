@@ -12,8 +12,8 @@
  */
 
 import Link from "next/link";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
 
 export type BetaReviewOverviewRow = {
   en: string | null;

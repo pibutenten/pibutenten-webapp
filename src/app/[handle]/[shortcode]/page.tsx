@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkHiddenByShortcode } from "@/lib/hidden-card";
 import { type CardData } from "@/components/Card";
 import BackButton from "@/components/BackButton";
-import { renderBetaPost } from "@/app/beta-skin/post/post-data";
+import { renderBetaPost } from "@/components/skin/post/post-data";
 import { SITE_URL } from "@/lib/site";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { CARD_DETAIL_SELECT } from "@/lib/card-select";

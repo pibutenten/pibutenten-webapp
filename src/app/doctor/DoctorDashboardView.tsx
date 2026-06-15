@@ -17,8 +17,8 @@ import Link from "next/link";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import DoctorActivityKpis, { type DoctorKpi } from "./DoctorActivityKpis";
 import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
 
 type SearchRow = { query: string; cnt: number };
 type TagRow = { keyword: string; cnt: number };

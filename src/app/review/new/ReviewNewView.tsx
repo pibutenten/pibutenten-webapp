@@ -13,8 +13,8 @@
  * 격리: beta-skin.module.css 무수정. ReviewForm 내부 로직·디자인은 무수정(globals.css 토큰 그대로).
  */
 
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
 import ReviewForm, { type ProcedureOption } from "./ReviewForm";
 
 export default function ReviewNewView({

@@ -8,7 +8,7 @@ import { SITE_URL } from "@/lib/site";
 import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
-import { topKeywords } from "@/app/beta-skin/feed-sidebar-data";
+import { topKeywords } from "@/components/skin/feed-sidebar-data";
 import ProcedureReportView from "./ProcedureReportView";
 
 /** 홈 피드와 동일한 사이드바 데이터(인기태그·인기 Q&A) — feed_cards_scored 비검색 풀 기준.

@@ -12,9 +12,9 @@
  */
 
 import Link from "next/link";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
-import styles from "@/app/beta-skin/beta-skin.module.css";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import styles from "@/components/skin/beta-skin.module.css";
 import TagAdminTable, { type TagRow } from "./TagAdminTable";
 
 const CATEGORIES = ["피부고민", "리프팅", "스킨부스터", "홈케어", "피부상식", "미지정"] as const;

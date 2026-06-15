@@ -15,8 +15,8 @@
  */
 
 import type { ReactNode } from "react";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
 
 export default function BetaAdminDoctorEditView({
   children,

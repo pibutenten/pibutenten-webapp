@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { DIARY_SELECT, toSummaryGroups, type DiaryRow } from "@/lib/record-data";
 import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
-import RecordNotesView from "@/app/beta-skin/record/RecordNotesView";
+import RecordNotesView from "@/components/skin/record/RecordNotesView";
 
 /**
  * /record/notes — 내 시술노트 "자세히"(비공개·noindex).

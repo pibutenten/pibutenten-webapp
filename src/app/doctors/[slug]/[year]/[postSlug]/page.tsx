@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { checkHiddenByDoctorPost } from "@/lib/hidden-card";
 import { type CardData } from "@/components/Card";
-import { renderBetaPost } from "@/app/beta-skin/post/post-data";
+import { renderBetaPost } from "@/components/skin/post/post-data";
 import { SITE_URL } from "@/lib/site";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import {

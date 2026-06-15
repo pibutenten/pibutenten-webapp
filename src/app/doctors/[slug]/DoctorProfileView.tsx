@@ -26,15 +26,15 @@ import type { CardData } from "@/components/Card";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 import { orcidUrl, type DoctorProfileData } from "@/lib/doctor-profile";
 import type { DoctorTheme } from "@/lib/doctor-theme";
-import type { BetaViewerState } from "../../beta-skin/beta-ui";
+import type { BetaViewerState } from "@/components/skin/beta-ui";
 import {
   cardHref,
   IconVerified,
   PostCard,
   useBetaSearchRouting,
-} from "../../beta-skin/beta-ui";
-import BetaSkinShell from "../../beta-skin/BetaSkinShell";
-import styles from "../../beta-skin/beta-skin.module.css";
+} from "@/components/skin/beta-ui";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import styles from "@/components/skin/beta-skin.module.css";
 
 /* 무한스크롤 한 번에 확장할 카드 수 — /api/cards?ids= 한 묶음(라우트 상한 60 이내).
  *   홈 BetaSkinFeed 와 동일(PAGE=20). */

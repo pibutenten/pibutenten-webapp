@@ -9,7 +9,7 @@ import {
   clinicIdRefForDoctor,
   clinicSchemaForDoctor,
 } from "@/lib/schema/clinic";
-import { topKeywords } from "@/app/beta-skin/feed-sidebar-data";
+import { topKeywords } from "@/components/skin/feed-sidebar-data";
 import TopicTagView from "./TopicTagView";
 
 /** 홈 피드와 동일한 사이드바 데이터(인기태그·인기 Q&A) — feed_cards_scored 비검색 풀 기준.

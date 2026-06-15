@@ -16,8 +16,8 @@
 
 import type { ComponentProps } from "react";
 import EditClient from "./EditClient";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
 
 export type BetaAdminCardEditViewProps = ComponentProps<typeof EditClient>;
 

@@ -14,7 +14,7 @@
  * 격리: beta-skin.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
  */
 
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
 import LoginForm from "./LoginForm";
 
 export default function LoginView({

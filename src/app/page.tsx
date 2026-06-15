@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import BetaSkinFeed from "@/app/beta-skin/BetaSkinFeed";
+import BetaSkinFeed from "@/components/skin/BetaSkinFeed";
 import type { CardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";

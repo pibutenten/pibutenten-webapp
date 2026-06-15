@@ -20,9 +20,9 @@ import AdminCardsDoctorFilter from "@/app/admin/cards/AdminCardsDoctorFilter";
 import { labelForCategory } from "@/lib/post-category";
 import { formatYmd } from "@/lib/format-date";
 import { truncate } from "@/lib/string-utils";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
-import styles from "@/app/beta-skin/beta-skin.module.css";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import styles from "@/components/skin/beta-skin.module.css";
 
 // ── 운영 admin/cards/page.tsx 와 동일한 타입(데이터 계약 1:1) ──
 type QAStatus =

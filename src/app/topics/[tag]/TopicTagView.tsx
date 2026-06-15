@@ -15,10 +15,10 @@
 
 import Link from "next/link";
 import type { CardData } from "@/components/Card";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import FeedSidebar from "@/app/beta-skin/FeedSidebar";
-import { PostCard, useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
-import betaStyles from "@/app/beta-skin/beta-skin.module.css";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import FeedSidebar from "@/components/skin/FeedSidebar";
+import { PostCard, useBetaSearchRouting } from "@/components/skin/beta-ui";
+import betaStyles from "@/components/skin/beta-skin.module.css";
 
 const PAGE_LIMIT = 50; // 운영 page.tsx 와 동일(페이지네이션 안내 임계)
 

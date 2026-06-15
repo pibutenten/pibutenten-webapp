@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import UserEditClient from "./EditClient";
 import AdminEditClient from "@/app/admin/cards/[id]/edit/EditClient";
 import BackButton from "@/components/BackButton";
-import WriteEditShell from "@/app/beta-skin/write/WriteEditShell";
+import WriteEditShell from "@/components/skin/write/WriteEditShell";
 import { getIdentityContext } from "@/lib/identity";
 import { fetchAdminCardExtras } from "@/lib/admin-card-extras";
 import type { PubmedRefObj } from "@/lib/schema/api/articles";

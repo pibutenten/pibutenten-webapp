@@ -14,7 +14,7 @@ import {
   type DiaryRow,
   type TopCardRow,
 } from "@/lib/record-data";
-import RecordView from "@/app/beta-skin/record/RecordView";
+import RecordView from "@/components/skin/record/RecordView";
 
 /**
  * /record — 내 노트(비공개, 신규 스킨 승격 Phase 1b).

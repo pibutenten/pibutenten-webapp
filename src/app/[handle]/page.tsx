@@ -13,7 +13,7 @@ import type { CardData } from "@/lib/types/card";
 import BetaProfileView, {
   type BetaSkinInfo,
   type ProfileSettings,
-} from "@/app/beta-skin/u/[handle]/BetaProfileView";
+} from "@/components/skin/u/[handle]/BetaProfileView";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

@@ -16,7 +16,7 @@
  */
 
 import type { ReactNode } from "react";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
 
 export default function OnboardingView({ children }: { children: ReactNode }) {
   return (

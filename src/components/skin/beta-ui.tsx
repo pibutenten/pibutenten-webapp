@@ -708,7 +708,7 @@ export function PostCardMenu({
   function onReportClick() {
     setMenuOpen(false);
     if (!isLoggedIn) {
-      const next = encodeURIComponent(pathname || "/beta-skin");
+      const next = encodeURIComponent(pathname || "/");
       router.push(`/login?next=${next}`);
       return;
     }

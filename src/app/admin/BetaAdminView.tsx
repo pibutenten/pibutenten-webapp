@@ -20,9 +20,9 @@ import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
 import ActivityKpis from "@/app/admin/ActivityKpis";
 import LogoutButton from "@/components/LogoutButton";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
-import styles from "@/app/beta-skin/beta-skin.module.css";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import styles from "@/components/skin/beta-skin.module.css";
 
 type SearchRow = { query: string; cnt: number };
 type TagRow = { keyword: string; cnt: number };

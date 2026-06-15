@@ -16,8 +16,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
-import BetaSkinShell from "../beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "../beta-skin/beta-ui";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
 
 export type DoctorListItem = {
   id: string;

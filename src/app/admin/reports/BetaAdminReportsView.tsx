@@ -12,8 +12,8 @@
  * 격리: 운영 ReportsClient 무수정. 내부 링크는 모두 /admin/* (베타 라우트 미사용).
  */
 
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
 import ReportsClient from "./ReportsClient";
 import type { AdminReportRowEnriched } from "./page";
 

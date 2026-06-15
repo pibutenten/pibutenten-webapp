@@ -10,9 +10,9 @@
  *   - 데이터 fetch·가드는 server page.tsx 가 담당. import 절대경로(@/app/beta-skin/*), back="/admin".
  */
 
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
-import styles from "@/app/beta-skin/beta-skin.module.css";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import styles from "@/components/skin/beta-skin.module.css";
 import StatsListClient, {
   type Kind,
   type VisitorRow,

@@ -10,9 +10,9 @@
  *   - import 절대경로(@/app/beta-skin/*), 모든 링크 /admin/* (이 페이지는 외부 nav 없음).
  */
 
-import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
-import styles from "@/app/beta-skin/beta-skin.module.css";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import styles from "@/components/skin/beta-skin.module.css";
 
 const PROVIDER_LABEL: Record<string, string> = {
   google: "Google",

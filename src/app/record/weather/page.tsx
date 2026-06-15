@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import WeatherDetailView from "@/app/beta-skin/record/skin-weather/WeatherDetailView";
+import WeatherDetailView from "@/components/skin/record/skin-weather/WeatherDetailView";
 
 /**
  * /record/weather — "오늘의 피부 날씨" 상세(비공개·noindex).

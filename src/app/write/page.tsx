@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { ROLES } from "@/lib/identity-shared";
 import { getReviewProcedures } from "@/lib/review-procedures";
-import WriteView from "@/app/beta-skin/write/WriteView";
+import WriteView from "@/components/skin/write/WriteView";
 
 type Doctor = { id: string; slug: string; name: string; branch: string | null };
 
