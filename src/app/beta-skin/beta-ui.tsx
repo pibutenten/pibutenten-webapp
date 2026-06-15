@@ -979,6 +979,42 @@ export function PostCard({
   const body = stripLegacyReferencesTail(card.body ?? "");
   const isLong = body.length > 120 || body.split(/\n{2,}/).length > 1;
   const hlColor = pickHighlight(String(card.id));
+  // 수정1) 본문 더보기/접기 부드러운 슬라이드 — 단락 display:none 즉시 전환 대신
+  //   본문 wrapper 의 max-height 를 접힘(4줄 계산값) ↔ 펼침(실측 scrollHeight)로 220ms ease 전환.
+  //   forceExpanded(글상세)는 항상 펼침이라 슬라이드 대상 아님(아래 collapsible=false).
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const collapsible = isLong && !forceExpanded;
+  // 접힘 높이(4줄)는 CSS var(--beta-clamp-h)로 정의(line-height 14.5px*1.7*4 ≈ calc). 펼침은 실측.
+  //   초기값: 접힘 가능 + 안 펼쳐진 카드는 4줄 클램프로 시작(첫 프레임 깜빡임 방지). 그 외 none(자연 높이).
+  const [bodyMaxH, setBodyMaxH] = useState<string | undefined>(
+    collapsible ? "var(--beta-clamp-h)" : "none", // collapsible 은 isLong && !forceExpanded 포함.
+  );
+  // 최초 마운트에서는 슬라이드를 돌리지 않는다(초기 클램프 상태 그대로). 사용자가 토글한 뒤부터 애니메이션.
+  const bodyMountedRef = useRef(false);
+  useEffect(() => {
+    if (!collapsible) {
+      setBodyMaxH("none"); // 짧은 글·글상세는 제한 없음(자연 높이).
+      return;
+    }
+    // 마운트 직후 1회는 초기값(접힘 클램프) 유지 — 첫 프레임 깜빡임·불필요한 슬라이드 방지.
+    if (!bodyMountedRef.current) {
+      bodyMountedRef.current = true;
+      return;
+    }
+    const el = bodyRef.current;
+    if (!el) return;
+    if (expanded) {
+      // 펼침: 실제 콘텐츠 높이로 열어 점프 없이 스르륵. 전환 끝나면 none 으로 풀어 이후 리플로우 자유.
+      setBodyMaxH(`${el.scrollHeight}px`);
+      const t = window.setTimeout(() => setBodyMaxH("none"), 240);
+      return () => window.clearTimeout(t);
+    }
+    // 접힘: none(자연 높이)에서 시작하면 transition 이 안 걸리므로, 현재 실측값을 먼저 고정한 뒤
+    //   다음 프레임에 4줄 클램프 높이로 낮춰 닫히는 전환을 만든다.
+    setBodyMaxH(`${el.scrollHeight}px`);
+    const r = window.requestAnimationFrame(() => setBodyMaxH("var(--beta-clamp-h)"));
+    return () => window.cancelAnimationFrame(r);
+  }, [expanded, collapsible]);
   const vid = videoInfo(card);
   // 항목 1) 실제 canonical URL. "/"(정보 부족) 이면 '원문 보기' 링크 숨김.
   const href = cardHref(card);
@@ -1092,8 +1128,14 @@ export function PostCard({
         }
       >
         {body && (
-          <div className={styles.postBodyRich}>
-            {renderBetaBody(body, hlColor, isLong && !expanded, searchQuery)}
+          <div
+            ref={bodyRef}
+            className={`${styles.postBodyRich} ${
+              collapsible ? styles.bodySlide : ""
+            }`}
+            style={collapsible ? { maxHeight: bodyMaxH } : undefined}
+          >
+            {renderBetaBody(body, hlColor, false, searchQuery)}
           </div>
         )}
         {/* 항목9) 더보기만 노출 — 펼친 글은 본문 클릭으로 접히므로 '접기' 라벨 불필요. */}

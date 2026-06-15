@@ -1,42 +1,64 @@
 /**
- * 홈 페이지 navigation 중 즉시 표시되는 스켈레톤.
- * 태그 칩 클릭, 검색 등으로 페이지가 다시 그려지는 동안 빈 화면 대신 노출.
+ * 전역 Suspense 로딩 폴백.
+ *
+ * force-dynamic 페이지의 SSR 동안 잠깐 노출되는 화면이라, 베타 셸(beta-skin
+ * `.root`: position:fixed/inset:0 풀뷰포트 오버레이)이 마운트되기 전 "회색 깜빡임"
+ * 없이 자연스럽게 이어지도록 한다.
+ *
+ * - 회색 스켈레톤 박스 다수를 제거하고, 베타 캔버스(하늘→민트→레몬 그라데이션)와
+ *   동일한 배경으로 시작 → 베타 셸 등장 시 톤 단절 없음.
+ * - 상단에 베타 헤더(#e8f5fd) 톤의 얇은 막대 하나만 두어 셸 헤더 자리와 연결.
+ * - 은은한 브랜드 블루(#45b7e8) 스피너로 "비어 보이지 않게" 하되 절제.
+ *
+ * beta-skin.module.css 는 수정 금지 대상이라 토큰 값을 인라인으로 복제(참고).
  */
 export default function Loading() {
   return (
-    <div className="animate-pulse">
-      {/* Hero/검색바 자리 (실제 헤더는 layout이라 영향 없음) */}
-      <div className="my-6 h-12 rounded-full bg-[var(--surface-2,#eef1f5)]" />
+    <div
+      aria-busy="true"
+      aria-label="불러오는 중"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 90, // 베타 셸(.root z-index:100)이 뜨면 그 아래로 가려짐
+        display: "flex",
+        flexDirection: "column",
+        // 베타 캔버스와 동일한 그라데이션으로 시작 → 회색 깜빡임 차단
+        background:
+          "linear-gradient(168deg, #e8f5fd 0%, #ecf7f2 52%, #faf5e2 100%)",
+      }}
+    >
+      {/* 베타 헤더(#e8f5fd) 톤의 얇은 상단 막대 — 셸 헤더 자리와 시각적으로 연결 */}
+      <div
+        style={{
+          height: 56,
+          flexShrink: 0,
+          backgroundColor: "#e8f5fd",
+          borderBottom: "1px solid #edf2f5",
+        }}
+      />
 
-      {/* 카테고리/칩 자리 */}
-      <div className="mb-3 h-8 rounded bg-[var(--surface-2,#eef1f5)]" />
-      <div className="mb-4 flex flex-wrap justify-center gap-1.5">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-7 w-16 rounded-full bg-[var(--surface-2,#eef1f5)]"
-          />
-        ))}
-      </div>
-
-      {/* 카드 그리드 자리 — 모바일 1열 / 데스크탑 2열 */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-lg border border-[var(--border)] bg-white p-4"
-            style={{ minHeight: 180 }}
-          >
-            <div className="mb-3 flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-[var(--surface-2,#eef1f5)]" />
-              <div className="h-4 w-24 rounded bg-[var(--surface-2,#eef1f5)]" />
-            </div>
-            <div className="mb-2 h-5 w-4/5 rounded bg-[var(--surface-2,#eef1f5)]" />
-            <div className="mb-1 h-4 w-full rounded bg-[var(--surface-2,#eef1f5)]" />
-            <div className="mb-1 h-4 w-full rounded bg-[var(--surface-2,#eef1f5)]" />
-            <div className="h-4 w-3/4 rounded bg-[var(--surface-2,#eef1f5)]" />
-          </div>
-        ))}
+      {/* 은은한 브랜드 스피너 — 절제된 단일 요소 */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            display: "block",
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            border: "3px solid rgba(69, 183, 232, 0.22)",
+            borderTopColor: "#45b7e8",
+            animation: "pbttSpin 0.8s linear infinite",
+          }}
+        />
       </div>
     </div>
   );

@@ -31,6 +31,9 @@
   --card: #ffffff;
   --card-shadow: 0 6px 24px rgba(53, 118, 160, 0.07);
   --r-card: 24px;
+  /* 수정1) 본문 접힘(4줄) 높이 — .bodyPara line-height 1.7 × 14.5px ≈ 24.65px, 4줄 ≈ 98.6px.
+     본문 더보기/접기 슬라이드(.bodySlide)의 닫힘 max-height 기준값. */
+  --beta-clamp-h: calc(14.5px * 1.7 * 4);
   --r-chip: 999px;
   --r-btn: 16px;
 
@@ -592,6 +595,25 @@
   animation: betaFadeInUp 0.4s ease-out both;
 }
 
+/* 수정3) 제목 살짝 올라오며 페이드인 — 카드 제목(.postTitle)·프로필 제목(.profileName)에 적용.
+   translateY(8px)→0 + opacity, 220ms ease-out. 카드 article 의 .fadeInUp(0.4s)과 톤을 맞추되
+   살짝 짧게(220ms) + 미세 delay(60ms)로 제목이 본문보다 한 박자 늦게 올라와 자연스럽게 강조.
+   prefers-reduced-motion 가드는 파일 하단 미디어쿼리(.root * animation:none)에서 함께 처리. */
+@keyframes betaTitleRise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.postTitle,
+.profileName {
+  animation: betaTitleRise 0.22s ease-out 0.06s both;
+}
+
 .card {
   background: var(--card);
   border-radius: var(--r-card);
@@ -1086,6 +1108,15 @@
   margin-top: 2px;
   min-width: 0;
   max-width: 100%;
+}
+/* 수정1) 더보기/접기 부드러운 슬라이드 — 본문 wrapper 의 max-height 를 220ms ease 로 전환.
+   JS(beta-ui)가 펼침 시 실측 scrollHeight, 접힘 시 --beta-clamp-h(4줄) 로 maxHeight 를 인라인 세팅.
+   슬라이드 카드는 항상 overflow:hidden — 펼침 전환 중에도 본문이 maxHeight 밖으로 튀지 않게.
+   펼침 완료 후 maxHeight 를 none 으로 풀면 hidden 이어도 잘릴 게 없어 안전.
+   (line-clamp 대신 wrapper clip — 단락 display:none 즉시 전환의 '짝 바뀜'을 슬라이드로 대체.) */
+.bodySlide {
+  overflow: hidden;
+  transition: max-height 0.22s ease;
 }
 .bodyToggle {
   cursor: pointer;

@@ -28,6 +28,22 @@ export const fetchCache = "force-no-store";
 //   ID 로 다음 묶음을 이어 받음(/api/cards?ids=) → 경계 순서 어긋남 없이 안정적 + 가벼움.
 const ORDER = 300;
 const INITIAL = 20;
+/* 사이드 '인기 태그' '전체' 탭 표시 개수 — BetaSkinFeed 가 그대로 사용(검색 중에도 재계산 안 함). */
+const POPULAR_TAGS = 16;
+
+/** 비검색 피드 풀의 keywords 빈도 순위 상위 N개. 검색과 무관하게 안정적(서버 단일 계산).
+ *   클라(BetaSkinFeed)에서 검색결과 풀로 재계산하던 것을 서버 prop 으로 고정 → 태그 클릭으로
+ *   순서·구성이 바뀌지 않음. (구 frozenTagsRef 클라 고정 로직 대체.) */
+function topKeywords(cards: CardData[], limit = POPULAR_TAGS): string[] {
+  const freq = new Map<string, number>();
+  for (const c of cards) {
+    for (const k of c.keywords ?? []) freq.set(k, (freq.get(k) ?? 0) + 1);
+  }
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([k]) => k)
+    .slice(0, limit);
+}
 
 export async function generateMetadata({
   searchParams,
@@ -88,6 +104,8 @@ export default async function HomeFeedPage({
   let reportPool: ProcedureReport[] = [];
   // 검색 시 시술명이 리포트와 매칭되면 '전체' 탭 첫 카드(후기 1건부터, getProcedureReport).
   let searchReport: ProcedureReport | null = null;
+  // 사이드 '인기 태그' '전체' 탭 — 항상 비검색 피드 풀 기준(검색·태그클릭에 불변).
+  let popularTags: string[] = [];
   const searchQuery = query || undefined;
 
   if (query) {
@@ -100,14 +118,25 @@ export default async function HomeFeedPage({
           /* 실패해도 진행 */
         });
     }
-    const [listRes, pool, sReport] = await Promise.all([
+    // 검색 화면 — 인기 태그는 검색결과가 아니라 '비검색 피드 풀' 기준으로 계산해야 안정적이므로
+    //   keywords 집계 전용으로 feed_cards_scored 를 한 번 더 받는다(전체 탭 태그 = 검색과 무관).
+    const [listRes, pool, sReport, tagPoolRes] = await Promise.all([
       fetchCardList(supabase, { q: query, offset: 0, limit: ORDER }),
       getReviewSummaryFeedPool(supabase),
       getProcedureReport(supabase, query),
+      supabase.rpc("feed_cards_scored", {
+        p_limit: ORDER,
+        p_offset: 0,
+        p_half_life_days: 14,
+        p_jitter_amp: 0.35,
+      }),
     ]);
     cards = (listRes.data ?? []) as unknown as CardData[];
     reportPool = pool;
     searchReport = sReport;
+    if (tagPoolRes.error)
+      console.error("[home] 인기태그 풀 조회 실패:", tagPoolRes.error.message);
+    popularTags = topKeywords((tagPoolRes.data ?? []) as CardData[]);
   } else {
     const [rpcRes, pool] = await Promise.all([
       supabase.rpc("feed_cards_scored", {
@@ -118,11 +147,14 @@ export default async function HomeFeedPage({
       }),
       getReviewSummaryFeedPool(supabase),
     ]);
-    cards = diversifyByDoctor((rpcRes.data ?? []) as CardData[], {
+    const scored = (rpcRes.data ?? []) as CardData[];
+    cards = diversifyByDoctor(scored, {
       maxPerDoctorInHead: 1,
       headSize: 4,
     });
     reportPool = pool;
+    // 인기 태그는 diversify(머리 4장 다양화) 전 원본 점수순 풀 기준 — 순서 안정.
+    popularTags = topKeywords(scored);
   }
 
   // 순서(랭킹) ID 목록은 전체(최대 ORDER), 화면 초기 렌더는 앞 INITIAL 장만.
@@ -162,6 +194,7 @@ export default async function HomeFeedPage({
         searchQuery={searchQuery}
         reportPool={reportPool}
         searchReport={searchReport}
+        popularTags={popularTags}
         hotIds={hotIds}
         viewerStates={viewerStates}
       />

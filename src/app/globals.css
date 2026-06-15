@@ -339,3 +339,11 @@ a:focus-visible,
    OS native splash 를 이미 처리한다. 별도 body::before overlay 를 두면 native
    splash 종료 후 또 다른 splash 가 깜빡 보이는 이중 노출 문제 (사용자 보고
    2026-05-17) — overlay 폐기. layout.tsx 의 splash Script 도 함께 제거됨. */
+
+/* 전역 Suspense 로딩 폴백(app/loading.tsx) 전용 스피너 회전.
+   베타 클래스와 충돌 없도록 고유 prefix 사용. */
+@keyframes pbttSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -91,6 +91,7 @@ export default function BetaSkinFeed({
   reportPool = [],
   searchReport = null,
   searchQuery,
+  popularTags: serverPopularTags = [],
   hotIds,
   viewerStates,
 }: {
@@ -103,6 +104,9 @@ export default function BetaSkinFeed({
   searchReport?: ProcedureReport | null;
   /** 서버 검색 중이면 검색어 — 비어 있으면 일반 피드. */
   searchQuery?: string;
+  /** 사이드 '인기 태그' '전체' 탭 — 서버(page.tsx)가 비검색 피드 풀 기준으로 계산한 16개.
+   *   검색·태그클릭으로 재마운트돼도 이 값을 그대로 써 순서·구성이 변하지 않음(클라 재계산 안 함). */
+  popularTags?: string[];
   /** 운영 홈과 동일 — HOT 카드 id 목록. PostCard 의 isHot 판정에 사용. */
   hotIds?: number[];
   /** 서버 prefetch 한 좋아요/저장 상태(card.id → 상태). */
@@ -359,38 +363,11 @@ export default function BetaSkinFeed({
   // 검색('전체' 탭)일 때 시술명이 리포트와 매칭되면 결과 맨 위에 리포트 카드 1장.
   const topReport = searchQuery && effectiveChip === "all" ? searchReport : null;
 
-  // 전체 풀 keywords 빈도 순위(사이드 인기 태그용) — 항목3) 16개.
-  //   태그 클릭 = 검색이라 pool 이 검색결과로 바뀌면 빈도가 달라져 클릭한 태그가 맨 위로 올라오던 버그.
-  //   → "검색 중이 아닐 때 처음" 계산한 목록을 frozen 으로 고정 → 태그를 눌러 검색이 돼도 순서·구성 불변.
-  //   - hasFrozenRef 플래그로 "비검색 상태 최초 1회만" 고정. (length===0 판단은 키워드 없는 일시적 빈 풀에서
-  //     반복 재계산되거나 직접 ?q= 진입→검색해제 시점 풀로 잘못 고정될 여지가 있어 플래그로 명확히 함.)
-  //   - 의도된 trade-off: 고정 후 무한스크롤로 새로 들어온 카드 키워드는 인기 태그에 반영하지 않음
-  //     (요구가 "목록 위치·구성 불변" 이라 안정성 우선).
-  const frozenTagsRef = useRef<string[]>([]);
-  const hasFrozenRef = useRef(false);
-  const popularTags = useMemo(() => {
-    const compute = () => {
-      const freq = new Map<string, number>();
-      for (const c of pool) {
-        for (const k of c.keywords ?? []) {
-          freq.set(k, (freq.get(k) ?? 0) + 1);
-        }
-      }
-      return [...freq.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .map(([k]) => k)
-        .slice(0, 16);
-    };
-    if (!searchQuery) {
-      if (!hasFrozenRef.current) {
-        frozenTagsRef.current = compute();
-        hasFrozenRef.current = true;
-      }
-      return frozenTagsRef.current;
-    }
-    // 검색 중: 비검색 고정본이 있으면 그대로(순서 불변), 없으면(직접 ?q= 진입) 현재 풀 기준 best-effort.
-    return hasFrozenRef.current ? frozenTagsRef.current : compute();
-  }, [pool, searchQuery]);
+  // 사이드 '인기 태그' '전체' 탭 — 서버(page.tsx)가 '비검색 피드 풀' 기준으로 계산해 내려준 16개.
+  //   과거엔 클라에서 pool(검색 시 검색결과로 바뀜) 빈도로 재계산 → 태그 클릭(=검색)이 그 태그를 1위로
+  //   올리던 버그가 있었고, frozenTagsRef 로 클라 고정했으나 검색 라우팅 시 BetaSkinFeed 가 재마운트되며
+  //   ref 가 초기화돼 무력화됐다. 이제 서버 prop 으로 고정 → 재마운트·검색·태그클릭에도 순서·구성 불변.
+  const popularTags = serverPopularTags;
 
   // 사이드 '인기 태그' 카드 — 카테고리 탭. "전체"는 위 빈도순 popularTags(16개),
   //   카테고리 탭은 /api/beta-discover 의 cats(검색 드롭다운과 동일 소스)에서 해당 slug 목록.
