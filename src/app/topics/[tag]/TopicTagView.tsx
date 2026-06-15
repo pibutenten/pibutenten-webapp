@@ -16,6 +16,7 @@
 import Link from "next/link";
 import type { CardData } from "@/components/Card";
 import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
+import FeedSidebar from "@/app/beta-skin/FeedSidebar";
 import { PostCard, useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
 import betaStyles from "@/app/beta-skin/beta-skin.module.css";
 
@@ -26,30 +27,39 @@ export default function TopicTagView({
   posts,
   count,
   reportLink,
+  popularTags,
+  hotQa,
 }: {
   tag: string;
   posts: CardData[];
   count: number;
   reportLink: { count: number } | null;
+  /** 사이드 '인기 태그' '전체' 탭 — 서버 빈도순 16개(홈과 동일 방식). */
+  popularTags: string[];
+  /** 사이드 '인기 Q&A' 후보 풀 — 의사 Q&A 카드(홈과 동일 방식). */
+  hotQa: CardData[];
 }) {
   const search = useBetaSearchRouting();
+  // 태그 클릭 → 운영 홈(/?q=) 검색 라우팅(홈 피드와 동일). 사이드바·카드 태그 칩 공통 사용.
+  const applyTag = (k: string) => search.onSearchSubmit(k);
+
+  // 홈 피드와 동일한 우측 사이드바 — 인기태그·인기 Q&A·글쓰기 CTA.
+  const sidebar = (
+    <FeedSidebar popularTags={popularTags} hotQa={hotQa} onTagClick={applyTag} />
+  );
 
   return (
-    <BetaSkinShell active="피드" back="/" {...search}>
-      <header className="mb-6">
-        <p className="mb-2 text-xs text-[var(--text-muted)]">
-          <Link href="/" className="hover:text-[var(--primary)]">
-            홈
-          </Link>{" "}
-          / 태그
-        </p>
-        <h1 className="text-2xl font-bold text-[var(--text)]">#{tag}</h1>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          피부과 전문의가 답한 <strong>{tag}</strong> 관련 글{" "}
-          <span className="font-bold text-[var(--primary)]">{count}</span>개.
-        </p>
-      </header>
-
+    <BetaSkinShell
+      active="피드"
+      back="/"
+      backTitle={
+        <h1>
+          피부과 전문의가 답한 #{tag} 관련 글 <b>{count}</b>개
+        </h1>
+      }
+      sidebar={sidebar}
+      {...search}
+    >
       {/* 시술 리포트 얇은 링크 — 이 시술의 /reports 가 존재할 때만(후기 ≥1). 한글 직접 타깃(308 미경유). */}
       {reportLink && (
         <div className="mx-auto mb-5 max-w-[680px]">
@@ -71,7 +81,7 @@ export default function TopicTagView({
       {/* 홈 피드와 동일한 단일열 PostCard 리스트(2열 Masonry → 단일열 feedList). */}
       <div className={betaStyles.feedList}>
         {posts.map((card) => (
-          <PostCard key={card.id} card={card} />
+          <PostCard key={card.id} card={card} onTagClick={applyTag} />
         ))}
       </div>
 

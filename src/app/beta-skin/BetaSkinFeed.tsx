@@ -24,20 +24,11 @@ import type { ProcedureReport } from "@/lib/procedure-report";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 // 검색 실행 시 최근 검색어 저장(운영 BetaNav.submit 과 동일 진입점).
 import { addRecent } from "@/lib/beta-recent";
-// 사이드 '인기 태그' 카드의 카테고리별 인기태그 — 검색 드롭다운(BetaDiscovery)과 동일 소스 재사용.
-//   prefetchDiscover() 가 /api/beta-discover 를 모듈 캐시로 1회 fetch → cats(카테고리별 태그) 재활용.
-import { prefetchDiscover } from "@/components/beta/BetaDiscovery";
-import { CATEGORIES, type CategorySlug } from "@/lib/categories";
 import BetaSkinShell from "./BetaSkinShell";
+import FeedSidebar from "./FeedSidebar";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import styles from "./beta-skin.module.css";
-import {
-  PostCard,
-  cardHref,
-  catTagClass,
-  catKey,
-  type BetaViewerState,
-} from "./beta-ui";
+import { PostCard, type BetaViewerState } from "./beta-ui";
 
 /* 무한스크롤 한 번에 확장할 카드 수 */
 const PAGE = 20;
@@ -73,16 +64,6 @@ function scrollFeedTop(from: HTMLElement | null) {
   }
   window.scrollTo({ top: 0 });
 }
-
-/* 사이드 글쓰기 유도 박스 문구 — Q&A 한정에서 일반 "피부 글쓰기" 유도로.
- *   랜덤 셔플로 매 진입마다 다른 톤(꿀팁/고민/후기/일기/질문) 노출. CTA 는 글쓰기. */
-const SIDE_PROMPTS: { h3: string; p: string }[] = [
-  { h3: "공유하고 싶은 피부 꿀팁이 있으세요?", p: "나만 아는 노하우를 글로 남겨보세요." },
-  { h3: "요즘 피부 고민, 어떠세요?", p: "고민을 남기면 회원·전문의와 이야기 나눌 수 있어요." },
-  { h3: "최근 받은 시술, 어땠나요?", p: "솔직한 경험을 글로 들려주세요." },
-  { h3: "오늘의 피부, 한 줄 남겨볼까요?", p: "작은 변화도 기록하면 큰 도움이 돼요." },
-  { h3: "궁금한 점이 있으세요?", p: "글로 남기면 회원·전문의의 이야기를 들어볼 수 있어요." },
-];
 
 /* ---------- 클라이언트 루트 ---------- */
 export default function BetaSkinFeed({
@@ -369,36 +350,8 @@ export default function BetaSkinFeed({
   //   ref 가 초기화돼 무력화됐다. 이제 서버 prop 으로 고정 → 재마운트·검색·태그클릭에도 순서·구성 불변.
   const popularTags = serverPopularTags;
 
-  // 사이드 '인기 태그' 카드 — 카테고리 탭. "전체"는 위 빈도순 popularTags(16개),
-  //   카테고리 탭은 /api/beta-discover 의 cats(검색 드롭다운과 동일 소스)에서 해당 slug 목록.
-  type TagTab = "all" | CategorySlug;
-  const [tagTab, setTagTab] = useState<TagTab>("all");
-  const [cats, setCats] = useState<Record<string, string[]> | null>(null);
-  useEffect(() => {
-    let alive = true;
-    prefetchDiscover().then((d) => {
-      if (alive) setCats(d.cats ?? {});
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // 현재 선택 탭의 태그 목록 — "전체"면 빈도순 16개, 카테고리면 cats[slug] 상위 16개.
-  const sideTags = useMemo<string[]>(() => {
-    if (tagTab === "all") return popularTags;
-    return (cats?.[tagTab] ?? []).slice(0, 16);
-  }, [tagTab, cats, popularTags]);
-
-  // 사이드 글쓰기 유도 박스 — 매 진입 랜덤 문구(SSR 은 0번, 마운트 후 셔플 → 하이드레이션 안전).
-  const [promptIdx, setPromptIdx] = useState(0);
-  useEffect(() => {
-    setPromptIdx(Math.floor(Math.random() * SIDE_PROMPTS.length));
-  }, []);
-  const sidePrompt = SIDE_PROMPTS[promptIdx];
-
-  // 인기 Q&A 후보 풀 — doctor 글(Q&A) 상위 20개(기존 5개에서 확대).
-  //   회전은 이 풀 안에서만 일어나므로, 풀이 클수록 매 진입 노출 다양성이 커진다.
+  // 인기 Q&A 후보 풀 — doctor 글(Q&A) 상위 20개. FeedSidebar 가 이 안에서 5개를 회전 노출.
+  //   사이드바의 회전·카테고리 탭·글쓰기 CTA 로직은 FeedSidebar 로 추출(홈/토픽/리포트 공유).
   const doctorAnswerPool = useMemo(
     () =>
       pool
@@ -406,22 +359,6 @@ export default function BetaSkinFeed({
         .slice(0, 20),
     [pool],
   );
-  // 매 진입(마운트)마다 풀 안에서 시작점을 무작위로 옮겨 5개를 회전 노출.
-  //   하이드레이션 안전: SSR·초기 렌더는 항상 offset 0(앞 5개, 결정적). 마운트 후 useEffect 로만 회전.
-  //   (sidePrompt 와 동일 패턴 — 서버/클라 첫 렌더 일치 보장.)
-  const [hotQaOffset, setHotQaOffset] = useState(0);
-  useEffect(() => {
-    setHotQaOffset(Math.floor(Math.random() * 20));
-  }, []);
-  // 풀에서 offset 부터 5개를 wrap-around(순환)로 잘라 노출. 풀이 5개 이하면 그대로.
-  const doctorAnswers = useMemo(() => {
-    const n = doctorAnswerPool.length;
-    if (n <= 5) return doctorAnswerPool;
-    const start = hotQaOffset % n;
-    const out: typeof doctorAnswerPool = [];
-    for (let i = 0; i < 5; i++) out.push(doctorAnswerPool[(start + i) % n]);
-    return out;
-  }, [doctorAnswerPool, hotQaOffset]);
 
   const chips = CHIPS.map((c) => (
     <button
@@ -443,80 +380,15 @@ export default function BetaSkinFeed({
     </button>
   ));
 
+  // 사이드바 — 홈/토픽/리포트 공유 FeedSidebar(인기태그·인기 Q&A·글쓰기 CTA).
+  //   인기 Q&A 풀은 현재 피드 풀에서 파생(doctorAnswerPool), 태그 클릭은 검색 라우팅(applyTag) 위임.
   const sidebar = (
-    <>
-      <section className={`${styles.card} ${styles.sideCard}`}>
-        <h3>인기 태그</h3>
-        {/* 카테고리 탭 — "전체"(빈도순 16개) + 운영 5개 카테고리.
-            탭 칩 색 클래스(styles.tagCatTab)는 CSS 작업자가 정의. 여기선 className 만 부여. */}
-        <div className={styles.tagCatTabs}>
-          <button
-            type="button"
-            className={`${styles.tagCatTab} ${tagTab === "all" ? styles.tagCatTabActive : ""}`}
-            onClick={() => setTagTab("all")}
-            aria-pressed={tagTab === "all"}
-          >
-            전체
-          </button>
-          {CATEGORIES.map((c) => (
-            <button
-              type="button"
-              key={c.slug}
-              className={`${styles.tagCatTab} ${tagTab === c.slug ? styles.tagCatTabActive : ""}`}
-              onClick={() => setTagTab(c.slug)}
-              aria-pressed={tagTab === c.slug}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-        <div className={styles.sideTags}>
-          {/* 인기 태그에 # 표기 금지 — 키워드만. 클릭 시 서버 검색. */}
-          {sideTags.length === 0 ? (
-            <p className={styles.empty}>
-              {cats === null ? "불러오는 중…" : "표시할 태그가 없습니다."}
-            </p>
-          ) : (
-            sideTags.map((tag) => {
-              // 통일 태그: 평소 연한 회색(.t), 선택(현재 검색어=그 태그)일 때만 연한 카테고리 틴트.
-              const on = (searchQuery ?? "").trim() === tag;
-              return (
-                <button
-                  type="button"
-                  className={`${styles.t} ${on ? catTagClass(tag) : ""}`}
-                  data-cat={catKey(tag)}
-                  key={tag}
-                  onClick={() => applyTag(tag)}
-                  aria-pressed={on}
-                >
-                  {tag}
-                </button>
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      <section className={`${styles.card} ${styles.sideCard}`}>
-        <h3>인기 Q&A</h3>
-        <div className={styles.sideList}>
-          {doctorAnswers.map((c) => (
-            <a key={c.id} href={cardHref(c)}>
-              <span className={styles.n}>Q</span>
-              <span>{c.title}</span>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <section className={`${styles.card} ${styles.sideCta}`}>
-        <h3>{sidePrompt.h3}</h3>
-        <p>{sidePrompt.p}</p>
-        <a className={styles.sideCtaBtn} href="/write">
-          글쓰기
-        </a>
-      </section>
-    </>
+    <FeedSidebar
+      popularTags={popularTags}
+      hotQa={doctorAnswerPool}
+      currentTag={searchQuery ?? ""}
+      onTagClick={applyTag}
+    />
   );
 
   return (

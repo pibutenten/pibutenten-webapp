@@ -19,6 +19,7 @@ import {
 import { clinicSchemaForDoctor } from "@/lib/schema/clinic";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { fetchCardList } from "@/lib/search-query";
+import { CARD_LIST_SELECT } from "@/lib/card-select";
 
 export const dynamic = "force-dynamic";
 
@@ -130,6 +131,21 @@ export default async function DoctorDetailPage({ params }: Props) {
   const affiliation = [doctor.clinic, doctor.branch].filter(Boolean).join(" ");
   const hotIds = Array.from(await getHotQaIds(20));
 
+  // 사이드바 "함께 보면 좋은 Q&A" — 이 원장의 인기 Q&A 상위 5개(조회수 내림차순).
+  //   PostDetail 의 related 는 "특정 글" 기준(같은 영상·키워드)이지만 원장 페이지엔 기준 글이 없으므로
+  //   이 원장과 가장 관련 높은 인기 Q&A(=본인 인기 답변)로 채운다. published only(RLS 안전) + href 필드 포함.
+  const { data: rawRelated, error: relatedErr } = await supabase
+    .from("cards")
+    .select(CARD_LIST_SELECT)
+    .eq("status", "published")
+    .eq("doctor_id", doctor.id)
+    .or("category.eq.qa,type.eq.qa")
+    .is("deleted_at", null)
+    .order("view_count", { ascending: false, nullsFirst: false })
+    .limit(5);
+  if (relatedErr) console.error("[doctor] 인기 Q&A 조회 실패:", relatedErr.message);
+  const relatedQa = (rawRelated ?? []) as unknown as CardData[];
+
   // 정책 (2026-05-17): /doctors/[slug] 는 viewer 와 무관하게 동일한 공개 프로필만 노출.
   //   본인(의사) dashboard 는 /{handle} 페이지가 담당 — IdentitySwitcher 가 본인 진입 시
   //   /{handle} 로 라우팅. /doctors/[slug] 에는 dashboard 분기 없음.
@@ -206,6 +222,7 @@ export default async function DoctorDetailPage({ params }: Props) {
         profile={profile}
         cards={cards}
         orderedIds={orderedIds}
+        relatedQa={relatedQa}
         count={count}
         hotIds={hotIds}
         viewerStates={viewerStates}

@@ -7,7 +7,31 @@ import type { CardData } from "@/components/Card";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
+import { topKeywords } from "@/app/beta-skin/feed-sidebar-data";
 import ProcedureReportView from "./ProcedureReportView";
+
+/** 홈 피드와 동일한 사이드바 데이터(인기태그·인기 Q&A) — feed_cards_scored 비검색 풀 기준.
+ *   홈 page.tsx 의 비검색 분기와 동일 RPC·동일 파라미터. published 공개 카드만(RPC + RLS, 우회 없음). */
+async function fetchFeedSidebarData(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+): Promise<{ popularTags: string[]; hotQa: CardData[] }> {
+  const { data, error } = await supabase.rpc("feed_cards_scored", {
+    p_limit: 300,
+    p_offset: 0,
+    p_half_life_days: 14,
+    p_jitter_amp: 0.35,
+  });
+  if (error) {
+    console.error("[reports] 사이드바 피드 풀 조회 실패:", error.message);
+    return { popularTags: [], hotQa: [] };
+  }
+  const scored = (data ?? []) as CardData[];
+  const popularTags = topKeywords(scored);
+  const hotQa = scored
+    .filter((c) => !!c.doctor && (c.category ?? c.type) === "qa")
+    .slice(0, 20);
+  return { popularTags, hotQa };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -108,7 +132,10 @@ export default async function ProcedureReportPage({ params }: Props) {
   // /topics(전문의 Q&A 허브) 얇은 링크 — 실제 존재(의사 qa ≥4 = get_indexable_tags 포함)할 때만.
   //   /topics 의 404 게이트(MIN_DOCTOR_POSTS=4)와 동일 기준 → 깨진 링크 0. 정적 링크 1줄
   //   (2026-06-04 제거된 '관련 전문의 Q&A' 섹션·orphan qa fetch 부활 아님).
-  const { data: idxTags } = await supabase.rpc("get_indexable_tags", { p_min_count: 4 });
+  const [{ data: idxTags }, sidebarData] = await Promise.all([
+    supabase.rpc("get_indexable_tags", { p_min_count: 4 }),
+    fetchFeedSidebarData(supabase),
+  ]);
   const topicsExists =
     Array.isArray(idxTags) &&
     (idxTags as Array<{ keyword: string }>).some((t) => t.keyword === ko);
@@ -176,6 +203,8 @@ export default async function ProcedureReportPage({ params }: Props) {
         reviewLiked={reviewLiked}
         reviewTotal={reviewTotal}
         topicsExists={topicsExists}
+        popularTags={sidebarData.popularTags}
+        hotQa={sidebarData.hotQa}
       />
     </>
   );

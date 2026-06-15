@@ -28,6 +28,7 @@ import { orcidUrl, type DoctorProfileData } from "@/lib/doctor-profile";
 import type { DoctorTheme } from "@/lib/doctor-theme";
 import type { BetaViewerState } from "../../beta-skin/beta-ui";
 import {
+  cardHref,
   IconVerified,
   PostCard,
   useBetaSearchRouting,
@@ -47,6 +48,7 @@ export default function DoctorProfileView({
   profile,
   cards,
   orderedIds = [],
+  relatedQa = [],
   count,
   hotIds,
   viewerStates,
@@ -64,6 +66,8 @@ export default function DoctorProfileView({
   cards: CardData[];
   /** 이 원장 전체 글 ID 순서(랭킹). 무한스크롤이 이 순서대로 /api/cards?ids= 로 다음 묶음을 받음. */
   orderedIds?: number[];
+  /** 사이드바 "함께 보면 좋은 Q&A" — 이 원장 인기 Q&A 상위 N개(서버 조회). 비면 섹션 숨김. */
+  relatedQa?: CardData[];
   count: number | null;
   hotIds: number[];
   viewerStates: Record<number, BetaViewerState>;
@@ -158,9 +162,10 @@ export default function DoctorProfileView({
       window.removeEventListener(CARD_BUS_EVENTS.CARD_DELETED, onDeleted);
   }, []);
 
-  // 우측 사이드바 = 원장 카드 1장 — 글 상세(PostDetail) 작성자 사이드바와 같은 형식.
-  //   메시지(intro) → 이름(H1) → "피부과 전문의" 배지 → 누끼 사진 → 프로필 상세(소속·학력·경력·
-  //   전문분야·자격·학회·학회활동·출판) → 외부 링크 칩. 데스크탑 2단 우측, 모바일은 피드 아래(sidebarMobileBelow).
+  // 우측 사이드바 — 글 상세(PostDetail) 작성자 사이드바와 동일한 형식:
+  //   (a) 원장 카드(메시지 → 이름(H1) → "피부과 전문의" 배지 → 누끼 사진) + 프로필 상세를 "더보기"로 접음.
+  //   (b) 그 아래 "함께 보면 좋은 Q&A"(이 원장 인기 Q&A) 섹션.
+  //   데스크탑 2단 우측, 모바일은 피드 아래(sidebarMobileBelow).
   const profileSidebar = (
     <DoctorProfileSidebar
       name={name}
@@ -168,6 +173,7 @@ export default function DoctorProfileView({
       affiliation={affiliation}
       photo={photo}
       profile={profile}
+      relatedQa={relatedQa}
     />
   );
 
@@ -175,21 +181,19 @@ export default function DoctorProfileView({
     <BetaSkinShell
       active="마이"
       back="/doctors"
+      backTitle={
+        // '< 뒤로' 옆 제목 — 좌측 첫 글상자가 우측 원장 카드와 같은 높이에서 시작하도록
+        //   메인 상단 헤더 대신 셸 backRow 로 올린다. H1 은 사이드바 원장명 1개 → 여기는 <h2>(중복 방지).
+        <h2>
+          {name} 원장님의 답변 <b>{count ?? 0}</b>편
+        </h2>
+      }
       sidebar={profileSidebar}
       sidebarMobileBelow
       {...search}
     >
       {/* 메인(좌) = 답변 피드만 (글 상세 PostDetail 과 같은 형식 — 본문은 메인, 원장 카드는 사이드바).
-          원장 사진·이름·병원은 우측 사이드바(원장 카드)로 이동했다. 여기는 헤더 + 답변 피드. */}
-      {/* 답변 헤더 — "정한미 원장님의 답변 N편" (베타 sectionHead 톤) */}
-      <div className={styles.sectionHead}>
-        <h2>
-          {name} 원장님의 답변{" "}
-          <span style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-300)" }}>
-            {count ?? 0}편
-          </span>
-        </h2>
-      </div>
+          원장 사진·이름·병원은 우측 사이드바(원장 카드)로, 답변 헤더는 셸 backTitle 로 이동했다. */}
 
       {/* Q&A 피드 (해당 원장만) — 홈과 동일한 단일열 PostCard 피드(feedList) + 무한스크롤.
           서버가 내려준 초기 풀(cards)을 PostCard 로 렌더하고, 스크롤 끝(sentinel)에 닿으면
@@ -243,13 +247,18 @@ function DoctorProfileSidebar({
   affiliation,
   photo,
   profile,
+  relatedQa,
 }: {
   name: string;
   intro: string | null;
   affiliation: string;
   photo: string;
   profile: DoctorProfileData;
+  relatedQa: CardData[];
 }) {
+  // 프로필 상세 — PostDetail 과 동일하게 "더보기"로 접음. 기본 닫힘.
+  const [profileOpen, setProfileOpen] = useState(false);
+
   // 프로필 상세 dl — 소속(맨 위) → 학력 → 경력 → 전문 분야 → 자격 → 학회 → 학회 활동 → 출판·저서.
   //   값이 있는 항목만 노출(빈 행 없음). 정보 누락 방지 — 자격(전문의 취득연도)도 dl 에 유지.
   const items: { title: string; values: string[] }[] = [];
@@ -287,65 +296,114 @@ function DoctorProfileSidebar({
   if (profile.googleScholarUrl)
     externalLinks.push({ label: "Google Scholar", url: profile.googleScholarUrl });
 
+  // 더보기로 펼칠 확장 프로필이 실제로 있는지(빈 더보기 방지) — PostDetail 의 hasProfileDetail 정합.
+  const hasProfileDetail = items.length > 0 || externalLinks.length > 0;
+
   return (
-    <section className={`${styles.card} ${styles.authorSide}`}>
-      {/* 한줄 메시지(intro) — 맨 위. (운영 doctors.intro) */}
-      {intro && <p className={styles.authorMessage}>{intro}</p>}
-      {/* 이름 — 페이지 유일 H1(원장명). authorName/authorSideName 톤 재사용. */}
-      <h1 className={`${styles.authorName} ${styles.authorSideName}`}>{name}</h1>
-      {/* 피부과 전문의 배지 */}
-      <div className={styles.authorSub}>
-        <span className={styles.verified}>
-          <IconVerified />
-          피부과 전문의
-        </span>
-      </div>
-      {/* 누끼 원장 사진 — 운영 프로필과 동일한 /doctors/{slug}.png (PostDetail 과 동일 톤). */}
-      <div className={styles.authorSidePhoto}>
-        <Image
-          src={photo}
-          alt={`${name} 원장님`}
-          fill
-          sizes="300px"
-          className={styles.authorSidePhotoImg}
-          priority
-        />
-      </div>
-      {/* 프로필 상세 — 학력·경력·… dl + 외부 링크 칩. 항상 펼쳐 노출(이 페이지의 핵심 정보). */}
-      {(items.length > 0 || externalLinks.length > 0) && (
-        <div className={styles.authorIntro}>
-          <div className={styles.profileDetail}>
-            {items.length > 0 && (
-              <dl className={styles.profileDl}>
-                {items.map((it) => (
-                  <div className={styles.profileRow} key={it.title}>
-                    <dt>{it.title}</dt>
-                    <dd>
-                      {it.values.map((v, idx) => (
-                        <span key={`${it.title}-${idx}`}>{v}</span>
-                      ))}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-            {externalLinks.length > 0 && (
-              <div className={styles.profileLinks}>
-                {externalLinks.map((l) => (
-                  <a
-                    key={l.url}
-                    href={l.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {l.label}
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
+    <>
+      {/* 작성자(원장) 카드 — PostDetail 과 동일: 프로필 아무 곳이나 클릭하면 더보기 토글(미니멀).
+          이름(H1)·배지·사진은 항상 노출, 프로필 상세(학력·경력·…)만 접힘 → 더보기로 펼침. */}
+      <section
+        className={`${styles.card} ${styles.authorSide} ${
+          hasProfileDetail ? styles.authorSideClickable : ""
+        }`}
+        onClick={hasProfileDetail ? () => setProfileOpen((v) => !v) : undefined}
+        role={hasProfileDetail ? "button" : undefined}
+        tabIndex={hasProfileDetail ? 0 : undefined}
+        aria-expanded={hasProfileDetail ? profileOpen : undefined}
+        onKeyDown={
+          hasProfileDetail
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setProfileOpen((v) => !v);
+                }
+              }
+            : undefined
+        }
+      >
+        {/* 한줄 메시지(intro) — 맨 위. 접힘 상태에서도 항상 노출. (운영 doctors.intro) */}
+        {intro && <p className={styles.authorMessage}>{intro}</p>}
+        {/* 이름 — 페이지 유일 H1(원장명). 토글과 무관하게 항상 노출(접힘 영역 밖) → H1 1개 유지. */}
+        <h1 className={`${styles.authorName} ${styles.authorSideName}`}>{name}</h1>
+        {/* 피부과 전문의 배지 */}
+        <div className={styles.authorSub}>
+          <span className={styles.verified}>
+            <IconVerified />
+            피부과 전문의
+          </span>
         </div>
+        {/* 누끼 원장 사진 — 운영 프로필과 동일한 /doctors/{slug}.png (PostDetail 과 동일 톤). */}
+        <div className={styles.authorSidePhoto}>
+          <Image
+            src={photo}
+            alt={`${name} 원장님`}
+            fill
+            sizes="300px"
+            className={styles.authorSidePhotoImg}
+            priority
+          />
+        </div>
+        {/* 펼침 — 확장 프로필(소속·학력·경력·자격·학회·… dl + 외부 링크 칩). 링크 클릭은 토글과 충돌 방지(stopPropagation). */}
+        {profileOpen && hasProfileDetail && (
+          <div className={styles.authorIntro}>
+            <div className={styles.profileDetail}>
+              {items.length > 0 && (
+                <dl className={styles.profileDl}>
+                  {items.map((it) => (
+                    <div className={styles.profileRow} key={it.title}>
+                      <dt>{it.title}</dt>
+                      <dd>
+                        {it.values.map((v, idx) => (
+                          <span key={`${it.title}-${idx}`}>{v}</span>
+                        ))}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              {externalLinks.length > 0 && (
+                <div className={styles.profileLinks}>
+                  {externalLinks.map((l) => (
+                    <a
+                      key={l.url}
+                      href={l.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {l.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {/* 더보기/접기 — 본문 더보기와 같은 미니멀 톤(.moreToggle). 실제 토글은 카드 전체 클릭. */}
+        {hasProfileDetail && (
+          <span className={styles.moreToggle}>
+            {profileOpen ? "접기" : "더보기"}
+          </span>
+        )}
+      </section>
+
+      {/* 함께 보면 좋은 Q&A — PostDetail 과 동일 섹션(이 원장 인기 Q&A). 데스크탑은 프로필 아래,
+          모바일은 .sideQa order 로 프로필보다 위로(셸 sidebarMobileShow 규칙). 비면 숨김. */}
+      {relatedQa.length > 0 && (
+        <section className={`${styles.card} ${styles.sideCard} ${styles.sideQa}`}>
+          <h3>함께 보면 좋은 Q&A</h3>
+          <div className={styles.sideList}>
+            {relatedQa.map((c) => (
+              // 운영 canonical(/doctors/{slug}/{year}/{post-slug}) 로 — 이 페이지 PostCard 클릭 동선과 통일.
+              <a href={cardHref(c)} key={c.id}>
+                <span className={styles.n}>Q</span>
+                <span>{c.title}</span>
+              </a>
+            ))}
+          </div>
+        </section>
       )}
-    </section>
+    </>
   );
 }

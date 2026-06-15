@@ -9,7 +9,34 @@ import {
   clinicIdRefForDoctor,
   clinicSchemaForDoctor,
 } from "@/lib/schema/clinic";
+import { topKeywords } from "@/app/beta-skin/feed-sidebar-data";
 import TopicTagView from "./TopicTagView";
+
+/** 홈 피드와 동일한 사이드바 데이터(인기태그·인기 Q&A) — feed_cards_scored 비검색 풀 기준.
+ *   홈 page.tsx 의 비검색 분기와 동일 RPC·동일 파라미터로 받아, popularTags 는 topKeywords 빈도순,
+ *   인기 Q&A 는 의사 Q&A 카드만 추려 상위 20개. published 공개 카드만(RPC + RLS, 우회 없음). */
+async function fetchFeedSidebarData(): Promise<{
+  popularTags: string[];
+  hotQa: CardData[];
+}> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("feed_cards_scored", {
+    p_limit: 300,
+    p_offset: 0,
+    p_half_life_days: 14,
+    p_jitter_amp: 0.35,
+  });
+  if (error) {
+    console.error("[topics] 사이드바 피드 풀 조회 실패:", error.message);
+    return { popularTags: [], hotQa: [] };
+  }
+  const scored = (data ?? []) as CardData[];
+  const popularTags = topKeywords(scored);
+  const hotQa = scored
+    .filter((c) => !!c.doctor && (c.category ?? c.type) === "qa")
+    .slice(0, 20);
+  return { popularTags, hotQa };
+}
 
 /**
  * /topics/{태그} — 태그별 의사 글 hub.
@@ -117,7 +144,10 @@ export default async function TagPage({ params }: Props) {
   //   리포트 카드·개별 후기는 /topics 에 렌더하지 않고, 이 시술의 /reports 가 존재하면
   //   얇은 링크 1줄만 노출. 존재·N 은 경량 get_review_summary_pool(ko===tag) 로 판단.
   const supabase = await createSupabaseServerClient();
-  const reportLink = await getReportSummaryForTag(supabase, tag);
+  const [reportLink, sidebarData] = await Promise.all([
+    getReportSummaryForTag(supabase, tag),
+    fetchFeedSidebarData(),
+  ]);
 
   // 3) JSON-LD: @graph 로 CollectionPage + FAQPage 묶음 출력.
   //    AEO/GEO/SEO 강화:
@@ -221,7 +251,14 @@ export default async function TagPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
-      <TopicTagView tag={tag} posts={posts} count={count} reportLink={reportLink} />
+      <TopicTagView
+        tag={tag}
+        posts={posts}
+        count={count}
+        reportLink={reportLink}
+        popularTags={sidebarData.popularTags}
+        hotQa={sidebarData.hotQa}
+      />
     </>
   );
 }
