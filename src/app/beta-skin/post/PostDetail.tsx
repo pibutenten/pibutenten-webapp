@@ -20,7 +20,7 @@ import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
 import {
   IconVerified,
-  betaPostHref,
+  cardHref,
   PostCard,
   useBetaSearchRouting,
   type BetaViewerState,
@@ -58,6 +58,12 @@ export default function PostDetail({
     isDoctor && card?.doctor?.slug ? getDoctorPhoto(card.doctor.slug) : null;
   // "더보기" 펼침에 표시할 확장 프로필이 실제로 있는지(운영 DoctorProfileSection 과 같은 항목 기준).
   const hasProfileDetail = !!doctorProfile && profileHasContent(doctorProfile);
+
+  // 함께 보면 좋은 Q&A — 이동 가능한 항목만(cardHref 가 fallback "/" 가 아닌 것).
+  //   PostCard 제목 링크의 hasHref 가드와 같은 정책으로, 클릭해도 못 가는 항목을 미리 거른다.
+  const relatedLinks = related
+    .map((c) => ({ id: c.id, title: c.title, href: cardHref(c) }))
+    .filter((c) => c.href !== "/");
 
   const sidebar = card ? (
     <>
@@ -134,13 +140,14 @@ export default function PostDetail({
         )}
       </section>
 
-      {/* 함께 보면 좋은 Q&A — 데스크탑은 프로필 아래, 모바일은 .sideQa order 로 프로필보다 위로. */}
-      {related.length > 0 && (
+      {/* 함께 보면 좋은 Q&A — 데스크탑은 프로필 아래, 모바일은 .sideQa order 로 프로필보다 위로.
+          이동 가능한 항목만(cardHref !== "/") 노출 — PostCard 제목 링크의 hasHref 가드와 동일 정책. */}
+      {relatedLinks.length > 0 && (
         <section className={`${styles.card} ${styles.sideCard} ${styles.sideQa}`}>
           <h3>함께 보면 좋은 Q&A</h3>
           <div className={styles.sideList}>
-            {related.map((c) => (
-              <a href={betaPostHref(c)} key={c.id}>
+            {relatedLinks.map((c) => (
+              <a href={c.href} key={c.id}>
                 <span className={styles.n}>Q</span>
                 <span>{c.title}</span>
               </a>

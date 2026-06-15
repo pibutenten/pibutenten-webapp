@@ -97,25 +97,25 @@ export function cardHref(c: CardData): string {
   return getQaUrl(c);
 }
 
-/* ---------- 카드 → 베타 글상세 "고유 URL" ----------
- * 운영 canonical(getQaUrl)을 /beta-skin/post 접두로 차용(의미있는 고유 주소).
- *   - 의사 글: /beta-skin/post/doctors/{slug}/{year}/{post_slug}
- *   - 회원 글: /beta-skin/post/{handle}/{shortcode}
- * canonical 정보가 부족하면(getQaUrl="/") ?id= 숫자 URL 로 폴백. */
-export function betaPostHref(c: CardData): string {
-  const u = getQaUrl(c);
-  return u && u !== "/" ? `/beta-skin/post${u}` : `/beta-skin/post?id=${c.id}`;
-}
-
 /* ---------- 카드 → 작성자 프로필 URL (운영 CardHeader 동선 재현) ----------
  * 작성자(아바타+이름) 클릭 → 프로필로 이동.
  *   - 의사(credential 노출): /doctors/{slug} (운영 — 베타엔 원장 프로필이 없고 글상세 우측 프로필이 대체)
- *   - 회원(handle 있음):     /beta-skin/u/{handle} (베타 공개 프로필 — 클릭이 베타 안에 머물게)
+ *   - 회원(handle 있음):     /{handle} (운영 공개 프로필 — noindex 프리뷰 URL 누수 방지)
+ *   - 회원(handle 없음):     /u/{id} (운영 CardHeader.tsx:129 레거시 폴백과 동일)
+ *   - 탈퇴 sentinel:         null → 링크 비활성 (운영 CardHeader.tsx:64-68 동일 정책).
+ *       handle === 'deleted-user' 또는 id === well-known UUID 면 프로필 페이지가 없어 404 → 링크 자체를 막는다.
  *   - 정보 부족: null → 호출부에서 링크 대신 일반 텍스트로 렌더. */
 export function authorHref(c: CardData): string | null {
   const isDoctor = !!c.doctor && !c.hide_doctor_credential;
   if (isDoctor && c.doctor?.slug) return `/doctors/${c.doctor.slug}`;
-  if (c.author?.handle) return `/beta-skin/u/${c.author.handle}`;
+  // 탈퇴 회원 sentinel — 운영과 동일하게 프로필 링크를 만들지 않는다.
+  const isDeletedUser =
+    c.author?.handle === "deleted-user" ||
+    c.author?.id === "00000000-0000-0000-0000-000000000000";
+  if (isDeletedUser) return null;
+  // handle 우선, 없으면 /u/{id} 레거시 폴백 — 운영 CardHeader 라우팅과 동일 정책.
+  if (c.author?.handle) return `/${c.author.handle}`;
+  if (c.author?.id) return `/u/${c.author.id}`;
   return null;
 }
 
@@ -1053,14 +1053,13 @@ export function PostCard({
         <div className={styles.author}>{authorInner}</div>
       )}
 
-      {/* 항목8) 제목 — 클릭 시 베타 글상세(/beta-skin/post?id=)로 같은 탭 이동.
-          예전 PostDetail 디자인 확인용 임시 단독 URL. 운영 단독 URL(새 탭)이 아니라
-          베타 페이지 내부 이동(target/rel 제거). 본문 펼침 토글과 분리(제목은 토글 div 밖).
-          card.id 없으면(이론상 거의 없음) 링크 대신 일반 제목. */}
-      {!forceExpanded && card.id != null ? (
+      {/* 항목8) 제목 — 클릭 시 운영 단독 URL(cardHref=getQaUrl, 정규 canonical)로 같은 탭 이동.
+          noindex 프리뷰 URL(/beta-skin/post) 누수 방지. 본문 펼침 토글과 분리(제목은 토글 div 밖).
+          hasHref(=href !== "/") 가 false 면(이론상 거의 없음) 링크 대신 일반 제목. */}
+      {!forceExpanded && hasHref ? (
         <a
           className={styles.postTitleLink}
-          href={betaPostHref(card)}
+          href={href}
           onClick={(e) => e.stopPropagation()}
         >
           <h2 className={styles.postTitle}>{highlight(card.title ?? "", searchQuery)}</h2>
