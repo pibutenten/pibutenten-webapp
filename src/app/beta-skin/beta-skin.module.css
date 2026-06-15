@@ -31,9 +31,6 @@
   --card: #ffffff;
   --card-shadow: 0 6px 24px rgba(53, 118, 160, 0.07);
   --r-card: 24px;
-  /* 수정1) 본문 접힘(4줄) 높이 — .bodyPara line-height 1.7 × 14.5px ≈ 24.65px, 4줄 ≈ 98.6px.
-     본문 더보기/접기 슬라이드(.bodySlide)의 닫힘 max-height 기준값. */
-  --beta-clamp-h: calc(14.5px * 1.7 * 4);
   --r-chip: 999px;
   --r-btn: 16px;
 
@@ -1108,15 +1105,6 @@
   margin-top: 2px;
   min-width: 0;
   max-width: 100%;
-}
-/* 수정1) 더보기/접기 부드러운 슬라이드 — 본문 wrapper 의 max-height 를 220ms ease 로 전환.
-   JS(beta-ui)가 펼침 시 실측 scrollHeight, 접힘 시 --beta-clamp-h(4줄) 로 maxHeight 를 인라인 세팅.
-   슬라이드 카드는 항상 overflow:hidden — 펼침 전환 중에도 본문이 maxHeight 밖으로 튀지 않게.
-   펼침 완료 후 maxHeight 를 none 으로 풀면 hidden 이어도 잘릴 게 없어 안전.
-   (line-clamp 대신 wrapper clip — 단락 display:none 즉시 전환의 '짝 바뀜'을 슬라이드로 대체.) */
-.bodySlide {
-  overflow: hidden;
-  transition: max-height 0.22s ease;
 }
 .bodyToggle {
   cursor: pointer;
