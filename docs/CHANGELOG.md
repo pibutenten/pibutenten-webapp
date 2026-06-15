@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-06-15] — 피부날씨 색 의미 통일 + 게이지 현재/최고 표현 + 카드 레이아웃 보정
+
+> "오늘의 피부 날씨"(`/record` 상단 카드 + `/record/weather` 상세) UI 정비. 색을 **브랜드 고유색에서 심각도색으로** 통일하고, 자외선 게이지가 현재값(밤 0)과 최고값(주간 피크)을 함께 읽히게 개선. 운영 로직·DB·권한·데이터 출처(Open-Meteo/CAMS) 무변경 — 색·레이아웃·표시만. 커밋 `98ee47d`. `tsc --noEmit` 0, `npm run build` 0, 코드검수관 [치명] 0.
+
+### Changed
+- **색 의미 통일(심각도색)**: 주간 막대·KPI 게이지·요약 칩의 UVB 홍반·UVA 노화·미세먼지 색을 고유색 대신 **심각도 램프**(`uvbColor`/`uvaColor`, 좋음 teal `#27B4A6` → 나쁨 red `#E0453B`)로 교체. "빨간 게 많으면 안 좋은 것"으로 직관 통일. (`weather-logic.ts`·`WeatherDetail.tsx`)
+- **게이지 현재/최고 동시 표현**: `WeatherKpi.peakColor` 필드 추가 → 자외선 게이지 최고점(7~8)이 붉게 표시되고, 현재값(밤 0)은 대비되게 표시. 밤에 모두 0이어도 "현재 vs 최고"가 구분됨. (`WeatherDetail.tsx` vGauge·"최고" 라벨)
+- **홈카드 기온칩 줄바꿈 보정**: `"18° / 31°"` 가 2줄로 떨어지며 게이지 바가 밀리던 문제 → `"18~31°"` 압축 + `.chipV` `white-space:nowrap; overflow:hidden`. (`weather-logic.ts` L552·`skin-weather.module.css`)
+- **상세 세로 게이지 중앙 정렬**: 좁은 화면에서 게이지가 좌측으로 쏠리던 문제 → `.vGauge` `display:flex; justify-content:center`. (`skin-weather.module.css`)
+
+### Notes
+- **시간별 그래프 점 색은 의도적 예외**: `OVERLAYS` 의 dot 색(UVB 빨강·UVA 보라·구름 파랑)은 **시계열 구분용 고정색**으로, 게이지·주간의 심각도색과 다름. 여러 지표를 한 그래프에 겹쳐 보므로 지표 간 구분이 우선이기 때문. 해당 정책을 코드 주석으로 명시(코드검수 [경고] 반영). 미세먼지만 시간별에서도 등급색(PM_GRADE_COLOR) 유지.
+
+---
+
 ## [2026-06-15] — 옛 크롬 잔존 콘텐츠 라우트 4종 베타 셸 승격
 
 > 직전 세션 조사(콘텐츠 라우트 4개)의 후속 실행. 옛 TopNav/SiteFooter 가 첫 페인트에 잠깐 보였다가 베타 오버레이가 덮던 라우트 4종을 베타 셸로 승격 → 첫 로딩부터 베타만 렌더(깜빡임 제거). 서브에이전트 2종(`/record/[id]`·`/write/[shortcode]`) 병렬 투입 + 직접 작업 2종(`/report`·`/shop`), 중앙 `GlobalChrome.tsx` 분기는 단일 소유로 일괄 편집. 운영 로직·DB·권한 무변경(표시·라우팅·레이아웃만). `tsc --noEmit` 0, 코드검수관 [치명] 0.
