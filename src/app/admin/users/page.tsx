@@ -3,8 +3,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
 import type { UserRole } from "@/lib/user-grades";
-import BackButton from "@/components/BackButton";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
+import BetaAdminUsersView from "./BetaAdminUsersView";
 
 export const dynamic = "force-dynamic";
 
@@ -212,12 +212,12 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   ).length;
 
   return (
+    <BetaAdminUsersView>
     <section className="w-full py-6">
-      <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 flex items-baseline justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">회원 관리</h1>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
+          <h1 className="text-2xl font-bold text-[var(--ink-700)]">회원 관리</h1>
+          <p className="mt-1 text-xs text-[var(--ink-300)]">
             총 {filtered.length} ID · {groupArr.length} 묶음
             {unregisteredDoctorCount > 0 && (
               <span> · 미가입 원장 {unregisteredDoctorCount}명</span>
@@ -235,7 +235,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         <select
           name="role"
           defaultValue={roleParam}
-          className="h-9 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+          className="h-9 rounded-[var(--r-btn)] border border-[var(--line)] bg-white px-3 text-sm focus:border-[var(--tt-blue)] focus:outline-none"
         >
           <option value="">전체 등급</option>
           <option value="admin">admin</option>
@@ -247,11 +247,11 @@ export default async function AdminUsersPage({ searchParams }: Props) {
           name="q"
           defaultValue={qParam}
           placeholder="닉네임/핸들 검색"
-          className="h-9 flex-1 min-w-[140px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+          className="h-9 flex-1 min-w-[140px] rounded-[var(--r-btn)] border border-[var(--line)] bg-white px-3 text-sm focus:border-[var(--tt-blue)] focus:outline-none"
         />
         <button
           type="submit"
-          className="h-9 rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--primary-dark)]"
+          className="h-9 rounded-[var(--r-btn)] bg-[var(--tt-blue)] px-4 text-sm font-semibold text-white hover:bg-[var(--tt-blue-deep)]"
         >
           검색
         </button>
@@ -261,7 +261,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
 
       {/* 기간 토글 — 회원별 KPI 5개에 적용 */}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-        <span className="text-[var(--text-muted)]">기간</span>
+        <span className="text-[var(--ink-300)]">기간</span>
         <div className="flex flex-wrap gap-1">
           {PERIOD_OPTIONS.map((opt) => {
             const active = opt.days === daysParam;
@@ -276,8 +276,8 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                 className={
                   "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors " +
                   (active
-                    ? "bg-[var(--primary-active)] font-semibold text-white"
-                    : "border border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]")
+                    ? "bg-[var(--tt-blue-deep)] font-semibold text-white"
+                    : "border border-[var(--line)] bg-white text-[var(--ink-500)] hover:border-[var(--tt-blue)] hover:text-[var(--tt-blue)]")
                 }
               >
                 {opt.label}
@@ -288,13 +288,13 @@ export default async function AdminUsersPage({ searchParams }: Props) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-white p-8 text-center text-sm text-[var(--text-muted)]">
+        <div className="rounded-[var(--r-card)] border border-dashed border-[var(--line)] bg-white p-8 text-center text-sm text-[var(--ink-300)]">
           조건에 맞는 ID가 없어요.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]">
+        <div className="overflow-x-auto rounded-[var(--r-card)] border border-[var(--line)] bg-white shadow-[var(--card-shadow)]">
           <table className="w-full min-w-[900px] border-collapse text-sm">
-            <thead className="bg-[var(--bg-soft)] text-[var(--text-secondary)]">
+            <thead className="bg-[var(--tt-blue-tint)] text-[var(--ink-500)]">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">닉네임</th>
                 <th className="px-3 py-2 text-left font-medium">핸들</th>
@@ -335,16 +335,16 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                   return (
                     <tr
                       key={p.id}
-                      className={`transition-colors hover:bg-[var(--bg-soft)] ${
+                      className={`transition-colors hover:bg-[var(--tt-blue-tint)] ${
                         idx === 0
-                          ? "border-t-2 border-[var(--border)]"
-                          : "border-t border-dashed border-[var(--border)]/50"
+                          ? "border-t-2 border-[var(--line)]"
+                          : "border-t border-dashed border-[var(--line)]"
                       } ${isUnregistered ? "bg-amber-50/30" : ""}`}
                     >
-                      <td className="px-3 py-1.5 align-middle text-[var(--text)]">
+                      <td className="px-3 py-1.5 align-middle text-[var(--ink-700)]">
                         <Link
                           href={`/admin/users/${p.id}`}
-                          className="font-medium hover:text-[var(--primary)] hover:underline"
+                          className="font-medium hover:text-[var(--tt-blue)] hover:underline"
                         >
                           {p.display_name ?? "(이름 없음)"}
                         </Link>
@@ -368,58 +368,58 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                           if (p.gender) parts.push(GENDER_LABEL[p.gender] ?? p.gender);
                           if (parts.length === 0) return null;
                           return (
-                            <div className="truncate text-[9.5px] leading-tight text-[var(--text-muted)]">
+                            <div className="truncate text-[9.5px] leading-tight text-[var(--ink-300)]">
                               {parts.join(" · ")}
                             </div>
                           );
                         })()}
                       </td>
-                      <td className="px-3 py-1.5 align-middle text-xs text-[var(--text-muted)]">
+                      <td className="px-3 py-1.5 align-middle text-xs text-[var(--ink-300)]">
                         {p.handle ? `@${p.handle}` : "—"}
                       </td>
                       <td className="px-3 py-1.5 align-middle">
-                        <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
+                        <span className="inline-flex items-center rounded-full bg-[var(--tt-blue-tint)] px-2 py-0.5 text-xs font-medium text-[var(--ink-700)]">
                           {p.role}
                         </span>
                         {/* doctor_accounts 매핑 표시 — 매핑된 doctor name */}
                         {doctorByProfile.has(p.id) && (
                           <span
-                            className="ml-1 inline-flex items-center rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--primary)]"
+                            className="ml-1 inline-flex items-center rounded-full bg-[var(--tt-blue-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--tt-blue-deep)]"
                             title="매핑된 원장님"
                           >
                             🩺 {doctorByProfile.get(p.id)!.name}
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-1.5 align-middle text-right tabular-nums text-[var(--text-secondary)]">
+                      <td className="px-3 py-1.5 align-middle text-right tabular-nums text-[var(--ink-500)]">
                         {(postCountMap.get(p.id) ?? 0).toLocaleString()}
                       </td>
                       {/* 5개 KPI — 기간 토글 적용 (default 7일) */}
-                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--ink-500)]">
                         {(kpiMap.get(p.id)?.visit_sessions ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--ink-500)]">
                         {(kpiMap.get(p.id)?.views_received ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--ink-500)]">
                         {(kpiMap.get(p.id)?.comments_written ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--ink-500)]">
                         {(kpiMap.get(p.id)?.likes_received ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--text-secondary)]">
+                      <td className="px-2 py-1.5 align-middle text-right tabular-nums text-xs text-[var(--ink-500)]">
                         {(kpiMap.get(p.id)?.shares_received ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-3 py-1.5 align-middle text-xs text-[var(--text-muted)]">
+                      <td className="px-3 py-1.5 align-middle text-xs text-[var(--ink-300)]">
                         {p.created_at?.slice(0, 10) ?? "—"}
                       </td>
-                      <td className="px-3 py-1.5 align-middle text-xs text-[var(--text-muted)]">
+                      <td className="px-3 py-1.5 align-middle text-xs text-[var(--ink-300)]">
                         {idx === 0 ? (
                           <span title={`auth_user_id: ${groupKey}`}>
                             {groupLabel}
                           </span>
                         ) : (
-                          <span className="text-[var(--text-muted)]/60">↳</span>
+                          <span className="text-[var(--ink-300)]/60">↳</span>
                         )}
                       </td>
                     </tr>
@@ -431,5 +431,6 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         </div>
       )}
     </section>
+    </BetaAdminUsersView>
   );
 }

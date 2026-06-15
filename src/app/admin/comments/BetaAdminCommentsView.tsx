@@ -1,31 +1,28 @@
 "use client";
 
 /**
- * BetaAdminCommentsView — /beta-skin/admin/comments "전체 댓글" 본문 (클라이언트).
+ * BetaAdminCommentsView — /admin/comments "전체 댓글" 본문 (클라이언트).
  *
- * 원칙(Phase 3 ②-b): UI 는 베타 스킨 톤(var(--ink-*) · var(--tt-blue*) · var(--line) 토큰),
- *   데이터·무한스크롤·복구 액션은 운영 /admin/comments 의 CommentsClient 를 그대로 재사용.
- *   - 서버(page.tsx)가 운영 admin/comments/page 의 가드·status 탭·doctor 본인 카드 강제필터·count +
- *     첫 페이지 prefetch 로직을 그대로 복제해 firstPage·hasMore·statusFilter·total 을 props 로 내려준다.
+ * 원칙(승격·단일화): UI 는 베타 스킨 톤(var(--ink-*) · var(--tt-blue*) · var(--line) 토큰),
+ *   데이터·무한스크롤·복구 액션은 운영 CommentsClient 를 그대로 재사용.
+ *   - 서버(page.tsx)가 가드·status 탭·doctor 본인 카드 강제필터·count + 첫 페이지 prefetch
+ *     로직을 담당해 firstPage·hasMore·statusFilter·total 을 props 로 내려준다.
  *   - 이 컴포넌트는 BetaSkinShell + useBetaSearchRouting 안에 제목·status 탭(공개/비공개)을 베타 톤으로
  *     렌더하고, 그 아래에 운영 CommentsClient 를 그대로 임베드한다.
  *   - CommentsClient 가 무한스크롤(/api/admin/comments)·복구 액션(/api/comments/[id])을 자체 처리하므로
- *     로직 재구현 없이 그대로 사용(운영 Tailwind 톤은 그대로 임베드 — Phase3① ActivityKpis 방침).
- *   - searchParams 키(status)는 운영과 100% 동일 → 같은 URL 규약.
- *
- * 격리: 운영 파일 무수정. 베타 톤 영역은 인라인 style 의 베타 토큰만 사용(운영 var(--text)/var(--primary) 미사용).
- *   운영 컴포넌트(CommentsClient) 내부 Tailwind 톤은 그대로 임베드.
+ *     로직 재구현 없이 그대로 사용.
+ *   - searchParams 키(status)는 동일 URL 규약.
  */
 
 import Link from "next/link";
 import CommentsClient, {
   type CommentRow,
 } from "@/app/admin/comments/CommentsClient";
-import BetaSkinShell from "../../BetaSkinShell";
-import { useBetaSearchRouting } from "../../beta-ui";
-import styles from "../../beta-skin.module.css";
+import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import styles from "@/app/beta-skin/beta-skin.module.css";
 
-const BASE_PATH = "/beta-skin/admin/comments";
+const BASE_PATH = "/admin/comments";
 
 const STATUS_TABS: { key: "visible" | "hidden"; label: string }[] = [
   { key: "visible", label: "공개" },
@@ -52,7 +49,7 @@ export default function BetaAdminCommentsView({
   const search = useBetaSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" wide back="/beta-skin/admin" {...search}>
+    <BetaSkinShell active="마이" wide back="/admin" {...search}>
       {/* 제목 + noindex 설명 */}
       <section className={styles.mb20}>
         <div className={styles.profileName} style={{ marginBottom: 4 }}>

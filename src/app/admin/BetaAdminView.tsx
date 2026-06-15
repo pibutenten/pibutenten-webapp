@@ -1,14 +1,17 @@
 "use client";
 
 /**
- * BetaAdminView — /beta-skin/admin "관리자 대시보드" 본문 (클라이언트).
+ * BetaAdminView — /admin "관리자 대시보드" 본문 (클라이언트).
  *
- * 원칙: UI 는 베타 스킨 톤(.card · var(--ink-*) · var(--tt-blue*) 토큰), 데이터·로직은 운영 /admin 재사용.
- *   - 통계 8개 + 리서치 패널 3개 = 베타 톤 Stat 카드. 클릭 시 운영 /admin/* 로 이동(화면별 베타 이식은 다음 단계).
+ * 원칙: 상단바·배경은 베타 셸(BetaSkinShell), 본문 큰 틀은 기존 운영 대시보드 유지.
+ *   radius·컬러만 베타 토큰(var(--ink-*)/var(--tt-blue*)/var(--line)/borderRadius:14)으로 재조정.
+ *   - 통계 8개 + 리서치 패널 3개 = 베타 톤 Stat 카드. 클릭 시 운영 /admin/* 로 이동.
  *   - 활동 KPI = 운영 ActivityKpis 임베드. 인기 검색어/태그 = 운영 PopularCards 임베드(Tailwind 톤 그대로).
  *   - 운영 프로그램 Tool = 운영 page.tsx 와 동일 노출 조건(isSuperAdmin)·동일 href, 베타 톤 카드.
  *     (super admin 기준 12개, 일반 admin 은 super 전용 5개 숨겨 7개 노출.)
  *   - 계정 스위처 = 운영 AccountSwitcherCard, 최하단 로그아웃 = 운영 LogoutButton 임베드.
+ *
+ * /beta-skin/admin/BetaAdminView.tsx 에서 승격. 셸 back="/", 내부 링크 /admin/* 정본.
  */
 
 import Link from "next/link";
@@ -17,9 +20,9 @@ import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
 import ActivityKpis from "@/app/admin/ActivityKpis";
 import LogoutButton from "@/components/LogoutButton";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
-import BetaSkinShell from "../BetaSkinShell";
-import { useBetaSearchRouting } from "../beta-ui";
-import styles from "../beta-skin.module.css";
+import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import styles from "@/app/beta-skin/beta-skin.module.css";
 
 type SearchRow = { query: string; cnt: number };
 type TagRow = { keyword: string; cnt: number };
@@ -66,7 +69,7 @@ export default function BetaAdminView({
   const pendingReview = stats.pendingReview;
 
   return (
-    <BetaSkinShell active="마이" wide back="/beta-skin" {...search}>
+    <BetaSkinShell active="마이" wide back="/" {...search}>
       {/* 계정(명함) 스위처 — 운영 공용 카드 임베드(전환 로직 100% 재사용). */}
       <AccountSwitcherCard compact />
 
@@ -86,17 +89,17 @@ export default function BetaAdminView({
         <div className={GRID8}>
           <Stat label="회원" value={stats.userCount} href="/admin/users" />
           <Stat label="원장" value={stats.doctorCount} href="/admin/doctors" />
-          <Stat label="Q&A" value={stats.qaPublished} href="/beta-skin/admin/cards?type=qa&status=published" />
-          <Stat label="끄적끄적" value={stats.postPublished} href="/beta-skin/admin/cards?type=post&status=published" />
-          <Stat label="시술후기" value={stats.reviewPublished} href="/beta-skin/admin/cards?type=review&status=published" />
-          <Stat label="시술 리포트" value={stats.reportPublished} href="/beta-skin/admin/cards?type=review_summary&status=published" />
+          <Stat label="Q&A" value={stats.qaPublished} href="/admin/cards?type=qa&status=published" />
+          <Stat label="끄적끄적" value={stats.postPublished} href="/admin/cards?type=post&status=published" />
+          <Stat label="시술후기" value={stats.reviewPublished} href="/admin/cards?type=review&status=published" />
+          <Stat label="시술 리포트" value={stats.reportPublished} href="/admin/cards?type=review_summary&status=published" />
           <Stat
             label="검수 대기"
             value={pendingReview}
             highlight={pendingReview > 0}
-            href="/beta-skin/admin/cards?status=pending_review"
+            href="/admin/cards?status=pending_review"
           />
-          <Stat label="댓글" value={stats.totalComments} href="/beta-skin/admin/comments" />
+          <Stat label="댓글" value={stats.totalComments} href="/admin/comments" />
         </div>
       </section>
 
@@ -137,7 +140,7 @@ export default function BetaAdminView({
         <h2 className={SECTION_HEAD} style={{ color: "var(--ink-900)" }}>운영 프로그램</h2>
         <div className={TOOL_GRID}>
           <Tool
-            href="/beta-skin/admin/cards"
+            href="/admin/cards"
             emoji="📚"
             title="전체 글 관리"
             desc="Q&A·끄적끄적 검색·필터·발행/보관"
@@ -171,7 +174,7 @@ export default function BetaAdminView({
             desc="원장 명의 Q&A 카드를 직접 작성합니다"
           />
           <Tool
-            href="/beta-skin/admin/cards?status=pending_review"
+            href="/admin/cards?status=pending_review"
             emoji="⏳"
             title="검수 대기"
             desc={

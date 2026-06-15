@@ -1,16 +1,21 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
-import { PopularSearchesCard, PopularTagsCard } from "./PopularCards";
-import ActivityKpis from "./ActivityKpis";
-import LogoutButton from "@/components/LogoutButton";
-import BackButton from "@/components/BackButton";
-import AccountSwitcherCard from "@/components/AccountSwitcherCard";
+import BetaAdminView from "./BetaAdminView";
 
+/**
+ * /admin — 관리자 전용 대시보드.
+ *
+ * 원칙: 상단바·배경은 베타 셸(BetaSkinShell), 본문 큰 틀은 기존 운영 대시보드 유지(BetaAdminView).
+ *   데이터·로직·RPC·운영 클라 컴포넌트는 100% 재사용.
+ *   - 가드(requireAdminPage)·prefetch(통계 8개·리서치 패널·활동 KPI·검색어·태그·OAuth)는 정본.
+ *   - active 가 doctor 면 본인 대시보드 /doctor 로 redirect.
+ *
+ * 영구 noindex. 운영 통계 + 모더레이션 + 회원 관리 + 검색어/태그 인기도 + AEO/GEO log.
+ */
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -36,10 +41,6 @@ type KpiRow = {
   shares: number;
 };
 
-/**
- * /admin — 관리자 전용 대시보드 (v4 spec).
- * 영구 noindex. 운영 통계 + 모더레이션 + 회원 관리 + 검색어/태그 인기도 + AEO/GEO log.
- */
 export default async function AdminPage() {
   // PRD §C — 묶음 OR 가드. 묶음 안에 admin role profile 1개라도 있으면 super admin,
   // 또는 active 가 doctor + doctor_accounts 매핑이면 doctor admin. 그 외 차단.
@@ -54,7 +55,7 @@ export default async function AdminPage() {
   const supabase = await createSupabaseServerClient();
   const isSuperAdmin = guard.isSuperAdmin;
 
-  // 운영 통계 + 6개 기간 검색어/태그 + 5개 기간 활동 KPI 일괄 prefetch.
+  // 운영 통계 + 6개 기간 검색어/태그 + 6개 기간 활동 KPI 일괄 prefetch.
   // 모든 기간을 미리 받아두면 클릭 시 깜빡임 없이 즉시 스위치.
   const [
     { count: userCount },
@@ -176,295 +177,23 @@ export default async function AdminPage() {
   });
 
   return (
-    <section className="w-full py-6">
-      <div className="mb-1 -ml-1"><BackButton /></div>
-      {/* 계정 스위처 — 어느 명함에서든 전환 가능(마이페이지와 동일). */}
-      <AccountSwitcherCard compact />
-      <div className="mb-5 pl-1">
-        <h1 className="text-2xl font-bold text-[var(--text)]">관리자 대시보드</h1>
-        <p className="mt-1 text-xs text-[var(--text-muted)]">
-          운영 통계·모더레이션·회원 관리 (영구 noindex)
-        </p>
-      </div>
-
-      {/* 운영 통계 — 누적 카드 8개. 모바일 4개씩 (2줄), 데스크탑 8개 한 줄.
-          순서: 회원·원장·Q&A·끄적끄적·시술후기·시술 리포트·검수 대기·댓글. */}
-      <div className="mb-6 grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8">
-        <Stat label="회원" value={userCount ?? 0} href="/admin/users" />
-        <Stat label="원장" value={doctorCount ?? 0} href="/admin/doctors" />
-        <Stat label="Q&A" value={qaPublished ?? 0} href="/admin/cards?type=qa&status=published" />
-        <Stat label="끄적끄적" value={postPublished ?? 0} href="/admin/cards?type=post&status=published" />
-        <Stat label="시술후기" value={reviewPublished ?? 0} href="/admin/cards?type=review&status=published" />
-        <Stat label="시술 리포트" value={reportPublished ?? 0} href="/admin/cards?type=review_summary&status=published" />
-        <Stat
-          label="검수 대기"
-          value={pendingReview ?? 0}
-          highlight={(pendingReview ?? 0) > 0}
-          href="/admin/cards?status=pending_review"
-        />
-        <Stat label="댓글" value={totalComments ?? 0} href="/admin/comments" />
-      </div>
-
-      {/* 리서치 패널 (F-2B) — 사람(번들) 기준 집계. 상단 "회원"(명함 row)과 기준 다름. */}
-      <div className="mb-6">
-        <h2 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
-          리서치 패널{" "}
-          <span className="font-normal text-[var(--text-muted)]">
-            (사람 기준 · 같은 사람의 여러 명함은 1명으로 집계)
-          </span>
-        </h2>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <Stat
-            label="총 가입자"
-            value={research.totalMembers}
-            title="탈퇴 제외 · 사람 기준(distinct 가입 계정). 상단 '회원'은 명함 수 기준이라 다를 수 있습니다."
-          />
-          <Stat
-            label="활성 회원 (90일)"
-            value={research.active90d}
-            title="최근 90일 방문 기준(site_visits) · 사람 기준. site_visits 적재 시작(2026-05-23) 이후라 윈도가 점차 채워집니다."
-          />
-          <Stat
-            label="후기 작성 회원"
-            value={research.reviewers}
-            title="시술 후기(procedure_reviews) 작성자 · 사람 기준(distinct 가입 계정)."
-          />
-        </div>
-      </div>
-
-      {/* 활동 KPI (기간 토글) — 방문자/조회수/댓글/좋아요/저장/공유. 모든 기간 prefetch. */}
-      <ActivityKpis initialDays={1} dataByDays={kpiByDays} />
-
-      {/* 운영 프로그램 — 액션·관리 도구 (KPI/통계와 구분). PR-OPS (2026-05-19) 명명 정리. */}
-      <div className="mb-6">
-        <h2 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
-          운영 프로그램
-        </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Tool
-            href="/admin/cards"
-            emoji="📚"
-            title="전체 글 관리"
-            desc="Q&A·끄적끄적 검색·필터·발행/보관"
-          />
-          {/* 태그 관리 — tag_dictionary 인라인 편집 (super admin 전용) */}
-          {isSuperAdmin && (
-            <Tool
-              href="/admin/tags"
-              emoji="🏷"
-              title="태그 관리"
-              desc="태그 분류·영문·부모·시술·온보딩 인라인 편집 + 병합"
-            />
-          )}
-          {/* 시술 리포트 전용 요약 표 (읽기 전용) — 시술별 후기·재시술·만족도·통증·engagement */}
-          <Tool
-            href="/admin/review-reports"
-            emoji="📊"
-            title="시술 리포트"
-            desc="시술별 후기 집계 요약 (후기수·재시술·만족도·통증·조회/저장/공유)"
-          />
-          {/* 새 Q&A 추출하기 — super admin 전용 (원장 계정엔 숨김) */}
-          {isSuperAdmin && (
-            <Tool
-              href="/admin/draft"
-              emoji="📝"
-              title="새 Q&A 추출하기"
-              desc="소스에서 Q&A 카드를 추출하여 검수를 보냅니다"
-            />
-          )}
-          {/* 새 Q&A 카드 직접 작성 — 통합 글쓰기 Q&A 탭 (admin/doctor 노출) */}
-          <Tool
-            href="/write?tab=qa"
-            emoji="📝"
-            title="Q&A 카드 작성하기"
-            desc="원장 명의 Q&A 카드를 직접 작성합니다"
-          />
-          {/* 검수 대기 — 모든 admin 노출 (원장 계정에선 본인 doctor 카드만 보임) */}
-          <Tool
-            href="/admin/cards?status=pending_review"
-            emoji="⏳"
-            title="검수 대기"
-            desc={
-              (pendingReview ?? 0) > 0
-                ? `${pendingReview}개 검수 대기 중 →`
-                : "검수 후 발행 대기"
-            }
-            highlight={(pendingReview ?? 0) > 0}
-          />
-          <Tool
-            href="/admin/users"
-            emoji="👥"
-            title="회원 관리"
-            desc="권한 변경·원장 매핑·계정 관리"
-          />
-          {/* 배치 ④ (2026-05-28): 신고 검토 큐 (영구 숨김/완전삭제 액션) */}
-          {isSuperAdmin && (
-            <Tool
-              href="/admin/reports"
-              emoji="🚩"
-              title="신고 검토"
-              desc="회원 신고 큐 — 숨김(영구·복구가능) / 완전삭제(익명화)"
-            />
-          )}
-          <Tool
-            href="/admin/doctors"
-            emoji="🩺"
-            title="의사 프로필 관리"
-            desc="학력·경력·전문분야 등 확장 프로필"
-          />
-          {/* 병원 정보 동기화 — 심평원 병원정보서비스 기반 피부과 의원 참조 데이터 (super admin) */}
-          {isSuperAdmin && (
-            <Tool
-              href="/admin/clinics"
-              emoji="🏥"
-              title="병원 정보 동기화"
-              desc="심평원 피부과 의원 정보 가져오기 (피부일기 검색용)"
-            />
-          )}
-          {/* PR-OPS (2026-05-19): OAuth 콜백 에러 운영 추적기 — super admin 만 */}
-          {isSuperAdmin && (
-            <Tool
-              href="/admin/auth-errors"
-              emoji="🪪"
-              title="회원가입 에러 로그"
-              desc="Google·Kakao·Naver 콜백 에러 (PII 마스킹)"
-            />
-          )}
-          <Tool
-            prefetch={false}
-            href="/api/admin/youtube-oauth/start"
-            emoji={
-              oauthHealth.state === "ok"
-                ? "✅"
-                : oauthHealth.state === "expired"
-                ? "⚠"
-                : oauthHealth.state === "error"
-                ? "⚠"
-                : "🔑"
-            }
-            title={
-              oauthHealth.state === "ok"
-                ? "YouTube 자막 OAuth (연동 중)"
-                : oauthHealth.state === "expired"
-                ? "YouTube 자막 OAuth (재인증 필요)"
-                : oauthHealth.state === "error"
-                ? "YouTube 자막 OAuth (오류)"
-                : "YouTube 자막 OAuth 연동"
-            }
-            desc={
-              oauthHealth.state === "ok"
-                ? "본인 채널 영상 자막 자동 fetch 작동 중. 클릭하면 다른 계정으로 재인증."
-                : oauthHealth.state === "expired"
-                ? "토큰 만료(테스트 모드 7일). 클릭 → 5초 내 재인증 → 자동 갱신."
-                : oauthHealth.state === "error"
-                ? `오류: ${oauthHealth.detail.slice(0, 60)} — 클릭해 재인증.`
-                : "피부텐텐 본인 채널 영상 자막 자동 fetch (1회 설정)"
-            }
-            highlight={
-              oauthHealth.state === "expired" || oauthHealth.state === "error"
-            }
-          />
-        </div>
-      </div>
-
-      {/* 인기 검색어·태그 — 모든 기간 prefetch → 클릭 시 즉시 스위치 (깜빡임 0). */}
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <PopularSearchesCard initialDays={1} dataByDays={searchesByDays} />
-        <PopularTagsCard initialDays={0} dataByDays={tagsByDays} />
-      </div>
-
-      {/* 본인 대시보드 최하단 로그아웃 — admin/doctor/user 공통 패턴 */}
-      <div className="mt-12 flex justify-center border-t border-[var(--border)] pt-6">
-        <LogoutButton />
-      </div>
-    </section>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  highlight,
-  href,
-  title,
-}: {
-  label: string;
-  value: number;
-  highlight?: boolean;
-  href?: string;
-  /** hover 툴팁 (집계 기준 설명 등). */
-  title?: string;
-}) {
-  const cls =
-    "block overflow-hidden rounded-[var(--radius)] border bg-white p-3 transition-colors " +
-    (highlight
-      ? "border-amber-300 hover:bg-amber-50/40"
-      : "border-[var(--border)] hover:bg-[var(--bg-soft)]");
-  const inner = (
-    <>
-      <div className="whitespace-nowrap text-[11px] leading-tight text-[var(--text-muted)]">
-        {label}
-      </div>
-      {/* 1000+ 4~6자리에도 칸 넘치지 않게 — 모바일은 한 단계 작게 + nowrap. */}
-      <div
-        className={
-          "mt-1 whitespace-nowrap text-xl font-bold tabular-nums sm:text-2xl " +
-          (highlight ? "text-amber-700" : "text-[var(--text)]")
-        }
-      >
-        {value.toLocaleString()}
-      </div>
-    </>
-  );
-  if (href) {
-    return (
-      <Link href={href} className={cls} title={title}>
-        {inner}
-      </Link>
-    );
-  }
-  return (
-    <div className={cls} title={title}>
-      {inner}
-    </div>
-  );
-}
-
-function Tool({
-  href,
-  emoji,
-  title,
-  desc,
-  highlight,
-  prefetch,
-}: {
-  href: string;
-  emoji: string;
-  title: string;
-  desc: string;
-  highlight?: boolean;
-  /** API endpoint나 사이드 이펙트 있는 라우트는 prefetch={false} 권장 */
-  prefetch?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      prefetch={prefetch}
-      className={
-        "group flex items-center gap-3 rounded-[var(--radius)] border bg-white p-4 transition-colors " +
-        (highlight
-          ? "border-amber-300 hover:border-amber-400"
-          : "border-[var(--border)] hover:border-[var(--primary)]")
-      }
-    >
-      <div className="text-2xl">{emoji}</div>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-[var(--text)]">{title}</div>
-        <div className="mt-0.5 text-xs text-[var(--text-muted)]">{desc}</div>
-      </div>
-      <span className="text-[var(--text-muted)] transition-colors group-hover:text-[var(--primary)]">
-        →
-      </span>
-    </Link>
+    <BetaAdminView
+      isSuperAdmin={isSuperAdmin}
+      stats={{
+        userCount: userCount ?? 0,
+        doctorCount: doctorCount ?? 0,
+        qaPublished: qaPublished ?? 0,
+        postPublished: postPublished ?? 0,
+        reviewPublished: reviewPublished ?? 0,
+        reportPublished: reportPublished ?? 0,
+        pendingReview: pendingReview ?? 0,
+        totalComments: totalComments ?? 0,
+      }}
+      research={research}
+      oauthHealth={oauthHealth}
+      kpiByDays={kpiByDays}
+      searchesByDays={searchesByDays}
+      tagsByDays={tagsByDays}
+    />
   );
 }

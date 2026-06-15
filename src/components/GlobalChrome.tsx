@@ -26,6 +26,8 @@ const BETA_PROMOTED_EXACT = new Set<string>([
   "/record/notes", // 내 시술노트 자세히(3토글 전체)
   "/write", // 글쓰기 (Phase 1b)
   "/doctor", // 원장 대시보드 (Phase 3, 관리자 방식 셸)
+  "/admin", // 관리자 대시보드 (승격·단일화, 베타 셸)
+  "/my", // 마이(역할 분기 redirect 경유지) — 옛 크롬 깜빡임 차단
   // 신뢰·법적·안내 페이지 (InfoBetaShell)
   "/about",
   "/terms",
@@ -48,6 +50,7 @@ const BETA_PROMOTED_EXACT = new Set<string>([
 
 /** prefix 로 승격된 동적 라우트군(하위 전체 포함). */
 const BETA_PROMOTED_PREFIX = [
+  "/admin/", // 관리자 하위 전체 (승격·단일화, 베타 셸)
   "/topics/", // 토픽 허브 (Phase 4)
   "/reports/", // 시술 리포트 (Phase 4)
   "/review/", // 후기 작성·수정 (Phase 5: /review/new, /review/{shortcode}/edit)

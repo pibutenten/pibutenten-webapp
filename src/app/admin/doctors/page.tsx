@@ -7,7 +7,7 @@ import {
   asDoctorProfileData,
   type DoctorProfileData,
 } from "@/lib/doctor-profile";
-import BackButton from "@/components/BackButton";
+import BetaAdminDoctorsView from "./BetaAdminDoctorsView";
 
 export const dynamic = "force-dynamic";
 
@@ -50,14 +50,14 @@ export default async function AdminDoctorsPage() {
     .returns<DoctorRow[]>();
 
   return (
+    <BetaAdminDoctorsView>
     <section className="w-full py-6">
-      <div className="mb-1 -ml-1"><BackButton /></div>
       <div className="mb-5 flex items-baseline justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">
+          <h1 className="text-2xl font-bold text-[var(--ink-700)]">
             의사 프로필 관리
           </h1>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
+          <p className="mt-1 text-xs text-[var(--ink-300)]">
             학력·경력·전문분야 등 확장 프로필을 입력하세요. 입력된 항목만
             의사 페이지에 노출됩니다.
           </p>
@@ -65,7 +65,7 @@ export default async function AdminDoctorsPage() {
       </div>
 
       {!doctors || doctors.length === 0 ? (
-        <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-white p-8 text-center text-sm text-[var(--text-muted)]">
+        <div className="rounded-[var(--r-card)] border border-dashed border-[var(--line)] bg-white p-8 text-center text-sm text-[var(--ink-300)]">
           등록된 의사가 없어요.
         </div>
       ) : (
@@ -76,10 +76,10 @@ export default async function AdminDoctorsPage() {
             return (
               <div
                 key={d.id}
-                className="flex flex-col rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 shadow-[var(--shadow-sm)]"
+                className="flex flex-col rounded-[var(--r-card)] border border-[var(--line)] bg-white p-4 shadow-[var(--card-shadow)]"
               >
                 <div className="flex items-start gap-3">
-                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
+                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-[var(--tt-blue-tint)]">
                     <Image
                       src={getDoctorPhoto(d.slug)}
                       alt={d.name}
@@ -90,7 +90,7 @@ export default async function AdminDoctorsPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-sm font-bold text-[var(--text)]">
+                      <h2 className="truncate text-sm font-bold text-[var(--ink-700)]">
                         {d.name}
                       </h2>
                       <span
@@ -106,12 +106,12 @@ export default async function AdminDoctorsPage() {
                       </span>
                     </div>
                     {d.title && (
-                      <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">
+                      <p className="mt-0.5 truncate text-xs text-[var(--ink-500)]">
                         {d.title}
                       </p>
                     )}
                     {(d.clinic || d.branch) && (
-                      <p className="mt-0.5 truncate text-[11px] text-[var(--text-muted)]">
+                      <p className="mt-0.5 truncate text-[11px] text-[var(--ink-300)]">
                         {[d.clinic, d.branch].filter(Boolean).join(" · ")}
                       </p>
                     )}
@@ -120,7 +120,7 @@ export default async function AdminDoctorsPage() {
                 <div className="mt-4 flex items-center justify-end">
                   <Link
                     href={`/admin/doctors/${d.slug}/edit`}
-                    className="inline-flex h-8 items-center rounded-[var(--radius-sm)] border border-[var(--primary)] px-3 text-xs font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)]"
+                    className="inline-flex h-8 items-center rounded-[var(--r-btn)] border border-[var(--tt-blue)] px-3 text-xs font-semibold text-[var(--tt-blue-deep)] transition-colors hover:bg-[var(--tt-blue-tint)]"
                   >
                     편집
                   </Link>
@@ -131,5 +131,6 @@ export default async function AdminDoctorsPage() {
         </div>
       )}
     </section>
+    </BetaAdminDoctorsView>
   );
 }

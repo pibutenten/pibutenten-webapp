@@ -1,18 +1,17 @@
 "use client";
 
 /**
- * BetaAdminCardsView — /beta-skin/admin/cards "전체 글 관리" 본문 (클라이언트).
+ * BetaAdminCardsView — /admin/cards "전체 글 관리" 본문 (클라이언트).
  *
- * 원칙(Phase 3 ②-a): UI 는 베타 스킨 톤(var(--ink-*) · var(--tt-blue*) · var(--line) 토큰),
+ * 원칙(승격·단일화): UI 는 베타 스킨 톤(var(--ink-*) · var(--tt-blue*) · var(--line) 토큰),
  *   데이터·필터 로직·RPC·운영 클라 컴포넌트(PickToggle / AdminCardsDoctorFilter)는 운영 /admin/cards 재사용.
- *   - 서버(page.tsx)가 운영 admin/cards/page 의 가드·searchParams 파싱·doctor 강제필터·데이터 fetch 로직을
- *     그대로 복제해 row·counts·doctors·필터값을 props 로 내려준다.
+ *   - 서버(page.tsx)가 가드·searchParams 파싱·doctor 강제필터·데이터 fetch 로직으로
+ *     row·counts·doctors·필터값을 props 로 내려준다.
  *   - 이 컴포넌트는 그 props 를 베타 톤 status 탭·type/pick 칩·검색 form·테이블·페이지네이션으로 렌더한다.
- *   - searchParams 키(status/type/category/q/doctor/pick/page/sort/dir)는 운영과 100% 동일 → 같은 URL 규약.
- *   - 편집 링크(/admin/cards/[id]/edit)·액션 RPC(toggle_card_pick)는 운영 그대로(베타 편집 페이지는 아직 없음).
+ *   - searchParams 키(status/type/category/q/doctor/pick/page/sort/dir)는 동일 URL 규약.
+ *   - 편집 링크(/admin/cards/[id]/edit)·액션 RPC(toggle_card_pick)는 운영 그대로.
  *
- * 격리: 운영 파일 무수정. 베타 톤 영역은 인라인 style 의 베타 토큰만 사용(운영 var(--text)/var(--primary) 미사용).
- *   운영 컴포넌트(PickToggle/AdminCardsDoctorFilter) 내부 Tailwind 톤은 그대로 임베드(Phase3① ActivityKpis 방침).
+ * 격리: 운영 클라 컴포넌트(PickToggle/AdminCardsDoctorFilter) 내부 Tailwind 톤은 그대로 임베드.
  */
 
 import Link from "next/link";
@@ -21,9 +20,9 @@ import AdminCardsDoctorFilter from "@/app/admin/cards/AdminCardsDoctorFilter";
 import { labelForCategory } from "@/lib/post-category";
 import { formatYmd } from "@/lib/format-date";
 import { truncate } from "@/lib/string-utils";
-import BetaSkinShell from "../../BetaSkinShell";
-import { useBetaSearchRouting } from "../../beta-ui";
-import styles from "../../beta-skin.module.css";
+import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
+import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import styles from "@/app/beta-skin/beta-skin.module.css";
 
 // ── 운영 admin/cards/page.tsx 와 동일한 타입(데이터 계약 1:1) ──
 type QAStatus =
@@ -138,7 +137,7 @@ const SORTABLE_COLS: Record<string, string> = {
   created: "created_at",
 };
 
-const BASE_PATH = "/beta-skin/admin/cards";
+const BASE_PATH = "/admin/cards";
 
 function buildQueryString(
   params: Record<string, string | number | undefined>,
@@ -245,7 +244,7 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
   };
 
   return (
-    <BetaSkinShell active="마이" wide back="/beta-skin/admin" {...search}>
+    <BetaSkinShell active="마이" wide back="/admin" {...search}>
       {/* 제목 + noindex 설명 */}
       <section className={styles.mb20}>
         <div className={styles.profileName} style={{ marginBottom: 4 }}>

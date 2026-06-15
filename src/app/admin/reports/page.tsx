@@ -9,8 +9,7 @@
 import type { Metadata } from "next";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import BackButton from "@/components/BackButton";
-import ReportsClient from "./ReportsClient";
+import BetaAdminReportsView from "./BetaAdminReportsView";
 
 export const dynamic = "force-dynamic";
 
@@ -114,23 +113,13 @@ export default async function AdminReportsPage() {
   const pendingCount = rows.filter((r) => r.status === "pending").length;
 
   return (
-    <section className="w-full py-6">
-      <div className="mb-1 -ml-1"><BackButton /></div>
-      {/* 헤더 — admin/cards / admin/comments 와 동일 규격 (mb-5 pl-1, h1 text-2xl, p text-xs). */}
-      <div className="mb-5 pl-1">
-        <h1 className="text-2xl font-bold text-[var(--text)]">신고 검토</h1>
-        <p className="mt-1 text-xs text-[var(--text-muted)]">
-          대기 {pendingCount}건 / 전체 {rows.length}건 (최근 200건) — 숨김은 영구 비공개(복구가능),
-          완전삭제는 soft-delete 익명화(카드 한정).
-        </p>
-      </div>
-
-      <ReportsClient
-        rows={enriched}
-        reasonLabel={REASON_LABEL}
-        statusLabel={STATUS_LABEL}
-      />
-    </section>
+    <BetaAdminReportsView
+      rows={enriched}
+      reasonLabel={REASON_LABEL}
+      statusLabel={STATUS_LABEL}
+      pendingCount={pendingCount}
+      totalCount={rows.length}
+    />
   );
 }
 

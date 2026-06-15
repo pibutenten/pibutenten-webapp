@@ -2,14 +2,14 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
-import StatsListClient, {
+import {
   type Kind,
   type VisitorRow,
   type CardRow,
   type NewMemberRow,
   type NewCardRow,
 } from "./StatsListClient";
-import BackButton from "@/components/BackButton";
+import BetaAdminStatsView from "./BetaAdminStatsView";
 
 export const dynamic = "force-dynamic";
 
@@ -183,28 +183,13 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
   const firstPage = rows.slice(0, FIRST_PAGE_SIZE);
 
   return (
-    <section className="w-full py-6">
-      <div className="mb-1 -ml-1"><BackButton /></div>
-      <div className="mb-5 pl-1">
-        <h1 className="text-2xl font-bold text-[var(--text)]">
-          {KIND_TITLES[kind]} TOP
-          {useDoctorFilter && (
-            <span className="ml-2 align-middle text-[12px] font-medium text-[var(--primary)]">
-              내 글 한정
-            </span>
-          )}
-        </h1>
-        <p className="mt-1 text-xs text-[var(--text-muted)]">
-          기간별 TOP 리스트 — 클릭하면 해당 사용자/글로 이동합니다.
-        </p>
-      </div>
-
-      <StatsListClient
-        kind={kind}
-        initial={firstPage}
-        initialHasMore={hasMore}
-        initialDays={days}
-      />
-    </section>
+    <BetaAdminStatsView
+      kind={kind}
+      title={KIND_TITLES[kind]}
+      useDoctorFilter={useDoctorFilter}
+      firstPage={firstPage}
+      hasMore={hasMore}
+      days={days}
+    />
   );
 }

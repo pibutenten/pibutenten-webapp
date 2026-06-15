@@ -1,28 +1,38 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
-import CommentsClient, { type CommentRow } from "./CommentsClient";
-import BackButton from "@/components/BackButton";
+import { type CommentRow } from "./CommentsClient";
+import BetaAdminCommentsView from "./BetaAdminCommentsView";
 
+/**
+ * /admin/comments — "전체 댓글" (승격·단일화).
+ *
+ * 원칙: UI 는 베타 스킨 톤(BetaAdminCommentsView), 데이터·필터 로직·무한스크롤 API·운영 클라
+ *   컴포넌트(CommentsClient)는 동일.
+ *   - 이 서버 페이지는 가드(requireAdminPage)·status 탭(visible/hidden)·권한 분기(isAdmin / isActiveDoctor)·
+ *     doctor admin 본인 카드 댓글 강제필터·count + 첫 페이지 prefetch 로직을 담당한다.
+ *   - 렌더만 BetaAdminCommentsView(클라 셸 래퍼)로 위임 — firstPage·hasMore·statusFilter·total 을 props 로 전달.
+ *   - searchParams 키(status)는 동일 URL 규약.
+ *
+ * 패턴:
+ *   - 같은 글에 달린 댓글들을 묶음으로 표시 (글 제목 1번 + 최근 댓글들)
+ *   - 최신순 + 무한 스크롤 (`/api/admin/comments?status=...&before=...`)
+ *   - 서버에서 첫 50개 prefetch → CommentsClient 에 hydration
+ *   - hidden 탭: 자동검수로 비공개된 댓글 검토·복구.
+ *
+ * 보안: doctor admin 은 본인 글에 달린 댓글만(DB 쿼리 단계에서 본인 카드 ID 집합으로 in 절 강제).
+ *   무한스크롤 API(/api/admin/comments)는 super admin 만 통과 → doctor admin 은 첫 페이지(서버 prefetch)만 보임.
+ */
 export const dynamic = "force-dynamic";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "전체 댓글",
   robots: { index: false, follow: false },
 };
 
 const FIRST_PAGE_SIZE = 50;
 
-/**
- * /admin/comments — 전체 visible 댓글 (기본) 또는 자동검수 hidden 댓글 (?status=hidden).
- *
- * 패턴:
- *   - 같은 글에 달린 댓글들을 묶음으로 표시 (글 제목 1번 + 최근 댓글들)
- *   - 최신순 + 무한 스크롤 (`/api/admin/comments?status=...&before=...`)
- *   - 서버에서 첫 50개 prefetch → CommentsClient에 hydration
- *   - 배치 ⑤ (2026-05-28): hidden 탭 신설 — 자동검수로 비공개된 댓글 검토·복구.
- */
 type Props = {
   searchParams: Promise<{ status?: string }>;
 };
@@ -34,7 +44,7 @@ export default async function AdminCommentsPage({ searchParams }: Props) {
   const statusFilter: "visible" | "hidden" =
     sp.status === "hidden" ? "hidden" : "visible";
 
-  // 2026-05-22: active doctor 면 본인 카드 댓글만. super admin 권한 묶음이라도 active=doctor 시 본인 한정.
+  // active doctor 면 본인 카드 댓글만. super admin 권한 묶음이라도 active=doctor 시 본인 한정(ADR 0012).
   const isActiveDoctor =
     guard.active?.role === ROLES.DOCTOR && !!guard.activeDoctorId;
   const isAdmin = guard.isSuperAdmin && !isActiveDoctor;
@@ -43,7 +53,10 @@ export default async function AdminCommentsPage({ searchParams }: Props) {
   let myCardIds: number[] | null = null;
   if (!isAdmin && guard.activeDoctorId) {
     const [authorRes, doctorRes] = await Promise.all([
-      supabase.from("cards").select("id").eq("author_id", guard.active.profileId),
+      supabase
+        .from("cards")
+        .select("id")
+        .eq("author_id", guard.active.profileId),
       supabase.from("cards").select("id").eq("doctor_id", guard.activeDoctorId),
     ]);
     const s = new Set<number>();
@@ -79,53 +92,16 @@ export default async function AdminCommentsPage({ searchParams }: Props) {
   const [{ count }, { data: rows }] = await Promise.all([countQb, rowsQb]);
 
   const total = count ?? 0;
-  const initialRows = ((rows ?? []) as unknown) as CommentRow[];
+  const initialRows = (rows ?? []) as unknown as CommentRow[];
   const hasMore = initialRows.length > FIRST_PAGE_SIZE;
   const firstPage = initialRows.slice(0, FIRST_PAGE_SIZE);
 
   return (
-    <section className="w-full py-6">
-      <div className="mb-1 -ml-1"><BackButton /></div>
-      <div className="mb-3 pl-1">
-        <h1 className="text-2xl font-bold text-[var(--text)]">전체 댓글</h1>
-        <p className="mt-1 text-xs text-[var(--text-muted)]">
-          {statusFilter === "hidden"
-            ? `자동검수로 비공개 처리된 댓글 ${total.toLocaleString()}건 · 복구 시 visible 로 전환`
-            : `visible 상태 댓글 ${total.toLocaleString()}건 · 글 단위로 묶어 최신순 표시`}
-        </p>
-      </div>
-
-      {/* 탭 — visible / hidden (자동검수) — 배치 ⑤ */}
-      <div className="mb-3 flex gap-2 border-b border-[var(--border)] pl-1">
-        <Link
-          href="/admin/comments"
-          className={
-            "px-3 py-1.5 text-[13px] " +
-            (statusFilter === "visible"
-              ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
-              : "text-[var(--text-muted)] hover:text-[var(--text)]")
-          }
-        >
-          공개
-        </Link>
-        <Link
-          href="/admin/comments?status=hidden"
-          className={
-            "px-3 py-1.5 text-[13px] " +
-            (statusFilter === "hidden"
-              ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
-              : "text-[var(--text-muted)] hover:text-[var(--text)]")
-          }
-        >
-          비공개 (자동검수)
-        </Link>
-      </div>
-
-      <CommentsClient
-        initial={firstPage}
-        initialHasMore={hasMore}
-        statusFilter={statusFilter}
-      />
-    </section>
+    <BetaAdminCommentsView
+      firstPage={firstPage}
+      hasMore={hasMore}
+      statusFilter={statusFilter}
+      total={total}
+    />
   );
 }

@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { fetchAdminCardExtras } from "@/lib/admin-card-extras";
 import EditClient from "./EditClient";
-import BackButton from "@/components/BackButton";
+import BetaAdminCardEditView from "./BetaAdminCardEditView";
 
 export const dynamic = "force-dynamic";
 
@@ -79,21 +79,20 @@ export default async function AdminEditQAPage({ params }: Props) {
   // admin extras 통합 fetch (헬퍼 — /write/[shortcode] admin 분기와 공통)
   const extras = await fetchAdminCardExtras(supabase, card, { isSuperAdmin });
 
+  // 렌더만 베타 셸 래퍼(BetaAdminCardEditView)로 위임 — 운영 EditClient 를 BetaSkinShell 안에 임베드.
+  //   back="/admin/cards" 뒤로가기는 셸이 담당(기존 BackButton 대체).
   return (
-    <section className="w-full py-6">
-      <div className="mb-1 -ml-1"><BackButton /></div>
-      <EditClient
-        card={card}
-        doctors={extras.doctors}
-        doctorPickCount={extras.doctorPickCount}
-        commentCount={extras.commentCount}
-        canChangeAuthor={isSuperAdmin}
-        authorOptions={extras.authorOptions}
-        // ★ slug 가시성·편집 = active 명함 기준 (ADR 0012). super admin 명함만 표시.
-        //   편집은 잠금 전(status=draft)만 — 검수 발송(pending_review)·발행 글은 read-only.
-        showSlug={isSuperAdmin}
-        slugEditable={isSuperAdmin && card.status === "draft"}
-      />
-    </section>
+    <BetaAdminCardEditView
+      card={card}
+      doctors={extras.doctors}
+      doctorPickCount={extras.doctorPickCount}
+      commentCount={extras.commentCount}
+      canChangeAuthor={isSuperAdmin}
+      authorOptions={extras.authorOptions}
+      // ★ slug 가시성·편집 = active 명함 기준 (ADR 0012). super admin 명함만 표시.
+      //   편집은 잠금 전(status=draft)만 — 검수 발송(pending_review)·발행 글은 read-only.
+      showSlug={isSuperAdmin}
+      slugEditable={isSuperAdmin && card.status === "draft"}
+    />
   );
 }

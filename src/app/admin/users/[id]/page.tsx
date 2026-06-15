@@ -11,12 +11,17 @@ import {
 import { getQaUrl } from "@/lib/card-url";
 import { ROLES } from "@/lib/identity-shared";
 import { getIdentityContext } from "@/lib/identity";
-import BackButton from "@/components/BackButton";
 import { formatIsoDate } from "@/lib/format-date";
 import { getDoctorIdForProfile, getDoctorMetaBatch } from "@/lib/doctor-mapping";
 import CreateDoctorProfileForm from "./CreateDoctorProfileForm";
+import BetaAdminUserDetailView from "./BetaAdminUserDetailView";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "회원 상세",
+  robots: { index: false, follow: false },
+};
 
 type ProfileRow = {
   id: string;
@@ -282,20 +287,18 @@ export default async function AdminUserDetailPage({
       : ROLE_LABELS[profile.role] ?? profile.role;
 
   return (
+    <BetaAdminUserDetailView>
     <section className="w-full py-6">
-      
-
-      <div className="mb-1 -ml-1"><BackButton /></div>
       {/* Identity 스위처 (한 사람의 여러 ID) */}
       {(allIdentities?.length ?? 0) > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-[var(--text-muted)]">이 회원의 ID:</span>
+          <span className="text-xs text-[var(--ink-300)]">이 회원의 ID:</span>
           <Link
             href={`/admin/users/${id}`}
             className={`rounded-full border px-2.5 py-1 text-xs ${
               activeIdentity === null
-                ? "border-[var(--primary)] bg-[var(--primary)]/10 font-semibold text-[var(--primary)]"
-                : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)]/50"
+                ? "border-[var(--tt-blue)] bg-[var(--tt-blue-soft)] font-semibold text-[var(--tt-blue-deep)]"
+                : "border-[var(--line)] bg-white text-[var(--ink-500)] hover:border-[var(--tt-blue)]"
             }`}
           >
             {primaryDoctorId ? "원장" : "주 ID"} (@{profile.handle ?? ""})
@@ -308,8 +311,8 @@ export default async function AdminUserDetailPage({
                 href={`/admin/users/${id}?identity=${it.id}`}
                 className={`rounded-full border px-2.5 py-1 text-xs ${
                   activeIdentity?.id === it.id
-                    ? "border-[var(--primary)] bg-[var(--primary)]/10 font-semibold text-[var(--primary)]"
-                    : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary)]/50"
+                    ? "border-[var(--tt-blue)] bg-[var(--tt-blue-soft)] font-semibold text-[var(--tt-blue-deep)]"
+                    : "border-[var(--line)] bg-white text-[var(--ink-500)] hover:border-[var(--tt-blue)]"
                 }`}
               >
                 {it.kind === "admin"
@@ -324,9 +327,9 @@ export default async function AdminUserDetailPage({
       )}
 
       {/* 헤더 */}
-      <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
+      <div className="mb-5 rounded-[var(--r-card)] border border-[var(--line)] bg-white p-5">
         <div className="flex items-start gap-4">
-          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
+          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-[var(--tt-blue-tint)]">
             {headerAvatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -335,17 +338,17 @@ export default async function AdminUserDetailPage({
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-xl text-[var(--text-muted)]">
+              <div className="flex h-full w-full items-center justify-center text-xl text-[var(--ink-300)]">
                 👤
               </div>
             )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold text-[var(--text)]">
+              <h1 className="text-xl font-bold text-[var(--ink-700)]">
                 {headerName ?? "(이름 없음)"}
               </h1>
-              <span className="inline-flex items-center rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-xs font-medium text-[var(--text)]">
+              <span className="inline-flex items-center rounded-full bg-[var(--tt-blue-tint)] px-2 py-0.5 text-xs font-medium text-[var(--ink-700)]">
                 {headerRoleLabel}
               </span>
               {/* TODO(level): 산정 로직 도입 전까지 임시 숨김 */}
@@ -359,16 +362,16 @@ export default async function AdminUserDetailPage({
               )} */}
             </div>
             {showDoctor && activeDoctor!.branch && (
-              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
+              <p className="mt-1.5 text-sm text-[var(--ink-500)]">
                 {activeDoctor!.branch}
               </p>
             )}
             {!showDoctor && profile.bio && (
-              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
+              <p className="mt-1.5 text-sm text-[var(--ink-500)]">
                 {profile.bio}
               </p>
             )}
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--ink-300)]">
               <span>가입일: {formatIsoDate(profile.created_at)}</span>
               {/* TODO(activity_score): 산정 로직 도입 전까지 임시 숨김 */}
               {/* <span>활동점수: {profile.activity_score.toLocaleString()}</span> */}
@@ -402,22 +405,22 @@ export default async function AdminUserDetailPage({
       {/* 작성 글 */}
       <Section title="📝 작성 글" empty="작성 글 없음">
         {authoredCards && authoredCards.length > 0 && (
-          <ul className="divide-y divide-[var(--border)]">
+          <ul className="divide-y divide-[var(--line)]">
             {authoredCards.map((q) => (
               <li key={q.id} className="py-2">
-                <div className="flex items-baseline justify-between gap-2 text-xs text-[var(--text-muted)]">
-                  <span className="rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[10px] font-medium">
+                <div className="flex items-baseline justify-between gap-2 text-xs text-[var(--ink-300)]">
+                  <span className="rounded bg-[var(--tt-blue-tint)] px-1.5 py-0.5 text-[10px] font-medium">
                     {q.type === "post" ? "끄적끄적" : "Q&A"}
                   </span>
                   <span>{formatIsoDate(q.created_at)}</span>
                 </div>
                 <Link
                   href={`/admin/cards/${q.id}/edit`}
-                  className="mt-0.5 block text-sm text-[var(--text)] hover:text-[var(--primary)] hover:underline"
+                  className="mt-0.5 block text-sm text-[var(--ink-700)] hover:text-[var(--tt-blue-deep)] hover:underline"
                 >
                   {q.title?.slice(0, 80) ?? "(제목 없음)"}
                 </Link>
-                <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+                <div className="mt-0.5 text-xs text-[var(--ink-300)]">
                   ♥ {q.like_count ?? 0} · 조회 {q.view_count ?? 0} · {q.status}
                 </div>
               </li>
@@ -429,14 +432,14 @@ export default async function AdminUserDetailPage({
       {/* 댓글 */}
       <Section title="💬 댓글" empty="댓글 없음">
         {comments && comments.length > 0 && (
-          <ul className="divide-y divide-[var(--border)]">
+          <ul className="divide-y divide-[var(--line)]">
             {comments.map((c) => (
               <li key={c.id} className="py-2 text-sm">
-                <div className="text-xs text-[var(--text-muted)]">
+                <div className="text-xs text-[var(--ink-300)]">
                   → {c.card?.title?.slice(0, 50) ?? "(원글 없음)"} ·{" "}
                   {formatIsoDate(c.created_at)}
                 </div>
-                <p className="mt-0.5 line-clamp-2 text-[var(--text)]">
+                <p className="mt-0.5 line-clamp-2 text-[var(--ink-700)]">
                   {c.body}
                 </p>
               </li>
@@ -448,7 +451,7 @@ export default async function AdminUserDetailPage({
       {/* 좋아요 */}
       <Section title="❤️ 좋아요한 글" empty="좋아요 없음">
         {likes && likes.length > 0 && (
-          <ul className="divide-y divide-[var(--border)]">
+          <ul className="divide-y divide-[var(--line)]">
             {likes
               .filter((l) => l.card)
               .map((l) => (
@@ -467,7 +470,7 @@ export default async function AdminUserDetailPage({
                         ? l.card!.author[0] ?? null
                         : l.card!.author ?? null,
                     })}
-                    className="block text-sm text-[var(--text)] hover:text-[var(--primary)] hover:underline"
+                    className="block text-sm text-[var(--ink-700)] hover:text-[var(--tt-blue-deep)] hover:underline"
                   >
                     {l.card!.title?.slice(0, 80)}
                   </Link>
@@ -477,14 +480,15 @@ export default async function AdminUserDetailPage({
         )}
       </Section>
     </section>
+    </BetaAdminUserDetailView>
   );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 text-center">
-      <div className="text-xs text-[var(--text-muted)]">{label}</div>
-      <div className="mt-1 text-xl font-bold tabular-nums text-[var(--text)]">
+    <div className="rounded-[var(--r-card)] border border-[var(--line)] bg-white p-3 text-center">
+      <div className="text-xs text-[var(--ink-300)]">{label}</div>
+      <div className="mt-1 text-xl font-bold tabular-nums text-[var(--ink-700)]">
         {value.toLocaleString()}
       </div>
     </div>
@@ -502,12 +506,12 @@ function Section({
 }) {
   const hasChildren = !!children;
   return (
-    <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
-      <h2 className="mb-2 text-sm font-bold text-[var(--text)]">{title}</h2>
+    <div className="mb-5 rounded-[var(--r-card)] border border-[var(--line)] bg-white p-4">
+      <h2 className="mb-2 text-sm font-bold text-[var(--ink-700)]">{title}</h2>
       {hasChildren ? (
         children
       ) : (
-        <p className="py-3 text-center text-xs text-[var(--text-muted)]">
+        <p className="py-3 text-center text-xs text-[var(--ink-300)]">
           {empty}
         </p>
       )}

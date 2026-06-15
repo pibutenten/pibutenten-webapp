@@ -6,9 +6,14 @@ import { requireAdminPage } from "@/lib/admin-page-guard";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
 import { asDoctorProfileData } from "@/lib/doctor-profile";
 import DoctorProfileEditForm from "./DoctorProfileEditForm";
-import BackButton from "@/components/BackButton";
+import BetaAdminDoctorEditView from "./BetaAdminDoctorEditView";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "전문의 프로필 편집",
+  robots: { index: false, follow: false },
+};
 
 type DoctorRow = {
   id: string;
@@ -46,13 +51,11 @@ export default async function AdminDoctorEditPage({ params }: Props) {
   const initial = asDoctorProfileData(doctor.profile_data);
 
   return (
+    <BetaAdminDoctorEditView>
     <section className="w-full py-6">
-      
-
-      <div className="mb-1 -ml-1"><BackButton /></div>
-      <div className="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
+      <div className="mb-5 rounded-[var(--r-card)] border border-[var(--line)] bg-white p-5">
         <div className="flex items-start gap-4">
-          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-[var(--bg-soft)]">
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-[var(--tt-blue-tint)]">
             <Image
               src={getDoctorPhoto(doctor.slug)}
               alt={doctor.name}
@@ -62,16 +65,16 @@ export default async function AdminDoctorEditPage({ params }: Props) {
             />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold text-[var(--text)]">
+            <h1 className="text-xl font-bold text-[var(--ink-700)]">
               {doctor.name}
             </h1>
             {doctor.title && (
-              <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+              <p className="mt-0.5 text-sm text-[var(--ink-500)]">
                 {doctor.title}
               </p>
             )}
             {(doctor.clinic || doctor.branch) && (
-              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+              <p className="mt-0.5 text-xs text-[var(--ink-300)]">
                 {[doctor.clinic, doctor.branch].filter(Boolean).join(" · ")}
               </p>
             )}
@@ -81,5 +84,6 @@ export default async function AdminDoctorEditPage({ params }: Props) {
 
       <DoctorProfileEditForm slug={doctor.slug} initial={initial} />
     </section>
+    </BetaAdminDoctorEditView>
   );
 }
