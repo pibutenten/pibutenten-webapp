@@ -527,7 +527,7 @@ function ChipLink({ c }: { c: { label: string; q?: string } }) {
   if (c.q) {
     return (
       <Link
-        href={`/search?q=${encodeURIComponent(c.q)}`}
+        href={`/?q=${encodeURIComponent(c.q)}`}
         className="rounded-full bg-[var(--bg-soft)] px-3 py-1 text-[12.5px] text-[var(--text-secondary)] transition-colors hover:bg-[#E5E7EB] hover:text-[var(--text)]"
       >
         {c.label}

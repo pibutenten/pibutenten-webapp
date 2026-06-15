@@ -135,11 +135,11 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
     // 즉각 시각 피드백 — selected 상태 미리 반영
     setPendingChip(kw === activeQuery ? "" : kw);
     startTransition(() => {
-      // v3 URL 정책: 검색은 /search 분리. 같은 키워드 다시 클릭하면 검색 해제 → /search (빈 검색).
+      // 같은 키워드 다시 클릭하면 검색 해제 → / (홈). 검색은 /?q= 로 통합.
       if (kw === activeQuery) {
-        router.push("/search");
+        router.push("/");
       } else {
-        router.push(`/search?q=${encodeURIComponent(kw)}`);
+        router.push(`/?q=${encodeURIComponent(kw)}`);
       }
     });
   }

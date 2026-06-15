@@ -496,7 +496,7 @@ function SkinInfoBlock({ info }: { info: BetaSkinInfo }) {
             {s.chips.map((c, ci) => (
               <Link
                 key={ci}
-                href={`/beta-skin?q=${encodeURIComponent(c)}`}
+                href={`/?q=${encodeURIComponent(c)}`}
                 className={styles.t}
               >
                 {c}

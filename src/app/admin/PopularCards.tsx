@@ -72,7 +72,7 @@ function RankGrid({ items }: { items: { label: string; cnt: number }[] }) {
             {it ? (
               <>
                 <Link
-                  href={`/search?q=${encodeURIComponent(it.label)}`}
+                  href={`/?q=${encodeURIComponent(it.label)}`}
                   className="min-w-0 flex-1 truncate hover:text-[var(--primary)] hover:underline"
                 >
                   {it.label}

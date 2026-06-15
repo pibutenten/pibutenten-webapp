@@ -89,7 +89,7 @@ export default function TopicTagView({
         <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
           {PAGE_LIMIT}개 중 처음 {PAGE_LIMIT}개를 표시합니다. 더 보려면{" "}
           <Link
-            href={`/search?q=${encodeURIComponent(tag)}`}
+            href={`/?q=${encodeURIComponent(tag)}`}
             className="font-medium text-[var(--primary)] hover:underline"
           >
             검색 페이지

@@ -320,9 +320,11 @@ export default function BetaSkinFeed({
   // 태그 클릭 → 그 키워드로 서버 검색 라우팅(운영 동일).
   const applyTag = (k: string) => submitSearch(k);
 
-  // 검색 중이면 카테고리를 "전체"로 간주(태그/검색은 전체 피드 기준). chip 자체는 보존 →
-  //   검색 해제 시 원래 카테고리로 자연 복귀. 칩 활성 표시·필터·리포트 판정 모두 이 값 기준.
+  // 검색 중 여부.
   const isSearching = !!(searchQuery ?? "").trim();
+  // 필터링 전용: 검색 중이면 카테고리를 "전체"로 간주(태그/검색은 전체 피드 기준). chip 자체는 보존 →
+  //   검색 해제 시 원래 카테고리로 자연 복귀. 필터·리포트 판정에 이 값 사용.
+  //   칩 활성 표시는 chip(실제 선택값)을 직접 사용 — 검색 중에도 칩이 "전체"로 리셋돼 보이는 버그 해소.
   const effectiveChip: ChipKey = isSearching ? "all" : chip;
 
   // ── 일반 탭 — 풀을 카테고리 칩으로 즉시 필터 ──
@@ -342,7 +344,8 @@ export default function BetaSkinFeed({
   }, [reportPool, searchQuery]);
 
   // 검색('전체' 탭)일 때 시술명이 리포트와 매칭되면 결과 맨 위에 리포트 카드 1장.
-  const topReport = searchQuery && effectiveChip === "all" ? searchReport : null;
+  // chip(실제 선택값) 기준: 검색 중에도 카테고리 칩이 "전체"일 때만 노출.
+  const topReport = searchQuery && chip === "all" ? searchReport : null;
 
   // 사이드 '인기 태그' '전체' 탭 — 서버(page.tsx)가 '비검색 피드 풀' 기준으로 계산해 내려준 16개.
   //   과거엔 클라에서 pool(검색 시 검색결과로 바뀜) 빈도로 재계산 → 태그 클릭(=검색)이 그 태그를 1위로
@@ -364,7 +367,7 @@ export default function BetaSkinFeed({
     <button
       key={c.key}
       type="button"
-      className={`${styles.chip} ${effectiveChip === c.key ? styles.chipActive : ""}`}
+      className={`${styles.chip} ${chip === c.key ? styles.chipActive : ""}`}
       onClick={() => {
         setChip(c.key);
         // 검색 중 카테고리 칩을 누르면 검색을 해제하고 그 카테고리로(검색+카테고리 동시 필터는 미지원).
@@ -374,7 +377,7 @@ export default function BetaSkinFeed({
           router.push("/");
         }
       }}
-      aria-pressed={effectiveChip === c.key}
+      aria-pressed={chip === c.key}
     >
       {c.label}
     </button>

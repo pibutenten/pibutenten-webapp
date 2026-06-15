@@ -70,9 +70,6 @@ const DISALLOW_COMMON = [
   "/u/",
   // 검토용 목업(noindex). page-level noindex 와 이중으로 크롤 자체 차단.
   "/mockups",
-  // 신규 스킨 프리뷰(noindex). page-level noindex 와 이중으로 크롤 자체 차단.
-  //   승격 시 이 라인 제거 + 각 page robots 해제.
-  "/beta-skin",
   // 옛 디자인(베타 승격 전) 박제 백업(noindex). 중복 콘텐츠 색인 방지.
   //   page-level robots:{index:false} 와 이중으로 크롤 자체 차단.
   "/old-skin",
