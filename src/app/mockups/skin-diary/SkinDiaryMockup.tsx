@@ -660,9 +660,8 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
   }
 
   return (
-    <section className="mx-auto w-full max-w-[680px]">
-      <h1 className="mb-1 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">내가 받은 시술을 기록해요</h1>
-      <p className="mb-5 text-center text-[13px] text-[var(--text-muted)]">시술노트는 나만 볼 수 있어요</p>
+    <section className="mx-auto w-full max-w-[680px] py-6">
+      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up">내가 받은 시술을 기록해요</h1>
 
       {/* 메인 노트 글상자 */}
       <div className={formBox}>

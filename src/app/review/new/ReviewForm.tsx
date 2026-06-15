@@ -350,10 +350,10 @@ export default function ReviewForm({
   }
 
   return (
-    // 폭은 폼 계열 표준(온보딩·설정 = max-w-[640px])과 동일하게 맞춤 —
-    // 단독 글 상세는 680px, 작성 폼은 640px 로 화면 폭 체계 일관.
-    <section className="mx-auto w-full max-w-[640px] py-6">
-      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">
+    // 폭은 /write 글쓰기 탭 표준(끄적끄적·시술노트 = max-w-[680px])과 통일 —
+    // 탭 전환 시 폼 시작 위치·폭·타이틀 위치가 일치하도록 맞춤.
+    <section className="mx-auto w-full max-w-[680px] py-6">
+      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up">
         {isEdit ? "시술 후기 수정" : "시술 후기를 남겨주세요"}
       </h1>
 
