@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { IDENTITY_COOKIE, UUID_RE } from "@/lib/identity-shared";
 
@@ -156,7 +156,7 @@ function isAllowedOrigin(origin: string | null): boolean {
  * - 로그인 + 약관 동의 but birthdate NULL: /onboarding
  * - 면제 경로(/onboarding, /signup, /login, /auth/*, /api/*)는 가드 스킵
  */
-export async function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest, event: NextFetchEvent) {
   let response = NextResponse.next({ request });
   const path = request.nextUrl.pathname;
   const method = request.method;
@@ -396,14 +396,23 @@ export async function middleware(request: NextRequest) {
     //   → user.id (base profile.id) 로 안전 폴백. raw 쿠키 직접 INSERT 로 인한 타입에러 방문
     //   누락·KPI 오염 방지. (묶음 소속 검증은 핫패스 쿼리 회피 위해 별도 백로그.)
     const activeId = activeIdHint ?? user.id;
-    try {
-      await supabase.from("site_visits").insert({
-        profile_id: activeId,
-        path,
-      });
-    } catch (e) {
-      console.warn("[middleware] site_visits insert failed:", e);
-    }
+    // 비블로킹 적재 — best-effort KPI 이므로 응답 경로를 막지 않는다.
+    //   event.waitUntil 로 등록: Edge 런타임에서 응답 반환 후에도 백그라운드 작업이
+    //   잘리지 않고 완료되도록 보장 (단순 floating promise 는 응답 후 종료되며 잘릴 수 있음).
+    //   INSERT 실패는 조용히 흡수 — 사용자 요청을 절대 깨지 않는다.
+    event.waitUntil(
+      Promise.resolve(
+        supabase.from("site_visits").insert({
+          profile_id: activeId,
+          path,
+        }),
+      ).then(
+        () => {},
+        (e) => {
+          console.warn("[middleware] site_visits insert failed:", e);
+        },
+      ),
+    );
     response.cookies.set("pibutenten_visited", "1", {
       httpOnly: false,
       sameSite: "lax",

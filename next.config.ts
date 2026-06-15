@@ -34,11 +34,31 @@ const nextConfig: NextConfig = {
   // jsdom·readability는 Node 환경에서만 동작 + native 의존성 있어 외부로 처리.
   // sharp (Phase 6-6) — libvips native 바인딩, 서버 사이드 이미지 처리 (EXIF 제거 + 리사이즈)
   serverExternalPackages: ["jsdom", "@mozilla/readability", "sharp"],
-  // 외부 이미지 도메인 허용 — YouTube 썸네일 (qas.external_image)
+  // next/image 최적화 허용 도메인.
+  //  - YouTube 썸네일 (qas.external_image): i.ytimg.com / img.youtube.com
+  //  - Supabase Storage (회원 업로드 아바타·이미지): NEXT_PUBLIC_SUPABASE_URL 호스트.
+  //      production = Custom Domain auth.pibutenten.kr (ADR 0018, storage 까지 프록시),
+  //      로컬·preview = <ref>.supabase.co. env 에서 호스트만 추출해 단일 출처로 등록.
+  //      ⚠ 카카오·구글·네이버 OAuth 아바타(k.kakaocdn.net / pstatic.net / googleusercontent.com 등)는
+  //        임의 외부 도메인이라 여기 등록하지 않음 → CardAvatar 가 그 케이스만 unoptimized 로 처리.
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "i.ytimg.com" },
       { protocol: "https", hostname: "img.youtube.com" },
+      ...(() => {
+        const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
+          ?.replace(/^https?:\/\//, "")
+          ?.replace(/\/$/, "");
+        return supabaseHost
+          ? [
+              {
+                protocol: "https" as const,
+                hostname: supabaseHost,
+                pathname: "/storage/v1/object/public/**",
+              },
+            ]
+          : [];
+      })(),
     ],
   },
   // /rss.xml URL → /rss 라우트 매핑.

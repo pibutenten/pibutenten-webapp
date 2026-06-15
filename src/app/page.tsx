@@ -158,13 +158,17 @@ export default async function HomeFeedPage({
   const orderedIds = cards.map((c) => c.id);
   const initialCards = cards.slice(0, INITIAL);
 
-  const hotIdsArr = await hotIdsPromise;
+  // hotIds(카드 조회 전 시작, 독립) 와 viewerStates(initialCards 에만 의존) 는 서로 독립이므로
+  //   직렬 await 대신 병렬 대기. initialCards 가 확정된 이 지점에서 함께 기다린다(의존 보존).
+  const [hotIdsArr, viewerStates] = await Promise.all([
+    hotIdsPromise,
+    fetchViewerStatesRecord(
+      supabase,
+      viewer?.id ?? null,
+      initialCards.map((c) => c.id),
+    ),
+  ]);
   const hotIds = Array.from(hotIdsArr);
-  const viewerStates = await fetchViewerStatesRecord(
-    supabase,
-    viewer?.id ?? null,
-    initialCards.map((c) => c.id),
-  );
 
   // JSON-LD: 홈은 그룹 브랜드의 메인 진입점 — 5개 지점 MedicalClinic + 그룹 풀세트.
   //   layout.tsx 의 Organization/WebSite/그룹법인 외에 추가 inject. 검색 화면(?q=)에선 생략.
