@@ -17,6 +17,7 @@ import CardAvatar from "@/components/card/CardAvatar";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
 import { IconVerified, useBetaSearchRouting } from "../beta-ui";
+import SkinWeatherCard from "./skin-weather/SkinWeatherCard";
 import { computeStatus, recordBadge, type DiaryLatest } from "@/lib/diary-status";
 import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
 import type { KeywordPost } from "@/app/record/KeywordCarousel";
@@ -585,6 +586,8 @@ export default function RecordView({
 
   return (
     <BetaSkinShell active="내 노트" sidebar={sidebar} {...search}>
+      {/* 오늘의 피부 날씨 — 위치 기반(인증 불필요), 게스트·회원 공통. 노트 최상단. */}
+      <SkinWeatherCard />
       {/* 히어로 — 게스트=가입 유도, 회원=computeStatus 5단계 인사 */}
       {guest ? (
         <section className={`${styles.card} ${styles.greetCard}`}>

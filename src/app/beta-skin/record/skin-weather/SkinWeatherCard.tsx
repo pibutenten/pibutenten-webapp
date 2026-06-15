@@ -1,0 +1,83 @@
+"use client";
+
+/**
+ * SkinWeatherCard — "오늘의 피부 날씨" 접힌 카드 (내 피부노트 상단).
+ *
+ * 위치·기온·헤드라인·4칩(게이지)만 보여주는 요약 카드. 탭하면 **새 페이지**(/record/weather)로
+ *   이동해 상세(KPI 게이지·시간별 그래프·주간)를 본다. 데이터는 useWeather(공용 훅) — 카드가 받아둔
+ *   스냅샷을 sessionStorage 로 상세 페이지와 공유(재요청 없음).
+ */
+
+import Link from "next/link";
+import styles from "./skin-weather.module.css";
+import { useWeather } from "./useWeather";
+
+const clampFrac = (v: number) => Math.max(0, Math.min(1, v));
+
+export default function SkinWeatherCard() {
+  const { snap, err } = useWeather();
+
+  if (err && !snap) {
+    return (
+      <div className={styles.errCard} role="status">
+        오늘의 피부 날씨를 불러오지 못했어요. 잠시 후 다시 열어주세요.
+      </div>
+    );
+  }
+
+  if (!snap) {
+    return (
+      <div className={styles.skelCard} aria-hidden>
+        <div className={styles.skelTop} />
+        <div className={styles.skelTemp} />
+        <div className={styles.skelMsg} />
+        <div className={styles.skelChips}>
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <section className={styles.wrap}>
+      <Link href="/record/weather" className={styles.card} aria-label="오늘의 피부 날씨 상세 보기">
+        <div className={styles.cTop}>
+          <span className={styles.cLoc}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+              <circle cx="12" cy="10" r="2.5" />
+            </svg>
+            {snap.name}
+          </span>
+          <span className={styles.cGo}>
+            자세히
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </span>
+        </div>
+        <div className={styles.cMid}>
+          <span className={styles.cTemp}>{snap.temp}°</span>
+          <span className={styles.cCond}>{snap.cond} · 오늘의 피부 날씨</span>
+        </div>
+        <p className={styles.cMsg}>{snap.headline}</p>
+        <div className={styles.chips}>
+          {snap.chips.map((c) => (
+            <span className={styles.chip} key={c.key}>
+              <span className={styles.chipK}>{c.label}</span>
+              <span className={styles.chipV}>
+                <i className={styles.dot} style={{ background: c.color }} />
+                {c.value}
+              </span>
+              <span className={styles.chipBar}>
+                <i style={{ width: `${Math.round(clampFrac(c.frac) * 100)}%`, background: c.color }} />
+              </span>
+            </span>
+          ))}
+        </div>
+      </Link>
+    </section>
+  );
+}
