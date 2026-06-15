@@ -128,6 +128,7 @@ export default function BetaSkinShell({
   sidebarMobileBelow = false,
   wide = false,
   back,
+  backTitle,
   searchValue,
   onSearchChange,
   onSearchSubmit,
@@ -141,6 +142,8 @@ export default function BetaSkinShell({
   /** 본문 좌상단 '< 뒤로' 버튼(운영 BackButton 재사용). 서브 페이지(글상세/공개프로필/설정/admin)에서 사용.
    *  true → 기본 fallback(/beta-skin). 문자열 → 그 경로를 fallback(직접 진입·새 탭일 때 이동 대상). */
   back?: boolean | string;
+  /** '< 뒤로' 옆에 붙는 페이지 제목(토픽·리포트·원장 답변 헤더 등). 좌우 칼럼 시작 높이를 맞추는 용도. */
+  backTitle?: ReactNode;
   /** admin 전용 전체 폭 모드 — 본문을 좁은 .layoutSingle(820px) 대신 운영 admin 과 같은 풀폭(1080px)으로.
    *  기본 false → 피드/공개프로필/글쓰기/내노트/마이/글상세 등 기존 화면은 영향 없음(현행 좁은 중앙 정렬 유지). */
   wide?: boolean;
@@ -617,6 +620,7 @@ export default function BetaSkinShell({
             <BackButton
               fallbackHref={typeof back === "string" ? back : BETA_ROUTES.feed}
             />
+            {backTitle ? <div className={styles.backTitle}>{backTitle}</div> : null}
           </div>
         ) : null}
 

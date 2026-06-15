@@ -1043,16 +1043,10 @@ export function PostCard({
           항목이 없으면(이론상 거의 없음) 내부에서 null 반환 → 미노출. */}
       <PostCardMenu card={card} onDeleted={onDeleted ?? (() => setRemoved(true))} />
 
-      {/* 작성자 — 항목 4) 실제 프로필 URL 로 새 탭 이동(정보 부족이면 일반 div).
-          본문 펼침 토글과 충돌 안 나게 작성자 영역은 별도(토글에서 분리). */}
+      {/* 작성자 — 실제 프로필 URL 로 같은 창 이동(제목 링크와 동일 동작). 베타 승격으로 프로필도
+          인앱 페이지라 새 탭(target=_blank) 폐기 → 화면 안에서 이동. 정보 부족이면 일반 div. */}
       {profileHref ? (
-        <a
-          className={styles.author}
-          href={profileHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <a className={styles.author} href={profileHref} onClick={(e) => e.stopPropagation()}>
           {authorInner}
         </a>
       ) : (
