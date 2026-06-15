@@ -86,23 +86,34 @@ export default async function DoctorDetailPage({ params }: Props) {
   if (!doctor) notFound();
   const profile: DoctorProfileData = asDoctorProfileData(doctor.profile_data);
 
-  // 배치 ⑤ H3 (2026-05-28): fetchCardList SSOT 헬퍼로 통일.
-  //   doctor 페이지는 q="" 이므로 항상 search_cards_scored RPC 경로 (홈 피드와 동일).
-  const { data: rawCards } = await fetchCardList(supabase, {
-    q: "",
-    doctorSlug: doctor.slug,
-    boostDoctorSlug: null,
-    offset: 0,
-    limit: PAGE_SIZE,
-  });
-  const cards = (rawCards ?? []) as CardData[];
-  // 카운트는 별도 쿼리
+  // 카운트는 별도 쿼리 — orderedIds(전체 순서) fetch 의 limit 산정에도 사용.
   const cRes = await supabase
     .from("cards")
     .select("id", { count: "exact", head: true })
     .eq("status", "published")
     .eq("doctor_id", doctor.id);
+  if (cRes.error) console.error("[doctor] 글 카운트 조회 실패:", cRes.error.message);
   const count = cRes.count ?? null;
+
+  // 배치 ⑤ H3 (2026-05-28): fetchCardList SSOT 헬퍼로 통일.
+  //   doctor 페이지는 q="" 이므로 항상 search_cards_scored RPC 경로 (홈 피드와 동일).
+  // 홈 page.tsx 와 동일한 "순서(ID) 풀 + 초기 N장" 모델(무한스크롤):
+  //   - orderedIds: 이 원장 전체 글을 같은 정렬(search_cards_scored q="" doctorSlug)로 한 번에 받아
+  //     ID 배열만 추출 → 무한스크롤이 이 순서대로 /api/cards?ids= 로 다음 묶음을 이어 받는다.
+  //   - cards(initialPool): 같은 풀의 앞 PAGE_SIZE 장만 전체 데이터로 초기 렌더(초기 SSR 가벼움).
+  //   동일 정렬·동일 쿼리이므로 21번째 이후 경계가 끊기지 않는다(홈과 같은 불변식).
+  // 상한 300(홈 피드 풀과 동일 규모) — 글 수백 편 원장에서도 SSR RPC 가 과부하되지 않게 클램프.
+  const orderLimit = Math.min(Math.max(count ?? 0, PAGE_SIZE), 300);
+  const { data: rawOrdered } = await fetchCardList(supabase, {
+    q: "",
+    doctorSlug: doctor.slug,
+    boostDoctorSlug: null,
+    offset: 0,
+    limit: orderLimit,
+  });
+  const orderedCards = (rawOrdered ?? []) as CardData[];
+  const orderedIds = orderedCards.map((c) => c.id);
+  const cards = orderedCards.slice(0, PAGE_SIZE);
 
   // viewer prefetch
   const {
@@ -194,6 +205,7 @@ export default async function DoctorDetailPage({ params }: Props) {
         theme={theme}
         profile={profile}
         cards={cards}
+        orderedIds={orderedIds}
         count={count}
         hotIds={hotIds}
         viewerStates={viewerStates}
