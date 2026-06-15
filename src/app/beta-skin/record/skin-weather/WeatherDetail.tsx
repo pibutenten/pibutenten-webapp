@@ -77,17 +77,28 @@ export default function WeatherDetail({ snap }: { snap: WeatherSnapshot }) {
             <span className={styles.kpiBig} style={{ color: k.color }}>
               {k.value}
             </span>
-            {kpiGauge(k.frac, k.color, k.seg)}
+            {kpiGauge(k.frac, k.color, k.seg, k.peakFrac)}
             <span className={styles.kpiScale}>
               <span>{k.minLabel}</span>
               <span>{k.maxLabel}</span>
             </span>
-            <span className={styles.kpiSub}>{k.sub}</span>
+            <span className={styles.kpiSub}>
+              {k.sub}
+              {k.peak != null && (
+                <b className={styles.kpiPeakVal} style={{ color: k.color }}>
+                  {" "}
+                  {k.peak}
+                </b>
+              )}
+            </span>
           </button>
         ))}
       </div>
 
-      <div className={styles.tip}>{snap.tip}</div>
+      <div className={styles.tip}>
+        <span className={styles.tipLabel}>오늘의 피부 팁</span>
+        <span className={styles.tipText}>{snap.tip}</span>
+      </div>
 
       <div className={styles.gcard}>
         <div className={styles.gttl}>
@@ -110,7 +121,7 @@ export default function WeatherDetail({ snap }: { snap: WeatherSnapshot }) {
               <div className={styles.wTemp}>
                 <span className={styles.wLo}>{d.tMin}°</span>
                 <span className={styles.wRange}>
-                  <i style={{ left: `${d.rangeLeft.toFixed(0)}%`, width: `${Math.max(8, d.rangeWidth).toFixed(0)}%` }} />
+                  <i style={{ left: `${d.rangeLeft.toFixed(0)}%`, width: `${Math.max(8, d.rangeWidth).toFixed(0)}%`, background: d.tColor }} />
                 </span>
                 <span className={styles.wHi}>{d.tMax}°</span>
               </div>
@@ -129,18 +140,26 @@ export default function WeatherDetail({ snap }: { snap: WeatherSnapshot }) {
   );
 }
 
-/** KPI 카드용 게이지 — 트랙 + 채움 + 현재 위치 마커. seg 가 있으면 구간 눈금. */
-function kpiGauge(frac: number, color: string, seg?: number) {
+/** KPI 게이지 — 현재까지 진한 채움 + (UVB/UVA) 오늘 최고까지 연한 채움 + 현재 마커(채움)·최고 마커(외곽선).
+ *   seg=세그먼트 눈금(미세먼지). 진함=지금, 연함=오늘 더 올라갈 범위, 외곽선 마커=오늘 최고. */
+function kpiGauge(frac: number, color: string, seg?: number, peakFrac?: number) {
   const pct = Math.round(clampFrac(frac) * 100);
+  const peakPct = peakFrac != null ? Math.round(clampFrac(peakFrac) * 100) : null;
   return (
     <span className={styles.kpiGauge}>
       <span className={styles.kpiTrack}>
+        {peakPct != null && peakPct > pct && (
+          <i className={styles.kpiPeakFill} style={{ width: `${peakPct}%`, background: color }} />
+        )}
         <i className={styles.kpiFill} style={{ width: `${pct}%`, background: color }} />
         {seg
           ? Array.from({ length: seg - 1 }, (_, i) => (
               <span key={i} className={styles.kpiTick} style={{ left: `${((i + 1) / seg) * 100}%` }} />
             ))
           : null}
+        {peakPct != null && peakPct > pct && (
+          <i className={styles.kpiPeakMark} style={{ left: `${peakPct}%`, borderColor: color }} />
+        )}
         <i className={styles.kpiMarker} style={{ left: `${pct}%`, borderColor: color }} />
       </span>
     </span>

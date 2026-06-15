@@ -320,6 +320,31 @@
   transform: translate(-50%, -50%);
   box-shadow: 0 1px 3px rgba(27, 39, 51, 0.22);
   transition: left 0.3s ease;
+  z-index: 2;
+}
+/* 오늘 최고까지 연한 채움 — 진한 현재 채움 뒤에 깔려 '지금→오늘 최고' 범위를 보여줌. */
+.kpiPeakFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 4px;
+  opacity: 0.3;
+  transition: width 0.3s ease;
+}
+/* 오늘 최고 지점 — 외곽선만 있는(빈) 마커. 채워진 현재 마커와 구분. */
+.kpiPeakMark {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid;
+  transform: translate(-50%, -50%);
+  opacity: 0.85;
+  z-index: 1;
+  transition: left 0.3s ease;
 }
 .kpiScale {
   display: flex;
@@ -330,17 +355,31 @@
   color: var(--ink-500, #7b8794);
   opacity: 0.8;
 }
+/* 오늘 최고 강조 숫자(UVB/UVA sub). */
+.kpiPeakVal {
+  font-size: 13px;
+  font-weight: 800;
+}
 
 .tip {
-  background: #eaf6fe;
-  border: 1px solid #cde8f8;
-  color: #1b5a82;
+  background: var(--tt-blue-tint, #eef7fd);
+  border: 1px solid #d4ecf8;
   border-radius: 14px;
   padding: 12px 14px;
-  margin: 14px 0 16px;
+  margin: 16px 0;
+}
+.tipLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--tt-blue, #45b7e8);
+  margin-bottom: 3px;
+}
+.tipText {
   font-size: 13px;
   font-weight: 500;
   line-height: 1.5;
+  color: #2a5d7a;
 }
 
 /* ── 시간별 그래프 카드 ── */
@@ -364,11 +403,9 @@
   color: var(--ink-500, #7b8794);
   margin-top: 2px;
 }
+/* 회색 박스·중첩 흰 박스 제거 — 카드 위에 바로 얹은 미니멀 '지금' 값들. */
 .readout {
-  background: var(--bg-soft, #f5f8fb);
-  border-radius: 12px;
-  padding: 10px 12px;
-  margin: 12px 0 8px;
+  margin: 10px 2px 6px;
 }
 .rTime {
   font-weight: 800;
@@ -378,14 +415,15 @@
 .rKpi {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 7px;
-  margin-top: 9px;
+  gap: 6px;
+  margin-top: 8px;
 }
 .rk {
-  background: #fff;
-  border: 1.5px solid transparent;
-  border-radius: 11px;
-  padding: 8px 4px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 4px 2px 5px;
   text-align: center;
   cursor: pointer;
   transition: border-color 0.12s ease;
@@ -609,7 +647,8 @@
   position: absolute;
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, #74c0e8, #f2b84b, #ec6a4d);
+  /* 색은 그날 기온(tColor)으로 인라인 지정 — 무지개 그라데이션 대신 직관적 단색. */
+  background: var(--ink-300, #6b747e);
 }
 .wSkin {
   display: grid;

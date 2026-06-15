@@ -51,6 +51,28 @@ export function uvRamp(sev: number): string {
 export const uvbColor = (u: number) => uvRamp(uvSev(u));
 export const uvaColor = (uva: number) => uvRamp(clamp(uva / 11, 0, 1));
 
+/** 기온 → 색(한파 파랑 → 무더위 빨강). 주간 온도 막대를 실제 기온으로 칠해 직관적으로. */
+export function tempColor(t: number): string {
+  const stops: [number, [number, number, number]][] = [
+    [-5, [74, 124, 232]], // 한파
+    [8, [86, 179, 216]], // 쌀쌀
+    [18, [90, 192, 160]], // 온화
+    [27, [242, 168, 76]], // 따뜻
+    [35, [230, 84, 64]], // 무더위
+  ];
+  const rgb = (a: number[]) => `rgb(${Math.round(a[0])} ${Math.round(a[1])} ${Math.round(a[2])})`;
+  if (t <= stops[0][0]) return rgb(stops[0][1]);
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i][0]) {
+      const a = stops[i - 1][1];
+      const b = stops[i][1];
+      const f = (t - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0]);
+      return rgb([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]);
+    }
+  }
+  return rgb(stops[stops.length - 1][1]);
+}
+
 /** 해 떠 있으나 약할 때는 0 대신 0.x 로 표기. */
 export function uvText(u: number, sunUp: boolean): string {
   if (!sunUp) return "0";
@@ -320,6 +342,8 @@ export type WeatherKpi = {
   minLabel: string; // 게이지 좌측 눈금(예 "0")
   maxLabel: string; // 게이지 우측 눈금(예 "11", "100%", "매우나쁨")
   seg?: number; // 세그먼트 게이지 구간 수(미세먼지 4단계). 없으면 연속 바.
+  peak?: string; // 오늘 최고값(UVB/UVA — 예보에선 현재보다 중요). 강조 표시.
+  peakFrac?: number; // 0~1, 게이지 위 '오늘 최고' 마커 위치.
 };
 export type WeatherHour = {
   h: number;
@@ -340,6 +364,7 @@ export type WeatherDay = {
   tMax: number;
   rangeLeft: number;
   rangeWidth: number;
+  tColor: string; // 그날 기온 기반 색(온도 막대용)
   isToday: boolean;
   uvb: number;
   uva: number;
@@ -424,7 +449,6 @@ function computeSnapshot(aq: AQ, wx: WX, name: string): WeatherSnapshot {
   const dayBlock = clrPeak > 0.5 ? clamp(Math.round((1 - uvPeak / clrPeak) * 100), 0, 99) : 0;
   const clearNow = cur.uv_index_clear_sky ?? 0;
   const blockNow = sunUp && clearNow > 0.5 ? clamp(Math.round((1 - uvNow / clearNow) * 100), 0, 99) : dayBlock;
-  const pmG = pmWorstGrade(pm25, pm10);
   const todayMax = Math.round(D.temperature_2m_max?.[dIdx] ?? temp);
   const todayMin = Math.round(D.temperature_2m_min?.[dIdx] ?? temp);
   const tempFrac = clamp((temp - todayMin) / Math.max(1, todayMax - todayMin), 0, 1);
@@ -433,29 +457,8 @@ function computeSnapshot(aq: AQ, wx: WX, name: string): WeatherSnapshot {
   // 피부 관점 습도 라벨 — 이슬점 기준(건조 ≤5, 촉촉 ≥20, 그 외 적정). 명세 §4.2.
   const humLabel = dew == null ? "—" : dew <= 5 ? "건조" : dew >= 20 ? "촉촉" : "적정";
 
-  const adv = buildAdvice({ uv: uvNow, uva: uvaNow, pmGrade: pmG, tempMax: todayMax, dew, weather: wcls(wcur.weather_code ?? 3) });
-
-  // 게이지 표시용 비율(0~1). 과학값은 그대로, 표시만 최대값 대비 위치로 환산.
-  const uvbFrac = sunUp ? clamp(uvNow / 11, 0, 1) : 0;
-  const uvaFrac = clamp(uvaNow / 11, 0, 1);
-  const pmFrac = pmG / 3;
-  const transNow = 100 - blockNow; // 현재 자외선 통과율 %
-  const transDay = 100 - dayBlock;
-
-  const chips: WeatherChip[] = [
-    { key: "uvb", label: "UVB 홍반", value: uvText(uvNow, sunUp), color: uvbColor(uvNow), frac: uvbFrac },
-    { key: "uva", label: "UVA 노화", value: String(uvaNow), color: uvaColor(uvaNow), frac: uvaFrac },
-    { key: "pm", label: "미세먼지", value: PM_GRADE_LABEL[pmG], color: PM_GRADE_COLOR[pmG], frac: pmFrac },
-    { key: "block", label: "구름투과", value: `${transNow}%`, color: "#3C8CC8", frac: transNow / 100 },
-  ];
-  const kpis: WeatherKpi[] = [
-    { key: "tanning", label: "UVB 홍반", value: uvText(uvNow, sunUp), level: uvBand(uvNow), color: uvbColor(uvNow), sub: `오늘 최고 ${Math.round(uvPeak)}`, frac: uvbFrac, minLabel: "0", maxLabel: "11" },
-    { key: "aging", label: "UVA 노화", value: String(uvaNow), level: uvaNow >= 9 ? "강함" : uvaNow >= 5 ? "보통" : "약함", color: uvaColor(uvaNow), sub: `오늘 최고 ${uvaPeak}`, frac: uvaFrac, minLabel: "0", maxLabel: "11" },
-    { key: "pm", label: "미세먼지", value: String(Math.round(pm25)), level: PM_GRADE_LABEL[pmG], color: PM_GRADE_COLOR[pmG], sub: `PM10 ${Math.round(pm10)}㎍`, frac: pmFrac, minLabel: "좋음", maxLabel: "매우나쁨", seg: 4 },
-    { key: "block", label: "구름투과", value: `${transDay}%`, level: "자외선 통과", color: "#3C8CC8", sub: `구름 차단 ${dayBlock}%`, frac: transDay / 100, minLabel: "0", maxLabel: "100%" },
-  ];
-
-  // 시간별 시리즈: 과거 24h ~ 향후 24h
+  // 시간별 시리즈(과거 24h ~ 향후 24h) — 먼저 만든다. 대시보드 '현재값'을 그래프의 '지금'
+  //   (hours[nowIndex])과 같은 출처로 맞추기 위함(둘이 달라 보이던 문제 해소).
   const hours: WeatherHour[] = [];
   const startMs = Date.now() - 24 * 36e5;
   for (const r of rows) {
@@ -476,6 +479,37 @@ function computeSnapshot(aq: AQ, wx: WX, name: string): WeatherSnapshot {
       block: up && clr > 0.5 ? clamp(Math.round((1 - uvi / clr) * 100), 0, 99) : (blockFromCloud(r.cloud) ?? dayBlock),
     });
   }
+
+  // '지금' 시점값 = 그래프 readout 과 동일한 hours[nowIndex]. 대시보드 현재값을 이것으로 통일.
+  const nowH: WeatherHour | undefined = hours[nowIndex(hours)];
+  const dUv = nowH ? nowH.uv : sunUp ? uvNow : 0;
+  const dUp = nowH ? nowH.up : sunUp;
+  const dUva = nowH ? nowH.uva : sunUp ? uvaNow : 0;
+  const dPm25 = nowH?.pm25 ?? pm25;
+  const dPm10 = nowH?.pm10 ?? pm10;
+  const dPmG = pmWorstGrade(dPm25, dPm10);
+  const dBlock = nowH ? nowH.block : blockNow;
+  const dTransNow = 100 - dBlock; // 지금 자외선 통과율 %
+
+  const adv = buildAdvice({ uv: dUv, uva: dUva, pmGrade: dPmG, tempMax: todayMax, dew, weather: wcls(wcur.weather_code ?? 3) });
+
+  // 게이지 표시용 비율(0~1) — '지금' 기준(dUv 등은 밤이면 이미 0).
+  const uvbFrac = clamp(dUv / 11, 0, 1);
+  const uvaFrac = clamp(dUva / 11, 0, 1);
+  const pmFrac = dPmG / 3;
+
+  const chips: WeatherChip[] = [
+    { key: "uvb", label: "UVB 홍반", value: uvText(dUv, dUp), color: uvbColor(dUv), frac: uvbFrac },
+    { key: "uva", label: "UVA 노화", value: String(dUva), color: uvaColor(dUva), frac: uvaFrac },
+    { key: "pm", label: "미세먼지", value: PM_GRADE_LABEL[dPmG], color: PM_GRADE_COLOR[dPmG], frac: pmFrac },
+    { key: "block", label: "구름투과", value: `${dTransNow}%`, color: "#3C8CC8", frac: dTransNow / 100 },
+  ];
+  const kpis: WeatherKpi[] = [
+    { key: "tanning", label: "UVB 홍반", value: uvText(dUv, dUp), level: uvBand(dUv), color: uvbColor(dUv), sub: "오늘 최고", peak: String(Math.round(uvPeak)), peakFrac: clamp(uvPeak / 11, 0, 1), frac: uvbFrac, minLabel: "0", maxLabel: "11" },
+    { key: "aging", label: "UVA 노화", value: String(dUva), level: dUva >= 9 ? "강함" : dUva >= 5 ? "보통" : "약함", color: uvaColor(dUva), sub: "오늘 최고", peak: String(uvaPeak), peakFrac: clamp(uvaPeak / 11, 0, 1), frac: uvaFrac, minLabel: "0", maxLabel: "11" },
+    { key: "pm", label: "미세먼지", value: String(Math.round(dPm25)), level: PM_GRADE_LABEL[dPmG], color: PM_GRADE_COLOR[dPmG], sub: `PM10 ${Math.round(dPm10)}㎍`, frac: pmFrac, minLabel: "좋음", maxLabel: "매우나쁨", seg: 4 },
+    { key: "block", label: "구름투과", value: `${dTransNow}%`, level: "자외선 통과", color: "#3C8CC8", sub: `구름 차단 ${dBlock}%`, frac: dTransNow / 100, minLabel: "0", maxLabel: "100%" },
+  ];
 
   // 주간 집계
   const aUV: Record<string, number> = {};
@@ -529,6 +563,7 @@ function computeSnapshot(aq: AQ, wx: WX, name: string): WeatherSnapshot {
       tMax: Math.round(tmax),
       rangeLeft: ((tmin - wkLo) / span) * 100,
       rangeWidth: ((tmax - tmin) / span) * 100,
+      tColor: tempColor((tmin + tmax) / 2),
       isToday,
       uvb: Math.round(aUV[d] ?? 0),
       uva: Math.round(aUVA[d] ?? 0),
@@ -545,11 +580,11 @@ function computeSnapshot(aq: AQ, wx: WX, name: string): WeatherSnapshot {
     cond,
     headline: adv.headline,
     tip: adv.tip,
-    uvNow,
-    uvaNow,
-    sunUp,
-    pmGrade: pmG,
-    blockNow,
+    uvNow: dUv,
+    uvaNow: dUva,
+    sunUp: dUp,
+    pmGrade: dPmG,
+    blockNow: dBlock,
     todayMin,
     todayMax,
     tempFrac,
