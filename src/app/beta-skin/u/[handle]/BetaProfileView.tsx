@@ -26,6 +26,7 @@ import {
 } from "@/lib/profile-options";
 import type { CardData } from "@/lib/types/card";
 import BetaSkinShell from "../../BetaSkinShell";
+import BetaPolicyFooter from "../../BetaPolicyFooter";
 import styles from "../../beta-skin.module.css";
 import {
   PostCard,
@@ -427,6 +428,9 @@ export default function BetaProfileView({
           <LogoutButton />
         </div>
       )}
+
+      {/* 신뢰·법적 길목(about·약관·문의 등) — 모든 방문자에게 노출(SNS 표준 in-page 푸터). */}
+      <BetaPolicyFooter />
     </BetaSkinShell>
   );
 }

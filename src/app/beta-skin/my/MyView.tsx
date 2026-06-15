@@ -16,6 +16,7 @@ import CardAvatar from "@/components/card/CardAvatar";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import { useSession } from "@/lib/session-context";
 import BetaSkinShell from "../BetaSkinShell";
+import BetaPolicyFooter from "../BetaPolicyFooter";
 import styles from "../beta-skin.module.css";
 import { useBetaSearchRouting } from "../beta-ui";
 
@@ -96,6 +97,8 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
             </a>
           ))}
         </section>
+        {/* 신뢰·법적 길목(about·약관·문의 등) — 비로그인에게도 노출(SNS 표준 in-page 푸터). */}
+        <BetaPolicyFooter />
       </BetaSkinShell>
     );
   }
@@ -227,6 +230,9 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
           </a>
         ))}
       </section>
+
+      {/* 신뢰·법적 길목(about·약관·문의 등) — SNS 표준 in-page 푸터. */}
+      <BetaPolicyFooter />
     </BetaSkinShell>
   );
 }
