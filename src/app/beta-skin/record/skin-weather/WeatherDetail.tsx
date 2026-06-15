@@ -1,25 +1,36 @@
 "use client";
 
 /**
- * WeatherDetail — "오늘의 피부 날씨" 상세 본문 (위치·온도 레인지·습도 헤더 + 4 KPI 게이지 +
- *   한 줄 팁 + 시간별 겹쳐보기 그래프 + 주간). /record/weather 페이지에서 사용.
+ * WeatherDetail — "오늘의 피부 날씨" 상세 본문 (위치·일러스트·기상특보 배지·온도 레인지·습도 헤더 +
+ *   6 KPI 세로 게이지 + 한 줄 팁 + 시간별 겹쳐보기 그래프 + 주간). /record/weather 페이지에서 사용.
  *   과학 로직은 weather-logic.ts. 지표는 절대값이 아니라 '최대값 대비 현재 위치(게이지)'로 표현.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./skin-weather.module.css";
+import WeatherIllustration from "./WeatherIllustration";
 import {
   OVERLAYS,
   PM_GRADE_COLOR,
   PM_GRADE_LABEL,
   ampm,
   nowIndex,
+  uvaColor,
+  uvbColor,
   type WeatherHour,
+  type WeatherKpi,
   type WeatherSnapshot,
 } from "./weather-logic";
 
 const clampFrac = (v: number) => Math.max(0, Math.min(1, v));
 const clampN = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+
+/** 기상특보 배지 색 톤(흰 상세 배경 위 — 종류별 옅은 틴트). */
+const BADGE_TONE: Record<string, { bg: string; fg: string }> = {
+  폭염: { bg: "#FFEFE6", fg: "#D9480F" },
+  폭우: { bg: "#E7F0FA", fg: "#1C6FB8" },
+  한파: { bg: "#EAF3FF", fg: "#1559B5" },
+};
 
 export default function WeatherDetail({
   snap,
@@ -48,8 +59,25 @@ export default function WeatherDetail({
           </svg>
           {snap.name}
         </span>
+        {snap.badges.length > 0 && (
+          <div className={styles.dBadges}>
+            {snap.badges.map((b) => {
+              const tone = BADGE_TONE[b.kind];
+              return (
+                <span
+                  className={styles.dBadge}
+                  key={b.kind}
+                  style={tone ? { background: tone.bg, color: tone.fg } : undefined}
+                >
+                  {b.label}
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div className={styles.dHeadMain}>
           <div className={styles.dTempRow}>
+            <WeatherIllustration illust={snap.illust} size={52} className={styles.dHero} />
             <span className={styles.dTemp}>{snap.temp}°</span>
             <span className={styles.dCond}>
               {snap.cond}
@@ -85,27 +113,26 @@ export default function WeatherDetail({
             style={emph === k.key ? { borderColor: k.color } : undefined}
             onClick={() => onEmph(k.key)}
           >
-            <span className={styles.kpiTop}>
-              <span className={styles.kpiN}>{k.label}</span>
-              <span className={styles.kpiLv} style={{ color: k.color }}>
-                {k.level}
-              </span>
-            </span>
             <span className={styles.kpiBig} style={{ color: k.color }}>
               {k.value}
             </span>
-            {kpiGauge(k.frac, k.color, k.seg, k.peakFrac)}
-            <span className={styles.kpiScale}>
-              <span>{k.minLabel}</span>
-              <span>{k.maxLabel}</span>
-            </span>
-            <span className={styles.kpiSub}>
-              {k.sub}
-              {k.peak != null && (
-                <b className={styles.kpiPeakVal} style={{ color: k.color }}>
-                  {" "}
-                  {k.peak}
-                </b>
+            {vGauge(k)}
+            <span className={styles.kpiN}>{k.label}</span>
+            <span className={styles.kpiMeta}>
+              {k.level && (
+                <span className={styles.kpiLv} style={{ color: k.color }}>
+                  {k.level}
+                </span>
+              )}
+              {k.peak != null ? (
+                <span className={styles.kpiPeakWrap}>
+                  최고{" "}
+                  <b className={styles.kpiPeakVal} style={{ color: k.peakColor ?? k.color }}>
+                    {k.peak}
+                  </b>
+                </span>
+              ) : (
+                <span className={styles.kpiSub}>{k.sub}</span>
               )}
             </span>
           </button>
@@ -145,10 +172,10 @@ export default function WeatherDetail({
               </div>
             </div>
             <div className={styles.wSkin}>
-              {skBar("UVB 홍반", d.uvb / 11, "#E0382E", String(d.uvb))}
-              {skBar("UVA 노화", d.uva / 11, "#B45CB0", String(d.uva))}
+              {skBar("UVB 홍반", d.uvb / 11, uvbColor(d.uvb), String(d.uvb))}
+              {skBar("UVA 노화", d.uva / 11, uvaColor(d.uva), String(d.uva))}
               {skBar("미세먼지", d.pmGrade / 3, PM_GRADE_COLOR[d.pmGrade], PM_GRADE_LABEL[d.pmGrade])}
-              {skBar("구름투과율", d.trans == null ? 0 : d.trans, "#3C8CC8", d.trans == null ? "–" : `${Math.round(d.trans * 100)}%`)}
+              {skBar("구름투과율", d.trans == null ? 0 : d.trans, "#2E86C8", d.trans == null ? "–" : `${Math.round(d.trans * 100)}%`)}
             </div>
           </button>
         ))}
@@ -158,27 +185,48 @@ export default function WeatherDetail({
   );
 }
 
-/** KPI 게이지 — 현재까지 진한 채움 + (UVB/UVA) 오늘 최고까지 연한 채움 + 현재 마커(채움)·최고 마커(외곽선).
- *   seg=세그먼트 눈금(미세먼지). 진함=지금, 연함=오늘 더 올라갈 범위, 외곽선 마커=오늘 최고. */
-function kpiGauge(frac: number, color: string, seg?: number, peakFrac?: number) {
-  const pct = Math.round(clampFrac(frac) * 100);
-  const peakPct = peakFrac != null ? Math.round(clampFrac(peakFrac) * 100) : null;
+/** 세로 막대 게이지 — 아래(0)에서 위로 채움. 지표 타입별:
+ *   - 연속 채움(공통): frac 만큼 단색 채움.
+ *   - UVB/UVA(peakFrac): 현재까지 진한 채움 + 오늘 최고까지 연한 채움 + 최고 지점 고스트 캡(외곽선).
+ *   - 미세먼지(seg): seg 단계 세그먼트 구분선(가로).
+ *   - 기온(rangeLoFrac~rangeHiFrac): 막대 중간에 떠 있는 범위 캡슐 + 0/max 눈금.
+ *   게이지는 장식이며 의미는 텍스트(값·레벨·sub)로 전달. */
+function vGauge(k: WeatherKpi) {
+  const pct = Math.round(clampFrac(k.frac) * 100);
+  const isRange = k.rangeLoFrac != null && k.rangeHiFrac != null;
+  const loPct = isRange ? Math.round(clampFrac(k.rangeLoFrac!) * 100) : 0;
+  const hiPct = isRange ? Math.round(clampFrac(k.rangeHiFrac!) * 100) : 0;
+  const peakPct = k.peakFrac != null ? Math.round(clampFrac(k.peakFrac) * 100) : null;
+
   return (
-    <span className={styles.kpiGauge}>
-      <span className={styles.kpiTrack}>
-        {peakPct != null && peakPct > pct && (
-          <i className={styles.kpiPeakFill} style={{ width: `${peakPct}%`, background: color }} />
+    <span className={styles.vGauge}>
+      <span className={styles.vTrack}>
+        {isRange ? (
+          /* 기온 — 최저~최고 범위 캡슐(막대 중간에 부유). */
+          <i
+            className={styles.vRange}
+            style={{ bottom: `${loPct}%`, height: `${Math.max(3, hiPct - loPct)}%`, background: k.color }}
+          />
+        ) : (
+          <>
+            {/* UVB/UVA — 오늘 최고까지 연한 채움(현재 채움 뒤). */}
+            {peakPct != null && peakPct > pct && (
+              <i className={styles.vPeakFill} style={{ height: `${peakPct}%`, background: k.peakColor ?? k.color }} />
+            )}
+            {/* 현재까지 진한 채움. */}
+            <i className={styles.vFill} style={{ height: `${pct}%`, background: k.color }} />
+            {/* 미세먼지 — seg 단계 구분선. */}
+            {k.seg
+              ? Array.from({ length: k.seg - 1 }, (_, i) => (
+                  <span key={i} className={styles.vTick} style={{ bottom: `${((i + 1) / k.seg!) * 100}%` }} />
+                ))
+              : null}
+            {/* UVB/UVA — 오늘 최고 지점 고스트 캡(외곽선). */}
+            {peakPct != null && peakPct > pct && (
+              <i className={styles.vPeakCap} style={{ bottom: `${peakPct}%`, borderColor: k.peakColor ?? k.color }} />
+            )}
+          </>
         )}
-        <i className={styles.kpiFill} style={{ width: `${pct}%`, background: color }} />
-        {seg
-          ? Array.from({ length: seg - 1 }, (_, i) => (
-              <span key={i} className={styles.kpiTick} style={{ left: `${((i + 1) / seg) * 100}%` }} />
-            ))
-          : null}
-        {peakPct != null && peakPct > pct && (
-          <i className={styles.kpiPeakMark} style={{ left: `${peakPct}%`, borderColor: color }} />
-        )}
-        <i className={styles.kpiMarker} style={{ left: `${pct}%`, borderColor: color }} />
       </span>
     </span>
   );

@@ -66,6 +66,27 @@
   opacity: 0.95;
   padding-bottom: 6px;
 }
+/* hero 일러스트 — 기온 우측 끝으로 밀어 균형. */
+.cHero {
+  margin-left: auto;
+  flex: none;
+}
+/* 기상특보 배지 — 파란 카드 위 반투명 흰 알약. 특보 있을 때만 렌더. */
+.cBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.cBadge {
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
 .cMsg {
   margin: 2px 0 0;
   font-size: 13px;
@@ -74,33 +95,39 @@
 }
 .chips {
   display: flex;
-  gap: 7px;
+  gap: 5px;
   margin-top: 13px;
 }
 .chip {
   flex: 1;
+  min-width: 0;
   text-align: center;
   background: rgba(255, 255, 255, 0.18);
-  border-radius: 12px;
-  padding: 8px 6px 7px;
+  border-radius: 11px;
+  padding: 7px 3px 6px;
 }
 .chipK {
   display: block;
-  font-size: 10.5px;
+  font-size: 9.5px;
   opacity: 0.92;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .chipV {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   margin-top: 3px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
 }
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 6.5px;
+  height: 6.5px;
   border-radius: 50%;
   display: inline-block;
   flex: none;
@@ -199,6 +226,22 @@
   align-items: flex-end;
   gap: 12px;
 }
+.dHero {
+  flex: none;
+}
+/* 기상특보 배지 줄(위치 아래) — 색은 인라인 BADGE_TONE 로 종류별 틴트 */
+.dBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dBadge {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
 .dTemp {
   font-size: 42px;
   font-weight: 800;
@@ -240,140 +283,162 @@
   color: var(--tt-blue, #45b7e8);
 }
 
+/* 6개 지표를 한 줄 세로 막대 게이지 군집으로. 모바일(360~430px)에서 6열 균등 배치. */
 .kpis {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
   margin-top: 14px;
 }
 .kpi {
-  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
   background: var(--card, #fff);
   border: 1.5px solid transparent;
-  border-radius: 14px;
-  padding: 11px 12px 11px;
+  border-radius: 12px;
+  padding: 9px 2px 8px;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(27, 39, 51, 0.07);
-  transition: border-color 0.12s ease, transform 0.12s ease;
+  transition: border-color 0.12s ease, transform 0.12s ease, background 0.12s ease;
   font-family: inherit;
 }
 .kpi:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 /* 선택된 지표(그래프 강조 토글 on) — 인라인 borderColor 와 함께 은은한 강조 배경·그림자. */
 .kpiOn {
   background: var(--tt-blue-tint, #eef7fd);
   box-shadow: 0 4px 16px rgba(69, 183, 232, 0.2);
 }
-.kpiTop {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-}
-.kpiN {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-500, #7b8794);
-}
+/* 값 숫자 — 게이지 위. */
 .kpiBig {
   display: block;
-  font-size: 25px;
+  font-size: 16px;
   font-weight: 800;
-  line-height: 1.1;
-  margin-top: 4px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+/* 지표 라벨 — 게이지 아래. */
+.kpiN {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-700, #3c4856);
+  margin-top: 7px;
+  white-space: nowrap;
+}
+/* 레벨 + sub/peak 묶음 — 라벨 아래 한 덩어리(세로). */
+.kpiMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin-top: 2px;
+  min-height: 24px;
 }
 .kpiLv {
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 700;
-  flex: none;
+  line-height: 1.2;
 }
 .kpiSub {
-  display: block;
-  font-size: 11px;
-  color: var(--ink-500, #7b8794);
-  margin-top: 7px;
-}
-
-/* KPI 게이지: 트랙 + 채움 + 현재 위치 마커 + 0/max 눈금 */
-.kpiGauge {
-  display: block;
-  margin-top: 9px;
-}
-.kpiTrack {
-  display: block;
-  position: relative;
-  height: 7px;
-  border-radius: 4px;
-  background: #e7ecf0;
-  overflow: visible;
-}
-.kpiFill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-.kpiTick {
-  position: absolute;
-  top: 0;
-  width: 1.5px;
-  height: 100%;
-  background: #fff;
-  transform: translateX(-50%);
-}
-.kpiMarker {
-  position: absolute;
-  top: 50%;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2.5px solid;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 1px 3px rgba(27, 39, 51, 0.22);
-  transition: left 0.3s ease;
-  z-index: 2;
-}
-/* 오늘 최고까지 연한 채움 — 진한 현재 채움 뒤에 깔려 '지금→오늘 최고' 범위를 보여줌. */
-.kpiPeakFill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  border-radius: 4px;
-  opacity: 0.3;
-  transition: width 0.3s ease;
-}
-/* 오늘 최고 지점 — 외곽선만 있는(빈) 마커. 채워진 현재 마커와 구분. */
-.kpiPeakMark {
-  position: absolute;
-  top: 50%;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid;
-  transform: translate(-50%, -50%);
-  opacity: 0.85;
-  z-index: 1;
-  transition: left 0.3s ease;
-}
-.kpiScale {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 5px;
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 600;
   color: var(--ink-500, #7b8794);
-  opacity: 0.8;
+  line-height: 1.2;
 }
-/* 오늘 최고 강조 숫자(UVB/UVA sub). */
+/* 오늘 최고(UVB/UVA) — 라벨 근처 강조. */
+.kpiPeakWrap {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--ink-500, #7b8794);
+  line-height: 1.2;
+}
 .kpiPeakVal {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 800;
+}
+
+/* ── 세로 막대 게이지: 아래(0)에서 위로 채움 ── */
+.vGauge {
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
+}
+.vTrack {
+  display: block;
+  position: relative;
+  width: 14px;
+  height: 96px;
+  border-radius: 7px;
+  background: #e7ecf0;
+  overflow: hidden;
+}
+/* 연속/현재 채움 — 아래에서 위로. */
+.vFill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  border-radius: 7px;
+  transition: height 0.3s ease;
+}
+/* 오늘 최고까지 연한 채움(UVB/UVA) — 진한 현재 채움 뒤에 깔림. */
+.vPeakFill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  border-radius: 7px;
+  opacity: 0.28;
+  transition: height 0.3s ease;
+}
+/* 오늘 최고 지점 고스트 캡(UVB/UVA) — 외곽선만 있는 가로 캡. */
+.vPeakCap {
+  position: absolute;
+  left: 50%;
+  width: 16px;
+  height: 4px;
+  border-radius: 2px;
+  background: #fff;
+  border: 1.5px solid;
+  transform: translate(-50%, 50%);
+  opacity: 0.9;
+  z-index: 2;
+  transition: bottom 0.3s ease;
+}
+/* 미세먼지 — seg 단계 구분선(가로). */
+.vTick {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1.5px;
+  background: #fff;
+  transform: translateY(50%);
+  z-index: 1;
+}
+/* 기온 — 최저~최고 범위 캡슐(막대 중간에 부유). */
+.vRange {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  border-radius: 7px;
+  transition: bottom 0.3s ease, height 0.3s ease;
+}
+
+/* 좁은 화면(≤360px) — 폰트·게이지 살짝 축소. */
+@media (max-width: 360px) {
+  .kpiBig {
+    font-size: 14px;
+  }
+  .kpiN {
+    font-size: 9.5px;
+  }
+  .vTrack {
+    width: 12px;
+    height: 88px;
+  }
 }
 
 /* 피부 팁 — 라벨 없이 구분선 아래 한 문장만 */

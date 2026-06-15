@@ -11,6 +11,7 @@
 import Link from "next/link";
 import styles from "./skin-weather.module.css";
 import { useWeather } from "./useWeather";
+import WeatherIllustration from "./WeatherIllustration";
 
 const clampFrac = (v: number) => Math.max(0, Math.min(1, v));
 
@@ -32,7 +33,7 @@ export default function SkinWeatherCard() {
         <div className={styles.skelTemp} />
         <div className={styles.skelMsg} />
         <div className={styles.skelChips}>
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1, 2, 3, 4, 5].map((i) => (
             <span key={i} />
           ))}
         </div>
@@ -61,7 +62,17 @@ export default function SkinWeatherCard() {
         <div className={styles.cMid}>
           <span className={styles.cTemp}>{snap.temp}°</span>
           <span className={styles.cCond}>{snap.cond} · 오늘의 피부 날씨</span>
+          <WeatherIllustration illust={snap.illust} size={54} className={styles.cHero} />
         </div>
+        {snap.badges.length > 0 && (
+          <div className={styles.cBadges}>
+            {snap.badges.map((b) => (
+              <span className={styles.cBadge} key={b.kind}>
+                {b.label}
+              </span>
+            ))}
+          </div>
+        )}
         <p className={styles.cMsg}>{snap.headline}</p>
         <div className={styles.chips}>
           {snap.chips.map((c) => (
