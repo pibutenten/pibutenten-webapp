@@ -31,6 +31,11 @@ export default function WeatherDetail({
   emph: string | null;
   onEmph: (k: string) => void;
 }) {
+  // 주간 — 클릭한 날을 활성화(강조). 디폴트는 오늘.
+  const [selDayIdx, setSelDayIdx] = useState(() => {
+    const i = snap.days.findIndex((d) => d.isToday);
+    return i >= 0 ? i : 0;
+  });
 
   return (
     <div className={styles.detail}>
@@ -117,7 +122,13 @@ export default function WeatherDetail({
       <div className={styles.secTitle}>주간 피부 날씨</div>
       <div className={styles.week}>
         {snap.days.map((d, i) => (
-          <div className={`${styles.wday} ${d.isToday ? styles.wToday : ""}`} key={i}>
+          <button
+            type="button"
+            className={`${styles.wday} ${selDayIdx === i ? styles.wToday : ""}`}
+            key={i}
+            onClick={() => setSelDayIdx(i)}
+            aria-pressed={selDayIdx === i}
+          >
             <div className={styles.wTop}>
               <div className={styles.wDay}>
                 {d.label}
@@ -137,9 +148,9 @@ export default function WeatherDetail({
               {skBar("UVB 홍반", d.uvb / 11, "#E0382E", String(d.uvb))}
               {skBar("UVA 노화", d.uva / 11, "#B45CB0", String(d.uva))}
               {skBar("미세먼지", d.pmGrade / 3, PM_GRADE_COLOR[d.pmGrade], PM_GRADE_LABEL[d.pmGrade])}
-              {skBar("구름투과", d.trans == null ? 0 : d.trans, "#3C8CC8", d.trans == null ? "–" : `${Math.round(d.trans * 100)}%`)}
+              {skBar("구름투과율", d.trans == null ? 0 : d.trans, "#3C8CC8", d.trans == null ? "–" : `${Math.round(d.trans * 100)}%`)}
             </div>
-          </div>
+          </button>
         ))}
       </div>
       <p className={styles.note}>{snap.weekNote}</p>

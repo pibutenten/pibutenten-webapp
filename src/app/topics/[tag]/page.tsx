@@ -24,7 +24,7 @@ async function fetchFeedSidebarData(): Promise<{
     p_limit: 300,
     p_offset: 0,
     p_half_life_days: 14,
-    p_jitter_amp: 0.35,
+    p_jitter_amp: 0, // 인기태그 풀은 결정적(클릭/재방문에 목록 불변)
   });
   if (error) {
     console.error("[topics] 사이드바 피드 풀 조회 실패:", error.message);

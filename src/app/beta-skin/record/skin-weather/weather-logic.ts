@@ -51,14 +51,16 @@ export function uvRamp(sev: number): string {
 export const uvbColor = (u: number) => uvRamp(uvSev(u));
 export const uvaColor = (uva: number) => uvRamp(clamp(uva / 11, 0, 1));
 
-/** 기온 → 색(한파 파랑 → 무더위 빨강). 주간 온도 막대를 실제 기온으로 칠해 직관적으로. */
+/** 기온 → 색(강한 한파 남색 → 무더위 빨강). 주간 온도 막대를 실제 기온으로 칠해 직관적으로.
+ *   한국 현실 범위(영하 -15 ~ 영상 35)를 단계적으로 — 영하도 한 색으로 뭉개지지 않게 확장. */
 export function tempColor(t: number): string {
   const stops: [number, [number, number, number]][] = [
-    [-5, [74, 124, 232]], // 한파
-    [8, [86, 179, 216]], // 쌀쌀
-    [18, [90, 192, 160]], // 온화
-    [27, [242, 168, 76]], // 따뜻
-    [35, [230, 84, 64]], // 무더위
+    [-15, [40, 78, 180]], // 강한 한파(진남색)
+    [-3, [74, 124, 232]], // 한파(파랑)
+    [8, [86, 179, 216]], // 쌀쌀(하늘)
+    [18, [90, 192, 160]], // 온화(연두)
+    [27, [242, 168, 76]], // 따뜻(주황)
+    [35, [230, 84, 64]], // 무더위(빨강)
   ];
   const rgb = (a: number[]) => `rgb(${Math.round(a[0])} ${Math.round(a[1])} ${Math.round(a[2])})`;
   if (t <= stops[0][0]) return rgb(stops[0][1]);
@@ -502,13 +504,13 @@ function computeSnapshot(aq: AQ, wx: WX, name: string): WeatherSnapshot {
     { key: "uvb", label: "UVB 홍반", value: uvText(dUv, dUp), color: uvbColor(dUv), frac: uvbFrac },
     { key: "uva", label: "UVA 노화", value: String(dUva), color: uvaColor(dUva), frac: uvaFrac },
     { key: "pm", label: "미세먼지", value: PM_GRADE_LABEL[dPmG], color: PM_GRADE_COLOR[dPmG], frac: pmFrac },
-    { key: "block", label: "구름투과", value: `${dTransNow}%`, color: "#3C8CC8", frac: dTransNow / 100 },
+    { key: "block", label: "구름투과율", value: `${dTransNow}%`, color: "#3C8CC8", frac: dTransNow / 100 },
   ];
   const kpis: WeatherKpi[] = [
     { key: "tanning", label: "UVB 홍반", value: uvText(dUv, dUp), level: uvBand(dUv), color: uvbColor(dUv), sub: "오늘 최고", peak: String(Math.round(uvPeak)), peakFrac: clamp(uvPeak / 11, 0, 1), frac: uvbFrac, minLabel: "0", maxLabel: "11" },
     { key: "aging", label: "UVA 노화", value: String(dUva), level: dUva >= 9 ? "강함" : dUva >= 5 ? "보통" : "약함", color: uvaColor(dUva), sub: "오늘 최고", peak: String(uvaPeak), peakFrac: clamp(uvaPeak / 11, 0, 1), frac: uvaFrac, minLabel: "0", maxLabel: "11" },
     { key: "pm", label: "미세먼지", value: String(Math.round(dPm25)), level: PM_GRADE_LABEL[dPmG], color: PM_GRADE_COLOR[dPmG], sub: `PM10 ${Math.round(dPm10)}㎍`, frac: pmFrac, minLabel: "좋음", maxLabel: "매우나쁨", seg: 4 },
-    { key: "block", label: "구름투과", value: `${dTransNow}%`, level: "자외선 통과", color: "#3C8CC8", sub: `구름 차단 ${dBlock}%`, frac: dTransNow / 100, minLabel: "0", maxLabel: "100%" },
+    { key: "block", label: "구름투과율", value: `${dTransNow}%`, level: "자외선 통과", color: "#3C8CC8", sub: `구름 차단 ${dBlock}%`, frac: dTransNow / 100, minLabel: "0", maxLabel: "100%" },
   ];
 
   // 주간 집계
@@ -594,7 +596,7 @@ function computeSnapshot(aq: AQ, wx: WX, name: string): WeatherSnapshot {
     kpis,
     hours,
     days,
-    weekNote: `자외선 예보가 가능한 날까지 표시됩니다(현재 ${ndays}일). 구름투과는 단기 예보가 더 정확합니다. 출처: CAMS · Open-Meteo.com`,
+    weekNote: `자외선 예보가 가능한 날까지 표시됩니다(현재 ${ndays}일). 구름투과율은 단기 예보가 더 정확합니다. 출처: CAMS · Open-Meteo.com`,
   };
 }
 
@@ -617,7 +619,7 @@ export const OVERLAYS: {
     abs: (o) => `${PM_GRADE_LABEL[pmWorstGrade(o.pm25 || 0, o.pm10 || 0)]} ${o.pm25 == null ? "–" : Math.round(o.pm25)}`,
     dot: (o) => PM_GRADE_COLOR[pmWorstGrade(o.pm25 || 0, o.pm10 || 0)],
   },
-  { key: "block", label: "구름투과", color: "#3C8CC8", norm: (o) => 100 - o.block, abs: (o) => `${100 - o.block}%`, dot: () => "#3C8CC8" },
+  { key: "block", label: "구름투과율", color: "#3C8CC8", norm: (o) => 100 - o.block, abs: (o) => `${100 - o.block}%`, dot: () => "#3C8CC8" },
 ];
 
 /** 현재 시각에 가장 가까운 hours 인덱스. */

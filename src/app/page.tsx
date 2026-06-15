@@ -120,6 +120,7 @@ export default async function HomeFeedPage({
     }
     // 검색 화면 — 인기 태그는 검색결과가 아니라 '비검색 피드 풀' 기준으로 계산해야 안정적이므로
     //   keywords 집계 전용으로 feed_cards_scored 를 한 번 더 받는다(전체 탭 태그 = 검색과 무관).
+    //   jitter=0(결정적) — 호출마다 무작위로 상위 풀이 바뀌면 인기태그 목록이 클릭/검색마다 바뀜.
     const [listRes, pool, sReport, tagPoolRes] = await Promise.all([
       fetchCardList(supabase, { q: query, offset: 0, limit: ORDER }),
       getReviewSummaryFeedPool(supabase),
@@ -128,7 +129,7 @@ export default async function HomeFeedPage({
         p_limit: ORDER,
         p_offset: 0,
         p_half_life_days: 14,
-        p_jitter_amp: 0.35,
+        p_jitter_amp: 0,
       }),
     ]);
     cards = (listRes.data ?? []) as unknown as CardData[];
@@ -138,7 +139,9 @@ export default async function HomeFeedPage({
       console.error("[home] 인기태그 풀 조회 실패:", tagPoolRes.error.message);
     popularTags = topKeywords((tagPoolRes.data ?? []) as CardData[]);
   } else {
-    const [rpcRes, pool] = await Promise.all([
+    // 피드 카드는 jitter 0.35(매 방문 신선한 순서). 인기 태그는 검색·재방문에도 불변이어야 하므로
+    //   별도의 jitter=0(결정적) 풀로 계산한다(클릭 시 인기태그가 통째로 바뀌던 문제 해소).
+    const [rpcRes, pool, tagPoolRes] = await Promise.all([
       supabase.rpc("feed_cards_scored", {
         p_limit: ORDER,
         p_offset: 0,
@@ -146,6 +149,12 @@ export default async function HomeFeedPage({
         p_jitter_amp: 0.35,
       }),
       getReviewSummaryFeedPool(supabase),
+      supabase.rpc("feed_cards_scored", {
+        p_limit: ORDER,
+        p_offset: 0,
+        p_half_life_days: 14,
+        p_jitter_amp: 0,
+      }),
     ]);
     const scored = (rpcRes.data ?? []) as CardData[];
     cards = diversifyByDoctor(scored, {
@@ -153,8 +162,9 @@ export default async function HomeFeedPage({
       headSize: 4,
     });
     reportPool = pool;
-    // 인기 태그는 diversify(머리 4장 다양화) 전 원본 점수순 풀 기준 — 순서 안정.
-    popularTags = topKeywords(scored);
+    if (tagPoolRes.error)
+      console.error("[home] 인기태그 풀 조회 실패:", tagPoolRes.error.message);
+    popularTags = topKeywords((tagPoolRes.data ?? []) as CardData[]);
   }
 
   // 순서(랭킹) ID 목록은 전체(최대 ORDER), 화면 초기 렌더는 앞 INITIAL 장만.

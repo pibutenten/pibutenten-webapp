@@ -419,9 +419,9 @@
   gap: 6px;
   margin-top: 8px;
 }
-/* 평소 옅은 회색 박스(테두리 없음), 선택 시 하늘색 배경 + 지표색 테두리(인라인 borderColor). */
+/* 평소 아주 옅은 회색 박스(테두리 없음), 선택 시 하늘색 배경 + 지표색 테두리(인라인 borderColor). */
 .rk {
-  background: var(--bg-soft, #f5f8fb);
+  background: #fafbfc;
   border: 1.5px solid transparent;
   border-radius: 10px;
   padding: 7px 3px 6px;
@@ -584,11 +584,20 @@
   gap: 10px;
 }
 .wday {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
   background: var(--card, #fff);
   border: 1px solid var(--line, #edf2f5);
   border-radius: 16px;
   padding: 13px 14px;
   box-shadow: 0 3px 12px rgba(27, 39, 51, 0.045);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.wday.wToday {
+  cursor: default;
 }
 .wToday {
   background: linear-gradient(135deg, #eaf7ff, #f4fbff);
