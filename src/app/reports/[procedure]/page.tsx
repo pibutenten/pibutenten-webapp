@@ -94,13 +94,21 @@ export default async function ProcedureReportPage({ params }: Props) {
   //   스트리밍 SSR 에서 200+meta-refresh 로 폴백 → 하드 308 불가). 이 페이지는 ko 만 받는다.
 
   const supabase = await createSupabaseServerClient();
+
+  // report 를 먼저 단독 await → 없으면 notFound() 로 즉시 종료(존재하지 않는 시술 슬러그·크롤러
+  //   요청 시 cardIds·idxTags·sidebar 3개 쿼리를 헛돌리지 않는다). report 확정 후 나머지 3개는
+  //   서로 독립이라 한 번의 Promise.all 로 묶어 워터폴 제거(reviews(d)만 cardIds 의존이라 뒤에 둔다).
   const report = await getProcedureReport(supabase, ko);
   if (!report) notFound();
+  const [cardIds, { data: idxTags }, sidebarData] = await Promise.all([
+    getFamilyReviewCardIds(supabase, ko),
+    supabase.rpc("get_indexable_tags", { p_min_count: 4 }),
+    fetchFeedSidebarData(supabase),
+  ]);
 
   // 개별 후기 스트림 — 작업 D 롤업: 집계와 동일한 procedure_ko family 기준(카드 id IN).
   //   작업 A: 첫 10개만 서버 렌더(크롤러·비로그인 노출) + 전체 count → 무한스크롤 hasMore 판정.
   const PAGE_SIZE = 10;
-  const cardIds = await getFamilyReviewCardIds(supabase, ko);
   const reviewTotal = cardIds.length;
   const reviews: CardData[] =
     cardIds.length > 0
@@ -132,10 +140,7 @@ export default async function ProcedureReportPage({ params }: Props) {
   // /topics(전문의 Q&A 허브) 얇은 링크 — 실제 존재(의사 qa ≥4 = get_indexable_tags 포함)할 때만.
   //   /topics 의 404 게이트(MIN_DOCTOR_POSTS=4)와 동일 기준 → 깨진 링크 0. 정적 링크 1줄
   //   (2026-06-04 제거된 '관련 전문의 Q&A' 섹션·orphan qa fetch 부활 아님).
-  const [{ data: idxTags }, sidebarData] = await Promise.all([
-    supabase.rpc("get_indexable_tags", { p_min_count: 4 }),
-    fetchFeedSidebarData(supabase),
-  ]);
+  //   idxTags·sidebarData 는 위 Promise.all 에서 report·cardIds 와 함께 선조회.
   const topicsExists =
     Array.isArray(idxTags) &&
     (idxTags as Array<{ keyword: string }>).some((t) => t.keyword === ko);

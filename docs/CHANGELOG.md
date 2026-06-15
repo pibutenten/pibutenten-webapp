@@ -6,6 +6,25 @@
 
 ---
 
+## [2026-06-15] — 콘텐츠 라우트 6종 속도개선(빠른 처방 Promise.all + 구조개선 loading.tsx 스켈레톤)
+
+> 주요 콘텐츠 라우트의 체감·실측 로딩 속도 개선. 두 축을 함께 적용: **(1) 빠른 처방** — 서버 컴포넌트의 직렬 `await` 워터폴 중 **서로 독립인 쿼리만** `Promise.all` 로 병합(의존 체인은 보존). **(2) 구조 개선** — 라우트별 `loading.tsx` 스켈레톤(서버 컴포넌트, 페이지 세로 구조를 회색 블록으로 재현)으로 빈 화면·CLS 제거. 선례 `/record`(`164f23d`) 패턴을 6종으로 확장. 운영 로직·DB·권한·RLS 무변경(데이터 흐름 동일, 라운드트립 묶음·표시만). `tsc --noEmit` 0, `npm run build` 0(21/21), 코드검수관 [치명] 0.
+
+### Changed
+- **`/record` (선례·커밋 `164f23d`)**: `page.tsx` 독립 쿼리 `Promise.all` 병합 + 신규 `loading.tsx` 스켈레톤. 이후 5종의 템플릿.
+- **`/doctor` 원장 대시보드**: doctorRow(slug/name) lookup + 6기간 KPI + 인기 검색어 + 인기 태그 prefetch 를 단일 `Promise.all` 로 병합(KPI RPC 는 `doctorId` 입력이라 doctorRow 와 독립). 신규 `loading.tsx`(계정 스위처 → 헤더 → KPI 6 → 운영 프로그램 5 → 검색어/태그 2카드).
+- **`/reports/[procedure]` 시술 리포트**: report 를 먼저 단독 `await` → 없으면 `notFound()` 즉시 종료(존재하지 않는 슬러그·크롤러 요청 시 나머지 3쿼리 헛돌림 방지), 이후 cardIds·idxTags·sidebar 3개 독립 쿼리 `Promise.all`(reviews 는 cardIds 의존이라 뒤에 유지). 신규 `loading.tsx`(리포트 카드 분포·게이지·개별 후기 재현).
+- **`/[handle]` 공개 프로필**: posts·reviews·prRows·commentsCount(모두 profile.id 의존) `Promise.all` 병합. 신규 `loading.tsx`(프로필 헤더 카드 + 탭 카드 + 피드 3).
+- **`/write` 글쓰기**: `getReviewProcedures` + `getUser`(서로 독립) `Promise.all` 병합. 신규 `loading.tsx`(글 유형 탭 3 + 폼 5블록 + 저장 버튼).
+- **`/doctors/[slug]` 원장 공개 프로필**: `loadCardPool`(count→fetchCardList 의존 체인 내부 캡슐화) + viewer + hotQaIds + relatedQa `Promise.all` 병합. 신규 `loading.tsx`(maxWidth 1080 + 2열 flex-wrap).
+
+### Notes
+- **loading.tsx 패턴**: 모두 서버 컴포넌트(`"use client"`·훅·데이터 호출 없음), `position:fixed; inset:0; z-index:90`(베타 셸 `.root` z-index:100 아래로 가려짐), 베타 캔버스 그라데이션 배경으로 시작(회색 깜빡임 차단), 회색 블록은 Tailwind `animate-pulse`. 단일 컬럼 셸은 maxWidth 820, `/doctors/[slug]` 만 1080.
+- **회귀 점검**: 모든 권한 게이트(`getUser`·`resolveActiveIdentity` redirect, `notFound()`, admin redirect)는 `Promise.all` **앞**에 유지 — 병렬 묶음이 게이트를 우회하지 않음. 의존 쿼리(reviews←cardIds, fetchCardList←count)는 병합하지 않고 순서 보존.
+- **코드검수 후속 2건 반영**: `/reports/[procedure]` notFound() 를 Promise.all 앞으로 이동(report-first) · `/doctor` doctorRow 인라인 캐스트 → `.returns<{slug,name}|null>()` 로 교체(프로젝트 표준 타이핑).
+
+---
+
 ## [2026-06-15] — 피부날씨 색 의미 통일 + 게이지 현재/최고 표현 + 카드 레이아웃 보정
 
 > "오늘의 피부 날씨"(`/record` 상단 카드 + `/record/weather` 상세) UI 정비. 색을 **브랜드 고유색에서 심각도색으로** 통일하고, 자외선 게이지가 현재값(밤 0)과 최고값(주간 피크)을 함께 읽히게 개선. 운영 로직·DB·권한·데이터 출처(Open-Meteo/CAMS) 무변경 — 색·레이아웃·표시만. 커밋 `98ee47d`. `tsc --noEmit` 0, `npm run build` 0, 코드검수관 [치명] 0.

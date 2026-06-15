@@ -3,7 +3,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { ROLES } from "@/lib/identity-shared";
 import { getReviewProcedures } from "@/lib/review-procedures";
-import type { ProcedureOption } from "@/app/review/new/ReviewForm";
 import WriteView from "@/app/beta-skin/write/WriteView";
 
 type Doctor = { id: string; slug: string; name: string; branch: string | null };
@@ -35,18 +34,20 @@ export default async function WritePage({
   // 시술노트 저장 후 후기 유도 시 미리 정해진 시술(?proc=) — ReviewForm 잠금 프리필.
   const initialProcedure = sp.proc?.trim() || undefined;
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // 시술 선택지(getReviewProcedures)와 로그인 사용자(getUser)는 서로 독립적 →
+  //   직렬 await 워터폴 대신 병렬 실행으로 첫 두 라운드트립을 묶는다(결과·순서 무변경).
+  //   procedures 는 로그인 무관 빌드(가벼움), user 이후 단계(getIdentityContext·doctors)는
+  //   user 결과에 의존하므로 그대로 user 확정 뒤에 유지한다.
+  const [procedures, { data: { user } }] = await Promise.all([
+    getReviewProcedures(supabase),
+    supabase.auth.getUser(),
+  ]);
 
   let role: "admin" | "doctor" | "user" = "user";
   let displayName = "";
   let handle = ""; // 시술후기(ReviewForm) 제출 후 /{handle}/{shortcode} 이동용(운영 정합).
   let myDoctor: { slug: string; name: string } | null = null;
   let doctors: Doctor[] = [];
-
-  // 시술후기 폼 시술 선택지 — /review/new 와 동일 헬퍼(태그 인기순). 로그인 무관 빌드(가벼움).
-  const procedures: ProcedureOption[] = await getReviewProcedures(supabase);
 
   if (user) {
     const idCtx = await getIdentityContext(supabase);

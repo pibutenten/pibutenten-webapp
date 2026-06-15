@@ -213,10 +213,15 @@ export default async function HandleProfilePage({ params }: Props) {
   const avatarUrl = identity ? identity.avatar_url : profile.avatar_url;
   const bio = identity ? identity.bio : profile.bio;
 
-  // 작성 글 / 내 후기 분리 — 이 profile.id로 작성된 published 글, 최근 20개씩.
+  // 작성 글 / 내 후기 / 받은 시술 / 댓글 카운트 — 모두 profile.id 에만 의존하고 서로 독립적이라
+  //  하나의 Promise.all 로 병렬 실행(워터폴 제거). 게이트(notFound)·redirect 이후라 profile.id 확정.
   //  - 작성 글: 일반 글 (category != review/review_summary).
   //  - 내 후기: 개별 시술후기 (category = review). 둘 다 CARD_LIST_SELECT·정렬·limit 재사용.
-  const [postsRes, reviewsRes] = await Promise.all([
+  //  - 받은 시술: procedure_reviews 의 본인 후기 distinct 시술명(procedure_ko).
+  //      RLS(procedure_reviews_read_public + _read_own)가 공개카드 후기 + 본인 후기로 자동 통제.
+  //      비로그인(anon)도 SELECT GRANT 있음 — 공개 카드에 연결된 후기만 보임.
+  //  - 댓글 카운트: 탭 미클릭 시에도 숫자 표시용 prefetch.
+  const [postsRes, reviewsRes, prRowsRes, commentsCountRes] = await Promise.all([
     supabase
       .from("cards")
       .select(CARD_LIST_SELECT)
@@ -235,18 +240,21 @@ export default async function HandleProfilePage({ params }: Props) {
       .order("created_at", { ascending: false })
       .limit(20)
       .returns<CardData[]>(),
+    supabase
+      .from("procedure_reviews")
+      .select("procedure_ko")
+      .eq("author_id", profile.id),
+    supabase
+      .from("comments")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", profile.id)
+      .eq("status", "visible"),
   ]);
 
   const posts = postsRes.data ?? [];
   const reviews = reviewsRes.data ?? [];
 
-  // 받은 시술 — procedure_reviews 에서 본인 후기의 distinct 시술명(procedure_ko) 배열.
-  //  RLS(procedure_reviews_read_public + _read_own)가 공개카드 후기 + 본인 후기로 자동 통제.
-  //  비로그인(anon)도 SELECT GRANT 있음 — 공개 카드에 연결된 후기만 보임.
-  const { data: prRows } = await supabase
-    .from("procedure_reviews")
-    .select("procedure_ko")
-    .eq("author_id", profile.id);
+  const prRows = prRowsRes.data;
   const receivedProcedures = Array.from(
     new Set(
       (prRows ?? [])
@@ -255,12 +263,7 @@ export default async function HandleProfilePage({ params }: Props) {
     ),
   );
 
-  // 댓글 카운트 prefetch (탭 미클릭 시에도 숫자 표시)
-  const { count: commentsCount } = await supabase
-    .from("comments")
-    .select("id", { count: "exact", head: true })
-    .eq("author_id", profile.id)
-    .eq("status", "visible");
+  const commentsCount = commentsCountRes.count;
 
   // 좋아요/저장 카운트 prefetch — 본인 보기일 때만 (본인만 자기 likes/saves SELECT 가능)
   let likesCount = 0;

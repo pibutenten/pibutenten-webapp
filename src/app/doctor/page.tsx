@@ -44,45 +44,48 @@ export default async function DoctorDashboardPage() {
     redirect("/");
   }
 
-  // doctor 정보 lookup
-  const { data: doctorRow } = await supabase
-    .from("doctors")
-    .select("slug, name")
-    .eq("id", active.doctorId)
-    .maybeSingle();
-  const doctorSlug = (doctorRow as { slug: string } | null)?.slug ?? "";
-  const doctorName =
-    (doctorRow as { name: string } | null)?.name ?? active.displayName;
+  // doctor 정보 lookup + 모든 기간 KPI 일괄 prefetch + 인기 검색어/태그
+  //   doctorRow(slug/name)는 KPI/검색/태그 RPC 입력에 쓰이지 않는 독립 쿼리라
+  //   동일 Promise.all 에 합쳐 워터폴(직렬 round-trip) 1회를 제거(2026-06-16).
+  const [doctorRowResult, kpiResults, searchResults, tagResults] =
+    await Promise.all([
+      supabase
+        .from("doctors")
+        .select("slug, name")
+        .eq("id", active.doctorId)
+        .maybeSingle()
+        .returns<{ slug: string; name: string } | null>(),
+      Promise.all(
+        PERIOD_DAYS.map((d) =>
+          supabase.rpc("get_doctor_kpi", {
+            p_doctor_id: active.doctorId,
+            p_profile_id: active.profileId,
+            p_days: d,
+          }),
+        ),
+      ),
+      Promise.all(
+        PERIOD_DAYS.map((d) =>
+          supabase.rpc("get_top_search_queries", {
+            p_days: d || 36500,
+            p_limit: 10,
+          }),
+        ),
+      ),
+      Promise.all(
+        PERIOD_DAYS.map((d) =>
+          supabase.rpc("get_top_tags", {
+            p_days: d,
+            p_min_count: 1,
+            p_limit: 10,
+          }),
+        ),
+      ),
+    ]);
 
-  // 모든 기간 KPI 일괄 prefetch + 인기 검색어/태그
-  const [kpiResults, searchResults, tagResults] = await Promise.all([
-    Promise.all(
-      PERIOD_DAYS.map((d) =>
-        supabase.rpc("get_doctor_kpi", {
-          p_doctor_id: active.doctorId,
-          p_profile_id: active.profileId,
-          p_days: d,
-        }),
-      ),
-    ),
-    Promise.all(
-      PERIOD_DAYS.map((d) =>
-        supabase.rpc("get_top_search_queries", {
-          p_days: d || 36500,
-          p_limit: 10,
-        }),
-      ),
-    ),
-    Promise.all(
-      PERIOD_DAYS.map((d) =>
-        supabase.rpc("get_top_tags", {
-          p_days: d,
-          p_min_count: 1,
-          p_limit: 10,
-        }),
-      ),
-    ),
-  ]);
+  const doctorRow = doctorRowResult.data;
+  const doctorSlug = doctorRow?.slug ?? "";
+  const doctorName = doctorRow?.name ?? active.displayName;
 
   const EMPTY_KPI: DoctorKpi = {
     views_received: 0,
