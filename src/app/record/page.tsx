@@ -108,17 +108,32 @@ export default async function RecordPage() {
 
   const idCtx = await getIdentityContext(supabase);
   const activeId = idCtx?.active?.profileId ?? user.id;
-  const { data: prof } = await supabase
-    .from("profiles")
-    .select("display_name, interested_procedures, skin_concerns, skin_type")
-    .eq("id", activeId)
-    .maybeSingle()
-    .returns<{
-      display_name: string | null;
-      interested_procedures: string[] | null;
-      skin_concerns: string[] | null;
-      skin_type: string | null;
-    }>();
+
+  // profiles 조회와 내 글 id 조회는 둘 다 activeId 에만 의존(서로 독립) → 한 Promise.all 로 동시 해소.
+  //   - prof: 인사·관심 키워드(interests) 파생용.
+  //   - myCardRows: 받은 댓글 집계(receivedCnt)용 내 모든 글 id(카테고리 무관, 삭제 제외).
+  //     embedded relation 필터에 의존하지 않고 명시적 card_id IN 으로 좁혀 RLS 누수 차단.
+  const [profRes, myCardRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name, interested_procedures, skin_concerns, skin_type")
+      .eq("id", activeId)
+      .maybeSingle()
+      .returns<{
+        display_name: string | null;
+        interested_procedures: string[] | null;
+        skin_concerns: string[] | null;
+        skin_type: string | null;
+      }>(),
+    supabase
+      .from("cards")
+      .select("id")
+      .eq("author_id", activeId)
+      .is("deleted_at", null)
+      .limit(1000)
+      .returns<{ id: number }[]>(),
+  ]);
+  const prof = profRes.data;
   const userName = prof?.display_name?.trim() || "회원";
 
   // 관심 키워드 합집합(관심시술 + 피부고민 + 피부타입). 카드 keywords 와 같은 한글 키(0262).
@@ -130,16 +145,8 @@ export default async function RecordPage() {
     ]),
   );
 
-  // 받은 댓글(2단계) 1단계 — 내 모든 글 id(카테고리 무관, 삭제 제외). my/page.tsx 패턴 재사용.
-  //   embedded relation 필터에 의존하지 않고 명시적 card_id IN 으로 좁혀 RLS 누수 차단.
-  const { data: myCardRows } = await supabase
-    .from("cards")
-    .select("id")
-    .eq("author_id", activeId)
-    .is("deleted_at", null)
-    .limit(1000)
-    .returns<{ id: number }[]>();
-  const myCardIds = (myCardRows ?? []).map((r) => r.id);
+  // 받은 댓글(2단계) 1단계 — 내 모든 글 id.
+  const myCardIds = (myCardRes.data ?? []).map((r) => r.id);
 
   // 병렬: 노트 / 내가 쓴 후기 수 / 내가 쓴 글 수 / 내 글에 달린 댓글 수 /
   //       인기글 3기간(TOP10) / 관심 키워드 새 Q&A(컴팩트, limit 20).
