@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * BetaSkinShell — /beta-skin/* 신규 스킨 프리뷰의 공용 셸 (클라이언트).
+ * BetaSkinShell — 신규 스킨 공용 셸 (클라이언트). (구 /beta-skin/* 프리뷰에서 운영 라우트로 승격.)
  *
- * 5개 프리뷰 페이지(피드/내 노트/글 상세/글쓰기/마이)가 공유하는 글로벌 크롬:
+ * 5개 페이지(피드=/ · 내 노트=/record · 글 상세 · 글쓰기=/write · 마이=/my)가 공유하는 글로벌 크롬:
  *   - 풀뷰포트 오버레이(styles.root: position:fixed; inset:0; z-index:100; overflow-y:auto)
  *     → 루트 layout.tsx 의 TopNav/SiteFooter/main 을 시각적으로 가린다.
  *   - 헤더(로고 + 데스크탑 GNB·검색·글쓰기 / 모바일 아이콘) — 실제 프리뷰 경로 연결.
@@ -13,7 +13,7 @@
  * 페이지별 내용은 children 으로 주입. (옵션) chips 는 본문 상단 칩줄,
  * sidebar 는 데스크탑 2단 우측 칼럼. 둘 다 없으면 단일 칼럼.
  *
- * 모든 nav/tab/GNB 는 next/link 로 5개 프리뷰 라우트를 실제로 오간다.
+ * 모든 nav/tab/GNB 는 next/link 로 5개 운영 라우트를 실제로 오간다.
  * active prop 으로 현재 페이지를 강조.
  */
 
@@ -140,7 +140,7 @@ export default function BetaSkinShell({
   /** 모바일에서 사이드바를 숨기지 않고 본문 아래로 표시(글상세의 작성자 프로필·연관 Q&A 용). */
   sidebarMobileBelow?: boolean;
   /** 본문 좌상단 '< 뒤로' 버튼(운영 BackButton 재사용). 서브 페이지(글상세/공개프로필/설정/admin)에서 사용.
-   *  true → 기본 fallback(/beta-skin). 문자열 → 그 경로를 fallback(직접 진입·새 탭일 때 이동 대상). */
+   *  true → 기본 fallback(피드=/). 문자열 → 그 경로를 fallback(직접 진입·새 탭일 때 이동 대상). */
   back?: boolean | string;
   /** '< 뒤로' 옆에 붙는 페이지 제목(토픽·리포트·원장 답변 헤더 등). 좌우 칼럼 시작 높이를 맞추는 용도. */
   backTitle?: ReactNode;
@@ -150,7 +150,7 @@ export default function BetaSkinShell({
   /** 헤더 검색 입력값(피드만 controlled — 그 자리서 필터). 없으면 셸 로컬 state. */
   searchValue?: string;
   onSearchChange?: (q: string) => void;
-  /** 검색 제출(엔터/추천·태그 클릭) — 모든 페이지가 /beta-skin?q= 로 라우팅(운영 정합).
+  /** 검색 제출(엔터/추천·태그 클릭) — 모든 페이지가 /?q= 로 라우팅(홈 승격 후 운영 정합).
    *  주입되면 onSearchChange 없이도 검색 UI 활성. 실제 드롭다운/자동완성은 BetaDiscovery 가 담당. */
   onSearchSubmit?: (q: string) => void;
 }) {
@@ -262,7 +262,7 @@ export default function BetaSkinShell({
     return () => document.removeEventListener("mousedown", onDown);
   }, [suggestOpen]);
 
-  // 검색 실행 — 피드(controlled)면 그 자리서 필터, 그 외엔 onSearchSubmit 로 /beta-skin?q= 라우팅.
+  // 검색 실행 — 피드(controlled)면 그 자리서 필터, 그 외엔 onSearchSubmit 로 /?q= 라우팅.
   //   BetaDiscovery 가 직접 라우팅(basePath="/")하므로, 셸 input 의 엔터 제출 경로에서만 사용.
   const runSearch = (term: string) => {
     const t = term.trim();
@@ -273,7 +273,7 @@ export default function BetaSkinShell({
     else setValue(t);
   };
 
-  // 검색어 ✕로 지우기 — 입력값·패널 닫기. 피드에서만 전체 피드(/beta-skin)로 복귀.
+  // 검색어 ✕로 지우기 — 입력값·패널 닫기. 피드에서만 전체 피드(/)로 복귀.
   //   (비-피드 페이지(글쓰기/내노트/마이)에선 라우팅하지 않음 — 작성 중 폼 상태 소실 방지.)
   const clearSearch = () => {
     setValue("");

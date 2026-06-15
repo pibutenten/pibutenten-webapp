@@ -10,6 +10,7 @@ import { getReviewSummaryFeedPool, getProcedureReport, type ProcedureReport } fr
 import { fetchCardList } from "@/lib/search-query";
 import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
+import { topKeywords } from "@/components/skin/feed-sidebar-data";
 
 /**
  * 메인 피드(/) — "한 번에 300개 점수순으로 받아두고, 탭은 BetaSkinFeed 가 브라우저에서 즉시 필터" 모델.
@@ -28,22 +29,8 @@ export const fetchCache = "force-no-store";
 //   ID 로 다음 묶음을 이어 받음(/api/cards?ids=) → 경계 순서 어긋남 없이 안정적 + 가벼움.
 const ORDER = 300;
 const INITIAL = 20;
-/* 사이드 '인기 태그' '전체' 탭 표시 개수 — BetaSkinFeed 가 그대로 사용(검색 중에도 재계산 안 함). */
-const POPULAR_TAGS = 16;
-
-/** 비검색 피드 풀의 keywords 빈도 순위 상위 N개. 검색과 무관하게 안정적(서버 단일 계산).
- *   클라(BetaSkinFeed)에서 검색결과 풀로 재계산하던 것을 서버 prop 으로 고정 → 태그 클릭으로
- *   순서·구성이 바뀌지 않음. (구 frozenTagsRef 클라 고정 로직 대체.) */
-function topKeywords(cards: CardData[], limit = POPULAR_TAGS): string[] {
-  const freq = new Map<string, number>();
-  for (const c of cards) {
-    for (const k of c.keywords ?? []) freq.set(k, (freq.get(k) ?? 0) + 1);
-  }
-  return [...freq.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([k]) => k)
-    .slice(0, limit);
-}
+/* 사이드 '인기 태그' '전체' 탭 표시 개수 + 집계 함수(topKeywords)는 SSOT 인
+ *   @/components/skin/feed-sidebar-data 에서 import (홈/토픽/리포트 공용 단일 출처). */
 
 export async function generateMetadata({
   searchParams,

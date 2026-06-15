@@ -108,7 +108,7 @@ export type CardData = {
  *   - 현 시점에는 CardData 와 동일 구조. 이후 List 전용 컬럼 (예: 짧은 본문 preview)
  *     을 추가할 때 본 alias 만 확장.
  *
- * 사용처: Feed.tsx, CardMasonry.tsx, ProfileTabs.tsx, page.tsx(홈/검색/topics) 등.
+ * 사용처: Feed.tsx, ProfileTabs.tsx, page.tsx(홈/topics) 등.
  */
 export type CardDataList = CardData;
 

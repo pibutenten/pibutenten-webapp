@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * BetaSkinFeed — /beta-skin 신규 스킨 (피드 본문, 클라이언트).
+ * BetaSkinFeed — 신규 스킨 홈 피드 본문(클라이언트). 운영 홈(/)으로 승격(구 /beta-skin 프리뷰).
  *
  * 공용 셸(BetaSkinShell)을 사용 → 헤더·탭바·캔버스 오버레이는 셸이 담당.
  * 이 컴포넌트는 칩(필터)·피드 카드 리스트·데스크탑 사이드바 "내용"만 담당.
@@ -132,7 +132,7 @@ export default function BetaSkinFeed({
   // 검색 해제 시 전체 피드 복귀 — 검색어가 "있다가 사라지는 순간"에만 chip 을 'all' 로 리셋.
   //   리포트 탭(chip='review_summary')에서 검색하면 isSearching 동안 effectiveChip='all'(전체)로 보이지만,
   //   ✕로 검색을 해제하면 isSearching=false 가 되며 effectiveChip 이 보존된 chip(리포트)로 복귀해 리포트 화면으로
-  //   튀던 문제(셸 clearSearch 는 /beta-skin 라우팅만, 피드 chip 은 못 건드림)를 여기서 해소.
+  //   튀던 문제(셸 clearSearch 는 / 라우팅만, 피드 chip 은 못 건드림)를 여기서 해소.
   //   prevSearchRef 로 직전 검색 유무를 추적 → truthy→falsy 전이일 때만 리셋.
   //   단 "카테고리 칩을 직접 눌러 검색을 해제하는" 동선(아래 chips onClick)은 그 칩으로 가야 하므로
   //   chipExplicitRef 플래그로 한 번 건너뛴다(검색+카테고리 동시 미지원이라 칩 클릭이 검색을 해제함).
@@ -153,7 +153,7 @@ export default function BetaSkinFeed({
     prevSearchingRef.current = nowSearching;
   }, [searchQuery]);
 
-  // 비-피드 드롭다운 '카테고리 바로가기' → /beta-skin?cat= 로 넘어온 칩 시드.
+  // 비-피드 드롭다운 '카테고리 바로가기' → /?cat= 로 넘어온 칩 시드.
   const catParam = searchParams.get("cat");
   useEffect(() => {
     const valid: ChipKey[] = ["all", "qa", "review", "doodle", "review_summary"];

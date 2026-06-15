@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * beta-ui — /beta-skin/* 프리뷰 공용 카드 UI · 헬퍼 · 인라인 아이콘.
+ * beta-ui — 신규 스킨 공용 카드 UI · 헬퍼 · 인라인 아이콘. (구 /beta-skin/* 프리뷰에서 운영 승격.)
  *
  * 피드(BetaSkinFeed)·글 상세(PostDetail)·내 노트(record) 등 여러 페이지가
  * 같은 카드 컴포넌트/아이콘/링크 헬퍼를 재사용하도록 한 곳에 모음 (DRY).
@@ -52,8 +52,8 @@ import styles from "./beta-skin.module.css";
  * 드롭다운(최근검색·인기검색·카테고리 인기태그·자동완성)은 운영 BetaDiscovery 가 셸 안에서 담당하므로
  *   여기서는 onSearchSubmit 만 반환한다(자체 더미 카테고리/추천 셋 제거).
  *
- * 홈 승격(2026-06-14) 이후 검색은 운영 홈(/?q=)으로 통일한다. 승격된 화면(record/write 등)도,
- *   아직 프리뷰인 /beta-skin 서브페이지도 모두 운영 검색으로 빠져나가는 게 정합(베타 경로 노출 제거). */
+ * 홈 승격(2026-06-14) 이후 검색은 운영 홈(/?q=)으로 통일한다. 모든 스킨 화면(record/write/my 등)이
+ *   이 운영 검색으로 빠져나가는 게 정합(구 /beta-skin 프리뷰 경로는 폐기). */
 export function useBetaSearchRouting() {
   const router = useRouter();
   return {
@@ -86,13 +86,15 @@ export function catKey(keyword: string): string {
   return categorize(keyword);
 }
 
-/* ---------- 카드 → 실제 운영 URL ----------
- * 항목 1) 모든 카드를 한 데모(/beta-skin/post)로 보내던 버그 수정.
+/* ---------- 카드 → 실제 운영(canonical) URL ----------
  *   - 카드별 실제 canonical URL 을 생성(운영 getQaUrl 재사용):
  *       의사 글: /doctors/{slug}/{year}/{post-slug}
  *       회원 글: /{handle}/{shortcode}
- *   - '원문 보기' 링크가 이 URL 로 새 탭 이동. 본문 펼침/접힘은 인라인(아래 PostCard).
- *   - URL 정보가 부족하면 "/"(홈) 반환 → 호출부에서 링크 자체를 숨긴다. */
+ *       시술 리포트(review_summary): /reports/{en} (getQaUrl 이 처리)
+ *   - 제목 링크가 이 URL 로 같은 탭 이동. 본문 펼침/접힘은 인라인(아래 PostCard).
+ *   - URL 정보가 부족하면 "/"(홈) 반환 → 호출부에서 링크 자체를 숨긴다.
+ * NB: record-data.ts 의 cardHrefFromRecord 와는 별개다(저쪽은 record 도메인의 좁은 row 전용,
+ *     review_summary 미포함). 입력 타입이 달라 통합하지 않고 이름으로 구분한다. */
 export function cardHref(c: CardData): string {
   return getQaUrl(c);
 }
@@ -924,10 +926,10 @@ export function PostCard({
   viewer?: BetaViewerState;
   /** 항목1) 현재 검색어 — 본문·제목 노란 하이라이트 + 일치 태그 활성화(검색 결과일 때만). */
   searchQuery?: string;
-  /** 글상세(/beta-skin/post) 재사용 — 항상 펼친 상태(접기 없음) + 댓글 전체+입력 기본.
+  /** 글상세 재사용 — 항상 펼친 상태(접기 없음) + 댓글 전체+입력 기본.
    *  글상세를 별도 컴포넌트로 재구현하지 않고 이 PostCard 를 그대로 써서 피드와 100% 동일하게. */
   forceExpanded?: boolean;
-  /** ⋮ 삭제 후 동작 — 미지정 시 카드 언마운트(피드). 글상세는 목록(/beta-skin)으로 이동 등 주입. */
+  /** ⋮ 삭제 후 동작 — 미지정 시 카드 언마운트(피드). 글상세는 목록(피드=/)으로 이동 등 주입. */
   onDeleted?: () => void;
 }) {
   const [expanded, setExpanded] = useState(forceExpanded);
@@ -1054,7 +1056,7 @@ export function PostCard({
       )}
 
       {/* 항목8) 제목 — 클릭 시 운영 단독 URL(cardHref=getQaUrl, 정규 canonical)로 같은 탭 이동.
-          noindex 프리뷰 URL(/beta-skin/post) 누수 방지. 본문 펼침 토글과 분리(제목은 토글 div 밖).
+          글상세는 항상 이 canonical URL(의사 글·회원 글·리포트)로만 진입. 본문 펼침 토글과 분리(제목은 토글 div 밖).
           hasHref(=href !== "/") 가 false 면(이론상 거의 없음) 링크 대신 일반 제목. */}
       {!forceExpanded && hasHref ? (
         <a
