@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import LogoutButton from "@/components/LogoutButton";
+import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import CardAvatar from "@/components/card/CardAvatar";
 import ProfileEditClient, {
   type ProfileEditProps,
@@ -299,6 +300,15 @@ export default function BetaProfileView({
           </div>
         )}
       </section>
+
+      {/* 계정(명함) 스위처 — 본인일 때만. 멀티아이디 유저의 계정 전환 진입점.
+          운영 공용 카드를 그대로 재사용(useSession 기반, props 불필요).
+          AccountSwitcherCard 자체 mb-4(16px) 대신 베타 카드 간격(mb20)에 맞추려 래퍼로 감싼다. */}
+      {isOwner && (
+        <div className={styles.mb20}>
+          <AccountSwitcherCard />
+        </div>
+      )}
 
       {/* 프로필·설정 아코디언 — 펼치면 그 자리서 운영 설정 폼(ProfileEditClient embedded)을
           바로 편집(별도 페이지 이동 X). 닫혀 있으면 미마운트. settings 는 서버(page.tsx)에서 채워 넘김. */}
