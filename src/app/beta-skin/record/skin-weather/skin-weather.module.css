@@ -164,12 +164,23 @@
   color: var(--ink-900, #1e2a35);
 }
 
-/* 날씨 헤더 — 위치 + 현재기온 + 오늘 레인지 + 습도 */
+/* 날씨 헤더 — 위치 + 현재기온 + 오늘 레인지 + 습도 (글상자) */
 .dHead {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 2px 2px 16px;
+  gap: 12px;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e6ebf0);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+/* 기온(좌) ↔ 보조 숫자(우) 양옆으로 펼침 — 좌측 치우침 해소 */
+.dHeadMain {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 18px;
 }
 .dLoc {
   display: flex;
@@ -209,9 +220,11 @@
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 6px 8px;
-  font-size: 13px;
+  justify-content: flex-end;
+  gap: 6px 10px;
+  font-size: 13.5px;
   color: var(--ink-500, #7b8794);
+  padding-bottom: 6px;
 }
 .metric b {
   font-weight: 800;
@@ -362,25 +375,15 @@
   font-weight: 800;
 }
 
+/* 피부 팁 — 라벨 없이 구분선 아래 한 문장만 */
 .tip {
-  background: var(--tt-blue-tint, #eef7fd);
-  border: 1px solid #d4ecf8;
-  border-radius: 14px;
-  padding: 12px 14px;
-  margin: 16px 0;
-}
-.tipLabel {
-  display: block;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--tt-blue, #45b7e8);
-  margin-bottom: 3px;
-}
-.tipText {
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.5;
-  color: #2a5d7a;
+  border-top: 1px solid var(--border, #e6ebf0);
+  padding-top: 13px;
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--ink-900, #1e2a35);
 }
 
 /* ── 시간별 그래프 카드 ── */

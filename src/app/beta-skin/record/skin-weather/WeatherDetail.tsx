@@ -39,7 +39,7 @@ export default function WeatherDetail({
 
   return (
     <div className={styles.detail}>
-      {/* 헤더 — 위치 + 현재 기온 + 오늘 최저~최고 레인지(현재 위치) + 습도 */}
+      {/* 헤더(글상자) — 위치 + 기온 + 최저/최고/습도를 옆으로 펼쳐 한눈에. */}
       <div className={styles.dHead}>
         <span className={styles.dLoc}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -48,27 +48,32 @@ export default function WeatherDetail({
           </svg>
           {snap.name}
         </span>
-        <div className={styles.dTempRow}>
-          <span className={styles.dTemp}>{snap.temp}°</span>
-          <span className={styles.dCond}>
-            {snap.cond}
-            <b>체감 {snap.feels}°</b>
-          </span>
+        <div className={styles.dHeadMain}>
+          <div className={styles.dTempRow}>
+            <span className={styles.dTemp}>{snap.temp}°</span>
+            <span className={styles.dCond}>
+              {snap.cond}
+              <b>체감 {snap.feels}°</b>
+            </span>
+          </div>
+          {/* 온도·습도 숫자 — 우측으로 펼침(피부 관점 보조 정보). */}
+          <div className={styles.dMetrics}>
+            <span className={styles.metric}>
+              최저 <b>{snap.todayMin}°</b>
+            </span>
+            <span className={styles.metricSep}>·</span>
+            <span className={styles.metric}>
+              최고 <b>{snap.todayMax}°</b>
+            </span>
+            <span className={styles.metricSep}>·</span>
+            <span className={styles.metric}>
+              습도 <b>{snap.humidity}%</b> <i className={styles.humTag}>{snap.humLabel}</i>
+            </span>
+          </div>
         </div>
-        {/* 온도·습도는 숫자만(게이지 없음) — 피부 관점에서 보조 정보. */}
-        <div className={styles.dMetrics}>
-          <span className={styles.metric}>
-            최저 <b>{snap.todayMin}°</b>
-          </span>
-          <span className={styles.metricSep}>·</span>
-          <span className={styles.metric}>
-            최고 <b>{snap.todayMax}°</b>
-          </span>
-          <span className={styles.metricSep}>·</span>
-          <span className={styles.metric}>
-            습도 <b>{snap.humidity}%</b> <i className={styles.humTag}>{snap.humLabel}</i>
-          </span>
-        </div>
+
+        {/* 피부 팁 — 라벨 없이 구분선 아래 한 문장만 미니멀하게. */}
+        <p className={styles.tip}>{snap.tip}</p>
       </div>
 
       <div className={styles.kpis}>
@@ -105,11 +110,6 @@ export default function WeatherDetail({
             </span>
           </button>
         ))}
-      </div>
-
-      <div className={styles.tip}>
-        <span className={styles.tipLabel}>오늘의 피부 팁</span>
-        <span className={styles.tipText}>{snap.tip}</span>
       </div>
 
       <div className={styles.gcard}>
