@@ -6,56 +6,45 @@
 
 ---
 
-## 0. 직전 세션 (2026-06-15 · P1 버그 수정 + 라우트 조사) — 한눈에
+## 0. 직전 세션 (2026-06-15 · 콘텐츠 라우트 4종 베타 셸 승격) — 한눈에
 
-- **git**: `HEAD == origin/main == 1865ff2`. 마이그 **0285** 까지 적용(이번 세션 신규 마이그 0 — 코드만, DB 무변경).
-- **빌드**: `tsc --noEmit` 0 + `npm run build` Compiled successfully.
+- **git**: 직전 커밋 `2a132aa`(핸드오프 갱신) 다음, 이번 4종 승격이 새 HEAD. 마이그 **0285** 까지 적용(이번 세션 신규 마이그 0 — 코드·표시·라우팅만, DB·권한 무변경).
+- **빌드**: `tsc --noEmit` 0. 코드검수관 [치명] 0.
 
-### 이번 세션에 한 일 (커밋 `1865ff2`)
-> P1 기능 버그 3건 + P2⑧ robots.ts 정리. 서브에이전트 병렬 투입 방식(버그수정 에이전트 + 라우트조사 에이전트). 운영 로직·DB·권한 무변경(버그 수정·경로 교정만).
+### 이번 세션에 한 일 (콘텐츠 라우트 4종 베타 셸 승격)
+> 직전 세션 조사의 후속 실행. 옛 TopNav/SiteFooter 가 첫 페인트에 잠깐 보였다가 베타 오버레이가 덮던 라우트 4종을 베타 셸로 승격 → 첫 로딩부터 베타만 렌더(깜빡임 제거). 서브에이전트 2종(`/record/[id]`·`/write/[shortcode]`) 병렬 + 직접 2종(`/report`·`/shop`), 중앙 `GlobalChrome.tsx` 분기는 단일 소유로 일괄 편집. 운영 로직·DB·권한 무변경.
 
-1. **P1④ 인기태그 선택 시 카테고리 칩 리셋 해소**: `BetaSkinFeed.tsx` — 칩 UI active 표시·aria-pressed를 `effectiveChip`(검색 중 "all" 강제) 대신 `chip`(실제 선택값)으로 변경. `topReport` 노출 조건도 동일하게 정합.
-2. **P1⑤ `/search` 404 오링크 교정**: `CategoryWithChips.tsx`·`ProfileTabs.tsx`·`PopularCards.tsx`·`TopicTagView.tsx` 4개 파일에서 `/search` → `/`, `/search?q=` → `/?q=` 교정.
-3. **P1⑥ `/beta-skin?q=` 오링크 교정**: `BetaProfileView.tsx:499` — `href={`/beta-skin?q=...`}` → `/?q=...`.
-4. **P2⑧ robots.ts 정리**: `DISALLOW_COMMON` 에서 `/beta-skin` 제거(승격 완료). `/old-skin` 은 이미 존재했음.
+1. **`/record/[id]` 시술 기록 상세**: 서버 `page.tsx` 가 데이터·권한(RLS) 처리 후 신규 `DiaryDetailView`(`beta-skin/record/`)에 위임. `BetaSkinShell active="내 노트"` + detailHead(뒤로 `/record`). noindex 유지.
+2. **`/write/[shortcode]` 글 수정**: admin·user 양 분기를 신규 `WriteEditShell`(`beta-skin/write/`, 얇은 `BetaSkinShell active="글쓰기" back={false}`)로 감쌈. 본문은 기존 `BackButton` 자체 렌더 유지(중복 방지). layout noindex 유지.
+3. **`/report` 콘텐츠 신고**: 기존 `<InfoPageLayout>` 본문을 `<InfoBetaShell back={false}>` 로 감쌈(선례 `contact/page.tsx`). 메타·robots noindex·ReportForm 무변경.
+4. **`/shop` 쇼핑(준비중)**: 신규 `ShopView`(`beta-skin/shop/`) — `BetaSkinShell active="쇼핑"` 안 "쇼핑 준비중" 카드. 검색 제출은 운영 홈(`/?q=`)으로 라우팅.
+5. **`GlobalChrome.tsx` 승격 목록 확장**: `BETA_PROMOTED_EXACT` 에 `/shop`·`/report`, `BETA_PROMOTED_PREFIX` 에 `/record/`·`/write/` 추가. `RESERVED_FIRST_SEGMENT` 가 이미 record/write/shop/report 포함 → 핸들/숏코드 오매칭 없음. 21행 주석을 실제 동작에 맞게 갱신.
 
-**라우트 조사 (read-only, 커밋 없음)**
-- 콘텐츠 라우트 4개(`record/[id]`·`write/[shortcode]`·`report`·`shop`) 현황 + BetaSkinShell 패턴 전수 조사 완료. 상세 결과 → 아래 §다음 세션 참조.
+**시각 검수**: dev(localhost:3000)에서 `/shop`·`/report` 직접 확인(옛 크롬 없음, 탭 active, ReportForm 온전). 인증 게이트 라우트(`/record/[id]`·`/write/[shortcode]`)는 비로그인 시 `/login?next=...` 로 깔끔히 리다이렉트(로그인 페이지도 베타, 깜빡임 없음) → 코드 리뷰 + tsc + 리다이렉트 동작으로 대리 검증.
 
 ### 다음 세션 — 남은 작업 (우선순위순)
-
-**🔴 콘텐츠 라우트 베타 셸 승격 (조사 완료, 즉시 착수 가능)**
-
-| 라우트 | 현재 크롬 | 난이도 | 조치 |
-|---|---|---|---|
-| `/report` | InfoPageLayout | 쉬움 | BetaSkinShell + `back={true}` |
-| `/shop` | 없음(플레이스홀더) | 쉬움 | BetaSkinShell로 감싸기 |
-| `/record/[id]` | 없음(서버 컴포넌트) | 보통 | BetaSkinShell + `back="/record"`, RLS 유지 |
-| `/write/[shortcode]` | — | — | **건너뜀** (운영 경로 완전 통합, 베타 셸 적용 시 UX 악화) |
-
-- 이미 적용된 패턴 예시: `src/app/(beta-skin)/topics/[tag]/page.tsx`, `src/app/(beta-skin)/reports/[procedure]/page.tsx`
-- BetaSkinShell 위치: `src/app/beta-skin/BetaSkinShell.tsx` (또는 `(beta-skin)` 하위 — 착수 전 Glob 확인)
 
 **🟡 P1⑦ 내 노트 날씨 카드 지연**
 - `/record` force-dynamic + 무거운 SSR 로 날씨 카드까지 지연됨. Suspense 스트리밍 검토.
 
 **🟡 P2⑨ BETA_CUTOVER_PLAN.md Phase 표 동기화**
-- 홈·핵심화면·admin 승격 완료됐으나 Phase 1b~8 체크박스가 현행과 불일치.
+- 홈·핵심화면·admin·콘텐츠 4종 승격 완료됐으나 Phase 1b~8 체크박스가 현행과 불일치.
 
 **⚪ 이월(저우선·로드맵)**
 - admin 나머지 화면 이식: 미이식분은 운영 `/admin/*` 링크(동작 O): `users`·`doctors`·`draft`·`reports`·`review-reports`·`tags`·`clinics`·`auth-errors`·`stats/[kind]`·`cards/[id]/edit`.
 - 알림 `/notifications` 베타 화면(2탭 미구현).
 - 성능 — 페이지 전환마다 BetaSkinShell 재마운트, 공용 layout 으로 셸 고정 검토.
 - 계정명함 전환 카드(BetaProfileView 카드형 UI — 로드맵).
+- **비차단 권고**: `ShopView` 의 `useBetaSearchRouting` 일관성 논점(런타임 무영향) · `WriteEditShell` 본문 BackButton ↔ 셸 `back={false}` 관계 회귀 방지 문서화.
 
-**⚠️ 시각 검수 미완료**
-- `1865ff2` 커밋(P1④⑤⑥) 수정 사항을 dev 서버에서 시각 확인하지 못하고 세션 종료. 다음 세션 초반에 확인 권장.
+**⚠️ 직전 P1 커밋(`1865ff2`) 시각 검수**
+- P1④⑤⑥ 수정은 이번 세션에 dev 시각 확인 미완(이번은 4종 승격에 집중). 차후 확인 권장.
 
 ---
 
 ## 1. 현재 상태 (스냅샷)
 
-- **git**: `HEAD == origin/main == 1865ff2`. P1 버그 3건 + robots.ts 정리.
+- **git**: 직전 `2a132aa` 다음, 콘텐츠 라우트 4종 베타 셸 승격이 최신 HEAD.
 - **DB 마이그**: **0285** 까지 production 적용 완료. (0269 `reviewed_at` · 0270 clinics[타 세션] · 0271 merge_tag en 승계 · 0280 top_cards 통계 RPC 게이트 완화 · 0282·0283 원장 9명 profile_data 정정 · 0284 award_points REVOKE · 0285 award_daily_login REVOKE[보안 감사])
 - **빌드**: `tsc --noEmit` 0 + `npm run build` Compiled successfully.
 

@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-06-15] — 옛 크롬 잔존 콘텐츠 라우트 4종 베타 셸 승격
+
+> 직전 세션 조사(콘텐츠 라우트 4개)의 후속 실행. 옛 TopNav/SiteFooter 가 첫 페인트에 잠깐 보였다가 베타 오버레이가 덮던 라우트 4종을 베타 셸로 승격 → 첫 로딩부터 베타만 렌더(깜빡임 제거). 서브에이전트 2종(`/record/[id]`·`/write/[shortcode]`) 병렬 투입 + 직접 작업 2종(`/report`·`/shop`), 중앙 `GlobalChrome.tsx` 분기는 단일 소유로 일괄 편집. 운영 로직·DB·권한 무변경(표시·라우팅·레이아웃만). `tsc --noEmit` 0, 코드검수관 [치명] 0.
+
+### Changed
+- **`/record/[id]` 시술 기록 상세 승격**: 서버 `page.tsx` 가 데이터·권한(RLS) 처리 후 신규 `DiaryDetailView`(`beta-skin/record/`)에 위임. View 는 `BetaSkinShell active="내 노트"` + detailHead(뒤로 `/record` + `<h1>시술 기록</h1>`)로 감쌈. noindex 유지.
+- **`/write/[shortcode]` 글 수정 승격**: admin·user 양 분기를 신규 `WriteEditShell`(`beta-skin/write/`, 얇은 `BetaSkinShell active="글쓰기" back={false}`)로 감쌈. 본문은 기존 `BackButton` 자체 렌더 유지(셸 뒤로 버튼 중복 방지 → `back={false}`). layout noindex 유지.
+- **`/report` 콘텐츠 신고 승격**: 기존 `<InfoPageLayout>` 본문을 `<InfoBetaShell>` 로 감쌈(선례 `contact/page.tsx` 동일 패턴). InfoPageLayout 자체 BackButton 과 중복 방지 위해 InfoBetaShell `back={false}`. 메타·robots noindex·ReportForm 전부 무변경.
+- **`/shop` 쇼핑(준비중) 승격**: 신규 `ShopView`(`beta-skin/shop/`) — `BetaSkinShell active="쇼핑"` 안에 "쇼핑 준비중" 플레이스홀더 카드. 서버 `page.tsx` 는 메타·robots noindex 만 보유하고 본문 위임. 검색 제출은 운영 홈(`/?q=`)으로 라우팅.
+- **`GlobalChrome.tsx` 승격 목록 확장**: `BETA_PROMOTED_EXACT` 에 `/shop`·`/report` 추가, `BETA_PROMOTED_PREFIX` 에 `/record/`·`/write/` 추가(동적 하위 전체). `RESERVED_FIRST_SEGMENT` 가 이미 record/write/shop/report 포함 → 핸들/숏코드 오매칭 없음. 21행 주석을 실제 동작(동적 하위경로는 PREFIX 로 승격)에 맞게 갱신.
+
+### Notes
+- **시각 검수**: dev 서버(localhost:3000)에서 `/shop`(쇼핑 준비중 카드, 쇼핑 탭 active, 옛 크롬 없음)·`/report`(베타 셸 + 단일 뒤로 버튼 + ReportForm 온전) 직접 확인. 인증 게이트 라우트(`/record/[id]`·`/write/[shortcode]`)는 비로그인 시 `/login?next=...` 로 깔끔히 리다이렉트(로그인 페이지도 베타 셸, 옛 크롬 깜빡임 없음) → 자격증명 입력 없이 코드 리뷰 + tsc + 리다이렉트 동작으로 대리 검증.
+- **남은 권고(비차단)**: `ShopView` 는 `useBetaSearchRouting` 사용(RecordNotesView 와 일관성 논점, 런타임 무영향) · `WriteEditShell` 의 본문 BackButton ↔ 셸 `back={false}` 관계는 향후 리팩토링 회귀 방지용 문서화 권장.
+
+---
+
 ## [2026-06-15] — P1 버그 수정 + robots.ts 정리
 
 > 서브에이전트 병렬 투입 방식(버그수정 에이전트 + 라우트조사 에이전트 동시 운용). 운영 로직·DB·권한 무변경(버그 수정·경로 교정·robots만). 커밋 `1865ff2`.

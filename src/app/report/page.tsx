@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import { ReportForm } from "./ReportForm";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
+import InfoBetaShell from "@/components/info/InfoBetaShell";
 
 export const metadata: Metadata = {
   title: "콘텐츠 신고 — 피부텐텐",
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
 
 export default function ReportPage() {
   return (
+    <InfoBetaShell>
     <InfoPageLayout
       current="report"
       title="콘텐츠 신고"
@@ -70,5 +72,6 @@ export default function ReportPage() {
         </p>
       </section>
     </InfoPageLayout>
+    </InfoBetaShell>
   );
 }

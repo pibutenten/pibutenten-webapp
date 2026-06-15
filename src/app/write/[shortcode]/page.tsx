@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import UserEditClient from "./EditClient";
 import AdminEditClient from "@/app/admin/cards/[id]/edit/EditClient";
 import BackButton from "@/components/BackButton";
+import WriteEditShell from "@/app/beta-skin/write/WriteEditShell";
 import { getIdentityContext } from "@/lib/identity";
 import { fetchAdminCardExtras } from "@/lib/admin-card-extras";
 import type { PubmedRefObj } from "@/lib/schema/api/articles";
@@ -131,28 +132,31 @@ export default async function PostEditPage({ params }: Props) {
     });
 
     return (
-      <section className="w-full py-6">
-        <div className="mb-1 -ml-1"><BackButton /></div>
-        <AdminEditClient
-          card={card}
-          doctors={extras.doctors}
-          doctorPickCount={extras.doctorPickCount}
-          commentCount={extras.commentCount}
-          canChangeAuthor={true}
-          authorOptions={extras.authorOptions}
-        />
-      </section>
+      <WriteEditShell>
+        <section className="w-full py-6">
+          <div className="mb-1 -ml-1"><BackButton /></div>
+          <AdminEditClient
+            card={card}
+            doctors={extras.doctors}
+            doctorPickCount={extras.doctorPickCount}
+            commentCount={extras.commentCount}
+            canChangeAuthor={true}
+            authorOptions={extras.authorOptions}
+          />
+        </section>
+      </WriteEditShell>
     );
   }
 
   return (
-    <section className="w-full py-6">
-      <div className="mb-1 -ml-1"><BackButton /></div>
-      <div className="mb-5 flex items-baseline justify-between">
-        <h1 className="text-2xl font-bold text-[var(--text)]">글 수정</h1>
+    <WriteEditShell>
+      <section className="w-full py-6">
+        <div className="mb-1 -ml-1"><BackButton /></div>
+        <div className="mb-5 flex items-baseline justify-between">
+          <h1 className="text-2xl font-bold text-[var(--text)]">글 수정</h1>
 
-      </div>
-      <UserEditClient
+        </div>
+        <UserEditClient
         cardId={qa.id}
         type={qa.type}
         category={qa.category}
@@ -174,6 +178,7 @@ export default async function PostEditPage({ params }: Props) {
         initialPubmedRefs={qa.pubmed_refs ?? []}
         returnUrl={returnUrl}
       />
-    </section>
+      </section>
+    </WriteEditShell>
   );
 }

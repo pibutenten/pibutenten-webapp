@@ -18,7 +18,7 @@ import { usePathname } from "next/navigation";
 import TopNav from "@/components/TopNav";
 import SiteFooter from "@/components/SiteFooter";
 
-/** 정확 일치로 승격된 라우트(자체 베타 셸 보유). 하위경로(/record/[id] 등)는 아직 미승격이라 제외. */
+/** 정확 일치로 승격된 라우트(자체 베타 셸 보유). 동적 하위경로(/record/[id], /write/[shortcode] 등)는 아래 BETA_PROMOTED_PREFIX 로 승격. */
 const BETA_PROMOTED_EXACT = new Set<string>([
   "/", // 홈 피드 (Phase 1)
   "/record", // 내 노트 (Phase 1b)
@@ -41,6 +41,8 @@ const BETA_PROMOTED_EXACT = new Set<string>([
   "/doctor-guidelines",
   "/doctors", // 전문의 목록 (Phase 4)
   "/notifications", // 알림 (Phase 5)
+  "/shop", // 쇼핑(준비중) — 옛 크롬 잔존 승격
+  "/report", // 콘텐츠 신고 (InfoBetaShell) — 옛 크롬 잔존 승격
   // 진입(인증·온보딩) (Phase 5)
   "/login",
   "/login/conflict",
@@ -54,6 +56,8 @@ const BETA_PROMOTED_PREFIX = [
   "/topics/", // 토픽 허브 (Phase 4)
   "/reports/", // 시술 리포트 (Phase 4)
   "/review/", // 후기 작성·수정 (Phase 5: /review/new, /review/{shortcode}/edit)
+  "/record/", // 내 노트 하위 전체 (/record/[id] 시술 기록 상세 등) — 옛 크롬 잔존 승격
+  "/write/", // 글쓰기 하위 전체 (/write/[shortcode] 수정) — 옛 크롬 잔존 승격
 ];
 
 /**
