@@ -21,9 +21,16 @@ import {
 const clampFrac = (v: number) => Math.max(0, Math.min(1, v));
 const clampN = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-export default function WeatherDetail({ snap }: { snap: WeatherSnapshot }) {
-  const [emph, setEmph] = useState<string | null>(null);
-  const toggleEmph = (k: string) => setEmph((v) => (v === k ? null : k));
+export default function WeatherDetail({
+  snap,
+  emph,
+  onEmph,
+}: {
+  snap: WeatherSnapshot;
+  /** 선택된 지표 키(상위 View 가 사이드바 설명·그래프 강조를 함께 구동). */
+  emph: string | null;
+  onEmph: (k: string) => void;
+}) {
 
   return (
     <div className={styles.detail}>
@@ -66,7 +73,7 @@ export default function WeatherDetail({ snap }: { snap: WeatherSnapshot }) {
             key={k.key}
             className={`${styles.kpi} ${emph === k.key ? styles.kpiOn : ""}`}
             style={emph === k.key ? { borderColor: k.color } : undefined}
-            onClick={() => toggleEmph(k.key)}
+            onClick={() => onEmph(k.key)}
           >
             <span className={styles.kpiTop}>
               <span className={styles.kpiN}>{k.label}</span>
@@ -104,7 +111,7 @@ export default function WeatherDetail({ snap }: { snap: WeatherSnapshot }) {
         <div className={styles.gttl}>
           시간별 흐름 <span>과거 24시간 ~ 향후 24시간</span>
         </div>
-        <HourlyGraph hours={snap.hours} emph={emph} onEmph={toggleEmph} />
+        <HourlyGraph hours={snap.hours} emph={emph} onEmph={onEmph} />
       </div>
 
       <div className={styles.secTitle}>주간 피부 날씨</div>
@@ -383,7 +390,7 @@ function HourlyGraph({ hours, emph, onEmph }: { hours: WeatherHour[]; emph: stri
           {OVERLAYS.map((m) => {
             const c = m.dot(sel);
             return (
-              <button type="button" key={m.key} className={styles.rk} style={{ borderColor: emph === m.key ? c : "transparent" }} onClick={() => onEmph(m.key)}>
+              <button type="button" key={m.key} className={`${styles.rk} ${emph === m.key ? styles.rkOn : ""}`} style={{ borderColor: emph === m.key ? c : "transparent" }} onClick={() => onEmph(m.key)}>
                 <span className={styles.rkN}>
                   <i className={styles.rdot} style={{ background: c }} />
                   {m.label}

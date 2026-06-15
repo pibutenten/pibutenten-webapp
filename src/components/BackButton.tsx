@@ -16,9 +16,12 @@ import { useRouter } from "next/navigation";
 export default function BackButton({
   fallbackHref = "/",
   className = "",
+  hideLabel = false,
 }: {
   fallbackHref?: string;
   className?: string;
+  /** true면 '뒤로' 텍스트 숨기고 '<' 화살표만 — 옆에 페이지 제목(backTitle)이 있을 때 통일용. */
+  hideLabel?: boolean;
 }) {
   const router = useRouter();
   function go() {
@@ -55,7 +58,7 @@ export default function BackButton({
       >
         <polyline points="15 18 9 12 15 6" />
       </svg>
-      <span>뒤로</span>
+      {!hideLabel && <span>뒤로</span>}
     </button>
   );
 }

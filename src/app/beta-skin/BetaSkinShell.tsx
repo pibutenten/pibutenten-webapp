@@ -619,6 +619,7 @@ export default function BetaSkinShell({
           <div className={styles.backRow}>
             <BackButton
               fallbackHref={typeof back === "string" ? back : BETA_ROUTES.feed}
+              hideLabel={!!backTitle}
             />
             {backTitle ? <div className={styles.backTitle}>{backTitle}</div> : null}
           </div>
