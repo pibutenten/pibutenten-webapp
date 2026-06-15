@@ -3,7 +3,7 @@
 > 베타스킨 디자인을 운영 본체로 승격하는 다세션 작업의 단일 출처. 세션이 끊겨도 이 문서로 이어간다.
 > 상세 변경 이력은 `CHANGELOG.md`, 세션 인수인계는 `SESSION_HANDOFF.md`.
 
-**시작**: 2026-06-14 · **상태**: 진행 중 (Phase 1 착수 전)
+**시작**: 2026-06-14 · **상태**: 진행 중 (Phase 1~6 승격 완료 · Phase 1b 일부·7·8 잔여)
 
 ---
 
@@ -84,20 +84,32 @@
 
 ## 3. Phase 진행표 (체크리스트)
 
+> 체크 기준 = `GlobalChrome.tsx` 승격 목록(EXACT/PREFIX/정규식) 실측 대조. 승격 = 옛 TopNav/SiteFooter 가 해당 경로에서 `null`.
+
 - [x] **Phase 1** — 홈(/) 피드 승격(BetaSkinFeed) + 핵심 링크 재배선(BETA_ROUTES·검색·글쓰기). 빌드·검수·배포 완료 (커밋 `e96b347`, 2026-06-14).
-- [ ] **Phase 1b** — 나머지 핵심화면 승격: 마이(/my)·내노트(/record)·글쓰기(/write)·공개프로필(/[handle])·설정(/settings).
-- [ ] **Phase 2** — 글상세 3라우트 베타 본문 이식(회원/의사/cards).
-- [ ] **Phase 3** — `/doctor` 원장 대시보드 베타(관리자 방식).
-- [ ] **Phase 4** — 공개 SEO: `/doctors` · `/doctors/[slug]` · `/topics/[tag]` · `/reports/[procedure]`.
-- [ ] **Phase 5** — 유틸·후기: `/notifications` · 검색 · `/review/*` · `/record/[id]` · `/write/[shortcode]` · `/u/[id]`.
-- [ ] **Phase 6** — 신뢰·법적·진입: trust 페이지 10종 · `/login` · `/signup` · `/onboarding` · `/shop`.
-- [ ] **Phase 7** — `/old-skin` 보관 + noindex.
-- [ ] **Phase 8** — 전역 셸 통합 + 베타 noindex 해제 + canonical + robots 갱신 → **공개 전환 완료**.
+- [~] **Phase 1b** — 핵심화면 승격: 마이(/my)✓·내노트(/record)✓·글쓰기(/write)✓·공개프로필(/[handle], 정규식)✓ — 승격됨. **단 `/settings` 미승격(옛 크롬 유지)** → POLICY-1 잔여(별도 안건). 나머지 완료.
+- [x] **Phase 2** — 글상세 베타 본문 이식: 회원 `/[handle]/[shortcode]`(정규식)✓ · 의사 `/doctors/[slug]/[year]/[postSlug]`(4세그)✓. `/cards/[id]`·`/u/[id]` 는 canonical/핸들로 302 redirect 라우트라 승격 대상 아님(N/A).
+- [x] **Phase 3** — `/doctor` 원장 대시보드 베타(관리자 방식). EXACT 등록✓.
+- [x] **Phase 4** — 공개 SEO: `/doctors`(EXACT)✓ · `/doctors/[slug]`(2세그 정규식)✓ · `/topics/`(PREFIX)✓ · `/reports/`(PREFIX)✓.
+- [x] **Phase 5** — 유틸·후기: `/notifications`✓ · 검색(`/?q=`)✓ · `/review/`(PREFIX)✓ · `/record/`(PREFIX)✓ · `/write/`(PREFIX)✓. `/u/[id]` 는 redirect(N/A).
+- [x] **Phase 6** — 신뢰·법적·진입: trust 10종(`/about`~`/doctor-guidelines`)✓ · `/login`·`/login/conflict`✓ · `/signup`✓ · `/onboarding`✓ · `/shop`✓ · `/report`✓.
+- [~] **Phase 7** — `/old-skin` 보관 + noindex. **현재 `record`·`write` 만 백업**(부분). 나머지 옛 본문 백업 잔여. (우선순위 낮음 — 옛 디자인은 git 보존.)
+- [ ] **Phase 8** — 전역 셸 통합(오버레이→루트 레이아웃) + 베타 noindex 해제 + canonical 운영 URL + robots(`/beta-skin` 제거·`/old-skin` 추가) → **공개 전환 완료**.
+
+> 범례: `[x]` 완료 · `[~]` 부분 · `[ ]` 미착수.
 
 각 Phase: 구현 → 빌드 → 공개화면 스크린샷 검증 → 다중 서브에이전트 검토 → commit+push(배포) → 이 표 체크 + CHANGELOG 기록.
 
 ---
 
 ## 4. 현재 상태 / 다음 작업
-- (착수 전) Phase 1 시작 예정. git HEAD = `fc7c17e` 기준(직전 세션) + 마이그 0282·0283 한글 정정 완료.
-- 다음: 링크 재배선 방식 확정 → 핵심 7화면 승격.
+- git HEAD = `92181be` (사용자 대면 핵심 라우트 베타 승격 완료) · 마이그 0285 까지 적용.
+- **승격 완료**: Phase 1·2·3·4·5·6 — 사용자 대면 라우트는 거의 전부 `GlobalChrome.tsx` 승격 목록에 등록됨(옛 크롬 미렌더).
+- **잔여**:
+  1. **Phase 1b 잔여** — `/settings`(설정) 미승격, 옛 크롬 유지. POLICY-1(설정/프로필) 잔여 안건과 묶어 처리.
+  2. **Phase 7** — `/old-skin` 옛 본문 백업이 `record`·`write` 만 완료. 나머지 라우트 옛 본문 백업 보강(우선순위 낮음, git 보존됨).
+  3. **Phase 8(공개 전환)** — 오버레이 셸 → 루트 레이아웃 전역 셸 통합 + 베타 noindex 해제 + canonical 운영 URL + robots 갱신. **구조 변경이라 §0-1 절차(빌드·전수 스크린샷·다중 검수) 후 별도 진행.**
+- **비-셸 구조 안건(조사 완료 2026-06-15)**:
+  1. **관리자(`/admin`) 이식 — 작업 불필요(완료)**. 전 15라우트(`/admin`+하위 12+상세/수정 2)가 이미 `BetaAdminXxxView`(BetaSkinShell `active="마이" wide`)로 승격됨. GlobalChrome 에 `/admin` EXACT + `/admin/` PREFIX 등록 확인.
+  2. **`/record` 본문 SSR Suspense 스트리밍 — 구조 리팩터(계획 승인 필요)**. 현 `force-dynamic` + 멤버분기 `Promise.all` 8쿼리가 `"use client"` RecordView props 로 직렬화됨. 분리하려면 본문 섹션(노트/키워드/인기)을 async 서버 컴포넌트 3~4개로 쪼개 `<Suspense>` 래핑, auth·identity·profile·관심사는 page 상단 유지. 신규 3~4파일 · TTFB/FCP −40~50% 기대 · 회귀 위험(하이드레이션 불일치·RLS 스코프·CLS) 있음.
+  3. **계정 전환 카드 — Case C 소규모(전환 로직 이미 완비)**. IdentitySwitcher(헤더)+AccountSwitcherCard(본문) + `/api/identity/switch` 이미 구현. `/beta-skin/my` 는 AccountSwitcherCard 임베드 완료. 잔여는 BetaSkinShell 헤더 아바타(이동 전용)를 `<IdentitySwitcher>` 로 교체(1파일 ~20줄, 서버/DB 무변경).
