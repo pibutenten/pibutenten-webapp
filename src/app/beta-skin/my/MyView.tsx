@@ -36,7 +36,7 @@ export type MyActivity = {
 };
 
 const MENU_MAIN = [
-  { label: "내 시술 노트", href: "/beta-skin/record" },
+  { label: "내 시술 노트", href: "/record" },
   { label: "북마크한 글", href: "/my" },
   { label: "관심 키워드 관리", href: "/settings/profile" },
 ];
@@ -68,7 +68,7 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
       <p className={styles.muted} style={{ marginBottom: 14 }}>
         오늘 받은 시술·회복 상태를 노트에 남겨 보세요.
       </p>
-      <a className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`} href="/beta-skin/record">
+      <a className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`} href="/record">
         내 노트 열기
       </a>
     </section>
@@ -178,7 +178,10 @@ export default function MyView({ activity }: { activity?: MyActivity | null }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {items.map((it) => {
               const hasHref = it.href !== "/";
-              const external = hasHref && it.href.startsWith("/") && !it.href.startsWith("/beta-skin");
+              // 내부 앱 경로(/...)는 같은 탭 SPA 이동, 외부(http) 링크만 새 탭.
+              //   (구 판정은 /beta-skin 접두어를 '내부' 기준으로 써서, 커토버로 카드 href 가
+              //    운영경로로 바뀐 뒤 내 글·후기·노트가 전부 새 탭으로 열리던 잠재버그 — 교정.)
+              const external = hasHref && !it.href.startsWith("/");
               return (
                 <a
                   key={it.id}

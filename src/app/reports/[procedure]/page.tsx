@@ -5,6 +5,7 @@ import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-repo
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { topKeywords } from "@/app/beta-skin/feed-sidebar-data";
@@ -79,8 +80,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: desc,
     alternates: { canonical: url },
     robots: { index: true, follow: true },
-    openGraph: { title, description: desc, url, type: "article" },
-    twitter: { card: "summary", title, description: desc },
+    // 2026-06-16: openGraph/twitter 인라인 작성 → lib/og-meta.ts 헬퍼로 정합화.
+    //   OG 이미지(기본 /og.png, 의사별 커스텀 없음 → null) + twitter card=summary_large_image.
+    ...buildSocialMeta({
+      title,
+      description: desc,
+      canonical: url,
+      ogImage: buildOgImage(null),
+      ogType: "article",
+    }),
   };
 }
 
@@ -155,8 +163,20 @@ export default async function ProcedureReportPage({ params }: Props) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "MedicalWebPage",
+    "@id": `${url}#webpage`,
     name: `${ko} 후기 리포트 | 피부텐텐`,
     url,
+    inLanguage: "ko-KR",
+    // 사이트 #website 노드 연결(doctor 라우트와 동일 패턴) — 페이지 그래프 결속.
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    // 게시 책임 주체 — 의료 페이지 E-E-A-T 신호(doctor 라우트 publisher 와 동일 노드).
+    publisher: {
+      "@type": ["Organization", "MedicalOrganization"],
+      "@id": `${SITE_URL}/about#org`,
+      name: "주식회사 진솔컴퍼니",
+      url: `${SITE_URL}/about`,
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png` },
+    },
     // 집계 갱신 신호 — 요청 시점(실시간 집계라 항상 최신). AI freshness.
     dateModified: new Date().toISOString(),
     mainEntity: {

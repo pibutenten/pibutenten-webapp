@@ -73,6 +73,9 @@ const DISALLOW_COMMON = [
   // 옛 디자인(베타 승격 전) 박제 백업(noindex). 중복 콘텐츠 색인 방지.
   //   page-level robots:{index:false} 와 이중으로 크롤 자체 차단.
   "/old-skin",
+  // 신규 스킨 프리뷰(noindex). 운영 색인 라우트(doctors/* · {handle}/{shortcode})와
+  //   본문을 공용 렌더하므로, page-level noindex 와 이중으로 크롤 자체 차단.
+  "/beta-skin",
 ];
 
 // Tier 1 — 검색엔진 + AI 인용봇 + 주요 학습봇 (Allow, 운영 경로만 제외).

@@ -152,7 +152,7 @@ export default async function BetaSkinMyPage() {
       id: `note-${d.id}`,
       title: procs.join(" · ") || "시술 기록",
       sub: `${d.clinic_name ?? "병원 미입력"} · ${y}.${m}.${dd}`,
-      href: "/beta-skin/record",
+      href: "/record",
     };
   });
 

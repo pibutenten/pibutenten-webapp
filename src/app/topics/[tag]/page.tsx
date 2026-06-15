@@ -122,6 +122,7 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical: url },
+    robots: { index: true, follow: true },
     openGraph: { title: `${title} | 피부텐텐`, description, url, type: "website" },
   };
 }
@@ -164,14 +165,17 @@ export default async function TagPage({ params }: Props) {
     return txt.length > 400 ? txt.slice(0, 400) + "…" : txt;
   };
 
-  // 의사별 Physician @id (`/doctors/{slug}#person`) — 단일 문서 내 동일 의사 중복 시 @id 로 dedup.
+  // 의사 개인 @id (`/doctors/{slug}#person`) — 단일 문서 내 동일 의사 중복 시 @id 로 dedup.
+  //   @type 은 ["Person","MedicalProfessional"] (schema/doctor.ts 와 정합).
+  //   ⚠ Physician 은 LocalBusiness/MedicalOrganization 트리라 의사 개인에 부적합(Google 이
+  //     "비즈니스"로 오인) → 프로젝트 전역에서 금지. MedicalProfessional 은 Person 상속이라 정확.
   // worksFor 는 의사 글·프로필 페이지와 동일하게 `clinicIdRefForDoctor` 의 @id 참조 패턴.
   //   참조 entity 의 MedicalClinic schema 는 graph 의 dedup 된 clinicSchemas 에서 함께 inject.
   const doctorPersonRef = (p: CardData) => {
     if (!p.doctor) return null;
     const worksForRef = clinicIdRefForDoctor(p.doctor.slug);
     return {
-      "@type": "Physician",
+      "@type": ["Person", "MedicalProfessional"],
       "@id": `${SITE_URL}/doctors/${p.doctor.slug}#person`,
       name: p.doctor.name,
       jobTitle: "피부과 전문의",
@@ -238,9 +242,21 @@ export default async function TagPage({ params }: Props) {
     })),
   };
 
+  // BreadcrumbList — 홈 → 전문의 Q&A(허브 인덱스 라우트 없음 → name-only) → 현재 태그.
+  //   /topics 인덱스 페이지는 존재하지 않으므로(라우트는 /topics/[tag] 만) 중간 크럼브에 item 을
+  //   넣지 않는다(깨진 링크 방지). reports/[procedure] 의 "시술 리포트" name-only 와 동일 패턴.
+  const breadcrumb = {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "홈", item: `${SITE_URL}/` },
+      { "@type": "ListItem", position: 2, name: "전문의 Q&A" },
+      { "@type": "ListItem", position: 3, name: tag, item: url },
+    ],
+  };
+
   const jsonLd = {
     "@context": "https://schema.org",
-    "@graph": [collectionPage, faqPage, ...clinicSchemas],
+    "@graph": [collectionPage, faqPage, breadcrumb, ...clinicSchemas],
   };
 
   // JSON-LD <script> 는 server 에 남겨 SEO 신호 100% 보존. 본문은 베타 셸(BetaSkinShell)로
