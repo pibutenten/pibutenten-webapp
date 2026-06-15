@@ -40,6 +40,34 @@ function writeCache(key: string, snap: WeatherSnapshot) {
   }
 }
 
+/** 좌표 → 한국어 동(행정동) 단위 지명. 무료·키 불필요 BigDataCloud reverse-geocode-client.
+ *   administrative 배열에서 동/읍/면으로 끝나는 가장 세부 항목 우선, 없으면 locality/city.
+ *   실패 시 null → 호출부에서 "내 위치" 폴백. */
+async function reverseGeocodeKo(lat: number, lon: number, signal?: AbortSignal): Promise<string | null> {
+  try {
+    const r = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ko`,
+      { signal },
+    );
+    const j = (await r.json()) as {
+      locality?: string;
+      city?: string;
+      localityInfo?: { administrative?: { name?: string }[] };
+    };
+    const admin = j.localityInfo?.administrative;
+    if (Array.isArray(admin)) {
+      // 세부(배열 뒤쪽)부터 동/읍/면으로 끝나는 이름 탐색.
+      for (let i = admin.length - 1; i >= 0; i--) {
+        const nm = admin[i]?.name;
+        if (typeof nm === "string" && /[동읍면]$/.test(nm.trim())) return nm.trim();
+      }
+    }
+    return j.locality || j.city || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * @param preferLast true(상세 페이지)면 좌표 측위 전에 last 캐시를 먼저 보여줘 즉시 렌더.
  */
@@ -81,9 +109,17 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
     };
     if (typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (p) => run(p.coords.latitude, p.coords.longitude, "내 위치"),
+        (p) => {
+          const { latitude, longitude } = p.coords;
+          // 실제 위치는 동 단위 지명으로 표시(역지오코딩). 실패해도 "내 위치"로 폴백.
+          reverseGeocodeKo(latitude, longitude, ac.signal).then((name) => {
+            if (!mounted) return;
+            run(latitude, longitude, name || "내 위치");
+          });
+        },
         () => run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name),
-        { timeout: 6000, maximumAge: 30 * 60 * 1000 },
+        // 측위 실패(권한 거부/차단/타임아웃) 시에만 대치동 폴백. 느린 GPS 측위 여유로 timeout 상향.
+        { timeout: 9000, maximumAge: 30 * 60 * 1000 },
       );
     } else {
       run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name);

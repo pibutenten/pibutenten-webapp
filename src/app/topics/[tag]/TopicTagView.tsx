@@ -15,9 +15,9 @@
 
 import Link from "next/link";
 import type { CardData } from "@/components/Card";
-import CardMasonry from "@/components/CardMasonry";
 import BetaSkinShell from "@/app/beta-skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import { PostCard, useBetaSearchRouting } from "@/app/beta-skin/beta-ui";
+import betaStyles from "@/app/beta-skin/beta-skin.module.css";
 
 const PAGE_LIMIT = 50; // 운영 page.tsx 와 동일(페이지네이션 안내 임계)
 
@@ -68,8 +68,12 @@ export default function TopicTagView({
         </div>
       )}
 
-      {/* 메인 피드와 동일한 Masonry — CardMasonry는 client wrapper */}
-      <CardMasonry posts={posts} />
+      {/* 홈 피드와 동일한 단일열 PostCard 리스트(2열 Masonry → 단일열 feedList). */}
+      <div className={betaStyles.feedList}>
+        {posts.map((card) => (
+          <PostCard key={card.id} card={card} />
+        ))}
+      </div>
 
       {count > PAGE_LIMIT && (
         <p className="mt-6 text-center text-xs text-[var(--text-muted)]">

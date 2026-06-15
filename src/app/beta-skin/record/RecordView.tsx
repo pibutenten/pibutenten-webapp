@@ -300,34 +300,10 @@ export default function RecordView({
           </p>
           {/* 항목9) 버튼 3개·이모지 제거·자연스러운 문구(운영 RecordTab 동선 정합). */}
           <div className={styles.greetActions}>
-            <button
-              type="button"
-              className={`${styles.btn} ${styles.btnPrimary}`}
-              onClick={() => {
-                // 셸 스크롤 컨테이너(.root: overflow:auto)를 직접 스크롤 — scrollIntoView 는
-                //   position:fixed 컨테이너 안에서 일부 브라우저가 무시하므로 조상 탐색 후 scrollTo.
-                const el = document.getElementById("rec-notes");
-                if (!el) return;
-                let sc: HTMLElement | null = el.parentElement;
-                while (sc) {
-                  const oy = getComputedStyle(sc).overflowY;
-                  if ((oy === "auto" || oy === "scroll") && sc.scrollHeight > sc.clientHeight) break;
-                  sc = sc.parentElement;
-                }
-                if (sc) {
-                  const top =
-                    sc.scrollTop +
-                    el.getBoundingClientRect().top -
-                    sc.getBoundingClientRect().top -
-                    60;
-                  sc.scrollTo({ top, behavior: "smooth" });
-                } else {
-                  el.scrollIntoView({ behavior: "smooth", block: "start" });
-                }
-              }}
-            >
+            {/* 내 노트 보기 → 시술노트 자세히 페이지(/record/notes). 인라인 스크롤 대신 전용 페이지로. */}
+            <Link href="/record/notes" className={`${styles.btn} ${styles.btnPrimary}`}>
               내 노트 보기
-            </button>
+            </Link>
             <a className={`${styles.btn} ${styles.btnGhost}`} href="/write">
               오늘 시술 기록하기
             </a>
@@ -417,15 +393,8 @@ export default function RecordView({
           </>
         ) : (
           <>
-            {/* 인라인은 미리보기(최근 N개) — 헤더 우측 '자세히 ›'로 전체(3토글) 페이지 이동. */}
-            <RecordNotesPanel
-              entries={previewEntries}
-              action={
-                <Link href="/record/notes" className={styles.recNotesMore}>
-                  자세히 ›
-                </Link>
-              }
-            />
+            {/* 인라인은 미리보기(최근 N개). 전체(3토글)는 위 인사 카드의 '내 노트 보기' + 아래 '전체 보기'로 이동. */}
+            <RecordNotesPanel entries={previewEntries} />
             {hasMoreNotes && (
               <Link href="/record/notes" className={styles.recNotesViewAll}>
                 시술 노트 전체 보기 ({entries.length}건) ›
