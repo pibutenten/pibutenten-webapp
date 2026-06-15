@@ -6,35 +6,57 @@
 
 ---
 
-## 0. 직전 세션 (2026-06-15) — 한눈에
+## 0. 직전 세션 (2026-06-15 · P1 버그 수정 + 라우트 조사) — 한눈에
 
-- **git**: `HEAD == origin/main == 3b5e8b1`. 마이그 **0285** 까지 적용(이번 세션 신규 마이그 0 — 표시·라우팅·레이아웃만, DB·권한 무변경). (미커밋: 타 세션 산출물 `.claude/worktrees/`·`scripts/export-tag-dictionary-xlsx.py`·`tag-dictionary.generated.json` — 손대지 않음.)
+- **git**: `HEAD == origin/main == 1865ff2`. 마이그 **0285** 까지 적용(이번 세션 신규 마이그 0 — 코드만, DB 무변경).
 - **빌드**: `tsc --noEmit` 0 + `npm run build` Compiled successfully.
 
-### 이번 세션에 한 일 (커밋 `e96b347`~`3b5e8b1`)
-> 베타 스킨을 전체 사용자 화면으로 **운영 승격(커토버 실행)** + 신규 기능 "오늘의 피부 날씨" + 토픽·리포트·원장 프로필을 홈 피드/글상세 구조로 통일. 운영 로직·DB·권한 무변경.
+### 이번 세션에 한 일 (커밋 `1865ff2`)
+> P1 기능 버그 3건 + P2⑧ robots.ts 정리. 서브에이전트 병렬 투입 방식(버그수정 에이전트 + 라우트조사 에이전트). 운영 로직·DB·권한 무변경(버그 수정·경로 교정만).
 
-1. **베타 스킨 운영 승격(커토버 실행, `e96b347`~`f1c7d5d`)**: 홈(`/`)·내노트(`/record`)·글쓰기(`/write`)·원장 대시보드(`/doctor`)·공개 SEO 3종(의사프로필·토픽·리포트)·신뢰/법적 10p·의사목록·알림·후기작성·글상세 3라우트·진입(로그인·가입·온보딩)·프로필 클러스터(`/[handle]`·`/my`·`/settings`)를 베타 스킨으로 전환. 기존 스킨 → `/old-skin` 백업. (직전 세션의 "cutover 결정 대기" 5개 항목 사용자 확정 후 실행.)
-2. **오늘의 피부 날씨 (신규)**: `/record/weather` 상세 페이지 + 내 노트 상단 카드. Open-Meteo 2 API(키 불필요)·런타임 LLM 없음. 4지표(UVB·UVA·미세먼지·구름투과율) 게이지, 시간별 그래프, 주간, BigDataCloud 역지오코딩 동단위 위치. 로직 `weather-logic.ts`·훅 `useWeather`·컴포넌트 `SkinWeatherCard`/`WeatherDetail`/`WeatherDetailView`·`skin-weather.module.css`.
-3. **시술노트 자세히 `/record/notes`** + **게스트 인기글 노출**(비로그인도 인기글, published 필터+RLS 안전).
-4. **피드 구조 통일**: `/topics`·`/reports`·원장 프로필을 단일열 PostCard + 홈 사이드바(`FeedSidebar` 추출)로. 원장 프로필 = 좌 답변 무한스크롤 + 우 원장 카드.
-5. **글쓰기 3탭 통일**(끄적끄적 기준)·**뒤로 '<' + backTitle 통일**·**작성자 같은 창**·**인기태그 서버 고정**.
-6. **버그 수정**: 더보기 슬라이드 롤백(`0216201`)·인기태그 클릭 목록 변경 jitter 0(`a1da194`)·topKeywords 클라 경계 500(`62dc3b6`)·날씨 현재값 정합/온도색.
-7. **날씨 상세 마무리(`32c5c60`·`3b5e8b1`)**: 헤더 글상자 통합+좌우 펼침, 피부 팁 미니멀 통합, 4지표 자연어 설명, 글상자 세로 간격 보강.
+1. **P1④ 인기태그 선택 시 카테고리 칩 리셋 해소**: `BetaSkinFeed.tsx` — 칩 UI active 표시·aria-pressed를 `effectiveChip`(검색 중 "all" 강제) 대신 `chip`(실제 선택값)으로 변경. `topReport` 노출 조건도 동일하게 정합.
+2. **P1⑤ `/search` 404 오링크 교정**: `CategoryWithChips.tsx`·`ProfileTabs.tsx`·`PopularCards.tsx`·`TopicTagView.tsx` 4개 파일에서 `/search` → `/`, `/search?q=` → `/?q=` 교정.
+3. **P1⑥ `/beta-skin?q=` 오링크 교정**: `BetaProfileView.tsx:499` — `href={`/beta-skin?q=...`}` → `/?q=...`.
+4. **P2⑧ robots.ts 정리**: `DISALLOW_COMMON` 에서 `/beta-skin` 제거(승격 완료). `/old-skin` 은 이미 존재했음.
 
-### 다음 세션 — 남은 작업 (사용자: "새 세션에서")
-1. **내 노트 날씨 카드 지연** — `/record` 가 force-dynamic + 무거운 쿼리라 페이지 전체 SSR 가 끝나야 날씨 카드 스켈레톤까지 뜸. → 셸/날씨를 무거운 데이터와 분리해 **Suspense 스트리밍** 검토(사용자 go 대기).
-2. **계정명함 전환 카드** — 묶음(multi-identity) 사용자용 BetaProfileView 전환 카드(로드맵).
-3. **admin 나머지 화면 이식 (12개)** — 미이식분은 운영 `/admin/*` 로 링크(동작 O, 스킨만 운영): `users`·`doctors`·`draft`·`reports`·`review-reports`·`tags`·`clinics`·`auth-errors`·`stats/[kind]`·`cards/[id]/edit`(글편집).
-4. **알림 `/notifications` 베타 화면** — 2탭 화면 베타 미구현(승격 동등성 잔여).
-5. **성능 — 셸 재마운트** — 페이지 전환마다 BetaSkinShell 재마운트. 공용 layout 으로 셸 고정 검토.
+**라우트 조사 (read-only, 커밋 없음)**
+- 콘텐츠 라우트 4개(`record/[id]`·`write/[shortcode]`·`report`·`shop`) 현황 + BetaSkinShell 패턴 전수 조사 완료. 상세 결과 → 아래 §다음 세션 참조.
+
+### 다음 세션 — 남은 작업 (우선순위순)
+
+**🔴 콘텐츠 라우트 베타 셸 승격 (조사 완료, 즉시 착수 가능)**
+
+| 라우트 | 현재 크롬 | 난이도 | 조치 |
+|---|---|---|---|
+| `/report` | InfoPageLayout | 쉬움 | BetaSkinShell + `back={true}` |
+| `/shop` | 없음(플레이스홀더) | 쉬움 | BetaSkinShell로 감싸기 |
+| `/record/[id]` | 없음(서버 컴포넌트) | 보통 | BetaSkinShell + `back="/record"`, RLS 유지 |
+| `/write/[shortcode]` | — | — | **건너뜀** (운영 경로 완전 통합, 베타 셸 적용 시 UX 악화) |
+
+- 이미 적용된 패턴 예시: `src/app/(beta-skin)/topics/[tag]/page.tsx`, `src/app/(beta-skin)/reports/[procedure]/page.tsx`
+- BetaSkinShell 위치: `src/app/beta-skin/BetaSkinShell.tsx` (또는 `(beta-skin)` 하위 — 착수 전 Glob 확인)
+
+**🟡 P1⑦ 내 노트 날씨 카드 지연**
+- `/record` force-dynamic + 무거운 SSR 로 날씨 카드까지 지연됨. Suspense 스트리밍 검토.
+
+**🟡 P2⑨ BETA_CUTOVER_PLAN.md Phase 표 동기화**
+- 홈·핵심화면·admin 승격 완료됐으나 Phase 1b~8 체크박스가 현행과 불일치.
+
+**⚪ 이월(저우선·로드맵)**
+- admin 나머지 화면 이식: 미이식분은 운영 `/admin/*` 링크(동작 O): `users`·`doctors`·`draft`·`reports`·`review-reports`·`tags`·`clinics`·`auth-errors`·`stats/[kind]`·`cards/[id]/edit`.
+- 알림 `/notifications` 베타 화면(2탭 미구현).
+- 성능 — 페이지 전환마다 BetaSkinShell 재마운트, 공용 layout 으로 셸 고정 검토.
+- 계정명함 전환 카드(BetaProfileView 카드형 UI — 로드맵).
+
+**⚠️ 시각 검수 미완료**
+- `1865ff2` 커밋(P1④⑤⑥) 수정 사항을 dev 서버에서 시각 확인하지 못하고 세션 종료. 다음 세션 초반에 확인 권장.
 
 ---
 
 ## 1. 현재 상태 (스냅샷)
 
-- **git**: `HEAD == origin/main`. 태그 관리 UI(O·P·Q)·칩 통일 → 발주 A·B·C·D → 태그 검수 발주 E→F→G·H·I·J(중간 경로)→K(검수 모델 재정비)→L(이름변경·병합 저장 경유)→M(저장↔취소 재편집 버그)→N(병합 en 승계). (동시 진행: `clinics`(0270·`/admin/clinics`)는 **별도 세션 소관** — 이 세션 작업 아님.)
-- **DB 마이그**: **0283** 까지 production 적용 완료. (0269 `reviewed_at` · 0270 clinics[타 세션] · 0271 merge_tag en 승계 · 0280 top_cards 통계 RPC 게이트 완화 · 0282·0283 원장 9명 profile_data 정정)
+- **git**: `HEAD == origin/main == 1865ff2`. P1 버그 3건 + robots.ts 정리.
+- **DB 마이그**: **0285** 까지 production 적용 완료. (0269 `reviewed_at` · 0270 clinics[타 세션] · 0271 merge_tag en 승계 · 0280 top_cards 통계 RPC 게이트 완화 · 0282·0283 원장 9명 profile_data 정정 · 0284 award_points REVOKE · 0285 award_daily_login REVOKE[보안 감사])
 - **빌드**: `tsc --noEmit` 0 + `npm run build` Compiled successfully.
 
 ### 태그 사전 DB SSOT 통합 (L-Phase2) — ✅ 완료

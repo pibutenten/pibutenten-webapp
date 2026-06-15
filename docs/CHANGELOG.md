@@ -6,6 +6,43 @@
 
 ---
 
+## [2026-06-15] — P1 버그 수정 + robots.ts 정리
+
+> 서브에이전트 병렬 투입 방식(버그수정 에이전트 + 라우트조사 에이전트 동시 운용). 운영 로직·DB·권한 무변경(버그 수정·경로 교정·robots만). 커밋 `1865ff2`.
+
+### Fixed
+- **P1④ 인기태그 선택 시 카테고리 칩 리셋** (`1865ff2`): `BetaSkinFeed.tsx` — 칩 버튼 active 표시·`aria-pressed`·`topReport` 노출 조건을 `effectiveChip`(검색 중 "all" 강제) 대신 `chip`(실제 선택값)으로 변경. 검색 상태와 카테고리 상태 독립 유지.
+- **P1⑤ `/search` 404 오링크** (`1865ff2`): `CategoryWithChips.tsx`·`ProfileTabs.tsx`·`admin/PopularCards.tsx`·`topics/.../TopicTagView.tsx` 4개 파일에서 `/search` → `/`, `/search?q=` → `/?q=` 교정.
+- **P1⑥ `/beta-skin?q=` 오링크** (`1865ff2`): `BetaProfileView.tsx:499` — `href={`/beta-skin?q=...`}` → `/?q=...` (P0② 잔존 동류).
+
+### Changed
+- **P2⑧ `robots.ts` 정리** (`1865ff2`): `DISALLOW_COMMON` 배열에서 `/beta-skin` 3줄 제거(베타 스킨 운영 승격 완료). `/old-skin` 은 이미 존재했음.
+
+### Notes
+- **콘텐츠 라우트 4개 업그레이드 조사 완료**: `/report`(쉬움)·`/shop`(쉬움)·`/record/[id]`(보통)·`/write/[shortcode]`(건너뜀 — 운영 경로 유지) 현황 파악. 다음 세션 즉시 착수 가능(SESSION_HANDOFF §0 참조).
+
+---
+
+## [2026-06-15] — 베타 승격 정합성 감사 + P0 교정 + /admin 승격·단일화
+
+> 베타 스킨 전체 승격 직후 정합성·AEO/SEO/GEO 감사(독립 서브에이전트 4종 종합) 결과 P0 3건 교정 + `/admin` 을 베타 셸로 승격·단일화. 운영 로직·DB·권한 무변경(표시·라우팅·레이아웃만). 커밋 `6caf849`·`c0fe194`·`8476d3a`·`d1970ea`.
+
+### Fixed
+- **P0① 멀티아이디 계정(명함) 스위처 복원** (`6caf849`): 묶음(multi-identity) 사용자가 본인 공개 프로필(`/beta-skin/u/[handle]` → `BetaProfileView`)에서 계정 전환 UI 가 사라져 다른 명함으로 못 바꾸던 회귀 복원.
+- **P0② noindex `/beta-skin/*` 링크 누수 차단** (`c0fe194`): 라이브 색인 대상 페이지에 잔존하던 `/beta-skin/*`(noindex) 내부 링크들이 색인 페이지에서 noindex 경로로 새던 문제 → 운영 경로로 재배선.
+- **P0③ 신뢰·법적 길목(in-page 푸터) 마이·프로필 내부 재배치** (`d1970ea`): 앱(베타) 전환으로 전역 `SiteFooter` 가 베타 라우트에서 빠지며 `/about`·`/terms` 등 트러스트 페이지로 가는 길목이 사라진 문제(사용자 보고) 해결. 상단 네비가 아닌 SNS 표준대로 마이/프로필 하단 in-page 푸터로 배치.
+  - `BetaPolicyFooter.tsx` 신설(78줄): `FOOTER_ITEMS`(SSOT `@/lib/policy-nav`) 재사용, 베타 토큰 인라인 스타일. 운영주체 문구 + 전문의(`/doctors`) 우선 + 8개 정책 링크 + YMYL 면책(`/disclaimer`) + 문의(mailto·`/report`).
+  - `MyView.tsx`: 로그인/비로그인 분기 모두 하단 임베드. `BetaProfileView.tsx`: 모든 방문자에게 하단 노출.
+
+### Changed
+- **`/admin` 베타 셸로 승격·단일화** (`8476d3a`, 37파일 +2001 −2476): 이미 구축돼 있던 베타 admin 을 운영 `/admin` 본체로 승격하고 프리뷰 경로(`/beta-skin/admin*`)를 폐기 → **단일 `/admin`**(두 갈래 누더기 제거). 상단바·배경은 베타 스킨, 내부 레이아웃은 기존 대시보드/운영프로그램 골격 유지(R값·컬러 톤만 베타 정합). 운영 데이터·권한 가드 1:1 무수정.
+- **상단 네비 트러스트 드롭다운 되돌리기**: 헤더 액션 클러스터에 임시로 넣었던 정책 드롭다운(사용자 반려)을 전량 환원 → P0③ in-page 푸터 방식으로 대체.
+
+### Notes
+- **옛 크롬(구 TopNav/SiteFooter) 잔존 라우트 전수조사 완료**: 콘텐츠 라우트(`record/[id]`·`write/[shortcode]`·`report`·`shop`) 일부가 아직 옛 크롬 → 다음 세션 승격 대상으로 분류(SESSION_HANDOFF §0 참조).
+
+---
+
 ## [2026-06-15] — 베타 스킨 운영 승격 + 오늘의 피부 날씨 신규 기능 + 피드 구조 통일
 
 > 하루 단위 대규모 작업. (1) 베타 스킨을 전체 사용자 화면으로 승격(운영 전환), (2) 신규 기능 "오늘의 피부 날씨", (3) 토픽·리포트·원장 프로필을 홈 피드/글상세 구조로 통일. 커밋 `e96b347`~`a1da194` + 날씨 상세 마무리(미커밋분 본 블록 포함). 운영 로직·DB·권한 무변경(표시·라우팅·레이아웃만).
