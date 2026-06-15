@@ -2,42 +2,32 @@
 
 > 세션 간 인수인계용. 현재 상태·주의사항·다음 작업·불변 원칙을 한 장으로. 변경 이력 상세는 `CHANGELOG.md`.
 
-**최종 갱신**: 2026-06-14
+**최종 갱신**: 2026-06-15
 
 ---
 
-## 0. 직전 세션 (2026-06-14) — 한눈에
+## 0. 직전 세션 (2026-06-15) — 한눈에
 
-- **git**: `HEAD == origin/main == fc7c17e`. 마이그 **0283** 까지 적용. (미커밋: 타 세션 산출물 `.claude/worktrees/`·`docs/reports/...보안감사.md`·`scripts/export-tag-dictionary-xlsx.py`·`tag-dictionary.generated.json` — 이 세션 작업 아님, 손대지 않음.)
+- **git**: `HEAD == origin/main == 3b5e8b1`. 마이그 **0285** 까지 적용(이번 세션 신규 마이그 0 — 표시·라우팅·레이아웃만, DB·권한 무변경). (미커밋: 타 세션 산출물 `.claude/worktrees/`·`scripts/export-tag-dictionary-xlsx.py`·`tag-dictionary.generated.json` — 손대지 않음.)
 - **빌드**: `tsc --noEmit` 0 + `npm run build` Compiled successfully.
 
-### 이번 세션에 한 일 (전부 `/beta-skin` 내부, 운영 무수정)
-> **목표(사용자)**: 베타스킨이 운영 기능/컴포넌트/데이터를 **그대로 재사용**(누더기 신규코드 금지). 운영 사이트는 100% 무변경. Phase별 커밋·푸시·검수.
+### 이번 세션에 한 일 (커밋 `e96b347`~`3b5e8b1`)
+> 베타 스킨을 전체 사용자 화면으로 **운영 승격(커토버 실행)** + 신규 기능 "오늘의 피부 날씨" + 토픽·리포트·원장 프로필을 홈 피드/글상세 구조로 통일. 운영 로직·DB·권한 무변경.
 
-1. **Phase A 디테일**: 리포트 카드 R값 베타 통일, 헤더 로그인상태 깜빡임 제거(useSession), 인기 Q&A 회전.
-2. **Phase 0 — 원장 9명 DB 정정**(마이그 0282·0283): education " 수료/수련" 제거, career 현소속 중복 제거 + "전 " 접두 제거. 운영+베타 동시.
-3. **Phase 1 — 공개 프로필**: `/beta-skin/u/[handle]` 신설(운영 `/[handle]` 데이터 미러: 작성글/후기/댓글/좋아요/저장/피부 6탭 + 20개+더보기). 명함 클릭 동선(`authorHref` 회원→베타 프로필), 헤더 '마이' 역할 분기(`/beta-skin/my`: admin→admin, doctor→/doctor, 회원→공개프로필), 운영 LogoutButton 재사용.
-4. **Phase 2 — 설정 아코디언**: 별도 페이지 대신 본인 공개 프로필의 '프로필·설정' 아코디언 인라인 펼침(운영 `ProfileEditClient embedded` 재사용). `/beta-skin/settings` 는 본인 프로필로 redirect.
-5. **Phase 3 — admin 이식 (메인·글관리·댓글)**: `/beta-skin/admin`(운영 RPC get_admin_kpi/get_research_panel + ActivityKpis/PopularCards/AccountSwitcherCard 임베드)·`/admin/cards`(운영 데이터·PickToggle·DoctorFilter)·`/admin/comments`(CommentsClient). 운영 `requireAdminPage` 가드 재사용.
-6. **글상세 = 피드 카드 재사용**: PostDetail 본문을 `<PostCard forceExpanded>` 로 통일(누더기 .articleBody/.articleTitle 폐기 — 피드 펼침과 100% 동일).
-7. **⋮ 메뉴·신고 통합**: SNS 표준대로 ⋮ 모두 노출(본인=수정/삭제/숨김, 타인=신고하기→`/api/reports`), HOT/NEW 배지 인라인 재배치.
-8. **admin 운영형 재설계(최종, fc7c17e)**: `.card` 큰 박스 제거 + admin 흰 배경(`.rootWide`) + 운영 `BackButton`(`< 뒤로`) 전 서브페이지 + 운영 프로그램 2열. (상단바만 베타 유지.)
+1. **베타 스킨 운영 승격(커토버 실행, `e96b347`~`f1c7d5d`)**: 홈(`/`)·내노트(`/record`)·글쓰기(`/write`)·원장 대시보드(`/doctor`)·공개 SEO 3종(의사프로필·토픽·리포트)·신뢰/법적 10p·의사목록·알림·후기작성·글상세 3라우트·진입(로그인·가입·온보딩)·프로필 클러스터(`/[handle]`·`/my`·`/settings`)를 베타 스킨으로 전환. 기존 스킨 → `/old-skin` 백업. (직전 세션의 "cutover 결정 대기" 5개 항목 사용자 확정 후 실행.)
+2. **오늘의 피부 날씨 (신규)**: `/record/weather` 상세 페이지 + 내 노트 상단 카드. Open-Meteo 2 API(키 불필요)·런타임 LLM 없음. 4지표(UVB·UVA·미세먼지·구름투과율) 게이지, 시간별 그래프, 주간, BigDataCloud 역지오코딩 동단위 위치. 로직 `weather-logic.ts`·훅 `useWeather`·컴포넌트 `SkinWeatherCard`/`WeatherDetail`/`WeatherDetailView`·`skin-weather.module.css`.
+3. **시술노트 자세히 `/record/notes`** + **게스트 인기글 노출**(비로그인도 인기글, published 필터+RLS 안전).
+4. **피드 구조 통일**: `/topics`·`/reports`·원장 프로필을 단일열 PostCard + 홈 사이드바(`FeedSidebar` 추출)로. 원장 프로필 = 좌 답변 무한스크롤 + 우 원장 카드.
+5. **글쓰기 3탭 통일**(끄적끄적 기준)·**뒤로 '<' + backTitle 통일**·**작성자 같은 창**·**인기태그 서버 고정**.
+6. **버그 수정**: 더보기 슬라이드 롤백(`0216201`)·인기태그 클릭 목록 변경 jitter 0(`a1da194`)·topKeywords 클라 경계 500(`62dc3b6`)·날씨 현재값 정합/온도색.
+7. **날씨 상세 마무리(`32c5c60`·`3b5e8b1`)**: 헤더 글상자 통합+좌우 펼침, 피부 팁 미니멀 통합, 4지표 자연어 설명, 글상자 세로 간격 보강.
 
-### 현재 베타 라우트 (11 page.tsx)
-✅ `/beta-skin`(피드)·`post/[...slug]`(글상세)·`u/[handle]`(공개프로필)·`my`(역할분기)·`settings`(redirect)·`record`(내노트)·`write`(글쓰기)·`admin`(대시보드)·`admin/cards`(글관리)·`admin/comments`(댓글)
-
-### 다음 세션 — 남은 작업
-1. **admin 나머지 화면 이식 (운영 15화면 중 3개만 이식)** — 미이식 12개는 현재 베타 대시보드 Tool 이 **운영 `/admin/*` 로 링크**(동작은 됨, 스킨만 운영으로 튕김): `users`(+`users/[id]`)·`doctors`(+`doctors/[slug]/edit`)·`draft`·`reports`·`review-reports`·`tags`·`clinics`·`auth-errors`·`stats/[kind]`·`cards/[id]/edit`(글편집) + **원장 대시보드 `/doctor`**.
-2. **설정 아코디언 실측** — 로그인 필요라 Playwright 미검증(8fcab8e). 로그인 세션에서 펼침·저장·탈퇴 동작 확인.
-3. **성능 — 셸 재마운트** — `/beta-skin/layout.tsx` 없어 페이지 전환마다 BetaSkinShell 재마운트(무거움). 공용 layout 으로 셸 고정 검토.
-
-### ⚠ cutover 결정 대기 (사용자 확정 필요) — "베타스킨 전체 운영으로 갈아엎기"
-현재 베타는 `/beta-skin/*` 별도 경로 + **영구 noindex** 프리뷰. 운영 본체 승격에 필요한 결정:
-- **① admin 범위(가장 먼저)**: admin까지 전부 베타로 이식할지 vs **사용자 화면(피드·프로필·글상세·마이·설정)만 베타로 교체하고 admin은 운영 그대로** 둘지. → 후자면 남은 작업 거의 끝, 전자면 화면 12개 추가 이식. **남은 작업량이 여기서 갈림.**
-- **② 라우트 승격 방식**: `/beta-skin/*` → 운영 루트(`/`,`/{handle}`,`/my`…)로 올릴지 / 운영을 베타로 교체할지(middleware·리다이렉트 전략).
-- **③ noindex 해제 + canonical**: 승격 시점에 robots noindex 해제 + canonical 운영 URL.
-- **④ 글 편집/작성**: 베타엔 편집 페이지 없음(운영 `/admin/cards/[id]/edit` 사용 중) — 이식 여부.
-- **⑤ 회귀·동등성 전수 검수**: 운영 전 기능이 베타에 누락 없는지(알림 `/notifications` 2탭은 베타에 화면 없음).
+### 다음 세션 — 남은 작업 (사용자: "새 세션에서")
+1. **내 노트 날씨 카드 지연** — `/record` 가 force-dynamic + 무거운 쿼리라 페이지 전체 SSR 가 끝나야 날씨 카드 스켈레톤까지 뜸. → 셸/날씨를 무거운 데이터와 분리해 **Suspense 스트리밍** 검토(사용자 go 대기).
+2. **계정명함 전환 카드** — 묶음(multi-identity) 사용자용 BetaProfileView 전환 카드(로드맵).
+3. **admin 나머지 화면 이식 (12개)** — 미이식분은 운영 `/admin/*` 로 링크(동작 O, 스킨만 운영): `users`·`doctors`·`draft`·`reports`·`review-reports`·`tags`·`clinics`·`auth-errors`·`stats/[kind]`·`cards/[id]/edit`(글편집).
+4. **알림 `/notifications` 베타 화면** — 2탭 화면 베타 미구현(승격 동등성 잔여).
+5. **성능 — 셸 재마운트** — 페이지 전환마다 BetaSkinShell 재마운트. 공용 layout 으로 셸 고정 검토.
 
 ---
 
