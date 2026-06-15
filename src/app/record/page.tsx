@@ -39,8 +39,11 @@ export default async function RecordPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // ── 게스트(비로그인) — 가입 유도 데모. 인기글 RPC(authenticated 전용)는 호출하지 않고,
-  //    공개 인기 키워드 + 그 키워드의 최신 Q&A(공개 RLS)만 예시로 노출.
+  // ── 게스트(비로그인) — 가입 유도 데모 + 공개 인기글로 흥미 유발.
+  //    공개 인기 키워드 + 그 키워드의 최신 Q&A(공개 RLS) + 사이트 전체 인기글 3기간.
+  //    인기글은 공개(published) 카드라 비로그인 노출이 적절. 단 get_top_cards_by_views 는
+  //    authenticated 전용 GRANT(anon REVOKE, 마이그 0280) — anon 세션에선 권한 거부(42501)로
+  //    빈 결과가 날 수 있다. buildPopularData 가 enrich 안 된 행을 거르므로 안전하게 빈 PopularData 폴백.
   if (!user) {
     const popularByCat = await getPopularByCategory().catch(() => null);
     const guestKeywords = popularByCat
@@ -52,22 +55,38 @@ export default async function RecordPage() {
           ]),
         ).slice(0, 10)
       : [];
-    let guestPosts: KeywordPost[] = [];
-    if (guestKeywords.length > 0) {
-      const { data: qaRows } = await supabase
-        .from("cards")
-        .select(KEYWORD_SELECT)
-        .eq("category", "qa")
-        .eq("status", "published")
-        .is("deleted_at", null)
-        .overlaps("keywords", guestKeywords)
-        .order("reviewed_at", { ascending: false, nullsFirst: false })
-        .limit(20)
-        .returns<KeywordCardRow[]>();
-      const gSet = new Set(guestKeywords);
-      const gNow = Date.now();
-      guestPosts = (qaRows ?? []).map((c) => toKeywordPost(c, gSet, gNow));
-    }
+
+    // 게스트 키워드 새 글 + 인기글 3기간을 병렬 조회. RPC 가 anon 거부 시 data=null → buildPopularData 빈 폴백.
+    const [gQaRes, gTop7Res, gTop30Res, gTop90Res] = await Promise.all([
+      guestKeywords.length > 0
+        ? supabase
+            .from("cards")
+            .select(KEYWORD_SELECT)
+            .eq("category", "qa")
+            .eq("status", "published")
+            .is("deleted_at", null)
+            .overlaps("keywords", guestKeywords)
+            .order("reviewed_at", { ascending: false, nullsFirst: false })
+            .limit(20)
+            .returns<KeywordCardRow[]>()
+        : Promise.resolve({ data: [] as KeywordCardRow[] }),
+      supabase.rpc("get_top_cards_by_views", { p_days: 7, p_limit: 10 }),
+      supabase.rpc("get_top_cards_by_views", { p_days: 30, p_limit: 10 }),
+      supabase.rpc("get_top_cards_by_views", { p_days: 90, p_limit: 10 }),
+    ]);
+
+    const gSet = new Set(guestKeywords);
+    const gNow = Date.now();
+    const guestPosts: KeywordPost[] = (gQaRes.data ?? []).map((c) => toKeywordPost(c, gSet, gNow));
+
+    // 인기글 — 회원과 동일 경로(3기간 RPC + buildPopularData). anon 권한 없으면 빈 PopularData.
+    const guestPopular = await buildPopularData(
+      supabase,
+      (gTop7Res.data ?? []) as TopCardRow[],
+      (gTop30Res.data ?? []) as TopCardRow[],
+      (gTop90Res.data ?? []) as TopCardRow[],
+    );
+
     return (
       <RecordView
         guest
@@ -81,7 +100,7 @@ export default async function RecordPage() {
         postCount={0}
         receivedCount={0}
         keywordPosts={guestPosts}
-        popular={{ d7: [], d30: [], d90: [] }}
+        popular={guestPopular}
         myKeywords={guestKeywords}
       />
     );

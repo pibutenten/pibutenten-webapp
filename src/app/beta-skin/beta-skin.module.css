@@ -2249,6 +2249,59 @@ button.t[data-cat="knowledge"]:hover {
   font-weight: 800;
   color: var(--ink-900);
 }
+/* 자세히 페이지(예: /record/notes) 공통 뒤로가기 헤더 — 날씨 상세(skin-weather)와 동일 톤. */
+.detailHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+.detailBack {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--ink-700, #3c4856);
+  flex: none;
+}
+.detailBack svg {
+  width: 22px;
+  height: 22px;
+}
+.detailBack:hover {
+  background: var(--bg-soft, #f5f8fb);
+}
+.detailTitle {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--ink-900);
+}
+/* 시술 노트 헤더 토글 옆 '자세히 ›' — 날씨 카드 '자세히' 톤과 일관(미니 링크). */
+.recNotesMore {
+  align-self: center;
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tt-blue-deep);
+  white-space: nowrap;
+}
+/* 미리보기 하단 '전체 보기' 블록 링크 — 인라인 미리보기 → /record/notes 유도. */
+.recNotesViewAll {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 0;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--tt-blue-deep);
+  background: #fff;
+}
 /* 피드백 3) 게스트 '예시' 라벨 헤더 */
 .recExampleHead {
   display: flex;

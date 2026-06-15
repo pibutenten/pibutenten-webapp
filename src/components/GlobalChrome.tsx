@@ -23,6 +23,7 @@ const BETA_PROMOTED_EXACT = new Set<string>([
   "/", // 홈 피드 (Phase 1)
   "/record", // 내 노트 (Phase 1b)
   "/record/weather", // 오늘의 피부 날씨 상세
+  "/record/notes", // 내 시술노트 자세히(3토글 전체)
   "/write", // 글쓰기 (Phase 1b)
   "/doctor", // 원장 대시보드 (Phase 3, 관리자 방식 셸)
   // 신뢰·법적·안내 페이지 (InfoBetaShell)
