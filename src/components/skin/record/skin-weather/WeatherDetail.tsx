@@ -200,28 +200,28 @@ function vGauge(k: WeatherKpi) {
     <span className={styles.vGauge}>
       <span className={styles.vTrack}>
         {isRange ? (
-          /* 기온 — 최저~최고 범위 캡슐(막대 중간에 부유). */
+          /* 기온 — 최저~최고 범위 캡슐(가로 바 중간에 부유). */
           <i
             className={styles.vRange}
-            style={{ bottom: `${loPct}%`, height: `${Math.max(3, hiPct - loPct)}%`, background: k.color }}
+            style={{ left: `${loPct}%`, width: `${Math.max(3, hiPct - loPct)}%`, background: k.color }}
           />
         ) : (
           <>
             {/* UVB/UVA — 오늘 최고까지 연한 채움(현재 채움 뒤). */}
             {peakPct != null && peakPct > pct && (
-              <i className={styles.vPeakFill} style={{ height: `${peakPct}%`, background: k.peakColor ?? k.color }} />
+              <i className={styles.vPeakFill} style={{ width: `${peakPct}%`, background: k.peakColor ?? k.color }} />
             )}
             {/* 현재까지 진한 채움. */}
-            <i className={styles.vFill} style={{ height: `${pct}%`, background: k.color }} />
+            <i className={styles.vFill} style={{ width: `${pct}%`, background: k.color }} />
             {/* 미세먼지 — seg 단계 구분선. */}
             {k.seg
               ? Array.from({ length: k.seg - 1 }, (_, i) => (
-                  <span key={i} className={styles.vTick} style={{ bottom: `${((i + 1) / k.seg!) * 100}%` }} />
+                  <span key={i} className={styles.vTick} style={{ left: `${((i + 1) / k.seg!) * 100}%` }} />
                 ))
               : null}
             {/* UVB/UVA — 오늘 최고 지점 고스트 캡(외곽선). */}
             {peakPct != null && peakPct > pct && (
-              <i className={styles.vPeakCap} style={{ bottom: `${peakPct}%`, borderColor: k.peakColor ?? k.color }} />
+              <i className={styles.vPeakCap} style={{ left: `${peakPct}%`, borderColor: k.peakColor ?? k.color }} />
             )}
           </>
         )}

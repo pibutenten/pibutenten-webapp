@@ -6,6 +6,15 @@
 
 ---
 
+## [2026-06-16] — 피부 날씨 상세 KPI 게이지 가로 바 전환 (C2)
+
+> 상세 상단 4지표 게이지를 세로 막대(96px)에서 가로 바(8px)로 전환. 시안 정합. `tsc` 0·`build` 0. (온도·여백·flat 일러스트는 후속.)
+
+### Changed
+- **가로 바 게이지**(`skin-weather.module.css`·`WeatherDetail.tsx`): `.vTrack` 세로(14×96)→가로(100%×8), `.vFill`/`.vPeakFill` 채움을 height→width, `.vPeakCap`/`.vTick` 마커를 세로선으로, `.vRange`(기온) 캡슐을 left/width 기반으로 전환. `vGauge()` 인라인 스타일도 width/left 기준으로 변경.
+
+---
+
 ## [2026-06-16] — Apple Client Secret 자동 갱신 (GitHub Actions)
 
 > Apple 로그인 Client Secret(JWT)은 Apple 정책상 6개월 만료라 방치 시 Apple 로그인만 끊긴다. GitHub Actions 로 매월 자동 재발급해 영구 무인 운영. 비밀은 GitHub repo Secrets 에만 보관(운영 서버 미노출). 코드검수 [치명] 0.

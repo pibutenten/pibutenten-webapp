@@ -384,16 +384,17 @@
 
 /* ── 세로 막대 게이지: 아래(0)에서 위로 채움 ── */
 .vGauge {
-  display: flex;
-  justify-content: center;
-  margin-top: 6px;
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 0 2px;
 }
 .vTrack {
   display: block;
   position: relative;
-  width: 14px;
-  height: 96px;
-  border-radius: 7px;
+  width: 100%;
+  height: 8px;
+  border-radius: 5px;
   background: #e7ecf0;
   overflow: hidden;
 }
@@ -401,52 +402,52 @@
 .vFill {
   position: absolute;
   left: 0;
-  bottom: 0;
-  width: 100%;
-  border-radius: 7px;
-  transition: height 0.3s ease;
+  top: 0;
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.3s ease;
 }
 /* 오늘 최고까지 연한 채움(UVB/UVA) — 진한 현재 채움 뒤에 깔림. */
 .vPeakFill {
   position: absolute;
   left: 0;
-  bottom: 0;
-  width: 100%;
-  border-radius: 7px;
+  top: 0;
+  height: 100%;
+  border-radius: 5px;
   opacity: 0.28;
-  transition: height 0.3s ease;
+  transition: width 0.3s ease;
 }
-/* 오늘 최고 지점 고스트 캡(UVB/UVA) — 외곽선만 있는 가로 캡. */
+/* 오늘 최고 지점 고스트 캡(UVB/UVA) — 외곽선만 있는 세로 마커(가로 바 위). */
 .vPeakCap {
   position: absolute;
-  left: 50%;
-  width: 16px;
-  height: 4px;
+  top: 50%;
+  width: 4px;
+  height: 14px;
   border-radius: 2px;
   background: #fff;
   border: 1.5px solid;
-  transform: translate(-50%, 50%);
+  transform: translate(-50%, -50%);
   opacity: 0.9;
   z-index: 2;
-  transition: bottom 0.3s ease;
+  transition: left 0.3s ease;
 }
-/* 미세먼지 — seg 단계 구분선(가로). */
+/* 미세먼지 — seg 단계 구분선(세로, 가로 바 위). */
 .vTick {
   position: absolute;
-  left: 0;
-  width: 100%;
-  height: 1.5px;
+  top: 0;
+  height: 100%;
+  width: 1.5px;
   background: #fff;
-  transform: translateY(50%);
+  transform: translateX(-50%);
   z-index: 1;
 }
-/* 기온 — 최저~최고 범위 캡슐(막대 중간에 부유). */
+/* 기온 — 최저~최고 범위 캡슐(가로 바 중간에 부유). */
 .vRange {
   position: absolute;
-  left: 0;
-  width: 100%;
-  border-radius: 7px;
-  transition: bottom 0.3s ease, height 0.3s ease;
+  top: 0;
+  height: 100%;
+  border-radius: 5px;
+  transition: left 0.3s ease, width 0.3s ease;
 }
 
 /* 좁은 화면(≤360px) — 폰트·게이지 살짝 축소. */
