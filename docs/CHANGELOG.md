@@ -18,6 +18,9 @@
 ### Removed
 - 구 색 함수 `uvbColor`/`uvaColor`(연속 램프)·`SEV10`/`sevIdx`/`sev10Uv`/`sev10Pm`/`sev10Trans`(10단계) — `colorTop`/`colorWeek`로 대체(색 스케일 단일화). 죽은 변수 `pmFrac` 제거.
 
+### Fixed
+- **주간 박스 배경 회색 회귀**(`weather-logic.ts`): `uvRamp` 가 `rgb(r g b)` 를 반환해 주간 박스 배경 틴트 함수 `hexA`(#RRGGBB 만 처리, 그 외 회색 폴백)가 회색을 내보내던 문제 — `uvRamp` 를 `#RRGGBB` 반환으로 변경(위험도색 틴트 정상 복구).
+
 ---
 
 ## [2026-06-16] — 모바일 검색 흐름 통일(확정 검색어 vs 입력 초안 분리)

@@ -43,18 +43,19 @@ export function uvRamp(sev: number): string {
     [0.7, [0xf0, 0x86, 0x3c]], // #F0863C 경고(주황)
     [1.0, [0xe0, 0x45, 0x3b]], // #E0453B 악화(빨강)
   ];
+  // #RRGGBB 로 반환 — 주간 박스 배경 틴트(hexA)가 hex 만 받기 때문(rgb() 면 회색 폴백).
+  const hex2 = (n: number) => Math.round(n).toString(16).padStart(2, "0");
+  const toHex = (rgb: number[]) => `#${hex2(rgb[0])}${hex2(rgb[1])}${hex2(rgb[2])}`;
   const f = clamp(sev, 0, 1);
   for (let i = 1; i < stops.length; i++) {
     if (f <= stops[i][0]) {
       const a = stops[i - 1];
       const b = stops[i];
       const t = (f - a[0]) / (b[0] - a[0]);
-      const c = (k: number) => Math.round(a[1][k] + (b[1][k] - a[1][k]) * t);
-      return `rgb(${c(0)} ${c(1)} ${c(2)})`;
+      return toHex([0, 1, 2].map((k) => a[1][k] + (b[1][k] - a[1][k]) * t));
     }
   }
-  const last = stops[stops.length - 1][1];
-  return `rgb(${last[0]} ${last[1]} ${last[2]})`;
+  return toHex(stops[stops.length - 1][1]);
 }
 
 /** 심각도(0~1)를 steps 단계로 양자화해 그 구간 중앙 색 반환 — 상단 4지표=4단계, 주간=8단계. */
