@@ -112,10 +112,15 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
       navigator.geolocation.getCurrentPosition(
         (p) => {
           const { latitude, longitude } = p.coords;
-          // 실제 위치는 동 단위 지명으로 표시(역지오코딩). 실패해도 "내 위치"로 폴백.
+          // 날씨는 좌표만 있으면 되므로 즉시 fetch — 지명(역지오코딩)을 기다리지 않아 첫 표시 지연 단축.
+          run(latitude, longitude, "내 위치");
+          // 동 단위 지명은 병렬로 받아 도착 시 '이름만' 갱신(+캐시 이름 동기화). 실패하면 "내 위치" 유지.
           reverseGeocodeKo(latitude, longitude, ac.signal).then((name) => {
-            if (!mounted) return;
-            run(latitude, longitude, name || "내 위치");
+            if (!mounted || !name) return;
+            setSnap((prev) => (prev ? { ...prev, name } : prev));
+            const k = coordKey(latitude, longitude);
+            const c = readCache(k);
+            if (c) writeCache(k, { ...c, name });
           });
         },
         () => run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name),
