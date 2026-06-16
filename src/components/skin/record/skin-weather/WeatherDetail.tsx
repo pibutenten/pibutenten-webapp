@@ -11,12 +11,11 @@ import styles from "./skin-weather.module.css";
 import WeatherIllustration from "./WeatherIllustration";
 import {
   OVERLAYS,
-  PM_GRADE_COLOR,
-  PM_GRADE_LABEL,
   ampm,
   nowIndex,
-  uvaColor,
-  uvbColor,
+  sev10Pm,
+  sev10Trans,
+  sev10Uv,
   type WeatherHour,
   type WeatherKpi,
   type WeatherSnapshot,
@@ -42,12 +41,6 @@ export default function WeatherDetail({
   emph: string | null;
   onEmph: (k: string) => void;
 }) {
-  // 주간 — 클릭한 날을 활성화(강조). 디폴트는 오늘.
-  const [selDayIdx, setSelDayIdx] = useState(() => {
-    const i = snap.days.findIndex((d) => d.isToday);
-    return i >= 0 ? i : 0;
-  });
-
   return (
     <div className={styles.detail}>
       {/* 헤더(글상자) — 위치 + 기온 + 최저/최고/습도를 옆으로 펼쳐 한눈에. */}
@@ -104,8 +97,11 @@ export default function WeatherDetail({
         <p className={styles.tip}>{snap.tip}</p>
       </div>
 
+      {/* 핵심 4 KPI 세로 게이지만 — 기온·강수는 헤더/주간으로(게이지에서 제외). */}
       <div className={styles.kpis}>
-        {snap.kpis.map((k) => (
+        {snap.kpis
+          .filter((k) => k.key !== "temp" && k.key !== "precip")
+          .map((k) => (
           <button
             type="button"
             key={k.key}
@@ -149,35 +145,33 @@ export default function WeatherDetail({
       <div className={styles.secTitle}>주간 피부 날씨</div>
       <div className={styles.week}>
         {snap.days.map((d, i) => (
-          <button
-            type="button"
-            className={`${styles.wday} ${selDayIdx === i ? styles.wToday : ""}`}
-            key={i}
-            onClick={() => setSelDayIdx(i)}
-            aria-pressed={selDayIdx === i}
-          >
-            <div className={styles.wTop}>
-              <div className={styles.wDay}>
-                {d.label}
-                <small>{d.md}</small>
-              </div>
-              <div className={styles.wEmoji}>{d.emoji}</div>
-              <div className={styles.wRain}>{d.rainProb > 0 ? `💧${d.rainProb}%` : ""}</div>
-              <div className={styles.wTemp}>
-                <span className={styles.wLo}>{d.tMin}°</span>
-                <span className={styles.wRange}>
-                  <i style={{ left: `${d.rangeLeft.toFixed(0)}%`, width: `${Math.max(8, d.rangeWidth).toFixed(0)}%`, background: d.tColor }} />
+          <div className={`${styles.wkRow} ${d.isToday ? styles.wkToday : ""}`} key={i}>
+            {/* 좌측 — 큰 날짜 */}
+            <div className={styles.wkDate}>
+              <span className={styles.wkD}>{d.label}</span>
+              <span className={styles.wkMd}>{d.md}</span>
+            </div>
+            {/* 우측 — 2줄: (윗줄) 날씨·강수·온도 / (아랫줄) 정사각 4박스 */}
+            <div className={styles.wkBody}>
+              <div className={styles.wkLine1}>
+                <span className={styles.wkEmoji}>{d.emoji}</span>
+                {d.rainProb > 0 && <span className={styles.wkRain}>💧{d.rainProb}%</span>}
+                <span className={styles.wkTemp}>
+                  <span className={styles.wkLo}>{d.tMin}°</span>
+                  <span className={styles.wkRange}>
+                    <i style={{ left: `${d.rangeLeft.toFixed(0)}%`, width: `${Math.max(8, d.rangeWidth).toFixed(0)}%`, background: d.tColor }} />
+                  </span>
+                  <span className={styles.wkHi}>{d.tMax}°</span>
                 </span>
-                <span className={styles.wHi}>{d.tMax}°</span>
+              </div>
+              <div className={styles.wkBoxes}>
+                {wkBox("UVB", String(d.uvb), sev10Uv(d.uvb))}
+                {wkBox("UVA", String(d.uva), sev10Uv(d.uva))}
+                {wkBox("미세먼지", String(d.pm25), sev10Pm(d.pm25))}
+                {wkBox("구름투과율", d.trans == null ? "–" : `${Math.round(d.trans * 100)}`, d.trans == null ? "#9aa5b1" : sev10Trans(d.trans))}
               </div>
             </div>
-            <div className={styles.wSkin}>
-              {skBar("UVB 홍반", d.uvb / 11, uvbColor(d.uvb), String(d.uvb))}
-              {skBar("UVA 노화", d.uva / 11, uvaColor(d.uva), String(d.uva))}
-              {skBar("미세먼지", d.pmGrade / 3, PM_GRADE_COLOR[d.pmGrade], PM_GRADE_LABEL[d.pmGrade])}
-              {skBar("구름투과율", d.trans == null ? 0 : d.trans, "#2E86C8", d.trans == null ? "–" : `${Math.round(d.trans * 100)}%`)}
-            </div>
-          </button>
+          </div>
         ))}
       </div>
       <p className={styles.note}>{snap.weekNote}</p>
@@ -232,18 +226,27 @@ function vGauge(k: WeatherKpi) {
   );
 }
 
-function skBar(label: string, frac: number, color: string, val: string) {
+/** #RRGGBB → rgba(연한 칸 배경용). */
+function hexA(hex: string, a: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+/** 주간 정사각 박스 — 큰 숫자 + 라벨. 칸 배경(연)·숫자(진)를 위험도 10단계 색으로. */
+function wkBox(label: string, num: string, color: string) {
   return (
-    <div className={styles.sk} key={label}>
-      <div className={styles.skH}>
-        <span className={styles.skN}>{label}</span>
-        <span className={styles.skV} style={{ color }}>
-          {val}
-        </span>
-      </div>
-      <div className={styles.skBar}>
-        <i style={{ width: `${Math.round(clampFrac(frac) * 100)}%`, background: color }} />
-      </div>
+    <div
+      className={styles.wkBox}
+      key={label}
+      style={{ background: hexA(color, 0.13), borderColor: hexA(color, 0.26) }}
+    >
+      <span className={styles.wkBoxN} style={{ color }}>
+        {num}
+      </span>
+      <span className={styles.wkBoxL}>{label}</span>
     </div>
   );
 }

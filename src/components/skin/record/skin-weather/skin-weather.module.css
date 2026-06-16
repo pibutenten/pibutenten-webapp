@@ -673,72 +673,83 @@
   flex-direction: column;
   gap: 10px;
 }
-.wday {
-  display: block;
-  width: 100%;
-  text-align: left;
-  font-family: inherit;
-  cursor: pointer;
+/* 한 행: 좌측 큰 날짜 + 우측 2줄(날씨/온도 + 정사각 4박스). */
+.wkRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   background: var(--card, #fff);
   border: 1px solid var(--line, #edf2f5);
   border-radius: 16px;
-  padding: 13px 14px;
+  padding: 12px 14px;
   box-shadow: 0 3px 12px rgba(27, 39, 51, 0.045);
-  transition: border-color 0.12s ease, background 0.12s ease;
 }
-.wday.wToday {
-  cursor: default;
-}
-.wToday {
+.wkToday {
   background: linear-gradient(135deg, #eaf7ff, #f4fbff);
   border-color: #cdeafb;
 }
-.wTop {
-  display: grid;
-  grid-template-columns: 54px 28px 1fr auto;
+.wkDate {
+  flex: none;
+  width: 46px;
+  text-align: center;
+}
+.wkD {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink-900, #1e2a35);
+  line-height: 1.1;
+}
+.wkMd {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-500, #7b8794);
+  margin-top: 2px;
+}
+.wkBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.wkLine1 {
+  display: flex;
   align-items: center;
   gap: 10px;
 }
-.wDay {
-  font-weight: 800;
-  font-size: 15px;
-  color: var(--ink-900, #1e2a35);
+.wkEmoji {
+  font-size: 19px;
+  flex: none;
 }
-.wDay small {
-  display: block;
-  font-weight: 500;
-  font-size: 11px;
-  color: var(--ink-500, #7b8794);
-  margin-top: 1px;
-}
-.wEmoji {
-  font-size: 20px;
-  text-align: center;
-}
-.wRain {
+.wkRain {
   font-size: 12px;
   color: #5ba7d9;
   font-weight: 700;
+  flex: none;
 }
-.wTemp {
+.wkTemp {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 128px;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
 }
-.wLo {
-  font-size: 13px;
+.wkLo {
+  font-size: 12.5px;
   color: var(--ink-500, #7b8794);
   width: 26px;
   text-align: right;
+  flex: none;
 }
-.wHi {
-  font-size: 13px;
+.wkHi {
+  font-size: 12.5px;
   color: var(--ink-900, #1e2a35);
   font-weight: 800;
   width: 26px;
+  flex: none;
 }
-.wRange {
+.wkRange {
   flex: 1;
   height: 6px;
   border-radius: 3px;
@@ -746,45 +757,39 @@
   position: relative;
   overflow: hidden;
 }
-.wRange i {
+.wkRange i {
   position: absolute;
   height: 100%;
   border-radius: 3px;
-  /* 색은 그날 기온(tColor)으로 인라인 지정 — 무지개 그라데이션 대신 직관적 단색. */
-  background: var(--ink-300, #6b747e);
 }
-.wSkin {
+.wkBoxes {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 9px;
-  margin-top: 12px;
+  gap: 7px;
 }
-.sk .skH {
+.wkBox {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 5px;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  padding: 4px 2px;
 }
-.skN {
-  font-size: 10.5px;
-  color: var(--ink-500, #7b8794);
-  font-weight: 600;
-}
-.skV {
-  font-size: 11.5px;
+.wkBoxN {
+  font-size: 22px;
   font-weight: 800;
+  line-height: 1;
 }
-.skBar {
-  height: 5px;
-  border-radius: 3px;
-  background: #e7ecf0;
-  margin-top: 5px;
+.wkBoxL {
+  font-size: 10px;
+  color: var(--ink-500, #7b8794);
+  margin-top: 4px;
+  max-width: 100%;
+  white-space: nowrap;
   overflow: hidden;
-}
-.skBar i {
-  display: block;
-  height: 100%;
-  border-radius: 3px;
+  text-overflow: ellipsis;
 }
 .note {
   font-size: 12px;

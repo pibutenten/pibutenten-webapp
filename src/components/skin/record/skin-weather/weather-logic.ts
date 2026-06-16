@@ -404,8 +404,20 @@ export type WeatherDay = {
   uvb: number;
   uva: number;
   pmGrade: 0 | 1 | 2 | 3;
+  pm25: number; // 일별 최고 PM2.5(㎍) — 주간 박스 숫자용
   trans: number | null; // 평균 투과율 0~1
 };
+
+/** 위험도 10단계 색(안전 teal → 위험 red). 주간 정사각 박스 칸색·숫자색 공용. */
+export const SEV10 = [
+  "#0F9B6B", "#2E9E55", "#5AA23F", "#7E981C", "#977F0E",
+  "#B06A0C", "#C2541A", "#D04222", "#D93628", "#DE2F27",
+] as const;
+const sevIdx = (i: number) => Math.max(0, Math.min(9, Math.round(i)));
+/** 값 → 10단계 색. UVB/UVA(0~11), PM2.5(0~75 기준), 구름투과(0~1). */
+export const sev10Uv = (v: number) => SEV10[sevIdx((v / 11) * 9)];
+export const sev10Pm = (pm25: number) => SEV10[sevIdx((pm25 / 75) * 9)];
+export const sev10Trans = (t01: number) => SEV10[sevIdx(t01 * 9)];
 export type WeatherSnapshot = {
   name: string;
   temp: number;
@@ -565,6 +577,7 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
   const aUV: Record<string, number> = {};
   const aUVA: Record<string, number> = {};
   const aPM: Record<string, number> = {};
+  const aPM25: Record<string, number> = {}; // 일별 최고 PM2.5(㎍) — 주간 박스 숫자용
   const aTRs: Record<string, number> = {};
   const aTRn: Record<string, number> = {};
   const aHasUV: Record<string, boolean> = {};
@@ -576,6 +589,7 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
     if (up && clr > 0.5) aHasUV[d] = true;
     aUV[d] = Math.max(aUV[d] ?? 0, uv || 0);
     if (up) aUVA[d] = Math.max(aUVA[d] ?? 0, uvaFromSW(r.sw, r.uv, r.uvClear));
+    aPM25[d] = Math.max(aPM25[d] ?? 0, r.pm25 || 0);
     aPM[d] = Math.max(aPM[d] ?? 0, clamp(Math.max((r.pm25 || 0) / 75, (r.pm10 || 0) / 150), 0, 1.25));
     if (up && clr > 0.5) {
       aTRs[d] = (aTRs[d] || 0) + (1 - (uv || 0) / clr);
@@ -618,6 +632,7 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
       uvb: Math.round(aUV[d] ?? 0),
       uva: Math.round(aUVA[d] ?? 0),
       pmGrade: pmGd,
+      pm25: Math.round(aPM25[d] ?? 0),
       trans: aTRn[d] ? 1 - aTRs[d] / aTRn[d] : null,
     });
   }
