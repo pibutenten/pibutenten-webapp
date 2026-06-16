@@ -6,6 +6,15 @@
 
 ---
 
+## [2026-06-17] — 소셜 로그인 버튼 색 복구 (AppShell reset 회귀 fix)
+
+> 로그인 페이지가 AppShell(`.root`)로 승격(2026-06-15)되면서 `app.module.css` 의 `:where(.root) button { background:none; color:inherit }`(unlayered)가 Tailwind 색 유틸(@layer utilities)을 이겨 **4개 소셜 버튼 색이 전부 사라진** 회귀. Apple/네이버는 흰 아이콘이 흰 버튼에 묻혀 비가시. 전역 reset 을 건드리지 않고 소셜 버튼만 inline style 로 색 강제(국소 수정). `tsc` 0·`build` 0·코드검수 [치명] 0.
+
+### Fixed
+- **소셜 버튼 브랜드 색 inline 강제**(`lib/auth/oauth-providers.ts`·`components/SocialLoginButtons.tsx`): provider 메타의 `bgClass/textClass/borderClass`(Tailwind 클래스) → `bgColor/fgColor/borderColor`(hex)로 교체, 버튼에 `style={{ backgroundColor, color, border }}` 적용. inline style 은 unlayered reset 보다 우선이라 색 확실 적용. opacity/hover 등은 className 유지(reset 비대상).
+
+---
+
 ## [2026-06-16] — 피부 날씨 상세 KPI 게이지 가로 바 전환 (C2)
 
 > 상세 상단 4지표 게이지를 세로 막대(96px)에서 가로 바(8px)로 전환. 시안 정합. `tsc` 0·`build` 0. (온도·여백·flat 일러스트는 후속.)

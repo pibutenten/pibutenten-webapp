@@ -75,11 +75,15 @@ export default function SocialLoginButtons({ next }: Props) {
             type="button"
             onClick={() => handleClick(p)}
             disabled={isPending}
+            // 색은 inline style 로 강제 — AppShell(.root) 의 unlayered button reset
+            // (`background:none; color:inherit`)이 Tailwind 색 유틸을 이기기 때문(2026-06-16).
+            style={{
+              backgroundColor: p.bgColor,
+              color: p.fgColor,
+              border: p.borderColor ? `1px solid ${p.borderColor}` : "none",
+            }}
             className={[
               "flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold transition-opacity",
-              p.bgClass,
-              p.textClass,
-              p.borderClass || "",
               isPending ? "opacity-60 cursor-wait" : "hover:opacity-90",
               isDisabled ? "opacity-70" : "",
             ].join(" ")}
