@@ -47,6 +47,7 @@ const PROVIDER_LABEL: Record<string, string> = {
   google: "구글",
   kakao: "카카오",
   naver: "네이버",
+  apple: "Apple",
   email: "이메일",
 };
 

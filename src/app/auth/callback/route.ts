@@ -233,8 +233,14 @@ export async function GET(request: NextRequest) {
     // contact_email 자동 채우기 (ADR 0003) — dedup 매칭 정확도 향상.
     // 비어 있을 때만 user.email (= auth.users.email, OAuth provider 이메일) 사용.
     // 사용자가 온보딩에서 직접 수정한 값은 보존.
+    //   ⚠ Apple "이메일 가리기" relay 주소(@privaterelay.appleid.com)는 사용자마다
+    //     다르고 실제 연락처가 아니라 dedup(ADR 0003)을 무력화하므로 저장하지 않는다.
+    //     (사용자가 온보딩에서 실제 이메일을 직접 입력하면 그 값으로 dedup 동작)
     if (!profile.contact_email && typeof user.email === "string" && user.email.trim()) {
-      updates.contact_email = user.email.trim().toLowerCase();
+      const email = user.email.trim().toLowerCase();
+      if (!email.endsWith("@privaterelay.appleid.com")) {
+        updates.contact_email = email;
+      }
     }
 
     if (Object.keys(updates).length > 0) {

@@ -6,6 +6,24 @@
 
 ---
 
+## [2026-06-16] — Apple 소셜 로그인 추가 (App Store 4.8 대비)
+
+> 기존 Google/Kakao/Naver 에 Apple 로그인 추가. App Store 심사 가이드라인 4.8(타사 소셜 로그인 제공 시 Apple 로그인 필수) 대비. Supabase native(`signInWithOAuth`) 흐름을 그대로 공유해 코드 변경 최소. Apple 특유 이슈(이메일 가리기 relay 주소·라벨 누락) 동반 수정. `tsc` 0·`build` 0·코드검수 [치명] 0.
+
+### Added
+- **Apple OAuth provider**(`lib/auth/oauth-providers.ts`): `OAUTH_PROVIDERS` 에 apple 추가(검은 버튼/흰 로고, "Apple로 시작하기"). `supabaseProvider="apple"` 로 Google/Kakao 와 동일한 PKCE 흐름 — `SocialLoginButtons`/`auth/callback` 은 데이터 기반 자동 처리라 무변경. Services ID `kr.pibutenten.web`(web) + `kr.pibutenten.app`(향후 iOS native) 둘 다 Supabase Authorized Client IDs 등록.
+- Supabase Apple provider 활성화(Management API): `external_apple_enabled=true` + client secret(JWT, ES256) 등록. **Secret 만료 2026-12-13** — 6개월 주기 갱신 필요(자동 갱신 cron 후속).
+
+### Fixed
+- **Apple "이메일 가리기" relay 가드**(`auth/callback/route.ts`): `@privaterelay.appleid.com` relay 주소는 사용자마다 고유하고 실제 연락처가 아니라 dedup(ADR 0003)을 무력화 → `contact_email` 자동저장에서 제외. 실제 이메일은 온보딩 입력값으로 채움.
+- **PROVIDER_LABEL apple 누락**(`login/conflict/page.tsx`·`onboarding/OnboardingClient.tsx`): 충돌 안내·중복가입 다이얼로그에서 'apple' 원문이 노출되던 것 → "Apple" 한글 라벨 매핑 추가.
+
+### 보류 (별도 안건)
+- Apple 가입자는 프로필 사진 미제공 → 온보딩에서 사진 직접 업로드 필요(가입 차단 아님). 기본 캐릭터 자동부여는 후속.
+- 네이티브 앱(iOS) 출시 시 Apple 공식 Sign in with Apple 버튼(SDK) 적용.
+
+---
+
 ## [2026-06-16] — 피부 날씨 색 스케일 통일 + 라벨/강수확률 정리 (C1)
 
 > 피부 날씨 지표 색을 "좋음 초록 → 주황 → 악화 빨강" 값 기반 단일 스케일로 통일(상단 4단계·주간 8단계). "UVB 홍반"→"UVB 태닝" 전면 변경. 강수확률 표시 제거. `tsc` 0·`build` 0·코드검수 [치명] 0. (가로바 KPI·온도 새 버전·flat 일러스트·여백 통일은 C2 별도.)
