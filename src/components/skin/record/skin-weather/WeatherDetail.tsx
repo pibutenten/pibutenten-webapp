@@ -12,10 +12,11 @@ import WeatherIllustration from "./WeatherIllustration";
 import {
   OVERLAYS,
   ampm,
+  colorWeek,
   nowIndex,
-  sev10Pm,
-  sev10Trans,
-  sev10Uv,
+  sevPm25,
+  sevUva,
+  sevUvb,
   type WeatherHour,
   type WeatherKpi,
   type WeatherSnapshot,
@@ -97,10 +98,10 @@ export default function WeatherDetail({
         <p className={styles.tip}>{snap.tip}</p>
       </div>
 
-      {/* 핵심 4 KPI 세로 게이지만 — 기온·강수는 헤더/주간으로(게이지에서 제외). */}
+      {/* 핵심 4 KPI 세로 게이지만 — 기온은 헤더로(게이지에서 제외). 강수확률은 표시 안 함. */}
       <div className={styles.kpis}>
         {snap.kpis
-          .filter((k) => k.key !== "temp" && k.key !== "precip")
+          .filter((k) => k.key !== "temp")
           .map((k) => (
           <button
             type="button"
@@ -155,7 +156,7 @@ export default function WeatherDetail({
             <div className={styles.wkBody}>
               <div className={styles.wkLine1}>
                 <span className={styles.wkEmoji}>{d.emoji}</span>
-                {d.rainProb > 0 && <span className={styles.wkRain}>💧{d.rainProb}%</span>}
+                {/* 강수확률(💧) 표시 제거 — 사용자 결정 2026-06-16. */}
                 <span className={styles.wkTemp}>
                   <span className={styles.wkLo}>{d.tMin}°</span>
                   <span className={styles.wkRange}>
@@ -165,9 +166,9 @@ export default function WeatherDetail({
                 </span>
               </div>
               <div className={styles.wkBoxes}>
-                {wkBox("UVB 홍반", String(d.uvb ?? 0), sev10Uv(d.uvb ?? 0))}
-                {wkBox("UVA 노화", String(d.uva ?? 0), sev10Uv(d.uva ?? 0))}
-                {wkBox("미세먼지", String(d.pm25 ?? 0), sev10Pm(d.pm25 ?? 0))}
+                {wkBox("UVB 태닝", String(d.uvb ?? 0), colorWeek(sevUvb(d.uvb ?? 0)))}
+                {wkBox("UVA 노화", String(d.uva ?? 0), colorWeek(sevUva(d.uva ?? 0)))}
+                {wkBox("미세먼지", String(d.pm25 ?? 0), colorWeek(sevPm25(d.pm25 ?? 0)))}
                 {/* 구름투과율은 위험도(빨강)가 아니라 정보값 → 파란색 고정. */}
                 {wkBox("구름투과율", d.trans == null ? "–" : `${Math.round(d.trans * 100)}`, "#2E86C8")}
               </div>

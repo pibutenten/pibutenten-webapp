@@ -13,9 +13,10 @@ import styles from "./skin-weather.module.css";
 import { useWeather } from "./useWeather";
 import WeatherIllustration from "./WeatherIllustration";
 
-// 주연(핵심 4) — UVB·UVA·미세먼지·구름투과율. 조연(배경) — 기온·강수.
+// 주연(핵심 4) — UVB·UVA·미세먼지·구름투과율. 조연(배경) — 기온.
+//   강수확률은 표시 제외(사용자 결정 2026-06-16) — BG 에서 제거.
 const CORE_KEYS = ["uvb", "uva", "pm", "block"];
-const BG_KEYS = ["temp", "precip"];
+const BG_KEYS = ["temp"];
 
 export default function SkinWeatherCard() {
   const { snap, err } = useWeather();

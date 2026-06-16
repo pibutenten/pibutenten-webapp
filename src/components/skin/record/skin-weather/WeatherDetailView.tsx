@@ -17,7 +17,7 @@ import WeatherDetail from "./WeatherDetail";
 /** 지표별 설명 — 피부 관점, 행동 권고 중심(의료법 §56 톤: 진단·치료·효과보장 표현 배제). */
 const KPI_INFO: Record<string, { label: string; color: string; text: string }> = {
   tanning: {
-    label: "UVB 홍반",
+    label: "UVB 태닝",
     color: "#E0382E",
     text: "짧은 노출에도 피부를 붉게 만들고 화상과 기미를 부르는 자외선이에요. 국제표준 자외선 지수로 표시하며 정오 전후 두세 시간에 가장 강해요. 지수가 높은 날에는 그늘과 모자, 자외선 차단제로 직접 닿는 햇빛을 줄여 주세요.",
   },
