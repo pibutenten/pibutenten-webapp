@@ -11,6 +11,7 @@
  */
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import styles from "../beta-skin.module.css";
 import { recordBadge } from "@/lib/diary-status";
 import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
@@ -30,6 +31,55 @@ export type RecEntry = {
   doctor: string;
   memo?: string;
 };
+
+/* ---------- 내가 쓴 후기 1건(공개 review 카드, 뷰 전용) ----------
+ * notes/page.tsx 가 cards(category='review', status='published', author_id=active)를
+ * procedure_reviews(procedure_ko) + author.handle 와 조인해 어댑트한다.
+ *
+ * 현재 diaries(시술 노트, 비공개) ↔ review 카드(공개)는 DB 상 직접 FK 가 없으므로,
+ * 모든 후기는 "독립 후기"로 취급해 RecordNotesView 의 맨 밑 "내 후기" 섹션에 모은다.
+ * (향후 노트↔후기 연결이 생기면 RecEntry 에 linkedReviews?: MyReview[] 를 추가하고
+ *  각 노트 entry 아래에서 ReviewBox 로 렌더한다 — 아래 각 뷰의 "확장 지점" 주석 참고.) */
+export type MyReview = {
+  id: string;
+  procName: string; // procedure_reviews.procedure_ko (없으면 카드 제목 폴백)
+  body: string; // cards.body (한줄후기 본문)
+  href: string; // 후기 상세(/{handle}/{shortcode}), 없으면 ""
+  createdAt: string; // "YYYY-MM-DD" (작성일 요약 표시)
+};
+
+/* 내 후기 1건을 '닫힌 글상자'로 렌더 — 목록 뷰(recList*) 토큰 재사용.
+ *   기본 닫힘(요약: 작성일 · 시술명). 클릭 시 본문(한줄후기) 펼침.
+ *   상세 링크(href)가 있으면 펼친 본문 아래 '후기 보러 가기' 링크 노출.
+ * 독립 후기 섹션(RecordNotesView)과 향후 노트별 연결(linkedReviews) 자리에서 공용으로 쓰도록 export. */
+export function ReviewBox({ review }: { review: MyReview }) {
+  const [open, setOpen] = useState(false); // SSR 안전 — 초기 닫힘
+  // "YYYY-MM-DD" → "M.D" 요약. created_at 누락(빈 문자열) 시 날짜 칸 비움(NaN 방지).
+  const [, m, d] = review.createdAt.split("-");
+  const dateLabel = m && d ? `${Number(m)}.${Number(d)}` : "";
+  return (
+    <div className={`${styles.card} ${styles.recListCard}`}>
+      <button type="button" className={styles.recListBtn} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        <span className={styles.recListDate}>{dateLabel}</span>
+        <span className={styles.recListInfo}>
+          <span className={styles.recListName}>{review.procName}</span>
+          <span className={styles.recListPlace}>내가 쓴 후기</span>
+        </span>
+        <span className={styles.recListChev}>{open ? "▴" : "▾"}</span>
+      </button>
+      {open && (
+        <div className={styles.recListBody}>
+          {review.body && <p className={styles.recMemo}>{review.body}</p>}
+          {review.href && (
+            <Link className={styles.recListLine} href={review.href} style={{ marginTop: 10, display: "inline-block" }}>
+              <b>후기 보러 가기 ›</b>
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const DOT_TONES = [styles.dotPink, styles.dotBlue, styles.dotGreen, styles.dotPurple];
 
@@ -74,7 +124,22 @@ function Badge({ entry }: { entry: RecEntry }) {
   );
 }
 
-/* ---------- 타임라인 뷰 — 좌측 날짜 원 + 세로 연결선 ---------- */
+/* 펼침 상태 토글 훅 — 타임라인·달력·목록 3뷰 공통. 초기 빈 Set(모두 닫힘) → SSR 안전. */
+function useExpand() {
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setOpen((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  return { open, toggle };
+}
+
+/* ---------- 타임라인 뷰 — 좌측 날짜 원 + 세로 연결선 ----------
+ * 각 노트는 '닫힌 글상자'(요약: 시술명 · 병원/의사 · 회복 배지)가 기본.
+ * 카드 클릭 시 메모를 펼치고 다시 클릭하면 닫는다(목록 뷰와 동일 동작). */
 function TimelineView({ entries }: { entries: RecEntry[] }) {
   // 연도 내림차순 → 같은 해 최신 날짜순. 연도 바뀌면 라벨.
   const sorted = [...entries].sort((a, b) => b.year - a.year || b.month - a.month || b.day - a.day);
@@ -87,6 +152,7 @@ function TimelineView({ entries }: { entries: RecEntry[] }) {
     }
     rows.push({ kind: "rec", e });
   }
+  const { open, toggle } = useExpand();
   return (
     <div className={styles.recTl}>
       {rows.map((row) =>
@@ -95,28 +161,55 @@ function TimelineView({ entries }: { entries: RecEntry[] }) {
             {row.year}
           </div>
         ) : (
-          <div className={styles.recTlItem} key={row.e.id}>
-            <span className={styles.recTlDot}>
-              <span className={styles.recTlDotMonth}>{row.e.month}월</span>
-              <span className={styles.recTlDotDay}>{row.e.day}</span>
-            </span>
-            <div className={`${styles.card} ${styles.recTlCard}`}>
-              <div className={styles.recTlHead}>
-                <h3 className={styles.recTlName}>{row.e.procs.join(" · ")}</h3>
-                <Badge entry={row.e} />
+          (() => {
+            const e = row.e;
+            const isOpen = open.has(e.id);
+            const hasDetail = !!e.memo;
+            return (
+              <div className={styles.recTlItem} key={e.id}>
+                <span className={styles.recTlDot}>
+                  <span className={styles.recTlDotMonth}>{e.month}월</span>
+                  <span className={styles.recTlDotDay}>{e.day}</span>
+                </span>
+                <div
+                  className={`${styles.card} ${styles.recTlCard}`}
+                  role={hasDetail ? "button" : undefined}
+                  tabIndex={hasDetail ? 0 : undefined}
+                  aria-expanded={hasDetail ? isOpen : undefined}
+                  onClick={hasDetail ? () => toggle(e.id) : undefined}
+                  onKeyDown={
+                    hasDetail
+                      ? (ev) => {
+                          if (ev.key === "Enter" || ev.key === " ") {
+                            ev.preventDefault();
+                            toggle(e.id);
+                          }
+                        }
+                      : undefined
+                  }
+                  style={hasDetail ? { cursor: "pointer" } : undefined}
+                >
+                  <div className={styles.recTlHead}>
+                    <h3 className={styles.recTlName}>{e.procs.join(" · ")}</h3>
+                    <Badge entry={e} />
+                    {hasDetail && <span className={styles.recListChev}>{isOpen ? "▴" : "▾"}</span>}
+                  </div>
+                  <div className={styles.recMeta}>
+                    {e.place}
+                    {e.doctor && (
+                      <>
+                        <span className={styles.sep}>·</span>
+                        {e.doctor}
+                      </>
+                    )}
+                  </div>
+                  {isOpen && e.memo && <p className={styles.recMemo}>{e.memo}</p>}
+                  {/* 확장 지점: 노트↔후기 연결이 생기면 여기(펼친 상태)에
+                      e.linkedReviews?.map((r) => <ReviewBox key={r.id} review={r} />) 를 렌더. */}
+                </div>
               </div>
-              <div className={styles.recMeta}>
-                {row.e.place}
-                {row.e.doctor && (
-                  <>
-                    <span className={styles.sep}>·</span>
-                    {row.e.doctor}
-                  </>
-                )}
-              </div>
-              {row.e.memo && <p className={styles.recMemo}>{row.e.memo}</p>}
-            </div>
-          </div>
+            );
+          })()
         ),
       )}
     </div>
@@ -148,6 +241,8 @@ function CalendarView({ entries }: { entries: RecEntry[] }) {
   const [selMonth, setSelMonth] = useState<number | null>(null);
   const sel = selMonth ?? defaultMonth;
   const selItems = sel ? byMonth.get(sel) ?? [] : [];
+
+  const { open, toggle } = useExpand(); // 선택월 상세 row 별 메모 펼침(기본 닫힘)
 
   const moveYear = (delta: number) => {
     const ny = year + delta;
@@ -205,15 +300,41 @@ function CalendarView({ entries }: { entries: RecEntry[] }) {
               {sel}월 · 기록 {selItems.length}건
             </p>
             <div className={styles.recCalDetailList}>
-              {selItems.map((e) => (
-                <div className={styles.recCalRow} key={e.id}>
-                  <span className={styles.recCalRowDate}>
-                    {e.month}.{e.day}
-                  </span>
-                  <span className={styles.recCalRowName}>{e.procs.join(" · ")}</span>
-                  <Badge entry={e} />
-                </div>
-              ))}
+              {selItems.map((e) => {
+                const isOpen = open.has(e.id);
+                const hasDetail = !!e.memo;
+                return (
+                  <div key={e.id}>
+                    <div
+                      className={styles.recCalRow}
+                      role={hasDetail ? "button" : undefined}
+                      tabIndex={hasDetail ? 0 : undefined}
+                      aria-expanded={hasDetail ? isOpen : undefined}
+                      onClick={hasDetail ? () => toggle(e.id) : undefined}
+                      onKeyDown={
+                        hasDetail
+                          ? (ev) => {
+                              if (ev.key === "Enter" || ev.key === " ") {
+                                ev.preventDefault();
+                                toggle(e.id);
+                              }
+                            }
+                          : undefined
+                      }
+                      style={hasDetail ? { cursor: "pointer" } : undefined}
+                    >
+                      <span className={styles.recCalRowDate}>
+                        {e.month}.{e.day}
+                      </span>
+                      <span className={styles.recCalRowName}>{e.procs.join(" · ")}</span>
+                      <Badge entry={e} />
+                      {hasDetail && <span className={styles.recListChev}>{isOpen ? "▴" : "▾"}</span>}
+                    </div>
+                    {isOpen && e.memo && <p className={styles.recMemo}>{e.memo}</p>}
+                    {/* 확장 지점: 노트↔후기 연결 시 여기(펼친 상태)에 e.linkedReviews 를 ReviewBox 로 렌더. */}
+                  </div>
+                );
+              })}
             </div>
           </>
         ) : (
@@ -236,14 +357,7 @@ function ListView({ entries }: { entries: RecEntry[] }) {
         items: items.sort((a, b) => b.month - a.month || b.day - a.day),
       }));
   }, [entries]);
-  const [open, setOpen] = useState<Set<string>>(new Set());
-  const toggle = (id: string) =>
-    setOpen((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
+  const { open, toggle } = useExpand();
   const thisYear = new Date().getFullYear();
 
   return (
@@ -291,6 +405,7 @@ function ListView({ entries }: { entries: RecEntry[] }) {
                           </>
                         )}
                       </div>
+                      {/* 확장 지점: 노트↔후기 연결 시 여기(펼친 상태)에 e.linkedReviews 를 ReviewBox 로 렌더. */}
                     </div>
                   )}
                 </div>

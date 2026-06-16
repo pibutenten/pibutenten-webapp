@@ -18,7 +18,8 @@
 - **하단 5탭 교체**: 투데이·내 노트·피드·쇼핑·마이. `BetaSkinShell`(승격 라우트)·`BetaNav`(미승격) 양쪽 + 데스크탑 GNB 동시 반영.
 - **라우트 이전(리다이렉트 없음)**: `/record`→`/today`, `/record/notes`→`/notes`, `/record/[id]`→`/notes/[id]`, `/record/weather`→`/weather`. `GlobalChrome`(승격목록·prefix·예약어)·`robots.ts`·내부 링크(SkinWeatherCard·DiaryDetailView·WeatherDetailView·SkinDiaryMockup·WriteTabs·RecordTab) 동기화.
 - **/today(RecordView 재구성)**: 날씨 요약 → 인사 히어로(우상단 '자세히 ›' = 최근 노트 상세 + 히어로 내 KPI 4종 박스 + 액션 3) → 관심 키워드 새 글 → 인기글. KPI 순서 **내 노트·내 후기·내 글·내 댓글**(날씨 KPI 박스 스타일). 기존 KPI "내 글에 달린 댓글"(받은 댓글, myCardIds 추적) → **"내가 쓴 댓글"**(comments.author_id=active·status=visible)로 교체. 데스크탑 사이드바 = 글쓰기 3박스(노트 작성하기/후기 작성하기/글 올리기).
-- **/notes(RecordNotesView)**: 1차 탭 승격(뒤로가기 제거) + 제목 + KPI 3종(받은 시술=diary_procedures 항목 총합·내가 쓴 노트·내가 쓴 후기) + 3토글(타임라인/달력/목록, 목록 뷰 개별 접기/펼치기). 비면 "이렇게 기록돼요" 예시.
+- **/notes(RecordNotesView)**: 1차 탭 승격(뒤로가기 제거) + 제목 + KPI 3종(받은 시술=diary_procedures 항목 총합·내가 쓴 노트·내가 쓴 후기) + 3토글(타임라인/달력/목록). 비면 "이렇게 기록돼요" 예시.
+  - 개별 기록 **닫힌 글상자 기본**(3토글 전부 `useExpand` 공통 훅, 클릭/Enter·Space 로 메모 펼침). 노트 목록 아래 **"내 후기" 독립 섹션**(active 명함 published review 카드를 닫힌 `ReviewBox` 로 나열, 펼치면 한줄후기 + 상세 링크). 노트↔후기 직접 연결은 DB FK 부재로 향후 작업 — `RecEntry.linkedReviews` 확장 지점 주석 마련(타임라인/달력/목록 3곳).
 - **/weather**: '오늘의 피부 날씨란?' 안내 카드를 데스크탑 우측 사이드바 / 모바일 본문 아래(`sidebar` prop). 주간 KPI 박스 간격 7→10px.
 
 ---

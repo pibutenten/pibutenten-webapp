@@ -14,7 +14,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
-import RecordNotesPanel, { toRecEntries } from "./RecordNotesPanel";
+import RecordNotesPanel, { ReviewBox, toRecEntries, type MyReview } from "./RecordNotesPanel";
 import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
 
 /* "이렇게 기록돼요" 빈 상태용 샘플 노트(더미) — 실데이터 아님이 분명하도록 '예시' 배지와 함께 미리보기.
@@ -71,11 +71,16 @@ export default function RecordNotesView({
   procedureCount,
   noteCount,
   reviewsCount,
+  reviews = [],
 }: {
   summary: SummaryGroup[];
   procedureCount: number;
   noteCount: number;
   reviewsCount: number;
+  /* active 명함이 쓴 공개 후기(review) 카드. 현재 노트↔후기 DB 연결이 없어 전부 "독립 후기"로
+   * 취급, 노트 목록 아래 "내 후기" 섹션(맨 밑)에 닫힌 글상자로 나열한다.
+   * (향후 연결 시 RecEntry.linkedReviews 로 분배 — RecordNotesPanel 의 확장 지점 주석 참고.) */
+  reviews?: MyReview[];
 }) {
   const entries = useMemo(() => toRecEntries(summary), [summary]);
 
@@ -150,6 +155,23 @@ export default function RecordNotesView({
         </>
       ) : (
         <RecordNotesPanel entries={entries} />
+      )}
+
+      {/* "내 후기"(독립 후기) 섹션 — 노트 목록 아래(맨 밑).
+          현재는 노트↔후기 연결 데이터가 없어 active 명함이 쓴 모든 공개 후기를 여기 모은다.
+          각 후기는 닫힌 글상자(요약: 작성일 · 시술명) → 클릭 시 한줄후기 본문 펼침 + 상세 링크.
+          게스트·후기 0건이면 섹션 자체를 숨긴다(빈 안내 미표시). */}
+      {reviews.length > 0 && (
+        <section style={{ marginTop: 24 }}>
+          <div className={styles.recNotesHead}>
+            <h2 className={styles.recNotesTitle}>내 후기</h2>
+          </div>
+          <div className={styles.recListItems}>
+            {reviews.map((r) => (
+              <ReviewBox key={r.id} review={r} />
+            ))}
+          </div>
+        </section>
       )}
     </BetaSkinShell>
   );
