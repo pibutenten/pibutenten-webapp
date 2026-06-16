@@ -14,8 +14,11 @@ import {
   ampm,
   nowIndex,
   pmColor,
+  pmText,
   uvaColor,
+  uvaText,
   uvbColor,
+  uvbText,
   type WeatherHour,
   type WeatherKpi,
   type WeatherSnapshot,
@@ -109,21 +112,21 @@ export default function WeatherDetail({
             style={emph === k.key ? { borderColor: k.color } : undefined}
             onClick={() => onEmph(k.key)}
           >
-            <span className={styles.kpiBig} style={{ color: k.color }}>
+            <span className={styles.kpiBig} style={{ color: k.textColor }}>
               {k.value}
             </span>
             {vGauge(k)}
             <span className={styles.kpiN}>{k.label}</span>
             <span className={styles.kpiMeta}>
               {k.level && (
-                <span className={styles.kpiLv} style={{ color: k.color }}>
+                <span className={styles.kpiLv} style={{ color: k.textColor }}>
                   {k.level}
                 </span>
               )}
               {k.peak != null ? (
                 <span className={styles.kpiPeakWrap}>
                   최고{" "}
-                  <b className={styles.kpiPeakVal} style={{ color: k.peakColor ?? k.color }}>
+                  <b className={styles.kpiPeakVal} style={{ color: k.peakTextColor ?? k.textColor }}>
                     {k.peak}
                   </b>
                 </span>
@@ -165,11 +168,11 @@ export default function WeatherDetail({
                 </span>
               </div>
               <div className={styles.wkBoxes}>
-                {wkBox("UVB 태닝", String(d.uvb ?? 0), uvbColor(d.uvb ?? 0))}
-                {wkBox("UVA 노화", String(d.uva ?? 0), uvaColor(d.uva ?? 0))}
-                {wkBox("미세먼지", String(d.pm25 ?? 0), pmColor(d.pmGrade ?? 0))}
+                {wkBox("UVB 태닝", String(d.uvb ?? 0), uvbColor(d.uvb ?? 0), uvbText(d.uvb ?? 0))}
+                {wkBox("UVA 노화", String(d.uva ?? 0), uvaColor(d.uva ?? 0), uvaText(d.uva ?? 0))}
+                {wkBox("미세먼지", String(d.pm25 ?? 0), pmColor(d.pmGrade ?? 0), pmText(d.pmGrade ?? 0))}
                 {/* 구름투과율은 위험도(빨강)가 아니라 정보값 → 파란색 고정. */}
-                {wkBox("구름투과율", d.trans == null ? "–" : `${Math.round(d.trans * 100)}`, "#2E86C8")}
+                {wkBox("구름투과율", d.trans == null ? "–" : `${Math.round(d.trans * 100)}`, "#2E86C8", "#1E6FB0")}
               </div>
             </div>
           </div>
@@ -237,14 +240,15 @@ function hexA(hex: string, a: number): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
-/** 주간 정사각 박스 — 큰 숫자 + 라벨. 칸 배경(연)·숫자·라벨 모두 같은 색(위험도/정보색). 테두리 없음. */
-function wkBox(label: string, num: string, color: string) {
+/** 주간 정사각 박스 — 큰 숫자 + 라벨. 배경=fill 틴트(연), 숫자·라벨=text(가독 진한색).
+ *  노랑처럼 밝은 fill 은 글씨가 안 보이므로 text 를 분리해 진하게(매우나쁨 text 는 나쁨보다 훨씬 진함). */
+function wkBox(label: string, num: string, fill: string, text: string) {
   return (
-    <div className={styles.wkBox} key={label} style={{ background: hexA(color, 0.17) }}>
-      <span className={styles.wkBoxN} style={{ color }}>
+    <div className={styles.wkBox} key={label} style={{ background: hexA(fill, 0.17) }}>
+      <span className={styles.wkBoxN} style={{ color: text }}>
         {num}
       </span>
-      <span className={styles.wkBoxL} style={{ color }}>
+      <span className={styles.wkBoxL} style={{ color: text }}>
         {label}
       </span>
     </div>

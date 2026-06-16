@@ -24,6 +24,7 @@
 ### Changed
 - **등급 직결 색**(`weather-logic.ts`): 연속 램프(`uvRamp`/`sevStep`/`colorTop`/`colorWeek`/`sev*`) 제거 → `GRADE_COLORS{good #2BB36B·fair #FFCE3A·bad #EE4444·worst #6E0712(나쁨과 확실히 구분되게 진하게)}` + `uvbTier`/`uvaTier`/`pmTier`(라벨 임계값 정렬) + `uvbColor`/`uvaColor`/`pmColor`. 같은 등급=같은 색. UVA 8.1(높음)·미세먼지 나쁨 등 "나쁨/높음"은 빨강, 최악 단계는 진빨강으로 전단계와 분리.
 - `PM_GRADE_COLOR` 도 새 팔레트로 통일(시간별 그래프 dot 공용). chips/kpis·주간 박스 모두 새 색 함수 사용. 구름투과율은 파랑(#2E86C8) 유지.
+- **가독성·구분 보강**: 색을 `TIERS{fill,text}` 두 벌로 분리 — 배경 틴트·점·게이지는 `fill`(선명: 노랑 #FFD23A 등), 숫자·라벨은 `text`(진한 가독색: 보통 #876200 등)로 분리해 노란 박스에서도 글씨가 읽힘. 최악(worst) `text`(#3A0107)를 나쁨(#CF1A1A)보다 훨씬 진하게 해 구분 강화. KPI(textColor/peakTextColor)·주간 박스(fill 배경 + text 글씨) 적용.
 
 ---
 
