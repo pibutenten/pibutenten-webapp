@@ -6,6 +6,38 @@
 
 ---
 
+## [2026-06-16] — 베타 커토버 전수검수 → 6커밋 개선(/beta-skin 은퇴·SSOT·성능·견고성) + 4에이전트 재검수
+
+> 베타 스킨 전체 커토버 직후, 독립 시니어 검수관 4종(SEO/AEO/GEO · 코드정합성/SSOT · UI/링크 · 보안/성능)을 병렬로 돌려 전수검수 → 종합보고서 기반 단계별 개선 실행 → 마지막에 동일 4에이전트로 독립 재검수. 모든 커밋 `tsc --noEmit` 0 + `npm run build` 0 + 코드검수관 [치명] 0 게이트 통과. DB·권한·RLS 무변경(표시·구조·라우팅·메타·성능만).
+
+### Security
+- **`/api/place-search` 무인증 외부 프록시 차단** (`19d60c2`): 로그인 가드(`auth.getUser` 401) + `rateLimit`(분당 30, user 단위). 네이버 지역검색 Open API 쿼터 소진·amplification 표면 제거. og-extract/preview-link 와 정책 일관.
+
+### Changed (구조 — /beta-skin 완전 은퇴)
+- **`/beta-skin` 라우트 완전 삭제 → `src/components/skin/` 이식** (`5a50cda`): 운영 UI 컴포넌트가 noindex 프리뷰 폴더(`app/beta-skin/`)에 거주하며 `/beta-skin/*` URL 까지 생성하던 비표준 구조(1차 검수 최상위 치명) 청산. 컴포넌트 25개 `git mv`, 프리뷰 라우트 page.tsx 8개 삭제, 운영 ~40파일 import 재배선(`@/app/beta-skin`→`@/components/skin`). robots `/beta-skin` Disallow·GlobalChrome RESERVED 는 캐시 URL 방어용 유지.
+- **PostDetail `/beta-skin` 링크 누수 차단** (`19d60c2`): 색인 의사 글상세 HTML 의 `back`·`onDeleted` `/beta-skin` → `/`. P0② 재발 교정.
+
+### Changed (SSOT·데드코드)
+- **SSOT 통합** (`42c4d10`): home 인라인 `topKeywords` → `components/skin/feed-sidebar-data` 단일 출처. `record-data` `cardHref` → `cardHrefFromRecord` 개명(입력타입 다른 별개 함수 구분).
+- **데드코드 제거** (`42c4d10`·`921ea22`): `SearchBar`·`HeroSearch`·`CardMasonry`·`MyView` 삭제, `heroPhraseUp` keyframe·잔재 주석 정리.
+
+### Performance
+- **홈 워터폴 단축** (`aacf89c`): `hotIds`+`viewerStates` 직렬 await → `Promise.all`(의존·게이트 보존).
+- **미들웨어 방문로그 비블로킹** (`aacf89c`): `site_visits` insert → `event.waitUntil`(TTFB 개선, dedup 쿠키 동기 보존).
+- **이미지 최적화 활성화** (`aacf89c`): `next.config` remotePatterns 에 Supabase storage 호스트 추가 + `CardAvatar` 가 Supabase 아바타만 next/image 최적화(webp), 외부 OAuth CDN 은 unoptimized 유지(깨짐 방지). about·reports force-dynamic 은 cookies 의존+개인화 누수 위험으로 유지.
+
+### Fixed (견고성·SEO)
+- **에러 바운더리 신설** (`42cfb11`): `global-error.tsx`+`error.tsx` 베타 톤 복구 UI(영문 기본화면 대체).
+- **placeholder 베타 셸 래핑** (`42cfb11`): 비공개/글없음 화면에 헤더·탭바 복원 + 미정의 `--surface`→`bg-white`.
+- **구조화 데이터 정합** (`42cfb11`·`921ea22`): `/topics/[tag]` `Physician`→`["Person","MedicalProfessional"]`·BreadcrumbList·robots. `/reports/[procedure]` `buildSocialMeta`(OG)+MedicalWebPage `@id`/`isPartOf`/`publisher`. 의사글 BreadcrumbList 존재하지 않는 연도 `item` 제거. publisher `@id` `/about#org`(dangling)→`/#organization`.
+- **AEO/메타** (`42cfb11`·`921ea22`): agent-card.json search `/search`→`/?q=`·citationPolicy `/reports/*`·lastUpdated. `/about` robots index, `/debug/supabase` noindex. Card 키워드칩 `/search`(308)→`/?q=`.
+
+### Notes
+- **커밋 순서**: `19d60c2` → `5a50cda` → `42c4d10` → `aacf89c` → `42cfb11` → `921ea22`.
+- **최종 4에이전트 재검수**: 6커밋 전부 정확 반영, 신규 [치명] 회귀 0. 잔여 백로그(대부분 기존 이슈)는 SESSION_HANDOFF §0.
+
+---
+
 ## [2026-06-15] — 콘텐츠 라우트 6종 속도개선(빠른 처방 Promise.all + 구조개선 loading.tsx 스켈레톤)
 
 > 주요 콘텐츠 라우트의 체감·실측 로딩 속도 개선. 두 축을 함께 적용: **(1) 빠른 처방** — 서버 컴포넌트의 직렬 `await` 워터폴 중 **서로 독립인 쿼리만** `Promise.all` 로 병합(의존 체인은 보존). **(2) 구조 개선** — 라우트별 `loading.tsx` 스켈레톤(서버 컴포넌트, 페이지 세로 구조를 회색 블록으로 재현)으로 빈 화면·CLS 제거. 선례 `/record`(`164f23d`) 패턴을 6종으로 확장. 운영 로직·DB·권한·RLS 무변경(데이터 흐름 동일, 라운드트립 묶음·표시만). `tsc --noEmit` 0, `npm run build` 0(21/21), 코드검수관 [치명] 0.

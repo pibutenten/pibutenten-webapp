@@ -2,11 +2,34 @@
 
 > 세션 간 인수인계용. 현재 상태·주의사항·다음 작업·불변 원칙을 한 장으로. 변경 이력 상세는 `CHANGELOG.md`.
 
-**최종 갱신**: 2026-06-15
+**최종 갱신**: 2026-06-16
 
 ---
 
-## 0. 직전 세션 (2026-06-15 · 콘텐츠 라우트 4종 베타 셸 승격) — 한눈에
+## 0. 직전 세션 (2026-06-16 · 베타 커토버 전수검수 → 6커밋 개선 → 4에이전트 재검수) — 한눈에
+
+- **git**: HEAD = `921ea22`. 이번 세션 6커밋: `19d60c2`(보안·SEO) → `5a50cda`(/beta-skin 은퇴) → `42c4d10`(SSOT·데드코드) → `aacf89c`(성능) → `42cfb11`(견고성·SEO) → `921ea22`(재검수 반영). 모두 push 완료. 신규 마이그 0(코드·구조·표시만, DB·권한·RLS 무변경).
+- **빌드**: 전 커밋 `tsc --noEmit` 0 + `npm run build` 0 + 코드검수관 [치명] 0.
+- **핵심 성과**: `/beta-skin` 라우트 **완전 소멸**(컴포넌트 → `src/components/skin/`, 표준 구조 정렬) — 1차 검수 최상위 구조 치명 해소.
+- **방법론**: 독립 시니어 검수관 4종(SEO/AEO/GEO·코드정합성/SSOT·UI/링크·보안/성능) 병렬 전수검수 → 종합 → 단계 실행(각 단계 빌드·검수·커밋·푸시) → 동일 4에이전트 독립 재검수. 상세 CHANGELOG `[2026-06-16]`.
+
+### 다음 세션 — 남은 백로그 (최종 재검수가 확인, 대부분 기존 이슈)
+
+**🟡 soft-404 (HTTP 200)**: `[handle]` 비존재 핸들·의사 글상세(`doctors/[slug]/[year]/[postSlug]:360`) 가 `notFound()` 호출에도(또는 호출 없이) HTTP 200 + "찾을 수 없음" 화면. `[handle]` 은 notFound 호출하나 스트리밍으로 상태 200. 의사 글상세는 notFound 미호출(200 본문). 색인 영향 점검 후 정식 404 전환 필요(라우트 렌더 방식 검토 — 별도 안건).
+
+**🟡 PostgREST `.or()` 사용자입력 미이스케이프**: `reports/[procedure]/page.tsx:53`·`api/reports/[procedure]/reviews/route.ts:45`(ko 파라미터)·`admin/users/page.tsx:111`(`,` 미이스케이프). tag_dictionary 공개+AND `is_procedure` 가드라 실익 낮으나, `bundleProfileFilter` 식 화이트리스트 게이트(`/^[가-힣a-z0-9 ·-]+$/` 불충족 시 404)로 정비 권장.
+
+**🟡 미정의 CSS 토큰**: `admin/reports/ReportsClient.tsx`(`--surface`·`--surface-2`·`--border-soft` 미정의 → 투명/기본 폴백). placeholder 와 동일하게 `bg-white`/`gray-50` 등으로 교정(운영자 전용 화면이라 영향 제한).
+
+**⚪ 데드/전환중간층 정리 (별도 안건)**: `old-skin/`(박제 백업)·`components/beta/`(BetaFeed=old-skin 전용 데드, BetaDiscovery=skin 이 역참조)·`MyPageClient`/`ProfileTabs`/`Feed`(고아 가능성) 실사용 재판정 후 정리/이동. `CardData` import 이중경로(`@/components/Card` 26곳 vs `@/lib/types/card` 12곳) 단계적 통일.
+
+**⚪ BetaSkinShell 라우트그룹 layout 승격 (성능·구조, 대형 안건)**: 현재 셸이 페이지별 View 안에서 렌더 → 전환마다 재마운트 + `/api/notifications` fetch·`prefetchDiscover` 반복. `app/(app)/layout.tsx` 로 승격하려면 페이지별 props(active/back/sidebar/search) 전달 메커니즘 설계 필요(Phase B 급 리팩토링 — ADR 권장).
+
+**⚪ 주석 잔재**: `GlobalChrome:72` RESERVED `"beta-skin"`(방어용·무해), admin 뷰 6종 JSDoc 의 구 `@/app/beta-skin/*` 경로 언급, PostDetail/BetaDiscovery 의 `/beta-skin` 주석 — 동작 무관, 위생 차원.
+
+---
+
+## 0-prev. 이전 세션 (2026-06-15 · 콘텐츠 라우트 4종 베타 셸 승격) — 한눈에
 
 - **git**: 직전 커밋 `2a132aa`(핸드오프 갱신) 다음, 이번 4종 승격이 새 HEAD. 마이그 **0285** 까지 적용(이번 세션 신규 마이그 0 — 코드·표시·라우팅만, DB·권한 무변경).
 - **빌드**: `tsc --noEmit` 0. 코드검수관 [치명] 0.
