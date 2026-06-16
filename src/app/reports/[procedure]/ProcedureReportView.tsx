@@ -3,14 +3,14 @@
 /**
  * ProcedureReportView — /reports/{시술} 시술 리포트 본문 (클라이언트).
  *
- * 원칙(베타 스킨 승격, 2026-06-15): DoctorDashboardView 선례와 동일하게
- *   "상단바(헤더)만 베타 셸, 본문은 기존 운영 형태를 최대한 유지". 정보 구조 무변경.
+ * 원칙(앱 스킨 승격, 2026-06-15): DoctorDashboardView 선례와 동일하게
+ *   "상단바(헤더)만 앱 셸, 본문은 기존 운영 형태를 최대한 유지". 정보 구조 무변경.
  *   - 운영 page.tsx 의 본문(ReportSampleNotice·ProcedureReportCard·전문의 Q&A 얇은 링크)을
  *     그대로 임베드(재포장 X). 데이터·generateMetadata·JSON-LD 는 server page 가 책임.
  *   - 셸은 active="피드"(미강조 톤), back="/"(운영 BackButton fallback 을 셸이 렌더 — 본문 내 중복 BackButton 제거),
  *     검색은 운영 홈(/?q=)으로 라우팅.
  *
- * 격리: beta-skin.module.css 무수정. JSON-LD <script> 는 server page 에 남겨 SEO 신호 100% 보존.
+ * 격리: app.module.css 무수정. JSON-LD <script> 는 server page 에 남겨 SEO 신호 100% 보존.
  */
 
 import Link from "next/link";
@@ -18,9 +18,9 @@ import type { CardData } from "@/components/Card";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import ReportSampleNotice from "@/components/report/ReportSampleNotice";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import AppShell from "@/components/skin/AppShell";
 import FeedSidebar from "@/components/skin/FeedSidebar";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import { useSearchRouting } from "@/components/skin/ui";
 
 export default function ProcedureReportView({
   ko,
@@ -43,7 +43,7 @@ export default function ProcedureReportView({
   /** 사이드 '인기 Q&A' 후보 풀 — 의사 Q&A 카드(홈과 동일 방식). */
   hotQa: CardData[];
 }) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
   // 태그 클릭 → 운영 홈(/?q=) 검색 라우팅(홈 피드와 동일).
   const applyTag = (k: string) => search.onSearchSubmit(k);
 
@@ -53,7 +53,7 @@ export default function ProcedureReportView({
   );
 
   return (
-    <BetaSkinShell
+    <AppShell
       active="피드"
       back="/"
       backTitle={
@@ -91,6 +91,6 @@ export default function ProcedureReportView({
           </Link>
         </div>
       )}
-    </BetaSkinShell>
+    </AppShell>
   );
 }

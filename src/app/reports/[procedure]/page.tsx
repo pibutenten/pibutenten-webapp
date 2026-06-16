@@ -221,7 +221,7 @@ export default async function ProcedureReportPage({ params }: Props) {
     },
   };
 
-  // JSON-LD <script> 는 server 에 남겨 SEO 신호 100% 보존. 본문은 베타 셸(BetaSkinShell)로
+  // JSON-LD <script> 는 server 에 남겨 SEO 신호 100% 보존. 본문은 앱 셸(AppShell)로
   //   감싼 ProcedureReportView 가 표시(정보 구조·데이터 무변경). DoctorDashboardView 선례 동일 패턴.
   return (
     <>

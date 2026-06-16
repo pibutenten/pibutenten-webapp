@@ -3,8 +3,8 @@
 /**
  * FeedSidebar — 홈 피드/토픽/리포트가 공유하는 데스크탑 우측 사이드바 (클라이언트).
  *
- * 기존엔 BetaSkinFeed.tsx 안에 인라인으로 있던 3개 위젯을 별도 컴포넌트로 추출(중복 구현 방지):
- *   ① 인기 태그   — "전체"(서버 빈도순 popularTags) + 카테고리 5탭(/api/beta-discover cats).
+ * 기존엔 FeedView.tsx 안에 인라인으로 있던 3개 위젯을 별도 컴포넌트로 추출(중복 구현 방지):
+ *   ① 인기 태그   — "전체"(서버 빈도순 popularTags) + 카테고리 5탭(/api/search/suggest cats).
  *   ② 인기 Q&A    — 의사 Q&A 카드 풀(hotQa)에서 5개를 진입마다 회전 노출.
  *   ③ 글쓰기 CTA — 랜덤 문구(정적, 데이터 불필요) + /write 버튼.
  *
@@ -12,15 +12,15 @@
  *   토픽/리포트는 서버에서 홈과 동일 방식(feed_cards_scored)으로 조회해 넘긴다.
  * 검색(태그 클릭)은 onTagClick 으로 위임 — 모든 페이지가 운영 홈(/?q=)으로 라우팅.
  *
- * 격리: beta-skin.module.css 무수정 — 기존 BetaSkinFeed 사이드바와 동일 클래스만 사용.
+ * 격리: app.module.css 무수정 — 기존 FeedView 사이드바와 동일 클래스만 사용.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import type { CardData } from "@/lib/types/card";
-import { prefetchDiscover } from "@/components/beta/BetaDiscovery";
+import { prefetchDiscover } from "@/components/search/SearchPanel";
 import { CATEGORIES, type CategorySlug } from "@/lib/categories";
-import styles from "./beta-skin.module.css";
-import { cardHref, catTagClass, catKey } from "./beta-ui";
+import styles from "./app.module.css";
+import { cardHref, catTagClass, catKey } from "./ui";
 
 // 인기태그 빈도 유틸(topKeywords·POPULAR_TAGS)은 서버 page(홈/토픽/리포트)에서도 호출하므로
 //   비-client 모듈 ./feed-sidebar-data 로 분리(이 파일은 "use client" → 서버 호출 시 throw 회귀 방지).
@@ -51,11 +51,11 @@ export default function FeedSidebar({
   onTagClick: (keyword: string) => void;
 }) {
   // 사이드 '인기 태그' 카드 — 카테고리 탭. "전체"는 빈도순 popularTags(16개),
-  //   카테고리 탭은 /api/beta-discover 의 cats(검색 드롭다운과 동일 소스)에서 해당 slug 상위 16개.
+  //   카테고리 탭은 /api/search/suggest 의 cats(검색 드롭다운과 동일 소스)에서 해당 slug 상위 16개.
   type TagTab = "all" | CategorySlug;
-  // 태그 클릭 → 검색(/?q=) 라우팅 시 BetaSkinFeed/FeedSidebar 가 재마운트되며 내부 state 가 초기화된다.
+  // 태그 클릭 → 검색(/?q=) 라우팅 시 FeedView/FeedSidebar 가 재마운트되며 내부 state 가 초기화된다.
   //   이때 선택했던 서브 카테고리 탭이 "전체"로 풀리던 버그를 방지하기 위해 sessionStorage 에 보존.
-  //   (prop 시그니처·호출부 무수정 → 회귀 위험 최소. 헤더 검색·BetaDiscovery 경로는 영향 없음.)
+  //   (prop 시그니처·호출부 무수정 → 회귀 위험 최소. 헤더 검색·SearchPanel 경로는 영향 없음.)
   const TAG_TAB_KEY = "pbtt:feedSidebar:tagTab";
   const VALID_TABS = useMemo<TagTab[]>(
     () => ["all", ...CATEGORIES.map((c) => c.slug)],

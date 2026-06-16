@@ -3,7 +3,7 @@
  *
  * 운영 record/page.tsx 내부에 비-export 로 흩어져 있던 조회 SELECT·매핑·enrich 함수를
  * 한 곳으로 추출(중복 제거 + 동작 일치). UI(스킨)는 각 페이지가 다르게 그리되, 데이터·로직은
- * 본 모듈을 단일 출처로 재사용한다. (구 /beta-skin/record 프리뷰 페이지는 폐기.)
+ * 본 모듈을 단일 출처로 재사용한다. (구 app skin record 프리뷰 페이지는 폐기.)
  *
  * 서버 전용 — 호출부에서 SupabaseServerClient 를 주입한다(本 모듈은 클라이언트를 만들지 않음).
  */
@@ -58,7 +58,7 @@ export type TopCardRow = {
 const DAY_MS = 86_400_000;
 
 /** 카드 → 상세 링크(원장 글: keyword slug / 회원 글: handle+shortcode).
- *  beta-ui.tsx 의 cardHref(CardData → getQaUrl 위임, review_summary 포함)와 이름이 같지만 별개다:
+ *  ui.tsx 의 cardHref(CardData → getQaUrl 위임, review_summary 포함)와 이름이 같지만 별개다:
  *  이쪽은 record 도메인의 좁은 SELECT row(nullable slug/post_year 등, review_summary 미포함)를
  *  받는 독립 함수라 통합하지 않고 record 전용 이름으로 구분한다. */
 export function cardHrefFromRecord(c: {

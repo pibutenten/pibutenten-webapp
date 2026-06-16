@@ -1,20 +1,20 @@
 "use client";
 
 /**
- * BetaAdminTagsView — /admin/tags 의 베타 스킨 셸 래퍼 (클라이언트).
+ * AdminTagsView — /admin/tags 의 앱 스킨 셸 래퍼 (클라이언트).
  *
  * 원칙(Agent 5):
- *   - 상단바·배경만 BetaSkinShell 로 교체. 본문(요약 탭 + 분류/상태/기간 칩 + 검색폼 + TagAdminTable + 페이지네이션)은 운영 구조 유지.
+ *   - 상단바·배경만 AppShell 로 교체. 본문(요약 탭 + 분류/상태/기간 칩 + 검색폼 + TagAdminTable + 페이지네이션)은 운영 구조 유지.
  *   - 운영 클라 컴포넌트 TagAdminTable 은 로직 변경 없이 import 해서 그대로 임베드.
  *   - 데이터 fetch·필터·정렬·페이지네이션 계산은 server page.tsx 가 담당. 이 뷰는 계산된 값만 props 로 받아 렌더.
- *   - 색/라운드 토큰만 운영 클래스 그대로 둠(운영 토큰은 베타 .root 스코프에서도 정의됨) + 제목·칩 등은 운영 유틸 클래스 유지.
- *   - import 절대경로(@/app/beta-skin/*), 모든 링크 /admin/tags (qs 헬퍼가 /admin/tags 로 생성).
+ *   - 색/라운드 토큰만 운영 클래스 그대로 둠(운영 토큰은 앱 스킨 .root 스코프에서도 정의됨) + 제목·칩 등은 운영 유틸 클래스 유지.
+ *   - import 절대경로(@/appapp skin), 모든 링크 /admin/tags (qs 헬퍼가 /admin/tags 로 생성).
  */
 
 import Link from "next/link";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
-import styles from "@/components/skin/beta-skin.module.css";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
+import styles from "@/components/skin/app.module.css";
 import TagAdminTable, { type TagRow } from "./TagAdminTable";
 
 const CATEGORIES = ["피부고민", "리프팅", "스킨부스터", "홈케어", "피부상식", "미지정"] as const;
@@ -37,7 +37,7 @@ type SortCol =
   | "cat_name"
   | "en_name";
 
-// 칩 — 운영 /admin/tags 와 1:1 동일 클래스(베타 .root 스코프에 운영 토큰도 정의됨).
+// 칩 — 운영 /admin/tags 와 1:1 동일 클래스(앱 스킨 .root 스코프에 운영 토큰도 정의됨).
 const chipGroup =
   "inline-flex flex-wrap rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-0.5";
 function chipCls(active: boolean) {
@@ -51,7 +51,7 @@ function chipCls(active: boolean) {
 const chipStyle = (active: boolean) =>
   active ? { backgroundColor: "var(--chip-active-bg)" } : undefined;
 
-// qs — 운영 page.tsx 와 동일. 항상 /admin/tags 경로로 생성(베타 경로 미사용).
+// qs — 운영 page.tsx 와 동일. 항상 /admin/tags 경로로 생성(앱 셸 경로 미사용).
 function qs(
   base: Record<string, string | undefined>,
   override: Record<string, string | undefined>,
@@ -101,7 +101,7 @@ type Props = {
   usageByKo: Record<string, number>;
 };
 
-export default function BetaAdminTagsView({
+export default function AdminTagsView({
   total,
   classified,
   enBlank,
@@ -124,10 +124,10 @@ export default function BetaAdminTagsView({
   allKo,
   usageByKo,
 }: Props) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" wide back="/admin" {...search}>
+    <AppShell active="마이" wide back="/admin" {...search}>
       <div className={styles.mb20}>
         <h1 className={styles.profileName}>태그 관리</h1>
       </div>
@@ -382,6 +382,6 @@ export default function BetaAdminTagsView({
           </Link>
         </nav>
       ) : null}
-    </BetaSkinShell>
+    </AppShell>
   );
 }

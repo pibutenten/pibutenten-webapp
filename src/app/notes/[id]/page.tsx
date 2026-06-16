@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import DiaryDetailView, { type DiaryDetail } from "@/components/skin/record/DiaryDetailView";
 
-// BetaNav 가 useSearchParams 사용 → 정적 프리렌더 회피(동적 렌더).
+// BottomNav 가 useSearchParams 사용 → 정적 프리렌더 회피(동적 렌더).
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {

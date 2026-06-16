@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * BetaAdminCardsView — /admin/cards "전체 글 관리" 본문 (클라이언트).
+ * AdminCardsView — /admin/cards "전체 글 관리" 본문 (클라이언트).
  *
- * 원칙(승격·단일화): UI 는 베타 스킨 톤(var(--ink-*) · var(--tt-blue*) · var(--line) 토큰),
+ * 원칙(승격·단일화): UI 는 앱 스킨 톤(var(--ink-*) · var(--tt-blue*) · var(--line) 토큰),
  *   데이터·필터 로직·RPC·운영 클라 컴포넌트(PickToggle / AdminCardsDoctorFilter)는 운영 /admin/cards 재사용.
  *   - 서버(page.tsx)가 가드·searchParams 파싱·doctor 강제필터·데이터 fetch 로직으로
  *     row·counts·doctors·필터값을 props 로 내려준다.
- *   - 이 컴포넌트는 그 props 를 베타 톤 status 탭·type/pick 칩·검색 form·테이블·페이지네이션으로 렌더한다.
+ *   - 이 컴포넌트는 그 props 를 앱 톤 status 탭·type/pick 칩·검색 form·테이블·페이지네이션으로 렌더한다.
  *   - searchParams 키(status/type/category/q/doctor/pick/page/sort/dir)는 동일 URL 규약.
  *   - 편집 링크(/admin/cards/[id]/edit)·액션 RPC(toggle_card_pick)는 운영 그대로.
  *
@@ -20,9 +20,9 @@ import AdminCardsDoctorFilter from "@/app/admin/cards/AdminCardsDoctorFilter";
 import { labelForCategory } from "@/lib/post-category";
 import { formatYmd } from "@/lib/format-date";
 import { truncate } from "@/lib/string-utils";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
-import styles from "@/components/skin/beta-skin.module.css";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
+import styles from "@/components/skin/app.module.css";
 
 // ── 운영 admin/cards/page.tsx 와 동일한 타입(데이터 계약 1:1) ──
 type QAStatus =
@@ -36,7 +36,7 @@ type TypeFilter = "qa" | "post" | "review" | "review_summary" | "all";
 type StatusFilter = QAStatus | "all" | "deleted";
 type CategoryFilter = "doodle" | "all";
 
-export type BetaAdminCardRow = {
+export type AdminCardRow = {
   id: number;
   status: QAStatus;
   type: QAType;
@@ -59,7 +59,7 @@ export type BetaAdminCardRow = {
   } | null;
 };
 
-export type BetaAdminCardsDoctorOption = {
+export type AdminCardsDoctorOption = {
   id: string;
   slug: string;
   name: string;
@@ -67,12 +67,12 @@ export type BetaAdminCardsDoctorOption = {
 
 type StatusCounts = Record<StatusFilter, number>;
 
-export type BetaAdminCardsViewProps = {
+export type AdminCardsViewProps = {
   /** super admin 이면 전체 카드 + 원장 dropdown. doctor admin 이면 본인 글만. */
   isAdmin: boolean;
-  rows: BetaAdminCardRow[];
+  rows: AdminCardRow[];
   statusCounts: StatusCounts;
-  doctors: BetaAdminCardsDoctorOption[];
+  doctors: AdminCardsDoctorOption[];
   /** doctor admin 의 본인 이름(readonly chip 표시용). */
   ownDoctorName: string | null;
   // 현재 필터 상태(운영 page.tsx 파싱 결과 그대로)
@@ -91,9 +91,9 @@ export type BetaAdminCardsViewProps = {
   listError: string | null;
 };
 
-// 베타 status 라벨(운영 STATUS_STYLE 톤을 베타 토큰으로 재현 — 색만 베타화, 의미 동일).
+// 앱 status 라벨(운영 STATUS_STYLE 톤을 앱 토큰으로 재현 — 색만 앱 토큰화, 의미 동일).
 //   deleted 는 DB enum 이 아니라 deleted_at IS NOT NULL row 표기용 라벨(운영 동일).
-const BETA_STATUS_STYLE: Record<
+const STATUS_STYLE: Record<
   QAStatus | "deleted",
   { bg: string; fg: string; label: string; border: string }
 > = {
@@ -104,7 +104,7 @@ const BETA_STATUS_STYLE: Record<
   hidden: { bg: "#fdeef0", fg: "#b81c5e", label: "숨김", border: "#f6cdd9" },
   deleted: { bg: "#fdeef0", fg: "#9c1140", label: "삭제", border: "#f1b6c8" },
 };
-const BETA_STATUS_FALLBACK = {
+const STATUS_FALLBACK = {
   bg: "#f4f6f8",
   fg: "var(--ink-500)",
   label: "?",
@@ -151,7 +151,7 @@ function buildQueryString(
   return s ? `?${s}` : "";
 }
 
-export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
+export default function AdminCardsView(props: AdminCardsViewProps) {
   const {
     isAdmin,
     rows,
@@ -172,7 +172,7 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
     listError,
   } = props;
 
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
 
   // 공통 query baseline(운영 page.tsx baseQuery 동일 — status/type/category/doctor/pick/q/sort/dir 유지).
   const baseQuery = {
@@ -192,7 +192,7 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
   const endPage = Math.min(totalPages, pageNum + 2);
   for (let p = startPage; p <= endPage; p++) pageNumbers.push(p);
 
-  // 정렬 헤더 — 운영 SortableTh 를 베타 톤으로 재현(클릭 시 sort/dir 갱신, 첫 클릭 내림차순).
+  // 정렬 헤더 — 운영 SortableTh 를 앱 톤으로 재현(클릭 시 sort/dir 갱신, 첫 클릭 내림차순).
   function SortTh({
     col,
     label,
@@ -244,7 +244,7 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
   };
 
   return (
-    <BetaSkinShell active="마이" wide back="/admin" {...search}>
+    <AppShell active="마이" wide back="/admin" {...search}>
       {/* 제목 + noindex 설명 */}
       <section className={styles.mb20}>
         <div className={styles.profileName} style={{ marginBottom: 4 }}>
@@ -257,7 +257,7 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
         </p>
       </section>
 
-      {/* status 필터 탭 — 베타 톤(밑줄 강조). 가로 스크롤 허용. */}
+      {/* status 필터 탭 — 앱 톤(밑줄 강조). 가로 스크롤 허용. */}
       <section className={styles.mb20}>
         <div
           style={{
@@ -602,8 +602,8 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
                   {rows.map((r) => {
                     // deleted_at IS NOT NULL → '삭제' 라벨 override(운영 동일).
                     const style = r.deleted_at
-                      ? BETA_STATUS_STYLE.deleted
-                      : (BETA_STATUS_STYLE[r.status] ?? BETA_STATUS_FALLBACK);
+                      ? STATUS_STYLE.deleted
+                      : (STATUS_STYLE[r.status] ?? STATUS_FALLBACK);
                     // 시술 리포트(review_summary)는 자동 집계물 → 편집 진입 차단(운영 동일).
                     const isReport = r.category === "review_summary";
                     const editHref = `/admin/cards/${r.id}/edit`;
@@ -827,11 +827,11 @@ export default function BetaAdminCardsView(props: BetaAdminCardsViewProps) {
           </section>
         )
       )}
-    </BetaSkinShell>
+    </AppShell>
   );
 }
 
-/** 페이지네이션 링크 — 베타 톤. active=현재페이지, disabled=비활성. */
+/** 페이지네이션 링크 — 앱 톤. active=현재페이지, disabled=비활성. */
 function PageLink({
   href,
   children,

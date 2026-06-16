@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
-import InfoBetaShell from "@/components/info/InfoBetaShell";
+import InfoShell from "@/components/info/InfoShell";
 
 export const metadata: Metadata = {
   title: "의료 정보 안내 — 피부텐텐",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function DisclaimerPage() {
   return (
-    <InfoBetaShell>
+    <InfoShell>
     <InfoPageLayout
       current="disclaimer"
       title="의료 정보 안내"
@@ -126,7 +126,7 @@ export default function DisclaimerPage() {
       </Section>
 
     </InfoPageLayout>
-    </InfoBetaShell>
+    </InfoShell>
   );
 }
 

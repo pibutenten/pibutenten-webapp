@@ -2,15 +2,15 @@
 
 /**
  * DiaryDetailView — /notes/[id] 시술 기록 상세 페이지 본문(클라이언트).
- *   공용 셸(BetaSkinShell, active="내 노트") 안에
+ *   공용 셸(AppShell, active="내 노트") 안에
  *   detailHead(뒤로가기 /notes + svg + h1 "시술 기록") + 기존 카드/버튼/텍스트 구조.
  *   DB 조회·권한·notFound 가드는 서버 page.tsx 가 담당하고, 여기선 조회 결과(diary)를
  *   props 로 받아 표시용 가공(날짜·시술 제목·의료진·지도 링크)만 수행해 렌더한다.
  */
 
 import Link from "next/link";
-import BetaSkinShell from "../BetaSkinShell";
-import styles from "../beta-skin.module.css";
+import AppShell from "../AppShell";
+import styles from "../app.module.css";
 
 // 서버 page.tsx 의 DetailRow 와 동일 구조(조회 결과 1건).
 export type DiaryDetail = {
@@ -45,7 +45,7 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
   const mapName = d.clinic_name ? encodeURIComponent(d.clinic_name) : "";
 
   return (
-    <BetaSkinShell active="내 노트">
+    <AppShell active="내 노트">
       <div className={styles.detailHead}>
         <Link href="/notes" className={styles.detailBack} aria-label="내 노트로 돌아가기">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -112,6 +112,6 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
           </div>
         )}
       </section>
-    </BetaSkinShell>
+    </AppShell>
   );
 }

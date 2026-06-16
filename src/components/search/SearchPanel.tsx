@@ -1,17 +1,17 @@
 "use client";
 
 /**
- * /beta 검색 발견/자동완성 — 모바일 오버레이·데스크탑 블록 공용.
+ * 검색 발견/자동완성 — 모바일 오버레이·데스크탑 블록 공용.
  *  - query 비었을 때: ① 최근 검색어(localStorage) ② 인기검색어 10(7일) ③ 카테고리 칩(탭, 기본 리프팅/스킨부스터 랜덤)
  *  - query 있을 때: 카테고리 칩 키워드 부분일치 자동완성(초성 X — 기존 방식)
- *  - 항목 선택 → 최근검색 저장 + basePath?q= 로 이동(기본 "/". 베타 셸도 홈 승격 후 "/" 사용)
- * 데이터는 전부 기존 소스 재사용(/api/beta-discover).
+ *  - 항목 선택 → 최근검색 저장 + basePath?q= 로 이동(기본 "/". 앱 셸도 홈 승격 후 "/" 사용)
+ * 데이터는 전부 기존 소스 재사용(/api/search/suggest).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORIES, type CategorySlug } from "@/lib/categories";
-import { addRecent, clearRecent, getRecent, removeRecent } from "@/lib/beta-recent";
+import { addRecent, clearRecent, getRecent, removeRecent } from "@/lib/recent-search";
 
 const C = "#4cbff2";
 type DiscoverData = { popular: string[]; cats: Record<string, string[]> };
@@ -24,7 +24,7 @@ let discoverPromise: Promise<DiscoverData> | null = null;
 export function prefetchDiscover(): Promise<DiscoverData> {
   if (discoverCache) return Promise.resolve(discoverCache);
   if (!discoverPromise) {
-    discoverPromise = fetch("/api/beta-discover")
+    discoverPromise = fetch("/api/search/suggest")
       .then((r) => r.json())
       .then((d: DiscoverData) => { discoverCache = d; return d; })
       .catch(() => { discoverPromise = null; return { popular: [], cats: {} }; });
@@ -32,7 +32,7 @@ export function prefetchDiscover(): Promise<DiscoverData> {
   return discoverPromise;
 }
 
-export default function BetaDiscovery({ query = "", onPicked, basePath = "/", recentOnly = false }: { query?: string; onPicked?: (term: string) => void; basePath?: string; recentOnly?: boolean }) {
+export default function SearchPanel({ query = "", onPicked, basePath = "/", recentOnly = false }: { query?: string; onPicked?: (term: string) => void; basePath?: string; recentOnly?: boolean }) {
   const router = useRouter();
   const [data, setData] = useState<DiscoverData | null>(discoverCache);
   const [recent, setRecent] = useState<string[]>([]);
@@ -53,11 +53,11 @@ export default function BetaDiscovery({ query = "", onPicked, basePath = "/", re
     addRecent(t);
     setRecent(getRecent());
     onPicked?.(t);
-    // 검색 실행 라우팅 — 운영(기본 "/")은 /?q=, 베타스킨은 basePath="/beta-skin" 로 /beta-skin?q=.
-    //   onPicked 는 표시 상태 동기화용(운영 BetaNav)이며 라우팅은 항상 여기서 일관 처리.
+    // 검색 실행 라우팅 — 운영(기본 "/")은 /?q=. basePath 가 지정되면 그 경로로 검색(`{basePath}?q=`).
+    //   onPicked 는 표시 상태 동기화용(운영 BottomNav)이며 라우팅은 항상 여기서 일관 처리.
     //   basePath 끝의 "/" 는 제거해 "//?q=" 더블슬래시를 방지하되, 전부 제거돼 빈 문자열이 되면
     //   (루트 "/" 입력) 절대경로 "/" 로 복원 → 현재 경로에 쿼리만 붙는 상대 라우팅("?q=") 방지.
-    //   "/beta-skin"(트레일링 슬래시 없음)은 정규화 전후 동일이라 기존 동작 불변.
+    //   "/today"(트레일링 슬래시 없음)은 정규화 전후 동일이라 기존 동작 불변.
     const path = basePath.replace(/\/+$/, "") || "/";
     const sep = path.includes("?") ? "&" : "?";
     router.push(`${path}${sep}q=${encodeURIComponent(t)}`);
@@ -123,7 +123,7 @@ export default function BetaDiscovery({ query = "", onPicked, basePath = "/", re
         )}
       </section>
 
-      {/* ② 인기 검색어 10 (7일) — recentOnly 면 숨김(베타 셸 드롭다운은 최근검색어만). */}
+      {/* ② 인기 검색어 10 (7일) — recentOnly 면 숨김(앱 셸 드롭다운은 최근검색어만). */}
       {!recentOnly && (
       <section>
         <h3 className="mb-2.5 text-[15px] font-bold text-[var(--text)]">인기 검색어</h3>

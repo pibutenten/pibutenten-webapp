@@ -5,7 +5,7 @@
  * viewer + 인기 Q&A) 동안 이 파일을 즉시 렌더한다. 빈 화면 대신 DoctorProfileView 의
  * 실제 세로 구조를 회색 블록으로 재현해 레이아웃 쏠림(CLS)을 줄이고 체감 로딩을 빠르게 한다.
  *
- * 구조(BetaSkinShell + DoctorProfileView 기준):
+ * 구조(AppShell + DoctorProfileView 기준):
  *   상단 헤더 막대(56) → backRow('< 뒤로' + "원장님의 답변 N편" 제목)
  *   → 2단 레이아웃:
  *       · 메인(좌): 단일열 PostCard 피드(홈과 동일 톤) — 카드 행 N개.
@@ -14,7 +14,7 @@
  *   데스크탑은 2단, 모바일은 셸이 1단(사이드바는 피드 아래) — 스켈레톤은 데스크탑 기준
  *   2단을 flex 로 재현하되 좁은 화면에서도 자연스럽게 줄바꿈(flex-wrap)되게 둔다.
  *
- * beta-skin.module.css 토큰(.root 스코프)은 여기서 못 쓰므로 캔버스 배경·헤더 톤만
+ * app.module.css 토큰(.root 스코프)은 여기서 못 쓰므로 캔버스 배경·헤더 톤만
  * 인라인으로 복제(루트/record loading.tsx 와 동일 접근). 회색 블록은 Tailwind animate-pulse.
  * 서버 컴포넌트라 "use client"·훅·데이터 호출 없음(순수 마크업).
  */
@@ -26,16 +26,16 @@ export default function Loading() {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 90, // 베타 셸(.root z-index:100)이 뜨면 그 아래로 가려짐
+        zIndex: 90, // 앱 셸(.root z-index:100)이 뜨면 그 아래로 가려짐
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        // 베타 캔버스와 동일한 그라데이션으로 시작 → 회색 깜빡임 차단
+        // 앱 캔버스와 동일한 그라데이션으로 시작 → 회색 깜빡임 차단
         background:
           "linear-gradient(168deg, #e8f5fd 0%, #ecf7f2 52%, #faf5e2 100%)",
       }}
     >
-      {/* 베타 헤더(#e8f5fd) 톤의 얇은 상단 막대 — 셸 헤더 자리와 시각적으로 연결(높이 56) */}
+      {/* 앱 헤더(#e8f5fd) 톤의 얇은 상단 막대 — 셸 헤더 자리와 시각적으로 연결(높이 56) */}
       <div
         style={{
           height: 56,

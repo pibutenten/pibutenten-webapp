@@ -14,10 +14,10 @@ export const metadata: Metadata = {
 /**
  * /my — 활성 명함(계정) 역할에 따라 분기 redirect.
  *
- * 신규 스킨 승격(2026-06-15): 마이 = 본인 공개 프로필로 통일(베타 /beta-skin/my 선례).
+ * 신규 스킨 승격(2026-06-15): 마이 = 본인 공개 프로필로 통일(app skin my 선례).
  *   - 관리자(admin) → /admin
  *   - 원장(doctor) → /doctor (원장 대시보드)
- *   - 회원(user) → 본인 공개 프로필 /{handle} (승격된 BetaProfileView — '프로필·설정' 아코디언 + 활동 탭)
+ *   - 회원(user) → 본인 공개 프로필 /{handle} (승격된 ProfileView — '프로필·설정' 아코디언 + 활동 탭)
  *   - 비로그인 → /login?next=/my
  *   - handle 미설정(예외) → /
  *

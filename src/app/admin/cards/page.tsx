@@ -2,18 +2,18 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
-import BetaAdminCardsView, {
-  type BetaAdminCardRow,
-  type BetaAdminCardsDoctorOption,
-} from "./BetaAdminCardsView";
+import AdminCardsView, {
+  type AdminCardRow,
+  type AdminCardsDoctorOption,
+} from "./AdminCardsView";
 
 /**
  * /admin/cards — "전체 글 관리" (승격·단일화).
  *
- * 원칙: UI 는 베타 스킨 톤(BetaAdminCardsView), 데이터·필터 로직·RPC·운영 클라 컴포넌트는 동일.
+ * 원칙: UI 는 앱 스킨 톤(AdminCardsView), 데이터·필터 로직·RPC·운영 클라 컴포넌트는 동일.
  *   - 이 서버 페이지는 가드(requireAdminPage)·searchParams 파싱·권한 분기(isAdmin / isActiveDoctor)·
  *     doctor 본인 강제필터·상태별 카운트·본 목록 fetch 로직을 담당한다.
- *   - 렌더만 BetaAdminCardsView(클라 셸 래퍼)로 위임 — row·counts·doctors·필터값을 props 로 전달.
+ *   - 렌더만 AdminCardsView(클라 셸 래퍼)로 위임 — row·counts·doctors·필터값을 props 로 전달.
  *   - searchParams 키(status/type/category/q/doctor/pick/page/sort/dir)는 동일 URL 규약.
  *
  * 보안: doctor admin 은 본인 글만(DB 쿼리 단계에서 본인 doctor_id 강제 + URL 조작 차단).
@@ -242,20 +242,20 @@ export default async function AdminCardsPage({ searchParams }: Props) {
   } = await listQuery
     .order(orderCol, { ascending: sortDir === "asc" })
     .range(offset, offset + PAGE_SIZE - 1)
-    .returns<BetaAdminCardRow[]>();
+    .returns<AdminCardRow[]>();
 
-  const rows: BetaAdminCardRow[] = rowsData ?? [];
+  const rows: AdminCardRow[] = rowsData ?? [];
   const total = totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const doctorOptions: BetaAdminCardsDoctorOption[] = doctors.map((d) => ({
+  const doctorOptions: AdminCardsDoctorOption[] = doctors.map((d) => ({
     id: d.id,
     slug: d.slug,
     name: d.name,
   }));
 
   return (
-    <BetaAdminCardsView
+    <AdminCardsView
       isAdmin={isAdmin}
       rows={rows}
       statusCounts={statusCounts}

@@ -9,7 +9,7 @@ import {
   type NewMemberRow,
   type NewCardRow,
 } from "./StatsListClient";
-import BetaAdminStatsView from "./BetaAdminStatsView";
+import AdminStatsView from "./AdminStatsView";
 
 export const dynamic = "force-dynamic";
 
@@ -183,7 +183,7 @@ export default async function StatsKindPage({ params, searchParams }: Props) {
   const firstPage = rows.slice(0, FIRST_PAGE_SIZE);
 
   return (
-    <BetaAdminStatsView
+    <AdminStatsView
       kind={kind}
       title={KIND_TITLES[kind]}
       useDoctorFilter={useDoctorFilter}

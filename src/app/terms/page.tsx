@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
-import InfoBetaShell from "@/components/info/InfoBetaShell";
+import InfoShell from "@/components/info/InfoShell";
 import {
   TERMS_VERSION,
   TERMS_EFFECTIVE_NOTE,
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
  */
 export default function TermsPage() {
   return (
-    <InfoBetaShell>
+    <InfoShell>
     <InfoPageLayout
       current="terms"
       title="이용약관"
@@ -472,7 +472,7 @@ export default function TermsPage() {
         확정될 수 있습니다.
       </p>
     </InfoPageLayout>
-    </InfoBetaShell>
+    </InfoShell>
   );
 }
 

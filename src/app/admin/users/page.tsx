@@ -4,7 +4,7 @@ import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
 import type { UserRole } from "@/lib/user-grades";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
-import BetaAdminUsersView from "./BetaAdminUsersView";
+import AdminUsersView from "./AdminUsersView";
 
 export const dynamic = "force-dynamic";
 
@@ -212,7 +212,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   ).length;
 
   return (
-    <BetaAdminUsersView>
+    <AdminUsersView>
     <section className="w-full py-6">
       <div className="mb-5 flex items-baseline justify-between gap-3">
         <div>
@@ -431,6 +431,6 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         </div>
       )}
     </section>
-    </BetaAdminUsersView>
+    </AdminUsersView>
   );
 }

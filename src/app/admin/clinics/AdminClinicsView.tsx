@@ -1,25 +1,25 @@
 "use client";
 
 /**
- * BetaAdminClinicsView — /admin/clinics "병원 정보 동기화" 본문 (베타 셸 래퍼).
+ * AdminClinicsView — /admin/clinics "병원 정보 동기화" 본문 (앱 셸 래퍼).
  *
- * 원칙(Phase 3 ②): 상단 바·배경만 베타 셸(BetaSkinShell)로 통일하고,
+ * 원칙(Phase 3 ②): 상단 바·배경만 앱 셸(AppShell)로 통일하고,
  *   본문 골격(상단 요약 Stat + 가져오기 버튼 + 검색 + 목록 테이블 + 페이지네이션)은 그대로 유지하되
- *   radius·color 토큰만 베타 톤(var(--ink-*)·var(--tt-blue*)·var(--line))으로 재조정.
+ *   radius·color 토큰만 앱 톤(var(--ink-*)·var(--tt-blue*)·var(--line))으로 재조정.
  *   - 데이터(병원 목록·카운트·페이지 계산)·가드는 서버 page.tsx 가 담당하고 props 로 내려준다.
  *   - SyncButton(운영 클라 컴포넌트)은 로직 무수정 import 임베드.
- *   - 검색 form·페이지 링크는 모두 /admin/clinics (베타 라우트 미사용).
+ *   - 검색 form·페이지 링크는 모두 /admin/clinics (앱 셸 라우트 미사용).
  *
  * 격리: 운영 SyncButton 무수정.
  */
 
 import Link from "next/link";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
 import { formatYmd } from "@/lib/format-date";
 import SyncButton from "./SyncButton";
 
-export type BetaClinicRow = {
+export type ClinicRow = {
   id: number;
   name: string;
   addr: string | null;
@@ -29,7 +29,7 @@ export type BetaClinicRow = {
 };
 
 type Props = {
-  clinics: BetaClinicRow[];
+  clinics: ClinicRow[];
   total: number;
   totalCount: number;
   totalPages: number;
@@ -41,7 +41,7 @@ type Props = {
   q: string;
 };
 
-export default function BetaAdminClinicsView({
+export default function AdminClinicsView({
   clinics,
   total,
   totalCount,
@@ -53,13 +53,13 @@ export default function BetaAdminClinicsView({
   lastSynced,
   q,
 }: Props) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
   const hrefFor = (p: number) =>
     `/admin/clinics?${q ? `q=${encodeURIComponent(q)}&` : ""}page=${p}`;
 
   return (
-    <BetaSkinShell active="마이" wide back="/admin" {...search}>
-      {/* 제목 + noindex 설명 (베타 톤) */}
+    <AppShell active="마이" wide back="/admin" {...search}>
+      {/* 제목 + noindex 설명 (앱 톤) */}
       <div style={{ marginBottom: 20, paddingLeft: 4 }}>
         <h1
           style={{
@@ -236,7 +236,7 @@ export default function BetaAdminClinicsView({
           </PageLink>
         </nav>
       )}
-    </BetaSkinShell>
+    </AppShell>
   );
 }
 

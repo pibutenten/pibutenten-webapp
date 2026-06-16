@@ -2,14 +2,14 @@
  * /[handle] — 공개 프로필 라우트 스켈레톤(서버 컴포넌트).
  *
  * App Router 가 page.tsx 의 서버 데이터 로딩(force-dynamic) 동안 이 파일을 즉시 렌더한다.
- * 빈 화면(또는 전역 spinner) 대신 BetaProfileView 의 실제 세로 구조를 회색 블록으로 재현해
+ * 빈 화면(또는 전역 spinner) 대신 ProfileView 의 실제 세로 구조를 회색 블록으로 재현해
  * 레이아웃 쏠림(CLS)을 줄이고 체감 로딩을 빠르게 한다.
  *
- * 구조(공개 프로필 기준, BetaProfileView 순서와 동일):
+ * 구조(공개 프로필 기준, ProfileView 순서와 동일):
  *   프로필 헤더 카드(가운데 아바타 + 이름 + @handle + 소개)
  *   → 탭 카드(탭 칩 줄 + 콘텐츠 영역에 피드 카드 2~3개).
  *
- * beta-skin.module.css 토큰(.root 스코프)은 여기서 못 쓰므로 캔버스 배경·헤더 톤만
+ * app.module.css 토큰(.root 스코프)은 여기서 못 쓰므로 캔버스 배경·헤더 톤만
  * 인라인으로 복제(record/loading.tsx 와 동일 접근). 회색 블록은 Tailwind animate-pulse.
  * 서버 컴포넌트라 "use client"·훅·데이터 호출 없음(순수 마크업).
  */
@@ -21,16 +21,16 @@ export default function Loading() {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 90, // 베타 셸(.root z-index:100)이 뜨면 그 아래로 가려짐
+        zIndex: 90, // 앱 셸(.root z-index:100)이 뜨면 그 아래로 가려짐
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        // 베타 캔버스와 동일한 그라데이션으로 시작 → 회색 깜빡임 차단
+        // 앱 캔버스와 동일한 그라데이션으로 시작 → 회색 깜빡임 차단
         background:
           "linear-gradient(168deg, #e8f5fd 0%, #ecf7f2 52%, #faf5e2 100%)",
       }}
     >
-      {/* 베타 헤더(#e8f5fd) 톤의 얇은 상단 막대 — 셸 헤더 자리와 시각적으로 연결(높이 56) */}
+      {/* 앱 헤더(#e8f5fd) 톤의 얇은 상단 막대 — 셸 헤더 자리와 시각적으로 연결(높이 56) */}
       <div
         style={{
           height: 56,

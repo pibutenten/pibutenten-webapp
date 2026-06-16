@@ -21,7 +21,7 @@ function LoginGate() {
   );
 }
 
-// 탭은 BetaNav 헤더(2차 바)에서 URL ?tab= 으로 전환 — 여기선 그 값으로 폼만 렌더.
+// 탭은 BottomNav 헤더(2차 바)에서 URL ?tab= 으로 전환 — 여기선 그 값으로 폼만 렌더.
 export default function WriteTabs({
   tab,
   isLoggedIn,

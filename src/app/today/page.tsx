@@ -21,7 +21,7 @@ import RecordView from "@/components/skin/record/RecordView";
  *   (diaries·인기글 RPC·관심 키워드 새 글). metadata: "투데이" + noindex.
  */
 
-// BetaSkinShell·RecordView 가 클라이언트 훅(useSession 등) 사용 → 동적 렌더.
+// AppShell·RecordView 가 클라이언트 훅(useSession 등) 사용 → 동적 렌더.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -195,7 +195,7 @@ export default async function TodayPage() {
   );
 
   // 인기글 — 3기간 RPC + 카드 enrich(공개 카드만). deleted 제외, 조회수(cnt) 표시.
-  //   가공 로직은 record-data.buildPopularData(SSOT)로 추출 — 베타 스킨과 공용.
+  //   가공 로직은 record-data.buildPopularData(SSOT)로 추출 — 앱 스킨과 공용.
   const popular = await buildPopularData(
     supabase,
     (top7Res.data ?? []) as TopCardRow[],

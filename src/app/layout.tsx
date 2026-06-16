@@ -197,14 +197,14 @@ window.addEventListener('appinstalled', function() {
             role/avatar/identities 등 리치는 /api/session 으로 비동기 보강. (V-Phase 2026-06-07) */}
         <SessionProvider>
           <ScrollManager />
-          {/* 전역 크롬은 경로별 분기(GlobalChrome): 베타 승격 라우트에선 렌더 안 함(옛 헤더 깜빡임 제거). */}
+          {/* 전역 크롬은 경로별 분기(GlobalChrome): 앱 셸 승격 라우트에선 렌더 안 함(옛 헤더 깜빡임 제거). */}
           <ChromeHeader />
-          {/* 하단 pb-20(모바일) — BetaNav 고정 하단 5탭 가림 방지 일괄 처리. 데스크탑(하단탭 없음)은 pb-8. */}
+          {/* 하단 pb-20(모바일) — BottomNav 고정 하단 5탭 가림 방지 일괄 처리. 데스크탑(하단탭 없음)은 pb-8. */}
           <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 pt-3 pb-20 sm:px-6 sm:pb-8">
             {children}
           </main>
           <ChromeFooter />
-          {/* 모바일 우하단 글쓰기 FAB — 하단탭에서 글쓰기 분리. BetaSkinShell(z-100 오버레이) 위로
+          {/* 모바일 우하단 글쓰기 FAB — 하단탭에서 글쓰기 분리. AppShell(z-100 오버레이) 위로
               떠야 하므로 z-[110]. 경로별 노출 제어는 컴포넌트 내부. */}
           <WriteFab />
           {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}

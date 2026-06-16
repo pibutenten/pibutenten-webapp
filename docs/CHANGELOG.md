@@ -6,6 +6,24 @@
 
 ---
 
+## [2026-06-16] — 'beta' 네이밍 전면 제거(운영 정식화, 순수 리네임)
+
+> 베타 미리보기 시절 네이밍을 운영 표준으로 정리. 코드 심볼·파일·폴더·API 라우트·주석에서 'beta'/'베타'(개념어) 전면 제거. **동작 무변경(순수 리네임)**. `tsc` 0·`build` 0·코드검수 [치명] 0·`grep -rin beta src` 0건.
+
+### Changed
+- **컴포넌트/심볼**: `BetaSkinShell`→`AppShell`, `BetaSkinFeed`→`FeedView`, `BetaNav`→`BottomNav`, `BetaDiscovery`→`SearchPanel`, `InfoBetaShell`→`InfoShell`, `BetaPolicyFooter`→`PolicyFooter`, `BetaProfileView`→`ProfileView`, `BetaAdminXView`(14)→`AdminXView`, `BetaViewerState`→`ViewerState`, `BetaFeed`(old-skin)→`FeedList`.
+- **상수/타입/훅**: `BETA_ROUTES`→`ROUTES`, `BetaActive`→`NavTab`, `BETA_PROMOTED_*`→`APP_SHELL_*`, `useBetaSearchRouting`→`useSearchRouting`, `BetaTab`→`FeedTab`(`setBetaTab`/`useBetaTab`→`setFeedTab`/`useFeedTab`).
+- **파일/폴더**: `beta-skin.module.css`→`app.module.css`, `beta-ui.tsx`→`ui.tsx`, `beta-feed-tab.ts`→`feed-tab.ts`, `beta-recent.ts`→`recent-search.ts`, `components/beta/`→`components/search/`.
+- **API 라우트**: `/api/beta-discover`→`/api/search/suggest`(fetch 호출부 `prefetchDiscover` 동기화).
+- **localStorage 키**: `pbtt:beta:recent`→`pbtt:recent-search`(최근검색, 휘발성 — 1회 초기화 허용).
+- **주석/docblock**의 '베타' 개념어를 '앱 셸/신규 스킨'으로 정리. `robots`·`GlobalChrome` 예약어의 stale `/beta-skin` 제거.
+- `components/skin/` 폴더는 'beta'가 아니라 '디자인 스킨' 의미 → **유지**.
+
+### Notes
+- 약 100개 파일 리네임(git mv 포함). 빌드·타입·코드검수로 정합성 확인(런타임 문자열·임베드 FK·라우트 이동 포함). 역사적 기록(`BETA_CUTOVER_PLAN.md`·과거 CHANGELOG 항목)은 시점 기록이라 개작하지 않음.
+
+---
+
 ## [2026-06-16] — 하단 바 개편(투데이/내 노트 + 글쓰기 FAB) + /today·/notes 재구성
 
 > 모바일 하단 5탭을 (내 노트·글쓰기·피드·쇼핑·마이) → **(투데이·내 노트·피드·쇼핑·마이)** 로 교체하고 글쓰기를 우하단 FAB 로 분리. 구 `/record` 계열을 `/today`·`/notes`·`/notes/[id]`·`/weather` 로 이전(리다이렉트 없이 폴더 교체). `tsc` 0·`build` 0·코드검수 [치명] 0.

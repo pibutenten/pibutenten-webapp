@@ -14,9 +14,9 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import CardAvatar from "@/components/card/CardAvatar";
-import BetaSkinShell from "../BetaSkinShell";
-import styles from "../beta-skin.module.css";
-import { IconVerified, useBetaSearchRouting } from "../beta-ui";
+import AppShell from "../AppShell";
+import styles from "../app.module.css";
+import { IconVerified, useSearchRouting } from "../ui";
 import SkinWeatherCard from "./skin-weather/SkinWeatherCard";
 import { computeStatus, type DiaryLatest } from "@/lib/diary-status";
 import type { KeywordPost } from "@/app/today/KeywordCarousel";
@@ -158,7 +158,7 @@ export default function RecordView({
   myKeywords: string[];
 }) {
   // 피드백 4) 헤더 검색 → 피드로 라우팅(공용 헬퍼). 피드가 ?q=/?cat= 을 읽어 자동 필터.
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
   // 관심 키워드 칩 — 실데이터 우선, 비면 샘플 폴백(게스트/미등록 회원).
   const chips = myKeywords.length >= 1 ? myKeywords : SAMPLE_CHIPS;
   // 관심 키워드 새 글 — 단일 키워드 필터(운영 KeywordCarousel 동작 재현).
@@ -229,7 +229,7 @@ export default function RecordView({
   );
 
   return (
-    <BetaSkinShell active="투데이" sidebar={sidebar} {...search}>
+    <AppShell active="투데이" sidebar={sidebar} {...search}>
       {/* 오늘의 피부 날씨 — 위치 기반(인증 불필요), 게스트·회원 공통. 투데이 최상단. */}
       <SkinWeatherCard />
       {/* 히어로 — 게스트=가입 유도, 회원=computeStatus 5단계 인사 */}
@@ -404,6 +404,6 @@ export default function RecordView({
           </a>
         </section>
       )}
-    </BetaSkinShell>
+    </AppShell>
   );
 }

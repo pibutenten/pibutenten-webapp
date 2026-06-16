@@ -44,7 +44,7 @@ export default async function ReviewNewPage({
       ? sp.procedure
       : undefined;
 
-  // 본문(ReviewForm)은 운영 형태 그대로 유지하되 베타 셸로 감싸 렌더(WriteView 선례 동일).
+  // 본문(ReviewForm)은 운영 형태 그대로 유지하되 앱 셸로 감싸 렌더(WriteView 선례 동일).
   //   데이터·권한 가드는 위 server 로직이 책임, 표시(셸 래핑)만 View 에 위임.
   return (
     <ReviewNewView

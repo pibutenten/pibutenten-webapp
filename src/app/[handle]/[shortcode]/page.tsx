@@ -3,8 +3,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkHiddenByShortcode } from "@/lib/hidden-card";
 import { type CardData } from "@/components/Card";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { renderBetaPost } from "@/components/skin/post/post-data";
+import AppShell from "@/components/skin/AppShell";
+import { renderPost } from "@/components/skin/post/post-data";
 import { SITE_URL } from "@/lib/site";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { CARD_DETAIL_SELECT } from "@/lib/card-select";
@@ -116,7 +116,7 @@ export default async function MemberPostPage({ params }: Props) {
     const hidden = await checkHiddenPlaceholder(handle, shortcode);
     if (hidden) {
       return (
-        <BetaSkinShell active="피드" back={`/${handle}`}>
+        <AppShell active="피드" back={`/${handle}`}>
           <section className="w-full py-6">
             <div className="mx-auto max-w-xl rounded-md border border-[var(--border)] bg-white p-6 text-center">
               <p className="text-[14px] font-semibold text-[var(--text)]">
@@ -134,7 +134,7 @@ export default async function MemberPostPage({ params }: Props) {
               </p>
             </div>
           </section>
-        </BetaSkinShell>
+        </AppShell>
       );
     }
     notFound();
@@ -154,12 +154,12 @@ export default async function MemberPostPage({ params }: Props) {
     }
   }
 
-  // 본문은 베타 글상세(renderBetaPost → PostDetail → PostCard forceExpanded)로 승격.
+  // 본문은 글상세(renderPost → PostDetail → PostCard forceExpanded)로 승격.
   //   generateMetadata / canonical / robots / notFound / hidden placeholder / 의사 qa 308 redirect 는 위에서 그대로 보존.
-  //   베타 셸(BetaSkinShell)이 자체 '< 뒤로' + 헤더·탭바를 담당하므로 BackButton/래퍼 section 은 제거.
+  //   앱 셸(AppShell)이 자체 '< 뒤로' + 헤더·탭바를 담당하므로 BackButton/래퍼 section 은 제거.
   //   video_id 는 CARD_DETAIL_SELECT 에 없으므로 null — "같은 영상 추천"만 생략, 키워드 기반 연관 Q&A 는 정상.
   const supabase = await createSupabaseServerClient();
-  return renderBetaPost(supabase, card, null);
+  return renderPost(supabase, card, null);
 }
 
 // 정식 URL 패턴은 `/{handle}/{shortcode}` (회원 글) 와 `/doctors/{slug}/{year}/{post_slug}` (의사 Q&A) 두 가지.

@@ -119,7 +119,7 @@ export default async function DoctorsPage() {
     ],
   };
 
-  // 본문(의사 카드 그리드)만 베타 셸 클라이언트 뷰로 위임.
+  // 본문(의사 카드 그리드)만 앱 셸 클라이언트 뷰로 위임.
   //   JSON-LD <script> 는 셸 바깥 Fragment 에 유지(선례 DoctorProfileView 동일 — SEO 보존).
   return (
     <Fragment>

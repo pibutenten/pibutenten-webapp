@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * BetaNav — /beta 미리보기 전용 내비게이션. (레퍼런스: pibutenten-nav-mockup After)
+ * BottomNav — 검색·피드 미리보기 전용 내비게이션. (레퍼런스: pibutenten-nav-mockup After)
  * 레이아웃(1080 컨테이너·footer·카드·피드)은 기존 그대로, 내비만 새 5탭으로 교체.
  *
  * 헤더 = 두 줄:
  *   (A) 로고줄: 로고 + (데스크탑 메뉴) + 검색·알림 (모바일은 마이 아이콘 없음 — 하단탭과 중복)
- *   (B) 칩줄  : 피드(=/beta)에서만. 탭 언더라인 스타일(가벼운 위계).
+ *   (B) 칩줄  : 피드에서만. 탭 언더라인 스타일(가벼운 위계).
  * 스크롤 내리면 (A) 로고줄만 접히고 (B) 칩줄이 최상단 sticky로 남음 (모바일 전용).
  * 하단 5탭은 fixed.
  */
@@ -15,10 +15,10 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import NotificationsBell from "./NotificationsBell";
-import BetaDiscovery, { prefetchDiscover } from "./beta/BetaDiscovery";
+import SearchPanel, { prefetchDiscover } from "./search/SearchPanel";
 import { useSession } from "@/lib/session-context";
-import { addRecent } from "@/lib/beta-recent";
-import { setBetaTab, useBetaTab, type BetaTab } from "@/lib/beta-feed-tab";
+import { addRecent } from "@/lib/recent-search";
+import { setFeedTab, useFeedTab, type FeedTab } from "@/lib/feed-tab";
 
 const C = "#4cbff2";
 
@@ -110,9 +110,9 @@ function ChipPending() {
 }
 
 // 칩줄 — 탭 전환을 "URL 이동"이 아니라 "공유 메모(store) 변경"으로 처리 → 서버 왕복 0, 즉시(동그라미 없음).
-//   활성 탭은 useBetaTab() (BetaFeed 와 공유). 검색(?q=)은 URL 로 유지되고, 검색 결과 풀을 같은 방식으로 필터.
+//   활성 탭은 useFeedTab() (FeedList 와 공유). 검색(?q=)은 URL 로 유지되고, 검색 결과 풀을 같은 방식으로 필터.
 function ChipRow() {
-  const active = useBetaTab();
+  const active = useFeedTab();
   return (
     <div>
       <div className="flex gap-2 overflow-x-auto pt-[6px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -122,7 +122,7 @@ function ChipRow() {
             <button
               key={c.cat || "all"}
               type="button"
-              onClick={() => setBetaTab(c.cat as BetaTab)}
+              onClick={() => setFeedTab(c.cat as FeedTab)}
               className="relative flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap px-[6px] pb-[6px] pt-[4px] text-sm"
               style={{ color: on ? "#1a1f27" : "#8a93a0", fontWeight: on ? 800 : 600 }}
             >
@@ -175,7 +175,7 @@ function WriteTabsBar() {
   return <WriteTabBar active={tabs.some((t) => t.tab === tab) ? tab : "record"} tabs={tabs} />;
 }
 
-// URL 의 q(검색어)를 검색창에 동기화 — Suspense 격리(BetaNav 하이드레이션 보호).
+// URL 의 q(검색어)를 검색창에 동기화 — Suspense 격리(BottomNav 하이드레이션 보호).
 function SearchQuerySync({ onSync }: { onSync: (q: string) => void }) {
   const sp = useSearchParams();
   const urlQ = sp.get("q") ?? "";
@@ -183,7 +183,7 @@ function SearchQuerySync({ onSync }: { onSync: (q: string) => void }) {
   return null;
 }
 
-export default function BetaNav() {
+export default function BottomNav() {
   const pathname = usePathname();
   const session = useSession();
   const router = useRouter();
@@ -251,19 +251,19 @@ export default function BetaNav() {
   // 로고/피드탭 클릭 — 피드 전체 홈 + 최상단.
   //   이미 "/"(검색 결과 ?q= 포함)면 풀 리로드 → 새 jitter 로 피드를 새로 뿌림 + 최상단(구 홈 로고 동작과 동일).
   //     (same-URL 소프트 내비는 서버 재실행이 없어 jitter 가 안 바뀌고, 탭 store 도 그대로라 "반응 없음"처럼 느껴짐.)
-  //   다른 페이지(/write 등)에서는 소프트 내비 → BetaFeed 가 마운트되며 전체+최상단+새 풀 처리.
+  //   다른 페이지(/write 등)에서는 소프트 내비 → FeedList 가 마운트되며 전체+최상단+새 풀 처리.
   const goHome = () => {
     setSearchOpen(false);
-    setBetaTab("");
+    setFeedTab("");
     window.scrollTo({ top: 0 });
     if (pathname === "/" && !urlQ) {
       // 이미 깨끗한 홈 — 풀 리로드(스켈레톤·전체 다운로드) 대신 소프트 새로고침.
       //   router.refresh() 가 서버만 재실행(force-dynamic+no-store) → 새 jitter 피드를 받아
-      //   BetaFeed 가 풀만 교체(스켈레톤/문서 리로드 없음). SNS 표준(가볍게 위로+새 콘텐츠).
+      //   FeedList 가 풀만 교체(스켈레톤/문서 리로드 없음). SNS 표준(가볍게 위로+새 콘텐츠).
       router.refresh();
       return;
     }
-    // 검색 결과(?q=) 또는 다른 페이지 → 깨끗한 홈으로 소프트 내비(BetaFeed 마운트/풀 동기화가 새 피드 처리).
+    // 검색 결과(?q=) 또는 다른 페이지 → 깨끗한 홈으로 소프트 내비(FeedList 마운트/풀 동기화가 새 피드 처리).
     setUrlQ(""); setQ("");
     router.push("/");
   };
@@ -377,7 +377,7 @@ export default function BetaNav() {
                   />
                   {focused && (
                     <div className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-[360px] overflow-y-auto rounded-xl bg-white p-3 shadow-[0_8px_30px_rgba(20,40,70,0.18)]">
-                      <BetaDiscovery query={q} onPicked={(t) => { setUrlQ(t); setQ(t); setFocused(false); }} />
+                      <SearchPanel query={q} onPicked={(t) => { setUrlQ(t); setQ(t); setFocused(false); }} />
                     </div>
                   )}
                 </div>
@@ -409,7 +409,7 @@ export default function BetaNav() {
           </div>
 
           {/* (B) 칩줄 — 피드에서만. 검색 입력 오버레이(searchOpen) 중에만 숨김(검색 결과 화면에선 표시 — 탭으로 결과 좁힘).
-              탭 전환은 store(useBetaTab) 기반 클라 상태라 useSearchParams 불필요 → Suspense 없이 즉시. */}
+              탭 전환은 store(useFeedTab) 기반 클라 상태라 useSearchParams 불필요 → Suspense 없이 즉시. */}
           {isFeed && !searchOpen && <ChipRow />}
 
           {/* (B) 글쓰기 서브탭 — 피드 2차 바와 동일 높이, 풀폭 3등분. 스크롤 시 (A) 접히고 이 바만 sticky. */}
@@ -429,7 +429,7 @@ export default function BetaNav() {
       {/* 모바일 검색 오버레이 — 풀블리드(스크림/그림자 없음). 입력 비면 발견, 입력 중이면 자동완성. */}
       {searchOpen && (
         <div className="fixed inset-x-0 bottom-0 top-12 z-40 overflow-y-auto bg-white px-4 pb-28 pt-4 sm:hidden">
-          <BetaDiscovery query={q} onPicked={(t) => { setUrlQ(t); setQ(t); setSearchOpen(false); }} />
+          <SearchPanel query={q} onPicked={(t) => { setUrlQ(t); setQ(t); setSearchOpen(false); }} />
         </div>
       )}
 

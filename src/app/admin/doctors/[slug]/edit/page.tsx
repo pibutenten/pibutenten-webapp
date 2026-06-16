@@ -6,7 +6,7 @@ import { requireAdminPage } from "@/lib/admin-page-guard";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
 import { asDoctorProfileData } from "@/lib/doctor-profile";
 import DoctorProfileEditForm from "./DoctorProfileEditForm";
-import BetaAdminDoctorEditView from "./BetaAdminDoctorEditView";
+import AdminDoctorEditView from "./AdminDoctorEditView";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +51,7 @@ export default async function AdminDoctorEditPage({ params }: Props) {
   const initial = asDoctorProfileData(doctor.profile_data);
 
   return (
-    <BetaAdminDoctorEditView>
+    <AdminDoctorEditView>
     <section className="w-full py-6">
       <div className="mb-5 rounded-[var(--r-card)] border border-[var(--line)] bg-white p-5">
         <div className="flex items-start gap-4">
@@ -84,6 +84,6 @@ export default async function AdminDoctorEditPage({ params }: Props) {
 
       <DoctorProfileEditForm slug={doctor.slug} initial={initial} />
     </section>
-    </BetaAdminDoctorEditView>
+    </AdminDoctorEditView>
   );
 }

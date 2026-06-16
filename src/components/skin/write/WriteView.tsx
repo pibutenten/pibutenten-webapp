@@ -1,18 +1,18 @@
 "use client";
 
 /**
- * WriteView — /beta-skin/write "글쓰기" 본문 (클라이언트).
+ * WriteView — app skin write "글쓰기" 본문 (클라이언트).
  *
- * 공용 셸(BetaSkinShell)을 active="글쓰기" 로 사용. 폼은 자체 재구현(누더기) 폐기 →
+ * 공용 셸(AppShell)을 active="글쓰기" 로 사용. 폼은 자체 재구현(누더기) 폐기 →
  *   운영 `WriteTabs` 를 그대로 렌더(시술노트=DiaryForm / 시술후기=ReviewForm / 끄적끄적·Q&A=WriteClient).
- *   베타는 페이지 크롬(.wt 탭 카드 + 사이드바)만 제공하고, 선택한 탭을 WriteTabs 의 tab prop 으로 전달.
+ *   신규 스킨은 페이지 크롬(.wt 탭 카드 + 사이드바)만 제공하고, 선택한 탭을 WriteTabs 의 tab prop 으로 전달.
  *   Q&A 탭은 원장·관리자만 노출(canQa) — 운영 정합.
  */
 
 import { useState } from "react";
-import BetaSkinShell from "../BetaSkinShell";
-import styles from "../beta-skin.module.css";
-import { useBetaSearchRouting } from "../beta-ui";
+import AppShell from "../AppShell";
+import styles from "../app.module.css";
+import { useSearchRouting } from "../ui";
 import WriteTabs from "@/app/write/WriteTabs";
 import type { ProcedureOption } from "@/app/review/new/ReviewForm";
 
@@ -63,7 +63,7 @@ export default function WriteView({
   /** 시술노트 저장 후 후기 유도 시 미리 정해진 시술 ko (?proc=). 시술후기 탭 잠금 프리필. */
   initialProcedure?: string;
 }) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
   // Q&A 탭은 원장·관리자 전용(운영 정합).
   const canQa = isLoggedIn && (role === "admin" || role === "doctor");
   const types = canQa ? [...BASE_TYPES, QA_TYPE] : BASE_TYPES;
@@ -115,7 +115,7 @@ export default function WriteView({
   );
 
   return (
-    <BetaSkinShell active="글쓰기" sidebar={sidebar} {...search}>
+    <AppShell active="글쓰기" sidebar={sidebar} {...search}>
       <div className={styles.writeWrap}>
         <div
           className={styles.writeTypes}
@@ -136,8 +136,8 @@ export default function WriteView({
         </div>
 
         {/* 비로그인 게이트 — 작성=로그인 필요(운영 정합). 운영 WriteTabs 의 시술노트는
-            비공개라 비로그인도 폼을 열지만(저장 시 401 토스트), 베타는 모든 탭에서 일관되게
-            로그인 CTA 를 노출한다(운영 무수정, 베타 셸 헤더 로그인 동선과 동일 next 경로). */}
+            비공개라 비로그인도 폼을 열지만(저장 시 401 토스트), 신규 스킨은 모든 탭에서 일관되게
+            로그인 CTA 를 노출한다(운영 무수정, 앱 셸 헤더 로그인 동선과 동일 next 경로). */}
         {!isLoggedIn ? (
           <section className={`${styles.card} ${styles.writeLoginGate}`}>
             <h3 className={styles.writeLoginGateTitle}>로그인하고 작성해 보세요</h3>
@@ -176,6 +176,6 @@ export default function WriteView({
           />
         )}
       </div>
-    </BetaSkinShell>
+    </AppShell>
   );
 }

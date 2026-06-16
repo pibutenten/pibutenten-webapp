@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import ShopView from "@/components/skin/shop/ShopView";
 
-// ShopView(BetaSkinShell) 가 클라이언트 훅(useSearchParams 등) 사용 → 동적 렌더.
+// ShopView(AppShell) 가 클라이언트 훅(useSearchParams 등) 사용 → 동적 렌더.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {

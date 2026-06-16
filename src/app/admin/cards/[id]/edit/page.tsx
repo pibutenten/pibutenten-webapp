@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { fetchAdminCardExtras } from "@/lib/admin-card-extras";
 import EditClient from "./EditClient";
-import BetaAdminCardEditView from "./BetaAdminCardEditView";
+import AdminCardEditView from "./AdminCardEditView";
 
 export const dynamic = "force-dynamic";
 
@@ -79,10 +79,10 @@ export default async function AdminEditQAPage({ params }: Props) {
   // admin extras 통합 fetch (헬퍼 — /write/[shortcode] admin 분기와 공통)
   const extras = await fetchAdminCardExtras(supabase, card, { isSuperAdmin });
 
-  // 렌더만 베타 셸 래퍼(BetaAdminCardEditView)로 위임 — 운영 EditClient 를 BetaSkinShell 안에 임베드.
+  // 렌더만 앱 셸 래퍼(AdminCardEditView)로 위임 — 운영 EditClient 를 AppShell 안에 임베드.
   //   back="/admin/cards" 뒤로가기는 셸이 담당(기존 BackButton 대체).
   return (
-    <BetaAdminCardEditView
+    <AdminCardEditView
       card={card}
       doctors={extras.doctors}
       doctorPickCount={extras.doctorPickCount}

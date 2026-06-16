@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * beta-ui — 신규 스킨 공용 카드 UI · 헬퍼 · 인라인 아이콘. (구 /beta-skin/* 프리뷰에서 운영 승격.)
+ * ui — 신규 스킨 공용 카드 UI · 헬퍼 · 인라인 아이콘. (구 app skin 프리뷰에서 운영 승격.)
  *
- * 피드(BetaSkinFeed)·글 상세(PostDetail)·내 노트(record) 등 여러 페이지가
+ * 피드(FeedView)·글 상세(PostDetail)·내 노트(record) 등 여러 페이지가
  * 같은 카드 컴포넌트/아이콘/링크 헬퍼를 재사용하도록 한 곳에 모음 (DRY).
  *
  * 운영 동작 이식 (읽기만, 직접 재사용/재현):
@@ -41,20 +41,20 @@ import RecentLikers from "@/components/RecentLikers";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 import { useCardViewer } from "@/components/card/hooks/useCardViewer";
 import type { CardData } from "@/lib/types/card";
-// (리포트 카드는 운영 ProcedureReportCard 를 BetaSkinFeed 에서 직접 재사용 — 베타 자체 BetaReportCard 폐기.)
+// (리포트 카드는 운영 ProcedureReportCard 를 FeedView 에서 직접 재사용 — 앱 스킨 자체 ReportCard 폐기.)
 import { useSession } from "@/lib/session-context";
 import type { EngagementMe } from "@/components/card/hooks/useCardEngagement";
-import styles from "./beta-skin.module.css";
+import styles from "./app.module.css";
 
 /* ---------- 비-피드 페이지 헤더 검색 → 피드로 라우팅 ----------
  * record/write/my/post 가 공유하는 검색 props 묶음.
  *   - 검색 제출(엔터) → /?q=키워드 (운영 홈피드가 ?q= 를 읽어 서버 재검색)
- * 드롭다운(최근검색·인기검색·카테고리 인기태그·자동완성)은 운영 BetaDiscovery 가 셸 안에서 담당하므로
+ * 드롭다운(최근검색·인기검색·카테고리 인기태그·자동완성)은 운영 SearchPanel 가 셸 안에서 담당하므로
  *   여기서는 onSearchSubmit 만 반환한다(자체 더미 카테고리/추천 셋 제거).
  *
  * 홈 승격(2026-06-14) 이후 검색은 운영 홈(/?q=)으로 통일한다. 모든 스킨 화면(record/write/my 등)이
- *   이 운영 검색으로 빠져나가는 게 정합(구 /beta-skin 프리뷰 경로는 폐기). */
-export function useBetaSearchRouting() {
+ *   이 운영 검색으로 빠져나가는 게 정합(구 app skin 프리뷰 경로는 폐기). */
+export function useSearchRouting() {
   const router = useRouter();
   return {
     onSearchSubmit: (q: string) => {
@@ -67,7 +67,7 @@ export function useBetaSearchRouting() {
 
 /* ---------- 피드백 5) 키워드 → 카테고리별 연한 배경 칩 클래스 ----------
  * 운영 categorize(@/lib/category-sets)로 키워드를 5분류한 뒤
- * beta-skin.module.css 의 카테고리 톤 클래스(catLifting 등)로 매핑.
+ * app.module.css 의 카테고리 톤 클래스(catLifting 등)로 매핑.
  * 인기 태그(피드 사이드)·관심 키워드(내 노트) 칩이 같은 톤을 공유. */
 const CAT_TAG_CLASS: Record<string, string> = {
   concerns: styles.catConcerns,
@@ -101,7 +101,7 @@ export function cardHref(c: CardData): string {
 
 /* ---------- 카드 → 작성자 프로필 URL (운영 CardHeader 동선 재현) ----------
  * 작성자(아바타+이름) 클릭 → 프로필로 이동.
- *   - 의사(credential 노출): /doctors/{slug} (운영 — 베타엔 원장 프로필이 없고 글상세 우측 프로필이 대체)
+ *   - 의사(credential 노출): /doctors/{slug} (운영 — 앱 스킨엔 원장 프로필이 없고 글상세 우측 프로필이 대체)
  *   - 회원(handle 있음):     /{handle} (운영 공개 프로필 — noindex 프리뷰 URL 누수 방지)
  *   - 회원(handle 없음):     /u/{id} (운영 CardHeader.tsx:129 레거시 폴백과 동일)
  *   - 탈퇴 sentinel:         null → 링크 비활성 (운영 CardHeader.tsx:64-68 동일 정책).
@@ -131,7 +131,7 @@ export function isNewCard(iso?: string | null): boolean {
 }
 
 /* ---------- 공유: 운영 shareCard(@/components/card/utils/card-share) 재사용 ----------
- * 자체 구현(shareBetaCard) 폐기 — 모바일 네이티브 시트 / 데스크탑 클립보드+토스트,
+ * 자체 구현(shareCard) 폐기 — 모바일 네이티브 시트 / 데스크탑 클립보드+토스트,
  * 사용자 취소(AbortError) 구분, card_shares.channel 채널 반환까지 운영과 100% 동일. */
 
 /* ---------- 카테고리 라벨 ---------- */
@@ -249,7 +249,7 @@ export function videoInfo(card: CardData): { href: string; ts: string | null } |
 /* ---------- 본문 볼드·형광펜 렌더 (운영 renderAnswerBody 재현) ----------
  * 단락(\n\n) 분리 → <p>. **bold** → <strong> + 형광펜(linear-gradient transparent 60% → color 60%).
  * highlightColor 는 pickHighlight(card.id) 로 카드별 결정. clamped=true 면 첫 단락만 보이고 나머지 hidden. */
-export function renderBetaBody(
+export function renderBody(
   text: string,
   highlightColor: string,
   clamped: boolean,
@@ -369,14 +369,14 @@ export const TAG_TONES = [
  *   - 항목 4) 태그 클릭 → onTagClick(키워드) 로 헤더 검색창에 채워 필터.
  *   - 아바타는 운영 CardAvatar 로 교체(원장 얼굴 보정). */
 /* ---------- 카드 액션 훅 (좋아요·저장·공유 실제 동작) ----------
- * 운영 useCardEngagement 의 좋아요/저장/공유 RPC 흐름을 베타 카드용으로 옮긴 경량 훅.
+ * 운영 useCardEngagement 의 좋아요/저장/공유 RPC 흐름을 앱 카드용으로 옮긴 경량 훅.
  *   - me 3-state: undefined(로딩중·클릭 무시) / null(비로그인·토스트 안내) / {id}(로그인·정상).
  *   - 좋아요/저장: 낙관적 업데이트 후 toggle_card_like / toggle_card_save RPC 권위값으로 동기화.
  *       실패 시 롤백 + 토스트. p_identity_id 는 active 명함(getActiveIdentityId).
- *   - 공유: shareBetaCard(navigator.share / clipboard) 후 card_shares INSERT(channel='link-copy').
+ *   - 공유: shareCard(navigator.share / clipboard) 후 card_shares INSERT(channel='link-copy').
  *       비로그인이면 profile_id=null, session_id 로 dedup(운영 0117 정책 정합). */
-export type BetaViewerState = { liked?: boolean; saved?: boolean };
-export function useBetaCardActions(card: CardData, viewer?: BetaViewerState) {
+export type ViewerState = { liked?: boolean; saved?: boolean };
+export function useCardActions(card: CardData, viewer?: ViewerState) {
   const [me, setMe] = useState<{ id: string } | null | undefined>(undefined);
   const [liked, setLiked] = useState(viewer?.liked ?? false);
   const [likeCount, setLikeCount] = useState(card.like_count ?? 0);
@@ -490,8 +490,8 @@ export function useBetaCardActions(card: CardData, viewer?: BetaViewerState) {
 
 /* ---------- 신고 사유 (운영 /api/reports enum 정합) ----------
  * 운영 신고 API(src/app/api/reports/route.ts)의 reason enum 9종과 1:1.
- * 한글 라벨은 운영 ReportForm(페이지 전용, 무수정)을 참고하되 베타 모달용으로 간결화. */
-const BETA_REPORT_REASONS: { value: ReportReason; label: string }[] = [
+ * 한글 라벨은 운영 ReportForm(페이지 전용, 무수정)을 참고하되 앱 모달용으로 간결화. */
+const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: "spam", label: "스팸·도배" },
   { value: "harassment", label: "괴롭힘·욕설·혐오" },
   { value: "medical_ad", label: "의료광고·과장" },
@@ -522,8 +522,8 @@ type ReportReason =
  *       실패 → API 메시지(또는 폴백) 토스트(danger). rate-limit(분당 3건) 초과도 여기로.
  *   - 운영 API 는 로그인/비로그인 모두 허용하나, 호출부(PostCardMenu)에서 비로그인은
  *     모달을 열기 전에 로그인 유도로 분기하므로 이 모달은 로그인 회원 전용 경로로만 진입.
- *   - 베타 톤(beta-skin.module.css 토큰)만 사용 — 운영 ReportForm(Tailwind)과 격리. */
-function BetaReportModal({
+ *   - 앱 톤(app.module.css 토큰)만 사용 — 운영 ReportForm(Tailwind)과 격리. */
+function ReportModal({
   card,
   onClose,
 }: {
@@ -604,7 +604,7 @@ function BetaReportModal({
         </p>
 
         <div className={styles.reportReasons} role="radiogroup" aria-label="신고 사유">
-          {BETA_REPORT_REASONS.map((opt) => (
+          {REPORT_REASONS.map((opt) => (
             <button
               type="button"
               key={opt.value}
@@ -654,7 +654,7 @@ function BetaReportModal({
 }
 
 /* ---------- 카드 ⋮ 더보기 메뉴 (본인 글 수정/삭제 · 관리자 숨김 · 타인 글 신고) ----------
- * 운영 CardHeader/Card 의 관리 수단을 베타 PostCard 로 이식(읽기→재현, 직접 수정 X).
+ * 운영 CardHeader/Card 의 관리 수단을 PostCard 로 이식(읽기→재현, 직접 수정 X).
  * + SNS 표준(인스타·X) 정합: ⋮ 를 모든 로그인 회원에게 노출하고 권한별 항목 분기.
  *
  * 권한 판정(운영 Card.tsx 정합):
@@ -766,7 +766,7 @@ export function PostCardMenu({
   }
 
   // 삭제 — 운영 Card.performDelete 와 동일 RPC(soft_delete_card)·인자.
-  //   성공 시 onDeleted() 로 카드를 화면에서 제거(운영의 vanishing 애니메이션 대신 베타는 즉시 언마운트).
+  //   성공 시 onDeleted() 로 카드를 화면에서 제거(운영의 vanishing 애니메이션 대신 신규 스킨은 즉시 언마운트).
   async function performDelete() {
     setDeleting(true);
     try {
@@ -790,7 +790,7 @@ export function PostCardMenu({
       }
       showToast("글을 삭제했어요");
       setConfirmDeleteOpen(false);
-      // 운영 카드 버스와 연동 — 다른 작업자의 BetaSkinFeed 가 이 이벤트를 수신해
+      // 운영 카드 버스와 연동 — 다른 작업자의 FeedView 가 이 이벤트를 수신해
       // 피드 풀에서도 같은 카드를 제거하도록 broadcast(운영 CARD_DELETED detail 형식 일치: { id }).
       if (typeof window !== "undefined") {
         window.dispatchEvent(
@@ -890,7 +890,7 @@ export function PostCardMenu({
 
       {/* 신고 모달 — 로그인 회원이 타인 글을 신고할 때만. 사유 선택 → /api/reports POST. */}
       {reportOpen && (
-        <BetaReportModal card={card} onClose={() => setReportOpen(false)} />
+        <ReportModal card={card} onClose={() => setReportOpen(false)} />
       )}
 
       {/* 삭제 확인 다이얼로그 — 운영 Card.tsx 와 동일 문구·tone. */}
@@ -920,10 +920,10 @@ export function PostCard({
   card: CardData;
   /** 항목 4) 카드 태그 클릭 → 그 키워드로 검색·필터 (헤더 검색창에 채움). */
   onTagClick?: (keyword: string) => void;
-  /** 운영 홈과 동일 — HOT 카드면 우상단 HOT 딱지. (BetaSkinFeed 의 hotSet 판정 결과) */
+  /** 운영 홈과 동일 — HOT 카드면 우상단 HOT 딱지. (FeedView 의 hotSet 판정 결과) */
   isHot?: boolean;
   /** 서버 prefetch 한 좋아요/저장 상태 — 첫 렌더부터 정확한 active 표시. */
-  viewer?: BetaViewerState;
+  viewer?: ViewerState;
   /** 항목1) 현재 검색어 — 본문·제목 노란 하이라이트 + 일치 태그 활성화(검색 결과일 때만). */
   searchQuery?: string;
   /** 글상세 재사용 — 항상 펼친 상태(접기 없음) + 댓글 전체+입력 기본.
@@ -933,7 +933,7 @@ export function PostCard({
   onDeleted?: () => void;
 }) {
   const [expanded, setExpanded] = useState(forceExpanded);
-  // ⋮ 메뉴 삭제 성공 시 카드를 화면에서 제거(운영의 vanishing 대신 베타는 즉시 언마운트).
+  // ⋮ 메뉴 삭제 성공 시 카드를 화면에서 제거(운영의 vanishing 대신 신규 스킨은 즉시 언마운트).
   const [removed, setRemoved] = useState(false);
   // 피드백 2) 댓글 펼침 — 댓글 아이콘 클릭 시 입력창까지 펼침(showInput). 글상세(forceExpanded)는 기본 전체+입력.
   const [commentsOpen, setCommentsOpen] = useState(forceExpanded);
@@ -961,10 +961,10 @@ export function PostCard({
     return () => ob.disconnect();
   }, [previewReady]);
   // 좋아요·저장·공유 실제 동작.
-  const act = useBetaCardActions(card, viewer);
+  const act = useCardActions(card, viewer);
   // 조회수/노출 기록 — 운영 useCardViewer 그대로 재사용. mount 시 impression(노출) 자동 enqueue,
   //   본문 펼침·댓글 열기 등 "읽음 의도" 시 recordView()로 card_views 기록(세션 dedup, DB 트리거가 카운트).
-  //   (베타 유입이 조회수·노출 통계에서 누락되던 문제 해소.)
+  //   (신규 스킨 유입이 조회수·노출 통계에서 누락되던 문제 해소.)
   const { recordView } = useCardViewer(card, { forceExpanded, cardRef });
   // 글상세(forceExpanded) 진입 = 명백한 조회·읽음 신호 → mount 시 1회 view 기록(세션 dedup).
   useEffect(() => {
@@ -976,7 +976,7 @@ export function PostCard({
   const allTags = card.keywords ?? [];
   const tags = expanded ? allTags : allTags.slice(0, 7);
   // 피드백 1) 본문 끝 평문 "참고문헌\n1. ..." 꼬리 제거(운영 Critical-6 정합).
-  //   → 본문 렌더(renderBetaBody)와 PubmedRefs 가 참고문헌을 이중 출력하지 않게.
+  //   → 본문 렌더(renderBody)와 PubmedRefs 가 참고문헌을 이중 출력하지 않게.
   //   pubmed_refs 가 SSOT 이므로 본문 평문 꼬리는 잘라낸다.
   const body = stripLegacyReferencesTail(card.body ?? "");
   const isLong = body.length > 120 || body.split(/\n{2,}/).length > 1;
@@ -1045,7 +1045,7 @@ export function PostCard({
           항목이 없으면(이론상 거의 없음) 내부에서 null 반환 → 미노출. */}
       <PostCardMenu card={card} onDeleted={onDeleted ?? (() => setRemoved(true))} />
 
-      {/* 작성자 — 실제 프로필 URL 로 같은 창 이동(제목 링크와 동일 동작). 베타 승격으로 프로필도
+      {/* 작성자 — 실제 프로필 URL 로 같은 창 이동(제목 링크와 동일 동작). 앱 셸 승격으로 프로필도
           인앱 페이지라 새 탭(target=_blank) 폐기 → 화면 안에서 이동. 정보 부족이면 일반 div. */}
       {profileHref ? (
         <a className={styles.author} href={profileHref} onClick={(e) => e.stopPropagation()}>
@@ -1088,7 +1088,7 @@ export function PostCard({
       >
         {body && (
           <div className={styles.postBodyRich}>
-            {renderBetaBody(body, hlColor, isLong && !expanded, searchQuery)}
+            {renderBody(body, hlColor, isLong && !expanded, searchQuery)}
           </div>
         )}
         {/* 항목9) 더보기만 노출 — 펼친 글은 본문 클릭으로 접히므로 '접기' 라벨 불필요. */}
@@ -1208,7 +1208,7 @@ export function PostCard({
           showInput={commentsOpen}: false=미리보기 3개 / true=전체+입력. onCountChange 로 실제 수 반영. */}
       {(previewReady || commentsOpen) && (
         <div
-          className={styles.betaComments}
+          className={styles.comments}
           onClick={(e) => e.stopPropagation()}
         >
           <CommentsBlock

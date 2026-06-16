@@ -122,7 +122,7 @@ export default async function DoctorDashboardPage() {
 
   const pendingCount = kpiByDays[0]?.pending_review ?? 0;
 
-  // 본문은 운영 형태 그대로 유지하되 베타 셸(wide)로 감싸 렌더(BetaAdminView 선례 동일).
+  // 본문은 운영 형태 그대로 유지하되 앱 셸(wide)로 감싸 렌더(AdminView 선례 동일).
   //   데이터·권한 가드·통계 가공은 위 server 로직이 100% 책임, 표시만 View 에 위임.
   return (
     <DoctorDashboardView

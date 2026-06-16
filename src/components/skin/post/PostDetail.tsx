@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * PostDetail — /beta-skin/post "글 상세".
+ * PostDetail — app skin post "글 상세".
  *
  * 정합성(누더기 금지): 본문(작성자·제목·본문·태그·좋아요/댓글·전체 댓글)은 피드의 PostCard 를
  *   forceExpanded 로 그대로 재사용한다. 글상세 전용 본문 컴포넌트/스타일(.articleBody 등)을
@@ -16,15 +16,15 @@ import CardAvatar from "@/components/card/CardAvatar";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
 import { orcidUrl, type DoctorProfileData } from "@/lib/doctor-profile";
 import type { CardData } from "@/lib/types/card";
-import BetaSkinShell from "../BetaSkinShell";
-import styles from "../beta-skin.module.css";
+import AppShell from "../AppShell";
+import styles from "../app.module.css";
 import {
   IconVerified,
   cardHref,
   PostCard,
-  useBetaSearchRouting,
-  type BetaViewerState,
-} from "../beta-ui";
+  useSearchRouting,
+  type ViewerState,
+} from "../ui";
 
 export default function PostDetail({
   card,
@@ -36,7 +36,7 @@ export default function PostDetail({
 }: {
   card: CardData | null;
   related?: CardData[];
-  viewer?: BetaViewerState;
+  viewer?: ViewerState;
   /** 작성자(원장) 한줄 메시지 — 사이드 프로필 카드에 항상 노출(운영 doctors.intro). 회원이면 null. */
   doctorIntro?: string | null;
   /** 작성자(원장) 확장 프로필(학력·경력·학회·링크) — "더보기" 펼침 내용(운영 doctors.profile_data). 회원이면 null. */
@@ -44,7 +44,7 @@ export default function PostDetail({
   /** 작성자(원장) 소속(병원 + 지점) — 더보기 프로필 상세 맨 위 "소속" 행. 회원이면 null. */
   doctorAffiliation?: string | null;
 }) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
   const router = useRouter();
   // 사이드 작성자 프로필 — 접힘 기본, 카드 아무 곳이나 클릭하면 더보기 토글.
   const [profileOpen, setProfileOpen] = useState(false);
@@ -159,10 +159,10 @@ export default function PostDetail({
   ) : null;
 
   return (
-    <BetaSkinShell active="피드" sidebar={sidebar} sidebarMobileBelow back="/" {...search}>
+    <AppShell active="피드" sidebar={sidebar} sidebarMobileBelow back="/" {...search}>
       {card ? (
         // 본문 = 피드와 동일한 PostCard(forceExpanded): 항상 펼침 + 댓글 전체+입력.
-        //   태그 클릭은 피드와 동일하게 /beta-skin?q= 로, 삭제 시 목록으로 이동.
+        //   태그 클릭은 피드와 동일하게 app skin 검색 로, 삭제 시 목록으로 이동.
         <PostCard
           card={card}
           forceExpanded
@@ -175,13 +175,13 @@ export default function PostDetail({
           <p className={styles.empty}>글을 찾을 수 없어요.</p>
         </div>
       )}
-    </BetaSkinShell>
+    </AppShell>
   );
 }
 
 /* ---------- 원장 확장 프로필 항목 구성 (운영 DoctorProfileSection 과 동일 로직) ----------
  * profile_data 중 채워진 항목만, 운영과 같은 순서/라벨로 행(rows)·링크(links)를 만든다.
- * 데이터 매핑(필드→라벨·orcidUrl 변환)은 운영과 100% 동일하고, 시각만 베타 톤(아래 CSS). */
+ * 데이터 매핑(필드→라벨·orcidUrl 변환)은 운영과 100% 동일하고, 시각만 앱 톤(아래 CSS). */
 function buildProfileRows(p: DoctorProfileData) {
   const rows: { title: string; values: string[] }[] = [];
   if (p.education?.length) rows.push({ title: "학력", values: p.education });
@@ -216,7 +216,7 @@ function profileHasContent(p: DoctorProfileData): boolean {
 
 /**
  * DoctorProfileDetail — 우측 작성자 카드 "더보기" 펼침 내용.
- * 운영 프로필 페이지의 학력·경력·학회·외부 링크와 동일한 항목/순서를 베타 사이드 톤으로 렌더.
+ * 운영 프로필 페이지의 학력·경력·학회·외부 링크와 동일한 항목/순서를 앱 사이드 톤으로 렌더.
  * (링크 클릭은 카드 전체 토글과 충돌하지 않게 stopPropagation.)
  */
 function DoctorProfileDetail({

@@ -3,22 +3,22 @@
 /**
  * DoctorDashboardView — /doctor "원장 대시보드" 본문 (클라이언트).
  *
- * 원칙(사용자 지시, 2026-06-15): 관리자 대시보드 재설계(BetaAdminView)와 같은 방식으로
- *   "상단바(헤더)만 베타 셸, 본문은 기존 운영 형태를 최대한 유지". 큰 .card 박스에 욱여넣지 않는다.
+ * 원칙(사용자 지시, 2026-06-15): 관리자 대시보드 재설계(AdminView)와 같은 방식으로
+ *   "상단바(헤더)만 앱 셸, 본문은 기존 운영 형태를 최대한 유지". 큰 .card 박스에 욱여넣지 않는다.
  *   - 운영 /doctor/page.tsx 의 본문 구조(내 글 KPI · 운영 프로그램 Tool 그리드 · 인기 검색어/태그)를
  *     운영 Tailwind 톤 그대로 임베드(재포장 X). 데이터·권한·통계 로직은 운영 page.tsx 가 책임(여기는 표시만).
- *   - 셸은 BetaSkinShell 의 wide 모드(풀폭 1080px, 하단 탭바 숨김, 상단바만 베타) — BetaAdminView 선례 동일.
+ *   - 셸은 AppShell 의 wide 모드(풀폭 1080px, 하단 탭바 숨김, 상단바만 노출) — AdminView 선례 동일.
  *   - active="마이"(미강조 톤), back=운영 BackButton(fallback "/"), 검색은 운영 홈(/?q=)으로 라우팅.
  *
- * 격리: beta-skin.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
+ * 격리: app.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
  */
 
 import Link from "next/link";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import DoctorActivityKpis, { type DoctorKpi } from "./DoctorActivityKpis";
 import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
 
 type SearchRow = { query: string; cnt: number };
 type TagRow = { keyword: string; cnt: number };
@@ -38,10 +38,10 @@ export default function DoctorDashboardView({
   searchesByDays: Record<number, SearchRow[]>;
   tagsByDays: Record<number, TagRow[]>;
 }) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" wide back="/" {...search}>
+    <AppShell active="마이" wide back="/" {...search}>
       {/* 계정 스위처 — 어느 명함에서든 전환 가능(마이페이지와 동일, 운영 공용 카드 임베드). */}
       <AccountSwitcherCard compact />
 
@@ -112,7 +112,7 @@ export default function DoctorDashboardView({
         <PopularSearchesCard initialDays={1} dataByDays={searchesByDays} />
         <PopularTagsCard initialDays={0} dataByDays={tagsByDays} />
       </div>
-    </BetaSkinShell>
+    </AppShell>
   );
 }
 

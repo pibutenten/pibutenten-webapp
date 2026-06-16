@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * BetaSkinShell — 신규 스킨 공용 셸 (클라이언트). (구 /beta-skin/* 프리뷰에서 운영 라우트로 승격.)
+ * AppShell — 신규 스킨 공용 셸 (클라이언트). (구 app skin 프리뷰에서 운영 라우트로 승격.)
  *
  * 주요 페이지(피드=/ · 투데이=/today · 내 노트=/notes · 글 상세 · 글쓰기=/write · 마이=/my)가 공유하는 글로벌 크롬:
  *   - 풀뷰포트 오버레이(styles.root: position:fixed; inset:0; z-index:100; overflow-y:auto)
  *     → 루트 layout.tsx 의 TopNav/SiteFooter/main 을 시각적으로 가린다.
  *   - 헤더(로고 + 데스크탑 GNB·검색·글쓰기 / 모바일 아이콘) — 실제 프리뷰 경로 연결.
  *   - 하단 둥근 탭바(모바일) — 실제 프리뷰 경로 연결.
- *   - 캔버스 배경/토큰은 모두 beta-skin.module.css 의 .root 스코프에 격리.
+ *   - 캔버스 배경/토큰은 모두 app.module.css 의 .root 스코프에 격리.
  *
  * 페이지별 내용은 children 으로 주입. (옵션) chips 는 본문 상단 칩줄,
  * sidebar 는 데스크탑 2단 우측 칼럼. 둘 다 없으면 단일 칼럼.
@@ -20,14 +20,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import styles from "./beta-skin.module.css";
+import styles from "./app.module.css";
 import { useSession } from "@/lib/session-context";
-import BetaDiscovery, { prefetchDiscover } from "@/components/beta/BetaDiscovery";
+import SearchPanel, { prefetchDiscover } from "@/components/search/SearchPanel";
 import { showToast } from "@/lib/toast";
 import BackButton from "@/components/BackButton";
 
 /* ---------- 공유 라우트 맵 ---------- */
-export const BETA_ROUTES = {
+export const ROUTES = {
   today: "/today",
   notes: "/notes",
   feed: "/",
@@ -39,7 +39,7 @@ export const BETA_ROUTES = {
 
 // "글쓰기" 는 하단 탭에선 빠졌지만 글쓰기·후기 화면(WriteView/WriteEditShell/ReviewNew/ReviewEdit)의
 //   active 톤으로 계속 쓰인다(탭바엔 해당 항목이 없어 강조되지 않음 — 의도된 동작).
-export type BetaActive = "투데이" | "내 노트" | "피드" | "글쓰기" | "쇼핑" | "마이";
+export type NavTab = "투데이" | "내 노트" | "피드" | "글쓰기" | "쇼핑" | "마이";
 
 /* ---------- 헤더 아이콘 ---------- */
 function IconSearch() {
@@ -110,23 +110,23 @@ function IconUser() {
 }
 
 /* 탭바 항목 정의 — 글쓰기는 우하단 FAB(WriteFab)로 분리, 하단 탭은 5개. */
-const TABS: { label: BetaActive; href: string; icon: ReactNode }[] = [
-  { label: "투데이", href: BETA_ROUTES.today, icon: <IconToday /> },
-  { label: "내 노트", href: BETA_ROUTES.notes, icon: <IconNote /> },
-  { label: "피드", href: BETA_ROUTES.feed, icon: <IconFeed /> },
-  { label: "쇼핑", href: BETA_ROUTES.shop, icon: <IconShop /> },
-  { label: "마이", href: BETA_ROUTES.my, icon: <IconUser /> },
+const TABS: { label: NavTab; href: string; icon: ReactNode }[] = [
+  { label: "투데이", href: ROUTES.today, icon: <IconToday /> },
+  { label: "내 노트", href: ROUTES.notes, icon: <IconNote /> },
+  { label: "피드", href: ROUTES.feed, icon: <IconFeed /> },
+  { label: "쇼핑", href: ROUTES.shop, icon: <IconShop /> },
+  { label: "마이", href: ROUTES.my, icon: <IconUser /> },
 ];
 
 /* GNB(데스크탑) 항목 — 투데이 / 내 노트 / 피드 / 쇼핑 (데스크탑 글쓰기는 헤더 우측 버튼) */
-const GNB: { label: BetaActive; href: string }[] = [
-  { label: "투데이", href: BETA_ROUTES.today },
-  { label: "내 노트", href: BETA_ROUTES.notes },
-  { label: "피드", href: BETA_ROUTES.feed },
-  { label: "쇼핑", href: BETA_ROUTES.shop },
+const GNB: { label: NavTab; href: string }[] = [
+  { label: "투데이", href: ROUTES.today },
+  { label: "내 노트", href: ROUTES.notes },
+  { label: "피드", href: ROUTES.feed },
+  { label: "쇼핑", href: ROUTES.shop },
 ];
 
-export default function BetaSkinShell({
+export default function AppShell({
   active,
   children,
   chips,
@@ -139,7 +139,7 @@ export default function BetaSkinShell({
   onSearchChange,
   onSearchSubmit,
 }: {
-  active: BetaActive;
+  active: NavTab;
   children: ReactNode;
   chips?: ReactNode;
   sidebar?: ReactNode;
@@ -157,12 +157,12 @@ export default function BetaSkinShell({
   searchValue?: string;
   onSearchChange?: (q: string) => void;
   /** 검색 제출(엔터/추천·태그 클릭) — 모든 페이지가 /?q= 로 라우팅(홈 승격 후 운영 정합).
-   *  주입되면 onSearchChange 없이도 검색 UI 활성. 실제 드롭다운/자동완성은 BetaDiscovery 가 담당. */
+   *  주입되면 onSearchChange 없이도 검색 UI 활성. 실제 드롭다운/자동완성은 SearchPanel 가 담당. */
   onSearchSubmit?: (q: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  // 우상단 아바타 — 운영 BetaNav 와 동일하게 active 명함 기준(useSession). 없으면 기본 아이콘.
+  // 우상단 아바타 — 운영 BottomNav 와 동일하게 active 명함 기준(useSession). 없으면 기본 아이콘.
   const session = useSession();
   const activeAvatar = session
     ? (session.identities.find((i) => i.id === session.activeIdentityId)?.avatarUrl ??
@@ -247,11 +247,11 @@ export default function BetaSkinShell({
     if (isControlled) onSearchChange?.(q);
     else setLocalQuery(q);
   };
-  // 드롭다운(최근검색·인기검색·카테고리 인기태그·자동완성) 콘텐츠는 운영 BetaDiscovery 가 전부 담당.
+  // 드롭다운(최근검색·인기검색·카테고리 인기태그·자동완성) 콘텐츠는 운영 SearchPanel 가 전부 담당.
   //   검색이 활성이면 포커스/타이핑 시 항상 드롭다운을 띄운다(셸이 자체 더미 목록을 만들지 않음).
   const hasDropdown = searchEnabled;
 
-  // 셸 mount 시 발견 데이터 선프리페치(운영 BetaNav 와 동일) — 검색창 첫 열기도 즉시 표시.
+  // 셸 mount 시 발견 데이터 선프리페치(운영 BottomNav 와 동일) — 검색창 첫 열기도 즉시 표시.
   useEffect(() => {
     if (searchEnabled) void prefetchDiscover();
   }, [searchEnabled]);
@@ -269,7 +269,7 @@ export default function BetaSkinShell({
   }, [suggestOpen]);
 
   // 검색 실행 — 피드(controlled)면 그 자리서 필터, 그 외엔 onSearchSubmit 로 /?q= 라우팅.
-  //   BetaDiscovery 가 직접 라우팅(basePath="/")하므로, 셸 input 의 엔터 제출 경로에서만 사용.
+  //   SearchPanel 가 직접 라우팅(basePath="/")하므로, 셸 input 의 엔터 제출 경로에서만 사용.
   const runSearch = (term: string) => {
     const t = term.trim();
     setSuggestOpen(false);
@@ -285,19 +285,19 @@ export default function BetaSkinShell({
     setValue("");
     setSuggestOpen(false);
     setSearchOpen(false);
-    if (active === "피드") router.push(BETA_ROUTES.feed);
+    if (active === "피드") router.push(ROUTES.feed);
   };
 
   // 쇼핑(준비 중) — GNB·탭바 클릭 시 안내 토스트. 라우팅 없음.
   const onShopClick = () =>
     showToast("쇼핑 준비 중이에요. 곧 만나보실 수 있어요.");
 
-  // 데스크탑 검색 pill 드롭다운(BetaDiscovery, 최근검색만) — 사용자: "데스크탑은 지금 방식이 좋다".
-  //   onPicked: 입력값 동기화 + 닫기. 실제 검색 라우팅은 BetaDiscovery 가 basePath="/" 로 수행.
+  // 데스크탑 검색 pill 드롭다운(SearchPanel, 최근검색만) — 사용자: "데스크탑은 지금 방식이 좋다".
+  //   onPicked: 입력값 동기화 + 닫기. 실제 검색 라우팅은 SearchPanel 가 basePath="/" 로 수행.
   const discoveryDropdown =
     hasDropdown && suggestOpen ? (
       <div className={styles.searchSuggest} role="listbox" aria-label="검색 추천">
-        <BetaDiscovery
+        <SearchPanel
           query={value}
           basePath="/"
           recentOnly
@@ -315,7 +315,7 @@ export default function BetaSkinShell({
   const mobileSearchPanel =
     searchEnabled && searchOpen ? (
       <div className={styles.mobileSearchPanel} role="listbox" aria-label="검색 발견">
-        <BetaDiscovery
+        <SearchPanel
           query={value}
           basePath="/"
           onPicked={(t) => {
@@ -327,7 +327,7 @@ export default function BetaSkinShell({
       </div>
     ) : null;
 
-  // 헤더 hide-on-scroll — 운영 BetaNav 의 스크롤 로직을 그대로 이식(스크롤 소스만 window→.root).
+  // 헤더 hide-on-scroll — 운영 BottomNav 의 스크롤 로직을 그대로 이식(스크롤 소스만 window→.root).
   //   - 데스크탑(≥900px): 항상 표시(접지 않음).
   //   - 모바일: 충분히 내림(y>88 & dy>0) → 숨김 / 올림(dy<0) 또는 최상단(y<20) → 복귀.
   //   - lock(320ms): 토글 직후 락아웃 → 헤더 사라짐 레이아웃 이동이 재트리거하는 진동 차단.
@@ -457,7 +457,7 @@ export default function BetaSkinShell({
           <div className={styles.headerInner}>
             <Link
               className={styles.logoLink}
-              href={BETA_ROUTES.feed}
+              href={ROUTES.feed}
               aria-label="피부텐텐"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -538,7 +538,7 @@ export default function BetaSkinShell({
                 시술·고민 키워드 검색
               </div>
             )}
-            <Link className={styles.btnWriteTop} href={BETA_ROUTES.write}>
+            <Link className={styles.btnWriteTop} href={ROUTES.write}>
               <IconPlus />
               글쓰기
             </Link>
@@ -580,10 +580,10 @@ export default function BetaSkinShell({
               <Link
                 className={styles.iconBtn}
                 aria-label="마이"
-                href={BETA_ROUTES.my}
+                href={ROUTES.my}
               >
                 {/* 항목 3) 로그인 시 active 명함 아바타(동그라미). 사진 없으면 기본 아이콘.
-                    운영 BetaNav 와 동일한 표시(objectPosition·scale). */}
+                    운영 BottomNav 와 동일한 표시(objectPosition·scale). */}
                 {activeAvatar ? (
                   <span className={styles.headerAvatar}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -603,7 +603,7 @@ export default function BetaSkinShell({
         )}
       </header>
 
-      {/* 항목 12) 모바일 검색 풀스크린 패널 — 헤더 아래로 큰 발견 화면(운영 BetaNav 모바일 검색 정합). */}
+      {/* 항목 12) 모바일 검색 풀스크린 패널 — 헤더 아래로 큰 발견 화면(운영 BottomNav 모바일 검색 정합). */}
       {mobileSearchPanel}
 
       {/* ---------- 본문 ---------- */}
@@ -624,7 +624,7 @@ export default function BetaSkinShell({
         {back ? (
           <div className={styles.backRow}>
             <BackButton
-              fallbackHref={typeof back === "string" ? back : BETA_ROUTES.feed}
+              fallbackHref={typeof back === "string" ? back : ROUTES.feed}
               hideLabel={!!backTitle}
             />
             {backTitle ? <div className={styles.backTitle}>{backTitle}</div> : null}
@@ -653,7 +653,7 @@ export default function BetaSkinShell({
 
       {/* ---------- 하단 둥근 탭바 (모바일) ----------
           wide(admin) 모드에선 피드용 5탭(내노트/글쓰기/피드/쇼핑/마이)이 운영 관리자 화면에 부자연스러워 숨김.
-          admin 내 이동은 본문의 운영 프로그램 그리드·탭으로 수행(상단 베타 헤더는 그대로 유지). */}
+          admin 내 이동은 본문의 운영 프로그램 그리드·탭으로 수행(상단 앱 헤더는 그대로 유지). */}
       {!wide && (
         <nav className={styles.tabbar}>
           {TABS.map((t) =>

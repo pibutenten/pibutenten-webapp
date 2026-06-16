@@ -4,12 +4,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
-import BetaAdminView from "./BetaAdminView";
+import AdminView from "./AdminView";
 
 /**
  * /admin — 관리자 전용 대시보드.
  *
- * 원칙: 상단바·배경은 베타 셸(BetaSkinShell), 본문 큰 틀은 기존 운영 대시보드 유지(BetaAdminView).
+ * 원칙: 상단바·배경은 앱 셸(AppShell), 본문 큰 틀은 기존 운영 대시보드 유지(AdminView).
  *   데이터·로직·RPC·운영 클라 컴포넌트는 100% 재사용.
  *   - 가드(requireAdminPage)·prefetch(통계 8개·리서치 패널·활동 KPI·검색어·태그·OAuth)는 정본.
  *   - active 가 doctor 면 본인 대시보드 /doctor 로 redirect.
@@ -177,7 +177,7 @@ export default async function AdminPage() {
   });
 
   return (
-    <BetaAdminView
+    <AdminView
       isSuperAdmin={isSuperAdmin}
       stats={{
         userCount: userCount ?? 0,

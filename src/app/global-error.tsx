@@ -5,11 +5,11 @@
  *
  * global-error.tsx 는 root layout 을 "대체"하므로:
  *   1) html/body 를 직접 렌더해야 한다(layout 이 제공하던 골격이 없음).
- *   2) globals.css / beta-skin 토큰이 로드되지 않는다 → CSS 변수·Tailwind·pbttSpin
+ *   2) globals.css / app skin 토큰이 로드되지 않는다 → CSS 변수·Tailwind·pbttSpin
  *      키프레임 모두 사용 불가. loading.tsx 와 동일하게 토큰 값을 인라인으로 복제한다.
  *
  * 거의 발생하지 않는 최후의 화면이므로 과한 디자인 없이 미니멀 복구 UI 만 둔다.
- * (일반 라우트 예외는 error.tsx 가 먼저 잡으므로 베타 톤이 그대로 유지됨.)
+ * (일반 라우트 예외는 error.tsx 가 먼저 잡으므로 앱 톤이 그대로 유지됨.)
  */
 import { useEffect } from "react";
 
@@ -34,7 +34,7 @@ export default function GlobalError({
           alignItems: "center",
           justifyContent: "center",
           padding: "24px",
-          // 베타 캔버스와 동일한 그라데이션(loading.tsx / beta-skin --tt-canvas 복제)
+          // 앱 캔버스와 동일한 그라데이션(loading.tsx / app skin --tt-canvas 복제)
           background:
             "linear-gradient(168deg, #e8f5fd 0%, #ecf7f2 52%, #faf5e2 100%)",
           fontFamily:

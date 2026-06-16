@@ -2,14 +2,14 @@
 
 /**
  * WeatherDetailView — /weather 상세 페이지 본문(클라이언트). 투데이 날씨 카드에서 진입.
- *   공용 셸(BetaSkinShell, active="투데이") + '< 오늘의 피부 날씨' 헤더(backTitle).
+ *   공용 셸(AppShell, active="투데이") + '< 오늘의 피부 날씨' 헤더(backTitle).
  *   우측 사이드바: 종합 안내 + 4지표 클릭 시 각 지표 설명(기술문서 기반). 선택 상태(emph)를
  *   여기서 보유해 사이드바 설명과 그래프/카드 강조를 함께 구동.
  *   데이터는 useWeather(preferLast) — 카드가 받아둔 스냅샷 즉시 재사용(없으면 직접 측위·fetch).
  */
 
 import { useState } from "react";
-import BetaSkinShell from "../../BetaSkinShell";
+import AppShell from "../../AppShell";
 import styles from "./skin-weather.module.css";
 import { useWeather } from "./useWeather";
 import WeatherDetail from "./WeatherDetail";
@@ -72,7 +72,7 @@ export default function WeatherDetailView() {
   return (
     // 지표 설명 카드는 데스크탑에서 우측 사이드바, 모바일에선 본문 아래(sidebarMobileBelow).
     //   데이터(snap)가 있을 때만 사이드바 노출(로딩·에러 화면에선 단일 칼럼).
-    <BetaSkinShell
+    <AppShell
       active="투데이"
       back="/today"
       backTitle={<h1>오늘의 피부 날씨</h1>}
@@ -97,6 +97,6 @@ export default function WeatherDetailView() {
       ) : (
         <WeatherDetail snap={snap} emph={emph} onEmph={onEmph} />
       )}
-    </BetaSkinShell>
+    </AppShell>
   );
 }

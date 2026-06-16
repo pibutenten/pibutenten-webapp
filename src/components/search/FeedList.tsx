@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * BetaFeed — /beta 전용 피드. "300개를 받아두고 탭은 브라우저에서 즉시 거르기" 모델.
+ * FeedList — 검색·피드 전용 피드. "300개를 받아두고 탭은 브라우저에서 즉시 거르기" 모델.
  *
  * 기존 공용 Feed 와의 차이는 단 하나: 탭 전환을 서버 왕복(네비게이션) 없이 클라 필터로 처리.
  *   - 카드/메이슨리/리포트 주입/좋아요 상태/무한스크롤 로직은 Feed 를 그대로 옮겨옴.
- *   - 활성 탭은 useBetaTab() (헤더 칩과 공유하는 모듈 상태). URL 안 바뀜 → 동그라미 없이 즉시.
+ *   - 활성 탭은 useFeedTab() (헤더 칩과 공유하는 모듈 상태). URL 안 바뀜 → 동그라미 없이 즉시.
  *   - 검색(searchQuery)은 URL(?q=) 로 유지되고, 그 검색 결과 풀을 같은 방식으로 탭 필터.
  *
  * 풀 확장(무한스크롤): /api/cards?offset= 로 다음 묶음을 받아 풀에 append → 탭은 늘어난 풀을 다시 필터.
@@ -19,7 +19,7 @@ import Card, { type CardDataList } from "../Card";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import type { ProcedureReport } from "@/lib/procedure-report";
-import { setBetaTab, useBetaTab } from "@/lib/beta-feed-tab";
+import { setFeedTab, useFeedTab } from "@/lib/feed-tab";
 
 const REPORT_EVERY = 20;
 
@@ -44,7 +44,7 @@ type Props = {
   initialMobile?: boolean;
 };
 
-export default function BetaFeed({
+export default function FeedList({
   initialPool,
   orderedIds = [],
   pageSize = 20,
@@ -56,7 +56,7 @@ export default function BetaFeed({
   initialMobile = false,
 }: Props) {
   const hotSet = new Set(hotIds ?? []);
-  const activeCat = useBetaTab(); // "" | qa | review | doodle | review_summary
+  const activeCat = useFeedTab(); // "" | qa | review | doodle | review_summary
   const [pool, setPool] = useState<CardDataList[]>(initialPool);
   const [hasMore, setHasMore] = useState(orderedIds.length > initialPool.length);
   const [loading, setLoading] = useState(false);
@@ -70,7 +70,7 @@ export default function BetaFeed({
   orderedIdsRef.current = orderedIds;
 
   // 피드 마운트(첫 진입·검색 변경·다른 페이지 다녀온 뒤 등)마다 탭을 '전체'로 초기화.
-  useEffect(() => { setBetaTab(""); }, []);
+  useEffect(() => { setFeedTab(""); }, []);
 
   // 서버 재실행(router.refresh / 소프트 내비)으로 새 순서·초기풀이 오면 반영 — 풀 리로드 없이 새 jitter.
   //   initialPool/orderedIds 는 서버가 다시 렌더할 때만 새 배열 참조 → 일반 클라 re-render 에선 동일 참조.

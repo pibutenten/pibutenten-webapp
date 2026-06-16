@@ -16,7 +16,7 @@ import {
   type TopCardRow,
 } from "@/lib/record-data";
 
-// BetaNav 가 useSearchParams 사용 → 정적 프리렌더 회피(동적 렌더).
+// BottomNav 가 useSearchParams 사용 → 정적 프리렌더 회피(동적 렌더).
 export const dynamic = "force-dynamic";
 
 // /old-skin 박제 백업 — 구버전 식별용 접두 + noindex,nofollow 강제(원본도 noindex 였음).
@@ -166,7 +166,7 @@ export default async function RecordPage() {
   const keywordPosts: KeywordPost[] = ((kwRes.data ?? []) as KeywordCardRow[]).map((c) => toKeywordPost(c, interestSet, now));
 
   // 인기글 — 3기간 RPC + 카드 enrich(공개 카드만). deleted 제외, 조회수(cnt) 표시.
-  //   가공 로직은 record-data.buildPopularData(SSOT)로 추출 — 베타 스킨과 공용.
+  //   가공 로직은 record-data.buildPopularData(SSOT)로 추출 — 앱 스킨과 공용.
   const popular = await buildPopularData(
     supabase,
     (top7Res.data ?? []) as TopCardRow[],

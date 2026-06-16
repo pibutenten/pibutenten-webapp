@@ -1,15 +1,15 @@
 "use client";
 
 /**
- * BetaSkinFeed — 신규 스킨 홈 피드 본문(클라이언트). 운영 홈(/)으로 승격(구 /beta-skin 프리뷰).
+ * FeedView — 신규 스킨 홈 피드 본문(클라이언트). 운영 홈(/)으로 승격(구 app skin 프리뷰).
  *
- * 공용 셸(BetaSkinShell)을 사용 → 헤더·탭바·캔버스 오버레이는 셸이 담당.
+ * 공용 셸(AppShell)을 사용 → 헤더·탭바·캔버스 오버레이는 셸이 담당.
  * 이 컴포넌트는 칩(필터)·피드 카드 리스트·데스크탑 사이드바 "내용"만 담당.
  *
  * 데이터(운영 정합):
  *   - 서버(page.tsx)에서 전체=feed_cards_scored / 검색(?q=)=fetchCardList 로 받은
  *     초기 풀(initialPool, 앞 24장)과 전체 순서(orderedIds)를 prop 으로 받는다.
- *   - 무한스크롤은 운영 BetaFeed 와 동일하게 orderedIds 순서대로 /api/cards?ids= 로 다음 묶음을
+ *   - 무한스크롤은 운영 FeedList 와 동일하게 orderedIds 순서대로 /api/cards?ids= 로 다음 묶음을
  *     이어 받아 풀에 append (서버 검색·일반 탭 공통, 리포트 탭 제외).
  *   - 검색은 서버 라우팅: 엔터/추천/태그 클릭 → /?q= 로 이동(서버 재검색). (홈 승격 2026-06-14)
  *   - 칩(카테고리)은 클라 필터(받아온 풀을 즉시 거름).
@@ -22,13 +22,13 @@ import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
 // 카드 삭제 broadcast 이벤트 — 다른 작업자가 카드 ⋮메뉴 삭제 시 emit, 본 피드는 수신만.
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
-// 검색 실행 시 최근 검색어 저장(운영 BetaNav.submit 과 동일 진입점).
-import { addRecent } from "@/lib/beta-recent";
-import BetaSkinShell from "./BetaSkinShell";
+// 검색 실행 시 최근 검색어 저장(운영 BottomNav.submit 과 동일 진입점).
+import { addRecent } from "@/lib/recent-search";
+import AppShell from "./AppShell";
 import FeedSidebar from "./FeedSidebar";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
-import styles from "./beta-skin.module.css";
-import { PostCard, type BetaViewerState } from "./beta-ui";
+import styles from "./app.module.css";
+import { PostCard, type ViewerState } from "./ui";
 
 /* 무한스크롤 한 번에 확장할 카드 수 */
 const PAGE = 20;
@@ -50,7 +50,7 @@ function matchesChip(c: CardData, chip: ChipKey): boolean {
 }
 
 /** 피드를 감싼 실제 스크롤 컨테이너(셸 .root: overflow:auto)를 찾아 맨 위로.
- *  베타 셸은 window 가 아니라 .root 가 스크롤되므로 window.scrollTo 로는 안 올라간다.
+ *  앱 셸은 window 가 아니라 .root 가 스크롤되므로 window.scrollTo 로는 안 올라간다.
  *  from(피드 내부 노드)에서 부모로 올라가며 스크롤 가능한 첫 조상을 찾아 top:0, 못 찾으면 window 폴백. */
 function scrollFeedTop(from: HTMLElement | null) {
   let el: HTMLElement | null = from;
@@ -66,7 +66,7 @@ function scrollFeedTop(from: HTMLElement | null) {
 }
 
 /* ---------- 클라이언트 루트 ---------- */
-export default function BetaSkinFeed({
+export default function FeedView({
   initialPool,
   orderedIds = [],
   reportPool = [],
@@ -91,22 +91,22 @@ export default function BetaSkinFeed({
   /** 운영 홈과 동일 — HOT 카드 id 목록. PostCard 의 isHot 판정에 사용. */
   hotIds?: number[];
   /** 서버 prefetch 한 좋아요/저장 상태(card.id → 상태). */
-  viewerStates?: Record<number, BetaViewerState>;
+  viewerStates?: Record<number, ViewerState>;
 }) {
   const router = useRouter();
-  // 운영 BetaFeed 와 동일 — hotIds 배열을 Set 으로 만들어 카드별 isHot O(1) 판정.
+  // 운영 FeedList 와 동일 — hotIds 배열을 Set 으로 만들어 카드별 isHot O(1) 판정.
   const hotSet = useMemo(() => new Set(hotIds ?? []), [hotIds]);
   const searchParams = useSearchParams();
   const [chip, setChip] = useState<ChipKey>("all");
   // 헤더 검색 입력값 — 초기값은 현재 서버 검색어. 변경은 로컬, 제출 시 서버 라우팅.
   const [searchValue, setSearchValue] = useState(searchQuery ?? "");
 
-  // 풀 + 무한스크롤 커서(운영 BetaFeed 패턴).
+  // 풀 + 무한스크롤 커서(운영 FeedList 패턴).
   const [pool, setPool] = useState<CardData[]>(initialPool);
   const [hasMore, setHasMore] = useState(orderedIds.length > initialPool.length);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  // 탭 전환 애니메이션 대상(운영 BetaFeed contentRef). 리스트 컨테이너의 key remount 와 무관한
+  // 탭 전환 애니메이션 대상(운영 FeedList contentRef). 리스트 컨테이너의 key remount 와 무관한
   //   안정 래퍼라야 animate 타이밍이 어긋나지 않음 → feedList(키 remount) 바깥에 부착.
   const contentRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
@@ -167,11 +167,11 @@ export default function BetaSkinFeed({
   hasMoreRef.current = hasMore;
   const chipRef = useRef(chip);
   chipRef.current = chip;
-  // "방금 쓴 글" prepend 가드용 — 현재 풀에 이미 그 카드가 있는지 최신값으로 검사(운영 BetaFeed poolRef).
+  // "방금 쓴 글" prepend 가드용 — 현재 풀에 이미 그 카드가 있는지 최신값으로 검사(운영 FeedList poolRef).
   const poolRef = useRef(pool);
   poolRef.current = pool;
 
-  // 풀 확장 — 저장된 순서(orderedIds)대로 다음 묶음을 ID 로 받아 append (운영 BetaFeed loadMore).
+  // 풀 확장 — 저장된 순서(orderedIds)대로 다음 묶음을 ID 로 받아 append (운영 FeedList loadMore).
   //   리포트 탭은 통계 목록이라 확장 안 함. 순서목록 끝까지 받으면 종료.
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMoreRef.current || chipRef.current === "review_summary")
@@ -214,7 +214,7 @@ export default function BetaSkinFeed({
     }
   }, []);
 
-  // sentinel 관찰 — mount 시 1회만 설정(운영 BetaFeed 와 동일). loadMore 가 ref 로 최신값 참조.
+  // sentinel 관찰 — mount 시 1회만 설정(운영 FeedList 와 동일). loadMore 가 ref 로 최신값 참조.
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node) return;
@@ -228,7 +228,7 @@ export default function BetaSkinFeed({
     return () => ob.disconnect();
   }, [loadMore]);
 
-  // ① 칩(탭) 전환 시 맨 위로 + 콘텐츠가 살짝 아래에서 올라오는 효과(운영 BetaFeed 동일).
+  // ① 칩(탭) 전환 시 맨 위로 + 콘텐츠가 살짝 아래에서 올라오는 효과(운영 FeedList 동일).
   //   translateY(10px)→0 + opacity 0→1, 220ms ease-out. 리스트 key remount 의 fadeInUp 과 별개로
   //   안정 래퍼(contentRef)를 직접 animate → 즉시 전환이어도 의도적으로 전환을 느끼게.
   useEffect(() => {
@@ -246,7 +246,7 @@ export default function BetaSkinFeed({
     }
   }, [chip]);
 
-  // ② 카드 삭제 broadcast 수신 → 풀에서 제거(운영 BetaFeed 동일). 발사는 카드 ⋮메뉴 쪽(다른 작업자).
+  // ② 카드 삭제 broadcast 수신 → 풀에서 제거(운영 FeedList 동일). 발사는 카드 ⋮메뉴 쪽(다른 작업자).
   useEffect(() => {
     function onDeleted(e: Event) {
       const id = (e as CustomEvent<{ id: number }>).detail?.id;
@@ -258,7 +258,7 @@ export default function BetaSkinFeed({
       window.removeEventListener(CARD_BUS_EVENTS.CARD_DELETED, onDeleted);
   }, []);
 
-  // ③ "방금 쓴 글" 1회 prepend (검색 아닐 때만) — 본인 화면에서만, 풀 맨 앞으로(운영 BetaFeed 동일).
+  // ③ "방금 쓴 글" 1회 prepend (검색 아닐 때만) — 본인 화면에서만, 풀 맨 앞으로(운영 FeedList 동일).
   //   sessionStorage['pbtt:justPublished'](id+ts) → 5분 만료·:shown 중복 가드.
   //   이미 풀에 있으면 맨 앞으로 이동, 없으면 /api/cards?ids= 로 fetch 후 prepend.
   useEffect(() => {
@@ -311,7 +311,7 @@ export default function BetaSkinFeed({
   // 검색 제출(엔터/추천 클릭) → 서버 재검색 라우팅 + 최근 검색어 저장(localStorage).
   const submitSearch = (q: string) => {
     const t = q.trim();
-    if (t) addRecent(t); // 운영 BetaNav 와 동일 — 검색 실행 시 최근 검색어에 기록.
+    if (t) addRecent(t); // 운영 BottomNav 와 동일 — 검색 실행 시 최근 검색어에 기록.
     // 라우팅만(서버 재검색). chip 은 바꾸지 않는다 — setChip 을 여기서 하면 라우팅 "전"에 현재 풀이
     //   전체로 한 번 렌더(전체 피드 깜빡) 후 검색 결과로 바뀌는 2단계가 생긴다. 대신 아래 effectiveChip
     //   으로 "검색 중엔 카테고리를 전체로 간주" → 리포트 탭에서도 깜빡 없이 바로 전체 검색 결과.
@@ -349,7 +349,7 @@ export default function BetaSkinFeed({
 
   // 사이드 '인기 태그' '전체' 탭 — 서버(page.tsx)가 '비검색 피드 풀' 기준으로 계산해 내려준 16개.
   //   과거엔 클라에서 pool(검색 시 검색결과로 바뀜) 빈도로 재계산 → 태그 클릭(=검색)이 그 태그를 1위로
-  //   올리던 버그가 있었고, frozenTagsRef 로 클라 고정했으나 검색 라우팅 시 BetaSkinFeed 가 재마운트되며
+  //   올리던 버그가 있었고, frozenTagsRef 로 클라 고정했으나 검색 라우팅 시 FeedView 가 재마운트되며
   //   ref 가 초기화돼 무력화됐다. 이제 서버 prop 으로 고정 → 재마운트·검색·태그클릭에도 순서·구성 불변.
   const popularTags = serverPopularTags;
 
@@ -395,7 +395,7 @@ export default function BetaSkinFeed({
   );
 
   return (
-    <BetaSkinShell
+    <AppShell
       active="피드"
       chips={chips}
       sidebar={sidebar}
@@ -403,7 +403,7 @@ export default function BetaSkinFeed({
       onSearchChange={setSearchValue}
       onSearchSubmit={submitSearch}
     >
-      {/* 탭 전환 애니메이션 대상(운영 BetaFeed contentRef) — remount 되지 않는 안정 래퍼.
+      {/* 탭 전환 애니메이션 대상(운영 FeedList contentRef) — remount 되지 않는 안정 래퍼.
           이 래퍼를 직접 animate(translateY+fade) 하여 칩 전환 효과를 준다. */}
       <div ref={contentRef}>
       {/* 칩/검색 전환 시 리스트 컨테이너 remount(key=칩+검색어) → fadeInUp 재발화.
@@ -419,8 +419,8 @@ export default function BetaSkinFeed({
             </p>
           ) : (
             filteredReports.map((r) => (
-              // 운영 ProcedureReportCard 는 무수정 — 베타 wrapper(.reportCardWrap)로 감싸
-              //   내부 <article> 의 R값(--radius)·여백을 베타 .card 와 동일(--r-card 24px)하게 맞춤.
+              // 운영 ProcedureReportCard 는 무수정 — 앱 wrapper(.reportCardWrap)로 감싸
+              //   내부 <article> 의 R값(--radius)·여백을 앱 .card 와 동일(--r-card 24px)하게 맞춤.
               <div key={r.procedureKo} className={styles.reportCardWrap}>
                 <ProcedureReportCard
                   report={r}
@@ -438,7 +438,7 @@ export default function BetaSkinFeed({
         ) : (
           <>
             {/* 검색 매칭 리포트 — 결과 맨 위 1장(운영 ProcedureReportCard 재사용).
-                베타 wrapper(.reportCardWrap)로 R값·여백을 베타 카드와 통일. */}
+                앱 wrapper(.reportCardWrap)로 R값·여백을 앱 카드와 통일. */}
             {topReport && (
               <div className={styles.reportCardWrap}>
                 <ProcedureReportCard
@@ -467,6 +467,6 @@ export default function BetaSkinFeed({
         <div ref={sentinelRef} className={styles.feedSentinel} aria-hidden="true" />
       )}
       {loading && <p className={styles.empty}>불러오는 중…</p>}
-    </BetaSkinShell>
+    </AppShell>
   );
 }

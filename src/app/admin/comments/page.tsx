@@ -3,16 +3,16 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
 import { type CommentRow } from "./CommentsClient";
-import BetaAdminCommentsView from "./BetaAdminCommentsView";
+import AdminCommentsView from "./AdminCommentsView";
 
 /**
  * /admin/comments — "전체 댓글" (승격·단일화).
  *
- * 원칙: UI 는 베타 스킨 톤(BetaAdminCommentsView), 데이터·필터 로직·무한스크롤 API·운영 클라
+ * 원칙: UI 는 앱 스킨 톤(AdminCommentsView), 데이터·필터 로직·무한스크롤 API·운영 클라
  *   컴포넌트(CommentsClient)는 동일.
  *   - 이 서버 페이지는 가드(requireAdminPage)·status 탭(visible/hidden)·권한 분기(isAdmin / isActiveDoctor)·
  *     doctor admin 본인 카드 댓글 강제필터·count + 첫 페이지 prefetch 로직을 담당한다.
- *   - 렌더만 BetaAdminCommentsView(클라 셸 래퍼)로 위임 — firstPage·hasMore·statusFilter·total 을 props 로 전달.
+ *   - 렌더만 AdminCommentsView(클라 셸 래퍼)로 위임 — firstPage·hasMore·statusFilter·total 을 props 로 전달.
  *   - searchParams 키(status)는 동일 URL 규약.
  *
  * 패턴:
@@ -97,7 +97,7 @@ export default async function AdminCommentsPage({ searchParams }: Props) {
   const firstPage = initialRows.slice(0, FIRST_PAGE_SIZE);
 
   return (
-    <BetaAdminCommentsView
+    <AdminCommentsView
       firstPage={firstPage}
       hasMore={hasMore}
       statusFilter={statusFilter}

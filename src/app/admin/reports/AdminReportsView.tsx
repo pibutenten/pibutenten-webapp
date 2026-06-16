@@ -1,19 +1,19 @@
 "use client";
 
 /**
- * BetaAdminReportsView — /admin/reports "신고 검토" 본문 (베타 셸 래퍼).
+ * AdminReportsView — /admin/reports "신고 검토" 본문 (앱 셸 래퍼).
  *
- * 원칙(Phase 3 ②): 상단 바·배경만 베타 셸(BetaSkinShell)로 통일하고,
+ * 원칙(Phase 3 ②): 상단 바·배경만 앱 셸(AppShell)로 통일하고,
  *   본문 골격(헤더 + 운영 액션 컴포넌트 ReportsClient)은 그대로 임베드한다.
  *   - 데이터 fetch·가드는 서버 page.tsx 가 담당하고, enriched row·label 맵을 props 로 내려준다.
  *   - ReportsClient(운영 클라 액션 컴포넌트)는 로직 무수정 import 임베드.
- *   - 제목·설명 영역만 베타 톤(var(--ink-*)) 으로 재조정, 본문은 운영 컴포넌트 그대로.
+ *   - 제목·설명 영역만 앱 톤(var(--ink-*)) 으로 재조정, 본문은 운영 컴포넌트 그대로.
  *
- * 격리: 운영 ReportsClient 무수정. 내부 링크는 모두 /admin/* (베타 라우트 미사용).
+ * 격리: 운영 ReportsClient 무수정. 내부 링크는 모두 /admin/* (앱 셸 라우트 미사용).
  */
 
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
 import ReportsClient from "./ReportsClient";
 import type { AdminReportRowEnriched } from "./page";
 
@@ -25,18 +25,18 @@ type Props = {
   totalCount: number;
 };
 
-export default function BetaAdminReportsView({
+export default function AdminReportsView({
   rows,
   reasonLabel,
   statusLabel,
   pendingCount,
   totalCount,
 }: Props) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" wide back="/admin" {...search}>
-      {/* 제목 + noindex 설명 (베타 톤) */}
+    <AppShell active="마이" wide back="/admin" {...search}>
+      {/* 제목 + noindex 설명 (앱 톤) */}
       <div style={{ marginBottom: 20, paddingLeft: 4 }}>
         <h1
           style={{
@@ -66,6 +66,6 @@ export default function BetaAdminReportsView({
         reasonLabel={reasonLabel}
         statusLabel={statusLabel}
       />
-    </BetaSkinShell>
+    </AppShell>
   );
 }

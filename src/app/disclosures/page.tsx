@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
-import InfoBetaShell from "@/components/info/InfoBetaShell";
+import InfoShell from "@/components/info/InfoShell";
 
 export const metadata: Metadata = {
   title: "이해상충 공개",
@@ -40,7 +40,7 @@ export default function DisclosuresPage() {
   };
 
   return (
-    <InfoBetaShell>
+    <InfoShell>
     <InfoPageLayout
       current="disclosures"
       title="이해상충 공개"
@@ -122,7 +122,7 @@ export default function DisclosuresPage() {
         본 정책 시행일: 2026-05-28.
       </p>
     </InfoPageLayout>
-    </InfoBetaShell>
+    </InfoShell>
   );
 }
 

@@ -3,8 +3,8 @@
 /**
  * 세그먼트 에러 바운더리.
  *
- * force-dynamic SSR 라우트의 런타임 예외를 잡아 베타 톤의 한국어 복구 UI 로 대체한다.
- * (없으면 Next.js 기본 영문 에러 화면이 노출되어 베타 스킨 일관성이 깨짐.)
+ * force-dynamic SSR 라우트의 런타임 예외를 잡아 앱 톤의 한국어 복구 UI 로 대체한다.
+ * (없으면 Next.js 기본 영문 에러 화면이 노출되어 앱 스킨 일관성이 깨짐.)
  *
  * - error.tsx 는 root layout 안에서 렌더되므로 globals.css 토큰(--primary 등)을
  *   상속받는다 → not-found.tsx 와 동일하게 Tailwind `var(--*)` 클래스 사용.

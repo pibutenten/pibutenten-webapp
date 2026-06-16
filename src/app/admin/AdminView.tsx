@@ -1,17 +1,17 @@
 "use client";
 
 /**
- * BetaAdminView — /admin "관리자 대시보드" 본문 (클라이언트).
+ * AdminView — /admin "관리자 대시보드" 본문 (클라이언트).
  *
- * 원칙: 상단바·배경은 베타 셸(BetaSkinShell), 본문 큰 틀은 기존 운영 대시보드 유지.
- *   radius·컬러만 베타 토큰(var(--ink-*)/var(--tt-blue*)/var(--line)/borderRadius:14)으로 재조정.
- *   - 통계 8개 + 리서치 패널 3개 = 베타 톤 Stat 카드. 클릭 시 운영 /admin/* 로 이동.
+ * 원칙: 상단바·배경은 앱 셸(AppShell), 본문 큰 틀은 기존 운영 대시보드 유지.
+ *   radius·컬러만 앱 토큰(var(--ink-*)/var(--tt-blue*)/var(--line)/borderRadius:14)으로 재조정.
+ *   - 통계 8개 + 리서치 패널 3개 = 앱 톤 Stat 카드. 클릭 시 운영 /admin/* 로 이동.
  *   - 활동 KPI = 운영 ActivityKpis 임베드. 인기 검색어/태그 = 운영 PopularCards 임베드(Tailwind 톤 그대로).
- *   - 운영 프로그램 Tool = 운영 page.tsx 와 동일 노출 조건(isSuperAdmin)·동일 href, 베타 톤 카드.
+ *   - 운영 프로그램 Tool = 운영 page.tsx 와 동일 노출 조건(isSuperAdmin)·동일 href, 앱 톤 카드.
  *     (super admin 기준 12개, 일반 admin 은 super 전용 5개 숨겨 7개 노출.)
  *   - 계정 스위처 = 운영 AccountSwitcherCard, 최하단 로그아웃 = 운영 LogoutButton 임베드.
  *
- * /beta-skin/admin/BetaAdminView.tsx 에서 승격. 셸 back="/", 내부 링크 /admin/* 정본.
+ * app skin admin 템플릿/AdminView.tsx 에서 승격. 셸 back="/", 내부 링크 /admin/* 정본.
  */
 
 import Link from "next/link";
@@ -20,9 +20,9 @@ import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
 import ActivityKpis from "@/app/admin/ActivityKpis";
 import LogoutButton from "@/components/LogoutButton";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
-import styles from "@/components/skin/beta-skin.module.css";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
+import styles from "@/components/skin/app.module.css";
 
 type SearchRow = { query: string; cnt: number };
 type TagRow = { keyword: string; cnt: number };
@@ -37,7 +37,7 @@ type KpiRow = {
   shares: number;
 };
 
-export type BetaAdminStats = {
+export type AdminStats = {
   userCount: number;
   doctorCount: number;
   qaPublished: number;
@@ -48,7 +48,7 @@ export type BetaAdminStats = {
   totalComments: number;
 };
 
-export default function BetaAdminView({
+export default function AdminView({
   isSuperAdmin,
   stats,
   research,
@@ -58,18 +58,18 @@ export default function BetaAdminView({
   tagsByDays,
 }: {
   isSuperAdmin: boolean;
-  stats: BetaAdminStats;
+  stats: AdminStats;
   research: { totalMembers: number; active90d: number; reviewers: number };
   oauthHealth: OauthHealth;
   kpiByDays: Record<number, KpiRow>;
   searchesByDays: Record<number, SearchRow[]>;
   tagsByDays: Record<number, TagRow[]>;
 }) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
   const pendingReview = stats.pendingReview;
 
   return (
-    <BetaSkinShell active="마이" wide back="/" {...search}>
+    <AppShell active="마이" wide back="/" {...search}>
       {/* 계정(명함) 스위처 — 운영 공용 카드 임베드(전환 로직 100% 재사용). */}
       <AccountSwitcherCard compact />
 
@@ -135,7 +135,7 @@ export default function BetaAdminView({
         <ActivityKpis initialDays={1} dataByDays={kpiByDays} />
       </section>
 
-      {/* 운영 프로그램 — 액션·관리 도구. 운영 page.tsx 와 동일 노출 조건·href(베타 톤 카드). */}
+      {/* 운영 프로그램 — 액션·관리 도구. 운영 page.tsx 와 동일 노출 조건·href(앱 톤 카드). */}
       <section className={styles.mb20}>
         <h2 className={SECTION_HEAD} style={{ color: "var(--ink-900)" }}>운영 프로그램</h2>
         <div className={TOOL_GRID}>
@@ -277,12 +277,12 @@ export default function BetaAdminView({
       >
         <LogoutButton />
       </div>
-    </BetaSkinShell>
+    </AppShell>
   );
 }
 
 /* 인라인 레이아웃 클래스 — module.css 에 별도 추가 없이 Tailwind 유틸로 그리드만 구성.
-   카드 자체 톤은 Stat/Tool 의 베타 .card 스타일(아래)이 책임진다. */
+   카드 자체 톤은 Stat/Tool 의 앱 .card 스타일(아래)이 책임진다. */
 const GRID8 = "grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8";
 const GRID3 = "grid grid-cols-3 gap-2 sm:gap-3";
 // 운영 /admin 과 동일하게 2열(데스크탑·태블릿)·모바일 1열 — 사용자 결정(2026-06-14, 운영 모습 정합).

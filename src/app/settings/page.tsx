@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * /settings — 본인 프로필로 redirect.
  *
  * 신규 스킨 승격(2026-06-15): 설정은 별도 페이지가 아니라 본인 공개 프로필(/{handle})의
- *   '프로필·설정' 아코디언으로 인라인 편집한다(승격된 BetaProfileView, ProfileEditClient embedded).
+ *   '프로필·설정' 아코디언으로 인라인 편집한다(승격된 ProfileView, ProfileEditClient embedded).
  *   따라서 이 라우트로의 직접 접속·기존 링크는 본인 공개 프로필로 redirect 한다(동선 통일).
  *
  *  - admin → /admin

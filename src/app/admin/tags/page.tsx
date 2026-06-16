@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { type TagRow } from "./TagAdminTable";
-import BetaAdminTagsView from "./BetaAdminTagsView";
+import AdminTagsView from "./AdminTagsView";
 
 export const dynamic = "force-dynamic";
 
@@ -172,7 +172,7 @@ export default async function AdminTagsPage({ searchParams }: Props) {
   for (const r of allRows) usageByKo[r.ko] = r.usage;
 
   return (
-    <BetaAdminTagsView
+    <AdminTagsView
       total={total}
       classified={classified}
       enBlank={enBlank}

@@ -8,12 +8,12 @@ import PostDetail from "./PostDetail";
 type Supa = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 /**
- * 베타 글상세 공용 데이터 빌더 — ?id= 라우트와 canonical([...slug]) 라우트가 공유.
+ * 글상세 공용 데이터 빌더 — ?id= 라우트와 canonical([...slug]) 라우트가 공유.
  *   - related("함께 보면 좋은 Q&A"): 같은 영상(video_id) 우선 + 키워드 겹침 순 상위 3개(연관 0 채우기 없음).
  *   - viewer: 좋아요/저장 초기상태 prefetch.
  *   - doctorIntro: 사이드 프로필 아코디언 펼침 내용(운영 doctors.intro).
  */
-export async function renderBetaPost(
+export async function renderPost(
   supabase: Supa,
   card: CardData | null,
   idCardVideoId: number | null,

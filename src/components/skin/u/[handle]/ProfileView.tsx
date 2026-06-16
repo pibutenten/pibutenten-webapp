@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * BetaProfileView — /beta-skin/u/[handle] "공개 프로필" 본문 (클라이언트).
+ * ProfileView — app skin u/[handle] "공개 프로필" 본문 (클라이언트).
  *
- * 운영 ProfileTabs 의 탭 구성·lazy fetch·피부정보 로직을 재현하되, 카드는 베타 PostCard 로 렌더(톤 일치).
+ * 운영 ProfileTabs 의 탭 구성·lazy fetch·피부정보 로직을 재현하되, 카드는 PostCard 로 렌더(톤 일치).
  * - 헤더: 아바타 + 이름 + @handle + 소개. 본인(isOwner)이면 [설정] + 최하단 [로그아웃].
  * - 탭: 작성 글 / 내 후기 / 댓글 / 좋아요(owner) / 저장(owner) / 피부. (운영과 동일 순서·노출 규칙)
  */
@@ -25,16 +25,16 @@ import {
   PROCEDURE_LABEL,
 } from "@/lib/profile-options";
 import type { CardData } from "@/lib/types/card";
-import BetaSkinShell from "../../BetaSkinShell";
-import BetaPolicyFooter from "../../BetaPolicyFooter";
-import styles from "../../beta-skin.module.css";
+import AppShell from "../../AppShell";
+import PolicyFooter from "../../PolicyFooter";
+import styles from "../../app.module.css";
 import {
   PostCard,
-  useBetaSearchRouting,
-  type BetaViewerState,
-} from "../../beta-ui";
+  useSearchRouting,
+  type ViewerState,
+} from "../../ui";
 
-export type BetaSkinInfo = {
+export type ProfileSkinInfo = {
   faceShape: string | null;
   skinType: string | null;
   skinConcerns: string[];
@@ -84,7 +84,7 @@ function commentLink(c: CommentRow): string {
   return "/";
 }
 
-export default function BetaProfileView({
+export default function ProfileView({
   handle,
   displayName,
   avatarUrl,
@@ -116,13 +116,13 @@ export default function BetaProfileView({
   commentsCount: number;
   likesCount: number;
   savesCount: number;
-  viewerStates?: Record<number, BetaViewerState>;
+  viewerStates?: Record<number, ViewerState>;
   viewerIsAnon: boolean;
-  skinInfo?: BetaSkinInfo;
+  skinInfo?: ProfileSkinInfo;
   /** 본인일 때만 채워짐 — '프로필·설정' 아코디언 폼 props. */
   settings?: ProfileSettings | null;
 }) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
   // '프로필·설정' 아코디언 펼침 상태. 닫혀 있으면 ProfileEditClient 를 마운트하지 않음(가벼움).
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -258,7 +258,7 @@ export default function BetaProfileView({
   );
 
   return (
-    <BetaSkinShell active="마이" back="/" {...search}>
+    <AppShell active="마이" back="/" {...search}>
       {/* 프로필 헤더 — 아바타 + 이름 + @handle + 소개. 본인이면 [설정]. */}
       <section
         className={`${styles.card} ${styles.mb20}`}
@@ -304,7 +304,7 @@ export default function BetaProfileView({
 
       {/* 계정(명함) 스위처 — 본인일 때만. 멀티아이디 유저의 계정 전환 진입점.
           운영 공용 카드를 그대로 재사용(useSession 기반, props 불필요).
-          AccountSwitcherCard 자체 mb-4(16px) 대신 베타 카드 간격(mb20)에 맞추려 래퍼로 감싼다. */}
+          AccountSwitcherCard 자체 mb-4(16px) 대신 앱 카드 간격(mb20)에 맞추려 래퍼로 감싼다. */}
       {isOwner && (
         <div className={styles.mb20}>
           <AccountSwitcherCard />
@@ -430,8 +430,8 @@ export default function BetaProfileView({
       )}
 
       {/* 신뢰·법적 길목(about·약관·문의 등) — 모든 방문자에게 노출(SNS 표준 in-page 푸터). */}
-      <BetaPolicyFooter />
-    </BetaSkinShell>
+      <PolicyFooter />
+    </AppShell>
   );
 }
 
@@ -460,7 +460,7 @@ function LoginPromptForPII() {
   );
 }
 
-function SkinInfoBlock({ info }: { info: BetaSkinInfo }) {
+function SkinInfoBlock({ info }: { info: ProfileSkinInfo }) {
   const v = info.visibility ?? {};
   const sections: { title: string; chips: string[] }[] = [];
 

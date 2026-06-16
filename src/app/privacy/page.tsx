@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
-import InfoBetaShell from "@/components/info/InfoBetaShell";
+import InfoShell from "@/components/info/InfoShell";
 import {
   PRIVACY_VERSION,
   PRIVACY_EFFECTIVE_NOTE,
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
  */
 export default function PrivacyPage() {
   return (
-    <InfoBetaShell>
+    <InfoShell>
     <InfoPageLayout
       current="privacy"
       title="개인정보 처리방침"
@@ -524,7 +524,7 @@ export default function PrivacyPage() {
         확정될 수 있습니다. 수정 사항은 본 페이지에서 공지됩니다.
       </p>
     </InfoPageLayout>
-    </InfoBetaShell>
+    </InfoShell>
   );
 }
 

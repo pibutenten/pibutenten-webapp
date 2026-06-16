@@ -1,18 +1,18 @@
 "use client";
 
 /**
- * BetaAdminStatsView — /admin/stats/[kind] 의 베타 스킨 셸 래퍼 (클라이언트).
+ * AdminStatsView — /admin/stats/[kind] 의 앱 스킨 셸 래퍼 (클라이언트).
  *
  * 원칙(Agent 5):
- *   - 상단바·배경만 BetaSkinShell 로 교체. 본문(제목 + StatsListClient TOP 리스트)은 운영 구조 유지.
+ *   - 상단바·배경만 AppShell 로 교체. 본문(제목 + StatsListClient TOP 리스트)은 운영 구조 유지.
  *   - 운영 클라 컴포넌트 StatsListClient 는 로직 변경 없이 import 해서 그대로 임베드.
- *   - 제목 영역 색/라운드 토큰만 베타 톤으로 (var(--text)→var(--ink-900), var(--primary)→var(--tt-blue-deep), var(--text-muted)→var(--ink-500)).
- *   - 데이터 fetch·가드는 server page.tsx 가 담당. import 절대경로(@/app/beta-skin/*), back="/admin".
+ *   - 제목 영역 색/라운드 토큰만 앱 톤으로 (var(--text)→var(--ink-900), var(--primary)→var(--tt-blue-deep), var(--text-muted)→var(--ink-500)).
+ *   - 데이터 fetch·가드는 server page.tsx 가 담당. import 절대경로(@/appapp skin), back="/admin".
  */
 
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
-import styles from "@/components/skin/beta-skin.module.css";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
+import styles from "@/components/skin/app.module.css";
 import StatsListClient, {
   type Kind,
   type VisitorRow,
@@ -32,7 +32,7 @@ type Props = {
   days: number;
 };
 
-export default function BetaAdminStatsView({
+export default function AdminStatsView({
   kind,
   title,
   useDoctorFilter,
@@ -40,10 +40,10 @@ export default function BetaAdminStatsView({
   hasMore,
   days,
 }: Props) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" wide back="/admin" {...search}>
+    <AppShell active="마이" wide back="/admin" {...search}>
       <div className={styles.mb20}>
         <h1 className={styles.profileName}>
           {title} TOP
@@ -72,6 +72,6 @@ export default function BetaAdminStatsView({
         initialHasMore={hasMore}
         initialDays={days}
       />
-    </BetaSkinShell>
+    </AppShell>
   );
 }

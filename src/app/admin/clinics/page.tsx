@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/admin-page-guard";
-import BetaAdminClinicsView, {
-  type BetaClinicRow,
-} from "./BetaAdminClinicsView";
+import AdminClinicsView, {
+  type ClinicRow,
+} from "./AdminClinicsView";
 
 export const dynamic = "force-dynamic";
 
@@ -18,14 +18,12 @@ type Props = {
   searchParams: Promise<{ q?: string; page?: string }>;
 };
 
-type ClinicRow = BetaClinicRow;
-
 /**
- * /admin/clinics — 병원(피부과 의원) 정보 동기화 운영 페이지 (super admin 전용, 베타 셸 적용 Phase 3 ②).
+ * /admin/clinics — 병원(피부과 의원) 정보 동기화 운영 페이지 (super admin 전용, 앱 셸 적용 Phase 3 ②).
  * 상단: 총 등록 병원 수 + 최근 동기화 시각 + "병원 정보 가져오기" 버튼.
  * 하단: 이름·주소·전화·종별 목록 (상위 50개 + 병원명 검색).
  *
- * 원칙: 가드·데이터 fetch·페이지 계산은 운영 그대로 유지하고, 렌더만 BetaAdminClinicsView(베타 셸 래퍼)로 위임한다.
+ * 원칙: 가드·데이터 fetch·페이지 계산은 운영 그대로 유지하고, 렌더만 AdminClinicsView(앱 셸 래퍼)로 위임한다.
  */
 export default async function AdminClinicsPage({ searchParams }: Props) {
   await requireAdminPage("/admin/clinics", { superAdminOnly: true });
@@ -76,7 +74,7 @@ export default async function AdminClinicsPage({ searchParams }: Props) {
   for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) pageNums.push(p);
 
   return (
-    <BetaAdminClinicsView
+    <AdminClinicsView
       clinics={clinics}
       total={totalAll}
       totalCount={totalCount}

@@ -1,4 +1,4 @@
-/* 오늘의 피부 날씨 — 베타 스킨 톤 정합. 색·간격은 beta-skin.module.css 토큰에 맞춤.
+/* 오늘의 피부 날씨 — 앱 스킨 톤 정합. 색·간격은 app.module.css 토큰에 맞춤.
    접힌 카드(/record 상단) + 상세(/record/weather 페이지)의 공용 스타일. */
 
 .wrap {
@@ -15,7 +15,7 @@
   color: #fff;
   font-family: inherit;
   background: linear-gradient(120deg, #4cc0f2 0%, #5cc9f7 46%, #7bd9ff 100%);
-  /* 내 기록(베타 .card)와 여백 정합 — 같은 radius·padding 22 로 두 카드 좌우 여백 일치. */
+  /* 내 기록(앱 .card)와 여백 정합 — 같은 radius·padding 22 로 두 카드 좌우 여백 일치. */
   border-radius: var(--r-card, 20px);
   padding: 22px;
   box-shadow: 0 10px 26px rgba(69, 183, 232, 0.3);
@@ -842,7 +842,7 @@
   cursor: pointer;
 }
 
-/* ── 로딩 스켈레톤(베타 톤) ── */
+/* ── 로딩 스켈레톤(앱 톤) ── */
 .skelCard {
   border-radius: 18px;
   padding: 16px;

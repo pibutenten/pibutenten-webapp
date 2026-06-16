@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
-import BetaAdminDraftView from "./BetaAdminDraftView";
+import AdminDraftView from "./AdminDraftView";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +11,10 @@ export const metadata = {
 };
 
 /**
- * /admin/draft — 새 Q&A 추출하기 (베타 셸 적용, Phase 3 ②).
+ * /admin/draft — 새 Q&A 추출하기 (앱 셸 적용, Phase 3 ②).
  *
- * 원칙: 가드·권한 분기 로직은 운영 그대로 유지하고, 렌더만 BetaAdminDraftView(베타 셸 래퍼)로 위임한다.
- *   상단 바·배경만 베타 톤으로 통일하고 본문 위저드(DraftClient)는 무수정 임베드.
+ * 원칙: 가드·권한 분기 로직은 운영 그대로 유지하고, 렌더만 AdminDraftView(앱 셸 래퍼)로 위임한다.
+ *   상단 바·배경만 앱 톤으로 통일하고 본문 위저드(DraftClient)는 무수정 임베드.
  */
 export default async function AdminDraftPage() {
   // 새 Q&A 추출하기는 super admin 전용 (active 도 admin role 이어야).
@@ -28,5 +28,5 @@ export default async function AdminDraftPage() {
     redirect("/login?error=관리자 권한이 필요합니다");
   }
 
-  return <BetaAdminDraftView />;
+  return <AdminDraftView />;
 }

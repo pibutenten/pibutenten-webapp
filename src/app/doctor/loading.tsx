@@ -10,7 +10,7 @@
  *   계정 스위처 → 대시보드 헤더(제목+부제) → 내 글 활동(헤더+기간칩 6 + KPI 카드 6)
  *   → 운영 프로그램(헤더 + Tool 카드 5 + 안내문) → 인기 검색어/태그(카드 2, 각 헤더+칩+순위 그리드).
  *
- * beta-skin.module.css 토큰(.root 스코프)은 여기서 못 쓰므로 캔버스 배경·헤더 톤만
+ * app.module.css 토큰(.root 스코프)은 여기서 못 쓰므로 캔버스 배경·헤더 톤만
  * 인라인으로 복제(record/loading.tsx 와 동일 접근). 회색 블록은 Tailwind animate-pulse.
  * 서버 컴포넌트라 "use client"·훅·데이터 호출 없음(순수 마크업).
  */
@@ -22,16 +22,16 @@ export default function Loading() {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 90, // 베타 셸(.root z-index:100)이 뜨면 그 아래로 가려짐
+        zIndex: 90, // 앱 셸(.root z-index:100)이 뜨면 그 아래로 가려짐
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        // 베타 캔버스와 동일한 그라데이션으로 시작 → 회색 깜빡임 차단
+        // 앱 캔버스와 동일한 그라데이션으로 시작 → 회색 깜빡임 차단
         background:
           "linear-gradient(168deg, #e8f5fd 0%, #ecf7f2 52%, #faf5e2 100%)",
       }}
     >
-      {/* 베타 헤더(#e8f5fd) 톤의 얇은 상단 막대 — 셸 헤더 자리와 시각적으로 연결(높이 56) */}
+      {/* 앱 헤더(#e8f5fd) 톤의 얇은 상단 막대 — 셸 헤더 자리와 시각적으로 연결(높이 56) */}
       <div
         style={{
           height: 56,

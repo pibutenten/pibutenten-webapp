@@ -3,17 +3,17 @@
 /**
  * LoginConflictView — /login/conflict "다중채널 가입 충돌" 본문 (클라이언트).
  *
- * 원칙(베타 스킨 승격, 2026-06-15): LoginView 와 동일하게 상단바만 베타 셸, 본문은
+ * 원칙(앱 스킨 승격, 2026-06-15): LoginView 와 동일하게 상단바만 앱 셸, 본문은
  *   운영 안내 형태(아이콘·문구·기존/홈 이동 링크) 그대로 임베드. 텍스트·링크 로직 무변경.
  *   - existing/attempted 라벨 가공·metadata(noindex)는 server page.tsx 가 책임(여기는 표시만).
  *   - 셸은 wide 모드(인증 화면 탭바 부적절·온보딩 게이트 일관성). active 는 타입 만족용("마이").
  *   - back 미지정 — 본문 안에 '기존 채널로 로그인' · '홈으로' 이동 링크가 이미 있어 중복 불필요.
  *
- * 격리: beta-skin.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
+ * 격리: app.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
  */
 
 import Link from "next/link";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import AppShell from "@/components/skin/AppShell";
 
 export default function LoginConflictView({
   existing,
@@ -23,7 +23,7 @@ export default function LoginConflictView({
   attempted: string;
 }) {
   return (
-    <BetaSkinShell active="마이" wide>
+    <AppShell active="마이" wide>
       <section className="mx-auto flex max-w-md flex-col items-center px-6 py-16 text-center">
         <div className="mb-4 text-4xl">🔐</div>
         <h1 className="mb-2 text-xl font-bold text-[var(--text)]">
@@ -64,6 +64,6 @@ export default function LoginConflictView({
           으로 알려주세요.
         </p>
       </section>
-    </BetaSkinShell>
+    </AppShell>
   );
 }

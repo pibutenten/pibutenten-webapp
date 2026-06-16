@@ -1,8 +1,8 @@
 /**
- * /beta 검색 — 내 최근 검색어 (localStorage, 클라 전용).
+ * 검색 — 내 최근 검색어 (localStorage, 클라 전용).
  * 비로그인 포함 누구나 사용. 기기/브라우저 한정. 최대 10개.
  */
-const KEY = "pbtt:beta:recent";
+const KEY = "pbtt:recent-search";
 const MAX = 10;
 
 export function getRecent(): string[] {

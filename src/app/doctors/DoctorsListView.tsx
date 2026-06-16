@@ -3,21 +3,21 @@
 /**
  * DoctorsListView — /doctors "피부과 전문의 목록" 본문 (클라이언트).
  *
- * 원칙(베타 승격, 2026-06-15): 선례 DoctorProfileView·DoctorDashboardView 와 동일하게
- *   "상단바(헤더)만 베타 셸, 본문은 기존 운영 정보 구조를 최대한 유지". 큰 .card 박스에 욱여넣지 않는다.
+ * 원칙(앱 셸 승격, 2026-06-15): 선례 DoctorProfileView·DoctorDashboardView 와 동일하게
+ *   "상단바(헤더)만 앱 셸, 본문은 기존 운영 정보 구조를 최대한 유지". 큰 .card 박스에 욱여넣지 않는다.
  *   - 운영 page.tsx 의 본문(헤더 타이틀 + 의사 카드 그리드(사진 위 원장 컬러 그라데이션·이름·title))을
- *     베타 톤으로 자연스럽게 정리(재포장 X, 정보 구조 보존). 그리드 컬럼·호버·그라데이션 운영과 동일.
+ *     앱 톤으로 자연스럽게 정리(재포장 X, 정보 구조 보존). 그리드 컬럼·호버·그라데이션 운영과 동일.
  *   - 데이터 fetch · generateMetadata · JSON-LD 는 전부 서버 page.tsx 가 책임(여기는 표시만).
  *   - 셸은 active="마이"(미강조 톤) · back="/"(홈으로 복귀). wide 미사용(기본 좁은 중앙 정렬).
  *
- * 격리: beta-skin.module.css 무수정. 기존 운영 Tailwind 유틸·var(--*) 토큰 그대로 + 인라인 style.
+ * 격리: app.module.css 무수정. 기존 운영 Tailwind 유틸·var(--*) 토큰 그대로 + 인라인 style.
  */
 
 import Image from "next/image";
 import Link from "next/link";
 import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
 
 export type DoctorListItem = {
   id: string;
@@ -33,10 +33,10 @@ export default function DoctorsListView({
 }: {
   doctors: DoctorListItem[];
 }) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" back="/" {...search}>
+    <AppShell active="마이" back="/" {...search}>
       {/* 헤더 타이틀 — 운영과 동일 정보(H1 + 보조 문장). 가운데 정렬 유지. */}
       <header className="mb-5 text-center">
         <h1 className="text-2xl font-bold text-[var(--text)]">피부과 전문의</h1>
@@ -92,6 +92,6 @@ export default function DoctorsListView({
           );
         })}
       </div>
-    </BetaSkinShell>
+    </AppShell>
   );
 }

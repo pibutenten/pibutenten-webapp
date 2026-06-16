@@ -1,18 +1,18 @@
 "use client";
 
 /**
- * BetaAdminAuthErrorsView — /admin/auth-errors 의 베타 스킨 셸 래퍼 (클라이언트).
+ * AdminAuthErrorsView — /admin/auth-errors 의 앱 스킨 셸 래퍼 (클라이언트).
  *
  * 원칙(Agent 5):
- *   - 상단바·배경만 BetaSkinShell 로 교체. 본문(기간 카운트 카드 + 최근 50건 표) 구조는 운영 그대로.
- *   - 색/라운드 토큰만 베타 톤으로 재조정 (운영 var(--text)/var(--border)/var(--bg-soft) → 베타 var(--ink-*)/var(--line)).
+ *   - 상단바·배경만 AppShell 로 교체. 본문(기간 카운트 카드 + 최근 50건 표) 구조는 운영 그대로.
+ *   - 색/라운드 토큰만 앱 톤으로 재조정 (운영 var(--text)/var(--border)/var(--bg-soft) → 앱 var(--ink-*)/var(--line)).
  *   - 데이터 fetch·가드는 server page.tsx 가 담당, 이 뷰는 props 로 받은 행·카운트만 렌더.
- *   - import 절대경로(@/app/beta-skin/*), 모든 링크 /admin/* (이 페이지는 외부 nav 없음).
+ *   - import 절대경로(@/appapp skin), 모든 링크 /admin/* (이 페이지는 외부 nav 없음).
  */
 
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
-import styles from "@/components/skin/beta-skin.module.css";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
+import styles from "@/components/skin/app.module.css";
 
 const PROVIDER_LABEL: Record<string, string> = {
   google: "Google",
@@ -22,7 +22,7 @@ const PROVIDER_LABEL: Record<string, string> = {
   unknown: "(unknown)",
 };
 
-export type BetaAuthErrorRow = {
+export type AuthErrorRow = {
   error_id: string;
   created_at: string;
   provider: string;
@@ -52,24 +52,24 @@ function formatKstShort(iso: string): string {
 }
 
 type Props = {
-  rows: BetaAuthErrorRow[];
+  rows: AuthErrorRow[];
   c24h: number;
   c7d: number;
   c30d: number;
   listError: boolean;
 };
 
-export default function BetaAdminAuthErrorsView({
+export default function AdminAuthErrorsView({
   rows,
   c24h,
   c7d,
   c30d,
   listError,
 }: Props) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" wide back="/admin" {...search}>
+    <AppShell active="마이" wide back="/admin" {...search}>
       <div className={styles.mb20}>
         <h1 className={styles.profileName}>회원가입 에러 로그</h1>
         <p className={styles.muted} style={{ marginTop: 4, fontSize: 12 }}>
@@ -264,7 +264,7 @@ export default function BetaAdminAuthErrorsView({
         ※ 이메일·IP 는 저장 시점에 마스킹된 값만 표시됩니다. 원본 상세가
         필요하면 같은 error_id 로 Vercel 서버 로그를 확인해 주세요.
       </p>
-    </BetaSkinShell>
+    </AppShell>
   );
 }
 

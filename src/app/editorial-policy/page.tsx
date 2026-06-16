@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
-import InfoBetaShell from "@/components/info/InfoBetaShell";
+import InfoShell from "@/components/info/InfoShell";
 
 export const metadata: Metadata = {
   title: "편집 정책",
@@ -36,7 +36,7 @@ export default function EditorialPolicyPage() {
   };
 
   return (
-    <InfoBetaShell>
+    <InfoShell>
     <InfoPageLayout
       current="editorial-policy"
       title="편집 정책"
@@ -242,7 +242,7 @@ export default function EditorialPolicyPage() {
         필요한 경우 개정합니다.
       </p>
     </InfoPageLayout>
-    </InfoBetaShell>
+    </InfoShell>
   );
 }
 

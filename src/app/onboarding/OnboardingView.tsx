@@ -3,7 +3,7 @@
 /**
  * OnboardingView — /onboarding "피부정보 입력(다단계 폼)" 본문 래퍼 (클라이언트).
  *
- * 원칙(베타 스킨 승격, 2026-06-15): 상단바만 베타 셸, 본문은 운영 형태 그대로 유지.
+ * 원칙(앱 스킨 승격, 2026-06-15): 상단바만 앱 셸, 본문은 운영 형태 그대로 유지.
  *   ⚠️ 온보딩은 가장 민감(미들웨어 강제 게이트·이메일 dedup·IDENTITY 쿠키 기준 targetProfileId).
  *      - 가드·쿠키·dedup·avatar 결정·OnboardingClient prop 등 모든 로직은 server page.tsx 가 100% 책임.
  *      - 폼 본체(ReturningUserNotice·OnboardingClient)는 page.tsx 에서 렌더해 children 으로 주입.
@@ -12,15 +12,15 @@
  *     않도록 탭바를 숨긴다. active 는 타입 만족용("마이") — wide 라 탭바·강조 미노출.
  *   - back 미지정 — 온보딩은 '뒤로' 로 게이트를 벗어나면 안 됨(탈출은 본문 '다시 로그인' 버튼만). 검색 비활성.
  *
- * 격리: beta-skin.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
+ * 격리: app.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
  */
 
 import type { ReactNode } from "react";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import AppShell from "@/components/skin/AppShell";
 
 export default function OnboardingView({ children }: { children: ReactNode }) {
   return (
-    <BetaSkinShell active="마이" wide>
+    <AppShell active="마이" wide>
       <section className="mx-auto w-full max-w-[640px] py-6">
         <header className="mb-5">
           <h1 className="text-2xl font-bold text-[var(--text)]">
@@ -36,6 +36,6 @@ export default function OnboardingView({ children }: { children: ReactNode }) {
         </header>
         {children}
       </section>
-    </BetaSkinShell>
+    </AppShell>
   );
 }

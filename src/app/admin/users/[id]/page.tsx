@@ -14,7 +14,7 @@ import { getIdentityContext } from "@/lib/identity";
 import { formatIsoDate } from "@/lib/format-date";
 import { getDoctorIdForProfile, getDoctorMetaBatch } from "@/lib/doctor-mapping";
 import CreateDoctorProfileForm from "./CreateDoctorProfileForm";
-import BetaAdminUserDetailView from "./BetaAdminUserDetailView";
+import AdminUserDetailView from "./AdminUserDetailView";
 
 export const dynamic = "force-dynamic";
 
@@ -287,7 +287,7 @@ export default async function AdminUserDetailPage({
       : ROLE_LABELS[profile.role] ?? profile.role;
 
   return (
-    <BetaAdminUserDetailView>
+    <AdminUserDetailView>
     <section className="w-full py-6">
       {/* Identity 스위처 (한 사람의 여러 ID) */}
       {(allIdentities?.length ?? 0) > 0 && (
@@ -480,7 +480,7 @@ export default async function AdminUserDetailPage({
         )}
       </Section>
     </section>
-    </BetaAdminUserDetailView>
+    </AdminUserDetailView>
   );
 }
 

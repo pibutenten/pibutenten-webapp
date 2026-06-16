@@ -1,5 +1,5 @@
 /* ============================================================
-   /beta-skin — 신규 스킨 프리뷰 (운영과 완전 격리)
+   app skin — 신규 스킨 프리뷰 (운영과 완전 격리)
    - 모든 토큰을 .root 스코프에 자체 정의 (globals.css 비의존)
    - CSS Module → 클래스 자동 해시 (스타일 누수 0)
    - 컨셉(tenten.css) 차용 + 폰트 한 단계 축소 + 데스크탑 2단
@@ -46,7 +46,7 @@
   --tag-yellow-bg: #fbf0cc;
   --tag-yellow: #7d5d08;
 
-  /* 운영 컴포넌트(댓글 좋아요 등)가 쓰는 accent — 베타 .root 스코프에 정의해
+  /* 운영 컴포넌트(댓글 좋아요 등)가 쓰는 accent — 앱 스킨 .root 스코프에 정의해
      var(--accent)/currentColor 가 ink-900(검정)으로 떨어지지 않게(운영 globals 값과 동일). */
   --accent: #ff6b81;
   --accent-soft: #ffe4e8;
@@ -75,7 +75,7 @@
 /* wide(admin) — 대시보드·운영프로그램·표는 운영 모습이 더 낫다는 사용자 결정(2026-06-14).
    캔버스 그라데이션(하늘·민트·레몬) 대신 운영과 동일한 연회색 배경(#F4F5F7)으로.
    → 흰 Stat/Tool 카드·표가 또렷이 떠 보이고, 큰 .card 박스 래퍼 없이 운영처럼 깔끔.
-   상단 헤더(.header)는 자체 background 라 그대로 베타 톤 유지(사용자: "상단바만 베타스킨"). */
+   상단 헤더(.header)는 자체 background 라 그대로 앱 톤 유지(사용자: "상단바만 앱 스킨"). */
 .rootWide {
   background: #f4f5f7;
 }
@@ -122,29 +122,29 @@
   box-shadow: 0 0 0 2px rgba(69, 183, 232, 0.28), var(--card-shadow);
 }
 
-/* 항목5) 댓글(운영 CommentsBlock/CommentItem/CommentForm) 베타 스코프 override — 운영 파일 무수정.
+/* 항목5) 댓글(운영 CommentsBlock/CommentItem/CommentForm) 앱 스코프 override — 운영 파일 무수정.
    - 좋아요 하트: 핑크/검정 → 회색(--accent 를 댓글 스코프에서만 회색으로). 채움(liked)으로 상태 구분.
    - 입력창 포커스: 3px 파란 링 제거(지저분한 파란 선). 폼 자체 보더로 포커스 표현(접근성 유지).
    - 답글 ↔ 하트 간격: 인라인 marginLeft:2px 가 너무 좁아 넉넉히(좋아요 버튼은 stable aria-label). */
-.betaComments {
+.comments {
   /* 하트 liked=--accent / unliked=--text-muted 둘 다 같은 회색으로(검정 하트 방지). */
   --accent: #9aa3b0;
   --text-muted: #9aa3b0;
 }
 /* 입력창(textarea/input)만 3px 파란 링 제거 — 폼 자체 보더로 포커스 표현.
    버튼류는 접근성(WCAG 2.4.7 Focus Visible) 위해 은은한 회색 포커스 링 유지. */
-.root .betaComments textarea:focus-visible,
-.root .betaComments input:focus-visible {
+.root .comments textarea:focus-visible,
+.root .comments input:focus-visible {
   outline: none;
 }
-.root .betaComments button:focus-visible {
+.root .comments button:focus-visible {
   outline: 2px solid #c2cad4;
   outline-offset: 2px;
 }
 /* 좋아요 하트 — 변수가 더 구체적인 규칙에 밀려 어둡게 나오므로 색을 직접 강제(회색). svg currentColor 가 따라옴.
    + 답글↔하트 간격(인라인 marginLeft:2px 너무 좁음)도 함께. */
-.root .betaComments button[aria-label="좋아요"],
-.root .betaComments button[aria-label="좋아요 취소"] {
+.root .comments button[aria-label="좋아요"],
+.root .comments button[aria-label="좋아요 취소"] {
   color: #9aa3b0 !important;
   margin-left: 10px !important;
 }
@@ -161,7 +161,7 @@
   z-index: 40;
   padding: 12px 18px;
   /* 불투명 베이스(#e8f5fd) 위에 반투명 틴트를 얹어, 아래 깔린 운영 TopNav 가
-     beta 헤더 뒤로 비치지 않게 한다(운영 파일 무수정 → beta 측에서 완전 차폐).
+     앱 헤더 뒤로 비치지 않게 한다(운영 파일 무수정 → 앱 스킨 측에서 완전 차폐).
      blur 글래스 질감은 유지. */
   background-color: #e8f5fd;
   background-image: linear-gradient(
@@ -353,7 +353,7 @@
   width: 21px;
   height: 21px;
 }
-/* 항목 3) 헤더 우상단 아바타(동그라미) — 운영 BetaNav 와 동일 표시. */
+/* 항목 3) 헤더 우상단 아바타(동그라미) — 운영 BottomNav 와 동일 표시. */
 .headerAvatar {
   width: 28px;
   height: 28px;
@@ -441,7 +441,7 @@
 .page {
   padding: 4px 18px 116px;
 }
-/* wide(admin) — 하단 탭바를 숨기므로(BetaSkinShell wide) 탭바 가림용 큰 하단 패딩(116px) 불필요.
+/* wide(admin) — 하단 탭바를 숨기므로(AppShell wide) 탭바 가림용 큰 하단 패딩(116px) 불필요.
    좌우 패딩은 좁혀 표가 모바일 폭을 최대한 쓰게(가로 스크롤은 표 wrapper 의 overflow-x 가 처리). */
 .pageWide {
   padding: 4px 12px 40px;
@@ -562,7 +562,7 @@
 }
 
 /* ── 원장 공개 프로필(/doctors/[slug]) 모바일 순서 (2026-06-16) ──
-   모바일: 원장 프로필(소개) 카드를 답변 피드 "위"에 노출. 셸(BetaSkinShell) DOM 순서가
+   모바일: 원장 프로필(소개) 카드를 답변 피드 "위"에 노출. 셸(AppShell) DOM 순서가
    children(답변)→sidebar(프로필)로 고정 + 셸 수정 금지이므로, 원장 카드를 본문 최상단에
    "모바일 전용"(.doctorProfileMobile)으로 한 번 더 렌더하고 데스크탑에선 숨긴다.
    반대로 사이드바 안의 같은 카드(.doctorProfileSideCard)는 모바일에서만 숨겨 중복 노출을 막는다.
@@ -597,18 +597,18 @@
   border-radius: 50%;
   border: 3px solid var(--tt-blue-soft);
   border-top-color: var(--tt-blue);
-  animation: betaSpin 0.8s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
-@keyframes betaSpin {
+@keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-/* 피드백 2) 등장 애니메이션 — 운영 globals.css 의 fadeInUp 자체 정의(베타 격리).
+/* 피드백 2) 등장 애니메이션 — 운영 globals.css 의 fadeInUp 자체 정의(앱 스킨 격리).
    opacity 0→1 + translateY(10px)→0, 0.4s ease-out. 피드 카드·뷰 전환·무한스크롤
    추가 카드에 적용. prefers-reduced-motion 가드는 파일 하단 미디어쿼리에서 처리. */
-@keyframes betaFadeInUp {
+@keyframes fadeInUp {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -619,14 +619,14 @@
   }
 }
 .fadeInUp {
-  animation: betaFadeInUp 0.4s ease-out both;
+  animation: fadeInUp 0.4s ease-out both;
 }
 
 /* 수정3) 제목 살짝 올라오며 페이드인 — 카드 제목(.postTitle)·프로필 제목(.profileName)에 적용.
    translateY(8px)→0 + opacity, 220ms ease-out. 카드 article 의 .fadeInUp(0.4s)과 톤을 맞추되
    살짝 짧게(220ms) + 미세 delay(60ms)로 제목이 본문보다 한 박자 늦게 올라와 자연스럽게 강조.
    prefers-reduced-motion 가드는 파일 하단 미디어쿼리(.root * animation:none)에서 함께 처리. */
-@keyframes betaTitleRise {
+@keyframes titleRise {
   from {
     opacity: 0;
     transform: translateY(8px);
@@ -638,7 +638,7 @@
 }
 .postTitle,
 .profileName {
-  animation: betaTitleRise 0.22s ease-out 0.06s both;
+  animation: titleRise 0.22s ease-out 0.06s both;
 }
 
 .card {
@@ -667,11 +667,11 @@
   overflow: hidden;
 }
 
-/* 운영 ProcedureReportCard(무수정) 베타 wrapper — BetaSkinFeed 가 리포트 카드를 이 div 로 감싼다.
-   운영 카드 루트는 <article class="... rounded-[var(--radius)] bg-white">. /beta-skin 에는
-   --radius 토큰이 없어 전역 :root(12px)로 떨어져 베타 .card(--r-card 24px)와 R값이 어긋났다.
-   → wrapper 스코프에서 --radius 를 --r-card 로 재정의 + 베타 카드 그림자/폭/클리핑을 부여해
-   베타 .card 와 동일한 R값·외형으로 통일(운영 컴포넌트는 그대로 둠). */
+/* 운영 ProcedureReportCard(무수정) 앱 wrapper — FeedView 가 리포트 카드를 이 div 로 감싼다.
+   운영 카드 루트는 <article class="... rounded-[var(--radius)] bg-white">. app skin 에는
+   --radius 토큰이 없어 전역 :root(12px)로 떨어져 앱 .card(--r-card 24px)와 R값이 어긋났다.
+   → wrapper 스코프에서 --radius 를 --r-card 로 재정의 + 앱 카드 그림자/폭/클리핑을 부여해
+   앱 .card 와 동일한 R값·외형으로 통일(운영 컴포넌트는 그대로 둠). */
 .reportCardWrap {
   /* 운영 article 의 rounded-[var(--radius)] 가 24px 를 따르도록 토큰 재정의 */
   --radius: var(--r-card);
@@ -679,7 +679,7 @@
   box-shadow: var(--card-shadow);
   /* 모서리 라운드 밖으로 헤더 틴트 배경이 새지 않게 클리핑 */
   overflow: hidden;
-  /* 베타 .card 와 동일한 폭 고정 방어 */
+  /* 앱 .card 와 동일한 폭 고정 방어 */
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -893,7 +893,7 @@
 
 /* ---------- 효과 영역 막대 (운영 effects 시각화 재현) ----------
  * 만족도 분포(.reportDist*) 톤과 통일: 연한 둥근 트랙(#eef1f4) + 둥근 채움.
- * 채움색은 마크업이 BETA_EFFECT_COLORS 인라인으로 지정 → CSS는 구조만 담당.
+ * 채움색은 마크업이 EFFECT_COLORS 인라인으로 지정 → CSS는 구조만 담당.
  * 라벨은 만족도(폭 12px 숫자)와 달리 텍스트라 폭을 넉넉히(운영 w-16 대응). */
 .reportEffectList {
   display: flex;
@@ -946,7 +946,7 @@
 
 /* ---------- 작성자 통계 — 성별·연령 분할 바 + 범례 (운영 demographics 재현) ----------
  * 단일 가로 분할 바: 둥근 모서리 + 내부 span 들이 width%로 색 분할(색은 인라인).
- * 베타 톤: 운영(h-14px rounded-full)을 연한 둥근 막대로 옮김. */
+ * 앱 톤: 운영(h-14px rounded-full)을 연한 둥근 막대로 옮김. */
 .reportDemoBar {
   display: flex;
   height: 14px;
@@ -2017,7 +2017,7 @@ button.t[data-cat="knowledge"]:hover {
 }
 
 /* ============================================================
-   내 노트 (/beta-skin/record)
+   내 노트 (app skin record)
    ============================================================ */
 /* 사용자 추가) greet 영역 — 디자인 오리지널 톤(진한 브랜드 그라데이션 + 흰 글자) 복원.
    본문 <p> 는 마크업(record/RecordView.tsx)이 인라인 color:rgba(255,255,255,0.92)(흰)로
@@ -2356,7 +2356,7 @@ button.t[data-cat="knowledge"]:hover {
   border-radius: 999px;
 }
 /* 피드백 3) 빈 상태 '이렇게 기록돼요' 샘플 미리보기 — 더미임이 분명하도록 흐리게 + 클릭 불가.
-   베타 타임라인 토큰(recTl*)을 그대로 재사용하되, 실데이터와 헷갈리지 않게 톤다운. */
+   앱 타임라인 토큰(recTl*)을 그대로 재사용하되, 실데이터와 헷갈리지 않게 톤다운. */
 .recExamplePreview {
   position: relative;
   margin-bottom: 14px;
@@ -2780,7 +2780,7 @@ button.t[data-cat="knowledge"]:hover {
 }
 
 /* ============================================================
-   글 상세 (/beta-skin/post)
+   글 상세 (app skin post)
    ============================================================ */
 /* 글상세 본문은 피드 PostCard(forceExpanded)를 그대로 재사용 →
    글상세 전용 제목/본문/QA 박스 스타일(.articleTitle/.articleBody/.qaQ)은 폐기(누더기 제거).
@@ -2995,7 +2995,7 @@ button.t[data-cat="knowledge"]:hover {
 }
 
 /* ============================================================
-   글쓰기 (/beta-skin/write)
+   글쓰기 (app skin write)
    ============================================================ */
 .writeWrap {
   max-width: 100%;
@@ -3037,7 +3037,7 @@ button.t[data-cat="knowledge"]:hover {
   border-color: #9bd8f5;
   background: var(--tt-blue-tint);
 }
-/* 시술노트 탭 제목 높이 통일 — 운영 SkinDiaryMockup 의 부제(h1 + p)만 베타 스코프에서 숨겨
+/* 시술노트 탭 제목 높이 통일 — 운영 SkinDiaryMockup 의 부제(h1 + p)만 앱 스코프에서 숨겨
    다른 탭(시술후기/끄적끄적/Q&A: h1 단독)과 제목 영역 높이를 맞춤. 운영 무수정.
    .writeWrap 하위에서 h1 바로 다음 p 인접은 시술노트 DiaryForm 에만 존재(검증 완료):
    ReviewForm 은 h1 다음이 div, WriteClient 는 h1 다음이 CardEditor(h1 없음). */
@@ -3045,12 +3045,12 @@ button.t[data-cat="knowledge"]:hover {
   display: none;
 }
 /* 항목2) 제목(운영 폼 h1)과 첫 글상자 사이 간격 확대.
-   DiaryForm h1 은 mb-1(4px)뿐이라 너무 붙음 → 베타 스코프에서 18px 로 통일.
+   DiaryForm h1 은 mb-1(4px)뿐이라 너무 붙음 → 앱 스코프에서 18px 로 통일.
    ReviewForm·WriteClient h1(mb-5=20px)과도 자연스럽게 맞음. 운영 컴포넌트 무수정. */
 .writeWrap h1 {
   margin-bottom: 18px;
 }
-/* 항목1) 비로그인 게이트 — 베타 톤 .card 안 안내 + 로그인/회원가입 버튼. */
+/* 항목1) 비로그인 게이트 — 앱 톤 .card 안 안내 + 로그인/회원가입 버튼. */
 .writeLoginGate {
   text-align: center;
   padding: 30px 22px;
@@ -3279,7 +3279,7 @@ button.t[data-cat="knowledge"]:hover {
 }
 
 /* ============================================================
-   마이 (/beta-skin/my)
+   마이 (app skin my)
    ============================================================ */
 .profileCard {
   display: flex;
@@ -3391,7 +3391,7 @@ button.t[data-cat="knowledge"]:hover {
 }
 
 /* ============================================================
-   공개 프로필 (/beta-skin/u/[handle])
+   공개 프로필 (app skin u/[handle])
    ============================================================ */
 .profileEmpty {
   text-align: center;
@@ -3494,7 +3494,7 @@ button.t[data-cat="knowledge"]:hover {
 }
 
 /* ---------- 카드 ⋮ 더보기 메뉴 (PostCardMenu) ----------
-   운영 CardHeader 의 kebab + 드롭다운을 베타 톤(흰 카드)으로 이식.
+   운영 CardHeader 의 kebab + 드롭다운을 앱 톤(흰 카드)으로 이식.
    .postCard 가 position:relative 라 우상단 절대배치. NEW/HOT 배지는 카드 위로
    매달리므로(.badges translateY -40%) 카드 안쪽 상단 우측에 둬도 겹치지 않음. */
 .kebabWrap {
@@ -3558,9 +3558,9 @@ button.t[data-cat="knowledge"]:hover {
   background: #ffe6ee;
 }
 
-/* ---------- 신고 모달 (BetaReportModal) ----------
+/* ---------- 신고 모달 (ReportModal) ----------
    타인 글 ⋮ → "신고하기" 클릭 시 노출되는 바텀시트형 모달. 운영 신고 API(/api/reports) 호출.
-   베타 톤(흰 카드 + 로즈 포인트)만 사용 — 운영 ReportForm(Tailwind)과 완전 격리. */
+   앱 톤(흰 카드 + 로즈 포인트)만 사용 — 운영 ReportForm(Tailwind)과 완전 격리. */
 .reportOverlay {
   position: fixed;
   inset: 0;
@@ -3570,7 +3570,7 @@ button.t[data-cat="knowledge"]:hover {
   justify-content: center;
   background: rgba(27, 51, 71, 0.42);
   backdrop-filter: blur(2px);
-  animation: betaFadeIn 0.16s ease;
+  animation: fadeIn 0.16s ease;
 }
 .reportSheet {
   width: 100%;
@@ -3579,7 +3579,7 @@ button.t[data-cat="knowledge"]:hover {
   border-radius: 20px 20px 0 0;
   padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -8px 32px rgba(27, 73, 101, 0.18);
-  animation: betaSheetUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: sheetUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 @media (min-width: 600px) {
   /* 데스크탑은 화면 중앙 카드형. */
@@ -3693,7 +3693,7 @@ button.t[data-cat="knowledge"]:hover {
   opacity: 0.55;
   cursor: default;
 }
-@keyframes betaFadeIn {
+@keyframes fadeIn {
   from {
     opacity: 0;
   }
@@ -3701,7 +3701,7 @@ button.t[data-cat="knowledge"]:hover {
     opacity: 1;
   }
 }
-@keyframes betaSheetUp {
+@keyframes sheetUp {
   from {
     transform: translateY(16px);
     opacity: 0.4;

@@ -3,21 +3,21 @@
 /**
  * DoctorProfileView — /doctors/[slug] "원장 공개 프로필" 본문 (클라이언트).
  *
- * 원칙(베타 승격, 2026-06-15): 선례 DoctorDashboardView·BetaProfileView 와 동일하게
- *   "상단바(헤더)만 베타 셸, 본문은 기존 운영 정보 구조를 최대한 유지". 큰 .card 박스에 욱여넣지 않는다.
+ * 원칙(앱 셸 승격, 2026-06-15): 선례 DoctorDashboardView·ProfileView 와 동일하게
+ *   "상단바(헤더)만 앱 셸, 본문은 기존 운영 정보 구조를 최대한 유지". 큰 .card 박스에 욱여넣지 않는다.
  *   - 운영 page.tsx 의 본문(원장 hero · 프로필 학력/경력/전문분야/학회 · 답변 피드)을
- *     베타 톤(.card / .skinSection / .t 등 기존 클래스)로 자연스럽게 정리(재포장 X, 정보 구조 보존).
+ *     앱 톤(.card / .skinSection / .t 등 기존 클래스)로 자연스럽게 정리(재포장 X, 정보 구조 보존).
  *   - 데이터 fetch · 권한 · generateMetadata · JSON-LD 는 전부 서버 page.tsx 가 책임(여기는 표시만).
  *   - 셸은 active="마이"(미강조 톤) · back="/doctors"(공개 전문의 목록으로 복귀).
  *
- * 레이아웃(2026-06-15 재구성): BetaSkinShell 2단 레이아웃 사용 —
+ * 레이아웃(2026-06-15 재구성): AppShell 2단 레이아웃 사용 —
  *   - 메인(좌, 넓게): 원장 hero(이름·병원·사진) + "답변 N편" 헤더 + 단일열 PostCard 피드(홈과 동일 톤).
  *   - 사이드바(우): 프로필 정보(학력·경력·전문분야·자격·학회·학회활동·출판·외부 링크). 운영 단독 URL
  *     의 우측 프로필 사이드바 형식과 동일한 느낌. dl 은 사이드 폭에 맞춰 단일 컬럼.
  *   - 데스크탑은 2단, 모바일은 셸이 자동 1단(sidebarMobileBelow → 프로필을 피드 아래로 노출,
  *     프로필 정보 누락 방지). H1(원장명)은 메인 hero 모바일 분기에 유지 → SEO 영향 없음.
  *
- * 격리: beta-skin.module.css 무수정. 베타 기존 클래스 재사용 + 부분 인라인 style 만.
+ * 격리: app.module.css 무수정. 앱 기존 클래스 재사용 + 부분 인라인 style 만.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,18 +26,18 @@ import type { CardData } from "@/components/Card";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 import { orcidUrl, type DoctorProfileData } from "@/lib/doctor-profile";
 import type { DoctorTheme } from "@/lib/doctor-theme";
-import type { BetaViewerState } from "@/components/skin/beta-ui";
+import type { ViewerState } from "@/components/skin/ui";
 import {
   cardHref,
   IconVerified,
   PostCard,
-  useBetaSearchRouting,
-} from "@/components/skin/beta-ui";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import styles from "@/components/skin/beta-skin.module.css";
+  useSearchRouting,
+} from "@/components/skin/ui";
+import AppShell from "@/components/skin/AppShell";
+import styles from "@/components/skin/app.module.css";
 
 /* 무한스크롤 한 번에 확장할 카드 수 — /api/cards?ids= 한 묶음(라우트 상한 60 이내).
- *   홈 BetaSkinFeed 와 동일(PAGE=20). */
+ *   홈 FeedView 와 동일(PAGE=20). */
 const PAGE = 20;
 
 export default function DoctorProfileView({
@@ -70,12 +70,12 @@ export default function DoctorProfileView({
   relatedQa?: CardData[];
   count: number | null;
   hotIds: number[];
-  viewerStates: Record<number, BetaViewerState>;
+  viewerStates: Record<number, ViewerState>;
 }) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
   const hotSet = useMemo(() => new Set(hotIds ?? []), [hotIds]);
 
-  // 풀 + 무한스크롤 커서 — 홈 BetaSkinFeed loadMore 패턴 이식(검색·칩·리포트 없는 단순 무한스크롤).
+  // 풀 + 무한스크롤 커서 — 홈 FeedView loadMore 패턴 이식(검색·칩·리포트 없는 단순 무한스크롤).
   const [pool, setPool] = useState<CardData[]>(cards);
   const [hasMore, setHasMore] = useState(orderedIds.length > cards.length);
   const [loading, setLoading] = useState(false);
@@ -95,7 +95,7 @@ export default function DoctorProfileView({
     setHasMore(orderedIds.length > cards.length);
   }, [cards, orderedIds]);
 
-  // 풀 확장 — orderedIds 순서대로 다음 묶음을 ID 로 받아 순서 보존 append (홈 BetaSkinFeed loadMore 동일).
+  // 풀 확장 — orderedIds 순서대로 다음 묶음을 ID 로 받아 순서 보존 append (홈 FeedView loadMore 동일).
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMoreRef.current) return;
     const ids = orderedIdsRef.current;
@@ -136,7 +136,7 @@ export default function DoctorProfileView({
     }
   }, []);
 
-  // sentinel 관찰 — mount 시 1회만 설정(홈 BetaSkinFeed 동일). loadMore 가 ref 로 최신값 참조.
+  // sentinel 관찰 — mount 시 1회만 설정(홈 FeedView 동일). loadMore 가 ref 로 최신값 참조.
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node) return;
@@ -150,7 +150,7 @@ export default function DoctorProfileView({
     return () => ob.disconnect();
   }, [loadMore]);
 
-  // 카드 삭제 broadcast 수신 → 풀에서 제거(홈 BetaSkinFeed 동일). 발사는 카드 ⋮메뉴 쪽.
+  // 카드 삭제 broadcast 수신 → 풀에서 제거(홈 FeedView 동일). 발사는 카드 ⋮메뉴 쪽.
   useEffect(() => {
     function onDeleted(e: Event) {
       const id = (e as CustomEvent<{ id: number }>).detail?.id;
@@ -168,7 +168,7 @@ export default function DoctorProfileView({
   //   데스크탑 2단 우측, 모바일은 피드 아래(sidebarMobileBelow).
   //
   // 모바일 순서(2026-06-16): 모바일에선 원장 프로필(소개) 카드를 답변 피드 "위"로 올린다.
-  //   셸(BetaSkinShell)은 수정 금지 + DOM 순서가 children(답변)→sidebar(프로필)로 고정이므로,
+  //   셸(AppShell)은 수정 금지 + DOM 순서가 children(답변)→sidebar(프로필)로 고정이므로,
   //   원장 카드(DoctorProfileCard)를 본문(children) 최상단에 "모바일 전용"으로 한 번 더 렌더하고
   //   (데스크탑 ≥900px 에서 .doctorProfileMobile 이 display:none), 사이드바 안의 같은 카드는
   //   모바일에서만 숨긴다(.doctorProfileSideCard, 데스크탑에선 그대로 노출) → 데스크탑 2단 현행 유지,
@@ -185,7 +185,7 @@ export default function DoctorProfileView({
   );
 
   return (
-    <BetaSkinShell
+    <AppShell
       active="마이"
       back="/doctors"
       backTitle={
@@ -219,7 +219,7 @@ export default function DoctorProfileView({
       {/* Q&A 피드 (해당 원장만) — 홈과 동일한 단일열 PostCard 피드(feedList) + 무한스크롤.
           서버가 내려준 초기 풀(cards)을 PostCard 로 렌더하고, 스크롤 끝(sentinel)에 닿으면
           orderedIds 순서대로 /api/cards?ids= 로 다음 묶음을 이어 받아 append(holes 없이 전체 노출).
-          태그 클릭 → 헤더 검색 라우팅(useBetaSearchRouting), HOT 카드 딱지 동기화. */}
+          태그 클릭 → 헤더 검색 라우팅(useSearchRouting), HOT 카드 딱지 동기화. */}
       {pool.length === 0 ? (
         <div className={styles.card} style={{ textAlign: "center" }}>
           <p className={styles.muted}>아직 등록된 Q&amp;A가 없어요.</p>
@@ -237,7 +237,7 @@ export default function DoctorProfileView({
               />
             ))}
           </div>
-          {/* 무한스크롤 sentinel — 풀 소진 시 렌더 안 함(홈 BetaSkinFeed 동일). */}
+          {/* 무한스크롤 sentinel — 풀 소진 시 렌더 안 함(홈 FeedView 동일). */}
           {hasMore && (
             <div
               ref={sentinelRef}
@@ -248,7 +248,7 @@ export default function DoctorProfileView({
           {loading && <p className={styles.empty}>불러오는 중…</p>}
         </>
       )}
-    </BetaSkinShell>
+    </AppShell>
   );
 }
 
@@ -260,7 +260,7 @@ export default function DoctorProfileView({
  *   PostDetail 은 더보기 토글로 접지만, 원장 공개 프로필 페이지는 이 정보가 핵심이라 항상 펼쳐 노출한다.
  *
  * H1: 페이지의 유일한 <h1> 을 여기 원장 이름에 둔다(메인 hero 제거로 중복 없음, SEO H1 1개 유지).
- * 데스크탑: BetaSkinShell 우측 칼럼(.sidebar). 모바일: 셸이 본문(피드) 아래로 노출(sidebarMobileBelow).
+ * 데스크탑: AppShell 우측 칼럼(.sidebar). 모바일: 셸이 본문(피드) 아래로 노출(sidebarMobileBelow).
  */
 function DoctorProfileSidebar({
   name,

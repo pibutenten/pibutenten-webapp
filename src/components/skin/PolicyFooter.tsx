@@ -2,15 +2,15 @@ import Link from "next/link";
 import { FOOTER_ITEMS } from "@/lib/policy-nav";
 
 /**
- * BetaPolicyFooter — 베타 셸 페이지 내부에 두는 신뢰·법적 길목(SNS 표준 in-page 푸터).
+ * PolicyFooter — 앱 셸 페이지 내부에 두는 신뢰·법적 길목(SNS 표준 in-page 푸터).
  *
- * 배경: 앱(베타) 전환으로 전역 SiteFooter 가 베타 라우트에서 렌더되지 않게 되면서
+ * 배경: 앱 셸 전환으로 전역 SiteFooter 가 앱 셸 라우트에서 렌더되지 않게 되면서
  *   /about·/terms·/privacy 등으로 가는 길목이 사라졌다(사용자 보고). 상단 네비에 박지 않고
  *   "마이" 류 페이지 하단에 두는 것이 원칙 → 본 컴포넌트를 마이 화면들 최하단에 임베드한다.
  *
- * 내용·순서: 운영 SiteFooter 와 1:1(SSOT = FOOTER_ITEMS). 다만 베타 셸 디자인 시스템 안에
- *   살므로 운영 글로벌 토큰(--border/--text-muted…) 대신 베타 토큰(--ink-500/--line/--tt-blue-deep)을
- *   인라인으로 사용한다. CSS 모듈(beta-skin.module.css)은 수정 금지 대상이라 전용 클래스를 만들지 않는다.
+ * 내용·순서: 운영 SiteFooter 와 1:1(SSOT = FOOTER_ITEMS). 다만 앱 셸 디자인 시스템 안에
+ *   살므로 운영 글로벌 토큰(--border/--text-muted…) 대신 앱 토큰(--ink-500/--line/--tt-blue-deep)을
+ *   인라인으로 사용한다. CSS 모듈(app.module.css)은 수정 금지 대상이라 전용 클래스를 만들지 않는다.
  */
 
 const LINK_STYLE: React.CSSProperties = {
@@ -20,7 +20,7 @@ const LINK_STYLE: React.CSSProperties = {
   lineHeight: 1.9,
 };
 
-export default function BetaPolicyFooter() {
+export default function PolicyFooter() {
   return (
     <footer
       style={{

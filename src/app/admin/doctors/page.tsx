@@ -7,7 +7,7 @@ import {
   asDoctorProfileData,
   type DoctorProfileData,
 } from "@/lib/doctor-profile";
-import BetaAdminDoctorsView from "./BetaAdminDoctorsView";
+import AdminDoctorsView from "./AdminDoctorsView";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +50,7 @@ export default async function AdminDoctorsPage() {
     .returns<DoctorRow[]>();
 
   return (
-    <BetaAdminDoctorsView>
+    <AdminDoctorsView>
     <section className="w-full py-6">
       <div className="mb-5 flex items-baseline justify-between gap-3">
         <div>
@@ -131,6 +131,6 @@ export default async function AdminDoctorsPage() {
         </div>
       )}
     </section>
-    </BetaAdminDoctorsView>
+    </AdminDoctorsView>
   );
 }

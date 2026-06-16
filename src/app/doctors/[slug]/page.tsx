@@ -233,7 +233,7 @@ export default async function DoctorDetailPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
-      {/* 본문(원장 hero · 프로필 · 답변 피드) 은 베타 셸로 승격. 데이터·메타·JSON-LD 는 서버가 보존. */}
+      {/* 본문(원장 hero · 프로필 · 답변 피드) 은 앱 셸로 승격. 데이터·메타·JSON-LD 는 서버가 보존. */}
       <DoctorProfileView
         slug={doctor.slug}
         name={doctor.name}

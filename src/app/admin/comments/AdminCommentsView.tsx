@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * BetaAdminCommentsView — /admin/comments "전체 댓글" 본문 (클라이언트).
+ * AdminCommentsView — /admin/comments "전체 댓글" 본문 (클라이언트).
  *
- * 원칙(승격·단일화): UI 는 베타 스킨 톤(var(--ink-*) · var(--tt-blue*) · var(--line) 토큰),
+ * 원칙(승격·단일화): UI 는 앱 스킨 톤(var(--ink-*) · var(--tt-blue*) · var(--line) 토큰),
  *   데이터·무한스크롤·복구 액션은 운영 CommentsClient 를 그대로 재사용.
  *   - 서버(page.tsx)가 가드·status 탭·doctor 본인 카드 강제필터·count + 첫 페이지 prefetch
  *     로직을 담당해 firstPage·hasMore·statusFilter·total 을 props 로 내려준다.
- *   - 이 컴포넌트는 BetaSkinShell + useBetaSearchRouting 안에 제목·status 탭(공개/비공개)을 베타 톤으로
+ *   - 이 컴포넌트는 AppShell + useSearchRouting 안에 제목·status 탭(공개/비공개)을 앱 톤으로
  *     렌더하고, 그 아래에 운영 CommentsClient 를 그대로 임베드한다.
  *   - CommentsClient 가 무한스크롤(/api/admin/comments)·복구 액션(/api/comments/[id])을 자체 처리하므로
  *     로직 재구현 없이 그대로 사용.
@@ -18,9 +18,9 @@ import Link from "next/link";
 import CommentsClient, {
   type CommentRow,
 } from "@/app/admin/comments/CommentsClient";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
-import styles from "@/components/skin/beta-skin.module.css";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
+import styles from "@/components/skin/app.module.css";
 
 const BASE_PATH = "/admin/comments";
 
@@ -29,7 +29,7 @@ const STATUS_TABS: { key: "visible" | "hidden"; label: string }[] = [
   { key: "hidden", label: "비공개 (자동검수)" },
 ];
 
-export type BetaAdminCommentsViewProps = {
+export type AdminCommentsViewProps = {
   /** 서버 prefetch 한 첫 50개 댓글(운영 firstPage 그대로). */
   firstPage: CommentRow[];
   /** 첫 페이지 이후 더 있는지(운영 hasMore 그대로). */
@@ -40,16 +40,16 @@ export type BetaAdminCommentsViewProps = {
   total: number;
 };
 
-export default function BetaAdminCommentsView({
+export default function AdminCommentsView({
   firstPage,
   hasMore,
   statusFilter,
   total,
-}: BetaAdminCommentsViewProps) {
-  const search = useBetaSearchRouting();
+}: AdminCommentsViewProps) {
+  const search = useSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" wide back="/admin" {...search}>
+    <AppShell active="마이" wide back="/admin" {...search}>
       {/* 제목 + noindex 설명 */}
       <section className={styles.mb20}>
         <div className={styles.profileName} style={{ marginBottom: 4 }}>
@@ -62,7 +62,7 @@ export default function BetaAdminCommentsView({
         </p>
       </section>
 
-      {/* status 필터 탭 — 베타 톤(밑줄 강조). visible / hidden(자동검수). 운영 status 키 동일. */}
+      {/* status 필터 탭 — 앱 톤(밑줄 강조). visible / hidden(자동검수). 운영 status 키 동일. */}
       <section className={styles.mb20}>
         <div
           style={{
@@ -121,6 +121,6 @@ export default function BetaAdminCommentsView({
           statusFilter={statusFilter}
         />
       </section>
-    </BetaSkinShell>
+    </AppShell>
   );
 }

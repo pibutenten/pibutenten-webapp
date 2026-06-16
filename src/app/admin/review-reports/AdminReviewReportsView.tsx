@@ -1,21 +1,21 @@
 "use client";
 
 /**
- * BetaAdminReviewReportsView — /admin/review-reports "시술 리포트" 본문 (베타 셸 래퍼).
+ * AdminReviewReportsView — /admin/review-reports "시술 리포트" 본문 (앱 셸 래퍼).
  *
- * 원칙(Phase 3 ②): 상단 바·배경만 베타 셸(BetaSkinShell)로 통일하고,
- *   본문 골격(요약 표)은 그대로 유지하되 radius·color 토큰만 베타 톤(var(--ink-*)·var(--tt-blue*)·var(--line))으로 재조정.
+ * 원칙(Phase 3 ②): 상단 바·배경만 앱 셸(AppShell)로 통일하고,
+ *   본문 골격(요약 표)은 그대로 유지하되 radius·color 토큰만 앱 톤(var(--ink-*)·var(--tt-blue*)·var(--line))으로 재조정.
  *   - 데이터(RPC)·가드·그룹핑은 서버 page.tsx 가 담당하고, 그룹·error 를 props 로 내려준다.
  *   - 표 구조(grid 컬럼·행 클릭 → /reports/{en})는 운영과 100% 동일.
  *
- * 격리: 내부 링크는 모두 /reports/* (공개 리포트) — 베타 라우트 미사용.
+ * 격리: 내부 링크는 모두 /reports/* (공개 리포트) — 앱 셸 라우트 미사용.
  */
 
 import Link from "next/link";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
-import { useBetaSearchRouting } from "@/components/skin/beta-ui";
+import AppShell from "@/components/skin/AppShell";
+import { useSearchRouting } from "@/components/skin/ui";
 
-export type BetaReviewOverviewRow = {
+export type ReviewOverviewRow = {
   en: string | null;
   ko: string;
   category: string;
@@ -32,7 +32,7 @@ export type BetaReviewOverviewRow = {
 };
 
 type Props = {
-  groups: { category: string; rows: BetaReviewOverviewRow[] }[];
+  groups: { category: string; rows: ReviewOverviewRow[] }[];
   rowCount: number;
   errorMessage: string | null;
 };
@@ -56,16 +56,16 @@ function fmtAvg(v: number | null): string {
 const GRID =
   "grid grid-cols-[minmax(7rem,1.6fr)_repeat(7,minmax(3rem,1fr))] gap-x-2";
 
-export default function BetaAdminReviewReportsView({
+export default function AdminReviewReportsView({
   groups,
   rowCount,
   errorMessage,
 }: Props) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
 
   return (
-    <BetaSkinShell active="마이" wide back="/admin" {...search}>
-      {/* 제목 + noindex 설명 (베타 톤) */}
+    <AppShell active="마이" wide back="/admin" {...search}>
+      {/* 제목 + noindex 설명 (앱 톤) */}
       <div style={{ marginBottom: 20, paddingLeft: 4 }}>
         <h1
           style={{
@@ -229,6 +229,6 @@ export default function BetaAdminReviewReportsView({
           </div>
         </div>
       )}
-    </BetaSkinShell>
+    </AppShell>
   );
 }

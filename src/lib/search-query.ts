@@ -24,7 +24,7 @@ export type CardQueryInput = {
   doctorSlug?: string | null;
   /** 원장 페이지 칩 클릭으로 넘어왔을 때 가산 슬러그. */
   boostDoctorSlug?: string | null;
-  /** 텍스트 검색과 동시에 거를 카테고리 슬러그(qa/review/doodle). /beta 검색+탭 조합용. */
+  /** 텍스트 검색과 동시에 거를 카테고리 슬러그(qa/review/doodle). 검색+탭 조합용. */
   category?: string | null;
   offset: number;
   limit: number;

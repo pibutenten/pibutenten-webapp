@@ -10,10 +10,10 @@ import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
 import { DEFAULT_VISIBILITY, type FieldVisibility } from "@/lib/profile-options";
 import type { CardData } from "@/lib/types/card";
-import BetaProfileView, {
-  type BetaSkinInfo,
+import ProfileView, {
+  type ProfileSkinInfo,
   type ProfileSettings,
-} from "@/components/skin/u/[handle]/BetaProfileView";
+} from "@/components/skin/u/[handle]/ProfileView";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -74,12 +74,12 @@ type SettingsProfileRow = {
  * Phase 9: 모든 ID는 profiles에 독립 row로 존재 (auth_user_id로 묶음).
  * 한 사람이 의사·일반 두 모드로 활동하고 싶으면 별개 profile row로 분리.
  *
- * 신규 스킨 승격(2026-06-15): 본문 렌더를 베타 BetaProfileView 로 교체.
+ * 신규 스킨 승격(2026-06-15): 본문 렌더를 ProfileView 로 교체.
  *   - 데이터 조립(작성글·후기·댓글·좋아요·저장·피부 + isOwner 시 settings 아코디언)은
- *     베타 /beta-skin/u/[handle]/page.tsx 패턴을 이식.
+ *     app skin u/[handle]/page.tsx 패턴을 이식.
  *   - generateMetadata·canonical·robots·404·doctor slug redirect·handle 정규식 가드는 운영 그대로 보존.
  *
- * 본인 보기(isOwner)일 때만 '프로필·설정' 아코디언 + 최하단 로그아웃 노출(BetaProfileView 내부 처리).
+ * 본인 보기(isOwner)일 때만 '프로필·설정' 아코디언 + 최하단 로그아웃 노출(ProfileView 내부 처리).
  */
 async function fetchProfileByHandle(
   handle: string,
@@ -296,7 +296,7 @@ export default async function HandleProfilePage({ params }: Props) {
     [...posts, ...reviews].map((p) => p.id),
   );
 
-  const skinInfo: BetaSkinInfo | undefined = viewerIsAnon
+  const skinInfo: ProfileSkinInfo | undefined = viewerIsAnon
     ? undefined
     : {
         faceShape: profile.face_shape ?? null,
@@ -310,7 +310,7 @@ export default async function HandleProfilePage({ params }: Props) {
   // 본인일 때만 '프로필·설정' 아코디언용 settings props 를 채움(운영 my/page 와 동일 쿼리·매핑).
   //   active 명함 단위(getIdentityContext SSOT) — 위 viewer.id 와 다를 수 있어 별도 결정.
   //   비-owner/anon 이면 null → 폼 미노출.
-  //   저장 후 [← 프로필] 은 운영 공개 프로필(/{handle})로(베타와 달리 운영 경로 유지).
+  //   저장 후 [← 프로필] 은 운영 공개 프로필(/{handle})로(앱 스킨과 달리 운영 경로 유지).
   let settings: ProfileSettings | null = null;
   if (isOwner && viewer) {
     const idCtx = await getIdentityContext(supabase);
@@ -355,7 +355,7 @@ export default async function HandleProfilePage({ params }: Props) {
   }
 
   return (
-    <BetaProfileView
+    <ProfileView
       handle={handle}
       displayName={displayName}
       avatarUrl={avatarUrl}

@@ -2,7 +2,7 @@
 
 /**
  * RecordNotesView — /notes "내 노트" 본문(클라이언트). 하단 1차 탭.
- *   공용 셸(BetaSkinShell, active="내 노트") 안에:
+ *   공용 셸(AppShell, active="내 노트") 안에:
  *     제목 + KPI 3종(받은 시술·내가 쓴 노트·내가 쓴 후기)
  *     → 데이터 있으면 시술 노트 3토글(타임라인/달력/목록, RecordNotesPanel; 목록 뷰는 개별 접기/펼치기)
  *     → 비면 "이렇게 기록돼요" 예시(더미) + 첫 노트 CTA.
@@ -12,8 +12,8 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import BetaSkinShell from "../BetaSkinShell";
-import styles from "../beta-skin.module.css";
+import AppShell from "../AppShell";
+import styles from "../app.module.css";
 import RecordNotesPanel, { ReviewBox, toRecEntries, type MyReview } from "./RecordNotesPanel";
 import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
 
@@ -85,7 +85,7 @@ export default function RecordNotesView({
   const entries = useMemo(() => toRecEntries(summary), [summary]);
 
   return (
-    <BetaSkinShell active="내 노트">
+    <AppShell active="내 노트">
       <h1 className="mb-3 text-[20px] font-bold text-[var(--text)]">내 노트</h1>
 
       {/* KPI 3종 — 받은 시술(시술 항목 총합) / 내가 쓴 노트 / 내가 쓴 후기 */}
@@ -173,6 +173,6 @@ export default function RecordNotesView({
           </div>
         </section>
       )}
-    </BetaSkinShell>
+    </AppShell>
   );
 }

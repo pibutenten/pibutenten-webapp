@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 // v4 다중 identity 전환은 IdentitySwitcher로 (1개일 땐 단순 Link)
 import IdentitySwitcher from "./IdentitySwitcher";
 import NotificationsBell from "./NotificationsBell";
-import BetaNav from "./BetaNav";
+import BottomNav from "./BottomNav";
 import { ROLES } from "@/lib/identity-shared";
 // V-Phase(2026-06-07): 세션은 SSR prop 이 아니라 클라 SessionProvider 에서 받음
 //   (layout 이 서버에서 세션을 안 읽게 함). 타입(SessionInfo)만 역방향 import 라 순환 없음.
@@ -68,7 +68,7 @@ const DoctorIcon = (
 );
 
 function buildNavItems(_hasSession: boolean): NavItem[] {
-  // 글쓰기 진입은 앱 라우트(/, /write 등)의 BetaNav 5탭이 담당. 콘텐츠 페이지 TopNav 는 검색·전문의만.
+  // 글쓰기 진입은 앱 라우트(/, /write 등)의 BottomNav 5탭이 담당. 콘텐츠 페이지 TopNav 는 검색·전문의만.
   void _hasSession;
   return [
     // 검색은 루트 /?q= 가 담당(/search 폐기 2026-06-12). 레거시 TopNav(인증 흐름)도 루트로.
@@ -218,16 +218,16 @@ export default function TopNav() {
   const session = useSession();
   const pathname = usePathname();
 
-  // 메인 승격(2026-06-11): 사이트 전 페이지를 새 BetaNav 로 통일(상단바 일관성).
+  // 메인 승격(2026-06-11): 사이트 전 페이지를 새 BottomNav 로 통일(상단바 일관성).
   //   예외 — 인증/온보딩 흐름(/login·/signup·/onboarding·/auth·/u 리다이렉트)만 기존 미니멀 TopNav.
-  //   (이 화면들엔 앱 하단 5탭이 어울리지 않음). 그 외 전부 BetaNav.
+  //   (이 화면들엔 앱 하단 5탭이 어울리지 않음). 그 외 전부 BottomNav.
   const isAuthFlow =
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/onboarding") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/u/");
-  if (!isAuthFlow) return <BetaNav />;
+  if (!isAuthFlow) return <BottomNav />;
 
   // 로그아웃 동작은 본인 프로필 페이지(/{handle}) 하단 LogoutButton으로 이동됨 (A5)
   // router/isLoggingOut/handleLogout/dashboardHref는 더 이상 사용 안 함 — 정리.

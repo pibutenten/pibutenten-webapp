@@ -31,7 +31,7 @@ const REVIEW_SELECT =
  *   - 내가 쓴 후기 = active 명함이 쓴 published review 카드 수.
  */
 
-// BetaSkinShell·RecordNotesView 가 클라이언트 훅 사용 → 동적 렌더.
+// AppShell·RecordNotesView 가 클라이언트 훅 사용 → 동적 렌더.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {

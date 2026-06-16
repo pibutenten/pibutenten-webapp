@@ -15,10 +15,10 @@ export const metadata: Metadata = {
 };
 
 /**
- * /write — 통합 글쓰기(신규 스킨 승격 Phase 1b). 신규 스킨 WriteView(베타 UI)를 운영 라우트에서
+ * /write — 통합 글쓰기(신규 스킨 승격 Phase 1b). 신규 스킨 WriteView(앱 UI)를 운영 라우트에서
  *   직접 렌더한다. WriteView 내부는 운영 WriteTabs(시술노트=DiaryForm / 시술후기=ReviewForm /
  *   끄적끄적·Q&A=WriteClient)를 그대로 사용 — 작성 로직·RLS·권한은 운영 패턴 무수정.
- *   서버는 구 /beta-skin/write(page.tsx)와 동일하게 role/displayName/myDoctor/doctors/handle/
+ *   서버는 구 app skin write(page.tsx)와 동일하게 role/displayName/myDoctor/doctors/handle/
  *   procedures 를 주입. metadata 는 운영용("글쓰기", noindex 는 write/layout.tsx 담당).
  *   운영 딥링크(?tab=qa|review|doodle, ?category=qa, ?proc=)는 WriteView 의 initialTab/
  *   initialProcedure 로 전달 — 구 /write 의 탭 프리셀렉트 동선 보존(회귀 방지).

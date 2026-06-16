@@ -7,12 +7,12 @@
  * /record/notes 자세히 페이지(RecordNotesView)가 같은 컴포넌트를 공유한다(중복 구현 금지).
  *   - 입력은 운영 SummaryGroup[](record-data SSOT). toRecEntries 로 RecEntry[]로 어댑트.
  *   - 배지는 운영 recordBadge(diary-status SSOT) — 시술명 + 방문일 기준 회복 단계.
- *   - UI 토큰은 베타 스킨(beta-skin.module.css)의 rec* 클래스 그대로.
+ *   - UI 토큰은 앱 스킨(app.module.css)의 rec* 클래스 그대로.
  */
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import styles from "../beta-skin.module.css";
+import styles from "../app.module.css";
 import { recordBadge } from "@/lib/diary-status";
 import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
 
@@ -83,7 +83,7 @@ export function ReviewBox({ review }: { review: MyReview }) {
 
 const DOT_TONES = [styles.dotPink, styles.dotBlue, styles.dotGreen, styles.dotPurple];
 
-/** 운영 SummaryGroup[] → 베타 3토글 뷰가 쓰는 RecEntry[](연/월/일 + 배지용 visitedOn). */
+/** 운영 SummaryGroup[] → 3토글 뷰가 쓰는 RecEntry[](연/월/일 + 배지용 visitedOn). */
 export function toRecEntries(summary: SummaryGroup[]): RecEntry[] {
   const out: RecEntry[] = [];
   let toneIdx = 0;

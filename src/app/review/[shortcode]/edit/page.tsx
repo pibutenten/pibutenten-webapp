@@ -98,7 +98,7 @@ export default async function ReviewEditPage({
 
   const procedures = await getReviewProcedures(supabase);
 
-  // 본문(ReviewForm mode='edit')은 운영 형태 그대로 유지하되 베타 셸로 감싸 렌더(WriteView 선례 동일).
+  // 본문(ReviewForm mode='edit')은 운영 형태 그대로 유지하되 앱 셸로 감싸 렌더(WriteView 선례 동일).
   //   카드/정량값 로드·소유권 가드·404 는 위 server 로직이 책임, 표시(셸 래핑)만 View 에 위임.
   return (
     <ReviewEditView

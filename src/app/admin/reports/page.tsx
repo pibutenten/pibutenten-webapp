@@ -9,7 +9,7 @@
 import type { Metadata } from "next";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import BetaAdminReportsView from "./BetaAdminReportsView";
+import AdminReportsView from "./AdminReportsView";
 
 export const dynamic = "force-dynamic";
 
@@ -113,7 +113,7 @@ export default async function AdminReportsPage() {
   const pendingCount = rows.filter((r) => r.status === "pending").length;
 
   return (
-    <BetaAdminReportsView
+    <AdminReportsView
       rows={enriched}
       reasonLabel={REASON_LABEL}
       statusLabel={STATUS_LABEL}

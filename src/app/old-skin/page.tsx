@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import BetaFeed from "@/components/beta/BetaFeed";
+import FeedList from "@/components/search/FeedList";
 import type { CardData, CardDataList } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
@@ -13,14 +13,14 @@ import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
 
 /**
- * /old-skin — 옛 디자인(베타 승격 전) 박제 백업. 운영 / 의 d302f97 시점 page 로직을 그대로 복사.
+ * /old-skin — 옛 디자인(앱 셸 승격 전) 박제 백업. 운영 / 의 d302f97 시점 page 로직을 그대로 복사.
  *   전 페이지 noindex 강제(robots.ts 의 /old-skin Disallow + page-level robots 이중 차단).
  *   내부 링크는 운영 경로를 가리켜도 그대로 둠(박제 보기용 — 클릭 시 신규 운영으로 나가도 무방).
  *
- * 메인 피드(/) — "한 번에 300개 점수순으로 받아두고, 탭은 BetaFeed 가 브라우저에서 즉시 필터" 모델.
+ * 메인 피드(/) — "한 번에 300개 점수순으로 받아두고, 탭은 FeedList 가 브라우저에서 즉시 필터" 모델.
  *  - 전체: feed_cards_scored 300 (+ 리포트풀) — 탭(Q&A/시술후기/끄적끄적)은 이 풀을 클라 필터.
  *  - 검색(?q=): search_cards_scored 300 — 검색 결과 풀을 같은 방식으로 탭 필터(검색바·URL 유지).
- *  - 리포트 탭: BetaFeed 가 reportPool 로 렌더(검색 중이면 시술명 필터).
+ *  - 리포트 탭: FeedList 가 reportPool 로 렌더(검색 중이면 시술명 필터).
  *  탭 전환은 서버 왕복 없음(클라 store) → 동그라미 없이 즉시.
  */
 export const dynamic = "force-dynamic";
@@ -164,7 +164,7 @@ export default async function HomeFeedPage({
       <h1 className="sr-only">
         피부텐텐 — 피부과 전문의가 답하는 피부 Q&amp;A 라운지
       </h1>
-      <BetaFeed
+      <FeedList
         key={query ? `q:${query}` : "feed"}
         initialPool={initialCards as unknown as CardDataList[]}
         orderedIds={orderedIds}

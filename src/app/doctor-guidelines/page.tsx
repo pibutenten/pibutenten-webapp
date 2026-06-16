@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
-import InfoBetaShell from "@/components/info/InfoBetaShell";
+import InfoShell from "@/components/info/InfoShell";
 
 export const metadata: Metadata = {
   title: "의사 답변 가이드라인",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
  */
 export default function DoctorGuidelinesPage() {
   return (
-    <InfoBetaShell>
+    <InfoShell>
     <InfoPageLayout
       current="doctor-guidelines"
       title="의사 답변 가이드라인"
@@ -169,7 +169,7 @@ export default function DoctorGuidelinesPage() {
       </Section>
 
     </InfoPageLayout>
-    </InfoBetaShell>
+    </InfoShell>
   );
 }
 

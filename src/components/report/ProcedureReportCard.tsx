@@ -32,7 +32,7 @@ import DowntimeGauge from "@/components/report/DowntimeGauge";
 import EffectOnsetTimeline from "@/components/report/EffectOnsetTimeline";
 import { experienceCount } from "@/lib/report-copy";
 
-// 통증 라벨·팔레트·위치 매핑은 베타 스킨 리포트 카드(beta-ui.tsx BetaReportCard)도
+// 통증 라벨·팔레트·위치 매핑은 앱 스킨 리포트 카드(ui.tsx ReportCard)도
 // 동일하게 재사용한다(중복 복제 방지) → export. 운영 카드 동작 불변.
 export const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
 // 없음(첫 색)은 다운타임 채움색과 동일한 진한 파랑(#7FD0F8) — 좌측끝~없음(6.25%)이 또렷한 파랑.
@@ -69,7 +69,7 @@ type ReviewsApiResponse = {
 };
 
 // 통계 수치를 편안한 자연어로 — 값에 따라 멘트가 달라진다.
-// 베타 스킨 리포트 카드도 동일 문구를 재사용(중복 복제 방지) → export. 운영 동작 불변.
+// 앱 스킨 리포트 카드도 동일 문구를 재사용(중복 복제 방지) → export. 운영 동작 불변.
 export function revisitPhrase(pct: number): string {
   if (pct >= 70) return `경험한 분들의 ${pct}%가 다시 받고 싶어 해요.`;
   if (pct >= 40) return `${pct}%가 다시 받을 의향이 있어요. 호불호가 갈리는 편이에요.`;

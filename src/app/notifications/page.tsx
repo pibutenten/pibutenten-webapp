@@ -24,7 +24,7 @@ export default async function NotificationsPage() {
   const isDoctor = activeRole === "doctor";
   const showOps = isAdmin || isDoctor;
 
-  // 본문은 운영 형태(NotificationsClient)를 그대로 유지하되 베타 셸로 감싸 렌더
+  // 본문은 운영 형태(NotificationsClient)를 그대로 유지하되 앱 셸로 감싸 렌더
   //   (DoctorDashboardView·ProcedureReportView 선례 동일). 데이터·권한 가드·metadata(noindex)는
   //   위 server 로직이 100% 책임, 표시만 View 에 위임.
   return <NotificationsView showOps={showOps} />;

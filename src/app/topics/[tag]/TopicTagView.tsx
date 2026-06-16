@@ -3,22 +3,22 @@
 /**
  * TopicTagView — /topics/{태그} 토픽 허브 본문 (클라이언트).
  *
- * 원칙(베타 스킨 승격, 2026-06-15): DoctorDashboardView 선례와 동일하게
- *   "상단바(헤더)만 베타 셸, 본문은 기존 운영 형태를 최대한 유지". 정보 구조 무변경.
+ * 원칙(앱 스킨 승격, 2026-06-15): DoctorDashboardView 선례와 동일하게
+ *   "상단바(헤더)만 앱 셸, 본문은 기존 운영 형태를 최대한 유지". 정보 구조 무변경.
  *   - 운영 page.tsx 의 본문(브레드크럼·#태그 헤더·리포트 얇은 링크·CardMasonry·페이지네이션 안내)을
  *     운영 Tailwind 톤 그대로 임베드(재포장 X). 데이터·generateMetadata·JSON-LD 는 server page 가 책임.
  *   - 셸은 active="피드"(미강조 톤), back="/"(운영 BackButton fallback), 검색은 운영 홈(/?q=)으로 라우팅.
  *
- * 격리: beta-skin.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
+ * 격리: app.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
  * JSON-LD <script> 는 server page 에 남겨 SEO 신호 100% 보존(이 컴포넌트는 표시만).
  */
 
 import Link from "next/link";
 import type { CardData } from "@/components/Card";
-import BetaSkinShell from "@/components/skin/BetaSkinShell";
+import AppShell from "@/components/skin/AppShell";
 import FeedSidebar from "@/components/skin/FeedSidebar";
-import { PostCard, useBetaSearchRouting } from "@/components/skin/beta-ui";
-import betaStyles from "@/components/skin/beta-skin.module.css";
+import { PostCard, useSearchRouting } from "@/components/skin/ui";
+import appStyles from "@/components/skin/app.module.css";
 
 const PAGE_LIMIT = 50; // 운영 page.tsx 와 동일(페이지네이션 안내 임계)
 
@@ -39,7 +39,7 @@ export default function TopicTagView({
   /** 사이드 '인기 Q&A' 후보 풀 — 의사 Q&A 카드(홈과 동일 방식). */
   hotQa: CardData[];
 }) {
-  const search = useBetaSearchRouting();
+  const search = useSearchRouting();
   // 태그 클릭 → 운영 홈(/?q=) 검색 라우팅(홈 피드와 동일). 사이드바·카드 태그 칩 공통 사용.
   const applyTag = (k: string) => search.onSearchSubmit(k);
 
@@ -49,7 +49,7 @@ export default function TopicTagView({
   );
 
   return (
-    <BetaSkinShell
+    <AppShell
       active="피드"
       back="/"
       backTitle={
@@ -79,7 +79,7 @@ export default function TopicTagView({
       )}
 
       {/* 홈 피드와 동일한 단일열 PostCard 리스트(2열 Masonry → 단일열 feedList). */}
-      <div className={betaStyles.feedList}>
+      <div className={appStyles.feedList}>
         {posts.map((card) => (
           <PostCard key={card.id} card={card} onTagClick={applyTag} />
         ))}
@@ -97,6 +97,6 @@ export default function TopicTagView({
           를 이용해주세요.
         </p>
       )}
-    </BetaSkinShell>
+    </AppShell>
   );
 }
