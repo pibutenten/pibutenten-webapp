@@ -12,11 +12,10 @@ import WeatherIllustration from "./WeatherIllustration";
 import {
   OVERLAYS,
   ampm,
-  colorWeek,
   nowIndex,
-  sevPm25,
-  sevUva,
-  sevUvb,
+  pmColor,
+  uvaColor,
+  uvbColor,
   type WeatherHour,
   type WeatherKpi,
   type WeatherSnapshot,
@@ -166,9 +165,9 @@ export default function WeatherDetail({
                 </span>
               </div>
               <div className={styles.wkBoxes}>
-                {wkBox("UVB 태닝", String(d.uvb ?? 0), colorWeek(sevUvb(d.uvb ?? 0)))}
-                {wkBox("UVA 노화", String(d.uva ?? 0), colorWeek(sevUva(d.uva ?? 0)))}
-                {wkBox("미세먼지", String(d.pm25 ?? 0), colorWeek(sevPm25(d.pm25 ?? 0)))}
+                {wkBox("UVB 태닝", String(d.uvb ?? 0), uvbColor(d.uvb ?? 0))}
+                {wkBox("UVA 노화", String(d.uva ?? 0), uvaColor(d.uva ?? 0))}
+                {wkBox("미세먼지", String(d.pm25 ?? 0), pmColor(d.pmGrade ?? 0))}
                 {/* 구름투과율은 위험도(빨강)가 아니라 정보값 → 파란색 고정. */}
                 {wkBox("구름투과율", d.trans == null ? "–" : `${Math.round(d.trans * 100)}`, "#2E86C8")}
               </div>

@@ -21,8 +21,8 @@ export const uvBand = (u: number) => (u < 3 ? "낮음" : u < 6 ? "보통" : u < 
 
 /** 미세먼지 통합 등급(PM2.5·PM10 중 나쁜 쪽, 0~3) + 라벨·색. 한국 환경기준. */
 export const PM_GRADE_LABEL = ["좋음", "보통", "나쁨", "매우나쁨"] as const;
-/** 등급색(명세 §3 표) — 좋음·보통·나쁨·매우나쁨. RAMP 결과를 등급 단계로 고정 샘플. */
-export const PM_GRADE_COLOR = ["#3FA98E", "#C9A23A", "#E06A2C", "#C02020"] as const;
+/** 등급색 — 좋음 초록·보통 노랑·나쁨 빨강·매우나쁨 진빨강(직관 신호등, 주황·황토 제외). */
+export const PM_GRADE_COLOR = ["#2BB36B", "#FFCE3A", "#EE4444", "#9E0D1B"] as const;
 /** 미세먼지 게이지 채움비율(명세 §3 표) — 등급별 고정 비율. */
 export const PM_GRADE_FRAC = [0.16, 0.45, 0.74, 0.95] as const;
 export function pmWorstGrade(p25: number, p10: number): 0 | 1 | 2 | 3 {
@@ -34,43 +34,34 @@ export function pmWorstGrade(p25: number, p10: number): 0 | 1 | 2 | 3 {
 /** UVA 등급 라벨(명세 §3 표): 0~2 약함·3~4 보통·5~6 다소높음·7~9 높음·10+ 매우높음. */
 export const uvaBand = (u: number) => (u < 3 ? "약함" : u < 5 ? "보통" : u < 7 ? "다소높음" : u < 10 ? "높음" : "매우높음");
 
-/** 심각도(0~1) → 좋음(초록)→주의(노랑)→경고(주황)→악화(빨강) 4점 램프.
- *  UVB 태닝·UVA 노화·미세먼지 공통의 "값 기반 색" 출처. 구름투과율은 정보값이라 미사용(파랑 고정). */
-export function uvRamp(sev: number): string {
-  const stops: [number, [number, number, number]][] = [
-    [0.0, [0x2f, 0xa9, 0x68]], // #2FA968 좋음(초록)
-    [0.42, [0xe8, 0xb2, 0x3a]], // #E8B23A 주의(노랑)
-    [0.7, [0xf0, 0x86, 0x3c]], // #F0863C 경고(주황)
-    [1.0, [0xe0, 0x45, 0x3b]], // #E0453B 악화(빨강)
-  ];
-  // #RRGGBB 로 반환 — 주간 박스 배경 틴트(hexA)가 hex 만 받기 때문(rgb() 면 회색 폴백).
-  const hex2 = (n: number) => Math.round(n).toString(16).padStart(2, "0");
-  const toHex = (rgb: number[]) => `#${hex2(rgb[0])}${hex2(rgb[1])}${hex2(rgb[2])}`;
-  const f = clamp(sev, 0, 1);
-  for (let i = 1; i < stops.length; i++) {
-    if (f <= stops[i][0]) {
-      const a = stops[i - 1];
-      const b = stops[i];
-      const t = (f - a[0]) / (b[0] - a[0]);
-      return toHex([0, 1, 2].map((k) => a[1][k] + (b[1][k] - a[1][k]) * t));
-    }
-  }
-  return toHex(stops[stops.length - 1][1]);
-}
+/** 직관 등급색 — 값 비례(주황·황토 애매함)를 버리고 등급 라벨에 직접 매칭.
+ *  좋음 초록 → 보통 노랑 → 나쁨/높음 빨강 → 매우나쁨/매우높음/위험 진빨강(전단계와 확실히 구분). */
+const GRADE_COLORS = {
+  good: "#2BB36B", // 좋음·낮음·약함 (초록)
+  fair: "#FFCE3A", // 보통 (노랑)
+  bad: "#EE4444", // 나쁨·높음 (빨강)
+  worst: "#9E0D1B", // 매우나쁨·매우높음·위험 (진빨강)
+} as const;
+export type WeatherTier = keyof typeof GRADE_COLORS;
+export const tierColor = (t: WeatherTier) => GRADE_COLORS[t];
 
-/** 심각도(0~1)를 steps 단계로 양자화해 그 구간 중앙 색 반환 — 상단 4지표=4단계, 주간=8단계. */
-function sevStep(sev: number, steps: number): string {
-  const f = clamp(sev, 0, 1);
-  const idx = Math.min(steps - 1, Math.floor(f * steps));
-  return uvRamp((idx + 0.5) / steps);
+/** 값 → 등급 tier (라벨 임계값과 정렬). 색은 tierColor 로 변환. */
+export function uvbTier(u: number): WeatherTier {
+  // uvBand→tier: 낮음(<3)→good · 보통(<6)→fair · 높음(<8)→bad · 매우높음·위험(≥8)→worst
+  return u < 3 ? "good" : u < 6 ? "fair" : u < 8 ? "bad" : "worst";
 }
-/** 지표별 심각도(0~1) — 좋음 0 … 악화 1. UV/UVA 0~11, PM2.5 0~75(매우나쁨 경계) 기준. */
-export const sevUvb = (u: number) => clamp(u / 11, 0, 1);
-export const sevUva = (uva: number) => clamp(uva / 11, 0, 1);
-export const sevPm25 = (pm25: number) => clamp(pm25 / 75, 0, 1);
-/** 상단 4지표(4단계 색) · 주간(8단계 색) — 좋음 초록 → 악화 빨강 통일. */
-export const colorTop = (sev: number) => sevStep(sev, 4);
-export const colorWeek = (sev: number) => sevStep(sev, 8);
+export function uvaTier(uva: number): WeatherTier {
+  // uvaBand→tier: 약함(<3)→good · 보통·다소높음(<7)→fair · 높음(<10)→bad · 매우높음(≥10)→worst
+  return uva < 3 ? "good" : uva < 7 ? "fair" : uva < 10 ? "bad" : "worst";
+}
+export function pmTier(grade: number): WeatherTier {
+  // 좋음0 · 보통1 · 나쁨2 · 매우나쁨3
+  return grade <= 0 ? "good" : grade === 1 ? "fair" : grade === 2 ? "bad" : "worst";
+}
+/** 지표별 색 — 상단 4지표·주간·요약 카드 공통(같은 등급=같은 색). */
+export const uvbColor = (u: number) => tierColor(uvbTier(u));
+export const uvaColor = (uva: number) => tierColor(uvaTier(uva));
+export const pmColor = (grade: number) => tierColor(pmTier(grade));
 
 /** 기온 → 색(강한 한파 남색 → 무더위 빨강). 주간 온도 막대를 실제 기온으로 칠해 직관적으로.
  *   한국 현실 범위(영하 -15 ~ 영상 35)를 단계적으로 — 영하도 한 색으로 뭉개지지 않게 확장. */
@@ -422,8 +413,8 @@ export type WeatherDay = {
   trans: number | null; // 평균 투과율 0~1
 };
 
-// 주간 박스 색은 colorWeek(sevUvb/sevUva/sevPm25)로 통일(상단 4단계와 같은 초록→빨강 램프의 8단계).
-//   (구 SEV10/sev10Uv/sev10Pm/sev10Trans 제거 — 색 스케일 단일화.)
+// 주간 박스 색은 uvbColor/uvaColor/pmColor(등급 tier 색)로 상단 4지표와 통일.
+//   (구 SEV10/sev10* · 연속 램프 colorTop/colorWeek 제거 — 등급 직결 단일화.)
 export type WeatherSnapshot = {
   name: string;
   temp: number;
@@ -564,16 +555,16 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
   // 상단 4지표 색 — UVB 태닝·UVA 노화·미세먼지는 값 기반 4단계(초록→빨강) 통일. 구름투과율만 파랑.
   //   강수확률은 표시 제외(사용자 결정 2026-06-16) — 칩/KPI 에서 제거.
   const chips: WeatherChip[] = [
-    { key: "uvb", label: "UVB 태닝", value: uvText(dUv, dUp), color: colorTop(sevUvb(dUv)), frac: uvbFrac },
-    { key: "uva", label: "UVA 노화", value: String(dUva), color: colorTop(sevUva(dUva)), frac: uvaFrac },
-    { key: "pm", label: "미세먼지", value: PM_GRADE_LABEL[dPmG], color: colorTop(sevPm25(dPm25)), frac: PM_GRADE_FRAC[dPmG] },
+    { key: "uvb", label: "UVB 태닝", value: uvText(dUv, dUp), color: uvbColor(dUv), frac: uvbFrac },
+    { key: "uva", label: "UVA 노화", value: String(dUva), color: uvaColor(dUva), frac: uvaFrac },
+    { key: "pm", label: "미세먼지", value: PM_GRADE_LABEL[dPmG], color: pmColor(dPmG), frac: PM_GRADE_FRAC[dPmG] },
     { key: "block", label: "구름투과율", value: `${dTransNow}%`, color: "#2E86C8", frac: dTransNow / 100 },
     { key: "temp", label: "기온", value: `${todayMin}~${todayMax}°`, color: tempColor(temp), frac: tempFrac },
   ];
   const kpis: WeatherKpi[] = [
-    { key: "tanning", label: "UVB 태닝", value: uvText(dUv, dUp), level: uvBand(dUv), color: colorTop(sevUvb(dUv)), sub: "오늘 최고", peak: String(Math.round(uvPeak)), peakFrac: clamp(uvPeak / 11, 0, 1), peakColor: colorTop(sevUvb(uvPeak)), frac: uvbFrac, minLabel: "0", maxLabel: "11" },
-    { key: "aging", label: "UVA 노화", value: String(dUva), level: uvaBand(dUva), color: colorTop(sevUva(dUva)), sub: "오늘 최고", peak: String(uvaPeak), peakFrac: clamp(uvaPeak / 11, 0, 1), peakColor: colorTop(sevUva(uvaPeak)), frac: uvaFrac, minLabel: "0", maxLabel: "11" },
-    { key: "pm", label: "미세먼지", value: String(Math.round(dPm25)), level: PM_GRADE_LABEL[dPmG], color: colorTop(sevPm25(dPm25)), sub: `PM10 ${Math.round(dPm10)}㎍`, frac: PM_GRADE_FRAC[dPmG], minLabel: "좋음", maxLabel: "매우나쁨", seg: 4 },
+    { key: "tanning", label: "UVB 태닝", value: uvText(dUv, dUp), level: uvBand(dUv), color: uvbColor(dUv), sub: "오늘 최고", peak: String(Math.round(uvPeak)), peakFrac: clamp(uvPeak / 11, 0, 1), peakColor: uvbColor(uvPeak), frac: uvbFrac, minLabel: "0", maxLabel: "11" },
+    { key: "aging", label: "UVA 노화", value: String(dUva), level: uvaBand(dUva), color: uvaColor(dUva), sub: "오늘 최고", peak: String(uvaPeak), peakFrac: clamp(uvaPeak / 11, 0, 1), peakColor: uvaColor(uvaPeak), frac: uvaFrac, minLabel: "0", maxLabel: "11" },
+    { key: "pm", label: "미세먼지", value: String(Math.round(dPm25)), level: PM_GRADE_LABEL[dPmG], color: pmColor(dPmG), sub: `PM10 ${Math.round(dPm10)}㎍`, frac: PM_GRADE_FRAC[dPmG], minLabel: "좋음", maxLabel: "매우나쁨", seg: 4 },
     { key: "block", label: "구름투과율", value: `${dTransNow}%`, level: "자외선 통과", color: "#2E86C8", sub: `구름 차단 ${dBlock}%`, frac: dTransNow / 100, minLabel: "0", maxLabel: "100%" },
     { key: "temp", label: "기온", value: `${todayMin}° / ${todayMax}°`, level: "", color: tempColor(temp), sub: "최저~최고", frac: tScale(temp), rangeLoFrac: tScale(todayMin), rangeHiFrac: tScale(todayMax), minLabel: "-10", maxLabel: "40" },
   ];
@@ -675,7 +666,7 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
  * 그래프 겹쳐보기 4지표 메타(정규화·절대표시·색).
  *
  * dot 색 정책: 시간별 그래프의 점은 **시계열 구분용 고정색**(UVB 빨강·UVA 보라·구름 파랑)으로,
- *   KPI 게이지·주간 막대의 **값 기반 색(colorTop/colorWeek 램프)** 과는 의도적으로 다릅니다.
+ *   KPI 게이지·주간 막대의 **등급 tier 색(uvbColor/uvaColor/pmColor)** 과는 의도적으로 다릅니다.
  *   시간별 흐름은 여러 지표를 한 그래프에 겹쳐 보므로 지표 간 구분이 우선이고,
  *   게이지·주간은 "좋음→나쁨"을 색으로 읽혀야 하므로 심각도색을 씁니다.
  *   (미세먼지만 예외 — 시간별에서도 PM_GRADE_COLOR 등급색을 그대로 사용.)

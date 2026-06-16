@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-16] — 피부 날씨 색 직관화(신호등 + 진빨강 최악)
+
+> 값 비례 색(주황·황토색이 애매)을 버리고, 등급 라벨에 직접 매칭하는 직관 신호등 색으로 교체. 좋음 초록·보통 노랑·나쁨/높음 빨강·매우나쁨/매우높음/위험 진빨강(전단계와 확실히 구분). `tsc` 0·`build` 0·코드검수 [치명] 0.
+
+### Changed
+- **등급 직결 색**(`weather-logic.ts`): 연속 램프(`uvRamp`/`sevStep`/`colorTop`/`colorWeek`/`sev*`) 제거 → `GRADE_COLORS{good #2BB36B·fair #FFCE3A·bad #EE4444·worst #9E0D1B}` + `uvbTier`/`uvaTier`/`pmTier`(라벨 임계값 정렬) + `uvbColor`/`uvaColor`/`pmColor`. 같은 등급=같은 색. UVA 8.1(높음)·미세먼지 나쁨 등 "나쁨/높음"은 빨강, 최악 단계는 진빨강으로 전단계와 분리.
+- `PM_GRADE_COLOR` 도 새 팔레트로 통일(시간별 그래프 dot 공용). chips/kpis·주간 박스 모두 새 색 함수 사용. 구름투과율은 파랑(#2E86C8) 유지.
+
+---
+
 ## [2026-06-16] — Apple 소셜 로그인 추가 (App Store 4.8 대비)
 
 > 기존 Google/Kakao/Naver 에 Apple 로그인 추가. App Store 심사 가이드라인 4.8(타사 소셜 로그인 제공 시 Apple 로그인 필수) 대비. Supabase native(`signInWithOAuth`) 흐름을 그대로 공유해 코드 변경 최소. Apple 특유 이슈(이메일 가리기 relay 주소·라벨 누락) 동반 수정. `tsc` 0·`build` 0·코드검수 [치명] 0.
