@@ -6,6 +6,7 @@ import { ChromeHeader, ChromeFooter } from "@/components/GlobalChrome";
 import ScrollManager from "@/components/ScrollManager";
 import InstallPrompt from "@/components/InstallPrompt";
 import EngagementPromptListener from "@/components/EngagementPromptListener";
+import WriteFab from "@/components/WriteFab";
 import { SessionProvider } from "@/lib/session-context";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
@@ -203,6 +204,9 @@ window.addEventListener('appinstalled', function() {
             {children}
           </main>
           <ChromeFooter />
+          {/* 모바일 우하단 글쓰기 FAB — 하단탭에서 글쓰기 분리. BetaSkinShell(z-100 오버레이) 위로
+              떠야 하므로 z-[110]. 경로별 노출 제어는 컴포넌트 내부. */}
+          <WriteFab />
           {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
           <InstallPrompt />
           {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}

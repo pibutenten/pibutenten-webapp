@@ -36,13 +36,14 @@ const ICON = {
 //   filled 는 부모 svg 가 fill=currentColor·stroke=none. bag 손잡이만 알약 배경색으로 컷아웃.
 const PILL_BG = "#EAF7FE";
 const TAB_ICONS: Record<string, { line: React.ReactNode; filled: React.ReactNode }> = {
+  today: {
+    // 해 — 투데이. filled 는 가운데 원만 부모 fill 로 채우고, 광선은 명시 stroke 로 유지.
+    line: <><circle cx="12" cy="12" r="4" /><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M5.2 18.8l1.6-1.6M17.2 6.8l1.6-1.6" /></>,
+    filled: <><circle cx="12" cy="12" r="4.4" /><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M5.2 18.8l1.6-1.6M17.2 6.8l1.6-1.6" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" /></>,
+  },
   book: {
     line: <path d="M5 5.5C5 4.7 5.7 4 6.5 4H17.5C18.3 4 19 4.7 19 5.5V19.5C19 20.1 18.3 20.5 17.8 20.1L12.6 16.6C12.2 16.4 11.8 16.4 11.4 16.6L6.2 20.1C5.7 20.5 5 20.1 5 19.5V5.5Z" />,
     filled: <path d="M5 5.5C5 4.7 5.7 4 6.5 4H17.5C18.3 4 19 4.7 19 5.5V19.5C19 20.1 18.3 20.5 17.8 20.1L12.6 16.6C12.2 16.4 11.8 16.4 11.4 16.6L6.2 20.1C5.7 20.5 5 20.1 5 19.5V5.5Z" />,
-  },
-  pen: {
-    line: <path d="M4 20C4 20 4.5 16.5 6 15L15.5 5.5C16.3 4.7 17.7 4.7 18.5 5.5C19.3 6.3 19.3 7.7 18.5 8.5L9 18C7.5 19.5 4 20 4 20Z" />,
-    filled: <path d="M4 20C4 20 4.5 16.5 6 15L15.5 5.5C16.3 4.7 17.7 4.7 18.5 5.5C19.3 6.3 19.3 7.7 18.5 8.5L9 18C7.5 19.5 4 20 4 20Z" />,
   },
   grid: {
     line: <><rect x="4" y="4" width="7" height="7" rx="2.5" /><rect x="13" y="4" width="7" height="7" rx="2.5" /><rect x="4" y="13" width="7" height="7" rx="2.5" /><rect x="13" y="13" width="7" height="7" rx="2.5" /></>,
@@ -78,9 +79,10 @@ function TabIcon({ name, active }: { name: keyof typeof TAB_ICONS; active: boole
 }
 
 type Tab = { href: string; label: string; icon: keyof typeof TAB_ICONS; match: (p: string) => boolean };
+// 글쓰기는 우하단 FAB(WriteFab)로 분리 — 하단 탭은 5개(투데이/내 노트/피드/쇼핑/마이).
 const TABS: Tab[] = [
-  { href: "/record", label: "내 노트", icon: "book", match: (p) => p.startsWith("/record") },
-  { href: "/write", label: "글쓰기", icon: "pen", match: (p) => p === "/write" },
+  { href: "/today", label: "투데이", icon: "today", match: (p) => p.startsWith("/today") || p.startsWith("/weather") },
+  { href: "/notes", label: "내 노트", icon: "book", match: (p) => p.startsWith("/notes") },
   { href: "/", label: "피드", icon: "grid", match: (p) => p === "/" },
   { href: "/shop", label: "쇼핑", icon: "bag", match: (p) => p.startsWith("/shop") },
   { href: "/my", label: "마이페이지", icon: "user", match: (p) => p.startsWith("/my") },
@@ -379,6 +381,9 @@ export default function BetaNav() {
                     </div>
                   )}
                 </div>
+
+                {/* 데스크탑 글쓰기 — 하단 FAB 는 모바일 전용이라, 데스크탑은 헤더 우측에 글쓰기 진입을 둔다. */}
+                <Link href="/write" onPointerEnter={() => warm("/write")} className="hidden shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-[14px] font-semibold sm:flex" style={{ background: pathname === "/write" ? C : "#EAF7FE", color: pathname === "/write" ? "#fff" : C }}>글쓰기</Link>
 
                 {session && <NotificationsBell />}
                 <div className="hidden items-center sm:flex">

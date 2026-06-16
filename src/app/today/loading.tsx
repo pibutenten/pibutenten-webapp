@@ -1,5 +1,5 @@
 /**
- * /record — 내 노트 라우트 스켈레톤(서버 컴포넌트).
+ * /today — 투데이 라우트 스켈레톤(서버 컴포넌트).
  *
  * App Router 가 page.tsx 의 서버 데이터 로딩(force-dynamic) 동안 이 파일을 즉시 렌더한다.
  * 빈 화면(또는 전역 spinner) 대신 RecordView 의 실제 세로 구조를 회색 블록으로 재현해

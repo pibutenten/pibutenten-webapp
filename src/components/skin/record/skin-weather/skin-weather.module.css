@@ -765,7 +765,7 @@
 .wkBoxes {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 7px;
+  gap: 10px;
 }
 .wkBox {
   display: flex;

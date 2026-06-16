@@ -53,7 +53,36 @@ export default function FeedSidebar({
   // 사이드 '인기 태그' 카드 — 카테고리 탭. "전체"는 빈도순 popularTags(16개),
   //   카테고리 탭은 /api/beta-discover 의 cats(검색 드롭다운과 동일 소스)에서 해당 slug 상위 16개.
   type TagTab = "all" | CategorySlug;
-  const [tagTab, setTagTab] = useState<TagTab>("all");
+  // 태그 클릭 → 검색(/?q=) 라우팅 시 BetaSkinFeed/FeedSidebar 가 재마운트되며 내부 state 가 초기화된다.
+  //   이때 선택했던 서브 카테고리 탭이 "전체"로 풀리던 버그를 방지하기 위해 sessionStorage 에 보존.
+  //   (prop 시그니처·호출부 무수정 → 회귀 위험 최소. 헤더 검색·BetaDiscovery 경로는 영향 없음.)
+  const TAG_TAB_KEY = "pbtt:feedSidebar:tagTab";
+  const VALID_TABS = useMemo<TagTab[]>(
+    () => ["all", ...CATEGORIES.map((c) => c.slug)],
+    [],
+  );
+  const [tagTab, setTagTabState] = useState<TagTab>("all");
+  // 초기값 복원 — SSR/하이드레이션 안전을 위해 마운트 후 useEffect 로만 sessionStorage 에서 읽는다
+  //   (초기 렌더는 항상 "all" → 서버/클라 마크업 일치, 마운트 직후 보존값으로 동기화).
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem(TAG_TAB_KEY);
+      if (saved && (VALID_TABS as string[]).includes(saved)) {
+        setTagTabState(saved as TagTab);
+      }
+    } catch {
+      /* sessionStorage 비활성 */
+    }
+  }, [VALID_TABS]);
+  // 탭 변경 시 state + sessionStorage 동시 갱신.
+  const setTagTab = (tab: TagTab) => {
+    setTagTabState(tab);
+    try {
+      window.sessionStorage.setItem(TAG_TAB_KEY, tab);
+    } catch {
+      /* sessionStorage 비활성 */
+    }
+  };
   const [cats, setCats] = useState<Record<string, string[]> | null>(null);
   useEffect(() => {
     let alive = true;

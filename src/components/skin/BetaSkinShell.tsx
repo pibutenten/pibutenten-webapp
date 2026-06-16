@@ -3,7 +3,7 @@
 /**
  * BetaSkinShell — 신규 스킨 공용 셸 (클라이언트). (구 /beta-skin/* 프리뷰에서 운영 라우트로 승격.)
  *
- * 5개 페이지(피드=/ · 내 노트=/record · 글 상세 · 글쓰기=/write · 마이=/my)가 공유하는 글로벌 크롬:
+ * 주요 페이지(피드=/ · 투데이=/today · 내 노트=/notes · 글 상세 · 글쓰기=/write · 마이=/my)가 공유하는 글로벌 크롬:
  *   - 풀뷰포트 오버레이(styles.root: position:fixed; inset:0; z-index:100; overflow-y:auto)
  *     → 루트 layout.tsx 의 TopNav/SiteFooter/main 을 시각적으로 가린다.
  *   - 헤더(로고 + 데스크탑 GNB·검색·글쓰기 / 모바일 아이콘) — 실제 프리뷰 경로 연결.
@@ -28,14 +28,18 @@ import BackButton from "@/components/BackButton";
 
 /* ---------- 공유 라우트 맵 ---------- */
 export const BETA_ROUTES = {
-  record: "/record",
+  today: "/today",
+  notes: "/notes",
   feed: "/",
+  // write 는 하단 탭에서 제외됐지만(글쓰기=우하단 FAB) 데스크탑 헤더 '글쓰기' 버튼이 사용 → 유지.
   write: "/write",
   shop: "#",
   my: "/my",
 } as const;
 
-export type BetaActive = "내 노트" | "피드" | "글쓰기" | "쇼핑" | "마이";
+// "글쓰기" 는 하단 탭에선 빠졌지만 글쓰기·후기 화면(WriteView/WriteEditShell/ReviewNew/ReviewEdit)의
+//   active 톤으로 계속 쓰인다(탭바엔 해당 항목이 없어 강조되지 않음 — 의도된 동작).
+export type BetaActive = "투데이" | "내 노트" | "피드" | "글쓰기" | "쇼핑" | "마이";
 
 /* ---------- 헤더 아이콘 ---------- */
 function IconSearch() {
@@ -70,11 +74,12 @@ function IconNote() {
     </svg>
   );
 }
-function IconWrite() {
+function IconToday() {
+  // 투데이 = 해(오늘의 피부 날씨·오늘 기록 진입점) 아이콘.
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
     </svg>
   );
 }
@@ -104,18 +109,19 @@ function IconUser() {
   );
 }
 
-/* 탭바 항목 정의 */
+/* 탭바 항목 정의 — 글쓰기는 우하단 FAB(WriteFab)로 분리, 하단 탭은 5개. */
 const TABS: { label: BetaActive; href: string; icon: ReactNode }[] = [
-  { label: "내 노트", href: BETA_ROUTES.record, icon: <IconNote /> },
-  { label: "글쓰기", href: BETA_ROUTES.write, icon: <IconWrite /> },
+  { label: "투데이", href: BETA_ROUTES.today, icon: <IconToday /> },
+  { label: "내 노트", href: BETA_ROUTES.notes, icon: <IconNote /> },
   { label: "피드", href: BETA_ROUTES.feed, icon: <IconFeed /> },
   { label: "쇼핑", href: BETA_ROUTES.shop, icon: <IconShop /> },
   { label: "마이", href: BETA_ROUTES.my, icon: <IconUser /> },
 ];
 
-/* GNB(데스크탑) 항목 — 내 노트 / 피드 / 쇼핑 */
+/* GNB(데스크탑) 항목 — 투데이 / 내 노트 / 피드 / 쇼핑 (데스크탑 글쓰기는 헤더 우측 버튼) */
 const GNB: { label: BetaActive; href: string }[] = [
-  { label: "내 노트", href: BETA_ROUTES.record },
+  { label: "투데이", href: BETA_ROUTES.today },
+  { label: "내 노트", href: BETA_ROUTES.notes },
   { label: "피드", href: BETA_ROUTES.feed },
   { label: "쇼핑", href: BETA_ROUTES.shop },
 ];

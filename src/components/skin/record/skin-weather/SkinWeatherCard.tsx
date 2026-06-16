@@ -3,7 +3,7 @@
 /**
  * SkinWeatherCard — "오늘의 피부 날씨" 접힌 카드 (내 피부노트 상단).
  *
- * 위치·기온·헤드라인·4칩(게이지)만 보여주는 요약 카드. 탭하면 **새 페이지**(/record/weather)로
+ * 위치·기온·헤드라인·4칩(게이지)만 보여주는 요약 카드. 탭하면 **새 페이지**(/weather)로
  *   이동해 상세(KPI 게이지·시간별 그래프·주간)를 본다. 데이터는 useWeather(공용 훅) — 카드가 받아둔
  *   스냅샷을 sessionStorage 로 상세 페이지와 공유(재요청 없음).
  */
@@ -45,7 +45,7 @@ export default function SkinWeatherCard() {
 
   return (
     <section className={styles.wrap}>
-      <Link href="/record/weather" className={styles.card} aria-label="오늘의 피부 날씨 상세 보기">
+      <Link href="/weather" className={styles.card} aria-label="오늘의 피부 날씨 상세 보기">
         <div className={styles.cTop}>
           <span className={styles.cLoc}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>

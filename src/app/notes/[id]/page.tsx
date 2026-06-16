@@ -16,7 +16,7 @@ type Props = { params: Promise<{ id: string }> };
 // 상세 1건 — 부모 diary + 자식 procedures(가격·메모 포함). RLS 가 본인 소유분만 반환.
 type DetailRow = DiaryDetail;
 
-// /record/[id] — 시술노트 상세(비공개). 로그인 필수. 본인 명함 소유분만 RLS 로 노출.
+// /notes/[id] — 시술노트 상세(비공개). 로그인 필수. 본인 명함 소유분만 RLS 로 노출.
 export default async function DiaryDetailPage({ params }: Props) {
   const { id } = await params;
   const numId = Number.parseInt(id, 10);
@@ -26,7 +26,7 @@ export default async function DiaryDetailPage({ params }: Props) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect(`/login?next=/record/${id}`);
+  if (!user) redirect(`/login?next=/notes/${id}`);
 
   const { data: d } = await supabase
     .from("diaries")

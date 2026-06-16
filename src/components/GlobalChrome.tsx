@@ -21,9 +21,9 @@ import SiteFooter from "@/components/SiteFooter";
 /** 정확 일치로 승격된 라우트(자체 베타 셸 보유). 동적 하위경로(/record/[id], /write/[shortcode] 등)는 아래 BETA_PROMOTED_PREFIX 로 승격. */
 const BETA_PROMOTED_EXACT = new Set<string>([
   "/", // 홈 피드 (Phase 1)
-  "/record", // 내 노트 (Phase 1b)
-  "/record/weather", // 오늘의 피부 날씨 상세
-  "/record/notes", // 내 시술노트 자세히(3토글 전체)
+  "/today", // 투데이 (구 /record)
+  "/weather", // 오늘의 피부 날씨 상세 (구 /record/weather)
+  "/notes", // 내 노트 — 시술 노트 3토글 (구 /record/notes)
   "/write", // 글쓰기 (Phase 1b)
   "/doctor", // 원장 대시보드 (Phase 3, 관리자 방식 셸)
   "/admin", // 관리자 대시보드 (승격·단일화, 베타 셸)
@@ -56,7 +56,7 @@ const BETA_PROMOTED_PREFIX = [
   "/topics/", // 토픽 허브 (Phase 4)
   "/reports/", // 시술 리포트 (Phase 4)
   "/review/", // 후기 작성·수정 (Phase 5: /review/new, /review/{shortcode}/edit)
-  "/record/", // 내 노트 하위 전체 (/record/[id] 시술 기록 상세 등) — 옛 크롬 잔존 승격
+  "/notes/", // 내 노트 하위 전체 (/notes/[id] 시술 기록 상세 등)
   "/write/", // 글쓰기 하위 전체 (/write/[shortcode] 수정) — 옛 크롬 잔존 승격
 ];
 
@@ -68,7 +68,8 @@ const BETA_PROMOTED_PREFIX = [
  */
 const RESERVED_FIRST_SEGMENT = new Set<string>([
   "admin", "api", "auth", "cards", "doctor", "doctors", "topics", "reports",
-  "review", "settings", "u", "login", "signup", "onboarding", "write", "record",
+  "review", "settings", "u", "login", "signup", "onboarding", "write",
+  "today", "notes", "weather",
   "my", "shop", "notifications", "search", "debug", "mockups", "beta-skin",
   "old-skin", "report", "rss", "about", "terms", "privacy", "contact",
   "disclaimer", "editorial-policy", "medical-review", "corrections",

@@ -162,7 +162,7 @@ export default function RecordTab({
             <span className="rounded-full bg-[var(--bg-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--text-muted)]">예시</span>
           </div>
         )}
-        <RecordView go={() => {}} summary={summary} openDetail={(id) => router.push(guest ? "/signup" : `/record/${id}`)} />
+        <RecordView go={() => {}} summary={summary} openDetail={(id) => router.push(guest ? "/signup" : `/notes/${id}`)} />
       </div>
 
       {/* ⑤ 키워드 새 글 — 회원=관심 키워드 / 게스트=인기 키워드 예시. 가로 카러셀(컴팩트 카드) */}

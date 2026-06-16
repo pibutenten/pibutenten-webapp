@@ -1,79 +1,28 @@
 "use client";
 
 /**
- * RecordView — /beta-skin/record "내 노트" 본문 (클라이언트).
+ * RecordView — /today "투데이" 본문 (클라이언트).
  *
- * 원칙: UI 는 베타 스킨 유지, 데이터·로직은 운영(record) 재사용.
- *   - 시술 노트(타임라인/달력/목록 3토글): 운영 diaries → SummaryGroup[](record-data SSOT)을
- *     RecEntry 로 어댑트해 기존 베타 3토글 뷰에 그대로 흘려보낸다. 배지는 운영 recordBadge(diary-status SSOT).
- *   - 히어로: 회원이면 computeStatus(latest) 5단계 인사, 비로그인이면 가입 유도 데모.
- *   - 관심 키워드 새 글: 운영 KeywordPost(limit 20) — 베타 카드 UI 로 렌더. 칩 탭 = 단일 키워드 필터.
- *   - 인기글: 운영 get_top_cards_by_views PopularData(7/30/90일). 작은 기간 토글 + 5위 + 6~N위 더보기.
+ * 원칙: UI 는 신규 스킨 유지, 데이터·로직은 운영(record-data SSOT) 재사용.
+ *   순서: ① 날씨 요약 → ② 인사 히어로(computeStatus 5단계 / 게스트 가입 유도)
+ *        → ③ 나만의 피부기록(가장 최근 노트 1건 요약, /notes 링크) → ④ 나의 KPI(글/노트/후기/댓글)
+ *        → ⑤ 관심 키워드 새 글 → ⑥ 인기글.
+ *   - 시술 노트 전체(타임라인/달력/목록 3토글)는 '내 노트' 탭(/notes)으로 분리됐다.
+ *   - '나만의 피부기록' 박스 배지는 운영 recordBadge(diary-status SSOT).
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import CardAvatar from "@/components/card/CardAvatar";
 import BetaSkinShell from "../BetaSkinShell";
 import styles from "../beta-skin.module.css";
 import { IconVerified, useBetaSearchRouting } from "../beta-ui";
 import SkinWeatherCard from "./skin-weather/SkinWeatherCard";
-import RecordNotesPanel, { toRecEntries } from "./RecordNotesPanel";
 import { computeStatus, type DiaryLatest } from "@/lib/diary-status";
-import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
-import type { KeywordPost } from "@/app/record/KeywordCarousel";
+import type { KeywordPost } from "@/app/today/KeywordCarousel";
 import type { PopularData, PopularItem } from "@/lib/record-data";
 
 const SAMPLE_CHIPS = ["리프팅", "보톡스", "스킨부스터", "볼륨", "더모코스메틱"];
-
-/* "이렇게 기록돼요" 빈 상태용 샘플 노트(더미) — 실데이터 아님이 분명하도록 '예시' 배지와 함께 미리보기.
- *   날짜·병원·시술명·메모가 든 더미 카드 4개. 클릭 동작 없음(시각적 이해 전용). */
-const SAMPLE_NOTES: {
-  month: number;
-  day: number;
-  procs: string[];
-  place: string;
-  doctor: string;
-  memo: string;
-  badge: { label: string; tone: "mint" | "heal" };
-}[] = [
-  {
-    month: 5,
-    day: 12,
-    procs: ["리프팅", "스킨부스터"],
-    place: "○○피부과의원",
-    doctor: "○○○ 원장",
-    memo: "시술 직후 약간 붉었지만 다음 날 가라앉음. 탄력 변화 관찰 중.",
-    badge: { label: "효과 관찰 중", tone: "mint" },
-  },
-  {
-    month: 4,
-    day: 28,
-    procs: ["레이저토닝", "스킨케어"],
-    place: "○○피부과의원",
-    doctor: "○○○ 원장",
-    memo: "색소·잡티 관리 목적. 시술 후 이틀간 살짝 따끔, 보습 신경 써서 관리.",
-    badge: { label: "회복 중", tone: "heal" },
-  },
-  {
-    month: 4,
-    day: 3,
-    procs: ["보톡스"],
-    place: "○○의원",
-    doctor: "○○○ 원장",
-    memo: "이마 주름 부위. 일주일 뒤부터 효과 체감.",
-    badge: { label: "회복 완료", tone: "mint" },
-  },
-  {
-    month: 3,
-    day: 15,
-    procs: ["필러"],
-    place: "○○피부과의원",
-    doctor: "○○○ 원장",
-    memo: "팔자 부위 볼륨. 시술 당일 약간 부었고 3일 뒤 자연스럽게 자리잡음.",
-    badge: { label: "회복 완료", tone: "mint" },
-  },
-];
 
 /* ---------- 인기글 섹션 — 7/30/90일 토글 + 상위 5 + 6~N위 더보기 ---------- */
 const CAT_LABEL: Record<string, string> = {
@@ -188,24 +137,22 @@ function PopularSection({ popular }: { popular: PopularData }) {
 export default function RecordView({
   guest = false,
   userName,
-  summary,
   latest,
   diaryCount,
   reviewsCount,
   postCount,
-  receivedCount,
+  commentCount,
   keywordPosts,
   popular,
   myKeywords,
 }: {
   guest?: boolean;
   userName: string;
-  summary: SummaryGroup[];
   latest: DiaryLatest | null;
   diaryCount: number;
   reviewsCount: number;
   postCount: number;
-  receivedCount: number;
+  commentCount: number;
   keywordPosts: KeywordPost[];
   popular: PopularData;
   myKeywords: string[];
@@ -214,15 +161,6 @@ export default function RecordView({
   const search = useBetaSearchRouting();
   // 관심 키워드 칩 — 실데이터 우선, 비면 샘플 폴백(게스트/미등록 회원).
   const chips = myKeywords.length >= 1 ? myKeywords : SAMPLE_CHIPS;
-  // 시술 노트 — 운영 SummaryGroup[] → RecEntry[](배지용 visitedOn 포함).
-  const entries = useMemo(() => toRecEntries(summary), [summary]);
-  // 인라인은 최근 N개 미리보기만. 전체(3토글 전부)는 /record/notes 자세히 페이지에서.
-  const NOTES_PREVIEW = 4;
-  const previewEntries = useMemo(() => {
-    const sorted = [...entries].sort((a, b) => b.year - a.year || b.month - a.month || b.day - a.day);
-    return sorted.slice(0, NOTES_PREVIEW);
-  }, [entries]);
-  const hasMoreNotes = entries.length > NOTES_PREVIEW;
   // 관심 키워드 새 글 — 단일 키워드 필터(운영 KeywordCarousel 동작 재현).
   const [selKw, setSelKw] = useState<string | null>(null);
   const shownPosts = selKw ? keywordPosts.filter((p) => p.matchedKeywords.includes(selKw)) : keywordPosts;
@@ -255,21 +193,44 @@ export default function RecordView({
         </section>
       ) : (
         <section className={`${styles.card} ${styles.sideCard}`}>
-          <h3>오늘 시술 기록하기</h3>
-          <p className={styles.muted} style={{ marginBottom: 14 }}>
-            받은 시술·다운타임·효과를 노트에 남기면 경과를 한눈에 볼 수 있어요.
-          </p>
-          <a className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`} href="/write">
-            노트 작성하기
-          </a>
+          <h3>글쓰기</h3>
+          {/* 글쓰기 3종 — 아래로 하나씩 내부 박스(노트/후기/글). */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 6 }}>
+            {[
+              { href: "/write", label: "노트 작성하기" },
+              { href: "/write?tab=review", label: "후기 작성하기" },
+              { href: "/write?tab=doodle", label: "글 올리기" },
+            ].map((w) => (
+              <Link
+                key={w.href}
+                href={w.href}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  background: "var(--bg-soft, #f1f6fb)",
+                  color: "var(--text)",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  textDecoration: "none",
+                }}
+              >
+                {w.label}
+                <span style={{ color: "var(--tt-blue, #4cbff2)", fontWeight: 700 }}>›</span>
+              </Link>
+            ))}
+          </div>
         </section>
       )}
     </>
   );
 
   return (
-    <BetaSkinShell active="내 노트" sidebar={sidebar} {...search}>
-      {/* 오늘의 피부 날씨 — 위치 기반(인증 불필요), 게스트·회원 공통. 노트 최상단. */}
+    <BetaSkinShell active="투데이" sidebar={sidebar} {...search}>
+      {/* 오늘의 피부 날씨 — 위치 기반(인증 불필요), 게스트·회원 공통. 투데이 최상단. */}
       <SkinWeatherCard />
       {/* 히어로 — 게스트=가입 유도, 회원=computeStatus 5단계 인사 */}
       {guest ? (
@@ -291,117 +252,42 @@ export default function RecordView({
         </section>
       ) : (
         <section className={`${styles.card} ${styles.greetCard}`}>
-          <div className={styles.greetTop}>안녕하세요, {userName}님</div>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+            <div className={styles.greetTop} style={{ color: "rgba(255,255,255,0.8)" }}>안녕하세요, {userName}님</div>
+            {/* 내 노트 보기 — 카드 우상단(날씨 카드 동선과 동일). 연한 글씨. */}
+            <Link
+              href="/notes"
+              style={{ flexShrink: 0, marginTop: 2, fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.8)", textDecoration: "none" }}
+            >
+              내 노트 보기 ›
+            </Link>
+          </div>
           <h1 className={styles.greetTitle} style={{ whiteSpace: "pre-line" }}>
             {status.headline}
           </h1>
           <p className={styles.muted} style={{ margin: "10px 0 4px", color: "rgba(255,255,255,0.92)" }}>
             {status.sub}
           </p>
-          {/* 항목9) 버튼 3개·이모지 제거·자연스러운 문구(운영 RecordTab 동선 정합). */}
-          <div className={styles.greetActions}>
-            {/* 내 노트 보기 → 시술노트 자세히 페이지(/record/notes). 인라인 스크롤 대신 전용 페이지로. */}
-            <Link href="/record/notes" className={`${styles.btn} ${styles.btnPrimary}`}>
-              내 노트 보기
-            </Link>
-            <a className={`${styles.btn} ${styles.btnGhost}`} href="/write">
-              오늘 시술 기록하기
-            </a>
-            <a className={`${styles.btn} ${styles.btnGhost}`} href="/write?tab=review">
-              시술 후기 남기기
-            </a>
-          </div>
-        </section>
-      )}
-
-      {/* 카운팅 대시보드 — 회원만(개인 데이터). 내가 쓴 노트 / 내가 쓴 후기 / 내가 쓴 글 / 내 글에 달린 댓글 */}
-      {!guest && (
-        <section className={`${styles.card} ${styles.statCard} ${styles.mb20}`} style={{ marginTop: 18 }}>
-          <div className={styles.statRow} style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-            <div>
-              <div className={styles.num}>{diaryCount}</div>
-              <div className={styles.lab}>내가 쓴 노트</div>
-            </div>
-            <div>
-              <div className={styles.num}>{reviewsCount}</div>
-              <div className={styles.lab}>내가 쓴 후기</div>
-            </div>
-            <div>
-              <div className={styles.num}>{postCount}</div>
-              <div className={styles.lab}>내가 쓴 글</div>
-            </div>
-            <div>
-              <div className={styles.num}>{receivedCount}</div>
-              <div className={styles.lab}>내 글에 달린 댓글</div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* 시술 노트 — 회원=실데이터 3토글, 게스트=빈 예시 안내 ('내 노트 보기' 스크롤 타깃) */}
-      <div id="rec-notes" style={{ marginTop: 24, scrollMarginTop: 70 }}>
-        {entries.length === 0 ? (
-          <>
-            <div className={styles.recExampleHead}>
-              <h2 className={styles.recNotesTitle}>이렇게 기록돼요</h2>
-              <span className={styles.recExampleTag}>예시</span>
-            </div>
-            {/* 샘플 미리보기 — 실데이터 아님(더미)이 분명하도록 흐리게 + '예시' 배지. 클릭 동작 없음.
-                베타 타임라인 토큰(recTl*) 재사용 → "이렇게 기록된다"를 시각적으로 보여줌. */}
-            <div className={styles.recExamplePreview} aria-hidden="true">
-              <div className={styles.recTl}>
-                {SAMPLE_NOTES.map((n, i) => (
-                  <div className={styles.recTlItem} key={i}>
-                    <span className={styles.recTlDot}>
-                      <span className={styles.recTlDotMonth}>{n.month}월</span>
-                      <span className={styles.recTlDotDay}>{n.day}</span>
-                    </span>
-                    <div className={`${styles.card} ${styles.recTlCard}`}>
-                      <div className={styles.recTlHead}>
-                        <h3 className={styles.recTlName}>{n.procs.join(" · ")}</h3>
-                        <span
-                          className={`${styles.recBadge} ${n.badge.tone === "mint" ? styles.recBadgeMint : styles.recBadgeHeal}`}
-                        >
-                          {n.badge.label}
-                        </span>
-                      </div>
-                      <div className={styles.recMeta}>
-                        {n.place}
-                        <span className={styles.sep}>·</span>
-                        {n.doctor}
-                      </div>
-                      <p className={styles.recMemo}>{n.memo}</p>
-                    </div>
-                  </div>
-                ))}
+          {/* 나의 KPI — 날씨 칩처럼 라벨 위·숫자 아래. 내 노트 / 내 후기 / 내 글 / 내 댓글 */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 16 }}>
+            {[
+              { n: diaryCount, l: "내 노트" },
+              { n: reviewsCount, l: "내 후기" },
+              { n: postCount, l: "내 글" },
+              { n: commentCount, l: "내 댓글" },
+            ].map((s) => (
+              <div key={s.l} style={{ background: "rgba(255,255,255,0.16)", borderRadius: 12, padding: "11px 4px", textAlign: "center" }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.82)" }}>{s.l}</div>
+                <div style={{ marginTop: 5, fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{s.n}</div>
               </div>
-            </div>
-            <section className={`${styles.card} ${styles.sideCard}`} style={{ textAlign: "center" }}>
-              <p className={styles.muted}>
-                {guest
-                  ? "가입하고 첫 시술을 기록하면 타임라인·달력·목록으로 한눈에 정리돼요."
-                  : "첫 노트를 쓰면 타임라인·달력·목록으로 한눈에 정리돼요."}
-              </p>
-              <a
-                className={`${styles.btn} ${styles.btnPrimary} ${styles.btnBlock}`}
-                href="/write"
-                style={{ marginTop: 12 }}
-              >
-                첫 노트 쓰러 가기
-              </a>
-            </section>
-          </>
-        ) : (
-          <>
-            {/* 인라인은 미리보기(최근 N개). 전체(3토글)는 위 인사 카드의 '내 노트 보기' + 아래 '전체 보기'로 이동. */}
-            <RecordNotesPanel entries={previewEntries} />
-            {hasMoreNotes && (
-              <Link href="/record/notes" className={styles.recNotesViewAll}>
-                시술 노트 전체 보기 ({entries.length}건) ›
-              </Link>
-            )}
-          </>
-        )}
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 글쓰기 메뉴 — 모바일(<900px)에선 웰컴 카드 바로 아래에 노출. 데스크탑(≥900px)은 우측 사이드바가 담당(여긴 숨김). */}
+      <div className="min-[900px]:hidden" style={{ marginTop: 18 }}>
+        {sidebar}
       </div>
 
       {/* 관심 키워드 새 글 */}

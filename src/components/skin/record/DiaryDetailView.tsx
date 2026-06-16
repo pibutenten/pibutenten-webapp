@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * DiaryDetailView — /record/[id] 시술 기록 상세 페이지 본문(클라이언트).
- *   RecordNotesView 패턴: 공용 셸(BetaSkinShell, active="내 노트") 안에
- *   detailHead(뒤로가기 /record + svg + h1 "시술 기록") + 기존 카드/버튼/텍스트 구조.
+ * DiaryDetailView — /notes/[id] 시술 기록 상세 페이지 본문(클라이언트).
+ *   공용 셸(BetaSkinShell, active="내 노트") 안에
+ *   detailHead(뒤로가기 /notes + svg + h1 "시술 기록") + 기존 카드/버튼/텍스트 구조.
  *   DB 조회·권한·notFound 가드는 서버 page.tsx 가 담당하고, 여기선 조회 결과(diary)를
  *   props 로 받아 표시용 가공(날짜·시술 제목·의료진·지도 링크)만 수행해 렌더한다.
  */
@@ -47,7 +47,7 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
   return (
     <BetaSkinShell active="내 노트">
       <div className={styles.detailHead}>
-        <Link href="/record" className={styles.detailBack} aria-label="내 노트로 돌아가기">
+        <Link href="/notes" className={styles.detailBack} aria-label="내 노트로 돌아가기">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
             <path d="m15 18-6-6 6-6" />
           </svg>

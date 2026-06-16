@@ -3,11 +3,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import type { KeywordPost } from "./KeywordCarousel";
-import type { SummaryGroup } from "../mockups/skin-diary/SkinDiaryMockup";
 import {
   KEYWORD_SELECT,
   DIARY_SELECT,
-  toSummaryGroups,
   toKeywordPost,
   buildPopularData,
   type KeywordCardRow,
@@ -17,23 +15,22 @@ import {
 import RecordView from "@/components/skin/record/RecordView";
 
 /**
- * /record — 내 노트(비공개, 신규 스킨 승격 Phase 1b).
- *   신규 스킨 RecordView(베타 UI + 운영 데이터·로직)를 운영 라우트에서 직접 렌더한다.
- *   데이터 조회는 구 /beta-skin/record(page.tsx)의 서버 로직을 그대로 이식 —
- *   운영 record-data SSOT 재사용(diaries·인기글 RPC·관심 키워드 새 글). metadata 는 운영용
- *   ("내 노트" + noindex 유지, 베타 미리보기 title 제거).
+ * /today — 투데이(비공개). 하단 1차 탭.
+ *   RecordView 렌더: 날씨 → 인사 히어로 → 나만의 피부기록(최근 노트 1건) → KPI 4종 →
+ *   관심 키워드 새 글 → 인기글. 데이터는 운영 record-data SSOT 재사용
+ *   (diaries·인기글 RPC·관심 키워드 새 글). metadata: "투데이" + noindex.
  */
 
 // BetaSkinShell·RecordView 가 클라이언트 훅(useSession 등) 사용 → 동적 렌더.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "내 노트",
+  title: "투데이",
   robots: { index: false, follow: false },
 };
 
-// /record — 내 노트(비공개). 비로그인은 가입 유도 데모, 로그인은 active 명함 기준 실데이터.
-export default async function RecordPage() {
+// /today — 투데이(비공개). 비로그인은 가입 유도 데모, 로그인은 active 명함 기준 실데이터.
+export default async function TodayPage() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -91,14 +88,11 @@ export default async function RecordPage() {
       <RecordView
         guest
         userName=""
-        // 게스트는 가입 유도 히어로 + RecordView 의 빈-노트 '예시' 안내가 별도로 있으므로
-        // DEMO 타임라인은 의도적으로 생략(빈 배열).
-        summary={[]}
         latest={null}
         diaryCount={0}
         reviewsCount={0}
         postCount={0}
-        receivedCount={0}
+        commentCount={0}
         keywordPosts={guestPosts}
         popular={guestPopular}
         myKeywords={guestKeywords}
@@ -109,31 +103,18 @@ export default async function RecordPage() {
   const idCtx = await getIdentityContext(supabase);
   const activeId = idCtx?.active?.profileId ?? user.id;
 
-  // profiles 조회와 내 글 id 조회는 둘 다 activeId 에만 의존(서로 독립) → 한 Promise.all 로 동시 해소.
-  //   - prof: 인사·관심 키워드(interests) 파생용.
-  //   - myCardRows: 받은 댓글 집계(receivedCnt)용 내 모든 글 id(카테고리 무관, 삭제 제외).
-  //     embedded relation 필터에 의존하지 않고 명시적 card_id IN 으로 좁혀 RLS 누수 차단.
-  const [profRes, myCardRes] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("display_name, interested_procedures, skin_concerns, skin_type")
-      .eq("id", activeId)
-      .maybeSingle()
-      .returns<{
-        display_name: string | null;
-        interested_procedures: string[] | null;
-        skin_concerns: string[] | null;
-        skin_type: string | null;
-      }>(),
-    supabase
-      .from("cards")
-      .select("id")
-      .eq("author_id", activeId)
-      .is("deleted_at", null)
-      .limit(1000)
-      .returns<{ id: number }[]>(),
-  ]);
-  const prof = profRes.data;
+  // prof — 인사·관심 키워드(interests) 파생용. activeId(active 명함) 기준.
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("display_name, interested_procedures, skin_concerns, skin_type")
+    .eq("id", activeId)
+    .maybeSingle()
+    .returns<{
+      display_name: string | null;
+      interested_procedures: string[] | null;
+      skin_concerns: string[] | null;
+      skin_type: string | null;
+    }>();
   const userName = prof?.display_name?.trim() || "회원";
 
   // 관심 키워드 합집합(관심시술 + 피부고민 + 피부타입). 카드 keywords 와 같은 한글 키(0262).
@@ -145,12 +126,9 @@ export default async function RecordPage() {
     ]),
   );
 
-  // 받은 댓글(2단계) 1단계 — 내 모든 글 id.
-  const myCardIds = (myCardRes.data ?? []).map((r) => r.id);
-
-  // 병렬: 노트 / 내가 쓴 후기 수 / 내가 쓴 글 수 / 내 글에 달린 댓글 수 /
+  // 병렬: 노트 / 내가 쓴 후기 수 / 내가 쓴 글 수 / 내가 쓴 댓글 수 /
   //       인기글 3기간(TOP10) / 관심 키워드 새 Q&A(컴팩트, limit 20).
-  const [diariesRes, reviewCntRes, postCntRes, receivedCntRes, top7Res, top30Res, top90Res, kwRes] = await Promise.all([
+  const [diariesRes, reviewCntRes, postCntRes, commentCntRes, top7Res, top30Res, top90Res, kwRes] = await Promise.all([
     supabase
       .from("diaries")
       .select(DIARY_SELECT)
@@ -169,16 +147,12 @@ export default async function RecordPage() {
       .eq("author_id", activeId)
       .eq("status", "published")
       .not("category", "in", "(review,review_summary)"),
-    // 내 글에 달린 댓글 수(2단계) — 내 글 id 로 좁히고 타인(active 외) visible 댓글만.
-    //   RLS 가 본인 글 댓글 SELECT 허용(comments_select 정책, my/page.tsx 검증 완료).
-    myCardIds.length > 0
-      ? supabase
-          .from("comments")
-          .select("id", { count: "exact", head: true })
-          .in("card_id", myCardIds)
-          .neq("author_id", activeId)
-          .eq("status", "visible")
-      : Promise.resolve({ count: 0 }),
+    // 내가 쓴 댓글 수 — active 명함이 작성한 visible 댓글(어느 글이든).
+    supabase
+      .from("comments")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", activeId)
+      .eq("status", "visible"),
     supabase.rpc("get_top_cards_by_views", { p_days: 7, p_limit: 10 }),
     supabase.rpc("get_top_cards_by_views", { p_days: 30, p_limit: 10 }),
     supabase.rpc("get_top_cards_by_views", { p_days: 90, p_limit: 10 }),
@@ -199,7 +173,7 @@ export default async function RecordPage() {
   const rows = diariesRes.data ?? [];
   const reviewsCount = reviewCntRes.count ?? 0;
   const postCount = postCntRes.count ?? 0;
-  const receivedCount = receivedCntRes.count ?? 0;
+  const commentCount = commentCntRes.count ?? 0;
 
   // 상태 문구 계산용 — 가장 최근 방문의 첫 시술명 + 방문일 + 그 시술 누적 횟수('N회차').
   const latestRow = rows[0];
@@ -232,12 +206,11 @@ export default async function RecordPage() {
   return (
     <RecordView
       userName={userName}
-      summary={toSummaryGroups(rows) as SummaryGroup[]}
       latest={latest}
       diaryCount={rows.length}
       reviewsCount={reviewsCount}
       postCount={postCount}
-      receivedCount={receivedCount}
+      commentCount={commentCount}
       keywordPosts={keywordPosts}
       popular={popular}
       myKeywords={interests}

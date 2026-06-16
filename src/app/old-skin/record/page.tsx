@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { getPopularByCategory } from "@/lib/popular-keywords";
-import RecordTab from "@/app/record/RecordTab";
-import type { KeywordPost } from "@/app/record/KeywordCarousel";
+import RecordTab from "@/app/today/RecordTab";
+import type { KeywordPost } from "@/app/today/KeywordCarousel";
 import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
 import {
   KEYWORD_SELECT,

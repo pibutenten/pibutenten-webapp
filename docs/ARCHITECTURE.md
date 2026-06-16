@@ -69,13 +69,18 @@
 /notifications                      알림 목록
 /write                              통합 글쓰기 — 3탭(시술일기/시술후기/끄적끄적) WriteTabs. ?tab=record|review|doodle
 /write/[shortcode]                  글 수정 (자기 글) — TopNav 유지(EditClient)
-/record                             내 일기(시술일기 목록·연표) — noindex. 폼 DB 저장 배선은 후속
+/today                              투데이 — 날씨·인사·나만의 피부기록(최근 노트 1건)·KPI 4종·관심 키워드·인기글. noindex (구 /record)
+/notes                              내 노트 — 시술 노트 KPI 3종 + 3토글(타임라인/달력/목록). noindex (구 /record/notes)
+/notes/[id]                         시술 노트 상세(본인 소유만, RLS) — noindex (구 /record/[id])
+/weather                            오늘의 피부 날씨 상세 — noindex (구 /record/weather)
 /my                                 마이페이지(설정 허브, 현재 placeholder) — noindex
 /shop                               쇼핑 준비중 — noindex
 /review/new                         시술후기 작성 (P3-d, 전용 폼. /write 시술후기 탭이 이 ReviewForm 공유)
 ```
 
-> **메인 승격(2026-06-11)**: 기존 `/beta` 미리보기 앱이 루트로 이전. 핵심 앱 라우트(`/`,`/write`,`/record`,`/my`,`/shop`)는 새 5탭 `BetaNav`(하단 고정탭 + 헤더 칩/검색), 콘텐츠 페이지(`/doctors`·`/search`·`/topics`·`/reports`·상세·프로필)는 기존 `TopNav` 유지. `/beta`·`/beta/:path*` → 루트 308. 우하단 FAB(FloatingWriteButton) 폐기.
+> **메인 승격(2026-06-11)**: 기존 `/beta` 미리보기 앱이 루트로 이전. 핵심 앱 라우트는 새 5탭 `BetaNav`(하단 고정탭 + 헤더 칩/검색), 콘텐츠 페이지(`/doctors`·`/search`·`/topics`·`/reports`·상세·프로필)는 기존 `TopNav` 유지. `/beta`·`/beta/:path*` → 루트 308.
+
+> **하단 바 개편(2026-06-16)**: 하단 5탭 = **투데이(/today)·내 노트(/notes)·피드(/)·쇼핑(/shop)·마이(/my)**. 글쓰기는 탭에서 분리해 **우하단 FAB(`WriteFab`, 모바일 전용, → /write)** 로 재도입(데스크탑은 헤더 우측 '글쓰기' 버튼). `WriteFab` 은 `layout` 단일 배선 + `z-[110]`(BetaSkinShell z-100 오버레이 위) + 경로 블록리스트(write/review/auth/onboarding/admin/doctor). 구 `/record`→`/today`, `/record/notes`→`/notes`, `/record/[id]`→`/notes/[id]`, `/record/weather`→`/weather` (리다이렉트 없이 폴더 교체). 탭 정의는 `BetaSkinShell`(승격 라우트)·`BetaNav`(미승격) 양쪽에 존재.
 
 ### 2.4. 관리자 영역 (role=admin 또는 doctor)
 ```

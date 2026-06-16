@@ -561,6 +561,19 @@
   order: -1;
 }
 
+/* ── 원장 공개 프로필(/doctors/[slug]) 모바일 순서 (2026-06-16) ──
+   모바일: 원장 프로필(소개) 카드를 답변 피드 "위"에 노출. 셸(BetaSkinShell) DOM 순서가
+   children(답변)→sidebar(프로필)로 고정 + 셸 수정 금지이므로, 원장 카드를 본문 최상단에
+   "모바일 전용"(.doctorProfileMobile)으로 한 번 더 렌더하고 데스크탑에선 숨긴다.
+   반대로 사이드바 안의 같은 카드(.doctorProfileSideCard)는 모바일에서만 숨겨 중복 노출을 막는다.
+   분기점은 데스크탑 2단과 동일한 900px. 데스크탑은 현행 2단 그대로(아래 @media 에서 반전). */
+.doctorProfileMobile {
+  display: block;
+}
+.doctorProfileSideCard {
+  display: none;
+}
+
 /* ---------- 카드 ---------- */
 .feedList {
   display: flex;
@@ -1909,6 +1922,14 @@ button.t[data-cat="knowledge"]:hover {
   /* 신규5) 데스크탑은 DOM 순서(작성자 프로필 먼저 → Q&A 아래) 유지 — 모바일 order:-1 리셋. */
   .sidebar .sideQa {
     order: 0;
+  }
+  /* 원장 공개 프로필(2026-06-16) — 데스크탑은 현행 2단 그대로:
+     본문 최상단 모바일 전용 카드는 숨기고, 사이드바 안 원장 카드를 노출(모바일과 정반대). */
+  .doctorProfileMobile {
+    display: none;
+  }
+  .doctorProfileSideCard {
+    display: block;
   }
   .sidebar .card {
     padding: 20px;

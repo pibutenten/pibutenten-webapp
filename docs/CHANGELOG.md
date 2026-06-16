@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-06-16] — 하단 바 개편(투데이/내 노트 + 글쓰기 FAB) + /today·/notes 재구성
+
+> 모바일 하단 5탭을 (내 노트·글쓰기·피드·쇼핑·마이) → **(투데이·내 노트·피드·쇼핑·마이)** 로 교체하고 글쓰기를 우하단 FAB 로 분리. 구 `/record` 계열을 `/today`·`/notes`·`/notes/[id]`·`/weather` 로 이전(리다이렉트 없이 폴더 교체). `tsc` 0·`build` 0·코드검수 [치명] 0.
+
+### Added
+- **우하단 글쓰기 FAB(`WriteFab`)**: 모바일 전용, `layout` 단일 배선 + `z-[110]`(BetaSkinShell z-100 오버레이 위). 누르면 `/write`. 경로 블록리스트(write/review/auth/onboarding/admin/doctor)에서 숨김. 데스크탑은 헤더 우측 '글쓰기' 버튼.
+- **투데이(/today) 하단 탭 + 해(sun) 아이콘**(`BetaSkinShell`·`BetaNav`).
+
+### Changed
+- **하단 5탭 교체**: 투데이·내 노트·피드·쇼핑·마이. `BetaSkinShell`(승격 라우트)·`BetaNav`(미승격) 양쪽 + 데스크탑 GNB 동시 반영.
+- **라우트 이전(리다이렉트 없음)**: `/record`→`/today`, `/record/notes`→`/notes`, `/record/[id]`→`/notes/[id]`, `/record/weather`→`/weather`. `GlobalChrome`(승격목록·prefix·예약어)·`robots.ts`·내부 링크(SkinWeatherCard·DiaryDetailView·WeatherDetailView·SkinDiaryMockup·WriteTabs·RecordTab) 동기화.
+- **/today(RecordView 재구성)**: 날씨 요약 → 인사 히어로(우상단 '자세히 ›' = 최근 노트 상세 + 히어로 내 KPI 4종 박스 + 액션 3) → 관심 키워드 새 글 → 인기글. KPI 순서 **내 노트·내 후기·내 글·내 댓글**(날씨 KPI 박스 스타일). 기존 KPI "내 글에 달린 댓글"(받은 댓글, myCardIds 추적) → **"내가 쓴 댓글"**(comments.author_id=active·status=visible)로 교체. 데스크탑 사이드바 = 글쓰기 3박스(노트 작성하기/후기 작성하기/글 올리기).
+- **/notes(RecordNotesView)**: 1차 탭 승격(뒤로가기 제거) + 제목 + KPI 3종(받은 시술=diary_procedures 항목 총합·내가 쓴 노트·내가 쓴 후기) + 3토글(타임라인/달력/목록, 목록 뷰 개별 접기/펼치기). 비면 "이렇게 기록돼요" 예시.
+- **/weather**: '오늘의 피부 날씨란?' 안내 카드를 데스크탑 우측 사이드바 / 모바일 본문 아래(`sidebar` prop). 주간 KPI 박스 간격 7→10px.
+
+---
+
 ## [2026-06-16] — 오늘의 피부 날씨 UI 정리(원래 세로튜브 디자인 유지) + 로딩 단축
 
 > 전달용 「피부날씨-UI개선안」 mockup 기반 재설계를 시도했으나 우리 베타 스킨 톤과 충돌(심각도 색램프 산만)해 **원래(검증된) 세로튜브 디자인으로 전량 원복** 후, 그 위에 의도된 정리만 얹음. 데이터·과학상수·fetch 로직 무변경(표시·레이아웃·로딩만). 커밋 `6162f87`(원복)·`af9bc0a`(홈)·`641795d`(상세·주간)·`17f74dc`(빈칸·박스)·`7219629`(홈칩)·`315a9c2`(로딩). 각 단계 `tsc` 0·`build` 0·Playwright 데스크탑/모바일 시각확인.
