@@ -177,14 +177,8 @@ export default async function ProcedureReportPage({ params }: Props) {
     inLanguage: "ko-KR",
     // 사이트 #website 노드 연결(doctor 라우트와 동일 패턴) — 페이지 그래프 결속.
     isPartOf: { "@id": `${SITE_URL}/#website` },
-    // 게시 책임 주체 — 의료 페이지 E-E-A-T 신호(doctor 라우트 publisher 와 동일 노드).
-    publisher: {
-      "@type": ["Organization", "MedicalOrganization"],
-      "@id": `${SITE_URL}/#organization`,
-      name: "주식회사 진솔컴퍼니",
-      url: `${SITE_URL}/about`,
-      logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png` },
-    },
+    // 게시 책임 주체 — 전역 layout 의 #organization(SSOT) 참조만(노드 재정의 금지 → @id 충돌 0).
+    publisher: { "@id": `${SITE_URL}/#organization` },
     // 집계 갱신 신호 — 요청 시점(실시간 집계라 항상 최신). AI freshness.
     dateModified: new Date().toISOString(),
     mainEntity: {

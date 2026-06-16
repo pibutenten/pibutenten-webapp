@@ -231,9 +231,8 @@ export function groupOnlySchema(): Record<string, unknown> {
     "@id": HEALHOUSE_GROUP_ID,
     name: "힐하우스피부과",
     url: "https://www.healhouseskin.com",
-    // 엔티티 합의(GEO C1): 그룹 = Wikidata Q140071426 (힐하우스피부과).
-    // 지점 5개는 parentOrganization 으로 이 그룹을 참조 → 그룹에만 sameAs 1회.
-    sameAs: ["https://www.wikidata.org/wiki/Q140071426"],
+    // Wikidata Q140071426 은 2026-06-06 notability 사유로 삭제되어 sameAs 제거(죽은 링크 404).
+    //   재등재(독립 출처 확보) 후 다시 추가. 지점 5개는 parentOrganization 으로 이 그룹을 참조.
   };
 }
 

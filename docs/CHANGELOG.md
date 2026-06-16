@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-06-17] — JSON-LD 발행사/조직 엔티티 통합 (SSOT) (A)
+
+> #organization 이 layout/about/doctors/reports 4곳에서 제각각 정의(name·url·logo·sameAs 불일치, 일부 name=법인명 "주식회사 진솔컴퍼니")돼 같은 @id 가 충돌하던 것을 단일 출처로 통일. 브랜드(name "피부텐텐")와 법인(legalName "주식회사 진솔컴퍼니") 구분. 죽은 위키데이터 제거 + 인스타 추가. `tsc` 0·`build` 0·SEO검수 [치명] 0.
+
+### Added
+- **`src/lib/schema/organization.ts`** (SSOT): `organizationBase()`(핵심 식별 — 이중타입·name 피부텐텐·legalName 주식회사 진솔컴퍼니·alternateName·url·logo ImageObject·description·sameAs[유튜브·인스타]), `buildOrganizationSchema()`(base+신뢰정책·medicalSpecialty, 전역용), `buildWebsiteSchema()`(#website+publisher@id+SearchAction). `ORGANIZATION_ID`/`WEBSITE_ID`.
+
+### Changed
+- **layout.tsx**: 전역 @graph 를 `buildOrganizationSchema()`+`buildWebsiteSchema()`+`groupOnlySchema()` 로 교체(인라인 정의 제거). 모든 페이지에 동일 노드 주입 → 답변·리포트의 publisher @id 가 같은 문서에서 해석(@id 충돌 0).
+- **about/page.tsx**: 인라인 #organization 을 `...organizationBase()` spread + 확장(법인 parentOrganization·연락처·참여의사·진료분야). `AboutPage.isPartOf` 도 `{@id #website}` 참조로 통일.
+- **doctors/[slug]/[year]/[postSlug]/page.tsx · reports/[procedure]/page.tsx**: publisher 를 노드 재정의(name=진솔컴퍼니, sameAs 없음) → `{@id #organization}` 참조만으로 변경(충돌 해소).
+
+### Removed
+- **죽은 위키데이터 sameAs 제거**: Q140072864(피부텐텐)·Q140071426(힐하우스 그룹) 둘 다 2026-06-06 notability 사유로 삭제됨(404 확인) → 조직 노드·`clinic.ts` groupOnlySchema 에서 제거. 재등재(독립 출처 확보)는 별도 과제.
+
+---
+
 ## [2026-06-17] — 소셜 로그인 버튼 색 복구 (AppShell reset 회귀 fix)
 
 > 로그인 페이지가 AppShell(`.root`)로 승격(2026-06-15)되면서 `app.module.css` 의 `:where(.root) button { background:none; color:inherit }`(unlayered)가 Tailwind 색 유틸(@layer utilities)을 이겨 **4개 소셜 버튼 색이 전부 사라진** 회귀. Apple/네이버는 흰 아이콘이 흰 버튼에 묻혀 비가시. 전역 reset 을 건드리지 않고 소셜 버튼만 inline style 로 색 강제(국소 수정). `tsc` 0·`build` 0·코드검수 [치명] 0.

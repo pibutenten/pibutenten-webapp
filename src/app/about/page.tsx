@@ -5,6 +5,7 @@ import { jsonLdString } from "@/lib/json-ld";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import { allClinicsSchema } from "@/lib/schema/clinic";
+import { organizationBase } from "@/lib/schema/organization";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 import InfoShell from "@/components/info/InfoShell";
 
@@ -57,23 +58,15 @@ export default async function AboutPage() {
         name: "사이트 안내",
         url: `${SITE_URL}/about`,
         inLanguage: "ko-KR",
-        isPartOf: {
-          "@type": "WebSite",
-          name: "피부텐텐",
-          url: SITE_URL,
-        },
+        // 전역 #website 노드 참조로 통일(다른 페이지와 동일 패턴 — 인라인 WebSite 중복 정의 제거).
+        isPartOf: { "@id": `${SITE_URL}/#website` },
         mainEntity: { "@id": `${SITE_URL}/#organization` },
       },
       {
-        "@type": "MedicalOrganization",
-        "@id": `${SITE_URL}/#organization`,
-        name: "피부텐텐",
-        alternateName: ["Pibutenten", "피부 텐텐"],
-        url: SITE_URL,
-        logo: `${SITE_URL}/brand-logo.svg`,
+        // 핵심 식별값은 SSOT(organizationBase) — 전역 layout 과 동일 값(@id 충돌 0).
+        //   /about 은 이 base 를 spread 한 뒤 법인 정보·연락처·참여의사·진료분야로 확장한다.
+        ...organizationBase(),
         image: `${SITE_URL}/og.png`,
-        description:
-          "피부과 전문의가 함께 만드는 피부 미용 커뮤니티. 시술·홈케어·안티에이징 관련 검증된 답변과 칼럼을 제공합니다.",
         // Mayo/Cleveland Clinic 벤치마크 — 책임 문서 schema 연결 (2026-05-28)
         publishingPrinciples: `${SITE_URL}/editorial-policy`,
         ethicsPolicy: `${SITE_URL}/editorial-policy`,
@@ -97,11 +90,7 @@ export default async function AboutPage() {
           "색소침착",
           "피부장벽",
         ],
-        publisher: {
-          "@type": "Organization",
-          name: "주식회사 진솔컴퍼니",
-          url: SITE_URL,
-        },
+        // 법인(진솔컴퍼니) — 브랜드(피부텐텐)의 모회사. legalName(base)과 별개로 사업자번호·주소 보유.
         parentOrganization: {
           "@type": "Organization",
           name: "주식회사 진솔컴퍼니",
@@ -122,7 +111,7 @@ export default async function AboutPage() {
           contactType: "customer support",
           availableLanguage: ["Korean", "ko-KR"],
         },
-        sameAs: ["https://www.youtube.com/@pibutenten"],
+        // sameAs(유튜브·인스타)는 organizationBase 가 제공 — 여기서 재정의하지 않음(덮어쓰기 방지).
         // 참여 전문의 — Person @id 참조 (풀 정보는 /doctors/{slug}#person 에 존재)
         ...(memberRefs.length > 0 ? { member: memberRefs } : {}),
         // 진료 가능 콘텐츠 분야 (AI 인용 신호 강화)

@@ -207,14 +207,8 @@ function buildJsonLd(
       "@type": "ImageObject",
       url: `${SITE}/og/${doctorSlug}.png`,
     },
-    // 게시 책임 주체 — 의료 페이지의 E-E-A-T 신호 강화 (MedicalOrganization).
-    publisher: {
-      "@type": ["Organization", "MedicalOrganization"],
-      "@id": `${SITE}/#organization`,
-      name: "주식회사 진솔컴퍼니",
-      url: `${SITE}/about`,
-      logo: { "@type": "ImageObject", url: `${SITE}/logo.png` },
-    },
+    // 게시 책임 주체 — 전역 layout 의 #organization(SSOT) 참조만(노드 재정의 금지 → @id 충돌 0).
+    publisher: { "@id": `${SITE}/#organization` },
     // 음성/AI assistant가 두괄식 답안 첫 단락을 우선 픽업하도록 마킹.
     speakable: {
       "@type": "SpeakableSpecification",

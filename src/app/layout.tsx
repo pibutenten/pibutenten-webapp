@@ -11,6 +11,10 @@ import { SessionProvider } from "@/lib/session-context";
 import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/json-ld";
 import { groupOnlySchema } from "@/lib/schema/clinic";
+import {
+  buildOrganizationSchema,
+  buildWebsiteSchema,
+} from "@/lib/schema/organization";
 import "./globals.css";
 
 const GA4_ID = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID?.trim();
@@ -152,35 +156,10 @@ window.addEventListener('appinstalled', function() {
             __html: jsonLdString({
               "@context": "https://schema.org",
               "@graph": [
-                {
-                  "@type": "Organization",
-                  "@id": `${SITE_URL}/#organization`,
-                  name: "피부텐텐",
-                  alternateName: "Pibutenten",
-                  url: `${SITE_URL}/`,
-                  logo: `${SITE_URL}/logo.png`,
-                  description:
-                    "피부과 전문의가 함께 만드는 피부 미용 커뮤니티",
-                  sameAs: [
-                    "https://www.youtube.com/@pibutenten",
-                    "https://www.wikidata.org/wiki/Q140072864",
-                  ],
-                },
-                {
-                  "@type": "WebSite",
-                  "@id": `${SITE_URL}/#website`,
-                  url: `${SITE_URL}/`,
-                  name: "피부텐텐",
-                  inLanguage: "ko-KR",
-                  publisher: { "@id": `${SITE_URL}/#organization` },
-                  potentialAction: {
-                    "@type": "SearchAction",
-                    // 메인 승격(2026-06-11): 인사이트 검색은 루트 /?q= 인라인 검색으로 이전.
-                    //   ?q= 결과는 page-level noindex(follow=true) → 크롤이 결과를 따라 개별 카드로 진입.
-                    target: `${SITE_URL}/?q={search_term_string}`,
-                    "query-input": "required name=search_term_string",
-                  },
-                },
+                // 발행사·사이트 식별 노드 — SSOT(lib/schema/organization). 전 페이지 동일 값으로
+                //   주입되어 답변·리포트의 publisher @id 참조가 같은 문서에서 해석됨(@id 충돌 0).
+                buildOrganizationSchema(),
+                buildWebsiteSchema(),
                 // 그룹법인 MedicalOrganization 만 전역 노출.
                 // 5개 지점 MedicalClinic 은 그룹 전체를 다루는 페이지(/, /about, /contact) 와
                 // 해당 의사가 속한 1개 지점만 의사 페이지에서 개별 inject
