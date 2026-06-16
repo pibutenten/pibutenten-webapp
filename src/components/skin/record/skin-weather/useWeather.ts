@@ -87,6 +87,10 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
         return;
       }
     }
+    // 카드(첫 표시): 직전 성공 스냅샷(LAST_KEY)이 신선하면 측위를 기다리지 말고 즉시 렌더(stale-while-revalidate).
+    //   스켈레톤 체류 시간을 0 에 가깝게 줄이고, 아래 측위·fetch 는 백그라운드에서 최신값으로 덮어쓴다.
+    const lastSeed = readCache(LAST_KEY);
+    if (lastSeed) setSnap(lastSeed);
     const ac = new AbortController();
     let done = false;
     const run = (lat: number, lon: number, name: string) => {
@@ -124,9 +128,12 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
           });
         },
         () => run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name),
-        // 측위 실패(권한 거부/차단/타임아웃) 시 대치동 폴백. 첫 표시 지연을 줄이려 timeout 단축
-        //   (네트워크 측위는 보통 2초 내, 9초는 과함). maximumAge 로 30분 내 재방문은 즉시.
-        { timeout: 5000, maximumAge: 30 * 60 * 1000 },
+        // 측위 실패(권한 거부/차단/타임아웃) 시 대치동 폴백. 첫 표시 지연을 줄이려:
+        //   - enableHighAccuracy:false 명시(GPS 대신 빠른 네트워크 측위).
+        //   - maximumAge 를 넓혀(60분) OS 가 캐시한 좌표를 측위 없이 즉시 반환하게 함.
+        //   - timeout 단축(4s): 무응답·차단 시 빠르게 대치동 폴백으로 스켈레톤 종료.
+        //   (단, LAST_KEY seed 가 있으면 이 지연 동안에도 카드는 이미 표시됨.)
+        { enableHighAccuracy: false, timeout: 4000, maximumAge: 60 * 60 * 1000 },
       );
     } else {
       run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name);
