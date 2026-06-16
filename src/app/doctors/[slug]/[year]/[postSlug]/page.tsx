@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { checkHiddenByDoctorPost } from "@/lib/hidden-card";
 import { type CardData } from "@/components/Card";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
 import { renderBetaPost } from "@/components/skin/post/post-data";
 import { SITE_URL } from "@/lib/site";
 import { buildDoctorReference } from "@/lib/schema/doctor";
@@ -169,10 +170,11 @@ function buildJsonLd(
         item: `${SITE}/doctors/${doctorSlug}`,
       },
       {
+        // position 3 연도 — 연도별 목록 라우트(/doctors/{slug}/{year})가 존재하지 않아
+        //   깨진 URL 을 가리키던 item 필드 제거. name 만 유지(Google 가이드상 허용).
         "@type": "ListItem",
         position: 3,
         name: `${year}년`,
-        item: `${SITE}/doctors/${doctorSlug}/${year}`,
       },
       { "@type": "ListItem", position: 4, name: card.title },
     ],
@@ -334,53 +336,57 @@ export default async function DermatologistPostPage({ params }: Props) {
     const hidden = await checkHiddenPlaceholder(slug, yearInt, postSlug);
     if (hidden) {
       return (
-        <section className="mx-auto w-full max-w-[480px] py-10">
-          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-[var(--shadow-sm)]">
-            <p className="text-[14px] font-semibold text-[var(--text)]">
-              운영정책에 따라 비공개된 게시물입니다.
-            </p>
-            <p className="mt-2 text-[12px] text-[var(--text-muted)]">
-              이의가 있으시면{" "}
-              <a
-                href="mailto:pibutenten@gmail.com"
-                className="text-[var(--primary)] hover:underline"
-              >
-                pibutenten@gmail.com
-              </a>
-              으로 문의해 주세요.
-            </p>
-          </div>
-        </section>
+        <BetaSkinShell active="피드" back={`/doctors/${slug}`}>
+          <section className="mx-auto w-full max-w-[480px] py-10">
+            <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center shadow-[var(--shadow-sm)]">
+              <p className="text-[14px] font-semibold text-[var(--text)]">
+                운영정책에 따라 비공개된 게시물입니다.
+              </p>
+              <p className="mt-2 text-[12px] text-[var(--text-muted)]">
+                이의가 있으시면{" "}
+                <a
+                  href="mailto:pibutenten@gmail.com"
+                  className="text-[var(--primary)] hover:underline"
+                >
+                  pibutenten@gmail.com
+                </a>
+                으로 문의해 주세요.
+              </p>
+            </div>
+          </section>
+        </BetaSkinShell>
       );
     }
     return (
-      <section className="mx-auto w-full max-w-[480px] py-10">
-        <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center shadow-[var(--shadow-sm)]">
-          <div className="mb-4 text-5xl">📭</div>
-          <h1 className="mb-2 text-lg font-bold text-[var(--text)]">
-            글을 찾을 수 없어요
-          </h1>
-          <p className="mb-6 text-sm leading-[1.6] text-[var(--text-secondary)]">
-            글이 삭제되었거나 비공개로 전환되었을 수 있어요.
-            <br />
-            피드에서 다른 좋은 글을 둘러보세요.
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-            <Link
-              href="/"
-              className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-dark)]"
-            >
-              피드로 가기
-            </Link>
-            <Link
-              href={`/doctors/${slug}`}
-              className="rounded-md border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
-            >
-              전문의 페이지
-            </Link>
+      <BetaSkinShell active="피드" back={`/doctors/${slug}`}>
+        <section className="mx-auto w-full max-w-[480px] py-10">
+          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center shadow-[var(--shadow-sm)]">
+            <div className="mb-4 text-5xl">📭</div>
+            <h1 className="mb-2 text-lg font-bold text-[var(--text)]">
+              글을 찾을 수 없어요
+            </h1>
+            <p className="mb-6 text-sm leading-[1.6] text-[var(--text-secondary)]">
+              글이 삭제되었거나 비공개로 전환되었을 수 있어요.
+              <br />
+              피드에서 다른 좋은 글을 둘러보세요.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <Link
+                href="/"
+                className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-dark)]"
+              >
+                피드로 가기
+              </Link>
+              <Link
+                href={`/doctors/${slug}`}
+                className="rounded-md border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+              >
+                전문의 페이지
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </BetaSkinShell>
     );
   }
 

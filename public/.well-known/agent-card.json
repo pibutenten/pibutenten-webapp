@@ -27,7 +27,7 @@
     "robots": "https://pibutenten.kr/robots.txt",
     "rss": "https://pibutenten.kr/rss.xml",
     "llmsTxt": "https://pibutenten.kr/llms.txt",
-    "search": "https://pibutenten.kr/search?q={query}"
+    "search": "https://pibutenten.kr/?q={query}"
   },
   "structuredData": [
     "https://schema.org/MedicalOrganization",
@@ -50,6 +50,7 @@
       "/",
       "/doctors/*",
       "/topics/*",
+      "/reports/*",
       "/about",
       "/editorial-policy",
       "/medical-review",
@@ -90,5 +91,5 @@
     { "slug": "kang-hyunjin",  "name": "강현진", "alternateName": "Hyunjin Kang", "url": "https://pibutenten.kr/doctors/kang-hyunjin" },
     { "slug": "park-hyojin",   "name": "박효진", "alternateName": "Hyojin Park",  "url": "https://pibutenten.kr/doctors/park-hyojin" }
   ],
-  "lastUpdated": "2026-06-08"
+  "lastUpdated": "2026-06-16"
 }

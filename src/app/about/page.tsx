@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   description:
     "피부텐텐은 피부과 전문의가 함께하는 피부 미용 커뮤니티입니다. 운영 주체 주식회사 진솔컴퍼니, 콘텐츠 정책, 의료 정보 면책 안내.",
   alternates: { canonical: `${SITE_URL}/about` },
+  robots: { index: true, follow: true },
   openGraph: {
     title: "사이트 안내 | 피부텐텐",
     description:

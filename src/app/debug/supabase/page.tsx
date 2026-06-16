@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -6,6 +7,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * 운영 환경에서는 404.
  */
 export const dynamic = "force-dynamic";
+
+// 이중 차단: robots.ts 의 /debug Disallow + page-level noindex
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function DebugSupabasePage() {
   if (process.env.NODE_ENV === "production") notFound();

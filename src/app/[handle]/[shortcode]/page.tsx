@@ -3,7 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkHiddenByShortcode } from "@/lib/hidden-card";
 import { type CardData } from "@/components/Card";
-import BackButton from "@/components/BackButton";
+import BetaSkinShell from "@/components/skin/BetaSkinShell";
 import { renderBetaPost } from "@/components/skin/post/post-data";
 import { SITE_URL } from "@/lib/site";
 import { stripMarkdown } from "@/lib/strip-markdown";
@@ -116,26 +116,25 @@ export default async function MemberPostPage({ params }: Props) {
     const hidden = await checkHiddenPlaceholder(handle, shortcode);
     if (hidden) {
       return (
-        <section className="w-full py-6">
-          <div className="mb-1 -ml-1">
-            <BackButton fallbackHref={`/${handle}`} />
-          </div>
-          <div className="mx-auto max-w-xl rounded-md border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
-            <p className="text-[14px] font-semibold text-[var(--text)]">
-              운영정책에 따라 비공개된 게시물입니다.
-            </p>
-            <p className="mt-2 text-[12px] text-[var(--text-muted)]">
-              이의가 있으시면{" "}
-              <a
-                href="mailto:pibutenten@gmail.com"
-                className="text-[var(--primary)] hover:underline"
-              >
-                pibutenten@gmail.com
-              </a>
-              으로 문의해 주세요.
-            </p>
-          </div>
-        </section>
+        <BetaSkinShell active="피드" back={`/${handle}`}>
+          <section className="w-full py-6">
+            <div className="mx-auto max-w-xl rounded-md border border-[var(--border)] bg-white p-6 text-center">
+              <p className="text-[14px] font-semibold text-[var(--text)]">
+                운영정책에 따라 비공개된 게시물입니다.
+              </p>
+              <p className="mt-2 text-[12px] text-[var(--text-muted)]">
+                이의가 있으시면{" "}
+                <a
+                  href="mailto:pibutenten@gmail.com"
+                  className="text-[var(--primary)] hover:underline"
+                >
+                  pibutenten@gmail.com
+                </a>
+                으로 문의해 주세요.
+              </p>
+            </div>
+          </section>
+        </BetaSkinShell>
       );
     }
     notFound();
