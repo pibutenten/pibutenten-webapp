@@ -6,12 +6,23 @@
 
 ---
 
+## [2026-06-16] — Apple Client Secret 자동 갱신 (GitHub Actions)
+
+> Apple 로그인 Client Secret(JWT)은 Apple 정책상 6개월 만료라 방치 시 Apple 로그인만 끊긴다. GitHub Actions 로 매월 자동 재발급해 영구 무인 운영. 비밀은 GitHub repo Secrets 에만 보관(운영 서버 미노출). 코드검수 [치명] 0.
+
+### Added
+- **자동 갱신 스크립트**(`scripts/refresh-apple-secret.mjs`): env(.p8/Team/Key/Services ID)로 ES256 JWT(만료 180일) 생성 → Supabase Management API(`config/auth`)로 `external_apple_secret` 갱신. 비밀값 stdout 미노출, env 누락·PEM 오류·API 실패 시 exit 1.
+- **GitHub Actions workflow**(`.github/workflows/refresh-apple-secret.yml`): 매월 1일 03:00 UTC cron + 수동 실행(`workflow_dispatch`). `permissions: contents: read` 최소화. GitHub Secrets 7개(APPLE_SIGNIN_KEY·APPLE_TEAM_ID·APPLE_KEY_ID·APPLE_SERVICES_ID·APPLE_NATIVE_BUNDLE_ID·SUPABASE_ACCESS_TOKEN·SUPABASE_PROJECT_REF) 주입.
+- **RUNBOOK §9 / SECURITY 점검 대상**: Apple secret 자동 갱신 절차·키 교체·client_id 변경 주의 문서화(동기화 페어 RUNBOOK↔SECURITY).
+
+---
+
 ## [2026-06-16] — 피부 날씨 색 직관화(신호등 + 진빨강 최악)
 
 > 값 비례 색(주황·황토색이 애매)을 버리고, 등급 라벨에 직접 매칭하는 직관 신호등 색으로 교체. 좋음 초록·보통 노랑·나쁨/높음 빨강·매우나쁨/매우높음/위험 진빨강(전단계와 확실히 구분). `tsc` 0·`build` 0·코드검수 [치명] 0.
 
 ### Changed
-- **등급 직결 색**(`weather-logic.ts`): 연속 램프(`uvRamp`/`sevStep`/`colorTop`/`colorWeek`/`sev*`) 제거 → `GRADE_COLORS{good #2BB36B·fair #FFCE3A·bad #EE4444·worst #9E0D1B}` + `uvbTier`/`uvaTier`/`pmTier`(라벨 임계값 정렬) + `uvbColor`/`uvaColor`/`pmColor`. 같은 등급=같은 색. UVA 8.1(높음)·미세먼지 나쁨 등 "나쁨/높음"은 빨강, 최악 단계는 진빨강으로 전단계와 분리.
+- **등급 직결 색**(`weather-logic.ts`): 연속 램프(`uvRamp`/`sevStep`/`colorTop`/`colorWeek`/`sev*`) 제거 → `GRADE_COLORS{good #2BB36B·fair #FFCE3A·bad #EE4444·worst #6E0712(나쁨과 확실히 구분되게 진하게)}` + `uvbTier`/`uvaTier`/`pmTier`(라벨 임계값 정렬) + `uvbColor`/`uvaColor`/`pmColor`. 같은 등급=같은 색. UVA 8.1(높음)·미세먼지 나쁨 등 "나쁨/높음"은 빨강, 최악 단계는 진빨강으로 전단계와 분리.
 - `PM_GRADE_COLOR` 도 새 팔레트로 통일(시간별 그래프 dot 공용). chips/kpis·주간 박스 모두 새 색 함수 사용. 구름투과율은 파랑(#2E86C8) 유지.
 
 ---

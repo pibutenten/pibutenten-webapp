@@ -14,6 +14,7 @@
 6. [보류 항목 결정 기록](#6-보류-항목-결정-기록)
 7. [태그 사전 운영 (스냅샷 재생·마이그)](#7-태그-사전-운영-스냅샷-재생마이그)
 8. [배포 운영 — 프리뷰 env · 카나리 · 캐시](#8-배포-운영--프리뷰-env--카나리--캐시-v-phase-2026-06-07)
+9. [Apple Sign-in Secret 자동 갱신](#9-apple-sign-in-secret-자동-갱신)
 
 ---
 
@@ -399,6 +400,37 @@ curl -s -X POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/data
 ### 8.4. 캐시 무효화 (수동)
 - 상세 ISR 은 콘텐츠 변경 라우트가 `revalidateTag("qa-content","max")` 로 자동 무효화. 그래도 강제 갱신이 필요하면 해당 글을 관리자에서 한 번 저장(PUT `/api/articles/[id]`)하면 동일 태그 무효화 발화.
 - **한글 URL + ISR 금지**(ADR 0020 §3): 토픽 등 한글 경로는 절대 ISR(`generateStaticParams`+`revalidate`)로 바꾸지 말 것 — `x-next-cache-tags` 헤더가 깨져 500.
+
+---
+
+## 9. Apple Sign-in Secret 자동 갱신
+
+### 현재 상태
+- Apple 로그인의 **Client Secret(JWT)은 Apple 정책상 최대 6개월만 유효**하다. 만료되면 **Apple 로그인만** 작동을 멈춘다(Google/Kakao/Naver 무관).
+- **자동 갱신 구축됨**: GitHub Actions(`.github/workflows/refresh-apple-secret.yml`)가 **매월 1일 03:00 UTC** 에 `scripts/refresh-apple-secret.mjs` 실행 → 새 JWT 생성 → Supabase Management API(`config/auth`)로 등록. 평상시 사람 개입 불필요.
+- 현재 secret 만료: **2026-12-13** (매월 갱신되므로 항상 5개월+ 여유 유지).
+
+### 자동화 구성 요소
+| 요소 | 위치 | 비밀 보관 |
+|---|---|---|
+| 갱신 스크립트 | `scripts/refresh-apple-secret.mjs` | 비밀 없음(env만 읽음) |
+| 스케줄러 | `.github/workflows/refresh-apple-secret.yml` | — |
+| 비밀값 | **GitHub repo Secrets** (7개) | 암호화 보관(서버 미노출) |
+
+GitHub Secrets 7개: `APPLE_SIGNIN_KEY`(.p8 PEM 전문) · `APPLE_TEAM_ID`(ZR2BS383L3) · `APPLE_KEY_ID`(8NSVT4749W) · `APPLE_SERVICES_ID`(kr.pibutenten.web) · `APPLE_NATIVE_BUNDLE_ID`(kr.pibutenten.app) · `SUPABASE_ACCESS_TOKEN` · `SUPABASE_PROJECT_REF`.
+
+### 수동 갱신/점검 (자동이 실패했을 때)
+1. **즉시 갱신**: GitHub → Actions 탭 → "Refresh Apple Sign-in Secret" → **Run workflow**(workflow_dispatch). 성공 로그에 `new_secret_expires_utc` 출력.
+2. **로컬 실행**(대안): `.p8` + env 주입 후 `node scripts/refresh-apple-secret.mjs`.
+3. **조용한 실패 감지**: Actions 실행 실패 시 GitHub 가 repo 소유자에게 이메일 통지. 추가로 6개월마다 만료일(현 2026-12-13) 전 점검 권장.
+
+### 주의 (운영자 변경 시)
+- **client_id 변경 시**: 스크립트가 매 갱신마다 `external_apple_client_id` 를 `APPLE_SERVICES_ID,APPLE_NATIVE_BUNDLE_ID` 로 덮어쓴다. Supabase 대시보드에서 직접 client_id 를 바꿔도 다음 달 cron 이 되돌린다 → **반드시 GitHub Secrets 쪽도 함께 갱신**할 것.
+- **.p8 키 교체 시**(분실·유출): Apple Developer → Keys 에서 기존 Key revoke + 새 Key 발급 → GitHub Secret `APPLE_SIGNIN_KEY`(+`APPLE_KEY_ID`) 갱신 → workflow 수동 1회 실행.
+- `.p8` 원본은 **GitHub Secret 에 보관된 것이 정본**. 별도 파일 보관은 선택(분실해도 Apple 에서 새 Key 재발급 가능).
+
+### 위험
+- 낮음. 갱신은 멱등적(마지막 값이 유효)이며 secret 만 교체한다. 실패해도 기존 secret 이 만료 전까지 유효해 즉시 장애로 이어지지 않는다.
 
 ---
 
