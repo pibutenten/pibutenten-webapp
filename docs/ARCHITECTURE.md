@@ -69,7 +69,7 @@
 /notifications                      알림 목록
 /write                              통합 글쓰기 — 3탭(시술일기/시술후기/끄적끄적) WriteTabs. ?tab=record|review|doodle
 /write/[shortcode]                  글 수정 (자기 글) — TopNav 유지(EditClient)
-/today                              투데이 — 날씨·인사·나만의 피부기록(최근 노트 1건)·KPI 4종·관심 키워드·인기글. noindex (구 /record)
+/today                              투데이 — 날씨·인사 히어로(KPI 4종 내장: 내 노트·후기·글·댓글)·관심 키워드·인기글. noindex (구 /record)
 /notes                              내 노트 — 시술 노트 KPI 3종 + 3토글(타임라인/달력/목록). noindex (구 /record/notes)
 /notes/[id]                         시술 노트 상세(본인 소유만, RLS) — noindex (구 /record/[id])
 /weather                            오늘의 피부 날씨 상세 — noindex (구 /record/weather)
