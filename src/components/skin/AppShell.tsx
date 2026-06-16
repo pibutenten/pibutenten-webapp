@@ -239,6 +239,11 @@ export default function AppShell({
   const searchWrapRef = useRef<HTMLDivElement>(null);
   // 피드백 4) 비-피드 페이지(검색 결과는 피드로 라우팅)는 입력값을 셸 로컬 state 로.
   const [localQuery, setLocalQuery] = useState("");
+  // 모바일 검색창 "입력 초안" — 확정 검색어(value=URL q, 결과 피드·검색어 알약 구동)와 분리.
+  //   결과 상태에서 검색바에 커서를 대면(=열면) 초안을 빈 칸으로 시작해 발견 메뉴(최근/인기/카테고리)를
+  //   띄우고 새로 타이핑하게 한다. 확정 검색어(value)는 건드리지 않아 결과 피드가 흔들리지 않는다.
+  //   데스크탑은 기존대로 value 를 그대로 쓰므로 영향 없음(모바일 열림 input 만 draft 사용).
+  const [draft, setDraft] = useState("");
   // 피드(onSearchChange) 또는 라우팅(onSearchSubmit) 중 하나라도 있으면 검색 UI 활성.
   const isControlled = typeof onSearchChange === "function";
   const searchEnabled = isControlled || typeof onSearchSubmit === "function";
@@ -283,6 +288,8 @@ export default function AppShell({
     const t = term.trim();
     setSuggestOpen(false);
     setSearchOpen(false);
+    // draft 는 여기서 비우지 않음 — 다음 검색창 열기(openMobileSearch)에서 "" 로 초기화한다.
+    //   제출 후 searchOpen=false 라 입력칸이 보이지 않으므로 잔류해도 노출되지 않는다.
     if (!t) return;
     if (typeof onSearchSubmit === "function") onSearchSubmit(t);
     else setValue(t);
@@ -292,9 +299,17 @@ export default function AppShell({
   //   (비-피드 페이지(글쓰기/내노트/마이)에선 라우팅하지 않음 — 작성 중 폼 상태 소실 방지.)
   const clearSearch = () => {
     setValue("");
+    setDraft("");
     setSuggestOpen(false);
     setSearchOpen(false);
     if (active === "피드") router.push(ROUTES.feed);
+  };
+
+  // 모바일 검색창 열기 — 초안을 빈 칸으로 시작(커서 대면 기존 검색어가 지워진 듯 발견 메뉴 노출).
+  //   확정 검색어(value)는 유지 → 뒤로(←)로 닫으면 결과·검색어 알약이 그대로 복귀.
+  const openMobileSearch = () => {
+    setDraft("");
+    setSearchOpen(true);
   };
 
   // 쇼핑(준비 중) — GNB·탭바 클릭 시 안내 토스트. 라우팅 없음.
@@ -325,10 +340,11 @@ export default function AppShell({
     searchEnabled && searchOpen ? (
       <div className={styles.mobileSearchPanel} role="listbox" aria-label="검색 발견">
         <SearchPanel
-          query={value}
+          query={draft}
           basePath="/"
           onPicked={(t) => {
             setValue(t);
+            setDraft("");
             setSuggestOpen(false);
             setSearchOpen(false);
           }}
@@ -431,30 +447,33 @@ export default function AppShell({
               ref={searchWrapRef}
             >
               <IconSearch />
+              {/* 모바일 검색창 입력 — 확정 검색어(value)가 아닌 입력 초안(draft)을 편집.
+                  열 때 draft="" 라 발견 메뉴(최근/인기/카테고리)가 뜨고, 타이핑하면 자동완성. */}
               <input
                 type="text"
-                value={value}
+                value={draft}
                 onChange={(e) => {
-                  setValue(e.target.value);
+                  setDraft(e.target.value);
                   if (hasDropdown) setSuggestOpen(true);
                 }}
                 onFocus={() => hasDropdown && setSuggestOpen(true)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                     e.preventDefault();
-                    runSearch(value);
+                    runSearch(draft);
                   }
                 }}
                 placeholder="시술·고민 키워드 검색"
                 aria-label="검색어 입력"
                 autoFocus
               />
-              {value && (
+              {/* 입력 초안 지우기 — 검색은 닫지 않고 초안만 비워 발견 메뉴로 되돌림(완전 종료는 ← 뒤로). */}
+              {draft && (
                 <button
                   type="button"
                   className={styles.searchClear}
                   aria-label="검색어 지우기"
-                  onClick={clearSearch}
+                  onClick={() => setDraft("")}
                 >
                   ✕
                 </button>
@@ -487,7 +506,7 @@ export default function AppShell({
                 <button
                   type="button"
                   className={styles.mobileQueryText}
-                  onClick={() => setSearchOpen(true)}
+                  onClick={openMobileSearch}
                   aria-label={`검색어 ${value} — 다시 검색`}
                 >
                   {value}
@@ -585,7 +604,7 @@ export default function AppShell({
                 aria-label="검색"
                 aria-expanded={searchOpen}
                 type="button"
-                onClick={() => setSearchOpen(true)}
+                onClick={openMobileSearch}
               >
                 <IconSearch />
               </button>
