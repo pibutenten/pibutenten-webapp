@@ -1,5 +1,7 @@
 # 베타스킨 → 운영 공개 전환 (BETA CUTOVER) 실행 계획
 
+> ✅ **완료·종료 문서 (2026-06-16)**: 베타스킨의 운영 승격 + `/beta-skin` 라우트 은퇴 + 'beta' 네이밍 전면 제거(`BetaSkinShell`→`AppShell` 등, CHANGELOG 2026-06-16 참조)까지 완료되어 이 계획은 종료됐다. **아래 본문의 `/beta-skin/*`·`BetaSkinShell`·`BetaXxx` 등은 당시의 역사적 명칭**이며 현재 코드와 다르다(현재 구조는 `ARCHITECTURE.md`). 본 문서는 과정 기록용 아카이브로만 보존한다.
+
 > 베타스킨 디자인을 운영 본체로 승격하는 다세션 작업의 단일 출처. 세션이 끊겨도 이 문서로 이어간다.
 > 상세 변경 이력은 `CHANGELOG.md`, 세션 인수인계는 `SESSION_HANDOFF.md`.
 

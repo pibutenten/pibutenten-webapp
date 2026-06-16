@@ -6,31 +6,32 @@
 
 ---
 
-## 0. 직전 세션 (2026-06-16 · 전수검수 6커밋 → 백로그 정리 → 오늘의 피부 날씨 UI 정리) — 한눈에
+## 0. 직전 세션 (2026-06-16 · 하단바 개편 → /today·/notes 재구성 → beta 네이밍 전면 제거) — 한눈에
 
-- **git**: HEAD = `315a9c2`. 한 세션에 3덩어리:
-  1. **베타 커토버 전수검수 → 6커밋**(`19d60c2`→`921ea22`) + 문서(`35e246b`): `/beta-skin` 라우트 **완전 소멸**(→`src/components/skin/`), 보안·SSOT·성능·견고성·SEO. 4에이전트 독립 재검수 통과.
-  2. **검수 백로그 정리**(`aad717d`): 죽은묶음 삭제·soft404 일부·`.or()` 게이트·미정의 CSS 토큰.
-  3. **오늘의 피부 날씨 UI 정리**(`6162f87`원복·`af9bc0a`홈·`641795d`상세/주간·`17f74dc`·`7219629`·`315a9c2`): mockup 재설계 시도 → **원래 세로튜브 디자인으로 원복** 후 의도된 정리만(홈 핵심4칩·상세 4게이지 단일칼럼·주간 정사각 박스 10단계색·로딩 단축).
+- **git**: HEAD = `9e3a627`. 5커밋:
+  1. `b07da69` **하단 바 개편** — 5탭(투데이·내 노트·피드·쇼핑·마이) + 글쓰기 우하단 FAB(`WriteFab`). 라우트 이전(리다이렉트 없음): `/record`→`/today`, `/record/notes`→`/notes`, `/record/[id]`→`/notes/[id]`, `/record/weather`→`/weather`. /today 히어로(KPI 4종 내장: 내 노트·후기·글·댓글, '내 글에 달린 댓글'→'내가 쓴 댓글'). + **피드 인기태그 클릭 검색 버그 수정**(FeedSidebar `tagTab` sessionStorage 보존) + 원장 프로필 모바일 순서(프로필 먼저, 데스크탑 유지) + 날씨 주간 박스 간격·/weather 안내카드 우측칸.
+  2. `0ced086` **/notes** — 모든 뷰(타임라인/달력/목록) 개별 기록 닫힌 글상자 기본 + "내 후기" 독립 섹션(닫힌 `ReviewBox`).
+  3. `083f775` 문서 정합.
+  4. `dde43f0` **날씨 카드 첫 표시 가속**(stale-while-revalidate + 측위 옵션 완화).
+  5. `9e3a627` **'beta' 네이밍 전면 제거**(순수 리네임 ~100파일): `BetaSkinShell`→`AppShell`, `BetaNav`→`BottomNav`, `BetaSkinFeed`→`FeedView`, `BetaDiscovery`→`SearchPanel`, `BetaAdminXView`(14)→`AdminXView`, `beta-skin.module.css`→`app.module.css`, `BETA_ROUTES`→`ROUTES`, `/api/beta-discover`→`/api/search/suggest`, `components/beta/`→`components/search/` 등. `grep -rin beta src` 0건. `components/skin/` 폴더는 유지.
 - **빌드**: 전 커밋 `tsc` 0 + `build` 0 + 코드검수관 [치명] 0. 신규 마이그 0(DB·권한·RLS 무변경).
-- **교훈**: mockup 은 정보구조 참고용. 색·마크업은 우리 토큰/톤으로 재구성해야 함(mockup 직역 시 톤 충돌). 디자인 검수는 데스크탑·모바일 폭 모두 확인.
 
 ### 이번 세션에 해소된 백로그
-- ✅ 죽은 묶음(`MyPageClient`→`ProfileTabs`→`Feed`) 삭제. (`old-skin` 은 reference 백업이라 **유지** — 사용자 결정)
-- ✅ 의사 글상세 '글 없음' → `notFound()`(soft-404 교정), hidden placeholder 보존.
-- ✅ `reports/[procedure]`·`reviews` API `.or()` 화이트리스트 게이트.
-- ✅ `admin/reports/ReportsClient` 미정의 CSS 토큰 교정.
+- ✅ `components/beta/` → `components/search/` 이동·정리(BetaDiscovery→SearchPanel, BetaFeed→FeedList). beta 네이밍 전면 제거.
+- ✅ 피드 인기태그 클릭 검색 회귀(서브카테고리 탭 '전체' 리셋) 수정.
 
 ### 다음 세션 — 남은 백로그
-**🟡 `[handle]` 스트리밍 soft-404 (HTTP 200)**: 비존재 핸들이 `notFound()` 호출에도 force-dynamic 스트리밍으로 200 반환. 색인 영향 점검 후 라우트 렌더 방식 검토(별도 안건).
+**🟡 노트↔후기 DB 연결**: diaries(비공개)↔review 카드(공개) 직접 FK 없음. `diary_id` 등 연결 추가 시 /notes 각 노트 밑에 그 후기 노출(확장 지점 주석 마련: RecordNotesPanel 3뷰 + `RecEntry.linkedReviews`). 마이그 + 후기 폼 + 기존 데이터 처리 필요.
 
-**🟡 `.or()` 잔여**: `admin/users/page.tsx:111`(`,` 미이스케이프, admin 전용) + reports 게이트 정규식 SSOT 모듈화(`src/lib/procedure-slug.ts`).
+**🟡 구 `/record*` 308 리다이렉트(선택)**: 현재 리다이렉트 없이 폴더 교체라 옛 URL 404. noindex라 영향 작음. 필요 시 `next.config` redirects 추가.
 
-**⚪ 데드/전환중간층**: `components/beta/`(BetaFeed=old-skin 전용, BetaDiscovery=skin 역참조) 정리/이동. `CardData` import 이중경로(`@/components/Card` vs `@/lib/types/card`) 단계적 통일. 주석 잔재(`GlobalChrome` RESERVED `"beta-skin"`·admin JSDoc 구경로) — 무해·위생.
+**🟡 `[handle]` 스트리밍 soft-404 (HTTP 200)**: (이월) 비존재 핸들이 `notFound()` 호출에도 force-dynamic 스트리밍으로 200 반환. 색인 영향 점검 후 라우트 렌더 방식 검토.
 
-**⚪ BetaSkinShell 라우트그룹 layout 승격 (대형)**: 셸이 페이지별 View 안에서 렌더 → 전환마다 재마운트 + `/api/notifications`·`prefetchDiscover` 반복. `app/(app)/layout.tsx` 승격은 페이지별 props 전달 설계 필요 — **ADR 후 별도 세션**.
+**🟡 `.or()` 잔여**: (이월) `admin/users/page.tsx:111`(`,` 미이스케이프, admin 전용) + reports 게이트 정규식 SSOT 모듈화(`src/lib/procedure-slug.ts`).
 
-**⚪ 피부날씨 추가 옵션(선택)**: 첫 표시를 더 빠르게 하려면 "기본위치 날씨 먼저 → 실제위치로 교체"(위치 깜빡임 trade-off). 현재는 외부 API ~2s floor + 30분 캐시.
+**⚪ AppShell 라우트그룹 layout 승격 (대형)**: 셸이 페이지별 View 안에서 렌더 → 전환마다 재마운트 + `/api/notifications`·`prefetchDiscover` 반복. `app/(app)/layout.tsx` 승격은 페이지별 props 전달 설계 필요 — **ADR 후 별도 세션**.
+
+**⚪ 경미(코드검수)**: old-skin `FeedList` 의 `ViewerState` 로컬 정의(SSOT 일원화), `SearchPanel` 의 `chip` 상수명 명확화(`chipCls`) — 무해·위생.
 
 ---
 
