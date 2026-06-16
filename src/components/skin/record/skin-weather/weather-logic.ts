@@ -34,6 +34,71 @@ export function pmWorstGrade(p25: number, p10: number): 0 | 1 | 2 | 3 {
 /** UVA 등급 라벨(명세 §3 표): 0~2 약함·3~4 보통·5~6 다소높음·7~9 높음·10+ 매우높음. */
 export const uvaBand = (u: number) => (u < 3 ? "약함" : u < 5 ? "보통" : u < 7 ? "다소높음" : u < 10 ? "높음" : "매우높음");
 
+/* ───────── UI 심각도 단계·고정색 램프 (UI개선안 §1.3 / §1.4) ─────────
+ * KPI 게이지·시간별 그래프가 쓰는 uvbColor/uvaColor(연속 보간 램프)와 달리,
+ * 홈·주간의 "등급어 + 면 색" 표현은 단계별 고정 토큰으로 칠한다(개선안 §1.4 색 토큰).
+ * 단계 인덱스 0~3 = [안전, 주의, 경고, 위험]. UVB 5단계(…매우높음·위험)는 위험 토큰(3)에 모은다.
+ * 순수함수 · React 비의존. 기존 색 함수는 그대로 두고 새 export 만 추가. */
+
+/** 심각도 단계 인덱스(0~3). 0 안전 → 3 위험. */
+export type SeverityStep = 0 | 1 | 2 | 3;
+
+/** 4단계 고정 진한색(개선안 §1.4): 낮음·좋음 / 보통·다소높음 / 높음·나쁨 / 매우·위험. */
+export const SEVERITY_COLOR = ["#1B9E73", "#B07415", "#D2531F", "#D63B30"] as const;
+/** 4단계 옅은 틴트 배경(개선안 §1.4 색 토큰 대응) — 등급별 카드 면 색. */
+export const SEVERITY_TINT = ["#E4F4EE", "#FBF0DB", "#FBE9E2", "#FBE6E4"] as const;
+/** 구름투과(정보·고정 파랑) — 위험도 아닌 정보값이라 심각도 램프에서 제외(개선안 §1.3). */
+export const INFO_BLUE = "#2E86C8";
+
+/** UVB 홍반(자외선 지수) → 심각도 단계(개선안 §1.4: 낮음 0–2·보통 3–5·높음 6–7·매우높음 8–10·위험 11+).
+ *  색 토큰이 4개이므로 매우높음·위험은 모두 위험 단계(3)로 모은다(등급어는 uvBand 가 5단계 유지). */
+export function uvbStep(u: number): SeverityStep {
+  return u < 3 ? 0 : u < 6 ? 1 : u < 8 ? 2 : 3;
+}
+/** UVA 노화 → 심각도 단계(개선안 §1.4: 약함 0–2·보통 3–4·다소높음 5–6·높음 7–9·매우높음 10+).
+ *  다소높음(인덱스 2 톤)·높음/매우높음(인덱스 3 톤)로 4토큰에 매핑. */
+export function uvaStep(u: number): SeverityStep {
+  return u < 3 ? 0 : u < 5 ? 1 : u < 7 ? 2 : 3;
+}
+/** 미세먼지 통합 등급(0~3)을 그대로 심각도 단계로(좋음·보통·나쁨·매우나쁨 = 안전·주의·경고·위험). */
+export function pmStep(grade: 0 | 1 | 2 | 3): SeverityStep {
+  return grade;
+}
+
+/** 한 지표의 홈/주간 표시 묶음 — 지금 값·등급어·심각도 단계·진한색·틴트. */
+export type SkinMetricView = {
+  step: SeverityStep;
+  grade: string; // 등급어(지금 값 기준)
+  color: string; // 진한 글자/강조 색
+  tint: string; // 면 배경 틴트
+};
+
+/** UVB 홍반 — 지금 값 기준 등급어 + 단계색(밤이면 0 → "낮음"). */
+export function uvbView(uvNow: number): SkinMetricView {
+  const step = uvbStep(uvNow);
+  return { step, grade: uvBand(uvNow), color: SEVERITY_COLOR[step], tint: SEVERITY_TINT[step] };
+}
+/** UVA 노화 — 지금 값 기준 등급어 + 단계색(밤이면 0 → "약함"). */
+export function uvaView(uvaNow: number): SkinMetricView {
+  const step = uvaStep(uvaNow);
+  return { step, grade: uvaBand(uvaNow), color: SEVERITY_COLOR[step], tint: SEVERITY_TINT[step] };
+}
+/** 미세먼지 — 통합 등급(지금) 기준 등급어 + 단계색(PM2.5·PM10 중 나쁜 쪽). */
+export function pmView(grade: 0 | 1 | 2 | 3): SkinMetricView {
+  const step = pmStep(grade);
+  return { step, grade: PM_GRADE_LABEL[grade], color: SEVERITY_COLOR[step], tint: SEVERITY_TINT[step] };
+}
+
+/** 구름 한 줄 캡션(개선안 §2 / §3.3) — 자외선 통과율(=100−차단율) 기준.
+ *  맑음(차단 적음)이면 "구름이 적어 …도달", 흐림(차단 큼)이면 "흐려도 …통과".
+ *  blockNow=구름 차단율 %, sunUp=낮 여부(밤엔 자외선 0이라 캡션 생략용 null). */
+export function cloudCaption(blockNow: number, sunUp: boolean): string | null {
+  if (!sunUp) return null;
+  const pass = clamp(100 - blockNow, 0, 100);
+  // 차단 30% 이상이면 "흐린 날" 어법, 그 미만이면 "맑은 날" 어법(개선안 §2 예시).
+  return blockNow >= 30 ? `흐려도 자외선이 ${pass}% 통과해요` : `구름이 적어 자외선이 ${pass}% 그대로 도달해요`;
+}
+
 /** 심각도(0~1) → 안전 청록→주의 호박→경고 주황→위험 빨강 4점 램프(명세 §3 RAMP). UVB·UVA 공통. */
 export function uvRamp(sev: number): string {
   const stops: [number, [number, number, number]][] = [

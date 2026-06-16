@@ -93,57 +93,97 @@
   line-height: 1.45;
   opacity: 0.97;
 }
-.chips {
-  display: flex;
-  gap: 5px;
+/* ── 1단(주연): UVB·UVA·미세먼지 3지표 (UI개선안 §2) ──
+   파란 그라데 카드 위에 옅은 틴트 셀(인라인 v.tint)을 올리고, 등급어·숫자는 단계색(인라인 v.color)으로.
+   틴트 면 위에서 단계색이 또렷하므로 카드의 흰 글씨 대신 지표별 심각도색을 그대로 읽힌다. */
+.t1grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
   margin-top: 13px;
 }
-.chip {
-  flex: 1;
+.t1 {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  padding: 10px 8px 9px;
   min-width: 0;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 11px;
-  padding: 7px 3px 6px;
 }
-.chipK {
-  display: block;
-  font-size: 9.5px;
-  opacity: 0.92;
+.t1Lab {
+  font-size: 11px;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.chipV {
+.t1Grade {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-top: 5px;
+}
+.t1Peak {
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.t1Now {
+  font-size: 11px;
+  font-weight: 500;
+  color: #5d6f7e;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 구름 한 줄 — 자외선 통과 맥락(정보값). 파란 카드 위 반투명 흰 알약. */
+.cCloud {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  margin-top: 3px;
-  font-size: 13px;
-  font-weight: 800;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 8px 11px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 12px;
+  line-height: 1.4;
+  color: #fff;
+}
+.cCloud svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  opacity: 0.95;
+}
+
+/* 2단(배경) — 기온 범위·습도·강수 한 줄, 작게·흰 글씨(파란 카드 위라 회색 대신 살짝 옅은 흰색). */
+.t2 {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+.t2Item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   white-space: nowrap;
   overflow: hidden;
 }
-.dot {
-  width: 6.5px;
-  height: 6.5px;
-  border-radius: 50%;
-  display: inline-block;
+.t2Item svg {
+  width: 14px;
+  height: 14px;
   flex: none;
-}
-.chipBar {
-  display: block;
-  height: 3px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.32);
-  margin-top: 6px;
-  overflow: hidden;
-}
-.chipBar i {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
+  opacity: 0.85;
 }
 
 /* ── 상세(페이지 진입 시 살짝 떠오르며 등장) ── */
