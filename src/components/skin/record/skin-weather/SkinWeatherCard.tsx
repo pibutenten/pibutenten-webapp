@@ -15,6 +15,10 @@ import WeatherIllustration from "./WeatherIllustration";
 
 const clampFrac = (v: number) => Math.max(0, Math.min(1, v));
 
+// 주연(핵심 4) — UVB·UVA·미세먼지·구름투과율. 조연(배경) — 기온·강수.
+const CORE_KEYS = ["uvb", "uva", "pm", "block"];
+const BG_KEYS = ["temp", "precip"];
+
 export default function SkinWeatherCard() {
   const { snap, err } = useWeather();
 
@@ -74,19 +78,33 @@ export default function SkinWeatherCard() {
           </div>
         )}
         <p className={styles.cMsg}>{snap.headline}</p>
+        {/* 핵심 4지표(주연) — UVB·UVA·미세먼지·구름투과율 크게. 기온·강수는 아래 배경 줄(조연)로. */}
         <div className={styles.chips}>
-          {snap.chips.map((c) => (
-            <span className={styles.chip} key={c.key}>
-              <span className={styles.chipK}>{c.label}</span>
-              <span className={styles.chipV}>
-                <i className={styles.dot} style={{ background: c.color }} />
-                {c.value}
+          {snap.chips
+            .filter((c) => CORE_KEYS.includes(c.key))
+            .map((c) => (
+              <span className={styles.chip} key={c.key}>
+                <span className={styles.chipK}>{c.label}</span>
+                <span className={styles.chipV}>
+                  <i className={styles.dot} style={{ background: c.color }} />
+                  {c.value}
+                </span>
+                <span className={styles.chipBar}>
+                  <i style={{ width: `${Math.round(clampFrac(c.frac) * 100)}%`, background: c.color }} />
+                </span>
               </span>
-              <span className={styles.chipBar}>
-                <i style={{ width: `${Math.round(clampFrac(c.frac) * 100)}%`, background: c.color }} />
+            ))}
+        </div>
+        {/* 배경(조연) — 기온·강수확률 한 줄, 작게·은은하게. */}
+        <div className={styles.chipsBg}>
+          {snap.chips
+            .filter((c) => BG_KEYS.includes(c.key))
+            .map((c) => (
+              <span className={styles.chipBgItem} key={c.key}>
+                <span className={styles.chipBgK}>{c.label}</span>
+                <span className={styles.chipBgV}>{c.value}</span>
               </span>
-            </span>
-          ))}
+            ))}
         </div>
       </Link>
     </section>

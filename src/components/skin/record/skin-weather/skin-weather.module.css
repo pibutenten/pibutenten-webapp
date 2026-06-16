@@ -15,9 +15,9 @@
   color: #fff;
   font-family: inherit;
   background: linear-gradient(120deg, #4cc0f2 0%, #5cc9f7 46%, #7bd9ff 100%);
-  /* 내 기록(베타 .card: radius 20~24·padding 22)와 좌우상하 여백 정합 — 더 빡빡하지 않게. */
-  border-radius: 20px;
-  padding: 18px 18px 16px;
+  /* 내 기록(베타 .card)와 여백 정합 — 같은 radius·padding 22 로 두 카드 좌우 여백 일치. */
+  border-radius: var(--r-card, 20px);
+  padding: 22px;
   box-shadow: 0 10px 26px rgba(69, 183, 232, 0.3);
   transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
@@ -95,20 +95,20 @@
 }
 .chips {
   display: flex;
-  gap: 5px;
-  margin-top: 13px;
+  gap: 7px;
+  margin-top: 14px;
 }
 .chip {
   flex: 1;
   min-width: 0;
   text-align: center;
   background: rgba(255, 255, 255, 0.18);
-  border-radius: 11px;
-  padding: 7px 3px 6px;
+  border-radius: 13px;
+  padding: 10px 4px 9px;
 }
 .chipK {
   display: block;
-  font-size: 9.5px;
+  font-size: 11px;
   opacity: 0.92;
   white-space: nowrap;
   overflow: hidden;
@@ -118,12 +118,32 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  margin-top: 3px;
-  font-size: 13px;
+  gap: 4px;
+  margin-top: 5px;
+  font-size: 16px;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
+}
+/* 배경(조연) — 기온·강수 한 줄, 작게·은은하게(주연 칩보다 약하게). */
+.chipsBg {
+  display: flex;
+  gap: 18px;
+  margin-top: 11px;
+  padding-left: 2px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+.chipBgItem {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.chipBgK {
+  opacity: 0.8;
+}
+.chipBgV {
+  font-weight: 700;
 }
 .dot {
   width: 6.5px;
