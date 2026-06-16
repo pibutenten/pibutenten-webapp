@@ -70,13 +70,7 @@ export default function WeatherDetailView() {
   );
 
   return (
-    <BetaSkinShell
-      active="내 노트"
-      back="/record"
-      backTitle={<h1>오늘의 피부 날씨</h1>}
-      sidebar={snap ? sidebar : undefined}
-      sidebarMobileBelow
-    >
+    <BetaSkinShell active="내 노트" back="/record" backTitle={<h1>오늘의 피부 날씨</h1>}>
       {err && !snap ? (
         <div className={styles.errCard} role="status">
           오늘의 피부 날씨를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
@@ -93,7 +87,11 @@ export default function WeatherDetailView() {
           </div>
         </div>
       ) : (
-        <WeatherDetail snap={snap} emph={emph} onEmph={onEmph} />
+        <>
+          {/* 단일 칼럼 — 우측 빈 사이드바 칼럼 제거. 지표 설명은 본문 아래 카드로. */}
+          <WeatherDetail snap={snap} emph={emph} onEmph={onEmph} />
+          {sidebar}
+        </>
       )}
     </BetaSkinShell>
   );

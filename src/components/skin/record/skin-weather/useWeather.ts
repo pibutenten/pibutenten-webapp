@@ -13,8 +13,9 @@ import { useEffect, useState } from "react";
 import { DEFAULT_LOC, fetchWeather, type WeatherSnapshot } from "./weather-logic";
 
 const CACHE_TTL = 30 * 60 * 1000; // 30분
-const LAST_KEY = "pbtt-weather:last";
-const coordKey = (lat: number, lon: number) => `pbtt-weather:${lat.toFixed(2)}:${lon.toFixed(2)}`;
+// 캐시 버전(v2) — 스냅샷 구조 변경(WeatherDay.pm25 추가) 시 옛 캐시를 폐기해 깨짐 방지.
+const LAST_KEY = "pbtt-weather2:last";
+const coordKey = (lat: number, lon: number) => `pbtt-weather2:${lat.toFixed(2)}:${lon.toFixed(2)}`;
 
 function reviveHours(snap: WeatherSnapshot): WeatherSnapshot {
   return { ...snap, hours: snap.hours.map((h) => ({ ...h, t: new Date(h.t) })) };

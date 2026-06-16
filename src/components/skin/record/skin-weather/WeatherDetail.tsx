@@ -165,10 +165,11 @@ export default function WeatherDetail({
                 </span>
               </div>
               <div className={styles.wkBoxes}>
-                {wkBox("UVB", String(d.uvb), sev10Uv(d.uvb))}
-                {wkBox("UVA", String(d.uva), sev10Uv(d.uva))}
-                {wkBox("미세먼지", String(d.pm25), sev10Pm(d.pm25))}
-                {wkBox("구름투과율", d.trans == null ? "–" : `${Math.round(d.trans * 100)}`, d.trans == null ? "#9aa5b1" : sev10Trans(d.trans))}
+                {wkBox("UVB 홍반", String(d.uvb ?? 0), sev10Uv(d.uvb ?? 0))}
+                {wkBox("UVA 노화", String(d.uva ?? 0), sev10Uv(d.uva ?? 0))}
+                {wkBox("미세먼지", String(d.pm25 ?? 0), sev10Pm(d.pm25 ?? 0))}
+                {/* 구름투과율은 위험도(빨강)가 아니라 정보값 → 파란색 고정. */}
+                {wkBox("구름투과율", d.trans == null ? "–" : `${Math.round(d.trans * 100)}`, "#2E86C8")}
               </div>
             </div>
           </div>
@@ -226,27 +227,26 @@ function vGauge(k: WeatherKpi) {
   );
 }
 
-/** #RRGGBB → rgba(연한 칸 배경용). */
+/** #RRGGBB → rgba(연한 칸 배경용). 잘못된 입력은 중립 회색 폴백(옛 캐시·undefined 방어). */
 function hexA(hex: string, a: number): string {
-  const h = hex.replace("#", "");
+  if (typeof hex !== "string" || hex[0] !== "#" || hex.length < 7) return `rgba(154, 165, 177, ${a})`;
+  const h = hex.slice(1);
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
-/** 주간 정사각 박스 — 큰 숫자 + 라벨. 칸 배경(연)·숫자(진)를 위험도 10단계 색으로. */
+/** 주간 정사각 박스 — 큰 숫자 + 라벨. 칸 배경(연)·숫자·라벨 모두 같은 색(위험도/정보색). 테두리 없음. */
 function wkBox(label: string, num: string, color: string) {
   return (
-    <div
-      className={styles.wkBox}
-      key={label}
-      style={{ background: hexA(color, 0.13), borderColor: hexA(color, 0.26) }}
-    >
+    <div className={styles.wkBox} key={label} style={{ background: hexA(color, 0.17) }}>
       <span className={styles.wkBoxN} style={{ color }}>
         {num}
       </span>
-      <span className={styles.wkBoxL}>{label}</span>
+      <span className={styles.wkBoxL} style={{ color }}>
+        {label}
+      </span>
     </div>
   );
 }

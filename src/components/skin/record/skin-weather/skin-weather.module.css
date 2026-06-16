@@ -306,8 +306,8 @@
 /* 6개 지표를 한 줄 세로 막대 게이지 군집으로. 모바일(360~430px)에서 6열 균등 배치. */
 .kpis {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   margin-top: 14px;
 }
 .kpi {
@@ -684,10 +684,7 @@
   padding: 12px 14px;
   box-shadow: 0 3px 12px rgba(27, 39, 51, 0.045);
 }
-.wkToday {
-  background: linear-gradient(135deg, #eaf7ff, #f4fbff);
-  border-color: #cdeafb;
-}
+/* '오늘'도 다른 날과 동일한 흰 카드(파란 강조 제거). 구분은 좌측 '오늘' 라벨로. */
 .wkDate {
   flex: none;
   width: 46px;
@@ -732,8 +729,8 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  flex: 1;
-  min-width: 0;
+  margin-left: auto; /* 우측으로 밀기 */
+  flex: none;
 }
 .wkLo {
   font-size: 12.5px;
@@ -750,7 +747,8 @@
   flex: none;
 }
 .wkRange {
-  flex: 1;
+  width: 78px; /* 길게 X — 짧은 고정 폭 */
+  flex: none;
   height: 6px;
   border-radius: 3px;
   background: #eef2f5;
@@ -772,24 +770,25 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 1 / 1;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  padding: 4px 2px;
+  height: 52px; /* 정사각 대신 컴팩트 — 행이 거대해지지 않게 축소 */
+  border-radius: 11px;
+  border: 0;
+  padding: 3px 2px;
 }
 .wkBoxN {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 800;
   line-height: 1;
 }
 .wkBoxL {
-  font-size: 10px;
-  color: var(--ink-500, #7b8794);
-  margin-top: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  margin-top: 3px;
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  opacity: 0.92;
 }
 .note {
   font-size: 12px;
