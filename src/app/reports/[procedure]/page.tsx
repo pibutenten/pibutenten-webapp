@@ -172,7 +172,7 @@ export default async function ProcedureReportPage({ params }: Props) {
     // 게시 책임 주체 — 의료 페이지 E-E-A-T 신호(doctor 라우트 publisher 와 동일 노드).
     publisher: {
       "@type": ["Organization", "MedicalOrganization"],
-      "@id": `${SITE_URL}/about#org`,
+      "@id": `${SITE_URL}/#organization`,
       name: "주식회사 진솔컴퍼니",
       url: `${SITE_URL}/about`,
       logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png` },

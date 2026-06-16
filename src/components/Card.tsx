@@ -362,8 +362,8 @@ export default function Card({
           onPick={(kw) => {
             const params = new URLSearchParams({ q: kw });
             if (boostDoctorSlug) params.set("boost", boostDoctorSlug);
-            // v3 URL 정책: 검색은 /search 로 분리됨
-            router.push(`/search?${params.toString()}`);
+            // 검색은 운영 홈 피드(/?q=)로 통일(구 /search 폐기 → 308 hop 제거).
+            router.push(`/?${params.toString()}`);
             // 비로그인 흥미 점수 +1 (태그/카테고리 chip 클릭 = 탐색 의도)
             addEngagement("chip-click");
             if (typeof window !== "undefined") {

@@ -211,7 +211,7 @@ function buildJsonLd(
     // 게시 책임 주체 — 의료 페이지의 E-E-A-T 신호 강화 (MedicalOrganization).
     publisher: {
       "@type": ["Organization", "MedicalOrganization"],
-      "@id": `${SITE}/about#org`,
+      "@id": `${SITE}/#organization`,
       name: "주식회사 진솔컴퍼니",
       url: `${SITE}/about`,
       logo: { "@type": "ImageObject", url: `${SITE}/logo.png` },
