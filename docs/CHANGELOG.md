@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-16] — 모바일 검색어 노출 수정(AppShell 헤더 검색어 알약)
+
+> 모바일에서 글 카드의 태그를 클릭해 검색하거나 검색을 실행한 뒤, 헤더에 무엇을 검색했는지 표시되지 않던 문제 수정. 데스크탑은 상시 검색 pill 에 검색어가 보였으나(`searchValue`=URL `q`), 모바일은 검색창이 아이콘 뒤로 접혀 있어 활성 검색어가 어디에도 노출되지 않았다. `tsc` 0·`build` 0·코드검수 [치명] 0.
+
+### Fixed
+- **AppShell 모바일 헤더 검색어 알약**(`components/skin/AppShell.tsx`): 활성 검색어가 있고 검색창이 닫혀 있을 때(`mobileQueryActive = searchEnabled && isControlled && !searchOpen && value.trim()`) 로고 대신 검색어 알약 노출. 탭하면 그 검색어로 검색창이 열리고(`setSearchOpen(true)`), ✕ 로 해제(`clearSearch`). "검색창 열고 그 태그 검색"과 동일한 화면. `isControlled` 가드로 피드(검색어가 URL `q` 로 동기화되는 controlled 페이지)에서만 발동 — 비-피드(글상세/프로필) 오발동 차단.
+- **CSS**(`components/skin/app.module.css`): `.mobileQueryPill`/`.mobileQueryText` 추가(모바일 기본 표시), `.headerInnerHasQuery` 시 로고·검색아이콘·스페이서 숨김. 데스크탑(≥900px)은 알약 숨김 + 로고·스페이서 복구(상시 검색 pill 이 검색어 표시 담당).
+
+---
+
 ## [2026-06-16] — 'beta' 네이밍 전면 제거(운영 정식화, 순수 리네임)
 
 > 베타 미리보기 시절 네이밍을 운영 표준으로 정리. 코드 심볼·파일·폴더·API 라우트·주석에서 'beta'/'베타'(개념어) 전면 제거. **동작 무변경(순수 리네임)**. `tsc` 0·`build` 0·코드검수 [치명] 0·`grep -rin beta src` 0건.

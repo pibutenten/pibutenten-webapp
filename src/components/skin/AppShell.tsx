@@ -250,6 +250,15 @@ export default function AppShell({
   // 드롭다운(최근검색·인기검색·카테고리 인기태그·자동완성) 콘텐츠는 운영 SearchPanel 가 전부 담당.
   //   검색이 활성이면 포커스/타이핑 시 항상 드롭다운을 띄운다(셸이 자체 더미 목록을 만들지 않음).
   const hasDropdown = searchEnabled;
+  // 모바일: 검색 결과 동안(활성 검색어 존재 + 검색창 닫힘) 헤더에 검색어 알약 노출.
+  //   데스크탑은 상시 검색 pill(헤더 입력칸)이 검색어를 보여주지만, 모바일은 검색창이 아이콘 뒤로
+  //   접혀 있어 검색어가 안 보였다(태그 클릭/검색 후 무엇을 검색했는지 미표시). 알약을 띄워
+  //   "검색창 열고 그 태그 검색"과 동일한 화면을 만든다. ≥900px 은 CSS 로 숨김(상시 pill 이 담당).
+  //   isControlled(=피드만 onSearchChange 주입) 가드 — 비-피드 페이지(글상세/프로필 등)는
+  //   value=localQuery 라 라우팅 직전 한순간 값이 남을 수 있어, 검색어가 URL q 로 동기화되는
+  //   피드(controlled)에서만 알약을 띄운다.
+  const mobileQueryActive =
+    searchEnabled && isControlled && !searchOpen && value.trim().length > 0;
 
   // 셸 mount 시 발견 데이터 선프리페치(운영 BottomNav 와 동일) — 검색창 첫 열기도 즉시 표시.
   useEffect(() => {
@@ -454,7 +463,9 @@ export default function AppShell({
             </div>
           </div>
         ) : (
-          <div className={styles.headerInner}>
+          <div
+            className={`${styles.headerInner} ${mobileQueryActive ? styles.headerInnerHasQuery : ""}`}
+          >
             <Link
               className={styles.logoLink}
               href={ROUTES.feed}
@@ -467,6 +478,30 @@ export default function AppShell({
                 alt="피부텐텐"
               />
             </Link>
+
+            {/* 모바일 활성 검색어 알약 — 검색 결과 동안 검색어 노출(데스크탑 상시 pill 과 동일 역할).
+                탭하면 그 검색어로 검색창이 열리고, ✕ 로 해제. ≥900px 은 CSS 로 숨김. */}
+            {mobileQueryActive && (
+              <div className={styles.mobileQueryPill}>
+                <IconSearch />
+                <button
+                  type="button"
+                  className={styles.mobileQueryText}
+                  onClick={() => setSearchOpen(true)}
+                  aria-label={`검색어 ${value} — 다시 검색`}
+                >
+                  {value}
+                </button>
+                <button
+                  type="button"
+                  className={styles.searchClear}
+                  aria-label="검색 해제"
+                  onClick={clearSearch}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             <nav className={styles.gnb}>
               {GNB.map((g) =>

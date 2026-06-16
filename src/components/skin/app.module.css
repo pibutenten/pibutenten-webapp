@@ -437,6 +437,42 @@
   color: var(--ink-300);
 }
 
+/* 모바일 활성 검색어 알약 — 검색 결과 동안 헤더에 검색어를 노출(데스크탑 상시 검색 pill 과 동일 역할).
+   탭하면 그 검색어로 검색창이 열리고, ✕ 로 해제. 데스크탑(≥900px)은 .headerSearch 가 담당하므로 숨김. */
+.mobileQueryPill {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  background: #fff;
+  border-radius: var(--r-chip);
+  padding: 10px 16px;
+  box-shadow: var(--card-shadow);
+}
+.mobileQueryPill svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  stroke: var(--ink-300);
+}
+.mobileQueryText {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 14px;
+  color: var(--ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 검색어 알약이 있으면 모바일에선 로고·검색아이콘·스페이서를 숨겨 알약이 그 자리를 대신한다. */
+.headerInnerHasQuery .logoLink,
+.headerInnerHasQuery .iconBtnSearch,
+.headerInnerHasQuery .headerSpacer {
+  display: none;
+}
+
 /* ---------- 콘텐츠 컨테이너 ---------- */
 .page {
   padding: 4px 18px 116px;
@@ -1714,6 +1750,17 @@ button.t[data-cat="knowledge"]:hover {
   .iconBtnSearch,
   .iconBtnBell {
     display: none;
+  }
+  /* 데스크탑은 상시 검색 pill 이 검색어를 보여주므로 모바일 검색어 알약은 숨기고,
+     로고·스페이서는 항상 표시(검색 결과 중에도 헤더 레이아웃 유지). */
+  .mobileQueryPill {
+    display: none;
+  }
+  .headerInnerHasQuery .logoLink {
+    display: flex;
+  }
+  .headerInnerHasQuery .headerSpacer {
+    display: block;
   }
   .page {
     /* PRD 기준 컨테이너 최대너비 1080px (본문 + 사이드바 300px, gap 28px). */
