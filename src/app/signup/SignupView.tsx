@@ -18,7 +18,7 @@ import AppShell from "@/components/skin/AppShell";
 
 export default function SignupView({ children }: { children: ReactNode }) {
   return (
-    <AppShell active="마이" wide>
+    <AppShell active="마이" wide keepCanvas>
       <section className="mx-auto w-full max-w-[440px] py-10">
         <h1 className="mb-2 text-center text-xl font-bold text-[var(--text)]">
           가입 마무리하기

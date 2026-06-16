@@ -133,6 +133,7 @@ export default function AppShell({
   sidebar,
   sidebarMobileBelow = false,
   wide = false,
+  keepCanvas = false,
   back,
   backTitle,
   searchValue,
@@ -153,6 +154,9 @@ export default function AppShell({
   /** admin 전용 전체 폭 모드 — 본문을 좁은 .layoutSingle(820px) 대신 운영 admin 과 같은 풀폭(1080px)으로.
    *  기본 false → 피드/공개프로필/글쓰기/내노트/마이/글상세 등 기존 화면은 영향 없음(현행 좁은 중앙 정렬 유지). */
   wide?: boolean;
+  /** wide 레이아웃(탭바 숨김·풀폭)은 쓰되 admin 회색 배경(.rootWide) 대신 .root 캔버스
+   *  그라데이션을 유지 — 로그인/회원가입 등 비-admin 인증 화면용(피드와 동일 배경). (2026-06-17) */
+  keepCanvas?: boolean;
   /** 헤더 검색 입력값(피드만 controlled — 그 자리서 필터). 없으면 셸 로컬 state. */
   searchValue?: string;
   onSearchChange?: (q: string) => void;
@@ -416,7 +420,7 @@ export default function AppShell({
 
   return (
     <div
-      className={`${styles.root} ${wide ? styles.rootWide : ""}`}
+      className={`${styles.root} ${wide && !keepCanvas ? styles.rootWide : ""}`}
       ref={scrollRef}
     >
       {/* ---------- 헤더 (스크롤 다운 시 위로 슬라이드되어 사라짐) ---------- */}

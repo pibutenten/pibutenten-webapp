@@ -424,6 +424,13 @@ GitHub Secrets 7개: `APPLE_SIGNIN_KEY`(.p8 PEM 전문) · `APPLE_TEAM_ID`(ZR2BS
 2. **로컬 실행**(대안): `.p8` + env 주입 후 `node scripts/refresh-apple-secret.mjs`.
 3. **조용한 실패 감지**: Actions 실행 실패 시 GitHub 가 repo 소유자에게 이메일 통지. 추가로 6개월마다 만료일(현 2026-12-13) 전 점검 권장.
 
+### Apple Services ID 콜백(Return URL) — 커스텀 도메인 주의
+- 이 프로젝트의 Supabase Auth 는 **커스텀 도메인 `auth.pibutenten.kr`** 을 쓴다. 따라서 Apple 이 받는 redirect_uri 는 `*.supabase.co` 가 **아니라** `https://auth.pibutenten.kr/auth/v1/callback` 이다.
+- Apple Services ID(`kr.pibutenten.web`) → Sign in with Apple → Configure 에 **반드시 아래가 등록돼 있어야** 한다(누락 시 `invalid_request: Invalid web redirect url`):
+  - Domains and Subdomains: `auth.pibutenten.kr`
+  - Return URLs: `https://auth.pibutenten.kr/auth/v1/callback`
+- 실제 redirect_uri 확인법: 로그인 화면 "Apple로 시작하기" 클릭 → 이동한 `appleid.apple.com/auth/authorize?...` URL 의 `redirect_uri` 파라미터.
+
 ### 주의 (운영자 변경 시)
 - **client_id 변경 시**: 스크립트가 매 갱신마다 `external_apple_client_id` 를 `APPLE_SERVICES_ID,APPLE_NATIVE_BUNDLE_ID` 로 덮어쓴다. Supabase 대시보드에서 직접 client_id 를 바꿔도 다음 달 cron 이 되돌린다 → **반드시 GitHub Secrets 쪽도 함께 갱신**할 것.
 - **.p8 키 교체 시**(분실·유출): Apple Developer → Keys 에서 기존 Key revoke + 새 Key 발급 → GitHub Secret `APPLE_SIGNIN_KEY`(+`APPLE_KEY_ID`) 갱신 → workflow 수동 1회 실행.

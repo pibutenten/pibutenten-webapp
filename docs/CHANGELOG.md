@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-06-17] — 인증 화면 배경 그라데이션 복구 + Apple redirect 정정
+
+> (1) 로그인/회원가입 배경이 피드와 달리 admin 회색이던 문제 fix. (2) Apple 로그인 `invalid_request`(Invalid web redirect url) 해결. `tsc` 0·`build` 0·코드검수 [치명] 0.
+
+### Fixed
+- **인증 화면 배경 그라데이션 복구**(`components/skin/AppShell.tsx`·`app/login/LoginView.tsx`·`app/signup/SignupView.tsx`): 로그인/회원가입은 탭바 숨김 때문에 `wide` 모드를 쓰는데, `wide` 가 admin용 회색(`.rootWide`, 2026-06-14 결정)까지 강제해 피드 캔버스 그라데이션이 사라졌다. AppShell 에 `keepCanvas` 옵셔널 prop(기본 false) 추가 → `wide && !keepCanvas` 일 때만 `.rootWide` 적용. 로그인/회원가입만 `keepCanvas` 로 그라데이션 복구, admin/온보딩/conflict 등은 회색 유지(회귀 0).
+- **Apple Sign-in redirect 정정**(설정): 실제 콜백이 Supabase 커스텀 도메인 `https://auth.pibutenten.kr/auth/v1/callback` 인데 Apple Services ID Return URL 에 `*.supabase.co` 만 등록돼 `invalid_request`. Apple Services ID(`kr.pibutenten.web`)의 Domains 에 `auth.pibutenten.kr`, Return URLs 에 커스텀 콜백 추가로 해결. (RUNBOOK §9 보강)
+
+---
+
 ## [2026-06-17] — JSON-LD 발행사/조직 엔티티 통합 (SSOT) (A)
 
 > #organization 이 layout/about/doctors/reports 4곳에서 제각각 정의(name·url·logo·sameAs 불일치, 일부 name=법인명 "주식회사 진솔컴퍼니")돼 같은 @id 가 충돌하던 것을 단일 출처로 통일. 브랜드(name "피부텐텐")와 법인(legalName "주식회사 진솔컴퍼니") 구분. 죽은 위키데이터 제거 + 인스타 추가. `tsc` 0·`build` 0·SEO검수 [치명] 0.

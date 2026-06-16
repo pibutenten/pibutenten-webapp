@@ -27,7 +27,7 @@ export default function LoginView({
   errorId?: string;
 }) {
   return (
-    <AppShell active="마이" wide>
+    <AppShell active="마이" wide keepCanvas>
       <section className="mx-auto w-full max-w-[400px] py-10">
         <h1 className="mb-6 text-center text-xl font-bold text-[var(--text)]">
           피부텐텐 로그인
