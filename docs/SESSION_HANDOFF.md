@@ -6,26 +6,31 @@
 
 ---
 
-## 0. 직전 세션 (2026-06-16 · 베타 커토버 전수검수 → 6커밋 개선 → 4에이전트 재검수) — 한눈에
+## 0. 직전 세션 (2026-06-16 · 전수검수 6커밋 → 백로그 정리 → 오늘의 피부 날씨 UI 정리) — 한눈에
 
-- **git**: HEAD = `921ea22`. 이번 세션 6커밋: `19d60c2`(보안·SEO) → `5a50cda`(/beta-skin 은퇴) → `42c4d10`(SSOT·데드코드) → `aacf89c`(성능) → `42cfb11`(견고성·SEO) → `921ea22`(재검수 반영). 모두 push 완료. 신규 마이그 0(코드·구조·표시만, DB·권한·RLS 무변경).
-- **빌드**: 전 커밋 `tsc --noEmit` 0 + `npm run build` 0 + 코드검수관 [치명] 0.
-- **핵심 성과**: `/beta-skin` 라우트 **완전 소멸**(컴포넌트 → `src/components/skin/`, 표준 구조 정렬) — 1차 검수 최상위 구조 치명 해소.
-- **방법론**: 독립 시니어 검수관 4종(SEO/AEO/GEO·코드정합성/SSOT·UI/링크·보안/성능) 병렬 전수검수 → 종합 → 단계 실행(각 단계 빌드·검수·커밋·푸시) → 동일 4에이전트 독립 재검수. 상세 CHANGELOG `[2026-06-16]`.
+- **git**: HEAD = `315a9c2`. 한 세션에 3덩어리:
+  1. **베타 커토버 전수검수 → 6커밋**(`19d60c2`→`921ea22`) + 문서(`35e246b`): `/beta-skin` 라우트 **완전 소멸**(→`src/components/skin/`), 보안·SSOT·성능·견고성·SEO. 4에이전트 독립 재검수 통과.
+  2. **검수 백로그 정리**(`aad717d`): 죽은묶음 삭제·soft404 일부·`.or()` 게이트·미정의 CSS 토큰.
+  3. **오늘의 피부 날씨 UI 정리**(`6162f87`원복·`af9bc0a`홈·`641795d`상세/주간·`17f74dc`·`7219629`·`315a9c2`): mockup 재설계 시도 → **원래 세로튜브 디자인으로 원복** 후 의도된 정리만(홈 핵심4칩·상세 4게이지 단일칼럼·주간 정사각 박스 10단계색·로딩 단축).
+- **빌드**: 전 커밋 `tsc` 0 + `build` 0 + 코드검수관 [치명] 0. 신규 마이그 0(DB·권한·RLS 무변경).
+- **교훈**: mockup 은 정보구조 참고용. 색·마크업은 우리 토큰/톤으로 재구성해야 함(mockup 직역 시 톤 충돌). 디자인 검수는 데스크탑·모바일 폭 모두 확인.
 
-### 다음 세션 — 남은 백로그 (최종 재검수가 확인, 대부분 기존 이슈)
+### 이번 세션에 해소된 백로그
+- ✅ 죽은 묶음(`MyPageClient`→`ProfileTabs`→`Feed`) 삭제. (`old-skin` 은 reference 백업이라 **유지** — 사용자 결정)
+- ✅ 의사 글상세 '글 없음' → `notFound()`(soft-404 교정), hidden placeholder 보존.
+- ✅ `reports/[procedure]`·`reviews` API `.or()` 화이트리스트 게이트.
+- ✅ `admin/reports/ReportsClient` 미정의 CSS 토큰 교정.
 
-**🟡 soft-404 (HTTP 200)**: `[handle]` 비존재 핸들·의사 글상세(`doctors/[slug]/[year]/[postSlug]:360`) 가 `notFound()` 호출에도(또는 호출 없이) HTTP 200 + "찾을 수 없음" 화면. `[handle]` 은 notFound 호출하나 스트리밍으로 상태 200. 의사 글상세는 notFound 미호출(200 본문). 색인 영향 점검 후 정식 404 전환 필요(라우트 렌더 방식 검토 — 별도 안건).
+### 다음 세션 — 남은 백로그
+**🟡 `[handle]` 스트리밍 soft-404 (HTTP 200)**: 비존재 핸들이 `notFound()` 호출에도 force-dynamic 스트리밍으로 200 반환. 색인 영향 점검 후 라우트 렌더 방식 검토(별도 안건).
 
-**🟡 PostgREST `.or()` 사용자입력 미이스케이프**: `reports/[procedure]/page.tsx:53`·`api/reports/[procedure]/reviews/route.ts:45`(ko 파라미터)·`admin/users/page.tsx:111`(`,` 미이스케이프). tag_dictionary 공개+AND `is_procedure` 가드라 실익 낮으나, `bundleProfileFilter` 식 화이트리스트 게이트(`/^[가-힣a-z0-9 ·-]+$/` 불충족 시 404)로 정비 권장.
+**🟡 `.or()` 잔여**: `admin/users/page.tsx:111`(`,` 미이스케이프, admin 전용) + reports 게이트 정규식 SSOT 모듈화(`src/lib/procedure-slug.ts`).
 
-**🟡 미정의 CSS 토큰**: `admin/reports/ReportsClient.tsx`(`--surface`·`--surface-2`·`--border-soft` 미정의 → 투명/기본 폴백). placeholder 와 동일하게 `bg-white`/`gray-50` 등으로 교정(운영자 전용 화면이라 영향 제한).
+**⚪ 데드/전환중간층**: `components/beta/`(BetaFeed=old-skin 전용, BetaDiscovery=skin 역참조) 정리/이동. `CardData` import 이중경로(`@/components/Card` vs `@/lib/types/card`) 단계적 통일. 주석 잔재(`GlobalChrome` RESERVED `"beta-skin"`·admin JSDoc 구경로) — 무해·위생.
 
-**⚪ 데드/전환중간층 정리 (별도 안건)**: `old-skin/`(박제 백업)·`components/beta/`(BetaFeed=old-skin 전용 데드, BetaDiscovery=skin 이 역참조)·`MyPageClient`/`ProfileTabs`/`Feed`(고아 가능성) 실사용 재판정 후 정리/이동. `CardData` import 이중경로(`@/components/Card` 26곳 vs `@/lib/types/card` 12곳) 단계적 통일.
+**⚪ BetaSkinShell 라우트그룹 layout 승격 (대형)**: 셸이 페이지별 View 안에서 렌더 → 전환마다 재마운트 + `/api/notifications`·`prefetchDiscover` 반복. `app/(app)/layout.tsx` 승격은 페이지별 props 전달 설계 필요 — **ADR 후 별도 세션**.
 
-**⚪ BetaSkinShell 라우트그룹 layout 승격 (성능·구조, 대형 안건)**: 현재 셸이 페이지별 View 안에서 렌더 → 전환마다 재마운트 + `/api/notifications` fetch·`prefetchDiscover` 반복. `app/(app)/layout.tsx` 로 승격하려면 페이지별 props(active/back/sidebar/search) 전달 메커니즘 설계 필요(Phase B 급 리팩토링 — ADR 권장).
-
-**⚪ 주석 잔재**: `GlobalChrome:72` RESERVED `"beta-skin"`(방어용·무해), admin 뷰 6종 JSDoc 의 구 `@/app/beta-skin/*` 경로 언급, PostDetail/BetaDiscovery 의 `/beta-skin` 주석 — 동작 무관, 위생 차원.
+**⚪ 피부날씨 추가 옵션(선택)**: 첫 표시를 더 빠르게 하려면 "기본위치 날씨 먼저 → 실제위치로 교체"(위치 깜빡임 trade-off). 현재는 외부 API ~2s floor + 30분 캐시.
 
 ---
 

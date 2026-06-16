@@ -6,6 +6,46 @@
 
 ---
 
+## [2026-06-16] — 오늘의 피부 날씨 UI 정리(원래 세로튜브 디자인 유지) + 로딩 단축
+
+> 전달용 「피부날씨-UI개선안」 mockup 기반 재설계를 시도했으나 우리 베타 스킨 톤과 충돌(심각도 색램프 산만)해 **원래(검증된) 세로튜브 디자인으로 전량 원복** 후, 그 위에 의도된 정리만 얹음. 데이터·과학상수·fetch 로직 무변경(표시·레이아웃·로딩만). 커밋 `6162f87`(원복)·`af9bc0a`(홈)·`641795d`(상세·주간)·`17f74dc`(빈칸·박스)·`7219629`(홈칩)·`315a9c2`(로딩). 각 단계 `tsc` 0·`build` 0·Playwright 데스크탑/모바일 시각확인.
+
+### Changed
+- **홈 카드(SkinWeatherCard)**: 칩 6→**핵심 4**(UVB·UVA·미세먼지·구름투과율)만 강조, **기온·강수는 배경 보조 줄(조연)**. 칩은 게이지 바 제거 + 값 앞 점(dot) 확대(11px) + 지표 이름(위)·숫자(아래). 카드 padding 18→22px 로 시술노트 CTA 카드와 좌우 여백 일치.
+- **상세(WeatherDetail/View)**: 6게이지→**핵심 4 세로 튜브**(기온·강수 제거, 기온은 헤더). 우측 빈 사이드바 칼럼 제거 → **단일 칼럼**(지표 설명 카드는 본문 아래), `.kpis` 4칸으로 폭 꽉 채움.
+- **주간**: 좌측 큰 날짜 + 윗줄(날씨·강수·최저/최고 기온바, 기온바는 우측·짧게) + 아랫줄 **정사각형 4박스**(UVB 홍반·UVA 노화·미세먼지·구름투과율). 박스=큰 숫자, 테두리 없음, 칸배경(틴트)·숫자·라벨 동일 색. UVB·UVA·미세먼지는 **위험도 10단계 색**(SEV10 teal→red), **구름투과율은 정보값이라 파란색 고정**. '오늘' 행 파란 강조 제거(전 행 흰 카드 통일). 큰 가로 막대(skBar) 제거.
+
+### Added
+- `weather-logic`: 일별 PM2.5 집계(`WeatherDay.pm25`) + 위험도 10단계 색 `SEV10` + `sev10Uv/Pm/Trans` 헬퍼(순수함수, 과학상수 무변경).
+
+### Performance / Fixed
+- **첫 표시 지연 단축**: useWeather 가 측위→**역지오코딩(동 이름)**→fetch 직렬이라 이름 조회가 날씨를 막던 것을 분리 — 좌표 확보 즉시 날씨 fetch, 동 이름은 병렬로 받아 도착 시 갱신. geolocation timeout 9→5s. (외부 API 호출 ~2s 는 floor, 30분 캐시로 재방문 즉시.)
+- **캐시 깨짐 방어**: 스냅샷 캐시 버전 v2(`pbtt-weather2`)로 옛 구조 캐시 폐기 + `hexA`·박스 값 undefined 가드(pm25 누락 캐시로 흰 화면 깨지던 것 방지).
+
+### Notes
+- mockup 은 정보 구조 참고용일 뿐, 색·마크업은 우리 토큰/톤으로 재구성하는 것이 원칙(이번 시행착오 교훈).
+
+---
+
+## [2026-06-16] — 검수 백로그 정리(데드코드·soft404·.or() 게이트·CSS 토큰)
+
+> 직전 4에이전트 종합검수의 잔여 백로그 일부 처리. 운영 로직·DB 무변경. 커밋 `aad717d`.
+
+### Removed
+- 죽은 묶음 삭제: `MyPageClient`→`ProfileTabs`→`Feed`(임포트 0, `/my` redirect 화로 고아). `old-skin` 은 reference 백업이라 유지(사용자 결정).
+
+### Fixed
+- **soft-404**: 의사 글상세(`doctors/[slug]/[year]/[postSlug]`)의 '글 없음' 분기를 `notFound()`(200→404)로, hidden placeholder 는 보존. `[handle]` not-found generateMetadata 에 robots noindex 보강.
+- **admin/reports/ReportsClient**: 미정의 CSS 토큰(`--surface`/`--surface-2`/`--border-soft`) → 실재 토큰(bg-white/`--bg-soft`/`--border`).
+
+### Security
+- `reports/[procedure]` 페이지·`reviews` API 의 PostgREST `.or()` 에 입력 화이트리스트 게이트(`/^[가-힣a-zA-Z0-9 ·-]+$/`, 한글 시술명 통과·메타문자 차단) — 페이지 notFound / API 400.
+
+### Notes
+- 남은 백로그: `[handle]` 스트리밍 soft-404(200) 잔존(라우트 렌더 방식 검토 필요), `.or()` 정규식 SSOT 모듈화, BetaSkinShell layout 승격(대형). SESSION_HANDOFF §0 참조.
+
+---
+
 ## [2026-06-16] — 베타 커토버 전수검수 → 6커밋 개선(/beta-skin 은퇴·SSOT·성능·견고성) + 4에이전트 재검수
 
 > 베타 스킨 전체 커토버 직후, 독립 시니어 검수관 4종(SEO/AEO/GEO · 코드정합성/SSOT · UI/링크 · 보안/성능)을 병렬로 돌려 전수검수 → 종합보고서 기반 단계별 개선 실행 → 마지막에 동일 4에이전트로 독립 재검수. 모든 커밋 `tsc --noEmit` 0 + `npm run build` 0 + 코드검수관 [치명] 0 게이트 통과. DB·권한·RLS 무변경(표시·구조·라우팅·메타·성능만).
