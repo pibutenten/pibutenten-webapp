@@ -118,8 +118,9 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
           });
         },
         () => run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name),
-        // 측위 실패(권한 거부/차단/타임아웃) 시에만 대치동 폴백. 느린 GPS 측위 여유로 timeout 상향.
-        { timeout: 9000, maximumAge: 30 * 60 * 1000 },
+        // 측위 실패(권한 거부/차단/타임아웃) 시 대치동 폴백. 첫 표시 지연을 줄이려 timeout 단축
+        //   (네트워크 측위는 보통 2초 내, 9초는 과함). maximumAge 로 30분 내 재방문은 즉시.
+        { timeout: 5000, maximumAge: 30 * 60 * 1000 },
       );
     } else {
       run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name);

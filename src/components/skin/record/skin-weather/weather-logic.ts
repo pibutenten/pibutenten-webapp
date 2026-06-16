@@ -43,10 +43,12 @@ export const uvaBand = (u: number) => (u < 3 ? "약함" : u < 5 ? "보통" : u <
 /** 심각도 단계 인덱스(0~3). 0 안전 → 3 위험. */
 export type SeverityStep = 0 | 1 | 2 | 3;
 
-/** 4단계 고정 진한색(개선안 §1.4): 낮음·좋음 / 보통·다소높음 / 높음·나쁨 / 매우·위험. */
-export const SEVERITY_COLOR = ["#1B9E73", "#B07415", "#D2531F", "#D63B30"] as const;
-/** 4단계 옅은 틴트 배경(개선안 §1.4 색 토큰 대응) — 등급별 카드 면 색. */
-export const SEVERITY_TINT = ["#E4F4EE", "#FBF0DB", "#FBE9E2", "#FBE6E4"] as const;
+/** 4단계 텍스트용 ink(글자 대비 확보·깔끔): 낮음·좋음 / 보통·다소높음 / 높음·나쁨 / 매우·위험. */
+export const SEVERITY_COLOR = ["#0E8A62", "#C9820F", "#E2622A", "#DE3B2E"] as const;
+/** 4단계 바(게이지 캡·마커)용 선명색 — 흰 트랙 위에서 또렷하게. */
+export const SEVERITY_BAR = ["#22BB8E", "#F2A63D", "#F0703A", "#EC4E3E"] as const;
+/** 4단계 옅은 틴트 배경(등급별 카드 면 색) — 더 맑게. */
+export const SEVERITY_TINT = ["#E3F5EF", "#FCF2DD", "#FCEBE2", "#FCE8E5"] as const;
 /** 구름투과(정보·고정 파랑) — 위험도 아닌 정보값이라 심각도 램프에서 제외(개선안 §1.3). */
 export const INFO_BLUE = "#2E86C8";
 
@@ -542,12 +544,17 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
   let uvPeak = 0;
   let clrPeak = 0;
   let uvaPeak = 0;
+  let pm25Peak = 0; // 오늘 PM2.5 최고(세로 게이지 envelope 표시용 — UVB/UVA peak 와 동일 성격의 일중 최고치)
+  let pm10Peak = 0; // 오늘 PM10 최고(통합 등급 envelope 계산용)
   for (const r of rows) {
     if ((r.time || "").slice(0, 10) !== day0) continue;
     uvPeak = Math.max(uvPeak, r.uv || 0);
     clrPeak = Math.max(clrPeak, r.uvClear || 0);
     uvaPeak = Math.max(uvaPeak, uvaFromSW(r.sw, r.uv, r.uvClear));
+    pm25Peak = Math.max(pm25Peak, r.pm25 || 0);
+    pm10Peak = Math.max(pm10Peak, r.pm10 || 0);
   }
+  const pmGradePeak = pmWorstGrade(pm25Peak, pm10Peak); // 오늘 최악 통합 등급(envelope 색·높이용)
   const dIdx = Math.max(0, (D.time ?? []).indexOf(day0));
   const dayBlock = clrPeak > 0.5 ? clamp(Math.round((1 - uvPeak / clrPeak) * 100), 0, 99) : 0;
   const clearNow = cur.uv_index_clear_sky ?? 0;
@@ -618,9 +625,9 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
     { key: "precip", label: "강수확률", value: `${rainProb}%`, color: "#2E86C8", frac: clamp(rainProb / 100, 0, 1) },
   ];
   const kpis: WeatherKpi[] = [
-    { key: "tanning", label: "UVB 홍반", value: uvText(dUv, dUp), level: uvBand(dUv), color: uvbColor(dUv), sub: "오늘 최고", peak: String(Math.round(uvPeak)), peakFrac: clamp(uvPeak / 11, 0, 1), peakColor: uvbColor(uvPeak), frac: uvbFrac, minLabel: "0", maxLabel: "11" },
-    { key: "aging", label: "UVA 노화", value: String(dUva), level: uvaBand(dUva), color: uvaColor(dUva), sub: "오늘 최고", peak: String(uvaPeak), peakFrac: clamp(uvaPeak / 11, 0, 1), peakColor: uvaColor(uvaPeak), frac: uvaFrac, minLabel: "0", maxLabel: "11" },
-    { key: "pm", label: "미세먼지", value: String(Math.round(dPm25)), level: PM_GRADE_LABEL[dPmG], color: PM_GRADE_COLOR[dPmG], sub: `PM10 ${Math.round(dPm10)}㎍`, frac: PM_GRADE_FRAC[dPmG], minLabel: "좋음", maxLabel: "매우나쁨", seg: 4 },
+    { key: "tanning", label: "UVB 홍반", value: uvText(dUv, dUp), level: uvBand(dUv), color: uvbColor(dUv), sub: "오늘 최고", peak: String(Math.round(uvPeak)), peakFrac: clamp(uvPeak / 11, 0, 1), peakColor: SEVERITY_BAR[uvbStep(uvPeak)], frac: uvbFrac, minLabel: "0", maxLabel: "11" },
+    { key: "aging", label: "UVA 노화", value: String(dUva), level: uvaBand(dUva), color: uvaColor(dUva), sub: "오늘 최고", peak: String(uvaPeak), peakFrac: clamp(uvaPeak / 11, 0, 1), peakColor: SEVERITY_BAR[uvaStep(uvaPeak)], frac: uvaFrac, minLabel: "0", maxLabel: "11" },
+    { key: "pm", label: "미세먼지", value: String(Math.round(dPm25)), level: PM_GRADE_LABEL[dPmG], color: PM_GRADE_COLOR[dPmG], sub: `PM10 ${Math.round(dPm10)}㎍`, frac: PM_GRADE_FRAC[dPmG], minLabel: "좋음", maxLabel: "매우나쁨", seg: 4, peak: String(Math.round(pm25Peak)), peakFrac: PM_GRADE_FRAC[pmGradePeak], peakColor: SEVERITY_BAR[pmGradePeak] },
     { key: "block", label: "구름투과율", value: `${dTransNow}%`, level: "자외선 통과", color: "#2E86C8", sub: `구름 차단 ${dBlock}%`, frac: dTransNow / 100, minLabel: "0", maxLabel: "100%" },
     { key: "temp", label: "기온", value: `${todayMin}° / ${todayMax}°`, level: "", color: tempColor(temp), sub: "최저~최고", frac: tScale(temp), rangeLoFrac: tScale(todayMin), rangeHiFrac: tScale(todayMax), minLabel: "-10", maxLabel: "40" },
     { key: "precip", label: "강수확률", value: `${rainProb}%`, level: rainProb < 30 ? "낮음" : rainProb < 60 ? "보통" : "높음", color: "#2E86C8", sub: "오늘", frac: clamp(rainProb / 100, 0, 1), minLabel: "0", maxLabel: "100%" },
