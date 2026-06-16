@@ -13,8 +13,6 @@ import styles from "./skin-weather.module.css";
 import { useWeather } from "./useWeather";
 import WeatherIllustration from "./WeatherIllustration";
 
-const clampFrac = (v: number) => Math.max(0, Math.min(1, v));
-
 // 주연(핵심 4) — UVB·UVA·미세먼지·구름투과율. 조연(배경) — 기온·강수.
 const CORE_KEYS = ["uvb", "uva", "pm", "block"];
 const BG_KEYS = ["temp", "precip"];
@@ -84,13 +82,11 @@ export default function SkinWeatherCard() {
             .filter((c) => CORE_KEYS.includes(c.key))
             .map((c) => (
               <span className={styles.chip} key={c.key}>
+                {/* 지표 이름(위) · 숫자 + 큰 점(아래). 게이지 바 제거. */}
                 <span className={styles.chipK}>{c.label}</span>
                 <span className={styles.chipV}>
                   <i className={styles.dot} style={{ background: c.color }} />
                   {c.value}
-                </span>
-                <span className={styles.chipBar}>
-                  <i style={{ width: `${Math.round(clampFrac(c.frac) * 100)}%`, background: c.color }} />
                 </span>
               </span>
             ))}
