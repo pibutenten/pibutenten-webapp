@@ -23,6 +23,11 @@ export const dynamic = "force-dynamic";
 
 const MAX_LIMIT = 30;
 
+// PostgREST `.or()` 는 문자열 파서라 `,` `.` `()` 등 메타문자로 필터 구조 조작 표면이 있다.
+//   `.or()` 보간 직전 입력 화이트리스트 게이트 — reports/[procedure]/page.tsx 와 동일.
+//   시술명은 한글이므로 한글·영문소문자대문자·숫자·공백·하이픈·가운뎃점만 허용(한글 정식 URL 비파괴).
+const PROCEDURE_SLUG_RE = /^[가-힣a-zA-Z0-9 ·-]+$/;
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ procedure: string }> },
@@ -39,6 +44,10 @@ export async function GET(
   // procedure(en|ko) → ko 해소. reports/[procedure]/page.tsx resolveProcedure 와 동일 규칙.
   const raw = decodeURIComponent(procedure).trim();
   if (!raw) return NextResponse.json({ reviews: [], reviewLiked: {} });
+  // 화이트리스트 미충족(메타문자 포함 등) → 잘못된 슬러그로 400 거부(.or() 보간 차단).
+  if (!PROCEDURE_SLUG_RE.test(raw)) {
+    return NextResponse.json({ error: "invalid procedure" }, { status: 400 });
+  }
   const { data: tax } = await supabase
     .from("tag_dictionary")
     .select("ko, en")

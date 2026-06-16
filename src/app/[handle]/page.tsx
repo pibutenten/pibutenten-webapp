@@ -144,7 +144,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
   // metadata 생성은 PII 불필요 — viewerIsAnon=true 로 안전한 select 사용.
   const result = await fetchProfileByHandle(handle, true);
-  if (!result) return { title: "찾을 수 없는 회원" };
+  // not-found 케이스 — soft-404 색인 차단 보강(상태코드와 무관하게 크롤러 noindex).
+  if (!result)
+    return {
+      title: "찾을 수 없는 회원",
+      robots: { index: false, follow: false },
+    };
   const { profile, identity } = result;
   const name = identity
     ? identity.display_name

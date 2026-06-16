@@ -87,7 +87,7 @@ export default function ReportsClient({ rows, reasonLabel, statusLabel }: Props)
             className="rounded-md border border-[var(--border)] bg-white p-3 text-[13px]"
           >
             <div className="mb-1 flex flex-wrap items-center gap-2">
-              <span className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-[11px]">
+              <span className="rounded bg-[var(--bg-soft)] px-1.5 py-0.5 text-[11px]">
                 #{r.id}
               </span>
               <span className="font-semibold text-[var(--text)]">
@@ -113,7 +113,7 @@ export default function ReportsClient({ rows, reasonLabel, statusLabel }: Props)
             <div className="mb-1 text-[12px] text-[var(--text-muted)]">
               신고자:{" "}
               {r.reporter_profile_id ? (
-                <code className="rounded bg-[var(--surface-2)] px-1">
+                <code className="rounded bg-[var(--bg-soft)] px-1">
                   {r.reporter_profile_id.slice(0, 8)}…
                 </code>
               ) : (
@@ -142,7 +142,7 @@ export default function ReportsClient({ rows, reasonLabel, statusLabel }: Props)
 
             {/* 대상 미리보기 */}
             {r.cardPreview && (
-              <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2 text-[12px]">
+              <div className="mt-1 rounded border border-[var(--border)] bg-white p-2 text-[12px]">
                 <span className="text-[11px] text-[var(--text-muted)]">카드 #{r.cardPreview.id}</span>
                 <span className="ml-1 rounded bg-gray-100 px-1 text-[10px] text-gray-700">
                   {r.cardPreview.status}
@@ -158,7 +158,7 @@ export default function ReportsClient({ rows, reasonLabel, statusLabel }: Props)
               </div>
             )}
             {r.commentPreview && (
-              <div className="mt-1 rounded border border-[var(--border-soft)] bg-[var(--surface)] p-2 text-[12px]">
+              <div className="mt-1 rounded border border-[var(--border)] bg-white p-2 text-[12px]">
                 <span className="text-[11px] text-[var(--text-muted)]">댓글 #{r.commentPreview.id}</span>
                 <span className="ml-1 rounded bg-gray-100 px-1 text-[10px] text-gray-700">
                   {r.commentPreview.status}
@@ -204,7 +204,7 @@ export default function ReportsClient({ rows, reasonLabel, statusLabel }: Props)
                   type="button"
                   disabled={isBusy}
                   onClick={() => callAction(r.id, "dismiss")}
-                  className="rounded-md bg-[var(--surface-2)] px-3 py-1 text-[12px] text-[var(--text)] hover:bg-gray-200 disabled:opacity-50"
+                  className="rounded-md bg-gray-100 px-3 py-1 text-[12px] text-[var(--text)] hover:bg-gray-200 disabled:opacity-50"
                 >
                   기각
                 </button>

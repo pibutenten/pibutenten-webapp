@@ -1,7 +1,6 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { checkHiddenByDoctorPost } from "@/lib/hidden-card";
@@ -357,37 +356,9 @@ export default async function DermatologistPostPage({ params }: Props) {
         </BetaSkinShell>
       );
     }
-    return (
-      <BetaSkinShell active="피드" back={`/doctors/${slug}`}>
-        <section className="mx-auto w-full max-w-[480px] py-10">
-          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center shadow-[var(--shadow-sm)]">
-            <div className="mb-4 text-5xl">📭</div>
-            <h1 className="mb-2 text-lg font-bold text-[var(--text)]">
-              글을 찾을 수 없어요
-            </h1>
-            <p className="mb-6 text-sm leading-[1.6] text-[var(--text-secondary)]">
-              글이 삭제되었거나 비공개로 전환되었을 수 있어요.
-              <br />
-              피드에서 다른 좋은 글을 둘러보세요.
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <Link
-                href="/"
-                className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-dark)]"
-              >
-                피드로 가기
-              </Link>
-              <Link
-                href={`/doctors/${slug}`}
-                className="rounded-md border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
-              >
-                전문의 페이지
-              </Link>
-            </div>
-          </div>
-        </section>
-      </BetaSkinShell>
-    );
+    // 진짜 없는 글(삭제/미존재/비공개 전환) — hidden placeholder 가 아니므로 정식 404.
+    //   전역 not-found.tsx 로 렌더되며 HTTP 404 반환 → soft-404 제거.
+    notFound();
   }
 
   const jsonLd = buildJsonLd(card, slug, yearInt, postSlug);

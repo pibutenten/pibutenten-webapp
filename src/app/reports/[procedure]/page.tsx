@@ -41,11 +41,19 @@ type Props = { params: Promise<{ procedure: string }> };
 // param 은 영문 슬러그(taxonomy.en) 또는 기존 한글(ko) 둘 다 허용 — 한글 URL 비파괴.
 // en 은 소문자 매칭, ko 는 원문 매칭. 미존재만 null(→404). ko 는 후기 스트림·집계·JSON-LD,
 // en 은 canonical·내부 링크에 사용.
+// PostgREST `.or()` 는 문자열 파서라 `,` `.` `()` 등 메타문자로 필터 구조 조작 표면이 있다.
+//   `.or()` 보간 직전 입력 화이트리스트 게이트 — middleware.ts(reports redirect) /
+//   identity-shared.ts(bundleProfileFilter) 와 동일 방어 스타일. 시술명은 한글이므로
+//   한글·영문소문자대문자·숫자·공백·하이픈·가운뎃점만 허용(한글 정식 URL 비파괴).
+const PROCEDURE_SLUG_RE = /^[가-힣a-zA-Z0-9 ·-]+$/;
+
 async function resolveProcedure(
   raw: string,
 ): Promise<{ ko: string; en: string } | null> {
   const v = decodeURIComponent(raw).trim();
   if (!v) return null;
+  // 화이트리스트 미충족(메타문자 포함 등) → 조회 없이 미존재 취급(페이지는 notFound()).
+  if (!PROCEDURE_SLUG_RE.test(v)) return null;
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("tag_dictionary")
