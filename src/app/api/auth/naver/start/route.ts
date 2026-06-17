@@ -39,9 +39,22 @@ export async function GET(request: NextRequest) {
 
   const state = randomBytes(16).toString("hex");
   const next = request.nextUrl.searchParams.get("next") ?? "";
+  // 네이티브 앱(Capacitor) 진입 — 시스템 브라우저로 열린 경우. callback 이 custom scheme
+  //   딥링크로 token_hash 를 앱에 되돌려주도록 플래그를 쿠키에 남긴다.
+  const native = request.nextUrl.searchParams.get("native") === "1";
 
   const authorizeUrl = buildNaverAuthorizeUrl(env, state);
   const res = NextResponse.redirect(authorizeUrl);
+
+  if (native) {
+    res.cookies.set("naver_oauth_native", "1", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+      maxAge: 60 * 10,
+    });
+  }
 
   // state cookie — CSRF 방어 (10분 유효)
   res.cookies.set("naver_oauth_state", state, {

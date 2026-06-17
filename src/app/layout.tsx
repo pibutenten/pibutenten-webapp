@@ -6,6 +6,7 @@ import { ChromeHeader, ChromeFooter } from "@/components/GlobalChrome";
 import ScrollManager from "@/components/ScrollManager";
 import InstallPrompt from "@/components/InstallPrompt";
 import EngagementPromptListener from "@/components/EngagementPromptListener";
+import NativeAuthDeepLink from "@/components/NativeAuthDeepLink";
 import WriteFab from "@/components/WriteFab";
 import { SessionProvider } from "@/lib/session-context";
 import { SITE_URL } from "@/lib/site";
@@ -190,6 +191,8 @@ window.addEventListener('appinstalled', function() {
           <InstallPrompt />
           {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}
           <EngagementPromptListener />
+          {/* 네이티브 앱 OAuth 딥링크 핸들러 — 시스템 브라우저 로그인 복귀 처리(웹=no-op) */}
+          <NativeAuthDeepLink />
         </SessionProvider>
 
         {/* Vercel Analytics + Speed Insights — CWV field data + page view. env 자동 감지. */}

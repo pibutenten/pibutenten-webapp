@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/naver";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { SITE_URL } from "@/lib/site";
+import { NATIVE_OAUTH_CALLBACK } from "@/lib/auth/oauth-providers";
 import { trackAuthError, type AuthErrorTrack } from "@/lib/error-response";
 import { logAudit } from "@/lib/audit-log";
 
@@ -136,6 +137,7 @@ export async function GET(request: NextRequest) {
         const res = NextResponse.redirect(url);
         res.cookies.set("naver_oauth_state", "", { maxAge: 0, path: "/" });
         res.cookies.set("naver_oauth_next", "", { maxAge: 0, path: "/" });
+        res.cookies.set("naver_oauth_native", "", { maxAge: 0, path: "/" });
         return res;
       }
       // naver 외 어떤 identity 도 없는 케이스(예: email 가입만) → 새 identity 연결 허용 X.
@@ -147,6 +149,7 @@ export async function GET(request: NextRequest) {
         const res = NextResponse.redirect(url);
         res.cookies.set("naver_oauth_state", "", { maxAge: 0, path: "/" });
         res.cookies.set("naver_oauth_next", "", { maxAge: 0, path: "/" });
+        res.cookies.set("naver_oauth_native", "", { maxAge: 0, path: "/" });
         return res;
       }
     }
@@ -251,10 +254,31 @@ export async function GET(request: NextRequest) {
     finalCallback.searchParams.set("type", "magiclink");
     if (next) finalCallback.searchParams.set("next", next);
 
-    // state/next 쿠키 정리 후 우리 callback으로 redirect (verifyOtp 처리)
-    const res = NextResponse.redirect(finalCallback.toString());
+    // 네이티브 앱(Capacitor) 진입이면 custom scheme 딥링크로 token_hash 를 앱에 되돌린다.
+    //   앱(NativeAuthDeepLink)이 받아 웹뷰 /auth/callback?token_hash=... 로 넘겨 verifyOtp 처리.
+    const isNative = request.cookies.get("naver_oauth_native")?.value === "1";
+
+    let res: NextResponse;
+    if (isNative) {
+      // custom scheme 은 WHATWG URL 파싱이 비표준이라 템플릿으로 직접 조립(쿼리만 인코딩).
+      const params = new URLSearchParams({
+        token_hash: hashedToken,
+        type: "magiclink",
+      });
+      if (next) params.set("next", next);
+      const deepLinkUrl = `${NATIVE_OAUTH_CALLBACK}?${params.toString()}`;
+      // NextResponse.redirect 는 http(s) 외 스킴을 거부할 수 있어 Location 헤더를 직접 설정.
+      res = new NextResponse(null, {
+        status: 302,
+        headers: { Location: deepLinkUrl },
+      });
+    } else {
+      // state/next 쿠키 정리 후 우리 callback으로 redirect (verifyOtp 처리)
+      res = NextResponse.redirect(finalCallback.toString());
+    }
     res.cookies.set("naver_oauth_state", "", { maxAge: 0, path: "/" });
     res.cookies.set("naver_oauth_next", "", { maxAge: 0, path: "/" });
+    res.cookies.set("naver_oauth_native", "", { maxAge: 0, path: "/" });
     return res;
   } catch (e) {
     // A10: 상세 메시지를 redirect URL 에 박지 않음 (referer 누설 차단).

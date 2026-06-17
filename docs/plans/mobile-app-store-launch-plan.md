@@ -80,10 +80,13 @@
 - [ ] DB 트리거 webhook URL `pbtt.kr` → `pibutenten.kr` 정정 확인 (구 도메인 하드코딩 — 웹 푸시 영향 가능)
 - [ ] 코드검수 [경고] 잔여: 네이티브 끄기 토큰 race / addListener cleanup (실무 영향 낮음)
 
-### Phase 3 — 로그인 딥링크 전환 〔담당: 개발〕
-- [ ] OAuth 진입을 시스템 브라우저로 (`@capacitor/browser`)
-- [ ] Universal Link(iOS) / App Links(Android) 또는 커스텀 스킴 콜백
-- [ ] Supabase redirect URL 에 앱 콜백 등록
+### Phase 3 — 로그인 딥링크 전환 〔담당: 개발〕 ✅ 완료 (2026-06-17)
+- [x] OAuth 진입을 시스템 브라우저로 (`@capacitor/browser`, Supabase provider skipBrowserRedirect)
+- [x] custom scheme 콜백 `kr.pibutenten.app://auth/callback` + 딥링크 핸들러(NativeAuthDeepLink)
+- [x] Naver 자체 OAuth 네이티브 대응(native 쿠키 → custom scheme 복귀)
+- [x] 네이티브 scheme 등록 (Android intent-filter / iOS CFBundleURLTypes)
+- [x] Supabase redirect URL allow-list 에 앱 콜백 등록
+- ⏳ iOS 실기기 검증(ITP 쿠키·PKCE cold-start)은 Phase 6 빌드 후
 
 ### Phase 4 — 심사 필수 항목 〔담당: 개발〕
 - [ ] 계정 삭제 인앱 동선 확인·보강 (Apple 5.1.1(v))

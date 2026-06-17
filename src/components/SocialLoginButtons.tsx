@@ -5,6 +5,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   OAUTH_PROVIDERS,
   OAUTH_CALLBACK_PATH,
+  NATIVE_OAUTH_CALLBACK,
   siteOrigin,
   type OAuthProviderMeta,
 } from "@/lib/auth/oauth-providers";
@@ -19,17 +20,54 @@ export default function SocialLoginButtons({ next }: Props) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * 네이티브(Capacitor) 여부 + Browser 플러그인을 동적 import 로 확인.
+   *  - 모듈 최상위 import 를 피해 SSR/웹 빌드 안전성 보장(@capacitor 는 클릭 시에만 로드).
+   *  - 웹에서는 isNative=false 라 기존 흐름 그대로.
+   */
+  async function loadNative(): Promise<{
+    isNative: boolean;
+    openBrowser: ((url: string) => Promise<void>) | null;
+  }> {
+    try {
+      const { Capacitor } = await import("@capacitor/core");
+      if (!Capacitor.isNativePlatform()) return { isNative: false, openBrowser: null };
+      const { Browser } = await import("@capacitor/browser");
+      return {
+        isNative: true,
+        openBrowser: async (url: string) => {
+          await Browser.open({ url });
+        },
+      };
+    } catch {
+      return { isNative: false, openBrowser: null };
+    }
+  }
+
   async function handleClick(p: OAuthProviderMeta) {
     setError(null);
+    const { isNative, openBrowser } = await loadNative();
 
-    // Naver 처럼 자체 OAuth 흐름 — server route로 이동
-    // (state cookie 발급 + Naver authorize URL로 redirect)
+    // Naver 등 자체 OAuth 흐름 — server route 로 이동(state cookie 발급 + Naver authorize redirect).
     if (p.customStartPath) {
       setPendingId(p.id);
-      const url = next
+      const base = next
         ? `${p.customStartPath}?next=${encodeURIComponent(next)}`
         : p.customStartPath;
-      window.location.assign(url);
+      if (isNative && openBrowser) {
+        // 네이티브: 시스템 브라우저로 start 를 열고 native 플래그 전달
+        //   → callback 이 custom scheme 딥링크로 token_hash 를 앱에 되돌려준다.
+        const origin = siteOrigin();
+        const url = `${origin}${base}${base.includes("?") ? "&" : "?"}native=1`;
+        try {
+          await openBrowser(url);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "로그인 창 열기 실패");
+          setPendingId(null);
+        }
+      } else {
+        window.location.assign(base);
+      }
       return;
     }
 
@@ -41,14 +79,35 @@ export default function SocialLoginButtons({ next }: Props) {
     setPendingId(p.id);
     try {
       const supabase = createSupabaseBrowserClient();
+
+      if (isNative && openBrowser) {
+        // 네이티브: 웹뷰 OAuth 차단(disallowed_useragent) 회피 — 시스템 브라우저로 띄운다.
+        //   redirectTo = custom scheme. 복귀는 딥링크 핸들러(NativeAuthDeepLink)가 처리.
+        //   PKCE verifier 는 이 웹뷰 쿠키에 저장 → 복귀 후 웹뷰 /auth/callback 에서 코드 교환.
+        const redirectTo = `${NATIVE_OAUTH_CALLBACK}${
+          next ? `?next=${encodeURIComponent(next)}` : ""
+        }`;
+        const { data, error: oauthErr } = await supabase.auth.signInWithOAuth({
+          provider: p.supabaseProvider,
+          options: { redirectTo, skipBrowserRedirect: true },
+        });
+        if (oauthErr || !data?.url) {
+          setError(oauthErr?.message || "소셜 로그인 실패");
+          setPendingId(null);
+          return;
+        }
+        await openBrowser(data.url);
+        // 복귀(딥링크)는 NativeAuthDeepLink 가 처리 → /auth/callback 코드교환
+        return;
+      }
+
+      // 웹: 기존 흐름 (브라우저가 provider OAuth 페이지로 자동 이동)
       const origin = siteOrigin();
       const redirectTo = origin
         ? `${origin}${OAUTH_CALLBACK_PATH}${
             next ? `?next=${encodeURIComponent(next)}` : ""
           }`
         : OAUTH_CALLBACK_PATH;
-
-      // 비즈 앱 전환 후엔 default scope 그대로 사용 가능 — SDK 정상 호출 (PKCE flow 보장)
       const { error: oauthErr } = await supabase.auth.signInWithOAuth({
         provider: p.supabaseProvider,
         options: { redirectTo },
@@ -57,7 +116,6 @@ export default function SocialLoginButtons({ next }: Props) {
         setError(oauthErr.message || "소셜 로그인 실패");
         setPendingId(null);
       }
-      // 성공 시 브라우저가 provider OAuth 페이지로 이동
     } catch (e) {
       setError(e instanceof Error ? e.message : "소셜 로그인 실패");
       setPendingId(null);

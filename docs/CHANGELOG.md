@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-06-17] — 앱스토어 Phase 3: 네이티브 OAuth 딥링크
+
+> 앱 웹뷰 내 OAuth 가 구글에 의해 차단(disallowed_useragent)되는 문제를, 네이티브에선 **시스템 브라우저 + custom scheme 딥링크**로 우회. 복귀 시 기존 서버 콜백(`/auth/callback`) 로직(코드교환·verifyOtp·온보딩 분기) 재사용. **웹은 기존 흐름 100% 그대로**(isNative=false 분기). `tsc` 0·`build` 성공·코드검수 [치명] 반영·재검수 통과.
+
+### Added
+- **`@capacitor/browser`** 설치. **`NativeAuthDeepLink.tsx`**(신규): `App.appUrlOpen` 리스너 — custom scheme 복귀 시 query 를 웹뷰 `/auth/callback` 으로 전달. prefix 엄격 검증(`kr.pibutenten.app://auth/callback` 정확 매칭). @capacitor 동적 import(SSR 안전). layout 에 마운트.
+- **`NATIVE_OAUTH_CALLBACK`** 상수(`kr.pibutenten.app://auth/callback`, oauth-providers SSOT).
+- **네이티브 scheme 등록**: Android `AndroidManifest` intent-filter(VIEW/BROWSABLE), iOS `Info.plist` `CFBundleURLTypes`. iOS `CFBundleDevelopmentRegion` `en`→`ko` 정정.
+- **Supabase Auth redirect allow-list** 에 `kr.pibutenten.app://auth/callback` + `kr.pibutenten.app://**` 추가(기존 12개 보존).
+
+### Changed
+- **`SocialLoginButtons`**: 네이티브 분기 — @capacitor 동적 import 로 `isNative` 판정 후 Supabase provider(구글·애플·카카오)는 `skipBrowserRedirect`+`Browser.open`(시스템 브라우저). PKCE verifier 는 웹뷰 쿠키에 저장돼 복귀 후 교환. 웹 경로 무변경.
+- **Naver 자체 OAuth 네이티브 대응**: `start` 에 `native=1` 플래그(`naver_oauth_native` 쿠키), `callback` 이 native 면 magic link token_hash 를 custom scheme 딥링크로 복귀(URLSearchParams 조립). 전 분기 쿠키 정리.
+
+### 후속(실기기 검증 — Phase 6)
+- iOS ITP 환경에서 `naver_oauth_native`(SameSite=Lax) 쿠키 전송 / PKCE verifier cold-start 소실 가능성은 실기기 테스트로 확인.
+
 ## [2026-06-17] — 앱스토어 Phase 2: 네이티브 푸시(FCM) 통합
 
 > iOS 웹뷰는 Web Push 미지원 → Firebase(FCM)로 네이티브 푸시 전환. 기존 Web Push(VAPID)는 그대로 두고 앱(ios/android) 경로를 분기 추가. `tsc` 0·`build` 성공·코드검수 [치명] 반영 완료. 전체 계획·진행상태는 `docs/plans/mobile-app-store-launch-plan.md`.

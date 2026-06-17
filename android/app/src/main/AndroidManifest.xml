@@ -23,6 +23,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- OAuth 딥링크 — 시스템 브라우저 로그인 복귀(custom scheme).
+                 kr.pibutenten.app://auth/callback?code=... 를 앱이 수신(@capacitor/app appUrlOpen). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kr.pibutenten.app" />
+            </intent-filter>
+
         </activity>
 
         <provider

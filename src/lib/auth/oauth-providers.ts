@@ -43,6 +43,16 @@ export type OAuthProviderMeta = {
  */
 export const OAUTH_CALLBACK_PATH = "/auth/callback";
 
+/**
+ * 네이티브 앱(Capacitor) 전용 OAuth 콜백 — custom scheme 딥링크.
+ *  - 웹뷰 내 OAuth 는 구글이 차단(disallowed_useragent)하므로, 네이티브에선 OAuth 를
+ *    시스템 브라우저로 띄우고 이 scheme 으로 앱에 복귀한다.
+ *  - 복귀 시 딥링크 핸들러(NativeAuthDeepLink)가 code 를 웹뷰 `/auth/callback` 으로 넘겨
+ *    기존 서버 콜백 로직(코드교환·온보딩 분기)을 그대로 재사용한다.
+ *  - ⚠ Supabase Auth 의 Redirect URL allow-list 에 이 값이 등록돼 있어야 한다.
+ */
+export const NATIVE_OAUTH_CALLBACK = "kr.pibutenten.app://auth/callback";
+
 export const OAUTH_PROVIDERS: OAuthProviderMeta[] = [
   {
     id: "google",
