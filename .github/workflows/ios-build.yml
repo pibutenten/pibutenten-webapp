@@ -1,0 +1,44 @@
+name: iOS Build (check)
+
+# 피부텐텐 iOS 컴파일 검증 (앱스토어 Phase 6 — 1단계).
+#   서명 없이 시뮬레이터 빌드로 코드·플러그인이 iOS 에서 컴파일되는지만 확인한다.
+#   실기기 설치(TestFlight)는 App Store Connect API Key 연동 후 2단계에서.
+#   macOS runner 는 분 소모가 크므로 수동 실행(workflow_dispatch)만.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Capacitor sync (ios)
+        run: npx cap sync ios
+
+      - name: Xcodebuild list (scheme 확인)
+        run: |
+          cd ios/App
+          xcodebuild -project App.xcodeproj -list
+
+      - name: Build (simulator, no signing)
+        run: |
+          cd ios/App
+          xcodebuild \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
