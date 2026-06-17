@@ -16,10 +16,29 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // 릴리스 서명 — CI(GitHub Actions)에서 환경변수로 키스토어를 주입할 때만 활성화.
+    //   로컬 debug 빌드는 환경변수가 없어 영향받지 않는다(기존 debug 서명 그대로).
+    //   키스토어는 PKCS12(OpenSSL 생성). 자산·비밀번호는 secrets/ + GitHub Secrets 참조.
+    signingConfigs {
+        release {
+            def ksPath = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (ksPath != null && !ksPath.isEmpty()) {
+                storeFile file(ksPath)
+                storeType "PKCS12"
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // 키스토어가 주입된 CI 빌드에서만 릴리스 서명 적용.
+            if (System.getenv("ANDROID_KEYSTORE_PATH") != null && !System.getenv("ANDROID_KEYSTORE_PATH").isEmpty()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
