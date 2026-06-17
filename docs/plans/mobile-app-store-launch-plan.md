@@ -66,12 +66,19 @@
 - [ ] iOS `Info.plist` `CFBundleDevelopmentRegion` → `ko` (Phase 5)
 - [ ] 딥링크 스킴(`kr.pibutenten.app://`) / Universal Link · App Link (Phase 3)
 
-### Phase 2 — 네이티브 푸시 전환 〔담당: 개발 + 원장(키 발급)〕
-- [ ] 〔원장〕 Firebase 프로젝트 생성, Android 앱 등록 → `google-services.json`
-- [ ] 〔원장〕 APNs 인증키(.p8) 발급 → Firebase 에 업로드
-- [ ] `@capacitor/push-notifications` 통합, 앱에서 토큰 등록 흐름
-- [ ] 서버 푸시 발송 로직 Web Push ↔ 네이티브(FCM) 분기
-- [ ] 토큰 저장 테이블 확장 (네이티브 토큰 / 플랫폼 구분)
+### Phase 2 — 네이티브 푸시 전환 〔담당: 개발 + 원장(키 발급)〕 ✅ 완료 (2026-06-17)
+- [x] 〔원장〕 Firebase 프로젝트 `pibutenten-294d6` + Android/iOS 앱 등록 (설정파일 셸 배치)
+- [x] 〔원장〕 APNs 인증키(.p8) 발급 → Firebase 업로드 (Key `9X5UW4FJ43`, Team `ZR2BS383L3`)
+- [x] 〔원장〕 Firebase 서비스계정 키 발급 → `secrets/` 보관 + Vercel env 등록
+- [x] `@capacitor/push-notifications`·`@capacitor/app` 통합, 토큰 등록 흐름
+- [x] 서버 발송 Web Push ↔ FCM 분기 (`src/lib/firebase-admin.ts` + send 라우트)
+- [x] 토큰 테이블 확장 (마이그 0286: `platform` + p256dh/auth nullable)
+- [x] 푸시 토글을 본인 설정(ProfileEditClient)에 연결 (dynamic ssr:false)
+- ⏳ 실제 앱 푸시 동작 검증은 Phase 6(앱 빌드 후 실기기/시뮬레이터)에서
+
+#### Phase 2 잔여 점검 (별도, 비차단)
+- [ ] DB 트리거 webhook URL `pbtt.kr` → `pibutenten.kr` 정정 확인 (구 도메인 하드코딩 — 웹 푸시 영향 가능)
+- [ ] 코드검수 [경고] 잔여: 네이티브 끄기 토큰 race / addListener cleanup (실무 영향 낮음)
 
 ### Phase 3 — 로그인 딥링크 전환 〔담당: 개발〕
 - [ ] OAuth 진입을 시스템 브라우저로 (`@capacitor/browser`)
