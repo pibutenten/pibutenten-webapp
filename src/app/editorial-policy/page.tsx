@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 import InfoShell from "@/components/info/InfoShell";
@@ -10,13 +11,15 @@ export const metadata: Metadata = {
   description:
     "피부텐텐의 콘텐츠 작성·검수·팩트체크·법령검수·게재·재검토 6단계 워크플로우, 출처 우선순위, AI 사용 정책 (Mayo Clinic·Cleveland Clinic 벤치마크).",
   alternates: { canonical: `${SITE_URL}/editorial-policy` },
-  openGraph: {
-    title: "편집 정책 | 피부텐텐",
+  robots: { index: true, follow: true },
+  ...buildSocialMeta({
+    title: "편집 정책",
     description:
       "콘텐츠 작성·검수 6단계 워크플로우, 출처 우선순위, AI 사용 정책.",
-    url: `${SITE_URL}/editorial-policy`,
-    type: "website",
-  },
+    canonical: `${SITE_URL}/editorial-policy`,
+    ogImage: buildOgImage(null),
+    ogType: "website",
+  }),
 };
 
 /**

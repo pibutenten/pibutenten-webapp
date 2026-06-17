@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildDoctorReference } from "@/lib/schema/doctor";
@@ -17,13 +18,14 @@ export const metadata: Metadata = {
     "피부텐텐은 피부과 전문의가 함께하는 피부 미용 커뮤니티입니다. 운영 주체 주식회사 진솔컴퍼니, 콘텐츠 정책, 의료 정보 면책 안내.",
   alternates: { canonical: `${SITE_URL}/about` },
   robots: { index: true, follow: true },
-  openGraph: {
-    title: "사이트 안내 | 피부텐텐",
+  ...buildSocialMeta({
+    title: "사이트 안내",
     description:
       "피부과 전문의가 만드는 검증된 피부 미용 커뮤니티. 운영 주체·콘텐츠 정책·의료 면책 안내.",
-    url: `${SITE_URL}/about`,
-    type: "website",
-  },
+    canonical: `${SITE_URL}/about`,
+    ogImage: buildOgImage(null),
+    ogType: "website",
+  }),
 };
 
 type DoctorRef = { slug: string; name: string; title: string };

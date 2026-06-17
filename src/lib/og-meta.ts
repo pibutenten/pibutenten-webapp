@@ -38,6 +38,10 @@ export function buildOgImage(doctorSlug: string | null | undefined): string {
  *   - ogType 기본 'website' (Next.js Metadata 의 OpenGraph type).
  *     단일 글 = 'article', 의사 프로필 = 'profile' 등.
  *   - 이미지는 1200×630 (Twitter summary_large_image 표준) 고정.
+ *   - 이미지 URL 절대화는 layout 의 metadataBase 가 일괄 처리(여기선 상대경로 유지 → 조립 SSOT 단일).
+ *   - siteName·locale 은 전역 layout openGraph 와 동일('피부텐텐'·'ko_KR'). 페이지가 openGraph 를
+ *     재정의하면 layout 값이 병합되지 않으므로(키 단위 override) 여기서 매번 명시해 누락 방지.
+ *   - description 은 호출자가 검색용 meta description 과 다른 SNS 전용 단문을 넘길 수 있음(의도된 분리).
  *   - twitter.images 는 객체 배열 대신 단순 string 배열 (Next.js Metadata 표준 형식).
  */
 export function buildSocialMeta(params: {
@@ -54,6 +58,8 @@ export function buildSocialMeta(params: {
   return {
     openGraph: {
       type: ogType,
+      siteName: "피부텐텐",
+      locale: "ko_KR",
       title,
       description,
       url: canonical,

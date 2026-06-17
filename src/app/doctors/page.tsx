@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildDoctorReference } from "@/lib/schema/doctor";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import DoctorsListView from "./DoctorsListView";
 
@@ -25,13 +26,15 @@ export const metadata: Metadata = {
   description:
     "피부텐텐과 함께하는 피부과 전문의 프로필. 각 전문 분야와 답변·칼럼을 한눈에 살펴보세요.",
   alternates: { canonical: `${SITE_URL}/doctors` },
-  openGraph: {
-    title: "피부과 전문의 | 피부텐텐",
+  robots: { index: true, follow: true },
+  ...buildSocialMeta({
+    title: "피부과 전문의",
     description:
       "피부텐텐과 함께하는 피부과 전문의들. 안티에이징·리프팅·스킨부스터 분야 검증된 답변.",
-    url: `${SITE_URL}/doctors`,
-    type: "website",
-  },
+    canonical: `${SITE_URL}/doctors`,
+    ogImage: buildOgImage(null),
+    ogType: "website",
+  }),
 };
 
 export default async function DoctorsPage() {

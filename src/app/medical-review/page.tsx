@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 import InfoShell from "@/components/info/InfoShell";
@@ -10,13 +11,15 @@ export const metadata: Metadata = {
   description:
     "피부텐텐 답변이 어떻게 검수되는지 — 작성·의학 검수·팩트체크·법령 검수·게재·정기 재검토 6단계 흐름. Mayo Clinic 4-date 모델 적용.",
   alternates: { canonical: `${SITE_URL}/medical-review` },
-  openGraph: {
-    title: "의학 검수 프로세스 | 피부텐텐",
+  robots: { index: true, follow: true },
+  ...buildSocialMeta({
+    title: "의학 검수 프로세스",
     description:
       "이 답변은 어떻게 검수되나요? 6단계 검수 흐름과 4-date 모델 안내.",
-    url: `${SITE_URL}/medical-review`,
-    type: "website",
-  },
+    canonical: `${SITE_URL}/medical-review`,
+    ogImage: buildOgImage(null),
+    ogType: "website",
+  }),
 };
 
 /**

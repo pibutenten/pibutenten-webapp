@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
@@ -11,13 +12,14 @@ export const metadata: Metadata = {
   description:
     "피부텐텐 (주식회사 진솔컴퍼니) 운영팀 문의 채널 — 이메일·운영 책임자·콘텐츠 신고·정정 요청·보안 취약점 신고 안내.",
   alternates: { canonical: `${SITE_URL}/contact` },
-  openGraph: {
-    title: "문의 | 피부텐텐",
-    description:
-      "피부텐텐 운영팀에 연락하실 수 있는 채널 안내.",
-    url: `${SITE_URL}/contact`,
-    type: "website",
-  },
+  robots: { index: true, follow: true },
+  ...buildSocialMeta({
+    title: "문의",
+    description: "피부텐텐 운영팀에 연락하실 수 있는 채널 안내.",
+    canonical: `${SITE_URL}/contact`,
+    ogImage: buildOgImage(null),
+    ogType: "website",
+  }),
 };
 
 /**

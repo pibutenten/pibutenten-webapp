@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type CardData } from "@/components/Card";
 import { getReportSummaryForTag } from "@/lib/procedure-report";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import {
   clinicIdRefForDoctor,
@@ -123,7 +124,13 @@ export async function generateMetadata({
     description,
     alternates: { canonical: url },
     robots: { index: true, follow: true },
-    openGraph: { title: `${title} | 피부텐텐`, description, url, type: "website" },
+    ...buildSocialMeta({
+      title,
+      description,
+      canonical: url,
+      ogImage: buildOgImage(null),
+      ogType: "website",
+    }),
   };
 }
 
