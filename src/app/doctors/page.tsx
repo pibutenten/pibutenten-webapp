@@ -73,6 +73,7 @@ export default async function DoctorsPage() {
     "@graph": [
       {
         "@type": "CollectionPage",
+        "@id": `${SITE_URL}/doctors#collection`,
         name: "피부과 전문의",
         description:
           "피부텐텐과 함께하는 피부과 전문의 프로필 모음. 각 전문의의 전문 분야와 답변을 한눈에.",
@@ -81,11 +82,8 @@ export default async function DoctorsPage() {
           "@type": "MedicalSpecialty",
           name: "Dermatology",
         },
-        isPartOf: {
-          "@type": "WebSite",
-          name: "피부텐텐",
-          url: SITE_URL,
-        },
+        // 전역 layout 의 WebSite(#website) @id 참조 — 인라인 재정의 금지(그래프 결속, @id 충돌 0).
+        isPartOf: { "@id": `${SITE_URL}/#website` },
         inLanguage: "ko-KR",
         mainEntity: {
           "@type": "ItemList",
@@ -101,9 +99,12 @@ export default async function DoctorsPage() {
             }),
           })),
         },
+        // BreadcrumbList 는 @graph 독립 노드 → @id 참조(reports 라우트와 동일 패턴).
+        breadcrumb: { "@id": `${SITE_URL}/doctors#breadcrumb` },
       },
       {
         "@type": "BreadcrumbList",
+        "@id": `${SITE_URL}/doctors#breadcrumb`,
         itemListElement: [
           {
             "@type": "ListItem",

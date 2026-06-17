@@ -223,7 +223,8 @@ function buildJsonLd(
       answerCount: 1,
       upvoteCount: card.like_count ?? 0,
       dateCreated: displayDate,
-      author: { "@id": `${SITE}/doctors/${doctorSlug}#person` },
+      // 질문은 영상 기반 대표 질문(작성자=의사 아님) → Question.author 미지정.
+      //   답변자(의사)만 acceptedAnswer.author 로 명시(자문자답 오인 방지, QAPage 의미 정합).
       acceptedAnswer: {
         "@type": "Answer",
         text: answerText.slice(0, 4000),
@@ -260,7 +261,7 @@ function buildJsonLd(
     },
     // 시술/조건/일반 자동 분류 (procedure-mappings 사전 활용)
     about: keywordsToAbout(card.keywords),
-    specialty: "https://schema.org/Dermatologic",
+    specialty: "https://schema.org/Dermatology",
     audience: { "@type": "MedicalAudience", audienceType: "Patient" },
   };
 
@@ -298,9 +299,20 @@ function buildJsonLd(
       contentUrl: v?.youtube_url ?? `https://youtu.be/${videoId}`,
       thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
       ...(v?.upload_date ? { uploadDate: v.upload_date } : {}),
-      // ISO 8601 duration — 답변 구간이 영상의 어느 시점부터 시작되는지 명시 (AI 픽업률↑).
-      ...(extStartSeconds !== null ? { startOffset: `PT${extStartSeconds}S` } : {}),
       inLanguage: "ko-KR",
+      // 답변이 영상의 몇 초 지점부터 시작하는지(=우리가 입력하는 ?t={N}s). schema.org 표준상
+      //   startOffset 은 VideoObject 직속이 아니라 Clip 속성 → hasPart:Clip 으로 표준 위치에 명시
+      //   (값은 ISO duration 문자열이 아닌 초 단위 Number). 검색·AI 가 시작 지점을 표준으로 인식.
+      ...(extStartSeconds !== null
+        ? {
+            hasPart: {
+              "@type": "Clip",
+              name: videoName,
+              startOffset: extStartSeconds,
+              url: `https://youtu.be/${videoId}?t=${extStartSeconds}s`,
+            },
+          }
+        : {}),
     };
   }
 

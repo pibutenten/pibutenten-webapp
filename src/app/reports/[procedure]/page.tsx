@@ -170,49 +170,58 @@ export default async function ProcedureReportPage({ params }: Props) {
   const revisitPct = rTotal > 0 ? Math.round((report.revisit.yes / rTotal) * 100) : 0;
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "MedicalWebPage",
-    "@id": `${url}#webpage`,
-    name: `${ko} 후기 리포트 | 피부텐텐`,
-    url,
-    inLanguage: "ko-KR",
-    // 사이트 #website 노드 연결(doctor 라우트와 동일 패턴) — 페이지 그래프 결속.
-    isPartOf: { "@id": `${SITE_URL}/#website` },
-    // 게시 책임 주체 — 전역 layout 의 #organization(SSOT) 참조만(노드 재정의 금지 → @id 충돌 0).
-    publisher: { "@id": `${SITE_URL}/#organization` },
-    // 집계 갱신 신호 — 요청 시점(실시간 집계라 항상 최신). AI freshness.
-    dateModified: new Date().toISOString(),
-    mainEntity: {
-      "@type": "Service",
-      additionalType: "https://schema.org/MedicalProcedure",
-      name: ko,
-      // procedure_taxonomy.category 값 그대로(lifting/injectables). 미분류면 생략.
-      ...(report.category ? { category: report.category } : {}),
-      provider: { "@id": `${SITE_URL}/#organization` },
-      aggregateRating: {
-        "@type": "AggregateRating",
-        ratingValue: report.avgSatisfaction.toFixed(1),
-        bestRating: 5,
-        ratingCount: report.count,
-      },
-      additionalProperty: [
-        { "@type": "PropertyValue", name: "재시술 의향", value: `${revisitPct}%` },
-        {
-          "@type": "PropertyValue",
-          name: "평균 통증",
-          value: Number(report.avgPain.toFixed(1)),
-          maxValue: 5,
+    // @graph — MedicalWebPage + BreadcrumbList 를 독립 노드로 분리(Google 리치결과 인식↑).
+    //   datePublished 는 리포트가 실시간 집계(저장된 발행일 없음)라 생략 — 가짜 날짜 미기입.
+    "@graph": [
+      {
+        "@type": "MedicalWebPage",
+        "@id": `${url}#webpage`,
+        name: `${ko} 후기 리포트 | 피부텐텐`,
+        url,
+        inLanguage: "ko-KR",
+        // 사이트 #website 노드 연결(doctor 라우트와 동일 패턴) — 페이지 그래프 결속.
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        // 게시 책임 주체 — 전역 layout 의 #organization(SSOT) 참조만(노드 재정의 금지 → @id 충돌 0).
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        // 집계 갱신 신호 — 요청 시점(실시간 집계라 항상 최신). AI freshness.
+        dateModified: new Date().toISOString(),
+        mainEntity: {
+          "@type": "Service",
+          additionalType: "https://schema.org/MedicalProcedure",
+          name: ko,
+          // procedure_taxonomy.category 값 그대로(lifting/injectables). 미분류면 생략.
+          ...(report.category ? { category: report.category } : {}),
+          provider: { "@id": `${SITE_URL}/#organization` },
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: report.avgSatisfaction.toFixed(1),
+            bestRating: 5,
+            ratingCount: report.count,
+          },
+          additionalProperty: [
+            { "@type": "PropertyValue", name: "재시술 의향", value: `${revisitPct}%` },
+            {
+              "@type": "PropertyValue",
+              name: "평균 통증",
+              value: Number(report.avgPain.toFixed(1)),
+              maxValue: 5,
+            },
+          ],
         },
-      ],
-    },
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "홈", item: `${SITE_URL}/` },
-        // /reports 인덱스 페이지 없음 → 중간 크럼브는 name-only(깨진 링크 방지).
-        { "@type": "ListItem", position: 2, name: "시술 리포트" },
-        { "@type": "ListItem", position: 3, name: ko, item: url },
-      ],
-    },
+        // BreadcrumbList 는 @graph 독립 노드 → @id 참조.
+        breadcrumb: { "@id": `${url}#breadcrumb` },
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${url}#breadcrumb`,
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "홈", item: `${SITE_URL}/` },
+          // /reports 인덱스 페이지 없음 → 중간 크럼브는 name-only(깨진 링크 방지).
+          { "@type": "ListItem", position: 2, name: "시술 리포트" },
+          { "@type": "ListItem", position: 3, name: ko, item: url },
+        ],
+      },
+    ],
   };
 
   // JSON-LD <script> 는 server 에 남겨 SEO 신호 100% 보존. 본문은 앱 셸(AppShell)로
