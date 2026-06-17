@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "596218866639",
+    "project_id": "pibutenten-294d6",
+    "storage_bucket": "pibutenten-294d6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:596218866639:android:92bd27ebce5ff6240740ba",
+        "android_client_info": {
+          "package_name": "kr.pibutenten.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtuVdEOuBttiDi1XSvlIfOISy6w44QZz0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

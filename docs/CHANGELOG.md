@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-06-17] — 앱스토어 Phase 2: 네이티브 푸시(FCM) 통합
+
+> iOS 웹뷰는 Web Push 미지원 → Firebase(FCM)로 네이티브 푸시 전환. 기존 Web Push(VAPID)는 그대로 두고 앱(ios/android) 경로를 분기 추가. `tsc` 0·`build` 성공·코드검수 [치명] 반영 완료. 전체 계획·진행상태는 `docs/plans/mobile-app-store-launch-plan.md`.
+
+### Added
+- **Firebase 프로젝트 `pibutenten-294d6` 연동**: Android(`google-services.json`)·iOS(`GoogleService-Info.plist`) 앱 등록, APNs 인증 키(.p8) 업로드, 서비스계정 키 발급.
+- **`src/lib/firebase-admin.ts`**: FCM 발송용 firebase-admin lazy 초기화. 서비스계정 키(`FIREBASE_SERVICE_ACCOUNT`) 미설정 시 null 반환 → 웹 푸시·빌드 무영향.
+- **`@capacitor/push-notifications`·`@capacitor/app`** 설치 + Android 셸 반영.
+- 환경변수 `FIREBASE_SERVICE_ACCOUNT`(서버 전용, Vercel production 등록 완료). `.env.local.example` 문서화.
+
+### Changed
+- **`push_subscriptions` 확장**(마이그 0286): `platform`('web'/'ios'/'android', default 'web') 추가 + `p256dh`/`auth` nullable화. 네이티브는 FCM 토큰을 endpoint 자리에 저장.
+- **`api/push/subscribe`**: platform 분기 — web(endpoint+keys) / native(token). 공백 토큰 trim 검증.
+- **`api/push/send`**: platform별 분기 발송 — web=web-push, ios/android=FCM(`sendEachForMulticast`). FCM 만료 토큰(token-not-registered) 자동 정리, 실패는 `push_send_failures` 로깅. VAPID 미설정이어도 FCM 독립 발송(503 early-return 제거).
+- **`PushNotificationToggle.tsx`**: 네이티브(Capacitor) 분기 추가 — FCM 토큰 등록→서버 저장. 모듈 최상위 Capacitor 호출에 SSR 가드(`typeof window`). ⚠ 현재 이 컴포넌트는 미연결(렌더 사용처 없음) — 화면 연결은 별도 안건(연결 시 `next/dynamic` `ssr:false` 권장).
+
 ## [2026-06-17] — 모바일 앱스토어 출시 Phase 1: Capacitor 셸 도입
 
 > 웹앱(SSR Next.js)을 iOS·Android 앱스토어에 올리기 위한 Capacitor 래핑 1단계. 원격 URL 로드(server.url=pibutenten.kr) 방식 → 앱 origin 이 웹과 동일해 로그인·쿠키·CSP 무영향. 기존 웹 빌드 무영향(`tsc` 0·`build` 성공). 전체 계획은 `docs/plans/mobile-app-store-launch-plan.md`.

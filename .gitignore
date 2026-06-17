@@ -34,6 +34,11 @@ yarn-error.log*
 .env*
 !.env*.example
 
+# 비밀키 파일 — 절대 커밋 금지 (APNs .p8, Apple Sign-in .p8, 서비스계정 키 등)
+*.p8
+/secrets/
+**/google-service-account*.json
+
 # Claude memory (Dropbox 동기화용 사본 — API key 포함이라 git push 금지)
 .claude-memory/
 

@@ -19,6 +19,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { errorResponse } from "@/lib/error-response";
 import webpush from "web-push";
 import { timingSafeEqual } from "crypto";
+import { getFcmMessaging } from "@/lib/firebase-admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // web-push는 Edge runtime 미지원
@@ -67,9 +68,9 @@ export async function POST(req: Request) {
     return errorResponse(null, "forbidden", "[push/send] webhook secret mismatch", 403);
   }
 
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
-    return errorResponse(null, "generic", "[push/send] VAPID keys not configured", 503);
-  }
+  // VAPID 미설정이어도 즉시 종료하지 않는다 — 네이티브(FCM)는 VAPID 와 무관하게 발송돼야 한다.
+  //   web 발송 루프에서 VAPID 가용 여부를 가드한다(아래 webVapidOk).
+  const webVapidOk = !!(VAPID_PUBLIC && VAPID_PRIVATE);
 
   let body: WebhookPayload;
   try {
@@ -92,14 +93,22 @@ export async function POST(req: Request) {
   // service_role 클라이언트 — RLS bypass, push_subscriptions 전체 조회
   const sb = createSupabaseAdminClient();
 
-  const { data: subs } = await sb
+  // 구독 전체 조회 후 platform 으로 분리.
+  //   web        → web-push(VAPID), p256dh/auth 사용.
+  //   ios/android → FCM(firebase-admin), endpoint 자리에 FCM 토큰. p256dh/auth 는 NULL.
+  const { data: allSubs } = await sb
     .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
+    .select("id, endpoint, p256dh, auth, platform")
     .eq("profile_id", recipient_id);
 
-  if (!subs || subs.length === 0) {
+  if (!allSubs || allSubs.length === 0) {
     return NextResponse.json({ ok: true, sent: 0 });
   }
+
+  const subs = allSubs.filter((s) => s.platform === "web");
+  const nativeSubs = allSubs.filter(
+    (s) => s.platform === "ios" || s.platform === "android",
+  );
 
   const KIND_TITLES: Record<string, string> = {
     comment: "💬 새 댓글",
@@ -129,17 +138,21 @@ export async function POST(req: Request) {
     status: number | null;
     error: string;
   }[] = [];
-  const results = await Promise.allSettled(
-    subs.map((s) =>
-      webpush.sendNotification(
-        {
-          endpoint: s.endpoint as string,
-          keys: { p256dh: s.p256dh as string, auth: s.auth as string },
-        },
-        payload,
-      ),
-    ),
-  );
+  // web 발송 — VAPID 키가 있을 때만(없으면 web 건너뜀, FCM 은 아래에서 독립 발송).
+  const results =
+    webVapidOk && subs.length > 0
+      ? await Promise.allSettled(
+          subs.map((s) =>
+            webpush.sendNotification(
+              {
+                endpoint: s.endpoint as string,
+                keys: { p256dh: s.p256dh as string, auth: s.auth as string },
+              },
+              payload,
+            ),
+          ),
+        )
+      : [];
   results.forEach((r, idx) => {
     if (r.status === "rejected") {
       const err = r.reason as { statusCode?: number; message?: string };
@@ -161,6 +174,55 @@ export async function POST(req: Request) {
     await sb.from("push_subscriptions").delete().in("id", expiredIds);
   }
 
+  // ===== 네이티브(ios/android) FCM 발송 =====
+  //   서비스계정 키(FIREBASE_SERVICE_ACCOUNT) 미설정 시 messaging=null → 건너뜀(웹 푸시는 정상).
+  //   만료/무효 토큰은 web 과 동일하게 자동 삭제, 그 외 실패는 push_send_failures 로깅.
+  let fcmSent = 0;
+  const fcmExpiredIds: number[] = [];
+  if (nativeSubs.length > 0) {
+    const messaging = getFcmMessaging();
+    if (messaging) {
+      const tokens = nativeSubs.map((s) => s.endpoint as string);
+      try {
+        const resp = await messaging.sendEachForMulticast({
+          tokens,
+          notification: { title, body: message },
+          data: { url: url || "/notifications" },
+          apns: { payload: { aps: { sound: "default" } } },
+        });
+        fcmSent = resp.successCount;
+        resp.responses.forEach((r, idx) => {
+          if (r.success) return;
+          const code = r.error?.code ?? "";
+          if (
+            code === "messaging/registration-token-not-registered" ||
+            code === "messaging/invalid-registration-token" ||
+            code === "messaging/invalid-argument"
+          ) {
+            fcmExpiredIds.push(nativeSubs[idx].id as number);
+          } else {
+            failures.push({
+              recipient_id: recipient_id ?? null,
+              endpoint: (nativeSubs[idx].endpoint as string | null) ?? null,
+              status: null,
+              error: (r.error?.message ?? code).slice(0, 1000),
+            });
+          }
+        });
+      } catch (e) {
+        failures.push({
+          recipient_id: recipient_id ?? null,
+          endpoint: null,
+          status: null,
+          error: (e instanceof Error ? e.message : String(e)).slice(0, 1000),
+        });
+      }
+    }
+  }
+  if (fcmExpiredIds.length > 0) {
+    await sb.from("push_subscriptions").delete().in("id", fcmExpiredIds);
+  }
+
   // 발송 실패 best-effort 로깅 — 로깅 자체가 실패해도 발송 응답을 깨지 않는다.
   if (failures.length > 0) {
     try {
@@ -180,8 +242,8 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    sent: results.filter((r) => r.status === "fulfilled").length,
-    expired: expiredIds.length,
+    sent: results.filter((r) => r.status === "fulfilled").length + fcmSent,
+    expired: expiredIds.length + fcmExpiredIds.length,
     failed: failures.length,
   });
 }
