@@ -6,6 +6,24 @@
 
 ---
 
+## [2026-06-17] — 모바일 앱스토어 출시 Phase 1: Capacitor 셸 도입
+
+> 웹앱(SSR Next.js)을 iOS·Android 앱스토어에 올리기 위한 Capacitor 래핑 1단계. 원격 URL 로드(server.url=pibutenten.kr) 방식 → 앱 origin 이 웹과 동일해 로그인·쿠키·CSP 무영향. 기존 웹 빌드 무영향(`tsc` 0·`build` 성공). 전체 계획은 `docs/plans/mobile-app-store-launch-plan.md`.
+
+### Added
+- **Capacitor 8.4 도입**: `@capacitor/core`·`@capacitor/cli`·`@capacitor/android`·`@capacitor/ios`. App ID `kr.pibutenten.app`(웹 OAuth Services ID `kr.pibutenten.web` 와 별개).
+- **`capacitor.config.ts`**: 원격 로드(server.url) + `allowNavigation` 화이트리스트(pibutenten.kr/*.pibutenten.kr) + dev·prod URL 분기(`CAP_SERVER_URL` env, http 면 cleartext 자동) + `androidScheme=https`.
+- **iOS·Android 네이티브 셸**(`ios/`·`android/`) 생성. iOS 는 SPM 방식(CocoaPods 불필요).
+- **오프라인 fallback 화면**(`native/www/index.html`): 네트워크 단절 시에만 노출. 인라인 onclick 미사용(CSP 강화 대비).
+- **출시 계획 SSOT 문서**(`docs/plans/mobile-app-store-launch-plan.md`): Phase 1~7, 3대 걸림돌(4.2 최소기능/Web Push 미작동/웹뷰 OAuth 차단) 대응, 담당자·체크리스트.
+
+### Security
+- **Android `allowBackup=false` + `fullBackupContent=false`**(AndroidManifest): WebView 세션 쿠키의 `adb backup` 유출 차단(코드검수관 [치명] 반영).
+- **WebView 외부 탐색 차단**: `allowNavigation` 화이트리스트로 서드파티 리다이렉트·피싱 링크의 무제한 열림 차단(코드검수관 [치명] 반영).
+
+### Changed
+- **`.gitignore`**: Capacitor 네이티브 빌드 산출물 + `cap sync` 생성 자산(`assets/public`·`capacitor.config.json` 등) + Xcode 사용자 메타(`xcuserdata`·`xcschememanagement.plist`) 제외 규칙 추가.
+
 ## [2026-06-17] — 외부 검수 후속: mockups 정규화 + 잔재 청소
 
 > 4개 독립 서브에이전트 외부 검수 결과 반영. 운영 공개를 막는 [치명]은 없었고(보안/PII 유출·악성코드 없음), 베타 승격 잔재·문서 모순·死코드를 정리.

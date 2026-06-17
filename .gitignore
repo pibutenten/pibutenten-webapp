@@ -53,3 +53,23 @@ next-env.d.ts
 
 # Vercel API dump (수동 fetch 결과 — 추적 불필요)
 /all.json
+
+# Capacitor — 네이티브 빌드 산출물 + cap sync 가 매번 복사·생성하는 자산
+#   (android/ ios/ 폴더 자체는 커밋. 아래 산출물만 제외)
+/android/.gradle
+/android/build
+/android/app/build
+/android/local.properties
+/android/capacitor-cordova-android-plugins
+/android/app/src/main/assets/public
+/android/app/src/main/assets/capacitor.config.json
+/android/app/src/main/assets/capacitor.plugins.json
+/ios/App/Pods
+/ios/App/build
+/ios/DerivedData
+/ios/capacitor-cordova-ios-plugins
+/ios/App/App/public
+/ios/App/App/capacitor.config.json
+*.xcuserstate
+**/xcuserdata/
+**/xcschememanagement.plist

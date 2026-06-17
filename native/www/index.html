@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>피부텐텐</title>
+  <style>
+    :root { color-scheme: light; }
+    html, body {
+      margin: 0; height: 100%;
+      background: #4CBFF2;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      color: #ffffff;
+    }
+    .wrap {
+      height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 24px;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      box-sizing: border-box;
+    }
+    h1 { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
+    p { font-size: 15px; line-height: 1.6; opacity: 0.95; margin: 0 0 24px; }
+    button {
+      border: 0; border-radius: 12px;
+      background: #ffffff; color: #1577b0;
+      font-size: 16px; font-weight: 700;
+      padding: 14px 28px; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    원격 로드(server.url=https://pibutenten.kr) 방식의 오프라인 fallback 화면.
+    네트워크가 끊겼을 때만 노출된다. 정상 상태에서는 원격 사이트가 즉시 이 화면을 덮는다.
+  -->
+  <div class="wrap">
+    <h1>피부텐텐</h1>
+    <p>인터넷 연결을 확인해 주세요.<br />연결되면 다시 시도할 수 있습니다.</p>
+    <button id="retry">다시 시도</button>
+  </div>
+  <script>
+    // 인라인 onclick 미사용 (CSP 강화 대비). 오프라인 fallback 전용 화면.
+    document.getElementById("retry").addEventListener("click", function () {
+      location.href = "https://pibutenten.kr";
+    });
+  </script>
+</body>
+</html>
