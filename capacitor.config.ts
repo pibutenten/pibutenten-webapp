@@ -35,6 +35,15 @@ const config: CapacitorConfig = {
     // 로컬 자산 서빙 스킴 (deep link 스킴과 분리 — kr.pibutenten.app:// 는 Phase 3 에서 별도 도입).
     androidScheme: "https",
   },
+  plugins: {
+    // 상태바(OS 시간·통신사 표시줄)가 웹 화면을 덮지 않게 — PWA 처럼 상태바 아래부터 콘텐츠 시작.
+    //   overlaysWebView:false → 겹침 해소. 흰 배경(theme #FFFFFF)에 어두운 아이콘(style DARK).
+    StatusBar: {
+      overlaysWebView: false,
+      style: "DARK",
+      backgroundColor: "#ffffff",
+    },
+  },
 };
 
 export default config;
