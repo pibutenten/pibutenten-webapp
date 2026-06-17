@@ -94,6 +94,19 @@ function isStandalone(): boolean {
   );
 }
 
+/**
+ * Capacitor 네이티브 앱(iOS/Android) 안에서 실행 중인지.
+ *   네이티브 앱은 이미 설치된 상태이므로 PWA "홈 화면에 추가" 안내를 띄우지 않는다.
+ *   웹뷰에 주입된 window.Capacitor 로 판정(웹에서는 undefined → false).
+ */
+function isNativeApp(): boolean {
+  if (typeof window === "undefined") return false;
+  const cap = (window as Window & {
+    Capacitor?: { isNativePlatform?: () => boolean };
+  }).Capacitor;
+  return !!cap?.isNativePlatform?.();
+}
+
 function isDismissedRecently(): boolean {
   try {
     const at = localStorage.getItem(STORAGE_DISMISSED_AT);
@@ -136,6 +149,8 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // 네이티브 앱(Capacitor) 안에서는 PWA 설치 안내 불필요 — 이미 설치된 상태.
+    if (isNativeApp()) return;
 
     // 우상단 [앱 설치] 버튼 등에서 명시적으로 호출하는 강제 표시 — 항상 우선 등록.
     // dismiss·카운트 같은 자동 트리거 조건은 무시 (사용자가 명시적으로 요청한 것).
