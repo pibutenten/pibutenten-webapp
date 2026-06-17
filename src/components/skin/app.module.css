@@ -3084,7 +3084,7 @@ button.t[data-cat="knowledge"]:hover {
   border-color: #9bd8f5;
   background: var(--tt-blue-tint);
 }
-/* 시술노트 탭 제목 높이 통일 — 운영 SkinDiaryMockup 의 부제(h1 + p)만 앱 스코프에서 숨겨
+/* 시술노트 탭 제목 높이 통일 — 운영 DiaryForm(SkinDiaryForms.tsx)의 부제(h1 + p)만 앱 스코프에서 숨겨
    다른 탭(시술후기/끄적끄적/Q&A: h1 단독)과 제목 영역 높이를 맞춤. 운영 무수정.
    .writeWrap 하위에서 h1 바로 다음 p 인접은 시술노트 DiaryForm 에만 존재(검증 완료):
    ReviewForm 은 h1 다음이 div, WriteClient 는 h1 다음이 CardEditor(h1 없음). */

@@ -2,7 +2,7 @@
 
 // 시술기록(개인 노트)은 목업 폼 재사용. 시술후기는 기존 실제 폼(/review/new 의 ReviewForm) 그대로 연결.
 import { useRouter } from "next/navigation";
-import { DiaryForm } from "../mockups/skin-diary/SkinDiaryMockup";
+import { DiaryForm } from "@/components/skin/record/SkinDiaryForms";
 import ReviewForm, { type ProcedureOption } from "../review/new/ReviewForm";
 // 끄적끄적은 기존 글쓰기 컴포넌트(WriteClient)를 그대로 사용.
 import WriteClient from "./WriteClient";

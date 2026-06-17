@@ -70,7 +70,7 @@ const RESERVED_FIRST_SEGMENT = new Set<string>([
   "admin", "api", "auth", "cards", "doctor", "doctors", "topics", "reports",
   "review", "settings", "u", "login", "signup", "onboarding", "write",
   "today", "notes", "weather",
-  "my", "shop", "notifications", "search", "debug", "mockups",
+  "my", "shop", "notifications", "search", "debug",
   "old-skin", "report", "rss", "about", "terms", "privacy", "contact",
   "disclaimer", "editorial-policy", "medical-review", "corrections",
   "disclosures", "doctor-guidelines",

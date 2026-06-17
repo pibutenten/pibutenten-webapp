@@ -11,7 +11,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatRelativeTime } from "@/lib/relative-time";
 import type { KeywordPost } from "@/app/today/KeywordCarousel";
-import type { SummaryGroup, SummaryItem } from "@/app/mockups/skin-diary/SkinDiaryMockup";
+import type { SummaryGroup, SummaryItem } from "@/components/skin/record/SkinDiaryForms";
 
 /** 관심 키워드 카드(컴팩트) 조회 행. */
 export type KeywordCardRow = {

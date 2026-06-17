@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-06-17] — 외부 검수 후속: mockups 정규화 + 잔재 청소
+
+> 4개 독립 서브에이전트 외부 검수 결과 반영. 운영 공개를 막는 [치명]은 없었고(보안/PII 유출·악성코드 없음), 베타 승격 잔재·문서 모순·死코드를 정리.
+
+### Removed
+- **목업 데모 라우트 `/mockups/skin-diary` 전체 제거**(`src/app/mockups/` 폴더 삭제). page.tsx(데모) + 데모 전용 코드(`SkinDiaryMockup` default·`MockFab`·`ReviewOnlyForm`·`DetailView`·`NotiView`)와, 이들에서만 쓰이던 후기 컨트롤 死코드 클러스터(`StarField`/`FaceField`/`Chip`/`ChoiceField`/`EffectField`/`ReviewControls`/`ReviewFormBody`/`ProcedurePicker` + 옵션 const 6종 + 데모 더미 `SUMMARY` 상수) 삭제. `RecordView` 의 `summary` prop 필수화(호출자 전부 실데이터 주입 확인). `DiaryForm`/`RecordView`는 이를 일절 참조하지 않아 `/write`·`/today` 회귀 없음.
+- **에디터 자동저장 백업 `*.tmp.*` 38개 삭제**(git 미추적이라 배포 무관, 작업 트리 청소).
+- **`procedure-mappings.json.bak.260517` git 추적 제거**(이력은 git 에 보존).
+
+### Changed
+- **운영 컴포넌트 정규 위치 이전**: `DiaryForm`·`RecordView`·`SummaryGroup`/`SummaryItem` → `src/components/skin/record/SkinDiaryForms.tsx`(구 `app/mockups/skin-diary/SkinDiaryMockup.tsx`, "검토용 목업" 오명칭 해소). import 7곳 새 경로로 갱신.
+- **NaverMap 보존**: `NaverMap.tsx`·`ClinicMap.tsx`·`naver-maps.ts`(현재 미사용, 향후 병원 지도 대비) → `src/components/skin/record/clinic-map/` 로 이전 보존.
+- **`/mockups` 라우트 참조 제거**: `robots.ts` Disallow 목록 + `GlobalChrome.tsx` 예약어 집합에서 `/mockups` 삭제.
+- **`.gitignore`** 에 `*.bak`·`*.bak.*` 규칙 추가.
+- **문서·주석 모순 정정(SSOT 동기화)**: PRD §4.1 `cards.type` 2종→4종(qa/post/review/review_summary, ARCHITECTURE 와 일치) · `post-category.ts` 섹션 주석 "v6 2개"→"v7 4종" · `BETA_CUTOVER_PLAN.md` 헤더 "완료·종료"→실제 상태(Phase 8 등 잔여 + `/old-skin` 참고용 보존 명시) · `weather/page.tsx` 주석 경로 `/record/weather`→`/weather` · `identity-shared.ts` 주석 `resolveActiveIdentity` 위치 `identity.ts`→`identity-server.ts` · `app.module.css` 주석 `SkinDiaryMockup`→`DiaryForm(SkinDiaryForms.tsx)` · `RecordView` 주석 목업/`/record` 흔적 제거.
+
 ## [2026-06-17] — 인증 화면 배경 그라데이션 복구 + Apple redirect 정정
 
 > (1) 로그인/회원가입 배경이 피드와 달리 admin 회색이던 문제 fix. (2) Apple 로그인 `invalid_request`(Invalid web redirect url) 해결. `tsc` 0·`build` 0·코드검수 [치명] 0.

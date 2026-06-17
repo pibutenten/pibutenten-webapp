@@ -4,7 +4,7 @@ import { getIdentityContext } from "@/lib/identity";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import RecordTab from "@/app/today/RecordTab";
 import type { KeywordPost } from "@/app/today/KeywordCarousel";
-import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
+import type { SummaryGroup } from "@/components/skin/record/SkinDiaryForms";
 import {
   KEYWORD_SELECT,
   DIARY_SELECT,

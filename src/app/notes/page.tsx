@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { DIARY_SELECT, toSummaryGroups, type DiaryRow } from "@/lib/record-data";
-import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
+import type { SummaryGroup } from "@/components/skin/record/SkinDiaryForms";
 import RecordNotesView from "@/components/skin/record/RecordNotesView";
 import type { MyReview } from "@/components/skin/record/RecordNotesPanel";
 

@@ -50,7 +50,7 @@
 
 ### 4.1. 글 (카드) 시스템
 - 통합 테이블 `cards` (구 `qas`, 2026 리네임 — ADR 0004)
-- 타입: `qa` (Q&A), `post` (일반 글)
+- 타입: `qa` (Q&A) · `post` (일반 글) · `review` (개별 시술후기) · `review_summary` (시술 리포트 앵커, 1급 카드 — ARCHITECTURE.md 「시술 리포트 앵커 카드」 참조)
 - 카테고리 4종: `qa`(의사 Q&A, index) / `doodle`(일반 '끄적끄적', noindex) / `review`(개별 시술후기, noindex) / `review_summary`(시술 리포트 집계, index) — P3 완료
 - 상태: `draft` / `pending_review` / `published` / `hidden` / `archived`
 - soft-delete (`deleted_at` in-place, ADR 0002) — **본문 보존**. 회원 탈퇴 시에는 **작성자 profile PII만** 익명화(네이버 카페식: 콘텐츠 보존, 작성자는 '(탈퇴한 사용자)' 표시).

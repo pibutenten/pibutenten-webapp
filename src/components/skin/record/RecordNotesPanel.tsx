@@ -14,7 +14,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import styles from "../app.module.css";
 import { recordBadge } from "@/lib/diary-status";
-import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
+import type { SummaryGroup } from "@/components/skin/record/SkinDiaryForms";
 
 /* ---------- 시술 노트 1건(뷰 전용) — 운영 SummaryItem 에서 어댑트 ----------
  * year/month/day + 시술 칩 + 병원·의사 메타 + 배지용 visitedOn("YYYY-MM-DD"). */

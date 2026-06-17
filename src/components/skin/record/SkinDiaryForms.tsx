@@ -1,23 +1,11 @@
 "use client";
 
 /**
- * 시술노트 통합 — 검토용 디자인 목업 (시스템 미반영).
- *
- * 실제 앱 패턴 준수:
- *  - 글상자 = 피드 Card.tsx 와 동일(테두리 X·음영 X, 흰 박스 on 회색 배경).
- *  - 폼 컨트롤(별점/통증/칩/효과칩/단일선택) = ReviewForm 그대로 복제.
- *  - 끄적끄적 = CardEditor(제목/본문/태그) 구조. 시술후기만 = ReviewForm(가격 없음).
- *  - 장식 이모지 없음(통증 표정만 실제 폼 컨트롤이라 유지).
- * layout.tsx 가 TopNav/푸터/1080px/반응형 자동 적용 → 여기는 <main> 콘텐츠만.
- *
- * 구조 (원장 지시 2026-06-07):
- *  - 시술후기만: 기존 후기폼 그대로. 가격은 후기에 두지 않음(시술노트 비공개로 이동).
- *  - 시술노트: 날짜 → 병원(지도검색) → 의사/실장 → 받은 시술(행마다 가격·비고, 나만 보기)
- *              → 오늘의 시술 노트 → 저장하기. 받은 시술마다 "아래에 형제 글상자"로 후기칸이
- *              닫힌 채 생성 → [후기 작성하기]로 열고 한 번 더 누르면 닫힘 / [나중에 쓰기]는
- *              3·7·30일 뒤 알림.
- *  - 내 노트: 우상단 토글(달력/목록). 목록=요약본(연도 표시·모두 펼치기/닫기). 항목 클릭→상세.
- *  - 상세: 평가지표 제외, 비공개 메모(병원·의사·실장·연락처·가격·비고·노트)만.
+ * 시술노트 폼·조회 — 운영 컴포넌트.
+ *  - DiaryForm: /write 시술기록(개인 노트) 작성 폼. 날짜→병원(검색)→의사/실장→받은 시술(가격·비고, 나만 보기)→노트→저장.
+ *  - RecordView: /today 내 노트(달력/목록 토글). SummaryGroup/SummaryItem 으로 렌더.
+ *  - 폼 컨트롤(별점/통증/칩/효과칩/단일선택)은 ReviewForm 패턴과 동일. 글상자=피드 Card.tsx 와 동일(테두리 X·음영 X).
+ *  layout.tsx 가 TopNav/푸터/1080px/반응형 자동 적용 → 여기는 <main> 콘텐츠만.
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -37,28 +25,6 @@ const labelCls = "mb-2 block text-sm font-semibold text-[var(--text)]";
 const formBox = "space-y-5 rounded-[var(--radius)] bg-white p-5";
 const cardBox = "rounded-[var(--radius)] bg-white p-5";
 
-/* ── 옵션 (실제 SSOT 값 그대로) ── */
-const PAIN_FACES = [
-  { face: "😊", label: "없음" }, { face: "🙂", label: "조금" }, { face: "😐", label: "보통" },
-  { face: "😣", label: "꽤" }, { face: "😖", label: "심함" },
-];
-const REVISIT_OPTIONS = [
-  { value: "yes", label: "있어요", color: "#4CBFF2" },
-  { value: "no", label: "없어요", color: "#EA7E7B" },
-  { value: "maybe", label: "고민 중", color: "#9AA1AC" },
-];
-const DOWNTIME_OPTIONS = [
-  { value: "same_day", label: "없음" }, { value: "days_1_2", label: "1~2일" },
-  { value: "days_3_5", label: "3~5일" }, { value: "week_1", label: "약 1주" },
-  { value: "weeks_2_plus", label: "2주 이상" },
-];
-const EFFECT_ONSET_OPTIONS = [
-  { value: "immediate", label: "시술 직후" }, { value: "weeks_1_2", label: "1~2주 후" },
-  { value: "month_1", label: "한 달쯤 후" }, { value: "months_2_3", label: "두세 달 후" },
-  { value: "still_watching", label: "효과 못 느낌" },
-];
-const EFFECT_AREA_OPTIONS = ["리프팅","탄력","쫀쫀함","볼륨","작은얼굴","턱선","이중턱","피부톤","피부결","잔주름","깊은주름","불독살","모공","생기","속건조","붉은기","트러블","피지","없음"];
-const EFFECT_AREA_COLORS = ["#B0A0DE","#7FD0F8","#F59CB6","#FFCB8C","#A6D9A9","#C3B0E8","#79CCC3","#FFAF97","#9AA6DE","#CDC97A","#C9A8D6","#A8C2E6","#8FD4C8","#F4B8A0","#B8D88A","#F2A9C0","#D6B0A1","#E0C088","#C2C7CE"];
 
 /* 시술 picker — 실제 tag_dictionary(is_procedure) 기준. 카테고리 리프팅/스킨부스터 2종. */
 const CAT_COLOR: Record<string, string> = { 리프팅: "#29B6F6", 스킨부스터: "#F48FB1" };
@@ -72,301 +38,6 @@ const emptyReview = (): ReviewState => ({ satisfaction: 0, pain: 0, downtime: ""
 
 type Screen = "diary" | "reviewonly" | "record" | "detail" | "noti";
 
-/* ════════════════ 메인 ════════════════ */
-
-export default function SkinDiaryMockup() {
-  const [screen, setScreen] = useState<Screen>("record");
-  const [fabOpen, setFabOpen] = useState(false);
-  const [toast, setToast] = useState("");
-  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(""), 1900); };
-
-  const TABS: [Screen, string][] = [
-    ["diary","시술노트"],["reviewonly","시술후기만"],
-    ["record","내 노트"],["detail","상세"],["noti","알림"],
-  ];
-
-  return (
-    <div className="pb-12">
-      <div className="mb-5 mt-1">
-        <p className="mb-2 text-center text-[11px] font-semibold text-[var(--text-muted)]">검토용 미리보기 · 시스템 미반영</p>
-        <div className="flex flex-wrap justify-center gap-1.5">
-          {TABS.map(([v, label]) => (
-            <button key={v} type="button" onClick={() => setScreen(v)}
-              className="shrink-0 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors"
-              style={screen === v ? { background: "var(--primary)", color: "#fff" } : { background: "#E8EAEE", color: "#5C6470" }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {screen === "diary" && <DiaryForm toast={showToast} go={setScreen} />}
-      {screen === "reviewonly" && <ReviewOnlyForm toast={showToast} go={setScreen} />}
-      {screen === "record" && <RecordView go={setScreen} />}
-      {screen === "detail" && <DetailView go={setScreen} />}
-      {screen === "noti" && <NotiView go={setScreen} toast={showToast} />}
-
-      {toast && (
-        <div className="fixed bottom-8 left-1/2 z-[200] -translate-x-1/2 rounded-md bg-[var(--secondary)] px-5 py-3 text-[13.5px] font-semibold text-white shadow-[var(--shadow-lg)]">{toast}</div>
-      )}
-
-      <MockFab open={fabOpen} setOpen={setFabOpen} go={setScreen} toast={showToast} />
-    </div>
-  );
-}
-
-/* ════════════════ 플로팅(+) 메뉴 — 우하단. 실제 FAB 대체 데모 ════════════════
-   실제 layout 의 FloatingWriteButton(끄적끄적/시술후기/보관)을 목업에선 숨기고,
-   '나의 시술노트 보기 / 시술노트 남기기 / 시술 후기 남기기 / 끄적끄적' 4개로 펼치는 메뉴로 대체.
-   (앱 전환 시 하단 중앙 + 버튼으로 이동 예정.) */
-
-function MockFab({ open, setOpen, go, toast }: { open: boolean; setOpen: (b: boolean) => void; go: (s: Screen) => void; toast: (m: string) => void }) {
-  const items: { label: string; icon: React.ReactNode; onClick: () => void }[] = [
-    { label: "나의 시술노트 보기", onClick: () => go("record"), icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
-    ) },
-    { label: "시술노트 남기기", onClick: () => go("diary"), icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
-    ) },
-    { label: "시술후기 남기기", onClick: () => go("reviewonly"), icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 17.3l-5.6 3.3 1.5-6.3-4.9-4.3 6.4-.5L12 3.5l2.6 6 6.4.5-4.9 4.3 1.5 6.3z" /></svg>
-    ) },
-    { label: "끄적끄적", onClick: () => toast("끄적끄적은 기존 글쓰기 화면으로 연결돼요"), icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
-    ) },
-  ];
-  return (
-    <>
-      {open && <div className="fixed inset-0 z-30" aria-hidden onClick={() => setOpen(false)} />}
-      <div className="fixed z-40 flex flex-col items-end gap-3" style={{ bottom: "calc(env(safe-area-inset-bottom,0px) + 20px)", right: 20 }}>
-        {open && items.map((it) => (
-          <button key={it.label} type="button" onClick={() => { it.onClick(); setOpen(false); }} className="flex items-center gap-2" style={{ animation: "fab-pop .18s ease-out both" }}>
-            <span className="hidden rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold text-[var(--text)] shadow-[0_4px_12px_rgba(0,0,0,0.12)] sm:block">{it.label}</span>
-            <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full shadow-[0_6px_16px_rgba(139,195,222,0.35)]" style={{ background: "#7FD0F8" }}>{it.icon}</span>
-          </button>
-        ))}
-        <button type="button" onClick={() => setOpen(!open)} aria-label={open ? "작성 메뉴 닫기" : "작성 메뉴 열기"} aria-expanded={open}
-          className="flex items-center justify-center rounded-full text-white shadow-[0_8px_20px_rgba(139,195,222,0.35)] transition-all active:scale-95"
-          style={{ width: 56, height: 56, backgroundColor: "#4CBFF2" }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 transition-transform" style={{ transform: open ? "rotate(45deg)" : "none" }}>
-            <path d="M12 5v14" /><path d="M5 12h14" />
-          </svg>
-        </button>
-      </div>
-      {/* 실제 layout FAB 숨김(목업 전용) + 위성 등장 애니메이션 */}
-      <style>{`.fab-root{display:none!important}@keyframes fab-pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}`}</style>
-    </>
-  );
-}
-
-/* ════════════════ 공통 후기 컨트롤 (ReviewForm 복제) ════════════════ */
-
-function StarField({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [hover, setHover] = useState(0);
-  return (
-    <div>
-      <label className="mb-1 block text-sm font-semibold text-[var(--text)]">만족도</label>
-      <div className="flex justify-start gap-1" onMouseLeave={() => setHover(0)}>
-        {[1,2,3,4,5].map((n) => {
-          const gold = n <= value || (hover > 0 && n > value && n <= hover);
-          const preview = hover > 0 && n > value && n <= hover;
-          return (
-            <button key={n} type="button" onClick={() => onChange(n)} onMouseEnter={() => setHover(n)}
-              className="flex w-11 cursor-pointer items-center justify-center text-[34px] leading-none transition-transform active:scale-125">
-              <span style={{ color: gold ? (preview ? "#F7CE8A" : "var(--accent-save)") : "#E3E7EB" }}>★</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function FaceField({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [hover, setHover] = useState(0);
-  return (
-    <div>
-      <label className="mb-1 block text-sm font-semibold text-[var(--text)]">통증</label>
-      <div className="flex justify-start gap-1" onMouseLeave={() => setHover(0)}>
-        {PAIN_FACES.map((f, i) => {
-          const n = i + 1; const selected = n === value; const previewing = !selected && n === hover; const on = selected || previewing;
-          return (
-            <button key={n} type="button" onClick={() => onChange(n)} onMouseEnter={() => setHover(n)}
-              className="flex w-11 cursor-pointer flex-col items-center justify-center gap-1 py-1 transition-transform active:scale-125">
-              <span className="text-[30px] leading-none" style={{ filter: on ? "none" : "grayscale(1)", opacity: selected ? 1 : previewing ? 0.85 : 0.4 }}>{f.face}</span>
-              <span className="text-[10px] font-medium" style={{ color: selected ? "var(--text)" : "var(--text-secondary)" }}>{f.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function Chip({ active, onClick, color, children }: { active: boolean; onClick: () => void; color?: string; children: React.ReactNode }) {
-  const [hover, setHover] = useState(false);
-  let style: CSSProperties;
-  if (active) style = color ? { backgroundColor: color, color: "#fff", fontWeight: 600 } : { backgroundColor: "#4CBFF2", color: "#fff", fontWeight: 600 };
-  else if (color && hover) style = { backgroundColor: color + "22", color, fontWeight: 600 };
-  else style = { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 };
-  return (
-    <button type="button" onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1 text-[13px] transition-transform active:scale-110" style={style}>
-      {children}
-    </button>
-  );
-}
-
-function ChoiceField({ label, hint, value, onChange, options }: { label: string; hint?: string; value: string; onChange: (v: string) => void; options: { value: string; label: string; color?: string }[] }) {
-  return (
-    <div>
-      <label className={labelCls}>{label}{hint && <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">{hint}</span>}</label>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((o) => <Chip key={o.value} active={value === o.value} color={o.color} onClick={() => onChange(o.value)}>{o.label}</Chip>)}
-      </div>
-    </div>
-  );
-}
-
-function EffectField({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
-  return (
-    <div>
-      <label className={labelCls}>이번 시술로 달라진 점을 모두 골라주세요!
-        <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">생각보다 많을 거예요 — 보통 4개 이상 고르세요.</span>
-      </label>
-      <div className="flex flex-wrap gap-1">
-        {EFFECT_AREA_OPTIONS.map((opt, i) => {
-          const active = value.includes(opt); const color = EFFECT_AREA_COLORS[i];
-          return (
-            <button key={opt} type="button" onClick={() => onChange(active ? value.filter((x) => x !== opt) : [...value, opt])}
-              className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1 text-[13px] transition-transform active:scale-110"
-              style={active ? { backgroundColor: color, color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>
-              {opt}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/** 후기 정량 컨트롤 — 후기폼/노트 공용. 가격 없음(가격은 시술노트 비공개로 이동). */
-function ReviewControls({ v, set }: { v: ReviewState; set: (p: Partial<ReviewState>) => void }) {
-  return (
-    <>
-      <StarField value={v.satisfaction} onChange={(x) => set({ satisfaction: x })} />
-      <FaceField value={v.pain} onChange={(x) => set({ pain: x })} />
-      <ChoiceField label="다운타임이 얼마나 됐나요?" hint="붓기·멍·딱지 등이 가라앉고 일상이 편해질 때까지" value={v.downtime} onChange={(x) => set({ downtime: x })} options={DOWNTIME_OPTIONS} />
-      <ChoiceField label="재시술 의향" value={v.revisit} onChange={(x) => set({ revisit: x })} options={REVISIT_OPTIONS} />
-      <EffectField value={v.effectAreas} onChange={(x) => set({ effectAreas: x })} />
-      <ChoiceField label="효과는 언제부터 느끼셨어요?" value={v.effectOnset} onChange={(x) => set({ effectOnset: x })} options={EFFECT_ONSET_OPTIONS} />
-      <div>
-        <label className={labelCls}>생생한 후기를 남겨주세요 <span className="text-xs font-normal text-[var(--text-muted)]">({v.oneliner.length} / 400)</span></label>
-        <textarea maxLength={400} rows={3} className={textareaCls} placeholder="다른 분들이 궁금해할 만한 점을 들려주세요." value={v.oneliner} onChange={(e) => set({ oneliner: e.target.value })} />
-        <p className="mt-1 text-xs text-[var(--text-muted)]">의료광고성 표현·병원·의사 실명 언급은 금합니다.</p>
-      </div>
-    </>
-  );
-}
-
-/* 시술 잠금형 탭 picker (ReviewForm 복제, 실제 카테고리 색) */
-function ProcedurePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const tabs = useMemo(() => { const o: string[] = []; PROCEDURES.forEach((p) => { if (!o.includes(p.cat)) o.push(p.cat); }); return o; }, []);
-  const [tab, setTab] = useState(tabs[0]);
-  const chips = PROCEDURES.filter((p) => p.cat === tab);
-  return (
-    <div>
-      <div className="flex justify-center gap-x-7">
-        {tabs.map((t) => {
-          const on = t === tab; const c = CAT_COLOR[t] ?? "var(--primary)";
-          return (
-            <button key={t} type="button" onClick={() => setTab(t)}
-              className="shrink-0 cursor-pointer border-b-2 px-1 py-[6px] text-[14px] font-semibold transition-colors"
-              style={{ color: on ? c : "var(--text-secondary)", borderBottomColor: on ? c : "transparent" }}>
-              {t}
-            </button>
-          );
-        })}
-      </div>
-      <div aria-hidden className="mb-3 mt-0 h-px w-full" style={{ background: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.10) 18%, rgba(0,0,0,0.10) 82%, transparent 100%)" }} />
-      <div className="flex flex-wrap justify-center gap-1">
-        {chips.map((p) => {
-          const sel = value === p.value; const c = CAT_COLOR[p.cat] ?? "var(--primary)";
-          return (
-            <button key={p.value} type="button" onClick={() => onChange(p.value)}
-              className="cursor-pointer rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97]"
-              style={sel ? { backgroundColor: c + "1A", color: c, fontWeight: 700 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function SubmitBar({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <div className="flex items-center justify-center border-t border-[var(--border)] pt-4">
-      <button type="button" onClick={onClick} className="h-10 rounded-md bg-[var(--primary)] px-8 text-sm font-semibold text-white transition-colors hover:bg-[var(--primary-dark)]">{label}</button>
-    </div>
-  );
-}
-
-/**
- * 후기 작성 폼 본문(SSOT) — 시술후기만/시술노트-시술별 후기가 동일하게 사용.
- * 시술명(가운데·카테고리색·18px) + 우상단 액션(다시선택/접기) + ReviewControls + 하단 버튼.
- */
-function ReviewFormBody({ cat, label, v, set, submitLabel, onSubmit, topRight }: {
-  cat: string; label: string; v: ReviewState; set: (p: Partial<ReviewState>) => void;
-  submitLabel: string; onSubmit: () => void; topRight?: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-5">
-      <div className="relative flex items-center justify-center">
-        <div className="py-1 text-center"><span className="text-[18px] font-bold leading-[1.4]" style={{ color: CAT_COLOR[cat] ?? "var(--primary)" }}>{label}</span></div>
-        {topRight && <div className="absolute right-0">{topRight}</div>}
-      </div>
-      <ReviewControls v={v} set={set} />
-      <SubmitBar label={submitLabel} onClick={onSubmit} />
-    </div>
-  );
-}
-
-/* ════════════════ ② 시술 후기만 (실제 ReviewForm 그대로, 가격 없음) ════════════════ */
-
-export function ReviewOnlyForm({ toast, go }: { toast: (m: string) => void; go: (s: Screen) => void }) {
-  const [proc, setProc] = useState("");
-  const [v, setV] = useState<ReviewState>(emptyReview());
-  const set = (p: Partial<ReviewState>) => setV((s) => ({ ...s, ...p }));
-  const selected = PROCEDURES.find((p) => p.value === proc);
-  return (
-    <section className="mx-auto w-full max-w-[680px]">
-      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)]">시술후기를 남겨주세요</h1>
-      <div className={formBox}>
-        {selected ? (
-          <ReviewFormBody
-            cat={selected.cat}
-            label={selected.label}
-            v={v}
-            set={set}
-            submitLabel="후기 올리기"
-            onSubmit={() => { toast("후기를 올렸어요"); setTimeout(() => go("record"), 800); }}
-            topRight={<button type="button" onClick={() => setProc("")} className="cursor-pointer text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--text-secondary)]">다시 선택</button>}
-          />
-        ) : (
-          <>
-            <ProcedurePicker value={proc} onChange={setProc} />
-            <div className="pointer-events-none space-y-5 opacity-50">
-              <ReviewControls v={v} set={set} />
-            </div>
-            <SubmitBar label="후기 올리기" onClick={() => {}} />
-          </>
-        )}
-      </div>
-    </section>
-  );
-}
 
 /* ════════════════ ④ 나의 시술노트 ════════════════ */
 
@@ -887,31 +558,19 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
 
 /* ════════════════ ⑤ 내 노트 (달력 / 목록 토글) ════════════════ */
 
-// SummaryItem.date = "MM.DD"(연도는 SummaryGroup.year). 실데이터(/record)·목업 공용 타입.
+// SummaryItem.date = "MM.DD"(연도는 SummaryGroup.year). 시술노트 요약본 공용 타입.
 export type SummaryItem = { id: string; date: string; proc: string; hospital: string; doctor: string; manager?: string; tel: string; price: string; memo: string; items: { name: string; unit: string }[] };
 export type SummaryGroup = { year: number; items: SummaryItem[] };
-const SUMMARY: SummaryGroup[] = [
-  { year: 2026, items: [
-    { id: "a", date: "06.12", proc: "보톡스", hospital: "예담피부과의원", doctor: "김민재 원장", tel: "02-000-2222", price: "220,000원", memo: "이마·미간", items: [{ name: "보톡스", unit: "이마 50u · 미간 20u" }] },
-    { id: "b", date: "06.04", proc: "써마지 · 스컬트라", hospital: "라온피부과의원", doctor: "이서연 원장", manager: "윤소희 실장님", tel: "02-000-1111", price: "1,650,000원", memo: "1년 주기로 받기로 함", items: [{ name: "써마지", unit: "600샷" }, { name: "스컬트라", unit: "2바이알" }] },
-    { id: "c", date: "05.20", proc: "리쥬란", hospital: "맑은서울피부과의원", doctor: "박지호 원장", tel: "02-000-3333", price: "350,000원", memo: "리쥬란힐러", items: [{ name: "리쥬란", unit: "2cc" }] },
-  ] },
-  { year: 2025, items: [
-    { id: "d", date: "11.03", proc: "써마지", hospital: "라온피부과의원", doctor: "이서연 원장", tel: "02-000-1111", price: "980,000원", memo: "1년 주기로 받기로", items: [{ name: "써마지", unit: "600샷" }] },
-    { id: "e", date: "06.04", proc: "울쎄라", hospital: "수피부과의원", doctor: "정유진 원장", tel: "031-000-5555", price: "1,200,000원", memo: "300샷", items: [{ name: "울쎄라", unit: "300샷" }] },
-  ] },
-];
 
-// summary 미지정(목업)이면 데모 데이터, /record 는 실제 diaries 를 prop 으로 전달.
-//   openDetail: 항목 클릭 시 상세 진입. 미지정(목업)이면 go("detail")(목업 상세 화면).
-//   /record 는 (id)=>router.push(`/record/${id}`) 를 전달해 실제 상세 라우트로 이동.
+// summary = 시술노트 요약본(연도 그룹). 호출자(/today RecordTab 등)가 실데이터를 prop 으로 주입.
+//   openDetail: 항목 클릭 시 상세 진입 콜백. RecordTab 은 (id)=>/notes/${id}(게스트는 /signup) 전달.
 export function RecordView({
   go,
-  summary = SUMMARY,
+  summary,
   openDetail,
 }: {
   go: (s: Screen) => void;
-  summary?: SummaryGroup[];
+  summary: SummaryGroup[];
   openDetail?: (id: string) => void;
 }) {
   const [mode, setMode] = useState<"tl" | "cal" | "list">("tl");
@@ -1225,84 +884,3 @@ function SummaryPanel({ onOpen, summary }: { onOpen: (id: string) => void; summa
   );
 }
 
-/* ════════════════ ⑥ 상세 (평가 제외, 비공개 메모) ════════════════ */
-
-
-function DetailView({ go }: { go: (s: Screen) => void }) {
-  return (
-    <section className="mx-auto w-full max-w-[680px] space-y-3">
-      {/* 헤더 — 날짜·시술·병원·의료진(라벨 없이) + 빠른 액션 */}
-      <div className={cardBox}>
-        <p className="text-[12px] font-bold text-[var(--primary-active)]">2026.06.04 · 목요일 <span className="ml-1 font-medium text-[var(--text-muted)]">· 나만 봐요</span></p>
-        <p className="mt-1 text-[20px] font-bold text-[var(--text)]">써마지 · 스컬트라</p>
-        <p className="mt-2 text-[14px] font-semibold text-[var(--text)]">라온피부과의원</p>
-        <p className="text-[13px] text-[var(--text-secondary)]">이서연 원장님 · ○○ 실장님</p>
-        <div className="mt-3 flex gap-2">
-          <a href="tel:02-000-1111" className="flex flex-1 items-center justify-center rounded-md bg-[var(--primary-soft)] py-2.5 text-[12.5px] font-semibold text-[var(--primary-active)]">전화하기</a>
-          <a href="https://map.naver.com/p/search/라온피부과의원" target="_blank" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1 rounded-md bg-white py-2.5 text-[12.5px] font-semibold text-[#03C75A] ring-1 ring-inset ring-[var(--border)]">네이버 지도</a>
-          <a href="tmap://search?name=라온피부과의원" rel="noopener noreferrer" className="flex flex-1 items-center justify-center gap-1 rounded-md bg-white py-2.5 text-[12.5px] font-semibold text-[#1A56DB] ring-1 ring-inset ring-[var(--border)]">티맵</a>
-        </div>
-      </div>
-
-      {/* 받은 시술 — 시술명 · 가격 · 메모 */}
-      <div className={cardBox + " space-y-2"}>
-        <div className="rounded-md bg-[var(--bg)] p-3">
-          <div className="flex items-baseline justify-between"><span className="text-[14px] font-bold text-[var(--primary-active)]">써마지 <span className="text-[12.5px] font-medium text-[var(--text-secondary)]">600샷</span></span><span className="text-[13px] font-semibold text-[var(--text)]">980,000원</span></div>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">1년 주기로 받자고 하셨다.</p>
-        </div>
-        <div className="rounded-md bg-[var(--bg)] p-3">
-          <div className="flex items-baseline justify-between"><span className="text-[14px] font-bold text-[var(--primary-active)]">스컬트라 <span className="text-[12.5px] font-medium text-[var(--text-secondary)]">2바이알</span></span><span className="text-[13px] font-semibold text-[var(--text)]">670,000원</span></div>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">볼 꺼진 부분 위주.</p>
-        </div>
-      </div>
-
-      {/* 오늘의 시술 노트 */}
-      <div className={cardBox}>
-        <p className="text-[13.5px] leading-relaxed text-[var(--text-secondary)]">붓기는 이틀쯤. 다음엔 6개월 뒤 보자고 하셨다. 스컬트라는 확실히 볼륨이 산다…</p>
-      </div>
-
-      <button type="button" onClick={() => go("record")} className="w-full rounded-md bg-[var(--bg)] py-2.5 text-[12.5px] font-semibold text-[var(--text-secondary)]">← 내 노트로</button>
-    </section>
-  );
-}
-
-/* ════════════════ ⑦ 알림 ════════════════ */
-
-function NotiView({ go, toast }: { go: (s: Screen) => void; toast: (m: string) => void }) {
-  const items = [
-    { tag: "1단계 · 3일 뒤", t: "회복은 어떠세요?", m: "써마지 받으신 지 3일 됐어요. 붓기·통증이 어땠는지 후기를 채워볼까요?", meta: "힐하우스피부과 · 2026.06.04", last: false },
-    { tag: "2단계 · 7일 뒤", t: "일주일 지났어요", m: "효과가 조금 느껴지시나요? 달라진 점을 골라두면 나중에 비교하기 좋아요.", meta: "써마지 · 다운타임 종료 시점", last: false },
-    { tag: "3단계 · 30일 뒤 (마지막)", t: "한 달 됐어요", m: "이제 효과가 안정됐을 거예요. 최종 만족도와 효과를 마무리해 볼까요? 이 알림은 마지막이에요.", meta: "써마지 · 효과 안정 시점", last: true },
-  ];
-  return (
-    <section className="mx-auto w-full max-w-[680px]">
-      <p className="mb-3 text-[15px] font-bold text-[var(--text)]">‘나중에 쓰기’ 후기 알림 <span className="text-[12px] font-normal text-[var(--text-muted)]">3일 · 7일 · 30일, 3번까지</span></p>
-      <div className="space-y-2.5">
-        {items.map((n) => (
-          <div key={n.tag} className={cardBox}>
-            <span className="inline-block rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "#FBEFD9", color: "#B6790F" }}>{n.tag}</span>
-            <p className="mt-2 text-[14.5px] font-semibold text-[var(--text)]">{n.t}</p>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">{n.m}</p>
-            <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">{n.meta}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={() => go("diary")} className="rounded-md bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[var(--primary-dark)]">{n.last ? "마무리하기" : "지금 채우기"}</button>
-              {!n.last && <button type="button" className="rounded-md bg-[var(--bg)] px-4 py-2 text-[12px] font-semibold text-[var(--text-secondary)]">나중에</button>}
-              <button type="button" onClick={() => toast("이 후기는 그만 알릴게요")} className="rounded-md bg-[var(--bg)] px-4 py-2 text-[12px] font-semibold text-[var(--text-secondary)]">그만 알림</button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <p className="mb-3 mt-7 text-[15px] font-bold text-[var(--text)]">시술 주기 리마인드 <span className="text-[12px] font-normal text-[var(--text-muted)]">별개 트랙</span></p>
-      <div className={cardBox}>
-        <p className="text-[14.5px] font-semibold text-[var(--text)]">써마지 받으신 지 1년 됐어요</p>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">작년 6월에 받으셨어요. 보통 이맘때 다시 찾는 분이 많아요. (권유가 아니라 시술 주기 안내예요.)</p>
-        <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">내 노트 기준 · 2025.06.04</p>
-        <div className="mt-3 flex gap-2">
-          <button type="button" onClick={() => go("record")} className="rounded-md bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[var(--primary-dark)]">내 노트 보기</button>
-          <button type="button" className="rounded-md bg-[var(--bg)] px-4 py-2 text-[12px] font-semibold text-[var(--text-secondary)]">닫기</button>
-        </div>
-      </div>
-    </section>
-  );
-}

@@ -15,7 +15,7 @@ import Link from "next/link";
 import AppShell from "../AppShell";
 import styles from "../app.module.css";
 import RecordNotesPanel, { ReviewBox, toRecEntries, type MyReview } from "./RecordNotesPanel";
-import type { SummaryGroup } from "@/app/mockups/skin-diary/SkinDiaryMockup";
+import type { SummaryGroup } from "@/components/skin/record/SkinDiaryForms";
 
 /* "이렇게 기록돼요" 빈 상태용 샘플 노트(더미) — 실데이터 아님이 분명하도록 '예시' 배지와 함께 미리보기.
  *   날짜·병원·시술명·메모가 든 더미 카드 4개. 클릭 동작 없음(시각적 이해 전용). */

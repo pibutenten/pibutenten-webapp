@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { RecordView, type SummaryGroup } from "../mockups/skin-diary/SkinDiaryMockup";
+import { RecordView, type SummaryGroup } from "@/components/skin/record/SkinDiaryForms";
 import { computeStatus, type DiaryLatest } from "@/lib/diary-status";
 import KeywordCarousel, { type KeywordPost } from "./KeywordCarousel";
 import type { PopularData, PopularItem } from "@/lib/record-data";

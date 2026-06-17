@@ -95,18 +95,18 @@ export function labelForCategory(s: string | null | undefined): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // 카테고리 라벨 SSOT (Sub-6, 2026-05-27) — 구 src/lib/category-labels.ts 통합
 //
-// POST_CATEGORIES 가 현재 활성 v6 2개의 단일 정의. 아래 derived 상수들은
+// POST_CATEGORIES 가 v7 4종(끄적끄적·Q&A·시술후기·시술 리포트)의 단일 정의. 아래 derived 상수들은
 // 라벨이 코드 곳곳에 하드코딩되던 누더기를 차단하기 위한 단일 출처.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** v6 현재 활성 2개 카테고리 라벨 (Set 형태) — 검색 입력 매칭용. POST_CATEGORIES 에서 derive. */
+/** v7 4종 카테고리 라벨 (Set 형태) — 검색 입력 매칭용. POST_CATEGORIES 에서 derive. */
 export const POST_CATEGORY_LABELS: ReadonlySet<string> = new Set(
   POST_CATEGORIES.map((c) => c.label),
 );
 
 /**
  * 사용자가 직접 입력한 카테고리 라벨 제거 헬퍼.
- * 현재 활성 라벨(Q&A·끄적끄적)을 keywords 에서 제거 — 카드 헤더 자동 라벨과 중복 방지.
+ * 활성 카테고리 라벨(끄적끄적·Q&A·시술후기·시술 리포트)을 keywords 에서 제거 — 카드 헤더 자동 라벨과 중복 방지.
  */
 export function stripCategoryLabels(keywords: readonly string[]): string[] {
   return keywords.filter((k) => !POST_CATEGORY_LABELS.has(k));

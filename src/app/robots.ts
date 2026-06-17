@@ -70,8 +70,6 @@ const DISALLOW_COMMON = [
   "/search?",
   "/debug",
   "/u/",
-  // 검토용 목업(noindex). page-level noindex 와 이중으로 크롤 자체 차단.
-  "/mockups",
   // 옛 디자인(앱 셸 승격 전) 박제 백업(noindex). 중복 콘텐츠 색인 방지.
   //   page-level robots:{index:false} 와 이중으로 크롤 자체 차단.
   "/old-skin",

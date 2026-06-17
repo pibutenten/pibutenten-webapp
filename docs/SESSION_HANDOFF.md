@@ -2,11 +2,26 @@
 
 > 세션 간 인수인계용. 현재 상태·주의사항·다음 작업·불변 원칙을 한 장으로. 변경 이력 상세는 `CHANGELOG.md`.
 
-**최종 갱신**: 2026-06-16
+**최종 갱신**: 2026-06-17
 
 ---
 
-## 0. 직전 세션 (2026-06-16 · 하단바 개편 → /today·/notes 재구성 → beta 네이밍 전면 제거) — 한눈에
+## 0. 직전 세션 (2026-06-17 · 외부 검수 4-에이전트 + mockups 정규화·잔재 청소) — 한눈에
+
+- **외부 검수**: 동일 프롬프트 4개 독립 서브에이전트로 5대 중점(베타 잔재/SSOT 정합/중복·누락/PII 유출/악성코드) 전수 검수. **결론: 운영 공개를 막는 [치명] 0건.** secret 클라 노출·PII anon 유출·악성코드(eval/postinstall/exfiltration) 없음. SSRF/CSRF/XSS 가드 견고.
+- **반영한 청소** (커밋 예정):
+  1. **mockups 정규화**: 잘못 명명된 `src/app/mockups/skin-diary/`(이름은 목업이나 운영 컴포넌트 포함)를 청산. 운영 `DiaryForm`(/write)·`RecordView`(/today)·`SummaryGroup/Item` → `src/components/skin/record/SkinDiaryForms.tsx` 이전. `NaverMap`/`ClinicMap`/`naver-maps`(미사용·향후 대비) → `src/components/skin/record/clinic-map/` 보존. 목업 데모 라우트 `page.tsx` 삭제 → **`/mockups` 라우트 제거**. 데모 전용·후기 컨트롤 死코드 클러스터(SkinDiaryMockup default·MockFab·ReviewOnlyForm·DetailView·NotiView·ReviewControls·ReviewFormBody·ProcedurePicker·StarField·FaceField·Chip·ChoiceField·EffectField + 옵션 const 6종 + 데모 더미 SUMMARY) 제거. import 7곳·robots·GlobalChrome 갱신.
+  2. **잔재**: `*.tmp.*` 38개 삭제(git 미추적), `procedure-mappings.json.bak.260517` git rm, `.gitignore` 에 `*.bak` 규칙.
+  3. **문서·주석 모순 정정**: PRD `cards.type` 4종, post-category 주석 v7 4종, BETA_CUTOVER_PLAN 헤더(완료→실상), weather·identity-shared·app.module.css 주석 경로/이름.
+- **검증**: `tsc --noEmit` 0 · `npm run build` 0(클린 .next 재빌드, `/mockups` 부재·핵심 라우트 정상) · 코드검수관 [치명] 0(회귀 위험 없음 확인).
+- **주의(병행 세션)**: 같은 작업 트리에서 다른 세션이 `tag-dictionary` 작업 진행 중(`src/data/tag-dictionary.generated.json` 수정 + `scripts/export-tag-dictionary-xlsx.py` 신규). 본 세션 커밋은 **겹치지 않는 파일만** stage. 또한 다른 세션의 `next dev` 가 `.next/dev` 점유 중 → `.next` 전체 삭제는 피하고 부분 캐시만 정리해 빌드.
+
+### 남은 선택 청소(후속 안건 — 회귀 위험으로 보류)
+- `SkinDiaryForms.tsx` 의 `Screen` 타입에 삭제 화면값(`reviewonly`/`detail`/`noti`) 잔존 + `ReviewState`/`DiaryProc` 의 미사용 후기 필드(satisfaction/pain 등) + `go("detail")` 폴백. 모두 死이나 `DiaryForm`/`RecordView` 의 상태·콜백 시그니처와 얽혀 별도 회귀검증 필요. (코드검수관 [경고], [치명] 아님.)
+
+---
+
+## 0-1. 그 이전 세션 (2026-06-16 · 하단바 개편 → /today·/notes 재구성 → beta 네이밍 전면 제거) — 한눈에
 
 - **git**: HEAD = `9e3a627`. 5커밋:
   1. `b07da69` **하단 바 개편** — 5탭(투데이·내 노트·피드·쇼핑·마이) + 글쓰기 우하단 FAB(`WriteFab`). 라우트 이전(리다이렉트 없음): `/record`→`/today`, `/record/notes`→`/notes`, `/record/[id]`→`/notes/[id]`, `/record/weather`→`/weather`. /today 히어로(KPI 4종 내장: 내 노트·후기·글·댓글, '내 글에 달린 댓글'→'내가 쓴 댓글'). + **피드 인기태그 클릭 검색 버그 수정**(FeedSidebar `tagTab` sessionStorage 보존) + 원장 프로필 모바일 순서(프로필 먼저, 데스크탑 유지) + 날씨 주간 박스 간격·/weather 안내카드 우측칸.

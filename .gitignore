@@ -47,5 +47,9 @@ next-env.d.ts
 # editor auto-save backups (e.g. file.ts.tmp.31076.1778410620914, file.sql.tmp.*)
 *.tmp.*
 
+# 수동 백업 파일 (e.g. foo.json.bak.260517 — 추적 불필요, git 이력에 보존됨)
+*.bak
+*.bak.*
+
 # Vercel API dump (수동 fetch 결과 — 추적 불필요)
 /all.json

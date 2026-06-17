@@ -15,7 +15,7 @@
  *   base UUID 로 정규화 (호환성). 새 cookie set 은 항상 UUID.
  *   ActiveIdentity / SessionInfo / me 의 모든 id 필드 string == UUID 보장.
  *
- * server 전용 헬퍼(resolveActiveIdentity 등)는 identity.ts/admin-page-guard.ts에 그대로 둠 —
+ * server 전용 헬퍼(resolveActiveIdentity 등)는 identity-server.ts 에 둠 —
  * 이 모듈은 next/headers 사용 X 라서 client에서도 안전하게 import 가능.
  */
 
