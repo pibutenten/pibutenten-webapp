@@ -8,12 +8,12 @@ import InfoShell from "@/components/info/InfoShell";
 export const metadata: Metadata = {
   title: "편집 정책",
   description:
-    "피부텐텐의 콘텐츠 작성·검수·팩트체크·법령검수·게재·재검토 5단계 워크플로우, 출처 우선순위, AI 사용 정책 (Mayo Clinic·Cleveland Clinic 벤치마크).",
+    "피부텐텐의 콘텐츠 작성·검수·팩트체크·법령검수·게재·재검토 6단계 워크플로우, 출처 우선순위, AI 사용 정책 (Mayo Clinic·Cleveland Clinic 벤치마크).",
   alternates: { canonical: `${SITE_URL}/editorial-policy` },
   openGraph: {
     title: "편집 정책 | 피부텐텐",
     description:
-      "콘텐츠 작성·검수 5단계 워크플로우, 출처 우선순위, AI 사용 정책.",
+      "콘텐츠 작성·검수 6단계 워크플로우, 출처 우선순위, AI 사용 정책.",
     url: `${SITE_URL}/editorial-policy`,
     type: "website",
   },

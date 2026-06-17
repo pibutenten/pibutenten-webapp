@@ -160,7 +160,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: name,
     description: bio ?? `${name}의 피부텐텐 프로필`,
     alternates: { canonical: `${SITE_URL}/${handle}` },
-    robots: { index: true, follow: true },
+    // 회원 프로필 — 글이 전부 noindex(doodle/review)라 프로필도 색인 제외(빈 껍데기 색인 방지).
+    robots: { index: false, follow: true },
   };
 }
 
