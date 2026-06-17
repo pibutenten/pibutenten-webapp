@@ -36,7 +36,7 @@ export default function SkinWeatherCard() {
         <div className={styles.skelTemp} />
         <div className={styles.skelMsg} />
         <div className={styles.skelChips}>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
+          {[0, 1, 2, 3].map((i) => (
             <span key={i} />
           ))}
         </div>
