@@ -3,17 +3,25 @@
 <!--
   피부텐텐 iOS exportArchive 옵션 (TestFlight/App Store 업로드용).
     archive(.xcarchive) → .ipa 추출 시 사용한다.
-    자동 서명(App Store Connect API Key)으로 배포 프로비저닝 프로파일을 클라우드에서 생성한다.
-    method app-store-connect: TestFlight·App Store 공통 배포 채널.
+    수동 서명(manual): 미리 만든 Apple Distribution 인증서 + App Store 프로비저닝 프로파일을
+    명시적으로 지정한다. (CI 자동 서명이 개발 프로파일로 fallback 하는 문제 회피)
+    method app-store: TestFlight·App Store 공통 배포 채널.
 -->
 <plist version="1.0">
 <dict>
 	<key>method</key>
-	<string>app-store-connect</string>
+	<string>app-store</string>
 	<key>teamID</key>
 	<string>ZR2BS383L3</string>
 	<key>signingStyle</key>
-	<string>automatic</string>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>kr.pibutenten.app</key>
+		<string>Pibutenten App Store</string>
+	</dict>
 	<key>destination</key>
 	<string>export</string>
 	<key>uploadSymbols</key>

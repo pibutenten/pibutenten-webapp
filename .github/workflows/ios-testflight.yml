@@ -1,17 +1,23 @@
 name: iOS TestFlight (deploy)
 
 # 피부텐텐 iOS 서명 빌드 + TestFlight 업로드 (앱스토어 Phase 6 — 2단계).
-#   App Store Connect API Key(자동 서명)로 배포용 .ipa 를 만들고 TestFlight 로 올린다.
+#   수동 서명(manual)으로 배포용 .ipa 를 만들고 TestFlight 로 올린다.
 #   ⚠ 선행 조건: App Store Connect 에 앱 레코드(kr.pibutenten.app)가 먼저 생성돼 있어야 한다.
 #       (없으면 업로드 단계에서 "no app with bundle id" 로 실패한다.)
 #   원격 로드 방식(server.url=pibutenten.kr)이라 Next 빌드 불필요 — Capacitor 셸만 서명·업로드.
 #   macOS runner 는 분 소모가 크므로 수동 실행(workflow_dispatch)만.
 #
+#   서명 방식: 자동 서명(-allowProvisioningUpdates)은 CI 무인 환경에서 배포가 아닌
+#     개발 프로파일을 만들려다 실패하므로, 미리 발급한 인증서+프로파일로 수동 서명한다.
+#
 #   필요한 GitHub Secrets:
-#     APP_STORE_CONNECT_API_KEY_P8   — .p8 키 파일 전체 내용(BEGIN/END PRIVATE KEY 포함)
-#     APP_STORE_CONNECT_KEY_ID       — UHGZ8ZHZ3H
-#     APP_STORE_CONNECT_ISSUER_ID    — 82336f3f-b54f-40fa-95a7-6b19191f141c
-#   Team ID(ZR2BS383L3)는 자동 서명 시 주입한다.
+#     APP_STORE_CONNECT_API_KEY_P8     — .p8 키 전체 내용(TestFlight 업로드용)
+#     APP_STORE_CONNECT_KEY_ID         — UHGZ8ZHZ3H
+#     APP_STORE_CONNECT_ISSUER_ID      — 82336f3f-b54f-40fa-95a7-6b19191f141c
+#     IOS_DIST_CERT_P12_BASE64         — Apple Distribution 인증서(.p12) base64
+#     IOS_DIST_CERT_PASSWORD           — 인증서 .p12 비밀번호
+#     IOS_PROVISIONING_PROFILE_BASE64  — "Pibutenten App Store" 프로파일(.mobileprovision) base64
+#   Team ID(ZR2BS383L3)는 서명 시 주입한다.
 
 on:
   workflow_dispatch: {}
@@ -51,9 +57,7 @@ jobs:
           P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
           P12_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
         run: |
-          # 배포(Distribution) 인증서를 임시 키체인에 설치한다.
-          #   인증서가 키체인에 있어야 자동 서명(-allowProvisioningUpdates)이
-          #   개발용이 아닌 배포용 프로비저닝 프로파일을 생성한다.
+          # 배포(Distribution) 인증서를 임시 키체인에 설치한다(수동 서명에 사용).
           CERT_PATH="$RUNNER_TEMP/dist_cert.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
           KEYCHAIN_PW=$(openssl rand -base64 16)
@@ -67,10 +71,16 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
           security default-keychain -s "$KEYCHAIN_PATH"
 
-      - name: Archive (signed, automatic provisioning)
+      - name: Install provisioning profile
         env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          # App Store 배포 프로비저닝 프로파일을 표준 위치에 설치한다(수동 서명에 사용).
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          echo "$PROFILE_BASE64" | base64 -d > "$PROFILE_DIR/pibutenten_appstore.mobileprovision"
+
+      - name: Archive (signed, manual provisioning)
         run: |
           cd ios/App
           xcodebuild \
@@ -80,30 +90,21 @@ jobs:
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="Pibutenten App Store" \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             archive
 
       - name: Export IPA
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           cd ios/App
           xcodebuild \
             -exportArchive \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath "$RUNNER_TEMP/export" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+            -exportPath "$RUNNER_TEMP/export"
 
       - name: Upload to TestFlight
         env:
