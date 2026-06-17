@@ -6,6 +6,26 @@
 
 ---
 
+## [2026-06-18] — /weather 상세 페이지 reference 기반 플랫 디자인 정렬
+
+> 디자인 레퍼런스(`전달용/KakaoTalk_20260617_191233102.png`) 기준으로 "오늘의 피부 날씨" 상세 페이지(`/weather`)를 재정렬. 백엔드 과학 계산(weather-logic 측위·fetch·지표 산출)은 표시 가공 외 불변. CAMS·Open-Meteo(CC BY 4.0) 출처 유지, 의료법 §56 톤(행동 권고만) 유지.
+
+### Changed
+- **`WeatherDetail.tsx`**: 히어로(헤드라인 1회·큰 기온°C·상태 3줄·의상 일러스트·최저/최고·습도, 위치핀+지역명 dLoc 유지), KPI 3개(UVB 태닝·UVA 노화·미세먼지) 각 한 행 흰 카드 + 스펙트럼 게이지(현재값 채움·회색 잔여·마커·최고 점), 시간별 흐름 3곡선 그래프(KPI 헤더 점 제거·라벨/숫자 확대·현재시각 빈 마커·x축), 주간 4지표 매일 표기.
+- **`skin-weather.module.css`**: 위 레이아웃에 맞춘 플랫 스타일 정렬. `.dMetrics` 세로 2줄 스택. 미사용 클래스(`.metricSep`·`.humTag`·`.pageHead`·`.back`·`.pageTitle`) 제거(상세 헤더는 AppShell `backTitle`로 대체).
+- **`weather-logic.ts`**: 주간 기온 바 자연 그라데이션용 색(tColorLo→tColorHi) 및 표시값 가공 정비(지표 라벨 "UVA 노화" 등). 과학 산출 로직 불변.
+- **`SkinWeatherCard.tsx`**: 스켈레톤 칩 6→4개(4-KPI 디자인 정합).
+
+### Fixed
+- **`WeatherDetail.tsx` HourlyGraph**: `snap.hours`가 빈 배열일 때 `hours[0].t` 접근 크래시 가드(`hours.length` 체크). computeSnapshot은 rows가 비어도 유효 스냅샷을 반환하므로 방어 필요(코드리뷰 [치명] 반영).
+
+### 데이터·디자인 결정(보고용)
+- **시간별 하단 막대 생략**: per-hour 강수 데이터 소스 부재 → 레퍼런스의 하단 막대는 날조 없이 표현 불가하여 의도적 생략.
+- **상단바 유지**: 전체 화면 파란색 전환 대신 기존 AppShell 상단바 유지(사용자 지시).
+- **"UVA 노화" 라벨 유지**: 레퍼런스의 "UVB 노화"는 오기로 판단(UVA가 광노화 자외선) → 과학적으로 올바른 "UVA 노화" 유지.
+
+---
+
 ## [2026-06-17] — 앱스토어 Phase 6: 클라우드 빌드·서명 (Android AAB + iOS TestFlight)
 
 > Mac 없이 **GitHub Actions 클라우드 빌드**로 양 플랫폼 서명 빌드 완성. Android 서명 AAB 산출, iOS TestFlight 업로드 성공. 서명 자산(키스토어·인증서·프로파일)은 OpenSSL 로 생성·발급해 GitHub Secrets 로 주입.
