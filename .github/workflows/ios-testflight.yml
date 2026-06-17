@@ -32,6 +32,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select latest Xcode (App Store 는 iOS 26 SDK 이상 요구)
+        run: |
+          echo "설치된 Xcode 목록:"
+          ls -d /Applications/Xcode*.app 2>/dev/null || true
+          LATEST=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          echo "선택: $LATEST"
+          sudo xcode-select -s "$LATEST/Contents/Developer"
+          xcodebuild -version
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
