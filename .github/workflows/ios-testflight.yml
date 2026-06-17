@@ -1,0 +1,104 @@
+name: iOS TestFlight (deploy)
+
+# 피부텐텐 iOS 서명 빌드 + TestFlight 업로드 (앱스토어 Phase 6 — 2단계).
+#   App Store Connect API Key(자동 서명)로 배포용 .ipa 를 만들고 TestFlight 로 올린다.
+#   ⚠ 선행 조건: App Store Connect 에 앱 레코드(kr.pibutenten.app)가 먼저 생성돼 있어야 한다.
+#       (없으면 업로드 단계에서 "no app with bundle id" 로 실패한다.)
+#   원격 로드 방식(server.url=pibutenten.kr)이라 Next 빌드 불필요 — Capacitor 셸만 서명·업로드.
+#   macOS runner 는 분 소모가 크므로 수동 실행(workflow_dispatch)만.
+#
+#   필요한 GitHub Secrets:
+#     APP_STORE_CONNECT_API_KEY_P8   — .p8 키 파일 전체 내용(BEGIN/END PRIVATE KEY 포함)
+#     APP_STORE_CONNECT_KEY_ID       — UHGZ8ZHZ3H
+#     APP_STORE_CONNECT_ISSUER_ID    — 82336f3f-b54f-40fa-95a7-6b19191f141c
+#   Team ID(ZR2BS383L3)는 자동 서명 시 주입한다.
+
+on:
+  workflow_dispatch: {}
+
+env:
+  TEAM_ID: ZR2BS383L3
+
+jobs:
+  deploy-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Capacitor sync (ios)
+        run: npx cap sync ios
+
+      - name: Prepare App Store Connect API key
+        env:
+          ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          # altool / xcodebuild 가 표준 위치(~/private_keys)에서 AuthKey_<KEYID>.p8 를 찾는다.
+          mkdir -p ~/private_keys
+          printf '%s' "$ASC_KEY_P8" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+      - name: Archive (signed, automatic provisioning)
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          cd ios/App
+          xcodebuild \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            archive
+
+      - name: Export IPA
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          cd ios/App
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
+          echo "Uploading: $IPA"
+          xcrun altool --upload-app \
+            -f "$IPA" \
+            -t ios \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Upload IPA artifact (백업)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pibutenten-ios-ipa
+          path: ${{ runner.temp }}/export/*.ipa
+          if-no-files-found: warn

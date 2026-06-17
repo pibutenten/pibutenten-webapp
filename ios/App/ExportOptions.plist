@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  피부텐텐 iOS exportArchive 옵션 (TestFlight/App Store 업로드용).
+    archive(.xcarchive) → .ipa 추출 시 사용한다.
+    자동 서명(App Store Connect API Key)으로 배포 프로비저닝 프로파일을 클라우드에서 생성한다.
+    method app-store-connect: TestFlight·App Store 공통 배포 채널.
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>teamID</key>
+	<string>ZR2BS383L3</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>
