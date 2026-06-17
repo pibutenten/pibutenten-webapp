@@ -3,8 +3,16 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import ImageCropDialog from "@/components/ImageCropDialog";
+
+// 푸시 알림 토글 — @capacitor 모듈 import 가 서버(SSR)에서 평가되지 않도록 ssr:false 로 로드.
+//   웹/네이티브(앱) 분기는 컴포넌트 내부에서 처리(원격 로드라 한 곳이면 양쪽 대응).
+const PushNotificationToggle = dynamic(
+  () => import("@/components/PushNotificationToggle"),
+  { ssr: false },
+);
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
 import {
@@ -697,6 +705,9 @@ export default function ProfileEditClient({
           </button>
         </div>
       </SectionWithVisibility>
+
+      {/* OS 푸시 알림 채널 — 먼저 켜야 활동 알림이 기기로 도달. 웹=Web Push, 앱=FCM 자동 분기. */}
+      <PushNotificationToggle />
 
       {/* 활동 알림 — 관심시술 바로 밑 별도 카드. 기본 접힘, 헤더 클릭 시 펼침. */}
       <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-4">
