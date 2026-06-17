@@ -51,6 +51,7 @@
     "postcss": "^8.5.10"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.4.0",
     "@tailwindcss/postcss": "^4",
     "@types/jsdom": "^28.0.3",
