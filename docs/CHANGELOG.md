@@ -6,6 +6,28 @@
 
 ---
 
+## [2026-06-17] — 앱스토어 Phase 6: 클라우드 빌드·서명 (Android AAB + iOS TestFlight)
+
+> Mac 없이 **GitHub Actions 클라우드 빌드**로 양 플랫폼 서명 빌드 완성. Android 서명 AAB 산출, iOS TestFlight 업로드 성공. 서명 자산(키스토어·인증서·프로파일)은 OpenSSL 로 생성·발급해 GitHub Secrets 로 주입.
+
+### Added
+- **`.github/workflows/android-release.yml`**(신규): 릴리스 키스토어로 서명한 AAB 빌드(ubuntu, JDK 21). `ANDROID_KEYSTORE_*` Secrets 주입.
+- **`.github/workflows/ios-testflight.yml`**(신규): iOS 수동 서명 → archive → export → TestFlight 업로드(macos). 배포 인증서·프로파일을 키체인/표준 위치에 설치 후 `altool` 업로드.
+- **`ios/App/ExportOptions.plist`**(신규): app-store + manual signing + `Pibutenten App Store` 프로파일 매핑.
+- **서명 자산**(secrets/, git 제외): Android 릴리스 키스토어(PKCS12), iOS 배포 인증서(.p12)+개인키+CSR, App Store 프로비저닝 프로파일. GitHub Secrets 6종 등록(`ANDROID_KEYSTORE_*` 4, `IOS_DIST_CERT_*` 2, `IOS_PROVISIONING_PROFILE_BASE64`).
+- App Store Connect 앱 레코드(`kr.pibutenten.app`) 생성. App ID 에 Push Notifications·Sign in with Apple capability 확인.
+
+### Changed
+- **`android/app/build.gradle`**: CI 환경변수(`ANDROID_KEYSTORE_PATH` 등) 주입 시에만 적용되는 release `signingConfig` 추가(로컬 debug 빌드 무영향).
+
+### 해결한 빌드 이슈
+- iOS 자동 서명(`-allowProvisioningUpdates`)이 CI 무인 환경에서 **배포 대신 개발 프로파일을 생성**하려다 실패(등록 기기 없음) → **수동 서명**(인증서+프로파일 직접 지정)으로 전환.
+- TestFlight 업로드가 **"iOS 26 SDK 이상 필요"**(Apple 정책)로 거부 → 러너의 **최신 Xcode(26) 자동 선택** 단계 추가로 해결.
+
+### 후속(실기기 검증·정식 심사 — Phase 6 잔여)
+- 위치 권한(피부날씨 geolocation)은 원격 로드 WebView 실동작 확인 후 iOS Info.plist / Android Manifest / Play Data Safety 를 일관되게 처리(성급한 단편 추가 보류).
+- Android 정식 출시 빌드 시 `minifyEnabled true`+ProGuard, iOS ATS 명시.
+
 ## [2026-06-17] — 앱스토어 Phase 3: 네이티브 OAuth 딥링크
 
 > 앱 웹뷰 내 OAuth 가 구글에 의해 차단(disallowed_useragent)되는 문제를, 네이티브에선 **시스템 브라우저 + custom scheme 딥링크**로 우회. 복귀 시 기존 서버 콜백(`/auth/callback`) 로직(코드교환·verifyOtp·온보딩 분기) 재사용. **웹은 기존 흐름 100% 그대로**(isNative=false 분기). `tsc` 0·`build` 성공·코드검수 [치명] 반영·재검수 통과.

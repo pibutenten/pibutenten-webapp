@@ -102,9 +102,19 @@
 - [ ] App Privacy 라벨(Apple) / Data Safety(Google) — 위치·이메일·이용기록 신고
 - [ ] 개인정보 처리방침에 "앱" 항목 추가 (권한·푸시토큰·기기정보)
 
-### Phase 6 — 빌드 · 업로드 〔담당: 개발(Android) + 직원 Mac(iOS)〕
-- [ ] Android: 서명 키스토어 생성, AAB 빌드, Play Console 업로드
-- [ ] iOS: 직원 Mac 에서 `cap sync` → Xcode 빌드·서명 → App Store Connect 업로드 (매뉴얼 제공)
+### Phase 6 — 빌드 · 업로드 〔담당: 개발(클라우드 빌드)〕 — 대부분 완료 (2026-06-17)
+> Mac 불필요로 전환: 직원 Mac 에 Xcode 미설치 → **GitHub Actions 클라우드 빌드**(ubuntu=Android, macos=iOS)로 대체.
+> 서명도 키/인증서 + 워크플로로 자동화(물리 Mac·인증서 수동설치 불필요).
+- [x] Android: 릴리스 키스토어(PKCS12, OpenSSL 생성) → GitHub Secrets → 서명 AAB 빌드 (`android-release.yml`)
+- [ ] Android: Play Console 업로드(내부테스트 트랙) 〔원장〕
+- [x] iOS: 배포 인증서(.p12)+App Store 프로비저닝 프로파일 발급 → 수동 서명 → archive→export→TestFlight 업로드 성공 (`ios-testflight.yml`)
+  - 시행착오: 자동 서명이 개발 프로파일 fallback → 수동 서명 전환 / iOS 26 SDK 요구 → 러너 최신 Xcode(26) 선택으로 해결
+- [ ] iOS: App Store Connect 빌드 처리 완료 후 TestFlight 외부 테스터 그룹/공개 링크 〔원장+개발〕
+
+#### Phase 6 잔여 — 정식 심사 전 처리(실기기 검증과 묶어서)
+- [ ] 위치 권한: 원격 로드 WebView 의 geolocation 실동작 실기기 확인 → iOS Info.plist 설명문구 / Android Manifest 권한 / Play Data Safety 신고를 일관되게 (성급한 단편 추가 금지)
+- [ ] Android `minifyEnabled true` + ProGuard 룰 (정식 출시 빌드)
+- [ ] iOS `Info.plist` ATS 의도 명시
 
 ### Phase 7 — 심사 제출 · 대응 〔담당: 개발 + 원장〕
 - [ ] 심사용 데모 계정 제공 (의사/일반 각 1) — OAuth 외 심사관 접근 경로
