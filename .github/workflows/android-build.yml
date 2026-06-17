@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22" # Capacitor 8 CLI 는 Node >=22 요구
 
       - name: Install deps (Capacitor CLI 포함)
         run: npm ci
