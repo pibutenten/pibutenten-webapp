@@ -7,7 +7,9 @@ import { SITE_URL } from "@/lib/site";
  *   (name·url·logo·sameAs 불일치, 일부는 name 을 법인명 "주식회사 진솔컴퍼니" 로) 같은 @id 가
  *   충돌했다. 이제 핵심 식별값은 organizationBase() 한 곳에서만 만들고, 다른 페이지는 @id 참조만 한다.
  *
- * 명명 구분(사용자 확정): name = 브랜드 "피부텐텐", legalName = 법인 "주식회사 진솔컴퍼니".
+ * 명명 구분(사용자 확정): "피부텐텐" = 서비스(브랜드)이자 발행 주체. "주식회사 진솔컴퍼니" = 그
+ *   서비스를 운영하는 법인 — 모자관계도 동일법인도 아닌 별개 엔티티. 따라서 legalName 으로 등치하지
+ *   않는다. 법인의 사업자 정보는 /about 의 독립 Organization 노드(#operator)로 분리한다.
  */
 
 /** 발행사 조직 @id (모든 페이지 공통 참조). */
@@ -28,14 +30,14 @@ const ORG_SAME_AS = [
 
 /**
  * 발행사 핵심 식별 노드 — 모든 #organization 정의가 동일 값으로 공유(@id 충돌 방지).
- *  /about 의 풍부한 노드(법인 정보·연락처·참여의사·진료분야)는 이 base 를 spread 한 뒤 확장한다.
+ *  /about 의 풍부한 노드(연락처·참여의사·진료분야)는 이 base 를 spread 한 뒤 확장한다.
+ *  (법인 사업자 정보는 별개 엔티티이므로 /about 의 #operator 독립 노드로 분리.)
  */
 export function organizationBase(): Record<string, unknown> {
   return {
     "@type": ["Organization", "MedicalOrganization"],
     "@id": ORGANIZATION_ID,
     name: "피부텐텐",
-    legalName: "주식회사 진솔컴퍼니",
     alternateName: ["Pibutenten", "피부 텐텐"],
     url: `${SITE_URL}/`,
     logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png` },

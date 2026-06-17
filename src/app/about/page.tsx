@@ -92,24 +92,13 @@ export default async function AboutPage() {
           "색소침착",
           "피부장벽",
         ],
-        // 법인(진솔컴퍼니) — 브랜드(피부텐텐)의 모회사. legalName(base)과 별개로 사업자번호·주소 보유.
-        parentOrganization: {
-          "@type": "Organization",
-          name: "주식회사 진솔컴퍼니",
-          taxID: "261-86-01781",
-          address: {
-            "@type": "PostalAddress",
-            streetAddress: "강남대로 518, 4층",
-            addressLocality: "강남구",
-            addressRegion: "서울특별시",
-            addressCountry: "KR",
-          },
-          telephone: "+82-2-6953-0167",
-        },
+        // 운영 법인(진솔컴퍼니)은 모자관계가 아니므로 parentOrganization 으로 묶지 않는다.
+        //   별개 엔티티로 아래 #operator 독립 노드에 사업자 정보 보유(legalName 등치도 제거).
+        // 전화는 운영 법인(#operator)에만 단일 보유 → 피부텐텐 서비스 문의는 이메일.
+        //   동일 번호를 양 노드에 중복 표기하면 별개 엔티티가 동일 엔티티로 오인될 단서가 됨.
         contactPoint: {
           "@type": "ContactPoint",
           email: "pibutenten@gmail.com",
-          telephone: "+82-2-6953-0167",
           contactType: "customer support",
           availableLanguage: ["Korean", "ko-KR"],
         },
@@ -134,6 +123,24 @@ export default async function AboutPage() {
             procedureType: "https://schema.org/PercutaneousProcedure",
           },
         ],
+      },
+      {
+        // 운영 법인(진솔컴퍼니) — 피부텐텐(#organization, 서비스/발행 주체)과 별개 엔티티.
+        //   모자관계·동일법인 아님 → parentOrganization/legalName 으로 묶지 않고 독립 노드로 둔다.
+        //   사업자등록·연락 정보는 법적 고지용으로 이 노드에 보존.
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#operator`,
+        name: "주식회사 진솔컴퍼니",
+        description: "피부텐텐 서비스를 운영하는 법인.",
+        taxID: "261-86-01781",
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: "강남대로 518, 4층",
+          addressLocality: "강남구",
+          addressRegion: "서울특별시",
+          addressCountry: "KR",
+        },
+        telephone: "+82-2-6953-0167",
       },
       {
         "@type": "BreadcrumbList",
