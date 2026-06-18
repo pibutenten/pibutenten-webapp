@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-18] — Android Play 공개 테스트 제출(검토 중) · 앱스토어 문서 정리
+
+> Google Play 공개 테스트 트랙(대한민국) 제출 완료 → Google 검토 중. iOS 는 클라우드 빌드로 TestFlight 업로드까지 끝난 상태이며 App Store Connect 등록정보 입력만 남음. 다음 세션 인수인계 문서 신설.
+
+### Changed
+- **`docs/plans/mobile-app-store-launch-plan.md`**: "현재 상태 한눈에" 섹션 신설. 빌드 환경 서술을 GitHub Actions 클라우드 빌드 일원화로 정정(물리 Mac 불필요 — 옛 "직원 Mac 수행" 서술은 Phase 6 에서 대체됨 명시). Phase 5 Android 자산 완료 체크, Phase 6 Android Play 업로드+공개 테스트 제출(검토 중) 체크.
+
+### Added
+- **`docs/plans/session-handoff-app-store.md`**: 앱스토어 출시 세션 인수인계 문서. 끝난 것(Android 검토 중 / iOS TestFlight 업로드 완료) · 다음 할 일(iOS App Store Connect 입력+심사, review-first) · 열린 항목(공개 테스트 트랙 재시작·프로덕션 트랙·TestFlight 외부 테스터) · 주요 ID/경로 정리.
+
+---
+
 ## [2026-06-18] — /weather 상세 페이지 reference 기반 플랫 디자인 정렬
 
 > 디자인 레퍼런스(`전달용/KakaoTalk_20260617_191233102.png`) 기준으로 "오늘의 피부 날씨" 상세 페이지(`/weather`)를 재정렬. 백엔드 과학 계산(weather-logic 측위·fetch·지표 산출)은 표시 가공 외 불변. CAMS·Open-Meteo(CC BY 4.0) 출처 유지, 의료법 §56 톤(행동 권고만) 유지.

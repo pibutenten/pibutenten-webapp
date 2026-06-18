@@ -3,7 +3,14 @@
 > 피부텐텐 웹앱을 **Capacitor** 로 래핑해 Apple App Store · Google Play 에 등록하는 작업의 SSOT.
 > 진행상태는 이 문서의 체크박스로 추적한다. 큰 결정은 `decisions/` ADR 로 분리한다.
 
-최종 갱신: 2026-06-17
+최종 갱신: 2026-06-18
+
+---
+
+## 현재 상태 한눈에 (2026-06-18)
+
+- **Android**: 공개 테스트 트랙 제출 완료 → **Google 검토 중**. 게시 개요 = "검토 중", 관리형 게시 OFF(승인 시 자동 게시). 남은 일: 검토 결과 대기 → (이후) 프로덕션 트랙 출시 별도 진행.
+- **iOS**: GitHub Actions 클라우드 빌드로 **TestFlight 업로드 성공**(Mac 불필요). Apple 유료 계정·App Store Connect 앱 레코드(`kr.pibutenten.app`) 준비됨. 남은 일: **App Store Connect 등록정보 입력 + 빌드 선택 + 심사 제출** (입력 전 원장 검수 — review-first).
 
 ---
 
@@ -14,7 +21,7 @@
   - 이유: 본 앱은 SSR(Next.js) 이라 정적 번들 불가. 원격 로드 시 **앱 origin 이 웹과 동일** → CSP·쿠키·OAuth 콜백이 웹과 똑같이 동작.
   - 트레이드오프: ① Apple 4.2 "최소 기능" 거부 리스크 → 네이티브 기능(푸시·딥링크·권한·공유)으로 보완. ② 오프라인 시 빈 화면 → 네이티브 오프라인 안내 화면 필요.
 - **출시 범위**: iOS · Android 동시.
-- **빌드 환경**: 코드·설정은 Windows(개발)에서 git 으로 진행. iOS 최종 빌드·서명·업로드만 직원 Mac(Mac Pro)에서 수행. Android 는 Windows 에서 빌드 가능.
+- **빌드 환경**: 코드·설정은 Windows(개발)에서 git 으로 진행. **빌드·서명·업로드는 GitHub Actions 클라우드 빌드로 일원화**(ubuntu=Android, macos 러너=iOS). 물리 Mac 불필요(직원 Mac 에 Xcode 미설치라 클라우드로 전환). 서명은 GitHub Secrets(키스토어/배포 인증서·프로비저닝 프로파일)로 자동화. ※ 본문 곳곳의 "Mac(Mac Pro)에서 수행" 서술은 Phase 6 에서 클라우드 빌드로 대체된 옛 계획임.
 
 ---
 
@@ -94,19 +101,21 @@
 - [ ] 위치 권한 사용 정당성 정리 (선택 기능 한정)
 - [ ] 오프라인 안내 화면, 네이티브 스플래시, 안전영역(safe-area) 처리
 
-### Phase 5 — 스토어 자산 〔담당: 개발 초안 + 원장 확정〕
-- [ ] 앱 아이콘 1024px (iOS), 적응형 아이콘 (Android)
-- [ ] 기기별 스크린샷 (iPhone 6.7"/6.5", Android)
-- [ ] 앱 이름·부제·설명·키워드
-- [ ] 연령 등급 설문 (의료정보 취급 반영)
-- [ ] App Privacy 라벨(Apple) / Data Safety(Google) — 위치·이메일·이용기록 신고
-- [ ] 개인정보 처리방침에 "앱" 항목 추가 (권한·푸시토큰·기기정보)
+### Phase 5 — 스토어 자산 〔담당: 개발 초안 + 원장 확정〕 — Android 완료 / iOS 잔여
+> 스토어 등록정보 SSOT: `store-listing.md`. 입력 전 원장 검수 원칙(review-first).
+- [x] 앱 아이콘: Android `Playstore-icon-512.png`(정사각) 적용 / iOS `Appstore-icon-1024.png` 준비
+- [x] 스크린샷: Android 3장(playstore 1/2/4 — 시술 관련 3·5번 제외) 적용 / iOS `Appstore 1,2,4.png`(1290×2796) 준비
+- [x] 앱 이름·부제·설명·키워드 (Android 적용 완료, iOS 동일 카피 재사용)
+- [x] 콘텐츠/연령 등급: Android 전체이용가 제출 완료 / iOS 잔여
+- [x] Data Safety(Google) 5단계 완료 / App Privacy 라벨(Apple) 잔여
+- [x] 카테고리=라이프스타일, 공개 연락처=pibutenten@gmail.com + https://pibutenten.kr
+- [ ] iOS: 위 자산을 App Store Connect 에 입력 + 심사 제출 (입력 전 원장 검수)
 
 ### Phase 6 — 빌드 · 업로드 〔담당: 개발(클라우드 빌드)〕 — 대부분 완료 (2026-06-17)
 > Mac 불필요로 전환: 직원 Mac 에 Xcode 미설치 → **GitHub Actions 클라우드 빌드**(ubuntu=Android, macos=iOS)로 대체.
 > 서명도 키/인증서 + 워크플로로 자동화(물리 Mac·인증서 수동설치 불필요).
 - [x] Android: 릴리스 키스토어(PKCS12, OpenSSL 생성) → GitHub Secrets → 서명 AAB 빌드 (`android-release.yml`)
-- [ ] Android: Play Console 업로드(내부테스트 트랙) 〔원장〕
+- [x] Android: Play Console 업로드 + 공개 테스트 트랙(대한민국) 제출 → **Google 검토 중** (2026-06-18)
 - [x] iOS: 배포 인증서(.p12)+App Store 프로비저닝 프로파일 발급 → 수동 서명 → archive→export→TestFlight 업로드 성공 (`ios-testflight.yml`)
   - 시행착오: 자동 서명이 개발 프로파일 fallback → 수동 서명 전환 / iOS 26 SDK 요구 → 러너 최신 Xcode(26) 선택으로 해결
 - [ ] iOS: App Store Connect 빌드 처리 완료 후 TestFlight 외부 테스터 그룹/공개 링크 〔원장+개발〕
