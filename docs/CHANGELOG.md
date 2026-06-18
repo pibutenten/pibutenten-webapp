@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-19] — iOS App Store 심사 제출 완료 · 신규 앱 아이콘 · iPhone 전용
+
+> App Store Connect 등록정보 입력을 마치고 **iOS 1.0 심사 제출 완료** → 현재 상태 "심사 대기 중"(Waiting for Review). 빌드 7(iPhone 전용) 첨부, Apple 승인 시 자동 출시. Android Play 는 2026-06-18 공개 테스트 제출 후 "검토 중" 유지(이번 세션 변경 없음).
+
+### Changed
+- **iOS 기기 지원 iPhone 전용 변경**(커밋 6106a7f, `ios/App/App.xcodeproj/project.pbxproj`): `TARGETED_DEVICE_FAMILY` `"1,2"` → `"1"`(Debug·Release 양쪽). iPad 미대응 상태에서 iPad 심사 스크린샷 요구를 피하기 위함. 빌드 7 부터 반영.
+
+### Added
+- **신규 앱 아이콘 `big-tt`**(커밋 2211c03): iOS `AppIcon`(전 사이즈) + 공유 `assets/logo` 교체.
+- **App Store Connect 1.0 등록정보 입력 완료**: 이름·부제·설명·키워드(Android 카피 재사용), 스크린샷 1290×2796(iPhone 6.5"), 아이콘 1024×1024(`Appstore-icon-1024.png`), 카테고리 라이프스타일, 가격 무료(Free), 콘텐츠 권리 "아니요", App Privacy 라벨 작성·게시, 연령 등급, 심사용 데모 계정(appreview@pibutenten.kr), 베타 심사 연락처(배정민).
+- **빌드 7 첨부 + 수출 규정 준수(Export Compliance) 응답** 후 심사 제출. ASC 인플라이트 버전 페이지 상태: "1.0 심사 대기 중"(라이브 확인).
+
+---
+
 ## [2026-06-18] — Android Play 공개 테스트 제출(검토 중) · 앱스토어 문서 정리
 
 > Google Play 공개 테스트 트랙(대한민국) 제출 완료 → Google 검토 중. iOS 는 클라우드 빌드로 TestFlight 업로드까지 끝난 상태이며 App Store Connect 등록정보 입력만 남음. 다음 세션 인수인계 문서 신설.

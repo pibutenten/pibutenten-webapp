@@ -1,4 +1,4 @@
-# 세션 핸드오프 — 앱스토어 출시 (2026-06-18)
+# 세션 핸드오프 — 앱스토어 출시 (2026-06-19)
 
 > 세션이 끊겨도 이어가기 위한 인수인계 문서. 새 세션 첫 응답 전에 이 파일 + `mobile-app-store-launch-plan.md` + `store-listing.md` 를 읽는다.
 > 진행 SSOT 는 `mobile-app-store-launch-plan.md`, 스토어 카피·자산은 `store-listing.md`.
@@ -13,32 +13,27 @@
 - 관리형 게시 **OFF** = Google 승인 시 자동 게시 (첫 출시에 정상·권장).
 - 적용된 자산: 아이콘 `Playstore-icon-512.png`(정사각), 피처그래픽 `Graphic Image-2.png`, 스크린샷 3장(playstore 1/2/4 — 시술 관련 3·5번 제외), 카테고리=라이프스타일, 연락처 pibutenten@gmail.com + https://pibutenten.kr, 콘텐츠등급 전체이용가, Data Safety 5단계 완료, 데모계정 appreview@pibutenten.kr.
 
-### iOS (Apple App Store) — 빌드 완료, 등록정보 입력 남음
-- **GitHub Actions 클라우드 빌드로 TestFlight 업로드 성공** (물리 Mac 불필요).
-  - 워크플로: `.github/workflows/ios-testflight.yml` (macos 러너, 수동 서명).
-- Apple Developer Program **유료 가입 완료** (진솔컴퍼니 명의).
-- App Store Connect 앱 레코드 **생성됨** (`kr.pibutenten.app`).
-- App ID capability: Push Notifications + Sign in with Apple 확인됨.
+### iOS (Apple App Store) — 심사 제출 완료, 심사 대기 중
+- **1.0 심사 제출 완료** → ASC 인플라이트 버전 페이지 상태 **"심사 대기 중"(Waiting for Review)** 라이브 확인(2026-06-19).
+  - 빌드 **7**(iPhone 전용, `1.0 (7)`) 첨부, **자동으로 버전 출시** = Apple 승인 시 자동 게시.
+  - 잠금 확인 메시지: "새 빌드를 제출하려면 심사에서 이 버전을 삭제해야 합니다".
+- 등록정보 입력 완료: 이름·부제·설명·키워드(Android 카피 재사용), 스크린샷 1290×2796(iPhone 6.5"), 아이콘 1024×1024(`Appstore-icon-1024.png`), 카테고리 라이프스타일, 가격 무료, 콘텐츠 권리 "아니요", App Privacy 라벨 게시, 연령 등급, 데모 계정(appreview@pibutenten.kr), 수출 규정 준수 응답.
+- **GitHub Actions 클라우드 빌드로 TestFlight 업로드 성공** (물리 Mac 불필요). 워크플로: `.github/workflows/ios-testflight.yml` (macos 러너, 수동 서명).
+- iPhone 전용 전환: `TARGETED_DEVICE_FAMILY` `"1,2"`→`"1"` (커밋 6106a7f). 신규 아이콘 `big-tt` (커밋 2211c03).
+- Apple Developer Program 유료 가입 완료(진솔컴퍼니). App Store Connect 앱 레코드 생성(`kr.pibutenten.app`). App ID capability: Push Notifications + Sign in with Apple.
 
 ---
 
 ## 2. 다음 세션에서 할 일 (= 시작점)
 
-**목표: iOS App Store Connect 등록정보 입력 + 심사 제출.**
-
-원칙: **입력 전 원장 검수(review-first)** — Console 에 넣기 전에 여기서 항목별 입력안을 표로 먼저 제안하고 승인받는다. 심사 제출 등 비가역 클릭은 원장 명시 확인 후 실행.
+**iOS·Android 양쪽 모두 심사 제출 완료 상태.** 남은 일은 승인 대기 + 승인 후 확인.
 
 진행 순서:
-1. 원장이 App Store Connect 로그인 → 앱 레코드(`kr.pibutenten.app`) 열기.
-2. AI 가 현재 채워진 항목을 화면에서 읽고, 빈 칸별 입력안 제안 (Android 카피 재사용).
-3. 검수 후 입력:
-   - 이름·부제·설명·키워드 (Android 동일 카피)
-   - 스크린샷 1290×2796: `전달용/04 앱스토어, 플레이스토어/앱스토어/Appstore 1,2,4.png`
-   - 아이콘 1024×1024: `Appstore-icon-1024.png`
-   - App Privacy 라벨(위치·이메일·이용기록), 연령 등급, 카테고리=라이프스타일
-   - 빌드 선택: TestFlight 에 올라간 빌드 지정
-   - 심사용 데모 계정 제공 (appreview@pibutenten.kr)
-4. 심사 제출 (원장 명시 확인 후).
+1. **iOS**: Apple 심사 결과 이메일 대기(최대 48h 안팎). 승인 시 자동 출시(별도 클릭 불필요). 반려 시 사유 확인 후 대응.
+2. **Android**: Play Console 게시 개요에서 검토 통과 여부 확인. 검토 통과 후 공개 테스트 트랙 "일시중지됨" 이면 "트랙 다시 시작". 정식 배포(프로덕션) 필요 시 별도 트랙 출시 신청.
+3. 양쪽 승인되면 실기기 설치·로그인·핵심 동선 스모크 테스트.
+
+> 참고: Play Console(play.google.com)는 브라우저 자동화가 막혀 있어(권한 거부) AI 가 라이브로 상태를 못 읽는다. Android 상태는 원장이 화면을 보고 알려주거나 스크린샷으로 확인.
 
 ---
 
