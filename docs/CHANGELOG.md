@@ -15,9 +15,18 @@
 - **`skin-weather.module.css`**: 위 레이아웃에 맞춘 플랫 스타일 정렬. `.dMetrics` 세로 2줄 스택. 미사용 클래스(`.metricSep`·`.humTag`·`.pageHead`·`.back`·`.pageTitle`) 제거(상세 헤더는 AppShell `backTitle`로 대체).
 - **`weather-logic.ts`**: 주간 기온 바 자연 그라데이션용 색(tColorLo→tColorHi) 및 표시값 가공 정비(지표 라벨 "UVA 노화" 등). 과학 산출 로직 불변.
 - **`SkinWeatherCard.tsx`**: 스켈레톤 칩 6→4개(4-KPI 디자인 정합).
+- **KPI 게이지 재설계**(`WeatherDetail.tsx` vGauge·`skin-weather.module.css`, 커밋 6d10063): 오늘 최고치(peak)를 색 테두리 동그라미(`.vPeak`)로, 현재값→최고치 구간을 밝힌 그라데이션(`.vBright`)으로 표시(2점 게이지).
+- **주간 예보 5일 제한**(`weather-logic.ts` lastIdx, 커밋 6d10063): 대기질(CAMS) 값이 들어오는 날(~5일)까지만 주간 표시. 모델 horizon 초과(6~7일째 pm2_5/uv null)는 날조 없이 잘라냄.
+- **주간 온도 막대 색**(`weather-logic.ts` tempColor, 커밋 6d10063): 초록 우회 diverging(파랑→미색→노랑→주황)으로 재설계.
+- **주간 각 KPI 주석 전 행 노출**(`WeatherDetail.tsx` wkBox showLabel, 커밋 721ebf5): 오늘 행에만 보이던 UVB/UVA/미세먼지/강수확률 라벨을 주간 전체 일자 행 밑에 노출(스크롤 시 어느 행이든 지표 식별). `d.isToday`→`true` 7곳.
 
 ### Fixed
 - **`WeatherDetail.tsx` HourlyGraph**: `snap.hours`가 빈 배열일 때 `hours[0].t` 접근 크래시 가드(`hours.length` 체크). computeSnapshot은 rows가 비어도 유효 스냅샷을 반환하므로 방어 필요(코드리뷰 [치명] 반영).
+- **PM2.5 게이지 2점 표현**(`weather-logic.ts` pm25Frac, 커밋 6d10063): 현재 54·최고 69가 같은 위치로 뭉치던 버그 → 연속 매핑(54→71%, 69→82%)으로 두 점 분리.
+
+### Tooling (커밋 6662894)
+- **`.gitignore`**: 클라우드 빌드 산출물 APK/AAB(`/builds/`) 추적 제외.
+- **`scripts/export-tag-dictionary-xlsx.py`**(신규): tag_dictionary JSON 스냅샷 → 검토용 xlsx export 유틸.
 
 ### 데이터·디자인 결정(보고용)
 - **시간별 하단 막대 생략**: per-hour 강수 데이터 소스 부재 → 레퍼런스의 하단 막대는 날조 없이 표현 불가하여 의도적 생략.
