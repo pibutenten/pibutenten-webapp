@@ -23,8 +23,32 @@ export const uvBand = (u: number) => (u < 3 ? "낮음" : u < 6 ? "보통" : u < 
 export const PM_GRADE_LABEL = ["좋음", "보통", "나쁨", "매우나쁨"] as const;
 /** 등급색 — 좋음 초록·보통 노랑·나쁨 빨강·매우나쁨 진빨강(직관 신호등, 주황·황토 제외). */
 export const PM_GRADE_COLOR = ["#2BB36B", "#FFD23A", "#F0463F", "#6E0712"] as const;
-/** 미세먼지 게이지 채움비율(명세 §3 표) — 등급별 고정 비율. */
+/** 미세먼지 게이지 채움비율(명세 §3 표) — 등급별 고정 비율(미니 칩용). */
 export const PM_GRADE_FRAC = [0.16, 0.45, 0.74, 0.95] as const;
+/**
+ * 상세 KPI 게이지용 PM2.5 연속 채움비율(0~1).
+ * 등급 고정값(PM_GRADE_FRAC)은 같은 등급 안의 현재값·최고치가 한 점으로 뭉쳐
+ * '현재→최고' 두 점 표현이 불가능하다. UVB/UVA 처럼 값 기반으로 펴서
+ * 등급 경계(15·35·75)를 앵커로 보간 → 같은 나쁨 등급이라도 54·69 가 다른 위치.
+ * 표시값·등급·색·라벨은 그대로(과학값 불변), 게이지 위치만 연속화하는 표시용 매핑.
+ */
+export function pm25Frac(p25: number): number {
+  const v = clamp(p25, 0, 150);
+  // [PM2.5 값, 채움비율] — 각 등급 대표 비율(PM_GRADE_FRAC)이 밴드 중앙쯤 오도록 경계 배치.
+  const anchors: ReadonlyArray<readonly [number, number]> = [
+    [0, 0],
+    [15, 0.3],
+    [35, 0.58],
+    [75, 0.86],
+    [150, 1],
+  ];
+  for (let i = 1; i < anchors.length; i++) {
+    const [v0, f0] = anchors[i - 1];
+    const [v1, f1] = anchors[i];
+    if (v <= v1) return f0 + ((v - v0) / (v1 - v0)) * (f1 - f0);
+  }
+  return 1;
+}
 export function pmWorstGrade(p25: number, p10: number): 0 | 1 | 2 | 3 {
   const g25 = p25 <= 15 ? 0 : p25 <= 35 ? 1 : p25 <= 75 ? 2 : 3;
   const g10 = p10 <= 30 ? 0 : p10 <= 80 ? 1 : p10 <= 150 ? 2 : 3;
@@ -87,16 +111,22 @@ export const uvbText = (u: number) => whoUvText(u);
 export const uvaText = (uva: number) => whoUvText(uva);
 export const pmText = (grade: number) => tierText(pmTier(grade));
 
-/** 기온 → 색(강한 한파 남색 → 무더위 빨강). 주간 온도 막대를 실제 기온으로 칠해 직관적으로.
- *   한국 현실 범위(영하 -15 ~ 영상 35)를 단계적으로 — 영하도 한 색으로 뭉개지지 않게 확장. */
+/** 기온 → 색. 추우면 파랑 → 선선 하늘 → 따뜻 노랑 → 더우면 주황(사용자 기준 2026-06-18).
+ *   한국 현실 범위(영하 -15 ~ 영상 35)를 단계적으로. 양 끝은 강한 한파 진남·무더위 빨강으로
+ *   극단 기온이 한 색으로 뭉개지지 않게 확장.
+ *   ★ 하늘색(파랑끼)→노랑(노랑끼)을 RGB 직선 보간하면 중간이 초록·연두로 탁해진다
+ *     (B·G 채널이 동시에 높아짐). 그래서 둘 사이에 '밝은 미색(흰끼)' 전이 stop 을 넣어
+ *     diverging(파랑→흰→노랑) 방식으로 초록을 우회한다. 미색은 R≈G≈B 로 균형이라
+ *     하늘→미색 구간은 청색끼, 미색→노랑 구간은 따뜻끼만 남고 초록 단독 우세 구간이 사라진다. */
 export function tempColor(t: number): string {
   const stops: [number, [number, number, number]][] = [
-    [-15, [40, 78, 180]], // 강한 한파(진남색)
-    [-3, [74, 124, 232]], // 한파(파랑)
-    [8, [86, 179, 216]], // 쌀쌀(하늘)
-    [18, [90, 192, 160]], // 온화(연두)
-    [27, [242, 168, 76]], // 따뜻(주황)
-    [35, [230, 84, 64]], // 무더위(빨강)
+    [-15, [40, 78, 178]], // 강한 한파(진남색)
+    [-3, [78, 138, 230]], // 한파(파랑)
+    [8, [140, 200, 232]], // 선선(하늘색)
+    [15, [240, 238, 224]], // 온화(밝은 미색·전이 — 초록 우회)
+    [21, [248, 206, 84]], // 따뜻(노랑)
+    [28, [240, 142, 60]], // 더위(주황)
+    [35, [222, 80, 58]], // 무더위(빨강)
   ];
   const rgb = (a: number[]) => `rgb(${Math.round(a[0])} ${Math.round(a[1])} ${Math.round(a[2])})`;
   if (t <= stops[0][0]) return rgb(stops[0][1]);
@@ -626,7 +656,7 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
   const kpis: WeatherKpi[] = [
     { key: "tanning", label: "UVB 태닝", value: uvText(dUv, dUp), level: uvBand(dUv), color: uvbColor(dUv), textColor: uvbText(dUv), sub: "오늘 최고", peak: String(Math.round(uvPeak)), peakFrac: clamp(uvPeak / 11, 0, 1), peakColor: uvbColor(uvPeak), peakTextColor: uvbText(uvPeak), frac: uvbFrac, minLabel: "0", maxLabel: "11", desc: kpiDesc("uvb", uvBand(dUv), 0) },
     { key: "aging", label: "UVA 노화", value: String(dUva), level: uvaBand(dUva), color: uvaColor(dUva), textColor: uvaText(dUva), sub: "오늘 최고", peak: String(uvaPeak), peakFrac: clamp(uvaPeak / 11, 0, 1), peakColor: uvaColor(uvaPeak), peakTextColor: uvaText(uvaPeak), frac: uvaFrac, minLabel: "0", maxLabel: "11", desc: kpiDesc("uva", uvaBand(dUva), 3) },
-    { key: "pm", label: "미세먼지", value: String(Math.round(dPm25)), level: PM_GRADE_LABEL[dPmG], color: pmColor(dPmG), textColor: pmText(dPmG), sub: `PM10 ${Math.round(dPm10)}㎍`, peak: String(Math.round(pmPeak25)), peakFrac: PM_GRADE_FRAC[pmPeakG], peakColor: pmColor(pmPeakG), peakTextColor: pmText(pmPeakG), frac: PM_GRADE_FRAC[dPmG], minLabel: "좋음", maxLabel: "매우나쁨", seg: 4, desc: kpiDesc("pm", PM_GRADE_LABEL[dPmG], 6) },
+    { key: "pm", label: "미세먼지", value: String(Math.round(dPm25)), level: PM_GRADE_LABEL[dPmG], color: pmColor(dPmG), textColor: pmText(dPmG), sub: `PM10 ${Math.round(dPm10)}㎍`, peak: String(Math.round(pmPeak25)), peakFrac: pm25Frac(pmPeak25), peakColor: pmColor(pmPeakG), peakTextColor: pmText(pmPeakG), frac: pm25Frac(dPm25), minLabel: "좋음", maxLabel: "매우나쁨", seg: 4, desc: kpiDesc("pm", PM_GRADE_LABEL[dPmG], 6) },
     { key: "block", label: "구름투과율", value: `${dTransNow}%`, level: "자외선 통과", color: "#2E86C8", textColor: "#1E6FB0", sub: `구름 차단 ${dBlock}%`, frac: dTransNow / 100, minLabel: "0", maxLabel: "100%" },
     { key: "temp", label: "기온", value: `${todayMin}° / ${todayMax}°`, level: "", color: tempColor(temp), textColor: tempColor(temp), sub: "최저~최고", frac: tScale(temp), rangeLoFrac: tScale(todayMin), rangeHiFrac: tScale(todayMax), minLabel: "-10", maxLabel: "40" },
   ];
@@ -657,9 +687,15 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
     }
   }
   const dTime = D.time ?? [];
-  // 주간 피부날씨는 예보 API 가 주는 만큼(최대 7일) 모두 표시. 대기질 예보가 없는 날의
-  // UVB/UVA/미세먼지는 day-build 에서 null 로 채워 "–" 로 표시한다(기온·강수확률은 그대로).
-  const lastIdx = Math.min(dIdx + 6, dTime.length - 1);
+  // 주간 피부날씨는 "대기질(UV/PM) 예보가 들어오는 마지막 날"까지만 표시한다.
+  // 기온·강수확률(forecast API)은 7일까지 있으나, 미세먼지·자외선(CAMS 대기질 모델)은
+  // 약 5일까지만 예보하고 그 뒤는 null 이라 빈 칸("–")이 생긴다. 값이 모두 채워지는
+  // 날까지로 주간을 끊어 빈 칸을 없앤다(API 모델 예보 한계 — 데이터 조작 아님).
+  const maxIdx = Math.min(dIdx + 6, dTime.length - 1);
+  let lastIdx = dIdx;
+  for (let i = dIdx; i <= maxIdx; i++) {
+    if (aHasAir[dTime[i]]) lastIdx = i;
+  }
   let wkLo = 99;
   let wkHi = -99;
   for (let i = dIdx; i <= lastIdx; i++) {
@@ -723,7 +759,7 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
     kpis,
     hours,
     days,
-    weekNote: `주간 ${ndays}일 예보입니다. 자외선·미세먼지 예보가 없는 날은 "–"로 표시됩니다. 출처: CAMS · Open-Meteo.com`,
+    weekNote: `주간 ${ndays}일 예보입니다. 자외선·미세먼지(CAMS) 예보 한계로 약 5일까지 제공됩니다. 출처: CAMS · Open-Meteo.com`,
   };
 }
 

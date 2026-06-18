@@ -378,7 +378,17 @@
   /* 세로 마커 핀이 트랙 위아래로 솟아도 잘리지 않게 visible. */
   overflow: visible;
 }
-/* 현재 수치 이후 구간을 덮는 회색 마스크 — left=frac%(인라인) ~ 오른쪽 끝. */
+/* 현재값~오늘 최고치 구간 — 밑 스펙트럼을 흰 베일로 살짝 밝게(오늘 더 오를 구간).
+   left=현재값%, right=(100-최고치%) 인라인. 밑 그라데이션이 비쳐 '같은 위험도 색의 옅은 버전'으로 보임. */
+.vBright {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.5);
+  z-index: 2;
+  transition: left 0.3s ease, right 0.3s ease;
+}
+/* 오늘 최고치 이후 구간을 덮는 회색 마스크(미도달) — left=최고치%(없으면 현재값%) ~ 오른쪽 끝. */
 .vMask {
   position: absolute;
   top: 0;
@@ -402,16 +412,18 @@
   z-index: 4; /* 최상위: 마스크(z2)·최고치 점(z3) 위에 핀이 보이도록. */
   transition: left 0.3s ease;
 }
-/* 최고치(peakFrac) 위치의 회색 원형 점 — 회색 트랙 위에 '오늘 최고' 표식. */
+/* 최고치(peakFrac) 위치 표식 — 위험도 색의 두꺼운 테두리 동그라미(흰 속).
+   현재값~최고치 밝은 구간 끝에서 '오늘 여기까지 오른다'를 또렷이 보여준다.
+   border-color 는 TSX 에서 k.peakColor 인라인 주입(여기 #cfd6dd 는 폴백). */
 .vPeak {
   position: absolute;
   top: 50%;
-  width: 12px;
-  height: 12px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: #fff;
-  border: 1px solid #cfd6dd;
-  box-shadow: 0 1px 2px rgba(27, 39, 51, 0.18);
+  border: 3px solid #cfd6dd;
+  box-shadow: 0 1px 3px rgba(27, 39, 51, 0.28);
   transform: translate(-50%, -50%);
   z-index: 3; /* 회색 마스크(z2) 위에 점이 보이도록. */
   transition: left 0.3s ease;

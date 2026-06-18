@@ -200,20 +200,26 @@ export default function WeatherDetail({
   );
 }
 
-/** 가로 스펙트럼 게이지 — 트랙에 안전(초록)→위험(빨강) 스펙트럼을 깔고, 현재 수치(frac)
- *   이후 구간을 회색 마스크(.vMask)로 덮어 '채워진 곳만 색'으로 보이게 함. frac 위치에
- *   현재 색을 어둡게 한 세로 마커(.vMarker), 최고치(peakFrac) 위치에 회색 원형 점(.vPeak).
+/** 가로 스펙트럼 게이지 — 한 막대에 두 지점을 표현. 트랙에 안전(초록)→위험(빨강) 스펙트럼을 깔고:
+ *   ① 0~현재값(frac): 진한 스펙트럼(현재 도달). ② 현재값~오늘 최고치(peakFrac): 같은 스펙트럼을
+ *   흰 베일(.vBright)로 살짝 밝게(오늘 더 오를 구간). ③ 최고치 이후: 회색 마스크(.vMask, 미도달).
+ *   현재값 위치=세로 마커(.vMarker, 현재 색 어둡게), 최고치 위치=위험도 색 테두리 동그라미(.vPeak).
  *   게이지는 장식이며 의미는 텍스트(값·등급)로 전달. UVB·UVA·미세먼지 공통. */
 function vGauge(k: WeatherKpi) {
   const pct = Math.round(clamp(k.frac, 0, 1) * 100);
   const peakPct = Math.round(clamp(k.peakFrac ?? 0, 0, 1) * 100);
-  // 최고치 점은 peakFrac 가 있고, 현재 수치보다 오른쪽(회색 트랙 위)에 의미가 있을 때만 — 같거나 더 왼쪽이면 생략.
+  // 최고치 표식은 peakFrac 가 있고, 현재 수치보다 의미 있게 오른쪽일 때만 — 같거나 더 왼쪽이면 현재값까지만.
   const showPeak = k.peakFrac != null && peakPct > pct + 1;
+  // 회색(미도달) 마스크 시작점: 최고치를 표시하면 최고치 이후, 아니면 현재값 이후.
+  const maskFrom = showPeak ? peakPct : pct;
   return (
     <span className={styles.vGauge}>
       <span className={styles.vTrack}>
-        <i className={styles.vMask} style={{ left: `${pct}%` }} />
-        {showPeak && <i className={styles.vPeak} style={{ left: `${peakPct}%` }} />}
+        {showPeak && <i className={styles.vBright} style={{ left: `${pct}%`, right: `${100 - peakPct}%` }} />}
+        <i className={styles.vMask} style={{ left: `${maskFrom}%` }} />
+        {showPeak && (
+          <i className={styles.vPeak} style={{ left: `${peakPct}%`, borderColor: k.peakColor ?? k.color }} />
+        )}
         <i className={styles.vMarker} style={{ left: `${pct}%`, background: darken(k.color, 0.72) }} />
       </span>
     </span>
