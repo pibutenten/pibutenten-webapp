@@ -56,6 +56,9 @@ next-env.d.ts
 *.bak
 *.bak.*
 
+# 빌드 산출물 APK/AAB (클라우드 빌드 다운로드 — git 추적 불필요, Dropbox 동기화로 배포)
+/builds/
+
 # Vercel API dump (수동 fetch 결과 — 추적 불필요)
 /all.json
 
