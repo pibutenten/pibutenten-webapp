@@ -164,7 +164,7 @@ export default function WeatherDetail({
               <span className={styles.wkMd}>{d.md}</span>
             </div>
             {/* 우측 — 2줄: (윗줄) 날씨·온도(기온은 여기 애플바로 표현) / (아랫줄) 박스 4개(UVB·UVA·미세먼지·강수확률).
-                라벨은 오늘 행에만 노출(아래 행은 위 라벨과 같은 열 정렬이라 중복 생략). */}
+                라벨(주석)은 모든 행 각 KPI 밑에 노출 — 사용자 결정 2026-06-18(스크롤 시 어느 행이든 지표 식별). */}
             <div className={styles.wkBody}>
               <div className={styles.wkLine1}>
                 <span className={styles.wkEmoji}>{d.emoji}</span>
@@ -178,18 +178,18 @@ export default function WeatherDetail({
                 </span>
               </div>
               <div className={styles.wkBoxes}>
-                {/* 대기질(UV/PM) 예보가 없는 날(주 후반)은 null → "–" 중립 회색. */}
+                {/* 대기질(UV/PM) 예보가 없는 날(주 후반)은 null → "–" 중립 회색. 라벨은 모든 행 노출(true). */}
                 {d.uvb == null
-                  ? wkBox("UVB 태닝", "–", "#9AA5B1", "#9AA5B1", d.isToday)
-                  : wkBox("UVB 태닝", String(d.uvb), uvbColor(d.uvb), uvbText(d.uvb), d.isToday)}
+                  ? wkBox("UVB 태닝", "–", "#9AA5B1", "#9AA5B1", true)
+                  : wkBox("UVB 태닝", String(d.uvb), uvbColor(d.uvb), uvbText(d.uvb), true)}
                 {d.uva == null
-                  ? wkBox("UVA 노화", "–", "#9AA5B1", "#9AA5B1", d.isToday)
-                  : wkBox("UVA 노화", String(d.uva), uvaColor(d.uva), uvaText(d.uva), d.isToday)}
+                  ? wkBox("UVA 노화", "–", "#9AA5B1", "#9AA5B1", true)
+                  : wkBox("UVA 노화", String(d.uva), uvaColor(d.uva), uvaText(d.uva), true)}
                 {d.pm25 == null || d.pmGrade == null
-                  ? wkBox("미세먼지", "–", "#9AA5B1", "#9AA5B1", d.isToday)
-                  : wkBox("미세먼지", String(d.pm25), pmColor(d.pmGrade), pmText(d.pmGrade), d.isToday)}
+                  ? wkBox("미세먼지", "–", "#9AA5B1", "#9AA5B1", true)
+                  : wkBox("미세먼지", String(d.pm25), pmColor(d.pmGrade), pmText(d.pmGrade), true)}
                 {/* 강수확률 — 정보값 → 파란색. */}
-                {wkBox("강수확률", d.rainProb == null ? "–" : `${Math.round(d.rainProb)}%`, "#2E86C8", "#1E6FB0", d.isToday)}
+                {wkBox("강수확률", d.rainProb == null ? "–" : `${Math.round(d.rainProb)}%`, "#2E86C8", "#1E6FB0", true)}
               </div>
             </div>
           </div>
