@@ -621,7 +621,9 @@
   font-weight: 600;
 }
 .doctorAnswerHeaderMobile {
-  margin: 22px 0 14px;
+  /* 위 32px: 원장 카드↔"답변 N편" 헤더 사이 공백(2026-06-20, 사용자 요청 "위에 공백 더").
+     아래 14px: 헤더↔첫 Q&A 간격. */
+  margin: 32px 0 14px;
   /* 모바일 헤더도 동일 톤(2026-06-19): 18px/800 → 15px/600 으로 더 얇고 작게. */
   font-size: 15px;
   font-weight: 600;

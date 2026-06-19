@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-06-20] — 네이티브 앱 상태바 겹침 해결(Android edge-to-edge) · 원장 헤더 상단 공백 추가
+
+> Capacitor 네이티브 앱(Android)에서 웹 콘텐츠가 OS 상태바와 겹치던 문제를 네이티브 레이어에서 해결. 원장 화면 "답변 N편" 헤더 위 공백을 추가.
+
+### Fixed
+- **Android 네이티브 앱 상태바 겹침 해결**(`android/app/src/main/java/kr/pibutenten/app/MainActivity.java`): Android 15(API 35)+ 부터 edge-to-edge 가 **강제**(앱 targetSdk 36)되어 WebView 가 상태바·내비게이션 바 뒤까지 그려지고, 이 환경에선 `@capacitor/status-bar` 의 `overlaysWebView:false` 설정이 **무력화(no-op)** 되어 웹 화면 최상단이 OS 상태바(시계·배터리)와 겹쳤다(PWA 는 무관 — 원래 정상). `MainActivity.onCreate` 에서 `ViewCompat.setOnApplyWindowInsetsListener` 로 systemBars inset 만큼 WebView 에 직접 padding 을 적용해, 웹 화면이 상태바 아래·내비게이션 바 위에서 시작·종료하도록 함(PWA standalone 과 동일 레이아웃). inset 으로 영역이 분리되어 WebView 내부 `env(safe-area-inset-*)` 은 0 → 웹 쪽 하단 패딩(`.tabbar` 등)과 이중 계산 없음. 신규 의존성 없음(`androidx.core` 는 `androidx.appcompat` 전이 의존성). iOS 는 `overlaysWebView:false` 가 정상 동작해 기존대로 안 겹침.
+
+### Changed
+- **원장 "답변 N편" 헤더 상단 공백 추가**(`src/components/skin/app.module.css`): 모바일 `.doctorAnswerHeaderMobile` 상단 margin `22px` → **`32px`**(원장 카드 ↔ "답변 N편" 헤더 사이 공백, 사용자 요청 "위에 공백 더"). 하단·글씨(15px/600)는 유지.
+
+### Removed
+- **PWA용으로 잘못 넣은 `.root` 상단 safe-area 패딩 제거**(`src/components/skin/app.module.css`): 앞서 네이티브 겹침을 PWA 문제로 오인해 추가했던 `.root { padding-top: env(safe-area-inset-top) }` 을 되돌림. PWA 는 원래 겹치지 않았고(env() 도 standalone 에서 0), 실제 원인은 Android 네이티브 edge-to-edge 였으므로 죽은 코드 제거.
+
+---
+
 ## [2026-06-19] — 원장 프로필 "답변 N편" 헤더 재배치 · 투데이 첫 날씨 로딩 개선
 
 > 모바일 원장 공개 프로필의 "답변 N편" 헤더를 프로필 카드와 Q&A 피드 사이로 내리고 겹침 간격을 수정. 투데이 첫 방문 시 첫 날씨 카드가 늦게 뜨던 문제를 localStorage 캐시 + 2단 stale-while-revalidate 로 개선.
