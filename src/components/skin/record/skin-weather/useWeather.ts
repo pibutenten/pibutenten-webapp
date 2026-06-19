@@ -19,6 +19,10 @@ const CACHE_TTL = 30 * 60 * 1000; // 30분
 // 캐시 버전(v2) — 스냅샷 구조 변경(WeatherDay.pm25 추가) 시 옛 캐시를 폐기해 깨짐 방지.
 const LAST_KEY = "pbtt-weather2:last";
 const coordKey = (lat: number, lon: number) => `pbtt-weather2:${lat.toFixed(2)}:${lon.toFixed(2)}`;
+// 측위 성공 직후 역지오코딩(동 이름) 도착 전 임시 표시용 placeholder. 이 이름은 LAST_KEY(상세
+//   페이지·다음 방문 seed)에 굳히지 않는다 — localStorage 영구화로 "내 위치"가 잔존해 상세 페이지가
+//   동 이름 대신 계속 "내 위치"를 보여주던 회귀 방지.
+const MY_LOC = "내 위치";
 
 function reviveHours(snap: WeatherSnapshot): WeatherSnapshot {
   return { ...snap, hours: snap.hours.map((h) => ({ ...h, t: new Date(h.t) })) };
@@ -39,7 +43,10 @@ function writeCache(key: string, snap: WeatherSnapshot) {
     const payload = JSON.stringify({ ts: Date.now(), snap });
     // localStorage 로 기록 → 새 세션·새 탭에서도 last seed 를 재사용해 첫 표시 지연 제거.
     localStorage.setItem(key, payload);
-    localStorage.setItem(LAST_KEY, payload); // 상세 페이지·다음 방문 즉시 표시용
+    // placeholder("내 위치")는 seed 로 굳히지 않음 — 역지오코딩 실패·지연 시 LAST_KEY 에 영구
+    //   잔존해 상세 페이지가 동 이름 대신 "내 위치"를 계속 보여주던 회귀 방지. 실제 동 이름이
+    //   도착하면 그때 LAST_KEY 갱신(아래 reverseGeocodeKo 콜백) → 다음 방문부터 동 이름 즉시 표시.
+    if (snap.name !== MY_LOC) localStorage.setItem(LAST_KEY, payload); // 상세 페이지·다음 방문 즉시 표시용
   } catch {
     /* 용량 초과 등 무시 */
   }
@@ -106,6 +113,9 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
     // seed 가 있으면 그 자체를 '정밀'로 간주(직전 사용자 위치 결과) → 측위 실패 폴백(대치동)이
     //   더 정밀한 seed 를 덮어쓰지 않게 시작부터 잠근다([제안]7).
     let preciseShown = !!lastSeed;
+    // 역지오코딩(동 이름)이 측위 fetch 보다 먼저 도착할 수 있음(병렬). 먼저 도착한 동 이름을
+    //   여기 담아 뒤늦은 fetch 결과의 placeholder("내 위치")를 실제 이름으로 덮어 표시·캐시한다.
+    let geoName: string | null = null;
     const show = (s: WeatherSnapshot, precise: boolean): boolean => {
       if (!mounted) return false;
       if (preciseShown && !precise) return false; // 늦게 온 필러가 정밀 결과를 덮지 않도록.
@@ -121,7 +131,10 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
       }
       fetchWeather(lat, lon, name, ac.signal)
         .then((s) => {
-          if (show(s, precise)) writeCache(coordKey(lat, lon), s);
+          // 측위 fetch 가 역지오코딩보다 늦으면 이미 도착한 실제 동 이름을 입혀 표시·캐시.
+          //   (fetchWeather 는 name 파라미터를 snap.name 그대로 반환한다는 계약에 의존 — 깨지면 이 조건 무력화.)
+          const named = precise && s.name === MY_LOC && geoName ? { ...s, name: geoName } : s;
+          if (show(named, precise)) writeCache(coordKey(lat, lon), named);
         })
         .catch((e: unknown) => {
           if (!mounted || ac.signal.aborted) return;
@@ -143,10 +156,11 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
         (p) => {
           const { latitude, longitude } = p.coords;
           // 날씨는 좌표만 있으면 되므로 즉시 fetch — 지명(역지오코딩)을 기다리지 않아 첫 표시 지연 단축.
-          run(latitude, longitude, "내 위치", true);
+          run(latitude, longitude, MY_LOC, true);
           // 동 단위 지명은 병렬로 받아 도착 시 '이름만' 갱신(+캐시 이름 동기화). 실패하면 "내 위치" 유지.
           reverseGeocodeKo(latitude, longitude, ac.signal).then((name) => {
             if (!mounted || !name) return;
+            geoName = name; // 측위 fetch 가 아직이면 run 의 then 에서 이 이름으로 덮어쓰도록 보관.
             setSnap((prev) => (prev ? { ...prev, name } : prev));
             const k = coordKey(latitude, longitude);
             const c = readCache(k);

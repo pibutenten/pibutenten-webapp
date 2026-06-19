@@ -14,6 +14,9 @@
 - **원장 공개 프로필 헤더 재배치**(`src/app/doctors/[slug]/DoctorProfileView.tsx`, `src/components/skin/app.module.css`): 모바일에서 "{이름} 원장님의 답변 {N}편" 헤더를 프로필 카드 ↔ 첫 Q&A 카드 **사이**로 이동. 프로필 카드와 첫 Q&A 카드가 겹치던 문제를 모바일 전용 헤더(`.doctorAnswerHeaderMobile`, margin `22px 0 14px`)로 간격 확보. 데스크톱 2단 레이아웃·단일 H1(SEO)은 그대로 유지.
 - **투데이 첫 날씨 로딩 지연 개선**(`src/components/skin/record/skin-weather/useWeather.ts`): 캐시 저장소를 sessionStorage → **localStorage** 로 전환해 새 세션·새 탭·다음 방문에서 직전 스냅샷(`LAST_KEY`, 30분 TTL)을 즉시 재사용. 2단 stale-while-revalidate — (1) seed 있으면 측위·fetch 없이 즉시 렌더, 없으면 대치동 필러를 곧장 병렬 fetch / (2) Geolocation 결과로 백그라운드 덮어쓰기. `preciseShown = !!lastSeed` 잠금으로 측위 실패 시 대치동 폴백이 더 정밀한 seed 를 덮어쓰지 않도록 보호. 측위 옵션 `enableHighAccuracy:false`·`timeout:4000`·`maximumAge:60분`. SkinWeatherCard 배경 줄 주석을 실제 표시(기온만, 강수확률 제외)와 일치하도록 정리.
 
+### Fixed
+- **날씨 위치명이 "내 위치" 로 잔존하던 회귀 수정**(`src/components/skin/record/skin-weather/useWeather.ts`): 위 localStorage 전환의 부작용 — 측위 직후 역지오코딩(동 이름) 도착 전 임시 placeholder "내 위치" 가 `LAST_KEY` 캐시에 영구 잔존, 상세 페이지(`/weather`, `preferLast=true` early-return)가 동 이름 대신 "내 위치" 를 계속 표시. (1) `MY_LOC` 센티넬 도입 후 `writeCache` 에서 `name === MY_LOC` 이면 `LAST_KEY`(상세·다음 방문 seed) 쓰기를 건너뛰어 placeholder 가 seed 로 굳지 않게 함. (2) `geoName` 클로저로 역지오코딩이 측위 fetch 보다 먼저 도착하는 경우도 보강 — 늦게 온 fetch 결과의 placeholder 를 실제 동 이름으로 덮어 표시·캐시에 반영. 두 비동기 도착 순서 양쪽 모두에서 동 이름이 표시·`LAST_KEY` 에 기록되도록 보장.
+
 ---
 
 ## [2026-06-19] — Android Play 프로덕션 검토 제출 완료 · 제출 기록부 단일화
