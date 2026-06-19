@@ -6,6 +6,30 @@
 
 ---
 
+## [2026-06-19] — 원장 프로필 "답변 N편" 헤더 재배치 · 투데이 첫 날씨 로딩 개선
+
+> 모바일 원장 공개 프로필의 "답변 N편" 헤더를 프로필 카드와 Q&A 피드 사이로 내리고 겹침 간격을 수정. 투데이 첫 방문 시 첫 날씨 카드가 늦게 뜨던 문제를 localStorage 캐시 + 2단 stale-while-revalidate 로 개선.
+
+### Changed
+- **원장 공개 프로필 헤더 재배치**(`src/app/doctors/[slug]/DoctorProfileView.tsx`, `src/components/skin/app.module.css`): 모바일에서 "{이름} 원장님의 답변 {N}편" 헤더를 프로필 카드 ↔ 첫 Q&A 카드 **사이**로 이동. 프로필 카드와 첫 Q&A 카드가 겹치던 문제를 모바일 전용 헤더(`.doctorAnswerHeaderMobile`, margin `22px 0 14px`)로 간격 확보. 데스크톱 2단 레이아웃·단일 H1(SEO)은 그대로 유지.
+- **투데이 첫 날씨 로딩 지연 개선**(`src/components/skin/record/skin-weather/useWeather.ts`): 캐시 저장소를 sessionStorage → **localStorage** 로 전환해 새 세션·새 탭·다음 방문에서 직전 스냅샷(`LAST_KEY`, 30분 TTL)을 즉시 재사용. 2단 stale-while-revalidate — (1) seed 있으면 측위·fetch 없이 즉시 렌더, 없으면 대치동 필러를 곧장 병렬 fetch / (2) Geolocation 결과로 백그라운드 덮어쓰기. `preciseShown = !!lastSeed` 잠금으로 측위 실패 시 대치동 폴백이 더 정밀한 seed 를 덮어쓰지 않도록 보호. 측위 옵션 `enableHighAccuracy:false`·`timeout:4000`·`maximumAge:60분`. SkinWeatherCard 배경 줄 주석을 실제 표시(기온만, 강수확률 제외)와 일치하도록 정리.
+
+---
+
+## [2026-06-19] — Android Play 프로덕션 검토 제출 완료 · 제출 기록부 단일화
+
+> Google Play **프로덕션 트랙(대한민국) 검토 제출 완료** → Google 검토 중. iOS·Android 양쪽 모두 심사/검토 제출 완료 상태. 앱스토어 제출 진행을 시간순 단일 기록부로 일원화.
+
+### Added
+- **`docs/STORE_SUBMISSION_LOG.md` 신설**: App Store·Google Play 제출 진행을 **시간순 단일 출처(SSOT)** 로 기록하는 기록부. §1 현재 상태 한눈에(상태표·대기시간·승인 후 할 일), §2 시간순 로그(06-17/18/19), §3 주요 ID·자산·계정, §4 대기/남은 항목, §5 갱신 규칙. 원장 상태 질문 시 이 문서를 먼저 읽고 답한 뒤 갱신.
+- **Android 프로덕션 트랙 검토 제출**: 같은 AAB(버전 1 / 1.0, target SDK 36, min API 24)로 프로덕션 릴리스 생성, ko-KR 출시 노트 입력, "대한민국" 추가(트랙 국가 0→1), 검토 제출. 회사 계정(주식회사 진솔컴퍼니) 신규 폐쇄테스트 요건 면제 확인. 게시 개요 "검토 중인 변경사항"(전체 출시 시작 + 대한민국 추가), 사전 점검 통과, 관리형 게시 OFF → 승인 시 자동 게시·전체 출시 100%.
+
+### Changed
+- **`docs/plans/mobile-app-store-launch-plan.md`**: "현재 상태 한눈에" 에 STORE_SUBMISSION_LOG.md 참조 추가, Android 상태를 공개 테스트 → **프로덕션 트랙 제출·검토 중**(2026-06-19)으로 갱신. Phase 6 에 프로덕션 트랙 제출 체크라인 추가.
+- **`docs/plans/session-handoff-app-store.md`**: Android 섹션을 프로덕션 검토 중으로 갱신, STORE_SUBMISSION_LOG.md 참조 헤더 추가.
+
+---
+
 ## [2026-06-19] — iOS App Store 심사 제출 완료 · 신규 앱 아이콘 · iPhone 전용
 
 > App Store Connect 등록정보 입력을 마치고 **iOS 1.0 심사 제출 완료** → 현재 상태 "심사 대기 중"(Waiting for Review). 빌드 7(iPhone 전용) 첨부, Apple 승인 시 자동 출시. Android Play 는 2026-06-18 공개 테스트 제출 후 "검토 중" 유지(이번 세션 변경 없음).

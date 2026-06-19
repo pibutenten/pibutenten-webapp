@@ -5,7 +5,7 @@
  *
  * 위치·기온·헤드라인·4칩(게이지)만 보여주는 요약 카드. 탭하면 **새 페이지**(/weather)로
  *   이동해 상세(KPI 게이지·시간별 그래프·주간)를 본다. 데이터는 useWeather(공용 훅) — 카드가 받아둔
- *   스냅샷을 sessionStorage 로 상세 페이지와 공유(재요청 없음).
+ *   스냅샷을 localStorage(LAST_KEY)로 상세 페이지·다음 방문과 공유(재요청 없음).
  */
 
 import Link from "next/link";
@@ -92,7 +92,7 @@ export default function SkinWeatherCard() {
               </span>
             ))}
         </div>
-        {/* 배경(조연) — 기온·강수확률 한 줄, 작게·은은하게. */}
+        {/* 배경(조연) — 기온 한 줄, 작게·은은하게. (강수확률 표시 제외 2026-06-16) */}
         <div className={styles.chipsBg}>
           {snap.chips
             .filter((c) => BG_KEYS.includes(c.key))

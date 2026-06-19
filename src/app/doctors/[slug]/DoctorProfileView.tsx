@@ -189,9 +189,11 @@ export default function DoctorProfileView({
       active="마이"
       back="/doctors"
       backTitle={
-        // '< 뒤로' 옆 제목 — 좌측 첫 글상자가 우측 원장 카드와 같은 높이에서 시작하도록
-        //   메인 상단 헤더 대신 셸 backRow 로 올린다. H1 은 사이드바 원장명 1개 → 여기는 <h2>(중복 방지).
-        <h2>
+        // '< 뒤로' 옆 제목 — 데스크탑(≥900px) 전용. 좌측 첫 글상자가 우측 원장 카드와 같은 높이에서
+        //   시작하도록 셸 backRow 로 올린다. 모바일에선 .doctorAnswerHeader 가 숨겨지고(아래 본문),
+        //   원장 카드↔피드 사이의 .doctorAnswerHeaderMobile 가 대신 노출된다.
+        //   H1 은 사이드바 원장명 1개 → 여기는 <h2>(중복 방지).
+        <h2 className={styles.doctorAnswerHeader}>
           {name} 원장님의 답변 <b>{count ?? 0}</b>편
         </h2>
       }
@@ -215,6 +217,12 @@ export default function DoctorProfileView({
           headingTag="h2"
         />
       </div>
+
+      {/* 모바일 전용 "답변 N편" 헤더 — 원장 카드와 Q&A 피드 "사이"에 노출(데스크탑은 숨김, 상단 backTitle 사용).
+          margin(위 22px/아래 14px)이 원장 카드↔첫 Q&A 글상자 겹침을 막는 간격도 겸한다. H2(SEO H1 1개 유지). */}
+      <h2 className={styles.doctorAnswerHeaderMobile}>
+        {name} 원장님의 답변 <b>{count ?? 0}</b>편
+      </h2>
 
       {/* Q&A 피드 (해당 원장만) — 홈과 동일한 단일열 PostCard 피드(feedList) + 무한스크롤.
           서버가 내려준 초기 풀(cards)을 PostCard 로 렌더하고, 스크롤 끝(sentinel)에 닿으면

@@ -609,6 +609,23 @@
 .doctorProfileSideCard {
   display: none;
 }
+/* 원장 공개 프로필 — "답변 N편" 헤더 위치 분기 (2026-06-19).
+   데스크탑: 셸 backTitle(상단 backRow)로 노출 → 좌측 피드 칼럼 상단을 우측 프로필 카드 상단과 정렬.
+   모바일: backTitle 의 그 헤더(.doctorAnswerHeader)는 숨기고, 원장 카드와 피드 "사이"에
+   .doctorAnswerHeaderMobile 로 다시 노출(원장 카드↔첫 Q&A 겹침 방지 간격 포함). 분기점 900px(아래 @media 반전). */
+.doctorAnswerHeader {
+  display: none;
+}
+.doctorAnswerHeaderMobile {
+  margin: 22px 0 14px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--ink-900);
+}
+.doctorAnswerHeaderMobile b {
+  color: var(--tt-blue);
+}
 
 /* ---------- 카드 ---------- */
 .feedList {
@@ -1977,6 +1994,14 @@ button.t[data-cat="knowledge"]:hover {
   }
   .doctorProfileSideCard {
     display: block;
+  }
+  /* 원장 공개 프로필 "답변 N편" 헤더(2026-06-19) — 데스크탑은 상단 backTitle 노출,
+     원장 카드↔피드 사이 모바일 헤더는 숨김(모바일과 정반대). */
+  .doctorAnswerHeader {
+    display: block;
+  }
+  .doctorAnswerHeaderMobile {
+    display: none;
   }
   .sidebar .card {
     padding: 20px;
