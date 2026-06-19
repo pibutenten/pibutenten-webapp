@@ -615,11 +615,16 @@
    .doctorAnswerHeaderMobile 로 다시 노출(원장 카드↔첫 Q&A 겹침 방지 간격 포함). 분기점 900px(아래 @media 반전). */
 .doctorAnswerHeader {
   display: none;
+  /* 데스크탑 backTitle 노출 시 공용 .backTitle>*(18px/800)을 덮어 더 얇고 작게(2026-06-19,
+     사용자 요청 "전체적으로 좀더 얇고 작았으면"). 숫자(b)는 UA 기본 굵기로 자연 강조만 유지. */
+  font-size: 15px;
+  font-weight: 600;
 }
 .doctorAnswerHeaderMobile {
   margin: 22px 0 14px;
-  font-size: 18px;
-  font-weight: 800;
+  /* 모바일 헤더도 동일 톤(2026-06-19): 18px/800 → 15px/600 으로 더 얇고 작게. */
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.3;
   color: var(--ink-900);
 }

@@ -12,6 +12,7 @@
 
 ### Changed
 - **원장 공개 프로필 헤더 재배치**(`src/app/doctors/[slug]/DoctorProfileView.tsx`, `src/components/skin/app.module.css`): 모바일에서 "{이름} 원장님의 답변 {N}편" 헤더를 프로필 카드 ↔ 첫 Q&A 카드 **사이**로 이동. 프로필 카드와 첫 Q&A 카드가 겹치던 문제를 모바일 전용 헤더(`.doctorAnswerHeaderMobile`, margin `22px 0 14px`)로 간격 확보. 데스크톱 2단 레이아웃·단일 H1(SEO)은 그대로 유지.
+- **원장 프로필 "답변 N편" 헤더 글씨 축소·경량화**(`src/components/skin/app.module.css`): 데스크톱·모바일 양쪽 헤더(`.doctorAnswerHeader`, `.doctorAnswerHeaderMobile`)를 `18px/800` → **`15px/600`** 으로 더 얇고 작게(사용자 요청 "전체적으로 좀더 얇고 작았으면"). 데스크톱은 공용 `.backTitle > *`(18px/800)을 소스 순서 우선으로 덮음(`.backTitle > *` 자체는 다른 페이지 공유라 미수정). 숫자(`<b>`)는 UA 기본 굵기로 자연 강조만 유지.
 - **투데이 첫 날씨 로딩 지연 개선**(`src/components/skin/record/skin-weather/useWeather.ts`): 캐시 저장소를 sessionStorage → **localStorage** 로 전환해 새 세션·새 탭·다음 방문에서 직전 스냅샷(`LAST_KEY`, 30분 TTL)을 즉시 재사용. 2단 stale-while-revalidate — (1) seed 있으면 측위·fetch 없이 즉시 렌더, 없으면 대치동 필러를 곧장 병렬 fetch / (2) Geolocation 결과로 백그라운드 덮어쓰기. `preciseShown = !!lastSeed` 잠금으로 측위 실패 시 대치동 폴백이 더 정밀한 seed 를 덮어쓰지 않도록 보호. 측위 옵션 `enableHighAccuracy:false`·`timeout:4000`·`maximumAge:60분`. SkinWeatherCard 배경 줄 주석을 실제 표시(기온만, 강수확률 제외)와 일치하도록 정리.
 
 ### Fixed
