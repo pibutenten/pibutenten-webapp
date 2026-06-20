@@ -162,13 +162,19 @@ a:focus-visible,
     text-size-adjust: 100%;
   }
 
-  /* iOS safe area 대응 — top/bottom 모두.
-     PWA standalone 진입 시 status bar 영역(시계/배터리)을 콘텐츠가 가리지 않도록
-     padding-top: env(safe-area-inset-top) 추가.
-     일반 브라우저는 env() = 0 이라 영향 없음. */
+  /* safe area 대응 — top/bottom 모두. status bar 영역(시계/배터리)을 콘텐츠가 가리지 않도록.
+     두 출처를 max() 로 합산한다:
+       - env(safe-area-inset-top): PWA·iOS·일반 브라우저 (Chrome 이 화면 기하로 직접 계산)
+       - var(--safe-area-inset-*): Capacitor 코어 SystemBars 가 WebView 에 주입하는 CSS 변수
+     Capacitor Android WebView 는 env() 를 0 으로 덮어쓰는 경우가 있어(remote URL 로드),
+     코어가 주입하는 --safe-area-inset-* 를 fallback 으로 함께 본다.
+     일반 브라우저는 둘 다 0 이라 영향 없음. */
   body {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px));
+    padding-bottom: max(
+      env(safe-area-inset-bottom),
+      var(--safe-area-inset-bottom, 0px)
+    );
   }
 
   a {

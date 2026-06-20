@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-06-20] — 네이티브 앱 상태바 겹침 2차 수정(웹 inset fallback) · 시작 스플래시 지속
+
+> 같은 날 1차 수정(아래 블록, bare MainActivity)이 실기기에서 여전히 겹쳐(원장 리포트 2회) 접근을 전환. 상태바 겹침을 **웹(CSS) inset fallback** 으로 잡고, 시작 시 PWA 처럼 로딩 동안 파란 tt: 스플래시가 지속되도록 `@capacitor/splash-screen` 도입.
+
+### Fixed
+- **Android 네이티브 상태바 겹침 2차 수정**(`capacitor.config.ts`, `src/app/globals.css`): 1차 수정(bare `MainActivity` + Capacitor 코어 SystemBars inset 위임)이 실기기에서 여전히 헤더가 상태바와 겹쳤다. **근본 원인 재진단**(디버거 정적 분석): targetSdk 36(Android 15 edge-to-edge)에서 `@capacitor/status-bar` 의 `overlaysWebView:false`(deprecated `setSystemUiVisibility`) 경로가 코어 `SystemBars` 의 inset 주입과 충돌. `SystemBars.java` 의 `shouldPassthroughInsets` 가 `onDOMReady()` JS 브릿지 콜백에 의존하는데 **원격 URL 로드**(server.url=pibutenten.kr)에서는 이 콜백이 안 떠 `injectSafeAreaCSS(0,0,0,0)` → `env(safe-area-inset-top)=0` 으로 박혀 본문 패딩이 0 이 됐다(PWA 는 Chrome 이 화면 기하에서 env() 직접 계산하므로 무관). **수정**: ① `capacitor.config.ts` StatusBar `overlaysWebView:false → true`(콘텐츠를 상태바 아래로 내리는 패딩을 네이티브가 아닌 웹 측에서 처리). ② `globals.css` body 패딩을 `env(safe-area-inset-top)` 단독 → **`max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px))`**(상·하단 동일)로 변경 — Chrome 의 `env()`(PWA/iOS) **와** Capacitor 코어가 주입하는 `--safe-area-inset-*` CSS 변수 **양쪽**을 모두 잡는다. PWA/iOS 에서 `--safe-area-inset-top` 미정의 시 fallback `0px` 이라 `max(env, 0px)=env` 로 기존 동작 보존(회귀 없음).
+
+### Added
+- **시작 스플래시 지속**(`capacitor.config.ts`, `package.json`): `@capacitor/splash-screen@^8.0.1` 도입. 기존 네이티브 런치 스플래시(`@drawable/splash`, 파란 #4CBFF2 + 흰 tt: 로고)가 첫 프레임에서 즉시 사라져 원격 URL 로딩 중 흰/빈 화면이 잠깐 노출되던 것을, `SplashScreen { launchShowDuration: 2500, launchAutoHide: true, backgroundColor: "#4cbff2", showSpinner: false }` 로 로딩 동안 스플래시가 지속되게 함(사용자 요청 "PWA처럼 로딩 기다릴 때 이 화면"). **`launchAutoHide:true` 유지** — 웹 JS 의 `SplashScreen.hide()` 에 의존하면 원격 로드에서 브릿지 콜백 미발동 시 파란 화면 영구 정지 위험이 있어, 고정 시간 후 자동 소멸 방식 채택(상태바 버그와 동일한 취약 클래스 회피).
+
+---
+
 ## [2026-06-20] — 네이티브 앱 상태바 겹침 해결(Android edge-to-edge) · 원장 헤더 상단 공백 추가
 
 > Capacitor 네이티브 앱(Android)에서 웹 콘텐츠가 OS 상태바와 겹치던 문제를 네이티브 레이어에서 해결. 원장 화면 "답변 N편" 헤더 위 공백을 추가.

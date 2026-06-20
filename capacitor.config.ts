@@ -39,12 +39,29 @@ const config: CapacitorConfig = {
     // 상태바(OS 시간·통신사 표시줄) 설정.
     //   흰 배경(#FFFFFF)에 어두운(검은) 아이콘 → Capacitor Style.Light("LIGHT").
     //     ("LIGHT" = 밝은 배경용 어두운 텍스트. "DARK" 로 두면 흰 배경에 흰 아이콘이라 안 보임.)
-    //   overlaysWebView:false·backgroundColor 는 Android 14 이하·iOS 에서 유효(겹침 해소·배경색),
-    //     Android 15+ 는 edge-to-edge 강제로 무시되며 겹침은 코어 SystemBars 의 inset 패딩이 처리.
+    //   Android 15+(targetSdk 36) 는 edge-to-edge 강제라 backgroundColor·overlaysWebView:false 가
+    //     사실상 무시된다. 이때 overlaysWebView:false 경로(deprecated setSystemUiVisibility)는
+    //     코어 SystemBars 의 inset 주입과 충돌해 env(safe-area-inset-top) 이 0 으로 박혀
+    //     헤더가 상태바와 겹쳤다(원장님 리포트 2회). PWA 처럼 콘텐츠를 상태바 아래로 내리려면
+    //     overlaysWebView:true 로 두고, 콘텐츠 패딩은 web 측 safe-area inset 으로 처리한다.
+    //     (globals.css body padding: max(env(safe-area-inset-top), var(--safe-area-inset-top,0px)))
     StatusBar: {
-      overlaysWebView: false,
+      overlaysWebView: true,
       style: "LIGHT",
       backgroundColor: "#ffffff",
+    },
+    // 스플래시(앱 시작 화면) — PWA 처럼 원격 페이지 로딩 동안 파란 tt: 화면을 유지.
+    //   네이티브 런치 스플래시(@drawable/splash, #4CBFF2)는 기본적으로 첫 프레임에서 즉시 사라져
+    //   원격 URL(pibutenten.kr) 로딩 중 흰/빈 화면이 잠깐 보였다(원장님 요청).
+    //   launchShowDuration 으로 표시 시간을 늘려 로딩 동안 스플래시가 보이게 한다.
+    //   ⚠ launchAutoHide:true 유지 — 웹 JS 의 SplashScreen.hide() 에 의존하면
+    //     원격 로드에서 브릿지 콜백이 안 떴을 때 파란 화면에 영구 정지될 위험이 있다.
+    //     고정 시간 후 자동 소멸이라 어떤 네트워크 상황에서도 멈추지 않는다.
+    SplashScreen: {
+      launchShowDuration: 2500,
+      launchAutoHide: true,
+      backgroundColor: "#4cbff2",
+      showSpinner: false,
     },
   },
 };
