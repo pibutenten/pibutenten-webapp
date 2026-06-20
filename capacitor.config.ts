@@ -36,11 +36,14 @@ const config: CapacitorConfig = {
     androidScheme: "https",
   },
   plugins: {
-    // 상태바(OS 시간·통신사 표시줄)가 웹 화면을 덮지 않게 — PWA 처럼 상태바 아래부터 콘텐츠 시작.
-    //   overlaysWebView:false → 겹침 해소. 흰 배경(theme #FFFFFF)에 어두운 아이콘(style DARK).
+    // 상태바(OS 시간·통신사 표시줄) 설정.
+    //   흰 배경(#FFFFFF)에 어두운(검은) 아이콘 → Capacitor Style.Light("LIGHT").
+    //     ("LIGHT" = 밝은 배경용 어두운 텍스트. "DARK" 로 두면 흰 배경에 흰 아이콘이라 안 보임.)
+    //   overlaysWebView:false·backgroundColor 는 Android 14 이하·iOS 에서 유효(겹침 해소·배경색),
+    //     Android 15+ 는 edge-to-edge 강제로 무시되며 겹침은 코어 SystemBars 의 inset 패딩이 처리.
     StatusBar: {
       overlaysWebView: false,
-      style: "DARK",
+      style: "LIGHT",
       backgroundColor: "#ffffff",
     },
   },

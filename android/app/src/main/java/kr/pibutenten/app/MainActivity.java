@@ -1,36 +1,17 @@
 package kr.pibutenten.app;
 
-import android.os.Bundle;
-
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-
 import com.getcapacitor.BridgeActivity;
 
 /**
  * 피부텐텐 네이티브 셸 액티비티.
  *
- * <p>Android 15(API 35)+ 부터 edge-to-edge 가 강제되어 (targetSdk 36) WebView 가 상태바·
- * 내비게이션 바 뒤까지 그려진다. 이 환경에서는 {@code @capacitor/status-bar} 의
- * {@code overlaysWebView:false} 설정이 무력화되어 웹 콘텐츠가 OS 상태바와 겹친다.
+ * <p>상태바·내비게이션 바 inset 처리는 Capacitor 코어의 {@code SystemBars} 플러그인이 담당한다.
+ * Android 15(API 35, VANILLA_ICE_CREAM)+ 의 강제 edge-to-edge 환경에서 SystemBars 는
+ * WebView 의 부모(CoordinatorLayout)에 systemBars inset 만큼 padding 을 적용하고,
+ * onPageCommitVisible 시점에 {@code requestApplyInsets()} 로 리스너를 발동시킨다.
  *
- * <p>해결: 시스템 바(systemBars) inset 만큼 WebView 에 padding 을 직접 적용해, 웹 화면이
- * 상태바 아래·내비게이션 바 위에서 시작·종료하도록 한다. (PWA standalone 과 동일한 레이아웃)
- * inset 으로 영역이 분리되므로 WebView 내부의 {@code env(safe-area-inset-*)} 은 0 이 되어
- * 웹 쪽 하단 패딩(.tabbar 등)과 이중 계산되지 않는다.
+ * <p>여기서 별도 {@code OnApplyWindowInsetsListener} 를 등록하면 SystemBars 의 리스너를
+ * 덮어써(뷰당 리스너는 1개) inset 처리가 무효화되므로, 커스텀 코드를 두지 않는다.
+ * 상태바 표시·색은 {@code capacitor.config.ts} 의 StatusBar 플러그인 설정으로 제어한다.
  */
-public class MainActivity extends BridgeActivity {
-  @Override
-  public void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
-
-    ViewCompat.setOnApplyWindowInsetsListener(
-        getBridge().getWebView(),
-        (view, windowInsets) -> {
-          Insets bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-          view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
-          return windowInsets;
-        });
-  }
-}
+public class MainActivity extends BridgeActivity {}
