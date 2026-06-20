@@ -6,6 +6,15 @@
 
 ---
 
+## [2026-06-20] — 네이티브 앱 상태바 겹침 3차 수정(홈 앱셸 fixed 오버레이 근본원인)
+
+> 2차 수정(아래 블록, globals.css `body` 패딩 + `overlaysWebView:true`)을 적용했는데도 **홈(앱 셸)** 헤더가 실기기에서 여전히 상태바와 겹쳤다(원장 리포트). **재진단(정적 코드 분석)으로 진짜 원인 확정**: 홈은 `AppShell` 의 `.root` 가 `position:fixed; inset:0` 풀뷰포트 오버레이(스크롤 컨테이너)이고, 헤더 `.header` 는 그 안에서 `position:sticky; top:0`. **fixed 부모 안의 sticky top:0 은 뷰포트 top:0 에 고정**되므로, `body` 패딩(2차 수정)은 일반 문서 흐름 페이지엔 닿지만 **fixed 오버레이인 `.root` 에는 절대 닿지 않는다**(fixed 요소는 body content-box 가 아니라 뷰포트 기준). 그래서 2차 수정이 일반 페이지엔 먹고 홈에만 안 먹었던 것.
+
+### Fixed
+- **Android 네이티브 상태바 겹침 3차 수정 — 홈 앱셸 fixed 오버레이**(`src/components/skin/app.module.css`): 홈/앱셸 헤더가 `body` 패딩 사각지대(fixed `.root` 오버레이)에 있어 상태바와 겹치던 근본원인을 해결. **수정**: ① `.root` 에 safe-area 토큰 `--sat: max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px))` 정의(2차 수정의 globals.css `body` 와 동일한 **이중 출처** 패턴 — Capacitor 가 원격 URL 로드에서 `env()` 를 0 으로 덮어쓸 때 코어 주입 `--safe-area-inset-*` 변수를 fallback 으로 함께 본다). ② 그 토큰을 오버레이 내부 sticky/fixed 자식들의 상단 오프셋에 주입 — `.header` padding `12px 18px` → `calc(12px + var(--sat)) 18px 12px`, `.chipBar` top `56px` → `calc(56px + var(--sat))`, `.chipBarUp`(스크롤시) top `0` → `var(--sat)`, `.mobileSearchPanel` top `60px` → `calc(60px + var(--sat))`. **웹/PWA 회귀 없음** — `--sat` 은 env()·변수 양쪽 미정의 시 `0px` 으로 평가되어 기존 픽셀값과 동일. 적용 범위는 `.root` 를 쓰는 `AppShell.tsx` 단일 셸로 한정(grep 확인). 신규 의존성 없음.
+
+---
+
 ## [2026-06-20] — 네이티브 앱 상태바 겹침 2차 수정(웹 inset fallback) · 시작 스플래시 지속
 
 > 같은 날 1차 수정(아래 블록, bare MainActivity)이 실기기에서 여전히 겹쳐(원장 리포트 2회) 접근을 전환. 상태바 겹침을 **웹(CSS) inset fallback** 으로 잡고, 시작 시 PWA 처럼 로딩 동안 파란 tt: 스플래시가 지속되도록 `@capacitor/splash-screen` 도입.

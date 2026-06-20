@@ -55,6 +55,11 @@
   --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
 
+  /* 네이티브 앱(edge-to-edge) 상태바 높이 — Chrome env() 또는 Capacitor 코어가
+     주입하는 --safe-area-inset-top 중 큰 값. 웹/PWA 에선 0 이라 무영향.
+     아래 .header / .chipBar / .mobileSearchPanel 의 top 오프셋이 공유한다. */
+  --sat: max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px));
+
   /* 풀뷰포트 오버레이 — 글로벌 크롬(TopNav/Footer/main) 시각적으로 가림 */
   position: fixed;
   inset: 0;
@@ -159,7 +164,10 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  padding: 12px 18px;
+  /* 상단 패딩에 --sat(상태바 높이)을 더해, 네이티브 edge-to-edge 에서
+     fixed .root 오버레이가 body padding 을 못 받는 구멍을 헤더 자체에서 메운다.
+     web/PWA 는 --sat=0 이라 무영향. */
+  padding: calc(12px + var(--sat)) 18px 12px;
   /* 불투명 베이스(#e8f5fd) 위에 반투명 틴트를 얹어, 아래 깔린 운영 TopNav 가
      앱 헤더 뒤로 비치지 않게 한다(운영 파일 무수정 → 앱 스킨 측에서 완전 차폐).
      blur 글래스 질감은 유지. */
@@ -223,7 +231,8 @@
   position: fixed;
   left: 0;
   right: 0;
-  top: 60px;
+  /* 헤더 높이(~60px) + 상태바(--sat) 아래부터 시작 — 헤더와 동일 보정. */
+  top: calc(60px + var(--sat));
   bottom: 0;
   z-index: 45;
   background: #fff;
@@ -508,8 +517,9 @@
 .chipBar {
   position: sticky;
   /* 헤더(sticky top:0, 높이 ~56px) 바로 아래 고정. 헤더 숨김(모바일) 시
-     chipBarUp 으로 top:0 끌어올려 빈 공간 없이 최상단 고정. */
-  top: 56px;
+     chipBarUp 으로 top:--sat 끌어올려 빈 공간 없이 상태바 바로 아래 고정.
+     헤더 높이 56px 에 상태바(--sat)를 더해 헤더와 어긋나지 않게 한다. */
+  top: calc(56px + var(--sat));
   z-index: 30;
   margin: 0 -18px;
   padding: 0 18px;
@@ -522,7 +532,8 @@
   );
 }
 .chipBarUp {
-  top: 0;
+  /* 헤더 숨김 시 상태바 바로 아래로 끌어올림(뷰포트 0 이 아니라 --sat). */
+  top: var(--sat);
 }
 .chipRow {
   display: flex;
