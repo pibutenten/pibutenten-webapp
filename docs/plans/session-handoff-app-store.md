@@ -70,4 +70,8 @@ QR 만드는 법(3가지):
 2. **OS 자동 분기 QR 1장**: 한 개 QR 로 iPhone→App Store, Android→Play 로 자동 이동. ⓐ 외부 서비스(QR Code Generator·Linktree·Branch·Firebase Dynamic Links 후속 등)의 "스토어 리다이렉트" 기능 사용, 또는 ⓑ 자체 분기 페이지(`https://pibutenten.kr/app` 같은 라우트에서 user-agent 로 분기 redirect) 만들어 그 URL 로 QR 생성. 자체 페이지가 도메인 신뢰·추적 면에서 유리.
 3. **웹사이트 배너/버튼**: pibutenten.kr 에 "앱 다운로드" 버튼(App Store·Play 뱃지) 추가 — QR 과 병행.
 
-> 자체 분기 페이지(`/app`)는 아직 미구현. 필요 시 별도 안건으로 Next.js 라우트 추가(서버에서 user-agent 판별 → 302 redirect).
+> ✅ 자체 분기 페이지(`/app`) 구현 완료 (2026-06-23, commit e1b01e5). `https://pibutenten.kr/app` 으로 QR·공유 링크 생성하면 됨.
+> - **공유·QR 단일 진입점**: 이 URL 하나로 iPhone→App Store, Android→Play 자동 이동(client UA 분기, `AppStoreRedirect.tsx`). 데스크톱은 두 버튼 노출.
+> - **브랜드 OG 카드**: 전체 하늘색(#4cbff2) 배경 + 흰색 `tt:` 심볼 + 워드마크 (`opengraph-image.tsx`). 스토어 원본 URL 직접 공유 시 제각각이던 카드를 통일.
+> - **크롤러 주의**: OG 봇은 JS 미실행 → 리다이렉트 안 됨 → 카드만 수집(설계 의도). 실제 모바일 사용자만 스토어로 이동.
+> - **robots noindex**: 스토어로 보내는 얇은 경유 페이지라 검색 색인 제외. noindex 는 소셜 OG 스크래핑과 무관 → 공유 카드는 정상.

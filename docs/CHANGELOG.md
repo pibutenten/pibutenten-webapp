@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-06-23] — `/app` 앱 다운로드 랜딩 + 브랜드 OG 카드 통일
+
+> 스토어 원본 URL 을 직접 공유하면 OG 미리보기 카드가 제각각·비브랜드로 떴다. 자체 도메인에 단일 진입점 `/app` 을 만들어 공유·QR 을 이 URL 하나로 통일하고, 브랜드 OG 카드(하늘색+`tt:`)를 붙였다. commit `e1b01e5`.
+
+### Added
+- **`/app` 앱 다운로드 랜딩**(`src/app/app/page.tsx` · `AppStoreRedirect.tsx` · `stores.ts`): 공유·QR 단일 진입점. 모바일 방문자는 client UA 분기로 iPhone→App Store(`id6781289580`), Android→Play(`?id=kr.pibutenten.app`) 자동 이동, 데스크톱은 두 버튼 노출. iPadOS 13+ 의 데스크톱 UA 위장은 `maxTouchPoints >= 5` 로 보강 감지(터치 MacBook 오판 방지). 스토어 식별자는 빌드와 무관하게 불변이라 이 링크는 영구 유효.
+- **`/app` 전용 동적 OG 이미지**(`src/app/app/opengraph-image.tsx`): 전체 하늘색(#4cbff2) 배경 + 흰색 `tt:` 심볼(App Store 아이콘 크기) + 흰색 피부텐텐 워드마크. next/og(Satori)가 프로젝트 woff2 폰트를 렌더하지 못해, `brand-logo.svg` 벡터 패스를 인라인 렌더(각 path 에 명시적 `fill="#fff"`). twitter `summary_large_image` 카드 메타 추가. openGraph/twitter `images` 는 미지정 — `opengraph-image.tsx` 파일 컨벤션의 자동 연결을 유지하기 위함(명시 시 커스텀 카드를 덮어씀).
+
+### Changed
+- **댓글 입력창 상단 구분선 제거**(`src/components/comments/CommentsBlock.tsx`): 댓글이 있을 때 입력창 위 `border-t` 구분선을 제거해 UI 정리.
+
+---
+
 ## [2026-06-23] — 모바일 앱 양대 스토어 정식 출시 완료 (iOS + Android)
 
 > 피부텐텐 모바일 앱(Capacitor 래핑, 원격 URL `https://pibutenten.kr` 로드, 버전 1.0)이 App Store·Google Play **양쪽 모두 정식 출시**됨. 상세 진행 기록은 `docs/STORE_SUBMISSION_LOG.md`(SSOT).
