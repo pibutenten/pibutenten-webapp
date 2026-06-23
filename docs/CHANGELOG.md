@@ -32,7 +32,7 @@
 ### Changed
 - **앱 첫 화면 → 투데이**(`capacitor.config.ts` server.url `${origin}/today`): 네이티브 앱은 `/today` 로 시작. 웹/PWA 의 `/` 는 그대로 피드(SEO·피드 영향 없음). 피드는 하단 '피드' 탭으로 진입.
 - **상태바 정석 처리**(`capacitor.config.ts`): `SystemBars.insetsHandling:"disable"` + `EdgeToEdge.statusBarColor:"#e8f5fd"`(헤더색)·`navigationBarColor:"#ffffff"`(탭바색). 웹 CSS 의 `--sat` 마스킹(`.root::before` 필러)은 iOS/PWA 용으로 유지 — Android 네이티브에선 inset 으로 `--sat`=0 이 되어 자동 무력화(코드 제거 없이 공존). iOS 무영향.
-- **네이티브 스플래시 재디자인**(`assets/splash.png` 재생성): 흰색 `tt:` 를 캔버스 폭 25% → 42% 로 키워 휑함 해소(색·배경 #4cbff2 유지). `npx @capacitor/assets generate` 로 android `drawable*/splash.png` 26종 + iOS `Splash.imageset` 재생성. 앱 아이콘(logo.png 기반)은 미변경.
+- **네이티브 스플래시 재디자인**(`assets/splash.png` 재생성): 흰색 `tt:` 단독(워드마크·원 없음)을 캔버스 폭 **21%**(iOS scaleAspectFill 기준 세로 화면 폭 ~45% = 원장 선택 'C')로 배치해 기존 휑함 해소(색·배경 #4cbff2 유지). `npx @capacitor/assets generate` 로 android `drawable*/splash.png` + iOS `Splash.imageset` 재생성. 앱 아이콘(logo.png 기반)은 미변경. (초기 42% 안 제시 → 전달용 세로 미리보기 A/B/C 비교 후 원장이 C 선택 → 21%로 축소, commit 3dcb982.)
 
 ### Note
 - 네이티브 wiring(android gradle, iOS `Package.swift`)은 CI 가 빌드 전 `npx cap sync`(android-build/ios-build 워크플로)로 각 OS 에서 재생성하므로 커밋에서 제외. (Windows `cap sync` 는 iOS `Package.swift` 경로를 역슬래시로 만들어 macOS 빌드에서 깨지므로 커밋 금지 — 검수 [치명] 반영.) 스플래시 PNG 는 CI 가 `@capacitor/assets` 를 안 돌리므로 커밋 포함.
@@ -70,6 +70,17 @@
 ### Changed
 - **head 스크립트 간소화**(`src/app/layout.tsx`): `pwa-bip-capture`(beforeinstallprompt 캡처·저장 + appinstalled 처리) → `pwa-bip-suppress`(beforeinstallprompt `preventDefault` 만 — Chrome 기본 PWA 설치 배너 억제). PWA 자체(서비스워커·매니페스트·웹푸시)는 유지.
 - 관련 주석 정리(`useCardBus.ts`: card-viewed 이벤트의 옛 수신자 InstallPrompt 제거 반영).
+
+---
+
+## [2026-06-24] — `/app` 랜딩 로고 한 줄 + 제목 간결화 + OG 1200×630 정규화
+
+> 바로 아래 풀스크린 리디자인 직후의 마무리 보정 (commit 340ed90, afeb35b).
+
+### Changed
+- **로고 한 줄 록업**(`src/app/app/page.tsx`): tt: 심볼 + 피부텐텐 워드마크를 `brand-logo.svg` 원본 좌표(viewBox `0 0 539.77 147.18`) 하나로 합쳐 **한 줄**(흰 원 + 하늘색 tt: + 흰색 워드마크, OG 카드와 동일 록업)로 표시. 기존 세로 2줄(tt: 밑 피부텐텐) 해소.
+- **화면 제목 간결화**(`src/app/app/page.tsx`): 화면 h1 "피부텐텐 앱 다운로드" → "앱 다운로드". (메타/OG title 은 SEO·공유용으로 "피부텐텐 앱 다운로드" 유지.)
+- **OG 이미지 1200×630 정규화**(`src/app/app/opengraph-image.png`): 디자인(전문의 카피 + tt: 록업 + 3D 노트 일러스트) 보존한 채 1024×500 → 표준 1.91:1(1200×630). 처음엔 가장자리 평균색 단색 띠로 패딩했으나 하단이 배경 그라데이션과 이질적이라(원장 지적) **가장자리 strip 을 수직 반사(mirror)** 해 채우는 방식으로 교체(이음매 제거). 일러스트·로고·카피 크롭 없음.
 
 ---
 
