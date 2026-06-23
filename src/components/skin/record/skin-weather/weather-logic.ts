@@ -529,25 +529,18 @@ export type WeatherSnapshot = {
 
 const DAY_KO = ["일", "월", "화", "수", "목", "금", "토"];
 
-/** API 두 곳 호출 → WeatherSnapshot 으로 가공. (네트워크 예외는 throw.) */
+/** 내부 캐시 프록시(/api/weather) 1회 호출 → WeatherSnapshot 으로 가공. (네트워크 예외는 throw.)
+ *  Open-Meteo 직접 호출을 서버 프록시로 옮겨 좌표별 공유 캐시(엣지 s-maxage 10분)를 태운다 —
+ *  콜드로드 첫 표시 지연 감소. 가공(computeSnapshot)은 "지금" 시각 의존이라 클라이언트에서 수행. */
 export async function fetchWeather(lat: number, lon: number, name: string, signal?: AbortSignal): Promise<WeatherSnapshot> {
-  const getJSON = async <T,>(u: string): Promise<T> => {
-    const r = await fetch(u, { signal });
-    const j = (await r.json()) as T & { error?: boolean; reason?: string };
-    if (j.error) throw new Error(j.reason || "API error");
-    return j;
-  };
-  const [aq, wx] = await Promise.all([
-    getJSON<AQ>(
-      `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}` +
-        `&current=uv_index,uv_index_clear_sky,pm2_5,pm10&hourly=uv_index,uv_index_clear_sky,pm2_5,pm10&past_days=1&forecast_days=7&timezone=auto`,
-    ),
-    getJSON<WX>(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-        `&current=temperature_2m,relative_humidity_2m,weather_code,apparent_temperature,shortwave_radiation,is_day` +
-        `&hourly=cloud_cover,shortwave_radiation,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,apparent_temperature_max,precipitation_sum&past_days=1&forecast_days=7&timezone=auto`,
-    ),
-  ]);
+  // URL 좌표는 소수 2자리(≈1km)로 반올림해 보낸다 — 엣지 캐시 키를 묶어 인접 좌표가 같은 캐시
+  //   응답을 공유하게 한다(라우트도 동일하게 반올림하지만, 캐시 키는 클라가 보낸 URL 기준이라 여기서 맞춘다).
+  //   단 계산용 lat 은 풀 정밀도를 그대로 넘긴다(blockFromCloud 위도 보정).
+  const qlat = Math.round(lat * 100) / 100;
+  const qlon = Math.round(lon * 100) / 100;
+  const r = await fetch(`/api/weather?lat=${qlat}&lon=${qlon}`, { signal });
+  if (!r.ok) throw new Error("날씨 정보를 불러오지 못했어요");
+  const { aq, wx } = (await r.json()) as { aq: AQ; wx: WX };
   return computeSnapshot(aq, wx, name, lat);
 }
 

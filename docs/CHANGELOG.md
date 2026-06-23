@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-06-24] — 투데이 날씨 박스 로딩 개선 (Open-Meteo 서버 캐시 프록시)
+
+> `/today` 상단 "오늘의 피부 날씨" 박스가 콜드 로드 시 늦게 뜨던 문제 개선. 브라우저가 매 방문마다 Open-Meteo 두 API 를 직접·무캐시로 호출(7일 hourly cross-origin 왕복)하던 것을, 서버 프록시 + 좌표별 10분 공유 캐시로 전환했다.
+
+### Added
+- **`/api/weather` 캐시 프록시 라우트**(`src/app/api/weather/route.ts`): Open-Meteo 대기질·예보 2종을 서버에서 호출(`next: { revalidate: 600 }`) 후 원본 `{aq, wx}` JSON 반환. 응답에 `Cache-Control: public, s-maxage=600, stale-while-revalidate=3600` 부여(엣지 공유 캐시). 좌표 2자리(≈1km) 반올림으로 캐시 카디널리티를 묶어 Open-Meteo 호출을 좌표·10분당 1회로 수렴.
+
+### Changed
+- **클라이언트 날씨 fetch 경로 전환**(`src/components/skin/record/skin-weather/weather-logic.ts`): `fetchWeather` 가 Open-Meteo 직접 호출(2회) → 같은 출처 `/api/weather` 단일 호출. URL 좌표를 2자리로 반올림해 엣지 캐시를 공유(특히 기본값 대치동은 전 사용자 공유 → 거의 즉시). 가공(`computeSnapshot`)은 "지금" 시각·시간대 의존이라 클라이언트 계산을 유지(서버는 UTC라 현재값 왜곡 방지). 측위(geolocation)는 기존대로 첫 표시 이후 정밀 보정으로만 동작.
+
+### Note
+- 더 깊은 최적화(날씨 박스를 서버에서 선렌더해 초기 HTML 에 포함)는 `computeSnapshot` 의 현재 시각 의존(서버 UTC) 때문에 시간대 처리 위험이 있어 이번 범위에서 제외. 캐시 프록시로 fetch 지연(주원인)을 우선 해소.
+
+---
+
 ## [2026-06-24] — PWA 설치 안내 팝업 제거 (네이티브 앱 출시 후속)
 
 > 앱이 양대 스토어에 정식 출시되어, 이제 PWA "홈 화면에 추가" 설치를 유도할 이유가 없다. 설치 안내 모달·버튼을 제거하고, 그 모달 안에 들어 있던 서비스워커 등록을 별도 컴포넌트로 분리(오프라인·웹푸시는 그대로 유지). Chrome 의 기본 PWA 설치 배너도 억제.
