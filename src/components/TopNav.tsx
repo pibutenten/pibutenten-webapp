@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 // v4 다중 identity 전환은 IdentitySwitcher로 (1개일 땐 단순 Link)
 import IdentitySwitcher from "./IdentitySwitcher";
 import NotificationsBell from "./NotificationsBell";
@@ -92,126 +91,6 @@ const UserIcon = (
     <circle cx="12" cy="7" r="4" />
   </svg>
 );
-
-/** 앱 설치(다운로드) 아이콘 — 모바일 우상단에서 InstallPrompt 강제 호출 */
-const InstallIcon = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-5 w-5"
-    aria-hidden="true"
-  >
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="7 10 12 15 17 10" />
-    <line x1="12" y1="15" x2="12" y2="3" />
-  </svg>
-);
-
-/**
- * 모바일 전용 앱 설치 버튼 — InstallPrompt 컴포넌트에 강제 표시 신호 전송.
- *
- * 자동 숨김 케이스:
- *   - standalone 모드 (이미 PWA로 실행 중)
- *   - localStorage 'pwa-installed' = '1' (appinstalled 이벤트 또는 자동 추정으로 마킹됨)
- *   - Android에서 페이지 로드 후 5초 동안 beforeinstallprompt가 발생 안 함
- *     → 이미 설치 완료 상태로 추정 (Chrome은 설치된 PWA에 대해 이벤트를 안 보냄)
- *   - 데스크탑 (Chrome 자체 설치 메뉴가 따로 있고, 이 버튼은 모바일 한정)
- *
- * iOS는 자동 설치 불가하지만 안내를 받을 수 있게 노출함 (안내 모달 단계 시각화).
- */
-function InstallAppButton() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    function isStandalone() {
-      if (window.matchMedia("(display-mode: standalone)").matches) return true;
-      return Boolean(
-        (navigator as Navigator & { standalone?: boolean }).standalone,
-      );
-    }
-    function isInstalledMarked() {
-      try {
-        return localStorage.getItem("pwa-installed") === "1";
-      } catch {
-        return false;
-      }
-    }
-
-    if (isStandalone()) {
-      setVisible(false);
-      return;
-    }
-
-    const ua = navigator.userAgent;
-    const isAndroid = /Android/.test(ua);
-    const isIOS = /iPhone|iPad|iPod/.test(ua);
-    if (!isAndroid && !isIOS) {
-      // 데스크탑은 노출 안 함
-      setVisible(false);
-      return;
-    }
-
-    // 노출 정책:
-    //   - Android: beforeinstallprompt가 실제로 잡혔을 때만 노출 (= Chrome이 "설치 가능"으로 인식한 상태).
-    //              잡히지 않으면 = 이미 설치됐거나 자격 미달 → 다운로드 버튼 자체를 보이지 않음.
-    //   - iOS: 자동 설치 API가 없으므로 항상 노출 (안내 모달 단계 시각화 용도).
-    //   - localStorage 'pwa-installed' 마킹이 있으면 우선 숨김, 단 deferred prompt 잡히면 즉시 해제.
-
-    if (isIOS) {
-      setVisible(true);
-    } else {
-      // Android — 우선 숨김. deferred 잡히면 보임.
-      setVisible(!isInstalledMarked() && Boolean(window.__pibutenten_bip));
-    }
-
-    // appinstalled 이벤트 — 설치 직후 즉시 숨김
-    const onInstalled = () => {
-      try {
-        localStorage.setItem("pwa-installed", "1");
-      } catch {}
-      setVisible(false);
-    };
-    window.addEventListener("pibutenten:installed", onInstalled);
-
-    // beforeinstallprompt 발생 = Chrome이 "설치 가능"으로 인식 → 마킹 해제 + 버튼 노출
-    const onBipReady = () => {
-      try {
-        localStorage.removeItem("pwa-installed");
-      } catch {}
-      setVisible(true);
-    };
-    window.addEventListener("pibutenten:bip-ready", onBipReady);
-
-    return () => {
-      window.removeEventListener("pibutenten:installed", onInstalled);
-      window.removeEventListener("pibutenten:bip-ready", onBipReady);
-    };
-  }, []);
-
-  function show() {
-    if (typeof window === "undefined") return;
-    window.dispatchEvent(new CustomEvent("pibutenten:install-show"));
-  }
-
-  if (!visible) return null;
-  return (
-    <button
-      type="button"
-      onClick={show}
-      aria-label="앱 설치"
-      title="앱 설치"
-      className="flex items-center gap-1.5 rounded-md p-2 text-[14px] font-medium text-[var(--text)] transition-colors hover:text-[var(--primary)] sm:hidden"
-    >
-      {InstallIcon}
-    </button>
-  );
-}
 
 export default function TopNav() {
   // 세션은 클라에서: 마운트 즉시 쿠키로 로그인 여부 확정(네트워크 없음) + /api/session 리치 보강.
@@ -318,9 +197,6 @@ export default function TopNav() {
 
           {/* 로그인 사용자: 알림 종 아이콘 (미확인 시 빨간 배지 + PWA Badge) */}
           {session && <NotificationsBell />}
-
-          {/* 모바일 우상단 — 앱 설치 버튼 (데스크탑은 Chrome 자체 설치 메뉴가 있어 숨김) */}
-          <InstallAppButton />
 
           {/* 본인 메뉴 (v4 multi-identity)
               - identity 1개 → 단순 Link (본인 프로필 즉시 이동)

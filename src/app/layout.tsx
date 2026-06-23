@@ -4,7 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ChromeHeader, ChromeFooter } from "@/components/GlobalChrome";
 import ScrollManager from "@/components/ScrollManager";
-import InstallPrompt from "@/components/InstallPrompt";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import EngagementPromptListener from "@/components/EngagementPromptListener";
 import NativeAuthDeepLink from "@/components/NativeAuthDeepLink";
 import WriteFab from "@/components/WriteFab";
@@ -134,19 +134,11 @@ export default function RootLayout({
               단일 이미지로도 iOS 가 알아서 스케일. 안드로이드는 이 메타 무시하므로 중복 splash 없음.
             별도 body::before overlay 는 옛 이중 노출 이슈로 폐기 (2026-05-17). */}
         <link rel="apple-touch-startup-image" href="/icons/apple-splash.png" />
-        {/* PWA: beforeinstallprompt + appinstalled 이벤트를 React 마운트보다 먼저 캐치 */}
-        <Script id="pwa-bip-capture" strategy="beforeInteractive">
-          {`window.__pibutenten_bip = null;
-window.addEventListener('beforeinstallprompt', function(e) {
-  e.preventDefault();
-  window.__pibutenten_bip = e;
-  window.dispatchEvent(new CustomEvent('pibutenten:bip-ready'));
-});
-window.addEventListener('appinstalled', function() {
-  try { localStorage.setItem('pwa-installed', '1'); } catch (_) {}
-  window.__pibutenten_bip = null;
-  window.dispatchEvent(new CustomEvent('pibutenten:installed'));
-});`}
+        {/* 네이티브 앱 출시 후 PWA 설치 유도를 중단(2026-06-24). beforeinstallprompt 를
+            preventDefault 해 Chrome 의 기본 PWA 설치 배너만 억제한다(우리 커스텀 설치 안내는 제거됨).
+            PWA 자체(서비스워커·오프라인·웹푸시)는 유지 — ServiceWorkerRegister 가 등록 담당. */}
+        <Script id="pwa-bip-suppress" strategy="beforeInteractive">
+          {`window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); });`}
         </Script>
         {/* JSON-LD: Organization + WebSite (전역 — AEO/GEO 신뢰 신호 + Sitelinks 검색박스) */}
         <Script
@@ -187,8 +179,8 @@ window.addEventListener('appinstalled', function() {
           {/* 모바일 우하단 글쓰기 FAB — 하단탭에서 글쓰기 분리. AppShell(z-100 오버레이) 위로
               떠야 하므로 z-[110]. 경로별 노출 제어는 컴포넌트 내부. */}
           <WriteFab />
-          {/* PWA 설치 안내 — Q&A 5개 본 사용자 또는 로그인 사용자에게 노출 */}
-          <InstallPrompt />
+          {/* 서비스워커 등록(오프라인·웹푸시 토대). 옛 PWA 설치 안내 모달은 네이티브 앱 출시로 제거(2026-06-24). */}
+          <ServiceWorkerRegister />
           {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}
           <EngagementPromptListener />
           {/* 네이티브 앱 OAuth 딥링크 핸들러 — 시스템 브라우저 로그인 복귀 처리(웹=no-op) */}

@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-06-24] — PWA 설치 안내 팝업 제거 (네이티브 앱 출시 후속)
+
+> 앱이 양대 스토어에 정식 출시되어, 이제 PWA "홈 화면에 추가" 설치를 유도할 이유가 없다. 설치 안내 모달·버튼을 제거하고, 그 모달 안에 들어 있던 서비스워커 등록을 별도 컴포넌트로 분리(오프라인·웹푸시는 그대로 유지). Chrome 의 기본 PWA 설치 배너도 억제.
+
+### Removed
+- **PWA 설치 안내 모달**(`src/components/InstallPrompt.tsx` 삭제): "홈 화면에 추가" 풀스크린 모달(Q&A 5회 조회/로그인 4초 후 자동 노출, iOS 3단계 안내) 제거.
+- **TopNav "앱 설치" 버튼**(`src/components/TopNav.tsx`): `InstallAppButton`·`InstallIcon` 및 사용처 제거(이 버튼 전용이던 `useEffect`/`useState` import 동반 정리).
+
+### Added
+- **`src/components/ServiceWorkerRegister.tsx`**: `/sw.js` 등록 전용 컴포넌트. 옛 InstallPrompt 안에 있던 SW 등록을 분리해, 모달 삭제와 함께 오프라인·웹푸시가 죽는 사고를 방지. `layout.tsx` 에 마운트.
+
+### Changed
+- **head 스크립트 간소화**(`src/app/layout.tsx`): `pwa-bip-capture`(beforeinstallprompt 캡처·저장 + appinstalled 처리) → `pwa-bip-suppress`(beforeinstallprompt `preventDefault` 만 — Chrome 기본 PWA 설치 배너 억제). PWA 자체(서비스워커·매니페스트·웹푸시)는 유지.
+- 관련 주석 정리(`useCardBus.ts`: card-viewed 이벤트의 옛 수신자 InstallPrompt 제거 반영).
+
+---
+
 ## [2026-06-24] — `/app` 랜딩 풀스크린 리디자인 + 정적 OG 카드 전환 + 스토어 문구 갱신
 
 > 6/23 구현한 `/app` 랜딩을 마무리. 흰 카드 대신 화면 전체를 브랜드 하늘색으로 채우는 풀스크린 디자인으로 바꾸고, 런타임 동적 OG(next/og) 를 미리 만든 정적 PNG 로 교체했다. 풀스크린 전환이 유발한 회귀(전역 FAB 노출, 앱셸 인식 취약점)도 함께 정리.

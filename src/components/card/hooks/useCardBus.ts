@@ -14,7 +14,7 @@
  *     - 발사: 본 카드 삭제 완료 시 (Phase 2에서 'qa-deleted' 오타 수정됨)
  *
  *  3) pibutenten:card-viewed      — 본 카드 조회 알림
- *     - 수신: InstallPrompt.tsx (5회 이상 시 PWA 설치 안내)
+ *     - 수신: (없음) — 옛 PWA 설치 안내(InstallPrompt)가 listen 했으나 네이티브 앱 출시로 제거(2026-06-24).
  *     - 발사: card_views INSERT 성공 시
  *
  * cardId 의존성: 다른 카드와 본 카드를 구분하기 위해 사용 (#1).
@@ -48,7 +48,7 @@ export type CardBusEmitters = {
   emitCommentsOpened: () => void;
   /** 본 카드 삭제 완료 — Feed.tsx 가 listen 해서 목록에서 제거. */
   emitCardDeleted: () => void;
-  /** 본 카드 조회 완료 — InstallPrompt 가 listen. */
+  /** 본 카드 조회 완료 — 현재 수신자 없음(옛 PWA 설치 안내 제거, 2026-06-24). 조회 트래킹용으로 유지. */
   emitCardViewed: () => void;
 };
 
