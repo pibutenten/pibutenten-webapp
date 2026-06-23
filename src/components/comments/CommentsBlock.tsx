@@ -277,9 +277,8 @@ export default function CommentsBlock({
       // 사이 빈 공간이 너무 크다는 사용자 보고 fix). hasComments 일 때는 옛 간격 유지.
       className={
         "text-[13px] text-[var(--text)] " +
-        (hasComments ? "mt-3 pt-2.5 border-t" : "mt-1.5 pt-1.5")
+        (hasComments ? "mt-3 pt-2.5" : "mt-1.5 pt-1.5")
       }
-      style={hasComments ? { borderColor: "#EEEFF1" } : undefined}
       onClick={(e) => e.stopPropagation()}
     >
       {error && (
