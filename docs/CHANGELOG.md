@@ -6,6 +6,25 @@
 
 ---
 
+## [2026-06-24] — 앱 그룹 B: 첫 화면 투데이 + 상태바 정석 처리 + 스플래시 (네이티브 빌드 필요)
+
+> 네이티브 앱 전용 변경 3건. `capacitor.config.ts`·네이티브 자산 변경이라 `npx cap sync`(CI 자동) + 앱 리빌드 + App Store·Play **재심사** 후 반영된다. 웹/PWA 에는 영향 없음.
+
+### Added
+- **`@capawesome/capacitor-android-edge-to-edge-support` (v8.0.8) 도입**: Android 15(targetSdk 36) edge-to-edge 에서 상태바·내비게이션 바 영역을 OS 가 **네이티브로 예약** → 스크롤 콘텐츠가 그 띠 밑으로 침범 못 함(이슈 5 근본 해결). 옛 `overlaysWebView:false`(deprecated, 코어 SystemBars 와 충돌해 헤더겹침 버그)를 쓰지 않아 충돌 없음.
+
+### Changed
+- **앱 첫 화면 → 투데이**(`capacitor.config.ts` server.url `${origin}/today`): 네이티브 앱은 `/today` 로 시작. 웹/PWA 의 `/` 는 그대로 피드(SEO·피드 영향 없음). 피드는 하단 '피드' 탭으로 진입.
+- **상태바 정석 처리**(`capacitor.config.ts`): `SystemBars.insetsHandling:"disable"` + `EdgeToEdge.statusBarColor:"#e8f5fd"`(헤더색)·`navigationBarColor:"#ffffff"`(탭바색). 웹 CSS 의 `--sat` 마스킹(`.root::before` 필러)은 iOS/PWA 용으로 유지 — Android 네이티브에선 inset 으로 `--sat`=0 이 되어 자동 무력화(코드 제거 없이 공존). iOS 무영향.
+- **네이티브 스플래시 재디자인**(`assets/splash.png` 재생성): 흰색 `tt:` 를 캔버스 폭 25% → 42% 로 키워 휑함 해소(색·배경 #4cbff2 유지). `npx @capacitor/assets generate` 로 android `drawable*/splash.png` 26종 + iOS `Splash.imageset` 재생성. 앱 아이콘(logo.png 기반)은 미변경.
+
+### Note
+- 네이티브 wiring(android gradle, iOS `Package.swift`)은 CI 가 빌드 전 `npx cap sync`(android-build/ios-build 워크플로)로 각 OS 에서 재생성하므로 커밋에서 제외. (Windows `cap sync` 는 iOS `Package.swift` 경로를 역슬래시로 만들어 macOS 빌드에서 깨지므로 커밋 금지 — 검수 [치명] 반영.) 스플래시 PNG 는 CI 가 `@capacitor/assets` 를 안 돌리므로 커밋 포함.
+- **출시 전 Android 15 실기기 1회 확인 권장**: 상태바(#e8f5fd)·하단 내비바(#ffffff) 색, 콘텐츠 비침 해소, 이중 패딩 없음. 문제 시 플러그인 제거 + config 2키 되돌리면 현재(웹 CSS 마스킹) 상태로 즉시 복귀.
+- 동반 스토어 메타(iOS 제목 '피부텐텐: 피부날씨, 피부일기, 전문의Q&A, 시술후기' + 스크린샷 5장)는 App Store Connect/Play Console 작업(코드 아님, 별도).
+
+---
+
 ## [2026-06-24] — 투데이 날씨 박스 로딩 개선 (Open-Meteo 서버 캐시 프록시)
 
 > `/today` 상단 "오늘의 피부 날씨" 박스가 콜드 로드 시 늦게 뜨던 문제 개선. 브라우저가 매 방문마다 Open-Meteo 두 API 를 직접·무캐시로 호출(7일 hourly cross-origin 왕복)하던 것을, 서버 프록시 + 좌표별 10분 공유 캐시로 전환했다.

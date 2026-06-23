@@ -25,7 +25,9 @@ const config: CapacitorConfig = {
   appName: "피부텐텐",
   webDir: "native/www",
   server: {
-    url: SERVER_URL,
+    // 앱 첫 화면을 '투데이'(/today)로 — 네이티브 앱 전용 초기 URL. 웹/PWA 의 / 는 그대로 피드 유지
+    //   (앱 바이너리가 여는 시작 주소라 웹 SEO·피드에 영향 없음). 피드는 하단 '피드' 탭으로 진입.
+    url: `${SERVER_URL}/today`,
     // http(로컬 dev)일 때만 평문 허용. 운영(https)에서는 차단.
     cleartext: !IS_HTTPS,
     // WebView 내부 탐색 허용 도메인 화이트리스트.
@@ -36,19 +38,32 @@ const config: CapacitorConfig = {
     androidScheme: "https",
   },
   plugins: {
-    // 상태바(OS 시간·통신사 표시줄) 설정.
-    //   흰 배경(#FFFFFF)에 어두운(검은) 아이콘 → Capacitor Style.Light("LIGHT").
-    //     ("LIGHT" = 밝은 배경용 어두운 텍스트. "DARK" 로 두면 흰 배경에 흰 아이콘이라 안 보임.)
-    //   Android 15+(targetSdk 36) 는 edge-to-edge 강제라 backgroundColor·overlaysWebView:false 가
-    //     사실상 무시된다. 이때 overlaysWebView:false 경로(deprecated setSystemUiVisibility)는
-    //     코어 SystemBars 의 inset 주입과 충돌해 env(safe-area-inset-top) 이 0 으로 박혀
-    //     헤더가 상태바와 겹쳤다(원장님 리포트 2회). PWA 처럼 콘텐츠를 상태바 아래로 내리려면
-    //     overlaysWebView:true 로 두고, 콘텐츠 패딩은 web 측 safe-area inset 으로 처리한다.
-    //     (globals.css body padding: max(env(safe-area-inset-top), var(--safe-area-inset-top,0px)))
+    // 상태바(OS 시간·통신사 표시줄).
+    //   Android 15+(targetSdk 36) 는 edge-to-edge 강제 — @capacitor/status-bar 의
+    //     overlaysWebView·backgroundColor 는 무시된다. 옛 overlaysWebView:false 경로
+    //     (deprecated setSystemUiVisibility)는 코어 SystemBars 와 충돌해 헤더겹침 버그를 냈다.
+    //   ⇒ '정석' 해결(2026-06-24): 아래 EdgeToEdge 플러그인이 OS 로 상태바 영역을 네이티브 예약
+    //     (콘텐츠가 그 띠 밑으로 스크롤 못 함) + 상태바 배경을 헤더색(#e8f5fd)으로. 충돌나던
+    //     deprecated 경로를 쓰지 않아 안전. (자세한 근거: 조사 보고 — Capacitor 8.4.0 기준.)
+    //   style:"LIGHT" = 밝은 배경용 어두운 아이콘(헤더색 위 가독). iOS 는 EdgeToEdge 무영향이라
+    //     overlaysWebView:true 유지 → 기존 env(safe-area) 동작 그대로(iOS 회귀 없음).
     StatusBar: {
       overlaysWebView: true,
       style: "LIGHT",
       backgroundColor: "#ffffff",
+    },
+    // Android edge-to-edge 정석 처리. 코어 SystemBars 의 CSS inset 주입을 끄고(disable),
+    //   EdgeToEdge 플러그인이 WebView 를 상태바 아래로 네이티브 inset + 상태바 배경색 지정.
+    //   두 키 모두 iOS 에선 no-op(Android 전용 플러그인).
+    SystemBars: {
+      insetsHandling: "disable",
+    },
+    EdgeToEdge: {
+      // 이 플러그인은 상·하단 시스템 바를 모두 네이티브 inset 한다. 색을 안 주면 기본(검정 등)이 될 수
+      //   있어 둘 다 지정: 상단 상태바 = 헤더색(#e8f5fd), 하단 내비바 = 탭바 배경과 같은 흰색(#ffffff).
+      //   (구 단일 `backgroundColor` 키는 deprecated — statusBarColor/navigationBarColor 사용이 정석.)
+      statusBarColor: "#e8f5fd",
+      navigationBarColor: "#ffffff",
     },
     // 스플래시(앱 시작 화면) — PWA 처럼 원격 페이지 로딩 동안 파란 tt: 화면을 유지.
     //   네이티브 런치 스플래시(@drawable/splash, #4CBFF2)는 기본적으로 첫 프레임에서 즉시 사라져
