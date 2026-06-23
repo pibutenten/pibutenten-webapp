@@ -3,14 +3,17 @@
 > 피부텐텐 웹앱을 **Capacitor** 로 래핑해 Apple App Store · Google Play 에 등록하는 작업의 SSOT.
 > 진행상태는 이 문서의 체크박스로 추적한다. 큰 결정은 `decisions/` ADR 로 분리한다.
 
-최종 갱신: 2026-06-19
+최종 갱신: 2026-06-23
 
 ---
 
-## 현재 상태 한눈에 (2026-06-19)
+## 현재 상태 한눈에 (2026-06-23) — 🎉 양쪽 스토어 정식 출시 완료
 
-- **iOS**: 1.0 **심사 제출 완료 → "심사 대기 중"(Waiting for Review)**. 빌드 7(iPhone 전용) 첨부, Apple 승인 시 자동 출시. 남은 일: 심사 결과 이메일 대기(반려 시 사유 대응).
-- **Android**: 공개 테스트 트랙 제출 완료 → **Google 검토 중**(2026-06-18 이후 변경 없음). 게시 개요 = "검토 중", 관리형 게시 OFF(승인 시 자동 게시). 남은 일: 검토 결과 대기 → (이후) 프로덕션 트랙 출시 별도 진행. ※ Play Console 은 브라우저 자동화 차단 → 라이브 확인은 원장 화면 필요.
+> 제출 진행 시간순 단일 기록부는 `../STORE_SUBMISSION_LOG.md` 참조 (SSOT).
+
+- **iOS**: 1.0 **심사 승인 → 대한민국 가용성 ON(정식 출시 완료)** (2026-06-23). 빌드 7(iPhone 전용). 가용성 = 대한민국 1개국, 상태 "처리 중에서 사용 가능"(최대 24시간 내 App Store 반영). App ID `6781289580`. 최종 게시 "확인" 클릭은 원장님이 직접 수행.
+- **Android**: **프로덕션 트랙 검토 통과 → 자동 게시 완료**(2026-06-21). 대한민국 전체 출시 100%. Play app ID `4975379335091010610`. 회사 계정(진솔컴퍼니)은 신규 폐쇄테스트 요건 면제.
+- **남은 일(비차단)**: App Store 반영(최대 24h) 후 검색·설치 확인, 양 플랫폼 실기기 스모크 테스트, 의료법 검토 후 제외했던 스크린샷 #3·#5 재검토.
 
 ---
 
@@ -95,39 +98,40 @@
 - [x] Supabase redirect URL allow-list 에 앱 콜백 등록
 - ⏳ iOS 실기기 검증(ITP 쿠키·PKCE cold-start)은 Phase 6 빌드 후
 
-### Phase 4 — 심사 필수 항목 〔담당: 개발〕
-- [ ] 계정 삭제 인앱 동선 확인·보강 (Apple 5.1.1(v))
-- [ ] 네이티브 권한 설명문구 (Info.plist `NSLocationWhenInUseUsageDescription` 등, AndroidManifest)
-- [ ] 위치 권한 사용 정당성 정리 (선택 기능 한정)
-- [ ] 오프라인 안내 화면, 네이티브 스플래시, 안전영역(safe-area) 처리
+### Phase 4 — 심사 필수 항목 〔담당: 개발〕 ✅ 완료 (양 스토어 심사 통과로 검증)
+- [x] 계정 삭제 인앱 동선 확인·보강 (Apple 5.1.1(v))
+- [x] 네이티브 권한 설명문구 (Info.plist `NSLocationWhenInUseUsageDescription` 등, AndroidManifest)
+- [x] 위치 권한 사용 정당성 정리 (선택 기능 한정)
+- [x] 오프라인 안내 화면, 네이티브 스플래시, 안전영역(safe-area) 처리
 
-### Phase 5 — 스토어 자산 〔담당: 개발 초안 + 원장 확정〕 — Android 완료 / iOS 잔여
+### Phase 5 — 스토어 자산 〔담당: 개발 초안 + 원장 확정〕 ✅ 완료 (Android·iOS 모두)
 > 스토어 등록정보 SSOT: `store-listing.md`. 입력 전 원장 검수 원칙(review-first).
-- [x] 앱 아이콘: Android `Playstore-icon-512.png`(정사각) 적용 / iOS `Appstore-icon-1024.png` 준비
-- [x] 스크린샷: Android 3장(playstore 1/2/4 — 시술 관련 3·5번 제외) 적용 / iOS `Appstore 1,2,4.png`(1290×2796) 준비
-- [x] 앱 이름·부제·설명·키워드 (Android 적용 완료, iOS 동일 카피 재사용)
-- [x] 콘텐츠/연령 등급: Android 전체이용가 제출 완료 / iOS 잔여
-- [x] Data Safety(Google) 5단계 완료 / App Privacy 라벨(Apple) 잔여
+- [x] 앱 아이콘: Android `Playstore-icon-512.png`(정사각) 적용 / iOS `Appstore-icon-1024.png` 적용
+- [x] 스크린샷: Android 3장(playstore 1/2/4 — 시술 관련 3·5번 제외) 적용 / iOS `Appstore 1,2,4.png`(1290×2796) 적용
+- [x] 앱 이름·부제·설명·키워드 (Android·iOS 모두 적용, 동일 카피 재사용)
+- [x] 콘텐츠/연령 등급: Android 전체이용가 / iOS 연령등급 제출 완료
+- [x] Data Safety(Google) 5단계 완료 / App Privacy 라벨(Apple) 완료
 - [x] 카테고리=라이프스타일, 공개 연락처=pibutenten@gmail.com + https://pibutenten.kr
-- [ ] iOS: 위 자산을 App Store Connect 에 입력 + 심사 제출 (입력 전 원장 검수)
+- [x] iOS: 위 자산을 App Store Connect 에 입력 + 심사 제출 → 승인
 
 ### Phase 6 — 빌드 · 업로드 〔담당: 개발(클라우드 빌드)〕 — 대부분 완료 (2026-06-17)
 > Mac 불필요로 전환: 직원 Mac 에 Xcode 미설치 → **GitHub Actions 클라우드 빌드**(ubuntu=Android, macos=iOS)로 대체.
 > 서명도 키/인증서 + 워크플로로 자동화(물리 Mac·인증서 수동설치 불필요).
 - [x] Android: 릴리스 키스토어(PKCS12, OpenSSL 생성) → GitHub Secrets → 서명 AAB 빌드 (`android-release.yml`)
-- [x] Android: Play Console 업로드 + 공개 테스트 트랙(대한민국) 제출 → **Google 검토 중** (2026-06-18)
+- [x] Android: Play Console 업로드 + 공개 테스트 트랙(대한민국) 제출 → Google 검토 (2026-06-18)
+- [x] Android: **프로덕션 트랙(대한민국) 검토 제출 → Google 검토 통과·자동 게시 완료** (2026-06-21)
 - [x] iOS: 배포 인증서(.p12)+App Store 프로비저닝 프로파일 발급 → 수동 서명 → archive→export→TestFlight 업로드 성공 (`ios-testflight.yml`)
   - 시행착오: 자동 서명이 개발 프로파일 fallback → 수동 서명 전환 / iOS 26 SDK 요구 → 러너 최신 Xcode(26) 선택으로 해결
-- [ ] iOS: App Store Connect 빌드 처리 완료 후 TestFlight 외부 테스터 그룹/공개 링크 〔원장+개발〕
+- [x] iOS: App Store Connect 빌드 처리 완료 → 심사 제출 → 승인 → 대한민국 가용성 ON(정식 출시) (2026-06-23)
 
 #### Phase 6 잔여 — 정식 심사 전 처리(실기기 검증과 묶어서)
 - [ ] 위치 권한: 원격 로드 WebView 의 geolocation 실동작 실기기 확인 → iOS Info.plist 설명문구 / Android Manifest 권한 / Play Data Safety 신고를 일관되게 (성급한 단편 추가 금지)
 - [ ] Android `minifyEnabled true` + ProGuard 룰 (정식 출시 빌드)
 - [ ] iOS `Info.plist` ATS 의도 명시
 
-### Phase 7 — 심사 제출 · 대응 〔담당: 개발 + 원장〕
-- [ ] 심사용 데모 계정 제공 (의사/일반 각 1) — OAuth 외 심사관 접근 경로
-- [ ] 제출, 리젝 사유 대응
+### Phase 7 — 심사 제출 · 대응 〔담당: 개발 + 원장〕 ✅ 완료 (2026-06-23)
+- [x] 심사용 데모 계정 제공 (`appreview@pibutenten.kr`) — OAuth 외 심사관 접근 경로
+- [x] 제출 → Android·iOS 모두 승인·출시 (리젝 없이 통과)
 
 ---
 
