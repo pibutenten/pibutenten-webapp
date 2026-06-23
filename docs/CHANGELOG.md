@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-06-24] — 마이페이지 허브 신설 (디자인 적용, 웹 즉시)
+
+> `/my` 가 회원을 공개 프로필로 리다이렉트만 하던 것을, 전달 디자인('전달용/마이페이지 업데이트.png')대로 **전용 마이페이지 허브**를 직접 렌더하도록 전환. 신규 백엔드 없이 기존 라우트·데이터 재사용.
+
+### Added
+- **`src/components/skin/mypage/MyPageView.tsx`**: 마이페이지 허브 본문(클라이언트). AppShell(`active="마이"`) 안에 in-content 타이틀 바(마이페이지 + 알림/설정) + 프로필 카드(아바타·이름·@handle·태그칩[연령대/얼굴형/피부타입]·"내 피부 정보") + 퀵스탯 3열(좋아요/북마크/최근 본 글) + 메뉴 4섹션(나의 활동/나의 관심/설정/고객지원). 운영 스킨 토큰(app.module.css)·인라인 SVG 아이콘 사용, CSS 모듈 미수정.
+
+### Changed
+- **`src/app/my/page.tsx`**: 회원 분기를 리다이렉트 → `MyPageView` 렌더로 변경(admin→/admin·doctor→/doctor·비로그인→/login?next=/my 는 유지). active 명함 기준 프로필 + 좋아요(`card_likes.profile_id`)·북마크(`card_saves.profile_id`)·내 글(`cards.author_id`, published, 후기/리포트 제외)·내 댓글(`comments.author_id`, visible) 카운트 병렬 집계. `birthdate`→연령대 라벨 파생, `face_shape`/`skin_type`→`FACE_LABEL`/`SKIN_LABEL`.
+- 링크 배선: 활동/관심 목록은 공개 프로필 `/{handle}` 탭(`?tab=posts|comments|likes|saves`), "내 피부 정보"→`?tab=skin`, 앱 설정→/settings, 고객센터→/contact, 알림→/notifications.
+
+### Note (전용 기능 없음 — 가장 가까운 라우트로 연결, 추후 결정 필요)
+- **공지사항**→`/about`(공지 전용 라우트 없음), **의견 남기기**→`/contact`(피드백 폼 없음), **최근 본 글**→`/`(최근열람 기능 없음, 카운트 미표시), **탈퇴하기**→`/{handle}`(탈퇴 UI 는 공개 프로필 '프로필·설정' 아코디언). 이 4개는 백엔드 미존재 — 기능 신설 또는 항목 제거는 원장 결정 대기.
+
+---
+
 ## [2026-06-24] — 앱 그룹 B: 첫 화면 투데이 + 상태바 정석 처리 + 스플래시 (네이티브 빌드 필요)
 
 > 네이티브 앱 전용 변경 3건. `capacitor.config.ts`·네이티브 자산 변경이라 `npx cap sync`(CI 자동) + 앱 리빌드 + App Store·Play **재심사** 후 반영된다. 웹/PWA 에는 영향 없음.

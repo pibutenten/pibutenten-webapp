@@ -73,7 +73,7 @@
 /notes                              내 노트 — 시술 노트 KPI 3종 + 3토글(타임라인/달력/목록). noindex (구 /record/notes)
 /notes/[id]                         시술 노트 상세(본인 소유만, RLS) — noindex (구 /record/[id])
 /weather                            오늘의 피부 날씨 상세 — noindex (구 /record/weather)
-/my                                 마이페이지(설정 허브, 현재 placeholder) — noindex
+/my                                 마이페이지 허브(MyPageView) — 프로필 카드·퀵스탯·나의 활동/관심/설정/고객지원. 회원은 직접 렌더, admin→/admin·doctor→/doctor 리다이렉트. 활동/관심은 /{handle} 탭으로 연결. noindex
 /shop                               쇼핑 준비중 — noindex
 /review/new                         시술후기 작성 (P3-d, 전용 폼. /write 시술후기 탭이 이 ReviewForm 공유)
 ```
