@@ -6,6 +6,27 @@
 
 ---
 
+## [2026-06-24] — `/app` 랜딩 풀스크린 리디자인 + 정적 OG 카드 전환 + 스토어 문구 갱신
+
+> 6/23 구현한 `/app` 랜딩을 마무리. 흰 카드 대신 화면 전체를 브랜드 하늘색으로 채우는 풀스크린 디자인으로 바꾸고, 런타임 동적 OG(next/og) 를 미리 만든 정적 PNG 로 교체했다. 풀스크린 전환이 유발한 회귀(전역 FAB 노출, 앱셸 인식 취약점)도 함께 정리.
+
+### Changed
+- **`/app` 풀스크린 리디자인**(`src/app/app/page.tsx`): 흰 둥근 카드 안 로고(`next/image`) → 화면 전체 하늘색(`#4cbff2`) 오버레이(`position:fixed; inset:0; z-index:100`) 위에 흰색으로 반전한 인라인 SVG 로고(`tt:` 심볼 + 피부텐텐 워드마크). 루트 `layout.tsx` 의 `max-w-[1080px]` 컨테이너 안에 들어가 하늘색 박스 바깥으로 흰 테두리가 보이던 문제 해결. `next/image` import 제거.
+- **`/app` OG 이미지 정적화**(`opengraph-image.tsx` → `opengraph-image.png`): 런타임 동적 생성(next/og `ImageResponse`, Satori) 을 미리 만든 정적 PNG(155KB)로 교체. Next.js 파일 컨벤션이 같은 라우트의 `og:image`/`twitter:image` 를 자동 연결. (현재 PNG 1024×500 — 표준 1.91:1 카드와 다소 어긋남, 후속 점검 대상.)
+- **앱셸 인식 명시화**(`src/components/GlobalChrome.tsx`): `APP_SHELL_EXACT` 에 `/app` 추가. 기존엔 첫 세그먼트 `"app"` 이 우연히 회원 핸들 정규식(`HANDLE_RE`)을 통과하고 `RESERVED_FIRST_SEGMENT` 에 없어 앱셸로 인식되던 취약 의존을 제거(향후 `"app"` 이 예약어로 추가돼도 헤더 깜빡임이 재발하지 않음).
+- **스토어 등록 문구 갱신**(`docs/plans/store-listing.md`): 검색 노출 강화를 위해 iOS 부제·Play 짧은 설명에 "시술 후기" 키워드 추가(2026-06-23 원장 결정). 의료법 §56(의료광고) 리스크를 문서에 명시하고 인지 하 진행, 필요 시 텍스트만 되돌림.
+
+### Added
+- **`/app` OG alt 복원**(`src/app/app/opengraph-image.alt.txt` = "피부텐텐 앱 다운로드"): 동적 `.tsx` 가 `export const alt` 로 제공하던 `og:image:alt` 가 정적 png 전환으로 사라져, 형제 `.alt.txt` 파일 컨벤션으로 재확립(접근성·SEO).
+
+### Fixed
+- **`/app` 위 글쓰기 FAB 노출 회귀**(`src/components/WriteFab.tsx`): 풀스크린 오버레이(z-100) 위로 모바일 '글쓰기' FAB(z-110)가 뜨던 문제를 `HIDE_PREFIXES` 에 `/app` 추가로 해결.
+
+### Removed
+- **`src/app/app/opengraph-image.tsx`**(동적 OG 라우트): 정적 `opengraph-image.png` 로 대체되어 삭제.
+
+---
+
 ## [2026-06-23] — `/app` 앱 다운로드 랜딩 + 브랜드 OG 카드 통일
 
 > 스토어 원본 URL 을 직접 공유하면 OG 미리보기 카드가 제각각·비브랜드로 떴다. 자체 도메인에 단일 진입점 `/app` 을 만들어 공유·QR 을 이 URL 하나로 통일하고, 브랜드 OG 카드(하늘색+`tt:`)를 붙였다. commit `e1b01e5`.

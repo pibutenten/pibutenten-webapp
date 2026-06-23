@@ -29,6 +29,7 @@ const HIDE_PREFIXES = [
   "/u", // OAuth 후 리다이렉트 경유
   "/admin", // 관리자(wide 셸 — 하단탭 없음)
   "/doctor", // 원장 대시보드(wide 셸) — '/doctors' 목록은 제외됨
+  "/app", // 앱 다운로드 랜딩(풀스크린 오버레이) — 글쓰기 맥락 없음, FAB 숨김
 ];
 
 function isHidden(pathname: string): boolean {

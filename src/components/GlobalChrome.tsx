@@ -43,6 +43,7 @@ const APP_SHELL_EXACT = new Set<string>([
   "/notifications", // 알림 (Phase 5)
   "/shop", // 쇼핑(준비중) — 옛 크롬 잔존 승격
   "/report", // 콘텐츠 신고 (InfoShell) — 옛 크롬 잔존 승격
+  "/app", // 앱 다운로드 랜딩 — 자체 풀스크린 오버레이(z-100), 전역 크롬 제외 (HANDLE_RE 우연 의존 제거)
   // 진입(인증·온보딩) (Phase 5)
   "/login",
   "/login/conflict",
