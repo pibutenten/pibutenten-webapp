@@ -141,9 +141,14 @@ async function reverseGeocodeKo(lat: number, lon: number, signal?: AbortSignal):
 /**
  * @param preferLast true(상세 페이지)면 좌표 측위 전에 last 캐시를 먼저 보여줘 즉시 렌더.
  */
-export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; err: string | null } {
+export function useWeather(
+  preferLast = false,
+): { snap: WeatherSnapshot | null; err: string | null; note: string | null } {
   const [snap, setSnap] = useState<WeatherSnapshot | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // 진단(임시): 대치동 폴백의 '왜'를 화면에 표시 — 측위 실패 코드 vs 날씨 fetch 실패를 구분.
+  //   원격에서 사용자 기기의 실패 원인을 알 길이 없어, 카드에 한 줄로 노출해 제보받기 위함.
+  const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
     // geolocation 콜백은 abort 불가 — 언마운트 후 늦게 도착해도 setState 하지 않도록 가드.
@@ -192,14 +197,19 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
           // 측위 fetch 가 역지오코딩보다 늦으면 이미 도착한 실제 동 이름을 입혀 표시·캐시.
           //   (fetchWeather 는 name 파라미터를 snap.name 그대로 반환한다는 계약에 의존 — 깨지면 이 조건 무력화.)
           const named = precise && s.name === MY_LOC && geoName ? { ...s, name: geoName } : s;
-          if (show(named, precise)) writeCache(coordKey(lat, lon), named);
+          if (show(named, precise)) {
+            writeCache(coordKey(lat, lon), named);
+            if (precise) setNote(null); // 정밀 결과 표시 성공 → 진단 노트 해제.
+          }
         })
         .catch((e: unknown) => {
           if (!mounted || ac.signal.aborted) return;
           // 필러 실패는 무시(측위 결과를 기다림). 정밀 fetch 실패만 에러로 노출.
           if (precise) {
             // 관측성: 측위는 됐으나 Open-Meteo fetch 가 실패한 경우(위 측위 실패와 구분).
-            console.warn("[weather] 날씨 fetch 실패(측위는 성공):", e instanceof Error ? e.message : e);
+            const m = e instanceof Error ? e.message : String(e);
+            console.warn("[weather] 날씨 fetch 실패(측위는 성공):", m);
+            setNote(`날씨못불러옴:${m.slice(0, 40)}`); // 진단(임시): 측위는 됐는데 fetch 실패.
             setErr(e instanceof Error ? e.message : "날씨 정보를 불러오지 못했어요");
           }
         });
@@ -234,7 +244,9 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
         // 관측성(과하지 않게 한 줄): 침묵 폴백의 '왜'를 콘솔에 남긴다. UI·외부 전송 없음.
         //   다음에 '전원 대치동' 류가 재발하면 콘솔에서 1분 안에 측위 실패 vs fetch 실패를 구분.
         const code = typeof err === "object" && err && "code" in err ? (err as { code: number }).code : undefined;
+        const codeName = code === 1 ? "권한거부" : code === 2 ? "측위불가" : code === 3 ? "시간초과" : "오류";
         console.warn("[weather] 측위 실패 → 대치동 폴백:", code != null ? `geolocation code ${code}` : err);
+        setNote(`측위실패:${codeName}${code != null ? `(${code})` : ""}`); // 진단(임시): 측위 자체 실패.
         // 측위 실패: seed 가 없으면 대치동을 정밀(true)로 확정해 스켈레톤 종료. seed 가 있으면
         //   필러(false)로 보내 preciseShown 잠금에 걸리게 → 더 정밀한 seed 를 덮어쓰지 않음([제안]7).
         run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, !lastSeed);
@@ -245,5 +257,5 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
     };
   }, [preferLast]);
 
-  return { snap, err };
+  return { snap, err, note };
 }
