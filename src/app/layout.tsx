@@ -7,6 +7,7 @@ import ScrollManager from "@/components/ScrollManager";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import EngagementPromptListener from "@/components/EngagementPromptListener";
 import NativeAuthDeepLink from "@/components/NativeAuthDeepLink";
+import NativeStatusBar from "@/components/NativeStatusBar";
 import WriteFab from "@/components/WriteFab";
 import { SessionProvider } from "@/lib/session-context";
 import { SITE_URL } from "@/lib/site";
@@ -185,6 +186,8 @@ export default function RootLayout({
           <EngagementPromptListener />
           {/* 네이티브 앱 OAuth 딥링크 핸들러 — 시스템 브라우저 로그인 복귀 처리(웹=no-op) */}
           <NativeAuthDeepLink />
+          {/* 네이티브 상태바 글씨색 보정 — 밝은 배경에 어두운(검정) 아이콘(웹=no-op). 웹 배포로 즉시 반영. */}
+          <NativeStatusBar />
         </SessionProvider>
 
         {/* Vercel Analytics + Speed Insights — CWV field data + page view. env 자동 감지. */}
