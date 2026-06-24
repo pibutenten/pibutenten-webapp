@@ -6,6 +6,15 @@
 
 ---
 
+## [2026-06-24] — 상태바 edge-to-edge 플러그인 제거 (overlay 유지로 회귀)
+
+> 원장 확인: OS 상태바 콘텐츠 침범은 기존 `--sat` 처리(app.module.css)로 **이미 해결**돼 있었고, 별도 색 바를 칠하지 않고 현재 overlay 배경(헤더 #e8f5fd 비침)을 그대로 두는 것이 요구사항. 따라서 그룹 B 에서 시험 도입했던 edge-to-edge 플러그인(상태바 예약·페인트)은 불필요 → 제거. 상태바 글씨 가독은 위 `NativeStatusBar`(런타임 setStyle) 로 해결. Android 15 플러그인 충돌 리스크도 함께 제거.
+
+### Removed
+- **`@capawesome/capacitor-android-edge-to-edge-support`(8.0.8) 제거** + `capacitor.config.ts` 의 `SystemBars`·`EdgeToEdge` 블록 제거. `StatusBar.overlaysWebView:true`(overlay — 헤더 비침) 유지. → 아래 "앱 그룹 B"의 "상태바 정석 처리(edge-to-edge)" 항목을 **대체**(시험 도입 후 철회). 그룹 B 의 첫 화면=/today·스플래시 변경은 그대로 유효.
+
+---
+
 ## [2026-06-24] — 네이티브 상태바 글씨색 보정 (흰색 안 보임 → 검정, 웹 즉시)
 
 > 밝은 상태바 배경(헤더 #e8f5fd 가 비침)에 시계·배터리 글씨가 흰색이라 안 보이던 문제. OS 는 상태바 글씨를 검정/흰색만 지원(임의색 불가)하므로 **밝은 배경엔 어두운 글씨**가 맞다. 배경은 그대로 두고 글씨색만 보정. 상태바 플러그인은 이미 라이브 앱에 있어 **웹 배포만으로 현재 설치된 앱에도 반영**(새 빌드 불필요).

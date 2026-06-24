@@ -39,31 +39,19 @@ const config: CapacitorConfig = {
   },
   plugins: {
     // 상태바(OS 시간·통신사 표시줄).
-    //   Android 15+(targetSdk 36) 는 edge-to-edge 강제 — @capacitor/status-bar 의
-    //     overlaysWebView·backgroundColor 는 무시된다. 옛 overlaysWebView:false 경로
-    //     (deprecated setSystemUiVisibility)는 코어 SystemBars 와 충돌해 헤더겹침 버그를 냈다.
-    //   ⇒ '정석' 해결(2026-06-24): 아래 EdgeToEdge 플러그인이 OS 로 상태바 영역을 네이티브 예약
-    //     (콘텐츠가 그 띠 밑으로 스크롤 못 함) + 상태바 배경을 헤더색(#e8f5fd)으로. 충돌나던
-    //     deprecated 경로를 쓰지 않아 안전. (자세한 근거: 조사 보고 — Capacitor 8.4.0 기준.)
-    //   style:"LIGHT" = 밝은 배경용 어두운 아이콘(헤더색 위 가독). iOS 는 EdgeToEdge 무영향이라
-    //     overlaysWebView:true 유지 → 기존 env(safe-area) 동작 그대로(iOS 회귀 없음).
+    //   overlaysWebView:true 유지 — 웹뷰가 상태바 아래까지 그려 헤더(#e8f5fd)가 그대로 비친다
+    //     (배경 그대로). 콘텐츠가 상태바 영역으로 스크롤 침범하는 것은 web 측 --sat 처리
+    //     (app.module.css .root::before 등)가 막는다 — 기존 검증된 방식(원장 확인: 이미 해결됨).
+    //   글씨(시계·배터리) 색은 런타임에서 보정한다 — NativeStatusBar 컴포넌트가
+    //     StatusBar.setStyle({style: Light}) 로 '밝은 배경용 어두운(검정) 아이콘'을 적용.
+    //     (빌드 시점 style 이 Android 15 edge-to-edge 에서 흰색으로 떨어지던 것을 런타임 호출로 보정.)
+    //   2026-06-24: 한때 @capawesome edge-to-edge 플러그인(상태바 예약·페인트)을 넣었으나,
+    //     별도 바를 칠하지 않고 현재 overlay 배경을 그대로 두는 게 요구사항이고 OS 침범은 이미
+    //     --sat 로 해결돼 있어 불필요 → 플러그인 제거(Android 15 충돌 리스크도 함께 제거).
     StatusBar: {
       overlaysWebView: true,
       style: "LIGHT",
       backgroundColor: "#ffffff",
-    },
-    // Android edge-to-edge 정석 처리. 코어 SystemBars 의 CSS inset 주입을 끄고(disable),
-    //   EdgeToEdge 플러그인이 WebView 를 상태바 아래로 네이티브 inset + 상태바 배경색 지정.
-    //   두 키 모두 iOS 에선 no-op(Android 전용 플러그인).
-    SystemBars: {
-      insetsHandling: "disable",
-    },
-    EdgeToEdge: {
-      // 이 플러그인은 상·하단 시스템 바를 모두 네이티브 inset 한다. 색을 안 주면 기본(검정 등)이 될 수
-      //   있어 둘 다 지정: 상단 상태바 = 헤더색(#e8f5fd), 하단 내비바 = 탭바 배경과 같은 흰색(#ffffff).
-      //   (구 단일 `backgroundColor` 키는 deprecated — statusBarColor/navigationBarColor 사용이 정석.)
-      statusBarColor: "#e8f5fd",
-      navigationBarColor: "#ffffff",
     },
     // 스플래시(앱 시작 화면) — PWA 처럼 원격 페이지 로딩 동안 파란 tt: 화면을 유지.
     //   네이티브 런치 스플래시(@drawable/splash, #4CBFF2)는 기본적으로 첫 프레임에서 즉시 사라져
