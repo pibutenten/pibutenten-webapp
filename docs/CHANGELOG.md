@@ -6,6 +6,41 @@
 
 ---
 
+## [2026-06-25] — UX 감사 18개 항목 일괄 개선
+
+### Added
+- **Pull-to-refresh**: `usePullToRefresh` 커스텀 훅 + `FeedView` 적용. 60px 임계값, 0.4x 댐핑, 800ms 최소 스피너 시간
+- **오프라인 배너**: `OfflineBanner.tsx` — `navigator.onLine` + 이벤트 리스너 기반, 재연결 2초 후 페이드 아웃
+- **페이지 전환 애니메이션**: `PageTransition.tsx` — pathname 변경 시 fade-in (180ms), Web Animation API, 첫 마운트 건너뜀
+- **더블탭 좋아요**: `Card.tsx` `onTouchEnd` 기반 300ms 더블탭 감지 + `HeartOverlay.tsx` 하트 팝 애니메이션 (800ms)
+- **Supabase 에러 한글 매핑**: `supabase-errors.ts` — 10개 공통 에러 메시지 한국어 번역 (`toKoreanError`)
+- **피드 카드 스켈레톤**: `FeedSkeleton` 컴포넌트 — 초기 로딩 3개, 무한스크롤 중 1개 (`animate-pulse`)
+- **SW 오프라인 캐시**: Cache-First (정적 자산) + Network-First (동적, LRU 50개) + 오프라인 HTML 폴백
+- **알림 fetch 실패 UI**: 에러 상태 + "다시 시도" 버튼 (영구 스피너 수정)
+- **알림 "내 기록" 탭**: 더미 데이터 위에 "예시" 배지 + "첫 시술 후기 남기기" CTA
+
+### Changed
+- **탭 하이라이트 제거**: `globals.css` — `-webkit-tap-highlight-color: transparent`, `touch-action: manipulation`
+- **overscroll 비활성**: `html { overscroll-behavior-y: none }` — 브라우저 기본 PTR 충돌 방지
+- **iOS 줌 방지 보완**: `[contenteditable]` 셀렉터 추가 (Q&A 에디터 누락 수정)
+- **알림 행 전체 클릭**: stretched link 패턴 (`absolute inset-0 z-0`) — cmd-click/중간클릭/스크린리더 지원
+- **신분 전환 페이지 유지**: `IdentitySwitcher`/`AccountSwitcherCard` — 현재 경로 보존 (admin 라우트 예외), 로딩 상태 추가
+- **스크롤 위치 복원**: `ScrollManager` 재작성 — sessionStorage 기반, popstate 시 복원/새 탐색 시 맨 위
+- **BackButton 공유 링크 수정**: Navigation API `canGoBack` 우선 + sessionStorage 폴백 (broken `PerformanceNavigationTiming` 대체)
+- **댓글 삭제 확인**: `window.confirm()` → `ConfirmDialog` (tone="danger")
+- **후기 폼 에러 전체 표시**: 단일 에러 → 에러 배열 수집 + `<ul>` 목록 표시
+- **성공 토스트**: 글 발행 "글이 올라갔어요!", 가입 "가입을 환영합니다!", 온보딩 "프로필 설정 완료!", 저장 "저장했어요"/"저장 해제"
+- **로그인/가입 에러 한글화**: `toKoreanError()` 적용
+
+### Fixed
+- **무한 재시도 루프**: `FeedView`/`FeedList` — `loadError` 시 sentinel 렌더 차단 (`!loadError` 가드)
+- **PTR 스피너 즉시 사라짐**: `router.refresh()` void 반환 → 800ms 최소 대기 추가
+- **SW 동적 캐시 무한 성장**: LRU 50개 상한 + 구버전 캐시 자동 정리
+- **Card 더블탭 오탐**: `onClick` → `onTouchEnd` 전환 + interactive 요소 제외 (`a, button, [role='button']...`)
+- **beforeunload 미적용**: `CardEditor`/`ReviewForm` — dirty 상태 트래킹 + `beforeunload` 이벤트 등록
+
+---
+
 ## [2026-06-25] — 피부날씨 IP 기반 대략위치 폴백 (기기 측위 실패 시 대치동 대신)
 
 ### Added
