@@ -60,6 +60,7 @@ export default function FeedList({
   const [pool, setPool] = useState<CardDataList[]>(initialPool);
   const [hasMore, setHasMore] = useState(orderedIds.length > initialPool.length);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
@@ -105,6 +106,7 @@ export default function FeedList({
   //   리포트 탭은 통계 목록이라 확장 안 함(자체 가드). 순서목록 끝(=ORDER)까지 받으면 종료.
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMoreRef.current || catRef.current === "review_summary") return;
+    setLoadError(false);
     const ids = orderedIdsRef.current;
     const start = cursorRef.current;
     const nextIds = ids.slice(start, start + pageSize);
@@ -126,7 +128,7 @@ export default function FeedList({
       });
       if (cursorRef.current >= ids.length) setHasMore(false);
     } catch {
-      setHasMore(false);
+      setLoadError(true);
     } finally {
       loadingRef.current = false;
       setLoading(false);
@@ -267,8 +269,16 @@ export default function FeedList({
       )}
       </div>
 
-      <div ref={sentinelRef} className="h-10" />
+      {!loadError && <div ref={sentinelRef} className="h-10" />}
       {loading && <div className="py-4 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>}
+      {loadError && (
+        <div className="flex justify-center py-6">
+          <button onClick={() => { setLoadError(false); loadMore(); }}
+            className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm">
+            불러오기 실패 · 다시 시도
+          </button>
+        </div>
+      )}
     </div>
   );
 }

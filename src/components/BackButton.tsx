@@ -5,13 +5,12 @@ import { useRouter } from "next/navigation";
 /**
  * 글 상세 페이지 좌상단 뒤로가기 버튼.
  *
- * 정책 (2026-05-17):
- * - 같은 탭 안에서 한 번이라도 SPA navigation 이 일어났으면 → `router.back()` (피드/스크롤 복원).
- * - 외부에서 단독글 URL 로 바로 진입한 경우 (새 탭, 공유 링크 등) → `fallbackHref` 로 이동.
- * - 판별 기준: **`window.history.length > 1`** 단일 조건.
- *   이전엔 `document.referrer` 비교도 함께 했는데, 홈 → 단독글로 SPA 이동 시 referrer 는
- *   초기 외부 referrer 그대로 유지(또는 빈 문자열) 이라 검사가 실패 → 글쓴이 프로필로
- *   잘못 fallback 되는 버그가 있었음 (사용자 보고 2026-05-17). referrer 검사 제거.
+ * 정책 (2026-06-25 개선):
+ * - Navigation API (Chrome 102+) 의 `navigation.canGoBack` 으로 뒤로갈 수 있는지 판별.
+ * - Navigation API 미지원 브라우저: PerformanceNavigationTiming.type 으로
+ *   direct entry (외부 공유 링크, 새 탭 직접 입력) 여부 판별.
+ * - 이전 `window.history.length > 1` 단일 조건은 모던 브라우저가 새 탭을
+ *   history.length >= 2 로 시작하는 문제 (공유 링크에서 잘못된 router.back() 발생) 로 교체.
  */
 export default function BackButton({
   fallbackHref = "/",
@@ -26,11 +25,25 @@ export default function BackButton({
   const router = useRouter();
   function go() {
     if (typeof window === "undefined") return;
-    if (window.history.length > 1) {
-      router.back();
-    } else {
-      router.push(fallbackHref);
+    // Navigation API (Chrome 102+) gives reliable "can go back" signal
+    const nav = (window as unknown as { navigation?: { canGoBack: boolean } }).navigation;
+    if (nav && typeof nav.canGoBack === "boolean") {
+      if (nav.canGoBack) {
+        router.back();
+      } else {
+        router.push(fallbackHref);
+      }
+      return;
     }
+    // Fallback: ScrollManager가 기록한 스크롤 맵에 항목이 있으면 SPA 탐색 이력 존재
+    try {
+      const raw = sessionStorage.getItem("pbtt-scroll");
+      if (raw && Object.keys(JSON.parse(raw)).length > 0) {
+        router.back();
+        return;
+      }
+    } catch { /* parse 실패 시 fallback */ }
+    router.push(fallbackHref);
   }
   return (
     <button

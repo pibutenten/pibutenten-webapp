@@ -28,6 +28,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
   type CSSProperties,
@@ -196,6 +197,26 @@ export default function ReviewForm({
   const [effectOnset, setEffectOnset] = useState(initial?.effectOnset ?? "");
   const [oneliner, setOneliner] = useState(initial?.body ?? "");
 
+  /* ── beforeunload: 작성 중 이탈 방지 ── */
+  const submittedRef = useRef(false);
+  const isDirty =
+    satisfaction > 0 ||
+    pain > 0 ||
+    !!downtime ||
+    !!revisit ||
+    effectAreas.length > 0 ||
+    !!effectOnset ||
+    oneliner.length > 0;
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!isDirty || submittedRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   /* 한줄후기 placeholder — 마운트 시 무작위 1개 고정(세션 내 유지). */
   const onelinerPlaceholder = useMemo(
     () =>
@@ -253,22 +274,30 @@ export default function ReviewForm({
     effectAreas.length >= 1 &&
     !!effectOnset;
 
-  function validate(): string | null {
-    if (!procedureKo) return "시술을 선택해주세요.";
-    if (satisfaction < 1) return "만족도를 선택해주세요.";
-    if (pain < 1) return "통증 정도를 선택해주세요.";
-    if (!downtime) return "일상으로 돌아오기까지 걸린 시간을 선택해주세요.";
-    if (!revisit) return "재시술 의향을 선택해주세요.";
-    if (effectAreas.length < 1) return "느낀 효과를 1개 이상 골라주세요.";
-    if (!effectOnset) return "효과를 느낀 시기를 선택해주세요.";
-    return null;
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // 사용자가 필드를 수정하면 유효성 오류 목록 초기화.
+  useEffect(() => {
+    setValidationErrors([]);
+  }, [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, effectOnset]);
+
+  function validate(): string[] {
+    const errors: string[] = [];
+    if (!procedureKo) errors.push("시술을 선택해주세요.");
+    if (satisfaction < 1) errors.push("만족도를 선택해주세요.");
+    if (pain < 1) errors.push("통증 정도를 선택해주세요.");
+    if (!downtime) errors.push("일상으로 돌아오기까지 걸린 시간을 선택해주세요.");
+    if (!revisit) errors.push("재시술 의향을 선택해주세요.");
+    if (effectAreas.length < 1) errors.push("느낀 효과를 1개 이상 골라주세요.");
+    if (!effectOnset) errors.push("효과를 느낀 시기를 선택해주세요.");
+    return errors;
   }
 
   function submit() {
     setError(null);
-    const v = validate();
-    if (v) {
-      setError(v);
+    const errors = validate();
+    if (errors.length > 0) {
+      setValidationErrors(errors);
       return;
     }
 
@@ -338,6 +367,7 @@ export default function ReviewForm({
           await new Promise((r) => setTimeout(r, 1500));
         }
 
+        submittedRef.current = true;
         const dest =
           handle && data.shortcode ? `/${handle}/${data.shortcode}` : "/";
         router.push(dest);
@@ -507,7 +537,16 @@ export default function ReviewForm({
           </p>
         </div>
 
-        {/* 에러 */}
+        {/* 유효성 검사 오류 목록 */}
+        {validationErrors.length > 0 && (
+          <ul className="rounded-lg bg-red-50 p-3 text-sm text-red-600 space-y-1">
+            {validationErrors.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        )}
+
+        {/* 서버/네트워크 에러 */}
         {error && (
           <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {error}

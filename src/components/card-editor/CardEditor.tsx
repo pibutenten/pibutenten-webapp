@@ -25,7 +25,7 @@
  *   wrapper 가 정의. payload 에 모든 필드 포함해서 호출. wrapper 가 API 호출 + redirect.
  */
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
 import KeywordsEditor from "@/components/card-editor/KeywordsEditor";
@@ -375,6 +375,23 @@ export default function CardEditor({
   const [llmTagLoading, setLlmTagLoading] = useState(false);
   const [oembedLoading, setOembedLoading] = useState(false);
 
+  /* ── beforeunload: 작성 중 이탈 방지 ─────────────────────── */
+  const submittedRef = useRef(false);
+  const isDirty = !!(
+    title.trim() ||
+    body.trim() ||
+    (keywords && keywords.length > 0)
+  );
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!isDirty || submittedRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   /* ── 파생 ──────────────────────────────────────────────────── */
   const isQa = category === "qa";
   const showRefs = isQa;
@@ -571,6 +588,7 @@ export default function CardEditor({
         setError(r.error);
         return;
       }
+      submittedRef.current = true;
     });
   }
 

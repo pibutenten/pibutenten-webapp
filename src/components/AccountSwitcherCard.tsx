@@ -60,7 +60,11 @@ export default function AccountSwitcherCard({ compact = false }: { compact?: boo
         setSwitching(null);
         return;
       }
-      window.location.assign("/my"); // /my 가 새 역할로 재라우팅
+      // 현재 페이지 유지 (admin 전용 경로에서 비-admin 전환 시에만 홈으로)
+      const currentPath = window.location.pathname + window.location.search;
+      const isAdminRoute = currentPath.startsWith("/admin");
+      const dest = isAdminRoute ? "/" : currentPath;
+      window.location.assign(dest);
     } catch {
       showToast("네트워크 오류", { tone: "danger" });
       setSwitching(null);

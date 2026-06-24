@@ -16,7 +16,13 @@
  */
 // v5(2026-06-24): 날씨 프록시 되돌림(b79e39a) 등 누적 배포를 열린 클라이언트에 강제 전파.
 //   버전이 바뀌어야 activate→전 탭 자동 reload 가 1회 동작해 옛 JS(프록시 버전) 캐시가 교체된다.
-const VERSION = "v7-geo-navfallback-260625";
+const VERSION = "v8-offline-cache-260625";
+
+const STATIC_CACHE = "pbtt-static-v1";
+const DYNAMIC_CACHE = "pbtt-dynamic-v1";
+const EXPECTED_CACHES = [STATIC_CACHE, DYNAMIC_CACHE];
+
+const OFFLINE_HTML = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>피부텐텐</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f9fafb;color:#374151;text-align:center;padding:1rem}div{max-width:320px}h1{font-size:1.25rem;margin-bottom:.5rem}p{color:#6b7280;font-size:.875rem;line-height:1.5}</style></head><body><div><h1>네트워크 연결 끊김</h1><p>인터넷에 연결할 수 없어요.<br>연결을 확인한 뒤 다시 시도해 주세요.</p></div></body></html>`;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
@@ -25,6 +31,14 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
+      // 이전 버전 캐시 정리
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((k) => !EXPECTED_CACHES.includes(k))
+          .map((k) => caches.delete(k)),
+      );
+
       await self.clients.claim();
       // 새 SW 가 활성화되면 (= 새 deploy 가 사용자 모바일에 도달) 열려있는
       // 모든 탭을 자동 reload → 옛 build chunk 잔존 차단.
@@ -33,8 +47,6 @@ self.addEventListener("activate", (event) => {
         const clients = await self.clients.matchAll({ type: "window" });
         for (const c of clients) {
           try {
-            // navigate 가 사용자가 보던 페이지 그대로 reload — 작업 중인
-            // 입력은 잃을 수 있으나 schema mismatch 로 인한 silent 에러보다 안전.
             await c.navigate(c.url);
           } catch {
             /* 일부 브라우저는 navigate 차단 — 무시 */
@@ -48,9 +60,63 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // 네트워크 직행 — 캐싱은 의도적으로 안 함.
-  // (이 핸들러 자체가 Chrome의 "설치 가능" 휴리스틱에 필요)
-  event.respondWith(fetch(event.request));
+  const { request } = event;
+  const url = new URL(request.url);
+
+  if (request.method !== "GET") return;
+  if (url.protocol === "chrome-extension:") return;
+  if (url.hostname.includes("supabase")) return;
+
+  // /_next/static/ — Cache-First (빌드 해시가 포함된 불변 자산)
+  if (url.origin === self.location.origin && url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      (async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        const res = await fetch(request);
+        if (res.ok) {
+          const cache = await caches.open(STATIC_CACHE);
+          cache.put(request, res.clone());
+        }
+        return res;
+      })(),
+    );
+    return;
+  }
+
+  // same-origin — Network-First
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      (async () => {
+        try {
+          const res = await fetch(request);
+          if (res.ok) {
+            const cache = await caches.open(DYNAMIC_CACHE);
+            cache.put(request, res.clone());
+            // LRU: 최신 50개만 유지
+            const keys = await cache.keys();
+            if (keys.length > 50) {
+              await cache.delete(keys[0]);
+            }
+          }
+          return res;
+        } catch {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          if (request.mode === "navigate") {
+            return new Response(OFFLINE_HTML, {
+              headers: { "Content-Type": "text/html; charset=utf-8" },
+            });
+          }
+          return Response.error();
+        }
+      })(),
+    );
+    return;
+  }
+
+  // cross-origin (non-Supabase) — 네트워크 직행
+  event.respondWith(fetch(request));
 });
 
 /**

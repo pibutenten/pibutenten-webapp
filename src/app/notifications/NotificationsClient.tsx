@@ -79,6 +79,7 @@ export default function NotificationsClient({
   const [filter, setFilter] = useState<FilterKey>("all");
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [done, setDone] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -91,35 +92,45 @@ export default function NotificationsClient({
   // active profile 한 장 기준 (CLAUDE.md 원칙 #1) — 서버 API 경유.
   // 브라우저는 active.profileId (httpOnly cookie) 를 직접 모르므로,
   // 서버 라우트가 idCtx 에서 읽어 RPC 에 명시 전달 (마이그레이션 0168).
+  const fetchInitial = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setFetchError(false);
+      const res = await fetch(
+        `/api/notifications?offset=0&limit=${PAGE_SIZE}`,
+        { cache: "no-store", signal },
+      );
+      if (!res.ok) {
+        setFetchError(true);
+        setLoading(false);
+        return;
+      }
+      const json = (await res.json()) as { items?: Notification[] };
+      const rows = json.items ?? [];
+      setItems(rows);
+      offsetRef.current = rows.length;
+      setDone(rows.length < PAGE_SIZE);
+      setLoading(false);
+
+      // 모두 읽음 처리 — 서버가 mark_my_notifications_read 호출 (ask 본인 미답 제외 정책 유지)
+      await fetch("/api/notifications/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      window.dispatchEvent(new CustomEvent("pibutenten:notifications-read"));
+    } catch (e) {
+      // AbortError 는 silent — 페이지 unmount 시 발생
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setFetchError(true);
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const ac = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch(
-          `/api/notifications?offset=0&limit=${PAGE_SIZE}`,
-          { cache: "no-store", signal: ac.signal },
-        );
-        if (!res.ok) return;
-        const json = (await res.json()) as { items?: Notification[] };
-        const rows = json.items ?? [];
-        setItems(rows);
-        offsetRef.current = rows.length;
-        setDone(rows.length < PAGE_SIZE);
-        setLoading(false);
-
-        // 모두 읽음 처리 — 서버가 mark_my_notifications_read 호출 (ask 본인 미답 제외 정책 유지)
-        await fetch("/api/notifications/read", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
-        window.dispatchEvent(new CustomEvent("pibutenten:notifications-read"));
-      } catch {
-        /* 페이지 unmount 시 AbortError — silent */
-      }
-    })();
+    void fetchInitial(ac.signal);
     return () => ac.abort();
-  }, []);
+  }, [fetchInitial]);
 
   // 2) 더 불러오기
   const loadMore = useCallback(async () => {
@@ -367,7 +378,17 @@ export default function NotificationsClient({
       </div>
 
       {/* 본문 */}
-      {loading ? (
+      {fetchError ? (
+        <div className="flex flex-col items-center gap-3 py-12 text-gray-500 text-sm">
+          <p>알림을 불러오지 못했어요</p>
+          <button
+            onClick={() => { setFetchError(false); setLoading(true); void fetchInitial(); }}
+            className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm"
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : loading ? (
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center text-sm text-[var(--text-muted)]">
           불러오는 중…
         </div>
@@ -428,9 +449,10 @@ const NOTI_TONE: Record<string, { bg: string; fg: string }> = {
 function RecordNotis() {
   return (
     <div>
-      <p className="mb-3 text-[12px] text-[var(--text-muted)]">
-        시술 주기·예정 알림 (준비 중 — 곧 내 기록 기반으로 제공돼요)
-      </p>
+      <div className="mx-4 mt-3 mb-2 flex items-center gap-2">
+        <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-xs font-medium">예시</span>
+        <span className="text-xs text-gray-400">시술 후기를 남기면 내 기록이 표시됩니다</span>
+      </div>
       <ul className="divide-y divide-[var(--border)] rounded-[var(--radius)] border border-[var(--border)] bg-white">
         {RECORD_NOTIS.map((n, i) => {
           const t = NOTI_TONE[n.tone];
@@ -448,6 +470,12 @@ function RecordNotis() {
           );
         })}
       </ul>
+      <a
+        href="/review/new"
+        className="mx-4 mt-2 mb-4 flex items-center justify-center gap-1 py-3 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] text-sm font-medium hover:opacity-80 transition-opacity"
+      >
+        첫 시술 후기 남기기
+      </a>
     </div>
   );
 }
@@ -535,21 +563,30 @@ function NotificationRow({
   return (
     <li
       className={
-        "group relative flex items-center gap-3 px-4 py-3 " +
+        "group relative flex items-center gap-3 px-4 py-3 transition-colors " +
+        (selectMode ? "" : "hover:bg-gray-50 ") +
         (unread ? "bg-[var(--primary-soft)]" : "")
       }
     >
+      {/* stretched link — 행 전체를 클릭 가능하게 하되 cmd-click, 접근성 유지 */}
+      {!selectMode && (
+        <Link
+          href={target}
+          className="absolute inset-0 z-0"
+          aria-label={`${showActorAvatar ? actorName + " " : ""}${text}${n.card_title ? " — " + n.card_title : ""}`}
+        />
+      )}
       {selectMode && (
         <input
           type="checkbox"
           checked={selected}
           onChange={onToggleSelect}
           aria-label="알림 선택"
-          className="h-4 w-4 shrink-0 accent-[var(--primary)]"
+          className="relative z-10 h-4 w-4 shrink-0 accent-[var(--primary)]"
         />
       )}
       {showActorAvatar && actorHref ? (
-        <Link href={actorHref} className="shrink-0">
+        <Link href={actorHref} className="relative z-10 shrink-0">
           <Avatar src={n.actor_avatar_url} initial={initial} />
         </Link>
       ) : showActorAvatar ? (
@@ -562,7 +599,7 @@ function NotificationRow({
       <div className="min-w-0 flex-1">
         <div className="text-[14px] leading-tight text-[var(--text)]">
           {showActorAvatar && actorHref ? (
-            <Link href={actorHref} className="whitespace-nowrap font-semibold hover:underline">
+            <Link href={actorHref} className="relative z-10 whitespace-nowrap font-semibold hover:underline">
               {actorName}
             </Link>
           ) : showActorAvatar ? (
@@ -574,22 +611,18 @@ function NotificationRow({
           )}
         </div>
         {n.card_title && (
-          <Link
-            href={target}
-            className="mt-1 block truncate text-[12.5px] text-[var(--text-muted)] hover:text-[var(--primary)]"
-          >
+          <p className="mt-1 truncate text-[12.5px] text-[var(--text-muted)]">
             ↳ {n.card_title}
-          </Link>
+          </p>
         )}
         <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">{time}</div>
       </div>
-      {/* unread + 선택 모드 아닐 때만 개별 × 버튼 */}
       {unread && !selectMode && (
         <button
           type="button"
-          onClick={onDismiss}
+          onClick={(e) => { e.stopPropagation(); onDismiss(); }}
           aria-label="이 알림 읽음 처리"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] opacity-50 transition hover:bg-white hover:opacity-100"
+          className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] opacity-50 transition hover:bg-white hover:opacity-100"
         >
           ×
         </button>

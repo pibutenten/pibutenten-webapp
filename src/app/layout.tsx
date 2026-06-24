@@ -4,6 +4,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ChromeHeader, ChromeFooter } from "@/components/GlobalChrome";
 import ScrollManager from "@/components/ScrollManager";
+import OfflineBanner from "@/components/OfflineBanner";
+import PageTransition from "@/components/PageTransition";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import EngagementPromptListener from "@/components/EngagementPromptListener";
 import NativeAuthDeepLink from "@/components/NativeAuthDeepLink";
@@ -170,6 +172,8 @@ export default function RootLayout({
             role/avatar/identities 등 리치는 /api/session 으로 비동기 보강. (V-Phase 2026-06-07) */}
         <SessionProvider>
           <ScrollManager />
+          <OfflineBanner />
+          <PageTransition />
           {/* 전역 크롬은 경로별 분기(GlobalChrome): 앱 셸 승격 라우트에선 렌더 안 함(옛 헤더 깜빡임 제거). */}
           <ChromeHeader />
           {/* 하단 pb-20(모바일) — BottomNav 고정 하단 5탭 가림 방지 일괄 처리. 데스크탑(하단탭 없음)은 pb-8. */}

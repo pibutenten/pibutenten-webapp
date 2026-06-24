@@ -9,6 +9,7 @@ import {
   type CSSProperties,
 } from "react";
 import { useRouter } from "next/navigation";
+import { showToast } from "@/lib/toast";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   GENDERS,
@@ -378,7 +379,8 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
         /* ignore — 인앱 sandbox */
       }
       // 온보딩 완료 → 피드 화면 (콘텐츠 보기) — 캐시 확실히 비우기 위해 풀 reload
-      window.location.assign("/");
+      showToast("프로필 설정 완료!");
+      setTimeout(() => window.location.assign("/"), 800);
     });
   }
 

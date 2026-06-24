@@ -55,6 +55,8 @@ export type CardEngagement = {
     /** 공유 완료 시 채널 반환 — 카운트 갱신은 훅 내부 자동 처리. */
     share: () => Promise<void>;
   };
+  /** 더블탭 좋아요 — 인스타 패턴: 이미 좋아요면 애니메이션만, 아니면 좋아요+애니메이션. */
+  handleDoubleTap: () => boolean;
 };
 
 /** localStorage 안전 접근 (인앱 브라우저 sandbox 방어) */
@@ -239,6 +241,14 @@ export function useCardEngagement(
     })();
   }, [card.id, liked, likePending, me, onLoginRequired, onInteraction]);
 
+  // ── 더블탭 좋아요 (인스타 패턴: 이미 좋아요면 애니메이션만) ──
+  const handleDoubleTap = useCallback(() => {
+    if (!liked) {
+      toggleLike();
+    }
+    return true; // 항상 하트 애니메이션 표시
+  }, [liked, toggleLike]);
+
   // ── 저장 토글 ──
   // ⚠️ 모든 경로에서 setSavePending(false)로 풀어야 다음 클릭이 막히지 않음.
   const toggleSave = useCallback(async () => {
@@ -293,6 +303,9 @@ export function useCardEngagement(
         );
       // 저장 토글 성공 = 의도 신호 → view 카운트 (2026-05-20 정책).
       onInteraction?.();
+      // 저장 성공 토스트 (2026-06-25: UX 개선 — 사용자 피드백 보강)
+      const newSaved = row ? row.saved : !wasSaved;
+      showToast(newSaved ? "저장했어요" : "저장 해제");
     } finally {
       // 어떤 경로로 끝나든 무조건 pending 해제 — 다음 클릭 가능
       setSavePending(false);
@@ -341,5 +354,6 @@ export function useCardEngagement(
     like: { active: liked, count: likeCount, pending: likePending, toggle: toggleLike },
     save: { active: saved, count: saveCount, pending: savePending, toggle: toggleSave },
     share: { count: shareCount, share: doShare },
+    handleDoubleTap,
   };
 }

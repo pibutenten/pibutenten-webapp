@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import InAppBrowserNotice from "@/components/InAppBrowserNotice";
+import { toKoreanError } from "@/lib/supabase-errors";
 
 type Props = { next?: string; error?: string; errorId?: string };
 
@@ -37,7 +38,7 @@ export default function LoginForm({ next, error: initialError, errorId }: Props)
         password,
       });
       if (signInErr) {
-        setError(signInErr.message || "로그인 실패");
+        setError(toKoreanError(signInErr.message) || "로그인 실패");
         return;
       }
       // 로그인 후 역할에 따라 리다이렉트 — window.location.assign로 풀 리로드

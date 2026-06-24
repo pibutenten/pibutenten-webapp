@@ -23,6 +23,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
 import { ROLES } from "@/lib/identity-shared";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
@@ -77,6 +78,8 @@ export default function CommentsBlock({
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
   // 비로그인 사용자가 "로그인하고 댓글 남기기" 클릭 시 모달 (이전 페이지 이동 → 모달)
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
+  // 삭제 확인 다이얼로그 대상 댓글 ID (null이면 닫힘)
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
 
   // ── 댓글 fetch
   const reload = useCallback(async () => {
@@ -251,8 +254,11 @@ export default function CommentsBlock({
     return true;
   }
 
-  async function deleteComment(id: number) {
-    if (!confirm("정말 삭제할까요? 답글도 함께 삭제됩니다.")) return;
+  function deleteComment(id: number) {
+    setDeleteTarget(id);
+  }
+
+  async function executeDelete(id: number) {
     const r = await fetch(`/api/comments/${id}`, { method: "DELETE" });
     const j = (await r.json()) as { error?: string; message?: string };
     if (!r.ok) {
@@ -373,6 +379,20 @@ export default function CommentsBlock({
         open={authPromptOpen}
         message="댓글을 남기려면 회원가입이 필요해요"
         onClose={() => setAuthPromptOpen(false)}
+      />
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="댓글 삭제"
+        description="정말 삭제할까요? 답글도 함께 삭제됩니다."
+        confirmLabel="삭제"
+        tone="danger"
+        onConfirm={() => {
+          if (deleteTarget !== null) {
+            void executeDelete(deleteTarget);
+          }
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );

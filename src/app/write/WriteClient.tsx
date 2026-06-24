@@ -220,6 +220,8 @@ export default function WriteClient({
           { tone: "danger" },
         );
         await new Promise((r) => setTimeout(r, 1500));
+      } else if (status === "published") {
+        showToast("글이 올라갔어요!");
       }
       router.push(redirectUrl);
       router.refresh();

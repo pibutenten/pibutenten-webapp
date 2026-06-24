@@ -41,6 +41,7 @@ export default function IdentitySwitcher({
   void _isAdmin;
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -95,6 +96,7 @@ export default function IdentitySwitcher({
       router.push(profileHref);
       return;
     }
+    setSwitchingId(id);
     try {
       const r = await fetch("/api/identity/switch", {
         method: "POST",
@@ -109,12 +111,17 @@ export default function IdentitySwitcher({
         showToast(pickErrorMessage(j, r.status) || "스위치 실패", {
           tone: "danger",
         });
+        setSwitchingId(null);
         return;
       }
-      // 풀 reload — layout의 session 캐시 확실히 비움
-      window.location.assign("/");
+      // 현재 페이지 유지 (admin 전용 경로에서 비-admin 전환 시에만 홈으로)
+      const currentPath = window.location.pathname + window.location.search;
+      const isAdminRoute = currentPath.startsWith("/admin");
+      const dest = isAdminRoute ? "/" : currentPath;
+      window.location.assign(dest);
     } catch {
       showToast("네트워크 오류", { tone: "danger" });
+      setSwitchingId(null);
     }
   }
 
@@ -168,16 +175,21 @@ export default function IdentitySwitcher({
           </div>
           {identities.map((i) => {
             const isActive = i.id === activeId;
+            const isSwitching = switchingId === i.id;
             return (
               <button
                 key={i.id}
                 type="button"
                 onClick={() => switchTo(i.id)}
+                disabled={!!switchingId}
                 className={
                   "flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors " +
                   (isActive
                     ? "bg-[var(--primary-soft)] text-[var(--text)]"
-                    : "text-[var(--text)] hover:bg-[var(--bg-soft)]")
+                    : "text-[var(--text)] hover:bg-[var(--bg-soft)]") +
+                  (switchingId && !isActive && !isSwitching
+                    ? " opacity-50"
+                    : "")
                 }
               >
                 <Avatar src={i.avatarUrl} size={28} />
@@ -202,6 +214,11 @@ export default function IdentitySwitcher({
                     )}
                   </div>
                 </div>
+                {isSwitching && (
+                  <span className="shrink-0 text-[11px] text-[var(--text-muted)]">
+                    전환 중...
+                  </span>
+                )}
               </button>
             );
           })}

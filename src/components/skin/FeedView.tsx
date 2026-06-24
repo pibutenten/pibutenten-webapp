@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import type { CardData } from "@/lib/types/card";
 import type { ProcedureReport } from "@/lib/procedure-report";
 // 카드 삭제 broadcast 이벤트 — 다른 작업자가 카드 ⋮메뉴 삭제 시 emit, 본 피드는 수신만.
@@ -65,6 +66,34 @@ function scrollFeedTop(from: HTMLElement | null) {
   window.scrollTo({ top: 0 });
 }
 
+/* ---------- 스켈레톤 로딩 ---------- */
+function FeedSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="bg-white rounded-2xl p-4 animate-pulse">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-full bg-gray-200" />
+            <div className="flex-1">
+              <div className="h-3.5 w-24 bg-gray-200 rounded" />
+              <div className="h-3 w-16 bg-gray-100 rounded mt-1" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-3.5 w-full bg-gray-200 rounded" />
+            <div className="h-3.5 w-4/5 bg-gray-200 rounded" />
+            <div className="h-3.5 w-3/5 bg-gray-100 rounded" />
+          </div>
+          <div className="flex gap-4 mt-4">
+            <div className="h-3 w-10 bg-gray-100 rounded" />
+            <div className="h-3 w-10 bg-gray-100 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ---------- 클라이언트 루트 ---------- */
 export default function FeedView({
   initialPool,
@@ -94,6 +123,12 @@ export default function FeedView({
   viewerStates?: Record<number, ViewerState>;
 }) {
   const router = useRouter();
+  const { containerRef: ptrRef, pullDistance, refreshing: ptrRefreshing } = usePullToRefresh(
+    async () => {
+      router.refresh();
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  );
   // 운영 FeedList 와 동일 — hotIds 배열을 Set 으로 만들어 카드별 isHot O(1) 판정.
   const hotSet = useMemo(() => new Set(hotIds ?? []), [hotIds]);
   const searchParams = useSearchParams();
@@ -105,6 +140,7 @@ export default function FeedView({
   const [pool, setPool] = useState<CardData[]>(initialPool);
   const [hasMore, setHasMore] = useState(orderedIds.length > initialPool.length);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   // 탭 전환 애니메이션 대상(운영 FeedList contentRef). 리스트 컨테이너의 key remount 와 무관한
   //   안정 래퍼라야 animate 타이밍이 어긋나지 않음 → feedList(키 remount) 바깥에 부착.
@@ -176,6 +212,7 @@ export default function FeedView({
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMoreRef.current || chipRef.current === "review_summary")
       return;
+    setLoadError(false);
     const ids = orderedIdsRef.current;
     const start = cursorRef.current;
     const nextIds = ids.slice(start, start + PAGE);
@@ -207,7 +244,7 @@ export default function FeedView({
       });
       if (cursorRef.current >= ids.length) setHasMore(false);
     } catch {
-      setHasMore(false);
+      setLoadError(true);
     } finally {
       loadingRef.current = false;
       setLoading(false);
@@ -403,6 +440,15 @@ export default function FeedView({
       onSearchChange={setSearchValue}
       onSearchSubmit={submitSearch}
     >
+      <div ref={ptrRef}>
+      {/* Pull-to-refresh 인디케이터 */}
+      {(pullDistance > 0 || ptrRefreshing) && (
+        <div className="flex justify-center py-2" style={{ height: pullDistance > 0 ? pullDistance : undefined }}>
+          <div className={`w-6 h-6 border-2 border-gray-300 border-t-[var(--primary)] rounded-full ${ptrRefreshing ? "animate-spin" : ""}`}
+            style={{ transform: `rotate(${pullDistance * 3}deg)`, opacity: Math.min(pullDistance / 60, 1) }} />
+        </div>
+      )}
+
       {/* 탭 전환 애니메이션 대상(운영 FeedList contentRef) — remount 되지 않는 안정 래퍼.
           이 래퍼를 직접 animate(translateY+fade) 하여 칩 전환 효과를 준다. */}
       <div ref={contentRef}>
@@ -414,7 +460,7 @@ export default function FeedView({
           filteredReports.length === 0 ? (
             <p className={styles.empty}>
               {searchQuery
-                ? `‘${searchQuery}’ 시술 리포트가 없습니다.`
+                ? `’${searchQuery}’ 시술 리포트가 없습니다.`
                 : "아직 집계된 시술 리포트가 없습니다."}
             </p>
           ) : (
@@ -430,11 +476,15 @@ export default function FeedView({
             ))
           )
         ) : filtered.length === 0 && !topReport ? (
-          <p className={styles.empty}>
-            {searchQuery
-              ? `‘${searchQuery}’ 검색 결과가 없습니다.`
-              : "이 카테고리에 표시할 글이 없습니다."}
-          </p>
+          loading && pool.length === 0 ? (
+            <FeedSkeleton />
+          ) : (
+            <p className={styles.empty}>
+              {searchQuery
+                ? `’${searchQuery}’ 검색 결과가 없습니다.`
+                : "이 카테고리에 표시할 글이 없습니다."}
+            </p>
+          )
         ) : (
           <>
             {/* 검색 매칭 리포트 — 결과 맨 위 1장(운영 ProcedureReportCard 재사용).
@@ -463,10 +513,19 @@ export default function FeedView({
       </div>
 
       {/* 무한스크롤 sentinel — 일반·검색 탭에서만(리포트 제외). 풀 소진 시 렌더 안 함. */}
-      {!isReportTab && hasMore && (
+      {!isReportTab && hasMore && !loadError && (
         <div ref={sentinelRef} className={styles.feedSentinel} aria-hidden="true" />
       )}
-      {loading && <p className={styles.empty}>불러오는 중…</p>}
+      {loading && pool.length > 0 && <FeedSkeleton count={1} />}
+      {loadError && (
+        <div className="flex justify-center py-6">
+          <button onClick={() => { setLoadError(false); loadMore(); }}
+            className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm">
+            불러오기 실패 · 다시 시도
+          </button>
+        </div>
+      )}
+      </div>
     </AppShell>
   );
 }

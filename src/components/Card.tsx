@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -35,6 +36,7 @@ import CardMedia from "@/components/card/CardMedia";
 import CardBody from "@/components/card/CardBody";
 import ReviewSummary from "@/components/card/ReviewSummary";
 import CardActions from "@/components/card/CardActions";
+import HeartOverlay from "@/components/card/HeartOverlay";
 import Keywords from "@/components/card/CardKeywords";
 
 // CardData 타입은 @/lib/types/card 로 외부화 — 기존 `from "@/components/Card"` import 경로는
@@ -127,6 +129,20 @@ export default function Card({
   const router = useRouter();
   const doctor = card.doctor;
   const isPick = PICK_IDS.has(card.id);
+
+  // ── 더블탭 좋아요 하트 오버레이 (2026-06-25 UX 개선) ──
+  const [showHeart, setShowHeart] = useState(false);
+  const lastTap = useRef(0);
+  const handleBodyTap = useCallback((e: React.TouchEvent) => {
+    const t = e.target as HTMLElement;
+    if (t.closest("a, button, [role='button'], input, textarea, select")) return;
+    const now = Date.now();
+    if (now - lastTap.current < 300) {
+      eng.handleDoubleTap();
+      setShowHeart(true);
+    }
+    lastTap.current = now;
+  }, [eng]);
 
   // 노출/조회/dwell observer — useCardViewer 훅으로 통합됨 (Phase 4-4).
   // 좋아요/저장/공유 — useCardEngagement 훅으로 통합됨 (Phase 4-3).
@@ -304,6 +320,9 @@ export default function Card({
             onHideClick={performHide}
           />
 
+      {/* 더블탭 좋아요 영역 — CardBody + CardMedia 를 감싸서 더블클릭 시 하트 오버레이 표시.
+           CardBody 내부 onClick(펼침/접기) 은 그대로 동작 — 단일 클릭은 lastTap 간격 ≥300ms. */}
+      <div className="relative" onTouchEnd={handleBodyTap}>
           <CardBody
             card={card}
             activeQuery={activeQuery}
@@ -330,13 +349,15 @@ export default function Card({
               setExpanded((v) => !v);
             }}
           />
-      <CardMedia
-        card={card}
-        onWatchClick={() => {
-          recordView();
-          addEngagement("video-click");
-        }}
-      />
+        <CardMedia
+          card={card}
+          onWatchClick={() => {
+            recordView();
+            addEngagement("video-click");
+          }}
+        />
+        {showHeart && <HeartOverlay onDone={() => setShowHeart(false)} />}
+      </div>
 
       {/* 태그 칩 — 사용자 키워드 + 자동 카테고리 칩(맨 끝).
           v5.2: 카테고리 라벨(끄적끄적/피부일기/피부꿀팁/궁금해요/소식공유/Q&A) 을

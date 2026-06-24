@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ROLES } from "@/lib/identity-shared";
 import { TERMS_VERSION, PRIVACY_VERSION } from "@/lib/consent-versions";
+import { toKoreanError } from "@/lib/supabase-errors";
+import { showToast } from "@/lib/toast";
 
 type Props = {
   initialDisplayName: string;
@@ -95,7 +97,7 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
         .eq("id", user.id);
 
       if (updErr) {
-        setError(updErr.message || "가입 정보 저장 실패");
+        setError(toKoreanError(updErr.message) || "가입 정보 저장 실패");
         return;
       }
 
@@ -122,7 +124,8 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
         } catch {
           /* ignore */
         }
-        window.location.assign("/onboarding");
+        showToast("가입을 환영합니다!");
+        setTimeout(() => window.location.assign("/onboarding"), 800);
         return;
       }
 
@@ -132,7 +135,8 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
           : role === ROLES.DOCTOR
             ? "/settings"
             : next || "/";
-      window.location.assign(dest);
+      showToast("가입을 환영합니다!");
+      setTimeout(() => window.location.assign(dest), 800);
     });
   }
 
