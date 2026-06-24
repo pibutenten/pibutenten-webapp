@@ -26,11 +26,10 @@
 
 ## [2026-06-24] — 헤더/칩바 스크롤 동기화 (행 사이 틈 비침 해소)
 
-> 모바일에서 스크롤 시 헤더(상단 1열)와 칩바(2열)가 **다른 렌더 경로**로 움직여(헤더 `transform`=GPU 합성 / 칩바 `top`=레이아웃 리플로우) 이동 속도가 어긋났고, 그 사이로 피드가 비쳤다(원장 리포트 — OS 상태바 침범과는 별개 문제). 두 행을 같은 합성 파이프라인으로 통일.
+> 모바일에서 스크롤 시 헤더(상단 1열)와 칩바(2열)가 **다른 거리·다른 렌더 경로**로 움직여 속도가 어긋나고 그 사이로 피드가 비쳤다(원장 리포트 — OS 상태바 침범과는 별개). 두 바를 한 덩어리처럼 같은 거리·타이밍으로 동기 이동시켜 해결.
 
 ### Fixed
-- **`src/components/skin/app.module.css`** `.chipBar`/`.chipBarUp`: ① 칩바 숨김을 `top`(56px+--sat → --sat) 애니메이션 → `transform: translateY(-56px)`(GPU)로 교체(`transition`도 `transform 0.28s` + `will-change`). 헤더의 `.headerHidden`(translateY)와 동일 파이프라인·타이밍으로 동기 이동 — **렌더 경로 속도차** 제거.
-  - ② (보강) 헤더는 `translateY(-100%)`=자기 높이(내용+`--sat`)만큼, 칩바는 56px 만큼 이동 → 실기기(`--sat`>0)에선 헤더가 `--sat` 만큼 **over-travel** 해 두 행 사이가 그만큼 벌어지는 **거리 차 틈**이 남았다(웹은 `--sat`=0이라 안 보임). `.chipBar::before`(높이 140px, `#e9f4fc`, `bottom:100%`)로 칩바 위에 배경을 길게 깔아 — 평상시엔 헤더(z-40) 뒤에 완전히 가려졌다가 전환 중 헤더가 올라가 드러나는 그 틈을 **항상 브랜드 배경으로 덮는다**(원인 무관, 피드 비침 0). `--sat=47` 시뮬레이션으로 틈(47px)이 `::before`+`.root::before` 필러로 덮임을 확인.
+- **헤더·칩바 동기 이동**(`src/components/skin/app.module.css` `.headerHidden`/`.chipBar`/`.chipBarUp`): 헤더 숨김을 `translateY(-100%)`(=내용+`--sat`, 실기기서 `--sat`만큼 over-travel) → 칩바와 **동일한 `translateY(-56px)`**, 칩바 숨김도 `top` 애니메이션(리플로우) → `transform: translateY(-56px)`. 둘 다 `transition: transform 0.28s` 라 **같은 거리·같은 타이밍으로 함께(한 덩어리처럼) 이동** → 속도 어긋남·틈 원천 제거. 멈춤 시 칩바는 `--sat`(상태바 바로 아래) 정위치, 헤더는 위로 가려짐(하단 6px 잔류는 헤더 배경색이라 비가시). `--sat=47` 시뮬레이션으로 두 바 gap 0·동일 transform(-56) 확인. (개발 중 거쳐간 단독 transform·`::before` 틈가림은 동기 이동으로 불필요해져 제거.)
 
 ---
 

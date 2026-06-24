@@ -204,7 +204,14 @@
   will-change: transform;
 }
 .headerHidden {
-  transform: translateY(-100%);
+  /* 헤더+칩바를 한 덩어리처럼 '같은 거리·같은 타이밍'으로 움직여 속도 어긋남·틈을 원천 제거.
+     -100%(=내용+--sat)가 아니라 헤더 높이(62px, --sat 제외)만큼만 이동 → 헤더 하단이 정확히 --sat
+     (상태바 라인)에서 멈춰 헤더 내용은 상태바 필러(.root::before) 뒤로 완전히 가려지고, 칩바는 그 아래
+     맨 위(--sat)에 정위치. 칩바도 동일하게 -62px(.chipBarUp) → 둘이 픽셀단위로 함께 움직인다.
+     이동량 56px = 칩바가 헤더에 붙는 위치(.chipBar top)와 동일 → 칩바도 -56px(.chipBarUp)로 같이 이동.
+     (헤더 높이 62보다 6px 작아 헤더 하단 6px 이 상태바 아래 잔류하나, 헤더 배경색이라 보이지 않음.
+      이 6px 으로 칩바를 헤더에 더 바짝 붙여 두 바 간격을 좁게 유지.) */
+  transform: translateY(-56px);
 }
 
 /* 피드백 1) 모바일 검색 모드 — 헤더 "안"이 검색 input 으로 전환된 행.
@@ -538,16 +545,14 @@
  *   캔버스 틴트 배경(좌우 풀블리드)으로 아래 피드가 비치지 않게. */
 .chipBar {
   position: sticky;
-  /* 헤더(sticky top:0, 높이 ~56px) 바로 아래 고정. 헤더 숨김(모바일) 시
-     chipBarUp 으로 top:--sat 끌어올려 빈 공간 없이 상태바 바로 아래 고정.
-     헤더 높이 56px 에 상태바(--sat)를 더해 헤더와 어긋나지 않게 한다. */
+  /* 헤더(sticky top:0) 아래에 바짝 붙여 고정(56px + 상태바 --sat — 헤더에 6px 겹쳐 간격 최소).
+     헤더 숨김 시 .chipBarUp 으로 헤더와 '똑같이' -56px 이동 → 둘이 같은 속도로 함께 움직여
+     어긋나거나 벌어지지 않는다(한 덩어리처럼). */
   top: calc(56px + var(--sat));
   z-index: 30;
   margin: 0 -18px;
   padding: 0 18px;
-  /* ⚠ 헤더(.header)는 transform(GPU 합성)으로 숨고, 칩바가 top(레이아웃 리플로우)으로 움직이면
-     두 행의 이동 파이프라인·속도가 어긋나 그 사이로 피드가 비친다(원장 리포트).
-     → 칩바도 헤더와 동일하게 transform 으로 끌어올려 같은 합성 타임라인에서 동기 이동. */
+  /* 헤더(.headerHidden)와 동일한 transform·동일 타이밍(0.28s)으로 동기 이동(GPU 합성). */
   transition: transform 0.28s ease;
   will-change: transform;
   background: linear-gradient(
@@ -558,24 +563,10 @@
   );
 }
 .chipBarUp {
-  /* 헤더 숨김 시 헤더 높이(56px)만큼 위로 — top 변경 대신 transform 으로(헤더와 동기).
-     resting top(56px+--sat) - 56px = --sat 와 동일한 최종 위치(상태바 바로 아래). */
+  /* 헤더와 '같은 거리(-56px)·같은 타이밍'으로 이동 → 한 몸처럼 함께 올라감.
+     resting top(56px+--sat) - 56px = --sat → 칩바가 상태바 바로 아래 맨 위에 정위치.
+     (헤더와 이동량이 동일하므로 두 바 사이 틈이 구조적으로 발생하지 않음 — 옛 ::before 틈가림 불필요·제거.) */
   transform: translateY(-56px);
-}
-/* 헤더 숨김/복귀 전환 중 두 행 사이 '틈' 메우개.
-   헤더는 translateY(-100%)=자기 높이(내용+--sat)만큼, 칩바는 56px 만큼 이동한다. 실기기(--sat>0)에선
-   헤더가 --sat 만큼 더 이동(over-travel)해 그 차이가 순간적으로 틈으로 벌어지고 그 사이로 피드가 비쳤다.
-   칩바 상단 위로 배경색(칩바 top 색)을 길게 깔아, 평상시엔 헤더(z-40) 뒤에 완전히 가려졌다가
-   전환 중 헤더가 올라가 드러나는 틈을 항상 브랜드 배경으로 덮는다(원인과 무관하게 틈 비침 차단). */
-.chipBar::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
-  height: 140px;
-  background: #e9f4fc;
-  pointer-events: none;
 }
 .chipRow {
   display: flex;
