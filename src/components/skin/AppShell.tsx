@@ -418,6 +418,51 @@ export default function AppShell({
     return () => el.removeEventListener("scroll", onScroll);
   }, [searchOpen, suggestOpen]);
 
+  // 헤더 우측 액션(알림 벨 + 아바타/로그인) — 검색 모드·기본 모드가 '한 벌'을 공유한다.
+  //   원장 결정 2026-06-24: 검색창을 누더기로 만들지 않는다. 검색 입력을 열어도 우측 알림·아바타는
+  //   그대로 두고, 검색창은 그 앞 공간(flex)에서만 열린다 → 검색 입력 모드와 검색 결과 모드의
+  //   헤더 레이아웃이 [검색창][알림][아바타] 로 동일해진다(한 검색창을 여러 상황에서 재사용).
+  const headerActions = (
+    <>
+      {/* 작업 B) 알림 벨 → 운영 /notifications 로 이동 + 미읽음 카운트 배지.
+          미읽음 조회는 운영 NotificationsBell 과 동일 경로(/api/notifications). */}
+      <Link
+        className={`${styles.iconBtn} ${styles.iconBtnBell} ${styles.bellWrap}`}
+        aria-label={unread > 0 ? `알림 (미확인 ${unread}개)` : "알림"}
+        href="/notifications"
+      >
+        <IconBell />
+        {isLoggedIn && unread > 0 && (
+          <span className={styles.bellBadge} aria-hidden>
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
+      </Link>
+
+      {/* 작업 C) 로그인 상태 → 마이(아바타), 비로그인 → 로그인.
+          session 존재로 판정(쿠키 동기). 첫 페인트(!mounted)만 둘 다 숨겨
+          하이드레이션 직후 1회성 비로그인 플래시 방지(라우팅마다 재발 X). */}
+      {mounted && isLoggedIn && (
+        <Link className={styles.iconBtn} aria-label="마이" href={ROUTES.my}>
+          {/* 항목 3) 로그인 시 active 명함 아바타(동그라미). 사진 없으면 기본 아이콘. */}
+          {activeAvatar ? (
+            <span className={styles.headerAvatar}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={activeAvatar} alt="" />
+            </span>
+          ) : (
+            <IconUser />
+          )}
+        </Link>
+      )}
+      {mounted && !isLoggedIn && (
+        <Link className={styles.btnLoginTop} href="/login">
+          로그인
+        </Link>
+      )}
+    </>
+  );
+
   return (
     <div
       className={`${styles.root} ${wide && !keepCanvas ? styles.rootWide : ""}`}
@@ -473,6 +518,9 @@ export default function AppShell({
               </button>
               {/* 모바일 발견 화면은 헤더 아래 풀스크린 패널(mobileSearchPanel)이 담당 — 인라인 드롭다운 미사용. */}
             </div>
+            {/* 검색 입력 모드에서도 우측 알림·아바타는 그대로 — 검색창(flex:1)은 그 앞 공간만 차지한다
+                (풀폭·우측끝까지 X). 결과 모드와 동일한 [검색창][알림][아바타] 레이아웃, 원장 결정 2026-06-24. */}
+            {headerActions}
           </div>
         ) : (
           <div
@@ -602,50 +650,8 @@ export default function AppShell({
                 <IconSearch />
               </button>
             )}
-            {/* 작업 B) 알림 벨 → 운영 /notifications 로 이동 + 미읽음 카운트 배지.
-                미읽음 조회는 운영 NotificationsBell 과 동일 경로(/api/notifications). */}
-            <Link
-              className={`${styles.iconBtn} ${styles.iconBtnBell} ${styles.bellWrap}`}
-              aria-label={unread > 0 ? `알림 (미확인 ${unread}개)` : "알림"}
-              href="/notifications"
-            >
-              <IconBell />
-              {isLoggedIn && unread > 0 && (
-                <span
-                  className={styles.bellBadge}
-                  aria-hidden
-                >
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              )}
-            </Link>
-
-            {/* 작업 C) 로그인 상태 → 마이(아바타), 비로그인 → 로그인.
-                session 존재로 판정(쿠키 동기). 첫 페인트(!mounted)만 둘 다 숨겨
-                하이드레이션 직후 1회성 비로그인 플래시 방지(라우팅마다 재발 X). */}
-            {mounted && isLoggedIn && (
-              <Link
-                className={styles.iconBtn}
-                aria-label="마이"
-                href={ROUTES.my}
-              >
-                {/* 항목 3) 로그인 시 active 명함 아바타(동그라미). 사진 없으면 기본 아이콘.
-                    운영 BottomNav 와 동일한 표시(objectPosition·scale). */}
-                {activeAvatar ? (
-                  <span className={styles.headerAvatar}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={activeAvatar} alt="" />
-                  </span>
-                ) : (
-                  <IconUser />
-                )}
-              </Link>
-            )}
-            {mounted && !isLoggedIn && (
-              <Link className={styles.btnLoginTop} href="/login">
-                로그인
-              </Link>
-            )}
+            {/* 우측 액션(알림 벨 + 아바타/로그인) — 검색 모드와 공유하는 한 벌(headerActions). */}
+            {headerActions}
           </div>
         )}
       </header>
