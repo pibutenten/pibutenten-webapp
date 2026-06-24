@@ -545,7 +545,11 @@
   z-index: 30;
   margin: 0 -18px;
   padding: 0 18px;
-  transition: top 0.28s ease;
+  /* ⚠ 헤더(.header)는 transform(GPU 합성)으로 숨고, 칩바가 top(레이아웃 리플로우)으로 움직이면
+     두 행의 이동 파이프라인·속도가 어긋나 그 사이로 피드가 비친다(원장 리포트).
+     → 칩바도 헤더와 동일하게 transform 으로 끌어올려 같은 합성 타임라인에서 동기 이동. */
+  transition: transform 0.28s ease;
+  will-change: transform;
   background: linear-gradient(
     180deg,
     #e9f4fc 0%,
@@ -554,8 +558,9 @@
   );
 }
 .chipBarUp {
-  /* 헤더 숨김 시 상태바 바로 아래로 끌어올림(뷰포트 0 이 아니라 --sat). */
-  top: var(--sat);
+  /* 헤더 숨김 시 헤더 높이(56px)만큼 위로 — top 변경 대신 transform 으로(헤더와 동기).
+     resting top(56px+--sat) - 56px = --sat 와 동일한 최종 위치(상태바 바로 아래). */
+  transform: translateY(-56px);
 }
 .chipRow {
   display: flex;
