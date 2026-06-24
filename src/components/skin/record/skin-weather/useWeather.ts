@@ -110,10 +110,17 @@ function writeCache(key: string, snap: WeatherSnapshot) {
   }
 }
 
-/** 좌표 → 한국어 동(행정동) 단위 지명. 무료·키 불필요 BigDataCloud reverse-geocode-client.
- *   administrative 배열에서 동/읍/면으로 끝나는 가장 세부 항목 우선, 없으면 locality/city.
+/** 좌표 → 한국어 지명. 무료·키 불필요 BigDataCloud reverse-geocode-client.
+ *   - coarse=false(정밀 GPS): 동/읍/면 단위(administrative 배열 뒤쪽부터 동/읍/면 매칭), 없으면 locality/city.
+ *   - coarse=true(IP 대략위치): 시/도 단위만(동·구는 IP 로 부정확하므로 의도적으로 안 내려감).
+ *       principalSubdivision("서울특별시"→"서울", "부산광역시"→"부산") 우선, 없으면 city/locality.
  *   실패 시 null → 호출부에서 "내 위치" 폴백. */
-async function reverseGeocodeKo(lat: number, lon: number, signal?: AbortSignal): Promise<string | null> {
+async function reverseGeocodeKo(
+  lat: number,
+  lon: number,
+  signal?: AbortSignal,
+  coarse = false,
+): Promise<string | null> {
   try {
     const r = await fetch(
       `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ko`,
@@ -122,8 +129,14 @@ async function reverseGeocodeKo(lat: number, lon: number, signal?: AbortSignal):
     const j = (await r.json()) as {
       locality?: string;
       city?: string;
+      principalSubdivision?: string;
       localityInfo?: { administrative?: { name?: string }[] };
     };
+    if (coarse) {
+      // IP 대략위치 — 시/도 단위로만(동·구는 IP 로 부정확해 틀린 동네를 보여주지 않기 위함).
+      const sido = (j.principalSubdivision || j.city || j.locality || "").trim();
+      return sido ? sido.replace(/(특별시|광역시|특별자치시)$/, "") : null;
+    }
     const admin = j.localityInfo?.administrative;
     if (Array.isArray(admin)) {
       // 세부(배열 뒤쪽)부터 동/읍/면으로 끝나는 이름 탐색.
@@ -214,11 +227,12 @@ export function useWeather(
     //   device-geo 성공과 IP 폴백이 동일 로직(run + reverseGeocodeKo + geoName/캐시 이름 동기화)을
     //   쓰므로 중복을 여기로 추출(DRY). name 은 항상 MY_LOC placeholder 로 시작하고, 역지오코딩이
     //   도착하면 실제 동/시 이름으로 갱신한다(IP city 는 영문이라 한국어 동 이름을 우선).
-    const useCoords = (lat: number, lon: number, precise: boolean) => {
+    //   coarse=true(IP 폴백)면 시 단위 이름만 표시(동·구는 IP 로 부정확). false(GPS)면 동까지.
+    const useCoords = (lat: number, lon: number, precise: boolean, coarse = false) => {
       // 날씨는 좌표만 있으면 되므로 즉시 fetch — 지명(역지오코딩)을 기다리지 않아 첫 표시 지연 단축.
       run(lat, lon, MY_LOC, precise);
-      // 동 단위 지명은 병렬로 받아 도착 시 '이름만' 갱신(+캐시 이름 동기화). 실패하면 "내 위치" 유지.
-      reverseGeocodeKo(lat, lon, ac.signal).then((name) => {
+      // 지명은 병렬로 받아 도착 시 '이름만' 갱신(+캐시 이름 동기화). 실패하면 "내 위치" 유지.
+      reverseGeocodeKo(lat, lon, ac.signal, coarse).then((name) => {
         if (!mounted || !name) return;
         geoName = name; // 측위 fetch 가 아직이면 run 의 then 에서 이 이름으로 덮어쓰도록 보관.
         setSnap((prev) => (prev ? { ...prev, name } : prev));
@@ -261,9 +275,9 @@ export function useWeather(
             const lat = Number(j?.lat);
             const lon = Number(j?.lon);
             if (Number.isFinite(lat) && Number.isFinite(lon)) {
-              // 대략위치 표시. seed 가 없으면 정밀(true)로 확정해 스켈레톤 종료, 있으면 필러(false)로
-              //   보내 더 정밀한 seed 를 덮어쓰지 않음(preciseShown 잠금).
-              useCoords(lat, lon, !lastSeed);
+              // 대략위치 표시(coarse=true → 시 단위 이름만, 동·구 안 내려감). seed 없으면 정밀(true)로
+              //   확정해 스켈레톤 종료, 있으면 필러(false)로 보내 더 정밀한 seed 를 덮어쓰지 않음.
+              useCoords(lat, lon, !lastSeed, true);
             } else {
               throw new Error("iploc invalid coords");
             }
