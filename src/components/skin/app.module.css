@@ -468,7 +468,9 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 14px;
+  /* 16px 미만이면 iOS 가 포커스 시 화면을 자동 확대(zoom)해 placeholder·타이핑 글씨가 커 보이고
+     포커스 해제(결과) 시 작아 보인다 → 16px 로 고정해 확대 차단 + 크기 일정. */
+  font-size: 16px;
   color: var(--ink-900);
 }
 .headerSearchInline input::placeholder {
@@ -498,7 +500,8 @@
   flex: 1;
   min-width: 0;
   text-align: left;
-  font-size: 14px;
+  /* 검색 입력창(16px)과 동일하게 — 입력 ↔ 결과 검색어 글씨 크기 일치. */
+  font-size: 16px;
   color: var(--ink-900);
   white-space: nowrap;
   overflow: hidden;

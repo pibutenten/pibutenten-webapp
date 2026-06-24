@@ -431,21 +431,7 @@ export default function AppShell({
             (데스크탑은 iconBtnSearch 가 display:none → 이 모드 진입 불가, 항상 기본 레이아웃.) */}
         {searchEnabled && searchOpen ? (
           <div className={`${styles.headerInner} ${styles.headerInnerSearch}`}>
-            <button
-              type="button"
-              className={`${styles.iconBtn} ${styles.iconBtnSearch}`}
-              aria-label="검색 닫기"
-              onClick={() => {
-                setSearchOpen(false);
-                setSuggestOpen(false);
-              }}
-            >
-              {/* 뒤로(←) */}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M19 12H5" />
-                <path d="m12 19-7-7 7-7" />
-              </svg>
-            </button>
+            {/* ← 뒤로 버튼 폐지 — 검색창은 X 로만 닫는다(검색 입력/결과 두 상태의 검색창 모양 통일, 원장 결정 2026-06-24). */}
             <div
               className={`${styles.headerSearch} ${styles.headerSearchLive} ${styles.headerSearchInline}`}
               ref={searchWrapRef}
@@ -471,17 +457,19 @@ export default function AppShell({
                 aria-label="검색어 입력"
                 autoFocus
               />
-              {/* 입력 초안 지우기 — 검색은 닫지 않고 초안만 비워 발견 메뉴로 되돌림(완전 종료는 ← 뒤로). */}
-              {draft && (
-                <button
-                  type="button"
-                  className={styles.searchClear}
-                  aria-label="검색어 지우기"
-                  onClick={() => setDraft("")}
-                >
-                  ✕
-                </button>
-              )}
+              {/* ✕ — 입력을 비우고 검색을 닫는다(← 뒤로 버튼 대체, 항상 노출 → 입력이 비어도 닫을 수 있음). */}
+              <button
+                type="button"
+                className={styles.searchClear}
+                aria-label="검색 닫기"
+                onClick={() => {
+                  setDraft("");
+                  setSearchOpen(false);
+                  setSuggestOpen(false);
+                }}
+              >
+                ✕
+              </button>
               {/* 모바일 발견 화면은 헤더 아래 풀스크린 패널(mobileSearchPanel)이 담당 — 인라인 드롭다운 미사용. */}
             </div>
           </div>
