@@ -6,6 +6,25 @@
 
 ---
 
+## [2026-06-25] — 네이티브 측위(피부날씨 '앱은 항상 대치동') 근본 수정
+
+> 피부날씨 위치가 **앱(네이티브)에서만 항상 대치동**으로 표시(웹/PWA 는 정상). 원인은 앱이 원격 URL(`https://pibutenten.kr`)을 WebView 로 로드하는 구조인데 ① `@capacitor/geolocation` 플러그인 미설치 + ② iOS `Info.plist` `NSLocation*` 키 없음 / Android `AndroidManifest` 위치 권한 없음(INTERNET 만) → WebView 측위가 OS 권한·브리지 없이 즉시 실패 → 대치동 폴백 잔존. (2026-06-24 의 '웹·앱 전원 대치동'(ADR 0021, 프록시 환원) 과는 별개 원인 — 그 환원 이후에도 앱에만 남아 있던 결손.)
+
+### Added
+- **`@capacitor/geolocation@8.2.0`** 설치(Capacitor 8.x 정합) — 네이티브 WebView 측위용.
+- **iOS** `ios/App/App/Info.plist`: `NSLocationWhenInUseUsageDescription`("내 주변 날씨와 피부 정보를 보여드리기 위해 위치를 사용합니다.") 추가.
+- **Android** `android/app/src/main/AndroidManifest.xml`: `ACCESS_COARSE_LOCATION` `<uses-permission>` 추가(동 단위 날씨엔 coarse 로 충분, FINE 은 미사용이라 미선언 — 최소 권한·Play '정밀 위치' 심사 단순화).
+- **관측성**(`useWeather.ts`): 대치동 폴백 시 '왜'(geolocation 에러코드 vs 날씨 fetch 실패)를 `console.warn` 한 줄로 분리 기록. UI·외부 전송 없음.
+
+### Changed
+- **`useWeather.ts` 측위 호출부 플랫폼 분기**(`acquirePosition()`): 네이티브면 `@capacitor/geolocation`(checkPermissions/requestPermissions + getCurrentPosition), 웹이면 기존 `navigator.geolocation`. **동적 import + 네이티브 가드**(`NativeStatusBar` 패턴 모방)로 웹 번들에 플러그인 미포함·웹 빌드 무영향, 미설치/로드 실패 시 자동 웹 폴백. 성공/실패 후 동작(run precise=true / 대치동 폴백)·옵션(enableHighAccuracy:false·timeout 4s·maximumAge 60분)은 기존 의미 유지.
+- **웹 seed 굳히기 수정 유지**(`useWeather.ts` `writeCache`, 2026-06-25): 대치동 필러·"내 위치" placeholder 를 `LAST_KEY` seed 로 저장하지 않아 재방문 대치동 고착 방지(실제 동 이름이 도착한 정밀 결과만 seed).
+
+### 재심사 필요 (스토어)
+- 위 권한 선언·플러그인은 **네이티브 바이너리**에 들어가므로 **새 앱 빌드 + 스토어 재심사 필요**(웹 배포만으로는 반영 안 됨). `STORE_SUBMISSION_LOG.md` 참조. → ADR [0022](decisions/0022-native-webview-geolocation-permissions.md).
+
+---
+
 ## [2026-06-24] — 🚨 INCIDENT: 날씨 위치 '전원 대치동' 장애 + 프록시 되돌림
 
 > **증상**: 2026-06-24 종일, 서울 사용자 다수 제보 — 피부날씨 위치가 모두 대치동(기본값)으로 표시(웹·PWA·앱 공통). 측위(geolocation)는 되는데 사용자 좌표 날씨를 못 받아 기본값 폴백이 잔존.

@@ -24,6 +24,58 @@ const coordKey = (lat: number, lon: number) => `pbtt-weather2:${lat.toFixed(2)}:
 //   동 이름 대신 계속 "내 위치"를 보여주던 회귀 방지.
 const MY_LOC = "내 위치";
 
+// 측위 옵션(웹·네이티브 공통 의미). 첫 표시 지연을 줄이려:
+//   - enableHighAccuracy:false (GPS 대신 빠른 네트워크 측위).
+//   - maximumAge 를 넓혀(60분) OS 캐시 좌표를 측위 없이 즉시 반환.
+//   - timeout 단축(4s): 무응답·차단 시 빠르게 대치동 폴백.
+const GEO_OPTS = { enableHighAccuracy: false, timeout: 4000, maximumAge: 60 * 60 * 1000 } as const;
+
+/**
+ * 좌표 획득 — 플랫폼 분기.
+ *   네이티브(Capacitor): `@capacitor/geolocation`(권한 체크·요청 + getCurrentPosition).
+ *     원격 URL(https://pibutenten.kr)을 로드하는 WebView 는 OS 권한을 줘도 네이티브 권한 선언
+ *     (iOS Info.plist NSLocation* · Android Manifest ACCESS_*_LOCATION)이 없으면 측위가 실패한다.
+ *     그래서 웹의 navigator.geolocation 대신 네이티브 플러그인 경로가 필요하다(ADR 0022).
+ *   웹/PWA: 기존 navigator.geolocation 그대로.
+ * 동적 import + 네이티브 가드(NativeStatusBar 패턴 모방) — 웹 번들에 @capacitor/geolocation 미포함,
+ *   플러그인 미설치·로드 실패 시 자동으로 웹 경로로 폴백(no-op 안전).
+ * 실패 시 throw → 호출부에서 console.warn(관측성) 후 대치동 폴백.
+ */
+async function acquirePosition(): Promise<{ latitude: number; longitude: number }> {
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    if (Capacitor.isNativePlatform()) {
+      const { Geolocation } = await import("@capacitor/geolocation");
+      // 권한 미결정이면 1회 요청(이미 거부면 그대로 거부 반환 → catch 로 폴백).
+      let perm = await Geolocation.checkPermissions();
+      if (perm.location !== "granted" && perm.coarseLocation !== "granted") {
+        perm = await Geolocation.requestPermissions({ permissions: ["location", "coarseLocation"] });
+      }
+      if (perm.location !== "granted" && perm.coarseLocation !== "granted") {
+        throw new Error(`native permission ${perm.location}/${perm.coarseLocation}`);
+      }
+      const p = await Geolocation.getCurrentPosition(GEO_OPTS);
+      return { latitude: p.coords.latitude, longitude: p.coords.longitude };
+    }
+  } catch (e) {
+    // @capacitor 미존재(웹) → 아래 navigator 경로로. 네이티브에서 실패면 그대로 throw.
+    const { Capacitor } = await import("@capacitor/core").catch(() => ({ Capacitor: { isNativePlatform: () => false } }));
+    if (Capacitor.isNativePlatform()) throw e;
+  }
+  // 웹/PWA — 기존 동작 유지.
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      reject(new Error("geolocation unsupported"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+      (err) => reject(err),
+      GEO_OPTS,
+    );
+  });
+}
+
 function reviveHours(snap: WeatherSnapshot): WeatherSnapshot {
   return { ...snap, hours: snap.hours.map((h) => ({ ...h, t: new Date(h.t) })) };
 }
@@ -43,10 +95,16 @@ function writeCache(key: string, snap: WeatherSnapshot) {
     const payload = JSON.stringify({ ts: Date.now(), snap });
     // localStorage 로 기록 → 새 세션·새 탭에서도 last seed 를 재사용해 첫 표시 지연 제거.
     localStorage.setItem(key, payload);
-    // placeholder("내 위치")는 seed 로 굳히지 않음 — 역지오코딩 실패·지연 시 LAST_KEY 에 영구
-    //   잔존해 상세 페이지가 동 이름 대신 "내 위치"를 계속 보여주던 회귀 방지. 실제 동 이름이
-    //   도착하면 그때 LAST_KEY 갱신(아래 reverseGeocodeKo 콜백) → 다음 방문부터 동 이름 즉시 표시.
-    if (snap.name !== MY_LOC) localStorage.setItem(LAST_KEY, payload); // 상세 페이지·다음 방문 즉시 표시용
+    // placeholder("내 위치")와 기본값(대치동) 둘 다 seed 로 굳히지 않는다 — 실제 사용자 위치만 LAST_KEY 에.
+    //   "내 위치": 역지오코딩 실패·지연 시 LAST_KEY 에 영구 잔존해 상세 페이지가 동 이름 대신 계속
+    //     "내 위치"를 보여주던 회귀 방지.
+    //   "대치동"(DEFAULT_LOC.name, 2026-06-25 추가): 첫 화면용 대치동 필러가 성공하면 그 대치동이
+    //     LAST_KEY 에 저장돼, 이후 재방문이 매번 대치동을 먼저 띄우고 정밀 fetch 가 한 번이라도
+    //     실패하면 대치동이 영구 고착됐다('전원 대치동' 잔존의 한 축). 필러는 seed 로 굳히지 않는다.
+    //   실제 동 이름이 도착한 정밀 결과만 seed → 정밀 fetch 가 실패해도 마지막 *실제* 위치가 남는다.
+    if (snap.name !== MY_LOC && snap.name !== DEFAULT_LOC.name) {
+      localStorage.setItem(LAST_KEY, payload); // 상세 페이지·다음 방문 즉시 표시용 (실제 위치만)
+    }
   } catch {
     /* 용량 초과 등 무시 */
   }
@@ -139,7 +197,11 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
         .catch((e: unknown) => {
           if (!mounted || ac.signal.aborted) return;
           // 필러 실패는 무시(측위 결과를 기다림). 정밀 fetch 실패만 에러로 노출.
-          if (precise) setErr(e instanceof Error ? e.message : "날씨 정보를 불러오지 못했어요");
+          if (precise) {
+            // 관측성: 측위는 됐으나 Open-Meteo fetch 가 실패한 경우(위 측위 실패와 구분).
+            console.warn("[weather] 날씨 fetch 실패(측위는 성공):", e instanceof Error ? e.message : e);
+            setErr(e instanceof Error ? e.message : "날씨 정보를 불러오지 못했어요");
+          }
         });
     };
 
@@ -151,36 +213,32 @@ export function useWeather(preferLast = false): { snap: WeatherSnapshot | null; 
     else run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, false);
 
     // 2단(백그라운드): 측위 → 사용자 위치 정밀 결과로 덮어쓰기.
-    if (typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (p) => {
-          const { latitude, longitude } = p.coords;
-          // 날씨는 좌표만 있으면 되므로 즉시 fetch — 지명(역지오코딩)을 기다리지 않아 첫 표시 지연 단축.
-          run(latitude, longitude, MY_LOC, true);
-          // 동 단위 지명은 병렬로 받아 도착 시 '이름만' 갱신(+캐시 이름 동기화). 실패하면 "내 위치" 유지.
-          reverseGeocodeKo(latitude, longitude, ac.signal).then((name) => {
-            if (!mounted || !name) return;
-            geoName = name; // 측위 fetch 가 아직이면 run 의 then 에서 이 이름으로 덮어쓰도록 보관.
-            setSnap((prev) => (prev ? { ...prev, name } : prev));
-            const k = coordKey(latitude, longitude);
-            const c = readCache(k);
-            if (c) writeCache(k, { ...c, name });
-          });
-        },
+    //   웹=navigator, 네이티브=@capacitor/geolocation 으로 acquirePosition 이 자동 분기.
+    acquirePosition()
+      .then(({ latitude, longitude }) => {
+        if (!mounted) return;
+        // 날씨는 좌표만 있으면 되므로 즉시 fetch — 지명(역지오코딩)을 기다리지 않아 첫 표시 지연 단축.
+        run(latitude, longitude, MY_LOC, true);
+        // 동 단위 지명은 병렬로 받아 도착 시 '이름만' 갱신(+캐시 이름 동기화). 실패하면 "내 위치" 유지.
+        reverseGeocodeKo(latitude, longitude, ac.signal).then((name) => {
+          if (!mounted || !name) return;
+          geoName = name; // 측위 fetch 가 아직이면 run 의 then 에서 이 이름으로 덮어쓰도록 보관.
+          setSnap((prev) => (prev ? { ...prev, name } : prev));
+          const k = coordKey(latitude, longitude);
+          const c = readCache(k);
+          if (c) writeCache(k, { ...c, name });
+        });
+      })
+      .catch((err: unknown) => {
+        if (!mounted) return;
+        // 관측성(과하지 않게 한 줄): 침묵 폴백의 '왜'를 콘솔에 남긴다. UI·외부 전송 없음.
+        //   다음에 '전원 대치동' 류가 재발하면 콘솔에서 1분 안에 측위 실패 vs fetch 실패를 구분.
+        const code = typeof err === "object" && err && "code" in err ? (err as { code: number }).code : undefined;
+        console.warn("[weather] 측위 실패 → 대치동 폴백:", code != null ? `geolocation code ${code}` : err);
         // 측위 실패: seed 가 없으면 대치동을 정밀(true)로 확정해 스켈레톤 종료. seed 가 있으면
         //   필러(false)로 보내 preciseShown 잠금에 걸리게 → 더 정밀한 seed 를 덮어쓰지 않음([제안]7).
-        () => run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, !lastSeed),
-        // 측위 실패(권한 거부/차단/타임아웃) 시 대치동 폴백. 첫 표시 지연을 줄이려:
-        //   - enableHighAccuracy:false 명시(GPS 대신 빠른 네트워크 측위).
-        //   - maximumAge 를 넓혀(60분) OS 가 캐시한 좌표를 측위 없이 즉시 반환하게 함.
-        //   - timeout 단축(4s): 무응답·차단 시 빠르게 대치동 폴백으로 스켈레톤 종료.
-        //   (단, 1단 seed·필러가 이 지연 동안 카드를 이미 채워둠.)
-        { enableHighAccuracy: false, timeout: 4000, maximumAge: 60 * 60 * 1000 },
-      );
-    } else {
-      // geolocation 미지원: seed 없으면 대치동 확정(true), seed 있으면 그대로 유지(false).
-      run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, !lastSeed);
-    }
+        run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, !lastSeed);
+      });
     return () => {
       mounted = false;
       ac.abort();
