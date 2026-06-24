@@ -15,7 +15,7 @@ import { chosungOf, isAllChosung } from "@/lib/hangul-chosung";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
-  "w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[14px] focus:border-[var(--primary)] focus:outline-none";
+  "w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[14px] transition-colors focus:border-[var(--primary-soft)] focus:outline-none";
 const inputSm =
   "rounded-md border border-[var(--border)] bg-white px-2.5 py-1.5 text-[13px] focus:border-[var(--primary)] focus:outline-none";
 const textareaCls =
@@ -101,7 +101,6 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
   const [saving, setSaving] = useState(false);
   const [savedModal, setSavedModal] = useState(false); // 저장 완료 모달(→ 시술후기 유도).
   const [dupId, setDupId] = useState<number | null>(null); // 중복 추가 시 기존 행 0.5초 강조.
-  const [tagFocus, setTagFocus] = useState(false); // 시술명 입력 포커스 — '엔터로 추가' 힌트 노출.
   const [acHi, setAcHi] = useState(-1); // 자동완성 키보드 하이라이트 인덱스(-1=없음).
   // 날짜 picker — 데스크탑 크롬은 필드 클릭만으론 안 열려서 showPicker()로 강제로 연다.
   const dateRef = useRef<HTMLInputElement | null>(null);
@@ -462,13 +461,11 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
           <div className="relative">
             <input
               ref={tagRef}
-              className={inputCls + (tagFocus ? " pr-[88px]" : "")}
-              placeholder="시술명 입력 후 엔터 (예: 울쎄라)"
+              className={inputCls}
+              placeholder="시술명을 입력하세요 (예: 울쎄라)"
               value={tag}
               autoComplete="off"
               enterKeyHint="done"
-              onFocus={() => setTagFocus(true)}
-              onBlur={() => setTagFocus(false)}
               onChange={(e) => setTag(e.target.value)}
               onKeyDown={(e) => {
                 // 자동완성 키보드 네비 — ↑↓ 로 후보(+'직접 추가' 줄) 이동.
@@ -491,10 +488,7 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
                 }
               }}
             />
-            {tagFocus && (
-              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md bg-[var(--primary-soft)] px-2 py-1 text-[11px] font-bold text-[var(--primary-active)]">엔터로 추가 ↵</span>
-            )}
-            {tq && (
+            {tq && acMatches.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto rounded-md bg-white shadow-[var(--shadow-lg)]">
                 {acMatches.map((m, i) => (
                   <button key={m.label} type="button" onMouseEnter={() => setAcHi(i)} onMouseDown={(e) => { e.preventDefault(); addTag(m.label, "autocomplete"); }}
@@ -514,6 +508,14 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
               </div>
             )}
           </div>
+          {/* 추천 결과가 0건이면 드롭다운이 비어 보이므로, '직접 추가' 버튼을 입력창 바로 아래에 확실히 노출. */}
+          {tq && acMatches.length === 0 && !acExact && (
+            <button type="button" onMouseDown={(e) => { e.preventDefault(); addTag(tag, "free_text"); }} onClick={() => addTag(tag, "free_text")}
+              className="mt-2 flex w-full items-center gap-2 rounded-md border border-[var(--primary)] bg-[var(--primary-soft)] px-3 py-2.5 text-left">
+              <span className="text-[13px] font-semibold text-[var(--primary-active)]">＋ “{tq}” 직접 추가</span>
+              <span className="ml-auto text-[11px] text-[var(--text-muted)]">목록에 없음</span>
+            </button>
+          )}
           <p className="mt-2 px-0.5 text-[12px] leading-relaxed text-[var(--text-muted)]">메모는 선택사항이에요. 샷수·바이알 수·부위 등 기억하고 싶은 것만 적어주세요.</p>
         </div>
 

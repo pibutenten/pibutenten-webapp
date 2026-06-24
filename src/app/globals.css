@@ -275,6 +275,9 @@ a:focus-visible,
    모바일(≤640px)만 16px 강제, 데스크탑은 디자인된 크기 그대로 유지.
    (인스타·트위터·Threads 등 표준 처리 방식) */
 @media (max-width: 640px) {
+  /* type 미지정 input 도 기본은 text 동작 → 같은 zoom 대상이나 [type="text"] 선택자가 못 잡아
+     14px 로 남아 확대됐다(시술명 등). input:not([type]) 로 함께 포함(2026-06-25). */
+  input:not([type]),
   input[type="text"],
   input[type="email"],
   input[type="password"],

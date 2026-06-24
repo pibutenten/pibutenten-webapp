@@ -6,6 +6,29 @@
 
 ---
 
+## [2026-06-25] — 앱 UX 피드백 9건 (최근 본 글·후기 다중화·플로팅 버튼·키보드·로그아웃)
+
+### Added
+- **최근 본 글 살리기**: `card_views`(기존 적재분) 기반 본인 조회기록 읽기 RPC `get_my_recent_views`/`get_my_recent_view_count`(SECURITY DEFINER, active 명함 검증 `profiles.id=p_profile_id AND auth_user_id=auth.uid()`) + `card_views(profile_id, created_at)` 인덱스(마이그 0287). `card_views` RLS 는 admin-only 유지(RPC 우회). 마이페이지에 실제 개수 표시, 신규 `/my/recent` 목록(AppShell `back=/my`). **0건이면 비활성**(이동·토스트 없음). 카운트는 전체 distinct 조회 카드 수, 목록은 최신 30개.
+- 공용 라우트 분류 헬퍼 `lib/route-class.ts`(`isPostDetailPath` + `RESERVED_FIRST_SEGMENT` SSOT) — `WriteFab`·`GlobalChrome` 의 중복 글상세 정규식 단일화(`lib/shortcode.ts::isValidShortcode` 재사용).
+- 키보드 표시 감지 훅 `lib/useSoftKeyboardOpen.ts`(visualViewport, 미지원/안드로이드 폴백=닫힘).
+
+### Changed
+- **시술 후기 1인1후기 제약 해제** — 같은 시술도 후기 여러 개 작성 허용(마이그 0288: `procedure_reviews_author_procedure_uniq` UNIQUE DROP + `create_procedure_review` 사전검사 제거, `/api/reviews` 중복 메시지 제거). 카드↔후기 1:1(`card_id` UNIQUE) 유지, 리포트 집계는 행 기준이라 중복 반영. → ADR [0023](decisions/0023-allow-multiple-reviews-per-procedure.md) (0019 amend).
+- **플로팅 글쓰기 버튼(`WriteFab`)**: 숨김 블랙리스트 → **노출 화이트리스트**(피드 `/`·글상세·내 노트 `/notes` 만). 하단 내비 간격 상향(90px), 키보드 열리면 숨김.
+- **로그아웃 이동**: 공개 프로필(`/{handle}`) 하단 → **마이 메인(`/my`) 하단 행**(SNS 표준). "내가 쓴 글"(프로필 재사용 화면)에서 로그아웃 노출 제거.
+- **시술명 입력(시술 노트 폼)**: "엔터로 추가" 안내·placeholder 정리(모바일 비표준 패턴 제거), 추천 0건 시 "직접 추가" 버튼을 입력창 바로 아래 노출, focus 강조 톤다운.
+- **내 노트 펼침**: 메모 없는 노트도 타임라인/달력 뷰에서 펼쳐지도록 조건 확대(`hasExpandable`) + 부드러운 전환(grid-rows).
+- 댓글 입력 시 하단 탭바·FAB 가 키보드 위로 떠오르던 것 → 키보드 열리면 숨김(AppShell 탭바 + WriteFab).
+
+### Fixed
+- **모바일 입력 자동확대(시술명 등)** — `type` 미지정 `<input>` 이 `globals.css` 의 16px 규칙(`input[type="text"]` 등 type 명시 선택자)에 안 잡혀 14px 로 남아 iOS 가 focus 시 확대(후 복구 안 됨)되던 문제. 미디어쿼리에 `input:not([type])` 추가로 앱 전역 bare input 근본 해결.
+
+### 글 상세 헤더 (피드백 검토 결과 무변경)
+- 상단 바(로고·검색·알림·아바타)는 앱 전역 구조라 유지. 뒤로가기(`AppShell back`)·미트볼(카드 ⋮ 메뉴)은 **이미 존재**해 추가 작업 없음. 태그→검색 후 복귀는 검색 ✕ 로 충분(별도 뒤로가기 불필요).
+
+---
+
 ## [2026-06-25] — 네이티브 측위(피부날씨 '앱은 항상 대치동') 근본 수정
 
 > 피부날씨 위치가 **앱(네이티브)에서만 항상 대치동**으로 표시(웹/PWA 는 정상). 원인은 앱이 원격 URL(`https://pibutenten.kr`)을 WebView 로 로드하는 구조인데 ① `@capacitor/geolocation` 플러그인 미설치 + ② iOS `Info.plist` `NSLocation*` 키 없음 / Android `AndroidManifest` 위치 권한 없음(INTERNET 만) → WebView 측위가 OS 권한·브리지 없이 즉시 실패 → 대치동 폴백 잔존. (2026-06-24 의 '웹·앱 전원 대치동'(ADR 0021, 프록시 환원) 과는 별개 원인 — 그 환원 이후에도 앱에만 남아 있던 결손.)

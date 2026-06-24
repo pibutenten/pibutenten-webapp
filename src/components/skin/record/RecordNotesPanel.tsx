@@ -124,6 +124,58 @@ function Badge({ entry }: { entry: RecEntry }) {
   );
 }
 
+/* 펼칠 부가정보가 있는지 — 메모뿐 아니라 시술칩·병원·원장 중 하나라도 있으면 true.
+ * (메모 없는 노트도 클릭/펼침이 동작하도록 — '눌러도 반응 없음' 방지.) */
+function hasExpandable(e: RecEntry): boolean {
+  return !!(e.memo || e.procs.length > 0 || e.place || e.doctor);
+}
+
+/* 펼친 상세 본문 — 목록 뷰(recList*)와 동등: 시술칩 + (원장·병원·메모) 한 줄.
+ * recListBody 의 고정 패딩/보더 대신, 카드(타임라인)·행(달력) 양쪽에 어울리는 가벼운 상단 여백만. */
+function EntryDetail({ entry: e }: { entry: RecEntry }) {
+  return (
+    <div style={{ paddingTop: 12 }}>
+      {e.procs.length > 0 && (
+        <div className={styles.recListChips}>
+          {e.procs.map((p) => (
+            <span className={styles.recListChip} key={p}>
+              {p}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className={styles.recListLine}>
+        {e.doctor && <b>{e.doctor}</b>}
+        {e.doctor && e.place && <span className={styles.sep}>·</span>}
+        {e.place}
+        {e.memo && (
+          <>
+            <span className={styles.sep}>·</span>
+            <span className={styles.recListMemo}>{e.memo}</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* 부드러운 펼침 — grid-rows 1fr↔0fr + opacity. CSS 파일 변경 없이 인라인 스타일로.
+ * 닫힘 시 자식은 overflow:hidden 으로 잘려 레이아웃 점프를 막는다. */
+function ExpandBody({ open, children }: { open: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateRows: open ? "1fr" : "0fr",
+        opacity: open ? 1 : 0,
+        transition: "grid-template-rows 220ms ease, opacity 220ms ease",
+      }}
+    >
+      <div style={{ overflow: "hidden", minHeight: 0 }}>{children}</div>
+    </div>
+  );
+}
+
 /* 펼침 상태 토글 훅 — 타임라인·달력·목록 3뷰 공통. 초기 빈 Set(모두 닫힘) → SSR 안전. */
 function useExpand() {
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -164,7 +216,8 @@ function TimelineView({ entries }: { entries: RecEntry[] }) {
           (() => {
             const e = row.e;
             const isOpen = open.has(e.id);
-            const hasDetail = !!e.memo;
+            // 메모가 없어도 시술칩·병원·원장 등 부가정보가 있으면 펼칠 수 있게(클릭 무반응 방지).
+            const hasDetail = hasExpandable(e);
             return (
               <div className={styles.recTlItem} key={e.id}>
                 <span className={styles.recTlDot}>
@@ -203,8 +256,10 @@ function TimelineView({ entries }: { entries: RecEntry[] }) {
                       </>
                     )}
                   </div>
-                  {isOpen && e.memo && <p className={styles.recMemo}>{e.memo}</p>}
-                  {/* 확장 지점: 노트↔후기 연결이 생기면 여기(펼친 상태)에
+                  <ExpandBody open={isOpen}>
+                    <EntryDetail entry={e} />
+                  </ExpandBody>
+                  {/* 확장 지점: 노트↔후기 연결이 생기면 위 EntryDetail 아래에
                       e.linkedReviews?.map((r) => <ReviewBox key={r.id} review={r} />) 를 렌더. */}
                 </div>
               </div>
@@ -302,7 +357,8 @@ function CalendarView({ entries }: { entries: RecEntry[] }) {
             <div className={styles.recCalDetailList}>
               {selItems.map((e) => {
                 const isOpen = open.has(e.id);
-                const hasDetail = !!e.memo;
+                // 메모가 없어도 시술칩·병원·원장 등 부가정보가 있으면 펼칠 수 있게(클릭 무반응 방지).
+                const hasDetail = hasExpandable(e);
                 return (
                   <div key={e.id}>
                     <div
@@ -330,8 +386,10 @@ function CalendarView({ entries }: { entries: RecEntry[] }) {
                       <Badge entry={e} />
                       {hasDetail && <span className={styles.recListChev}>{isOpen ? "▴" : "▾"}</span>}
                     </div>
-                    {isOpen && e.memo && <p className={styles.recMemo}>{e.memo}</p>}
-                    {/* 확장 지점: 노트↔후기 연결 시 여기(펼친 상태)에 e.linkedReviews 를 ReviewBox 로 렌더. */}
+                    <ExpandBody open={isOpen}>
+                      <EntryDetail entry={e} />
+                    </ExpandBody>
+                    {/* 확장 지점: 노트↔후기 연결 시 위 EntryDetail 아래에 e.linkedReviews 를 ReviewBox 로 렌더. */}
                   </div>
                 );
               })}

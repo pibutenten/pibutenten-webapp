@@ -23,6 +23,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import LogoutButton from "@/components/LogoutButton";
 import CardAvatar from "@/components/card/CardAvatar";
 import { useSearchRouting } from "../ui";
 import AppShell from "../AppShell";
@@ -41,6 +42,8 @@ export type MyPageProps = {
   savesCount: number;
   postCount: number;
   commentCount: number;
+  /** 최근 본 글 개수(get_my_recent_view_count RPC). 0 이면 "최근 본 글" 스탯 비활성(링크 없음). */
+  recentCount: number;
 };
 
 /* ---------- 아이콘 (운영 스킨 인라인 SVG 컨벤션 — currentColor stroke) ---------- */
@@ -187,6 +190,25 @@ function NavRow({ icon, label, href }: { icon: ReactNode; label: string; href: s
   );
 }
 
+/**
+ * 로그아웃 행 — NavRow 와 동일한 행 레이아웃이되 링크가 아닌 LogoutButton(버튼) 재사용.
+ *   버튼 라벨 typography 를 NavRow 라벨과 맞추기 위해 ROW_STYLE 의 글자 속성을 className 대신
+ *   wrapper 에 부여하고, 버튼은 색·폰트를 inherit 하도록 무톤 className 으로 오버라이드.
+ */
+function LogoutRow() {
+  return (
+    <div style={{ ...ROW_STYLE, cursor: "default" }}>
+      <span style={{ display: "inline-flex", color: "var(--ink-300)", flexShrink: 0 }} aria-hidden>
+        <IconLogout />
+      </span>
+      <LogoutButton
+        label="로그아웃"
+        className="flex-1 text-left bg-transparent border-0 p-0 m-0 cursor-pointer text-[15px] font-semibold text-[var(--text,#2b3440)] disabled:opacity-50"
+      />
+    </div>
+  );
+}
+
 function SectionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section style={{ marginTop: 18 }}>
@@ -218,6 +240,7 @@ export default function MyPageView({
   savesCount,
   postCount,
   commentCount,
+  recentCount,
 }: MyPageProps) {
   // 헤더 검색 → 피드로 라우팅(운영 공용 헬퍼) — 다른 스킨 페이지와 동일하게 AppShell 에 주입.
   const search = useSearchRouting();
@@ -320,8 +343,14 @@ export default function MyPageView({
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
           <StatCol href={`${profileHref}?tab=likes`} color="#f76d9b" icon={<IconHeartFill />} label="좋아요" value={likesCount} />
           <StatCol href={`${profileHref}?tab=saves`} color="var(--tt-blue)" icon={<IconBookmarkFill />} label="북마크" value={savesCount} />
-          {/* 최근 본 글 — 전용 라우트 없음 → 글 목록(피드)로 안내. (NOTE) */}
-          <StatCol href="/" color="#3fb98f" icon={<IconClock />} label="최근 본 글" value={null} />
+          {/* 최근 본 글 — 개수>0 이면 /my/recent 로, 0 이면 비활성(링크 없음·이동 없음·토스트 없음). */}
+          <StatCol
+            href={recentCount > 0 ? "/my/recent" : null}
+            color="#3fb98f"
+            icon={<IconClock />}
+            label="최근 본 글"
+            value={recentCount}
+          />
         </div>
       </section>
 
@@ -360,6 +389,11 @@ export default function MyPageView({
         <NavRow icon={<IconLogout />} label="탈퇴하기" href={profileHref} />
       </SectionCard>
 
+      {/* ⑧ 계정 — 로그아웃 행. NavRow 와 같은 행 톤이되 링크가 아닌 버튼(LogoutButton 재사용). */}
+      <SectionCard title="계정">
+        <LogoutRow />
+      </SectionCard>
+
       <PolicyFooter />
     </AppShell>
   );
@@ -376,25 +410,15 @@ function StatCol({
   label,
   value,
 }: {
-  href: string;
+  /** null 이면 링크 대신 비활성 span 으로 렌더(이동 없음). "최근 본 글" 0개 케이스. */
+  href: string | null;
   color: string;
   icon: ReactNode;
   label: string;
   value: number | null;
 }) {
-  return (
-    <Link
-      href={href}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 7,
-        padding: "6px 4px",
-        textDecoration: "none",
-        color: "var(--text, #2b3440)",
-      }}
-    >
+  const inner = (
+    <>
       <span style={{ display: "inline-flex", color }}>{icon}</span>
       <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-500)" }}>{label}</span>
       {value !== null && (
@@ -402,6 +426,24 @@ function StatCol({
           {value}
         </span>
       )}
+    </>
+  );
+  const colStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 7,
+    padding: "6px 4px",
+    textDecoration: "none",
+    color: "var(--text, #2b3440)",
+  };
+  // href 가 null 이면 클릭 비활성(링크 아님) — 이동·토스트 없음.
+  if (href === null) {
+    return <span style={colStyle}>{inner}</span>;
+  }
+  return (
+    <Link href={href} style={colStyle}>
+      {inner}
     </Link>
   );
 }

@@ -12,7 +12,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import LogoutButton from "@/components/LogoutButton";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import CardAvatar from "@/components/card/CardAvatar";
 import ProfileEditClient, {
@@ -415,19 +414,7 @@ export default function ProfileView({
         </div>
       </section>
 
-      {/* 본인 — 최하단 로그아웃(탈퇴는 설정에서). 운영 LogoutButton 재사용. */}
-      {isOwner && (
-        <div
-          style={{
-            marginTop: 8,
-            display: "flex",
-            justifyContent: "center",
-            paddingTop: 8,
-          }}
-        >
-          <LogoutButton />
-        </div>
-      )}
+      {/* 로그아웃은 마이 메인(/my)으로 이동(2026-06-25). 공개 프로필 하단에서는 제거. */}
 
       {/* 신뢰·법적 길목(about·약관·문의 등) — 모든 방문자에게 노출(SNS 표준 in-page 푸터). */}
       <PolicyFooter />

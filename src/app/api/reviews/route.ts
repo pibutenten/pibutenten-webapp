@@ -28,7 +28,7 @@ type SubmitStatus = "pending_review" | "published";
  *   7. 블라인드: 병원·의사명 지목 표현을 "○○" 로 마스킹(제출 차단 아님), 발생수 집계.
  *   8. 소프트 검수: role=user 면 마스킹된 텍스트로 screenContent → flagged 면 pending_review.
  *   9. shortcode 생성 (충돌 시 최대 5회 재시도).
- *   10. RPC create_procedure_review 호출. 중복(23505) 시 409.
+ *   10. RPC create_procedure_review 호출. (같은 시술 후기 다중 작성 허용 — 중복 차단 없음.)
  *   11. revalidatePath.
  *   12. 응답 (articles 패턴 — screening 객체 + blinded 플래그 포함).
  */
@@ -187,24 +187,6 @@ export async function POST(req: Request) {
     p_effect_onset: payload.effect_onset,
   });
   if (rpcErr) {
-    // 중복(author+procedure) — RPC 가 ERRCODE 23505 또는 메시지에 duplicate_review 로 raise.
-    const isDuplicate =
-      rpcErr.code === "23505" ||
-      (typeof rpcErr.message === "string" &&
-        rpcErr.message.includes("duplicate_review"));
-    if (isDuplicate) {
-      return errorResponse(
-        rpcErr,
-        "invalid_input",
-        "[reviews POST] duplicate_review",
-        409,
-        undefined,
-        {
-          userMessage:
-            "이미 이 시술의 후기를 작성하셨습니다. 마이페이지에서 수정해 주세요.",
-        },
-      );
-    }
     return errorResponse(rpcErr, "save_failed", "[reviews POST] create_procedure_review", 500);
   }
 

@@ -64,7 +64,7 @@
 
 ### 4.3. 시술 후기 & 리포트 (P3)
 - 전용 폼: `/review/new`(작성) · `/review/[shortcode]/edit`(수정). 시술 선택(잠금형 탭) + 만족도·통증·재시술 의향(필수) + 효과·생생한 후기(선택). 병원·의사명 자동 마스킹 + 소프트 검수. 수정 진입은 일반 글 에디터가 아닌 후기 전용 에디터로(카드 ⋮·관리자 모두).
-- `procedure_reviews`(card_id 1:1)에 정량값 저장. 개별 후기 = noindex.
+- `procedure_reviews`(card_id 1:1)에 정량값 저장. 개별 후기 = noindex. **같은 시술도 후기 여러 개 작성 가능**(1인1시술1후기 제약 해제 — ADR 0023, 2026-06-25). 카드↔후기 1:1 은 유지(후기 1개=카드 1장).
 - **시술 리포트** `/reports/[procedure]`: `procedure_reviews` 를 **실시간 집계**(저장 카드 없음 → 후기 추가 시 자동 반영)한 단일 카드. 만족도(분포)·통증·재시술 의향·체감 효과 + 작성자 성별·연령(집계 RPC, 개별 PII 비노출). index + JSON-LD `MedicalWebPage` + `Service`(additionalType=`MedicalProcedure`) + `AggregateRating`(만족도)·재시술%·통증 + `BreadcrumbList` (의료 시술이라 `Product` 폐기 2026-06-05). 시술명 검색(`/search`) 결과 **최상단** 노출. 정식 URL=`/reports/{ko}`(한글, 영문은 308 전용). **`/topics`(전문의 Q&A 허브)와는 분리** — 자기잠식 방지로 /topics 에 리포트 카드 미노출, 양쪽 얇은 링크만(2026-06-05).
 
 ### 4.3. 사용자 시스템 (Identity — ADR 0001, ADR 0011, **ADR 0012**)

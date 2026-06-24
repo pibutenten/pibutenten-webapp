@@ -17,6 +17,7 @@
 import { usePathname } from "next/navigation";
 import TopNav from "@/components/TopNav";
 import SiteFooter from "@/components/SiteFooter";
+import { isPostDetailPath, RESERVED_FIRST_SEGMENT } from "@/lib/route-class";
 
 /** 정확 일치로 승격된 라우트(자체 앱 셸 보유). 동적 하위경로(/record/[id], /write/[shortcode] 등)는 아래 APP_SHELL_PREFIX 로 승격. */
 const APP_SHELL_EXACT = new Set<string>([
@@ -59,26 +60,10 @@ const APP_SHELL_PREFIX = [
   "/review/", // 후기 작성·수정 (Phase 5: /review/new, /review/{shortcode}/edit)
   "/notes/", // 내 노트 하위 전체 (/notes/[id] 시술 기록 상세 등)
   "/write/", // 글쓰기 하위 전체 (/write/[shortcode] 수정) — 옛 크롬 잔존 승격
+  "/my/", // 마이 하위 전체 (/my/recent 등) — 없으면 옛 크롬과 이중 헤더
 ];
 
-/**
- * 회원 글상세 /{handle}/{shortcode} 매칭 시 첫 세그먼트가 핸들이 아닌 "예약 라우트"면 제외.
- *   (Next.js 정적 라우트 우선이라 이 이름의 핸들은 실제로 존재 불가하지만, GlobalChrome 은
- *    usePathname 만 보므로 /admin/reports 같은 2세그 경로가 shortcode 정규식에 오매칭돼 admin
- *    헤더가 사라지는 사고를 막기 위해 명시적으로 배제한다.)
- */
-const RESERVED_FIRST_SEGMENT = new Set<string>([
-  "admin", "api", "auth", "cards", "doctor", "doctors", "topics", "reports",
-  "review", "settings", "u", "login", "signup", "onboarding", "write",
-  "today", "notes", "weather",
-  "my", "shop", "notifications", "search", "debug",
-  "old-skin", "report", "rss", "about", "terms", "privacy", "contact",
-  "disclaimer", "editorial-policy", "medical-review", "corrections",
-  "disclosures", "doctor-guidelines",
-]);
-
-/** 회원 글 shortcode = base58 6~12자 (운영 [handle]/[shortcode] page 의 fetchQa 가드와 동일). */
-const SHORTCODE_RE = /^[1-9A-HJ-NP-Za-km-z]{6,12}$/;
+// 회원 글상세/프로필 1~2세그 판정의 예약 세그먼트는 route-class 의 단일 SSOT 를 재사용.
 
 /** 회원 핸들 = 소문자 영숫자/하이픈 3~30자 (운영 [handle] page 의 가드와 동일). */
 const HANDLE_RE = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
@@ -90,16 +75,8 @@ function isAppShell(pathname: string | null): boolean {
   const seg = pathname.split("/").filter(Boolean);
   // 의사 공개 프로필 /doctors/{slug} (2세그) — /doctors(목록)는 EXACT.
   if (seg.length === 2 && seg[0] === "doctors") return true;
-  // 의사 글상세 /doctors/{slug}/{year}/{postSlug} (4세그).
-  if (seg.length === 4 && seg[0] === "doctors") return true;
-  // 회원 글상세 /{handle}/{shortcode} (2세그, 첫 세그 예약어 아님 + shortcode base58).
-  if (
-    seg.length === 2 &&
-    !RESERVED_FIRST_SEGMENT.has(seg[0]) &&
-    SHORTCODE_RE.test(seg[1])
-  ) {
-    return true;
-  }
+  // 글상세(회원 /{handle}/{shortcode} 2세그 · 의사 /doctors/{slug}/{year}/{post} 4세그) — 공용 헬퍼 재사용.
+  if (isPostDetailPath(pathname)) return true;
   // 회원 공개 프로필 /{handle} (1세그, 예약어 아님 + handle 정규식). /[handle] catch-all 승격.
   if (seg.length === 1 && !RESERVED_FIRST_SEGMENT.has(seg[0]) && HANDLE_RE.test(seg[0])) {
     return true;

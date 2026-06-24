@@ -80,27 +80,35 @@ export default async function MyPage() {
   //   좋아요·북마크: 본인 명함만 SELECT 가능(RLS). card_likes/saves.profile_id (ADR 0014 Phase 3).
   //   내가 쓴 글: 후기·리포트 제외(글쓰기 목록 정책), published.
   //   내 댓글: visible.
-  const [likesRes, savesRes, postRes, commentRes] = await Promise.all([
-    supabase
-      .from("card_likes")
-      .select("card_id", { count: "exact", head: true })
-      .eq("profile_id", activeId),
-    supabase
-      .from("card_saves")
-      .select("card_id", { count: "exact", head: true })
-      .eq("profile_id", activeId),
-    supabase
-      .from("cards")
-      .select("id", { count: "exact", head: true })
-      .eq("author_id", activeId)
-      .eq("status", "published")
-      .not("category", "in", "(review,review_summary)"),
-    supabase
-      .from("comments")
-      .select("id", { count: "exact", head: true })
-      .eq("author_id", activeId)
-      .eq("status", "visible"),
-  ]);
+  //   최근 본 글: get_my_recent_view_count RPC(active 명함 기준 distinct 카드 수). auth.uid() 필요 →
+  //     좋아요/북마크와 동일한 user 인증 클라이언트(supabase)에서 호출.
+  const [likesRes, savesRes, postRes, commentRes, recentCountRes] =
+    await Promise.all([
+      supabase
+        .from("card_likes")
+        .select("card_id", { count: "exact", head: true })
+        .eq("profile_id", activeId),
+      supabase
+        .from("card_saves")
+        .select("card_id", { count: "exact", head: true })
+        .eq("profile_id", activeId),
+      supabase
+        .from("cards")
+        .select("id", { count: "exact", head: true })
+        .eq("author_id", activeId)
+        .eq("status", "published")
+        .not("category", "in", "(review,review_summary)"),
+      supabase
+        .from("comments")
+        .select("id", { count: "exact", head: true })
+        .eq("author_id", activeId)
+        .eq("status", "visible"),
+      supabase.rpc("get_my_recent_view_count", { p_profile_id: activeId }),
+    ]);
+
+  // RPC 가 정수 1개 반환. 실패(에러·null)면 0 → "최근 본 글" 비활성 처리(StatCol).
+  const recentCount =
+    typeof recentCountRes.data === "number" ? recentCountRes.data : 0;
 
   const faceShape = prof?.face_shape ?? null;
   const skinType = prof?.skin_type ?? null;
@@ -117,6 +125,7 @@ export default async function MyPage() {
       savesCount={savesRes.count ?? 0}
       postCount={postRes.count ?? 0}
       commentCount={commentRes.count ?? 0}
+      recentCount={recentCount}
     />
   );
 }

@@ -46,7 +46,7 @@
 
 #### 시술 리포트 앵커 카드 (review_summary, C1~C5 / 인앱 공개 완료, 색인 보류)
 - '시술 리포트'를 정식 `cards` 행(type=`review_summary`, 1급 카드)으로 승격. author=pibutenten 관리자, 발행 후기 ≥1 시술마다 1행(마이그 0214 백필 25개, 멱등 부분 유니크 `cards(post_slug) WHERE type='review_summary'`). 생성은 `create/update_procedure_review` RPC 가 발행 시 lazy(ON CONFLICT DO NOTHING). title="피부텐텐 리포트 | {ko}"(0219).
-- **수치는 행에 저장하지 않음** — `getProcedureReport` 가 `procedure_reviews` 를 실시간 집계(중복·동기화 누더기 방지). 앵커는 저장·공유·색인·피드·admin 의 "그릇"일 뿐.
+- **수치는 행에 저장하지 않음** — `getProcedureReport` 가 `procedure_reviews` 를 실시간 집계(중복·동기화 누더기 방지). 앵커는 저장·공유·색인·피드·admin 의 "그릇"일 뿐. 같은 시술도 후기 여러 개 허용(ADR 0023, 2026-06-25) — 집계는 각 후기를 **행 기준으로 모두 반영**(작성자 수 지표 `get_research_panel().reviewers` 만 distinct).
 - URL (2026-06-05 한글 전환): **정식 = `/reports/{ko}`(한글), canonical=ko**. 영문 `/reports/{en}`(en=`tag_dictionary.en`(is_procedure)=앵커 `post_slug`)은 `middleware.ts` 가 **308 영구 리다이렉트 전용(1홉→ko)** — ASCII slug 만 tag_dictionary en→ko 조회(한글은 조회 없이 통과). (procedure_taxonomy 는 C단계 0257-0259 에서 청산·DROP, tag_dictionary 로 일원화.) 내부 링크(`ProcedureReportCard.reportHref`·`Feed.feedHref`·sitemap·rss)는 전부 ko. 페이지 레벨 redirect 는 스트리밍 SSR 200+meta-refresh 폴백이라 미들웨어에서 처리.
 - 저장·공유: 앵커 card_id 로 단독 글과 동일 `useCardEngagement`(toggle_card_save·card_shares). 좋아요·조회수는 데이터만(버튼 미노출). 앵커가 **published 일 때만** 버튼 노출(공개 RLS 경로 조회).
 - **피드 노출 = 결정적 주입(점수 무관)**: 앵커는 `feed_cards_scored`·`search_cards_scored` 에서 **제외**(0217/0220 — 점수 독식 도배 방지). 대신 클라이언트 `Feed` 가 유기 카드 **20장당 1장**, 윈도 내 변동 위치(결정적·하이드레이션 안정)에 컴팩트 `ProcedureReportCard`(prop `feedHref` → 카드 전체/더보기 클릭 시 `/reports/{en}`, 저장/공유는 stopPropagation) 주입. 풀은 경량 RPC `get_review_summary_pool()`(0218) → 서버 1회 셔플 후 prop. 검색 결과 목록·프로필 목록에선 제외(중복 방지). 색인(sitemap/rss)은 `INCLUDE_REPORT_ANCHORS`(기본 off) + `status='published'` 이중 게이트.

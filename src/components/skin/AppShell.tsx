@@ -25,6 +25,7 @@ import { useSession } from "@/lib/session-context";
 import SearchPanel, { prefetchDiscover } from "@/components/search/SearchPanel";
 import { showToast } from "@/lib/toast";
 import BackButton from "@/components/BackButton";
+import { useSoftKeyboardOpen } from "@/lib/useSoftKeyboardOpen";
 
 /* ---------- 공유 라우트 맵 ---------- */
 export const ROUTES = {
@@ -166,6 +167,9 @@ export default function AppShell({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  // 모바일 소프트 키보드 열림 추정 — 열리면 하단 탭바를 숨겨 입력 영역을 가리지 않게 한다.
+  //   visualViewport 미지원이면 항상 false. 데스크탑(≥900px)은 소프트 키보드가 없어 항상 false → 영향 없음.
+  const keyboardOpen = useSoftKeyboardOpen();
   // 우상단 아바타 — 운영 BottomNav 와 동일하게 active 명함 기준(useSession). 없으면 기본 아이콘.
   const session = useSession();
   const activeAvatar = session
@@ -707,8 +711,10 @@ export default function AppShell({
 
       {/* ---------- 하단 둥근 탭바 (모바일) ----------
           wide(admin) 모드에선 피드용 5탭(내노트/글쓰기/피드/쇼핑/마이)이 운영 관리자 화면에 부자연스러워 숨김.
-          admin 내 이동은 본문의 운영 프로그램 그리드·탭으로 수행(상단 앱 헤더는 그대로 유지). */}
-      {!wide && (
+          admin 내 이동은 본문의 운영 프로그램 그리드·탭으로 수행(상단 앱 헤더는 그대로 유지).
+          키보드 열림(keyboardOpen): 모바일 소프트 키보드가 입력칸 위로 올라오면 탭바를 숨겨 가림 방지.
+          상단 헤더는 유지. 데스크탑은 keyboardOpen 이 항상 false 라 영향 없음. */}
+      {!wide && !keyboardOpen && (
         <nav className={styles.tabbar}>
           {TABS.map((t) =>
             // 쇼핑(준비 중, href "#") → 클릭 시 안내 토스트(라우팅 없음).
