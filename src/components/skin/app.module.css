@@ -180,12 +180,9 @@
  * 항목 1) 헤더는 sticky 가 아니라 일반 흐름 — 스크롤 다운 시 transform 으로 위로 슬라이드되어 사라짐.
  *   (칩바만 sticky top:0 으로 고정 → top:0 충돌 회피.) */
 .header {
-  /* sticky 로 상단 고정 — relative 면 스크롤 시 헤더가 위로 사라진 뒤
-     transform 복귀가 화면 밖이라 안 보이던 버그. sticky + headerHidden(transform)
-     로 숨김/복귀가 둘 다 정상 동작. 데스크탑은 JS 에서 headerHidden 을 걸지 않아 항상 고정. */
-  position: sticky;
-  top: 0;
-  z-index: 40;
+  /* sticky·transition 은 상위 래퍼(.topStack)로 이전 — 헤더는 칩바와 한 덩어리로 함께 움직인다.
+     헤더 자체는 흐름상 정적(데스크탑도 .topStack 이 항상 고정, 숨김 없음). */
+  position: relative;
   /* 상단 패딩에 --sat(상태바 높이)을 더해, 네이티브 edge-to-edge 에서
      fixed .root 오버레이가 body padding 을 못 받는 구멍을 헤더 자체에서 메운다.
      web/PWA 는 --sat=0 이라 무영향. */
@@ -200,18 +197,21 @@
     rgba(232, 245, 253, 0.75)
   );
   backdrop-filter: blur(12px);
+}
+/* 상단바 래퍼 — 헤더 + 칩바를 한 덩어리로 묶어 통째로 sticky·슬라이드(한 요소라 어긋남 불가). */
+.topStack {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   transition: transform 0.28s ease;
   will-change: transform;
 }
-.headerHidden {
-  /* 헤더+칩바를 한 덩어리처럼 '같은 거리·같은 타이밍'으로 움직여 속도 어긋남·틈을 원천 제거.
-     -100%(=내용+--sat)가 아니라 헤더 높이(62px, --sat 제외)만큼만 이동 → 헤더 하단이 정확히 --sat
-     (상태바 라인)에서 멈춰 헤더 내용은 상태바 필러(.root::before) 뒤로 완전히 가려지고, 칩바는 그 아래
-     맨 위(--sat)에 정위치. 칩바도 동일하게 -62px(.chipBarUp) → 둘이 픽셀단위로 함께 움직인다.
-     이동량 56px = 칩바가 헤더에 붙는 위치(.chipBar top)와 동일 → 칩바도 -56px(.chipBarUp)로 같이 이동.
-     (헤더 높이 62보다 6px 작아 헤더 하단 6px 이 상태바 아래 잔류하나, 헤더 배경색이라 보이지 않음.
-      이 6px 으로 칩바를 헤더에 더 바짝 붙여 두 바 간격을 좁게 유지.) */
-  transform: translateY(-56px);
+.topStackHidden {
+  /* 헤더 높이(62px = 패딩12 + 내용38 + 패딩12, --sat 제외)만큼 래퍼를 통째로 위로 →
+     헤더는 상태바 필러(.root::before) 뒤로 가려지고, 바로 아래 칩바가 맨 위(--sat)에 정위치.
+     헤더·칩바가 한 요소(래퍼)라 픽셀단위로 함께 움직여 어긋남·틈 0.
+     ⚠ 62px = 현재 헤더 높이. 헤더 높이(패딩/로고) 변경 시 이 값 갱신. */
+  transform: translateY(-62px);
 }
 
 /* 피드백 1) 모바일 검색 모드 — 헤더 "안"이 검색 input 으로 전환된 행.
@@ -544,20 +544,15 @@
 .backTitle b {
   color: var(--tt-blue);
 }
-/* 항목 1) 칩바 — sticky top:0 으로 화면 최상단 고정.
- *   캔버스 틴트 배경(좌우 풀블리드)으로 아래 피드가 비치지 않게. */
+/* 항목 1) 칩바 — 상단바 래퍼(.topStack) 안에서 헤더 바로 아래 정적 배치.
+ *   별도 sticky 가 아니라 헤더와 한 덩어리로 함께 움직인다(어긋남 없음).
+ *   캔버스 틴트 배경(풀폭)으로 아래 피드가 비치지 않게. */
 .chipBar {
-  position: sticky;
-  /* 헤더(sticky top:0) 아래에 바짝 붙여 고정(56px + 상태바 --sat — 헤더에 6px 겹쳐 간격 최소).
-     헤더 숨김 시 .chipBarUp 으로 헤더와 '똑같이' -56px 이동 → 둘이 같은 속도로 함께 움직여
-     어긋나거나 벌어지지 않는다(한 덩어리처럼). */
-  top: calc(56px + var(--sat));
-  z-index: 30;
-  margin: 0 -18px;
+  position: relative;
+  z-index: 1;
+  /* 래퍼(.topStack)가 패딩 없는 풀폭이라, 칩바는 좌우 18px 내부 패딩으로 헤더 내용과 정렬
+     (옛 margin:0 -18px 풀블리드는 .page 패딩 상쇄용이었으나 래퍼엔 패딩이 없어 불필요). */
   padding: 0 18px;
-  /* 헤더(.headerHidden)와 동일한 transform·동일 타이밍(0.28s)으로 동기 이동(GPU 합성). */
-  transition: transform 0.28s ease;
-  will-change: transform;
   background: linear-gradient(
     180deg,
     #e9f4fc 0%,
@@ -565,11 +560,13 @@
     rgba(233, 244, 252, 0)
   );
 }
-.chipBarUp {
-  /* 헤더와 '같은 거리(-56px)·같은 타이밍'으로 이동 → 한 몸처럼 함께 올라감.
-     resting top(56px+--sat) - 56px = --sat → 칩바가 상태바 바로 아래 맨 위에 정위치.
-     (헤더와 이동량이 동일하므로 두 바 사이 틈이 구조적으로 발생하지 않음 — 옛 ::before 틈가림 불필요·제거.) */
-  transform: translateY(-56px);
+@media (min-width: 900px) {
+  /* 데스크탑 — 헤더 내용(.headerInner max-width 1080)과 동일 폭/패딩으로 정렬. */
+  .chipBar {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
 }
 .chipRow {
   display: flex;

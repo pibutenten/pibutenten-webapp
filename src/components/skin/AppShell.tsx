@@ -423,10 +423,11 @@ export default function AppShell({
       className={`${styles.root} ${wide && !keepCanvas ? styles.rootWide : ""}`}
       ref={scrollRef}
     >
-      {/* ---------- 헤더 (스크롤 다운 시 위로 슬라이드되어 사라짐) ---------- */}
-      <header
-        className={`${styles.header} ${headerHidden ? styles.headerHidden : ""}`}
-      >
+      {/* ---------- 상단바: 헤더 + 칩바를 한 덩어리(topStack)로 묶어 통째로 슬라이드 ----------
+          둘을 분리된 sticky 요소로 두면 스크롤 중 어긋나 '두 층이 접히는' 느낌이 나서,
+          하나의 래퍼로 감싸 통째로 translateY → 구조상 절대 어긋나지 않음(원장 결정 2026-06-24). */}
+      <div className={`${styles.topStack} ${headerHidden ? styles.topStackHidden : ""}`}>
+      <header className={styles.header}>
         {/* 피드백 1) 모바일 검색 모드 — 헤더 "안"을 검색 input 으로 전환.
             (데스크탑은 iconBtnSearch 가 display:none → 이 모드 진입 불가, 항상 기본 레이아웃.) */}
         {searchEnabled && searchOpen ? (
@@ -648,6 +649,14 @@ export default function AppShell({
           </div>
         )}
       </header>
+      {/* 칩바 — topStack 안(헤더 바로 아래)에 정적 배치 → 헤더와 한 덩어리로 함께 슬라이드.
+          검색 모드(searchOpen)에선 발견 패널이 덮으므로 미표시(검색창만 깔끔히). */}
+      {chips && !searchOpen ? (
+        <div className={styles.chipBar}>
+          <div className={styles.chipRow}>{chips}</div>
+        </div>
+      ) : null}
+      </div>
 
       {/* 항목 12) 모바일 검색 풀스크린 패널 — 헤더 아래로 큰 발견 화면(운영 BottomNav 모바일 검색 정합). */}
       {mobileSearchPanel}
@@ -656,14 +665,7 @@ export default function AppShell({
       {/* wide(admin) 모드 — .page 의 좁은 max-width(1080) 컨테이너는 유지하되,
           사이드바 없는 admin 이 .layoutSingle(820px)로 더 좁아지는 것을 막아 운영 admin 과 같은 풀폭으로. */}
       <main className={`${styles.page} ${wide ? styles.pageWide : ""}`}>
-        {chips ? (
-          // 칩바 — 헤더 아래 sticky. 헤더 숨김(모바일) 시 chipBarUp 으로 top:0 끌어올림.
-          <div
-            className={`${styles.chipBar} ${headerHidden ? styles.chipBarUp : ""}`}
-          >
-            <div className={styles.chipRow}>{chips}</div>
-          </div>
-        ) : null}
+        {/* 칩바는 상단바(topStack)로 이동했다 — 헤더와 한 덩어리로 함께 움직이기 위함. */}
 
         {/* 본문 좌상단 '< 뒤로' — 운영 BackButton 재사용(같은 탭 SPA 이동이면 router.back, 직접 진입이면 fallback).
             서브 페이지(글상세/공개프로필/설정/admin)에서만 노출. 피드(홈)는 back 미지정 → 숨김. */}
