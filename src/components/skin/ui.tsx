@@ -1208,7 +1208,7 @@ export function PostCard({
           showInput={commentsOpen}: false=미리보기 3개 / true=전체+입력. onCountChange 로 실제 수 반영. */}
       {(previewReady || commentsOpen) && (
         <div
-          className={styles.comments}
+          className={`${styles.comments} ${commentCount > 0 || commentsOpen ? styles.commentsActive : ""}`}
           onClick={(e) => e.stopPropagation()}
         >
           <CommentsBlock
