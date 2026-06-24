@@ -6,10 +6,17 @@
 
 ---
 
+## [2026-06-25] — PTR 부드러운 동작 리팩터링
+
+### Changed
+- **Pull-to-refresh 리팩터링**: React state 기반(매 touchmove마다 re-render) → ref + DOM 직접 조작으로 전환. CSS transition(`0.3s cubic-bezier`) 스냅백, 대수 감쇠 곡선(`1-e^(-x)`), 스크롤 조상(`.root` overflow-y:auto) 정확 탐색, 인디케이터 갭 중앙 자동 배치
+
+---
+
 ## [2026-06-25] — UX 감사 18개 항목 일괄 개선
 
 ### Added
-- **Pull-to-refresh**: `usePullToRefresh` 커스텀 훅 + `FeedView` 적용. 60px 임계값, 0.4x 댐핑, 800ms 최소 스피너 시간
+- **Pull-to-refresh**: `usePullToRefresh` 커스텀 훅 + `FeedView` 적용. 60px 임계값, 800ms 최소 스피너 시간
 - **오프라인 배너**: `OfflineBanner.tsx` — `navigator.onLine` + 이벤트 리스너 기반, 재연결 2초 후 페이드 아웃
 - **페이지 전환 애니메이션**: `PageTransition.tsx` — pathname 변경 시 fade-in (180ms), Web Animation API, 첫 마운트 건너뜀
 - **더블탭 좋아요**: `Card.tsx` `onTouchEnd` 기반 300ms 더블탭 감지 + `HeartOverlay.tsx` 하트 팝 애니메이션 (800ms)
