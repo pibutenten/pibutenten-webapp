@@ -43,6 +43,9 @@
 | 0016 | 의사 프로필 연결 | Accepted |
 | 0017 | 콘텐츠에 자기 사이트 절대 URL 저장 금지 | Accepted |
 | 0018 | 도메인 이전 `pbtt.kr` → `pibutenten.kr` (전략·단계·인프라) | Accepted |
+| 0019 | P3 시술후기(개별 리뷰/리포트) 카테고리 | Accepted |
+| 0020 | 렌더링·캐싱 — 공유 셸 + 클라이언트 개인화 | Accepted |
+| 0021 | 무료/per-IP 제한 API를 공유 서버리스 IP로 프록시 금지 (날씨 장애 교훈) | Accepted |
 
 ## 새 ADR 작성
 
