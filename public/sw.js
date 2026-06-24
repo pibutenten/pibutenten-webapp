@@ -14,7 +14,9 @@
  *  - 변경 시 클라이언트가 즉시 새 SW를 받도록 skipWaiting/clientsClaim.
  *  - activate 시 controlled clients 자동 reload (새 chunk 강제 가져옴).
  */
-const VERSION = "v4-auto-reload-260526";
+// v5(2026-06-24): 날씨 프록시 되돌림(b79e39a) 등 누적 배포를 열린 클라이언트에 강제 전파.
+//   버전이 바뀌어야 activate→전 탭 자동 reload 가 1회 동작해 옛 JS(프록시 버전) 캐시가 교체된다.
+const VERSION = "v5-weather-revert-260624";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
