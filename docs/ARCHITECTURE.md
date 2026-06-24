@@ -126,7 +126,10 @@ POST   /api/push/subscribe / unsubscribe / send
 POST   /api/upload                  이미지 업로드
 GET    /api/og-extract              OG 메타 추출
 GET    /api/preview-link            링크 미리보기
+GET    /api/iploc                   IP 기반 대략위치 폴백 — Vercel IP 지오 헤더(x-vercel-ip-*)만 읽음, 외부 API 호출 0건(ADR 0021 무관). no-store. 피부날씨 측위 사다리 2단계(§12)
 ```
+
+> 날씨 데이터(Open-Meteo)는 **클라이언트가 직접 호출**한다(서버 프록시 라우트 없음 — 공유 서버리스 IP per-IP 한도 합산 회피, ADR 0021). `/api/iploc` 은 좌표 폴백만 담당하고 날씨를 프록시하지 않는다.
 
 #### 인증 / 아이덴티티
 ```
@@ -261,7 +264,8 @@ supabase/
 |---|---|
 | `NotificationBadge.tsx`, `NotificationsBell.tsx` | 헤더 알림 |
 | `NotificationPreferences.tsx`, `PushNotificationToggle.tsx` | 설정 |
-| `InstallPrompt.tsx` | PWA 설치 프롬프트 |
+| `ServiceWorkerRegister.tsx` | `/sw.js` 등록 (오프라인·웹푸시 토대). `layout` mount. 옛 `InstallPrompt`(PWA 설치 안내 모달)에서 등록하던 것을 모달 제거(2026-06-24, 네이티브 앱 출시) 후 별도 컴포넌트로 분리 |
+| `NativeStatusBar.tsx` | 네이티브(Capacitor) 상태바 글씨/아이콘 색 런타임 보정 — 밝은 헤더 배경에 어두운(검정) 글씨(`StatusBar.setStyle(Light)`). `layout` mount, 웹=no-op(동적 import 가드). 상태바 플러그인 설치된 라이브 앱엔 웹 배포만으로 즉시 반영 |
 | `InAppBrowserNotice.tsx` | 인앱브라우저 안내 |
 
 ### 4.6. 안내 / 푸터
@@ -405,6 +409,8 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - **0018** 도메인 이전 `pbtt.kr` → `pibutenten.kr` (전략·단계·인프라). auth 커스텀 도메인·SITE_URL 단일 출처·308 영구 리다이렉트.
 - **0019** P3 시술 후기 — 분류 체계·이중집계·노출 정책. (2026-06-25 amend: 1인1시술1후기 제약 해제 → `0023`)
 - **0020** 렌더링·캐싱 = 공유 셸 + 클라이언트 개인화 (V-Phase 2026-06-07). 상세 ISR 캐시 + 개인화는 클라. §11.
+- **0021** 무료 per-IP 한도 API 를 공유 서버리스 IP 로 프록시 금지 — 날씨(Open-Meteo)는 클라 직접 호출. `/api/iploc`(Vercel 헤더만) 은 적용범위 밖. §12.
+- **0022** 네이티브 웹뷰 측위 권한 — 원격 URL 로드 WebView 는 iOS `Info.plist NSLocationWhenInUseUsageDescription`·Android `ACCESS_COARSE/FINE_LOCATION` 선언 + `@capacitor/geolocation` 경로 필요. §12.
 - **0023** 같은 시술 후기 다중 작성 허용 (1인1시술1후기 제약 해제, `0019` amend) — 2026-06-25
 
 ---
@@ -439,6 +445,25 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - **★한글 URL + ISR 금지**: ISR 캐시 페이지는 Next 16 이 페이지 경로를 implicit `x-next-cache-tags` HTTP 헤더(ASCII 전용)에 넣음. 토픽 URL 은 한글(`/topics/콜라겐`)이라 헤더가 깨져 **500(`ERR_INVALID_CHAR`)** → 토픽은 동적 유지. 상세는 ASCII slug 라 무관.
 - **홈 피드 masonry SSR 컬럼**: react-masonry-css 는 SSR 에 window 없어 `default`(2) 사용 → 모바일 클라 1컬럼 재배치 reflow(CLS). `page.tsx` 가 요청 UA 로 `isMobileUA` → `Feed.breakpointCols.default=(isMobileUA?1:2)`. `899:1`·리사이즈 리스너 불변(반응형 유지).
 - **CWV(합성 모바일 랩)**: 캐시 상세 LCP 0.41s·CLS 0·INP 72ms 🟢. 홈/토픽은 동적이라 LCP ~2.1–2.6s. 상세 = 표준 PSI/Lighthouse 가 GA4 비콘 행잉으로 불가 → Playwright Performance API 로 실측. 진짜 INP 는 공개 후 CrUX 필드값으로 확정.
+
+---
+
+## 12. 피부날씨 측위·역지오코딩 (`useWeather`)
+
+"오늘의 피부 날씨"(`/today` 상단 카드 + `/weather` 상세)의 위치 획득·표시 구조. 훅 `src/components/skin/record/skin-weather/useWeather.ts` 가 카드·상세 공용 데이터 소스(stale-while-revalidate).
+
+**측위 사다리 (3단 폴백)**:
+1. **기기 측위** — `acquirePosition()`. 웹/PWA=`navigator.geolocation`, 네이티브(Capacitor)=`@capacitor/geolocation`(동적 import; 권한 확인·요청 후 `getCurrentPosition`). 플러그인 미존재·로드 실패·권한거부 시 `navigator` 로 폴백(no-op 안전). 네이티브 권한 선언 토대 = ADR 0022.
+2. **IP 대략위치** — 기기 측위 실패 시 `/api/iploc`(Vercel IP 지오 헤더, 외부호출 0건). 시 단위 좌표만.
+3. **`DEFAULT_LOC`(대치동)** — IP 폴백도 실패(404·무효 좌표)할 때만 쓰는 최후 수단.
+
+**표시 이름(역지오코딩)**: `reverseGeocodeKo`(BigDataCloud, 무료·키 불필요). GPS=동/읍/면 단위(`coarse=false`), IP=시/도 단위(`coarse=true` — 동·구는 IP 로 부정확해 의도적으로 안 내려감). 실패 시 "내 위치" placeholder 유지.
+
+**캐시(localStorage, stale-while-revalidate)**: 좌표키(`coordKey`) + last 키(`LAST_KEY`, 30분 TTL). 첫 표시 지연 제거용으로 직전 *실제* 위치 스냅샷을 seed 로 즉시 렌더 후 측위로 revalidate. **"내 위치"(placeholder)·"대치동"(DEFAULT_LOC) 은 seed 로 굳히지 않음** — 역지오코딩 지연·정밀 fetch 실패 시 이 둘이 `LAST_KEY` 에 영구 잔존해 동 이름 대신 계속 표시되던 회귀('전원 대치동' 잔존) 방지. 실제 동 이름이 도착한 정밀 결과만 seed.
+
+**날씨 데이터**: Open-Meteo 를 **클라이언트가 직접 호출**(`fetchWeather`, 병렬). 서버 프록시 라우트 없음 — 공유 서버리스 egress IP 의 per-IP 한도 합산 회피(ADR 0021). 따라서 `/api/weather` 류 프록시 라우트는 존재하지 않는다.
+
+> 데이터 도메인 명세(역지오코딩 단위 선택·캐시 키 규칙 등)는 본 절이 SSOT. `TECH_SPEC.md` 는 이 절을 참조만 한다.
 
 ---
 

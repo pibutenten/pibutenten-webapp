@@ -8,7 +8,10 @@
 
 > ⚠️ **재심사 대기 항목(2026-06-25)**: 피부날씨 네이티브 측위 수정(`@capacitor/geolocation` + iOS `NSLocationWhenInUseUsageDescription` + Android `ACCESS_COARSE_LOCATION`)은 **네이티브 바이너리 변경**이라 **새 앱 빌드 + 스토어 재심사가 있어야** 현재 출시본에 반영됩니다(웹 배포만으로는 적용 안 됨). 코드·권한 선언은 적용 완료, 빌드·제출은 원장 검수 후 별도 진행. 상세는 ADR 0022.
 > - **플러그인 등록은 자동**: GitHub Actions 빌드 워크플로(android-build/android-release/ios-build/ios-testflight)가 빌드 직전 `npx cap sync` 를 수행하므로, `@capacitor/geolocation` 은 빌드 시 iOS/Android 네이티브 프로젝트에 자동 등록됩니다(수동 작업 불필요).
-> - **iOS 심사 주의**: 위치 권한 사용 목적 문자열(`NSLocationWhenInUseUsageDescription`)이 심사 항목 — "내 주변 날씨" 용도가 그대로 평가됩니다. 거부 시 대치동 폴백이라 기능은 차단되지 않습니다.
+> - **iOS 심사 주의**: 위치 권한 사용 목적 문자열(`NSLocationWhenInUseUsageDescription`)이 심사 항목 — "내 주변 날씨" 용도가 그대로 평가됩니다. 거부 시 IP 대략위치/대치동 폴백이라 기능은 차단되지 않습니다.
+> - **구글 심사 주의**: `ACCESS_*_LOCATION` 추가로 Play **데이터 안전 신고** 갱신 필요(정밀/대략 위치 사용 목적).
+> - **제출 일정(원장 결정 2026-06-25)**: 정밀 GPS 재심사는 모아서 **2026-06-26 일괄 제출** 예정([[app-ux-5issues]] 그룹 B 와 함께). 그 전까지는 아래 IP 대략위치가 임시로 동작.
+> - **임시 대체(재심사 불필요, 웹 배포로 적용 완료)**: 기기 측위 실패 시 `/api/iploc`(Vercel IP 헤더만 읽음, 외부호출 0건) 기반 **시(도시) 단위 대략위치** 표시(commit a2b3cf2·7206c8e). 정밀 GPS 빌드 전까지 웹·PWA·앱 모두 대치동 대신 대략위치를 보여줌. → ADR 0021(적용 범위 밖)·0022.
 
 ---
 

@@ -345,4 +345,10 @@ const authorName = doctor?.name ?? card.author?.display_name ?? "익명";
 
 ---
 
+## 13. 피부날씨 측위 / 위치 (참조)
+
+피부날씨("오늘의 피부 날씨")의 측위 사다리(기기 GPS → `/api/iploc` IP 대략위치 → 대치동 폴백)·역지오코딩 단위(GPS=동/읍/면, IP=시/도)·캐시 규칙·Open-Meteo 클라 직접 호출(ADR 0021)·네이티브 측위 권한(ADR 0022) 의 **데이터 도메인 명세 SSOT 는 `ARCHITECTURE.md §12`**(`useWeather`). 중복 방지로 본 문서는 참조만 둔다.
+
+---
+
 **이 문서 변경 시**: 키워드 정책·온보딩 단계 변경은 코드 (`auto-tag.ts`, `OnboardingClient.tsx`) 와 한 commit 으로 갱신.
