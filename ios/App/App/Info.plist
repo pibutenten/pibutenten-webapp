@@ -24,6 +24,9 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- 위치 사용 목적(피부날씨) — 원격 URL WebView 가 측위하려면 네이티브 권한 선언 필수(ADR 0022). -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>내 주변 날씨와 피부 정보를 보여드리기 위해 위치를 사용합니다.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

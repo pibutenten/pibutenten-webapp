@@ -4,7 +4,11 @@
 > 원장님이 "지금 어디까지 됐어?" 라고 물으면, AI 는 **이 문서를 먼저 읽고** 현재 상태를 답한 뒤,
 > 변동이 있으면 이 문서를 갱신합니다. (계획·전략은 `plans/mobile-app-store-launch-plan.md`, 카피·자산은 `plans/store-listing.md`.)
 
-최종 갱신: **2026-06-23**
+최종 갱신: **2026-06-25**
+
+> ⚠️ **재심사 대기 항목(2026-06-25)**: 피부날씨 네이티브 측위 수정(`@capacitor/geolocation` + iOS `NSLocationWhenInUseUsageDescription` + Android `ACCESS_COARSE_LOCATION`)은 **네이티브 바이너리 변경**이라 **새 앱 빌드 + 스토어 재심사가 있어야** 현재 출시본에 반영됩니다(웹 배포만으로는 적용 안 됨). 코드·권한 선언은 적용 완료, 빌드·제출은 원장 검수 후 별도 진행. 상세는 ADR 0022.
+> - **플러그인 등록은 자동**: GitHub Actions 빌드 워크플로(android-build/android-release/ios-build/ios-testflight)가 빌드 직전 `npx cap sync` 를 수행하므로, `@capacitor/geolocation` 은 빌드 시 iOS/Android 네이티브 프로젝트에 자동 등록됩니다(수동 작업 불필요).
+> - **iOS 심사 주의**: 위치 권한 사용 목적 문자열(`NSLocationWhenInUseUsageDescription`)이 심사 항목 — "내 주변 날씨" 용도가 그대로 평가됩니다. 거부 시 대치동 폴백이라 기능은 차단되지 않습니다.
 
 ---
 
@@ -51,6 +55,12 @@
 - **스토어 등록정보 입력·저장 완료**(문구+아이콘+피처+스크린샷 3장).
 - **Android 공개 테스트 트랙(대한민국) 검토 제출** → Google 검토 중. (open-testing 트랙 `4699745920944044706`)
 - **iOS TestFlight 업로드 성공**(클라우드 빌드, 빌드 7).
+
+### 2026-06-25 — 피부날씨 네이티브 측위 수정 (재심사 대기)
+- **증상**: 피부날씨 위치가 앱(네이티브)에서만 항상 대치동(웹/PWA 는 정상). 원격 URL WebView 구조에서 ① `@capacitor/geolocation` 미설치 + ② iOS/Android 위치 권한 미선언 → 측위 즉시 실패.
+- **적용(코드·권한 선언)**: `@capacitor/geolocation@8.2.0` 설치, `useWeather.ts` 플랫폼 분기(네이티브=플러그인/웹=navigator), iOS `Info.plist` `NSLocationWhenInUseUsageDescription`, Android `AndroidManifest` `ACCESS_COARSE/FINE_LOCATION`. 빌드·tsc 통과. → ADR 0022.
+- **재심사 필요**: 네이티브 바이너리 변경이라 **새 빌드 + 스토어 재심사** 후에야 출시본 반영. 빌드·제출은 원장 검수 후 진행. iOS 는 위치 사용 목적 문자열이 심사 평가 대상.
+- **on-device 확인 항목(재심사 전)**: ① 앱 첫 진입 시 OS 위치 권한 팝업 노출 ② 허용 시 실제 동 표시 ③ 거부 시 대치동 폴백(기능 차단 없음) ④ iOS·Android 양쪽.
 
 ### 2026-06-23 — iOS 심사 승인 확인 + 가용성 ON(대한민국 게시 완료) · Android 출시 완료 확인
 - **iOS 심사 통과 확인**: App Store Connect 버전 상태가 **"1.0 배포 준비됨(Ready for Distribution)"** + 녹색 체크 → Apple 심사 **승인**.

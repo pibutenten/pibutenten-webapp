@@ -42,4 +42,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 위치(피부날씨) — 원격 URL WebView 가 측위하려면 네이티브 권한 선언 필수(ADR 0022).
+         동 단위 날씨엔 COARSE 로 충분하고 코드도 enableHighAccuracy:false 라 FINE 을 쓰지 않으므로
+         선언하지 않는다(최소 권한 + Google Play '정밀 위치' 데이터 안전 신고 회피·심사 단순화). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 </manifest>
