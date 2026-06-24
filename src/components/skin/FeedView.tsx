@@ -123,7 +123,7 @@ export default function FeedView({
   viewerStates?: Record<number, ViewerState>;
 }) {
   const router = useRouter();
-  const { containerRef: ptrRef, pullDistance, refreshing: ptrRefreshing } = usePullToRefresh(
+  const { containerRef: ptrRef, indicatorRef: ptrIndicatorRef, refreshing: ptrRefreshing } = usePullToRefresh(
     async () => {
       router.refresh();
       await new Promise((r) => setTimeout(r, 800));
@@ -440,14 +440,13 @@ export default function FeedView({
       onSearchChange={setSearchValue}
       onSearchSubmit={submitSearch}
     >
-      <div ref={ptrRef}>
-      {/* Pull-to-refresh 인디케이터 */}
-      {(pullDistance > 0 || ptrRefreshing) && (
-        <div className="flex justify-center py-2" style={{ height: pullDistance > 0 ? pullDistance : undefined }}>
-          <div className={`w-6 h-6 border-2 border-gray-300 border-t-[var(--primary)] rounded-full ${ptrRefreshing ? "animate-spin" : ""}`}
-            style={{ transform: `rotate(${pullDistance * 3}deg)`, opacity: Math.min(pullDistance / 60, 1) }} />
-        </div>
-      )}
+      <div ref={ptrRef} className="relative" style={{ willChange: "transform" }}>
+      {/* PTR 인디케이터 — 바깥 div: 훅이 transform으로 갭 중앙 배치, 안쪽 div: 새로고침 중 spin */}
+      <div ref={ptrIndicatorRef}
+        className="absolute top-0 left-1/2 pointer-events-none z-10"
+        style={{ opacity: 0 }}>
+        <div className={`w-6 h-6 border-2 border-gray-300 border-t-[var(--primary)] rounded-full ${ptrRefreshing ? "animate-spin" : ""}`} />
+      </div>
 
       {/* 탭 전환 애니메이션 대상(운영 FeedList contentRef) — remount 되지 않는 안정 래퍼.
           이 래퍼를 직접 animate(translateY+fade) 하여 칩 전환 효과를 준다. */}
