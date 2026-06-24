@@ -46,23 +46,23 @@ async function acquirePosition(): Promise<{ latitude: number; longitude: number 
     const { Capacitor } = await import("@capacitor/core");
     if (Capacitor.isNativePlatform()) {
       const { Geolocation } = await import("@capacitor/geolocation");
-      // 권한 미결정이면 1회 요청(이미 거부면 그대로 거부 반환 → catch 로 폴백).
+      // 권한 미결정이면 1회 요청. 허용되면 플러그인으로 측위, 아니면 아래 navigator 폴백.
       let perm = await Geolocation.checkPermissions();
       if (perm.location !== "granted" && perm.coarseLocation !== "granted") {
         perm = await Geolocation.requestPermissions({ permissions: ["location", "coarseLocation"] });
       }
-      if (perm.location !== "granted" && perm.coarseLocation !== "granted") {
-        throw new Error(`native permission ${perm.location}/${perm.coarseLocation}`);
+      if (perm.location === "granted" || perm.coarseLocation === "granted") {
+        const p = await Geolocation.getCurrentPosition(GEO_OPTS);
+        return { latitude: p.coords.latitude, longitude: p.coords.longitude };
       }
-      const p = await Geolocation.getCurrentPosition(GEO_OPTS);
-      return { latitude: p.coords.latitude, longitude: p.coords.longitude };
+      // 권한 거부 → 아래 navigator 폴백 시도.
     }
-  } catch (e) {
-    // @capacitor 미존재(웹) → 아래 navigator 경로로. 네이티브에서 실패면 그대로 throw.
-    const { Capacitor } = await import("@capacitor/core").catch(() => ({ Capacitor: { isNativePlatform: () => false } }));
-    if (Capacitor.isNativePlatform()) throw e;
+  } catch {
+    // 플러그인 미존재(UNIMPLEMENTED — 현재 출시 바이너리엔 @capacitor/geolocation 미포함) 또는
+    //   import/호출 실패 → 항상 navigator.geolocation 으로 폴백한다. (플러그인 도입 빌드 전까지
+    //   네이티브 앱도 기존처럼 웹뷰 측위로 동작 — UNIMPLEMENTED 하드실패로 대치동 고착되던 회귀 방지.)
   }
-  // 웹/PWA — 기존 동작 유지.
+  // 웹/PWA, 또는 네이티브에서 플러그인 미사용·권한거부 시 — navigator.geolocation(웹뷰 측위).
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       reject(new Error("geolocation unsupported"));
@@ -244,9 +244,12 @@ export function useWeather(
         // 관측성(과하지 않게 한 줄): 침묵 폴백의 '왜'를 콘솔에 남긴다. UI·외부 전송 없음.
         //   다음에 '전원 대치동' 류가 재발하면 콘솔에서 1분 안에 측위 실패 vs fetch 실패를 구분.
         const code = typeof err === "object" && err && "code" in err ? (err as { code: number }).code : undefined;
+        const msg =
+          err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : String(err);
         const codeName = code === 1 ? "권한거부" : code === 2 ? "측위불가" : code === 3 ? "시간초과" : "오류";
-        console.warn("[weather] 측위 실패 → 대치동 폴백:", code != null ? `geolocation code ${code}` : err);
-        setNote(`측위실패:${codeName}${code != null ? `(${code})` : ""}`); // 진단(임시): 측위 자체 실패.
+        console.warn("[weather] 측위 실패 → 대치동 폴백:", code != null ? `code ${code}` : "", msg);
+        // 진단(임시): code 1(권한거부)의 실제 메시지로 '권한정책 차단' vs '사용자 거부' vs 기기 구분.
+        setNote(`측위:${codeName}${code != null ? `(${code})` : ""}:${msg.slice(0, 45)}`);
         // 측위 실패: seed 가 없으면 대치동을 정밀(true)로 확정해 스켈레톤 종료. seed 가 있으면
         //   필러(false)로 보내 preciseShown 잠금에 걸리게 → 더 정밀한 seed 를 덮어쓰지 않음([제안]7).
         run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, !lastSeed);
