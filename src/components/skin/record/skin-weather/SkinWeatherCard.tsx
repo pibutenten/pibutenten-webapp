@@ -19,7 +19,7 @@ const CORE_KEYS = ["uvb", "uva", "pm", "block"];
 const BG_KEYS = ["temp"];
 
 export default function SkinWeatherCard() {
-  const { snap, err, note } = useWeather();
+  const { snap, err } = useWeather();
 
   if (err && !snap) {
     return (
@@ -54,12 +54,6 @@ export default function SkinWeatherCard() {
               <circle cx="12" cy="10" r="2.5" />
             </svg>
             {snap.name}
-            {/* 진단(임시): 대치동 폴백 원인을 화면에 노출 — 측위실패(코드) vs 날씨못불러옴 구분. */}
-            {note ? (
-              <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: "#d33", opacity: 0.9 }}>
-                ⚠{note}
-              </span>
-            ) : null}
           </span>
           <span className={styles.cGo}>
             자세히

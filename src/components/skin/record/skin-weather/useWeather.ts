@@ -143,12 +143,9 @@ async function reverseGeocodeKo(lat: number, lon: number, signal?: AbortSignal):
  */
 export function useWeather(
   preferLast = false,
-): { snap: WeatherSnapshot | null; err: string | null; note: string | null } {
+): { snap: WeatherSnapshot | null; err: string | null } {
   const [snap, setSnap] = useState<WeatherSnapshot | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  // 진단(임시): 대치동 폴백의 '왜'를 화면에 표시 — 측위 실패 코드 vs 날씨 fetch 실패를 구분.
-  //   원격에서 사용자 기기의 실패 원인을 알 길이 없어, 카드에 한 줄로 노출해 제보받기 위함.
-  const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
     // geolocation 콜백은 abort 불가 — 언마운트 후 늦게 도착해도 setState 하지 않도록 가드.
@@ -199,7 +196,6 @@ export function useWeather(
           const named = precise && s.name === MY_LOC && geoName ? { ...s, name: geoName } : s;
           if (show(named, precise)) {
             writeCache(coordKey(lat, lon), named);
-            if (precise) setNote(null); // 정밀 결과 표시 성공 → 진단 노트 해제.
           }
         })
         .catch((e: unknown) => {
@@ -209,10 +205,27 @@ export function useWeather(
             // 관측성: 측위는 됐으나 Open-Meteo fetch 가 실패한 경우(위 측위 실패와 구분).
             const m = e instanceof Error ? e.message : String(e);
             console.warn("[weather] 날씨 fetch 실패(측위는 성공):", m);
-            setNote(`날씨못불러옴:${m.slice(0, 40)}`); // 진단(임시): 측위는 됐는데 fetch 실패.
             setErr(e instanceof Error ? e.message : "날씨 정보를 불러오지 못했어요");
           }
         });
+    };
+
+    // 측위(또는 IP 대략위치)로 받은 좌표 한 쌍을 표시·캐시·역지오코딩까지 처리하는 공용 경로.
+    //   device-geo 성공과 IP 폴백이 동일 로직(run + reverseGeocodeKo + geoName/캐시 이름 동기화)을
+    //   쓰므로 중복을 여기로 추출(DRY). name 은 항상 MY_LOC placeholder 로 시작하고, 역지오코딩이
+    //   도착하면 실제 동/시 이름으로 갱신한다(IP city 는 영문이라 한국어 동 이름을 우선).
+    const useCoords = (lat: number, lon: number, precise: boolean) => {
+      // 날씨는 좌표만 있으면 되므로 즉시 fetch — 지명(역지오코딩)을 기다리지 않아 첫 표시 지연 단축.
+      run(lat, lon, MY_LOC, precise);
+      // 동 단위 지명은 병렬로 받아 도착 시 '이름만' 갱신(+캐시 이름 동기화). 실패하면 "내 위치" 유지.
+      reverseGeocodeKo(lat, lon, ac.signal).then((name) => {
+        if (!mounted || !name) return;
+        geoName = name; // 측위 fetch 가 아직이면 run 의 then 에서 이 이름으로 덮어쓰도록 보관.
+        setSnap((prev) => (prev ? { ...prev, name } : prev));
+        const k = coordKey(lat, lon);
+        const c = readCache(k);
+        if (c) writeCache(k, { ...c, name });
+      });
     };
 
     // 1단(즉시): 직전 성공 스냅샷(LAST_KEY)이 신선하면 측위를 기다리지 말고 곧장 렌더(stale-while-revalidate).
@@ -227,17 +240,7 @@ export function useWeather(
     acquirePosition()
       .then(({ latitude, longitude }) => {
         if (!mounted) return;
-        // 날씨는 좌표만 있으면 되므로 즉시 fetch — 지명(역지오코딩)을 기다리지 않아 첫 표시 지연 단축.
-        run(latitude, longitude, MY_LOC, true);
-        // 동 단위 지명은 병렬로 받아 도착 시 '이름만' 갱신(+캐시 이름 동기화). 실패하면 "내 위치" 유지.
-        reverseGeocodeKo(latitude, longitude, ac.signal).then((name) => {
-          if (!mounted || !name) return;
-          geoName = name; // 측위 fetch 가 아직이면 run 의 then 에서 이 이름으로 덮어쓰도록 보관.
-          setSnap((prev) => (prev ? { ...prev, name } : prev));
-          const k = coordKey(latitude, longitude);
-          const c = readCache(k);
-          if (c) writeCache(k, { ...c, name });
-        });
+        useCoords(latitude, longitude, true);
       })
       .catch((err: unknown) => {
         if (!mounted) return;
@@ -246,13 +249,31 @@ export function useWeather(
         const code = typeof err === "object" && err && "code" in err ? (err as { code: number }).code : undefined;
         const msg =
           err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : String(err);
-        const codeName = code === 1 ? "권한거부" : code === 2 ? "측위불가" : code === 3 ? "시간초과" : "오류";
-        console.warn("[weather] 측위 실패 → 대치동 폴백:", code != null ? `code ${code}` : "", msg);
-        // 진단(임시): code 1(권한거부)의 실제 메시지로 '권한정책 차단' vs '사용자 거부' vs 기기 구분.
-        setNote(`측위:${codeName}${code != null ? `(${code})` : ""}:${msg.slice(0, 45)}`);
-        // 측위 실패: seed 가 없으면 대치동을 정밀(true)로 확정해 스켈레톤 종료. seed 가 있으면
-        //   필러(false)로 보내 preciseShown 잠금에 걸리게 → 더 정밀한 seed 를 덮어쓰지 않음([제안]7).
-        run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, !lastSeed);
+        console.warn("[weather] 측위 실패 → IP 대략위치 시도:", code != null ? `code ${code}` : "", msg);
+
+        // 기기 측위 실패: 대치동으로 바로 가지 않고 먼저 접속 IP 기반 대략위치(/api/iploc)를 시도.
+        //   IP 라우트는 Vercel 헤더만 읽어 외부호출이 없다(ADR 0021 무관). 성공하면 도시/동 수준
+        //   대략위치를, 실패(404·네트워크·무효 좌표)하면 그때 비로소 대치동(최후 수단)으로 폴백.
+        fetch("/api/iploc", { signal: ac.signal })
+          .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`iploc ${r.status}`))))
+          .then((j: { lat?: unknown; lon?: unknown }) => {
+            if (!mounted || ac.signal.aborted) return;
+            const lat = Number(j?.lat);
+            const lon = Number(j?.lon);
+            if (Number.isFinite(lat) && Number.isFinite(lon)) {
+              // 대략위치 표시. seed 가 없으면 정밀(true)로 확정해 스켈레톤 종료, 있으면 필러(false)로
+              //   보내 더 정밀한 seed 를 덮어쓰지 않음(preciseShown 잠금).
+              useCoords(lat, lon, !lastSeed);
+            } else {
+              throw new Error("iploc invalid coords");
+            }
+          })
+          .catch((e: unknown) => {
+            if (!mounted || ac.signal.aborted) return;
+            console.warn("[weather] IP 대략위치 실패 → 대치동 폴백:", e instanceof Error ? e.message : String(e));
+            // 최후 수단: 대치동. seed 가 없으면 정밀(true)로 확정해 스켈레톤 종료, 있으면 필러(false).
+            run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, !lastSeed);
+          });
       });
     return () => {
       mounted = false;
@@ -260,5 +281,5 @@ export function useWeather(
     };
   }, [preferLast]);
 
-  return { snap, err, note };
+  return { snap, err };
 }

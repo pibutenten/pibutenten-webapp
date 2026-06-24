@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-06-25] — 피부날씨 IP 기반 대략위치 폴백 (기기 측위 실패 시 대치동 대신)
+
+### Added
+- **`/api/iploc`**(`src/app/api/iploc/route.ts`, `runtime="nodejs"`): 접속 IP 기반 대략 위치(도시/동 수준) 폴백 endpoint. Vercel 이 요청에 붙이는 IP 지오 헤더(`x-vercel-ip-latitude`/`-longitude`/`-city`)만 읽어 `{ lat, lon, city }` 반환(유한수 아니거나 `(0,0)` sentinel 이면 `{ error: true }` + 404 — 일부 프록시·dev 가 측위불가 IP 에 `0` 을 채워 Null Island 로 잘못 표시되는 것 방지). `Cache-Control: no-store`(IP 마다 값이 달라 캐시 불가). **외부 API 호출 없음** — Vercel 헤더만 읽으므로 ADR 0021("공유 IP 프록시") 안티패턴 무관.
+- **`useWeather.ts` IP 폴백**: 기기 측위(`acquirePosition`)가 실패하면 바로 대치동으로 가지 않고 `/api/iploc` 를 먼저 시도 → 유효 좌표면 대략위치 표시, 실패(404·네트워크·무효)면 그때 대치동(최후 수단) 폴백. (로컬 dev 는 Vercel 헤더가 없어 404 → 대치동, 정상.)
+
+### Changed
+- **`useWeather.ts` DRY**: device-geo 성공 블록에 인라인돼 있던 `run + reverseGeocodeKo`(좌표→표시·역지오코딩·캐시 이름 동기화) 로직을 `useCoords(lat, lon, precise)` 헬퍼로 추출. device-geo 성공과 IP 폴백이 공용 경로 사용(중복 제거).
+
+### Removed
+- **임시 진단 제거**: `useWeather` 의 `note` state·모든 `setNote(...)`·반환값 `note` 제거(반환 타입 `{ snap, err }` 로 환원). `SkinWeatherCard` 의 위치명 옆 임시 진단 `⚠note` 표시 블록 제거. 관측성 `console.warn`(측위 실패/날씨 fetch 실패 구분)은 개발자 콘솔용으로 유지.
+
+---
+
 ## [2026-06-25] — 앱 UX 피드백 9건 (최근 본 글·후기 다중화·플로팅 버튼·키보드·로그아웃)
 
 ### Added
