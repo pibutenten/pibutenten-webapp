@@ -2653,7 +2653,6 @@ button.t[data-cat="knowledge"]:hover {
 .recTlHead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
 .recTlName {

@@ -6,6 +6,27 @@
 
 ---
 
+## [2026-06-26] — 시술 노트 UX 개선 + IP 위치 버그 수정
+
+### Changed
+- **시술 노트 폼**: 네이티브 date picker를 인라인 달력으로 교체 (월 네비, 바깥 클릭 닫힘, 자동 스크롤)
+- **시술 검색 input**: X(지우기) 버튼 추가, onBlur 시 자동완성 닫힘 (150ms 안전 지연), 포커스 테두리 --primary-soft에서 --primary로 강화
+- **시술 검색 직접 추가**: 독립 버튼 onMouseDown 이중 바인딩 제거 후 blur 방지로 재설정 (모바일 터치 안정성)
+- **inputCls 폰트**: 14px에서 16px로 변경 (iOS Safari 입력 시 자동 줌 방지)
+- **노트 목록 3뷰 (타임라인/달력/목록)**: expand/collapse 인라인 상세를 `/notes/[id]` 페이지 이동으로 교체. useExpand/ExpandBody/EntryDetail 제거
+- **ReviewBox**: expand/collapse에서 `<Link>` 직접 이동으로 변경
+- **배지 위치**: recTlHead에서 justify-content: space-between 제거 — 배지가 시술명 바로 옆에 위치
+
+### Fixed
+- **IP 위치 표시 오류**: /api/iploc에 `export const dynamic = "force-dynamic"` 추가 (Vercel 엣지 캐싱 방지), Cache-Control 강화 (`no-store, no-cache, must-revalidate`)
+- **위치 고착 버그**: useWeather IP 폴백에서 기존 시드가 있을 때 precise=false로 처리되어 IP 결과가 무시되던 문제 수정 (해외 이동 시 이전 도시가 고착)
+
+### Removed
+- RecordNotesPanel.tsx의 dead code 4개 함수 (hasExpandable, EntryDetail, ExpandBody, useExpand)
+- Dropbox 충돌 사본 파일 제거 (`page (DESKTOP-7LJDDVT의 충돌된 사본 2026-06-25).tsx`)
+
+---
+
 ## [2026-06-25] — PTR 부드러운 동작 리팩터링
 
 ### Changed

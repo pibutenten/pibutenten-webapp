@@ -275,9 +275,10 @@ export function useWeather(
             const lat = Number(j?.lat);
             const lon = Number(j?.lon);
             if (Number.isFinite(lat) && Number.isFinite(lon)) {
-              // 대략위치 표시(coarse=true → 시 단위 이름만, 동·구 안 내려감). seed 없으면 정밀(true)로
-              //   확정해 스켈레톤 종료, 있으면 필러(false)로 보내 더 정밀한 seed 를 덮어쓰지 않음.
-              useCoords(lat, lon, !lastSeed, true);
+              // 대략위치 표시(coarse=true → 시 단위 이름만, 동·구 안 내려감).
+              //   항상 정밀(true)로 처리: seed 가 있더라도 다른 도시의 옛 결과일 수 있어(해외 출장 등)
+              //   현재 IP 기반 결과가 더 정확한 위치. seed 가 같은 도시면 이름만 시 단위로 바뀔 뿐.
+              useCoords(lat, lon, true, true);
             } else {
               throw new Error("iploc invalid coords");
             }

@@ -4,13 +4,14 @@
  * RecordNotesView — /notes "내 노트" 본문(클라이언트). 하단 1차 탭.
  *   공용 셸(AppShell, active="내 노트") 안에:
  *     제목 + KPI 3종(받은 시술·내가 쓴 노트·내가 쓴 후기)
- *     → 데이터 있으면 시술 노트 3토글(타임라인/달력/목록, RecordNotesPanel; 목록 뷰는 개별 접기/펼치기)
+ *     → 데이터 있으면 시술 노트 3토글(타임라인/달력/목록, RecordNotesPanel)
  *     → 비면 "이렇게 기록돼요" 예시(더미) + 첫 노트 CTA.
  *   데이터는 서버 page.tsx 가 운영 record-data(diaries → SummaryGroup[])로 조회해 props 로 주입.
  *   1차 탭이므로 뒤로가기 없음(서브 페이지였던 시절의 detailHead 제거).
  */
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppShell from "../AppShell";
 import styles from "../app.module.css";
@@ -83,6 +84,7 @@ export default function RecordNotesView({
   reviews?: MyReview[];
 }) {
   const entries = useMemo(() => toRecEntries(summary), [summary]);
+  const router = useRouter();
 
   return (
     <AppShell active="내 노트">
@@ -154,7 +156,7 @@ export default function RecordNotesView({
           </section>
         </>
       ) : (
-        <RecordNotesPanel entries={entries} />
+        <RecordNotesPanel entries={entries} onOpen={(id) => router.push(`/notes/${id}`)} />
       )}
 
       {/* "내 후기"(독립 후기) 섹션 — 노트 목록 아래(맨 밑).

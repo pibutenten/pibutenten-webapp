@@ -19,6 +19,7 @@ import { NextResponse } from "next/server";
  */
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const h = req.headers;
@@ -43,5 +44,5 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ lat, lon, city }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ lat, lon, city }, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
 }

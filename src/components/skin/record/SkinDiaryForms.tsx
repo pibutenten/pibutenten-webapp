@@ -15,7 +15,7 @@ import { chosungOf, isAllChosung } from "@/lib/hangul-chosung";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
-  "w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[14px] transition-colors focus:border-[var(--primary-soft)] focus:outline-none";
+  "w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[16px] transition-colors focus:border-[var(--primary)] focus:outline-none";
 const inputSm =
   "rounded-md border border-[var(--border)] bg-white px-2.5 py-1.5 text-[13px] focus:border-[var(--primary)] focus:outline-none";
 const textareaCls =
@@ -102,9 +102,19 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
   const [savedModal, setSavedModal] = useState(false); // 저장 완료 모달(→ 시술후기 유도).
   const [dupId, setDupId] = useState<number | null>(null); // 중복 추가 시 기존 행 0.5초 강조.
   const [acHi, setAcHi] = useState(-1); // 자동완성 키보드 하이라이트 인덱스(-1=없음).
-  // 날짜 picker — 데스크탑 크롬은 필드 클릭만으론 안 열려서 showPicker()로 강제로 연다.
-  const dateRef = useRef<HTMLInputElement | null>(null);
-  const openDatePicker = () => { try { dateRef.current?.showPicker?.(); } catch { /* 미지원 브라우저는 네이티브 클릭 폴백 */ } };
+  // 인라인 달력 — 날짜 영역 클릭 시 아래로 펼침. 바깥 클릭 시 닫힘.
+  const [calOpen, setCalOpen] = useState(false);
+  const calRef = useRef<HTMLDivElement>(null);
+  const calBtnRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!calOpen) return;
+    const h = (e: MouseEvent) => {
+      if (calRef.current?.contains(e.target as Node) || calBtnRef.current?.contains(e.target as Node)) return;
+      setCalOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [calOpen]);
   // 입력 후 다음 칸으로 커서 자동 이동(빠른 연속 입력): 병원 선택→원장님, 원장님 Enter→실장님, 실장님 Enter→시술명.
   const doctorRef = useRef<HTMLInputElement | null>(null);
   const managerRef = useRef<HTMLInputElement | null>(null);
@@ -113,6 +123,19 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
   const [date, setDate] = useState(`${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`);
   const [_y, _m, _dd] = date.split("-");
   const dateLabel = `${+_y}년 ${+_m}월 ${+_dd}일`;
+  const [calYear, setCalYear] = useState(+_y);
+  const [calMonth, setCalMonth] = useState(+_m);
+  const calDays = useMemo(() => {
+    const first = new Date(calYear, calMonth - 1, 1).getDay();
+    const total = new Date(calYear, calMonth, 0).getDate();
+    const arr: (number | null)[] = [];
+    for (let i = 0; i < first; i++) arr.push(null);
+    for (let i = 1; i <= total; i++) arr.push(i);
+    return arr;
+  }, [calYear, calMonth]);
+  const prevCalMonth = () => { if (calMonth === 1) { setCalMonth(12); setCalYear((y) => y - 1); } else setCalMonth((m) => m - 1); };
+  const nextCalMonth = () => { if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1); } else setCalMonth((m) => m + 1); };
+  const selectCalDate = (day: number) => { setDate(`${calYear}-${String(calMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`); setCalOpen(false); };
 
   // clinics row[] → ClinicHit[] (내 위치 있으면 거리 계산 + 거리순 정렬).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -335,17 +358,30 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
 
       {/* 메인 노트 글상자 */}
       <div className={formBox}>
-        {/* 1. 날짜 — 클릭하면 달력 picker(투명 오버레이), 표시는 괄호 없이 */}
+        {/* 1. 날짜 — 인라인 달력 펼침 */}
         <div>
           <label className={labelCls}>언제 받으셨어요?</label>
-          <div className="relative">
-            <div className={inputCls + " flex items-center justify-between"} aria-hidden>
-              <span className="text-[var(--text)]">{dateLabel}</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0"><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M4 9h16" /></svg>
+          <button ref={calBtnRef} type="button" onClick={() => { const next = !calOpen; setCalOpen(next); if (next) { setCalYear(+_y); setCalMonth(+_m); requestAnimationFrame(() => calRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })); } }} className={inputCls + " flex items-center justify-between text-left"}>
+            <span className="text-[var(--text)]">{dateLabel}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0"><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M4 9h16" /></svg>
+          </button>
+          {calOpen && (
+            <div ref={calRef} className="mt-2 rounded-md border border-[var(--border)] bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <button type="button" onClick={prevCalMonth} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg)]" aria-label="이전 달">&lsaquo;</button>
+                <span className="text-[14px] font-semibold text-[var(--text)]">{calYear}년 {calMonth}월</span>
+                <button type="button" onClick={nextCalMonth} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg)]" aria-label="다음 달">&rsaquo;</button>
+              </div>
+              <div className="mb-1 grid grid-cols-7 text-center text-[12px] text-[var(--text-muted)]">
+                {["일","월","화","수","목","금","토"].map((d) => <span key={d}>{d}</span>)}
+              </div>
+              <div className="grid grid-cols-7 text-center">
+                {calDays.map((d, i) => d ? (
+                  <button key={i} type="button" onClick={() => selectCalDate(d)} className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-[13px] ${+_y === calYear && +_m === calMonth && +_dd === d ? "bg-[var(--primary)] font-bold text-white" : "text-[var(--text)] hover:bg-[var(--primary-soft)]"}`}>{d}</button>
+                ) : <span key={i} />)}
+              </div>
             </div>
-            {/* input 자체를 투명 클릭 영역으로 둠 → onClick 으로 showPicker(데스크탑), 미지원 브라우저는 input 네이티브 클릭이 폴백. */}
-            <input ref={dateRef} type="date" aria-label="시술 받은 날짜" value={date} onClick={openDatePicker} onChange={(e) => setDate(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
-          </div>
+          )}
         </div>
 
         {/* 2. 병원 — 이름/지명 검색 → 결과에서 바로 선택(지도 없음). 선택 시 결과창이 부드럽게 접힘. */}
@@ -461,12 +497,13 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
           <div className="relative">
             <input
               ref={tagRef}
-              className={inputCls}
+              className={`${inputCls} pr-9`}
               placeholder="시술명을 입력하세요 (예: 울쎄라)"
               value={tag}
               autoComplete="off"
               enterKeyHint="done"
               onChange={(e) => setTag(e.target.value)}
+              onBlur={() => { setTimeout(() => { setTag(""); setAcHi(-1); }, 150); }}
               onKeyDown={(e) => {
                 // 자동완성 키보드 네비 — ↑↓ 로 후보(+'직접 추가' 줄) 이동.
                 const navLen = acMatches.length + (acExact ? 0 : 1);
@@ -488,6 +525,9 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
                 }
               }}
             />
+            {tag && (
+              <button type="button" onClick={() => { setTag(""); tagRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-[16px] leading-none text-[var(--text-muted)] hover:text-[var(--text)]" aria-label="입력 지우기">&times;</button>
+            )}
             {tq && acMatches.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto rounded-md bg-white shadow-[var(--shadow-lg)]">
                 {acMatches.map((m, i) => (
@@ -510,7 +550,7 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
           </div>
           {/* 추천 결과가 0건이면 드롭다운이 비어 보이므로, '직접 추가' 버튼을 입력창 바로 아래에 확실히 노출. */}
           {tq && acMatches.length === 0 && !acExact && (
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); addTag(tag, "free_text"); }} onClick={() => addTag(tag, "free_text")}
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => addTag(tag, "free_text")}
               className="mt-2 flex w-full items-center gap-2 rounded-md border border-[var(--primary)] bg-[var(--primary-soft)] px-3 py-2.5 text-left">
               <span className="text-[13px] font-semibold text-[var(--primary-active)]">＋ “{tq}” 직접 추가</span>
               <span className="ml-auto text-[11px] text-[var(--text-muted)]">목록에 없음</span>
