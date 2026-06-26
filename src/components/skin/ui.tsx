@@ -996,7 +996,8 @@ export function PostCard({
   // 항목 4) 작성자 프로필 URL. null 이면 링크 대신 일반 div.
   const profileHref = authorHref(card);
   // 항목 5) 24h 내 작성 → NEW 배지.
-  const showNew = isNewCard(card.created_at);
+  const displayDate = card.reviewed_at ?? card.created_at;
+  const showNew = isNewCard(displayDate);
 
   // ⋮ 메뉴에서 삭제 성공 시 카드 언마운트(모든 훅 호출 이후라 조건부 훅 아님 — 안전).
   if (removed) return null;
@@ -1030,7 +1031,7 @@ export function PostCard({
         </div>
         <div className={styles.authorSub}>
           <span className={styles.catLabel}>{categoryLabel(card)}</span>
-          {timeAgo(card.created_at) ? ` · ${timeAgo(card.created_at)}` : ""}
+          {timeAgo(displayDate) ? ` · ${timeAgo(displayDate)}` : ""}
           {/* HOT/NEW — ⋮ 와 겹치던 우상단 절대배치(.badges) 폐기. 작성자 메타 줄에 인라인 칩으로.
               둘 다면 NEW → HOT 순. 글상세(forceExpanded)에는 HOT/NEW 미노출(피드 PostCard 만). */}
           {!forceExpanded && showNew && <span className={styles.newBadge}>NEW</span>}
