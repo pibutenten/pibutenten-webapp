@@ -13,7 +13,7 @@
  * ⚠ 보안(ADR 0005): 위 쿠키는 클라 UX 표시 전용이며 인가에 절대 쓰지 않는다. 실제 권한은
  *   서버가 RLS + auth.getUser() 로 재검증하므로 쿠키 위조는 서버에서 거부된다.
  *
- * SessionInfo 타입은 TopNav 에서 정의(타입만 import — 런타임 순환 없음).
+ * SessionInfo 타입은 lib/session-types 에서 정의(중립 모듈, 런타임 순환 없음).
  */
 
 import {

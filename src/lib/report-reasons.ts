@@ -10,7 +10,25 @@
  * - hint  : 상세 신고 폼(/report)에서 부가 설명으로 노출(선택).
  */
 
-export const REPORT_REASONS = [
+export type ReportReason =
+  | "spam"
+  | "harassment"
+  | "medical_ad"
+  | "false_info"
+  | "personal_info"
+  | "csam"
+  | "self_harm"
+  | "copyright"
+  | "other";
+
+export type ReportReasonOption = {
+  value: ReportReason;
+  label: string;
+  hint?: string;
+};
+
+/** 표준 사유 9종 + 한글 라벨 단일 출처. 배열 순서 = UI 노출 순서. */
+export const REPORT_REASONS: readonly ReportReasonOption[] = [
   { value: "spam", label: "스팸·도배" },
   { value: "harassment", label: "욕설·괴롭힘·혐오 표현" },
   {
@@ -24,10 +42,7 @@ export const REPORT_REASONS = [
   { value: "self_harm", label: "자해·자살 조장 콘텐츠" },
   { value: "copyright", label: "저작권·초상권 침해" },
   { value: "other", label: "기타" },
-] as const satisfies readonly { value: string; label: string; hint?: string }[];
-
-/** 신고 사유 값 유니온 (DB·API 정합). */
-export type ReportReason = (typeof REPORT_REASONS)[number]["value"];
+];
 
 /** zod `z.enum` 등 value 검증용 튜플 (REPORT_REASONS 에서 파생 — 단일 출처). */
 export const REPORT_REASON_VALUES = REPORT_REASONS.map((r) => r.value) as [
