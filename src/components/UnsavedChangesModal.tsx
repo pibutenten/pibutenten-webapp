@@ -4,18 +4,30 @@ import { useEffect, useRef } from "react";
 
 /**
  * 작성 중 이탈 확인 모달 — useUnsavedChangesGuard 와 함께 사용.
+ *
+ * variant:
+ *   - "create": 신규 글쓰기. 제목 "작성 중인 글쓰기를 종료하시겠습니까?",
+ *               버튼 [임시저장 후 종료] / [글쓰기 종료]. (localStorage 임시저장 슬롯 존재)
+ *   - "edit":   수정. 제목 "작성 중인 내용이 있어요", 버튼 [계속 작성] / [나가기].
+ *               (수정 모드는 임시저장 슬롯 개념이 없어 임시저장 버튼 미노출)
+ *
+ * 배경 클릭·Esc = onCancel(계속 작성).
  */
 export default function UnsavedChangesModal({
-  onConfirm,
+  variant,
+  onSaveDraft,
+  onDiscard,
   onCancel,
 }: {
-  onConfirm: () => void;
+  variant: "create" | "edit";
+  onSaveDraft?: () => void;
+  onDiscard: () => void;
   onCancel: () => void;
 }) {
-  const cancelRef = useRef<HTMLButtonElement>(null);
+  const primaryRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    cancelRef.current?.focus();
+    primaryRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCancel();
     };
@@ -23,11 +35,19 @@ export default function UnsavedChangesModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onCancel]);
 
+  const isCreate = variant === "create";
+  const title = isCreate
+    ? "작성 중인 글쓰기를 종료하시겠습니까?"
+    : "작성 중인 내용이 있어요";
+  const description = isCreate
+    ? "지금까지 작성한 내용을 임시저장할 수 있어요."
+    : "이 페이지를 떠나면 작성 중인 내용이 사라집니다.";
+
   return (
     <div
       role="alertdialog"
       aria-modal="true"
-      aria-label="작성 중인 내용이 있습니다"
+      aria-label={title}
       style={{
         position: "fixed",
         inset: 0,
@@ -44,7 +64,7 @@ export default function UnsavedChangesModal({
           background: "#fff",
           borderRadius: 16,
           padding: "28px 24px 20px",
-          maxWidth: 320,
+          maxWidth: 340,
           width: "calc(100% - 48px)",
           boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
         }}
@@ -58,10 +78,10 @@ export default function UnsavedChangesModal({
             marginBottom: 8,
           }}
         >
-          작성 중인 내용이 있어요
+          {title}
         </h2>
         <p style={{ fontSize: 14, color: "#7b8794", lineHeight: 1.5 }}>
-          이 페이지를 떠나면 작성 중인 내용이 사라집니다.
+          {description}
         </p>
         <div
           style={{
@@ -71,39 +91,79 @@ export default function UnsavedChangesModal({
             justifyContent: "flex-end",
           }}
         >
-          <button
-            ref={cancelRef}
-            type="button"
-            onClick={onCancel}
-            style={{
-              padding: "10px 20px",
-              borderRadius: 10,
-              border: "1px solid #edf2f5",
-              background: "#f7f9fb",
-              color: "#3c4856",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            계속 작성
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            style={{
-              padding: "10px 20px",
-              borderRadius: 10,
-              border: "none",
-              background: "#FF6B81",
-              color: "#fff",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            나가기
-          </button>
+          {isCreate ? (
+            <>
+              <button
+                type="button"
+                onClick={onDiscard}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 10,
+                  border: "1px solid #edf2f5",
+                  background: "#f7f9fb",
+                  color: "#3c4856",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                글쓰기 종료
+              </button>
+              <button
+                ref={primaryRef}
+                type="button"
+                onClick={onSaveDraft}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: "#FF6B81",
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                임시저장 후 종료
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                ref={primaryRef}
+                type="button"
+                onClick={onCancel}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 10,
+                  border: "1px solid #edf2f5",
+                  background: "#f7f9fb",
+                  color: "#3c4856",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                계속 작성
+              </button>
+              <button
+                type="button"
+                onClick={onDiscard}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: "#FF6B81",
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                나가기
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

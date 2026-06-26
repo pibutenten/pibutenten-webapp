@@ -25,6 +25,7 @@ import type { PostCategorySlug } from "@/lib/post-category";
 import { ROLES } from "@/lib/identity-shared";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
+import { maybeBlockNavigation } from "@/lib/nav-guard";
 
 const WRITE_PHRASES = [
   "유독 잘 받은 화장의 비결은..",
@@ -246,14 +247,31 @@ export default function WriteClient({
         }))
       : undefined;
 
+  // C3 (2026-06-26): 임시저장함 진입 — /write/drafts 로의 유일한 가시 동선.
+  //   작성 중이면 이탈 모달로 가로채고(maybeBlockNavigation), 비었으면 바로 이동.
+  const goDrafts = () => {
+    if (maybeBlockNavigation(() => router.push("/write/drafts"))) return;
+    router.push("/write/drafts");
+  };
+
   return (
     <section className="w-full py-6">
-      <h1
-        key={headerPhrase}
-        className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up"
-      >
-        {headerPhrase}
-      </h1>
+      <div className="relative mb-5">
+        <h1
+          key={headerPhrase}
+          className="text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up"
+        >
+          {headerPhrase}
+        </h1>
+        <button
+          type="button"
+          onClick={goDrafts}
+          className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full border border-[var(--border)] bg-[var(--bg-soft)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-muted)] transition-opacity hover:opacity-80"
+          title="임시저장한 글 보기"
+        >
+          임시저장함
+        </button>
+      </div>
       <CardEditor
         mode="create"
         viewerRole={role}

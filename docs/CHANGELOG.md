@@ -19,6 +19,7 @@
 - **[Item 9] 시술노트 병원 검색 iOS 확대**: 주소·전화번호 input에 font-size: 16px 인라인 스타일 추가하여 iOS Safari 자동 줌 방지
 - **[Item 10] 시술후기 스크롤 시 칩 활성화**: ChoiceChip·EffectChip의 active:scale-110 제거. 모바일 스크롤 터치가 :active 상태를 트리거하여 칩이 깜빡이던 문제 해소
 - **[Item 11] 시술후기 발행 후 빈 페이지**: 개별 글 페이지(/{handle}/{shortcode})로 이동하던 것을 홈 피드(/)로 변경. justPublished sessionStorage 메커니즘으로 방금 쓴 글이 피드 최상단에 노출되고, 아래로 일반 피드가 이어짐. 프로필 카드 노출 문제도 동시 해소
+- **[Item 13b] 수정 후 재게시 시 피드 미연결**: 일반 글(회원·원장 끄적끄적/post)을 수정·재게시하면 글 상세(Q&A 추천+프로필 카드)로 빠져 신규 게시처럼 피드가 연결되지 않던 문제 수정. published 상태의 non-qa 글 수정 시 신규 게시(WriteClient)와 동일하게 `pbtt:justPublished`(cardId) 시그널을 심고 홈 피드(/)로 이동 → 방금 수정한 글이 피드 최상단으로 이동(이미 풀에 있으면 중복 없이 맨 앞으로), 아래로 일반 피드 연결. EditClient. qa·draft·pending·검수 전환·soft-delete 는 기존 returnUrl 유지
 
 ### Changed
 - **[Item 1] 모바일 검색 결과 헤더 개편**: 검색 결과 화면에서 기존 알약형 검색어 표시를 /search 페이지와 동일한 풀 검색바(← 뒤로 + 검색 입력창 + ✕)로 교체. X 버튼은 검색어 입력 시에만 노출. 데스크탑(≥900px)은 기존 상시 pill 유지
@@ -29,6 +30,9 @@
 - **노트 목록 3뷰 (타임라인/달력/목록)**: expand/collapse 인라인 상세를 `/notes/[id]` 페이지 이동으로 교체. useExpand/ExpandBody/EntryDetail 제거
 - **ReviewBox**: expand/collapse에서 `<Link>` 직접 이동으로 변경
 - **배지 위치**: recTlHead(CSS) + RecordView 인라인(Tailwind) 양쪽에서 justify-between 제거 — 배지가 시술명 바로 옆에 위치하도록 통일
+- **[Item 3] 글쓰기 이탈 동작 type1 모달**: 작성 중(제목·본문·키워드 등 입력 후) 다른 화면(하단 5탭·데스크탑 내비·로고 포함)으로 이동 시 "작성 중인 글쓰기를 종료하시겠습니까?" 모달([임시저장 후 종료]/[글쓰기 종료]) 표시. 빈 상태는 모달 없이 자유 이동(회귀 없음). 하단/데스크탑 내비 `<Link>` 이동은 신규 `nav-guard` 모듈(maybeBlockNavigation)로 가로채 일관 적용. [임시저장 후 종료]=떠나기 직전 1회 강제 저장, [글쓰기 종료]=임시저장 슬롯 삭제. 수정(edit) 모드는 임시저장 슬롯이 없어 [계속 작성]/[나가기] 유지. CardEditor·ReviewForm 공통. 사용자 확정(2026-06-26)
+- **[Item 3-임시저장함] 임시저장함 진입 경로 추가**: 글쓰기(`/write`) 헤더 우측에 "임시저장함" 버튼 신설 — 기존엔 직접 URL 외 도달 불가하던 `/write/drafts` 로의 유일한 가시 동선. 작성 중이면 이탈 모달로 가로채고, 비었으면 바로 이동
+- **nav-guard 모듈 신설**(`src/lib/nav-guard.ts`): 글쓰기 이탈 가드용 모듈 레벨 스토어(feed-tab.ts 패턴). useUnsavedChangesGuard 가 자신을 등록하고 BottomNav 등 in-app `<Link>` 가 이동 직전 maybeBlockNavigation 으로 조회 → popstate/beforeunload 만으로 못 잡던 전방향 Link 이동까지 가드 커버
 
 ### Fixed
 - **의사 검수일 표시 오류**: 의사가 `/write/[shortcode]`에서 pending_review QA 카드 편집 시 status가 변경되지 않아 reviewed_at이 null로 남고 admin 초안 작성일(created_at)이 표시되던 버그 수정. 의사+QA+pending_review 조건 시 자동으로 status: "published" 전송, PUT handler의 reviewed_at 설정 로직이 정상 동작하도록 연결

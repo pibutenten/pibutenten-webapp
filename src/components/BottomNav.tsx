@@ -19,6 +19,7 @@ import SearchPanel, { prefetchDiscover } from "./search/SearchPanel";
 import { useSession } from "@/lib/session-context";
 import { addRecent } from "@/lib/recent-search";
 import { setFeedTab, useFeedTab, type FeedTab } from "@/lib/feed-tab";
+import { maybeBlockNavigation } from "@/lib/nav-guard";
 
 const C = "#4cbff2";
 
@@ -253,6 +254,9 @@ export default function BottomNav() {
   //     (same-URL 소프트 내비는 서버 재실행이 없어 jitter 가 안 바뀌고, 탭 store 도 그대로라 "반응 없음"처럼 느껴짐.)
   //   다른 페이지(/write 등)에서는 소프트 내비 → FeedList 가 마운트되며 전체+최상단+새 풀 처리.
   const goHome = () => {
+    // C2 (2026-06-26): 글쓰기 작성 중 로고/피드 클릭도 이탈 모달로 가로채기.
+    //   막히면 여기서 중단 → 모달 확정 시 stored proceed(goHome)가 다시 실행.
+    if (maybeBlockNavigation(() => goHome())) return;
     setSearchOpen(false);
     setFeedTab("");
     window.scrollTo({ top: 0 });
@@ -345,7 +349,7 @@ export default function BottomNav() {
                 {/* 데스크탑 메뉴 — '피드'(/) 는 좌상단 로고가 담당하므로 제외, '마이'(/my) 는 우측 아바타가 담당. */}
                 <nav className="hidden items-center gap-5 sm:ml-6 sm:flex">
                   {TABS.filter((t) => t.href !== "/my" && t.href !== "/").map((t) => (
-                    <Link key={t.href} href={t.href} onPointerEnter={() => warm(t.href)} className="cursor-pointer text-[15px] font-semibold transition-colors" style={{ color: t.match(pathname) ? C : "var(--text)" }}>{t.label}</Link>
+                    <Link key={t.href} href={t.href} onPointerEnter={() => warm(t.href)} onClick={(e) => { if (maybeBlockNavigation(() => router.push(t.href))) e.preventDefault(); }} className="cursor-pointer text-[15px] font-semibold transition-colors" style={{ color: t.match(pathname) ? C : "var(--text)" }}>{t.label}</Link>
                   ))}
                 </nav>
 
@@ -383,12 +387,12 @@ export default function BottomNav() {
                 </div>
 
                 {/* 데스크탑 글쓰기 — 하단 FAB 는 모바일 전용이라, 데스크탑은 헤더 우측에 글쓰기 진입을 둔다. */}
-                <Link href="/write" onPointerEnter={() => warm("/write")} className="hidden shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-[14px] font-semibold sm:flex" style={{ background: pathname === "/write" ? C : "#EAF7FE", color: pathname === "/write" ? "#fff" : C }}>글쓰기</Link>
+                <Link href="/write" onPointerEnter={() => warm("/write")} onClick={(e) => { if (maybeBlockNavigation(() => router.push("/write"))) e.preventDefault(); }} className="hidden shrink-0 items-center gap-1 rounded-full px-3.5 py-1.5 text-[14px] font-semibold sm:flex" style={{ background: pathname === "/write" ? C : "#EAF7FE", color: pathname === "/write" ? "#fff" : C }}>글쓰기</Link>
 
                 {session && <NotificationsBell />}
                 <div className="hidden items-center sm:flex">
                   {session ? (
-                    <Link href="/my" aria-label="마이페이지" title="마이페이지" className="flex items-center rounded-md p-1" style={{ color: pathname.startsWith("/my") ? C : "var(--text)" }}>
+                    <Link href="/my" aria-label="마이페이지" title="마이페이지" onClick={(e) => { if (maybeBlockNavigation(() => router.push("/my"))) e.preventDefault(); }} className="flex items-center rounded-md p-1" style={{ color: pathname.startsWith("/my") ? C : "var(--text)" }}>
                       {(() => {
                         // 우상단 아바타 = 활성 명함(계정) 기준. 없으면 기본 아이콘.
                         const av = session.identities.find((i) => i.id === session.activeIdentityId)?.avatarUrl ?? session.avatarUrl;
@@ -445,7 +449,19 @@ export default function BottomNav() {
               key={t.href}
               href={t.href}
               onPointerEnter={() => warm(t.href)}
-              onClick={t.href === "/" ? (e) => { e.preventDefault(); goHome(); } : undefined}
+              onClick={(e) => {
+                // C2 (2026-06-26): 글쓰기 작성 중이면 이탈 모달로 가로채기.
+                //   막히면 preventDefault → 모달의 [임시저장 후 종료]/[글쓰기 종료] 가 stored proceed 실행.
+                if (t.href === "/") {
+                  // goHome 내부가 자체적으로 가드 검사 → Link 기본 이동만 차단.
+                  e.preventDefault();
+                  goHome();
+                  return;
+                }
+                if (maybeBlockNavigation(() => router.push(t.href))) {
+                  e.preventDefault();
+                }
+              }}
               aria-current={on ? "page" : undefined}
               className="flex flex-1 cursor-pointer items-center justify-center"
               style={{ color: on ? "#1E9FE0" : "#A8B6C2" }}

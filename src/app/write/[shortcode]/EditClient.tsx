@@ -140,6 +140,31 @@ export default function EditClient({
         );
         await new Promise((r) => setTimeout(r, 1500));
       }
+
+      // 13b (2026-06-26): 홈 피드에 노출되는 일반 글(회원·원장)을 수정·재게시한 경우,
+      //   신규 게시(WriteClient)와 동일하게 "방금 쓴 글" prepend 시그널을 심고 홈으로 이동
+      //   → 글 상세(Q&A 추천+프로필 카드, 피드 미연결)로 빠지는 대신 홈 피드 최상단에 노출.
+      //   조건: ① qa 가 아닌 일반 글 ② 원래 published 상태 ③ 이번 수정으로 검수 대기 전환되지 않음.
+      //   (qa / draft·pending / 검수 전환 / soft-delete 는 기존대로 returnUrl 유지.)
+      const reconnectsFeed =
+        payload.category !== "qa" &&
+        status === "published" &&
+        !data?.screening;
+      if (reconnectsFeed && typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem(
+            "pbtt:justPublished",
+            JSON.stringify({ id: cardId, ts: Date.now() }),
+          );
+          window.sessionStorage.removeItem("pbtt:justPublished:shown");
+        } catch {
+          /* sessionStorage 비활성·quota — prepend 미노출, 수정 자체는 성공 유지 */
+        }
+        router.push("/");
+        router.refresh();
+        return { ok: true, cardId };
+      }
+
       router.push(returnUrl);
       router.refresh();
       return { ok: true, cardId };

@@ -28,7 +28,7 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useDraftAutoSave } from "@/hooks/useDraftAutoSave";
-import { loadDraft, type DraftFormType } from "@/lib/draft-storage";
+import { loadDraft, saveDraft, deleteDraft, type DraftFormType } from "@/lib/draft-storage";
 import UnsavedChangesModal from "@/components/UnsavedChangesModal";
 import { useRouter } from "next/navigation";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
@@ -385,7 +385,6 @@ export default function CardEditor({
     body.trim() ||
     (keywords && keywords.length > 0)
   );
-  const guard = useUnsavedChangesGuard(isDirty);
 
   /* ── 임시저장 자동저장 + 복원 (create 모드만) ─────────── */
   const draftType: DraftFormType = category === "qa" ? "qa" : "doodle";
@@ -393,6 +392,19 @@ export default function CardEditor({
     () => ({ title, body, keywords }),
     [title, body, keywords],
   );
+
+  // C2 (2026-06-26): 이탈 모달 — create 모드는 [임시저장 후 종료]/[글쓰기 종료] type1.
+  //   onSaveDraft: 떠나기 직전 1회 강제 저장(autosave 2초 디바운스 보강).
+  //   onDiscardDraft: [글쓰기 종료] 시 임시저장 슬롯 삭제. edit 모드는 슬롯 없음 → no-op.
+  const guard = useUnsavedChangesGuard(isDirty, {
+    onSaveDraft: () => {
+      if (mode === "create") saveDraft(draftType, getFields());
+    },
+    onDiscardDraft: () => {
+      if (mode === "create") deleteDraft(draftType);
+    },
+  });
+
   const draft = useDraftAutoSave(
     draftType,
     mode === "create" && isDirty,
@@ -961,7 +973,11 @@ export default function CardEditor({
       </div>
       {guard.showModal && (
         <UnsavedChangesModal
-          onConfirm={guard.confirmLeave}
+          variant={mode === "create" ? "create" : "edit"}
+          onSaveDraft={
+            mode === "create" ? guard.confirmSaveAndLeave : undefined
+          }
+          onDiscard={guard.confirmDiscardAndLeave}
           onCancel={guard.cancelLeave}
         />
       )}

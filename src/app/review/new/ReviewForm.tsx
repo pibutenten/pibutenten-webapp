@@ -38,7 +38,7 @@ import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useDraftAutoSave } from "@/hooks/useDraftAutoSave";
-import { loadDraft } from "@/lib/draft-storage";
+import { loadDraft, saveDraft, deleteDraft } from "@/lib/draft-storage";
 import UnsavedChangesModal from "@/components/UnsavedChangesModal";
 import { CATEGORIES } from "@/lib/categories";
 import { DOWNTIME_OPTIONS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
@@ -210,13 +210,23 @@ export default function ReviewForm({
     effectAreas.length > 0 ||
     !!effectOnset ||
     oneliner.length > 0;
-  const guard = useUnsavedChangesGuard(isDirty);
 
   /* ── 임시저장 자동저장 + 복원 (create 모드만) ── */
   const getReviewFields = useCallback(
     () => ({ procedureKo, satisfaction, pain, downtime, revisit, effectAreas, effectOnset, oneliner }),
     [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, effectOnset, oneliner],
   );
+
+  // C2 (2026-06-26): 이탈 모달 — create(시술후기 작성)는 type1 [임시저장 후 종료]/[글쓰기 종료].
+  //   edit(수정)은 슬롯 없음 → [계속 작성]/[나가기].
+  const guard = useUnsavedChangesGuard(isDirty, {
+    onSaveDraft: () => {
+      if (!isEdit) saveDraft("review", getReviewFields());
+    },
+    onDiscardDraft: () => {
+      if (!isEdit) deleteDraft("review");
+    },
+  });
   const reviewDraft = useDraftAutoSave(
     "review",
     !isEdit && isDirty,
@@ -605,7 +615,9 @@ export default function ReviewForm({
       </div>
       {guard.showModal && (
         <UnsavedChangesModal
-          onConfirm={guard.confirmLeave}
+          variant={isEdit ? "edit" : "create"}
+          onSaveDraft={isEdit ? undefined : guard.confirmSaveAndLeave}
+          onDiscard={guard.confirmDiscardAndLeave}
           onCancel={guard.cancelLeave}
         />
       )}
