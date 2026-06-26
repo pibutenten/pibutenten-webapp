@@ -27,8 +27,8 @@
 ### 알림 묶기(#4) = 이미 구현됨 (감사 SNS-1 오진)
 `0083` 트리거가 좋아요/저장을 24h 내 같은 `(recipient_id, card_id, kind)` 1행 UPDATE → "○○님 외 N명". DB 레이어에서 이미 그룹핑. **추가 작업 불필요.** (주의: push webhook `0086`은 AFTER INSERT만 → 묶음 UPDATE의 2번째+는 푸시 안 감 — 기존 동작.)
 
-### ▶ 진행 중: Wave C 팔로우(#5) — 블루프린트 (미적용, resume용)
-설계 매핑 완료. 구현 체크리스트:
+### ✅ 완료: Wave C 팔로우(#5) — 배포됨 (커밋 `4657ea6` + 검수 정정 `132bf79`)
+원장·회원 상호 팔로우 + 발행 알림 구현·배포 완료. **독립 검수관 2라운드(4명) 잔여 이상 0건.** 마이그 0290(트랜잭션 ROLLBACK 트리거 실증 후 적용) + 0291(검수 정정: follows RPC-only 확정, 죽은 공개SELECT 정책 제거). 알림 묶기(#4)는 0083 트리거가 이미 구현(감사 SNS-1 오진). 아래는 구현된 설계(기록용):
 1. **마이그 0290(예정)**:
    - `follows(follower_id uuid, followee_id uuid, created_at timestamptz DEFAULT now(), PK(follower_id,followee_id))` + 양방향 인덱스. id=profiles.id(명함). FK ON DELETE CASCADE(profiles).
    - RLS: SELECT 공개(팔로워수 표시)/본인 행. INSERT/DELETE는 RPC(SECURITY DEFINER) 경유만.
@@ -38,8 +38,11 @@
 2. **UI**: 회원 `ProfileView.tsx:288` isOwner 블록 대칭으로 `!isOwner` [팔로우] 버튼(isOwner/profileId props 존재). 의사 `DoctorProfileView.tsx:420-425` 배지 직후 [팔로우](`e.stopPropagation()` 필수, 398줄 펼침토글 / isFollowing 서버 주입 or 클라 fetch). 팔로우 토글 클라 훅(toggle_card_save 호출부 패턴).
 3. **테스트**: 마이그는 트랜잭션+ROLLBACK 으로 트리거 발화 검증 후 적용. 자기팔로우·중복·발행 fan-out 확인.
 
-### 다음 단계
-Wave C 팔로우 구현(위 블루프린트) → 검증 → 커밋 → 전체 독립 재검수. (보류: 전체 홈 ISR PERF-3 = viewerStates 클라 배치 이전 선행 / #5b 시술후기 타임포인트 알림 = 디렉터 시점값 별도 지시 예정.)
+### 다음 단계 / 후속·보류
+- ✅ 이번 세션 모든 승인 항목 완료·배포(감사정비~팔로우, ce56896~132bf79). 최종 보고서: `docs/reports/2026-06-27-recommendation-implementation.md`.
+- **(후속 권고) 알림 트리거 SQL 의사글 URL 통일**: 기존 트리거(like/comment/published 등)는 의사글도 `/{handle}/{shortcode}`(비-canonical) 링크, follow_post(0290)는 canonical `/doctors/{slug}/{year}/{post_slug}` 로 올바름. 공유 SQL 헬퍼 `card_public_url` 로 SQL측 URL SSOT 수렴 권장(여러 기존 트리거 수정이라 별도 안건).
+- **(보류)** 전체 홈 ISR(PERF-3)=viewerStates 클라 배치 이전 선행. #5b 시술후기 타임포인트 알림=디렉터 시점값 별도 지시 예정. (선택) follow_post 알림 끄기 토글 + NotificationsClient 팔로우 필터 칩.
+- **(주의)** 병행 세션: `local_96a85882`("총괄 디렉터…") 가 review/diary 통합 작업 중(`docs/plans/review-*.md`). 그 영역(시술후기/일기) 파일은 회피.
 
 ---
 

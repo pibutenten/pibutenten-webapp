@@ -1,17 +1,14 @@
 "use client";
 
 /**
- * GlobalChrome — 루트 레이아웃의 전역 크롬(TopNav/SiteFooter)을 경로별로 분기 렌더.
+ * GlobalChrome — 루트 레이아웃의 전역 푸터(SiteFooter)를 경로별로 분기 렌더(ChromeFooter).
  *
- * 앱 스킨으로 "승격된" 라우트는 자체 셸(AppShell, fixed 오버레이)이 헤더·탭바·캔버스를
- * 담당한다. 그런 라우트에서 루트의 옛 TopNav/SiteFooter 를 함께 렌더하면, 첫 로딩에 옛 헤더가
- * 잠깐 보였다가 오버레이가 덮는 "깜빡임"이 생긴다. → 승격 라우트에선 옛 크롬을 아예 렌더하지
- * 않아(덮는 게 아니라 처음부터 신규 스킨만) 한 번에 가볍게 뜨도록 한다.
+ * 옛 전역 헤더(TopNav→BottomNav)는 AppShell 단일화로 폐기됨(2026-06-27, ChromeHeader 제거).
+ * 헤더·탭바·캔버스는 각 라우트의 AppShell(fixed 오버레이)이 담당한다. 비-앱셸 경로(거의 전부
+ * redirect/오버레이)에서만 SiteFooter 를 렌더하며, 앱 셸 라우트에선 isAppShell 판정으로 렌더 안 함.
  *
- * usePathname 은 SSR/CSR 동일 값이라 서버 렌더 HTML 부터 옛 크롬이 빠진다(하이드레이션 안전).
- *
- * 전환 진행 규칙: 화면을 앱 셸로 승격할 때마다 아래 목록에 그 경로를 추가한다.
- * 전 화면 승격 완료(공개 전환) 시점에는 TopNav/SiteFooter 자체를 폐기하고 이 분기를 제거한다.
+ * usePathname 은 SSR/CSR 동일 값이라 서버 렌더 HTML 부터 일관(하이드레이션 안전).
+ * 화면을 앱 셸로 승격할 때마다 아래 isAppShell 목록에 그 경로를 추가한다.
  */
 
 import { usePathname } from "next/navigation";
