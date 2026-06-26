@@ -2,11 +2,48 @@
 
 > 세션 간 인수인계용. 현재 상태·주의사항·다음 작업·불변 원칙을 한 장으로. 변경 이력 상세는 `CHANGELOG.md`.
 
-**최종 갱신**: 2026-06-17
+**최종 갱신**: 2026-06-27
 
 ---
 
-## 0. 직전 세션 (2026-06-17 · 외부 검수 4-에이전트 + mockups 정규화·잔재 청소) — 한눈에
+## 0. 직전 세션 (2026-06-26~27 · 6-에이전트 종합 감사 → 디렉터 승인 권고 Wave 구현) — 한눈에
+
+> UX·구조·코드 6독립 평가 + 적대적 검증으로 앱 종합 감사 → 안전·정합 확실 항목 직접 수정·배포 → 디렉터 승인 권고를 Wave 단위로 구현. 각 Wave: 서브에이전트 분석 → 단계별 tsc/build → 독립 검수관 → 커밋·푸시. **옆 세션("Post writing feature fixes", 글쓰기/nav-guard 영역)과 파일 경계 완전 분리.**
+
+### 완료·배포 커밋 (origin/main, 시간순)
+- `ce56896` **감사 일괄 정비**: a11y(globals.css `:focus:not(:focus-visible)` 복원, WCAG 2.4.7) · 런타임 안전 5종(ScrollManager·draft/publish·search/suggest·middleware try/catch + 온보딩 만14세 로컬자정 파싱) · perf(ui.tsx `useCardActions` per-card getUser→useSession, useCardEngagement 중복 save_count SELECT 제거) · 죽은코드 삭제(lib/auto-tag·doctor-dashboard·me-cache·components/dialog/Dialog·skin/record/clinic-map + leaflet/react-leaflet/@types/leaflet 의존성) · 문서·주석 SSOT 정합.
+- `22f77aa` 감사 보고서 `docs/reports/2026-06-26-six-agent-audit.md`.
+- `9b26ecc` **Wave A**: 신고사유 SSOT(`lib/report-reasons.ts`, 폼·앱모달·관리자·API 4곳 통합) + `/old-skin` 3라우트 삭제.
+- `048c770` **Wave F-1**: `GuardedLink`(SSOT) — AppShell 6개 내비 링크에 nav-guard 배선(글쓰기 이탈 모달 누락 회귀 수정).
+- `8faf7f0` **Wave F-2/3**: 옛 `TopNav`/`BottomNav`/`IdentitySwitcher`/`NotificationsBell` 삭제 → AppShell 단일화. `SessionInfo`/`SessionIdentity` → `lib/session-types.ts`. GlobalChrome `ChromeHeader` 제거(ChromeFooter 유지). 명함전환=`AccountSwitcherCard`로 대체 확인.
+- `c8f902d` 신고사유 hint 타입에러 수정(`as const satisfies` → `readonly ReportReasonOption[]`).
+- `a681dee`/`67b5403` CHANGELOG + `npm audit fix`(17→13; 남은 13은 firebase-admin/@capacitor-assets breaking 체인 — 자동 적용 안 함).
+- `7c67acb` **Wave B**: 댓글 미리보기 N+1 제거(인스타·페북식 배치). 마이그 0289 RPC `get_cards_comment_preview_meta`(카드별 total + top3 root id, SECURITY INVOKER) + `/api/comments/preview`(배치) + `CommentsBlock` seed prop + `FeedView` 페이지당 1회 배치 + `PostCard` `batchedPreview` 게이트. 독립검수 회귀없음.
+- `d22c713` **Wave D**: 홈 인기태그 중복 RPC 제거 — `feed_cards_scored`(300행) 2번째 호출을 `unstable_cache`(5분, 쿠키리스 anon)로. 피드 본문 RPC(jitter)는 불변.
+
+### 디렉터 결정 (확정 — 재논의 불필요)
+쇼핑 탭 유지(기능 추가 예정) · 온보딩 "최대한 받기" 유지(칩 기반, 필수 축소 안 함) · 검색 진입=어느 아이콘이든 같은 화면(Wave F에서 BottomNav 중복 제거로 수렴) · 팔로우=원장·직원 **상호** 다 가능 · 댓글 미리보기 3개 유지(배치로 N+1만 제거).
+
+### 알림 묶기(#4) = 이미 구현됨 (감사 SNS-1 오진)
+`0083` 트리거가 좋아요/저장을 24h 내 같은 `(recipient_id, card_id, kind)` 1행 UPDATE → "○○님 외 N명". DB 레이어에서 이미 그룹핑. **추가 작업 불필요.** (주의: push webhook `0086`은 AFTER INSERT만 → 묶음 UPDATE의 2번째+는 푸시 안 감 — 기존 동작.)
+
+### ▶ 진행 중: Wave C 팔로우(#5) — 블루프린트 (미적용, resume용)
+설계 매핑 완료. 구현 체크리스트:
+1. **마이그 0290(예정)**:
+   - `follows(follower_id uuid, followee_id uuid, created_at timestamptz DEFAULT now(), PK(follower_id,followee_id))` + 양방향 인덱스. id=profiles.id(명함). FK ON DELETE CASCADE(profiles).
+   - RLS: SELECT 공개(팔로워수 표시)/본인 행. INSERT/DELETE는 RPC(SECURITY DEFINER) 경유만.
+   - RPC `toggle_follow(p_followee_id uuid, p_identity_id uuid DEFAULT NULL) RETURNS TABLE(following boolean, follower_count integer)` — `toggle_card_save`(0162:269) 동형(`auth.uid()` + p_identity_id 묶음검증 + `current_active_profile_id()` fallback + EXISTS→DELETE/else INSERT ON CONFLICT). SECURITY DEFINER, REVOKE PUBLIC + GRANT authenticated. **자기팔로우 차단**(follower=followee guard).
+   - kind CHECK 8종→9종: `'follow_post'` 추가(`0244:34-39` DROP+ADD CONSTRAINT 패턴). `src/lib/notification-kinds.ts`(8-16)도 동시 갱신(동기화 페어) + KIND_LONG_LABEL/KIND_ICON/KIND_DISPLAY_MODE + NotificationsClient FILTER_KINDS.ops.
+   - **발행 트리거**: `cards` AFTER INSERT(status='published') + AFTER UPDATE(OLD<>published AND NEW='published') → `NEW.author_id` 를 팔로우하는 follower 들에게 `'follow_post'` 알림 **개별 INSERT**(묶음 UPDATE 금지 — 푸시 위해). **자기자신 skip**(follower=author). url=`0071` CASE식(`/{handle}/{shortcode}` 또는 fallback). is_notification_enabled 게이트(default true). **베타 팔로워 소수라 fan-out 무위험; 대규모는 digest 후속(스팸 주의).**
+2. **UI**: 회원 `ProfileView.tsx:288` isOwner 블록 대칭으로 `!isOwner` [팔로우] 버튼(isOwner/profileId props 존재). 의사 `DoctorProfileView.tsx:420-425` 배지 직후 [팔로우](`e.stopPropagation()` 필수, 398줄 펼침토글 / isFollowing 서버 주입 or 클라 fetch). 팔로우 토글 클라 훅(toggle_card_save 호출부 패턴).
+3. **테스트**: 마이그는 트랜잭션+ROLLBACK 으로 트리거 발화 검증 후 적용. 자기팔로우·중복·발행 fan-out 확인.
+
+### 다음 단계
+Wave C 팔로우 구현(위 블루프린트) → 검증 → 커밋 → 전체 독립 재검수. (보류: 전체 홈 ISR PERF-3 = viewerStates 클라 배치 이전 선행 / #5b 시술후기 타임포인트 알림 = 디렉터 시점값 별도 지시 예정.)
+
+---
+
+## 0-prev. 직전 세션 (2026-06-17 · 외부 검수 4-에이전트 + mockups 정규화·잔재 청소) — 한눈에
 
 - **외부 검수**: 동일 프롬프트 4개 독립 서브에이전트로 5대 중점(베타 잔재/SSOT 정합/중복·누락/PII 유출/악성코드) 전수 검수. **결론: 운영 공개를 막는 [치명] 0건.** secret 클라 노출·PII anon 유출·악성코드(eval/postinstall/exfiltration) 없음. SSRF/CSRF/XSS 가드 견고.
 - **반영한 청소** (커밋 예정):
