@@ -25,6 +25,7 @@ import { pickErrorMessage } from "@/lib/api-error";
 type Props = {
   cardId: number;
   type: "qa" | "post";
+  status: string;
   category: string | null;
   viewerRole: "admin" | "doctor" | "user";
   initialTitle: string;
@@ -39,6 +40,7 @@ type Props = {
 export default function EditClient({
   cardId,
   type,
+  status,
   category,
   viewerRole,
   initialTitle,
@@ -75,6 +77,14 @@ export default function EditClient({
       body: payload.body,
       keywords: payload.keywords,
     };
+
+    // 의사 검수 발행: pending_review QA 카드를 의사가 저장 시 자동 published 전환.
+    // PUT handler 가 reviewed_at 도 자동 설정 (마이그레이션 0196 정책).
+    // 일반 회원의 screening-flagged 카드(역시 pending_review)는 viewerRole="user" 이므로 이 분기 진입 불가.
+    if (status === "pending_review" && viewerRole === "doctor" && type === "qa") {
+      apiPayload.status = "published";
+    }
+
     if (payload.category && payload.category !== initialCard.category) {
       apiPayload.category = payload.category;
     }

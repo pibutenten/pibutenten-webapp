@@ -6,7 +6,10 @@
 
 ---
 
-## [2026-06-26] — 시술 노트 UX 개선 + IP 위치 버그 수정
+## [2026-06-26] — 시술 노트 UX 개선 + IP 위치 버그 수정 + 의사 검수 발행
+
+### Fixed
+- **의사 검수일 표시 오류**: 의사가 `/write/[shortcode]`에서 pending_review QA 카드 편집 시 status가 변경되지 않아 reviewed_at이 null로 남고 admin 초안 작성일(created_at)이 표시되던 버그 수정. 의사+QA+pending_review 조건 시 자동으로 status: "published" 전송, PUT handler의 reviewed_at 설정 로직이 정상 동작하도록 연결
 
 ### Changed
 - **시술 노트 폼**: 네이티브 date picker를 인라인 달력으로 교체 (월 네비, 바깥 클릭 닫힘, 자동 스크롤)
