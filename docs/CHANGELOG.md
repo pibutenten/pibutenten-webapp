@@ -6,6 +6,27 @@
 
 ---
 
+## [2026-06-27] — 감사 권고 구현: 네비 단일화(AppShell) + 신고사유 SSOT + 죽은코드 정리
+
+### Changed
+- **네비게이션 단일화 (옛 TopNav/BottomNav 폐기)**: 앱셸 승격이 사실상 전 라우트 완료되어, 옛 전역 헤더는 redirect/오버레이 라우트(/search·/cards·/u·/auth)에서만 렌더되던 잔재였음. 데스크탑/모바일/네이티브 3관점 정밀 매핑(독립 분석 3에이전트)으로 AppShell 이 모든 기능을 이미 커버함을 확인 후 제거.
+  - 삭제(전부 import 0건): `TopNav.tsx`·`BottomNav.tsx`·`IdentitySwitcher.tsx`·`NotificationsBell.tsx`. IdentitySwitcher(헤더 명함전환)는 `AccountSwitcherCard`(/{handle}·/doctor·/admin)로 대체 완료라 중복, NotificationsBell 은 AppShell 인라인 재구현으로 고아.
+  - `SessionInfo`/`SessionIdentity` 타입을 `lib/session-types.ts` 중립 모듈로 이전(TopNav 의존 제거).
+  - `GlobalChrome`: ChromeHeader 분기 제거(헤더 단일화), ChromeFooter(SiteFooter)는 비-앱셸 경로용 유지. `layout.tsx` ChromeHeader 호출 제거.
+- **검색 진입 일관화**: 옛 BottomNav 의 중복 검색 오버레이 제거로 검색 진입이 AppShell 단일 경로로 수렴(모바일 아이콘→`/search` 풀스크린, 데스크탑 인라인 pill). 진입점(아이콘)은 그대로, 화면만 하나로.
+- **신고 사유 4중 정의 통합(SSOT)**: 신고 사유 9종이 폼·앱모달·관리자·API 4곳에 따로 정의돼 한글 라벨이 제각각(harassment 3가지 표기)이던 것을 `lib/report-reasons.ts` 단일 출처로 통합. zod enum·라벨맵·옵션 모두 파생.
+
+### Fixed
+- **글쓰기 이탈 가드 누락 (데이터 손실 회귀)**: `/write`·`/review` 작성 중 AppShell 헤더·하단탭·로고·글쓰기·마이·알림을 누르면 이탈 확인 모달 없이 빠져나가 작성 내용이 소실되던 문제. 원인은 nav-guard(`maybeBlockNavigation`)가 옛 BottomNav 링크에만 걸려 있었는데 app-shell 라우트(/write 등)는 BottomNav 가 렌더되지 않아 무력화됨. `GuardedLink`(next/link 래퍼) SSOT 컴포넌트를 신설해 AppShell 6개 내비 링크에 가드를 통일 배선.
+- **신고사유 SSOT hint 타입 에러**: `report-reasons.ts` 의 `as const satisfies` 가 hint 없는 멤버에서 `opt.hint` 접근을 TS2339 로 막던 문제(`ReportForm.tsx:91`). 로컬 next build 는 증분 캐시로 넘어갔으나 Vercel 클린 빌드 실패 위험 → `readonly ReportReasonOption[]`(hint?) 명시 타입화.
+
+### Removed
+- **`/old-skin` 박제 백업 3라우트** 삭제(디렉터 승인) + robots.ts·route-class.ts 등록 제거.
+
+> 검증: 단계마다 `tsc`+`next build`, 독립 검수관 2명 교차(회귀/정합) 모두 "이상 없음", 클린 tsc(.next 제거) exit 0. 옆 세션(글쓰기 작업)과 파일 경계 분리.
+
+---
+
 ## [2026-06-26] — 시술 노트 UX 개선 + IP 위치 버그 수정 + 의사 검수 발행 + UX Phase 5 + UX 피드백 일괄 수정 + 6-에이전트 종합 감사 정비
 
 ### 6-에이전트 종합 감사 기반 일괄 정비 (UX 2 · 구조 2 · 코드 2 독립 평가 → 적대적 검증 → 코드 직접 수정)
