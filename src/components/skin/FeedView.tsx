@@ -189,6 +189,21 @@ export default function FeedView({
     prevSearchingRef.current = nowSearching;
   }, [searchQuery]);
 
+  // A2: 새로고침 시 선택한 카테고리 탭 유지 — sessionStorage 복원.
+  //   /?cat= URL 파라미터가 있으면 아래 catParam effect 가 덮어쓰므로 URL 이 우선.
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("feedChip");
+      const valid: ChipKey[] = ["all", "qa", "review", "doodle", "review_summary"];
+      if (saved && (valid as string[]).includes(saved)) {
+        setChip(saved as ChipKey);
+      }
+    } catch { /* sessionStorage 비활성 */ }
+  }, []);
+  useEffect(() => {
+    try { sessionStorage.setItem("feedChip", chip); } catch { /* ignore */ }
+  }, [chip]);
+
   // 비-피드 드롭다운 '카테고리 바로가기' → /?cat= 로 넘어온 칩 시드.
   const catParam = searchParams.get("cat");
   useEffect(() => {
@@ -224,9 +239,13 @@ export default function FeedView({
     setLoading(true);
     // 삭제된 ID 조회 누락이 있어도 같은 자리 재시도 안 하도록 커서를 먼저 전진.
     cursorRef.current = start + nextIds.length;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
+      const controller = new AbortController();
+      timer = setTimeout(() => controller.abort(), 10_000);
       const res = await fetch(`/api/cards?ids=${nextIds.join(",")}`, {
         cache: "no-store",
+        signal: controller.signal,
       });
       if (!res.ok) {
         setHasMore(false);
@@ -246,6 +265,7 @@ export default function FeedView({
     } catch {
       setLoadError(true);
     } finally {
+      if (timer) clearTimeout(timer);
       loadingRef.current = false;
       setLoading(false);
     }
@@ -371,6 +391,21 @@ export default function FeedView({
     [pool, effectiveChip, isReportTab],
   );
 
+  // ①-b 카테고리 칩 필터 결과 0건이지만 미로드 카드가 남아있으면 자동 추가 로드.
+  //   "끄적끄적" 같은 소수 카테고리가 점수순에서 후순위로 밀려 초기 풀에 없는 경우 대응.
+  //   orderedIds 소진(hasMore=false) 또는 매칭 카드 발견(filtered.length>0) 시 자동 정지.
+  useEffect(() => {
+    if (
+      effectiveChip !== "all" &&
+      !isReportTab &&
+      filtered.length === 0 &&
+      hasMore &&
+      !loading
+    ) {
+      loadMore();
+    }
+  }, [filtered.length, effectiveChip, hasMore, isReportTab, loading, loadMore]);
+
   // ── 리포트 탭 — 검색 중이면 시술명(한글/영문) 부분일치 필터 ──
   const filteredReports = useMemo(() => {
     const needle = (searchQuery ?? "").trim().toLowerCase();
@@ -475,7 +510,7 @@ export default function FeedView({
             ))
           )
         ) : filtered.length === 0 && !topReport ? (
-          loading && pool.length === 0 ? (
+          loading || pool.length === 0 || (hasMore && effectiveChip !== "all") ? (
             <FeedSkeleton />
           ) : (
             <p className={styles.empty}>
@@ -517,10 +552,11 @@ export default function FeedView({
       )}
       {loading && pool.length > 0 && <FeedSkeleton count={1} />}
       {loadError && (
-        <div className="flex justify-center py-6">
+        <div className="flex flex-col items-center gap-2 py-6">
+          <p className="text-sm text-[var(--text-muted)]">연결이 불안정합니다</p>
           <button onClick={() => { setLoadError(false); loadMore(); }}
             className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm">
-            불러오기 실패 · 다시 시도
+            다시 시도
           </button>
         </div>
       )}
