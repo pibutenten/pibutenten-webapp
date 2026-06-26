@@ -10,6 +10,7 @@ import type { Metadata } from "next";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import AdminReportsView from "./AdminReportsView";
+import { REPORT_REASON_LABEL } from "@/lib/report-reasons";
 
 export const dynamic = "force-dynamic";
 
@@ -18,17 +19,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const REASON_LABEL: Record<string, string> = {
-  spam: "스팸/광고",
-  harassment: "욕설/괴롭힘",
-  medical_ad: "의료광고 위반",
-  false_info: "허위·과장 정보",
-  csam: "아동 성착취물",
-  self_harm: "자해·자살 조장",
-  copyright: "저작권 침해",
-  personal_info: "개인정보 노출",
-  other: "기타",
-};
+// 신고 사유 라벨은 SSOT(@/lib/report-reasons) 참조 — 화면별 표기 불일치 제거.
+const REASON_LABEL: Record<string, string> = REPORT_REASON_LABEL;
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "대기",

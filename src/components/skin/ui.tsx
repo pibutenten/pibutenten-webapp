@@ -33,6 +33,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
 import { shareCard } from "@/components/card/utils/card-share";
 import { ROLES } from "@/lib/identity-shared";
+import { REPORT_REASONS, type ReportReason } from "@/lib/report-reasons";
 import { getSessionId } from "@/lib/impression-queue";
 import { showToast } from "@/lib/toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -488,31 +489,8 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
   };
 }
 
-/* ---------- 신고 사유 (운영 /api/reports enum 정합) ----------
- * 운영 신고 API(src/app/api/reports/route.ts)의 reason enum 9종과 1:1.
- * 한글 라벨은 운영 ReportForm(페이지 전용, 무수정)을 참고하되 앱 모달용으로 간결화. */
-const REPORT_REASONS: { value: ReportReason; label: string }[] = [
-  { value: "spam", label: "스팸·도배" },
-  { value: "harassment", label: "괴롭힘·욕설·혐오" },
-  { value: "medical_ad", label: "의료광고·과장" },
-  { value: "false_info", label: "허위·잘못된 정보" },
-  { value: "csam", label: "불법촬영물·아동 성착취" },
-  { value: "self_harm", label: "자해·자살 조장" },
-  { value: "copyright", label: "저작권 침해" },
-  { value: "personal_info", label: "개인정보 노출" },
-  { value: "other", label: "기타" },
-];
-
-type ReportReason =
-  | "spam"
-  | "harassment"
-  | "medical_ad"
-  | "false_info"
-  | "csam"
-  | "self_harm"
-  | "copyright"
-  | "personal_info"
-  | "other";
+/* 신고 사유(REPORT_REASONS·ReportReason)는 SSOT(@/lib/report-reasons)에서 import — 파일 상단 참조.
+   폼·앱모달·관리자·API 4곳이 같은 출처를 써 라벨 표기 불일치를 제거(2026-06-26). */
 
 /* ---------- 신고 모달 (SNS 표준 — 사유 선택 후 /api/reports POST) ----------
  * 타인 글 ⋮ → "신고하기" 클릭 시 노출되는 바텀시트형 모달.

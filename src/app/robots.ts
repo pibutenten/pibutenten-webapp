@@ -70,9 +70,6 @@ const DISALLOW_COMMON = [
   "/search?",
   "/debug",
   "/u/",
-  // 옛 디자인(앱 셸 승격 전) 박제 백업(noindex). 중복 콘텐츠 색인 방지.
-  //   page-level robots:{index:false} 와 이중으로 크롤 자체 차단.
-  "/old-skin",
 ];
 
 // Tier 1 — 검색엔진 + AI 인용봇 + 주요 학습봇 (Allow, 운영 경로만 제외).

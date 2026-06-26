@@ -12,22 +12,13 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
+import { REPORT_REASON_VALUES } from "@/lib/report-reasons";
 
 export const dynamic = "force-dynamic";
 
 const ReportSchema = z
   .object({
-    reason: z.enum([
-      "spam",
-      "harassment",
-      "medical_ad",
-      "false_info",
-      "csam",
-      "self_harm",
-      "copyright",
-      "personal_info",
-      "other",
-    ]),
+    reason: z.enum(REPORT_REASON_VALUES),
     target_url: z.string().max(500).nullable().optional(),
     reporter_email: z.string().email().max(200).nullable().optional(),
     detail: z.string().max(2000).nullable().optional(),

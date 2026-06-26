@@ -20,7 +20,7 @@ export const RESERVED_FIRST_SEGMENT = new Set<string>([
   "review", "settings", "u", "login", "signup", "onboarding", "write",
   "today", "notes", "weather",
   "my", "shop", "notifications", "search", "debug",
-  "old-skin", "report", "rss", "about", "terms", "privacy", "contact",
+  "report", "rss", "about", "terms", "privacy", "contact",
   "disclaimer", "editorial-policy", "medical-review", "corrections",
   "disclosures", "doctor-guidelines",
 ]);

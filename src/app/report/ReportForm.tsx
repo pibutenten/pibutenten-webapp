@@ -1,33 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { REPORT_REASONS, type ReportReason } from "@/lib/report-reasons";
 
-type Reason =
-  | "medical_ad"
-  | "spam"
-  | "harassment"
-  | "false_info"
-  | "personal_info"
-  | "csam"
-  | "self_harm"
-  | "copyright"
-  | "other";
-
-const REASON_OPTIONS: { value: Reason; label: string; hint?: string }[] = [
-  {
-    value: "medical_ad",
-    label: "의료광고 위반",
-    hint: "치료경험담·비포애프터·비교광고·부작용 누락·사전심의 미통과",
-  },
-  { value: "spam", label: "스팸·도배" },
-  { value: "harassment", label: "욕설·괴롭힘·혐오 표현" },
-  { value: "false_info", label: "허위·과장 의료 정보" },
-  { value: "personal_info", label: "개인정보 노출" },
-  { value: "csam", label: "아동 성착취 콘텐츠 (즉시 처리)" },
-  { value: "self_harm", label: "자해·자살 조장 콘텐츠" },
-  { value: "copyright", label: "저작권·초상권 침해" },
-  { value: "other", label: "기타" },
-];
+// 신고 사유는 SSOT(@/lib/report-reasons)에서 가져온다 — 폼·앱모달·관리자·API 동일 출처.
+type Reason = ReportReason;
+const REASON_OPTIONS = REPORT_REASONS;
 
 export function ReportForm() {
   const [reason, setReason] = useState<Reason | "">("");
