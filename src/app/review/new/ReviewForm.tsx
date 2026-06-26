@@ -26,9 +26,9 @@
  */
 
 import {
+  useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   useTransition,
   type CSSProperties,
@@ -36,6 +36,10 @@ import {
 import { useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { useDraftAutoSave } from "@/hooks/useDraftAutoSave";
+import { loadDraft } from "@/lib/draft-storage";
+import UnsavedChangesModal from "@/components/UnsavedChangesModal";
 import { CATEGORIES } from "@/lib/categories";
 import { DOWNTIME_OPTIONS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
 
@@ -197,8 +201,7 @@ export default function ReviewForm({
   const [effectOnset, setEffectOnset] = useState(initial?.effectOnset ?? "");
   const [oneliner, setOneliner] = useState(initial?.body ?? "");
 
-  /* ── beforeunload: 작성 중 이탈 방지 ── */
-  const submittedRef = useRef(false);
+  /* ── 이탈 방지 (beforeunload + popstate 통합 가드) ── */
   const isDirty =
     satisfaction > 0 ||
     pain > 0 ||
@@ -207,15 +210,38 @@ export default function ReviewForm({
     effectAreas.length > 0 ||
     !!effectOnset ||
     oneliner.length > 0;
+  const guard = useUnsavedChangesGuard(isDirty);
+
+  /* ── 임시저장 자동저장 + 복원 (create 모드만) ── */
+  const getReviewFields = useCallback(
+    () => ({ procedureKo, satisfaction, pain, downtime, revisit, effectAreas, effectOnset, oneliner }),
+    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, effectOnset, oneliner],
+  );
+  const reviewDraft = useDraftAutoSave(
+    "review",
+    !isEdit && isDirty,
+    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, effectOnset, oneliner],
+    getReviewFields,
+  );
   useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (!isDirty || submittedRef.current) return;
-      e.preventDefault();
-      e.returnValue = "";
+    if (isEdit) return;
+    const saved = loadDraft("review");
+    if (!saved?.fields) return;
+    const f = saved.fields as {
+      procedureKo?: string; satisfaction?: number; pain?: number;
+      downtime?: string; revisit?: string; effectAreas?: string[];
+      effectOnset?: string; oneliner?: string;
     };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
+    if (f.procedureKo && !procedureKo) setProcedureKo(f.procedureKo);
+    if (f.satisfaction && !satisfaction) setSatisfaction(f.satisfaction);
+    if (f.pain && !pain) setPain(f.pain);
+    if (f.downtime && !downtime) setDowntime(f.downtime);
+    if (f.revisit && !revisit) setRevisit(f.revisit);
+    if (f.effectAreas?.length && !effectAreas.length) setEffectAreas(f.effectAreas);
+    if (f.effectOnset && !effectOnset) setEffectOnset(f.effectOnset);
+    if (f.oneliner && !oneliner) setOneliner(f.oneliner);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* 한줄후기 placeholder — 마운트 시 무작위 1개 고정(세션 내 유지). */
   const onelinerPlaceholder = useMemo(
@@ -367,7 +393,8 @@ export default function ReviewForm({
           await new Promise((r) => setTimeout(r, 1500));
         }
 
-        submittedRef.current = true;
+        guard.markSubmitted();
+        reviewDraft.clear();
         const dest =
           handle && data.shortcode ? `/${handle}/${data.shortcode}` : "/";
         router.push(dest);
@@ -576,6 +603,12 @@ export default function ReviewForm({
         </div>
         </div>
       </div>
+      {guard.showModal && (
+        <UnsavedChangesModal
+          onConfirm={guard.confirmLeave}
+          onCancel={guard.cancelLeave}
+        />
+      )}
     </section>
   );
 }

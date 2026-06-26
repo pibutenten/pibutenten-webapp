@@ -25,7 +25,11 @@
  *   wrapper 가 정의. payload 에 모든 필드 포함해서 호출. wrapper 가 API 호출 + redirect.
  */
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { useDraftAutoSave } from "@/hooks/useDraftAutoSave";
+import { loadDraft, type DraftFormType } from "@/lib/draft-storage";
+import UnsavedChangesModal from "@/components/UnsavedChangesModal";
 import { useRouter } from "next/navigation";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
 import KeywordsEditor from "@/components/card-editor/KeywordsEditor";
@@ -375,22 +379,36 @@ export default function CardEditor({
   const [llmTagLoading, setLlmTagLoading] = useState(false);
   const [oembedLoading, setOembedLoading] = useState(false);
 
-  /* ── beforeunload: 작성 중 이탈 방지 ─────────────────────── */
-  const submittedRef = useRef(false);
+  /* ── 이탈 방지 (beforeunload + popstate 통합 가드) ─────── */
   const isDirty = !!(
     title.trim() ||
     body.trim() ||
     (keywords && keywords.length > 0)
   );
+  const guard = useUnsavedChangesGuard(isDirty);
+
+  /* ── 임시저장 자동저장 + 복원 (create 모드만) ─────────── */
+  const draftType: DraftFormType = category === "qa" ? "qa" : "doodle";
+  const getFields = useCallback(
+    () => ({ title, body, keywords }),
+    [title, body, keywords],
+  );
+  const draft = useDraftAutoSave(
+    draftType,
+    mode === "create" && isDirty,
+    [title, body, keywords],
+    getFields,
+  );
   useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (!isDirty || submittedRef.current) return;
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
+    if (mode !== "create") return;
+    const saved = loadDraft(draftType);
+    if (!saved?.fields) return;
+    const f = saved.fields as { title?: string; body?: string; keywords?: string[] };
+    if (f.title && !title) setTitle(f.title);
+    if (f.body && !body) setBody(f.body);
+    if (f.keywords?.length && !keywords.length) setKeywords(f.keywords);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ── 파생 ──────────────────────────────────────────────────── */
   const isQa = category === "qa";
@@ -588,7 +606,8 @@ export default function CardEditor({
         setError(r.error);
         return;
       }
-      submittedRef.current = true;
+      guard.markSubmitted();
+      draft.clear();
     });
   }
 
@@ -940,6 +959,12 @@ export default function CardEditor({
           }}
         />
       </div>
+      {guard.showModal && (
+        <UnsavedChangesModal
+          onConfirm={guard.confirmLeave}
+          onCancel={guard.cancelLeave}
+        />
+      )}
     </div>
   );
 }
