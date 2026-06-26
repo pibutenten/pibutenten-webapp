@@ -277,10 +277,6 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
       setErr("피부타입을 선택해주세요.");
       return;
     }
-    if (!avatarUrl) {
-      setErr("프로필 사진을 선택해주세요.");
-      return;
-    }
     if (skinConcerns.length === 0) {
       setErr("피부 고민을 한 개 이상 선택해주세요.");
       return;
@@ -387,7 +383,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* 0. 프로필 사진 — SNS 프로필 디폴트 + 직접 업로드 옵션 */}
-      <Section title="프로필 사진을 선택해주세요!" required>
+      <Section title="프로필 사진을 선택해주세요!">
         <div className="flex items-center gap-4">
           {/* 미리보기 — 큰 원형, OAuth 사진이거나 업로드한 사진 그대로 노출 */}
           <div
@@ -684,35 +680,14 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
         {err && (
           <span className="text-[12px] font-medium text-red-600">{err}</span>
         )}
-        {/* 저장 버튼 — 모든 필수 항목 + 동의 채워졌을 때만 활성화.
-              필수: 프로필 사진 / 이메일 / 생년월일 / 성별 / 얼굴형 / 피부타입 /
-                    피부고민 1+ / 관심 키워드 1+ / 자기소개 / 동의. */}
-        {(() => {
-          const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-          const birthOk = !!(birthYear && birthMonth && birthDay);
-          const requiredOk =
-            !!avatarUrl &&
-            emailOk &&
-            birthOk &&
-            !!gender &&
-            !!faceShape &&
-            !!skinType &&
-            skinConcerns.length > 0 &&
-            procedures.length > 0 &&
-            // bio 는 미입력 시 "만나서 반갑습니다." 디폴트로 저장되므로 필수 아님
-            skinInfoConsent;
-          const buttonDisabled = pending || !requiredOk;
-          return (
-            <button
-              type="button"
-              onClick={() => save()}
-              disabled={buttonDisabled}
-              className="h-10 rounded-full bg-[var(--primary-light)] px-7 text-[14px] font-semibold text-white transition-all hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
-            >
-              {pending ? "저장 중…" : "저장"}
-            </button>
-          );
-        })()}
+        <button
+          type="button"
+          onClick={() => save()}
+          disabled={pending}
+          className="h-10 rounded-full bg-[var(--primary-light)] px-7 text-[14px] font-semibold text-white transition-all hover:bg-[var(--primary-light-hover)] disabled:opacity-50"
+        >
+          {pending ? "저장 중…" : "저장"}
+        </button>
       </div>
 
       {/* dedup 다이얼로그 — Phase 5-4: 식별 정보(handle/display_name) 노출 X.

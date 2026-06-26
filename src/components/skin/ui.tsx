@@ -36,6 +36,7 @@ import { ROLES } from "@/lib/identity-shared";
 import { getSessionId } from "@/lib/impression-queue";
 import { showToast } from "@/lib/toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import LoginPromptDialog from "@/components/LoginPromptDialog";
 import CommentsBlock from "@/components/comments/CommentsBlock";
 import RecentLikers from "@/components/RecentLikers";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
@@ -397,10 +398,11 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
       alive = false;
     };
   }, []);
+  const [loginPrompt, setLoginPrompt] = useState<string | null>(null);
   const toggleLike = useCallback(() => {
     if (me === undefined) return;
     if (me === null) {
-      showToast("좋아요는 로그인 후 이용할 수 있어요", { tone: "default" });
+      setLoginPrompt("좋아요를 누르려면 로그인이 필요해요");
       return;
     }
     if (likePending) return;
@@ -436,7 +438,7 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
   const toggleSave = useCallback(() => {
     if (me === undefined) return;
     if (me === null) {
-      showToast("저장은 로그인 후 이용할 수 있어요", { tone: "default" });
+      setLoginPrompt("저장하려면 로그인이 필요해요");
       return;
     }
     if (savePending) return;
@@ -490,6 +492,7 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
     like: { active: liked, count: likeCount, pending: likePending, pulsing: likePulsing, clearPulse: () => setLikePulsing(false), toggle: toggleLike },
     save: { active: saved, count: saveCount, pending: savePending, toggle: toggleSave },
     share: { count: shareCount, share: doShare },
+    loginPrompt, dismissLoginPrompt: () => setLoginPrompt(null),
   };
 }
 
@@ -1228,6 +1231,11 @@ export function PostCard({
           />
         </div>
       )}
+      <LoginPromptDialog
+        open={!!act.loginPrompt}
+        message={act.loginPrompt ?? ""}
+        onClose={act.dismissLoginPrompt}
+      />
     </article>
   );
 }

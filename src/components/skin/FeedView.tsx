@@ -521,7 +521,7 @@ export default function FeedView({
               </p>
               {searchQuery && popularTags.length > 0 && (
                 <div style={{ marginTop: 20 }}>
-                  <p style={{ fontSize: 13, color: "#7b8794", marginBottom: 10 }}>
+                  <p style={{ fontSize: 13, color: "var(--ink-500)", marginBottom: 10 }}>
                     이런 키워드는 어떠세요?
                   </p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
@@ -532,10 +532,10 @@ export default function FeedView({
                         onClick={() => applyTag(tag)}
                         style={{
                           padding: "6px 14px",
-                          borderRadius: 999,
+                          borderRadius: "var(--r-chip)",
                           border: "none",
-                          background: "#eaf6fd",
-                          color: "#1f8fc6",
+                          background: "var(--tt-blue-tint)",
+                          color: "var(--tt-blue-deep)",
                           fontSize: 13,
                           cursor: "pointer",
                         }}
