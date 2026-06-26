@@ -23,7 +23,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { SessionInfo } from "@/components/TopNav";
+import type { SessionInfo } from "@/lib/session-types";
 import { IDENTITY_MIRROR_COOKIE, UUID_RE } from "@/lib/identity-shared";
 
 const SessionContext = createContext<SessionInfo>(null);

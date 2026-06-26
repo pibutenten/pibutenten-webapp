@@ -8,7 +8,7 @@
  * 남아 있어야 효과가 있으므로 본 파일로 이동 X.
  */
 
-import type { SessionInfo } from "@/components/TopNav";
+import type { SessionInfo } from "@/lib/session-types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { IDENTITY_COOKIE, UUID_RE } from "@/lib/identity-shared";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
@@ -50,7 +50,7 @@ export async function getSessionInfo(): Promise<SessionInfo> {
       }
     }
 
-    const identities: import("@/components/TopNav").SessionIdentity[] = rows.map(
+    const identities: import("@/lib/session-types").SessionIdentity[] = rows.map(
       (r) => {
         // doctor 매핑된 row는 doctors.photo_url 우선 (single source)
         const docSlug = docMap.get(r.id);

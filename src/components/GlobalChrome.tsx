@@ -15,7 +15,6 @@
  */
 
 import { usePathname } from "next/navigation";
-import TopNav from "@/components/TopNav";
 import SiteFooter from "@/components/SiteFooter";
 import { isPostDetailPath, RESERVED_FIRST_SEGMENT } from "@/lib/route-class";
 
@@ -82,12 +81,6 @@ function isAppShell(pathname: string | null): boolean {
     return true;
   }
   return false;
-}
-
-export function ChromeHeader() {
-  const pathname = usePathname();
-  if (isAppShell(pathname)) return null;
-  return <TopNav />;
 }
 
 export function ChromeFooter() {

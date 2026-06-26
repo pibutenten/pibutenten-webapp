@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { ChromeHeader, ChromeFooter } from "@/components/GlobalChrome";
+import { ChromeFooter } from "@/components/GlobalChrome";
 import ScrollManager from "@/components/ScrollManager";
 import OfflineBanner from "@/components/OfflineBanner";
 import PageTransition from "@/components/PageTransition";
@@ -174,9 +174,8 @@ export default function RootLayout({
           <ScrollManager />
           <OfflineBanner />
           <PageTransition />
-          {/* 전역 크롬은 경로별 분기(GlobalChrome): 앱 셸 승격 라우트에선 렌더 안 함(옛 헤더 깜빡임 제거). */}
-          <ChromeHeader />
-          {/* 하단 pb-20(모바일) — BottomNav 고정 하단 5탭 가림 방지 일괄 처리. 데스크탑(하단탭 없음)은 pb-8. */}
+          {/* 옛 전역 헤더(TopNav/BottomNav)는 앱셸 단일화로 폐기(2026-06-26). 푸터(ChromeFooter)만 비-앱셸 경로용 유지.
+              아래 pb-20 은 구 옛-프레임 main 하단 여백 — 앱셸 라우트는 AppShell 오버레이가 덮어 무관, 비-앱셸은 전부 redirect/오버레이. */}
           <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 pt-3 pb-20 sm:px-6 sm:pb-8">
             {children}
           </main>
