@@ -20,6 +20,7 @@
 ### Fixed
 - **IP 위치 표시 오류**: /api/iploc에 `export const dynamic = "force-dynamic"` 추가 (Vercel 엣지 캐싱 방지), Cache-Control 강화 (`no-store, no-cache, must-revalidate`)
 - **위치 고착 버그**: useWeather IP 폴백에서 기존 시드가 있을 때 precise=false로 처리되어 IP 결과가 무시되던 문제 수정 (해외 이동 시 이전 도시가 고착)
+- **SW 위치 캐시 루프**: 서비스 워커가 /api/iploc 응답을 동적 캐시에 저장해, 네트워크 불안정 시 한국 좌표가 반복 반환되던 근본 원인 차단 — /api/ 경로 SW 캐싱 완전 제외 + 캐시 버전 변경(v1→v2)으로 기존 캐시 강제 삭제 + iploc fetch에 타임스탬프 캐시 버스터 추가
 
 ### Removed
 - RecordNotesPanel.tsx의 dead code 4개 함수 (hasExpandable, EntryDetail, ExpandBody, useExpand)

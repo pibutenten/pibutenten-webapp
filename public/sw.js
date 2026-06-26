@@ -9,17 +9,19 @@
  *     (예: 컬럼 DROP) 직후 옛 build 의 JavaScript chunk 가 잔존하면 사용자가
  *     "schema cache 에 없는 컬럼" 에러 보던 회귀 차단 (2026-05-26).
  *
- * 의도적 가벼움:
- *  - fetch 응답 캐싱 없음 (Next.js 정적 자산은 자체 CDN/HTTP 캐시로 충분).
+ * 캐싱 전략:
+ *  - /_next/static/ — Cache-First (빌드 해시 포함 불변 자산).
+ *  - /api/ — 캐싱 없음 (위치·세션 등 사용자별 응답, SW 가로채기 자체 제외).
+ *  - 기타 same-origin — Network-First (오프라인 시 캐시 폴백, LRU 50개).
  *  - 변경 시 클라이언트가 즉시 새 SW를 받도록 skipWaiting/clientsClaim.
  *  - activate 시 controlled clients 자동 reload (새 chunk 강제 가져옴).
  */
 // v5(2026-06-24): 날씨 프록시 되돌림(b79e39a) 등 누적 배포를 열린 클라이언트에 강제 전파.
 //   버전이 바뀌어야 activate→전 탭 자동 reload 가 1회 동작해 옛 JS(프록시 버전) 캐시가 교체된다.
-const VERSION = "v8-offline-cache-260625";
+const VERSION = "v9-no-api-cache-260626";
 
 const STATIC_CACHE = "pbtt-static-v1";
-const DYNAMIC_CACHE = "pbtt-dynamic-v1";
+const DYNAMIC_CACHE = "pbtt-dynamic-v2";
 const EXPECTED_CACHES = [STATIC_CACHE, DYNAMIC_CACHE];
 
 const OFFLINE_HTML = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>피부텐텐</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f9fafb;color:#374151;text-align:center;padding:1rem}div{max-width:320px}h1{font-size:1.25rem;margin-bottom:.5rem}p{color:#6b7280;font-size:.875rem;line-height:1.5}</style></head><body><div><h1>네트워크 연결 끊김</h1><p>인터넷에 연결할 수 없어요.<br>연결을 확인한 뒤 다시 시도해 주세요.</p></div></body></html>`;
@@ -84,7 +86,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // same-origin — Network-First
+  // /api/ — 캐싱 금지 (위치·세션 등 사용자별 응답). 네트워크 직행, 오프라인 시 에러.
+  if (url.origin === self.location.origin && url.pathname.startsWith("/api/")) {
+    return;
+  }
+
+  // same-origin (non-API) — Network-First
   if (url.origin === self.location.origin) {
     event.respondWith(
       (async () => {

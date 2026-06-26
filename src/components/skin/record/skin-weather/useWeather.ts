@@ -268,7 +268,7 @@ export function useWeather(
         // 기기 측위 실패: 대치동으로 바로 가지 않고 먼저 접속 IP 기반 대략위치(/api/iploc)를 시도.
         //   IP 라우트는 Vercel 헤더만 읽어 외부호출이 없다(ADR 0021 무관). 성공하면 도시/동 수준
         //   대략위치를, 실패(404·네트워크·무효 좌표)하면 그때 비로소 대치동(최후 수단)으로 폴백.
-        fetch("/api/iploc", { signal: ac.signal })
+        fetch(`/api/iploc?_t=${Date.now()}`, { signal: ac.signal })
           .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`iploc ${r.status}`))))
           .then((j: { lat?: unknown; lon?: unknown }) => {
             if (!mounted || ac.signal.aborted) return;
