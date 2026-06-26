@@ -15,11 +15,11 @@ import { chosungOf, isAllChosung } from "@/lib/hangul-chosung";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
-  "w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[16px] transition-colors focus:border-[var(--primary)] focus:outline-none";
+  "w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[16px] transition-colors focus:border-[var(--primary)] focus:outline-none focus:ring-0";
 const inputSm =
-  "rounded-md border border-[var(--border)] bg-white px-2.5 py-1.5 text-[16px] focus:border-[var(--primary)] focus:outline-none";
+  "rounded-md border border-[var(--border)] bg-white px-2.5 py-1.5 text-[16px] focus:border-[var(--primary)] focus:outline-none focus:ring-0";
 const textareaCls =
-  "w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[16px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none";
+  "w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[16px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none focus:ring-0";
 const labelCls = "mb-2 block text-sm font-semibold text-[var(--text)]";
 /** 글상자 — 피드 카드와 동일: 테두리 X·음영 X. */
 const formBox = "space-y-5 rounded-[var(--radius)] bg-white p-5";
@@ -441,8 +441,8 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
                 <button type="button" onClick={() => { setPicked(null); setPickedXY(null); setQ(""); setTel(""); setAddr(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button>
               </div>
               {/* 회색 박스·라벨 제거 — 주소/전화는 거의 안 건드리므로 보더리스 미니멀 라인으로. */}
-              <input className="mt-1.5 w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" value={addr} placeholder="주소" onChange={(e) => setAddr(e.target.value)} />
-              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" value={tel} placeholder="전화번호" onChange={(e) => setTel(e.target.value)} />
+              <input className="mt-1.5 w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={addr} placeholder="주소" onChange={(e) => setAddr(e.target.value)} />
+              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={tel} placeholder="전화번호" onChange={(e) => setTel(e.target.value)} />
             </div>
           )}
         </div>

@@ -263,23 +263,16 @@ export default function ReviewForm({
     setError(null);
   }
 
-  // 시술 다시 선택(생성 모드 전용) — 확인 후 입력값 전체 초기화하고 피커 재오픈.
+  // 시술 다시 선택(생성 모드 전용) — 확인 후 시술만 초기화하고 피커 재오픈.
   function reselectProcedure() {
     if (
       !window.confirm(
-        "시술을 다시 선택하면 지금까지 입력한 내용이 모두 지워집니다. 계속할까요?",
+        "선택한 시술이 초기화됩니다. 계속할까요?",
       )
     ) {
       return;
     }
     setProcedureKo("");
-    setSatisfaction(0);
-    setPain(0);
-    setDowntime("");
-    setRevisit("");
-    setEffectAreas([]);
-    setEffectOnset("");
-    setOneliner("");
     setError(null);
   }
 
@@ -395,9 +388,16 @@ export default function ReviewForm({
 
         guard.markSubmitted();
         reviewDraft.clear();
-        const dest =
-          handle && data.shortcode ? `/${handle}/${data.shortcode}` : "/";
-        router.push(dest);
+        if (data.card_id && typeof window !== "undefined") {
+          try {
+            window.sessionStorage.setItem(
+              "pbtt:justPublished",
+              JSON.stringify({ id: data.card_id, ts: Date.now() }),
+            );
+            window.sessionStorage.removeItem("pbtt:justPublished:shown");
+          } catch { /* sessionStorage disabled */ }
+        }
+        router.push("/");
         router.refresh();
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (e) {
@@ -516,7 +516,7 @@ export default function ReviewForm({
               생각보다 많을 거예요 — 보통 4개 이상 고르세요.
             </span>
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             {EFFECT_AREA_OPTIONS.map((opt, i) => (
               <EffectChip
                 key={opt}
@@ -809,7 +809,7 @@ function Chip({
       disabled={disabled}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1 text-[13px] transition-transform active:scale-110 disabled:opacity-50"
+      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1 text-[13px] disabled:opacity-50"
       style={style}
     >
       {children}
@@ -847,7 +847,7 @@ function EffectChip({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1 text-[13px] transition-transform active:scale-110 disabled:opacity-50"
+      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1 text-[13px] disabled:opacity-50"
       style={style}
     >
       {children}

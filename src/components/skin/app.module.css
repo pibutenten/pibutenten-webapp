@@ -507,11 +507,48 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 검색어 알약이 있으면 모바일에선 로고·검색아이콘·스페이서를 숨겨 알약이 그 자리를 대신한다. */
+/* 검색어 알약이 있으면 모바일에선 로고·검색아이콘·스페이서를 숨겨 검색바가 그 자리를 대신한다. */
 .headerInnerHasQuery .logoLink,
 .headerInnerHasQuery .iconBtnSearch,
 .headerInnerHasQuery .headerSpacer {
   display: none;
+}
+
+/* 모바일 검색 결과 전체 검색바 — /search 페이지와 동일 레이아웃(← 뒤로 + 검색 입력창 + ✕). */
+.mobileQuerySearchBar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.mobileQueryBack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mobileQueryForm {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+.mobileQueryInput {
+  flex: 1;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid #cdebfa;
+  background: #f7fafc;
+  font-size: 16px;
+  color: #1e2a35;
+  outline: none;
+  min-width: 0;
 }
 
 /* ---------- 콘텐츠 컨테이너 ---------- */
@@ -1828,6 +1865,9 @@ button.t[data-cat="knowledge"]:hover {
   /* 데스크탑은 상시 검색 pill 이 검색어를 보여주므로 모바일 검색어 알약은 숨기고,
      로고·스페이서는 항상 표시(검색 결과 중에도 헤더 레이아웃 유지). */
   .mobileQueryPill {
+    display: none;
+  }
+  .mobileQuerySearchBar {
     display: none;
   }
   .headerInnerHasQuery .logoLink {

@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import styles from "./app.module.css";
 import { useSession } from "@/lib/session-context";
 import SearchPanel, { prefetchDiscover } from "@/components/search/SearchPanel";
+import { addRecent } from "@/lib/recent-search";
 import { showToast } from "@/lib/toast";
 import BackButton from "@/components/BackButton";
 import { useSoftKeyboardOpen } from "@/lib/useSoftKeyboardOpen";
@@ -541,27 +542,60 @@ export default function AppShell({
               />
             </Link>
 
-            {/* 모바일 활성 검색어 알약 — 검색 결과 동안 검색어 노출(데스크탑 상시 pill 과 동일 역할).
-                탭하면 그 검색어로 검색창이 열리고, ✕ 로 해제. ≥900px 은 CSS 로 숨김. */}
+            {/* 모바일 검색 결과 헤더 — /search 페이지와 동일한 레이아웃(← 뒤로 + 검색 입력창 + ✕).
+                검색 결과 동안(value 존재 + 검색창 닫힘) 로고·검색아이콘 자리를 대체.
+                ≥900px 은 CSS 로 숨김(데스크탑 상시 pill 이 담당). */}
             {mobileQueryActive && (
-              <div className={styles.mobileQueryPill}>
-                <IconSearch />
+              <div className={styles.mobileQuerySearchBar}>
                 <button
                   type="button"
-                  className={styles.mobileQueryText}
-                  onClick={openMobileSearch}
-                  aria-label={`검색어 ${value} — 다시 검색`}
+                  className={styles.mobileQueryBack}
+                  onClick={() => router.back()}
+                  aria-label="뒤로"
                 >
-                  {value}
+                  <svg
+                    width={22}
+                    height={22}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#3c4856"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                  </svg>
                 </button>
-                <button
-                  type="button"
-                  className={styles.searchClear}
-                  aria-label="검색 해제"
-                  onClick={clearSearch}
+                <form
+                  className={styles.mobileQueryForm}
+                  role="search"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const t = value.trim();
+                    if (!t) return;
+                    addRecent(t);
+                    runSearch(t);
+                  }}
                 >
-                  ✕
-                </button>
+                  <input
+                    type="search"
+                    className={styles.mobileQueryInput}
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    placeholder="시술, 고민, 키워드 검색"
+                    autoComplete="off"
+                  />
+                </form>
+                {value.trim().length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.searchClear}
+                    aria-label="검색 해제"
+                    onClick={clearSearch}
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             )}
 
