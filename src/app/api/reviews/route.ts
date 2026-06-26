@@ -23,7 +23,7 @@ type SubmitStatus = "pending_review" | "published";
  *   2. role=user 면 온보딩 게이트(birthdate/terms) 검사 (articles 와 동일, defense-in-depth).
  *   3. rate limit (분당 5회).
  *   4. zod 형식·크기 검증.
- *   5. procedure_ko 가 procedure_taxonomy 에 존재하는지 검증.
+ *   5. procedure_ko 가 tag_dictionary(is_procedure=true) 에 존재하는지 검증.
  *   6. title 기본값 (`{시술명} 시술후기`).
  *   7. 블라인드: 병원·의사명 지목 표현을 "○○" 로 마스킹(제출 차단 아님), 발생수 집계.
  *   8. 소프트 검수: role=user 면 마스킹된 텍스트로 screenContent → flagged 면 pending_review.

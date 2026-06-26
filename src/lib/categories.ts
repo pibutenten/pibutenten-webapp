@@ -5,7 +5,7 @@
  * - 사용처 : 의사 답변 페이지의 키워드 분류 위젯.
  *
  * **혼동 주의** — `cards.category` 컬럼 (글 분류) 과 무관한 다른 개념입니다.
- * 글 카테고리 분류 (qa/tip/diary/ask/link/doodle) 는 `src/lib/post-category.ts` 참조.
+ * 글 카테고리 분류 (qa/doodle/review/review_summary) 는 `src/lib/post-category.ts` 참조.
  *
  * 5색 색상 분산 (보라·하늘·핑크·테라코타·올리브).
  *

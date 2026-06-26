@@ -4,7 +4,7 @@
  * SSOT = DB `tag_dictionary`(+ `tag_blacklist`, `tag_normalization`). 빌드 시 anon SELECT 로
  *   읽어 src/data/tag-dictionary.generated.json 스냅샷을 산출한다. procedure-mappings.json 의존 제거.
  *
- * procedure-dict/auto-tag 의 모든 lookup 이 이 스냅샷을 읽는다(동기·시그니처 불변). 스냅샷 필드:
+ * procedure-dict 의 모든 lookup 이 이 스냅샷을 읽는다(동기·시그니처 불변). 스냅샷 필드:
  *   category·slug  — ko(+aliases) → 카테고리 슬러그 / 영문 slug
  *   pubmed         — ko → PubMed 영문 검색어 배열 (canonical, getPubmedDict 원본)
  *   pubmedLookup   — ko/alias → PubMed 배열 (pubmedKeywordsFor, ko 우선·first-wins)

@@ -192,8 +192,16 @@ export async function POST(req: Request) {
   const existingFingerprints = new Set<string>();
   const existingPrefixes = new Set<string>();
   for (const row of existingCards ?? []) {
-    const meta =
-      typeof row.meta === "string" ? JSON.parse(row.meta || "{}") : row.meta;
+    // 손상된 meta JSON 1건이 발행 배치 전체를 미처리 예외(500)로 깨뜨리지 않도록 방어 —
+    //   파싱 실패 시 이 row 의 fingerprint 만 건너뛴다 (EditClient 의 meta 파싱과 동일 패턴).
+    let meta: { timestamp?: { start_seconds?: number; startSeconds?: number } } | null = null;
+    try {
+      meta = (typeof row.meta === "string"
+        ? JSON.parse(row.meta || "{}")
+        : row.meta) as { timestamp?: { start_seconds?: number; startSeconds?: number } } | null;
+    } catch {
+      meta = null;
+    }
     const startSec =
       meta?.timestamp?.start_seconds ?? meta?.timestamp?.startSeconds ?? null;
     const qNorm = normalizeQ(row.title as string);

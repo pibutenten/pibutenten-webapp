@@ -202,7 +202,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   //   정식 URL = /reports/{ko}(한글). 영문 en 은 리다이렉트 전용(중복 콘텐츠 방지).
   //   페이지 레벨 redirect 는 스트리밍 SSR 에서 200+meta-refresh 로 폴백 → 하드 308 불가하므로
   //   페이지보다 먼저 도는 미들웨어에서 처리.
-  //   ASCII(영문 en) 후보만 taxonomy 조회 → 한글 ko(정식 URL)는 조회 없이 통과(추가 비용 0).
+  //   ASCII(영문 en) 후보만 tag_dictionary 조회 → 한글 ko(정식 URL)는 조회 없이 통과(추가 비용 0).
   //   1홉만(en→ko). ko 는 ASCII 가 아니라 절대 재진입하지 않음(루프 없음).
   if (method === "GET" || method === "HEAD") {
     const reportMatch = path.match(/^\/reports\/([^/]+)\/?$/);
@@ -280,9 +280,17 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>["data"]["user"] = null;
+  try {
+    ({
+      data: { user },
+    } = await supabase.auth.getUser());
+  } catch (e) {
+    // 인증 엔드포인트 일시 장애 시 미처리 예외로 전 라우팅이 깨지지 않도록 가드 스킵 후 통과
+    //   (아래 profiles 조회의 '에러 시 가드 스킵, 무한 redirect 방지' 철학과 동일).
+    console.warn("[middleware] auth.getUser exception:", e);
+    return response;
+  }
 
   // 비로그인 → 가드 스킵
   if (!user) return response;

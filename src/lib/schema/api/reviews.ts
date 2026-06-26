@@ -34,7 +34,7 @@ import { z } from "zod";
  */
 export const ReviewCreateSchema = z
   .object({
-    // 시술명 (procedure_taxonomy.ko 와 매칭 — 라우트에서 존재 검증).
+    // 시술명 (tag_dictionary(is_procedure=true).ko 와 매칭 — 라우트에서 존재 검증).
     procedure_ko: z.string().min(1).max(40),
 
     // ── 필수 평점·척도 ──

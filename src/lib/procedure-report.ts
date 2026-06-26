@@ -37,12 +37,12 @@ export type ProcedureCategory = "lifting" | "injectables";
 
 export type ProcedureReport = {
   procedureKo: string;
-  /** procedure_taxonomy.en — 영문 슬러그(/reports/{en} 링크·canonical). 미발견 시 "". */
+  /** tag_dictionary(is_procedure=true).en — 영문 슬러그(/reports/{en} 링크·canonical). 미발견 시 "". */
   en: string;
   /** 시술 리포트 앵커 카드(type=review_summary). 저장·공유 버튼용 card_id 출처.
    *  draft 라 RLS 우회(admin client)로 조회. 없으면(후기 0/미백필) null → 버튼 미노출. */
   anchor: CardData | null;
-  /** procedure_taxonomy.category — 카드 테두리 색 분기용. 미발견 시 null. */
+  /** tag_dictionary(is_procedure=true).category — 카드 테두리 색 분기용. 미발견 시 null. */
   category: ProcedureCategory | null;
   count: number;
   avgSatisfaction: number;

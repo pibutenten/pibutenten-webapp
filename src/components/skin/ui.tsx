@@ -378,7 +378,12 @@ export const TAG_TONES = [
  *       비로그인이면 profile_id=null, session_id 로 dedup(운영 0117 정책 정합). */
 export type ViewerState = { liked?: boolean; saved?: boolean };
 export function useCardActions(card: CardData, viewer?: ViewerState) {
-  const [me, setMe] = useState<{ id: string } | null | undefined>(undefined);
+  // me 는 SSR SessionContext 단일 출처(운영 useCardViewer 정합, ADR 0012). myId=로그인 게이트(null=로그아웃).
+  //   옛 per-card auth.getUser() useEffect 제거(PERF, 2026-06-26) — 카드 N장당 /auth/v1/user 호출 폭주 +
+  //   첫 paint 후 me 깜빡임 차단. 실제 식별자는 getActiveIdentityId()(쿠키 동기)가 RPC 에 전달.
+  const session = useSession();
+  const myId = session?.activeIdentityId ?? null;
+  const me: { id: string } | null = myId ? { id: myId } : null;
   const [liked, setLiked] = useState(viewer?.liked ?? false);
   const [likeCount, setLikeCount] = useState(card.like_count ?? 0);
   const [likePending, setLikePending] = useState(false);
@@ -387,21 +392,9 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
   const [saveCount, setSaveCount] = useState(card.save_count ?? 0);
   const [savePending, setSavePending] = useState(false);
   const [shareCount, setShareCount] = useState(card.share_count ?? 0);
-  useEffect(() => {
-    let alive = true;
-    createSupabaseBrowserClient()
-      .auth.getUser()
-      .then(({ data }) => {
-        if (alive) setMe(data.user ? { id: data.user.id } : null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
   const [loginPrompt, setLoginPrompt] = useState<string | null>(null);
   const toggleLike = useCallback(() => {
-    if (me === undefined) return;
-    if (me === null) {
+    if (!myId) {
       setLoginPrompt("좋아요를 누르려면 로그인이 필요해요");
       return;
     }
@@ -434,10 +427,9 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
         setLikePending(false);
       }
     })();
-  }, [card.id, liked, likePending, me]);
+  }, [card.id, liked, likePending, myId]);
   const toggleSave = useCallback(() => {
-    if (me === undefined) return;
-    if (me === null) {
+    if (!myId) {
       setLoginPrompt("저장하려면 로그인이 필요해요");
       return;
     }
@@ -466,7 +458,7 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
         setSavePending(false);
       }
     })();
-  }, [card.id, saved, savePending, me]);
+  }, [card.id, saved, savePending, myId]);
   const doShare = useCallback(async () => {
     // 운영 shareCard 재사용 — 모바일: 네이티브 공유 시트 / 데스크탑: 클립보드 복사 + "링크가 복사되었어요" 토스트.
     //   반환 채널(native/link-copy)을 그대로 기록. 사용자 취소·실패(null)면 카운트/기록 안 함.

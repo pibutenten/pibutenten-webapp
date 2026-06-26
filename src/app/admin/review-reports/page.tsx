@@ -17,7 +17,7 @@ export const metadata: Metadata = {
  *
  * 데이터: get_review_report_overview() RPC (0238, admin 전용 SECURITY DEFINER).
  *   시술별 1행 — 후기수·재시술의향%·만족도·통증 + 조회/저장/공유(engagement).
- * 그룹핑: procedure_taxonomy.category 동적 (카테고리 늘어도 자동 반영, 하드코딩 없음).
+ * 그룹핑: tag_dictionary(is_procedure=true).category 동적 (카테고리 늘어도 자동 반영, 하드코딩 없음).
  * 행 클릭 → /reports/{en} (공개 리포트).
  *
  * 원칙: 가드·RPC·그룹핑은 운영 그대로 유지하고, 렌더만 AdminReviewReportsView(앱 셸 래퍼)로 위임한다.

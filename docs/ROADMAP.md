@@ -16,7 +16,7 @@
 ### 태그·시술 통합 사전 매니저 (4-4) — 🟡 설계 단계 (코드 미착수)
 - **현재**: 진단1~3 = **읽기전용**(SELECT/grep/pg_get_functiondef + xlsx export 만, **커밋·DB 변경 0**). 디렉터 측 **0단계 정리본** 확정 진행 중.
 - 진단 산출: `전달용/태그_사전_검토용_20260606.xlsx`(2147행 = cards.keywords distinct ∪ 사전 819, 분류 821/미분류 1326).
-- 진단 핵심: 태그→분류 매핑은 이미 존재(`procedure-mappings.json` 819항목, 5분류 SSOT). 단 ① `cards.keywords ↔ procedure_taxonomy` FK 정합 장치 전무(고아 98%) ② profiles 영문 enum(skin_concerns/skin_type) ↔ 한글 태그 어휘 단절 ③ review_summary 앵커카드 keywords 자유텍스트 의존. (상세 = 진단 보고/세션 핸드오프.)
+- 진단 핵심 **(2026-06-06 진단 시점 스냅샷 — 이후 SSOT 일원화로 일부 무효, ARCHITECTURE §10 참조)**: 당시 태그→분류 매핑은 `procedure-mappings.json`(819항목)에 존재. 단 ① `cards.keywords ↔ procedure_taxonomy` FK 정합 장치 전무(고아 98%) ② profiles 영문 enum(skin_concerns/skin_type) ↔ 한글 태그 어휘 단절 ③ review_summary 앵커카드 keywords 자유텍스트 의존. ※ 이후 L2-4(2026-06-07)로 `procedure-mappings.json`·`procedure_taxonomy` 는 청산되고 SSOT 가 DB `tag_dictionary`(빌드 스냅샷 `tag-dictionary.generated.json`)로 일원화됨. ①·②·③ 의 일부 전제는 현재 무효. (상세 = 진단 보고/세션 핸드오프.)
 - 검색량 영속: `search_logs`(query 원문·profile_id·created_at, 24일치). 인기검색어/인기태그 패널은 `PERIOD_DAYS[1,7,30,90,365,0]` 시간창 토글 기구현(`PopularCards.tsx`).
 - **다음 착수 = 디렉터 확정 정리본의 "안전 적용부"부터**: 글상자(카드) 태그 문자열만 정정, 본문 불변, 백업 선행, 미리보기, 단일 트랜잭션, 되돌리기 가능. (불변 원칙은 SESSION_HANDOFF 참조.)
 

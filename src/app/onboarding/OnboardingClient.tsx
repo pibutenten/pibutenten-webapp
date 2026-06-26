@@ -249,7 +249,9 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
     // 개인정보 보호법상 만 14세 미만은 법정대리인 동의 필수. 피부텐텐은 현재
     // 법정대리인 동의 프로세스가 없으므로 14세 미만 가입 자체를 차단.
     // 계산: 오늘 기준 - 14년 < 생일 이면 미만.
-    const birthDateObj = new Date(birthdate);
+    // 'YYYY-MM-DD' 를 로컬 자정으로 파싱 — today(로컬)와 기준을 맞춰 경계일(생일 당일) 오판 방지.
+    //   (new Date("YYYY-MM-DD") 는 UTC 자정 파싱이라 음수 오프셋 환경에서 하루 어긋날 수 있음.)
+    const birthDateObj = new Date(`${birthdate}T00:00:00`);
     const today = new Date();
     let ageYears = today.getFullYear() - birthDateObj.getFullYear();
     const monthDiff = today.getMonth() - birthDateObj.getMonth();

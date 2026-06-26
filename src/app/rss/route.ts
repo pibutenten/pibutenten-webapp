@@ -81,7 +81,7 @@ export async function GET() {
     .join("\n");
 
   // 시술 리포트 앵커 — /reports/{ko}(한글 정식 URL). ★게이트 off 기본 + published 한정(이중 차단).
-  //   post_slug=영문 en → procedure_taxonomy 로 en→ko 매핑 후 한글 link 만 출력(영문은 308 전용).
+  //   post_slug=영문 en → tag_dictionary(is_procedure) 로 en→ko 매핑 후 한글 link 만 출력(영문은 308 전용).
   let anchorItems = "";
   if (INCLUDE_REPORT_ANCHORS) {
     const { data: anchors } = await supabase

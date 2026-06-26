@@ -125,15 +125,15 @@ button, a, [role="button"] {
   touch-action: manipulation;
 }
 
-/* focus outline — 사용자 요청: 클릭/포커스 시 파란 선 완전 제거.
-   (접근성 keyboard nav는 브라우저 기본 :focus-visible로 충분.
-    여기서는 마우스 클릭 시 잔상이 남는 것을 막기 위해 outline 전체 off) */
-button:focus,
-button:focus-visible,
-a:focus,
-a:focus-visible,
-[role="button"]:focus,
-[role="button"]:focus-visible {
+/* focus outline — 마우스/터치 클릭 시 파란 선 잔상만 제거하고, 키보드 포커스는 유지.
+   (2026-06-26 a11y 수정: 기존엔 :focus-visible 까지 !important 로 꺼서 키보드 사용자가
+    포커스 위치를 알 수 없었음 — WCAG 2.4.7 Focus Visible 위반. app.module.css 의
+    .root :focus-visible 3px 링도 무력화됐음.)
+   :focus:not(:focus-visible) = 마우스/터치로 포커스된 경우만 매칭 → outline off.
+   :focus-visible(키보드 등) 은 건드리지 않아 컴포넌트/앱셸 포커스 링이 정상 노출됨. */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible) {
   outline: none !important;
   box-shadow: none !important;
 }

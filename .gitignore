@@ -56,6 +56,10 @@ next-env.d.ts
 *.bak
 *.bak.*
 
+# Dropbox 동기화 충돌 사본 — 자동 생성 중복본(예: "foo (DESKTOP-X의 충돌된 사본 2026-..).json"). 절대 커밋 금지
+*충돌된 사본*
+*conflicted copy*
+
 # 빌드 산출물 APK/AAB (클라우드 빌드 다운로드 — git 추적 불필요, Dropbox 동기화로 배포)
 /builds/
 

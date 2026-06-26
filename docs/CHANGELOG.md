@@ -6,7 +6,31 @@
 
 ---
 
-## [2026-06-26] — 시술 노트 UX 개선 + IP 위치 버그 수정 + 의사 검수 발행 + UX Phase 5 + UX 피드백 일괄 수정
+## [2026-06-26] — 시술 노트 UX 개선 + IP 위치 버그 수정 + 의사 검수 발행 + UX Phase 5 + UX 피드백 일괄 수정 + 6-에이전트 종합 감사 정비
+
+### 6-에이전트 종합 감사 기반 일괄 정비 (UX 2 · 구조 2 · 코드 2 독립 평가 → 적대적 검증 → 코드 직접 수정)
+> 6개 독립 평가 에이전트 + 검증 14에이전트로 46개 발견 도출. 옆 세션 글쓰기 작업과 파일 경계를 분리(비겹침)하고, 독립 검수관 2명 교차검증(치명·높음 0건) + `tsc`·`npm run build` 통과 후 반영. 제품 결정이 얽힌 항목(온보딩 다단계화·쇼핑 탭·팔로우·알림 그룹핑·홈 ISR·댓글 N+1 비정규화 등)은 보고서 권고로 분리.
+
+**Fixed — 런타임 안전·접근성·정확성**
+- **접근성(WCAG 2.4.7 Focus Visible)**: `globals.css` 의 전역 `button/a/[role=button]:focus, :focus-visible { outline:none !important }` 가 키보드 포커스 링까지 꺼 `app.module.css` 의 `.root :focus-visible` 3px 링을 무력화하던 문제 수정. `:focus:not(:focus-visible)` 로 좁혀 마우스 클릭 잔상은 계속 제거하되 키보드 포커스 링은 복원
+- **ScrollManager**: `savePos` 의 `sessionStorage.setItem` 을 try/catch 로 감싸 인앱 브라우저(카톡/구글) sandbox·QuotaExceeded 시 네비게이션마다 크래시하던 위험 제거 (다른 storage 접근부와 방어 일관화)
+- **admin/draft/publish**: 기존 카드 중복판정용 `row.meta` JSON.parse 를 try/catch 로 방어 — 손상된 meta 1건이 발행 배치 전체를 미처리 500 으로 깨뜨리던 단일 실패점 제거
+- **api/search/suggest**: GET 핸들러 전체 try/catch + 빈 폴백(`{popular:[],cats:{}}`) — DB 일시 장애 시 검색 발견(인기검색어/칩) 화면이 graceful degrade
+- **middleware**: `supabase.auth.getUser()` 를 try/catch 로 감싸 인증 엔드포인트 장애 시 가드 스킵 후 통과(전 라우팅 차단 시나리오 방지, 하위 profiles 조회의 degrade 철학과 정합)
+- **온보딩 만 14세 게이트**: 생년월일을 로컬 자정(`new Date(\`${birthdate}T00:00:00\`)`)으로 파싱해 `today`(로컬)와 타임존 기준을 통일 — 경계일(생일 당일) ±1일 오판 방지(개인정보보호법 법정 연령 게이트 정확성)
+
+**Changed — 성능**
+- **피드 카드 me 판정(N+1 제거)**: `ui.tsx` `useCardActions` 의 카드별 `auth.getUser()` useEffect 제거 → SSR SessionContext(`useSession`) 단일 출처로 치환(`useCardViewer` 와 정합). 피드 초기 마운트 시 카드 수만큼 발생하던 `/auth/v1/user` 호출과 첫 paint 후 me 깜빡임 제거
+- **저장 토글 왕복 절감**: `useCardEngagement` 의 `toggle_card_save` 직후 `cards.save_count` 재조회 SELECT 제거 — RPC 가 트리거 갱신 후 권위 `save_count` 를 반환하므로 중복(toggleLike 경로와 정합, 토글당 왕복 1회 절감)
+
+**Removed — 죽은 코드·사장 의존성**
+- 미사용 모듈 삭제(import 0건 확인 + 독립 검수 재확인): `lib/auto-tag.ts`, `lib/doctor-dashboard.ts`, `lib/me-cache.ts`, `components/dialog/Dialog.tsx`, `components/skin/record/clinic-map/`(ClinicMap·NaverMap·naver-maps 3파일)
+- 사장 의존성 제거: `leaflet`·`react-leaflet`·`@types/leaflet`(clinic-map 삭제로 사용처 0) + `package-lock.json` 동기화
+- `.gitignore` 에 Dropbox 충돌 사본 패턴(`*충돌된 사본*`·`*conflicted copy*`) 추가 + 기존 충돌 사본 파일 삭제
+
+**Docs — 문서·주석 SSOT 정합**
+- `ARCHITECTURE.md` §8 디자인 토큰: 틀린 `--primary-dark/--primary-soft` 값·누락 토큰 정정, globals.css 가 hex SSOT 임을 명시. 하이라이트 5색을 `card-highlight.ts` 실측값으로 갱신. §11 홈 masonry 서술을 실제 단일 컬럼 `FeedView` 기준으로 정정. §1·DEPLOYMENT 경로(메인 D:/ ↔ 보조 C:/) 병기
+- `ROADMAP.md` 4-4 진단을 "2026-06-06 시점 스냅샷"으로 명시(청산된 `procedure-mappings.json`·`procedure_taxonomy` 와 정합), `procedure-mappings/README.md` 의 사라진 파일 편집 가이드 제거, `categories.ts`·`middleware.ts`·`rss/route.ts` 외 6개 파일의 `procedure_taxonomy` stale 주석을 `tag_dictionary` 로 정정
 
 ### Fixed
 - **피드 카드 날짜 표시 버그**: PostCard(ui.tsx)가 `card.created_at`(초안 작성일)만 사용하여 검수완료된 카드가 "1개월 전"으로 표시되던 버그 수정. 운영 CardHeader와 동일하게 `reviewed_at ?? created_at` (표시일 SSOT P1-b) 기준으로 통일. NEW 배지 판정도 동일 기준 적용

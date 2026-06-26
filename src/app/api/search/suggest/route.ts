@@ -11,13 +11,19 @@ import { getPopularByCategory } from "@/lib/popular-keywords";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient();
-  const [popRes, cats] = await Promise.all([
-    supabase.rpc("get_top_search_queries", { p_days: 7, p_limit: 10 }),
-    getPopularByCategory(),
-  ]);
-  const popular = ((popRes.data ?? []) as { query: string; cnt: number }[])
-    .map((r) => r.query)
-    .filter((q): q is string => typeof q === "string" && q.trim().length > 0);
-  return NextResponse.json({ popular, cats });
+  try {
+    const supabase = await createSupabaseServerClient();
+    const [popRes, cats] = await Promise.all([
+      supabase.rpc("get_top_search_queries", { p_days: 7, p_limit: 10 }),
+      getPopularByCategory(),
+    ]);
+    const popular = ((popRes.data ?? []) as { query: string; cnt: number }[])
+      .map((r) => r.query)
+      .filter((q): q is string => typeof q === "string" && q.trim().length > 0);
+    return NextResponse.json({ popular, cats });
+  } catch (e) {
+    // DB 일시 장애에도 검색 진입(인기검색어/칩) 화면이 깨지지 않도록 빈 폴백으로 graceful degrade.
+    console.error("[search/suggest] 조회 실패:", e instanceof Error ? e.message : e);
+    return NextResponse.json({ popular: [], cats: {} });
+  }
 }

@@ -180,7 +180,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // 시술 리포트 앵커 — /reports/{ko}(한글 정식 URL). ★게이트 off 기본 + published 한정(이중 차단).
     //   앵커 draft 동안엔 게이트가 꺼져 있고 켜더라도 published 만 → 플립 전 색인 노출 0.
-    //   앵커 post_slug 에는 영문 en 이 저장돼 있어 procedure_taxonomy 로 en→ko 매핑 후 한글 URL 만 등재
+    //   앵커 post_slug 에는 영문 en 이 저장돼 있어 tag_dictionary(is_procedure=true) 로 en→ko 매핑 후 한글 URL 만 등재
     //   (영문 en URL 은 308 리다이렉트 전용이라 sitemap 에 넣지 않음 — 중복 콘텐츠 방지).
     let anchorRoutes: MetadataRoute.Sitemap = [];
     if (INCLUDE_REPORT_ANCHORS) {

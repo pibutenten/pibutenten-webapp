@@ -17,7 +17,7 @@
 | React | 19.2.4 |
 | 부가 라이브러리 | `web-push`, `nanoid`, `youtubei.js`, `youtube-transcript`, `@mozilla/readability`, `jsdom`, `react-easy-crop`, `react-masonry-css`, `pretendard`, `zod`, `sharp`, `simple-git-hooks` |
 
-작업 디렉토리: `D:\Dropbox\Claude Code\260503 피부텐텐 웹앱개발\pibutenten-app\`
+작업 디렉토리: `<repo>/pibutenten-app` (메인 PC=D:\Dropbox, 보조=C:\Dropbox — 머신마다 드라이브만 다름)
 
 ---
 
@@ -361,28 +361,17 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 
 ## 8. 디자인 토큰 (`src/app/globals.css`)
 
-```css
-:root {
-  --primary: #4CBFF2;
-  --primary-dark: #2EA8DC;
-  --primary-soft: #E8F6FD;
-  --secondary: #1B4965;
-  --bg: #F4F5F7;
-  --bg-soft: #ECEEF1;
-  --white: #FFFFFF;
-  --text: #383F47;           /* 제목 / 좋아요 닉네임 / 댓글 닉네임 */
-  --text-secondary: #595E60; /* 본문 / 댓글 본문 */
-  --text-icon: #77868F;      /* 좋아요·댓글·북마크·공유 아이콘+숫자 */
-  --text-muted: #A2A6AF;     /* 카테고리 / 더보기 / 영상보러가기 / 태그 */
-  --border: #E5E3DD;
-  --accent: #FF6B81;
-  --accent-soft: #FFE4E8;
-  /* admin 칩 활성 배경(연한 하늘) — /admin/cards·/admin/tags 공유 SSOT. */
-  --chip-active-bg: #7DC1DD33;
-}
-```
+색상·간격·라운드·그림자 토큰의 **단일 출처(SSOT)는 `src/app/globals.css` 의 `:root`** 입니다. 아래는 역할 안내일 뿐이며 **실측 hex 는 globals.css 가 권위** — 드리프트 방지를 위해 본 문서에 hex 를 복제하지 않습니다.
 
-카드 강조 하이라이트 5색 (`src/lib/card-highlight.ts`): Sky `#E0F2FE` / Mint `#DCFCE7` / Pink `#FFEBF2` / Apricot `#FFEDD5` / Lavender `#F3E8FF`.
+- 메인: `--primary`(#4CBFF2 하늘색) · `--primary-dark`(hover/active) · `--primary-active`(흰글씨 대비 ≥4.5:1 칩) · `--primary-soft`(hover/selection) · `--primary-light`/`--primary-light-hover`(CTA·칩)
+- 보조: `--secondary`(딥 네이비) · `--secondary-light`
+- 텍스트 4톤: `--text`(제목/닉네임) · `--text-secondary`(본문) · `--text-icon`(액션 아이콘·숫자) · `--text-muted`(카테고리/더보기/태그)
+- 배경/경계: `--bg` · `--bg-soft` · `--white` · `--border`
+- 액센트·배지: `--accent`(좋아요 코랄) · `--accent-soft` · `--accent-new/-hot/-pick/-like/-save` · `--doctor-badge` · `--card-highlight`
+- admin 칩 활성 배경: `--chip-active-bg`(/admin/cards·/admin/tags 공유)
+- 그림자 `--shadow-sm/-/-lg` · 라운드 `--radius-sm/-/-lg`
+
+카드 강조 하이라이트 5색의 SSOT 는 `src/lib/card-highlight.ts` 의 `HIGHLIGHT_PALETTE` 입니다(현재 100/200 중간 톤: Sky #CDECFE / Mint #CCFAD9 / Pink #FDDDE9 / Apricot #FEE2BF / Lavender #EEDFFF).
 
 **admin 칩·탭 통일(Q, 2026-06-07)**: `/admin/tags` 분류·상태·기간 칩은 `/admin/cards` '전체 타입' 칩의 마크업·클래스를 1:1 차용(세그먼트 컨테이너 `inline-flex … border bg-white p-0.5` + 칩 `rounded-[var(--radius-sm)] px-3 py-1 text-xs`, 활성 배경 `--chip-active-bg` 인라인 style). 요약 탭(KPI) 활성 = `--primary` 텍스트+밑줄(카드 status 탭과 동일). 화면별 인라인 색 금지 — 토큰만 참조.
 
@@ -443,7 +432,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - **레이아웃**: `layout.tsx` 는 V1 이후 서버 세션·쿠키를 안 읽음. `force-dynamic` 도 V3 에서 제거(전역). (2026-06-11 구 FAB 폐기 후 2026-06-16 `WriteFab` 재도입 — 하단 5탭은 `BottomNav`/`AppShell`.) **개인·동적 페이지**(/, /search, /[handle], /write, /today, /notes, /my, /shop, settings, admin, notifications, review, onboarding)는 각자 `export const dynamic="force-dynamic"`.
 - **캐시 무효화**: 콘텐츠 변경(발행/생성/수정/숨김/삭제) 라우트가 `revalidateTag("qa-content"/"topics","max")`(Next 16 2인자) → 상세 수정 **즉시** 반영. 카운트는 24h fallback이지만 클라 라이브라 실질 즉시.
 - **★한글 URL + ISR 금지**: ISR 캐시 페이지는 Next 16 이 페이지 경로를 implicit `x-next-cache-tags` HTTP 헤더(ASCII 전용)에 넣음. 토픽 URL 은 한글(`/topics/콜라겐`)이라 헤더가 깨져 **500(`ERR_INVALID_CHAR`)** → 토픽은 동적 유지. 상세는 ASCII slug 라 무관.
-- **홈 피드 masonry SSR 컬럼**: react-masonry-css 는 SSR 에 window 없어 `default`(2) 사용 → 모바일 클라 1컬럼 재배치 reflow(CLS). `page.tsx` 가 요청 UA 로 `isMobileUA` → `Feed.breakpointCols.default=(isMobileUA?1:2)`. `899:1`·리사이즈 리스너 불변(반응형 유지).
+- **홈 피드 단일 컬럼 리스트**: 승격된 홈은 `components/skin/FeedView.tsx` 가 단일 컬럼 리스트(`app.module.css` 의 `.feedList` = flex column)로 렌더(react-masonry-css 미사용 — `page.tsx` 에 breakpointCols/isMobileUA prop 없음). CLS 는 카드 고정 골격·스켈레톤(`FeedSkeleton`)으로 관리.
 - **CWV(합성 모바일 랩)**: 캐시 상세 LCP 0.41s·CLS 0·INP 72ms 🟢. 홈/토픽은 동적이라 LCP ~2.1–2.6s. 상세 = 표준 PSI/Lighthouse 가 GA4 비콘 행잉으로 불가 → Playwright Performance API 로 실측. 진짜 INP 는 공개 후 CrUX 필드값으로 확정.
 
 ---

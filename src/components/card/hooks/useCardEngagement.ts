@@ -291,16 +291,8 @@ export function useCardEngagement(
         setSaved(row.saved);
         setSaveCount(row.save_count);
       }
-      // 트리거가 갱신한 정확한 save_count 재조회
-      const { data: q } = await supabase
-        .from("cards")
-        .select("save_count")
-        .eq("id", card.id)
-        .maybeSingle();
-      if (q)
-        setSaveCount(
-          Number((q as { save_count: number }).save_count ?? 0),
-        );
+      // (PERF, 2026-06-26) 옛 cards.save_count 재조회 제거 — toggle_card_save RPC 가 트리거 갱신 후
+      //   권위 save_count 를 row 로 반환하므로 추가 SELECT 가 불필요(toggleLike 경로와 정합, 토글당 왕복 1회 절감).
       // 저장 토글 성공 = 의도 신호 → view 카운트 (2026-05-20 정책).
       onInteraction?.();
       // 저장 성공 토스트 (2026-06-25: UX 개선 — 사용자 피드백 보강)

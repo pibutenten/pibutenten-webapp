@@ -11,12 +11,17 @@ function getMap(): Record<string, number> {
   } catch { return {}; }
 }
 function savePos(path: string, y: number) {
-  const m = getMap();
-  m[path] = y;
-  // Keep only last 30 entries to avoid bloating sessionStorage
-  const keys = Object.keys(m);
-  if (keys.length > 30) delete m[keys[0]];
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(m));
+  try {
+    const m = getMap();
+    m[path] = y;
+    // Keep only last 30 entries to avoid bloating sessionStorage
+    const keys = Object.keys(m);
+    if (keys.length > 30) delete m[keys[0]];
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(m));
+  } catch {
+    /* 인앱 브라우저(카톡/구글) sandbox·QuotaExceeded 시 storage 접근 차단 →
+       스크롤 위치 저장만 degrade, 네비게이션은 정상 진행 (다른 storage 접근부와 동일 방어) */
+  }
 }
 
 export default function ScrollManager() {
