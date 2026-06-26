@@ -17,9 +17,9 @@ import { chosungOf, isAllChosung } from "@/lib/hangul-chosung";
 const inputCls =
   "w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[16px] transition-colors focus:border-[var(--primary)] focus:outline-none";
 const inputSm =
-  "rounded-md border border-[var(--border)] bg-white px-2.5 py-1.5 text-[13px] focus:border-[var(--primary)] focus:outline-none";
+  "rounded-md border border-[var(--border)] bg-white px-2.5 py-1.5 text-[16px] focus:border-[var(--primary)] focus:outline-none";
 const textareaCls =
-  "w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none";
+  "w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[16px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none";
 const labelCls = "mb-2 block text-sm font-semibold text-[var(--text)]";
 /** 글상자 — 피드 카드와 동일: 테두리 X·음영 X. */
 const formBox = "space-y-5 rounded-[var(--radius)] bg-white p-5";
@@ -721,7 +721,7 @@ function RecTimelineCard({ it, year, onOpen }: { it: SummaryItem; year: number; 
         onClick={() => onOpen(it.id)}
         className="block w-full rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 text-left shadow-[0_2px_12px_rgba(27,43,58,.06)] transition-colors hover:border-[var(--primary)]"
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
           <h3 className="truncate text-[16.5px] font-extrabold tracking-tight text-[var(--text)]">{title}</h3>
           <span
             className="shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold"
