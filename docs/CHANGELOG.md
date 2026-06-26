@@ -8,9 +8,6 @@
 
 ## [2026-06-26] — 시술 노트 UX 개선 + IP 위치 버그 수정 + 의사 검수 발행
 
-### Fixed
-- **의사 검수일 표시 오류**: 의사가 `/write/[shortcode]`에서 pending_review QA 카드 편집 시 status가 변경되지 않아 reviewed_at이 null로 남고 admin 초안 작성일(created_at)이 표시되던 버그 수정. 의사+QA+pending_review 조건 시 자동으로 status: "published" 전송, PUT handler의 reviewed_at 설정 로직이 정상 동작하도록 연결
-
 ### Changed
 - **시술 노트 폼**: 네이티브 date picker를 인라인 달력으로 교체 (월 네비, 바깥 클릭 닫힘, 자동 스크롤)
 - **시술 검색 input**: X(지우기) 버튼 추가, onBlur 시 자동완성 닫힘 (150ms 안전 지연), 포커스 테두리 --primary-soft에서 --primary로 강화
@@ -21,6 +18,7 @@
 - **배지 위치**: recTlHead(CSS) + RecordView 인라인(Tailwind) 양쪽에서 justify-between 제거 — 배지가 시술명 바로 옆에 위치하도록 통일
 
 ### Fixed
+- **의사 검수일 표시 오류**: 의사가 `/write/[shortcode]`에서 pending_review QA 카드 편집 시 status가 변경되지 않아 reviewed_at이 null로 남고 admin 초안 작성일(created_at)이 표시되던 버그 수정. 의사+QA+pending_review 조건 시 자동으로 status: "published" 전송, PUT handler의 reviewed_at 설정 로직이 정상 동작하도록 연결
 - **IP 위치 표시 오류**: /api/iploc에 `export const dynamic = "force-dynamic"` 추가 (Vercel 엣지 캐싱 방지), Cache-Control 강화 (`no-store, no-cache, must-revalidate`)
 - **위치 고착 버그**: useWeather IP 폴백에서 기존 시드가 있을 때 precise=false로 처리되어 IP 결과가 무시되던 문제 수정 (해외 이동 시 이전 도시가 고착)
 - **SW 위치 캐시 루프**: 서비스 워커가 /api/iploc 응답을 동적 캐시에 저장해, 네트워크 불안정 시 한국 좌표가 반복 반환되던 근본 원인 차단 — /api/ 경로 SW 캐싱 완전 제외 + 캐시 버전 변경(v1→v2)으로 기존 캐시 강제 삭제 + iploc fetch에 타임스탬프 캐시 버스터 추가
