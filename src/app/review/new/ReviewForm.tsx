@@ -489,7 +489,7 @@ export default function ReviewForm({
               생각보다 많을 거예요 — 보통 4개 이상 고르세요.
             </span>
           </label>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-2">
             {EFFECT_AREA_OPTIONS.map((opt, i) => (
               <EffectChip
                 key={opt}

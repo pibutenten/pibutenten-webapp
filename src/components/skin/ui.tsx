@@ -381,6 +381,7 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
   const [liked, setLiked] = useState(viewer?.liked ?? false);
   const [likeCount, setLikeCount] = useState(card.like_count ?? 0);
   const [likePending, setLikePending] = useState(false);
+  const [likePulsing, setLikePulsing] = useState(false);
   const [saved, setSaved] = useState(viewer?.saved ?? false);
   const [saveCount, setSaveCount] = useState(card.save_count ?? 0);
   const [savePending, setSavePending] = useState(false);
@@ -407,6 +408,10 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
     const was = liked;
     setLiked(!was);
     setLikeCount((c) => (was ? Math.max(0, c - 1) : c + 1));
+    if (!was) {
+      setLikePulsing(true);
+      if (typeof navigator !== "undefined") navigator.vibrate?.(10);
+    }
     (async () => {
       try {
         const { data, error } = await createSupabaseBrowserClient().rpc(
@@ -482,7 +487,7 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
   }, [card]);
   return {
     me,
-    like: { active: liked, count: likeCount, pending: likePending, toggle: toggleLike },
+    like: { active: liked, count: likeCount, pending: likePending, pulsing: likePulsing, clearPulse: () => setLikePulsing(false), toggle: toggleLike },
     save: { active: saved, count: saveCount, pending: savePending, toggle: toggleSave },
     share: { count: shareCount, share: doShare },
   };
@@ -1145,13 +1150,14 @@ export function PostCard({
         {/* 좋아요 — 실제 toggle_card_like RPC. active 시 pfOn. */}
         <button
           type="button"
-          className={`${styles.pf} ${styles.pfBtn} ${act.like.active ? styles.pfOn : ""}`}
+          className={`${styles.pf} ${styles.pfBtn} ${act.like.active ? styles.pfOn : ""}${act.like.pulsing ? " like-pulse" : ""}`}
           aria-pressed={act.like.active}
           aria-label="좋아요"
           onClick={(e) => {
             e.stopPropagation();
             act.like.toggle();
           }}
+          onAnimationEnd={act.like.clearPulse}
         >
           <IconHeart /> {act.like.count}
         </button>

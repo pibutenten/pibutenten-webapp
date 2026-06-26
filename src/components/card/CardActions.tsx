@@ -44,8 +44,7 @@ export default function CardActions({
           strokeLinecap="round"
           strokeLinejoin="round"
           className={
-            "h-[22px] w-[22px] transition-transform " +
-            (like.active ? "like-pulse" : "")
+            "h-[22px] w-[22px] transition-transform"
           }
           aria-hidden
         >
