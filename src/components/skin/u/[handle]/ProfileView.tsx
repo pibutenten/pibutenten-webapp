@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
+import FollowButton from "@/components/FollowButton";
 import CardAvatar from "@/components/card/CardAvatar";
 import ProfileEditClient, {
   type ProfileEditProps,
@@ -297,6 +298,11 @@ export default function ProfileView({
               프로필·설정
               <span aria-hidden>{settingsOpen ? "▴" : "▾"}</span>
             </button>
+          </div>
+        )}
+        {!isOwner && (
+          <div style={{ marginTop: 14 }}>
+            <FollowButton followeeId={profileId} />
           </div>
         )}
       </section>

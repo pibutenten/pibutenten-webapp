@@ -6,7 +6,12 @@
 
 ---
 
-## [2026-06-27] — 감사 권고 구현: 네비 단일화(AppShell) + 신고사유 SSOT + 죽은코드 정리 + 댓글 미리보기 N+1 제거
+## [2026-06-27] — 감사 권고 구현: 네비 단일화(AppShell) + 신고사유 SSOT + 죽은코드 정리 + 댓글 미리보기 N+1 제거 + 팔로우
+
+### Added
+- **팔로우/구독 (원장·회원 상호)**: 명함(profile.id) 단위로 서로 팔로우. 마이그 0290 — `follows` 테이블 + RLS(공개 SELECT, 쓰기는 RPC 경유만) + `toggle_follow`/`get_my_follow` RPC(`toggle_card_save` 동형: 묶음검증·active fallback·자기팔로우 차단) + `follow_post` 알림 kind(`notification-kinds.ts` 동기화) + **발행 트리거**(`on_card_publish_for_followers`: 팔로우 대상이 글 발행 시 follower 들에게 알림 개별 INSERT, 자기자신 skip, INSERT/UPDATE 양 경로). 마이그는 트랜잭션 ROLLBACK 으로 트리거(INSERT·UPDATE 전환·재저장 무중복) 실증 후 적용.
+  - UI: `FollowButton`(SSOT 컴포넌트, get_my_follow 초기상태 + toggle_follow 낙관적 토글). 회원 프로필(`ProfileView`)·의사 프로필(`DoctorProfileView`)에 동일 버튼. 의사는 `doctors` 표 출발이라 `profiles.doctor_id`(1:1)로 명함 id 1회 조회해 같은 버튼에 주입(동작·테이블·RPC·알림 전부 회원과 동일).
+  - **알림 묶기(도배 방지)는 별도 구현 불필요 — 이미 0083 트리거가 좋아요/저장을 24h 내 "○○님 외 N명"으로 그룹핑**(감사 SNS-1 은 클라만 보고 DB 트리거를 놓친 오진).
 
 ### Performance
 - **피드 댓글 미리보기 N+1 제거 (인스타·페북식 배치)**: 피드가 카드마다 `/api/comments?cardId=` 를 따로 호출(스크롤 시 카드 수만큼)하던 것을, 페이지(약 20장)당 **1회 배치**(`/api/comments/preview?cardIds=`)로 대체. 미리보기 댓글 3개 + 댓글 수 배지는 유지(댓글은 `comments` 테이블 그대로, 읽기만 배치화 — 카드에 복사 안 함, SSOT 유지). 💬 클릭 시에만 전체 스레드 로드.

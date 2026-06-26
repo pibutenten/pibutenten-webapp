@@ -87,6 +87,14 @@ export default async function DoctorDetailPage({ params }: Props) {
   if (!doctor) notFound();
   const profile: DoctorProfileData = asDoctorProfileData(doctor.profile_data);
 
+  // 의사 명함(profile) id — 팔로우 대상. doctors 표엔 없어 profiles.doctor_id(1:1)로 조회.
+  const { data: docProfile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("doctor_id", doctor.id)
+    .maybeSingle();
+  const doctorProfileId = (docProfile as { id: string } | null)?.id ?? null;
+
   // 카드 풀 로딩은 count → fetchCardList 의존 체인이므로 순차 유지(orderLimit 이 count 에 의존).
   //   이 체인을 하나의 비동기 함수로 묶어, count·체인과 무관한 viewer/hotIds/rawRelated 와 병렬 실행한다.
   //   notFound 게이트(doctor 부재 시 중단) 이후이므로 404 에서 헛수고하지 않는다.
@@ -248,6 +256,7 @@ export default async function DoctorDetailPage({ params }: Props) {
         count={count}
         hotIds={hotIds}
         viewerStates={viewerStates}
+        doctorProfileId={doctorProfileId}
       />
     </>
   );

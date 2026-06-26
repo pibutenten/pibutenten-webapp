@@ -13,7 +13,8 @@ export type NotificationKind =
   | "review_request"
   | "published"
   | "report"
-  | "keyword";
+  | "keyword"
+  | "follow_post";
 
 export const NOTIFICATION_KINDS: NotificationKind[] = [
   "comment",
@@ -24,6 +25,7 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
   "published",
   "report",
   "keyword",
+  "follow_post",
 ];
 
 /** 종 dropdown (NotificationsBell) — 이모지 + 한 단어. 짧고 시각적. */
@@ -36,6 +38,7 @@ export const KIND_SHORT_LABEL: Record<NotificationKind, string> = {
   published: "🚀 발행됨",
   report: "🚩 신고 접수",
   keyword: "🏷️ 관심",
+  follow_post: "✨ 새 글",
 };
 
 /** /notifications 페이지 (NotificationsClient) — 한 문장 풀 설명. */
@@ -48,6 +51,7 @@ export const KIND_LONG_LABEL: Record<NotificationKind, string> = {
   published: "내 글이 발행되었어요",
   report: "새 신고가 접수되었어요 (운영)",
   keyword: "관심 주제에 새 글이 올라왔어요",
+  follow_post: "새 글을 올렸어요",
 };
 
 /** 아이콘만 따로 — NotificationsClient timeline. */
@@ -60,6 +64,7 @@ export const KIND_ICON: Record<NotificationKind, string> = {
   published: "🚀",
   report: "🚩",
   keyword: "🏷️",
+  follow_post: "✨",
 };
 
 /**
@@ -81,4 +86,6 @@ export const KIND_DISPLAY_MODE: Record<NotificationKind, NotificationDisplayMode
   report: "label",
   // 관심 Q&A 알림 (4-2 / 3b-1): digest message(주제명+건수) 본문 그대로. 행위자 비노출.
   keyword: "message",
+  // 팔로우 대상 새 글: 행위자(작성자) 아바타+이름 + "새 글을 올렸어요". 카드로 이동.
+  follow_post: "actor",
 };

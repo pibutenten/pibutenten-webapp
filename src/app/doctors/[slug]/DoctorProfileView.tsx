@@ -34,6 +34,7 @@ import {
   useSearchRouting,
 } from "@/components/skin/ui";
 import AppShell from "@/components/skin/AppShell";
+import FollowButton from "@/components/FollowButton";
 import styles from "@/components/skin/app.module.css";
 
 /* 무한스크롤 한 번에 확장할 카드 수 — /api/cards?ids= 한 묶음(라우트 상한 60 이내).
@@ -52,6 +53,7 @@ export default function DoctorProfileView({
   count,
   hotIds,
   viewerStates,
+  doctorProfileId,
 }: {
   /** page.tsx 호환을 위해 타입에는 유지하되 구조분해 생략(미사용).
    *  slug: 본문은 cards/orderedIds 로 동작. theme: hero 제거(원장 카드 사이드바로 이동)로 그라데이션 미사용. */
@@ -71,6 +73,7 @@ export default function DoctorProfileView({
   count: number | null;
   hotIds: number[];
   viewerStates: Record<number, ViewerState>;
+  doctorProfileId: string | null;
 }) {
   const search = useSearchRouting();
   const hotSet = useMemo(() => new Set(hotIds ?? []), [hotIds]);
@@ -181,6 +184,7 @@ export default function DoctorProfileView({
       photo={photo}
       profile={profile}
       relatedQa={relatedQa}
+      doctorProfileId={doctorProfileId}
     />
   );
 
@@ -215,6 +219,7 @@ export default function DoctorProfileView({
           photo={photo}
           profile={profile}
           headingTag="h2"
+          followeeId={doctorProfileId}
         />
       </div>
 
@@ -277,6 +282,7 @@ function DoctorProfileSidebar({
   photo,
   profile,
   relatedQa,
+  doctorProfileId,
 }: {
   name: string;
   intro: string | null;
@@ -284,6 +290,7 @@ function DoctorProfileSidebar({
   photo: string;
   profile: DoctorProfileData;
   relatedQa: CardData[];
+  doctorProfileId: string | null;
 }) {
   return (
     <>
@@ -297,6 +304,7 @@ function DoctorProfileSidebar({
         profile={profile}
         headingTag="h1"
         sideOnly
+        followeeId={doctorProfileId}
       />
 
       {/* 함께 보면 좋은 Q&A — PostDetail 과 동일 섹션(이 원장 인기 Q&A). 데스크탑은 프로필 아래,
@@ -335,6 +343,7 @@ function DoctorProfileCard({
   profile,
   headingTag,
   sideOnly = false,
+  followeeId,
 }: {
   name: string;
   intro: string | null;
@@ -343,6 +352,7 @@ function DoctorProfileCard({
   profile: DoctorProfileData;
   headingTag: "h1" | "h2";
   sideOnly?: boolean;
+  followeeId?: string | null;
 }) {
   // 프로필 상세 — PostDetail 과 동일하게 "더보기"로 접음. 기본 닫힘.
   const [profileOpen, setProfileOpen] = useState(false);
@@ -423,6 +433,11 @@ function DoctorProfileCard({
           피부과 전문의
         </span>
       </div>
+      {followeeId && (
+        <div style={{ marginTop: 10 }}>
+          <FollowButton followeeId={followeeId} size="sm" />
+        </div>
+      )}
       {/* 누끼 원장 사진 — 운영 프로필과 동일한 /doctors/{slug}.png (PostDetail 과 동일 톤). */}
       <div className={styles.authorSidePhoto}>
         <Image
