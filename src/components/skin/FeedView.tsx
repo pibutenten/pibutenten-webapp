@@ -513,11 +513,40 @@ export default function FeedView({
           loading || pool.length === 0 || (hasMore && effectiveChip !== "all") ? (
             <FeedSkeleton />
           ) : (
-            <p className={styles.empty}>
-              {searchQuery
-                ? `’${searchQuery}’ 검색 결과가 없습니다.`
-                : "이 카테고리에 표시할 글이 없습니다."}
-            </p>
+            <div className={styles.empty}>
+              <p>
+                {searchQuery
+                  ? `’${searchQuery}’ 검색 결과가 없습니다.`
+                  : "이 카테고리에 표시할 글이 없습니다."}
+              </p>
+              {searchQuery && popularTags.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <p style={{ fontSize: 13, color: "#7b8794", marginBottom: 10 }}>
+                    이런 키워드는 어떠세요?
+                  </p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+                    {popularTags.slice(0, 8).map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => applyTag(tag)}
+                        style={{
+                          padding: "6px 14px",
+                          borderRadius: 999,
+                          border: "none",
+                          background: "#eaf6fd",
+                          color: "#1f8fc6",
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )
         ) : (
           <>

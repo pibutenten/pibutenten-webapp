@@ -313,11 +313,9 @@ export default function AppShell({
     if (active === "피드") router.push(ROUTES.feed);
   };
 
-  // 모바일 검색창 열기 — 초안을 빈 칸으로 시작(커서 대면 기존 검색어가 지워진 듯 발견 메뉴 노출).
-  //   확정 검색어(value)는 유지 → 뒤로(←)로 닫으면 결과·검색어 알약이 그대로 복귀.
+  // 모바일 검색 — /search 전용 페이지로 이동(풀스크린 검색 UI 분리).
   const openMobileSearch = () => {
-    setDraft("");
-    setSearchOpen(true);
+    router.push("/search");
   };
 
   // 쇼핑(준비 중) — GNB·탭바 클릭 시 안내 토스트. 라우팅 없음.
