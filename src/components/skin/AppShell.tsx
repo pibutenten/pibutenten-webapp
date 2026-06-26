@@ -26,6 +26,7 @@ import SearchPanel, { prefetchDiscover } from "@/components/search/SearchPanel";
 import { addRecent } from "@/lib/recent-search";
 import { showToast } from "@/lib/toast";
 import BackButton from "@/components/BackButton";
+import GuardedLink from "@/components/GuardedLink";
 import { useSoftKeyboardOpen } from "@/lib/useSoftKeyboardOpen";
 
 /* ---------- 공유 라우트 맵 ---------- */
@@ -429,7 +430,7 @@ export default function AppShell({
     <>
       {/* 작업 B) 알림 벨 → 운영 /notifications 로 이동 + 미읽음 카운트 배지.
           미읽음 조회는 운영 NotificationsBell 과 동일 경로(/api/notifications). */}
-      <Link
+      <GuardedLink
         className={`${styles.iconBtn} ${styles.iconBtnBell} ${styles.bellWrap}`}
         aria-label={unread > 0 ? `알림 (미확인 ${unread}개)` : "알림"}
         href="/notifications"
@@ -440,13 +441,13 @@ export default function AppShell({
             {unread > 9 ? "9+" : unread}
           </span>
         )}
-      </Link>
+      </GuardedLink>
 
       {/* 작업 C) 로그인 상태 → 마이(아바타), 비로그인 → 로그인.
           session 존재로 판정(쿠키 동기). 첫 페인트(!mounted)만 둘 다 숨겨
           하이드레이션 직후 1회성 비로그인 플래시 방지(라우팅마다 재발 X). */}
       {mounted && isLoggedIn && (
-        <Link className={styles.iconBtn} aria-label="마이" href={ROUTES.my}>
+        <GuardedLink className={styles.iconBtn} aria-label="마이" href={ROUTES.my}>
           {/* 항목 3) 로그인 시 active 명함 아바타(동그라미). 사진 없으면 기본 아이콘. */}
           {activeAvatar ? (
             <span className={styles.headerAvatar}>
@@ -456,7 +457,7 @@ export default function AppShell({
           ) : (
             <IconUser />
           )}
-        </Link>
+        </GuardedLink>
       )}
       {mounted && !isLoggedIn && (
         <Link className={styles.btnLoginTop} href="/login">
@@ -529,7 +530,7 @@ export default function AppShell({
           <div
             className={`${styles.headerInner} ${mobileQueryActive ? styles.headerInnerHasQuery : ""}`}
           >
-            <Link
+            <GuardedLink
               className={styles.logoLink}
               href={ROUTES.feed}
               aria-label="피부텐텐"
@@ -540,7 +541,7 @@ export default function AppShell({
                 src="/brand-logo.svg"
                 alt="피부텐텐"
               />
-            </Link>
+            </GuardedLink>
 
             {/* 모바일 검색 결과 헤더 — /search 페이지와 동일한 레이아웃(← 뒤로 + 검색 입력창 + ✕).
                 검색 결과 동안(value 존재 + 검색창 닫힘) 로고·검색아이콘 자리를 대체.
@@ -613,13 +614,13 @@ export default function AppShell({
                     {g.label}
                   </button>
                 ) : (
-                  <Link
+                  <GuardedLink
                     key={g.label}
                     href={g.href}
                     className={`${styles.gnbItem} ${active === g.label ? styles.gnbActive : ""}`}
                   >
                     {g.label}
-                  </Link>
+                  </GuardedLink>
                 ),
               )}
             </nav>
@@ -669,10 +670,10 @@ export default function AppShell({
                 시술·고민 키워드 검색
               </div>
             )}
-            <Link className={styles.btnWriteTop} href={ROUTES.write}>
+            <GuardedLink className={styles.btnWriteTop} href={ROUTES.write}>
               <IconPlus />
               글쓰기
-            </Link>
+            </GuardedLink>
 
             {/* 모바일 검색 아이콘 — 탭 시 헤더 "안"을 검색 input 으로 전환(위 분기). */}
             {searchEnabled && (
@@ -761,7 +762,7 @@ export default function AppShell({
                 {t.label}
               </button>
             ) : (
-              <Link
+              <GuardedLink
                 key={t.label}
                 href={t.href}
                 className={`${styles.tab} ${
@@ -770,7 +771,7 @@ export default function AppShell({
               >
                 {t.icon}
                 {t.label}
-              </Link>
+              </GuardedLink>
             ),
           )}
         </nav>
