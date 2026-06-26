@@ -42,6 +42,17 @@ export type CommentWithReplies = CommentRow & {
 };
 
 /**
+ * 피드 댓글 미리보기 배치 단위 (2026-06-27, N+1 제거).
+ *   comments — 인기순 상위 3개 root 댓글(+visible 답글). 카드 밑 인라인 미리보기.
+ *   total    — 공개(visible) 댓글 총수(root+답글). 💬 배지용.
+ * /api/comments/preview 응답 = { previews: { [cardId]: CommentPreview } }.
+ */
+export type CommentPreview = {
+  comments: CommentWithReplies[];
+  total: number;
+};
+
+/**
  * 현재 로그인 사용자(viewer) 의 댓글 권한 판정용 컴팩트 정보.
  *
  *   id        — active profile.id (cookie 'pibutenten:identity', UUID)

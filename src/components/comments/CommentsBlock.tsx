@@ -49,6 +49,11 @@ type Props = {
   onCountChange?: (next: number) => void;
   /** 입력 폼 표시 여부 — 부모가 펼침 상태 기준으로 결정 */
   showInput?: boolean;
+  /** 피드 배치 미리보기 seed — 제공되면 미리보기 모드에서 자체 fetch 안 함(N+1 제거).
+   *  undefined = seed 없음(상세 등) → 기존처럼 마운트 시 전체 fetch. */
+  initialComments?: CommentWithReplies[];
+  /** seed 의 총 visible 댓글 수(top3 만으론 알 수 없는 실제 카운트). 미리보기 배지용. */
+  initialTotal?: number;
   /** true면 입력 폼 자동 포커스 안 함 (단독 URL 자동 펼침 시 모바일 키보드 방지) */
   disableAutoFocus?: boolean;
 };
@@ -60,9 +65,14 @@ export default function CommentsBlock({
   onCountChange,
   showInput = false,
   disableAutoFocus = false,
+  initialComments,
+  initialTotal,
 }: Props) {
-  const [comments, setComments] = useState<CommentWithReplies[]>([]);
-  const [loading, setLoading] = useState(true);
+  // 피드 배치 미리보기 seed 가 있으면 그것으로 시작(자체 fetch 0). 없으면 빈 + 로딩.
+  const [comments, setComments] = useState<CommentWithReplies[]>(initialComments ?? []);
+  const [loading, setLoading] = useState(initialComments === undefined);
+  // 전체(상세/펼침) 로드를 한 번이라도 했는지 — seed 미리보기와 구분.
+  const [fullLoaded, setFullLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [me, setMe] = useState<CommentViewer>(null);
   const [meLoaded, setMeLoaded] = useState(false);
@@ -107,6 +117,7 @@ export default function CommentsBlock({
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+      setFullLoaded(true);
     }
   }, [cardId]);
 
@@ -160,9 +171,12 @@ export default function CommentsBlock({
     };
   }, []);
 
+  // 전체 댓글 로드 조건: 펼침(showInput) 또는 seed 없음(상세 등). seed 있는 미리보기 모드면 fetch 안 함.
+  //   → 피드 스크롤 중 카드별 fetch(N+1) 제거. 💬 클릭(showInput=true) 시에만 전체 로드.
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    const needFull = showInput || initialComments === undefined;
+    if (needFull && !fullLoaded) void reload();
+  }, [showInput, initialComments, fullLoaded, reload]);
 
   const isLoggedIn = !!me;
   const isAdmin = me?.role === ROLES.ADMIN;
@@ -187,9 +201,12 @@ export default function CommentsBlock({
   }, [comments]);
 
   // ── 부모(Card)에 댓글 수 변경 알림
+  //   전체 로드 전(미리보기 seed)에는 seed 의 실제 총수(initialTotal)를 쓴다 — seed 는 top3 만이라
+  //   visibleCount(≤3)로는 배지가 틀어진다. 전체 로드 후엔 실제 visibleCount(작성·삭제 즉시 반영).
   useEffect(() => {
-    onCountChange?.(visibleCount);
-  }, [visibleCount, onCountChange]);
+    const count = fullLoaded ? visibleCount : (initialTotal ?? 0);
+    onCountChange?.(count);
+  }, [fullLoaded, visibleCount, initialTotal, onCountChange]);
 
   // ── 작성/답글 제출
   async function submitComment(parentId: number | null) {

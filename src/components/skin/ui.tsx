@@ -39,6 +39,7 @@ import { showToast } from "@/lib/toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import CommentsBlock from "@/components/comments/CommentsBlock";
+import type { CommentPreview } from "@/lib/types/comment";
 import RecentLikers from "@/components/RecentLikers";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 import { useCardViewer } from "@/components/card/hooks/useCardViewer";
@@ -894,6 +895,8 @@ export function PostCard({
   searchQuery,
   forceExpanded = false,
   onDeleted,
+  commentPreview,
+  batchedPreview = false,
 }: {
   card: CardData;
   /** 항목 4) 카드 태그 클릭 → 그 키워드로 검색·필터 (헤더 검색창에 채움). */
@@ -909,6 +912,12 @@ export function PostCard({
   forceExpanded?: boolean;
   /** ⋮ 삭제 후 동작 — 미지정 시 카드 언마운트(피드). 글상세는 목록(피드=/)으로 이동 등 주입. */
   onDeleted?: () => void;
+  /** 피드 배치 미리보기 seed(FeedView 가 페이지당 1회 /api/comments/preview 로 받아 주입).
+   *  제공되면 댓글 미리보기를 자체 fetch 없이 렌더 + 배지 = total. 미제공(상세 등)은 기존 fetch. */
+  commentPreview?: CommentPreview;
+  /** 배치 컨텍스트(FeedView)면 true — 미리보기를 seed 도착 후에만 마운트(N+1 경쟁 차단).
+   *  기본 false(상세·프로필 등)는 기존대로 뷰포트 근접 시 CommentsBlock 자체 fetch. */
+  batchedPreview?: boolean;
 }) {
   const [expanded, setExpanded] = useState(forceExpanded);
   // ⋮ 메뉴 삭제 성공 시 카드를 화면에서 제거(운영의 vanishing 대신 신규 스킨은 즉시 언마운트).
@@ -920,8 +929,15 @@ export function PostCard({
   //   onCountChange 로 실제 댓글 수를 채운다. 전 카드 즉시 fetch 부담을 피하려 IntersectionObserver 지연.
   const [previewReady, setPreviewReady] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
-  // cards 테이블에 comment_count 컬럼이 없어 정적값은 항상 0 → CommentsBlock onCountChange 로 갱신.
-  const [commentCount, setCommentCount] = useState(card.comment_count ?? 0);
+  // 댓글 수 배지 — 피드 배치 미리보기(commentPreview.total)가 있으면 그 값으로(자체 fetch 없이),
+  //   없으면 card.comment_count(없으면 0)에서 시작해 CommentsBlock onCountChange(펼침 시 전체 로드)로 갱신.
+  //   commentPreview 는 FeedView 가 카드 렌더 후 비동기로 채우므로 도착 시 동기화(아래 effect).
+  const [commentCount, setCommentCount] = useState(
+    commentPreview?.total ?? card.comment_count ?? 0,
+  );
+  useEffect(() => {
+    if (commentPreview) setCommentCount(commentPreview.total);
+  }, [commentPreview]);
   useEffect(() => {
     if (previewReady) return;
     const el = cardRef.current;
@@ -1186,7 +1202,11 @@ export function PostCard({
 
       {/* 항목4) 댓글 섹션 — 뷰포트 근접 시 미리보기(인기순 3개)부터 노출, 💬 클릭 시 입력창까지 펼침.
           showInput={commentsOpen}: false=미리보기 3개 / true=전체+입력. onCountChange 로 실제 수 반영. */}
-      {(previewReady || commentsOpen) && (
+      {/* 미리보기 마운트:
+          - 배치 컨텍스트(FeedView, batchedPreview=true): seed(commentPreview) 도착 후에만 → 카드별 fetch(N+1) 경쟁 차단.
+          - 비배치(상세·프로필 등): 기존대로 뷰포트 근접 시 마운트(CommentsBlock 자체 fetch).
+          - 💬 클릭(commentsOpen)은 항상 마운트(상세·미배치 전체 fetch 폴백). */}
+      {((previewReady && (!batchedPreview || commentPreview !== undefined)) || commentsOpen) && (
         <div
           className={`${styles.comments} ${commentCount > 0 || commentsOpen ? styles.commentsActive : ""}`}
           onClick={(e) => e.stopPropagation()}
@@ -1199,6 +1219,8 @@ export function PostCard({
             showInput={commentsOpen}
             disableAutoFocus
             onCountChange={setCommentCount}
+            initialComments={commentPreview?.comments}
+            initialTotal={commentPreview?.total}
           />
         </div>
       )}

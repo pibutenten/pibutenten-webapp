@@ -6,7 +6,13 @@
 
 ---
 
-## [2026-06-27] — 감사 권고 구현: 네비 단일화(AppShell) + 신고사유 SSOT + 죽은코드 정리
+## [2026-06-27] — 감사 권고 구현: 네비 단일화(AppShell) + 신고사유 SSOT + 죽은코드 정리 + 댓글 미리보기 N+1 제거
+
+### Performance
+- **피드 댓글 미리보기 N+1 제거 (인스타·페북식 배치)**: 피드가 카드마다 `/api/comments?cardId=` 를 따로 호출(스크롤 시 카드 수만큼)하던 것을, 페이지(약 20장)당 **1회 배치**(`/api/comments/preview?cardIds=`)로 대체. 미리보기 댓글 3개 + 댓글 수 배지는 유지(댓글은 `comments` 테이블 그대로, 읽기만 배치화 — 카드에 복사 안 함, SSOT 유지). 💬 클릭 시에만 전체 스레드 로드.
+  - 마이그 0289: RPC `get_cards_comment_preview_meta`(카드별 총 visible 수 + 인기순 top3 root id, `SECURITY INVOKER` 로 RLS 적용·미발행/숨김 자동 제외).
+  - `/api/comments/preview`: RPC 후 본문·답글(visible)·작성자·viewer_liked 조립(기존 GET 패턴 재사용).
+  - `CommentsBlock` seed prop(`initialComments`/`initialTotal`) — 미리보기 모드는 자체 fetch 안 함, 펼침 시 전체 로드. `FeedView` 가 풀에 새 카드 들어올 때마다 배치 fetch. 배치 컨텍스트(`batchedPreview`)는 seed 도착 후 미리보기 마운트(N+1 경쟁 차단), 비배치 페이지(상세·프로필)는 기존 동작 유지.
 
 ### Changed
 - **네비게이션 단일화 (옛 TopNav/BottomNav 폐기)**: 앱셸 승격이 사실상 전 라우트 완료되어, 옛 전역 헤더는 redirect/오버레이 라우트(/search·/cards·/u·/auth)에서만 렌더되던 잔재였음. 데스크탑/모바일/네이티브 3관점 정밀 매핑(독립 분석 3에이전트)으로 AppShell 이 모든 기능을 이미 커버함을 확인 후 제거.
