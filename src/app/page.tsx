@@ -4,7 +4,6 @@ import type { CardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
-import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
 import { getReviewSummaryFeedPool, getProcedureReport, type ProcedureReport } from "@/lib/procedure-report";
 import { fetchCardList } from "@/lib/search-query";
@@ -58,8 +57,8 @@ const getPopularTagsCached = unstable_cache(
 
 /** 비검색 홈 피드 풀(feed_cards_scored jitter 0.35 + 의사 분산). 매 방문 300행 점수계산이 임계경로였음 →
  *  쿠키리스 anon + unstable_cache(90s)로 분리(SNS 표준: 피드는 분 단위로 갱신, 매 클릭 재계산 안 함).
- *  공개 콘텐츠(어느 사용자나 동일 풀)만 캐시 — per-user 좋아요/저장(viewerStates)은 아래에서 SSR 오버레이로
- *  유지하므로 캐시 본문엔 개인 데이터 미포함(캐시 오염·N+1 없음). 자른 신선도는 디렉터 승인(엄청 신선 불필요). */
+ *  공개 콘텐츠(어느 사용자나 동일 풀)만 캐시 — per-user 좋아요/저장(viewerStates)은 FeedView 가 마운트 후
+ *  /api/viewer-states 로 클라 배치 조회하므로 캐시 본문엔 개인 데이터 미포함(캐시 오염·N+1 없음). 자른 신선도는 디렉터 승인(엄청 신선 불필요). */
 const getHomeFeedPoolCached = unstable_cache(
   async (): Promise<CardData[]> => {
     const sb = createSupabaseAnonClient();
@@ -139,10 +138,6 @@ export default async function HomeFeedPage({
 }) {
   const sp = await searchParams;
   const query = (sp.q ?? "").trim();
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user: viewer },
-  } = await supabase.auth.getUser();
 
   // 카드 조회와 독립인 쿼리(hotIds)는 먼저 띄워 병렬화.
   const hotIdsPromise = getHotQaIds(20);
@@ -156,6 +151,12 @@ export default async function HomeFeedPage({
   const searchQuery = query || undefined;
 
   if (query) {
+    // 검색 분기에서만 서버 클라(쿠키)·auth 조회 — search_logs 가 작성자(viewer)를 기록하므로.
+    //   비검색 홈은 사용자 무관·경량(쿠키 파싱·auth 호출 없음).
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user: viewer },
+    } = await supabase.auth.getUser();
     // 검색어 로그(인기검색어 통계용) — fire-and-forget.
     if (query.length <= 100) {
       void supabase
@@ -181,7 +182,7 @@ export default async function HomeFeedPage({
   } else {
     // 피드 풀·리포트 풀·인기태그 모두 공개 데이터 → 쿠키리스 anon + unstable_cache(피드/리포트 90s,
     //   태그 300s)로 분리. 매 방문 돌던 300행 점수계산(feed_cards_scored)·리포트 집계를 캐시에서
-    //   즉시 반환(SNS 표준: 피드는 분 단위 갱신). per-user 좋아요/저장은 아래 viewerStates 로 SSR 오버레이.
+    //   즉시 반환(SNS 표준: 피드는 분 단위 갱신). per-user 좋아요/저장은 FeedView 가 클라에서 배치 조회.
     const [feedCards, pool, tags] = await Promise.all([
       getHomeFeedPoolCached(),
       getReportPoolCached(),
@@ -196,16 +197,9 @@ export default async function HomeFeedPage({
   const orderedIds = cards.map((c) => c.id);
   const initialCards = cards.slice(0, INITIAL);
 
-  // hotIds(카드 조회 전 시작, 독립) 와 viewerStates(initialCards 에만 의존) 는 서로 독립이므로
-  //   직렬 await 대신 병렬 대기. initialCards 가 확정된 이 지점에서 함께 기다린다(의존 보존).
-  const [hotIdsArr, viewerStates] = await Promise.all([
-    hotIdsPromise,
-    fetchViewerStatesRecord(
-      supabase,
-      viewer?.id ?? null,
-      initialCards.map((c) => c.id),
-    ),
-  ]);
+  // 좋아요/저장(viewerStates)은 FeedView 가 마운트 후 /api/viewer-states 로 클라 배치 조회(per-user
+  //   데이터를 SSR 에서 제거 → 비검색 홈은 사용자 무관·경량 렌더 + 캐시 본문 오염 없음). hotIds 만 대기.
+  const hotIdsArr = await hotIdsPromise;
   const hotIds = Array.from(hotIdsArr);
 
   // JSON-LD: 홈은 그룹 브랜드의 메인 진입점 — 5개 지점 MedicalClinic + 그룹 풀세트.
@@ -235,7 +229,6 @@ export default async function HomeFeedPage({
         searchReport={searchReport}
         popularTags={popularTags}
         hotIds={hotIds}
-        viewerStates={viewerStates}
       />
     </div>
   );

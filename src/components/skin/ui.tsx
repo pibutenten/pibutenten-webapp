@@ -395,11 +395,22 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
   const [savePending, setSavePending] = useState(false);
   const [shareCount, setShareCount] = useState(card.share_count ?? 0);
   const [loginPrompt, setLoginPrompt] = useState<string | null>(null);
+  // 사용자가 직접 좋아요/저장을 토글했는지 — true 면 아래 viewer 동기화 effect 가 낙관값을 덮지 않음.
+  const interactedRef = useRef(false);
+  // viewer 상태(서버 seed 또는 클라 배치)가 도착/변경되면 동기화.
+  //   useState 초기화는 마운트 1회뿐이라, 배치가 async 로 와도 이 effect 로 반영.
+  //   사용자가 이미 토글했으면(interactedRef) 그 낙관값을 덮지 않음.
+  useEffect(() => {
+    if (interactedRef.current) return;
+    setLiked(viewer?.liked ?? false);
+    setSaved(viewer?.saved ?? false);
+  }, [viewer?.liked, viewer?.saved]);
   const toggleLike = useCallback(() => {
     if (!myId) {
       setLoginPrompt("좋아요를 누르려면 로그인이 필요해요");
       return;
     }
+    interactedRef.current = true;
     if (likePending) return;
     setLikePending(true);
     const was = liked;
@@ -435,6 +446,7 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
       setLoginPrompt("저장하려면 로그인이 필요해요");
       return;
     }
+    interactedRef.current = true;
     if (savePending) return;
     setSavePending(true);
     const was = saved;

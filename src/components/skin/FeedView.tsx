@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "@/lib/session-context";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import type { CardData } from "@/lib/types/card";
 import type { CommentPreview } from "@/lib/types/comment";
@@ -146,6 +147,12 @@ export default function FeedView({
   //   페이지당 1회 배치 fetch. 옛 카드별 /api/comments?cardId=(스크롤 시 카드 수만큼)을 대체.
   const [commentPreviews, setCommentPreviews] = useState<Record<number, CommentPreview>>({});
   const previewFetchedRef = useRef<Set<number>>(new Set());
+  const session = useSession();
+  const myViewerId = session?.activeIdentityId ?? null;
+  // 좋아요/저장 viewer 배치(N+1 없음 — 페이지당 1회). 서버 prefetch(viewerStates prop)를 seed 로,
+  //   이후 클라가 새 카드만 배치 조회. 비로그인은 좋아요/저장이 없어 fetch 자체를 건너뜀.
+  const [viewerStatesClient, setViewerStatesClient] = useState<Record<number, ViewerState>>(viewerStates ?? {});
+  const viewerFetchedRef = useRef<Set<number>>(new Set());
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   // 탭 전환 애니메이션 대상(운영 FeedList contentRef). 리스트 컨테이너의 key remount 와 무관한
   //   안정 래퍼라야 animate 타이밍이 어긋나지 않음 → feedList(키 remount) 바깥에 부착.
@@ -191,6 +198,30 @@ export default function FeedView({
       aborted = true;
     };
   }, [pool]);
+
+  // 좋아요/저장 viewer 배치 fetch — 댓글 미리보기 배치와 동일 구조(N+1 없음, 페이지당 1회).
+  //   풀에 새로 들어온 카드만 60개씩 한 번에 /api/viewer-states 로. 도착하면 viewerStatesClient 에 머지
+  //   → 카드의 useCardActions effect 가 liked/saved 동기화. 비로그인은 좋아요/저장이 없어 fetch 생략.
+  useEffect(() => {
+    if (!myViewerId) return; // 비로그인 — 좋아요/저장 없음, fetch 불필요(카드 기본 false 가 정답)
+    const missing = pool.map((c) => c.id).filter((id) => !viewerFetchedRef.current.has(id));
+    if (missing.length === 0) return;
+    missing.forEach((id) => viewerFetchedRef.current.add(id));
+    let aborted = false;
+    (async () => {
+      for (let i = 0; i < missing.length; i += 60) {
+        const chunk = missing.slice(i, i + 60);
+        try {
+          const r = await fetch(`/api/viewer-states?cardIds=${chunk.join(",")}`, { cache: "no-store" });
+          if (!r.ok) continue;
+          const j = (await r.json()) as { viewerStates?: Record<number, ViewerState> };
+          if (aborted || !j.viewerStates) continue;
+          setViewerStatesClient((prev) => ({ ...prev, ...j.viewerStates }));
+        } catch { /* viewer 상태 실패는 무시 — 카드 기본 false */ }
+      }
+    })();
+    return () => { aborted = true; };
+  }, [pool, myViewerId]);
 
   // 서버 검색어가 바뀌면 입력값 동기화 + 피드 스크롤 최상단 복귀(라우팅으로 새 검색 진입 시).
   //   스크롤 컨테이너가 window 가 아니라 셸의 .root(overflow:auto)라, window.scrollTo 로는 안 올라가던
@@ -601,7 +632,7 @@ export default function FeedView({
                 card={card}
                 onTagClick={applyTag}
                 isHot={hotSet.has(card.id)}
-                viewer={viewerStates?.[card.id]}
+                viewer={viewerStatesClient[card.id]}
                 searchQuery={searchQuery}
                 commentPreview={commentPreviews[card.id]}
                 batchedPreview
