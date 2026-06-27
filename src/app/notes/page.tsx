@@ -56,7 +56,13 @@ export default async function RecordNotesPage() {
   // 회원 — active 명함 소유 diaries(RLS) + 내가 쓴 공개 후기 카드(본문·시술명·링크)를 병렬 조회.
   //   후기 = cards(category='review', status='published', author_id=active). 작성일 내림차순.
   const [diariesRes, reviewsRes] = await Promise.all([
-    supabase.from("diaries").select(DIARY_SELECT).order("visited_on", { ascending: false }).returns<DiaryRow[]>(),
+    // visited_on 내림차순. NULL(날짜 미상, 마이그 0302) 일기는 nullsFirst:false 로 맨 끝에 배치
+    //   (Postgres DESC 기본은 NULLS FIRST 라서 명시하지 않으면 날짜 미상이 맨 위로 올라옴).
+    supabase
+      .from("diaries")
+      .select(DIARY_SELECT)
+      .order("visited_on", { ascending: false, nullsFirst: false })
+      .returns<DiaryRow[]>(),
     supabase
       .from("cards")
       .select(REVIEW_SELECT)

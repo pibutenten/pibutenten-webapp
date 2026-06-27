@@ -55,6 +55,21 @@ export const ReviewCreateSchema = z
     // 생생한 후기 본문 (body 컬럼, 선택 — 0~400자). 비어 있으면 제목만 저장.
     body: z.string().max(400),
 
+    // 단답(short answers) — 단독 후기폼의 "단답 2칸". 선택(미전달 가능).
+    //   각 항목 { question_id(양의 정수), answer_text(≤300자) }. 최대 2개(폼이 2칸).
+    //   답이 빈 항목은 RPC 가 무시(저장 제외)하므로 클라가 보내도 무해.
+    short_answers: z
+      .array(
+        z
+          .object({
+            question_id: z.number().int().positive(),
+            answer_text: z.string().max(300),
+          })
+          .strict(),
+      )
+      .max(2)
+      .optional(),
+
     // ── 선택 ──
     // title 기본값 생성용 (라우트에서 미지정 시 `{시술명} 시술후기`).
     title: z.string().max(200).optional(),

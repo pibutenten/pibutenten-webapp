@@ -187,6 +187,9 @@ export async function POST(req: Request) {
     p_effect_onset: payload.effect_onset,
     // 추천의향(optional) — 미전달이면 RPC DEFAULT NULL 로 저장(기존 후기 무회귀).
     p_recommend: payload.recommend ?? null,
+    // 단답(optional) — [{question_id, answer_text}]. RPC 가 같은 트랜잭션에서
+    //   short_answer_response 에 저장(빈 답·미존재 질문은 RPC 가 무시). 미전달이면 DEFAULT NULL.
+    p_short_answers: payload.short_answers ?? null,
   });
   if (rpcErr) {
     return errorResponse(rpcErr, "save_failed", "[reviews POST] create_procedure_review", 500);

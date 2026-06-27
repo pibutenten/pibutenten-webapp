@@ -14,16 +14,21 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import styles from "../app.module.css";
 import { recordBadge } from "@/lib/diary-status";
+import { UNKNOWN_YEAR } from "@/lib/record-data";
 import type { SummaryGroup } from "@/components/skin/record/SkinDiaryForms";
+
+/** 날짜 미상(visited_on=NULL) 일기 표시 라벨. */
+const UNKNOWN_DATE_LABEL = "날짜 미상";
 
 /* ---------- 시술 노트 1건(뷰 전용) — 운영 SummaryItem 에서 어댑트 ----------
  * year/month/day + 시술 칩 + 병원·의사 메타 + 배지용 visitedOn("YYYY-MM-DD"). */
 export type RecEntry = {
   id: string;
-  year: number;
-  month: number; // 1~12
-  day: number;
-  visitedOn: string; // "YYYY-MM-DD" — recordBadge 입력
+  year: number; // 날짜 미상이면 UNKNOWN_YEAR(0)
+  month: number; // 1~12 (날짜 미상이면 0)
+  day: number; // 날짜 미상이면 0
+  dateUnknown: boolean; // visited_on=NULL(precision='unknown', 마이그 0302) 여부
+  visitedOn: string; // "YYYY-MM-DD" — recordBadge 입력 (날짜 미상이면 "")
   procName: string; // 배지 판정용 대표(첫) 시술명
   procs: string[]; // 받은 시술명 목록
   tone: string; // 점 색 (styles.dotXxx)
@@ -80,15 +85,19 @@ export function ReviewBox({ review }: { review: MyReview }) {
 
 const DOT_TONES = [styles.dotPink, styles.dotBlue, styles.dotGreen, styles.dotPurple];
 
-/** 운영 SummaryGroup[] → 3토글 뷰가 쓰는 RecEntry[](연/월/일 + 배지용 visitedOn). */
+/** 운영 SummaryGroup[] → 3토글 뷰가 쓰는 RecEntry[](연/월/일 + 배지용 visitedOn).
+ *  날짜 미상(year=UNKNOWN_YEAR, date="")은 split 하지 않고 month/day=0·dateUnknown=true·visitedOn="" 로 둔다
+ *  (Number("")=NaN, `${0}-${undefined}` 같은 깨진 값 방지). */
 export function toRecEntries(summary: SummaryGroup[]): RecEntry[] {
   const out: RecEntry[] = [];
   let toneIdx = 0;
   for (const g of summary) {
     for (const it of g.items) {
-      const [mm, dd] = it.date.split("."); // SummaryItem.date = "MM.DD"
-      const month = Number(mm);
-      const day = Number(dd);
+      // date="" (날짜 미상) 이면 split 결과가 [""], Number("")=NaN 이 되므로 분기.
+      const dateUnknown = g.year === UNKNOWN_YEAR || !it.date;
+      const [mm, dd] = dateUnknown ? ["", ""] : it.date.split("."); // SummaryItem.date = "MM.DD"
+      const month = dateUnknown ? 0 : Number(mm);
+      const day = dateUnknown ? 0 : Number(dd);
       const procs = it.items.length > 0 ? it.items.map((i) => i.name) : it.proc ? [it.proc] : [];
       const procName = procs[0] ?? "시술";
       out.push({
@@ -96,7 +105,8 @@ export function toRecEntries(summary: SummaryGroup[]): RecEntry[] {
         year: g.year,
         month,
         day,
-        visitedOn: `${g.year}-${mm}-${dd}`,
+        dateUnknown,
+        visitedOn: dateUnknown ? "" : `${g.year}-${mm}-${dd}`,
         procName,
         procs,
         tone: DOT_TONES[toneIdx++ % DOT_TONES.length],
@@ -109,8 +119,10 @@ export function toRecEntries(summary: SummaryGroup[]): RecEntry[] {
   return out;
 }
 
-/* 회복 단계 배지 — 운영 recordBadge(diary-status SSOT) 사용(시술명 + 방문일 기준). */
+/* 회복 단계 배지 — 운영 recordBadge(diary-status SSOT) 사용(시술명 + 방문일 기준).
+ *  날짜 미상이면 경과 일수를 계산할 수 없으므로 배지 자체를 생략(잘못된 '회복 완료' 표시 방지). */
 function Badge({ entry }: { entry: RecEntry }) {
+  if (entry.dateUnknown) return null;
   const b = recordBadge(entry.procName, entry.visitedOn);
   return (
     <span
@@ -140,7 +152,7 @@ function TimelineView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: 
       {rows.map((row) =>
         row.kind === "year" ? (
           <div className={styles.recTlYear} key={`y${row.year}`}>
-            {row.year}
+            {row.year === UNKNOWN_YEAR ? UNKNOWN_DATE_LABEL : row.year}
           </div>
         ) : (
           (() => {
@@ -148,8 +160,14 @@ function TimelineView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: 
             return (
               <div className={styles.recTlItem} key={e.id}>
                 <span className={styles.recTlDot}>
-                  <span className={styles.recTlDotMonth}>{e.month}월</span>
-                  <span className={styles.recTlDotDay}>{e.day}</span>
+                  {e.dateUnknown ? (
+                    <span className={styles.recTlDotMonth}>미상</span>
+                  ) : (
+                    <>
+                      <span className={styles.recTlDotMonth}>{e.month}월</span>
+                      <span className={styles.recTlDotDay}>{e.day}</span>
+                    </>
+                  )}
                 </span>
                 <div
                   className={`${styles.card} ${styles.recTlCard}`}
@@ -187,9 +205,13 @@ function TimelineView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: 
   );
 }
 
-/* ---------- 달력 뷰 — 연 네비 + 12개월 그리드(점·건수) + 선택 월 상세 ---------- */
+/* ---------- 달력 뷰 — 연 네비 + 12개월 그리드(점·건수) + 선택 월 상세 ----------
+ * 달력은 본질적으로 날짜 기반이므로 날짜 미상(dateUnknown) 일기는 그리드에서 제외하고,
+ * 하단에 "날짜 미상 N건" 묶음으로 따로 안내한다(조용히 사라지지 않게). */
 function CalendarView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: string) => void }) {
-  const years = useMemo(() => [...new Set(entries.map((e) => e.year))].sort((a, b) => b - a), [entries]);
+  const dated = useMemo(() => entries.filter((e) => !e.dateUnknown), [entries]);
+  const undatedItems = useMemo(() => entries.filter((e) => e.dateUnknown), [entries]);
+  const years = useMemo(() => [...new Set(dated.map((e) => e.year))].sort((a, b) => b - a), [dated]);
   const thisYear = new Date().getFullYear();
   const thisMonth = new Date().getMonth() + 1;
   const minYear = years.length ? Math.min(...years) : thisYear;
@@ -199,11 +221,11 @@ function CalendarView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: 
 
   const byMonth = useMemo(() => {
     const m = new Map<number, RecEntry[]>();
-    for (const e of entries.filter((x) => x.year === year)) {
+    for (const e of dated.filter((x) => x.year === year)) {
       m.set(e.month, [...(m.get(e.month) ?? []), e]);
     }
     return m;
-  }, [entries, year]);
+  }, [dated, year]);
 
   const defaultMonth = useMemo(() => {
     const ms = [...byMonth.keys()].sort((a, b) => b - a);
@@ -295,9 +317,43 @@ function CalendarView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: 
             </div>
           </>
         ) : (
-          <p className={styles.recCalEmpty}>기록 있는 달을 눌러 상세를 확인하세요.</p>
+          <p className={styles.recCalEmpty}>
+            {dated.length === 0 ? "날짜가 입력된 기록이 없어요." : "기록 있는 달을 눌러 상세를 확인하세요."}
+          </p>
         )}
       </div>
+
+      {/* 날짜 미상(visited_on=NULL) 묶음 — 달력 그리드 밖에 따로 안내(조용히 사라지지 않게). */}
+      {undatedItems.length > 0 && (
+        <div className={`${styles.card} ${styles.recCalDetail}`}>
+          <p className={styles.recCalDetailHead}>
+            {UNKNOWN_DATE_LABEL} · 기록 {undatedItems.length}건
+          </p>
+          <div className={styles.recCalDetailList}>
+            {undatedItems.map((e) => (
+              <div key={e.id}>
+                <div
+                  className={styles.recCalRow}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onOpen?.(e.id)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === "Enter" || ev.key === " ") {
+                      ev.preventDefault();
+                      onOpen?.(e.id);
+                    }
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  <span className={styles.recCalRowDate}>{UNKNOWN_DATE_LABEL}</span>
+                  <span className={styles.recCalRowName}>{e.procs.join(" · ")}</span>
+                  <Badge entry={e} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -321,10 +377,16 @@ function ListView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: stri
       {groups.map((g) => (
         <div key={g.year}>
           <div className={styles.recListYear}>
-            <span className={styles.recListYearNum}>{g.year}</span>
-            <span className={styles.recListYearAgo}>
-              {g.year === thisYear ? "올해" : `${thisYear - g.year}년 전`}
-            </span>
+            {g.year === UNKNOWN_YEAR ? (
+              <span className={styles.recListYearNum}>{UNKNOWN_DATE_LABEL}</span>
+            ) : (
+              <>
+                <span className={styles.recListYearNum}>{g.year}</span>
+                <span className={styles.recListYearAgo}>
+                  {g.year === thisYear ? "올해" : `${thisYear - g.year}년 전`}
+                </span>
+              </>
+            )}
           </div>
           <div className={styles.recListItems}>
             {g.items.map((e) => (
@@ -335,7 +397,7 @@ function ListView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: stri
                   onClick={() => onOpen?.(e.id)}
                 >
                   <span className={styles.recListDate}>
-                    {e.month}.{e.day}
+                    {e.dateUnknown ? "미상" : `${e.month}.${e.day}`}
                   </span>
                   <span className={styles.recListInfo}>
                     <span className={styles.recListName}>{e.procs.join(" · ")}</span>

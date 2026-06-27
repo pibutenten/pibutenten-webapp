@@ -44,6 +44,20 @@ export default async function ReviewNewPage({
       ? sp.procedure
       : undefined;
 
+  // 단답 질문 풀 — 시점 무관('any') 활성 질문만 폼에 전달(단답 2칸이 사용).
+  //   RLS(question_pool_read_active)가 is_active=true 만 노출하나, 명시적으로 한 번 더 필터.
+  //   비면 빈 배열 → 폼이 단답 블록을 graceful 숨김.
+  const { data: qpRows } = await supabase
+    .from("question_pool")
+    .select("id, question_text")
+    .eq("timepoint", "any")
+    .eq("is_active", true)
+    .order("id", { ascending: true });
+  const shortAnswerQuestions = (qpRows ?? []).map((r) => ({
+    id: r.id as number,
+    text: r.question_text as string,
+  }));
+
   // 본문(ReviewForm)은 운영 형태 그대로 유지하되 앱 셸로 감싸 렌더(WriteView 선례 동일).
   //   데이터·권한 가드는 위 server 로직이 책임, 표시(셸 래핑)만 View 에 위임.
   return (
@@ -51,6 +65,7 @@ export default async function ReviewNewPage({
       procedures={procedures}
       handle={idCtx.active.handle}
       initialProcedure={initialProcedure}
+      shortAnswerQuestions={shortAnswerQuestions}
     />
   );
 }

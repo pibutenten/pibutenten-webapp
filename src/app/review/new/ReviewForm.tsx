@@ -40,20 +40,28 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useDraftAutoSave } from "@/hooks/useDraftAutoSave";
 import { loadDraft, saveDraft, deleteDraft } from "@/lib/draft-storage";
 import UnsavedChangesModal from "@/components/UnsavedChangesModal";
-import { CATEGORIES } from "@/lib/categories";
 import { DOWNTIME_OPTIONS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
+// 후기 평가 컨트롤·옵션은 review-controls.tsx 단일 공용 출처에서 import (자체 복사본 폐기, dedup).
+//   동작·디자인·색·라벨은 추출 전 ReviewForm 원본과 1:1 동일.
 import {
+  StarField,
+  FaceField,
+  ChoiceField,
   NumberChoiceField,
+  EffectChip,
+  categoryColor,
+  PAIN_FACES,
+  REVISIT_OPTIONS,
   RECOMMEND_OPTIONS,
+  EFFECT_AREA_OPTIONS,
+  EFFECT_AREA_COLORS,
+  ONELINER_MAX,
+  ONELINER_PLACEHOLDERS,
 } from "@/components/review/review-controls";
-
-/**
- * categoryLabel(예: "리프팅" / "스킨부스터") → CategoryWithChips 와 같은 색.
- * CATEGORIES 에서 label 로 매칭, 못 찾으면 var(--primary).
- */
-function categoryColor(label: string): string {
-  return CATEGORIES.find((c) => c.label === label)?.color ?? "var(--primary)";
-}
+import ShortAnswerFields, {
+  type ShortAnswerQuestion,
+  type ShortAnswerValue,
+} from "@/components/review/ShortAnswerFields";
 
 export type ProcedureOption = {
   /** 서버 검증값 = procedure_taxonomy.ko */
@@ -92,91 +100,14 @@ type Props = {
   shortcode?: string;
   /** 수정 모드 프리필 값 (mode='edit'). */
   initial?: ReviewEditInitial;
+  /** 단답 질문 풀(timepoint='any' 활성). create 모드에서만 단답 2칸 노출. 비면 숨김. */
+  shortAnswerQuestions?: ShortAnswerQuestion[];
 };
 
-const ONELINER_MAX = 400;
-
-/* 통증 — 표정 이모지 1~5 컴팩트 스케일. */
-const PAIN_FACES: { face: string; label: string }[] = [
-  { face: "😊", label: "없음" },
-  { face: "🙂", label: "조금" },
-  { face: "😐", label: "보통" },
-  { face: "😣", label: "꽤" },
-  { face: "😖", label: "심함" },
-];
-
-/* ── 값 키(고정 — DB CHECK 와 일치) ── */
-type ChoiceOption = { value: string; label: string; color?: string };
-
-const REVISIT_OPTIONS: ChoiceOption[] = [
-  { value: "yes", label: "있어요", color: "#4CBFF2" },
-  { value: "no", label: "없어요", color: "#EA7E7B" },
-  { value: "maybe", label: "고민 중", color: "#9AA1AC" },
-];
-
-/* 다운타임(DOWNTIME_OPTIONS)·효과시기(EFFECT_ONSET_OPTIONS) 옵션은 @/lib/review-options 가 SSOT.
+/* 통증(PAIN_FACES)·재시술(REVISIT_OPTIONS)·체감효과(EFFECT_AREA_OPTIONS/COLORS)·
+   한줄후기(ONELINER_MAX/PLACEHOLDERS) 옵션은 review-controls.tsx 공용 출처에서 import.
+   다운타임(DOWNTIME_OPTIONS)·효과시기(EFFECT_ONSET_OPTIONS) 는 @/lib/review-options 가 SSOT.
    슬러그는 DB CHECK(0213)·리포트 집계와 동일. (CLAUDE.md §5 동기화 페어) */
-
-/* 생생한 후기 placeholder — 마운트 시 무작위 1개 고정(세션 내 유지). */
-const ONELINER_PLACEHOLDERS: string[] = [
-  "고민하는 분들께 해주고 싶은 한마디를 남겨주세요.",
-  "솔직한 한 줄이 같은 고민을 가진 분께 큰 도움이 돼요.",
-  "어떤 점이 가장 만족스러우셨나요?",
-  "받기 전과 후, 무엇이 가장 달라졌나요?",
-  "기대했던 것과 비교해 어떠셨어요?",
-  "이건 미리 알았으면 좋았겠다 싶은 점이 있었나요?",
-  "한 줄로 남긴다면, 이번 시술은 어땠나요?",
-  "다른 분들이 궁금해할 만한 점을 들려주세요.",
-];
-
-/**
- * 체감 효과 옵션 — 독립 목록 18종 + '없음'(19번째) (온보딩 피부고민과 별개).
- * 순서: 리프팅·탄력·쫀쫀함·볼륨·작은얼굴·턱선·이중턱·피부톤·피부결·잔주름·깊은주름·불독살·모공·생기·속건조·붉은기·트러블·피지·없음.
- * 저장값(effect_areas)은 이 라벨 문자열 그대로. '없음'도 일반 칩(배타 로직 없음).
- */
-const EFFECT_AREA_OPTIONS: string[] = [
-  "리프팅",
-  "탄력",
-  "쫀쫀함",
-  "볼륨",
-  "작은얼굴",
-  "턱선",
-  "이중턱",
-  "피부톤",
-  "피부결",
-  "잔주름",
-  "깊은주름",
-  "불독살",
-  "모공",
-  "생기",
-  "속건조",
-  "붉은기",
-  "트러블",
-  "피지",
-  "없음",
-];
-/** 효과 칩 색 — EFFECT_AREA_OPTIONS 와 동일 인덱스 매칭 (16색 파스텔 + '없음' 중립 회색). */
-const EFFECT_AREA_COLORS: string[] = [
-  "#B0A0DE",
-  "#7FD0F8",
-  "#F59CB6",
-  "#FFCB8C",
-  "#A6D9A9",
-  "#C3B0E8",
-  "#79CCC3",
-  "#FFAF97",
-  "#9AA6DE",
-  "#CDC97A",
-  "#C9A8D6",
-  "#A8C2E6",
-  "#8FD4C8",
-  "#F4B8A0",
-  "#B8D88A",
-  "#F2A9C0",
-  "#D6B0A1",
-  "#E0C088",
-  "#C2C7CE",
-];
 
 export default function ReviewForm({
   procedures,
@@ -185,11 +116,19 @@ export default function ReviewForm({
   mode = "create",
   shortcode,
   initial,
+  shortAnswerQuestions,
 }: Props) {
   const router = useRouter();
   const isEdit = mode === "edit";
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  /* ── 단답(short answers, create 전용) ──
+     단답 컴포넌트가 보고하는 현재 칸 상태. 제출 시 trim 후 빈 답 제거하고 전송. */
+  const [shortAnswers, setShortAnswers] = useState<ShortAnswerValue[]>([]);
+  // create 모드 + 풀이 1개 이상일 때만 단답 블록 노출.
+  const showShortAnswers =
+    !isEdit && (shortAnswerQuestions?.length ?? 0) > 0;
 
   /* ── 필수 항목 ── */
   // 수정 모드면 기존 시술 ko 로 잠금 시작. 생성 모드면 initialProcedure(태그 미리선택) 검증.
@@ -340,6 +279,13 @@ export default function ReviewForm({
       return;
     }
 
+    // 단답(create 전용) — trim 후 빈 답 제거. 모두 비면 키 생략(서버/RPC 무동작).
+    const filledShortAnswers = showShortAnswers
+      ? shortAnswers
+          .map((a) => ({ question_id: a.question_id, answer_text: a.answer_text.trim() }))
+          .filter((a) => a.answer_text.length > 0)
+      : [];
+
     const payload = {
       procedure_ko: procedureKo,
       satisfaction,
@@ -351,6 +297,8 @@ export default function ReviewForm({
       effect_areas: effectAreas,
       effect_onset: effectOnset,
       body: oneliner.trim(),
+      // 단답(optional) — 채워진 항목이 있을 때만 전송. create 전용.
+      ...(filledShortAnswers.length > 0 ? { short_answers: filledShortAnswers } : {}),
     };
 
     startTransition(async () => {
@@ -597,6 +545,15 @@ export default function ReviewForm({
           </p>
         </div>
 
+        {/* ── 9. 단답 2칸 (선택, create 전용) ── 풀이 비면 컴포넌트가 렌더 안 함. */}
+        {showShortAnswers && (
+          <ShortAnswerFields
+            questions={shortAnswerQuestions ?? []}
+            onChange={setShortAnswers}
+            disabled={pending}
+          />
+        )}
+
         {/* 유효성 검사 오류 목록 */}
         {validationErrors.length > 0 && (
           <ul className="rounded-lg bg-red-50 p-3 text-sm text-red-600 space-y-1">
@@ -800,285 +757,6 @@ function TabbedProcedurePicker({
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Chip — 둥근 pill 선택 칩 (OnboardingClient 피부고민 칩과 동일 톤).
- *   비활성: #E8EAEE / #5C6470 / 500.
- *   color 미지정 활성: #4CBFF2 / 흰색 / 600.
- *   color 지정: 선택됨 = 색 solid 배경 + 흰 글씨. 호버(미선택) = 색 연한 톤(color+"22")
- *     배경 + color 글씨 미리보기. 평소 미선택 = 회색.
- * ───────────────────────────────────────────────────────────── */
-function Chip({
-  active,
-  onClick,
-  disabled,
-  color,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-  color?: string;
-  children: React.ReactNode;
-}) {
-  const [hover, setHover] = useState(false);
-
-  let style: CSSProperties;
-  if (active) {
-    style = color
-      ? { backgroundColor: color, color: "#FFFFFF", fontWeight: 600 }
-      : { backgroundColor: "#4CBFF2", color: "#FFFFFF", fontWeight: 600 };
-  } else if (color && hover && !disabled) {
-    style = { backgroundColor: color + "22", color, fontWeight: 600 };
-  } else {
-    style = { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 };
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1 text-[13px] disabled:opacity-50"
-      style={style}
-    >
-      {children}
-    </button>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * EffectChip — 효과(멀티) 칩. 옵션별 고유색 + 호버 미리보기.
- *   선택됨 = color+"1A" 배경 + color 글씨 + 같은색 테두리 + bold.
- *   호버(미선택) = color+"14" 더 연한 미리보기.
- *   평소 미선택 = 회색(#E8EAEE / #5C6470).
- * ───────────────────────────────────────────────────────────── */
-function EffectChip({
-  active,
-  color,
-  onClick,
-  disabled,
-  children,
-}: {
-  active: boolean;
-  color: string;
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  // 선택=칸 색 solid+흰 글씨 / 미선택=회색. 호버 상태 없음
-  //   (모바일에서 탭 후 hover 가 남아 해제해도 진한 회색으로 보이던 버그 제거).
-  const style: CSSProperties = active
-    ? { backgroundColor: color, color: "#FFFFFF", fontWeight: 600 }
-    : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 };
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full px-4 py-1 text-[13px] disabled:opacity-50"
-      style={style}
-    >
-      {children}
-    </button>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * StarField — 1~5 별점 입력.
- *   호버 미리채움: 마우스 올린 위치까지 연한 확정색으로 미리보기,
- *   클릭하면 그 값이 진한 확정색으로 확정.
- *   - hover>0 인 별: n<=hover 면 채움(연한 var(--accent-save), opacity-50).
- *   - hover==0 인 별: n<=value 면 채움(진한 var(--accent-save)).
- *   - 빈 별: var(--bg-soft).
- *   5칸 모두 w-12 가운데 정렬 → FaceField 와 칸 위치 정렬.
- * ───────────────────────────────────────────────────────────── */
-function StarField({
-  label,
-  value,
-  onChange,
-  disabled,
-  required,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  disabled?: boolean;
-  required?: boolean;
-}) {
-  const [hover, setHover] = useState(0);
-  return (
-    <div>
-      <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-        {label}{" "}
-             </label>
-      <div
-        className="flex justify-start gap-1"
-        onMouseLeave={() => setHover(0)}
-      >
-        {[1, 2, 3, 4, 5].map((n) => {
-          // 확정(n<=value): 호버 중에도 채움(클릭하면 바로 확정된 느낌).
-          // 호버 추가분(value 초과 ~ hover): 연한 미리보기. 그 외: 회색.
-          const confirmed = n <= value;
-          const hoverExtra = hover > 0 && n > value && n <= hover;
-          const gold = confirmed || hoverExtra;
-          return (
-            <button
-              key={n}
-              type="button"
-              aria-label={`${label} ${n}점`}
-              onClick={() => onChange(n)}
-              onMouseEnter={() => setHover(n)}
-              disabled={disabled}
-              className="flex w-11 cursor-pointer items-center justify-center text-[34px] leading-none transition-transform active:scale-125 disabled:opacity-50"
-            >
-              {/* flat 2D 별(★) — 채움=금색 / 호버 미리보기=옅은 금색 / 빈칸=연한 회색. */}
-              <span
-                style={{
-                  color: gold
-                    ? hoverExtra
-                      ? "#F7CE8A"
-                      : "var(--accent-save)"
-                    : "#E3E7EB",
-                }}
-              >
-                ★
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * FaceField — 표정 이모지 1~5 컴팩트 스케일 (통증 등).
- *   라벨 + 버튼 5개(이모지 + 아래 작은 라벨). 박스(border·bg) 없는 투명 버튼.
- *   상태별:
- *     선택됨(n===value)   → 진한 확정. 불투명 + 라벨 var(--primary-dark) +
- *                           옅은 primary 배경 pill.
- *     호버됨(n===hover, 미선택) → 연한 primary 미리보기. 라벨 primary,
- *                           살짝 불투명 + 옅은 배경.
- *     그 외               → 회색(opacity-40).
- *   5칸 모두 w-12 → StarField 와 칸 위치 정렬. 이모지 text-lg 유지.
- * ───────────────────────────────────────────────────────────── */
-function FaceField({
-  label,
-  value,
-  onChange,
-  faces,
-  disabled,
-  required,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  faces: { face: string; label: string }[];
-  disabled?: boolean;
-  required?: boolean;
-}) {
-  const [hover, setHover] = useState(0);
-  return (
-    <div>
-      <label className="mb-1 block text-sm font-semibold text-[var(--text)]">
-        {label}      </label>
-      <div
-        className="flex justify-start gap-1"
-        onMouseLeave={() => setHover(0)}
-      >
-        {faces.map((f, i) => {
-          const n = i + 1;
-          const selected = n === value;
-          const previewing = !selected && n === hover && !disabled;
-          // 배경 없는 flat 이모지 — 선택/호버는 불투명, 그 외 흐리게(그레이스케일).
-          const on = selected || previewing;
-
-          return (
-            <button
-              key={n}
-              type="button"
-              onClick={() => onChange(n)}
-              onMouseEnter={() => setHover(n)}
-              disabled={disabled}
-              aria-label={`${label} ${n} ${f.label}`}
-              aria-pressed={selected}
-              className="flex w-11 cursor-pointer flex-col items-center justify-center gap-1 py-1 transition-transform active:scale-125 disabled:opacity-50"
-            >
-              <span
-                className="text-[30px] leading-none"
-                style={{
-                  filter: on ? "none" : "grayscale(1)",
-                  opacity: selected ? 1 : previewing ? 0.85 : 0.4,
-                }}
-              >
-                {f.face}
-              </span>
-              <span
-                className="text-[10px] font-medium"
-                style={{ color: selected ? "var(--text)" : "var(--text-secondary)" }}
-              >
-                {f.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * ChoiceField — 가변 개수 {value,label}[] 단일 선택 칩 그룹.
- *   칩 톤은 Chip 과 통일. 재시술 의향에 사용.
- * ───────────────────────────────────────────────────────────── */
-function ChoiceField({
-  label,
-  hint,
-  value,
-  onChange,
-  options,
-  disabled,
-  required,
-}: {
-  label: string;
-  /** 질문 아래 흐린 보조 설명 한 줄(선택). */
-  hint?: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: ChoiceOption[];
-  disabled?: boolean;
-  required?: boolean;
-}) {
-  return (
-    <div>
-      <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-        {label}
-        {hint && (
-          <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">
-            {hint}
-          </span>
-        )}
-      </label>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((opt) => (
-          <Chip
-            key={opt.value}
-            active={value === opt.value}
-            color={opt.color}
-            onClick={() => onChange(opt.value)}
-            disabled={disabled}
-          >
-            {opt.label}
-          </Chip>
-        ))}
-      </div>
     </div>
   );
 }

@@ -44,6 +44,31 @@
 
 > 검증: 단계마다 `tsc`+`next build`, 독립 검수관 2명 교차(회귀/정합) 모두 "이상 없음", 클린 tsc(.next 제거) exit 0. 옆 세션(글쓰기 작업)과 파일 경계 분리.
 
+### 후기·시술일기 통합 (review-diary unification, 마이그 0292~0303)
+
+> 정본 계획서: `docs/plans/review-diary-unification-master-plan.md`. 4층 구조(`diaries` 방문 → `diary_procedures` 그날 시술목록 → `procedure_reviews` 후기 앵커+결론칸 → `review_checkin` 시계열 측정)로 시술일기·후기를 한 글쓰기 흐름에 통합. 스키마 상세는 `DATABASE.md` §1.9 + §5 마이그레이션 표(0292~0303 review) 참조.
+> ⚠ **마이그 번호 충돌**: 병행 FOLLOW 세션과 동시작업으로 **0292·0298·0299 가 중복**됨 — 본 통합 세션 파일은 `0292_review_diary_schema.sql`·`0299_revoke_solo_price_anon.sql`(0298 은 FOLLOW encoding_repair 선점 → 0299 로 재번호). FOLLOW 세션 파일(`0292_follow_post_pref.sql`·`0298_encoding_repair_and_url_unify.sql`·`0299_card_public_url_guards.sql`)은 위 FOLLOW/네비 블록에 별도 등재.
+
+### Added
+- **통합 글쓰기 백엔드 RPC 계층(dormant, 마이그 0297)**: SECURITY DEFINER RPC 5종 — `create_visit_with_entries`(방문 + 시술목록 + 후기 + day0 체크인 원자 생성, diary_linked day0 `review_checkin` 및 트랙A 예약 적재 포함), `upsert_review_checkin`(시계열 UPSERT + 결론칸 롤업: 만족도·추천=최신 시점, 통증=day0), `update_visit`(일기 본문 전체 덮어쓰기, 자식 미동기화), `delete_visit`(연결 후기 standalone 전환 + 트랙A pending 예약 cancel + 일기 삭제), `unpublish_review`(카드 soft-delete + `is_public=false` 원자, 작성자 묶음·admin). 전부 authenticated EXECUTE, 호출 UI/라우트 없는 dormant 라 라이브 무영향.
+- **시계열 측정 테이블 + 보조 테이블(마이그 0293, 0295)**: `review_checkin`(코어 시계열 — review_id CASCADE, timepoint day0/week1/month1/month4, satisfaction/recommend/effect_felt/pain, changed_points, UNIQUE(review_id,timepoint)) + 보조 3종 `review_symptom`/`question_pool`(단답풀 운영 마스터, anon `is_active=true` 공개)/`short_answer_response`. 전부 RLS ON + 로그인(묶음) owner-only SELECT. 0295 에서 4테이블 테이블레벨 `GRANT SELECT` 보강(없으면 RLS 정책 inert).
+- **P4 예약 알림 엔진(마이그 0296, 0300, 0301)**: `scheduled_notification`(예약 적재 — recipient_id, kind review_checkin/diary_incomplete, fire_after, status, 비식별 message·url, 멱등 UNIQUE 2종 + due 부분 인덱스, active 명함 owner-only SELECT — 0296) → `run_diary_reminders()` RPC(단일 CTE 체인 locked→fired→mark_sent/mark_skip 멱등 발사, 토글 게이트 + diary_incomplete 미완성·비뮤트 재확인 + reminder_stage 전진 — 0300) → service_role EXECUTE 권한 보정(0301). `notification_preferences` 토글 2컬럼(`pref_review_checkin`/`pref_diary_incomplete`, default true) + `diary_reminder_state` 단일행 커서표 추가. scheduled_notification 0행이라 호출돼도 발사 0(dormant).
+- **`diary_reminder` 알림 kind(마이그 0300)**: `notifications.kind` CHECK 에 추가(기존 9종 → 10종 보존+1). 프런트 알림목록·푸시 제목 모두 미지 kind graceful fallback 확인(`notification-kinds.ts`/KIND_TITLES 동기화는 FOLLOW 공유영역이라 머지 후 TODO).
+- **standalone 후기 추천의향(recommend)(마이그 0303)**: 통합 visit 경로는 `procedure_reviews.recommend` 를 저장하나 단독 후기 경로(`/review/new`→`/api/reviews`→`create_procedure_review`)에 인자가 빠져 항상 NULL 이던 D-D 잔여 교정. 시그니처 끝에 `p_recommend smallint DEFAULT NULL` 추가(끝 인자 추가 시 오버로드 생성 회피 위해 기존 14-인자 DROP 후 15-인자 재생성) + INSERT 에 recommend 추가. is_public/source/date_precision 등 기존 동작 보존, authenticated EXECUTE 재부여.
+
+### Changed
+- **회고 날짜 관대화 — `unknown` 정밀도(마이그 0302)**: `date_precision` enum 에 `unknown` 추가(exact/season/half/year 보존, `diaries`·`procedure_reviews` CHECK DROP+ADD). `diaries.visited_on DROP NOT NULL`(날짜 미기억 회고 후기는 visited_on NULL 허용 — 기존 70행 무영향). `create_visit_with_entries` 재정의(본문 보존 + 관대 모드 `v_lenient`=precision='unknown' OR visited_on NULL 플래그로 future/old 범위검증·트랙A 예약·day0 상대일정 전체 스킵). `review_checkin.timepoint` CHECK 무변경(unknown 후기 day0 체크인도 'day0' 로 저장).
+- **후기 스키마 확장 + 정합 가드(마이그 0292)**: `diaries` 7컬럼 확장(clinic_home/clinic_kakao/total_price/is_complete/reminder_stage/reminder_muted/visited_on_precision), `procedure_reviews` 7컬럼 확장(recommend/visit_id/diary_procedure_id/is_public/date_precision/source/solo_price) + NOT NULL 4종 완화(card_id·satisfaction·pain·revisit — 추이그래프 전용 비공개 후기 대비) + 정합 CHECK 2종(`public_needs_card`=is_public→card_id NOT NULL, `source_link_chk`=diary_linked↔visit_id 동시성립). 인덱스 3종. 기존 666 후기 중 카드 살아있는 660건만 `is_public=true` 백필(soft-deleted 카드 6건 제외 = 상태모순 회피, FIX-2). 한 트랜잭션·비파괴.
+
+### Fixed
+- **`create_procedure_review` is_public 회귀 패치(마이그 0294)**: 0292 의 `read_public` 게이트(is_public=true AND card_id NOT NULL) 도입 후, `create_procedure_review` 가 신규 컬럼 `is_public` 을 set 하지 않아 새 공개 후기가 `is_public=false`(DEFAULT)로 저장돼 anon 에 가려지던 회귀 교정. INSERT 절에 `is_public=true, source='standalone', date_precision='exact'` 추가(시그니처·권한검증·시술검증·앵커 lazy 생성 보존). 직전 운영본의 mojibake 주석/리터럴을 정상 UTF-8 로 복원.
+
+### Security
+- **`read_public` RLS is_public 게이트(마이그 0292, 심층 방어 D-B)**: `procedure_reviews` anon/authenticated SELECT 가 기존 "카드 published" 만 검사 → **`is_public=true AND card_id NOT NULL AND 카드 published·미삭제`** 로 강화. 일기 삭제 RLS(`diaries_delete_own`) 제거(FIX-1 — raw DELETE 차단, 일기 삭제를 `delete_visit` RPC 전용으로 강등).
+- **F2 가격 영구 비공개 — `solo_price` anon 봉쇄(마이그 0299 review)**: `procedure_reviews.solo_price`(0292 추가)가 `read_public` anon SELECT 경로로 공개 후기 행에서 노출 가능했던 것(현 비-NULL 0건이나)을 컨벤션→권한으로 강제. 0123(profiles) 선례 계승 — anon table-level SELECT 회수 후 solo_price 제외 21컬럼만 column-level 재부여. RLS·앱코드 무영향(solo_price 참조 0건 확인). authenticated/service_role 전체 SELECT 유지.
+
+> 검증: 마이그 0292~0303 production 적용 완료(2026-06-27). 스키마·RLS·RPC 상세는 `DATABASE.md` §1.9/§5 동기화 완료. dormant 계층(0296·0297·0300)은 호출 UI/라우트 없어 발사·생성 0(라이브 무영향).
+
 ---
 
 ## [2026-06-26] — 시술 노트 UX 개선 + IP 위치 버그 수정 + 의사 검수 발행 + UX Phase 5 + UX 피드백 일괄 수정 + 6-에이전트 종합 감사 정비

@@ -35,7 +35,7 @@ export function periodLabel(days: number): string {
   return days < 14 ? `${days}일차` : `${Math.floor(days / 7)}주차`;
 }
 
-export type DiaryLatest = { name: string; visitedOn: string; count: number };
+export type DiaryLatest = { name: string; visitedOn: string | null; count: number };
 
 export type DiaryStatus = {
   state: 1 | 2 | 3 | 4 | 5;
@@ -57,6 +57,16 @@ export function computeStatus(latest: DiaryLatest | null): DiaryStatus {
       tappable: true,
     };
   }
+  const nth0 = latest.count > 1 ? `${latest.count}회차` : "";
+  const head0 = nth0 ? `${latest.name} ${nth0}` : latest.name;
+  // 날짜 미상(회고형 '잘 기억 안 나요') — 경과 계산 불가라 중립 상태.
+  if (latest.visitedOn == null)
+    return {
+      state: 3,
+      headline: `${head0},\n기록 잘 남기셨어요`,
+      sub: "날짜는 미상이지만 변화를 더 적어두면 도움이 돼요",
+      tappable: false,
+    };
   const p = paramsFor(latest.name);
   const e = elapsedDays(latest.visitedOn);
   const nth = latest.count > 1 ? `${latest.count}회차` : "";

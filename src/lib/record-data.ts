@@ -30,10 +30,11 @@ export type KeywordCardRow = {
 export const KEYWORD_SELECT =
   "id, title, created_at, keywords, post_year, post_slug, shortcode, doctor:doctors(slug, name, photo_url), author:profiles!cards_author_id_profiles_fkey(handle, display_name, avatar_url)";
 
-/** diaries(부모) + diary_procedures(자식 N) 조인 행. RLS 가 active 명함 소유분만 반환. */
+/** diaries(부모) + diary_procedures(자식 N) 조인 행. RLS 가 active 명함 소유분만 반환.
+ *  visited_on 은 nullable — precision='unknown'("날짜 잘 기억 안 나요") 일기는 NULL (마이그 0302). */
 export type DiaryRow = {
   id: number;
-  visited_on: string; // "YYYY-MM-DD"
+  visited_on: string | null; // "YYYY-MM-DD" 또는 NULL(날짜 미상)
   clinic_name: string | null;
   clinic_tel: string | null;
   doctor_name: string | null;
@@ -73,19 +74,27 @@ export function cardHrefFromRecord(c: {
   return "/";
 }
 
-/** diaries 행 → 내 노트 패널이 쓰는 SummaryGroup[](연도 내림차순, 같은 해는 최신 방문순). */
+/** 날짜 미상(visited_on=NULL) 일기를 모으는 sentinel 연도. year 내림차순 정렬에서 항상 맨 끝.
+ *  소비측(RecordNotesPanel)은 year===UNKNOWN_YEAR 를 "날짜 미상"으로 분기 처리한다. */
+export const UNKNOWN_YEAR = 0;
+
+/** diaries 행 → 내 노트 패널이 쓰는 SummaryGroup[](연도 내림차순, 같은 해는 최신 방문순).
+ *  visited_on=NULL(precision='unknown', 마이그 0302) 일기는 UNKNOWN_YEAR 그룹(date="")으로 분리 —
+ *  날짜 split/포맷 크래시 방지 + 정렬상 맨 끝(별도 묶음). */
 export function toSummaryGroups(rows: DiaryRow[]): SummaryGroup[] {
   const byYear = new Map<number, SummaryItem[]>();
   for (const r of rows) {
-    const [y, m, d] = r.visited_on.split("-");
-    const year = Number(y);
+    // visited_on 이 NULL("날짜 잘 기억 안 나요")이면 split 하지 않고 UNKNOWN_YEAR·date="" 로 처리.
+    const hasDate = !!r.visited_on;
+    const [, m, d] = hasDate ? r.visited_on!.split("-") : [undefined, undefined, undefined];
+    const year = hasDate ? Number(r.visited_on!.slice(0, 4)) : UNKNOWN_YEAR;
     const procs = [...r.diary_procedures].sort((a, b) => a.sort_order - b.sort_order);
     const items = procs.map((p) => ({ name: p.procedure_ko, unit: p.unit_text ?? "" }));
     const totalPrice = procs.reduce((s, p) => s + (p.price ?? 0), 0);
     const hasPrice = procs.some((p) => p.price != null);
     const item: SummaryItem = {
       id: String(r.id),
-      date: `${m}.${d}`,
+      date: hasDate ? `${m}.${d}` : "", // 날짜 미상이면 빈 문자열(소비측이 "날짜 미상"으로 표시)
       proc: items.map((i) => i.name).join(" · "),
       hospital: r.clinic_name ?? "병원 미입력",
       doctor: r.doctor_name ?? "",
@@ -98,7 +107,7 @@ export function toSummaryGroups(rows: DiaryRow[]): SummaryGroup[] {
     byYear.set(year, [...(byYear.get(year) ?? []), item]);
   }
   return [...byYear.entries()]
-    .sort((a, b) => b[0] - a[0])
+    .sort((a, b) => b[0] - a[0]) // 연도 내림차순 → UNKNOWN_YEAR(0) 은 자동으로 맨 끝
     .map(([year, items]) => ({ year, items: [...items].sort((a, b) => b.date.localeCompare(a.date)) }));
 }
 

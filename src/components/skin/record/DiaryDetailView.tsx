@@ -15,7 +15,7 @@ import styles from "../app.module.css";
 // 서버 page.tsx 의 DetailRow 와 동일 구조(조회 결과 1건).
 export type DiaryDetail = {
   id: number;
-  visited_on: string; // "YYYY-MM-DD"
+  visited_on: string | null; // "YYYY-MM-DD" 또는 NULL(날짜 미상, precision='unknown' 마이그 0302)
   clinic_name: string | null;
   clinic_addr: string | null;
   clinic_tel: string | null;
@@ -29,20 +29,27 @@ export type DiaryDetail = {
     note: string | null;
     sort_order: number;
   }[];
+  // 이 방문(visit_id)에 연결된 내 후기 — "후기 N개 · 시술명" 표시용(마이그 0292). 없으면 빈 배열.
+  linked_reviews?: { id: number; procedure_ko: string | null }[] | null;
 };
 
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 const cardBox = "rounded-[var(--radius)] bg-white p-5";
 
 export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
-  const [y, m, day] = d.visited_on.split("-");
-  const weekday = DOW[new Date(`${d.visited_on}T00:00:00`).getDay()];
+  // visited_on 이 NULL("날짜 잘 기억 안 나요", 마이그 0302)이면 split/Date 파싱을 건너뛰고 "날짜 미상" 표시.
+  const dateUnknown = !d.visited_on;
+  const [y, m, day] = dateUnknown ? ["", "", ""] : d.visited_on!.split("-");
+  const weekday = dateUnknown ? "" : DOW[new Date(`${d.visited_on}T00:00:00`).getDay()];
   const procs = [...d.diary_procedures].sort((a, b) => a.sort_order - b.sort_order);
   const procTitle = procs.map((p) => p.procedure_ko).join(" · ") || "시술 기록";
   const medics = [d.doctor_name ? `${d.doctor_name} 원장님` : null, d.manager_name ? `${d.manager_name} 실장님` : null]
     .filter(Boolean)
     .join(" · ");
   const mapName = d.clinic_name ? encodeURIComponent(d.clinic_name) : "";
+  // 이 방문에 연결된 내 후기 — 개수 + 시술명(중복 제거). 없으면 표시 안 함.
+  const linkedReviews = d.linked_reviews ?? [];
+  const reviewProcNames = [...new Set(linkedReviews.map((r) => r.procedure_ko).filter((n): n is string => !!n))];
 
   return (
     <AppShell active="내 노트">
@@ -59,7 +66,7 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
         {/* 헤더 — 날짜·시술·병원·의료진 + 빠른 액션 */}
         <div className={cardBox}>
           <p className="text-[12px] font-bold text-[var(--primary-active)]">
-            {y}.{m}.{day} · {weekday}요일
+            {dateUnknown ? "날짜 미상" : `${y}.${m}.${day} · ${weekday}요일`}
             <span className="ml-1 font-medium text-[var(--text-muted)]">· 나만 봐요</span>
           </p>
           <p className="mt-1 text-[20px] font-bold text-[var(--text)]">{procTitle}</p>
@@ -102,6 +109,18 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
                 {p.note && <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">{p.note}</p>}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* 이 방문에 연결된 내 후기 — "후기 N개" + 시술명(가벼운 안내, 본문·정량값은 미표시). */}
+        {linkedReviews.length > 0 && (
+          <div className={cardBox}>
+            <p className="text-[13px] font-semibold text-[var(--text)]">
+              이 방문에 쓴 후기 {linkedReviews.length}개
+            </p>
+            {reviewProcNames.length > 0 && (
+              <p className="mt-1 text-[12.5px] text-[var(--text-secondary)]">{reviewProcNames.join(" · ")}</p>
+            )}
           </div>
         )}
 

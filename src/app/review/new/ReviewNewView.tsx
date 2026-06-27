@@ -16,15 +16,18 @@
 import AppShell from "@/components/skin/AppShell";
 import { useSearchRouting } from "@/components/skin/ui";
 import ReviewForm, { type ProcedureOption } from "./ReviewForm";
+import type { ShortAnswerQuestion } from "@/components/review/ShortAnswerFields";
 
 export default function ReviewNewView({
   procedures,
   handle,
   initialProcedure,
+  shortAnswerQuestions,
 }: {
   procedures: ProcedureOption[];
   handle: string;
   initialProcedure?: string;
+  shortAnswerQuestions?: ShortAnswerQuestion[];
 }) {
   const search = useSearchRouting();
 
@@ -35,6 +38,7 @@ export default function ReviewNewView({
         procedures={procedures}
         handle={handle}
         initialProcedure={initialProcedure}
+        shortAnswerQuestions={shortAnswerQuestions}
       />
     </AppShell>
   );
