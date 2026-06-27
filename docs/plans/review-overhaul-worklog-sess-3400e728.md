@@ -116,6 +116,13 @@ visit (= diaries 확장)                         🔒 비공개
 - **남은 작업**: 3c(노트·리포트에 visit/checkin 표시·시점폼·추이그래프) / notification-kinds.ts diary_reminder 라벨 + KIND_TITLES(머지 후 가능) / standalone ReviewForm recommend(create_procedure_review p_recommend) / 로그인 e2e 브라우저 검증 / review-controls↔ReviewForm 중복 정리(경미).
 - 비간섭: tag-dictionary.generated.json(옆 세션) 미커밋 제외. 마이그 0300~0302는 옆 세션 0298·중복0299와 번호 무충돌.
 
+## e2e 검증 + QA 계정 + 마무리 (2026-06-27)
+- **QA 검수 공용 계정**: qa-claude@pibutenten.kr (handle qa-claude-bot, profile e4db62cb-…). auth.users 직접 SQL 생성(신형 sb_secret 부재로 admin API 대신; bcrypt+email_confirm) → 트리거 프로필 생성 → 온보딩 UPDATE. 자격증명 `pibutenten-app/.env.qa.local`(gitignored). **모든 세션·서브에이전트 공용**. 메모리 [[qa-test-account]].
+- **3개 병렬 완료·커밋(c075d01)**: 시점별 checkin 입력 폼(/reviews/[id]/checkins?t=, 추이그래프 제외 — 원장 지시) / diary_reminder 알림 라벨(notification-kinds.ts+KIND_TITLES, follow_post 보강 FIX-7) / standalone recommend(0303 create_procedure_review p_recommend).
+- **e2e 브라우저 검증(preview+QA 세션)**: 통합 글쓰기 폼 렌더(시술기록·시술후기 둘 다, 어림시기+"잘 기억 안 나요" 포함) / reviewOnly 어림시기 노출(FIX-1 확인) / 실제 POST /api/visits 200(비공개 visit158·review738·day0·트랙A) / checkin 폼 소유자 렌더·비소유 notFound(가드 정상). 테스트 데이터 정리(베이스라인 복귀).
+- 주의: preview_fill이 React controlled input 이벤트 미발생 → 로그인 폼 자동제출 미검증(쿠키 주입 우회). 인증·세션 메커니즘 자체는 정상(token grant 200). OAuth가 주 경로라 무영향.
+- **남은(선택)**: /notes·/reports에 visit/checkin 표시(linkedReviews) / DATABASE.md·CHANGELOG 마이그 0292~0303 동기화(공유문서, 옆 세션 종료로 이제 가능) / review-controls↔ReviewForm 중복정리(경미) / 단답 question_pool(추후).
+
 ## 다음 단계 (원장 통합안 확정 시)
 - 마스터 플랜 D3 철회 반영 + 시계열을 코어(Phase 1~3 내)로 끌어올림.
 - 스키마 확정: procedure_reviews 확장 컬럼(visit_id/diary_procedure_id/is_public/date_precision/solo_price) + review_checkin 신규.
