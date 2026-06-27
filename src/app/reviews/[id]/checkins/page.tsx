@@ -37,6 +37,7 @@ type ReviewRow = {
   id: number;
   author_id: string | null;
   procedure_ko: string | null;
+  visit_id: number | null;
 };
 
 type CheckinRow = {
@@ -90,7 +91,7 @@ export default async function CheckinPage({
   // 3. 후기 로드(procedure_reviews). 없으면 404.
   const { data: review } = await supabase
     .from("procedure_reviews")
-    .select("id, author_id, procedure_ko")
+    .select("id, author_id, procedure_ko, visit_id")
     .eq("id", reviewId)
     .maybeSingle()
     .returns<ReviewRow>();
@@ -158,6 +159,7 @@ export default async function CheckinPage({
       procedureKo={review.procedure_ko}
       prefill={prefill}
       shortAnswerQuestions={shortAnswerQuestions}
+      diaryId={review.visit_id}
     />
   );
 }

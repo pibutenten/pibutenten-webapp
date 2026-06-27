@@ -51,6 +51,8 @@ type Props = {
   prefill: CheckinPrefill;
   /** 단답 질문 풀(이 시점 + 공통 'any', 활성). 비면 단답 2칸 숨김. */
   shortAnswerQuestions?: ShortAnswerQuestion[];
+  /** 연결된 시술노트(diary) ID — 있으면 완료 후 /notes/{diaryId}로 이동. standalone 후기면 null. */
+  diaryId?: number | null;
 };
 
 export default function CheckinForm({
@@ -59,6 +61,7 @@ export default function CheckinForm({
   procedureKo,
   prefill,
   shortAnswerQuestions,
+  diaryId,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -174,12 +177,12 @@ export default function CheckinForm({
             <button
               type="button"
               onClick={() => {
-                router.push("/notes");
+                router.push(diaryId ? `/notes/${diaryId}` : "/notes");
                 router.refresh();
               }}
               className="h-10 cursor-pointer rounded-md bg-[var(--primary)] px-6 text-sm font-semibold text-white transition-colors hover:bg-[var(--primary-dark)]"
             >
-              내 노트로 가기
+              {diaryId ? "이 노트로 돌아가기" : "내 노트로 가기"}
             </button>
           </div>
         </div>

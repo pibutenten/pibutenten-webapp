@@ -21,12 +21,14 @@ export default function CheckinView({
   procedureKo,
   prefill,
   shortAnswerQuestions,
+  diaryId,
 }: {
   reviewId: number;
   timepoint: CheckinTimepoint;
   procedureKo: string | null;
   prefill: CheckinPrefill;
   shortAnswerQuestions?: ShortAnswerQuestion[];
+  diaryId?: number | null;
 }) {
   const search = useSearchRouting();
 
@@ -38,6 +40,7 @@ export default function CheckinView({
         procedureKo={procedureKo}
         prefill={prefill}
         shortAnswerQuestions={shortAnswerQuestions}
+        diaryId={diaryId}
       />
     </AppShell>
   );

@@ -258,7 +258,7 @@ export default function NotificationsClient({
   return (
     <div>
       {/* 상단 2탭 — 내 기록 / 활동 (Figma 구조) */}
-      <div className="mb-4 flex border-b border-[var(--border)]">
+      <div className="mb-4 flex border-b border-[var(--border)]" role="tablist">
         {([
           { id: "records" as const, label: "내 기록" },
           { id: "activity" as const, label: "활동" },
@@ -266,6 +266,8 @@ export default function NotificationsClient({
           <button
             key={t.id}
             type="button"
+            role="tab"
+            aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={
               "relative flex flex-1 items-center justify-center gap-1.5 py-3 text-[13px] transition-colors " +
@@ -289,8 +291,11 @@ export default function NotificationsClient({
       </div>
 
       {tab === "records" ? (
+        <div role="tabpanel">
         <RecordNotis />
+        </div>
       ) : (
+        <div role="tabpanel">
         <>
       {/* 필터 칩 — kind */}
       <div className="mb-2 flex flex-wrap gap-1.5">
@@ -429,6 +434,7 @@ export default function NotificationsClient({
         </div>
       )}
         </>
+        </div>
       )}
     </div>
   );
@@ -498,6 +504,7 @@ function FilterChip({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={
         "rounded-full border px-3 py-1 text-xs transition-colors " +
@@ -523,6 +530,7 @@ function PeriodChip({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={
         "rounded-full border px-2.5 py-0.5 text-[11px] transition-colors " +

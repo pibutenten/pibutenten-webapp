@@ -98,10 +98,10 @@ function regionLabel(addr: string): string {
   return t[1] ? `${sido} ${t[1]}` : sido;
 }
 
-// open = 메모 입력 펼침(기존). reviewOpen = 시술별 후기 아코디언 펼침(신규, Phase 3b). later = 예약(미사용).
+// open = 메모 입력 펼침(기존). reviewOpen = 시술별 후기 아코디언 펼침(신규, Phase 3b).
 //   inDict = 시술명이 tag_dictionary(is_procedure) 사전에 있는지. false(자유입력 신규태그)면
 //   후기(procedure_reviews)는 RPC 가 unknown_procedure 로 거부하므로 후기 아코디언을 막는다(기록만 허용).
-type DiaryProc = ReviewState & { id: number; label: string; cat: string; note: string; open: boolean; later: boolean; reviewOpen: boolean; inDict: boolean };
+type DiaryProc = ReviewState & { id: number; label: string; cat: string; note: string; open: boolean; reviewOpen: boolean; inDict: boolean };
 
 /** 자동완성 사전 항목 — getReviewProcedures(ProcedureOption) 와 구조 호환(value/label/categoryLabel). */
 type ProcDictItem = { value: string; label: string; categoryLabel?: string | null };
@@ -142,7 +142,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   const [clinicHome, setClinicHome] = useState(""); // 병원 홈페이지(비공개)
   const [clinicKakao, setClinicKakao] = useState(""); // 카카오톡 채널(비공개, 직접 입력)
   const [totalPrice, setTotalPrice] = useState(""); // 총 결제금액(비공개, 일기 표시용 — 집계 제외)
-  const [isComplete] = useState(true); // 항상 완성 저장(미완성·"나중에 마저" 토글 제거 — 사용자 요청).
+  const isComplete = true; // 항상 완성 저장(미완성·"나중에 마저" 토글 제거 — 사용자 요청).
   const [saving, setSaving] = useState(false);
   const [savedModal, setSavedModal] = useState(false); // 저장 완료 모달(→ 시술후기 유도).
   const [savedHasPublicReview, setSavedHasPublicReview] = useState(false); // 저장 시 공개 후기 포함 여부(모달 카피 분기).
@@ -171,6 +171,9 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   const dateLabel = `${+_y}년 ${+_m}월 ${+_dd}일`;
   const [calYear, setCalYear] = useState(+_y);
   const [calMonth, setCalMonth] = useState(+_m);
+  const now = new Date();
+  const nowY = now.getFullYear(), nowM = now.getMonth() + 1, nowD = now.getDate();
+  const isCurrentMonth = calYear === nowY && calMonth === nowM;
   const calDays = useMemo(() => {
     const first = new Date(calYear, calMonth - 1, 1).getDay();
     const total = new Date(calYear, calMonth, 0).getDate();
@@ -180,7 +183,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
     return arr;
   }, [calYear, calMonth]);
   const prevCalMonth = () => { if (calMonth === 1) { setCalMonth(12); setCalYear((y) => y - 1); } else setCalMonth((m) => m - 1); };
-  const nextCalMonth = () => { if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1); } else setCalMonth((m) => m + 1); };
+  const nextCalMonth = () => { const nextM = calMonth === 12 ? 1 : calMonth + 1; const nextY = calMonth === 12 ? calYear + 1 : calYear; if (nextY * 12 + nextM > nowY * 12 + nowM) return; if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1); } else setCalMonth((m) => m + 1); };
   const selectCalDate = (day: number) => { setDate(`${calYear}-${String(calMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`); setCalOpen(false); };
 
   // 시술노트 저장값 — 달력에서 고른 날짜(date) 그대로 전송. precision 은 항상 'exact'.
@@ -326,7 +329,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
     // "시술 후기만"(reviewOnly) 진입이면 사전 시술은 후기 아코디언을 자동 펼침(후기 작성이 주목적).
     const autoReviewOpen = reviewOnly && inDict;
     // 함수형 업데이트 + 동기 id — 연속 고속 추가에도 id 충돌·항목 유실 없음. 중복·상한은 최신 상태 기준 재확인.
-    setProcs((prev) => (prev.some((p) => p.label === label) || prev.length >= 10 ? prev : [...prev, { ...emptyReview(), id: nid, label, cat, note: "", open: false, later: false, reviewOpen: autoReviewOpen, inDict }]));
+    setProcs((prev) => (prev.some((p) => p.label === label) || prev.length >= 10 ? prev : [...prev, { ...emptyReview(), id: nid, label, cat, note: "", open: false, reviewOpen: autoReviewOpen, inDict }]));
     setTag("");
     setAcHi(-1);
     requestAnimationFrame(() => tagRef.current?.focus()); // 입력창 비우고 포커스 유지 → 이어서 다음 시술.
@@ -351,7 +354,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
     const matched = procList.find((p) => p.label === initialProcedure);
     if (!matched) return; // 사전에 없으면 프리필 생략(자유입력 후기 불가 — C-1 가드).
     const nid = (pidRef.current += 1);
-    setProcs((prev) => (prev.some((p) => p.label === matched.label) ? prev : [...prev, { ...emptyReview(), id: nid, label: matched.label, cat: matched.cat, note: "", open: false, later: false, reviewOpen: reviewOnly, inDict: true }]));
+    setProcs((prev) => (prev.some((p) => p.label === matched.label) ? prev : [...prev, { ...emptyReview(), id: nid, label: matched.label, cat: matched.cat, note: "", open: false, reviewOpen: reviewOnly, inDict: true }]));
   }, [procList, initialProcedure, reviewOnly]);
 
   const tq = tag.trim(); const tlow = tq.toLowerCase();
@@ -392,7 +395,6 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   //   완성(is_complete) 저장에서만 공개가 실제 전송되므로, 미완성이면 게이트 면제.
   const emptyPublicReview = useMemo(
     () =>
-      isComplete &&
       openedReviews.some(
         (p) =>
           p.isPublic &&
@@ -406,14 +408,14 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
           p.effectAreas.length === 0 &&
           !p.oneliner.trim(),
       ),
-    [isComplete, openedReviews],
+    [openedReviews],
   );
 
   // 저장 — /api/visits POST (create_visit_with_entries RPC). visit + 시술목록 + 후기 + day0 원자 생성.
-  //   완성(is_complete=true) 시 시술 1개 이상 필수. 미완성(나중에 마저) 면 0개 허용(RPC 가 면제).
+  //   시술 1개 이상 필수.
   async function handleSave() {
     if (saving) return;
-    if (isComplete && procs.length === 0) { toast("받은 시술을 1개 이상 추가해주세요"); return; }
+    if (procs.length === 0) { toast("받은 시술을 1개 이상 추가해주세요"); return; }
     // ★관대화: 어림시기(계절/반기) 미선택은 더 이상 차단하지 않음 — 연 단위로 강등 저장.
     // ★FIX-4: 공개 후기인데 평가·한줄후기가 전부 비면 빈 공개 카드 생성 차단.
     if (emptyPublicReview) { toast("공개 후기는 만족도 등 평가를 하나 이상 남기거나 한줄후기를 적어주세요"); return; }
@@ -426,7 +428,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
         .map(({ pr, i }) => {
           // 미완성(임시저장, is_complete=false)이면 공개 카드를 만들지 않음(비공개 시계열로만 저장).
           //   "나중에 마저 쓸게요" 인데 공개글이 즉시 나가는 혼동 방지. 완성 저장 때 다시 공개 가능.
-          const isPub = isComplete && pr.isPublic;
+          const isPub = pr.isPublic;
           // day0 체크인 — diary_linked 시계열의 시작점(부분 입력 허용, 0/빈값은 null).
           const checkin_day0 = {
             satisfaction: pr.satisfaction > 0 ? pr.satisfaction : null,
@@ -527,15 +529,15 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
               <div className="mb-3 flex items-center justify-between">
                 <button type="button" onClick={prevCalMonth} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg)]" aria-label="이전 달">&lsaquo;</button>
                 <span className="text-[14px] font-semibold text-[var(--text)]">{calYear}년 {calMonth}월</span>
-                <button type="button" onClick={nextCalMonth} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg)]" aria-label="다음 달">&rsaquo;</button>
+                <button type="button" onClick={nextCalMonth} className={`flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)] ${isCurrentMonth ? "opacity-30 cursor-default" : "hover:bg-[var(--bg)]"}`} aria-label="다음 달">&rsaquo;</button>
               </div>
               <div className="mb-1 grid grid-cols-7 text-center text-[12px] text-[var(--text-muted)]">
                 {["일","월","화","수","목","금","토"].map((d) => <span key={d}>{d}</span>)}
               </div>
               <div className="grid grid-cols-7 text-center">
-                {calDays.map((d, i) => d ? (
-                  <button key={i} type="button" onClick={() => selectCalDate(d)} className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-[13px] ${+_y === calYear && +_m === calMonth && +_dd === d ? "bg-[var(--primary)] font-bold text-white" : "text-[var(--text)] hover:bg-[var(--primary-soft)]"}`}>{d}</button>
-                ) : <span key={i} />)}
+                {calDays.map((d, i) => { if (!d) return <span key={i} />; const isFuture = isCurrentMonth && d > nowD; const isSelected = +_y === calYear && +_m === calMonth && +_dd === d; return (
+                  <button key={i} type="button" onClick={() => { if (!isFuture) selectCalDate(d); }} className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-[13px] ${isFuture ? "opacity-30 pointer-events-none" : isSelected ? "bg-[var(--primary)] font-bold text-white" : "text-[var(--text)] hover:bg-[var(--primary-soft)]"}`}>{d}</button>
+                ); })}
               </div>
             </div>
           )}
@@ -624,9 +626,9 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
         <div>
           <label className={labelCls}>누구에게 받으셨어요?</label>
           <div className="grid grid-cols-2 gap-2">
-            <input ref={doctorRef} className={inputCls} placeholder="원장님" value={doctorName} maxLength={100} onChange={(e) => setDoctorName(e.target.value)}
+            <input ref={doctorRef} className={inputCls} spellCheck={false} placeholder="원장님" value={doctorName} maxLength={100} onChange={(e) => setDoctorName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); managerRef.current?.focus(); } }} />
-            <input ref={managerRef} className={inputCls} placeholder="실장님" value={managerName} maxLength={100} onChange={(e) => setManagerName(e.target.value)}
+            <input ref={managerRef} className={inputCls} spellCheck={false} placeholder="실장님" value={managerName} maxLength={100} onChange={(e) => setManagerName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); tagRef.current?.focus(); } }} />
           </div>
         </div>
@@ -685,6 +687,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
             <input
               ref={tagRef}
               className={`${inputCls} pr-9`}
+              spellCheck={false}
               placeholder="시술명을 입력하세요 (예: 울쎄라)"
               value={tag}
               autoComplete="off"
@@ -787,7 +790,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={() => { setSavedModal(false); go("record"); }}>
           <div className="w-full max-w-[340px] rounded-[var(--radius)] bg-white p-6 text-center" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[28px]" style={{ background: "var(--primary-soft)" }}>✅</div>
-            <p className="text-[17px] font-extrabold text-[var(--text)]">{isComplete ? "기록을 완료했어요" : "임시 저장했어요"}</p>
+            <p className="text-[17px] font-extrabold text-[var(--text)]">기록을 완료했어요</p>
             <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
               {savedHasPublicReview
                 ? <>공개로 남긴 후기는 다른 분들께도 도움이 돼요.<br /><span className="text-[var(--text-muted)]">내 노트에서 언제든 다시 볼 수 있어요.</span></>

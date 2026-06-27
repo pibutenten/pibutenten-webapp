@@ -29,6 +29,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
   type CSSProperties,
@@ -151,6 +152,15 @@ export default function ReviewForm({
   const isEdit = mode === "edit";
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  /* ── W-8: 유효성 검증 실패 시 첫 미입력 항목으로 스크롤 ── */
+  const procedureRef = useRef<HTMLDivElement>(null);
+  const satisfactionRef = useRef<HTMLDivElement>(null);
+  const painRef = useRef<HTMLDivElement>(null);
+  const downtimeRef = useRef<HTMLDivElement>(null);
+  const revisitRef = useRef<HTMLDivElement>(null);
+  const effectAreasRef = useRef<HTMLDivElement>(null);
+  const effectOnsetRef = useRef<HTMLDivElement>(null);
 
   /* ── 단답(short answers, create 전용) ──
      단답 컴포넌트가 보고하는 현재 칸 상태. 제출 시 trim 후 빈 답 제거하고 전송. */
@@ -340,6 +350,23 @@ export default function ReviewForm({
     setError(null);
     const errors = validate();
     if (errors.length > 0) {
+      // W-8: 첫 번째 미입력 항목으로 스크롤 (검증 순서: 시술→만족도→통증→다운타임→재시술→효과→효과시기).
+      const firstRef = !procedureKo
+        ? procedureRef
+        : satisfaction < 1
+          ? satisfactionRef
+          : pain < 1
+            ? painRef
+            : !downtime
+              ? downtimeRef
+              : !revisit
+                ? revisitRef
+                : effectAreas.length < 1
+                  ? effectAreasRef
+                  : !effectOnset
+                    ? effectOnsetRef
+                    : null;
+      firstRef?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       setValidationErrors(errors);
       return;
     }
@@ -524,7 +551,7 @@ export default function ReviewForm({
         {/* ── 1. 시술 선택 (필수, 잠금형) ──
             선택하면 피커가 grid-rows 1fr→0fr 로 부드럽게 접히고, 선택한 시술명만
             제목으로 남으며 아래 입력창들이 자연스럽게 올라옴. */}
-        <div>
+        <div ref={procedureRef}>
           {selectedProcedure && (
             // 제목 가운데 + '다시 선택'은 우측에(한 줄로 공간 절약).
             <div className="relative flex items-center justify-center">
@@ -575,6 +602,7 @@ export default function ReviewForm({
           }`}
         >
         {/* ── 2. 만족도 ── */}
+        <div ref={satisfactionRef}>
         <StarField
           label="만족도"
           required
@@ -582,8 +610,10 @@ export default function ReviewForm({
           onChange={setSatisfaction}
           disabled={pending}
         />
+        </div>
 
         {/* ── 3. 통증 (필수) ── */}
+        <div ref={painRef}>
         <FaceField
           label="통증"
           required
@@ -592,8 +622,10 @@ export default function ReviewForm({
           faces={PAIN_FACES}
           disabled={pending}
         />
+        </div>
 
         {/* ── 4. 다운타임 (필수) ── */}
+        <div ref={downtimeRef}>
         <ChoiceField
           label="다운타임이 얼마나 됐나요?"
           hint="붓기·멍·딱지 등이 가라앉고 일상이 편해질 때까지"
@@ -603,8 +635,10 @@ export default function ReviewForm({
           options={DOWNTIME_OPTIONS}
           disabled={pending}
         />
+        </div>
 
         {/* ── 5. 재시술 의향 (필수) ── */}
+        <div ref={revisitRef}>
         <ChoiceField
           label="재시술 의향"
           required
@@ -613,6 +647,7 @@ export default function ReviewForm({
           options={REVISIT_OPTIONS}
           disabled={pending}
         />
+        </div>
 
         {/* ── 5-1. 추천의향 (선택) ── 다른 분께 권할지(1~5). revisit(내가 또 받을지)와 의미 다름.
             standalone 후기에 신규 추가(D-D 잔여). 선택 항목이라 미선택 시 저장 NULL. */}
@@ -626,7 +661,7 @@ export default function ReviewForm({
         />
 
         {/* ── 6. 체감 효과 (필수, 멀티 칩, '없음' 포함) ── */}
-        <div>
+        <div ref={effectAreasRef}>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
             이번 시술로 달라진 점을 모두 골라주세요!
             <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">
@@ -649,6 +684,7 @@ export default function ReviewForm({
         </div>
 
         {/* ── 7. 효과시기 (필수) ── */}
+        <div ref={effectOnsetRef}>
         <ChoiceField
           label="효과는 언제부터 느끼셨어요?"
           required
@@ -657,6 +693,7 @@ export default function ReviewForm({
           options={EFFECT_ONSET_OPTIONS}
           disabled={pending}
         />
+        </div>
         </div>
         {/* ↑ 시술 미선택 시 흐림 영역(평점·효과 등)은 여기서 닫는다. 아래 단답은 흐림 밖 — 시술을
             고르지 않아도 질문 다시 고르기·작성이 가능하도록(사용자 요청). 제출은 canSubmit 가 계속 가드. */}

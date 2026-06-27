@@ -6,6 +6,28 @@
 
 ---
 
+## [2026-06-27] — 감사 기반 핀셋 수정 10건 (recommend 버그·달력 미래차단·접근성·데드코드)
+
+4-에이전트 독립 감사 후 발견된 기능 버그 1건·UX 개선 5건·데드코드 정리 4건을 5개 서브에이전트 병렬 수정 + 독립 검수관 교차 검증.
+
+### Fixed
+- **E-1: 시술후기 수정 시 추천의향(recommend) 미저장 버그** — `update_procedure_review` RPC 에 `p_recommend smallint DEFAULT NULL` 12번째 인자 추가(마이그 0310). API 라우트(`reviews/[shortcode]/route.ts`)에서 `p_recommend: payload.recommend ?? null` 전달 배선.
+
+### Changed
+- **W-1: 시술노트 달력 미래 날짜 차단** — `nextCalMonth` 상한 가드(현재 월 초과 이동 불가) + 미래 일자 `opacity-30 pointer-events-none` 비활성 + 다음달 화살표 시각적 비활성.
+- **W-3: 의사/실장/시술명 입력에 `spellCheck={false}`** — 한국어 고유명사(원장님 이름)·시술 사전 용어(울쎄라, 리쥬란 등)에 브라우저 맞춤법 물결줄 제거.
+- **W-4: 알림 필터/기간 칩 `aria-pressed`** — FilterChip·PeriodChip 에 스크린리더용 활성 상태 전달.
+- **W-5: 알림 상단 2탭 ARIA tab 패턴** — 내 기록/활동 탭에 `role="tablist"/"tab"/"tabpanel"` + `aria-selected` 적용.
+- **W-8: 시술후기 유효성 scrollIntoView** — 제출 시 첫 미입력 항목으로 부드럽게 스크롤(7개 ref: 시술/만족도/통증/다운타임/재시술/효과/효과시기).
+- **W-9: 체크인 완료 후 해당 노트로 이동** — `CheckinForm` 완료 시 `/notes` 대신 `/notes/${diaryId}`(visit_id 기반) 이동. standalone 후기(visit_id=NULL)면 `/notes` 폴백.
+
+### Removed
+- **D-1: `later` 데드 필드** — DiaryProc 타입·초기화에서 미사용 `later: boolean` 제거.
+- **D-2: `.tmp.*` 편집기 임시 파일 39개** 삭제.
+- **D-4: `isComplete` 데드 분기** — `useState(true)` → `const isComplete = true` 상수화, dead branch 정리.
+
+---
+
 ## [2026-06-27] — 시술후기·시술노트 폼 개편 (단독 후기폼 + 단답 2칸 + 어림시기 + 시술노트 정리)
 
 후기·시술일기 통합(4층 구조, 마이그 0292~0303)에 이어 **작성 UX 를 사용자 피드백대로 완성**. 정본 계획: `docs/plans/review-diary-unification-master-plan.md`, 세션 로그: `docs/plans/review-overhaul-worklog-sess-3400e728.md`.
