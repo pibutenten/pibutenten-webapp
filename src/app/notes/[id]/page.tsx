@@ -30,11 +30,11 @@ export default async function DiaryDetailPage({ params }: Props) {
 
   // diary_procedures(자식) + 이 방문(visit_id)에 연결된 내 후기(procedure_reviews) 동시 조회.
   //   후기는 procedure_reviews.visit_id=diaries.id 로 연결(마이그 0292). RLS read_own 으로 본인 후기만.
-  //   "후기 N개"·시술명 표시용으로만 가볍게 가져온다(정량값·본문 미조회).
+  //   각 후기의 review_checkin(timepoint)도 함께 가져온다 → 시술 경과(당일/1주/1달/4달) 입력 현황 표시·진입.
   const { data: d } = await supabase
     .from("diaries")
     .select(
-      "id, visited_on, clinic_name, clinic_addr, clinic_tel, doctor_name, manager_name, diary_body, diary_procedures(procedure_ko, unit_text, price, note, sort_order), linked_reviews:procedure_reviews!procedure_reviews_visit_id_fkey(id, procedure_ko)",
+      "id, visited_on, clinic_name, clinic_addr, clinic_tel, doctor_name, manager_name, diary_body, diary_procedures(procedure_ko, unit_text, price, note, sort_order), linked_reviews:procedure_reviews!procedure_reviews_visit_id_fkey(id, procedure_ko, review_checkin(timepoint))",
     )
     .eq("id", numId)
     .maybeSingle()

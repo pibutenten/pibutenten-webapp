@@ -14,6 +14,7 @@
 - **단답 질문 풀 + 시점별 체크인 단답**(마이그 0304/0305): `question_pool` 시드 + `'any'`(시점 무관) 허용. 단독 후기 RPC(`create_procedure_review` p_short_answers) · 시점별 체크인 RPC(`upsert_review_checkin` p_short_answers) 둘 다 같은 트랜잭션에서 `short_answer_response` 저장(active 질문만, 재제출 멱등).
 - **시술후기 단독 폼의 단답 2칸 + 다시 고르기**: `ShortAnswerFields` — 질문 라벨(다시 고르기 ↻ 아이콘·랜덤·두 칸 중복 방지·페이드) + textarea(n/400). 첫 칸=대표 "생생한 후기", 둘째 칸=랜덤 일반 질문. 다시 고르기 시 **질문과 placeholder(격려 문구) 동시 랜덤 교체**. 시술 미선택 상태에서도 질문 변경·작성 가능(제출만 시술 필수).
 - **어림시기("언제쯤 받으셨어요?")**(마이그 0308): 단독 후기에 `procedure_reviews.visited_on` + `date_precision` 저장. 폼은 회고형이라 **일반 언어 2단**(올해/작년/재작년/몇 년 전/잘 기억 안 나요 + 연초/봄/여름/가을/연말). 조합 결과("작년 가을쯤")는 라벨 옆 인라인 표시. unknown/미선택은 날짜 미전송(NULL, 재방문 알림 미예약).
+- **시술 노트 → 시술 경과(타임포인트) 인앱 진입**: `/notes/[id]` 상세에 방문별 후기(시술)마다 **당일/1주/1달/4달** 경과 칩 추가(입력됨 ✓ / 미입력 ＋). 1주·1달·4달은 체크인 폼(`/reviews/{review_id}/checkins?t=`)으로 진입·수정, 당일은 작성 시 입력이라 상태만. 그동안 예약 알림 딥링크로만 닿던 시점별 경과 입력을 일기에서 바로 연결(쿼리에 `review_checkin(timepoint)` 임베드 추가로 입력 현황 표시). "일기 → 타임포인트별 시술경과 폼" 동선 완성.
 
 ### Changed
 - **시술후기 탭 = 후기 전용 폼(ReviewForm)**: `/write?tab=review` 가 시술선택+평가+단답+어림시기 폼을 렌더(가격·병원 등 visit 메타 안 물음). `/review/new` 와 동일 폼·질문풀 재사용. (이전에 DiaryForm reviewOnly 로 잘못 합쳐져 후기에서 가격을 묻던 것을 교정.)

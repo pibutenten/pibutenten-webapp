@@ -29,12 +29,23 @@ export type DiaryDetail = {
     note: string | null;
     sort_order: number;
   }[];
-  // 이 방문(visit_id)에 연결된 내 후기 — "후기 N개 · 시술명" 표시용(마이그 0292). 없으면 빈 배열.
-  linked_reviews?: { id: number; procedure_ko: string | null }[] | null;
+  // 이 방문(visit_id)에 연결된 내 후기 + 각 후기의 시술 경과(review_checkin) 입력 시점(마이그 0292). 없으면 빈 배열.
+  linked_reviews?:
+    | { id: number; procedure_ko: string | null; review_checkin?: { timepoint: string }[] | null }[]
+    | null;
 };
 
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 const cardBox = "rounded-[var(--radius)] bg-white p-5";
+
+/* 시술 경과 타임포인트 — 당일(작성 시 입력, 상태만) / 1주·1달·4달(체크인 폼 진입).
+   value 는 review_checkin.timepoint CHECK 와 일치. 딥링크 폼은 week1/month1/month4 만 받음(checkin-shared). */
+const PROGRESS_TIMEPOINTS: { value: string; label: string; link: boolean }[] = [
+  { value: "day0", label: "당일", link: false },
+  { value: "week1", label: "1주", link: true },
+  { value: "month1", label: "1달", link: true },
+  { value: "month4", label: "4달", link: true },
+];
 
 export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
   // visited_on 이 NULL("날짜 잘 기억 안 나요", 마이그 0302)이면 split/Date 파싱을 건너뛰고 "날짜 미상" 표시.
@@ -47,9 +58,8 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
     .filter(Boolean)
     .join(" · ");
   const mapName = d.clinic_name ? encodeURIComponent(d.clinic_name) : "";
-  // 이 방문에 연결된 내 후기 — 개수 + 시술명(중복 제거). 없으면 표시 안 함.
+  // 이 방문에 연결된 내 후기 — 각 후기(시술)별 시술 경과(타임포인트) 입력 현황 표시·진입. 없으면 표시 안 함.
   const linkedReviews = d.linked_reviews ?? [];
-  const reviewProcNames = [...new Set(linkedReviews.map((r) => r.procedure_ko).filter((n): n is string => !!n))];
 
   return (
     <AppShell active="내 노트">
@@ -112,15 +122,48 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
           </div>
         )}
 
-        {/* 이 방문에 연결된 내 후기 — "후기 N개" + 시술명(가벼운 안내, 본문·정량값은 미표시). */}
+        {/* 시술 경과(타임포인트) — 각 후기(시술)별 당일/1주/1달/4달 입력 현황 + 진입.
+            당일(day0)은 작성 시 입력(상태만), 1주/1달/4달은 체크인 폼(/reviews/{id}/checkins)으로 진입(입력 시 수정). */}
         {linkedReviews.length > 0 && (
-          <div className={cardBox}>
-            <p className="text-[13px] font-semibold text-[var(--text)]">
-              이 방문에 쓴 후기 {linkedReviews.length}개
+          <div className={cardBox + " space-y-3"}>
+            <p className="text-[13px] font-semibold text-[var(--text)]">시술 경과 기록</p>
+            {linkedReviews.map((r) => {
+              const done = new Set((r.review_checkin ?? []).map((c) => c.timepoint));
+              return (
+                <div key={r.id}>
+                  <p className="text-[13.5px] font-bold text-[var(--primary-active)]">{r.procedure_ko ?? "시술"}</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {PROGRESS_TIMEPOINTS.map((tp) => {
+                      const isDone = done.has(tp.value);
+                      const cls =
+                        "rounded-full px-3 py-1 text-[12.5px] transition-colors " +
+                        (isDone
+                          ? "bg-[var(--primary-soft)] font-semibold text-[var(--primary-active)]"
+                          : tp.link
+                            ? "bg-white text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--border)] hover:bg-[var(--primary-soft)]"
+                            : "bg-[var(--bg)] text-[var(--text-muted)]");
+                      // 당일 — 작성 시 입력. 링크 없이 상태만(입력됨 ✓ / 미입력).
+                      if (!tp.link) {
+                        return (
+                          <span key={tp.value} className={cls}>
+                            {tp.label}{isDone ? " ✓" : ""}
+                          </span>
+                        );
+                      }
+                      // 1주/1달/4달 — 체크인 폼으로 진입(입력됨이면 ✓·수정, 아니면 ＋·기록).
+                      return (
+                        <Link key={tp.value} href={`/reviews/${r.id}/checkins?t=${tp.value}`} className={cls}>
+                          {tp.label}{isDone ? " ✓" : " ＋"}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            <p className="text-[11.5px] leading-relaxed text-[var(--text-muted)]">
+              1주·1달·4달 경과를 기록하면 변화가 시계열로 쌓여요.
             </p>
-            {reviewProcNames.length > 0 && (
-              <p className="mt-1 text-[12.5px] text-[var(--text-secondary)]">{reviewProcNames.join(" · ")}</p>
-            )}
           </div>
         )}
 
