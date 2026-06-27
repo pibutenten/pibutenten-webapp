@@ -89,6 +89,13 @@ visit (= diaries 확장)                         🔒 비공개
   - Phase 5: scheduled_notification + /api/cron/diary-reminders(0294) + 2트랙 알림.
 - 안전수칙: 옆 세션 FOLLOW 커밋완료(HEAD 3794412). 마이그 0292부터(ls로 재확인). DATABASE.md/CHANGELOG 등 공유문서 즉시편집 보류(머지 시 배치). npm build는 .next 점유 확인 후. 커밋은 검수 통과분만, 미완 UI는 push 안 함.
 
+## Phase 1·2 완료 (2026-06-27 야간)
+- **Phase 1 (0292~0295)**: production 적용 + 독립 2인 감사 PASS(치명0, 무회귀·무누출) + 커밋·푸시(871748d). 0294=create_procedure_review is_public 패치(read_public 게이트 도입 후 신규 공개후기 비노출 라이브 회귀 교정 + 앵커 mojibake 복원). 0295=신규4테이블 GRANT SELECT.
+- **Phase 2 백엔드 (0296 scheduled_notification · 0297 RPC5종 · 0299 solo_price anon 봉쇄)**: production 적용 + BEGIN/ROLLBACK 검증(미persist) + **F3 정합(공개 diary_linked 후기 허용: 카드+앵커+day0 checkin+트랙A)** + 독립 2인 감사 PASS(치명0). F2(가격 비공개) solo_price anon REVOKE+화이트리스트(0123패턴). 전부 dormant.
+- **마이그 번호 충돌 처리**: 옆 세션이 `0298_encoding_repair_and_url_unify` 선점 → 내 solo_price 봉쇄를 0298→**0299** 재번호. `SESSION_HANDOFF.md`는 옆 세션 수정중 → 미터치.
+- **★코디네이션 경보**: 옆 세션 0298이 "11함수 정본 복원(인코딩)". 그 11함수에 `create_procedure_review` 포함 시 내 0294 is_public 패치를 옛버전으로 덮어쓸 위험. **현재 라이브엔 내 패치 생존 확인(is_public/source/date_precision present).** 머지 시 `create_procedure_review`가 이 3컬럼 보유하는지 재확인 필수 — 빠지면 신규 공개후기 비노출 회귀 재발.
+- **남은 작업(Phase 3 프런트, 라이브·빌드검증 필요)**: 통합 글쓰기 UI(동적 아코디언·어림시기·시계열 폼) + API 라우트(/api/visits·/api/visits/[id]/checkins[revalidatePath 필수]·DELETE·PATCH·unpublish) + /notes·리포트 visit/checkin 연동 + ReviewForm recommend 필드 + create/update_procedure_review에 recommend 인자(D-D 잔여). cron 발사(run_diary_reminders + /api/cron/diary-reminders + notification kind=`diary_reminder`)는 notification-kinds.ts 공유라 FOLLOW 머지 후(P4/P5).
+
 ## 다음 단계 (원장 통합안 확정 시)
 - 마스터 플랜 D3 철회 반영 + 시계열을 코어(Phase 1~3 내)로 끌어올림.
 - 스키마 확정: procedure_reviews 확장 컬럼(visit_id/diary_procedure_id/is_public/date_precision/solo_price) + review_checkin 신규.
