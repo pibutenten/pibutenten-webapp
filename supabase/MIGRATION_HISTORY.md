@@ -5,7 +5,7 @@
 > ⚠️ **중요**: 동일 번호로 두 파일이 존재하는 케이스가 있습니다. 알파벳순 → 타임스탬프순으로 적용된 실제 순서를 본 문서로 명문화합니다.
 > 이미 production에 적용된 파일들이므로 **파일명을 임의로 변경하지 마십시오** (drift 발생).
 
-## 동일 번호 충돌 7쌍 — 적용 순서
+## 동일 번호 충돌 8쌍 — 적용 순서
 
 | 번호 | 파일 (적용 순서) | 비고 |
 |---|---|---|
@@ -16,6 +16,7 @@
 | 0048 | `0048_qa_impressions.sql` → `0048_rpc_v2_profile_id.sql` | impressions 테이블 + RPC profile_id 전환 |
 | 0049 | `0049_fix_bae_jungmin_role.sql` → `0049_videos_rls_phase9.sql` | 1회성 role fix + videos RLS Phase 9 |
 | 0111 | `0111_contact_email_dedup.sql` (단일) | .tmp 파일은 2026-05-17 cleanup으로 정리 완료 |
+| 0292 | `0292_follow_post_pref.sql` + `0292_review_diary_schema.sql` | **병행 세션 동시작업 충돌(2026-06-27)**. 팔로우 새글 알림 pref(notification_preferences) vs 후기·일기 통합 스키마 — 건드리는 객체가 완전히 독립이라 적용 순서 무관. 규약대로 파일명 미변경. |
 
 ## 시리얼 흐름 요점
 
