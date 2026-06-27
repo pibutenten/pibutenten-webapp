@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
@@ -97,6 +97,8 @@ export async function POST(
   // 5. 캐시 무효화 — 피드 + 프로필 + 단일 글 + 리포트(+ 패밀리 부모).
   try {
     revalidatePath("/");
+    revalidateTag("home-feed", "max");
+    revalidateTag("home-report", "max");
     if (idCtx.active.handle) {
       revalidatePath(`/${idCtx.active.handle}`);
       revalidatePath(`/${idCtx.active.handle}/${shortcode}`);

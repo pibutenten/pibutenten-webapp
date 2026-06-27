@@ -318,7 +318,8 @@ export async function getReviewSummaryFeedPool(
 ): Promise<ProcedureReport[]> {
   const { data } = await supabase.rpc("get_review_summary_pool");
   const rows = (data ?? []) as PoolRow[];
-  // 시술이 피드에서 골고루 섞이도록 서버에서 1회 셔플(요청마다 순서 변동).
+  // 시술이 피드에서 골고루 섞이도록 서버에서 1회 셔플. (검색 경로는 요청마다 변동. 홈은
+  //   getReportPoolCached 로 감싸 90s 캐시 윈도 동안 동일 순서로 고정 — 신선도 절충 승인됨.)
   //   서버에서 한 번만 섞고 그 결과를 prop 으로 내려보냄 → SSR/클라이언트 하이드레이션 일관
   //   (Math.random 을 렌더 중 호출하지 않음). Feed 는 윈도 순번대로 이 배열을 순회.
   for (let i = rows.length - 1; i > 0; i--) {

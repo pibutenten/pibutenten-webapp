@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
@@ -126,6 +126,8 @@ export async function PATCH(
   // 캐시 무효화 — visit 은 비공개라 SEO 무관이나 /notes 등 본인 화면 ISR 정합 위해 프로필 재검증.
   try {
     revalidatePath("/");
+    revalidateTag("home-feed", "max");
+    revalidateTag("home-report", "max");
     if (idCtx.active.handle) revalidatePath(`/${idCtx.active.handle}`);
   } catch {
     /* noop */
@@ -182,6 +184,8 @@ export async function DELETE(
   // 캐시 무효화 — 삭제로 본인 프로필·피드에서 빠질 수 있어 재검증.
   try {
     revalidatePath("/");
+    revalidateTag("home-feed", "max");
+    revalidateTag("home-report", "max");
     if (idCtx.active.handle) revalidatePath(`/${idCtx.active.handle}`);
   } catch {
     /* noop */

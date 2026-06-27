@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { CheckinUpsertSchema } from "@/lib/schema/api/visits";
 import { revalidateProcedureReports } from "@/lib/review-report-revalidate";
+import { revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +112,8 @@ export async function POST(req: Request) {
       .maybeSingle<{ procedure_ko: string; is_public: boolean; card_id: number | null }>();
     if (revRow?.is_public && revRow.card_id !== null && revRow.procedure_ko) {
       await revalidateProcedureReports(supabase, revRow.procedure_ko);
+      // 홈 리포트 풀 unstable_cache 무효화 — 체크인 롤업이 만족도·count 집계를 사후 변동시킴.
+      revalidateTag("home-report", "max");
     }
   } catch {
     /* revalidate 실패는 저장 성공에 영향 X */

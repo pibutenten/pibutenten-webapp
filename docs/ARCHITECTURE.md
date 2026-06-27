@@ -424,7 +424,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 | 영역 | 렌더 | 캐시 | 비고 |
 |---|---|---|---|
 | 의사 Q&A **상세** `doctors/[slug]/[year]/[postSlug]` | ISR (`●`) | `revalidate=86400` + `unstable_cache(tags:["qa-content"])` | `x-vercel-cache: HIT`. `generateStaticParams()=[]`(on-demand). 쿠키리스 `anon.ts` 읽기 |
-| **홈** `/` · **토픽** `/topics/[tag]` · 개인 페이지 | 동적 (`ƒ`) | 없음(no-store) | 홈=force-dynamic. 토픽=한글 URL ISR 헤더 깨짐(아래)으로 동적 유지 |
+| **홈** `/` · **토픽** `/topics/[tag]` · 개인 페이지 | 동적 (`ƒ`) | 페이지=no-store, **데이터=`unstable_cache`** | 홈=force-dynamic 이나 비검색 피드 풀(`home-feed` 90s)·리포트 풀(`home-report` 90s)·인기태그(`popular-tags` 300s)는 쿠키리스 anon `unstable_cache`(발행/수정/삭제 라우트가 `revalidateTag` 로 즉시 무효화 + 타이머 폴백). per-user 좋아요/저장은 캐시 밖 SSR 오버레이. 토픽=한글 URL ISR 헤더 깨짐(아래)으로 동적 유지 |
 | **세션**(로그인·아바타·명함) | 클라 | — | `SessionProvider` 가 mirror 쿠키(동기)+`/api/session`(비동기) |
 | **좋아요/저장/공유 수** | 클라 | — | 캐시 상세에서만 마운트 시 라이브 재조회(`useCardEngagement`) |
 | **내 좋아요/저장 여부** | 클라 | — | `Card`("use client") |

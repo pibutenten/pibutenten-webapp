@@ -397,6 +397,7 @@ export async function POST(req: Request) {
     // V3: ISR 상세·토픽 캐시(tag) 무효화 — 새 카드가 토픽/상세에 즉시 반영.
     revalidateTag("qa-content", "max");
     revalidateTag("topics", "max");
+    revalidateTag("home-feed", "max");
     revalidatePath("/");
     revalidatePath("/admin");
     revalidatePath("/admin/cards");

@@ -474,6 +474,7 @@ export async function PUT(
   try {
     revalidateTag("qa-content", "max");
     revalidateTag("topics", "max");
+    revalidateTag("home-feed", "max");
     revalidatePath("/", "layout");
   } catch {
     /* revalidate 실패는 무시 — 다음 dynamic 요청에 자동 갱신됨 */

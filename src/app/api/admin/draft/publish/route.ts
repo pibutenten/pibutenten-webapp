@@ -413,11 +413,13 @@ export async function POST(req: Request) {
   // V3 (2026-06-07): 의사 Q&A 발행 시 ISR 캐시(상세·토픽) 즉시 무효화.
   //   - revalidateTag('qa-content'): 상세 unstable_cache 무효화.
   //   - revalidateTag('topics'): 토픽 목록·count·리포트링크 unstable_cache 무효화.
+  //   - revalidateTag('home-feed'): 홈 피드 풀 unstable_cache 무효화(revalidatePath 로는 무효화 불가).
   //   - revalidatePath('/','layout'): 홈/레이아웃 경로 갱신(기존).
   if (status === "published" && insertedIds.length > 0) {
     try {
       revalidateTag("qa-content", "max");
       revalidateTag("topics", "max");
+      revalidateTag("home-feed", "max");
       revalidatePath("/", "layout");
     } catch {
       /* revalidate 실패는 발행 성공에 영향 없음 */
