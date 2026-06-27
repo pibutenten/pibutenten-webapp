@@ -184,7 +184,7 @@ export async function POST(req: Request) {
     p_revisit: payload.revisit,
     p_effect_areas: payload.effect_areas,
     p_downtime: payload.downtime,
-    p_effect_onset: payload.effect_onset,
+    p_effect_onset: payload.effect_onset ?? null,
     // 추천의향(optional) — 미전달이면 RPC DEFAULT NULL 로 저장(기존 후기 무회귀).
     p_recommend: payload.recommend ?? null,
     // 단답(optional) — [{question_id, answer_text}]. RPC 가 같은 트랜잭션에서

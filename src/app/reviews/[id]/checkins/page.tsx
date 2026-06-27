@@ -42,8 +42,6 @@ type ReviewRow = {
 
 type CheckinRow = {
   satisfaction: number | null;
-  recommend: number | null;
-  effect_felt: number | null;
   pain: number | null;
   changed_points: string[] | null;
 };
@@ -123,7 +121,7 @@ export default async function CheckinPage({
   // 5. 해당 시점 기존 체크인 값 prefill(이미 입력했으면 upsert 로 덮어쓰기).
   const { data: existing } = await supabase
     .from("review_checkin")
-    .select("satisfaction, recommend, effect_felt, pain, changed_points")
+    .select("satisfaction, pain, changed_points")
     .eq("review_id", reviewId)
     .eq("timepoint", timepoint)
     .maybeSingle()
@@ -131,8 +129,6 @@ export default async function CheckinPage({
 
   const prefill: CheckinPrefill = {
     satisfaction: existing?.satisfaction ?? null,
-    recommend: existing?.recommend ?? null,
-    effectFelt: existing?.effect_felt ?? null,
     pain: existing?.pain ?? null,
     changedPoints: existing?.changed_points ?? [],
   };

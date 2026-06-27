@@ -10,17 +10,16 @@
  *   4. 다운타임 (일상 복귀 소요, 단일선택 5옵션, 필수)
  *   5. 재시술 의향 (예/고민중/아니오, 필수)
  *   6. 체감 효과 (멀티 칩, ≥1, '없음' 포함, 필수)
- *   7. 효과시기 (효과 체감 시기, 단일선택 5옵션, 필수)
- *   8. 한줄 후기 (text ≤400, 선택)
+ *   7. 한줄 후기 (text ≤400, 선택)
  *
  * 검수: 병원·의사명은 서버에서 "○○" 로 자동 블라인드(마스킹). 제출 차단 아님.
  *   blinded 응답이면 고지 토스트 1회.
  *
  * 백엔드: POST /api/reviews (수정=PATCH). body 계약:
  *   procedure_ko / satisfaction(1~5) / pain(1~5) / downtime(슬러그) / revisit(enum) /
- *   effect_areas(string[], ≥1) / effect_onset(슬러그) — 필수, body(한줄후기 0~400) 선택.
+ *   effect_areas(string[], ≥1) — 필수, body(한줄후기 0~400) 선택.
  *   응답 { card_id, shortcode, status, blinded, screening }.
- *   중복(409) 면 서버 userMessage 노출. downtime/effect_onset 저장은 영문 슬러그.
+ *   중복(409) 면 서버 userMessage 노출. downtime 저장은 영문 슬러그.
  *
  * 디자인은 globals.css 토큰 + 기존 Chip/StarField 톤 재사용. 모바일 우선.
  */
@@ -41,19 +40,17 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useDraftAutoSave } from "@/hooks/useDraftAutoSave";
 import { loadDraft, saveDraft, deleteDraft } from "@/lib/draft-storage";
 import UnsavedChangesModal from "@/components/UnsavedChangesModal";
-import { DOWNTIME_OPTIONS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
+import { DOWNTIME_OPTIONS } from "@/lib/review-options";
 // 후기 평가 컨트롤·옵션은 review-controls.tsx 단일 공용 출처에서 import (자체 복사본 폐기, dedup).
 //   동작·디자인·색·라벨은 추출 전 ReviewForm 원본과 1:1 동일.
 import {
   StarField,
   FaceField,
   ChoiceField,
-  NumberChoiceField,
   EffectChip,
   categoryColor,
   PAIN_FACES,
   REVISIT_OPTIONS,
-  RECOMMEND_OPTIONS,
   EFFECT_AREA_OPTIONS,
   EFFECT_AREA_COLORS,
   ONELINER_MAX,
@@ -83,10 +80,7 @@ export type ReviewEditInitial = {
   pain: number;
   downtime: string;
   revisit: string;
-  /** 추천의향(1~5). standalone 후기는 optional — 없으면 0(미선택). */
-  recommend?: number;
   effectAreas: string[];
-  effectOnset: string;
   body: string;
 };
 
@@ -108,7 +102,7 @@ type Props = {
 
 /* 통증(PAIN_FACES)·재시술(REVISIT_OPTIONS)·체감효과(EFFECT_AREA_OPTIONS/COLORS)·
    한줄후기(ONELINER_MAX/PLACEHOLDERS) 옵션은 review-controls.tsx 공용 출처에서 import.
-   다운타임(DOWNTIME_OPTIONS)·효과시기(EFFECT_ONSET_OPTIONS) 는 @/lib/review-options 가 SSOT.
+   다운타임(DOWNTIME_OPTIONS) 는 @/lib/review-options 가 SSOT.
    슬러그는 DB CHECK(0213)·리포트 집계와 동일. (CLAUDE.md §5 동기화 페어) */
 
 /* ─────────────────────────────────────────────────────────────
@@ -160,7 +154,6 @@ export default function ReviewForm({
   const downtimeRef = useRef<HTMLDivElement>(null);
   const revisitRef = useRef<HTMLDivElement>(null);
   const effectAreasRef = useRef<HTMLDivElement>(null);
-  const effectOnsetRef = useRef<HTMLDivElement>(null);
 
   /* ── 단답(short answers, create 전용) ──
      단답 컴포넌트가 보고하는 현재 칸 상태. 제출 시 trim 후 빈 답 제거하고 전송. */
@@ -181,10 +174,7 @@ export default function ReviewForm({
   const [pain, setPain] = useState<number>(initial?.pain ?? 0);
   const [downtime, setDowntime] = useState(initial?.downtime ?? "");
   const [revisit, setRevisit] = useState(initial?.revisit ?? "");
-  // 추천의향(recommend, 1~5) — standalone 후기 선택 항목. 0 = 미선택.
-  const [recommend, setRecommend] = useState<number>(initial?.recommend ?? 0);
   const [effectAreas, setEffectAreas] = useState<string[]>(initial?.effectAreas ?? []);
-  const [effectOnset, setEffectOnset] = useState(initial?.effectOnset ?? "");
   const [oneliner, setOneliner] = useState(initial?.body ?? "");
 
   /* ── 어림시기 — 1단(상대 연도) + 2단(연중, 선택). create 전용. ── */
@@ -222,9 +212,7 @@ export default function ReviewForm({
     pain > 0 ||
     !!downtime ||
     !!revisit ||
-    recommend > 0 ||
     effectAreas.length > 0 ||
-    !!effectOnset ||
     oneliner.length > 0 ||
     // 어림시기를 고르면 dirty.
     relYear !== "" ||
@@ -232,8 +220,8 @@ export default function ReviewForm({
 
   /* ── 임시저장 자동저장 + 복원 (create 모드만) ── */
   const getReviewFields = useCallback(
-    () => ({ procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner, relYear, within }),
-    [procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner, relYear, within],
+    () => ({ procedureKo, satisfaction, pain, downtime, revisit, effectAreas, oneliner, relYear, within }),
+    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, oneliner, relYear, within],
   );
 
   // C2 (2026-06-26): 이탈 모달 — create(시술후기 작성)는 type1 [임시저장 후 종료]/[글쓰기 종료].
@@ -249,17 +237,21 @@ export default function ReviewForm({
   const reviewDraft = useDraftAutoSave(
     "review",
     !isEdit && isDirty,
-    [procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner, relYear, within],
+    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, oneliner, relYear, within],
     getReviewFields,
   );
   useEffect(() => {
     if (isEdit) return;
     const saved = loadDraft("review");
     if (!saved?.fields) return;
+    if (!window.confirm("이전에 쓰다 만 기록이 있어요. 이어서 쓸까요?")) {
+      deleteDraft("review");
+      return;
+    }
     const f = saved.fields as {
       procedureKo?: string; satisfaction?: number; pain?: number;
-      downtime?: string; revisit?: string; recommend?: number; effectAreas?: string[];
-      effectOnset?: string; oneliner?: string;
+      downtime?: string; revisit?: string; effectAreas?: string[];
+      oneliner?: string;
       relYear?: RelYear | ""; within?: string;
     };
     if (f.procedureKo && !procedureKo) setProcedureKo(f.procedureKo);
@@ -267,9 +259,7 @@ export default function ReviewForm({
     if (f.pain && !pain) setPain(f.pain);
     if (f.downtime && !downtime) setDowntime(f.downtime);
     if (f.revisit && !revisit) setRevisit(f.revisit);
-    if (f.recommend && !recommend) setRecommend(f.recommend);
     if (f.effectAreas?.length && !effectAreas.length) setEffectAreas(f.effectAreas);
-    if (f.effectOnset && !effectOnset) setEffectOnset(f.effectOnset);
     if (f.oneliner && !oneliner) setOneliner(f.oneliner);
     // 어림시기 복원 — 미선택 상태일 때만 덮어써 사용자 입력 보존.
     if (f.relYear && !relYear) setRelYear(f.relYear);
@@ -317,22 +307,21 @@ export default function ReviewForm({
   }
 
   /* ── 제출 ── */
-  // 필수: 시술·만족도·통증·다운타임·재시술·효과(≥1, '없음'도 1개)·효과시기. 한줄후기만 선택.
+  // 필수: 시술·만족도·통증·다운타임·재시술·효과(≥1, '없음'도 1개). 한줄후기만 선택.
   const canSubmit =
     !!procedureKo &&
     satisfaction >= 1 &&
     pain >= 1 &&
     !!downtime &&
     !!revisit &&
-    effectAreas.length >= 1 &&
-    !!effectOnset;
+    effectAreas.length >= 1;
 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // 사용자가 필드를 수정하면 유효성 오류 목록 초기화.
   useEffect(() => {
     setValidationErrors([]);
-  }, [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, effectOnset]);
+  }, [procedureKo, satisfaction, pain, downtime, revisit, effectAreas]);
 
   function validate(): string[] {
     const errors: string[] = [];
@@ -342,7 +331,6 @@ export default function ReviewForm({
     if (!downtime) errors.push("일상으로 돌아오기까지 걸린 시간을 선택해주세요.");
     if (!revisit) errors.push("재시술 의향을 선택해주세요.");
     if (effectAreas.length < 1) errors.push("느낀 효과를 1개 이상 골라주세요.");
-    if (!effectOnset) errors.push("효과를 느낀 시기를 선택해주세요.");
     return errors;
   }
 
@@ -350,7 +338,7 @@ export default function ReviewForm({
     setError(null);
     const errors = validate();
     if (errors.length > 0) {
-      // W-8: 첫 번째 미입력 항목으로 스크롤 (검증 순서: 시술→만족도→통증→다운타임→재시술→효과→효과시기).
+      // W-8: 첫 번째 미입력 항목으로 스크롤 (검증 순서: 시술→만족도→통증→다운타임→재시술→효과).
       const firstRef = !procedureKo
         ? procedureRef
         : satisfaction < 1
@@ -363,9 +351,7 @@ export default function ReviewForm({
                 ? revisitRef
                 : effectAreas.length < 1
                   ? effectAreasRef
-                  : !effectOnset
-                    ? effectOnsetRef
-                    : null;
+                  : null;
       firstRef?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       setValidationErrors(errors);
       return;
@@ -400,10 +386,7 @@ export default function ReviewForm({
       pain,
       downtime,
       revisit,
-      // 추천의향(optional) — 선택 시에만 1~5 전송. 미선택(0)이면 키 생략 → DB recommend = NULL.
-      ...(recommend >= 1 ? { recommend } : {}),
       effect_areas: effectAreas,
-      effect_onset: effectOnset,
       // 어림시기 — date_precision 항상 전송. visited_on 은 unknown(미기억)이면 null(서버가 NULL 저장).
       date_precision: precisionForSave,
       visited_on: visitedOnForSave,
@@ -493,7 +476,7 @@ export default function ReviewForm({
     // 탭 전환 시 폼 시작 위치·폭·타이틀 위치가 일치하도록 맞춤.
     <section className="mx-auto w-full max-w-[680px] py-6">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up">
-        {isEdit ? "시술 후기 수정" : "시술 후기를 남겨주세요"}
+        {isEdit ? "시술 후기 수정" : "내 시술, 기록으로 남기기"}
       </h1>
 
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
@@ -649,24 +632,10 @@ export default function ReviewForm({
         />
         </div>
 
-        {/* ── 5-1. 추천의향 (선택) ── 다른 분께 권할지(1~5). revisit(내가 또 받을지)와 의미 다름.
-            standalone 후기에 신규 추가(D-D 잔여). 선택 항목이라 미선택 시 저장 NULL. */}
-        <NumberChoiceField
-          label="다른 분께 추천하시겠어요?"
-          hint="선택 — 같은 고민을 가진 분께 도움이 돼요."
-          value={recommend}
-          onChange={setRecommend}
-          options={RECOMMEND_OPTIONS}
-          disabled={pending}
-        />
-
         {/* ── 6. 체감 효과 (필수, 멀티 칩, '없음' 포함) ── */}
         <div ref={effectAreasRef}>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            이번 시술로 달라진 점을 모두 골라주세요!
-            <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">
-              생각보다 많을 거예요 — 보통 4개 이상 고르세요.
-            </span>
+            달라진 점을 골라주세요
           </label>
           <div className="flex flex-wrap gap-3">
             {EFFECT_AREA_OPTIONS.map((opt, i) => (
@@ -683,17 +652,6 @@ export default function ReviewForm({
           </div>
         </div>
 
-        {/* ── 7. 효과시기 (필수) ── */}
-        <div ref={effectOnsetRef}>
-        <ChoiceField
-          label="효과는 언제부터 느끼셨어요?"
-          required
-          value={effectOnset}
-          onChange={setEffectOnset}
-          options={EFFECT_ONSET_OPTIONS}
-          disabled={pending}
-        />
-        </div>
         </div>
         {/* ↑ 시술 미선택 시 흐림 영역(평점·효과 등)은 여기서 닫는다. 아래 단답은 흐림 밖 — 시술을
             고르지 않아도 질문 다시 고르기·작성이 가능하도록(사용자 요청). 제출은 canSubmit 가 계속 가드. */}
@@ -766,8 +724,8 @@ export default function ReviewForm({
                 ? "수정 중…"
                 : "등록 중…"
               : isEdit
-                ? "후기 수정"
-                : "후기 올리기"}
+                ? "기록 수정"
+                : "내 기록 남기기"}
           </button>
         </div>
       </div>

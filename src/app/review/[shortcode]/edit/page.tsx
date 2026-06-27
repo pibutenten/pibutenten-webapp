@@ -33,9 +33,7 @@ type ReviewRow = {
   pain: number;
   downtime: string | null;
   revisit: string;
-  recommend: number | null;
   effect_areas: string[] | null;
-  effect_onset: string | null;
 };
 
 export default async function ReviewEditPage({
@@ -91,7 +89,7 @@ export default async function ReviewEditPage({
   // 정량 항목 로드.
   const { data: pr } = await supabase
     .from("procedure_reviews")
-    .select("procedure_ko, satisfaction, pain, downtime, revisit, recommend, effect_areas, effect_onset")
+    .select("procedure_ko, satisfaction, pain, downtime, revisit, effect_areas")
     .eq("card_id", card.id)
     .maybeSingle()
     .returns<ReviewRow>();
@@ -112,11 +110,7 @@ export default async function ReviewEditPage({
         pain: pr.pain,
         downtime: pr.downtime ?? "",
         revisit: pr.revisit,
-        // 추천의향 프리필 — 없으면 0(미선택). 수정 저장 시 update RPC 가 p_recommend 미지원이라
-        //   현 값은 유지(미반영)되나, 프리필로 기존 선택값을 화면에 보여준다.
-        recommend: pr.recommend ?? 0,
         effectAreas: pr.effect_areas ?? [],
-        effectOnset: pr.effect_onset ?? "",
         body: card.body ?? "",
       }}
     />

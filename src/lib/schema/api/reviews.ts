@@ -51,7 +51,7 @@ export const ReviewCreateSchema = z
     // 체감 효과 — 후기 전용 19종 라벨('없음' 포함), 필수(1~19개, 각 ≤20자).
     effect_areas: z.array(z.string().min(1).max(20)).min(1).max(19),
     // 효과 체감 시기 — 영문 슬러그(DB effect_onset_chk 와 일치).
-    effect_onset: z.enum(["immediate", "weeks_1_2", "month_1", "months_2_3", "still_watching"]),
+    effect_onset: z.enum(["immediate", "weeks_1_2", "month_1", "months_2_3", "still_watching"]).optional(),
     // 생생한 후기 본문 (body 컬럼, 선택 — 0~400자). 비어 있으면 제목만 저장.
     body: z.string().max(400),
 

@@ -132,7 +132,7 @@ export async function PATCH(
     p_revisit: payload.revisit,
     p_effect_areas: payload.effect_areas,
     p_downtime: payload.downtime,
-    p_effect_onset: payload.effect_onset,
+    p_effect_onset: payload.effect_onset ?? null,
     p_recommend: payload.recommend ?? null,
   });
   if (rpcErr) {

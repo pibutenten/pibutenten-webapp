@@ -16,17 +16,15 @@ import {
   StarField,
   FaceField,
   ChoiceField,
-  NumberChoiceField,
   EffectChip,
   PAIN_FACES,
   REVISIT_OPTIONS,
-  RECOMMEND_OPTIONS,
   EFFECT_AREA_OPTIONS,
   EFFECT_AREA_COLORS,
   ONELINER_MAX,
   ONELINER_PLACEHOLDERS,
 } from "@/components/review/review-controls";
-import { DOWNTIME_OPTIONS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
+import { DOWNTIME_OPTIONS } from "@/lib/review-options";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -49,24 +47,19 @@ const PROCEDURES: { value: string; label: string; cat: string }[] = [
 ];
 
 // 시술별 후기(아코디언 펼침) day0 평가 슬롯 — create_visit_with_entries 의 p_reviews 행 한 건에 매핑.
-//   satisfaction/pain/effectFelt 는 1~5, revisit/downtime/effectOnset 은 영문 슬러그, recommend 는 1~5,
-//   effectAreas 는 라벨 문자열 배열, oneliner 는 공개 한줄후기(is_public=true 일 때만 전송).
+//   satisfaction/pain 는 1~5, revisit/downtime 은 영문 슬러그,
+//   effectAreas 는 라벨 문자열 배열, oneliner 는 공개 한줄후기.
 type ReviewState = {
   satisfaction: number;
   pain: number;
   downtime: string;
   revisit: string;
   effectAreas: string[];
-  effectOnset: string;
   oneliner: string;
-  // 추천의향(recommend, 1~5) — revisit 와 별개. visit 경로 전용(0=미선택).
-  recommend: number;
-  // 효과 체감도(effect_felt, 1~5) day0 — 0=미선택.
-  effectFelt: number;
   // 공개 옵트인 — true 면 평가 익명 공개(카드·집계 생성), false 면 비공개 시계열 기록만.
   isPublic: boolean;
 };
-const emptyReview = (): ReviewState => ({ satisfaction: 0, pain: 0, downtime: "", revisit: "", effectAreas: [], effectOnset: "", oneliner: "", recommend: 0, effectFelt: 0, isPublic: false });
+const emptyReview = (): ReviewState => ({ satisfaction: 0, pain: 0, downtime: "", revisit: "", effectAreas: [], oneliner: "", isPublic: true });
 
 type Screen = "diary" | "reviewonly" | "record" | "detail" | "noti";
 
@@ -400,11 +393,8 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
           p.isPublic &&
           p.satisfaction === 0 &&
           p.pain === 0 &&
-          p.recommend === 0 &&
-          p.effectFelt === 0 &&
           !p.downtime &&
           !p.revisit &&
-          !p.effectOnset &&
           p.effectAreas.length === 0 &&
           !p.oneliner.trim(),
       ),
@@ -432,15 +422,11 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
           // day0 체크인 — diary_linked 시계열의 시작점(부분 입력 허용, 0/빈값은 null).
           const checkin_day0 = {
             satisfaction: pr.satisfaction > 0 ? pr.satisfaction : null,
-            recommend: pr.recommend > 0 ? pr.recommend : null,
-            effect_felt: pr.effectFelt > 0 ? pr.effectFelt : null,
             pain: pr.pain > 0 ? pr.pain : null,
             changed_points: pr.effectAreas.length > 0 ? pr.effectAreas : null,
           };
           const hasAnyDay0 =
             checkin_day0.satisfaction != null ||
-            checkin_day0.recommend != null ||
-            checkin_day0.effect_felt != null ||
             checkin_day0.pain != null ||
             (checkin_day0.changed_points?.length ?? 0) > 0;
           return {
@@ -453,8 +439,6 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
             revisit: pr.revisit || null,
             effect_areas: pr.effectAreas.length > 0 ? pr.effectAreas : null,
             downtime: pr.downtime || null,
-            effect_onset: pr.effectOnset || null,
-            recommend: pr.recommend > 0 ? pr.recommend : null,
             // 공개 한줄후기(body) — is_public=true 일 때만. 라우트가 마스킹·검수 후 카드 생성.
             body: isPub ? (pr.oneliner.trim() || null) : null,
             checkin_day0: hasAnyDay0 ? checkin_day0 : null,
@@ -674,7 +658,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
                     <p className="mt-2 px-1 text-[11.5px] leading-relaxed text-[var(--text-muted)]">목록에 없는 시술이라 기록만 남길 수 있어요. 후기는 운영자가 시술을 등록한 뒤 작성할 수 있어요.</p>
                   ) : !p.reviewOpen ? (
                     <button type="button" onClick={() => upd(p.id, { reviewOpen: true })} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[#CBE0F0] bg-white py-2 text-[12.5px] font-semibold text-[var(--primary-active)]">
-                      ✍️ 이 시술 후기 쓰기 <span className="text-[11px] font-normal text-[var(--text-muted)]">(안 쓰면 기록만 남아요)</span>
+                      이 시술, 기록을 남겨볼까요?
                     </button>
                   ) : (
                     <ReviewAccordion p={p} onChange={(patch) => upd(p.id, patch)} onClose={() => upd(p.id, { reviewOpen: false })} />
@@ -808,8 +792,8 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
 
 /* ─────────────────────────────────────────────────────────────
  * ReviewAccordion — 시술 행 안에서 펼쳐지는 시술별 후기(day0) 입력.
- *   평가 컨트롤(만족도·통증·다운타임·재시술·효과·추천의향·효과시기)은 review-controls 공용 모듈 재사용.
- *   공개 옵트인(is_public) 토글 + 공개 시 한줄후기. 가격은 비공개 표기(여기선 입력 없음 — 총액으로 일원화).
+ *   평가 컨트롤(만족도·통증·다운타임·재시술·효과)은 review-controls 공용 모듈 재사용.
+ *   한줄후기 + 가격은 비공개 표기(여기선 입력 없음 — 총액으로 일원화).
  *   day0 값 = 결론칸 시작점(부분 입력 허용). 펼침 자체가 procedure_reviews 1행 생성 신호(handleSave 의 reviewOpen).
  * ───────────────────────────────────────────────────────────── */
 function ReviewAccordion({
@@ -843,15 +827,10 @@ function ReviewAccordion({
       <ChoiceField label="다운타임이 얼마나 됐나요?" hint="붓기·멍·딱지 등이 가라앉고 일상이 편해질 때까지" value={p.downtime} onChange={(v) => onChange({ downtime: v })} options={DOWNTIME_OPTIONS} />
       {/* 재시술 의향 */}
       <ChoiceField label="재시술 의향 (내가 또 받을지)" value={p.revisit} onChange={(v) => onChange({ revisit: v })} options={REVISIT_OPTIONS} />
-      {/* 추천의향(recommend) — revisit 와 별개. visit 경로 전용. */}
-      <NumberChoiceField label="다른 분께 추천하시겠어요?" value={p.recommend} onChange={(v) => onChange({ recommend: v })} options={RECOMMEND_OPTIONS} />
-      {/* 효과 체감도(effect_felt) — day0 시계열 시작점(별점 1~5). */}
-      <StarField label="효과 체감도" value={p.effectFelt} onChange={(v) => onChange({ effectFelt: v })} />
       {/* 효과(달라진 점) — 멀티 칩 */}
       <div>
         <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-          이번 시술로 달라진 점을 모두 골라주세요
-          <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">생각보다 많을 거예요 — 보통 4개 이상 고르세요.</span>
+          달라진 점을 골라주세요
         </label>
         <div className="flex flex-wrap gap-2">
           {EFFECT_AREA_OPTIONS.map((opt, i) => (
@@ -859,55 +838,23 @@ function ReviewAccordion({
           ))}
         </div>
       </div>
-      {/* 효과 발현 시점 */}
-      <ChoiceField label="효과는 언제부터 느끼셨어요?" value={p.effectOnset} onChange={(v) => onChange({ effectOnset: v })} options={EFFECT_ONSET_OPTIONS} />
 
-      {/* 공개 옵트인 + 가시성 배지 */}
-      <div className="rounded-md bg-[var(--bg-soft)] p-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[13px] font-semibold text-[var(--text)]">평가만 익명으로 공개할게요
-            <span className="mt-0.5 block text-[11.5px] font-normal text-[var(--text-muted)]">병원·가격·날짜는 빼고, 평가 지표만 다른 분들께 보여요.</span>
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={p.isPublic}
-            aria-label="평가 익명 공개"
-            onClick={() => onChange({ isPublic: !p.isPublic })}
-            className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-            style={{ background: p.isPublic ? "var(--primary)" : "#CBD2D9" }}
-          >
-            <span className="inline-block h-5 w-5 transform rounded-full bg-white transition-transform" style={{ transform: p.isPublic ? "translateX(22px)" : "translateX(2px)" }} />
-          </button>
-        </div>
-        {/* 가시성 배지 */}
-        <div className="mt-2">
-          {p.isPublic ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--primary-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--primary-active)]">👁 평가 공개</span>
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#E8EAEE] px-2.5 py-1 text-[11px] font-bold text-[#5C6470]">🔒 나만 봐요</span>
-          )}
-        </div>
+      {/* 한줄후기(body) 입력 */}
+      <div>
+        <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
+          생생한 후기를 남겨주세요 <span className="text-xs font-normal text-[var(--text-muted)]">(선택 · {p.oneliner.length} / {ONELINER_MAX})</span>
+          <span className="mt-0.5 block text-[11.5px] font-normal text-[var(--text-muted)]">비워두면 평가 지표만 공개돼요.</span>
+        </label>
+        <textarea
+          value={p.oneliner}
+          onChange={(e) => onChange({ oneliner: e.target.value })}
+          maxLength={ONELINER_MAX}
+          rows={3}
+          placeholder={onelinerPlaceholder}
+          className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[16px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none"
+        />
+        <p className="mt-1 text-xs text-[var(--text-muted)]">의료광고성 표현·병원·의사 실명 언급은 금합니다.</p>
       </div>
-
-      {/* 공개 시에만 한줄후기(body) 입력 */}
-      {p.isPublic && (
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            생생한 후기를 남겨주세요 <span className="text-xs font-normal text-[var(--text-muted)]">(선택 · {p.oneliner.length} / {ONELINER_MAX})</span>
-            <span className="mt-0.5 block text-[11.5px] font-normal text-[var(--text-muted)]">비워두면 평가 지표만 공개돼요.</span>
-          </label>
-          <textarea
-            value={p.oneliner}
-            onChange={(e) => onChange({ oneliner: e.target.value })}
-            maxLength={ONELINER_MAX}
-            rows={3}
-            placeholder={onelinerPlaceholder}
-            className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[16px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none"
-          />
-          <p className="mt-1 text-xs text-[var(--text-muted)]">의료광고성 표현·병원·의사 실명 언급은 금합니다.</p>
-        </div>
-      )}
     </div>
   );
 }

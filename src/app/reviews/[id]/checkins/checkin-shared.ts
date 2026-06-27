@@ -22,8 +22,6 @@ export const TIMEPOINT_LABELS: Record<CheckinTimepoint, { short: string; elapsed
 /** 서버 page → 클라이언트 폼 prefill(이미 입력한 시점이면 기존 값). */
 export type CheckinPrefill = {
   satisfaction: number | null;
-  recommend: number | null;
-  effectFelt: number | null;
   pain: number | null;
   changedPoints: string[];
 };

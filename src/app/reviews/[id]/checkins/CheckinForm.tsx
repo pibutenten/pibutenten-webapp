@@ -27,9 +27,7 @@ import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
 import {
   StarField,
-  NumberChoiceField,
   EffectChip,
-  RECOMMEND_OPTIONS,
   EFFECT_AREA_OPTIONS,
   EFFECT_AREA_COLORS,
   categoryColor,
@@ -72,8 +70,6 @@ export default function CheckinForm({
 
   /* ── 입력값(전부 선택, prefill 초기화) ── */
   const [satisfaction, setSatisfaction] = useState<number>(prefill.satisfaction ?? 0);
-  const [recommend, setRecommend] = useState<number>(prefill.recommend ?? 0);
-  const [effectFelt, setEffectFelt] = useState<number>(prefill.effectFelt ?? 0);
   const [changedPoints, setChangedPoints] = useState<string[]>(prefill.changedPoints ?? []);
 
   /* ── 단답(short answers) ──
@@ -91,7 +87,7 @@ export default function CheckinForm({
   // 입력 변경 시 직전 에러 해제.
   useEffect(() => {
     setError(null);
-  }, [satisfaction, recommend, effectFelt, changedPoints, shortAnswers]);
+  }, [satisfaction, changedPoints, shortAnswers]);
 
   function toggleChangedPoint(v: string) {
     setChangedPoints((prev) =>
@@ -102,8 +98,6 @@ export default function CheckinForm({
   // 최소 1개 항목은 입력해야 의미 있는 제출(빈 제출 차단). 단답만 채워도 유효.
   const hasAnyInput =
     satisfaction >= 1 ||
-    recommend >= 1 ||
-    effectFelt >= 1 ||
     changedPoints.length > 0 ||
     filledShortAnswers.length > 0;
 
@@ -119,14 +113,10 @@ export default function CheckinForm({
       review_id: number;
       timepoint: CheckinTimepoint;
       satisfaction?: number;
-      recommend?: number;
-      effect_felt?: number;
       changed_points?: string[];
       short_answers?: { question_id: number; answer_text: string }[];
     } = { review_id: reviewId, timepoint };
     if (satisfaction >= 1) payload.satisfaction = satisfaction;
-    if (recommend >= 1) payload.recommend = recommend;
-    if (effectFelt >= 1) payload.effect_felt = effectFelt;
     if (changedPoints.length > 0) payload.changed_points = changedPoints;
     // 단답 — 채워진 항목이 있을 때만 전송(빈 항목·미존재 질문은 RPC 가 무시).
     if (filledShortAnswers.length > 0) payload.short_answers = filledShortAnswers;
@@ -215,18 +205,6 @@ export default function CheckinForm({
 
         {/* 1. 만족도 */}
         <StarField label="지금 만족도" value={satisfaction} onChange={setSatisfaction} disabled={pending} />
-
-        {/* 2. 추천의향 */}
-        <NumberChoiceField
-          label="다른 분께 추천하시겠어요?"
-          value={recommend}
-          onChange={setRecommend}
-          options={RECOMMEND_OPTIONS}
-          disabled={pending}
-        />
-
-        {/* 3. 효과체감 */}
-        <StarField label="효과는 얼마나 느껴지세요?" value={effectFelt} onChange={setEffectFelt} disabled={pending} />
 
         {/* 4. 달라진 점 (멀티 칩) → changed_points */}
         <div>
