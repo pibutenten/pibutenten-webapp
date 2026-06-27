@@ -13,17 +13,20 @@ import AppShell from "@/components/skin/AppShell";
 import { useSearchRouting } from "@/components/skin/ui";
 import CheckinForm from "./CheckinForm";
 import type { CheckinTimepoint, CheckinPrefill } from "./checkin-shared";
+import type { ShortAnswerQuestion } from "@/components/review/ShortAnswerFields";
 
 export default function CheckinView({
   reviewId,
   timepoint,
   procedureKo,
   prefill,
+  shortAnswerQuestions,
 }: {
   reviewId: number;
   timepoint: CheckinTimepoint;
   procedureKo: string | null;
   prefill: CheckinPrefill;
+  shortAnswerQuestions?: ShortAnswerQuestion[];
 }) {
   const search = useSearchRouting();
 
@@ -34,6 +37,7 @@ export default function CheckinView({
         timepoint={timepoint}
         procedureKo={procedureKo}
         prefill={prefill}
+        shortAnswerQuestions={shortAnswerQuestions}
       />
     </AppShell>
   );

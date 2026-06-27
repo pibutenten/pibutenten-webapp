@@ -190,6 +190,11 @@ export async function POST(req: Request) {
     // 단답(optional) — [{question_id, answer_text}]. RPC 가 같은 트랜잭션에서
     //   short_answer_response 에 저장(빈 답·미존재 질문은 RPC 가 무시). 미전달이면 DEFAULT NULL.
     p_short_answers: payload.short_answers ?? null,
+    // 어림시기(언제 받으셨어요?) — 단독 후기 전용(마이그 0308).
+    //   p_visited_on: 대표일(YYYY-MM-DD). unknown(미기억)이면 null. p_date_precision: 정확도.
+    //   미전달이면 RPC DEFAULT(NULL / 'exact')로 기존 동작 유지(무회귀).
+    p_visited_on: payload.visited_on ?? null,
+    p_date_precision: payload.date_precision ?? "exact",
   });
   if (rpcErr) {
     return errorResponse(rpcErr, "save_failed", "[reviews POST] create_procedure_review", 500);

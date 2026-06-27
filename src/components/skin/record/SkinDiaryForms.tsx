@@ -70,28 +70,8 @@ const emptyReview = (): ReviewState => ({ satisfaction: 0, pain: 0, downtime: ""
 
 type Screen = "diary" | "reviewonly" | "record" | "detail" | "noti";
 
-/* 어림시기 칩 — visited_on_precision CHECK(exact/season/half/year/unknown) 매핑.
-   unknown = "날짜 잘 기억 안 나요"(회고형 관대화) → visited_on 미전송, 백엔드가 NULL 처리. */
-type Precision = "exact" | "season" | "half" | "year" | "unknown";
-const PRECISION_CHIPS: { value: Precision; label: string }[] = [
-  { value: "exact", label: "정확한 날짜" },
-  { value: "season", label: "계절쯤" },
-  { value: "half", label: "상·하반기" },
-  { value: "year", label: "연도만" },
-  { value: "unknown", label: "날짜 잘 기억 안 나요" },
-];
-/** 계절 → 대표 월일(정규화: 봄=03-01, 여름=06-01, 가을=09-01, 겨울=12-01). */
-const SEASON_MONTH: Record<string, string> = { spring: "03", summer: "06", autumn: "09", winter: "12" };
-const SEASON_CHIPS: { value: string; label: string }[] = [
-  { value: "spring", label: "봄" },
-  { value: "summer", label: "여름" },
-  { value: "autumn", label: "가을" },
-  { value: "winter", label: "겨울" },
-];
-const HALF_CHIPS: { value: string; label: string; month: string }[] = [
-  { value: "h1", label: "상반기", month: "01" },
-  { value: "h2", label: "하반기", month: "07" },
-];
+/* 시술노트(DiaryForm)는 "최근에 받은 기록"이라 날짜를 달력으로 정확히 받는다.
+   어림시기(올해/작년/연중 등 회고형)는 시술후기 폼(ReviewForm) 전용 — 여기엔 두지 않는다. */
 
 
 /* ════════════════ ④ 나의 시술노트 ════════════════ */
@@ -162,10 +142,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   const [clinicHome, setClinicHome] = useState(""); // 병원 홈페이지(비공개)
   const [clinicKakao, setClinicKakao] = useState(""); // 카카오톡 채널(비공개, 직접 입력)
   const [totalPrice, setTotalPrice] = useState(""); // 총 결제금액(비공개, 일기 표시용 — 집계 제외)
-  const [precision, setPrecision] = useState<Precision>("exact"); // 어림시기(visited_on_precision)
-  const [season, setSeason] = useState(""); // precision=season 일 때 선택한 계절
-  const [half, setHalf] = useState(""); // precision=half 일 때 선택한 반기(h1/h2)
-  const [isComplete, setIsComplete] = useState(true); // 완성/미완성(is_complete) — false=나중에 마저
+  const [isComplete] = useState(true); // 항상 완성 저장(미완성·"나중에 마저" 토글 제거 — 사용자 요청).
   const [saving, setSaving] = useState(false);
   const [savedModal, setSavedModal] = useState(false); // 저장 완료 모달(→ 시술후기 유도).
   const [savedHasPublicReview, setSavedHasPublicReview] = useState(false); // 저장 시 공개 후기 포함 여부(모달 카피 분기).
@@ -206,38 +183,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   const nextCalMonth = () => { if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1); } else setCalMonth((m) => m + 1); };
   const selectCalDate = (day: number) => { setDate(`${calYear}-${String(calMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`); setCalOpen(false); };
 
-  // 어림시기 → 저장할 visited_on(YYYY-MM-DD) 대표일 정규화. null = 날짜 미전송.
-  //   exact = 사용자가 고른 날짜 그대로. season = 연+계절 대표월 01일. half = 연+반기 대표월 01일.
-  //   year = 연 01-01. unknown = null(날짜 미기억 — 백엔드가 NULL 처리).
-  //   ★관대화: season/half 인데 계절·반기 미선택이면 무음으로 3월/1월을 채우지 않고
-  //   연 단위(yyyy-01-01)로 graceful 강등(고른 적 없는 월로 저장 방지).
-  const visitedOnForSave = useMemo<string | null>(() => {
-    const yyyy = String(calYear).padStart(4, "0");
-    if (precision === "unknown") return null;
-    if (precision === "exact") return date;
-    if (precision === "year") return `${yyyy}-01-01`;
-    if (precision === "season") return season ? `${yyyy}-${SEASON_MONTH[season]}-01` : `${yyyy}-01-01`;
-    if (precision === "half") return half ? `${yyyy}-${HALF_CHIPS.find((h) => h.value === half)?.month ?? "01"}-01` : `${yyyy}-01-01`;
-    return date;
-  }, [precision, date, calYear, season, half]);
-
-  // 실제 전송할 precision — season/half 인데 미선택이면 연 단위로 강등(visitedOnForSave 와 정합).
-  //   봄/상반기 무음 폴백 제거: 고른 적 없으면 'year' 로 보정해 저장값과 라벨이 일치하도록.
-  const precisionForSave = useMemo<Precision>(() => {
-    if (precision === "season" && !season) return "year";
-    if (precision === "half" && !half) return "year";
-    return precision;
-  }, [precision, season, half]);
-
-  // 어림시기 라벨(검토용 — 정확 외엔 셀렉터 위 안내).
-  //   season/half 미선택이면 연 단위 강등이므로 "○○년쯤" 으로 표시(저장값과 일치).
-  const precisionDateLabel = useMemo(() => {
-    if (precision === "exact") return dateLabel;
-    if (precision === "year") return `${calYear}년쯤`;
-    if (precision === "season") return season ? `${calYear}년 ${SEASON_CHIPS.find((s) => s.value === season)?.label ?? ""}쯤` : `${calYear}년쯤`;
-    if (precision === "half") return half ? `${calYear}년 ${HALF_CHIPS.find((h) => h.value === half)?.label ?? ""}` : `${calYear}년쯤`;
-    return dateLabel;
-  }, [precision, dateLabel, calYear, season, half]);
+  // 시술노트 저장값 — 달력에서 고른 날짜(date) 그대로 전송. precision 은 항상 'exact'.
 
   // clinics row[] → ClinicHit[] (내 위치 있으면 거리 계산 + 거리순 정렬).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -439,9 +385,6 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   //   diary_procedure_index = procs 안에서의 0-based 위치(RPC 가 diary_procedure_id 로 매핑, +1 보정은 RPC 내부).
   const openedReviews = useMemo(() => procs.filter((p) => p.reviewOpen && p.inDict), [procs]);
 
-  // ★관대화(FIX-2 하드차단 제거): precision=season/half 인데 계절/반기 미선택이어도
-  //   저장을 막지 않는다. 무음으로 3월/1월을 채우는 대신 연 단위로 graceful 강등
-  //   (visitedOnForSave/precisionForSave 가 'year' 로 보정). 불완전 입력 허용 원칙.
 
   // ★FIX-4: 공개 후기 최소 품질 게이트 — is_public=true 인데 만족도 등 지표·한줄후기를
   //   전부 비우면 빈 공개 카드가 피드/리포트에 노출된다. 공개 entry 는 최소 1개 지표
@@ -520,10 +463,9 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // unknown(날짜 미기억) 이면 visited_on 미전송(undefined → JSON 직렬화에서 제외) → 백엔드 NULL 처리.
-          //   season/half 미선택은 visitedOnForSave/precisionForSave 가 연 단위로 강등해 전송.
-          visited_on: visitedOnForSave ?? undefined,
-          visited_on_precision: precisionForSave,
+          // 시술노트는 달력으로 정확한 날짜를 받는다(어림시기는 시술후기 폼 전용).
+          visited_on: date,
+          visited_on_precision: "exact",
           clinic_name: picked || null,
           clinic_addr: addr.trim() || null,
           clinic_tel: tel.trim() || null,
@@ -573,31 +515,9 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
 
       {/* 메인 노트 글상자 */}
       <div className={formBox}>
-        {/* 1. 날짜 — 인라인 달력 펼침 + 어림시기 칩.
-            ★FIX-1: reviewOnly(회고형)에서도 날짜·어림시기는 항상 노출(metaOpen 밖).
-            병원·의사·실장 등 visit 상세만 metaOpen 으로 접는다. 날짜를 못 바꾸면
-            visited_on=오늘/precision=exact 로 고정돼 재방문 알림 오발·day0 시계열
-            시작점 왜곡 → 회고형 후기의 핵심 가치(어림시기 회고)를 깨뜨림. */}
+        {/* 1. 날짜 — 인라인 달력(시술노트=최근 기록이라 정확한 날짜). 어림시기 칩은 제거(시술후기 폼 전용). */}
         <div>
           <label className={labelCls}>언제 받으셨어요?</label>
-          {/* 어림시기 칩 — 정확/계절/반기/연/모름. exact 외엔 달력 대신 연·계절·반기 셀렉터로 치환.
-              unknown(날짜 잘 기억 안 나요) 면 날짜 입력 UI 를 모두 숨기고 안내만. */}
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {PRECISION_CHIPS.map((c) => {
-              const on = precision === c.value;
-              return (
-                <button key={c.value} type="button" onClick={() => { setPrecision(c.value); setCalOpen(false); }} className="rounded-full px-3 py-1 text-[12.5px] transition-colors" style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>{c.label}</button>
-              );
-            })}
-          </div>
-          {precision === "unknown" ? (
-            // 날짜 미기억 — 날짜 피커·연/계절/반기 UI 숨김. visited_on 미전송(백엔드 NULL).
-            <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-soft)] px-3 py-3 text-center">
-              <p className="text-[13px] font-medium text-[var(--text-secondary)]">정확한 시기는 기억나지 않아요</p>
-              <p className="mt-1 text-[11.5px] leading-relaxed text-[var(--text-muted)]">날짜 없이도 후기를 남길 수 있어요. (재방문 알림은 예약되지 않아요)</p>
-            </div>
-          ) : precision === "exact" ? (
-            <>
           <button ref={calBtnRef} type="button" onClick={() => { const next = !calOpen; setCalOpen(next); if (next) { setCalYear(+_y); setCalMonth(+_m); requestAnimationFrame(() => calRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })); } }} className={inputCls + " flex items-center justify-between text-left"}>
             <span className="text-[var(--text)]">{dateLabel}</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0"><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M4 9h16" /></svg>
@@ -617,32 +537,6 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
                   <button key={i} type="button" onClick={() => selectCalDate(d)} className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-[13px] ${+_y === calYear && +_m === calMonth && +_dd === d ? "bg-[var(--primary)] font-bold text-white" : "text-[var(--text)] hover:bg-[var(--primary-soft)]"}`}>{d}</button>
                 ) : <span key={i} />)}
               </div>
-            </div>
-          )}
-            </>
-          ) : (
-            // exact 외 — 연도 스텝퍼 + (계절/반기) 셀렉터. year 면 연도만.
-            <div className="rounded-md border border-[var(--border)] bg-white p-3">
-              <div className="mb-2 flex items-center justify-center gap-5">
-                <button type="button" onClick={() => setCalYear((y) => y - 1)} className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--bg)] text-[var(--text-secondary)]" aria-label="이전 연도">‹</button>
-                <span className="text-[16px] font-extrabold tracking-wide text-[var(--text)]">{calYear}년</span>
-                <button type="button" onClick={() => setCalYear((y) => Math.min(y + 1, new Date().getFullYear()))} disabled={calYear >= new Date().getFullYear()} className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30" aria-label="다음 연도">›</button>
-              </div>
-              {precision === "season" && (
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {SEASON_CHIPS.map((s) => (
-                    <button key={s.value} type="button" onClick={() => setSeason(s.value)} className="rounded-full px-3.5 py-1 text-[13px] transition-colors" style={season === s.value ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>{s.label}</button>
-                  ))}
-                </div>
-              )}
-              {precision === "half" && (
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {HALF_CHIPS.map((h) => (
-                    <button key={h.value} type="button" onClick={() => setHalf(h.value)} className="rounded-full px-3.5 py-1 text-[13px] transition-colors" style={half === h.value ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>{h.label}</button>
-                  ))}
-                </div>
-              )}
-              <p className="mt-2 text-center text-[12px] text-[var(--text-muted)]">{precisionDateLabel}</p>
             </div>
           )}
         </div>
@@ -666,6 +560,8 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
             <div className={`overflow-hidden transition-all duration-200 ease-out ${closing ? "max-h-0 opacity-0" : "max-h-[600px] opacity-100"}`}>
               <input
                 className={inputCls}
+                spellCheck={false}
+                autoComplete="off"
                 placeholder="지명, 병원명으로 검색"
                 value={q}
                 onFocus={requestLoc}
@@ -874,17 +770,10 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
 
       </div>
 
-      {/* 완성/미완성 — is_complete 토글. 미완성은 시술 0개도 저장 가능.
-          ★FIX-5: reviewOnly(후기 맥락)면 "다 썼어요/나중에 마저" 문구를 후기 맥락으로 분기. */}
-      <div className="mt-4 flex justify-center gap-2">
-        <button type="button" onClick={() => setIsComplete(true)} className="rounded-full px-4 py-1.5 text-[12.5px] transition-colors" style={isComplete ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>다 썼어요</button>
-        <button type="button" onClick={() => setIsComplete(false)} className="rounded-full px-4 py-1.5 text-[12.5px] transition-colors" style={!isComplete ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>나중에 마저 쓸게요</button>
-      </div>
-
-      <div className="mt-3 flex justify-center">
-        {/* ★FIX-4: 빈 공개 후기면 저장 버튼 비활성(어림시기 미선택은 연 단위 강등 — 차단 안 함).
-            ★FIX-5: reviewOnly 면 후기 맥락 문구. */}
-        <button type="button" onClick={handleSave} disabled={saving || emptyPublicReview} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-60">{saving ? "저장 중…" : isComplete ? (reviewOnly ? "후기 등록" : "기록 저장하기") : (reviewOnly ? "임시 저장" : "임시 저장하기")}</button>
+      <div className="mt-4 flex justify-center">
+        {/* 저장 — 항상 완성 저장("기록 저장하기" 파란 버튼). "다 썼어요/나중에 마저" 토글 제거(사용자 요청).
+            빈 공개 후기면 비활성(아래 안내). */}
+        <button type="button" onClick={handleSave} disabled={saving || emptyPublicReview} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-60">{saving ? "저장 중…" : "기록 저장하기"}</button>
       </div>
       {/* 비활성 사유 안내 — 무음 차단 방지(왜 저장이 안 되는지 설명). 공개 후기 가드만 남김. */}
       {!saving && emptyPublicReview && (

@@ -15,6 +15,7 @@ import styles from "../app.module.css";
 import { useSearchRouting } from "../ui";
 import WriteTabs from "@/app/write/WriteTabs";
 import type { ProcedureOption } from "@/app/review/new/ReviewForm";
+import type { ShortAnswerQuestion } from "@/components/review/ShortAnswerFields";
 
 type Doctor = { id: string; slug: string; name: string; branch: string | null };
 
@@ -50,6 +51,7 @@ export default function WriteView({
   procedures = [],
   initialTab,
   initialProcedure,
+  shortAnswerQuestions,
 }: {
   isLoggedIn?: boolean;
   role?: "admin" | "doctor" | "user";
@@ -62,6 +64,8 @@ export default function WriteView({
   initialTab?: string;
   /** 시술노트 저장 후 후기 유도 시 미리 정해진 시술 ko (?proc=). 시술후기 탭 잠금 프리필. */
   initialProcedure?: string;
+  /** 단답 질문 풀 — 시술후기 탭 ReviewForm 단답 2칸용(write/page.tsx 가 question_pool 에서 로드). */
+  shortAnswerQuestions?: ShortAnswerQuestion[];
 }) {
   const search = useSearchRouting();
   // Q&A 탭은 원장·관리자 전용(운영 정합).
@@ -173,6 +177,7 @@ export default function WriteView({
             procedures={procedures}
             handle={handle}
             initialProcedure={initialProcedure}
+            shortAnswerQuestions={shortAnswerQuestions}
           />
         )}
       </div>

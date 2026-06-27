@@ -193,6 +193,22 @@ export const CheckinUpsertSchema = z
     effect_felt: z.number().int().min(1).max(5).nullable().optional(),
     pain: z.number().int().min(1).max(5).nullable().optional(),
     changed_points: z.array(z.string().min(1).max(20)).max(19).nullable().optional(),
+    // 단답(short answers) — 체크인 폼의 "단답 2칸"(시점별 질문 + 공통 'any'). 선택(미전달 가능).
+    //   각 항목 { question_id(양의 정수), answer_text(≤400자) }. 최대 2개(폼이 2칸).
+    //   answer_text 상한은 reviews.ts 단답·body(≤400)와 일관(단답 = 후기 본체).
+    //   답이 빈 항목·미존재 질문은 RPC 가 무시(저장 제외)하므로 클라가 보내도 무해.
+    //   RPC 가 이 체크인의 checkin_id 와 함께 short_answer_response 에 INSERT.
+    short_answers: z
+      .array(
+        z
+          .object({
+            question_id: z.number().int().positive(),
+            answer_text: z.string().max(400),
+          })
+          .strict(),
+      )
+      .max(2)
+      .optional(),
   })
   .strict();
 

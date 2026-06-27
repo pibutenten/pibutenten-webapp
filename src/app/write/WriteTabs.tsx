@@ -1,7 +1,9 @@
 "use client";
 
-// 후기·시술일기 통합(Phase 3b): "시술기록"·"시술후기" 둘 다 통합 visit 폼(DiaryForm → POST /api/visits)으로 수렴.
-//   "시술후기"는 같은 폼을 reviewOnly 로 시작(병원·방문 블록 접힘). 끄적끄적·Q&A 는 기존 WriteClient 그대로.
+// 탭 매핑(2026-06-27 교정): "시술기록"=DiaryForm(시술노트, POST /api/visits), "시술후기"=ReviewForm
+//   (시술 선택+평가+단답+어림시기, POST /api/reviews) — /review/new 와 같은 폼 재사용. 끄적끄적·Q&A 는
+//   기존 WriteClient 그대로.
+//   (이전엔 "시술후기"가 DiaryForm reviewOnly 로 잘못 합쳐져 가격·병원을 묻던 것을 ReviewForm 으로 교체.)
 //
 // ★FIX-3: 비로그인 정책 통일 — "글쓰기 전체 로그인 필요"로 확정(정책 (b)).
 //   유일 호출자 WriteView 가 !isLoggedIn 일 때 전 탭을 로그인 게이트로 막고 WriteTabs 자체를
@@ -11,7 +13,8 @@
 //   직접 API 호출 방어용 심층 방어).
 import { useRouter } from "next/navigation";
 import { DiaryForm } from "@/components/skin/record/SkinDiaryForms";
-import { type ProcedureOption } from "../review/new/ReviewForm";
+import ReviewForm, { type ProcedureOption } from "../review/new/ReviewForm";
+import type { ShortAnswerQuestion } from "@/components/review/ShortAnswerFields";
 // 끄적끄적은 기존 글쓰기 컴포넌트(WriteClient)를 그대로 사용.
 import WriteClient from "./WriteClient";
 import { showToast } from "@/lib/toast";
@@ -27,7 +30,9 @@ export default function WriteTabs({
   myDoctor,
   doctors,
   procedures,
+  handle,
   initialProcedure,
+  shortAnswerQuestions,
 }: {
   tab?: string;
   isLoggedIn: boolean;
@@ -36,10 +41,12 @@ export default function WriteTabs({
   myDoctor: { slug: string; name: string } | null;
   doctors: Doctor[];
   procedures: ProcedureOption[];
-  /** 통합 후기 제출 후 이동 등에 쓰이는 active 명함 handle(현재 미사용, 호출 호환 유지). */
+  /** 시술후기(ReviewForm) 제출 성공 시 사용하는 active 명함 handle. */
   handle?: string;
   /** 시술노트 저장 후 후기 유도 시 미리 정해진 시술 ko (?proc=). */
   initialProcedure?: string;
+  /** 단답 질문 풀(question_pool timepoint='any', is_active) — 시술후기 탭 ReviewForm 단답 2칸용. */
+  shortAnswerQuestions?: ShortAnswerQuestion[];
 }) {
   const router = useRouter();
   // Q&A 탭은 원장·관리자 전용. 권한 없는 사용자가 ?tab=qa 로 들어오면 기본(시술기록)으로.
@@ -56,11 +63,17 @@ export default function WriteTabs({
       {cat === "qa" && (
         <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="qa" />
       )}
-      {/* 시술기록(노트) — 통합 visit 폼. */}
+      {/* 시술기록(노트) — 통합 visit 폼(DiaryForm). 일기·시점별 경과는 본 작업 범위 밖(무수정). */}
       {cat === "시술기록" && <DiaryForm toast={(m) => showToast(m)} go={() => { void router.push("/notes"); }} procedures={procedures} initialProcedure={initialProcedure} />}
-      {/* 시술후기 — 통합 visit 폼을 reviewOnly 로(병원·방문 접힘). */}
+      {/* 시술후기 — 후기 전용 폼(ReviewForm). /review/new 와 같은 폼 재사용(시술 선택+평가+단답+어림시기).
+          가격·병원 등 visit 메타는 묻지 않음. 제출 성공 시 ReviewForm 이 자체적으로 "/" 로 이동·refresh. */}
       {cat === "시술후기" && (
-        <DiaryForm toast={(m) => showToast(m)} go={() => { void router.push("/notes"); }} procedures={procedures} reviewOnly initialProcedure={initialProcedure} />
+        <ReviewForm
+          procedures={procedures}
+          handle={handle ?? ""}
+          initialProcedure={initialProcedure}
+          shortAnswerQuestions={shortAnswerQuestions}
+        />
       )}
       {cat === "끄적끄적" && (
         <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="doodle" />

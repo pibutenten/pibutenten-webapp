@@ -132,3 +132,67 @@ visit (= diaries 확장)                         🔒 비공개
 ## 불변 주의
 - 코드/DB 미변경(문서만). 파괴적 DDL 금지. 명명 author_id/profile_id(user_id 금지).
 - 다른 세션 동시 작업 → 겹치는 파일 회피, 명시 stage(-A 금지). 이 로그는 세션 고유.
+
+---
+
+## ★★★ 현재 상태 종합 스냅샷 (2026-06-27 야간, 압축 대비 — 이 섹션이 최신·정본) ★★★
+
+> 한 줄: 후기·시술일기 통합 구현 중. 핵심 기능 대부분 prod 적용. **지금 핵심 = 시술후기 폼 구조 정정(ⓐⓑⓒ) 진행 중** + **0305~0308 적용분 미커밋(repo↔DB drift)**.
+
+### A. prod 적용 마이그 (0292~0308 전부 적용됨)
+- **커밋됨(HEAD 41e39ef)**: 0292 스키마·0293 review_checkin+보조·0294 create_procedure_review is_public·0295 GRANT·0296 scheduled_notification·0297 visit RPC 5종·0298 (타세션 인코딩)·0299 solo_price anon봉쇄·0300 run_diary_reminders·0301 GRANT·0302 unknown날짜·0303 recommend·0304 질문 22 시드.
+- **적용됐으나 미커밋**: 0305 checkin short_answers · 0306 oneliner→question(+기존 body 660 → short_answer_response 이관) · 0307 질문 v2 28개(구 22 비활성) · 0308 procedure_reviews.visited_on 추가.
+- prod 현황: question_pool **active 29**(=28 v2 + "생생한 후기"(any)), total 51(구22 비활성). **short_answer_response 666**(이관). procedure_reviews.visited_on 존재. create_procedure_review=is_public/source/date_precision/recommend/short_answers/visited_on 확장. upsert_review_checkin=short_answers 확장.
+
+### B. 미커밋 코드 (git status, HEAD=41e39ef)
+WriteTabs·write/page.tsx·ReviewForm·reviews/[id]/checkins/*·ShortAnswerFields·WriteView·schema/api/reviews.ts·schema/api/visits.ts·api/reviews/route.ts·api/reviews/checkins/route.ts + 마이그 0305~0308. **tag-dictionary.generated.json = 타세션 → 커밋 제외.**
+
+### C. ★올바른 구조 (원장 최종 확정 = 정본. 내 3b 통합은 오류였음)
+- **시술후기 폼** = 옛 후기폼 구조 그대로(시술선택+평가+단답+어림시기), 질문만 v2로. **재사용 핵심 단위.** → 시술후기 탭에 이 폼을 붙임(현재 잘못 붙은 DiaryForm reviewOnly 교체).
+- **일기(시술노트)** = 원래 폼 그대로, **완전 별도·안 건드림**(병원·날짜·시술·메모).
+- **타임포인트별 시술경과 폼** = 위 후기폼 기반, 시점별(당일/1주/1달/4달), **일기의 각 시술에 연결**.
+- ⚠ 3b에서 시술후기를 DiaryForm에 합친 게 잘못 → 후기에 가격·병원이 떠서 "이상해짐". 정정 중.
+
+### D. 정정 작업 ⓐⓑⓒ
+- **ⓐ 시술후기 탭 → 후기폼(ReviewForm)+어림시기로 교체** [진행 중 — 태스크 #1~5, 병행 세션이 실행 중 정황]: 0308 visited_on 적용됨. ReviewForm 어림시기·WriteTabs 교체(#4 in_progress)·검증(#5 pending).
+- **ⓑ 일기(DiaryForm) 원래대로 분리** [대기]: 3b가 DiaryForm에 넣은 후기/통합 흔적 제거, 시술노트=순수 기록.
+- **ⓒ 타임포인트별 시술경과 폼 = 후기폼 기반·일기 연결** [대기]: checkin 폼을 후기폼 형태로, 일기 시술에 연결.
+
+### E. 확정 결정 (UI/콘텐츠)
+질문 v2 28개(당일/1주/1달/4달 각 7) + "생생한 후기를 남겨주세요"(any). 단답=후기 자유텍스트 본체(별도 body칸 없음=일원화). 글자수 **400**(카운터 n/400). placeholder **10개 랜덤**(격려문구, 질문 아님). 다시고르기: **2칸 중복금지·랜덤·새로고침아이콘(↻)·페이드**. 기존 body 660 → short_answer_response("생생한 후기" 답) 이관(무손실, 최대 328자). 단독폼은 전 시점 질문 로드. /reports 현행 유지. /notes NULL-safe 완료. 분석 대시보드 범위 제외. 가격 영구 비공개(F2).
+
+### F. 남은 일
+1. ⓐ 완료(WriteTabs 교체+검증) → ⓑ(일기 분리) → ⓒ(시점별 경과 폼·일기 연결).
+2. **0305~0308 + 미커밋 코드 커밋·푸시**(prod 적용됐는데 repo 미반영=drift). 병행 세션과 조율(중복 커밋·충돌 주의).
+3. 종합 e2e(QA 계정 [[qa-test-account]] qa-claude@pibutenten.kr / pibutenten-app/.env.qa.local) + 테스트 데이터 정리.
+4. DATABASE.md/CHANGELOG 0305~0308 동기화.
+
+### G. ★멀티세션 주의
+병행 세션이 이 review-diary 작업(ⓐ 등)을 **동시 실행 중인 정황**(태스크 #1~4 진행, 0307/0308 적용 — 내가 안 했는데 적용됨). 내 에이전트 런치가 거부되는 이유로 추정. **겹치는 파일 동시수정·중복 커밋 회피.** 진행 전 git status·태스크·prod 상태 재확인.
+
+---
+
+## ★★★ 재개 (2026-06-27, 압축 후) — ⓐ 완료·검증
+
+### H1. ⓐ 시술후기 폼 = 완료 + end-to-end 검증 통과
+- **배선 누락 1건 발견·수정**: `src/app/write/page.tsx` 가 `shortAnswerQuestions` 를 계산만 하고 `<WriteView>` 에 미전달 → ReviewForm 이 빈 배열 받아 단답이 단일 fallback 으로 떨어짐. prop 1줄 추가로 교정(WriteView→WriteTabs→ReviewForm 체인은 이미 정상).
+- **백엔드 정합 prod 확인**: `create_procedure_review` = 18-인자 단일 시그니처(p_visited_on date, p_date_precision text, p_recommend, p_short_answers 포함, 옛 16-인자 오버로드 없음). `procedure_reviews.visited_on` 존재. 보조 RPC 3종(upsert_review_checkin·run_diary_reminders·delete_visit) 존재. (`create_review_recommend` 은 *함수가 아니라* 0303 파일명일 뿐 — 그 작업은 18-인자 시그니처에 흡수됨. missing/drift 아님.)
+- **tsc·build 통과.**
+- **e2e (QA 계정, 세션쿠키 주입)**: `/write?tab=review` → 제목 "시술 후기를 남겨주세요", 어림시기 블록(언제 받으셨어요?·정확/계절/반기/연/모름·달력), 가격·병원 없음. 단답 **2칸**(slot1=대표 "생생한 후기", slot2=랜덤 일반질문) + **다시고르기 2개**. 다시고르기 클릭 시 slot2 교체·두 칸 중복 없음 확인.
+- ⚠ **검증 함정(교훈)**: 처음에 단답이 1칸 fallback 으로 떠 혼선 → 원인은 (1) **PWA 서비스워커가 옛 클라이언트 번들 캐시**(SW unregister + caches.delete 로 해결), (2) 'any' 활성 질문 1개. 코드/배선 문제 아니었음.
+
+### H2. 마이그 0309 — 'any' 일반 질문 풀 보강 (prod 적용 완료)
+- 문제: 0307 이 질문을 시점별 28개로 교체하며 `timepoint='any'` 활성을 대표 1개만 남김 → standalone 폼 2칸 불가.
+- 사용자 지시: "2개 랜덤하게 뜨고 다시 고를 수 있게"(원래 지시). → 일반(시기무관) 질문 6개 추가(id 52~56) + 동일텍스트 비활성 id=22 재활성. **'any' 활성 = 7개**(id 22·23·52~56). 깨짐(U+FFFD) 0 재스캔 확인.
+- 파일 `supabase/migrations/0309_question_pool_any_general.sql`(멱등: INSERT NOT EXISTS + 동일텍스트 재활성 UPDATE). 시점별 checkin 폼은 [timepoint, 'any'] 둘 다 로드하므로 이 6개가 경과폼도 풍부하게 함.
+
+### H3. ⓑ/ⓒ 현황 (조사 결과 — 대부분 이미 구현됨)
+- **ⓑ 일기(DiaryForm)**: 시술기록 탭이 DiaryForm(reviewOnly **미전달**=기본 false)로 렌더 → 시술기록은 원래 일기 폼대로 동작. 단 `SkinDiaryForms.tsx` 에 3b 잔재 `reviewOnly` 분기(line 129~887)가 **dead code 로 잔존**(무해, 호출처 없음). "일기 원래대로" 취지상 정리 대상이나 활성 폼 리팩터라 리스크 — 별도 판단 필요.
+- **ⓒ 타임포인트별 시술경과 폼**: 인프라 존재 — `/reviews/[id]/checkins?t=week1|month1|month4` 폼(만족도·추천·효과·통증·달라진점 + 단답), `upsert_review_checkin` RPC, scheduled_notification 딥링크. 단답은 [해당시점, 'any'] 질문 로드. procedure_reviews(→visit→diary) 연결. notes UI(RecordNotesPanel/RecordView/RecordTab)에 경과 참조. **대체로 완성** — 일기→경과폼 UI 진입 동선 end-to-end 확인은 남음.
+
+### H4. 남은 일 (갱신)
+1. **커밋·푸시**(0305~0309 + 미커밋 코드, tag-dictionary.generated.json 제외) — prod drift 해소. §3 코드검수(2인) 게이트 후. **deploy=prod 액션이라 사용자 greenlight 권장.**
+2. DATABASE.md 마이그 표 + CHANGELOG 0305~0309 동기화.
+3. ⓑ reviewOnly dead code 정리 여부 결정.
+4. ⓒ 일기→경과폼 진입 동선 e2e 확인.
+5. placeholder 10개 랜덤(현재 ShortAnswerFields 는 "자유롭게 적어주세요" 하드코딩) — 사용자 확정문구 재확인 후 적용.

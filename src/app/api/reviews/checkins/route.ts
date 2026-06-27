@@ -67,7 +67,8 @@ export async function POST(req: Request) {
   }
   const p = parsed.data;
 
-  // 4. RPC upsert_review_checkin — UPSERT + 결론칸 롤업. 소유·존재 검증은 RPC 내부.
+  // 4. RPC upsert_review_checkin — UPSERT + 결론칸 롤업 + 단답 저장(checkin_id 연결).
+  //    소유·존재 검증은 RPC 내부. 단답은 빈 답·미존재 질문을 RPC 가 무시(저장 제외).
   const { data: checkinId, error: rpcErr } = await supabase.rpc("upsert_review_checkin", {
     p_review_id: p.review_id,
     p_timepoint: p.timepoint,
@@ -76,6 +77,7 @@ export async function POST(req: Request) {
     p_effect_felt: p.effect_felt ?? null,
     p_pain: p.pain ?? null,
     p_changed_points: p.changed_points ?? null,
+    p_short_answers: p.short_answers ?? null,
   });
   if (rpcErr) {
     const code = (rpcErr as { code?: string }).code ?? "";

@@ -55,15 +55,30 @@ export const ReviewCreateSchema = z
     // 생생한 후기 본문 (body 컬럼, 선택 — 0~400자). 비어 있으면 제목만 저장.
     body: z.string().max(400),
 
+    // ── 어림시기(언제 받으셨어요?) — 단독 후기 전용(2026-06-27, 마이그 0308) ──
+    //   date_precision: 정확도(exact/season/half/year/unknown). DB CHECK·SkinDiaryForms 와 일치.
+    //     미전달이면 'exact'(기존 하드코딩 호환). create 경로에서만 의미(PATCH 는 무시).
+    //   visited_on: 어림시기 대표일(YYYY-MM-DD). unknown(날짜 미기억)이면 생략/NULL.
+    //     superRefine: precision !== 'unknown' 이면 visited_on(YYYY-MM-DD) 필수.
+    date_precision: z
+      .enum(["exact", "season", "half", "year", "unknown"])
+      .optional(),
+    visited_on: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다.")
+      .nullable()
+      .optional(),
+
     // 단답(short answers) — 단독 후기폼의 "단답 2칸". 선택(미전달 가능).
-    //   각 항목 { question_id(양의 정수), answer_text(≤300자) }. 최대 2개(폼이 2칸).
+    //   각 항목 { question_id(양의 정수), answer_text(≤400자) }. 최대 2개(폼이 2칸).
+    //   answer_text 상한은 body(생생한 후기 ≤400)·visits.ts 와 일관(단답 2칸이 후기 본체).
     //   답이 빈 항목은 RPC 가 무시(저장 제외)하므로 클라가 보내도 무해.
     short_answers: z
       .array(
         z
           .object({
             question_id: z.number().int().positive(),
-            answer_text: z.string().max(300),
+            answer_text: z.string().max(400),
           })
           .strict(),
       )
@@ -74,6 +89,20 @@ export const ReviewCreateSchema = z
     // title 기본값 생성용 (라우트에서 미지정 시 `{시술명} 시술후기`).
     title: z.string().max(200).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((v, ctx) => {
+    // 어림시기 검증은 date_precision 을 "명시 전달"한 경우(=create 폼)에만 적용.
+    //   - create(POST): ReviewForm 이 date_precision 을 항상 전송 → 아래 규칙 적용.
+    //   - edit(PATCH): 어림시기 블록을 숨기므로 date_precision 미전달(undefined) → 검증 건너뜀(무회귀).
+    //   규칙: unknown(날짜 미기억) 이 아니면 visited_on(대표일, YYYY-MM-DD) 필수.
+    if (v.date_precision === undefined) return;
+    if (v.date_precision !== "unknown" && (v.visited_on === undefined || v.visited_on === null)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["visited_on"],
+        message: "어림시기를 선택해주세요.",
+      });
+    }
+  });
 
 export type ReviewCreatePayload = z.infer<typeof ReviewCreateSchema>;

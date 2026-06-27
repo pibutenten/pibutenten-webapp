@@ -34,6 +34,10 @@ import {
   EFFECT_AREA_COLORS,
   categoryColor,
 } from "@/components/review/review-controls";
+import ShortAnswerFields, {
+  type ShortAnswerQuestion,
+  type ShortAnswerValue,
+} from "@/components/review/ShortAnswerFields";
 import {
   TIMEPOINT_LABELS,
   type CheckinTimepoint,
@@ -45,9 +49,17 @@ type Props = {
   timepoint: CheckinTimepoint;
   procedureKo: string | null;
   prefill: CheckinPrefill;
+  /** 단답 질문 풀(이 시점 + 공통 'any', 활성). 비면 단답 2칸 숨김. */
+  shortAnswerQuestions?: ShortAnswerQuestion[];
 };
 
-export default function CheckinForm({ reviewId, timepoint, procedureKo, prefill }: Props) {
+export default function CheckinForm({
+  reviewId,
+  timepoint,
+  procedureKo,
+  prefill,
+  shortAnswerQuestions,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -61,10 +73,22 @@ export default function CheckinForm({ reviewId, timepoint, procedureKo, prefill 
   const [effectFelt, setEffectFelt] = useState<number>(prefill.effectFelt ?? 0);
   const [changedPoints, setChangedPoints] = useState<string[]>(prefill.changedPoints ?? []);
 
+  /* ── 단답(short answers) ──
+     단답 컴포넌트가 보고하는 현재 칸 상태. 제출 시 trim 후 빈 답 제거하고 전송. */
+  const [shortAnswers, setShortAnswers] = useState<ShortAnswerValue[]>([]);
+  // 풀이 1개 이상일 때만 단답 블록 노출(비면 graceful 숨김).
+  const showShortAnswers = (shortAnswerQuestions?.length ?? 0) > 0;
+  // trim 후 빈 답 제거 — hasAnyInput·payload 양쪽에서 사용.
+  const filledShortAnswers = showShortAnswers
+    ? shortAnswers
+        .map((a) => ({ question_id: a.question_id, answer_text: a.answer_text.trim() }))
+        .filter((a) => a.answer_text.length > 0)
+    : [];
+
   // 입력 변경 시 직전 에러 해제.
   useEffect(() => {
     setError(null);
-  }, [satisfaction, recommend, effectFelt, changedPoints]);
+  }, [satisfaction, recommend, effectFelt, changedPoints, shortAnswers]);
 
   function toggleChangedPoint(v: string) {
     setChangedPoints((prev) =>
@@ -72,9 +96,13 @@ export default function CheckinForm({ reviewId, timepoint, procedureKo, prefill 
     );
   }
 
-  // 최소 1개 항목은 입력해야 의미 있는 제출(빈 제출 차단).
+  // 최소 1개 항목은 입력해야 의미 있는 제출(빈 제출 차단). 단답만 채워도 유효.
   const hasAnyInput =
-    satisfaction >= 1 || recommend >= 1 || effectFelt >= 1 || changedPoints.length > 0;
+    satisfaction >= 1 ||
+    recommend >= 1 ||
+    effectFelt >= 1 ||
+    changedPoints.length > 0 ||
+    filledShortAnswers.length > 0;
 
   function submit() {
     setError(null);
@@ -91,11 +119,14 @@ export default function CheckinForm({ reviewId, timepoint, procedureKo, prefill 
       recommend?: number;
       effect_felt?: number;
       changed_points?: string[];
+      short_answers?: { question_id: number; answer_text: string }[];
     } = { review_id: reviewId, timepoint };
     if (satisfaction >= 1) payload.satisfaction = satisfaction;
     if (recommend >= 1) payload.recommend = recommend;
     if (effectFelt >= 1) payload.effect_felt = effectFelt;
     if (changedPoints.length > 0) payload.changed_points = changedPoints;
+    // 단답 — 채워진 항목이 있을 때만 전송(빈 항목·미존재 질문은 RPC 가 무시).
+    if (filledShortAnswers.length > 0) payload.short_answers = filledShortAnswers;
 
     startTransition(async () => {
       try {
@@ -216,6 +247,15 @@ export default function CheckinForm({ reviewId, timepoint, procedureKo, prefill 
             ))}
           </div>
         </div>
+
+        {/* 5. 단답 2칸 (선택) — 이 시점 + 공통 'any' 질문. 풀이 비면 컴포넌트가 렌더 안 함. */}
+        {showShortAnswers && (
+          <ShortAnswerFields
+            questions={shortAnswerQuestions ?? []}
+            onChange={setShortAnswers}
+            disabled={pending}
+          />
+        )}
 
         {/* 서버/네트워크 에러 */}
         {error && (

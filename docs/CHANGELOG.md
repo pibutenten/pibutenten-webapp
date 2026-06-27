@@ -6,6 +6,26 @@
 
 ---
 
+## [2026-06-27] — 시술후기·시술노트 폼 개편 (단독 후기폼 + 단답 2칸 + 어림시기 + 시술노트 정리)
+
+후기·시술일기 통합(4층 구조, 마이그 0292~0303)에 이어 **작성 UX 를 사용자 피드백대로 완성**. 정본 계획: `docs/plans/review-diary-unification-master-plan.md`, 세션 로그: `docs/plans/review-overhaul-worklog-sess-3400e728.md`.
+
+### Added
+- **단답 질문 풀 + 시점별 체크인 단답**(마이그 0304/0305): `question_pool` 시드 + `'any'`(시점 무관) 허용. 단독 후기 RPC(`create_procedure_review` p_short_answers) · 시점별 체크인 RPC(`upsert_review_checkin` p_short_answers) 둘 다 같은 트랜잭션에서 `short_answer_response` 저장(active 질문만, 재제출 멱등).
+- **시술후기 단독 폼의 단답 2칸 + 다시 고르기**: `ShortAnswerFields` — 질문 라벨(다시 고르기 ↻ 아이콘·랜덤·두 칸 중복 방지·페이드) + textarea(n/400). 첫 칸=대표 "생생한 후기", 둘째 칸=랜덤 일반 질문. 다시 고르기 시 **질문과 placeholder(격려 문구) 동시 랜덤 교체**. 시술 미선택 상태에서도 질문 변경·작성 가능(제출만 시술 필수).
+- **어림시기("언제쯤 받으셨어요?")**(마이그 0308): 단독 후기에 `procedure_reviews.visited_on` + `date_precision` 저장. 폼은 회고형이라 **일반 언어 2단**(올해/작년/재작년/몇 년 전/잘 기억 안 나요 + 연초/봄/여름/가을/연말). 조합 결과("작년 가을쯤")는 라벨 옆 인라인 표시. unknown/미선택은 날짜 미전송(NULL, 재방문 알림 미예약).
+
+### Changed
+- **시술후기 탭 = 후기 전용 폼(ReviewForm)**: `/write?tab=review` 가 시술선택+평가+단답+어림시기 폼을 렌더(가격·병원 등 visit 메타 안 물음). `/review/new` 와 동일 폼·질문풀 재사용. (이전에 DiaryForm reviewOnly 로 잘못 합쳐져 후기에서 가격을 묻던 것을 교정.)
+- **질문 풀 v2(원장 확정 28) + 'any' 보강**(마이그 0307/0309): 시점별 28개(day0/week1/month1/month4 각 7) 전면 교체(구 질문 is_active=false 로 보존, FK 안전). 단독 후기용 'any' 일반 질문 6개 추가 + 대표 1개 = 활성 7.
+- **단답 일원화**(마이그 0306): 옛 단일 "생생한 후기" textarea 의 기존 답(`cards.body`) 660행을 `short_answer_response`(대표 질문) 로 무손실 이관. body 원본 보존(검색·카드 무회귀).
+- **시술노트(시술일기) 폼 정리** — "최근 받은 기록"이라는 정의에 맞춰: 날짜는 **달력 전용**(어림시기 칩 제거 — 그건 시술후기 폼 전용), "다 썼어요/나중에 마저 쓸게요" 토글 제거(항상 완성 저장, **"기록 저장하기" 파란 버튼** 단일화), 병원 검색 입력 `spellCheck=false`(고유명사 맞춤법 물결줄 제거).
+
+### Fixed
+- **`/write` 단답 질문 미전달 회귀**: `write/page.tsx` 가 `shortAnswerQuestions` 를 계산만 하고 `WriteView` 에 넘기지 않아 `/write?tab=review` 단답이 단일 fallback 으로 떨어지던 것(`/review/new` 와 동작 불일치) 1줄 배선 교정.
+
+---
+
 ## [2026-06-27] — 감사 권고 구현: 네비 단일화(AppShell) + 신고사유 SSOT + 죽은코드 정리 + 댓글 미리보기 N+1 제거 + 팔로우
 
 ### Added

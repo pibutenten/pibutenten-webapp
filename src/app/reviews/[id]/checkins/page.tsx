@@ -136,12 +136,28 @@ export default async function CheckinPage({
     changedPoints: existing?.changed_points ?? [],
   };
 
+  // 6. 단답 질문 풀 — 이 시점(week1/month1/month4) + 공통('any') 활성 질문만 로드(단답 2칸이 사용).
+  //    단독 후기폼('any'만)과 달리 시점별 질문을 함께 불러오는 게 차이점.
+  //    RLS(question_pool_read_active)가 is_active=true 만 노출하나 명시적으로 한 번 더 필터.
+  //    비면 빈 배열 → 폼이 단답 블록을 graceful 숨김.
+  const { data: qpRows } = await supabase
+    .from("question_pool")
+    .select("id, question_text")
+    .in("timepoint", [timepoint, "any"])
+    .eq("is_active", true)
+    .order("id", { ascending: true });
+  const shortAnswerQuestions = (qpRows ?? []).map((r) => ({
+    id: r.id as number,
+    text: r.question_text as string,
+  }));
+
   return (
     <CheckinView
       reviewId={reviewId}
       timepoint={timepoint}
       procedureKo={review.procedure_ko}
       prefill={prefill}
+      shortAnswerQuestions={shortAnswerQuestions}
     />
   );
 }

@@ -34,14 +34,26 @@ export default async function WritePage({
   // 시술노트 저장 후 후기 유도 시 미리 정해진 시술(?proc=) — ReviewForm 잠금 프리필.
   const initialProcedure = sp.proc?.trim() || undefined;
   const supabase = await createSupabaseServerClient();
-  // 시술 선택지(getReviewProcedures)와 로그인 사용자(getUser)는 서로 독립적 →
-  //   직렬 await 워터폴 대신 병렬 실행으로 첫 두 라운드트립을 묶는다(결과·순서 무변경).
-  //   procedures 는 로그인 무관 빌드(가벼움), user 이후 단계(getIdentityContext·doctors)는
+  // 시술 선택지(getReviewProcedures)·단답 질문 풀(question_pool)·로그인 사용자(getUser)는 서로 독립적 →
+  //   직렬 await 워터폴 대신 병렬 실행으로 첫 라운드트립을 묶는다(결과·순서 무변경).
+  //   procedures·질문 풀은 로그인 무관 빌드(가벼움), user 이후 단계(getIdentityContext·doctors)는
   //   user 결과에 의존하므로 그대로 user 확정 뒤에 유지한다.
-  const [procedures, { data: { user } }] = await Promise.all([
+  //   단답 질문 풀 — 시점 무관('any') 활성 질문만(시술후기 탭 ReviewForm 단답 2칸. /review/new 와 동일).
+  //   RLS(question_pool_read_active)가 is_active=true 만 노출하나, 명시적으로 한 번 더 필터.
+  const [procedures, { data: { user } }, { data: qpRows }] = await Promise.all([
     getReviewProcedures(supabase),
     supabase.auth.getUser(),
+    supabase
+      .from("question_pool")
+      .select("id, question_text")
+      .eq("timepoint", "any")
+      .eq("is_active", true)
+      .order("id", { ascending: true }),
   ]);
+  const shortAnswerQuestions = (qpRows ?? []).map((r) => ({
+    id: r.id as number,
+    text: r.question_text as string,
+  }));
 
   let role: "admin" | "doctor" | "user" = "user";
   let displayName = "";
@@ -86,6 +98,7 @@ export default async function WritePage({
       procedures={procedures}
       initialTab={initialTab}
       initialProcedure={initialProcedure}
+      shortAnswerQuestions={shortAnswerQuestions}
     />
   );
 }

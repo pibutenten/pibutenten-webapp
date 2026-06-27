@@ -61,6 +61,7 @@ import {
 import ShortAnswerFields, {
   type ShortAnswerQuestion,
   type ShortAnswerValue,
+  REPRESENTATIVE_QUESTION_TEXT,
 } from "@/components/review/ShortAnswerFields";
 
 export type ProcedureOption = {
@@ -109,6 +110,34 @@ type Props = {
    다운타임(DOWNTIME_OPTIONS)·효과시기(EFFECT_ONSET_OPTIONS) 는 @/lib/review-options 가 SSOT.
    슬러그는 DB CHECK(0213)·리포트 집계와 동일. (CLAUDE.md §5 동기화 페어) */
 
+/* ─────────────────────────────────────────────────────────────
+ * 어림시기(visited_on / date_precision) — "언제쯤 받으셨어요?" (2026-06-27 개편).
+ *   회고형이라 정확한 날짜(달력)는 받지 않고 **일반적 언어**로만 받는다.
+ *   1단(상대 연도, 택1): 올해 / 작년 / 재작년 / 몇 년 전 / 잘 기억 안 나요
+ *   2단(연중, 선택·택1): 연초 / 봄 / 여름 / 가을 / 연말  (안 고르면 연 단위)
+ *   → visited_on = 대표일(YYYY-MM-01). date_precision = season(연중 선택) / year(연만) / unknown(미기억·미선택).
+ *     ('몇 년 전' = 3년 전 대표.) date_precision CHECK(exact/season/half/year/unknown) 중 year/season/unknown 만
+ *     사용 — 마이그 불필요. unknown 이면 visited_on = null(백엔드 NULL, 알림 미발송).
+ * ───────────────────────────────────────────────────────────── */
+type Precision = "season" | "year" | "unknown";
+type RelYear = "this" | "last" | "before2" | "older" | "unknown";
+/** 상대 연도 칩 — yearsAgo(현재 연도 - n). unknown 은 연도 없음(null). */
+const REL_YEAR_CHIPS: { value: RelYear; label: string; yearsAgo: number | null }[] = [
+  { value: "this", label: "올해", yearsAgo: 0 },
+  { value: "last", label: "작년", yearsAgo: 1 },
+  { value: "before2", label: "재작년", yearsAgo: 2 },
+  { value: "older", label: "몇 년 전", yearsAgo: 3 },
+  { value: "unknown", label: "잘 기억 안 나요", yearsAgo: null },
+];
+/** 연중 세분 칩 — 대표 월(연초=01, 봄=04, 여름=07, 가을=10, 연말=12). 안 고르면 연 단위. */
+const WITHIN_CHIPS: { value: string; label: string; month: string }[] = [
+  { value: "early", label: "연초", month: "01" },
+  { value: "spring", label: "봄", month: "04" },
+  { value: "summer", label: "여름", month: "07" },
+  { value: "autumn", label: "가을", month: "10" },
+  { value: "yearend", label: "연말", month: "12" },
+];
+
 export default function ReviewForm({
   procedures,
   handle,
@@ -148,6 +177,35 @@ export default function ReviewForm({
   const [effectOnset, setEffectOnset] = useState(initial?.effectOnset ?? "");
   const [oneliner, setOneliner] = useState(initial?.body ?? "");
 
+  /* ── 어림시기 — 1단(상대 연도) + 2단(연중, 선택). create 전용. ── */
+  const _now = useMemo(() => new Date(), []);
+  const [relYear, setRelYear] = useState<RelYear | "">(""); // '' = 미선택(→ 미기억 취급)
+  const [within, setWithin] = useState(""); // 연중 세분(선택). '' = 연 단위
+
+  // 어림시기 → visited_on(YYYY-MM-01) 대표일. relYear 미선택/unknown → null.
+  const visitedOnForSave = useMemo<string | null>(() => {
+    if (relYear === "" || relYear === "unknown") return null;
+    const ya = REL_YEAR_CHIPS.find((c) => c.value === relYear)?.yearsAgo ?? 0;
+    const year = _now.getFullYear() - ya;
+    const month = WITHIN_CHIPS.find((w) => w.value === within)?.month ?? "01";
+    return `${String(year).padStart(4, "0")}-${month}-01`;
+  }, [relYear, within, _now]);
+
+  // 전송할 precision — 연중 선택=season, 연만=year, 미선택/미기억=unknown.
+  const precisionForSave = useMemo<Precision>(
+    () => (relYear === "" || relYear === "unknown" ? "unknown" : within ? "season" : "year"),
+    [relYear, within],
+  );
+
+  // 어림시기 표시 라벨(예: "작년 봄쯤", "올해쯤", "잘 기억 안 나요").
+  const precisionDateLabel = useMemo(() => {
+    if (relYear === "") return "";
+    const yl = REL_YEAR_CHIPS.find((c) => c.value === relYear)?.label ?? "";
+    if (relYear === "unknown") return yl;
+    const wl = WITHIN_CHIPS.find((w) => w.value === within)?.label;
+    return wl ? `${yl} ${wl}쯤` : `${yl}쯤`;
+  }, [relYear, within]);
+
   /* ── 이탈 방지 (beforeunload + popstate 통합 가드) ── */
   const isDirty =
     satisfaction > 0 ||
@@ -157,12 +215,15 @@ export default function ReviewForm({
     recommend > 0 ||
     effectAreas.length > 0 ||
     !!effectOnset ||
-    oneliner.length > 0;
+    oneliner.length > 0 ||
+    // 어림시기를 고르면 dirty.
+    relYear !== "" ||
+    within !== "";
 
   /* ── 임시저장 자동저장 + 복원 (create 모드만) ── */
   const getReviewFields = useCallback(
-    () => ({ procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner }),
-    [procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner],
+    () => ({ procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner, relYear, within }),
+    [procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner, relYear, within],
   );
 
   // C2 (2026-06-26): 이탈 모달 — create(시술후기 작성)는 type1 [임시저장 후 종료]/[글쓰기 종료].
@@ -178,7 +239,7 @@ export default function ReviewForm({
   const reviewDraft = useDraftAutoSave(
     "review",
     !isEdit && isDirty,
-    [procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner],
+    [procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner, relYear, within],
     getReviewFields,
   );
   useEffect(() => {
@@ -189,6 +250,7 @@ export default function ReviewForm({
       procedureKo?: string; satisfaction?: number; pain?: number;
       downtime?: string; revisit?: string; recommend?: number; effectAreas?: string[];
       effectOnset?: string; oneliner?: string;
+      relYear?: RelYear | ""; within?: string;
     };
     if (f.procedureKo && !procedureKo) setProcedureKo(f.procedureKo);
     if (f.satisfaction && !satisfaction) setSatisfaction(f.satisfaction);
@@ -199,6 +261,9 @@ export default function ReviewForm({
     if (f.effectAreas?.length && !effectAreas.length) setEffectAreas(f.effectAreas);
     if (f.effectOnset && !effectOnset) setEffectOnset(f.effectOnset);
     if (f.oneliner && !oneliner) setOneliner(f.oneliner);
+    // 어림시기 복원 — 미선택 상태일 때만 덮어써 사용자 입력 보존.
+    if (f.relYear && !relYear) setRelYear(f.relYear);
+    if (f.within && !within) setWithin(f.within);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -279,12 +344,28 @@ export default function ReviewForm({
       return;
     }
 
-    // 단답(create 전용) — trim 후 빈 답 제거. 모두 비면 키 생략(서버/RPC 무동작).
+    // 단답(create 전용, 일원화 2칸) — trim 후 빈 답 제거. 모두 비면 키 생략(서버/RPC 무동작).
     const filledShortAnswers = showShortAnswers
       ? shortAnswers
           .map((a) => ({ question_id: a.question_id, answer_text: a.answer_text.trim() }))
           .filter((a) => a.answer_text.length > 0)
       : [];
+
+    // 대표답(p_body) 결정 — 일원화 후 body 컬럼에는 "대표 답" 1개를 저장(검색·카드 본문 보존).
+    //   create + 단답 2칸: "생생한 후기를 남겨주세요"(대표 질문) 답이 있으면 그것, 없으면 첫 비어있지
+    //   않은 답. 둘 다 없으면 빈 문자열.  edit(또는 풀 미존재 fallback): 기존 oneliner textarea 값.
+    const representativeBody = showShortAnswers
+      ? (() => {
+          const repId = (shortAnswerQuestions ?? []).find(
+            (q) => q.text === REPRESENTATIVE_QUESTION_TEXT,
+          )?.id;
+          const repAnswer =
+            repId != null
+              ? filledShortAnswers.find((a) => a.question_id === repId)?.answer_text
+              : undefined;
+          return (repAnswer ?? filledShortAnswers[0]?.answer_text ?? "");
+        })()
+      : oneliner.trim();
 
     const payload = {
       procedure_ko: procedureKo,
@@ -296,8 +377,12 @@ export default function ReviewForm({
       ...(recommend >= 1 ? { recommend } : {}),
       effect_areas: effectAreas,
       effect_onset: effectOnset,
-      body: oneliner.trim(),
-      // 단답(optional) — 채워진 항목이 있을 때만 전송. create 전용.
+      // 어림시기 — date_precision 항상 전송. visited_on 은 unknown(미기억)이면 null(서버가 NULL 저장).
+      date_precision: precisionForSave,
+      visited_on: visitedOnForSave,
+      // 대표답 = body(검수·마스킹은 라우트가 body 에 동일 적용). create=대표 단답, edit=oneliner.
+      body: representativeBody,
+      // 단답(optional) — 채워진 항목 전부 전송(대표답 포함). create 전용.
       ...(filledShortAnswers.length > 0 ? { short_answers: filledShortAnswers } : {}),
     };
 
@@ -385,6 +470,57 @@ export default function ReviewForm({
       </h1>
 
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
+        {/* ── 0. 어림시기 (언제쯤 받으셨어요?) ── 회고형: 일반 언어로만(달력 없음).
+            1단(상대 연도, 택1) + 2단(연중, 선택). unknown/미선택이면 날짜 미전송(서버 NULL). create 전용. */}
+        {!isEdit && (
+        <div>
+          {/* 라벨 + 조합 결과("작년 가을쯤")를 같은 줄에 — 한 줄 절약(사용자 요청). */}
+          <label className="mb-2 flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-[var(--text)]">
+            <span>언제쯤 받으셨어요?</span>
+            {relYear !== "" && precisionDateLabel && (
+              <span className="text-[12px] font-normal text-[var(--primary)]">{precisionDateLabel}</span>
+            )}
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {REL_YEAR_CHIPS.map((c) => {
+              const on = relYear === c.value;
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => { setRelYear(c.value); if (c.value === "unknown") setWithin(""); }}
+                  disabled={pending}
+                  className="rounded-full px-3 py-1 text-[12.5px] transition-colors disabled:opacity-50"
+                  style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+          {/* 2단(연중) — 연도를 골랐고 '잘 기억 안 나요'가 아닐 때만. 다시 누르면 해제(연 단위). */}
+          {relYear !== "" && relYear !== "unknown" && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {WITHIN_CHIPS.map((w) => {
+                const on = within === w.value;
+                return (
+                  <button
+                    key={w.value}
+                    type="button"
+                    onClick={() => setWithin(on ? "" : w.value)}
+                    disabled={pending}
+                    className="rounded-full px-3 py-1 text-[12.5px] transition-colors disabled:opacity-50"
+                    style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#F1F3F5", color: "#5C6470", fontWeight: 500 }}
+                  >
+                    {w.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        )}
+
         {/* ── 1. 시술 선택 (필수, 잠금형) ──
             선택하면 피커가 grid-rows 1fr→0fr 로 부드럽게 접히고, 선택한 시술명만
             제목으로 남으며 아래 입력창들이 자연스럽게 올라옴. */}
@@ -521,37 +657,43 @@ export default function ReviewForm({
           options={EFFECT_ONSET_OPTIONS}
           disabled={pending}
         />
-
-        {/* ── 8. 생생한 후기 (선택) ── */}
-        <div>
-          <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            생생한 후기를 남겨주세요{" "}
-            <span className="text-xs font-normal text-[var(--text-muted)]">
-              ({oneliner.length} / {ONELINER_MAX})
-            </span>
-          </label>
-
-          <textarea
-            value={oneliner}
-            onChange={(e) => setOneliner(e.target.value)}
-            maxLength={ONELINER_MAX}
-            rows={3}
-            disabled={pending}
-            placeholder={onelinerPlaceholder}
-            className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
-          />
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
-            의료광고성 표현·병원·의사 실명 언급은 금합니다.
-          </p>
         </div>
+        {/* ↑ 시술 미선택 시 흐림 영역(평점·효과 등)은 여기서 닫는다. 아래 단답은 흐림 밖 — 시술을
+            고르지 않아도 질문 다시 고르기·작성이 가능하도록(사용자 요청). 제출은 canSubmit 가 계속 가드. */}
 
-        {/* ── 9. 단답 2칸 (선택, create 전용) ── 풀이 비면 컴포넌트가 렌더 안 함. */}
-        {showShortAnswers && (
+        {/* ── 8. 생생한 후기 단답 (선택) ──
+            일원화: create 모드 + 질문 풀이 있으면 질문 기반 단답 2칸(평평한 구조, 중첩 없음).
+            각 칸 = [질문 라벨 + 다시 고르기 + n/400 카운터] + textarea — 옛 "생생한 후기" 글상자
+            스타일·카운터 그대로. edit 모드(또는 풀 미존재 fallback)는 기존 단일 "생생한 후기"
+            textarea 유지(수정은 본 안건 범위 외, 무회귀). */}
+        {showShortAnswers ? (
           <ShortAnswerFields
             questions={shortAnswerQuestions ?? []}
             onChange={setShortAnswers}
             disabled={pending}
           />
+        ) : (
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
+              생생한 후기를 남겨주세요{" "}
+              <span className="text-xs font-normal text-[var(--text-muted)]">
+                ({oneliner.length} / {ONELINER_MAX})
+              </span>
+            </label>
+
+            <textarea
+              value={oneliner}
+              onChange={(e) => setOneliner(e.target.value)}
+              maxLength={ONELINER_MAX}
+              rows={3}
+              disabled={pending}
+              placeholder={onelinerPlaceholder}
+              className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+            />
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              의료광고성 표현·병원·의사 실명 언급은 금합니다.
+            </p>
+          </div>
         )}
 
         {/* 유효성 검사 오류 목록 */}
@@ -590,7 +732,6 @@ export default function ReviewForm({
                 ? "후기 수정"
                 : "후기 올리기"}
           </button>
-        </div>
         </div>
       </div>
       {guard.showModal && (
