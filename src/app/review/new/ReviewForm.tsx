@@ -42,6 +42,10 @@ import { loadDraft, saveDraft, deleteDraft } from "@/lib/draft-storage";
 import UnsavedChangesModal from "@/components/UnsavedChangesModal";
 import { CATEGORIES } from "@/lib/categories";
 import { DOWNTIME_OPTIONS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
+import {
+  NumberChoiceField,
+  RECOMMEND_OPTIONS,
+} from "@/components/review/review-controls";
 
 /**
  * categoryLabel(예: "리프팅" / "스킨부스터") → CategoryWithChips 와 같은 색.
@@ -69,6 +73,8 @@ export type ReviewEditInitial = {
   pain: number;
   downtime: string;
   revisit: string;
+  /** 추천의향(1~5). standalone 후기는 optional — 없으면 0(미선택). */
+  recommend?: number;
   effectAreas: string[];
   effectOnset: string;
   body: string;
@@ -197,6 +203,8 @@ export default function ReviewForm({
   const [pain, setPain] = useState<number>(initial?.pain ?? 0);
   const [downtime, setDowntime] = useState(initial?.downtime ?? "");
   const [revisit, setRevisit] = useState(initial?.revisit ?? "");
+  // 추천의향(recommend, 1~5) — standalone 후기 선택 항목. 0 = 미선택.
+  const [recommend, setRecommend] = useState<number>(initial?.recommend ?? 0);
   const [effectAreas, setEffectAreas] = useState<string[]>(initial?.effectAreas ?? []);
   const [effectOnset, setEffectOnset] = useState(initial?.effectOnset ?? "");
   const [oneliner, setOneliner] = useState(initial?.body ?? "");
@@ -207,14 +215,15 @@ export default function ReviewForm({
     pain > 0 ||
     !!downtime ||
     !!revisit ||
+    recommend > 0 ||
     effectAreas.length > 0 ||
     !!effectOnset ||
     oneliner.length > 0;
 
   /* ── 임시저장 자동저장 + 복원 (create 모드만) ── */
   const getReviewFields = useCallback(
-    () => ({ procedureKo, satisfaction, pain, downtime, revisit, effectAreas, effectOnset, oneliner }),
-    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, effectOnset, oneliner],
+    () => ({ procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner }),
+    [procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner],
   );
 
   // C2 (2026-06-26): 이탈 모달 — create(시술후기 작성)는 type1 [임시저장 후 종료]/[글쓰기 종료].
@@ -230,7 +239,7 @@ export default function ReviewForm({
   const reviewDraft = useDraftAutoSave(
     "review",
     !isEdit && isDirty,
-    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, effectOnset, oneliner],
+    [procedureKo, satisfaction, pain, downtime, revisit, recommend, effectAreas, effectOnset, oneliner],
     getReviewFields,
   );
   useEffect(() => {
@@ -239,7 +248,7 @@ export default function ReviewForm({
     if (!saved?.fields) return;
     const f = saved.fields as {
       procedureKo?: string; satisfaction?: number; pain?: number;
-      downtime?: string; revisit?: string; effectAreas?: string[];
+      downtime?: string; revisit?: string; recommend?: number; effectAreas?: string[];
       effectOnset?: string; oneliner?: string;
     };
     if (f.procedureKo && !procedureKo) setProcedureKo(f.procedureKo);
@@ -247,6 +256,7 @@ export default function ReviewForm({
     if (f.pain && !pain) setPain(f.pain);
     if (f.downtime && !downtime) setDowntime(f.downtime);
     if (f.revisit && !revisit) setRevisit(f.revisit);
+    if (f.recommend && !recommend) setRecommend(f.recommend);
     if (f.effectAreas?.length && !effectAreas.length) setEffectAreas(f.effectAreas);
     if (f.effectOnset && !effectOnset) setEffectOnset(f.effectOnset);
     if (f.oneliner && !oneliner) setOneliner(f.oneliner);
@@ -336,6 +346,8 @@ export default function ReviewForm({
       pain,
       downtime,
       revisit,
+      // 추천의향(optional) — 선택 시에만 1~5 전송. 미선택(0)이면 키 생략 → DB recommend = NULL.
+      ...(recommend >= 1 ? { recommend } : {}),
       effect_areas: effectAreas,
       effect_onset: effectOnset,
       body: oneliner.trim(),
@@ -515,6 +527,17 @@ export default function ReviewForm({
           value={revisit}
           onChange={setRevisit}
           options={REVISIT_OPTIONS}
+          disabled={pending}
+        />
+
+        {/* ── 5-1. 추천의향 (선택) ── 다른 분께 권할지(1~5). revisit(내가 또 받을지)와 의미 다름.
+            standalone 후기에 신규 추가(D-D 잔여). 선택 항목이라 미선택 시 저장 NULL. */}
+        <NumberChoiceField
+          label="다른 분께 추천하시겠어요?"
+          hint="선택 — 같은 고민을 가진 분께 도움이 돼요."
+          value={recommend}
+          onChange={setRecommend}
+          options={RECOMMEND_OPTIONS}
           disabled={pending}
         />
 

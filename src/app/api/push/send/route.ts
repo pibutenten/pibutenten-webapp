@@ -119,6 +119,8 @@ export async function POST(req: Request) {
     published: "🚀 발행 완료",
     report: "🚩 새 신고 접수",
     keyword: "🏷️ 관심 주제 새 글",
+    follow_post: "✨ 새 글",
+    diary_reminder: "📔 후기 리마인드",
   };
   const title = (kind && KIND_TITLES[kind]) || "피부텐텐";
 

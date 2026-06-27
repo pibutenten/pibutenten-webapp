@@ -44,6 +44,10 @@ export const ReviewCreateSchema = z
     downtime: z.enum(["same_day", "days_1_2", "days_3_5", "week_1", "weeks_2_plus"]),
     // 재시술 의향: 예 / 고민중 / 아니오.
     revisit: z.enum(["yes", "maybe", "no"]),
+    // 추천의향(recommend) — 다른 분께 권할지(1~5 척도). revisit 와 의미 다름.
+    //   visit 경로(VisitReviewSchema.recommend)와 정합되도록 1~5 정수, optional·nullable.
+    //   미전달 시 DB recommend = NULL(기존 후기 무회귀).
+    recommend: z.number().int().min(1).max(5).nullable().optional(),
     // 체감 효과 — 후기 전용 19종 라벨('없음' 포함), 필수(1~19개, 각 ≤20자).
     effect_areas: z.array(z.string().min(1).max(20)).min(1).max(19),
     // 효과 체감 시기 — 영문 슬러그(DB effect_onset_chk 와 일치).

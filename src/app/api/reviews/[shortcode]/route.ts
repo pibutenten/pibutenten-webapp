@@ -121,6 +121,9 @@ export async function PATCH(
   }
 
   // 6. RPC — 카드 + procedure_reviews 원자적 갱신. 권한/존재 검증은 RPC 내부.
+  //    NOTE: update_procedure_review 는 아직 p_recommend 파라미터가 없으므로 recommend 는
+  //      여기서 RPC 로 전달하지 않는다(미전달 = 기존 recommend 값 유지). 스키마는 일관성을 위해
+  //      recommend 를 수용(검증)하되, 수정 경로의 recommend 갱신은 RPC 확장이 따르는 별도 안건.
   const { data: rpcData, error: rpcErr } = await supabase.rpc("update_procedure_review", {
     p_shortcode: shortcode,
     p_title: title,
