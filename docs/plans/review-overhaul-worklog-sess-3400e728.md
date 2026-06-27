@@ -96,6 +96,13 @@ visit (= diaries 확장)                         🔒 비공개
 - **★코디네이션 경보**: 옆 세션 0298이 "11함수 정본 복원(인코딩)". 그 11함수에 `create_procedure_review` 포함 시 내 0294 is_public 패치를 옛버전으로 덮어쓸 위험. **현재 라이브엔 내 패치 생존 확인(is_public/source/date_precision present).** 머지 시 `create_procedure_review`가 이 3컬럼 보유하는지 재확인 필수 — 빠지면 신규 공개후기 비노출 회귀 재발.
 - **남은 작업(Phase 3 프런트, 라이브·빌드검증 필요)**: 통합 글쓰기 UI(동적 아코디언·어림시기·시계열 폼) + API 라우트(/api/visits·/api/visits/[id]/checkins[revalidatePath 필수]·DELETE·PATCH·unpublish) + /notes·리포트 visit/checkin 연동 + ReviewForm recommend 필드 + create/update_procedure_review에 recommend 인자(D-D 잔여). cron 발사(run_diary_reminders + /api/cron/diary-reminders + notification kind=`diary_reminder`)는 notification-kinds.ts 공유라 FOLLOW 머지 후(P4/P5).
 
+## Phase 3a 완료 (2026-06-27, API 라우트)
+- 신규 6파일(dormant, 라이브 무참조): `src/app/api/visits/route.ts`(POST→create_visit_with_entries), `src/app/api/visits/[id]/route.ts`(PATCH→update_visit, DELETE→delete_visit), `src/app/api/reviews/checkins/route.ts`(POST→upsert_review_checkin + **revalidatePath**(공개 diary_linked만, ko+en+family)), `src/app/api/reviews/[shortcode]/unpublish/route.ts`(POST→unpublish_review), `src/lib/schema/api/visits.ts`(zod .strict 3종), `src/lib/review-report-revalidate.ts`(재검증 경로 SSOT).
+- 현행 /api/reviews 패턴 답습(인증 active 명함·CSRF middleware·mask/screen은 공개 entry만·rpc 사용자JWT·에러매핑 SQLSTATE+message). F2: solo_price 응답/카드/revalidate 미노출. F3: 공개 checkin 후 리포트 재검증.
+- 보정: shortcode 요청내 중복방지 Set + 23505→409, checkins 22001 매핑(FIX-A/B).
+- 검증: 독립 2인 감사 PASS(치명·주요 0), `tsc --noEmit` 0, **`npm run build` 성공**(dev 미가동 확인 후). 미커밋 페이즈로 dormant.
+- 잔여(3b로): update_visit is_complete preserve-on-omit(부분PATCH 대비), ReviewForm recommend.
+
 ## 다음 단계 (원장 통합안 확정 시)
 - 마스터 플랜 D3 철회 반영 + 시계열을 코어(Phase 1~3 내)로 끌어올림.
 - 스키마 확정: procedure_reviews 확장 컬럼(visit_id/diary_procedure_id/is_public/date_precision/solo_price) + review_checkin 신규.
