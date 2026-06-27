@@ -20,6 +20,8 @@ type Prefs = {
   pref_keyword_interest: boolean;
   pref_keyword_concern: boolean;
   pref_keyword_skin_type: boolean;
+  // 팔로우한 분이 새 글을 올리면 알림 (마이그 0292).
+  pref_follow_post: boolean;
 };
 
 export async function GET() {
@@ -45,6 +47,7 @@ export async function GET() {
     pref_keyword_interest: row?.pref_keyword_interest ?? true,
     pref_keyword_concern: row?.pref_keyword_concern ?? true,
     pref_keyword_skin_type: row?.pref_keyword_skin_type ?? true,
+    pref_follow_post: row?.pref_follow_post ?? true,
   };
   return NextResponse.json(prefs, {
     headers: { "cache-control": "no-store" },
@@ -82,6 +85,7 @@ export async function POST(req: Request) {
     p_keyword_interest: toBool(body.pref_keyword_interest, true),
     p_keyword_concern: toBool(body.pref_keyword_concern, true),
     p_keyword_skin_type: toBool(body.pref_keyword_skin_type, true),
+    p_follow_post: toBool(body.pref_follow_post, true),
   });
   if (error) {
     return errorResponse(error, "save_failed", "[prefs POST] rpc", 500);

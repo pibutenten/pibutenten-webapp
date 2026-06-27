@@ -45,7 +45,7 @@ type Notification = {
 
 const KIND_LABEL = KIND_LONG_LABEL;
 
-type FilterKey = "all" | "comment" | "reply" | "like" | "save" | "keyword" | "ops";
+type FilterKey = "all" | "comment" | "reply" | "like" | "save" | "keyword" | "follow" | "ops";
 
 const FILTER_KINDS: Record<FilterKey, Kind[] | null> = {
   all: null,
@@ -54,6 +54,7 @@ const FILTER_KINDS: Record<FilterKey, Kind[] | null> = {
   like: ["like"],
   save: ["save"],
   keyword: ["keyword"],
+  follow: ["follow_post"],
   ops: ["review_request", "published", "report"],
 };
 
@@ -322,6 +323,11 @@ export default function NotificationsClient({
           label="관심"
           active={filter === "keyword"}
           onClick={() => setFilter("keyword")}
+        />
+        <FilterChip
+          label="새 글"
+          active={filter === "follow"}
+          onClick={() => setFilter("follow")}
         />
         {showOps && (
           <FilterChip

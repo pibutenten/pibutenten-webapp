@@ -82,6 +82,7 @@ type NotifPrefs = {
   pref_keyword_interest: boolean;
   pref_keyword_concern: boolean;
   pref_keyword_skin_type: boolean;
+  pref_follow_post: boolean;
 };
 const NOTIF_DEFAULTS: NotifPrefs = {
   pref_comment: true,
@@ -93,6 +94,7 @@ const NOTIF_DEFAULTS: NotifPrefs = {
   pref_keyword_interest: true,
   pref_keyword_concern: true,
   pref_keyword_skin_type: true,
+  pref_follow_post: true,
 };
 // 활동 알림(관심시술 밑 별도 카드) — 기존 알림 토글 행 그대로. 검수 요청은 doctor/admin 한정.
 const ACTIVITY_ROWS: {
@@ -108,6 +110,7 @@ const ACTIVITY_ROWS: {
   { key: "pref_save", emoji: "🔖", label: "내 글 저장", desc: "누군가 내 글을 저장하면 알림 (이름 없이 인원수만, 24시간에 1회)", visibleToUser: true },
   { key: "pref_review_request", emoji: "🩺", label: "검수 요청", desc: "관리자가 내 카드 검수를 요청하면 알림 (원장님 한정)", visibleToUser: false },
   { key: "pref_published", emoji: "🚀", label: "내 카드 발행됨", desc: "검수 후 내 카드가 발행되면 알림", visibleToUser: true },
+  { key: "pref_follow_post", emoji: "✨", label: "팔로우한 분 새 글", desc: "팔로우한 분이 새 글을 올리면 알림", visibleToUser: true },
 ];
 
 type Status =
