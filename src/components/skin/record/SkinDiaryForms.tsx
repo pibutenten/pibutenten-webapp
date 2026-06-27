@@ -12,6 +12,21 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { recordBadge } from "@/lib/diary-status";
 import { chosungOf, isAllChosung } from "@/lib/hangul-chosung";
+import {
+  StarField,
+  FaceField,
+  ChoiceField,
+  NumberChoiceField,
+  EffectChip,
+  PAIN_FACES,
+  REVISIT_OPTIONS,
+  RECOMMEND_OPTIONS,
+  EFFECT_AREA_OPTIONS,
+  EFFECT_AREA_COLORS,
+  ONELINER_MAX,
+  ONELINER_PLACEHOLDERS,
+} from "@/components/review/review-controls";
+import { DOWNTIME_OPTIONS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -33,10 +48,50 @@ const PROCEDURES: { value: string; label: string; cat: string }[] = [
   ...["리쥬란","쥬베룩","스컬트라","보톡스","프로파일로","울트라콜","스킨바이브","더엘주사","레디어스","레스틸렌","벨로테로","올리디아","힐로웨이브"].map((l) => ({ value: l, label: l, cat: "스킨부스터" })),
 ];
 
-type ReviewState = { satisfaction: number; pain: number; downtime: string; revisit: string; effectAreas: string[]; effectOnset: string; oneliner: string };
-const emptyReview = (): ReviewState => ({ satisfaction: 0, pain: 0, downtime: "", revisit: "", effectAreas: [], effectOnset: "", oneliner: "" });
+// 시술별 후기(아코디언 펼침) day0 평가 슬롯 — create_visit_with_entries 의 p_reviews 행 한 건에 매핑.
+//   satisfaction/pain/effectFelt 는 1~5, revisit/downtime/effectOnset 은 영문 슬러그, recommend 는 1~5,
+//   effectAreas 는 라벨 문자열 배열, oneliner 는 공개 한줄후기(is_public=true 일 때만 전송).
+type ReviewState = {
+  satisfaction: number;
+  pain: number;
+  downtime: string;
+  revisit: string;
+  effectAreas: string[];
+  effectOnset: string;
+  oneliner: string;
+  // 추천의향(recommend, 1~5) — revisit 와 별개. visit 경로 전용(0=미선택).
+  recommend: number;
+  // 효과 체감도(effect_felt, 1~5) day0 — 0=미선택.
+  effectFelt: number;
+  // 공개 옵트인 — true 면 평가 익명 공개(카드·집계 생성), false 면 비공개 시계열 기록만.
+  isPublic: boolean;
+};
+const emptyReview = (): ReviewState => ({ satisfaction: 0, pain: 0, downtime: "", revisit: "", effectAreas: [], effectOnset: "", oneliner: "", recommend: 0, effectFelt: 0, isPublic: false });
 
 type Screen = "diary" | "reviewonly" | "record" | "detail" | "noti";
+
+/* 어림시기 칩 — visited_on_precision CHECK(exact/season/half/year/unknown) 매핑.
+   unknown = "날짜 잘 기억 안 나요"(회고형 관대화) → visited_on 미전송, 백엔드가 NULL 처리. */
+type Precision = "exact" | "season" | "half" | "year" | "unknown";
+const PRECISION_CHIPS: { value: Precision; label: string }[] = [
+  { value: "exact", label: "정확한 날짜" },
+  { value: "season", label: "계절쯤" },
+  { value: "half", label: "상·하반기" },
+  { value: "year", label: "연도만" },
+  { value: "unknown", label: "날짜 잘 기억 안 나요" },
+];
+/** 계절 → 대표 월일(정규화: 봄=03-01, 여름=06-01, 가을=09-01, 겨울=12-01). */
+const SEASON_MONTH: Record<string, string> = { spring: "03", summer: "06", autumn: "09", winter: "12" };
+const SEASON_CHIPS: { value: string; label: string }[] = [
+  { value: "spring", label: "봄" },
+  { value: "summer", label: "여름" },
+  { value: "autumn", label: "가을" },
+  { value: "winter", label: "겨울" },
+];
+const HALF_CHIPS: { value: string; label: string; month: string }[] = [
+  { value: "h1", label: "상반기", month: "01" },
+  { value: "h2", label: "하반기", month: "07" },
+];
 
 
 /* ════════════════ ④ 나의 시술노트 ════════════════ */
@@ -63,12 +118,18 @@ function regionLabel(addr: string): string {
   return t[1] ? `${sido} ${t[1]}` : sido;
 }
 
-type DiaryProc = ReviewState & { id: number; label: string; cat: string; note: string; open: boolean; later: boolean };
+// open = 메모 입력 펼침(기존). reviewOpen = 시술별 후기 아코디언 펼침(신규, Phase 3b). later = 예약(미사용).
+//   inDict = 시술명이 tag_dictionary(is_procedure) 사전에 있는지. false(자유입력 신규태그)면
+//   후기(procedure_reviews)는 RPC 가 unknown_procedure 로 거부하므로 후기 아코디언을 막는다(기록만 허용).
+type DiaryProc = ReviewState & { id: number; label: string; cat: string; note: string; open: boolean; later: boolean; reviewOpen: boolean; inDict: boolean };
 
 /** 자동완성 사전 항목 — getReviewProcedures(ProcedureOption) 와 구조 호환(value/label/categoryLabel). */
 type ProcDictItem = { value: string; label: string; categoryLabel?: string | null };
 
-export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => void; go: (s: Screen) => void; procedures?: ProcDictItem[] }) {
+export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialProcedure }: { toast: (m: string) => void; go: (s: Screen) => void; procedures?: ProcDictItem[]; reviewOnly?: boolean; initialProcedure?: string }) {
+  // reviewOnly("시술 후기만") — 같은 visit 폼이지만 병원·방문 블록을 접은 상태로 시작.
+  //   사용자가 "병원·방문 정보 추가" 를 누르면 펼친다(비공개 메타는 선택이므로 visit 만으로도 저장 가능).
+  const [metaOpen, setMetaOpen] = useState(!reviewOnly);
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
   const [pickedXY, setPickedXY] = useState<{ x: number; y: number } | null>(null); // 확정 병원 좌표(경도 x/위도 y)
@@ -98,8 +159,16 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
   const [diary, setDiary] = useState(""); // 오늘의 시술 노트(비공개 메모) — 최대 400자.
   const [doctorName, setDoctorName] = useState(""); // 원장님(자유 입력)
   const [managerName, setManagerName] = useState(""); // 실장님(자유 입력)
+  const [clinicHome, setClinicHome] = useState(""); // 병원 홈페이지(비공개)
+  const [clinicKakao, setClinicKakao] = useState(""); // 카카오톡 채널(비공개, 직접 입력)
+  const [totalPrice, setTotalPrice] = useState(""); // 총 결제금액(비공개, 일기 표시용 — 집계 제외)
+  const [precision, setPrecision] = useState<Precision>("exact"); // 어림시기(visited_on_precision)
+  const [season, setSeason] = useState(""); // precision=season 일 때 선택한 계절
+  const [half, setHalf] = useState(""); // precision=half 일 때 선택한 반기(h1/h2)
+  const [isComplete, setIsComplete] = useState(true); // 완성/미완성(is_complete) — false=나중에 마저
   const [saving, setSaving] = useState(false);
   const [savedModal, setSavedModal] = useState(false); // 저장 완료 모달(→ 시술후기 유도).
+  const [savedHasPublicReview, setSavedHasPublicReview] = useState(false); // 저장 시 공개 후기 포함 여부(모달 카피 분기).
   const [dupId, setDupId] = useState<number | null>(null); // 중복 추가 시 기존 행 0.5초 강조.
   const [acHi, setAcHi] = useState(-1); // 자동완성 키보드 하이라이트 인덱스(-1=없음).
   // 인라인 달력 — 날짜 영역 클릭 시 아래로 펼침. 바깥 클릭 시 닫힘.
@@ -136,6 +205,39 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
   const prevCalMonth = () => { if (calMonth === 1) { setCalMonth(12); setCalYear((y) => y - 1); } else setCalMonth((m) => m - 1); };
   const nextCalMonth = () => { if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1); } else setCalMonth((m) => m + 1); };
   const selectCalDate = (day: number) => { setDate(`${calYear}-${String(calMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`); setCalOpen(false); };
+
+  // 어림시기 → 저장할 visited_on(YYYY-MM-DD) 대표일 정규화. null = 날짜 미전송.
+  //   exact = 사용자가 고른 날짜 그대로. season = 연+계절 대표월 01일. half = 연+반기 대표월 01일.
+  //   year = 연 01-01. unknown = null(날짜 미기억 — 백엔드가 NULL 처리).
+  //   ★관대화: season/half 인데 계절·반기 미선택이면 무음으로 3월/1월을 채우지 않고
+  //   연 단위(yyyy-01-01)로 graceful 강등(고른 적 없는 월로 저장 방지).
+  const visitedOnForSave = useMemo<string | null>(() => {
+    const yyyy = String(calYear).padStart(4, "0");
+    if (precision === "unknown") return null;
+    if (precision === "exact") return date;
+    if (precision === "year") return `${yyyy}-01-01`;
+    if (precision === "season") return season ? `${yyyy}-${SEASON_MONTH[season]}-01` : `${yyyy}-01-01`;
+    if (precision === "half") return half ? `${yyyy}-${HALF_CHIPS.find((h) => h.value === half)?.month ?? "01"}-01` : `${yyyy}-01-01`;
+    return date;
+  }, [precision, date, calYear, season, half]);
+
+  // 실제 전송할 precision — season/half 인데 미선택이면 연 단위로 강등(visitedOnForSave 와 정합).
+  //   봄/상반기 무음 폴백 제거: 고른 적 없으면 'year' 로 보정해 저장값과 라벨이 일치하도록.
+  const precisionForSave = useMemo<Precision>(() => {
+    if (precision === "season" && !season) return "year";
+    if (precision === "half" && !half) return "year";
+    return precision;
+  }, [precision, season, half]);
+
+  // 어림시기 라벨(검토용 — 정확 외엔 셀렉터 위 안내).
+  //   season/half 미선택이면 연 단위 강등이므로 "○○년쯤" 으로 표시(저장값과 일치).
+  const precisionDateLabel = useMemo(() => {
+    if (precision === "exact") return dateLabel;
+    if (precision === "year") return `${calYear}년쯤`;
+    if (precision === "season") return season ? `${calYear}년 ${SEASON_CHIPS.find((s) => s.value === season)?.label ?? ""}쯤` : `${calYear}년쯤`;
+    if (precision === "half") return half ? `${calYear}년 ${HALF_CHIPS.find((h) => h.value === half)?.label ?? ""}` : `${calYear}년쯤`;
+    return dateLabel;
+  }, [precision, dateLabel, calYear, season, half]);
 
   // clinics row[] → ClinicHit[] (내 위치 있으면 거리 계산 + 거리순 정렬).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -269,10 +371,16 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
     const exist = procs.find((p) => p.label === label);
     if (exist) { setTag(""); setDupId(exist.id); setTimeout(() => setDupId((c) => (c === exist.id ? null : c)), 600); return; }
     if (procs.length >= 10) { toast("시술은 최대 10개까지 추가할 수 있어요"); return; }
-    const cat = procList.find((p) => p.label === label)?.cat ?? "";
+    // 사전 매칭 — procList(tag_dictionary is_procedure) 에 있으면 inDict=true.
+    //   자유입력 신규태그(inDict=false)는 RPC 가 후기(procedure_reviews)를 거부하므로 후기 아코디언 차단(기록만).
+    const matched = procList.find((p) => p.label === label);
+    const cat = matched?.cat ?? "";
+    const inDict = !!matched;
     const nid = (pidRef.current += 1);
+    // "시술 후기만"(reviewOnly) 진입이면 사전 시술은 후기 아코디언을 자동 펼침(후기 작성이 주목적).
+    const autoReviewOpen = reviewOnly && inDict;
     // 함수형 업데이트 + 동기 id — 연속 고속 추가에도 id 충돌·항목 유실 없음. 중복·상한은 최신 상태 기준 재확인.
-    setProcs((prev) => (prev.some((p) => p.label === label) || prev.length >= 10 ? prev : [...prev, { ...emptyReview(), id: nid, label, cat, note: "", open: false, later: false }]));
+    setProcs((prev) => (prev.some((p) => p.label === label) || prev.length >= 10 ? prev : [...prev, { ...emptyReview(), id: nid, label, cat, note: "", open: false, later: false, reviewOpen: autoReviewOpen, inDict }]));
     setTag("");
     setAcHi(-1);
     requestAnimationFrame(() => tagRef.current?.focus()); // 입력창 비우고 포커스 유지 → 이어서 다음 시술.
@@ -285,6 +393,21 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
     if (hadNote) toast("메모와 함께 삭제됐어요");
   }
   const upd = (id: number, p: Partial<DiaryProc>) => setProcs((ps) => ps.map((x) => (x.id === id ? { ...x, ...p } : x)));
+
+  // initialProcedure(?proc=) 프리필 — 시술노트 저장 후 후기 유도 동선. 마운트 1회, 사전에 있는 시술만.
+  //   procList(서버 사전) 준비 후 해당 시술 행을 추가(reviewOnly 면 후기 아코디언 자동 펼침은 addTag 가 처리).
+  const initProcDoneRef = useRef(false);
+  useEffect(() => {
+    if (initProcDoneRef.current) return;
+    if (!initialProcedure) return;
+    if (procList.length === 0) return; // 사전 로드 대기.
+    initProcDoneRef.current = true;
+    const matched = procList.find((p) => p.label === initialProcedure);
+    if (!matched) return; // 사전에 없으면 프리필 생략(자유입력 후기 불가 — C-1 가드).
+    const nid = (pidRef.current += 1);
+    setProcs((prev) => (prev.some((p) => p.label === matched.label) ? prev : [...prev, { ...emptyReview(), id: nid, label: matched.label, cat: matched.cat, note: "", open: false, later: false, reviewOpen: reviewOnly, inDict: true }]));
+  }, [procList, initialProcedure, reviewOnly]);
+
   const tq = tag.trim(); const tlow = tq.toLowerCase();
   // 부분일치 + 영문 별칭 + 초성('ㅇㅆ'→울쎄라). 이미 추가된 건 제외, 최대 8건.
   const acMatches = useMemo(() => {
@@ -311,41 +434,133 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
     }
   }, [tq, acMatches.length, acExact]);
 
-  // 저장 — /api/diaries POST (create_diary RPC). 시술 1개 이상 필수.
+  // 후기 아코디언을 펼친(reviewOpen=true) + 사전 등록(inDict) 시술 = 후기 작성된 행. is_public 무관 procedure_reviews 1행 생성.
+  //   inDict 가드: 자유입력 신규태그는 RPC 가 unknown_procedure 로 트랜잭션 전체를 롤백하므로 후기 행에서 제외(기록은 유지).
+  //   diary_procedure_index = procs 안에서의 0-based 위치(RPC 가 diary_procedure_id 로 매핑, +1 보정은 RPC 내부).
+  const openedReviews = useMemo(() => procs.filter((p) => p.reviewOpen && p.inDict), [procs]);
+
+  // ★관대화(FIX-2 하드차단 제거): precision=season/half 인데 계절/반기 미선택이어도
+  //   저장을 막지 않는다. 무음으로 3월/1월을 채우는 대신 연 단위로 graceful 강등
+  //   (visitedOnForSave/precisionForSave 가 'year' 로 보정). 불완전 입력 허용 원칙.
+
+  // ★FIX-4: 공개 후기 최소 품질 게이트 — is_public=true 인데 만족도 등 지표·한줄후기를
+  //   전부 비우면 빈 공개 카드가 피드/리포트에 노출된다. 공개 entry 는 최소 1개 지표
+  //   또는 한줄후기(body)를 요구한다(비공개/기록만은 부분입력 그대로 허용).
+  //   완성(is_complete) 저장에서만 공개가 실제 전송되므로, 미완성이면 게이트 면제.
+  const emptyPublicReview = useMemo(
+    () =>
+      isComplete &&
+      openedReviews.some(
+        (p) =>
+          p.isPublic &&
+          p.satisfaction === 0 &&
+          p.pain === 0 &&
+          p.recommend === 0 &&
+          p.effectFelt === 0 &&
+          !p.downtime &&
+          !p.revisit &&
+          !p.effectOnset &&
+          p.effectAreas.length === 0 &&
+          !p.oneliner.trim(),
+      ),
+    [isComplete, openedReviews],
+  );
+
+  // 저장 — /api/visits POST (create_visit_with_entries RPC). visit + 시술목록 + 후기 + day0 원자 생성.
+  //   완성(is_complete=true) 시 시술 1개 이상 필수. 미완성(나중에 마저) 면 0개 허용(RPC 가 면제).
   async function handleSave() {
     if (saving) return;
-    if (procs.length === 0) { toast("받은 시술을 1개 이상 추가해주세요"); return; }
+    if (isComplete && procs.length === 0) { toast("받은 시술을 1개 이상 추가해주세요"); return; }
+    // ★관대화: 어림시기(계절/반기) 미선택은 더 이상 차단하지 않음 — 연 단위로 강등 저장.
+    // ★FIX-4: 공개 후기인데 평가·한줄후기가 전부 비면 빈 공개 카드 생성 차단.
+    if (emptyPublicReview) { toast("공개 후기는 만족도 등 평가를 하나 이상 남기거나 한줄후기를 적어주세요"); return; }
     setSaving(true);
     try {
-      const res = await fetch("/api/diaries", {
+      // 후기 행(reviews) — 펼쳐서 day0 평가가 들어간 시술만. 공개(is_public)면 한줄후기 body 포함.
+      const reviews = procs
+        .map((pr, i) => ({ pr, i }))
+        .filter(({ pr }) => openedReviews.includes(pr))
+        .map(({ pr, i }) => {
+          // 미완성(임시저장, is_complete=false)이면 공개 카드를 만들지 않음(비공개 시계열로만 저장).
+          //   "나중에 마저 쓸게요" 인데 공개글이 즉시 나가는 혼동 방지. 완성 저장 때 다시 공개 가능.
+          const isPub = isComplete && pr.isPublic;
+          // day0 체크인 — diary_linked 시계열의 시작점(부분 입력 허용, 0/빈값은 null).
+          const checkin_day0 = {
+            satisfaction: pr.satisfaction > 0 ? pr.satisfaction : null,
+            recommend: pr.recommend > 0 ? pr.recommend : null,
+            effect_felt: pr.effectFelt > 0 ? pr.effectFelt : null,
+            pain: pr.pain > 0 ? pr.pain : null,
+            changed_points: pr.effectAreas.length > 0 ? pr.effectAreas : null,
+          };
+          const hasAnyDay0 =
+            checkin_day0.satisfaction != null ||
+            checkin_day0.recommend != null ||
+            checkin_day0.effect_felt != null ||
+            checkin_day0.pain != null ||
+            (checkin_day0.changed_points?.length ?? 0) > 0;
+          return {
+            diary_procedure_index: i,
+            procedure_ko: pr.label,
+            is_public: isPub,
+            // 결론 칸(부분 입력) — diary_linked 는 nullable. 0/빈값은 null.
+            satisfaction: pr.satisfaction > 0 ? pr.satisfaction : null,
+            pain: pr.pain > 0 ? pr.pain : null,
+            revisit: pr.revisit || null,
+            effect_areas: pr.effectAreas.length > 0 ? pr.effectAreas : null,
+            downtime: pr.downtime || null,
+            effect_onset: pr.effectOnset || null,
+            recommend: pr.recommend > 0 ? pr.recommend : null,
+            // 공개 한줄후기(body) — is_public=true 일 때만. 라우트가 마스킹·검수 후 카드 생성.
+            body: isPub ? (pr.oneliner.trim() || null) : null,
+            checkin_day0: hasAnyDay0 ? checkin_day0 : null,
+          };
+        });
+
+      const res = await fetch("/api/visits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          visited_on: date,
+          // unknown(날짜 미기억) 이면 visited_on 미전송(undefined → JSON 직렬화에서 제외) → 백엔드 NULL 처리.
+          //   season/half 미선택은 visitedOnForSave/precisionForSave 가 연 단위로 강등해 전송.
+          visited_on: visitedOnForSave ?? undefined,
+          visited_on_precision: precisionForSave,
           clinic_name: picked || null,
           clinic_addr: addr.trim() || null,
           clinic_tel: tel.trim() || null,
           clinic_x: pickedXY?.x ?? null,
           clinic_y: pickedXY?.y ?? null,
+          clinic_home: clinicHome.trim() || null,
+          clinic_kakao: clinicKakao.trim() || null,
           doctor_name: doctorName.trim() || null,
           manager_name: managerName.trim() || null,
           diary_body: diary.trim() || null,
-          // 용량/가격 입력 폐지(v2.2) — 메모(note)만 전송. unit_text/price 컬럼·RPC 는 유지(미사용).
+          total_price: totalPrice.trim() ? Number(totalPrice.replace(/[^0-9]/g, "")) || null : null,
+          is_complete: isComplete,
+          // 받은 시술 — 가격·용량 입력 폐지(총액으로 일원화), 메모(note)만. 컬럼·RPC 는 유지(미사용).
           procedures: procs.map((pr) => ({
             procedure_ko: pr.label,
             note: pr.note.trim() || null,
           })),
+          reviews,
         }),
       });
       if (res.status === 401) { toast("로그인 후 저장할 수 있어요"); setSaving(false); return; }
       if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { message?: string };
-        toast(j?.message || "저장에 실패했어요");
+        const j = (await res.json().catch(() => ({}))) as { message?: string; userMessage?: string };
+        toast(j?.userMessage || j?.message || "저장에 실패했어요");
         setSaving(false);
         return;
       }
+      const data = (await res.json().catch(() => ({}))) as {
+        blinded?: boolean;
+        screening?: { userMessage?: string } | null;
+      };
       setSaving(false);
-      setSavedModal(true); // 저장 완료 → 시술후기 유도 모달.
+      // 공개 후기 마스킹/검수 안내(있으면 1회).
+      if (data.blinded) toast("병원·의사명으로 보이는 표현이 자동으로 가려졌습니다.");
+      if (data.screening) { toast(data.screening.userMessage || "후기가 검토 대기로 전환되었습니다."); }
+      setSavedHasPublicReview(reviews.some((r) => r.is_public));
+      setSavedModal(true); // 저장 완료 → 후기 유도 모달.
     } catch {
       toast("네트워크 오류가 발생했어요");
       setSaving(false);
@@ -354,13 +569,35 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
 
   return (
     <section className="mx-auto w-full max-w-[680px] py-6">
-      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up">내가 받은 시술을 기록해요</h1>
+      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up">{reviewOnly ? "시술 후기를 남겨주세요" : "내가 받은 시술을 기록해요"}</h1>
 
       {/* 메인 노트 글상자 */}
       <div className={formBox}>
-        {/* 1. 날짜 — 인라인 달력 펼침 */}
+        {/* 1. 날짜 — 인라인 달력 펼침 + 어림시기 칩.
+            ★FIX-1: reviewOnly(회고형)에서도 날짜·어림시기는 항상 노출(metaOpen 밖).
+            병원·의사·실장 등 visit 상세만 metaOpen 으로 접는다. 날짜를 못 바꾸면
+            visited_on=오늘/precision=exact 로 고정돼 재방문 알림 오발·day0 시계열
+            시작점 왜곡 → 회고형 후기의 핵심 가치(어림시기 회고)를 깨뜨림. */}
         <div>
           <label className={labelCls}>언제 받으셨어요?</label>
+          {/* 어림시기 칩 — 정확/계절/반기/연/모름. exact 외엔 달력 대신 연·계절·반기 셀렉터로 치환.
+              unknown(날짜 잘 기억 안 나요) 면 날짜 입력 UI 를 모두 숨기고 안내만. */}
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {PRECISION_CHIPS.map((c) => {
+              const on = precision === c.value;
+              return (
+                <button key={c.value} type="button" onClick={() => { setPrecision(c.value); setCalOpen(false); }} className="rounded-full px-3 py-1 text-[12.5px] transition-colors" style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>{c.label}</button>
+              );
+            })}
+          </div>
+          {precision === "unknown" ? (
+            // 날짜 미기억 — 날짜 피커·연/계절/반기 UI 숨김. visited_on 미전송(백엔드 NULL).
+            <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-soft)] px-3 py-3 text-center">
+              <p className="text-[13px] font-medium text-[var(--text-secondary)]">정확한 시기는 기억나지 않아요</p>
+              <p className="mt-1 text-[11.5px] leading-relaxed text-[var(--text-muted)]">날짜 없이도 후기를 남길 수 있어요. (재방문 알림은 예약되지 않아요)</p>
+            </div>
+          ) : precision === "exact" ? (
+            <>
           <button ref={calBtnRef} type="button" onClick={() => { const next = !calOpen; setCalOpen(next); if (next) { setCalYear(+_y); setCalMonth(+_m); requestAnimationFrame(() => calRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })); } }} className={inputCls + " flex items-center justify-between text-left"}>
             <span className="text-[var(--text)]">{dateLabel}</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0"><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M4 9h16" /></svg>
@@ -382,8 +619,45 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
               </div>
             </div>
           )}
+            </>
+          ) : (
+            // exact 외 — 연도 스텝퍼 + (계절/반기) 셀렉터. year 면 연도만.
+            <div className="rounded-md border border-[var(--border)] bg-white p-3">
+              <div className="mb-2 flex items-center justify-center gap-5">
+                <button type="button" onClick={() => setCalYear((y) => y - 1)} className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--bg)] text-[var(--text-secondary)]" aria-label="이전 연도">‹</button>
+                <span className="text-[16px] font-extrabold tracking-wide text-[var(--text)]">{calYear}년</span>
+                <button type="button" onClick={() => setCalYear((y) => Math.min(y + 1, new Date().getFullYear()))} disabled={calYear >= new Date().getFullYear()} className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--bg)] text-[var(--text-secondary)] disabled:opacity-30" aria-label="다음 연도">›</button>
+              </div>
+              {precision === "season" && (
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {SEASON_CHIPS.map((s) => (
+                    <button key={s.value} type="button" onClick={() => setSeason(s.value)} className="rounded-full px-3.5 py-1 text-[13px] transition-colors" style={season === s.value ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>{s.label}</button>
+                  ))}
+                </div>
+              )}
+              {precision === "half" && (
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {HALF_CHIPS.map((h) => (
+                    <button key={h.value} type="button" onClick={() => setHalf(h.value)} className="rounded-full px-3.5 py-1 text-[13px] transition-colors" style={half === h.value ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>{h.label}</button>
+                  ))}
+                </div>
+              )}
+              <p className="mt-2 text-center text-[12px] text-[var(--text-muted)]">{precisionDateLabel}</p>
+            </div>
+          )}
         </div>
 
+        {/* "시술 후기만"(reviewOnly) — 병원·의사·실장 등 visit 상세만 접고 시작. 펼치면 일반 visit 폼과 동일.
+            ★FIX-1: 날짜·어림시기는 위에서 항상 노출되므로, 이 토글은 병원·방문 상세에만 적용된다. */}
+        {reviewOnly && !metaOpen && (
+          <button type="button" onClick={() => setMetaOpen(true)} className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-soft)] py-3 text-[13px] font-semibold text-[var(--text-secondary)]">
+            ＋ 병원·방문 정보 추가 <span className="text-[11.5px] font-normal text-[var(--text-muted)]">(선택, 나만 봐요)</span>
+          </button>
+        )}
+
+        {/* 병원·의사·실장 블록 — reviewOnly 면 metaOpen 일 때만 노출. */}
+        {metaOpen && (
+        <>
         {/* 2. 병원 — 이름/지명 검색 → 결과에서 바로 선택(지도 없음). 선택 시 결과창이 부드럽게 접힘. */}
         <div>
           <label className={labelCls}>어디서 받으셨어요?</label>
@@ -443,6 +717,9 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
               {/* 회색 박스·라벨 제거 — 주소/전화는 거의 안 건드리므로 보더리스 미니멀 라인으로. */}
               <input className="mt-1.5 w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={addr} placeholder="주소" onChange={(e) => setAddr(e.target.value)} />
               <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={tel} placeholder="전화번호" onChange={(e) => setTel(e.target.value)} />
+              {/* 병원 홈페이지·카카오톡 채널 — 비공개. addr/tel 과 같은 보더리스 라인. */}
+              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={clinicHome} placeholder="홈페이지 (선택)" maxLength={300} onChange={(e) => setClinicHome(e.target.value)} />
+              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={clinicKakao} placeholder="카카오톡 채널 (선택)" maxLength={300} onChange={(e) => setClinicKakao(e.target.value)} />
             </div>
           )}
         </div>
@@ -457,6 +734,8 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
               onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); tagRef.current?.focus(); } }} />
           </div>
         </div>
+        </>
+        )}
 
         {/* 4. 받은 시술 — 태그 입력(자동완성·초성) + 행마다 메모 3상태(선택). */}
         <div>
@@ -489,6 +768,18 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
                       onBlur={(e) => { const v = e.target.value.trim(); upd(p.id, { open: false }); if (v) trackProc("procedure_memo_save", { length: v.length }); }}
                       onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                     />
+                  )}
+
+                  {/* 시술별 후기 아코디언 — 펼치면 평가 컨트롤(day0). 안 펼치면 "기록만".
+                      자유입력 신규태그(inDict=false)는 후기 불가(RPC unknown_procedure 거부) → 안내만, 기록은 정상 저장. */}
+                  {!p.inDict ? (
+                    <p className="mt-2 px-1 text-[11.5px] leading-relaxed text-[var(--text-muted)]">목록에 없는 시술이라 기록만 남길 수 있어요. 후기는 운영자가 시술을 등록한 뒤 작성할 수 있어요.</p>
+                  ) : !p.reviewOpen ? (
+                    <button type="button" onClick={() => upd(p.id, { reviewOpen: true })} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[#CBE0F0] bg-white py-2 text-[12.5px] font-semibold text-[var(--primary-active)]">
+                      ✍️ 이 시술 후기 쓰기 <span className="text-[11px] font-normal text-[var(--text-muted)]">(안 쓰면 기록만 남아요)</span>
+                    </button>
+                  ) : (
+                    <ReviewAccordion p={p} onChange={(patch) => upd(p.id, patch)} onClose={() => upd(p.id, { reviewOpen: false })} />
                   )}
                 </div>
               ))}
@@ -559,7 +850,23 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
           <p className="mt-2 px-0.5 text-[12px] leading-relaxed text-[var(--text-muted)]">메모는 선택사항이에요. 샷수·바이알 수·부위 등 기억하고 싶은 것만 적어주세요.</p>
         </div>
 
-        {/* 5. 오늘의 시술 노트 — 비공개 메모, 최대 400자 (후기 카운터와 동일 표기) */}
+        {/* 5. 총 결제금액 — 비공개(일기 표시용, 집계 제외). 시술별 가격 입력은 폐지(총액 일원화). */}
+        <div>
+          <label className={labelCls}>총 결제금액 <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">(선택 · 나만 봐요)</span></label>
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="numeric"
+              className={inputCls + " pr-9"}
+              placeholder="예: 350000"
+              value={totalPrice ? Number(totalPrice.replace(/[^0-9]/g, "")).toLocaleString("ko-KR") : ""}
+              onChange={(e) => setTotalPrice(e.target.value.replace(/[^0-9]/g, ""))}
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14px] text-[var(--text-muted)]">원</span>
+          </div>
+        </div>
+
+        {/* 6. 오늘의 시술 노트 — 비공개 메모, 최대 400자 (후기 카운터와 동일 표기) */}
         <div>
           <label className={labelCls}>오늘의 시술 노트 <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">({diary.length} / 400)</span></label>
           <textarea rows={3} maxLength={400} value={diary} onChange={(e) => setDiary(e.target.value)} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
@@ -567,34 +874,149 @@ export function DiaryForm({ toast, go, procedures }: { toast: (m: string) => voi
 
       </div>
 
-      <div className="mt-5 flex justify-center">
-        <button type="button" onClick={handleSave} disabled={saving} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-wait disabled:opacity-60">{saving ? "저장 중…" : "기록 저장하기"}</button>
+      {/* 완성/미완성 — is_complete 토글. 미완성은 시술 0개도 저장 가능.
+          ★FIX-5: reviewOnly(후기 맥락)면 "다 썼어요/나중에 마저" 문구를 후기 맥락으로 분기. */}
+      <div className="mt-4 flex justify-center gap-2">
+        <button type="button" onClick={() => setIsComplete(true)} className="rounded-full px-4 py-1.5 text-[12.5px] transition-colors" style={isComplete ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>다 썼어요</button>
+        <button type="button" onClick={() => setIsComplete(false)} className="rounded-full px-4 py-1.5 text-[12.5px] transition-colors" style={!isComplete ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}>나중에 마저 쓸게요</button>
       </div>
 
-      {/* 저장 완료 모달 — 노트 저장 후 시술후기로 자연스럽게 유도(지금/나중에). */}
+      <div className="mt-3 flex justify-center">
+        {/* ★FIX-4: 빈 공개 후기면 저장 버튼 비활성(어림시기 미선택은 연 단위 강등 — 차단 안 함).
+            ★FIX-5: reviewOnly 면 후기 맥락 문구. */}
+        <button type="button" onClick={handleSave} disabled={saving || emptyPublicReview} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-60">{saving ? "저장 중…" : isComplete ? (reviewOnly ? "후기 등록" : "기록 저장하기") : (reviewOnly ? "임시 저장" : "임시 저장하기")}</button>
+      </div>
+      {/* 비활성 사유 안내 — 무음 차단 방지(왜 저장이 안 되는지 설명). 공개 후기 가드만 남김. */}
+      {!saving && emptyPublicReview && (
+        <p className="mt-2 text-center text-[12px] text-[var(--accent)]">
+          공개 후기는 평가를 하나 이상 남기거나 한줄후기를 적어주세요.
+        </p>
+      )}
+
+      {/* 저장 완료 모달 — 통합 폼에선 같은 화면에서 후기까지 작성하므로 완료 안내만. */}
       {savedModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={() => { setSavedModal(false); go("record"); }}>
           <div className="w-full max-w-[340px] rounded-[var(--radius)] bg-white p-6 text-center" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[28px]" style={{ background: "var(--primary-soft)" }}>✅</div>
-            <p className="text-[17px] font-extrabold text-[var(--text)]">노트 기록을 완료했어요</p>
+            <p className="text-[17px] font-extrabold text-[var(--text)]">{isComplete ? "기록을 완료했어요" : "임시 저장했어요"}</p>
             <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
-              다른 분들을 위해 시술후기를 남겨주세요.<br />
-              <span className="text-[var(--text-muted)]">지금 당장 쓰기 어려우면 나중에 알려드릴게요!</span>
+              {savedHasPublicReview
+                ? <>공개로 남긴 후기는 다른 분들께도 도움이 돼요.<br /><span className="text-[var(--text-muted)]">내 노트에서 언제든 다시 볼 수 있어요.</span></>
+                : <>받은 시술이 내 노트 타임라인에 정리됐어요.<br /><span className="text-[var(--text-muted)]">경과는 나중에 이어서 기록할 수 있어요.</span></>}
             </p>
             <div className="mt-5 space-y-2">
-              {/* 후기로 넘어갈 때 시술을 미리 지정(다시 고르지 않게). 1개면 바로, 여러개면 골라서. */}
-              {procs.length > 1 && <p className="mb-1 text-[12.5px] font-semibold text-[var(--text-muted)]">어떤 시술 후기를 남기시겠어요?</p>}
-              {procs.map((p) => (
-                <a key={p.id} href={`/write?tab=review&proc=${encodeURIComponent(p.label)}`} className="block w-full rounded-md bg-[var(--primary)] py-3 text-[14.5px] font-bold text-white">
-                  {procs.length > 1 ? `${p.label} 후기 남기기` : "시술후기 남기기"}
-                </a>
-              ))}
-              <button type="button" onClick={() => { setSavedModal(false); go("record"); }} className="w-full rounded-md bg-[var(--bg-soft)] py-3 text-[14.5px] font-semibold text-[var(--text-secondary)]">나중에 쓸게요</button>
+              <button type="button" onClick={() => { setSavedModal(false); go("record"); }} className="block w-full rounded-md bg-[var(--primary)] py-3 text-[14.5px] font-bold text-white">내 노트 보러 가기</button>
             </div>
           </div>
         </div>
       )}
     </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * ReviewAccordion — 시술 행 안에서 펼쳐지는 시술별 후기(day0) 입력.
+ *   평가 컨트롤(만족도·통증·다운타임·재시술·효과·추천의향·효과시기)은 review-controls 공용 모듈 재사용.
+ *   공개 옵트인(is_public) 토글 + 공개 시 한줄후기. 가격은 비공개 표기(여기선 입력 없음 — 총액으로 일원화).
+ *   day0 값 = 결론칸 시작점(부분 입력 허용). 펼침 자체가 procedure_reviews 1행 생성 신호(handleSave 의 reviewOpen).
+ * ───────────────────────────────────────────────────────────── */
+function ReviewAccordion({
+  p,
+  onChange,
+  onClose,
+}: {
+  p: DiaryProc;
+  onChange: (patch: Partial<DiaryProc>) => void;
+  onClose: () => void;
+}) {
+  const onelinerPlaceholder = useMemo(
+    () => ONELINER_PLACEHOLDERS[Math.floor(Math.random() * ONELINER_PLACEHOLDERS.length)],
+    [],
+  );
+  function toggleEffect(v: string) {
+    onChange({ effectAreas: p.effectAreas.includes(v) ? p.effectAreas.filter((x) => x !== v) : [...p.effectAreas, v] });
+  }
+  return (
+    <div className="mt-2 space-y-4 rounded-md border border-[#DCEAF5] bg-white p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[12.5px] font-bold text-[var(--primary-active)]">{p.label} 후기</span>
+        <button type="button" onClick={onClose} className="text-[11.5px] text-[var(--text-secondary)] underline">접기(기록만)</button>
+      </div>
+
+      {/* 만족도 */}
+      <StarField label="만족도" value={p.satisfaction} onChange={(v) => onChange({ satisfaction: v })} />
+      {/* 통증 */}
+      <FaceField label="통증" value={p.pain} onChange={(v) => onChange({ pain: v })} faces={PAIN_FACES} />
+      {/* 다운타임 */}
+      <ChoiceField label="다운타임이 얼마나 됐나요?" hint="붓기·멍·딱지 등이 가라앉고 일상이 편해질 때까지" value={p.downtime} onChange={(v) => onChange({ downtime: v })} options={DOWNTIME_OPTIONS} />
+      {/* 재시술 의향 */}
+      <ChoiceField label="재시술 의향 (내가 또 받을지)" value={p.revisit} onChange={(v) => onChange({ revisit: v })} options={REVISIT_OPTIONS} />
+      {/* 추천의향(recommend) — revisit 와 별개. visit 경로 전용. */}
+      <NumberChoiceField label="다른 분께 추천하시겠어요?" value={p.recommend} onChange={(v) => onChange({ recommend: v })} options={RECOMMEND_OPTIONS} />
+      {/* 효과 체감도(effect_felt) — day0 시계열 시작점(별점 1~5). */}
+      <StarField label="효과 체감도" value={p.effectFelt} onChange={(v) => onChange({ effectFelt: v })} />
+      {/* 효과(달라진 점) — 멀티 칩 */}
+      <div>
+        <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
+          이번 시술로 달라진 점을 모두 골라주세요
+          <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">생각보다 많을 거예요 — 보통 4개 이상 고르세요.</span>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {EFFECT_AREA_OPTIONS.map((opt, i) => (
+            <EffectChip key={opt} active={p.effectAreas.includes(opt)} color={EFFECT_AREA_COLORS[i % EFFECT_AREA_COLORS.length]} onClick={() => toggleEffect(opt)}>{opt}</EffectChip>
+          ))}
+        </div>
+      </div>
+      {/* 효과 발현 시점 */}
+      <ChoiceField label="효과는 언제부터 느끼셨어요?" value={p.effectOnset} onChange={(v) => onChange({ effectOnset: v })} options={EFFECT_ONSET_OPTIONS} />
+
+      {/* 공개 옵트인 + 가시성 배지 */}
+      <div className="rounded-md bg-[var(--bg-soft)] p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[13px] font-semibold text-[var(--text)]">평가만 익명으로 공개할게요
+            <span className="mt-0.5 block text-[11.5px] font-normal text-[var(--text-muted)]">병원·가격·날짜는 빼고, 평가 지표만 다른 분들께 보여요.</span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={p.isPublic}
+            aria-label="평가 익명 공개"
+            onClick={() => onChange({ isPublic: !p.isPublic })}
+            className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+            style={{ background: p.isPublic ? "var(--primary)" : "#CBD2D9" }}
+          >
+            <span className="inline-block h-5 w-5 transform rounded-full bg-white transition-transform" style={{ transform: p.isPublic ? "translateX(22px)" : "translateX(2px)" }} />
+          </button>
+        </div>
+        {/* 가시성 배지 */}
+        <div className="mt-2">
+          {p.isPublic ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--primary-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--primary-active)]">👁 평가 공개</span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#E8EAEE] px-2.5 py-1 text-[11px] font-bold text-[#5C6470]">🔒 나만 봐요</span>
+          )}
+        </div>
+      </div>
+
+      {/* 공개 시에만 한줄후기(body) 입력 */}
+      {p.isPublic && (
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
+            생생한 후기를 남겨주세요 <span className="text-xs font-normal text-[var(--text-muted)]">(선택 · {p.oneliner.length} / {ONELINER_MAX})</span>
+            <span className="mt-0.5 block text-[11.5px] font-normal text-[var(--text-muted)]">비워두면 평가 지표만 공개돼요.</span>
+          </label>
+          <textarea
+            value={p.oneliner}
+            onChange={(e) => onChange({ oneliner: e.target.value })}
+            maxLength={ONELINER_MAX}
+            rows={3}
+            placeholder={onelinerPlaceholder}
+            className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[16px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none"
+          />
+          <p className="mt-1 text-xs text-[var(--text-muted)]">의료광고성 표현·병원·의사 실명 언급은 금합니다.</p>
+        </div>
+      )}
+    </div>
   );
 }
 

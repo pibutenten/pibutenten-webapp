@@ -135,9 +135,9 @@ export default function WriteView({
           ))}
         </div>
 
-        {/* 비로그인 게이트 — 작성=로그인 필요(운영 정합). 운영 WriteTabs 의 시술노트는
-            비공개라 비로그인도 폼을 열지만(저장 시 401 토스트), 신규 스킨은 모든 탭에서 일관되게
-            로그인 CTA 를 노출한다(운영 무수정, 앱 셸 헤더 로그인 동선과 동일 next 경로). */}
+        {/* 비로그인 게이트 — 작성=로그인 필요(전 탭 일관, 정책 (b)). ★FIX-3: WriteTabs 와 정책 통일 —
+            "글쓰기 전체 로그인 필요"로 확정. !isLoggedIn 이면 WriteTabs 를 아예 렌더하지 않고 여기서
+            로그인 CTA 만 노출하므로, WriteTabs 의 탭별 비로그인 분기는 도달 불가(제거됨). */}
         {!isLoggedIn ? (
           <section className={`${styles.card} ${styles.writeLoginGate}`}>
             <h3 className={styles.writeLoginGateTitle}>로그인하고 작성해 보세요</h3>

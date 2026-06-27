@@ -95,7 +95,7 @@ const VisitReviewSchema = z
     recommend: z.number().int().min(1).max(5).nullable().optional(),
     // 비공개 격리 — 시술별 가격(공개 경로로 복사되지 않음).
     solo_price: z.number().int().min(0).max(2_000_000_000).nullable().optional(),
-    date_precision: z.enum(["exact", "season", "half", "year"]).nullable().optional(),
+    date_precision: z.enum(["exact", "season", "half", "year", "unknown"]).nullable().optional(),
     // 공개(is_public=true) 후기 본문 — 마스킹/검수 후 라우트가 재구성해 보냄(클라 입력 아님).
     body: z.string().max(400).nullable().optional(),
     title: z.string().max(200).nullable().optional(),
@@ -111,8 +111,10 @@ const VisitReviewSchema = z
  */
 export const VisitCreateSchema = z
   .object({
-    visited_on: isoDate,
-    visited_on_precision: z.enum(["exact", "season", "half", "year"]).default("exact"),
+    // 회고형 관대화: precision='unknown'("날짜 잘 기억 안 나요") 면 visited_on 을 null/미전송 허용.
+    //   그 외 precision 은 visited_on 필수 — 아래 .superRefine 으로 교차 검증.
+    visited_on: isoDate.nullable().optional(),
+    visited_on_precision: z.enum(["exact", "season", "half", "year", "unknown"]).default("exact"),
     clinic_id: z.number().int().positive().nullable().optional(),
     clinic_name: z.string().trim().max(200).nullable().optional(),
     clinic_addr: z.string().trim().max(300).nullable().optional(),
@@ -130,7 +132,18 @@ export const VisitCreateSchema = z
     procedures: z.array(ProcedureSchema).max(20).default([]),
     reviews: z.array(VisitReviewSchema).max(20).default([]),
   })
-  .strict();
+  .strict()
+  // 교차 검증: precision='unknown' 이 아니면 visited_on(YYYY-MM-DD) 필수.
+  //   unknown 이면 visited_on 은 null/미전송 허용(백엔드가 NULL 처리 + 재방문 알림 미예약).
+  .superRefine((v, ctx) => {
+    if (v.visited_on_precision !== "unknown" && !v.visited_on) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["visited_on"],
+        message: "방문 날짜가 필요합니다.",
+      });
+    }
+  });
 
 /**
  * PATCH /api/visits/{id} — visit 본문 전체 덮어쓰기.
@@ -138,8 +151,9 @@ export const VisitCreateSchema = z
  */
 export const VisitUpdateSchema = z
   .object({
-    visited_on: isoDate,
-    visited_on_precision: z.enum(["exact", "season", "half", "year"]).default("exact"),
+    // 회고형 관대화(create 와 동일 계약): precision='unknown' 이면 visited_on null/미전송 허용.
+    visited_on: isoDate.nullable().optional(),
+    visited_on_precision: z.enum(["exact", "season", "half", "year", "unknown"]).default("exact"),
     clinic_id: z.number().int().positive().nullable().optional(),
     clinic_name: z.string().trim().max(200).nullable().optional(),
     clinic_addr: z.string().trim().max(300).nullable().optional(),
@@ -154,7 +168,17 @@ export const VisitUpdateSchema = z
     total_price: z.number().int().min(0).max(2_000_000_000).nullable().optional(),
     is_complete: z.boolean().default(true),
   })
-  .strict();
+  .strict()
+  // create 와 동일: precision='unknown' 이 아니면 visited_on 필수.
+  .superRefine((v, ctx) => {
+    if (v.visited_on_precision !== "unknown" && !v.visited_on) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["visited_on"],
+        message: "방문 날짜가 필요합니다.",
+      });
+    }
+  });
 
 /**
  * POST /api/reviews/checkins — 시계열 체크인 upsert(day0/week1/month1/month4).

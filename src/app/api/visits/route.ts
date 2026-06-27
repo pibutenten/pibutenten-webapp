@@ -210,7 +210,9 @@ export async function POST(req: Request) {
   // 7. RPC create_visit_with_entries — 원자적 부모+자식 생성. 소유검증·CHECK 는 RPC 내부.
   const { data: rpcData, error: rpcErr } = await supabase.rpc("create_visit_with_entries", {
     p_profile_id: idCtx.active.profileId,
-    p_visited_on: p.visited_on,
+    // 회고형 관대화: precision='unknown'(날짜 미기억) 면 visited_on 미전송 → null 포워딩.
+    //   RPC 가 NULL 처리 + 재방문 알림 미예약(백엔드 동일 계약).
+    p_visited_on: p.visited_on ?? null,
     p_visited_on_precision: p.visited_on_precision,
     p_clinic_id: p.clinic_id ?? null,
     p_clinic_name: p.clinic_name ?? null,

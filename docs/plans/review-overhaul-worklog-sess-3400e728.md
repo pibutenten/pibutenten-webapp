@@ -103,6 +103,19 @@ visit (= diaries 확장)                         🔒 비공개
 - 검증: 독립 2인 감사 PASS(치명·주요 0), `tsc --noEmit` 0, **`npm run build` 성공**(dev 미가동 확인 후). 미커밋 페이즈로 dormant.
 - 잔여(3b로): update_visit is_complete preserve-on-omit(부분PATCH 대비), ReviewForm recommend.
 
+## 원장 결정 (2026-06-27) — "달라진 점" 분석 대시보드 현재 범위 제외
+- "달라진 점" 연령별·효과별 베스트시술 **분석 대시보드 + 분석 RPC(get_change_analysis)는 지금 안 만듦**(나중에). 마스터플랜 §5.4를 "현재 범위 제외(추후)"로 정리, get_change_analysis DDL 제거.
+- **데이터 수집은 코어로 유지**: effect_areas(결론칸) + review_checkin.changed_points는 v1부터 계속 축적 → 추후 분석 원천 확보. 분석 착수 시 원칙(표본≥4·병원분해금지·가격미참조)만 남김.
+- 영향: 현재 구현 범위는 Phase 3b(통합 글쓰기 UI) → 3c(노트·리포트 연동·시점폼·추이그래프) → P4(알림 발사, FOLLOW 머지 후)까지. 분석 대시보드는 후순위 제외.
+
+## Phase 3b · P4 · 회고날짜 관대화 완료 (2026-06-27)
+- **Phase 3b 통합 글쓰기 UI**: WriteTabs(시술기록·시술후기 둘 다 DiaryForm→/api/visits 수렴, doodle/qa는 WriteClient 보존) + DiaryForm(어림시기 칩·시술별 후기 아코디언·is_public 게이팅·day0 checkin·병원검색). 독립 2인 검수 → 발견된 미완성 5건 보정: FIX-1(회고형 reviewOnly에서 날짜·어림시기 노출 — metaOpen 밖 분리) / FIX-2(season·half 가드, 이후 관대화로 완화) / FIX-3(비로그인 정책 통일: 글쓰기 전체 로그인 필요로 확정, WriteTabs 죽은 분기 정리) / FIX-4(공개 후기 최소 1개 신호 가드) / FIX-5(reviewOnly 카피).
+- **P4 예약 알림 발사**: scheduled_notification(0296) + run_diary_reminders RPC(0297→실은 0300, CTE·SKIP LOCKED·토글·멱등) + /api/cron/diary-reminders + vercel.json cron. **0301: service_role EXECUTE GRANT 누락 [치명] 보정**(cron 500 회피). diary_reminder kind는 DB CHECK에 추가(10종), 표시 라벨(notification-kinds.ts·KIND_TITLES)은 머지 후 TODO(현재 graceful fallback).
+- **회고 날짜 관대화(원장 결정)**: "날짜 잘 기억 안 나요"(`precision='unknown'`, visited_on NULL) 옵션 추가 → 날짜 완전 선택. season/half 미선택은 하드차단 제거하고 연 단위 graceful 강등(봄/상반기 무음 폴백 제거). 마이그 0302(diaries.visited_on nullable + date_precision CHECK 'unknown' + create_visit_with_entries 관대 처리: unknown/NULL이면 트랙A 미예약·범위검증 스킵). 정확날짜 경로는 기존 알림 유지(엄격성 보존). **원칙: 불완전 데이터도 분석에 전부 사용(부분집계 유지), 입력은 관대하게.**
+- 검증: 각 단계 독립 2인 검수 + BEGIN/ROLLBACK + tsc + npm run build 통과. 마이그 0300·0301·0302 production 적용.
+- **남은 작업**: 3c(노트·리포트에 visit/checkin 표시·시점폼·추이그래프) / notification-kinds.ts diary_reminder 라벨 + KIND_TITLES(머지 후 가능) / standalone ReviewForm recommend(create_procedure_review p_recommend) / 로그인 e2e 브라우저 검증 / review-controls↔ReviewForm 중복 정리(경미).
+- 비간섭: tag-dictionary.generated.json(옆 세션) 미커밋 제외. 마이그 0300~0302는 옆 세션 0298·중복0299와 번호 무충돌.
+
 ## 다음 단계 (원장 통합안 확정 시)
 - 마스터 플랜 D3 철회 반영 + 시계열을 코어(Phase 1~3 내)로 끌어올림.
 - 스키마 확정: procedure_reviews 확장 컬럼(visit_id/diary_procedure_id/is_public/date_precision/solo_price) + review_checkin 신규.
