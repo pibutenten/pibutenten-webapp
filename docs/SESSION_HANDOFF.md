@@ -40,8 +40,10 @@
 
 ### 다음 단계 / 후속·보류
 - ✅ 이번 세션 모든 승인 항목 완료·배포(감사정비~팔로우, ce56896~132bf79). 최종 보고서: `docs/reports/2026-06-27-recommendation-implementation.md`.
-- **(후속 권고) 알림 트리거 SQL 의사글 URL 통일**: 기존 트리거(like/comment/published 등)는 의사글도 `/{handle}/{shortcode}`(비-canonical) 링크, follow_post(0290)는 canonical `/doctors/{slug}/{year}/{post_slug}` 로 올바름. 공유 SQL 헬퍼 `card_public_url` 로 SQL측 URL SSOT 수렴 권장(여러 기존 트리거 수정이라 별도 안건).
-- **(보류)** 전체 홈 ISR(PERF-3)=viewerStates 클라 배치 이전 선행. #5b 시술후기 타임포인트 알림=디렉터 시점값 별도 지시 예정. (선택) follow_post 알림 끄기 토글 + NotificationsClient 팔로우 필터 칩.
+- ✅ **follow_post 알림 끄기 토글 + 필터 칩 완료**(마이그 0292, 커밋 `f5fe172`): `notification_preferences.pref_follow_post` + is_notification_enabled 게이트 + 설정 토글 + 알림함 "새 글" 칩. (0292 는 옆 세션 0292_review_diary_schema 와 동일번호 충돌 → MIGRATION_HISTORY.md 명문화, 커밋 `24994f6`.)
+- ✅ **알림 트리거 의사글 URL 통일(#1) 완료**(마이그 0298, 커밋 `f8ce542`): 신규 `card_public_url(card_id)`(getQaUrl SSOT 미러) → like/save/published/comment 트리거 canonical 저장 + 기존 21행 백필.
+- ✅ **한국어 인코딩 깨짐 전면 교정 완료**(마이그 0298 동봉): 과거 CP949 경로 적용으로 깨진 함수 11종+코멘트3+notifications.message 15행을 정본 클린 한국어로 재적용(UTF-8 안전경로). 적용 후 전수 재스캔 U+FFFD **0**. 재발방지: 루트 CLAUDE.md §8 에 비-ASCII 마이그 UTF-8 적용 경고 추가. 13함수 독립 적대검증 13/13 + 검수 2명 진행.
+- **(남음)** #2 전체 홈 ISR(PERF-3)=viewerStates 클라 배치 이전 선행 — 다음 작업. #5b 시술후기 타임포인트 알림=디렉터 시점값 별도 지시 예정. npm audit 잔여 13(디렉터 보류).
 - **(주의)** 병행 세션: `local_96a85882`("총괄 디렉터…") 가 review/diary 통합 작업 중(`docs/plans/review-*.md`). 그 영역(시술후기/일기) 파일은 회피.
 
 ---

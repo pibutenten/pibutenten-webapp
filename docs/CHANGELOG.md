@@ -34,6 +34,7 @@
 - **신고사유 SSOT hint 타입 에러**: `report-reasons.ts` 의 `as const satisfies` 가 hint 없는 멤버에서 `opt.hint` 접근을 TS2339 로 막던 문제(`ReportForm.tsx:91`). 로컬 next build 는 증분 캐시로 넘어갔으나 Vercel 클린 빌드 실패 위험 → `readonly ReportReasonOption[]`(hint?) 명시 타입화.
 - **DB 한국어 인코딩 깨짐 전면 교정 (마이그 0298)**: #1 조사 중 발견. 과거 일부 마이그레이션이 UTF-8 을 보존 못 하는 경로(CP949 콘솔 추정)로 production 적용되어 **DB 저장 함수 11종 + 테이블/뷰 코멘트 3 + `notifications.message` 15행**의 한국어가 U+FFFD(`�`)로 깨져 있었음(migration 소스 .sql 원본은 정상). 사용자/관리자에게 실제 깨져 노출되던 것: **저장 알림**("회원님 글을 N명이 저장했어요")·**발행 알림**("카드가 발행되었습니다")·**검수요청 알림**·**신고접수 알림**·**예약 핸들 가입 에러**("예약된 핸들입니다"). 정본 소스의 클린 한국어로 13개 함수를 CREATE OR REPLACE(UTF-8 안전경로 재적용) + 깨진 15행 백필. 13함수 독립 적대검증 13/13 무드리프트(시그니처·로직 byte-identical, 한국어만 복원), 적용 후 전수 재스캔 U+FFFD **0** 확인.
   - **알림 URL 통일(#1)**: 신규 SQL 헬퍼 `card_public_url(card_id)`(TS `getQaUrl` SSOT 미러)로 like/save/published/comment 트리거가 의사글도 canonical `/doctors/{slug}/{year}/{slug}` 저장(기존 `/{handle}/{shortcode}` 비-canonical 교정). follow_post(0290)는 이미 올바름. 기존 의사글 발행 알림 21행 canonical 백필(#c 앵커 보존, 멱등). ROLLBACK 으로 발행 트리거가 canonical URL+클린 메시지 내는지 실증 후 적용.
+  - **검수 후속(독립 검수 2명, 차단 0)**: card_public_url↔getQaUrl dual-SSOT 를 CLAUDE.md §5 동기화표에 등재(drift 방지). 마이그 0299 로 `NULLIF` 빈문자 가드 추가(TS 진리값 검사 동형, 전 카드 출력 무변경 실증). 의사 분기 `category='qa'` 라우트 필터는 latent(현재 0행)라 §5 주석으로 명시(양쪽 mirror 유지).
 
 ### Removed
 - **`/old-skin` 박제 백업 3라우트** 삭제(디렉터 승인) + robots.ts·route-class.ts 등록 제거.
