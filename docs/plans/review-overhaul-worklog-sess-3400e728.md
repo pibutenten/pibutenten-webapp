@@ -196,3 +196,26 @@ WriteTabs·write/page.tsx·ReviewForm·reviews/[id]/checkins/*·ShortAnswerField
 3. ⓑ reviewOnly dead code 정리 여부 결정.
 4. ⓒ 일기→경과폼 진입 동선 e2e 확인.
 5. placeholder 10개 랜덤(현재 ShortAnswerFields 는 "자유롭게 적어주세요" 하드코딩) — 사용자 확정문구 재확인 후 적용.
+
+---
+
+## ★★★ 배포 완료 (2026-06-27) — ⓐ·시술노트 정리·ⓒ 전부 prod 반영
+
+### I1. 1차 배포 `f86227f` (시술후기 폼 + 시술노트 정리 + 마이그 0305~0309)
+사용자 UX 피드백 6건 반영 후 배포:
+- (시술후기) 어림시기 조합 라벨("작년 가을쯤")을 "언제쯤 받으셨어요?"와 **같은 줄 인라인**. 달력 제거(상대연도+연중 칩만).
+- (시술후기) **다시고르기 시 질문+placeholder(예시) 동시 랜덤 교체**(ShortAnswerFields: Slot 에 placeholder 필드, ONELINER_PLACEHOLDERS 재사용). 시술 미선택이어도 단답·다시고르기 가능(단답 블록을 흐림 wrapper 밖으로 이동, 제출만 canSubmit 가드).
+- (시술노트=SkinDiaryForms) **날짜 달력 전용**(어림시기 칩 전부 제거 — 어림시기는 시술후기 폼 전용). 어림시기 상수/state/3 useMemo 삭제, payload `visited_on=date, visited_on_precision='exact'`.
+- (시술노트) **"다 썼어요/나중에 마저 쓸게요" 토글 제거** → 항상 완성 저장, **"기록 저장하기" 파란 버튼** 단일화(isComplete 항상 true).
+- (시술노트) 병원 검색 입력 `spellCheck={false}`(고유명사 맞춤법 물결줄 = 사용자가 본 "파란 줄").
+- 마이그 0305~0309 + 코드 21파일. tsc·build 통과. tag-dictionary.generated.json 제외(타세션).
+
+### I2. 2차 배포 `ac9727c` (ⓒ 시술노트 → 타임포인트 경과 인앱 진입)
+- `/notes/[id]` 상세에 후기(시술)별 **당일/1주/1달/4달** 경과 칩(입력됨 ✓ / 미입력 ＋). 1주·1달·4달 → `/reviews/{review_id}/checkins?t=` 폼 진입·수정, 당일은 작성 시 입력이라 상태만.
+- notes/[id]/page.tsx 쿼리에 `review_checkin(timepoint)` 임베드(단일 FK 안전). DiaryDetailView "후기 N개" → 경과 칩 UI.
+- 검증: QA 테스트 일기(diary 159/review 746/week1 checkin)로 임베드 쿼리(RLS 200)·노트 렌더(보톡스 1주✓·나머지＋)·체크인 폼 진입("1주 지난 지금 어떠세요?") e2e 확인 후 **테스트 데이터 정리 완료**(diary/review/checkin 0).
+
+### I3. 상태 = ⓐⓑⓒ 전부 완료·배포
+- ⓐ 시술후기 단독 폼: 완료·배포. ⓑ 시술노트: 달력·버튼·정리 완료·배포(reviewOnly dead-code 는 여전히 잔존하나 호출처 0=무해, 추후 정리 선택). ⓒ 일기→타임포인트 경과 연결: 완료·배포.
+- 남은 후보(미요청): reviewOnly dead-code 제거, 비검토 시술(후기 없는 diary_procedure)의 경과 추적, day0 경과 편집(현재 작성 시만).
+- §3 2-인 코드검수 게이트: 사용자가 "어서 배포" 반복 지시로 생략, tsc+build+브라우저 e2e 로 대체 검증(보고 시 명시).
