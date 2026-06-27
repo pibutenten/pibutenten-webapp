@@ -56,6 +56,42 @@ const getPopularTagsCached = unstable_cache(
   { revalidate: 300, tags: ["popular-tags"] },
 );
 
+/** 비검색 홈 피드 풀(feed_cards_scored jitter 0.35 + 의사 분산). 매 방문 300행 점수계산이 임계경로였음 →
+ *  쿠키리스 anon + unstable_cache(90s)로 분리(SNS 표준: 피드는 분 단위로 갱신, 매 클릭 재계산 안 함).
+ *  공개 콘텐츠(어느 사용자나 동일 풀)만 캐시 — per-user 좋아요/저장(viewerStates)은 아래에서 SSR 오버레이로
+ *  유지하므로 캐시 본문엔 개인 데이터 미포함(캐시 오염·N+1 없음). 자른 신선도는 디렉터 승인(엄청 신선 불필요). */
+const getHomeFeedPoolCached = unstable_cache(
+  async (): Promise<CardData[]> => {
+    const sb = createSupabaseAnonClient();
+    const { data, error } = await sb.rpc("feed_cards_scored", {
+      p_limit: ORDER,
+      p_offset: 0,
+      p_half_life_days: 14,
+      p_jitter_amp: 0.35,
+    });
+    if (error) {
+      console.error("[home] 피드 풀 조회 실패:", error.message);
+      return [];
+    }
+    const scored = (data ?? []) as CardData[];
+    return diversifyByDoctor(scored, { maxPerDoctorInHead: 1, headSize: 4 });
+  },
+  ["home-feed-pool-v1"],
+  { revalidate: 90, tags: ["home-feed"] },
+);
+
+/** 비검색 홈 시술 리포트 풀(get_review_summary_pool 집계). 공개 데이터 → anon + 90s 캐시. */
+const getReportPoolCached = unstable_cache(
+  async (): Promise<ProcedureReport[]> => {
+    const sb = createSupabaseAnonClient();
+    return getReviewSummaryFeedPool(
+      sb as unknown as Parameters<typeof getReviewSummaryFeedPool>[0],
+    );
+  },
+  ["home-report-pool-v1"],
+  { revalidate: 90, tags: ["home-report"] },
+);
+
 export async function generateMetadata({
   searchParams,
 }: {
@@ -143,23 +179,15 @@ export default async function HomeFeedPage({
     searchReport = sReport;
     popularTags = tags;
   } else {
-    // 피드 카드는 jitter 0.35(매 방문 신선한 순서). 인기 태그는 검색·재방문에도 불변이어야 하므로
-    //   별도의 jitter=0(결정적) 풀로 계산한다(클릭 시 인기태그가 통째로 바뀌던 문제 해소).
-    const [rpcRes, pool, tags] = await Promise.all([
-      supabase.rpc("feed_cards_scored", {
-        p_limit: ORDER,
-        p_offset: 0,
-        p_half_life_days: 14,
-        p_jitter_amp: 0.35,
-      }),
-      getReviewSummaryFeedPool(supabase),
+    // 피드 풀·리포트 풀·인기태그 모두 공개 데이터 → 쿠키리스 anon + unstable_cache(피드/리포트 90s,
+    //   태그 300s)로 분리. 매 방문 돌던 300행 점수계산(feed_cards_scored)·리포트 집계를 캐시에서
+    //   즉시 반환(SNS 표준: 피드는 분 단위 갱신). per-user 좋아요/저장은 아래 viewerStates 로 SSR 오버레이.
+    const [feedCards, pool, tags] = await Promise.all([
+      getHomeFeedPoolCached(),
+      getReportPoolCached(),
       getPopularTagsCached(),
     ]);
-    const scored = (rpcRes.data ?? []) as CardData[];
-    cards = diversifyByDoctor(scored, {
-      maxPerDoctorInHead: 1,
-      headSize: 4,
-    });
+    cards = feedCards;
     reportPool = pool;
     popularTags = tags;
   }

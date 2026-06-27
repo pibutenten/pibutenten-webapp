@@ -19,7 +19,8 @@
   - 마이그 0289: RPC `get_cards_comment_preview_meta`(카드별 총 visible 수 + 인기순 top3 root id, `SECURITY INVOKER` 로 RLS 적용·미발행/숨김 자동 제외).
   - `/api/comments/preview`: RPC 후 본문·답글(visible)·작성자·viewer_liked 조립(기존 GET 패턴 재사용).
   - `CommentsBlock` seed prop(`initialComments`/`initialTotal`) — 미리보기 모드는 자체 fetch 안 함, 펼침 시 전체 로드. `FeedView` 가 풀에 새 카드 들어올 때마다 배치 fetch. 배치 컨텍스트(`batchedPreview`)는 seed 도착 후 미리보기 마운트(N+1 경쟁 차단), 비배치 페이지(상세·프로필)는 기존 동작 유지.
-- **홈 인기태그 중복 RPC 제거**: 홈/검색이 매 요청마다 `feed_cards_scored`(300행)를 인기태그 집계용으로 한 번 더 호출하던 것을, 쿠키리스 anon + `unstable_cache`(revalidate 300s)로 분리해 제거(인기태그는 자주 안 바뀌어 5분 캐시 충분). 피드 본문 RPC(jitter 0.35, 매 방문 신선)는 불변. 전체 홈 ISR 은 per-user 좋아요/저장 prefetch 의 클라 이전이 선행이라 별도 단계.
+- **홈 인기태그 중복 RPC 제거**: 홈/검색이 매 요청마다 `feed_cards_scored`(300행)를 인기태그 집계용으로 한 번 더 호출하던 것을, 쿠키리스 anon + `unstable_cache`(revalidate 300s)로 분리해 제거(인기태그는 자주 안 바뀌어 5분 캐시 충분).
+- **홈 피드 풀·리포트 풀 캐시 (#2, SNS 표준 분 단위 갱신)**: 비검색 홈이 매 방문마다 임계경로에서 돌리던 `feed_cards_scored`(300행 점수계산) + `get_review_summary_pool`(46행 집계)를 쿠키리스 anon + `unstable_cache`(revalidate 90s)로 분리(위 인기태그 패턴 확장). 두 무거운 공개 쿼리를 캐시에서 즉시 반환 → 홈 서버 임계경로 단축. **per-user 좋아요/저장(viewerStates)은 SSR 오버레이로 유지** — 캐시 본문엔 개인 데이터 미포함(캐시 오염·N+1 없음). 피드 신선도는 90초 윈도(디렉터 승인: 엄청 신선 불필요). 전체 정적 ISR 은 홈이 `searchParams.q`(검색)를 읽어 본질적으로 dynamic 이라 비대상 — 데이터 캐시가 실질 이득. (viewerStates 의 완전 클라 이전은 `useCardEngagement` 의 카드별 폴백이 N+1 을 유발해 별도 배치 설계 필요 → 후속 선택.)
 
 ### Changed
 - **네비게이션 단일화 (옛 TopNav/BottomNav 폐기)**: 앱셸 승격이 사실상 전 라우트 완료되어, 옛 전역 헤더는 redirect/오버레이 라우트(/search·/cards·/u·/auth)에서만 렌더되던 잔재였음. 데스크탑/모바일/네이티브 3관점 정밀 매핑(독립 분석 3에이전트)으로 AppShell 이 모든 기능을 이미 커버함을 확인 후 제거.
