@@ -44,7 +44,8 @@
 - ✅ **알림 트리거 의사글 URL 통일(#1) 완료**(마이그 0298, 커밋 `f8ce542`): 신규 `card_public_url(card_id)`(getQaUrl SSOT 미러) → like/save/published/comment 트리거 canonical 저장 + 기존 21행 백필.
 - ✅ **한국어 인코딩 깨짐 전면 교정 완료**(마이그 0298 동봉): 과거 CP949 경로 적용으로 깨진 함수 11종+코멘트3+notifications.message 15행을 정본 클린 한국어로 재적용(UTF-8 안전경로). 적용 후 전수 재스캔 U+FFFD **0**. 재발방지: 루트 CLAUDE.md §8 에 비-ASCII 마이그 UTF-8 적용 경고 추가. 13함수 독립 적대검증 13/13 + 검수 2명 진행.
 - ✅ **#2 홈 SNS 캐싱 완료**(커밋 `6f0e813`+`dbe9164`): 비검색 홈 피드 풀(feed_cards_scored 300행)+리포트 풀(get_review_summary_pool)을 쿠키리스 anon `unstable_cache`(90s, home-feed/home-report 태그)로 분리. viewerStates 는 캐시 밖 SSR 오버레이 유지(per-user 비누출·N+1 없음). **전체 정적 ISR 은 홈이 searchParams 로 dynamic 이라 비대상** — 데이터 캐시가 실질 이득(원래 스코프 "viewerStates 클라 이전+ISR"은 useCardEngagement N+1 폴백·searchParams 로 비현실적 판단). 발행 9개 라우트에 revalidateTag(home-feed/report) 배선(독립검수 [치명]=태그 미연결 반영). 검수 1라운드(정합 clean / 엣지 [치명]→수정) 후 재검수 중.
-- **(남음)** #5b 시술후기 타임포인트 알림=디렉터 시점값 별도 지시 예정(옆 세션 0296 scheduled_notification dormant 적재됨). npm audit 잔여 13(디렉터 보류). (선택) viewerStates 완전 클라 배치 이전(N+1 방지 배치설계 필요).
+- ✅ **viewerStates 완전 클라 배치 이전 완료**(커밋 `41230f1`): 홈 SSR 에서 viewer 좋아요/저장 prefetch 제거 → 신규 `GET /api/viewer-states`(SSOT 재사용) 로 FeedView 마운트 후 1회 배치(N+1 없음 — 홈 카드 `useCardActions` 는 self-fetch 없음). 비검색 홈 SSR 완전 사용자 무관·경량(auth 검색 분기 격리). useCardActions 동기화 effect(interactedRef 가드), SSR=클라초기=false 라 하이드레이션 불일치 없음. 독립 검수 2명 차단 0.
+- **(남음)** #5b 시술후기 타임포인트 알림=디렉터 시점값 별도 지시 예정(옆 세션 0296 scheduled_notification dormant 적재됨). npm audit 잔여 13(디렉터 보류).
 - **(주의)** 병행 세션: `local_96a85882`("총괄 디렉터…") 가 review/diary 통합 작업 중(`docs/plans/review-*.md`). 그 영역(시술후기/일기) 파일은 회피.
 
 ---
