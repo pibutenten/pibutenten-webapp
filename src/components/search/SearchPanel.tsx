@@ -2,7 +2,7 @@
 
 /**
  * 검색 발견/자동완성 — 모바일 오버레이·데스크탑 블록 공용.
- *  - query 비었을 때: ① 최근 검색어(localStorage) ② 인기검색어 10(7일) ③ 카테고리 칩(탭, 기본 리프팅/스킨부스터 랜덤)
+ *  - query 비었을 때: ① 최근 검색어(localStorage) ② 카테고리 칩(탭 6종 flex-wrap 전부 노출·색 점 구분, 기본 리프팅/스킨부스터 랜덤)
  *  - query 있을 때: 카테고리 칩 키워드 부분일치 자동완성(초성 X — 기존 방식)
  *  - 항목 선택 → 최근검색 저장 + basePath?q= 로 이동(기본 "/". 앱 셸도 홈 승격 후 "/" 사용)
  * 데이터는 전부 기존 소스 재사용(/api/search/suggest).
@@ -13,7 +13,6 @@ import { useRouter } from "next/navigation";
 import { CATEGORIES, PROCEDURE_CATEGORIES, pickDefaultCategory, type CategorySlug } from "@/lib/categories";
 import { addRecent, clearRecent, getRecent, removeRecent } from "@/lib/recent-search";
 
-const C = "#4cbff2";
 type DiscoverData = { popular: string[]; cats: Record<string, string[]> };
 const chip = "shrink-0 rounded-full bg-[#f1f3f5] px-2 py-[3px] text-[12px] text-[#46505d]";
 
@@ -97,7 +96,7 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
   // ── 발견 화면 ──
   const cats = data?.cats ?? null;
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       {/* ① 최근 검색어 */}
       <section>
         <div className="mb-2.5 flex items-center justify-between">
@@ -123,37 +122,16 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
         )}
       </section>
 
-      {/* ② 인기 검색어 10 (7일) — recentOnly 면 숨김(앱 셸 드롭다운은 최근검색어만). */}
+      {/* ② 카테고리 (탭 6종 전부 노출 — flex-wrap 2줄 + 색 점 구분) — recentOnly 면 숨김. */}
       {!recentOnly && (
       <section>
-        <h3 className="mb-2.5 text-[15px] font-bold text-[var(--text)]">인기 검색어</h3>
-        {!data ? (
-          <p className="text-sm text-[#9aa3b0]">불러오는 중…</p>
-        ) : data.popular.length === 0 ? (
-          <p className="text-sm text-[#9aa3b0]">집계된 인기 검색어가 없습니다.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {data.popular.map((p, i) => (
-              <button key={p} type="button" onClick={() => pick(p)} className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#f1f3f5] px-2.5 py-1 text-[13px] text-[#46505d]">
-                <b style={{ color: i < 3 ? C : "#aab2bd" }}>{i + 1}</b>
-                {p}
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-      )}
-
-      {/* ③ 카테고리 (탭 + 칩 전부 펼침) — recentOnly 면 숨김. */}
-      {!recentOnly && (
-      <section>
-        <div className="mb-3 flex gap-5 overflow-x-auto border-b border-[#eef1f4] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mb-3 flex flex-wrap gap-x-4 gap-y-2.5 border-b border-[#eef1f4] pb-2.5">
           {PROCEDURE_CATEGORIES.map((c) => {
             const on = activeCat === c.slug;
             return (
-              <button key={c.slug} type="button" onClick={() => setActiveCat(c.slug)} className="relative shrink-0 whitespace-nowrap pb-2.5 pt-0.5 text-[15px]" style={{ color: on ? c.color : "#9aa3b0", fontWeight: on ? 800 : 600 }}>
+              <button key={c.slug} type="button" onClick={() => setActiveCat(c.slug)} className="inline-flex shrink-0 items-center gap-1.5 text-[14px]" style={{ color: on ? c.color : "#8a94a1", fontWeight: on ? 700 : 500 }}>
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.color }} aria-hidden />
                 {c.label}
-                {on && <span className="absolute bottom-[-1px] left-[-4px] right-[-4px] h-[2px]" style={{ background: c.color }} />}
               </button>
             );
           })}
