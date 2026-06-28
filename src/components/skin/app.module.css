@@ -144,8 +144,7 @@
 .root .headerSearchInline input:focus-visible {
   outline: none;
 }
-.headerSearchLive:focus-within,
-.headerSearchInline:focus-within {
+.headerSearchLive:focus-within {
   box-shadow: 0 0 0 2px rgba(69, 183, 232, 0.28), var(--card-shadow);
 }
 
@@ -489,16 +488,24 @@
   flex: none;
   stroke: var(--ink-300);
 }
-.headerSearchInline input {
+/* 입력 모드 input 과 결과 모드 searchValueBtn 을 동일 박스로 강제 —
+   동일 높이/라인하이트/패딩 → 알약 높이가 두 모드에서 픽셀 동일.
+   16px 미만이면 iOS 가 포커스 시 화면을 자동 확대(zoom)해 글씨가 커 보이므로 16px 고정. */
+.headerSearchInline input,
+.headerSearchInline .searchValueBtn {
   flex: 1;
   min-width: 0;
+  height: 24px;
+  padding: 0;
+  margin: 0;
   border: 0;
   background: none;
+  appearance: none;
   font: inherit;
-  /* 16px 미만이면 iOS 가 포커스 시 화면을 자동 확대(zoom)해 placeholder·타이핑 글씨가 커 보이고
-     포커스 해제(결과) 시 작아 보인다 → 16px 로 고정해 확대 차단 + 크기 일정. */
   font-size: 16px;
+  line-height: 24px;
   color: var(--ink-900);
+  text-align: left;
 }
 .headerSearchInline input::placeholder {
   color: var(--ink-300);
@@ -509,18 +516,8 @@
   margin-left: 2px;
   margin-right: -4px;
 }
-/* 결과바 알약 안 리드온리 검색어 — 입력 모드 input(.headerSearchInline input)과 동일
-   글씨/정렬/flex 로 맞춰 입력 ↔ 결과 검색창이 픽셀 단위로 동일하게 보이게 한다. */
+/* 결과바 알약 안 리드온리 검색어 — 줄임표·텍스트 커서만 추가(박스는 위 공유 규칙과 동일). */
 .headerSearchInline .searchValueBtn {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-size: 16px;
-  color: var(--ink-900);
-  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1610,7 +1607,6 @@ button.t[data-cat="other"]:hover {
    기존 overflow-x:auto/스크롤바 숨김은 wrap 과 무해하게 공존하므로 유지합니다. */
 .tagCatTabs {
   display: flex;
-  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--line);
