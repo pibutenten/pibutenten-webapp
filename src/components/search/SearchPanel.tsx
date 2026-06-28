@@ -14,7 +14,7 @@ import { CATEGORIES, PROCEDURE_CATEGORIES, pickDefaultCategory, type CategorySlu
 import { addRecent, clearRecent, getRecent, removeRecent } from "@/lib/recent-search";
 
 type DiscoverData = { popular: string[]; cats: Record<string, string[]> };
-const chip = "shrink-0 rounded-full bg-[#f1f3f5] px-2 py-[3px] text-[12px] text-[#46505d]";
+const chip = "shrink-0 rounded-full bg-white border-[0.5px] border-[#e3e6ea] px-3 py-1.5 text-[12.5px] text-[#46505d]";
 
 // 발견 데이터 모듈 캐시 — 검색창을 열 때마다 재fetch 하던 깜빡임/딜레이 제거.
 //   최초 1회만 네트워크, 이후 재열기는 캐시로 즉시 표시. prefetchDiscover() 로 페이지 진입 시 선로딩 가능.
@@ -110,7 +110,7 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
         ) : (
           <div className="flex flex-wrap gap-2">
             {recent.map((r) => (
-              <span key={r} className="flex items-center gap-1 rounded-full bg-[#f1f3f5] py-1 pl-2.5 pr-1.5 text-[13px] text-[#46505d]">
+              <span key={r} className="flex items-center gap-1 rounded-full bg-white border-[0.5px] border-[#e3e6ea] py-1 pl-2.5 pr-1.5 text-[13px] text-[#46505d]">
                 <button type="button" onClick={() => pick(r)} className="flex items-center gap-1.5">
                   <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9aa3b0" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
                   {r}
@@ -125,12 +125,17 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
       {/* ② 카테고리 (탭 6종 전부 노출 — flex-wrap 2줄 + 색 점 구분) — recentOnly 면 숨김. */}
       {!recentOnly && (
       <section>
-        <div className="mb-3 flex flex-wrap gap-x-4 gap-y-2.5 border-b border-[#eef1f4] pb-2.5">
+        <div className="mb-3 text-[15px] font-medium text-[var(--text)]">카테고리</div>
+        <div className="mb-4 flex flex-wrap gap-2">
           {PROCEDURE_CATEGORIES.map((c) => {
             const on = activeCat === c.slug;
             return (
-              <button key={c.slug} type="button" onClick={() => setActiveCat(c.slug)} className="inline-flex shrink-0 items-center gap-1.5 text-[14px]" style={{ color: on ? c.color : "#8a94a1", fontWeight: on ? 700 : 500 }}>
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.color }} aria-hidden />
+              <button key={c.slug} type="button" onClick={() => setActiveCat(c.slug)}
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px]"
+                style={on
+                  ? { background: `${c.color}1f`, color: "var(--text)", fontWeight: 700 }
+                  : { background: "#fff", border: "0.5px solid #e3e6ea", color: "#6b7480", fontWeight: 500 }}>
+                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: c.color }} aria-hidden />
                 {c.label}
               </button>
             );
