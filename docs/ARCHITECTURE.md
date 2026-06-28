@@ -25,10 +25,10 @@
 
 ### 2.1. 공개 페이지
 ```
-/                                   홈 (검색 + CategoryWithChips + 피드)
+/                                   홈 (AppShell 인-헤더 검색 + FeedView 피드(인기태그=FeedSidebar)). 검색은 /?q= 로 수행 — 시술명 매칭 시 FeedView 가 결과 최상단에 시술 리포트 카드 1장 블렌딩(searchReport=getProcedureReport)
 /about                              소개
-/search                             검색 결과 (시술명이면 결과 최상단에 시술 리포트 카드)
 /topics/[tag]                       태그별 전문의 Q&A 허브 (qa 만, SEO 인덱싱). 시술 리포트 카드·후기 미노출 — /reports 존재 시 "후기 N건 보기 →"(→/reports/{ko}) 얇은 링크만 (2026-06-05 분리)
+/reports                            시술 리포트 허브 (ReportsHubView, 시술 리포트 목록; 후기 N≥4 게이트 + count desc; force-dynamic; 자격 0건 noindex)
 /reports/[procedure]                시술별 후기 리포트 (실시간 집계 + review_summary 앵커 카드; 정식 URL=/reports/{ko}(한글), canonical=ko; 영문 /reports/{en} 은 middleware 가 308 영구 리다이렉트 전용(1홉)→ko; index; JSON-LD=MedicalWebPage + Service(additionalType=MedicalProcedure) + AggregateRating + BreadcrumbList(Product 폐기 2026-06-05); /topics 존재(qa≥4) 시 "전문의 Q&A 보기 →"(→/topics/{ko}) 얇은 링크)
 /doctors                            원장님 목록
 /doctors/[slug]                     원장님 소개 (OG: /og/{slug}.png)
@@ -68,19 +68,19 @@
 /settings/notifications             알림 설정
 /notifications                      알림 목록
 /write                              통합 글쓰기 — 3탭(시술일기/시술후기/끄적끄적) WriteTabs. ?tab=record|review|doodle
-/write/[shortcode]                  글 수정 (자기 글) — TopNav 유지(EditClient)
+/write/[shortcode]                  글 수정 (자기 글/원장/admin) — WriteEditShell(AppShell) 래핑 + EditClient
 /today                              투데이 — 날씨·인사 히어로(KPI 4종 내장: 내 노트·후기·글·댓글)·관심 키워드·인기글. noindex (구 /record)
 /notes                              내 노트 — 시술 노트 KPI 3종 + 3토글(타임라인/달력/목록). noindex (구 /record/notes)
 /notes/[id]                         시술 노트 상세(본인 소유만, RLS) — noindex (구 /record/[id])
 /weather                            오늘의 피부 날씨 상세 — noindex (구 /record/weather)
-/my                                 마이페이지 허브(MyPageView) — 프로필 카드·퀵스탯·나의 활동/관심/설정/고객지원. 회원은 직접 렌더, admin→/admin·doctor→/doctor 리다이렉트. 활동/관심은 /{handle} 탭으로 연결. noindex
+/my                                 마이페이지 허브(MyPageView) — 프로필 카드·퀵스탯·나의 활동/관심/설정/고객지원. 진입은 헤더 우상단 아바타로만(하단 탭에서 제거 — 리포트로 교체). 회원은 직접 렌더, admin→/admin·doctor→/doctor 리다이렉트. 활동/관심은 /{handle} 탭으로 연결. noindex
 /shop                               쇼핑 준비중 — noindex
 /review/new                         시술후기 작성 (P3-d, 전용 폼. /write 시술후기 탭이 이 ReviewForm 공유)
 ```
 
-> **메인 승격(2026-06-11)**: 기존 `/beta` 미리보기 앱이 루트로 이전. 핵심 앱 라우트는 새 5탭 `BottomNav`(구 BetaNav; 하단 고정탭 + 헤더 칩/검색), 콘텐츠 페이지(`/doctors`·`/search`·`/topics`·`/reports`·상세·프로필)는 기존 `TopNav` 유지. `/beta`·`/beta/:path*` → 루트 308.
+> **메인 승격(2026-06-11)**: 기존 `/beta` 미리보기 앱이 루트로 이전. `/beta`·`/beta/:path*` → 루트 308. (승격 당시의 `TopNav`(콘텐츠 페이지)·`BottomNav`(앱 라우트) 이원 크롬은 이후 AppShell 단일화로 폐기(2026-06-26) — 현 상태는 위 두 인용블록·§4.3 참조.)
 
-> **하단 바 개편(2026-06-16)**: 하단 5탭 = **투데이(/today)·내 노트(/notes)·피드(/)·쇼핑(/shop)·마이(/my)**. 글쓰기는 탭에서 분리해 **우하단 FAB(`WriteFab`, 모바일 전용, → /write)** 로 재도입(데스크탑은 헤더 우측 '글쓰기' 버튼). `WriteFab` 은 `layout` 단일 배선 + `z-[110]`(AppShell z-100 오버레이 위) + 경로 블록리스트(write/review/auth/onboarding/admin/doctor). 구 `/record`→`/today`, `/record/notes`→`/notes`, `/record/[id]`→`/notes/[id]`, `/record/weather`→`/weather` (리다이렉트 없이 폴더 교체). 탭 정의는 `AppShell`(승격 라우트)·`BottomNav`(미승격) 양쪽에 존재.
+> **하단 바 개편(2026-06-16 → 2026-06-28)**: 하단 5탭 = **투데이(/today)·내 노트(/notes)·피드(/)·리포트(/reports)·쇼핑(/shop)**. 마이는 탭에서 빠지고 **헤더 우상단 아바타**로만 진입. 쇼핑은 준비중(딤드 + 토스트, 텍스트 배지 없음). 로고는 데스크탑=/(피드)·모바일=/today CSS 토글. 글쓰기는 탭에서 분리해 **우하단 FAB(`WriteFab`, 모바일 전용, → /write)** 로 재도입(데스크탑은 헤더 우측 '글쓰기' 버튼). `WriteFab` 은 `layout` 단일 배선 + `z-[110]`(AppShell z-100 오버레이 위) + 경로 블록리스트(write/review/auth/onboarding/admin/doctor). 구 `/record`→`/today`, `/record/notes`→`/notes`, `/record/[id]`→`/notes/[id]`, `/record/weather`→`/weather` (리다이렉트 없이 폴더 교체). 탭 정의는 `AppShell`(`TABS`/`GNB` — 운영 단일 셸)에 존재.
 
 > **'beta' 네이밍 전면 제거(2026-06-16)**: 베타 미리보기 시절 명칭을 운영 표준으로 정리. `BetaSkinShell`→`AppShell`, `BetaNav`→`BottomNav`, `BetaSkinFeed`→`FeedView`, `BetaDiscovery`→`SearchPanel`(`components/beta/`→`components/search/`), `InfoBetaShell`→`InfoShell`, `BetaPolicyFooter`→`PolicyFooter`, `BetaProfileView`→`ProfileView`, `BetaAdminXView`→`AdminXView`(14), `BETA_ROUTES`→`ROUTES`, `BetaActive`→`NavTab`, `BETA_PROMOTED_*`→`APP_SHELL_*`, `useBetaSearchRouting`→`useSearchRouting`, `beta-skin.module.css`→`app.module.css`, `beta-ui`→`ui`, `beta-feed-tab`→`feed-tab`, `beta-recent`→`recent-search`, API `/api/beta-discover`→`/api/search/suggest`. 순수 리네임(동작 무변경). `components/skin/` 폴더는 'beta' 아님 → 유지.
 
@@ -188,7 +188,7 @@ GET    /api/dev-sql/[name]          로컬 SQL 실행
 ```
 src/
 ├── app/                            Next.js App Router
-│   ├── layout.tsx                  max-w 1080 컨테이너 + Sticky TopNav + ScrollManager
+│   ├── layout.tsx                  max-w 1080 컨테이너 + ScrollManager + WriteFab (TopNav/BottomNav 미렌더 — AppShell 단일화로 폐기 2026-06-26)
 │   ├── page.tsx                    홈 피드
 │   ├── (route)/page.tsx            각 페이지
 │   ├── (route)/[Client].tsx        클라이언트 페이지 컴포넌트
@@ -196,7 +196,9 @@ src/
 ├── components/                     공용 React 컴포넌트
 │   ├── card/                       Card 시스템 (Header/Body/Media/Actions + hooks + utils)
 │   ├── card-editor/                CardEditor 통합 (모든 작성·수정 진입점)
-│   └── *.tsx                       TopNav, Feed, IdentitySwitcher, CommentsBlock, ...
+│   ├── skin/                       AppShell(공용 셸·헤더·5탭·인-헤더 검색) + FeedView + FeedSidebar
+│   ├── search/                     SearchPanel(검색 발견 패널 — 인-헤더 드롭다운/모바일 풀스크린)
+│   └── *.tsx                       Feed, IdentitySwitcher, CommentsBlock, ...
 ├── lib/                            비즈니스 로직 / 유틸
 │   ├── supabase/                   3종 클라이언트 (client/server/admin)
 │   ├── ai/                         Claude 초안 파이프라인
@@ -242,12 +244,11 @@ supabase/
 ### 4.3. 네비·검색·피드
 | 파일 | 역할 |
 |---|---|
-| `TopNav.tsx` | 헤더 + 현재 active profile 아이콘 |
+| `skin/AppShell.tsx` | 공용 셸 — 헤더(로고·GNB·우상단 알림/아바타) + 하단 5탭(투데이/내노트/피드/리포트/쇼핑) + **인-헤더 검색**(데스크탑 pill·모바일 풀스크린 패널, /?q= 라우팅, ←=검색 닫기/✕=검색어만 지움) |
+| `search/SearchPanel.tsx` | 검색 발견·자동완성 패널 — 최근검색 알약 + 카테고리 텍스트 탭(시술 6종) + 키워드 칩 + 부분일치 자동완성 |
 | `IdentitySwitcher.tsx` | 신분(profile) 전환 dropdown — 묶음 안 동등 독립한 profile 들 (ADR 0001, 0011) |
-| `Feed.tsx`, `CardMasonry.tsx` | 피드 + grid (react-masonry-css) |
-| `HeroSearch.tsx`, `SearchBar.tsx` | 메인 검색창·sticky 검색바 |
-| `CategoryWithChips.tsx` | 인기 키워드 5탭 + 칩 |
-| `CategoryTabs.tsx` | 단순 카테고리 탭 |
+| `skin/FeedView.tsx` | 홈 피드(단일 컬럼 리스트) + 탭 필터 + 검색 시 시술 리포트 카드 블렌딩(searchReport) |
+| `skin/FeedSidebar.tsx` | 데스크탑 우측 사이드바 — 인기 태그·인기 Q&A·글쓰기 CTA (홈/토픽/리포트 공용) |
 
 ### 4.4. 댓글·인터랙션
 | 파일 | 역할 |
@@ -316,7 +317,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - 클라: `getActiveIdentityId()` (`src/lib/active-identity.ts`)
 
 ### 5.3. UI
-- `IdentitySwitcher`: 묶음 내 ID 전환 (TopNav 아바타 클릭)
+- `IdentitySwitcher`: 묶음 내 ID 전환 (AppShell 헤더 우상단 아바타로 진입, → /my)
 - `/api/identity/switch`: 쿠키 set 엔드포인트
 - 쿠키 2종: `pibutenten:identity` (httpOnly, 서버 신뢰) + `pibutenten:identity-mirror` (httpOnly false, UI 표시)
 
@@ -429,7 +430,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 | **좋아요/저장/공유 수** | 클라 | — | 캐시 상세에서만 마운트 시 라이브 재조회(`useCardEngagement`) |
 | **내 좋아요/저장 여부** | 클라 | — | `Card`("use client") |
 
-- **레이아웃**: `layout.tsx` 는 V1 이후 서버 세션·쿠키를 안 읽음. `force-dynamic` 도 V3 에서 제거(전역). (2026-06-11 구 FAB 폐기 후 2026-06-16 `WriteFab` 재도입 — 하단 5탭은 `BottomNav`/`AppShell`.) **개인·동적 페이지**(/, /search, /[handle], /write, /today, /notes, /my, /shop, settings, admin, notifications, review, onboarding)는 각자 `export const dynamic="force-dynamic"`.
+- **레이아웃**: `layout.tsx` 는 V1 이후 서버 세션·쿠키를 안 읽음. `force-dynamic` 도 V3 에서 제거(전역). (2026-06-11 구 FAB 폐기 후 2026-06-16 `WriteFab` 재도입 — 하단 5탭은 `AppShell` 단일 셸.) **개인·동적 페이지**(/, /reports, /[handle], /write, /today, /notes, /my, /shop, settings, admin, notifications, review, onboarding)는 각자 `export const dynamic="force-dynamic"`(검색은 별도 라우트 없이 홈 /?q= — 홈이 이미 force-dynamic).
 - **캐시 무효화**: 콘텐츠 변경(발행/생성/수정/숨김/삭제) 라우트가 `revalidateTag("qa-content"/"topics","max")`(Next 16 2인자) → 상세 수정 **즉시** 반영. 카운트는 24h fallback이지만 클라 라이브라 실질 즉시.
 - **★한글 URL + ISR 금지**: ISR 캐시 페이지는 Next 16 이 페이지 경로를 implicit `x-next-cache-tags` HTTP 헤더(ASCII 전용)에 넣음. 토픽 URL 은 한글(`/topics/콜라겐`)이라 헤더가 깨져 **500(`ERR_INVALID_CHAR`)** → 토픽은 동적 유지. 상세는 ASCII slug 라 무관.
 - **홈 피드 단일 컬럼 리스트**: 승격된 홈은 `components/skin/FeedView.tsx` 가 단일 컬럼 리스트(`app.module.css` 의 `.feedList` = flex column)로 렌더(react-masonry-css 미사용 — `page.tsx` 에 breakpointCols/isMobileUA prop 없음). CLS 는 카드 고정 골격·스켈레톤(`FeedSkeleton`)으로 관리.

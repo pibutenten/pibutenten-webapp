@@ -82,7 +82,8 @@ GOOGLE_CLIENT_SECRET=...
 
 ## 4. 검색 / 피드
 
-### 4.1. 메인 피드 (`/`, `/search`, `/api/cards`)
+### 4.1. 메인 피드 (`/`, `/api/cards`)
+- 별도 `/search` 페이지/디렉터리 폐기 — 검색은 홈(`/?q=`)에서 수행하며 `AppShell` 헤더에 인-헤더 통합(`src/app/search/` 없음, `/search`·`/search?q=x` → `/`·`/?q=x` 308 — next.config).
 - RPC: 홈 첫 페이지 `feed_cards_scored`, 검색·홈 스크롤 `search_cards_scored` (q, doctor_slug, offset, limit, boost_doctor_slug)
 - **점수 공식 (마이그 0194)**: `인기 × 시간감쇠 × 의사배수 × jitter + New 부스트`
   - 인기 = `ln(좋아요×1 + 저장×2 + 공유×2 + 댓글×2 + 조회×0.1, 최소 1)/ln10 (+1)`. 공유=`cards.share_count`, 댓글=`comments(status='visible')` 점수 계산 시 즉시 count(컬럼/트리거 없음).
@@ -91,7 +92,8 @@ GOOGLE_CLIENT_SECRET=...
   - 두 RPC 동일 가중·부스트 → 첫 페이지·스크롤·검색에서 신규 글 노출 일관. 검색은 키워드 매칭 점수가 위에 얹힘.
 - 같은 원장 3연속 방지, 첫 4카드 다양화
 - HOT 카드: `get_hot_card_ids(p_limit)` 결과로 마킹 (v2 정책 본문 = 시간 가중 + 최소 점수 5)
-- **검색 SSOT 헬퍼** (배치 ⑤ H3, 2026-05-28): `src/lib/search-query.ts::fetchCardList(supabase, { q, doctorSlug, boostDoctorSlug, offset, limit })` — 3 호출처 (`/search/page.tsx`, `/api/cards`, `/doctors/[slug]/page.tsx`) 가 동일 헬퍼 사용. q 가 카테고리 라벨 ("끄적끄적" 등) 이면 `.eq("category", slug)` 직접 필터, 아니면 RPC. 옛 회귀(첫 페이지 vs 무한스크롤 결과 집합 불일치) 해소.
+- **검색 SSOT 헬퍼** (배치 ⑤ H3, 2026-05-28): `src/lib/search-query.ts::fetchCardList(supabase, { q, doctorSlug, boostDoctorSlug, category, offset, limit })` — 3 호출처 (홈 `src/app/page.tsx`, `/api/cards`, `/doctors/[slug]/page.tsx`) 가 동일 헬퍼 사용 (구 `/search/page.tsx` 폐기로 검색 첫 페이지도 홈으로 통합, 2026-06-28). q 가 카테고리 라벨 ("끄적끄적" 등) 이면 `.eq("category", slug)` 직접 필터, 아니면 RPC. 옛 회귀(첫 페이지 vs 무한스크롤 결과 집합 불일치) 해소.
+- **시술 리포트 블렌딩 (검색 한정)**: 검색어가 시술명과 매칭되면 '전체' 탭 첫 카드로 시술 리포트 1장(`getProcedureReport`, `searchReport`) 노출 — 홈 `page.tsx` 의 `if (query)` 분기에서만. **`review_summary`(시술 리포트) 카드를 비검색 홈피드에 직접 주입하지 않음**(검색 블렌딩만).
 - **"방금 쓴 글" 1회 노출**: WriteClient publish 성공 → sessionStorage `pbtt:justPublished = {id, ts}` 저장. 홈 `<Feed enableJustPublished>` 가 5분 윈도우 + 'shown' 마킹으로 본인 글을 그리드 첫 칸에 1회 노출(이미 피드에 있으면 맨 앞 이동, 없으면 fetch unshift). 클라이언트 전용·타인 영향 0. (2026-05-31 `JustPublishedPrepend` 별도 컴포넌트 → Feed 흡수. 전역 신규 노출은 New 부스트가 담당.)
 
 ### 4.2. 카테고리 (현 4종 — SSOT=`src/lib/post-category.ts`)
@@ -108,9 +110,21 @@ GOOGLE_CLIENT_SECRET=...
 - 9종 카테고리 (피부고민/리프팅/스킨부스터/필러·볼륨/주름·윤곽/레이저/기타/홈케어/피부상식). 검색·온보딩 탭에는 시술 6종만 표시 (`PROCEDURE_CATEGORIES`)
 - 3줄 max (`--chips-h: 100px`)
 - 색상: 비활성 `#E8EAEE / #5C6470`, 활성 카테고리 색 (concerns #7E57C2 / lifting #1E88E5 / skinbooster #F48FB1 / filler #FFA726 / contour #26A69A / laser #E57373 / other #78909C / homecare #BF6E5C / knowledge #9E9D24)
+- **데스크탑 사이드바 인기 태그 (`FeedSidebar`)**: 탭 = "전체"(서버 빈도순 `popularTags` 16개) + 시술 6종(`PROCEDURE_CATEGORIES`, cats 소스 상위 16개). 클릭 = `onTagClick` 위임 → 운영 홈(`/?q=`) 검색 라우팅. 선택 탭은 `sessionStorage`(`pbtt:feedSidebar:tagTab`)로 보존.
 
-### 4.4. 검색창 phrase
-HeroSearch 28개 / WriteClient 별도. mount 시 랜덤 1회.
+### 4.4. 인-헤더 검색 (`AppShell`)
+- 검색창은 `AppShell` 헤더에 통합 (별도 `/search` 페이지 없음). 데스크탑은 상시 검색 pill, 모바일은 돋보기 탭 → 인-헤더 입력 모드 오버레이.
+- **전역 규칙 (2026-06-28)**: `←` = 검색창 닫기(나가기, `clearSearch`) / `✕` = 검색어만 지움(검색창은 유지, `setDraft("")`). 입력 모드 박스 ↔ 결과 헤더 박스가 **동일 알약(pill) 모티프**(← + 검색어 필드 + ✕) — 픽셀 일치.
+- placeholder = 정적 문구 "시술·고민 키워드 검색" (옛 HeroSearch 28개 phrase 랜덤 회전 폐기). 검색 제출 → 운영 홈 `/?q=` 라우팅 (피드는 controlled 면 그 자리서 필터). 인-헤더 제출 경로가 `addRecent` 로 최근검색 기록(구 `/search` 페이지 역할 승계).
+
+### 4.5. 검색 발견패널 (`SearchPanel`)
+모바일 오버레이·데스크탑 블록 공용. query 비었을 때 = 발견 화면, 입력 중 = 자동완성. 데이터는 `/api/search/suggest`(모듈 캐시 `prefetchDiscover`).
+- **카테고리 탭**: 박스 없는 가로 텍스트 탭(시술 6종 `PROCEDURE_CATEGORIES`, `no-scrollbar` 가로 스크롤). 선택만 브랜드색 2.5px 밑줄 + 진하게, 비선택은 회색 — 색점 없음.
+- **키워드 칩**: 활성 카테고리 색 옅은 틴트(`${activeColor}17`) 배경 (흰색 칩 폐기).
+- **최근 검색어**: localStorage 흰 알약 (시계 아이콘 제거), 칩 클릭 = 검색, ✕ = 개별 삭제, "전체 삭제".
+- **자동완성**: 입력 중 카테고리 칩 키워드 접두 우선 → 부분일치 (초성 X), 매칭 없으면 발견 화면 폴백.
+- **자동완성 키보드 네비**(↑↓ 하이라이트 이동 + Enter 선택, 한글 IME 가드)는 공유 훅 `useAutocompleteKeyboard`(검색·시술후기 시술선택·시술노트 병원검색 공용 SSOT). SearchPanel 은 `forwardRef`+`useImperativeHandle` 로 키다운 핸들러를 노출하고 AppShell 검색 입력이 위임.
+- **인기검색어 표시 제거**: `/api/search/suggest` 는 `popular` 를 반환하나 패널에서 렌더하지 않음(최근검색 + 카테고리 칩만).
 
 ---
 
@@ -239,7 +253,7 @@ ex) /minji-skin/Ab3xK9Pq
 - 좋아요 알림 (그룹화 0083)
 - **저장 알림 (`save`, 0242 — 4-2)**: 누군가 내 글 저장 시 작성자에게 알림. **이름 비노출**(`actor_id`=NULL) — 누적 `save_count` 로 인원수만(message="회원님 글을 N명이 저장했어요"). 좋아요(0083) 24h 묶음 패턴 그대로(recipient+card+kind='save' 24h 내 UPDATE-or-INSERT). self-save skip, `pref_save` 토글(default ON), EXCEPTION 격리. 숫자(N명)는 message→웹푸시 body 로 전달(`get_notifications` RPC 가 message 미반환이라 /notifications 페이지는 라벨만 — 좋아요와 동일 구조).
 - **신고 알림 (`report`, 0239 — 4-2 STEP D)**: content_reports 신고 접수 시 관리자(role='admin') fan-out. 신고자=admin 이면 본인 제외. 전용 pref 토글 없음(상시 수신). UI 는 /notifications '운영' 필터에 포함.
-- **관심(Q&A) 알림 토대 (`keyword`, 0244 — 4-2 / 3b-1)**: 회원의 관심사·피부고민·피부타입 태그에 맞는 새 Q&A 를 하루 한 번 주제별로 알림 + `/search?q={태그}` 이동(예정). 본 단계는 **토대만**(색인·토글·종류) — GIN 인덱스 2개(`profiles.interested_procedures`·`skin_concerns`), pref 3컬럼(`pref_keyword_interest`/`pref_keyword_concern`/`pref_keyword_skin_type`, default ON), kind 'keyword'(message 모드·🏷️), UI(설정 "관심 Q&A 알림" 섹션 3토글 + /notifications "관심" 필터 + push fallback 타이틀). **발생(digest+cron)은 3b-2 — 현재 생산자 없음 = keyword 알림 0건**. 게이팅은 `is_notification_enabled` 단일 bool 이 아니라(미수정·ELSE true) 3b-2 digest 가 pref 3컬럼을 dimension 별로 직접 판독.
+- **관심(Q&A) 알림 토대 (`keyword`, 0244 — 4-2 / 3b-1)**: 회원의 관심사·피부고민·피부타입 태그에 맞는 새 Q&A 를 하루 한 번 주제별로 알림 + 그 태그 검색으로 이동(저장 URL `/search?q={태그}` → 검색 폐기로 308 → 홈 `/?q={태그}`, next.config). 본 단계는 **토대만**(색인·토글·종류) — GIN 인덱스 2개(`profiles.interested_procedures`·`skin_concerns`), pref 3컬럼(`pref_keyword_interest`/`pref_keyword_concern`/`pref_keyword_skin_type`, default ON), kind 'keyword'(message 모드·🏷️), UI(설정 "관심 Q&A 알림" 섹션 3토글 + /notifications "관심" 필터 + push fallback 타이틀). **발생(digest+cron)은 3b-2 — 현재 생산자 없음 = keyword 알림 0건**. 게이팅은 `is_notification_enabled` 단일 bool 이 아니라(미수정·ELSE true) 3b-2 digest 가 pref 3컬럼을 dimension 별로 직접 판독.
 - ~~ask 전용 답변·지속 알림 (0080)~~ — **물리 제거 완료(0241, 2026-06-06)**: category='ask' 폐지(0198)로 영구 死였던 트리거 `on_card_ask_for_notification`·`on_ask_owner_self_reply`, `new_ask` kind(과거 36행 삭제), `pref_new_ask` 컬럼, `is_notification_enabled` 의 new_ask 분기, UI 잔재(필터·토글·push 타이틀·SSOT) 일체 제거. 현 알림 kind **8종** = comment/reply/like/save/review_request/published/report/keyword(0244).
 
 ### 8.2. 트리거 / 생산자
