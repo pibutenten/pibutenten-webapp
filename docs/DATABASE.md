@@ -453,6 +453,10 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0308 (review) | **단독 후기 어림시기 저장** — `procedure_reviews.visited_on date` 컬럼 추가. `create_procedure_review` 에 `p_visited_on date DEFAULT NULL` + `p_date_precision text DEFAULT 'exact'` 추가(16→18-인자 DROP·재생성, GRANT 재부여). INSERT 에 visited_on/date_precision 반영. is_public/source/recommend/short_answers/리포트 lazy 생성 등 기존 동작 VERBATIM 보존. |
 | 0309 (review) | **'any' 일반 질문 보강(단독 후기 2칸+다시고르기)** — 0307 이 'any' 활성을 대표 1개만 남겨 단독 후기 단답이 1칸뿐이던 것 교정. 시점 무관 일반 질문 6개 멱등 INSERT(NOT EXISTS) + 동일 텍스트 비활성 행 재활성(id 22). 결과 'any' 활성 = 7. 시점별 체크인 폼도 `[timepoint, 'any']` 로드라 함께 풍부해짐. |
 | 0310 (review) | **`update_procedure_review` p_recommend 추가** — 수정 경로에서 recommend(추천의향)가 DB 에 저장되지 않던 버그 교정. 기존 11인자 DROP 후 12인자(`p_recommend smallint DEFAULT NULL`)로 재생성. `COALESCE(p_recommend, pr.recommend)`로 NULL 전달 시 기존값 유지. GRANT 재부여. 한국어 미포함. |
+| 0311 (tags) | **태그 카테고리 CHECK 제약 확장 (6→10종)** — tag_dictionary.category CHECK 에 '필러·볼륨', '주름·윤곽', '레이저', '기타' 4종 추가. DROP+ADD CONSTRAINT(PostgreSQL ALTER CHECK 미지원). |
+| 0312 (tags) | **시술 태그 198종 대량 UPSERT** — procedures_v6.json 기반. 10종 카테고리 체계에 맞춰 tag_dictionary·tag_normalization 에 시술 태그 일괄 등록·갱신. 기존 행은 category/en/parent_ko/is_procedure/aliases/pubmed_keywords 만 덮어쓰기. |
+| 0313 (tags) | **미지 태그 자동등록 v2** — 시술 후기 소스 태그는 category='기타', is_procedure=true 로 자동 등록. 일반 소스는 category='미지정'. 0250 대비 10종 카테고리 반영. |
+| 0314 (tags) | **시술 리포트 RPC 카테고리 매핑 확장** — get_review_report_overview, get_review_summary_pool 의 CASE WHEN 을 2분기(lifting/injectables)→6분기(lifting/skinbooster/filler/contour/laser/other)로 확장. |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 

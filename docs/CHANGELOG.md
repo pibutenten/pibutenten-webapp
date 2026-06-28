@@ -6,6 +6,31 @@
 
 ---
 
+## [2026-06-28] — 태그 카테고리 5종→9종 확장 + DB 마이그레이션
+
+카테고리 체계를 5종(concerns/lifting/injectables/homecare/knowledge)에서 9종(+skinbooster/filler/contour/laser/other, -injectables)으로 확장. 관리자용 '미지정' 포함 총 10종. injectables→skinbooster 클린 브레이크.
+
+### Added
+- **PROCEDURE_SLUGS / ProcedureSlug / PROCEDURE_CATEGORIES** — categories.ts 에 시술 카테고리 6종 파생 상수 신설
+- **4 신규 카테고리** — filler(필러·볼륨 #FFA726), contour(주름·윤곽 #26A69A), laser(레이저 #E57373), other(기타 #78909C)
+- **CSS 9색 칩 클래스** — catSkinbooster/catFiller/catContour/catLaser/catOther + data-cat 호버 + tagBtnActive 활성
+- **DB 마이그레이션 4건** — 0311 CHECK 제약 확장, 0312 시술 태그 198종 UPSERT, 0313 자동등록 v2, 0314 RPC 매핑 확장
+
+### Changed
+- **injectables→skinbooster** — CategorySlug·CSS·스크립트·관리자 UI 전면 전환 (하위호환 없음)
+- **lifting 색상** — #29B6F6→#1E88E5 (primary #4CBFF2 겹침 해소)
+- **procedure-theme.ts** — 하드코딩 if/else → CATEGORIES 동적 조회 + hexToSoft() 헬퍼
+- **검색/온보딩 탭** — 시술 6종(PROCEDURE_CATEGORIES)만 표시, pickDefaultCategory() 로 랜덤 진입
+- **SkinDiaryForms.tsx** — CAT_COLOR 6종 + PROCEDURES 재분류 (보톡스→주름·윤곽, 필러군→필러·볼륨)
+- **관리자 UI** — 태그 분류 드롭다운 10종 확장 (5개 파일)
+- **스크립트** — gen-tag-dictionary/merge-dictionaries/analyze-dict-coverage 의 injectables→skinbooster
+
+### Fixed
+- 리포트 카드 category 매핑 2종→6종 확장 (procedure-report.ts, procedure-theme.ts)
+- schema/procedure.ts MedicalProcedure 판정을 PROCEDURE_SLUGS 기반으로 변경
+
+---
+
 ## [2026-06-28] — 후기 폼 필드 정리 + 카피 교체 + 임시저장 복원 UX
 
 시술 후기·시술노트·체크인 폼에서 중복/불필요 필드 3종 제거, 카피 전면 교체, 임시저장 복원 UX 개선. 독립 검수관 2명 교차 검증 후 배포.
