@@ -34,9 +34,9 @@ const json = JSON.parse(
 );
 const jset = new Set(json.mappings.map((m) => m.ko));
 
-const missing = { lifting: [], injectables: [], concerns: [], homecare: [] };
+const missing = { lifting: [], skinbooster: [], concerns: [], homecare: [] };
 for (const k of L) if (!jset.has(k)) missing.lifting.push(k);
-for (const k of I) if (!jset.has(k)) missing.injectables.push(k);
+for (const k of I) if (!jset.has(k)) missing.skinbooster.push(k);
 for (const k of C) if (!jset.has(k)) missing.concerns.push(k);
 for (const k of H) if (!jset.has(k)) missing.homecare.push(k);
 

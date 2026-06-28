@@ -69,13 +69,17 @@ export function useSearchRouting() {
 }
 
 /* ---------- 피드백 5) 키워드 → 카테고리별 연한 배경 칩 클래스 ----------
- * 운영 categorize(@/lib/category-sets)로 키워드를 5분류한 뒤
+ * 운영 categorize(@/lib/category-sets)로 키워드를 9분류한 뒤
  * app.module.css 의 카테고리 톤 클래스(catLifting 등)로 매핑.
  * 인기 태그(피드 사이드)·관심 키워드(내 노트) 칩이 같은 톤을 공유. */
 const CAT_TAG_CLASS: Record<string, string> = {
   concerns: styles.catConcerns,
   lifting: styles.catLifting,
-  injectables: styles.catInjectables,
+  skinbooster: styles.catSkinbooster,
+  filler: styles.catFiller,
+  contour: styles.catContour,
+  laser: styles.catLaser,
+  other: styles.catOther,
   homecare: styles.catHomecare,
   knowledge: styles.catKnowledge,
 };

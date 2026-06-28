@@ -12,6 +12,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CATEGORIES,
+  PROCEDURE_CATEGORIES,
   pickDefaultCategory,
   type CategorySlug,
 } from "@/lib/categories";
@@ -159,7 +160,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
         className="-mx-4 flex justify-center gap-x-[14px] overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:gap-x-7 sm:gap-y-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none" } as CSSProperties}
       >
-        {CATEGORIES.map((c) => {
+        {PROCEDURE_CATEGORIES.map((c) => {
           const isActive = active === c.slug;
           return (
             <button

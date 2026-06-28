@@ -6,7 +6,7 @@ import { showToast } from "@/lib/toast";
 
 export type QueueRow = { id: number; ko: string; suggested_en: string | null; source: string | null };
 
-const CATEGORIES = ["피부고민", "리프팅", "스킨부스터", "홈케어", "피부상식", "미지정"];
+const CATEGORIES = ["피부고민", "리프팅", "스킨부스터", "홈케어", "피부상식", "미지정", "필러·볼륨", "주름·윤곽", "레이저", "기타"];
 
 function QueueItem({ row, onDone }: { row: QueueRow; onDone: (id: number) => void }) {
   const [category, setCategory] = useState("미지정");

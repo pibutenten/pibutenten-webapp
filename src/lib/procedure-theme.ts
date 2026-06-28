@@ -1,9 +1,9 @@
 /**
  * 시술 분류별 테마 색 SSOT — 리포트 카드 헤더 톤 등에서 공용 사용.
  *
- * lifting=하늘(진한 톤), injectables=핑크(진한 톤), 그 외/미발견(null)=기본 파란 톤(var(--primary)).
- * 색을 못 찾으면 기존 파란 톤을 그대로 돌려준다.
+ * CATEGORIES 에서 동적 조회. 미발견(null)=기본 파란 톤(var(--primary)).
  */
+import { CATEGORIES } from "@/lib/categories";
 import type { ProcedureCategory } from "@/lib/procedure-report";
 
 export type CategoryTheme = {
@@ -13,10 +13,17 @@ export type CategoryTheme = {
   soft: string;
 };
 
+function hexToSoft(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},0.12)`;
+}
+
 export function categoryTheme(
   category: ProcedureCategory | null | undefined,
 ): CategoryTheme {
-  if (category === "lifting") return { color: "#1E9FD8", soft: "#EAF5FC" };
-  if (category === "injectables") return { color: "#E5689B", soft: "#FCEFF5" };
-  return { color: "var(--primary)", soft: "transparent" };
+  const found = CATEGORIES.find((c) => c.slug === category);
+  if (!found) return { color: "var(--primary)", soft: "transparent" };
+  return { color: found.color, soft: hexToSoft(found.color) };
 }

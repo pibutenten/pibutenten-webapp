@@ -39,11 +39,22 @@ const formBox = "space-y-5 rounded-[var(--radius)] bg-white p-5";
 const cardBox = "rounded-[var(--radius)] bg-white p-5";
 
 
-/* 시술 picker — 실제 tag_dictionary(is_procedure) 기준. 카테고리 리프팅/스킨부스터 2종. */
-const CAT_COLOR: Record<string, string> = { 리프팅: "#29B6F6", 스킨부스터: "#F48FB1" };
+/* 시술 picker — 실제 tag_dictionary(is_procedure) 기준. 카테고리 6종(리프팅/스킨부스터/필러·볼륨/주름·윤곽/레이저/기타). */
+const CAT_COLOR: Record<string, string> = {
+  리프팅: "#1E88E5",
+  스킨부스터: "#F48FB1",
+  "필러·볼륨": "#FFA726",
+  "주름·윤곽": "#26A69A",
+  레이저: "#E57373",
+  기타: "#78909C",
+};
 const PROCEDURES: { value: string; label: string; cat: string }[] = [
   ...["써마지","울쎄라","슈링크","올리지오","포텐자","텐써마","덴서티","울트라셀","티타늄","미라젯","세르프","올타이트","엠페이스","골드PTT"].map((l) => ({ value: l, label: l, cat: "리프팅" })),
-  ...["리쥬란","쥬베룩","스컬트라","보톡스","프로파일로","울트라콜","스킨바이브","더엘주사","레디어스","레스틸렌","벨로테로","올리디아","힐로웨이브"].map((l) => ({ value: l, label: l, cat: "스킨부스터" })),
+  ...["리쥬란","쥬베룩","스컬트라","프로파일로","울트라콜","스킨바이브","더엘주사","힐로웨이브"].map((l) => ({ value: l, label: l, cat: "스킨부스터" })),
+  ...["필러","레스틸렌","벨로테로","올리디아","레디어스"].map((l) => ({ value: l, label: l, cat: "필러·볼륨" })),
+  ...["보톡스"].map((l) => ({ value: l, label: l, cat: "주름·윤곽" })),
+  ...([] as string[]).map((l) => ({ value: l, label: l, cat: "레이저" })),
+  ...([] as string[]).map((l) => ({ value: l, label: l, cat: "기타" })),
 ];
 
 // 시술별 후기(아코디언 펼침) day0 평가 슬롯 — create_visit_with_entries 의 p_reviews 행 한 건에 매핑.

@@ -17,7 +17,7 @@ import {
   SKIN_TYPES,
   SKIN_CONCERNS,
 } from "@/lib/profile-options";
-import { CATEGORIES, type CategorySlug } from "@/lib/categories";
+import { CATEGORIES, PROCEDURE_CATEGORIES, type CategorySlug, type ProcedureSlug } from "@/lib/categories";
 import type { PopularByCategory } from "@/lib/popular-keywords";
 
 const INTERESTS_MAX = 10;
@@ -160,9 +160,9 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
   const [procedures, setProcedures] = useState<string[]>(
     initial.interestedProcedures,
   );
-  // 섹션 5 카테고리 탭 활성 — 진입 시 'concerns' 디폴트.
+  // 섹션 5 카테고리 탭 활성 — 진입 시 'lifting' 디폴트 (시술 카테고리 첫 번째).
   const [interestCategory, setInterestCategory] =
-    useState<CategorySlug>("concerns");
+    useState<ProcedureSlug>("lifting");
   const [bio, setBio] = useState(initial.bio);
 
   // 피부 정보 활용 동의 (보안 2.5차 C묶음, 2026-05-19) — 필수.
@@ -861,8 +861,8 @@ function InterestPicker({
   onAddCustom,
 }: {
   popularByCategory: PopularByCategory;
-  activeCategory: CategorySlug;
-  onCategoryChange: (slug: CategorySlug) => void;
+  activeCategory: ProcedureSlug;
+  onCategoryChange: (slug: ProcedureSlug) => void;
   picked: string[];
   onToggle: (kw: string) => void;
   onRemove: (kw: string) => void;
@@ -874,7 +874,7 @@ function InterestPicker({
   const [customInput, setCustomInput] = useState("");
   const innerRef = useRef<HTMLDivElement>(null);
 
-  const cat = CATEGORIES.find((c) => c.slug === activeCategory)!;
+  const cat = PROCEDURE_CATEGORIES.find((c) => c.slug === activeCategory)!;
   const allChips = popularByCategory[activeCategory] ?? [];
 
   // 줄 수 제한 — collapsed 3줄 / expanded 7줄. ROW_LIMIT 초과 줄에 들어갈 칩은 아예 렌더 안 함.
@@ -882,7 +882,7 @@ function InterestPicker({
 
   /** 주어진 키워드가 속한 카테고리 색을 반환 — 미발견 시 회색(#9CA3AF) 폴백. */
   function colorOfKeyword(kw: string): string {
-    for (const c of CATEGORIES) {
+    for (const c of PROCEDURE_CATEGORIES) {
       if ((popularByCategory[c.slug] ?? []).includes(kw)) return c.color;
     }
     return "#9CA3AF";
@@ -945,7 +945,7 @@ function InterestPicker({
         className="-mx-2 flex justify-center gap-x-[14px] overflow-x-auto px-2 sm:mx-0 sm:flex-wrap sm:gap-x-7 sm:gap-y-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none" } as CSSProperties}
       >
-        {CATEGORIES.map((c) => {
+        {PROCEDURE_CATEGORIES.map((c) => {
           const isActive = activeCategory === c.slug;
           return (
             <button

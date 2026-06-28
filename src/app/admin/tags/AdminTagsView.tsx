@@ -17,7 +17,7 @@ import { useSearchRouting } from "@/components/skin/ui";
 import styles from "@/components/skin/app.module.css";
 import TagAdminTable, { type TagRow } from "./TagAdminTable";
 
-const CATEGORIES = ["피부고민", "리프팅", "스킨부스터", "홈케어", "피부상식", "미지정"] as const;
+const CATEGORIES = ["피부고민", "리프팅", "스킨부스터", "홈케어", "피부상식", "미지정", "필러·볼륨", "주름·윤곽", "레이저", "기타"] as const;
 const PERIODS: { label: string; days: number }[] = [
   { label: "24시간", days: 1 },
   { label: "7일", days: 7 },

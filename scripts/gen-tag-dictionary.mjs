@@ -28,10 +28,14 @@ const OUT = join(ROOT, "src/data/tag-dictionary.generated.json");
 const KR2SLUG = {
   피부고민: "concerns",
   리프팅: "lifting",
-  스킨부스터: "injectables",
+  스킨부스터: "skinbooster",
   홈케어: "homecare",
   피부상식: "knowledge",
-  미지정: "knowledge", // 미존재 fallback 과 동일
+  미지정: "other",
+  "필러·볼륨": "filler",
+  "주름·윤곽": "contour",
+  레이저: "laser",
+  기타: "other",
 };
 
 function loadEnv() {

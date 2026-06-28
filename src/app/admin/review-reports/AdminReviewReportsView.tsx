@@ -39,8 +39,12 @@ type Props = {
 
 // 카테고리 표시 라벨 — 알려진 값만 매핑하고 미지정 카테고리는 원문 그대로(자동 반영).
 const CATEGORY_LABEL: Record<string, string> = {
-  injectables: "주사·스킨부스터",
   lifting: "리프팅",
+  skinbooster: "스킨부스터",
+  filler: "필러·볼륨",
+  contour: "주름·윤곽",
+  laser: "레이저",
+  other: "기타",
 };
 
 function revisitPct(yes: number, maybe: number, no: number): number {

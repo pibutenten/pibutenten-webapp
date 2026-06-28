@@ -33,7 +33,7 @@ const MISSING_BY_CATEGORY = {
     ["바늘RF", "needle-rf", "general"], // (이미 needle-rf 가 있을 수도 — synonyms 처리 보다 entry 추가가 단순)
     ["RF", "rf", "general"], // 동일 사유. 코드는 ko 단위로 검색하므로 별도 entry 안전
   ],
-  injectables: [["보툴리늄", "botulinum", "general"]],
+  skinbooster: [["보툴리늄", "botulinum", "general"]],
   concerns: [
     ["민감성", "sensitive", "general"],
     ["민감피부", "sensitive-skin", "general"],

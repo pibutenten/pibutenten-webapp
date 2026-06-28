@@ -29,6 +29,10 @@ const CATEGORIES = [
   "홈케어",
   "피부상식",
   "미지정",
+  "필러·볼륨",
+  "주름·윤곽",
+  "레이저",
+  "기타",
 ] as const;
 
 // 부분 수정 — 보낸 필드만 갱신. null 허용(en/parent_ko/onboarding 비우기).

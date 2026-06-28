@@ -47,7 +47,7 @@ export default async function TodayPage() {
       ? Array.from(
           new Set([
             ...popularByCat.lifting.slice(0, 4),
-            ...popularByCat.injectables.slice(0, 4),
+            ...popularByCat.skinbooster.slice(0, 4),
             ...popularByCat.concerns.slice(0, 3),
           ]),
         ).slice(0, 10)

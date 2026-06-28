@@ -1385,12 +1385,12 @@ button.t[data-cat="concerns"]:hover {
   color: #6a45b0;
 }
 button.t[data-cat="lifting"]:hover {
-  background: rgba(41, 182, 246, 0.15);
-  color: #176d99;
+  background: rgba(30,136,229,0.15);
+  color: #145ea0;
 }
-button.t[data-cat="injectables"]:hover {
-  background: rgba(244, 143, 177, 0.18);
-  color: #b03e68;
+button.t[data-cat="skinbooster"]:hover {
+  background: rgba(244,143,177,0.15);
+  color: #a33b5e;
 }
 button.t[data-cat="homecare"]:hover {
   background: rgba(191, 110, 92, 0.15);
@@ -1399,6 +1399,22 @@ button.t[data-cat="homecare"]:hover {
 button.t[data-cat="knowledge"]:hover {
   background: rgba(158, 157, 36, 0.16);
   color: #6a6915;
+}
+button.t[data-cat="filler"]:hover {
+  background: rgba(255,167,38,0.15);
+  color: #b5711a;
+}
+button.t[data-cat="contour"]:hover {
+  background: rgba(38,166,154,0.15);
+  color: #1a756c;
+}
+button.t[data-cat="laser"]:hover {
+  background: rgba(229,115,115,0.15);
+  color: #a33b3b;
+}
+button.t[data-cat="other"]:hover {
+  background: rgba(120,144,156,0.15);
+  color: #4d5f69;
 }
 .postFoot {
   display: flex;
@@ -1660,7 +1676,7 @@ button.t[data-cat="knowledge"]:hover {
 
 /* ---------- 클릭형 키워드 칩 (인기 태그) ----------
  * 피드백 5) 태그마다 카테고리(categorize)별 연한 배경 틴트 + 그 색 진한 글씨.
- *   운영 categories.ts 5색(concerns/lifting/injectables/homecare/knowledge) 기반.
+ *   운영 categories.ts 9색(concerns/lifting/skinbooster/filler/contour/laser/other/homecare/knowledge) 기반.
  *   기본(.tagBtn)은 카테고리 클래스가 안 붙은 폴백(중립). 클릭 활성 시 브랜드 단색. */
 .tagBtn {
   font-size: 12.5px;
@@ -1678,19 +1694,18 @@ button.t[data-cat="knowledge"]:hover {
 .tagBtn:hover {
   filter: brightness(0.96);
 }
-/* 카테고리별 연한 배경 + 진한 글씨 (운영 5색). */
+/* 카테고리별 연한 배경 + 진한 글씨 (운영 9색). */
 .catConcerns {
   background: rgba(126, 87, 194, 0.13);
   color: #6a45b0;
 }
 .catLifting {
-  background: rgba(41, 182, 246, 0.15);
-  color: #176d99;
+  background: rgba(30, 136, 229, 0.15);
+  color: #145ea0;
 }
-.catInjectables {
-  background: rgba(244, 143, 177, 0.18);
-  /* WCAG AA: 연분홍 틴트 배경 대비 약 4.6:1 (구 #d56a92 = 약 3.0:1). */
-  color: #b03e68;
+.catSkinbooster {
+  background: rgba(244, 143, 177, 0.15);
+  color: #a33b5e;
 }
 .catHomecare {
   background: rgba(191, 110, 92, 0.15);
@@ -1699,6 +1714,22 @@ button.t[data-cat="knowledge"]:hover {
 .catKnowledge {
   background: rgba(158, 157, 36, 0.16);
   color: #6a6915;
+}
+.catFiller {
+  background: rgba(255, 167, 38, 0.15);
+  color: #b5711a;
+}
+.catContour {
+  background: rgba(38, 166, 154, 0.15);
+  color: #1a756c;
+}
+.catLaser {
+  background: rgba(229, 115, 115, 0.15);
+  color: #a33b3b;
+}
+.catOther {
+  background: rgba(120, 144, 156, 0.15);
+  color: #4d5f69;
 }
 /* 항목7) 활성(현재 검색어 = 그 태그): 테두리가 아니라 "색이 진해지고 안에 흰 글씨".
    각 카테고리 색의 진한 솔리드 배경 + 흰 글씨로 채워 "선택됨"을 명확히(흰글씨 대비 4.5:1↑). */
@@ -1713,11 +1744,11 @@ button.t[data-cat="knowledge"]:hover {
   color: #fff;
 }
 .tagBtnActive.catLifting {
-  background: #176d99;
+  background: #145ea0;
   color: #fff;
 }
-.tagBtnActive.catInjectables {
-  background: #b03e68;
+.tagBtnActive.catSkinbooster {
+  background: #a33b5e;
   color: #fff;
 }
 .tagBtnActive.catHomecare {
@@ -1726,6 +1757,22 @@ button.t[data-cat="knowledge"]:hover {
 }
 .tagBtnActive.catKnowledge {
   background: #6a6915;
+  color: #fff;
+}
+.tagBtnActive.catFiller {
+  background: #b5711a;
+  color: #fff;
+}
+.tagBtnActive.catContour {
+  background: #1a756c;
+  color: #fff;
+}
+.tagBtnActive.catLaser {
+  background: #a33b3b;
+  color: #fff;
+}
+.tagBtnActive.catOther {
+  background: #4d5f69;
   color: #fff;
 }
 .tagClear {

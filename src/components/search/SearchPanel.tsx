@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CATEGORIES, type CategorySlug } from "@/lib/categories";
+import { CATEGORIES, PROCEDURE_CATEGORIES, pickDefaultCategory, type CategorySlug } from "@/lib/categories";
 import { addRecent, clearRecent, getRecent, removeRecent } from "@/lib/recent-search";
 
 const C = "#4cbff2";
@@ -40,7 +40,7 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
 
   useEffect(() => {
     setRecent(getRecent());
-    setActiveCat(Math.random() < 0.5 ? "lifting" : "injectables");
+    setActiveCat(pickDefaultCategory());
     if (discoverCache) { setData(discoverCache); return; } // 캐시 즉시 표시(깜빡임 없음)
     let alive = true;
     prefetchDiscover().then((d) => { if (alive) setData(d); });
@@ -148,7 +148,7 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
       {!recentOnly && (
       <section>
         <div className="mb-3 flex gap-5 overflow-x-auto border-b border-[#eef1f4] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {CATEGORIES.map((c) => {
+          {PROCEDURE_CATEGORIES.map((c) => {
             const on = activeCat === c.slug;
             return (
               <button key={c.slug} type="button" onClick={() => setActiveCat(c.slug)} className="relative shrink-0 whitespace-nowrap pb-2.5 pt-0.5 text-[15px]" style={{ color: on ? c.color : "#9aa3b0", fontWeight: on ? 800 : 600 }}>

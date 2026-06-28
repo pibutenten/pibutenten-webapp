@@ -1,10 +1,11 @@
 import { categoryFor, slugFor } from "@/lib/procedure-dict";
+import { PROCEDURE_SLUGS } from "@/lib/categories";
 
 /**
  * 태그 → MedicalProcedure / MedicalCondition / Thing schema 변환.
  *
  * 카테고리별 처리 (SSOT=DB tag_dictionary 스냅샷):
- *  - lifting/injectables → MedicalProcedure (+ procedureType)
+ *  - 시술(lifting/skinbooster/filler/contour/laser/other) → MedicalProcedure (+ procedureType)
  *  - concerns → MedicalCondition (피부 질환·고민)
  *  - 그 외(homecare/knowledge/미등록) → Thing (기본)
  *
@@ -14,7 +15,7 @@ import { categoryFor, slugFor } from "@/lib/procedure-dict";
 /**
  * 단일 태그를 schema.org 객체로 변환.
  *
- *  - 시술(lifting/injectables): MedicalProcedure + procedureType
+ *  - 시술(lifting/skinbooster/filler/contour/laser/other): MedicalProcedure + procedureType
  *  - 피부 질환(concerns): MedicalCondition
  *  - 외 (homecare/knowledge): Thing
  */
@@ -23,7 +24,7 @@ export function keywordToAboutSchema(keyword: string): Record<string, unknown> {
   const baseName = en ? { name: keyword, alternateName: en } : { name: keyword };
   const category = categoryFor(keyword); // 미등록은 "knowledge"
 
-  if (category === "lifting" || category === "injectables") {
+  if ((PROCEDURE_SLUGS as readonly string[]).includes(category)) {
     return {
       "@type": "MedicalProcedure",
       ...baseName,

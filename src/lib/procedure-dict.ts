@@ -6,7 +6,7 @@
  *
  * 이 모듈이 제공하는 단일 진입점을 통해 lookup 하세요.
  *
- *  - categoryFor(keyword)         — 키워드 → 5분류 카테고리(lifting/injectables/concerns/homecare/knowledge)
+ *  - categoryFor(keyword)         — 키워드 → 9분류 카테고리(lifting/skinbooster/filler/contour/laser/other/concerns/homecare/knowledge)
  *  - slugFor(keyword)             — 한글 키워드 → URL slug (영문)
  *  - pubmedKeywordsFor(keyword)   — 키워드 → PubMed 영문 검색어 배열 (없으면 null)
  *  - normalizeTag(rawTag)         — 합성어/표기 → 정규화된 태그 배열 (블랙리스트면 빈 배열)
@@ -39,12 +39,16 @@ const SNAP_BLACKLIST = new Set<string>(SNAP.blacklist);
 
 // ── public API ───────────────────────────────────────────────
 
-/** 키워드 → 5분류 카테고리 슬러그. 사전에 없으면 "knowledge". (DB 스냅샷 기준) */
+/** 키워드 → 9분류 카테고리 슬러그. 사전에 없으면 "knowledge". (DB 스냅샷 기준) */
 export function categoryFor(keyword: string): CategorySlug {
   const cat = SNAP_CATEGORY[keyword];
   if (
     cat === "lifting" ||
-    cat === "injectables" ||
+    cat === "skinbooster" ||
+    cat === "filler" ||
+    cat === "contour" ||
+    cat === "laser" ||
+    cat === "other" ||
     cat === "concerns" ||
     cat === "homecare" ||
     cat === "knowledge"

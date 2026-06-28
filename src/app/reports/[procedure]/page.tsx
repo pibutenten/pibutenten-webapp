@@ -189,7 +189,7 @@ export default async function ProcedureReportPage({ params }: Props) {
           "@type": "Service",
           additionalType: "https://schema.org/MedicalProcedure",
           name: ko,
-          // tag_dictionary(is_procedure=true) 에서 파생한 category 값 그대로(lifting/injectables). 미분류면 생략.
+          // tag_dictionary(is_procedure=true) 에서 파생한 category 값 그대로(lifting/skinbooster/filler/contour/laser/other). 미분류면 생략.
           ...(report.category ? { category: report.category } : {}),
           provider: { "@id": `${SITE_URL}/#organization` },
           aggregateRating: {

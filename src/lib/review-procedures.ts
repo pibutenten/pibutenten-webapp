@@ -16,8 +16,15 @@ type TaxonomyRow = {
   category: string;
 };
 
-// 카테고리 표시 순서 — tag_dictionary.category(한글) 기준. 시술은 리프팅/스킨부스터 2종.
-const CATEGORY_ORDER: Record<string, number> = { 리프팅: 0, 스킨부스터: 1 };
+// 카테고리 표시 순서 — tag_dictionary.category(한글) 기준. 시술 6종.
+const CATEGORY_ORDER: Record<string, number> = {
+  리프팅: 0,
+  스킨부스터: 1,
+  "필러·볼륨": 2,
+  "주름·윤곽": 3,
+  레이저: 4,
+  기타: 5,
+};
 
 export async function getReviewProcedures(
   supabase: ServerClient,

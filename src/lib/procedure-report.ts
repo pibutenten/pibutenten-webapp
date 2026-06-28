@@ -12,6 +12,7 @@ import {
   EFFECT_ONSET_OPTIONS,
   EFFECT_NONE_LABEL,
 } from "@/lib/review-options";
+import { PROCEDURE_SLUGS, type ProcedureSlug } from "@/lib/categories";
 
 type ServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -33,7 +34,7 @@ export type Demographics = {
   ageBands: { label: string; count: number }[];
 };
 
-export type ProcedureCategory = "lifting" | "injectables";
+export type ProcedureCategory = ProcedureSlug;
 
 export type ProcedureReport = {
   procedureKo: string;
@@ -111,11 +112,13 @@ export async function getProcedureReport(
     .eq("is_procedure", true)
     .maybeSingle<{ category: string | null; en: string | null }>();
   const category: ProcedureCategory | null =
-    taxRow?.category === "리프팅"
-      ? "lifting"
-      : taxRow?.category === "스킨부스터"
-        ? "injectables"
-        : null;
+    taxRow?.category === "리프팅" ? "lifting"
+    : taxRow?.category === "스킨부스터" ? "skinbooster"
+    : taxRow?.category === "필러·볼륨" ? "filler"
+    : taxRow?.category === "주름·윤곽" ? "contour"
+    : taxRow?.category === "레이저" ? "laser"
+    : taxRow?.category === "기타" ? "other"
+    : null;
   const en = taxRow?.en ?? "";
 
   // 시술 리포트 앵커(type=review_summary) 조회 — ★일반(공개 RLS) 경로 + published 한정.
@@ -331,8 +334,8 @@ export async function getReviewSummaryFeedPool(
     .map((r) => {
       const en = r.en as string;
       const category: ProcedureCategory | null =
-        r.category === "lifting" || r.category === "injectables"
-          ? r.category
+        (PROCEDURE_SLUGS as readonly string[]).includes(r.category as string)
+          ? (r.category as ProcedureCategory)
           : null;
       const anchor: CardData = {
         id: r.anchor_card_id,

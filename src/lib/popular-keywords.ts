@@ -20,7 +20,7 @@ export async function getPopularByCategory(): Promise<PopularByCategory> {
     .eq("status", "published");
 
   if (error || !data) {
-    return { concerns: [], lifting: [], injectables: [], homecare: [], knowledge: [] };
+    return { concerns: [], lifting: [], skinbooster: [], filler: [], contour: [], laser: [], other: [], homecare: [], knowledge: [] };
   }
 
   // 태그 카운트
@@ -34,11 +34,8 @@ export async function getPopularByCategory(): Promise<PopularByCategory> {
 
   // 카테고리 버킷
   const buckets: Record<CategorySlug, [string, number][]> = {
-    concerns: [],
-    lifting: [],
-    injectables: [],
-    homecare: [],
-    knowledge: [],
+    concerns: [], lifting: [], skinbooster: [], filler: [], contour: [], laser: [], other: [],
+    homecare: [], knowledge: [],
   };
   for (const [kw, freq] of counts) {
     buckets[categorize(kw)].push([kw, freq]);
@@ -47,11 +44,8 @@ export async function getPopularByCategory(): Promise<PopularByCategory> {
   // 빈도 desc, 같으면 ko 순
   const collator = new Intl.Collator("ko");
   const result: PopularByCategory = {
-    concerns: [],
-    lifting: [],
-    injectables: [],
-    homecare: [],
-    knowledge: [],
+    concerns: [], lifting: [], skinbooster: [], filler: [], contour: [], laser: [], other: [],
+    homecare: [], knowledge: [],
   };
   for (const cat of Object.keys(buckets) as CategorySlug[]) {
     buckets[cat].sort((a, b) => b[1] - a[1] || collator.compare(a[0], b[0]));
