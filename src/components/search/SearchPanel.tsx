@@ -2,7 +2,7 @@
 
 /**
  * 검색 발견/자동완성 — 모바일 오버레이·데스크탑 블록 공용.
- *  - query 비었을 때: ① 최근 검색어(localStorage) ② 카테고리 칩(탭 6종 flex-wrap 전부 노출·색 점 구분, 기본 리프팅/스킨부스터 랜덤)
+ *  - query 비었을 때: ① 최근 검색어(localStorage·흰 알약) ② 카테고리 텍스트 탭(6종 가로 스크롤·선택만 브랜드색 밑줄) + 선택 카테고리 키워드 칩(선택색 옅은 틴트, 기본 리프팅/스킨부스터 랜덤)
  *  - query 있을 때: 카테고리 칩 키워드 부분일치 자동완성(초성 X — 기존 방식)
  *  - 항목 선택 → 최근검색 저장 + basePath?q= 로 이동(기본 "/". 앱 셸도 홈 승격 후 "/" 사용)
  * 데이터는 전부 기존 소스 재사용(/api/search/suggest).
@@ -10,11 +10,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CATEGORIES, PROCEDURE_CATEGORIES, pickDefaultCategory, type CategorySlug } from "@/lib/categories";
+import { PROCEDURE_CATEGORIES, pickDefaultCategory, type CategorySlug } from "@/lib/categories";
 import { addRecent, clearRecent, getRecent, removeRecent } from "@/lib/recent-search";
 
 type DiscoverData = { popular: string[]; cats: Record<string, string[]> };
-const chip = "shrink-0 rounded-full bg-white border-[0.5px] border-[#e3e6ea] px-3 py-1.5 text-[12.5px] text-[#46505d]";
 
 // 발견 데이터 모듈 캐시 — 검색창을 열 때마다 재fetch 하던 깜빡임/딜레이 제거.
 //   최초 1회만 네트워크, 이후 재열기는 캐시로 즉시 표시. prefetchDiscover() 로 페이지 진입 시 선로딩 가능.
@@ -95,6 +94,7 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
 
   // ── 발견 화면 ──
   const cats = data?.cats ?? null;
+  const activeColor = PROCEDURE_CATEGORIES.find((c) => c.slug === activeCat)?.color ?? "#78909C";
   return (
     <div className="space-y-5">
       {/* ① 최근 검색어 */}
@@ -110,9 +110,8 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
         ) : (
           <div className="flex flex-wrap gap-2">
             {recent.map((r) => (
-              <span key={r} className="flex items-center gap-1 rounded-full bg-white border-[0.5px] border-[#e3e6ea] py-1 pl-2.5 pr-1.5 text-[13px] text-[#46505d]">
-                <button type="button" onClick={() => pick(r)} className="flex items-center gap-1.5">
-                  <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9aa3b0" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+              <span key={r} className="flex items-center gap-1 rounded-full bg-white border-[0.5px] border-[#e3e6ea] py-1.5 pl-3 pr-2.5 text-[13px] text-[#46505d]">
+                <button type="button" onClick={() => pick(r)} className="flex items-center">
                   {r}
                 </button>
                 <button type="button" onClick={() => { removeRecent(r); setRecent(getRecent()); }} aria-label={`${r} 삭제`} className="text-[#b6bcc6]">✕</button>
@@ -122,20 +121,18 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
         )}
       </section>
 
-      {/* ② 카테고리 (탭 6종 전부 노출 — flex-wrap 2줄 + 색 점 구분) — recentOnly 면 숨김. */}
+      {/* ② 카테고리 (텍스트 탭 6종 가로 스크롤 — 선택 1색만, 색점 없음) — recentOnly 면 숨김. */}
       {!recentOnly && (
       <section>
-        <div className="mb-3 text-[15px] font-medium text-[var(--text)]">카테고리</div>
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="no-scrollbar mb-5 flex gap-[22px] overflow-x-auto border-b border-[#e4ebe9]">
           {PROCEDURE_CATEGORIES.map((c) => {
             const on = activeCat === c.slug;
             return (
               <button key={c.slug} type="button" onClick={() => setActiveCat(c.slug)}
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px]"
+                className="shrink-0 whitespace-nowrap pb-[9px] text-[15.5px] transition-colors"
                 style={on
-                  ? { background: `${c.color}1f`, color: "var(--text)", fontWeight: 700 }
-                  : { background: "#fff", border: "0.5px solid #e3e6ea", color: "#6b7480", fontWeight: 500 }}>
-                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: c.color }} aria-hidden />
+                  ? { color: "#1f2a33", fontWeight: 700, borderBottom: `2.5px solid ${c.color}`, marginBottom: "-1px" }
+                  : { color: "#aab2bc", fontWeight: 500 }}>
                 {c.label}
               </button>
             );
@@ -146,7 +143,11 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
         ) : (
           <div className="flex flex-wrap gap-2">
             {(cats[activeCat] ?? []).slice(0, 60).map((k) => (
-              <button key={k} type="button" onClick={() => pick(k)} className={chip}>{k}</button>
+              <button key={k} type="button" onClick={() => pick(k)}
+                className="shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium text-[#3c4856]"
+                style={{ background: `${activeColor}17` }}>
+                {k}
+              </button>
             ))}
             {(cats[activeCat] ?? []).length === 0 && <p className="text-sm text-[#9aa3b0]">표시할 검색어가 없습니다.</p>}
           </div>
