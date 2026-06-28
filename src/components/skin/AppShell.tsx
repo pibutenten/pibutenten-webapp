@@ -34,15 +34,19 @@ export const ROUTES = {
   today: "/today",
   notes: "/notes",
   feed: "/",
+  // 리포트 허브(/reports) — 탭/GNB 의 '리포트' 슬롯이 진입점. 허브 페이지는 별도 신설.
+  report: "/reports",
   // write 는 하단 탭에서 제외됐지만(글쓰기=우하단 FAB) 데스크탑 헤더 '글쓰기' 버튼이 사용 → 유지.
   write: "/write",
-  shop: "#",
+  // shop 은 준비중(comingSoon)이라 탭/GNB 에서 라우팅하지 않지만, 실재하는 /shop(ShopView 준비중 페이지)
+  //   를 가리키도록 정합화 — href "#" dead 값 제거.
+  shop: "/shop",
   my: "/my",
 } as const;
 
 // "글쓰기" 는 하단 탭에선 빠졌지만 글쓰기·후기 화면(WriteView/WriteEditShell/ReviewNew/ReviewEdit)의
 //   active 톤으로 계속 쓰인다(탭바엔 해당 항목이 없어 강조되지 않음 — 의도된 동작).
-export type NavTab = "투데이" | "내 노트" | "피드" | "글쓰기" | "쇼핑" | "마이";
+export type NavTab = "투데이" | "내 노트" | "피드" | "리포트" | "글쓰기" | "쇼핑" | "마이";
 
 /* ---------- 헤더 아이콘 ---------- */
 function IconSearch() {
@@ -111,22 +115,38 @@ function IconUser() {
     </svg>
   );
 }
+function IconReport() {
+  // 리포트 = 막대그래프/차트(시술 후기 집계 리포트) 아이콘. 다른 탭 아이콘과 동일 시그니처.
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M3 3v18h18" />
+      <rect x="7" y="12" width="3" height="5" />
+      <rect x="12" y="8" width="3" height="9" />
+      <rect x="17" y="5" width="3" height="12" />
+    </svg>
+  );
+}
 
-/* 탭바 항목 정의 — 글쓰기는 우하단 FAB(WriteFab)로 분리, 하단 탭은 5개. */
-const TABS: { label: NavTab; href: string; icon: ReactNode }[] = [
+/* nav 항목 공통 타입 — comingSoon 플래그로 '준비중'(쇼핑) 분기를 명시화(href "#" 해킹 폐기). */
+type NavItem = { label: NavTab; href: string; icon?: ReactNode; comingSoon?: boolean };
+
+/* 탭바 항목 정의 — 글쓰기는 우하단 FAB(WriteFab)로 분리, 하단 탭은 5개.
+   마이 슬롯을 리포트로 교체(마이는 헤더 우상단 아바타로 진입). 쇼핑은 준비중(딤드 배지). */
+const TABS: NavItem[] = [
   { label: "투데이", href: ROUTES.today, icon: <IconToday /> },
   { label: "내 노트", href: ROUTES.notes, icon: <IconNote /> },
   { label: "피드", href: ROUTES.feed, icon: <IconFeed /> },
-  { label: "쇼핑", href: ROUTES.shop, icon: <IconShop /> },
-  { label: "마이", href: ROUTES.my, icon: <IconUser /> },
+  { label: "리포트", href: ROUTES.report, icon: <IconReport /> },
+  { label: "쇼핑", href: ROUTES.shop, icon: <IconShop />, comingSoon: true },
 ];
 
-/* GNB(데스크탑) 항목 — 투데이 / 내 노트 / 피드 / 쇼핑 (데스크탑 글쓰기는 헤더 우측 버튼) */
-const GNB: { label: NavTab; href: string }[] = [
+/* GNB(데스크탑) 항목 — 투데이 / 내 노트 / 피드 / 리포트 / 쇼핑 (데스크탑 글쓰기는 헤더 우측 버튼) */
+const GNB: NavItem[] = [
   { label: "투데이", href: ROUTES.today },
   { label: "내 노트", href: ROUTES.notes },
   { label: "피드", href: ROUTES.feed },
-  { label: "쇼핑", href: ROUTES.shop },
+  { label: "리포트", href: ROUTES.report },
+  { label: "쇼핑", href: ROUTES.shop, comingSoon: true },
 ];
 
 export default function AppShell({
@@ -298,26 +318,27 @@ export default function AppShell({
     const t = term.trim();
     setSuggestOpen(false);
     setSearchOpen(false);
-    // draft 는 여기서 비우지 않음 — 다음 검색창 열기(openMobileSearch)에서 "" 로 초기화한다.
+    // draft 는 여기서 비우지 않음 — 다음 검색창 열기(돋보기 탭)에서 "" 로 초기화한다.
     //   제출 후 searchOpen=false 라 입력칸이 보이지 않으므로 잔류해도 노출되지 않는다.
     if (!t) return;
+    // 최근검색 기록 — 비-피드 페이지(record/write/my/post/doctors/topics/admin 등)는 onSearchSubmit
+    //   라우팅만 하고 addRecent 를 안 거치므로, 인-헤더 제출 경로에서 여기서 기록한다(구 /search 페이지의
+    //   addRecent 역할 승계). 피드는 FeedView::submitSearch 와 이중 호출되나 recent-search 가 dedup → 무해.
+    addRecent(t);
     if (typeof onSearchSubmit === "function") onSearchSubmit(t);
     else setValue(t);
   };
 
   // 검색어 ✕로 지우기 — 입력값·패널 닫기. 피드에서만 전체 피드(/)로 복귀.
   //   (비-피드 페이지(글쓰기/내노트/마이)에선 라우팅하지 않음 — 작성 중 폼 상태 소실 방지.)
+  //   전역 규칙(2026-06-28): 인-헤더 검색 입력 모드의 ← (검색 닫기/나가기)가 이 함수를 쓴다.
+  //   결과바의 ✕(검색어만 지움)은 clearSearch 가 아니라 setValue("")+재오픈을 직접 호출한다.
   const clearSearch = () => {
     setValue("");
     setDraft("");
     setSuggestOpen(false);
     setSearchOpen(false);
     if (active === "피드") router.push(ROUTES.feed);
-  };
-
-  // 모바일 검색 — /search 전용 페이지로 이동(풀스크린 검색 UI 분리).
-  const openMobileSearch = () => {
-    router.push("/search");
   };
 
   // 쇼핑(준비 중) — GNB·탭바 클릭 시 안내 토스트. 라우팅 없음.
@@ -423,9 +444,10 @@ export default function AppShell({
   }, [searchOpen, suggestOpen]);
 
   // 헤더 우측 액션(알림 벨 + 아바타/로그인) — 검색 모드·기본 모드가 '한 벌'을 공유한다.
-  //   원장 결정 2026-06-24: 검색창을 누더기로 만들지 않는다. 검색 입력을 열어도 우측 알림·아바타는
-  //   그대로 두고, 검색창은 그 앞 공간(flex)에서만 열린다 → 검색 입력 모드와 검색 결과 모드의
-  //   헤더 레이아웃이 [검색창][알림][아바타] 로 동일해진다(한 검색창을 여러 상황에서 재사용).
+  //   검색 통합(2026-06-28): 검색은 인-헤더 searchOpen 모드 하나로 단일화(별도 /search 페이지 폐기).
+  //   검색 입력을 열어도 우측 알림·아바타는 그대로 두고, 검색창은 그 앞 공간(flex)에서만 열린다 →
+  //   검색 입력 모드와 검색 결과 모드의 헤더 레이아웃이 [←][검색창][알림][아바타] 로 동일해진다
+  //   (한 검색창을 여러 상황에서 재사용). 전역 규칙: ← = 검색창 닫기(나가기) / ✕ = 검색어만 지움.
   const headerActions = (
     <>
       {/* 작업 B) 알림 벨 → 운영 /notifications 로 이동 + 미읽음 카운트 배지.
@@ -481,7 +503,30 @@ export default function AppShell({
             (데스크탑은 iconBtnSearch 가 display:none → 이 모드 진입 불가, 항상 기본 레이아웃.) */}
         {searchEnabled && searchOpen ? (
           <div className={`${styles.headerInner} ${styles.headerInnerSearch}`}>
-            {/* ← 뒤로 버튼 폐지 — 검색창은 X 로만 닫는다(검색 입력/결과 두 상태의 검색창 모양 통일, 원장 결정 2026-06-24). */}
+            {/* ← 검색 닫기(나가기) — 전역 규칙(2026-06-28): ←=검색창 닫기 / ✕=검색어만 지움.
+                draft·value 는 건드리지 않고 입력 모드만 종료(결과 상태는 그대로 유지). */}
+            <button
+              type="button"
+              className={styles.searchBack}
+              aria-label="검색 닫기"
+              onClick={() => {
+                setSearchOpen(false);
+                setSuggestOpen(false);
+              }}
+            >
+              <svg
+                width={22}
+                height={22}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+            </button>
             <div
               className={`${styles.headerSearch} ${styles.headerSearchLive} ${styles.headerSearchInline}`}
               ref={searchWrapRef}
@@ -507,52 +552,59 @@ export default function AppShell({
                 aria-label="검색어 입력"
                 autoFocus
               />
-              {/* ✕ — 입력을 비우고 검색을 닫는다(← 뒤로 버튼 대체, 항상 노출 → 입력이 비어도 닫을 수 있음). */}
-              <button
-                type="button"
-                className={styles.searchClear}
-                aria-label="검색 닫기"
-                onClick={() => {
-                  setDraft("");
-                  setSearchOpen(false);
-                  setSuggestOpen(false);
-                }}
-              >
-                ✕
-              </button>
+              {/* ✕ — 검색어(초안)만 지운다(검색창은 닫지 않음). draft 가 비면 숨김.
+                  닫기는 좌측 ← 가 담당(전역 규칙 2026-06-28). */}
+              {draft && (
+                <button
+                  type="button"
+                  className={styles.searchClear}
+                  aria-label="검색어 지우기"
+                  onClick={() => setDraft("")}
+                >
+                  ✕
+                </button>
+              )}
               {/* 모바일 발견 화면은 헤더 아래 풀스크린 패널(mobileSearchPanel)이 담당 — 인라인 드롭다운 미사용. */}
             </div>
             {/* 검색 입력 모드에서도 우측 알림·아바타는 그대로 — 검색창(flex:1)은 그 앞 공간만 차지한다
-                (풀폭·우측끝까지 X). 결과 모드와 동일한 [검색창][알림][아바타] 레이아웃, 원장 결정 2026-06-24. */}
+                (풀폭·우측끝까지 X). 결과 모드와 동일한 [←][검색창][알림][아바타] 레이아웃(2026-06-28 통합). */}
             {headerActions}
           </div>
         ) : (
           <div
             className={`${styles.headerInner} ${mobileQueryActive ? styles.headerInnerHasQuery : ""}`}
           >
+            {/* 로고 — 데스크탑은 피드(/), 모바일은 투데이(/today)로 진입. 하이드레이션 안전 위해
+                JS 분기 없이 두 GuardedLink 를 SSR 렌더하고 CSS(@900px)로 토글한다. */}
             <GuardedLink
-              className={styles.logoLink}
+              className={`${styles.logoLink} ${styles.logoDesktop}`}
               href={ROUTES.feed}
               aria-label="피부텐텐"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className={styles.logoImg}
-                src="/brand-logo.svg"
-                alt="피부텐텐"
-              />
+              <img className={styles.logoImg} src="/brand-logo.svg" alt="피부텐텐" />
+            </GuardedLink>
+            <GuardedLink
+              className={`${styles.logoLink} ${styles.logoMobile}`}
+              href={ROUTES.today}
+              aria-label="피부텐텐"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className={styles.logoImg} src="/brand-logo.svg" alt="피부텐텐" />
             </GuardedLink>
 
-            {/* 모바일 검색 결과 헤더 — /search 페이지와 동일한 레이아웃(← 뒤로 + 검색 입력창 + ✕).
+            {/* 모바일 검색 결과 헤더 — 인-헤더 검색 입력 모드와 동일 모티프(← + 검색어 필드 + ✕).
                 검색 결과 동안(value 존재 + 검색창 닫힘) 로고·검색아이콘 자리를 대체.
-                ≥900px 은 CSS 로 숨김(데스크탑 상시 pill 이 담당). */}
+                전역 규칙(2026-06-28): ←=검색 닫기(나가기) / 필드 탭=인-헤더 편집 박스 재오픈 /
+                ✕=검색어만 지우고 빈 편집 박스 재오픈. ≥900px 은 CSS 로 숨김(데스크탑 상시 pill 이 담당). */}
             {mobileQueryActive && (
               <div className={styles.mobileQuerySearchBar}>
+                {/* ← 검색 닫기(나가기) = clearSearch — 검색어 비우고 피드면 전체 피드로 복귀. */}
                 <button
                   type="button"
                   className={styles.mobileQueryBack}
-                  onClick={() => router.back()}
-                  aria-label="뒤로"
+                  onClick={clearSearch}
+                  aria-label="검색 닫기"
                 >
                   <svg
                     width={22}
@@ -567,32 +619,29 @@ export default function AppShell({
                     <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <form
-                  className={styles.mobileQueryForm}
-                  role="search"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const t = value.trim();
-                    if (!t) return;
-                    addRecent(t);
-                    runSearch(t);
+                {/* 검색어 필드 — 결과바에선 리드온리(직접 편집 X). 탭하면 인-헤더 편집 박스를
+                    빈 초안으로 재오픈(발견 메뉴 + 새 입력). 새 검색은 전부 편집 박스가 담당. */}
+                <button
+                  type="button"
+                  className={styles.mobileQueryField}
+                  onClick={() => {
+                    setDraft("");
+                    setSearchOpen(true);
                   }}
+                  aria-label="검색어 편집"
                 >
-                  <input
-                    type="search"
-                    className={styles.mobileQueryInput}
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    placeholder="시술, 고민, 키워드 검색"
-                    autoComplete="off"
-                  />
-                </form>
+                  <span className={styles.mobileQueryFieldText}>{value}</span>
+                </button>
                 {value.trim().length > 0 && (
                   <button
                     type="button"
                     className={styles.searchClear}
-                    aria-label="검색 해제"
-                    onClick={clearSearch}
+                    aria-label="검색어 지우기"
+                    onClick={() => {
+                      setValue("");
+                      setDraft("");
+                      setSearchOpen(true);
+                    }}
                   >
                     ✕
                   </button>
@@ -602,16 +651,18 @@ export default function AppShell({
 
             <nav className={styles.gnb}>
               {GNB.map((g) =>
-                // 쇼핑(준비 중, href "#") → 클릭 시 안내 토스트(라우팅 없음).
-                //   다른 GNB(내 노트/피드)와 동일한 간격·폰트·색으로(준비중 배지 없음).
-                g.href === "#" ? (
+                // 쇼핑(준비 중) → 클릭 시 안내 토스트(라우팅 없음) + 딤드 + '준비중' 배지.
+                g.comingSoon ? (
                   <button
                     key={g.label}
                     type="button"
-                    className={styles.gnbItem}
+                    className={`${styles.gnbItem} ${styles.gnbDisabled}`}
+                    aria-disabled
+                    aria-label={`${g.label} (준비 중)`}
                     onClick={onShopClick}
                   >
                     {g.label}
+                    <span className={styles.gnbSoon}>준비중</span>
                   </button>
                 ) : (
                   <GuardedLink
@@ -675,14 +726,18 @@ export default function AppShell({
               글쓰기
             </GuardedLink>
 
-            {/* 모바일 검색 아이콘 — 탭 시 헤더 "안"을 검색 input 으로 전환(위 분기). */}
+            {/* 모바일 검색 아이콘 — 탭 시 헤더 "안"을 검색 input 으로 전환(인-헤더 searchOpen 모드).
+                draft 를 빈 초안으로 열어 발견 메뉴(최근/인기/카테고리)부터 띄운다(2026-06-28 통합). */}
             {searchEnabled && (
               <button
                 className={`${styles.iconBtn} ${styles.iconBtnSearch}`}
                 aria-label="검색"
                 aria-expanded={searchOpen}
                 type="button"
-                onClick={openMobileSearch}
+                onClick={() => {
+                  setSearchOpen(true);
+                  setDraft("");
+                }}
               >
                 <IconSearch />
               </button>
@@ -750,16 +805,19 @@ export default function AppShell({
       {!wide && !keyboardOpen && (
         <nav className={styles.tabbar}>
           {TABS.map((t) =>
-            // 쇼핑(준비 중, href "#") → 클릭 시 안내 토스트(라우팅 없음).
-            t.href === "#" ? (
+            // 쇼핑(준비 중) → 클릭 시 안내 토스트(라우팅 없음) + 딤드 + '준비중' 배지.
+            t.comingSoon ? (
               <button
                 key={t.label}
                 type="button"
-                className={styles.tab}
+                className={`${styles.tab} ${styles.tabDisabled}`}
+                aria-disabled
+                aria-label={`${t.label} (준비 중)`}
                 onClick={onShopClick}
               >
                 {t.icon}
                 {t.label}
+                <span className={styles.tabSoon}>준비중</span>
               </button>
             ) : (
               <GuardedLink

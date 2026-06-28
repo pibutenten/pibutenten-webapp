@@ -2,7 +2,7 @@
   "name": "피부텐텐",
   "short_name": "피부텐텐",
   "description": "피부가 예뻐지는 모든 이야기 — 피부과 전문의 커뮤니티",
-  "start_url": "/",
+  "start_url": "/today",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

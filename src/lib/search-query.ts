@@ -1,8 +1,9 @@
 /**
  * 검색·피드 쿼리 SSOT 헬퍼 (배치 ⑤ H3, 2026-05-28).
  *
- * 3곳이 같은 (q, category, doctor_slug, offset, limit) 조합으로 카드 목록을 가져온다:
- *   1) `src/app/search/page.tsx` — 검색 페이지 첫 페이지
+ * 같은 (q, category, doctor_slug, offset, limit) 조합으로 카드 목록을 가져오는 곳:
+ *   1) `src/app/page.tsx` — 홈 피드 첫 페이지(검색 진입=AppShell 인-헤더 searchOpen → /?q=).
+ *       구 `src/app/search/page.tsx` 폐기로 검색 첫 페이지도 홈으로 통합(2026-06-28).
  *   2) `src/app/api/cards/route.ts` — 무한스크롤 페이지네이션
  *   3) `src/app/doctors/[slug]/page.tsx` — 원장 페이지
  *

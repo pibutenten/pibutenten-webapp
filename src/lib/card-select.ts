@@ -2,8 +2,8 @@
  * cards 테이블 SELECT 컬럼 리스트 통합.
  *
  * 5곳에서 각자 미세하게 다른 column list 를 작성하던 것을 통합:
- *   - src/app/page.tsx (홈 피드 — 본인 최신글 prepend 쿼리)
- *   - src/app/search/page.tsx (카테고리 직접 필터)
+ *   - src/app/page.tsx (홈 피드 — 본인 최신글 prepend 쿼리. 검색 진입=AppShell 인-헤더 searchOpen
+ *       → /?q= 로 홈 피드에서 결과 렌더. 구 src/app/search/page.tsx 폐기 — 2026-06-28)
  *   - src/app/[handle]/page.tsx (회원 프로필)
  *   - src/app/[handle]/[shortcode]/page.tsx (회원 글 단독)
  *   - src/app/doctors/[slug]/[year]/[postSlug]/page.tsx (의사 글 단독)

@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
-import { getReviewSummaryFeedPool, getProcedureReport, type ProcedureReport } from "@/lib/procedure-report";
+import { getProcedureReport, type ProcedureReport } from "@/lib/procedure-report";
 import { fetchCardList } from "@/lib/search-query";
 import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
@@ -16,9 +16,9 @@ import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 /**
  * 메인 피드(/) — "한 번에 300개 점수순으로 받아두고, 탭은 FeedView 가 브라우저에서 즉시 필터" 모델.
  *   (2026-06-14 앱 스킨 승격: 홈을 신규 스킨 FeedView 로 교체. SEO(index·JSON-LD·H1)는 구 홈 그대로 보존.)
- *  - 전체: feed_cards_scored 300 (+ 리포트풀) — 탭(Q&A/시술후기/끄적끄적)은 이 풀을 클라 필터.
+ *  - 전체: feed_cards_scored 300 — 탭(Q&A/시술후기/끄적끄적)은 이 풀을 클라 필터.
  *  - 검색(?q=): search_cards_scored 300 — 검색 결과 풀을 같은 방식으로 탭 필터(검색바·URL 유지).
- *  - 리포트 탭: FeedView 가 reportPool 로 렌더(검색 중이면 시술명 필터).
+ *    검색어가 시술명과 매칭되면 '전체' 탭 맨 위에 시술 리포트 1장(searchReport, getProcedureReport).
  *  탭 전환은 서버 왕복 없음(클라 store) → 동그라미 없이 즉시.
  */
 export const dynamic = "force-dynamic";
@@ -79,18 +79,6 @@ const getHomeFeedPoolCached = unstable_cache(
   { revalidate: 90, tags: ["home-feed"] },
 );
 
-/** 비검색 홈 시술 리포트 풀(get_review_summary_pool 집계). 공개 데이터 → anon + 90s 캐시. */
-const getReportPoolCached = unstable_cache(
-  async (): Promise<ProcedureReport[]> => {
-    const sb = createSupabaseAnonClient();
-    return getReviewSummaryFeedPool(
-      sb as unknown as Parameters<typeof getReviewSummaryFeedPool>[0],
-    );
-  },
-  ["home-report-pool-v1"],
-  { revalidate: 90, tags: ["home-report"] },
-);
-
 export async function generateMetadata({
   searchParams,
 }: {
@@ -143,7 +131,6 @@ export default async function HomeFeedPage({
   const hotIdsPromise = getHotQaIds(20);
 
   let cards: CardData[] = [];
-  let reportPool: ProcedureReport[] = [];
   // 검색 시 시술명이 리포트와 매칭되면 '전체' 탭 첫 카드(후기 1건부터, getProcedureReport).
   let searchReport: ProcedureReport | null = null;
   // 사이드 '인기 태그' '전체' 탭 — 항상 비검색 피드 풀 기준(검색·태그클릭에 불변).
@@ -169,27 +156,23 @@ export default async function HomeFeedPage({
     // 검색 화면 — 인기 태그는 검색결과가 아니라 '비검색 피드 풀' 기준으로 계산해야 안정적이므로
     //   keywords 집계 전용으로 feed_cards_scored 를 한 번 더 받는다(전체 탭 태그 = 검색과 무관).
     //   jitter=0(결정적) — 호출마다 무작위로 상위 풀이 바뀌면 인기태그 목록이 클릭/검색마다 바뀜.
-    const [listRes, pool, sReport, tags] = await Promise.all([
+    const [listRes, sReport, tags] = await Promise.all([
       fetchCardList(supabase, { q: query, offset: 0, limit: ORDER }),
-      getReviewSummaryFeedPool(supabase),
       getProcedureReport(supabase, query),
       getPopularTagsCached(),
     ]);
     cards = (listRes.data ?? []) as unknown as CardData[];
-    reportPool = pool;
     searchReport = sReport;
     popularTags = tags;
   } else {
-    // 피드 풀·리포트 풀·인기태그 모두 공개 데이터 → 쿠키리스 anon + unstable_cache(피드/리포트 90s,
-    //   태그 300s)로 분리. 매 방문 돌던 300행 점수계산(feed_cards_scored)·리포트 집계를 캐시에서
-    //   즉시 반환(SNS 표준: 피드는 분 단위 갱신). per-user 좋아요/저장은 FeedView 가 클라에서 배치 조회.
-    const [feedCards, pool, tags] = await Promise.all([
+    // 피드 풀·인기태그 모두 공개 데이터 → 쿠키리스 anon + unstable_cache(피드 90s, 태그 300s)로 분리.
+    //   매 방문 돌던 300행 점수계산(feed_cards_scored)을 캐시에서 즉시 반환(SNS 표준: 피드는 분 단위
+    //   갱신). per-user 좋아요/저장은 FeedView 가 클라에서 배치 조회.
+    const [feedCards, tags] = await Promise.all([
       getHomeFeedPoolCached(),
-      getReportPoolCached(),
       getPopularTagsCached(),
     ]);
     cards = feedCards;
-    reportPool = pool;
     popularTags = tags;
   }
 
@@ -225,7 +208,6 @@ export default async function HomeFeedPage({
         initialPool={initialCards}
         orderedIds={orderedIds}
         searchQuery={searchQuery}
-        reportPool={reportPool}
         searchReport={searchReport}
         popularTags={popularTags}
         hotIds={hotIds}

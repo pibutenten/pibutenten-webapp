@@ -302,29 +302,30 @@ type PoolRow = {
   revisit_no: number;
 };
 
-/**
-/** 피드에 리포트 카드를 띄울 최소 후기 수. 미만 시술은 피드 미노출(단, /reports/{en} 단독
- *  페이지·검색 결과 상단 리포트 카드는 getProcedureReport 경로라 후기 1건부터 그대로 노출). */
+/** 리포트 집계 풀에 노출할 최소 후기 수. 미만 시술은 풀(=/reports 허브)에서 제외(표본 적은
+ *  리포트 도배 방지). 단, /reports/{ko} 단독 페이지·검색 결과 상단 리포트 카드는 getProcedureReport
+ *  경로라 후기 1건부터 그대로 노출(허브와 의도된 게이트 비대칭). */
 const FEED_MIN_REVIEWS = 4;
 
 /**
- * 홈 피드 결정적 주입용 시술 리포트 풀 — `get_review_summary_pool` RPC(단일 쿼리, 마이그 0218)
- * 결과를 컴팩트 ProcedureReportCard 가 쓰는 ProcedureReport 형태로 매핑.
+ * 시술 리포트 집계 풀 — `get_review_summary_pool` RPC(단일 쿼리, 마이그 0218) 결과를 컴팩트
+ * ProcedureReportCard 가 쓰는 ProcedureReport 형태로 매핑.
  *
+ * 소비처(현재): `/reports` 허브(`app/reports/page.tsx`) — 자격 시술 목록을 count desc 로 재정렬해 노출.
+ *   (구 홈 피드 20장당 1장 주입은 2026-06-28 피드 정리로 제거됨 → 이 함수는 더 이상 홈 피드가 소비 안 함.)
  * 컴팩트(접힘) 카드는 헤더·재시술·만족도(분포)·통증만 표시 → 효과·인구통계·다운타임/효과시기
- * 분포는 미사용이라 빈 기본값으로 채운다(더보기는 인라인 펼침이 아니라 /reports/{en} 링크).
- * published 앵커만 반환(draft 면 빈 배열) → 공개 플립 전엔 피드에 리포트 카드 미주입.
- * 후기 < FEED_MIN_REVIEWS 시술은 피드에서 제외(표본 적은 리포트 도배 방지). 단독 URL·검색은 무관.
+ * 분포는 미사용이라 빈 기본값으로 채운다(상세는 /reports/{ko} 링크).
+ * published 앵커만 반환(draft 면 빈 배열) → 공개 플립 전엔 허브에 리포트 미노출.
+ * 후기 < FEED_MIN_REVIEWS 시술은 제외. 단독 URL·검색 블렌딩은 무관.
  */
 export async function getReviewSummaryFeedPool(
   supabase: ServerClient,
 ): Promise<ProcedureReport[]> {
   const { data } = await supabase.rpc("get_review_summary_pool");
   const rows = (data ?? []) as PoolRow[];
-  // 시술이 피드에서 골고루 섞이도록 서버에서 1회 셔플. (검색 경로는 요청마다 변동. 홈은
-  //   getReportPoolCached 로 감싸 90s 캐시 윈도 동안 동일 순서로 고정 — 신선도 절충 승인됨.)
-  //   서버에서 한 번만 섞고 그 결과를 prop 으로 내려보냄 → SSR/클라이언트 하이드레이션 일관
-  //   (Math.random 을 렌더 중 호출하지 않음). Feed 는 윈도 순번대로 이 배열을 순회.
+  // 서버에서 1회 셔플 — SSR/클라 하이드레이션 일관(Math.random 을 렌더 중 호출하지 않음). 현 유일 소비처
+  //   (/reports 허브)는 count desc 로 재정렬하므로 셔플은 사실상 무력. 향후 홈 피드 재주입(무작위 순번)
+  //   대비로 보존하며, 재주입 계획이 폐기되면 이 셔플 블록을 제거한다.
   for (let i = rows.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [rows[i], rows[j]] = [rows[j], rows[i]];

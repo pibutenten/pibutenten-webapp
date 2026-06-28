@@ -45,6 +45,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.9,
     },
+    // 시술 리포트 허브 (/reports 인덱스) — 개별 앵커(/reports/{ko})는 아래 anchorRoutes 가 별도 등재.
+    //   robots DISALLOW_COMMON 에 /reports 없음(접두 /report 단수만 page-level noindex) → 크롤 가능.
+    {
+      url: `${SITE_URL}/reports`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
     {
       url: `${SITE_URL}/about`,
       lastModified: now,

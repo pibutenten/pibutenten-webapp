@@ -29,7 +29,8 @@ export const dynamic = "force-dynamic";
  *  Disallow 공통 경로 (모든 봇):
  *    /api/  /admin/  /auth/  /onboarding  /signup  /login
  *    /write  /notifications  /settings
- *    /search?  /debug  /u/
+ *    /debug  /u/
+ *    (구 /search? 는 별도 검색 페이지 폐기로 제거 — 검색 결과 ?q= 화면은 page.tsx noindex)
  *    (/report 신고 페이지는 robots 표준 한계로 page-level noindex 로 차단 — 아래 주석 참고)
  *
  *  ⚠️ 접두 매칭 주의:
@@ -67,7 +68,8 @@ const DISALLOW_COMMON = [
   // 신고 페이지 /report 는 robots 표준(RFC 9309)에 정규식·"$" 종단 앵커가 없어 여기서
   // 정확 매칭으로 차단 불가(/report 로 적으면 /reports/* 시술 리포트까지 접두 차단됨).
   // → /report 는 page-level robots:{index:false}(report/page.tsx)로 차단. /reports/* 는 색인 유지.
-  "/search?",
+  // (구 /search? Disallow 는 별도 검색 페이지 폐기로 제거됨 — 2026-06-28. 검색은 홈 /?q= 에서
+  //  수행되며 검색 결과 화면(?q=)은 page.tsx generateMetadata 의 robots:{index:false}로 차단.)
   "/debug",
   "/u/",
 ];

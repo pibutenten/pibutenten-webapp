@@ -222,7 +222,7 @@
   gap: 8px;
   width: 100%;
 }
-/* 검색어 지우기 버튼 (데스크탑 pill + 모바일 inline 공용) */
+/* 검색어 지우기 버튼 (데스크탑 pill + 모바일 inline + 결과바 공용) */
 .searchClear {
   flex: none;
   width: 22px;
@@ -237,6 +237,24 @@
 .searchClear:hover {
   background: rgba(0, 0, 0, 0.1);
   color: var(--ink-700);
+}
+
+/* 인-헤더 검색 입력 모드 ← 검색 닫기(나가기) 버튼 — 검색행 좌측 아이콘 버튼(2026-06-28 통합).
+   결과바 ←(.mobileQueryBack)와 정렬·크기 정합. */
+.searchBack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: var(--ink-700);
+}
+.searchBack:hover {
+  color: var(--ink-900);
 }
 
 /* 피드백 2) 검색 포커스 추천 드롭다운 — 검색 pill 바로 아래 부유.
@@ -372,6 +390,15 @@
   height: 30px;
   width: auto;
 }
+/* 로고 모바일/데스크탑 분기 — 동일 SVG 를 두 GuardedLink 로 SSR 렌더하고 CSS 로 토글.
+   모바일 로고는 /today, 데스크탑 로고는 /(피드) 로 진입(href 가 달라 두 링크가 필요).
+   하이드레이션 안전: JS 분기 없이 display 토글만(서버·클라 마크업 동일). */
+.logoMobile {
+  display: flex;
+}
+.logoDesktop {
+  display: none;
+}
 .headerSpacer {
   flex: 1;
 }
@@ -476,6 +503,12 @@
 .headerSearchInline input::placeholder {
   color: var(--ink-300);
 }
+/* 인-헤더 검색 pill 안쪽 우측 ✕ — 입력(flex:1)의 끝 flex 자식이라 자연히 우측에 위치.
+   스코프 한정(.headerSearchInline .searchClear)으로만 미세 정렬 — 데스크탑 pill·결과바 ✕ 무영향. */
+.headerSearchInline .searchClear {
+  margin-left: 2px;
+  margin-right: -4px;
+}
 
 /* 모바일 활성 검색어 알약 — 검색 결과 동안 헤더에 검색어를 노출(데스크탑 상시 검색 pill 과 동일 역할).
    탭하면 그 검색어로 검색창이 열리고, ✕ 로 해제. 데스크탑(≥900px)은 .headerSearch 가 담당하므로 숨김. */
@@ -533,22 +566,29 @@
   cursor: pointer;
   flex-shrink: 0;
 }
-.mobileQueryForm {
+/* 결과바 검색어 필드 — 리드온리(직접 편집 X). 탭하면 인-헤더 편집 박스 재오픈(2026-06-28 통합).
+   옛 .mobileQueryForm/.mobileQueryInput(편집 가능 input) 대체 — 새 검색은 전부 편집 박스가 담당. */
+.mobileQueryField {
   flex: 1;
   display: flex;
+  align-items: center;
   min-width: 0;
-}
-.mobileQueryInput {
-  flex: 1;
   height: 40px;
   padding: 0 14px;
   border-radius: 999px;
   border: 1.5px solid #cdebfa;
   background: #f7fafc;
+  cursor: text;
+  text-align: left;
+}
+.mobileQueryFieldText {
+  flex: 1;
+  min-width: 0;
   font-size: 16px;
   color: #1e2a35;
-  outline: none;
-  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ---------- 콘텐츠 컨테이너 ---------- */
@@ -1574,13 +1614,27 @@ button.t[data-cat="other"]:hover {
   font-weight: 700;
   background: #e6f2fb;
 }
-/* 쇼핑 비활성 탭(현재 마크업 미사용 — 무해 유지). */
+/* 쇼핑 준비중 탭 — 딤드 처리(클릭 시 안내 토스트, 라우팅 없음). */
 .tabDisabled {
   color: #c7ccd4;
   cursor: default;
 }
 .tabDisabled:hover {
   color: #c7ccd4;
+}
+/* 모바일 탭 '준비중' 배지 — 라벨 아래 작게(@900px 데스크탑 전용 .gnbSoon 와 별개, 모바일 탭 전용). */
+.tabSoon {
+  margin-top: 1px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  padding: 2px 5px;
+  border-radius: var(--r-chip);
+  background: #eef1f4;
+  /* #eef1f4 배경 대비 4.99:1 (#5f6873) — WCAG AA(4.5:1) 충족, 9px 작은 글씨 가독 확보.
+     (이전 #6b7480 은 실측 4.18:1 로 AA 미달이라 정정.) */
+  color: #5f6873;
 }
 
 /* ---------- 사이드바 내부 ---------- */
@@ -1602,9 +1656,11 @@ button.t[data-cat="other"]:hover {
 /* 사이드 인기 태그 카드 — 카테고리 탭(전체/피부고민/리프팅/스킨부스터/홈케어/피부상식).
  *   선택 카테고리의 인기 태그를 아래 .sideTags 에 표시(검색 드롭다운의 인기검색어 대체). */
 /* 카테고리 선택 = "탭(밑줄)" 형식 — 아래 키워드 "칩(알약)"과 시각적으로 구분.
-   8개 카테고리까지 늘어도 가로 스크롤로 자연스럽게(줄바꿈 X). */
+   탭 7개(전체 + 시술 6종)가 좁은 사이드바에서 가로로 넘치지 않도록 줄바꿈(wrap)으로 2줄 배치합니다.
+   기존 overflow-x:auto/스크롤바 숨김은 wrap 과 무해하게 공존하므로 유지합니다. */
 .tagCatTabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--line);
@@ -1909,6 +1965,13 @@ button.t[data-cat="other"]:hover {
   .iconBtnBell {
     display: none;
   }
+  /* 로고 토글 — 데스크탑(≥900px)은 데스크탑 로고(href=/)만 표시, 모바일 로고는 숨김. */
+  .logoMobile {
+    display: none;
+  }
+  .logoDesktop {
+    display: flex;
+  }
   /* 데스크탑은 상시 검색 pill 이 검색어를 보여주므로 모바일 검색어 알약은 숨기고,
      로고·스페이서는 항상 표시(검색 결과 중에도 헤더 레이아웃 유지). */
   .mobileQueryPill {
@@ -1917,7 +1980,8 @@ button.t[data-cat="other"]:hover {
   .mobileQuerySearchBar {
     display: none;
   }
-  .headerInnerHasQuery .logoLink {
+  /* 검색 결과 중에도 데스크탑 로고는 표시(모바일 로고는 위 .logoMobile{display:none} 로 계속 숨김). */
+  .headerInnerHasQuery .logoDesktop {
     display: flex;
   }
   .headerInnerHasQuery .headerSpacer {
@@ -1980,18 +2044,21 @@ button.t[data-cat="other"]:hover {
     background: #fff;
     box-shadow: var(--card-shadow);
   }
-  /* 쇼핑이 더 이상 별도 muted 스타일을 쓰지 않으므로 .gnbDisabled / .gnbSoon 은
-     마크업에서 미사용. 다른 곳에서 재사용 가능성 고려해 무해 유지(시각 영향 없음). */
+  /* 쇼핑(준비중) GNB 항목 — 딤드(흐림) + '준비중' 배지(.gnbSoon). comingSoon 플래그가 이 스타일을 다시 사용.
+     일반 .gnbItem(--ink-500 #7b8794, luminance 0.237)보다 더 옅게(흐리게) 보여야 '준비중=비활성'이
+     직관적으로 읽힌다. 토큰 --ink-300(#6b747e)은 실제로 ink-500 보다 '어두워'(luminance 0.171) 딤드와
+     반대로 보이는 결함이 있어, 탭바 비활성 톤과 동일한 옅은 회색 #aab0bb(luminance 0.432, ink-500 보다 밝음)
+     을 직접 사용한다. 배지가 '준비중' 정보를 전달하므로 본문 대비 강제는 불필요(흐림 인지가 목적). */
   .gnbDisabled {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    color: var(--ink-300);
+    color: #aab0bb;
     cursor: default;
   }
   .gnbDisabled:hover {
     background: none;
-    color: var(--ink-300);
+    color: #aab0bb;
   }
   .gnbSoon {
     display: inline-block;

@@ -198,9 +198,11 @@ export default function RootLayout({
         <SpeedInsights />
 
         {/* GA4 — NEXT_PUBLIC_GA4_MEASUREMENT_ID 가 있을 때만 로드.
-            anonymize_ip + 검색 페이지 query string 측정 제외 (의료 검색어 PII 보호).
+            anonymize_ip + 검색 query string 측정 제외 (의료 검색어 PII 보호).
             의료 콘텐츠 PII 위험 회피: send_page_view: false → 직접 page_view 발화 시
-            page_location 에서 /search query string 을 제거한 sanitized URL 로 전송. */}
+            page_location 에서 검색어 query string 을 제거한 sanitized URL 로 전송.
+            검색 통합(2026-06-28): 별도 /search 페이지 폐기 → 검색은 홈(/?q=)에서 수행.
+            q 파라미터(검색어)만 제거 — utm/cat 등 다른 쿼리는 보존(캠페인·카테고리 분석 유지). */}
         {GA4_ID && (
           <>
             <Script
@@ -221,7 +223,8 @@ gtag('config', '${GA4_ID}', {
   function sanitize(url){
     try{
       var u = new URL(url);
-      if (u.pathname === '/search') u.search = '';
+      // 검색어(q 파라미터)만 제거 — 경로 무관(의료 검색어 PII 보호). utm/cat 등은 보존.
+      if (u.searchParams.has('q')) { u.searchParams.delete('q'); }
       return u.toString();
     } catch(e){ return url; }
   }

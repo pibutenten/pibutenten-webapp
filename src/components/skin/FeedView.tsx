@@ -10,7 +10,7 @@
  *   - 서버(page.tsx)에서 전체=feed_cards_scored / 검색(?q=)=fetchCardList 로 받은
  *     초기 풀(initialPool, 앞 24장)과 전체 순서(orderedIds)를 prop 으로 받는다.
  *   - 무한스크롤은 운영 FeedList 와 동일하게 orderedIds 순서대로 /api/cards?ids= 로 다음 묶음을
- *     이어 받아 풀에 append (서버 검색·일반 탭 공통, 리포트 탭 제외).
+ *     이어 받아 풀에 append (서버 검색·일반 탭 공통).
  *   - 검색은 서버 라우팅: 엔터/추천/태그 클릭 → /?q= 로 이동(서버 재검색). (홈 승격 2026-06-14)
  *   - 칩(카테고리)은 클라 필터(받아온 풀을 즉시 거름).
  *   - 좋아요/저장 viewer 상태(viewerStates)는 PostCard 로 내려 첫 렌더부터 정확히 표시.
@@ -36,14 +36,13 @@ import { PostCard, type ViewerState } from "./ui";
 /* 무한스크롤 한 번에 확장할 카드 수 */
 const PAGE = 20;
 
-/* ---------- 칩 정의 (전체 + 4종) ---------- */
-type ChipKey = "all" | "qa" | "review" | "doodle" | "review_summary";
+/* ---------- 칩 정의 (전체 + 3종) ---------- */
+type ChipKey = "all" | "qa" | "review" | "doodle";
 const CHIPS: { key: ChipKey; label: string }[] = [
   { key: "all", label: "전체" },
   { key: "qa", label: "Q&A" },
   { key: "review", label: "시술후기" },
   { key: "doodle", label: "끄적끄적" },
-  { key: "review_summary", label: "리포트" },
 ];
 
 function matchesChip(c: CardData, chip: ChipKey): boolean {
@@ -100,7 +99,6 @@ function FeedSkeleton({ count = 3 }: { count?: number }) {
 export default function FeedView({
   initialPool,
   orderedIds = [],
-  reportPool = [],
   searchReport = null,
   searchQuery,
   popularTags: serverPopularTags = [],
@@ -110,8 +108,6 @@ export default function FeedView({
   initialPool: CardData[];
   /** 줄세우기(랭킹) 전체 순서의 카드 ID 목록. 무한스크롤이 이 순서대로 ID 로 이어 받음. */
   orderedIds?: number[];
-  /** '리포트' 탭에서 노출할 시술 리포트 풀. 0건이면 빈 안내. */
-  reportPool?: ProcedureReport[];
   /** 검색 시 시술명이 리포트와 매칭되면 '전체' 탭 맨 위에 노출할 리포트 1장. */
   searchReport?: ProcedureReport | null;
   /** 서버 검색 중이면 검색어 — 비어 있으면 일반 피드. */
@@ -232,9 +228,9 @@ export default function FeedView({
   }, [searchQuery]);
 
   // 검색 해제 시 전체 피드 복귀 — 검색어가 "있다가 사라지는 순간"에만 chip 을 'all' 로 리셋.
-  //   리포트 탭(chip='review_summary')에서 검색하면 isSearching 동안 effectiveChip='all'(전체)로 보이지만,
-  //   ✕로 검색을 해제하면 isSearching=false 가 되며 effectiveChip 이 보존된 chip(리포트)로 복귀해 리포트 화면으로
-  //   튀던 문제(셸 clearSearch 는 / 라우팅만, 피드 chip 은 못 건드림)를 여기서 해소.
+  //   카테고리 탭(예: chip='qa')에서 검색하면 isSearching 동안 effectiveChip='all'(전체)로 보이지만,
+  //   ✕로 검색을 해제하면 isSearching=false 가 되며 effectiveChip 이 보존된 chip(그 카테고리)으로 복귀해
+  //   원래 카테고리 화면으로 튀던 문제(셸 clearSearch 는 / 라우팅만, 피드 chip 은 못 건드림)를 여기서 해소.
   //   prevSearchRef 로 직전 검색 유무를 추적 → truthy→falsy 전이일 때만 리셋.
   //   단 "카테고리 칩을 직접 눌러 검색을 해제하는" 동선(아래 chips onClick)은 그 칩으로 가야 하므로
   //   chipExplicitRef 플래그로 한 번 건너뛴다(검색+카테고리 동시 미지원이라 칩 클릭이 검색을 해제함).
@@ -260,7 +256,7 @@ export default function FeedView({
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem("feedChip");
-      const valid: ChipKey[] = ["all", "qa", "review", "doodle", "review_summary"];
+      const valid: ChipKey[] = ["all", "qa", "review", "doodle"];
       if (saved && (valid as string[]).includes(saved)) {
         setChip(saved as ChipKey);
       }
@@ -273,26 +269,23 @@ export default function FeedView({
   // 비-피드 드롭다운 '카테고리 바로가기' → /?cat= 로 넘어온 칩 시드.
   const catParam = searchParams.get("cat");
   useEffect(() => {
-    const valid: ChipKey[] = ["all", "qa", "review", "doodle", "review_summary"];
+    const valid: ChipKey[] = ["all", "qa", "review", "doodle"];
     if (catParam && (valid as string[]).includes(catParam)) {
       setChip(catParam as ChipKey);
     }
   }, [catParam]);
 
-  // 최신값 ref — mount-once 스크롤 콜백이 항상 최신 hasMore/chip 참조.
+  // 최신값 ref — mount-once 스크롤 콜백이 항상 최신 hasMore 참조.
   const hasMoreRef = useRef(hasMore);
   hasMoreRef.current = hasMore;
-  const chipRef = useRef(chip);
-  chipRef.current = chip;
   // "방금 쓴 글" prepend 가드용 — 현재 풀에 이미 그 카드가 있는지 최신값으로 검사(운영 FeedList poolRef).
   const poolRef = useRef(pool);
   poolRef.current = pool;
 
   // 풀 확장 — 저장된 순서(orderedIds)대로 다음 묶음을 ID 로 받아 append (운영 FeedList loadMore).
-  //   리포트 탭은 통계 목록이라 확장 안 함. 순서목록 끝까지 받으면 종료.
+  //   순서목록 끝까지 받으면 종료.
   const loadMore = useCallback(async () => {
-    if (loadingRef.current || !hasMoreRef.current || chipRef.current === "review_summary")
-      return;
+    if (loadingRef.current || !hasMoreRef.current) return;
     setLoadError(false);
     const ids = orderedIdsRef.current;
     const start = cursorRef.current;
@@ -451,10 +444,9 @@ export default function FeedView({
   const effectiveChip: ChipKey = isSearching ? "all" : chip;
 
   // ── 일반 탭 — 풀을 카테고리 칩으로 즉시 필터 ──
-  const isReportTab = effectiveChip === "review_summary";
   const filtered = useMemo(
-    () => (isReportTab ? [] : pool.filter((c) => matchesChip(c, effectiveChip))),
-    [pool, effectiveChip, isReportTab],
+    () => pool.filter((c) => matchesChip(c, effectiveChip)),
+    [pool, effectiveChip],
   );
 
   // ①-b 카테고리 칩 필터 결과 0건이지만 미로드 카드가 남아있으면 자동 추가 로드.
@@ -463,23 +455,13 @@ export default function FeedView({
   useEffect(() => {
     if (
       effectiveChip !== "all" &&
-      !isReportTab &&
       filtered.length === 0 &&
       hasMore &&
       !loading
     ) {
       loadMore();
     }
-  }, [filtered.length, effectiveChip, hasMore, isReportTab, loading, loadMore]);
-
-  // ── 리포트 탭 — 검색 중이면 시술명(한글/영문) 부분일치 필터 ──
-  const filteredReports = useMemo(() => {
-    const needle = (searchQuery ?? "").trim().toLowerCase();
-    if (!needle) return reportPool;
-    return reportPool.filter((r) =>
-      [r.procedureKo, r.en].join(" ").toLowerCase().includes(needle),
-    );
-  }, [reportPool, searchQuery]);
+  }, [filtered.length, effectiveChip, hasMore, loading, loadMore]);
 
   // 검색('전체' 탭)일 때 시술명이 리포트와 매칭되면 결과 맨 위에 리포트 카드 1장.
   // chip(실제 선택값) 기준: 검색 중에도 카테고리 칩이 "전체"일 때만 노출.
@@ -555,27 +537,7 @@ export default function FeedView({
       {/* 칩/검색 전환 시 리스트 컨테이너 remount(key=칩+검색어) → fadeInUp 재발화.
           무한스크롤(pool append)은 같은 key 라 추가분만 append(스크롤 유지). */}
       <div className={styles.feedList} key={`${chip}|${searchQuery ?? ""}`}>
-        {isReportTab ? (
-          // 리포트 탭 — 시술 리포트 카드. 데이터 0건이면 빈 안내.
-          filteredReports.length === 0 ? (
-            <p className={styles.empty}>
-              {searchQuery
-                ? `’${searchQuery}’ 시술 리포트가 없습니다.`
-                : "아직 집계된 시술 리포트가 없습니다."}
-            </p>
-          ) : (
-            filteredReports.map((r) => (
-              // 운영 ProcedureReportCard 는 무수정 — 앱 wrapper(.reportCardWrap)로 감싸
-              //   내부 <article> 의 R값(--radius)·여백을 앱 .card 와 동일(--r-card 24px)하게 맞춤.
-              <div key={r.procedureKo} className={styles.reportCardWrap}>
-                <ProcedureReportCard
-                  report={r}
-                  feedHref={`/reports/${encodeURIComponent(r.procedureKo)}`}
-                />
-              </div>
-            ))
-          )
-        ) : filtered.length === 0 && !topReport ? (
+        {filtered.length === 0 && !topReport ? (
           loading || pool.length === 0 || (hasMore && effectiveChip !== "all") ? (
             <FeedSkeleton />
           ) : (
@@ -643,8 +605,8 @@ export default function FeedView({
       </div>
       </div>
 
-      {/* 무한스크롤 sentinel — 일반·검색 탭에서만(리포트 제외). 풀 소진 시 렌더 안 함. */}
-      {!isReportTab && hasMore && !loadError && (
+      {/* 무한스크롤 sentinel — 풀 소진 시 렌더 안 함. */}
+      {hasMore && !loadError && (
         <div ref={sentinelRef} className={styles.feedSentinel} aria-hidden="true" />
       )}
       {loading && pool.length > 0 && <FeedSkeleton count={1} />}

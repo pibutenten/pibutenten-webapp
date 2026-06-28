@@ -7,7 +7,7 @@
  *   "상단바(헤더)만 앱 셸, 본문은 기존 운영 형태를 최대한 유지". 정보 구조 무변경.
  *   - 운영 page.tsx 의 본문(ReportSampleNotice·ProcedureReportCard·전문의 Q&A 얇은 링크)을
  *     그대로 임베드(재포장 X). 데이터·generateMetadata·JSON-LD 는 server page 가 책임.
- *   - 셸은 active="피드"(미강조 톤), back="/"(운영 BackButton fallback 을 셸이 렌더 — 본문 내 중복 BackButton 제거),
+ *   - 셸은 active="리포트"(리포트 탭 강조), back="/"(운영 BackButton fallback 을 셸이 렌더 — 본문 내 중복 BackButton 제거),
  *     검색은 운영 홈(/?q=)으로 라우팅.
  *
  * 격리: app.module.css 무수정. JSON-LD <script> 는 server page 에 남겨 SEO 신호 100% 보존.
@@ -54,7 +54,7 @@ export default function ProcedureReportView({
 
   return (
     <AppShell
-      active="피드"
+      active="리포트"
       back="/"
       backTitle={
         <h1>

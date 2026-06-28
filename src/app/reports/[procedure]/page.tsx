@@ -216,8 +216,8 @@ export default async function ProcedureReportPage({ params }: Props) {
         "@id": `${url}#breadcrumb`,
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "홈", item: `${SITE_URL}/` },
-          // /reports 인덱스 페이지 없음 → 중간 크럼브는 name-only(깨진 링크 방지).
-          { "@type": "ListItem", position: 2, name: "시술 리포트" },
+          // /reports 허브(인덱스) 존재(200) → item 링크 부여(예전 name-only 깨진링크 방지 주석 폐기).
+          { "@type": "ListItem", position: 2, name: "시술 리포트", item: `${SITE_URL}/reports` },
           { "@type": "ListItem", position: 3, name: ko, item: url },
         ],
       },
