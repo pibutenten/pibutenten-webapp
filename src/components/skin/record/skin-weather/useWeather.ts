@@ -248,19 +248,19 @@ export function useWeather(
       const isDevice = precise && !coarse;
       // 날씨는 좌표만 있으면 되므로 즉시 fetch — 지명(역지오코딩)을 기다리지 않아 첫 표시 지연 단축.
       run(lat, lon, MY_LOC, precise, isDevice);
-      // 지명은 병렬로 받아 도착 시 '이름만' 갱신(+캐시 이름 동기화). 실패하면 "내 위치" 유지.
-      reverseGeocodeKo(lat, lon, ac.signal, coarse).then((name) => {
+      // 지명(역지오코딩) 표시는 '기기 GPS(정밀)' 결과에만 적용 → 동/읍/면 표시.
+      //   IP 대략위치(coarse)는 한국 통신사·ISP IP 가 실제와 다른 도(예: 서울인데 경남)로 잡히는 일이
+      //   잦아 시/도 이름조차 신뢰할 수 없다. 잘못된 지역명을 보여주느니 중립 라벨 "내 위치"(MY_LOC, run 이
+      //   이미 표시)를 유지한다(2026-06-29 원장 결정). 날씨 값은 IP 좌표로 best-effort 표시(라벨만 중립화).
+      //   GPS 권한 빌드(스토어 재심사) 후엔 기기 측위가 성공해 자동으로 실제 동 이름으로 대체된다.
+      if (!isDevice) return;
+      reverseGeocodeKo(lat, lon, ac.signal, false).then((name) => {
         if (!mounted || ac.signal.aborted || !name) return;
-        // 이름 경로도 화면 잠금(deviceShown)을 따른다: 기기 GPS 정밀 결과가 이미 떴으면
-        //   늦게 온 IP(개략) 시/도명("서울")이 그 정밀 동 이름을 덮지 못하게 차단(2026-06-29 검수 반영).
-        if (deviceShown && !isDevice) return;
-        // geoName(늦게 도착할 run 의 fetch 에 입힐 이름)은 기기 GPS 결과만 보관 — IP 시/도명이
-        //   공유 변수를 통해 device 스냅에 새고 LAST_KEY seed 로까지 승격되던 경로 차단.
-        if (isDevice) geoName = name;
+        geoName = name; // 늦게 도착할 run 의 fetch 에 입힐 동 이름 보관(기기 GPS 전용).
         setSnap((prev) => (prev ? { ...prev, name } : prev));
         const k = coordKey(lat, lon);
         const c = readCache(k);
-        if (c) writeCache(k, { ...c, name }, isDevice);
+        if (c) writeCache(k, { ...c, name }, true);
       });
     };
 

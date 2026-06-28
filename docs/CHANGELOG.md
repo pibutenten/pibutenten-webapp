@@ -15,6 +15,7 @@
 - **IP(개략) 결과의 LAST_KEY seed 미승격** — `writeCache(key, snap, allowSeed)` 추가. IP 역지오코딩이 돌려준 시/도명("서울")이 '실제 위치 seed'(30분 TTL)로 박혀 해외에서도 재사용·자기강화되던 고착을 차단. **기기 GPS(device) 결과만 seed 승격**, IP 는 좌표키(coordKey) 캐시까지만(같은 도시 재진입 날씨 즉시표시는 유지).
 - **이름(name) 경로 device 잠금 적용 + `geoName` device 전용화 (검수 [치명] 2건 반영)** — `show()` 에 `deviceShown` 잠금 추가(기기 GPS 정밀 결과 표시 후 늦게 온 IP 시/도명이 정밀 동 이름/seed 를 덮지 못하게). `useCoords` 의 역지오코딩 then 도 `if (deviceShown && !isDevice) return` 가드 + `geoName` 은 device 만 set/소비 → IP 시/도명이 GPS 스냅 이름·LAST_KEY seed 로 새던 동시성 경로(1차 검수 [치명])를 양방향 차단.
 - **측위·IP 병렬화(느림 핵심)** — 2단을 '기기 GPS 실패(reject)를 끝까지 기다린 뒤에야 IP 시도'하던 직렬 → **GPS 와 `/api/iploc` 동시 발사**로 전환. 출시 네이티브 바이너리는 측위 플러그인 미링크(아래)라 매 진입 navigator timeout(최대 4s)을 통째로 버린 뒤 IP 로 떨어지던 지연을 제거. `deviceShown`/`preciseShown` 잠금으로 IP→GPS 업그레이드·역전 방지.
+- **IP 대략위치는 지역명 대신 "내 위치" 중립 라벨**(원장 결정) — 한국 통신사·ISP IP 가 실제와 다른 도(서울→경남 등)로 잡히는 일이 잦아 시/도명조차 신뢰 불가 → 잘못된 지역명 표시 대신 **"내 위치" 라벨 + IP 좌표 기반 날씨(best-effort)**로 표시(라벨만 중립화, `useCoords` 가 coarse 경로 역지오코딩 생략). **기기 GPS 성공 시 자동으로 실제 동 이름으로 대체** — 같은 웹 코드가 GPS 없음/거부=「내 위치」, GPS 성공=동(洞)으로 분기하므로, 스토어 재심사로 GPS 권한이 활성화되면 추가 수정·재심사 없이 동 단위로 전환됨.
 
 ### Changed
 - **CSP `connect-src` 에 날씨 API 도메인 추가**(`next.config.ts`) — `api.open-meteo.com` · `air-quality-api.open-meteo.com` · `api.bigdatacloud.net`. 현재 `Content-Security-Policy-Report-Only` 라 차단은 없었으나 enforce 전환 대비 + 위반 로그 노이즈 제거.
