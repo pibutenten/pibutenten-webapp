@@ -8,10 +8,12 @@
  *
  * 단일 배선: layout 에 한 번만 렌더하고 경로로 노출을 제어한다.
  *   - AppShell 은 z-index:100 풀뷰포트 오버레이라, FAB 는 그 위(z-[110])에 떠야 보인다.
- *   - 모바일 전용(sm:hidden) — 데스크탑은 헤더 우측 '글쓰기' 버튼이 담당.
+ *   - 모바일~태블릿 전용(min-[900px]:hidden) — ≥900px 부터는 데스크탑 헤더 우측 '글쓰기' 버튼이
+ *     담당한다(데스크탑 헤더 .btnWriteTop 노출 분기점과 일치시켜 640~899px 전환 갭을 없앤다).
  *   - 하단 탭바 위(약 90px + safe-area)로 띄워 탭과 겹치지 않게 한다.
  *
- * 노출 경로(화이트리스트): 홈(/) · 내 노트(/notes 이하) · 글상세(회원/의사). 그 외는 모두 숨김.
+ * 노출 경로(화이트리스트): 홈(/) · 투데이(/today) · 내 노트(/notes 이하) · 리포트(/reports 이하) ·
+ *   글상세(회원/의사). 그 외는 모두 숨김.
  *   소프트 키보드가 열리면(댓글 입력 등) 입력을 가리지 않도록 FAB 를 숨긴다.
  */
 
@@ -21,13 +23,17 @@ import { isPostDetailPath } from "@/lib/route-class";
 import { useSoftKeyboardOpen } from "@/lib/useSoftKeyboardOpen";
 
 // 글쓰기 진입이 자연스러운 화면에서만 FAB 를 노출한다(화이트리스트).
-//   노출 = 홈(/) · 내 노트(/notes 이하) · 글상세(회원 /{handle}/{shortcode}, 의사 4세그).
-//   그 외(프로필 /{handle}·토픽·리포트·관리자·원장 대시보드·인증·온보딩 등)는 숨김(의도된 동작).
+//   노출 = 홈/피드(/) · 투데이(/today) · 내 노트(/notes 이하) · 리포트(/reports 이하) ·
+//          글상세(회원 /{handle}/{shortcode}, 의사 4세그).
+//   그 외(프로필 /{handle}·토픽·관리자·원장 대시보드·인증·온보딩 등)는 숨김(의도된 동작).
 function isVisible(pathname: string): boolean {
   return (
     pathname === "/" ||
+    pathname === "/today" ||
     pathname === "/notes" ||
     pathname.startsWith("/notes/") ||
+    pathname === "/reports" ||
+    pathname.startsWith("/reports/") ||
     isPostDetailPath(pathname)
   );
 }
@@ -44,7 +50,7 @@ export default function WriteFab() {
       href="/write"
       aria-label="글쓰기"
       title="글쓰기"
-      className="fixed right-[18px] z-[110] flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform active:scale-95 sm:hidden"
+      className="fixed right-[18px] z-[110] flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform active:scale-95 min-[900px]:hidden"
       style={{
         bottom: "calc(90px + env(safe-area-inset-bottom))",
         background: "#4cbff2",
