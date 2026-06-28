@@ -61,7 +61,7 @@ export default function ReportsIndexSidebar({
         <Link
           href="/review/new"
           className={
-            "mt-3 inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary-active)] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] " +
+            "mt-3 inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] " +
             FOCUS_RING
           }
         >
