@@ -29,6 +29,8 @@
 - 리포트 카드 category 매핑 2종→6종 확장 (procedure-report.ts, procedure-theme.ts)
 - schema/procedure.ts MedicalProcedure 판정을 PROCEDURE_SLUGS 기반으로 변경
 - **미지정 slug 매핑 교정** — gen-tag-dictionary.mjs KR2SLUG 에서 `미지정→"other"` 를 `미지정→"unassigned"` 로 분리. 미분류 태그 1,251개가 기타 시술 탭에 혼입되던 오류 해소
+- **[치명] resolve_tag_review 카테고리 6→10종 (마이그 0315)** — 0311 이 tag_dictionary CHECK 를 10종으로 확장했으나 관리자 검수 RPC 의 자체 IN 화이트리스트는 구 6종에 머물러 신규 4종(필러·볼륨/주름·윤곽/레이저/기타)을 'invalid category' 거부. register_unknown_tags 가 후기 태그를 '기타' 로 자동등록하나 이 RPC 가 '기타' 조차 못 받던 함수 간 정합성 붕괴 교정. 전수 드리프트 스윕(DB 함수·제약·트리거 + TS + 스크립트 4표면 병렬)으로 이 1건이 유일한 런타임 결함임을 확인, injectables DB 잔재 0건 재확인. CLAUDE.md §5 동기 페어에 IN 목록 ↔ CHECK 등록
+- **stale 주석 2건 교정** — CategoryWithChips.tsx(`condition/lifting/injection`→`pickDefaultCategory` 5종), ReviewForm.tsx(`리프팅/주입`→시술 6종 라벨). 폐기된 옛 스킴 명칭 잔재 제거 (코드 동작 무변)
 
 ---
 

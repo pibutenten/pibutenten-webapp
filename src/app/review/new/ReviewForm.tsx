@@ -69,7 +69,7 @@ export type ProcedureOption = {
   label: string;
   /** 하위 시술이면 상위 ko, 정식 시술이면 null */
   parentKo: string | null;
-  /** 그룹 헤더 라벨 (리프팅/주입) */
+  /** 그룹 헤더 라벨 (리프팅/스킨부스터/필러·볼륨/주름·윤곽/레이저/기타) */
   categoryLabel: string;
 };
 

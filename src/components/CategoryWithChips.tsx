@@ -25,7 +25,7 @@ type Props = {
 
 /**
  * 카테고리 탭 + 인기 태그 칩.
- * - 진입 시: 디폴트 카테고리(condition/lifting/injection 중 랜덤)
+ * - 진입 시: 디폴트 시술 카테고리(lifting/skinbooster/filler/contour/laser 중 랜덤, pickDefaultCategory)
  * - 검색어가 있으면: 그 태그의 카테고리로 자동 전환
  * - 검색어 = 칩 텍스트면 그 칩만 카테고리 색으로 강조
  * - 모바일: 3줄 / 데스크탑: 4줄까지만 보이고, 더보기 토글

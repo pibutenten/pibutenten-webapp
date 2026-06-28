@@ -457,6 +457,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0312 (tags) | **시술 태그 198종 대량 UPSERT** — procedures_v6.json 기반. 10종 카테고리 체계에 맞춰 tag_dictionary·tag_normalization 에 시술 태그 일괄 등록·갱신. 기존 행은 category/en/parent_ko/is_procedure/aliases/pubmed_keywords 만 덮어쓰기. |
 | 0313 (tags) | **미지 태그 자동등록 v2** — 시술 후기 소스 태그는 category='기타', is_procedure=true 로 자동 등록. 일반 소스는 category='미지정'. 0250 대비 10종 카테고리 반영. |
 | 0314 (tags) | **시술 리포트 RPC 카테고리 매핑 확장** — get_review_report_overview, get_review_summary_pool 의 CASE WHEN 을 2분기(lifting/injectables)→6분기(lifting/skinbooster/filler/contour/laser/other)로 확장. |
+| 0315 (tags) | **[치명] resolve_tag_review 허용 카테고리 6→10종** — 0311 이 tag_dictionary CHECK 를 10종으로 넓혔으나 관리자 검수 RPC resolve_tag_review 내부 IN 목록은 구 6종에 머물러 신규 4종(필러·볼륨/주름·윤곽/레이저/기타)을 'invalid category' 거부. register_unknown_tags 가 후기 태그를 '기타' 로 자동등록하는데 이 RPC 가 '기타' 조차 못 받아 검수큐 분류 저장 불가하던 정합성 붕괴 교정. IN 목록을 CHECK 와 동일 10종으로 확장(본문 나머지 VERBATIM, ACL 유지). 한국어 포함 → UTF-8 파일 경로 적용·U+FFFD 0 확인. |
 
 production 사실 (2026-05-29 `information_schema.columns` 직접 조회): Phase 2/3 대상 9 테이블 모두 `user_id` 부재 / `profile_id` 존재. 0189 대상 `profiles.age_confirmed_at` 부재. 0190/0191 적용 후 end-to-end 실증 (service_role UPDATE profile_data 통과 + NEGATIVE 차단) 통과.
 
