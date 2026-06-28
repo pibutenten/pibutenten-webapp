@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ReportsNewReviewCard — v11 시술 리포트 상세의 "따옴표 후기 카드".
+ * ReportsReviewCard — v11 시술 리포트 상세의 "따옴표 후기 카드".
  *
  * 레이아웃(오너 지정): 따옴표+본문(크게, 진하지 않게)이 위 → 그 아래 계정 정보(아바타·이름·작성시점)
  *   → 만족도(별점)는 우측 → 좋아요/댓글/공유 푸터.
@@ -30,14 +30,17 @@ function reviewOf(card: CardData): ReviewSummaryData | null {
 // 공유는 이 카드에서 직접 처리(navigator.share / 클립보드) → 훅 share 경로 미사용.
 const noopShare = async (): Promise<null> => null;
 
-export default function ReportsNewReviewCard({
+export default function ReportsReviewCard({
   card,
+  category,
   liked,
   demo,
   me,
   onLoginRequired,
 }: {
   card: CardData;
+  /** 시술 분류(테마 색 결정용 — card.category 는 글 분류라 항상 'review'). */
+  category: ProcedureCategory | null;
   /** 초기 좋아요 여부(부모 prefetch). */
   liked: boolean;
   /** 작성자 나이대·성별(서버 prefetch). */
@@ -47,7 +50,7 @@ export default function ReportsNewReviewCard({
 }) {
   const eng = useCardEngagement(card, { liked }, me, onLoginRequired, noopShare);
 
-  const theme = categoryTheme(card.category as ProcedureCategory | null);
+  const theme = categoryTheme(category);
   const author = Array.isArray(card.author) ? card.author[0] : card.author;
   const name = author?.display_name || author?.handle || "익명";
   const initial = name.trim().charAt(0) || "익";

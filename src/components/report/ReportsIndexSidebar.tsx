@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ReportsIndexSidebar — /reports-new(시술 리포트 인덱스 개선판) 전용 우측 사이드바.
+ * ReportsIndexSidebar — /reports(시술 리포트 인덱스 개선판) 전용 우측 사이드바.
  *
  * 피드 탭의 FeedSidebar(인기검색어·인기 Q&A·글쓰기 CTA)와는 별개 — 리포트 인덱스 맥락에 맞춘 3박스:
  *   ① 후기 쓰기 CTA      — "내가 받은 시술, 후기 남기기" → /review/new.
@@ -78,7 +78,7 @@ export default function ReportsIndexSidebar({
             {topProcedures.map((p) => (
               <li key={p.ko}>
                 <Link
-                  href={`/reports-new/${encodeURIComponent(p.ko)}`}
+                  href={`/reports/${encodeURIComponent(p.ko)}`}
                   className={
                     "flex items-baseline justify-between gap-2 rounded-[var(--radius-sm)] px-1 py-1 transition-colors hover:bg-[var(--bg)] " +
                     FOCUS_RING

@@ -1,39 +1,39 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-report";
+import {
+  getProcedureReport,
+  getFamilyReviewCardIds,
+  getReviewSummaryFeedPool,
+} from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
+import type { ProcedureSlug } from "@/lib/categories";
 import { SITE_URL } from "@/lib/site";
 import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
-import { topKeywords } from "@/components/skin/feed-sidebar-data";
-import ProcedureReportView from "./ProcedureReportView";
+import ReportsDetailView from "./ReportsDetailView";
 
-/** 홈 피드와 동일한 사이드바 데이터(인기태그·인기 Q&A) — feed_cards_scored 비검색 풀 기준.
- *   홈 page.tsx 의 비검색 분기와 동일 RPC·동일 파라미터. published 공개 카드만(RPC + RLS, 우회 없음). */
-async function fetchFeedSidebarData(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-): Promise<{ popularTags: string[]; hotQa: CardData[] }> {
-  const { data, error } = await supabase.rpc("feed_cards_scored", {
-    p_limit: 300,
-    p_offset: 0,
-    p_half_life_days: 14,
-    p_jitter_amp: 0, // 인기태그 풀은 결정적(클릭/재방문에 목록 불변)
-  });
-  if (error) {
-    console.error("[reports] 사이드바 피드 풀 조회 실패:", error.message);
-    return { popularTags: [], hotQa: [] };
+// tag_dictionary.category(한글) → 테마 slug. procedure-report.ts 의 매핑과 동일(SSOT 정합).
+//   '비슷한 시술' 후보 카드의 카테고리 색을 정하는 데만 쓰인다.
+function catSlug(ko: string | null): ProcedureSlug | null {
+  switch (ko) {
+    case "리프팅": return "lifting";
+    case "스킨부스터": return "skinbooster";
+    case "필러·볼륨": return "filler";
+    case "주름·윤곽": return "contour";
+    case "레이저": return "laser";
+    case "기타": return "other";
+    default: return null;
   }
-  const scored = (data ?? []) as CardData[];
-  const popularTags = topKeywords(scored);
-  const hotQa = scored
-    .filter((c) => !!c.doctor && (c.category ?? c.type) === "qa")
-    .slice(0, 20);
-  return { popularTags, hotQa };
 }
 
+// 렌더링 전략: 옛 상세의 설정을 그대로 보존(force-dynamic). review-report-revalidate 가
+//   후기 변동 시 revalidatePath('/reports/{ko}') 를 호출해 stale 을 정리하는 ISR 의도가
+//   문서·코드에 있으나, 이 페이지는 reviewLiked 산출을 위해 supabase.auth.getUser()(쿠키)를
+//   읽으므로 force-static/시간기반 ISR 과 양립하지 않는다. reports-new 의 force-dynamic 강요가
+//   아니라 옛 정식 상세가 쓰던 동일 설정이므로 그대로 유지한다(렌더링 전략 무변경).
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ procedure: string }> };
@@ -104,7 +104,7 @@ export default async function ProcedureReportPage({ params }: Props) {
   const { procedure } = await params;
   const resolved = await resolveProcedure(procedure);
   if (!resolved) notFound();
-  const { ko } = resolved;
+  const { ko, en } = resolved;
 
   // 영문 en → 한글 ko 308 영구 리다이렉트는 middleware.ts 가 처리(페이지 레벨 redirect 는
   //   스트리밍 SSR 에서 200+meta-refresh 로 폴백 → 하드 308 불가). 이 페이지는 ko 만 받는다.
@@ -112,19 +112,14 @@ export default async function ProcedureReportPage({ params }: Props) {
   const supabase = await createSupabaseServerClient();
 
   // report 를 먼저 단독 await → 없으면 notFound() 로 즉시 종료(존재하지 않는 시술 슬러그·크롤러
-  //   요청 시 cardIds·idxTags·sidebar 3개 쿼리를 헛돌리지 않는다). report 확정 후 나머지 3개는
-  //   서로 독립이라 한 번의 Promise.all 로 묶어 워터폴 제거(reviews(d)만 cardIds 의존이라 뒤에 둔다).
+  //   요청 시 이후 쿼리들을 헛돌리지 않는다).
   const report = await getProcedureReport(supabase, ko);
   if (!report) notFound();
-  const [cardIds, { data: idxTags }, sidebarData] = await Promise.all([
-    getFamilyReviewCardIds(supabase, ko),
-    supabase.rpc("get_indexable_tags", { p_min_count: 4 }),
-    fetchFeedSidebarData(supabase),
-  ]);
 
   // 개별 후기 스트림 — 작업 D 롤업: 집계와 동일한 procedure_ko family 기준(카드 id IN).
-  //   작업 A: 첫 10개만 서버 렌더(크롤러·비로그인 노출) + 전체 count → 무한스크롤 hasMore 판정.
+  //   첫 10개만 서버 렌더(크롤러·비로그인 노출) + 전체 count → 무한스크롤 hasMore 판정.
   const PAGE_SIZE = 10;
+  const cardIds = await getFamilyReviewCardIds(supabase, ko);
   const reviewTotal = cardIds.length;
   const reviews: CardData[] =
     cardIds.length > 0
@@ -153,13 +148,131 @@ export default async function ProcedureReportPage({ params }: Props) {
     for (const r of reviews) reviewLiked[r.id] = !!st[r.id]?.liked;
   }
 
+  // 작성자 나이·성별(작성자 통계와 동일 SECURITY DEFINER RPC) — 후기 카드 표시용.
+  //   RPC 타입은 .returns 대신 명시 캐스팅(as) — 제네릭 미적용 회피.
+  const reviewDemo: Record<number, { gender: string | null; ageDecade: number | null }> = {};
+  if (reviews.length > 0) {
+    const { data: demoRowsRaw } = await supabase.rpc("get_review_author_demographics", {
+      p_card_ids: reviews.map((r) => r.id),
+    });
+    const demoRows = (demoRowsRaw ?? []) as {
+      card_id: number;
+      gender: string | null;
+      age_decade: number | null;
+    }[];
+    for (const d of demoRows) reviewDemo[d.card_id] = { gender: d.gender, ageDecade: d.age_decade };
+  }
+
   // /topics(전문의 Q&A 허브) 얇은 링크 — 실제 존재(의사 qa ≥4 = get_indexable_tags 포함)할 때만.
-  //   /topics 의 404 게이트(MIN_DOCTOR_POSTS=4)와 동일 기준 → 깨진 링크 0. 정적 링크 1줄
-  //   (2026-06-04 제거된 '관련 전문의 Q&A' 섹션·orphan qa fetch 부활 아님).
-  //   idxTags·sidebarData 는 위 Promise.all 에서 report·cardIds 와 함께 선조회.
+  //   /topics 의 404 게이트(MIN_DOCTOR_POSTS=4)와 동일 기준 → 깨진 링크 0.
+  const { data: idxTags } = await supabase.rpc("get_indexable_tags", { p_min_count: 4 });
   const topicsExists =
     Array.isArray(idxTags) &&
     (idxTags as Array<{ keyword: string }>).some((t) => t.keyword === ko);
+
+  // 의사 Q&A — 해당 시술 키워드 포함, 인기순 최대 10개.
+  const { data: doctorQAsRaw } = await supabase
+    .from("cards")
+    .select(CARD_LIST_SELECT)
+    .eq("category", "qa")
+    .eq("status", "published")
+    .not("doctor_id", "is", null)
+    .contains("keywords", [ko])
+    .order("like_count", { ascending: false })
+    .order("view_count", { ascending: false })
+    .limit(10)
+    .returns<CardData[]>();
+  const doctorQAs = doctorQAsRaw ?? [];
+
+  // 비슷한 시술 — top effect 공유, JS 집계, 마이그레이션 없음.
+  const topEffect = report.effects[0]?.label ?? null;
+  let similar: {
+    ko: string;
+    en: string;
+    count: number;
+    effectPct: number;
+    category: ProcedureSlug | null;
+  }[] = [];
+  if (topEffect) {
+    // 자기 시술 + 직속 자식 제외
+    const { data: kids } = await supabase
+      .from("tag_dictionary")
+      .select("ko")
+      .eq("parent_ko", ko);
+    const exclude = new Set<string>([
+      ko,
+      ...((kids ?? []) as { ko: string }[]).map((k) => k.ko),
+    ]);
+
+    const { data: rows } = await supabase
+      .from("procedure_reviews")
+      .select("procedure_ko, revisit, cards!inner(status, deleted_at)")
+      .contains("effect_areas", [topEffect])
+      .eq("cards.status", "published")
+      .is("cards.deleted_at", null)
+      .limit(4000)
+      .returns<{ procedure_ko: string; revisit: string }[]>();
+
+    const agg = new Map<string, { c: number; y: number }>();
+    for (const r of rows ?? []) {
+      if (exclude.has(r.procedure_ko)) continue;
+      const a = agg.get(r.procedure_ko) ?? { c: 0, y: 0 };
+      a.c++;
+      if (r.revisit === "yes") a.y++;
+      agg.set(r.procedure_ko, a);
+    }
+
+    const top = [...agg.entries()]
+      .filter(([, a]) => a.c >= 3)
+      .sort((a, b) => b[1].c - a[1].c)
+      .slice(0, 5);
+
+    const kos = top.map(([k]) => k);
+    const metaMap = new Map<string, { en: string; category: ProcedureSlug | null }>();
+    const totMap = new Map<string, number>();
+    if (kos.length) {
+      const { data: tg } = await supabase
+        .from("tag_dictionary")
+        .select("ko, en, category")
+        .in("ko", kos);
+      for (const t of (tg ?? []) as {
+        ko: string;
+        en: string | null;
+        category: string | null;
+      }[]) {
+        metaMap.set(t.ko, { en: t.en ?? "", category: catSlug(t.category) });
+      }
+      // 후보 시술별 전체 발행 후기 수(효과 비율의 분모)
+      const { data: totRows } = await supabase
+        .from("procedure_reviews")
+        .select("procedure_ko, cards!inner(status, deleted_at)")
+        .in("procedure_ko", kos)
+        .eq("cards.status", "published")
+        .is("cards.deleted_at", null)
+        .limit(6000)
+        .returns<{ procedure_ko: string }[]>();
+      for (const r of totRows ?? []) totMap.set(r.procedure_ko, (totMap.get(r.procedure_ko) ?? 0) + 1);
+    }
+
+    similar = top.map(([k, a]) => {
+      const total = totMap.get(k) ?? a.c;
+      return {
+        ko: k,
+        en: metaMap.get(k)?.en ?? "",
+        count: total,
+        // 이 시술 후기 중 공유 효과(top effect)를 꼽은 비율.
+        effectPct: Math.min(100, Math.round((a.c / Math.max(1, total)) * 100)),
+        category: metaMap.get(k)?.category ?? null,
+      };
+    });
+  }
+
+  // 사이드바 '후기 많은 시술'(인덱스와 동일 2단 레이아웃).
+  const pool = await getReviewSummaryFeedPool(supabase);
+  const topProcedures = [...pool]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 7)
+    .map((r) => ({ ko: r.procedureKo, count: r.count }));
 
   // JSON-LD — MedicalWebPage + Service(MedicalProcedure) (2026-06-05, Product 폐기).
   //   의료 시술에 Product 스키마는 구글 정책 오용 소지 → 의료 페이지 + 시술(Service) 로 전환.
@@ -224,23 +337,26 @@ export default async function ProcedureReportPage({ params }: Props) {
     ],
   };
 
-  // JSON-LD <script> 는 server 에 남겨 SEO 신호 100% 보존. 본문은 앱 셸(AppShell)로
-  //   감싼 ProcedureReportView 가 표시(정보 구조·데이터 무변경). DoctorDashboardView 선례 동일 패턴.
+  // JSON-LD <script> 는 server 에 남겨 SEO 신호 100% 보존. 본문은 새 디자인 뷰(ReportsDetailView)가
+  //   AppShell 로 감싸 표시(정보 구조·데이터 무변경). DoctorDashboardView 선례 동일 패턴.
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
       />
-      <ProcedureReportView
+      <ReportsDetailView
         ko={ko}
+        en={en}
         report={report}
         reviews={reviews}
         reviewLiked={reviewLiked}
+        reviewDemo={reviewDemo}
         reviewTotal={reviewTotal}
         topicsExists={topicsExists}
-        popularTags={sidebarData.popularTags}
-        hotQa={sidebarData.hotQa}
+        doctorQAs={doctorQAs}
+        similar={similar}
+        topProcedures={topProcedures}
       />
     </>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ReportsNewCard — /reports-new 시술 리포트 인덱스 전용 에디토리얼 요약 카드.
+ * ReportsIndexCard — /reports 시술 리포트 인덱스 전용 에디토리얼 요약 카드.
  *
  * 목업(전달용/report-pibutenten-skin.html)의 카드 감성을 살린 3단 구조:
  *   ① 요약(접힘)  — 카테고리 틴트 헤더 + 시술명 + 큰 % 히어로("다시 받고 싶어요") +
@@ -58,7 +58,7 @@ function painPhrase(a: number): string {
   return "꽤 아팠다는 분이 많아요";
 }
 
-export default function ReportsNewCard({
+export default function ReportsIndexCard({
   report,
   headline,
   effects,
@@ -89,7 +89,7 @@ export default function ReportsNewCard({
 
   const top3 = effects.slice(0, 3);
   // staging 전체 보고서(목업 풀 에디토리얼)로 연결 — 승격 시 /reports/{시술}로 교체.
-  const reportHref = `/reports-new/${encodeURIComponent(procedureKo)}`;
+  const reportHref = `/reports/${encodeURIComponent(procedureKo)}`;
 
   // 펼침 + 막대 0→값 부드러운 채움(펼친 직후 한 박자 뒤 revealed=true).
   const [open, setOpen] = useState(false);
@@ -177,15 +177,19 @@ export default function ReportsNewCard({
                 <span className="mb-1.5 block text-[10.5px] font-semibold text-[var(--text-muted)]">
                   통증
                 </span>
-                <span className="flex justify-center gap-[3px]" aria-hidden>
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <i
-                      key={i}
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ backgroundColor: i < painOn ? theme.color : "#E2E7EC" }}
-                    />
-                  ))}
-                </span>
+                {hasPain ? (
+                  <span className="flex justify-center gap-[3px]" aria-hidden>
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <i
+                        key={i}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: i < painOn ? theme.color : "#E2E7EC" }}
+                      />
+                    ))}
+                  </span>
+                ) : (
+                  <span className="block text-[10px] text-[var(--text-muted)]">응답 적음</span>
+                )}
               </div>
               <div className="text-center">
                 <span className="mb-1.5 block text-[10.5px] font-semibold text-[var(--text-muted)]">
@@ -258,17 +262,11 @@ export default function ReportsNewCard({
                   />
                 </div>
                 <div
-                  className="relative mt-1.5 h-[12px] text-[9.5px] text-[var(--text-muted)]"
+                  className="mt-1.5 flex justify-between text-[9.5px] text-[var(--text-muted)]"
                   aria-hidden
                 >
-                  {PAIN_LABELS.map((l, i) => (
-                    <span
-                      key={l}
-                      className="absolute -translate-x-1/2"
-                      style={{ left: `${painPos(i + 1)}%` }}
-                    >
-                      {l}
-                    </span>
+                  {PAIN_LABELS.map((l) => (
+                    <span key={l}>{l}</span>
                   ))}
                 </div>
               </div>

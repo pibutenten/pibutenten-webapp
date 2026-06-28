@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ReportsNewDetailView — /reports-new/[시술] 전체 리포트.
+ * ReportsDetailView — /reports/[시술] 전체 리포트.
  *
  * 구조:
  *   ① 리포트 카드(한 장으로 결합, 섹션 간 hairline) — 히어로(브랜드 로고+재시술의향) →
@@ -12,7 +12,7 @@
  *   ③ 전문의 Q&A(랭킹 한 상자) → ④ 비슷한 시술(각 카테고리 색 상자) → ⑤ 저장·공유(브랜드색).
  *
  * 진입 애니메이션: 히어로 % 카운트업 · 사람 그리드 stagger · 막대 0→값 채움.
- * 다채색 유지(효과/작성자/Q&A). 후기는 로컬 ReportsNewReviewCard(실 card_likes 공유).
+ * 다채색 유지(효과/작성자/Q&A). 후기는 로컬 ReportsReviewCard(실 card_likes 공유).
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -31,7 +31,7 @@ import AppShell from "@/components/skin/AppShell";
 import { useSearchRouting } from "@/components/skin/ui";
 import DowntimeGauge from "@/components/report/DowntimeGauge";
 import EffectOnsetTimeline from "@/components/report/EffectOnsetTimeline";
-import ReportsNewReviewCard from "./ReportsNewReviewCard";
+import ReportsReviewCard from "./ReportsReviewCard";
 import ReportsIndexSidebar, { type SidebarTopProcedure } from "@/components/report/ReportsIndexSidebar";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { useRouter } from "next/navigation";
@@ -132,7 +132,7 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "new", label: "최신순" },
 ];
 
-export default function ReportsNewDetailView({
+export default function ReportsDetailView({
   ko,
   en,
   report,
@@ -168,7 +168,6 @@ export default function ReportsNewDetailView({
   const [authPrompt, setAuthPrompt] = useState<string | null>(null);
   const [qaExpanded, setQaExpanded] = useState(false);
   const [reviewSort, setReviewSort] = useState<SortKey>("rec");
-  const reviewsRef = useRef<HTMLElement>(null);
   const chipRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -318,12 +317,12 @@ export default function ReportsNewDetailView({
     <ReportsIndexSidebar
       topProcedures={topProcedures}
       activeCategory={null}
-      onCategory={() => router.push("/reports-new")}
+      onCategory={() => router.push("/reports")}
     />
   );
 
   return (
-    <AppShell active="리포트" back="/reports-new" sidebar={sidebar} sidebarMobileBelow {...search}>
+    <AppShell active="리포트" back="/reports" sidebar={sidebar} sidebarMobileBelow {...search}>
       {/* ── ① 리포트 카드(한 장) ── */}
       <div className="overflow-hidden rounded-[var(--radius-lg)] bg-white">
         {/* 히어로 */}
@@ -403,7 +402,7 @@ export default function ReportsNewDetailView({
             <span className="text-[14px] font-semibold text-[var(--text-secondary)]">/ 5.0</span>
           </div>
           <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
-            {satPhrase(avgSatisfaction)} · {count}명 중 {sat45}명이 별 4개 이상을 줬어요(상위 {sat45pct}%).
+            {satPhrase(avgSatisfaction)} · {count}명 중 {sat45}명이 별 4개 이상을 줬어요({sat45pct}%).
           </p>
           <div className="mt-5 flex flex-col gap-2">
             {[5, 4, 3, 2, 1].map((s) => {
@@ -549,7 +548,7 @@ export default function ReportsNewDetailView({
       </div>
 
       {/* ── ② 직접 들어보기 — 제목은 상자 밖, 각 후기는 독립 글상자 ── */}
-      <section ref={reviewsRef} className="mt-4 scroll-mt-2">
+      <section className="mt-4 scroll-mt-2">
         <div className="px-1">
           <div className={EYEBROW} style={{ color: theme.color }}>In their words</div>
           <div className="flex items-baseline gap-2">
@@ -566,7 +565,11 @@ export default function ReportsNewDetailView({
           className="sticky top-0 z-[41] mt-3 py-2.5"
           style={{ background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
         >
-          <div className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            role="group"
+            aria-label="후기 정렬"
+            className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {SORTS.map((s) => {
               const on = reviewSort === s.key;
               return (
@@ -588,9 +591,10 @@ export default function ReportsNewDetailView({
         {sortedItems.length > 0 ? (
           <div key={reviewSort} className="flex flex-col gap-2.5 px-px" style={{ animation: "rvRise .28s ease both" }}>
             {sortedItems.map((card) => (
-              <ReportsNewReviewCard
+              <ReportsReviewCard
                 key={card.id}
                 card={card}
+                category={report.category}
                 liked={liked[card.id] ?? false}
                 demo={demo[card.id]}
                 me={me}
@@ -692,7 +696,7 @@ export default function ReportsNewDetailView({
               return (
                 <Link
                   key={s.ko}
-                  href={`/reports-new/${encodeURIComponent(s.en || s.ko)}`}
+                  href={`/reports/${encodeURIComponent(s.ko)}`}
                   className="flex items-center gap-3 rounded-[var(--radius-lg)] px-4 py-4 transition-opacity hover:opacity-90"
                   style={{ backgroundColor: st.soft }}
                 >

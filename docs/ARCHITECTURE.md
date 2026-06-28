@@ -28,8 +28,9 @@
 /                                   홈 (AppShell 인-헤더 검색 + FeedView 피드(인기태그=FeedSidebar)). 검색은 /?q= 로 수행 — 시술명 매칭 시 FeedView 가 결과 최상단에 시술 리포트 카드 1장 블렌딩(searchReport=getProcedureReport)
 /about                              소개
 /topics/[tag]                       태그별 전문의 Q&A 허브 (qa 만, SEO 인덱싱). 시술 리포트 카드·후기 미노출 — /reports 존재 시 "후기 N건 보기 →"(→/reports/{ko}) 얇은 링크만 (2026-06-05 분리)
-/reports                            시술 리포트 허브 (ReportsHubView, 시술 리포트 목록; 후기 N≥4 게이트 + count desc; force-dynamic; 자격 0건 noindex)
-/reports/[procedure]                시술별 후기 리포트 (실시간 집계 + review_summary 앵커 카드; 정식 URL=/reports/{ko}(한글), canonical=ko; 영문 /reports/{en} 은 middleware 가 308 영구 리다이렉트 전용(1홉)→ko; index; JSON-LD=MedicalWebPage + Service(additionalType=MedicalProcedure) + AggregateRating + BreadcrumbList(Product 폐기 2026-06-05); /topics 존재(qa≥4) 시 "전문의 Q&A 보기 →"(→/topics/{ko}) 얇은 링크)
+/reports                            시술 리포트 허브 (인덱스: ReportsIndexView + ReportsIndexCard + 공용 ReportsIndexSidebar, 2단 레이아웃; 시술 리포트 목록 후기 N≥4 게이트 + count desc; 회전 헤드라인(report-headline) 매 요청 랜덤 → force-dynamic; SEO 셸 보존 = generateMetadata + JSON-LD CollectionPage/ItemList + canonical, 자격 0건 noindex)
+/reports/[procedure]                시술별 후기 리포트 (상세: ReportsDetailView + ReportsReviewCard, 2단 레이아웃 + ReportsIndexSidebar; 실시간 집계 + review_summary 앵커 카드; 후기 카드 = 따옴표 본문 + 아바타 + 작성자 나이·성별 한 줄(get_review_author_demographics, 0322); 정식 URL=/reports/{ko}(한글), canonical=ko; 영문 /reports/{en} 은 middleware 가 308 영구 리다이렉트 전용(1홉)→ko; index; SEO 셸 보존 = JSON-LD MedicalWebPage + Service(additionalType=MedicalProcedure) + AggregateRating + BreadcrumbList(Product 폐기 2026-06-05); /topics 존재(qa≥4) 시 "전문의 Q&A 보기 →"(→/topics/{ko}) 얇은 링크)
+/reports-new, /reports-new/[procedure]   구 staging 미리보기 라우트 — 신디자인 /reports 정식 승격 후 308 영구 리다이렉트(→/reports, →/reports/{ko}). 이전 미리보기 링크 보호용 (2026-06-29)
 /doctors                            원장님 목록
 /doctors/[slug]                     원장님 소개 (OG: /og/{slug}.png)
 /doctors/[slug]/[year]/[postSlug]   원장님 글 단독 (SEO URL)
@@ -249,6 +250,10 @@ supabase/
 | `IdentitySwitcher.tsx` | 신분(profile) 전환 dropdown — 묶음 안 동등 독립한 profile 들 (ADR 0001, 0011) |
 | `skin/FeedView.tsx` | 홈 피드(단일 컬럼 리스트) + 탭 필터 + 검색 시 시술 리포트 카드 블렌딩(searchReport) |
 | `skin/FeedSidebar.tsx` | 데스크탑 우측 사이드바 — 인기 태그·인기 Q&A·글쓰기 CTA (홈/토픽/리포트 공용) |
+| `app/reports/ReportsIndexView.tsx` (+ `ReportsIndexCard.tsx`) | 시술 리포트 허브 인덱스 신디자인 — 리포트 목록 카드 + 회전 헤드라인. SEO/JSON-LD 는 상위 `page.tsx` 가 담당(렌더만) |
+| `app/reports/[procedure]/ReportsDetailView.tsx` (+ `ReportsReviewCard.tsx`) | 시술 리포트 상세 신디자인 — 집계 + 후기 카드(따옴표 본문·아바타·작성자 나이·성별)·비슷한 시술. SEO/JSON-LD 는 상위 `page.tsx` 담당 |
+| `components/report/ReportsIndexSidebar.tsx` | 리포트 인덱스·상세 공용 사이드바 (2단 레이아웃) |
+| `lib/report-headline.ts` | 회전 헤드라인 엔진 — 시술 시그널 → 헤드라인 풀 빌드·매 요청 랜덤 픽(효과 단정 금지) |
 
 ### 4.4. 댓글·인터랙션
 | 파일 | 역할 |
@@ -402,6 +407,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - **0021** 무료 per-IP 한도 API 를 공유 서버리스 IP 로 프록시 금지 — 날씨(Open-Meteo)는 클라 직접 호출. `/api/iploc`(Vercel 헤더만) 은 적용범위 밖. §12.
 - **0022** 네이티브 웹뷰 측위 권한 — 원격 URL 로드 WebView 는 iOS `Info.plist NSLocationWhenInUseUsageDescription`·Android `ACCESS_COARSE/FINE_LOCATION` 선언 + `@capacitor/geolocation` 경로 필요. §12.
 - **0023** 같은 시술 후기 다중 작성 허용 (1인1시술1후기 제약 해제, `0019` amend) — 2026-06-25
+- **0024** `/reports-new` 신디자인을 정식 `/reports` 로 승격 — SEO 셸(generateMetadata·JSON-LD·canonical·en→ko 308) 보존하고 렌더만 교체(in-place), `/reports-new`→308, 개별 작성자 인구통계 RPC(0322) 도입(집계 0212와 별개·개인 단위 노출 트레이드오프) — 2026-06-29
 
 ---
 

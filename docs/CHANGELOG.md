@@ -6,6 +6,24 @@
 
 ---
 
+## [2026-06-29] — 시술 리포트 정식 승격(/reports 신디자인 이식)
+
+옆 세션에서 staging `/reports-new` 로 개발하던 시술 리포트 신디자인(인덱스·상세·회전 헤드라인·2단 레이아웃)을 **정식 `/reports` 로 이식 완료**. 옛 `/reports` 의 SEO 셸(generateMetadata + JSON-LD + canonical 한글 + en→ko 308 미들웨어)은 100% 보존하고 렌더 컴포넌트만 신디자인으로 교체. 독립 코드검수관 2명 + 재검수 통과, UX 디펙트 검토·반영 후 배포.
+
+### Added
+- **시술 리포트 후기 카드용 작성자 인구통계 RPC (마이그 0322)** — `get_review_author_demographics(p_card_ids bigint[])` 신설. 입력 카드 id 배열에 대해 **카드별 개별 작성자 성별·연령대(생년월일 → 10단위, 10~50 클램프)** 반환. 리포트 상세 후기 카드의 "30대·여성" 한 줄 표시용. SECURITY DEFINER + search_path='public' + stable, GRANT EXECUTE anon/authenticated. ⚠ 0212 `get_procedure_review_demographics`(시술 단위 집계 카운트, 개별 PII 비노출)와 별개 — 본 RPC 는 **개별 후기 단위로 작성자 인구통계 노출**(개인정보 트레이드오프는 ADR 0024, 연령은 10단위 라운딩으로 비식별). 운영 직접 적용(Management API), 마이그 파일은 기록용.
+- **신디자인 정식화** — 인덱스 `ReportsIndexView`(+`ReportsIndexCard`)·상세 `ReportsDetailView`(+`ReportsReviewCard`)·공용 `ReportsIndexSidebar`·회전 헤드라인 엔진(`report-headline`, 매 요청 랜덤·효과 단정 금지)을 staging `/reports-new` 에서 정식 `/reports` 로 이식. 2단 레이아웃(콘텐츠 + 사이드바).
+- **상세 후기 카드 개선** — 후기 카드 = 따옴표 본문 + 작성자 아바타 사진 + 계정정보 한 줄(0322 RPC 기반 나이·성별 표시). '비슷한 시술' = "최상위 효과 % · 후기 N"(카테고리색). '전문의 Q&A 보러가기' → 시술명 검색(`/?q=`).
+
+### Changed
+- **`/reports` 렌더를 신디자인으로 교체(SEO 셸 보존)** — 옛 허브 디자인을 신디자인으로 in-place 교체하되 generateMetadata(title absolute·desc 라이브 수치·robots 자격 0건 noindex)·JSON-LD(인덱스 CollectionPage/ItemList, 상세 MedicalWebPage/Service/AggregateRating/BreadcrumbList)·canonical 한글·en→ko 308 미들웨어는 100% 보존. 인덱스·상세 모두 `force-dynamic`(헤드라인 매 요청 랜덤). N≥4 게이트·count desc 정렬 유지.
+- **`/reports-new` → `/reports` 308 영구 리다이렉트** — staging 미리보기 라우트(인덱스·상세)를 `permanentRedirect`(308)로 전환해 기존 미리보기 링크 보호.
+
+### Removed
+- **옛 리포트 컴포넌트 삭제** — 구 허브 뷰 `ReportsHubView`·구 상세 뷰 `ProcedureReportView` 및 `/reports-new` 의 옛 뷰 4종 삭제(신디자인으로 일원화).
+
+---
+
 ## [2026-06-28] — 내비 5탭 개편 + 검색 인-헤더 통합 + 리포트 허브(/reports) + 후기 폼 반응(0320) / 시술사전 선재고 정리(0317) + v9 분류 대대적 개편(0318) + maker 필드
 
 ### Added

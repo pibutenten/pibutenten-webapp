@@ -185,6 +185,8 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | `rotate_push_webhook_secret()` | secret 로테이션 (0120) |
 | `get_research_panel()` | 대시보드 리서치 패널 — 사람(번들) 기준 총가입자·활성 90일·후기 작성 회원 (0224, F-2B). SECURITY DEFINER 집계만 |
 | `procedure_family(ko)` | 시술 롤업 family = [ko]+직속 자식 (0225, D). getProcedureReport·demographics·pool 3경로 공용 SSOT. 0206 피드/검색 JOIN 은 개별 유지 |
+| `get_procedure_review_demographics(p_procedure_ko)` | 시술 단위 작성자 성별·연령대 **집계 카운트만** 반환(개별 PII 비노출, 0212 / family 롤업 0227). SECURITY DEFINER, GRANT anon/authenticated |
+| `get_review_author_demographics(p_card_ids[])` | **카드별 개별** 작성자 성별·연령대(10단위) 반환 — 시술 리포트 상세 후기 카드 "30대·여성" 표시(0322). 0212 집계와 별개 = 개별 단위 노출(개인정보 고려). SECURITY DEFINER, GRANT anon/authenticated |
 
 **폐기**: `increment_card_share` (0095), `decrement_card_like`, `increment_card_like`, `get_recent_card_likers` singular (0102)
 
@@ -455,6 +457,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 0310 (review) | **`update_procedure_review` p_recommend 추가** — 수정 경로에서 recommend(추천의향)가 DB 에 저장되지 않던 버그 교정. 기존 11인자 DROP 후 12인자(`p_recommend smallint DEFAULT NULL`)로 재생성. `COALESCE(p_recommend, pr.recommend)`로 NULL 전달 시 기존값 유지. GRANT 재부여. 한국어 미포함. |
 | 0320 (review) | **시술 직후 반응(reactions) 다중선택 저장** — `procedure_reviews.reactions text[] DEFAULT '{}'::text[]` 신설(production 24번째 컬럼, nullable). `create_procedure_review`(18→19인자) / `update_procedure_review`(12→13인자) 두 RPC 에 `p_reactions text[]` 추가(시그니처 변경이라 기존 DROP 후 재생성, authenticated GRANT 재부여). 폼은 부기/멍/딱지/붉어짐·홍조/화끈거림·열감/멍울·뭉침 + 없음(단독) 다중선택, 다운타임 질문은 반응에 증상 1개 이상일 때만 조건부 노출. anon 재부여 대상에서 제외(21컬럼 유지). |
 | 0321 (review) | **[주의] update_procedure_review downtime CASE 를 `p_reactions IS NULL` 로 — 빈 배열(반응 전체 해제) 시 다운타임 미보존 정정** — 0320 의 `downtime = CASE WHEN COALESCE(array_length(p_reactions,1),0)=0 THEN pr.downtime ELSE p_downtime END` 가 빈 배열 `{}`(수정 모드에서 반응 전체 해제=명시적 비움)일 때도 길이 0이라 기존 downtime 을 보존 → 신규 클라이언트가 보낸 reactions=[]+downtime=null('둘 다 비움' 의도)이 'reactions=빈배열+downtime=잔존'으로 불일치하던 클라↔RPC 규약 충돌 정정. 조건을 `p_reactions IS NULL`(구 클라이언트=미전달일 때만 보존, 빈 배열은 p_downtime 반영)로 좁힘. 시그니처 동일 → CREATE OR REPLACE(본문 나머지·GRANT VERBATIM). reactions 컬럼 갱신(`COALESCE(p_reactions, pr.reactions)`)은 정상이라 유지. 한국어 주석 포함 → UTF-8 경로·U+FFFD 0 확인, 오버로드 1개 확인. |
+| 0322 (review) | **시술 리포트 후기 카드용 작성자 인구통계 RPC** — `get_review_author_demographics(p_card_ids bigint[])` 신설. 입력 카드 id 배열에 대해 **카드별 개별 작성자 성별(`profiles.gender`)·연령대(생년월일 → 10단위 floor, 10~50 클램프)** 를 반환(시술 리포트 상세 후기 카드의 "30대·여성" 한 줄 표시용). `SECURITY DEFINER` + `set search_path='public'` + `stable`, GRANT EXECUTE anon/authenticated. ⚠ **0212 `get_procedure_review_demographics`(시술 단위 성별·연령대 분포를 집계 카운트로만 반환, 개별 PII 비노출)와 별개의 함수** — 본 RPC 는 **개별 후기 단위로 작성자 인구통계를 노출**하므로(특정 후기 → 작성자 성별·연령대 연결 가능) 개인정보 측면 고려가 있음(연령은 10단위 라운딩으로 단일 출생연도 비식별, 직접 식별자·생년월일 원본은 미반환). 운영 직접 적용(Management API), 마이그 파일은 기록용. |
 | 0311 (tags) | **태그 카테고리 CHECK 제약 확장 (6→10종)** — tag_dictionary.category CHECK 에 '필러·볼륨', '주름·윤곽', '레이저', '기타' 4종 추가. DROP+ADD CONSTRAINT(PostgreSQL ALTER CHECK 미지원). |
 | 0312 (tags) | **시술 태그 198종 대량 UPSERT** — procedures_v6.json 기반. 10종 카테고리 체계에 맞춰 tag_dictionary·tag_normalization 에 시술 태그 일괄 등록·갱신. 기존 행은 category/en/parent_ko/is_procedure/aliases/pubmed_keywords 만 덮어쓰기. |
 | 0313 (tags) | **미지 태그 자동등록 v2** — 시술 후기 소스 태그는 category='기타', is_procedure=true 로 자동 등록. 일반 소스는 category='미지정'. 0250 대비 10종 카테고리 반영. |

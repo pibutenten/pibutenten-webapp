@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ReportsNewView — /reports-new(시술 리포트 인덱스 개선판) 본문 (클라이언트).
+ * ReportsIndexView — /reports(시술 리포트 인덱스 개선판) 본문 (클라이언트).
  *
  * 원칙(ReportsHubView 선례): "상단바(헤더)만 앱 셸, 본문은 기능적 목록".
  *   데이터·메타·헤드라인 확정은 server page(page.tsx)가 책임. 여기선 표시·정렬·필터만.
@@ -10,7 +10,7 @@
  *   - 정렬 칩 레일(컴팩트 풀로 계산 가능한 것만): 후기 많은 순(기본)/다시 받고 싶은 순/
  *     만족도 높은 순/통증 적은 순. 다운타임·최신은 컴팩트 풀에 없어 제외.
  *   - 카테고리 필터(사이드바 칩과 연동).
- *   - 각 시술 = ReportsNewCard(자체 구현, 컴팩트 풀 값만 쓰는 요약 카드) + 서버 확정 headline.
+ *   - 각 시술 = ReportsIndexCard(자체 구현, 컴팩트 풀 값만 쓰는 요약 카드) + 서버 확정 headline.
  *     (공용 ProcedureReportCard 는 병렬 세션 소유라 import·의존하지 않는다.)
  *
  * 헤드라인은 서버 prop 그대로 표시(클라 재랜덤 금지 → SSR/CSR 일치, 하이드레이션 안전).
@@ -21,7 +21,7 @@
 import { useMemo, useState } from "react";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { ProcedureSlug } from "@/lib/categories";
-import ReportsNewCard from "./ReportsNewCard";
+import ReportsIndexCard from "./ReportsIndexCard";
 import ReportsIndexSidebar, {
   type SidebarTopProcedure,
 } from "@/components/report/ReportsIndexSidebar";
@@ -57,7 +57,7 @@ function revisitYesPct(r: ProcedureReport): number {
   return total > 0 ? r.revisit.yes / total : 0;
 }
 
-export default function ReportsNewView({
+export default function ReportsIndexView({
   items,
   topProcedures,
 }: {
@@ -163,7 +163,7 @@ export default function ReportsNewView({
           style={{ animation: "rvRise .28s ease both" }}
         >
           {visible.map((it) => (
-            <ReportsNewCard
+            <ReportsIndexCard
               key={it.report.procedureKo}
               report={it.report}
               headline={it.headline}
@@ -173,6 +173,9 @@ export default function ReportsNewView({
           ))}
         </div>
       )}
+      <p className="mt-4 px-1 text-center text-[11.5px] leading-[1.6] text-[var(--text-muted)]">
+        회원들의 실사용 후기를 집계한 결과예요. 개인차가 있으며 의학적 효과·안전성을 보장하지 않아요. 시술 결정은 전문의 상담 후에 하세요.
+      </p>
     </AppShell>
   );
 }
