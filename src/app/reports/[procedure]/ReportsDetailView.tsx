@@ -23,7 +23,6 @@ import type { ProcedureSlug } from "@/lib/categories";
 import type { EngagementMe } from "@/components/card/hooks/useCardEngagement";
 import { categoryTheme } from "@/lib/procedure-theme";
 import { getQaUrl } from "@/lib/card-url";
-import { experienceCount } from "@/lib/report-copy";
 import { DOWNTIME_DAYS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
 import { useSession } from "@/lib/session-context";
 import { showToast } from "@/lib/toast";
@@ -168,15 +167,13 @@ export default function ReportsDetailView({
   const [authPrompt, setAuthPrompt] = useState<string | null>(null);
   const [qaExpanded, setQaExpanded] = useState(false);
   const [reviewSort, setReviewSort] = useState<SortKey>("rec");
-  const chipRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // 정렬 변경 시 칩은 제자리(상단 고정)에 두고, 그 아래로 첫 후기가 보이게 칩바 위치로만 스크롤.
+  // 정렬 변경 시 첫 후기가 보이도록 후기 리스트 상단으로 스크롤(sticky 칩 높이만큼 여백 확보).
   function changeSort(k: SortKey) {
     setReviewSort(k);
-    requestAnimationFrame(() => {
-      chipRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   // 진입 애니메이션 트리거(마운트 직후 1회).
@@ -557,14 +554,13 @@ export default function ReportsDetailView({
           <div className="flex items-baseline gap-2">
             <span className={QHEAD}>생생한 후기 직접 들어보기</span>
             <span className="text-[12.5px] font-semibold text-[var(--text-secondary)]">
-              경험자의 후기 {reviewTotal}건
+              {reviewTotal}건
             </span>
           </div>
         </div>
 
         {/* 정렬 칩 — 후기 구간에서만 sticky 고정. 배경은 앱 캔버스와 동일(회색 없음). 활성=브랜드색. */}
         <div
-          ref={chipRef}
           className="sticky z-[41] mt-3 py-2.5"
           style={{ top: "var(--sat)", background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
         >
@@ -592,7 +588,11 @@ export default function ReportsDetailView({
         </div>
 
         {sortedItems.length > 0 ? (
-          <div key={reviewSort} className="flex flex-col gap-2.5 px-px">
+          <div
+            key={reviewSort}
+            ref={listRef}
+            className="flex flex-col gap-2.5 px-px scroll-mt-[calc(var(--sat,0px)_+_56px)]"
+          >
             {sortedItems.map((card) => (
               <div key={card.id} style={{ animation: "rvRise .28s ease both" }}>
                 <ReportsReviewCard
@@ -747,11 +747,6 @@ export default function ReportsDetailView({
           공유
         </button>
       </div>
-
-      <p className="mt-4 px-1 text-center text-[11.5px] leading-[1.65] text-[var(--text-muted)]">
-        이 리포트는 {experienceCount(count)}을 집계한 결과예요. 개인차가 있으며 의학적 효과·안전성을
-        보장하지 않습니다. 특정 병원·의료진의 효과 주장이 아니며, 시술 결정은 전문의 상담 후에 하세요.
-      </p>
 
       <style>{`@keyframes rvRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}`}</style>
 

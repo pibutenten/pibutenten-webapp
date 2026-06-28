@@ -16,7 +16,7 @@
  * 접근성: 시술명 h2, 토글 aria-expanded, 막대/게이지 aria-hidden + 텍스트 병기, 흰글씨는 #1B87C9+ 에서만.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import { categoryTheme } from "@/lib/procedure-theme";
@@ -94,6 +94,15 @@ export default function ReportsIndexCard({
   // 펼침 + 막대 0→값 부드러운 채움(펼친 직후 한 박자 뒤 revealed=true).
   const [open, setOpen] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const cardRef = useRef<HTMLElement>(null);
+  const toggle = () => {
+    const willOpen = !open;
+    setOpen(willOpen);
+    if (willOpen)
+      requestAnimationFrame(() =>
+        cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
+  };
   useEffect(() => {
     if (!open) {
       setRevealed(false);
@@ -105,15 +114,16 @@ export default function ReportsIndexCard({
 
   return (
     <article
-      className="overflow-hidden rounded-[var(--radius-lg)] bg-white"
+      ref={cardRef}
+      className="overflow-hidden rounded-[var(--radius-lg)] bg-white scroll-mt-[calc(var(--sat,0px)_+_60px)]"
       aria-label={`${procedureKo} 시술 리포트`}
     >
       {/* ── ① 요약(접힘) — 마우스 클릭은 헤더 전체, 접근성 토글은 우상단 chevron 버튼 1개 ── */}
-      <div className="relative cursor-pointer" onClick={() => setOpen((o) => !o)}>
+      <div className="relative cursor-pointer" onClick={toggle}>
         {/* 앱 표준 회색 chevron 토글 — 40×40 터치 영역, 18px SVG */}
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+          onClick={(e) => { e.stopPropagation(); toggle(); }}
           aria-expanded={open}
           aria-label={`${procedureKo} 리포트 ${open ? "접기" : "펼치기"}`}
           className={"absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-[10px] border-0 bg-transparent " + FOCUS_RING}
@@ -311,30 +321,45 @@ export default function ReportsIndexCard({
               </p>
             )}
 
-            {/* ③ 전체 리포트 보기 → 단독 URL (카테고리색 채움 버튼, flat) */}
-            <Link
-              href={reportHref}
-              className={
-                "mt-5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] px-4 py-3.5 text-[14px] font-bold text-white " +
-                FOCUS_RING
-              }
-              style={{ backgroundColor: theme.color, color: "#fff" }}
-              aria-label={`${procedureKo} 피부텐텐 리포트 보러가기`}
-            >
-              {procedureKo} 피부텐텐 리포트 보러가기
-              <svg
-                viewBox="0 0 24 24"
-                width={15}
-                height={15}
-                stroke="currentColor"
-                strokeWidth={2.4}
-                fill="none"
-                aria-hidden
+            {/* ③ CTA 두 버튼 한 행 — 좌: 후기 남기기(soft, flat) / 우: 전체 리포트 보기(카테고리색 채움) */}
+            <div className="mt-5 flex gap-2">
+              <Link
+                href="/write?tab=review"
+                className={
+                  "flex flex-1 items-center justify-center rounded-[var(--radius)] px-4 py-3.5 text-[14px] font-bold " +
+                  FOCUS_RING
+                }
+                style={{
+                  backgroundColor: theme.soft === "transparent" ? "var(--bg-soft)" : theme.soft,
+                  color: "var(--text)",
+                }}
               >
-                <path d="M5 12h14" />
-                <path d="m13 6 6 6-6 6" />
-              </svg>
-            </Link>
+                내 후기 남기기
+              </Link>
+              <Link
+                href={reportHref}
+                className={
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius)] px-4 py-3.5 text-[14px] font-bold text-white " +
+                  FOCUS_RING
+                }
+                style={{ backgroundColor: theme.color, color: "#fff" }}
+                aria-label={`${procedureKo} 피부텐텐 리포트 보러가기`}
+              >
+                {procedureKo} 피부텐텐 리포트 보러가기
+                <svg
+                  viewBox="0 0 24 24"
+                  width={15}
+                  height={15}
+                  stroke="currentColor"
+                  strokeWidth={2.4}
+                  fill="none"
+                  aria-hidden
+                >
+                  <path d="M5 12h14" />
+                  <path d="m13 6 6 6-6 6" />
+                </svg>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@
  * ReportsIndexSidebar — /reports(시술 리포트 인덱스 개선판) 전용 우측 사이드바.
  *
  * 피드 탭의 FeedSidebar(인기검색어·인기 Q&A·글쓰기 CTA)와는 별개 — 리포트 인덱스 맥락에 맞춘 3박스:
- *   ① 후기 쓰기 CTA      — "내가 받은 시술, 후기 남기기" → /review/new.
+ *   ① 후기 쓰기 CTA      — "내가 받은 시술, 후기 남기기" → /write?tab=review.
  *   ② 후기 많은 시술      — 상위 시술(시술명 + 경험 N건) + 시술 카테고리 6칩(필터 콜백).
  *   ③ 이 리포트는요        — 신뢰·방법 안내 + 전문의 Q&A 얇은 링크(/topics).
  *
@@ -53,23 +53,23 @@ export default function ReportsIndexSidebar({
   return (
     <>
       {/* ① 후기 쓰기 CTA */}
-      <section className={BOX + " flex items-center justify-between gap-3"}>
-        <div className="min-w-0">
-          <h3 className={H3}>내가 받은 시술, 후기 남기기</h3>
-          <p className="mt-1.5 text-[13px] leading-[1.5] text-[var(--text-secondary)]">
-            내 경험이 다음 사람의 선택을 도와요.
-          </p>
+      <section className={BOX}>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className={H3 + " break-keep"}>내가 받은 시술, 후기 남기기</h3>
+          <Link
+            href="/write?tab=review"
+            style={{ color: "#fff" }}
+            className={
+              "shrink-0 inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] " +
+              FOCUS_RING
+            }
+          >
+            후기 쓰기
+          </Link>
         </div>
-        <Link
-          href="/review/new"
-          style={{ color: "#fff" }}
-          className={
-            "shrink-0 inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] " +
-            FOCUS_RING
-          }
-        >
-          후기 쓰기
-        </Link>
+        <p className="mt-1.5 text-[13px] leading-[1.5] text-[var(--text-secondary)]">
+          내 경험이 다음 사람의 선택을 도와요.
+        </p>
       </section>
 
       {/* ② 후기 많은 시술 + 카테고리 칩 */}
