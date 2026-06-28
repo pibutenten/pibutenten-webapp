@@ -6,6 +6,29 @@
 
 ---
 
+## [2026-06-29] — 투데이 피부날씨 위치 '해외→서울(대치동)' 고착 + 느림 근본수정 (Phase 1, 웹)
+
+증상: 인도 등 해외에서 "오늘의 피부 날씨" 위치가 서울(대치동)로 고착되고 로딩이 매우 느림. 4-에이전트 근본원인 조사 + 독립 코드검수관 2명 교차검수 + [치명] 2건 수정 후 재검수 2명 통과. `tsc`·`build` 0. 앱은 원격 URL(`pibutenten.kr/today`)을 WebView 로 로드하므로 **이 웹 수정은 현재 출시 앱에도 배포 즉시 반영**됨(스토어 재심사 불요). 근본원인 중 '정밀 GPS' 복원은 Phase 2(별도) — `docs/plans/today-location-fix-plan.md` 참조.
+
+### Fixed
+- **`useWeather.ts` GEO_OPTS.maximumAge 60분 → 60초** — W3C Geolocation 의 maximumAge 가 60분이면 해외 이동 후에도 출국 전 '서울' OS 캐시 좌표를 새 측위 없이 success 로 반환해 위치 고착을 만들었다(회귀 분기점 dde43f0 2026-06-16). 즉시표시는 localStorage seed 가 담당하므로 60초로 축소(인도에서 ≤60초 내 서울 fix 는 물리적으로 불가).
+- **IP(개략) 결과의 LAST_KEY seed 미승격** — `writeCache(key, snap, allowSeed)` 추가. IP 역지오코딩이 돌려준 시/도명("서울")이 '실제 위치 seed'(30분 TTL)로 박혀 해외에서도 재사용·자기강화되던 고착을 차단. **기기 GPS(device) 결과만 seed 승격**, IP 는 좌표키(coordKey) 캐시까지만(같은 도시 재진입 날씨 즉시표시는 유지).
+- **이름(name) 경로 device 잠금 적용 + `geoName` device 전용화 (검수 [치명] 2건 반영)** — `show()` 에 `deviceShown` 잠금 추가(기기 GPS 정밀 결과 표시 후 늦게 온 IP 시/도명이 정밀 동 이름/seed 를 덮지 못하게). `useCoords` 의 역지오코딩 then 도 `if (deviceShown && !isDevice) return` 가드 + `geoName` 은 device 만 set/소비 → IP 시/도명이 GPS 스냅 이름·LAST_KEY seed 로 새던 동시성 경로(1차 검수 [치명])를 양방향 차단.
+- **측위·IP 병렬화(느림 핵심)** — 2단을 '기기 GPS 실패(reject)를 끝까지 기다린 뒤에야 IP 시도'하던 직렬 → **GPS 와 `/api/iploc` 동시 발사**로 전환. 출시 네이티브 바이너리는 측위 플러그인 미링크(아래)라 매 진입 navigator timeout(최대 4s)을 통째로 버린 뒤 IP 로 떨어지던 지연을 제거. `deviceShown`/`preciseShown` 잠금으로 IP→GPS 업그레이드·역전 방지.
+
+### Changed
+- **CSP `connect-src` 에 날씨 API 도메인 추가**(`next.config.ts`) — `api.open-meteo.com` · `air-quality-api.open-meteo.com` · `api.bigdatacloud.net`. 현재 `Content-Security-Policy-Report-Only` 라 차단은 없었으나 enforce 전환 대비 + 위반 로그 노이즈 제거.
+
+### Added
+- **`docs/plans/today-location-fix-plan.md`** — 4-에이전트 근본원인 종합 + 단계 계획서(Phase 0 인도 IP 실측 / Phase 1 웹 수정(본 항목) / Phase 2 네이티브 재빌드).
+
+### Notes
+- **근본원인(확정)**: 현재 출시 네이티브 바이너리(iOS 빌드7·Android v1, 2026-06-19 제출)에 `@capacitor/geolocation` 이 미링크(`cap sync` 미반영, `capacitor.plugins.json`·`packageClassList` 에 geolocation 부재) → device GPS 가 0. 따라서 앱은 IP 폴백에 의존. **정밀 GPS 복원은 `cap sync` + 스토어 재심사 필요(Phase 2, 오너 결정 대기)** — ADR 0022, 메모리 pending-store-resubmit-gps.
+- **미확정(런타임 실측 필요)**: 인도 IP 에서 `/api/iploc` 가 인도 좌표를 반환하는지(Vercel `x-vercel-ip-*`). 반환하면 Phase 1 만으로 해소, 아니면 외부 IP-geo 대안 추가(Phase 1-6).
+- **Phase 2 후속 [경고]**(GPS 복원 후에만 발현, 현재 무영향): GPS 정상 사용자의 IP 병렬 중복 Open-Meteo 호출·시→동 이름 일시 플리커·드문 대치동 군더더기 호출 정리.
+
+---
+
 ## [2026-06-29] — 시술 리포트 정식 승격(/reports 신디자인 이식)
 
 옆 세션에서 staging `/reports-new` 로 개발하던 시술 리포트 신디자인(인덱스·상세·회전 헤드라인·2단 레이아웃)을 **정식 `/reports` 로 이식 완료**. 옛 `/reports` 의 SEO 셸(generateMetadata + JSON-LD + canonical 한글 + en→ko 308 미들웨어)은 100% 보존하고 렌더 컴포넌트만 신디자인으로 교체. 독립 코드검수관 2명 + 재검수 통과, UX 디펙트 검토·반영 후 배포.

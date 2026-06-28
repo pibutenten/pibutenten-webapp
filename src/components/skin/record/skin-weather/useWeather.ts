@@ -26,9 +26,12 @@ const MY_LOC = "내 위치";
 
 // 측위 옵션(웹·네이티브 공통 의미). 첫 표시 지연을 줄이려:
 //   - enableHighAccuracy:false (GPS 대신 빠른 네트워크 측위).
-//   - maximumAge 를 넓혀(60분) OS 캐시 좌표를 측위 없이 즉시 반환.
-//   - timeout 단축(4s): 무응답·차단 시 빠르게 대치동 폴백.
-const GEO_OPTS = { enableHighAccuracy: false, timeout: 4000, maximumAge: 60 * 60 * 1000 } as const;
+//   - maximumAge 60초: OS 캐시 좌표 재사용을 '같은 세션의 짧은 재측위'까지만 허용.
+//     (옛 60분은 해외 이동 후에도 출국 전 '서울' OS 캐시 좌표를 측위 없이 success 로 반환해
+//      위치 고착의 한 축이 됐다 → 2026-06-29 축소. 즉시 표시는 localStorage seed 가 담당하므로
+//      maximumAge 까지 길게 둘 이유가 없다.)
+//   - timeout 단축(4s): 무응답·차단 시 빠르게 폴백.
+const GEO_OPTS = { enableHighAccuracy: false, timeout: 4000, maximumAge: 60 * 1000 } as const;
 
 /**
  * 좌표 획득 — 플랫폼 분기.
@@ -90,20 +93,22 @@ function readCache(key: string): WeatherSnapshot | null {
     return null;
   }
 }
-function writeCache(key: string, snap: WeatherSnapshot) {
+function writeCache(key: string, snap: WeatherSnapshot, allowSeed = true) {
   try {
     const payload = JSON.stringify({ ts: Date.now(), snap });
     // localStorage 로 기록 → 새 세션·새 탭에서도 last seed 를 재사용해 첫 표시 지연 제거.
     localStorage.setItem(key, payload);
-    // placeholder("내 위치")와 기본값(대치동) 둘 다 seed 로 굳히지 않는다 — 실제 사용자 위치만 LAST_KEY 에.
-    //   "내 위치": 역지오코딩 실패·지연 시 LAST_KEY 에 영구 잔존해 상세 페이지가 동 이름 대신 계속
-    //     "내 위치"를 보여주던 회귀 방지.
-    //   "대치동"(DEFAULT_LOC.name, 2026-06-25 추가): 첫 화면용 대치동 필러가 성공하면 그 대치동이
-    //     LAST_KEY 에 저장돼, 이후 재방문이 매번 대치동을 먼저 띄우고 정밀 fetch 가 한 번이라도
-    //     실패하면 대치동이 영구 고착됐다('전원 대치동' 잔존의 한 축). 필러는 seed 로 굳히지 않는다.
-    //   실제 동 이름이 도착한 정밀 결과만 seed → 정밀 fetch 가 실패해도 마지막 *실제* 위치가 남는다.
-    if (snap.name !== MY_LOC && snap.name !== DEFAULT_LOC.name) {
-      localStorage.setItem(LAST_KEY, payload); // 상세 페이지·다음 방문 즉시 표시용 (실제 위치만)
+    // LAST_KEY(다음 방문·상세 페이지 즉시표시용 seed)는 '정밀 기기 측위(GPS)' 결과만 저장한다.
+    //   - placeholder("내 위치")·기본값(대치동)은 seed 로 굳히지 않는다.
+    //       "내 위치": 역지오코딩 실패·지연 시 LAST_KEY 에 잔존해 동 이름 대신 계속 "내 위치"를 보이던 회귀 방지.
+    //       "대치동"(DEFAULT_LOC.name): 첫 화면용 필러가 seed 로 박혀 재방문마다 대치동을 먼저 띄우던 '전원 대치동' 회귀 방지.
+    //   - IP 대략위치(coarse) 결과도 seed 로 굳히지 않는다(allowSeed=false, 2026-06-29 추가).
+    //       IP 가 돌려준 시/도 이름(예 "서울")이 LAST_KEY 에 '실제 위치'로 박히면, 해외로 이동해도
+    //       30분(TTL)간 그 옛 '서울'이 즉시 재사용되며 위치 고착을 자기강화하던 결함을 차단한다.
+    //       IP 결과는 좌표키(coordKey) 캐시까지만 둬 같은 도시 재진입의 날씨 즉시표시는 유지한다.
+    //   결과: 실제 동 이름이 도착한 정밀 GPS 결과만 seed → 정밀 fetch 가 실패해도 마지막 *실제 기기* 위치가 남는다.
+    if (allowSeed && snap.name !== MY_LOC && snap.name !== DEFAULT_LOC.name) {
+      localStorage.setItem(LAST_KEY, payload);
     }
   } catch {
     /* 용량 초과 등 무시 */
@@ -180,35 +185,45 @@ export function useWeather(
     // 직전 성공 스냅샷(LAST_KEY). 있으면 1단에서 측위·fetch 없이 즉시 렌더.
     const lastSeed = readCache(LAST_KEY);
 
-    // 정밀(측위) 결과가 한 번이라도 표시되면 필러(대치동)가 덮어쓰지 못하게 잠근다.
-    //   precise=true  — 측위 성공 좌표.
-    //   precise=false — 측위를 기다리지 않고 먼저 채우는 대치동 필러.
-    // seed 가 있으면 그 자체를 '정밀'로 간주(직전 사용자 위치 결과) → 측위 실패 폴백(대치동)이
-    //   더 정밀한 seed 를 덮어쓰지 않게 시작부터 잠근다([제안]7).
+    // 표시 우선순위(낮음→높음): 필러(대치동) < 정밀(IP 대략위치 또는 기기 GPS) < 기기 GPS.
+    //   precise=true  — 위치 결과(기기 GPS 또는 IP 대략위치). false — 대치동 필러.
+    //   isDevice=true — 기기 GPS 정밀 측위(IP 대략위치는 false).
+    // 두 잠금:
+    //   preciseShown: 위치 결과가 한 번 표시되면 늦게 온 필러(대치동)가 덮지 못하게.
+    //   deviceShown : 기기 GPS 결과가 한 번 표시되면 늦게 온 IP 대략위치가 덮지 못하게
+    //     (측위·IP 를 병렬 실행하므로 IP 가 GPS 보다 늦게 와도 정밀을 보존).
+    // seed 는 '정밀(preciseShown)'으로 간주(필러가 못 덮게)하되 'device 는 아님'으로 둔다 →
+    //   옛 기기 seed(예 출국 전 '서울')를 이번 세션의 신선한 IP 결과(예 인도)가 정정할 수 있게 한다.
     let preciseShown = !!lastSeed;
+    let deviceShown = false;
     // 역지오코딩(동 이름)이 측위 fetch 보다 먼저 도착할 수 있음(병렬). 먼저 도착한 동 이름을
     //   여기 담아 뒤늦은 fetch 결과의 placeholder("내 위치")를 실제 이름으로 덮어 표시·캐시한다.
     let geoName: string | null = null;
-    const show = (s: WeatherSnapshot, precise: boolean): boolean => {
+    const show = (s: WeatherSnapshot, precise: boolean, isDevice = false): boolean => {
       if (!mounted) return false;
-      if (preciseShown && !precise) return false; // 늦게 온 필러가 정밀 결과를 덮지 않도록.
+      if (deviceShown && !isDevice) return false; // 늦게 온 IP·필러가 기기 GPS 정밀을 덮지 않도록.
+      if (preciseShown && !precise) return false; // 늦게 온 필러가 위치 결과를 덮지 않도록.
       if (precise) preciseShown = true;
+      if (isDevice) deviceShown = true;
       setSnap(s);
       return true;
     };
-    const run = (lat: number, lon: number, name: string, precise: boolean) => {
+    const run = (lat: number, lon: number, name: string, precise: boolean, isDevice = false) => {
       const cached = readCache(coordKey(lat, lon));
       if (cached) {
-        show({ ...cached, name }, precise);
+        show({ ...cached, name }, precise, isDevice);
         return;
       }
       fetchWeather(lat, lon, name, ac.signal)
         .then((s) => {
           // 측위 fetch 가 역지오코딩보다 늦으면 이미 도착한 실제 동 이름을 입혀 표시·캐시.
           //   (fetchWeather 는 name 파라미터를 snap.name 그대로 반환한다는 계약에 의존 — 깨지면 이 조건 무력화.)
-          const named = precise && s.name === MY_LOC && geoName ? { ...s, name: geoName } : s;
-          if (show(named, precise)) {
-            writeCache(coordKey(lat, lon), named);
+          //   geoName 은 '기기 GPS(device) 동 이름'만 보관하므로(useCoords 참조), device run 의
+          //   placeholder("내 위치")에만 입힌다. coarse(IP) run 에 device 이름이 새지 않도록 isDevice 한정.
+          const named = isDevice && s.name === MY_LOC && geoName ? { ...s, name: geoName } : s;
+          if (show(named, precise, isDevice)) {
+            // seed(LAST_KEY) 승격은 기기 GPS(isDevice) 결과만 — IP 대략위치는 coordKey 캐시까지만.
+            writeCache(coordKey(lat, lon), named, isDevice);
           }
         })
         .catch((e: unknown) => {
@@ -229,16 +244,23 @@ export function useWeather(
     //   도착하면 실제 동/시 이름으로 갱신한다(IP city 는 영문이라 한국어 동 이름을 우선).
     //   coarse=true(IP 폴백)면 시 단위 이름만 표시(동·구는 IP 로 부정확). false(GPS)면 동까지.
     const useCoords = (lat: number, lon: number, precise: boolean, coarse = false) => {
+      // coarse=false(기기 GPS)만 device(정밀 seed 대상). coarse=true(IP 대략위치)는 device 아님.
+      const isDevice = precise && !coarse;
       // 날씨는 좌표만 있으면 되므로 즉시 fetch — 지명(역지오코딩)을 기다리지 않아 첫 표시 지연 단축.
-      run(lat, lon, MY_LOC, precise);
+      run(lat, lon, MY_LOC, precise, isDevice);
       // 지명은 병렬로 받아 도착 시 '이름만' 갱신(+캐시 이름 동기화). 실패하면 "내 위치" 유지.
       reverseGeocodeKo(lat, lon, ac.signal, coarse).then((name) => {
-        if (!mounted || !name) return;
-        geoName = name; // 측위 fetch 가 아직이면 run 의 then 에서 이 이름으로 덮어쓰도록 보관.
+        if (!mounted || ac.signal.aborted || !name) return;
+        // 이름 경로도 화면 잠금(deviceShown)을 따른다: 기기 GPS 정밀 결과가 이미 떴으면
+        //   늦게 온 IP(개략) 시/도명("서울")이 그 정밀 동 이름을 덮지 못하게 차단(2026-06-29 검수 반영).
+        if (deviceShown && !isDevice) return;
+        // geoName(늦게 도착할 run 의 fetch 에 입힐 이름)은 기기 GPS 결과만 보관 — IP 시/도명이
+        //   공유 변수를 통해 device 스냅에 새고 LAST_KEY seed 로까지 승격되던 경로 차단.
+        if (isDevice) geoName = name;
         setSnap((prev) => (prev ? { ...prev, name } : prev));
         const k = coordKey(lat, lon);
         const c = readCache(k);
-        if (c) writeCache(k, { ...c, name });
+        if (c) writeCache(k, { ...c, name }, isDevice);
       });
     };
 
@@ -249,46 +271,55 @@ export function useWeather(
     if (lastSeed) setSnap(lastSeed);
     else run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, false);
 
-    // 2단(백그라운드): 측위 → 사용자 위치 정밀 결과로 덮어쓰기.
-    //   웹=navigator, 네이티브=@capacitor/geolocation 으로 acquirePosition 이 자동 분기.
+    // 2단(백그라운드): 위치 정밀화 — 기기 GPS(정밀)와 IP 대략위치를 '동시에' 출발시킨다.
+    //   옛 구조는 측위 실패(reject)를 끝까지 기다린 뒤에야 IP 를 시도하는 직렬이라, 측위가
+    //   사실상 불가능한 환경(예: 출시 네이티브 바이너리에 @capacitor/geolocation 미링크)에서도
+    //   매 진입마다 navigator timeout(최대 GEO_OPTS.timeout=4s)을 통째로 버린 뒤에야 IP 로 떨어져
+    //   '위치가 한참 뒤에 뜬다'는 지연을 만들었다(2026-06-29 수정).
+    //   병렬 + show()의 deviceShown/preciseShown 잠금으로: IP 가 먼저 떠도 기기 GPS 가 도착하면
+    //   정밀로 업그레이드되고, IP 가 GPS 보다 늦게 와도 정밀을 덮지 않는다. 둘 다 실패해도
+    //   1단(seed 또는 대치동 필러)이 이미 화면을 채워둔다.
+
+    // (a) 기기 GPS — 정밀(동 단위). 웹=navigator, 네이티브=@capacitor/geolocation 으로 자동 분기.
     acquirePosition()
       .then(({ latitude, longitude }) => {
         if (!mounted) return;
-        useCoords(latitude, longitude, true);
+        useCoords(latitude, longitude, true); // coarse=false → isDevice=true(정밀 seed 대상)
       })
       .catch((err: unknown) => {
         if (!mounted) return;
-        // 관측성(과하지 않게 한 줄): 침묵 폴백의 '왜'를 콘솔에 남긴다. UI·외부 전송 없음.
-        //   다음에 '전원 대치동' 류가 재발하면 콘솔에서 1분 안에 측위 실패 vs fetch 실패를 구분.
+        // 관측성(한 줄): 침묵 폴백의 '왜'를 콘솔에 남긴다. UI·외부 전송 없음. IP 는 아래에서 병행 중.
         const code = typeof err === "object" && err && "code" in err ? (err as { code: number }).code : undefined;
         const msg =
           err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : String(err);
-        console.warn("[weather] 측위 실패 → IP 대략위치 시도:", code != null ? `code ${code}` : "", msg);
+        console.warn("[weather] 기기 측위 실패(IP 대략위치 병행):", code != null ? `code ${code}` : "", msg);
+      });
 
-        // 기기 측위 실패: 대치동으로 바로 가지 않고 먼저 접속 IP 기반 대략위치(/api/iploc)를 시도.
-        //   IP 라우트는 Vercel 헤더만 읽어 외부호출이 없다(ADR 0021 무관). 성공하면 도시/동 수준
-        //   대략위치를, 실패(404·네트워크·무효 좌표)하면 그때 비로소 대치동(최후 수단)으로 폴백.
-        fetch(`/api/iploc?_t=${Date.now()}`, { signal: ac.signal })
-          .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`iploc ${r.status}`))))
-          .then((j: { lat?: unknown; lon?: unknown }) => {
-            if (!mounted || ac.signal.aborted) return;
-            const lat = Number(j?.lat);
-            const lon = Number(j?.lon);
-            if (Number.isFinite(lat) && Number.isFinite(lon)) {
-              // 대략위치 표시(coarse=true → 시 단위 이름만, 동·구 안 내려감).
-              //   항상 정밀(true)로 처리: seed 가 있더라도 다른 도시의 옛 결과일 수 있어(해외 출장 등)
-              //   현재 IP 기반 결과가 더 정확한 위치. seed 가 같은 도시면 이름만 시 단위로 바뀔 뿐.
-              useCoords(lat, lon, true, true);
-            } else {
-              throw new Error("iploc invalid coords");
-            }
-          })
-          .catch((e: unknown) => {
-            if (!mounted || ac.signal.aborted) return;
-            console.warn("[weather] IP 대략위치 실패 → 대치동 폴백:", e instanceof Error ? e.message : String(e));
-            // 최후 수단: 대치동. seed 가 없으면 정밀(true)로 확정해 스켈레톤 종료, 있으면 필러(false).
-            run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, !lastSeed);
-          });
+    // (b) IP 대략위치 — 측위 성공을 기다리지 않고 동시에 시작(빠른 시 단위 폴백).
+    //   /api/iploc 은 Vercel 엣지 IP 헤더만 읽어 외부호출이 없다(ADR 0021 무관). 정밀 GPS 가
+    //   도착하면 show()의 deviceShown 가드로 이 coarse 결과를 자동으로 양보한다.
+    fetch(`/api/iploc?_t=${Date.now()}`, { signal: ac.signal })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`iploc ${r.status}`))))
+      .then((j: { lat?: unknown; lon?: unknown }) => {
+        if (!mounted || ac.signal.aborted) return;
+        const lat = Number(j?.lat);
+        const lon = Number(j?.lon);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+          // 대략위치 표시(coarse=true → 시 단위 이름만, 동·구는 IP 로 부정확해 안 내려감).
+          useCoords(lat, lon, true, true);
+        } else {
+          throw new Error("iploc invalid coords");
+        }
+      })
+      .catch((e: unknown) => {
+        if (!mounted || ac.signal.aborted) return;
+        console.warn("[weather] IP 대략위치 실패:", e instanceof Error ? e.message : String(e));
+        // 최후 수단(대치동)은 아무 위치 결과도 표시되지 않았고 seed 도 없을 때만 — 그 외엔
+        //   1단 대치동 필러(seed 없을 때)·seed(있을 때)·기기 GPS 결과가 이미 화면을 채운다.
+        //   precise=true 로 확정해 스켈레톤을 끝내고(에러 노출 가능), isDevice 는 false(seed 미승격).
+        if (!preciseShown && !lastSeed) {
+          run(DEFAULT_LOC.lat, DEFAULT_LOC.lon, DEFAULT_LOC.name, true);
+        }
       });
     return () => {
       mounted = false;

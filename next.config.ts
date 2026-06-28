@@ -159,7 +159,10 @@ const nextConfig: NextConfig = {
       // GA4 의 GIF beacon → google-analytics.com / googletagmanager.com 도 img-src 허용.
       `img-src 'self' data: blob: https://${supabaseHost} https://i.ytimg.com https://img.youtube.com https://www.google-analytics.com https://www.googletagmanager.com https://oapi.map.naver.com https://*.map.naver.com https://*.map.naver.net https://*.pstatic.net`,
       "font-src 'self' data:",
-      `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://vitals.vercel-insights.com https://va.vercel-scripts.com https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://wcs.naver.com https://oapi.map.naver.com https://*.map.naver.com https://*.map.naver.net https://*.pstatic.net`,
+      // 피부날씨(투데이/상세) 클라이언트 직접 호출: Open-Meteo(예보·대기질) + BigDataCloud(역지오코딩).
+      //   ADR: 무료 per-IP 제한 API 라 서버 프록시 대신 클라 직접 호출(공유 egress IP 한도 회피, 2026-06-24 사고 환원).
+      //   현재 CSP 는 Report-Only 라 누락돼도 차단은 안 됐으나, enforce 전환 대비 + 위반 로그 노이즈 제거 위해 명시(2026-06-29).
+      `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://vitals.vercel-insights.com https://va.vercel-scripts.com https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://wcs.naver.com https://oapi.map.naver.com https://*.map.naver.com https://*.map.naver.net https://*.pstatic.net https://api.open-meteo.com https://air-quality-api.open-meteo.com https://api.bigdatacloud.net`,
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
