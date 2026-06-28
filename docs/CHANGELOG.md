@@ -18,6 +18,7 @@
 
 ### Changed
 - **CSP `connect-src` 에 날씨 API 도메인 추가**(`next.config.ts`) — `api.open-meteo.com` · `air-quality-api.open-meteo.com` · `api.bigdatacloud.net`. 현재 `Content-Security-Policy-Report-Only` 라 차단은 없었으나 enforce 전환 대비 + 위반 로그 노이즈 제거.
+- **네이티브 앱 버전 증가(Phase 2 준비 — 동 단위 측위 재심사 빌드용)** — Android `versionCode 1→2`·`versionName 1.0→1.0.1`(`android/app/build.gradle`), iOS `MARKETING_VERSION 1.0→1.0.1`(`ios/.../project.pbxproj`, Debug·Release). 현 출시본(1.0/v1)과 충돌 방지. **동 단위 표시는 기기 측위가 있어야 하고, 출시 바이너리에 측위 플러그인이 미링크라 새 빌드+스토어 재심사가 필수**(웹 배포로 불가). 정밀도는 동 단위로 충분 판단 → COARSE 유지(FINE 미사용, ADR 0022). 빌드 워크플로(`android-release.yml`·`ios-testflight.yml`)가 빌드 시 `cap sync` 로 `@capacitor/geolocation` 자동 링크 → 실행 후 원장이 스토어 제출. STORE_SUBMISSION_LOG 2026-06-29 참조.
 
 ### Added
 - **`docs/plans/today-location-fix-plan.md`** — 4-에이전트 근본원인 종합 + 단계 계획서(Phase 0 인도 IP 실측 / Phase 1 웹 수정(본 항목) / Phase 2 네이티브 재빌드).

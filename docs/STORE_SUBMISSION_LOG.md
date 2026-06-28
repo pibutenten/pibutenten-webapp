@@ -4,7 +4,9 @@
 > 원장님이 "지금 어디까지 됐어?" 라고 물으면, AI 는 **이 문서를 먼저 읽고** 현재 상태를 답한 뒤,
 > 변동이 있으면 이 문서를 갱신합니다. (계획·전략은 `plans/mobile-app-store-launch-plan.md`, 카피·자산은 `plans/store-listing.md`.)
 
-최종 갱신: **2026-06-25**
+최종 갱신: **2026-06-29**
+
+> 🟡 **다음 빌드 대기(2026-06-29)**: 피부날씨 위치 동(洞) 단위 표시 = 기기 측위(COARSE) 필요 → **새 빌드 + 스토어 재심사 필수**(웹 배포로는 불가). 소스·권한·플러그인은 준비 완료(빌드 워크플로가 `cap sync` 자동 수행). **버전 증가 적용: Android `versionCode 2`/`versionName 1.0.1`, iOS `MARKETING_VERSION 1.0.1`**(현 출시본 1.0/v1 과 충돌 방지). 남은 절차: ① `android-release.yml`·`ios-testflight.yml` 워크플로 실행(수동 dispatch) → ② AAB 를 Play Console 업로드 / TestFlight 빌드를 App Store Connect 새 버전(1.0.1)에 첨부·제출(원장). 정밀도는 동 단위로 충분 판단 → FINE 미사용(COARSE 유지, ADR 0022). 웹 IP 폴백 견고화(서울 고착·느림 수정)는 이미 배포됨(CHANGELOG 2026-06-29, commit ba08df6).
 
 > ⚠️ **재심사 대기 항목(2026-06-25)**: 피부날씨 네이티브 측위 수정(`@capacitor/geolocation` + iOS `NSLocationWhenInUseUsageDescription` + Android `ACCESS_COARSE_LOCATION`)은 **네이티브 바이너리 변경**이라 **새 앱 빌드 + 스토어 재심사가 있어야** 현재 출시본에 반영됩니다(웹 배포만으로는 적용 안 됨). 코드·권한 선언은 적용 완료, 빌드·제출은 원장 검수 후 별도 진행. 상세는 ADR 0022.
 > - **플러그인 등록은 자동**: GitHub Actions 빌드 워크플로(android-build/android-release/ios-build/ios-testflight)가 빌드 직전 `npx cap sync` 를 수행하므로, `@capacitor/geolocation` 은 빌드 시 iOS/Android 네이티브 프로젝트에 자동 등록됩니다(수동 작업 불필요).
