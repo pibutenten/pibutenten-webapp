@@ -67,20 +67,6 @@ function painPhrase(a: number): string {
   return "꽤 아팠다는 분이 많아요";
 }
 
-/** 채움 배경(theme.color) 위에서 읽히는 글자색 — 명도 기반(연한 색=어두운 글씨, AA 확보). */
-function readableOn(c: string): string {
-  if (!c || c[0] !== "#" || c.length < 7) return "#23272F";
-  const r = parseInt(c.slice(1, 3), 16);
-  const g = parseInt(c.slice(3, 5), 16);
-  const b = parseInt(c.slice(5, 7), 16);
-  const lin = (v: number) => {
-    const s = v / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  };
-  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return 1.05 / (L + 0.05) >= 3 ? "#FFFFFF" : "#23272F";
-}
-
 const FIGURE_PATH = (
   <>
     <circle cx="12" cy="7.5" r="4.6" fill="currentColor" />
@@ -233,17 +219,13 @@ export default function ReportsNewDetailView({
       <div className="flex flex-col gap-2 overflow-hidden rounded-[var(--radius-lg)]">
         {/* ── 히어로 ── */}
         <section className="px-5 pb-7 pt-6 text-center" style={{ backgroundColor: theme.soft }}>
-          {/* 브랜드 배지 */}
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11.5px] font-extrabold tracking-[0.04em]"
-            style={{ color: theme.color }}
-          >
-            <i
-              className="block h-3 w-3 rounded-[4px]"
-              style={{ backgroundColor: theme.color }}
-              aria-hidden
-            />
-            피부텐텐 리포트
+          {/* 브랜드 락업 — 실제 앱 로고(tt: 피부텐텐) + "리포트" */}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand-logo.svg" alt="피부텐텐" className="h-[18px] w-auto" />
+            <span className="text-[15px] font-extrabold tracking-[-0.01em] text-[var(--primary)]">
+              리포트
+            </span>
           </span>
           {/* 시술명 큰 제목 */}
           <h2 className="mt-3.5 text-[34px] font-extrabold leading-[1.05] tracking-[-0.045em] text-[var(--text)]">
@@ -471,7 +453,7 @@ export default function ReportsNewDetailView({
                 className="shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-semibold"
                 style={
                   i === 0
-                    ? { backgroundColor: theme.color, color: readableOn(theme.color) }
+                    ? { backgroundColor: theme.color, color: "#fff" }
                     : { backgroundColor: "var(--bg-soft)", color: "var(--text-secondary)" }
                 }
               >
@@ -617,8 +599,8 @@ export default function ReportsNewDetailView({
         <button
           type="button"
           onClick={share}
-          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius)] py-3.5 text-[14px] font-bold transition-opacity hover:opacity-90"
-          style={{ backgroundColor: theme.color, color: readableOn(theme.color) }}
+          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius)] py-3.5 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: theme.color }}
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />

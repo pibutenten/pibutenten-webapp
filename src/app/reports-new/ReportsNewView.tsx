@@ -144,12 +144,6 @@ export default function ReportsNewView({
   return (
     <AppShell
       active="리포트"
-      back="/"
-      backTitle={
-        <h1>
-          시술 리포트 <b>{items.length}</b>개
-        </h1>
-      }
       sidebar={sidebar}
       sidebarMobileBelow
       chips={chips}

@@ -58,20 +58,6 @@ function painPhrase(a: number): string {
   return "꽤 아팠다는 분이 많아요";
 }
 
-/** 채움 배경(theme.color) 위에서 읽히는 글자색 — 명도 기반(연한 색=어두운 글씨, AA 확보). */
-function readableOn(c: string): string {
-  if (!c || c[0] !== "#" || c.length < 7) return "#23272F";
-  const r = parseInt(c.slice(1, 3), 16);
-  const g = parseInt(c.slice(3, 5), 16);
-  const b = parseInt(c.slice(5, 7), 16);
-  const lin = (v: number) => {
-    const s = v / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  };
-  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return 1.05 / (L + 0.05) >= 3 ? "#FFFFFF" : "#23272F";
-}
-
 export default function ReportsNewCard({
   report,
   headline,
@@ -231,7 +217,7 @@ export default function ReportsNewCard({
         style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="px-5 pb-5 pt-1.5">
+          <div className="px-5 pb-5 pt-5">
             {/* 만족도 — 별점 + 큰 점수 + 한 줄 평 */}
             <div className="flex items-center gap-3">
               <span className="text-[15px] leading-none tracking-[1px]" aria-hidden>
@@ -331,10 +317,10 @@ export default function ReportsNewCard({
             <Link
               href={reportHref}
               className={
-                "mt-5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] px-4 py-3.5 text-[14px] font-bold " +
+                "mt-5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] px-4 py-3.5 text-[14px] font-bold text-white " +
                 FOCUS_RING
               }
-              style={{ backgroundColor: theme.color, color: readableOn(theme.color) }}
+              style={{ backgroundColor: theme.color }}
               aria-label={`${procedureKo} 피부텐텐 리포트 보러가기`}
             >
               {procedureKo} 피부텐텐 리포트 보러가기
