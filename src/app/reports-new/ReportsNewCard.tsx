@@ -88,7 +88,8 @@ export default function ReportsNewCard({
   ).join(", ")}, ${PAIN_SOFT[PAIN_SOFT.length - 1]} 100%)`;
 
   const top3 = effects.slice(0, 3);
-  const reportHref = `/reports/${encodeURIComponent(procedureKo)}`;
+  // staging 전체 보고서(목업 풀 에디토리얼)로 연결 — 승격 시 /reports/{시술}로 교체.
+  const reportHref = `/reports-new/${encodeURIComponent(procedureKo)}`;
 
   // 펼침 + 막대 0→값 부드러운 채움(펼친 직후 한 박자 뒤 revealed=true).
   const [open, setOpen] = useState(false);
