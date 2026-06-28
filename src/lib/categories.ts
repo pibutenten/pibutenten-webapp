@@ -17,7 +17,10 @@
  * - laser        레이저       (코럴 #E57373)
  * - other        기타         (블루그레이 #78909C)
  * - homecare     홈케어       (테라코타 #BF6E5C)
- * - knowledge    피부상식     (올리브 #9E9D24) — 매핑 안 되는 태그 자동 분류
+ * - knowledge    피부상식     (올리브 #9E9D24) — categoryFor() 가 화이트리스트 밖 값을 폴백시키는 기본 카테고리
+ *
+ * 미지정('unassigned')은 위 9종과 별개의 관리용 센티넬입니다 — gen-tag-dictionary.mjs 의
+ * KR2SLUG 에서 'unassigned' 로 분리되어 이 배열·UI 어디에도 노출되지 않습니다(시술 탭 혼입 방지).
  */
 export type CategorySlug =
   | "concerns"

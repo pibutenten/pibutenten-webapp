@@ -6,6 +6,37 @@
 
 ---
 
+## [2026-06-28] — 시술사전 선재고 정리(0317) + v9 분류 대대적 개편(0318) + maker 필드
+
+> 본 커밋은 **DB 마이그레이션(0316/0317/0318) + 문서만** 포함합니다. 스냅샷(`tag-dictionary.generated.json`) 재생성·배포 반영은 다음 빌드가 production DB(=v9)에서 자동 수행합니다. 다중 세션 동시 작업으로 스냅샷·UI 파일은 본 커밋에서 제외했습니다(겹침 방지).
+
+### Added
+- **maker(제조사) 컬럼 (마이그 0318)** — `tag_dictionary` 에 `maker text[]` 추가, 134개 시술에 `[한글, 영문]` 제조사 적재. 코드·스냅샷·UI 미참조(데이터 보관용, 화면 노출은 후속 과제).
+- **신규 시술 영문 slug 34개** — is_procedure 209→249 로 증가하며 영문 slug 없던 신규 시술 34개에 slug 부여(서브시전→subcision, 소노포레시스→sonophoresis 등). 브랜드 정체 불확실 4건(rapullen/eve-synergy/corege/fractat)은 임시 음역 — 추후 확정 필요.
+
+### Changed
+- **[대규모] v9 태그 분류 전면 개편 (마이그 0318)** — 사용자 큐레이션 `전달용/전체태그_v9.json`(2167행)을 SSOT 로 production 전체 UPSERT. 카테고리 변경 68건·is_procedure 변경 41건·parent 변경 7건. **적용 후 DB↔v9 0-diff(완전 일치) 검증.** 카테고리 분포: 리프팅62·스킨부스터36·필러·볼륨45·주름·윤곽42·레이저70·기타46 + 비시술(피부고민244·홈케어235·피부상식199)·미지정1188.
+- **선재고 정리 (마이그 0317)** — 직전 큐레이션(198종) 밖에 쌓여 있던 비-v6 시술·일반어 정리: 신규 12 편입 + 별칭 병합 3(덴서티알파팁→덴서티 등) + 미라젯/이펙스 정리 + 일반어 재분류(보톡스류→주름·윤곽, 레이저류→레이저, 재료/회사/도구→미지정). 레디어스↔래디어스 표준명 교체(레디어스 표준), 올리디아365 부모=올리디아.
+- **머지 별칭·정규화 (0317/0318)** — 머지(래디어스→레디어스, 엑셀브이→엑셀V, 하이푸→HIFU, 티타늄리프팅→티타늄 등)는 target.aliases + `tag_normalization`(canonical=구표기→[정상]) 정방향 적재로 검색 연속성 유지. 0317 의 티타늄 정규화는 v9 가 반전(티타늄=정식명)하여 stale 행 제거 후 재적재.
+
+### Fixed
+- **삭제 태그 후기 재연결 (마이그 0318)** — `procedure_reviews.procedure_ko='덴서티알파팁'`(후기 2건)을 머지 대상 '덴서티'로 재연결(리포트 고아 방지). 더엘주사 en 을 기존 published 앵커(`the-l-solution`, 후기 43건)와 일치하도록 교정(영문 URL/사이트맵 정합).
+
+---
+
+## [2026-06-28] — 태그 정규화 방향 정정(0316) + 다한증보톡스 재분류 + 피드 인기태그 6종 축소
+
+### Fixed
+- **[치명] tag_normalization 오타교정 방향 반전 (마이그 0316)** — 직전 0312 가 tag_normalization 의 (canonical, variants) 두 컬럼을 거꾸로 적재(canonical=정상 ko / variants=[오타])하여 (1) 오타 입력이 교정되지 않고 (2) 정상 시술명 입력이 도리어 자기 오타로 역오염되는 회귀 발생. 규약은 **canonical=입력 키(오타) / variants=정규화 출력(정상 시술명)** (소비 코드 procedure-dict.ts::normalizeTag·빌드 스크립트 gen-tag-dictionary.mjs 기준). procedures_v6.json {ko, typos} 권위 기준으로 올바른 방향 63건 재적재(INSERT ON CONFLICT DO UPDATE) + 0312 가 만든 역방향 54행만 (canonical, variants) 정확 매칭으로 개별 DELETE(정상 시술명 56행 역오염 해소). 레거시 별칭병합(리쥬란HB→리쥬란 등)·분할룰(HIFU부작용→HIFU/부작용 등)은 ko 가 JSON 항목이 아니므로 보존. 빌드 스냅샷(tag-dictionary.generated.json) 재생성.
+- **피드 인기태그(FeedSidebar) stale 주석 정정** — 카테고리 탭 축소에 맞춰 9종 가정의 옛 주석을 시술 6종 기준으로 교정.
+
+### Changed
+- **분류 재배치: 다한증보톡스 (마이그 0316)** — tag_dictionary 분류를 '주름·윤곽' → '기타' 로 재배치. 기능성 톡신으로 두피보톡스와 동류라는 사용자 도메인 결정. is_procedure=true 유지.
+- **피드 인기태그(FeedSidebar) 카테고리 탭 9종 → 시술 6종** — CATEGORIES 전체 대신 PROCEDURE_CATEGORIES(리프팅/스킨부스터/필러·볼륨/주름·윤곽/레이저/기타)로 축소. 검색·온보딩 탭과 동일 기준으로 통일. 좁은 사이드바 가로 넘침은 flex-wrap 2줄로 처치.
+- **문서 표기 정정** — 계획서 docs 사본(PLAN-tag-category-overhaul.md)의 미지정 slug 표기를 `unclassified` → `unassigned` 로 통일(실제 구현이 unassigned). 미지정은 UI 미노출 센티넬임을 명시.
+
+---
+
 ## [2026-06-28] — 태그 카테고리 5종→9종 확장 + DB 마이그레이션
 
 카테고리 체계를 5종(concerns/lifting/injectables/homecare/knowledge)에서 9종(+skinbooster/filler/contour/laser/other, -injectables)으로 확장. 관리자용 '미지정' 포함 총 10종. injectables→skinbooster 클린 브레이크.

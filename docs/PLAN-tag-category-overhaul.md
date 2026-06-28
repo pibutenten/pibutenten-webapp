@@ -28,7 +28,7 @@
 | 비시술 | 피부고민 | `concerns` | `#7E57C2` (퍼플) | X |
 | 비시술 | 홈케어 | `homecare` | `#BF6E5C` (테라코타) | X |
 | 비시술 | 피부상식 | `knowledge` | `#9E9D24` (올리브) | X |
-| 관리 | 미지정 | `unclassified` | `#BDBDBD` (그레이) | X |
+| 관리 | 미지정 | `unassigned` | `#BDBDBD` (그레이) | X | <!-- 미지정은 UI 미노출 센티넬: CATEGORIES 배열·검색/온보딩/피드 탭 어디에도 표시 안 됨, KR2SLUG 에서 'unassigned' 로 분리되어 시술 탭 혼입 방지 -->
 
 ### 2.2. Slug 규칙
 
@@ -198,7 +198,7 @@ END AS category
 
 변경:
 - `CategorySlug` 유니온에 `"skinbooster" | "filler" | "contour" | "laser" | "other"` 추가, `"injectables"` 제거
-- `CATEGORIES` 배열: 9종 정의 (slug + label + color). `unclassified`는 관리용이므로 UI 배열에 미포함.
+- `CATEGORIES` 배열: 9종 정의 (slug + label + color). `unassigned`(미지정)은 관리용 센티넬이므로 UI 배열에 미포함.
 - `PROCEDURE_CATEGORIES`: 시술 6종 파생 상수 (검색 탭, 후기 폼용)
 - `pickDefaultCategory()`: 시술 카테고리 중 `"other"` 제외 5종에서 랜덤 (기타는 시술 칩이 부족할 수 있으므로)
 
