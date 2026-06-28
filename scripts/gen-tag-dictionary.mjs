@@ -31,7 +31,7 @@ const KR2SLUG = {
   스킨부스터: "skinbooster",
   홈케어: "homecare",
   피부상식: "knowledge",
-  미지정: "other",
+  미지정: "unassigned",
   "필러·볼륨": "filler",
   "주름·윤곽": "contour",
   레이저: "laser",
