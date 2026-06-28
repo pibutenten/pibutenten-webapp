@@ -53,16 +53,18 @@ export default function ReportsIndexSidebar({
   return (
     <>
       {/* ① 후기 쓰기 CTA */}
-      <section className={BOX}>
-        <h3 className={H3}>내가 받은 시술, 후기 남기기</h3>
-        <p className="mt-1.5 text-[13px] leading-[1.5] text-[var(--text-secondary)]">
-          내 경험이 다음 사람의 선택을 도와요.
-        </p>
+      <section className={BOX + " flex items-center justify-between gap-3"}>
+        <div className="min-w-0">
+          <h3 className={H3}>내가 받은 시술, 후기 남기기</h3>
+          <p className="mt-1.5 text-[13px] leading-[1.5] text-[var(--text-secondary)]">
+            내 경험이 다음 사람의 선택을 도와요.
+          </p>
+        </div>
         <Link
           href="/review/new"
           style={{ color: "#fff" }}
           className={
-            "mt-3 inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] " +
+            "shrink-0 inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] " +
             FOCUS_RING
           }
         >

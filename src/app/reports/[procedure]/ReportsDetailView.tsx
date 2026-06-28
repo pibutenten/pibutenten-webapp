@@ -239,7 +239,8 @@ export default function ReportsDetailView({
   const [liked, setLiked] = useState<Record<number, boolean>>(reviewLiked);
   const [demo, setDemo] = useState(reviewDemo);
   const [loadingMore, setLoadingMore] = useState(false);
-  const hasMore = items.length < reviewTotal;
+  const [reachedEnd, setReachedEnd] = useState(false);
+  const hasMore = !reachedEnd && items.length < reviewTotal;
   const expanded = items.length > reviews.length;
   const nextChunk = Math.min(10, reviewTotal - items.length);
 
@@ -281,6 +282,7 @@ export default function ReportsDetailView({
       setItems((prev) => [...prev, ...data.reviews]);
       setLiked((prev) => ({ ...prev, ...data.reviewLiked }));
       setDemo((prev) => ({ ...prev, ...(data.reviewDemo ?? {}) }));
+      if ((data.reviews?.length ?? 0) < 10) setReachedEnd(true);
     } catch {
       /* 무시 — 재시도 가능 */
     } finally {
@@ -290,6 +292,7 @@ export default function ReportsDetailView({
   function collapseReviews() {
     setItems(reviews);
     setLiked(reviewLiked);
+    setReachedEnd(false);
   }
 
   async function share() {
@@ -434,7 +437,7 @@ export default function ReportsDetailView({
             얼마나 <span style={{ color: theme.color }}>아프고</span>, 얼마나{" "}
             <span style={{ color: theme.color }}>쉬어야</span> 할까?
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-4">
+          <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-4">
             <div>
               <div className="mb-2 text-[12.5px] font-semibold text-[var(--text-secondary)]">
                 통증 <span className="text-[var(--text)]">{avgPain.toFixed(1)}점</span> · {painPhrase(avgPain)}
@@ -548,13 +551,13 @@ export default function ReportsDetailView({
       </div>
 
       {/* ── ② 직접 들어보기 — 제목은 상자 밖, 각 후기는 독립 글상자 ── */}
-      <section className="mt-4 scroll-mt-2">
+      <section className="mt-10 scroll-mt-2">
         <div className="px-1">
           <div className={EYEBROW} style={{ color: theme.color }}>In their words</div>
           <div className="flex items-baseline gap-2">
-            <span className={QHEAD}>직접 들어보기</span>
+            <span className={QHEAD}>생생한 후기 직접 들어보기</span>
             <span className="text-[12.5px] font-semibold text-[var(--text-secondary)]">
-              경험자의 후기 {reviewTotal}개
+              경험자의 후기 {reviewTotal}건
             </span>
           </div>
         </div>
@@ -562,8 +565,8 @@ export default function ReportsDetailView({
         {/* 정렬 칩 — 후기 구간에서만 sticky 고정. 배경은 앱 캔버스와 동일(회색 없음). 활성=브랜드색. */}
         <div
           ref={chipRef}
-          className="sticky top-0 z-[41] mt-3 py-2.5"
-          style={{ background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
+          className="sticky z-[41] mt-3 py-2.5"
+          style={{ top: "var(--sat)", background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
         >
           <div
             role="group"
@@ -589,17 +592,18 @@ export default function ReportsDetailView({
         </div>
 
         {sortedItems.length > 0 ? (
-          <div key={reviewSort} className="flex flex-col gap-2.5 px-px" style={{ animation: "rvRise .28s ease both" }}>
+          <div key={reviewSort} className="flex flex-col gap-2.5 px-px">
             {sortedItems.map((card) => (
-              <ReportsReviewCard
-                key={card.id}
-                card={card}
-                category={report.category}
-                liked={liked[card.id] ?? false}
-                demo={demo[card.id]}
-                me={me}
-                onLoginRequired={(reason) => setAuthPrompt(reason)}
-              />
+              <div key={card.id} style={{ animation: "rvRise .28s ease both" }}>
+                <ReportsReviewCard
+                  card={card}
+                  category={report.category}
+                  liked={liked[card.id] ?? false}
+                  demo={demo[card.id]}
+                  me={me}
+                  onLoginRequired={(reason) => setAuthPrompt(reason)}
+                />
+              </div>
             ))}
           </div>
         ) : (
@@ -607,12 +611,12 @@ export default function ReportsDetailView({
         )}
 
         {(hasMore || expanded) && (
-          <div className="mt-2.5 flex gap-2">
+          <div className="mt-2.5 flex justify-center gap-2">
             {hasMore && (
               <button
                 type="button"
                 onClick={loadMore}
-                className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius)] bg-white py-3.5 text-[13px] font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-soft)]"
+                className="flex items-center justify-center gap-1 rounded-[var(--radius)] bg-white px-6 py-3.5 text-[13px] font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-soft)]"
               >
                 {loadingMore ? "불러오는 중…" : `후기 ${nextChunk}개 더 보기`}
               </button>
@@ -621,7 +625,7 @@ export default function ReportsDetailView({
               <button
                 type="button"
                 onClick={collapseReviews}
-                className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius)] bg-white py-3.5 text-[13px] font-bold text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]"
+                className="flex items-center justify-center gap-1 rounded-[var(--radius)] bg-white px-6 py-3.5 text-[13px] font-bold text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]"
               >
                 접기
               </button>
@@ -656,7 +660,7 @@ export default function ReportsDetailView({
                   <span className="flex min-w-0 flex-col gap-[3px]">
                     <span className="truncate text-[14.5px] font-bold text-[var(--text)]">{card.title}</span>
                     <span className="text-[12px] font-semibold text-[var(--text-secondary)]">
-                      {doctorName} 원장 · 답변
+                      {doctorName} 원장
                     </span>
                   </span>
                 </Link>

@@ -8,11 +8,12 @@
  * 좋아요는 ReportReviewItem 과 동일하게 useCardEngagement(toggle_card_like)로 같은 card_likes 공유.
  * liked 초기값은 부모 prefetch — 훅이 per-row 자체 조회(N쿼리)를 하지 않는다.
  */
+import { useState } from "react";
 import Link from "next/link";
 import type { CardData } from "@/components/Card";
 import type { ReviewSummaryData } from "@/lib/types/card";
 import { getQaUrl } from "@/lib/card-url";
-import { showToast } from "@/lib/toast";
+import CommentsBlock from "@/components/comments/CommentsBlock";
 import RelativeTime from "@/components/RelativeTime";
 import { categoryTheme } from "@/lib/procedure-theme";
 import type { ProcedureCategory } from "@/lib/procedure-report";
@@ -49,6 +50,8 @@ export default function ReportsReviewCard({
   onLoginRequired: (reason: string) => void;
 }) {
   const eng = useCardEngagement(card, { liked }, me, onLoginRequired, noopShare);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState(card.comment_count ?? 0);
 
   const theme = categoryTheme(category);
   const author = Array.isArray(card.author) ? card.author[0] : card.author;
@@ -68,31 +71,6 @@ export default function ReportsReviewCard({
   const ageLabel = demo?.ageDecade ? (demo.ageDecade >= 50 ? "50대+" : `${demo.ageDecade}대`) : null;
   const genderLabel = demo?.gender === "female" ? "여성" : demo?.gender === "male" ? "남성" : null;
   const demoText = [ageLabel, genderLabel].filter(Boolean).join(" · ");
-
-  const handleShare = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const url =
-      typeof window !== "undefined"
-        ? new URL(href, window.location.origin).toString()
-        : href;
-    try {
-      const nav =
-        typeof navigator !== "undefined"
-          ? (navigator as Navigator & {
-              share?: (d: { title?: string; url?: string }) => Promise<void>;
-            })
-          : null;
-      if (nav?.share) {
-        await nav.share({ title: card.title ?? name, url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      showToast("링크를 복사했어요");
-    } catch {
-      // 공유 시트 취소(AbortError) 등 — 조용히 무시.
-    }
-  };
 
   return (
     <div className="rounded-2xl bg-[var(--surface,#fff)] p-5" style={{ wordBreak: "keep-all" }}>
@@ -158,7 +136,7 @@ export default function ReportsReviewCard({
         )}
       </div>
 
-      {/* 푸터 — 좋아요 / 댓글 / 공유 */}
+      {/* 푸터 — 좋아요 / 댓글 */}
       <div className="mt-3.5 flex items-center gap-[18px] text-[12px] font-semibold text-[var(--text-muted)]">
         <button
           type="button"
@@ -189,10 +167,12 @@ export default function ReportsReviewCard({
           {eng.like.count > 0 && <span>{eng.like.count}</span>}
         </button>
 
-        <Link
-          href={href}
-          className="flex items-center gap-[5px] transition-colors hover:text-[var(--accent)]"
+        <button
+          type="button"
+          onClick={() => setCommentsOpen((o) => !o)}
+          aria-expanded={commentsOpen}
           aria-label="댓글"
+          className="flex cursor-pointer items-center gap-[5px] transition-colors hover:text-[var(--accent)]"
         >
           <svg
             viewBox="0 0 24 24"
@@ -206,29 +186,22 @@ export default function ReportsReviewCard({
           >
             <path d="M21 11.5a8.4 8.4 0 0 1-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1 1 21 11.5Z" />
           </svg>
-          {(card.comment_count ?? 0) > 0 && <span>{card.comment_count}</span>}
-        </Link>
-
-        <button
-          type="button"
-          onClick={handleShare}
-          aria-label="공유"
-          className="ml-auto flex cursor-pointer items-center transition-colors hover:text-[var(--accent)]"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-[17px] w-[17px]"
-            aria-hidden
-          >
-            <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />
-          </svg>
+          {commentCount > 0 && <span>{commentCount}</span>}
         </button>
       </div>
+
+      {commentsOpen && (
+        <div className="mt-3 border-t border-[var(--border)] pt-3">
+          <CommentsBlock
+            cardId={card.id}
+            doctorSlug={null}
+            cardDoctorId={null}
+            isPublishedQa={true}
+            showInput={true}
+            onCountChange={setCommentCount}
+          />
+        </div>
+      )}
     </div>
   );
 }
