@@ -46,7 +46,7 @@ type SortKey = "count" | "revisit" | "satisfaction" | "pain";
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: "count", label: "후기 많은 순" },
-  { key: "revisit", label: "다시 받고 싶은 순" },
+  { key: "revisit", label: "재시술의향 높은 순" },
   { key: "satisfaction", label: "만족도 높은 순" },
   { key: "pain", label: "통증 적은 순" },
 ];
@@ -149,6 +149,7 @@ export default function ReportsNewView({
       chips={chips}
       {...search}
     >
+      <style>{`@keyframes rvRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}`}</style>
       {visible.length === 0 ? (
         <p className="px-1 py-8 text-center text-[14px] leading-[1.6] text-[var(--text-muted)]">
           {items.length === 0
@@ -156,7 +157,11 @@ export default function ReportsNewView({
             : "이 카테고리에는 아직 리포트가 없어요."}
         </p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div
+          key={`${sort}-${category ?? "all"}`}
+          className="flex flex-col gap-3"
+          style={{ animation: "rvRise .28s ease both" }}
+        >
           {visible.map((it) => (
             <ReportsNewCard
               key={it.report.procedureKo}

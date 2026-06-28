@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-report";
+import { getProcedureReport, getFamilyReviewCardIds, getReviewSummaryFeedPool } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
 import type { ProcedureSlug } from "@/lib/categories";
@@ -101,6 +101,20 @@ export default async function ReportsNewDetailPage({ params }: Props) {
     for (const r of reviews) reviewLiked[r.id] = !!st[r.id]?.liked;
   }
 
+  // 작성자 나이·성별(작성자 통계와 동일 SECURITY DEFINER 경로) — 후기 카드 표시용.
+  const reviewDemo: Record<number, { gender: string | null; ageDecade: number | null }> = {};
+  if (reviews.length > 0) {
+    const { data: demoRowsRaw } = await supabase.rpc("get_review_author_demographics", {
+      p_card_ids: reviews.map((r) => r.id),
+    });
+    const demoRows = (demoRowsRaw ?? []) as {
+      card_id: number;
+      gender: string | null;
+      age_decade: number | null;
+    }[];
+    for (const d of demoRows) reviewDemo[d.card_id] = { gender: d.gender, ageDecade: d.age_decade };
+  }
+
   // 전문의 Q&A 얇은 링크 — 실제 존재(의사 qa ≥4)할 때만(정식 페이지와 동일 게이트).
   const { data: idxTags } = await supabase.rpc("get_indexable_tags", {
     p_min_count: 4,
@@ -129,7 +143,7 @@ export default async function ReportsNewDetailPage({ params }: Props) {
     ko: string;
     en: string;
     count: number;
-    revisitPct: number;
+    effectPct: number;
     category: ProcedureSlug | null;
   }[] = [];
   if (topEffect) {
@@ -168,6 +182,7 @@ export default async function ReportsNewDetailPage({ params }: Props) {
 
     const kos = top.map(([k]) => k);
     const metaMap = new Map<string, { en: string; category: ProcedureSlug | null }>();
+    const totMap = new Map<string, number>();
     if (kos.length) {
       const { data: tg } = await supabase
         .from("tag_dictionary")
@@ -180,16 +195,37 @@ export default async function ReportsNewDetailPage({ params }: Props) {
       }[]) {
         metaMap.set(t.ko, { en: t.en ?? "", category: catSlug(t.category) });
       }
+      // 후보 시술별 전체 발행 후기 수(효과 비율의 분모)
+      const { data: totRows } = await supabase
+        .from("procedure_reviews")
+        .select("procedure_ko, cards!inner(status, deleted_at)")
+        .in("procedure_ko", kos)
+        .eq("cards.status", "published")
+        .is("cards.deleted_at", null)
+        .limit(6000)
+        .returns<{ procedure_ko: string }[]>();
+      for (const r of totRows ?? []) totMap.set(r.procedure_ko, (totMap.get(r.procedure_ko) ?? 0) + 1);
     }
 
-    similar = top.map(([k, a]) => ({
-      ko: k,
-      en: metaMap.get(k)?.en ?? "",
-      count: a.c,
-      revisitPct: Math.round((a.y / a.c) * 100),
-      category: metaMap.get(k)?.category ?? null,
-    }));
+    similar = top.map(([k, a]) => {
+      const total = totMap.get(k) ?? a.c;
+      return {
+        ko: k,
+        en: metaMap.get(k)?.en ?? "",
+        count: total,
+        // 이 시술 후기 중 공유 효과(top effect)를 꼽은 비율.
+        effectPct: Math.min(100, Math.round((a.c / Math.max(1, total)) * 100)),
+        category: metaMap.get(k)?.category ?? null,
+      };
+    });
   }
+
+  // 사이드바 '후기 많은 시술'(인덱스와 동일 2단 레이아웃).
+  const pool = await getReviewSummaryFeedPool(supabase);
+  const topProcedures = [...pool]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 7)
+    .map((r) => ({ ko: r.procedureKo, count: r.count }));
 
   return (
     <ReportsNewDetailView
@@ -198,10 +234,12 @@ export default async function ReportsNewDetailPage({ params }: Props) {
       report={report}
       reviews={reviews}
       reviewLiked={reviewLiked}
+      reviewDemo={reviewDemo}
       reviewTotal={reviewTotal}
       topicsExists={topicsExists}
       doctorQAs={doctorQAs}
       similar={similar}
+      topProcedures={topProcedures}
     />
   );
 }

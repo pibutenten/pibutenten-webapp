@@ -32,7 +32,9 @@ import { useSearchRouting } from "@/components/skin/ui";
 import DowntimeGauge from "@/components/report/DowntimeGauge";
 import EffectOnsetTimeline from "@/components/report/EffectOnsetTimeline";
 import ReportsNewReviewCard from "./ReportsNewReviewCard";
+import ReportsIndexSidebar, { type SidebarTopProcedure } from "@/components/report/ReportsIndexSidebar";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
+import { useRouter } from "next/navigation";
 
 const EFFECT_BAR_COLORS = [
   "#7FD0F8", "#B0A0DE", "#9AA6DE", "#FFCB8C", "#8FD4C8",
@@ -125,8 +127,8 @@ const ARROW = (
 type SortKey = "rec" | "high" | "low" | "new";
 const SORTS: { key: SortKey; label: string }[] = [
   { key: "rec", label: "추천순" },
-  { key: "high", label: "별점 높은순" },
-  { key: "low", label: "별점 낮은순" },
+  { key: "high", label: "별점 높은 순" },
+  { key: "low", label: "별점 낮은 순" },
   { key: "new", label: "최신순" },
 ];
 
@@ -136,22 +138,28 @@ export default function ReportsNewDetailView({
   report,
   reviews,
   reviewLiked,
+  reviewDemo,
   reviewTotal,
   topicsExists,
   doctorQAs,
   similar,
+  topProcedures,
 }: {
   ko: string;
   en: string;
   report: ProcedureReport;
   reviews: CardData[];
   reviewLiked: Record<number, boolean>;
+  /** 후기 작성자 나이·성별(카드 표시용). */
+  reviewDemo: Record<number, { gender: string | null; ageDecade: number | null }>;
   reviewTotal: number;
   topicsExists: boolean;
   /** 의사 Q&A 인기순 최대 10개 */
   doctorQAs: CardData[];
   /** 비슷한 시술 최대 5개(각 카테고리 색) */
-  similar: { ko: string; en: string; count: number; revisitPct: number; category: ProcedureSlug | null }[];
+  similar: { ko: string; en: string; count: number; effectPct: number; category: ProcedureSlug | null }[];
+  /** 사이드바 '후기 많은 시술'(인덱스와 동일 2단 레이아웃). */
+  topProcedures: SidebarTopProcedure[];
 }) {
   const search = useSearchRouting();
   const session = useSession();
@@ -161,12 +169,14 @@ export default function ReportsNewDetailView({
   const [qaExpanded, setQaExpanded] = useState(false);
   const [reviewSort, setReviewSort] = useState<SortKey>("rec");
   const reviewsRef = useRef<HTMLElement>(null);
+  const chipRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
-  // 정렬 변경 시 후기 섹션 맨 위로(처음부터 보이게).
+  // 정렬 변경 시 칩은 제자리(상단 고정)에 두고, 그 아래로 첫 후기가 보이게 칩바 위치로만 스크롤.
   function changeSort(k: SortKey) {
     setReviewSort(k);
     requestAnimationFrame(() => {
-      reviewsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      chipRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
 
@@ -228,6 +238,7 @@ export default function ReportsNewDetailView({
   // ── 후기: 클라 정렬 + 10개씩 더 보기/접기 ──
   const [items, setItems] = useState<CardData[]>(reviews);
   const [liked, setLiked] = useState<Record<number, boolean>>(reviewLiked);
+  const [demo, setDemo] = useState(reviewDemo);
   const [loadingMore, setLoadingMore] = useState(false);
   const hasMore = items.length < reviewTotal;
   const expanded = items.length > reviews.length;
@@ -266,9 +277,11 @@ export default function ReportsNewDetailView({
       const data = (await res.json()) as {
         reviews: CardData[];
         reviewLiked: Record<number, boolean>;
+        reviewDemo?: Record<number, { gender: string | null; ageDecade: number | null }>;
       };
       setItems((prev) => [...prev, ...data.reviews]);
       setLiked((prev) => ({ ...prev, ...data.reviewLiked }));
+      setDemo((prev) => ({ ...prev, ...(data.reviewDemo ?? {}) }));
     } catch {
       /* 무시 — 재시도 가능 */
     } finally {
@@ -301,8 +314,16 @@ export default function ReportsNewDetailView({
     showToast("링크를 복사했어요. 즐겨찾기에 저장해 두세요.");
   }
 
+  const sidebar = (
+    <ReportsIndexSidebar
+      topProcedures={topProcedures}
+      activeCategory={null}
+      onCategory={() => router.push("/reports-new")}
+    />
+  );
+
   return (
-    <AppShell active="리포트" back="/reports-new" {...search}>
+    <AppShell active="리포트" back="/reports-new" sidebar={sidebar} sidebarMobileBelow {...search}>
       {/* ── ① 리포트 카드(한 장) ── */}
       <div className="overflow-hidden rounded-[var(--radius-lg)] bg-white">
         {/* 히어로 */}
@@ -414,7 +435,7 @@ export default function ReportsNewDetailView({
             얼마나 <span style={{ color: theme.color }}>아프고</span>, 얼마나{" "}
             <span style={{ color: theme.color }}>쉬어야</span> 할까?
           </div>
-          <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="mt-5 grid grid-cols-2 gap-4">
             <div>
               <div className="mb-2 text-[12.5px] font-semibold text-[var(--text-secondary)]">
                 통증 <span className="text-[var(--text)]">{avgPain.toFixed(1)}점</span> · {painPhrase(avgPain)}
@@ -425,11 +446,9 @@ export default function ReportsNewDetailView({
                   style={{ left: `calc(${painPos(avgPain)}% - 1.5px)` }}
                 />
               </div>
-              <div className="relative mt-1.5 h-[12px] text-[9.5px] text-[var(--text-muted)]" aria-hidden>
-                {PAIN_LABELS.map((l, i) => (
-                  <span key={l} className="absolute -translate-x-1/2" style={{ left: `${painPos(i + 1)}%` }}>
-                    {l}
-                  </span>
+              <div className="mt-1.5 flex justify-between text-[9.5px] text-[var(--text-muted)]" aria-hidden>
+                {PAIN_LABELS.map((l) => (
+                  <span key={l}>{l}</span>
                 ))}
               </div>
             </div>
@@ -543,7 +562,8 @@ export default function ReportsNewDetailView({
 
         {/* 정렬 칩 — 후기 구간에서만 sticky 고정. 배경은 앱 캔버스와 동일(회색 없음). 활성=브랜드색. */}
         <div
-          className="sticky top-0 z-30 mt-3 py-2.5"
+          ref={chipRef}
+          className="sticky top-0 z-[41] mt-3 py-2.5"
           style={{ background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
         >
           <div className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -572,6 +592,7 @@ export default function ReportsNewDetailView({
                 key={card.id}
                 card={card}
                 liked={liked[card.id] ?? false}
+                demo={demo[card.id]}
                 me={me}
                 onLoginRequired={(reason) => setAuthPrompt(reason)}
               />
@@ -649,7 +670,7 @@ export default function ReportsNewDetailView({
           )}
           {topicsExists && (
             <Link
-              href={`/topics/${encodeURIComponent(ko)}`}
+              href={`/?q=${encodeURIComponent(ko)}`}
               style={{ color: "var(--primary-active)" }}
               className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] bg-[var(--primary-soft)] py-3.5 text-[13.5px] font-bold text-[var(--primary-active)] transition-colors hover:bg-[#E6F2FA]"
             >
@@ -684,7 +705,7 @@ export default function ReportsNewDetailView({
                   <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                     <span className="text-[16px] font-bold tracking-[-0.02em] text-[var(--text)]">{s.ko}</span>
                     <span className="text-[13px] text-[var(--text-secondary)]">
-                      재시술의향 {s.revisitPct}% · 후기 {s.count}
+                      {topEffectLabel} 효과 {s.effectPct}% · 후기 {s.count}
                     </span>
                   </span>
                   <span className="shrink-0" style={{ color: st.color }} aria-hidden>{ARROW}</span>

@@ -86,8 +86,22 @@ export async function GET(
     for (const r of reviews) reviewLiked[r.id] = !!st[r.id]?.liked;
   }
 
+  // 작성자 나이·성별(SECURITY DEFINER RPC) — 후기 카드 표시용.
+  const reviewDemo: Record<number, { gender: string | null; ageDecade: number | null }> = {};
+  if (reviews.length > 0) {
+    const { data: demoRowsRaw } = await supabase.rpc("get_review_author_demographics", {
+      p_card_ids: reviews.map((r) => r.id),
+    });
+    const demoRows = (demoRowsRaw ?? []) as {
+      card_id: number;
+      gender: string | null;
+      age_decade: number | null;
+    }[];
+    for (const d of demoRows) reviewDemo[d.card_id] = { gender: d.gender, ageDecade: d.age_decade };
+  }
+
   // 피드 카드 펼침용 — 집계 동봉 (include_report=1). count = 전체 후기 수.
   const report = includeReport ? await getProcedureReport(supabase, ko) : null;
 
-  return NextResponse.json({ reviews, reviewLiked, report });
+  return NextResponse.json({ reviews, reviewLiked, report, reviewDemo });
 }

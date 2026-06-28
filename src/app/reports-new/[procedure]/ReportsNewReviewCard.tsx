@@ -33,12 +33,15 @@ const noopShare = async (): Promise<null> => null;
 export default function ReportsNewReviewCard({
   card,
   liked,
+  demo,
   me,
   onLoginRequired,
 }: {
   card: CardData;
   /** 초기 좋아요 여부(부모 prefetch). */
   liked: boolean;
+  /** 작성자 나이대·성별(서버 prefetch). */
+  demo?: { gender: string | null; ageDecade: number | null };
   me: EngagementMe;
   onLoginRequired: (reason: string) => void;
 }) {
@@ -48,6 +51,7 @@ export default function ReportsNewReviewCard({
   const author = Array.isArray(card.author) ? card.author[0] : card.author;
   const name = author?.display_name || author?.handle || "익명";
   const initial = name.trim().charAt(0) || "익";
+  const avatarUrl = author?.avatar_url ?? null;
   const review = reviewOf(card);
   const satisfaction = review?.satisfaction ?? 0;
   // 줄바꿈(\n)을 단일 공백으로 합쳐 한 문단처럼 컴팩트하게.
@@ -57,6 +61,10 @@ export default function ReportsNewReviewCard({
     .trim();
 
   const href = getQaUrl(card);
+
+  const ageLabel = demo?.ageDecade ? (demo.ageDecade >= 50 ? "50대+" : `${demo.ageDecade}대`) : null;
+  const genderLabel = demo?.gender === "female" ? "여성" : demo?.gender === "male" ? "남성" : null;
+  const demoText = [ageLabel, genderLabel].filter(Boolean).join(" · ");
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -104,16 +112,33 @@ export default function ReportsNewReviewCard({
       {/* 계정 정보(아래) + 만족도(우측) */}
       <div className="mt-4 flex items-center gap-2.5">
         <Link href={href} className="flex min-w-0 flex-1 items-center gap-2.5">
-          <span
-            aria-hidden
-            className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full text-[12px] font-extrabold"
-            style={{ background: theme.soft, color: theme.color }}
-          >
-            {initial}
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-[12.5px] font-bold text-[var(--text)]">{name}</span>
-            <RelativeTime iso={card.created_at} className="mt-px block text-[11px] text-[var(--text-muted)]" />
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              className="h-[30px] w-[30px] flex-none rounded-full bg-[var(--bg-soft)] object-cover"
+            />
+          ) : (
+            <span
+              aria-hidden
+              className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full text-[12px] font-extrabold"
+              style={{ background: theme.soft, color: theme.color }}
+            >
+              {initial}
+            </span>
+          )}
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <span className="truncate text-[12.5px] font-bold text-[var(--text)]">{name}</span>
+            <span className="flex shrink-0 items-center gap-1 text-[11px] text-[var(--text-muted)]">
+              {demoText && (
+                <>
+                  <span>{demoText}</span>
+                  <span aria-hidden>·</span>
+                </>
+              )}
+              <RelativeTime iso={card.created_at} />
+            </span>
           </span>
         </Link>
         {review && (
