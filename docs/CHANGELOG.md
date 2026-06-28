@@ -21,6 +21,7 @@
 
 ### Fixed
 - **삭제 태그 후기 재연결 (마이그 0318)** — `procedure_reviews.procedure_ko='덴서티알파팁'`(후기 2건)을 머지 대상 '덴서티'로 재연결(리포트 고아 방지). 더엘주사 en 을 기존 published 앵커(`the-l-solution`, 후기 43건)와 일치하도록 교정(영문 URL/사이트맵 정합).
+- **신규 영문 slug 확정 (마이그 0319)** — 0318 의 임시 음역 4건 중 2건을 웹 검색 확정값으로 교정: 라풀렌 `rapullen`→`lapuroon`(Lapuroon, PDRN 스킨부스터/EXOCOBIO), 코레지 `corege`→`corage`(Corage Cellfit, QMR/Telea). 이브시너지=`eve-synergy`(서울리엘/고은미래 슬러그 확인), 프랙타트=`fractat`(Fractal+Tattoo)는 정확하여 유지.
 
 ---
 
