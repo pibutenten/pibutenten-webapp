@@ -1,15 +1,11 @@
 "use client";
 
 /**
- * ReportsNewReviewCard — v11 시술 리포트 상세의 "따옴표 후기 카드"(.rev).
+ * ReportsNewReviewCard — v11 시술 리포트 상세의 "따옴표 후기 카드".
  *
- * ReportReviewItem 의 좋아요 로직을 그대로 차용한다(같은 card_likes 행 공유,
- * toggle_card_like RPC). 디자인은 v11-detail.html 의 .rev 박스로 재현:
- *   - 작성자 행(아바타 이니셜·이름·별점·상대시간) = 단독 글 URL 로 가는 <Link>.
- *   - 큰 따옴표 글리프(Georgia serif, theme.color, opacity .35).
- *   - 본문(card.body, 줄바꿈은 공백으로 병합).
- *   - 푸터(좋아요 / 댓글 / 공유) — 좋아요·공유 버튼은 stopPropagation 으로 네비와 분리.
- *
+ * 레이아웃(오너 지정): 따옴표+본문(크게, 진하지 않게)이 위 → 그 아래 계정 정보(아바타·이름·작성시점)
+ *   → 만족도(별점)는 우측 → 좋아요/댓글/공유 푸터.
+ * 좋아요는 ReportReviewItem 과 동일하게 useCardEngagement(toggle_card_like)로 같은 card_likes 공유.
  * liked 초기값은 부모 prefetch — 훅이 per-row 자체 조회(N쿼리)를 하지 않는다.
  */
 import Link from "next/link";
@@ -31,7 +27,7 @@ function reviewOf(card: CardData): ReviewSummaryData | null {
   return r ?? null;
 }
 
-// 공유는 이 카드에서 직접 처리(navigator.share / 클립보드) → 훅 share 경로 미사용. no-op.
+// 공유는 이 카드에서 직접 처리(navigator.share / 클립보드) → 훅 share 경로 미사용.
 const noopShare = async (): Promise<null> => null;
 
 export default function ReportsNewReviewCard({
@@ -46,7 +42,6 @@ export default function ReportsNewReviewCard({
   me: EngagementMe;
   onLoginRequired: (reason: string) => void;
 }) {
-  // 단독 카드와 동일한 좋아요 토글(toggle_card_like) 재사용. save/share 는 무시.
   const eng = useCardEngagement(card, { liked }, me, onLoginRequired, noopShare);
 
   const theme = categoryTheme(card.category as ProcedureCategory | null);
@@ -63,7 +58,6 @@ export default function ReportsNewReviewCard({
 
   const href = getQaUrl(card);
 
-  // 공유 — navigator.share 가능 시 사용, 아니면 클립보드 복사 + toast.
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -85,69 +79,59 @@ export default function ReportsNewReviewCard({
       await navigator.clipboard.writeText(url);
       showToast("링크를 복사했어요");
     } catch {
-      // 사용자가 공유 시트를 닫은 경우(AbortError) 등 — 조용히 무시.
+      // 공유 시트 취소(AbortError) 등 — 조용히 무시.
     }
   };
 
   return (
-    <div
-      className="rounded-2xl bg-[var(--surface,#fff)] p-[18px]"
-      style={{ wordBreak: "keep-all" }}
-    >
-      {/* 작성자 행 — 단독 글로 가는 Link(아바타·이름·별점·상대시간) */}
-      <Link href={href} className="flex items-center gap-2">
-        <span
-          aria-hidden
-          className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full text-[12px] font-extrabold"
-          style={{ background: theme.soft, color: theme.color }}
-        >
-          {initial}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[12.5px] font-bold text-[var(--text)]">
-            {name}
-          </span>
-          <span className="mt-px flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
-            {review && (
-              <span
-                className="leading-none tracking-[0.5px] text-[var(--accent-save)]"
-                aria-label={`만족도 ${satisfaction}점`}
-              >
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <span
-                    key={s}
-                    aria-hidden
-                    style={{ color: s <= satisfaction ? "var(--accent-save)" : "#E9E3E6" }}
-                  >
-                    ★
-                  </span>
-                ))}
-              </span>
-            )}
-            <RelativeTime iso={card.created_at} className="shrink-0" />
-          </span>
-        </span>
-      </Link>
-
-      {/* 큰 따옴표 글리프 */}
+    <div className="rounded-2xl bg-[var(--surface,#fff)] p-5" style={{ wordBreak: "keep-all" }}>
+      {/* 따옴표 */}
       <span
         aria-hidden
-        className="mt-3 mb-1.5 block h-5 font-serif text-[40px] leading-none"
-        style={{ fontFamily: "Georgia, 'Times New Roman', serif", color: theme.color, opacity: 0.35 }}
+        className="block h-5 leading-none"
+        style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 42, color: theme.color, opacity: 0.3 }}
       >
         &ldquo;
       </span>
 
-      {/* 본문 */}
+      {/* 본문 — 크게, 진하지 않게 */}
       {body && (
-        <p className="text-[14px] font-medium leading-[1.6] text-[var(--text)]">
+        <p className="mt-1.5 text-[15.5px] font-normal leading-[1.7] text-[var(--text)]">
           {body}
         </p>
       )}
 
+      {/* 계정 정보(아래) + 만족도(우측) */}
+      <div className="mt-4 flex items-center gap-2.5">
+        <Link href={href} className="flex min-w-0 flex-1 items-center gap-2.5">
+          <span
+            aria-hidden
+            className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full text-[12px] font-extrabold"
+            style={{ background: theme.soft, color: theme.color }}
+          >
+            {initial}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[12.5px] font-bold text-[var(--text)]">{name}</span>
+            <RelativeTime iso={card.created_at} className="mt-px block text-[11px] text-[var(--text-muted)]" />
+          </span>
+        </Link>
+        {review && (
+          <span
+            className="shrink-0 text-[13px] leading-none tracking-[1px] text-[var(--accent-save)]"
+            aria-label={`만족도 ${satisfaction}점`}
+          >
+            {[1, 2, 3, 4, 5].map((s) => (
+              <span key={s} aria-hidden style={{ color: s <= satisfaction ? "var(--accent-save)" : "#E2E7EC" }}>
+                ★
+              </span>
+            ))}
+          </span>
+        )}
+      </div>
+
       {/* 푸터 — 좋아요 / 댓글 / 공유 */}
       <div className="mt-3.5 flex items-center gap-[18px] text-[12px] font-semibold text-[var(--text-muted)]">
-        {/* 좋아요 — Link 밖, stopPropagation */}
         <button
           type="button"
           onClick={(e) => {
@@ -177,7 +161,6 @@ export default function ReportsNewReviewCard({
           {eng.like.count > 0 && <span>{eng.like.count}</span>}
         </button>
 
-        {/* 댓글 — 단독 글로 이동 */}
         <Link
           href={href}
           className="flex items-center gap-[5px] transition-colors hover:text-[var(--accent)]"
@@ -198,7 +181,6 @@ export default function ReportsNewReviewCard({
           {(card.comment_count ?? 0) > 0 && <span>{card.comment_count}</span>}
         </Link>
 
-        {/* 공유 — 우측 정렬, stopPropagation */}
         <button
           type="button"
           onClick={handleShare}

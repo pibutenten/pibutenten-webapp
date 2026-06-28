@@ -15,7 +15,7 @@
  * 다채색 유지(효과/작성자/Q&A). 후기는 로컬 ReportsNewReviewCard(실 card_likes 공유).
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/components/Card";
@@ -112,7 +112,7 @@ const FIGURE_PATH = (
 );
 
 const SEC = "px-5 py-6";
-const SECB = "border-t border-[var(--border)] px-5 py-6";
+const SECB = "px-5 py-6";
 const EYEBROW = "mb-1.5 text-[11px] font-bold uppercase tracking-[0.1em]";
 const QHEAD = "text-[19px] font-extrabold leading-[1.3] tracking-[-0.02em] text-[var(--text)]";
 const ARROW = (
@@ -160,6 +160,15 @@ export default function ReportsNewDetailView({
   const [authPrompt, setAuthPrompt] = useState<string | null>(null);
   const [qaExpanded, setQaExpanded] = useState(false);
   const [reviewSort, setReviewSort] = useState<SortKey>("rec");
+  const reviewsRef = useRef<HTMLElement>(null);
+
+  // 정렬 변경 시 후기 섹션 맨 위로(처음부터 보이게).
+  function changeSort(k: SortKey) {
+    setReviewSort(k);
+    requestAnimationFrame(() => {
+      reviewsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 
   // 진입 애니메이션 트리거(마운트 직후 1회).
   const [mounted, setMounted] = useState(false);
@@ -302,7 +311,7 @@ export default function ReportsNewDetailView({
           <span className="inline-flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand-logo.svg" alt="피부텐텐" className="h-[26px] w-auto" />
-            <span className="text-[22px] font-extrabold leading-none tracking-[-0.02em] text-[#4CBFF2]">
+            <span className="text-[22px] font-semibold leading-none tracking-[-0.02em] text-[#4CBFF2]">
               리포트
             </span>
           </span>
@@ -320,7 +329,7 @@ export default function ReportsNewDetailView({
           </p>
 
           {/* 재시술의향 */}
-          <div className="mt-6 border-t border-[var(--border)] pt-6">
+          <div className="mt-7">
             <div className={EYEBROW} style={{ color: theme.color }}>재시술의향</div>
             <div
               className="text-[clamp(60px,18vw,84px)] font-extrabold leading-[0.86] tracking-[-0.05em] [font-feature-settings:'tnum']"
@@ -521,7 +530,7 @@ export default function ReportsNewDetailView({
       </div>
 
       {/* ── ② 직접 들어보기 — 제목은 상자 밖, 각 후기는 독립 글상자 ── */}
-      <section className="mt-4">
+      <section ref={reviewsRef} className="mt-4 scroll-mt-2">
         <div className="px-1">
           <div className={EYEBROW} style={{ color: theme.color }}>In their words</div>
           <div className="flex items-baseline gap-2">
@@ -532,8 +541,11 @@ export default function ReportsNewDetailView({
           </div>
         </div>
 
-        {/* 정렬 칩 — 후기 구간에서만 sticky 고정(클릭 시 정렬) */}
-        <div className="sticky top-0 z-30 mt-3 bg-[var(--bg)] py-2.5">
+        {/* 정렬 칩 — 후기 구간에서만 sticky 고정. 배경은 앱 캔버스와 동일(회색 없음). 활성=브랜드색. */}
+        <div
+          className="sticky top-0 z-30 mt-3 py-2.5"
+          style={{ background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
+        >
           <div className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {SORTS.map((s) => {
               const on = reviewSort === s.key;
@@ -541,10 +553,10 @@ export default function ReportsNewDetailView({
                 <button
                   key={s.key}
                   type="button"
-                  onClick={() => setReviewSort(s.key)}
+                  onClick={() => changeSort(s.key)}
                   aria-pressed={on}
                   className="shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition-colors"
-                  style={on ? { backgroundColor: theme.color, color: "#fff" } : { backgroundColor: "#fff", color: "var(--text-secondary)" }}
+                  style={on ? { backgroundColor: "#2A9FD6", color: "#fff" } : { backgroundColor: "#fff", color: "var(--text-secondary)" }}
                 >
                   {s.label}
                 </button>
@@ -638,8 +650,7 @@ export default function ReportsNewDetailView({
           {topicsExists && (
             <Link
               href={`/topics/${encodeURIComponent(ko)}`}
-              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] py-3.5 text-[13.5px] font-bold transition-opacity hover:opacity-90"
-              style={{ backgroundColor: theme.soft, color: theme.color }}
+              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] bg-[var(--primary-soft)] py-3.5 text-[13.5px] font-bold text-[var(--primary-active)] transition-colors hover:bg-[#E6F2FA]"
             >
               전문의 Q&amp;A 보러가기{ARROW}
             </Link>
@@ -649,7 +660,7 @@ export default function ReportsNewDetailView({
 
       {/* ── ④ 비슷한 시술 — 각 카테고리 색 상자, 메타는 시술명 옆 ── */}
       {similar.length > 0 && (
-        <section className="mt-4">
+        <section className="mt-8">
           <div className="px-1">
             <div className={QHEAD}>‘{topEffectLabel}’ 효과가 좋았던 다른 시술</div>
           </div>
@@ -683,12 +694,12 @@ export default function ReportsNewDetailView({
         </section>
       )}
 
-      {/* ── ⑤ 저장 · 공유(둘 다 브랜드색) ── */}
-      <div className="mt-4 flex gap-2.5">
+      {/* ── ⑤ 저장 · 공유(브랜드색 라운드 버튼, 너무 넓지 않게 가운데) ── */}
+      <div className="mt-7 flex justify-center gap-2.5">
         <button
           type="button"
           onClick={saveReport}
-          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius)] bg-[var(--primary)] py-3.5 text-[14px] font-bold text-white transition-colors hover:bg-[var(--primary-dark)]"
+          className="flex items-center justify-center gap-2 rounded-[var(--radius)] bg-[var(--primary)] px-7 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[var(--primary-dark)]"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -698,7 +709,7 @@ export default function ReportsNewDetailView({
         <button
           type="button"
           onClick={share}
-          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius)] bg-[var(--primary)] py-3.5 text-[14px] font-bold text-white transition-colors hover:bg-[var(--primary-dark)]"
+          className="flex items-center justify-center gap-2 rounded-[var(--radius)] bg-[var(--primary)] px-7 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[var(--primary-dark)]"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />
