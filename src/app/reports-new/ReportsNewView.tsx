@@ -149,21 +149,6 @@ export default function ReportsNewView({
       chips={chips}
       {...search}
     >
-      {/* 활성 카테고리 필터 안내(해제 버튼) — 사이드바가 없는 모바일에서도 해제 가능. */}
-      {category && (
-        <button
-          type="button"
-          onClick={() => setCategory(null)}
-          className={
-            "mb-3 inline-flex items-center gap-1 rounded-full bg-[var(--bg-soft)] px-3 py-1 text-[12.5px] text-[var(--text-secondary)] transition-colors hover:bg-[#E2E7EC] " +
-            FOCUS_RING
-          }
-        >
-          카테고리 필터 해제
-          <span aria-hidden>×</span>
-        </button>
-      )}
-
       {visible.length === 0 ? (
         <p className="px-1 py-8 text-center text-[14px] leading-[1.6] text-[var(--text-muted)]">
           {items.length === 0

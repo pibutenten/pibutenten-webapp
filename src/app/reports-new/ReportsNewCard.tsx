@@ -320,7 +320,7 @@ export default function ReportsNewCard({
                 "mt-5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] px-4 py-3.5 text-[14px] font-bold text-white " +
                 FOCUS_RING
               }
-              style={{ backgroundColor: theme.color }}
+              style={{ backgroundColor: theme.color, color: "#fff" }}
               aria-label={`${procedureKo} 피부텐텐 리포트 보러가기`}
             >
               {procedureKo} 피부텐텐 리포트 보러가기

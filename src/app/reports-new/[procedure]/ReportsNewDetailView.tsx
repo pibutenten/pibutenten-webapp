@@ -650,6 +650,7 @@ export default function ReportsNewDetailView({
           {topicsExists && (
             <Link
               href={`/topics/${encodeURIComponent(ko)}`}
+              style={{ color: "var(--primary-active)" }}
               className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] bg-[var(--primary-soft)] py-3.5 text-[13.5px] font-bold text-[var(--primary-active)] transition-colors hover:bg-[#E6F2FA]"
             >
               전문의 Q&amp;A 보러가기{ARROW}

@@ -60,6 +60,7 @@ export default function ReportsIndexSidebar({
         </p>
         <Link
           href="/review/new"
+          style={{ color: "#fff" }}
           className={
             "mt-3 inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] " +
             FOCUS_RING
@@ -77,7 +78,7 @@ export default function ReportsIndexSidebar({
             {topProcedures.map((p) => (
               <li key={p.ko}>
                 <Link
-                  href={`/reports/${encodeURIComponent(p.ko)}`}
+                  href={`/reports-new/${encodeURIComponent(p.ko)}`}
                   className={
                     "flex items-baseline justify-between gap-2 rounded-[var(--radius-sm)] px-1 py-1 transition-colors hover:bg-[var(--bg)] " +
                     FOCUS_RING
