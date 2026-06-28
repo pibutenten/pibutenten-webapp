@@ -4,7 +4,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getProcedureReport,
   getFamilyReviewCardIds,
-  getReviewSummaryFeedPool,
 } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
@@ -267,13 +266,6 @@ export default async function ProcedureReportPage({ params }: Props) {
     });
   }
 
-  // 사이드바 '후기 많은 시술'(인덱스와 동일 2단 레이아웃).
-  const pool = await getReviewSummaryFeedPool(supabase);
-  const topProcedures = [...pool]
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 7)
-    .map((r) => ({ ko: r.procedureKo, count: r.count }));
-
   // JSON-LD — MedicalWebPage + Service(MedicalProcedure) (2026-06-05, Product 폐기).
   //   의료 시술에 Product 스키마는 구글 정책 오용 소지 → 의료 페이지 + 시술(Service) 로 전환.
   //   별점(AggregateRating)·재시술%·통증은 페이지·AI 인용 신호로 유지. 모든 수치 라이브 집계.
@@ -337,8 +329,8 @@ export default async function ProcedureReportPage({ params }: Props) {
     ],
   };
 
-  // JSON-LD <script> 는 server 에 남겨 SEO 신호 100% 보존. 본문은 새 디자인 뷰(ReportsDetailView)가
-  //   AppShell 로 감싸 표시(정보 구조·데이터 무변경). DoctorDashboardView 선례 동일 패턴.
+  // JSON-LD <script> 는 server 에 남겨 SEO 신호 100% 보존. AppShell + 사이드바는 공유 layout 이
+  //   제공하고, ReportsDetailView 는 콘텐츠만 반환(정보 구조·데이터 무변경).
   return (
     <>
       <script
@@ -356,7 +348,6 @@ export default async function ProcedureReportPage({ params }: Props) {
         topicsExists={topicsExists}
         doctorQAs={doctorQAs}
         similar={similar}
-        topProcedures={topProcedures}
       />
     </>
   );

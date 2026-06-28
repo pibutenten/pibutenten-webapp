@@ -3,13 +3,14 @@
 /**
  * ReportsIndexView — /reports(시술 리포트 인덱스 개선판) 본문 (클라이언트).
  *
- * 원칙(ReportsHubView 선례): "상단바(헤더)만 앱 셸, 본문은 기능적 목록".
- *   데이터·메타·헤드라인 확정은 server page(page.tsx)가 책임. 여기선 표시·정렬·필터만.
+ * 원칙: 글로벌 크롬(AppShell)·우측 사이드바·헤더 검색은 공유 layout(ReportsShell)이 담당한다.
+ *   이 컴포넌트는 **본문 콘텐츠만** 반환한다(정렬 칩 + 목록 + 면책).
  *
- * 좌측 메인:
+ * 본문:
  *   - 정렬 칩 레일(컴팩트 풀로 계산 가능한 것만): 후기 많은 순(기본)/다시 받고 싶은 순/
- *     만족도 높은 순/통증 적은 순. 다운타임·최신은 컴팩트 풀에 없어 제외.
- *   - 카테고리 필터(사이드바 칩과 연동).
+ *     만족도 높은 순/통증 적은 순. 본문 상단에 인라인 sticky 바로 고정(상세 후기 정렬칩과 동일 패턴).
+ *   - 카테고리 필터: 사이드바 칩 선택을 useReportsCategory()로 구독해 목록을 거른다(필터 해제·이동은
+ *     상위 shell 의 사이드바 재클릭이 담당. 본문은 읽어서 필터만).
  *   - 각 시술 = ReportsIndexCard(자체 구현, 컴팩트 풀 값만 쓰는 요약 카드) + 서버 확정 headline.
  *     (공용 ProcedureReportCard 는 병렬 세션 소유라 import·의존하지 않는다.)
  *
@@ -20,18 +21,8 @@
 
 import { useMemo, useState } from "react";
 import type { ProcedureReport } from "@/lib/procedure-report";
-import type { ProcedureSlug } from "@/lib/categories";
 import ReportsIndexCard from "./ReportsIndexCard";
-import ReportsIndexSidebar, {
-  type SidebarTopProcedure,
-} from "@/components/report/ReportsIndexSidebar";
-import AppShell from "@/components/skin/AppShell";
-import { useSearchRouting } from "@/components/skin/ui";
-import styles from "@/components/skin/app.module.css";
-
-// 포커스 링 — globals.css 가 :focus-visible 만 살려두므로 키보드 포커스에서만 보임.
-const FOCUS_RING =
-  "outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary-active)]";
+import { useReportsCategory } from "./category-context";
 
 type ReportItem = {
   report: ProcedureReport;
@@ -59,20 +50,13 @@ function revisitYesPct(r: ProcedureReport): number {
 
 export default function ReportsIndexView({
   items,
-  topProcedures,
 }: {
   /** 서버 정렬(count desc) + 헤드라인 확정 목록. */
   items: ReportItem[];
-  /** 사이드바 '후기 많은 시술' 상위. */
-  topProcedures: SidebarTopProcedure[];
 }) {
-  const search = useSearchRouting();
   const [sort, setSort] = useState<SortKey>("count");
-  const [category, setCategory] = useState<ProcedureSlug | null>(null);
-
-  // 카테고리 칩 토글 — 같은 칩 재클릭 시 전체(null) 해제.
-  const onCategory = (slug: ProcedureSlug) =>
-    setCategory((cur) => (cur === slug ? null : slug));
+  // 카테고리 필터는 공유 layout(ReportsShell)의 사이드바 칩 상태를 구독(null=전체).
+  const category = useReportsCategory();
 
   // 필터 + 정렬 — 서버 목록을 클라에서 재배열(헤드라인은 item 에 고정 동행).
   const visible = useMemo(() => {
@@ -109,47 +93,42 @@ export default function ReportsIndexView({
     return sorted;
   }, [items, sort, category]);
 
-  const sidebar = (
-    <ReportsIndexSidebar
-      topProcedures={topProcedures}
-      activeCategory={category}
-      onCategory={onCategory}
-    />
-  );
-
-  const chips = (
-    <div role="group" aria-label="정렬" style={{ display: "contents" }}>
-      {SORTS.map((s) => {
-        const on = sort === s.key;
-        return (
-          <button
-            type="button"
-            key={s.key}
-            onClick={() => setSort(s.key)}
-            aria-pressed={on}
-            className={
-              styles.chip +
-              (on ? " " + styles.chipActive : "") +
-              " " +
-              FOCUS_RING
-            }
-          >
-            {s.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-
   return (
-    <AppShell
-      active="리포트"
-      sidebar={sidebar}
-      sidebarMobileBelow
-      chips={chips}
-      {...search}
-    >
+    <>
       <style>{`@keyframes rvRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}`}</style>
+
+      {/* 정렬 칩 — 본문 상단에 인라인 sticky 고정. 배경은 앱 캔버스와 동일(회색 없음). 활성=브랜드색. */}
+      <div
+        className="sticky z-[41] mb-3 py-2.5"
+        style={{ top: "var(--sat)", background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
+      >
+        <div
+          role="group"
+          aria-label="정렬"
+          className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {SORTS.map((s) => {
+            const on = sort === s.key;
+            return (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => setSort(s.key)}
+                aria-pressed={on}
+                className="shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition-colors"
+                style={
+                  on
+                    ? { backgroundColor: "#2A9FD6", color: "#fff" }
+                    : { backgroundColor: "#fff", color: "var(--text-secondary)" }
+                }
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {visible.length === 0 ? (
         <p className="px-1 py-8 text-center text-[14px] leading-[1.6] text-[var(--text-muted)]">
           {items.length === 0
@@ -176,6 +155,6 @@ export default function ReportsIndexView({
       <p className="mt-4 px-1 text-center text-[11.5px] leading-[1.6] text-[var(--text-muted)]">
         회원들의 실사용 후기를 집계한 결과예요. 개인차가 있으며 의학적 효과·안전성을 보장하지 않아요. 시술 결정은 전문의 상담 후에 하세요.
       </p>
-    </AppShell>
+    </>
   );
 }

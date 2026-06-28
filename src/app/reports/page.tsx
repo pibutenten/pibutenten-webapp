@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getReviewSummaryFeedPool, type ProcedureReport } from "@/lib/procedure-report";
+import { type ProcedureReport } from "@/lib/procedure-report";
 import { EFFECT_NONE_LABEL, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
 import { buildHeadlinePool, pickHeadline, toSignals } from "@/lib/report-headline";
 import { SITE_URL } from "@/lib/site";
 import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
+import { getReportsPoolCached } from "./reports-pool";
 import ReportsIndexView from "./ReportsIndexView";
 
 /**
@@ -32,10 +33,8 @@ type TopEffect = { label: string; pct: number };
 type Extras = { effects: TopEffect[]; onsetLabel: string | null };
 
 /** count desc 정렬된 자격 시술 목록(N≥4). 동률은 시술명 ko 사전순으로 안정 정렬. */
-async function loadPool(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-): Promise<ProcedureReport[]> {
-  const pool = await getReviewSummaryFeedPool(supabase);
+async function loadPool(): Promise<ProcedureReport[]> {
+  const pool = await getReportsPoolCached();
   return [...pool].sort(
     (a, b) => b.count - a.count || a.procedureKo.localeCompare(b.procedureKo, "ko"),
   );
@@ -145,7 +144,7 @@ async function loadExtras(
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const reports = await loadPool(await createSupabaseServerClient());
+  const reports = await loadPool();
   const url = `${SITE_URL}/reports`;
 
   // 자격 시술 0건 → noindex(빈 허브 색인 회피). [procedure] 의 빈 리포트 noindex 와 동일 정책.
@@ -182,7 +181,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ReportsHubPage() {
   const supabase = await createSupabaseServerClient();
-  const pool = await loadPool(supabase);
+  const pool = await loadPool();
   const extras = await loadExtras(supabase, pool);
 
   // 시술별 — 대표효과 주입 → 시그널 → 풀 → 서버 랜덤픽 1개(요청마다). 효과·시점도 함께 prop.
@@ -192,10 +191,6 @@ export default async function ReportsHubPage() {
     const headline = pickHeadline(buildHeadlinePool(signals));
     return { report, headline, effects: ex.effects, onsetLabel: ex.onsetLabel };
   });
-
-  const topProcedures = pool
-    .slice(0, 7)
-    .map((r) => ({ ko: r.procedureKo, count: r.count }));
 
   // JSON-LD — CollectionPage + ItemList(각 item 이 /reports/{ko}). 최소·정확.
   //   provider/publisher 는 layout 의 #organization(SSOT) 참조만(노드 재정의 금지). 자격 0건이면 생략.
@@ -232,7 +227,7 @@ export default async function ReportsHubPage() {
           dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
         />
       )}
-      <ReportsIndexView items={items} topProcedures={topProcedures} />
+      <ReportsIndexView items={items} />
     </>
   );
 }

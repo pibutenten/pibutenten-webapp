@@ -17,6 +17,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import BackButton from "@/components/BackButton";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/components/Card";
 import type { ProcedureSlug } from "@/lib/categories";
@@ -26,14 +27,10 @@ import { getQaUrl } from "@/lib/card-url";
 import { DOWNTIME_DAYS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
 import { useSession } from "@/lib/session-context";
 import { showToast } from "@/lib/toast";
-import AppShell from "@/components/skin/AppShell";
-import { useSearchRouting } from "@/components/skin/ui";
 import DowntimeGauge from "@/components/report/DowntimeGauge";
 import EffectOnsetTimeline from "@/components/report/EffectOnsetTimeline";
 import ReportsReviewCard from "./ReportsReviewCard";
-import ReportsIndexSidebar, { type SidebarTopProcedure } from "@/components/report/ReportsIndexSidebar";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
-import { useRouter } from "next/navigation";
 
 const EFFECT_BAR_COLORS = [
   "#7FD0F8", "#B0A0DE", "#9AA6DE", "#FFCB8C", "#8FD4C8",
@@ -142,7 +139,6 @@ export default function ReportsDetailView({
   topicsExists,
   doctorQAs,
   similar,
-  topProcedures,
 }: {
   ko: string;
   en: string;
@@ -157,10 +153,7 @@ export default function ReportsDetailView({
   doctorQAs: CardData[];
   /** 비슷한 시술 최대 5개(각 카테고리 색) */
   similar: { ko: string; en: string; count: number; effectPct: number; category: ProcedureSlug | null }[];
-  /** 사이드바 '후기 많은 시술'(인덱스와 동일 2단 레이아웃). */
-  topProcedures: SidebarTopProcedure[];
 }) {
-  const search = useSearchRouting();
   const session = useSession();
   const me: EngagementMe =
     session === null ? null : { id: session.activeIdentityId, role: session.role };
@@ -168,7 +161,6 @@ export default function ReportsDetailView({
   const [qaExpanded, setQaExpanded] = useState(false);
   const [reviewSort, setReviewSort] = useState<SortKey>("rec");
   const listRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   // 정렬 변경 시 첫 후기가 보이도록 후기 리스트 상단으로 스크롤(sticky 칩 높이만큼 여백 확보).
   function changeSort(k: SortKey) {
@@ -313,16 +305,10 @@ export default function ReportsDetailView({
     showToast("링크를 복사했어요. 즐겨찾기에 저장해 두세요.");
   }
 
-  const sidebar = (
-    <ReportsIndexSidebar
-      topProcedures={topProcedures}
-      activeCategory={null}
-      onCategory={() => router.push("/reports")}
-    />
-  );
-
   return (
-    <AppShell active="리포트" back="/reports" sidebar={sidebar} sidebarMobileBelow {...search}>
+    <>
+      <BackButton fallbackHref="/reports" className="mb-1" />
+
       {/* ── ① 리포트 카드(한 장) ── */}
       <div className="overflow-hidden rounded-[var(--radius-lg)] bg-white">
         {/* 히어로 */}
@@ -755,6 +741,6 @@ export default function ReportsDetailView({
         message={authPrompt ?? ""}
         onClose={() => setAuthPrompt(null)}
       />
-    </AppShell>
+    </>
   );
 }

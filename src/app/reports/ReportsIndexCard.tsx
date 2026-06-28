@@ -345,7 +345,7 @@ export default function ReportsIndexCard({
                 style={{ backgroundColor: theme.color, color: "#fff" }}
                 aria-label={`${procedureKo} 피부텐텐 리포트 보러가기`}
               >
-                {procedureKo} 피부텐텐 리포트 보러가기
+                피부텐텐 리포트
                 <svg
                   viewBox="0 0 24 24"
                   width={15}
