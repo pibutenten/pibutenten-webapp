@@ -27,6 +27,12 @@ import { EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
 const FOCUS_RING =
   "outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary-active)]";
 
+// 효과 막대 다색 팔레트 — 운영 ProcedureReportCard 와 동일(단조로운 단색 대신 항목별 색 구분).
+const EFFECT_BAR_COLORS = [
+  "#7FD0F8", "#B0A0DE", "#9AA6DE", "#FFCB8C", "#8FD4C8",
+  "#F59CB6", "#A6D9A9", "#F4B8A0", "#C3B0E8", "#CDC97A",
+];
+
 type FetchResp = {
   report?: ProcedureReport | null;
 };
@@ -98,8 +104,7 @@ export default function ReportsNewCard({
 
   return (
     <article
-      className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)] transition-colors hover:border-[var(--primary-light)]"
-      style={open ? { borderColor: theme.color } : undefined}
+      className="overflow-hidden rounded-[var(--radius-lg)] bg-white"
       aria-label={`${procedureKo} 시술 리포트`}
     >
       {/* ── ① 요약(접힘) — 클릭 시 펼침 토글 ── */}
@@ -206,7 +211,7 @@ export default function ReportsNewCard({
         style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="border-t border-[var(--border)] px-5 pb-4 pt-3.5">
+          <div className="px-5 pb-4 pt-3.5">
             {/* 만족도 별점 + 효과 시점(peak) */}
             <div className="flex items-center gap-4">
               <div className="flex items-baseline gap-1.5">
@@ -240,7 +245,7 @@ export default function ReportsNewCard({
             )}
             {effects.length > 0 && (
               <div className="mt-3 flex flex-col gap-2.5">
-                {effects.map((e) => (
+                {effects.map((e, i) => (
                   <div key={e.label} className="flex items-center gap-2.5">
                     <span className="w-[54px] shrink-0 text-[12.5px] font-semibold text-[var(--text)]">
                       {e.label}
@@ -248,7 +253,10 @@ export default function ReportsNewCard({
                     <span className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--bg-soft)]">
                       <span
                         className="block h-full rounded-full"
-                        style={{ width: `${e.pct}%`, backgroundColor: theme.color }}
+                        style={{
+                          width: `${e.pct}%`,
+                          backgroundColor: EFFECT_BAR_COLORS[i % EFFECT_BAR_COLORS.length],
+                        }}
                         aria-hidden
                       />
                     </span>

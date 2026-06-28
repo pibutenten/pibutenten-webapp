@@ -137,12 +137,12 @@ export default function ReportsNewView({
               onClick={() => setSort(s.key)}
               aria-pressed={on}
               className={
-                "rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors " +
+                "rounded-full px-3 py-1.5 text-[13px] transition-colors " +
                 FOCUS_RING +
                 " " +
                 (on
-                  ? "border-[var(--primary-active)] bg-[var(--primary-active)] text-white"
-                  : "border-[var(--border)] bg-white text-[var(--text-secondary)] hover:border-[var(--primary-active)]")
+                  ? "bg-[var(--primary-active)] text-white font-semibold"
+                  : "bg-[var(--bg-soft)] text-[var(--text-secondary)] font-medium hover:bg-[#E2E7EC]")
               }
             >
               {s.label}
@@ -157,7 +157,7 @@ export default function ReportsNewView({
           type="button"
           onClick={() => setCategory(null)}
           className={
-            "mb-3 inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-white px-3 py-1 text-[12.5px] text-[var(--text-secondary)] transition-colors hover:border-[var(--primary-active)] " +
+            "mb-3 inline-flex items-center gap-1 rounded-full bg-[var(--bg-soft)] px-3 py-1 text-[12.5px] text-[var(--text-secondary)] transition-colors hover:bg-[#E2E7EC] " +
             FOCUS_RING
           }
         >

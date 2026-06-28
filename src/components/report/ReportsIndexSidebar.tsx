@@ -17,12 +17,21 @@ import { PROCEDURE_CATEGORIES, type ProcedureSlug } from "@/lib/categories";
 import { categoryTheme } from "@/lib/procedure-theme";
 import { experienceCount } from "@/lib/report-copy";
 
-const BOX =
-  "rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow-sm)] p-4";
+// flat — 음영·테두리 없음(우리 UI/UX). 흰 카드는 회색 페이지 배경과 채움 대비로 구분.
+const BOX = "rounded-[var(--radius)] bg-white p-4";
 const H3 = "text-[15px] font-bold text-[var(--text)]";
 // 포커스 링 — globals.css 가 :focus-visible 만 살려두므로 키보드 포커스에서만 보임.
 const FOCUS_RING =
   "outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary-active)]";
+
+/** 선택 카테고리 칩 배경 — 분류색의 진한 틴트(테두리 없이 채움만으로 선택 표시, 다크 텍스트라 AA). */
+function tintStrong(color: string): string {
+  if (!color.startsWith("#")) return color;
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, 0.28)`;
+}
 
 export type SidebarTopProcedure = {
   ko: string;
@@ -88,7 +97,7 @@ export default function ReportsIndexSidebar({
         {/* 시술 카테고리 6칩 — 글자색은 항상 다크(--text)로 AA 확보, 배경은 분류색 틴트(theme.soft).
             선택 상태는 흰 글씨 대신 ring(theme.color) + font-semibold 로 표시(대비는 다크 텍스트가
             담당, 색은 보조 단서 → 색각 이상 사용자도 선택 칩을 굵기·테두리로 구분). */}
-        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-[var(--border)] pt-3">
+        <div className="mt-4 flex flex-wrap gap-1.5">
           {PROCEDURE_CATEGORIES.map((c) => {
             const theme = categoryTheme(c.slug);
             const on = activeCategory === c.slug;
@@ -100,14 +109,11 @@ export default function ReportsIndexSidebar({
                 aria-pressed={on}
                 className={
                   "rounded-full px-2.5 py-1 text-[12px] text-[var(--text)] transition-colors " +
-                  (on ? "font-semibold ring-2" : "font-medium ring-0") +
+                  (on ? "font-bold" : "font-medium") +
                   " " +
                   FOCUS_RING
                 }
-                style={{
-                  backgroundColor: theme.soft,
-                  ["--tw-ring-color" as string]: theme.color,
-                }}
+                style={{ backgroundColor: on ? tintStrong(theme.color) : theme.soft }}
               >
                 {c.label}
               </button>
@@ -125,7 +131,7 @@ export default function ReportsIndexSidebar({
         </p>
         <Link
           href="/topics"
-          className="mt-3 flex items-center justify-between gap-2 border-t border-[var(--border)] pt-3 text-[12.5px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
+          className="mt-3 flex items-center justify-between gap-2 pt-1 text-[12.5px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
         >
           <span>이 시술이 궁금하면 → 전문의 Q&amp;A</span>
           <span aria-hidden className="text-[var(--text-muted)]">
