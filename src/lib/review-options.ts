@@ -34,3 +34,11 @@ export const EFFECT_ONSET_OPTIONS: ReviewChoice[] = [
 
 /** 효과 칩의 '효과 없음' 라벨 — 리포트에서 일반 효과 목록과 분리. */
 export const EFFECT_NONE_LABEL = "없음";
+
+/** 시술 직후 반응(reactions) 멀티칩. 한글 라벨 그대로 저장(effect_areas 규약, CHECK 없음). */
+export const REACTION_OPTIONS = ["부기", "멍", "딱지", "붉어짐·홍조", "화끈거림·열감", "멍울·뭉침"] as const;
+export const REACTION_NONE_LABEL = "없음";
+/** 칩 렌더·zod enum 용 전체(6 + 없음). */
+export const REACTION_ALL = [...REACTION_OPTIONS, REACTION_NONE_LABEL] as const;
+/** REACTION_OPTIONS 인덱스 매칭 칩 색(6색). 없음은 회색 별도. */
+export const REACTION_COLORS = ["#F4B8A0", "#B0A0DE", "#E0C088", "#F2A9C0", "#FFAF97", "#8FD4C8"];

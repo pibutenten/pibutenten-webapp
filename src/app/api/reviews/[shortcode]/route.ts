@@ -131,6 +131,7 @@ export async function PATCH(
     p_pain: payload.pain,
     p_revisit: payload.revisit,
     p_effect_areas: payload.effect_areas,
+    p_reactions: payload.reactions,
     p_downtime: payload.downtime,
     p_effect_onset: payload.effect_onset ?? null,
     p_recommend: payload.recommend ?? null,

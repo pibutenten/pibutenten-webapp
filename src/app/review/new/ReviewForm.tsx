@@ -40,7 +40,12 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useDraftAutoSave } from "@/hooks/useDraftAutoSave";
 import { loadDraft, saveDraft, deleteDraft } from "@/lib/draft-storage";
 import UnsavedChangesModal from "@/components/UnsavedChangesModal";
-import { DOWNTIME_OPTIONS } from "@/lib/review-options";
+import {
+  DOWNTIME_OPTIONS,
+  REACTION_ALL,
+  REACTION_NONE_LABEL,
+  REACTION_COLORS,
+} from "@/lib/review-options";
 // 후기 평가 컨트롤·옵션은 review-controls.tsx 단일 공용 출처에서 import (자체 복사본 폐기, dedup).
 //   동작·디자인·색·라벨은 추출 전 ReviewForm 원본과 1:1 동일.
 import {
@@ -81,6 +86,7 @@ export type ReviewEditInitial = {
   downtime: string;
   revisit: string;
   effectAreas: string[];
+  reactions: string[];
   body: string;
 };
 
@@ -175,6 +181,7 @@ export default function ReviewForm({
   const [downtime, setDowntime] = useState(initial?.downtime ?? "");
   const [revisit, setRevisit] = useState(initial?.revisit ?? "");
   const [effectAreas, setEffectAreas] = useState<string[]>(initial?.effectAreas ?? []);
+  const [reactions, setReactions] = useState<string[]>(initial?.reactions ?? []);
   const [oneliner, setOneliner] = useState(initial?.body ?? "");
 
   /* ── 어림시기 — 1단(상대 연도) + 2단(연중, 선택). create 전용. ── */
@@ -213,6 +220,7 @@ export default function ReviewForm({
     !!downtime ||
     !!revisit ||
     effectAreas.length > 0 ||
+    reactions.length > 0 ||
     oneliner.length > 0 ||
     // 어림시기를 고르면 dirty.
     relYear !== "" ||
@@ -220,8 +228,8 @@ export default function ReviewForm({
 
   /* ── 임시저장 자동저장 + 복원 (create 모드만) ── */
   const getReviewFields = useCallback(
-    () => ({ procedureKo, satisfaction, pain, downtime, revisit, effectAreas, oneliner, relYear, within }),
-    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, oneliner, relYear, within],
+    () => ({ procedureKo, satisfaction, pain, downtime, revisit, effectAreas, reactions, oneliner, relYear, within }),
+    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, reactions, oneliner, relYear, within],
   );
 
   // C2 (2026-06-26): 이탈 모달 — create(시술후기 작성)는 type1 [임시저장 후 종료]/[글쓰기 종료].
@@ -237,7 +245,7 @@ export default function ReviewForm({
   const reviewDraft = useDraftAutoSave(
     "review",
     !isEdit && isDirty,
-    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, oneliner, relYear, within],
+    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, reactions, oneliner, relYear, within],
     getReviewFields,
   );
   useEffect(() => {
@@ -251,6 +259,7 @@ export default function ReviewForm({
     const f = saved.fields as {
       procedureKo?: string; satisfaction?: number; pain?: number;
       downtime?: string; revisit?: string; effectAreas?: string[];
+      reactions?: string[];
       oneliner?: string;
       relYear?: RelYear | ""; within?: string;
     };
@@ -260,6 +269,7 @@ export default function ReviewForm({
     if (f.downtime && !downtime) setDowntime(f.downtime);
     if (f.revisit && !revisit) setRevisit(f.revisit);
     if (f.effectAreas?.length && !effectAreas.length) setEffectAreas(f.effectAreas);
+    if (f.reactions?.length && !reactions.length) setReactions(f.reactions);
     if (f.oneliner && !oneliner) setOneliner(f.oneliner);
     // 어림시기 복원 — 미선택 상태일 때만 덮어써 사용자 입력 보존.
     if (f.relYear && !relYear) setRelYear(f.relYear);
@@ -304,6 +314,14 @@ export default function ReviewForm({
     setEffectAreas((prev) =>
       prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v],
     );
+  }
+
+  // 시술 직후 반응 토글 — '없음'은 단독선택(누르면 나머지 해제), 증상 누르면 '없음' 자동 해제.
+  function toggleReaction(v: string) {
+    setReactions((prev) => {
+      if (v === REACTION_NONE_LABEL) return prev.includes(v) ? [] : [REACTION_NONE_LABEL];
+      return prev.includes(v) ? prev.filter((x) => x !== v) : [...prev.filter((x) => x !== REACTION_NONE_LABEL), v];
+    });
   }
 
   /* ── 제출 ── */
@@ -383,9 +401,12 @@ export default function ReviewForm({
       satisfaction,
       pain,
       // 다운타임은 선택 — 미선택('')이면 null 전송(서버 zod nullish 허용, DB NULL 저장, 집계 무영향).
-      downtime: downtime || null,
+      //   증상이 없으면(없음/빈배열) 다운타임은 의미가 없으므로 null(증상 1개 이상일 때만 값 전송).
+      downtime: reactions.some((r) => r !== REACTION_NONE_LABEL) ? (downtime || null) : null,
       revisit,
       effect_areas: effectAreas,
+      // 시술 직후 반응 — 멀티칩(없음 단독선택). 비면 빈 배열(=없음). RPC 가 reactions 비면 downtime 기존값 보존.
+      reactions,
       // 어림시기 — date_precision 항상 전송. visited_on 은 unknown(미기억)이면 null(서버가 NULL 저장).
       date_precision: precisionForSave,
       visited_on: visitedOnForSave,
@@ -606,7 +627,31 @@ export default function ReviewForm({
         />
         </div>
 
-        {/* ── 4. 다운타임 (선택) ── 시술 당일 작성 시 회복기간을 모를 수 있어 선택사항(미선택=NULL). */}
+        {/* ── 시술 직후 반응 (선택, 멀티 칩, '없음' 단독선택) ──
+            증상이 1개 이상일 때만 아래 다운타임 질문 노출. 아무것도 안 고르면 빈 배열(=없음). */}
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
+            시술 직후 어떤 반응이 있었나요? (선택)
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {REACTION_ALL.map((opt, i) => (
+              <EffectChip
+                key={opt}
+                active={reactions.includes(opt)}
+                color={
+                  opt === REACTION_NONE_LABEL ? "#C2C7CE" : REACTION_COLORS[i % REACTION_COLORS.length]
+                }
+                onClick={() => toggleReaction(opt)}
+                disabled={pending}
+              >
+                {opt}
+              </EffectChip>
+            ))}
+          </div>
+        </div>
+
+        {/* ── 4. 다운타임 (선택) ── 시술 직후 반응에 실제 증상이 1개 이상일 때만 노출. 미선택=NULL. */}
+        {reactions.some((r) => r !== REACTION_NONE_LABEL) && (
         <div ref={downtimeRef}>
         <ChoiceField
           label="다운타임이 얼마나 됐나요? (선택)"
@@ -617,6 +662,7 @@ export default function ReviewForm({
           disabled={pending}
         />
         </div>
+        )}
 
         {/* ── 5. 재시술 의향 (필수) ── */}
         <div ref={revisitRef}>
