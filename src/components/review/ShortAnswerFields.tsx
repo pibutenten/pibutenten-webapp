@@ -183,16 +183,13 @@ export default function ShortAnswerFields({
       {slots.map((slot, i) => (
         <div key={i}>
           <label className="mb-2 flex items-start justify-between gap-2 text-sm font-semibold text-[var(--text)]">
-            {/* 질문 라벨 — 교체 시 짧게 페이드(opacity 150ms). 글자수 카운터는 함께 페이드. */}
+            {/* 질문 라벨 — 교체 시 짧게 페이드(opacity 150ms). */}
             <span
               className={`transition-opacity duration-150 ease-out ${
                 fadingSlots.has(i) ? "opacity-0" : "opacity-100"
               }`}
             >
-              {textById.get(slot.questionId) ?? ""}{" "}
-              <span className="text-xs font-normal text-[var(--text-muted)]">
-                ({slot.answer.length} / {ANSWER_MAX})
-              </span>
+              {textById.get(slot.questionId) ?? ""}
             </span>
             {hasSpare && (
               <button

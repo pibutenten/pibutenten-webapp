@@ -25,7 +25,6 @@
  */
 
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -37,8 +36,6 @@ import { useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
-import { useDraftAutoSave } from "@/hooks/useDraftAutoSave";
-import { loadDraft, saveDraft, deleteDraft } from "@/lib/draft-storage";
 import UnsavedChangesModal from "@/components/UnsavedChangesModal";
 import {
   DOWNTIME_OPTIONS,
@@ -128,7 +125,7 @@ const REL_YEAR_CHIPS: { value: RelYear; label: string; yearsAgo: number | null }
   { value: "last", label: "작년", yearsAgo: 1 },
   { value: "before2", label: "재작년", yearsAgo: 2 },
   { value: "older", label: "몇 년 전", yearsAgo: 3 },
-  { value: "unknown", label: "잘 기억 안 나요", yearsAgo: null },
+  { value: "unknown", label: "기억 안나요", yearsAgo: null },
 ];
 /** 연중 세분 칩 — 대표 월(연초=01, 봄=04, 여름=07, 가을=10, 연말=12). 안 고르면 연 단위. */
 const WITHIN_CHIPS: { value: string; label: string; month: string }[] = [
@@ -226,56 +223,9 @@ export default function ReviewForm({
     relYear !== "" ||
     within !== "";
 
-  /* ── 임시저장 자동저장 + 복원 (create 모드만) ── */
-  const getReviewFields = useCallback(
-    () => ({ procedureKo, satisfaction, pain, downtime, revisit, effectAreas, reactions, oneliner, relYear, within }),
-    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, reactions, oneliner, relYear, within],
-  );
-
-  // C2 (2026-06-26): 이탈 모달 — create(시술후기 작성)는 type1 [임시저장 후 종료]/[글쓰기 종료].
-  //   edit(수정)은 슬롯 없음 → [계속 작성]/[나가기].
-  const guard = useUnsavedChangesGuard(isDirty, {
-    onSaveDraft: () => {
-      if (!isEdit) saveDraft("review", getReviewFields());
-    },
-    onDiscardDraft: () => {
-      if (!isEdit) deleteDraft("review");
-    },
-  });
-  const reviewDraft = useDraftAutoSave(
-    "review",
-    !isEdit && isDirty,
-    [procedureKo, satisfaction, pain, downtime, revisit, effectAreas, reactions, oneliner, relYear, within],
-    getReviewFields,
-  );
-  useEffect(() => {
-    if (isEdit) return;
-    const saved = loadDraft("review");
-    if (!saved?.fields) return;
-    if (!window.confirm("이전에 쓰다 만 기록이 있어요. 이어서 쓸까요?")) {
-      deleteDraft("review");
-      return;
-    }
-    const f = saved.fields as {
-      procedureKo?: string; satisfaction?: number; pain?: number;
-      downtime?: string; revisit?: string; effectAreas?: string[];
-      reactions?: string[];
-      oneliner?: string;
-      relYear?: RelYear | ""; within?: string;
-    };
-    if (f.procedureKo && !procedureKo) setProcedureKo(f.procedureKo);
-    if (f.satisfaction && !satisfaction) setSatisfaction(f.satisfaction);
-    if (f.pain && !pain) setPain(f.pain);
-    if (f.downtime && !downtime) setDowntime(f.downtime);
-    if (f.revisit && !revisit) setRevisit(f.revisit);
-    if (f.effectAreas?.length && !effectAreas.length) setEffectAreas(f.effectAreas);
-    if (f.reactions?.length && !reactions.length) setReactions(f.reactions);
-    if (f.oneliner && !oneliner) setOneliner(f.oneliner);
-    // 어림시기 복원 — 미선택 상태일 때만 덮어써 사용자 입력 보존.
-    if (f.relYear && !relYear) setRelYear(f.relYear);
-    if (f.within && !within) setWithin(f.within);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 이탈 방지 가드 — 임시저장 없이 dirty 경고 모달만(자동복원·이어쓰기 제거, 사용자 결정).
+  //   create·edit 모두 [계속 작성]/[나가기] 2버튼(저장 안 함).
+  const guard = useUnsavedChangesGuard(isDirty);
 
   /* 한줄후기 placeholder — 마운트 시 무작위 1개 고정(세션 내 유지). */
   const onelinerPlaceholder = useMemo(
@@ -472,7 +422,6 @@ export default function ReviewForm({
         }
 
         guard.markSubmitted();
-        reviewDraft.clear();
         if (data.card_id && typeof window !== "undefined") {
           try {
             window.sessionStorage.setItem(
@@ -496,7 +445,7 @@ export default function ReviewForm({
     // 탭 전환 시 폼 시작 위치·폭·타이틀 위치가 일치하도록 맞춤.
     <section className="mx-auto w-full max-w-[680px] py-6">
       <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up">
-        {isEdit ? "시술 후기 수정" : "내 시술, 기록으로 남기기"}
+        {isEdit ? "시술 후기 수정" : "소중한 후기로 다른 분을 도와요"}
       </h1>
 
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
@@ -631,7 +580,7 @@ export default function ReviewForm({
             증상이 1개 이상일 때만 아래 다운타임 질문 노출. 아무것도 안 고르면 빈 배열(=없음). */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-            시술 직후 어떤 반응이 있었나요? (선택)
+            시술 직후 불편한 점은 없었어요? (선택)
           </label>
           <div className="flex flex-wrap gap-3">
             {REACTION_ALL.map((opt, i) => (
@@ -655,7 +604,7 @@ export default function ReviewForm({
         <div ref={downtimeRef}>
         <ChoiceField
           label="다운타임이 얼마나 됐나요? (선택)"
-          hint="붓기·멍·딱지 등이 가라앉고 일상이 편해질 때까지. 시술 직후라 아직 모르면 비워두셔도 돼요."
+          hint="부기·멍·딱지 등이 가라앉고 일상이 편해질 때까지. 시술 직후라 아직 모르면 비워두셔도 돼요."
           value={downtime}
           onChange={setDowntime}
           options={DOWNTIME_OPTIONS}
@@ -681,6 +630,7 @@ export default function ReviewForm({
           <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
             달라진 점을 골라주세요
           </label>
+          <p className="mb-2 text-xs text-[var(--text-muted)]">생각보다 많을 거예요 — 보통 4개 이상 고르세요.</p>
           <div className="flex flex-wrap gap-3">
             {EFFECT_AREA_OPTIONS.map((opt, i) => (
               <EffectChip
@@ -714,10 +664,7 @@ export default function ReviewForm({
         ) : (
           <div>
             <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
-              생생한 후기를 남겨주세요{" "}
-              <span className="text-xs font-normal text-[var(--text-muted)]">
-                ({oneliner.length} / {ONELINER_MAX})
-              </span>
+              생생한 후기를 남겨주세요
             </label>
 
             <textarea
@@ -769,14 +716,15 @@ export default function ReviewForm({
                 : "등록 중…"
               : isEdit
                 ? "기록 수정"
-                : "내 기록 남기기"}
+                : "올리기"}
           </button>
         </div>
       </div>
       {guard.showModal && (
+        // 임시저장 슬롯 제거(사용자 결정) → create·edit 모두 edit 형태([나가기]/[계속 작성])로.
+        //   onSaveDraft 미전달 = "임시저장 후 종료" 옵션 없음.
         <UnsavedChangesModal
-          variant={isEdit ? "edit" : "create"}
-          onSaveDraft={isEdit ? undefined : guard.confirmSaveAndLeave}
+          variant="edit"
           onDiscard={guard.confirmDiscardAndLeave}
           onCancel={guard.cancelLeave}
         />
