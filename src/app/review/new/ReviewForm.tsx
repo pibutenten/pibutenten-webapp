@@ -307,12 +307,12 @@ export default function ReviewForm({
   }
 
   /* ── 제출 ── */
-  // 필수: 시술·만족도·통증·다운타임·재시술·효과(≥1, '없음'도 1개). 한줄후기만 선택.
+  // 필수: 시술·만족도·통증·재시술·효과(≥1, '없음'도 1개). 다운타임·한줄후기는 선택.
+  //   다운타임은 시술 당일 작성 시 회복기간을 알 수 없어 선택사항(미선택=NULL 저장, 집계 무영향).
   const canSubmit =
     !!procedureKo &&
     satisfaction >= 1 &&
     pain >= 1 &&
-    !!downtime &&
     !!revisit &&
     effectAreas.length >= 1;
 
@@ -328,7 +328,7 @@ export default function ReviewForm({
     if (!procedureKo) errors.push("시술을 선택해주세요.");
     if (satisfaction < 1) errors.push("만족도를 선택해주세요.");
     if (pain < 1) errors.push("통증 정도를 선택해주세요.");
-    if (!downtime) errors.push("일상으로 돌아오기까지 걸린 시간을 선택해주세요.");
+    // 다운타임은 선택사항(시술 당일 작성 시 미정) — 검증 게이트 없음.
     if (!revisit) errors.push("재시술 의향을 선택해주세요.");
     if (effectAreas.length < 1) errors.push("느낀 효과를 1개 이상 골라주세요.");
     return errors;
@@ -338,20 +338,18 @@ export default function ReviewForm({
     setError(null);
     const errors = validate();
     if (errors.length > 0) {
-      // W-8: 첫 번째 미입력 항목으로 스크롤 (검증 순서: 시술→만족도→통증→다운타임→재시술→효과).
+      // W-8: 첫 번째 미입력 항목으로 스크롤 (검증 순서: 시술→만족도→통증→재시술→효과). 다운타임은 선택사항이라 제외.
       const firstRef = !procedureKo
         ? procedureRef
         : satisfaction < 1
           ? satisfactionRef
           : pain < 1
             ? painRef
-            : !downtime
-              ? downtimeRef
-              : !revisit
-                ? revisitRef
-                : effectAreas.length < 1
-                  ? effectAreasRef
-                  : null;
+            : !revisit
+              ? revisitRef
+              : effectAreas.length < 1
+                ? effectAreasRef
+                : null;
       firstRef?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       setValidationErrors(errors);
       return;
@@ -384,7 +382,8 @@ export default function ReviewForm({
       procedure_ko: procedureKo,
       satisfaction,
       pain,
-      downtime,
+      // 다운타임은 선택 — 미선택('')이면 null 전송(서버 zod nullish 허용, DB NULL 저장, 집계 무영향).
+      downtime: downtime || null,
       revisit,
       effect_areas: effectAreas,
       // 어림시기 — date_precision 항상 전송. visited_on 은 unknown(미기억)이면 null(서버가 NULL 저장).
@@ -607,12 +606,11 @@ export default function ReviewForm({
         />
         </div>
 
-        {/* ── 4. 다운타임 (필수) ── */}
+        {/* ── 4. 다운타임 (선택) ── 시술 당일 작성 시 회복기간을 모를 수 있어 선택사항(미선택=NULL). */}
         <div ref={downtimeRef}>
         <ChoiceField
-          label="다운타임이 얼마나 됐나요?"
-          hint="붓기·멍·딱지 등이 가라앉고 일상이 편해질 때까지"
-          required
+          label="다운타임이 얼마나 됐나요? (선택)"
+          hint="붓기·멍·딱지 등이 가라앉고 일상이 편해질 때까지. 시술 직후라 아직 모르면 비워두셔도 돼요."
           value={downtime}
           onChange={setDowntime}
           options={DOWNTIME_OPTIONS}
@@ -820,7 +818,7 @@ function TabbedProcedurePicker({
       <div
         role="tablist"
         aria-label="시술 카테고리"
-        className="-mx-1 flex justify-center gap-x-[14px] overflow-x-auto px-1 sm:gap-x-7 sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+        className="-mx-1 flex justify-start sm:justify-center gap-x-[14px] overflow-x-auto px-1 sm:gap-x-7 sm:overflow-visible [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none" } as CSSProperties}
       >
         {tabs.map((tab) => {

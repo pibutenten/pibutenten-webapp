@@ -157,7 +157,7 @@ export default function CategoryWithChips({ popularByCategory }: Props) {
       <div
         role="tablist"
         aria-label="카테고리"
-        className="-mx-4 flex justify-center gap-x-[14px] overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:gap-x-7 sm:gap-y-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+        className="-mx-4 flex justify-start gap-x-[14px] overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-x-7 sm:gap-y-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none" } as CSSProperties}
       >
         {PROCEDURE_CATEGORIES.map((c) => {

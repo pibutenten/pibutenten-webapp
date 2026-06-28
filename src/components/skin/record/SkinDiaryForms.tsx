@@ -38,6 +38,16 @@ const labelCls = "mb-2 block text-sm font-semibold text-[var(--text)]";
 const formBox = "space-y-5 rounded-[var(--radius)] bg-white p-5";
 const cardBox = "rounded-[var(--radius)] bg-white p-5";
 
+/* 모바일 포커스 시 입력칸을 키보드 위(화면 중앙)로 스크롤.
+   .root(position:fixed; overflow-y:auto) 컨테이너라 브라우저 기본 "포커스 자동 노출" 스크롤이 안 먹어
+   입력칸이 키보드에 가린다. 날짜 달력(calRef.scrollIntoView)과 동일한 검증된 패턴.
+   setTimeout(300ms): iOS 키보드 등장(visualViewport resize) 후 좌표가 잡힌 뒤 스크롤되게 하는 보정
+   (즉시 호출 시 키보드 전 좌표라 빗나감). 데스크탑(≥900px)은 불필요한 점프 방지 위해 스킵. */
+const scrollFieldIntoView = (el: HTMLElement | null) => {
+  if (!el || typeof window === "undefined" || window.innerWidth >= 900) return; // 모바일만
+  requestAnimationFrame(() => setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 300));
+};
+
 
 /* 시술 picker — 실제 tag_dictionary(is_procedure) 기준. 카테고리 6종(리프팅/스킨부스터/필러·볼륨/주름·윤곽/레이저/기타). */
 const CAT_COLOR: Record<string, string> = {
@@ -561,7 +571,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
                 autoComplete="off"
                 placeholder="지명, 병원명으로 검색"
                 value={q}
-                onFocus={requestLoc}
+                onFocus={(e) => { requestLoc(); scrollFieldIntoView(e.currentTarget); }}
                 onChange={(e) => { setQ(e.target.value); setPicked(null); setHi(-1); }}
                 onKeyDown={(e) => {
                   // ↑↓ 결과 하이라이트 이동(결과 있을 때만).
@@ -608,11 +618,11 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
                 <button type="button" onClick={() => { setPicked(null); setPickedXY(null); setQ(""); setTel(""); setAddr(""); }} className="text-[11.5px] text-[var(--text-secondary)] underline">다시 선택</button>
               </div>
               {/* 회색 박스·라벨 제거 — 주소/전화는 거의 안 건드리므로 보더리스 미니멀 라인으로. */}
-              <input className="mt-1.5 w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={addr} placeholder="주소" onChange={(e) => setAddr(e.target.value)} />
-              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={tel} placeholder="전화번호" onChange={(e) => setTel(e.target.value)} />
+              <input className="mt-1.5 w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={addr} placeholder="주소" onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setAddr(e.target.value)} />
+              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={tel} placeholder="전화번호" onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setTel(e.target.value)} />
               {/* 병원 홈페이지·카카오톡 채널 — 비공개. addr/tel 과 같은 보더리스 라인. */}
-              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={clinicHome} placeholder="홈페이지 (선택)" maxLength={300} onChange={(e) => setClinicHome(e.target.value)} />
-              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={clinicKakao} placeholder="카카오톡 채널 (선택)" maxLength={300} onChange={(e) => setClinicKakao(e.target.value)} />
+              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={clinicHome} placeholder="홈페이지 (선택)" maxLength={300} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setClinicHome(e.target.value)} />
+              <input className="w-full bg-transparent py-0.5 text-[13px] text-[var(--text-secondary)] outline-none placeholder-[var(--text-muted)]" style={{ fontSize: "16px" }} value={clinicKakao} placeholder="카카오톡 채널 (선택)" maxLength={300} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setClinicKakao(e.target.value)} />
             </div>
           )}
         </div>
@@ -621,9 +631,9 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
         <div>
           <label className={labelCls}>누구에게 받으셨어요?</label>
           <div className="grid grid-cols-2 gap-2">
-            <input ref={doctorRef} className={inputCls} spellCheck={false} placeholder="원장님" value={doctorName} maxLength={100} onChange={(e) => setDoctorName(e.target.value)}
+            <input ref={doctorRef} className={inputCls} spellCheck={false} placeholder="원장님" value={doctorName} maxLength={100} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setDoctorName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); managerRef.current?.focus(); } }} />
-            <input ref={managerRef} className={inputCls} spellCheck={false} placeholder="실장님" value={managerName} maxLength={100} onChange={(e) => setManagerName(e.target.value)}
+            <input ref={managerRef} className={inputCls} spellCheck={false} placeholder="실장님" value={managerName} maxLength={100} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setManagerName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); tagRef.current?.focus(); } }} />
           </div>
         </div>
@@ -657,6 +667,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
                       value={p.note}
                       maxLength={60}
                       autoFocus
+                      onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
                       onChange={(e) => upd(p.id, { note: e.target.value })}
                       onBlur={(e) => { const v = e.target.value.trim(); upd(p.id, { open: false }); if (v) trackProc("procedure_memo_save", { length: v.length }); }}
                       onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
@@ -687,6 +698,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
               value={tag}
               autoComplete="off"
               enterKeyHint="done"
+              onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
               onChange={(e) => setTag(e.target.value)}
               onBlur={() => { setTimeout(() => { setTag(""); setAcHi(-1); }, 150); }}
               onKeyDown={(e) => {
@@ -754,6 +766,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
               className={inputCls + " pr-9"}
               placeholder="예: 350000"
               value={totalPrice ? Number(totalPrice.replace(/[^0-9]/g, "")).toLocaleString("ko-KR") : ""}
+              onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
               onChange={(e) => setTotalPrice(e.target.value.replace(/[^0-9]/g, ""))}
             />
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14px] text-[var(--text-muted)]">원</span>
@@ -763,7 +776,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
         {/* 6. 오늘의 시술 노트 — 비공개 메모, 최대 400자 (후기 카운터와 동일 표기) */}
         <div>
           <label className={labelCls}>오늘의 시술 노트 <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">({diary.length} / 400)</span></label>
-          <textarea rows={3} maxLength={400} value={diary} onChange={(e) => setDiary(e.target.value)} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
+          <textarea rows={3} maxLength={400} value={diary} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setDiary(e.target.value)} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
         </div>
 
       </div>
@@ -858,6 +871,7 @@ function ReviewAccordion({
         </label>
         <textarea
           value={p.oneliner}
+          onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
           onChange={(e) => onChange({ oneliner: e.target.value })}
           maxLength={ONELINER_MAX}
           rows={3}

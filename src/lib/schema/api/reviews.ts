@@ -41,7 +41,9 @@ export const ReviewCreateSchema = z
     satisfaction: z.number().int().min(1).max(5),
     pain: z.number().int().min(1).max(5),
     // 다운타임(일상 복귀 소요) — 영문 슬러그(DB downtime_chk 와 일치).
-    downtime: z.enum(["same_day", "days_1_2", "days_3_5", "week_1", "weeks_2_plus"]),
+    //   선택사항: 시술 당일 작성 시 회복기간 미정 → null/undefined 허용(.nullish()). DB 컬럼 nullable.
+    //   SkinDiaryForms(시술노트) 경로와 동일하게 단독 후기폼도 다운타임 선택화(2026-06-28).
+    downtime: z.enum(["same_day", "days_1_2", "days_3_5", "week_1", "weeks_2_plus"]).nullish(),
     // 재시술 의향: 예 / 고민중 / 아니오.
     revisit: z.enum(["yes", "maybe", "no"]),
     // 추천의향(recommend) — 다른 분께 권할지(1~5 척도). revisit 와 의미 다름.
