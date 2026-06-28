@@ -131,7 +131,7 @@ function IconReport() {
 type NavItem = { label: NavTab; href: string; icon?: ReactNode; comingSoon?: boolean };
 
 /* 탭바 항목 정의 — 글쓰기는 우하단 FAB(WriteFab)로 분리, 하단 탭은 5개.
-   마이 슬롯을 리포트로 교체(마이는 헤더 우상단 아바타로 진입). 쇼핑은 준비중(딤드 배지). */
+   마이 슬롯을 리포트로 교체(마이는 헤더 우상단 아바타로 진입). 쇼핑은 준비중(딤드, 텍스트 배지 없음). */
 const TABS: NavItem[] = [
   { label: "투데이", href: ROUTES.today, icon: <IconToday /> },
   { label: "내 노트", href: ROUTES.notes, icon: <IconNote /> },
@@ -599,10 +599,11 @@ export default function AppShell({
                 ✕=검색어만 지우고 빈 편집 박스 재오픈. ≥900px 은 CSS 로 숨김(데스크탑 상시 pill 이 담당). */}
             {mobileQueryActive && (
               <div className={styles.mobileQuerySearchBar}>
-                {/* ← 검색 닫기(나가기) = clearSearch — 검색어 비우고 피드면 전체 피드로 복귀. */}
+                {/* ← 검색 닫기(나가기) = clearSearch — 검색어 비우고 피드면 전체 피드로 복귀.
+                    입력 모드 ←(.searchBack)와 동일 클래스·SVG 로 통일(2026-06-28 알약 정합). */}
                 <button
                   type="button"
-                  className={styles.mobileQueryBack}
+                  className={styles.searchBack}
                   onClick={clearSearch}
                   aria-label="검색 닫기"
                 >
@@ -611,7 +612,7 @@ export default function AppShell({
                     height={22}
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#3c4856"
+                    stroke="currentColor"
                     strokeWidth={2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -619,39 +620,45 @@ export default function AppShell({
                     <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                 </button>
-                {/* 검색어 필드 — 결과바에선 리드온리(직접 편집 X). 탭하면 인-헤더 편집 박스를
-                    빈 초안으로 재오픈(발견 메뉴 + 새 입력). 새 검색은 전부 편집 박스가 담당. */}
-                <button
-                  type="button"
-                  className={styles.mobileQueryField}
-                  onClick={() => {
-                    setDraft("");
-                    setSearchOpen(true);
-                  }}
-                  aria-label="검색어 편집"
+                {/* 검색어 알약 — 입력 모드(.headerSearchInline)와 동일 구조·클래스로 통일.
+                    결과바에선 리드온리(직접 편집 X). 검색어 탭하면 인-헤더 편집 박스를 빈
+                    초안으로 재오픈(발견 메뉴 + 새 입력). 새 검색은 전부 편집 박스가 담당. */}
+                <div
+                  className={`${styles.headerSearch} ${styles.headerSearchLive} ${styles.headerSearchInline}`}
                 >
-                  <span className={styles.mobileQueryFieldText}>{value}</span>
-                </button>
-                {value.trim().length > 0 && (
+                  <IconSearch />
                   <button
                     type="button"
-                    className={styles.searchClear}
-                    aria-label="검색어 지우기"
+                    className={styles.searchValueBtn}
                     onClick={() => {
-                      setValue("");
                       setDraft("");
                       setSearchOpen(true);
                     }}
+                    aria-label="검색어 편집"
                   >
-                    ✕
+                    {value}
                   </button>
-                )}
+                  {value.trim().length > 0 && (
+                    <button
+                      type="button"
+                      className={styles.searchClear}
+                      aria-label="검색어 지우기"
+                      onClick={() => {
+                        setValue("");
+                        setDraft("");
+                        setSearchOpen(true);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
             <nav className={styles.gnb}>
               {GNB.map((g) =>
-                // 쇼핑(준비 중) → 클릭 시 안내 토스트(라우팅 없음) + 딤드 + '준비중' 배지.
+                // 쇼핑(준비 중) → 클릭 시 안내 토스트(라우팅 없음) + 딤드(회색). 텍스트 배지 없음.
                 g.comingSoon ? (
                   <button
                     key={g.label}
@@ -662,7 +669,6 @@ export default function AppShell({
                     onClick={onShopClick}
                   >
                     {g.label}
-                    <span className={styles.gnbSoon}>준비중</span>
                   </button>
                 ) : (
                   <GuardedLink
@@ -805,7 +811,7 @@ export default function AppShell({
       {!wide && !keyboardOpen && (
         <nav className={styles.tabbar}>
           {TABS.map((t) =>
-            // 쇼핑(준비 중) → 클릭 시 안내 토스트(라우팅 없음) + 딤드 + '준비중' 배지.
+            // 쇼핑(준비 중) → 클릭 시 안내 토스트(라우팅 없음) + 딤드(회색). 텍스트 배지 없음.
             t.comingSoon ? (
               <button
                 key={t.label}
@@ -817,7 +823,6 @@ export default function AppShell({
               >
                 {t.icon}
                 {t.label}
-                <span className={styles.tabSoon}>준비중</span>
               </button>
             ) : (
               <GuardedLink

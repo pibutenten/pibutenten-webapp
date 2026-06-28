@@ -239,8 +239,8 @@
   color: var(--ink-700);
 }
 
-/* 인-헤더 검색 입력 모드 ← 검색 닫기(나가기) 버튼 — 검색행 좌측 아이콘 버튼(2026-06-28 통합).
-   결과바 ←(.mobileQueryBack)와 정렬·크기 정합. */
+/* 검색행 좌측 ← 버튼 — 입력 모드(검색 닫기)·결과바(clearSearch) 공용(2026-06-28 알약 정합).
+   양쪽 모두 이 클래스 하나로 정렬·크기·색(--ink-700) 통일. */
 .searchBack {
   display: flex;
   align-items: center;
@@ -509,86 +509,47 @@
   margin-left: 2px;
   margin-right: -4px;
 }
-
-/* 모바일 활성 검색어 알약 — 검색 결과 동안 헤더에 검색어를 노출(데스크탑 상시 검색 pill 과 동일 역할).
-   탭하면 그 검색어로 검색창이 열리고, ✕ 로 해제. 데스크탑(≥900px)은 .headerSearch 가 담당하므로 숨김. */
-.mobileQueryPill {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  background: #fff;
-  border-radius: var(--r-chip);
-  padding: 10px 16px;
-  box-shadow: var(--card-shadow);
-}
-.mobileQueryPill svg {
-  width: 18px;
-  height: 18px;
-  flex: none;
-  stroke: var(--ink-300);
-}
-.mobileQueryText {
+/* 결과바 알약 안 리드온리 검색어 — 입력 모드 input(.headerSearchInline input)과 동일
+   글씨/정렬/flex 로 맞춰 입력 ↔ 결과 검색창이 픽셀 단위로 동일하게 보이게 한다. */
+.headerSearchInline .searchValueBtn {
   flex: 1;
   min-width: 0;
-  text-align: left;
-  /* 검색 입력창(16px)과 동일하게 — 입력 ↔ 결과 검색어 글씨 크기 일치. */
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
   font-size: 16px;
   color: var(--ink-900);
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: text;
 }
+
 /* 검색어 알약이 있으면 모바일에선 로고·검색아이콘·스페이서를 숨겨 검색바가 그 자리를 대신한다. */
 .headerInnerHasQuery .logoLink,
 .headerInnerHasQuery .iconBtnSearch,
 .headerInnerHasQuery .headerSpacer {
   display: none;
 }
+/* 결과바 알약↔우측 액션(벨·아바타) 간격을 입력 모드(.headerInnerSearch gap:8)와 동일하게.
+   데스크탑 .headerInner gap:10 은 유지하고 모바일만 8 로 좁힌다. */
+@media (max-width: 899px) {
+  .headerInnerHasQuery,
+  .headerInnerSearch {
+    gap: 8px;
+  }
+}
 
-/* 모바일 검색 결과 전체 검색바 — /search 페이지와 동일 레이아웃(← 뒤로 + 검색 입력창 + ✕). */
+/* 모바일 검색 결과 전체 검색바 — 입력 모드(.headerInnerSearch)와 동일 알약 레이아웃
+   (← .searchBack + .headerSearchInline 알약 + 안쪽 ✕). */
 .mobileQuerySearchBar {
   display: flex;
   flex: 1;
   align-items: center;
   gap: 8px;
   min-width: 0;
-}
-.mobileQueryBack {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-/* 결과바 검색어 필드 — 리드온리(직접 편집 X). 탭하면 인-헤더 편집 박스 재오픈(2026-06-28 통합).
-   옛 .mobileQueryForm/.mobileQueryInput(편집 가능 input) 대체 — 새 검색은 전부 편집 박스가 담당. */
-.mobileQueryField {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  height: 40px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1.5px solid #cdebfa;
-  background: #f7fafc;
-  cursor: text;
-  text-align: left;
-}
-.mobileQueryFieldText {
-  flex: 1;
-  min-width: 0;
-  font-size: 16px;
-  color: #1e2a35;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ---------- 콘텐츠 컨테이너 ---------- */
@@ -1593,6 +1554,8 @@ button.t[data-cat="other"]:hover {
   gap: 3px;
   font-size: 11.5px;
   font-weight: 600;
+  /* 라벨이 좁은 폭에서 2줄로 끊기지 않게(예: "투데이"→"투데/이") — 한 줄 강제. */
+  white-space: nowrap;
   /* 비활성 — 옅은 회색(화이트 배경 대비 가독 + 활성 로즈와 위계). */
   color: #aab0bb;
   min-width: 54px;
@@ -1614,27 +1577,14 @@ button.t[data-cat="other"]:hover {
   font-weight: 700;
   background: #e6f2fb;
 }
-/* 쇼핑 준비중 탭 — 딤드 처리(클릭 시 안내 토스트, 라우팅 없음). */
+/* 쇼핑 준비중 탭 — 딤드 처리(텍스트 배지 없이 회색 비활성 시각 + 클릭 시 안내 토스트, 라우팅 없음).
+   #c7ccd4 는 일반 비활성 탭(.tab #aab0bb)보다 더 옅어 '준비중=비활성'으로 읽힌다. */
 .tabDisabled {
   color: #c7ccd4;
   cursor: default;
 }
 .tabDisabled:hover {
   color: #c7ccd4;
-}
-/* 모바일 탭 '준비중' 배지 — 라벨 아래 작게(@900px 데스크탑 전용 .gnbSoon 와 별개, 모바일 탭 전용). */
-.tabSoon {
-  margin-top: 1px;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  padding: 2px 5px;
-  border-radius: var(--r-chip);
-  background: #eef1f4;
-  /* #eef1f4 배경 대비 4.99:1 (#5f6873) — WCAG AA(4.5:1) 충족, 9px 작은 글씨 가독 확보.
-     (이전 #6b7480 은 실측 4.18:1 로 AA 미달이라 정정.) */
-  color: #5f6873;
 }
 
 /* ---------- 사이드바 내부 ---------- */
@@ -1972,11 +1922,8 @@ button.t[data-cat="other"]:hover {
   .logoDesktop {
     display: flex;
   }
-  /* 데스크탑은 상시 검색 pill 이 검색어를 보여주므로 모바일 검색어 알약은 숨기고,
+  /* 데스크탑은 상시 검색 pill 이 검색어를 보여주므로 모바일 결과 검색바는 숨기고,
      로고·스페이서는 항상 표시(검색 결과 중에도 헤더 레이아웃 유지). */
-  .mobileQueryPill {
-    display: none;
-  }
   .mobileQuerySearchBar {
     display: none;
   }
@@ -2028,7 +1975,11 @@ button.t[data-cat="other"]:hover {
   .gnbItem {
     display: inline-flex;
     align-items: center;
-    padding: 9px 15px;
+    /* 라벨이 2줄로 끊기지 않게(예: "투데이"→"투데/이") — 한 줄 강제.
+       5항목(투데이/내 노트/피드/리포트/쇼핑) + 검색 pill + 글쓰기 + 아바타가
+       헤더 폭에 맞도록 좌우 패딩을 13px 로 약간 좁힌다(기존 15px). */
+    white-space: nowrap;
+    padding: 9px 13px;
     border-radius: 12px;
     font-size: 14.5px;
     font-weight: 700;
@@ -2044,33 +1995,20 @@ button.t[data-cat="other"]:hover {
     background: #fff;
     box-shadow: var(--card-shadow);
   }
-  /* 쇼핑(준비중) GNB 항목 — 딤드(흐림) + '준비중' 배지(.gnbSoon). comingSoon 플래그가 이 스타일을 다시 사용.
+  /* 쇼핑(준비중) GNB 항목 — 딤드(흐림)만(텍스트 배지 없음). comingSoon 플래그가 이 스타일을 다시 사용.
      일반 .gnbItem(--ink-500 #7b8794, luminance 0.237)보다 더 옅게(흐리게) 보여야 '준비중=비활성'이
      직관적으로 읽힌다. 토큰 --ink-300(#6b747e)은 실제로 ink-500 보다 '어두워'(luminance 0.171) 딤드와
      반대로 보이는 결함이 있어, 탭바 비활성 톤과 동일한 옅은 회색 #aab0bb(luminance 0.432, ink-500 보다 밝음)
-     을 직접 사용한다. 배지가 '준비중' 정보를 전달하므로 본문 대비 강제는 불필요(흐림 인지가 목적). */
+     을 직접 사용한다. 클릭 시 안내 토스트로 '준비 중' 상태를 전달한다(텍스트 배지 폐기 2026-06-28). */
   .gnbDisabled {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
     color: #aab0bb;
     cursor: default;
   }
   .gnbDisabled:hover {
     background: none;
     color: #aab0bb;
-  }
-  .gnbSoon {
-    display: inline-block;
-    font-size: 10.5px;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    line-height: 1;
-    padding: 3px 7px;
-    border-radius: var(--r-chip);
-    background: #e6eef4;
-    /* #e6eef4 배경 대비 약 4.6:1 (#5b6570). */
-    color: #5b6570;
   }
   .headerSearch {
     display: flex;

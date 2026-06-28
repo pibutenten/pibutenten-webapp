@@ -4,7 +4,7 @@
  * FeedSidebar — 홈 피드/토픽/리포트가 공유하는 데스크탑 우측 사이드바 (클라이언트).
  *
  * 기존엔 FeedView.tsx 안에 인라인으로 있던 3개 위젯을 별도 컴포넌트로 추출(중복 구현 방지):
- *   ① 인기 태그   — "전체"(서버 빈도순 popularTags) + 카테고리 5탭(/api/search/suggest cats).
+ *   ① 인기 태그   — "전체"(서버 빈도순 popularTags) + 카테고리 시술 6탭(/api/search/suggest cats).
  *   ② 인기 Q&A    — 의사 Q&A 카드 풀(hotQa)에서 5개를 진입마다 회전 노출.
  *   ③ 글쓰기 CTA — 랜덤 문구(정적, 데이터 불필요) + /write 버튼.
  *
@@ -18,7 +18,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CardData } from "@/lib/types/card";
 import { prefetchDiscover } from "@/components/search/SearchPanel";
-import { CATEGORIES, type CategorySlug } from "@/lib/categories";
+import { PROCEDURE_CATEGORIES, type CategorySlug } from "@/lib/categories";
 import styles from "./app.module.css";
 import { cardHref, catTagClass, catKey } from "./ui";
 
@@ -58,7 +58,7 @@ export default function FeedSidebar({
   //   (prop 시그니처·호출부 무수정 → 회귀 위험 최소. 헤더 검색·SearchPanel 경로는 영향 없음.)
   const TAG_TAB_KEY = "pbtt:feedSidebar:tagTab";
   const VALID_TABS = useMemo<TagTab[]>(
-    () => ["all", ...CATEGORIES.map((c) => c.slug)],
+    () => ["all", ...PROCEDURE_CATEGORIES.map((c) => c.slug)],
     [],
   );
   const [tagTab, setTagTabState] = useState<TagTab>("all");
@@ -126,7 +126,7 @@ export default function FeedSidebar({
     <>
       <section className={`${styles.card} ${styles.sideCard}`}>
         <h3>인기 태그</h3>
-        {/* 카테고리 탭 — "전체"(빈도순 16개) + 운영 5개 카테고리. */}
+        {/* 카테고리 탭 — "전체"(빈도순 16개) + 시술 6개 카테고리. */}
         <div className={styles.tagCatTabs}>
           <button
             type="button"
@@ -136,7 +136,7 @@ export default function FeedSidebar({
           >
             전체
           </button>
-          {CATEGORIES.map((c) => (
+          {PROCEDURE_CATEGORIES.map((c) => (
             <button
               type="button"
               key={c.slug}
