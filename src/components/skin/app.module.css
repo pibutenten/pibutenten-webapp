@@ -157,10 +157,13 @@
   --accent: #9aa3b0;
   --text-muted: #9aa3b0;
 }
-/* 입력창(textarea/input)만 3px 파란 링 제거 — 폼 자체 보더로 포커스 표현.
-   버튼류는 접근성(WCAG 2.4.7 Focus Visible) 위해 은은한 회색 포커스 링 유지. */
-.root .comments textarea:focus-visible,
-.root .comments input:focus-visible {
+/* 모든 텍스트 입력(input/textarea)만 3px 파란 링 제거 — 폼 자체 보더/래퍼 focus-within 으로
+   포커스 표현(앱 기존 철학). 검색 알약 안쪽에 또 박스(이중 박스 3px 링)가 생기던 문제 해소.
+   버튼·링크·role=button 의 a11y 포커스 링(.root :focus-visible)은 그대로 유지(input/textarea 만 opt-out).
+   (헤더검색·댓글의 기존 개별 opt-out 규칙은 이 일반 규칙에 포함되나 중복 무해로 남겨둠.)
+   접근성(WCAG 2.4.7 Focus Visible): 버튼류는 위 :focus-visible / 댓글 버튼은 아래 회색 링 유지. */
+.root input:focus-visible,
+.root textarea:focus-visible {
   outline: none;
 }
 .root .comments button:focus-visible {

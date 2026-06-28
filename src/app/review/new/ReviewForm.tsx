@@ -39,6 +39,7 @@ import { useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { useAutocompleteKeyboard } from "@/hooks/useAutocompleteKeyboard";
 import UnsavedChangesModal from "@/components/UnsavedChangesModal";
 import {
   DOWNTIME_OPTIONS,
@@ -517,7 +518,7 @@ export default function ReviewForm({
               <span className="text-[12px] font-normal text-[var(--primary)]">{precisionDateLabel}</span>
             )}
           </label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             {REL_YEAR_CHIPS.map((c) => {
               const on = relYear === c.value;
               return (
@@ -526,7 +527,7 @@ export default function ReviewForm({
                   type="button"
                   onClick={() => { setRelYear(c.value); if (c.value === "unknown") setWithin(""); }}
                   disabled={pending}
-                  className="rounded-full px-3 py-1 text-[12.5px] transition-colors disabled:opacity-50"
+                  className="rounded-full px-2.5 py-1 text-[12.5px] whitespace-nowrap transition-colors disabled:opacity-50"
                   style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}
                 >
                   {c.label}
@@ -536,7 +537,7 @@ export default function ReviewForm({
           </div>
           {/* 2단(연중) — 연도를 골랐고 '잘 기억 안 나요'가 아닐 때만. 다시 누르면 해제(연 단위). */}
           {relYear !== "" && relYear !== "unknown" && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-1 fade-in-up">
               {WITHIN_CHIPS.map((w) => {
                 const on = within === w.value;
                 return (
@@ -545,8 +546,8 @@ export default function ReviewForm({
                     type="button"
                     onClick={() => setWithin(on ? "" : w.value)}
                     disabled={pending}
-                    className="rounded-full px-3 py-1 text-[12.5px] transition-colors disabled:opacity-50"
-                    style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#F1F3F5", color: "#5C6470", fontWeight: 500 }}
+                    className="rounded-full px-2.5 py-1 text-[12.5px] whitespace-nowrap transition-colors disabled:opacity-50"
+                    style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}
                   >
                     {w.label}
                   </button>
@@ -603,19 +604,30 @@ export default function ReviewForm({
           </div>
         </div>
 
-        {/* ── 4. 다운타임 (선택) ── 시술 직후 반응에 실제 증상이 1개 이상일 때만 노출. 미선택=NULL. */}
-        {reactions.some((r) => r !== REACTION_NONE_LABEL) && (
-        <div ref={downtimeRef}>
-        <ChoiceField
-          label="다운타임이 얼마나 됐나요? (선택)"
-          hint="부기·멍·딱지 등이 가라앉고 일상이 편해질 때까지. 시술 직후라 아직 모르면 비워두셔도 돼요."
-          value={downtime}
-          onChange={setDowntime}
-          options={DOWNTIME_OPTIONS}
-          disabled={pending}
-        />
-        </div>
-        )}
+        {/* ── 4. 다운타임 (선택) ── 시술 직후 반응에 실제 증상이 1개 이상일 때만 노출. 미선택=NULL.
+            증상 체크 시 살며시 열리고 지우면 살며시 닫힘(시술 선택 collapse 와 동일 grid-rows 패턴). */}
+        {(() => {
+          const dtOpen = reactions.some((r) => r !== REACTION_NONE_LABEL);
+          return (
+            <div
+              className="grid transition-[grid-template-rows] duration-300 ease-out"
+              style={{ gridTemplateRows: dtOpen ? "1fr" : "0fr" }}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div ref={downtimeRef}>
+                  <ChoiceField
+                    label="다운타임이 얼마나 됐나요? (선택)"
+                    hint="부기·멍·딱지 등이 가라앉고 일상이 편해질 때까지. 시술 직후라 아직 모르면 비워두셔도 돼요."
+                    value={downtime}
+                    onChange={setDowntime}
+                    options={DOWNTIME_OPTIONS}
+                    disabled={pending}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── 5. 재시술 의향 (필수) ── */}
         <div ref={revisitRef}>
@@ -708,11 +720,7 @@ export default function ReviewForm({
             type="button"
             onClick={submit}
             disabled={pending || !canSubmit}
-            className={`h-10 rounded-md px-8 text-sm font-semibold text-white transition-colors disabled:opacity-80 ${
-              canSubmit
-                ? "cursor-pointer bg-[var(--primary)] hover:bg-[var(--primary-dark)]"
-                : "cursor-not-allowed bg-[#CBD2D9]"
-            }`}
+            className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending
               ? isEdit
@@ -837,6 +845,18 @@ function TabbedProcedurePicker({
       .map((x) => x.p);
   }, [procedures, q]);
 
+  // 자동완성 키보드 네비(↑↓ 하이라이트, Enter 선택) — 공용 훅. matches 계산 뒤 최상위 호출.
+  const kb = useAutocompleteKeyboard({
+    count: matches.length,
+    onSelect: (i) => { onChange(matches[i].value); setQuery(""); },
+    enabled: !!q,
+  });
+
+  // C. 시술 선택 해제(value '' = '다시 선택') 시 검색어 초기화(이전 입력 비우기).
+  useEffect(() => {
+    if (!value) setQuery("");
+  }, [value]);
+
   // 둘러보기 칩 — 활성 탭 카테고리 상위 18개(인기순 = 들어온 순서).
   const visibleChips = procedures
     .filter((p) => p.categoryLabel === activeTab)
@@ -845,12 +865,13 @@ function TabbedProcedurePicker({
   return (
     <div>
       {/* 검색 입력 (검색 패널과 통일감 — 흰 폼카드 위) */}
-      <div className="mb-3 flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-3.5 py-2">
+      <div className="mb-3 flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-3.5 py-2 focus-within:border-[var(--primary)]">
         <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#9aa3b0" strokeWidth={2} strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={kb.onKeyDown}
           disabled={disabled}
           placeholder="시술명을 검색해 보세요"
           enterKeyHint="search"
@@ -865,13 +886,14 @@ function TabbedProcedurePicker({
         /* 자동완성 — q 가 있으면 탭·칩·divider 대신 매칭 목록만. */
         matches.length > 0 ? (
           <div className="max-h-[260px] overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
-            {matches.map((p) => (
+            {matches.map((p, i) => (
               <button
                 key={p.value}
                 type="button"
                 disabled={disabled}
                 onClick={() => { onChange(p.value); setQuery(""); }}
-                className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-2.5 text-left hover:bg-[#f7f9fb] disabled:opacity-50"
+                onMouseEnter={() => kb.setActiveIndex(i)}
+                className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-2.5 text-left hover:bg-[#f7f9fb] disabled:opacity-50 ${i === kb.activeIndex ? "bg-[#f7f9fb]" : ""}`}
               >
                 <span className="text-[14px] text-[var(--text)]">{p.label}</span>
                 <span className="shrink-0 text-[11.5px] text-[var(--text-muted)]">{p.categoryLabel}</span>

@@ -25,6 +25,7 @@ import {
   ONELINER_PLACEHOLDERS,
 } from "@/components/review/review-controls";
 import { DOWNTIME_OPTIONS } from "@/lib/review-options";
+import { useAutocompleteKeyboard } from "@/hooks/useAutocompleteKeyboard";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -135,10 +136,9 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   const [geoMsg, setGeoMsg] = useState<string | null>(null);
   // 결과창 부드러운 닫힘 — 병원 선택 시 잠깐 접었다가(슥) 확정.
   const [closing, setClosing] = useState(false);
-  // 병원 검색 결과 키보드 네비게이션 — ↑↓ 로 하이라이트 이동, Enter 로 선택.
-  const [hi, setHi] = useState(-1);
-  // 결과 목록이 (비동기 검색으로) 바뀌면 하이라이트 초기화 — 옛 인덱스로 엉뚱한 선택 방지.
-  useEffect(() => { setHi(-1); }, [results]);
+  // 병원 검색 결과 키보드 네비게이션 — ↑↓ 이동·하이라이트 Enter=선택·IME 가드를 공용 훅으로.
+  //  결과 개수 변할 때 하이라이트 자동 초기화(옛 인덱스 오선택 방지)도 훅이 처리.
+  const placeKb = useAutocompleteKeyboard({ count: results.length, onSelect: (i) => confirmPick(results[i]), enabled: results.length > 0 });
   // 내 현재 위치 — 이름 검색 결과의 거리 표시·정렬 기준(ref, 재조회 불필요).
   const myLocRef = useRef<{ lat: number; lng: number } | null>(null);
   // 현재 결과가 '내 주변'(geolocation)에서 온 것인지 표시 — q 가 비었을 때 결과 유지 판정용.
@@ -572,25 +572,15 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
                 placeholder="지명, 병원명으로 검색"
                 value={q}
                 onFocus={(e) => { requestLoc(); scrollFieldIntoView(e.currentTarget); }}
-                onChange={(e) => { setQ(e.target.value); setPicked(null); setHi(-1); }}
+                onChange={(e) => { setQ(e.target.value); setPicked(null); }}
                 onKeyDown={(e) => {
-                  // ↑↓ 결과 하이라이트 이동(결과 있을 때만).
-                  if (results.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                  // 공용 훅: ↑↓ 이동 + 하이라이트 있을 때 Enter=선택(preventDefault).
+                  placeKb.onKeyDown(e);
+                  // 하이라이트 없는 상태의 Enter 는 지명/병원명 검색 — IME 조합 확정용 Enter(keyCode 229)는 제외.
+                  if (e.key === "Enter" && !e.defaultPrevented && !e.nativeEvent.isComposing && e.keyCode !== 229) {
                     e.preventDefault();
-                    setHi((cur) => {
-                      const n = e.key === "ArrowDown" ? cur + 1 : cur - 1;
-                      return Math.max(0, Math.min(results.length - 1, n));
-                    });
-                    return;
+                    searchPlace();
                   }
-                  if (e.key !== "Enter") return;
-                  // 한글 IME 조합 중 Enter(keyCode 229)는 조합 확정용 — 무시(포커스 이동·중복검색 방지).
-                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // 하이라이트된 결과가 있으면 그걸 선택, 없으면 지명/병원명 검색.
-                  if (hi >= 0 && results[hi]) confirmPick(results[hi]);
-                  else searchPlace();
                 }}
               />
               {searching && <p className="mt-2 text-center text-[12px] text-[var(--text-muted)]">불러오는 중…</p>}
@@ -599,7 +589,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
               {results.length > 0 && (
                 <div className="mt-2 max-h-[232px] overflow-y-auto rounded-md bg-[var(--bg)]">
                   {results.map((h, i) => (
-                    <button key={`${h.name}-${h.addr}-${i}`} type="button" onClick={() => confirmPick(h)} onMouseEnter={() => setHi(i)} className={`flex w-full items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)] ${i === hi ? "bg-[var(--primary-soft)]" : ""}`}>
+                    <button key={`${h.name}-${h.addr}-${i}`} type="button" onClick={() => confirmPick(h)} onMouseEnter={() => placeKb.setActiveIndex(i)} className={`flex w-full items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--primary-soft)] ${i === placeKb.activeIndex ? "bg-[var(--primary-soft)]" : ""}`}>
                       <span className="min-w-0">
                         <span className="block truncate text-[14px] font-semibold text-[var(--text)]">{h.name} <span className="ml-1 rounded bg-white px-1.5 py-0.5 text-[10.5px] font-medium text-[var(--text-secondary)]">{regionLabel(h.addr)}</span></span>
                         <span className="block truncate text-[11.5px] text-[var(--text-muted)]">{h.addr}</span>

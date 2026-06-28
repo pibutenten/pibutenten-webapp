@@ -217,15 +217,24 @@ export default function ShortAnswerFields({
               </button>
             )}
           </label>
-          <textarea
-            value={slot.answer}
-            onChange={(e) => setAnswer(i, e.target.value)}
-            maxLength={ANSWER_MAX}
-            rows={3}
-            disabled={disabled}
-            placeholder={slot.placeholder}
-            className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
-          />
+          {/* 칸(textarea·예시문)은 라벨보다 약간 늦게 페이드인 — 라벨 먼저 읽히고 칸이 뒤따라 등장.
+              나타날 때만 transition-delay(140ms) 적용(사라질 때는 즉시), duration 도 라벨(150)보다 길게. */}
+          <div
+            className={`transition-opacity duration-200 ease-out ${
+              fadingSlots.has(i) ? "opacity-0" : "opacity-100"
+            }`}
+            style={{ transitionDelay: fadingSlots.has(i) ? "0ms" : "140ms" }}
+          >
+            <textarea
+              value={slot.answer}
+              onChange={(e) => setAnswer(i, e.target.value)}
+              maxLength={ANSWER_MAX}
+              rows={3}
+              disabled={disabled}
+              placeholder={slot.placeholder}
+              className="w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[14px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+            />
+          </div>
           {/* 첫 칸(대표 질문 자리)에만 의료광고·실명 고지 1회(옛 "생생한 후기" 안내 보존). */}
           {i === 0 && (
             <p className="mt-1 text-xs text-[var(--text-muted)]">
