@@ -893,7 +893,7 @@ function TabbedProcedurePicker({
                 disabled={disabled}
                 onClick={() => { onChange(p.value); setQuery(""); }}
                 onMouseEnter={() => kb.setActiveIndex(i)}
-                className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-2.5 text-left hover:bg-[#f7f9fb] disabled:opacity-50 ${i === kb.activeIndex ? "bg-[#f7f9fb]" : ""}`}
+                className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-2.5 text-left disabled:opacity-50 ${i === kb.activeIndex ? "bg-[var(--primary-soft)]" : "hover:bg-[#f7f9fb]"}`}
               >
                 <span className="text-[14px] text-[var(--text)]">{p.label}</span>
                 <span className="shrink-0 text-[11.5px] text-[var(--text-muted)]">{p.categoryLabel}</span>

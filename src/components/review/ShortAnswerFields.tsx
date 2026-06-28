@@ -217,13 +217,12 @@ export default function ShortAnswerFields({
               </button>
             )}
           </label>
-          {/* 칸(textarea·예시문)은 라벨보다 약간 늦게 페이드인 — 라벨 먼저 읽히고 칸이 뒤따라 등장.
-              나타날 때만 transition-delay(140ms) 적용(사라질 때는 즉시), duration 도 라벨(150)보다 길게. */}
+          {/* 칸(textarea·예시문)은 라벨과 동일 타이밍으로 동시 페이드인(지연 없음).
+              질문 라벨과 칸이 함께 나타나도록 라벨과 같은 duration-150, transition-delay 미적용. */}
           <div
-            className={`transition-opacity duration-200 ease-out ${
+            className={`transition-opacity duration-150 ease-out ${
               fadingSlots.has(i) ? "opacity-0" : "opacity-100"
             }`}
-            style={{ transitionDelay: fadingSlots.has(i) ? "0ms" : "140ms" }}
           >
             <textarea
               value={slot.answer}

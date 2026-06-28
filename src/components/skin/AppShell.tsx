@@ -22,7 +22,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "./app.module.css";
 import { useSession } from "@/lib/session-context";
-import SearchPanel, { prefetchDiscover } from "@/components/search/SearchPanel";
+import SearchPanel, { prefetchDiscover, type SearchPanelHandle } from "@/components/search/SearchPanel";
 import { addRecent } from "@/lib/recent-search";
 import { showToast } from "@/lib/toast";
 import BackButton from "@/components/BackButton";
@@ -267,6 +267,10 @@ export default function AppShell({
   const [suggestOpen, setSuggestOpen] = useState(false);
   // 드롭다운 바깥 클릭 감지용(데스크탑 pill·모바일 inline 공용 래퍼).
   const searchWrapRef = useRef<HTMLDivElement>(null);
+  // 자동완성 키보드 네비(↑↓+Enter) — 각 SearchPanel 인스턴스의 handleKeyDown 을 입력이 위임.
+  //   데스크탑 입력 → desktopSearchRef(discoveryDropdown 패널) / 모바일 입력 → mobileSearchRef(mobileSearchPanel 패널).
+  const desktopSearchRef = useRef<SearchPanelHandle | null>(null);
+  const mobileSearchRef = useRef<SearchPanelHandle | null>(null);
   // 피드백 4) 비-피드 페이지(검색 결과는 피드로 라우팅)는 입력값을 셸 로컬 state 로.
   const [localQuery, setLocalQuery] = useState("");
   // 모바일 검색창 "입력 초안" — 확정 검색어(value=URL q, 결과 피드·검색어 알약 구동)와 분리.
@@ -351,6 +355,7 @@ export default function AppShell({
     hasDropdown && suggestOpen ? (
       <div className={styles.searchSuggest} role="listbox" aria-label="검색 추천">
         <SearchPanel
+          ref={desktopSearchRef}
           query={value}
           basePath="/"
           recentOnly
@@ -369,6 +374,7 @@ export default function AppShell({
     searchEnabled && searchOpen ? (
       <div className={styles.mobileSearchPanel} role="listbox" aria-label="검색 발견">
         <SearchPanel
+          ref={mobileSearchRef}
           query={draft}
           basePath="/"
           onPicked={(t) => {
@@ -543,6 +549,10 @@ export default function AppShell({
                 }}
                 onFocus={() => hasDropdown && setSuggestOpen(true)}
                 onKeyDown={(e) => {
+                  // 자동완성 키보드 네비를 모바일 패널(mobileSearchPanel)에 위임 — ↑↓ 하이라이트 이동,
+                  //   하이라이트 있을 때 Enter 는 패널이 선택(preventDefault) → 아래 runSearch 는 건너뜀.
+                  mobileSearchRef.current?.handleKeyDown(e);
+                  if (e.defaultPrevented) return;
                   if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                     e.preventDefault();
                     runSearch(draft);
@@ -701,6 +711,10 @@ export default function AppShell({
                   }}
                   onFocus={() => hasDropdown && setSuggestOpen(true)}
                   onKeyDown={(e) => {
+                    // 자동완성 키보드 네비를 데스크탑 패널(discoveryDropdown)에 위임 — ↑↓ 하이라이트 이동,
+                    //   하이라이트 있을 때 Enter 는 패널이 선택(preventDefault) → 아래 runSearch 는 건너뜀.
+                    desktopSearchRef.current?.handleKeyDown(e);
+                    if (e.defaultPrevented) return;
                     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       runSearch(value);

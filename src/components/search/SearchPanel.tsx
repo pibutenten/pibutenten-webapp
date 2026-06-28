@@ -8,10 +8,15 @@
  * 데이터는 전부 기존 소스 재사용(/api/search/suggest).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { PROCEDURE_CATEGORIES, pickDefaultCategory, type CategorySlug } from "@/lib/categories";
 import { addRecent, clearRecent, getRecent, removeRecent } from "@/lib/recent-search";
+import { useAutocompleteKeyboard } from "@/hooks/useAutocompleteKeyboard";
+
+/** 입력(AppShell 헤더 검색)이 위임할 키다운 핸들러를 노출하는 ref 타입. */
+export type SearchPanelHandle = { handleKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void };
 
 type DiscoverData = { popular: string[]; cats: Record<string, string[]> };
 
@@ -30,7 +35,7 @@ export function prefetchDiscover(): Promise<DiscoverData> {
   return discoverPromise;
 }
 
-export default function SearchPanel({ query = "", onPicked, basePath = "/", recentOnly = false }: { query?: string; onPicked?: (term: string) => void; basePath?: string; recentOnly?: boolean }) {
+function SearchPanel({ query = "", onPicked, basePath = "/", recentOnly = false }: { query?: string; onPicked?: (term: string) => void; basePath?: string; recentOnly?: boolean }, ref: React.Ref<SearchPanelHandle>) {
   const router = useRouter();
   const [data, setData] = useState<DiscoverData | null>(discoverCache);
   const [recent, setRecent] = useState<string[]>([]);
@@ -70,27 +75,47 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
 
   const q = query.trim();
 
-  // ── 입력 중: 자동완성(접두 우선 → 부분일치) ──
-  //   매칭이 있을 때만 자동완성 목록 표시. 없으면 안내문 없이 아래 발견 화면(카테고리 등)으로 폴백.
+  // ── 자동완성 후보(접두 우선 → 부분일치) — early-return 위에서 계산해 공유 훅(아래)에 넘긴다 ──
+  //   훅(useAutocompleteKeyboard)은 조건부 return 위(컴포넌트 최상위)에서 호출해야 하므로,
+  //   q·matches 를 여기서 먼저 계산하고 그 아래에서 훅을 호출한다. q 없거나 매칭 0이면 enabled=false.
+  let matches: string[] = [];
   if (q) {
     const low = q.toLowerCase();
     const starts = allKeywords.filter((k) => k.toLowerCase().startsWith(low));
     const incl = allKeywords.filter((k) => !k.toLowerCase().startsWith(low) && k.toLowerCase().includes(low));
-    const matches = [...starts, ...incl].slice(0, 20);
-    if (matches.length > 0) {
-      return (
-        <div>
-          {matches.map((m) => (
-            <button key={m} type="button" onClick={() => pick(m)} className="flex w-full items-center gap-2.5 rounded-md px-1 py-2.5 text-left hover:bg-[#f7f9fb]">
-              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#9aa3b0" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4-4" /></svg>
-              <span className="text-[15px] text-[var(--text)]">{m}</span>
-            </button>
-          ))}
-        </div>
-      );
-    }
-    // 매칭 없음 → 폴백(아래 발견 화면 공통 렌더로 진행).
+    matches = [...starts, ...incl].slice(0, 20);
   }
+
+  // 키보드 네비(↑↓ 하이라이트 이동 + Enter 선택). 입력은 AppShell 가 ref 로 위임(handleKeyDown).
+  //   onSelect 는 기존 선택 함수 pick(=addRecent + onPicked + 라우팅) 그대로 사용.
+  const kb = useAutocompleteKeyboard({
+    count: matches.length,
+    onSelect: (i) => pick(matches[i]),
+    enabled: !!q && matches.length > 0,
+  });
+  useImperativeHandle(ref, () => ({ handleKeyDown: kb.onKeyDown }), [kb.onKeyDown]);
+
+  // ── 입력 중: 자동완성 목록 표시 ──
+  //   매칭이 있을 때만 자동완성 목록 표시. 없으면 안내문 없이 아래 발견 화면(카테고리 등)으로 폴백.
+  if (q && matches.length > 0) {
+    return (
+      <div>
+        {matches.map((m, i) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => pick(m)}
+            onMouseEnter={() => kb.setActiveIndex(i)}
+            className={`flex w-full items-center gap-2.5 rounded-md px-1 py-2.5 text-left ${i === kb.activeIndex ? "bg-[var(--primary-soft)]" : "hover:bg-[#f7f9fb]"}`}
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#9aa3b0" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4-4" /></svg>
+            <span className="text-[15px] text-[var(--text)]">{m}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+  // 매칭 없음 → 폴백(아래 발견 화면 공통 렌더로 진행).
 
   // ── 발견 화면 ──
   const cats = data?.cats ?? null;
@@ -157,3 +182,5 @@ export default function SearchPanel({ query = "", onPicked, basePath = "/", rece
     </div>
   );
 }
+
+export default forwardRef(SearchPanel);
