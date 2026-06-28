@@ -32,7 +32,14 @@ import { useSearchRouting } from "@/components/skin/ui";
 const FOCUS_RING =
   "outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary-active)]";
 
-type ReportItem = { report: ProcedureReport; headline: string };
+type ReportItem = {
+  report: ProcedureReport;
+  headline: string;
+  /** 서버 선집계 대표 효과 top3(즉시 표시·끊김 없음). */
+  effects: { label: string; pct: number }[];
+  /** 효과 발현 최다 시점 라벨(없으면 null). */
+  onsetLabel: string | null;
+};
 
 type SortKey = "count" | "revisit" | "satisfaction" | "pain";
 
@@ -179,6 +186,8 @@ export default function ReportsNewView({
               key={it.report.procedureKo}
               report={it.report}
               headline={it.headline}
+              effects={it.effects}
+              onsetLabel={it.onsetLabel}
             />
           ))}
         </div>
