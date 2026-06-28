@@ -53,7 +53,7 @@ GOOGLE_CLIENT_SECRET=...
 7. **본인을 한 줄로 소개해 주실래요?** (선택, 200자, 미입력 시 "만나서 반갑습니다." 자동 저장)
 
 ### 2.3. InterestPicker 컴포넌트
-- 5개 카테고리 탭 (concerns/lifting/injectables/homecare/knowledge)
+- 시술 6종 카테고리 탭 (lifting/skinbooster/filler/contour/laser/other — `PROCEDURE_CATEGORIES` 파생, `pickDefaultCategory()` 랜덤 진입)
 - 카테고리별 인기 키워드 칩 (발행 카드 keywords 빈도 TOP N)
 - 모바일 3줄 collapsed / 7줄 expanded, 데스크탑 3줄 / 펼침 시 360px
 - 더보기·접기 토글
@@ -105,9 +105,9 @@ GOOGLE_CLIENT_SECRET=...
 > diary/ask/tip/link 폐지 (0198 6종→2종 qa/doodle 통합, 0201 review/review_summary 추가).
 
 ### 4.3. 인기 키워드 (CategoryWithChips)
-- 5개 카테고리 탭 (피부고민/리프팅/스킨부스터/홈케어/피부상식)
+- 9종 카테고리 (피부고민/리프팅/스킨부스터/필러·볼륨/주름·윤곽/레이저/기타/홈케어/피부상식). 검색·온보딩 탭에는 시술 6종만 표시 (`PROCEDURE_CATEGORIES`)
 - 3줄 max (`--chips-h: 100px`)
-- 색상: 비활성 `#E8EAEE / #5C6470`, 활성 카테고리 색 (#7E57C2/#29B6F6/#F48FB1/#BF6E5C/#9E9D24)
+- 색상: 비활성 `#E8EAEE / #5C6470`, 활성 카테고리 색 (concerns #7E57C2 / lifting #1E88E5 / skinbooster #F48FB1 / filler #FFA726 / contour #26A69A / laser #E57373 / other #78909C / homecare #BF6E5C / knowledge #9E9D24)
 
 ### 4.4. 검색창 phrase
 HeroSearch 28개 / WriteClient 별도. mount 시 랜덤 1회.
@@ -205,7 +205,7 @@ ex) /minji-skin/Ab3xK9Pq
 - **편집 진입 주소**: 공개 SEO URL `/doctors/{slug}/{year}/{post_slug}` 와 별개로, 편집은 `/write/{shortcode}`(안정적 내부 핸들) 또는 `/admin/cards/[id]/edit`. shortcode 는 slug 가 바뀌어도 안 깨지는 카드별 고정 핸들. 두 경로 모두 저장은 `PUT /api/articles/[id]` 단일 통로(slug 방어 동일 적용).
 
 ### 6.9. 태그 사전 SSOT·정규화·흡수·자동태깅 (L-Phase2, 2026-06-07)
-- **SSOT = DB `tag_dictionary`** (과거 `procedure-mappings.json`·`procedure_taxonomy` 청산). 컬럼: ko·category(한글)·en(slug)·parent_ko·is_procedure·onboarding·sort_order·`aliases text[]`·`pubmed_keywords text[]`·`is_recommendable`. 참조표 `tag_blacklist(word)`·`tag_normalization(canonical=변형어, variants=결과[])`.
+- **SSOT = DB `tag_dictionary`** (과거 `procedure-mappings.json`·`procedure_taxonomy` 청산). 컬럼: ko·category(한글, 9종+미지정=10종: 피부고민/리프팅/스킨부스터/필러·볼륨/주름·윤곽/레이저/기타/홈케어/피부상식/미지정 — 마이그 0311 CHECK 확장)·en(slug)·parent_ko·is_procedure·onboarding·sort_order·`aliases text[]`·`pubmed_keywords text[]`·`is_recommendable`. 참조표 `tag_blacklist(word)`·`tag_normalization(canonical=변형어, variants=결과[])`.
 - **빌드 스냅샷 파이프라인**: prebuild `scripts/gen-tag-dictionary.mjs` → `src/data/tag-dictionary.generated.json`(category·slug·pubmed·pubmedLookup·aliases·blacklist·normalizations·autotag). 모든 TS lookup(`procedure-dict.ts`)·slug 생성·auto-tag 가 이 스냅샷을 읽음(동기·DB 무접근). DB 변경은 다음 배포 prebuild 에서 반영.
 - **정규화(`normalizeTag`)**: 블랙리스트(§6.7)면 제거, `tag_normalization` 변형어면 결과 배열로 치환(§6.5 합성어 분리도 여기). 둘 다 DB 테이블 기반.
 - **저장 시 DB 흡수 트리거**(통일·SSOT 한 경로 — 일반인·원장·관리자 동일): `cards` BEFORE INSERT/UPDATE OF keywords → `cards_absorb_eng_tags()` ① alias(언어 무관) 매칭 시 대표어로 ② 영문 slugify→en 매칭 폴백. 신규 미매칭은 AFTER `cards_register_tags_trg` 가 미지정 등록. 로그 `tag_absorb_log`.
