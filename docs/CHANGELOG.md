@@ -28,6 +28,7 @@
 ### Fixed
 - 리포트 카드 category 매핑 2종→6종 확장 (procedure-report.ts, procedure-theme.ts)
 - schema/procedure.ts MedicalProcedure 판정을 PROCEDURE_SLUGS 기반으로 변경
+- **미지정 slug 매핑 교정** — gen-tag-dictionary.mjs KR2SLUG 에서 `미지정→"other"` 를 `미지정→"unassigned"` 로 분리. 미분류 태그 1,251개가 기타 시술 탭에 혼입되던 오류 해소
 
 ---
 
