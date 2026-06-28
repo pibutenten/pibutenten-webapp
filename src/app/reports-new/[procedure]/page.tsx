@@ -95,6 +95,77 @@ export default async function ReportsNewDetailPage({ params }: Props) {
     Array.isArray(idxTags) &&
     (idxTags as Array<{ keyword: string }>).some((t) => t.keyword === ko);
 
+  // 의사 Q&A — 해당 시술 키워드 포함, 인기순 최대 10개.
+  const { data: doctorQAsRaw } = await supabase
+    .from("cards")
+    .select(CARD_LIST_SELECT)
+    .eq("category", "qa")
+    .eq("status", "published")
+    .not("doctor_id", "is", null)
+    .contains("keywords", [ko])
+    .order("like_count", { ascending: false })
+    .order("view_count", { ascending: false })
+    .limit(10)
+    .returns<CardData[]>();
+  const doctorQAs = doctorQAsRaw ?? [];
+
+  // 비슷한 시술 — top effect 공유, JS 집계, 마이그레이션 없음.
+  const topEffect = report.effects[0]?.label ?? null;
+  let similar: { ko: string; en: string; count: number; revisitPct: number }[] = [];
+  if (topEffect) {
+    // 자기 시술 + 직속 자식 제외
+    const { data: kids } = await supabase
+      .from("tag_dictionary")
+      .select("ko")
+      .eq("parent_ko", ko);
+    const exclude = new Set<string>([
+      ko,
+      ...((kids ?? []) as { ko: string }[]).map((k) => k.ko),
+    ]);
+
+    const { data: rows } = await supabase
+      .from("procedure_reviews")
+      .select("procedure_ko, revisit, cards!inner(status, deleted_at)")
+      .contains("effect_areas", [topEffect])
+      .eq("cards.status", "published")
+      .is("cards.deleted_at", null)
+      .limit(4000)
+      .returns<{ procedure_ko: string; revisit: string }[]>();
+
+    const agg = new Map<string, { c: number; y: number }>();
+    for (const r of rows ?? []) {
+      if (exclude.has(r.procedure_ko)) continue;
+      const a = agg.get(r.procedure_ko) ?? { c: 0, y: 0 };
+      a.c++;
+      if (r.revisit === "yes") a.y++;
+      agg.set(r.procedure_ko, a);
+    }
+
+    const top = [...agg.entries()]
+      .filter(([, a]) => a.c >= 3)
+      .sort((a, b) => b[1].c - a[1].c)
+      .slice(0, 5);
+
+    const kos = top.map(([k]) => k);
+    const enMap = new Map<string, string>();
+    if (kos.length) {
+      const { data: tg } = await supabase
+        .from("tag_dictionary")
+        .select("ko, en")
+        .in("ko", kos);
+      for (const t of (tg ?? []) as { ko: string; en: string | null }[]) {
+        enMap.set(t.ko, t.en ?? "");
+      }
+    }
+
+    similar = top.map(([k, a]) => ({
+      ko: k,
+      en: enMap.get(k) ?? "",
+      count: a.c,
+      revisitPct: Math.round((a.y / a.c) * 100),
+    }));
+  }
+
   return (
     <ReportsNewDetailView
       ko={ko}
@@ -104,6 +175,8 @@ export default async function ReportsNewDetailPage({ params }: Props) {
       reviewLiked={reviewLiked}
       reviewTotal={reviewTotal}
       topicsExists={topicsExists}
+      doctorQAs={doctorQAs}
+      similar={similar}
     />
   );
 }

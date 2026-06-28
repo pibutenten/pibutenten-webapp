@@ -58,6 +58,20 @@ function painPhrase(a: number): string {
   return "꽤 아팠다는 분이 많아요";
 }
 
+/** 채움 배경(theme.color) 위에서 읽히는 글자색 — 명도 기반(연한 색=어두운 글씨, AA 확보). */
+function readableOn(c: string): string {
+  if (!c || c[0] !== "#" || c.length < 7) return "#23272F";
+  const r = parseInt(c.slice(1, 3), 16);
+  const g = parseInt(c.slice(3, 5), 16);
+  const b = parseInt(c.slice(5, 7), 16);
+  const lin = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return 1.05 / (L + 0.05) >= 3 ? "#FFFFFF" : "#23272F";
+}
+
 export default function ReportsNewCard({
   report,
   headline,
@@ -108,15 +122,32 @@ export default function ReportsNewCard({
       className="overflow-hidden rounded-[var(--radius-lg)] bg-white"
       aria-label={`${procedureKo} 시술 리포트`}
     >
-      {/* ── ① 요약(접힘) ── */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className={"relative block w-full text-left " + FOCUS_RING}
-      >
+      {/* ── ① 요약(접힘) — 마우스 클릭은 헤더 전체, 접근성 토글은 우상단 chevron 버튼 1개 ── */}
+      <div className="relative cursor-pointer" onClick={() => setOpen((o) => !o)}>
+        {/* 앱 표준 회색 chevron 토글 — 40×40 터치 영역, 18px SVG */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+          aria-expanded={open}
+          aria-label={`${procedureKo} 리포트 ${open ? "접기" : "펼치기"}`}
+          className={"absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-[10px] border-0 bg-transparent " + FOCUS_RING}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width={18}
+            height={18}
+            stroke="#8A9099"
+            strokeWidth={2.4}
+            fill="none"
+            aria-hidden
+            style={{ transition: "transform 0.3s", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+
         <div className="px-5 pt-4 pb-3.5" style={{ backgroundColor: theme.soft }}>
-          <div className="mb-2 flex items-center gap-2 pr-6">
+          <div className="mb-2 flex items-center gap-2 pr-10">
             <h2
               className="text-[17px] font-extrabold tracking-[-0.02em]"
               style={{ color: theme.color }}
@@ -192,15 +223,7 @@ export default function ReportsNewCard({
             </p>
           )}
         </div>
-
-        <span
-          aria-hidden
-          className="absolute right-4 top-4 text-[12px] text-[var(--text-muted)] transition-transform duration-300"
-          style={{ transform: open ? "rotate(180deg)" : undefined, color: open ? theme.color : undefined }}
-        >
-          ▾
-        </span>
-      </button>
+      </div>
 
       {/* ── ② 펼침(1차 집계) — grid-rows 0fr↔1fr ── */}
       <div
@@ -304,17 +327,29 @@ export default function ReportsNewCard({
               </p>
             )}
 
-            {/* ③ 전체 리포트 보기 → 단독 URL (흰글씨 채움 버튼, flat) */}
+            {/* ③ 전체 리포트 보기 → 단독 URL (카테고리색 채움 버튼, flat) */}
             <Link
               href={reportHref}
               className={
-                "mt-5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] bg-[var(--secondary)] px-4 py-3 text-[13.5px] font-bold text-white transition-colors hover:bg-[#163a52] " +
+                "mt-5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] px-4 py-3.5 text-[14px] font-bold " +
                 FOCUS_RING
               }
-              aria-label={`${procedureKo} 전체 리포트 보기 (모든 후기)`}
+              style={{ backgroundColor: theme.color, color: readableOn(theme.color) }}
+              aria-label={`${procedureKo} 피부텐텐 리포트 보러가기`}
             >
-              {procedureKo} 전체 리포트 보기
-              <span aria-hidden>→</span>
+              {procedureKo} 피부텐텐 리포트 보러가기
+              <svg
+                viewBox="0 0 24 24"
+                width={15}
+                height={15}
+                stroke="currentColor"
+                strokeWidth={2.4}
+                fill="none"
+                aria-hidden
+              >
+                <path d="M5 12h14" />
+                <path d="m13 6 6 6-6 6" />
+              </svg>
             </Link>
           </div>
         </div>

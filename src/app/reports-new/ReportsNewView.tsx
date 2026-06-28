@@ -27,6 +27,7 @@ import ReportsIndexSidebar, {
 } from "@/components/report/ReportsIndexSidebar";
 import AppShell from "@/components/skin/AppShell";
 import { useSearchRouting } from "@/components/skin/ui";
+import styles from "@/components/skin/app.module.css";
 
 // 포커스 링 — globals.css 가 :focus-visible 만 살려두므로 키보드 포커스에서만 보임.
 const FOCUS_RING =
@@ -116,6 +117,30 @@ export default function ReportsNewView({
     />
   );
 
+  const chips = (
+    <div role="group" aria-label="정렬" style={{ display: "contents" }}>
+      {SORTS.map((s) => {
+        const on = sort === s.key;
+        return (
+          <button
+            type="button"
+            key={s.key}
+            onClick={() => setSort(s.key)}
+            aria-pressed={on}
+            className={
+              styles.chip +
+              (on ? " " + styles.chipActive : "") +
+              " " +
+              FOCUS_RING
+            }
+          >
+            {s.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <AppShell
       active="리포트"
@@ -127,37 +152,9 @@ export default function ReportsNewView({
       }
       sidebar={sidebar}
       sidebarMobileBelow
+      chips={chips}
       {...search}
     >
-      {/* 정렬 칩 레일 */}
-      <div
-        role="group"
-        aria-label="정렬"
-        className="mb-3 flex flex-wrap gap-1.5"
-      >
-        {SORTS.map((s) => {
-          const on = sort === s.key;
-          return (
-            <button
-              type="button"
-              key={s.key}
-              onClick={() => setSort(s.key)}
-              aria-pressed={on}
-              className={
-                "rounded-full px-3 py-1.5 text-[13px] transition-colors " +
-                FOCUS_RING +
-                " " +
-                (on
-                  ? "bg-[var(--primary-active)] text-white font-semibold"
-                  : "bg-[var(--bg-soft)] text-[var(--text-secondary)] font-medium hover:bg-[#E2E7EC]")
-              }
-            >
-              {s.label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* 활성 카테고리 필터 안내(해제 버튼) — 사이드바가 없는 모바일에서도 해제 가능. */}
       {category && (
         <button
