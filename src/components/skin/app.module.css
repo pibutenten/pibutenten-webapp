@@ -267,7 +267,7 @@
   left: 0;
   right: 0;
   z-index: 50;
-  background: #fff;
+  background: var(--tt-canvas) fixed;
   border-radius: 16px;
   box-shadow: 0 12px 32px rgba(53, 118, 160, 0.16);
   padding: 10px;
