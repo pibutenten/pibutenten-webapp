@@ -4,13 +4,16 @@
  * ReviewForm — 시술후기 입력 폼 (P3, client).
  *
  * 항목 순서 (한줄후기만 선택, 나머지 필수):
- *   1. 시술 (택1, 잠금형: 선택 후 picker 언마운트 → 선택 시술명만 제목처럼 표시, 변경 불가)
- *   2. 만족도 (별점 1~5, 필수)
- *   3. 통증 (표정 1~5, 필수)
- *   4. 다운타임 (일상 복귀 소요, 단일선택 5옵션, 필수)
- *   5. 재시술 의향 (예/고민중/아니오, 필수)
- *   6. 체감 효과 (멀티 칩, ≥1, '없음' 포함, 필수)
- *   7. 한줄 후기 (text ≤400, 선택)
+ *   1. 시술 (맨 위, 택1, 검색+자동완성+인기칩. 선택 후 picker 언마운트 → 시술명만 제목처럼 표시, 변경 불가)
+ *      → 시술을 골라야 아래 게이트 영역이 활성.
+ *   2. [게이트] 어림시기 (언제쯤 받으셨어요?, create 전용, 선택)
+ *   3. [게이트] 만족도 (별점 1~5, 필수)
+ *   4. [게이트] 통증 (표정 1~5, 필수)
+ *   5. [게이트] 시술 직후 반응 (멀티 칩, 선택) → 증상 있을 때만 다운타임 노출
+ *   6. [게이트] 다운타임 (일상 복귀 소요, 단일선택 5옵션, 선택)
+ *   7. [게이트] 재시술 의향 (예/고민중/아니오, 필수)
+ *   8. [게이트] 체감 효과 (멀티 칩, ≥1, '없음' 포함, 필수)
+ *   9. 생생한 후기 단답 (text ≤400, 선택)
  *
  * 검수: 병원·의사명은 서버에서 "○○" 로 자동 블라인드(마스킹). 제출 차단 아님.
  *   blinded 응답이면 고지 토스트 1회.
@@ -449,58 +452,7 @@ export default function ReviewForm({
       </h1>
 
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]">
-        {/* ── 0. 어림시기 (언제쯤 받으셨어요?) ── 회고형: 일반 언어로만(달력 없음).
-            1단(상대 연도, 택1) + 2단(연중, 선택). unknown/미선택이면 날짜 미전송(서버 NULL). create 전용. */}
-        {!isEdit && (
-        <div>
-          {/* 라벨 + 조합 결과("작년 가을쯤")를 같은 줄에 — 한 줄 절약(사용자 요청). */}
-          <label className="mb-2 flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-[var(--text)]">
-            <span>언제쯤 받으셨어요?</span>
-            {relYear !== "" && precisionDateLabel && (
-              <span className="text-[12px] font-normal text-[var(--primary)]">{precisionDateLabel}</span>
-            )}
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {REL_YEAR_CHIPS.map((c) => {
-              const on = relYear === c.value;
-              return (
-                <button
-                  key={c.value}
-                  type="button"
-                  onClick={() => { setRelYear(c.value); if (c.value === "unknown") setWithin(""); }}
-                  disabled={pending}
-                  className="rounded-full px-3 py-1 text-[12.5px] transition-colors disabled:opacity-50"
-                  style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}
-                >
-                  {c.label}
-                </button>
-              );
-            })}
-          </div>
-          {/* 2단(연중) — 연도를 골랐고 '잘 기억 안 나요'가 아닐 때만. 다시 누르면 해제(연 단위). */}
-          {relYear !== "" && relYear !== "unknown" && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {WITHIN_CHIPS.map((w) => {
-                const on = within === w.value;
-                return (
-                  <button
-                    key={w.value}
-                    type="button"
-                    onClick={() => setWithin(on ? "" : w.value)}
-                    disabled={pending}
-                    className="rounded-full px-3 py-1 text-[12.5px] transition-colors disabled:opacity-50"
-                    style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#F1F3F5", color: "#5C6470", fontWeight: 500 }}
-                  >
-                    {w.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* ── 1. 시술 선택 (필수, 잠금형) ──
+        {/* ── 1. 시술 선택 (필수, 잠금형) ── 폼 맨 위 — 시술을 골라야 아래 항목이 활성.
             선택하면 피커가 grid-rows 1fr→0fr 로 부드럽게 접히고, 선택한 시술명만
             제목으로 남으며 아래 입력창들이 자연스럽게 올라옴. */}
         <div ref={procedureRef}>
@@ -553,6 +505,58 @@ export default function ReviewForm({
             procedureKo ? "" : "pointer-events-none opacity-50"
           }`}
         >
+        {/* ── 0. 어림시기 (언제쯤 받으셨어요?) ── 게이트 안 첫 항목(시술 선택 후 활성).
+            회고형: 일반 언어로만(달력 없음). 1단(상대 연도, 택1) + 2단(연중, 선택).
+            unknown/미선택이면 날짜 미전송(서버 NULL). create 전용. */}
+        {!isEdit && (
+        <div>
+          {/* 라벨 + 조합 결과("작년 가을쯤")를 같은 줄에 — 한 줄 절약(사용자 요청). */}
+          <label className="mb-2 flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-[var(--text)]">
+            <span>언제쯤 받으셨어요?</span>
+            {relYear !== "" && precisionDateLabel && (
+              <span className="text-[12px] font-normal text-[var(--primary)]">{precisionDateLabel}</span>
+            )}
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {REL_YEAR_CHIPS.map((c) => {
+              const on = relYear === c.value;
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => { setRelYear(c.value); if (c.value === "unknown") setWithin(""); }}
+                  disabled={pending}
+                  className="rounded-full px-3 py-1 text-[12.5px] transition-colors disabled:opacity-50"
+                  style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#E8EAEE", color: "#5C6470", fontWeight: 500 }}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+          {/* 2단(연중) — 연도를 골랐고 '잘 기억 안 나요'가 아닐 때만. 다시 누르면 해제(연 단위). */}
+          {relYear !== "" && relYear !== "unknown" && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {WITHIN_CHIPS.map((w) => {
+                const on = within === w.value;
+                return (
+                  <button
+                    key={w.value}
+                    type="button"
+                    onClick={() => setWithin(on ? "" : w.value)}
+                    disabled={pending}
+                    className="rounded-full px-3 py-1 text-[12.5px] transition-colors disabled:opacity-50"
+                    style={on ? { backgroundColor: "var(--primary)", color: "#fff", fontWeight: 600 } : { backgroundColor: "#F1F3F5", color: "#5C6470", fontWeight: 500 }}
+                  >
+                    {w.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        )}
+
         {/* ── 2. 만족도 ── */}
         <div ref={satisfactionRef}>
         <StarField
@@ -752,17 +756,19 @@ function SelectedProcedureTitle({ option }: { option: ProcedureOption }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * TabbedProcedurePicker — 사이트 태그 검색 위젯 CategoryWithChips 와
- *   동일한 "탭(상단, 카테고리 색 밑줄) + 칩(선택 시 카테고리색 틴트)" 구조.
+ * TabbedProcedurePicker — "검색 + 자동완성 + 인기칩(컴팩트)" 시술 선택기.
+ *   상단에 항상 검색 입력. 검색어 유무로 두 모드:
+ *
+ *   - 검색어 있음(자동완성): label/value 부분일치 매칭(접두 우선)을 상위 20개
+ *     목록으로 표시. 클릭 시 onChange(ko) + 검색어 초기화. 무매칭이면 안내 1줄.
+ *   - 검색어 없음(둘러보기): 카테고리 탭(상단, 카테고리 색 밑줄) + 그 아래
+ *     그라데이션 라인 + 활성 탭 상위 18개(인기순) 컴팩트 칩. 선택 시 카테고리색 틴트.
+ *     나머지 시술은 검색으로 도달(별도 '더보기' 없음).
  *
  *   - 탭: procedures 의 categoryLabel 들(등장 순서 = 리프팅 → 스킨부스터).
- *         활성 탭은 카테고리 색 글자 + 같은 색 border-b-2 밑줄,
- *         비활성은 var(--text-secondary) + 투명 밑줄.
- *   - 탭 아래 그라데이션 라인 (CategoryWithChips 와 동일).
- *   - 칩: 활성 탭 카테고리의 procedures 만 표시. 선택 시 카테고리색 틴트.
  *   - 단일 선택: 클릭 시 onChange(ko). 선택 후 부모가 picker 를 언마운트하므로
  *     변경 불가(되돌리기/다시선택 없음).
- *   - 검색 input 없음 (주관식 오인 방지).
+ *   - procedures 는 인기순으로 정렬돼 들어옴 → slice 가 곧 인기순.
  * ───────────────────────────────────────────────────────────── */
 function TabbedProcedurePicker({
   procedures,
@@ -796,6 +802,9 @@ function TabbedProcedurePicker({
 
   const [activeTab, setActiveTab] = useState<string>(initialTab);
 
+  // 검색어(자동완성) — 비면 둘러보기(탭+칩), 있으면 매칭 목록.
+  const [query, setQuery] = useState("");
+
   // 활성 탭이 유효하지 않게 되면 첫 탭으로 보정.
   useEffect(() => {
     if (tabs.length > 0 && !tabs.includes(activeTab)) {
@@ -803,87 +812,156 @@ function TabbedProcedurePicker({
     }
   }, [tabs, activeTab]);
 
-  // 활성 탭의 칩 목록.
-  const visibleChips = procedures.filter((p) => p.categoryLabel === activeTab);
+  const q = query.trim().toLowerCase();
+
+  // 자동완성 매칭 — label/value 부분일치, 접두 우선 정렬 후 상위 20개.
+  const matches = useMemo(() => {
+    if (!q) return [];
+    const hit = procedures.filter(
+      (p) =>
+        p.label.toLowerCase().includes(q) || p.value.toLowerCase().includes(q),
+    );
+    // 접두(startsWith) 우선 — 안정 정렬로 인기순(원래 순서) 보존.
+    return hit
+      .map((p, i) => ({
+        p,
+        i,
+        pre:
+          p.label.toLowerCase().startsWith(q) ||
+          p.value.toLowerCase().startsWith(q)
+            ? 0
+            : 1,
+      }))
+      .sort((a, b) => a.pre - b.pre || a.i - b.i)
+      .slice(0, 20)
+      .map((x) => x.p);
+  }, [procedures, q]);
+
+  // 둘러보기 칩 — 활성 탭 카테고리 상위 18개(인기순 = 들어온 순서).
+  const visibleChips = procedures
+    .filter((p) => p.categoryLabel === activeTab)
+    .slice(0, 18);
 
   return (
     <div>
-      {/* 탭 */}
-      <div
-        role="tablist"
-        aria-label="시술 카테고리"
-        className="-mx-1 flex justify-start sm:justify-center gap-x-[14px] overflow-x-auto px-1 sm:gap-x-7 sm:overflow-visible [&::-webkit-scrollbar]:hidden"
-        style={{ scrollbarWidth: "none" } as CSSProperties}
-      >
-        {tabs.map((tab) => {
-          const isActive = tab === activeTab;
-          const color = categoryColor(tab);
-          return (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              disabled={disabled}
-              onClick={() => setActiveTab(tab)}
-              className="shrink-0 cursor-pointer border-b-2 px-1 py-[6px] text-[13px] font-semibold transition-[color,border-color,transform] hover:opacity-70 active:scale-[0.96] disabled:opacity-50 sm:py-[7px] sm:text-[14px]"
-              style={{
-                color: isActive ? color : "var(--text-secondary)",
-                borderBottomColor: isActive ? color : "transparent",
-              }}
-            >
-              {tab}
-            </button>
-          );
-        })}
+      {/* 검색 입력 (검색 패널과 통일감 — 흰 폼카드 위) */}
+      <div className="mb-3 flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-3.5 py-2">
+        <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#9aa3b0" strokeWidth={2} strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          disabled={disabled}
+          placeholder="시술명을 검색해 보세요"
+          enterKeyHint="search"
+          className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-[var(--text-muted)] disabled:opacity-50"
+        />
+        {query && (
+          <button type="button" onClick={() => setQuery("")} aria-label="검색어 지우기" className="text-[var(--text-muted)]">✕</button>
+        )}
       </div>
 
-      {/* 탭 ↔ 칩 사이 그라데이션 라인 (양 끝 페이드아웃) */}
-      <div
-        aria-hidden
-        className="mb-3 h-px w-full sm:mb-[14px]"
-        style={{
-          background:
-            "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.10) 18%, rgba(0,0,0,0.10) 82%, transparent 100%)",
-        }}
-      />
-
-      {/* 칩 */}
-      {visibleChips.length === 0 ? (
-        <div className="text-center text-xs text-[var(--text-muted)]">
-          선택할 수 있는 시술이 없습니다.
-        </div>
-      ) : (
-        <div className="flex flex-wrap justify-center gap-1">
-          {visibleChips.map((p) => {
-            const selected = value === p.value;
-            const color = categoryColor(p.categoryLabel);
-            return (
+      {q ? (
+        /* 자동완성 — q 가 있으면 탭·칩·divider 대신 매칭 목록만. */
+        matches.length > 0 ? (
+          <div className="max-h-[260px] overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+            {matches.map((p) => (
               <button
                 key={p.value}
                 type="button"
-                onClick={() => onChange(p.value)}
                 disabled={disabled}
-                className="cursor-pointer rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97] disabled:opacity-50"
-                style={
-                  selected
-                    ? {
-                        backgroundColor: color + "1A",
-                        color,
-                        fontWeight: 700,
-                      }
-                    : {
-                        backgroundColor: "#E8EAEE",
-                        color: "#5C6470",
-                        fontWeight: 500,
-                      }
-                }
+                onClick={() => { onChange(p.value); setQuery(""); }}
+                className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-2.5 text-left hover:bg-[#f7f9fb] disabled:opacity-50"
               >
-                {p.label}
+                <span className="text-[14px] text-[var(--text)]">{p.label}</span>
+                <span className="shrink-0 text-[11.5px] text-[var(--text-muted)]">{p.categoryLabel}</span>
               </button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="py-3 text-center text-sm text-[var(--text-muted)]">검색 결과가 없어요.</p>
+        )
+      ) : (
+        /* 둘러보기 — 카테고리 탭 + 컴팩트 칩(상위 18). */
+        <>
+          {/* 탭 */}
+          <div
+            role="tablist"
+            aria-label="시술 카테고리"
+            className="-mx-1 flex justify-start sm:justify-center gap-x-[14px] overflow-x-auto px-1 sm:gap-x-7 sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: "none" } as CSSProperties}
+          >
+            {tabs.map((tab) => {
+              const isActive = tab === activeTab;
+              const color = categoryColor(tab);
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  disabled={disabled}
+                  onClick={() => setActiveTab(tab)}
+                  className="shrink-0 cursor-pointer border-b-2 px-1 py-[6px] text-[13px] font-semibold transition-[color,border-color,transform] hover:opacity-70 active:scale-[0.96] disabled:opacity-50 sm:py-[7px] sm:text-[14px]"
+                  style={{
+                    color: isActive ? color : "var(--text-secondary)",
+                    borderBottomColor: isActive ? color : "transparent",
+                  }}
+                >
+                  {tab}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 탭 ↔ 칩 사이 그라데이션 라인 (양 끝 페이드아웃) */}
+          <div
+            aria-hidden
+            className="mb-3 h-px w-full sm:mb-[14px]"
+            style={{
+              background:
+                "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.10) 18%, rgba(0,0,0,0.10) 82%, transparent 100%)",
+            }}
+          />
+
+          {/* 칩 (컴팩트, 상위 18 = 인기순) */}
+          {visibleChips.length === 0 ? (
+            <div className="text-center text-xs text-[var(--text-muted)]">
+              선택할 수 있는 시술이 없습니다.
+            </div>
+          ) : (
+            <div className="flex flex-wrap justify-start gap-1.5">
+              {visibleChips.map((p) => {
+                const selected = value === p.value;
+                const color = categoryColor(p.categoryLabel);
+                return (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => onChange(p.value)}
+                    disabled={disabled}
+                    className="cursor-pointer rounded-full px-2.5 py-1 text-[12.5px] transition-colors active:scale-[0.97] disabled:opacity-50"
+                    style={
+                      selected
+                        ? {
+                            backgroundColor: color + "1A",
+                            color,
+                            fontWeight: 700,
+                          }
+                        : {
+                            backgroundColor: "#E8EAEE",
+                            color: "#5C6470",
+                            fontWeight: 500,
+                          }
+                    }
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
