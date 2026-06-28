@@ -4,8 +4,22 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProcedureReport, getFamilyReviewCardIds } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
+import type { ProcedureSlug } from "@/lib/categories";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import ReportsNewDetailView from "./ReportsNewDetailView";
+
+// tag_dictionary.category(한글) → 테마 slug. procedure-report.ts 의 매핑과 동일(SSOT 정합).
+function catSlug(ko: string | null): ProcedureSlug | null {
+  switch (ko) {
+    case "리프팅": return "lifting";
+    case "스킨부스터": return "skinbooster";
+    case "필러·볼륨": return "filler";
+    case "주름·윤곽": return "contour";
+    case "레이저": return "laser";
+    case "기타": return "other";
+    default: return null;
+  }
+}
 
 /**
  * /reports-new/[시술] — 시술 전체 리포트 개선판 (임시 라우트, 서버 컴포넌트).
@@ -111,7 +125,13 @@ export default async function ReportsNewDetailPage({ params }: Props) {
 
   // 비슷한 시술 — top effect 공유, JS 집계, 마이그레이션 없음.
   const topEffect = report.effects[0]?.label ?? null;
-  let similar: { ko: string; en: string; count: number; revisitPct: number }[] = [];
+  let similar: {
+    ko: string;
+    en: string;
+    count: number;
+    revisitPct: number;
+    category: ProcedureSlug | null;
+  }[] = [];
   if (topEffect) {
     // 자기 시술 + 직속 자식 제외
     const { data: kids } = await supabase
@@ -147,22 +167,27 @@ export default async function ReportsNewDetailPage({ params }: Props) {
       .slice(0, 5);
 
     const kos = top.map(([k]) => k);
-    const enMap = new Map<string, string>();
+    const metaMap = new Map<string, { en: string; category: ProcedureSlug | null }>();
     if (kos.length) {
       const { data: tg } = await supabase
         .from("tag_dictionary")
-        .select("ko, en")
+        .select("ko, en, category")
         .in("ko", kos);
-      for (const t of (tg ?? []) as { ko: string; en: string | null }[]) {
-        enMap.set(t.ko, t.en ?? "");
+      for (const t of (tg ?? []) as {
+        ko: string;
+        en: string | null;
+        category: string | null;
+      }[]) {
+        metaMap.set(t.ko, { en: t.en ?? "", category: catSlug(t.category) });
       }
     }
 
     similar = top.map(([k, a]) => ({
       ko: k,
-      en: enMap.get(k) ?? "",
+      en: metaMap.get(k)?.en ?? "",
       count: a.c,
       revisitPct: Math.round((a.y / a.c) * 100),
+      category: metaMap.get(k)?.category ?? null,
     }));
   }
 

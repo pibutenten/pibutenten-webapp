@@ -1,22 +1,25 @@
 "use client";
 
 /**
- * ReportsNewDetailView — /reports-new/[시술] 전체 리포트 (목업 풀 에디토리얼 독립 구현).
+ * ReportsNewDetailView — /reports-new/[시술] 전체 리포트.
  *
- * 목업(scratchpad/v11-detail.html) 섹션을 실데이터로 재현:
- *   히어로(브랜드+재시술의향) → 만족도(히스토그램) → 통증·다운타임 → 효과(다색 막대) →
- *   효과시점(타임라인) → 작성자 통계(성별·연령) → 후기(따옴표 박스 스택) →
- *   전문의 Q&A(랭킹) → 비슷한 시술 → 저장·공유.
+ * 구조:
+ *   ① 리포트 카드(한 장으로 결합, 섹션 간 hairline) — 히어로(브랜드 로고+재시술의향) →
+ *      만족도 → 통증·다운타임 → 효과(다색 막대) → 효과시점 → 작성자 통계.
+ *   ② 직접 들어보기 — 제목은 카드 밖, 각 후기가 "독립 글상자". 정렬 칩은 이 구간에서만 sticky 고정
+ *      (스크롤 도달 시 멈췄다가 Q&A 구간에서 풀림), 클릭 시 실제 정렬 + 살짝 떠오르는 전환.
+ *      10개씩 더 보기 / 접기.
+ *   ③ 전문의 Q&A(랭킹 한 상자) → ④ 비슷한 시술(각 카테고리 색 상자) → ⑤ 저장·공유(브랜드색).
  *
- * 공용 ProcedureReportView/ProcedureReportCard 비의존(자체 구현). 데이터 함수만 재사용.
- * 안정 차트 컴포넌트(DowntimeGauge·EffectOnsetTimeline)는 import 재사용. 후기는 로컬 ReportsNewReviewCard.
- * flat — 음영·테두리 없음(흰 섹션 블록 + 회색 8px 갭으로 구분). 톤=globals 토큰 + categoryTheme.
+ * 진입 애니메이션: 히어로 % 카운트업 · 사람 그리드 stagger · 막대 0→값 채움.
+ * 다채색 유지(효과/작성자/Q&A). 후기는 로컬 ReportsNewReviewCard(실 card_likes 공유).
  */
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/components/Card";
+import type { ProcedureSlug } from "@/lib/categories";
 import type { EngagementMe } from "@/components/card/hooks/useCardEngagement";
 import { categoryTheme } from "@/lib/procedure-theme";
 import { getQaUrl } from "@/lib/card-url";
@@ -67,6 +70,40 @@ function painPhrase(a: number): string {
   return "꽤 아팠다는 분이 많아요";
 }
 
+// 후기 정렬 보조값.
+function reviewOf(card: CardData) {
+  const pr = card.procedure_review;
+  return Array.isArray(pr) ? pr[0] : pr;
+}
+function satOf(card: CardData): number {
+  return reviewOf(card)?.satisfaction ?? 0;
+}
+function reactionScore(card: CardData): number {
+  return (card.like_count ?? 0) + (card.comment_count ?? 0) + (card.share_count ?? 0);
+}
+function bodyLen(card: CardData): number {
+  return (card.body ?? "").length;
+}
+
+/** 진입 카운트업(0→target). run=true 일 때 1회 애니메이션. */
+function useCountUp(target: number, run: boolean): number {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    if (!run) return;
+    let raf = 0;
+    const start = performance.now();
+    const dur = 900;
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / dur, 1);
+      setV(Math.round((1 - Math.pow(1 - p, 3)) * target));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, run]);
+  return v;
+}
+
 const FIGURE_PATH = (
   <>
     <circle cx="12" cy="7.5" r="4.6" fill="currentColor" />
@@ -74,9 +111,24 @@ const FIGURE_PATH = (
   </>
 );
 
-const SECTION = "bg-white px-5 py-6";
+const SEC = "px-5 py-6";
+const SECB = "border-t border-[var(--border)] px-5 py-6";
 const EYEBROW = "mb-1.5 text-[11px] font-bold uppercase tracking-[0.1em]";
 const QHEAD = "text-[19px] font-extrabold leading-[1.3] tracking-[-0.02em] text-[var(--text)]";
+const ARROW = (
+  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.4} aria-hidden>
+    <path d="M5 12h14" />
+    <path d="m13 6 6 6-6 6" />
+  </svg>
+);
+
+type SortKey = "rec" | "high" | "low" | "new";
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: "rec", label: "추천순" },
+  { key: "high", label: "별점 높은순" },
+  { key: "low", label: "별점 낮은순" },
+  { key: "new", label: "최신순" },
+];
 
 export default function ReportsNewDetailView({
   ko,
@@ -98,8 +150,8 @@ export default function ReportsNewDetailView({
   topicsExists: boolean;
   /** 의사 Q&A 인기순 최대 10개 */
   doctorQAs: CardData[];
-  /** 비슷한 시술 최대 5개 */
-  similar: { ko: string; en: string; count: number; revisitPct: number }[];
+  /** 비슷한 시술 최대 5개(각 카테고리 색) */
+  similar: { ko: string; en: string; count: number; revisitPct: number; category: ProcedureSlug | null }[];
 }) {
   const search = useSearchRouting();
   const session = useSession();
@@ -107,6 +159,14 @@ export default function ReportsNewDetailView({
     session === null ? null : { id: session.activeIdentityId, role: session.role };
   const [authPrompt, setAuthPrompt] = useState<string | null>(null);
   const [qaExpanded, setQaExpanded] = useState(false);
+  const [reviewSort, setReviewSort] = useState<SortKey>("rec");
+
+  // 진입 애니메이션 트리거(마운트 직후 1회).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const theme = categoryTheme(report.category);
   const {
@@ -117,6 +177,7 @@ export default function ReportsNewDetailView({
 
   const rTotal = Math.max(1, revisit.yes + revisit.maybe + revisit.no);
   const yesPct = Math.round((revisit.yes / rTotal) * 100);
+  const yesPctAnim = useCountUp(yesPct, mounted);
 
   // 만족도 히스토그램
   const maxSat = Math.max(1, ...satisfactionDist);
@@ -155,11 +216,36 @@ export default function ReportsNewDetailView({
   // 전문의 Q&A — 5개 기본, 더 있으면 토글로 전체.
   const qaVisible = qaExpanded ? doctorQAs : doctorQAs.slice(0, 5);
 
-  // ── 후기 더 보기(클라 페이징) ──
+  // ── 후기: 클라 정렬 + 10개씩 더 보기/접기 ──
   const [items, setItems] = useState<CardData[]>(reviews);
   const [liked, setLiked] = useState<Record<number, boolean>>(reviewLiked);
   const [loadingMore, setLoadingMore] = useState(false);
   const hasMore = items.length < reviewTotal;
+  const expanded = items.length > reviews.length;
+  const nextChunk = Math.min(10, reviewTotal - items.length);
+
+  const sortedItems = useMemo(() => {
+    const arr = [...items];
+    switch (reviewSort) {
+      case "high":
+        arr.sort((a, b) => satOf(b) - satOf(a) || reactionScore(b) - reactionScore(a));
+        break;
+      case "low":
+        arr.sort((a, b) => satOf(a) - satOf(b) || reactionScore(b) - reactionScore(a));
+        break;
+      case "new":
+        arr.sort((a, b) => {
+          const ca = a.created_at ?? "";
+          const cb = b.created_at ?? "";
+          return ca < cb ? 1 : ca > cb ? -1 : 0;
+        });
+        break;
+      default: // 추천순 = 리액션(좋아요+댓글+공유)순, 동률은 글자수 많은순
+        arr.sort((a, b) => reactionScore(b) - reactionScore(a) || bodyLen(b) - bodyLen(a));
+    }
+    return arr;
+  }, [items, reviewSort]);
+
   async function loadMore() {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -180,6 +266,10 @@ export default function ReportsNewDetailView({
       setLoadingMore(false);
     }
   }
+  function collapseReviews() {
+    setItems(reviews);
+    setLiked(reviewLiked);
+  }
 
   async function share() {
     if (typeof navigator === "undefined") return;
@@ -189,15 +279,12 @@ export default function ReportsNewDetailView({
         await navigator.share({ title: `${ko} 피부텐텐 리포트`, url });
         return;
       } catch {
-        /* 사용자가 취소했거나 미지원 — 클립보드로 폴백 */
+        /* 취소/미지원 — 클립보드 폴백 */
       }
     }
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).catch(() => {});
-    }
+    if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     showToast("링크가 복사됐어요.");
   }
-
   function saveReport() {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(window.location.href).catch(() => {});
@@ -206,32 +293,22 @@ export default function ReportsNewDetailView({
   }
 
   return (
-    <AppShell
-      active="리포트"
-      back="/reports-new"
-      backTitle={
-        <h1>
-          {ko} 후기 리포트 <b>{count}</b>건
-        </h1>
-      }
-      {...search}
-    >
-      <div className="flex flex-col gap-2 overflow-hidden rounded-[var(--radius-lg)]">
-        {/* ── 히어로 ── */}
-        <section className="px-5 pb-7 pt-6 text-center" style={{ backgroundColor: theme.soft }}>
-          {/* 브랜드 락업 — 실제 앱 로고(tt: 피부텐텐) + "리포트" */}
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2">
+    <AppShell active="리포트" back="/reports-new" {...search}>
+      {/* ── ① 리포트 카드(한 장) ── */}
+      <div className="overflow-hidden rounded-[var(--radius-lg)] bg-white">
+        {/* 히어로 */}
+        <section className="px-5 pb-7 pt-7 text-center" style={{ backgroundColor: theme.soft }}>
+          {/* 브랜드 락업 — 실제 로고(tt: 피부텐텐) + "리포트"(같은 크기), 배경 위에 부드럽게 */}
+          <span className="inline-flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand-logo.svg" alt="피부텐텐" className="h-[18px] w-auto" />
-            <span className="text-[15px] font-extrabold tracking-[-0.01em] text-[var(--primary)]">
+            <img src="/brand-logo.svg" alt="피부텐텐" className="h-[26px] w-auto" />
+            <span className="text-[22px] font-extrabold leading-none tracking-[-0.02em] text-[#4CBFF2]">
               리포트
             </span>
           </span>
-          {/* 시술명 큰 제목 */}
           <h2 className="mt-3.5 text-[34px] font-extrabold leading-[1.05] tracking-[-0.045em] text-[var(--text)]">
             {ko}
           </h2>
-          {/* 한 줄 스토리 — 재시술의향 수치와 중복되지 않게 효과 중심 서술 */}
           <p className="mx-auto mt-3 max-w-[30ch] text-[14px] font-medium leading-[1.62] text-[var(--text-secondary)]">
             {topEffectLabel ? (
               <>
@@ -244,14 +321,12 @@ export default function ReportsNewDetailView({
 
           {/* 재시술의향 */}
           <div className="mt-6 border-t border-[var(--border)] pt-6">
-            <div className={EYEBROW} style={{ color: theme.color }}>
-              재시술의향
-            </div>
+            <div className={EYEBROW} style={{ color: theme.color }}>재시술의향</div>
             <div
               className="text-[clamp(60px,18vw,84px)] font-extrabold leading-[0.86] tracking-[-0.05em] [font-feature-settings:'tnum']"
               style={{ color: theme.color }}
             >
-              {yesPct}
+              {yesPctAnim}
               <span className="text-[0.4em] align-[0.6em]">%</span>
             </div>
             <div
@@ -262,7 +337,15 @@ export default function ReportsNewDetailView({
               {Array.from({ length: showTotal }).map((_, i) => {
                 const op = i < yShow ? 1 : i < yShow + mShow ? 0.45 : 0.18;
                 return (
-                  <span key={i} className="block leading-[0]" style={{ color: theme.color, opacity: op }}>
+                  <span
+                    key={i}
+                    className="block leading-[0]"
+                    style={{
+                      color: theme.color,
+                      opacity: mounted ? op : 0,
+                      transition: `opacity .4s ease ${i * 12}ms`,
+                    }}
+                  >
                     <svg viewBox="0 0 24 28" className="h-auto w-full" aria-hidden>
                       {FIGURE_PATH}
                     </svg>
@@ -279,8 +362,8 @@ export default function ReportsNewDetailView({
           </div>
         </section>
 
-        {/* ── 만족도 ── */}
-        <section className={SECTION}>
+        {/* 만족도 */}
+        <section className={SEC}>
           <div className={EYEBROW} style={{ color: theme.color }}>Satisfaction</div>
           <div className={QHEAD}>받아본 분들의 만족도예요.</div>
           <div className="mt-4 flex items-baseline gap-2">
@@ -303,8 +386,8 @@ export default function ReportsNewDetailView({
                   </span>
                   <span className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--bg-soft)]">
                     <span
-                      className="block h-full rounded-full bg-[var(--accent-save)]"
-                      style={{ width: `${w}%` }}
+                      className="block h-full rounded-full bg-[var(--accent-save)] transition-[width] duration-700 ease-out"
+                      style={{ width: mounted ? `${w}%` : "0%" }}
                       aria-hidden
                     />
                   </span>
@@ -315,15 +398,14 @@ export default function ReportsNewDetailView({
           </div>
         </section>
 
-        {/* ── 통증 · 다운타임 ── */}
-        <section className={SECTION}>
+        {/* 통증 · 다운타임 */}
+        <section className={SECB}>
           <div className={EYEBROW} style={{ color: theme.color }}>Pain &amp; Recovery</div>
           <div className={QHEAD}>
             얼마나 <span style={{ color: theme.color }}>아프고</span>, 얼마나{" "}
             <span style={{ color: theme.color }}>쉬어야</span> 할까?
           </div>
           <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2">
-            {/* 통증 */}
             <div>
               <div className="mb-2 text-[12.5px] font-semibold text-[var(--text-secondary)]">
                 통증 <span className="text-[var(--text)]">{avgPain.toFixed(1)}점</span> · {painPhrase(avgPain)}
@@ -342,7 +424,6 @@ export default function ReportsNewDetailView({
                 ))}
               </div>
             </div>
-            {/* 다운타임 — 안정 컴포넌트 재사용 */}
             <div>
               <div className="mb-2 text-[12.5px] font-semibold text-[var(--text-secondary)]">다운타임</div>
               {downtimeAnswered > 0 ? (
@@ -354,9 +435,9 @@ export default function ReportsNewDetailView({
           </div>
         </section>
 
-        {/* ── 효과 ── */}
+        {/* 효과 */}
         {topEffects.length > 0 && (
-          <section className={SECTION}>
+          <section className={SECB}>
             <div className={EYEBROW} style={{ color: theme.color }}>Results</div>
             <div className={QHEAD}>{ko} 받은 분들이 느낀 효과예요.</div>
             <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
@@ -368,8 +449,11 @@ export default function ReportsNewDetailView({
                   <span className="w-[58px] shrink-0 text-[14px] font-bold text-[var(--text)]">{e.label}</span>
                   <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-[var(--bg-soft)]">
                     <span
-                      className="block h-full rounded-full"
-                      style={{ width: `${e.pct}%`, backgroundColor: EFFECT_BAR_COLORS[i % EFFECT_BAR_COLORS.length] }}
+                      className="block h-full rounded-full transition-[width] duration-700 ease-out"
+                      style={{
+                        width: mounted ? `${e.pct}%` : "0%",
+                        backgroundColor: EFFECT_BAR_COLORS[i % EFFECT_BAR_COLORS.length],
+                      }}
                       aria-hidden
                     />
                   </span>
@@ -387,9 +471,9 @@ export default function ReportsNewDetailView({
           </section>
         )}
 
-        {/* ── 효과시점 ── */}
+        {/* 효과시점 */}
         {onsetAnswered > 0 && (
-          <section className={SECTION}>
+          <section className={SECB}>
             <div className={EYEBROW} style={{ color: theme.color }}>Timeline</div>
             <div className={QHEAD}>{onsetHead}</div>
             <div className="mt-5">
@@ -398,11 +482,10 @@ export default function ReportsNewDetailView({
           </section>
         )}
 
-        {/* ── 작성자 ── */}
+        {/* 작성자 통계 */}
         {demographics.total > 0 && (
-          <section className={SECTION}>
+          <section className={SECB}>
             <div className="mb-1 text-[13px] font-bold text-[var(--text-secondary)]">작성자 통계</div>
-            {/* 성별 */}
             <div className="mt-3 mb-1.5 text-[11px] font-bold text-[var(--text-muted)]">성별</div>
             <div className="flex h-[18px] overflow-hidden rounded-full" aria-hidden>
               {femalePct > 0 && <span style={{ width: `${femalePct}%`, backgroundColor: DEMO_FEMALE }} />}
@@ -412,7 +495,6 @@ export default function ReportsNewDetailView({
               <span><i className="mr-1.5 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: DEMO_FEMALE }} />여성 {femalePct}%</span>
               <span><i className="mr-1.5 inline-block h-2 w-2 rounded-[3px] align-middle" style={{ backgroundColor: DEMO_MALE }} />남성 {malePct}%</span>
             </div>
-            {/* 연령 */}
             {demographics.ageBands.length > 0 && (
               <>
                 <div className="mt-4 mb-1.5 text-[11px] font-bold text-[var(--text-muted)]">연령대</div>
@@ -436,160 +518,177 @@ export default function ReportsNewDetailView({
             )}
           </section>
         )}
+      </div>
 
-        {/* ── 후기(전체 열람) — 회색 배경 위 흰 카드로 "각각의 상자" 구분 ── */}
-        <section className="bg-[var(--bg)] px-3.5 py-6">
+      {/* ── ② 직접 들어보기 — 제목은 상자 밖, 각 후기는 독립 글상자 ── */}
+      <section className="mt-4">
+        <div className="px-1">
           <div className={EYEBROW} style={{ color: theme.color }}>In their words</div>
           <div className="flex items-baseline gap-2">
             <span className={QHEAD}>직접 들어보기</span>
-            <span className="text-[12.5px] font-semibold text-[var(--text-secondary)]">후기 {reviewTotal}개</span>
+            <span className="text-[12.5px] font-semibold text-[var(--text-secondary)]">
+              경험자의 후기 {reviewTotal}개
+            </span>
           </div>
+        </div>
 
-          {/* 정렬 칩 — 시각용(추천순 활성). 동작은 더보기 페이징과 별개. */}
-          <div className="-mx-1 mt-3.5 flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {["추천순", "별점 높은순", "별점 낮은순", "최신순"].map((label, i) => (
-              <span
-                key={label}
-                className="shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-semibold"
-                style={
-                  i === 0
-                    ? { backgroundColor: theme.color, color: "#fff" }
-                    : { backgroundColor: "var(--bg-soft)", color: "var(--text-secondary)" }
-                }
-              >
-                {label}
-              </span>
+        {/* 정렬 칩 — 후기 구간에서만 sticky 고정(클릭 시 정렬) */}
+        <div className="sticky top-0 z-30 mt-3 bg-[var(--bg)] py-2.5">
+          <div className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {SORTS.map((s) => {
+              const on = reviewSort === s.key;
+              return (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setReviewSort(s.key)}
+                  aria-pressed={on}
+                  className="shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition-colors"
+                  style={on ? { backgroundColor: theme.color, color: "#fff" } : { backgroundColor: "#fff", color: "var(--text-secondary)" }}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {sortedItems.length > 0 ? (
+          <div key={reviewSort} className="flex flex-col gap-2.5 px-px" style={{ animation: "rvRise .28s ease both" }}>
+            {sortedItems.map((card) => (
+              <ReportsNewReviewCard
+                key={card.id}
+                card={card}
+                liked={liked[card.id] ?? false}
+                me={me}
+                onLoginRequired={(reason) => setAuthPrompt(reason)}
+              />
             ))}
           </div>
-
-          {items.length > 0 ? (
-            <div className="mt-4 flex flex-col gap-2.5">
-              {items.map((card) => (
-                <ReportsNewReviewCard
-                  key={card.id}
-                  card={card}
-                  liked={liked[card.id] ?? false}
-                  me={me}
-                  onLoginRequired={(reason) => setAuthPrompt(reason)}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 text-[13px] text-[var(--text-muted)]">아직 등록된 후기가 없어요.</p>
-          )}
-          {hasMore && (
-            <button
-              type="button"
-              onClick={loadMore}
-              className="mt-2.5 flex w-full items-center justify-center gap-1 rounded-[var(--radius)] bg-[var(--bg-soft)] py-3.5 text-[13px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[#E2E7EC]"
-            >
-              {loadingMore ? "불러오는 중…" : `후기 ${reviewTotal}개 모두 보기`}
-            </button>
-          )}
-        </section>
-
-        {/* ── 전문의 Q&A(랭킹) ── */}
-        {doctorQAs.length > 0 && (
-          <section className={SECTION}>
-            <div className="flex items-baseline gap-2">
-              <span className={QHEAD}>전문의 Q&amp;A</span>
-              <span className="text-[12.5px] font-semibold text-[var(--text-secondary)]">{ko} 관련 {doctorQAs.length}개</span>
-            </div>
-            <div className="mt-3.5 flex flex-col">
-              {qaVisible.map((card, i) => {
-                const rank = i + 1;
-                const doctorName = card.doctor?.name ?? "전문의";
-                return (
-                  <Link
-                    key={card.id}
-                    href={getQaUrl(card)}
-                    className="flex items-center gap-3 border-b border-[var(--border)] py-3.5 last:border-b-0"
-                  >
-                    <span
-                      className="w-[22px] shrink-0 text-center text-[16px] font-extrabold italic"
-                      style={{ color: rankColor(rank) }}
-                    >
-                      {rank}
-                    </span>
-                    <span className="flex min-w-0 flex-col gap-[3px]">
-                      <span className="truncate text-[14.5px] font-bold text-[var(--text)]">{card.title}</span>
-                      <span className="text-[12px] font-semibold text-[var(--text-secondary)]">
-                        {doctorName} 원장 · 답변
-                      </span>
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-            {!qaExpanded && doctorQAs.length > 5 && (
-              <button
-                type="button"
-                onClick={() => setQaExpanded(true)}
-                className="mt-2.5 flex w-full items-center justify-center gap-1 rounded-[var(--radius)] bg-[var(--bg-soft)] py-3.5 text-[13px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[#E2E7EC]"
-              >
-                6~{doctorQAs.length}위 보기
-              </button>
-            )}
-            {topicsExists && (
-              <Link
-                href={`/topics/${encodeURIComponent(ko)}`}
-                className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] py-3.5 text-[13.5px] font-bold transition-opacity hover:opacity-90"
-                style={{ backgroundColor: theme.soft, color: theme.color }}
-              >
-                전문의 Q&amp;A 보러가기
-                <svg viewBox="0 0 24 24" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth={2.4} aria-hidden>
-                  <path d="M5 12h14" />
-                  <path d="m13 6 6 6-6 6" />
-                </svg>
-              </Link>
-            )}
-          </section>
+        ) : (
+          <p className="px-1 py-6 text-[13px] text-[var(--text-muted)]">아직 등록된 후기가 없어요.</p>
         )}
 
-        {/* ── 비슷한 시술 ── */}
-        {similar.length > 0 && (
-          <section className={SECTION}>
+        {(hasMore || expanded) && (
+          <div className="mt-2.5 flex gap-2">
+            {hasMore && (
+              <button
+                type="button"
+                onClick={loadMore}
+                className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius)] bg-white py-3.5 text-[13px] font-bold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-soft)]"
+              >
+                {loadingMore ? "불러오는 중…" : `후기 ${nextChunk}개 더 보기`}
+              </button>
+            )}
+            {expanded && (
+              <button
+                type="button"
+                onClick={collapseReviews}
+                className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius)] bg-white py-3.5 text-[13px] font-bold text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-soft)]"
+              >
+                접기
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── ③ 전문의 Q&A(랭킹 한 상자) ── */}
+      {doctorQAs.length > 0 && (
+        <section className="mt-4 overflow-hidden rounded-[var(--radius-lg)] bg-white px-5 py-6">
+          <div className="flex items-baseline gap-2">
+            <span className={QHEAD}>전문의 Q&amp;A</span>
+            <span className="text-[12.5px] font-semibold text-[var(--text-secondary)]">{ko} 관련 {doctorQAs.length}개</span>
+          </div>
+          <div className="mt-3.5 flex flex-col">
+            {qaVisible.map((card, i) => {
+              const rank = i + 1;
+              const doctorName = card.doctor?.name ?? "전문의";
+              return (
+                <Link
+                  key={card.id}
+                  href={getQaUrl(card)}
+                  className="flex items-center gap-3 border-b border-[var(--border)] py-3.5 last:border-b-0"
+                >
+                  <span
+                    className="w-[22px] shrink-0 text-center text-[16px] font-extrabold italic"
+                    style={{ color: rankColor(rank) }}
+                  >
+                    {rank}
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-[3px]">
+                    <span className="truncate text-[14.5px] font-bold text-[var(--text)]">{card.title}</span>
+                    <span className="text-[12px] font-semibold text-[var(--text-secondary)]">
+                      {doctorName} 원장 · 답변
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+          {!qaExpanded && doctorQAs.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setQaExpanded(true)}
+              className="mt-2.5 flex w-full items-center justify-center gap-1 rounded-[var(--radius)] bg-[var(--bg-soft)] py-3.5 text-[13px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[#E2E7EC]"
+            >
+              6~{doctorQAs.length}위 보기
+            </button>
+          )}
+          {topicsExists && (
+            <Link
+              href={`/topics/${encodeURIComponent(ko)}`}
+              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-[var(--radius)] py-3.5 text-[13.5px] font-bold transition-opacity hover:opacity-90"
+              style={{ backgroundColor: theme.soft, color: theme.color }}
+            >
+              전문의 Q&amp;A 보러가기{ARROW}
+            </Link>
+          )}
+        </section>
+      )}
+
+      {/* ── ④ 비슷한 시술 — 각 카테고리 색 상자, 메타는 시술명 옆 ── */}
+      {similar.length > 0 && (
+        <section className="mt-4">
+          <div className="px-1">
             <div className={QHEAD}>‘{topEffectLabel}’ 효과가 좋았던 다른 시술</div>
-            <div className="mt-4 flex flex-col gap-2.5">
-              {similar.map((s, i) => (
+          </div>
+          <div className="mt-3 flex flex-col gap-2.5">
+            {similar.map((s, i) => {
+              const st = categoryTheme(s.category ?? report.category);
+              return (
                 <Link
                   key={s.ko}
                   href={`/reports-new/${encodeURIComponent(s.en || s.ko)}`}
-                  className="flex items-center gap-3.5 rounded-[14px] px-4 py-4 transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: theme.soft }}
+                  className="flex items-center gap-3 rounded-[var(--radius-lg)] px-4 py-4 transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: st.soft }}
                 >
                   <span
-                    className="w-[18px] shrink-0 text-center text-[14px] font-extrabold italic"
-                    style={{ color: theme.color }}
+                    className="w-[18px] shrink-0 text-center text-[15px] font-extrabold italic"
+                    style={{ color: st.color }}
                   >
                     {i + 1}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[14.5px] font-bold tracking-[-0.02em] text-[var(--text)]">{s.ko}</span>
-                    <span className="mt-0.5 block text-[12px] text-[var(--text-secondary)]">
+                  <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="text-[16px] font-bold tracking-[-0.02em] text-[var(--text)]">{s.ko}</span>
+                    <span className="text-[13px] text-[var(--text-secondary)]">
                       재시술의향 {s.revisitPct}% · 후기 {s.count}
                     </span>
                   </span>
-                  <span className="shrink-0" style={{ color: theme.color }} aria-hidden>
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.4}>
-                      <path d="M5 12h14" />
-                      <path d="m13 6 6 6-6 6" />
-                    </svg>
-                  </span>
+                  <span className="shrink-0" style={{ color: st.color }} aria-hidden>{ARROW}</span>
                 </Link>
-              ))}
-            </div>
-          </section>
-        )}
-      </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
-      {/* ── 저장 · 공유 ── */}
-      <div className="mt-2.5 flex gap-2.5">
+      {/* ── ⑤ 저장 · 공유(둘 다 브랜드색) ── */}
+      <div className="mt-4 flex gap-2.5">
         <button
           type="button"
           onClick={saveReport}
-          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius)] py-3.5 text-[14px] font-bold transition-opacity hover:opacity-90"
-          style={{ backgroundColor: theme.soft, color: theme.color }}
+          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius)] bg-[var(--primary)] py-3.5 text-[14px] font-bold text-white transition-colors hover:bg-[var(--primary-dark)]"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -599,8 +698,7 @@ export default function ReportsNewDetailView({
         <button
           type="button"
           onClick={share}
-          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius)] py-3.5 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: theme.color }}
+          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius)] bg-[var(--primary)] py-3.5 text-[14px] font-bold text-white transition-colors hover:bg-[var(--primary-dark)]"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />
@@ -613,6 +711,8 @@ export default function ReportsNewDetailView({
         이 리포트는 {experienceCount(count)}을 집계한 결과예요. 개인차가 있으며 의학적 효과·안전성을
         보장하지 않습니다. 특정 병원·의료진의 효과 주장이 아니며, 시술 결정은 전문의 상담 후에 하세요.
       </p>
+
+      <style>{`@keyframes rvRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}`}</style>
 
       <LoginPromptDialog
         open={!!authPrompt}
