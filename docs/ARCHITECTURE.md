@@ -25,7 +25,7 @@
 
 ### 2.1. 공개 페이지
 ```
-/                                   홈 (AppShell 인-헤더 검색 + FeedView 피드(인기태그=FeedSidebar)). 검색은 /?q= 로 수행 — 시술명 매칭 시 FeedView 가 결과 최상단에 시술 리포트 카드 1장 블렌딩(searchReport=getProcedureReport)
+/                                   홈 (AppShell 인-헤더 검색 + FeedView 피드(인기태그=FeedSidebar)). 검색은 /?q= 로 수행 — 결과는 피드 글상자만(qa/review/doodle), 시술 리포트 블렌딩 제거(searchReport 항상 null, 2026-06-29 — 리포트는 /reports 전용)
 /about                              소개
 /topics/[tag]                       태그별 전문의 Q&A 허브 (qa 만, SEO 인덱싱). 시술 리포트 카드·후기 미노출 — /reports 존재 시 "후기 N건 보기 →"(→/reports/{ko}) 얇은 링크만 (2026-06-05 분리)
 /reports                            시술 리포트 허브 (인덱스: ReportsIndexView + ReportsIndexCard + 공용 ReportsIndexSidebar, 2단 레이아웃; 시술 리포트 목록 후기 N≥4 게이트 + count desc; 회전 헤드라인(report-headline) 매 요청 랜덤 → force-dynamic; SEO 셸 보존 = generateMetadata + JSON-LD CollectionPage/ItemList + canonical, 자격 0건 noindex; 인덱스↔상세는 공유 layout 셸(app/reports/layout.tsx + ReportsShell, 상단바·사이드바 persist·좌측 본문만 교체, ADR 0025))
@@ -248,7 +248,7 @@ supabase/
 | `skin/AppShell.tsx` | 공용 셸 — 헤더(로고·GNB·우상단 알림/아바타) + 하단 5탭(투데이/내노트/피드/리포트/쇼핑) + **인-헤더 검색**(데스크탑 pill·모바일 풀스크린 패널, /?q= 라우팅, ←=검색 닫기/✕=검색어만 지움) |
 | `search/SearchPanel.tsx` | 검색 발견·자동완성 패널 — 최근검색 알약 + 카테고리 텍스트 탭(시술 6종) + 키워드 칩 + 부분일치 자동완성 |
 | `IdentitySwitcher.tsx` | 신분(profile) 전환 dropdown — 묶음 안 동등 독립한 profile 들 (ADR 0001, 0011) |
-| `skin/FeedView.tsx` | 홈 피드(단일 컬럼 리스트) + 탭 필터 + 검색 시 시술 리포트 카드 블렌딩(searchReport) |
+| `skin/FeedView.tsx` | 홈 피드(단일 컬럼 리스트) + 탭 필터 (검색 시 리포트 블렌딩 제거, 2026-06-29 — searchReport 항상 null) |
 | `skin/FeedSidebar.tsx` | 데스크탑 우측 사이드바 — 인기 태그·인기 Q&A·글쓰기 CTA (홈/토픽/리포트 공용) |
 | `app/reports/ReportsIndexView.tsx` (+ `ReportsIndexCard.tsx`) | 시술 리포트 허브 인덱스 신디자인 — 리포트 목록 카드 + 회전 헤드라인. SEO/JSON-LD 는 상위 `page.tsx` 가 담당(렌더만) |
 | `app/reports/[procedure]/ReportsDetailView.tsx` (+ `ReportsReviewCard.tsx`) | 시술 리포트 상세 신디자인 — 집계 + 후기 카드(따옴표 본문·아바타·작성자 나이·성별)·비슷한 시술. SEO/JSON-LD 는 상위 `page.tsx` 담당 |

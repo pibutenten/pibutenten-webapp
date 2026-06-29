@@ -93,7 +93,7 @@ GOOGLE_CLIENT_SECRET=...
 - 같은 원장 3연속 방지, 첫 4카드 다양화
 - HOT 카드: `get_hot_card_ids(p_limit)` 결과로 마킹 (v2 정책 본문 = 시간 가중 + 최소 점수 5)
 - **검색 SSOT 헬퍼** (배치 ⑤ H3, 2026-05-28): `src/lib/search-query.ts::fetchCardList(supabase, { q, doctorSlug, boostDoctorSlug, category, offset, limit })` — 3 호출처 (홈 `src/app/page.tsx`, `/api/cards`, `/doctors/[slug]/page.tsx`) 가 동일 헬퍼 사용 (구 `/search/page.tsx` 폐기로 검색 첫 페이지도 홈으로 통합, 2026-06-28). q 가 카테고리 라벨 ("끄적끄적" 등) 이면 `.eq("category", slug)` 직접 필터, 아니면 RPC. 옛 회귀(첫 페이지 vs 무한스크롤 결과 집합 불일치) 해소.
-- **시술 리포트 블렌딩 (검색 한정)**: 검색어가 시술명과 매칭되면 '전체' 탭 첫 카드로 시술 리포트 1장(`getProcedureReport`, `searchReport`) 노출 — 홈 `page.tsx` 의 `if (query)` 분기에서만. **`review_summary`(시술 리포트) 카드를 비검색 홈피드에 직접 주입하지 않음**(검색 블렌딩만).
+- **검색 결과 = 피드 글상자만 (2026-06-29)**: 검색(`?q=`)은 피드 글상자(qa/review/doodle)만 반환. 시술 리포트 블렌딩 제거 — 홈 `page.tsx` 의 `searchReport` 는 항상 `null`. 리포트는 `/reports` 탭에서만 노출. **`review_summary`(시술 리포트) 카드는 비검색 홈피드에도 직접 주입하지 않음**.
 - **"방금 쓴 글" 1회 노출**: WriteClient publish 성공 → sessionStorage `pbtt:justPublished = {id, ts}` 저장. 홈 `<Feed enableJustPublished>` 가 5분 윈도우 + 'shown' 마킹으로 본인 글을 그리드 첫 칸에 1회 노출(이미 피드에 있으면 맨 앞 이동, 없으면 fetch unshift). 클라이언트 전용·타인 영향 0. (2026-05-31 `JustPublishedPrepend` 별도 컴포넌트 → Feed 흡수. 전역 신규 노출은 New 부스트가 담당.)
 
 ### 4.2. 카테고리 (현 4종 — SSOT=`src/lib/post-category.ts`)
