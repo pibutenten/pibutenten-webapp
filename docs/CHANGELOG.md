@@ -6,6 +6,29 @@
 
 ---
 
+## [2026-06-29] — 시술 리포트 공유 layout(좌측만 교체) + UX 다듬기 + 스크롤 회귀 수정
+
+정식 승격(아래 블록) 직후 오너 피드백 라운드(2~4) 반영. `/reports` 인덱스↔상세 이동을 **공유 layout** 으로 묶어 상단바·우측 사이드바를 persist(좌측 본문만 교체)하고, 후기 인라인 댓글·정렬칩·버튼 배치 등 UX 를 다듬었다. 단계마다 독립 코드검수관 2명 교차검수 + `tsc`·`build` 0, 내 변경 파일만 분리 배포(다중 세션 충돌 방지). 상세 근본 로딩속도(force-dynamic + 집계 RPC)는 셸 persist 로 **체감** 개선이며 ISR/쿼리 최적화는 별도 안건. ADR 0025.
+
+### Added
+- **`/reports` 공유 layout 셸 (`app/reports/layout.tsx` + `ReportsShell.tsx` + `category-context.tsx` + `reports-pool.ts`)** — 서버 `layout.tsx`(force-dynamic)가 풀을 `getReportsPoolCached`(React `cache()` = 요청 단위 메모)로 1회 로드해 상위 시술을 뽑고, 클라이언트 `ReportsShell` 이 `AppShell`(상단바·우측 `ReportsIndexSidebar`)을 감싸 인덱스↔상세 내내 persist. 카테고리 필터 상태는 URL 파라미터 RSC 재요청을 피하려 `ReportsCategoryContext`(클라 상태)로 공유. SEO 메타·JSON-LD 는 여전히 각 `page.tsx` 가 보유(셸은 메타 미관여) → 색인 자산 무손상.
+- **`app/reports/ReportShareButtons.tsx`** — 상세 저장/공유 2버튼을 별도 클라 컴포넌트로 추출(`window.location.href`·`document.title` 기반, `navigator.share` + 클립보드 폴백). 공유 셸 구조상 본문이 아닌 **사이드바 푸터**(상세 전용)에서 렌더.
+
+### Changed
+- **후기 인라인 댓글** — 후기 카드 '댓글' 클릭 시 별도 페이지 이동 없이 **그 자리에서** 댓글 열림·작성(공용 `CommentsBlock` 재사용, 중복 구현 없음).
+- **정렬칩을 본문 sticky 로** — 인덱스·상세의 후기 정렬(추천/별점/최신 등)을 피드 칩과 동일한 본문 상단 sticky 바로 통일(브랜드색). 정렬 변경 시 후기 리스트 최상단으로 스크롤(첫 항목부터 보이게) + 살짝 떠오르는 전환.
+- **카드 CTA·버튼 정리** — 인덱스 카드 = '내 후기 남기기' + '피부텐텐 리포트' 2버튼(채움 버튼 글자 흰색, 1차 CTA 는 앱 표준 하늘색 `--primary`). 후기 카드 = 따옴표 본문 + 작성자 한 줄, 푸터는 좋아요·댓글만(공유 제거). 사이드바 '후기 쓰기' 버튼은 제목+설명 두 줄 기준 세로 가운데 정렬.
+- **상세 저장/공유 위치 이동** — 본문 하단에서 **'이 리포트는요' 다음**(데스크탑=사이드바 하단, 모바일=페이지 맨 하단)으로 이동.
+- **모바일 통증·다운타임 세로 배치**(좌우 2열 → 위아래), '비슷한 시술' 카테고리색, 상세 뒤로가기 `BackButton`(history-back 보존), 더보기/접기 reachedEnd 가드 등 다수 미세 정리.
+
+### Fixed
+- **상세 진입 시 스크롤이 맨 위가 아닌 회귀** — 공유 layout 으로 스크롤 컨테이너 `AppShell .root`(overflow-y:auto)가 이동 간 persist 되어 인덱스의 스크롤 위치가 상세로 남던 문제. `ScrollManager` 가 `window` 스크롤만 관리(`.root` 미관여)가 근본원인. `ReportsDetailView` 마운트 시 가장 가까운 스크롤 조상(`.root`)을 찾아 `scrollTop=0` 으로 리셋(공용 `AppShell`/`ScrollManager` 미변경 → 타 라우트 영향 0). ※ detail→index 뒤로가기 시 인덱스 스크롤 복원은 미적용(잔존 — 동일 `.root` 미관리 원인, 추후 `ScrollManager` 일반화 검토).
+
+### Removed
+- **상세 본문 저장/공유 블록** — 사이드바 푸터로 이동하며 `ReportsDetailView` 의 `share()`/`saveReport()`·미사용 `showToast` import 제거.
+
+---
+
 ## [2026-06-29] — 투데이 피부날씨 위치 '해외→서울(대치동)' 고착 + 느림 근본수정 (Phase 1, 웹)
 
 증상: 인도 등 해외에서 "오늘의 피부 날씨" 위치가 서울(대치동)로 고착되고 로딩이 매우 느림. 4-에이전트 근본원인 조사 + 독립 코드검수관 2명 교차검수 + [치명] 2건 수정 후 재검수 2명 통과. `tsc`·`build` 0. 앱은 원격 URL(`pibutenten.kr/today`)을 WebView 로 로드하므로 **이 웹 수정은 현재 출시 앱에도 배포 즉시 반영**됨(스토어 재심사 불요). 근본원인 중 '정밀 GPS' 복원은 Phase 2(별도) — `docs/plans/today-location-fix-plan.md` 참조.
