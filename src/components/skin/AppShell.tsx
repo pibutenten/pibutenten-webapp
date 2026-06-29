@@ -76,8 +76,9 @@ function IconPlus() {
 /* ---------- 탭바 아이콘 ---------- */
 function IconNote() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M2 4h7a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2zM22 4h-7a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3H8C9.06087 3 10.0783 3.42143 10.8284 4.17157C11.5786 4.92172 12 5.93913 12 7V21C12 20.2044 11.6839 19.4413 11.1213 18.8787C10.5587 18.3161 9.79565 18 9 18H2V3Z" />
+      <path d="M22 3H16C14.9391 3 13.9217 3.42143 13.1716 4.17157C12.4214 4.92172 12 5.93913 12 7V21C12 20.2044 12.3161 19.4413 12.8787 18.8787C13.4413 18.3161 14.2044 18 15 18H22V3Z" />
     </svg>
   );
 }
@@ -92,18 +93,19 @@ function IconToday() {
 }
 function IconFeed() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M4 11a9 9 0 0 1 9 9" />
-      <path d="M4 4a16 16 0 0 1 16 16" />
-      <circle cx="5" cy="19" r="1.6" fill="currentColor" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 11C6.38695 11 8.67613 11.9482 10.364 13.636C12.0518 15.3239 13 17.6131 13 20" />
+      <path d="M4 4C8.24346 4 12.3131 5.68571 15.3137 8.68629C18.3143 11.6869 20 15.7565 20 20" />
+      <path d="M5 20C5.55228 20 6 19.5523 6 19C6 18.4477 5.55228 18 5 18C4.44772 18 4 18.4477 4 19C4 19.5523 4.44772 20 5 20Z" />
     </svg>
   );
 }
 function IconShop() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M6 7h12l1 13H5L6 7Z" />
-      <path d="M9 10V6a3 3 0 0 1 6 0v4" />
+    <svg viewBox="0 0 23 23" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5.70002 1.8999L2.85002 5.6999V18.9999C2.85002 19.5038 3.0502 19.9871 3.40652 20.3434C3.76284 20.6997 4.24611 20.8999 4.75002 20.8999H18.05C18.5539 20.8999 19.0372 20.6997 19.3935 20.3434C19.7498 19.9871 19.95 19.5038 19.95 18.9999V5.6999L17.1 1.8999H5.70002Z" />
+      <path d="M2.85002 5.69995H19.95" />
+      <path d="M15.2 9.5C15.2 10.5078 14.7997 11.4744 14.087 12.187C13.3744 12.8996 12.4078 13.3 11.4 13.3C10.3922 13.3 9.42565 12.8996 8.71302 12.187C8.00038 11.4744 7.60002 10.5078 7.60002 9.5" />
     </svg>
   );
 }
@@ -118,11 +120,11 @@ function IconUser() {
 function IconReport() {
   // 리포트 = 막대그래프/차트(시술 후기 집계 리포트) 아이콘. 다른 탭 아이콘과 동일 시그니처.
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path d="M3 3v18h18" />
-      <rect x="7" y="12" width="3" height="5" />
-      <rect x="12" y="8" width="3" height="9" />
-      <rect x="17" y="5" width="3" height="12" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19.2135 16.9915V7.99148" />
+      <path d="M14.0348 16.9915V3.1521" />
+      <path d="M8.85614 16.9915L8.85614 11.9915" />
+      <path d="M21.8985 20.8481H3.87069V3.28174" />
     </svg>
   );
 }

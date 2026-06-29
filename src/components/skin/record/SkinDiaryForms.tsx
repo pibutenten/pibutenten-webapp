@@ -26,6 +26,7 @@ import {
 } from "@/components/review/review-controls";
 import { DOWNTIME_OPTIONS } from "@/lib/review-options";
 import { useAutocompleteKeyboard } from "@/hooks/useAutocompleteKeyboard";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -55,7 +56,7 @@ const CAT_COLOR: Record<string, string> = {
   리프팅: "#1E88E5",
   스킨부스터: "#F48FB1",
   "필러·볼륨": "#FFA726",
-  "주름·윤곽": "#26A69A",
+  "주름·윤곽": "#009688",
   레이저: "#E57373",
   기타: "#78909C",
 };
@@ -160,6 +161,8 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   const [saving, setSaving] = useState(false);
   const [savedModal, setSavedModal] = useState(false); // 저장 완료 모달(→ 시술후기 유도).
   const [savedHasPublicReview, setSavedHasPublicReview] = useState(false); // 저장 시 공개 후기 포함 여부(모달 카피 분기).
+  // 작성 이탈 가드 — 내용 유무와 무관하게 항상 무장(isDirty=true). 저장 성공 시 markSubmitted() 로 해제.
+  const guard = useUnsavedChangesGuard(true);
   const [dupId, setDupId] = useState<number | null>(null); // 중복 추가 시 기존 행 0.5초 강조.
   const [acHi, setAcHi] = useState(-1); // 자동완성 키보드 하이라이트 인덱스(-1=없음).
   // 인라인 달력 — 날짜 영역 클릭 시 아래로 펼침. 바깥 클릭 시 닫힘.
@@ -509,6 +512,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
       if (data.blinded) toast("병원·의사명으로 보이는 표현이 자동으로 가려졌습니다.");
       if (data.screening) { toast(data.screening.userMessage || "후기가 검토 대기로 전환되었습니다."); }
       setSavedHasPublicReview(reviews.some((r) => r.is_public));
+      guard.markSubmitted(); // 저장 성공 → 이탈 가드 해제(후기 유도 모달로 이동 시 이탈 경고 방지).
       setSavedModal(true); // 저장 완료 → 후기 유도 모달.
     } catch {
       toast("네트워크 오류가 발생했어요");
@@ -796,6 +800,20 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
             </p>
             <div className="mt-5 space-y-2">
               <button type="button" onClick={() => { setSavedModal(false); go("record"); }} className="block w-full rounded-md bg-[var(--primary)] py-3 text-[14.5px] font-bold text-white">내 노트 보러 가기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 작성 이탈 경고 모달 — 내용 유무와 무관하게 항상 표시(사용자 요청). 가드 훅이 popstate/하단탭/링크 이동을 가로채 showModal 을 켠다. */}
+      {guard.showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={guard.cancelLeave}>
+          <div className="w-full max-w-[340px] rounded-[var(--radius)] bg-white p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <p className="text-[17px] font-extrabold text-[var(--text)]">작성을 멈추고 나갈까요?</p>
+            <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-secondary)]">지금 나가면 작성 중인 내용은 저장되지 않아요.</p>
+            <div className="mt-5 flex gap-2">
+              <button type="button" onClick={guard.cancelLeave} className="block flex-1 rounded-md bg-[var(--primary)] py-3 text-[14.5px] font-bold text-white">계속 쓰기</button>
+              <button type="button" onClick={guard.confirmDiscardAndLeave} className="block flex-1 rounded-md border border-[var(--border)] bg-white py-3 text-[14.5px] font-bold text-[var(--text-secondary)]">나가기</button>
             </div>
           </div>
         </div>

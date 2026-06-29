@@ -6,6 +6,38 @@
 
 ---
 
+## [2026-06-29] — 앱 스킨 UX 다듬기 7건 (하단 내비 아이콘 · 리포트 통증/카테고리 · 시술노트 이탈 모달 · 검색 리포트 제외 · 주름윤곽 색)
+
+오너 피드백 라운드. 하단 내비게이션·시술 리포트 표시·시술노트 작성 이탈 방지·검색 결과·카테고리 색을 다듬었다. 시술노트 이탈 모달은 독립 코드검수관 검수 + [치명] 1건(저장 후 router.push 재진입) 하드닝 후 재검수 통과. `tsc`·`build` 0. 내 변경 파일만 분리 배포(다중 세션 충돌 방지).
+
+### Changed
+- **하단 내비게이션 아이콘 교체** (`AppShell.tsx`) — 5탭 아이콘을 `/전달용/03 nav/` 제공 에셋으로 일괄 교체.
+- **리포트 인덱스 카드 '통증'을 '만족도'와 동일 형식으로** (`ReportsIndexCard.tsx`) — 카드 접힘 상태에서 통증을 만족도처럼 아이콘(`/전달용/통증.svg`) + 숫자 점수로 나란히 표시(기존 만족도만 점수 표기 → 통증도 동일 시각 위계).
+- **리포트 카테고리 배지 반전** (`ReportsIndexCard.tsx`) — 카테고리 색 글씨 → **카테고리 색 배경 + 흰 글씨** 채움 배지로 반전.
+- **시술노트(시술 일기) 작성 이탈 시 항상 확인 모달** (`SkinDiaryForms.tsx`, `useUnsavedChangesGuard.ts`) — 내용 유무와 무관하게 이탈(뒤로/내비/닫기) 시 모달 표시. 제목 "작성을 멈추고 나갈까요?", 본문 "지금 나가면 작성 중인 내용은 저장되지 않아요.", 버튼 "계속 쓰기 · 나가기". `markSubmitted()` 가 `shouldGuardRef` 를 동기로 내려 저장 직후 `router.push("/notes")` 경로의 가드 재진입(모달 재오픈)을 차단.
+- **주름·윤곽(contour) 카테고리 색 미세 진하게** (`categories.ts`) — 배경과 구분이 약하던 초록을 `#26A69A → #009688` 로 한 단계만 진하게. `tag-dictionary.generated.json` 은 빌드가 재생성.
+
+### Fixed
+- **검색 결과에서 구 시술 리포트 노출 제거** (`page.tsx`) — 검색(`?q=`)은 피드 글상자(qa/review/doodle)만 반환하고 시술 리포트(`searchReport`)는 항상 `null`. 리포트는 `/reports` 탭에서만 노출(피드/리포트 분리, 2026-06-29).
+
+---
+
+## [2026-06-29] — 1.0.1 양대 스토어 재심사 제출 (GPS 측위 수정 · Android 전세계 177개국 확대)
+
+피부날씨 동(洞) 단위 측위(COARSE, ADR 0022) 반영을 위한 1.0.1 새 빌드를 **iOS·Android 모두 스토어 재심사 제출**. 네이티브 바이너리 변경이라 웹 배포로는 불가 → 새 빌드 필수. 양쪽 모두 Google/Apple 검토 승인 대기. 상세 진행은 `docs/STORE_SUBMISSION_LOG.md` 2026-06-29.
+
+### Submitted
+- **iOS (App Store Connect)** — 1.0.1 **빌드 8**(iPhone 전용) 첨부, 자동 버전 출시 ON → **"심사 대기 중(Waiting for Review)"**. submission `79b0bab6-cbdd-43b2-bf43-25f167705936`, 제출 2026-06-29(배정민), 148개국. 승인 시 자동 출시. (App Store Connect 자동화로 제출)
+- **Android (Google Play)** — 1.0.1(versionCode 2) AAB 를 프로덕션 트랙에 업로드 → **전세계 177개국 확대**(대한민국 1개국 → +175개국 +기타)와 묶어 **"검토를 위해 변경사항 3개 전송 완료"**. 관리형 게시 OFF → 승인 시 자동 게시. 출시노트 "위치(GPS) 기반 피부날씨 기능의 오류를 수정하고 안정성을 개선했습니다." 비차단 경고 3건(기기 6종 지원 제외 ~0% / mapping 미첨부 / 디버그 기호 미업로드), 오류 0건.
+
+### Build
+- **Android 1.0.1 서명 AAB** — GitHub Actions `Android Release (AAB)` 수동 dispatch(run **28360296223**, success) → 서명 완료 AAB 4.58MB → `builds/pibutenten-1.0.1-vc2.aab`(applicationId `kr.pibutenten.app`, versionCode 2). 직전 라이브러리에 1.0(versionCode 1) 1개뿐이라 1.0.1 AAB 를 신규 빌드해 업로드(해결). ※ Play Console 자동화 정책 차단 → 빌드(gh CLI)와 업로드·게시(Playwright, 원장 로그인) 분담.
+
+### Notes
+- 직전 출시본(iOS 1.0 빌드7 · Android 1.0)은 라이브 유지, 1.0.1 승인 시 대체. 정밀도는 동 단위로 충분 → FINE 미사용(COARSE 유지, ADR 0022).
+
+---
+
 ## [2026-06-29] — 시술 리포트 공유 layout(좌측만 교체) + UX 다듬기 + 스크롤 회귀 수정
 
 정식 승격(아래 블록) 직후 오너 피드백 라운드(2~4) 반영. `/reports` 인덱스↔상세 이동을 **공유 layout** 으로 묶어 상단바·우측 사이드바를 persist(좌측 본문만 교체)하고, 후기 인라인 댓글·정렬칩·버튼 배치 등 UX 를 다듬었다. 단계마다 독립 코드검수관 2명 교차검수 + `tsc`·`build` 0, 내 변경 파일만 분리 배포(다중 세션 충돌 방지). 상세 근본 로딩속도(force-dynamic + 집계 RPC)는 셸 persist 로 **체감** 개선이며 ISR/쿼리 최적화는 별도 안건. ADR 0025.

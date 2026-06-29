@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
 import { diversifyByDoctor } from "@/lib/feed-shuffle";
-import { getProcedureReport, type ProcedureReport } from "@/lib/procedure-report";
+import { type ProcedureReport } from "@/lib/procedure-report";
 import { fetchCardList } from "@/lib/search-query";
 import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
@@ -131,8 +131,8 @@ export default async function HomeFeedPage({
   const hotIdsPromise = getHotQaIds(20);
 
   let cards: CardData[] = [];
-  // 검색 시 시술명이 리포트와 매칭되면 '전체' 탭 첫 카드(후기 1건부터, getProcedureReport).
-  let searchReport: ProcedureReport | null = null;
+  // 검색 결과엔 시술 리포트를 띄우지 않는다(피드/리포트 탭 분리, 2026-06-29) — 항상 null.
+  const searchReport: ProcedureReport | null = null;
   // 사이드 '인기 태그' '전체' 탭 — 항상 비검색 피드 풀 기준(검색·태그클릭에 불변).
   let popularTags: string[] = [];
   const searchQuery = query || undefined;
@@ -156,13 +156,13 @@ export default async function HomeFeedPage({
     // 검색 화면 — 인기 태그는 검색결과가 아니라 '비검색 피드 풀' 기준으로 계산해야 안정적이므로
     //   keywords 집계 전용으로 feed_cards_scored 를 한 번 더 받는다(전체 탭 태그 = 검색과 무관).
     //   jitter=0(결정적) — 호출마다 무작위로 상위 풀이 바뀌면 인기태그 목록이 클릭/검색마다 바뀜.
-    const [listRes, sReport, tags] = await Promise.all([
+    // 검색 결과엔 시술 리포트(searchReport)를 띄우지 않는다 — 피드/리포트 탭 분리(2026-06-29)로
+    //   리포트는 /reports 탭 전용. 검색은 피드 글상자(qa/review/doodle)만. searchReport 는 null 유지.
+    const [listRes, tags] = await Promise.all([
       fetchCardList(supabase, { q: query, offset: 0, limit: ORDER }),
-      getProcedureReport(supabase, query),
       getPopularTagsCached(),
     ]);
     cards = (listRes.data ?? []) as unknown as CardData[];
-    searchReport = sReport;
     popularTags = tags;
   } else {
     // 피드 풀·인기태그 모두 공개 데이터 → 쿠키리스 anon + unstable_cache(피드 90s, 태그 300s)로 분리.

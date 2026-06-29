@@ -44,7 +44,7 @@ export const CATEGORIES: readonly Category[] = [
   { slug: "lifting",     label: "리프팅",     color: "#1E88E5" },
   { slug: "skinbooster", label: "스킨부스터", color: "#F48FB1" },
   { slug: "filler",      label: "필러·볼륨",  color: "#FFA726" },
-  { slug: "contour",     label: "주름·윤곽",  color: "#26A69A" },
+  { slug: "contour",     label: "주름·윤곽",  color: "#009688" },
   { slug: "laser",       label: "레이저",     color: "#E57373" },
   { slug: "other",       label: "기타",       color: "#78909C" },
   { slug: "homecare",    label: "홈케어",     color: "#BF6E5C" },

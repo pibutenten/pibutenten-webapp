@@ -81,7 +81,6 @@ export default function ReportsIndexCard({
   const rTotal = Math.max(1, revisit.yes + revisit.maybe + revisit.no);
   const yesPct = Math.round((revisit.yes / rTotal) * 100);
   const satRounded = Math.round(avgSatisfaction);
-  const painOn = Math.round(avgPain);
   const hasPain = avgPain > 0;
   const painGradient = `linear-gradient(90deg, ${PAIN_SOFT[0]} 0%, ${PAIN_SOFT.map(
     (c, i) => `${c} ${painPos(i + 1)}%`,
@@ -153,7 +152,7 @@ export default function ReportsIndexCard({
             {catLabel && (
               <span
                 className="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold"
-                style={{ color: theme.color, backgroundColor: "rgba(255,255,255,0.7)" }}
+                style={{ color: "#fff", backgroundColor: theme.color }}
               >
                 {catLabel}
               </span>
@@ -188,14 +187,22 @@ export default function ReportsIndexCard({
                   통증
                 </span>
                 {hasPain ? (
-                  <span className="flex justify-center gap-[3px]" aria-hidden>
-                    {[0, 1, 2, 3, 4].map((i) => (
-                      <i
-                        key={i}
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: i < painOn ? theme.color : "#E2E7EC" }}
+                  <span className="inline-flex items-center gap-0.5">
+                    <svg
+                      width={11}
+                      height={14}
+                      viewBox="0 0 17 22"
+                      fill="none"
+                      aria-hidden
+                    >
+                      <path
+                        d="M9.8 8.79999H15.3C15.7 8.79999 16 9.25832 15.7 9.62499L6.2 20.5333C5.9 20.9 5.3 20.625 5.3 20.1667L6.5 13.0167H1.1C0.699998 13.0167 0.399998 12.5583 0.699998 12.1917L10.2 1.37499C10.5 1.00832 11.1 1.28332 11.1 1.74166L9.9 8.89166L9.8 8.79999Z"
+                        fill="#F06258"
                       />
-                    ))}
+                    </svg>
+                    <span className="text-[20px] font-extrabold leading-none text-[var(--text)] [font-feature-settings:'tnum']">
+                      {avgPain.toFixed(1)}
+                    </span>
                   </span>
                 ) : (
                   <span className="block text-[10px] text-[var(--text-muted)]">응답 적음</span>

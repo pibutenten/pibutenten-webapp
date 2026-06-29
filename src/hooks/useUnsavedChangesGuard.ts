@@ -35,12 +35,19 @@ export function useUnsavedChangesGuard(
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
+  // shouldGuardRef 를 markSubmitted 보다 먼저 선언해 useCallback 내부에서 직접 참조 가능하게 함.
+  //   초기값은 false(매 렌더 아래에서 최신 shouldGuard 로 갱신하므로 초기값은 첫 렌더 즉시 덮임).
+  const shouldGuardRef = useRef(false);
+
+  // 제출 완료 → 가드 해제. submittedRef 뿐 아니라 shouldGuardRef 도 동기로 내려서,
+  //   저장 직후 router.push("/notes") 처럼 finishLeave 를 안 거치는 이동 경로가
+  //   같은 틱에 nav-guard(isDirty=()=>shouldGuardRef.current)를 다시 켜 모달이 재오픈되는 재진입을 차단.
   const markSubmitted = useCallback(() => {
     submittedRef.current = true;
+    shouldGuardRef.current = false;
   }, []);
 
   const shouldGuard = isDirty && !submittedRef.current;
-  const shouldGuardRef = useRef(shouldGuard);
   shouldGuardRef.current = shouldGuard;
 
   useEffect(() => {
