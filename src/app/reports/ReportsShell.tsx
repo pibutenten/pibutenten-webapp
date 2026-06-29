@@ -22,6 +22,7 @@ import ReportsIndexSidebar, {
 import { useSearchRouting } from "@/components/skin/ui";
 import type { ProcedureSlug } from "@/lib/categories";
 import { ReportsCategoryContext } from "./category-context";
+import ReportShareButtons from "./ReportShareButtons";
 
 export default function ReportsShell({
   topProcedures,
@@ -34,6 +35,8 @@ export default function ReportsShell({
   const pathname = usePathname();
   const search = useSearchRouting();
   const [category, setCategory] = useState<ProcedureSlug | null>(null);
+  // 상세(/reports/[시술])에서만 저장·공유 버튼을 사이드바 푸터로 노출. 허브(/reports)는 제외.
+  const isDetail = pathname !== "/reports" && pathname.startsWith("/reports/");
 
   const onCategory = (slug: ProcedureSlug) => {
     setCategory((c) => (c === slug ? null : slug));
@@ -50,6 +53,7 @@ export default function ReportsShell({
             topProcedures={topProcedures}
             activeCategory={category}
             onCategory={onCategory}
+            footer={isDetail ? <ReportShareButtons /> : undefined}
           />
         }
         sidebarMobileBelow

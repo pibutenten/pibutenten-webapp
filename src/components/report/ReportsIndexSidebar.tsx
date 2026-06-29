@@ -42,6 +42,7 @@ export default function ReportsIndexSidebar({
   topProcedures,
   activeCategory,
   onCategory,
+  footer,
 }: {
   /** '후기 많은 시술' 목록 — count desc 상위(부모 page 에서 슬라이스). */
   topProcedures: SidebarTopProcedure[];
@@ -49,27 +50,29 @@ export default function ReportsIndexSidebar({
   activeCategory: ProcedureSlug | null;
   /** 카테고리 칩 클릭 — 부모가 피드 필터. 같은 칩 재클릭=전체 해제는 부모가 처리. */
   onCategory: (slug: ProcedureSlug) => void;
+  /** 사이드바 맨 아래에 추가로 렌더할 노드(상세에서 저장/공유 박스를 여기로 받음). */
+  footer?: React.ReactNode;
 }) {
   return (
     <>
       {/* ① 후기 쓰기 CTA */}
-      <section className={BOX}>
-        <div className="flex items-center justify-between gap-3">
+      <section className={BOX + " flex items-center justify-between gap-3"}>
+        <div className="min-w-0">
           <h3 className={H3 + " break-keep"}>내가 받은 시술, 후기 남기기</h3>
-          <Link
-            href="/write?tab=review"
-            style={{ color: "#fff" }}
-            className={
-              "shrink-0 inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] " +
-              FOCUS_RING
-            }
-          >
-            후기 쓰기
-          </Link>
+          <p className="mt-1.5 break-keep text-[13px] leading-[1.5] text-[var(--text-secondary)]">
+            내 경험이 다음 사람의 선택을 도와요.
+          </p>
         </div>
-        <p className="mt-1.5 text-[13px] leading-[1.5] text-[var(--text-secondary)]">
-          내 경험이 다음 사람의 선택을 도와요.
-        </p>
+        <Link
+          href="/write?tab=review"
+          style={{ color: "#fff" }}
+          className={
+            "shrink-0 inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] " +
+            FOCUS_RING
+          }
+        >
+          후기 쓰기
+        </Link>
       </section>
 
       {/* ② 후기 많은 시술 + 카테고리 칩 */}
@@ -142,6 +145,8 @@ export default function ReportsIndexSidebar({
           </span>
         </Link>
       </section>
+
+      {footer}
     </>
   );
 }
