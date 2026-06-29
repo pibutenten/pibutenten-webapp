@@ -160,12 +160,27 @@ export default function ReportsDetailView({
   const [qaExpanded, setQaExpanded] = useState(false);
   const [reviewSort, setReviewSort] = useState<SortKey>("rec");
   const listRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
 
   // 정렬 변경 시 첫 후기가 보이도록 후기 리스트 상단으로 스크롤(sticky 칩 높이만큼 여백 확보).
   function changeSort(k: SortKey) {
     setReviewSort(k);
     requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
+
+  // 공유 layout 으로 스크롤 컨테이너(AppShell .root)가 persist → 상세 진입 시 직전(인덱스) 스크롤이
+  //   남아 맨 위가 아닌 곳에서 시작하는 문제. 마운트 시 가장 가까운 스크롤 조상을 찾아 최상단으로 리셋.
+  useEffect(() => {
+    let el: HTMLElement | null = topRef.current?.parentElement ?? null;
+    while (el) {
+      const oy = getComputedStyle(el).overflowY;
+      if (oy === "auto" || oy === "scroll") {
+        el.scrollTop = 0;
+        break;
+      }
+      el = el.parentElement;
+    }
+  }, []);
 
   // 진입 애니메이션 트리거(마운트 직후 1회).
   const [mounted, setMounted] = useState(false);
@@ -285,6 +300,7 @@ export default function ReportsDetailView({
 
   return (
     <>
+      <div ref={topRef} aria-hidden className="sr-only" />
       <BackButton fallbackHref="/reports" className="mb-1" />
 
       {/* ── ① 리포트 카드(한 장) ── */}
