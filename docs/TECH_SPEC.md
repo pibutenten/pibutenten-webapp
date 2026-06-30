@@ -45,12 +45,16 @@ GOOGLE_CLIENT_SECRET=...
 
 ### 2.2. 폼 구성 (`/onboarding`)
 1. **프로필 사진을 올려주세요!** (선택) — OAuth 사진 prefill + 카메라/파일 업로드 (256×256 JPEG)
-2. **본인 확인을 위한 기본 정보를 알려주세요.** (필수) — 이메일·생년월일·성별
-3. **얼굴형이 어떻게 되세요?** (필수, 택1)
-4. **피부 타입은 어떤 편이세요?** (필수, 택1)
-5. **요즘 어떤 피부 고민이 있으세요?** (필수, 멀티 — 모바일 5×2 그리드)
-6. **피부에 대해 궁금한 것을 골라주시면, 맞춤형 정보를 보여드릴게요.** (필수, 최대 10개, InterestPicker)
-7. **본인을 한 줄로 소개해 주실래요?** (선택, 200자, 미입력 시 "만나서 반갑습니다." 자동 저장)
+2. **본인 확인을 위한 기본 정보를 알려주세요.** (필수) — 이메일·생년월일·성별 (1 글상자)
+3. **피부 정보** (필수) — 시술후기 작성 폼 구조를 계승한 1 글상자로 묶어 flat label 로 나열:
+   - 얼굴형 (택1)
+   - 피부 타입 (택1)
+   - 피부톤 (Fitzpatrick I~VI, 택1) — 번호 동그라미가 선택 시 해당 피부톤 색으로, 미선택 시 연한 회색 (`#E8EAEE`)
+   - 요즘 피부 고민 (멀티 — 모바일 5×2 그리드)
+4. **피부에 대해 궁금한 것을 골라주시면, 맞춤형 정보를 보여드릴게요.** (필수, 최대 10개, InterestPicker — 별도 영역)
+5. **본인을 한 줄로 소개해 주실래요?** (선택, 200자, 미입력 시 "만나서 반갑습니다." 자동 저장 — 별도 영역)
+
+> 칩(chip)은 컴팩트(`px-2.5 py-1`)·좌측 정렬. flat label 헬퍼는 `SubLabel` (중첩 카드 `Section` 미사용).
 
 ### 2.3. InterestPicker 컴포넌트
 - 시술 6종 카테고리 탭 (lifting/skinbooster/filler/contour/laser/other — `PROCEDURE_CATEGORIES` 파생, `pickDefaultCategory()` 랜덤 진입)
@@ -330,20 +334,23 @@ ex) /minji-skin/Ab3xK9Pq
 
 ## 11. 흥미 점수 시스템 (비로그인 회원가입 권유)
 
-`src/lib/engagement-score.ts` 점수표 (ADR 0008, v3 = 15):
+`src/lib/engagement-score.ts` 점수표 (ADR 0008, v4 = 15):
 | 이벤트 | 점수 |
 |---|---|
-| 카드 view | +1 |
-| 카드 펼침 | +2 |
+| 리포트 view (시술 리포트) | +8 |
+| 피드 카드 view (Q&A·후기 등) | +2 |
+| 카드 펼침 (더보기) | +2 |
 | 영상 보러가기 | +3 |
 | 검색 | +3 |
 | 키워드 칩 클릭 | +1 |
 | 태그 클릭 | +2 |
 | navigate | +1 |
-| 5분 머묾 | +5 |
+| 2분 머묾 | +3 |
+| 5분 머묾 | +4 |
 | 10분 머묾 | +5 |
 
-임계점 ≥15 → `EngagementPromptDialog` 1회 노출. sessionStorage 가드 + localStorage dismiss 일주일.
+- v4 (2026-06-30): 콘텐츠 모델이 피드·리포트로 분기됨에 따라 view 점수 분리. **리포트(시술 리포트)는 정보 밀도가 높은 핵심 콘텐츠 → +8** (리포트 2건 = 16 ≥ 15 → 트리거), 일반 피드 카드는 +2. 판별자는 `card.type === "review_summary"` (category 아님 — review_summary 풀 카드는 category 미세팅이라 category 분기 시 항상 false).
+- 임계점 ≥15 → `EngagementPromptDialog` 1회 노출. sessionStorage 가드 + localStorage dismiss 일주일.
 
 ---
 

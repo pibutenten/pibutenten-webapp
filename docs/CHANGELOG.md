@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-06-30] — 온보딩 컴팩트화 + Fitzpatrick 피부톤 동그라미 + 소프트월 피드/리포트 점수 분리
+
+온보딩 화면을 시술후기 작성 폼 구조에 맞춰 글상자 단위로 재편하고 칩을 컴팩트화·좌측정렬했다. Fitzpatrick 질문은 선택 시 해당 피부타입의 실제 톤 색상으로 동그라미가 바뀌도록 시각화했다. 비로그인 소프트월 점수표는 콘텐츠 모델이 피드/리포트로 분기됨에 따라 리포트(정보 밀도 높은 핵심)와 일반 피드 카드를 분리 가산하도록 v4 로 조정했다. `tsc --noEmit` 0, 코드검수관 통과(미사용 `Label` 함수 dead code 제거). 커밋 `bc37e74`.
+
+### Changed
+- **온보딩 글상자 재편** (`OnboardingClient.tsx`) — [본인 확인 기본정보] 1글상자, [얼굴형·피부타입·Fitzpatrick·요즘 피부고민] 1글상자(중첩 `Section` 카드 → 플랫 `SubLabel` 라벨), [관심시술]·[한줄 소개] 각각 분리. 시술후기 작성 폼 구조 계승. 칩 컴팩트화(`px-2.5 py-1 text-[12.5px]`) + 좌측정렬(`flex flex-wrap gap-1`). 피부고민 `grid grid-cols-5` → `flex flex-wrap`. 미사용 `Label` 함수 제거(dead code).
+- **Fitzpatrick 동그라미 피부톤 시각화** (`OnboardingClient.tsx`) — 번호 동그라미를 선택 시 해당 광반응 유형의 실제 피부톤 색상(I `#F4D9C1` ~ VI `#4A2C1A`)으로 채우고, 미선택은 연한 단색(`#E8EAEE`). 동그라미 확대(`h-6 w-6` → `h-8 w-8`, `text-[12px]` → `text-[13px]`) + `transition-colors`.
+- **소프트월 점수표 v4 — 피드/리포트 분리** (`engagement-score.ts`, `useCardViewer.ts`) — 리포트(`review_summary`, 시술 리포트) view = **8점**(2건 = 16 ≥ THRESHOLD 15 → 회원가입 모달 트리거), 일반 피드 카드(Q&A·후기) view = 2점 유지. `recordView()` 가 `card.type === "review_summary"` 로 판별(`category` 아님 — 리포트 풀 앵커 카드는 `category` 미세팅이라 `category` 분기 시 항상 false). 펼침(card-expand) 점수와 view 점수는 `seenKey` 세션 dedup 으로 카드당 1회만 가산.
+
+---
+
 ## [2026-06-30] — profiles.fitzpatrick 컬럼 추가 (온보딩 I-Fix4)
 
 ### Added

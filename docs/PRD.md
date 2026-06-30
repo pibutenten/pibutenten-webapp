@@ -99,7 +99,7 @@
 - 본 원칙은 즉시 발효. 9개 테이블 컬럼 `user_id` → `profile_id` RENAME 은 Phase 2 (마이그 0186, commit `f8d1c93`) + Phase 3 (마이그 0187, commit `91477c2`) 로 2026-05-29 production 적용 완료 — `cards/comments.author_id` 는 §4 결정에 따라 의도된 유지 (Phase 4 보류).
 
 ### 4.4. 온보딩 (필수 게이트)
-- 약관 동의 + 생년월일·성별·얼굴형·피부타입 입력 강제
+- 약관 동의 + 생년월일·성별·얼굴형·피부타입·피부톤(Fitzpatrick) 입력 강제
 - 14세 미만 차단 (CHECK constraint)
 - 중복 가입자 식별 (OAuth provider email 기반 — ADR 0003)
 - **게이트 단위 (ADR 0015, 2026-05-29)**: 온보딩 검사는 **active 명함 단위**. middleware / onboarding 페이지 / 댓글 라우트 모두 active 명함 (IDENTITY_COOKIE 기반 + 묶음 보안 검증) 의 birthdate/terms_agreed_at 검사. 묶음 외 ID 는 base fallback. 단 `settings/profile` 페이지의 base-only 읽기는 POLICY-1 잔여 — 별도 안건.
