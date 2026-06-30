@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-06-30] — 리포트 PTR + 온보딩 다듬기 + Fitzpatrick 재보정 (오너 피드백 후속)
+
+배포 후 오너 피드백 라운드. 각 항목 핀셋 위임 → 1차 검수 → 코드검수관 2명 재검수([치명] 1건 — PTR willChange→sticky 충돌 — 발견·해소) → tsc·build 통과. 커밋 `ec1e3e4`(색)·`b359e24`(PTR·온보딩).
+
+### Added
+- **리포트 탭 pull-to-refresh** (`ReportsShell.tsx`) — 피드와 동일하게 모바일에서 아래로 당겨 새로고침(`usePullToRefresh`, `router.refresh()` + 800ms). 인덱스·상세 공유 shell 모두 적용. PTR 래퍼는 `willChange:transform` 생략 — 상시 적용 시 containing block 이 되어 본문 sticky 정렬칩(ReportsIndexView)을 무력화하므로(코드검수관 [치명]), 훅이 당기는 중에만 transform 동적 적용.
+
+### Changed
+- **온보딩 헤더 가운데 정렬** (`OnboardingView.tsx`) — "피부텐텐에 오신 걸 환영해요" + 안내문 `text-center`.
+- **온보딩 배경 회색 → 피드 캔버스** (`OnboardingView.tsx`) — AppShell `wide keepCanvas`(탭바 숨김은 유지하되 admin 회색 `.rootWide` 대신 피드 `--tt-canvas` 그라데이션 — 로그인/회원가입 화면과 동일).
+- **온보딩 Fitzpatrick 1~4 색 추가 보정** (`OnboardingClient.tsx`) — 한국인 피부톤 기준으로 한 단계 더 연하게(1 `#FCEFE7` 백인 / 2 `#F8E0CE` 밝은 한국인 / 3 `#F0CDB0` 보통 한국인 / 4 `#E2B896` 어두운 한국인). 색 견본으로 오너 확정, fg 글씨색 유지(대비 향상).
+
+### Removed
+- **온보딩 "다른 방법으로 다시 로그인" 상시 안내 박스** (`page.tsx` `ReturningUserNotice` 렌더·import 제거) — 컴포넌트 자체는 `signup/page.tsx` 에서 계속 사용(dead code 아님). 중복 가입자는 저장 시 OnboardingClient 의 dedup 다이얼로그로 안내.
+
+---
+
 ## [2026-06-30] — UX 수정 6건 (소프트월·뒤로가기·끄적끄적·온보딩·글쓰기·contour 색)
 
 지난 24시간 변경(리포트 신디자인 승격·피부날씨·온보딩)을 정합성·SSOT·일관성·심미/효율 4차원 멀티에이전트 감사 → 검증된 결함 + 오너 피드백을 핀셋 수정. 각 항목 서브에이전트 위임 → 1차 검수 → 코드검수관 2명 재검수([치명] 3건 → 핀셋 재수정 → 재검수 [치명] 0건) → `npm run build`·`tsc` 통과. 커밋 `315090e`.
