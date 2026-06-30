@@ -6,6 +6,30 @@
 
 ---
 
+## [2026-06-30] — UX 수정 6건 (소프트월·뒤로가기·끄적끄적·온보딩·글쓰기·contour 색)
+
+지난 24시간 변경(리포트 신디자인 승격·피부날씨·온보딩)을 정합성·SSOT·일관성·심미/효율 4차원 멀티에이전트 감사 → 검증된 결함 + 오너 피드백을 핀셋 수정. 각 항목 서브에이전트 위임 → 1차 검수 → 코드검수관 2명 재검수([치명] 3건 → 핀셋 재수정 → 재검수 [치명] 0건) → `npm run build`·`tsc` 통과. 커밋 `315090e`.
+
+### Fixed
+- **소프트월 리포트 점수 복구** (`ReportsDetailView.tsx`) — 신디자인 `/reports` 승격 시 누락된 흥미점수 배선 복구. 리포트 상세 조회 시 `addEngagement("report-view")`(+8)를 **비로그인 사용자에 한해** 세션당 1회(seenKey `pibutenten:report-view:${encodeURIComponent(ko)}`) 가산. 리포트 2건 조회 = 16 ≥ THRESHOLD(15) → 회원가입 소프트월 발동. dev 실측(8→16, triggered) 확인.
+- **리포트 뒤로가기 상태 복원** (`ReportsIndexView.tsx`, `ReportsIndexCard.tsx`) — 공유 layout(`.root` persist)에서 목록→상세→뒤로 시 스크롤·펼침·정렬·페이지가 초기화되던 문제. 카드 펼침 상태 부모 lift-up + sessionStorage 스냅샷(sort/pageCount/openSet/scrollTop/category/ts, 5분 TTL) 저장·복원·1회성 소비. snap.sort 화이트리스트 검증, category 불일치 시 scrollTop 복원 스킵, restoringRef rAF 해제.
+- **끄적끄적 등 소수 카테고리 피드 무한로딩** (`FeedView.tsx`) — 클라 카테고리 필터 + 무한스크롤에서 doodle 글이 1개일 때 sentinel 이 짧은 리스트에 계속 노출돼 IntersectionObserver 가 loadMore 를 무한 호출하던 버그. 자동로드 조건 `filtered.length < PAGE`(소수 카테고리 끝까지 당겨 종료), sentinel 렌더 가드 `(effectiveChip==="all" || filtered.length>=PAGE)`, sentinel 을 ref 콜백(`attachSentinel`)으로 전환해 늦게 mount 돼도 observe.
+
+### Changed
+- **온보딩 개선** (`OnboardingClient.tsx`) — Fitzpatrick(햇볕 반응) 1~4 색을 실제 피부톤에 맞게 연하게 보정(1=백인 매우 밝은 톤), 보기 줄간격 컴팩트(`gap-1`·`py-2`), 얼굴형~피부고민 묶음 글상자에 제목 "본인의 피부에 대해 알려주세요" 추가(글상자 제목 16px / 소제목 14px 위계).
+- **글쓰기 기본 탭 시술후기** (`WriteView.tsx`) — FAB·데스크탑 헤더 글쓰기(`/write`, tab 미지정) 진입 시 기본 활성 탭을 시술노트 → 시술후기(`tabToKey` default `review`). `?tab=` 명시 진입은 불변.
+- **write 로딩 스켈레톤 범용화** (`write/loading.tsx`) — 기본 탭 변경에 맞춰 DiaryForm 전용 스켈레톤을 탭 비의존 범용 구조로(CLS 완화).
+- **주름·윤곽(contour) 색 #009688 통일** — `app.module.css` 칩 틴트 2곳(옛 #26A69A 잔존)·`categories.ts` 주석·`docs/TECH_SPEC.md` 를 새 색으로 동기화(SSOT 정합).
+
+### Docs
+- `ROADMAP.md` 시술 리포트 승격 완료 반영(잔여 = 상세 로딩속도 ISR/쿼리 최적화), `decisions/README.md` ADR 0025 표 추가, docs `*.tmp.*` 잔여 10개 정리.
+
+### Notes
+- **보류(별도 안건)**: 마이그 0322 `search_path` pg_temp 보강(STABLE 함수라 기능·보안 무해, 스타일 일관성만) · 시술노트 시술태그 자동완성 공유훅(`useAutocompleteKeyboard`) 통일(회귀 위험·info). 코드검수 [경고]/[제안] 중 `useCallback` 메모이제이션·CSS 변수화는 위생 항목.
+- **dev 검증 제약**: Dropbox 경로 + Turbopack 캐시로 dev 실시간 시각 검증이 불가 → `npm run build`(소스 통째 재컴파일) + 코드검수관 2명으로 검증, 시각 확인은 배포 후 실환경에서 수행.
+
+---
+
 ## [2026-06-30] — 온보딩 컴팩트화 + Fitzpatrick 피부톤 동그라미 + 소프트월 피드/리포트 점수 분리
 
 온보딩 화면을 시술후기 작성 폼 구조에 맞춰 글상자 단위로 재편하고 칩을 컴팩트화·좌측정렬했다. Fitzpatrick 질문은 선택 시 해당 피부타입의 실제 톤 색상으로 동그라미가 바뀌도록 시각화했다. 비로그인 소프트월 점수표는 콘텐츠 모델이 피드/리포트로 분기됨에 따라 리포트(정보 밀도 높은 핵심)와 일반 피드 카드를 분리 가산하도록 v4 로 조정했다. `tsc --noEmit` 0, 코드검수관 통과(미사용 `Label` 함수 dead code 제거). 커밋 `bc37e74`.
