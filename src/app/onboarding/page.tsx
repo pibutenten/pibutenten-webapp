@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPopularByCategory } from "@/lib/popular-keywords";
 import OnboardingClient from "./OnboardingClient";
-import ReturningUserNotice from "@/components/auth/ReturningUserNotice";
 import { IDENTITY_COOKIE, ROLES, UUID_RE } from "@/lib/identity-shared";
 import OnboardingView from "./OnboardingView";
 
@@ -92,9 +91,6 @@ export default async function OnboardingPage() {
 
   return (
     <OnboardingView>
-      {/* 작업 B — 중복 가입 재발방지 안내 + 탈출 버튼(상단 눈에 띄게). */}
-      <ReturningUserNotice />
-
       <OnboardingClient
         userId={user.id}
         targetProfileId={targetProfileId}

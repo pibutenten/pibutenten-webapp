@@ -20,6 +20,7 @@ import ReportsIndexSidebar, {
   type SidebarTopProcedure,
 } from "@/components/report/ReportsIndexSidebar";
 import { useSearchRouting } from "@/components/skin/ui";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import type { ProcedureSlug } from "@/lib/categories";
 import { ReportsCategoryContext } from "./category-context";
 import ReportShareButtons from "./ReportShareButtons";
@@ -34,6 +35,12 @@ export default function ReportsShell({
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchRouting();
+  const { containerRef: ptrRef, indicatorRef: ptrIndicatorRef, refreshing: ptrRefreshing } = usePullToRefresh(
+    async () => {
+      router.refresh();
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  );
   const [category, setCategory] = useState<ProcedureSlug | null>(null);
   // 상세(/reports/[시술])에서만 저장·공유 버튼을 사이드바 푸터로 노출. 허브(/reports)는 제외.
   const isDetail = pathname !== "/reports" && pathname.startsWith("/reports/");
@@ -59,7 +66,18 @@ export default function ReportsShell({
         sidebarMobileBelow
         {...search}
       >
-        {children}
+        {/* PTR 래퍼 — willChange:transform 생략: 상시 적용 시 stacking context/containing block 이 되어
+            자식 sticky 정렬칩(ReportsIndexView)을 무력화한다(피드는 칩이 헤더라 무관). 훅이 당기는 중에만
+            transform 을 동적으로 직접 설정하므로 GPU 합성은 그대로 일어난다. */}
+        <div ref={ptrRef} className="relative">
+          {/* PTR 인디케이터 — 바깥 div: 훅이 transform으로 갭 중앙 배치, 안쪽 div: 새로고침 중 spin */}
+          <div ref={ptrIndicatorRef}
+            className="absolute top-0 left-1/2 pointer-events-none z-10"
+            style={{ opacity: 0 }}>
+            <div className={`w-6 h-6 border-2 border-gray-300 border-t-[var(--primary)] rounded-full ${ptrRefreshing ? "animate-spin" : ""}`} />
+          </div>
+          {children}
+        </div>
       </AppShell>
     </ReportsCategoryContext.Provider>
   );

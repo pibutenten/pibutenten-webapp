@@ -6,11 +6,11 @@
  * 원칙(앱 스킨 승격, 2026-06-15): 상단바만 앱 셸, 본문은 운영 형태 그대로 유지.
  *   ⚠️ 온보딩은 가장 민감(미들웨어 강제 게이트·이메일 dedup·IDENTITY 쿠키 기준 targetProfileId).
  *      - 가드·쿠키·dedup·avatar 결정·OnboardingClient prop 등 모든 로직은 server page.tsx 가 100% 책임.
- *      - 폼 본체(ReturningUserNotice·OnboardingClient)는 page.tsx 에서 렌더해 children 으로 주입.
+ *      - 폼 본체(OnboardingClient)는 page.tsx 에서 렌더해 children 으로 주입.
  *        이 View 는 헤더 문구 + 셸 래핑만 — 폼/로직/쿠키/redirect 일절 건드리지 않는다.
  *   - 셸은 wide 모드 — 피드용 5탭 하단바가 온보딩 강제 게이트 흐름(탭으로 게이트 우회)을 방해하지
  *     않도록 탭바를 숨긴다. active 는 타입 만족용("마이") — wide 라 탭바·강조 미노출.
- *   - back 미지정 — 온보딩은 '뒤로' 로 게이트를 벗어나면 안 됨(탈출은 본문 '다시 로그인' 버튼만). 검색 비활성.
+ *   - back 미지정 — 온보딩은 '뒤로' 로 게이트를 벗어나면 안 됨. 검색 비활성. (중복 가입자는 저장 시 OnboardingClient 의 dedup 다이얼로그로 안내.)
  *
  * 격리: app.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
  */
@@ -20,9 +20,9 @@ import AppShell from "@/components/skin/AppShell";
 
 export default function OnboardingView({ children }: { children: ReactNode }) {
   return (
-    <AppShell active="마이" wide>
+    <AppShell active="마이" wide keepCanvas>
       <section className="mx-auto w-full max-w-[640px] py-6">
-        <header className="mb-5">
+        <header className="mb-5 text-center">
           <h1 className="text-2xl font-bold text-[var(--text)]">
             피부텐텐에 오신 걸 환영해요
           </h1>
