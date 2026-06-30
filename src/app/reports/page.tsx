@@ -29,8 +29,13 @@ import ReportsIndexView from "./ReportsIndexView";
 export const dynamic = "force-dynamic";
 
 type TopEffect = { label: string; pct: number };
-/** 카드 펼침용 서버 선집계 — 대표 효과 top3 + 효과 발현 최다 시점 라벨. */
-type Extras = { effects: TopEffect[]; onsetLabel: string | null };
+/** 카드 펼침용 서버 선집계 — 대표 효과 top3 + 효과 발현 최다 시점 라벨 + 최신 후기 시각. */
+type Extras = {
+  effects: TopEffect[];
+  onsetLabel: string | null;
+  /** family 롤업 후 가장 최근 후기의 시각(ISO). 후기 0건이면 null. '최신순' 정렬용. */
+  latestReviewAt: string | null;
+};
 
 /** count desc 정렬된 자격 시술 목록(N≥4). 동률은 시술명 ko 사전순으로 안정 정렬. */
 async function loadPool(): Promise<ProcedureReport[]> {
@@ -74,7 +79,7 @@ async function loadExtras(
   const { data: rows } = await supabase
     .from("procedure_reviews")
     .select(
-      "procedure_ko, effect_areas, effect_onset, card:cards!inner(status, deleted_at)",
+      "procedure_ko, effect_areas, effect_onset, card:cards!inner(status, deleted_at, created_at, updated_at)",
     )
     .in("procedure_ko", [...needed])
     .eq("card.status", "published")
@@ -84,7 +89,12 @@ async function loadExtras(
         procedure_ko: string;
         effect_areas: string[] | null;
         effect_onset: string | null;
-        card: { status: string | null; deleted_at: string | null } | null;
+        card: {
+          status: string | null;
+          deleted_at: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        } | null;
       }[]
     >();
 
@@ -94,6 +104,8 @@ async function loadExtras(
   );
   const effByKo = new Map<string, Map<string, number>>();
   const onsetByKo = new Map<string, number[]>();
+  // 시술 ko 별 가장 최근 후기 시각(updated_at 우선, 없으면 created_at). family 롤업 전 raw 집계.
+  const latestByKo = new Map<string, string>();
   for (const row of rows ?? []) {
     const ko = row.procedure_ko;
     if (!ko) continue;
@@ -115,16 +127,26 @@ async function loadExtras(
       }
       oc[oi] += 1;
     }
+    // 최신 후기 시각 — ISO 문자열 비교(동일 포맷·UTC라 사전순=시간순).
+    const at = row.card?.updated_at ?? row.card?.created_at ?? null;
+    if (at) {
+      const cur = latestByKo.get(ko);
+      if (!cur || at > cur) latestByKo.set(ko, at);
+    }
   }
 
   for (const r of pool) {
     const mergedEff = new Map<string, number>();
     const mergedOnset = [0, 0, 0, 0];
+    // family 롤업 후 최신 후기 시각 — 부모+직속하위 중 가장 큰 ISO 문자열.
+    let mergedLatest: string | null = null;
     for (const ko of familyOf(r.procedureKo)) {
       const em = effByKo.get(ko);
       if (em) for (const [label, c] of em) mergedEff.set(label, (mergedEff.get(label) ?? 0) + c);
       const oc = onsetByKo.get(ko);
       if (oc) for (let i = 0; i < 4; i++) mergedOnset[i] += oc[i] ?? 0;
+      const lat = latestByKo.get(ko);
+      if (lat && (!mergedLatest || lat > mergedLatest)) mergedLatest = lat;
     }
     const n = Math.max(1, r.count);
     const effects: TopEffect[] = [...mergedEff.entries()]
@@ -138,7 +160,7 @@ async function loadExtras(
       for (let i = 1; i < 4; i++) if (mergedOnset[i] > mergedOnset[idx]) idx = i;
       onsetLabel = EFFECT_ONSET_OPTIONS[idx]?.label ?? null;
     }
-    result.set(r.procedureKo, { effects, onsetLabel });
+    result.set(r.procedureKo, { effects, onsetLabel, latestReviewAt: mergedLatest });
   }
   return result;
 }
@@ -184,13 +206,28 @@ export default async function ReportsHubPage() {
   const pool = await loadPool();
   const extras = await loadExtras(supabase, pool);
 
-  // 시술별 — 대표효과 주입 → 시그널 → 풀 → 서버 랜덤픽 1개(요청마다). 효과·시점도 함께 prop.
+  // 시술별 — 대표효과 주입 → 시그널 → 풀 → 서버 랜덤픽 1개(요청마다). 효과·시점·최신 후기 시각도 함께 prop.
   const items = pool.map((report) => {
-    const ex = extras.get(report.procedureKo) ?? { effects: [], onsetLabel: null };
+    const ex =
+      extras.get(report.procedureKo) ?? {
+        effects: [],
+        onsetLabel: null,
+        latestReviewAt: null,
+      };
     const signals = toSignals(report, ex.effects[0] ?? null, ex.effects[1] ?? null);
     const headline = pickHeadline(buildHeadlinePool(signals));
-    return { report, headline, effects: ex.effects, onsetLabel: ex.onsetLabel };
+    return {
+      report,
+      headline,
+      effects: ex.effects,
+      onsetLabel: ex.onsetLabel,
+      latestReviewAt: ex.latestReviewAt,
+    };
   });
+
+  // Fix #5 — '최신순' 약한 회전용 서버 시드. 일(日) 단위 epoch(=UTC 자정 기준 일수)로
+  //   하루 동안 동일(SSR/CSR 하이드레이션 일치) + 매일 1회 자연 회전. Math.random 미사용(결정론적).
+  const rotationSeed = Math.floor(Date.now() / 86_400_000);
 
   // JSON-LD — CollectionPage + ItemList(각 item 이 /reports/{ko}). 최소·정확.
   //   provider/publisher 는 layout 의 #organization(SSOT) 참조만(노드 재정의 금지). 자격 0건이면 생략.
@@ -227,7 +264,7 @@ export default async function ReportsHubPage() {
           dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }}
         />
       )}
-      <ReportsIndexView items={items} />
+      <ReportsIndexView items={items} rotationSeed={rotationSeed} />
     </>
   );
 }

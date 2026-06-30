@@ -171,7 +171,7 @@ export default function ReportsIndexCard({
                 <span className="text-[20px] font-bold">%</span>
               </div>
               <div className="mt-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">
-                다시 받고 싶어요
+                재시술의향
               </div>
               <div className="mt-2 h-[5px] max-w-[180px] overflow-hidden rounded-full bg-white/70">
                 <span
@@ -331,7 +331,7 @@ export default function ReportsIndexCard({
             {/* ③ CTA 두 버튼 한 행 — 좌: 후기 남기기(soft, flat) / 우: 전체 리포트 보기(카테고리색 채움) */}
             <div className="mt-5 flex gap-2">
               <Link
-                href="/write?tab=review"
+                href={`/write?tab=review&proc=${encodeURIComponent(procedureKo)}`}
                 className={
                   "flex flex-1 items-center justify-center rounded-[var(--radius)] px-4 py-3.5 text-[14px] font-bold " +
                   FOCUS_RING

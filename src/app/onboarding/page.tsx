@@ -20,6 +20,7 @@ type ProfileRow = {
   bio: string | null;
   avatar_url: string | null;
   skin_info_consent_at: string | null;
+  fitzpatrick: number | null;
 };
 
 export default async function OnboardingPage() {
@@ -56,7 +57,7 @@ export default async function OnboardingPage() {
   const { data: primary } = await supabase
     .from("profiles")
     .select(
-      "contact_email, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, skin_info_consent_at",
+      "contact_email, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, skin_info_consent_at, fitzpatrick",
     )
     .eq("id", targetProfileId)
     .maybeSingle()
@@ -109,6 +110,7 @@ export default async function OnboardingPage() {
           bio: profile?.bio ?? "",
           avatarUrl: profile?.avatar_url ?? null,
           skinInfoConsentAt: profile?.skin_info_consent_at ?? null,
+          fitzpatrick: profile?.fitzpatrick ?? null,
         }}
       />
     </OnboardingView>

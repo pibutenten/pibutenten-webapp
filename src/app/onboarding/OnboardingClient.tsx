@@ -22,6 +22,16 @@ import type { PopularByCategory } from "@/lib/popular-keywords";
 
 const INTERESTS_MAX = 10;
 
+// I-Fix4: 피부고민 칩 5색 팔레트 — 활성 시 index 순환. 브랜드 블루 + 라벤더·핑크·앰버·민트.
+//   얼굴형·피부타입·성별 칩은 color 미전달(브랜드 단일색). 11개 고민에 5색이 순환 적용.
+const CONCERN_PALETTE = [
+  "#4CBFF2",
+  "#7C6FF0",
+  "#F2789F",
+  "#F5A623",
+  "#34C7A6",
+] as const;
+
 type Initial = {
   email: string;
   birthdate: string;
@@ -34,6 +44,8 @@ type Initial = {
   avatarUrl: string | null;
   /** 피부 정보 활용 동의 시점 — 이미 동의했으면 체크박스 기본 ON (보안 2.5차) */
   skinInfoConsentAt?: string | null;
+  /** 피츠패트릭 피부 광반응 1~6 (I-Fix4). NULL = 미응답. */
+  fitzpatrick?: number | null;
 };
 
 /** dedup 검사 결과 — Phase 5-4 (2026-05-16): handle 등 식별 정보 노출 X.
@@ -152,6 +164,10 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
   const [gender, setGender] = useState<Initial["gender"]>(initial.gender);
   const [faceShape, setFaceShape] = useState<string | null>(initial.faceShape);
   const [skinType, setSkinType] = useState<string | null>(initial.skinType);
+  // 피부 광반응(피츠패트릭) 1~6 — 피부타입 다음, 피부고민 앞 (I-Fix4). 필수.
+  const [fitzpatrick, setFitzpatrick] = useState<number | null>(
+    initial.fitzpatrick ?? null,
+  );
   const [skinConcerns, setSkinConcerns] = useState<string[]>(
     initial.skinConcerns,
   );
@@ -279,6 +295,10 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
       setErr("피부타입을 선택해주세요.");
       return;
     }
+    if (!fitzpatrick) {
+      setErr("햇볕에 대한 피부 반응을 선택해주세요.");
+      return;
+    }
     if (skinConcerns.length === 0) {
       setErr("피부 고민을 한 개 이상 선택해주세요.");
       return;
@@ -329,6 +349,8 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
           gender,
           face_shape: faceShape,
           skin_type: skinType,
+          // I-Fix4: 피츠패트릭 광반응 1~6 (필수). profiles.fitzpatrick smallint CHECK 1~6.
+          fitzpatrick,
           skin_concerns: skinConcerns,
           interested_procedures: procedures,
           bio: finalBio,
@@ -548,7 +570,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
       </Section>
 
       {/* 2. 얼굴형 */}
-      <Section title="얼굴형이 어떻게 되세요?" required hint="택 1">
+      <Section title="얼굴형이 어떻게 되세요?" required>
         <div className="flex flex-wrap justify-center gap-2">
           {FACE_SHAPES.map((f) => (
             <Chip
@@ -563,7 +585,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
       </Section>
 
       {/* 3. 피부타입 */}
-      <Section title="피부 타입은 어떤 편이세요?" required hint="택 1">
+      <Section title="피부 타입은 어떤 편이세요?" required>
         <div className="flex flex-wrap justify-center gap-2">
           {SKIN_TYPES.map((s) => (
             <Chip
@@ -577,13 +599,64 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
         </div>
       </Section>
 
-      {/* 4. 피부고민 — 모바일은 정확히 5×2 grid (10개 균등), 데스크탑은 flex-wrap 가운데 */}
-      <Section title="요즘 어떤 피부 고민이 있으세요?" required hint="복수 선택">
+      {/* 3-2. 피츠패트릭 광반응 (I-Fix4 신규·필수). profiles.fitzpatrick smallint CHECK 1~6.
+          긴 보기 텍스트라 칩 대신 풀폭 세로 라디오형 목록. 6개 보기 카피는 사용자 확정 verbatim. */}
+      <Section title="햇볕을 오래 쬐면 피부가 어떻게 반응하나요?" required>
+        <div className="flex flex-col gap-2">
+          {[
+            { v: 1, main: "항상 붉어지고 거의 안 타요 · 매우 밝은 톤", note: "북유럽계 백인에서 흔해요" },
+            { v: 2, main: "쉽게 붉어지고 서서히 타요 · 밝은 톤", note: "밝은 편의 한국인, 유럽계 백인" },
+            { v: 3, main: "가끔 붉어지고 쉽게 타요 · 중간 톤", note: "보통의 한국인·동아시아인" },
+            { v: 4, main: "붉어지기보단 잘 타요 · 올리브~연갈색", note: "어두운 편의 한국인, 중동계" },
+            { v: 5, main: "거의 안 붉어지고 진하게 타요 · 갈색", note: "인도·중동·라틴계에서 흔해요" },
+            { v: 6, main: "붉어지지 않아요 · 짙은 갈색~검정", note: "아프리카계에서 흔해요" },
+          ].map((o) => {
+            const on = fitzpatrick === o.v;
+            return (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => setFitzpatrick(o.v)}
+                className={`flex w-full items-center gap-3 rounded-[var(--radius)] border px-3 py-2.5 text-left transition-colors active:scale-[0.99] ${
+                  on
+                    ? "border-[var(--primary)]"
+                    : "border-[var(--border)] bg-white hover:border-[var(--primary-light)]"
+                }`}
+                style={on ? { backgroundColor: "#EAF6FD" } : undefined}
+              >
+                <span
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold"
+                  style={
+                    on
+                      ? { backgroundColor: "#4CBFF2", color: "#FFFFFF" }
+                      : { backgroundColor: "#E8EAEE", color: "#5C6470" }
+                  }
+                >
+                  {o.v}
+                </span>
+                <span className="flex flex-col">
+                  <span className="text-[13px] font-medium text-[var(--text)]">
+                    {o.main}
+                  </span>
+                  <span className="text-[11.5px] text-[var(--text-muted)]">
+                    {o.note}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Section>
+
+      {/* 4. 피부고민 — 모바일은 정확히 5×2 grid (10개 균등), 데스크탑은 flex-wrap 가운데.
+          I-Fix4: 피부고민 칩만 5색 팔레트 순환(활성 시). 얼굴형·피부타입·성별은 브랜드색 단일. */}
+      <Section title="요즘 어떤 피부 고민이 있으세요?" required hint="모두 고르셔도 돼요">
         <div className="grid grid-cols-5 place-items-center gap-1.5 sm:flex sm:flex-wrap sm:justify-center sm:gap-2">
-          {SKIN_CONCERNS.map((c) => (
+          {SKIN_CONCERNS.map((c, i) => (
             <Chip
               key={c.key}
               active={skinConcerns.includes(c.key)}
+              color={CONCERN_PALETTE[i % CONCERN_PALETTE.length]}
               onClick={() => setSkinConcerns(toggle(skinConcerns, c.key))}
             >
               {c.label}
@@ -594,12 +667,15 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
 
       {/* 5. 관심 키워드 — /search 의 CategoryWithChips 와 동일 UI (밑줄 탭 + 그라데이션 라인 + 작은 칩 + 더보기 토글). 최대 10개. */}
       <Section
-        title="피부에 대해 궁금한 것을 골라주시면, 맞춤형 정보를 보여드릴게요."
+        title="관심있는 시술을 골라주시면, 맞춤형 정보를 보여드려요."
         required
         hint={`최대 ${INTERESTS_MAX}개 · ${procedures.length}/${INTERESTS_MAX}`}
       >
-        {/* 안내문 ("추후에도 언제든지 변경하실 수 있어요") 는 page.tsx 의
-            상단 부제 아래로 이동 (사용자 요청 2026-05-23 IV). */}
+        {/* I-Fix4: 관심 시술 안내 카피(사용자 승인) — 시술 선택 맥락에서 "변경 가능"을
+            한 번 더 강조. page.tsx 상단 부제의 일반 안내와 역할이 다름(중복 아님). */}
+        <p className="mb-3 text-[12.5px] leading-[1.6] text-[var(--text-muted)]">
+          추후에 변경하실 수 있으니 편하게 골라주세요.
+        </p>
         <InterestPicker
           popularByCategory={popularByCategory}
           activeCategory={interestCategory}
@@ -656,7 +732,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
             <strong className="text-[var(--text)]">
               입력한 피부 정보(피부타입·피부고민·관심시술)
             </strong>
-            를 피드 추천 및 서비스 개선에 활용하는 것에 동의합니다. 동의 시점은
+            를 피드 추천에 활용하는 것에 동의합니다. 동의 시점은
             기록되며, 동의 철회는{" "}
             <a
               href="/settings/profile"
@@ -809,10 +885,13 @@ function Label({ children }: { children: React.ReactNode }) {
 function Chip({
   active,
   onClick,
+  color,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  /** 활성 배경색 — 미지정 시 브랜드색 #4CBFF2. 피부고민 칩만 5색 팔레트 전달(I-Fix4). */
+  color?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -820,14 +899,15 @@ function Chip({
       type="button"
       onClick={onClick}
       // 비활성: bg #E8EAEE / text #5C6470 / fontWeight 500 (검색 페이지 톤 동일)
-      // 활성: 브랜드색 #4CBFF2 (var(--primary)) / text white / fontWeight 600
+      // 활성: 기본 브랜드색 #4CBFF2 (var(--primary)) / text white / fontWeight 600
       //   — 사용자 요청 (2026-05-23 IV): 회색 → 브랜드색. 단, 5번 관심 키워드 picker
       //     안의 칩은 카테고리 색을 유지(별도 인라인 <button>, Chip 컴포넌트와 분리).
+      //   I-Fix4: color prop 전달 시 그 색을 활성 배경으로(피부고민 5색).
       className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97]"
       style={
         active
           ? {
-              backgroundColor: "#4CBFF2",
+              backgroundColor: color ?? "#4CBFF2",
               color: "#FFFFFF",
               fontWeight: 600,
             }

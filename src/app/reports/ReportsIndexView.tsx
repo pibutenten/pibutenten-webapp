@@ -19,7 +19,7 @@
  * 격리: app.module.css 클래스 의존 금지 — Tailwind 유틸 + globals.css 토큰만.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import ReportsIndexCard from "./ReportsIndexCard";
 import { useReportsCategory } from "./category-context";
@@ -31,16 +31,22 @@ type ReportItem = {
   effects: { label: string; pct: number }[];
   /** 효과 발현 최다 시점 라벨(없으면 null). */
   onsetLabel: string | null;
+  /** family 롤업 후 가장 최근 후기 시각(ISO). 후기 0건이면 null. '최신순' 정렬용. */
+  latestReviewAt: string | null;
 };
 
-type SortKey = "count" | "revisit" | "satisfaction" | "pain";
+type SortKey = "recent" | "count" | "revisit" | "satisfaction" | "pain";
 
 const SORTS: { key: SortKey; label: string }[] = [
+  { key: "recent", label: "최신순" },
   { key: "count", label: "후기 많은 순" },
   { key: "revisit", label: "재시술의향 높은 순" },
   { key: "satisfaction", label: "만족도 높은 순" },
   { key: "pain", label: "통증 적은 순" },
 ];
+
+/** 한 페이지(피드형 무한스크롤) 노출 개수. */
+const PAGE_SIZE = 8;
 
 /** 재시술 의향 yes 비율(%) — 정렬용. 분모 0이면 0. */
 function revisitYesPct(r: ProcedureReport): number {
@@ -48,13 +54,45 @@ function revisitYesPct(r: ProcedureReport): number {
   return total > 0 ? r.revisit.yes / total : 0;
 }
 
+/**
+ * 결정론적 [0,1) 의사난수 — 시술명 + 일(日) 시드 해시(FNV-1a 변형).
+ * 같은 (시술, 시드)면 항상 같은 값 → SSR/CSR 하이드레이션 일치 + Math.random 미사용.
+ */
+function rotationNoise(key: string, seed: number): number {
+  let h = (2166136261 ^ seed) >>> 0;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+/** ISO 문자열 → ms. null/파싱불가면 0(가장 오래됨). */
+function isoToMs(iso: string | null): number {
+  if (!iso) return 0;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? 0 : t;
+}
+
+/** 최신순 합성 점수 가중치 — 최신 후기 / 후기 수 / 재시술의향 / 약한 일일 회전. */
+const W_RECENCY = 0.4;
+const W_COUNT = 0.35;
+const W_REVISIT = 0.25;
+const W_ROTATION = 0.12;
+
 export default function ReportsIndexView({
   items,
+  rotationSeed,
 }: {
   /** 서버 정렬(count desc) + 헤드라인 확정 목록. */
   items: ReportItem[];
+  /** 서버 계산 일(日) 시드 — '최신순' 약한 회전용(하루 고정 → 하이드레이션 일치). */
+  rotationSeed: number;
 }) {
-  const [sort, setSort] = useState<SortKey>("count");
+  const [sort, setSort] = useState<SortKey>("recent");
+  // 피드형 무한스크롤 — 현재 노출 페이지 수. 정렬·카테고리 변경 시 1로 리셋.
+  const [pageCount, setPageCount] = useState(1);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   // 카테고리 필터는 공유 layout(ReportsShell)의 사이드바 칩 상태를 구독(null=전체).
   const category = useReportsCategory();
 
@@ -63,10 +101,47 @@ export default function ReportsIndexView({
     const filtered = category
       ? items.filter((it) => it.report.category === category)
       : items;
+
+    // '최신순' 합성 점수용 정규화 분모 — 필터된 집합 기준 최신/최오래 후기 시각 + 최대 후기수.
+    //   recency 는 [minRecency, maxRecency] 구간으로 정규화(후기 0건 시 0). count 는 maxCount 분모.
+    let minRecency = Infinity;
+    let maxRecency = 0;
+    let maxCount = 0;
+    if (sort === "recent") {
+      for (const it of filtered) {
+        const ms = isoToMs(it.latestReviewAt);
+        if (ms > 0) {
+          if (ms < minRecency) minRecency = ms;
+          if (ms > maxRecency) maxRecency = ms;
+        }
+        if (it.report.count > maxCount) maxCount = it.report.count;
+      }
+    }
+    const recencySpan = maxRecency > minRecency ? maxRecency - minRecency : 0;
+    // 합성 점수: 최신 후기(0.4) + 후기 수(0.35) + 재시술의향(0.25) + 약한 일일 회전(±0.06).
+    //   회전은 rotationNoise([0,1)) - 0.5 → [-0.5,0.5], W_ROTATION 0.12 가중 → 동점·근접만 뒤섞음.
+    const recentScore = (it: ReportItem): number => {
+      const ms = isoToMs(it.latestReviewAt);
+      const recN = recencySpan > 0 && ms > 0 ? (ms - minRecency) / recencySpan : 0;
+      const countN = maxCount > 0 ? it.report.count / maxCount : 0;
+      const revisit = revisitYesPct(it.report);
+      const rot = rotationNoise(it.report.procedureKo, rotationSeed) - 0.5;
+      return (
+        W_RECENCY * recN +
+        W_COUNT * countN +
+        W_REVISIT * revisit +
+        W_ROTATION * rot
+      );
+    };
+
     const sorted = [...filtered].sort((a, b) => {
       const ra = a.report;
       const rb = b.report;
       switch (sort) {
+        case "recent": {
+          const d = recentScore(b) - recentScore(a);
+          return d !== 0 ? d : rb.count - ra.count;
+        }
         case "revisit": {
           const d = revisitYesPct(rb) - revisitYesPct(ra);
           return d !== 0 ? d : rb.count - ra.count;
@@ -91,7 +166,34 @@ export default function ReportsIndexView({
       }
     });
     return sorted;
-  }, [items, sort, category]);
+  }, [items, sort, category, rotationSeed]);
+
+  // 피드형 무한스크롤 — 현재 페이지까지 잘라 노출. 정렬·카테고리 변경 시 1페이지로 리셋.
+  const shown = useMemo(
+    () => visible.slice(0, pageCount * PAGE_SIZE),
+    [visible, pageCount],
+  );
+  const hasMore = shown.length < visible.length;
+
+  useEffect(() => {
+    setPageCount(1);
+  }, [sort, category]);
+
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setPageCount((p) => p + 1);
+        }
+      },
+      { rootMargin: "400px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore]);
 
   return (
     <>
@@ -141,7 +243,7 @@ export default function ReportsIndexView({
           className="flex flex-col gap-3"
           style={{ animation: "rvRise .28s ease both" }}
         >
-          {visible.map((it) => (
+          {shown.map((it) => (
             <ReportsIndexCard
               key={it.report.procedureKo}
               report={it.report}
@@ -150,6 +252,7 @@ export default function ReportsIndexView({
               onsetLabel={it.onsetLabel}
             />
           ))}
+          {hasMore && <div ref={sentinelRef} aria-hidden className="h-8" />}
         </div>
       )}
       <p className="mt-4 px-1 text-center text-[11.5px] leading-[1.6] text-[var(--text-muted)]">

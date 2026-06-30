@@ -6,6 +6,14 @@
 
 ---
 
+## [2026-06-30] — profiles.fitzpatrick 컬럼 추가 (온보딩 I-Fix4)
+
+### Added
+- **`profiles.fitzpatrick` smallint 컬럼** (마이그 0323) — 피부 광반응 유형(Fitzpatrick 1~6) 온보딩 신규 질문. CHECK(1~6 OR NULL). 기존 회원 row 는 NULL 유지(다음 설정 진입 시 입력). 피드 추천·시술 매칭 피부톤 보정 용도(소비 후속 단계). anon SELECT 차단(PII, 0123 설계 자동 상속). UTF-8 안전 경로(node scratchpad/apply_0323.mjs)로 production 적용.
+- **`propagate_onboarding_to_doctor_bundle` fitzpatrick 복제 추가** (마이그 0324) — 0323 신설 `profiles.fitzpatrick` 을 의사 멀티 계정 묶음 전파 RPC 가 누락하던 정합성 결함 교정. SELECT INTO v_src + UPDATE SET 에 `fitzpatrick = COALESCE(profiles.fitzpatrick, v_src.fitzpatrick)` 추가. 0274 의 search_path 하드닝(`SET search_path = public, pg_temp`)을 함수 정의에 명시(CREATE OR REPLACE 가 ALTER 설정 초기화하므로). GRANT authenticated 재명시. U+FFFD 오염 0건, proconfig `search_path=public, pg_temp` 확인 완료.
+
+---
+
 ## [2026-06-29] — 앱 스킨 UX 다듬기 7건 (하단 내비 아이콘 · 리포트 통증/카테고리 · 시술노트 이탈 모달 · 검색 리포트 제외 · 주름윤곽 색)
 
 오너 피드백 라운드. 하단 내비게이션·시술 리포트 표시·시술노트 작성 이탈 방지·검색 결과·카테고리 색을 다듬었다. 시술노트 이탈 모달은 독립 코드검수관 검수 + [치명] 1건(저장 후 router.push 재진입) 하드닝 후 재검수 통과. `tsc`·`build` 0. 내 변경 파일만 분리 배포(다중 세션 충돌 방지).
