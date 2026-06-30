@@ -569,101 +569,113 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
         </div>
       </Section>
 
-      {/* 2. 얼굴형 */}
-      <Section title="얼굴형이 어떻게 되세요?" required>
-        <div className="flex flex-wrap justify-center gap-2">
-          {FACE_SHAPES.map((f) => (
-            <Chip
-              key={f.key}
-              active={faceShape === f.key}
-              onClick={() => setFaceShape(f.key)}
-            >
-              {f.label}
-            </Chip>
-          ))}
-        </div>
-      </Section>
-
-      {/* 3. 피부타입 */}
-      <Section title="피부 타입은 어떤 편이세요?" required>
-        <div className="flex flex-wrap justify-center gap-2">
-          {SKIN_TYPES.map((s) => (
-            <Chip
-              key={s.key}
-              active={skinType === s.key}
-              onClick={() => setSkinType(s.key)}
-            >
-              {s.label}
-            </Chip>
-          ))}
-        </div>
-      </Section>
-
-      {/* 3-2. 피츠패트릭 광반응 (I-Fix4 신규·필수). profiles.fitzpatrick smallint CHECK 1~6.
-          긴 보기 텍스트라 칩 대신 풀폭 세로 라디오형 목록. 6개 보기 카피는 사용자 확정 verbatim. */}
-      <Section title="햇볕을 오래 쬐면 피부가 어떻게 반응하나요?" required>
-        <div className="flex flex-col gap-2">
-          {[
-            { v: 1, main: "항상 붉어지고 거의 안 타요 · 매우 밝은 톤", note: "북유럽계 백인에서 흔해요" },
-            { v: 2, main: "쉽게 붉어지고 서서히 타요 · 밝은 톤", note: "밝은 편의 한국인, 유럽계 백인" },
-            { v: 3, main: "가끔 붉어지고 쉽게 타요 · 중간 톤", note: "보통의 한국인·동아시아인" },
-            { v: 4, main: "붉어지기보단 잘 타요 · 올리브~연갈색", note: "어두운 편의 한국인, 중동계" },
-            { v: 5, main: "거의 안 붉어지고 진하게 타요 · 갈색", note: "인도·중동·라틴계에서 흔해요" },
-            { v: 6, main: "붉어지지 않아요 · 짙은 갈색~검정", note: "아프리카계에서 흔해요" },
-          ].map((o) => {
-            const on = fitzpatrick === o.v;
-            return (
-              <button
-                key={o.v}
-                type="button"
-                onClick={() => setFitzpatrick(o.v)}
-                className={`flex w-full items-center gap-3 rounded-[var(--radius)] border px-3 py-2.5 text-left transition-colors active:scale-[0.99] ${
-                  on
-                    ? "border-[var(--primary)]"
-                    : "border-[var(--border)] bg-white hover:border-[var(--primary-light)]"
-                }`}
-                style={on ? { backgroundColor: "#EAF6FD" } : undefined}
+      {/* 2~4. 얼굴형 · 피부타입 · 피츠패트릭 · 피부고민 — 한 글상자로 묶음.
+          시술후기 작성 폼 구조 계승: 중첩 Section 카드 대신 단일 글상자 + 평면 SubLabel
+          + 좌측 정렬 칩(flex flex-wrap gap-1) (사용자 요청 2026-06-30). */}
+      <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 sm:p-5">
+        {/* 얼굴형 */}
+        <div>
+          <SubLabel>얼굴형이 어떻게 되세요?</SubLabel>
+          <div className="flex flex-wrap gap-1">
+            {FACE_SHAPES.map((f) => (
+              <Chip
+                key={f.key}
+                active={faceShape === f.key}
+                onClick={() => setFaceShape(f.key)}
               >
-                <span
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold"
-                  style={
-                    on
-                      ? { backgroundColor: "#4CBFF2", color: "#FFFFFF" }
-                      : { backgroundColor: "#E8EAEE", color: "#5C6470" }
-                  }
-                >
-                  {o.v}
-                </span>
-                <span className="flex flex-col">
-                  <span className="text-[13px] font-medium text-[var(--text)]">
-                    {o.main}
-                  </span>
-                  <span className="text-[11.5px] text-[var(--text-muted)]">
-                    {o.note}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
+                {f.label}
+              </Chip>
+            ))}
+          </div>
         </div>
-      </Section>
 
-      {/* 4. 피부고민 — 모바일은 정확히 5×2 grid (10개 균등), 데스크탑은 flex-wrap 가운데.
-          I-Fix4: 피부고민 칩만 5색 팔레트 순환(활성 시). 얼굴형·피부타입·성별은 브랜드색 단일. */}
-      <Section title="요즘 어떤 피부 고민이 있으세요?" required hint="모두 고르셔도 돼요">
-        <div className="grid grid-cols-5 place-items-center gap-1.5 sm:flex sm:flex-wrap sm:justify-center sm:gap-2">
-          {SKIN_CONCERNS.map((c, i) => (
-            <Chip
-              key={c.key}
-              active={skinConcerns.includes(c.key)}
-              color={CONCERN_PALETTE[i % CONCERN_PALETTE.length]}
-              onClick={() => setSkinConcerns(toggle(skinConcerns, c.key))}
-            >
-              {c.label}
-            </Chip>
-          ))}
+        {/* 피부타입 */}
+        <div>
+          <SubLabel>피부 타입은 어떤 편이세요?</SubLabel>
+          <div className="flex flex-wrap gap-1">
+            {SKIN_TYPES.map((s) => (
+              <Chip
+                key={s.key}
+                active={skinType === s.key}
+                onClick={() => setSkinType(s.key)}
+              >
+                {s.label}
+              </Chip>
+            ))}
+          </div>
         </div>
-      </Section>
+
+        {/* 피츠패트릭 광반응 (I-Fix4 신규·필수). profiles.fitzpatrick smallint CHECK 1~6.
+            긴 보기 텍스트라 칩 대신 풀폭 세로 라디오형 목록. 6개 보기 카피는 사용자 확정 verbatim.
+            번호 동그라미는 선택 시 해당 타입의 피부색으로 변함(미선택은 동일한 연한색).
+            톤 hex: Fitzpatrick I(매우 밝음)~VI(짙음) 표준 근사값 (사용자 요청 2026-06-30). */}
+        <div>
+          <SubLabel>햇볕을 오래 쬐면 피부가 어떻게 반응하나요?</SubLabel>
+          <div className="flex flex-col gap-1.5">
+            {[
+              { v: 1, main: "항상 붉어지고 거의 안 타요 · 매우 밝은 톤", note: "북유럽계 백인에서 흔해요", bg: "#F4D9C1", fg: "#5C4636" },
+              { v: 2, main: "쉽게 붉어지고 서서히 타요 · 밝은 톤", note: "밝은 편의 한국인, 유럽계 백인", bg: "#E8B98E", fg: "#5C4636" },
+              { v: 3, main: "가끔 붉어지고 쉽게 타요 · 중간 톤", note: "보통의 한국인·동아시아인", bg: "#D29C6B", fg: "#4A3322" },
+              { v: 4, main: "붉어지기보단 잘 타요 · 올리브~연갈색", note: "어두운 편의 한국인, 중동계", bg: "#A9764B", fg: "#FFFFFF" },
+              { v: 5, main: "거의 안 붉어지고 진하게 타요 · 갈색", note: "인도·중동·라틴계에서 흔해요", bg: "#7A4B2B", fg: "#FFFFFF" },
+              { v: 6, main: "붉어지지 않아요 · 짙은 갈색~검정", note: "아프리카계에서 흔해요", bg: "#4A2C1A", fg: "#FFFFFF" },
+            ].map((o) => {
+              const on = fitzpatrick === o.v;
+              return (
+                <button
+                  key={o.v}
+                  type="button"
+                  onClick={() => setFitzpatrick(o.v)}
+                  className={`flex w-full items-center gap-3 rounded-[var(--radius)] border px-3 py-2.5 text-left transition-colors active:scale-[0.99] ${
+                    on
+                      ? "border-[var(--primary)]"
+                      : "border-[var(--border)] bg-white hover:border-[var(--primary-light)]"
+                  }`}
+                  style={on ? { backgroundColor: "#EAF6FD" } : undefined}
+                >
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[13px] font-bold transition-colors"
+                    style={
+                      on
+                        ? { backgroundColor: o.bg, color: o.fg }
+                        : { backgroundColor: "#E8EAEE", color: "#5C6470" }
+                    }
+                  >
+                    {o.v}
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-[13px] font-medium text-[var(--text)]">
+                      {o.main}
+                    </span>
+                    <span className="text-[11.5px] text-[var(--text-muted)]">
+                      {o.note}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 피부고민 — I-Fix4: 피부고민 칩만 5색 팔레트 순환(활성 시). 좌측 정렬. */}
+        <div>
+          <SubLabel hint="모두 고르셔도 돼요">
+            요즘 어떤 피부 고민이 있으세요?
+          </SubLabel>
+          <div className="flex flex-wrap gap-1">
+            {SKIN_CONCERNS.map((c, i) => (
+              <Chip
+                key={c.key}
+                active={skinConcerns.includes(c.key)}
+                color={CONCERN_PALETTE[i % CONCERN_PALETTE.length]}
+                onClick={() => setSkinConcerns(toggle(skinConcerns, c.key))}
+              >
+                {c.label}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* 5. 관심 키워드 — /search 의 CategoryWithChips 와 동일 UI (밑줄 탭 + 그라데이션 라인 + 작은 칩 + 더보기 토글). 최대 10개. */}
       <Section
@@ -874,10 +886,26 @@ function Section({
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
+/**
+ * SubLabel — 한 글상자 안에서 하위 질문을 구분하는 평면 라벨.
+ * 시술후기 작성 폼(ReviewForm) 구조 계승: 중첩 카드 대신 `text-sm font-semibold`
+ * 평면 라벨로 질문을 나열해 컴팩트하게 묶는다 (사용자 요청 2026-06-30).
+ */
+function SubLabel({
+  children,
+  hint,
+}: {
+  children: React.ReactNode;
+  hint?: string;
+}) {
   return (
-    <div className="mb-1.5 text-[12px] font-medium text-[var(--text-secondary)]">
-      {children}
+    <div className="mb-2 flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-[var(--text)]">
+      <span>{children}</span>
+      {hint && (
+        <span className="text-[11px] font-normal text-[var(--text-muted)]">
+          {hint}
+        </span>
+      )}
     </div>
   );
 }
@@ -903,7 +931,7 @@ function Chip({
       //   — 사용자 요청 (2026-05-23 IV): 회색 → 브랜드색. 단, 5번 관심 키워드 picker
       //     안의 칩은 카테고리 색을 유지(별도 인라인 <button>, Chip 컴포넌트와 분리).
       //   I-Fix4: color prop 전달 시 그 색을 활성 배경으로(피부고민 5색).
-      className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[13px] transition-colors active:scale-[0.97]"
+      className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[12.5px] transition-colors active:scale-[0.97]"
       style={
         active
           ? {

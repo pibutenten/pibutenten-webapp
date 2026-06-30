@@ -114,8 +114,13 @@ export function useCardViewer(
     // optimistic UI update — 카드 조회수 표시 즉시 +1 (trigger가 DB도 +1)
     setViewCount((v) => (typeof v === "number" ? v + 1 : 1));
 
-    // 비로그인 흥미 점수 +1 (no-op if 로그인). recordView 자체가 의도 신호.
-    addEngagement("card-view");
+    // 비로그인 흥미 점수 (no-op if 로그인). recordView 자체가 의도 신호.
+    // v4 (2026-06-30): 피드/리포트 분리. 리포트(type=review_summary, 시술 리포트 앵커)는
+    //   정보 밀도가 높은 핵심 콘텐츠 → +8 (리포트 2건이면 16 ≥ THRESHOLD 15 → 트리거).
+    //   일반 피드 카드(Q&A·후기 등)는 +2. seenKey dedup 가 세션당 카드 1회만 가산 보장.
+    //   식별자는 cards.type(=review_summary) — procedure-report.ts 가 앵커를 type 으로 조회·생성
+    //   (category 컬럼은 풀 카드에 미세팅이라 그쪽으로 분기하면 항상 false → 전부 +2 로 잘못 가산).
+    addEngagement(card.type === "review_summary" ? "report-view" : "card-view");
 
     (async () => {
       try {
@@ -138,7 +143,7 @@ export function useCardViewer(
         console.error("[card_views] insert failed:", e);
       }
     })();
-  }, [card.id]);
+  }, [card.id, card.type]);
 
   // ── 4) 단독 페이지 진입 시 즉시 view 카운트 ──
   //
