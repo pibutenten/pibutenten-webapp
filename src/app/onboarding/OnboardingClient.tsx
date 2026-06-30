@@ -573,6 +573,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
           시술후기 작성 폼 구조 계승: 중첩 Section 카드 대신 단일 글상자 + 평면 SubLabel
           + 좌측 정렬 칩(flex flex-wrap gap-1) (사용자 요청 2026-06-30). */}
       <div className="space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 sm:p-5">
+        <h2 className="text-[16px] font-bold leading-[1.4] text-[var(--text)]">본인의 피부에 대해 알려주세요</h2>
         {/* 얼굴형 */}
         <div>
           <SubLabel>얼굴형이 어떻게 되세요?</SubLabel>
@@ -611,14 +612,14 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
             톤 hex: Fitzpatrick I(매우 밝음)~VI(짙음) 표준 근사값 (사용자 요청 2026-06-30). */}
         <div>
           <SubLabel>햇볕을 오래 쬐면 피부가 어떻게 반응하나요?</SubLabel>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             {[
-              { v: 1, main: "항상 붉어지고 거의 안 타요 · 매우 밝은 톤", note: "북유럽계 백인에서 흔해요", bg: "#F4D9C1", fg: "#5C4636" },
-              { v: 2, main: "쉽게 붉어지고 서서히 타요 · 밝은 톤", note: "밝은 편의 한국인, 유럽계 백인", bg: "#E8B98E", fg: "#5C4636" },
-              { v: 3, main: "가끔 붉어지고 쉽게 타요 · 중간 톤", note: "보통의 한국인·동아시아인", bg: "#D29C6B", fg: "#4A3322" },
-              { v: 4, main: "붉어지기보단 잘 타요 · 올리브~연갈색", note: "어두운 편의 한국인, 중동계", bg: "#A9764B", fg: "#FFFFFF" },
-              { v: 5, main: "거의 안 붉어지고 진하게 타요 · 갈색", note: "인도·중동·라틴계에서 흔해요", bg: "#7A4B2B", fg: "#FFFFFF" },
-              { v: 6, main: "붉어지지 않아요 · 짙은 갈색~검정", note: "아프리카계에서 흔해요", bg: "#4A2C1A", fg: "#FFFFFF" },
+              { v: 1, main: "항상 붉어지고 거의 안 타요 · 매우 밝은 톤", note: "북유럽계 백인에서 흔해요", bg: "#F7E1D2", fg: "#6B5444" },
+              { v: 2, main: "쉽게 붉어지고 서서히 타요 · 밝은 톤", note: "밝은 편의 한국인, 유럽계 백인", bg: "#F0CDAB", fg: "#6B5444" },
+              { v: 3, main: "가끔 붉어지고 쉽게 타요 · 중간 톤", note: "보통의 한국인·동아시아인", bg: "#E0B187", fg: "#5A4433" },
+              { v: 4, main: "붉어지기보단 잘 타요 · 올리브~연갈색", note: "어두운 편의 한국인, 중동계", bg: "#CA9B6E", fg: "#4A3322" },
+              { v: 5, main: "거의 안 붉어지고 진하게 타요 · 갈색", note: "인도·중동·라틴계에서 흔해요", bg: "#9A6A43", fg: "#FFFFFF" },
+              { v: 6, main: "붉어지지 않아요 · 짙은 갈색~검정", note: "아프리카계에서 흔해요", bg: "#5A3A28", fg: "#FFFFFF" },
             ].map((o) => {
               const on = fitzpatrick === o.v;
               return (
@@ -626,7 +627,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
                   key={o.v}
                   type="button"
                   onClick={() => setFitzpatrick(o.v)}
-                  className={`flex w-full items-center gap-3 rounded-[var(--radius)] border px-3 py-2.5 text-left transition-colors active:scale-[0.99] ${
+                  className={`flex w-full items-center gap-3 rounded-[var(--radius)] border px-3 py-2 text-left transition-colors active:scale-[0.99] ${
                     on
                       ? "border-[var(--primary)]"
                       : "border-[var(--border)] bg-white hover:border-[var(--primary-light)]"

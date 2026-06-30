@@ -63,6 +63,9 @@ export default function ReportsIndexCard({
   headline,
   effects,
   onsetLabel,
+  open,
+  onToggle,
+  onNavigateDetail,
 }: {
   report: ProcedureReport;
   /** 서버 확정 회전 헤드라인 1줄(SSR/CSR 일치). */
@@ -71,6 +74,12 @@ export default function ReportsIndexCard({
   effects: TopEffect[];
   /** 효과 발현 최다 시점 라벨. */
   onsetLabel: string | null;
+  /** 펼침 상태(부모 ReportsIndexView 가 소유 — 뒤로가기 복원용 lift-up). */
+  open: boolean;
+  /** 펼침 토글 요청(부모가 openSet 갱신). */
+  onToggle: () => void;
+  /** 상세(/reports/{시술})로 떠나기 직전 — 부모가 스냅샷 저장. */
+  onNavigateDetail: () => void;
 }) {
   const { procedureKo, category, count, avgSatisfaction, revisit, avgPain } =
     report;
@@ -90,13 +99,13 @@ export default function ReportsIndexCard({
   // staging 전체 보고서(목업 풀 에디토리얼)로 연결 — 승격 시 /reports/{시술}로 교체.
   const reportHref = `/reports/${encodeURIComponent(procedureKo)}`;
 
-  // 펼침 + 막대 0→값 부드러운 채움(펼친 직후 한 박자 뒤 revealed=true).
-  const [open, setOpen] = useState(false);
+  // 펼침은 부모(ReportsIndexView)가 소유(props open/onToggle) — 뒤로가기 복원용 lift-up.
+  //   막대 0→값 부드러운 채움(펼친 직후 한 박자 뒤 revealed=true)은 그대로 로컬 유지.
   const [revealed, setRevealed] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
   const toggle = () => {
-    const willOpen = !open;
-    setOpen(willOpen);
+    const willOpen = !open; // 부모 상태 기준 — 펼치는 방향일 때만 스크롤.
+    onToggle();
     if (willOpen)
       requestAnimationFrame(() =>
         cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
@@ -345,6 +354,7 @@ export default function ReportsIndexCard({
               </Link>
               <Link
                 href={reportHref}
+                onClick={onNavigateDetail}
                 className={
                   "flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius)] px-4 py-3.5 text-[14px] font-bold text-white " +
                   FOCUS_RING

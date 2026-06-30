@@ -5,9 +5,14 @@
  * 빈 화면(또는 전역 spinner) 대신 WriteView 의 실제 세로 구조를 회색 블록으로 재현해
  * 레이아웃 쏠림(CLS)을 줄이고 체감 로딩을 빠르게 한다.
  *
- * 구조(기본 진입 = 시술노트 DiaryForm 기준, WriteView 순서와 동일):
- *   글 유형 탭 카드 줄(3칸) → 폼 카드(제목 + 날짜/병원/의사·실장/시술/노트 입력 5블록)
- *   → 기록 저장 버튼.
+ * 구조(어느 탭이 와도 자연스러운 탭-비의존 범용 스켈레톤, WriteView 순서와 동일):
+ *   글 유형 탭 카드 줄(3칸) → 폼 카드(제목 + 범용 입력/블록 placeholder 몇 줄)
+ *   → 저장 버튼.
+ *
+ * ⚠️ 기본 진입 탭은 시술후기(ReviewForm)다(WriteView tabToKey default "review"). 단,
+ * 탭은 사용자가 시술노트·시술후기·끄적끄적 중 무엇으로든 진입·전환할 수 있으므로 폼 본문
+ * 스켈레톤은 특정 폼 전용 라벨·블록 구조에 의존하지 않는 범용 형태(제목 한 줄 + 입력칸/블록
+ * placeholder 몇 줄)로 둔다. 어느 탭이 렌더돼도 레이아웃 점프(CLS)가 과하지 않도록 한 것.
  *
  * 폼 본문은 자체 max-width 680px 중앙 정렬(WriteView 의 .writeWrap 내부 폼 폭). 탭 카드 줄은
  * 셸 본문(.layoutSingle, 최대 820px) 폭에 맞춘다. 폼 자체는 클라이언트 렌더라 스켈레톤
@@ -68,51 +73,42 @@ export default function Loading() {
           ))}
         </div>
 
-        {/* 폼 본문 — DiaryForm 의 max-w-[680px] 중앙 정렬 폼 재현. */}
+        {/* 폼 본문 — 폼 공통 max-w-[680px] 중앙 정렬 폭 재현. 어느 탭이 와도 맞는 범용 구조. */}
         <div className="mx-auto w-full max-w-[680px]">
           {/* 폼 제목(h1) — 중앙 한 줄. */}
           <div className="mb-5 flex justify-center">
             <div className="h-5 w-52 animate-pulse rounded bg-slate-200/80" />
           </div>
 
-          {/* 메인 노트 글상자(formBox) — 흰 카드 안 입력 5블록(라벨 + 입력칸). */}
+          {/* 메인 글상자(formBox) — 흰 카드 안 범용 입력 블록(라벨 + 입력칸) 몇 줄.
+              특정 탭(시술노트/시술후기/끄적끄적) 전용 라벨·구조에 의존하지 않는다. */}
           <div className="w-full animate-pulse rounded-[24px] bg-white p-[22px]">
-            {/* 1. 날짜 — 라벨 + 입력칸 1줄 */}
+            {/* 입력 블록 1 — 라벨 + 입력칸 1줄 */}
             <div className="mb-5">
               <div className="mb-2 h-3.5 w-32 rounded bg-slate-200/70" />
               <div className="h-11 w-full rounded-[12px] bg-slate-200/50" />
             </div>
 
-            {/* 2. 병원 — 라벨 + 검색 입력칸 1줄 */}
+            {/* 입력 블록 2 — 라벨 + 입력칸 1줄 */}
             <div className="mb-5">
               <div className="mb-2 h-3.5 w-36 rounded bg-slate-200/70" />
               <div className="h-11 w-full rounded-[12px] bg-slate-200/50" />
             </div>
 
-            {/* 3. 의사 / 실장 — 라벨 + 2칸 그리드 입력 */}
+            {/* 입력 블록 3 — 라벨 + 입력칸 1줄 */}
             <div className="mb-5">
               <div className="mb-2 h-3.5 w-40 rounded bg-slate-200/70" />
-              <div className="grid grid-cols-2 gap-2">
-                <div className="h-11 rounded-[12px] bg-slate-200/50" />
-                <div className="h-11 rounded-[12px] bg-slate-200/50" />
-              </div>
+              <div className="h-11 w-full rounded-[12px] bg-slate-200/50" />
             </div>
 
-            {/* 4. 받은 시술 — 라벨 + 태그 입력칸 + 안내 문구 */}
-            <div className="mb-5">
-              <div className="mb-2 h-3.5 w-44 rounded bg-slate-200/70" />
-              <div className="mb-2 h-11 w-full rounded-[12px] bg-slate-200/50" />
-              <div className="h-2.5 w-5/6 rounded bg-slate-200/40" />
-            </div>
-
-            {/* 5. 오늘의 시술 노트 — 라벨 + textarea(rows 3) */}
+            {/* 본문 블록 — 라벨 + 넓은 textarea 자리(어느 폼에든 있는 긴 입력 영역) */}
             <div>
               <div className="mb-2 h-3.5 w-36 rounded bg-slate-200/70" />
-              <div className="h-[84px] w-full rounded-[12px] bg-slate-200/50" />
+              <div className="h-[120px] w-full rounded-[12px] bg-slate-200/50" />
             </div>
           </div>
 
-          {/* 기록 저장 버튼 — 중앙 알약 버튼 자리. */}
+          {/* 저장 버튼 — 중앙 알약 버튼 자리. */}
           <div className="mt-5 flex justify-center">
             <div className="h-11 w-44 animate-pulse rounded-[12px] bg-slate-200/70" />
           </div>

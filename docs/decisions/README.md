@@ -49,6 +49,7 @@
 | 0022 | 네이티브 WebView 측위 = 권한 선언 + 플러그인 필요 (앱 '항상 대치동') | Accepted |
 | 0023 | 같은 시술 후기 다중 작성 허용 (1인1시술1후기 제약 해제, 0019 amend) | Accepted |
 | 0024 | `/reports-new` 신디자인 → 정식 `/reports` 승격 (SEO 셸 보존·렌더만 교체) | Accepted |
+| 0025 | `/reports` 인덱스↔상세 공유 layout (상단바·사이드바 persist) | Accepted |
 
 ## 새 ADR 작성
 

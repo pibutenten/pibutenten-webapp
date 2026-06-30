@@ -19,8 +19,9 @@
  * 격리: app.module.css 클래스 의존 금지 — Tailwind 유틸 + globals.css 토큰만.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ProcedureReport } from "@/lib/procedure-report";
+import type { ProcedureSlug } from "@/lib/categories";
 import ReportsIndexCard from "./ReportsIndexCard";
 import { useReportsCategory } from "./category-context";
 
@@ -47,6 +48,21 @@ const SORTS: { key: SortKey; label: string }[] = [
 
 /** 한 페이지(피드형 무한스크롤) 노출 개수. */
 const PAGE_SIZE = 8;
+
+/** 뒤로가기 복원용 스냅샷(상세로 떠나는 순간 저장 → 목록 재마운트 시 1회 복원, P2). */
+const SNAPSHOT_KEY = "pibutenten:reports-index-snapshot";
+/** 스냅샷 유효 기간(ms) — 5분 지나면 무효(맨 위·기본 상태로 새 진입). */
+const SNAPSHOT_TTL = 5 * 60 * 1000;
+
+type IndexSnapshot = {
+  sort: SortKey;
+  /** 떠나는 순간의 카테고리 필터(null=전체). 복원 시 현재값과 다르면 scrollTop 복원만 스킵. */
+  category: ProcedureSlug | null;
+  pageCount: number;
+  open: string[];
+  scrollTop: number;
+  ts: number;
+};
 
 /** 재시술 의향 yes 비율(%) — 정렬용. 분모 0이면 0. */
 function revisitYesPct(r: ProcedureReport): number {
@@ -92,9 +108,58 @@ export default function ReportsIndexView({
   const [sort, setSort] = useState<SortKey>("recent");
   // 피드형 무한스크롤 — 현재 노출 페이지 수. 정렬·카테고리 변경 시 1로 리셋.
   const [pageCount, setPageCount] = useState(1);
+  // 펼친 카드 집합(시술명 키) — lift-up. 뒤로가기 복원 위해 부모가 소유. 초기값 빈 Set(하이드레이션 안전).
+  const [openSet, setOpenSet] = useState<Set<string>>(() => new Set());
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // 스크롤 조상(.root) 탐색의 시작점이 될 DOM 마커 ref.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  // 복원으로 인한 setSort 직후 reset 효과 1회를 건너뛰기 위한 플래그.
+  const restoringRef = useRef(false);
   // 카테고리 필터는 공유 layout(ReportsShell)의 사이드바 칩 상태를 구독(null=전체).
   const category = useReportsCategory();
+
+  // 펼침 토글 — 부모 openSet 갱신(불변 갱신). 카드의 onToggle 으로 전달.
+  //   setOpenSet 만 참조(안정) → 빈 의존성으로 안정 참조 유지.
+  const toggleOpen = useCallback((ko: string) => {
+    setOpenSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(ko)) next.delete(ko);
+      else next.add(ko);
+      return next;
+    });
+  }, []);
+
+  // 가장 가까운 overflowY auto/scroll 조상(.root) 탐색 — 상세 뷰와 동일 패턴.
+  //   rootRef(안정 ref)만 참조 → 빈 의존성으로 안정 참조 유지(saveSnapshot·복원 effect 의 의존성).
+  const findScrollAncestor = useCallback((): HTMLElement | null => {
+    let el: HTMLElement | null = rootRef.current?.parentElement ?? null;
+    while (el) {
+      const oy = getComputedStyle(el).overflowY;
+      if (oy === "auto" || oy === "scroll") return el;
+      el = el.parentElement;
+    }
+    return null;
+  }, []);
+
+  // 상세로 떠나는 순간 — 현재 정렬/카테고리/페이지수/펼침/스크롤 위치를 스냅샷 저장(sessionStorage).
+  //   의존성(sort, category, pageCount, openSet, findScrollAncestor)을 정확히 지정해 신선한 값 보장.
+  const saveSnapshot = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const scrollTop = findScrollAncestor()?.scrollTop ?? 0;
+      const snap: IndexSnapshot = {
+        sort,
+        category,
+        pageCount,
+        open: [...openSet],
+        scrollTop,
+        ts: Date.now(),
+      };
+      sessionStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap));
+    } catch {
+      /* sessionStorage 불가(프라이빗 모드 등) — 복원만 못 할 뿐 동작엔 무해. */
+    }
+  }, [sort, category, pageCount, openSet, findScrollAncestor]);
 
   // 필터 + 정렬 — 서버 목록을 클라에서 재배열(헤드라인은 item 에 고정 동행).
   const visible = useMemo(() => {
@@ -175,9 +240,79 @@ export default function ReportsIndexView({
   );
   const hasMore = shown.length < visible.length;
 
+  // 정렬·카테고리 변경 시 1페이지로 리셋. 단, 복원으로 인한 setSort 직후 1회는 건너뛴다
+  //   (복원한 pageCount 를 reset 이 덮어쓰지 않도록 — restoringRef 가 그 1회를 흡수).
   useEffect(() => {
+    if (restoringRef.current) {
+      restoringRef.current = false;
+      return;
+    }
     setPageCount(1);
   }, [sort, category]);
+
+  // 뒤로가기 복원 — 마운트 시 1회. 유효 스냅샷이면 정렬/페이지수/펼침/스크롤을 되돌리고 스냅샷 삭제(1회성).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(SNAPSHOT_KEY);
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    let snap: IndexSnapshot | null = null;
+    try {
+      snap = JSON.parse(raw) as IndexSnapshot;
+    } catch {
+      snap = null;
+    }
+    // 1회성 — 유효/무효 관계없이 읽었으면 삭제(다음 새 진입은 top·기본 상태).
+    try {
+      sessionStorage.removeItem(SNAPSHOT_KEY);
+    } catch {
+      /* noop */
+    }
+    if (!snap || typeof snap.ts !== "number") return;
+    if (Date.now() - snap.ts >= SNAPSHOT_TTL) return;
+
+    // sort 변경이 reset 효과를 깨우므로, 그 1회를 흡수하도록 플래그 선설정.
+    restoringRef.current = true;
+    // snap.sort 런타임 검증 — sessionStorage 오염 대비 SORTS 화이트리스트로만 채택.
+    if (snap.sort && SORTS.some((s) => s.key === snap.sort)) {
+      setSort(snap.sort as SortKey);
+    }
+    if (typeof snap.pageCount === "number" && snap.pageCount >= 1) {
+      setPageCount(snap.pageCount);
+    }
+    if (Array.isArray(snap.open)) setOpenSet(new Set(snap.open));
+    // restoringRef 해제를 rAF 로 보장 — setSort 가 no-op(스냅 sort == 현재값)이어도
+    //   reset effect 가 안 깨워 플래그가 true 로 남는 버그 방지(다음 프레임에 무조건 해제).
+    const rafFlag = requestAnimationFrame(() => {
+      restoringRef.current = false;
+    });
+
+    // scrollTop 복원은 스냅샷 카테고리와 현재 카테고리가 같을 때만
+    //   (다르면 목록 구성이 달라 엉뚱한 위치로 튐 → sort/pageCount/openSet 만 복원).
+    const sameCategory = (snap.category ?? null) === (category ?? null);
+    // 콘텐츠 렌더 후 스크롤 복원 — 레이아웃 확보 위해 rAF 2회.
+    const top = typeof snap.scrollTop === "number" ? snap.scrollTop : 0;
+    let raf2 = 0;
+    const raf1 = sameCategory
+      ? requestAnimationFrame(() => {
+          raf2 = requestAnimationFrame(() => {
+            const el = findScrollAncestor();
+            if (el) el.scrollTop = top;
+          });
+        })
+      : 0;
+    return () => {
+      cancelAnimationFrame(rafFlag);
+      if (raf1) cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+    };
+    // 마운트 시 1회만 실행(의존성 빈 배열) — setter 들은 안정적. category 는 마운트 시점 값 1회 사용.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!hasMore) return;
@@ -200,7 +335,9 @@ export default function ReportsIndexView({
       <style>{`@keyframes rvRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}`}</style>
 
       {/* 정렬 칩 — 본문 상단에 인라인 sticky 고정. 배경은 앱 캔버스와 동일(회색 없음). 활성=브랜드색. */}
+      {/* rootRef: 스크롤 조상(.root) 탐색의 시작점(항상 렌더되는 본문 첫 DOM). */}
       <div
+        ref={rootRef}
         className="sticky z-[41] mb-3 py-2.5"
         style={{ top: "var(--sat)", background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
       >
@@ -250,6 +387,9 @@ export default function ReportsIndexView({
               headline={it.headline}
               effects={it.effects}
               onsetLabel={it.onsetLabel}
+              open={openSet.has(it.report.procedureKo)}
+              onToggle={() => toggleOpen(it.report.procedureKo)}
+              onNavigateDetail={saveSnapshot}
             />
           ))}
           {hasMore && <div ref={sentinelRef} aria-hidden className="h-8" />}

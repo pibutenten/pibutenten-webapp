@@ -30,6 +30,7 @@ import DowntimeGauge from "@/components/report/DowntimeGauge";
 import EffectOnsetTimeline from "@/components/report/EffectOnsetTimeline";
 import ReportsReviewCard from "./ReportsReviewCard";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
+import { addEngagement } from "@/lib/engagement-score";
 
 const EFFECT_BAR_COLORS = [
   "#7FD0F8", "#B0A0DE", "#9AA6DE", "#FFCB8C", "#8FD4C8",
@@ -181,6 +182,17 @@ export default function ReportsDetailView({
       el = el.parentElement;
     }
   }, []);
+
+  // 소프트월 v4 리포트 점수 배선 — 리포트 상세를 보면 비로그인 흥미점수에 "report-view"(+8)를 가산한다.
+  // 세션당 1회만(sessionStorage seenKey 로 dedup) — 기존 useCardViewer.recordView 패턴과 동일.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (session !== null) return; // 비로그인만 — 소프트월(회원가입 권유) 대상이라 로그인 사용자는 점수 안 쌓음
+    const seenKey = `pibutenten:report-view:${encodeURIComponent(ko)}`;
+    if (sessionStorage.getItem(seenKey)) return;
+    sessionStorage.setItem(seenKey, "1");
+    addEngagement("report-view");
+  }, [ko, session]);
 
   // 진입 애니메이션 트리거(마운트 직후 1회).
   const [mounted, setMounted] = useState(false);

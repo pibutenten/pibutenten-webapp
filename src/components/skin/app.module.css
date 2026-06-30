@@ -1407,7 +1407,7 @@ button.t[data-cat="filler"]:hover {
   color: #b5711a;
 }
 button.t[data-cat="contour"]:hover {
-  background: rgba(38,166,154,0.15);
+  background: rgba(0,150,136,0.15);
   color: #1a756c;
 }
 button.t[data-cat="laser"]:hover {
@@ -1726,7 +1726,7 @@ button.t[data-cat="other"]:hover {
   color: #b5711a;
 }
 .catContour {
-  background: rgba(38, 166, 154, 0.15);
+  background: rgba(0, 150, 136, 0.15);
   color: #1a756c;
 }
 .catLaser {

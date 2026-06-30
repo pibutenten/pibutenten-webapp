@@ -13,7 +13,7 @@
  * - lifting      리프팅       (블루 #1E88E5)
  * - skinbooster  스킨부스터   (연핑크 #F48FB1)
  * - filler       필러·볼륨    (오렌지 #FFA726)
- * - contour      주름·윤곽    (틸 #26A69A)
+ * - contour      주름·윤곽    (틸 #009688)
  * - laser        레이저       (코럴 #E57373)
  * - other        기타         (블루그레이 #78909C)
  * - homecare     홈케어       (테라코타 #BF6E5C)

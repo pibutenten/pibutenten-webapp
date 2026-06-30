@@ -27,7 +27,7 @@ const BASE_TYPES: { key: string; t: string; d: string; tab?: string }[] = [
 ];
 const QA_TYPE = { key: "qa", t: "Q&A", d: "전문가 답변", tab: "qa" };
 
-/** URL ?tab= 값 → 글 유형 탭 key(useState 초기값). 미지정·미상은 record(시술노트). */
+/** URL ?tab= 값 → 글 유형 탭 key(useState 초기값). 미지정·미상은 review(시술후기). */
 function tabToKey(tab?: string): string {
   switch (tab) {
     case "review":
@@ -37,7 +37,7 @@ function tabToKey(tab?: string): string {
     case "qa":
       return "qa";
     default:
-      return "record";
+      return "review";
   }
 }
 
@@ -60,7 +60,7 @@ export default function WriteView({
   myDoctor?: { slug: string; name: string } | null;
   doctors?: Doctor[];
   procedures?: ProcedureOption[];
-  /** 운영 라우트 딥링크 ?tab= (qa|review|doodle) — 초기 선택 탭. 미지정 시 시술노트. */
+  /** 운영 라우트 딥링크 ?tab= (qa|review|doodle) — 초기 선택 탭. 미지정 시 시술후기. */
   initialTab?: string;
   /** 시술노트 저장 후 후기 유도 시 미리 정해진 시술 ko (?proc=). 시술후기 탭 잠금 프리필. */
   initialProcedure?: string;

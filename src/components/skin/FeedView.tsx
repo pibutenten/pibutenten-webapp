@@ -149,7 +149,6 @@ export default function FeedView({
   //   이후 클라가 새 카드만 배치 조회. 비로그인은 좋아요/저장이 없어 fetch 자체를 건너뜀.
   const [viewerStatesClient, setViewerStatesClient] = useState<Record<number, ViewerState>>(viewerStates ?? {});
   const viewerFetchedRef = useRef<Set<number>>(new Set());
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
   // 탭 전환 애니메이션 대상(운영 FeedList contentRef). 리스트 컨테이너의 key remount 와 무관한
   //   안정 래퍼라야 animate 타이밍이 어긋나지 않음 → feedList(키 remount) 바깥에 부착.
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -330,19 +329,23 @@ export default function FeedView({
     }
   }, []);
 
-  // sentinel 관찰 — mount 시 1회만 설정(운영 FeedList 와 동일). loadMore 가 ref 로 최신값 참조.
-  useEffect(() => {
-    const node = sentinelRef.current;
-    if (!node) return;
-    const ob = new IntersectionObserver(
-      (e) => {
-        if (e[0]?.isIntersecting) loadMore();
-      },
-      { rootMargin: "320px 0px" },
-    );
-    ob.observe(node);
-    return () => ob.disconnect();
+  // sentinel 관찰 — ref 콜백으로 DOM 연결/해제 시점에 observer 재설정.
+  //   조건부 렌더(filtered.length>=PAGE 등)로 sentinel 이 뒤늦게 DOM 에 붙어도 그 순간 observe 가 걸린다.
+  //   (mount-once useEffect 는 늦게 나타난 sentinel 을 못 잡아 글 많은 카테고리에서 무한스크롤이 죽던 회귀 해소.)
+  const sentinelObserverRef = useRef<IntersectionObserver | null>(null);
+  const attachSentinel = useCallback((node: HTMLDivElement | null) => {
+    sentinelObserverRef.current?.disconnect();
+    sentinelObserverRef.current = null;
+    if (node) {
+      const ob = new IntersectionObserver(
+        (e) => { if (e[0]?.isIntersecting) loadMore(); },
+        { rootMargin: "320px 0px" },
+      );
+      ob.observe(node);
+      sentinelObserverRef.current = ob;
+    }
   }, [loadMore]);
+  useEffect(() => () => sentinelObserverRef.current?.disconnect(), []);
 
   // ① 칩(탭) 전환 시 맨 위로 + 콘텐츠가 살짝 아래에서 올라오는 효과(운영 FeedList 동일).
   //   translateY(10px)→0 + opacity 0→1, 220ms ease-out. 리스트 key remount 의 fadeInUp 과 별개로
@@ -449,13 +452,13 @@ export default function FeedView({
     [pool, effectiveChip],
   );
 
-  // ①-b 카테고리 칩 필터 결과 0건이지만 미로드 카드가 남아있으면 자동 추가 로드.
+  // ①-b 카테고리 칩 필터 결과가 PAGE개 미만이면 미로드 카드를 자동 추가 로드.
   //   "끄적끄적" 같은 소수 카테고리가 점수순에서 후순위로 밀려 초기 풀에 없는 경우 대응.
-  //   orderedIds 소진(hasMore=false) 또는 매칭 카드 발견(filtered.length>0) 시 자동 정지.
+  //   orderedIds 소진(hasMore=false) 또는 PAGE개를 채우면 자동 정지.
   useEffect(() => {
     if (
       effectiveChip !== "all" &&
-      filtered.length === 0 &&
+      filtered.length < PAGE &&
       hasMore &&
       !loading
     ) {
@@ -606,8 +609,8 @@ export default function FeedView({
       </div>
 
       {/* 무한스크롤 sentinel — 풀 소진 시 렌더 안 함. */}
-      {hasMore && !loadError && (
-        <div ref={sentinelRef} className={styles.feedSentinel} aria-hidden="true" />
+      {hasMore && !loadError && (effectiveChip === "all" || filtered.length >= PAGE) && (
+        <div ref={attachSentinel} className={styles.feedSentinel} aria-hidden="true" />
       )}
       {loading && pool.length > 0 && <FeedSkeleton count={1} />}
       {loadError && (
