@@ -68,7 +68,7 @@
 /settings/profile                   프로필 수정
 /settings/notifications             알림 설정
 /notifications                      알림 목록
-/write                              통합 글쓰기 — 3탭(시술일기/시술후기/끄적끄적) WriteTabs. ?tab=record|review|doodle
+/write                              통합 글쓰기 — 3탭(시술일기/시술후기/끄적끄적) WriteTabs. ?tab=record|review|doodle. FAB·헤더 진입(tab 미지정) 기본 탭=시술후기(review, WriteView tabToKey 기본). ?tab= 명시는 불변
 /write/[shortcode]                  글 수정 (자기 글/원장/admin) — WriteEditShell(AppShell) 래핑 + EditClient
 /today                              투데이 — 날씨·인사 히어로(KPI 4종 내장: 내 노트·후기·글·댓글)·관심 키워드·인기글. noindex (구 /record)
 /notes                              내 노트 — 시술 노트 KPI 3종 + 3토글(타임라인/달력/목록). noindex (구 /record/notes)
