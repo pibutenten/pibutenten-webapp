@@ -614,10 +614,10 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
           <SubLabel>햇볕을 오래 쬐면 피부가 어떻게 반응하나요?</SubLabel>
           <div className="flex flex-col gap-1">
             {[
-              { v: 1, main: "항상 붉어지고 거의 안 타요 · 매우 밝은 톤", note: "북유럽계 백인에서 흔해요", bg: "#F7E1D2", fg: "#6B5444" },
-              { v: 2, main: "쉽게 붉어지고 서서히 타요 · 밝은 톤", note: "밝은 편의 한국인, 유럽계 백인", bg: "#F0CDAB", fg: "#6B5444" },
-              { v: 3, main: "가끔 붉어지고 쉽게 타요 · 중간 톤", note: "보통의 한국인·동아시아인", bg: "#E0B187", fg: "#5A4433" },
-              { v: 4, main: "붉어지기보단 잘 타요 · 올리브~연갈색", note: "어두운 편의 한국인, 중동계", bg: "#CA9B6E", fg: "#4A3322" },
+              { v: 1, main: "항상 붉어지고 거의 안 타요 · 매우 밝은 톤", note: "북유럽계 백인에서 흔해요", bg: "#FCEFE7", fg: "#6B5444" },
+              { v: 2, main: "쉽게 붉어지고 서서히 타요 · 밝은 톤", note: "밝은 편의 한국인, 유럽계 백인", bg: "#F8E0CE", fg: "#6B5444" },
+              { v: 3, main: "가끔 붉어지고 쉽게 타요 · 중간 톤", note: "보통의 한국인·동아시아인", bg: "#F0CDB0", fg: "#5A4433" },
+              { v: 4, main: "붉어지기보단 잘 타요 · 올리브~연갈색", note: "어두운 편의 한국인, 중동계", bg: "#E2B896", fg: "#4A3322" },
               { v: 5, main: "거의 안 붉어지고 진하게 타요 · 갈색", note: "인도·중동·라틴계에서 흔해요", bg: "#9A6A43", fg: "#FFFFFF" },
               { v: 6, main: "붉어지지 않아요 · 짙은 갈색~검정", note: "아프리카계에서 흔해요", bg: "#5A3A28", fg: "#FFFFFF" },
             ].map((o) => {
