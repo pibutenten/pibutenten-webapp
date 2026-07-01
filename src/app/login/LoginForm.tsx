@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import InAppBrowserNotice from "@/components/InAppBrowserNotice";
@@ -27,6 +26,26 @@ export default function LoginForm({ next, error: initialError, errorId }: Props)
     : null;
   const [error, setError] = useState<string | null>(friendlyInitial);
   const [isPending, startTransition] = useTransition();
+  const socialRef = useRef<HTMLElement>(null);
+  const [highlightSocial, setHighlightSocial] = useState(false);
+  const highlightTimer = useRef<number | null>(null);
+
+  // 언마운트 시 하이라이트 타이머 정리 — 로그인 성공 후 이동 시 setState 경고 방지.
+  useEffect(() => {
+    return () => {
+      if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
+    };
+  }, []);
+
+  // 신규 사용자를 소셜 로그인(= 실제 가입 입구)으로 유도.
+  //   /signup 은 OAuth 성공 후 약관 게이트라 비로그인 진입 시 /login 으로 튕긴다.
+  //   따라서 별도 페이지로 보내지 않고 같은 화면의 소셜 버튼으로 스크롤 + 하이라이트한다.
+  function focusSocial() {
+    socialRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightSocial(true);
+    if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
+    highlightTimer.current = window.setTimeout(() => setHighlightSocial(false), 1600);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,9 +83,14 @@ export default function LoginForm({ next, error: initialError, errorId }: Props)
       {/* 인앱 브라우저 감지 안내 (카카오톡/페이스북 등에서 구글 OAuth 차단됨) */}
       <InAppBrowserNotice />
 
-      {/* 소셜 로그인 섹션 */}
+      {/* 소셜 로그인 섹션 (= 실제 가입 입구) */}
       <section
-        className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]"
+        ref={socialRef}
+        className={`rounded-[var(--radius)] border bg-white p-5 shadow-[var(--shadow-sm)] transition ${
+          highlightSocial
+            ? "border-[var(--primary)] ring-2 ring-[var(--primary)]/40"
+            : "border-[var(--border)]"
+        }`}
         aria-labelledby="social-login-title"
       >
         <h2
@@ -147,15 +171,17 @@ export default function LoginForm({ next, error: initialError, errorId }: Props)
         </button>
       </form>
 
-      {/* 회원가입 안내 — 신규 사용자가 막히지 않도록 명시적 진입 */}
+      {/* 회원가입 안내 — 소셜 로그인이 곧 가입. /signup(약관 게이트)로 보내면
+          비로그인 상태에서 /login 으로 튕기므로, 위 소셜 버튼으로 유도한다. */}
       <p className="text-center text-sm text-[var(--text-secondary)]">
         처음이신가요?{" "}
-        <Link
-          href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
+        <button
+          type="button"
+          onClick={focusSocial}
           className="font-semibold text-[var(--primary)] hover:underline"
         >
-          회원가입
-        </Link>
+          소셜 계정으로 3초 만에 가입하기
+        </button>
       </p>
     </div>
   );
