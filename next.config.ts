@@ -81,6 +81,8 @@ const nextConfig: NextConfig = {
       { source: "/beta/:path*", destination: "/:path*", permanent: true },
       // /search 완전 폐기(2026-06-12). 검색은 루트 /?q= 가 담당 → 308(쿼리 보존: /search?q=x → /?q=x).
       { source: "/search", destination: "/", permanent: true },
+      // /topics 는 검색·AI 유입 전용 밸브(인덱스 라우트 없음) — 직접 진입은 홈으로.
+      { source: "/topics", destination: "/", permanent: true },
       {
         source: "/:path*",
         has: [

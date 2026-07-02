@@ -6,7 +6,7 @@
  * 피드 탭의 FeedSidebar(인기검색어·인기 Q&A·글쓰기 CTA)와는 별개 — 리포트 인덱스 맥락에 맞춘 3박스:
  *   ① 후기 쓰기 CTA      — "내가 받은 시술, 후기 남기기" → /write?tab=review.
  *   ② 후기 많은 시술      — 상위 시술(시술명 + 경험 N건) + 시술 카테고리 6칩(필터 콜백).
- *   ③ 이 리포트는요        — 신뢰·방법 안내 + 전문의 Q&A 얇은 링크(/topics).
+ *   ③ 이 리포트는요        — 신뢰·방법 안내.
  *
  * 격리: app.module.css 클래스 의존 금지 — Tailwind 유틸 + globals.css 토큰(var(--…))만 사용.
  *   (병렬 세션이 app.module.css/FeedSidebar 를 수정 중이라 충돌 회피.)
@@ -128,22 +128,15 @@ export default function ReportsIndexSidebar({
         </div>
       </section>
 
-      {/* ③ 이 리포트는요 — 신뢰/방법 + 전문의 Q&A 얇은 링크 */}
+      {/* ③ 이 리포트는요 — 신뢰/방법 안내.
+          얇은 링크는 시술 단위(topics/[tag] ↔ reports/[ko]) 설계 — 인덱스 generic 링크는
+          밸브 원칙 위반이라 제거(PRD §4.3). */}
       <section className={BOX}>
         <h3 className={H3}>이 리포트는요</h3>
         <p className="mt-1.5 text-[13px] leading-[1.6] text-[var(--text-secondary)]">
           회원들의 실사용 후기를 시술별로 집계한 결과예요. 특정 병원·의료진의 효과
           주장이 아니며, 개인차가 있어요. 시술 결정은 전문의 상담 후에 하세요.
         </p>
-        <Link
-          href="/topics"
-          className="mt-3 flex items-center justify-between gap-2 pt-1 text-[12.5px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--primary)]"
-        >
-          <span>이 시술이 궁금하면 → 전문의 Q&amp;A</span>
-          <span aria-hidden className="text-[var(--text-muted)]">
-            →
-          </span>
-        </Link>
       </section>
 
       {footer}

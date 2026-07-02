@@ -4,7 +4,8 @@
  * 별도 집계 카드를 저장하지 않고(중복·동기화 누더기 방지) procedure_reviews 를 실시간 집계.
  * 발행(published)·미삭제 후기만 대상. count===0 이면 null.
  */
-import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import { cache } from "react";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
 import {
@@ -35,6 +36,45 @@ export type Demographics = {
 };
 
 export type ProcedureCategory = ProcedureSlug;
+
+/**
+ * tag_dictionary.category(한글) → 테마 영문 slug 매핑 — SSOT.
+ *   getProcedureReport(카드 테두리 색)·getReportSummaryForTag(닫힌 리포트 글상자)·
+ *   reports/[procedure] page(비슷한 시술 카드 색)가 공용. 미분류·미발견은 null.
+ */
+export function categoryKoToSlug(
+  ko: string | null | undefined,
+): ProcedureCategory | null {
+  switch (ko) {
+    case "리프팅": return "lifting";
+    case "스킨부스터": return "skinbooster";
+    case "필러·볼륨": return "filler";
+    case "주름·윤곽": return "contour";
+    case "레이저": return "laser";
+    case "기타": return "other";
+    default: return null;
+  }
+}
+
+/**
+ * procedure_family(ko) RPC — 부모 시술이면 자기+직속하위, 자식이면 자기만(0225 SSOT).
+ *   React cache() 요청 단위 dedup — 한 요청 안에서 getProcedureReport 와
+ *   getFamilyReviewCardIds 가 각각 호출해도 RPC 는 1회(리포트 상세 성능).
+ *   supabase 클라는 내부 생성(인자로 받으면 호출부마다 참조가 달라 캐시 미스).
+ *   ⚠ 호출부(getProcedureReport 등)가 받는 supabase 인자는 이 캐시와 무관 —
+ *     여기에 인자 클라를 주입하면 캐시 키가 깨지므로 시그니처를 (ko) 로 유지할 것.
+ */
+const procedureFamilyCached = cache(
+  async (procedureKo: string): Promise<string[]> => {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase.rpc("procedure_family", {
+      p_ko: procedureKo,
+    });
+    return Array.isArray(data) && data.length > 0
+      ? (data as string[])
+      : [procedureKo];
+  },
+);
 
 export type ProcedureReport = {
   procedureKo: string;
@@ -82,13 +122,8 @@ export async function getProcedureReport(
 ): Promise<ProcedureReport | null> {
   // 작업 D — 롤업: 부모 시술이면 자기+직속하위 후기를 집계(자식은 자기만).
   //   procedure_family(ko) SQL 헬퍼(0225) 가 SSOT — demographics/pool RPC 와 동일.
-  const { data: famData } = await supabase.rpc("procedure_family", {
-    p_ko: procedureKo,
-  });
-  const family: string[] =
-    Array.isArray(famData) && famData.length > 0
-      ? (famData as string[])
-      : [procedureKo];
+  //   요청 단위 cache(procedureFamilyCached) — getFamilyReviewCardIds 와 RPC 공유.
+  const family = await procedureFamilyCached(procedureKo);
 
   const { data } = await supabase
     .from("procedure_reviews")
@@ -103,36 +138,37 @@ export async function getProcedureReport(
   const rows = data ?? [];
   if (rows.length === 0) return null;
 
-  // 시술 분류(category) 1회 조회 — 카드 테두리 색 분기용. SSOT=tag_dictionary(is_procedure).
-  //   tag_dictionary.category 는 한글(리프팅/스킨부스터) → 기존 영문 slug 로 매핑(테마·schema 정합).
-  const { data: taxRow } = await supabase
-    .from("tag_dictionary")
-    .select("category, en")
-    .eq("ko", procedureKo)
-    .eq("is_procedure", true)
-    .maybeSingle<{ category: string | null; en: string | null }>();
-  const category: ProcedureCategory | null =
-    taxRow?.category === "리프팅" ? "lifting"
-    : taxRow?.category === "스킨부스터" ? "skinbooster"
-    : taxRow?.category === "필러·볼륨" ? "filler"
-    : taxRow?.category === "주름·윤곽" ? "contour"
-    : taxRow?.category === "레이저" ? "laser"
-    : taxRow?.category === "기타" ? "other"
-    : null;
+  // 서로 독립인 3개 조회(분류·앵커·인구통계)를 병렬 실행 — 리포트 상세 임계경로 단축.
+  //   rows 조회·0건 조기 return 은 위에서 이미 끝났으므로 여기부터는 전부 필요 데이터.
+  //   1) 시술 분류(category) — 카드 테두리 색 분기용. SSOT=tag_dictionary(is_procedure).
+  //      tag_dictionary.category 는 한글(리프팅/스킨부스터) → categoryKoToSlug 로 영문 slug 매핑.
+  //   2) 시술 리포트 앵커(type=review_summary) — ★일반(공개 RLS) 경로 + published 한정.
+  //      저장·공유 버튼의 대상 card_id. 앵커가 draft 인 동안은 published 필터·RLS 로 반환 0 →
+  //      버튼 미노출(플립 전엔 카드 동일). published 플립(C6) 시 한 번에 노출. elevated/admin fetch 지양.
+  //   3) 작성자 인구통계 — 집계 RPC(개별 PII 비노출).
+  const [{ data: taxRow }, { data: anchorRow }, { data: demoData }] =
+    await Promise.all([
+      supabase
+        .from("tag_dictionary")
+        .select("category, en")
+        .eq("ko", procedureKo)
+        .eq("is_procedure", true)
+        .maybeSingle<{ category: string | null; en: string | null }>(),
+      supabase
+        .from("cards")
+        .select(CARD_LIST_SELECT)
+        .eq("type", "review_summary")
+        .eq("status", "published")
+        .is("deleted_at", null)
+        .contains("keywords", [procedureKo])
+        .limit(1)
+        .maybeSingle(),
+      supabase.rpc("get_procedure_review_demographics", {
+        p_procedure_ko: procedureKo,
+      }),
+    ]);
+  const category = categoryKoToSlug(taxRow?.category);
   const en = taxRow?.en ?? "";
-
-  // 시술 리포트 앵커(type=review_summary) 조회 — ★일반(공개 RLS) 경로 + published 한정.
-  //   저장·공유 버튼의 대상 card_id. 앵커가 draft 인 동안은 published 필터·RLS 로 반환 0 →
-  //   버튼 미노출(플립 전엔 카드 동일). published 플립(C6) 시 한 번에 노출. elevated/admin fetch 지양.
-  const { data: anchorRow } = await supabase
-    .from("cards")
-    .select(CARD_LIST_SELECT)
-    .eq("type", "review_summary")
-    .eq("status", "published")
-    .is("deleted_at", null)
-    .contains("keywords", [procedureKo])
-    .limit(1)
-    .maybeSingle();
   const anchor = (anchorRow as CardData | null) ?? null;
 
   const n = rows.length;
@@ -192,11 +228,7 @@ export async function getProcedureReport(
     }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "ko"));
 
-  // 작성자 인구통계 — 집계 RPC(개별 PII 비노출).
-  const { data: demoData } = await supabase.rpc(
-    "get_procedure_review_demographics",
-    { p_procedure_ko: procedureKo },
-  );
+  // 작성자 인구통계 — 위 Promise.all 의 demoData 를 매핑.
   const demoRow = (Array.isArray(demoData) ? demoData[0] : demoData) as
     | DemoRow
     | null
@@ -248,13 +280,8 @@ export async function getFamilyReviewCardIds(
   supabase: ServerClient,
   procedureKo: string,
 ): Promise<number[]> {
-  const { data: famData } = await supabase.rpc("procedure_family", {
-    p_ko: procedureKo,
-  });
-  const family: string[] =
-    Array.isArray(famData) && famData.length > 0
-      ? (famData as string[])
-      : [procedureKo];
+  // 요청 단위 cache — 같은 요청의 getProcedureReport 와 procedure_family RPC 1회 공유.
+  const family = await procedureFamilyCached(procedureKo);
 
   const { data } = await supabase
     .from("procedure_reviews")
@@ -266,22 +293,44 @@ export async function getFamilyReviewCardIds(
   return (data ?? []).map((r) => r.card_id);
 }
 
+/** /topics 닫힌 리포트 글상자(ReportSummaryBox)용 요약 — pool 1행의 핵심 지표만. */
+export type ReportTagSummary = {
+  count: number;
+  /** 만족도 평균(1~5). pool 미집계면 null. */
+  satAvg: number | null;
+  /** 통증 평균(1~5). pool 미집계면 null. */
+  painAvg: number | null;
+  revisit: { yes: number; maybe: number; no: number };
+  category: ProcedureCategory | null;
+};
+
 /**
- * /topics → /reports 얇은 링크용 — 해당 시술(ko)의 published 리포트 존재 + 후기 수(N).
+ * /topics → /reports 닫힌 리포트 글상자용 — 해당 시술(ko)의 published 리포트 존재 + 요약 지표.
  *   경량 단일 쿼리 `get_review_summary_pool`(0218, family 롤업 0228) 에서 ko===procedureKo 매칭.
- *   무거운 getProcedureReport 미사용. 존재(후기 ≥1)면 { count } 반환, 없으면 null.
+ *   무거운 getProcedureReport 미사용. 존재(후기 ≥1)면 ReportTagSummary 반환, 없으면 null.
  *   링크 URL 은 /reports/{ko}(=procedureKo) — pool 의 review_count 가 N(라벨용).
  */
 export async function getReportSummaryForTag(
   supabase: ServerClient,
   procedureKo: string,
-): Promise<{ count: number } | null> {
+): Promise<ReportTagSummary | null> {
   const { data } = await supabase.rpc("get_review_summary_pool");
   const rows = (data ?? []) as PoolRow[];
   const row = rows.find((r) => r.ko === procedureKo && !!r.en);
   if (!row) return null;
   const count = Number(row.review_count) || 0;
-  return count >= 1 ? { count } : null;
+  if (count < 1) return null;
+  return {
+    count,
+    satAvg: row.sat_avg == null ? null : Number(row.sat_avg),
+    painAvg: row.pain_avg == null ? null : Number(row.pain_avg),
+    revisit: {
+      yes: Number(row.revisit_yes) || 0,
+      maybe: Number(row.revisit_maybe) || 0,
+      no: Number(row.revisit_no) || 0,
+    },
+    category: categoryKoToSlug(row.category),
+  };
 }
 
 type PoolRow = {
@@ -304,8 +353,9 @@ type PoolRow = {
 
 /** 리포트 집계 풀에 노출할 최소 후기 수. 미만 시술은 풀(=/reports 허브)에서 제외(표본 적은
  *  리포트 도배 방지). 단, /reports/{ko} 단독 페이지·검색 결과 상단 리포트 카드는 getProcedureReport
- *  경로라 후기 1건부터 그대로 노출(허브와 의도된 게이트 비대칭). */
-const FEED_MIN_REVIEWS = 4;
+ *  경로라 후기 1건부터 그대로 노출(허브와 의도된 게이트 비대칭 — 단, 미만 상세는 noindex).
+ *  export — reports/[procedure] generateMetadata 의 SEO 게이트(저표본 noindex)가 같은 임계 공유. */
+export const FEED_MIN_REVIEWS = 4;
 
 /**
  * 시술 리포트 집계 풀 — `get_review_summary_pool` RPC(단일 쿼리, 마이그 0218) 결과를 컴팩트

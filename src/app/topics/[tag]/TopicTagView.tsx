@@ -5,8 +5,10 @@
  *
  * 원칙(앱 스킨 승격, 2026-06-15): DoctorDashboardView 선례와 동일하게
  *   "상단바(헤더)만 앱 셸, 본문은 기존 운영 형태를 최대한 유지". 정보 구조 무변경.
- *   - 운영 page.tsx 의 본문(브레드크럼·#태그 헤더·리포트 얇은 링크·CardMasonry·페이지네이션 안내)을
+ *   - 운영 page.tsx 의 본문(브레드크럼·태그 헤더·닫힌 리포트 글상자·CardMasonry·페이지네이션 안내)을
  *     운영 Tailwind 톤 그대로 임베드(재포장 X). 데이터·generateMetadata·JSON-LD 는 server page 가 책임.
+ *   - 리포트 연결은 얇은 텍스트 링크 대신 닫힌 리포트 글상자(ReportSummaryBox — /reports 인덱스
+ *     카드 접힘부와 동일 SSOT)를 Link 로 감싸 임베드. 요약·헤드라인은 server page 가 계산해 prop.
  *   - 셸은 active="피드"(미강조 톤), back="/"(운영 BackButton fallback), 검색은 운영 홈(/?q=)으로 라우팅.
  *
  * 격리: app.module.css 무수정. 운영 본문은 기존 Tailwind 유틸·var(--*) 토큰 그대로 사용.
@@ -15,8 +17,10 @@
 
 import Link from "next/link";
 import type { CardData } from "@/components/Card";
+import type { ReportTagSummary } from "@/lib/procedure-report";
 import AppShell from "@/components/skin/AppShell";
 import FeedSidebar from "@/components/skin/FeedSidebar";
+import ReportSummaryBox from "@/components/report/ReportSummaryBox";
 import { PostCard, useSearchRouting } from "@/components/skin/ui";
 import appStyles from "@/components/skin/app.module.css";
 
@@ -26,14 +30,15 @@ export default function TopicTagView({
   tag,
   posts,
   count,
-  reportLink,
+  reportSummary,
   popularTags,
   hotQa,
 }: {
   tag: string;
   posts: CardData[];
   count: number;
-  reportLink: { count: number } | null;
+  /** 이 시술의 /reports 요약 + 서버 확정 헤드라인. 리포트 없으면 null(글상자 미노출). */
+  reportSummary: (ReportTagSummary & { headline: string }) | null;
   /** 사이드 '인기 태그' '전체' 탭 — 서버 빈도순 16개(홈과 동일 방식). */
   popularTags: string[];
   /** 사이드 '인기 Q&A' 후보 풀 — 의사 Q&A 카드(홈과 동일 방식). */
@@ -53,27 +58,35 @@ export default function TopicTagView({
       active="피드"
       back="/"
       backTitle={
-        <h1>
-          피부과 전문의가 답한 #{tag} 관련 글 <b>{count}</b>개
+        /* 원장 요청 '연한 회색' — 앱셸 .backTitle>* 기본(--ink-900)을 인라인으로 완화.
+           --ink-500(#7b8794)은 흰 배경 대비 약 3.7:1 — 18px/800 렌더는 WCAG 큰 글씨 기준
+           (bold 18.66px)에 못 미쳐 4.5:1 필요 → app.module.css 주석의 AA 근거(4.73:1)가
+           있는 --ink-300 채택. count <b> 는 .backTitle b(--tt-blue) 그대로. */
+        <h1 style={{ color: "var(--ink-300)" }}>
+          피부과 전문의가 답한 {tag} 관련 Q&amp;A <b>{count}</b>개
         </h1>
       }
       sidebar={sidebar}
       {...search}
     >
-      {/* 시술 리포트 얇은 링크 — 이 시술의 /reports 가 존재할 때만(후기 ≥1). 한글 직접 타깃(308 미경유). */}
-      {reportLink && (
+      {/* 닫힌 리포트 글상자 — 이 시술의 /reports 가 존재할 때만(후기 ≥1). 한글 직접 타깃(308 미경유).
+          /reports 인덱스 카드 접힘부와 동일 시각(ReportSummaryBox SSOT)을 전체 클릭 Link 로 임베드. */}
+      {reportSummary && (
         <div className="mx-auto mb-5 max-w-[680px]">
           <Link
             href={`/reports/${encodeURIComponent(tag)}`}
-            className="flex items-center justify-between rounded-[var(--radius)] border border-[var(--border)] bg-white px-4 py-3 text-[14px] font-medium text-[var(--text)] transition-colors hover:border-[var(--primary)]"
+            aria-label={`${tag} 시술 리포트 보기 (${reportSummary.count}건의 경험)`}
+            className="block overflow-hidden rounded-[var(--radius-lg)] bg-white"
           >
-            <span>
-              이 시술 후기{" "}
-              <b className="text-[var(--primary)]">{reportLink.count}건</b> 보기
-            </span>
-            <span aria-hidden className="text-[var(--text-muted)]">
-              →
-            </span>
+            <ReportSummaryBox
+              procedureKo={tag}
+              category={reportSummary.category}
+              count={reportSummary.count}
+              avgSatisfaction={reportSummary.satAvg ?? 0}
+              avgPain={reportSummary.painAvg ?? 0}
+              revisit={reportSummary.revisit}
+              headline={reportSummary.headline}
+            />
           </Link>
         </div>
       )}

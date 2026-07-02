@@ -9,7 +9,7 @@ import { type ProcedureReport } from "@/lib/procedure-report";
 import { fetchCardList } from "@/lib/search-query";
 import { jsonLdString } from "@/lib/json-ld";
 import { allClinicsSchema } from "@/lib/schema/clinic";
-import { topKeywords } from "@/components/skin/feed-sidebar-data";
+import { getFeedSidebarDataCached } from "@/lib/feed-sidebar-cached";
 import { unstable_cache } from "next/cache";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 
@@ -30,30 +30,8 @@ export const fetchCache = "force-no-store";
 //   ID 로 다음 묶음을 이어 받음(/api/cards?ids=) → 경계 순서 어긋남 없이 안정적 + 가벼움.
 const ORDER = 300;
 const INITIAL = 20;
-/* 사이드 '인기 태그' '전체' 탭 표시 개수 + 집계 함수(topKeywords)는 SSOT 인
- *   @/components/skin/feed-sidebar-data 에서 import (홈/토픽/리포트 공용 단일 출처). */
-
-/** 인기 태그 — 비검색 피드 풀(jitter 0, 결정적) 기준이라 자주 안 바뀜 → 5분 캐시.
- *  쿠키리스 anon 클라 + unstable_cache 로, 홈/검색 매 요청마다 돌던 300건 feed_cards_scored
- *  '2번째' 호출(인기태그 전용)을 제거(PERF, 2026-06-27). 피드 본문 RPC(jitter 0.35, 매 방문 신선)는 불변. */
-const getPopularTagsCached = unstable_cache(
-  async (): Promise<string[]> => {
-    const sb = createSupabaseAnonClient();
-    const { data, error } = await sb.rpc("feed_cards_scored", {
-      p_limit: ORDER,
-      p_offset: 0,
-      p_half_life_days: 14,
-      p_jitter_amp: 0,
-    });
-    if (error) {
-      console.error("[home] 인기태그 풀 조회 실패:", error.message);
-      return [];
-    }
-    return topKeywords((data ?? []) as CardData[]);
-  },
-  ["home-popular-tags-v1"],
-  { revalidate: 300, tags: ["popular-tags"] },
-);
+/* 사이드 '인기 태그' — 공용 getFeedSidebarDataCached(@/lib/feed-sidebar-cached, 5분 캐시)에서
+ *   popularTags 만 사용(홈/토픽 공용 단일 출처 — 구 홈 전용 getPopularTagsCached 를 승격). */
 
 /** 비검색 홈 피드 풀(feed_cards_scored jitter 0.35 + 의사 분산). 매 방문 300행 점수계산이 임계경로였음 →
  *  쿠키리스 anon + unstable_cache(90s)로 분리(SNS 표준: 피드는 분 단위로 갱신, 매 클릭 재계산 안 함).
@@ -158,22 +136,22 @@ export default async function HomeFeedPage({
     //   jitter=0(결정적) — 호출마다 무작위로 상위 풀이 바뀌면 인기태그 목록이 클릭/검색마다 바뀜.
     // 검색 결과엔 시술 리포트(searchReport)를 띄우지 않는다 — 피드/리포트 탭 분리(2026-06-29)로
     //   리포트는 /reports 탭 전용. 검색은 피드 글상자(qa/review/doodle)만. searchReport 는 null 유지.
-    const [listRes, tags] = await Promise.all([
+    const [listRes, sidebarData] = await Promise.all([
       fetchCardList(supabase, { q: query, offset: 0, limit: ORDER }),
-      getPopularTagsCached(),
+      getFeedSidebarDataCached(),
     ]);
     cards = (listRes.data ?? []) as unknown as CardData[];
-    popularTags = tags;
+    popularTags = sidebarData.popularTags;
   } else {
     // 피드 풀·인기태그 모두 공개 데이터 → 쿠키리스 anon + unstable_cache(피드 90s, 태그 300s)로 분리.
     //   매 방문 돌던 300행 점수계산(feed_cards_scored)을 캐시에서 즉시 반환(SNS 표준: 피드는 분 단위
     //   갱신). per-user 좋아요/저장은 FeedView 가 클라에서 배치 조회.
-    const [feedCards, tags] = await Promise.all([
+    const [feedCards, sidebarData] = await Promise.all([
       getHomeFeedPoolCached(),
-      getPopularTagsCached(),
+      getFeedSidebarDataCached(),
     ]);
     cards = feedCards;
-    popularTags = tags;
+    popularTags = sidebarData.popularTags;
   }
 
   // 순서(랭킹) ID 목록은 전체(최대 ORDER), 화면 초기 렌더는 앞 INITIAL 장만.

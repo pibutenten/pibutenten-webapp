@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type CardData } from "@/components/Card";
 import { getReportSummaryForTag } from "@/lib/procedure-report";
+import type { ProcedureReport, ReportTagSummary } from "@/lib/procedure-report";
+import {
+  buildHeadlinePool,
+  pickHeadline,
+  toSignals,
+} from "@/lib/report-headline";
 import { SITE_URL } from "@/lib/site";
 import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
@@ -10,34 +17,12 @@ import {
   clinicIdRefForDoctor,
   clinicSchemaForDoctor,
 } from "@/lib/schema/clinic";
-import { topKeywords } from "@/components/skin/feed-sidebar-data";
+import { getFeedSidebarDataCached } from "@/lib/feed-sidebar-cached";
 import TopicTagView from "./TopicTagView";
 
-/** 홈 피드와 동일한 사이드바 데이터(인기태그·인기 Q&A) — feed_cards_scored 비검색 풀 기준.
- *   홈 page.tsx 의 비검색 분기와 동일 RPC·동일 파라미터로 받아, popularTags 는 topKeywords 빈도순,
- *   인기 Q&A 는 의사 Q&A 카드만 추려 상위 20개. published 공개 카드만(RPC + RLS, 우회 없음). */
-async function fetchFeedSidebarData(): Promise<{
-  popularTags: string[];
-  hotQa: CardData[];
-}> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("feed_cards_scored", {
-    p_limit: 300,
-    p_offset: 0,
-    p_half_life_days: 14,
-    p_jitter_amp: 0, // 인기태그 풀은 결정적(클릭/재방문에 목록 불변)
-  });
-  if (error) {
-    console.error("[topics] 사이드바 피드 풀 조회 실패:", error.message);
-    return { popularTags: [], hotQa: [] };
-  }
-  const scored = (data ?? []) as CardData[];
-  const popularTags = topKeywords(scored);
-  const hotQa = scored
-    .filter((c) => !!c.doctor && (c.category ?? c.type) === "qa")
-    .slice(0, 20);
-  return { popularTags, hotQa };
-}
+/* 사이드바 데이터(인기태그·인기 Q&A)는 홈과 공용 getFeedSidebarDataCached
+ *   (@/lib/feed-sidebar-cached, 쿠키리스 anon + unstable_cache 5분) — 매 요청 300건
+ *   feed_cards_scored 사이드바 전용 호출을 제거(PERF). */
 
 /**
  * /topics/{태그} — 태그별 의사 글 hub.
@@ -74,6 +59,21 @@ async function fetchAllIndexableTags(): Promise<IndexableTag[]> {
   return (data ?? []) as IndexableTag[];
 }
 
+/** 태그의 의사 qa 글 수 — generateMetadata 와 본문(fetchPostsForTag)이 같은 요청에서
+ *   동일 count 쿼리를 중복 실행하던 것을 React cache() 로 1회 통합.
+ *   supabase 클라는 내부 생성(인자로 넘기면 호출부마다 참조가 달라 캐시 미스). */
+const qaCountForTag = cache(async (tag: string): Promise<number> => {
+  const supabase = await createSupabaseServerClient();
+  const { count } = await supabase
+    .from("cards")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "published")
+    .eq("category", "qa")
+    .not("doctor_id", "is", null)
+    .contains("keywords", [tag]);
+  return count ?? 0;
+});
+
 async function fetchPostsForTag(
   tag: string,
 ): Promise<{ posts: CardData[]; count: number }> {
@@ -89,16 +89,36 @@ async function fetchPostsForTag(
   });
   const posts = (rpcRes.data ?? []) as CardData[];
 
-  // count 는 RPC가 limit 까지만 주므로 별도 조회 (인덱싱 조건 동일)
-  const { count } = await supabase
-    .from("cards")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "published")
-    .eq("category", "qa")
-    .not("doctor_id", "is", null)
-    .contains("keywords", [tag]);
+  // count 는 RPC가 limit 까지만 주므로 별도 조회 — qaCountForTag(요청 단위 cache, 메타와 공유)
+  const count = await qaCountForTag(tag);
 
-  return { posts, count: count ?? 0 };
+  return { posts, count };
+}
+
+/** ReportTagSummary → 헤드라인 엔진(toSignals)이 받는 최소 ProcedureReport.
+ *   분포 배열은 비움 — toSignals 가 빈 분포면 avgSatisfaction/avgPain 으로 폴백하는
+ *   컴팩트 풀(getReviewSummaryFeedPool) 경로와 동일. 효과·다운타임·시점은 pool 요약에
+ *   없으므로 0/빈값 → 해당 헤드라인 분기 자동 생략(자체 헤드라인 로직 신규 작성 없음). */
+function summaryToReport(tag: string, s: ReportTagSummary): ProcedureReport {
+  return {
+    procedureKo: tag,
+    en: "",
+    anchor: null,
+    category: s.category,
+    count: s.count,
+    avgSatisfaction: s.satAvg ?? 0,
+    satisfactionDist: [0, 0, 0, 0, 0],
+    avgPain: s.painAvg ?? 0,
+    painDist: [0, 0, 0, 0, 0],
+    revisit: s.revisit,
+    effects: [],
+    noEffectCount: 0,
+    downtimeAnswered: 0,
+    downtimeDist: [0, 0, 0, 0, 0],
+    onsetAnswered: 0,
+    onsetDist: [0, 0, 0, 0, 0],
+    demographics: { male: 0, female: 0, total: 0, ageBands: [] },
+  };
 }
 
 export async function generateMetadata({
@@ -107,16 +127,8 @@ export async function generateMetadata({
   const { tag: rawTag } = await params;
   const tag = decodeURIComponent(rawTag);
   const url = `${SITE_URL}/topics/${encodeURIComponent(tag)}`;
-  // N = 이 시술의 의사 qa 글 수(동적). /topics 의 count 조회와 동일 조건.
-  const supabase = await createSupabaseServerClient();
-  const { count } = await supabase
-    .from("cards")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "published")
-    .eq("category", "qa")
-    .not("doctor_id", "is", null)
-    .contains("keywords", [tag]);
-  const n = count ?? 0;
+  // N = 이 시술의 의사 qa 글 수(동적) — 본문과 공유하는 요청 단위 cache(qaCountForTag).
+  const n = await qaCountForTag(tag);
   const title = `${tag} Q&A 총정리`;
   const description = `원리·효과·지속기간·부작용·통증까지, 피부과 전문의가 직접 답한 질문 ${n}개를 한곳에.`;
   return {
@@ -150,12 +162,27 @@ export default async function TagPage({ params }: Props) {
 
   // 2-b) /topics(전문의 Q&A 허브)와 /reports(후기 집계)는 의도 다른 독립 페이지(자기잠식 방지).
   //   리포트 카드·개별 후기는 /topics 에 렌더하지 않고, 이 시술의 /reports 가 존재하면
-  //   얇은 링크 1줄만 노출. 존재·N 은 경량 get_review_summary_pool(ko===tag) 로 판단.
+  //   닫힌 리포트 글상자(ReportSummaryBox) 1개만 노출. 존재·요약은 경량
+  //   get_review_summary_pool(ko===tag) 로 판단(무거운 getProcedureReport 미사용).
   const supabase = await createSupabaseServerClient();
-  const [reportLink, sidebarData] = await Promise.all([
+  const [summary, sidebarData] = await Promise.all([
     getReportSummaryForTag(supabase, tag),
-    fetchFeedSidebarData(),
+    getFeedSidebarDataCached(),
   ]);
+
+  // 글상자 헤드라인 — /reports 인덱스와 동일 엔진(report-headline)을 서버에서 확정해
+  //   prop 으로 전달(SSR/CSR 일치 — 클라 재계산 금지). 요약이 없으면 글상자 미노출.
+  //   방어: pool 평균이 null(이론상 — 만족도·통증은 폼 필수라 실제 발생 없음)이면 0 대입
+  //   헤드라인("만족도 0.0…")이 오문구가 되므로 헤드라인만 생략(빈 문자열 → 글상자가 줄 미표시).
+  const reportSummary = summary
+    ? {
+        ...summary,
+        headline:
+          summary.satAvg == null || summary.painAvg == null
+            ? ""
+            : pickHeadline(buildHeadlinePool(toSignals(summaryToReport(tag, summary)))),
+      }
+    : null;
 
   // 3) JSON-LD: @graph 로 CollectionPage + FAQPage 묶음 출력.
   //    AEO/GEO/SEO 강화:
@@ -278,7 +305,7 @@ export default async function TagPage({ params }: Props) {
         tag={tag}
         posts={posts}
         count={count}
-        reportLink={reportLink}
+        reportSummary={reportSummary}
         popularTags={sidebarData.popularTags}
         hotQa={sidebarData.hotQa}
       />

@@ -6,6 +6,8 @@
  * 목업(전달용/report-pibutenten-skin.html)의 카드 감성을 살린 3단 구조:
  *   ① 요약(접힘)  — 카테고리 틴트 헤더 + 시술명 + 큰 % 히어로("다시 받고 싶어요") +
  *                   통증·만족도 미니 + 회전 헤드라인 한 줄.
+ *                   시각부는 공용 ReportSummaryBox(SSOT — /topics 닫힌 글상자와 공유)로 추출,
+ *                   토글 버튼·aria-expanded·펼침 동작은 이 카드가 그대로 소유.
  *   ② 펼침(1차 집계) — 만족도(별점+점수+한 줄 평) · 통증(그라데이션 게이지+마커+자연어) ·
  *                     대표 효과 다색 막대 top3(0→값 부드러운 채움) · 효과 발현 시점.
  *                     효과·시점은 서버에서 prop 으로 미리 받아 **즉시 표시**(끊김 없음, fetch 없음).
@@ -20,8 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import { categoryTheme } from "@/lib/procedure-theme";
-import { CATEGORIES } from "@/lib/categories";
-import { experienceCount } from "@/lib/report-copy";
+import ReportSummaryBox from "@/components/report/ReportSummaryBox";
 
 const FOCUS_RING =
   "outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary-active)]";
@@ -85,10 +86,6 @@ export default function ReportsIndexCard({
     report;
 
   const theme = categoryTheme(category);
-  const catLabel = CATEGORIES.find((c) => c.slug === category)?.label ?? null;
-
-  const rTotal = Math.max(1, revisit.yes + revisit.maybe + revisit.no);
-  const yesPct = Math.round((revisit.yes / rTotal) * 100);
   const satRounded = Math.round(avgSatisfaction);
   const hasPain = avgPain > 0;
   const painGradient = `linear-gradient(90deg, ${PAIN_SOFT[0]} 0%, ${PAIN_SOFT.map(
@@ -150,95 +147,15 @@ export default function ReportsIndexCard({
           </svg>
         </button>
 
-        <div className="px-5 pt-4 pb-3.5" style={{ backgroundColor: theme.soft }}>
-          <div className="mb-2 flex items-center gap-2 pr-10">
-            <h2
-              className="text-[17px] font-extrabold tracking-[-0.02em]"
-              style={{ color: theme.color }}
-            >
-              {procedureKo}
-            </h2>
-            {catLabel && (
-              <span
-                className="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold"
-                style={{ color: "#fff", backgroundColor: theme.color }}
-              >
-                {catLabel}
-              </span>
-            )}
-            <span className="ml-auto shrink-0 text-[11.5px] text-[var(--text-secondary)]">
-              {experienceCount(count)}
-            </span>
-          </div>
-
-          <div className="flex items-end gap-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-0.5" style={{ color: theme.color }}>
-                <span className="text-[44px] font-extrabold leading-[0.82] tracking-[-0.03em] [font-feature-settings:'tnum']">
-                  {yesPct}
-                </span>
-                <span className="text-[20px] font-bold">%</span>
-              </div>
-              <div className="mt-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">
-                재시술의향
-              </div>
-              <div className="mt-2 h-[5px] max-w-[180px] overflow-hidden rounded-full bg-white/70">
-                <span
-                  className="block h-full rounded-full"
-                  style={{ width: `${yesPct}%`, backgroundColor: theme.color }}
-                  aria-hidden
-                />
-              </div>
-            </div>
-            <div className="flex shrink-0 gap-5 pb-0.5">
-              <div className="text-center">
-                <span className="mb-1.5 block text-[10.5px] font-semibold text-[var(--text-muted)]">
-                  통증
-                </span>
-                {hasPain ? (
-                  <span className="inline-flex items-center gap-0.5">
-                    <svg
-                      width={11}
-                      height={14}
-                      viewBox="0 0 17 22"
-                      fill="none"
-                      aria-hidden
-                    >
-                      <path
-                        d="M9.8 8.79999H15.3C15.7 8.79999 16 9.25832 15.7 9.62499L6.2 20.5333C5.9 20.9 5.3 20.625 5.3 20.1667L6.5 13.0167H1.1C0.699998 13.0167 0.399998 12.5583 0.699998 12.1917L10.2 1.37499C10.5 1.00832 11.1 1.28332 11.1 1.74166L9.9 8.89166L9.8 8.79999Z"
-                        fill="#F06258"
-                      />
-                    </svg>
-                    <span className="text-[20px] font-extrabold leading-none text-[var(--text)] [font-feature-settings:'tnum']">
-                      {avgPain.toFixed(1)}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="block text-[10px] text-[var(--text-muted)]">응답 적음</span>
-                )}
-              </div>
-              <div className="text-center">
-                <span className="mb-1.5 block text-[10.5px] font-semibold text-[var(--text-muted)]">
-                  만족도
-                </span>
-                <span className="inline-flex items-baseline gap-0.5">
-                  <span className="text-[12px] leading-none text-[var(--accent-save)]" aria-hidden>
-                    ★
-                  </span>
-                  <span className="text-[20px] font-extrabold leading-none text-[var(--text)] [font-feature-settings:'tnum']">
-                    {avgSatisfaction.toFixed(1)}
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {headline && (
-            <p className="mt-3.5 truncate text-[13px] text-[var(--text-secondary)]">
-              {headline}
-            </p>
-          )}
-        </div>
+        <ReportSummaryBox
+          procedureKo={procedureKo}
+          category={category}
+          count={count}
+          avgSatisfaction={avgSatisfaction}
+          avgPain={avgPain}
+          revisit={revisit}
+          headline={headline}
+        />
       </div>
 
       {/* ── ② 펼침(1차 집계) — grid-rows 0fr↔1fr ── */}

@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getProcedureReport,
   getFamilyReviewCardIds,
+  categoryKoToSlug,
+  FEED_MIN_REVIEWS,
 } from "@/lib/procedure-report";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import type { CardData } from "@/components/Card";
@@ -14,19 +17,8 @@ import { jsonLdString } from "@/lib/json-ld";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import ReportsDetailView from "./ReportsDetailView";
 
-// tag_dictionary.category(한글) → 테마 slug. procedure-report.ts 의 매핑과 동일(SSOT 정합).
-//   '비슷한 시술' 후보 카드의 카테고리 색을 정하는 데만 쓰인다.
-function catSlug(ko: string | null): ProcedureSlug | null {
-  switch (ko) {
-    case "리프팅": return "lifting";
-    case "스킨부스터": return "skinbooster";
-    case "필러·볼륨": return "filler";
-    case "주름·윤곽": return "contour";
-    case "레이저": return "laser";
-    case "기타": return "other";
-    default: return null;
-  }
-}
+// tag_dictionary.category(한글) → 테마 slug 는 procedure-report.ts 의 categoryKoToSlug(SSOT)
+//   를 그대로 사용 — '비슷한 시술' 후보 카드의 카테고리 색을 정하는 데만 쓰인다.
 
 // 렌더링 전략: 옛 상세의 설정을 그대로 보존(force-dynamic). review-report-revalidate 가
 //   후기 변동 시 revalidatePath('/reports/{ko}') 를 호출해 stale 을 정리하는 ISR 의도가
@@ -46,30 +38,38 @@ type Props = { params: Promise<{ procedure: string }> };
 //   한글·영문소문자대문자·숫자·공백·하이픈·가운뎃점만 허용(한글 정식 URL 비파괴).
 const PROCEDURE_SLUG_RE = /^[가-힣a-zA-Z0-9 ·-]+$/;
 
-async function resolveProcedure(
-  raw: string,
-): Promise<{ ko: string; en: string } | null> {
-  const v = decodeURIComponent(raw).trim();
-  if (!v) return null;
-  // 화이트리스트 미충족(메타문자 포함 등) → 조회 없이 미존재 취급(페이지는 notFound()).
-  if (!PROCEDURE_SLUG_RE.test(v)) return null;
+// React cache() — generateMetadata 와 본문이 같은 요청에서 slug 해석·리포트 집계를
+//   각각 다시 돌리던 중복 제거(요청 단위 dedup — reports-pool.ts 의 cache() 패턴과 동일).
+const resolveProcedure = cache(
+  async (raw: string): Promise<{ ko: string; en: string } | null> => {
+    const v = decodeURIComponent(raw).trim();
+    if (!v) return null;
+    // 화이트리스트 미충족(메타문자 포함 등) → 조회 없이 미존재 취급(페이지는 notFound()).
+    if (!PROCEDURE_SLUG_RE.test(v)) return null;
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+      .from("tag_dictionary")
+      .select("ko, en")
+      .or(`en.eq.${v.toLowerCase()},ko.eq.${v}`)
+      .eq("is_procedure", true)
+      .maybeSingle<{ ko: string; en: string }>();
+    return data ? { ko: data.ko, en: data.en } : null;
+  },
+);
+
+/** getProcedureReport 요청 단위 cache 래퍼 — ko 만 인자(supabase 클라는 내부 생성,
+ *   인자로 넘기면 호출부마다 참조가 달라 캐시 미스). 메타·본문이 집계 1회 공유. */
+const getProcedureReportCached = cache(async (ko: string) => {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
-    .from("tag_dictionary")
-    .select("ko, en")
-    .or(`en.eq.${v.toLowerCase()},ko.eq.${v}`)
-    .eq("is_procedure", true)
-    .maybeSingle<{ ko: string; en: string }>();
-  return data ? { ko: data.ko, en: data.en } : null;
-}
+  return getProcedureReport(supabase, ko);
+});
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { procedure } = await params;
   const resolved = await resolveProcedure(procedure);
   if (!resolved) return { title: "찾을 수 없는 시술 리포트" };
   const { ko } = resolved;
-  const supabase = await createSupabaseServerClient();
-  const report = await getProcedureReport(supabase, ko);
+  const report = await getProcedureReportCached(ko);
   if (!report) return { title: `${ko} 시술 리포트`, robots: { index: false, follow: true } };
 
   // canonical = 한글 슬러그 (2026-06-05). 영문 en 은 308 로 한글로 보내는 리다이렉트 전용.
@@ -82,11 +82,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     1,
   )}/5 · 통증·다운타임까지 실제 경험자 데이터로 정리.`;
   return {
-    // absolute — 루트 레이아웃 "피부텐텐 | %s" 템플릿 중복 방지(이미 '피부텐텐 리포트' 포함).
+    // absolute — 루트 레이아웃 "%s | 피부텐텐" 템플릿 중복 방지(이미 '피부텐텐 리포트' 포함).
     title: { absolute: title },
     description: desc,
     alternates: { canonical: url },
-    robots: { index: true, follow: true },
+    // SEO 게이트(원장 확정안) — 후기 N<FEED_MIN_REVIEWS(=4, 허브 노출 임계와 동일)는
+    //   저표본 thin 페이지라 noindex,follow(링크 신호는 흘림). 나머지 메타는 그대로.
+    robots:
+      report.count < FEED_MIN_REVIEWS
+        ? { index: false, follow: true }
+        : { index: true, follow: true },
     // 2026-06-16: openGraph/twitter 인라인 작성 → lib/og-meta.ts 헬퍼로 정합화.
     //   OG 이미지(기본 /og.png, 의사별 커스텀 없음 → null) + twitter card=summary_large_image.
     ...buildSocialMeta({
@@ -111,8 +116,8 @@ export default async function ProcedureReportPage({ params }: Props) {
   const supabase = await createSupabaseServerClient();
 
   // report 를 먼저 단독 await → 없으면 notFound() 로 즉시 종료(존재하지 않는 시술 슬러그·크롤러
-  //   요청 시 이후 쿼리들을 헛돌리지 않는다).
-  const report = await getProcedureReport(supabase, ko);
+  //   요청 시 이후 쿼리들을 헛돌리지 않는다). 요청 단위 cache — generateMetadata 와 집계 공유.
+  const report = await getProcedureReportCached(ko);
   if (!report) notFound();
 
   // 개별 후기 스트림 — 작업 D 롤업: 집계와 동일한 procedure_ko family 기준(카드 id IN).
@@ -239,7 +244,7 @@ export default async function ProcedureReportPage({ params }: Props) {
         en: string | null;
         category: string | null;
       }[]) {
-        metaMap.set(t.ko, { en: t.en ?? "", category: catSlug(t.category) });
+        metaMap.set(t.ko, { en: t.en ?? "", category: categoryKoToSlug(t.category) });
       }
       // 후보 시술별 전체 발행 후기 수(효과 비율의 분모)
       const { data: totRows } = await supabase
@@ -273,10 +278,14 @@ export default async function ProcedureReportPage({ params }: Props) {
   const url = `${SITE_URL}/reports/${encodeURIComponent(ko)}`;
   const rTotal = report.revisit.yes + report.revisit.maybe + report.revisit.no;
   const revisitPct = rTotal > 0 ? Math.round((report.revisit.yes / rTotal) * 100) : 0;
+  // JSON-LD 날짜 — datePublished 는 리포트 앵커 카드(type=review_summary)의 생성 시각(있을 때만),
+  //   dateModified 는 이 페이지가 이미 받은 최신 후기 시각(reviews 가 created_at desc 라 [0]이 최신).
+  //   후기 목록이 비면(이론상 report 존재 시 ≥1이나 방어) 요청 시점 폴백(구 동작 유지).
+  const latestReviewAt = reviews[0]?.created_at ?? null;
+  const anchorPublishedAt = report.anchor?.created_at ?? null;
   const jsonLd = {
     "@context": "https://schema.org",
     // @graph — MedicalWebPage + BreadcrumbList 를 독립 노드로 분리(Google 리치결과 인식↑).
-    //   datePublished 는 리포트가 실시간 집계(저장된 발행일 없음)라 생략 — 가짜 날짜 미기입.
     "@graph": [
       {
         "@type": "MedicalWebPage",
@@ -288,8 +297,9 @@ export default async function ProcedureReportPage({ params }: Props) {
         isPartOf: { "@id": `${SITE_URL}/#website` },
         // 게시 책임 주체 — 전역 layout 의 #organization(SSOT) 참조만(노드 재정의 금지 → @id 충돌 0).
         publisher: { "@id": `${SITE_URL}/#organization` },
-        // 집계 갱신 신호 — 요청 시점(실시간 집계라 항상 최신). AI freshness.
-        dateModified: new Date().toISOString(),
+        ...(anchorPublishedAt ? { datePublished: anchorPublishedAt } : {}),
+        // 집계 갱신 신호 — 최신 후기 시각(가짜 '요청 시점' 대신 실제 데이터 변동 시각). AI freshness.
+        dateModified: latestReviewAt ?? new Date().toISOString(),
         mainEntity: {
           "@type": "Service",
           additionalType: "https://schema.org/MedicalProcedure",
