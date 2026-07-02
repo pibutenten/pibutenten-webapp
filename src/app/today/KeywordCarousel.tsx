@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import CardAvatar from "@/components/card/CardAvatar";
 import { categorize } from "@/lib/category-sets";
 import { CATEGORIES } from "@/lib/categories";
+import { shortLabelForCategory } from "@/lib/post-category";
 
 /** 관심 키워드 새 글(컴팩트) — 피드 풀카드와 분리된 전용 카드. */
 export type KeywordPost = {
@@ -34,7 +35,7 @@ const TYPE_CHIP: Record<string, { label: string; bg: string; fg: string }> = {
   qa: { label: "Q&A", bg: "var(--primary-soft)", fg: "var(--primary-active)" },
   review: { label: "시술후기", bg: "#FEEDF3", fg: "#F76D9B" },
   doodle: { label: "끄적끄적", bg: "var(--bg-soft)", fg: "var(--text-secondary)" },
-  review_summary: { label: "리포트", bg: "var(--primary-soft)", fg: "var(--primary-active)" },
+  review_summary: { label: shortLabelForCategory("review_summary"), bg: "var(--primary-soft)", fg: "var(--primary-active)" },
 };
 
 export default function KeywordCarousel({

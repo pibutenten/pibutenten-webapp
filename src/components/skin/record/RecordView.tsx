@@ -22,6 +22,8 @@ import { computeStatus, type DiaryLatest } from "@/lib/diary-status";
 import type { KeywordPost } from "@/app/today/KeywordCarousel";
 import type { PopularData, PopularItem } from "@/lib/record-data";
 
+import { shortLabelForCategory } from "@/lib/post-category";
+
 const SAMPLE_CHIPS = ["리프팅", "보톡스", "스킨부스터", "볼륨", "더모코스메틱"];
 
 /* ---------- 인기글 섹션 — 7/30/90일 토글 + 상위 5 + 6~N위 더보기 ---------- */
@@ -29,7 +31,7 @@ const CAT_LABEL: Record<string, string> = {
   qa: "Q&A",
   review: "시술후기",
   doodle: "끄적끄적",
-  review_summary: "리포트",
+  review_summary: shortLabelForCategory("review_summary"),
 };
 const catLabel = (c: string) => CAT_LABEL[c] ?? "글";
 

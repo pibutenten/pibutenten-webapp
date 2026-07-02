@@ -10,8 +10,8 @@
  */
 export type QaUrlInput = {
   id: number;
-  /** 'qa' / 'post' / 'link' / 'review' / 'review_summary' */
-  type?: "qa" | "post" | "link" | "review" | "review_summary" | string;
+  /** 'qa' / 'post' / 'review' / 'review_summary' — CardData.type 과 동일 (옛 "link" 폐기, P2-6) */
+  type?: "qa" | "post" | "review" | "review_summary" | string;
   doctor?: { slug: string } | null;
   post_year?: number | null;
   post_slug?: string | null;

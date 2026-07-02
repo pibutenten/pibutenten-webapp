@@ -126,7 +126,7 @@ const TYPE_LIST: { key: TypeFilter; label: string }[] = [
   { key: "qa", label: "Q&A" },
   { key: "post", label: "끄적끄적" },
   { key: "review", label: "시술후기" },
-  { key: "review_summary", label: "피부텐텐 리포트" },
+  { key: "review_summary", label: labelForCategory("review_summary") },
 ];
 
 const SORTABLE_COLS: Record<string, string> = {
