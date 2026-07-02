@@ -318,17 +318,29 @@ export default function ReportsIndexView({
     if (!hasMore) return;
     const el = sentinelRef.current;
     if (!el) return;
+    // (2026-07-02 수정 — "8개에서 멈춤" 간헐 버그)
+    //   구 코드는 root 미지정(뷰포트)+의존성 [hasMore] 라, 실제 스크롤이 내부 컨테이너(.root)
+    //   에서 일어나는 앱셸(특히 iOS WKWebView 중첩 스크롤)에서 교차 이벤트가 한 번 유실되면
+    //   영구히 1페이지(PAGE_SIZE=8)에 멈췄다.
+    //   ① root = 실제 스크롤 조상(findScrollAncestor) — rootMargin 400px 선로딩이 실제 적용.
+    //   ② 의존성에 shown.length — 페이지마다 재장착. observe() 는 장착 즉시 현재 교차 상태를
+    //      1회 통지하므로(스펙), 유실돼도 다음 재장착·복원 시 자가 회복된다.
+    //   바닥에 붙은 채 연쇄 재장착되면 남은 페이지를 연속 로딩할 수 있으나(뷰포트 채우기),
+    //   visible 이 유한하고 hasMore=false 에서 종결되므로 무한루프 없음 — 목록이 수십 개
+    //   이상으로 커지면 throttle 검토.
+    const scrollRoot = findScrollAncestor(); // null 이면 뷰포트 root 폴백(구 동작과 동일 — 무해)
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
           setPageCount((p) => p + 1);
         }
       },
-      { rootMargin: "400px 0px" },
+      { root: scrollRoot, rootMargin: "400px 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [hasMore]);
+    // findScrollAncestor 는 useCallback([]) 안정 참조 — 의존성 포함해도 재실행 유발 없음.
+  }, [hasMore, shown.length, findScrollAncestor]);
 
   return (
     <>
