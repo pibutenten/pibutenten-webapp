@@ -30,6 +30,11 @@ export type PostCategorySlug =
 export type PostCategory = {
   slug: PostCategorySlug;
   label: string;
+  /**
+   * 좁은 칩·탭 등 공간 제약 UI 용 짧은 라벨 (SSOT — 화면별 하드코딩 금지).
+   * 없으면 label 을 그대로 사용. lookup 은 shortLabelForCategory().
+   */
+  shortLabel?: string;
   /** 일반 회원 글쓰기에 노출 여부 (qa는 의사 전용) */
   publicForUsers: boolean;
   /**
@@ -48,7 +53,7 @@ export const POST_CATEGORIES: readonly PostCategory[] = [
   { slug: "doodle",         label: "끄적끄적",     publicForUsers: true,  defaultHideDoctorCredential: true  },
   { slug: "qa",             label: "Q&A",         publicForUsers: false, defaultHideDoctorCredential: false },
   { slug: "review",         label: "시술후기",     publicForUsers: true,  defaultHideDoctorCredential: false },
-  { slug: "review_summary", label: "시술 리포트",  publicForUsers: false, defaultHideDoctorCredential: false },
+  { slug: "review_summary", label: "시술 리포트",  shortLabel: "리포트", publicForUsers: false, defaultHideDoctorCredential: false },
 ];
 
 const SLUG_TO_LABEL: Record<PostCategorySlug, string> = Object.fromEntries(
@@ -90,6 +95,13 @@ export function isPostCategorySlug(
 /** UI 라벨 lookup — invalid 입력은 빈 문자열 */
 export function labelForCategory(s: string | null | undefined): string {
   return isPostCategorySlug(s) ? SLUG_TO_LABEL[s] : "";
+}
+
+/** 짧은 라벨 lookup — shortLabel 없으면 label, invalid 입력은 빈 문자열 */
+export function shortLabelForCategory(s: string | null | undefined): string {
+  if (!isPostCategorySlug(s)) return "";
+  const c = POST_CATEGORIES.find((cat) => cat.slug === s);
+  return c?.shortLabel ?? c?.label ?? "";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
