@@ -577,7 +577,11 @@ function computeSnapshot(aq: AQ, wx: WX, name: string, lat: number): WeatherSnap
   const rows = joinHourly(aq, wx);
 
   // 오늘 최고치 + 구름 차단(실측 기반)
-  const day0 = new Date().toLocaleDateString("en-CA");
+  // 로컬 날짜 "YYYY-MM-DD" 수동 포맷 — ⚠ toISOString() 금지: UTC 기준이라 KST 새벽 0~9시에
+  //   어제 날짜로 틀어져 hourly(timezone=auto, 로컬) 매칭이 통째로 빗나간다.
+  //   (구 toLocaleDateString("en-CA") 도 로케일 구현 의존이라 getFullYear/…로 직접 조립.)
+  const d0 = new Date();
+  const day0 = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, "0")}-${String(d0.getDate()).padStart(2, "0")}`;
   let uvPeak = 0;
   let clrPeak = 0;
   let uvaPeak = 0;

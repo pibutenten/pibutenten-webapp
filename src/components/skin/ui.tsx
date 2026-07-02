@@ -28,6 +28,7 @@ import { highlight } from "@/components/card/utils/card-render";
 import { getQaUrl, getQaEditUrl } from "@/lib/card-url";
 import { parseYoutubeTimestamp, formatTimestamp } from "@/lib/youtube-time";
 import { categorize } from "@/lib/category-sets";
+import { shortLabelForCategory } from "@/lib/post-category";
 import { stripLegacyReferencesTail } from "@/components/card/utils/card-render";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
@@ -152,9 +153,11 @@ export function categoryLabel(c: CardData): string {
     case "doodle":
       return "끄적끄적";
     case "review_summary":
-      return "리포트";
+      // 좁은 칩 라벨은 SSOT(post-category shortLabel) 참조 — 화면별 하드코딩 금지.
+      return shortLabelForCategory("review_summary");
     case "post":
-      return "글";
+      // 구 type="post"(일반 글) 은 v7 끄적끄적으로 통합 — doodle 과 동일 라벨.
+      return "끄적끄적";
     default:
       return "글";
   }
@@ -487,14 +490,18 @@ export function useCardActions(card: CardData, viewer?: ViewerState) {
       const { data: u } = await sb.auth.getUser();
       const profileId = u.user ? (getActiveIdentityId() ?? u.user.id) : null;
       setShareCount((c) => c + 1);
-      await sb.from("card_shares").insert({
+      const { error } = await sb.from("card_shares").insert({
         card_id: card.id,
         profile_id: profileId,
         session_id: getSessionId(),
         channel,
       });
-    } catch {
-      /* 공유 카운트 실패 무시 */
+      if (error) throw error;
+    } catch (e) {
+      // 실패 시 낙관 카운트 복원 + 안내 — toggleLike/toggleSave 와 동일 패턴.
+      console.error("[useCardActions] doShare:", e);
+      setShareCount((c) => Math.max(0, c - 1));
+      showToast("잠시 후 다시 시도해 주세요", { tone: "danger" });
     }
   }, [card]);
   return {
@@ -1000,6 +1007,7 @@ export function PostCard({
   // 항목 5) 24h 내 작성 → NEW 배지.
   const displayDate = card.reviewed_at ?? card.created_at;
   const showNew = isNewCard(displayDate);
+  const timeAgoLabel = timeAgo(displayDate); // 렌더당 1회 계산(조건·표시 2곳 공용).
 
   // ⋮ 메뉴에서 삭제 성공 시 카드 언마운트(모든 훅 호출 이후라 조건부 훅 아님 — 안전).
   if (removed) return null;
@@ -1033,7 +1041,7 @@ export function PostCard({
         </div>
         <div className={styles.authorSub}>
           <span className={styles.catLabel}>{categoryLabel(card)}</span>
-          {timeAgo(displayDate) ? ` · ${timeAgo(displayDate)}` : ""}
+          {timeAgoLabel ? ` · ${timeAgoLabel}` : ""}
           {/* HOT/NEW — ⋮ 와 겹치던 우상단 절대배치(.badges) 폐기. 작성자 메타 줄에 인라인 칩으로.
               둘 다면 NEW → HOT 순. 글상세(forceExpanded)에는 HOT/NEW 미노출(피드 PostCard 만). */}
           {!forceExpanded && showNew && <span className={styles.newBadge}>NEW</span>}

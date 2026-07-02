@@ -28,7 +28,8 @@ export function prefetchDiscover(): Promise<DiscoverData> {
   if (discoverCache) return Promise.resolve(discoverCache);
   if (!discoverPromise) {
     discoverPromise = fetch("/api/search/suggest")
-      .then((r) => r.json())
+      // 비-2xx(레이트리밋·서버 오류)는 throw → 아래 catch 폴백(빈 데이터 + promise 초기화로 재시도 허용).
+      .then((r) => { if (!r.ok) throw new Error(`suggest ${r.status}`); return r.json(); })
       .then((d: DiscoverData) => { discoverCache = d; return d; })
       .catch(() => { discoverPromise = null; return { popular: [], cats: {} }; });
   }
@@ -69,7 +70,8 @@ function SearchPanel({ query = "", onPicked, basePath = "/", recentOnly = false 
   const allKeywords = useMemo(() => {
     if (!data) return [] as string[];
     const set = new Set<string>();
-    Object.values(data.cats).forEach((arr) => arr.forEach((k) => set.add(k)));
+    // cats 누락(비정상 응답) 방어 — undefined 면 빈 객체로 처리.
+    Object.values(data.cats ?? {}).forEach((arr) => arr.forEach((k) => set.add(k)));
     return [...set];
   }, [data]);
 

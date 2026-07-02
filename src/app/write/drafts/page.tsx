@@ -107,14 +107,14 @@ export default function DraftsPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {drafts.map((d) => {
+              // fields 는 localStorage 유래 — 손상 row 는 listDrafts 가 걸러내지만 방어적으로 옵셔널 접근.
               const title =
-                (d.fields.title as string) ||
-                (d.fields.procedureKo as string) ||
+                ((d.fields?.title as string) ?? "") ||
+                ((d.fields?.procedureKo as string) ?? "") ||
                 "(제목 없음)";
               const preview =
-                (d.fields.body as string) ||
-                (d.fields.oneliner as string) ||
-                "";
+                ((d.fields?.body as string) ?? "") ||
+                ((d.fields?.oneliner as string) ?? "");
               return (
                 <div
                   key={d.formType}

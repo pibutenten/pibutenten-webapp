@@ -21,6 +21,17 @@ function key(formType: DraftFormType): string {
   return `${PREFIX}${formType}`;
 }
 
+/** JSON.parse 직후 런타임 검증 — 손상 row(수동 편집·구버전 잔재)는 호출부가 removeItem 으로 자정한다. */
+function isValidDraft(data: unknown): data is DraftData {
+  const d = data as DraftData | null;
+  return (
+    typeof d?.savedAt === "number" &&
+    Number.isFinite(d.savedAt) &&
+    !!d.fields &&
+    typeof d.fields === "object"
+  );
+}
+
 export function saveDraft(formType: DraftFormType, fields: Record<string, unknown>): void {
   try {
     const data: DraftData = { formType, savedAt: Date.now(), fields };
@@ -32,7 +43,12 @@ export function loadDraft(formType: DraftFormType): DraftData | null {
   try {
     const raw = localStorage.getItem(key(formType));
     if (!raw) return null;
-    const data: DraftData = JSON.parse(raw);
+    const data: unknown = JSON.parse(raw);
+    // 손상 row(스키마 불일치)는 만료와 동일하게 제거 후 null — 화면 크래시 방지.
+    if (!isValidDraft(data)) {
+      localStorage.removeItem(key(formType));
+      return null;
+    }
     if (Date.now() - data.savedAt > MAX_AGE_MS) {
       localStorage.removeItem(key(formType));
       return null;
@@ -51,39 +67,24 @@ export function deleteDraft(formType: DraftFormType): void {
 
 export function listDrafts(): DraftData[] {
   const drafts: DraftData[] = [];
-  const expired: string[] = [];
+  const removable: string[] = []; // 만료 + 손상 row — 순회 후 일괄 제거(순회 중 index 흔들림 방지).
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k?.startsWith(PREFIX)) continue;
       const raw = localStorage.getItem(k);
       if (!raw) continue;
-      const data: DraftData = JSON.parse(raw);
-      if (Date.now() - data.savedAt > MAX_AGE_MS) {
-        expired.push(k);
+      const data: unknown = JSON.parse(raw);
+      // 손상 row(스키마 불일치)는 만료와 동일하게 제거 대상 — 화면 크래시 방지.
+      if (!isValidDraft(data) || Date.now() - data.savedAt > MAX_AGE_MS) {
+        removable.push(k);
         continue;
       }
       drafts.push(data);
     }
-    for (const k of expired) localStorage.removeItem(k);
+    for (const k of removable) localStorage.removeItem(k);
   } catch { /* ignore */ }
   return drafts.sort((a, b) => b.savedAt - a.savedAt);
 }
 
-export function cleanupExpiredDrafts(): void {
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k?.startsWith(PREFIX)) keys.push(k);
-    }
-    for (const k of keys) {
-      const raw = localStorage.getItem(k);
-      if (!raw) continue;
-      const data: DraftData = JSON.parse(raw);
-      if (Date.now() - data.savedAt > MAX_AGE_MS) {
-        localStorage.removeItem(k);
-      }
-    }
-  } catch { /* ignore */ }
-}
+// (2026-07-02) cleanupExpiredDrafts 삭제 — 외부 사용처 0건 + loadDraft/listDrafts 가 만료·손상 정리를 이미 수행.

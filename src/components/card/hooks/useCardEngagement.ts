@@ -306,40 +306,51 @@ export function useCardEngagement(
 
   // ── 공유 ──
   // 사용자 취소 시 카운트 X. card_shares INSERT 트리거(0095)가 share_count 자동 갱신.
+  // 네트워크 예외(auth/INSERT/재조회 reject)도 toggleSave 와 동일하게 낙관 카운트 복원 + 토스트.
   const doShare = useCallback(async () => {
     const channel = await shareCard(card);
     if (!channel) return;
     interactedRef.current = true; // 라이브 카운트 useEffect 가 이후 덮어쓰지 않게
-    const supabase = createSupabaseBrowserClient();
-    const { data: u } = await supabase.auth.getUser();
-    const activeId = getActiveIdentityId();
-    const profileId = u.user ? (activeId ?? u.user.id) : null;
     const prevCount = shareCount;
-    setShareCount((c) => c + 1);
-    // session_id 도 함께 저장 — 비로그인 공유 session 단위 dedup 위함 (0117 정책).
-    // ADR 0014 Phase 2 (마이그 0186): card_shares.user_id → profile_id RENAME.
-    const insRes = await supabase.from("card_shares").insert({
-      card_id: card.id,
-      profile_id: profileId,
-      session_id: getSessionId(),
-      channel,
-    });
-    if (insRes.error) {
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { data: u } = await supabase.auth.getUser();
+      const activeId = getActiveIdentityId();
+      const profileId = u.user ? (activeId ?? u.user.id) : null;
+      setShareCount((c) => c + 1);
+      // session_id 도 함께 저장 — 비로그인 공유 session 단위 dedup 위함 (0117 정책).
+      // ADR 0014 Phase 2 (마이그 0186): card_shares.user_id → profile_id RENAME.
+      const insRes = await supabase.from("card_shares").insert({
+        card_id: card.id,
+        profile_id: profileId,
+        session_id: getSessionId(),
+        channel,
+      });
+      if (insRes.error) {
+        setShareCount(prevCount);
+        return;
+      }
+      // 트리거가 갱신한 정확한 카운트 재조회
+      const { data: q } = await supabase
+        .from("cards")
+        .select("share_count")
+        .eq("id", card.id)
+        .maybeSingle();
+      if (q)
+        setShareCount(
+          Number((q as { share_count: number }).share_count ?? prevCount + 1),
+        );
+      // 공유 성공 = 명백한 의도 신호 → view 카운트 (2026-05-20 정책).
+      onInteraction?.();
+    } catch (e) {
+      console.error("[useCardEngagement] doShare:", e);
+      // 낙관적 복원 + 실패 안내 (toggleSave 와 동일 tone).
       setShareCount(prevCount);
-      return;
-    }
-    // 트리거가 갱신한 정확한 카운트 재조회
-    const { data: q } = await supabase
-      .from("cards")
-      .select("share_count")
-      .eq("id", card.id)
-      .maybeSingle();
-    if (q)
-      setShareCount(
-        Number((q as { share_count: number }).share_count ?? prevCount + 1),
+      showToast(
+        "공유 기록 실패: " + (e instanceof Error ? e.message : String(e)),
+        { tone: "danger" },
       );
-    // 공유 성공 = 명백한 의도 신호 → view 카운트 (2026-05-20 정책).
-    onInteraction?.();
+    }
   }, [card, shareCount, shareCard, onInteraction]);
 
   return {

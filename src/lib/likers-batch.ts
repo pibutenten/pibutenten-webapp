@@ -25,9 +25,9 @@ export type Liker = {
 
 const FLUSH_DELAY_MS = 80;
 
+// reject 없음 — 실패(에러·예외) 시에도 항상 resolve([]) (호출부 미처리 reject 방지 정책).
 type Pending = {
   resolve: (rows: Liker[]) => void;
-  reject: (e: unknown) => void;
 };
 
 type Bucket = {
@@ -91,8 +91,10 @@ async function flushBucket(limit: number): Promise<void> {
       for (const w of waiters) w.resolve(rows);
     }
   } catch (e) {
+    // 예외도 RPC error 경로와 동일하게 빈 배열 resolve — 호출부(무방비 catch) 미처리 reject 방지.
+    console.warn("[likers-batch] flushBucket 실패 — 빈 결과로 대체:", e);
     for (const list of waitersSnapshot.values()) {
-      for (const w of list) w.reject(e);
+      for (const w of list) w.resolve([]);
     }
   }
 }
@@ -104,9 +106,9 @@ export function fetchRecentLikersBatch(
   if (typeof window === "undefined") return Promise.resolve([]);
   if (!Number.isFinite(cardId)) return Promise.resolve([]);
   const b = ensureBucket(limit);
-  return new Promise<Liker[]>((resolve, reject) => {
+  return new Promise<Liker[]>((resolve) => {
     const list = b.waiters.get(cardId) ?? [];
-    list.push({ resolve, reject });
+    list.push({ resolve });
     b.waiters.set(cardId, list);
     if (!b.timer) {
       b.timer = setTimeout(() => {

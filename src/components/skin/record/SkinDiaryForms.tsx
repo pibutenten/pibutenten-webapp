@@ -25,6 +25,7 @@ import {
   ONELINER_PLACEHOLDERS,
 } from "@/components/review/review-controls";
 import { DOWNTIME_OPTIONS } from "@/lib/review-options";
+import { PROCEDURE_CATEGORIES } from "@/lib/categories";
 import { useAutocompleteKeyboard } from "@/hooks/useAutocompleteKeyboard";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
@@ -52,14 +53,10 @@ const scrollFieldIntoView = (el: HTMLElement | null) => {
 
 
 /* 시술 picker — 실제 tag_dictionary(is_procedure) 기준. 카테고리 6종(리프팅/스킨부스터/필러·볼륨/주름·윤곽/레이저/기타). */
-const CAT_COLOR: Record<string, string> = {
-  리프팅: "#1E88E5",
-  스킨부스터: "#F48FB1",
-  "필러·볼륨": "#FFA726",
-  "주름·윤곽": "#009688",
-  레이저: "#E57373",
-  기타: "#78909C",
-};
+// 카테고리 색 — SSOT(@/lib/categories PROCEDURE_CATEGORIES)에서 파생(하드코딩 사본 금지, 라벨→색).
+const CAT_COLOR: Record<string, string> = Object.fromEntries(
+  PROCEDURE_CATEGORIES.map((c) => [c.label, c.color]),
+);
 const PROCEDURES: { value: string; label: string; cat: string }[] = [
   ...["써마지","울쎄라","슈링크","올리지오","포텐자","텐써마","덴서티","울트라셀","티타늄","미라젯","세르프","올타이트","엠페이스","골드PTT"].map((l) => ({ value: l, label: l, cat: "리프팅" })),
   ...["리쥬란","쥬베룩","스컬트라","프로파일로","울트라콜","스킨바이브","더엘주사","힐로웨이브"].map((l) => ({ value: l, label: l, cat: "스킨부스터" })),
@@ -182,8 +179,12 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   const doctorRef = useRef<HTMLInputElement | null>(null);
   const managerRef = useRef<HTMLInputElement | null>(null);
   const tagRef = useRef<HTMLInputElement | null>(null);
-  const _d = new Date();
-  const [date, setDate] = useState(`${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`);
+  // 오늘 날짜 초기값 — lazy initializer 로 마운트 시 1회만 계산(렌더 중 new Date() 반복에 따른
+  //   SSR/CSR 날짜 불일치 창 제거).
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
   const [_y, _m, _dd] = date.split("-");
   const dateLabel = `${+_y}년 ${+_m}월 ${+_dd}일`;
   const [calYear, setCalYear] = useState(+_y);
@@ -286,8 +287,13 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
     let c: { lat: number; lng: number } | null = null;
     try {
       const r = await fetch(`/api/place-search?q=${encodeURIComponent(term)}`);
-      const j = await r.json();
-      if (j?.place) c = { lat: j.place.lat, lng: j.place.lng };
+      // 비-2xx(레이트리밋·서버 오류)와 비정상 좌표(NaN/누락)는 버리고 아래 "결과 없음" 안내로 폴백.
+      if (r.ok) {
+        const j = await r.json();
+        const lat = Number(j?.place?.lat);
+        const lng = Number(j?.place?.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) c = { lat, lng };
+      }
     } catch { /* 네트워크 실패 → 아래 안내 */ }
     if (!c) { setSearching(false); setGeoMsg("검색 결과가 없어요. 병원명을 더 입력해 주세요."); return; }
     await loadNear(c.lat, c.lng);
