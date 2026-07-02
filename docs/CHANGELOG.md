@@ -32,6 +32,8 @@
 - SkinDiaryForms: CAT_COLOR 를 PROCEDURE_CATEGORIES 파생으로(6색 사본 제거) · 날짜 useState lazy init(SSR/CSR 자정·타임존 창 제거) · place-search 응답 r.ok+Number.isFinite 좌표 검증
 - weather-logic day0 로컬 수동 YYYY-MM-DD 포맷(toISOString 금지 — UTC 라 KST 새벽 0~9시 날짜 틀어짐) · likers-batch RPC 오류 시 reject→resolve([])(unhandled rejection 차단)+warn · SearchPanel prefetch r.ok·cats ?? {} 방어
 - doctors/[slug] 미존재 시 "찾을 수 없는 전문의"+noindex(빈 메타로 홈 title 노출되던 것)
+- (원장 제보) **로그인 페이지 튕김(세션 desync)** — session-context 가 onboarded(12h 만료)/mirror 쿠키 부재 시 서버 확인 없이 비로그인 확정 → 실세션 생존 시 헤더가 '로그인'으로 표시되고 탭하면 /login 이 즉시 원복하던 증상. 쿠키 유무와 무관하게 /api/session 을 항상 1회 조회해 서버 진실로 자가 보정(진짜 게스트는 200+null → 기존 동작 동일 — 프리뷰 검증)
+- (원장 제보) **리포트 인덱스 간헐 8개 멈춤** — 무한스크롤 IntersectionObserver 가 root 미지정(뷰포트)+[hasMore] 의존이라 내부 스크롤 컨테이너(.root) 앱셸(iOS WKWebView 중첩 스크롤)에서 교차 이벤트 1회 유실 시 PAGE_SIZE=8 에서 영구 정지. root=findScrollAncestor() 교정 + 페이지마다 재장착(observe 초기 통지로 자가 회복) — 프리뷰에서 8→40 전량 로딩 확인
 
 ### Security
 - **마이그 0325 production 적용·검증 완료**: ① get_research_panel() is_admin() 가드 — 일반 로그인 사용자가 PostgREST 직접 호출로 회원 통계를 볼 수 있던 결함 차단(관리자 무변화) ② profiles PII 15컬럼+follows anon SELECT 명시 REVOKE(방어심층) ③ current_active_profile_id anon REVOKE 는 cards_public_read 정책 참조 라이브 확인으로 의도적 제외(적용 시 공개 카드 조회 파손). 사후 검증: guard=true·PII anon 노출 0·follows anon SELECT 0
