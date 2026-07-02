@@ -41,6 +41,8 @@ export async function GET(req: Request) {
 
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim();
   if (!q) return NextResponse.json({ place: null });
+  // 네이버 쿼터 보호 — 정상 지명 검색 범위를 벗어난 초장문 쿼리 차단.
+  if (q.length > 100) return NextResponse.json({ place: null });
 
   const id = process.env.NAVER_CLIENT_ID;
   const secret = process.env.NAVER_CLIENT_SECRET;

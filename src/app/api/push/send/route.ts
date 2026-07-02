@@ -18,7 +18,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { errorResponse } from "@/lib/error-response";
 import webpush from "web-push";
-import { timingSafeEqual } from "crypto";
+import { safeEqual } from "@/lib/auth/timing";
 import { getFcmMessaging } from "@/lib/firebase-admin";
 
 export const dynamic = "force-dynamic";
@@ -46,20 +46,8 @@ type WebhookPayload = {
   };
 };
 
-/**
- * 시크릿 timing-safe 비교 — 길이 다를 때도 안전.
- * (Phase 5-5: 단순 `!==` 는 첫 글자 mismatch 시간을 leak.)
- */
-function safeEqual(a: string, b: string): boolean {
-  const aBuf = Buffer.from(a, "utf8");
-  const bBuf = Buffer.from(b, "utf8");
-  if (aBuf.length !== bBuf.length) {
-    // 길이 정보도 노출 X 위해 동일 길이 버퍼로 비교 후 false 반환
-    timingSafeEqual(aBuf, Buffer.alloc(aBuf.length));
-    return false;
-  }
-  return timingSafeEqual(aBuf, bBuf);
-}
+/* 시크릿 timing-safe 비교는 @/lib/auth/timing.safeEqual(SSOT) 사용 —
+ *   (Phase 5-5 로컬 사본을 패키지 C 에서 공통 헬퍼로 통합, 2026-07-02). */
 
 export async function POST(req: Request) {
   // 인증 — webhook secret 검증 (timing-safe)

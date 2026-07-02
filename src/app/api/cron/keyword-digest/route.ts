@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { safeEqual } from "@/lib/auth/timing";
 
 /**
  * 관심(Q&A) 알림 digest Cron — 4-2 / 3b-2.
@@ -23,9 +24,11 @@ export const runtime = "nodejs";
 type DigestRow = { processed: number; notifications_created: number };
 
 export async function GET(req: Request) {
+  // Bearer 접두 파싱 후 timing-safe 비교 (`===` 조기 종료 side-channel 차단).
   const auth = req.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
-  if (!secret || auth !== `Bearer ${secret}`) {
+  const token = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : null;
+  if (!secret || !safeEqual(token, secret)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

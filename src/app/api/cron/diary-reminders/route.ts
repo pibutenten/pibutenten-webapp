@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { safeEqual } from "@/lib/auth/timing";
 
 /**
  * 시술일기 리텐션 리마인더 Cron — P4 (후기·시술일기 통합). 정본 계획서 §6.4.
@@ -30,9 +31,11 @@ export const runtime = "nodejs";
 type ReminderRow = { fired: number; skipped: number };
 
 export async function GET(req: Request) {
+  // Bearer 접두 파싱 후 timing-safe 비교 (`===` 조기 종료 side-channel 차단).
   const auth = req.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
-  if (!secret || auth !== `Bearer ${secret}`) {
+  const token = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : null;
+  if (!secret || !safeEqual(token, secret)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

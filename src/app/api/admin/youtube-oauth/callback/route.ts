@@ -15,7 +15,18 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin-guard";
+import { safeEqual } from "@/lib/auth/timing";
 import { YOUTUBE_OAUTH_STATE_COOKIE } from "@/app/api/admin/youtube-oauth/start/route";
+
+/** 외부 유래 문자열(query param, OAuth 응답)의 HTML 출력용 이스케이프 — reflected XSS 차단. */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +67,7 @@ export async function GET(req: Request) {
     return htmlPage(
       "OAuth 동의 거부",
       `<h1>❌ OAuth 동의 실패</h1>
-       <p class="err">Google 측 오류: <code>${errorParam}</code></p>
+       <p class="err">Google 측 오류: <code>${escapeHtml(errorParam)}</code></p>
        <p><a href="/api/admin/youtube-oauth/start">다시 시도</a></p>`,
     );
   }
@@ -77,7 +88,8 @@ export async function GET(req: Request) {
       path: "/",
     });
   }
-  if (!cookieState || !stateParam || cookieState !== stateParam) {
+  // timing-safe 비교 (@/lib/auth/timing 공통 헬퍼) — `===` 조기 종료 side-channel 차단.
+  if (!cookieState || !stateParam || !safeEqual(stateParam, cookieState)) {
     return htmlPage(
       "CSRF 검증 실패",
       `<h1>❌ state 불일치</h1>
@@ -123,8 +135,8 @@ export async function GET(req: Request) {
     return htmlPage(
       "토큰 교환 실패",
       `<h1>❌ 토큰 교환 실패</h1>
-       <p class="err">${tokenJson.error ?? "unknown"}: ${tokenJson.error_description ?? ""}</p>
-       <pre>${JSON.stringify(tokenJson, null, 2)}</pre>
+       <p class="err">${escapeHtml(tokenJson.error ?? "unknown")}: ${escapeHtml(tokenJson.error_description ?? "")}</p>
+       <pre>${escapeHtml(JSON.stringify(tokenJson, null, 2))}</pre>
        <p>refresh_token이 안 오면 보통 두 가지 원인입니다:
        <br>1) OAuth Playground 등에서 이미 받은 적이 있어 prompt=consent 없이 재발급됨 — 본 흐름은 prompt=consent 명시되어 있으니 정상.
        <br>2) .env.local의 client_id/secret이 잘못됨.</p>

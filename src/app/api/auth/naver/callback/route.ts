@@ -1,26 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { timingSafeEqual, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import {
   exchangeNaverCode,
   fetchNaverUserInfo,
   loadNaverEnv,
 } from "@/lib/auth/naver";
+import { safeEqual } from "@/lib/auth/timing";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { SITE_URL } from "@/lib/site";
 import { NATIVE_OAUTH_CALLBACK } from "@/lib/auth/oauth-providers";
 import { trackAuthError, type AuthErrorTrack } from "@/lib/error-response";
 import { logAudit } from "@/lib/audit-log";
-
-/** state cookie timing-safe 비교. 길이 mismatch 도 동일 시간으로 처리. */
-function stateMatches(cookieState: string, urlState: string): boolean {
-  const a = Buffer.from(cookieState, "utf8");
-  const b = Buffer.from(urlState, "utf8");
-  if (a.length !== b.length) {
-    timingSafeEqual(a, Buffer.alloc(a.length));
-    return false;
-  }
-  return timingSafeEqual(a, b);
-}
 
 export const dynamic = "force-dynamic";
 
@@ -56,9 +46,9 @@ export async function GET(request: NextRequest) {
     return redirectToLogin("네이버 콜백 파라미터 누락");
   }
 
-  // 1) state 검증
+  // 1) state 검증 — timing-safe 비교 (@/lib/auth/timing 공통 헬퍼)
   const cookieState = request.cookies.get("naver_oauth_state")?.value;
-  if (!cookieState || !stateMatches(cookieState, state)) {
+  if (!cookieState || !safeEqual(state, cookieState)) {
     return redirectToLogin("CSRF 검증 실패 (state mismatch)");
   }
   const next = request.cookies.get("naver_oauth_next")?.value || "/";

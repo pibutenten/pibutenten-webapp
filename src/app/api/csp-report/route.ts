@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * CSP 위반 보고 수신 endpoint.
@@ -13,7 +14,8 @@ import { NextRequest, NextResponse } from "next/server";
  *   - Sentry / Supabase audit_logs 등 별도 적재 원하면 운영자가 보강
  *
  * 보안:
- *   - Rate limit 미적용 (Vercel 자체 보호에 의존). spam 가능성 인지.
+ *   - Rate limit: IP당 분당 60회 (비로그인 endpoint — naver-start 와 동일하게 IP 키 사용).
+ *     무인증 스팸으로 Vercel logs 오염·비용 증가 방지.
  *   - 응답은 204 No Content (보고자에게 정보 누설 X).
  */
 
@@ -22,6 +24,16 @@ export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 8 * 1024; // 8KB cap
 
 export async function POST(req: NextRequest) {
+  // Rate limit: IP당 분당 60회 — 무인증 endpoint 스팸 방어.
+  const limited = await rateLimit({
+    request: req,
+    bucketPrefix: "csp-report",
+    userId: null,
+    max: 60,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
+
   try {
     const text = await req.text();
     const truncated = text.slice(0, MAX_BODY_BYTES);

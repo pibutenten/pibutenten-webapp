@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/site";
+import { safeEqual } from "@/lib/auth/timing";
 
 /**
  * IndexNow Cron — 직전 26h 내 발행/갱신된 의사 Q&A 글을
@@ -36,9 +37,11 @@ type CardRow = {
 };
 
 export async function GET(req: Request) {
+  // Bearer 접두 파싱 후 timing-safe 비교 (`===` 조기 종료 side-channel 차단).
   const auth = req.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
-  if (!secret || auth !== `Bearer ${secret}`) {
+  const token = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : null;
+  if (!secret || !safeEqual(token, secret)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
