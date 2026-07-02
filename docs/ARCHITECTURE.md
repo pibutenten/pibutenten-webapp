@@ -27,9 +27,9 @@
 ```
 /                                   홈 (AppShell 인-헤더 검색 + FeedView 피드(인기태그=FeedSidebar)). 검색은 /?q= 로 수행 — 결과는 피드 글상자만(qa/review/doodle), 시술 리포트 블렌딩 제거(searchReport 항상 null, 2026-06-29 — 리포트는 /reports 전용)
 /about                              소개
-/topics/[tag]                       태그별 전문의 Q&A 허브 (qa 만, SEO 인덱싱). 시술 리포트 카드·후기 미노출 — /reports 존재 시 "후기 N건 보기 →"(→/reports/{ko}) 얇은 링크만 (2026-06-05 분리)
+/topics/[tag]                       태그별 전문의 Q&A 허브 (qa 만, SEO 인덱싱). 개별 후기 미노출 — /reports 존재 시 닫힌 리포트 글상자(공용 ReportSummaryBox → /reports/{ko}) 임베드 (2026-07-02, 구 "후기 N건 보기" 얇은 링크 갱신). h1 "피부과 전문의가 답한 {tag} 관련 Q&A N개"(--ink-300 연회색). bare /topics 직접 진입은 홈 308(next.config — 검색·AI 유입 전용 밸브)
 /reports                            시술 리포트 허브 (인덱스: ReportsIndexView + ReportsIndexCard + 공용 ReportsIndexSidebar, 2단 레이아웃; 시술 리포트 목록 후기 N≥4 게이트 + count desc; 회전 헤드라인(report-headline) 매 요청 랜덤 → force-dynamic; SEO 셸 보존 = generateMetadata + JSON-LD CollectionPage/ItemList + canonical, 자격 0건 noindex; 인덱스↔상세는 공유 layout 셸(app/reports/layout.tsx + ReportsShell, 상단바·사이드바 persist·좌측 본문만 교체, ADR 0025))
-/reports/[procedure]                시술별 후기 리포트 (상세: ReportsDetailView + ReportsReviewCard, 2단 레이아웃 + ReportsIndexSidebar; 실시간 집계 + review_summary 앵커 카드; 후기 카드 = 따옴표 본문 + 아바타 + 작성자 나이·성별 한 줄(get_review_author_demographics, 0322); 정식 URL=/reports/{ko}(한글), canonical=ko; 영문 /reports/{en} 은 middleware 가 308 영구 리다이렉트 전용(1홉)→ko; index; SEO 셸 보존 = JSON-LD MedicalWebPage + Service(additionalType=MedicalProcedure) + AggregateRating + BreadcrumbList(Product 폐기 2026-06-05); /topics 존재(qa≥4) 시 "전문의 Q&A 보기 →"(→/topics/{ko}) 얇은 링크)
+/reports/[procedure]                시술별 후기 리포트 (상세: ReportsDetailView + ReportsReviewCard, 2단 레이아웃 + ReportsIndexSidebar; 실시간 집계 + review_summary 앵커 카드; 후기 카드 = 따옴표 본문 + 아바타 + 작성자 나이·성별 한 줄(get_review_author_demographics, 0322); 정식 URL=/reports/{ko}(한글), canonical=ko; 영문 /reports/{en} 은 middleware 가 308 영구 리다이렉트 전용(1홉)→ko; index(후기 4건 미만은 noindex·follow — FEED_MIN_REVIEWS 허브 게이트 공유, 2026-07-02); SEO 셸 보존 = JSON-LD MedicalWebPage + Service(additionalType=MedicalProcedure) + AggregateRating + BreadcrumbList(Product 폐기 2026-06-05); /topics 존재(qa≥4) 시 "전문의 Q&A 보기 →"(→/topics/{ko}) 얇은 링크)
 /reports-new, /reports-new/[procedure]   구 staging 미리보기 라우트 — 신디자인 /reports 정식 승격 후 308 영구 리다이렉트(→/reports, →/reports/{ko}). 이전 미리보기 링크 보호용 (2026-06-29)
 /doctors                            원장님 목록
 /doctors/[slug]                     원장님 소개 (OG: /og/{slug}.png)
@@ -250,7 +250,7 @@ supabase/
 | `IdentitySwitcher.tsx` | 신분(profile) 전환 dropdown — 묶음 안 동등 독립한 profile 들 (ADR 0001, 0011) |
 | `skin/FeedView.tsx` | 홈 피드(단일 컬럼 리스트) + 탭 필터 (검색 시 리포트 블렌딩 제거, 2026-06-29 — searchReport 항상 null) |
 | `skin/FeedSidebar.tsx` | 데스크탑 우측 사이드바 — 인기 태그·인기 Q&A·글쓰기 CTA (홈/토픽/리포트 공용) |
-| `app/reports/ReportsIndexView.tsx` (+ `ReportsIndexCard.tsx`) | 시술 리포트 허브 인덱스 신디자인 — 리포트 목록 카드 + 회전 헤드라인. SEO/JSON-LD 는 상위 `page.tsx` 가 담당(렌더만) |
+| `app/reports/ReportsIndexView.tsx` (+ `ReportsIndexCard.tsx`) | 시술 리포트 허브 인덱스 신디자인 — 리포트 목록 카드 + 회전 헤드라인. 접힘(요약)부는 공용 `components/report/ReportSummaryBox.tsx` 로 추출(토픽 닫힌 글상자와 SSOT 공유, 2026-07-02). SEO/JSON-LD 는 상위 `page.tsx` 가 담당(렌더만) |
 | `app/reports/[procedure]/ReportsDetailView.tsx` (+ `ReportsReviewCard.tsx`) | 시술 리포트 상세 신디자인 — 집계 + 후기 카드(따옴표 본문·아바타·작성자 나이·성별)·비슷한 시술. SEO/JSON-LD 는 상위 `page.tsx` 담당 |
 | `components/report/ReportsIndexSidebar.tsx` | 리포트 인덱스·상세 공용 사이드바 (2단 레이아웃; 상세에선 `footer` 로 `ReportShareButtons` 저장/공유 렌더) |
 | `app/reports/layout.tsx` + `ReportsShell.tsx` | /reports 공유 layout 셸 — 서버 `layout`(force-dynamic)이 풀(`reports-pool.ts`, React `cache()`) 로드 → 클라 `ReportsShell` 이 `AppShell`(상단바·사이드바) persist(인덱스↔상세 좌측 본문만 교체). 메타/JSON-LD 는 각 `page.tsx` 보유(셸 미관여). ADR 0025 |

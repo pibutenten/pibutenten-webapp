@@ -6,6 +6,46 @@
 
 ---
 
+## [2026-07-02] — 개선 라운드 1: /topics 밸브·성능·보안·안정성 (개선계획서 v2, 6패키지 병렬)
+
+전방위 건강 감사(에이전트 20) → 개선계획서 v2 원장 승인 → 패키지 A~F 병렬 구현 → 디렉터 1차 검수 + 코드검수관 2명 이중검수([치명] 1건 — push/send safeEqual 사본 미통합 — 즉시 통합, [중요] RecordView 라벨 사본·헤드라인 null 방어 반영) → tsc·build 통과. 커밋 `a2e1e7d`(선행 shortLabel)·`ee21223`(A)·`3bafa28`(B)·`5bb8589`(C)·`da5588b`(D)·`2dd70f3`(E)·`6d73182`(F).
+
+### Added
+- **/topics/{tag} 닫힌 시술 리포트 글상자** — /reports 인덱스 접힘 카드를 `components/report/ReportSummaryBox.tsx` 로 추출(SSOT)해 임베드, 클릭 시 /reports/{ko} 이동. 데이터는 기존 경량 풀(get_review_summary_pool) 재사용(추가 DB 0), 헤드라인은 report-headline 동일 엔진 서버 확정(PRD §4.3 "얇은 링크 1줄" 결정 갱신)
+- `post-category.ts` shortLabel SSOT("리포트") + `shortLabelForCategory()` — 좁은 칩 라벨 하드코딩 사본 제거 기반
+- `lib/auth/timing.ts` `safeEqual` — timing-safe 비교 SSOT(naver stateMatches·push/send 로컬 사본 2개 통합)
+- `lib/feed-sidebar-cached.ts` — 홈·토픽 공용 사이드바 데이터(인기태그+인기 Q&A) unstable_cache 5분
+- RSS 자동발견 link(루트 metadata alternates.types) · 회원 프로필 /{handle} OG/Twitter 카드(buildSocialMeta, noindex 유지) · /report OG 이미지(buildSocialMeta 패턴 통일)
+- 마이그 0325 보안 하드닝(하단 Security)
+
+### Changed
+- **/topics 밸브 확정**: bare `/topics` 직접 진입 → 홈 308(next.config, 검색·AI 유입 전용 — 인덱스 라우트 없음). /reports 인덱스 사이드바의 generic "전문의 Q&A" 링크 제거(존재하지 않는 /topics 로의 404 링크 — 얇은 링크는 시술 단위 설계만 유지)
+- /topics/{tag} h1: "피부과 전문의가 답한 {tag} 관련 Q&A N개"(해시태그 제거, "글"→"Q&A") + 연회색 --ink-300(AA 4.73:1)
+- **성능**: 리포트 상세 resolveProcedure/getProcedureReport 를 React cache 로 1회화(generateMetadata+본문 중복 제거, 요청당 DB 왕복 ~12→~5) + procedure_family RPC 공유(procedureFamilyCached) + 독립 3쿼리(분류·앵커·인구통계) Promise.all. 토픽 사이드바의 비캐시 feed_cards_scored 300행 호출을 공용 캐시로 교체(홈 PERF 2026-06-27 최적화의 회귀 해소). 토픽 count 쿼리 메타↔본문 dedup(qaCountForTag)
+- review_summary 라벨 SSOT 통일: KeywordCarousel·RecordTab·RecordView·skin/ui = shortLabel("리포트"), AdminCardsView "피부텐텐 리포트"→labelForCategory("시술 리포트") · card-url QaUrlInput 폐기 "link" 리터럴 제거(CardData.type 정합)
+- 리포트 상세 **후기 4건 미만 noindex**(follow·AggregateRating 유지 — 원장 결정, FEED_MIN_REVIEWS 허브 게이트 공유) + JSON-LD datePublished(앵커 created_at)/dateModified(최신 후기 시각)
+
+### Fixed
+- (2026-06-30, `e4a9403`) /login "회원가입" 링크 튕김 — 비로그인이 /signup(OAuth 후 약관 게이트)로 갔다가 /login 으로 되돌아오던 루프 → 같은 화면 소셜 버튼 스크롤+하이라이트로 교체(제보 버그)
+- draft-storage 손상 row 런타임 검증·자정 + drafts 목록 옵셔널 체이닝(임시저장 흰 화면 크래시 차단), 미사용 cleanupExpiredDrafts 제거
+- doShare(useCardEngagement·skin/ui) try-catch + 카운터 복원 + 실패 토스트(silent fail 해소) · timeAgo 중복 호출 제거 · skin/ui categoryLabel post→"끄적끄적"
+- SkinDiaryForms: CAT_COLOR 를 PROCEDURE_CATEGORIES 파생으로(6색 사본 제거) · 날짜 useState lazy init(SSR/CSR 자정·타임존 창 제거) · place-search 응답 r.ok+Number.isFinite 좌표 검증
+- weather-logic day0 로컬 수동 YYYY-MM-DD 포맷(toISOString 금지 — UTC 라 KST 새벽 0~9시 날짜 틀어짐) · likers-batch RPC 오류 시 reject→resolve([])(unhandled rejection 차단)+warn · SearchPanel prefetch r.ok·cats ?? {} 방어
+- doctors/[slug] 미존재 시 "찾을 수 없는 전문의"+noindex(빈 메타로 홈 title 노출되던 것)
+
+### Security
+- **마이그 0325 production 적용·검증 완료**: ① get_research_panel() is_admin() 가드 — 일반 로그인 사용자가 PostgREST 직접 호출로 회원 통계를 볼 수 있던 결함 차단(관리자 무변화) ② profiles PII 15컬럼+follows anon SELECT 명시 REVOKE(방어심층) ③ current_active_profile_id anon REVOKE 는 cards_public_read 정책 참조 라이브 확인으로 의도적 제외(적용 시 공개 카드 조회 파손). 사후 검증: guard=true·PII anon 노출 0·follows anon SELECT 0
+- youtube-oauth 콜백 사용자 유래 출력 전부 escapeHtml(관리자 대상 reflected XSS 차단) + state 비교 timing-safe
+- cron 3종(indexnow·keyword-digest·diary-reminders) Bearer 시크릿 비교 timing-safe 교체(판정 동일)
+- csp-report IP 분당 60회 rate limit(무인증 로그 폭탄 방지 — 콘텐츠 신고 /api/reports 는 기존 제한 확인) · place-search q 100자 제한(네이버 쿼터 보호)
+
+### Deferred (보류·후속)
+- SkinDiaryForms PROCEDURES 하드코딩 → 스냅샷 파생: generated 스냅샷에 is_procedure 필드가 없어 무리 파생 시 후기 저장(unknown_procedure) 롤백 회귀 — gen-tag-dictionary.mjs 에 필드 추가 후 별도 처리(현 하드코딩은 서버 getReviewProcedures prop 부재 시 폴백 전용임을 확인)
+- 디자인 토큰 통일(globals --primary ↔ app.module --tt-blue)·배지 대비 등 색 작업 전부 — 원장 결정으로 후속 라운드(색 시안 별도 보고)
+- 루트 RSS alternates 는 canonical 지정 페이지에서 shallow-merge 로 미출력(자동발견은 홈으로 충분 — 전 페이지 필요 시 별도 결정)
+
+---
+
 ## [2026-06-30] — 리포트 PTR + 온보딩 다듬기 + Fitzpatrick 재보정 (오너 피드백 후속)
 
 배포 후 오너 피드백 라운드. 각 항목 핀셋 위임 → 1차 검수 → 코드검수관 2명 재검수([치명] 1건 — PTR willChange→sticky 충돌 — 발견·해소) → tsc·build 통과. 커밋 `ec1e3e4`(색)·`b359e24`(PTR·온보딩).
