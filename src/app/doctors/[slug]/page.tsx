@@ -39,7 +39,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq("slug", slug)
     .maybeSingle()
     .returns<{ name: string; title: string; clinic: string; intro: string | null }>();
-  if (!doctor) return {};
+  // not-found 케이스 — soft-404 색인 차단 보강 ([handle] 패턴과 동일, 크롤러 noindex).
+  if (!doctor)
+    return {
+      title: "찾을 수 없는 전문의",
+      robots: { index: false, follow: false },
+    };
   // 주제(원장명·직함) first · 브랜드 last(템플릿이 "| 피부텐텐" 부가). 병원명 제외.
   const title = `${doctor.name} ${doctor.title}`;
   const description =

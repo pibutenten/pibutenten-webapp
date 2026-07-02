@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { ReportForm } from "./ReportForm";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 import InfoShell from "@/components/info/InfoShell";
@@ -10,13 +11,15 @@ export const metadata: Metadata = {
   description:
     "피부텐텐 게시물·댓글에 대한 신고를 접수합니다. 정보통신망법 제44조의2 절차에 따라 처리됩니다.",
   alternates: { canonical: `${SITE_URL}/report` },
-  openGraph: {
+  robots: { index: false, follow: false },
+  // openGraph/twitter — 다른 정적 페이지(about/contact)와 동일하게 og-meta 헬퍼로 통일 (images 누락 보완).
+  ...buildSocialMeta({
     title: "콘텐츠 신고 — 피부텐텐",
     description: "피부텐텐 게시물·댓글에 대한 신고를 접수합니다.",
-    url: `${SITE_URL}/report`,
-    type: "website",
-  },
-  robots: { index: false, follow: false },
+    canonical: `${SITE_URL}/report`,
+    ogImage: buildOgImage(null),
+    ogType: "website",
+  }),
 };
 
 export default function ReportPage() {

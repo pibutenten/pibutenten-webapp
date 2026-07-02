@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { ROLES } from "@/lib/identity-shared";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import type { UserRole } from "@/lib/user-grades";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
@@ -155,13 +156,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? identity.display_name
     : profile.display_name ?? handle;
   const bio = identity ? identity.bio : profile.bio;
+  const title = name;
+  const description = bio ?? `${name}의 피부텐텐 프로필`;
+  const canonical = `${SITE_URL}/${handle}`;
   return {
     // v5.1: handle 노출 X — 닉네임만 (layout template이 "피부텐텐 | …" prefix 자동 추가)
-    title: name,
-    description: bio ?? `${name}의 피부텐텐 프로필`,
-    alternates: { canonical: `${SITE_URL}/${handle}` },
+    title,
+    description,
+    alternates: { canonical },
     // 회원 프로필 — 글이 전부 noindex(doodle/review)라 프로필도 색인 제외(빈 껍데기 색인 방지).
     robots: { index: false, follow: true },
+    // noindex 여도 SNS 공유(카톡·트위터 등)는 발생 — OG/Twitter 카드 메타 제공 ([shortcode] 패턴 통일).
+    ...buildSocialMeta({
+      title,
+      description,
+      canonical,
+      ogImage: buildOgImage(null),
+      ogType: "profile",
+    }),
   };
 }
 

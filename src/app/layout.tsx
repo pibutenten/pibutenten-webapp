@@ -55,6 +55,14 @@ export const metadata: Metadata = {
     title: "피부텐텐",
     statusBarStyle: "default",
   },
+  alternates: {
+    // RSS 자동발견 — <link rel="alternate" type="application/rss+xml"> 주입.
+    // 실제 라우트는 app/rss/ 이지만 외부 노출 URL 은 /rss.xml (next.config.ts rewrite).
+    // ⚠️ Next.js metadata 는 top-level 키 단위 shallow merge — 페이지가 alternates(canonical 등)를
+    //   지정하면 이 객체 전체가 대체되어 해당 페이지엔 RSS link 미출력(홈 등 미지정 페이지엔 출력).
+    //   RSS 자동발견은 홈 1곳이면 충분해 페이지별 중복 주입은 하지 않음.
+    types: { "application/rss+xml": `${SITE_URL}/rss.xml` },
+  },
   openGraph: {
     type: "website",
     siteName: "피부텐텐",
