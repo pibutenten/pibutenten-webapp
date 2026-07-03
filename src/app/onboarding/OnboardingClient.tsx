@@ -615,7 +615,9 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
           {/* 얼굴 아이콘 3×2 그리드 — 이미지 에셋 없이 코드 SVG. 톤·이름·캡션 SSOT = lib/fitzpatrick.ts.
               ⚠ 선택 배경·테두리는 인라인 style — AppShell(.root)의 unlayered button 리셋이
               Tailwind bg/border 유틸을 이겨(소셜 버튼과 동일 사유) 클래스로 주면 표시가 안 된다
-              (2026-07-03 회귀 수정 — 선택 표시 = 테두리+배경+체크 배지). */}
+              (2026-07-03 회귀 수정 — 선택 표시 = 테두리+배경+체크 배지).
+              리셋 대상은 background/border/color 뿐 — transform(active:scale)은 클래스 유지,
+              hover 테두리는 !important(hover:!border-*)로 인라인 위에서만 보정. */}
           <div className="grid grid-cols-3 gap-2">
             {FITZPATRICK_TONES.map((o) => {
               const on = fitzpatrick === o.v;
@@ -626,7 +628,9 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
                   type="button"
                   aria-pressed={on}
                   onClick={() => setFitzpatrick(o.v)}
-                  className="relative flex flex-col items-center gap-1.5 rounded-[var(--radius)] px-2 py-2.5 transition-shadow active:scale-[0.98]"
+                  className={`relative flex flex-col items-center gap-1.5 rounded-[var(--radius)] px-2 py-2.5 transition-transform active:scale-[0.98] ${
+                    on ? "" : "hover:!border-[var(--primary-light)]"
+                  }`}
                   style={{
                     backgroundColor: on ? "#EAF6FD" : "#FFFFFF",
                     border: `1px solid ${on ? "var(--primary)" : "var(--border)"}`,
@@ -637,7 +641,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
                     <span
                       aria-hidden
                       className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold"
-                      style={{ backgroundColor: "var(--primary)", color: "#FFFFFF" }}
+                      style={{ backgroundColor: "var(--primary-active)", color: "#FFFFFF" }}
                     >
                       ✓
                     </span>
