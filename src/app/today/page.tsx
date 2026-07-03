@@ -103,19 +103,23 @@ export default async function TodayPage() {
   const idCtx = await getIdentityContext(supabase);
   const activeId = idCtx?.active?.profileId ?? user.id;
 
-  // prof — 인사·관심 키워드(interests) 파생용. activeId(active 명함) 기준.
+  // prof — 인사·관심 키워드(interests) 파생용 + KPI 타일 프로필 링크용 handle. activeId(active 명함) 기준.
   const { data: prof } = await supabase
     .from("profiles")
-    .select("display_name, interested_procedures, skin_concerns, skin_type")
+    .select("handle, display_name, interested_procedures, skin_concerns, skin_type")
     .eq("id", activeId)
     .maybeSingle()
     .returns<{
+      handle: string | null;
       display_name: string | null;
       interested_procedures: string[] | null;
       skin_concerns: string[] | null;
       skin_type: string | null;
     }>();
   const userName = prof?.display_name?.trim() || "회원";
+  // KPI 타일 /{handle}?tab=... 링크용 — /my(마이페이지 허브)와 동일 폴백(prof → active 명함).
+  //   미설정이면 null → RecordView 가 프로필행 타일을 비링크 폴백 처리.
+  const handle = prof?.handle ?? idCtx?.active?.handle ?? null;
 
   // 관심 키워드 합집합(관심시술 + 피부고민 + 피부타입). 카드 keywords 와 같은 한글 키(0262).
   const interests = Array.from(
@@ -206,6 +210,7 @@ export default async function TodayPage() {
   return (
     <RecordView
       userName={userName}
+      handle={handle}
       latest={latest}
       diaryCount={rows.length}
       reviewsCount={reviewsCount}

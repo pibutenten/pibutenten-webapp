@@ -139,6 +139,7 @@ function PopularSection({ popular }: { popular: PopularData }) {
 export default function RecordView({
   guest = false,
   userName,
+  handle = null,
   latest,
   diaryCount,
   reviewsCount,
@@ -150,6 +151,9 @@ export default function RecordView({
 }: {
   guest?: boolean;
   userName: string;
+  /** 공개 프로필 핸들 — KPI 타일의 `/{handle}?tab=...` 링크용(마이페이지와 동일 규칙).
+   *  null(핸들 미설정 회원·게스트)이면 프로필행 타일은 비링크 폴백. */
+  handle?: string | null;
   latest: DiaryLatest | null;
   diaryCount: number;
   reviewsCount: number;
@@ -180,6 +184,8 @@ export default function RecordView({
   };
   // 회원 히어로 상태(운영 computeStatus 5단계). 게스트는 가입 유도.
   const status = computeStatus(latest);
+  // KPI 프로필행 링크 베이스 — 마이페이지(MyPageView)의 `/${handle}` 규칙 재사용(SSOT, 새 URL 규칙 발명 금지).
+  const profileHref = handle ? `/${handle}` : null;
 
   const sidebar = (
     <>
@@ -270,19 +276,51 @@ export default function RecordView({
           <p className={styles.muted} style={{ margin: "10px 0 4px", color: "rgba(255,255,255,0.92)" }}>
             {status.sub}
           </p>
-          {/* 나의 KPI — 날씨 칩처럼 라벨 위·숫자 아래. 내 노트 / 내 후기 / 내 글 / 내 댓글 */}
+          {/* 나의 KPI — 날씨 칩처럼 라벨 위·숫자 아래. 내 노트 / 내 후기 / 내 글 / 내 댓글.
+              운영 제보(타일을 탭해도 이동 안 됨) 대응: 표시 전용 div → 실제 링크로 전환.
+              목적지 규칙은 마이페이지(MyPageView)와 동일(SSOT) — 내 노트=/notes, 나머지=/{handle}?tab=... */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 16 }}>
             {[
-              { n: diaryCount, l: "내 노트" },
-              { n: reviewsCount, l: "내 후기" },
-              { n: postCount, l: "내 글" },
-              { n: commentCount, l: "내 댓글" },
-            ].map((s) => (
-              <div key={s.l} style={{ background: "rgba(255,255,255,0.16)", borderRadius: 12, padding: "11px 4px", textAlign: "center" }}>
-                <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.82)" }}>{s.l}</div>
-                <div style={{ marginTop: 5, fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{s.n}</div>
-              </div>
-            ))}
+              { n: diaryCount, l: "내 노트", href: "/notes" as string | null },
+              // 핸들 미설정 회원(profileHref=null)은 공개 프로필 URL 을 만들 수 없어 href=null → 아래 비링크 div 폴백.
+              { n: reviewsCount, l: "내 후기", href: profileHref && `${profileHref}?tab=reviews` },
+              { n: postCount, l: "내 글", href: profileHref && `${profileHref}?tab=posts` },
+              { n: commentCount, l: "내 댓글", href: profileHref && `${profileHref}?tab=comments` },
+            ].map((s) => {
+              // 기존 표시 전용 타일과 동일 시각(배경·radius·padding) 유지 — 링크화는 동작만 추가.
+              const tileStyle = {
+                background: "rgba(255,255,255,0.16)",
+                borderRadius: 12,
+                padding: "11px 4px",
+                textAlign: "center" as const,
+              };
+              const inner = (
+                <>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.82)" }}>{s.l}</div>
+                  <div style={{ marginTop: 5, fontSize: 22, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{s.n}</div>
+                </>
+              );
+              return s.href ? (
+                <Link
+                  key={s.l}
+                  href={s.href}
+                  aria-label={`${s.l} ${s.n}개 보기`}
+                  style={{ ...tileStyle, display: "block", textDecoration: "none", transition: "background 0.12s ease" }}
+                  /* 탭 피드백 — 인라인 스타일이라 :active 를 못 쓰므로 pointer 이벤트로 배경만 살짝 진하게. */
+                  onPointerDown={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.24)"; }}
+                  onPointerUp={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.16)"; }}
+                  onPointerLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.16)"; }}
+                  onPointerCancel={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.16)"; }}
+                >
+                  {inner}
+                </Link>
+              ) : (
+                // 폴백 — 핸들 미설정이라 목적지가 없는 프로필행 타일은 기존과 동일한 표시 전용 div.
+                <div key={s.l} style={tileStyle}>
+                  {inner}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

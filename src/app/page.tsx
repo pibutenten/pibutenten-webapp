@@ -12,14 +12,17 @@ import { allClinicsSchema } from "@/lib/schema/clinic";
 import { getFeedSidebarDataCached } from "@/lib/feed-sidebar-cached";
 import { unstable_cache } from "next/cache";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
+import { FEED_CAT_LABELS, parseFeedCat, type FeedCat } from "@/lib/feed-categories";
 
 /**
- * 메인 피드(/) — "한 번에 300개 점수순으로 받아두고, 탭은 FeedView 가 브라우저에서 즉시 필터" 모델.
+ * 메인 피드(/) — "카테고리 탭 = /?cat= 서버 풀, URL 이 SSOT" 모델 (2026-07-03 전환).
  *   (2026-06-14 앱 스킨 승격: 홈을 신규 스킨 FeedView 로 교체. SEO(index·JSON-LD·H1)는 구 홈 그대로 보존.)
- *  - 전체: feed_cards_scored 300 — 탭(Q&A/시술후기/끄적끄적)은 이 풀을 클라 필터.
- *  - 검색(?q=): search_cards_scored 300 — 검색 결과 풀을 같은 방식으로 탭 필터(검색바·URL 유지).
+ *  - 전체(/): feed_cards_scored 300. 카테고리 탭(/?cat=qa|review|doodle): 같은 RPC 에 p_category 를
+ *    더해 그 카테고리만의 300 풀을 서버가 내려줌(마이그 0326). 종전 "풀 1개를 탭이 클라 필터" 모델은
+ *    시술후기 대량 유입(2026-06)으로 풀이 한 카테고리에 도배되면 다른 탭이 비는 구조적 한계가 있었음.
+ *    FeedView 의 클라 필터(matchesChip)는 탭 전환 중 임시 표시용으로만 유지.
+ *  - 검색(?q=): search_cards_scored 300 — 검색 결과 풀(검색바·URL 유지, cat 무시).
  *    검색어가 시술명과 매칭되면 '전체' 탭 맨 위에 시술 리포트 1장(searchReport, getProcedureReport).
- *  탭 전환은 서버 왕복 없음(클라 store) → 동그라미 없이 즉시.
  */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,6 +33,9 @@ export const fetchCache = "force-no-store";
 //   ID 로 다음 묶음을 이어 받음(/api/cards?ids=) → 경계 순서 어긋남 없이 안정적 + 가벼움.
 const ORDER = 300;
 const INITIAL = 20;
+
+/* 홈 카테고리 탭(/?cat=) 슬러그·라벨·검증 — FeedView 칩과 공유하는 SSOT(@/lib/feed-categories).
+ *   (검수 반영 2026-07-03: 서버·클라 각자 정의하던 중복을 공유 모듈로 추출 — drift 방지.) */
 /* 사이드 '인기 태그' — 공용 getFeedSidebarDataCached(@/lib/feed-sidebar-cached, 5분 캐시)에서
  *   popularTags 만 사용(홈/토픽 공용 단일 출처 — 구 홈 전용 getPopularTagsCached 를 승격). */
 
@@ -38,14 +44,28 @@ const INITIAL = 20;
  *  공개 콘텐츠(어느 사용자나 동일 풀)만 캐시 — per-user 좋아요/저장(viewerStates)은 FeedView 가 마운트 후
  *  /api/viewer-states 로 클라 배치 조회하므로 캐시 본문엔 개인 데이터 미포함(캐시 오염·N+1 없음). 자른 신선도는 디렉터 승인(엄청 신선 불필요). */
 const getHomeFeedPoolCached = unstable_cache(
-  async (): Promise<CardData[]> => {
+  async (category: FeedCat | null): Promise<CardData[]> => {
     const sb = createSupabaseAnonClient();
-    const { data, error } = await sb.rpc("feed_cards_scored", {
-      p_limit: ORDER,
-      p_offset: 0,
-      p_half_life_days: 14,
-      p_jitter_amp: 0.35,
-    });
+    // category 미지정(null)이면 종전과 완전히 동일한 4개 인자만 전달 — p_category 를 아예 안 보내
+    //   마이그 0326(p_category 추가) 적용 전에 이 코드가 먼저 배포돼도 전체 풀은 무사하다.
+    //   카테고리 풀(/?cat=)일 때만 p_category 를 더해 그 카테고리 300개를 서버가 점수순으로 내려줌.
+    const { data, error } = await sb.rpc(
+      "feed_cards_scored",
+      category
+        ? {
+            p_limit: ORDER,
+            p_offset: 0,
+            p_half_life_days: 14,
+            p_jitter_amp: 0.35,
+            p_category: category,
+          }
+        : {
+            p_limit: ORDER,
+            p_offset: 0,
+            p_half_life_days: 14,
+            p_jitter_amp: 0.35,
+          },
+    );
     if (error) {
       console.error("[home] 피드 풀 조회 실패:", error.message);
       return [];
@@ -53,22 +73,34 @@ const getHomeFeedPoolCached = unstable_cache(
     const scored = (data ?? []) as CardData[];
     return diversifyByDoctor(scored, { maxPerDoctorInHead: 1, headSize: 4 });
   },
-  ["home-feed-pool-v1"],
+  // 인자(category)는 unstable_cache 가 키에 자동 포함 — v2 는 카테고리 파라미터화에 따른 명시적 버전업.
+  ["home-feed-pool-v2"],
   { revalidate: 90, tags: ["home-feed"] },
 );
 
 export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; cat?: string }>;
 }): Promise<Metadata> {
-  const { q } = await searchParams;
-  const query = (q ?? "").trim();
+  const sp = await searchParams;
+  const query = (sp.q ?? "").trim();
 
   // 검색 결과 화면(?q=)은 noindex,follow — 구 /search 정책과 동일(중복·thin 콘텐츠 차단).
   if (query) {
     return {
       title: { absolute: `'${query}' 검색 결과 | 피부텐텐` },
+      robots: { index: false, follow: true },
+      alternates: { canonical: `${SITE_URL}/` },
+    };
+  }
+
+  // 카테고리 피드(/?cat=)는 내부 내비게이션 URL — 검색(?q=)과 동일 원칙으로 noindex,follow,
+  //   canonical 은 홈(/). 색인 가치는 홈·상세가 담당하고 파라미터 URL 은 색인에서 제외(밸브 원칙).
+  const cat = parseFeedCat(sp.cat);
+  if (cat) {
+    return {
+      title: { absolute: `'${FEED_CAT_LABELS[cat]}' 피드 | 피부텐텐` },
       robots: { index: false, follow: true },
       alternates: { canonical: `${SITE_URL}/` },
     };
@@ -100,10 +132,12 @@ export async function generateMetadata({
 export default async function HomeFeedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; cat?: string }>;
 }) {
   const sp = await searchParams;
   const query = (sp.q ?? "").trim();
+  // 카테고리 탭(/?cat=) — URL 이 SSOT. 검색(?q=)이 있으면 무시(검색이 우선, 동시 필터 미지원).
+  const cat = parseFeedCat(sp.cat);
 
   // 카드 조회와 독립인 쿼리(hotIds)는 먼저 띄워 병렬화.
   const hotIdsPromise = getHotQaIds(20);
@@ -146,8 +180,9 @@ export default async function HomeFeedPage({
     // 피드 풀·인기태그 모두 공개 데이터 → 쿠키리스 anon + unstable_cache(피드 90s, 태그 300s)로 분리.
     //   매 방문 돌던 300행 점수계산(feed_cards_scored)을 캐시에서 즉시 반환(SNS 표준: 피드는 분 단위
     //   갱신). per-user 좋아요/저장은 FeedView 가 클라에서 배치 조회.
+    //   /?cat= 이면 그 카테고리 전용 300 풀(캐시 키에 cat 자동 포함 — 카테고리별 별도 캐시).
     const [feedCards, sidebarData] = await Promise.all([
-      getHomeFeedPoolCached(),
+      getHomeFeedPoolCached(cat),
       getFeedSidebarDataCached(),
     ]);
     cards = feedCards;
@@ -165,7 +200,9 @@ export default async function HomeFeedPage({
 
   // JSON-LD: 홈은 그룹 브랜드의 메인 진입점 — 5개 지점 MedicalClinic + 그룹 풀세트.
   //   layout.tsx 의 Organization/WebSite/그룹법인 외에 추가 inject. 검색 화면(?q=)에선 생략.
-  const clinicsJsonLd = query
+  //   카테고리 피드(/?cat=)도 생략(SEO 검수 반영 2026-07-03) — noindex 파라미터 URL 에 지점 엔티티를
+  //   연결할 이유가 없고, 엔티티 신호는 홈(/) 한 곳에 집중.
+  const clinicsJsonLd = query || cat
     ? null
     : { "@context": "https://schema.org", "@graph": allClinicsSchema() };
 
@@ -182,6 +219,9 @@ export default async function HomeFeedPage({
         피부텐텐 — 피부과 전문의가 답하는 피부 Q&amp;A 라운지
       </h1>
       <FeedView
+        /* ⚠ key 에 cat 을 넣지 말 것 — 카테고리 전환(/?cat=)은 재마운트 없이 prop 변경 → FeedView 의
+           풀 리셋 effect + poolEpochRef(stale loadMore 폐기 가드)가 처리한다. key 로 재마운트시키면
+           epoch ref 연속성이 끊겨 가드가 무력화되고 전환 애니메이션·스크롤 복원도 깨진다(재검수 명기). */
         key={query ? `q:${query}` : "feed"}
         initialPool={initialCards}
         orderedIds={orderedIds}

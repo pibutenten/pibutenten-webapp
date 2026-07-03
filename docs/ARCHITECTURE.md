@@ -248,7 +248,7 @@ supabase/
 | `skin/AppShell.tsx` | 공용 셸 — 헤더(로고·GNB·우상단 알림/아바타) + 하단 5탭(투데이/내노트/피드/리포트/쇼핑) + **인-헤더 검색**(데스크탑 pill·모바일 풀스크린 패널, /?q= 라우팅, ←=검색 닫기/✕=검색어만 지움) |
 | `search/SearchPanel.tsx` | 검색 발견·자동완성 패널 — 최근검색 알약 + 카테고리 텍스트 탭(시술 6종) + 키워드 칩 + 부분일치 자동완성 |
 | `IdentitySwitcher.tsx` | 신분(profile) 전환 dropdown — 묶음 안 동등 독립한 profile 들 (ADR 0001, 0011) |
-| `skin/FeedView.tsx` | 홈 피드(단일 컬럼 리스트) + 탭 필터 (검색 시 리포트 블렌딩 제거, 2026-06-29 — searchReport 항상 null) |
+| `skin/FeedView.tsx` | 홈 피드(단일 컬럼 리스트) + 카테고리 탭 = **`/?cat=` URL 라우팅(서버 카테고리별 풀, 마이그 0326·URL 이 SSOT)** — 슬러그·라벨은 `lib/feed-categories.ts` SSOT, 클라 필터(matchesChip)는 전환 중 임시 표시용(2026-07-03. 종전 "풀 1개 클라 필터"는 시술후기 대량 유입 시 다른 탭이 비는 한계로 폐기). 검색 시 리포트 블렌딩 제거(2026-06-29 — searchReport 항상 null) |
 | `skin/FeedSidebar.tsx` | 데스크탑 우측 사이드바 — 인기 태그·인기 Q&A·글쓰기 CTA (홈/토픽/리포트 공용) |
 | `app/reports/ReportsIndexView.tsx` (+ `ReportsIndexCard.tsx`) | 시술 리포트 허브 인덱스 신디자인 — 리포트 목록 카드 + 회전 헤드라인. 접힘(요약)부는 공용 `components/report/ReportSummaryBox.tsx` 로 추출(토픽 닫힌 글상자와 SSOT 공유, 2026-07-02). SEO/JSON-LD 는 상위 `page.tsx` 가 담당(렌더만) |
 | `app/reports/[procedure]/ReportsDetailView.tsx` (+ `ReportsReviewCard.tsx`) | 시술 리포트 상세 신디자인 — 집계 + 후기 카드(따옴표 본문·아바타·작성자 나이·성별)·비슷한 시술. SEO/JSON-LD 는 상위 `page.tsx` 담당 |

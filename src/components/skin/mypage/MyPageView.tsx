@@ -15,7 +15,8 @@
  *
  * 데이터·링크는 모두 운영 라우트 재사용(신규 백엔드 없음):
  *   - 프로필/태그/카운트는 server(/my/page.tsx)가 active 명함 기준으로 조립해 props 로 주입.
- *   - 활동/관심 목록은 공개 프로필(/{handle})의 탭(?tab=posts|comments|likes|saves)으로 연결.
+ *   - 활동/관심 목록은 공개 프로필(/{handle})의 탭(?tab=posts|reviews|comments|likes|saves)으로 연결.
+ *     (/today KPI 타일도 동일 규칙 — RecordView 참고. 2026-07-03)
  *
  * AppShell(active="마이")이 브랜드 헤더 + 하단 탭바를 제공하므로, 디자인의 타이틀 바는
  *   본문 최상단에 in-content 로 재현한다(/today RecordView 와 동일하게 셸 헤더는 유지).

@@ -175,17 +175,21 @@ export default function FeedSidebar({
         </div>
       </section>
 
-      <section className={`${styles.card} ${styles.sideCard}`}>
-        <h3>인기 Q&A</h3>
-        <div className={styles.sideList}>
-          {doctorAnswers.map((c) => (
-            <a key={c.id} href={cardHref(c)}>
-              <span className={styles.n}>Q</span>
-              <span>{c.title}</span>
-            </a>
-          ))}
-        </div>
-      </section>
+      {/* 인기 Q&A — 풀이 비면(시술후기/끄적끄적 카테고리 풀엔 의사 Q&A 가 없음) 섹션 자체를 숨김.
+          빈 헤더만 덩그러니 남는 UI 방지(카테고리별 서버 풀 전환 2026-07-03). */}
+      {doctorAnswers.length > 0 && (
+        <section className={`${styles.card} ${styles.sideCard}`}>
+          <h3>인기 Q&A</h3>
+          <div className={styles.sideList}>
+            {doctorAnswers.map((c) => (
+              <a key={c.id} href={cardHref(c)}>
+                <span className={styles.n}>Q</span>
+                <span>{c.title}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className={`${styles.card} ${styles.sideCta}`}>
         <h3>{sidePrompt.h3}</h3>

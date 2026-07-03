@@ -12,7 +12,10 @@
  *   - 무한스크롤은 운영 FeedList 와 동일하게 orderedIds 순서대로 /api/cards?ids= 로 다음 묶음을
  *     이어 받아 풀에 append (서버 검색·일반 탭 공통).
  *   - 검색은 서버 라우팅: 엔터/추천/태그 클릭 → /?q= 로 이동(서버 재검색). (홈 승격 2026-06-14)
- *   - 칩(카테고리)은 클라 필터(받아온 풀을 즉시 거름).
+ *   - 칩(카테고리)은 URL 라우팅: 칩 클릭 → /?cat= 으로 이동, 서버가 그 카테고리 전용 풀을 제공.
+ *     URL 이 SSOT(뒤로가기·외부 진입·검색 해제 모두 URL→chip 싱크로 수렴). 클라 필터(matchesChip)는
+ *     전환 중 임시 표시용 안전망으로만 유지. (2026-07-03 — 종전 "풀 1개 클라 필터" 모델은 한 카테고리
+ *     대량 유입 시 다른 탭이 비는 한계로 폐기.)
  *   - 좋아요/저장 viewer 상태(viewerStates)는 PostCard 로 내려 첫 렌더부터 정확히 표시.
  */
 
@@ -32,17 +35,21 @@ import FeedSidebar from "./FeedSidebar";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
 import styles from "./app.module.css";
 import { PostCard, type ViewerState } from "./ui";
+import {
+  FEED_CATS,
+  FEED_CAT_LABELS,
+  parseFeedCat,
+  type FeedCat,
+} from "@/lib/feed-categories";
 
 /* 무한스크롤 한 번에 확장할 카드 수 */
 const PAGE = 20;
 
-/* ---------- 칩 정의 (전체 + 3종) ---------- */
-type ChipKey = "all" | "qa" | "review" | "doodle";
+/* ---------- 칩 정의 (전체 + 3종) — 슬러그·라벨은 서버(page.tsx)와 공유 SSOT(@/lib/feed-categories) ---------- */
+type ChipKey = "all" | FeedCat;
 const CHIPS: { key: ChipKey; label: string }[] = [
   { key: "all", label: "전체" },
-  { key: "qa", label: "Q&A" },
-  { key: "review", label: "시술후기" },
-  { key: "doodle", label: "끄적끄적" },
+  ...FEED_CATS.map((k) => ({ key: k as ChipKey, label: FEED_CAT_LABELS[k] })),
 ];
 
 function matchesChip(c: CardData, chip: ChipKey): boolean {
@@ -156,12 +163,22 @@ export default function FeedView({
   const cursorRef = useRef(initialPool.length);
   const orderedIdsRef = useRef(orderedIds);
   orderedIdsRef.current = orderedIds;
+  // 풀 세대(epoch) — 서버가 새 풀을 내려 리셋될 때마다 +1. 진행 중이던 loadMore(옛 풀 기준 fetch)가
+  //   교체 "후" 완료되면 옛 카테고리 카드를 새 풀에 섞거나 stale hasMore/loadError 를 쓰는 경합을
+  //   차단(검수 반영 2026-07-03): loadMore 는 시작 시 epoch 을 캡처하고, 다르면 결과를 버린다.
+  const poolEpochRef = useRef(0);
 
   // 서버가 새 순서·초기풀을 내려주면(검색 라우팅 등) 풀·커서 리셋.
   useEffect(() => {
+    poolEpochRef.current += 1;
     setPool(initialPool);
     cursorRef.current = initialPool.length;
     setHasMore(orderedIds.length > initialPool.length);
+    // PTR(router.refresh)·검색·카테고리 전환 등 서버가 새 풀을 내려줄 때마다 댓글 미리보기·좋아요/저장
+    //   상태를 재조회 — 한 번 받은 카드를 영구 스킵하던 ref 캐시가 새로고침 후에도 낡은 댓글 수를
+    //   고착시키던 버그(2026-07-03 제보) 해소.
+    previewFetchedRef.current = new Set();
+    viewerFetchedRef.current = new Set();
   }, [initialPool, orderedIds]);
 
   // 댓글 미리보기 배치 fetch — 풀에 새로 들어온 카드만 골라 60개씩 한 번에. 이미 받은 건 ref 로 스킵.
@@ -226,53 +243,16 @@ export default function FeedView({
     scrollFeedTop(contentRef.current);
   }, [searchQuery]);
 
-  // 검색 해제 시 전체 피드 복귀 — 검색어가 "있다가 사라지는 순간"에만 chip 을 'all' 로 리셋.
-  //   카테고리 탭(예: chip='qa')에서 검색하면 isSearching 동안 effectiveChip='all'(전체)로 보이지만,
-  //   ✕로 검색을 해제하면 isSearching=false 가 되며 effectiveChip 이 보존된 chip(그 카테고리)으로 복귀해
-  //   원래 카테고리 화면으로 튀던 문제(셸 clearSearch 는 / 라우팅만, 피드 chip 은 못 건드림)를 여기서 해소.
-  //   prevSearchRef 로 직전 검색 유무를 추적 → truthy→falsy 전이일 때만 리셋.
-  //   단 "카테고리 칩을 직접 눌러 검색을 해제하는" 동선(아래 chips onClick)은 그 칩으로 가야 하므로
-  //   chipExplicitRef 플래그로 한 번 건너뛴다(검색+카테고리 동시 미지원이라 칩 클릭이 검색을 해제함).
-  const prevSearchingRef = useRef(!!(searchQuery ?? "").trim());
-  const chipExplicitRef = useRef(false);
-  useEffect(() => {
-    const nowSearching = !!(searchQuery ?? "").trim();
-    if (prevSearchingRef.current && !nowSearching) {
-      // 검색이 막 해제됨.
-      if (chipExplicitRef.current) {
-        // 칩 클릭에 의한 해제 → 그 칩 유지(setChip 은 이미 onClick 에서 처리). 강제 'all' 건너뜀.
-        chipExplicitRef.current = false;
-      } else {
-        // ✕·라우팅 등으로 해제 → 항상 전체 피드로(이전 카테고리로 복귀 금지).
-        setChip("all");
-      }
-    }
-    prevSearchingRef.current = nowSearching;
-  }, [searchQuery]);
+  // 카테고리 URL 파라미터(/?cat=) — URL→chip 싱크(isSearching 계산 뒤 배치)가 소비.
+  const catParam = searchParams.get("cat");
+  // A2 복원(sessionStorage) 1회 소진 플래그 — 아래 URL→chip 싱크 effect 안에서 첫 실행에만 복원 시도.
+  //   (복원 setChip 과 싱크 setChip("all") 이 별도 effect 로 같은 flush 에서 경합해 칩이
+  //    all→저장값→all 로 깜빡이던 race 를 단일 effect 통합으로 제거. 2026-07-03)
+  const chipRestoredRef = useRef(false);
 
-  // A2: 새로고침 시 선택한 카테고리 탭 유지 — sessionStorage 복원.
-  //   /?cat= URL 파라미터가 있으면 아래 catParam effect 가 덮어쓰므로 URL 이 우선.
-  useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem("feedChip");
-      const valid: ChipKey[] = ["all", "qa", "review", "doodle"];
-      if (saved && (valid as string[]).includes(saved)) {
-        setChip(saved as ChipKey);
-      }
-    } catch { /* sessionStorage 비활성 */ }
-  }, []);
   useEffect(() => {
     try { sessionStorage.setItem("feedChip", chip); } catch { /* ignore */ }
   }, [chip]);
-
-  // 비-피드 드롭다운 '카테고리 바로가기' → /?cat= 로 넘어온 칩 시드.
-  const catParam = searchParams.get("cat");
-  useEffect(() => {
-    const valid: ChipKey[] = ["all", "qa", "review", "doodle"];
-    if (catParam && (valid as string[]).includes(catParam)) {
-      setChip(catParam as ChipKey);
-    }
-  }, [catParam]);
 
   // 최신값 ref — mount-once 스크롤 콜백이 항상 최신 hasMore 참조.
   const hasMoreRef = useRef(hasMore);
@@ -286,6 +266,9 @@ export default function FeedView({
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMoreRef.current) return;
     setLoadError(false);
+    // 시작 시점의 풀 세대 캡처 — fetch 완료 시 세대가 바뀌어 있으면(그 사이 서버가 새 풀로 리셋)
+    //   결과·상태 갱신을 전부 버린다(커서·풀은 리셋 effect 가 이미 재설정).
+    const epoch = poolEpochRef.current;
     const ids = orderedIdsRef.current;
     const start = cursorRef.current;
     const nextIds = ids.slice(start, start + PAGE);
@@ -305,11 +288,16 @@ export default function FeedView({
         cache: "no-store",
         signal: controller.signal,
       });
+      // 풀 교체됨 — stale 응답 폐기. 이 가드는 반드시 res.ok 판정보다 먼저(순서 고정):
+      //   stale 에러 응답의 setHasMore(false)가 새 풀의 무한스크롤을 죽이면 안 된다.
+      //   커서는 리셋 effect(await 중 이미 실행됨)가 initialPool.length 로 재설정한 상태라 복구 불필요.
+      if (epoch !== poolEpochRef.current) return;
       if (!res.ok) {
         setHasMore(false);
         return;
       }
       const data = (await res.json()) as { cards: CardData[] };
+      if (epoch !== poolEpochRef.current) return; // json 파싱 사이 교체 대비
       const byId = new Map((data.cards ?? []).map((c) => [c.id, c]));
       // .in() 조회는 순서 보장 X → 저장된 순서(nextIds)대로 재정렬.
       const ordered = nextIds
@@ -321,7 +309,7 @@ export default function FeedView({
       });
       if (cursorRef.current >= ids.length) setHasMore(false);
     } catch {
-      setLoadError(true);
+      if (epoch === poolEpochRef.current) setLoadError(true); // stale 에러로 새 풀 UI 를 오염시키지 않음
     } finally {
       if (timer) clearTimeout(timer);
       loadingRef.current = false;
@@ -441,10 +429,48 @@ export default function FeedView({
 
   // 검색 중 여부.
   const isSearching = !!(searchQuery ?? "").trim();
+
+  // URL(/?cat=)이 카테고리의 SSOT — 뒤로가기·외부 진입·검색 해제(✕→/)·바텀내비(/) 모두 이 싱크로 수렴.
+  //   (isSearching 계산이 필요해 이 위치에 배치 — 훅 순서는 조건 없이 항상 동일.)
+  //   A2(새로고침 시 탭 유지) 복원도 여기 통합: "첫 실행 + 검색 아님 + URL 에 cat 없음"일 때만
+  //   sessionStorage 저장값으로 chip 낙관 반영 + router.replace(/?cat=)로 서버 카테고리 풀까지 전환.
+  //   (종전엔 chip 만 바꿔 전체 풀의 클라 필터 — 예: qa 4장 — 에 갇혔음. 2026-07-03)
+  //   첫 실행 소진(chipRestoredRef)은 분기와 무관하게 기록 — 검색으로 진입(/?q=)했다 ✕로 해제한
+  //   경우도 "해제 = 항상 전체" 기존 정책을 지키도록 검색 진입 시점에 복원 기회를 소모시킨다.
+  useEffect(() => {
+    const isFirstRun = !chipRestoredRef.current;
+    chipRestoredRef.current = true;
+    if (isSearching) return; // 검색 중엔 chip 보존(칩 활성 표시용) — 필터는 effectiveChip 이 'all' 처리
+    const urlCat = parseFeedCat(catParam);
+    if (urlCat) {
+      setChip(urlCat);
+      return;
+    }
+    if (isFirstRun) {
+      try {
+        const saved = parseFeedCat(sessionStorage.getItem("feedChip"));
+        if (saved) {
+          setChip(saved);
+          router.replace(`/?cat=${saved}`);
+          return;
+        }
+      } catch { /* sessionStorage 비활성 */ }
+    }
+    setChip("all");
+  }, [catParam, isSearching, router]);
+
   // 필터링 전용: 검색 중이면 카테고리를 "전체"로 간주(태그/검색은 전체 피드 기준). chip 자체는 보존 →
-  //   검색 해제 시 원래 카테고리로 자연 복귀. 필터·리포트 판정에 이 값 사용.
+  //   검색 해제(✕→/) 시엔 위 URL 싱크가 'all' 로 확정. 필터·리포트 판정에 이 값 사용.
   //   칩 활성 표시는 chip(실제 선택값)을 직접 사용 — 검색 중에도 칩이 "전체"로 리셋돼 보이는 버그 해소.
   const effectiveChip: ChipKey = isSearching ? "all" : chip;
+
+  // 카테고리 전환 진행 중 — 낙관 chip 이 URL(catParam)보다 앞서 있는 구간(서버 카테고리 풀 미도착.
+  //   A2 복원의 router.replace 대기 포함). 스켈레톤 판정과 sentinel 게이트에 사용:
+  //   전환 중엔 옛 풀을 계속 당기는 낭비 fetch 를 막고, 빈 필터 결과는 스켈레톤으로 표시.
+  //   비교는 parseFeedCat(검증값) 기준 — ?cat=쓰레기값이면 서버가 전체 풀을 주므로 null 과 동치.
+  const catPending =
+    !isSearching &&
+    (chip === "all" ? parseFeedCat(catParam) !== null : parseFeedCat(catParam) !== chip);
 
   // ── 일반 탭 — 풀을 카테고리 칩으로 즉시 필터 ──
   const filtered = useMemo(
@@ -452,19 +478,8 @@ export default function FeedView({
     [pool, effectiveChip],
   );
 
-  // ①-b 카테고리 칩 필터 결과가 PAGE개 미만이면 미로드 카드를 자동 추가 로드.
-  //   "끄적끄적" 같은 소수 카테고리가 점수순에서 후순위로 밀려 초기 풀에 없는 경우 대응.
-  //   orderedIds 소진(hasMore=false) 또는 PAGE개를 채우면 자동 정지.
-  useEffect(() => {
-    if (
-      effectiveChip !== "all" &&
-      filtered.length < PAGE &&
-      hasMore &&
-      !loading
-    ) {
-      loadMore();
-    }
-  }, [filtered.length, effectiveChip, hasMore, loading, loadMore]);
+  // (구 ①-b "카테고리 필터 결과 부족 시 자동 추가 로드"는 삭제 — 서버가 카테고리 전체 풀을 내려주므로
+  //   불필요. 남겨두면 전환 중 전체 풀을 낭비 fetch 하는 부작용만 있었음. 2026-07-03)
 
   // 검색('전체' 탭)일 때 시술명이 리포트와 매칭되면 결과 맨 위에 리포트 카드 1장.
   // chip(실제 선택값) 기준: 검색 중에도 카테고리 칩이 "전체"일 때만 노출.
@@ -492,12 +507,13 @@ export default function FeedView({
       type="button"
       className={`${styles.chip} ${chip === c.key ? styles.chipActive : ""}`}
       onClick={() => {
+        // 칩 = URL 내비게이션(/?cat=). 검색 중 칩 클릭은 검색을 해제하고 그 카테고리로.
+        //   setChip 은 낙관 반영(라우팅 완료 전에도 칩 활성·클라 필터 즉시) — 서버 풀 도착까지의
+        //   임시 표시. 최종 상태는 URL→chip 싱크가 확정(URL 이 SSOT).
         setChip(c.key);
-        // 검색 중 카테고리 칩을 누르면 검색을 해제하고 그 카테고리로(검색+카테고리 동시 필터는 미지원).
-        //   chipExplicitRef 로 "칩에 의한 해제"임을 표시 → 검색 해제 effect 가 'all' 로 덮어쓰지 않도록.
-        if (isSearching) {
-          chipExplicitRef.current = true;
-          router.push("/");
+        const target = c.key === "all" ? null : c.key;
+        if (isSearching || (catParam ?? null) !== target) {
+          router.push(target ? `/?cat=${target}` : "/");
         }
       }}
       aria-pressed={chip === c.key}
@@ -541,7 +557,11 @@ export default function FeedView({
           무한스크롤(pool append)은 같은 key 라 추가분만 append(스크롤 유지). */}
       <div className={styles.feedList} key={`${chip}|${searchQuery ?? ""}`}>
         {filtered.length === 0 && !topReport ? (
-          loading || pool.length === 0 || (hasMore && effectiveChip !== "all") ? (
+          /* 스켈레톤 vs 확정 빈 상태 — "더 올 수 있음"(로딩 중·전환 중·잔여 풀 있음)이면 스켈레톤,
+             전부 소진·전환 없음이면 빈 문구. (구 ①-b 자동로드 전제였던 `pool.length===0 ||
+             (hasMore && effectiveChip!=='all')` 잔재를 검수 반영으로 교체 2026-07-03 — 종전 조건은
+             빈 카테고리·빈 검색결과에서 스켈레톤이 무한 표시될 수 있었음.) */
+          loading || catPending || hasMore ? (
             <FeedSkeleton />
           ) : (
             <div className={styles.empty}>
@@ -608,8 +628,10 @@ export default function FeedView({
       </div>
       </div>
 
-      {/* 무한스크롤 sentinel — 풀 소진 시 렌더 안 함. */}
-      {hasMore && !loadError && (effectiveChip === "all" || filtered.length >= PAGE) && (
+      {/* 무한스크롤 sentinel — 풀 소진(hasMore=false)·로드 에러·카테고리 전환 중(catPending —
+          곧 버려질 옛 풀을 당기는 낭비 fetch 방지) 렌더 안 함.
+          서버가 카테고리 전체 풀을 내려주므로(2026-07-03) 칩별 개수 분기는 불필요. */}
+      {hasMore && !loadError && !catPending && (
         <div ref={attachSentinel} className={styles.feedSentinel} aria-hidden="true" />
       )}
       {loading && pool.length > 0 && <FeedSkeleton count={1} />}
