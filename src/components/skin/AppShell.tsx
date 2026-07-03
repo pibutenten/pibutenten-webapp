@@ -22,6 +22,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "./app.module.css";
 import { useSession } from "@/lib/session-context";
+import { addEngagement } from "@/lib/engagement-score";
 import SearchPanel, { prefetchDiscover, type SearchPanelHandle } from "@/components/search/SearchPanel";
 import { addRecent } from "@/lib/recent-search";
 import { showToast } from "@/lib/toast";
@@ -331,6 +332,9 @@ export default function AppShell({
     //   라우팅만 하고 addRecent 를 안 거치므로, 인-헤더 제출 경로에서 여기서 기록한다(구 /search 페이지의
     //   addRecent 역할 승계). 피드는 FeedView::submitSearch 와 이중 호출되나 recent-search 가 dedup → 무해.
     addRecent(t);
+    // 소프트월 점수 v5(2026-07-03): 검색 제출 = 명확한 탐색 의도 +3(비로그인만).
+    //   모든 화면의 헤더 검색 제출이 이 지점을 지나므로 단일 배선(테이블에만 있고 미배선이던 결함 수정).
+    if (!isLoggedIn) addEngagement("search");
     if (typeof onSearchSubmit === "function") onSearchSubmit(t);
     else setValue(t);
   };

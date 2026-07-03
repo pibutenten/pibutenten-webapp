@@ -4,7 +4,9 @@
  * 정책:
  *   - 비로그인 사용자가 사이트와 인터랙션할수록 점수 누적 (sessionStorage).
  *   - 임계점(THRESHOLD) 도달 시 한 번만 회원가입 권유 모달 트리거 (custom event emit).
- *   - "나중에" 닫음 → localStorage 에 dismiss timestamp 저장 → 일주일 후 재노출 가능.
+ *   - 닫음 → localStorage 에 {at, days} 저장 → 기간 경과 후 재노출.
+ *     v5(2026-07-03): 닫기 종류별 분리 — "나중에 할게요"=3일 / 바깥클릭·ESC·CTA 이동=1일.
+ *     (구 v4 는 어떤 닫기든 7일 — 실수성 닫힘에 과한 잠금이라 소프트월이 죽은 것처럼 보였음.)
  *   - 로그인 사용자에게는 no-op (점수 누적 자체 안 함).
  *   - custom event detail 에 reason 동봉 → 모달이 reason 별 카피 선택 가능.
  *
@@ -20,7 +22,7 @@
  *   일반 피드 카드 view 1개 (Q&A·후기 등)    — +2
  *   카드 펼침 (더보기 클릭)                — +2  (깊이 읽음)
  *   영상 보러가기 클릭                     — +3  (외부 의도)
- *   검색 1회                              — +3  (명확한 의도)
+ *   검색 1회                              — +3  (명확한 의도 — AppShell 헤더 제출 배선, v5)
  *   카테고리 chip 클릭                     — +1  (탐색)
  *   태그 클릭                             — +2  (깊은 탐색)
  *   페이지 navigate                       — +1
@@ -68,7 +70,7 @@ export const THRESHOLD = 15;
 const SS_SCORE_KEY = "pibutenten:engagement-score";
 const SS_TRIGGERED_KEY = "pibutenten:engagement-triggered";
 const LS_DISMISSED_KEY = "pibutenten:engagement-dismissed-at";
-const RESET_AFTER_DAYS = 7;
+const LEGACY_RESET_DAYS = 7; // 구(v4) 단일 7일 — 옛 localStorage 숫자값 호환 전용
 const EVENT_NAME = "pibutenten:engagement-threshold";
 
 export type EngagementEventDetail = {
@@ -87,19 +89,27 @@ export function addEngagement(reason: EngagementReason): number {
   // 이미 본 세션에서 모달 트리거됐으면 점수 누적 안 함.
   if (sessionStorage.getItem(SS_TRIGGERED_KEY)) return -1;
 
-  // 일주일 안에 dismiss 했으면 점수 누적 안 함.
-  const dismissedAt = (() => {
+  // 잠금기간(닫기 종류별 — v5) 안이면 점수 누적 안 함.
+  const dismissed = (() => {
     try {
       const raw = localStorage.getItem(LS_DISMISSED_KEY);
-      return raw ? Number(raw) : 0;
+      if (!raw) return null;
+      // v5: JSON {at, days}. v4 이하: 숫자 문자열(단일 7일) 호환.
+      if (raw.startsWith("{")) {
+        const p = JSON.parse(raw) as { at?: number; days?: number };
+        if (typeof p?.at !== "number" || !Number.isFinite(p.at)) return null;
+        return { at: p.at, days: typeof p.days === "number" ? p.days : 1 };
+      }
+      const n = Number(raw);
+      return Number.isFinite(n) && n > 0 ? { at: n, days: LEGACY_RESET_DAYS } : null;
     } catch {
-      return 0;
+      return null;
     }
   })();
-  if (dismissedAt > 0) {
-    const ageDays = (Date.now() - dismissedAt) / (1000 * 60 * 60 * 24);
-    if (ageDays < RESET_AFTER_DAYS) return -1;
-    // 일주일 지났으면 dismiss 해제
+  if (dismissed) {
+    const ageDays = (Date.now() - dismissed.at) / (1000 * 60 * 60 * 24);
+    if (ageDays < dismissed.days) return -1;
+    // 기간 경과 — 잠금 해제
     try {
       localStorage.removeItem(LS_DISMISSED_KEY);
     } catch {
@@ -122,11 +132,17 @@ export function addEngagement(reason: EngagementReason): number {
   return next;
 }
 
-/** "나중에" 버튼 클릭 시 호출 — 일주일 후 재노출. */
-export function dismissEngagementPrompt(): void {
+/**
+ * 모달 닫힘 시 호출 — days 후 재노출 (v5: 닫기 종류별).
+ *   "나중에 할게요"(명시 거절)=3 / 바깥클릭·ESC·CTA 이동(실수성·이동성)=1.
+ */
+export function dismissEngagementPrompt(days: number = 1): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(LS_DISMISSED_KEY, String(Date.now()));
+    localStorage.setItem(
+      LS_DISMISSED_KEY,
+      JSON.stringify({ at: Date.now(), days }),
+    );
   } catch {
     /* ignore */
   }

@@ -131,9 +131,11 @@ export default function EngagementPromptListener() {
     <EngagementPromptDialog
       open={open}
       reason={reason}
-      onClose={() => {
+      onClose={(kind) => {
         setOpen(false);
-        dismissEngagementPrompt();
+        // v5(2026-07-03): '나중에 할게요'=3일, 바깥클릭·ESC·CTA 이동=1일
+        //   (실수성 닫힘에 7일 전면 잠금이 걸려 소프트월이 죽은 듯 보이던 문제 — 원장 피드백).
+        dismissEngagementPrompt(kind === "later" ? 3 : 1);
       }}
     />
   );

@@ -20,7 +20,12 @@ import type { EngagementReason } from "@/lib/engagement-score";
 type Props = {
   open: boolean;
   reason: EngagementReason;
-  onClose: () => void;
+  /**
+   * 닫기 콜백 — kind 로 잠금기간 분기(v5, 2026-07-03).
+   *   "later"  = "나중에 할게요" 명시 거절(긴 잠금).
+   *   "casual" = 바깥클릭·ESC·CTA 이동(짧은 잠금 — 실수성 닫힘에 과한 페널티 방지).
+   */
+  onClose: (kind: "later" | "casual") => void;
 };
 
 const COPY_PRESETS: Record<
@@ -72,7 +77,7 @@ export default function EngagementPromptDialog({ open, reason, onClose }: Props)
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onClose("casual");
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -98,7 +103,7 @@ export default function EngagementPromptDialog({ open, reason, onClose }: Props)
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
+      onClick={() => onClose("casual")}
       role="dialog"
       aria-modal="true"
       aria-labelledby="engagement-prompt-title"
@@ -142,7 +147,7 @@ export default function EngagementPromptDialog({ open, reason, onClose }: Props)
         </div>
 
         {/* 소셜 로그인 (카카오/네이버/Google) */}
-        <div className="mt-3" onClick={onClose}>
+        <div className="mt-3" onClick={() => onClose("casual")}>
           <SocialLoginButtons next={nextPath} />
         </div>
 
@@ -150,7 +155,7 @@ export default function EngagementPromptDialog({ open, reason, onClose }: Props)
         <Link
           href={`/signup${nextParam}`}
           className="mt-4 block rounded-full bg-[var(--primary)] px-4 py-2.5 text-center text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)]"
-          onClick={onClose}
+          onClick={() => onClose("casual")}
         >
           전문의 답변 무제한 보기 →
         </Link>
@@ -159,7 +164,7 @@ export default function EngagementPromptDialog({ open, reason, onClose }: Props)
         <Link
           href={`/login${nextParam}`}
           className="mt-2 block text-center text-[12.5px] text-[var(--text-secondary)] hover:text-[var(--primary)]"
-          onClick={onClose}
+          onClick={() => onClose("casual")}
         >
           이미 회원이세요? 로그인
         </Link>
@@ -167,7 +172,7 @@ export default function EngagementPromptDialog({ open, reason, onClose }: Props)
         {/* tertiary — 나중에 할게요 (간격 확보) */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => onClose("later")}
           className="mt-5 block w-full py-2 text-center text-[12px] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
         >
           나중에 할게요
