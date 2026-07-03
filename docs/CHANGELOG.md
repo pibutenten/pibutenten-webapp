@@ -6,6 +6,24 @@
 
 ---
 
+## [2026-07-03] — 이메일 인증(가입·비밀번호 재설정) 신설 + 로그인 "시작하기" 리프레이밍
+
+발신 인프라(Resend, no-reply@pibutenten.kr — 도메인 verified·Supabase SMTP·한글 템플릿) 완성에 이어 Phase 1+2 를 한 라운드로 구현. 코드검수관 2명 이중검수 — [치명] 4건(PKCE cross-device 결함→token_hash 템플릿 전환 / reset 직접진입 비번변경→서버 reauth 강제 / recovery 시 signOut 세션파괴→recovery 제외 / getSession→getUser) 전부 반영 후 tsc·build 통과.
+
+### Added
+- **이메일 회원가입** `/signup/email` — 이메일·비밀번호(8자+)·확인 → signUp → "확인 메일을 보냈어요". 기가입(identities 빈 배열) 분기 안내. 확인 메일 클릭 → 기존 콜백 verifyOtp(type=signup) → 약관 게이트 → 온보딩(기존 인프라 전부 재사용)
+- **비밀번호 재설정** `/auth/forgot-password`(요청 — 계정 존재 비노출 동일 안내) + `/auth/reset-password`(새 비밀번호 설정, getUser 서버검증) + 콜백 recovery 분기(약관·온보딩 미경유 직행)
+- LoginForm 에 "이메일로 가입하기 · 비밀번호를 잊으셨나요?" 링크(next 보존) + autoComplete(email/current-password)
+
+### Changed
+- **로그인 화면 리프레이밍(Phase 1)**: "피부텐텐 로그인" → "피부텐텐 시작하기" + 부제("처음이든 다시 오셨든, 버튼 하나면 돼요"). 소셜 섹션 중복 제목 제거, 가입 안내 캡션을 소셜 버튼 바로 아래로 승격("가입까지 자동으로 끝나요"), 구 focusSocial 스크롤 로직 잔재 제거
+
+### Security
+- **메일 링크 token_hash 전환**(confirmation·recovery 템플릿): PKCE code 링크는 요청한 브라우저에서만 열림(cross-device 실패) → token_hash+콜백 verifyOtp 로 통일해 어느 기기에서 열어도 동작 + 링크 도메인 canonical(SiteURL) 고정
+- **secure password change ON**(`security_update_password_require_reauthentication`) — 재설정 링크(recovery) 세션 없이 로그인 세션만으로 updateUser(password) 호출(콘솔 포함) 시 서버가 거부. 폼은 친절 안내로 매핑
+- 콜백 signOut 을 recovery 에서 제외(global signOut 이 타 기기 세션 파괴 + verifyOtp 실패 시 기존 세션 소실 방지) · mailer_autoconfirm OFF(확인 메일 필수) · password_min_length 8 · 메일 발송 한도 2→30/h · /signup/email 로그인 리다이렉트 open redirect 가드 · 에러 div role=alert
+
+
 ## [2026-07-03] — 앱 로그인 게이트 신설 + 소프트월 v5 (원장 확정 정책)
 
 원장 제보·결정 라운드: "앱=로그인 후 열람, 웹=점수 소프트월" 정책 확정. 코드검수관 2회 검수([치명] 0 — [경고] 오추방 경로는 이중 판정으로, 잔류 극단 케이스는 주석 명시로 반영) → tsc·build 통과.
