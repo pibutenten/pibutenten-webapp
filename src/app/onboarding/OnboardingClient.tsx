@@ -17,6 +17,7 @@ import {
   SKIN_TYPES,
   SKIN_CONCERNS,
 } from "@/lib/profile-options";
+import { FITZPATRICK_TONES } from "@/lib/fitzpatrick";
 import { CATEGORIES, PROCEDURE_CATEGORIES, type CategorySlug, type ProcedureSlug } from "@/lib/categories";
 import type { PopularByCategory } from "@/lib/popular-keywords";
 
@@ -296,7 +297,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
       return;
     }
     if (!fitzpatrick) {
-      setErr("햇볕에 대한 피부 반응을 선택해주세요.");
+      setErr("피부색을 선택해주세요.");
       return;
     }
     if (skinConcerns.length === 0) {
@@ -488,7 +489,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
           노출되어요.
         </p>
         <div className="space-y-3">
-          {/* 이메일 — 라벨 좌측, 입력 우측 (가로 정렬) */}
+          {/* 이메일 — 라벨 좌측, 입력 우측. 소셜에서 가져온 값은 표시·수정 가능, 없으면 직접 입력(필수). */}
           <div className="flex items-center gap-3">
             <span className="w-[60px] shrink-0 text-[12px] font-medium text-[var(--text-secondary)]">
               이메일
@@ -607,50 +608,43 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
         </div>
 
         {/* 피츠패트릭 광반응 (I-Fix4 신규·필수). profiles.fitzpatrick smallint CHECK 1~6.
-            긴 보기 텍스트라 칩 대신 풀폭 세로 라디오형 목록. 6개 보기 카피는 사용자 확정 verbatim.
-            번호 동그라미는 선택 시 해당 타입의 피부색으로 변함(미선택은 동일한 연한색).
-            톤 hex: Fitzpatrick I(매우 밝음)~VI(짙음) 표준 근사값 (사용자 요청 2026-06-30). */}
+            얼굴 아이콘 3×2 그리드 — 이미지 에셋 없이 코드 SVG.
+            톤·캡션 SSOT = lib/fitzpatrick.ts (원장 확정 2026-07-03) — 얼굴 아이콘 3×2 선택 UI. */}
         <div>
-          <SubLabel>햇볕을 오래 쬐면 피부가 어떻게 반응하나요?</SubLabel>
-          <div className="flex flex-col gap-1">
-            {[
-              { v: 1, main: "항상 붉어지고 거의 안 타요 · 매우 밝은 톤", note: "북유럽계 백인에서 흔해요", bg: "#FCEFE7", fg: "#6B5444" },
-              { v: 2, main: "쉽게 붉어지고 서서히 타요 · 밝은 톤", note: "밝은 편의 한국인, 유럽계 백인", bg: "#F8E0CE", fg: "#6B5444" },
-              { v: 3, main: "가끔 붉어지고 쉽게 타요 · 중간 톤", note: "보통의 한국인·동아시아인", bg: "#F0CDB0", fg: "#5A4433" },
-              { v: 4, main: "붉어지기보단 잘 타요 · 올리브~연갈색", note: "어두운 편의 한국인, 중동계", bg: "#E2B896", fg: "#4A3322" },
-              { v: 5, main: "거의 안 붉어지고 진하게 타요 · 갈색", note: "인도·중동·라틴계에서 흔해요", bg: "#9A6A43", fg: "#FFFFFF" },
-              { v: 6, main: "붉어지지 않아요 · 짙은 갈색~검정", note: "아프리카계에서 흔해요", bg: "#5A3A28", fg: "#FFFFFF" },
-            ].map((o) => {
+          <SubLabel>내 피부색과 가장 가까운 얼굴을 골라주세요.</SubLabel>
+          {/* 얼굴 6개 = 코드 SVG(이미지 에셋 0). 긴 반응 설명문(6종×2줄) → 얼굴+짧은 캡션으로
+              간소화(원장 확정 2026-07-03). 필수 항목(다른 항목들과 동일). */}
+          <div className="grid grid-cols-3 gap-2">
+            {FITZPATRICK_TONES.map((o) => {
               const on = fitzpatrick === o.v;
+              const ink = o.v >= 5 ? "#F6E7D8" : "#4A3322";
               return (
                 <button
                   key={o.v}
                   type="button"
+                  aria-pressed={on}
                   onClick={() => setFitzpatrick(o.v)}
-                  className={`flex w-full items-center gap-3 rounded-[var(--radius)] border px-3 py-2 text-left transition-colors active:scale-[0.99] ${
+                  className={`flex flex-col items-center gap-1.5 rounded-[var(--radius)] border px-2 py-2.5 transition-colors active:scale-[0.98] ${
                     on
-                      ? "border-[var(--primary)]"
+                      ? "border-[var(--primary)] bg-[#EAF6FD]"
                       : "border-[var(--border)] bg-white hover:border-[var(--primary-light)]"
                   }`}
-                  style={on ? { backgroundColor: "#EAF6FD" } : undefined}
                 >
-                  <span
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[13px] font-bold transition-colors"
-                    style={
-                      on
-                        ? { backgroundColor: o.bg, color: o.fg }
-                        : { backgroundColor: "#E8EAEE", color: "#5C6470" }
-                    }
-                  >
-                    {o.v}
-                  </span>
-                  <span className="flex flex-col">
-                    <span className="text-[13px] font-medium text-[var(--text)]">
-                      {o.main}
-                    </span>
-                    <span className="text-[11.5px] text-[var(--text-muted)]">
-                      {o.note}
-                    </span>
+                  {/* 미니멀 얼굴 — 원형 톤 + 점 눈 + 미소. 어두운 톤(V·VI)은 이목구비를 밝게. */}
+                  <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden>
+                    <circle cx="22" cy="22" r="20" fill={o.tone} stroke="#E5E3DD" strokeWidth="1" />
+                    <circle cx="15.5" cy="19" r="2" fill={ink} />
+                    <circle cx="28.5" cy="19" r="2" fill={ink} />
+                    <path
+                      d="M15 27c2.2 2.6 4.8 3.9 7 3.9s4.8-1.3 7-3.9"
+                      stroke={ink}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  </svg>
+                  <span className="text-center text-[11px] leading-[1.35] text-[var(--text-secondary)]">
+                    {o.caption}
                   </span>
                 </button>
               );
