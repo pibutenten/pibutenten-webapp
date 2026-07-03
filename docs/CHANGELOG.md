@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-07-03] — 앱 로그인 게이트 신설 + 소프트월 v5 (원장 확정 정책)
+
+원장 제보·결정 라운드: "앱=로그인 후 열람, 웹=점수 소프트월" 정책 확정. 코드검수관 2회 검수([치명] 0 — [경고] 오추방 경로는 이중 판정으로, 잔류 극단 케이스는 주석 명시로 반영) → tsc·build 통과.
+
+### Added
+- **NativeLoginGate** (`components/NativeLoginGate.tsx`, layout 전역 마운트) — 앱(Capacitor 네이티브)에서 비로그인이면 /login?next= 게이트(웹 완전 no-op). 판정은 오추방 방지 이중 확인: ① 로컬 auth 세션(supabase.auth.getSession) → 통과 ② 서버 진실(/api/session) SessionInfo → 통과 ③ 둘 다 null 일 때만 추방. 서버 오류·네트워크 실패는 fail-open. 허용 경로 = /login·/signup·/auth·/onboarding·/terms·/privacy·/contact·/disclaimer. ⚠ 앱 심사 갱신 시 데모 계정 제출 필요(STORE_SUBMISSION_LOG).
+
+### Changed
+- **소프트월 v5 — 닫기 종류별 잠금 분리** (`engagement-score.ts`·`EngagementPromptDialog`·`EngagementPromptListener`) — 구 v4 는 바깥클릭·ESC·CTA 이동까지 전부 7일 전면 잠금(점수 누적 중단)이라 실수성 닫힘에 소프트월이 죽은 듯 보였음(원장 제보). "나중에 할게요"=3일 / 실수성·이동성 닫힘=1일. 저장 포맷 숫자→JSON {at,days}(v4 숫자값은 7일로 legacy 호환). 로그인 후 dismiss 잠금 유지(로그아웃 직후 재노출 여유)는 의도로 채택.
+
+### Fixed
+- **검색 점수 미배선** (`AppShell.tsx`) — SCORE_TABLE 의 search(+3)가 정의만 있고 어디서도 호출되지 않던 결함(원장 제보 "검색 여러 번 해도 안 들어감"). 모든 화면의 헤더 검색 제출이 지나는 단일 지점(AppShell 제출 핸들러)에 배선(비로그인만, 피드 submitSearch 와 이중 가산 없음 검수 확인).
+
+---
+
 ## [2026-07-02] — 개선 라운드 1: /topics 밸브·성능·보안·안정성 (개선계획서 v2, 6패키지 병렬)
 
 전방위 건강 감사(에이전트 20) → 개선계획서 v2 원장 승인 → 패키지 A~F 병렬 구현 → 디렉터 1차 검수 + 코드검수관 2명 이중검수([치명] 1건 — push/send safeEqual 사본 미통합 — 즉시 통합, [중요] RecordView 라벨 사본·헤드라인 null 방어 반영) → tsc·build 통과. 커밋 `a2e1e7d`(선행 shortLabel)·`ee21223`(A)·`3bafa28`(B)·`5bb8589`(C)·`da5588b`(D)·`2dd70f3`(E)·`6d73182`(F).
