@@ -9,6 +9,7 @@ import PageTransition from "@/components/PageTransition";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import EngagementPromptListener from "@/components/EngagementPromptListener";
 import NativeAuthDeepLink from "@/components/NativeAuthDeepLink";
+import NativeLoginGate from "@/components/NativeLoginGate";
 import NativeStatusBar from "@/components/NativeStatusBar";
 import WriteFab from "@/components/WriteFab";
 import { SessionProvider } from "@/lib/session-context";
@@ -197,6 +198,8 @@ export default function RootLayout({
           <EngagementPromptListener />
           {/* 네이티브 앱 OAuth 딥링크 핸들러 — 시스템 브라우저 로그인 복귀 처리(웹=no-op) */}
           <NativeAuthDeepLink />
+          {/* 앱 전용 로그인 게이트 — 네이티브+비로그인은 /login 으로(웹=no-op, 2026-07-02 원장 결정) */}
+          <NativeLoginGate />
           {/* 네이티브 상태바 글씨색 보정 — 밝은 배경에 어두운(검정) 아이콘(웹=no-op). 웹 배포로 즉시 반영. */}
           <NativeStatusBar />
         </SessionProvider>
