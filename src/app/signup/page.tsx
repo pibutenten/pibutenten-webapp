@@ -45,12 +45,22 @@ export default async function SignupPage({ searchParams }: Props) {
 
   // OAuth 메타에서 가져온 닉네임 후보
   const meta = user.user_metadata || {};
+  // 이메일 가입자는 기본값 비움(2026-07-03 원장 결정) — 닉네임은 공개 표시명이라
+  //   이메일 아이디(로컬파트)가 그대로 노출되는 것을 방지, 본인이 직접 작성.
+  //   소셜 가입자는 provider 이름 폴백 유지(이름 미제공 provider 만 이메일 폴백).
+  //   provider 판별은 두 위치 참조(검수 반영): 표준 OAuth(Google/Kakao)=app_metadata.provider,
+  //   Naver 자체 흐름=user_metadata.provider(naver 콜백이 세팅). 둘 다 없으면 email 취급(폴백 생략 안전측).
+  const provider =
+    (typeof user.app_metadata?.provider === "string" &&
+      user.app_metadata.provider) ||
+    (typeof meta.provider === "string" && meta.provider) ||
+    "email";
   const initialName: string =
     profile?.display_name ||
     (typeof meta.full_name === "string" && meta.full_name) ||
     (typeof meta.name === "string" && meta.name) ||
     (typeof meta.nickname === "string" && meta.nickname) ||
-    (user.email ? user.email.split("@")[0] : "") ||
+    (provider !== "email" && user.email ? user.email.split("@")[0] : "") ||
     "";
 
   return (
