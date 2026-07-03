@@ -71,19 +71,16 @@ export default function LoginPromptDialog({ open, message, onClose }: Props) {
           <br />더 많은 글과 기능을 이용할 수 있어요.
         </p>
         <div className="mt-5 flex flex-col gap-2">
+          {/* 단일 CTA(2026-07-03) — 옛 '회원가입'(/signup 직링크)은 비로그인 클릭 시 /login 으로
+              튕기는 잔재라 제거. /login = '시작하기' 통합 화면(소셜=가입/로그인 겸용 + 이메일)이라
+              가입·로그인 둘 다 이 한 곳으로 모인다. */}
           <Link
-            href={`/signup${nextParam}`}
+            href={`/login${nextParam}`}
+            aria-label="가입 또는 로그인하고 시작하기"
             className="block rounded-full bg-[var(--primary)] px-4 py-2.5 text-center text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)]"
             onClick={onClose}
           >
-            회원가입
-          </Link>
-          <Link
-            href={`/login${nextParam}`}
-            className="block rounded-full border border-[var(--border)] bg-white px-4 py-2.5 text-center text-[13px] font-medium text-[var(--text)] transition-colors hover:bg-[var(--bg-soft)]"
-            onClick={onClose}
-          >
-            로그인
+            3초 만에 시작하기 — 가입 / 로그인
           </Link>
           <button
             type="button"

@@ -151,23 +151,26 @@ export default function EngagementPromptDialog({ open, reason, onClose }: Props)
           <SocialLoginButtons next={nextPath} />
         </div>
 
-        {/* primary CTA — 전문의 답변 무제한 보기 (= /signup) */}
-        <Link
-          href={`/signup${nextParam}`}
-          className="mt-4 block rounded-full bg-[var(--primary)] px-4 py-2.5 text-center text-[13px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)]"
-          onClick={() => onClose("casual")}
-        >
-          전문의 답변 무제한 보기 →
-        </Link>
-
-        {/* secondary — 로그인 텍스트 링크 */}
-        <Link
-          href={`/login${nextParam}`}
-          className="mt-2 block text-center text-[12.5px] text-[var(--text-secondary)] hover:text-[var(--primary)]"
-          onClick={() => onClose("casual")}
-        >
-          이미 회원이세요? 로그인
-        </Link>
+        {/* secondary — 이메일 가입 / 로그인 텍스트 링크 (2026-07-03).
+            옛 큰 CTA(/signup 직링크)는 비로그인 클릭 시 /login 으로 튕기는 잔재라 제거 —
+            1차 진입은 위 소셜 버튼(=가입/로그인 겸용), 이메일 경로는 텍스트 링크로 보조. */}
+        <p className="mt-4 text-center text-[12.5px] text-[var(--text-secondary)]">
+          <Link
+            href={`/signup/email${nextParam}`}
+            className="hover:text-[var(--primary)] hover:underline"
+            onClick={() => onClose("casual")}
+          >
+            이메일로 가입
+          </Link>
+          <span className="mx-2 text-[var(--text-muted)]">·</span>
+          <Link
+            href={`/login${nextParam}`}
+            className="hover:text-[var(--primary)] hover:underline"
+            onClick={() => onClose("casual")}
+          >
+            이미 회원이세요? 로그인
+          </Link>
+        </p>
 
         {/* tertiary — 나중에 할게요 (간격 확보) */}
         <button
