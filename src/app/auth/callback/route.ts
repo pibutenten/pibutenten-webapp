@@ -139,7 +139,13 @@ export async function GET(request: NextRequest) {
     //   ⚠ 다른 계정으로 전환하는 경우(예: 구글 user@gmail.com 세션이 살아있는 상태에서
     //     네이버 user@naver.com 시도)에 잔여 세션이 우선되어 사용자가 혼란을 겪음.
     //     → 명시적으로 signOut 후 verifyOtp.
-    await supabase.auth.signOut();
+    //   단 recovery(비밀번호 재설정)는 제외(검수 반영, 2026-07-03) — signOut(기본 global
+    //     스코프)이 다른 기기의 세션까지 무효화할 수 있고, 이후 verifyOtp 가 실패하면
+    //     (만료 링크 등) 기존 세션만 잃는 사고가 된다. recovery 는 verifyOtp 가 로컬
+    //     세션을 교체하므로 사전 signOut 이 불필요하다.
+    if (otpType !== "recovery") {
+      await supabase.auth.signOut();
+    }
 
     const { data: verifyData, error: verifyErr } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
@@ -153,6 +159,15 @@ export async function GET(request: NextRequest) {
         request.url,
         { ...trackBase, step: "token_verify" },
       );
+    }
+
+    // (b-1) 비밀번호 재설정(recovery) — 프로필·약관·온보딩 분기 없이 곧장 새 비밀번호
+    //   설정 화면으로 보낸다(Phase 2, 2026-07-03). 세션은 위 verifyOtp 로 확립됐고,
+    //   /auth/reset-password 가 updateUser({ password }) 를 처리한다.
+    //   ★실경로: recovery 메일 템플릿이 token_hash 링크(SiteURL/auth/callback?token_hash=…
+    //   &type=recovery, config 2026-07-03)라 이 분기가 유일한 재설정 진입점(cross-device 지원).
+    if (otpType === "recovery") {
+      return NextResponse.redirect(`${origin}/auth/reset-password`);
     }
   }
 

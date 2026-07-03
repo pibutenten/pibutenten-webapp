@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import InAppBrowserNotice from "@/components/InAppBrowserNotice";
@@ -26,26 +27,6 @@ export default function LoginForm({ next, error: initialError, errorId }: Props)
     : null;
   const [error, setError] = useState<string | null>(friendlyInitial);
   const [isPending, startTransition] = useTransition();
-  const socialRef = useRef<HTMLElement>(null);
-  const [highlightSocial, setHighlightSocial] = useState(false);
-  const highlightTimer = useRef<number | null>(null);
-
-  // 언마운트 시 하이라이트 타이머 정리 — 로그인 성공 후 이동 시 setState 경고 방지.
-  useEffect(() => {
-    return () => {
-      if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
-    };
-  }, []);
-
-  // 신규 사용자를 소셜 로그인(= 실제 가입 입구)으로 유도.
-  //   /signup 은 OAuth 성공 후 약관 게이트라 비로그인 진입 시 /login 으로 튕긴다.
-  //   따라서 별도 페이지로 보내지 않고 같은 화면의 소셜 버튼으로 스크롤 + 하이라이트한다.
-  function focusSocial() {
-    socialRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setHighlightSocial(true);
-    if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
-    highlightTimer.current = window.setTimeout(() => setHighlightSocial(false), 1600);
-  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,33 +64,25 @@ export default function LoginForm({ next, error: initialError, errorId }: Props)
       {/* 인앱 브라우저 감지 안내 (카카오톡/페이스북 등에서 구글 OAuth 차단됨) */}
       <InAppBrowserNotice />
 
-      {/* 소셜 로그인 섹션 (= 실제 가입 입구) */}
+      {/* 소셜 로그인 섹션 (= 실제 가입 입구) — 제목·설명은 화면 제목("피부텐텐 시작하기")과
+          중복이라 제거하고, 버튼 아래 가입 안내 캡션으로 승격. */}
       <section
-        ref={socialRef}
-        className={`rounded-[var(--radius)] border bg-white p-5 shadow-[var(--shadow-sm)] transition ${
-          highlightSocial
-            ? "border-[var(--primary)] ring-2 ring-[var(--primary)]/40"
-            : "border-[var(--border)]"
-        }`}
-        aria-labelledby="social-login-title"
+        className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5 shadow-[var(--shadow-sm)]"
+        aria-label="소셜 계정으로 시작하기"
       >
-        <h2
-          id="social-login-title"
-          className="text-sm font-semibold text-[var(--text)]"
-        >
-          소셜로 시작하기
-        </h2>
-        <p className="mb-3 text-[12px] text-[var(--text-muted)]">
-          3초만에 가입 / 로그인 — 별도 비밀번호 없이 바로 시작해요.
-        </p>
         <SocialLoginButtons next={next} />
+        <p className="mt-3 text-center text-[12px] leading-relaxed text-[var(--text-muted)]">
+          처음이신가요? 위 버튼으로 시작하면 가입까지 자동으로 끝나요.
+          <br />
+          약관 동의는 다음 화면에서 받아요.
+        </p>
       </section>
 
       {/* 구분선 */}
       <div className="relative flex items-center">
         <div className="flex-grow border-t border-[var(--border)]" />
         <span className="mx-3 text-xs text-[var(--text-muted)]">
-          또는 이메일로 로그인
+          또는 이메일로
         </span>
         <div className="flex-grow border-t border-[var(--border)]" />
       </div>
@@ -128,6 +101,7 @@ export default function LoginForm({ next, error: initialError, errorId }: Props)
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 outline-none caret-[var(--primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/25"
             placeholder="example@pibutenten.local"
+            autoComplete="email"
           />
         </label>
         <label className="block text-sm">
@@ -138,6 +112,7 @@ export default function LoginForm({ next, error: initialError, errorId }: Props)
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 outline-none caret-[var(--primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/25"
+            autoComplete="current-password"
           />
         </label>
         {error && (
@@ -171,17 +146,25 @@ export default function LoginForm({ next, error: initialError, errorId }: Props)
         </button>
       </form>
 
-      {/* 회원가입 안내 — 소셜 로그인이 곧 가입. /signup(약관 게이트)로 보내면
-          비로그인 상태에서 /login 으로 튕기므로, 위 소셜 버튼으로 유도한다. */}
-      <p className="text-center text-sm text-[var(--text-secondary)]">
-        처음이신가요?{" "}
-        <button
-          type="button"
-          onClick={focusSocial}
-          className="font-semibold text-[var(--primary)] hover:underline"
+      {/* 이메일 가입·비밀번호 재설정 진입 — Phase 2(2026-07-03). */}
+      <p className="text-center text-[12.5px] text-[var(--text-secondary)]">
+        <Link
+          href={
+            next
+              ? `/signup/email?next=${encodeURIComponent(next)}`
+              : "/signup/email"
+          }
+          className="hover:text-[var(--primary)] hover:underline"
         >
-          소셜 계정으로 3초 만에 가입하기
-        </button>
+          이메일로 가입하기
+        </Link>
+        <span className="mx-2 text-[var(--text-muted)]">·</span>
+        <Link
+          href="/auth/forgot-password"
+          className="hover:text-[var(--primary)] hover:underline"
+        >
+          비밀번호를 잊으셨나요?
+        </Link>
       </p>
     </div>
   );

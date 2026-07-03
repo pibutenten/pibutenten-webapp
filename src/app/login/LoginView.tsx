@@ -29,9 +29,13 @@ export default function LoginView({
   return (
     <AppShell active="마이" wide keepCanvas>
       <section className="mx-auto w-full max-w-[400px] py-10">
-        <h1 className="mb-6 text-center text-xl font-bold text-[var(--text)]">
-          피부텐텐 로그인
+        <h1 className="mb-1.5 text-center text-xl font-bold text-[var(--text)]">
+          피부텐텐 시작하기
         </h1>
+        {/* 부제 — "시작하기" 단일 진입 리프레이밍(가입=로그인 겸용, 시스템이 판별). */}
+        <p className="mb-6 text-center text-[13px] text-[var(--text-muted)]">
+          처음이든 다시 오셨든, 버튼 하나면 돼요
+        </p>
         <LoginForm next={next} error={error} errorId={errorId} />
       </section>
     </AppShell>
