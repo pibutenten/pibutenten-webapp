@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-07-04] — 보안 배치 Phase 1-A: 헤더 위조 IDOR·탈퇴 익명화·자잘 2건 (감사→검토→독립검증)
+
+전방위 감사(에이전트 16) → 현재코드 재검증(에이전트 8) → 회귀위험 검토(서브에이전트 2) → 독립 사실검증(서브에이전트 2)을 거쳐 확정한 보안 배치. 두 감사보고서: `docs/reports/2026-07-02-전방위-감사-종합보고서.md`, `docs/reports/2026-07-04-재검증-및-수정계획서.md`. Phase 1-A(GRANT 회수 없는 안전 배치)만 적용 — H-1(PII 컬럼 REVOKE)은 배포 순서상 Phase 1-B로 분리.
+
+### Security
+- **[치명 C-1] current_active_profile_id() 헤더 위조 IDOR 차단 (마이그 0331)** — 함수가 `x-active-profile-id` 헤더를 소유권 검증 없이 반환해, 로그인 공격자가 raw REST 에 피해자 profile UUID 를 넣으면 소유자 RLS 31개 정책이 피해자 기준으로 통과(타인 시술일기·알림 열람, 타인 명의 댓글·좋아요, 타인 글 수정·삭제)하던 수평 권한상승. `is_admin()`/`current_doctor_id()` 와 동일한 묶음 소유권 EXISTS 게이트 추가 → 본인 묶음일 때만 반환, 위조면 NULL(COALESCE 가 본인 base 로 폴백). 함수 1곳으로 31개 정책 동시 방어. 성능 무회귀(STABLE·PK+auth_user_id 인덱스). 정상 사용자 base 176/sub 10 전부 통과 확인.
+- **[높음 H-2] 탈퇴 시 묶음 비-active 명함 PII 영구 잔존 차단 (마이그 0332)** — 익명화 RPC 가 active 1개만 처리하던 것을 묶음 전체 루프로 복원(auth_user_id 공유 9묶음 실재). **의사 명함은 익명화 제외(원장 결정 — 실명 공개 유지)**, v_mask 를 루프 안 프로필 id별 생성(handle unique 충돌=탈퇴 롤백 방지), fitzpatrick 포함 PII 전부 스크럽, `deleted_at IS NULL` 재시도 멱등. 0331 과 동시 적용.
+- **자잘 2건 (마이그 0333)** — card_likes SELECT 전체공개(좋아요 그래프 열거) → `TO authenticated` 본인+admin 한정(소비 3경로 무영향). site_visits anon INSERT 위조(KPI 오염) → 삽입 profile_id 가 본인 묶음일 때만 허용(정상 방문 적재 무영향).
+
+### Fixed
+- 탈퇴 트랜잭션 갭 완화 (`api/me/delete/route.ts`) — 익명화 성공 후 deleteUser 실패 시 "로그인되나 잠금" 반쪽 상태가 되던 것 → deleteUser 최대 3회 재시도(백오프)로 창 축소(익명화는 멱등이라 안전).
+
+### 검증 (커밋 전)
+- 마이그 3건(0331~0333) production 적용·U+FFFD 0·정의 재조회 확인. `npx tsc --noEmit` + `npm run build` 통과. 코드검수관 검수 → [치명] 마이그 번호 충돌(0329/0330 기존파일과) + [경고] fitzpatrick 누락 지적 → 0331~0333 재번호 + fitzpatrick 스크럽·card_likes TO authenticated·AuthError 타입·재시도 백오프 반영 후 재적용·재검수.
+
+---
+
 ## [2026-07-04] — 관리자 "시술 리포트" 전용 표 확장 (원장 확정)
 
 ### Changed (2차 확정 반영 — 같은 날)

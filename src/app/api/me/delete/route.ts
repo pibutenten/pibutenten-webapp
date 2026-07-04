@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { AuthError } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { errorResponse } from "@/lib/error-response";
@@ -86,7 +87,21 @@ export async function POST(req: Request) {
     });
   }
 
-  const { error: delErr } = await admin.auth.admin.deleteUser(user.id);
+  // 트랜잭션 갭 완화 (2026-07-04): 익명화 RPC(0332, 묶음 전체)는 이미 성공했다.
+  //   여기서 deleteUser 가 실패하면 PII 는 스크럽됐으나 auth.users 가 남는 반쪽 상태가
+  //   되어, 사용자가 로그인은 되나 모든 명함 auth_user_id 가 NULL 이라 active identity 를
+  //   못 얻는 잠금 상태가 된다. 익명화는 deleted_at IS NULL 필터로 멱등이므로 deleteUser
+  //   만 짧게 재시도해 반쪽 창을 좁힌다. 최종 실패해도 PII 는 이미 보호된 상태.
+  let delErr: AuthError | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      // 짧은 백오프 — 일시 장애 시 재시도 실효 확보 (탈퇴는 저빈도라 UX 영향 없음).
+      await new Promise((r) => setTimeout(r, 200 * attempt));
+    }
+    const res = await admin.auth.admin.deleteUser(user.id);
+    delErr = res.error;
+    if (!delErr) break;
+  }
   if (delErr) {
     return errorResponse(delErr, "generic", "[me/delete] admin deleteUser", 500, { user_id: user.id });
   }
