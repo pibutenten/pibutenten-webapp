@@ -120,13 +120,15 @@ async function main() {
   const env = loadEnv();
   let built;
   let dbCount = 0;
+  let rows = [];
+  let normRows = [];
   try {
-    const rows = await restFetch(
+    rows = await restFetch(
       env,
       "tag_dictionary?select=ko,category,en,aliases,pubmed_keywords,is_recommendable",
     );
     const blacklistRows = await restFetch(env, "tag_blacklist?select=word");
-    const normRows = await restFetch(env, "tag_normalization?select=canonical,variants");
+    normRows = await restFetch(env, "tag_normalization?select=canonical,variants");
     dbCount = rows.length;
     built = buildFromDb(rows, blacklistRows, normRows);
   } catch (e) {
@@ -136,6 +138,23 @@ async function main() {
     }
     console.error(`[gen-tag-dictionary] DB 조회 실패(${e.message}) + 스냅샷 없음 → 생성 불가`);
     return;
+  }
+  // 재발 방지 가드: tag_normalization.canonical 이 tag_dictionary.ko(대표어)와 충돌하면 빌드 실패.
+  // canonical = 입력 오타·변형어 SSOT, ko = 대표어 — 충돌 시 정상 태그 입력이 다른 태그로 재작성됨.
+  // 알려진 맹점(검수 기록 2026-07-04): aliases 가 canonical 인 패턴은 미탐지.
+  //   (예: '마리오네트라인'은 '마리오네트주름'의 alias 이자 canonical — variants=소유 ko 라 중립·무해.
+  //    alias 집합까지 검사하면 이 정상 행이 오탐되므로 ko 집합만 검사. alias+잘못된 variants 조합은 검수로 방어.)
+  const dictKoSet = new Set(rows.map((r) => r.ko));
+  const normConflicts = normRows
+    .filter((r) => r.canonical != null && dictKoSet.has(r.canonical))
+    .map((r) => r.canonical);
+  if (normConflicts.length > 0) {
+    console.error(
+      "[gen-tag-dictionary] 오류: tag_normalization.canonical 이 tag_dictionary.ko(대표어)와 충돌 \u2014 역방향 적재 감지\n" +
+        "  충돌 목록: " + normConflicts.join(", ") + "\n" +
+        "  canonical 은 오타\u00B7변형어, variants 는 정상 대표어여야 합니다.",
+    );
+    process.exit(1);
   }
   const snapshot = {
     generatedAt: new Date().toISOString(),
