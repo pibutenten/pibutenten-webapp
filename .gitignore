@@ -85,3 +85,4 @@ next-env.d.ts
 *.xcuserstate
 **/xcuserdata/
 **/xcschememanagement.plist
+scratchpad/
