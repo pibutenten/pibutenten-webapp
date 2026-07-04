@@ -124,11 +124,14 @@ export default function ReviewSummary({ review }: { review: ReviewSummaryData })
   }
 
   // 효과 체감 — 흐린 라벨 + 가운뎃점으로 연결한 하늘색 값(최대 3개, 남으면 +n 회색).
+  //   whitespace-nowrap: 한글 기본 줄바꿈(음절 단위)이 "효/과"처럼 글자 중간을 자르던 것 방지
+  //   (원장 확정 2026-07-04) — 자리가 모자라면 "효과 값들" 묶음이 통째로 다음 줄에서 시작.
+  //   값은 최대 3개+"+n"이라 묶음 폭이 모바일 최소 폭 안에 들어감(overflow 위험 없음).
   if (effects.length > 0) {
     const shown = effects.slice(0, MAX_EFFECTS);
     const rest = effects.length - shown.length;
     segments.push(
-      <span key="effects">
+      <span key="effects" className="whitespace-nowrap">
         <span className="text-[var(--text-muted)]">효과 </span>
         <span style={{ color: "var(--primary)" }}>{shown.join("·")}</span>
         {rest > 0 && (
