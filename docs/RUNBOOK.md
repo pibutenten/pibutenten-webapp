@@ -362,7 +362,7 @@ SSOT = DB `tag_dictionary`(+`tag_blacklist`·`tag_normalization`). 코드는 빌
 1. DB 수정 — 관리자 `/admin/tags`(인라인·개명·병합) 또는 마이그/Management API(대량).
 2. **스냅샷 재생**: 로컬 `node scripts/gen-tag-dictionary.mjs` (DB anon REST 로 읽어 generated.json 산출). `npm run build` 의 prebuild 가 자동 실행하므로, **배포(=Vercel 빌드)되면 자동 반영**.
 3. 커밋: generated.json 변경분 포함(타임스탬프만 바뀐 경우 `git checkout -- src/data/tag-dictionary.generated.json` 로 제외).
-4. 즉시성: 글 저장 흡수·정규화(트리거)는 DB 라 **즉시**. categoryFor/slugFor/auto-tag(스냅샷)는 **다음 배포** 반영.
+4. 즉시성: 글 저장 흡수·정규화(트리거)는 DB 라 **즉시**. categoryFor/slugFor(스냅샷)는 **다음 배포** 반영.
 
 ### 7.2. 마이그 적용 (Management API)
 ```bash
@@ -374,7 +374,7 @@ curl -s -X POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/data
 - service_role 은 RLS 우회하나 **테이블 GRANT 는 별도 필요**(마이그 0252 교훈) — 새 테이블 추가 시 `GRANT ... TO service_role` 누락 주의.
 
 ### 7.3. 자동추천 큐레이션(`is_recommendable`)
-- auto-tag(회원 무료) 후보 = `is_recommendable=true`(현 804). 신규 태그 기본 false → 노이즈 차단.
+- 추천 태그 플래그 = `is_recommendable=true`(현 804). 신규 태그 기본 false → 노이즈 차단. (소비처였던 회원 무료 auto-tag 코드는 2026-06-26 삭제 — 플래그·스냅샷 `autotag` 는 재도입 대비 데이터만 유지.)
 - 추천 편입은 현재 SQL `UPDATE tag_dictionary SET is_recommendable=true WHERE ko = ANY(...)` 로 수행(관리 화면 토글은 제거됨, 향후 거버넌스 별도). 편입 후 스냅샷 재생(7.1)으로 반영.
 
 ---

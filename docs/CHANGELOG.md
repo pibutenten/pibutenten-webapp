@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-07-04] — 개선 라운드 R6: 위생·문서 (독립 이중검증 실행계획)
+
+### Removed
+- **[R6-1] 죽은 코드 정리** — ① `src/lib/handle.ts` 삭제(import 0 — [handle] 라우트는 자체 인라인 정규식 사용) ② `/api/diaries` 라우트 + 고아 스키마 `lib/schema/api/diaries.ts` 삭제(/api/visits 로 대체 완료. 삭제 근거: 호출 0 전수 grep + 인증 필수·CSRF Origin 검증 대상이라 외부 서드파티가 합법적으로 의존 불가) — visits 잔존 주석 2곳 현행 정정 ③ card-url.ts 미사용 export 4종은 @핸들 전환 대비 **보류**(주석 명기) ④ 스냅샷 `autotag` 필드 사실관계 확정: 소비처 부재(옛 lib/auto-tag.ts 는 2026-06-26 감사 때 삭제), 회원 자동태깅은 현재 미구현(관리자 LLM 추출 `api/admin/extract-keywords` 만 존재) — ARCHITECTURE·TECH_SPEC·RUNBOOK 6곳 서술 현행화(스냅샷 필드·파이프라인은 불변, 필드 제거는 별도 결정).
+
+### Changed
+- **[R6-2] DATABASE.md 마이그레이션 표 정비** — 표2(꼬리 25행)·표3(0320 이후) 번호 오름차순 재정렬(행 내용 무수정 — 다중집합 바이트 대조 자동검증), 누락 행 0280 소급 등재(파일 헤더+CHANGELOG 근거 명기), 표1 머리말을 실범위에 맞는 "발췌" 서술로 정정, §5 상단에 **번호 중복 사실 명기 블록** 신설(0015/0046/0047/0048/0049/0292/0299 각 2파일 — production 적용 이력이라 재번호 절대 금지, 이후 최대 번호+1 엄수).
+- **[R6-3] `check-migration-naming` pre-commit 배선** — 기존 위반 20건(번호 충돌 10그룹 + `_fix_` 키워드 10건)을 `scripts/migration-naming-baseline.json` 허용 목록(30파일)으로 WARN 강등하고 **신규 위반만 ERROR 차단**하도록 스크립트 보강 후 pre-commit 체인(secret-scan·column-naming 뒤)에 배선. baseline 파싱 실패 시 전체 신규 간주(안전측), baseline 파일 수 증가 감지 가드(캡처 30개 초과 시 WARN — 우회 방지, 검수 제안 반영). 가짜 위반 3종 주입 테스트로 차단 실증.
+
+---
+
 ## [2026-07-04] — 개선 라운드 R5: 사용자경험 (독립 이중검증 실행계획)
 
 ### Fixed

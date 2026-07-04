@@ -162,7 +162,7 @@ ex) /minji-skin/Ab3xK9Pq
 
 키워드는 `cards.keywords text[]` 컬럼. SSOT=DB `tag_dictionary`(+빌드 스냅샷, §6.9). 3곳 동일 정책:
 - **AI 추출**: `POST /api/admin/extract-keywords` (`extract-keywords/route.ts` SYSTEM_PROMPT)
-- **사전 매칭**: `src/lib/auto-tag.ts` (회원 글쓰기 무료 경로) — 스냅샷 `autotag`(추천 태그만, §6.9)
+- ~~사전 매칭~~ (`src/lib/auto-tag.ts` 회원 무료 경로): 미사용으로 삭제됨(2026-06-26). 스냅샷 `autotag` 필드는 소비처 없이 유지(§6.9)
 - **저장 후처리**: `src/lib/procedure-dict.ts::normalizeTags()` + `src/lib/category-labels.ts::stripCategoryLabels()`
 - **저장 시 DB 흡수**: `cards` BEFORE 트리거가 동의어(alias)·영문을 대표어로 통일(§6.9)
 
@@ -227,7 +227,7 @@ ex) /minji-skin/Ab3xK9Pq
 - **빌드 스냅샷 파이프라인**: prebuild `scripts/gen-tag-dictionary.mjs` → `src/data/tag-dictionary.generated.json`(category·slug·pubmed·pubmedLookup·aliases·blacklist·normalizations·autotag, **서버 전용**) + 클라 경량 투영 `tag-dictionary.client.generated.json`(category·slug·blacklist·normalizations — 같은 실행·같은 객체 투영, R4-3). TS lookup 은 클라 공용(`procedure-dict.client.ts` — categoryFor/normalizeTag(s)/isBlacklisted, 경량 투영)과 서버 전용(`procedure-dict.ts` — re-export + slugFor/pubmed 계, 전체 스냅샷)으로 분리(동기·DB 무접근). DB 변경은 다음 배포 prebuild 에서 반영.
 - **정규화(`normalizeTag`)**: 블랙리스트(§6.7)면 제거, `tag_normalization` 변형어면 결과 배열로 치환(§6.5 합성어 분리도 여기). 둘 다 DB 테이블 기반.
 - **저장 시 DB 흡수 트리거**(통일·SSOT 한 경로 — 일반인·원장·관리자 동일): `cards` BEFORE INSERT/UPDATE OF keywords → `cards_absorb_eng_tags()` ① alias(언어 무관) 매칭 시 대표어로 ② 영문 slugify→en 매칭 폴백. 신규 미매칭은 AFTER `cards_register_tags_trg` 가 미지정 등록. 로그 `tag_absorb_log`.
-- **자동태깅 큐레이션(`is_recommendable`)**: auto-tag(회원 무료) 후보를 추천 태그(804, 옛 큐레이션 819를 병합 반영)로 한정 → 일반어 노이즈 차단. 신규 태그 기본 false(향후 거버넌스에서 편입). 관리 화면 토글은 비실용으로 제거(데이터·필터는 유지).
+- **자동태깅 큐레이션(`is_recommendable`)**: 추천 태그 플래그(804, 옛 큐레이션 819를 병합 반영). 신규 태그 기본 false(향후 거버넌스에서 편입). 관리 화면 토글은 비실용으로 제거(데이터·필터는 유지). **현황**: 소비처였던 회원 무료 auto-tag(`lib/auto-tag.ts`)는 미사용으로 삭제됨(2026-06-26) — 플래그·스냅샷 `autotag` 필드는 현재 코드 소비처 없이 데이터만 유지(재도입 대비).
 - **관리자 편집**: `/admin/tags` + PATCH `/api/admin/tag-dictionary/[id]` + rename/merge RPC(`rename_tag`·`merge_tag` — cards.keywords 단일 tx 전파·트리거 disable·updated_at 보존). 목록 `get_tag_admin_overview`(사용량·검색량) range 청크(1000 상한 회피).
 
 ---
@@ -372,4 +372,4 @@ const authorName = doctor?.name ?? card.author?.display_name ?? "익명";
 
 ---
 
-**이 문서 변경 시**: 키워드 정책·온보딩 단계 변경은 코드 (`auto-tag.ts`, `OnboardingClient.tsx`) 와 한 commit 으로 갱신.
+**이 문서 변경 시**: 키워드 정책·온보딩 단계 변경은 코드 (`api/admin/extract-keywords/route.ts`, `OnboardingClient.tsx`) 와 한 commit 으로 갱신.

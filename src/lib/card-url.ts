@@ -1,6 +1,9 @@
 /**
  * Q&A 글 URL 생성 헬퍼.
  *
+ * [R6-1 보류] doctorUrl/adminCardsByDoctor/profileUrl/loginUrl 은 현재 import 0건이나
+ * @핸들 전환 시 재사용 가능성으로 삭제 보류(디렉터 확정) — 임의 삭제 금지.
+ *
  * v5.1 spec (칼럼 폐기 후):
  *  - 의사 글 (doctor + post_year + post_slug):
  *      /doctors/{doctorSlug}/{year}/{post-slug} ← canonical (keyword slug, year 유지)

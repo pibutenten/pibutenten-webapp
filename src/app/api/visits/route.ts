@@ -19,7 +19,7 @@ type SubmitStatus = "pending_review" | "published";
  * (옵션) procedure_reviews M행 + (옵션) day0 review_checkin + (옵션) 트랙A 예약을
  * 한 트랜잭션에서 원자적으로 생성.
  *
- * 흐름(/api/reviews + /api/diaries 패턴 계승):
+ * 흐름(/api/reviews + 옛 /api/diaries 패턴 계승 — /api/diaries 는 본 라우트로 대체 후 삭제, R6-1):
  *   1. active identity 확인 (없으면 401).
  *   2. role=user + 공개 후기(is_public=true)가 1건이라도 있으면 온보딩 게이트 검사.
  *   3. rate limit (분당 10회).
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
   const p = parsed.data;
 
   // 2. 온보딩 게이트 — role=user + 공개 후기(is_public=true)가 있을 때만(공개 콘텐츠 경로).
-  //    비공개 시계열·순수 기록만이면 /api/diaries 와 동일하게 게이트 없음.
+  //    비공개 시계열·순수 기록만이면 게이트 없음(옛 /api/diaries 와 동일 정책).
   const hasPublicReview = p.reviews.some((r) => r.is_public === true);
   if (
     role === ROLES.USER &&
