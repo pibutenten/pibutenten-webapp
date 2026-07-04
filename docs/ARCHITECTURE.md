@@ -90,7 +90,9 @@
 /admin                              운영 대시보드
 /admin/cards                        전체 글 관리
 /admin/cards/[id]/edit              글 편집
-/admin/review-reports               시술 리포트 요약 표 (읽기 전용, 4-1 · get_review_report_overview RPC)
+/admin/review-reports               시술 리포트 요약 표 (읽기 전용, 4-1 · get_review_report_overview RPC 0328 확장판.
+                                    플랫 목록·전 칸 중앙정렬·기본 후기수 내림차순·헤더 2단계 정렬,
+                                    만족도 분포는 툴팁 — 원장 확정 2026-07-04. 대시보드 상단 숫자 카드가 직행)
 /admin/comments                     댓글 관리
 /admin/doctors                      원장 목록 관리
 /admin/doctors/[slug]/edit          원장 프로필 편집
