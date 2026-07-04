@@ -44,7 +44,7 @@
     "zod": "^3.23.8"
   },
   "simple-git-hooks": {
-    "pre-commit": "node scripts/secret-scan.js && node scripts/column-naming-check.js"
+    "pre-commit": "node scripts/secret-scan.js && node scripts/column-naming-check.js && node scripts/check-migration-naming.mjs"
   },
   "overrides": {
     "postcss": "^8.5.10"
