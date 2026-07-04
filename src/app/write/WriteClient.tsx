@@ -76,6 +76,8 @@ type Props = {
   doctors: Doctor[];
   displayName: string;
   initialCategory?: PostCategorySlug;
+  /** R2-2: CardEditor dirty 신호 pass-through — /write 탭 전환 이탈 확인용(WriteView). */
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 export default function WriteClient({
@@ -83,6 +85,7 @@ export default function WriteClient({
   myDoctor,
   doctors,
   initialCategory,
+  onDirtyChange,
 }: Props) {
   const router = useRouter();
   // Q&A 는 원장·관리자 전용 작성 → 회원 질문 톤의 회전 카피 대신 고정 제목.
@@ -280,6 +283,7 @@ export default function WriteClient({
         createAuthorOptions={createAuthorOptions}
         hideCategorySelector
         onSubmit={handleSubmit}
+        onDirtyChange={onDirtyChange}
       />
     </section>
   );

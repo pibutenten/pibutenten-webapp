@@ -105,6 +105,8 @@ type Props = {
   initial?: ReviewEditInitial;
   /** 단답 질문 풀(timepoint='any' 활성). create 모드에서만 단답 2칸 노출. 비면 숨김. */
   shortAnswerQuestions?: ShortAnswerQuestion[];
+  /** R2-2: 작성 내용 dirty 여부 보고(기존 isDirty 그대로) — /write 탭 전환 이탈 확인용. */
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 /* 통증(PAIN_FACES)·재시술(REVISIT_OPTIONS)·체감효과(EFFECT_AREA_OPTIONS/COLORS)·
@@ -148,6 +150,7 @@ export default function ReviewForm({
   shortcode,
   initial,
   shortAnswerQuestions,
+  onDirtyChange,
 }: Props) {
   const router = useRouter();
   const isEdit = mode === "edit";
@@ -230,6 +233,11 @@ export default function ReviewForm({
   // 이탈 방지 가드 — 임시저장 없이 dirty 경고 모달만(자동복원·이어쓰기 제거, 사용자 결정).
   //   create·edit 모두 [계속 작성]/[나가기] 2버튼(저장 안 함).
   const guard = useUnsavedChangesGuard(isDirty);
+
+  // R2-2: /write 글 유형 탭 전환 가드용 dirty 신호 — 위 기존 isDirty 판정 그대로 보고(중복 판정식 없음).
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   /* 한줄후기 placeholder — 마운트 시 무작위 1개 고정(세션 내 유지). */
   const onelinerPlaceholder = useMemo(

@@ -33,6 +33,7 @@ export default function WriteTabs({
   handle,
   initialProcedure,
   shortAnswerQuestions,
+  onDirtyChange,
 }: {
   tab?: string;
   isLoggedIn: boolean;
@@ -47,6 +48,8 @@ export default function WriteTabs({
   initialProcedure?: string;
   /** 단답 질문 풀(question_pool timepoint='any', is_active) — 시술후기 탭 ReviewForm 단답 2칸용. */
   shortAnswerQuestions?: ShortAnswerQuestion[];
+  /** R2-2: 현재 폼의 dirty 여부 보고 — WriteView 가 탭 전환 시 이탈 확인 모달에 사용. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const router = useRouter();
   // Q&A 탭은 원장·관리자 전용. 권한 없는 사용자가 ?tab=qa 로 들어오면 기본(시술기록)으로.
@@ -61,10 +64,10 @@ export default function WriteTabs({
   return (
     <div className="mx-auto max-w-[680px]">
       {cat === "qa" && (
-        <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="qa" />
+        <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="qa" onDirtyChange={onDirtyChange} />
       )}
       {/* 시술기록(노트) — 통합 visit 폼(DiaryForm). 일기·시점별 경과는 본 작업 범위 밖(무수정). */}
-      {cat === "시술기록" && <DiaryForm toast={(m) => showToast(m)} go={() => { void router.push("/notes"); }} procedures={procedures} initialProcedure={initialProcedure} />}
+      {cat === "시술기록" && <DiaryForm toast={(m) => showToast(m)} go={() => { void router.push("/notes"); }} procedures={procedures} initialProcedure={initialProcedure} onDirtyChange={onDirtyChange} />}
       {/* 시술후기 — 후기 전용 폼(ReviewForm). /review/new 와 같은 폼 재사용(시술 선택+평가+단답+어림시기).
           가격·병원 등 visit 메타는 묻지 않음. 제출 성공 시 ReviewForm 이 자체적으로 "/" 로 이동·refresh. */}
       {cat === "시술후기" && (
@@ -73,10 +76,11 @@ export default function WriteTabs({
           handle={handle ?? ""}
           initialProcedure={initialProcedure}
           shortAnswerQuestions={shortAnswerQuestions}
+          onDirtyChange={onDirtyChange}
         />
       )}
       {cat === "끄적끄적" && (
-        <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="doodle" />
+        <WriteClient role={role} myDoctor={myDoctor} doctors={doctors} displayName={displayName} initialCategory="doodle" onDirtyChange={onDirtyChange} />
       )}
     </div>
   );

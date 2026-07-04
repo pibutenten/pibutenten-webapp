@@ -119,7 +119,7 @@ type DiaryProc = ReviewState & { id: number; label: string; cat: string; note: s
 /** 자동완성 사전 항목 — getReviewProcedures(ProcedureOption) 와 구조 호환(value/label/categoryLabel). */
 type ProcDictItem = { value: string; label: string; categoryLabel?: string | null };
 
-export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialProcedure }: { toast: (m: string) => void; go: (s: Screen) => void; procedures?: ProcDictItem[]; reviewOnly?: boolean; initialProcedure?: string }) {
+export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialProcedure, onDirtyChange }: { toast: (m: string) => void; go: (s: Screen) => void; procedures?: ProcDictItem[]; reviewOnly?: boolean; initialProcedure?: string; onDirtyChange?: (dirty: boolean) => void }) {
   // reviewOnly("시술 후기만") — 같은 visit 폼이지만 병원·방문 블록을 접은 상태로 시작.
   //   사용자가 "병원·방문 정보 추가" 를 누르면 펼친다(비공개 메타는 선택이므로 visit 만으로도 저장 가능).
   const [metaOpen, setMetaOpen] = useState(!reviewOnly);
@@ -203,6 +203,38 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   const prevCalMonth = () => { if (calMonth === 1) { setCalMonth(12); setCalYear((y) => y - 1); } else setCalMonth((m) => m - 1); };
   const nextCalMonth = () => { const nextM = calMonth === 12 ? 1 : calMonth + 1; const nextY = calMonth === 12 ? calYear + 1 : calYear; if (nextY * 12 + nextM > nowY * 12 + nowM) return; if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1); } else setCalMonth((m) => m + 1); };
   const selectCalDate = (day: number) => { setDate(`${calYear}-${String(calMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`); setCalOpen(false); };
+
+  // R2-2: /write 글 유형 탭 전환 가드용 dirty 신호 — DiaryForm 자체 이탈 가드는 정책상 항상
+  //   무장(useUnsavedChangesGuard(true))이라 그대로 쓰면 빈 폼 탭 전환까지 경고(오탐).
+  //   탭 전환용으로만 초기값과의 실질 비교(사용자 입력 유무)를 보고한다.
+  //   initialProcedure(?proc=) 프리필로 자동 추가된 무입력 1행은 초기 상태로 간주
+  //   (탭 전환 remount 시 같은 프리필이 재생성되므로 소실 없음).
+  const initialDateRef = useRef(date); // 마운트 시점 날짜(오늘) 고정 — 자정 경계 오탐 방지.
+  const hasUserInput =
+    q.trim() !== "" ||
+    picked !== null ||
+    doctorName.trim() !== "" ||
+    managerName.trim() !== "" ||
+    clinicHome.trim() !== "" ||
+    clinicKakao.trim() !== "" ||
+    totalPrice.trim() !== "" ||
+    diary.trim() !== "" ||
+    tag.trim() !== "" ||
+    date !== initialDateRef.current ||
+    procs.some(
+      (p) =>
+        p.label !== initialProcedure ||
+        p.note.trim() !== "" ||
+        p.satisfaction > 0 ||
+        p.pain > 0 ||
+        !!p.downtime ||
+        !!p.revisit ||
+        p.effectAreas.length > 0 ||
+        p.oneliner.trim() !== "",
+    );
+  useEffect(() => {
+    onDirtyChange?.(hasUserInput);
+  }, [hasUserInput, onDirtyChange]);
 
   // 시술노트 저장값 — 달력에서 고른 날짜(date) 그대로 전송. precision 은 항상 'exact'.
 

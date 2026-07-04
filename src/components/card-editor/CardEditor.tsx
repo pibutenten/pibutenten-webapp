@@ -199,6 +199,9 @@ type Props = {
    *  제공되면 [지우기] 버튼 노출. admin 은 adminExtras.onSoftDelete 사용. */
   onOwnerDelete?: () => Promise<void>;
 
+  /** R2-2: 작성 내용 dirty 여부 보고(기존 isDirty 그대로) — /write 탭 전환 이탈 확인용. */
+  onDirtyChange?: (dirty: boolean) => void;
+
   onSubmit: (
     payload: CardEditorPayload,
     action: SubmitAction,
@@ -272,6 +275,7 @@ export default function CardEditor({
   showRequestReview = false,
   hideCategorySelector = false,
   onOwnerDelete,
+  onDirtyChange,
   onSubmit,
 }: Props) {
   const router = useRouter();
@@ -385,6 +389,11 @@ export default function CardEditor({
     body.trim() ||
     (keywords && keywords.length > 0)
   );
+
+  // R2-2: /write 글 유형 탭 전환 가드용 dirty 신호 — 위 기존 isDirty 판정 그대로 보고(중복 판정식 없음).
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   /* ── 임시저장 자동저장 + 복원 (create 모드만) ─────────── */
   const draftType: DraftFormType = category === "qa" ? "qa" : "doodle";

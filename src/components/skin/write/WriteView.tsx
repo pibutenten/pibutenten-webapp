@@ -9,11 +9,12 @@
  *   Q&A 탭은 원장·관리자만 노출(canQa) — 운영 정합.
  */
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import AppShell from "../AppShell";
 import styles from "../app.module.css";
 import { useSearchRouting } from "../ui";
 import WriteTabs from "@/app/write/WriteTabs";
+import UnsavedChangesModal from "@/components/UnsavedChangesModal";
 import type { ProcedureOption } from "@/app/review/new/ReviewForm";
 import type { ShortAnswerQuestion } from "@/components/review/ShortAnswerFields";
 
@@ -78,6 +79,31 @@ export default function WriteView({
   );
   const activeTab = types.find((t) => t.key === active)?.tab;
 
+  // R2-2: 탭 전환 시 작성글 무경고 소실 방지 — key={active} remount 로 폼이 리셋되므로,
+  //   현재 폼의 dirty 신호(onDirtyChange)를 받아 dirty 면 기존 UnsavedChangesModal
+  //   (edit variant: [계속 작성]/[나가기])로 확인 후에만 전환. pristine(빈 폼/무변경)이면 즉시 전환.
+  const [dirty, setDirty] = useState(false);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  // 각 폼의 보고 effect deps 로 들어가므로 항등성 고정(재보고 루프 방지).
+  const handleDirtyChange = useCallback((d: boolean) => setDirty(d), []);
+  const requestTab = (key: string) => {
+    if (key === active) return;
+    if (dirty) {
+      setPendingKey(key);
+      return;
+    }
+    setActive(key);
+  };
+  const confirmSwitch = () => {
+    if (pendingKey !== null) {
+      setActive(pendingKey);
+      // remount 될 새 폼은 pristine — mount 후 첫 보고 전 창의 오탐 방지 위해 즉시 리셋.
+      setDirty(false);
+    }
+    setPendingKey(null);
+  };
+  const cancelSwitch = () => setPendingKey(null);
+
   const sidebar = (
     <>
       <section
@@ -130,7 +156,7 @@ export default function WriteView({
               type="button"
               key={ty.key}
               className={`${styles.wt} ${active === ty.key ? styles.wtActive : ""}`}
-              onClick={() => setActive(ty.key)}
+              onClick={() => requestTab(ty.key)}
               aria-pressed={active === ty.key}
             >
               <div className={styles.wtT}>{ty.t}</div>
@@ -165,7 +191,8 @@ export default function WriteView({
             </div>
           </section>
         ) : (
-          /* 운영 WriteTabs 그대로 — 자체 폼 미사용. key={active} 로 탭 전환 시 폼 리셋. */
+          /* 운영 WriteTabs 그대로 — 자체 폼 미사용. key={active} 로 탭 전환 시 폼 리셋.
+             (R2-2: 리셋 전 dirty 면 위 requestTab 가 UnsavedChangesModal 로 확인.) */
           <WriteTabs
             key={active}
             tab={activeTab}
@@ -178,6 +205,16 @@ export default function WriteView({
             handle={handle}
             initialProcedure={initialProcedure}
             shortAnswerQuestions={shortAnswerQuestions}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+
+        {/* R2-2: 탭 전환 확인 모달 — 기존 이탈 경고 모달 재사용(edit variant: [계속 작성]/[나가기]). */}
+        {pendingKey !== null && (
+          <UnsavedChangesModal
+            variant="edit"
+            onDiscard={confirmSwitch}
+            onCancel={cancelSwitch}
           />
         )}
       </div>
