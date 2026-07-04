@@ -7,8 +7,8 @@
  * 현재: 자기충족 컴포넌트. 동작 변경 0.
  *
  * 책임:
- *   - 닉네임+본문 inline 흐름, 메타(시간·답글·♡)는 본문 아래 마지막 줄(원장 확정 2026-07-04),
- *     ⋮ 메뉴만 우상단 float
+ *   - 닉네임+본문 inline 흐름, 메타(시간·답글·♡)는 본문 마지막 문장 끝에 인라인으로 이어 붙음
+ *     (원장 확정 2026-07-04 2차 — "마지막 줄에 녹아들게"), ⋮ 메뉴만 우상단 float
  *   - 좋아요 토글 (toggle_comment_like RPC, 낙관적 업데이트 + 실패 시 revert)
  *   - 메뉴 panel (Portal, 외부 클릭 시 닫힘)
  *   - 수정 모드 (textarea + 저장/취소)
@@ -171,10 +171,10 @@ export default function CommentItem({
           : undefined
       }
     >
-      {/* 레이아웃(원장 확정 2026-07-04): 메타(시간·답글·♡)는 본문 "아래" 마지막 줄 —
-          우측 float 로 첫 줄에 끼어 있으면 여러 줄 댓글에서 부자연스럽다는 제보로 이동
-          (인스타·페북 표준: 본문 먼저, 메타 줄은 아래). ⋮(본인·관리자 전용 메뉴)만
-          우상단 float 유지 — 메타 줄에 섞으면 오히려 어색. 닉네임+본문은 inline 흐름 유지. */}
+      {/* 레이아웃(원장 확정 2026-07-04 2차): 메타(시간·답글·♡)는 본문 "마지막 문장 끝"에
+          인라인으로 이어 붙는다 — 우측 float(첫 줄 충돌)도, 별도 새 줄(1차 시안)도 아닌
+          자연스러운 텍스트 흐름("맨 마지막 줄 우측에 녹아들게"). 공간이 없으면 메타 묶음이
+          통째로 다음 줄로 wrap. ⋮(본인·관리자 전용 메뉴)만 우상단 float 유지. */}
       <div className="text-[13px] leading-[1.5]" style={{ display: "flow-root" }}>
         {showMenu && (
           <button
@@ -241,69 +241,70 @@ export default function CommentItem({
           </span>
         )}
 
-      </div>
-
-      {/* 메타 줄 — 본문 아래 마지막 라인(시간 · 답글 · ♡). 간격 리듬은 구 float 메타와 동일. */}
-      <div className="mt-0.5 flex items-center whitespace-nowrap">
-        <span className="text-[11px] text-[var(--text-muted)]">
-          <RelativeTime iso={comment.created_at} />
-        </span>
-        {isHidden && (
-          <span className="ml-1 text-[11px] text-[var(--text-muted)]">숨김됨</span>
-        )}
-        {isDeleted && (
-          <span className="ml-1 text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
-        )}
-        {/* 답글 — root 댓글에만 (시간 → 가온점: 2px, 가온점 → 답글: 5px) */}
-        {!isReply && onReplyClick && !isDeleted && (
-          <>
-            <span
-              style={{ marginLeft: "2px" }}
-              className="inline-flex items-center text-[11px] leading-none text-[var(--text-muted)]"
-              aria-hidden
-            >
-              ·
-            </span>
+        {/* 메타 — 본문 마지막 문장 끝에 인라인(시간 · 답글 · ♡). 묶음(whitespace-nowrap)이라
+            자리가 없으면 통째로 다음 줄 좌측으로 wrap(자연 흐름). 간격 리듬은 구 메타와 동일. */}
+        <span className="ml-1.5 inline-flex items-center whitespace-nowrap align-baseline">
+          <span className="text-[11px] text-[var(--text-muted)]">
+            <RelativeTime iso={comment.created_at} />
+          </span>
+          {isHidden && (
+            <span className="ml-1 text-[11px] text-[var(--text-muted)]">숨김됨</span>
+          )}
+          {isDeleted && (
+            <span className="ml-1 text-[11px] text-[var(--text-muted)]">🗑 삭제</span>
+          )}
+          {/* 답글 — root 댓글에만 (시간 → 가온점: 2px, 가온점 → 답글: 5px) */}
+          {!isReply && onReplyClick && !isDeleted && (
+            <>
+              <span
+                style={{ marginLeft: "2px" }}
+                className="inline-flex items-center text-[11px] leading-none text-[var(--text-muted)]"
+                aria-hidden
+              >
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={onReplyClick}
+                style={{ marginLeft: "5px" }}
+                className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
+              >
+                {isReplying ? "답글 취소" : "답글"}
+              </button>
+            </>
+          )}
+          {/* 좋아요 — 답글 → ♡: 2px */}
+          {!isDeleted && (
             <button
               type="button"
-              onClick={onReplyClick}
-              style={{ marginLeft: "5px" }}
-              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)]"
+              onClick={toggleLike}
+              disabled={likePending}
+              aria-label={liked ? "좋아요 취소" : "좋아요"}
+              style={{ marginLeft: "2px" }}
+              className={
+                "inline-flex items-center gap-0.5 text-[11px] transition-colors " +
+                (liked
+                  ? "text-[var(--accent)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--accent)]")
+              }
             >
-              {isReplying ? "답글 취소" : "답글"}
+              <svg
+                viewBox="0 0 24 24"
+                fill={liked ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-[12px] w-[12px]"
+                aria-hidden
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+              {likeCount > 0 && <span>{likeCount}</span>}
             </button>
-          </>
-        )}
-        {/* 좋아요 — 답글 → ♡: 2px */}
-        {!isDeleted && (
-          <button
-            type="button"
-            onClick={toggleLike}
-            disabled={likePending}
-            aria-label={liked ? "좋아요 취소" : "좋아요"}
-            style={{ marginLeft: "2px" }}
-            className={
-              "inline-flex items-center gap-0.5 text-[11px] transition-colors " +
-              (liked
-                ? "text-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--accent)]")
-            }
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill={liked ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-[12px] w-[12px]"
-              aria-hidden
-            >
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-            {likeCount > 0 && <span>{likeCount}</span>}
-          </button>
-        )}
+          )}
+        </span>
+
       </div>
 
       {/* 메뉴 panel — Portal (트리거 버튼은 위 float-right div 안에 있음) */}
