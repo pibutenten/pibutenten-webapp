@@ -9,12 +9,13 @@ import { clinicId, DOCTOR_TO_CLINIC } from "@/lib/schema/clinic";
 /**
  * 의사 schema 헬퍼.
  *
- *  - @type: ["Person", "MedicalProfessional"]
- *      ⚠ Physician(MedicalOrganization 상속, LocalBusiness 트리)을 쓰면 Google이
- *        의사 개인을 "비즈니스"로 인식해 telephone/address/priceRange 권장 속성 경고를 발생시킴.
- *      ✓ MedicalProfessional은 Person을 상속하므로 의사 개인 표현용으로 정확.
- *        medicalSpecialty / jobTitle / knowsAbout / alumniOf / memberOf / hasOccupation /
- *        worksFor / sameAs 모두 동일하게 지원됨.
+ *  - @type: "Person" 단독 (R3-2 확정, 2026-07-04 SEO검수관 판정)
+ *      ⚠ Physician·IndividualPhysician 은 둘 다 Organization > LocalBusiness/MedicalBusiness
+ *        트리라 의사 "개인"에 부적합 — Google 이 비즈니스로 인식해 telephone/address/priceRange
+ *        권장 속성 경고 발생 → 프로젝트 전역 금지.
+ *      ⚠ 구 "MedicalProfessional" 은 schema.org 에 존재하지 않는 타입(파서가 무시) — 제거함.
+ *      ✓ Person 은 Google ProfilePage 공식 권장 타입. medicalSpecialty / jobTitle / knowsAbout /
+ *        alumniOf / memberOf / hasOccupation / worksFor / sameAs 전부 Person 위에서 유효.
  *  - hasOccupation: 직업 컨텍스트 풀 객체 (AI 인용 신뢰 신호 강화)
  *  - buildDoctorFull: 의사 프로필 페이지(/doctors/[slug])에만 풀 정보
  *    buildDoctorReference: Q&A·칼럼 단독 페이지에서 @id 참조용 최소 정보
@@ -112,12 +113,13 @@ export function buildDoctorFull(d: DoctorBasic): Record<string, unknown> {
 
   const englishName = DOCTOR_ENGLISH_NAME[d.slug];
   const obj: Record<string, unknown> = {
-    "@type": ["Person", "MedicalProfessional"],
+    "@type": "Person",
     "@id": doctorPersonId(d.slug),
     name: d.name,
     ...(englishName ? { alternateName: englishName } : {}),
     jobTitle: d.title,
-    medicalSpecialty: "Dermatology",
+    // enum 값은 URL 형식으로 (topics/[tag] 와 통일. Dermatologic 은 superseded — Dermatology, R3-2).
+    medicalSpecialty: "https://schema.org/Dermatology",
     image: `${SITE_URL}/og/${d.slug}.png`,
     url: `${SITE_URL}/doctors/${d.slug}`,
     description: d.intro ?? undefined,
@@ -187,7 +189,7 @@ export function buildDoctorReference(d: {
 }): Record<string, unknown> {
   const englishName = DOCTOR_ENGLISH_NAME[d.slug];
   return {
-    "@type": ["Person", "MedicalProfessional"],
+    "@type": "Person",
     "@id": doctorPersonId(d.slug),
     name: d.name,
     ...(englishName ? { alternateName: englishName } : {}),

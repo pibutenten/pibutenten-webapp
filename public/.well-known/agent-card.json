@@ -35,7 +35,6 @@
     "https://schema.org/QAPage",
     "https://schema.org/FAQPage",
     "https://schema.org/Person",
-    "https://schema.org/MedicalProfessional",
     "https://schema.org/MedicalProcedure",
     "https://schema.org/MedicalCondition",
     "https://schema.org/SpeakableSpecification",

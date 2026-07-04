@@ -9,6 +9,7 @@
 ## [2026-07-04] — 개선 라운드 R3: SEO/AEO (독립 이중검증 실행계획)
 
 ### Fixed
+- **[R3-2] 의사 JSON-LD `@type` 교정 — 미존재 타입 제거, `"Person"` 단독 확정** (`lib/schema/doctor.ts` ×2, `topics/[tag]/page.tsx`, `.well-known/agent-card.json`) — 존재하지 않는 schema.org 타입 `MedicalProfessional`(주요 파서 무시)을 3곳에서 사용 + agent-card 에도 기재. SEO검수관 판정(schema.org 공식 스펙 WebFetch 대조): 원 감사보고서의 `Physician` 교정안 기각(Physician·IndividualPhysician 둘 다 Organization/LocalBusiness 트리 — 기존 "비즈니스 오인 금지" 결정 그대로 적용), **Google ProfilePage 공식 권장 타입 `Person` 단독 채택**(jobTitle·hasOccupation·hasCredential 등 기존 속성 전부 Person 위에서 유효). + `medicalSpecialty` 값 형식 불일치 통일: superseded 인 `Dermatologic`(topics)과 비-URL 문자열(doctor.ts) → 양쪽 `https://schema.org/Dermatology`. 계획 문서 2곳에 판정 결과 기록.
 - **[R3-1] OG/타이틀 메타 일괄 정비 — buildSocialMeta SSOT 통일 (8페이지)** — ① 홈: 인라인 openGraph 가 layout 을 통째 대체해 og:site_name·og:locale 소실 + RSS 자동발견 `<link>` 실종(alternates shallow-merge) → buildSocialMeta 재사용 + alternates 에 RSS types 병기(brand-first absolute title 은 유지) ② /terms·/privacy: openGraph 부재로 공유 시 홈 문구 노출 → 페이지 제목 OG 신설 ③ /disclaimer·/report: "… — 피부텐텐 | 피부텐텐" 이중 브랜드 제거 ④ 신뢰페이지 4종(corrections/disclosures/doctor-guidelines/disclaimer): og:image 복원·og:title 정정(기존 정적 페이지 관례로 통일). buildSocialMeta 자체는 무변경(기존 14곳 계약 불변).
 
 ---

@@ -200,20 +200,22 @@ export default async function TagPage({ params }: Props) {
   };
 
   // 의사 개인 @id (`/doctors/{slug}#person`) — 단일 문서 내 동일 의사 중복 시 @id 로 dedup.
-  //   @type 은 ["Person","MedicalProfessional"] (schema/doctor.ts 와 정합).
-  //   ⚠ Physician 은 LocalBusiness/MedicalOrganization 트리라 의사 개인에 부적합(Google 이
-  //     "비즈니스"로 오인) → 프로젝트 전역에서 금지. MedicalProfessional 은 Person 상속이라 정확.
+  //   @type 은 "Person" 단독 (schema/doctor.ts 와 정합 — R3-2 확정).
+  //   ⚠ Physician·IndividualPhysician 은 Organization/LocalBusiness 트리라 의사 개인에 부적합
+  //     (Google 이 "비즈니스"로 오인) → 프로젝트 전역 금지. 구 MedicalProfessional 은
+  //     schema.org 미존재 타입이라 제거.
   // worksFor 는 의사 글·프로필 페이지와 동일하게 `clinicIdRefForDoctor` 의 @id 참조 패턴.
   //   참조 entity 의 MedicalClinic schema 는 graph 의 dedup 된 clinicSchemas 에서 함께 inject.
   const doctorPersonRef = (p: CardData) => {
     if (!p.doctor) return null;
     const worksForRef = clinicIdRefForDoctor(p.doctor.slug);
     return {
-      "@type": ["Person", "MedicalProfessional"],
+      "@type": "Person",
       "@id": `${SITE_URL}/doctors/${p.doctor.slug}#person`,
       name: p.doctor.name,
       jobTitle: "피부과 전문의",
-      medicalSpecialty: "https://schema.org/Dermatologic",
+      // Dermatologic 은 superseded — 현행 표준 Dermatology 로 (doctor.ts 와 통일, R3-2).
+      medicalSpecialty: "https://schema.org/Dermatology",
       url: `${SITE_URL}/doctors/${p.doctor.slug}`,
       ...(worksForRef ? { worksFor: worksForRef } : {}),
       memberOf: { "@id": ORG_ID },
