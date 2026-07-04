@@ -30,6 +30,7 @@ import DowntimeGauge from "@/components/report/DowntimeGauge";
 import EffectOnsetTimeline from "@/components/report/EffectOnsetTimeline";
 import ReportsReviewCard from "./ReportsReviewCard";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
+import ReportViewTracker from "@/components/report/ReportViewTracker";
 import { addEngagement } from "@/lib/engagement-score";
 
 const EFFECT_BAR_COLORS = [
@@ -185,14 +186,19 @@ export default function ReportsDetailView({
 
   // 소프트월 v4 리포트 점수 배선 — 리포트 상세를 보면 비로그인 흥미점수에 "report-view"(+8)를 가산한다.
   // 세션당 1회만(sessionStorage seenKey 로 dedup) — 기존 useCardViewer.recordView 패턴과 동일.
+  //   ⚠ 앵커가 있으면 실행하지 않는다(2026-07-04): 아래 ReportViewTracker → useCardViewer.recordView 가
+  //   review_summary 에 report-view 점수까지 가산하므로(useCardViewer.ts), 이 수동 effect 와 겹치면
+  //   dedup 키가 달라(view:{id} vs report-view:{ko}) 방문 1회에 +16 이중 가산 → 소프트월(임계 15)이
+  //   리포트 1건으로 즉시 발동한다. 앵커 없는(미발행) 리포트만 이 수동 폴백으로 점수 유지.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (report.anchor) return; // 앵커 있음 — ReportViewTracker 경로가 점수·조회수 모두 담당
     if (session !== null) return; // 비로그인만 — 소프트월(회원가입 권유) 대상이라 로그인 사용자는 점수 안 쌓음
     const seenKey = `pibutenten:report-view:${encodeURIComponent(ko)}`;
     if (sessionStorage.getItem(seenKey)) return;
     sessionStorage.setItem(seenKey, "1");
     addEngagement("report-view");
-  }, [ko, session]);
+  }, [ko, session, report.anchor]);
 
   // 진입 애니메이션 트리거(마운트 직후 1회).
   const [mounted, setMounted] = useState(false);
@@ -313,6 +319,11 @@ export default function ReportsDetailView({
   return (
     <>
       <div ref={topRef} aria-hidden className="sr-only" />
+      {/* 앵커 조회수 기록(2026-07-04 복원) — 구 상세(ProcedureReportCard variant="page")가 담당하던
+          ReportViewTracker 배선이 신디자인 승격(f00fb5e, 2026-06-29) 때 누락돼 리포트 조회수가
+          그날 이후 0 증가(원장 제보·card_views 실측으로 확정). 일반 글과 동일한 useCardViewer 경로
+          (card_views INSERT → 트리거 view_count+1, 세션당 1회 dedup). */}
+      {report.anchor && <ReportViewTracker card={report.anchor} auto />}
       <BackButton fallbackHref="/reports" className="mb-1" />
 
       {/* ── ① 리포트 카드(한 장) ── */}

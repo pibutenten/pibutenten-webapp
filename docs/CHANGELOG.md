@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-07-04] — 관리자 KPI↔목록 불일치 정정 + 리포트 조회수 기록 복원 (원장 제보)
+
+3갈래 병렬 조사(코드+DB 실측)로 원인 확정 후 최소 수정. 조사 상세는 세션 산출물 참조.
+
+### Fixed
+- **관리자 대시보드 "검수 대기 6" vs 목록 3개 불일치** — 대시보드 카드 KPI 5종(Q&A/끄적끄적/시술후기/시술 리포트/검수대기)에 `deleted_at IS NULL` 필터가 없어, soft-delete 된 카드(soft_delete_card 가 status 보존 설계 + admin RLS 는 삭제 행도 SELECT)가 KPI 에만 집계되던 결함. 실측: 검수대기 6→3(삭제 3건: 2316·2324·2325), Q&A 1011→1003, 끄적끄적 22→18, 시술후기 750→742. 시술후기·리포트 KPI 의 category 축도 목록 링크(?type=)와 동일한 type 축으로 통일(잠재 불일치 제거, 수치 무변). `src/app/admin/page.tsx` 1개 파일
+- **시술 리포트 조회수 미증가** — /reports 신디자인 승격(f00fb5e, 2026-06-29) 때 구 상세의 ReportViewTracker 배선이 이식되지 않아 앵커 card_views 가 그날 이후 0건(실측: 6/28 마지막 행, 이후 생성 앵커 27장 전부 view_count=0). ReportsDetailView 에 `{report.anchor && <ReportViewTracker auto />}` 복원 — 일반 글과 동일 경로(card_views INSERT → 트리거 +1, 세션당 1회 dedup). 복원 검증 실측: 써마지 66→67 + card_views 신규 행. 동시에 수동 소프트월 점수 effect 를 앵커 없는 리포트 전용 폴백으로 좁힘(ReportViewTracker 경로와 이중 가산 시 방문 1회 +16 으로 소프트월 즉발하는 부작용 차단)
+
+### 잠재 불일치 백로그 (조사에서 발견 — 현재 미발현·비차단)
+- doctor 대시보드 KPI(author OR doctor 축) vs /admin/cards doctor 모드(doctor 단독 축) / /admin/users 목록 limit 500 절단 / admin-card-extras doctorPickCount deleted 미필터 / /admin/reports 200건 상한 / dead component admin/tags/TagQueue.tsx / PWA SW dev 등록(위 블록 참조)
+
+
 ## [2026-07-04] — 전체 피드 Q&A 슬롯 보장(20장당 6장) + 의사글 가중치 x3 + 댓글 "모두 보기" 줄 복원
 
 원장 확정 사양. 병렬 구현 2패키지 → 디비전문가(0327 사전 검수 통과) + 코드검수관 2렌즈(승인 2건) → 채택 경고 반영 →

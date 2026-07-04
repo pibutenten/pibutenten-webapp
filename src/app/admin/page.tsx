@@ -75,30 +75,40 @@ export default async function AdminPage() {
       .from("profiles")
       .select("id", { count: "exact", head: true })
       .eq("role", "doctor"),
+    // 카드 KPI 5종 — 반드시 .is("deleted_at", null) 포함(2026-07-04 원장 제보 정정):
+    //   soft_delete_card(0162)는 status 를 보존한 채 deleted_at 만 세팅하고, admin RLS 는
+    //   삭제 행도 SELECT 되므로 이 필터가 없으면 KPI(예: 검수대기 6)가 클릭 목록
+    //   /admin/cards(deleted_at IS NULL 강제, 3건)와 어긋난다. 축도 목록 링크(?type=)와
+    //   동일하게 type 으로 통일(구 category 축은 잠재 불일치 — 실측상 값 변화 없음).
     supabase
       .from("cards")
       .select("id", { count: "exact", head: true })
       .eq("type", "qa")
-      .eq("status", "published"),
+      .eq("status", "published")
+      .is("deleted_at", null),
     supabase
       .from("cards")
       .select("id", { count: "exact", head: true })
       .eq("type", "post")
-      .eq("status", "published"),
+      .eq("status", "published")
+      .is("deleted_at", null),
     supabase
       .from("cards")
       .select("id", { count: "exact", head: true })
-      .eq("category", "review")
-      .eq("status", "published"),
+      .eq("type", "review")
+      .eq("status", "published")
+      .is("deleted_at", null),
     supabase
       .from("cards")
       .select("id", { count: "exact", head: true })
-      .eq("category", "review_summary")
-      .eq("status", "published"),
+      .eq("type", "review_summary")
+      .eq("status", "published")
+      .is("deleted_at", null),
     supabase
       .from("cards")
       .select("id", { count: "exact", head: true })
-      .eq("status", "pending_review"),
+      .eq("status", "pending_review")
+      .is("deleted_at", null),
     supabase
       .from("comments")
       .select("id", { count: "exact", head: true })
