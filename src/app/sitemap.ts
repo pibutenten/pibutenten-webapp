@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SITE_URL, INCLUDE_REPORT_ANCHORS } from "@/lib/site";
+import { FEED_MIN_REVIEWS } from "@/lib/procedure-report";
 
 // SITE_PUBLIC env + 신규 발행 글 lastmod 를 매 요청 반영.
 export const dynamic = "force-dynamic";
@@ -190,6 +191,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     //   앵커 draft 동안엔 게이트가 꺼져 있고 켜더라도 published 만 → 플립 전 색인 노출 0.
     //   앵커 post_slug 에는 영문 en 이 저장돼 있어 tag_dictionary(is_procedure=true) 로 en→ko 매핑 후 한글 URL 만 등재
     //   (영문 en URL 은 308 리다이렉트 전용이라 sitemap 에 넣지 않음 — 중복 콘텐츠 방지).
+    //
+    //   ★후기 수 게이트 (2026-07-04): 후기 < FEED_MIN_REVIEWS(=4) 시술은 상세 페이지가
+    //   robots:{index:false}(reports/[procedure]/page.tsx)라 sitemap 에 넣으면 GSC 가
+    //   "제출됐으나 noindex" 경고를 띄운다(sitemap↔noindex 모순). 상세와 동일 기준으로,
+    //   get_review_summary_pool(후기 집계 SSOT)의 review_count>=4 시술만 등재해 신호 일치.
     let anchorRoutes: MetadataRoute.Sitemap = [];
     if (INCLUDE_REPORT_ANCHORS) {
       const { data: anchors } = await supabase
@@ -202,6 +208,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .from("tag_dictionary")
         .select("en, ko")
         .eq("is_procedure", true);
+      // 색인 대상 시술(en, 소문자) 집합 — 상세 noindex 게이트와 동일 기준(review_count>=4).
+      const { data: poolRows } = await supabase.rpc("get_review_summary_pool");
+      const eligibleEn = new Set<string>(
+        ((poolRows ?? []) as Array<{ en: string | null; review_count: number | null }>)
+          .filter((r) => !!r.en && Number(r.review_count) >= FEED_MIN_REVIEWS)
+          .map((r) => (r.en as string).toLowerCase()),
+      );
       const enToKo = new Map<string, string>(
         ((taxRows ?? []) as Array<{ en: string | null; ko: string | null }>)
           .filter((t): t is { en: string; ko: string } => !!t.en && !!t.ko)
@@ -213,6 +226,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         created_at: string | null;
       }>).flatMap((a) => {
         if (!a.post_slug) return [];
+        // 후기 4건 미만(상세 noindex) 시술은 sitemap 제외 — 모순 신호 차단.
+        if (!eligibleEn.has(a.post_slug.toLowerCase())) return [];
         const ko = enToKo.get(a.post_slug) ?? a.post_slug; // 매핑 없으면 en fallback(308 로 흡수)
         return [
           {

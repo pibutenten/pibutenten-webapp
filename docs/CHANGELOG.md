@@ -6,6 +6,16 @@
 
 ---
 
+## [2026-07-04] — SEO/정합: sitemap 리포트 후기게이트 + 예약 핸들 확장 (원장 지시)
+
+### Fixed
+- **sitemap 리포트 앵커 후기 4건 이상만 등재** (`app/sitemap.ts`) — 후기<FEED_MIN_REVIEWS(=4) 시술은 상세 페이지가 robots:{index:false}인데 sitemap 엔 전량(발행 65개) 등재돼 GSC "제출됐으나 noindex" 경고 유발(모순 신호). 상세 noindex 게이트와 동일 기준으로 `get_review_summary_pool`(후기 집계 SSOT) review_count>=4 시술(38개)만 등재. 리포트 색인 정책 불변(≥4 index 유지), 경고만 해소.
+
+### Changed
+- **예약 핸들 확장** (마이그 0336, `reserved_handles` 49→107) + `route-class.ts::RESERVED_FIRST_SEGMENT`(app·reports-new·reviews 추가) — 회원이 최상위 라우트명(reports/topics/today/review 등)·시스템 용어를 핸들로 선점해 페이지를 가리는 것 방지. 시술명 예약은 비현실적(수천 개) → 회원 핸들 `@` 네임스페이스 전환은 별도 Phase 로 계획.
+
+---
+
 ## [2026-07-04] — 시술후기 카드 컴팩트 요약 + 리포트 데이터 정정 3건 (원장 승인 완결)
 
 디렉터 프로세스: 병렬 구현 → 코드검수관(치명 0 — 표기안 문구 8종 1:1 대조 통과) + 디비전문가(0329·0330 통과) → 마이그 적용·검증 9종 통과 → 브라우저 E2E(시술후기 탭 20/20 카드 요약 줄 렌더) → tsc·build 통과.
