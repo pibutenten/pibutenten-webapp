@@ -20,6 +20,9 @@ export type PubmedRef = PubmedRefObj;
  * `procedure_reviews` 테이블(card_id unique FK→cards)에서 임베드.
  *   - satisfaction/pain: 1~5
  *   - revisit: 'yes' | 'maybe' | 'no' (구버전 호환 위해 string 폭넓게 허용)
+ *   - downtime: 회복(다운타임) 슬러그 — same_day/days_1_2/days_3_5/week_1/weeks_2_plus
+ *     (lib/review-options.ts DOWNTIME_OPTIONS·DB CHECK 0213 정합. RPC 마이그 0330 이전
+ *      응답에는 키 자체가 없을 수 있어 optional)
  *   - effect_areas: 체감 효과 라벨 배열 (NULL 가능)
  *   - procedure_ko: 시술명 (한글)
  */
@@ -27,6 +30,7 @@ export type ReviewSummaryData = {
   satisfaction: number;
   pain: number;
   revisit: "yes" | "maybe" | "no" | string;
+  downtime?: string | null;
   effect_areas: string[] | null;
   procedure_ko: string;
 };

@@ -39,7 +39,7 @@ export const CARD_LIST_SELECT = `
   doctor:doctors(id, slug, name, branch),
   author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle, updated_at),
   video:videos(youtube_id, youtube_url, topic, upload_date),
-  procedure_review:procedure_reviews(satisfaction, pain, revisit, effect_areas, procedure_ko)
+  procedure_review:procedure_reviews(satisfaction, pain, revisit, downtime, effect_areas, procedure_ko)
 `;
 
 /**
@@ -58,5 +58,5 @@ export const CARD_DETAIL_SELECT = `
   doctor:doctors(id, slug, name, branch),
   author:profiles!cards_author_id_profiles_fkey(id, display_name, avatar_url, handle, updated_at),
   video:videos(youtube_id, youtube_url, topic, upload_date),
-  procedure_review:procedure_reviews(satisfaction, pain, revisit, effect_areas, procedure_ko)
+  procedure_review:procedure_reviews(satisfaction, pain, revisit, downtime, effect_areas, procedure_ko)
 `;

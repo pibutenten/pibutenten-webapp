@@ -6,6 +6,21 @@
 
 ---
 
+## [2026-07-04] — 시술후기 카드 컴팩트 요약 + 리포트 데이터 정정 3건 (원장 승인 완결)
+
+디렉터 프로세스: 병렬 구현 → 코드검수관(치명 0 — 표기안 문구 8종 1:1 대조 통과) + 디비전문가(0329·0330 통과) → 마이그 적용·검증 9종 통과 → 브라우저 E2E(시술후기 탭 20/20 카드 요약 줄 렌더) → tsc·build 통과.
+
+### Added
+- **시술후기(review) 카드 정량 요약 한 줄** — 제목 아래 `★★★★☆ · 통증 {없음~심함} · {또 받을래요|재시술 고민 중|재시술 생각 없어요} · {당일 회복|회복 1~2일|회복 3~5일|회복 약 1주|회복 2주 이상} · 효과 최대 3개 +n` (미응답 항목 생략, 원장 확정 표기안). 기존 `ReviewSummary` SSOT 확장(신규 컴포넌트 없음) — 구 스킨 Card.tsx afterTitle 경로도 동일 수혜. PostCard(신 스킨)가 미채택 상태였던 것을 배선
+- 마이그 0330(RPC procedure_review 에 downtime) + card-select.ts 두 SELECT 확장 — DATABASE.md 표 참조
+
+### Fixed
+- **리포트 앵커 데이터 정정 3건**(마이그 0329, 원장 승인): 제목 인코딩 오염 9건 정정(오염 9→0) · 리쥬란아이 슬러그 사전 정합(rejuran-eye→rejuran-i) · 덴서티알파팁 사전 재등록 — 앵커-사전 매칭 63→65/65. 상세 DATABASE.md
+
+### 백로그 추가
+- Card.tsx(`type` 단순 비교) vs PostCard(`category ?? type`) 의 review 판정식 이중화 — 현재 전 행 type==category 라 latent(검수 경고). 판정 헬퍼 추출로 통일 예정
+
+
 ## [2026-07-04] — 보안 배치 Phase 1-B 단계1: PII 조회 RPC 이관 (H-1, REVOKE 前 준비)
 
 H-1(로그인 회원이 타인 PII 를 raw REST 로 수집 — `profiles_public_select` qual=true + authenticated PII 컬럼 GRANT + `field_visibility` 앱 계층 전용)의 **배포 안전 처리 1단계**. authenticated PII 컬럼 GRANT REVOKE(단계2) 는 코드가 안전 조회 경로로 이관·검증된 뒤 별도 진행 — 이 단계는 **RPC 신설 + 조회 이관만, REVOKE 없음**(배포해도 무회귀).

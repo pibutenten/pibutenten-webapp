@@ -40,6 +40,7 @@ import { showToast } from "@/lib/toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import CommentsBlock from "@/components/comments/CommentsBlock";
+import ReviewSummary from "@/components/card/ReviewSummary";
 import type { CommentPreview } from "@/lib/types/comment";
 import RecentLikers from "@/components/RecentLikers";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
@@ -1088,6 +1089,16 @@ export function PostCard({
       ) : (
         <h2 className={styles.postTitle}>{highlight(card.title ?? "", searchQuery)}</h2>
       )}
+
+      {/* 시술후기(review) 정량 요약 — 제목 바로 아래 한 줄(원장 승인 표기안 2026-07-04).
+          운영 Card.tsx afterTitle 패턴 재사용: 임베드/RPC 의 procedure_review 가
+          객체·배열 어느 쪽이든 깨지지 않게 정규화(배열이면 첫 요소). */}
+      {(() => {
+        if ((card.category ?? card.type) !== "review") return null;
+        const pr = card.procedure_review;
+        const review = Array.isArray(pr) ? pr[0] : pr;
+        return review ? <ReviewSummary review={review} /> : null;
+      })()}
 
       <div
         className={isLong ? styles.bodyToggle : undefined}

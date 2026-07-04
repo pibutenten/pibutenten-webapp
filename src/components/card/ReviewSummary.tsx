@@ -1,14 +1,18 @@
 /**
  * ReviewSummary — 시술후기 카드(type=review)의 정량 요약 한 줄 텍스트.
  *
- * 카드 제목 바로 아래(CardBody afterTitle 슬롯)에 박스 없이 인라인 텍스트로 표시:
- *   ★★★★☆ · 통증 꽤 · 효과 탄력·리프팅
+ * 카드 제목 바로 아래(CardBody afterTitle 슬롯)에 박스 없이 인라인 텍스트로 표시
+ * (원장 승인 표기안, 2026-07-04):
+ *   ★★★★☆ · 통증 꽤 · 또 받을래요 · 회복 1~2일 · 효과 탄력·리프팅·모공 +2
  *
  *   - 만족도: 별점만 (라벨 생략, ★×satisfaction 금색 / 나머지 옅은 회색)
  *   - 통증: 흐린 라벨 "통증" + 하늘색 값(1=없음 … 5=심함)
- *   - 효과 체감: 흐린 라벨 "효과" + effect_areas 값(하늘색)을 가운뎃점(·)으로 연결
- *   - 항목 구분: 가운뎃점(·)
- *   ※ '재시술 의향'은 카드에선 제거(카드 길이 단축, 2026-06-04). 리포트 집계엔 유지.
+ *   - 재시술 의향: 라벨 접두 없이 값 자체가 뜻 전달(하늘색) — 또 받을래요/재시술 고민 중/
+ *     재시술 생각 없어요. (2026-06-04 카드 길이 단축으로 제거했다가 2026-07-04 원장 확정으로 복원)
+ *   - 회복(다운타임): 라벨 접두 없이 값 자체가 뜻 전달(하늘색) — 당일 회복/회복 1~2일/…
+ *   - 효과 체감: 흐린 라벨 "효과" + effect_areas 값(하늘색) 최대 3개 가운뎃점(·) 연결,
+ *     남으면 " +n"(회색)
+ *   - 항목 구분: 가운뎃점(·) / 미응답(null·undefined) 항목은 그 자리 생략
  *
  * 색·라벨은 review/new/ReviewForm.tsx 의 PAIN_FACES 와 정합.
  * 디자인 토큰: --primary(하늘색) / --accent-save / --text-secondary / --text-muted.
@@ -24,12 +28,38 @@ const PAIN_LABELS: Record<number, string> = {
   5: "심함",
 };
 
+/* 재시술 의향 — procedure_reviews.revisit 슬러그 → 카드 표기(원장 확정 2026-07-04).
+ * 라벨 접두 없이 문구 자체가 뜻을 전달. */
+const REVISIT_LABELS: Record<string, string> = {
+  yes: "또 받을래요",
+  maybe: "재시술 고민 중",
+  no: "재시술 생각 없어요",
+};
+
+/* 회복(다운타임) — 키는 lib/review-options.ts DOWNTIME_OPTIONS 의 value(=DB CHECK 0213 슬러그)와
+ * 1:1. 라벨 문구는 폼 라벨("없음"/"1~2일"…)과 다른 카드 전용 표기(원장 확정 2026-07-04) —
+ * 카드에선 맥락 없이 읽혀야 해서 "회복"을 문구에 포함. */
+const DOWNTIME_CARD_LABELS: Record<string, string> = {
+  same_day: "당일 회복",
+  days_1_2: "회복 1~2일",
+  days_3_5: "회복 3~5일",
+  week_1: "회복 약 1주",
+  weeks_2_plus: "회복 2주 이상",
+};
+
+/* 효과 체감 — 카드 한 줄 길이 유지를 위해 최대 3개까지만 나열, 나머지는 " +n". */
+const MAX_EFFECTS = 3;
+
 export default function ReviewSummary({ review }: { review: ReviewSummaryData }) {
   const satisfaction = Math.max(
     0,
     Math.min(5, Math.round(review.satisfaction || 0)),
   );
   const painLabel = PAIN_LABELS[review.pain] ?? null;
+  const revisitLabel = review.revisit ? (REVISIT_LABELS[review.revisit] ?? null) : null;
+  const downtimeLabel = review.downtime
+    ? (DOWNTIME_CARD_LABELS[review.downtime] ?? null)
+    : null;
   const effects = (review.effect_areas ?? []).filter(
     (e) => typeof e === "string" && e.trim(),
   );
@@ -68,12 +98,43 @@ export default function ReviewSummary({ review }: { review: ReviewSummaryData })
     );
   }
 
-  // 효과 체감 — 흐린 라벨 + 가운뎃점으로 연결한 하늘색 값.
+  // 재시술 의향 — 라벨 접두 없이 문구 자체가 값(하늘색).
+  if (revisitLabel) {
+    segments.push(
+      <span
+        key="revisit"
+        className="whitespace-nowrap"
+        style={{ color: "var(--primary)" }}
+      >
+        {revisitLabel}
+      </span>,
+    );
+  }
+
+  // 회복(다운타임) — 라벨 접두 없이 문구 자체가 값(하늘색).
+  if (downtimeLabel) {
+    segments.push(
+      <span
+        key="downtime"
+        className="whitespace-nowrap"
+        style={{ color: "var(--primary)" }}
+      >
+        {downtimeLabel}
+      </span>,
+    );
+  }
+
+  // 효과 체감 — 흐린 라벨 + 가운뎃점으로 연결한 하늘색 값(최대 3개, 남으면 +n 회색).
   if (effects.length > 0) {
+    const shown = effects.slice(0, MAX_EFFECTS);
+    const rest = effects.length - shown.length;
     segments.push(
       <span key="effects">
         <span className="text-[var(--text-muted)]">효과 </span>
-        <span style={{ color: "var(--primary)" }}>{effects.join("·")}</span>
+        <span style={{ color: "var(--primary)" }}>{shown.join("·")}</span>
+        {rest > 0 && (
+          <span className="text-[var(--text-muted)]"> +{rest}</span>
+        )}
       </span>,
     );
   }
