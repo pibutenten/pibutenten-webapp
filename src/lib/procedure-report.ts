@@ -39,8 +39,9 @@ export type ProcedureCategory = ProcedureSlug;
 
 /**
  * tag_dictionary.category(한글) → 테마 영문 slug 매핑 — SSOT.
- *   getProcedureReport(카드 테두리 색)·getReportSummaryForTag(닫힌 리포트 글상자)·
- *   reports/[procedure] page(비슷한 시술 카드 색)가 공용. 미분류·미발견은 null.
+ *   getProcedureReport(카드 테두리 색)·reports/[procedure] page(비슷한 시술 카드 색)가 공용.
+ *   미분류·미발견은 null. ⚠ 입력은 **한글** 전용 — pool RPC(get_review_summary_pool)처럼
+ *   이미 영문 slug 를 반환하는 소스에 쓰면 항상 null (getReportSummaryForTag 과거 결함).
  */
 export function categoryKoToSlug(
   ko: string | null | undefined,
@@ -329,7 +330,11 @@ export async function getReportSummaryForTag(
       maybe: Number(row.revisit_maybe) || 0,
       no: Number(row.revisit_no) || 0,
     },
-    category: categoryKoToSlug(row.category),
+    // pool RPC 의 category 는 이미 영문 slug — getReviewSummaryFeedPool 과 동일하게
+    //   유효 slug 검증 후 그대로 사용 (한글 매퍼 categoryKoToSlug 통과 금지 — 항상 null 이 됨).
+    category: (PROCEDURE_SLUGS as readonly string[]).includes(row.category as string)
+      ? (row.category as ProcedureCategory)
+      : null,
   };
 }
 

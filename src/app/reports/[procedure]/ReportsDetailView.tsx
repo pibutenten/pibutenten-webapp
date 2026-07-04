@@ -33,6 +33,7 @@ import LoginPromptDialog from "@/components/LoginPromptDialog";
 import ReportViewTracker from "@/components/report/ReportViewTracker";
 import { addEngagement } from "@/lib/engagement-score";
 import { ssGet, ssSet } from "@/lib/safe-storage";
+import { showToast } from "@/lib/toast";
 
 const EFFECT_BAR_COLORS = [
   "#7FD0F8", "#B0A0DE", "#9AA6DE", "#FFCB8C", "#8FD4C8",
@@ -308,7 +309,8 @@ export default function ReportsDetailView({
       setDemo((prev) => ({ ...prev, ...(data.reviewDemo ?? {}) }));
       if ((data.reviews?.length ?? 0) < 10) setReachedEnd(true);
     } catch {
-      /* 무시 — 재시도 가능 */
+      // 버튼 재클릭으로 재시도 가능하나 무피드백이면 버튼이 죽은 것처럼 보임 → danger 토스트.
+      showToast("후기를 더 불러오지 못했어요. 잠시 후 다시 시도해주세요.", { tone: "danger" });
     } finally {
       setLoadingMore(false);
     }

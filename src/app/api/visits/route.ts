@@ -117,6 +117,10 @@ export async function POST(req: Request) {
   //   DB 미존재만 검사하면 같은 요청의 두 후보가 우연히 같을 때 RPC INSERT 에서 UNIQUE 위반(23505)→500.
   const usedShortcodes = new Set<string>();
 
+  // post_year: KST 기준 연도 — admin/draft/publish 와 동일 패턴(+9h offset 후 UTC 메서드 = KST).
+  //   구 getUTCFullYear() 직사용은 KST 1/1 00~09시 작성분이 전년으로 기록되는 결함.
+  const postYear = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCFullYear();
+
   for (const r of p.reviews) {
     const procedureKo = r.procedure_ko.trim();
 
@@ -202,7 +206,7 @@ export async function POST(req: Request) {
       keywords: r.keywords && r.keywords.length > 0 ? r.keywords : [procedureKo],
       status,
       shortcode,
-      post_year: new Date().getUTCFullYear(),
+      post_year: postYear,
     };
     reviewsForRpc.push(base);
   }

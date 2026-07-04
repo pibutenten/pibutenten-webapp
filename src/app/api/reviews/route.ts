@@ -168,6 +168,10 @@ export async function POST(req: Request) {
     }
   }
 
+  // post_year: KST 기준 연도 — admin/draft/publish 와 동일 패턴(+9h offset 후 UTC 메서드 = KST).
+  //   구 getUTCFullYear() 직사용은 KST 1/1 00~09시 작성분이 전년으로 기록되는 결함.
+  const postYear = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCFullYear();
+
   // 10. RPC — 카드 + procedure_reviews 원자적 생성. auth.uid() 소유자 검증은 RPC 내부.
   //     p_title/p_body 는 마스킹된 값. 단순화된 척도(만족도·통증·재시술·체감효과)만 매핑.
   const { data: rpcData, error: rpcErr } = await supabase.rpc("create_procedure_review", {
@@ -178,7 +182,7 @@ export async function POST(req: Request) {
     p_keywords: [procedureKo],
     p_status: status,
     p_shortcode: shortcode,
-    p_post_year: new Date().getUTCFullYear(),
+    p_post_year: postYear,
     p_satisfaction: payload.satisfaction,
     p_pain: payload.pain,
     p_revisit: payload.revisit,

@@ -32,6 +32,10 @@ export async function GET(req: Request) {
     const unread = await supabase.rpc("get_my_unread_count", {
       p_active_profile_id: activeProfileId,
     });
+    // RPC 에러를 0 으로 오표시하지 않음 — 배지 클라(AppShell)는 !res.ok 시 이전 값 유지.
+    if (unread.error) {
+      return errorResponse(unread.error, "generic", "[notifications GET] get_my_unread_count (countOnly)", 500);
+    }
     return NextResponse.json(
       {
         items: [],
@@ -66,6 +70,9 @@ export async function GET(req: Request) {
     if (items.error) {
       return errorResponse(items.error, "generic", "[notifications GET] get_notifications", 500);
     }
+    if (unread.error) {
+      return errorResponse(unread.error, "generic", "[notifications GET] get_my_unread_count (page)", 500);
+    }
     return NextResponse.json(
       {
         items: items.data ?? [],
@@ -87,6 +94,9 @@ export async function GET(req: Request) {
   ]);
   if (items.error) {
     return errorResponse(items.error, "generic", "[notifications GET] get_my_notifications", 500);
+  }
+  if (unread.error) {
+    return errorResponse(unread.error, "generic", "[notifications GET] get_my_unread_count (dropdown)", 500);
   }
   return NextResponse.json(
     {
