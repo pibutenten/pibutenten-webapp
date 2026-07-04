@@ -20,14 +20,11 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { getActiveIdentityId } from "@/lib/active-identity";
 import { ROLES } from "@/lib/identity-shared";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { showToast } from "@/lib/toast";
 import { pickErrorMessage } from "@/lib/api-error";
-import { getDoctorIdForProfile } from "@/lib/doctor-mapping";
 import { useSession } from "@/lib/session-context";
 import type {
   CommentStatus,
@@ -78,11 +75,38 @@ export default function CommentsBlock({
   // 전체(상세/펼침) 로드를 한 번이라도 했는지 — seed 미리보기와 구분.
   const [fullLoaded, setFullLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [me, setMe] = useState<CommentViewer>(null);
+
+  // ── 현재 로그인 사용자(viewer) — SessionContext 단일 출처 (R4-2, 2026-07-04).
+  //   옛: 카드 인스턴스마다 useEffect 에서 supabase.auth.getUser()(네트워크) + profiles SELECT
+  //       + doctor 매핑 SELECT → 피드 20카드 = 60호출 (N+1).
+  //   새: SessionProvider(앱 루트, /api/session 1회)의 SessionInfo 파생 — 인스턴스당 추가 호출 0.
+  //       useCardViewer 와 동일 패턴 (ADR 0012: me.id/role/doctor_id 모두 active 명함 단일 기준).
+  //   보안:
+  //     ① 묶음 검증(활성 identity 가 본인 묶음 소속인지 — 위조 cookie 차단)은 서버
+  //        getSessionInfo() 가 auth.getUser() + 묶음 rows 대조로 동등 수행. 클라 자체 검증
+  //        제거로 소실되지 않으며, 판정 근거가 위조 가능한 mirror cookie → 서버 httpOnly
+  //        cookie 로 옮겨져 오히려 강화.
+  //     ② 권한 진실원은 서버 RLS + resolveActiveIdentity (comments API 가 매 요청 재검증).
+  //        여기의 me 는 수정/삭제/숨김 버튼 노출·숨김 본문 열람 등 표시 보조 전용 —
+  //        위조돼도 서버가 거부.
+  const session = useSession();
+  const me: CommentViewer =
+    session === null
+      ? null
+      : {
+          id: session.activeIdentityId,
+          role: session.role,
+          doctor_id: session.doctorId,
+        };
+  // meLoaded 등가물 — SSR/첫 페인트에는 로그인 분기(입력 폼 vs '로그인하고 댓글 남기기')를
+  // 렌더하지 않아 로그인 사용자에게 로그인 버튼이 깜빡이는 것 방지(옛 meLoaded 와 동일 목적).
+  // SessionProvider 의 동기 쿠키 판정(setSession)과 같은 passive effect flush 에서 함께
+  // 반영되므로, 쿠키가 유효한 로그인 사용자는 로그인 버튼을 한 프레임도 보지 않는다.
   const [meLoaded, setMeLoaded] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe mount 플래그(1회) — session-context.tsx 와 동일 패턴
+  useEffect(() => setMeLoaded(true), []);
 
   // 댓글 입력 placeholder — 로그인 시 본인 닉네임, 비로그인은 기본('텐즈').
-  const session = useSession();
   const composerPlaceholder = session?.displayName
     ? `${session.displayName}님의 생각을 남겨주세요`
     : "텐즈님의 생각을 남겨주세요";
@@ -124,56 +148,6 @@ export default function CommentsBlock({
       setFullLoaded(true);
     }
   }, [cardId]);
-
-  // ── 현재 로그인 사용자 정보 (id/role/doctor_id)
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const sb = createSupabaseBrowserClient();
-      const {
-        data: { user },
-      } = await sb.auth.getUser();
-      if (!alive) return;
-      if (!user) {
-        setMe(null);
-        setMeLoaded(true);
-        return;
-      }
-      // 정책 (2026-05-15 재정의): me.id / role / doctor_id 모두 **active profile 단일** 기준.
-      // - id: active profile.id — mirror cookie 의 UUID (getActiveIdentityId). 쿠키 없음/비-UUID 면 user.id fallback
-      // - role: active profile 자체의 role (묶음 최고 권한 X)
-      // - doctor_id: active profile 의 의사 매핑 (SSOT: profiles.doctor_id, 묶음의 다른 profile X)
-      // → 댓글 본인 인식 (isAuthor) 도 active == author 일 때만.
-      const activeId = getActiveIdentityId() ?? user.id;
-      const [{ data: prof }, myDoctorId] = await Promise.all([
-        sb
-          .from("profiles")
-          .select("id, role, auth_user_id")
-          .eq("id", activeId)
-          .maybeSingle(),
-        getDoctorIdForProfile(sb, activeId),
-      ]);
-      if (!alive) return;
-      const row = prof as { id: string; role: string; auth_user_id: string } | null;
-      // 본인 묶음 검증 — 다른 사람 profile cookie 위조 차단
-      const isMine = !!row && (row.id === user.id || row.auth_user_id === user.id);
-      if (!isMine) {
-        setMe({ id: user.id, role: "user", doctor_id: null });
-        setMeLoaded(true);
-        return;
-      }
-      const role = ((row?.role as string) ?? "user") as "admin" | "doctor" | "user";
-      setMe({
-        id: activeId,
-        role,
-        doctor_id: myDoctorId,
-      });
-      setMeLoaded(true);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // 전체 댓글 로드 조건: 펼침(showInput) 또는 seed 없음(상세 등). seed 있는 미리보기 모드면 fetch 안 함.
   //   → 피드 스크롤 중 카드별 fetch(N+1) 제거. 💬 클릭(showInput=true) 시에만 전체 로드.

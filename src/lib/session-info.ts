@@ -11,7 +11,7 @@
 import type { SessionInfo } from "@/lib/session-types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { IDENTITY_COOKIE, UUID_RE } from "@/lib/identity-shared";
-import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
+import { getDoctorMetaBatch, type DoctorMeta } from "@/lib/doctor-mapping";
 
 export async function getSessionInfo(): Promise<SessionInfo> {
   try {
@@ -43,10 +43,15 @@ export async function getSessionInfo(): Promise<SessionInfo> {
     // 의사 매핑 (각 profile.id가 어느 doctor의 가입자인지). SSOT: profiles.doctor_id.
     const groupIds = rows.map((r) => r.id);
     const docMap = new Map<string, string>(); // profile_id → doctor.slug
+    // R4-2 (2026-07-04): profile_id → doctor.id (UUID). 같은 getDoctorMetaBatch 응답에서
+    // 추출 — 추가 쿼리 0. CommentsBlock 등 클라 viewer 판정(me.doctor_id) 세션 단일 출처화용.
+    // 값 타입을 DoctorMeta 에 위임 — 원 타입이 nullable 로 바뀌어도 무음 불일치가 안 생기게 (검수 권고).
+    const docIdMap = new Map<string, DoctorMeta["doctorId"]>();
     {
       const metaMap = await getDoctorMetaBatch(supabase, groupIds);
       for (const [pid, meta] of metaMap) {
         if (meta.slug) docMap.set(pid, meta.slug);
+        docIdMap.set(pid, meta.doctorId);
       }
     }
 
@@ -96,6 +101,7 @@ export async function getSessionInfo(): Promise<SessionInfo> {
     // 인데 base 가 doctor 인 케이스에서 me.role='doctor' 박혀 모든 카드 메뉴 가림 회귀.
     const activeRow = rows.find((r) => r.id === activeIdentityId) ?? rows[0];
     const activeDoctorSlug = docMap.get(activeRow.id) ?? null;
+    const activeDoctorId = docIdMap.get(activeRow.id) ?? null;
 
     return {
       role: (activeRow.role as "admin" | "doctor" | "user") ?? "user",
@@ -103,6 +109,7 @@ export async function getSessionInfo(): Promise<SessionInfo> {
       avatarUrl: activeRow.avatar_url ?? null,
       handle: activeRow.handle ?? null,
       doctorSlug: activeDoctorSlug,
+      doctorId: activeDoctorId,
       identities,
       activeIdentityId,
     };

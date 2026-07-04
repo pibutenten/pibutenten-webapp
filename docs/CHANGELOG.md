@@ -9,6 +9,7 @@
 ## [2026-07-04] — 개선 라운드 R4: 성능 (독립 이중검증 실행계획)
 
 ### Changed
+- **[R4-2] CommentsBlock viewer 식별 N+1 제거 — 세션 단일 출처화** (`CommentsBlock.tsx`, `session-types/info/context`) — 카드 인스턴스마다 `auth.getUser()`+profiles SELECT+doctor 조회를 실행하던 per-instance effect(피드 20카드=60호출)를 `useSession()` 파생으로 교체 — **60→0 호출**(기존 `/api/session` 1회에 상각). `SessionInfo.doctorId` 신설은 `getSessionInfo` 가 이미 조회하던 `getDoctorMetaBatch` 응답에서 노출만(추가 쿼리 0, 값 타입은 DoctorMeta 위임 — 검수 권고). 보안: 묶음 검증 술어가 서버 `getSessionInfo`(httpOnly 쿠키)에 동일 존재 — 위조 가능 mirror 쿠키 기반 클라 검증이 서버 검증으로 이동해 **강화**(위조 쿠키가 표시 판정에도 영향 불가). me 의존 UI 7곳(수정/삭제/숨김열람 버튼 등) 케이스 5종 동치 검증, CommentViewer 계약·RLS 불변. 과도기 델타 1건(의사 명함의 숨김열람 버튼이 /api/session 응답 후 표시 — 앱 전역 기존 패턴)은 수용.
 - **[R4-1] `/reports/[procedure]` 순차 워터폴 병렬화** — 요청당 약 11~13 순차 DB 왕복을 실제 데이터 의존 그래프 기준 **3단계 Promise.all** 로 재배선(report 선행 await 는 유지 — 미존재 시술이면 나머지 쿼리 미발사 404 조기종료). 쿼리 내용·필터·개별 실패 degrade 의미 불변, `getProcedureReport` 등 React cache() 헬퍼 내부 불변. auth.getUser 를 1단계로 상향(전제 주석 명기) + `authRes.data?.user` 방어(자체 검수 반영).
 
 ---

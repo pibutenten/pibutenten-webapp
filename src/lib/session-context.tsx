@@ -65,6 +65,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         avatarUrl: null,
         handle: null,
         doctorSlug: null,
+        doctorId: null,
         identities: [],
         activeIdentityId: id,
       });
