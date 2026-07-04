@@ -9,6 +9,7 @@
 ## [2026-07-04] — 개선 라운드 R5: 사용자경험 (독립 이중검증 실행계획)
 
 ### Fixed
+- **[R5-2] 온보딩 검증 UX + 모달 포커스 트랩** — ① 온보딩 검증 실패 시 첫 실패 필드로 scrollIntoView+focus(11개 필드 ref, `fail` 헬퍼) + 중앙 danger 토스트(하단 에러문이 시야 밖 문제 보완). 검증 규칙·순서·구체 문구 불변 ② 원시 영문 에러 노출 3곳(업로드·저장 `error.message`) → 한글 일반화 + console.error ③ `hooks/useFocusTrap` 신설(capture 단계 Tab 전용 — Esc·배경클릭·초기 포커스 무간섭, 닫힘 시 이전 포커스 복원) 후 모달 3종(ConfirmDialog/LoginPromptDialog/UnsavedChangesModal) 적용. 잔여 모달류 7종은 동일 훅 재사용 가능(후속 재량).
 - **[R5-1] 데이터 정정 4건** — ① `/topics` 리포트 글상자 category 항상 null(`procedure-report.ts::getReportSummaryForTag` 가 영문 slug 반환값에 한글 매퍼 적용) → 기존 `PROCEDURE_SLUGS` 검증 패턴으로 교체 — 리포트 글상자에 카테고리 칩·색 정상 표시 ② 후기·방문 `post_year` UTC 연도(KST 새해 00~09시 전년 기록) → publish 와 동일한 KST 계산으로(articles POST 는 주석으로 의도 명시 확인 — 불변, 잠재 사안 기록) ③ 알림 unread RPC 에러 무검사 3곳(에러 시 배지 0 오표시) → 라우트 컨벤션(errorResponse 500)으로 — 배지는 !res.ok 시 이전 값 유지라 오표시보다 우수 ④ 리포트 후기 페이징 무언 catch → danger 토스트. 백로그: /notifications 더 불러오기의 조용한 실패(기존 동작).
 
 ---

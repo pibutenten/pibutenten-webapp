@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 type Props = {
   open: boolean;
@@ -30,6 +31,12 @@ export default function ConfirmDialog({
   onCancel,
 }: Props) {
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Tab 순환 트랩 + 닫힐 때 이전 포커스 복원 (R5-2).
+  //   기존 초기 포커스(setTimeout 으로 confirm 버튼)는 아래 effect 그대로 —
+  //   트랩은 setTimeout 발화 전에 activeElement(트리거)를 캡처하므로 충돌 없음.
+  useFocusTrap(cardRef, open);
 
   // ESC 키로 닫기 + 배경 스크롤 잠금
   useEffect(() => {
@@ -69,6 +76,7 @@ export default function ConfirmDialog({
 
       {/* 카드 */}
       <div
+        ref={cardRef}
         className="confirm-dialog-pop relative w-full max-w-[360px] rounded-[var(--radius-lg)] bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >

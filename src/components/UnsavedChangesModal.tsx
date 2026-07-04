@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 /**
  * 작성 중 이탈 확인 모달 — useUnsavedChangesGuard 와 함께 사용.
@@ -25,6 +26,13 @@ export default function UnsavedChangesModal({
   onCancel: () => void;
 }) {
   const primaryRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Tab 순환 트랩 + 닫힐 때 이전 포커스 복원 (R5-2).
+  //   ⚠ 아래 초기 포커스 effect 보다 먼저 호출 — effect 는 선언 순서대로 실행되므로
+  //   트랩이 "열기 전" activeElement(트리거)를 primaryRef.focus() 이전에 캡처한다.
+  // active 생략(항상 true) — 이 모달은 부모가 조건부 마운트하는 전제. open prop 을 도입하면 active 연동 필요.
+  useFocusTrap(cardRef);
 
   useEffect(() => {
     primaryRef.current?.focus();
@@ -60,6 +68,7 @@ export default function UnsavedChangesModal({
       onClick={onCancel}
     >
       <div
+        ref={cardRef}
         style={{
           background: "#fff",
           borderRadius: 16,

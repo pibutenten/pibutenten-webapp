@@ -197,6 +197,20 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
   // dedup 다이얼로그 — 같은 이름+생년월일+성별 조합 발견 시 표시
   const [duplicate, setDuplicate] = useState<DuplicateResult | null>(null);
 
+  // R5-2: 검증 실패 시 첫 실패 필드로 스크롤+포커스하기 위한 앵커 ref.
+  //   input/select/checkbox 는 요소 자체, 칩 그룹은 컨테이너 div(tabIndex=-1)에 부착.
+  const emailRef = useRef<HTMLInputElement | null>(null);
+  const birthYearRef = useRef<HTMLSelectElement | null>(null);
+  const birthMonthRef = useRef<HTMLSelectElement | null>(null);
+  const birthDayRef = useRef<HTMLSelectElement | null>(null);
+  const genderRef = useRef<HTMLDivElement | null>(null);
+  const faceShapeRef = useRef<HTMLDivElement | null>(null);
+  const skinTypeRef = useRef<HTMLDivElement | null>(null);
+  const fitzpatrickRef = useRef<HTMLDivElement | null>(null);
+  const skinConcernsRef = useRef<HTMLDivElement | null>(null);
+  const interestsRef = useRef<HTMLDivElement | null>(null);
+  const consentRef = useRef<HTMLInputElement | null>(null);
+
   function toggle(arr: string[], v: string): string[] {
     return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
   }
@@ -220,14 +234,18 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
           contentType: "image/jpeg",
         });
       if (upErr) {
-        setErr(`업로드 실패: ${upErr.message}`);
+        // R5-2: 원시(영문) 에러는 콘솔로만 — 사용자에게는 한글 일반화 메시지.
+        console.error("[onboarding] avatar upload failed:", upErr);
+        setErr("사진 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.");
         return;
       }
       const { data } = sb.storage.from("avatars").getPublicUrl(path);
       // 캐시 우회용 v= 쿼리 (재업로드 시 즉시 반영)
       setAvatarUrl(`${data.publicUrl}?v=${Date.now()}`);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "업로드 실패");
+      // R5-2: 원시 에러는 콘솔로만 — 사용자에게는 한글 일반화 메시지.
+      console.error("[onboarding] avatar upload failed:", e);
+      setErr("사진 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -242,24 +260,43 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
   function save(skipDedup = false) {
     setErr(null);
 
+    // R5-2: 검증 실패 처리 — 구체 메시지 유지(하단 텍스트 + 토스트) 후 해당 필드로
+    //   부드럽게 스크롤 + 포커스. 저장 버튼이 페이지 하단이라 스크롤이 위로 이동하면
+    //   하단 err 텍스트가 안 보이므로, 화면 중앙 danger 토스트로 같은 메시지를 한 번 더 노출.
+    //   focus({preventScroll}) — smooth 스크롤 중 focus 의 기본 점프 스크롤 개입 차단.
+    const fail = (message: string, el: HTMLElement | null) => {
+      setErr(message);
+      showToast(message, { tone: "danger" });
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.focus({ preventScroll: true });
+      }
+    };
+
     // 필수값 검증
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setErr("이메일을 입력해주세요.");
+      fail("이메일을 입력해주세요.", emailRef.current);
       return;
     }
     // 가벼운 형식 검증만 (RFC 완벽 X — 사용자가 다른 이메일 적어도 정책상 허용)
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setErr("이메일 형식이 올바르지 않아요.");
+      fail("이메일 형식이 올바르지 않아요.", emailRef.current);
       return;
     }
     if (!birthdate) {
-      setErr("생년월일을 입력해주세요.");
+      // 년·월·일 중 첫 번째 빈 select 로 포커스
+      const firstEmpty = !birthYear
+        ? birthYearRef.current
+        : !birthMonth
+          ? birthMonthRef.current
+          : birthDayRef.current;
+      fail("생년월일을 입력해주세요.", firstEmpty);
       return;
     }
     const t = new Date(birthdate).getTime();
     if (!Number.isFinite(t) || t > Date.now()) {
-      setErr("올바른 생년월일을 입력해주세요.");
+      fail("올바른 생년월일을 입력해주세요.", birthYearRef.current);
       return;
     }
     // 만 14세 미만 차단 (A3, 2026-05-17).
@@ -279,38 +316,40 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
       ageYears -= 1;
     }
     if (ageYears < 14) {
-      setErr(
+      fail(
         "만 14세 미만은 가입할 수 없습니다. 법정대리인의 도움이 필요해요.",
+        birthYearRef.current,
       );
       return;
     }
     if (!gender) {
-      setErr("성별을 선택해주세요.");
+      fail("성별을 선택해주세요.", genderRef.current);
       return;
     }
     if (!faceShape) {
-      setErr("얼굴형을 선택해주세요.");
+      fail("얼굴형을 선택해주세요.", faceShapeRef.current);
       return;
     }
     if (!skinType) {
-      setErr("피부타입을 선택해주세요.");
+      fail("피부타입을 선택해주세요.", skinTypeRef.current);
       return;
     }
     if (!fitzpatrick) {
-      setErr("피부색을 선택해주세요.");
+      fail("피부색을 선택해주세요.", fitzpatrickRef.current);
       return;
     }
     if (skinConcerns.length === 0) {
-      setErr("피부 고민을 한 개 이상 선택해주세요.");
+      fail("피부 고민을 한 개 이상 선택해주세요.", skinConcernsRef.current);
       return;
     }
     if (procedures.length === 0) {
-      setErr("관심 키워드를 한 개 이상 선택해주세요.");
+      fail("관심 키워드를 한 개 이상 선택해주세요.", interestsRef.current);
       return;
     }
     if (!skinInfoConsent) {
-      setErr(
+      fail(
         "피부 정보 활용에 동의해 주세요. 동의하지 않으시면 가입을 진행할 수 없어요.",
+        consentRef.current,
       );
       return;
     }
@@ -361,7 +400,9 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
         })
         .eq("id", targetProfileId);
       if (error) {
-        setErr(`저장 실패: ${error.message}`);
+        // R5-2: supabase 원시(영문) 에러는 콘솔로만 — 사용자에게는 한글 일반화 메시지.
+        console.error("[onboarding] profile save failed:", error);
+        setErr("저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
         return;
       }
       // Phase 6-NEW (migration 0106): 묶음 내 다른 profile row 들에 온보딩 정보를 일괄 전파
@@ -495,6 +536,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
               이메일
             </span>
             <input
+              ref={emailRef}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -512,6 +554,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
             </span>
             <div className="flex flex-1 gap-1.5">
               <select
+                ref={birthYearRef}
                 value={birthYear}
                 onChange={(e) => setBirthYear(e.target.value)}
                 className="h-9 flex-[1.3] rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none"
@@ -524,6 +567,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
                 ))}
               </select>
               <select
+                ref={birthMonthRef}
                 value={birthMonth}
                 onChange={(e) => setBirthMonth(e.target.value)}
                 className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none"
@@ -536,6 +580,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
                 ))}
               </select>
               <select
+                ref={birthDayRef}
                 value={birthDay}
                 onChange={(e) => setBirthDay(e.target.value)}
                 className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none"
@@ -555,7 +600,11 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
             <span className="w-[60px] shrink-0 text-[12px] font-medium text-[var(--text-secondary)]">
               성별
             </span>
-            <div className="flex flex-1 flex-wrap gap-2">
+            <div
+              ref={genderRef}
+              tabIndex={-1}
+              className="flex flex-1 flex-wrap gap-2 outline-none"
+            >
               {GENDERS.map((g) => (
                 <Chip
                   key={g.key}
@@ -578,7 +627,11 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
         {/* 얼굴형 */}
         <div>
           <SubLabel>얼굴형이 어떻게 되세요?</SubLabel>
-          <div className="flex flex-wrap gap-1">
+          <div
+            ref={faceShapeRef}
+            tabIndex={-1}
+            className="flex flex-wrap gap-1 outline-none"
+          >
             {FACE_SHAPES.map((f) => (
               <Chip
                 key={f.key}
@@ -594,7 +647,11 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
         {/* 피부타입 */}
         <div>
           <SubLabel>피부 타입은 어떤 편이세요?</SubLabel>
-          <div className="flex flex-wrap gap-1">
+          <div
+            ref={skinTypeRef}
+            tabIndex={-1}
+            className="flex flex-wrap gap-1 outline-none"
+          >
             {SKIN_TYPES.map((s) => (
               <Chip
                 key={s.key}
@@ -618,7 +675,11 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
               (2026-07-03 회귀 수정 — 선택 표시 = 테두리+배경+체크 배지).
               리셋 대상은 background/border/color 뿐 — transform(active:scale)은 클래스 유지,
               hover 테두리는 !important(hover:!border-*)로 인라인 위에서만 보정. */}
-          <div className="grid grid-cols-3 gap-2">
+          <div
+            ref={fitzpatrickRef}
+            tabIndex={-1}
+            className="grid grid-cols-3 gap-2 outline-none"
+          >
             {FITZPATRICK_TONES.map((o) => {
               const on = fitzpatrick === o.v;
               const ink = o.v >= 5 ? "#F6E7D8" : "#4A3322";
@@ -672,7 +733,11 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
           <SubLabel hint="모두 고르셔도 돼요">
             요즘 어떤 피부 고민이 있으세요?
           </SubLabel>
-          <div className="flex flex-wrap gap-1">
+          <div
+            ref={skinConcernsRef}
+            tabIndex={-1}
+            className="flex flex-wrap gap-1 outline-none"
+          >
             {SKIN_CONCERNS.map((c, i) => (
               <Chip
                 key={c.key}
@@ -698,6 +763,8 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
         <p className="mb-3 text-[12.5px] leading-[1.6] text-[var(--text-muted)]">
           추후에 변경하실 수 있으니 편하게 골라주세요.
         </p>
+        {/* R5-2: 검증 실패 스크롤·포커스 앵커 — InterestPicker 내부는 손대지 않고 wrapper 로 감쌈 */}
+        <div ref={interestsRef} tabIndex={-1} className="outline-none">
         <InterestPicker
           popularByCategory={popularByCategory}
           activeCategory={interestCategory}
@@ -719,6 +786,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
             setProcedures([...procedures, v]);
           }}
         />
+        </div>
       </Section>
 
       {/* 6. 자기소개 — 미입력 시 DEFAULT_BIO 로 자동 저장. required 아님. */}
@@ -745,6 +813,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
       <div className="mt-4 rounded-[var(--radius)] border border-[var(--border)] bg-white p-4 sm:p-5">
         <label className="flex items-start gap-2 cursor-pointer">
           <input
+            ref={consentRef}
             type="checkbox"
             checked={skinInfoConsent}
             onChange={(e) => setSkinInfoConsent(e.target.checked)}

@@ -22,7 +22,8 @@
  */
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 type Props = {
   open: boolean;
@@ -31,6 +32,11 @@ type Props = {
 };
 
 export default function LoginPromptDialog({ open, message, onClose }: Props) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Tab 순환 트랩 + 닫힐 때 이전 포커스 복원 (R5-2).
+  useFocusTrap(cardRef, open);
+
   // ESC 키로 닫기
   useEffect(() => {
     if (!open) return;
@@ -57,6 +63,7 @@ export default function LoginPromptDialog({ open, message, onClose }: Props) {
       aria-labelledby="login-prompt-title"
     >
       <div
+        ref={cardRef}
         className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
