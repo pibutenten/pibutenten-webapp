@@ -13,7 +13,15 @@
  *   normalizations — 변형어 → 정규화 결과 배열
  *   autotag        — [{display:ko, variants:[ko,...aliases]}] — is_recommendable=true 만(회원 자동태깅 사전)
  *
+ * 클라이언트 경량 스냅샷 (R4-3): 전체 스냅샷은 서버 전용이며, 클라이언트 번들용으로
+ *   `src/data/tag-dictionary.client.generated.json` 을 **같은 실행에서 함께 생성**한다.
+ *   내용은 전체 스냅샷의 "클라 사용 필드" 투영(category·slug·blacklist·normalizations —
+ *   같은 객체를 그대로 참조하므로 전체 스냅샷과 byte 동일, 수동 분리·drift 불가).
+ *   pubmed·pubmedLookup·aliases·autotag 는 서버 전용이라 클라 파일에 싣지 않는다.
+ *   소비: src/lib/procedure-dict.client.ts + src/data/procedure-mappings/slug-mapping.ts.
+ *
  * DB 접근 실패(무네트워크/무env) 시: 경고만 남기고 기존 커밋된 스냅샷을 보존(exit 0) → 빌드 무중단.
+ *   (이때도 클라 투영은 기존 전체 스냅샷에서 재생성 — 두 파일 정합 유지.)
  *
  * 실행: `node scripts/gen-tag-dictionary.mjs` (package.json prebuild 에 연결).
  */
@@ -24,6 +32,7 @@ import { dirname, join } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const OUT = join(ROOT, "src/data/tag-dictionary.generated.json");
+const CLIENT_OUT = join(ROOT, "src/data/tag-dictionary.client.generated.json");
 
 const KR2SLUG = {
   피부고민: "concerns",
@@ -116,6 +125,25 @@ function buildFromDb(rows, blacklistRows, normRows) {
   return { category, slug, pubmed, pubmedLookup, aliases, blacklist, normalizations, autotag };
 }
 
+/**
+ * 클라이언트 경량 스냅샷 쓰기 — 전체 스냅샷 객체의 필드를 그대로 투영(참조 공유).
+ * 클라에서 실제 소비되는 4필드만: category(categorize)·slug(buildSlug 계)·
+ * blacklist+normalizations(normalizeTag 계). 별도 가공 없음 → 전체 스냅샷과 항상 동일 데이터.
+ */
+function writeClientSnapshot(full) {
+  const clientSnapshot = {
+    generatedAt: full.generatedAt,
+    source: `${full.source} — 클라 투영(category·slug·blacklist·normalizations)`,
+    keywords: full.keywords,
+    category: full.category,
+    slug: full.slug,
+    blacklist: full.blacklist,
+    normalizations: full.normalizations,
+  };
+  writeFileSync(CLIENT_OUT, JSON.stringify(clientSnapshot, null, 0) + "\n", "utf-8");
+  return clientSnapshot;
+}
+
 async function main() {
   const env = loadEnv();
   let built;
@@ -134,6 +162,8 @@ async function main() {
   } catch (e) {
     if (existsSync(OUT)) {
       console.warn(`[gen-tag-dictionary] DB 조회 실패(${e.message}) → 기존 스냅샷 보존, 빌드 계속`);
+      // 클라 투영은 기존 전체 스냅샷에서 재생성 — 전체·클라 두 파일의 정합을 항상 보장.
+      writeClientSnapshot(JSON.parse(readFileSync(OUT, "utf-8")));
       return;
     }
     console.error(`[gen-tag-dictionary] DB 조회 실패(${e.message}) + 스냅샷 없음 → 생성 불가`);
@@ -171,12 +201,14 @@ async function main() {
     autotag: built.autotag,
   };
   writeFileSync(OUT, JSON.stringify(snapshot, null, 0) + "\n", "utf-8");
+  writeClientSnapshot(snapshot);
   console.log(
     `[gen-tag-dictionary] OK keywords=${snapshot.keywords} dbRows=${dbCount}` +
       ` pubmed=${Object.keys(built.pubmed).length} lookup=${Object.keys(built.pubmedLookup).length}` +
       ` aliases=${Object.keys(built.aliases).length} blacklist=${built.blacklist.length}` +
       ` norm=${Object.keys(built.normalizations).length} autotag=${built.autotag.length} → ${OUT}`,
   );
+  console.log(`[gen-tag-dictionary] 클라 투영(category·slug·blacklist·normalizations) → ${CLIENT_OUT}`);
 }
 
 main().catch((e) => {

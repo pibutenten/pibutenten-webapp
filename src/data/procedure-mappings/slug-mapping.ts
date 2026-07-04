@@ -1,15 +1,18 @@
 /**
  * 피부텐텐 슬러그 매핑 헬퍼
  *
- * SSOT: DB `tag_dictionary` → 빌드타임 스냅샷 `tag-dictionary.generated.json` 의 `slug`(ko/alias → en).
+ * SSOT: DB `tag_dictionary` → 빌드타임 스냅샷의 `slug`(ko/alias → en).
  *   (이전 procedure-mappings.json 직접 의존 제거 — L2-4.)
+ *   R4-3: 클라 컴포넌트(SlugField·DraftClient)가 import 하므로 경량 클라 스냅샷
+ *   `tag-dictionary.client.generated.json` 을 읽는다 — `slug` 필드는 전체 스냅샷과
+ *   동일 데이터(같은 객체 투영)라 서버 라우트(articles/publish/slug-check) 동작 불변.
  *
  * 사용 예시:
  *   import { buildSlug } from '@/data/procedure-mappings/slug-mapping';
  *   const slug = buildSlug(['쥬브젠', '효과', '지속기간']); // → 'juvgen-effect-duration'
  */
 
-import snapshot from "@/data/tag-dictionary.generated.json";
+import snapshot from "@/data/tag-dictionary.client.generated.json";
 
 // ko/alias → 영문 slug (스냅샷). alias 도 pass2 로 대표어 en 을 상속.
 const KO_TO_EN: Record<string, string> = (snapshot as { slug: Record<string, string> }).slug;

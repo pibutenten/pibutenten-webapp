@@ -22,7 +22,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { normalizeAnswerBody } from "@/lib/normalize-body";
-import { normalizeTags } from "@/lib/tag-dictionary";
+import { normalizeTags } from "@/lib/procedure-dict.client";
 import CardEditor, {
   type AuthorOption,
   type CardEditorInitial,

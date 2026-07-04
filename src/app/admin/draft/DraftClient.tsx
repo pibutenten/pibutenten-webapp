@@ -11,7 +11,7 @@ import {
   normalizePubmedRefWire,
   type PubmedRefObj,
 } from "@/lib/schema/api/articles";
-import { normalizeTags } from "@/lib/tag-dictionary";
+import { normalizeTags } from "@/lib/procedure-dict.client";
 import {
   buildSlug,
   resolveSlugCollision,
