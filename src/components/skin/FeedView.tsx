@@ -177,6 +177,7 @@ export default function FeedView({
     setPool(initialPool);
     cursorRef.current = initialPool.length;
     setHasMore(orderedIds.length > initialPool.length);
+    setLoadError(false); // 옛 풀에서 난 로드 에러 UI 가 새 풀에 남지 않도록 (R2-1)
     // PTR(router.refresh)·검색·카테고리 전환 등 서버가 새 풀을 내려줄 때마다 댓글 미리보기·좋아요/저장
     //   상태를 재조회 — 한 번 받은 카드를 영구 스킵하던 ref 캐시가 새로고침 후에도 낡은 댓글 수를
     //   고착시키던 버그(2026-07-03 제보) 해소.
@@ -282,6 +283,7 @@ export default function FeedView({
     loadingRef.current = true;
     setLoading(true);
     // 삭제된 ID 조회 누락이 있어도 같은 자리 재시도 안 하도록 커서를 먼저 전진.
+    //   (실패 경로 — !res.ok·catch — 는 같은 epoch 일 때 start 로 롤백해 페이지 소실을 막는다. R2-1)
     cursorRef.current = start + nextIds.length;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
@@ -291,12 +293,16 @@ export default function FeedView({
         cache: "no-store",
         signal: controller.signal,
       });
-      // 풀 교체됨 — stale 응답 폐기. 이 가드는 반드시 res.ok 판정보다 먼저(순서 고정):
-      //   stale 에러 응답의 setHasMore(false)가 새 풀의 무한스크롤을 죽이면 안 된다.
+      // 풀 교체됨 — stale 응답 폐기. 이 가드는 반드시 res.ok 판정·커서 롤백보다 먼저(순서 고정):
+      //   stale 에러 응답이 새 풀의 loadError·커서를 오염시키면 안 된다.
       //   커서는 리셋 effect(await 중 이미 실행됨)가 initialPool.length 로 재설정한 상태라 복구 불필요.
       if (epoch !== poolEpochRef.current) return;
       if (!res.ok) {
-        setHasMore(false);
+        // HTTP 오류(5xx 등) — 네트워크 예외(catch)와 동일 처리: 선전진한 커서를 start 로 롤백해
+        //   재시도 시 같은 페이지부터 이어 받고, 재시도 UI(loadError)를 띄운다. (R2-1)
+        //   (종전 setHasMore(false)는 일시 오류 1회에 무한스크롤 영구 정지 + 해당 페이지 영구 소실.)
+        cursorRef.current = start;
+        setLoadError(true);
         return;
       }
       const data = (await res.json()) as { cards: CardData[] };
@@ -312,7 +318,11 @@ export default function FeedView({
       });
       if (cursorRef.current >= ids.length) setHasMore(false);
     } catch {
-      if (epoch === poolEpochRef.current) setLoadError(true); // stale 에러로 새 풀 UI 를 오염시키지 않음
+      // stale 에러로 새 풀의 커서·에러 UI 를 오염시키지 않음 — epoch 일치 시에만 처리.
+      if (epoch === poolEpochRef.current) {
+        cursorRef.current = start; // 선전진분 롤백 — 재시도 시 실패한 페이지부터 다시 (R2-1)
+        setLoadError(true);
+      }
     } finally {
       if (timer) clearTimeout(timer);
       loadingRef.current = false;

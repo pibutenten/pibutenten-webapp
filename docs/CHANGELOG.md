@@ -6,6 +6,13 @@
 
 ---
 
+## [2026-07-04] — 개선 라운드 R2: 사용자 안전판 (독립 이중검증 실행계획)
+
+### Fixed
+- **[R2-1] 무한스크롤 HTTP 오류 영구정지 해소 + 커서 롤백** (`skin/FeedView.tsx`, `doctors/[slug]/DoctorProfileView.tsx`) — ① FeedView: `!res.ok`(5xx 등) 시 `setHasMore(false)` 로 무한스크롤이 영구 정지하고 선전진 커서 탓에 해당 페이지가 영구 소실되던 것 → catch 와 동일하게 재시도 UI(loadError) + 커서 start 롤백. catch 경로에도 롤백 추가(종전엔 재시도해도 실패 페이지를 건너뜀). 풀 리셋 시 loadError 해제. 롤백은 **epoch 가드 통과 후에만**(stale 응답이 새 풀 커서·에러 상태를 오염 못 함 — 기존 가드 순서 불변). ② DoctorProfileView(문서 미기재 추가 발견 — 더 심함: 양 경로 모두 영구정지·재시도 UI 부재): FeedView 패턴 이식 — 재시도 UI 신설 + epoch 가드 신설 + sentinel 을 ref 콜백 재부착 패턴으로(에러→재시도 후 sentinel 재관찰 회귀 방지). 검수 경고 2건(loadMore 진입 가드의 loadError ref 부재 — FeedView 기존 패턴과 동일·현행 무해, confirmSwitch 가독성)은 차기 정비 백로그.
+
+---
+
 ## [2026-07-04] — 개선 라운드 R1: 정합성·데이터 (독립 이중검증 실행계획)
 
 실행 기준: `docs/plans/2026-07-04-최종-실행계획-이중검증.md`. 디렉터 프로세스(서브에이전트 구현 → 디렉터 검수 → 코드검수관 → 커밋).

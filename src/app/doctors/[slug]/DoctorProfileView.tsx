@@ -82,7 +82,7 @@ export default function DoctorProfileView({
   const [pool, setPool] = useState<CardData[]>(cards);
   const [hasMore, setHasMore] = useState(orderedIds.length > cards.length);
   const [loading, setLoading] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const loadingRef = useRef(false);
   const cursorRef = useRef(cards.length);
   const orderedIdsRef = useRef(orderedIds);
@@ -90,17 +90,28 @@ export default function DoctorProfileView({
   // mount-once 스크롤 콜백이 항상 최신 hasMore 참조하도록 ref 동기화.
   const hasMoreRef = useRef(hasMore);
   hasMoreRef.current = hasMore;
+  // 풀 세대(epoch) — 서버가 새 풀을 내려 리셋될 때마다 +1 (홈 FeedView 동일, R2-1).
+  //   진행 중이던 loadMore(옛 풀 기준 fetch)가 교체 "후" 완료되면 옛 원장 카드를 새 풀에 섞거나
+  //   stale hasMore/loadError/커서 롤백이 새 풀을 오염시키는 경합을 차단:
+  //   loadMore 는 시작 시 epoch 을 캡처하고, 다르면 결과·상태 갱신을 전부 버린다.
+  const poolEpochRef = useRef(0);
 
   // 서버가 새 초기풀/순서를 내려주면(원장 전환·재진입 등) 풀·커서 리셋.
   useEffect(() => {
+    poolEpochRef.current += 1;
     setPool(cards);
     cursorRef.current = cards.length;
     setHasMore(orderedIds.length > cards.length);
+    setLoadError(false); // 옛 풀에서 난 로드 에러 UI 가 새 풀에 남지 않도록 (R2-1)
   }, [cards, orderedIds]);
 
   // 풀 확장 — orderedIds 순서대로 다음 묶음을 ID 로 받아 순서 보존 append (홈 FeedView loadMore 동일).
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMoreRef.current) return;
+    setLoadError(false);
+    // 시작 시점의 풀 세대 캡처(홈 FeedView 동일) — fetch 완료 시 세대가 바뀌어 있으면
+    //   (그 사이 원장 전환 등으로 풀 리셋) 결과·상태 갱신을 전부 버린다.
+    const epoch = poolEpochRef.current;
     const ids = orderedIdsRef.current;
     const start = cursorRef.current;
     const nextIds = ids.slice(start, start + PAGE);
@@ -111,16 +122,26 @@ export default function DoctorProfileView({
     loadingRef.current = true;
     setLoading(true);
     // 삭제된 ID 조회 누락이 있어도 같은 자리 재시도 안 하도록 커서를 먼저 전진.
+    //   (실패 경로 — !res.ok·catch — 는 같은 epoch 일 때 start 로 롤백해 페이지 소실을 막는다. R2-1)
     cursorRef.current = start + nextIds.length;
     try {
       const res = await fetch(`/api/cards?ids=${nextIds.join(",")}`, {
         cache: "no-store",
       });
+      // 풀 교체됨 — stale 응답 폐기. 이 가드는 반드시 res.ok 판정·커서 롤백보다 먼저(순서 고정):
+      //   stale 에러 응답이 새 풀의 loadError·커서를 오염시키면 안 된다.
+      //   커서는 리셋 effect(await 중 이미 실행됨)가 cards.length 로 재설정한 상태라 복구 불필요.
+      if (epoch !== poolEpochRef.current) return;
       if (!res.ok) {
-        setHasMore(false);
+        // HTTP 오류(5xx 등) — 네트워크 예외(catch)와 동일 처리: 선전진한 커서를 start 로 롤백해
+        //   재시도 시 같은 페이지부터 이어 받고, 재시도 UI(loadError)를 띄운다. (R2-1)
+        //   (종전 setHasMore(false)는 일시 오류 1회에 무한스크롤 영구 정지 + 해당 페이지 영구 소실.)
+        cursorRef.current = start;
+        setLoadError(true);
         return;
       }
       const data = (await res.json()) as { cards: CardData[] };
+      if (epoch !== poolEpochRef.current) return; // json 파싱 사이 교체 대비
       const byId = new Map((data.cards ?? []).map((c) => [c.id, c]));
       // .in() 조회는 순서 보장 X → 저장된 순서(nextIds)대로 재정렬.
       const ordered = nextIds
@@ -132,26 +153,36 @@ export default function DoctorProfileView({
       });
       if (cursorRef.current >= ids.length) setHasMore(false);
     } catch {
-      setHasMore(false);
+      // stale 에러로 새 풀의 커서·에러 UI 를 오염시키지 않음 — epoch 일치 시에만 처리.
+      if (epoch === poolEpochRef.current) {
+        cursorRef.current = start; // 선전진분 롤백 — 재시도 시 실패한 페이지부터 다시 (R2-1)
+        setLoadError(true);
+      }
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
   }, []);
 
-  // sentinel 관찰 — mount 시 1회만 설정(홈 FeedView 동일). loadMore 가 ref 로 최신값 참조.
-  useEffect(() => {
-    const node = sentinelRef.current;
-    if (!node) return;
-    const ob = new IntersectionObserver(
-      (e) => {
-        if (e[0]?.isIntersecting) loadMore();
-      },
-      { rootMargin: "320px 0px" },
-    );
-    ob.observe(node);
-    return () => ob.disconnect();
+  // sentinel 관찰 — ref 콜백으로 DOM 연결/해제 시점에 observer 재설정(홈 FeedView 동일, R2-1).
+  //   loadError 로 sentinel 이 조건부 언마운트됐다 재시도 후 "새 노드"로 다시 붙어도 그 순간 observe 가
+  //   걸린다. (mount-once useEffect 는 옛 detached 노드만 계속 관찰해 재시도 후 무한스크롤이 죽는다.)
+  const sentinelObserverRef = useRef<IntersectionObserver | null>(null);
+  const attachSentinel = useCallback((node: HTMLDivElement | null) => {
+    sentinelObserverRef.current?.disconnect();
+    sentinelObserverRef.current = null;
+    if (node) {
+      const ob = new IntersectionObserver(
+        (e) => {
+          if (e[0]?.isIntersecting) loadMore();
+        },
+        { rootMargin: "320px 0px" },
+      );
+      ob.observe(node);
+      sentinelObserverRef.current = ob;
+    }
   }, [loadMore]);
+  useEffect(() => () => sentinelObserverRef.current?.disconnect(), []);
 
   // 카드 삭제 broadcast 수신 → 풀에서 제거(홈 FeedView 동일). 발사는 카드 ⋮메뉴 쪽.
   useEffect(() => {
@@ -250,15 +281,26 @@ export default function DoctorProfileView({
               />
             ))}
           </div>
-          {/* 무한스크롤 sentinel — 풀 소진 시 렌더 안 함(홈 FeedView 동일). */}
-          {hasMore && (
+          {/* 무한스크롤 sentinel — 풀 소진(hasMore=false)·로드 에러 시 렌더 안 함(홈 FeedView 동일).
+              에러 중 sentinel 을 떼어 자동 재요청 루프를 막고, 재개는 아래 재시도 버튼이 담당. */}
+          {hasMore && !loadError && (
             <div
-              ref={sentinelRef}
+              ref={attachSentinel}
               className={styles.feedSentinel}
               aria-hidden="true"
             />
           )}
           {loading && <p className={styles.empty}>불러오는 중…</p>}
+          {/* 로드 에러 → 재시도 UI (홈 FeedView 와 문구·스타일 통일, R2-1) */}
+          {loadError && (
+            <div className="flex flex-col items-center gap-2 py-6">
+              <p className="text-sm text-[var(--text-muted)]">연결이 불안정합니다</p>
+              <button onClick={() => { setLoadError(false); loadMore(); }}
+                className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm">
+                다시 시도
+              </button>
+            </div>
+          )}
         </>
       )}
     </AppShell>
