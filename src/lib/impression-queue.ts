@@ -12,6 +12,7 @@
  */
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getActiveIdentityId } from "@/lib/active-identity";
+import { ssGet, ssSet } from "@/lib/safe-storage";
 
 const FLUSH_DELAY_MS = 800;
 
@@ -26,13 +27,15 @@ let attached = false;
 function getOrCreateSessionId(): string {
   if (sessionId) return sessionId;
   if (typeof window === "undefined") return "";
-  let sid = sessionStorage.getItem("pibutenten:sid");
+  // safe-storage (R2-3): 인앱 브라우저 sandbox 에서 storage 가 throw 해도 크래시 없이
+  //   sid 생성으로 진행 — 모듈 변수(sessionId)가 페이지 lifetime 동안 캐시하므로 안정 유지.
+  let sid = ssGet("pibutenten:sid");
   if (!sid) {
     sid =
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    sessionStorage.setItem("pibutenten:sid", sid);
+    ssSet("pibutenten:sid", sid);
   }
   sessionId = sid;
   return sid;

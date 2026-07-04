@@ -30,6 +30,25 @@ export type YoutubeTranscriptResult = {
 
 const YOUTUBE_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
 
+/** 파일 내 모든 직접 fetch 의 타임아웃 (R2-3, 2026-07-04) — YouTube 가 응답을 안 주고
+ *  붙잡고 있으면 발행 요청 전체가 무기한 대기하던 문제 방어. */
+const FETCH_TIMEOUT_MS = 15_000;
+
+/** AbortController 타임아웃 부착 fetch. 타임아웃 시 fetch 가 AbortError 로 reject —
+ *  각 호출부의 기존 try/catch·에러 수집(errors[]) 경로로 자연 합류(새 예외 유형 없음). */
+async function fetchWithTimeout(
+  url: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function extractVideoId(input: string): string {
   const raw = input.trim();
   if (!raw) throw new Error("URL is empty");
@@ -59,7 +78,7 @@ export function extractVideoId(input: string): string {
 
 async function fetchTitle(videoId: string): Promise<string | null> {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
       { cache: "no-store" },
     );
@@ -118,7 +137,7 @@ type CaptionTrack = {
 async function fetchCaptionTracksFromWatch(
   videoId: string,
 ): Promise<CaptionTrack[]> {
-  const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+  const res = await fetchWithTimeout(`https://www.youtube.com/watch?v=${videoId}`, {
     headers: {
       "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
       "User-Agent":
@@ -163,7 +182,7 @@ async function fetchCaptionTracksFromWatch(
 
 async function fetchCaptionByTrack(track: CaptionTrack): Promise<string> {
   if (!track.baseUrl) throw new Error("track has no baseUrl");
-  const res = await fetch(track.baseUrl, { cache: "no-store" });
+  const res = await fetchWithTimeout(track.baseUrl, { cache: "no-store" });
   if (!res.ok) throw new Error(`track baseUrl HTTP ${res.status}`);
   const xml = await res.text();
   if (!xml.trim()) throw new Error("track empty body");
@@ -191,7 +210,7 @@ async function fetchViaTimedText(
   const params = new URLSearchParams({ v: videoId });
   if (opts.lang) params.set("lang", opts.lang);
   if (opts.kind) params.set("kind", opts.kind);
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `https://www.youtube.com/api/timedtext?${params.toString()}`,
     { cache: "no-store" },
   );

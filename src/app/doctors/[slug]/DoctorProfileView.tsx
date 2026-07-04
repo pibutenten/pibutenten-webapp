@@ -124,9 +124,16 @@ export default function DoctorProfileView({
     // 삭제된 ID 조회 누락이 있어도 같은 자리 재시도 안 하도록 커서를 먼저 전진.
     //   (실패 경로 — !res.ok·catch — 는 같은 epoch 일 때 start 로 롤백해 페이지 소실을 막는다. R2-1)
     cursorRef.current = start + nextIds.length;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
+      // 10초 타임아웃 (홈 FeedView 동일, R2-3) — 무응답 연결에서 loadMore 가 무기한 대기하며
+      //   loadingRef 잠금으로 무한스크롤이 영구 정지하는 것 방지. abort 는 catch 로 떨어져
+      //   기존 실패 처리(epoch 일치 시 커서 롤백 + loadError 재시도 UI)가 그대로 적용된다.
+      const controller = new AbortController();
+      timer = setTimeout(() => controller.abort(), 10_000);
       const res = await fetch(`/api/cards?ids=${nextIds.join(",")}`, {
         cache: "no-store",
+        signal: controller.signal,
       });
       // 풀 교체됨 — stale 응답 폐기. 이 가드는 반드시 res.ok 판정·커서 롤백보다 먼저(순서 고정):
       //   stale 에러 응답이 새 풀의 loadError·커서를 오염시키면 안 된다.
@@ -159,6 +166,7 @@ export default function DoctorProfileView({
         setLoadError(true);
       }
     } finally {
+      if (timer) clearTimeout(timer);
       loadingRef.current = false;
       setLoading(false);
     }

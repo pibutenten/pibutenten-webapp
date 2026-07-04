@@ -265,6 +265,12 @@ export default function CommentsBlock({
       setBody("");
       setReplyTarget(null);
       await reload();
+    } catch {
+      // R2-3 (2026-07-04): 네트워크 예외(오프라인·요청 중단 등) — 종전엔 catch 가 없어
+      // unhandled rejection + 무피드백. 입력 내용(body)은 성공 경로에서만 비우므로 보존됨.
+      showToast("댓글 등록에 실패했어요. 네트워크를 확인해 주세요.", {
+        tone: "danger",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -274,21 +280,29 @@ export default function CommentsBlock({
     id: number,
     patch: { body?: string; status?: CommentStatus },
   ) {
-    const r = await fetch(`/api/comments/${id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    const j = (await r.json()) as { error?: string; message?: string };
-    if (!r.ok) {
-      // B-3 (2026-05-29 / P1-F): message 우선 + fallback "수정 실패".
-      showToast(pickErrorMessage(j, r.status) || "수정 실패", {
+    try {
+      const r = await fetch(`/api/comments/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const j = (await r.json()) as { error?: string; message?: string };
+      if (!r.ok) {
+        // B-3 (2026-05-29 / P1-F): message 우선 + fallback "수정 실패".
+        showToast(pickErrorMessage(j, r.status) || "수정 실패", {
+          tone: "danger",
+        });
+        return false;
+      }
+      await reload();
+      return true;
+    } catch {
+      // R2-3 (2026-07-04): 네트워크 예외 — false 반환으로 수정 폼(입력 내용) 유지.
+      showToast("댓글 수정에 실패했어요. 네트워크를 확인해 주세요.", {
         tone: "danger",
       });
       return false;
     }
-    await reload();
-    return true;
   }
 
   function deleteComment(id: number) {
@@ -296,16 +310,23 @@ export default function CommentsBlock({
   }
 
   async function executeDelete(id: number) {
-    const r = await fetch(`/api/comments/${id}`, { method: "DELETE" });
-    const j = (await r.json()) as { error?: string; message?: string };
-    if (!r.ok) {
-      // B-3 (2026-05-29 / P1-F): message 우선 + fallback "삭제 실패".
-      showToast(pickErrorMessage(j, r.status) || "삭제 실패", {
+    try {
+      const r = await fetch(`/api/comments/${id}`, { method: "DELETE" });
+      const j = (await r.json()) as { error?: string; message?: string };
+      if (!r.ok) {
+        // B-3 (2026-05-29 / P1-F): message 우선 + fallback "삭제 실패".
+        showToast(pickErrorMessage(j, r.status) || "삭제 실패", {
+          tone: "danger",
+        });
+        return;
+      }
+      await reload();
+    } catch {
+      // R2-3 (2026-07-04): 네트워크 예외 — reload() 미호출로 목록 상태 불변(댓글 유지).
+      showToast("댓글 삭제에 실패했어요. 네트워크를 확인해 주세요.", {
         tone: "danger",
       });
-      return;
     }
-    await reload();
   }
 
   // 미니멀 모드: 댓글 0개 + 입력 폼 비표시 → 자체 렌더링 안 함

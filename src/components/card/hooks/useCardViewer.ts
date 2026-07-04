@@ -22,6 +22,7 @@ import { getActiveIdentityId } from "@/lib/active-identity";
 import { enqueueImpression } from "@/lib/impression-queue";
 import { useSession } from "@/lib/session-context";
 import { addEngagement } from "@/lib/engagement-score";
+import { ssGet, ssSet } from "@/lib/safe-storage";
 
 // ADR 0012 정합: SessionContext (SSR) 가 me 의 단일 출처.
 // 옛 client supabase.auth.getUser() + profiles select useEffect 제거 — 카드 N장 당
@@ -88,8 +89,10 @@ export function useCardViewer(
   useEffect(() => {
     if (typeof window === "undefined") return;
     const impKey = `pibutenten:imp:${card.id}`;
-    if (sessionStorage.getItem(impKey)) return;
-    sessionStorage.setItem(impKey, "1");
+    // safe-storage (R2-3): 인앱 브라우저 sandbox 에서 storage 접근이 throw 해도 크래시 없이
+    //   dedup 만 degrade (같은 세션 재노출 가능 — 트래킹 정확도만 영향, UX 무해).
+    if (ssGet(impKey)) return;
+    ssSet(impKey, "1");
     enqueueImpression(card.id);
   }, [card.id]);
 
@@ -99,16 +102,16 @@ export function useCardViewer(
   const recordView = useCallback(() => {
     if (typeof window === "undefined") return;
     const seenKey = `pibutenten:view:${card.id}`;
-    if (sessionStorage.getItem(seenKey)) return; // 이미 카운팅한 세션
-    sessionStorage.setItem(seenKey, "1");
+    if (ssGet(seenKey)) return; // 이미 카운팅한 세션 (safe-storage — R2-3)
+    ssSet(seenKey, "1");
 
-    let sessionId = sessionStorage.getItem(SID_KEY);
+    let sessionId = ssGet(SID_KEY);
     if (!sessionId) {
       sessionId =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      sessionStorage.setItem(SID_KEY, sessionId);
+      ssSet(SID_KEY, sessionId);
     }
 
     // optimistic UI update — 카드 조회수 표시 즉시 +1 (trigger가 DB도 +1)

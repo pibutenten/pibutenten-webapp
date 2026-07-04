@@ -17,6 +17,10 @@
 /** 유튜브 video ID 형식: 11자 [A-Za-z0-9_-]. */
 const YOUTUBE_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
+/** watch 페이지 fetch 타임아웃 (R2-3, 2026-07-04) — YouTube 무응답 시 발행 요청이
+ *  무기한 대기하지 않도록. 타임아웃(AbortError)도 기존 catch → null 경로로 합류. */
+const FETCH_TIMEOUT_MS = 10_000;
+
 /** watch 페이지 HTML 에서 게시일 ISO timestamp 를 뽑는 정규식 (uploadDate 우선, publishDate fallback). */
 const UPLOAD_DATE_RE = /"uploadDate":"([^"]+)"/;
 const PUBLISH_DATE_RE = /"publishDate":"([^"]+)"/;
@@ -32,6 +36,8 @@ export async function fetchYoutubeUploadDateKst(
     return null;
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const url = `https://www.youtube.com/watch?v=${videoId}&hl=en`;
     const res = await fetch(url, {
@@ -39,6 +45,7 @@ export async function fetchYoutubeUploadDateKst(
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         Cookie: "CONSENT=YES+cb",
       },
+      signal: controller.signal,
     });
     if (!res.ok) {
       console.warn(
@@ -76,5 +83,7 @@ export async function fetchYoutubeUploadDateKst(
   } catch (e) {
     console.warn(`[youtube-upload-date] fetch/parse error video=${videoId}`, e);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }

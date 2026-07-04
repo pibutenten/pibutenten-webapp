@@ -253,8 +253,12 @@ export default function Card({
         cardBus.emitCardDeleted();
         router.refresh();
       }, 340);
-    } catch (e) {
-      void e;
+    } catch {
+      // R2-3 (2026-07-04): 네트워크 예외 등 — 종전 무언 삼킴을 danger 토스트로 교체.
+      //   vanishing·emitCardDeleted 미실행이라 카드 목록 상태는 불변(확인 다이얼로그 유지 → 재시도 가능).
+      showToast("삭제에 실패했어요. 네트워크를 확인해 주세요.", {
+        tone: "danger",
+      });
       setDeleting(false);
     }
   }

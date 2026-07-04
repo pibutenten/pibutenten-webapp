@@ -18,7 +18,13 @@ type ToastOptions = {
   durationMs?: number;
 };
 
-const DEFAULT_DURATION_MS = 1500;
+// tone 별 기본 지속시간 (R2-3, 2026-07-04): danger 는 의료법 검수 안내 등
+// 긴 문구(~80자)가 많아 1.5초로는 읽기 전에 사라짐 → 4.5초. 호출부가 durationMs 를
+// 명시하면 그 값이 항상 우선 (기존 계약 불변).
+const TONE_DURATION_MS: Record<ToastTone, number> = {
+  default: 1500,
+  danger: 4500,
+};
 
 const TONE_STYLES: Record<ToastTone, { color: string; border: string }> = {
   default: { color: "#1B4965", border: "#E2E8EE" },
@@ -27,7 +33,8 @@ const TONE_STYLES: Record<ToastTone, { color: string; border: string }> = {
 
 export function showToast(msg: string, opts: ToastOptions = {}): void {
   if (typeof document === "undefined") return;
-  const { tone = "default", durationMs = DEFAULT_DURATION_MS } = opts;
+  const tone = opts.tone ?? "default";
+  const durationMs = opts.durationMs ?? TONE_DURATION_MS[tone];
   const palette = TONE_STYLES[tone];
   const el = document.createElement("div");
   el.textContent = msg;

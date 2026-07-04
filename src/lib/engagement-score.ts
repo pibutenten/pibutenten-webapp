@@ -39,6 +39,8 @@
  * 좋아요/저장/공유/댓글 시도 시 = 이미 LoginPromptDialog 가 자체 트리거 (별도 처리).
  */
 
+import { lsGet, lsRemove, ssGet, ssSet } from "@/lib/safe-storage";
+
 export type EngagementReason =
   | "report-view"
   | "card-view"
@@ -87,12 +89,14 @@ export function addEngagement(reason: EngagementReason): number {
   if (typeof window === "undefined") return -1;
 
   // 이미 본 세션에서 모달 트리거됐으면 점수 누적 안 함.
-  if (sessionStorage.getItem(SS_TRIGGERED_KEY)) return -1;
+  // safe-storage (R2-3): 인앱 브라우저 sandbox 에서 storage 가 throw 해도 크래시 없이
+  //   점수 누적만 조용히 무력화 (소프트월 미발동 — UX 무해).
+  if (ssGet(SS_TRIGGERED_KEY)) return -1;
 
   // 잠금기간(닫기 종류별 — v5) 안이면 점수 누적 안 함.
   const dismissed = (() => {
     try {
-      const raw = localStorage.getItem(LS_DISMISSED_KEY);
+      const raw = lsGet(LS_DISMISSED_KEY);
       if (!raw) return null;
       // v5: JSON {at, days}. v4 이하: 숫자 문자열(단일 7일) 호환.
       if (raw.startsWith("{")) {
@@ -110,19 +114,15 @@ export function addEngagement(reason: EngagementReason): number {
     const ageDays = (Date.now() - dismissed.at) / (1000 * 60 * 60 * 24);
     if (ageDays < dismissed.days) return -1;
     // 기간 경과 — 잠금 해제
-    try {
-      localStorage.removeItem(LS_DISMISSED_KEY);
-    } catch {
-      /* ignore */
-    }
+    lsRemove(LS_DISMISSED_KEY);
   }
 
-  const cur = Number(sessionStorage.getItem(SS_SCORE_KEY) ?? 0);
+  const cur = Number(ssGet(SS_SCORE_KEY) ?? 0);
   const next = cur + (SCORE_TABLE[reason] ?? 0);
-  sessionStorage.setItem(SS_SCORE_KEY, String(next));
+  ssSet(SS_SCORE_KEY, String(next));
 
   if (next >= THRESHOLD) {
-    sessionStorage.setItem(SS_TRIGGERED_KEY, "1");
+    ssSet(SS_TRIGGERED_KEY, "1");
     window.dispatchEvent(
       new CustomEvent<EngagementEventDetail>(EVENT_NAME, {
         detail: { score: next, reason },

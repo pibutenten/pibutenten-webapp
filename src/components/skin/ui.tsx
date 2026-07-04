@@ -805,6 +805,11 @@ export function PostCardMenu({
       }
       onDeleted();
     } catch {
+      // R2-3 (2026-07-04): 네트워크 예외 등 — 운영 Card.performDelete 와 동일하게 danger 토스트.
+      //   onDeleted()·CARD_DELETED 미발사라 카드 목록 상태는 불변(확인 다이얼로그 유지 → 재시도 가능).
+      showToast("삭제에 실패했어요. 네트워크를 확인해 주세요.", {
+        tone: "danger",
+      });
       setDeleting(false);
     }
   }

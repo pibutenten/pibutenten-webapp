@@ -32,6 +32,7 @@ import ReportsReviewCard from "./ReportsReviewCard";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import ReportViewTracker from "@/components/report/ReportViewTracker";
 import { addEngagement } from "@/lib/engagement-score";
+import { ssGet, ssSet } from "@/lib/safe-storage";
 
 const EFFECT_BAR_COLORS = [
   "#7FD0F8", "#B0A0DE", "#9AA6DE", "#FFCB8C", "#8FD4C8",
@@ -195,8 +196,10 @@ export default function ReportsDetailView({
     if (report.anchor) return; // 앵커 있음 — ReportViewTracker 경로가 점수·조회수 모두 담당
     if (session !== null) return; // 비로그인만 — 소프트월(회원가입 권유) 대상이라 로그인 사용자는 점수 안 쌓음
     const seenKey = `pibutenten:report-view:${encodeURIComponent(ko)}`;
-    if (sessionStorage.getItem(seenKey)) return;
-    sessionStorage.setItem(seenKey, "1");
+    // safe-storage (R2-3): 인앱 브라우저 sandbox 에서 storage 가 throw 해도 크래시 없이
+    //   dedup 만 degrade (점수 가산은 addEngagement 내부 가드가 함께 무력화).
+    if (ssGet(seenKey)) return;
+    ssSet(seenKey, "1");
     addEngagement("report-view");
   }, [ko, session, report.anchor]);
 
