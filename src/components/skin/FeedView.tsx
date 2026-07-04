@@ -19,7 +19,15 @@
  *   - 좋아요/저장 viewer 상태(viewerStates)는 PostCard 로 내려 첫 렌더부터 정확히 표시.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/lib/session-context";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -30,6 +38,12 @@ import type { ProcedureReport } from "@/lib/procedure-report";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
 // 검색 실행 시 최근 검색어 저장(운영 BottomNav.submit 과 동일 진입점).
 import { addRecent } from "@/lib/recent-search";
+// R5-3: 뒤로가기 복귀 시 피드 풀+스크롤 복원 — 트리거 판정·스냅샷 저장/로드(sessionStorage, safe-storage 경유).
+import {
+  consumeFeedRestoreTrigger,
+  loadFeedSnapshot,
+  saveFeedSnapshot,
+} from "@/lib/feed-scroll-restore";
 import AppShell from "./AppShell";
 import FeedSidebar from "./FeedSidebar";
 import ProcedureReportCard from "@/components/report/ProcedureReportCard";
@@ -56,6 +70,19 @@ function matchesChip(c: CardData, chip: ChipKey): boolean {
   if (chip === "all") return true;
   const key = c.category ?? c.type ?? "";
   return key === chip;
+}
+
+/** R5-3: 피드의 실제 스크롤 컨테이너(셸 .root) 탐색 — scrollFeedTop 과 달리 scrollHeight>clientHeight
+ *  조건 없이 overflow 만 본다(스냅샷 저장·복원 시점엔 콘텐츠가 짧아도 컨테이너 자체는 특정해야 함).
+ *  usePullToRefresh::findScrollAncestor 와 동일 술어 — PTR 이 같은 체인으로 .root 를 찾는 선례. */
+function findScrollContainer(from: HTMLElement | null): HTMLElement | null {
+  let el: HTMLElement | null = from;
+  while (el) {
+    const oy = getComputedStyle(el).overflowY;
+    if (oy === "auto" || oy === "scroll") return el;
+    el = el.parentElement;
+  }
+  return null;
 }
 
 /** 피드를 감싼 실제 스크롤 컨테이너(셸 .root: overflow:auto)를 찾아 맨 위로.
@@ -140,7 +167,13 @@ export default function FeedView({
   // 운영 FeedList 와 동일 — hotIds 배열을 Set 으로 만들어 카드별 isHot O(1) 판정.
   const hotSet = useMemo(() => new Set(hotIds ?? []), [hotIds]);
   const searchParams = useSearchParams();
-  const [chip, setChip] = useState<ChipKey>("all");
+  // R5-3: chip 을 URL(/?cat=)로 초기 시드 — 종전 "all" 시작 후 URL→chip 싱크 effect 가 바꾸는 방식은
+  //   카테고리 피드의 뒤로가기 복원 마운트에서 chip 전환(all→cat)이 칩 전환 스크롤 초기화를 발화시켜
+  //   복원 위치를 되감았다. SSR(force-dynamic)도 같은 searchParams 를 보므로 하이드레이션 안전.
+  //   검색 중(q)엔 cat 이 URL 에 실리지 않는 운영 경로라 종전과 동일하게 "all" 시작(chip 보존 정책 불변).
+  const [chip, setChip] = useState<ChipKey>(() =>
+    searchQuery ? "all" : parseFeedCat(searchParams.get("cat")) ?? "all",
+  );
   // 헤더 검색 입력값 — 초기값은 현재 서버 검색어. 변경은 로컬, 제출 시 서버 라우팅.
   const [searchValue, setSearchValue] = useState(searchQuery ?? "");
 
@@ -171,8 +204,22 @@ export default function FeedView({
   //   차단(검수 반영 2026-07-03): loadMore 는 시작 시 epoch 을 캡처하고, 다르면 결과를 버린다.
   const poolEpochRef = useRef(0);
 
+  // ── R5-3 뒤로가기 복원용 ref 3종 ──
+  // 복원을 적용한 orderedIds(prop identity) — 아래 리셋 effect 의 "마운트 런"이 복원 풀을
+  //   setPool(initialPool) 로 지우는 것을 identity 비교로 스킵(StrictMode 이중 실행에도 안전).
+  const restoredForRef = useRef<number[] | null>(null);
+  // 복원 풀 커밋 후 적용할 scrollTop — forPool(복원 풀 identity)이 pool state 가 된 커밋에서만 소진.
+  const pendingScrollRef = useRef<{ y: number; forPool: CardData[] } | null>(null);
+  // 앱 셸 스크롤러(.root) 캐시 — 마운트 시 1회 탐색, 스냅샷 저장(pagehide/언마운트)·복원 적용이 공용.
+  const scrollerElRef = useRef<HTMLElement | null>(null);
+
   // 서버가 새 순서·초기풀을 내려주면(검색 라우팅 등) 풀·커서 리셋.
   useEffect(() => {
+    // R5-3: 방금 이 orderedIds(같은 payload)에 대해 뒤로가기 복원을 적용했다면 초기 리셋을 건너뜀.
+    //   PTR(router.refresh)·검색·카테고리 전환 등 "새 payload"는 identity 가 달라 정상 리셋되고,
+    //   그때 복원 가드도 해제된다(복원은 마운트 1회 트리거라 재발화 없음).
+    if (restoredForRef.current === orderedIds) return;
+    restoredForRef.current = null;
     poolEpochRef.current += 1;
     setPool(initialPool);
     cursorRef.current = initialPool.length;
@@ -242,13 +289,25 @@ export default function FeedView({
   // 서버 검색어가 바뀌면 입력값 동기화 + 피드 스크롤 최상단 복귀(라우팅으로 새 검색 진입 시).
   //   스크롤 컨테이너가 window 가 아니라 셸의 .root(overflow:auto)라, window.scrollTo 로는 안 올라가던
   //   문제를 scrollFeedTop(실제 스크롤 조상 탐색)으로 해결. 어느 위치에서 검색해도 결과는 맨 위부터.
+  //   R5-3: 스크롤 초기화는 "값이 실제 바뀐" 실행에서만 — 마운트 런은 새 마운트 스크롤러가 어차피
+  //   0 이라 무동작이었고(검색어 변경은 key 재마운트라 이 effect 가 변경을 보는 일도 없음),
+  //   뒤로가기 복원 마운트에선 복원 위치를 되감는 부작용만 있었다.
+  const prevSearchQueryRef = useRef<string | null>(null);
   useEffect(() => {
     setSearchValue(searchQuery ?? "");
-    scrollFeedTop(contentRef.current);
+    const prev = prevSearchQueryRef.current;
+    prevSearchQueryRef.current = searchQuery ?? "";
+    if (prev !== null && prev !== (searchQuery ?? "")) {
+      scrollFeedTop(contentRef.current);
+    }
   }, [searchQuery]);
 
   // 카테고리 URL 파라미터(/?cat=) — URL→chip 싱크(isSearching 계산 뒤 배치)가 소비.
   const catParam = searchParams.get("cat");
+  // R5-3: 스냅샷 저장 시점(언마운트 cleanup·pagehide)의 카테고리 키 — SPA 이탈 cleanup 시점엔
+  //   location 이 이미 도착지로 바뀌어 있어 URL 직접 읽기가 오염됨 → 마지막 렌더 값을 ref 로 캡처.
+  const catKeyRef = useRef<string>("");
+  catKeyRef.current = parseFeedCat(catParam) ?? "";
   // A2 복원(sessionStorage) 1회 소진 플래그 — 아래 URL→chip 싱크 effect 안에서 첫 실행에만 복원 시도.
   //   (복원 setChip 과 싱크 setChip("all") 이 별도 effect 로 같은 flush 에서 경합해 칩이
   //    all→저장값→all 로 깜빡이던 race 를 단일 effect 통합으로 제거. 2026-07-03)
@@ -264,6 +323,97 @@ export default function FeedView({
   // "방금 쓴 글" prepend 가드용 — 현재 풀에 이미 그 카드가 있는지 최신값으로 검사(운영 FeedList poolRef).
   const poolRef = useRef(pool);
   poolRef.current = pool;
+
+  // ── R5-3 ①: 뒤로가기 복귀 마운트에서 스냅샷 복원(풀 주입 + scrollTop 예약) ──
+  //   트리거는 consumeFeedRestoreTrigger 가 판정(소진형): (a) 문서 back_forward 로드(카드 제목
+  //   플레인 <a> 진입 후 브라우저 뒤로 — no-store 라 Chrome bfcache 불가) (b) SPA popstate
+  //   (ScrollManager 가 도착 URL 마크). 새 진입·새로고침·PTR·검색/카테고리 push 는 트리거가 아님.
+  //   useLayoutEffect 인 이유: setPool 이 paint 전에 동기 재커밋되어 아래 ②(scrollTop 적용)까지
+  //   첫 paint 전에 끝난다(SPA 복귀 경로에서 상단 플래시 없음. 문서 로드 경로는 하이드레이션 전
+  //   SSR 화면이 이미 보이므로 하이드레이션 시점 1회 점프는 구조적 한계 — 보고서 참조).
+  useLayoutEffect(() => {
+    if (!consumeFeedRestoreTrigger()) return;
+    // 마운트 시점 URL 로 키 구성 — 서버 해석(q trim, cat 화이트리스트)과 동일 규칙.
+    const sp = new URLSearchParams(window.location.search);
+    const snap = loadFeedSnapshot(
+      (sp.get("q") ?? "").trim(),
+      parseFeedCat(sp.get("cat")) ?? "",
+    );
+    if (!snap) return;
+    // 이어받기 커서 재계산 — 서버가 새 순서(orderedIds)를 내려줬어도(90s 풀 캐시 경과 등) 복원 풀에
+    //   이미 있는 "선두 prefix" 만큼만 전진: 같은 payload 면 이탈 시점 커서와 정확히 일치하고,
+    //   다른 payload 면 겹치는 앞부분만 건너뛰어 loadMore 의 seen-set dedupe 와 함께 self-healing.
+    const inPool = new Set(snap.pool.map((c) => c.id));
+    const ids = orderedIdsRef.current;
+    let cur = 0;
+    while (cur < ids.length && inPool.has(ids[cur])) cur += 1;
+    cursorRef.current = cur;
+    restoredForRef.current = ids; // 리셋 effect 마운트 런 스킵(identity 키)
+    // paint 전 동기 재커밋이 목적인 의도적 layout-effect setState(위 주석 참조) — AppShell 관례와 동일 suppress.
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    setPool(snap.pool);
+    setHasMore(cur < ids.length);
+    pendingScrollRef.current = { y: snap.scrollTop, forPool: snap.pool };
+    // (댓글 미리보기·좋아요/저장 viewer 는 previewFetchedRef/viewerFetchedRef 가 빈 상태라
+    //  복원 풀 전체를 배치 재조회 — 인터랙션 데이터는 항상 신선, 본문·순서만 스냅샷 수용.)
+  }, []);
+
+  // ── R5-3 ②: 복원 풀이 DOM 에 커밋된 직후(paint 전) scrollTop 적용 ──
+  //   forPool identity 게이트: 마운트 커밋(아직 initialPool 20장)에서 소진되면 높이 부족으로
+  //   클램프되므로, pool state 가 정확히 복원 풀이 된 커밋에서만 적용한다. 1회 소진 —
+  //   무한스크롤 append 등 일반 pool 변경에는 no-op.
+  useLayoutEffect(() => {
+    const pending = pendingScrollRef.current;
+    if (!pending || pending.forPool !== pool) return;
+    pendingScrollRef.current = null;
+    const scroller = scrollerElRef.current ?? findScrollContainer(contentRef.current);
+    if (scroller) scroller.scrollTop = pending.y;
+  }, [pool]);
+
+  // ── R5-3 ③: 이탈 시 스냅샷 저장 — 두 경로 모두 커버 ──
+  //   ⓐ pagehide: 카드 제목(플레인 <a>) 클릭 = 문서 전체 이탈(React 언마운트 없음) + 탭 닫기 → 즉시 저장.
+  //   ⓑ layout cleanup: SPA 이탈(탭 이동·검색 key 재마운트). passive cleanup 은 DOM 분리 후라
+  //      scrollTop 이 0 으로 읽히므로 반드시 layout cleanup(분리 전)에서 캡처한다.
+  //   ⓑ 는 "캡처 즉시 저장"이 아니라 **캡처 → 지연 저장(setTimeout 0) → setup 재실행 시 취소**:
+  //      App Router POP/push 마운트 직후 effects 가 teardown→재실행되는 사이클(브라우저 실측)에서
+  //      cleanup 이 즉시 저장하면 "새 인스턴스의 빈 초기 상태(예: 검색 진입 직후 q=검색어·20장·y0)"가
+  //      직전 피드 스냅샷을 덮어쓴다. 진짜 언마운트면 setup 이 다시 오지 않아 타이머가 저장하고,
+  //      사이클이면 곧바로 setup 이 취소한다. 타이머는 인스턴스별 ref 라 key 재마운트로 생긴
+  //      "다른 인스턴스"의 예약을 취소하지 못한다(의도 — 구 인스턴스 저장은 보존돼야 함).
+  //   저장 내용: (q, cat) 키 + 누적 풀 전체 + scrollTop. 커서는 저장하지 않고 복원 시 재계산(①).
+  const deferredSaveTimerRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    // 전제: searchQuery 는 상위 key 재마운트 트리거 — 이 effect 가 "prop 변경"으로 재실행되는
+    //   경우는 실현되지 않고, 마운트당 1회 탐색이다 (검수 기록 2026-07-04).
+    scrollerElRef.current = findScrollContainer(contentRef.current);
+    const buildSnapshot = () => ({
+      q: searchQuery ?? "",
+      cat: catKeyRef.current,
+      pool: poolRef.current,
+      scrollTop: scrollerElRef.current?.scrollTop ?? 0,
+    });
+    const saveNow = () => {
+      if (pendingScrollRef.current != null) return; // 복원 적용 전 중간 상태 저장 방지
+      if (poolRef.current.length === 0) return;
+      saveFeedSnapshot(buildSnapshot());
+    };
+    // setup — 직전 cleanup 이 예약한 지연 저장이 있으면 취소(= teardown→재실행 사이클, 언마운트 아님).
+    if (deferredSaveTimerRef.current != null) {
+      window.clearTimeout(deferredSaveTimerRef.current);
+      deferredSaveTimerRef.current = null;
+    }
+    window.addEventListener("pagehide", saveNow);
+    return () => {
+      window.removeEventListener("pagehide", saveNow);
+      if (pendingScrollRef.current != null) return; // 복원 적용 전 중간 상태 — 저장 안 함
+      if (poolRef.current.length === 0) return;
+      const snap = buildSnapshot(); // scrollTop 은 지금(DOM 분리 전) 캡처
+      deferredSaveTimerRef.current = window.setTimeout(() => {
+        deferredSaveTimerRef.current = null;
+        saveFeedSnapshot(snap);
+      }, 0);
+    };
+  }, [searchQuery]);
 
   // 풀 확장 — 저장된 순서(orderedIds)대로 다음 묶음을 ID 로 받아 append (운영 FeedList loadMore).
   //   순서목록 끝까지 받으면 종료.
@@ -334,7 +484,10 @@ export default function FeedView({
   //   조건부 렌더(filtered.length>=PAGE 등)로 sentinel 이 뒤늦게 DOM 에 붙어도 그 순간 observe 가 걸린다.
   //   (mount-once useEffect 는 늦게 나타난 sentinel 을 못 잡아 글 많은 카테고리에서 무한스크롤이 죽던 회귀 해소.)
   const sentinelObserverRef = useRef<IntersectionObserver | null>(null);
+  // R5-3: 현재 sentinel DOM 노드 기억 — 아래 수명 effect 의 setup 재관찰용.
+  const sentinelNodeRef = useRef<HTMLDivElement | null>(null);
   const attachSentinel = useCallback((node: HTMLDivElement | null) => {
+    sentinelNodeRef.current = node;
     sentinelObserverRef.current?.disconnect();
     sentinelObserverRef.current = null;
     if (node) {
@@ -346,13 +499,29 @@ export default function FeedView({
       sentinelObserverRef.current = ob;
     }
   }, [loadMore]);
-  useEffect(() => () => sentinelObserverRef.current?.disconnect(), []);
+  // observer 수명 관리 — cleanup 은 종전과 동일한 disconnect. R5-3: setup 에서 sentinel 재관찰 추가 —
+  //   App Router POP 복귀(StrictMode 유사)처럼 effects 만 teardown→재실행되고 ref 콜백은 다시 불리지
+  //   않는 사이클에서, cleanup 이 끊은 observer 가 영영 복구되지 않아 무한스크롤이 죽던 결함
+  //   (뒤로가기 복원 브라우저 실측 중 발견 — 복원 여부와 무관하게 POP 복귀 공통) 방어. 같은 노드
+  //   재관찰은 attachSentinel 이 기존 observer 를 먼저 disconnect 하므로 중복 관찰 없음.
+  useEffect(() => {
+    if (sentinelNodeRef.current) attachSentinel(sentinelNodeRef.current);
+    return () => sentinelObserverRef.current?.disconnect();
+  }, [attachSentinel]);
 
   // ① 칩(탭) 전환 시 맨 위로 + 콘텐츠가 살짝 아래에서 올라오는 효과(운영 FeedList 동일).
   //   translateY(10px)→0 + opacity 0→1, 220ms ease-out. 리스트 key remount 의 fadeInUp 과 별개로
   //   안정 래퍼(contentRef)를 직접 animate → 즉시 전환이어도 의도적으로 전환을 느끼게.
+  //   R5-3: 스크롤 초기화는 chip 값이 "실제 전환된" 실행에서만 — 마운트 런은 스크롤러가 어차피 0 이라
+  //   무동작이었고(chip 은 URL 시드로 마운트 직후 재설정도 없어짐), 뒤로가기 복원 마운트에서는
+  //   복원 위치를 되감는 부작용만 있었다. 등장 애니메이션은 기존대로 마운트 포함 유지.
+  const prevChipRef = useRef<ChipKey | null>(null);
   useEffect(() => {
-    scrollFeedTop(contentRef.current);
+    const prevChip = prevChipRef.current;
+    prevChipRef.current = chip;
+    if (prevChip !== null && prevChip !== chip) {
+      scrollFeedTop(contentRef.current);
+    }
     const el = contentRef.current;
     if (el && typeof el.animate === "function") {
       el.getAnimations().forEach((a) => a.cancel()); // 빠른 연속 전환 시 애니메이션 누적 방지

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { markPopNavigation } from "@/lib/feed-scroll-restore";
 
 const STORAGE_KEY = "pbtt-scroll";
 
@@ -35,7 +36,13 @@ export default function ScrollManager() {
       window.history.scrollRestoration = "manual";
     }
 
-    const onPopState = () => { isPopState.current = true; };
+    const onPopState = () => {
+      isPopState.current = true;
+      // R5-3: 피드 뒤로가기 복원 트리거 마크 — popstate 시점의 도착 URL 을 기록해
+      //   FeedView 마운트가 "SPA back/forward 로 이 피드에 도착했는지" 판정하게 한다.
+      //   (window 스크롤 복원은 앱 셸 내부 스크롤 구조상 무동작이라 피드 복원은 FeedView 가 담당.)
+      markPopNavigation();
+    };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
