@@ -230,11 +230,16 @@ supabase/
 | `card/Card.tsx` | 카드 root. view 카운트, 좋아요/저장/공유 |
 | `card/CardHeader.tsx` | 작성자·시간·HOT/NEW/Pick 배지·⋮ 메뉴 |
 | `card/CardBody.tsx` | 본문 + 강조 하이라이트 |
+| `card/ReviewSummary.tsx` | 시술후기(review) 카드 제목 아래 정량 요약 한 줄 — `★ · 통증 · 재시술(또 받을래요…) · 회복(당일 회복…) · 효과 3개+"+n"`. 효과 "+n" 탭 = 전체 펼침/재탭 축소(토글, stopPropagation). 값은 procedure_review 임베드(RPC 0330: downtime 포함). 신 스킨 PostCard·구 스킨 Card.tsx(afterTitle) 공유 |
 | `card/CardMedia.tsx` | YouTube 영상 보러가기 + 외부 링크 OG |
 | `card/CardActions.tsx` | 좋아요·댓글·저장·공유 |
 | `card/CardKeywords.tsx` | 키워드 칩 |
-| `card/hooks/useCardViewer.ts` | view·impression 큐 |
+| `card/hooks/useCardViewer.ts` | view·impression 큐 (시술 리포트 앵커는 `report/ReportViewTracker` 가 같은 훅 재사용 — /reports 상세도 조회 기록. 2026-06-29 신디자인 승격 때 누락됐다 2026-07-04 복원) |
 | `card/hooks/useCardEngagement.ts` | like·save·share 인터랙션 |
+
+> **상대시간 SSOT**: `lib/relative-time.ts::formatRelativeTime`(+ `skin/ui.tsx::timeAgo`) — 인스타식 '전' 없는 압축 표기("3시간 / 3일 / 1달", "방금"). 댓글·카드 헤더·알림 공통. 노트 연도 그룹 헤더("올해 / 1년 전")·약관 "N일 전"·"몇 년 전" 폼 선택지는 상대 타임스탬프가 아니라 별도 맥락(미적용).
+>
+> **댓글 메타 배치**: `comments/CommentItem.tsx` — 시간·답글·♡는 본문 마지막 문장 끝에 인라인(우측 float 아님), ⋮ 메뉴만 우상단.
 
 ### 4.2. 카드 에디터 통합
 | 파일 | 역할 |
