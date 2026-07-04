@@ -210,8 +210,8 @@ export default function AppShell({
   // 첫 페인트 가림 — SSR/하이드레이션 직후 한 번은 session 이 쿠키 접근 전이라 null 일 수 있어,
   //   마이/로그인 분기를 첫 페인트만 숨겨 비로그인 플래시를 막는다(라우팅마다 재발 X, 1회성).
   const [mounted, setMounted] = useState(false);
-  // 알림 벨 미읽음 카운트 — 운영 NotificationsBell 과 동일하게 /api/notifications?limit=1
-  //   의 unread 필드를 사용(active profile 기준 get_my_unread_count RPC + RLS, 우회 없음).
+  // 알림 벨 미읽음 카운트 — /api/notifications?countOnly=1 의 unread 필드를 사용
+  //   (items RPC 생략, active profile 기준 get_my_unread_count RPC + RLS, 우회 없음).
   //   비로그인(!session)이면 0 으로 유지 → 배지 숨김(깜빡임 방지).
   const [unread, setUnread] = useState(0);
 
@@ -233,7 +233,7 @@ export default function AppShell({
     const ac = new AbortController();
     const fetchUnread = async () => {
       try {
-        const res = await fetch("/api/notifications?limit=1", {
+        const res = await fetch("/api/notifications?countOnly=1", {
           cache: "no-store",
           signal: ac.signal,
         });

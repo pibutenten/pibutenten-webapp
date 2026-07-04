@@ -1,6 +1,7 @@
 /**
  * GET /api/notifications
  *
+ *   배지 모드:             ?countOnly=1       → { items: [], unread } (items RPC 생략 — 미읽음 수만)
  *   기본 (dropdown 모드): ?limit=N            → { items, unread }
  *   페이지 모드:           ?offset=N&limit=N  → { items, unread } (items 는 get_notifications 의 풀 페이로드)
  *
@@ -24,6 +25,22 @@ export async function GET(req: Request) {
   const activeProfileId = idCtx.active.profileId;
 
   const url = new URL(req.url);
+
+  // 배지 모드 — items RPC 생략, 미읽음 카운트만 (AppShell 60초 폴링 경량화).
+  //   응답 형태는 기존 소비자와 호환되게 items 를 빈 배열로 유지.
+  if (url.searchParams.get("countOnly") === "1") {
+    const unread = await supabase.rpc("get_my_unread_count", {
+      p_active_profile_id: activeProfileId,
+    });
+    return NextResponse.json(
+      {
+        items: [],
+        unread: Number(unread.data ?? 0),
+      },
+      { headers: { "cache-control": "no-store" } },
+    );
+  }
+
   const limitRaw = parseInt(url.searchParams.get("limit") ?? "20", 10);
   const limit = Number.isFinite(limitRaw)
     ? Math.min(Math.max(limitRaw, 1), 50)

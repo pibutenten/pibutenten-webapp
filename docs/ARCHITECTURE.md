@@ -15,7 +15,7 @@
 | 배포 | Vercel Pro (auto-deploy from `main`) |
 | AI | Anthropic Claude (`@anthropic-ai/sdk` 0.93) |
 | React | 19.2.4 |
-| 부가 라이브러리 | `web-push`, `nanoid`, `youtubei.js`, `youtube-transcript`, `@mozilla/readability`, `jsdom`, `react-easy-crop`, `react-masonry-css`, `pretendard`, `zod`, `sharp`, `simple-git-hooks` |
+| 부가 라이브러리 | `web-push`, `nanoid`, `youtubei.js`, `youtube-transcript`, `@mozilla/readability`, `jsdom`, `react-easy-crop`, `pretendard`, `zod`, `sharp`, `simple-git-hooks` |
 
 작업 디렉토리: `<repo>/pibutenten-app` (메인 PC=D:\Dropbox, 보조=C:\Dropbox — 머신마다 드라이브만 다름)
 

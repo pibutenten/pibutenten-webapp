@@ -238,33 +238,6 @@ a:focus:not(:focus-visible),
   background-color: var(--primary-dark) !important;
 }
 
-/* ========== 카드 피드 masonry (react-masonry-css) ==========
-   가로 flow (좌·우·좌·우 alternating). 모바일은 자동 1-column.
-   DOM 한 벌만 출력 (이전 mobile/desktop 이중 렌더 폐기). */
-.feed-masonry {
-  display: flex;
-  margin-left: -20px; /* gutter 보정 */
-  width: auto;
-}
-.feed-masonry__col {
-  padding-left: 20px;
-  background-clip: padding-box;
-}
-.feed-masonry__col > * {
-  margin-bottom: 20px;
-}
-@media (max-width: 899px) {
-  .feed-masonry {
-    margin-left: 0;
-  }
-  .feed-masonry__col {
-    padding-left: 0;
-  }
-  .feed-masonry__col > * {
-    margin-bottom: 16px;
-  }
-}
-
 /* ========== 더블탭 좋아요 하트 오버레이 팝 ========== */
 @keyframes heartPop {
   0% { transform: scale(0); opacity: 0.8; }
