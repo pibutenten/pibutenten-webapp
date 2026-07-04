@@ -28,9 +28,9 @@ type SubmitStatus = "draft" | "pending_review" | "published";
 /**
  * POST /api/articles
  *
- * 글쓰기 통합 엔드포인트.
- * - type='post' : 일반 글 (모든 로그인 유저). 즉시 published.
- * - type='qa' : 관리자/원장이 작성. status='pending_review'.
+ * 글쓰기 통합 엔드포인트. category 가 진실원 — type 은 category 에서 파생 (R1-4).
+ * - category='doodle' (type='post') : 일반 글 (모든 로그인 유저). 즉시 published.
+ * - category='qa'     (type='qa')   : 관리자/원장이 작성. status='pending_review'.
  */
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
@@ -105,14 +105,40 @@ export async function POST(req: Request) {
     );
   }
   const payload = parsed.data;
-  const t = payload.type;
 
-  // 권한 검증 — v5.1: Q&A는 원장·관리자만 작성 가능
-  if (t === "qa" && role !== ROLES.ADMIN && role !== ROLES.DOCTOR) {
-    return errorResponse(null, "forbidden", "[articles POST] qa role denied", 403, undefined, {
-      userMessage: "Q&A는 원장 또는 관리자만 작성 가능합니다.",
+  // ── 카테고리 결정 + type 파생 (R1-4 / M-3, 2026-07-04) ────────────────
+  // category 가 진실원(SSOT) — 클라이언트가 보낸 type 은 신뢰하지 않고 category 에서
+  // 파생. PUT(articles/[id]) 의 `update.type = nextCategory === "qa" ? "qa" : "post"`
+  // 와 동일 규칙. 구 버그: type·category 를 각각 독립 검증만 해 의사·관리자 role 이면
+  // type='post'+category='qa' 같은 모순 조합이 통과 → DB 에 type↔category 불일치 row
+  // 생성 가능했음.
+  //   · isPostCategorySlug : 유효 슬러그(qa/doodle/review/review_summary) 검증 → 아니면 400.
+  //   · categoriesForRole  : 역할 허용 범위(회원=doodle / 의사·관리자=qa+doodle) → 벗어나면 403.
+  //     구 "qa role denied" 별도 게이트(type 기준)는 이 403 이 동일하게 커버 — 제거.
+  //   · review/review_summary 는 categoriesForRole 에 없어 일반 글쓰기 POST 로는 자연 차단(전용 폼만).
+  // payload.type 은 category 미전송 payload 의 폴백 입력으로만 사용 (qa→qa, 그 외→doodle
+  // 로 category 를 먼저 정한 뒤 type 을 재파생하므로 모순 조합이 원천 불가).
+  let category: string;
+  if (typeof payload.category === "string") {
+    if (!isPostCategorySlug(payload.category)) {
+      return errorResponse(null, "invalid_input", "[articles POST] invalid category", 400, undefined, {
+        userMessage: "유효하지 않은 카테고리",
+      });
+    }
+    category = payload.category;
+  } else {
+    category = payload.type === "qa" ? "qa" : "doodle";
+  }
+  if (!categoriesForRole(role).some((c) => c.slug === category)) {
+    return errorResponse(null, "forbidden", "[articles POST] category not allowed", 403, undefined, {
+      userMessage:
+        category === "qa"
+          ? "Q&A 카테고리는 원장 또는 관리자만 작성 가능합니다."
+          : "이 카테고리는 사용 권한이 없습니다.",
     });
   }
+  // type 파생 — 이후 doctor 매핑·본문 분기·insert 전부 이 값 사용.
+  const t: WriteType = category === "qa" ? "qa" : "post";
 
   // status 결정 — 클라이언트가 보낸 값 검증
   const reqStatus: SubmitStatus = payload.status ?? "published";
@@ -187,31 +213,6 @@ export async function POST(req: Request) {
       );
       postSlug = resolveSlugCollision(baseSlug, existingSet);
     }
-  }
-
-  // 카테고리 결정 — payload.category 우선(SSOT 검증), 없으면 type 에서 폴백.
-  //   검증·역할 게이트는 PUT(articles/[id]) 와 동일하게 post-category SSOT 사용:
-  //     · isPostCategorySlug : 유효 슬러그(qa/doodle/review/review_summary) 검증 → 아니면 400.
-  //     · categoriesForRole  : 역할 허용 범위(회원=doodle / 의사·관리자=qa+doodle) → 벗어나면 403.
-  //   review/review_summary 는 categoriesForRole 에 없어 일반 글쓰기 POST 로는 자연 차단(전용 폼만).
-  let category: string;
-  if (typeof payload.category === "string") {
-    if (!isPostCategorySlug(payload.category)) {
-      return errorResponse(null, "invalid_input", "[articles POST] invalid category", 400, undefined, {
-        userMessage: "유효하지 않은 카테고리",
-      });
-    }
-    category = payload.category;
-  } else {
-    category = t === "qa" ? "qa" : "doodle";
-  }
-  if (!categoriesForRole(role).some((c) => c.slug === category)) {
-    return errorResponse(null, "forbidden", "[articles POST] category not allowed", 403, undefined, {
-      userMessage:
-        category === "qa"
-          ? "Q&A 카테고리는 원장 또는 관리자만 작성 가능합니다."
-          : "이 카테고리는 사용 권한이 없습니다.",
-    });
   }
 
   // 카테고리 라벨은 카드 헤더(닉네임 밑) + 태그 칩 끝에 자동 표시.
