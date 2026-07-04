@@ -1245,6 +1245,11 @@ export function PostCard({
             onCountChange={setCommentCount}
             initialComments={commentPreview?.comments}
             initialTotal={commentPreview?.total}
+            onExpandRequest={() => {
+              // "댓글 N개 모두 보기" 줄 클릭 — 💬 토글과 동일 효과이되 펼침 고정(이미 열려 있으면 유지).
+              setCommentsOpen(true);
+              recordView(); // 댓글 열기 = 읽음 의도 → 조회 기록.
+            }}
           />
         </div>
       )}

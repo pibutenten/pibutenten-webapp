@@ -4,7 +4,7 @@ import type { CardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
-import { diversifyByDoctor } from "@/lib/feed-shuffle";
+import { blendQaQuota, diversifyByDoctor } from "@/lib/feed-shuffle";
 import { type ProcedureReport } from "@/lib/procedure-report";
 import { fetchCardList } from "@/lib/search-query";
 import { jsonLdString } from "@/lib/json-ld";
@@ -17,7 +17,9 @@ import { FEED_CAT_LABELS, parseFeedCat, type FeedCat } from "@/lib/feed-categori
 /**
  * 메인 피드(/) — "카테고리 탭 = /?cat= 서버 풀, URL 이 SSOT" 모델 (2026-07-03 전환).
  *   (2026-06-14 앱 스킨 승격: 홈을 신규 스킨 FeedView 로 교체. SEO(index·JSON-LD·H1)는 구 홈 그대로 보존.)
- *  - 전체(/): feed_cards_scored 300. 카테고리 탭(/?cat=qa|review|doodle): 같은 RPC 에 p_category 를
+ *  - 전체(/): feed_cards_scored 300 + Q&A 전용 300 을 동시 조회해 blendQaQuota 로 "매 20장 중
+ *    Q&A 6장 이상" 슬롯 보장(원장 확정 2026-07-04 — 시술후기 대량 유입 시 Q&A 소멸 방지).
+ *    카테고리 탭(/?cat=qa|review|doodle): 같은 RPC 에 p_category 를
  *    더해 그 카테고리만의 300 풀을 서버가 내려줌(마이그 0326). 종전 "풀 1개를 탭이 클라 필터" 모델은
  *    시술후기 대량 유입(2026-06)으로 풀이 한 카테고리에 도배되면 다른 탭이 비는 구조적 한계가 있었음.
  *    FeedView 의 클라 필터(matchesChip)는 탭 전환 중 임시 표시용으로만 유지.
@@ -34,6 +36,11 @@ export const fetchCache = "force-no-store";
 const ORDER = 300;
 const INITIAL = 20;
 
+// 전체(/) 피드 Q&A 슬롯 보장 — 원장 확정 2026-07-04: "매 20장 중 Q&A 6장 이상".
+//   카테고리 탭(/?cat=)에는 미적용(전체 풀만). DB 가중치(0327 qa x3)와 부보완 관계.
+const QA_MIN_PER_WINDOW = 6;
+const QA_WINDOW = 20;
+
 /* 홈 카테고리 탭(/?cat=) 슬러그·라벨·검증 — FeedView 칩과 공유하는 SSOT(@/lib/feed-categories).
  *   (검수 반영 2026-07-03: 서버·클라 각자 정의하던 중복을 공유 모듈로 추출 — drift 방지.) */
 /* 사이드 '인기 태그' — 공용 getFeedSidebarDataCached(@/lib/feed-sidebar-cached, 5분 캐시)에서
@@ -46,35 +53,62 @@ const INITIAL = 20;
 const getHomeFeedPoolCached = unstable_cache(
   async (category: FeedCat | null): Promise<CardData[]> => {
     const sb = createSupabaseAnonClient();
-    // category 미지정(null)이면 종전과 완전히 동일한 4개 인자만 전달 — p_category 를 아예 안 보내
-    //   마이그 0326(p_category 추가) 적용 전에 이 코드가 먼저 배포돼도 전체 풀은 무사하다.
-    //   카테고리 풀(/?cat=)일 때만 p_category 를 더해 그 카테고리 300개를 서버가 점수순으로 내려줌.
-    const { data, error } = await sb.rpc(
-      "feed_cards_scored",
-      category
-        ? {
-            p_limit: ORDER,
-            p_offset: 0,
-            p_half_life_days: 14,
-            p_jitter_amp: 0.35,
-            p_category: category,
-          }
-        : {
-            p_limit: ORDER,
-            p_offset: 0,
-            p_half_life_days: 14,
-            p_jitter_amp: 0.35,
-          },
-    );
-    if (error) {
-      console.error("[home] 피드 풀 조회 실패:", error.message);
+    // 카테고리 풀(/?cat=)일 때만 p_category 를 더해 그 카테고리 300개를 서버가 점수순으로 내려줌.
+    //   blend 미적용 — Q&A 슬롯 보장은 전체(category null) 풀만 대상.
+    if (category) {
+      const { data, error } = await sb.rpc("feed_cards_scored", {
+        p_limit: ORDER,
+        p_offset: 0,
+        p_half_life_days: 14,
+        p_jitter_amp: 0.35,
+        p_category: category,
+      });
+      if (error) {
+        console.error("[home] 피드 풀 조회 실패:", error.message);
+        return [];
+      }
+      const scored = (data ?? []) as CardData[];
+      return diversifyByDoctor(scored, { maxPerDoctorInHead: 1, headSize: 4 });
+    }
+    // 전체(category null): 전체 풀(종전과 동일한 4개 인자 — p_category 를 아예 안 보내 마이그 0326
+    //   적용 전에 이 코드가 먼저 배포돼도 무사) + Q&A 전용 풀을 동시 조회 → blendQaQuota 로
+    //   "매 QA_WINDOW 장 중 Q&A 최소 QA_MIN_PER_WINDOW 장" 슬롯 보장(원장 확정 2026-07-04) 후
+    //   기존 의사 분산(diversifyByDoctor) 적용. Q&A 풀 조회 실패 시 빈 큐 폴백 — 전체 풀 그대로.
+    const [allRes, qaRes] = await Promise.all([
+      sb.rpc("feed_cards_scored", {
+        p_limit: ORDER,
+        p_offset: 0,
+        p_half_life_days: 14,
+        p_jitter_amp: 0.35,
+      }),
+      sb.rpc("feed_cards_scored", {
+        p_limit: ORDER,
+        p_offset: 0,
+        p_half_life_days: 14,
+        p_jitter_amp: 0.35,
+        p_category: "qa",
+      }),
+    ]);
+    if (allRes.error) {
+      // 전체 풀 실패 = 피드 자체 불가 — 종전 패턴대로 즉시 빈 배열(검수 반영: blend 로 흘리지 않음).
+      console.error("[home] 피드 풀 조회 실패:", allRes.error.message);
       return [];
     }
-    const scored = (data ?? []) as CardData[];
-    return diversifyByDoctor(scored, { maxPerDoctorInHead: 1, headSize: 4 });
+    if (qaRes.error) {
+      // Q&A 풀만 실패 — 빈 큐 폴백으로 blend 가 organic 전용으로 degrade(슬롯 보장만 꺼짐).
+      console.error("[home] Q&A 풀 조회 실패:", qaRes.error.message);
+    }
+    const scored = (allRes.data ?? []) as CardData[];
+    const qaScored = (qaRes.data ?? []) as CardData[];
+    const blended = blendQaQuota(scored, qaScored, {
+      minPerWindow: QA_MIN_PER_WINDOW,
+      windowSize: QA_WINDOW,
+    });
+    return diversifyByDoctor(blended, { maxPerDoctorInHead: 1, headSize: 4 });
   },
-  // 인자(category)는 unstable_cache 가 키에 자동 포함 — v2 는 카테고리 파라미터화에 따른 명시적 버전업.
-  ["home-feed-pool-v2"],
+  // 인자(category)는 unstable_cache 가 키에 자동 포함 — v3 은 전체 풀 내부 조합 변경(Q&A blend 추가)에
+  //   따른 명시적 버전업(v2 캐시 본문과 구성이 달라 stale 반환 방지).
+  ["home-feed-pool-v3"],
   { revalidate: 90, tags: ["home-feed"] },
 );
 

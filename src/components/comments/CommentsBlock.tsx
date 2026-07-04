@@ -56,6 +56,9 @@ type Props = {
   initialTotal?: number;
   /** true면 입력 폼 자동 포커스 안 함 (단독 URL 자동 펼침 시 모바일 키보드 방지) */
   disableAutoFocus?: boolean;
+  /** 미리보기 모드에서 "댓글 N개 모두 보기" 줄 클릭 시 부모(PostCard)가 펼침(showInput=true 로
+   *  전환)을 수행하도록 위임. 미제공 시 줄 미표시(구형 호출자 호환). */
+  onExpandRequest?: () => void;
 };
 
 export default function CommentsBlock({
@@ -67,6 +70,7 @@ export default function CommentsBlock({
   disableAutoFocus = false,
   initialComments,
   initialTotal,
+  onExpandRequest,
 }: Props) {
   // 피드 배치 미리보기 seed 가 있으면 그것으로 시작(자체 fetch 0). 없으면 빈 + 로딩.
   const [comments, setComments] = useState<CommentWithReplies[]>(initialComments ?? []);
@@ -185,7 +189,8 @@ export default function CommentsBlock({
   // ── 표시할 댓글:
   //   - showInput=false (카드 상단 💬 아이콘 미클릭) → 프리뷰 3개
   //   - showInput=true  (💬 클릭으로 입력창 열림)   → 전체 펼침
-  //   "모두 보기 (N)" 버튼은 제거 — 카드 상단 💬 토글이 단일 진입점.
+  //   "댓글 N개 모두 보기" 줄은 2026-07-04 원장 요청으로 복원 — 펼침 진입점 2개
+  //   (카드 상단 💬 토글 + 미리보기 하단 모두 보기 줄, 후자는 onExpandRequest 위임).
   const visibleRoots = showInput ? comments : comments.slice(0, 3);
 
   // ── 가시 댓글 총 수 (전체 표시용 카운트는 totalRoot + 답글 합산보다는 visible만 카운트)
@@ -207,6 +212,21 @@ export default function CommentsBlock({
     const count = fullLoaded ? visibleCount : (initialTotal ?? 0);
     onCountChange?.(count);
   }, [fullLoaded, visibleCount, initialTotal, onCountChange]);
+
+  // ── "댓글 N개 모두 보기" 줄(2026-07-04 복원)용 카운트.
+  //   totalCount: onCountChange effect 와 동일 규칙 — seed 미리보기는 initialTotal, 전체 로드 후 visibleCount.
+  //   hiddenCount: 총수 - 미리보기에 실제 보이는 수(visible root 3개 + 그 답글). 0 이면 줄 미표시.
+  const totalCount = fullLoaded ? visibleCount : (initialTotal ?? 0);
+  const hiddenCount = useMemo(() => {
+    let shown = 0;
+    for (const r of visibleRoots) {
+      if (r.status === "visible") shown += 1;
+      for (const rep of r.replies) {
+        if (rep.status === "visible") shown += 1;
+      }
+    }
+    return Math.max(0, totalCount - shown);
+  }, [visibleRoots, totalCount]);
 
   // ── 작성/답글 제출
   async function submitComment(parentId: number | null) {
@@ -367,6 +387,23 @@ export default function CommentsBlock({
           </li>
         ))}
       </ul>
+
+      {/* "댓글 N개 모두 보기" 줄 (2026-07-04 원장 요청 복원) — 인스타그램 표준.
+          미리보기 모드에서 아직 안 보이는 댓글이 있고, 부모가 펼침 위임(onExpandRequest)을
+          제공할 때만 표시. 클릭 시 부모가 showInput=true 로 전환(💬 토글과 달리 펼침 고정). */}
+      {!showInput && onExpandRequest && hiddenCount > 0 && (
+        <button
+          type="button"
+          aria-label={`댓글 ${totalCount}개 모두 보기`}
+          className="mt-1.5 block w-full py-1 text-left text-[12.5px] text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+          onClick={(e) => {
+            e.stopPropagation();
+            onExpandRequest();
+          }}
+        >
+          댓글 {totalCount}개 모두 보기
+        </button>
+      )}
 
       {/* root 댓글 입력 폼 — showInput 시에만 노출, meLoaded 후에만 분기 (깜빡임 방지) */}
       {showInput && isPublishedQa && meLoaded && isLoggedIn && replyTarget == null && (
