@@ -140,7 +140,7 @@ export default function CommentsBlock({
         return;
       }
       // 정책 (2026-05-15 재정의): me.id / role / doctor_id 모두 **active profile 단일** 기준.
-      // - id: active profile.id (cookie 'pibutenten:identity', 'primary' 면 user.id)
+      // - id: active profile.id — mirror cookie 의 UUID (getActiveIdentityId). 쿠키 없음/비-UUID 면 user.id fallback
       // - role: active profile 자체의 role (묶음 최고 권한 X)
       // - doctor_id: active profile 의 의사 매핑 (SSOT: profiles.doctor_id, 묶음의 다른 profile X)
       // → 댓글 본인 인식 (isAuthor) 도 active == author 일 때만.

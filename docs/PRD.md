@@ -145,7 +145,7 @@
 
 ### 5.2. 개인정보보호 (PIPA)
 - 탈퇴 시 **작성자 profile PII** in-place 익명화 + auth 계정 삭제 (네이버 카페식: 작성 콘텐츠 본문 보존, 작성자만 '(탈퇴한 사용자)' 표시. ADR 0002)
-- anon 권한 컬럼 화이트리스트 (PII 7개 컬럼 anon SELECT 차단)
+- profiles 컬럼 권한 화이트리스트 — PII 8개 컬럼(birthdate·gender·contact_email·face_shape·skin_type·skin_concerns·interested_procedures·fitzpatrick)은 anon·authenticated 모두 SELECT 차단 (anon 은 동의 메타 컬럼도 추가 차단). 본인·관리자 PII 조회는 SECURITY DEFINER RPC 경유 (마이그 0122/0123/0325/0334/0335)
 - 처리방침 국외이전 표 명시 (Supabase/Vercel/Anthropic/Google/Web Push/PubMed)
 - 30일 임시조치 절차 (정통망법 §44조의2)
 

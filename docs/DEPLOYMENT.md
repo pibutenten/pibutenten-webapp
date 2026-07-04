@@ -191,11 +191,27 @@ npm run build          # 전체 빌드 (Compiled successfully 확인)
 | Name | 비고 |
 |---|---|
 | `CSRF_ALLOWED_ORIGINS` | 미설정 시 production 도메인만 허용 |
-| `NEXT_PUBLIC_SITE_URL` | Vercel env 에 설정 |
+| `NEXT_PUBLIC_SITE_URL` | Vercel Production+Preview 에 설정 (Production = `https://pibutenten.kr`). 미설정 시 vercel.app fallback (`src/lib/site.ts`) |
 | `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` | 네이버 OAuth |
 | `ANTHROPIC_API_KEY` | AI 글 초안 생성 |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push |
 | `PUSH_WEBHOOK_SECRET` | Supabase webhook 인증 |
+| `FIREBASE_SERVICE_ACCOUNT` | **민감**. 네이티브 앱 FCM 푸시용 서비스계정 키(JSON 한 줄). Vercel Production 만 설정. 미설정 시 네이티브 푸시만 비활성 (`src/lib/firebase-admin.ts`) |
+
+### 10.9. AI 콘텐츠 파이프라인 (admin 초안·자막·문헌)
+
+Production/Preview/Dev = Vercel 실측 (2026-07-04, projects env API).
+
+| Name | Production | Preview | Dev | 비고 |
+|---|---|---|---|---|
+| `YOUTUBE_OAUTH_CLIENT_ID` | ✓ | — | — | **민감**. 본인 채널 자막 다운로드 OAuth (`src/lib/ai/youtube-oauth.ts`) |
+| `YOUTUBE_OAUTH_CLIENT_SECRET` | ✓ | — | — | **민감**. 위와 페어 |
+| `YOUTUBE_OAUTH_REFRESH_TOKEN` | ✓ | — | — | **민감**. DB(`youtube_oauth_tokens`) 우선, env 는 초기 세팅 fallback |
+| `YOUTUBE_API_KEY` | ✓ | — | ✓ | **민감**. 링크 미리보기 영상 메타 (`src/app/api/preview-link/route.ts`). 미설정 시 fallback 동작 |
+| `NCBI_API_KEY` | — | — | — | Vercel 미설정. 로컬 선택. PubMed E-utilities rate limit 상향 (`src/lib/ai/pubmed.ts`). 미설정도 동작 |
+| `PYTHON_BIN` | — | — | — | 로컬 전용. python 실행 경로 (Windows Store stub 회피, `src/lib/ai/python-transcript.ts`) |
+| `PYTHON_TRANSCRIPT_DISABLED` | — | — | — | 선택 스위치. `1` 이면 Python 자막 통로 비활성. 현재 미설정 |
+| `PYTHON_TRANSCRIPT_SECRET` | — | — | — | **민감**. `/api/transcript` 호출 인증 헤더(`X-Transcript-Secret`). 현재 Vercel 미설정 |
 
 ---
 

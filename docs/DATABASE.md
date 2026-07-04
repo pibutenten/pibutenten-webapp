@@ -198,7 +198,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 ### 3.1. profiles
 - `profiles_public_select` (qual=true) — anon 안전 컬럼만 SELECT
 - `profiles_self_select`
-- anon PII lockdown (0122/0123): `birthdate`/`gender`/`face_shape`/`skin_type`/`skin_concerns`/`interested_procedures`/`contact_email` anon 차단 (7개. `liked_procedures` 는 0184 drop)
+- PII 컬럼 잠금 (현행): 핵심 PII **8컬럼** `birthdate`/`gender`/`face_shape`/`skin_type`/`skin_concerns`/`interested_procedures`/`contact_email`/`fitzpatrick` — **anon**(0122/0123 기반 + 0323 fitzpatrick 추가, 0325 방어적 REVOKE 15컬럼=핵심8+동의메타7)·**authenticated**(0335, 안전 23컬럼만 컬럼 레벨 GRANT) 모두 직접 SELECT 차단. 본인·관리자 조회는 SECURITY DEFINER RPC(`get_profile_pii`/`get_onboarding_gate`, 0334) 경유. (`liked_procedures` 는 0184 drop)
 - `public_profiles_view` (안전 컬럼 19개만 노출)
 - `chk_min_age` CHECK constraint (14세 미만 차단, 0121)
 

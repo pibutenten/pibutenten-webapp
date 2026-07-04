@@ -65,8 +65,7 @@
 ### 2.3. 사용자 영역
 ```
 /settings                           대시보드 (admin 도구 + doctor 통계 + user Hero)
-/settings/profile                   프로필 수정
-/settings/notifications             알림 설정
+/settings/profile                   프로필 수정 (알림 설정 포함 — ProfileEditClient)
 /notifications                      알림 목록
 /write                              통합 글쓰기 — 3탭(시술일기/시술후기/끄적끄적) WriteTabs. ?tab=record|review|doodle. FAB·헤더 진입(tab 미지정) 기본 탭=시술후기(review, WriteView tabToKey 기본). ?tab= 명시는 불변
 /write/[shortcode]                  글 수정 (자기 글/원장/admin) — WriteEditShell(AppShell) 래핑 + EditClient
@@ -160,11 +159,6 @@ POST   /api/admin/draft/pubmed-by-pmid
 PATCH  /api/admin/reports/[id]      모더레이션 액션 (hide/delete/dismiss)
 POST   /api/admin/extract-keywords
 GET    /api/admin/youtube-oauth/start / callback / status
-```
-
-#### dev only
-```
-GET    /api/dev-sql/[name]          로컬 SQL 실행
 ```
 
 ### 2.6. 메타 / SEO / AEO / GEO
@@ -300,7 +294,7 @@ supabase/
 ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-05-15 완전 폐기.
 
 ### 5.1. 모델
-- 쿠키: `pibutenten:identity` = `primary` 또는 `profile.id` (UUID)
+- 쿠키 2개: `pibutenten:identity` (httpOnly — 서버 전용 신뢰) + `pibutenten:identity-mirror` (클라 UI 표시 전용) — 값은 항상 active `profile.id` **UUID**. `/api/identity/switch` 가 두 값 동시 set. 옛 sentinel `"primary"` 는 폐지 — 구 쿠키값이 오면 서버 진입 시 base UUID 로 정규화 (`src/lib/identity-shared.ts`)
 - 같은 `auth_user_id` 묶음으로 묶인 **독립 profiles row 다수**
 - 한 사람이 두 모드 (의사·일반) 활동 → **별개 profile row** 생성 후 묶음에 추가
 - 모든 인터랙션 시 명함 ID 컬럼 (`author_id` / `profile_id`) = active profile.id
@@ -314,12 +308,12 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 | 명함 ID | `profiles.id` | 활동 단위 (1사람 = N명함) | `idCtx.active.profileId` |
 | 묶음 표시 | `profiles.auth_user_id` | 같은 사람의 명함끼리 같은 값 (FK 없음) | `bundleProfileFilter` 등에서 사용 |
 
-### 5.1.2. `profiles.id` 참조 컬럼 명명 (ADR 0014, Phase 1 — 원칙 발효, DB RENAME Phase 2~4)
+### 5.1.2. `profiles.id` 참조 컬럼 명명 (ADR 0014 — 9개 테이블 `user_id`→`profile_id` RENAME 완료, 마이그 0186/0187)
 
 | 역할 | 컬럼명 | 사용 테이블 |
 |---|---|---|
 | 콘텐츠 책임 주체 | `author_id` | `cards`, `comments` |
-| 명함 소유·행위자 | `profile_id` | `notification_preferences`, `push_subscriptions`, `search_logs` (이미 적용) + `card_likes`, `card_saves`, `comment_likes`, `card_views`, `card_impressions`, `card_shares`, `activity_points`, `daily_logins`, `site_visits` (Phase 2~3 에서 `user_id` → `profile_id` RENAME 예정) |
+| 명함 소유·행위자 | `profile_id` | `notification_preferences`, `push_subscriptions`, `search_logs`, `card_likes`, `card_saves`, `comment_likes`, `card_views`, `card_impressions`, `card_shares`, `activity_points`, `daily_logins`, `site_visits` |
 | 한 row 둘 이상 등장 | 역할 접두사 (`actor_*`, `recipient_*`, `reporter_*`, `resolved_by`) | `notifications`, `content_reports`, `audit_logs` |
 | 로그인 계정 참조 | `auth_user_id` | `profiles.auth_user_id`, `audit_logs.actor_auth_user_id` |
 
