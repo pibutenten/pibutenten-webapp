@@ -6,6 +6,15 @@
 
 ---
 
+## [2026-07-04] — 개선 라운드 R1: 정합성·데이터 (독립 이중검증 실행계획)
+
+실행 기준: `docs/plans/2026-07-04-최종-실행계획-이중검증.md`. 디렉터 프로세스(서브에이전트 구현 → 디렉터 검수 → 코드검수관 → 커밋).
+
+### Fixed
+- **[R1-1/M-1] `cards.category` 자기위반 DEFAULT 제거** (마이그 0337) — 컬럼 DEFAULT 가 폐기 카테고리 `'diary'` 라 현행 CHECK(qa/doodle/review/review_summary) 위반. 모든 INSERT 경로가 category 명시라 잠복이었으나, 생략 경로가 생기면 500. `DROP DEFAULT` 채택(SET DEFAULT 'doodle' 은 미래 누락 INSERT 를 조용히 오분류 — 23502 즉시 에러가 안전). production 적용·검증(기본값 NULL·CHECK 4종 무손상). + DATABASE.md 에 누락돼 있던 0336 행 보강.
+
+---
+
 ## [2026-07-04] — 상대시간 인스타식 표기 + 시술후기 효과 "+n" 펼침 토글 (원장 확정)
 
 ### Changed
