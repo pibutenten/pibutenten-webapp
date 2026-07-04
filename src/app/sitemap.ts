@@ -1,10 +1,7 @@
 import type { MetadataRoute } from "next";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { SITE_URL, INCLUDE_REPORT_ANCHORS } from "@/lib/site";
 import { FEED_MIN_REVIEWS } from "@/lib/procedure-report";
-
-// SITE_PUBLIC env + 신규 발행 글 lastmod 를 매 요청 반영.
-export const dynamic = "force-dynamic";
 
 /**
  * sitemap.xml — Next.js App Router 자동 생성.
@@ -27,6 +24,11 @@ export const dynamic = "force-dynamic";
  *  - cards.updated_at 추가 select → lastModified 정확화 (updated_at ?? created_at)
  */
 
+// R3-3 (2026-07-04): force-dynamic 제거 + 쿠키리스 anon 클라이언트로 ISR 전환.
+//   기존엔 force-dynamic 이 revalidate 를 무효화 + createSupabaseServerClient 의
+//   cookies() 참조가 어차피 dynamic 을 강제 → 매 요청 DB 5쿼리. 이제 1시간 캐시.
+//   anon RLS 하에서도 결과 동일(published·미삭제만) — 오히려 요청자 신원(admin 쿠키 등)에
+//   따라 출력이 흔들리지 않는 결정적 크롤러 뷰가 됨.
 export const revalidate = 3600; // 1시간마다 재생성
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -118,7 +120,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseAnonClient();
 
     // 발행된 글 — 의사가 작성한 Q&A canonical 만.
     // M5 (2026-05-28): category='qa' 필터 추가. 의사의 비-qa 카드 (tip 등) 가 doctor canonical

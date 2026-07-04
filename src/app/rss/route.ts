@@ -1,5 +1,6 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { SITE_URL, INCLUDE_REPORT_ANCHORS } from "@/lib/site";
+import { stripMarkdown } from "@/lib/strip-markdown";
 
 /**
  * RSS Feed — 의사 작성 Q&A 글 최신 50건.
@@ -19,6 +20,11 @@ import { SITE_URL, INCLUDE_REPORT_ANCHORS } from "@/lib/site";
  *   robots Allow 와 분리해서 RSS 만 막을 필요는 없음.
  */
 
+// R3-3 (2026-07-04): 쿠키리스 anon 클라이언트로 전환 — 기존 createSupabaseServerClient 의
+//   cookies() 참조가 라우트를 dynamic 으로 강제해 revalidate=1800 이 무효였음(매 요청 DB 3쿼리).
+//   anon RLS 하에서 결과 동일(published·미삭제만) — sitemap.ts 와 같은 근거. 이제 30분 ISR 실효.
+//   빌드타임 프리렌더 안전: supabase-js(postgrest-js)는 네트워크 실패도 throw 없이
+//   { data: null, error } 반환 → cards/anchors=null → 빈 채널로 프리렌더, 다음 revalidate 에 복구.
 export const revalidate = 1800; // 30분 — 네이버 freshness
 
 function escapeXml(s: string) {
@@ -44,7 +50,7 @@ type CardRow = {
 };
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAnonClient();
   // P2-7 (2026-05-29): pubmed_refs 의도적 미포함.
   //   RSS 피드는 외부 리더(Feedly·네이버 등) 대상 — 본문·메타 간결성 우선.
   //   참고문헌 전체 텍스트는 카드 단일 페이지에서만 노출 (JSON-LD citation 포함).
@@ -66,14 +72,16 @@ export async function GET() {
       const url = `${SITE_URL}/doctors/${doc.slug}/${c.post_year}/${encodeURIComponent(c.post_slug)}`;
       // 표시일 SSOT (P1-b): pubDate = reviewed_at(검수일) ?? created_at.
       const pubDate = new Date(c.reviewed_at ?? c.created_at).toUTCString();
-      const desc = (c.body ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+      // R3-3: markdown 기호(`**굵게**` 등) 제거 후 발췌 — stripMarkdown 이 공백 압축·trim 포함.
+      //   `]]>` 는 CDATA 섹션을 조기 종료시키므로 표준 분할 치환으로 방어 (본문 유입 이론상 가능).
+      const desc = stripMarkdown(c.body).slice(0, 300).replace(/\]\]>/g, "]]]]><![CDATA[>");
       return [
         `<item>
   <title>${escapeXml(c.title ?? "")}</title>
   <link>${url}</link>
   <guid isPermaLink="true">${url}</guid>
   <pubDate>${pubDate}</pubDate>
-  <author>${escapeXml(doc.name)}</author>
+  <dc:creator>${escapeXml(doc.name)}</dc:creator>
   <description><![CDATA[${desc}]]></description>
 </item>`,
       ];
@@ -125,14 +133,19 @@ export async function GET() {
       .join("\n");
   }
 
+  // R3-3: RSS 2.0 <author> 는 이메일 형식 요구(스펙) — 이름만 표기하려면 Dublin Core
+  //   <dc:creator> 사용이 표준. xmlns:dc 선언은 rss 루트 요소에.
   const rss = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>피부텐텐 — 피부과 전문의 답변</title>
     <link>${SITE_URL}/</link>
     <description>피부과 전문의가 직접 답하는 리프팅·스킨부스터·안티에이징·피부시술 커뮤니티</description>
     <language>ko-KR</language>
-    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <lastBuildDate>${
+      // ISR 특성상 빌드/revalidate(30분) 시점으로 고정되는 값 — 의도된 동작 (R3-3).
+      new Date().toUTCString()
+    }</lastBuildDate>
     ${items}
     ${anchorItems}
   </channel>
