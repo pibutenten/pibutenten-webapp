@@ -6,6 +6,13 @@
 
 ---
 
+## [2026-07-04] — 개선 라운드 R4: 성능 (독립 이중검증 실행계획)
+
+### Changed
+- **[R4-1] `/reports/[procedure]` 순차 워터폴 병렬화** — 요청당 약 11~13 순차 DB 왕복을 실제 데이터 의존 그래프 기준 **3단계 Promise.all** 로 재배선(report 선행 await 는 유지 — 미존재 시술이면 나머지 쿼리 미발사 404 조기종료). 쿼리 내용·필터·개별 실패 degrade 의미 불변, `getProcedureReport` 등 React cache() 헬퍼 내부 불변. auth.getUser 를 1단계로 상향(전제 주석 명기) + `authRes.data?.user` 방어(자체 검수 반영).
+
+---
+
 ## [2026-07-04] — 개선 라운드 R3: SEO/AEO (독립 이중검증 실행계획)
 
 ### Fixed

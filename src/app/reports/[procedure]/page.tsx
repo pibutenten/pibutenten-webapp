@@ -120,155 +120,162 @@ export default async function ProcedureReportPage({ params }: Props) {
   const report = await getProcedureReportCached(ko);
   if (!report) notFound();
 
-  // 개별 후기 스트림 — 작업 D 롤업: 집계와 동일한 procedure_ko family 기준(카드 id IN).
-  //   첫 10개만 서버 렌더(크롤러·비로그인 노출) + 전체 count → 무한스크롤 hasMore 판정.
+  // ── R4-1 병렬화 (2026-07-04) — report 확정 이후 순차 await 11회를 실제 데이터 의존
+  //   그래프대로 3단계 Promise.all 로 재배선. 쿼리 내용·조건은 전부 무변경(실행 시점만 병렬).
+  //   실패 의미도 종전과 동일 — supabase-js 쿼리·RPC·auth 는 reject 하지 않고
+  //   { data: null } 로 오류를 반환하므로, Promise.all 묶음이 한 조회 실패로 페이지를
+  //   죽이는 경로는 생기지 않는다(개별 ?? 폴백이 종전 그대로 degrade 처리).
   const PAGE_SIZE = 10;
-  const cardIds = await getFamilyReviewCardIds(supabase, ko);
-  const reviewTotal = cardIds.length;
-  const reviews: CardData[] =
-    cardIds.length > 0
-      ? ((
-          await supabase
-            .from("cards")
-            .select(CARD_LIST_SELECT)
-            .in("id", cardIds)
-            .order("created_at", { ascending: false })
-            .range(0, PAGE_SIZE - 1)
-            .returns<CardData[]>()
-        ).data ?? [])
-      : [];
-
-  // 시술 리포트 후기 — viewer 좋아요 여부 일괄 조회(단독 글과 같은 card_likes 행).
-  const reviewLiked: Record<number, boolean> = {};
-  if (reviews.length > 0) {
-    const {
-      data: { user: viewer },
-    } = await supabase.auth.getUser();
-    const st = await fetchViewerStatesRecord(
-      supabase,
-      viewer?.id ?? null,
-      reviews.map((r) => r.id),
-    );
-    for (const r of reviews) reviewLiked[r.id] = !!st[r.id]?.liked;
-  }
-
-  // 작성자 나이·성별(작성자 통계와 동일 SECURITY DEFINER RPC) — 후기 카드 표시용.
-  //   RPC 타입은 .returns 대신 명시 캐스팅(as) — 제네릭 미적용 회피.
-  const reviewDemo: Record<number, { gender: string | null; ageDecade: number | null }> = {};
-  if (reviews.length > 0) {
-    const { data: demoRowsRaw } = await supabase.rpc("get_review_author_demographics", {
-      p_card_ids: reviews.map((r) => r.id),
-    });
-    const demoRows = (demoRowsRaw ?? []) as {
-      card_id: number;
-      gender: string | null;
-      age_decade: number | null;
-    }[];
-    for (const d of demoRows) reviewDemo[d.card_id] = { gender: d.gender, ageDecade: d.age_decade };
-  }
-
-  // /topics(전문의 Q&A 허브) 얇은 링크 — 실제 존재(의사 qa ≥4 = get_indexable_tags 포함)할 때만.
-  //   /topics 의 404 게이트(MIN_DOCTOR_POSTS=4)와 동일 기준 → 깨진 링크 0.
-  const { data: idxTags } = await supabase.rpc("get_indexable_tags", { p_min_count: 4 });
-  const topicsExists =
-    Array.isArray(idxTags) &&
-    (idxTags as Array<{ keyword: string }>).some((t) => t.keyword === ko);
-
-  // 의사 Q&A — 해당 시술 키워드 포함, 인기순 최대 10개.
-  const { data: doctorQAsRaw } = await supabase
-    .from("cards")
-    .select(CARD_LIST_SELECT)
-    .eq("category", "qa")
-    .eq("status", "published")
-    .not("doctor_id", "is", null)
-    .contains("keywords", [ko])
-    .order("like_count", { ascending: false })
-    .order("view_count", { ascending: false })
-    .limit(10)
-    .returns<CardData[]>();
-  const doctorQAs = doctorQAsRaw ?? [];
-
-  // 비슷한 시술 — top effect 공유, JS 집계, 마이그레이션 없음.
+  // 비슷한 시술의 원천 2종(직속자식·효과공유 rows)을 조건부 발사하기 위한 선계산 —
+  //   topEffect 는 report 파생값이라 추가 조회 없음.
   const topEffect = report.effects[0]?.label ?? null;
-  let similar: {
+
+  // ── 단계 1: ko·report 만으로 가능한 독립 조회 병렬 ──
+  const [cardIds, authRes, idxTagsRes, doctorQAsRes, kidsRes, effectRowsRes] =
+    await Promise.all([
+      // 개별 후기 스트림 원천 — 작업 D 롤업: 집계와 동일한 procedure_ko family 기준.
+      //   procedure_family RPC 는 요청 단위 cache 로 report 집계와 1회 공유(추가 왕복 0).
+      getFamilyReviewCardIds(supabase, ko),
+      // viewer — reviewLiked 산출용. 데이터 의존이 없어 단계 1 로 상향(기존엔 후기 조회 뒤
+      //   reviews.length>0 게이트 안에서 실행 — report 존재 ⇒ 발행 후기 ≥1 이므로 사실상 동조건).
+      //   ⚠ 이 전제(getProcedureReport 가 후기 0건이면 null)가 바뀌면 이 상향도 재검토.
+      supabase.auth.getUser(),
+      // /topics(전문의 Q&A 허브) 얇은 링크 — 실제 존재(의사 qa ≥4 = get_indexable_tags 포함)할 때만.
+      //   /topics 의 404 게이트(MIN_DOCTOR_POSTS=4)와 동일 기준 → 깨진 링크 0.
+      supabase.rpc("get_indexable_tags", { p_min_count: 4 }),
+      // 의사 Q&A — 해당 시술 키워드 포함, 인기순 최대 10개.
+      supabase
+        .from("cards")
+        .select(CARD_LIST_SELECT)
+        .eq("category", "qa")
+        .eq("status", "published")
+        .not("doctor_id", "is", null)
+        .contains("keywords", [ko])
+        .order("like_count", { ascending: false })
+        .order("view_count", { ascending: false })
+        .limit(10)
+        .returns<CardData[]>(),
+      // 비슷한 시술 제외용 — 자기 시술 + 직속 자식 (topEffect 없으면 미발사 — 기존 게이트 유지).
+      topEffect
+        ? supabase.from("tag_dictionary").select("ko").eq("parent_ko", ko)
+        : Promise.resolve({ data: null }),
+      // 비슷한 시술 원천 — top effect 공유 후기 rows (topEffect 없으면 미발사).
+      topEffect
+        ? supabase
+            .from("procedure_reviews")
+            .select("procedure_ko, revisit, cards!inner(status, deleted_at)")
+            .contains("effect_areas", [topEffect])
+            .eq("cards.status", "published")
+            .is("cards.deleted_at", null)
+            .limit(4000)
+            .returns<{ procedure_ko: string; revisit: string }[]>()
+        : Promise.resolve({ data: null }),
+    ]);
+
+  const reviewTotal = cardIds.length;
+  const viewer = authRes.data?.user ?? null; // 예외적 auth 상태에서 data 부재 방어 (검수 반영)
+  const topicsExists =
+    Array.isArray(idxTagsRes.data) &&
+    (idxTagsRes.data as Array<{ keyword: string }>).some((t) => t.keyword === ko);
+  const doctorQAs = doctorQAsRes.data ?? [];
+
+  // 비슷한 시술 — top effect 공유, JS 집계, 마이그레이션 없음. topEffect 가 없으면 원천이
+  //   null 이라 아래 집계가 전부 빈 값 → kos=[] → 단계 2 후속 조회 미발사 → similar=[](구 동작 동일).
+  const exclude = new Set<string>([
+    ko,
+    ...((kidsRes.data ?? []) as { ko: string }[]).map((k) => k.ko),
+  ]);
+  const agg = new Map<string, { c: number; y: number }>();
+  for (const r of effectRowsRes.data ?? []) {
+    if (exclude.has(r.procedure_ko)) continue;
+    const a = agg.get(r.procedure_ko) ?? { c: 0, y: 0 };
+    a.c++;
+    if (r.revisit === "yes") a.y++;
+    agg.set(r.procedure_ko, a);
+  }
+  const top = [...agg.entries()]
+    .filter(([, a]) => a.c >= 3)
+    .sort((a, b) => b[1].c - a[1].c)
+    .slice(0, 5);
+  const kos = top.map(([k]) => k);
+
+  // ── 단계 2: 단계 1 결과 의존 조회 병렬 (후기 첫 페이지 ← cardIds, 비슷한시술 메타·분모 ← kos) ──
+  const [reviewsRes, tgRes, totRes] = await Promise.all([
+    // 첫 10개만 서버 렌더(크롤러·비로그인 노출) + 전체 count(reviewTotal) → 무한스크롤 hasMore 판정.
+    cardIds.length > 0
+      ? supabase
+          .from("cards")
+          .select(CARD_LIST_SELECT)
+          .in("id", cardIds)
+          .order("created_at", { ascending: false })
+          .range(0, PAGE_SIZE - 1)
+          .returns<CardData[]>()
+      : Promise.resolve({ data: null }),
+    kos.length
+      ? supabase.from("tag_dictionary").select("ko, en, category").in("ko", kos)
+      : Promise.resolve({ data: null }),
+    // 후보 시술별 전체 발행 후기 수(효과 비율의 분모)
+    kos.length
+      ? supabase
+          .from("procedure_reviews")
+          .select("procedure_ko, cards!inner(status, deleted_at)")
+          .in("procedure_ko", kos)
+          .eq("cards.status", "published")
+          .is("cards.deleted_at", null)
+          .limit(6000)
+          .returns<{ procedure_ko: string }[]>()
+      : Promise.resolve({ data: null }),
+  ]);
+  const reviews: CardData[] = reviewsRes.data ?? [];
+
+  const metaMap = new Map<string, { en: string; category: ProcedureSlug | null }>();
+  const totMap = new Map<string, number>();
+  for (const t of (tgRes.data ?? []) as {
+    ko: string;
+    en: string | null;
+    category: string | null;
+  }[]) {
+    metaMap.set(t.ko, { en: t.en ?? "", category: categoryKoToSlug(t.category) });
+  }
+  for (const r of totRes.data ?? [])
+    totMap.set(r.procedure_ko, (totMap.get(r.procedure_ko) ?? 0) + 1);
+
+  const similar: {
     ko: string;
     en: string;
     count: number;
     effectPct: number;
     category: ProcedureSlug | null;
-  }[] = [];
-  if (topEffect) {
-    // 자기 시술 + 직속 자식 제외
-    const { data: kids } = await supabase
-      .from("tag_dictionary")
-      .select("ko")
-      .eq("parent_ko", ko);
-    const exclude = new Set<string>([
-      ko,
-      ...((kids ?? []) as { ko: string }[]).map((k) => k.ko),
+  }[] = top.map(([k, a]) => {
+    const total = totMap.get(k) ?? a.c;
+    return {
+      ko: k,
+      en: metaMap.get(k)?.en ?? "",
+      count: total,
+      // 이 시술 후기 중 공유 효과(top effect)를 꼽은 비율.
+      effectPct: Math.min(100, Math.round((a.c / Math.max(1, total)) * 100)),
+      category: metaMap.get(k)?.category ?? null,
+    };
+  });
+
+  // ── 단계 3: 후기 첫 페이지(10건 id) 의존 조회 병렬 ──
+  //   viewer 좋아요(단독 글과 같은 card_likes 행) + 작성자 나이·성별(작성자 통계와 동일
+  //   SECURITY DEFINER RPC — .returns 대신 명시 캐스팅(as), 제네릭 미적용 회피).
+  const reviewLiked: Record<number, boolean> = {};
+  const reviewDemo: Record<number, { gender: string | null; ageDecade: number | null }> = {};
+  if (reviews.length > 0) {
+    const reviewIds = reviews.map((r) => r.id);
+    const [st, demoRes] = await Promise.all([
+      fetchViewerStatesRecord(supabase, viewer?.id ?? null, reviewIds),
+      supabase.rpc("get_review_author_demographics", { p_card_ids: reviewIds }),
     ]);
-
-    const { data: rows } = await supabase
-      .from("procedure_reviews")
-      .select("procedure_ko, revisit, cards!inner(status, deleted_at)")
-      .contains("effect_areas", [topEffect])
-      .eq("cards.status", "published")
-      .is("cards.deleted_at", null)
-      .limit(4000)
-      .returns<{ procedure_ko: string; revisit: string }[]>();
-
-    const agg = new Map<string, { c: number; y: number }>();
-    for (const r of rows ?? []) {
-      if (exclude.has(r.procedure_ko)) continue;
-      const a = agg.get(r.procedure_ko) ?? { c: 0, y: 0 };
-      a.c++;
-      if (r.revisit === "yes") a.y++;
-      agg.set(r.procedure_ko, a);
-    }
-
-    const top = [...agg.entries()]
-      .filter(([, a]) => a.c >= 3)
-      .sort((a, b) => b[1].c - a[1].c)
-      .slice(0, 5);
-
-    const kos = top.map(([k]) => k);
-    const metaMap = new Map<string, { en: string; category: ProcedureSlug | null }>();
-    const totMap = new Map<string, number>();
-    if (kos.length) {
-      const { data: tg } = await supabase
-        .from("tag_dictionary")
-        .select("ko, en, category")
-        .in("ko", kos);
-      for (const t of (tg ?? []) as {
-        ko: string;
-        en: string | null;
-        category: string | null;
-      }[]) {
-        metaMap.set(t.ko, { en: t.en ?? "", category: categoryKoToSlug(t.category) });
-      }
-      // 후보 시술별 전체 발행 후기 수(효과 비율의 분모)
-      const { data: totRows } = await supabase
-        .from("procedure_reviews")
-        .select("procedure_ko, cards!inner(status, deleted_at)")
-        .in("procedure_ko", kos)
-        .eq("cards.status", "published")
-        .is("cards.deleted_at", null)
-        .limit(6000)
-        .returns<{ procedure_ko: string }[]>();
-      for (const r of totRows ?? []) totMap.set(r.procedure_ko, (totMap.get(r.procedure_ko) ?? 0) + 1);
-    }
-
-    similar = top.map(([k, a]) => {
-      const total = totMap.get(k) ?? a.c;
-      return {
-        ko: k,
-        en: metaMap.get(k)?.en ?? "",
-        count: total,
-        // 이 시술 후기 중 공유 효과(top effect)를 꼽은 비율.
-        effectPct: Math.min(100, Math.round((a.c / Math.max(1, total)) * 100)),
-        category: metaMap.get(k)?.category ?? null,
-      };
-    });
+    for (const r of reviews) reviewLiked[r.id] = !!st[r.id]?.liked;
+    const demoRows = (demoRes.data ?? []) as {
+      card_id: number;
+      gender: string | null;
+      age_decade: number | null;
+    }[];
+    for (const d of demoRows) reviewDemo[d.card_id] = { gender: d.gender, ageDecade: d.age_decade };
   }
 
   // JSON-LD — MedicalWebPage + Service(MedicalProcedure) (2026-06-05, Product 폐기).
