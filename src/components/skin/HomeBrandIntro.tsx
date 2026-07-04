@@ -43,7 +43,7 @@ export default function HomeBrandIntro() {
           lineHeight: 1.5,
         }}
       >
-        피부 날씨부터 시술 후기까지, 하나의 피부 커뮤니티
+        피부과 전문의가 함께하는 피부 시술 커뮤니티
       </p>
       <p
         style={{
@@ -53,8 +53,17 @@ export default function HomeBrandIntro() {
           color: "var(--text-secondary)",
         }}
       >
-        오늘의 피부 날씨 · 나의 피부 다이어리 · 피부과 전문의 Q&amp;A · 시술 후기를 한 곳에서.
-        피부과 전문의가 함께합니다.
+        오늘의 피부 날씨 · 나의 피부 다이어리 · 시술 후기
+      </p>
+      <p
+        style={{
+          margin: "6px 0 0",
+          fontSize: "12px",
+          lineHeight: 1.5,
+          color: "var(--text-muted)",
+        }}
+      >
+        피부텐텐 | 피부가 예뻐지는 모든 이야기
       </p>
     </section>
   );
