@@ -8,14 +8,14 @@
  *   - 데이터(RPC)·가드·그룹핑은 서버 page.tsx 가 담당하고, 그룹·error 를 props 로 내려준다.
  *   - 행 클릭 → /reports/{en} 은 운영과 동일 유지.
  *
- * 확장(2026-07-04 원장 요청):
+ * 확장(2026-07-04 원장 요청 + 같은 날 2차 확정):
  *   - 컬럼 +3칸: 다운타임(최빈 라벨) · 효과(top3) · 생성일(YY.MM.DD).
- *     만족도는 기존 칸을 "평균 + 5→1점 미니 분포바"로 확장(칸 수 증가 없이 정보만 추가 — 옆으로 무리 금지).
+ *   - 항상 플랫 목록(카테고리 그룹 헤더 제거 — 2차 확정), 기본 정렬 = 후기수 내림차순.
  *   - 헤더 클릭 정렬: 숫자 칸 전체(후기수·재시술%·만족도·통증·조회·저장·공유·생성일).
- *     /admin/cards SortTh 관례와 동일하게 첫 클릭 내림차순 → 재클릭 오름차순.
- *     61행 규모라 서버 왕복 없이 클라 정렬(useState). 정렬 활성 시 카테고리 그룹을 풀어
- *     플랫 목록으로 전환(그룹 유지한 채 그룹 내 정렬은 혼란) — 같은 칸 3번째 클릭
- *     또는 '기본 순서' 버튼으로 원래 카테고리 그룹 복귀.
+ *     /admin/cards SortTh 와 동일한 2단계 토글(첫 클릭 내림차순 ↔ 재클릭 오름차순).
+ *     61행 규모라 서버 왕복 없이 클라 정렬(useState).
+ *   - 전 칸 중앙정렬 통일(2차 확정 — 좌/우 혼재 제거). 만족도 분포 바는 삭제,
+ *     5→1점 분포 수치는 만족도 숫자의 title 툴팁으로만 유지.
  *   - 신규 데이터(sat_dist·downtime_dist·effect_top·anchor_created_at)는 RPC 마이그 적용 전
  *     빈 배열/null 로 내려오므로(page.tsx 정규화) 전부 '—' 폴백 — 페이지가 죽지 않는다.
  *
@@ -55,19 +55,9 @@ export type ReviewOverviewRow = {
 };
 
 type Props = {
-  groups: { category: string; rows: ReviewOverviewRow[] }[];
+  rows: ReviewOverviewRow[];
   rowCount: number;
   errorMessage: string | null;
-};
-
-// 카테고리 표시 라벨 — 알려진 값만 매핑하고 미지정 카테고리는 원문 그대로(자동 반영).
-const CATEGORY_LABEL: Record<string, string> = {
-  lifting: "리프팅",
-  skinbooster: "스킨부스터",
-  filler: "필러·볼륨",
-  contour: "주름·윤곽",
-  laser: "레이저",
-  other: "기타",
 };
 
 function revisitPct(yes: number, maybe: number, no: number): number {
@@ -102,7 +92,8 @@ type SortKey =
   | "save"
   | "share"
   | "created";
-type SortState = { key: SortKey; dir: "asc" | "desc" } | null;
+// 항상 정렬 상태 유지(해제 없음) — 기본값은 후기수 내림차순(원장 확정 2026-07-04 2차).
+type SortState = { key: SortKey; dir: "asc" | "desc" };
 
 /** 정렬 비교값 — null 은 '응답/데이터 없음'으로 방향과 무관하게 항상 뒤로 보낸다. */
 function sortValue(r: ReviewOverviewRow, key: SortKey): number | null {
@@ -135,69 +126,41 @@ function sortValue(r: ReviewOverviewRow, key: SortKey): number | null {
 const GRID =
   "grid grid-cols-[minmax(6.5rem,1.5fr)_minmax(3rem,0.6fr)_minmax(3.4rem,0.7fr)_minmax(5.5rem,0.9fr)_minmax(2.6rem,0.5fr)_minmax(3.6rem,0.7fr)_minmax(6rem,1.4fr)_minmax(2.6rem,0.5fr)_minmax(2.6rem,0.5fr)_minmax(2.6rem,0.5fr)_minmax(3.6rem,0.6fr)] gap-x-2";
 
-// 만족도 미니 분포바 5점→1점(좌→우) 농도 단계 — 별도 팔레트 없이 앱 파랑 토큰의 opacity 로 구분.
-const SAT_BAR_OPACITY = [1, 0.75, 0.55, 0.35, 0.18];
-
-/** 만족도 칸 — 평균 숫자 + 아래 폭 48px 미니 분포바(응답 없으면 바 생략). 상세 수치는 title 툴팁. */
+/** 만족도 칸 — 평균 숫자만(분포 바는 의미 전달이 약해 삭제, 원장 확정 2026-07-04 2차).
+ *  5→1점 분포 수치는 title 툴팁으로만 유지(호버 시 "5점 107 · 4점 8 · …"). */
 function SatCell({ avg, dist }: { avg: number | null; dist: number[] }) {
   const total = dist.reduce((a, b) => a + b, 0);
   const title =
     total > 0 ? dist.map((n, i) => `${5 - i}점 ${n}`).join(" · ") : undefined;
   return (
-    <div className="flex flex-col items-end gap-[3px] text-right" title={title}>
-      <span className="tabular-nums" style={{ color: "var(--ink-700)" }}>
-        {fmtAvg(avg)}
-      </span>
-      {total > 0 && (
-        <span
-          className="flex overflow-hidden"
-          style={{
-            width: 48,
-            height: 4,
-            borderRadius: 2,
-            background: "var(--tt-blue-tint)",
-          }}
-        >
-          {dist.map((n, i) => (
-            <span
-              key={i}
-              style={{
-                flex: `${n} 1 0%`,
-                background: "var(--tt-blue-deep)",
-                opacity: SAT_BAR_OPACITY[i] ?? 0.18,
-              }}
-            />
-          ))}
-        </span>
-      )}
+    <div className="text-center tabular-nums" style={{ color: "var(--ink-700)" }} title={title}>
+      {fmtAvg(avg)}
     </div>
   );
 }
 
 export default function AdminReviewReportsView({
-  groups,
+  rows,
   rowCount,
   errorMessage,
 }: Props) {
   const search = useSearchRouting();
-  const [sort, setSort] = useState<SortState>(null);
+  // 기본 정렬 = 후기수 내림차순(원장 확정 2026-07-04 2차).
+  const [sort, setSort] = useState<SortState>({ key: "review", dir: "desc" });
 
-  // /admin/cards SortTh(desc↔asc 2단계 토글)에 "3번째 클릭 해제"를 더한 3단계 —
-  //   이 표는 기본 상태가 '카테고리 그룹'이라 그룹 복귀용 해제 단계가 필요(검수 반영: 비교 문구 정정).
+  // /admin/cards SortTh 와 동일한 2단계 토글 — 같은 칸 재클릭 시 방향 반전, 다른 칸은 내림차순 시작.
   function toggleSort(key: SortKey) {
-    setSort((prev) => {
-      if (!prev || prev.key !== key) return { key, dir: "desc" };
-      if (prev.dir === "desc") return { key, dir: "asc" };
-      return null;
-    });
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === "desc" ? "asc" : "desc" }
+        : { key, dir: "desc" },
+    );
   }
 
-  // 정렬 활성 시 카테고리 그룹을 풀어 전체 플랫 정렬(그룹 내 정렬은 혼란 — 원장 확정).
+  // 항상 플랫 정렬(카테고리 그룹 제거 — 원장 확정 2026-07-04 2차).
   const sortedRows = useMemo(() => {
-    if (!sort) return null;
-    const all = groups.flatMap((g) => g.rows);
     const dirMul = sort.dir === "desc" ? -1 : 1;
-    return [...all].sort((a, b) => {
+    return [...rows].sort((a, b) => {
       const va = sortValue(a, sort.key);
       const vb = sortValue(b, sort.key);
       if (va == null && vb == null) return 0;
@@ -205,25 +168,17 @@ export default function AdminReviewReportsView({
       if (vb == null) return -1;
       return (va - vb) * dirMul;
     });
-  }, [groups, sort]);
+  }, [rows, sort]);
 
-  /** 정렬 가능한 헤더 칸 — 행(Link)과 이벤트가 충돌하지 않도록 헤더에만 버튼을 둔다. */
-  function HeadCell({
-    col,
-    label,
-    align = "right",
-  }: {
-    col: SortKey;
-    label: string;
-    align?: "left" | "right";
-  }) {
-    const active = sort !== null && sort.key === col;
-    const arrow = active ? (sort?.dir === "desc" ? "↓" : "↑") : "";
+  /** 정렬 가능한 헤더 칸 — 행(Link)과 이벤트가 충돌하지 않도록 헤더에만 버튼을 둔다. 전 칸 중앙정렬. */
+  function HeadCell({ col, label }: { col: SortKey; label: string }) {
+    const active = sort.key === col;
+    const arrow = active ? (sort.dir === "desc" ? "↓" : "↑") : "";
     return (
-      <div className={align === "right" ? "text-right" : "text-left"}>
+      <div className="text-center">
         <button
           type="button"
-          aria-label={`${label} 정렬${active ? (sort?.dir === "desc" ? " (내림차순)" : " (오름차순)") : ""}`}
+          aria-label={`${label} 정렬${active ? (sort.dir === "desc" ? " (내림차순)" : " (오름차순)") : ""}`}
           onClick={() => toggleSort(col)}
           className="inline-flex cursor-pointer items-center whitespace-nowrap"
           style={{
@@ -249,63 +204,63 @@ export default function AdminReviewReportsView({
     const inner = (
       <>
         <div
-          className="truncate text-left font-medium"
+          className="truncate text-center font-medium"
           style={{ color: "var(--ink-900)" }}
         >
           {r.ko}
         </div>
         <div
-          className="text-right tabular-nums"
+          className="text-center tabular-nums"
           style={{ color: "var(--ink-700)" }}
         >
           {r.review_count.toLocaleString()}
         </div>
         <div
-          className="text-right tabular-nums"
+          className="text-center tabular-nums"
           style={{ color: "var(--ink-700)" }}
         >
           {pct}%
         </div>
         <SatCell avg={r.sat_avg} dist={r.sat_dist} />
         <div
-          className="text-right tabular-nums"
+          className="text-center tabular-nums"
           style={{ color: "var(--ink-700)" }}
         >
           {fmtAvg(r.pain_avg)}
         </div>
         <div
-          className="text-right whitespace-nowrap"
+          className="text-center whitespace-nowrap"
           style={{ color: "var(--ink-700)" }}
         >
           {downtimeModeLabel(r.downtime_dist)}
         </div>
         <div
-          className="truncate text-left"
+          className="truncate text-center"
           style={{ color: "var(--ink-700)" }}
           title={effectTitle || undefined}
         >
           {effectLabels || "—"}
         </div>
         <div
-          className="text-right tabular-nums"
+          className="text-center tabular-nums"
           style={{ color: "var(--ink-700)" }}
         >
           {(r.view_count ?? 0).toLocaleString()}
         </div>
         <div
-          className="text-right tabular-nums"
+          className="text-center tabular-nums"
           style={{ color: "var(--ink-700)" }}
         >
           {(r.save_count ?? 0).toLocaleString()}
         </div>
         <div
-          className="text-right tabular-nums"
+          className="text-center tabular-nums"
           style={{ color: "var(--ink-700)" }}
         >
           {(r.share_count ?? 0).toLocaleString()}
         </div>
         <div
-          className="text-right tabular-nums whitespace-nowrap"
+          className="text-center tabular-nums whitespace-nowrap"
           style={{ fontSize: 12, color: "var(--ink-300)" }}
         >
           {r.anchor_created_at ? formatYmd(r.anchor_created_at) : "—"}
@@ -373,19 +328,6 @@ export default function AdminReviewReportsView({
         </div>
       ) : (
         <>
-          {/* 정렬 활성 시에만 노출 — 카테고리 그룹(기본 순서) 복귀 버튼. */}
-          {sort && (
-            <div className="mb-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setSort(null)}
-                className="cursor-pointer rounded-[8px] border bg-white px-2.5 py-1 text-xs"
-                style={{ borderColor: "var(--line)", color: "var(--ink-500)" }}
-              >
-                기본 순서
-              </button>
-            </div>
-          )}
           <div
             className="overflow-x-auto rounded-[12px] border bg-white"
             style={{ borderColor: "var(--line)" }}
@@ -400,46 +342,21 @@ export default function AdminReviewReportsView({
                   color: "var(--ink-700)",
                 }}
               >
-                <div className="text-left">시술명</div>
+                <div className="text-center">시술명</div>
                 <HeadCell col="review" label="후기수" />
                 <HeadCell col="revisit" label="재시술의향" />
                 <HeadCell col="sat" label="만족도" />
                 <HeadCell col="pain" label="통증" />
-                <div className="text-right whitespace-nowrap">다운타임</div>
-                <div className="text-left whitespace-nowrap">효과</div>
+                <div className="text-center whitespace-nowrap">다운타임</div>
+                <div className="text-center whitespace-nowrap">효과</div>
                 <HeadCell col="view" label="조회" />
                 <HeadCell col="save" label="저장" />
                 <HeadCell col="share" label="공유" />
                 <HeadCell col="created" label="생성일" />
               </div>
 
-              {sortedRows ? (
-                // 정렬 모드 — 카테고리 그룹 헤더 숨기고 전체 플랫 목록.
-                sortedRows.map((r) => renderRow(r))
-              ) : (
-                groups.map((g) => (
-                  <div key={g.category}>
-                    {/* 카테고리 헤더 */}
-                    <div
-                      className="border-b px-3 py-1.5 text-xs font-semibold"
-                      style={{
-                        borderColor: "var(--line)",
-                        background: "#fff",
-                        color: "var(--ink-700)",
-                      }}
-                    >
-                      {CATEGORY_LABEL[g.category] ?? g.category}
-                      <span
-                        className="ml-1.5 font-normal"
-                        style={{ color: "var(--ink-500)" }}
-                      >
-                        {g.rows.length}종
-                      </span>
-                    </div>
-                    {g.rows.map((r) => renderRow(r))}
-                  </div>
-                ))
-              )}
+              {/* 항상 플랫 목록(카테고리 그룹 제거 — 원장 확정 2026-07-04 2차), 기본 후기수 내림차순. */}
+              {sortedRows.map((r) => renderRow(r))}
             </div>
           </div>
         </>

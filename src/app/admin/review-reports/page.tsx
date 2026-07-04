@@ -18,10 +18,10 @@ export const metadata: Metadata = {
  * 데이터: get_review_report_overview() RPC (0238, admin 전용 SECURITY DEFINER).
  *   시술별 1행 — 후기수·재시술의향%·만족도·통증 + 조회/저장/공유(engagement)
  *   + 신규 4필드(anchor_created_at·sat_dist·downtime_dist·effect_top, 2026-07-04 확장).
- * 그룹핑: tag_dictionary(is_procedure=true).category 동적 (카테고리 늘어도 자동 반영, 하드코딩 없음).
- * 행 클릭 → /reports/{en} (공개 리포트).
+ * 표시: 플랫 목록(카테고리 그룹 헤더 제거 — 원장 확정 2026-07-04), 기본 정렬은 View 가
+ *   후기수 내림차순으로 수행. 행 클릭 → /reports/{en} (공개 리포트).
  *
- * 원칙: 가드·RPC·그룹핑은 운영 그대로 유지하고, 렌더만 AdminReviewReportsView(앱 셸 래퍼)로 위임한다.
+ * 원칙: 가드·RPC 는 운영 그대로 유지하고, 렌더만 AdminReviewReportsView(앱 셸 래퍼)로 위임한다.
  */
 
 /**
@@ -79,20 +79,10 @@ export default async function AdminReviewReportsPage() {
     effect_top: toEffectTop(r.effect_top),
   }));
 
-  // 카테고리별 그룹핑 — RPC 가 category, sort_order, ko 순으로 정렬해 반환하므로 순서 보존.
-  const groups: { category: string; rows: typeof rows }[] = [];
-  for (const row of rows) {
-    let g = groups.find((x) => x.category === row.category);
-    if (!g) {
-      g = { category: row.category, rows: [] };
-      groups.push(g);
-    }
-    g.rows.push(row);
-  }
-
+  // 그룹핑 없음 — 플랫 목록(원장 확정 2026-07-04). 기본 정렬(후기수 내림차순)은 View 담당.
   return (
     <AdminReviewReportsView
-      groups={groups}
+      rows={rows}
       rowCount={rows.length}
       errorMessage={error ? error.message : null}
     />
