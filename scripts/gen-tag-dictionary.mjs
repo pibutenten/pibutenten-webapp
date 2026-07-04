@@ -127,8 +127,9 @@ function buildFromDb(rows, blacklistRows, normRows) {
 
 /**
  * 클라이언트 경량 스냅샷 쓰기 — 전체 스냅샷 객체의 필드를 그대로 투영(참조 공유).
- * 클라에서 실제 소비되는 4필드만: category(categorize)·slug(buildSlug 계)·
- * blacklist+normalizations(normalizeTag 계). 별도 가공 없음 → 전체 스냅샷과 항상 동일 데이터.
+ * 데이터 4필드(category(categorize)·slug(buildSlug 계)·blacklist·normalizations)
+ * + 메타 3필드(generatedAt·source·keywords 행수 — 추적용 소형 값). 클라 소비 데이터는
+ * category·slug·blacklist·normalizations 뿐. 별도 가공 없음 → 전체 스냅샷과 항상 동일 데이터.
  */
 function writeClientSnapshot(full) {
   const clientSnapshot = {
