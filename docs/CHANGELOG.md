@@ -10,7 +10,7 @@
 
 ### Changed
 - **상대시간 '전' 접미사 제거**(`lib/relative-time.ts::formatRelativeTime` + `skin/ui.tsx::timeAgo`) — 요즘 SNS 표기 정합: "3시간 전"→"3시간", "3일 전"→"3일", "어제"→"1일", "방금 전"→"방금". 두 함수가 앱 전역 상대시간 SSOT(댓글·카드 헤더·알림 등 공통). `RelativeTime` 컴포넌트 doc + 알림 더미 문구 동기화. ⚠ 미변경(의도): 노트 타임라인 연도 그룹 헤더("올해 / 1년 전")·약관/개인정보 "N일 전부터 공지"(=before)·후기 작성 폼 "몇 년 전" 선택지·"N년 전문의 취득"(전문의) — 상대 타임스탬프가 아닌 별도 맥락
-- **시술후기 카드 효과 "+n" → 펼침 토글**(`components/card/ReviewSummary.tsx`) — 기본 효과 3개+"+n" 표시에서, "+n" 탭 시 전체 효과 펼침 / "접기" 탭 시 3개로 축소(원장 확정). 카드 전체 클릭(상세 이동)과 충돌 없게 stopPropagation, 접힘만 whitespace-nowrap(펼침은 자연 wrap). useState 도입으로 "use client" 전환. aria-expanded/aria-label 접근성. 브라우저 실측: "탄력·턱선·작은얼굴 +1" ↔ "…·피부결 접기" 양방향 확인
+- **시술후기 카드 효과 "+n" → 펼침 토글**(`components/card/ReviewSummary.tsx`) — 기본 효과 3개+"+n" 표시에서, "+n" 탭 시 전체 효과 펼침 / 펼친 상태에서 효과 항목 탭 시 3개로 축소. "접기" 텍스트 없이 효과 영역 전체가 토글(원장 확정 3차). 카드 전체 클릭(상세 이동)과 충돌 없게 stopPropagation, 접힘만 whitespace-nowrap(펼침은 자연 wrap). useState 도입으로 "use client" 전환. aria-expanded/aria-label 접근성. 브라우저 실측: "리프팅·탄력·쫀쫀함 +2" ↔ "…·턱선·이중턱"(접기·+n 텍스트 없음) 양방향 확인
 
 ---
 

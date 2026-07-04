@@ -13,7 +13,8 @@
  *     또 받을래요/재시술 고민 중/재시술 생각 없어요. (2026-06-04 제거 → 2026-07-04 원장 확정 복원)
  *   - 회복(다운타임): 라벨 접두 없이 값 자체가 뜻 전달(연한 회색) — 당일 회복/회복 1~2일/…
  *   - 효과 체감: 흐린 라벨 "효과" + effect_areas 값(하늘색) 최대 3개 가운뎃점(·) 연결,
- *     남으면 " +n"(회색) 토글 버튼 — 탭하면 전체 펼침, 다시 탭하면 3개로 축소(원장 확정 2026-07-04).
+ *     남으면 " +n"(회색). 숨은 효과가 있으면 효과 영역 전체가 토글 — 탭하면 전체 펼침,
+ *     펼친 상태에서 다시 탭하면 3개로 축소("접기" 텍스트 없음, 원장 확정 2026-07-04).
  *     카드 전체 클릭(상세 이동)과 충돌 없게 stopPropagation.
  *   - 항목 구분: 가운뎃점(·) / 미응답(null·undefined) 항목은 그 자리 생략
  *
@@ -130,32 +131,43 @@ export default function ReviewSummary({ review }: { review: ReviewSummaryData })
     );
   }
 
-  // 효과 체감 — 흐린 라벨 + 가운뎃점으로 연결한 하늘색 값. 기본 3개, "+n" 탭 시 전체 펼침(토글).
-  //   접힘 상태만 whitespace-nowrap(한글 음절 개행이 "효/과" 자르는 것 방지 — 3개+n 은 모바일 폭
-  //   안에 들어감). 펼침 상태는 값이 길어질 수 있어 nowrap 해제(자연 wrap 허용).
-  //   +n 버튼은 카드 전체 클릭(상세 이동)과 충돌 없게 stopPropagation. (원장 확정 2026-07-04)
+  // 효과 체감 — 흐린 라벨 + 가운뎃점으로 연결한 하늘색 값. 기본 3개, 나머지는 "+n".
+  //   숨은 효과가 있으면(rest>0) 효과 영역 전체가 토글 버튼 — 탭하면 전체 펼침, 펼친 상태에서
+  //   다시 탭하면 3개로 축소("접기" 텍스트 없이 효과 항목 클릭으로 접음, 원장 확정 2026-07-04 3차).
+  //   접힘만 whitespace-nowrap(한글 음절 개행이 "효/과" 자르는 것 방지 — 3개+n 은 모바일 폭 안).
+  //   카드 전체 클릭(상세 이동)과 충돌 없게 stopPropagation. rest 없으면 토글 없는 평범한 span.
   if (effects.length > 0) {
     const rest = effects.length - MAX_EFFECTS;
     const shown = effectsExpanded ? effects : effects.slice(0, MAX_EFFECTS);
-    segments.push(
-      <span key="effects" className={effectsExpanded ? undefined : "whitespace-nowrap"}>
+    const inner = (
+      <>
         <span className="text-[var(--text-muted)]">효과 </span>
         <span style={{ color: "var(--primary)" }}>{shown.join("·")}</span>
-        {rest > 0 && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEffectsExpanded((v) => !v);
-            }}
-            aria-expanded={effectsExpanded}
-            aria-label={effectsExpanded ? "효과 접기" : `효과 ${rest}개 더 보기`}
-            className="ml-0.5 text-[var(--text-muted)] hover:text-[var(--primary)]"
-          >
-            {effectsExpanded ? " 접기" : ` +${rest}`}
-          </button>
+        {rest > 0 && !effectsExpanded && (
+          <span className="text-[var(--text-muted)]"> +{rest}</span>
         )}
-      </span>,
+      </>
+    );
+    segments.push(
+      rest > 0 ? (
+        <button
+          key="effects"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEffectsExpanded((v) => !v);
+          }}
+          aria-expanded={effectsExpanded}
+          aria-label={effectsExpanded ? "효과 접기" : `효과 ${rest}개 더 보기`}
+          className={`text-left ${effectsExpanded ? "" : "whitespace-nowrap"}`}
+        >
+          {inner}
+        </button>
+      ) : (
+        <span key="effects" className="whitespace-nowrap">
+          {inner}
+        </span>
+      ),
     );
   }
 
