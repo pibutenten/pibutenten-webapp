@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import FeedView from "@/components/skin/FeedView";
+import HomeBrandIntro from "@/components/skin/HomeBrandIntro";
 import type { CardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
@@ -263,6 +264,9 @@ export default async function HomeFeedPage({
         searchReport={searchReport}
         popularTags={popularTags}
         hotIds={hotIds}
+        /* 홈 브랜드 소개 띠 — 비검색 홈에서만, 비로그인/크롤러에게만(HomeBrandIntro 내부 게이트).
+           SEO: 홈 스니펫을 시술 카드 대신 브랜드 소개문으로 유도. */
+        topSlot={query ? undefined : <HomeBrandIntro />}
       />
     </div>
   );

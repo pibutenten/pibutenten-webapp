@@ -19,7 +19,7 @@
  *   - 좋아요/저장 viewer 상태(viewerStates)는 PostCard 로 내려 첫 렌더부터 정확히 표시.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/lib/session-context";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -111,6 +111,7 @@ export default function FeedView({
   popularTags: serverPopularTags = [],
   hotIds,
   viewerStates,
+  topSlot,
 }: {
   initialPool: CardData[];
   /** 줄세우기(랭킹) 전체 순서의 카드 ID 목록. 무한스크롤이 이 순서대로 ID 로 이어 받음. */
@@ -126,6 +127,8 @@ export default function FeedView({
   hotIds?: number[];
   /** 서버 prefetch 한 좋아요/저장 상태(card.id → 상태). */
   viewerStates?: Record<number, ViewerState>;
+  /** 피드 최상단(AppShell 콘텐츠 맨 위)에 렌더할 슬롯 — 홈 브랜드 소개 띠 등. */
+  topSlot?: ReactNode;
 }) {
   const router = useRouter();
   const { containerRef: ptrRef, indicatorRef: ptrIndicatorRef, refreshing: ptrRefreshing } = usePullToRefresh(
@@ -542,6 +545,7 @@ export default function FeedView({
       onSearchChange={setSearchValue}
       onSearchSubmit={submitSearch}
     >
+      {topSlot}
       <div ref={ptrRef} className="relative" style={{ willChange: "transform" }}>
       {/* PTR 인디케이터 — 바깥 div: 훅이 transform으로 갭 중앙 배치, 안쪽 div: 새로고침 중 spin */}
       <div ref={ptrIndicatorRef}
