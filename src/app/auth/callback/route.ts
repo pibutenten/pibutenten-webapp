@@ -185,7 +185,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { data: profile } = await supabase
+  // H-1 (2026-07-04 Phase 1-B): birthdate·contact_email 은 PII REVOKE 대상이라
+  //   authenticated 클라이언트로 조회 불가. 서버 전용 콜백에서 본인(user.id) 행만 읽으므로
+  //   service_role admin 클라이언트로 조회한다(이 파일은 이미 admin 클라이언트 사용).
+  const profileDb = createSupabaseAdminClient();
+  const { data: profile } = await profileDb
     .from("profiles")
     .select("role, terms_agreed_at, display_name, birthdate, avatar_url, contact_email")
     .eq("id", user.id)
@@ -260,7 +264,9 @@ export async function GET(request: NextRequest) {
 
     if (Object.keys(updates).length > 0) {
       try {
-        await supabase.from("profiles").update(updates).eq("id", user.id);
+        // H-1 (2026-07-04 Phase 1-B): contact_email 포함 쓰기도 admin 클라이언트로 통일
+        //   (읽기와 동일). 단계2 REVOKE 와 무관하게 일관 유지 — 서버 전용·본인 행.
+        await profileDb.from("profiles").update(updates).eq("id", user.id);
       } catch (e) {
         // 실패해도 로그인 흐름은 계속 — 단, 사용자 메타 동기화 누락은 회원 화면에서
         // 빈 표시·아바타 깨짐을 유발할 수 있어 추적용으로 기록.

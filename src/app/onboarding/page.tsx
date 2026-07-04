@@ -53,14 +53,43 @@ export default async function OnboardingPage() {
   }
 
   // target profile (active or base) — 온보딩 정보 저장 대상.
-  const { data: primary } = await supabase
-    .from("profiles")
-    .select(
-      "contact_email, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, skin_info_consent_at, fitzpatrick",
-    )
-    .eq("id", targetProfileId)
-    .maybeSingle()
-    .returns<ProfileRow>();
+  // H-1 (2026-07-04 Phase 1-B): PII 8컬럼은 get_profile_pii RPC(본인 → 전체)로, 비-PII
+  //   (bio·avatar_url·skin_info_consent_at)는 일반 SELECT 로 조회 후 병합(PII REVOKE 대비).
+  const [{ data: nonPii }, { data: pii }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("bio, avatar_url, skin_info_consent_at")
+      .eq("id", targetProfileId)
+      .maybeSingle()
+      .returns<Pick<ProfileRow, "bio" | "avatar_url" | "skin_info_consent_at">>(),
+    supabase
+      .rpc("get_profile_pii", { p_target: targetProfileId })
+      .maybeSingle<{
+        contact_email: string | null;
+        birthdate: string | null;
+        gender: "male" | "female" | "other" | null;
+        face_shape: string | null;
+        skin_type: string | null;
+        skin_concerns: string[] | null;
+        interested_procedures: string[] | null;
+        fitzpatrick: number | null;
+      }>(),
+  ]);
+  const primary: ProfileRow | null = nonPii
+    ? {
+        contact_email: pii?.contact_email ?? null,
+        birthdate: pii?.birthdate ?? null,
+        gender: pii?.gender ?? null,
+        face_shape: pii?.face_shape ?? null,
+        skin_type: pii?.skin_type ?? null,
+        skin_concerns: pii?.skin_concerns ?? null,
+        interested_procedures: pii?.interested_procedures ?? null,
+        bio: nonPii.bio,
+        avatar_url: nonPii.avatar_url,
+        skin_info_consent_at: nonPii.skin_info_consent_at,
+        fitzpatrick: pii?.fitzpatrick ?? null,
+      }
+    : null;
 
   // 의사 멀티 계정 사용자는 role='user' row 의 avatar_url 을 온보딩 화면에 표시한다 (의사 명함 사진 X).
   //   - 묶음 안에 role='user' row 있으면 그 avatar 우선.

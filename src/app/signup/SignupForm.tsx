@@ -102,16 +102,19 @@ export default function SignupForm({ initialDisplayName, next }: Props) {
       }
 
       // role 별 redirect (admin/doctor 계정이 OAuth로 들어올 수도 있으므로 안전하게 분기)
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, birthdate")
-        .eq("id", user.id)
-        .maybeSingle();
+      // H-1 (2026-07-04 Phase 1-B): birthdate 는 PII REVOKE 대상이라 직접 SELECT 하지 않고
+      //   본인 전용 get_onboarding_gate RPC 로 조회(role 은 비-PII 라 그대로 SELECT).
+      const [{ data: profile }, { data: gate }] = await Promise.all([
+        supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+        supabase
+          .rpc("get_onboarding_gate", { p_target: user.id })
+          .maybeSingle<{ birthdate: string | null; terms_agreed_at: string | null }>(),
+      ]);
       const role = profile?.role ?? "user";
 
       // 일반 사용자 + 온보딩 미완료 → /onboarding 강제 게이트
       // (admin/doctor는 운영용 계정이라 스킵)
-      if (role !== ROLES.ADMIN && role !== ROLES.DOCTOR && !profile?.birthdate) {
+      if (role !== ROLES.ADMIN && role !== ROLES.DOCTOR && !gate?.birthdate) {
         // middleware가 이 쿠키 보면 /onboarding으로 강제 redirect
         // Secure flag: HTTPS 환경에서만 자동 부여 (A11, 2026-05-17).
         try {

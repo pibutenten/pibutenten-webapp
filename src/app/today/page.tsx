@@ -104,18 +104,32 @@ export default async function TodayPage() {
   const activeId = idCtx?.active?.profileId ?? user.id;
 
   // prof — 인사·관심 키워드(interests) 파생용 + KPI 타일 프로필 링크용 handle. activeId(active 명함) 기준.
-  const { data: prof } = await supabase
-    .from("profiles")
-    .select("handle, display_name, interested_procedures, skin_concerns, skin_type")
-    .eq("id", activeId)
-    .maybeSingle()
-    .returns<{
-      handle: string | null;
-      display_name: string | null;
-      interested_procedures: string[] | null;
-      skin_concerns: string[] | null;
-      skin_type: string | null;
-    }>();
+  // H-1 (2026-07-04 Phase 1-B): 비-PII(handle·display_name)는 일반 SELECT, PII(interested_
+  //   procedures·skin_concerns·skin_type)는 get_profile_pii RPC(본인 → 전체)로 조회.
+  const [{ data: baseProf }, { data: piiProf }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("handle, display_name")
+      .eq("id", activeId)
+      .maybeSingle()
+      .returns<{ handle: string | null; display_name: string | null }>(),
+    supabase
+      .rpc("get_profile_pii", { p_target: activeId })
+      .maybeSingle<{
+        interested_procedures: string[] | null;
+        skin_concerns: string[] | null;
+        skin_type: string | null;
+      }>(),
+  ]);
+  const prof = baseProf
+    ? {
+        handle: baseProf.handle,
+        display_name: baseProf.display_name,
+        interested_procedures: piiProf?.interested_procedures ?? null,
+        skin_concerns: piiProf?.skin_concerns ?? null,
+        skin_type: piiProf?.skin_type ?? null,
+      }
+    : null;
   const userName = prof?.display_name?.trim() || "회원";
   // KPI 타일 /{handle}?tab=... 링크용 — /my(마이페이지 허브)와 동일 폴백(prof → active 명함).
   //   미설정이면 null → RecordView 가 프로필행 타일을 비링크 폴백 처리.

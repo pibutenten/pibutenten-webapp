@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
 import type { UserRole } from "@/lib/user-grades";
@@ -98,8 +99,12 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   const daysRaw = parseInt(sp.days ?? "0", 10);
   const daysParam = PERIOD_OPTIONS.some((p) => p.days === daysRaw) ? daysRaw : 7;
 
-  // profiles 전체 조회 (auth_user_id 포함)
-  let q = supabase
+  // profiles 전체 조회 (auth_user_id 포함).
+  // H-1 (2026-07-04 Phase 1-B): birthdate·gender 는 PII REVOKE 대상이라 authenticated
+  //   클라이언트로는 조회 불가. 회원관리는 super admin 전용(위 requireAdminPage superAdminOnly)
+  //   이므로 service_role admin 클라이언트로 조회한다(500명 목록 → per-row RPC 회피).
+  const adminDb = createSupabaseAdminClient();
+  let q = adminDb
     .from("profiles")
     .select(
       "id, handle, display_name, role, bio, created_at, terms_agreed_at, auth_user_id, birthdate, gender",

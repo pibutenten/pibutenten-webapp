@@ -107,19 +107,39 @@ async function fetchProfileByHandle(
 } | null> {
   if (!/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(handle)) return null;
   const supabase = await createSupabaseServerClient();
+  // H-1 (2026-07-04 Phase 1-B): 비-PII 는 일반 SELECT. PII 6종은 로그인 뷰어일 때만
+  //   get_profile_pii RPC 로 조회 — RPC 가 내부에서 소유자=전체 / 타인=field_visibility 필터
+  //   (contact_email·fitzpatrick 은 타인 항상 NULL)를 적용한다(옛 앱-계층 전용 필터를 DB 로 이관).
   const baseSelect =
     "id, display_name, role, bio, avatar_url, created_at, handle, field_visibility, auth_user_id";
-  const piiSelect =
-    ", birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures";
-  const select = viewerIsAnon ? baseSelect : baseSelect + piiSelect;
 
   const { data } = await supabase
     .from("profiles")
-    .select(select)
+    .select(baseSelect)
     .eq("handle", handle)
     .maybeSingle()
     .returns<ProfileRow>();
   if (!data) return null;
+
+  if (!viewerIsAnon) {
+    const { data: pii } = await supabase
+      .rpc("get_profile_pii", { p_target: data.id })
+      .maybeSingle<{
+        birthdate: string | null;
+        gender: string | null;
+        face_shape: string | null;
+        skin_type: string | null;
+        skin_concerns: string[] | null;
+        interested_procedures: string[] | null;
+      }>();
+    // 항상 명시 대입(pii 부재여도 undefined 아닌 null 로) — 호출자 null 기대 정합.
+    data.birthdate = pii?.birthdate ?? null;
+    data.gender = (pii?.gender ?? null) as ProfileRow["gender"];
+    data.face_shape = pii?.face_shape ?? null;
+    data.skin_type = pii?.skin_type ?? null;
+    data.skin_concerns = pii?.skin_concerns ?? null;
+    data.interested_procedures = pii?.interested_procedures ?? null;
+  }
 
   // 의사 매핑 확인 — doctor 사진·정보 single source (SSOT: profiles.doctor_id)
   const metaMap = await getDoctorMetaBatch(supabase, [data.id]);
@@ -328,14 +348,39 @@ export default async function HandleProfilePage({ params }: Props) {
   if (isOwner && viewer) {
     const idCtx = await getIdentityContext(supabase);
     const targetProfileId = idCtx?.active?.profileId ?? viewer.id;
-    const { data: sp } = await supabase
-      .from("profiles")
-      .select(
-        "id, role, display_name, marketing_email_consent, news_email_consent, terms_agreed_at, terms_agreed_version, privacy_agreed_at, privacy_agreed_version, handle, birthdate, gender, face_shape, skin_type, skin_concerns, interested_procedures, bio, avatar_url, field_visibility",
-      )
-      .eq("id", targetProfileId)
-      .maybeSingle()
-      .returns<SettingsProfileRow>();
+    // H-1 (2026-07-04 Phase 1-B): 비-PII 설정 필드는 일반 SELECT, PII 6종은 get_profile_pii
+    //   RPC(본인 → 전체)로 조회 후 병합(PII REVOKE 대비).
+    const [{ data: spBase }, { data: spPii }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select(
+          "id, role, display_name, marketing_email_consent, news_email_consent, terms_agreed_at, terms_agreed_version, privacy_agreed_at, privacy_agreed_version, handle, bio, avatar_url, field_visibility",
+        )
+        .eq("id", targetProfileId)
+        .maybeSingle()
+        .returns<Omit<SettingsProfileRow, "birthdate" | "gender" | "face_shape" | "skin_type" | "skin_concerns" | "interested_procedures">>(),
+      supabase
+        .rpc("get_profile_pii", { p_target: targetProfileId })
+        .maybeSingle<{
+          birthdate: string | null;
+          gender: string | null;
+          face_shape: string | null;
+          skin_type: string | null;
+          skin_concerns: string[] | null;
+          interested_procedures: string[] | null;
+        }>(),
+    ]);
+    const sp: SettingsProfileRow | null = spBase
+      ? ({
+          ...spBase,
+          birthdate: spPii?.birthdate ?? null,
+          gender: spPii?.gender ?? null,
+          face_shape: spPii?.face_shape ?? null,
+          skin_type: spPii?.skin_type ?? null,
+          skin_concerns: spPii?.skin_concerns ?? null,
+          interested_procedures: spPii?.interested_procedures ?? null,
+        } as SettingsProfileRow)
+      : null;
     if (sp) {
       settings = {
         userId: viewer.id,

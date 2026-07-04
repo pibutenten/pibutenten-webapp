@@ -6,6 +6,26 @@
 
 ---
 
+## [2026-07-04] — 보안 배치 Phase 1-B 단계1: PII 조회 RPC 이관 (H-1, REVOKE 前 준비)
+
+H-1(로그인 회원이 타인 PII 를 raw REST 로 수집 — `profiles_public_select` qual=true + authenticated PII 컬럼 GRANT + `field_visibility` 앱 계층 전용)의 **배포 안전 처리 1단계**. authenticated PII 컬럼 GRANT REVOKE(단계2) 는 코드가 안전 조회 경로로 이관·검증된 뒤 별도 진행 — 이 단계는 **RPC 신설 + 조회 이관만, REVOKE 없음**(배포해도 무회귀).
+
+### Added
+- **PII 안전 조회 RPC 2종 (마이그 0334, SECURITY DEFINER)**:
+  - `get_onboarding_gate(p_target)` → 본인 묶음일 때만 (birthdate, terms_agreed_at). 온보딩 게이트용.
+  - `get_profile_pii(p_target)` → 본인/admin=전체, 타인=`field_visibility` 필터(기본 공개=명시적 false 만 숨김, ProfileView `v[key]!==false` 규약 일치), contact_email·fitzpatrick 은 타인 항상 NULL. 실측 검증(소유자=전체·타인=필터).
+
+### Changed
+- **PII 조회 경로 10곳 이관**(authenticated 직접 SELECT → RPC/admin): `identity-server`(resolveActiveIdentity birthdate→게이트 RPC, 전 인증 API 병목) · `middleware`(온보딩 게이트 RPC + **fail-open→fail-closed**, RPC 실패/birthdate NULL 시 /onboarding) · `onboarding/page` · `my/page` · `today/page` · `[handle]/page`(타인 프로필+본인 settings, get_profile_pii) · `admin/users`(service_role admin, 500명) · `auth/callback`(본인 PII 읽기·쓰기 admin) · `signup/SignupForm`(birthdate→게이트 RPC). 전수 grep 으로 잔존 authenticated PII SELECT 0 확인(코드검수관 재확인).
+
+### 검증 (커밋 전)
+- 마이그 0334 production 적용·U+FFFD 0. RPC 소유자/타인 경로 실측(소유자=contact_email 포함 전체, 타인=NULL 필터). `tsc`+`build` 통과. 코드검수관 검수 → [치명] 0, [경고] 2건(auth/callback UPDATE 클라이언트 불일치·[handle] 뮤테이션 null 명시) 반영.
+
+### Deferred (단계2 — 프로덕션 검증 후)
+- `REVOKE SELECT (PII 8컬럼) ON profiles FROM authenticated` 마이그. 이 단계1 이 프로덕션에서 로그인/온보딩/설정/마이/프로필 정상 확인된 뒤에만 실행.
+
+---
+
 ## [2026-07-04] — 보안 배치 Phase 1-A: 헤더 위조 IDOR·탈퇴 익명화·자잘 2건 (감사→검토→독립검증)
 
 전방위 감사(에이전트 16) → 현재코드 재검증(에이전트 8) → 회귀위험 검토(서브에이전트 2) → 독립 사실검증(서브에이전트 2)을 거쳐 확정한 보안 배치. 두 감사보고서: `docs/reports/2026-07-02-전방위-감사-종합보고서.md`, `docs/reports/2026-07-04-재검증-및-수정계획서.md`. Phase 1-A(GRANT 회수 없는 안전 배치)만 적용 — H-1(PII 컬럼 REVOKE)은 배포 순서상 Phase 1-B로 분리.

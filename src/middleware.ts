@@ -312,13 +312,16 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       ? idCookie
       : user.id;
 
-  let profile: { id: string; terms_agreed_at: string | null; birthdate: string | null } | null = null;
+  // H-1 (2026-07-04 Phase 1-B): birthdate 는 PII REVOKE 대상이라 여기서 직접 SELECT 하지
+  //   않는다. terms_agreed_at·auth_user_id 는 비-PII 라 그대로 조회하고, 온보딩 게이트용
+  //   birthdate 는 아래 get_onboarding_gate RPC(본인 전용)로 별도 조회한다.
+  let profile: { id: string; terms_agreed_at: string | null } | null = null;
   try {
-    // 1차: candidate 가 묶음 안인지 검증 + PII 동시 조회.
+    // 1차: candidate 가 묶음 안인지 검증 + 비-PII 동시 조회.
     //   candidate == user.id (base) 면 자동 매칭. 다른 UUID 면 auth_user_id == user.id 검증.
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, terms_agreed_at, birthdate, auth_user_id")
+      .select("id, terms_agreed_at, auth_user_id")
       .eq("id", candidateId)
       .maybeSingle();
     if (error) {
@@ -327,7 +330,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       return response;
     }
     const row = data as
-      | { id: string; terms_agreed_at: string | null; birthdate: string | null; auth_user_id: string | null }
+      | { id: string; terms_agreed_at: string | null; auth_user_id: string | null }
       | null;
     // 묶음 검증: candidate 가 base 와 같거나, auth_user_id 가 user.id 와 같으면 본인 묶음.
     const inBundle =
@@ -336,7 +339,6 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       profile = {
         id: row.id,
         terms_agreed_at: row.terms_agreed_at,
-        birthdate: row.birthdate,
       };
     }
   } catch (e) {
@@ -349,10 +351,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     try {
       const { data } = await supabase
         .from("profiles")
-        .select("id, terms_agreed_at, birthdate")
+        .select("id, terms_agreed_at")
         .eq("id", user.id)
         .maybeSingle();
-      profile = data as { id: string; terms_agreed_at: string | null; birthdate: string | null } | null;
+      profile = data as { id: string; terms_agreed_at: string | null } | null;
     } catch (e) {
       console.warn("[middleware] base fallback select exception:", e);
       return response;
@@ -370,7 +372,25 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // 온보딩 강제 게이트 활성화 (2026-05-16 — 중복 가입자 식별 위해 모든 사용자 강제):
   // 신규/기존 무관, birthdate NULL이면 /onboarding 으로 redirect.
   // 온보딩 폼에서 이름·생년월일·성별을 받고 dedup 검사 → "이미 가입하셨나요?" 다이얼로그.
-  if (!profile.birthdate) {
+  //
+  // H-1 (2026-07-04 Phase 1-B): birthdate 는 본인 전용 게이트 RPC 로 조회(PII SELECT 회피).
+  //   ⚠ fail-CLOSED: RPC 실패·birthdate NULL 이면 /onboarding 으로 보낸다(옛 fail-open =
+  //   미온보딩 사용자가 게이트를 통과하던 보안 역행 차단). /onboarding 은 면제 경로라 루프 없음.
+  let gateBirthdate: string | null = null;
+  try {
+    const { data: gate, error: gateErr } = await supabase
+      .rpc("get_onboarding_gate", { p_target: profile.id })
+      .maybeSingle<{ birthdate: string | null; terms_agreed_at: string | null }>();
+    if (gateErr) {
+      console.warn("[middleware] onboarding gate RPC error:", gateErr.message);
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+    gateBirthdate = gate?.birthdate ?? null;
+  } catch (e) {
+    console.warn("[middleware] onboarding gate RPC exception:", e);
+    return NextResponse.redirect(new URL("/onboarding", request.url));
+  }
+  if (!gateBirthdate) {
     return NextResponse.redirect(new URL("/onboarding", request.url));
   }
 

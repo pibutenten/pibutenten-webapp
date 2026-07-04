@@ -90,10 +90,14 @@ export async function resolveActiveIdentity(
 ): Promise<ActiveIdentity | null> {
   const targetProfileId = await readTargetProfileId(authUserId);
 
+  // H-1 (2026-07-04 Phase 1-B): birthdate 는 PII 컬럼 REVOKE 대상이라 여기서 직접 SELECT
+  //   하지 않는다(REVOKE 후 42501 로 전 인증 API 가 마비됨). 온보딩 게이트용 birthdate 는
+  //   아래 get_onboarding_gate RPC(본인 전용 SECURITY DEFINER)로 별도 조회. terms_agreed_at
+  //   은 REVOKE 대상이 아니라 그대로 SELECT.
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, handle, display_name, avatar_url, role, auth_user_id, birthdate, terms_agreed_at, doctor_id",
+      "id, handle, display_name, avatar_url, role, auth_user_id, terms_agreed_at, doctor_id",
     )
     .eq("id", targetProfileId)
     .maybeSingle();
@@ -106,6 +110,14 @@ export async function resolveActiveIdentity(
   ) {
     return null;
   }
+
+  // birthdate — 본인 전용 게이트 RPC 로 조회(위 SELECT 에서 분리). 검증 통과한 본인 명함이라
+  //   반드시 1행 반환. 실패 시 null(온보딩 미완료로 간주 — 게이트가 안전하게 잡음).
+  let birthdate: string | null = null;
+  const { data: gate } = await supabase
+    .rpc("get_onboarding_gate", { p_target: targetProfileId })
+    .maybeSingle<{ birthdate: string | null; terms_agreed_at: string | null }>();
+  birthdate = gate?.birthdate ?? null;
 
   // doctor_id 는 위 profiles SELECT 에 인라인 — 별도 lookup 제거 (profiles.doctor_id SSOT, 0176). 쿼리 1회 감소.
   const doctorId = (profile.doctor_id as string | null) ?? null;
@@ -121,7 +133,7 @@ export async function resolveActiveIdentity(
     avatarUrl: (profile.avatar_url as string | null) ?? null,
     role,
     doctorId,
-    birthdate: (profile.birthdate as string | null) ?? null,
+    birthdate,
     termsAgreedAt: (profile.terms_agreed_at as string | null) ?? null,
   };
 }
