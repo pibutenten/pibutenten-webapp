@@ -92,7 +92,8 @@ export default function AdminView({
           <Stat label="Q&A" value={stats.qaPublished} href="/admin/cards?type=qa&status=published" />
           <Stat label="끄적끄적" value={stats.postPublished} href="/admin/cards?type=post&status=published" />
           <Stat label="시술후기" value={stats.reviewPublished} href="/admin/cards?type=review&status=published" />
-          <Stat label="시술 리포트" value={stats.reportPublished} href="/admin/cards?type=review_summary&status=published" />
+          {/* 시술 리포트 Stat 은 카드 목록 대신 전용 요약 표(/admin/review-reports)로 직행 — 원장 요청(2026-07-04). */}
+          <Stat label="시술 리포트" value={stats.reportPublished} href="/admin/review-reports" />
           <Stat
             label="검수 대기"
             value={pendingReview}
