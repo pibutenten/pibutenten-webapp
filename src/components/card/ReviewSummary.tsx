@@ -7,9 +7,9 @@
  *
  *   - 만족도: 별점만 (라벨 생략, ★×satisfaction 금색 / 나머지 옅은 회색)
  *   - 통증: 흐린 라벨 "통증" + 하늘색 값(1=없음 … 5=심함)
- *   - 재시술 의향: 라벨 접두 없이 값 자체가 뜻 전달(하늘색) — 또 받을래요/재시술 고민 중/
- *     재시술 생각 없어요. (2026-06-04 카드 길이 단축으로 제거했다가 2026-07-04 원장 확정으로 복원)
- *   - 회복(다운타임): 라벨 접두 없이 값 자체가 뜻 전달(하늘색) — 당일 회복/회복 1~2일/…
+ *   - 재시술 의향: 라벨 접두 없이 값 자체가 뜻 전달(연한 회색 — 전부 하늘색이면 산만, 2차 확정) —
+ *     또 받을래요/재시술 고민 중/재시술 생각 없어요. (2026-06-04 제거 → 2026-07-04 원장 확정 복원)
+ *   - 회복(다운타임): 라벨 접두 없이 값 자체가 뜻 전달(연한 회색) — 당일 회복/회복 1~2일/…
  *   - 효과 체감: 흐린 라벨 "효과" + effect_areas 값(하늘색) 최대 3개 가운뎃점(·) 연결,
  *     남으면 " +n"(회색)
  *   - 항목 구분: 가운뎃점(·) / 미응답(null·undefined) 항목은 그 자리 생략
@@ -98,26 +98,25 @@ export default function ReviewSummary({ review }: { review: ReviewSummaryData })
     );
   }
 
-  // 재시술 의향 — 라벨 접두 없이 문구 자체가 값(하늘색).
+  // 재시술 의향 — 라벨 접두 없이 문구 자체가 값. 연한 회색(원장 확정 2026-07-04 2차 —
+  //   통증·효과 값까지 전부 하늘색이면 정신 사나워서 이 두 항목은 톤 다운).
   if (revisitLabel) {
     segments.push(
       <span
         key="revisit"
-        className="whitespace-nowrap"
-        style={{ color: "var(--primary)" }}
+        className="whitespace-nowrap text-[var(--text-muted)]"
       >
         {revisitLabel}
       </span>,
     );
   }
 
-  // 회복(다운타임) — 라벨 접두 없이 문구 자체가 값(하늘색).
+  // 회복(다운타임) — 라벨 접두 없이 문구 자체가 값. 연한 회색(재시술과 동일 톤 다운).
   if (downtimeLabel) {
     segments.push(
       <span
         key="downtime"
-        className="whitespace-nowrap"
-        style={{ color: "var(--primary)" }}
+        className="whitespace-nowrap text-[var(--text-muted)]"
       >
         {downtimeLabel}
       </span>,
