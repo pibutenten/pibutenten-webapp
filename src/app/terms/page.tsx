@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 import InfoShell from "@/components/info/InfoShell";
 import {
@@ -15,6 +16,15 @@ export const metadata: Metadata = {
     "피부텐텐(주식회사 진솔컴퍼니) 이용약관 — 서비스 이용 조건, 회원의 의무, 게시물 관리, 면책 조항.",
   alternates: { canonical: `${SITE_URL}/terms` },
   robots: { index: true, follow: true },
+  // openGraph/twitter — og-meta 헬퍼 SSOT (미정의 시 layout 홈 문구 og:title 상속되는 문제 방지).
+  ...buildSocialMeta({
+    title: "이용약관",
+    description:
+      "피부텐텐(주식회사 진솔컴퍼니) 이용약관 — 서비스 이용 조건, 회원의 의무, 게시물 관리, 면책 조항.",
+    canonical: `${SITE_URL}/terms`,
+    ogImage: buildOgImage(null),
+    ogType: "website",
+  }),
 };
 
 /**

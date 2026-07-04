@@ -7,14 +7,15 @@ import InfoPageLayout from "@/components/info/InfoPageLayout";
 import InfoShell from "@/components/info/InfoShell";
 
 export const metadata: Metadata = {
-  title: "콘텐츠 신고 — 피부텐텐",
+  // 브랜드 접미는 layout 템플릿(%s | 피부텐텐)이 부착 — 여기 접미 중복 금지 (이중 브랜드 방지).
+  title: "콘텐츠 신고",
   description:
     "피부텐텐 게시물·댓글에 대한 신고를 접수합니다. 정보통신망법 제44조의2 절차에 따라 처리됩니다.",
   alternates: { canonical: `${SITE_URL}/report` },
   robots: { index: false, follow: false },
   // openGraph/twitter — 다른 정적 페이지(about/contact)와 동일하게 og-meta 헬퍼로 통일 (images 누락 보완).
   ...buildSocialMeta({
-    title: "콘텐츠 신고 — 피부텐텐",
+    title: "콘텐츠 신고",
     description: "피부텐텐 게시물·댓글에 대한 신고를 접수합니다.",
     canonical: `${SITE_URL}/report`,
     ogImage: buildOgImage(null),

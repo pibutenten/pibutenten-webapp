@@ -1,21 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 import InfoShell from "@/components/info/InfoShell";
 
 export const metadata: Metadata = {
-  title: "의료 정보 안내 — 피부텐텐",
+  // 브랜드 접미는 layout 템플릿(%s | 피부텐텐)이 부착 — 여기 접미 중복 금지 (이중 브랜드 방지).
+  title: "의료 정보 안내",
   description:
     "피부텐텐의 모든 콘텐츠는 일반적인 의학 정보 제공 목적이며, 개인의 진단·치료를 대체하지 않습니다.",
   alternates: { canonical: `${SITE_URL}/disclaimer` },
-  openGraph: {
-    title: "의료 정보 안내 — 피부텐텐",
+  // openGraph/twitter — og-meta 헬퍼 SSOT (인라인 openGraph 의 images 누락 보완).
+  ...buildSocialMeta({
+    title: "의료 정보 안내",
     description:
       "피부텐텐의 콘텐츠 성격, 응급 시 대응, 사용자 책임에 관한 안내.",
-    url: `${SITE_URL}/disclaimer`,
-    type: "website",
-  },
+    canonical: `${SITE_URL}/disclaimer`,
+    ogImage: buildOgImage(null),
+    ogType: "website",
+  }),
 };
 
 export default function DisclaimerPage() {

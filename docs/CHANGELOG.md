@@ -6,6 +6,13 @@
 
 ---
 
+## [2026-07-04] — 개선 라운드 R3: SEO/AEO (독립 이중검증 실행계획)
+
+### Fixed
+- **[R3-1] OG/타이틀 메타 일괄 정비 — buildSocialMeta SSOT 통일 (8페이지)** — ① 홈: 인라인 openGraph 가 layout 을 통째 대체해 og:site_name·og:locale 소실 + RSS 자동발견 `<link>` 실종(alternates shallow-merge) → buildSocialMeta 재사용 + alternates 에 RSS types 병기(brand-first absolute title 은 유지) ② /terms·/privacy: openGraph 부재로 공유 시 홈 문구 노출 → 페이지 제목 OG 신설 ③ /disclaimer·/report: "… — 피부텐텐 | 피부텐텐" 이중 브랜드 제거 ④ 신뢰페이지 4종(corrections/disclosures/doctor-guidelines/disclaimer): og:image 복원·og:title 정정(기존 정적 페이지 관례로 통일). buildSocialMeta 자체는 무변경(기존 14곳 계약 불변).
+
+---
+
 ## [2026-07-04] — 개선 라운드 R2: 사용자 안전판 (독립 이중검증 실행계획)
 
 ### Fixed

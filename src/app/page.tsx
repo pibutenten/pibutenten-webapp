@@ -5,6 +5,7 @@ import type { CardData } from "@/components/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHotQaIds } from "@/lib/hot-ids";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { blendQaQuota, diversifyByDoctor } from "@/lib/feed-shuffle";
 import { type ProcedureReport } from "@/lib/procedure-report";
 import { fetchCardList } from "@/lib/search-query";
@@ -150,17 +151,24 @@ export async function generateMetadata({
   const title = "피부텐텐 | 피부가 예뻐지는 모든 이야기";
   const description = `피부과 전문의 ${d}명이 리프팅·스킨부스터·안티에이징 시술 질문에 직접 답합니다. 시술별 후기 집계까지.`;
   return {
+    // 홈만 brand-first absolute (layout 템플릿 미적용). og:title 도 같은 brand-first 문자열.
     title: { absolute: title },
     description,
-    alternates: { canonical: `${SITE_URL}/` },
-    openGraph: {
+    alternates: {
+      canonical: `${SITE_URL}/`,
+      // Next.js metadata 는 top-level 키 단위 shallow merge — 이 alternates 가 layout 의
+      //   alternates 전체를 대체하므로, layout 의 RSS 자동발견 link 를 여기 병기해 유지
+      //   (RSS 자동발견의 유일한 노출처가 홈 — layout.tsx 주석 참조).
+      types: { "application/rss+xml": `${SITE_URL}/rss.xml` },
+    },
+    // openGraph/twitter — buildSocialMeta SSOT 재사용 (siteName·locale 누락 방지).
+    ...buildSocialMeta({
       title,
       description,
-      url: `${SITE_URL}/`,
-      type: "website",
-      images: [{ url: "/og.png", width: 1200, height: 630, alt: "피부텐텐" }],
-    },
-    twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
+      canonical: `${SITE_URL}/`,
+      ogImage: buildOgImage(null),
+      ogType: "website",
+    }),
   };
 }
 

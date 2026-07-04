@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 import InfoShell from "@/components/info/InfoShell";
@@ -10,12 +11,14 @@ export const metadata: Metadata = {
   description:
     "피부텐텐 답변의 정정 절차와 30일 정정 이력 공개 — 사실 오류·인용 오류·법령 변경·학회 가이드라인 변경 대응. Mayo Clinic 모델 적용.",
   alternates: { canonical: `${SITE_URL}/corrections` },
-  openGraph: {
-    title: "정정 정책 | 피부텐텐",
+  // openGraph/twitter — og-meta 헬퍼 SSOT (인라인 openGraph 의 images 누락 보완).
+  ...buildSocialMeta({
+    title: "정정 정책",
     description: "답변의 정정 절차와 정정 이력 공개 안내.",
-    url: `${SITE_URL}/corrections`,
-    type: "website",
-  },
+    canonical: `${SITE_URL}/corrections`,
+    ogImage: buildOgImage(null),
+    ogType: "website",
+  }),
 };
 
 /**

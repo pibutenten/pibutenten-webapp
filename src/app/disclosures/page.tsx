@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 import InfoShell from "@/components/info/InfoShell";
@@ -10,12 +11,14 @@ export const metadata: Metadata = {
   description:
     "피부텐텐 운영주체와 참여 전문의의 잠재적 이해상충 관계 공개. 운영사 자본 관계·광고 협찬 정책·참여 전문의 이해상충 고지 방식.",
   alternates: { canonical: `${SITE_URL}/disclosures` },
-  openGraph: {
-    title: "이해상충 공개 | 피부텐텐",
+  // openGraph/twitter — og-meta 헬퍼 SSOT (인라인 openGraph 의 images 누락 보완).
+  ...buildSocialMeta({
+    title: "이해상충 공개",
     description: "운영주체·참여 전문의 이해상충 공개 정책.",
-    url: `${SITE_URL}/disclosures`,
-    type: "website",
-  },
+    canonical: `${SITE_URL}/disclosures`,
+    ogImage: buildOgImage(null),
+    ogType: "website",
+  }),
 };
 
 /**

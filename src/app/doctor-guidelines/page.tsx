@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/site";
+import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import InfoPageLayout from "@/components/info/InfoPageLayout";
 import InfoShell from "@/components/info/InfoShell";
 
@@ -10,13 +11,15 @@ export const metadata: Metadata = {
     "피부텐텐 의사 회원이 답변·칼럼을 작성할 때 따라야 할 원칙. 의료법 제56조 및 의료 전문직 윤리에 부합하는 일반 의학 정보 작성 가이드.",
   alternates: { canonical: `${SITE_URL}/doctor-guidelines` },
   robots: { index: true, follow: true },
-  openGraph: {
-    title: "의사 답변 가이드라인 | 피부텐텐",
+  // openGraph/twitter — og-meta 헬퍼 SSOT (인라인 openGraph 의 images 누락 보완).
+  ...buildSocialMeta({
+    title: "의사 답변 가이드라인",
     description:
       "피부과 전문의가 본 서비스에서 답변·칼럼을 작성할 때 따라야 할 원칙. 일반 의학 정보 제공의 성격, 권장·금지 답변, 의료법 광고 금지 사항.",
-    url: `${SITE_URL}/doctor-guidelines`,
-    type: "article",
-  },
+    canonical: `${SITE_URL}/doctor-guidelines`,
+    ogImage: buildOgImage(null),
+    ogType: "article",
+  }),
 };
 
 /**
