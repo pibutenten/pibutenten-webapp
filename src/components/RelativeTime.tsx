@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * RelativeTime — "방금 전 / 1분 전 / 3시간 전 / 어제 / N달 전" 등 상대 시간 표시.
+ * RelativeTime — "방금 / 1분 / 3시간 / 3일 / N달" 등 상대 시간 표시(인스타식, '전' 없음 — 원장 확정 2026-07-04).
  *
  * Hydration mismatch (React #418) 방지:
  *   - SSR 단계에서는 Date.now() 의 서버 시각과 클라이언트 시각이 달라 텍스트 불일치

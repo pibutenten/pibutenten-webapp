@@ -164,7 +164,8 @@ export function categoryLabel(c: CardData): string {
   }
 }
 
-/* ---------- 상대 시간 ---------- */
+/* ---------- 상대 시간 — '전' 접미사 없는 인스타식 압축 표기(원장 확정 2026-07-04,
+   lib/relative-time.ts 와 동일 규약). 일 단위 미만은 "오늘" 유지(카드 헤더 관례). ---------- */
 export function timeAgo(iso?: string | null): string {
   if (!iso) return "";
   const then = new Date(iso).getTime();
@@ -172,10 +173,10 @@ export function timeAgo(iso?: string | null): string {
   const diff = Date.now() - then;
   const day = 86400000;
   if (diff < day) return "오늘";
-  if (diff < 7 * day) return `${Math.floor(diff / day)}일 전`;
-  if (diff < 30 * day) return `${Math.floor(diff / (7 * day))}주 전`;
-  if (diff < 365 * day) return `${Math.floor(diff / (30 * day))}개월 전`;
-  return `${Math.floor(diff / (365 * day))}년 전`;
+  if (diff < 7 * day) return `${Math.floor(diff / day)}일`;
+  if (diff < 30 * day) return `${Math.floor(diff / (7 * day))}주`;
+  if (diff < 365 * day) return `${Math.floor(diff / (30 * day))}개월`;
+  return `${Math.floor(diff / (365 * day))}년`;
 }
 
 /* ---------- 참고문헌 (운영 CardBody 의 pubmed_refs 섹션 재현) ----------

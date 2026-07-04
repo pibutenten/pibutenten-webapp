@@ -448,9 +448,9 @@ const RECORD_NOTIS: {
   sub: string;
   time: string;
 }[] = [
-  { tone: "amber", bold: "스킨부스터 권장 주기가 다가왔어요", sub: "마지막 시술 후 8주", time: "2시간 전" },
-  { tone: "primary", bold: "예정된 시술이 5일 남았어요", sub: "쥬베룩 스킨부스터 · 강남 피부과", time: "어제" },
-  { tone: "violet", bold: "#리프팅 새로운 전문의 답변이 올라왔어요", sub: "Q. 울쎄라와 써마지, 어떤 차이가 있나요?", time: "3일 전" },
+  { tone: "amber", bold: "스킨부스터 권장 주기가 다가왔어요", sub: "마지막 시술 후 8주", time: "2시간" },
+  { tone: "primary", bold: "예정된 시술이 5일 남았어요", sub: "쥬베룩 스킨부스터 · 강남 피부과", time: "1일" },
+  { tone: "violet", bold: "#리프팅 새로운 전문의 답변이 올라왔어요", sub: "Q. 울쎄라와 써마지, 어떤 차이가 있나요?", time: "3일" },
 ];
 const NOTI_TONE: Record<string, { bg: string; fg: string }> = {
   amber: { bg: "#FBEFD9", fg: "#B6790F" },

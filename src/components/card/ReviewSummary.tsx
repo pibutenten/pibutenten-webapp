@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * ReviewSummary — 시술후기 카드(type=review)의 정량 요약 한 줄 텍스트.
  *
@@ -11,12 +13,15 @@
  *     또 받을래요/재시술 고민 중/재시술 생각 없어요. (2026-06-04 제거 → 2026-07-04 원장 확정 복원)
  *   - 회복(다운타임): 라벨 접두 없이 값 자체가 뜻 전달(연한 회색) — 당일 회복/회복 1~2일/…
  *   - 효과 체감: 흐린 라벨 "효과" + effect_areas 값(하늘색) 최대 3개 가운뎃점(·) 연결,
- *     남으면 " +n"(회색)
+ *     남으면 " +n"(회색) 토글 버튼 — 탭하면 전체 펼침, 다시 탭하면 3개로 축소(원장 확정 2026-07-04).
+ *     카드 전체 클릭(상세 이동)과 충돌 없게 stopPropagation.
  *   - 항목 구분: 가운뎃점(·) / 미응답(null·undefined) 항목은 그 자리 생략
  *
  * 색·라벨은 review/new/ReviewForm.tsx 의 PAIN_FACES 와 정합.
  * 디자인 토큰: --primary(하늘색) / --accent-save / --text-secondary / --text-muted.
+ * +n 토글에 useState 를 쓰므로 클라이언트 컴포넌트("use client").
  */
+import { useState } from "react";
 import type { ReviewSummaryData } from "@/lib/types/card";
 
 /* 통증 값 라벨 — ReviewForm PAIN_FACES 와 동일 순서(1~5). */
@@ -51,6 +56,8 @@ const DOWNTIME_CARD_LABELS: Record<string, string> = {
 const MAX_EFFECTS = 3;
 
 export default function ReviewSummary({ review }: { review: ReviewSummaryData }) {
+  // 효과 "+n" 토글 — 탭하면 전체 펼침(true), 다시 탭하면 3개로 축소(원장 확정 2026-07-04).
+  const [effectsExpanded, setEffectsExpanded] = useState(false);
   const satisfaction = Math.max(
     0,
     Math.min(5, Math.round(review.satisfaction || 0)),
@@ -123,19 +130,30 @@ export default function ReviewSummary({ review }: { review: ReviewSummaryData })
     );
   }
 
-  // 효과 체감 — 흐린 라벨 + 가운뎃점으로 연결한 하늘색 값(최대 3개, 남으면 +n 회색).
-  //   whitespace-nowrap: 한글 기본 줄바꿈(음절 단위)이 "효/과"처럼 글자 중간을 자르던 것 방지
-  //   (원장 확정 2026-07-04) — 자리가 모자라면 "효과 값들" 묶음이 통째로 다음 줄에서 시작.
-  //   값은 최대 3개+"+n"이라 묶음 폭이 모바일 최소 폭 안에 들어감(overflow 위험 없음).
+  // 효과 체감 — 흐린 라벨 + 가운뎃점으로 연결한 하늘색 값. 기본 3개, "+n" 탭 시 전체 펼침(토글).
+  //   접힘 상태만 whitespace-nowrap(한글 음절 개행이 "효/과" 자르는 것 방지 — 3개+n 은 모바일 폭
+  //   안에 들어감). 펼침 상태는 값이 길어질 수 있어 nowrap 해제(자연 wrap 허용).
+  //   +n 버튼은 카드 전체 클릭(상세 이동)과 충돌 없게 stopPropagation. (원장 확정 2026-07-04)
   if (effects.length > 0) {
-    const shown = effects.slice(0, MAX_EFFECTS);
-    const rest = effects.length - shown.length;
+    const rest = effects.length - MAX_EFFECTS;
+    const shown = effectsExpanded ? effects : effects.slice(0, MAX_EFFECTS);
     segments.push(
-      <span key="effects" className="whitespace-nowrap">
+      <span key="effects" className={effectsExpanded ? undefined : "whitespace-nowrap"}>
         <span className="text-[var(--text-muted)]">효과 </span>
         <span style={{ color: "var(--primary)" }}>{shown.join("·")}</span>
         {rest > 0 && (
-          <span className="text-[var(--text-muted)]"> +{rest}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEffectsExpanded((v) => !v);
+            }}
+            aria-expanded={effectsExpanded}
+            aria-label={effectsExpanded ? "효과 접기" : `효과 ${rest}개 더 보기`}
+            className="ml-0.5 text-[var(--text-muted)] hover:text-[var(--primary)]"
+          >
+            {effectsExpanded ? " 접기" : ` +${rest}`}
+          </button>
         )}
       </span>,
     );
