@@ -18,11 +18,13 @@ H-1(로그인 회원이 타인 PII 를 raw REST 로 수집 — `profiles_public_
 ### Changed
 - **PII 조회 경로 10곳 이관**(authenticated 직접 SELECT → RPC/admin): `identity-server`(resolveActiveIdentity birthdate→게이트 RPC, 전 인증 API 병목) · `middleware`(온보딩 게이트 RPC + **fail-open→fail-closed**, RPC 실패/birthdate NULL 시 /onboarding) · `onboarding/page` · `my/page` · `today/page` · `[handle]/page`(타인 프로필+본인 settings, get_profile_pii) · `admin/users`(service_role admin, 500명) · `auth/callback`(본인 PII 읽기·쓰기 admin) · `signup/SignupForm`(birthdate→게이트 RPC). 전수 grep 으로 잔존 authenticated PII SELECT 0 확인(코드검수관 재확인).
 
-### 검증 (커밋 전)
-- 마이그 0334 production 적용·U+FFFD 0. RPC 소유자/타인 경로 실측(소유자=contact_email 포함 전체, 타인=NULL 필터). `tsc`+`build` 통과. 코드검수관 검수 → [치명] 0, [경고] 2건(auth/callback UPDATE 클라이언트 불일치·[handle] 뮤테이션 null 명시) 반영.
+### Security (단계2 — H-1 실차단, 마이그 0335)
+- **authenticated PII 8컬럼 SELECT REVOKE 완료** — `profiles` 테이블 레벨 SELECT 전체 회수 후 안전(비-PII) 23컬럼만 컬럼 레벨 재부여. authenticated 는 이제 birthdate·contact_email·gender·face_shape·skin_type·skin_concerns·interested_procedures·fitzpatrick 을 직접 SELECT 불가(42501), 안전 23컬럼만 조회. 본인/타인 PII 는 get_profile_pii RPC(SECURITY DEFINER), 관리자는 service_role 경유. **H-1 실차단 완료**.
+  - ⚠ `REVOKE SELECT ON <table>` 이 컬럼 레벨 그랜트까지 전부 회수하는 PostgreSQL 동작 때문에, 초기 "테이블+PII컬럼만 회수" 시도가 안전컬럼까지 막아 즉시 "전체 회수 후 안전23 재부여" 로 정정(REVOKE↔GRANT 사이 수십 초 authenticated profiles 조회 중단 창 발생 후 복구). 마이그 파일은 정정본으로 기록.
+  - 실측 검증: authenticated SELECT birthdate/contact_email → 42501 차단, handle/display_name/role/field_visibility → 정상, 컬럼 SELECT 23개, anon 16개(무변경), get_profile_pii(authenticated 롤·소유자) → 본인 PII 정상 반환.
 
-### Deferred (단계2 — 프로덕션 검증 후)
-- `REVOKE SELECT (PII 8컬럼) ON profiles FROM authenticated` 마이그. 이 단계1 이 프로덕션에서 로그인/온보딩/설정/마이/프로필 정상 확인된 뒤에만 실행.
+### 검증 (커밋 전)
+- 마이그 0334·0335 production 적용·U+FFFD 0. RPC 소유자/타인 경로 실측(소유자=contact_email 포함 전체, 타인=NULL 필터). `tsc`+`build` 통과. 코드검수관 검수 → [치명] 0, [경고] 2건(auth/callback UPDATE 클라이언트 불일치·[handle] 뮤테이션 null 명시) 반영.
 
 ---
 
