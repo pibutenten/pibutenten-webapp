@@ -12,6 +12,7 @@
 
 ### Fixed
 - **[R1-1/M-1] `cards.category` 자기위반 DEFAULT 제거** (마이그 0337) — 컬럼 DEFAULT 가 폐기 카테고리 `'diary'` 라 현행 CHECK(qa/doodle/review/review_summary) 위반. 모든 INSERT 경로가 category 명시라 잠복이었으나, 생략 경로가 생기면 500. `DROP DEFAULT` 채택(SET DEFAULT 'doodle' 은 미래 누락 INSERT 를 조용히 오분류 — 23502 즉시 에러가 안전). production 적용·검증(기본값 NULL·CHECK 4종 무손상). + DATABASE.md 에 누락돼 있던 0336 행 보강.
+- **[R1-2/M-7] 시술 리포트 앵커 카드 404 해소 — URL 규칙 사본 2곳을 SSOT 재사용으로 통합** (`app/cards/[id]/page.tsx`, `admin/stats/[kind]/StatsListClient.tsx`) — 카드 공개 URL 규칙이 `lib/card-url.ts::getQaUrl`(+SQL `card_public_url`) 외에 2곳에 인라인 복제돼 있었고 둘 다 review_summary 분기 누락 → 발행 앵커 65건(전부 shortcode NULL)이 관리자 통계·`/cards/{id}` 진입 시 404. 사본 제거 후 `getQaUrl` import 재사용(분기 재복제 금지). page.tsx 는 SSOT 가 실제 검사하는 `type` 컬럼으로 SELECT 교체, StatsListClient 는 stats API 제약상 category→type 어댑트(앵커는 전 생성 경로가 type=category 동시 세팅·기타 값은 type 분기 무영향) + admin 행 클릭용 `/cards/{id}` fallback 유지. SSOT 양쪽(TS·SQL)은 무변경(§5 페어 준수). tsc·build·코드검수(치명 0) 통과.
 
 ---
 

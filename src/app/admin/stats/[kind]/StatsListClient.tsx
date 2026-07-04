@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react"; // useEffect 추가 사용
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getQaUrl } from "@/lib/card-url";
 import { labelForCategory } from "@/lib/post-category";
 import { ROLES } from "@/lib/identity-shared";
 
@@ -100,30 +101,25 @@ export type CardRow = {
 };
 
 /**
- * 카드 URL — 사용자 정책 (2026-05-17 v3, 편집기 fallback 제거):
- *   1) 의사 Q&A (category='qa' + doctor 메타 충족) → /doctors/{slug}/{year}/{post_slug}
- *   2) 그 외 모든 글 (handle + shortcode 충족) → /{author_handle}/{shortcode}
- *   3) **fallback** → /cards/{id} (server redirect 페이지가 canonical 재계산 후 302)
- *      편집기로는 절대 떨어지지 않음. 메타 부분 누락 카드도 공개 페이지로.
- *
- * 변경 이력:
- *   - v1 (오전): null 분기 → Link 미적용 → 일부 행 클릭 불가
- *   - v2 (오후): /admin/cards/{id}/edit fallback → 사용자 보고 "편집기로 가버림"
- *   - v3 (현재): /cards/{id} redirect 페이지 → 항상 공개 카드로
+ * 카드 URL — 규칙 사본 금지, TS SSOT `getQaUrl`(src/lib/card-url.ts) 재사용 (R1-2 M-7, 2026-07-04).
+ *   과거 이 함수가 규칙을 인라인 복제해 review_summary 분기가 누락 → 시술 리포트
+ *   앵커 카드가 /cards/{id} 로 갔다가 404 나던 버그의 원인.
+ *   - getQaUrl 의 `type` 입력에는 stats API 가 내려주는 `category` 를 전달한다
+ *     (앵커 카드는 모든 INSERT 경로가 type=category='review_summary' 동시 세팅 — 값 동일).
+ *   - **fallback** → /cards/{id} (server redirect 페이지가 canonical 재계산.
+ *     getQaUrl 의 '/' fallback 대신 유지 — 편집기로는 절대 떨어지지 않음).
  */
 function publicCardUrl(row: CardRow): string {
-  if (
-    row.category === "qa" &&
-    row.doctor_slug &&
-    row.post_year &&
-    row.post_slug
-  ) {
-    return `/doctors/${row.doctor_slug}/${row.post_year}/${row.post_slug}`;
-  }
-  if (row.author_handle && row.shortcode) {
-    return `/${row.author_handle}/${row.shortcode}`;
-  }
-  return `/cards/${row.card_id}`;
+  const url = getQaUrl({
+    id: row.card_id,
+    type: row.category ?? undefined,
+    doctor: row.doctor_slug ? { slug: row.doctor_slug } : null,
+    post_year: row.post_year ?? null,
+    post_slug: row.post_slug ?? null,
+    shortcode: row.shortcode,
+    author: { handle: row.author_handle },
+  });
+  return url === "/" ? `/cards/${row.card_id}` : url;
 }
 
 type Row = VisitorRow | CardRow | NewMemberRow | NewCardRow;
