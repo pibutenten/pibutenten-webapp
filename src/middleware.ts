@@ -288,48 +288,14 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     }
   }
 
-  // ⚡ 빠른 경로 2a: 첫 가입 강제 온보딩 쿠키가 있으면 무조건 /onboarding으로
-  //   supabase 호출 없이 즉시 redirect — fast path 우선
-  const mustOnboardCookie = request.cookies.get(MUST_ONBOARD_COOKIE)?.value;
-  if (mustOnboardCookie) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
-  }
-
-  // ⚡ 빠른 경로 2b: onboarded 쿠키가 있으면 supabase 호출 없이 통과
-  //   (로그아웃 시 쿠키 expire되도록 별도 처리는 supabase logout이 onboarded 쿠키도 삭제할 때만 필요)
-  //
-  // B-2 (2026-05-29 / POLICY-1): active 명함 단위로 매칭.
-  //   IDENTITY_COOKIE 가 UUID (active 명함 명시) 이고 ONBOARDED_COOKIE 가 그 UUID 와 다르면
-  //   active 가 바뀌었다는 신호 → fast path 통과 X, 슬로 path 로 검사.
-  //   IDENTITY_COOKIE 가 없거나 옛 "primary" 면 옛 사용자 → 쿠키 있으면 그냥 통과.
-  const onboardedCookie = request.cookies.get(ONBOARDED_COOKIE)?.value;
-  const idCookieRaw = request.cookies.get(IDENTITY_COOKIE)?.value ?? null;
-  const activeIdHint =
-    idCookieRaw && idCookieRaw !== "primary" && UUID_RE.test(idCookieRaw)
-      ? idCookieRaw
-      : null;
-  if (onboardedCookie) {
-    if (!activeIdHint || onboardedCookie === activeIdHint) {
-      return response;
-    }
-    // active 가 다른 명함으로 바뀜 → 슬로 path 에서 active 단위 재검사.
-  }
-
-  // ⚡ 빠른 경로 2c: 존재하지 않는 회원 핸들 → 실제 404 (소프트 404 차단, 2026-07-05).
-  //   /{handle}(단일 세그먼트)은 [handle]/page.tsx 로 매칭되는데, 이 페이지도 스트리밍 경계
-  //     아래에서 notFound() 를 부르므로 소프트 404(200)가 된다. 존재 검사를 미들웨어로 끌어올린다.
-  //
-  //   위치: onboarded 쿠키 빠른 경로(2b) '이후'. 온보딩 완료 회원(쿠키 보유)은 2b 에서 통과되어
-  //     이 블록을 타지 않으므로 유효 핸들 방문에 DB 조회가 붙지 않는다(핫패스 비용 0). SEO 대상인
-  //     크롤러·비로그인은 쿠키가 없어 2a/2b 를 지나 이 블록에 도달 → 미존재면 실제 404 를 받는다.
-  //   오탐 방지: RESERVED_FIRST_SEGMENT(라우팅 분류 SSOT)에 있는 실제 최상위 라우트(/about,
-  //     /doctors, /terms, /login, /reports … 및 홈 /)는 건너뛴다 — DB 조회 0, 회귀 0.
-  //     실제 라우트가 아닌 단일 세그먼트만 후보. page.tsx 의 핸들 정규식과 동일 형식 게이트 →
-  //     형식 부적합(예: feed.xml — '.' 포함)은 조회 없이 404.
-  //   유효 판정: doctors.slug 또는 profiles.handle 중 하나라도 존재하면 통과([handle]/page.tsx 가
-  //     의사 slug 는 /doctors 로 308, 회원 handle 은 프로필 렌더 — 둘 다 없을 때만 notFound()).
-  //     (anon 은 명시 컬럼 SELECT — id·slug — 는 column GRANT 로 가능. table-wide SELECT 만 REVOKE.)
-  //   fail-open: 조회 예외·에러 시 404 로 단정하지 않고 통과(유효 핸들을 일시 오류로 오404 차단).
+  // ⚡ 빠른 경로: 존재하지 않는 회원 핸들 → 실제 404 (소프트 404 차단, 2026-07-05; 로그인 회원 포함 정정).
+  //   /{handle}(단일 세그먼트)은 스트리밍 경계 아래 notFound() 라 소프트 404(200)가 되므로, 존재
+  //     검사를 렌더 이전(미들웨어)으로 끌어올린다. 위치는 온보딩 fast-path(2a/2b) '이전' — 라우팅
+  //     존재판정은 로그인·온보딩과 무관하므로 비로그인·크롤러 + 로그인 회원 모두에 동일 적용된다
+  //     (종전엔 2b 뒤라 온보딩 완료 회원은 건너뛰어 소프트 404 가 남던 것을 재검수 지적으로 정정).
+  //   비용: 단일 세그먼트 비예약 경로(회원 프로필 방문·오타)에만 doctors.slug/profiles.handle 조회.
+  //     RESERVED_FIRST_SEGMENT(라우팅 SSOT) 실제 라우트·홈은 조회 없이 통과, 형식 부적합은 조회 없이 404.
+  //     유효 핸들이면 통과(2a/2b/슬로패스로 이어짐), fail-open(조회 예외 시 통과 — 유효 핸들 오404 차단).
   if (method === "GET" || method === "HEAD") {
     const seg = path.split("/").filter(Boolean);
     if (seg.length === 1) {
@@ -365,6 +331,33 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         }
       }
     }
+  }
+
+  // ⚡ 빠른 경로 2a: 첫 가입 강제 온보딩 쿠키가 있으면 무조건 /onboarding으로
+  //   supabase 호출 없이 즉시 redirect — fast path 우선
+  const mustOnboardCookie = request.cookies.get(MUST_ONBOARD_COOKIE)?.value;
+  if (mustOnboardCookie) {
+    return NextResponse.redirect(new URL("/onboarding", request.url));
+  }
+
+  // ⚡ 빠른 경로 2b: onboarded 쿠키가 있으면 supabase 호출 없이 통과
+  //   (로그아웃 시 쿠키 expire되도록 별도 처리는 supabase logout이 onboarded 쿠키도 삭제할 때만 필요)
+  //
+  // B-2 (2026-05-29 / POLICY-1): active 명함 단위로 매칭.
+  //   IDENTITY_COOKIE 가 UUID (active 명함 명시) 이고 ONBOARDED_COOKIE 가 그 UUID 와 다르면
+  //   active 가 바뀌었다는 신호 → fast path 통과 X, 슬로 path 로 검사.
+  //   IDENTITY_COOKIE 가 없거나 옛 "primary" 면 옛 사용자 → 쿠키 있으면 그냥 통과.
+  const onboardedCookie = request.cookies.get(ONBOARDED_COOKIE)?.value;
+  const idCookieRaw = request.cookies.get(IDENTITY_COOKIE)?.value ?? null;
+  const activeIdHint =
+    idCookieRaw && idCookieRaw !== "primary" && UUID_RE.test(idCookieRaw)
+      ? idCookieRaw
+      : null;
+  if (onboardedCookie) {
+    if (!activeIdHint || onboardedCookie === activeIdHint) {
+      return response;
+    }
+    // active 가 다른 명함으로 바뀜 → 슬로 path 에서 active 단위 재검사.
   }
 
   // 위 fast path를 못 통과하면 supabase로 검증

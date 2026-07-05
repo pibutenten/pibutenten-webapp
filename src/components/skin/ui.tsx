@@ -804,6 +804,10 @@ export function PostCardMenu({
         );
       }
       onDeleted();
+      // 삭제 성공 후 서버 컴포넌트 재요청 — 프로필 "내 후기 N"·"작성 글 N" 등 서버 prop 카운트를
+      //   즉시 갱신(종전엔 카드만 onDeleted 로 사라지고 카운트는 새로고침 전까지 stale — 재검수 지적).
+      //   숨김(performHide)·구 Card.tsx 삭제와 동일 패턴.
+      router.refresh();
     } catch {
       // R2-3 (2026-07-04): 네트워크 예외 등 — 운영 Card.performDelete 와 동일하게 danger 토스트.
       //   onDeleted()·CARD_DELETED 미발사라 카드 목록 상태는 불변(확인 다이얼로그 유지 → 재시도 가능).

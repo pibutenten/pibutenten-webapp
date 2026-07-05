@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { getDoctorPhoto, getDoctorTheme } from "@/lib/doctor-theme";
 
@@ -24,6 +25,8 @@ export default function CardAvatar({
   const photo = doctorSlug ? getDoctorPhoto(doctorSlug) : null;
   const isDoctor = !!doctorSlug && !!photo;
   const src = isDoctor ? photo : memberAvatarUrl ?? null;
+  // OAuth 아바타(카카오 CDN 등)가 403·깨짐이면 기본 아이콘(👤)으로 폴백 — onError 로 감지.
+  const [imgError, setImgError] = useState(false);
 
   // next/image 최적화 적용 여부 판별.
   //  - 원장 사진(isDoctor): /doctors/{slug}.png 로컬 정적 자산 → 항상 최적화.
@@ -46,7 +49,7 @@ export default function CardAvatar({
         boxShadow: isDoctor ? `inset 0 0 0 2px ${theme?.bgSoft ?? "var(--bg-soft)"}` : undefined,
       }}
     >
-      {src ? (
+      {src && !imgError ? (
         <Image
           src={src}
           alt={name ?? ""}
@@ -54,6 +57,7 @@ export default function CardAvatar({
           sizes={`${size}px`}
           className="object-cover"
           unoptimized={!canOptimize}
+          onError={() => setImgError(true)}
           style={
             isDoctor
               ? { objectPosition: "50% 12%", transform: `translate(${avatarTx}px, ${avatarTy}px) scale(1.18)`, transformOrigin: "50% 30%" }
