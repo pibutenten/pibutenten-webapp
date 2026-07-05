@@ -44,6 +44,8 @@ export default async function AboutPage() {
   const { data: doctors } = await supabase
     .from("doctors")
     .select("slug, name, title")
+    // 미공개(is_listed=false) 원장은 schema member 에서 제외 (마이그 0341).
+    .eq("is_listed", true)
     .order("sort_order", { ascending: true })
     .returns<DoctorRef[]>();
 

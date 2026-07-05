@@ -11,6 +11,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CLINIC_BRANCHES } from "@/lib/clinic-branches";
 
 type Props = {
   sourceProfileId: string;
@@ -30,6 +31,10 @@ export default function CreateDoctorProfileForm({
   const [clinic, setClinic] = useState("");
   const [branch, setBranch] = useState("");
   const [title, setTitle] = useState("");
+  // 근무 지점(clinic_id). "" = 미지정. 선택 시 branch 텍스트도 자동 채움.
+  const [clinicId, setClinicId] = useState<string>("");
+  // 공개 여부(is_listed). 기본 off — 신규 원장은 비공개 기본.
+  const [isListed, setIsListed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ handle: string; slug: string } | null>(
@@ -64,6 +69,8 @@ export default function CreateDoctorProfileForm({
             clinic: clinic.trim() || undefined,
             branch: branch.trim() || undefined,
             title: title.trim() || undefined,
+            clinic_id: clinicId ? Number(clinicId) : undefined,
+            is_listed: isListed,
           }),
         },
       );
@@ -159,15 +166,43 @@ export default function CreateDoctorProfileForm({
                 className="w-full rounded-md border border-[var(--border)] px-2.5 py-1.5 text-sm"
               />
             </Field>
-            <Field label="지점">
-              <input
-                value={branch}
-                onChange={(e) => setBranch(e.target.value)}
-                placeholder="예: 강남점"
-                className="w-full rounded-md border border-[var(--border)] px-2.5 py-1.5 text-sm"
-              />
+            <Field
+              label="근무 지점"
+              hint="선택 시 근무지 코드(clinic_id)와 지점명이 함께 저장됩니다."
+            >
+              <select
+                value={clinicId}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setClinicId(v);
+                  // 지점 선택 시 아래 지점명 텍스트도 자동으로 해당 지점명으로 채움.
+                  const found = CLINIC_BRANCHES.find(
+                    (b) => String(b.clinicId) === v,
+                  );
+                  if (found) setBranch(found.branch);
+                }}
+                className="w-full rounded-md border border-[var(--border)] bg-white px-2.5 py-1.5 text-sm"
+              >
+                <option value="">지점 미지정</option>
+                {CLINIC_BRANCHES.map((b) => (
+                  <option key={b.clinicId} value={b.clinicId}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
             </Field>
           </div>
+          <Field
+            label="지점명(표시용)"
+            hint="화면 표시용 지점명. 위에서 근무 지점을 고르면 자동으로 채워집니다."
+          >
+            <input
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              placeholder="예: 강남점"
+              className="w-full rounded-md border border-[var(--border)] px-2.5 py-1.5 text-sm"
+            />
+          </Field>
           <Field label="직함" hint="비우면 '피부과 전문의'">
             <input
               value={title}
@@ -176,6 +211,21 @@ export default function CreateDoctorProfileForm({
               className="w-full rounded-md border border-[var(--border)] px-2.5 py-1.5 text-sm"
             />
           </Field>
+
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={isListed}
+              onChange={(e) => setIsListed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
+            />
+            <span className="text-xs text-[var(--text)]">
+              공개(전문의 페이지 노출)
+              <span className="mt-0.5 block text-[11px] text-[var(--text-muted)]">
+                기본은 비공개입니다. 프로필을 채운 뒤 공개로 전환하는 것을 권장합니다.
+              </span>
+            </span>
+          </label>
 
           {error && (
             <p className="rounded bg-red-50 px-2 py-1.5 text-xs text-red-700">

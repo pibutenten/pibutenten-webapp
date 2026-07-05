@@ -35,12 +35,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
   const { data: doctor } = await supabase
     .from("doctors")
-    .select("name, title, clinic, intro")
+    .select("name, title, clinic, intro, is_listed")
     .eq("slug", slug)
     .maybeSingle()
-    .returns<{ name: string; title: string; clinic: string; intro: string | null }>();
+    .returns<{ name: string; title: string; clinic: string; intro: string | null; is_listed: boolean }>();
   // not-found 케이스 — soft-404 색인 차단 보강 ([handle] 패턴과 동일, 크롤러 noindex).
-  if (!doctor)
+  //   미공개(is_listed=false) 원장도 '없는 페이지'로 취급 → 동일 noindex 메타(상세는 notFound, 마이그 0341).
+  if (!doctor || !doctor.is_listed)
     return {
       title: "찾을 수 없는 전문의",
       robots: { index: false, follow: false },
@@ -75,6 +76,7 @@ type Doctor = {
   clinic: string;
   branch: string | null;
   intro: string | null;
+  is_listed: boolean;
   profile_data: unknown; // JSONB → DoctorProfileData
 };
 
@@ -84,12 +86,13 @@ export default async function DoctorDetailPage({ params }: Props) {
 
   const { data: doctor } = await supabase
     .from("doctors")
-    .select("id, slug, name, title, clinic, branch, intro, profile_data")
+    .select("id, slug, name, title, clinic, branch, intro, is_listed, profile_data")
     .eq("slug", slug)
     .maybeSingle()
     .returns<Doctor>();
 
-  if (!doctor) notFound();
+  // 미공개(is_listed=false) 원장 = '없는 페이지' → 상세도 404 (부분 비공개 아님, 마이그 0341).
+  if (!doctor || !doctor.is_listed) notFound();
   const profile: DoctorProfileData = asDoctorProfileData(doctor.profile_data);
 
   // 의사 명함(profile) id — 팔로우 대상. doctors 표엔 없어 profiles.doctor_id(1:1)로 조회.

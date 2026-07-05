@@ -207,6 +207,7 @@ export default async function HandleProfilePage({ params }: Props) {
     .from("doctors")
     .select("slug")
     .eq("slug", handle)
+    .eq("is_listed", true) // 미공개 원장 slug 는 리다이렉트 대상에서도 제외(정정 §E-H2, 미들웨어와 일관)
     .maybeSingle();
   if (doctorMatch) redirect(`/doctors/${handle}`);
 

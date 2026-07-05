@@ -97,7 +97,7 @@ export async function resolveActiveIdentity(
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, handle, display_name, avatar_url, role, auth_user_id, terms_agreed_at, doctor_id",
+      "id, handle, display_name, avatar_url, role, auth_user_id, terms_agreed_at, doctor_id, clinic_id",
     )
     .eq("id", targetProfileId)
     .maybeSingle();
@@ -133,6 +133,7 @@ export async function resolveActiveIdentity(
     avatarUrl: (profile.avatar_url as string | null) ?? null,
     role,
     doctorId,
+    clinicId: (profile.clinic_id as number | null) ?? null,
     birthdate,
     termsAgreedAt: (profile.terms_agreed_at as string | null) ?? null,
   };

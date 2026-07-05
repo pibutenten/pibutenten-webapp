@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { IDENTITY_COOKIE, UUID_RE, HANDLE_RE } from "@/lib/identity-shared";
+import { IDENTITY_COOKIE, UUID_RE, HANDLE_RE, ROLES } from "@/lib/identity-shared";
 import { RESERVED_FIRST_SEGMENT } from "@/lib/route-class";
 import { notFoundHtmlResponse } from "@/lib/not-found-response";
 
@@ -318,7 +318,14 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         );
         try {
           const [doctorRes, profileRes] = await Promise.all([
-            sb.from("doctors").select("slug").eq("slug", handle).maybeSingle(),
+            // 미공개(is_listed=false) 원장 slug 는 존재검사에서 미존재로 판정 → /{slug} 직접 진입 시
+            //   실제 404(상세 404 와 일관, 마이그 0341). is_listed 필터로 미공개 원장을 걸러낸다.
+            sb
+              .from("doctors")
+              .select("slug")
+              .eq("slug", handle)
+              .eq("is_listed", true)
+              .maybeSingle(),
             sb.from("profiles").select("id").eq("handle", handle).maybeSingle(),
           ]);
           const errored = !!doctorRes.error || !!profileRes.error;
@@ -417,13 +424,13 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // H-1 (2026-07-04 Phase 1-B): birthdate 는 PII REVOKE 대상이라 여기서 직접 SELECT 하지
   //   않는다. terms_agreed_at·auth_user_id 는 비-PII 라 그대로 조회하고, 온보딩 게이트용
   //   birthdate 는 아래 get_onboarding_gate RPC(본인 전용)로 별도 조회한다.
-  let profile: { id: string; terms_agreed_at: string | null } | null = null;
+  let profile: { id: string; terms_agreed_at: string | null; role: string | null } | null = null;
   try {
     // 1차: candidate 가 묶음 안인지 검증 + 비-PII 동시 조회.
     //   candidate == user.id (base) 면 자동 매칭. 다른 UUID 면 auth_user_id == user.id 검증.
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, terms_agreed_at, auth_user_id")
+      .select("id, terms_agreed_at, auth_user_id, role")
       .eq("id", candidateId)
       .maybeSingle();
     if (error) {
@@ -432,7 +439,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       return response;
     }
     const row = data as
-      | { id: string; terms_agreed_at: string | null; auth_user_id: string | null }
+      | { id: string; terms_agreed_at: string | null; auth_user_id: string | null; role: string | null }
       | null;
     // 묶음 검증: candidate 가 base 와 같거나, auth_user_id 가 user.id 와 같으면 본인 묶음.
     const inBundle =
@@ -441,6 +448,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       profile = {
         id: row.id,
         terms_agreed_at: row.terms_agreed_at,
+        role: row.role,
       };
     }
   } catch (e) {
@@ -453,10 +461,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     try {
       const { data } = await supabase
         .from("profiles")
-        .select("id, terms_agreed_at")
+        .select("id, terms_agreed_at, role")
         .eq("id", user.id)
         .maybeSingle();
-      profile = data as { id: string; terms_agreed_at: string | null } | null;
+      profile = data as { id: string; terms_agreed_at: string | null; role: string | null } | null;
     } catch (e) {
       console.warn("[middleware] base fallback select exception:", e);
       return response;
@@ -466,9 +474,24 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // profile row 자체가 없으면 (handle_new_user 트리거 미적용 등) 가드 스킵
   if (!profile) return response;
 
-  // 약관 미동의 → /signup
+  // 약관 미동의 → /signup (병원 계정도 약관은 필요 — auth/callback 과 대칭)
   if (!profile.terms_agreed_at) {
     return NextResponse.redirect(new URL("/signup", request.url));
+  }
+
+  // 병원 계정(role='clinic') 조기 통과: 약관은 위 게이트에서 통과, birthdate 온보딩 게이트만 면제한다
+  //   (병원 계정은 birthdate 가 없어 아래 get_onboarding_gate 게이트에 갇힘). auth/callback 과 대칭
+  //   (둘 다 약관 필요·birthdate 면제 — 검수 정정). onboarded 쿠키 set 로 다음 진입부터 fast path
+  //   재검사 회피(값=명함 id, active 단위 정합).
+  if (profile.role === ROLES.CLINIC) {
+    response.cookies.set(ONBOARDED_COOKIE, profile.id, {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 12,
+    });
+    return response;
   }
 
   // 온보딩 강제 게이트 활성화 (2026-05-16 — 중복 가입자 식별 위해 모든 사용자 강제):

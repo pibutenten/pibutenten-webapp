@@ -37,12 +37,17 @@
 - 본인 글의 SEO URL: `/doctors/{slug}/{year}/{post-slug}`
 - 같은 사람이 의사 역할 profile + 일반 회원 역할 profile 두 신분으로 동등하게 활동 가능 (같은 auth_user_id 묶음, 위계 없음, ADR 0001)
 - 카테고리: `qa` (Q&A) 추가 작성 권한 (의사·관리자 전용, 인덱싱)
+- **원장 3토글 모델 (2026-07-05)**: 소속·재직·공개를 독립 관리 — `clinic_id`(근무 지점, 건보 심평원 코드 참조·불변) · `is_affiliated`(재직 여부, 퇴사 시 off) · `is_listed`(공개 페이지 on/off, 퇴사와 독립). **미공개(`is_listed=false`) 원장은 공개 표면 전체에서 실제 404**. 관리자 신설 화면(`PUT /api/admin/doctors/[slug]/settings`)에서 지점·공개·slug(미공개 시에만 변경) 관리.
 
 ### 3.3. 관리자 (admin)
 - 운영 전반: 카드/댓글/회원 관리, AI 글 초안 생성, KPI 대시보드
 - AI 글 초안 워크플로 (`/admin/draft`): YouTube → 검수 → 발행
 - 보안·신고 처리, 콘텐츠 자동 검수 결과 대응
 - **태그 관리 (`/admin/tags`)**: 태그 사전(`tag_dictionary`, 단일 SSOT) 인라인 편집(분류·영문 slug·부모·시술 후기·온보딩)·개명·병합·사용량/검색량 조회. 동의어·정규화·자동태깅 추천은 DB 사전 기반(§4.x, TECH_SPEC §6.9)
+
+### 3.4. 병원 계정 (clinic — 백엔드 토대, 프론트 후속)
+- 제휴 지점이 회원 시술기록을 **대행 입력**(동의 기반)하는 계정 유형. `role='clinic'` 명함(소속 `clinic_id`), 병원↔회원 비귀속 다대다 연결(`clinic_member_links`), 병원명 비노출·알림 동의 원칙. 상세 계획 SSOT: `docs/plans/260704 병원계정 시술기록 대행입력 계획.md`.
+- **현재 상태 = 백엔드 토대만**(마이그 0342~0347 + 코드 배선). 병원 대시보드·동의 화면·대행입력 RPC(0345)·DiaryForm 병원 모드는 **후속 프론트 단계** — clinic 코드는 호출부가 없어 현재 inert-safe.
 
 ---
 
@@ -146,8 +151,8 @@
 - 상세 보안 정책: `SECURITY.md`
 
 ### 5.2. 개인정보보호 (PIPA)
-- 탈퇴 시 **작성자 profile PII** in-place 익명화 + auth 계정 삭제 (네이버 카페식: 작성 콘텐츠 본문 보존, 작성자만 '(탈퇴한 사용자)' 표시. ADR 0002)
-- profiles 컬럼 권한 화이트리스트 — PII 8개 컬럼(birthdate·gender·contact_email·face_shape·skin_type·skin_concerns·interested_procedures·fitzpatrick)은 anon·authenticated 모두 SELECT 차단 (anon 은 동의 메타 컬럼도 추가 차단). 본인·관리자 PII 조회는 SECURITY DEFINER RPC 경유 (마이그 0122/0123/0325/0334/0335)
+- 탈퇴 시 **작성자 profile PII** in-place 익명화 + auth 계정 삭제 (네이버 카페식: 작성 콘텐츠 본문 보존, 작성자만 '(탈퇴한 사용자)' 표시. ADR 0002). 병원 대행 도입 후 익명화가 `legal_name` + `clinic_member_links` 회원 유래 PII 스냅샷도 함께 파기(마이그 0347). `registration_number`(병원 내부 챠트번호)는 개인 단독 식별자가 아니고 병원 진료기록 보존 의무 대상이라 존치.
+- profiles 컬럼 권한 화이트리스트 — PII 8개 컬럼(birthdate·gender·contact_email·face_shape·skin_type·skin_concerns·interested_procedures·fitzpatrick) + `legal_name`(0342, 선택 복원용 실명)은 anon·authenticated 모두 SELECT 차단 (anon 은 동의 메타 컬럼도 추가 차단). 본인·관리자 PII 조회는 SECURITY DEFINER RPC 경유 (마이그 0122/0123/0325/0334/0335). 비-PII `clinic_id` 는 authenticated SELECT 허용(0348)
 - 처리방침 국외이전 표 명시 (Supabase/Vercel/Anthropic/Google/Web Push/PubMed)
 - 30일 임시조치 절차 (정통망법 §44조의2)
 

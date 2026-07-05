@@ -56,11 +56,14 @@ export async function GET() {
   //   참고문헌 전체 텍스트는 카드 단일 페이지에서만 노출 (JSON-LD citation 포함).
   const { data: cards } = await supabase
     .from("cards")
+    // 미공개(is_listed=false) 원장 글은 RSS 에서 제외 — 상세가 404 이므로 (마이그 0341).
+    //   nested doctors 조인에 !inner + is_listed 필터로 미공개 원장 콘텐츠 배제.
     .select(
-      "id, title, body, created_at, reviewed_at, post_year, post_slug, doctor_id, doctor:doctors(slug,name)",
+      "id, title, body, created_at, reviewed_at, post_year, post_slug, doctor_id, doctor:doctors!inner(slug,name,is_listed)",
     )
     .eq("status", "published")
     .eq("category", "qa")
+    .eq("doctor.is_listed", true)
     .not("doctor_id", "is", null)
     .order("created_at", { ascending: false })
     .limit(50);

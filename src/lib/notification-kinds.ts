@@ -15,7 +15,9 @@ export type NotificationKind =
   | "report"
   | "keyword"
   | "follow_post"
-  | "diary_reminder";
+  | "diary_reminder"
+  | "clinic_link_request"
+  | "clinic_visit_added";
 
 export const NOTIFICATION_KINDS: NotificationKind[] = [
   "comment",
@@ -28,6 +30,8 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
   "keyword",
   "follow_post",
   "diary_reminder",
+  "clinic_link_request",
+  "clinic_visit_added",
 ];
 
 /** 종 dropdown (NotificationsBell) — 이모지 + 한 단어. 짧고 시각적. */
@@ -42,6 +46,8 @@ export const KIND_SHORT_LABEL: Record<NotificationKind, string> = {
   keyword: "🏷️ 관심",
   follow_post: "✨ 새 글",
   diary_reminder: "📔 후기 리마인드",
+  clinic_link_request: "🏥 병원 연결",
+  clinic_visit_added: "📋 새 시술노트",
 };
 
 /** /notifications 페이지 (NotificationsClient) — 한 문장 풀 설명. */
@@ -56,6 +62,8 @@ export const KIND_LONG_LABEL: Record<NotificationKind, string> = {
   keyword: "관심 주제에 새 글이 올라왔어요",
   follow_post: "새 글을 올렸어요",
   diary_reminder: "시술 후기를 남겨보세요",
+  clinic_link_request: "병원이 시술노트 연결을 요청했어요",
+  clinic_visit_added: "새 시술노트가 도착했어요",
 };
 
 /** 아이콘만 따로 — NotificationsClient timeline. */
@@ -70,6 +78,8 @@ export const KIND_ICON: Record<NotificationKind, string> = {
   keyword: "🏷️",
   follow_post: "✨",
   diary_reminder: "📔",
+  clinic_link_request: "🏥",
+  clinic_visit_added: "📋",
 };
 
 /**
@@ -95,4 +105,7 @@ export const KIND_DISPLAY_MODE: Record<NotificationKind, NotificationDisplayMode
   follow_post: "actor",
   // 예약 후속 후기 리마인드: 본인(recipient)에게만 가는 개인 리마인드. 행위자 없음 → message 모드.
   diary_reminder: "message",
+  // 병원 연결 요청·새 시술노트: notifications.message 본문 그대로. 행위자 비노출 → message 모드.
+  clinic_link_request: "message",
+  clinic_visit_added: "message",
 };

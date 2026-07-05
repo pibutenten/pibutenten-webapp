@@ -51,10 +51,12 @@ const fetchQaCached = unstable_cache(
       const supabase = createSupabaseAnonClient();
       const { data: doctor } = await supabase
         .from("doctors")
-        .select("id")
+        .select("id, is_listed")
         .eq("slug", doctorSlug)
-        .maybeSingle();
-      if (!doctor) return null;
+        .maybeSingle()
+        .returns<{ id: string; is_listed: boolean }>();
+      // 미공개(is_listed=false) 원장 = '없는 페이지' → 글도 null 반환(호출측이 notFound 처리, 마이그 0341).
+      if (!doctor || !doctor.is_listed) return null;
       const { data } = await supabase
         .from("cards")
         .select(CARD_DETAIL_SELECT)
