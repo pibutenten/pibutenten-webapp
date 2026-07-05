@@ -6,6 +6,36 @@
 
 ---
 
+## [2026-07-05] — 병원 계정 · 시술노트 대행 (Part A + 백엔드 토대)
+
+계획 SSOT: `docs/plans/260704 병원계정 시술기록 대행입력 계획.md`. 이번 배치는 **Part A(원장 계정 개편) + Part B 백엔드 토대**까지다. 병원 프론트(대시보드·동의 화면·대행입력 RPC 0345·DiaryForm 개편)는 **후속 단계** — clinic 관련 코드는 현재 호출부가 없어 inert-safe(도입만 하고 아직 사용 안 함). 프로세스: 운영 DB 적용 → 3인 독립 코드검수(치명 2건) → 정정(0348) → 타입체크·풀빌드 통과.
+
+### Added
+- **Part A — 원장 계정 3토글 모델 (마이그 0341)** — `doctors` 에 3컬럼 신설: `clinic_id`(bigint FK→`clinics`, 건보 심평원 지점 코드 참조·불변, 시술노트 드롭다운 대상) · `is_affiliated`(재직/소속, 퇴사 시 false → 드롭다운 제외) · `is_listed`(공개 페이지 on/off, 퇴사와 독립). 기존 원장 9명은 `branch` 텍스트('강남점' 등) → `clinic_id`(건보 코드 5종) backfill(주소 교차확인). `admin_create_doctor_profile` 6→8인자 확장(`p_clinic_id`·`p_is_listed`, 기본 비공개) — 본문·검증·묶음중복·slug중복·handle생성은 0192 와 동일, doctors INSERT 절에만 신규 2컬럼 추가.
+- **Part A 관리자 UI** — `admin_create_doctor_profile` 라우트/폼에 지점·공개 입력 추가, 신설 `PUT /api/admin/doctors/[slug]/settings`(super admin 전용: `clinic_id`·`is_affiliated`·`is_listed`·`slug`[미공개 시에만 변경·공개 후 잠금]·`branch` 동기화, 23505→409), 편집폼 '운영 설정' 섹션, 목록 배지.
+- **Part A 공개 필터(`is_listed`)** — 미공개(`is_listed=false`) 원장은 공개 표면 전체에서 404: `doctors/page`·`doctors/[slug]`·`doctors/[slug]/[year]/[postSlug]`·홈 `page`·`sitemap`·`about`·`rss`·`indexnow`·`middleware`(존재검사)·`hidden-card`·`[handle]` 모두 필터 적용. 신설 `lib/clinic-branches.ts`(5지점 상수).
+- **Part B 백엔드 토대 — `role='clinic'` 병원 계정 (마이그 0342, ★enum 2-call 적용)** — `user_role` enum 에 `clinic` 추가(ADD VALUE 는 트랜잭션 밖 단독 실행 후 별 트랜잭션에서 나머지 DDL — 0152 선례). `profiles` 에 `clinic_id`(bigint FK→`clinics`, `doctor_id` 와 대칭)·`legal_name`(text, 선택 복원·PII·1~50자 CHECK) 추가. `is_clinic(p_clinic_id)` 함수(active 명함이 role='clinic'·clinic_id 일치·호출자 소유일 때만 true, 묶음 위조 차단). `reserved_handles` 에 'clinic' 추가.
+- **Part B — `diaries` 병원 대행 5컬럼 (마이그 0343)** — `source`(text CHECK member/clinic, 기본 member) · `created_by_clinic_profile_id`(uuid FK→profiles, 대행 작성 감사) · `linked_consent_at`(연결 동의 시각 스냅샷) · `next_appointment_date`(date, 재방문 리마인더) · `doctor_id`(uuid FK→doctors, 병원 모드 담당 원장). ⚠ `diaries.source`(member/clinic=작성 주체) ≠ `procedure_reviews.source`(standalone/diary_linked=후기 파생 여부) 동명 다른 도메인.
+- **Part B — `clinic_member_links` 테이블 (마이그 0344)** — 병원(지점 계정)↔회원 명함 연결(비귀속 다대다) + 병원 보유 환자 기록(동의 시 profiles 에서 1회 복사한 스냅샷 + 병원 자체 입력). `status`(pending/active/rejected/revoked), 부분 UNIQUE(`clinic_id, profile_id`) WHERE status IN(pending,active) — 병원↔회원 쌍당 미처리/유효 연결 최대 1건. RLS ENABLE + anon/authenticated REVOKE ALL(정책 0개 = 직접 접근 완전 차단, SECURITY DEFINER RPC 전용).
+- **Part B — clinic 알림 2종 (마이그 0346)** — `notifications.kind` CHECK 10→12값(`clinic_link_request`=병원 연결 요청, `clinic_visit_added`=새 시술노트 도착). `notification_preferences` 에 회원 on/off 토글 `pref_clinic_link_request`·`pref_clinic_visit_added`(기본 true). 코드 배선: `ROLES.CLINIC`, `ActiveIdentity.clinicId`, `resolveActiveIdentity` SELECT, `auth/callback` 온보딩 면제(약관은 유지), `middleware` clinic 조기통과(약관 게이트 뒤·birthdate 면제), `route-class::RESERVED_FIRST_SEGMENT`+='clinic', notification-kinds 2종(4맵)+push `KIND_TITLES`, visits role 캐스팅.
+
+### Changed
+- **탈퇴 익명화에 clinic PII 파기 추가 (마이그 0347)** — `anonymize_user_content_before_delete()` 에 `legal_name=NULL`(0342 신설) + `clinic_member_links` 회원 유래 PII 스냅샷 8필드 NULL 처리(회원 명함별 `WHERE profile_id=r.id`) 추가. 0332 본문(시그니처·의사 명함 제외·묶음 루프·멱등 필터) 100% 보존. **`registration_number`(병원 내부 챠트번호)는 파기 대상에서 제외·존치** — 근거: 그 병원 내부의 챠트 식별자일 뿐 개인 단독 식별자가 아니며(고유값 아님), 병원 진료기록 보존 의무 대상이라 회원 탈퇴로 병원 챠트번호까지 지우면 병원 측 기록 정합이 깨짐. 회원을 되짚는 PII(이름·이메일·생일·피부프로필·연락처·주소·병원입력 실명/생일)는 전량 파기.
+
+### Security
+- **3인 독립 코드검수 치명 2건 정정 (마이그 0348)** — 0341/0342 가 신규 컬럼을 추가하면서 0335(profiles authenticated 컬럼단 화이트리스트)·0190(doctors service_role UPDATE 한정) GRANT 를 확장하지 않아, 코드가 신규 컬럼을 건드리는 순간 42501 발생. **[C1]** `resolveActiveIdentity` 가 `profiles.clinic_id` 를 SELECT → authenticated 에 권한 없음 → data=null → 전 로그인 유저 401(사이트 마비). `GRANT SELECT(clinic_id) profiles→authenticated`(비-PII 지점 코드라 안전, `legal_name` 은 PII 라 미부여·차단 유지). **[C2]** admin settings 라우트가 service_role 로 `doctors.clinic_id/is_affiliated/is_listed/branch/slug` UPDATE → 권한 없음 42501. `GRANT UPDATE(...) doctors→service_role`. 부수: 0347 `GRANT EXECUTE` 재명시(관례 통일), 0344 시퀀스 방어적 REVOKE. 운영 DB 검증(정상 사용자 통과·PII 차단) 후 정정. 고위험 3건(route-class 동기화·middleware 약관 대칭·`[handle]` 필터)도 반영.
+
+### 후속(deferred, 프론트 단계)
+- 대행입력 RPC **0345**(병원의 회원 소유 `diaries` 생성 — owner=postgres SECURITY DEFINER 로 RLS 우회), 병원 대시보드·연결 동의 화면, DiaryForm 병원 모드 개편.
+- 검수 후속: 다른 라우트 role 유니온에 clinic 추가 · visits clinic 가드 · `save_my_notification_prefs` RPC+UI 확장(`pref_clinic_*` 토글) · edit 헤더 branch 표시 `getClinicBranch` 화 · slug UX 힌트 문구.
+
+### 동기화 페어 추가 필요 (루트 CLAUDE.md §5 — 이번 문서 배치에서는 미반영, 별도 확정)
+- `doctors` 3토글(`clinic_id`·`is_affiliated`·`is_listed`) ↔ 공개 필터 적용 라우트 다수(`is_listed` 검사) + `admin_create_doctor_profile`(8인자) + `PUT /api/admin/doctors/[slug]/settings`.
+- `notifications.kind` CHECK(0346 12값) ↔ `notification-kinds.ts`(4맵)·push `KIND_TITLES` ↔ `notification_preferences.pref_clinic_*` ↔ `save_my_notification_prefs` RPC/UI(프론트 단계에서 확장).
+- `clinic_member_links` PII 스냅샷 컬럼 ↔ `anonymize_user_content_before_delete()`(0347 스크럽 대상) — 스냅샷 컬럼 추가 시 스크럽 목록도 동시 갱신(`registration_number` 는 의도적 존치).
+
+---
+
 ## [2026-07-05] — 실기기 QA 개선 배치 (독립 이중검증)
 
 2026-07-05 실기기 검수 보고서(`전달용/pibutenten_QA_보고서_2026-07-05.md`) 기반. 디렉터 프로세스: 서브에이전트 병렬 구현 → 디렉터 검수 → 코드검수 서브에이전트 2인 독립 이중검증(치명 0) → 지적 반영 → 타입체크·빌드 통과.
