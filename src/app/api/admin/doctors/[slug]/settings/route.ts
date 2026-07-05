@@ -43,7 +43,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { logAudit } from "@/lib/audit-log";
-import { isValidClinicId } from "@/lib/clinic-branches";
+import { isValidClinicId, getClinicBranch } from "@/lib/clinic-branches";
 
 export const dynamic = "force-dynamic";
 
@@ -177,8 +177,15 @@ export async function PUT(
     clinic_id: number | null;
     is_affiliated: boolean;
     is_listed: boolean;
+    branch: string | null;
     slug?: string;
-  } = { clinic_id, is_affiliated, is_listed };
+  } = {
+    clinic_id,
+    is_affiliated,
+    is_listed,
+    // 레거시 branch 텍스트를 clinic_id 에 동기화(불일치·stale 노출 방지). clinic_id=null → branch=null.
+    branch: clinic_id != null ? getClinicBranch(clinic_id)?.branch ?? null : null,
+  };
   if (slugToUpdate) patch.slug = slugToUpdate;
 
   const { error: updErr } = await admin
@@ -186,6 +193,12 @@ export async function PUT(
     .update(patch)
     .eq("id", doctor.id);
   if (updErr) {
+    // slug UNIQUE(23505) 경합(TOCTOU) — 중복 확인과 UPDATE 사이 동시 요청 → 409 안내.
+    if (((updErr as { code?: string }).code ?? "") === "23505") {
+      return errorResponse(updErr, "invalid_input", "[doctor settings PUT] slug conflict (race)", 409, undefined, {
+        userMessage: "이미 사용 중인 원장 주소(slug)입니다. 다시 시도해 주세요.",
+      });
+    }
     return errorResponse(updErr, "generic", "[doctor settings PUT] update", 500, undefined, {
       userMessage: "저장에 실패했습니다.",
     });
