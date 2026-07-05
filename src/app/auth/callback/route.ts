@@ -361,10 +361,12 @@ export async function GET(request: NextRequest) {
   }
 
   // 5) 약관 동의는 했지만 추가정보(생년월일 등) 미입력 → /onboarding
-  //    일반 사용자에게만 강제 (doctor / admin은 운영용 계정이라 스킵 가능)
+  //    일반 사용자에게만 강제 (doctor / admin / clinic 은 운영용 계정이라 스킵 가능.
+  //    병원 계정은 birthdate 가 없어 온보딩에 갇히므로 role 로 면제).
   if (
     profile.role !== ROLES.DOCTOR &&
     profile.role !== ROLES.ADMIN &&
+    profile.role !== ROLES.CLINIC &&
     !profile.birthdate
   ) {
     return NextResponse.redirect(`${origin}/onboarding`);

@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     });
   }
   const user = idCtx.user;
-  const role = (idCtx.active.role ?? "user") as "admin" | "doctor" | "user";
+  const role = (idCtx.active.role ?? "user") as "admin" | "doctor" | "user" | "clinic";
 
   // 3. rate limit — 도배 방어(통합 작성은 무거우므로 분당 10회).
   const limited = await rateLimit({

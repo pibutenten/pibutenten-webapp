@@ -31,6 +31,7 @@ export const ROLES = {
   ADMIN: "admin",
   DOCTOR: "doctor",
   USER: "user",
+  CLINIC: "clinic",
 } as const;
 
 /** UUID v4 형식 검증 (8-4-4-4-12) */
@@ -79,10 +80,12 @@ export type ActiveIdentity = {
   handle: string;
   displayName: string;
   avatarUrl: string | null;
-  /** 'admin' | 'doctor' | 'user' */
+  /** 'admin' | 'doctor' | 'user' | 'clinic' */
   role: string;
   /** doctor_accounts 매핑 (없으면 null) */
   doctorId: string | null;
+  /** profiles.clinic_id (bigint=number). 병원 계정만 값, 그 외 null. doctor_id(uuid)와 구분. */
+  clinicId: number | null;
   /** 온보딩 게이트 — 미입력이면 null. resolveActiveIdentity 가 같은 SELECT 에서 동시 조회 (별도 쿼리 없음). */
   birthdate: string | null;
   termsAgreedAt: string | null;

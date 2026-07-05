@@ -109,6 +109,8 @@ export async function POST(req: Request) {
     keyword: "🏷️ 관심 주제 새 글",
     follow_post: "✨ 새 글",
     diary_reminder: "📔 후기 리마인드",
+    clinic_link_request: "🏥 병원 연결 요청",
+    clinic_visit_added: "📋 새 시술노트",
   };
   const title = (kind && KIND_TITLES[kind]) || "피부텐텐";
 

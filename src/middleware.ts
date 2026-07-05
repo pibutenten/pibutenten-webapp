@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { IDENTITY_COOKIE, UUID_RE, HANDLE_RE } from "@/lib/identity-shared";
+import { IDENTITY_COOKIE, UUID_RE, HANDLE_RE, ROLES } from "@/lib/identity-shared";
 import { RESERVED_FIRST_SEGMENT } from "@/lib/route-class";
 import { notFoundHtmlResponse } from "@/lib/not-found-response";
 
@@ -424,13 +424,13 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // H-1 (2026-07-04 Phase 1-B): birthdate 는 PII REVOKE 대상이라 여기서 직접 SELECT 하지
   //   않는다. terms_agreed_at·auth_user_id 는 비-PII 라 그대로 조회하고, 온보딩 게이트용
   //   birthdate 는 아래 get_onboarding_gate RPC(본인 전용)로 별도 조회한다.
-  let profile: { id: string; terms_agreed_at: string | null } | null = null;
+  let profile: { id: string; terms_agreed_at: string | null; role: string | null } | null = null;
   try {
     // 1차: candidate 가 묶음 안인지 검증 + 비-PII 동시 조회.
     //   candidate == user.id (base) 면 자동 매칭. 다른 UUID 면 auth_user_id == user.id 검증.
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, terms_agreed_at, auth_user_id")
+      .select("id, terms_agreed_at, auth_user_id, role")
       .eq("id", candidateId)
       .maybeSingle();
     if (error) {
@@ -439,7 +439,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       return response;
     }
     const row = data as
-      | { id: string; terms_agreed_at: string | null; auth_user_id: string | null }
+      | { id: string; terms_agreed_at: string | null; auth_user_id: string | null; role: string | null }
       | null;
     // 묶음 검증: candidate 가 base 와 같거나, auth_user_id 가 user.id 와 같으면 본인 묶음.
     const inBundle =
@@ -448,6 +448,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       profile = {
         id: row.id,
         terms_agreed_at: row.terms_agreed_at,
+        role: row.role,
       };
     }
   } catch (e) {
@@ -460,10 +461,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     try {
       const { data } = await supabase
         .from("profiles")
-        .select("id, terms_agreed_at")
+        .select("id, terms_agreed_at, role")
         .eq("id", user.id)
         .maybeSingle();
-      profile = data as { id: string; terms_agreed_at: string | null } | null;
+      profile = data as { id: string; terms_agreed_at: string | null; role: string | null } | null;
     } catch (e) {
       console.warn("[middleware] base fallback select exception:", e);
       return response;
@@ -472,6 +473,20 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
 
   // profile row 자체가 없으면 (handle_new_user 트리거 미적용 등) 가드 스킵
   if (!profile) return response;
+
+  // 병원 계정(role='clinic') 조기 통과: birthdate 가 없어 아래 온보딩 게이트에 갇히므로,
+  //   terms_agreed_at·birthdate 게이트보다 먼저 role 로 면제한다. onboarded 쿠키를 set 해
+  //   다음 진입부터 fast path 로 재검사를 회피한다(값=명함 id, active 단위 정합).
+  if (profile.role === ROLES.CLINIC) {
+    response.cookies.set(ONBOARDED_COOKIE, profile.id, {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 12,
+    });
+    return response;
+  }
 
   // 약관 미동의 → /signup
   if (!profile.terms_agreed_at) {
