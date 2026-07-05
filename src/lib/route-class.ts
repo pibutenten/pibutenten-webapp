@@ -20,7 +20,7 @@ import { isValidShortcode } from "@/lib/shortcode";
  *    GlobalChrome 의 RESERVED_FIRST_SEGMENT 와 동일 목록.)
  */
 export const RESERVED_FIRST_SEGMENT = new Set<string>([
-  "admin", "api", "app", "auth", "cards", "doctor", "doctors", "topics", "reports",
+  "admin", "api", "app", "auth", "cards", "clinic", "doctor", "doctors", "topics", "reports",
   "reports-new", "review", "reviews", "settings", "u", "login", "signup", "onboarding", "write",
   "today", "notes", "weather",
   "my", "shop", "notifications", "search", "debug",

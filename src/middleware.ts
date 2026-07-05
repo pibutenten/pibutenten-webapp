@@ -474,9 +474,15 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // profile row 자체가 없으면 (handle_new_user 트리거 미적용 등) 가드 스킵
   if (!profile) return response;
 
-  // 병원 계정(role='clinic') 조기 통과: birthdate 가 없어 아래 온보딩 게이트에 갇히므로,
-  //   terms_agreed_at·birthdate 게이트보다 먼저 role 로 면제한다. onboarded 쿠키를 set 해
-  //   다음 진입부터 fast path 로 재검사를 회피한다(값=명함 id, active 단위 정합).
+  // 약관 미동의 → /signup (병원 계정도 약관은 필요 — auth/callback 과 대칭)
+  if (!profile.terms_agreed_at) {
+    return NextResponse.redirect(new URL("/signup", request.url));
+  }
+
+  // 병원 계정(role='clinic') 조기 통과: 약관은 위 게이트에서 통과, birthdate 온보딩 게이트만 면제한다
+  //   (병원 계정은 birthdate 가 없어 아래 get_onboarding_gate 게이트에 갇힘). auth/callback 과 대칭
+  //   (둘 다 약관 필요·birthdate 면제 — 검수 정정). onboarded 쿠키 set 로 다음 진입부터 fast path
+  //   재검사 회피(값=명함 id, active 단위 정합).
   if (profile.role === ROLES.CLINIC) {
     response.cookies.set(ONBOARDED_COOKIE, profile.id, {
       httpOnly: false,
@@ -486,11 +492,6 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       maxAge: 60 * 60 * 12,
     });
     return response;
-  }
-
-  // 약관 미동의 → /signup
-  if (!profile.terms_agreed_at) {
-    return NextResponse.redirect(new URL("/signup", request.url));
   }
 
   // 온보딩 강제 게이트 활성화 (2026-05-16 — 중복 가입자 식별 위해 모든 사용자 강제):
