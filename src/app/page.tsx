@@ -146,7 +146,9 @@ export async function generateMetadata({
   const supabase = await createSupabaseServerClient();
   const { count } = await supabase
     .from("doctors")
-    .select("id", { count: "exact", head: true });
+    .select("id", { count: "exact", head: true })
+    // 공개 전문의 수만 집계 — 미공개(is_listed=false) 제외 (마이그 0341).
+    .eq("is_listed", true);
   const d = count ?? 0;
   const title = "피부텐텐 | 피부가 예뻐지는 모든 이야기";
   const description = `피부과 전문의 ${d}명이 리프팅·스킨부스터·안티에이징 시술 질문에 직접 답합니다. 시술별 후기 집계까지.`;

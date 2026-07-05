@@ -4,10 +4,22 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { pickErrorMessage } from "@/lib/api-error";
 import type { DoctorProfileData } from "@/lib/doctor-profile";
+import { CLINIC_BRANCHES } from "@/lib/clinic-branches";
+
+/** 원장 운영 설정 초기값 (0341: clinic_id·is_affiliated·is_listed). */
+export type DoctorSettings = {
+  clinicId: number | null;
+  isAffiliated: boolean;
+  isListed: boolean;
+};
 
 type Props = {
   slug: string;
   initial: DoctorProfileData;
+  /** super admin 에게만 '운영 설정' 섹션 노출. */
+  isSuperAdmin: boolean;
+  /** 운영 설정 초기값. */
+  settings: DoctorSettings;
 };
 
 type FormState = {
@@ -208,7 +220,12 @@ function statesEqual(a: FormState, b: FormState): boolean {
   return true;
 }
 
-export default function DoctorProfileEditForm({ slug, initial }: Props) {
+export default function DoctorProfileEditForm({
+  slug,
+  initial,
+  isSuperAdmin,
+  settings,
+}: Props) {
   const router = useRouter();
   const initialState = useMemo(() => toFormState(initial), [initial]);
   const [state, setState] = useState<FormState>(initialState);
@@ -288,6 +305,10 @@ export default function DoctorProfileEditForm({ slug, initial }: Props) {
 
   return (
     <div className="space-y-5">
+      {isSuperAdmin && (
+        <DoctorSettingsSection slug={slug} initial={settings} />
+      )}
+
       {ARRAY_FIELDS.map((field) => {
         const meta = ARRAY_LABELS[field];
         return (
@@ -431,6 +452,196 @@ export default function DoctorProfileEditForm({ slug, initial }: Props) {
           className="h-9 rounded-[var(--radius-sm)] border border-[var(--primary)] bg-[var(--primary)] px-4 text-xs font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:bg-[var(--border)] disabled:text-white"
         >
           {pending ? "저장 중…" : "저장"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 운영 설정 섹션 (super admin 전용) — 근무 지점·재직·공개·slug.
+ * PUT /api/admin/doctors/[slug]/settings 로 저장. profile_data 편집 흐름과 독립.
+ *
+ * slug 편집은 현재 미공개(is_listed=false)일 때만 활성(공개 URL 안정성 —
+ * 서버 라우트도 동일 규칙으로 재검증). 공개면 slug 입력 잠금.
+ */
+function DoctorSettingsSection({
+  slug,
+  initial,
+}: {
+  slug: string;
+  initial: DoctorSettings;
+}) {
+  const router = useRouter();
+  const [clinicId, setClinicId] = useState<string>(
+    initial.clinicId != null ? String(initial.clinicId) : "",
+  );
+  const [isAffiliated, setIsAffiliated] = useState(initial.isAffiliated);
+  const [isListed, setIsListed] = useState(initial.isListed);
+  const [slugInput, setSlugInput] = useState(slug);
+  const [pending, startTransition] = useTransition();
+  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(
+    null,
+  );
+
+  // slug 편집은 "현재(DB) 미공개" 상태에서만 허용. 화면의 isListed 토글을 아직
+  // 저장하지 않았어도 판정 기준은 초기(DB) 값 — 서버 라우트와 동일.
+  const slugEditable = !initial.isListed;
+
+  function save() {
+    setMsg(null);
+    startTransition(async () => {
+      try {
+        const body: {
+          clinic_id: number | null;
+          is_affiliated: boolean;
+          is_listed: boolean;
+          slug?: string;
+        } = {
+          clinic_id: clinicId ? Number(clinicId) : null,
+          is_affiliated: isAffiliated,
+          is_listed: isListed,
+        };
+        // slug 는 편집 가능하고 실제로 바뀐 경우에만 전송.
+        const trimmed = slugInput.trim().toLowerCase();
+        if (slugEditable && trimmed && trimmed !== slug) {
+          body.slug = trimmed;
+        }
+        const res = await fetch(
+          `/api/admin/doctors/${encodeURIComponent(slug)}/settings`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+        if (!res.ok) {
+          const j = (await res.json().catch(() => null)) as
+            | { error?: string; message?: string }
+            | null;
+          setMsg({ type: "err", text: pickErrorMessage(j, res.status) });
+          return;
+        }
+        const j = (await res.json().catch(() => null)) as
+          | { slug?: string }
+          | null;
+        setMsg({ type: "ok", text: "운영 설정을 저장했습니다." });
+        // slug 가 바뀌면 편집 URL 자체가 달라지므로 새 slug 편집 페이지로 이동.
+        if (j?.slug && j.slug !== slug) {
+          router.push(`/admin/doctors/${encodeURIComponent(j.slug)}/edit`);
+          return;
+        }
+        router.refresh();
+      } catch (e) {
+        setMsg({
+          type: "err",
+          text: e instanceof Error ? e.message : "저장 실패",
+        });
+      }
+    });
+  }
+
+  return (
+    <div className="rounded-[var(--radius)] border border-[var(--primary)]/40 bg-[var(--primary)]/5 p-5">
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h2 className="text-sm font-bold text-[var(--text)]">
+          운영 설정 (관리자 전용)
+        </h2>
+        <span className="text-[11px] text-[var(--text-muted)]">
+          소속·재직·공개·주소(slug)
+        </span>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+            근무 지점
+          </label>
+          <select
+            value={clinicId}
+            onChange={(e) => setClinicId(e.target.value)}
+            disabled={pending}
+            className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+          >
+            <option value="">지점 미지정</option>
+            {CLINIC_BRANCHES.map((b) => (
+              <option key={b.clinicId} value={b.clinicId}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={isAffiliated}
+            onChange={(e) => setIsAffiliated(e.target.checked)}
+            disabled={pending}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
+          />
+          <span className="text-xs text-[var(--text)]">
+            재직 중(소속)
+            <span className="mt-0.5 block text-[11px] text-[var(--text-muted)]">
+              끄면 퇴사 처리 — 시술노트 지점 드롭다운에서 제외됩니다.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={isListed}
+            onChange={(e) => setIsListed(e.target.checked)}
+            disabled={pending}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
+          />
+          <span className="text-xs text-[var(--text)]">
+            공개(전문의 페이지 노출)
+            <span className="mt-0.5 block text-[11px] text-[var(--text-muted)]">
+              공개 후에는 주소(slug)를 변경할 수 없습니다(URL 안정성).
+            </span>
+          </span>
+        </label>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+            원장 주소 (slug)
+          </label>
+          <input
+            type="text"
+            value={slugInput}
+            onChange={(e) => setSlugInput(e.target.value)}
+            disabled={pending || !slugEditable}
+            placeholder="예: hong-gildong"
+            className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none disabled:cursor-not-allowed disabled:bg-[var(--bg-soft)] disabled:opacity-70"
+          />
+          <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+            {slugEditable
+              ? "SEO URL /doctors/{slug}/... 에 쓰입니다. 소문자·숫자·하이픈만."
+              : "공개 상태라 주소가 잠겨 있습니다. 비공개로 전환·저장한 뒤 변경하세요."}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-end gap-2">
+        {msg && (
+          <span
+            className={
+              "mr-auto text-xs " +
+              (msg.type === "ok" ? "text-emerald-700" : "text-red-600")
+            }
+          >
+            {msg.text}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={save}
+          disabled={pending}
+          className="h-9 rounded-[var(--radius-sm)] border border-[var(--primary)] bg-[var(--primary)] px-4 text-xs font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {pending ? "저장 중…" : "운영 설정 저장"}
         </button>
       </div>
     </div>

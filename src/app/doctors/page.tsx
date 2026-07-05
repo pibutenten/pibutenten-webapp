@@ -45,6 +45,8 @@ export default async function DoctorsPage() {
     .select(
       "id, slug, name, title, clinic, branch, photo_url, intro, sort_order",
     )
+    // 미공개(is_listed=false) 원장은 목록에서 제외 (마이그 0341, 원장 공개 필터).
+    .eq("is_listed", true)
     .order("sort_order", { ascending: true })
     .returns<Doctor[]>();
 

@@ -7,6 +7,7 @@ import {
   asDoctorProfileData,
   type DoctorProfileData,
 } from "@/lib/doctor-profile";
+import { getClinicBranch } from "@/lib/clinic-branches";
 import AdminDoctorsView from "./AdminDoctorsView";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,9 @@ type DoctorRow = {
   title: string | null;
   clinic: string | null;
   branch: string | null;
+  clinic_id: number | null;
+  is_affiliated: boolean;
+  is_listed: boolean;
   profile_data: unknown;
 };
 
@@ -45,7 +49,9 @@ export default async function AdminDoctorsPage() {
 
   const { data: doctors } = await supabase
     .from("doctors")
-    .select("id, slug, name, title, clinic, branch, profile_data")
+    .select(
+      "id, slug, name, title, clinic, branch, clinic_id, is_affiliated, is_listed, profile_data",
+    )
     .order("name", { ascending: true })
     .returns<DoctorRow[]>();
 
@@ -73,6 +79,7 @@ export default async function AdminDoctorsPage() {
           {doctors.map((d) => {
             const profile = asDoctorProfileData(d.profile_data);
             const filled = isProfileFilled(profile);
+            const branchInfo = getClinicBranch(d.clinic_id);
             return (
               <div
                 key={d.id}
@@ -110,11 +117,48 @@ export default async function AdminDoctorsPage() {
                         {d.title}
                       </p>
                     )}
-                    {(d.clinic || d.branch) && (
+                    {(d.clinic || branchInfo?.branch || d.branch) && (
                       <p className="mt-0.5 truncate text-[11px] text-[var(--ink-300)]">
-                        {[d.clinic, d.branch].filter(Boolean).join(" · ")}
+                        {[d.clinic, branchInfo?.branch ?? d.branch]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
                     )}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                      <span
+                        className={
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " +
+                          (branchInfo
+                            ? "bg-[var(--tt-blue-tint)] text-[var(--tt-blue-deep)]"
+                            : "bg-[var(--bg-soft)] text-[var(--ink-300)]")
+                        }
+                        title="근무 지점"
+                      >
+                        {branchInfo ? branchInfo.branch : "지점 미지정"}
+                      </span>
+                      <span
+                        className={
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " +
+                          (d.is_affiliated
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-[var(--bg-soft)] text-[var(--ink-300)]")
+                        }
+                        title={d.is_affiliated ? "재직 중" : "퇴사(비재직)"}
+                      >
+                        {d.is_affiliated ? "재직" : "퇴사"}
+                      </span>
+                      <span
+                        className={
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium " +
+                          (d.is_listed
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-[var(--bg-soft)] text-[var(--ink-300)]")
+                        }
+                        title={d.is_listed ? "공개(페이지 노출)" : "비공개"}
+                      >
+                        {d.is_listed ? "공개" : "비공개"}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="mt-4 flex items-center justify-end">

@@ -24,6 +24,7 @@ import { requireAdmin } from "@/lib/admin-guard";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
 import { logAudit } from "@/lib/audit-log";
+import { isValidClinicId } from "@/lib/clinic-branches";
 
 export const dynamic = "force-dynamic";
 
@@ -47,8 +48,16 @@ const BodySchema = z
     clinic: z.string().trim().max(100).optional(),
     branch: z.string().trim().max(100).optional(),
     title: z.string().trim().max(100).optional(),
+    // 근무 지점(건보 clinics 코드). 5지점 화이트리스트 값만 아래 refine 에서 통과.
+    clinic_id: z.number().int().optional(),
+    // 공개 여부 (doctors.is_listed). 미지정 시 RPC 기본값(false = 비공개).
+    is_listed: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (v) => v.clinic_id === undefined || isValidClinicId(v.clinic_id),
+    { path: ["clinic_id"], message: "허용되지 않은 지점입니다." },
+  );
 
 /** RPC 가 RAISE 하는 메시지 → 사용자 친화 응답 매핑. */
 function mapRpcError(msg: string): { status: number; userMessage: string } {
@@ -108,7 +117,7 @@ export async function POST(
         "원장 주소(slug)는 소문자·숫자·하이픈만, 이름은 필수입니다.",
     });
   }
-  const { slug, name, clinic, branch, title } = parsed.data;
+  const { slug, name, clinic, branch, title, clinic_id, is_listed } = parsed.data;
 
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin.rpc("admin_create_doctor_profile", {
@@ -118,6 +127,8 @@ export async function POST(
     p_clinic: clinic ?? null,
     p_branch: branch ?? null,
     p_title: title ?? null,
+    p_clinic_id: clinic_id ?? null,
+    p_is_listed: is_listed ?? false,
   });
 
   if (error) {
@@ -147,6 +158,8 @@ export async function POST(
       newDoctorId: result.doctor_id ?? null,
       newHandle: result.handle ?? null,
       slug: result.slug ?? slug,
+      clinicId: clinic_id ?? null,
+      isListed: is_listed ?? false,
     },
   });
 

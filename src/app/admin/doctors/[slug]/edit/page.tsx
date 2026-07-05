@@ -22,6 +22,9 @@ type DoctorRow = {
   title: string | null;
   clinic: string | null;
   branch: string | null;
+  clinic_id: number | null;
+  is_affiliated: boolean;
+  is_listed: boolean;
   profile_data: unknown;
 };
 
@@ -37,7 +40,9 @@ export default async function AdminDoctorEditPage({ params }: Props) {
 
   const { data: doctor } = await supabase
     .from("doctors")
-    .select("id, slug, name, title, clinic, branch, profile_data")
+    .select(
+      "id, slug, name, title, clinic, branch, clinic_id, is_affiliated, is_listed, profile_data",
+    )
     .eq("slug", slug)
     .maybeSingle()
     .returns<DoctorRow>();
@@ -82,7 +87,16 @@ export default async function AdminDoctorEditPage({ params }: Props) {
         </div>
       </div>
 
-      <DoctorProfileEditForm slug={doctor.slug} initial={initial} />
+      <DoctorProfileEditForm
+        slug={doctor.slug}
+        initial={initial}
+        isSuperAdmin={guard.isSuperAdmin}
+        settings={{
+          clinicId: doctor.clinic_id,
+          isAffiliated: doctor.is_affiliated,
+          isListed: doctor.is_listed,
+        }}
+      />
     </section>
     </AdminDoctorEditView>
   );

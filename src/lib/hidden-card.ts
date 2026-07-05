@@ -52,10 +52,13 @@ export const checkHiddenByDoctorPost = cache(
   ): Promise<boolean> => {
     try {
       const admin = createSupabaseAdminClient();
+      // 미공개(is_listed=false) 원장 = '없는 페이지' → hidden placeholder 대신 진짜 404 유지
+      //   (원장 공개 필터, 마이그 0341). is_listed 미충족이면 hidden 여부 판정 없이 false.
       const { data: doctor } = await admin
         .from("doctors")
         .select("id")
         .eq("slug", doctorSlug)
+        .eq("is_listed", true)
         .maybeSingle();
       if (!doctor) return false;
       const { data } = await admin

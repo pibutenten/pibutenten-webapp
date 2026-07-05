@@ -125,19 +125,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 발행된 글 — 의사가 작성한 Q&A canonical 만.
     // M5 (2026-05-28): category='qa' 필터 추가. 의사의 비-qa 카드 (tip 등) 가 doctor canonical
     // URL 로 sitemap 에 들어가면 page 가 404 반환 (page 가 category=qa 강제) → soft 404.
+    // 미공개(is_listed=false) 원장 글은 sitemap 제외 — 상세가 404 이므로 (마이그 0341).
+    //   nested doctors 조인에 !inner + is_listed 필터를 걸어 미공개 원장 글을 아예 배제.
     const { data: publishedCards } = await supabase
       .from("cards")
       .select(
-        "id, created_at, reviewed_at, updated_at, doctor_id, post_year, post_slug, doctor:doctors(slug)",
+        "id, created_at, reviewed_at, updated_at, doctor_id, post_year, post_slug, doctor:doctors!inner(slug, is_listed)",
       )
       .eq("status", "published")
       .eq("category", "qa")
+      .eq("doctor.is_listed", true)
       .not("doctor_id", "is", null);
 
-    // 의사 프로필 참여 전문의
+    // 의사 프로필 참여 전문의 — 미공개(is_listed=false) 원장 프로필은 제외 (마이그 0341).
     const { data: doctors } = await supabase
       .from("doctors")
-      .select("slug, updated_at, created_at");
+      .select("slug, updated_at, created_at")
+      .eq("is_listed", true);
 
     const cardRoutes: MetadataRoute.Sitemap = (publishedCards ?? []).flatMap((q) => {
       // 표시일 SSOT (P1-b): lastModified = reviewed_at(검수일) ?? created_at.

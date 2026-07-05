@@ -318,7 +318,14 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
         );
         try {
           const [doctorRes, profileRes] = await Promise.all([
-            sb.from("doctors").select("slug").eq("slug", handle).maybeSingle(),
+            // 미공개(is_listed=false) 원장 slug 는 존재검사에서 미존재로 판정 → /{slug} 직접 진입 시
+            //   실제 404(상세 404 와 일관, 마이그 0341). is_listed 필터로 미공개 원장을 걸러낸다.
+            sb
+              .from("doctors")
+              .select("slug")
+              .eq("slug", handle)
+              .eq("is_listed", true)
+              .maybeSingle(),
             sb.from("profiles").select("id").eq("handle", handle).maybeSingle(),
           ]);
           const errored = !!doctorRes.error || !!profileRes.error;

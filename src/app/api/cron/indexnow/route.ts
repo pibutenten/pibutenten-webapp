@@ -58,9 +58,12 @@ export async function GET(req: Request) {
   const supabase = await createSupabaseServerClient();
   const { data: cards, error } = await supabase
     .from("cards")
-    .select("post_slug, post_year, doctor:doctors(slug)")
+    // 미공개(is_listed=false) 원장 글 URL 은 IndexNow 제출 대상에서 제외 — 상세가 404 이므로 (마이그 0341).
+    //   nested doctors 조인에 !inner + is_listed 필터로 미공개 원장 콘텐츠 배제.
+    .select("post_slug, post_year, doctor:doctors!inner(slug, is_listed)")
     .eq("status", "published")
     .eq("category", "qa")
+    .eq("doctor.is_listed", true)
     .not("doctor_id", "is", null)
     .gte("updated_at", since)
     .order("updated_at", { ascending: false })
