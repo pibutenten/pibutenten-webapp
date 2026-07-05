@@ -163,7 +163,7 @@ GET    /api/admin/youtube-oauth/start / callback / status
 
 ### 2.6. 메타 / SEO / AEO / GEO
 ```
-/sitemap.xml                        동적 sitemap (force-dynamic — cookies 사용)
+/sitemap.xml                        ISR sitemap (revalidate=3600 — 쿠키리스 anon 클라이언트, R3-3)
                                     정적 라우트 12종 + 참여 전문의 + Q&A canonical + 토픽 hub
                                     cards.lastModified = updated_at ?? created_at (2026-05-28)
 /robots.txt                         robots — SITE_PUBLIC env 기반 HOLD 스위치
@@ -171,6 +171,7 @@ GET    /api/admin/youtube-oauth/start / callback / status
                                     PUBLIC: 2-tier AI 크롤러 정책 (TIER1 허용·TIER2 차단, 2026-06-06)
 /manifest.json                      PWA manifest
 /rss.xml                            RSS 2.0 — 의사 Q&A 최신 50건 (네이버 freshness signal)
+                                    ISR revalidate=1800 · dc:creator(xmlns:dc) 표준 (R3-3)
 /llms.txt                           llmstxt.org 풀버전 (인용 정책 + 운영 정보)
 /.well-known/security.txt           RFC 9116 보안 제보 채널
 /.well-known/agent-card.json        AI 에이전트 인터페이스 (citationPolicy, endpoints)
@@ -284,7 +285,7 @@ supabase/
 | `InfoPageLayout.tsx`, `InfoNav.tsx` | 안내 페이지 wrapper (6칩 nav) |
 | `SiteFooter.tsx` | 사이트 푸터 (7→6 링크) |
 | `BackButton.tsx` | 뒤로가기 |
-| `ScrollManager.tsx` | 스크롤 위치 복원 |
+| `ScrollManager.tsx` | 라우트 전환 시 스크롤 위치 저장·복원. 피드 뒤로가기 복원은 `lib/feed-scroll-restore.ts`(풀 전체+scrollTop+q/cat 스냅샷, sessionStorage·safe-storage 경유·단일 키·TTL 30분)와 연동 — 앱셸이 fixed 오버레이 내부 `.root` 스크롤러라 window.scrollY 가 항상 0 이던 문제 대응(R5-3). 소진형 트리거(문서 back_forward + SPA popstate), PTR·검색·칩전환·새로고침은 미발화 |
 | `SocialLoginButtons.tsx`, `LogoutButton.tsx` | 인증 UI |
 
 ---
