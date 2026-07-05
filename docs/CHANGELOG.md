@@ -25,7 +25,7 @@
 
 ### Fixed (재검수 후속 폴리싱 — 2026-07-05 재검수 결과 반영)
 - **[이슈 D 후속] 로그인 회원도 미존재 핸들에 실제 404** (`middleware.ts`) — 존재검사 블록을 온보딩 fast-path(2a/2b) '이전'으로 이동. 종전엔 온보딩 완료 회원이 2b 에서 통과돼 회원 핸들 네임스페이스(`/{임의문자열}`)가 소프트 404(200)로 남던 것을, 라우팅 존재판정을 로그인·온보딩과 분리해 비로그인·크롤러 + 로그인 회원 모두 동일하게 실제 404. 비용: 단일 세그먼트 비예약 경로(회원 프로필 방문·오타)에만 조회(예약 라우트·홈 0).
-- **깨진 카카오 아바타 폴백** (`components/card/CardAvatar.tsx`) — OAuth 아바타(카카오 CDN 등) 403·로드 실패 시 `onError` 로 기본 아이콘 폴백(종전엔 깨진 이미지 노출).
+- **깨진 카카오 아바타 근본 수정 + 데이터 복원 + 폴백** (`app/onboarding/OnboardingClient.tsx`, `components/card/CardAvatar.tsx`, 데이터 9건) — **근본 원인**: 온보딩 저장 시 `avatarUrl.split("?")[0]`(자체 업로드 `?v=` 캐시버스터 제거 목적)이 카카오 '기본 프로필' 썸네일(`img1.kakaocdn.net/thumb/R640x640.q70/?fname=<이미지>`)의 `?fname=`(이미지 본체)까지 잘라 403 유발(컬럼은 text·길이무제한이라 무관). **수정**: 쿼리 제거를 Supabase Storage(`/storage/v1/object/`) URL 에만 적용하고 외부 OAuth URL(카카오 `?fname=` 등)은 보존. **데이터 복원**: 이미 잘린 9건을 auth.users 메타(원천)에서 완전한 URL 로 backfill(http→https, 잔여 깨짐 0 실측; 인코딩·비인코딩 fname 둘 다 200 확인). **방어**: `CardAvatar` 에 `onError` 폴백(어떤 로드 실패든 기본 아이콘) — 근본 수정과 별개 안전망. (프로필 수정 화면은 `pendingAvatarUrl` 직접 저장이라 동일 버그 없음 확인.)
 - **후기·글 삭제 후 카운트 즉시 갱신** (`components/skin/ui.tsx::PostCardMenu.performDelete`) — 삭제가 `onDeleted()` 로 카드만 제거하고 `router.refresh()` 를 안 불러 프로필 "내 후기 N"·"작성 글 N" 서버 prop 카운트가 새로고침 전까지 stale 이던 것 정정(숨김·구 Card.tsx 삭제와 동일 패턴).
 - **테스트 데이터 정리** — 재검수 중 생성된 검토대기 테스트 후기 2건(id 4104·4105, "재검수용 후기: 100% 효과 보장…")을 소프트삭제(review-1 검토대기 잔여 0 확인).
 

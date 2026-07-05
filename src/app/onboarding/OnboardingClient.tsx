@@ -372,9 +372,14 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
         }
       }
 
-      // avatar_url에는 ?v= 캐시버스터 떼고 저장 (DB는 깨끗하게)
+      // avatar_url 저장: 자체 업로드(Supabase Storage)에는 ?v= 캐시버스터가 붙으므로 떼고 저장하되,
+      //   외부 OAuth 아바타는 쿼리를 보존한다. 카카오 '기본 프로필' 썸네일은
+      //   `img1.kakaocdn.net/thumb/R640x640.q70/?fname=<실제이미지>` 형태라 ?fname= 이 이미지 본체 —
+      //   종전 무조건 split("?") 이 이를 잘라 403(깨진 이미지)을 유발했다(재검수 지적 근본 수정).
       const cleanAvatar = avatarUrl
-        ? avatarUrl.split("?")[0] || avatarUrl
+        ? avatarUrl.includes("/storage/v1/object/")
+          ? avatarUrl.split("?")[0] || avatarUrl
+          : avatarUrl
         : null;
       // 미입력 시 디폴트 자기소개 ("만나서 반갑습니다.") 로 저장 (UI placeholder 와 동일 문구).
       const DEFAULT_BIO = "만나서 반갑습니다.";
