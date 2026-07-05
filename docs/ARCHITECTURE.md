@@ -208,7 +208,7 @@ src/
 │   │                                  clinicSchemaForDoctor/clinicIdRefForDoctor
 │   └── identity*.ts                Identity 시스템 (Phase 9)
 ├── data/                           slug-mapping.ts(슬러그 헬퍼) + tag-dictionary.generated.json(빌드 스냅샷, gen-tag-dictionary)
-└── middleware.ts                   약관/온보딩 가드 + CSRF Origin 검증
+└── middleware.ts                   약관/온보딩 가드 + 없는경로 실제404 + CSRF Origin 검증
 
 supabase/
 ├── migrations/                     SQL 마이그레이션 (0001~)
@@ -352,6 +352,12 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - allow-list: `pibutenten.kr`, 레거시 `pbtt.kr`, `pibutenten-webapp-*.vercel.app` (정확 매칭)
 - `VERCEL_ENV` 기반 환경별 분기
 - LAN IP 는 dev 한정
+
+### 6.4. 없는 경로 실제 404 (소프트 404 차단, 2026-07-05)
+- `/reports/{slug}`·`/{handle}`(단일 세그먼트)·최상위 미존재 `.xml` 은 route-level `loading.tsx`+force-dynamic 부모 layout 이 만드는 `<Suspense>` 스트리밍 경계 아래에서 `notFound()` 를 부르므로 그 시점엔 이미 200(소프트 404)이 확정됨 → **렌더 이전 미들웨어**에서 존재검사 후 미존재면 `lib/not-found-response.ts` 로 `status:404`+`X-Robots-Tag:noindex` Response 를 직접 반환(친절 안내 HTML — `app/not-found.tsx` 와 dual-source, CLAUDE.md §5 페어). rewrite 는 루트 `app/loading.tsx` 가 다시 Suspense 로 감싸 200 재발하므로 미사용.
+- **온보딩 fast-path(6.1) 이전 실행** — 라우팅 존재판정은 로그인·온보딩과 무관하므로 비로그인·크롤러 + 로그인 회원 모두 동일 적용(2026-07-05 정정: 종전 온보딩 쿠키 fast-path 뒤라 로그인 회원 소프트 404 잔존).
+- 오탐 방지: `RESERVED_FIRST_SEGMENT`(`route-class.ts` SSOT) 실제 라우트·홈은 조회 없이 통과, `HANDLE_RE`(`identity-shared.ts` SSOT) 형식 게이트 불일치·`decodeURIComponent` 실패(malformed 인코딩)는 조회 없이 404. `/reports` en 슬러그는 ko 로 308 유지.
+- 모든 DB 존재검사는 **fail-open**(조회 예외·에러 시 통과 — 유효 페이지 오404 차단). 비용은 단일 세그먼트 비예약 경로·리포트 상세 진입에만.
 
 ---
 

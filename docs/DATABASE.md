@@ -113,7 +113,7 @@ Supabase Postgres 스키마·RLS 정책·RPC·Storage·마이그레이션 히스
 | 테이블 | 비고 |
 |---|---|
 | `card_views` | dwell window 폐기 (0142). 명백한 의도 신호 (단독 진입/펼침/영상클릭/인터랙션) |
-| `card_impressions` | 카드 노출 |
+| `card_impressions` | 카드 노출. `profile_id`→`profiles(id)` FK · 세션 유니크 없음 — 명함(profile) 단위 집계(dedup 은 클라 `impKey`), `site_visits` 정합 (마이그 0340, 2026-07-05) |
 | `card_shares` | channel: `native`/`link-copy`. session_id 컬럼 (0142). 트리거로 share_count 자동 +1 (0095) |
 | `site_visits` | 24h 1회 사이트 진입 (0157). ADR 0010 |
 

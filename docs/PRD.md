@@ -168,6 +168,7 @@
 - RSS: `app/rss.xml/route.ts` — 의사 Q&A 글 최신 50건 (네이버 freshness signal)
 - `/.well-known/`: security.txt (RFC 9116) / agent-card.json / ai-policy.json
 - llms.txt + llms-full.txt (정적 큐레이션: 정책·신뢰 페이지 전문 + 진입점 + NAP, llmstxt.org 표준). `public/llms-full.txt` 정적 파일이 `/{handle}` 라우트보다 우선되어 text/plain 서빙 (soft-404 해소)
+- **없는 경로 실제 404 (소프트 404 차단, 2026-07-05)**: 미존재 시술 리포트(`/reports/{미등록}`)·회원 핸들(`/{미존재}`)·최상위 미존재 `.xml`(예: `/feed.xml`)은 미들웨어 존재검사로 렌더 이전 **실제 HTTP 404**(+noindex) 반환(스트리밍 소프트 404 우회 — `lib/not-found-response.ts`). 친절 안내 페이지(피드·전문의 링크)는 유지, 자동 리다이렉트 없음(SNS 표준). 온보딩 fast-path 이전 실행이라 로그인·비로그인 동일. 상세: `ARCHITECTURE.md` §6.4.
 - 신뢰 페이지 풀세트 (Mayo/Cleveland Clinic 벤치마크): `/about` · `/editorial-policy` · `/medical-review` · `/corrections` · `/disclosures` · `/disclaimer` · `/doctor-guidelines` · `/contact` · `/terms` · `/privacy`
 - CSP report-uri / report-to → `/api/csp-report` endpoint 적재
 - 검색엔진 verification 토큰 자리 (env 기반, 발급 후 활성): Naver / Google / Bing

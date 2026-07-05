@@ -81,6 +81,8 @@ GOOGLE_CLIENT_SECRET=...
 - 디폴트: SNS 사진. 변경 시 onboarding/settings 카메라·파일 업로드 (256×256 JPEG)
 - 의사: `doctors.photo_url` (card.doctor join 시 우선)
 - 비로그인 또는 avatar_url NULL: 헤더 fallback (이니셜 또는 기본 아이콘)
+- **URL 정제 규칙** (2026-07-05): 자체 업로드(Supabase Storage `/storage/v1/object/`) 아바타만 `?v=` 캐시버스터 제거, **외부 OAuth URL 은 쿼리 보존**. 카카오 '기본 프로필' 썸네일 `img1.kakaocdn.net/thumb/R640x640.q70/?fname=<이미지>` 는 `?fname=` 이 이미지 본체 — 종전 온보딩 저장의 무조건 쿼리 절단(`split("?")`)이 이를 잘라 403(깨짐) 유발한 버그를 근본 수정(기존 9건 auth.users 메타 원천에서 backfill).
+- **로드 실패 폴백**: `CardAvatar` 가 `onError` 로 외부 CDN 403 등 로드 실패 시 기본 아이콘 표시(근본 수정과 별개 안전망).
 
 ---
 
@@ -310,8 +312,10 @@ ex) /minji-skin/Ab3xK9Pq
   - 카드 작성·수정: `cards.screening_flags` 저장 + `status='pending_review'` (admin 검토 큐)
   - 댓글 작성·수정: `comments.screening_flags` 저장 + `status='hidden'` (0178. comments enum 에 pending_review 없어 hidden 으로 대응)
   - 작성자에게 응답 `screening` 객체로 1회 안내 (silent fail 방지)
-- **카테고리 가중치**: patient_testimonial +3 / before_after +3 / comparison_ad +3 / exaggerated_efficacy +3 / price_discount +2 / solicitation +1 / prescription_drug +3 / drug_promotion +2 / **paid_sponsorship +4** (배치 ⑤ 신설) / external_url_with_signal +1.
+- **카테고리 가중치**: patient_testimonial +3 / before_after +3 / comparison_ad +3 / exaggerated_efficacy +3 / price_discount +2 / solicitation +1 / prescription_drug +3 / drug_promotion +2 / **paid_sponsorship +4** (배치 ⑤ 신설) / external_url_with_signal +1 / **efficacy_guarantee +7** (2026-07-05 신설 — 단독으로 임계 초과).
 - **`paid_sponsorship` 카테고리** (배치 ⑤): 약관 ④에서 명시 금지한 "대가·협찬·체험단·서포터즈" 유형. 단독 +4 — 다른 신호 1개 결합 시 임계 7 도달. 키워드는 "받았다는 의미가 분명한 것" 만.
+- **`efficacy_guarantee` 카테고리** (2026-07-05): "효과·완치·성공 보장/단정" 광고 화법("100% 효과 보장"·"효과 보장합니다"·"무조건 효과 보장")만 단독 +7 → 즉시 검수대기. 단정 어미로 좁혀 부정·인용("보장할 수 없다"·"보장해준다고 해서")·정상 후기 오탐 배제. '부작용 없음' 계열은 후기 정상 선택지라 의도적 제외.
+- **병원·의사명 하드마스킹** (`maskProhibitedMentions`, 점수검수와 별개): 지목 표현("리즈피부과 정한미 원장")을 "○○의원 ○○" 로 치환. 적용 = 후기 본문·시술노트(공개후기)·**댓글 작성·수정**(2026-07-05 댓글 확대 — 수정 시 원문 복원 방지). 제출 차단 아님, 1건+ 시 응답 `blinded` → 작성자에게 안내 토스트.
 - **admin 가시성·복구** (배치 ⑤): `/admin/cards?status=pending_review` / `?status=hidden` 탭 → EditClient → PUT API. `/admin/comments?status=hidden` 탭 신설 — 자동검수 hidden 댓글 검토 + 행별 "복구 (visible)" 버튼 (`PATCH /api/comments/[id] { status: "visible" }`).
 - 자살/자해 키워드 감지 시 안전 메시지 모달 1회 (109/1577-0199/1388) — CardEditor + CommentForm 모두 적용 (`src/lib/safety.ts` SSOT)
 - 사전: `src/lib/content-screening-dict.ts`
