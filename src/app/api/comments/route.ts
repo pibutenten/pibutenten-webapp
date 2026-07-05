@@ -19,7 +19,7 @@ import {
   CommentCreateSchema,
   CommentGetQuerySchema,
 } from "@/lib/schema/api/comments";
-import { screenContent } from "@/lib/content-screening";
+import { screenContent, maskProhibitedMentions } from "@/lib/content-screening";
 // 2026-05-28: 댓글 도메인 타입 SSOT (lib/types/comment.ts). CommentsBlock 과 공유.
 import type { CommentRow, CommentWithReplies } from "@/lib/types/comment";
 
@@ -315,14 +315,20 @@ export async function POST(req: Request) {
   });
   if (limited) return limited;
 
+  // 병원·의사명 자동 마스킹 (후기 라우트와 동일 패턴): 특정 병원명·의사명 지목 표현을
+  // "○○" 로 가린 본문으로 교체합니다. 하드블록(제출 차단)이 아니라 마스킹이므로 등록은
+  // 계속되며, 이후 검수·저장은 모두 마스킹된 본문(masked.text) 기준으로 수행합니다.
+  const masked = maskProhibitedMentions(body);
+
   // 콘텐츠 자동검수 (2026-05-28, 카드 패턴 미러링): active 신분이 USER 면 의료법/약사법/환자후기
-  // 의심 패턴 검사. 임계 5 초과 시 status='hidden' + screening_flags 저장 (카드의 pending_review
+  // 의심 패턴 검사. 임계 초과 시 status='hidden' + screening_flags 저장 (카드의 pending_review
   // 와 대응 — comments enum 에 pending_review 가 없어 hidden 선택. ADR 0007 정합).
   // 의사·관리자(active) 는 screenContent 안에서 자동 통과.
+  // 검수 대상 body 는 마스킹된 본문(masked.text) — 저장값과 일치시킵니다.
   const activeRole = (idCtx.active.role ?? "user") as "admin" | "doctor" | "user";
   const verdict = screenContent({
     title: null,
-    body,
+    body: masked.text,
     keywords: null,
     externalUrl: null,
     authorRole: activeRole,
@@ -330,7 +336,8 @@ export async function POST(req: Request) {
   const insertRow: Record<string, unknown> = {
     card_id: cardId,
     parent_id: parentId,
-    body,
+    // 원문 대신 병원·의사명이 가려진 본문을 저장합니다(후기 본문과 동일).
+    body: masked.text,
     author_id: idCtx.active.profileId,
   };
   if (verdict.flagged) {
@@ -376,6 +383,8 @@ export async function POST(req: Request) {
   return NextResponse.json(
     {
       comment: ins.data,
+      // 병원·의사명이 1건 이상 가려졌으면 true — 클라가 안내 토스트를 1회 노출(후기와 동일 키).
+      blinded: masked.count > 0,
       screening: verdict.flagged
         ? {
             status: "hidden",

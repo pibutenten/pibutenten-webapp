@@ -226,6 +226,9 @@ export default function ReviewForm({
     effectAreas.length > 0 ||
     reactions.length > 0 ||
     oneliner.length > 0 ||
+    // 시술명을 사용자가 실제로 고르면 dirty. 단, URL 로 미리 잠금 프리필된
+    // initialProcedure 와 같은 값이면 사용자가 고른 게 아니므로 제외.
+    (!isEdit && !!procedureKo && procedureKo !== (initialProcedure ?? "")) ||
     // 어림시기를 고르면 dirty.
     relYear !== "" ||
     within !== "";
@@ -420,7 +423,7 @@ export default function ReviewForm({
 
         // 병원·의사명 자동 블라인드 발생 시 1회 고지.
         if (data.blinded) {
-          showToast("병원·의사명으로 보이는 표현이 자동으로 가려졌습니다.");
+          showToast("병원·의사명으로 보이는 표현이 자동으로 가려졌습니다.", { durationMs: 4500 });
         }
 
         // 검수 대기로 전환된 경우 1회 안내 후 이동.

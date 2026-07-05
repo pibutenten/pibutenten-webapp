@@ -6,6 +6,29 @@
 
 ---
 
+## [2026-07-05] — 실기기 QA 개선 배치 (독립 이중검증)
+
+2026-07-05 실기기 검수 보고서(`전달용/pibutenten_QA_보고서_2026-07-05.md`) 기반. 디렉터 프로세스: 서브에이전트 병렬 구현 → 디렉터 검수 → 코드검수 서브에이전트 2인 독립 이중검증(치명 0) → 지적 반영 → 타입체크·빌드 통과.
+
+### Fixed
+- **[이슈 A] 시술후기 탭 이탈 경고 누락(데이터 유실)** (`app/review/new/ReviewForm.tsx`) — `/write` 시술후기 탭에서 시술명만 고른 뒤 다른 탭으로 전환 시 경고 없이 유실되던 문제. `isDirty` 판정에 시술명 선택(`procedureKo`)이 빠져 발화 안 함(탭 전환 가드 배선 자체는 R2-2 에서 완료, dirty 신호 조건만 누락). `(!isEdit && !!procedureKo && procedureKo !== (initialProcedure ?? ""))` 추가 — URL 잠금 프리필(`?proc=`)은 dirty 제외.
+- **[이슈 B] 병원·의사명 마스킹 안내 노출 1.5→4.5초** (`app/review/new/ReviewForm.tsx`, `components/skin/record/SkinDiaryForms.tsx`) — R2-3 이 danger 톤 기본 지속시간만 4.5초로 늘렸는데 마스킹 안내는 tone 미지정(기본 1.5초)이라 미반영이던 문제. 마스킹 토스트에 `{ durationMs: 4500 }` 명시(파란 정보톤 유지, DOM 직접 토스트라 라우팅에도 잔존). SkinDiaryForms 검수대기 안내도 danger(4.5초)로 통일.
+- **[이슈 C] 노출 집계(card_impressions) 명함 단위화 — 로그인 일부 계정 기록 유실 복구** (마이그 **0340**, `lib/impression-queue.ts`, `components/card/hooks/useCardViewer.ts`) — `card_impressions.profile_id` FK 가 `auth.users(id)` 를 참조(옛 user_id 잔재, 0186 리네임 시 방치)해 활성 명함이 비-base(profiles.id≠auth_user_id)인 계정(의사 7·회원 2·관리자 1=10명)의 노출 INSERT 가 23503 FK 위반으로 전량 실패하던 결함(RLS/GRANT 는 정상 — 보고서의 RLS 추정 정정). 형제 테이블 `site_visits` 와 동일하게 FK 를 `profiles(id)` 재지정 + 세션 유니크 제거(명함 단위 dedup 은 클라 impKey 담당). 클라: upsert→단순 insert(onConflict 제거), impKey 에 활성 명함 id 포함(명함 전환 시 각각 집계), `resolveUserId` 가 활성 명함 id 를 flush 마다 재조회(옛 캐시로 이전 명함 저장되던 것 정정). 과거 유실분은 복구 불가(지금부터 정상 적재).
+- **[이슈 D] 소프트 404 → 실제 HTTP 404 (SEO)** (`middleware.ts`, 신설 `lib/not-found-response.ts`, `lib/route-class.ts` 주석, `app/not-found.tsx`) — 존재하지 않는 경로(`/reports/{미존재시술}`, `/{미존재핸들}`, 최상위 `/feed.xml` 등)가 HTTP **200 + 앱 셸**(소프트 404)을 반환하던 문제. **원인**: `/reports/[procedure]`·`/[handle]` 는 route-level `loading.tsx` + force-dynamic 부모 layout(await RPC)이 만드는 `<Suspense>` 스트리밍 경계 아래에서 렌더돼, 페이지 본문의 `notFound()` 시점엔 이미 200 이 확정됨(Next.js 는 스트리밍 시작 시 상태코드를 200 으로 고정 — 공식 문서 명시). in-page `notFound()`·`generateMetadata` 어디서 불러도 200 이 확정됨(이슈 #75543). **해법(Next.js 공식 권고)**: 존재 검사를 렌더 이전 단계인 미들웨어로 끌어올려 미존재 시 `status:404` Response 를 직접 반환(렌더/스트리밍 파이프라인 우회). not-found 로 rewrite 하는 방식은 루트 `app/loading.tsx` 가 다시 Suspense 로 감싸 200 이 재발하므로 미사용. `global-not-found.js` 는 16.2.x dev 무한루프 버그(#92256)로 회피. **구현**: ① 최상위 미존재 `.xml`(예: /feed.xml) → 실제 404(실재 sitemap/rss 는 화이트리스트로 통과) ② `/reports/{slug}` en/ko 존재 검사 후 미존재 404 + 기존 en→ko 308 유지 ③ 단일 세그먼트 `/{handle}` 존재 검사(`doctors.slug` 또는 `profiles.handle`) 후 미존재 404. 오탐 방지로 `route-class.ts::RESERVED_FIRST_SEGMENT`(라우팅 분류 SSOT)에 있는 실제 최상위 라우트·홈은 조회 없이 통과(핫패스 DB 비용 0·회귀 0), 형식 부적합 핸들·슬러그는 조회 없이 404. 모든 DB 검사는 **fail-open**(조회 예외·에러 시 통과 — 유효 페이지를 일시 오류로 오404 처리 차단). 친절 안내 본문(홈/피드·전문의 링크)은 유지하되 자동 리다이렉트는 없음(SNS 표준). `not-found.tsx` 는 인앱 클라 내비게이션용으로 noindex metadata 추가 + '피드로 가기' 주 CTA 강조.
+
+### Changed
+- **[이슈 E] 의료광고 필터 강화 — 댓글 마스킹 + "효과 보장" 단정 차단** (`api/comments/route.ts`, `api/comments/[id]/route.ts`, `components/comments/CommentsBlock.tsx`, `lib/content-screening.ts`, `lib/content-screening-dict.ts`, `docs/PRD.md`) — ① 댓글 작성(POST)·수정(PATCH) 모두 병원·의사명 자동 마스킹(`maskProhibitedMentions`) 적용(후기 본문과 동일) — 종전 댓글은 미적용이라 병원·의사 실명이 그대로 등록되고, 수정 시 원문이 복원되던 구멍. `blinded` 응답 + "가려졌습니다" 안내 토스트(4.5초). ② "효과 보장" 단정형 전용 규칙(`EFFICACY_GUARANTEE_PATTERNS`, 단독 +7 → 즉시 검수대기) 신설 — "100% 효과 보장"·"효과 보장합니다"·"무조건 효과 보장" 등 광고 단정만. 부정·인용("보장할 수 없다"·"보장해준다고 해서")·정상 후기는 단정 어미로 좁혀 오탐 배제(이중검증 실측 전량 통과, "부작용 없음"류는 후기 정상 선택지라 의도적 제외). PRD §4.7 에 마스킹 범위(후기 본문+시술노트+댓글) 명시.
+- **CSP `upgrade-insecure-requests` 제거** (`next.config.ts`) — Report-Only CSP 헤더에 있어 브라우저가 무시(무동작)하며 전 페이지 콘솔 에러 1건을 유발하던 지시어 제거(enforce CSP 아님).
+
+### Changed (정합)
+- **`HANDLE_RE` 단일화** (`lib/identity-shared.ts`, `app/[handle]/page.tsx`, `components/GlobalChrome.tsx`, `middleware.ts`) — 3곳에 인라인 중복 선언되던 회원 핸들 정규식을 `identity-shared` 단일 출처로 통합(드리프트 방지, DB CHECK 0022/0027 과 동일). CLAUDE.md §5 동기화 페어에 not-found 이중소스(`not-found-response.ts` ↔ `not-found.tsx`) 신설.
+
+### 알려진 트레이드오프 / 백로그
+- **이슈 D 로그인 회원 소프트 404 잔존(의도)**: 미들웨어 존재검사는 온보딩 쿠키 없는 비로그인·크롤러 대상(회원은 fast-path 통과 — 핫패스 DB 비용 0). SEO 대상 크롤러는 실제 404 를 받으므로 무해하나, 로그인 회원이 미존재 경로 방문 시엔 소프트 404 가 남음.
+- **이슈 D 미들웨어 존재검사 레이트리밋 미적용**: 형식 게이트(HANDLE_RE)·예약경로 skip·Vercel 엣지 보호로 완화하되, 유효 형식 랜덤 경로 대량 요청 시 요청당 인덱스 조회 유발. KV 기반 IP 레이트리밋/단기 캐시는 별도 하드닝 백로그.
+
+---
+
 ## [2026-07-04] — 개선 라운드 R6: 위생·문서 (독립 이중검증 실행계획)
 
 ### Removed

@@ -38,6 +38,14 @@ export const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * 회원 핸들 형식 검증 — 소문자·숫자로 시작/끝, 중간에 하이픈 허용, 총 3~30자.
+ *   `[handle]/page.tsx::fetchProfileByHandle`·`GlobalChrome.tsx`·`middleware.ts` 가 각자 인라인
+ *   선언하던 동일 규칙을 단일 출처로 모았다(드리프트 방지 — 세 곳 모두 이 상수를 import). 형식·길이
+ *   변경 시 여기만 갱신. (핸들 @ 네임스페이스 전환 시에도 이 한 곳만 확장하면 세 소비처가 자동 정합.)
+ */
+export const HANDLE_RE = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
+
+/**
  * 같은 auth user 묶음 안의 profile 매칭 필터 (PostgREST `.or()` 인자).
  *
  * profiles 테이블에서 `id = authUserId` (base profile) 또는

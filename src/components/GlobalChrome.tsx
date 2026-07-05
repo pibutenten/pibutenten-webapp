@@ -14,6 +14,7 @@
 import { usePathname } from "next/navigation";
 import SiteFooter from "@/components/SiteFooter";
 import { isPostDetailPath, RESERVED_FIRST_SEGMENT } from "@/lib/route-class";
+import { HANDLE_RE } from "@/lib/identity-shared";
 
 /** 정확 일치로 승격된 라우트(자체 앱 셸 보유). 동적 하위경로(/record/[id], /write/[shortcode] 등)는 아래 APP_SHELL_PREFIX 로 승격. */
 const APP_SHELL_EXACT = new Set<string>([
@@ -60,9 +61,7 @@ const APP_SHELL_PREFIX = [
 ];
 
 // 회원 글상세/프로필 1~2세그 판정의 예약 세그먼트는 route-class 의 단일 SSOT 를 재사용.
-
-/** 회원 핸들 = 소문자 영숫자/하이픈 3~30자 (운영 [handle] page 의 가드와 동일). */
-const HANDLE_RE = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
+// 회원 핸들 정규식(HANDLE_RE)은 identity-shared 의 단일 출처를 재사용(옛 인라인 선언 제거 — 드리프트 방지).
 
 function isAppShell(pathname: string | null): boolean {
   if (!pathname) return false;

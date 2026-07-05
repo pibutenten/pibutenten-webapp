@@ -9,7 +9,7 @@
  *   - 점수 합산. 임계점 이상이면 status='pending_review' 강제 + screening_flags 저장.
  *   - 자동 차단 X — admin 검토 큐로 이동, 24~72h 내 검토.
  *
- * 임계점: **5점** (보수적). v1 운영 1주 데이터 보고 조정.
+ * 임계점: **7점** (보수적, 상수 FLAG_THRESHOLD 와 일치). v1 운영 1주 데이터 보고 조정.
  *
  * 사용:
  *   const verdict = screenContent({ ... });
@@ -27,6 +27,7 @@ import {
   DOCTOR_NAME_PATTERN,
   DOCTOR_PREFIX_EXCLUDE,
   DRUG_PROMOTION_PATTERNS,
+  EFFICACY_GUARANTEE_PATTERNS,
   EXAGGERATED_EFFICACY_PATTERNS,
   PAID_SPONSORSHIP_PATTERNS,
   PATIENT_TESTIMONIAL_PATTERNS,
@@ -133,6 +134,17 @@ export function screenContent(input: ScreeningInput): ScreeningVerdict {
     if (re.test(text)) {
       score += 3;
       reasons.push("exaggerated_efficacy");
+      break;
+    }
+  }
+
+  // 4-b. 효과·완치·안전 "보장·단정" (§56②3·7·8 중 단정형, 2026-07-05).
+  //   "100% 효과 보장" 같은 표현은 단독으로도 강하게 차단합니다. 위 exaggerated_efficacy(+3)
+  //   와 별개 블록으로, 매치 시 단독으로 임계(7)를 넘도록 +7 가중합니다.
+  for (const re of EFFICACY_GUARANTEE_PATTERNS) {
+    if (re.test(text)) {
+      score += 7;
+      reasons.push("efficacy_guarantee");
       break;
     }
   }

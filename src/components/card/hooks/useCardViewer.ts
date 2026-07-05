@@ -86,15 +86,24 @@ export function useCardViewer(
   //   impression 0건 → 방문자 통계에서 통째 누락되던 회귀 (실측 결과: 24h 8명이
   //   view 남겼는데 impression 사용자는 2명만). 단독 진입도 명백한 방문 신호이므로
   //   카운트 포함.
+  // 활성 명함 id 를 render 시점에 확정 — impKey(명함 단위 dedup)와 effect 의존성에 사용.
+  //   getActiveIdentityId() 는 쿠키/모듈 캐시 기반이라 세션 내에서 안정적이지만,
+  //   명함 전환은 앱 전역 재마운트를 동반하므로 값 변경이 render 에 반영됩니다.
+  const activeIdForImp = getActiveIdentityId() ?? "anon";
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const impKey = `pibutenten:imp:${card.id}`;
+    // dedup 키에 활성 명함 id 포함 — 같은 세션에서 명함을 전환하면 각 명함이 노출 1회씩
+    //   집계되도록(노출 집계를 명함 단위로 귀속). 명함 미포함 키였던 옛 버전은 명함을 바꿔도
+    //   재집계되지 않던 결함이 있었습니다.
+    const impKey = `pibutenten:imp:${activeIdForImp}:${card.id}`;
     // safe-storage (R2-3): 인앱 브라우저 sandbox 에서 storage 접근이 throw 해도 크래시 없이
     //   dedup 만 degrade (같은 세션 재노출 가능 — 트래킹 정확도만 영향, UX 무해).
     if (ssGet(impKey)) return;
     ssSet(impKey, "1");
     enqueueImpression(card.id);
-  }, [card.id]);
+    // 의존성에 activeIdForImp 포함 — 명함 전환이 런타임에 반영되면 새 명함으로 1회 재집계.
+    //   활성 명함 id 는 세션 내 안정적이라 과도한 재실행은 없습니다.
+  }, [card.id, activeIdForImp]);
 
   // ── 3) recordView ──
   // card_views.insert만 호출. DB trigger가 cards.view_count도 자동 +1 동기화.

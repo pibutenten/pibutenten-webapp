@@ -170,7 +170,6 @@ const nextConfig: NextConfig = {
       "base-uri 'self'",
       "form-action 'self'",
       "object-src 'none'",
-      "upgrade-insecure-requests",
       // 2026-05-28: CSP 위반 보고 endpoint — /api/csp-report
       // report-uri 는 구 사양, report-to 는 신 사양(CSP Level 3). 호환 위해 병기.
       "report-uri /api/csp-report",

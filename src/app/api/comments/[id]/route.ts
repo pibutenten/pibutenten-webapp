@@ -13,7 +13,7 @@ import { errorResponse } from "@/lib/error-response";
 import { rateLimit } from "@/lib/rate-limit";
 import { getIdentityContext } from "@/lib/identity";
 import { logAudit } from "@/lib/audit-log";
-import { screenContent } from "@/lib/content-screening";
+import { screenContent, maskProhibitedMentions } from "@/lib/content-screening";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +50,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
 
   const update: { body?: string; status?: "visible" | "hidden" | "deleted" } = {};
+  let blindedCount = 0;
 
   if (typeof raw.body === "string") {
     const b = raw.body.trim();
@@ -63,7 +64,11 @@ export async function PATCH(req: Request, ctx: Ctx) {
         userMessage: "댓글은 2000자 이내로 작성해주세요.",
       });
     }
-    update.body = b;
+    // 병원·의사명 자동 마스킹 (POST·후기 수정 PATCH 와 동일) — 수정으로 원문이 복원돼
+    //   가려졌던 병원·의사명이 되살아나는 것을 막습니다. 검수(screenContent)도 마스킹된 본문 기준.
+    const masked = maskProhibitedMentions(b);
+    update.body = masked.text;
+    blindedCount = masked.count;
   }
   if (typeof raw.status === "string") {
     if (!ALLOWED_STATUS.has(raw.status)) {
@@ -162,6 +167,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
   return NextResponse.json({
     comment: upd.data,
+    blinded: blindedCount > 0,
     screening: verdictForAudit?.flagged
       ? {
           status: "hidden",

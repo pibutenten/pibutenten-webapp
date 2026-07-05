@@ -18,8 +18,10 @@ const FLUSH_DELAY_MS = 800;
 
 let pending: Set<number> = new Set();
 let timer: ReturnType<typeof setTimeout> | null = null;
-let userIdResolved = false;
-let userId: string | null = null;
+// auth.getUser() 결과(auth.users.id)만 페이지 lifetime 캐시(네트워크 비쌈).
+//   활성 명함 id 는 캐시하지 않고 flush 마다 재조회 — 명함 전환 시 새 명함으로 귀속(W-2 정정).
+let authResolved = false;
+let authUserId: string | null = null;
 let sessionId: string | null = null;
 let flushing = false;
 let attached = false;
@@ -50,20 +52,23 @@ export function getSessionId(): string | null {
 }
 
 async function resolveUserId(): Promise<string | null> {
-  if (userIdResolved) return userId;
-  try {
-    const sb = createSupabaseBrowserClient();
-    const {
-      data: { user },
-    } = await sb.auth.getUser();
-    const activeId = getActiveIdentityId();
-    userId = user ? (activeId ?? user.id) : null;
-  } catch {
-    userId = null;
-  } finally {
-    userIdResolved = true;
+  if (!authResolved) {
+    try {
+      const sb = createSupabaseBrowserClient();
+      const {
+        data: { user },
+      } = await sb.auth.getUser();
+      authUserId = user?.id ?? null;
+    } catch {
+      authUserId = null;
+    } finally {
+      authResolved = true;
+    }
   }
-  return userId;
+  // 비로그인이면 profile_id NULL(anon 노출).
+  if (authUserId == null) return null;
+  // 활성 명함 id 를 매 flush 재조회 — 명함 전환 후에도 현재 명함으로 저장(캐시 금지, W-2 정정).
+  return getActiveIdentityId() ?? authUserId;
 }
 
 async function flush(): Promise<void> {
@@ -87,16 +92,14 @@ async function flush(): Promise<void> {
       session_id: sid,
     }));
     const sb = createSupabaseBrowserClient();
-    // UNIQUE(card_id, session_id) 충돌 시 409 무시 — 같은 세션 같은 카드는 1회만.
-    //   2026-05-16 회귀 fix: 옛 onConflict "user_id,card_id" 는 실제 UNIQUE 인덱스
-    //   (card_id, session_id) 와 매칭 안 되어 INSERT 전부 실패하던 회귀.
-    //   결과: 24시간 방문자 통계 = 0 (실측 통해 발견).
-    await sb
-      .from("card_impressions")
-      .upsert(rows, {
-        onConflict: "card_id,session_id",
-        ignoreDuplicates: true,
-      });
+    // 단순 INSERT — 형제 테이블 site_visits(FK→profiles, DB 유니크 없음, 앱 계층 dedup)와
+    //   동일한 철학으로 정합화. DB 의 UNIQUE(card_id, session_id) 가 제거되므로 onConflict
+    //   대상이 사라져 upsert 를 쓸 필요가 없습니다. 세션 내 중복 노출은 호출부
+    //   (useCardViewer 의 impKey sessionStorage 가드)가 명함 단위로 차단하고, profile_id 에는
+    //   활성 명함 id 를 저장해 노출 집계를 명함(profile) 단위로 귀속합니다.
+    //   (멀티탭 동시 오픈 등 sessionStorage 가드가 탭별 독립인 경우 중복 행이 생길 수 있으나,
+    //    site_visits 와 동일하게 허용 — 집계 영향 미미.)
+    await sb.from("card_impressions").insert(rows);
   } catch (e) {
     // UX 영향 X 이지만 운영 가시성 위해 콘솔 로그 (대량 실패 시 즉시 발견)
     console.error("[card_impressions] flush failed:", e);

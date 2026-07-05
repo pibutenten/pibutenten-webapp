@@ -215,6 +215,8 @@ export default function CommentsBlock({
       const j = (await r.json()) as {
         error?: string;
         message?: string;
+        // 병원·의사명이 자동 마스킹됐는지 — 성공 응답에만 존재(후기 라우트와 동일 키).
+        blinded?: boolean;
         screening?: {
           status: string;
           reasons: string[];
@@ -235,6 +237,12 @@ export default function CommentsBlock({
           "광고성·대가성 후기나 효과를 단정·보장하는 표현은 의료법에 따라 게시가 제한될 수 있어요. 댓글이 검토 대기로 전환되었습니다.",
           { tone: "danger" },
         );
+      }
+      // 병원·의사명이 자동으로 가려졌으면 1회 안내 (후기 작성과 동일 문구).
+      if (j.blinded === true) {
+        showToast("병원·의사명으로 보이는 표현이 자동으로 가려졌습니다.", {
+          durationMs: 4500,
+        });
       }
       setBody("");
       setReplyTarget(null);
@@ -260,13 +268,32 @@ export default function CommentsBlock({
         headers: { "content-type": "application/json" },
         body: JSON.stringify(patch),
       });
-      const j = (await r.json()) as { error?: string; message?: string };
+      const j = (await r.json()) as {
+        error?: string;
+        message?: string;
+        // 병원·의사명 자동 마스킹 여부 — 성공 응답에만 존재(작성 POST 와 동일 키).
+        blinded?: boolean;
+        screening?: { status: string; reasons: string[] } | null;
+      };
       if (!r.ok) {
         // B-3 (2026-05-29 / P1-F): message 우선 + fallback "수정 실패".
         showToast(pickErrorMessage(j, r.status) || "수정 실패", {
           tone: "danger",
         });
         return false;
+      }
+      // 수정이 검수에 걸려 hidden 처리됐으면 1회 안내(작성과 동일).
+      if (j.screening) {
+        showToast(
+          "광고성·대가성 후기나 효과를 단정·보장하는 표현은 의료법에 따라 게시가 제한될 수 있어요. 댓글이 검토 대기로 전환되었습니다.",
+          { tone: "danger" },
+        );
+      }
+      // 병원·의사명이 자동으로 가려졌으면 1회 안내(작성과 동일 문구).
+      if (j.blinded === true) {
+        showToast("병원·의사명으로 보이는 표현이 자동으로 가려졌습니다.", {
+          durationMs: 4500,
+        });
       }
       await reload();
       return true;

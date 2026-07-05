@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
-import { ROLES } from "@/lib/identity-shared";
+import { ROLES, HANDLE_RE } from "@/lib/identity-shared";
 import { SITE_URL } from "@/lib/site";
 import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import type { UserRole } from "@/lib/user-grades";
@@ -105,7 +105,7 @@ async function fetchProfileByHandle(
     doctor_slug: string | null;
   };
 } | null> {
-  if (!/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(handle)) return null;
+  if (!HANDLE_RE.test(handle)) return null;
   const supabase = await createSupabaseServerClient();
   // H-1 (2026-07-04 Phase 1-B): 비-PII 는 일반 SELECT. PII 6종은 로그인 뷰어일 때만
   //   get_profile_pii RPC 로 조회 — RPC 가 내부에서 소유자=전체 / 타인=field_visibility 필터

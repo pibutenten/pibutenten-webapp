@@ -28,6 +28,7 @@ import { DOWNTIME_OPTIONS } from "@/lib/review-options";
 import { PROCEDURE_CATEGORIES } from "@/lib/categories";
 import { useAutocompleteKeyboard } from "@/hooks/useAutocompleteKeyboard";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { showToast } from "@/lib/toast";
 
 /* ── 실제 폼 공통 클래스 ── */
 const inputCls =
@@ -547,8 +548,9 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
       };
       setSaving(false);
       // 공개 후기 마스킹/검수 안내(있으면 1회).
-      if (data.blinded) toast("병원·의사명으로 보이는 표현이 자동으로 가려졌습니다.");
-      if (data.screening) { toast(data.screening.userMessage || "후기가 검토 대기로 전환되었습니다."); }
+      if (data.blinded) showToast("병원·의사명으로 보이는 표현이 자동으로 가려졌습니다.", { durationMs: 4500 });
+      // 검수 대기 안내도 danger 톤(4.5초)으로 — 장문 가독(ReviewForm 검수 안내와 통일).
+      if (data.screening) showToast(data.screening.userMessage || "후기가 검토 대기로 전환되었습니다.", { tone: "danger" });
       setSavedHasPublicReview(reviews.some((r) => r.is_public));
       guard.markSubmitted(); // 저장 성공 → 이탈 가드 해제(후기 유도 모달로 이동 시 이탈 경고 방지).
       setSavedModal(true); // 저장 완료 → 후기 유도 모달.

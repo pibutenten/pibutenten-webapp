@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { IDENTITY_COOKIE, UUID_RE } from "@/lib/identity-shared";
+import { IDENTITY_COOKIE, UUID_RE, HANDLE_RE } from "@/lib/identity-shared";
+import { RESERVED_FIRST_SEGMENT } from "@/lib/route-class";
+import { notFoundHtmlResponse } from "@/lib/not-found-response";
 
 /**
  * 온보딩 가드 면제 경로 (prefix 매치).
@@ -22,6 +24,17 @@ const STATIC_EXTENSIONS = [
   ".css", ".js", ".woff", ".woff2", ".ttf", ".otf",
   ".map", ".json", ".txt", ".xml", ".webmanifest",
 ];
+
+/**
+ * 최상위 실재 `.xml` 라우트 화이트리스트 (2026-07-05).
+ *   존재하지 않는 최상위 `.xml`(예: /feed.xml)을 실제 404 로 돌려주되(소프트 404 차단),
+ *   실재하는 최상위 `.xml`(sitemap 라우트 · rss.xml rewrite)은 그대로 통과시키기 위한 SSOT.
+ *   `.xml` 만 이 예외 처리를 적용한다 — QA 가 지목한 미존재 자산 클래스가 /feed.xml 이고,
+ *   실재 `.xml` 은 이 두 개로 한정되기 때문(그 외 확장자 .txt/.js/이미지 등은 STATIC_EXTENSIONS
+ *   로 무조건 통과 — verification txt·llms·sw·로고 등 public 자산을 건드리지 않음).
+ *   ⚠ 새 최상위 `.xml` 라우트를 신설하면 이 집합도 함께 갱신할 것(미갱신 시 그 자산이 404 로 가려짐).
+ */
+const REAL_ROOT_XML_PATHS = new Set<string>(["/sitemap.xml", "/rss.xml"]);
 
 /**
  * 온보딩 완료 캐시 쿠키 — DB 조회 비용 절감용.
@@ -193,40 +206,77 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   if (ONBOARDING_EXEMPT_PREFIXES.some((p) => path.startsWith(p))) {
     return response;
   }
-  // ⚡ 빠른 경로 1b: 정적 자산(이미지/폰트/스타일 등)은 redirect 안 함
+  // ⚡ 빠른 경로 1b: 정적 자산(이미지/폰트/스타일 등)은 redirect 안 함.
+  //   단, 존재하지 않는 최상위 `.xml`(예: /feed.xml)은 소프트 404 방지를 위해 실제 404 로 처리.
+  //   실재 최상위 `.xml`(sitemap/rss) 및 그 외 모든 정적 확장자·하위 경로 자산은 그대로 통과.
   if (STATIC_EXTENSIONS.some((ext) => path.endsWith(ext))) {
+    if (
+      (method === "GET" || method === "HEAD") &&
+      path.endsWith(".xml") &&
+      !path.slice(1).includes("/") && // 최상위 단일 세그먼트만(하위 경로 .xml 자산 보호)
+      !REAL_ROOT_XML_PATHS.has(path)
+    ) {
+      return notFoundHtmlResponse();
+    }
     return response;
   }
 
-  // ⚡ 빠른 경로 1c: 시술 리포트 영문 슬러그 → 한글 308 영구 리다이렉트 (2026-06-05).
+  // ⚡ 빠른 경로 1c: 시술 리포트 슬러그 처리 — (1) 영문 en → 한글 308 리다이렉트,
+  //   (2) 존재하지 않는 시술 → 실제 404 (소프트 404 차단, 2026-07-05).
+  //
+  //   왜 미들웨어인가: /reports/[procedure] 는 force-dynamic 부모 layout(await RPC)이 만드는
+  //     Suspense 경계 + route-level loading.tsx 아래에서 스트리밍되어, 페이지 본문의 notFound()
+  //     시점엔 이미 200 이 확정된다(소프트 404). 존재 검사를 렌더 이전(미들웨어)에서 수행해야
+  //     진짜 404 를 돌려줄 수 있다(Next.js 공식 권고). rewrite 로 not-found 를 렌더하면 루트
+  //     app/loading.tsx 가 다시 Suspense 로 감싸 200 이 재발하므로, 미들웨어에서 404 Response 직접 반환.
+  //
   //   정식 URL = /reports/{ko}(한글). 영문 en 은 리다이렉트 전용(중복 콘텐츠 방지).
-  //   페이지 레벨 redirect 는 스트리밍 SSR 에서 200+meta-refresh 로 폴백 → 하드 308 불가하므로
-  //   페이지보다 먼저 도는 미들웨어에서 처리.
-  //   ASCII(영문 en) 후보만 tag_dictionary 조회 → 한글 ko(정식 URL)는 조회 없이 통과(추가 비용 0).
-  //   1홉만(en→ko). ko 는 ASCII 가 아니라 절대 재진입하지 않음(루프 없음).
+  //   슬러그가 en 또는 ko 로 등록된 시술이면 통과(en 이면 308 로 ko 로 정규화), 어느 쪽으로도
+  //     등록 안 됐으면 404. 한글 ko(정식 URL)도 이제 1회 조회한다 — 존재 검증에 필요(비용:
+  //     시술 상세 진입당 인덱스 조회 1회. ko 는 UNIQUE 인덱스라 저렴).
   if (method === "GET" || method === "HEAD") {
     const reportMatch = path.match(/^\/reports\/([^/]+)\/?$/);
     if (reportMatch) {
-      const slug = decodeURIComponent(reportMatch[1]);
-      if (/^[a-z0-9-]+$/i.test(slug)) {
+      const slug = decodeURIComponent(reportMatch[1]).trim();
+      // .or() 인젝션 방어: 아래 화이트리스트는 PostgREST 필터 메타문자(`,` `.` `(` `)`)를
+      //   전부 배제한다 → 보간값이 새 조건·연산자를 만들 수 없다(공백은 연산자 구분자가 아니라
+      //   `.` 없이는 조건 확장 불가 — 무해). 시술명(한글·영문·숫자·공백·하이픈·가운뎃점)만 조회 대상,
+      //   그 외는 조회 없이 404. page.tsx 의 PROCEDURE_SLUG_RE 와 동일 기준(정규식 파리티 유지).
+      if (slug && /^[가-힣a-zA-Z0-9 ·-]+$/.test(slug)) {
         const sb = createServerClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
           { cookies: { getAll: () => [], setAll: () => {} } },
         );
-        const { data } = await sb
-          .from("tag_dictionary")
-          .select("ko")
-          .eq("en", slug.toLowerCase())
-          .eq("is_procedure", true)
-          .maybeSingle();
-        const ko = (data as { ko?: string | null } | null)?.ko ?? null;
-        if (ko && ko !== slug) {
-          return NextResponse.redirect(
-            new URL(`/reports/${encodeURIComponent(ko)}`, request.url),
-            308,
-          );
+        // en(소문자) 또는 ko(원문) 로 등록된 시술 1건 조회 — page.tsx::resolveProcedure 와 동일 매칭.
+        //   fail-open: 조회 예외/에러 시 404·리다이렉트로 단정하지 않고 통과(유효 시술 오404 차단).
+        try {
+          const { data, error } = await sb
+            .from("tag_dictionary")
+            .select("ko, en")
+            .or(`en.eq.${slug.toLowerCase()},ko.eq.${slug}`)
+            .eq("is_procedure", true)
+            .maybeSingle<{ ko: string | null; en: string | null }>();
+          const ko = data?.ko ?? null;
+          if (!error && !ko) {
+            // 조회 성공 + 어느 슬러그로도 미등록 → 실제 404(친절 안내 + noindex).
+            return notFoundHtmlResponse();
+          }
+          if (ko && ko !== slug) {
+            // 영문 en 진입 → 한글 ko 정식 URL 로 308 영구 리다이렉트(1홉, ko 는 비-ASCII 라 재진입 없음).
+            return NextResponse.redirect(
+              new URL(`/reports/${encodeURIComponent(ko)}`, request.url),
+              308,
+            );
+          }
+          // ko === slug(한글 정식 URL 직접 진입) 또는 이미 정합이면 반환 없이 통과 — 페이지가 렌더.
+        } catch (e) {
+          console.warn("[middleware] reports existence check exception:", e);
+          // 통과 — 페이지가 처리(오404·리다이렉트 회피).
         }
+      } else {
+        // 빈 슬러그·메타문자 포함 등 형식 부적합 → 조회 없이 404.
+        return notFoundHtmlResponse();
       }
     }
   }
@@ -256,6 +306,52 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       return response;
     }
     // active 가 다른 명함으로 바뀜 → 슬로 path 에서 active 단위 재검사.
+  }
+
+  // ⚡ 빠른 경로 2c: 존재하지 않는 회원 핸들 → 실제 404 (소프트 404 차단, 2026-07-05).
+  //   /{handle}(단일 세그먼트)은 [handle]/page.tsx 로 매칭되는데, 이 페이지도 스트리밍 경계
+  //     아래에서 notFound() 를 부르므로 소프트 404(200)가 된다. 존재 검사를 미들웨어로 끌어올린다.
+  //
+  //   위치: onboarded 쿠키 빠른 경로(2b) '이후'. 온보딩 완료 회원(쿠키 보유)은 2b 에서 통과되어
+  //     이 블록을 타지 않으므로 유효 핸들 방문에 DB 조회가 붙지 않는다(핫패스 비용 0). SEO 대상인
+  //     크롤러·비로그인은 쿠키가 없어 2a/2b 를 지나 이 블록에 도달 → 미존재면 실제 404 를 받는다.
+  //   오탐 방지: RESERVED_FIRST_SEGMENT(라우팅 분류 SSOT)에 있는 실제 최상위 라우트(/about,
+  //     /doctors, /terms, /login, /reports … 및 홈 /)는 건너뛴다 — DB 조회 0, 회귀 0.
+  //     실제 라우트가 아닌 단일 세그먼트만 후보. page.tsx 의 핸들 정규식과 동일 형식 게이트 →
+  //     형식 부적합(예: feed.xml — '.' 포함)은 조회 없이 404.
+  //   유효 판정: doctors.slug 또는 profiles.handle 중 하나라도 존재하면 통과([handle]/page.tsx 가
+  //     의사 slug 는 /doctors 로 308, 회원 handle 은 프로필 렌더 — 둘 다 없을 때만 notFound()).
+  //     (anon 은 명시 컬럼 SELECT — id·slug — 는 column GRANT 로 가능. table-wide SELECT 만 REVOKE.)
+  //   fail-open: 조회 예외·에러 시 404 로 단정하지 않고 통과(유효 핸들을 일시 오류로 오404 차단).
+  if (method === "GET" || method === "HEAD") {
+    const seg = path.split("/").filter(Boolean);
+    if (seg.length === 1) {
+      const handle = decodeURIComponent(seg[0]);
+      if (!RESERVED_FIRST_SEGMENT.has(handle)) {
+        if (!HANDLE_RE.test(handle)) {
+          // 핸들 형식 부적합(대문자·'.'·언더스코어·과길이 등)은 어떤 프로필도 될 수 없음 → 조회 없이 404.
+          return notFoundHtmlResponse();
+        }
+        const sb = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { cookies: { getAll: () => [], setAll: () => {} } },
+        );
+        try {
+          const [doctorRes, profileRes] = await Promise.all([
+            sb.from("doctors").select("slug").eq("slug", handle).maybeSingle(),
+            sb.from("profiles").select("id").eq("handle", handle).maybeSingle(),
+          ]);
+          const errored = !!doctorRes.error || !!profileRes.error;
+          if (!errored && !doctorRes.data && !profileRes.data) {
+            return notFoundHtmlResponse();
+          }
+        } catch (e) {
+          console.warn("[middleware] handle existence check exception:", e);
+          // 통과 — 페이지가 처리(오404 방지).
+        }
+      }
+    }
   }
 
   // 위 fast path를 못 통과하면 supabase로 검증
