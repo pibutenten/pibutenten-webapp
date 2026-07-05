@@ -237,7 +237,14 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   if (method === "GET" || method === "HEAD") {
     const reportMatch = path.match(/^\/reports\/([^/]+)\/?$/);
     if (reportMatch) {
-      const slug = decodeURIComponent(reportMatch[1]).trim();
+      let slug: string;
+      try {
+        slug = decodeURIComponent(reportMatch[1]).trim();
+      } catch {
+        // malformed 퍼센트 인코딩(정상 클라는 항상 유효 인코딩) → garbage 입력이므로 실제 404
+        //   (decodeURIComponent 는 try 밖에서 던지면 미들웨어 크래시=500 이 되므로 반드시 감쌈).
+        return notFoundHtmlResponse();
+      }
       // .or() 인젝션 방어: 아래 화이트리스트는 PostgREST 필터 메타문자(`,` `.` `(` `)`)를
       //   전부 배제한다 → 보간값이 새 조건·연산자를 만들 수 없다(공백은 연산자 구분자가 아니라
       //   `.` 없이는 조건 확장 불가 — 무해). 시술명(한글·영문·숫자·공백·하이픈·가운뎃점)만 조회 대상,
@@ -326,7 +333,13 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   if (method === "GET" || method === "HEAD") {
     const seg = path.split("/").filter(Boolean);
     if (seg.length === 1) {
-      const handle = decodeURIComponent(seg[0]);
+      let handle: string;
+      try {
+        handle = decodeURIComponent(seg[0]);
+      } catch {
+        // malformed 퍼센트 인코딩 → garbage 입력이므로 실제 404(미들웨어 크래시 방지).
+        return notFoundHtmlResponse();
+      }
       if (!RESERVED_FIRST_SEGMENT.has(handle)) {
         if (!HANDLE_RE.test(handle)) {
           // 핸들 형식 부적합(대문자·'.'·언더스코어·과길이 등)은 어떤 프로필도 될 수 없음 → 조회 없이 404.
