@@ -14,8 +14,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import styles from "../app.module.css";
 import { recordBadge } from "@/lib/diary-status";
-import { UNKNOWN_YEAR } from "@/lib/record-data";
-import type { SummaryGroup } from "@/components/skin/record/SkinDiaryForms";
+import { UNKNOWN_YEAR, type NoteSummaryGroup } from "@/lib/record-data";
 
 /** 날짜 미상(visited_on=NULL) 일기 표시 라벨. */
 const UNKNOWN_DATE_LABEL = "날짜 미상";
@@ -35,6 +34,7 @@ export type RecEntry = {
   place: string;
   doctor: string;
   memo?: string;
+  source: "member" | "clinic"; // 작성 주체(마이그 0343) — 'clinic'이면 "병원 입력" 배지 (B5)
 };
 
 /* ---------- 내가 쓴 후기 1건(공개 review 카드, 뷰 전용) ----------
@@ -85,10 +85,10 @@ export function ReviewBox({ review }: { review: MyReview }) {
 
 const DOT_TONES = [styles.dotPink, styles.dotBlue, styles.dotGreen, styles.dotPurple];
 
-/** 운영 SummaryGroup[] → 3토글 뷰가 쓰는 RecEntry[](연/월/일 + 배지용 visitedOn).
+/** 운영 NoteSummaryGroup[](SummaryGroup + source) → 3토글 뷰가 쓰는 RecEntry[](연/월/일 + 배지용 visitedOn).
  *  날짜 미상(year=UNKNOWN_YEAR, date="")은 split 하지 않고 month/day=0·dateUnknown=true·visitedOn="" 로 둔다
  *  (Number("")=NaN, `${0}-${undefined}` 같은 깨진 값 방지). */
-export function toRecEntries(summary: SummaryGroup[]): RecEntry[] {
+export function toRecEntries(summary: NoteSummaryGroup[]): RecEntry[] {
   const out: RecEntry[] = [];
   let toneIdx = 0;
   for (const g of summary) {
@@ -113,10 +113,26 @@ export function toRecEntries(summary: SummaryGroup[]): RecEntry[] {
         place: it.hospital,
         doctor: it.doctor,
         memo: it.memo || undefined,
+        source: it.source,
       });
     }
   }
   return out;
+}
+
+/* "병원 입력" 배지 — source='clinic'(병원 대행 작성, 마이그 0343)인 노트에만 표시 (B5, §8.3).
+ *  기존 recBadge 토큰(크기·패딩·칩 radius) 재사용, 색만 브랜드 CSS 변수(soft/active)로 구분 —
+ *  회복 단계 배지(recBadgeMint/Heal)와 의미 혼동 방지. source='member'면 아무것도 렌더하지 않음(기존 화면 불변). */
+function ClinicBadge({ entry }: { entry: RecEntry }) {
+  if (entry.source !== "clinic") return null;
+  return (
+    <span
+      className={styles.recBadge}
+      style={{ background: "var(--primary-soft)", color: "var(--primary-active)" }}
+    >
+      병원 입력
+    </span>
+  );
 }
 
 /* 회복 단계 배지 — 운영 recordBadge(diary-status SSOT) 사용(시술명 + 방문일 기준).
@@ -184,6 +200,7 @@ function TimelineView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: 
                 >
                   <div className={styles.recTlHead}>
                     <h3 className={styles.recTlName}>{e.procs.join(" · ")}</h3>
+                    <ClinicBadge entry={e} />
                     <Badge entry={e} />
                   </div>
                   <div className={styles.recMeta}>
@@ -310,6 +327,7 @@ function CalendarView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: 
                       {e.month}.{e.day}
                     </span>
                     <span className={styles.recCalRowName}>{e.procs.join(" · ")}</span>
+                    <ClinicBadge entry={e} />
                     <Badge entry={e} />
                   </div>
                 </div>
@@ -347,6 +365,7 @@ function CalendarView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: 
                 >
                   <span className={styles.recCalRowDate}>{UNKNOWN_DATE_LABEL}</span>
                   <span className={styles.recCalRowName}>{e.procs.join(" · ")}</span>
+                  <ClinicBadge entry={e} />
                   <Badge entry={e} />
                 </div>
               </div>
@@ -403,6 +422,8 @@ function ListView({ entries, onOpen }: { entries: RecEntry[]; onOpen?: (id: stri
                     <span className={styles.recListName}>{e.procs.join(" · ")}</span>
                     <span className={styles.recListPlace}>{e.place}</span>
                   </span>
+                  {/* 목록 뷰는 회복 Badge 미표시(기존과 동일) — "병원 입력" 배지만 우측에 추가 */}
+                  <ClinicBadge entry={e} />
                 </button>
               </div>
             ))}

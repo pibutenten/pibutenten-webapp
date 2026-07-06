@@ -20,6 +20,7 @@ import {
 import { FITZPATRICK_TONES } from "@/lib/fitzpatrick";
 import { CATEGORIES, PROCEDURE_CATEGORIES, type CategorySlug, type ProcedureSlug } from "@/lib/categories";
 import type { PopularByCategory } from "@/lib/popular-keywords";
+import BirthdateSelect, { normalizeBirthdate } from "@/components/forms/BirthdateSelect";
 
 const INTERESTS_MAX = 10;
 
@@ -123,43 +124,19 @@ async function resizeImage(file: File): Promise<Blob> {
   }
 }
 
-// 생년월일 select용 옵션 — 1920부터 현재년까지 역순(최근 우선)
-const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_OPTIONS = Array.from(
-  { length: CURRENT_YEAR - 1920 + 1 },
-  (_, i) => CURRENT_YEAR - i,
-);
-const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
-const DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => i + 1);
-
-function parseBirthdate(s: string): {
-  year: string;
-  month: string;
-  day: string;
-} {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
-  if (!m) return { year: "", month: "", day: "" };
-  return {
-    year: m[1],
-    month: String(parseInt(m[2], 10)),
-    day: String(parseInt(m[3], 10)),
-  };
-}
+// (생년월일 3분할 select · 옵션 상수 · parseBirthdate 는 공용 컴포넌트
+//  @/components/forms/BirthdateSelect 로 추출 — 병원계정 B2, 2026-07-06)
 
 export default function OnboardingClient({ userId, targetProfileId, initial, popularByCategory }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
 
-  const initialDate = parseBirthdate(initial.birthdate);
-  const [birthYear, setBirthYear] = useState(initialDate.year);
-  const [birthMonth, setBirthMonth] = useState(initialDate.month);
-  const [birthDay, setBirthDay] = useState(initialDate.day);
-  // birthdate 합성 (YYYY-MM-DD) — DB 저장 시 사용
-  const birthdate =
-    birthYear && birthMonth && birthDay
-      ? `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`
-      : "";
+  // 생년월일 합성값 (YYYY-MM-DD | "") — 3분할 상태는 BirthdateSelect 내부가 관리하고,
+  // 여기는 DB 저장·검증에 쓰는 합성값만 보유합니다.
+  const [birthdate, setBirthdate] = useState(() =>
+    normalizeBirthdate(initial.birthdate),
+  );
 
   const [email, setEmail] = useState(initial.email);
   const [gender, setGender] = useState<Initial["gender"]>(initial.gender);
@@ -285,10 +262,11 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
       return;
     }
     if (!birthdate) {
-      // 년·월·일 중 첫 번째 빈 select 로 포커스
-      const firstEmpty = !birthYear
+      // 년·월·일 중 첫 번째 빈 select 로 포커스 — 3분할 상태가 BirthdateSelect 내부로
+      // 이동했으므로, ref 의 DOM value 로 빈 칸을 판별합니다(동작 동일).
+      const firstEmpty = !birthYearRef.current?.value
         ? birthYearRef.current
-        : !birthMonth
+        : !birthMonthRef.current?.value
           ? birthMonthRef.current
           : birthDayRef.current;
       fail("생년월일을 입력해주세요.", firstEmpty);
@@ -552,52 +530,18 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
               className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-3 text-[12px] focus:border-[var(--primary)] focus:outline-none"
             />
           </div>
-          {/* 생년월일 — 라벨 좌측, select 3개 우측 */}
+          {/* 생년월일 — 라벨 좌측, 3분할 select 우측(공용 BirthdateSelect, 렌더 결과 동일) */}
           <div className="flex items-center gap-3">
             <span className="w-[60px] shrink-0 text-[12px] font-medium text-[var(--text-secondary)]">
               생년월일
             </span>
-            <div className="flex flex-1 gap-1.5">
-              <select
-                ref={birthYearRef}
-                value={birthYear}
-                onChange={(e) => setBirthYear(e.target.value)}
-                className="h-9 flex-[1.3] rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none"
-              >
-                <option value="">년</option>
-                {YEAR_OPTIONS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}년
-                  </option>
-                ))}
-              </select>
-              <select
-                ref={birthMonthRef}
-                value={birthMonth}
-                onChange={(e) => setBirthMonth(e.target.value)}
-                className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none"
-              >
-                <option value="">월</option>
-                {MONTH_OPTIONS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}월
-                  </option>
-                ))}
-              </select>
-              <select
-                ref={birthDayRef}
-                value={birthDay}
-                onChange={(e) => setBirthDay(e.target.value)}
-                className="h-9 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none"
-              >
-                <option value="">일</option>
-                {DAY_OPTIONS.map((d) => (
-                  <option key={d} value={d}>
-                    {d}일
-                  </option>
-                ))}
-              </select>
-            </div>
+            <BirthdateSelect
+              value={birthdate}
+              onChange={setBirthdate}
+              yearRef={birthYearRef}
+              monthRef={birthMonthRef}
+              dayRef={birthDayRef}
+            />
           </div>
 
           {/* 성별 — 칩 그대로 (가로 정렬 적용 안 함, 칩이 폭에 따라 wrap) */}

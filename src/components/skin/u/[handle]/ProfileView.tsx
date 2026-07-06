@@ -27,6 +27,7 @@ import {
 import type { CardData } from "@/lib/types/card";
 import AppShell from "../../AppShell";
 import PolicyFooter from "../../PolicyFooter";
+import ClinicLinksSection from "./ClinicLinksSection";
 import styles from "../../app.module.css";
 import {
   PostCard,
@@ -331,6 +332,11 @@ export default function ProfileView({
           )}
         </section>
       )}
+
+      {/* 연결된 병원 관리 (B5, §8.3) — 프로필·설정 아코디언 영역 안, 본인 + 펼침 시에만 마운트
+          (지연 로드). 목록·연결 해제는 ClinicLinksSection 이 자체 처리, 이력 0건이면 스스로 숨김.
+          타인 프로필에서는 isOwner 게이트로 절대 미노출. */}
+      {isOwner && settingsOpen && <ClinicLinksSection />}
 
       {/* 탭 */}
       <section className={`${styles.card} ${styles.mb20}`}>

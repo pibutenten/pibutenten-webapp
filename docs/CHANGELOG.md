@@ -14,8 +14,20 @@
 - **병원 대행 RPC 9종 (마이그 0345 — 계획 예약 번호, 0346~0348 이후 적용)** — 병원측 5종(`clinic_request_link`·`clinic_add_visit`·`clinic_update_patient`·`get_clinic_patients`·`get_clinic_patient`) + 회원측 4종(`member_respond_link`·`member_get_clinic_link`·`member_list_clinic_links`·`member_revoke_clinic_link`). 전부 SECURITY DEFINER·호출자 명함 파라미터+`auth.uid()` 대조(0279 패턴, GUC 비의존). 열거방지(match_failed 단일 에러)·지점단위 rate-limit·FOR UPDATE 직렬화·price 상한·ILIKE 이스케이프·consent_version 서버상수. `is_notification_enabled` 에 clinic 2종 분기 추가. 계획 §6 대비 의도적 정정: `member_delete_clinic_visit` 미생성(기존 `delete_visit` 0297 재사용 — 후기 standalone 전환 포함 완전 처리), 회원측 조회 2종 신설(REVOKE ALL 테이블이라 동의 화면·연결관리의 유일한 데이터 경로), p_note 제거·p_total_price 추가.
 - **강남 지점 병원 계정 프로비저닝** — hhskin05@gmail.com 명함(46a063f5)을 `role='clinic'`+`clinic_id=16957`+display_name '힐하우스피부과의원 강남점' 으로 승격(시스템 최초 clinic 계정). middleware clinic 조기통과로 온보딩 게이트 면제 — 재로그인 시 온보딩 화면 미표시. 잔여 4지점: 판교(hhskin02, 의사 명함과 별도 처리 필요)·수원(hhskin00)은 기존 계정, 건대(hhskin03)·대구(hhskin04)는 첫 구글 로그인 후 승격 예정.
 
-### 후속(다음 단계)
-- B2 공용 컴포넌트(`BirthdateSelect`·`form-styles` 추출, DiaryForm `mode='clinic'`+`next_appointment_date`) → B3 API(`api/clinic/*`·`api/member/*`) → B4 병원 대시보드(`/clinic`) → B5 회원 화면(동의·`/notes` 배지·연결관리·알림토글 UI).
+### Added (같은 날 후속 — Part B-2: 프론트 엔드투엔드)
+- **병원/회원 API 라우트 9종** — 병원측 `POST /api/clinic/links`(등록 요청)·`GET /api/clinic/patients(+?q=)`·`GET·PATCH /api/clinic/patients/[linkId]`(상세·전체교체 수정)·`POST /api/clinic/visits`(대행 작성 — 회원 경로와 동일한 tag_dictionary 서버 매칭 포함), 회원측 `GET /api/member/clinic-links(+/[linkId])`·`POST .../respond`·`POST .../revoke`. 공용 `lib/clinic-link-rpc.ts`(0345 에러 어휘→HTTP 매핑 단일 출처, 메시지 우선 분기)·zod `lib/schema/api/clinic.ts`(.strict()·RPC 동일 상한). 가드: 병원측 `role===clinic && clinicId` 인라인(API_POLICY 관례).
+- **병원 대시보드 `/clinic`** — role=clinic 게이트(그 외 404, noindex). 환자 등록(아이디+실명+생일 `BirthdateSelect`+등록번호) → 3상태 피드백, 목록/검색(300ms 디바운스·상태 배지 4종), 상세(스냅샷·피부 프로필 라벨 렌더 + 병원 항목 수정 — 전체 교체 계약 준수), 시술노트 작성(`DiaryForm mode='clinic'` 임베드, `key`로 환자 전환 격리).
+- **DiaryForm 병원 모드**(`SkinDiaryForms.tsx` `mode='clinic'`) — 병원 검색 숨김(소속 자동)·원장 드롭다운(재직 원장, "직접 입력" 폴백)·다음 예약일(date, 병원 전용)·평가/후기 UI 제거·제출 `/api/clinic/visits` 분기. 회원 모드(기본값) 렌더·동작 무변경.
+- **회원 동의 화면 `/onboarding/clinic-link/[id]`** — 온보딩형 전체화면(§8.3 확정 문구: 제목·제공 항목·병원 입력 실명 본인 확인·통제 안내·체크박스 게이트), 동의/거절 → 완료 화면, 이미 처리된 연결은 상태 안내. 409 경합 시 최신 상태 재조회.
+- **`/notes` "병원 입력" 배지** — `diaries.source='clinic'` 배선(record-data·목록 3뷰·상세 헤더). source 미지정 시 렌더 100% 동일.
+- **프로필 연결 병원 관리**(`ClinicLinksSection`) — `/{handle}` 설정 아코디언 안(본인+펼침 시에만 마운트), 병원별 상태·연결일 + active 해제(확인 모달). 이력 0건이면 섹션 숨김.
+- **공용 추출** — `components/forms/BirthdateSelect.tsx`(온보딩 3분할 생일 select 공용화 — 온보딩은 렌더·검증·포커스 동작 동일 교체)·`lib/form-styles.ts`(inputCls 등 4종).
+
+### Security (Part B-2 검수)
+- **코드검수관 2인 독립 검수(치명 A2·B2) → 반영 → 재검수 치명 0 통과.** 반영: ① 환자 전환 시 DiaryForm 상태 오염(`key={link_id}` — A환자 내용이 B환자 노트로 저장될 수 있던 결함) ② 등록 성공 후 BirthdateSelect 이전 값 잔존(key 리마운트 리셋 — effect 동기화는 불완전 입력과 구분 불가라 기각) ③ 저장 완료 모달·언마운트 경쟁 제거 ④ 직접입력 원장 이름 공란 차단 ⑤ 다음 예약일 클라 사전검증 ⑥ 상세 fresh 재로드 실패 시 경고 토스트(전체 교체 계약 방어) ⑦ no-store 명시. 기각 3건은 사실 반증(import type 무해·삼항 else fallback·body 이중읽기 아님). 총괄 직접 검수 추가 수정: 병원 경로 tag_dictionary 서버 매칭 누락(회원 경로와 사전 연결 정합).
+
+### 후속(deferred)
+- 병원 대시보드 "오늘 작성 건수"(병원 자기 작성 노트 집계 RPC 필요) · 알림 설정 `pref_clinic_*` 토글 UI(`save_my_notification_prefs` RPC 확장 동반) · 동의 화면 `backfill_legal_name` 체크박스 · 판교(hhskin02, 의사 명함과 별도 처리)·수원(hhskin00) 프로비저닝, 건대(hhskin03)·대구(hhskin04)는 첫 구글 로그인 후 · `SummaryItem` 타입 SSOT 를 record-data 로 이동(현 import type 이라 무해) · 상태 배지 상수 공용화 · 후기 prefill(Part C).
 
 ---
 

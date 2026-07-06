@@ -29,15 +29,9 @@ import { PROCEDURE_CATEGORIES } from "@/lib/categories";
 import { useAutocompleteKeyboard } from "@/hooks/useAutocompleteKeyboard";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { showToast } from "@/lib/toast";
+// 폼 공통 클래스 — @/lib/form-styles 로 추출(병원계정 B2, 2026-07-06). 병원 화면과 공유.
+import { inputCls, inputSm, textareaCls, labelCls } from "@/lib/form-styles";
 
-/* ── 실제 폼 공통 클래스 ── */
-const inputCls =
-  "w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[16px] transition-colors focus:border-[var(--primary)] focus:outline-none focus:ring-0";
-const inputSm =
-  "rounded-md border border-[var(--border)] bg-white px-2.5 py-1.5 text-[16px] focus:border-[var(--primary)] focus:outline-none focus:ring-0";
-const textareaCls =
-  "w-full resize-y rounded-md border border-[var(--border)] bg-white p-3 text-[16px] leading-[1.6] focus:border-[var(--primary)] focus:outline-none focus:ring-0";
-const labelCls = "mb-2 block text-sm font-semibold text-[var(--text)]";
 /** 글상자 — 피드 카드와 동일: 테두리 X·음영 X. */
 const formBox = "space-y-5 rounded-[var(--radius)] bg-white p-5";
 const cardBox = "rounded-[var(--radius)] bg-white p-5";
@@ -120,10 +114,37 @@ type DiaryProc = ReviewState & { id: number; label: string; cat: string; note: s
 /** 자동완성 사전 항목 — getReviewProcedures(ProcedureOption) 와 구조 호환(value/label/categoryLabel). */
 type ProcDictItem = { value: string; label: string; categoryLabel?: string | null };
 
-export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialProcedure, onDirtyChange }: { toast: (m: string) => void; go: (s: Screen) => void; procedures?: ProcDictItem[]; reviewOnly?: boolean; initialProcedure?: string; onDirtyChange?: (dirty: boolean) => void }) {
+/** 병원 모드(mode='clinic') 대상 환자 — clinic_member_links 연결 1건. */
+type ClinicPatient = { linkId: number; patientName: string | null; memberHandle: string | null };
+/** 병원 모드 원장 드롭다운 항목 — 소속 지점 재직 원장(doctors WHERE clinic_id=계정 AND is_affiliated). */
+type ClinicDoctor = { id: string; name: string };
+
+// 병원 모드 원장 드롭다운의 "직접 입력" 센티널 값 — doctors.id(uuid)와 충돌하지 않습니다.
+const CLINIC_DOCTOR_CUSTOM = "__custom__";
+
+export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialProcedure, onDirtyChange, mode = "member", clinicPatient, clinicDoctors, onClinicSaved }: {
+  toast: (m: string) => void;
+  go: (s: Screen) => void;
+  procedures?: ProcDictItem[];
+  reviewOnly?: boolean;
+  initialProcedure?: string;
+  onDirtyChange?: (dirty: boolean) => void;
+  /** 병원 대행입력 모드(병원계정 B2, 계획 §8.2) — 기본 "member"(기존 동작 불변). */
+  mode?: "member" | "clinic";
+  /** 병원 모드 대상 환자(필수) — link_id 가 제출 경로(/api/clinic/visits)의 키. */
+  clinicPatient?: ClinicPatient;
+  /** 병원 모드 원장 드롭다운 목록 — 비었으면 자유입력 폴백. */
+  clinicDoctors?: ClinicDoctor[];
+  /** 병원 모드 저장 완료 콜백 — 생성된 visit(diary) id 전달. */
+  onClinicSaved?: (visitId: number) => void;
+}) {
+  // 병원 모드 분기 — reviewOnly 와 동시 사용 불가(병원은 시술노트만 작성, 후기는 회원 본인이).
+  //   병원 모드에서는 reviewOnly 를 무시합니다.
+  const isClinic = mode === "clinic";
+  const effReviewOnly = !isClinic && reviewOnly;
   // reviewOnly("시술 후기만") — 같은 visit 폼이지만 병원·방문 블록을 접은 상태로 시작.
   //   사용자가 "병원·방문 정보 추가" 를 누르면 펼친다(비공개 메타는 선택이므로 visit 만으로도 저장 가능).
-  const [metaOpen, setMetaOpen] = useState(!reviewOnly);
+  const [metaOpen, setMetaOpen] = useState(!effReviewOnly);
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
   const [pickedXY, setPickedXY] = useState<{ x: number; y: number } | null>(null); // 확정 병원 좌표(경도 x/위도 y)
@@ -152,6 +173,10 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   const [diary, setDiary] = useState(""); // 오늘의 시술 노트(비공개 메모) — 최대 400자.
   const [doctorName, setDoctorName] = useState(""); // 원장님(자유 입력)
   const [managerName, setManagerName] = useState(""); // 실장님(자유 입력)
+  // 병원 모드 전용 상태 — 회원 모드에서는 초기값("") 그대로 유지되어 렌더·동작에 영향 없음.
+  //   clinicDoctorId: "" = 미선택 / doctors.id = 드롭다운 선택 / CLINIC_DOCTOR_CUSTOM = 직접 입력.
+  const [clinicDoctorId, setClinicDoctorId] = useState("");
+  const [nextAppointmentDate, setNextAppointmentDate] = useState(""); // 다음 예약일(선택, YYYY-MM-DD)
   const [clinicHome, setClinicHome] = useState(""); // 병원 홈페이지(비공개)
   const [clinicKakao, setClinicKakao] = useState(""); // 카카오톡 채널(비공개, 직접 입력)
   const [totalPrice, setTotalPrice] = useState(""); // 총 결제금액(비공개, 일기 표시용 — 집계 제외)
@@ -216,6 +241,8 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
     picked !== null ||
     doctorName.trim() !== "" ||
     managerName.trim() !== "" ||
+    clinicDoctorId !== "" ||
+    nextAppointmentDate !== "" ||
     clinicHome.trim() !== "" ||
     clinicKakao.trim() !== "" ||
     totalPrice.trim() !== "" ||
@@ -383,7 +410,8 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
     const inDict = !!matched;
     const nid = (pidRef.current += 1);
     // "시술 후기만"(reviewOnly) 진입이면 사전 시술은 후기 아코디언을 자동 펼침(후기 작성이 주목적).
-    const autoReviewOpen = reviewOnly && inDict;
+    //   병원 모드는 effReviewOnly=false 라 항상 접힘(후기 UI 자체가 숨겨짐).
+    const autoReviewOpen = effReviewOnly && inDict;
     // 함수형 업데이트 + 동기 id — 연속 고속 추가에도 id 충돌·항목 유실 없음. 중복·상한은 최신 상태 기준 재확인.
     setProcs((prev) => (prev.some((p) => p.label === label) || prev.length >= 10 ? prev : [...prev, { ...emptyReview(), id: nid, label, cat, note: "", open: false, reviewOpen: autoReviewOpen, inDict }]));
     setTag("");
@@ -410,8 +438,8 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
     const matched = procList.find((p) => p.label === initialProcedure);
     if (!matched) return; // 사전에 없으면 프리필 생략(자유입력 후기 불가 — C-1 가드).
     const nid = (pidRef.current += 1);
-    setProcs((prev) => (prev.some((p) => p.label === matched.label) ? prev : [...prev, { ...emptyReview(), id: nid, label: matched.label, cat: matched.cat, note: "", open: false, reviewOpen: reviewOnly, inDict: true }]));
-  }, [procList, initialProcedure, reviewOnly]);
+    setProcs((prev) => (prev.some((p) => p.label === matched.label) ? prev : [...prev, { ...emptyReview(), id: nid, label: matched.label, cat: matched.cat, note: "", open: false, reviewOpen: effReviewOnly, inDict: true }]));
+  }, [procList, initialProcedure, effReviewOnly]);
 
   const tq = tag.trim(); const tlow = tq.toLowerCase();
   // 부분일치 + 영문 별칭 + 초성('ㅇㅆ'→울쎄라). 이미 추가된 건 제외, 최대 8건.
@@ -465,10 +493,72 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   );
 
   // 저장 — /api/visits POST (create_visit_with_entries RPC). visit + 시술목록 + 후기 + day0 원자 생성.
-  //   시술 1개 이상 필수.
+  //   시술 1개 이상 필수. 병원 모드(mode='clinic')는 /api/clinic/visits 로 분기(아래).
   async function handleSave() {
     if (saving) return;
     if (procs.length === 0) { toast("받은 시술을 1개 이상 추가해주세요"); return; }
+
+    // ── 병원 모드 제출 경로(병원계정 B2, 계획 §8.2) — /api/clinic/visits POST.
+    //    소속 지점은 서버가 채우고, 평가·후기는 없음(시술노트만 — 후기는 회원 본인이 작성).
+    if (isClinic) {
+      if (!clinicPatient) { toast("대상 환자 정보가 없어요"); return; }
+      // "직접 입력" 선택인데 이름이 비면 안내(2인 검수 반영 — 담당자 없는 노트 오저장 방지).
+      if (clinicDoctorId === CLINIC_DOCTOR_CUSTOM && !doctorName.trim()) {
+        toast("담당 원장 이름을 입력하거나 목록에서 선택해주세요");
+        return;
+      }
+      // 다음 예약일은 시술일 이후만(서버 RPC 와 동일 규칙 — 모호한 400 대신 명확한 안내).
+      if (nextAppointmentDate && nextAppointmentDate < date) {
+        toast("다음 예약일은 시술일 이후로 선택해주세요");
+        return;
+      }
+      setSaving(true);
+      try {
+        const res = await fetch("/api/clinic/visits", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            link_id: clinicPatient.linkId,
+            visited_on: date,
+            // 시술 목록 — /api/visits 의 procedures 항목 형식과 동일(tag_dict_ko 는 서버가 매칭해 채움).
+            procedures: procs.map((pr, i) => ({
+              procedure_ko: pr.label,
+              note: pr.note.trim() || null,
+              sort_order: i,
+            })),
+            // 원장 — 드롭다운 선택 시 doctor_id, "직접 입력"·목록 없음 폴백 시 doctor_name(둘 중 하나만).
+            doctor_id:
+              clinicDoctorId && clinicDoctorId !== CLINIC_DOCTOR_CUSTOM ? clinicDoctorId : null,
+            doctor_name:
+              !clinicDoctorId || clinicDoctorId === CLINIC_DOCTOR_CUSTOM
+                ? doctorName.trim() || null
+                : null,
+            manager_name: managerName.trim() || null,
+            diary_body: diary.trim() || null,
+            total_price: totalPrice.trim() ? Number(totalPrice.replace(/[^0-9]/g, "")) || null : null,
+            next_appointment_date: nextAppointmentDate || null,
+          }),
+        });
+        if (res.status === 401) { toast("로그인 후 저장할 수 있어요"); setSaving(false); return; }
+        if (!res.ok) {
+          const j = (await res.json().catch(() => ({}))) as { message?: string; userMessage?: string };
+          toast(j?.userMessage || j?.message || "저장에 실패했어요");
+          setSaving(false);
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as { visit_id?: number };
+        setSaving(false);
+        guard.markSubmitted(); // 저장 성공 → 이탈 가드 해제.
+        // 완료 모달은 띄우지 않음(2인 검수 반영) — onClinicSaved 가 이 화면을 즉시 닫으므로
+        // (언마운트 경쟁) 완료 안내는 부모(ClinicDashboardClient) 토스트가 담당.
+        if (typeof data.visit_id === "number") onClinicSaved?.(data.visit_id);
+      } catch {
+        toast("네트워크 오류가 발생했어요");
+        setSaving(false);
+      }
+      return;
+    }
+
     // ★관대화: 어림시기(계절/반기) 미선택은 더 이상 차단하지 않음 — 연 단위로 강등 저장.
     // ★FIX-4: 공개 후기인데 평가·한줄후기가 전부 비면 빈 공개 카드 생성 차단.
     if (emptyPublicReview) { toast("공개 후기는 만족도 등 평가를 하나 이상 남기거나 한줄후기를 적어주세요"); return; }
@@ -562,7 +652,8 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
 
   return (
     <section className="mx-auto w-full max-w-[680px] py-6">
-      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up">{reviewOnly ? "시술 후기를 남겨주세요" : "내가 받은 시술을 기록해요"}</h1>
+      {/* 제목 — 병원 모드는 대상 환자(이름 없으면 핸들) 표기로 "누구의 노트인지" 명시. */}
+      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up">{isClinic ? `${clinicPatient?.patientName ?? clinicPatient?.memberHandle ?? "회원"}님의 시술노트를 작성해요` : effReviewOnly ? "시술 후기를 남겨주세요" : "내가 받은 시술을 기록해요"}</h1>
 
       {/* 메인 노트 글상자 */}
       <div className={formBox}>
@@ -594,7 +685,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
 
         {/* "시술 후기만"(reviewOnly) — 병원·의사·실장 등 visit 상세만 접고 시작. 펼치면 일반 visit 폼과 동일.
             ★FIX-1: 날짜·어림시기는 위에서 항상 노출되므로, 이 토글은 병원·방문 상세에만 적용된다. */}
-        {reviewOnly && !metaOpen && (
+        {effReviewOnly && !metaOpen && (
           <button type="button" onClick={() => setMetaOpen(true)} className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[var(--border)] bg-[var(--bg-soft)] py-3 text-[13px] font-semibold text-[var(--text-secondary)]">
             ＋ 병원·방문 정보 추가 <span className="text-[11.5px] font-normal text-[var(--text-muted)]">(선택, 나만 봐요)</span>
           </button>
@@ -603,7 +694,9 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
         {/* 병원·의사·실장 블록 — reviewOnly 면 metaOpen 일 때만 노출. */}
         {metaOpen && (
         <>
-        {/* 2. 병원 — 이름/지명 검색 → 결과에서 바로 선택(지도 없음). 선택 시 결과창이 부드럽게 접힘. */}
+        {/* 2. 병원 — 이름/지명 검색 → 결과에서 바로 선택(지도 없음). 선택 시 결과창이 부드럽게 접힘.
+            병원 모드는 통째로 숨김 — 소속 지점은 서버(/api/clinic/visits)가 자동으로 채웁니다(계획 §8.2). */}
+        {!isClinic && (
         <div>
           <label className={labelCls}>어디서 받으셨어요?</label>
           {/* 확정 전 검색 UI — 선택 시 closing 으로 잠깐 접었다가(슥) picked 확정. */}
@@ -660,16 +753,36 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
             </div>
           )}
         </div>
+        )}
 
-        {/* 3. 의사 / 실장 */}
+        {/* 3. 의사 / 실장 — 병원 모드는 원장 칸을 소속 지점 재직 원장 드롭다운으로 교체
+            (목록이 비면 자유입력 폴백). 실장은 양쪽 모두 자유입력. */}
         <div>
           <label className={labelCls}>누구에게 받으셨어요?</label>
           <div className="grid grid-cols-2 gap-2">
-            <input ref={doctorRef} className={inputCls} spellCheck={false} placeholder="원장님" value={doctorName} maxLength={100} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setDoctorName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); managerRef.current?.focus(); } }} />
+            {isClinic && clinicDoctors && clinicDoctors.length > 0 ? (
+              <select
+                value={clinicDoctorId}
+                onChange={(e) => setClinicDoctorId(e.target.value)}
+                className={inputCls}
+              >
+                <option value="">원장님 선택</option>
+                {clinicDoctors.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+                <option value={CLINIC_DOCTOR_CUSTOM}>직접 입력</option>
+              </select>
+            ) : (
+              <input ref={doctorRef} className={inputCls} spellCheck={false} placeholder="원장님" value={doctorName} maxLength={100} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setDoctorName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); managerRef.current?.focus(); } }} />
+            )}
             <input ref={managerRef} className={inputCls} spellCheck={false} placeholder="실장님" value={managerName} maxLength={100} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setManagerName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); tagRef.current?.focus(); } }} />
           </div>
+          {/* "직접 입력" 선택 시 — 기존 자유입력 input 노출(doctor_name 으로 전송). */}
+          {isClinic && clinicDoctors && clinicDoctors.length > 0 && clinicDoctorId === CLINIC_DOCTOR_CUSTOM && (
+            <input className={inputCls + " mt-2"} spellCheck={false} placeholder="원장님 이름 직접 입력" value={doctorName} maxLength={100} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setDoctorName(e.target.value)} />
+          )}
         </div>
         </>
         )}
@@ -709,15 +822,18 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
                   )}
 
                   {/* 시술별 후기 아코디언 — 펼치면 평가 컨트롤(day0). 안 펼치면 "기록만".
-                      자유입력 신규태그(inDict=false)는 후기 불가(RPC unknown_procedure 거부) → 안내만, 기록은 정상 저장. */}
-                  {!p.inDict ? (
-                    <p className="mt-2 px-1 text-[11.5px] leading-relaxed text-[var(--text-muted)]">목록에 없는 시술이라 기록만 남길 수 있어요. 후기는 운영자가 시술을 등록한 뒤 작성할 수 있어요.</p>
-                  ) : !p.reviewOpen ? (
-                    <button type="button" onClick={() => upd(p.id, { reviewOpen: true })} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[#CBE0F0] bg-white py-2 text-[12.5px] font-semibold text-[var(--primary-active)]">
-                      이 시술, 기록을 남겨볼까요?
-                    </button>
-                  ) : (
-                    <ReviewAccordion p={p} onChange={(patch) => upd(p.id, patch)} onClose={() => upd(p.id, { reviewOpen: false })} />
+                      자유입력 신규태그(inDict=false)는 후기 불가(RPC unknown_procedure 거부) → 안내만, 기록은 정상 저장.
+                      병원 모드는 평가·후기 UI 전부 숨김 — 병원은 시술노트만 작성하고 후기는 회원 본인이 씁니다(계획 §8.2). */}
+                  {!isClinic && (
+                    !p.inDict ? (
+                      <p className="mt-2 px-1 text-[11.5px] leading-relaxed text-[var(--text-muted)]">목록에 없는 시술이라 기록만 남길 수 있어요. 후기는 운영자가 시술을 등록한 뒤 작성할 수 있어요.</p>
+                    ) : !p.reviewOpen ? (
+                      <button type="button" onClick={() => upd(p.id, { reviewOpen: true })} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[#CBE0F0] bg-white py-2 text-[12.5px] font-semibold text-[var(--primary-active)]">
+                        이 시술, 기록을 남겨볼까요?
+                      </button>
+                    ) : (
+                      <ReviewAccordion p={p} onChange={(patch) => upd(p.id, patch)} onClose={() => upd(p.id, { reviewOpen: false })} />
+                    )
                   )}
                 </div>
               ))}
@@ -792,7 +908,8 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
 
         {/* 5. 총 결제금액 — 비공개(일기 표시용, 집계 제외). 시술별 가격 입력은 폐지(총액 일원화). */}
         <div>
-          <label className={labelCls}>총 결제금액 <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">(선택 · 나만 봐요)</span></label>
+          {/* 병원 모드는 "나만 봐요" 표기가 어긋나므로(작성자=병원, 열람자=회원) 부가 문구 생략. */}
+          <label className={labelCls}>총 결제금액{!isClinic && <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">(선택 · 나만 봐요)</span>}</label>
           <div className="relative">
             <input
               type="text"
@@ -813,6 +930,22 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
           <textarea rows={3} maxLength={400} value={diary} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setDiary(e.target.value)} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
         </div>
 
+        {/* 7. 다음 예약일 — 병원 모드 전용(계획 §8.2 next_appointment_date, 선택 입력).
+            회원 경로 RPC(create_visit_with_entries)는 이 값을 아직 받지 않으므로 회원 모드엔 노출하지 않습니다(의도적 범위 제한). */}
+        {isClinic && (
+          <div>
+            <label className={labelCls}>다음 예약일</label>
+            <input
+              type="date"
+              className={inputCls}
+              value={nextAppointmentDate}
+              min={date}
+              onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
+              onChange={(e) => setNextAppointmentDate(e.target.value)}
+            />
+          </div>
+        )}
+
       </div>
 
       <div className="mt-4 flex justify-center">
@@ -827,19 +960,22 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
         </p>
       )}
 
-      {/* 저장 완료 모달 — 통합 폼에선 같은 화면에서 후기까지 작성하므로 완료 안내만. */}
+      {/* 저장 완료 모달 — 통합 폼에선 같은 화면에서 후기까지 작성하므로 완료 안내만.
+          병원 모드는 카피·동선 분기: 회원 알림 발송 안내 + 닫기만(내 노트 이동 없음 — 후속은 onClinicSaved 콜백이 담당). */}
       {savedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={() => { setSavedModal(false); go("record"); }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={() => { setSavedModal(false); if (!isClinic) go("record"); }}>
           <div className="w-full max-w-[340px] rounded-[var(--radius)] bg-white p-6 text-center" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[28px]" style={{ background: "var(--primary-soft)" }}>✅</div>
-            <p className="text-[17px] font-extrabold text-[var(--text)]">기록을 완료했어요</p>
+            <p className="text-[17px] font-extrabold text-[var(--text)]">{isClinic ? "시술노트를 저장했어요" : "기록을 완료했어요"}</p>
             <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
-              {savedHasPublicReview
-                ? <>공개로 남긴 후기는 다른 분들께도 도움이 돼요.<br /><span className="text-[var(--text-muted)]">내 노트에서 언제든 다시 볼 수 있어요.</span></>
-                : <>받은 시술이 내 노트 타임라인에 정리됐어요.<br /><span className="text-[var(--text-muted)]">경과는 나중에 이어서 기록할 수 있어요.</span></>}
+              {isClinic
+                ? <>회원에게 알림이 발송됩니다.<br /><span className="text-[var(--text-muted)]">회원이 확인 후 직접 후기를 이어 쓸 수 있어요.</span></>
+                : savedHasPublicReview
+                  ? <>공개로 남긴 후기는 다른 분들께도 도움이 돼요.<br /><span className="text-[var(--text-muted)]">내 노트에서 언제든 다시 볼 수 있어요.</span></>
+                  : <>받은 시술이 내 노트 타임라인에 정리됐어요.<br /><span className="text-[var(--text-muted)]">경과는 나중에 이어서 기록할 수 있어요.</span></>}
             </p>
             <div className="mt-5 space-y-2">
-              <button type="button" onClick={() => { setSavedModal(false); go("record"); }} className="block w-full rounded-md bg-[var(--primary)] py-3 text-[14.5px] font-bold text-white">내 노트 보러 가기</button>
+              <button type="button" onClick={() => { setSavedModal(false); if (!isClinic) go("record"); }} className="block w-full rounded-md bg-[var(--primary)] py-3 text-[14.5px] font-bold text-white">{isClinic ? "확인" : "내 노트 보러 가기"}</button>
             </div>
           </div>
         </div>

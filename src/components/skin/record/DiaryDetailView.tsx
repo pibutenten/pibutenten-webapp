@@ -22,6 +22,8 @@ export type DiaryDetail = {
   doctor_name: string | null;
   manager_name: string | null;
   diary_body: string | null;
+  /** 작성 주체(마이그 0343) — 'clinic'(병원 대행)이면 헤더에 "병원 입력" 배지 (B5, §8.3). */
+  source: "member" | "clinic";
   diary_procedures: {
     procedure_ko: string;
     unit_text: string | null;
@@ -78,6 +80,16 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
           <p className="text-[12px] font-bold text-[var(--primary-active)]">
             {dateUnknown ? "날짜 미상" : `${y}.${m}.${day} · ${weekday}요일`}
             <span className="ml-1 font-medium text-[var(--text-muted)]">· 나만 봐요</span>
+            {/* "병원 입력" 배지 — 병원 대행 작성(source='clinic', 마이그 0343)일 때만.
+                recBadge 토큰 재사용 + 브랜드 CSS 변수 색(내 노트 목록 ClinicBadge 와 동일 톤). */}
+            {d.source === "clinic" && (
+              <span
+                className={`${styles.recBadge} ml-1.5`}
+                style={{ background: "var(--primary-soft)", color: "var(--primary-active)" }}
+              >
+                병원 입력
+              </span>
+            )}
           </p>
           <p className="mt-1 text-[20px] font-bold text-[var(--text)]">{procTitle}</p>
           {d.clinic_name && <p className="mt-2 text-[14px] font-semibold text-[var(--text)]">{d.clinic_name}</p>}

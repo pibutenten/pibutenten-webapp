@@ -31,7 +31,8 @@ export const KEYWORD_SELECT =
   "id, title, created_at, keywords, post_year, post_slug, shortcode, doctor:doctors(slug, name, photo_url), author:profiles!cards_author_id_profiles_fkey(handle, display_name, avatar_url)";
 
 /** diaries(부모) + diary_procedures(자식 N) 조인 행. RLS 가 active 명함 소유분만 반환.
- *  visited_on 은 nullable — precision='unknown'("날짜 잘 기억 안 나요") 일기는 NULL (마이그 0302). */
+ *  visited_on 은 nullable — precision='unknown'("날짜 잘 기억 안 나요") 일기는 NULL (마이그 0302).
+ *  source: 작성 주체 — 'member'(회원 본인) / 'clinic'(병원 대행, 마이그 0343). NOT NULL DEFAULT 'member'. */
 export type DiaryRow = {
   id: number;
   visited_on: string | null; // "YYYY-MM-DD" 또는 NULL(날짜 미상)
@@ -40,12 +41,13 @@ export type DiaryRow = {
   doctor_name: string | null;
   manager_name: string | null;
   diary_body: string | null;
+  source: "member" | "clinic";
   diary_procedures: { procedure_ko: string; unit_text: string | null; price: number | null; sort_order: number }[];
 };
 
 /** diaries 조회 SELECT 절. */
 export const DIARY_SELECT =
-  "id, visited_on, clinic_name, clinic_tel, doctor_name, manager_name, diary_body, diary_procedures(procedure_ko, unit_text, price, sort_order)";
+  "id, visited_on, clinic_name, clinic_tel, doctor_name, manager_name, diary_body, source, diary_procedures(procedure_ko, unit_text, price, sort_order)";
 
 /** get_top_cards_by_views 반환 행(0280 으로 회원도 사이트 전체 호출 가능). */
 export type TopCardRow = {
@@ -78,11 +80,18 @@ export function cardHrefFromRecord(c: {
  *  소비측(RecordNotesPanel)은 year===UNKNOWN_YEAR 를 "날짜 미상"으로 분기 처리한다. */
 export const UNKNOWN_YEAR = 0;
 
-/** diaries 행 → 내 노트 패널이 쓰는 SummaryGroup[](연도 내림차순, 같은 해는 최신 방문순).
+/** SummaryItem + 작성 주체(source, 마이그 0343) — "병원 입력" 배지 판정용(B5, 2026-07-06).
+ *  기반 타입 SummaryItem 은 SkinDiaryForms.tsx SSOT 를 그대로 두고(병원 폼 공유 컴포넌트라
+ *  본 배지 관심사와 분리), 내 노트 배지 경로에서만 교차 타입으로 확장한다.
+ *  NoteSummaryGroup[] 은 SummaryGroup[] 에 구조적으로 대입 가능 — 기존 소비처(RecordView 등) 불변. */
+export type NoteSummaryItem = SummaryItem & { source: "member" | "clinic" };
+export type NoteSummaryGroup = { year: number; items: NoteSummaryItem[] };
+
+/** diaries 행 → 내 노트 패널이 쓰는 NoteSummaryGroup[](연도 내림차순, 같은 해는 최신 방문순).
  *  visited_on=NULL(precision='unknown', 마이그 0302) 일기는 UNKNOWN_YEAR 그룹(date="")으로 분리 —
  *  날짜 split/포맷 크래시 방지 + 정렬상 맨 끝(별도 묶음). */
-export function toSummaryGroups(rows: DiaryRow[]): SummaryGroup[] {
-  const byYear = new Map<number, SummaryItem[]>();
+export function toSummaryGroups(rows: DiaryRow[]): NoteSummaryGroup[] {
+  const byYear = new Map<number, NoteSummaryItem[]>();
   for (const r of rows) {
     // visited_on 이 NULL("날짜 잘 기억 안 나요")이면 split 하지 않고 UNKNOWN_YEAR·date="" 로 처리.
     const hasDate = !!r.visited_on;
@@ -92,7 +101,7 @@ export function toSummaryGroups(rows: DiaryRow[]): SummaryGroup[] {
     const items = procs.map((p) => ({ name: p.procedure_ko, unit: p.unit_text ?? "" }));
     const totalPrice = procs.reduce((s, p) => s + (p.price ?? 0), 0);
     const hasPrice = procs.some((p) => p.price != null);
-    const item: SummaryItem = {
+    const item: NoteSummaryItem = {
       id: String(r.id),
       date: hasDate ? `${m}.${d}` : "", // 날짜 미상이면 빈 문자열(소비측이 "날짜 미상"으로 표시)
       proc: items.map((i) => i.name).join(" · "),
@@ -102,6 +111,7 @@ export function toSummaryGroups(rows: DiaryRow[]): SummaryGroup[] {
       tel: r.clinic_tel ?? "",
       price: hasPrice ? `${totalPrice.toLocaleString("ko-KR")}원` : "",
       memo: r.diary_body ?? "",
+      source: r.source,
       items,
     };
     byYear.set(year, [...(byYear.get(year) ?? []), item]);

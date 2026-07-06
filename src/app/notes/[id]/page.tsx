@@ -34,7 +34,7 @@ export default async function DiaryDetailPage({ params }: Props) {
   const { data: d } = await supabase
     .from("diaries")
     .select(
-      "id, visited_on, clinic_name, clinic_addr, clinic_tel, doctor_name, manager_name, diary_body, diary_procedures(procedure_ko, unit_text, price, note, sort_order), linked_reviews:procedure_reviews!procedure_reviews_visit_id_fkey(id, procedure_ko, review_checkin(timepoint))",
+      "id, visited_on, clinic_name, clinic_addr, clinic_tel, doctor_name, manager_name, diary_body, source, diary_procedures(procedure_ko, unit_text, price, note, sort_order), linked_reviews:procedure_reviews!procedure_reviews_visit_id_fkey(id, procedure_ko, review_checkin(timepoint))",
     )
     .eq("id", numId)
     .maybeSingle()

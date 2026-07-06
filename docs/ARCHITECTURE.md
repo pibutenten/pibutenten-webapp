@@ -76,6 +76,10 @@
 /my                                 마이페이지 허브(MyPageView) — 프로필 카드·퀵스탯·나의 활동/관심/설정/고객지원. 진입은 헤더 우상단 아바타로만(하단 탭에서 제거 — 리포트로 교체). 회원은 직접 렌더, admin→/admin·doctor→/doctor 리다이렉트. 활동/관심은 /{handle} 탭으로 연결. noindex
 /shop                               쇼핑 준비중 — noindex
 /review/new                         시술후기 작성 (P3-d, 전용 폼. /write 시술후기 탭이 이 ReviewForm 공유)
+/clinic                             병원 대시보드(role=clinic 전용, 그 외 404) — 환자 등록(handle+실명+생일)·목록/검색·
+                                    상세(스냅샷+병원 항목 수정)·시술노트 대행 작성(DiaryForm mode='clinic' 임베드). noindex
+/onboarding/clinic-link/[id]        병원 연결 등록 동의(회원, 전체화면 온보딩형 §8.3 확정 문구) — 이중 동의(정보 제공+대행 저장).
+                                    pending 아니면 상태 안내만. noindex(onboarding layout 상속)
 ```
 
 > **메인 승격(2026-06-11)**: 기존 `/beta` 미리보기 앱이 루트로 이전. `/beta`·`/beta/:path*` → 루트 308. (승격 당시의 `TopNav`(콘텐츠 페이지)·`BottomNav`(앱 라우트) 이원 크롬은 이후 AppShell 단일화로 폐기(2026-06-26) — 현 상태는 위 두 인용블록·§4.3 참조.)

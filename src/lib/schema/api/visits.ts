@@ -17,8 +17,8 @@
 
 import { z } from "zod";
 
-/** YYYY-MM-DD 형식 + 실재 날짜 검증 (DiaryCreateSchema 와 동일 패턴). */
-const isoDate = z
+/** YYYY-MM-DD 형식 + 실재 날짜 검증 (DiaryCreateSchema 와 동일 패턴). clinic.ts 도 재사용. */
+export const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD")
   .refine((v) => {

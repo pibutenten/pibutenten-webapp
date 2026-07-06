@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { DIARY_SELECT, toSummaryGroups, type DiaryRow } from "@/lib/record-data";
-import type { SummaryGroup } from "@/components/skin/record/SkinDiaryForms";
 import RecordNotesView from "@/components/skin/record/RecordNotesView";
 import type { MyReview } from "@/components/skin/record/RecordNotesPanel";
 
@@ -76,7 +75,7 @@ export default async function RecordNotesPage() {
   const diaryRows = diariesRes.data ?? [];
   // 받은 시술 = 모든 노트의 시술 항목 총합(노트 1건에 시술 여러 개 가능).
   const procedureCount = diaryRows.reduce((n, d) => n + (d.diary_procedures?.length ?? 0), 0);
-  const summary = toSummaryGroups(diaryRows) as SummaryGroup[];
+  const summary = toSummaryGroups(diaryRows);
 
   // 공개 후기 카드 → MyReview[]. 시술명은 procedure_reviews.procedure_ko, 없으면 카드 제목.
   //   공개 URL = /{handle}/{shortcode}(둘 다 있을 때만). 작성일은 "YYYY-MM-DD"로 트림.
