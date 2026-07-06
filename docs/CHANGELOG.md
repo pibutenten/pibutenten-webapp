@@ -6,6 +6,26 @@
 
 ---
 
+## [2026-07-06] — 병원 운영 페이지 재설계 (관리자 /admin 패턴) + 5지점 프로비저닝 + 온보딩 이탈 정정
+
+원장 피드백: 단일 폼 화면이 아니라 "관리자 운영 페이지처럼 대시보드 + 운영 프로그램 목록 + 각 프로그램 별도 페이지" 여야 함. `/admin`(AdminView) 골격을 병원용으로 이식.
+
+### Changed
+- **`/clinic` 단일 페이지 → 관리자 패턴 다중 페이지 재구성** — 구 `ClinicDashboardClient.tsx`(한 파일 4화면 screen 상태) 삭제, 라우트 분해:
+  - `/clinic` = **대시보드**(신규 `ClinicDashboardView`) — 현황 Stat 카드 4종(연결 환자·동의 대기·오늘/이번 달 노트) + "운영 프로그램" Tool 카드 그리드(환자 등록·목록·시술노트 작성 + 준비중 딤드 2종). AdminView Stat/Tool 골격 이식.
+  - `/clinic/patients`(목록·검색) · `/clinic/patients/new`(등록) · `/clinic/patients/[linkId]`(상세·병원기록 수정, 서버 fresh 로드로 stale 경고 제거) · `/clinic/visits/new`(?link=active환자면 작성, 아니면 active 환자 선택 목록).
+  - 공용: `lib/clinic-page-guard.ts::requireClinicPage`(5페이지 공용 가드) · `app/clinic/_shared.tsx`(ClinicShell=AppShell wide 래퍼·StatusBadge·skinProfileRows·타입) · `app/clinic/layout.tsx`(noindex). 각 페이지 = 서버(가드+데이터) + View(클라). 기존 API·DiaryForm mode='clinic' 100% 재사용.
+- **병원 계정 랜딩 = `/clinic`** — `/my`(admin→/admin·doctor→/doctor 패턴에 clinic→/clinic 누락 정정) + `auth/callback`(next 미지정 시 clinic 기본 랜딩). 병원 계정 아바타 진입 시 일반 회원 마이페이지가 뜨던 것 정정.
+
+### Added
+- **대시보드 집계 RPC (마이그 0349)** — `get_clinic_dashboard(p_clinic_profile_id)` → 연결/대기 환자 + 오늘/이번 달(KST) 대행 노트 수. SECURITY DEFINER + 병원 명함 검증(0345 패턴). diaries 는 회원 소유 RLS 라 병원 직접 SELECT 불가 → 이 RPC(owner)로만 집계.
+- **잔여 4지점 병원 계정 프로비저닝** — 수원(hhskin00→16959 승격)·판교(hhskin02→16955, 김종식 원장 묶음에 병원 명함 별도 신설·의사 명함 보존, ADR 0012)·건대(hhskin03→16956)·대구(hhskin04→16958, Admin API 로 auth 사전 생성→첫 구글 로그인 자동 링크). 5지점 전체 role=clinic 검증.
+
+### Fixed
+- **must_onboard 쿠키가 clinic 온보딩 면제를 무력화하던 결함** (`middleware.ts`·`onboarding/page.tsx`) — 가입 화면이 심는 강제 온보딩 쿠키(24h) fast-path 2a 가 DB 조회 없이 무조건 /onboarding redirect → 슬로 패스 clinic 조기통과에 도달 불가(가입 직후 승격된 hhskin05 갇힘). 2a blind redirect 제거(슬로 패스 폴스루, 일반 유저 결과 동일) + 통과 3지점 쿠키 청소 + /onboarding 페이지 clinic→/clinic 가드. 코드검수관 일반유저 4케이스 회귀 추적 치명 0.
+
+---
+
 ## [2026-07-06] — 병원 계정 Part B-1: 대행 RPC(0345) + 강남 지점 프로비저닝
 
 계획 SSOT: `docs/plans/260704 병원계정 시술기록 대행입력 계획.md` §6. 발단: 원장 실기기 확인 — hhskin05(강남) 첫 구글 로그인이 일반 회원 온보딩에 걸림(role='user' 상태였으므로 정상 동작·설계상 예상). 4계층 전수 조사로 "백엔드 토대는 전부 적용·병원 기능만 미구현" 확정 후 Part B 후속 착수. 프로세스: 패턴 조사 서브에이전트 2인 병렬 → 총괄 작성 → 디비전문가 1차 검수(치명 4)→반영→2차 재검수 통과 → UTF-8 경로 적용 → U+FFFD 0 재스캔.

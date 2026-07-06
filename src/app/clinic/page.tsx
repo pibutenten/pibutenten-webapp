@@ -1,80 +1,45 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getIdentityContext } from "@/lib/identity";
-import { ROLES } from "@/lib/identity-shared";
-import { getReviewProcedures } from "@/lib/review-procedures";
-import ClinicDashboardClient, {
-  type ClinicPatientItem,
-} from "./ClinicDashboardClient";
+import { requireClinicPage } from "@/lib/clinic-page-guard";
+import ClinicDashboardView, {
+  type ClinicDashboardStats,
+} from "./ClinicDashboardView";
 
 export const dynamic = "force-dynamic";
 
-// 병원 전용 내부 화면 — 검색 노출 금지(마이페이지·온보딩과 동일 noindex 패턴).
 export const metadata: Metadata = {
   title: "병원 대시보드",
   robots: { index: false, follow: false },
 };
 
-/** 병원 모드 원장 드롭다운 항목 — DiaryForm clinicDoctors prop 과 동일 형태. */
-type ClinicDoctorOption = { id: string; name: string };
-
 /**
- * /clinic — 병원 지점 대시보드 (병원계정 B4, 계획 §8.1).
+ * /clinic — 병원 지점 대시보드 (B4 재설계, 관리자 /admin 패턴).
  *
- * 게이트: 비로그인 → /login?next=/clinic. active 명함이 role='clinic' + clinic_id 보유가
- *   아니면 notFound() — 병원 화면의 존재 자체를 일반 회원에게 숨긴다(§8.1 is_clinic 게이트).
- *   route-class.ts::RESERVED_FIRST_SEGMENT 에 'clinic' 등록 완료 → 핸들 라우트와 충돌 없음.
- *
- * 서버 조회(병렬):
- *   - 소속 재직 원장: doctors WHERE clinic_id = active.clinicId AND is_affiliated = true
- *     (0341 — 공개 테이블 직접 SELECT. is_listed 무관: 드롭다운은 재직 기준 §8.1③)
- *   - 시술 사전: getReviewProcedures (tag_dictionary is_procedure — /write 와 동일 소스)
- *   - 초기 환자 목록: get_clinic_patients RPC(0345 — 자기 지점 연결만, 검색은 클라가
- *     GET /api/clinic/patients?q= 로 재조회)
- *
- * ※ deferred — 계획 §8.1 의 헤더 "오늘 작성 건수"는 병원이 자기 작성 노트(diaries
- *   source='clinic')를 집계 조회할 RPC 가 아직 없어 이번 범위에서 제외. 조회 RPC
- *   (예: get_clinic_today_visit_count) 신설 시 헤더에 추가한다.
+ * 게이트: requireClinicPage(비로그인→/login, 비-clinic→notFound).
+ * 현황 숫자는 get_clinic_dashboard RPC(0349) 1회 — 연결/대기 환자·오늘/이번달 대행 노트.
+ * 각 운영 프로그램(환자 등록·목록·시술노트 작성)은 /clinic/* 하위 별도 페이지.
  */
 export default async function ClinicPage() {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/clinic");
+  const { active } = await requireClinicPage(supabase);
 
-  const idCtx = await getIdentityContext(supabase);
-  const active = idCtx?.active;
-  if (!active || active.role !== ROLES.CLINIC || active.clinicId == null) {
-    notFound();
-  }
+  const { data: statsRow } = await supabase
+    .rpc("get_clinic_dashboard", { p_clinic_profile_id: active.profileId })
+    .maybeSingle<ClinicDashboardStats>();
 
-  // 세 조회는 서로 독립 → 병렬(첫 라운드트립 묶기 — /write 서버 패턴과 동일).
-  const [doctorsRes, procedures, patientsRes] = await Promise.all([
-    supabase
-      .from("doctors")
-      .select("id, name")
-      .eq("clinic_id", active.clinicId)
-      .eq("is_affiliated", true)
-      .order("name", { ascending: true })
-      .returns<ClinicDoctorOption[]>(),
-    getReviewProcedures(supabase),
-    supabase.rpc("get_clinic_patients", {
-      p_clinic_profile_id: active.profileId,
-      p_search: null,
-    }),
-  ]);
-
-  const doctors = doctorsRes.data ?? [];
-  const initialPatients = (patientsRes.data ?? []) as ClinicPatientItem[];
+  // get_clinic_dashboard 는 patient_total 도 반환하나(연결+대기 합) 카드로는 active·pending 을
+  //   따로 노출하므로 여기서 소비하지 않는다(검수 반영 — 미사용 필드 미매핑).
+  const stats: ClinicDashboardStats = {
+    pending_count: Number(statsRow?.pending_count ?? 0),
+    active_count: Number(statsRow?.active_count ?? 0),
+    notes_today: Number(statsRow?.notes_today ?? 0),
+    notes_month: Number(statsRow?.notes_month ?? 0),
+  };
 
   return (
-    <ClinicDashboardClient
+    <ClinicDashboardView
       clinicName={active.displayName?.trim() || "병원 대시보드"}
-      doctors={doctors}
-      procedures={procedures}
-      initialPatients={initialPatients}
+      stats={stats}
     />
   );
 }

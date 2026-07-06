@@ -76,8 +76,13 @@
 /my                                 마이페이지 허브(MyPageView) — 프로필 카드·퀵스탯·나의 활동/관심/설정/고객지원. 진입은 헤더 우상단 아바타로만(하단 탭에서 제거 — 리포트로 교체). 회원은 직접 렌더, admin→/admin·doctor→/doctor 리다이렉트. 활동/관심은 /{handle} 탭으로 연결. noindex
 /shop                               쇼핑 준비중 — noindex
 /review/new                         시술후기 작성 (P3-d, 전용 폼. /write 시술후기 탭이 이 ReviewForm 공유)
-/clinic                             병원 대시보드(role=clinic 전용, 그 외 404) — 환자 등록(handle+실명+생일)·목록/검색·
-                                    상세(스냅샷+병원 항목 수정)·시술노트 대행 작성(DiaryForm mode='clinic' 임베드). noindex
+/clinic                             병원 대시보드(role=clinic 전용, 그 외 404) — 현황 Stat 카드 + 운영 프로그램 카드(관리자 /admin 패턴).
+                                    get_clinic_dashboard RPC(0349). noindex(clinic/layout)
+/clinic/patients                    환자 목록/검색(행→상세). 별도 페이지
+/clinic/patients/new                환자 등록(handle+실명+생일 → 동의 요청). 별도 페이지
+/clinic/patients/[linkId]           환자 상세(스냅샷+병원 항목 수정, 서버 fresh 로드) + 시술노트 작성 진입(active만)
+/clinic/visits/new                  시술노트 대행 작성(?link=active환자→DiaryForm mode='clinic', 아니면 환자 선택 목록)
+                                    ※ 공용: requireClinicPage 가드·_shared(ClinicShell=AppShell wide)·layout(noindex)
 /onboarding/clinic-link/[id]        병원 연결 등록 동의(회원, 전체화면 온보딩형 §8.3 확정 문구) — 이중 동의(정보 제공+대행 저장).
                                     pending 아니면 상태 안내만. noindex(onboarding layout 상속)
 ```
