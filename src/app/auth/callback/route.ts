@@ -372,7 +372,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/onboarding`);
   }
 
-  // 6) 모든 role은 / 메인 피드로 (관리/내 글 페이지는 헤더 본인 아이콘으로 진입)
-  const dest = next || "/";
+  // 6) 기본 랜딩 — 병원 계정은 병원 대시보드가 홈(계획 §1.1 "구글 로그인 → /clinic"),
+  //    그 외 role 은 / 메인 피드(관리/내 글 페이지는 헤더 본인 아이콘으로 진입).
+  const dest = next || (profile.role === ROLES.CLINIC ? "/clinic" : "/");
   return NextResponse.redirect(`${origin}${dest}`);
 }

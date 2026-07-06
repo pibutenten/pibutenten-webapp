@@ -53,6 +53,7 @@ export default async function MyPage() {
   const active = idCtx?.active;
   if (active?.role === ROLES.ADMIN) redirect("/admin");
   if (active?.role === ROLES.DOCTOR) redirect("/doctor");
+  if (active?.role === ROLES.CLINIC) redirect("/clinic"); // 병원 계정 — 회원 마이 대신 병원 대시보드
 
   // 회원 — active 명함(getIdentityContext SSOT) 기준. 없으면 base profile fallback.
   const activeId = active?.profileId ?? user.id;
