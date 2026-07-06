@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-07-06] — 병원 계정 Part B-1: 대행 RPC(0345) + 강남 지점 프로비저닝
+
+계획 SSOT: `docs/plans/260704 병원계정 시술기록 대행입력 계획.md` §6. 발단: 원장 실기기 확인 — hhskin05(강남) 첫 구글 로그인이 일반 회원 온보딩에 걸림(role='user' 상태였으므로 정상 동작·설계상 예상). 4계층 전수 조사로 "백엔드 토대는 전부 적용·병원 기능만 미구현" 확정 후 Part B 후속 착수. 프로세스: 패턴 조사 서브에이전트 2인 병렬 → 총괄 작성 → 디비전문가 1차 검수(치명 4)→반영→2차 재검수 통과 → UTF-8 경로 적용 → U+FFFD 0 재스캔.
+
+### Added
+- **병원 대행 RPC 9종 (마이그 0345 — 계획 예약 번호, 0346~0348 이후 적용)** — 병원측 5종(`clinic_request_link`·`clinic_add_visit`·`clinic_update_patient`·`get_clinic_patients`·`get_clinic_patient`) + 회원측 4종(`member_respond_link`·`member_get_clinic_link`·`member_list_clinic_links`·`member_revoke_clinic_link`). 전부 SECURITY DEFINER·호출자 명함 파라미터+`auth.uid()` 대조(0279 패턴, GUC 비의존). 열거방지(match_failed 단일 에러)·지점단위 rate-limit·FOR UPDATE 직렬화·price 상한·ILIKE 이스케이프·consent_version 서버상수. `is_notification_enabled` 에 clinic 2종 분기 추가. 계획 §6 대비 의도적 정정: `member_delete_clinic_visit` 미생성(기존 `delete_visit` 0297 재사용 — 후기 standalone 전환 포함 완전 처리), 회원측 조회 2종 신설(REVOKE ALL 테이블이라 동의 화면·연결관리의 유일한 데이터 경로), p_note 제거·p_total_price 추가.
+- **강남 지점 병원 계정 프로비저닝** — hhskin05@gmail.com 명함(46a063f5)을 `role='clinic'`+`clinic_id=16957`+display_name '힐하우스피부과의원 강남점' 으로 승격(시스템 최초 clinic 계정). middleware clinic 조기통과로 온보딩 게이트 면제 — 재로그인 시 온보딩 화면 미표시. 잔여 4지점: 판교(hhskin02, 의사 명함과 별도 처리 필요)·수원(hhskin00)은 기존 계정, 건대(hhskin03)·대구(hhskin04)는 첫 구글 로그인 후 승격 예정.
+
+### 후속(다음 단계)
+- B2 공용 컴포넌트(`BirthdateSelect`·`form-styles` 추출, DiaryForm `mode='clinic'`+`next_appointment_date`) → B3 API(`api/clinic/*`·`api/member/*`) → B4 병원 대시보드(`/clinic`) → B5 회원 화면(동의·`/notes` 배지·연결관리·알림토글 UI).
+
+---
+
 ## [2026-07-05] — 병원 계정 · 시술노트 대행 (Part A + 백엔드 토대)
 
 계획 SSOT: `docs/plans/260704 병원계정 시술기록 대행입력 계획.md`. 이번 배치는 **Part A(원장 계정 개편) + Part B 백엔드 토대**까지다. 병원 프론트(대시보드·동의 화면·대행입력 RPC 0345·DiaryForm 개편)는 **후속 단계** — clinic 관련 코드는 현재 호출부가 없어 inert-safe(도입만 하고 아직 사용 안 함). 프로세스: 운영 DB 적용 → 3인 독립 코드검수(치명 2건) → 정정(0348) → 타입체크·풀빌드 통과.
