@@ -21,7 +21,7 @@ export function parseLinkId(raw: string): number | null {
 }
 
 /**
- * 0345 RPC 에러 → HTTP 응답 매핑.
+ * 0345/0350 RPC 에러 → HTTP 응답 매핑.
  *
  *   42501 not_authorized_*      → 403
  *   54000 rate limit exceeded   → 429
@@ -29,6 +29,9 @@ export function parseLinkId(raw: string): number | null {
  *   link_already_pending/active → 409
  *   link_not_found              → 404
  *   link_not_pending/active/editable → 409 (상태 안내)
+ *   visit_not_found             → 404 (시술기록 편집·삭제, 0350)
+ *   visit_has_linked_reviews    → 409 (후기 달린 기록 수정·삭제 차단 C5·§4.2-8)
+ *   link_revoked                → 409 (연결 해제 회원 기록 수정·삭제 차단, C2 조회만)
  *   invalid_* / *_too_long (22023/22001) → 400
  *   그 외                        → 500 (fallbackKind — mutation 은 save_failed, 조회는 generic)
  */
@@ -83,6 +86,23 @@ export function mapClinicLinkRpcError(
   if (msg.includes("link_not_editable")) {
     return errorResponse(rpcErr, "invalid_input", `${ctx} link_not_editable`, 409, undefined, {
       userMessage: "해지되었거나 거절된 연결은 수정할 수 없어요.",
+    });
+  }
+  // 시술기록 편집(0350 clinic_update_visit / clinic_delete_visit) 도메인 에러 —
+  //   전부 ERRCODE 22023 재사용이므로 아래 일반 22023 분기보다 먼저 메시지 매칭(주의 주석 참조).
+  if (msg.includes("visit_not_found")) {
+    return errorResponse(rpcErr, "not_found", `${ctx} visit_not_found`, 404, undefined, {
+      userMessage: "기록을 찾을 수 없어요.",
+    });
+  }
+  if (msg.includes("visit_has_linked_reviews")) {
+    return errorResponse(rpcErr, "invalid_input", `${ctx} visit_has_linked_reviews`, 409, undefined, {
+      userMessage: "회원이 후기를 남긴 기록은 수정·삭제할 수 없어요.",
+    });
+  }
+  if (msg.includes("link_revoked")) {
+    return errorResponse(rpcErr, "invalid_input", `${ctx} link_revoked`, 409, undefined, {
+      userMessage: "연결이 해제된 회원의 기록은 수정·삭제할 수 없어요. 조회만 가능해요.",
     });
   }
   // invalid_* / *_too_long / procedures_not_array 등 잔여 입력 위반.

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireClinicPage } from "@/lib/clinic-page-guard";
-import ClinicPatientDetailView from "./ClinicPatientDetailView";
+import ClinicPatientDetailView, { type ClinicVisitItem } from "./ClinicPatientDetailView";
 import type { ClinicPatientItem } from "../../_shared";
 
 export const dynamic = "force-dynamic";
@@ -25,14 +25,23 @@ export default async function ClinicPatientDetailPage({
   const supabase = await createSupabaseServerClient();
   const { active } = await requireClinicPage(supabase, `/clinic/patients/${linkId}`);
 
-  const { data } = await supabase
-    .rpc("get_clinic_patient", {
+  // 단건 프로필 + 그 환자 시술기록 타임라인(0350)을 병렬 조회. force-dynamic 이라 매 진입 fresh.
+  const [{ data }, { data: visitsData }] = await Promise.all([
+    supabase
+      .rpc("get_clinic_patient", {
+        p_clinic_profile_id: active.profileId,
+        p_link_id: id,
+      })
+      .maybeSingle<ClinicPatientItem>(),
+    supabase.rpc("get_clinic_patient_visits", {
       p_clinic_profile_id: active.profileId,
       p_link_id: id,
-    })
-    .maybeSingle<ClinicPatientItem>();
+    }),
+  ]);
 
   if (!data) notFound();
 
-  return <ClinicPatientDetailView patient={data} />;
+  const visits = (visitsData ?? []) as ClinicVisitItem[];
+
+  return <ClinicPatientDetailView patient={data} visits={visits} />;
 }

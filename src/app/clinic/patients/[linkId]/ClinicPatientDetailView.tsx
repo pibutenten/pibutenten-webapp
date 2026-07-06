@@ -32,11 +32,68 @@ const GENDER_LABEL: Record<string, string> = Object.fromEntries(
   GENDERS.map((g) => [g.key, g.label]),
 );
 
+/** 요일 라벨 — DiaryDetailView 와 동일 규칙(월=1 … 일=0). */
+const DOW = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** get_clinic_patient_visits(0350) 1행 = 그 환자의 시술노트 1건 + 자식 시술 항목. */
+export type ClinicVisitItem = {
+  diary_id: number;
+  visited_on: string | null;
+  visited_on_precision: string | null;
+  doctor_name: string | null;
+  doctor_id: string | null;
+  manager_name: string | null;
+  diary_body: string | null;
+  total_price: number | null;
+  next_appointment_date: string | null;
+  created_at: string;
+  updated_at: string;
+  procedures:
+    | {
+        id: number;
+        procedure_ko: string | null;
+        tag_dict_ko: string | null;
+        unit_text: string | null;
+        price: number | null;
+        note: string | null;
+        sort_order: number | null;
+      }[]
+    | null;
+};
+
 /** "YYYY-MM-DD" → "YYYY.MM.DD" (§2.4 표기). 형식 불일치면 원본 그대로. */
 function fmtBirth(raw: string | null): string {
   if (!raw) return "—";
   const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[1]}.${m[2]}.${m[3]}` : raw;
+}
+
+/** "YYYY-MM-DD" → "YYYY.MM.DD (요일)" (§2.4 연도 포함). 형식 불일치·null 이면 "날짜 미상". */
+function fmtVisitDate(raw: string | null): string {
+  if (!raw) return "날짜 미상";
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return raw;
+  const dow = DOW[new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`).getDay()];
+  return `${m[1]}.${m[2]}.${m[3]} (${dow})`;
+}
+
+/** "YYYY-MM-DD" → "YYYY.MM.DD" (다음 예약 pill용, 요일 없음). */
+function fmtDateShort(raw: string | null): string | null {
+  if (!raw) return null;
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}.${m[2]}.${m[3]}` : raw;
+}
+
+/** 금액(원) → "12만" 등 만 단위 축약. 만 미만·비정수는 "N원". null 이면 null. */
+function fmtPrice(v: number | null): string | null {
+  if (v == null || !Number.isFinite(v) || v <= 0) return null;
+  if (v >= 10000 && v % 10000 === 0) return `${(v / 10000).toLocaleString("ko-KR")}만`;
+  if (v >= 10000) {
+    const man = Math.floor(v / 10000);
+    const rest = v % 10000;
+    return `${man}만 ${rest.toLocaleString("ko-KR")}`;
+  }
+  return `${v.toLocaleString("ko-KR")}원`;
 }
 
 /**
@@ -54,7 +111,13 @@ function ageFromBirth(raw: string | null): string {
   return age >= 0 && age <= 130 ? `만 ${age}세` : "—";
 }
 
-export default function ClinicPatientDetailView({ patient }: { patient: ClinicPatientItem }) {
+export default function ClinicPatientDetailView({
+  patient,
+  visits,
+}: {
+  patient: ClinicPatientItem;
+  visits: ClinicVisitItem[];
+}) {
   const router = useRouter();
   const [editRegNo, setEditRegNo] = useState(patient.registration_number ?? "");
   const [editPhone, setEditPhone] = useState(patient.patient_phone ?? "");
@@ -202,7 +265,41 @@ export default function ClinicPatientDetailView({ patient }: { patient: ClinicPa
           </div>
         </div>
 
-        {/* 시술노트 작성 — active 만. 그 외 상태는 사유 안내. (시술 기록 타임라인은 S3 범위) */}
+        {/* ③ 시술 기록 타임라인 — 그 환자에게 병원이 쓴 시술노트 최근순(RPC가 이미 visited_on DESC 정렬).
+            active 면 행 클릭=편집 진입, 그 외(revoked/rejected/pending)는 조회만(수정 차단 C2). */}
+        <div className={`${BOX} mt-4`}>
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-[16px] font-bold text-[var(--ink-900)]">시술 기록</h2>
+            {visits.length > 0 && (
+              <span className="text-[13px] text-[var(--ink-300)]">{visits.length}건</span>
+            )}
+          </div>
+
+          {visits.length === 0 ? (
+            <p className="mt-4 text-center text-[13px] leading-relaxed text-[var(--ink-500)]">
+              아직 등록된 시술 기록이 없어요.
+              {patient.status === "active" && (
+                <>
+                  <br />
+                  아래 &lsquo;시술노트 작성&rsquo;으로 첫 기록을 남겨보세요.
+                </>
+              )}
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-2.5">
+              {visits.map((v) => (
+                <VisitRow
+                  key={v.diary_id}
+                  visit={v}
+                  linkId={patient.link_id}
+                  editable={patient.status === "active"}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* 시술노트 작성 — active 만. 그 외 상태는 사유 안내. */}
         {patient.status === "active" ? (
           <Link
             href={`/clinic/visits/new?link=${patient.link_id}`}
@@ -230,5 +327,79 @@ function Row({ label, value }: { label: string; value: string }) {
       <dt className="w-[72px] shrink-0 text-[13px] text-[var(--ink-300)]">{label}</dt>
       <dd className="min-w-0 flex-1 break-all text-[13.5px] text-[var(--ink-700)]">{value}</dd>
     </div>
+  );
+}
+
+/**
+ * 시술 기록 타임라인 1행. active 면 편집 페이지로 링크(→ 아이콘), 그 외 상태는 비활성 정적 행(C2 조회만).
+ * 편집 경로(S3a 신설)는 문자열 참조만 — 이 파일이 그 라우트 파일에 의존하지 않음.
+ */
+function VisitRow({
+  visit: v,
+  linkId,
+  editable,
+}: {
+  visit: ClinicVisitItem;
+  linkId: number;
+  editable: boolean;
+}) {
+  const dateText = fmtVisitDate(v.visited_on);
+  const procNames = (v.procedures ?? [])
+    .slice()
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((p) => p.procedure_ko)
+    .filter((n): n is string => typeof n === "string" && n !== "");
+  const procSummary = procNames.length > 0 ? procNames.join(" · ") : "시술 기록";
+  const doctorText = v.doctor_name ? `${v.doctor_name} 원장` : null;
+  const priceText = fmtPrice(v.total_price);
+  const nextText = fmtDateShort(v.next_appointment_date);
+
+  const inner = (
+    <>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-bold text-[var(--tt-blue-deep)]">{dateText}</span>
+          {nextText && (
+            <span className="shrink-0 rounded-full bg-[var(--tt-blue-tint)] px-2 py-0.5 text-[11px] font-semibold text-[var(--tt-blue-deep)]">
+              다음 {nextText}
+            </span>
+          )}
+        </div>
+        <p className="mt-1 truncate text-[14px] font-semibold text-[var(--ink-900)]">
+          {procSummary}
+        </p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] text-[var(--ink-500)]">
+          {doctorText && <span>{doctorText}</span>}
+          {doctorText && priceText && <span className="text-[var(--ink-300)]">·</span>}
+          {priceText && <span className="tabular-nums">{priceText}</span>}
+        </div>
+      </div>
+      {editable && (
+        <span aria-hidden className="shrink-0 self-center text-[16px] text-[var(--ink-300)]">
+          →
+        </span>
+      )}
+    </>
+  );
+
+  const cls =
+    "flex gap-3 rounded-[var(--r-btn)] border border-[var(--line)] p-3.5 transition-colors";
+
+  if (editable) {
+    return (
+      <li>
+        <Link
+          href={`/clinic/patients/${linkId}/visits/${v.diary_id}/edit`}
+          className={`${cls} hover:border-[var(--tt-blue)] hover:bg-[var(--tt-blue-tint)]`}
+        >
+          {inner}
+        </Link>
+      </li>
+    );
+  }
+  return (
+    <li className={cls} aria-disabled>
+      {inner}
+    </li>
   );
 }

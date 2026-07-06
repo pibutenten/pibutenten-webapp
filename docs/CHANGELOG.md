@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-07-06] — 병원 운영 프로그램 S3: 환자별 시술기록 타임라인 + 기록 편집·삭제 (프론트)
+
+계획 SSOT: `docs/plans/260706 …관리 설계.md` §2.4·§2.6. S1 RPC(0350) 위 프론트. 프로세스: S3a(편집)·S3b(타임라인) 병렬 → 각 자체검수 → 총괄검수(SSOT 타입 통합·JSDoc 동기화) → tsc·풀빌드.
+
+### Added
+- **환자 상세 시술기록 타임라인 (S3b)** — `/clinic/patients/[linkId]` 에 그 환자의 병원 대행 시술노트 목록(방문일·시술요약·담당원장·금액·다음예약, `get_clinic_patient_visits` 0350). **편집 진입은 active 연결만(C2 revoked=조회만)**, 그 외 상태는 비활성 행. page.tsx 병렬 조회.
+- **시술기록 편집·삭제 (S3a)** — `/clinic/patients/[linkId]/visits/[visitId]/edit`: 기존 `DiaryForm(mode='clinic')` 에 **편집모드**(`clinicEditVisitId`·`clinicInitial` 시드) 추가 → 저장 시 `PATCH /api/clinic/visits/[visitId]`(작성/회원 모드 100% 불변). 하단 "이 기록 삭제"(확인 모달 → `DELETE`). 신설 `api/clinic/visits/[visitId]` PATCH(clinic_update_visit)·DELETE(clinic_delete_visit) + `ClinicVisitEditSchema`. `clinic-link-rpc` 에 visit_not_found(404)·visit_has_linked_reviews(409)·link_revoked(409) 매핑 추가.
+- **SSOT**: 편집 시드 타입 `ClinicInitial` 을 `SkinDiaryForms` 에서 export → 편집 뷰 재사용(중복 선언 제거, 총괄 검수 반영).
+
+---
+
 ## [2026-07-06] — 병원 운영 프로그램 S2: 관리자 톤 정렬 + 환자 관리 테이블 + 등록·동의화면 (프론트)
 
 계획 SSOT: `docs/plans/260706 병원 운영 프로그램 (환자·시술기록 관리) 설계.md`. S1(DB) 위 프론트 1차. 프로세스: Wave A(공용토대) → 총괄검수 → Wave B1(목록)·B2(등록·동의·상세) 병렬 → 총괄검수(상세 나이 계산 버그 정정) → 풀빌드.

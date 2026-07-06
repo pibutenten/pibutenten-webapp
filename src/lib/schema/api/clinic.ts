@@ -95,7 +95,26 @@ export const MemberLinkRespondSchema = z
   })
   .strict();
 
+/**
+ * PATCH /api/clinic/visits/{visitId} — 병원: 시술노트 대행 수정(clinic_update_visit, 0350).
+ *   ClinicVisitCreateSchema 에서 link_id 제외(수정은 diary_id=path param 으로 대상 지정 —
+ *   소유 회원은 RPC 가 diary→link 로 역해석). 그 외 필드·상한은 작성과 동일(전체 교체 계약).
+ */
+export const ClinicVisitEditSchema = z
+  .object({
+    visited_on: isoDate,
+    procedures: z.array(ClinicVisitProcedureSchema).min(1).max(20),
+    doctor_id: z.string().uuid().nullable().optional(),
+    doctor_name: z.string().trim().max(100).nullable().optional(),
+    manager_name: z.string().trim().max(100).nullable().optional(),
+    diary_body: z.string().max(400).nullable().optional(),
+    total_price: z.number().int().min(0).max(2_000_000_000).nullable().optional(),
+    next_appointment_date: isoDate.nullable().optional(),
+  })
+  .strict();
+
 export type ClinicLinkRequestPayload = z.infer<typeof ClinicLinkRequestSchema>;
 export type ClinicPatientUpdatePayload = z.infer<typeof ClinicPatientUpdateSchema>;
 export type ClinicVisitCreatePayload = z.infer<typeof ClinicVisitCreateSchema>;
+export type ClinicVisitEditPayload = z.infer<typeof ClinicVisitEditSchema>;
 export type MemberLinkRespondPayload = z.infer<typeof MemberLinkRespondSchema>;
