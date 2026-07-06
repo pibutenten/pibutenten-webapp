@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-07-06] — 병원 운영 프로그램 S4: 시술기록 대장 /clinic/visits (목록 + 캘린더)
+
+계획 SSOT: `docs/plans/260706 …관리 설계.md` §2.5·C7·C13. S1 RPC(0350) 위 프론트 마지막 빌드 단계.
+
+### Added
+- **시술기록 관리 `/clinic/visits`** — 지점 전체 시술기록 대장(관리자 회원관리 톤). **2뷰(?view=list|calendar)**:
+  - 목록 뷰(admin 표 md↑ / 카드 md↓): 방문일·환자(→환자 상세)·시술요약·원장·금액·다음예약. 행 클릭→기록 편집. 정렬(방문일·환자·금액)·원장 필터·검색·"더 보기". 기본 방문일 최신순(C13).
+  - 캘린더 뷰: 월 그리드(년월 nav·오늘 링·요일 헤더), 날짜 셀 기록 수(`get_clinic_calendar_summary`). **날짜 클릭 → 그 하루 목록 전환**.
+  - **기간 3방식**(from~to URL 동기): 빠른 버튼[오늘·한 주·한 달·전체] + 년·월 바로가기 드롭다운 + 직접 범위 지정.
+- **API**: `GET /api/clinic/visits`(get_clinic_visits, 검색·원장·기간·정렬·페이지) + `GET /api/clinic/visits/calendar`(get_clinic_calendar_summary). 서버 재검증(날짜·uuid·정렬 화이트리스트·clamp). POST(clinic_add_visit) 유지.
+- **대시보드 "시술기록 관리" 카드 활성화** → /clinic/visits(S2 준비중 딤드 해제).
+
+---
+
 ## [2026-07-06] — 병원 운영 프로그램 S3: 환자별 시술기록 타임라인 + 기록 편집·삭제 (프론트)
 
 계획 SSOT: `docs/plans/260706 …관리 설계.md` §2.4·§2.6. S1 RPC(0350) 위 프론트. 프로세스: S3a(편집)·S3b(타임라인) 병렬 → 각 자체검수 → 총괄검수(SSOT 타입 통합·JSDoc 동기화) → tsc·풀빌드.

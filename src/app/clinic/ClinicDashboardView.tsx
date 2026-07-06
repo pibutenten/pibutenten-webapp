@@ -11,7 +11,7 @@
  * 구성:
  *   - 헤더: 지점명(--ink-700 2xl bold) + 부제(--ink-300).
  *   - 현황 Stat 4: 연결 환자 · 동의 대기(>0 강조) · 오늘 기록 · 이번 달 기록.
- *   - 운영 프로그램 Tool: 👥 환자 관리(active) · 📋 시술기록 관리(S4 전까지 준비중 딤드) ·
+ *   - 운영 프로그램 Tool: 👥 환자 관리(active) · 📋 시술기록 관리(active, /clinic/visits) ·
  *     ⏰ 예약 리마인더(준비중) · 📊 지점 통계(준비중).
  *
  * 명칭 규약(C14): "환자 관리"·"시술기록 관리" — 'DB' 표기 안 씀.
@@ -71,12 +71,12 @@ export default function ClinicDashboardView({
             title="환자 관리"
             desc="환자 검색·등록·연결 관리"
           />
-          {/* 시술기록 관리 — /clinic/visits 는 S4 미구현. 지금은 준비중 딤드(비링크).
-              S4 에서 /clinic/visits 활성화(계획 SSOT §2.5). */}
-          <ToolDisabled
+          {/* 시술기록 관리 — 지점 전체 시술기록 대장(목록+캘린더, S4 · 계획 SSOT §2.5). */}
+          <Tool
+            href="/clinic/visits"
             emoji="📋"
             title="시술기록 관리"
-            desc="전체 시술기록·수정 — 준비 중"
+            desc="전체 시술기록 조회·수정"
           />
           <ToolDisabled emoji="⏰" title="예약 리마인더" desc="다음 예약일 관리 — 준비 중" />
           <ToolDisabled emoji="📊" title="지점 통계" desc="시술·환자 통계 — 준비 중" />
