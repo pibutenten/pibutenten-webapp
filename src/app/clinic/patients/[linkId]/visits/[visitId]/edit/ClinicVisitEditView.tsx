@@ -82,17 +82,18 @@ export default function ClinicVisitEditView({
         }}
       />
 
-      {/* 위험 구역 — 이 기록 삭제. 후기가 달린 기록은 서버(409)가 차단하고 안내 토스트로 사유 노출. */}
+      {/* 위험 구역 — 이 기록 삭제. 후기가 달린 기록은 서버(409)가 차단하고 안내 토스트로 사유 노출.
+          카드·구조는 admin 토큰(--r-card / --line), 삭제 위험 강조만 red-600 관례(기존 clinic 삭제 UI). */}
       <section className="mx-auto mb-8 w-full max-w-[680px]">
-        <div className="rounded-[var(--radius)] border border-[var(--accent-soft)] bg-white p-5">
-          <p className="text-[13.5px] font-semibold text-[var(--text)]">이 기록 삭제</p>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-muted)]">
+        <div className="rounded-[var(--r-card)] border border-[var(--line)] bg-white p-5">
+          <p className="text-[13.5px] font-semibold text-[var(--ink-900)]">이 기록 삭제</p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--ink-300)]">
             삭제하면 이 시술노트가 회원 노트에서도 사라져요. 되돌릴 수 없어요.
           </p>
           <button
             type="button"
             onClick={() => setConfirmDelete(true)}
-            className="mt-3 inline-flex h-9 items-center rounded-md border border-[var(--accent)] px-4 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[var(--accent-soft)]"
+            className="mt-3 inline-flex h-9 items-center rounded-[var(--r-btn)] border border-red-300 px-4 text-[13px] font-semibold text-red-600 transition-colors hover:bg-red-50"
           >
             이 기록 삭제
           </button>
@@ -106,11 +107,11 @@ export default function ClinicVisitEditView({
           onClick={() => { if (!deleting) setConfirmDelete(false); }}
         >
           <div
-            className="w-full max-w-[340px] rounded-[var(--radius)] bg-white p-6 text-center"
+            className="w-full max-w-[340px] rounded-[var(--r-card)] bg-white p-6 text-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-[17px] font-extrabold text-[var(--text)]">이 기록을 삭제할까요?</p>
-            <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
+            <p className="text-[17px] font-extrabold text-[var(--ink-900)]">이 기록을 삭제할까요?</p>
+            <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--ink-500)]">
               삭제하면 회원 노트에서도 사라지고 되돌릴 수 없어요.
             </p>
             <div className="mt-5 flex gap-2">
@@ -118,7 +119,7 @@ export default function ClinicVisitEditView({
                 type="button"
                 onClick={() => setConfirmDelete(false)}
                 disabled={deleting}
-                className="block flex-1 rounded-md border border-[var(--border)] bg-white py-3 text-[14.5px] font-bold text-[var(--text-secondary)] disabled:opacity-60"
+                className="block flex-1 rounded-[var(--r-btn)] border border-[var(--line)] bg-white py-3 text-[14.5px] font-bold text-[var(--ink-500)] disabled:opacity-60"
               >
                 취소
               </button>
@@ -126,7 +127,7 @@ export default function ClinicVisitEditView({
                 type="button"
                 onClick={() => void doDelete()}
                 disabled={deleting}
-                className="block flex-1 rounded-md bg-[var(--accent)] py-3 text-[14.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="block flex-1 rounded-[var(--r-btn)] bg-red-600 py-3 text-[14.5px] font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {deleting ? "삭제 중…" : "삭제"}
               </button>

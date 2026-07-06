@@ -43,6 +43,12 @@ async function readUserMessage(res: Response, fallback: string): Promise<string>
   return j?.userMessage || j?.message || fallback;
 }
 
+/** 연결 상태 화이트리스트 — RPC/DB CHECK 와 동일한 4값. 예상 밖 값을 안전 처리하기 위한 가드. */
+const LINK_STATUSES = ["pending", "active", "rejected", "revoked"] as const;
+function isKnownStatus(s: unknown): s is LinkDetail["status"] {
+  return typeof s === "string" && (LINK_STATUSES as readonly string[]).includes(s);
+}
+
 export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [agreed, setAgreed] = useState(false);
@@ -65,6 +71,14 @@ export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) 
         }
         const link = (await res.json()) as LinkDetail;
         if (cancelled) return;
+        // 상태 화이트리스트 검증 — 예상 밖 값이면 안전한 에러 화면으로(잘못된 revoked 안내 방지).
+        if (!isKnownStatus(link.status)) {
+          setPhase({
+            kind: "error",
+            message: "연결 상태를 확인할 수 없어요. 잠시 후 다시 시도해 주세요.",
+          });
+          return;
+        }
         setPhase(link.status === "pending" ? { kind: "form", link } : { kind: "already", link });
       } catch {
         if (!cancelled)
@@ -96,8 +110,11 @@ export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) 
         const detail = await fetch(`/api/member/clinic-links/${linkId}`, { cache: "no-store" });
         if (detail.ok) {
           const link = (await detail.json()) as LinkDetail;
-          setPhase({ kind: "already", link });
-          return;
+          // 재조회 상태도 화이트리스트 검증 — 알 수 없는 값이면 아래 일반 안내로 폴백.
+          if (isKnownStatus(link.status)) {
+            setPhase({ kind: "already", link });
+            return;
+          }
         }
       }
       setActionErr(await readUserMessage(res, "요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요."));
@@ -168,6 +185,14 @@ export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) 
   if (phase.kind === "already") {
     const { link } = phase;
     const clinicName = link.clinic_display_name ?? "병원";
+    // 상태별 안내 — 로드 시 화이트리스트로 4값을 보장하므로 여기선 active/rejected/revoked 3분기.
+    //   revoked 는 명시 매칭(구 else 폴백 제거 — 예상 밖 값이 revoked 로 오안내되던 위험 차단).
+    const REJECTED_NOTICE = {
+      title: "이미 거절한 요청이에요.",
+      body: "이 병원 연결 요청은 이미 거절 처리됐어요.",
+      href: "/",
+      cta: "홈으로 가기",
+    };
     const notice =
       link.status === "active"
         ? {
@@ -176,19 +201,14 @@ export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) 
             href: "/notes",
             cta: "내 기록 보기",
           }
-        : link.status === "rejected"
+        : link.status === "revoked"
           ? {
-              title: "이미 거절한 요청이에요.",
-              body: "이 병원 연결 요청은 이미 거절 처리됐어요.",
-              href: "/",
-              cta: "홈으로 가기",
-            }
-          : {
               title: "해제된 연결이에요.",
               body: "이 병원 연결은 해제된 상태예요. 병원의 추가 입력이 멈춰 있어요.",
               href: "/",
               cta: "홈으로 가기",
-            };
+            }
+          : REJECTED_NOTICE; // rejected(및 방어적 폴백)
     return (
       <div className={`${cardBox} text-center`}>
         <h1 className="text-xl font-bold text-[var(--ink-900)]">{notice.title}</h1>
@@ -244,7 +264,7 @@ export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) 
           {infoChips.map((c) => (
             <li
               key={c}
-              className="rounded-full border border-[var(--line)] bg-[var(--bg)] px-3 py-1 text-[13px] text-[var(--ink-700)]"
+              className="rounded-full border border-[var(--line)] bg-[var(--tt-blue-tint)] px-3 py-1 text-[13px] text-[var(--ink-700)]"
             >
               {c}
             </li>

@@ -15,7 +15,7 @@ function parseVisitId(raw: string): number | null {
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
 
-/** RPC 에러 → HTTP 매핑(소유 위반 403 / 미존재 404 / 입력 400 / 기타 500). */
+/** RPC 에러 → HTTP 매핑(소유 위반 403 / 미존재 404 / 후기연결 409 / 입력 400 / 기타 500). */
 function mapVisitRpcError(rpcErr: { code?: string; message?: string }, ctx: string) {
   const code = rpcErr.code ?? "";
   const msg = typeof rpcErr.message === "string" ? rpcErr.message : "";
@@ -27,6 +27,13 @@ function mapVisitRpcError(rpcErr: { code?: string; message?: string }, ctx: stri
   if (code === "P0002" || msg.includes("visit_not_found")) {
     return errorResponse(rpcErr, "not_found", `${ctx} visit_not_found`, 404, undefined, {
       userMessage: "대상 시술노트를 찾을 수 없습니다.",
+    });
+  }
+  // 후기 달린 노트의 시술 목록 교체 차단(update_visit 0353) → 409.
+  //   RPC 는 visit_has_linked_reviews 를 22023 으로 던지므로 22023 매핑 전에 메시지로 먼저 분기한다.
+  if (msg.includes("visit_has_linked_reviews")) {
+    return errorResponse(rpcErr, "invalid_input", `${ctx} linked_reviews`, 409, undefined, {
+      userMessage: "후기를 남긴 기록은 시술 항목을 바꿀 수 없어요.",
     });
   }
   if (code === "22023" || code === "22001") {
@@ -101,6 +108,32 @@ export async function PATCH(
   }
   const p = parsed.data;
 
+  // 시술 목록 교체 요청(선택, C4) — 시술명 → tag_dictionary(is_procedure) 매칭해 tag_dict_ko 채움.
+  //   POST /api/visits·clinic PATCH 와 동일 로직(사전 연결 정합, FK 위반 방지). 미전송이면 p_procedures
+  //   자체를 넘기지 않아 RPC 가 DEFAULT NULL(시술 불변, 하위호환)로 처리한다.
+  let pProcedures: Array<Record<string, unknown>> | undefined;
+  if (p.procedures) {
+    const procKos = Array.from(new Set(p.procedures.map((pr) => pr.procedure_ko)));
+    let validTags = new Set<string>();
+    if (procKos.length > 0) {
+      const { data: tagRows } = await supabase
+        .from("tag_dictionary")
+        .select("ko")
+        .eq("is_procedure", true)
+        .in("ko", procKos);
+      validTags = new Set((tagRows ?? []).map((r) => (r as { ko: string }).ko));
+    }
+    pProcedures = p.procedures.map((pr, i) => ({
+      procedure_ko: pr.procedure_ko,
+      // 클라 지정값 우선, 없으면 서버 매칭(사전 미등록은 RPC 가 최종 NULL 처리 — FK 이중 방어).
+      tag_dict_ko: pr.tag_dict_ko ?? (validTags.has(pr.procedure_ko) ? pr.procedure_ko : null),
+      unit_text: pr.unit_text ?? null,
+      price: pr.price ?? null,
+      note: pr.note ?? null,
+      sort_order: pr.sort_order ?? i,
+    }));
+  }
+
   const { error: rpcErr } = await supabase.rpc("update_visit", {
     p_visit_id: visitId,
     p_visited_on: p.visited_on,
@@ -118,6 +151,8 @@ export async function PATCH(
     p_diary_body: p.diary_body ?? null,
     p_total_price: p.total_price ?? null,
     p_is_complete: p.is_complete,
+    // 미전송이면 키 자체를 생략 → RPC DEFAULT NULL(시술 불변). 전송 시 전체 교체.
+    ...(pProcedures ? { p_procedures: pProcedures } : {}),
   });
   if (rpcErr) {
     return mapVisitRpcError(rpcErr as { code?: string; message?: string }, "[visits PATCH]");

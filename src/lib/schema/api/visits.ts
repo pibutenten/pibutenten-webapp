@@ -146,8 +146,26 @@ export const VisitCreateSchema = z
   });
 
 /**
+ * 회원 편집 시술 행(C4) — ProcedureSchema 계승 + tag_dict_ko/sort_order(편집 폼이 직접 지정 가능).
+ *   ClinicVisitProcedureSchema(clinic.ts)와 동일 shape — update_visit(0353) p_procedures 항목 계약.
+ *   tag_dict_ko 는 클라가 보내지 않아도 라우트가 tag_dictionary 매칭해 채운다(FK 위반 방지).
+ */
+const VisitUpdateProcedureSchema = z
+  .object({
+    procedure_ko: z.string().trim().min(1).max(100),
+    tag_dict_ko: z.string().trim().max(100).nullable().optional(),
+    unit_text: z.string().trim().max(100).nullable().optional(),
+    price: z.number().int().min(0).max(2_000_000_000).nullable().optional(),
+    note: z.string().trim().max(500).nullable().optional(),
+    sort_order: z.number().int().min(0).max(19).nullable().optional(),
+  })
+  .strict();
+
+/**
  * PATCH /api/visits/{id} — visit 본문 전체 덮어쓰기.
- *   폼이 항상 전체 값을 전송하는 정책(전체 덮어쓰기, §3.4). 후기·시술 목록은 미수정(v1, D-J).
+ *   폼이 항상 전체 값을 전송하는 정책(전체 덮어쓰기, §3.4).
+ *   procedures 미전송 시 시술 목록 미수정(하위호환, D-J). 전송 시 전체 교체(C4, update_visit 0353
+ *   p_procedures — 후기 달린 노트는 RPC 가 visit_has_linked_reviews 로 차단).
  */
 export const VisitUpdateSchema = z
   .object({
@@ -167,6 +185,8 @@ export const VisitUpdateSchema = z
     diary_body: z.string().max(400).nullable().optional(),
     total_price: z.number().int().min(0).max(2_000_000_000).nullable().optional(),
     is_complete: z.boolean().default(true),
+    // C4 회원 편집 — 시술 목록 전체 교체(선택). 미전송이면 라우트가 p_procedures 미전달(시술 불변).
+    procedures: z.array(VisitUpdateProcedureSchema).min(1).max(20).optional(),
   })
   .strict()
   // create 와 동일: precision='unknown' 이 아니면 visited_on 필수.

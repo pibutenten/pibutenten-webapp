@@ -19,6 +19,11 @@ import {
   StatusBadge,
   skinProfileRows,
   fmtDate,
+  fmtBirth,
+  fmtVisitDate,
+  fmtDateShort,
+  fmtPrice,
+  ageFromBirth,
   BOX,
   type ClinicPatientItem,
 } from "../../_shared";
@@ -31,9 +36,6 @@ const adminLabelCls = "mb-1.5 block text-sm font-semibold text-[var(--ink-700)]"
 const GENDER_LABEL: Record<string, string> = Object.fromEntries(
   GENDERS.map((g) => [g.key, g.label]),
 );
-
-/** 요일 라벨 — DiaryDetailView 와 동일 규칙(월=1 … 일=0). */
-const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 
 /** get_clinic_patient_visits(0350) 1행 = 그 환자의 시술노트 1건 + 자식 시술 항목. */
 export type ClinicVisitItem = {
@@ -60,56 +62,6 @@ export type ClinicVisitItem = {
       }[]
     | null;
 };
-
-/** "YYYY-MM-DD" → "YYYY.MM.DD" (§2.4 표기). 형식 불일치면 원본 그대로. */
-function fmtBirth(raw: string | null): string {
-  if (!raw) return "—";
-  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[1]}.${m[2]}.${m[3]}` : raw;
-}
-
-/** "YYYY-MM-DD" → "YYYY.MM.DD (요일)" (§2.4 연도 포함). 형식 불일치·null 이면 "날짜 미상". */
-function fmtVisitDate(raw: string | null): string {
-  if (!raw) return "날짜 미상";
-  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return raw;
-  const dow = DOW[new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`).getDay()];
-  return `${m[1]}.${m[2]}.${m[3]} (${dow})`;
-}
-
-/** "YYYY-MM-DD" → "YYYY.MM.DD" (다음 예약 pill용, 요일 없음). */
-function fmtDateShort(raw: string | null): string | null {
-  if (!raw) return null;
-  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[1]}.${m[2]}.${m[3]}` : raw;
-}
-
-/** 금액(원) → "12만" 등 만 단위 축약. 만 미만·비정수는 "N원". null 이면 null. */
-function fmtPrice(v: number | null): string | null {
-  if (v == null || !Number.isFinite(v) || v <= 0) return null;
-  if (v >= 10000 && v % 10000 === 0) return `${(v / 10000).toLocaleString("ko-KR")}만`;
-  if (v >= 10000) {
-    const man = Math.floor(v / 10000);
-    const rest = v % 10000;
-    return `${man}만 ${rest.toLocaleString("ko-KR")}`;
-  }
-  return `${v.toLocaleString("ko-KR")}원`;
-}
-
-/**
- * 생일("YYYY-MM-DD") → "만 N세". 단건 RPC get_clinic_patient(0345)는 age_years 를 반환하지
- * 않으므로(목록 v2 전용) 상세는 생일에서 직접 계산한다(RPC date_part(age()) 와 동일 만 나이).
- */
-function ageFromBirth(raw: string | null): string {
-  if (!raw) return "—";
-  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return "—";
-  const [by, bm, bd] = [+m[1], +m[2], +m[3]];
-  const now = new Date();
-  let age = now.getFullYear() - by;
-  if (now.getMonth() + 1 < bm || (now.getMonth() + 1 === bm && now.getDate() < bd)) age -= 1;
-  return age >= 0 && age <= 130 ? `만 ${age}세` : "—";
-}
 
 export default function ClinicPatientDetailView({
   patient,

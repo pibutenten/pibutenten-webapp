@@ -24,7 +24,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
-import { ClinicShell, type ClinicDoctorOption } from "../_shared";
+import { ClinicShell, kstToday, fmtYmd, fmtPrice, type ClinicDoctorOption } from "../_shared";
 
 /** get_clinic_visits(0350) 1행 = 지점 시술기록 대장 항목. */
 export type ClinicVisitListItem = {
@@ -61,36 +61,15 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
 ];
 const SORTABLE = new Set(SORT_OPTIONS.map((o) => o.value));
 
-/* ── 날짜 유틸 (KST 기준 · 문자열 YYYY-MM-DD 중심) ── */
+/* ── 날짜 유틸 (KST 기준 · 문자열 YYYY-MM-DD 중심).
+ *    kstToday·fmtYmd·fmtPrice 는 _shared 공용(SSOT). 아래는 이 뷰의 캘린더·기간 전용 파생. ── */
 
-/** KST 오늘 {y,m,d}. */
-function kstToday(): { y: number; m: number; d: number } {
-  const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  return { y: now.getUTCFullYear(), m: now.getUTCMonth() + 1, d: now.getUTCDate() };
-}
 function ymd(y: number, m: number, d: number): string {
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 /** 그 달 말일. */
 function lastDay(y: number, m: number): number {
   return new Date(y, m, 0).getDate();
-}
-/** "YYYY-MM-DD" → "YYYY.MM.DD"(연도 포함). 실패 시 "—". */
-function fmtYmd(v: string | null): string {
-  if (!v) return "—";
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v);
-  return m ? `${m[1]}.${m[2]}.${m[3]}` : "—";
-}
-/** 금액(원) → "12만" 등 만 단위 축약. null·0 이면 null. */
-function fmtPrice(v: number | null): string | null {
-  if (v == null || !Number.isFinite(v) || v <= 0) return null;
-  if (v >= 10000 && v % 10000 === 0) return `${(v / 10000).toLocaleString("ko-KR")}만`;
-  if (v >= 10000) {
-    const man = Math.floor(v / 10000);
-    const rest = v % 10000;
-    return `${man}만 ${rest.toLocaleString("ko-KR")}`;
-  }
-  return `${v.toLocaleString("ko-KR")}원`;
 }
 
 /** 이번 주(월~일) "YYYY-MM-DD" 범위 — KST 오늘 기준. */
@@ -447,11 +426,13 @@ export default function ClinicVisitsView({
 
             <span className="mx-1 hidden text-[var(--ink-300)] sm:inline">|</span>
 
+            {/* 직접 범위 지정 — 한쪽만 입력된 상태에선 조회하지 않고 그 칸만 갱신(R2경고 완화:
+                예전엔 시작일만 골라도 즉시 하루로 강제 조회됐음). 반대쪽이 이미 있으면 즉시 조회. */}
             <input
               type="date"
               value={from}
               max={to || undefined}
-              onChange={(e) => applyRange(e.target.value, to || e.target.value)}
+              onChange={(e) => (to ? applyRange(e.target.value, to) : setFrom(e.target.value))}
               className="h-9 rounded-[var(--r-btn)] border border-[var(--line)] bg-white px-2 text-sm text-[var(--ink-700)] focus:border-[var(--tt-blue)] focus:outline-none"
               aria-label="시작일"
             />
@@ -460,7 +441,7 @@ export default function ClinicVisitsView({
               type="date"
               value={to}
               min={from || undefined}
-              onChange={(e) => applyRange(from || e.target.value, e.target.value)}
+              onChange={(e) => (from ? applyRange(from, e.target.value) : setTo(e.target.value))}
               className="h-9 rounded-[var(--r-btn)] border border-[var(--line)] bg-white px-2 text-sm text-[var(--ink-700)] focus:border-[var(--tt-blue)] focus:outline-none"
               aria-label="종료일"
             />
@@ -628,9 +609,12 @@ export default function ClinicVisitsView({
             year={calYear}
             month={calMonth}
             onMonth={(y, m) => {
+              // ◀▶ 월 이동 = 캘린더 탐색 전용. 목록 조회 기간(from~to)은 바꾸지 않는다(의도된 비동기).
+              //   목록에 반영하려면 상단 년·월 드롭다운(jumpToMonth) 또는 날짜 셀 클릭(onPickDay)을 쓴다.
               setCalYear(y);
               setCalMonth(m);
             }}
+            // 날짜 셀 클릭 = 그 하루(from=to=날짜)로 목록 필터 + 목록 뷰 전환.
             onPickDay={(dateStr) => applyRange(dateStr, dateStr, { toList: true })}
           />
         )}
@@ -806,7 +790,7 @@ function CalendarView({
             key={w}
             className={
               "pb-1 text-center text-[11px] font-semibold " +
-              (i === 6 ? "text-[var(--accent)]" : "text-[var(--ink-300)]")
+              (i === 6 ? "text-red-500" : "text-[var(--ink-300)]")
             }
           >
             {w}

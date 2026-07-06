@@ -6,6 +6,23 @@
 
 ---
 
+## [2026-07-06] — 병원 운영 프로그램: 회원 시술노트 편집(C4) + 2인 전체검수 반영
+
+계획 SSOT: `docs/plans/260706 …관리 설계.md`. S1~S4(대장 완성) 후 **2인 독립 전체검수** → 종합 → 수정(Fix-A/B 병렬) → 디비전문가 0353 검수. 원장 지시: SSOT·정합성, 땜빵 금지.
+
+### Added
+- **회원 시술노트 편집·삭제 UI (C4)** — 회원 `/notes/[id]` 가 읽기전용이던 것을, 본인 노트 **수정**(`/notes/[id]/edit`, DiaryForm 회원 편집모드 재사용 — 후기 UI 없이 방문일·병원·원장·메모·금액·시술목록 편집)·**삭제**(확인 모달) 진입 추가. 병원 대행 노트(source='clinic') 편집 시 병원 지점은 읽기전용(잠금)·DB 스냅샷 보존. `api/visits/[id]` PATCH 에 procedures 배선 + `visit_has_linked_reviews`(409) 매핑. `VisitUpdateSchema` procedures 추가.
+- **마이그 0353** — `update_visit` 재정의: source='clinic' 노트 clinic_id·스냅샷 보존(§4.2 치명2) + p_procedures 선택 교체(후기 차단). 하위호환.
+
+### Fixed (2인 전체검수 반영)
+- **[치명] 편집 저장 후 화면 멈춤** — DiaryForm clinic 저장/편집 성공(res.ok) 후 JSON 파싱 실패·빈 body 면 `onClinicSaved` 미호출로 화면 전환이 멈추던 결함 → res.ok 후 항상 콜백(visit_id 파싱 실패 시 편집 id fallback).
+- **관리자 톤 통일(C10·SSOT)** — StatusBadge·기록편집 삭제섹션·`/clinic/visits/new`·기타 clinic 화면의 잔존 `--primary/--text/--border/--accent/--radius` 계열을 admin 토큰(`--ink/--tt-blue/--line/--r-*`)으로 전면 통일(clinic 화면 비-admin 토큰 grep 0). 위험 강조만 `red-600` 관례.
+- **SSOT 헬퍼 통합** — 날짜·금액·나이 포맷(`fmtYmd`·`fmtPrice`·`fmtBirth`·`fmtVisitDate`·`fmtDateShort`·`ageFromBirth`·`kstToday`)을 3파일 중복 선언에서 `_shared.tsx` 공용 export 로 통합. `fmtYmd` 는 timestamptz 를 **KST 기준**으로(자정 경계 하루 오표시 정정), `ageFromBirth`·`fmtPrice` 도 KST·원 단위 보정.
+- **동의화면 status 방어** — 로드/재조회 status 를 4값 화이트리스트 검증(예상외 값의 잘못된 안내 폴백 제거).
+- 캘린더 월 이동=탐색 전용 주석·직접범위 date input 한쪽 입력 시 즉시조회 완화.
+
+---
+
 ## [2026-07-06] — 병원 운영 프로그램 S4: 시술기록 대장 /clinic/visits (목록 + 캘린더)
 
 계획 SSOT: `docs/plans/260706 …관리 설계.md` §2.5·C7·C13. S1 RPC(0350) 위 프론트 마지막 빌드 단계.

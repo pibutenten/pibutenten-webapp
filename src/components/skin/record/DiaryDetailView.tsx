@@ -8,9 +8,12 @@
  *   props 로 받아 표시용 가공(날짜·시술 제목·의료진·지도 링크)만 수행해 렌더한다.
  */
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import AppShell from "../AppShell";
 import styles from "../app.module.css";
+import { showToast } from "@/lib/toast";
 
 // 서버 page.tsx 의 DetailRow 와 동일 구조(조회 결과 1건).
 export type DiaryDetail = {
@@ -50,6 +53,33 @@ const PROGRESS_TIMEPOINTS: { value: string; label: string; link: boolean }[] = [
 ];
 
 export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
+  const router = useRouter();
+  // 삭제 확인 모달·진행 상태 — 본인 노트 삭제(C4). 이 화면은 page.tsx 가 RLS 로 본인 소유만 로드하므로
+  //   렌더되면 곧 owner(수정·삭제 노출 가능).
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function doDelete() {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/visits/${d.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { userMessage?: string; message?: string };
+        showToast(j?.userMessage || j?.message || "삭제에 실패했어요", { tone: "danger" });
+        setDeleting(false);
+        return;
+      }
+      setConfirmDelete(false);
+      showToast("시술 기록을 삭제했어요");
+      router.push("/notes");
+      router.refresh();
+    } catch {
+      showToast("네트워크 오류가 발생했어요", { tone: "danger" });
+      setDeleting(false);
+    }
+  }
+
   // visited_on 이 NULL("날짜 잘 기억 안 나요", 마이그 0302)이면 split/Date 파싱을 건너뛰고 "날짜 미상" 표시.
   const dateUnknown = !d.visited_on;
   const [y, m, day] = dateUnknown ? ["", "", ""] : d.visited_on!.split("-");
@@ -185,7 +215,61 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
             <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-[var(--text-secondary)]">{d.diary_body}</p>
           </div>
         )}
+
+        {/* 본인 노트 관리(C4) — 수정(편집 페이지)·삭제(확인 모달). 상세는 RLS 로 본인 소유만 로드되므로 노출.
+            source='clinic' 노트도 회원이 diary 필드·시술목록을 수정 가능(병원 지점 스냅샷만 서버가 보존). */}
+        <div className={cardBox + " flex gap-2"}>
+          <Link
+            href={`/notes/${d.id}/edit`}
+            className="flex flex-1 items-center justify-center rounded-md bg-[var(--primary-soft)] py-2.5 text-[13px] font-semibold text-[var(--primary-active)]"
+          >
+            수정
+          </Link>
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="flex flex-1 items-center justify-center rounded-md bg-white py-2.5 text-[13px] font-semibold text-[var(--accent)] ring-1 ring-inset ring-[var(--border)] transition-colors hover:bg-[var(--accent-soft)]"
+          >
+            삭제
+          </button>
+        </div>
       </section>
+
+      {/* 삭제 확인 모달 — 확인 시 DELETE /api/visits/{id}(delete_visit) → /notes 이동 + 토스트. */}
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
+          onClick={() => { if (!deleting) setConfirmDelete(false); }}
+        >
+          <div
+            className="w-full max-w-[340px] rounded-[var(--radius)] bg-white p-6 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[17px] font-extrabold text-[var(--text)]">이 기록을 삭제할까요?</p>
+            <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
+              삭제하면 내 노트에서 사라지고 되돌릴 수 없어요.
+            </p>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+                className="block flex-1 rounded-md border border-[var(--border)] bg-white py-3 text-[14.5px] font-bold text-[var(--text-secondary)] disabled:opacity-60"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void doDelete()}
+                disabled={deleting}
+                className="block flex-1 rounded-md bg-[var(--accent)] py-3 text-[14.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting ? "삭제 중…" : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

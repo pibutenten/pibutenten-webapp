@@ -20,7 +20,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { GENDERS } from "@/lib/profile-options";
 import { parseFreeBirthdate } from "@/components/forms/BirthdateSelect";
-import { ClinicShell, StatusBadge, type ClinicPatientItem } from "../_shared";
+import { ClinicShell, StatusBadge, fmtYmd, type ClinicPatientItem } from "../_shared";
 
 export type PatientsFilters = {
   q: string;
@@ -58,19 +58,6 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "status", label: "상태" },
 ];
 const SORTABLE = new Set(SORT_OPTIONS.map((o) => o.value));
-
-/** "YYYY-MM-DD"|ISO → "YYYY.MM.DD"(연도 포함). 파싱 실패 시 "—". */
-function fmtYmd(v: string | null): string {
-  if (!v) return "—";
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v);
-  if (m) return `${m[1]}.${m[2]}.${m[3]}`;
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return "—";
-  const y = d.getFullYear();
-  const mo = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}.${mo}.${day}`;
-}
 
 export default function ClinicPatientsView({
   initialPatients,

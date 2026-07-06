@@ -136,10 +136,30 @@ export type ClinicInitial = {
   next_appointment_date?: string | null;
 };
 
+/**
+ * 회원 편집 모드(C4, memberEditVisitId 지정 시) 폼 초기값 — /notes/[id] 서버 조회 diary 1행.
+ *   병원 스냅샷(clinic_*)은 source='clinic' 노트에서 지점 표시(읽기전용)용. source='member' 는 자유 편집.
+ *   병원 편집(ClinicInitial)과 달리 doctor_id 는 없음(회원은 원장 자유입력) + 병원 스냅샷을 포함한다.
+ */
+export type MemberInitial = {
+  visited_on: string | null; // NULL(날짜 미상, precision='unknown')이면 오늘 폴백.
+  source: "member" | "clinic";
+  procedures: { procedure_ko: string; note?: string | null; unit_text?: string | null; price?: number | null }[];
+  clinic_name?: string | null;
+  clinic_addr?: string | null;
+  clinic_tel?: string | null;
+  clinic_x?: number | null;
+  clinic_y?: number | null;
+  doctor_name?: string | null;
+  manager_name?: string | null;
+  diary_body?: string | null;
+  total_price?: number | null;
+};
+
 // 병원 모드 원장 드롭다운의 "직접 입력" 센티널 값 — doctors.id(uuid)와 충돌하지 않습니다.
 const CLINIC_DOCTOR_CUSTOM = "__custom__";
 
-export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialProcedure, onDirtyChange, mode = "member", clinicPatient, clinicDoctors, onClinicSaved, clinicEditVisitId, clinicInitial }: {
+export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialProcedure, onDirtyChange, mode = "member", clinicPatient, clinicDoctors, onClinicSaved, clinicEditVisitId, clinicInitial, memberEditVisitId, memberInitial, onMemberSaved }: {
   toast: (m: string) => void;
   go: (s: Screen) => void;
   procedures?: ProcDictItem[];
@@ -158,22 +178,49 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   clinicEditVisitId?: number;
   /** 병원 편집 모드 초기값 — clinicEditVisitId 와 함께 지정. 폼 lazy initializer 시드. */
   clinicInitial?: ClinicInitial;
+  /** 회원 편집 모드(C4) — 지정 시 PATCH /api/visits/{id}. undefined=작성(기존 동작 불변). */
+  memberEditVisitId?: number;
+  /** 회원 편집 모드 초기값 — memberEditVisitId 와 함께 지정. 폼 lazy initializer 시드. */
+  memberInitial?: MemberInitial;
+  /** 회원 편집 저장 완료 콜백 — 수정된 visit id 전달(뷰가 /notes/[id] 로 복귀·토스트). */
+  onMemberSaved?: (visitId: number) => void;
 }) {
   // 병원 모드 분기 — reviewOnly 와 동시 사용 불가(병원은 시술노트만 작성, 후기는 회원 본인이).
   //   병원 모드에서는 reviewOnly 를 무시합니다.
   const isClinic = mode === "clinic";
   // 병원 편집 모드 — clinicEditVisitId 지정 시. clinic 모드에서만 유효(작성/회원 모드 불변).
   const isClinicEdit = isClinic && typeof clinicEditVisitId === "number";
-  const seed = isClinicEdit ? clinicInitial : undefined; // 편집 시드(작성/회원 모드는 항상 undefined).
-  const effReviewOnly = !isClinic && reviewOnly;
+  // 회원 편집 모드(C4) — memberEditVisitId 지정 시. clinic 모드가 아닐 때만(작성·병원 모드 불변).
+  const isMemberEdit = !isClinic && typeof memberEditVisitId === "number";
+  // source='clinic' 회원 노트 편집 — 병원 지점 스냅샷을 DB(0353)가 보존하므로 UI 도 병원 검색을 숨긴다.
+  const memberEditClinicLocked = isMemberEdit && memberInitial?.source === "clinic";
+  // 통합 편집 시드 — 병원 편집=clinicInitial, 회원 편집=memberInitial(공통 필드로 정규화). 작성 모드는 undefined.
+  //   병원 스냅샷(clinic_*)·source 는 회원 편집만 채워지고, doctor_id 는 병원 편집만 채워진다.
+  const seed: ClinicInitial | MemberInitial | undefined = isClinicEdit
+    ? clinicInitial
+    : isMemberEdit
+      ? memberInitial
+      : undefined;
+  // 병원 편집 전용 시드 — doctor_id·next_appointment_date 는 ClinicInitial 에만 존재(회원 편집은 없음).
+  const clinicSeed = isClinicEdit ? clinicInitial : undefined;
+  // 회원 편집 전용 시드 — 병원 위치 스냅샷(clinic_*) 프리필용(ClinicInitial 엔 없음).
+  const memberSeed = isMemberEdit ? memberInitial : undefined;
+  // 회원 편집은 후기 작성 UI 를 숨기므로(편집은 diary 필드만) reviewOnly 를 강제 비활성.
+  const effReviewOnly = !isClinic && !isMemberEdit && reviewOnly;
   // reviewOnly("시술 후기만") — 같은 visit 폼이지만 병원·방문 블록을 접은 상태로 시작.
   //   사용자가 "병원·방문 정보 추가" 를 누르면 펼친다(비공개 메타는 선택이므로 visit 만으로도 저장 가능).
   const [metaOpen, setMetaOpen] = useState(!effReviewOnly);
-  const [q, setQ] = useState("");
-  const [picked, setPicked] = useState<string | null>(null);
-  const [pickedXY, setPickedXY] = useState<{ x: number; y: number } | null>(null); // 확정 병원 좌표(경도 x/위도 y)
-  const [tel, setTel] = useState("");
-  const [addr, setAddr] = useState("");
+  // 회원 편집 모드는 저장된 병원 스냅샷을 확정(picked) 상태로 프리필한다(작성·병원 모드는 빈 값 그대로).
+  //   source='clinic' 노트는 지점 표시가 읽기전용(memberEditClinicLocked)이라 '다시 선택' 버튼을 숨겨 보존.
+  const [q, setQ] = useState(memberSeed?.clinic_name ?? "");
+  const [picked, setPicked] = useState<string | null>(memberSeed?.clinic_name ?? null);
+  const [pickedXY, setPickedXY] = useState<{ x: number; y: number } | null>(
+    memberSeed?.clinic_x != null && memberSeed?.clinic_y != null
+      ? { x: memberSeed.clinic_x, y: memberSeed.clinic_y }
+      : null,
+  ); // 확정 병원 좌표(경도 x/위도 y)
+  const [tel, setTel] = useState(memberSeed?.clinic_tel ?? "");
+  const [addr, setAddr] = useState(memberSeed?.clinic_addr ?? "");
   // 실제 clinics DB 검색 결과 (이름 검색 / 지명·주소 / 내 위치).
   const [results, setResults] = useState<ClinicHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -220,13 +267,13 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   // 병원 모드 전용 상태 — 회원 모드에서는 초기값("") 그대로 유지되어 렌더·동작에 영향 없음.
   //   clinicDoctorId: "" = 미선택 / doctors.id = 드롭다운 선택 / CLINIC_DOCTOR_CUSTOM = 직접 입력.
   const [clinicDoctorId, setClinicDoctorId] = useState(() => {
-    if (!seed) return "";
+    if (!clinicSeed) return "";
     // 재직 목록에 doctor_id 가 있으면 select 프리셋. 없고 이름만 있으면 직접입력 센티널.
-    if (seed.doctor_id && clinicDoctors?.some((d) => d.id === seed.doctor_id)) return seed.doctor_id;
-    if (seed.doctor_name) return CLINIC_DOCTOR_CUSTOM;
+    if (clinicSeed.doctor_id && clinicDoctors?.some((d) => d.id === clinicSeed.doctor_id)) return clinicSeed.doctor_id;
+    if (clinicSeed.doctor_name) return CLINIC_DOCTOR_CUSTOM;
     return "";
   });
-  const [nextAppointmentDate, setNextAppointmentDate] = useState(seed?.next_appointment_date ?? ""); // 다음 예약일(선택, YYYY-MM-DD)
+  const [nextAppointmentDate, setNextAppointmentDate] = useState(clinicSeed?.next_appointment_date ?? ""); // 다음 예약일(선택, YYYY-MM-DD)
   const [clinicHome, setClinicHome] = useState(""); // 병원 홈페이지(비공개)
   const [clinicKakao, setClinicKakao] = useState(""); // 카카오톡 채널(비공개, 직접 입력)
   const [totalPrice, setTotalPrice] = useState(seed?.total_price != null ? String(seed.total_price) : ""); // 총 결제금액(비공개, 일기 표시용 — 집계 제외)
@@ -628,7 +675,66 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
         guard.markSubmitted(); // 저장 성공 → 이탈 가드 해제.
         // 완료 모달은 띄우지 않음(2인 검수 반영) — onClinicSaved 가 이 화면을 즉시 닫으므로
         // (언마운트 경쟁) 완료 안내는 부모(ClinicDashboardClient) 토스트가 담당.
-        if (typeof data.visit_id === "number") onClinicSaved?.(data.visit_id);
+        // ★[치명] res.ok(200) 인데 JSON 파싱 실패·빈 body 면 visit_id 가 없어 콜백이 누락돼 화면 전환이
+        //   멈추던(스피너 풀리고 폼만 남던) 결함 정정 — res.ok 이후엔 항상 콜백한다.
+        //   visit_id 파싱 실패 시: 편집이면 대상 id(clinicEditVisitId), 작성이면 0(신규 — 콜백은 이동만 담당).
+        const savedVisitId =
+          typeof data.visit_id === "number" ? data.visit_id : (clinicEditVisitId ?? 0);
+        onClinicSaved?.(savedVisitId);
+      } catch {
+        toast("네트워크 오류가 발생했어요");
+        setSaving(false);
+      }
+      return;
+    }
+
+    // ── 회원 편집 모드(C4) — PATCH /api/visits/{id}. diary 필드 + 시술 목록 전체 교체(후기 UI 없음).
+    //    source='clinic' 노트는 병원 스냅샷을 서버 RPC(0353)가 보존하므로 clinic_* 를 보내도 무해하나,
+    //    UI 상 잠겨(memberEditClinicLocked) 사용자가 바꿀 수 없다. source='member' 는 병원 자유 편집.
+    if (isMemberEdit) {
+      setSaving(true);
+      try {
+        const res = await fetch(`/api/visits/${memberEditVisitId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            visited_on: date,
+            visited_on_precision: "exact",
+            // 병원 스냅샷 — 잠긴(clinic) 노트는 서버가 무시·보존, 아니면 편집값 반영.
+            clinic_name: picked || null,
+            clinic_addr: addr.trim() || null,
+            clinic_tel: tel.trim() || null,
+            clinic_x: pickedXY?.x ?? null,
+            clinic_y: pickedXY?.y ?? null,
+            clinic_home: clinicHome.trim() || null,
+            clinic_kakao: clinicKakao.trim() || null,
+            doctor_name: doctorName.trim() || null,
+            manager_name: managerName.trim() || null,
+            diary_body: diary.trim() || null,
+            total_price: totalPrice.trim() ? Number(totalPrice.replace(/[^0-9]/g, "")) || null : null,
+            is_complete: isComplete,
+            // 시술 목록 — tag_dict_ko 는 서버가 매칭해 채움. 후기 달린 노트는 서버가 409 로 차단.
+            procedures: procs.map((pr, i) => ({
+              procedure_ko: pr.label,
+              note: pr.note.trim() || null,
+              sort_order: i,
+            })),
+          }),
+        });
+        if (res.status === 401) { toast("로그인 후 저장할 수 있어요"); setSaving(false); return; }
+        if (!res.ok) {
+          const j = (await res.json().catch(() => ({}))) as { message?: string; userMessage?: string };
+          toast(j?.userMessage || j?.message || "저장에 실패했어요");
+          setSaving(false);
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as { visit_id?: number };
+        setSaving(false);
+        guard.markSubmitted(); // 저장 성공 → 이탈 가드 해제.
+        // res.ok 이후엔 항상 콜백(clinic 정정과 동일 안전화) — visit_id 파싱 실패 시 대상 id 폴백.
+        const savedVisitId =
+          typeof data.visit_id === "number" ? data.visit_id : (memberEditVisitId ?? 0);
+        onMemberSaved?.(savedVisitId);
       } catch {
         toast("네트워크 오류가 발생했어요");
         setSaving(false);
@@ -730,7 +836,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   return (
     <section className="mx-auto w-full max-w-[680px] py-6">
       {/* 제목 — 병원 모드는 대상 환자(이름 없으면 핸들) 표기로 "누구의 노트인지" 명시. */}
-      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up">{isClinic ? `${clinicPatient?.patientName ?? clinicPatient?.memberHandle ?? "회원"}님의 시술노트를 ${isClinicEdit ? "수정" : "작성"}해요` : effReviewOnly ? "시술 후기를 남겨주세요" : "내가 받은 시술을 기록해요"}</h1>
+      <h1 className="mb-5 text-center text-[20px] font-bold leading-[1.4] text-[var(--text)] fade-in-up">{isClinic ? `${clinicPatient?.patientName ?? clinicPatient?.memberHandle ?? "회원"}님의 시술노트를 ${isClinicEdit ? "수정" : "작성"}해요` : isMemberEdit ? "시술 기록을 수정해요" : effReviewOnly ? "시술 후기를 남겨주세요" : "내가 받은 시술을 기록해요"}</h1>
 
       {/* 메인 노트 글상자 */}
       <div className={formBox}>
@@ -772,8 +878,21 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
         {metaOpen && (
         <>
         {/* 2. 병원 — 이름/지명 검색 → 결과에서 바로 선택(지도 없음). 선택 시 결과창이 부드럽게 접힘.
-            병원 모드는 통째로 숨김 — 소속 지점은 서버(/api/clinic/visits)가 자동으로 채웁니다(계획 §8.2). */}
-        {!isClinic && (
+            병원 모드는 통째로 숨김 — 소속 지점은 서버(/api/clinic/visits)가 자동으로 채웁니다(계획 §8.2).
+            회원 편집 + source='clinic' 노트는 지점 스냅샷을 서버(0353)가 보존하므로 읽기전용 표시로 잠근다. */}
+        {!isClinic && memberEditClinicLocked && (
+        <div>
+          <label className={labelCls}>어디서 받으셨어요?</label>
+          <div className="mt-1 rounded-md bg-[var(--bg)] px-3 py-2.5">
+            <span className="text-[14px] font-bold text-[var(--text)]">{picked || "병원 정보 없음"}</span>
+            {addr && <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">{addr}</p>}
+            <p className="mt-1.5 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
+              병원에서 입력한 기록이라 병원 정보는 바꿀 수 없어요.
+            </p>
+          </div>
+        </div>
+        )}
+        {!isClinic && !memberEditClinicLocked && (
         <div>
           <label className={labelCls}>어디서 받으셨어요?</label>
           {/* 확정 전 검색 UI — 선택 시 closing 으로 잠깐 접었다가(슥) picked 확정. */}
@@ -900,8 +1019,9 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
 
                   {/* 시술별 후기 아코디언 — 펼치면 평가 컨트롤(day0). 안 펼치면 "기록만".
                       자유입력 신규태그(inDict=false)는 후기 불가(RPC unknown_procedure 거부) → 안내만, 기록은 정상 저장.
-                      병원 모드는 평가·후기 UI 전부 숨김 — 병원은 시술노트만 작성하고 후기는 회원 본인이 씁니다(계획 §8.2). */}
-                  {!isClinic && (
+                      병원 모드는 평가·후기 UI 전부 숨김 — 병원은 시술노트만 작성하고 후기는 회원 본인이 씁니다(계획 §8.2).
+                      회원 편집(C4)도 후기 UI 숨김 — 편집은 diary 필드·시술목록만(후기는 전용 에디터로). */}
+                  {!isClinic && !isMemberEdit && (
                     !p.inDict ? (
                       <p className="mt-2 px-1 text-[11.5px] leading-relaxed text-[var(--text-muted)]">목록에 없는 시술이라 기록만 남길 수 있어요. 후기는 운영자가 시술을 등록한 뒤 작성할 수 있어요.</p>
                     ) : !p.reviewOpen ? (
@@ -1028,7 +1148,7 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
       <div className="mt-4 flex justify-center">
         {/* 저장 — 항상 완성 저장("기록 저장하기" 파란 버튼). "다 썼어요/나중에 마저" 토글 제거(사용자 요청).
             빈 공개 후기면 비활성(아래 안내). */}
-        <button type="button" onClick={handleSave} disabled={saving || emptyPublicReview} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-60">{saving ? "저장 중…" : isClinicEdit ? "수정 저장" : "기록 저장하기"}</button>
+        <button type="button" onClick={handleSave} disabled={saving || emptyPublicReview} className="h-11 rounded-md bg-[var(--primary)] px-12 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-60">{saving ? "저장 중…" : (isClinicEdit || isMemberEdit) ? "수정 저장" : "기록 저장하기"}</button>
       </div>
       {/* 비활성 사유 안내 — 무음 차단 방지(왜 저장이 안 되는지 설명). 공개 후기 가드만 남김. */}
       {!saving && emptyPublicReview && (
