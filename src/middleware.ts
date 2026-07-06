@@ -340,12 +340,13 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     }
   }
 
-  // ⚡ 빠른 경로 2a: 첫 가입 강제 온보딩 쿠키가 있으면 무조건 /onboarding으로
-  //   supabase 호출 없이 즉시 redirect — fast path 우선
+  // ⚡ (구)빠른 경로 2a — 2026-07-06 정정: blind redirect 제거.
+  //   가입 화면(SignupForm)이 심는 이 쿠키(24h)가 남은 채 role='clinic' 으로 승격되면,
+  //   슬로 패스의 clinic 면제(아래)가 영원히 도달 불가 → 병원 계정이 온보딩에 갇히는 사고
+  //   (hhskin05 실제 발생). 쿠키가 있어도 redirect 하지 않고 슬로 패스로 내려 role 검사 후
+  //   처리한다 — 일반 신규 유저는 슬로 패스도 동일하게 /onboarding 으로 보내므로 동작 불변
+  //   (온보딩 완료 전 창구간에 요청당 DB 1회 비용만 추가). 통과 지점들에서 쿠키를 청소한다.
   const mustOnboardCookie = request.cookies.get(MUST_ONBOARD_COOKIE)?.value;
-  if (mustOnboardCookie) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
-  }
 
   // ⚡ 빠른 경로 2b: onboarded 쿠키가 있으면 supabase 호출 없이 통과
   //   (로그아웃 시 쿠키 expire되도록 별도 처리는 supabase logout이 onboarded 쿠키도 삭제할 때만 필요)
@@ -362,6 +363,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
       : null;
   if (onboardedCookie) {
     if (!activeIdHint || onboardedCookie === activeIdHint) {
+      // 온보딩 완료 상태인데 must_onboard 가 잔존하면 청소(2a 정정과 짝).
+      if (mustOnboardCookie) {
+        response.cookies.set(MUST_ONBOARD_COOKIE, "", { path: "/", maxAge: 0 });
+      }
       return response;
     }
     // active 가 다른 명함으로 바뀜 → 슬로 path 에서 active 단위 재검사.
@@ -484,6 +489,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   //   (둘 다 약관 필요·birthdate 면제 — 검수 정정). onboarded 쿠키 set 로 다음 진입부터 fast path
   //   재검사 회피(값=명함 id, active 단위 정합).
   if (profile.role === ROLES.CLINIC) {
+    // 가입 잔존 must_onboard 쿠키 삭제 — 승격 전 심긴 쿠키가 남으면 재갇힘(2a 정정과 짝).
+    if (mustOnboardCookie) {
+      response.cookies.set(MUST_ONBOARD_COOKIE, "", { path: "/", maxAge: 0 });
+    }
     response.cookies.set(ONBOARDED_COOKIE, profile.id, {
       httpOnly: false,
       sameSite: "lax",
@@ -525,6 +534,9 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   //
   // B-2 (2026-05-29): 쿠키 값을 검사 통과한 명함 ID 로 set (옛 user.id 고정 → profile.id).
   //   active 명함 바뀌면 fast path 가 mismatch 감지 → 재검사 트리거.
+  if (mustOnboardCookie) {
+    response.cookies.set(MUST_ONBOARD_COOKIE, "", { path: "/", maxAge: 0 });
+  }
   response.cookies.set(ONBOARDED_COOKIE, profile.id, {
     httpOnly: false,
     sameSite: "lax",

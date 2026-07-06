@@ -52,6 +52,16 @@ export default async function OnboardingPage() {
     }
   }
 
+  // 병원 계정(role='clinic')은 회원 온보딩 대상이 아님 — 대시보드로 (middleware clinic 면제와 대칭).
+  //   /onboarding 은 middleware 면제 경로라 페이지 자체 가드가 필요(clinic 직접 진입 시 회원 폼 노출 차단).
+  const { data: roleRow } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", targetProfileId)
+    .maybeSingle()
+    .returns<{ role: string } | null>();
+  if (roleRow?.role === ROLES.CLINIC) redirect("/clinic");
+
   // target profile (active or base) — 온보딩 정보 저장 대상.
   // H-1 (2026-07-04 Phase 1-B): PII 8컬럼은 get_profile_pii RPC(본인 → 전체)로, 비-PII
   //   (bio·avatar_url·skin_info_consent_at)는 일반 SELECT 로 조회 후 병합(PII REVOKE 대비).

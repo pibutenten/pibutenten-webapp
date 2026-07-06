@@ -26,8 +26,14 @@
 ### Security (Part B-2 검수)
 - **코드검수관 2인 독립 검수(치명 A2·B2) → 반영 → 재검수 치명 0 통과.** 반영: ① 환자 전환 시 DiaryForm 상태 오염(`key={link_id}` — A환자 내용이 B환자 노트로 저장될 수 있던 결함) ② 등록 성공 후 BirthdateSelect 이전 값 잔존(key 리마운트 리셋 — effect 동기화는 불완전 입력과 구분 불가라 기각) ③ 저장 완료 모달·언마운트 경쟁 제거 ④ 직접입력 원장 이름 공란 차단 ⑤ 다음 예약일 클라 사전검증 ⑥ 상세 fresh 재로드 실패 시 경고 토스트(전체 교체 계약 방어) ⑦ no-store 명시. 기각 3건은 사실 반증(import type 무해·삼항 else fallback·body 이중읽기 아님). 총괄 직접 검수 추가 수정: 병원 경로 tag_dictionary 서버 매칭 누락(회원 경로와 사전 연결 정합).
 
+### Fixed (같은 날 후속 — 병원 계정 온보딩 갇힘)
+- **must_onboard 쿠키가 clinic 온보딩 면제를 무력화하던 결함** (`middleware.ts`, `onboarding/page.tsx`) — 가입 화면(SignupForm)이 심는 강제 온보딩 쿠키(24h)의 fast-path 2a 가 **DB 조회 없이 무조건 /onboarding 으로 redirect** → 슬로 패스의 clinic 조기 통과에 영원히 도달 불가. hhskin05 가 일반 가입 직후 clinic 승격되면서 실제 발생(승격 후에도 온보딩에 갇힘 — 원장 실기기 확인). **수정**: 2a blind redirect 제거(쿠키 있으면 슬로 패스로 폴스루 — 일반 신규 유저는 결과 동일, 창구간 DB 1회 비용만), 통과 지점 3곳(2b·clinic 조기통과·일반 통과)에서 must_onboard 쿠키 청소. + `/onboarding` 페이지 자체에 clinic → `/clinic` redirect 가드(면제 경로라 페이지 가드 필요 — 직접 진입 시 회원 폼 노출 차단).
+
+### Added (같은 날 후속 — 5지점 전체 프로비저닝, 원장 지시)
+- **잔여 4지점 병원 계정 완성** — 수원(hhskin00→16959, 기존 프로필 승격) · **판교(hhskin02→16955, 김종식 원장 묶음에 병원 '새 명함' 신설** — 기존 의사·회원 명함 보존, ADR 0012; 로그인 후 IdentitySwitcher 로 병원 명함 전환) · **건대(hhskin03→16956)·대구(hhskin04→16958)는 Admin API 로 auth 계정 사전 생성**(email_confirm) — 첫 구글 로그인 시 Supabase 자동 링크(확인된 동일 이메일)로 가입 절차 없이 즉시 병원 계정. 사전 생성 2계정의 약관·개인정보 동의는 제휴 운영 계정으로서 강남 계정과 동일 버전으로 세팅(원장 지시). 5지점 전체 role=clinic 검증 완료.
+
 ### 후속(deferred)
-- 병원 대시보드 "오늘 작성 건수"(병원 자기 작성 노트 집계 RPC 필요) · 알림 설정 `pref_clinic_*` 토글 UI(`save_my_notification_prefs` RPC 확장 동반) · 동의 화면 `backfill_legal_name` 체크박스 · 판교(hhskin02, 의사 명함과 별도 처리)·수원(hhskin00) 프로비저닝, 건대(hhskin03)·대구(hhskin04)는 첫 구글 로그인 후 · `SummaryItem` 타입 SSOT 를 record-data 로 이동(현 import type 이라 무해) · 상태 배지 상수 공용화 · 후기 prefill(Part C).
+- 병원 대시보드 "오늘 작성 건수"(병원 자기 작성 노트 집계 RPC 필요) · 알림 설정 `pref_clinic_*` 토글 UI(`save_my_notification_prefs` RPC 확장 동반) · 동의 화면 `backfill_legal_name` 체크박스 · `SummaryItem` 타입 SSOT 를 record-data 로 이동(현 import type 이라 무해) · 상태 배지 상수 공용화 · 후기 prefill(Part C).
 
 ---
 
