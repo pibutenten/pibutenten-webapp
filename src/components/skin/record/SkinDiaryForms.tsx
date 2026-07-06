@@ -150,6 +150,10 @@ export type MemberInitial = {
   clinic_tel?: string | null;
   clinic_x?: number | null;
   clinic_y?: number | null;
+  // 병원 홈페이지·카카오 채널(비공개) — source='member' 노트에서 회원이 채웠을 수 있음. 폼에 표시 UI 는
+  //   없지만 편집 저장 시 프리필한 상태값을 그대로 전송해 왕복 보존(미프리필 시 저장이 NULL 로 덮어씀).
+  clinic_home?: string | null;
+  clinic_kakao?: string | null;
   doctor_name?: string | null;
   manager_name?: string | null;
   diary_body?: string | null;
@@ -274,8 +278,10 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
     return "";
   });
   const [nextAppointmentDate, setNextAppointmentDate] = useState(clinicSeed?.next_appointment_date ?? ""); // 다음 예약일(선택, YYYY-MM-DD)
-  const [clinicHome, setClinicHome] = useState(""); // 병원 홈페이지(비공개)
-  const [clinicKakao, setClinicKakao] = useState(""); // 카카오톡 채널(비공개, 직접 입력)
+  // 병원 홈페이지·카카오(비공개) — 회원 편집 모드는 저장값을 프리필해 왕복 보존(폼 표시 UI 는 없음).
+  //   작성·병원 모드는 memberSeed 가 undefined 라 "" 그대로(기존 동작 불변).
+  const [clinicHome, setClinicHome] = useState(memberSeed?.clinic_home ?? ""); // 병원 홈페이지(비공개)
+  const [clinicKakao, setClinicKakao] = useState(memberSeed?.clinic_kakao ?? ""); // 카카오톡 채널(비공개, 직접 입력)
   const [totalPrice, setTotalPrice] = useState(seed?.total_price != null ? String(seed.total_price) : ""); // 총 결제금액(비공개, 일기 표시용 — 집계 제외)
   const isComplete = true; // 항상 완성 저장(미완성·"나중에 마저" 토글 제거 — 사용자 요청).
   const [saving, setSaving] = useState(false);
@@ -693,6 +699,16 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
     //    UI 상 잠겨(memberEditClinicLocked) 사용자가 바꿀 수 없다. source='member' 는 병원 자유 편집.
     if (isMemberEdit) {
       setSaving(true);
+      // 시술별 unit_text·price 보존 — DiaryProc 는 이 두 값을 담지 않아(폼에 단가 입력 UI 없음) 편집 저장이
+      //   전체 교체 RPC 로 NULL 덮어씀. 최소 침습으로 원본(memberInitial)의 값을 시술명(procedure_ko)으로
+      //   매칭해 payload 에 병합한다(라벨은 addTag 가 중복 차단 → 노트 내 유일 키). 편집 중 추가된 신규
+      //   시술은 원본에 없어 자연히 null(가격 없음이 맞음). create/clinic 모드는 이 블록에 도달하지 않는다.
+      //   ⚠ 불변식: 조회 키 pr.label === 저장 키 procedure_ko. addTag 가 label 을 그대로 procedure_ko 로
+      //   payload 에 싣고(아래 map), seed reconcile 도 label 을 변경하지 않으므로 성립. addTag 가 label 을
+      //   가공하도록 바뀌면 이 매칭이 깨져 unit_text/price 가 무음 NULL 로 유실되니 함께 갱신할 것.
+      const origProc = new Map(
+        (memberSeed?.procedures ?? []).map((pr) => [pr.procedure_ko, pr]),
+      );
       try {
         const res = await fetch(`/api/visits/${memberEditVisitId}`, {
           method: "PATCH",
@@ -714,11 +730,17 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
             total_price: totalPrice.trim() ? Number(totalPrice.replace(/[^0-9]/g, "")) || null : null,
             is_complete: isComplete,
             // 시술 목록 — tag_dict_ko 는 서버가 매칭해 채움. 후기 달린 노트는 서버가 409 로 차단.
-            procedures: procs.map((pr, i) => ({
-              procedure_ko: pr.label,
-              note: pr.note.trim() || null,
-              sort_order: i,
-            })),
+            //   unit_text·price 는 원본 값 왕복 보존(폼 미표시 필드, 위 origProc 매칭).
+            procedures: procs.map((pr, i) => {
+              const orig = origProc.get(pr.label);
+              return {
+                procedure_ko: pr.label,
+                note: pr.note.trim() || null,
+                unit_text: orig?.unit_text ?? null,
+                price: orig?.price ?? null,
+                sort_order: i,
+              };
+            }),
           }),
         });
         if (res.status === 401) { toast("로그인 후 저장할 수 있어요"); setSaving(false); return; }

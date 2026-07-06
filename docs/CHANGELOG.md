@@ -6,6 +6,17 @@
 
 ---
 
+## [2026-07-06] — 병원 운영 프로그램 최종 수렴: 편집 데이터 보존 + SSOT 정리 (2인 최종검수 + 3렌즈 적대적 검증)
+
+C4 직후 **2인 독립 최종 전체검수**(치명 0) → 실질 지적만 정리 배치 → **3렌즈 적대적 검증**(보존정합·모드회귀·타입계약, 전부 clean·converged). 원장 지시: SSOT·정합성, 땜빵 금지. 폴리싱·이론적 엣지는 백로그.
+
+### Fixed
+- **[데이터 보존] 회원 편집 시 폼 미표시 필드 NULL 덮어쓰기 방지** — 회원(source='member') 시술노트 편집 저장이 폼에 입력 UI 가 없는 `clinic_home`·`clinic_kakao` 와 시술별 `unit_text`·`price` 를 NULL 로 덮어쓰던 결함 정정. `notes/[id]/edit` SELECT·`MemberInitial`·`DiaryForm` 프리필에 clinic_home/kakao 추가, 시술별 단가는 원본을 `procedure_ko`(=procs 라벨) 매칭 `origProc` Map 으로 저장 payload 에 왕복 병합(폼 라벨 불변식 기반, 최소 침습). source='clinic' 노트는 RPC 0353 이 CASE 로 스냅샷 보존(불변). 보존 경로 7단계(DB→page→MemberInitial→procs→origProc→zod→라우트→RPC) 3렌즈 전수 검증.
+- **[SSOT] 타입·상수 중복 제거** — `/clinic/patients/[linkId]/visits/[visitId]/edit` 의 로컬 `ClinicVisitRow` 타입을 `ClinicPatientDetailView` 의 `ClinicVisitItem`(같은 RPC `get_clinic_patient_visits` 소비) 재사용으로 대체(구조 drift 방지, nullable coalesce/filter 로 `ClinicInitial` 계약 충족). `ClinicVisitsView` 의 모듈 레벨 `NOW_YEAR`/`YEAR_OPTIONS`(연말 경계 stale) → 컴포넌트 내부 `useMemo` 런타임 계산.
+- **[토큰] clinic 화면 잔여 정리** — `ClinicRegisterForm` 매칭실패 안내 패널의 `var(--bg)` → admin 토큰 `var(--tt-blue-tint)`(clinic 표면 비-admin 토큰 grep 0 유지).
+
+---
+
 ## [2026-07-06] — 병원 운영 프로그램: 회원 시술노트 편집(C4) + 2인 전체검수 반영
 
 계획 SSOT: `docs/plans/260706 …관리 설계.md`. S1~S4(대장 완성) 후 **2인 독립 전체검수** → 종합 → 수정(Fix-A/B 병렬) → 디비전문가 0353 검수. 원장 지시: SSOT·정합성, 땜빵 금지.

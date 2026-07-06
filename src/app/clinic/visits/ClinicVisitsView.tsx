@@ -20,7 +20,7 @@
  * 서버(page.tsx)가 초기 목록·필터·원장 목록을 주고, 이후 변경은 GET /api/clinic/visits 재조회.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
@@ -92,9 +92,8 @@ function monthRange(y: number, m: number): { from: string; to: string } {
   return { from: ymd(y, m, 1), to: ymd(y, m, lastDay(y, m)) };
 }
 
-// 년·월 바로가기 드롭다운 옵션 — 최근 6년.
-const NOW_YEAR = kstToday().y;
-const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => NOW_YEAR - i);
+// 월 옵션(1~12)은 고정이라 모듈 레벨 상수. 연도 옵션은 kstToday() 파생이라 연말 경계 stale 방지를
+//   위해 컴포넌트 내부에서 런타임 계산한다(모듈 레벨 상수 금지).
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 export default function ClinicVisitsView({
@@ -110,6 +109,12 @@ export default function ClinicVisitsView({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+
+  // 년 바로가기 드롭다운 옵션 — 최근 6년. kstToday() 파생이라 마운트 시 런타임 계산(연말 경계 stale 방지).
+  const YEAR_OPTIONS = useMemo(() => {
+    const nowYear = kstToday().y;
+    return Array.from({ length: 6 }, (_, i) => nowYear - i);
+  }, []);
 
   const [view, setView] = useState<"list" | "calendar">(
     initialFilters.view === "calendar" ? "calendar" : "list",

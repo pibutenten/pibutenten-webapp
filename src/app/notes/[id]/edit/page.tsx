@@ -25,6 +25,8 @@ type EditRow = {
   clinic_tel: string | null;
   clinic_x: number | null;
   clinic_y: number | null;
+  clinic_home: string | null;
+  clinic_kakao: string | null;
   doctor_name: string | null;
   manager_name: string | null;
   diary_body: string | null;
@@ -60,7 +62,7 @@ export default async function DiaryEditPage({ params }: Props) {
     supabase
       .from("diaries")
       .select(
-        "id, visited_on, source, clinic_name, clinic_addr, clinic_tel, clinic_x, clinic_y, doctor_name, manager_name, diary_body, total_price, diary_procedures(procedure_ko, unit_text, price, note, sort_order)",
+        "id, visited_on, source, clinic_name, clinic_addr, clinic_tel, clinic_x, clinic_y, clinic_home, clinic_kakao, doctor_name, manager_name, diary_body, total_price, diary_procedures(procedure_ko, unit_text, price, note, sort_order)",
       )
       .eq("id", numId)
       .maybeSingle()
@@ -86,6 +88,8 @@ export default async function DiaryEditPage({ params }: Props) {
     clinic_tel: d.clinic_tel,
     clinic_x: d.clinic_x,
     clinic_y: d.clinic_y,
+    clinic_home: d.clinic_home,
+    clinic_kakao: d.clinic_kakao,
     doctor_name: d.doctor_name,
     manager_name: d.manager_name,
     diary_body: d.diary_body,

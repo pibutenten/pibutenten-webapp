@@ -124,7 +124,7 @@ export default function ClinicRegisterForm() {
           {/* C11 — 매칭 실패(400): 재확인 + 회원 본인 생일 수정 안내. */}
           {matchErr && (
             <p
-              className="mt-4 rounded-[var(--r-btn)] border border-[var(--line)] bg-[var(--bg)] p-3 text-[13px] leading-relaxed text-[var(--ink-700)]"
+              className="mt-4 rounded-[var(--r-btn)] border border-[var(--line)] bg-[var(--tt-blue-tint)] p-3 text-[13px] leading-relaxed text-[var(--ink-700)]"
               role="alert"
             >
               {matchErr}

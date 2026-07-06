@@ -4,6 +4,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireClinicPage } from "@/lib/clinic-page-guard";
 import { getReviewProcedures } from "@/lib/review-procedures";
 import ClinicVisitEditView from "./ClinicVisitEditView";
+// get_clinic_patient_visits(0350) 1행 타입은 환자 상세 뷰의 ClinicVisitItem 을 SSOT 로 재사용
+//   (같은 RPC 를 소비하므로 로컬 재선언 금지 — 구조 drift 방지).
+import { type ClinicVisitItem } from "../../../ClinicPatientDetailView";
 import type { ClinicPatientItem, ClinicDoctorOption } from "../../../../../_shared";
 
 export const dynamic = "force-dynamic";
@@ -11,30 +14,6 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "시술노트 수정",
   robots: { index: false, follow: false },
-};
-
-/** get_clinic_patient_visits(0350) 1행 — 그 환자 시술기록 타임라인 항목. */
-type ClinicVisitRow = {
-  diary_id: number;
-  visited_on: string;
-  visited_on_precision: string;
-  doctor_name: string | null;
-  doctor_id: string | null;
-  manager_name: string | null;
-  diary_body: string | null;
-  total_price: number | null;
-  next_appointment_date: string | null;
-  created_at: string;
-  updated_at: string;
-  procedures: {
-    id: number;
-    procedure_ko: string;
-    tag_dict_ko: string | null;
-    unit_text: string | null;
-    price: number | null;
-    note: string | null;
-    sort_order: number;
-  }[];
 };
 
 /**
@@ -85,7 +64,7 @@ export default async function ClinicVisitEditPage({
   const patient = patientRes.data;
   if (!patient) notFound(); // 자기 지점 연결 아님 → 404.
 
-  const visits = (visitsRes.data ?? []) as ClinicVisitRow[];
+  const visits = (visitsRes.data ?? []) as ClinicVisitItem[];
   const visit = visits.find((v) => v.diary_id === visitId);
   if (!visit) notFound(); // 그 환자 기록에 없는 diary → 404(3중 소유경계 비구분).
 
@@ -97,10 +76,14 @@ export default async function ClinicVisitEditPage({
       doctors={doctorsRes.data ?? []}
       procedures={procedures}
       initial={{
-        visited_on: visit.visited_on,
+        // ClinicVisitItem 은 visited_on/procedure_ko/sort_order 가 nullable(더 넓은 SSOT 타입)이므로
+        //   ClinicInitial 계약(visited_on: string, procedure_ko: string)에 맞게 coalesce/필터한다.
+        //   빈 visited_on 은 폼 lazy initializer 가 오늘로 폴백(clinic 방문은 실제로 항상 값 존재).
+        visited_on: visit.visited_on ?? "",
         procedures: (visit.procedures ?? [])
           .slice()
-          .sort((a, b) => a.sort_order - b.sort_order)
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .filter((pr): pr is typeof pr & { procedure_ko: string } => !!pr.procedure_ko)
           .map((pr) => ({
             procedure_ko: pr.procedure_ko,
             note: pr.note,
