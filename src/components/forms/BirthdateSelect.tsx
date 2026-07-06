@@ -52,6 +52,68 @@ export function normalizeBirthdate(s: string): string {
   return composeBirthdate(parseBirthdate(s));
 }
 
+/** 유효한 달력 날짜인지(연 1920~올해·월 1~12·일 1~말일) 검사. */
+function isValidYmd(y: number, m: number, d: number): boolean {
+  if (y < 1920 || y > CURRENT_YEAR) return false;
+  if (m < 1 || m > 12) return false;
+  // 해당 연·월의 말일(윤년 포함) 계산 — new Date(y, m, 0).getDate() = m월 말일.
+  const lastDay = new Date(y, m, 0).getDate();
+  return d >= 1 && d <= lastDay;
+}
+
+/**
+ * 직접 타이핑 입력(자유 형식)을 "YYYY-MM-DD" 로 파싱. 유효하지 않으면 "".
+ *
+ * 허용 형식(C12):
+ *  - `790126` (6자리, 2자리 연도) · `19790126` (8자리, 4자리 연도)
+ *  - `1979-01-26` · `1979.01.26` · `1979/01/26` (구분자 - . / 및 공백)
+ *  - 구분자가 있으면 `79-1-26` 처럼 앞 0 없는 부분도 허용.
+ *
+ * 2자리 연도 피벗(성인 환자 기준): yy > (올해 2자리)+1 → 19yy, else 20yy.
+ *   예) 올해 2026 → 임계 27. `26`→2026, `28`→1928, `79`→1979.
+ *   (미래 생일 방지: 올해+1 까지만 2000년대로 해석.)
+ */
+export function parseFreeBirthdate(raw: string): string {
+  const s = raw.trim();
+  if (!s) return "";
+
+  let y: number, m: number, d: number;
+
+  // 1) 구분자 포함(- . / 또는 공백) — 3토막.
+  const sep = s.split(/[.\-/\s]+/).filter(Boolean);
+  if (sep.length === 3) {
+    y = parseInt(sep[0], 10);
+    m = parseInt(sep[1], 10);
+    d = parseInt(sep[2], 10);
+    if ([y, m, d].some(Number.isNaN)) return "";
+    if (sep[0].length <= 2) y = pivot2DigitYear(y);
+  } else if (/^\d+$/.test(s)) {
+    // 2) 숫자만 — 6자리(yyMMdd) 또는 8자리(yyyyMMdd).
+    if (s.length === 8) {
+      y = parseInt(s.slice(0, 4), 10);
+      m = parseInt(s.slice(4, 6), 10);
+      d = parseInt(s.slice(6, 8), 10);
+    } else if (s.length === 6) {
+      y = pivot2DigitYear(parseInt(s.slice(0, 2), 10));
+      m = parseInt(s.slice(2, 4), 10);
+      d = parseInt(s.slice(4, 6), 10);
+    } else {
+      return ""; // 자릿수 부족(부분 입력) → 미완성 취급.
+    }
+  } else {
+    return "";
+  }
+
+  if (!isValidYmd(y, m, d)) return "";
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/** 2자리 연도 → 4자리(성인 환자 피벗). yy > (올해 2자리)+1 → 1900대, else 2000대. */
+function pivot2DigitYear(yy: number): number {
+  const threshold = (CURRENT_YEAR % 100) + 1;
+  return yy > threshold ? 1900 + yy : 2000 + yy;
+}
+
 type Props = {
   /** 합성된 생년월일 "YYYY-MM-DD" — 미완성(부분 선택)이면 "". */
   value: string;
@@ -68,6 +130,14 @@ type Props = {
 // select 공통 클래스 — 온보딩 원본 그대로(회귀 금지). 색은 CSS 변수만.
 const selectCls =
   "h-9 rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none";
+// 직접입력 텍스트 인풋 — select 와 동일 톤(색은 CSS 변수만).
+const textCls =
+  "h-9 w-full rounded-md border border-[var(--border)] bg-white px-2 text-[12px] focus:border-[var(--primary)] focus:outline-none";
+
+/** value("YYYY-MM-DD"|"")를 직접입력 인풋의 표시 문자열로. 미완성이면 빈 칸. */
+function displayFromValue(v: string): string {
+  return v || "";
+}
 
 export default function BirthdateSelect({
   value,
@@ -83,6 +153,20 @@ export default function BirthdateSelect({
   const [internal, setInternal] = useState<BirthdateParts>(() => parseBirthdate(value));
   const parts = value ? parseBirthdate(value) : internal;
 
+  // 직접입력 텍스트 상태 — 사용자가 자유롭게 타이핑(부분입력 포함)하는 원문을 그대로 보관합니다.
+  // 드롭다운으로 value 가 외부에서 바뀌면(아래 seenValue 비교) 표시 문자열을 재동기화해
+  // "한쪽 바꾸면 다른쪽 반영"을 effect 없이 구현합니다. (파일 기존 파생-동기 패턴 계승.)
+  const [typed, setTyped] = useState<string>(() => displayFromValue(value));
+  const [seenValue, setSeenValue] = useState<string>(value);
+  if (value !== seenValue) {
+    // value 가 이 컴포넌트 밖(드롭다운 update·부모)에서 바뀜 → 텍스트도 맞춰 재동기화.
+    // 단, 텍스트 입력이 유효 파싱되어 같은 value 로 이어진 경우엔 원문 타이핑을 보존.
+    if (parseFreeBirthdate(typed) !== value) {
+      setTyped(displayFromValue(value));
+    }
+    setSeenValue(value);
+  }
+
   // 한 칸 변경 → 내부 상태 갱신 + 합성값(미완성이면 "") 상위 전달.
   const update = (patch: Partial<BirthdateParts>) => {
     const next = { ...parts, ...patch };
@@ -90,8 +174,31 @@ export default function BirthdateSelect({
     onChange(composeBirthdate(next));
   };
 
+  // 직접입력 변경 → 원문 보관 + 유효하면 정규화 value 전달(미완성·무효면 "" 전달).
+  //   "" 전달 시 온보딩 검증(`if (!birthdate)`)이 기존처럼 작동합니다(회귀 없음).
+  const onType = (raw: string) => {
+    setTyped(raw);
+    const parsed = parseFreeBirthdate(raw);
+    setInternal(parseBirthdate(parsed)); // 드롭다운도 즉시 반영(유효 시), 무효면 전부 "".
+    onChange(parsed);
+  };
+
   return (
-    <div className={className}>
+    <div className="flex flex-1 flex-col gap-1.5">
+      {/* 직접입력 — 790126 · 19790126 · 1979-01-26 · 1979.01.26 자유 파싱(C12). */}
+      <input
+        type="text"
+        inputMode="numeric"
+        value={typed}
+        onChange={(e) => onType(e.target.value)}
+        placeholder="예: 790126 또는 1979-01-26"
+        autoComplete="off"
+        spellCheck={false}
+        className={textCls}
+        aria-label="생년월일 직접 입력"
+      />
+      {/* 드롭다운 — 기존 3분할(온보딩 회귀 금지). 직접입력과 같은 value 공유. */}
+      <div className={className}>
       <select
         ref={yearRef}
         value={parts.year}
@@ -131,6 +238,7 @@ export default function BirthdateSelect({
           </option>
         ))}
       </select>
+      </div>
     </div>
   );
 }

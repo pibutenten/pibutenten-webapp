@@ -31,6 +31,12 @@ export type ClinicPatientItem = {
   consent_at: string | null;
   created_at: string;
   revoked_at: string | null;
+  /** 그 환자 clinic 노트 max(visited_on) — 0351 get_clinic_patients v2 신규(§4.2-9). */
+  last_visit_on: string | null;
+  /** 그 환자 clinic 노트 건수 — 0351 신규(§4.2-9). */
+  visit_count: number;
+  /** patient_birthdate 파생 만 나이 — 0351 신규. 생일 없으면 null. */
+  age_years: number | null;
 };
 
 /** 병원 모드 원장 드롭다운 항목 — DiaryForm clinicDoctors prop 과 동일 형태. */

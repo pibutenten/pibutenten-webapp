@@ -14,7 +14,6 @@
  * app skin admin 템플릿/AdminView.tsx 에서 승격. 셸 back="/", 내부 링크 /admin/* 정본.
  */
 
-import Link from "next/link";
 import type { OauthHealth } from "@/lib/ai/youtube-oauth";
 import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
 import ActivityKpis from "@/app/admin/ActivityKpis";
@@ -22,6 +21,7 @@ import LogoutButton from "@/components/LogoutButton";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import AppShell from "@/components/skin/AppShell";
 import { useSearchRouting } from "@/components/skin/ui";
+import { Stat, Tool } from "@/components/skin/OpsCards";
 import styles from "@/components/skin/app.module.css";
 
 type SearchRow = { query: string; cnt: number };
@@ -291,108 +291,3 @@ const TOOL_GRID = "grid grid-cols-1 gap-3 sm:grid-cols-2";
 const POPULAR_GRID = "grid grid-cols-1 gap-4 md:grid-cols-2";
 const SECTION_HEAD =
   "mb-3 text-sm font-bold";
-
-function Stat({
-  label,
-  value,
-  highlight,
-  href,
-  title,
-}: {
-  label: string;
-  value: number;
-  highlight?: boolean;
-  href?: string;
-  title?: string;
-}) {
-  const inner = (
-    <>
-      <div
-        style={{
-          whiteSpace: "nowrap",
-          fontSize: 11,
-          lineHeight: 1.2,
-          color: "var(--ink-500)",
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          marginTop: 4,
-          whiteSpace: "nowrap",
-          fontSize: 20,
-          fontWeight: 800,
-          fontVariantNumeric: "tabular-nums",
-          color: highlight ? "var(--tt-blue-deep)" : "var(--ink-900)",
-        }}
-      >
-        {value.toLocaleString()}
-      </div>
-    </>
-  );
-  const boxStyle: React.CSSProperties = {
-    display: "block",
-    overflow: "hidden",
-    borderRadius: 14,
-    border: `1px solid ${highlight ? "var(--tt-blue-soft)" : "var(--line)"}`,
-    background: highlight ? "var(--tt-blue-tint)" : "#fff",
-    padding: 12,
-  };
-  if (href) {
-    return (
-      <Link href={href} style={boxStyle} title={title}>
-        {inner}
-      </Link>
-    );
-  }
-  return (
-    <div style={boxStyle} title={title}>
-      {inner}
-    </div>
-  );
-}
-
-function Tool({
-  href,
-  emoji,
-  title,
-  desc,
-  highlight,
-  prefetch,
-}: {
-  href: string;
-  emoji: string;
-  title: string;
-  desc: string;
-  highlight?: boolean;
-  /** API endpoint나 사이드 이펙트 있는 라우트는 prefetch={false} 권장 */
-  prefetch?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      prefetch={prefetch}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        borderRadius: 14,
-        border: `1px solid ${highlight ? "var(--tt-blue-soft)" : "var(--line)"}`,
-        background: highlight ? "var(--tt-blue-tint)" : "#fff",
-        padding: 16,
-      }}
-    >
-      <div style={{ fontSize: 22 }}>{emoji}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink-900)" }}>
-          {title}
-        </div>
-        <div style={{ marginTop: 2, fontSize: 12, color: "var(--ink-500)" }}>
-          {desc}
-        </div>
-      </div>
-      <span style={{ color: "var(--ink-300)" }}>→</span>
-    </Link>
-  );
-}

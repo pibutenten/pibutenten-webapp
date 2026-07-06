@@ -34,7 +34,8 @@ type Phase =
   | { kind: "done-consent" }
   | { kind: "done-reject" };
 
-const cardBox = "rounded-[var(--radius)] border border-[var(--border)] bg-white p-5";
+/** 관리자 톤 카드(C10) — --line 테두리 · --r-card. */
+const cardBox = "rounded-[var(--r-card)] border border-[var(--line)] bg-white p-5";
 
 /** 에러 body 에서 userMessage 추출 — API 는 실패 시 { userMessage } 를 담아 준다. */
 async function readUserMessage(res: Response, fallback: string): Promise<string> {
@@ -110,16 +111,16 @@ export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) 
   /* ---------- 로딩 / 에러 ---------- */
   if (phase.kind === "loading") {
     return (
-      <p className="py-16 text-center text-sm text-[var(--text-secondary)]">불러오는 중이에요…</p>
+      <p className="py-16 text-center text-sm text-[var(--ink-500)]">불러오는 중이에요…</p>
     );
   }
   if (phase.kind === "error") {
     return (
       <div className={`${cardBox} text-center`}>
-        <p className="text-[15px] font-bold text-[var(--text)]">{phase.message}</p>
+        <p className="text-[15px] font-bold text-[var(--ink-900)]">{phase.message}</p>
         <Link
           href="/"
-          className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[var(--primary)] px-6 text-[14px] font-semibold text-white"
+          className="mt-4 inline-flex h-10 items-center justify-center rounded-[var(--r-btn)] bg-[var(--tt-blue)] px-6 text-[14px] font-semibold text-white hover:bg-[var(--tt-blue-deep)]"
         >
           홈으로 가기
         </Link>
@@ -131,13 +132,13 @@ export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) 
   if (phase.kind === "done-consent") {
     return (
       <div className={`${cardBox} text-center`}>
-        <h1 className="text-xl font-bold text-[var(--text)]">연결됐어요.</h1>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+        <h1 className="text-xl font-bold text-[var(--ink-900)]">연결됐어요.</h1>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--ink-500)]">
           병원이 작성한 시술노트가 내 기록에 자동으로 담겨요.
         </p>
         <Link
           href="/notes"
-          className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-[var(--primary)] px-7 text-[15px] font-semibold text-white"
+          className="mt-5 inline-flex h-11 items-center justify-center rounded-[var(--r-btn)] bg-[var(--tt-blue)] px-7 text-[15px] font-semibold text-white hover:bg-[var(--tt-blue-deep)]"
         >
           내 기록 보기
         </Link>
@@ -149,13 +150,13 @@ export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) 
   if (phase.kind === "done-reject") {
     return (
       <div className={`${cardBox} text-center`}>
-        <h1 className="text-xl font-bold text-[var(--text)]">거절했어요</h1>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+        <h1 className="text-xl font-bold text-[var(--ink-900)]">거절했어요</h1>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--ink-500)]">
           병원 연결 요청을 거절했어요. 내 정보는 병원에 전달되지 않아요.
         </p>
         <Link
           href="/"
-          className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-[var(--primary)] px-7 text-[15px] font-semibold text-white"
+          className="mt-5 inline-flex h-11 items-center justify-center rounded-[var(--r-btn)] bg-[var(--tt-blue)] px-7 text-[15px] font-semibold text-white hover:bg-[var(--tt-blue-deep)]"
         >
           홈으로 가기
         </Link>
@@ -190,11 +191,11 @@ export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) 
             };
     return (
       <div className={`${cardBox} text-center`}>
-        <h1 className="text-xl font-bold text-[var(--text)]">{notice.title}</h1>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{notice.body}</p>
+        <h1 className="text-xl font-bold text-[var(--ink-900)]">{notice.title}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--ink-500)]">{notice.body}</p>
         <Link
           href={notice.href}
-          className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-[var(--primary)] px-7 text-[15px] font-semibold text-white"
+          className="mt-5 inline-flex h-11 items-center justify-center rounded-[var(--r-btn)] bg-[var(--tt-blue)] px-7 text-[15px] font-semibold text-white hover:bg-[var(--tt-blue-deep)]"
         >
           {notice.cta}
         </Link>
@@ -202,86 +203,107 @@ export default function ClinicLinkConsentClient({ linkId }: { linkId: number }) 
     );
   }
 
-  /* ---------- 동의 화면(pending) — §8.3 확정 문구 그대로 ---------- */
+  /* ---------- 동의 화면(pending) — §2.7 재설계(본인확인 최상단·수직 버튼 위계) ---------- */
   const { link } = phase;
   const clinicName = link.clinic_display_name ?? "병원";
 
+  // ③ 병원에 제공되는 내 정보 — 칩 목록(계획 §2.7). 라벨만 표시(값은 동의 후 스냅샷됨).
+  const infoChips = [
+    "아이디",
+    "이름",
+    "생년월일",
+    "이메일",
+    "피부 정보(성별·피부타입·피부고민·얼굴형·피부색·관심시술)",
+  ];
+
   return (
     <>
+      {/* 헤더 — 짧은 제목 + 부제 */}
       <header className="mb-5 text-center">
-        <h1 className="text-xl font-bold leading-snug text-[var(--text)]">
-          {clinicName}에서 본인의 계정을 연결하고 시술노트를 대신 작성합니다
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-          아래 내 정보를 병원에 전달하고, 시술 내역을 병원이 내 시술노트에 대신 입력해요. 지금 한 번
-          동의하면 다음 방문부터 자동으로 기록돼요.
+        <h1 className="text-xl font-bold leading-snug text-[var(--ink-900)]">병원 연결 동의</h1>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--ink-500)]">
+          {clinicName}이(가) 내 시술노트를 대신 작성하고 내 정보를 받아 가요.
         </p>
       </header>
 
-      {/* 제공 항목 박스 (§8.3 확정 문구) */}
-      <div className={cardBox}>
-        <p className="text-[14px] font-semibold leading-relaxed text-[var(--text)]">
-          아이디 · 이름 · 생년월일 · 이메일 · 피부 정보(성별·피부타입·피부고민·얼굴형·피부색·관심시술)
+      {/* ① 본인 확인 — 최상단·강조(--tt-blue-tint 배경 / --tt-blue-soft 테두리) */}
+      <div className="rounded-[var(--r-card)] border border-[var(--tt-blue-soft)] bg-[var(--tt-blue-tint)] p-5">
+        <p className="text-[13px] font-semibold text-[var(--tt-blue-deep)]">병원이 등록한 이름</p>
+        <p className="mt-1 text-lg font-bold text-[var(--ink-900)]">
+          {link.requested_legal_name || "—"}
+        </p>
+        <p className="mt-2 text-[12.5px] leading-relaxed text-[var(--ink-500)]">
+          본인이 맞는지 확인해 주세요. 아니면 아래에서 거절해요.
         </p>
       </div>
 
-      {/* 본인 확인 — 병원이 등록한 이름(requested_legal_name, §4.1) */}
-      {link.requested_legal_name && (
-        <div className={`${cardBox} mt-3`}>
-          <p className="text-[14px] text-[var(--text)]">
-            병원이 등록한 이름:{" "}
-            <strong className="font-bold">{link.requested_legal_name}</strong>
-          </p>
-          <p className="mt-1 text-[12.5px] text-[var(--text-muted)]">
-            본인이 맞는지 확인해 주세요. 본인이 아니면 거절해 주세요.
-          </p>
-        </div>
-      )}
+      {/* ② 병원에 제공되는 내 정보 — 칩 */}
+      <div className={`${cardBox} mt-3`}>
+        <p className="text-[13px] font-semibold text-[var(--ink-700)]">병원에 제공되는 내 정보</p>
+        <ul className="mt-2.5 flex flex-wrap gap-1.5">
+          {infoChips.map((c) => (
+            <li
+              key={c}
+              className="rounded-full border border-[var(--line)] bg-[var(--bg)] px-3 py-1 text-[13px] text-[var(--ink-700)]"
+            >
+              {c}
+            </li>
+          ))}
+        </ul>
+      </div>
 
-      {/* 통제 안내 (§8.3 확정 문구) */}
-      <p className="mt-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-        기록 삭제·연결 해제를 언제든 할 수 있어요. 연결을 해제하면 병원의 추가 입력이 멈춰요.
+      {/* ③ 이중 동의 고지 */}
+      <div className={`${cardBox} mt-3`}>
+        <p className="text-[13.5px] leading-[1.7] text-[var(--ink-700)]">
+          ✓ 병원이 내 시술 내역을 시술노트에 대신 작성해요.
+        </p>
+        <p className="mt-1 text-[13.5px] leading-[1.7] text-[var(--ink-700)]">
+          ✓ 위 정보를 병원에 제공해요(제3자 제공, 개인정보보호법 §17).
+        </p>
+      </div>
+
+      {/* ④ 통제 안내(muted) */}
+      <p className="mt-3 text-[13px] leading-relaxed text-[var(--ink-500)]">
+        기록 삭제·연결 해제는 언제든 가능해요. 해제하면 병원의 추가 입력이 멈춰요.
       </p>
 
-      {/* 동의 체크박스 — 체크해야 동의 버튼 활성 */}
+      {/* ⑤ 체크박스 게이트 — 체크해야 동의 버튼 활성 */}
       <div className={`${cardBox} mt-4`}>
         <label className="flex cursor-pointer items-start gap-2">
           <input
             type="checkbox"
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}
-            className="mt-[3px] h-4 w-4 cursor-pointer accent-[var(--primary)]"
+            className="mt-[3px] h-4 w-4 cursor-pointer accent-[var(--tt-blue)]"
           />
-          <span className="text-[13.5px] leading-[1.6] text-[var(--text)]">
+          <span className="text-[13.5px] leading-[1.6] text-[var(--ink-900)]">
             위 정보 제공과 시술노트 대행 작성에 동의합니다.
           </span>
         </label>
       </div>
 
-      {/* 액션 — 동의(primary) / 거절(secondary) */}
+      {/* 버튼 수직 위계 — 풀폭 primary(동의) → 아래 약한 텍스트(거절) */}
       {actionErr && (
         <p className="mt-3 text-center text-[12.5px] font-medium text-red-600" role="alert">
           {actionErr}
         </p>
       )}
-      <div className="mt-4 flex gap-2">
-        <button
-          type="button"
-          onClick={() => respond(true)}
-          disabled={!agreed || submitting}
-          className="h-11 flex-1 rounded-full bg-[var(--primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          {submitting ? "처리 중…" : "동의"}
-        </button>
-        <button
-          type="button"
-          onClick={() => respond(false)}
-          disabled={submitting}
-          className="h-11 flex-1 rounded-full border border-[var(--border)] bg-white text-[15px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg)] disabled:opacity-50"
-        >
-          거절
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => respond(true)}
+        disabled={!agreed || submitting}
+        className="mt-4 h-12 w-full rounded-[var(--r-btn)] bg-[var(--tt-blue)] text-[15px] font-semibold text-white transition-colors hover:bg-[var(--tt-blue-deep)] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {submitting ? "처리 중…" : "동의하고 연결하기"}
+      </button>
+      <button
+        type="button"
+        onClick={() => respond(false)}
+        disabled={submitting}
+        className="mt-2 h-10 w-full text-[14px] font-medium text-[var(--ink-500)] transition-colors hover:text-[var(--ink-700)] disabled:opacity-50"
+      >
+        연결 거절하기
+      </button>
     </>
   );
 }
