@@ -1081,7 +1081,15 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
           {procs.length > 0 && (
             <div className="mb-2 space-y-2">
               {procs.map((p) => (
-                <div key={p.id} className={"rounded-md bg-[var(--bg)] p-2.5 transition-shadow " + (dupId === p.id ? "ring-2 ring-[var(--primary)]" : "")}>
+                <div
+                  key={p.id}
+                  className={"rounded-md border p-2.5 transition-shadow " + (dupId === p.id ? "ring-2 ring-[var(--primary)]" : "")}
+                  style={{
+                    // 시술 글상자 — 그 시술 카테고리 색의 옅은 톤 배경 + 진한 테두리(칩은 아래 원색).
+                    background: `color-mix(in srgb, ${CAT_COLOR[p.cat] ?? "var(--primary)"} 8%, white)`,
+                    borderColor: `color-mix(in srgb, ${CAT_COLOR[p.cat] ?? "var(--primary)"} 26%, white)`,
+                  }}
+                >
                   <div className="flex items-center gap-1.5">
                     <span className="shrink-0 rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
                     {/* clinic 데스크탑(md↑): 메모 input 을 시술칩 오른쪽 인라인(flex-1)으로 — 세로 절약(아래 별도 줄 폐기).
