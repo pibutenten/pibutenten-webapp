@@ -1084,6 +1084,18 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
                 <div key={p.id} className={"rounded-md bg-[var(--bg)] p-2.5 transition-shadow " + (dupId === p.id ? "ring-2 ring-[var(--primary)]" : "")}>
                   <div className="flex items-center gap-1.5">
                     <span className="shrink-0 rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
+                    {/* clinic 데스크탑(md↑): 메모 input 을 시술칩 오른쪽 인라인(flex-1)으로 — 세로 절약(아래 별도 줄 폐기).
+                        모바일(md↓)은 hidden(아래 토글 유지), 회원 모드는 렌더 안 함. autoFocus 금지(다중행 포커스 경쟁). */}
+                    {isClinic && (
+                      <input
+                        className={inputSm + " hidden min-w-0 flex-1 md:block"}
+                        placeholder="샷수, 바이알, 부위, 메모… (선택)"
+                        value={p.note}
+                        maxLength={60}
+                        onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
+                        onChange={(e) => upd(p.id, { note: e.target.value })}
+                      />
+                    )}
                     {/* 토글 트리거(③ 접힘 알약 / ① ＋메모 버튼) — 둘 다 !p.open 일 때만 존재하므로 래퍼도 !p.open 에서만
                         렌더(빈 ml-auto 래퍼가 편집 중 × 위치를 밀지 않도록 — 회원 편집 중 × 좌측 배치 보존).
                         clinic 데스크탑(md↑)은 항상 펼친 input 을 쓰므로 숨김. 모바일(md↓)·회원 전 모드는 기존 토글 유지. */}
@@ -1117,19 +1129,6 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
                       />
                     </div>
                   )}
-                  {/* clinic 데스크탑(md↑) 상시 메모 input — 값 없어도 항상 펼침. 다중 행 포커스 경쟁 방지 위해
-                      autoFocus 절대 금지. 같은 p.note 에 바인딩(토글 input 과 값 공유). 모바일·회원 전 모드는 hidden. */}
-                  <div className={isClinic ? "hidden md:block" : "hidden"}>
-                    <input
-                      className={inputSm + " mt-2 w-full"}
-                      placeholder="샷수, 바이알, 부위, 메모… (선택)"
-                      value={p.note}
-                      maxLength={60}
-                      onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
-                      onChange={(e) => upd(p.id, { note: e.target.value })}
-                    />
-                  </div>
-
                   {/* 시술별 후기 아코디언 — 펼치면 평가 컨트롤(day0). 안 펼치면 "기록만".
                       자유입력 신규태그(inDict=false)는 후기 불가(RPC unknown_procedure 거부) → 안내만, 기록은 정상 저장.
                       병원 모드는 평가·후기 UI 전부 숨김 — 병원은 시술노트만 작성하고 후기는 회원 본인이 씁니다(계획 §8.2).
