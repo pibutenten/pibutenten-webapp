@@ -150,45 +150,47 @@ export default function ClinicPatientDetailView({
             </h1>
             <StatusBadge status={patient.status} />
           </div>
-          {(() => {
-            // h1 아래 1줄 인라인 요약 — 빈값('—'·null)은 스킵, 전부 비면 줄 자체 생략.
-            const parts = [birthText, ageText, genderText, patient.patient_email ?? "—"].filter(
-              (t) => t && t !== "—",
-            );
-            return parts.length > 0 ? (
-              <p className="mt-1 text-[13px] text-[var(--ink-500)]">{parts.join(" · ")}</p>
-            ) : null;
-          })()}
-          <dl className="mt-4 grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
-            <Row label="아이디" value={patient.member_handle ? `@${patient.member_handle}` : "—"} />
-            <Row label="생년월일" value={birthText} />
-            <Row label="나이" value={ageText} />
-            <Row label="성별" value={genderText} />
-            <Row label="이메일" value={patient.patient_email ?? "—"} />
-            {consentDate && <Row label="동의일" value={consentDate} />}
-          </dl>
+          {/* 개인정보 — 2줄 인라인 압축(라벨 없이 · 구분). 세로 dl 폐기. */}
+          <div className="mt-1.5 space-y-0.5 text-[13px] leading-relaxed text-[var(--ink-500)]">
+            <p className="break-keep">
+              {[
+                patient.member_handle ? `@${patient.member_handle}` : null,
+                birthText,
+                ageText,
+                genderText,
+              ]
+                .filter((t) => t && t !== "—")
+                .join(" · ")}
+            </p>
+            {(patient.patient_email || consentDate) && (
+              <p className="break-all">
+                {[patient.patient_email, consentDate ? `동의 ${consentDate}` : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+          </div>
 
-          {spRows.length > 0 && (
-            <div className="mt-4 border-t border-[var(--line)] pt-4">
-              <h2 className="text-[14px] font-bold text-[var(--ink-900)]">피부 프로필</h2>
-              <dl className="mt-2.5 space-y-2.5">
-                {spRows.map((r) => (
-                  <div key={r.label} className="flex gap-3">
-                    <dt className="w-[72px] shrink-0 text-[13px] text-[var(--ink-300)]">
-                      {r.label}
-                    </dt>
-                    <dd className="flex min-w-0 flex-1 items-center gap-1.5 text-[13.5px] text-[var(--ink-700)]">
+          {/* 피부 프로필 — 라벨(연회색)+값 인라인 wrap(≈2줄). 성별은 위 개인정보와 중복이라 제외. */}
+          {spRows.filter((r) => r.label !== "성별").length > 0 && (
+            <div className="mt-3 border-t border-[var(--line)] pt-3">
+              <h2 className="text-[13px] font-bold text-[var(--ink-900)]">피부 프로필</h2>
+              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
+                {spRows
+                  .filter((r) => r.label !== "성별")
+                  .map((r) => (
+                    <span key={r.label} className="inline-flex items-center gap-1 break-keep">
+                      <span className="text-[var(--ink-300)]">{r.label}</span>
                       {r.tone && (
                         <span
-                          className="h-3.5 w-3.5 shrink-0 rounded-full border border-[var(--line)]"
+                          className="h-3 w-3 shrink-0 rounded-full border border-[var(--line)]"
                           style={{ background: r.tone }}
                         />
                       )}
-                      <span className="min-w-0 break-keep">{r.value}</span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+                      <span className="text-[var(--ink-700)]">{r.value}</span>
+                    </span>
+                  ))}
+              </div>
             </div>
           )}
         </div>
@@ -322,15 +324,6 @@ export default function ClinicPatientDetailView({
         </div>
       </section>
     </ClinicShell>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-3">
-      <dt className="w-[72px] shrink-0 text-[13px] text-[var(--ink-300)]">{label}</dt>
-      <dd className="min-w-0 flex-1 break-all text-[13.5px] text-[var(--ink-700)]">{value}</dd>
-    </div>
   );
 }
 
