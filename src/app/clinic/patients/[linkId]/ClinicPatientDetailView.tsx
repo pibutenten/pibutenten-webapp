@@ -150,26 +150,19 @@ export default function ClinicPatientDetailView({
             </h1>
             <StatusBadge status={patient.status} />
           </div>
-          {/* 개인정보 — 2줄 인라인 압축(라벨 없이 · 구분). 세로 dl 폐기. */}
-          <div className="mt-1.5 space-y-0.5 text-[13px] leading-relaxed text-[var(--ink-500)]">
-            <p className="break-keep">
-              {[
-                patient.member_handle ? `@${patient.member_handle}` : null,
-                birthText,
-                ageText,
-                genderText,
-              ]
-                .filter((t) => t && t !== "—")
-                .join(" · ")}
-            </p>
-            {(patient.patient_email || consentDate) && (
-              <p className="break-all">
-                {[patient.patient_email, consentDate ? `동의 ${consentDate}` : null]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            )}
-          </div>
+          {/* 개인정보 — 1줄 인라인 압축(라벨 없이 · 구분, 좁으면 자연 줄바꿈). 세로 dl 폐기. */}
+          <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--ink-500)]">
+            {[
+              patient.member_handle ? `@${patient.member_handle}` : null,
+              birthText,
+              ageText,
+              genderText,
+              patient.patient_email,
+              consentDate ? `동의 ${consentDate}` : null,
+            ]
+              .filter((t) => t && t !== "—")
+              .join(" · ")}
+          </p>
 
           {/* 피부 프로필 — 제목·구분선 없이 라벨(연회색)+값 인라인만(≈1~2줄). 성별은 개인정보와 중복이라 제외. */}
           {spRows.filter((r) => r.label !== "성별").length > 0 && (
