@@ -171,26 +171,23 @@ export default function ClinicPatientDetailView({
             )}
           </div>
 
-          {/* 피부 프로필 — 라벨(연회색)+값 인라인 wrap(≈2줄). 성별은 위 개인정보와 중복이라 제외. */}
+          {/* 피부 프로필 — 제목·구분선 없이 라벨(연회색)+값 인라인만(≈1~2줄). 성별은 개인정보와 중복이라 제외. */}
           {spRows.filter((r) => r.label !== "성별").length > 0 && (
-            <div className="mt-3 border-t border-[var(--line)] pt-3">
-              <h2 className="text-[13px] font-bold text-[var(--ink-900)]">피부 프로필</h2>
-              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
-                {spRows
-                  .filter((r) => r.label !== "성별")
-                  .map((r) => (
-                    <span key={r.label} className="inline-flex items-center gap-1 break-keep">
-                      <span className="text-[var(--ink-300)]">{r.label}</span>
-                      {r.tone && (
-                        <span
-                          className="h-3 w-3 shrink-0 rounded-full border border-[var(--line)]"
-                          style={{ background: r.tone }}
-                        />
-                      )}
-                      <span className="text-[var(--ink-700)]">{r.value}</span>
-                    </span>
-                  ))}
-              </div>
+            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
+              {spRows
+                .filter((r) => r.label !== "성별")
+                .map((r) => (
+                  <span key={r.label} className="inline-flex items-center gap-1 break-keep">
+                    <span className="text-[var(--ink-300)]">{r.label}</span>
+                    {r.tone && (
+                      <span
+                        className="h-3 w-3 shrink-0 rounded-full border border-[var(--line)]"
+                        style={{ background: r.tone }}
+                      />
+                    )}
+                    <span className="text-[var(--ink-700)]">{r.value}</span>
+                  </span>
+                ))}
             </div>
           )}
         </div>
@@ -233,6 +230,9 @@ export default function ClinicPatientDetailView({
         {patient.status === "active" ? (
           <Link
             href={`/clinic/visits/new?link=${patient.link_id}`}
+            // ⚠ 흰 글씨 인라인 고정 — app.module.css `:where(.root) a{color:inherit}`(언레이어)가
+            //   Tailwind text-white(레이어)를 이겨 링크 글씨가 어둡게 상속되던 것 차단(<a> 버튼 전용).
+            style={{ color: "#fff" }}
             className="mt-4 flex h-12 w-full items-center justify-center rounded-[var(--r-btn)] bg-[var(--tt-blue)] text-[15.5px] font-bold text-white transition-colors hover:bg-[var(--tt-blue-deep)]"
           >
             시술노트 작성
