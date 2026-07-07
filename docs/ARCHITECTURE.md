@@ -80,15 +80,15 @@
 /review/new                         시술후기 작성 (P3-d, 전용 폼. /write 시술후기 탭이 이 ReviewForm 공유)
 /clinic                             병원 대시보드(role=clinic 전용, 그 외 404) — 현황 Stat 카드 + 운영 프로그램 카드(관리자 /admin 패턴).
                                     get_clinic_dashboard RPC(0349). noindex(clinic/layout)
-/clinic/patients                    환자 관리 — 정렬·검색·필터 DB 테이블(관리자 /admin/users 패턴: 이름·아이디·생일·나이·성별·등록번호·상태·등록일·최근시술일·시술수,
-                                    헤더 정렬 6종·상태 칩·통합검색[이름/등록번호/아이디/생일 790126 OR]·"더 보기"). get_clinic_patients v2(0351/0352)
+/clinic/patients                    환자 관리 — 정렬·검색·필터 DB 테이블(관리자 /admin/users 패턴: 이름·등록번호·아이디·생일·나이·성별·상태·등록일·최근시술일·시술수(전 컬럼 가운데정렬),
+                                    헤더 정렬 7종(등록번호 포함, 0356)·상태 칩·통합검색[이름/등록번호/아이디/생일 790126 OR]·"더 보기"). get_clinic_patients v2(0351/0352/0356)
 /clinic/patients/new                환자 등록(handle+실명+생일 → 동의 요청). 별도 페이지
 /clinic/patients/[linkId]           환자 상세(스냅샷+병원 항목 수정, 서버 fresh 로드) + 그 환자 시술기록 타임라인(get_clinic_patient_visits 0350). 시술노트 작성·편집 진입(active만)
 /clinic/patients/[linkId]/visits/[visitId]/edit
-                                    시술노트 대행 편집·삭제(DiaryForm mode='clinic' 편집모드 → PATCH/DELETE /api/clinic/visits/[id], clinic_update_visit/clinic_delete_visit 0350).
+                                    시술노트 대행 열람·편집·삭제(진입=읽기 카드[?mode 기본 view] → '수정' 눌러 DiaryForm mode='clinic' 편집[?mode=edit] → PATCH/DELETE /api/clinic/visits/[id], clinic_update_visit/clinic_delete_visit 0350). 저장·삭제·뒤로가기는 출처(?from=visits&back=, startsWith('/clinic') 검증) 복귀.
                                     active 연결만(C2)·후기 달린 노트 시술목록 교체 차단(C5)
 /clinic/visits                      시술기록 관리 — 지점 전체 대장. 2뷰(?view=list|calendar): 목록(방문일·환자·시술요약·원장·금액·다음예약, 정렬·원장필터·검색·기본 방문일 최신순) /
-                                    캘린더(월 그리드+날짜별 건수 → 하루 목록). 기간 3방식(빠른버튼[오늘·주·달·전체]+년월 드롭다운+범위지정, from~to URL 동기). get_clinic_visits·get_clinic_calendar_summary(0350)
+                                    캘린더(데스크탑 md↑ 2단: 우측 고정 캘린더+좌측 선택일 목록[격리 조회] / 모바일 단독). 기간 과거방향(빠른버튼[오늘·최근7일·지난달·최근3개월·전체], 기본 최근3개월·미래 미포함; 년월 드롭다운+범위지정, from~to URL 동기; last3MonthsRange=visits/date-range.ts SSOT). get_clinic_visits·get_clinic_calendar_summary(0350)
 /clinic/visits/new                  시술노트 대행 작성(?link=active환자→DiaryForm mode='clinic', 아니면 환자 선택 목록)
                                     ※ 공용: requireClinicPage 가드·_shared(ClinicShell=AppShell wide)·layout(noindex)
 /onboarding/clinic-link/[id]        병원 연결 등록 동의(회원, 전체화면 온보딩형 §8.3 확정 문구) — 이중 동의(정보 제공+대행 저장).
