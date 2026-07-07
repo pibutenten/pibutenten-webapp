@@ -105,6 +105,10 @@
    상단 헤더(.header)는 자체 background 라 그대로 앱 톤 유지(사용자: "상단바만 앱 스킨"). */
 .rootWide {
   background: #f4f5f7;
+  /* 운영(admin)·병원(clinic) 데이터 표·카드·버튼은 덜 둥글게 — .rootWide 스코프 한정 재정의라
+     피드·노트·리포트(비-wide .root)는 24/16 그대로 유지(2026-07-07 원장 결정: admin+clinic 함께 각지게). */
+  --r-card: 12px;
+  --r-btn: 8px;
 }
 
 .root *,

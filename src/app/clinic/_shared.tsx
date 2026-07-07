@@ -100,13 +100,13 @@ export function ClinicShell({
 /**
  * 상태 배지 — 4상태 라벨·톤. admin 팔레트만(--tt-blue / --ink / --line).
  *   pending  = 연한 하늘 배경 + ink-500 (대기, 중립 강조)
- *   active   = 진한 하늘 배경 + 흰글씨 (연결됨, 최강 강조 — 대비 ≥4.5:1)
+ *   active   = 연한 하늘 배경 + 하늘 글씨 (연결됨=기본 상태라 강조 낮춤 — 2026-07-07 원장. 이전 진한 채움 폐기)
  *   rejected = 회색 배경 + ink-500 (거절, 종료)
  *   revoked  = 회색 배경 + ink-300 (해제, 가장 약함)
  */
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   pending: { label: "동의 대기", cls: "bg-[var(--tt-blue-tint)] text-[var(--ink-500)]" },
-  active: { label: "연결됨", cls: "bg-[var(--tt-blue-deep)] text-white" },
+  active: { label: "연결됨", cls: "bg-[var(--tt-blue-tint)] text-[var(--tt-blue-deep)]" },
   rejected: { label: "거절", cls: "bg-[var(--line)] text-[var(--ink-500)]" },
   revoked: { label: "해제", cls: "bg-[var(--line)] text-[var(--ink-300)]" },
 };
