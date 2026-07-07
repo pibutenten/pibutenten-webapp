@@ -1083,11 +1083,10 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
               {procs.map((p) => (
                 <div
                   key={p.id}
-                  className={"rounded-md border p-2.5 transition-shadow " + (dupId === p.id ? "ring-2 ring-[var(--primary)]" : "")}
+                  className={"rounded-md p-2.5 transition-shadow " + (dupId === p.id ? "ring-2 ring-[var(--primary)]" : "")}
                   style={{
-                    // 시술 글상자 — 그 시술 카테고리 색의 톤 배경 + 진한 테두리(칩은 아래 원색). 카테고리별 구분 뚜렷하게.
-                    background: `color-mix(in srgb, ${CAT_COLOR[p.cat] ?? "var(--primary)"} 16%, white)`,
-                    borderColor: `color-mix(in srgb, ${CAT_COLOR[p.cat] ?? "var(--primary)"} 42%, white)`,
+                    // 시술 글상자 — 그 시술 카테고리 색 12% 톤(리포트 카드 soft 와 동일 레벨: categoryTheme rgba 0.12). 칩은 원색.
+                    background: `color-mix(in srgb, ${CAT_COLOR[p.cat] ?? "var(--primary)"} 12%, white)`,
                   }}
                 >
                   <div className="flex items-center gap-1.5">
