@@ -22,6 +22,7 @@ const SORT_BY = new Set([
   "visit_count",
   "status",
   "patient_birthdate",
+  "registration_number",
 ]);
 const STATUS_VALUES = new Set(["pending", "active", "rejected", "revoked"]);
 

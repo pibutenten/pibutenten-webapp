@@ -23,7 +23,7 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 export default async function ReviewNewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ procedure?: string }>;
+  searchParams: Promise<{ procedure?: string; visit?: string; dp?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createSupabaseServerClient();
@@ -43,6 +43,36 @@ export default async function ReviewNewPage({
     sp.procedure && procedures.some((p) => p.value === sp.procedure)
       ? sp.procedure
       : undefined;
+
+  // 노트↔후기 연결(2c) — 시술노트 상세의 '시술후기 쓰기'가 넘긴 ?visit=&dp= 를 수용.
+  //   그 visit 이 active 명함 소유(diaries.profile_id)일 때만 통과 → 폼이 payload 에 담아 제출.
+  //   미소유·비정수·미존재면 무시(=standalone 폴백). RPC 가 최종 검증하나 여기서도 사전 확인(친절).
+  //   판정은 FK 기준(id) — 텍스트매칭 없음.
+  const visitIdRaw = Number.parseInt(sp.visit ?? "", 10);
+  const dpIdRaw = Number.parseInt(sp.dp ?? "", 10);
+  let visitId: number | undefined;
+  let diaryProcedureId: number | undefined;
+  if (Number.isFinite(visitIdRaw) && visitIdRaw > 0) {
+    const { data: ownVisit } = await supabase
+      .from("diaries")
+      .select("id")
+      .eq("id", visitIdRaw)
+      .eq("profile_id", idCtx.active.profileId)
+      .maybeSingle();
+    if (ownVisit) {
+      visitId = visitIdRaw;
+      // dp 는 visit 이 유효할 때만 의미 — 그 방문 소속 시술(diary_procedures.diary_id=visit)만 통과.
+      if (Number.isFinite(dpIdRaw) && dpIdRaw > 0) {
+        const { data: ownDp } = await supabase
+          .from("diary_procedures")
+          .select("id")
+          .eq("id", dpIdRaw)
+          .eq("diary_id", visitIdRaw)
+          .maybeSingle();
+        if (ownDp) diaryProcedureId = dpIdRaw;
+      }
+    }
+  }
 
   // 단답 질문 풀 — 시점 무관('any') 활성 질문만 폼에 전달(단답 2칸이 사용).
   //   RLS(question_pool_read_active)가 is_active=true 만 노출하나, 명시적으로 한 번 더 필터.
@@ -66,6 +96,8 @@ export default async function ReviewNewPage({
       handle={idCtx.active.handle}
       initialProcedure={initialProcedure}
       shortAnswerQuestions={shortAnswerQuestions}
+      visitId={visitId}
+      diaryProcedureId={diaryProcedureId}
     />
   );
 }

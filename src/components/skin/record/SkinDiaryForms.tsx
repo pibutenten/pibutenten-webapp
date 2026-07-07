@@ -287,8 +287,8 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   const [saving, setSaving] = useState(false);
   const [savedModal, setSavedModal] = useState(false); // 저장 완료 모달(→ 시술후기 유도).
   const [savedHasPublicReview, setSavedHasPublicReview] = useState(false); // 저장 시 공개 후기 포함 여부(모달 카피 분기).
-  // 작성 이탈 가드 — 내용 유무와 무관하게 항상 무장(isDirty=true). 저장 성공 시 markSubmitted() 로 해제.
-  const guard = useUnsavedChangesGuard(true);
+  // NOTE: 이탈 가드(guard)는 clinic 모드에서 초기 스냅샷 대비 실변경(isDirtyVsInitial)만으로 무장하도록
+  //   date/procs 등 비교 대상 상태가 모두 선언된 뒤(아래 date 선언 직후)로 이동했습니다(TDZ 방지, T-U12form).
   const [dupId, setDupId] = useState<number | null>(null); // 중복 추가 시 기존 행 0.5초 강조.
   const [acHi, setAcHi] = useState(-1); // 자동완성 키보드 하이라이트 인덱스(-1=없음).
   // 인라인 달력 — 날짜 영역 클릭 시 아래로 펼침. 바깥 클릭 시 닫힘.
@@ -317,6 +317,60 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
   });
   const [_y, _m, _dd] = date.split("-");
   const dateLabel = `${+_y}년 ${+_m}월 ${+_dd}일`;
+
+  // ── 이탈 가드(guard) — 여기서 선언(위 원래 위치에서 이동, T-U12form).
+  //   clinic 모드: 마운트 시 초기 스냅샷(작성=빈값, 편집=시드값) 대비 실제 변경분이 있을 때만 무장.
+  //     빈 폼을 그냥 보고 나가거나, 편집을 열어 아무것도 안 고치고 나가면 경고하지 않는다.
+  //   회원 3모드(작성/후기/편집)는 기존대로 항상 무장(true) — 회귀 없음.
+  //   ⚠ 아래 비교는 date·procs·nextAppointmentDate 등 상태를 참조하므로 이 위치(모두 선언된 뒤)여야 TDZ 안전.
+  //   useState lazy initializer 로 마운트 시 1회만 캡처(동시 렌더에서도 안전 — 렌더 중 ref 할당 side-effect 제거).
+  //   작성=빈값, 편집=시드값. 이후 사용자가 바꿔도 이 스냅샷은 고정(초기 기준). 회원 모드는 null(미사용).
+  const [clinicDirtyBase] = useState<{
+    date: string;
+    nextAppointmentDate: string;
+    clinicDoctorId: string;
+    doctorName: string;
+    managerName: string;
+    totalPrice: string;
+    diary: string;
+    // 시술 목록 스냅샷 — 순서 포함(라벨+메모). clinic 은 시술별 단가 입력 UI 가 없어 label·note 만 비교.
+    procs: { label: string; note: string }[];
+  } | null>(() =>
+    isClinic
+      ? {
+          date,
+          nextAppointmentDate,
+          clinicDoctorId,
+          doctorName,
+          managerName,
+          totalPrice,
+          diary,
+          procs: procs.map((p) => ({ label: p.label, note: p.note })),
+        }
+      : null,
+  );
+  // 초기 스냅샷 대비 실변경 여부 — clinic 모드에서만 의미. 회원 모드는 계산해도 미사용(guard 인자에서 무시).
+  const isDirtyVsInitial = (() => {
+    const init = clinicDirtyBase;
+    if (!init) return false;
+    if (
+      date !== init.date ||
+      nextAppointmentDate !== init.nextAppointmentDate ||
+      clinicDoctorId !== init.clinicDoctorId ||
+      doctorName !== init.doctorName ||
+      managerName !== init.managerName ||
+      totalPrice !== init.totalPrice ||
+      diary !== init.diary
+    ) {
+      return true;
+    }
+    // 시술 목록 — 개수·순서·라벨·메모 중 하나라도 다르면 변경으로 간주.
+    if (procs.length !== init.procs.length) return true;
+    return procs.some((p, i) => p.label !== init.procs[i].label || p.note !== init.procs[i].note);
+  })();
+  // 회원 3모드는 항상 무장(true) 유지, clinic 모드만 실변경 여부로 무장. 저장 성공 시 markSubmitted() 로 해제.
+  const guard = useUnsavedChangesGuard(isClinic ? isDirtyVsInitial : true);
+
   const [calYear, setCalYear] = useState(+_y);
   const [calMonth, setCalMonth] = useState(+_m);
   const now = new Date();
@@ -888,6 +942,22 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
           )}
         </div>
 
+        {/* 다음 예약일 — 병원 모드 전용(계획 §8.2 next_appointment_date, 선택 입력). 방문일 바로 아래 배치.
+            회원 경로 RPC(create_visit_with_entries)는 이 값을 아직 받지 않으므로 회원 모드엔 노출하지 않습니다(의도적 범위 제한). */}
+        {isClinic && (
+          <div>
+            <label className={labelCls}>다음 예약일</label>
+            <input
+              type="date"
+              className={inputCls}
+              value={nextAppointmentDate}
+              min={date}
+              onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
+              onChange={(e) => setNextAppointmentDate(e.target.value)}
+            />
+          </div>
+        )}
+
         {/* "시술 후기만"(reviewOnly) — 병원·의사·실장 등 visit 상세만 접고 시작. 펼치면 일반 visit 폼과 동일.
             ★FIX-1: 날짜·어림시기는 위에서 항상 노출되므로, 이 토글은 병원·방문 상세에만 적용된다. */}
         {effReviewOnly && !metaOpen && (
@@ -1014,30 +1084,51 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
                 <div key={p.id} className={"rounded-md bg-[var(--bg)] p-2.5 transition-shadow " + (dupId === p.id ? "ring-2 ring-[var(--primary)]" : "")}>
                   <div className="flex items-center gap-1.5">
                     <span className="shrink-0 rounded-full px-2.5 py-1 text-[12.5px] font-semibold text-white" style={{ background: CAT_COLOR[p.cat] ?? "var(--primary)" }}>{p.label}</span>
-                    {/* ③ 메모 작성됨(접힘) — 회색 알약, 탭하면 재수정. */}
-                    {!p.open && p.note.trim() && (
-                      <button type="button" onClick={() => upd(p.id, { open: true })} className="ml-auto max-w-[58%] truncate rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)]">{p.note.trim()}</button>
-                    )}
-                    {/* ① 메모 없음(기본) — ＋메모 점선 버튼. */}
-                    {!p.open && !p.note.trim() && (
-                      <button type="button" onClick={() => { upd(p.id, { open: true }); trackProc("procedure_memo_open", {}); }} className="ml-auto rounded-full border border-dashed border-[#CBD8E2] bg-white px-3 py-1.5 text-[13px] font-semibold text-[var(--text-muted)]">＋ 메모</button>
+                    {/* 토글 트리거(③ 접힘 알약 / ① ＋메모 버튼) — 둘 다 !p.open 일 때만 존재하므로 래퍼도 !p.open 에서만
+                        렌더(빈 ml-auto 래퍼가 편집 중 × 위치를 밀지 않도록 — 회원 편집 중 × 좌측 배치 보존).
+                        clinic 데스크탑(md↑)은 항상 펼친 input 을 쓰므로 숨김. 모바일(md↓)·회원 전 모드는 기존 토글 유지. */}
+                    {!p.open && (
+                      <div className={"ml-auto flex min-w-0 items-center gap-1.5 " + (isClinic ? "md:hidden" : "")}>
+                        {/* ③ 메모 작성됨(접힘) — 회색 알약, 탭하면 재수정. */}
+                        {p.note.trim() ? (
+                          <button type="button" onClick={() => upd(p.id, { open: true })} className="max-w-[58%] truncate rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)]">{p.note.trim()}</button>
+                        ) : (
+                          /* ① 메모 없음(기본) — ＋메모 점선 버튼. */
+                          <button type="button" onClick={() => { upd(p.id, { open: true }); trackProc("procedure_memo_open", {}); }} className="rounded-full border border-dashed border-[#CBD8E2] bg-white px-3 py-1.5 text-[13px] font-semibold text-[var(--text-muted)]">＋ 메모</button>
+                        )}
+                      </div>
                     )}
                     <button type="button" tabIndex={-1} onClick={() => removeProc(p)} className="shrink-0 px-1 text-[16px] leading-none text-[var(--text-muted)]">×</button>
                   </div>
-                  {/* ② 메모 입력 중 — 행 아래 펼침. 빈 값으로 포커스 아웃 → ①, 입력 후 → ③. */}
+                  {/* ② 메모 입력(토글) — 행 아래 펼침. 빈 값으로 포커스 아웃 → ①, 입력 후 → ③.
+                      clinic 데스크탑(md↑)은 아래 상시 input 을 쓰므로 md:hidden. 모바일·회원은 기존대로. */}
                   {p.open && (
+                    <div className={isClinic ? "md:hidden" : ""}>
+                      <input
+                        className={inputSm + " mt-2 w-full"}
+                        placeholder="샷수, 바이알, 부위, 메모… (선택)"
+                        value={p.note}
+                        maxLength={60}
+                        autoFocus
+                        onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
+                        onChange={(e) => upd(p.id, { note: e.target.value })}
+                        onBlur={(e) => { const v = e.target.value.trim(); upd(p.id, { open: false }); if (v) trackProc("procedure_memo_save", { length: v.length }); }}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
+                      />
+                    </div>
+                  )}
+                  {/* clinic 데스크탑(md↑) 상시 메모 input — 값 없어도 항상 펼침. 다중 행 포커스 경쟁 방지 위해
+                      autoFocus 절대 금지. 같은 p.note 에 바인딩(토글 input 과 값 공유). 모바일·회원 전 모드는 hidden. */}
+                  <div className={isClinic ? "hidden md:block" : "hidden"}>
                     <input
                       className={inputSm + " mt-2 w-full"}
                       placeholder="샷수, 바이알, 부위, 메모… (선택)"
                       value={p.note}
                       maxLength={60}
-                      autoFocus
                       onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
                       onChange={(e) => upd(p.id, { note: e.target.value })}
-                      onBlur={(e) => { const v = e.target.value.trim(); upd(p.id, { open: false }); if (v) trackProc("procedure_memo_save", { length: v.length }); }}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                     />
-                  )}
+                  </div>
 
                   {/* 시술별 후기 아코디언 — 펼치면 평가 컨트롤(day0). 안 펼치면 "기록만".
                       자유입력 신규태그(inDict=false)는 후기 불가(RPC unknown_procedure 거부) → 안내만, 기록은 정상 저장.
@@ -1148,22 +1239,6 @@ export function DiaryForm({ toast, go, procedures, reviewOnly = false, initialPr
           <label className={labelCls}>오늘의 시술 노트 <span className="ml-1 text-[12px] font-normal text-[var(--text-muted)]">({diary.length} / 400)</span></label>
           <textarea rows={3} maxLength={400} value={diary} onFocus={(e) => scrollFieldIntoView(e.currentTarget)} onChange={(e) => setDiary(e.target.value)} className={textareaCls} placeholder="오늘 어땠는지, 기억해두고 싶은 것…" />
         </div>
-
-        {/* 7. 다음 예약일 — 병원 모드 전용(계획 §8.2 next_appointment_date, 선택 입력).
-            회원 경로 RPC(create_visit_with_entries)는 이 값을 아직 받지 않으므로 회원 모드엔 노출하지 않습니다(의도적 범위 제한). */}
-        {isClinic && (
-          <div>
-            <label className={labelCls}>다음 예약일</label>
-            <input
-              type="date"
-              className={inputCls}
-              value={nextAppointmentDate}
-              min={date}
-              onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
-              onChange={(e) => setNextAppointmentDate(e.target.value)}
-            />
-          </div>
-        )}
 
       </div>
 

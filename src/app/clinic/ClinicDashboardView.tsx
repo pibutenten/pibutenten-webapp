@@ -36,15 +36,12 @@ export default function ClinicDashboardView({
 }) {
   return (
     <ClinicShell back="/">
-      <section className="mx-auto w-full max-w-[860px] py-6">
+      <section className="w-full py-6">
         {/* 헤더 — admin 톤(제목 --ink-700, 부제 --ink-300). */}
         <header className="mb-5">
           <h1 className="text-2xl font-bold leading-[1.4]" style={{ color: "var(--ink-700)" }}>
             {clinicName}
           </h1>
-          <p className="mt-1 text-xs" style={{ color: "var(--ink-300)" }}>
-            회원의 동의를 받은 뒤 시술노트를 대신 작성하는 병원 운영 페이지예요.
-          </p>
         </header>
 
         {/* 현황 — Stat 카드 4종(공용). 모바일 2열, 데스크탑 4열. */}

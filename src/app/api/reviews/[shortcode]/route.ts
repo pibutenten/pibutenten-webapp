@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getIdentityContext } from "@/lib/identity";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorResponse } from "@/lib/error-response";
-import { ReviewCreateSchema } from "@/lib/schema/api/reviews";
+import { ReviewEditSchema } from "@/lib/schema/api/reviews";
 import { screenContent, maskProhibitedMentions } from "@/lib/content-screening";
 import { ROLES } from "@/lib/identity-shared";
 
@@ -22,7 +22,7 @@ type SubmitStatus = "pending_review" | "published";
  *   1. active identity 확인 (없으면 401).
  *   2. role=user 온보딩 게이트.
  *   3. rate limit.
- *   4. zod 검증(ReviewCreateSchema 재사용).
+ *   4. zod 검증(ReviewEditSchema — 코어만, 노트↔후기 연결 필드는 작성 전용이라 수정 경로 미수용).
  *   5. 마스킹(병원·의사명) + 소프트검수 → status.
  *   6. RPC update_procedure_review (권한·존재 검증은 RPC). card_not_found→404, not_authorized→403.
  *   7. revalidatePath(해당 글·피드·프로필).
@@ -77,7 +77,7 @@ export async function PATCH(
       userMessage: "잘못된 요청 형식",
     });
   }
-  const parsed = ReviewCreateSchema.safeParse(rawJson);
+  const parsed = ReviewEditSchema.safeParse(rawJson);
   if (!parsed.success) {
     return errorResponse(null, "invalid_input", "[reviews PATCH] zod parse", 400, undefined, {
       userMessage: "요청 형식이 올바르지 않습니다.",

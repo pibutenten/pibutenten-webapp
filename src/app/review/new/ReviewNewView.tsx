@@ -23,11 +23,16 @@ export default function ReviewNewView({
   handle,
   initialProcedure,
   shortAnswerQuestions,
+  visitId,
+  diaryProcedureId,
 }: {
   procedures: ProcedureOption[];
   handle: string;
   initialProcedure?: string;
   shortAnswerQuestions?: ShortAnswerQuestion[];
+  // 노트↔후기 연결(2c) — server 가 소유 검증한 방문·시술. 폼이 제출 payload 에 담아 전달.
+  visitId?: number;
+  diaryProcedureId?: number;
 }) {
   const search = useSearchRouting();
 
@@ -39,6 +44,8 @@ export default function ReviewNewView({
         handle={handle}
         initialProcedure={initialProcedure}
         shortAnswerQuestions={shortAnswerQuestions}
+        visitId={visitId}
+        diaryProcedureId={diaryProcedureId}
       />
     </AppShell>
   );

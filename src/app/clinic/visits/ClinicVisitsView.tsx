@@ -8,12 +8,14 @@
  *
  * 2뷰(?view=list|calendar):
  *   ⓐ 목록 뷰 — admin 표(md↑ 가로스크롤 / md↓ 카드). 방문일·환자·시술·원장·금액·다음예약.
- *      행 클릭 → 편집(/clinic/patients/[link_id]/visits/[diary_id]/edit). 정렬 헤더(방문일·환자·금액).
- *      원장 필터 드롭다운 · 검색(환자·시술) · 더 보기(offset). 기본 방문일 최신순(C13).
- *   ⓑ 캘린더 뷰 — 월 그리드. 날짜 셀에 기록 수. 날짜 클릭 → 그 하루(from=to=날짜)로 목록 전환.
+ *      행 클릭 → 편집(/clinic/patients/[link_id]/visits/[diary_id]/edit ?from=visits&back=<현재 필터 URL>).
+ *      정렬 헤더(방문일·환자·금액). 원장 필터 드롭다운 · 검색(환자·시술) · 더 보기(offset). 기본 방문일 최신순(C13).
+ *   ⓑ 캘린더 뷰 — 월 그리드. 날짜 셀에 기록 수.
+ *      데스크탑(md↑): 2단(좌=선택일 목록[격리 조회] + 우=캘린더 고정). 날짜 클릭 → selectedDay 갱신(상단 from/to 미변경).
+ *      모바일(md↓): 캘린더 단독. 날짜 클릭 → 그 하루(from=to=날짜)로 목록 필터 + 목록 뷰 전환.
  *
  * 기간 선택 3방식(모두 from~to 로 통일, URL ?from=&to=):
- *   1) 빠른 버튼 [오늘][한 주][한 달][전체]
+ *   1) 빠른 버튼 [오늘][최근 7일][지난달][최근 3개월][전체] — 미래 날짜 미포함. 기본 최근 3개월.
  *   2) 년·월 바로가기 [YYYY년▾][M월▾] — 그 달 1일~말일 + 캘린더도 그 달로.
  *   3) 직접 범위 지정 date input 2개.
  *
@@ -25,6 +27,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { showToast } from "@/lib/toast";
 import { ClinicShell, kstToday, fmtYmd, fmtPrice, type ClinicDoctorOption } from "../_shared";
+import { last3MonthsRange } from "./date-range";
 
 /** get_clinic_visits(0350) 1행 = 지점 시술기록 대장 항목. */
 export type ClinicVisitListItem = {
@@ -53,6 +56,36 @@ export type VisitsFilters = {
 /** get_clinic_calendar_summary(0350) 1행. */
 type CalendarDay = { visit_date: string; visit_count: number };
 
+/** syncUrl·buildBackHref 공용 필터 형태 — 화면 상태를 URL searchParams 로 옮길 때 쓴다. */
+type UrlFilters = {
+  view: string;
+  from: string;
+  to: string;
+  q: string;
+  doctor: string;
+  sort: string;
+  dir: string;
+  page: number;
+};
+
+/**
+ * 필터 → URLSearchParams (syncUrl·buildBackHref 단일 규칙 SSOT).
+ *   기본값(list·visited_on·desc·page 1·빈 값)은 URL 에서 생략해 짧게 유지.
+ *   ⚠ 규칙 drift 방지 — URL 조립은 반드시 이 함수만 사용.
+ */
+function buildVisitsParams(f: UrlFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (f.view === "calendar") params.set("view", "calendar");
+  if (f.from) params.set("from", f.from);
+  if (f.to) params.set("to", f.to);
+  if (f.q) params.set("q", f.q);
+  if (f.doctor) params.set("doctor", f.doctor);
+  if (f.sort && f.sort !== "visited_on") params.set("sort", f.sort);
+  if (f.dir && f.dir !== "desc") params.set("dir", f.dir);
+  if (f.page > 1) params.set("page", String(f.page));
+  return params;
+}
+
 // 정렬 가능 컬럼 — 라벨은 헤더/드롭다운 공용. RPC 화이트리스트와 동일.
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "visited_on", label: "방문일" },
@@ -72,26 +105,28 @@ function lastDay(y: number, m: number): number {
   return new Date(y, m, 0).getDate();
 }
 
-/** 이번 주(월~일) "YYYY-MM-DD" 범위 — KST 오늘 기준. */
+/** 오늘 포함 최근 7일(오늘-6일 ~ 오늘) "YYYY-MM-DD" 범위 — KST 오늘 기준. 미래 미포함. */
 function weekRange(): { from: string; to: string } {
   const t = kstToday();
-  const base = new Date(Date.UTC(t.y, t.m - 1, t.d));
-  const dow = base.getUTCDay(); // 0=일 … 6=토
-  const diffToMon = dow === 0 ? -6 : 1 - dow; // 월요일까지 offset
-  const mon = new Date(base);
-  mon.setUTCDate(base.getUTCDate() + diffToMon);
-  const sun = new Date(mon);
-  sun.setUTCDate(mon.getUTCDate() + 6);
+  const to = new Date(Date.UTC(t.y, t.m - 1, t.d));
+  const fromD = new Date(to);
+  fromD.setUTCDate(to.getUTCDate() - 6);
   return {
-    from: ymd(mon.getUTCFullYear(), mon.getUTCMonth() + 1, mon.getUTCDate()),
-    to: ymd(sun.getUTCFullYear(), sun.getUTCMonth() + 1, sun.getUTCDate()),
+    from: ymd(fromD.getUTCFullYear(), fromD.getUTCMonth() + 1, fromD.getUTCDate()),
+    to: ymd(to.getUTCFullYear(), to.getUTCMonth() + 1, to.getUTCDate()),
   };
 }
-/** 그 달 1일~말일 범위. */
+/** 그 달 1일~말일 범위. 년·월 드롭다운·캘린더가 계속 사용(유지). */
 function monthRange(y: number, m: number): { from: string; to: string } {
   return { from: ymd(y, m, 1), to: ymd(y, m, lastDay(y, m)) };
 }
-
+/** 오늘 기준 전월 1일~말일 — 1월이면 전년 12월. monthRange 재사용. */
+function prevMonthRange(): { from: string; to: string; y: number; m: number } {
+  const t = kstToday();
+  const y = t.m === 1 ? t.y - 1 : t.y;
+  const m = t.m === 1 ? 12 : t.m - 1;
+  return { ...monthRange(y, m), y, m };
+}
 // 월 옵션(1~12)은 고정이라 모듈 레벨 상수. 연도 옵션은 kstToday() 파생이라 연말 경계 stale 방지를
 //   위해 컴포넌트 내부에서 런타임 계산한다(모듈 레벨 상수 금지).
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -143,32 +178,33 @@ export default function ClinicVisitsView({
   const [calYear, setCalYear] = useState(initMonth.y);
   const [calMonth, setCalMonth] = useState(initMonth.m);
 
-  // URL 동기 — 현재 필터를 searchParams 로.
+  // 데스크탑(md↑) 캘린더 2단에서 좌측에 펼칠 '선택일'. from===to 인 단일일이면 그 날, 아니면 null.
+  //   ⚠ 상단 기간 상태(from/to)와 분리 — selectedDay 조회는 from/to 를 건드리지 않는다(이중 조회 방지).
+  const [selectedDay, setSelectedDay] = useState<string | null>(
+    initialFilters.from && initialFilters.from === initialFilters.to ? initialFilters.from : null,
+  );
+
+  // URL 동기 — 현재 필터를 searchParams 로. 조립 규칙은 buildVisitsParams(SSOT) 재사용.
   const syncUrl = useCallback(
-    (f: {
-      view: string;
-      from: string;
-      to: string;
-      q: string;
-      doctor: string;
-      sort: string;
-      dir: string;
-      page: number;
-    }) => {
-      const params = new URLSearchParams();
-      if (f.view === "calendar") params.set("view", "calendar");
-      if (f.from) params.set("from", f.from);
-      if (f.to) params.set("to", f.to);
-      if (f.q) params.set("q", f.q);
-      if (f.doctor) params.set("doctor", f.doctor);
-      if (f.sort && f.sort !== "visited_on") params.set("sort", f.sort);
-      if (f.dir && f.dir !== "desc") params.set("dir", f.dir);
-      if (f.page > 1) params.set("page", String(f.page));
-      const qs = params.toString();
+    (f: UrlFilters) => {
+      const qs = buildVisitsParams(f).toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
     [router, pathname],
   );
+
+  /**
+   * 대장 행 → 편집 화면의 back 목적지(현재 필터 URL). syncUrl 과 동일한 규칙(buildVisitsParams).
+   *   selectedDay 가 있으면 그 하루로 좁혀 복귀(데스크탑 2단에서 선택일 유지).
+   */
+  const buildBackHref = useCallback((): string => {
+    const eff = selectedDay
+      ? { view, from: selectedDay, to: selectedDay, q: q.trim(), doctor, sort, dir, page }
+      : { view, from, to, q: q.trim(), doctor, sort, dir, page };
+    const qs = buildVisitsParams(eff).toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, view, from, to, q, doctor, sort, dir, page, selectedDay]);
 
   /** 목록 서버 재조회(1페이지 리셋). */
   const fetchList = useCallback(
@@ -259,7 +295,12 @@ export default function ClinicVisitsView({
       setFrom(nextFrom);
       setTo(nextTo);
       const nextView = opts?.toList ? "list" : view;
-      if (opts?.toList) setView("list");
+      // 목록 전환 시 데스크탑 캘린더 선택일(selectedDay) 초기화 — 잔류 시 buildBackHref 가
+      //   복귀 URL 을 그 하루로 좁힘(검수 반영). 기간은 from/to 가 담당.
+      if (opts?.toList) {
+        setView("list");
+        setSelectedDay(null);
+      }
       void fetchList({ q: q.trim(), doctor, from: nextFrom, to: nextTo, sort, dir });
       syncUrl({ view: nextView, from: nextFrom, to: nextTo, q: q.trim(), doctor, sort, dir, page: 1 });
     },
@@ -285,7 +326,35 @@ export default function ClinicVisitsView({
     syncUrl({ view: next, from, to, q: q.trim(), doctor, sort, dir, page });
   };
 
-  /* ── 빠른 버튼 ── */
+  /** 대장 행 → 편집 화면 URL. from=visits + back=<현재 필터 URL>(encode 1회) 부착(편집뷰 복귀용). */
+  const editHref = useCallback(
+    (it: ClinicVisitListItem) =>
+      `/clinic/patients/${it.link_id}/visits/${it.diary_id}/edit` +
+      `?from=visits&back=${encodeURIComponent(buildBackHref())}`,
+    [buildBackHref],
+  );
+  const patientHref = (it: ClinicVisitListItem) => `/clinic/patients/${it.link_id}`;
+  const onRowClick = useCallback(
+    (it: ClinicVisitListItem) => router.push(editHref(it)),
+    [router, editHref],
+  );
+
+  // ◀▶ 월 이동(데스크탑·모바일 캘린더 공용) = 캘린더 탐색 전용. 목록 조회 기간(from~to)은 안 바꾼다(의도된 비동기).
+  const onCalMonth = useCallback((y: number, m: number) => {
+    setCalYear(y);
+    setCalMonth(m);
+  }, []);
+
+  // 데스크탑 캘린더 2단: 날짜 클릭 → 좌측 선택일만 갱신(상단 from/to 미변경). URL 은 from=to=선택일 로 동기(복원용).
+  const pickDayDesktop = useCallback(
+    (dateStr: string) => {
+      setSelectedDay(dateStr);
+      syncUrl({ view: "calendar", from: dateStr, to: dateStr, q: q.trim(), doctor, sort, dir, page: 1 });
+    },
+    [syncUrl, q, doctor, sort, dir],
+  );
+
+  /* ── 빠른 버튼 [오늘][최근 7일][지난달][최근 3개월][전체] — 미래 날짜 미포함 ── */
   const quickButtons: { key: string; label: string; run: () => void }[] = [
     {
       key: "today",
@@ -297,21 +366,28 @@ export default function ClinicVisitsView({
     },
     {
       key: "week",
-      label: "한 주",
+      label: "최근 7일",
       run: () => {
         const r = weekRange();
         applyRange(r.from, r.to, { toList: true });
       },
     },
     {
-      key: "month",
-      label: "한 달",
+      key: "prevMonth",
+      label: "지난달",
       run: () => {
-        const t = kstToday();
-        const r = monthRange(t.y, t.m);
-        setCalYear(t.y);
-        setCalMonth(t.m);
+        const r = prevMonthRange();
+        setCalYear(r.y);
+        setCalMonth(r.m);
         applyRange(r.from, r.to);
+      },
+    },
+    {
+      key: "last3m",
+      label: "최근 3개월",
+      run: () => {
+        const r = last3MonthsRange();
+        applyRange(r.from, r.to, { toList: true });
       },
     },
     {
@@ -328,8 +404,10 @@ export default function ClinicVisitsView({
     if (from === ymd(t.y, t.m, t.d) && to === from) return "today";
     const w = weekRange();
     if (from === w.from && to === w.to) return "week";
-    const mo = monthRange(t.y, t.m);
-    if (from === mo.from && to === mo.to) return "month";
+    const pm = prevMonthRange();
+    if (from === pm.from && to === pm.to) return "prevMonth";
+    const l3 = last3MonthsRange();
+    if (from === l3.from && to === l3.to) return "last3m";
     return "";
   })();
 
@@ -508,91 +586,16 @@ export default function ClinicVisitsView({
               </div>
             ) : (
               <>
-                {/* 데스크탑 표(md↑) — 가로스크롤. */}
-                <div className="hidden overflow-x-auto rounded-[var(--r-card)] border border-[var(--line)] bg-white shadow-[var(--card-shadow)] md:block">
-                  <table className="w-full min-w-[820px] border-collapse text-sm">
-                    <thead className="bg-[var(--tt-blue-tint)] text-[var(--ink-500)]">
-                      <tr>
-                        <SortableTh label="방문일" col="visited_on" sort={sort} dir={dir} onSort={applySort} />
-                        <SortableTh label="환자" col="patient_name" sort={sort} dir={dir} onSort={applySort} />
-                        <th className="px-3 py-2 text-left font-medium">시술</th>
-                        <th className="px-3 py-2 text-left font-medium">원장</th>
-                        <SortableTh label="금액" col="total_price" sort={sort} dir={dir} onSort={applySort} align="right" />
-                        <th className="px-3 py-2 text-left font-medium">다음예약</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((it) => (
-                        <tr
-                          key={it.diary_id}
-                          onClick={() =>
-                            router.push(`/clinic/patients/${it.link_id}/visits/${it.diary_id}/edit`)
-                          }
-                          className="cursor-pointer border-t border-[var(--line)] transition-colors hover:bg-[var(--tt-blue-tint)]"
-                        >
-                          <td className="px-3 py-2 align-middle tabular-nums font-semibold text-[var(--tt-blue-deep)]">
-                            {fmtYmd(it.visited_on)}
-                          </td>
-                          <td className="px-3 py-2 align-middle">
-                            <Link
-                              href={`/clinic/patients/${it.link_id}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="font-medium text-[var(--ink-700)] hover:text-[var(--tt-blue)] hover:underline"
-                            >
-                              {it.patient_name || it.member_handle || "이름 미입력"}
-                            </Link>
-                          </td>
-                          <td className="max-w-[240px] truncate px-3 py-2 align-middle text-[var(--ink-500)]">
-                            {it.procedures_summary || "시술 기록"}
-                          </td>
-                          <td className="px-3 py-2 align-middle text-[var(--ink-500)]">
-                            {it.doctor_name ? `${it.doctor_name} 원장` : "—"}
-                          </td>
-                          <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--ink-500)]">
-                            {fmtPrice(it.total_price) ?? "—"}
-                          </td>
-                          <td className="px-3 py-2 align-middle tabular-nums text-xs text-[var(--ink-300)]">
-                            {fmtYmd(it.next_appointment_date)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* 모바일 카드(md↓) — 행 전체 편집 링크. */}
-                <div className="space-y-2 md:hidden">
-                  {items.map((it) => (
-                    <Link
-                      key={it.diary_id}
-                      href={`/clinic/patients/${it.link_id}/visits/${it.diary_id}/edit`}
-                      className="block rounded-[var(--r-card)] border border-[var(--line)] bg-white p-4 transition-colors hover:bg-[var(--tt-blue-tint)]"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="tabular-nums text-[13px] font-bold text-[var(--tt-blue-deep)]">
-                          {fmtYmd(it.visited_on)}
-                        </span>
-                        {fmtYmd(it.next_appointment_date) !== "—" && (
-                          <span className="shrink-0 rounded-full bg-[var(--tt-blue-tint)] px-2 py-0.5 text-[11px] font-semibold text-[var(--tt-blue-deep)]">
-                            다음 {fmtYmd(it.next_appointment_date)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-1 truncate text-[14px] font-semibold text-[var(--ink-900)]">
-                        {it.procedures_summary || "시술 기록"}
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] text-[var(--ink-500)]">
-                        <span>{it.patient_name || it.member_handle || "이름 미입력"}</span>
-                        {it.doctor_name && <span className="text-[var(--ink-300)]">·</span>}
-                        {it.doctor_name && <span>{it.doctor_name} 원장</span>}
-                        {fmtPrice(it.total_price) && <span className="text-[var(--ink-300)]">·</span>}
-                        {fmtPrice(it.total_price) && (
-                          <span className="tabular-nums">{fmtPrice(it.total_price)}</span>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                {/* 데스크탑 표(md↑, 정렬 헤더) + 모바일 카드(md↓) — 편집 링크에 from=visits&back 부착. */}
+                <VisitTable
+                  items={items}
+                  patientHref={patientHref}
+                  onRowClick={onRowClick}
+                  sort={sort}
+                  dir={dir}
+                  onSort={applySort}
+                />
+                <VisitCards items={items} editHref={editHref} />
 
                 {hasMore && (
                   <div className="mt-4 text-center">
@@ -610,18 +613,35 @@ export default function ClinicVisitsView({
             )}
           </>
         ) : (
-          <CalendarView
-            year={calYear}
-            month={calMonth}
-            onMonth={(y, m) => {
-              // ◀▶ 월 이동 = 캘린더 탐색 전용. 목록 조회 기간(from~to)은 바꾸지 않는다(의도된 비동기).
-              //   목록에 반영하려면 상단 년·월 드롭다운(jumpToMonth) 또는 날짜 셀 클릭(onPickDay)을 쓴다.
-              setCalYear(y);
-              setCalMonth(m);
-            }}
-            // 날짜 셀 클릭 = 그 하루(from=to=날짜)로 목록 필터 + 목록 뷰 전환.
-            onPickDay={(dateStr) => applyRange(dateStr, dateStr, { toList: true })}
-          />
+          <>
+            {/* 데스크탑(md↑) — 2단: 좌=선택일 목록(격리 조회) + 우=캘린더 고정. 반응형은 CSS 만(JS breakpoint 없음). */}
+            <div className="hidden md:grid md:grid-cols-[minmax(0,1fr)_360px] md:items-start md:gap-4">
+              <SelectedDayPanel
+                selectedDay={selectedDay}
+                doctor={doctor}
+                patientHref={patientHref}
+                onRowClick={onRowClick}
+              />
+              <CalendarView
+                year={calYear}
+                month={calMonth}
+                onMonth={onCalMonth}
+                // 데스크탑: 뷰 전환 없이 좌측 선택일만 갱신(상단 기간 from/to 는 건드리지 않음).
+                //   URL 은 from=to=선택일 로 동기(새로고침·뒤로가기 복원).
+                onPickDay={pickDayDesktop}
+              />
+            </div>
+
+            {/* 모바일(md↓) — 캘린더 단독. 날짜 클릭 = 그 하루로 목록 필터 + 목록 뷰 전환(현행 유지). */}
+            <div className="md:hidden">
+              <CalendarView
+                year={calYear}
+                month={calMonth}
+                onMonth={onCalMonth}
+                onPickDay={(dateStr) => applyRange(dateStr, dateStr, { toList: true })}
+              />
+            </div>
+          </>
         )}
       </section>
     </ClinicShell>
@@ -665,6 +685,217 @@ function SortableTh({
         {arrow && <span className="text-[10px] text-[var(--tt-blue-deep)]">{arrow}</span>}
       </button>
     </th>
+  );
+}
+
+/**
+ * 데스크탑 표(md↑) — 방문일·환자·시술·원장·금액·다음예약. 행 클릭 → editHref(편집).
+ *   메인 목록(정렬 헤더 O)과 캘린더 2단 좌측 선택일 목록(정렬 헤더 없이 static)이 공유.
+ *   sort/dir/onSort 를 주면 정렬 헤더, 없으면 static 헤더(선택일 단일일 목록용).
+ */
+function VisitTable({
+  items,
+  patientHref,
+  onRowClick,
+  sort,
+  dir,
+  onSort,
+}: {
+  items: ClinicVisitListItem[];
+  patientHref: (it: ClinicVisitListItem) => string;
+  onRowClick: (it: ClinicVisitListItem) => void;
+  sort?: string;
+  dir?: "asc" | "desc";
+  onSort?: (col: string) => void;
+}) {
+  const sortable = !!(sort && dir && onSort);
+  return (
+    <div className="hidden overflow-x-auto rounded-[var(--r-card)] border border-[var(--line)] bg-white shadow-[var(--card-shadow)] md:block">
+      <table className="w-full min-w-[820px] border-collapse text-sm">
+        <thead className="bg-[var(--tt-blue-tint)] text-[var(--ink-500)]">
+          <tr>
+            {sortable ? (
+              <>
+                <SortableTh label="방문일" col="visited_on" sort={sort!} dir={dir!} onSort={onSort!} />
+                <SortableTh label="환자" col="patient_name" sort={sort!} dir={dir!} onSort={onSort!} />
+              </>
+            ) : (
+              <>
+                <th className="px-3 py-2 text-left font-medium">방문일</th>
+                <th className="px-3 py-2 text-left font-medium">환자</th>
+              </>
+            )}
+            <th className="px-3 py-2 text-left font-medium">시술</th>
+            <th className="px-3 py-2 text-left font-medium">원장</th>
+            {sortable ? (
+              <SortableTh label="금액" col="total_price" sort={sort!} dir={dir!} onSort={onSort!} align="right" />
+            ) : (
+              <th className="px-3 py-2 text-right font-medium">금액</th>
+            )}
+            <th className="px-3 py-2 text-left font-medium">다음예약</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((it) => (
+            <tr
+              key={it.diary_id}
+              onClick={() => onRowClick(it)}
+              className="cursor-pointer border-t border-[var(--line)] transition-colors hover:bg-[var(--tt-blue-tint)]"
+            >
+              <td className="px-3 py-2 align-middle tabular-nums font-semibold text-[var(--tt-blue-deep)]">
+                {fmtYmd(it.visited_on)}
+              </td>
+              <td className="px-3 py-2 align-middle">
+                <Link
+                  href={patientHref(it)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-medium text-[var(--ink-700)] hover:text-[var(--tt-blue)] hover:underline"
+                >
+                  {it.patient_name || it.member_handle || "이름 미입력"}
+                </Link>
+              </td>
+              <td className="max-w-[240px] truncate px-3 py-2 align-middle text-[var(--ink-500)]">
+                {it.procedures_summary || "시술 기록"}
+              </td>
+              <td className="px-3 py-2 align-middle text-[var(--ink-500)]">
+                {it.doctor_name ? `${it.doctor_name} 원장` : "—"}
+              </td>
+              <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--ink-500)]">
+                {fmtPrice(it.total_price) ?? "—"}
+              </td>
+              <td className="px-3 py-2 align-middle tabular-nums text-xs text-[var(--ink-300)]">
+                {fmtYmd(it.next_appointment_date)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** 모바일 카드(md↓) — 행 전체 editHref(편집) 링크. */
+function VisitCards({
+  items,
+  editHref,
+}: {
+  items: ClinicVisitListItem[];
+  editHref: (it: ClinicVisitListItem) => string;
+}) {
+  return (
+    <div className="space-y-2 md:hidden">
+      {items.map((it) => (
+        <Link
+          key={it.diary_id}
+          href={editHref(it)}
+          className="block rounded-[var(--r-card)] border border-[var(--line)] bg-white p-4 transition-colors hover:bg-[var(--tt-blue-tint)]"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="tabular-nums text-[13px] font-bold text-[var(--tt-blue-deep)]">
+              {fmtYmd(it.visited_on)}
+            </span>
+            {fmtYmd(it.next_appointment_date) !== "—" && (
+              <span className="shrink-0 rounded-full bg-[var(--tt-blue-tint)] px-2 py-0.5 text-[11px] font-semibold text-[var(--tt-blue-deep)]">
+                다음 {fmtYmd(it.next_appointment_date)}
+              </span>
+            )}
+          </div>
+          <div className="mt-1 truncate text-[14px] font-semibold text-[var(--ink-900)]">
+            {it.procedures_summary || "시술 기록"}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] text-[var(--ink-500)]">
+            <span>{it.patient_name || it.member_handle || "이름 미입력"}</span>
+            {it.doctor_name && <span className="text-[var(--ink-300)]">·</span>}
+            {it.doctor_name && <span>{it.doctor_name} 원장</span>}
+            {fmtPrice(it.total_price) && <span className="text-[var(--ink-300)]">·</span>}
+            {fmtPrice(it.total_price) && (
+              <span className="tabular-nums">{fmtPrice(it.total_price)}</span>
+            )}
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * SelectedDayPanel — 데스크탑(md↑) 캘린더 2단의 좌측. selectedDay 하루치 목록을 독립 조회.
+ *   ⚠ 상단 기간(from/to)·메인 items 상태와 완전 격리 — 자체 state(dayItems)로만 렌더(이중 조회·경합 방지).
+ *   selectedDay·doctor 변경 시에만 재조회(sort/dir 는 표시용이라 미의존 — 무한 재실행 없음).
+ */
+function SelectedDayPanel({
+  selectedDay,
+  doctor,
+  patientHref,
+  onRowClick,
+}: {
+  selectedDay: string | null;
+  doctor: string;
+  patientHref: (it: ClinicVisitListItem) => string;
+  onRowClick: (it: ClinicVisitListItem) => void;
+}) {
+  const [dayItems, setDayItems] = useState<ClinicVisitListItem[]>([]);
+  const [dayLoading, setDayLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedDay) {
+      setDayItems([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setDayLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (doctor) params.set("doctor_id", doctor);
+        params.set("from", selectedDay);
+        params.set("to", selectedDay);
+        params.set("sort", "visited_on");
+        params.set("dir", "desc");
+        params.set("limit", "200");
+        params.set("offset", "0");
+        const res = await fetch(`/api/clinic/visits?${params.toString()}`, { cache: "no-store" });
+        if (!res.ok) {
+          if (!cancelled) setDayItems([]);
+          return;
+        }
+        const j = (await res.json().catch(() => ({}))) as { items?: ClinicVisitListItem[] };
+        if (!cancelled) setDayItems(Array.isArray(j?.items) ? j.items : []);
+      } catch {
+        if (!cancelled) setDayItems([]);
+      } finally {
+        if (!cancelled) setDayLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDay, doctor]);
+
+  if (!selectedDay) {
+    return (
+      <div className="flex min-h-[200px] items-center justify-center rounded-[var(--r-card)] border border-dashed border-[var(--line)] bg-white p-8 text-center text-sm text-[var(--ink-300)]">
+        오른쪽 달력에서 날짜를 선택하면 그날의 시술기록이 여기에 나와요.
+      </div>
+    );
+  }
+  return (
+    <div>
+      <p className="mb-2 text-sm font-semibold text-[var(--ink-700)]">{fmtYmd(selectedDay)}</p>
+      {dayLoading ? (
+        <VisitsSkeleton />
+      ) : dayItems.length === 0 ? (
+        <div className="rounded-[var(--r-card)] border border-dashed border-[var(--line)] bg-white p-8 text-center text-sm text-[var(--ink-300)]">
+          이 날짜에는 시술기록이 없어요.
+        </div>
+      ) : (
+        <VisitTable
+          items={dayItems}
+          patientHref={patientHref}
+          onRowClick={onRowClick}
+        />
+      )}
+    </div>
   );
 }
 
@@ -839,10 +1070,6 @@ function CalendarView({
           );
         })}
       </div>
-
-      <p className="mt-3 text-center text-[11px] text-[var(--ink-300)]">
-        날짜를 클릭하면 그날의 시술기록을 목록으로 볼 수 있어요.
-      </p>
     </div>
   );
 }

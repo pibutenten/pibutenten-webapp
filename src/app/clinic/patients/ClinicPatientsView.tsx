@@ -52,6 +52,7 @@ const STATUS_CHIPS: { value: string; label: string }[] = [
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "created_at", label: "등록일" },
   { value: "patient_name", label: "이름" },
+  { value: "registration_number", label: "등록번호" },
   { value: "patient_birthdate", label: "생년월일" },
   { value: "last_visit_on", label: "최근 시술일" },
   { value: "visit_count", label: "시술 수" },
@@ -299,15 +300,15 @@ export default function ClinicPatientsView({
                 <thead className="bg-[var(--tt-blue-tint)] text-[var(--ink-500)]">
                   <tr>
                     <SortableTh label="이름" col="patient_name" sort={sort} dir={dir} onSort={applySort} />
-                    <th className="px-3 py-2 text-left font-medium">아이디</th>
+                    <SortableTh label="등록번호" col="registration_number" sort={sort} dir={dir} onSort={applySort} />
+                    <th className="px-3 py-2 text-center font-medium">아이디</th>
                     <SortableTh label="생년월일" col="patient_birthdate" sort={sort} dir={dir} onSort={applySort} />
-                    <th className="px-2 py-2 text-right font-medium">나이</th>
+                    <th className="px-2 py-2 text-center font-medium">나이</th>
                     <th className="px-2 py-2 text-center font-medium">성별</th>
-                    <th className="px-3 py-2 text-left font-medium">등록번호</th>
                     <SortableTh label="상태" col="status" sort={sort} dir={dir} onSort={applySort} />
                     <SortableTh label="등록일" col="created_at" sort={sort} dir={dir} onSort={applySort} />
                     <SortableTh label="최근 시술일" col="last_visit_on" sort={sort} dir={dir} onSort={applySort} />
-                    <SortableTh label="시술 수" col="visit_count" sort={sort} dir={dir} onSort={applySort} align="right" />
+                    <SortableTh label="시술 수" col="visit_count" sort={sort} dir={dir} onSort={applySort} />
                   </tr>
                 </thead>
                 <tbody>
@@ -317,34 +318,34 @@ export default function ClinicPatientsView({
                       onClick={() => router.push(`/clinic/patients/${it.link_id}`)}
                       className="cursor-pointer border-t border-[var(--line)] transition-colors hover:bg-[var(--tt-blue-tint)]"
                     >
-                      <td className="px-3 py-2 align-middle font-medium text-[var(--ink-700)]">
+                      <td className="px-3 py-2 align-middle text-center font-medium text-[var(--ink-700)]">
                         {it.patient_name || it.member_handle || "이름 미입력"}
                       </td>
-                      <td className="px-3 py-2 align-middle text-xs text-[var(--ink-300)]">
+                      <td className="px-3 py-2 align-middle text-center tabular-nums text-[var(--ink-500)]">
+                        {it.registration_number || "—"}
+                      </td>
+                      <td className="px-3 py-2 align-middle text-center text-xs text-[var(--ink-300)]">
                         {it.member_handle ? `@${it.member_handle}` : "—"}
                       </td>
-                      <td className="px-3 py-2 align-middle tabular-nums text-[var(--ink-500)]">
+                      <td className="px-3 py-2 align-middle text-center tabular-nums text-[var(--ink-500)]">
                         {fmtYmd(it.patient_birthdate)}
                       </td>
-                      <td className="px-2 py-2 align-middle text-right tabular-nums text-[var(--ink-500)]">
+                      <td className="px-2 py-2 align-middle text-center tabular-nums text-[var(--ink-500)]">
                         {it.age_years == null ? "—" : it.age_years}
                       </td>
                       <td className="px-2 py-2 align-middle text-center text-[var(--ink-500)]">
                         {genderLabel(it.patient_skin_profile)}
                       </td>
-                      <td className="px-3 py-2 align-middle tabular-nums text-[var(--ink-500)]">
-                        {it.registration_number || "—"}
-                      </td>
-                      <td className="px-3 py-2 align-middle">
+                      <td className="px-3 py-2 align-middle text-center">
                         <StatusBadge status={it.status} />
                       </td>
-                      <td className="px-3 py-2 align-middle tabular-nums text-xs text-[var(--ink-300)]">
+                      <td className="px-3 py-2 align-middle text-center tabular-nums text-xs text-[var(--ink-300)]">
                         {fmtYmd(it.created_at)}
                       </td>
-                      <td className="px-3 py-2 align-middle tabular-nums text-xs text-[var(--ink-300)]">
+                      <td className="px-3 py-2 align-middle text-center tabular-nums text-xs text-[var(--ink-300)]">
                         {fmtYmd(it.last_visit_on)}
                       </td>
-                      <td className="px-3 py-2 align-middle text-right tabular-nums text-[var(--ink-500)]">
+                      <td className="px-3 py-2 align-middle text-center tabular-nums text-[var(--ink-500)]">
                         {it.visit_count.toLocaleString()}
                       </td>
                     </tr>
@@ -414,7 +415,9 @@ export default function ClinicPatientsView({
 
 /** 다른 컬럼으로 처음 정렬할 때의 기본 방향 — 이름·생일은 오름차순이 자연스럽다. */
 function defaultDir(col: string): "asc" | "desc" {
-  return col === "patient_name" || col === "patient_birthdate" ? "asc" : "desc";
+  return col === "patient_name" || col === "patient_birthdate" || col === "registration_number"
+    ? "asc"
+    : "desc";
 }
 
 /** 정렬 가능한 표 헤더 — 클릭 시 방향 토글, 활성 컬럼에 ▲▼. */
@@ -424,19 +427,21 @@ function SortableTh({
   sort,
   dir,
   onSort,
-  align = "left",
+  align = "center",
 }: {
   label: string;
   col: string;
   sort: string;
   dir: "asc" | "desc";
   onSort: (col: string) => void;
-  align?: "left" | "right";
+  align?: "left" | "center" | "right";
 }) {
   const active = sort === col;
   const arrow = active ? (dir === "asc" ? "▲" : "▼") : "";
+  const alignClass =
+    align === "right" ? "text-right" : align === "left" ? "text-left" : "text-center";
   return (
-    <th className={`px-3 py-2 font-medium ${align === "right" ? "text-right" : "text-left"}`}>
+    <th className={`px-3 py-2 font-medium ${alignClass}`}>
       <button
         type="button"
         onClick={() => onSort(col)}

@@ -6,6 +6,41 @@
 
 ---
 
+## [2026-07-07] — 병원 운영 프로그램 개선 (원장 검수 16건 반영 + 코드검수 3인 수렴)
+
+원장 코멘트(U1~U15 반영, U16 신규기능 보류)를 페이즈별 핀셋 태스크로 구현 → 코드검수관 3인 독립 검수(회귀/DB·보안/일관성) → **[치명] 1건 + 경고 다수 수정 → 재검수 수렴**. 계획 SSOT: `docs/plans/260707 병원 운영 프로그램 개선 계획 (검수 종합).md`. 마이그 0354·0355·0356 production 적용·검증(U+FFFD 0).
+
+### Added
+- **노트↔후기 연결(U15)** — 회원 시술노트(`/notes/[id]`) 상세의 시술별 '시술후기 쓰기' → `/review/new?procedure=&visit=&dp=`(그 방문·시술 지정, prefill). 이미 쓴 시술은 **FK(`diary_procedure_id`)로만 판정**해 '내 후기 보기/수정'(카드 미확정 시 '후기 검토 중')으로 전환(procedure_ko 텍스트매칭 금지 — 같은 시술 다회작성 허용). 마이그 0354(`create_procedure_review` +visit_id/diary_procedure_id, source='diary_linked') · API zod 이원화(`ReviewCreateSchema`/`ReviewEditSchema`) · 소유검증 3중(page/route/RPC).
+- **환자표 등록번호 정렬(U2)** — 마이그 0356 + 프론트 3중 화이트리스트.
+
+### Changed
+- **병원 화면 시각 정합(U1)** — 시술노트 폼(`SkinDiaryForms`)만 쓰던 회원 토큰을 clinic 임베드(`ClinicFormTokenScope`)에서 admin 토큰으로 스코프 별칭(색만; 라디우스는 admin 폼과 이미 일치라 유지). **전역 토큰 불변**(피드·노트·리포트 무영향 — 원장 지시 '운영자 화면 기준 통일', 전역 축소 폐기).
+- **화면 폭 통일(U3)** — 대시보드 `max-w-[860px]`→풀폭, 환자상세 680→880(편집 화면과 정합).
+- **환자 관리 표(U2)** — 등록번호 컬럼 2번째로 이동 + 전 컬럼 가운데 정렬(SortableTh center 지원).
+- **환자 상세(U7·U8·U10·U11)** — 프로필 1줄 요약+2열, 병원기록 가로 3열+접이식(기본 접힘), 렌더 순서 프로필→시술기록+작성CTA→병원기록, VisitRow 데스크탑 1줄 가로.
+- **시술기록 대장(U4·U5·U6·U14)** — 기간을 '오늘부터 과거로'(최근 7일/지난달/최근 3개월, 기본 최근 3개월, 미래 미포함) · 데스크탑 캘린더 2단(우측 고정 캘린더 + 좌측 선택일 목록) · 캘린더 안내문 제거 · 대장→편집 진입 시 필터 유지 복귀(`?from=visits&back=`).
+- **시술노트 폼(U9·U12·U13)** — clinic '다음 예약일'을 방문일 아래로 · 데스크탑 메모 상시 입력(모바일 토글 유지) · 이탈 경고를 clinic에서 초기 스냅샷 대비 실변경 시에만(빈폼·무변경 편집 이탈 무경고).
+- **시술기록 편집 진입(U12)** — 진입=읽기 카드, '수정' 눌러야 편집(edit 라우트 `mode=view/edit`). 뒤로가기는 출처 기반 복귀(`back` 은 `startsWith('/clinic')` 검증 — open-redirect 차단).
+- **불필요 안내문 제거(U6)** — 대시보드 부제·캘린더 하단 문구.
+
+### Fixed (코드검수 3인 + 재검수 반영)
+- **[치명] 노트 후기 중복작성 경로 차단** — FK 연결 후기가 있으면 카드 shortcode 유무와 무관하게 '쓰기' 미노출('후기 검토 중' 안내).
+- **PATCH 스키마 누출 차단** — 후기 수정(PATCH)이 작성 스키마를 공유해 visit_id/dp 가 통과되던 것을 코어 전용 `ReviewEditSchema` 로 분리(POST 만 연결 필드 수용). visit_id↔dp 동반 필수 superRefine 추가.
+- **캘린더→목록 전환 시 복귀 URL 협소화** — `applyRange` toList 에서 `selectedDay` 초기화.
+- **중복 로직 제거** — `last3MonthsRange` 를 `visits/date-range.ts` 공용 모듈로 통합(page.tsx/ClinicVisitsView 규칙 드리프트 차단).
+- **렌더 순수성** — 폼 초기 스냅샷을 렌더 중 ref 할당 → `useState` lazy init(`clinicDirtyBase`).
+- **접근성** — 병원기록 아코디언 `aria-controls`/`role="region"`.
+
+### Security
+- **병원 RPC 하드닝(마이그 0355)** — 다음 예약일 5년 초과 미래 차단(`clinic_add_visit`·`clinic_update_visit`; 회원 `update_visit` 은 예약일 파라미터 없어 대상 아님) · `admin_create_doctor_profile` `search_path` 에 `pg_temp`.
+
+### 보류 (다음 과제)
+- **U16 신규 CRM 기능** — 다음예약 리콜 알림 · 지점 통계(매출·건수·인기시술) · 자주 쓰는 시술 템플릿 · 환자 주의사항/알러지 · 패키지·횟수권 · before/after 사진(PIPA) · CSV 내보내기.
+- 품질 후속: `SortableTh`(환자표/대장 각 정의)·`ClinicLabelRow` 공용화.
+
+---
+
 ## [2026-07-06] — 병원 운영 프로그램 최종 수렴: 편집 데이터 보존 + SSOT 정리 (2인 최종검수 + 3렌즈 적대적 검증)
 
 C4 직후 **2인 독립 최종 전체검수**(치명 0) → 실질 지적만 정리 배치 → **3렌즈 적대적 검증**(보존정합·모드회귀·타입계약, 전부 clean·converged). 원장 지시: SSOT·정합성, 땜빵 금지. 폴리싱·이론적 엣지는 백로그.

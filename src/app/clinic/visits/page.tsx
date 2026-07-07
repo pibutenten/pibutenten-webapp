@@ -6,6 +6,7 @@ import ClinicVisitsView, {
   type ClinicVisitListItem,
 } from "./ClinicVisitsView";
 import type { ClinicDoctorOption } from "../_shared";
+import { last3MonthsRange } from "./date-range";
 
 export const dynamic = "force-dynamic";
 
@@ -33,18 +34,6 @@ function sanitizeDate(raw: string | undefined): string | null {
   return raw;
 }
 
-/** KST(UTC+9) 기준 오늘의 {year, month, day}. 서버 타임존 무관하게 한국 날짜로 계산. */
-function kstToday(): { y: number; m: number; d: number } {
-  const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  return { y: now.getUTCFullYear(), m: now.getUTCMonth() + 1, d: now.getUTCDate() };
-}
-
-/** 그 달 1일~말일 "YYYY-MM-DD" 범위. */
-function monthRange(y: number, m: number): { from: string; to: string } {
-  const last = new Date(y, m, 0).getDate();
-  const mm = String(m).padStart(2, "0");
-  return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(last).padStart(2, "0")}` };
-}
 
 type Props = {
   searchParams: Promise<{
@@ -63,7 +52,7 @@ type Props = {
  * /clinic/visits — 시술기록 관리(지점 전체 대장 목록 + 캘린더, S4 · 계획 §2.5·C7·C13).
  *
  * searchParams(view·from·to·q·doctor·sort·dir·page) → get_clinic_visits(0350)로 초기 목록 조회.
- *   기본: from/to 미지정이면 이번 달(KST) 1일~말일, 정렬은 방문일 최신순(C13).
+ *   기본: from/to 미지정이면 최근 3개월(KST 오늘 포함), 정렬은 방문일 최신순(C13).
  *   재직 원장 목록(원장 필터용)도 서버에서 함께 조회. 이후 필터 변경은 클라가 API 재조회.
  */
 export default async function ClinicVisitsPage({ searchParams }: Props) {
@@ -79,15 +68,14 @@ export default async function ClinicVisitsPage({ searchParams }: Props) {
   const pageRaw = parseInt(sp.page ?? "1", 10);
   const page = Number.isNaN(pageRaw) || pageRaw < 1 ? 1 : pageRaw;
 
-  // 기간 — from/to 지정값 우선(유효성 재검), 둘 다 없으면 이번 달(KST). 하나만 있으면 그것만 사용.
+  // 기간 — from/to 지정값 우선(유효성 재검), 둘 다 없으면 최근 3개월(KST). 하나만 있으면 그것만 사용.
   const fromParam = sanitizeDate(sp.from);
   const toParam = sanitizeDate(sp.to);
   let from = fromParam;
   let to = toParam;
   const usingDefault = fromParam == null && toParam == null && sp.from == null && sp.to == null;
   if (usingDefault) {
-    const t = kstToday();
-    const r = monthRange(t.y, t.m);
+    const r = last3MonthsRange();
     from = r.from;
     to = r.to;
   }

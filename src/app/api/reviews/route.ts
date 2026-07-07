@@ -113,6 +113,24 @@ export async function POST(req: Request) {
     });
   }
 
+  // 5b. 노트↔후기 연결(2b, 마이그 0354) — visit_id 전달 시 방어적 소유 확인.
+  //   RPC 가 최종 검증(not_authorized_visit 42501)하나, 여기서도 그 diary 가 현재 active 명함
+  //   소유(diaries.profile_id = active.profileId)인지 사전 확인해 친절 메시지(403)를 준다.
+  //   판정은 FK 기준 — procedure_ko 텍스트 비교는 하지 않음.
+  if (payload.visit_id != null) {
+    const { data: ownVisit } = await supabase
+      .from("diaries")
+      .select("id")
+      .eq("id", payload.visit_id)
+      .eq("profile_id", idCtx.active.profileId)
+      .maybeSingle();
+    if (!ownVisit) {
+      return errorResponse(null, "forbidden", "[reviews POST] visit not owned", 403, undefined, {
+        userMessage: "본인 시술 기록에만 후기를 연결할 수 있습니다.",
+      });
+    }
+  }
+
   // 6. title 기본값.
   const rawTitle = (payload.title ?? "").trim() || `${procedureKo} 시술후기`;
   const rawBody = payload.body.trim();
@@ -200,6 +218,10 @@ export async function POST(req: Request) {
     //   미전달이면 RPC DEFAULT(NULL / 'exact')로 기존 동작 유지(무회귀).
     p_visited_on: payload.visited_on ?? null,
     p_date_precision: payload.date_precision ?? "exact",
+    // 노트↔후기 연결(2b, 마이그 0354) — 방문·시술 지정. 미전달이면 null → RPC 가 종전
+    //   standalone 으로 저장(무회귀). visit_id 있으면 RPC 가 소유·정합 검증 후 source='diary_linked'.
+    p_visit_id: payload.visit_id ?? null,
+    p_diary_procedure_id: payload.diary_procedure_id ?? null,
   });
   if (rpcErr) {
     return errorResponse(rpcErr, "save_failed", "[reviews POST] create_procedure_review", 500);

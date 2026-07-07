@@ -25,10 +25,15 @@ export const metadata: Metadata = {
  */
 export default async function ClinicVisitEditPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ linkId: string; visitId: string }>;
+  searchParams: Promise<{ mode?: string; from?: string; back?: string }>;
 }) {
   const { linkId: rawLinkId, visitId: rawVisitId } = await params;
+  const { mode: rawMode, from, back } = await searchParams;
+  // 진입 기본은 읽기(보기) — '수정' 버튼으로 편집 전환(T-U12). mode=edit 만 명시적으로 편집 진입.
+  const initialMode: "view" | "edit" = rawMode === "edit" ? "edit" : "view";
   const linkId = /^\d+$/.test(rawLinkId) ? Number(rawLinkId) : NaN;
   const visitId = /^\d+$/.test(rawVisitId) ? Number(rawVisitId) : NaN;
   if (!Number.isSafeInteger(linkId) || linkId <= 0) notFound();
@@ -72,6 +77,11 @@ export default async function ClinicVisitEditPage({
     <ClinicVisitEditView
       linkId={linkId}
       visitId={visitId}
+      initialMode={initialMode}
+      // 복귀 경로 원본(T-U14) — from=visits(대장)에서 왔으면 그 필터 URL(back)로, 아니면(상세 진입) 상세로.
+      //   back 의 open redirect 방어(startsWith('/clinic'))는 뷰가 담당.
+      from={from ?? null}
+      back={back ?? null}
       patient={patient}
       doctors={doctorsRes.data ?? []}
       procedures={procedures}

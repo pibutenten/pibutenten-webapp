@@ -16,6 +16,7 @@ import { showToast } from "@/lib/toast";
 import type { ProcedureOption } from "@/app/review/new/ReviewForm";
 import {
   ClinicShell,
+  ClinicFormTokenScope,
   BOX,
   type ClinicPatientItem,
   type ClinicDoctorOption,
@@ -46,26 +47,28 @@ export default function ClinicVisitWriteView({
             님의 시술노트를 작성해요.
           </p>
         </div>
-        <DiaryForm
-          key={patient.link_id}
-          mode="clinic"
-          clinicPatient={{
-            linkId: patient.link_id,
-            patientName: patient.patient_name,
-            memberHandle: patient.member_handle,
-          }}
-          clinicDoctors={doctors}
-          procedures={procedures}
-          toast={(m) => showToast(m)}
-          go={() => {
-            /* 병원 모드 화면 전환은 onClinicSaved 가 담당(더미) */
-          }}
-          onClinicSaved={() => {
-            // DiaryForm 이 markSubmitted() 후 콜백하므로 가드 해제 상태 — 안전하게 이동.
-            showToast("시술노트를 저장했어요. 회원에게 알림이 발송돼요.", { durationMs: 4500 });
-            router.push("/clinic/patients");
-          }}
-        />
+        <ClinicFormTokenScope>
+          <DiaryForm
+            key={patient.link_id}
+            mode="clinic"
+            clinicPatient={{
+              linkId: patient.link_id,
+              patientName: patient.patient_name,
+              memberHandle: patient.member_handle,
+            }}
+            clinicDoctors={doctors}
+            procedures={procedures}
+            toast={(m) => showToast(m)}
+            go={() => {
+              /* 병원 모드 화면 전환은 onClinicSaved 가 담당(더미) */
+            }}
+            onClinicSaved={() => {
+              // DiaryForm 이 markSubmitted() 후 콜백하므로 가드 해제 상태 — 안전하게 이동.
+              showToast("시술노트를 저장했어요. 회원에게 알림이 발송돼요.", { durationMs: 4500 });
+              router.push("/clinic/patients");
+            }}
+          />
+        </ClinicFormTokenScope>
       </ClinicShell>
     );
   }

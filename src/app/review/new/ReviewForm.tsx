@@ -107,6 +107,13 @@ type Props = {
   shortAnswerQuestions?: ShortAnswerQuestion[];
   /** R2-2: 작성 내용 dirty 여부 보고(기존 isDirty 그대로) — /write 탭 전환 이탈 확인용. */
   onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * 노트↔후기 연결(2c) — 시술노트 상세의 '시술후기 쓰기'로 진입한 경우, server 가 소유 검증한
+   * 방문(diaries.id)·시술(diary_procedures.id). create 모드 제출 payload 에 그대로 실어 보낸다.
+   * 미전달이면 standalone(종전과 동일). edit 모드에서는 사용하지 않음(연결은 최초 작성 시 확정).
+   */
+  visitId?: number;
+  diaryProcedureId?: number;
 };
 
 /* 통증(PAIN_FACES)·재시술(REVISIT_OPTIONS)·체감효과(EFFECT_AREA_OPTIONS/COLORS)·
@@ -151,6 +158,8 @@ export default function ReviewForm({
   initial,
   shortAnswerQuestions,
   onDirtyChange,
+  visitId,
+  diaryProcedureId,
 }: Props) {
   const router = useRouter();
   const isEdit = mode === "edit";
@@ -379,6 +388,14 @@ export default function ReviewForm({
       body: representativeBody,
       // 단답(optional) — 채워진 항목 전부 전송(대표답 포함). create 전용.
       ...(filledShortAnswers.length > 0 ? { short_answers: filledShortAnswers } : {}),
+      // 노트↔후기 연결(2c) — create 모드 + server 가 소유 검증해 넘긴 방문·시술이 있을 때만 전송.
+      //   edit 스키마(PATCH)엔 이 키가 없어(.strict()) 절대 넣지 않음. 없으면 standalone(무회귀).
+      ...(!isEdit && visitId != null
+        ? {
+            visit_id: visitId,
+            ...(diaryProcedureId != null ? { diary_procedure_id: diaryProcedureId } : {}),
+          }
+        : {}),
     };
 
     startTransition(async () => {

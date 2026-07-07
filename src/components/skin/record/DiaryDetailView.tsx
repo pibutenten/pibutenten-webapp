@@ -28,6 +28,7 @@ export type DiaryDetail = {
   /** 작성 주체(마이그 0343) — 'clinic'(병원 대행)이면 헤더에 "병원 입력" 배지 (B5, §8.3). */
   source: "member" | "clinic";
   diary_procedures: {
+    id: number; // diary_procedures.id — 후기 FK 판정 앵커(2c). procedure_ko 텍스트매칭 대신 이 id 로 '이미 씀' 판정.
     procedure_ko: string;
     unit_text: string | null;
     price: number | null;
@@ -35,8 +36,17 @@ export type DiaryDetail = {
     sort_order: number;
   }[];
   // 이 방문(visit_id)에 연결된 내 후기 + 각 후기의 시술 경과(review_checkin) 입력 시점(마이그 0292). 없으면 빈 배열.
+  //   diary_procedure_id: 그 후기가 어느 시술(diary_procedures.id)에 연결됐는지 — FK 판정 키(2c).
+  //     구 standalone 후기(diary_linked 이전)는 NULL → 시술별 판정 불가(그 시술은 '쓰기' 노출, 무회귀).
+  //   card.shortcode: '내 후기 보기/수정' 링크 목적지(/review/{shortcode}/edit).
   linked_reviews?:
-    | { id: number; procedure_ko: string | null; review_checkin?: { timepoint: string }[] | null }[]
+    | {
+        id: number;
+        procedure_ko: string | null;
+        diary_procedure_id: number | null;
+        card?: { shortcode: string | null } | null;
+        review_checkin?: { timepoint: string }[] | null;
+      }[]
     | null;
 };
 
@@ -92,6 +102,12 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
   const mapName = d.clinic_name ? encodeURIComponent(d.clinic_name) : "";
   // 이 방문에 연결된 내 후기 — 각 후기(시술)별 시술 경과(타임포인트) 입력 현황 표시·진입. 없으면 표시 안 함.
   const linkedReviews = d.linked_reviews ?? [];
+  // 시술별 '이미 후기 씀' 판정 — diary_procedure_id(FK) → 그 후기 로 맵. procedure_ko 텍스트매칭 금지(2c).
+  //   구 standalone(diary_procedure_id=NULL) 후기는 맵에 들어가지 않아 판정 불가 → 해당 시술은 '쓰기' 노출(무회귀).
+  const reviewByDiaryProc = new Map<number, (typeof linkedReviews)[number]>();
+  for (const r of linkedReviews) {
+    if (r.diary_procedure_id != null) reviewByDiaryProc.set(r.diary_procedure_id, r);
+  }
 
   return (
     <AppShell active="내 노트">
@@ -149,18 +165,48 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
         {/* 받은 시술 — 시술명 · 용량 · 가격 · 메모 */}
         {procs.length > 0 && (
           <div className={cardBox + " space-y-2"}>
-            {procs.map((p, i) => (
-              <div key={i} className="rounded-md bg-[var(--bg)] p-3">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-[14px] font-bold text-[var(--primary-active)]">
-                    {p.procedure_ko}
-                    {p.unit_text && <span className="ml-1 text-[12.5px] font-medium text-[var(--text-secondary)]">{p.unit_text}</span>}
-                  </span>
-                  {p.price != null && <span className="text-[13px] font-semibold text-[var(--text)]">{p.price.toLocaleString("ko-KR")}원</span>}
+            {procs.map((p) => {
+              // FK 판정 — 이 시술(diary_procedures.id)에 연결된 내 후기가 있으면 '보기/수정', 없으면 '쓰기'.
+              //   already: diary_procedure_id 로만 매칭(procedure_ko 텍스트 비교 안 함). shortcode 있으면 편집 경로로.
+              const already = reviewByDiaryProc.get(p.id);
+              const reviewShortcode = already?.card?.shortcode ?? null;
+              return (
+                <div key={p.id} className="rounded-md bg-[var(--bg)] p-3">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[14px] font-bold text-[var(--primary-active)]">
+                      {p.procedure_ko}
+                      {p.unit_text && <span className="ml-1 text-[12.5px] font-medium text-[var(--text-secondary)]">{p.unit_text}</span>}
+                    </span>
+                    {p.price != null && <span className="text-[13px] font-semibold text-[var(--text)]">{p.price.toLocaleString("ko-KR")}원</span>}
+                  </div>
+                  {p.note && <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">{p.note}</p>}
+                  <div className="mt-2 flex justify-end">
+                    {already ? (
+                      reviewShortcode ? (
+                        // 이미 이 시술에 후기 작성함 — 후기 전용 에디터(/review/{shortcode}/edit)로. (개별 후기 noindex, 열람=수정 폼)
+                        <Link
+                          href={`/review/${reviewShortcode}/edit`}
+                          className="text-[12px] font-semibold text-[var(--primary-active)] hover:underline"
+                        >
+                          내 후기 보기/수정
+                        </Link>
+                      ) : (
+                        // 후기는 있으나 카드 shortcode 미확정(검토 중 등) — 중복 작성 방지 위해 '쓰기' 대신 안내만(검수 치명 반영).
+                        <span className="text-[12px] font-medium text-[var(--text-muted)]">후기 검토 중</span>
+                      )
+                    ) : (
+                      // 아직 없음(또는 구 standalone 판정 불가) — 그 방문·시술 지정해 새 후기 작성.
+                      <Link
+                        href={`/review/new?procedure=${encodeURIComponent(p.procedure_ko)}&visit=${d.id}&dp=${p.id}`}
+                        className="text-[12px] font-semibold text-[var(--primary-active)] hover:underline"
+                      >
+                        시술후기 쓰기
+                      </Link>
+                    )}
+                  </div>
                 </div>
-                {p.note && <p className="mt-1 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">{p.note}</p>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

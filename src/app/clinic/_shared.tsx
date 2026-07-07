@@ -46,6 +46,39 @@ export type ClinicDoctorOption = { id: string; name: string };
 export const BOX = "rounded-[var(--r-card)] bg-white p-5";
 
 /**
+ * ClinicFormTokenScope — clinic 임베드하는 DiaryForm(SkinDiaryForms)의 회원 SNS 색 토큰을
+ * admin 톤으로 스코프 별칭한다(SSOT). 폼 코드는 불변 유지하고, 이 컨테이너가 회원 토큰명에
+ * admin 값을 재정의(cascade)해 폼이 admin 파란/검정을 상속하게 한다.
+ *
+ *  ⚠ 색 토큰만 별칭한다. --radius(폼 12px = admin 폼과 이미 일치) / --accent(코랄) / --shadow-lg 는
+ *    의도적으로 제외(형태·강조·그림자는 폼 기본 유지). SkinDiaryForms 가 실제 사용하는 색 토큰
+ *    전수(--primary·--primary-dark·--primary-active·--primary-soft·--text·--text-secondary·
+ *    --text-muted·--border·--bg·--bg-soft) 를 admin 대응(--tt-blue 계열·--ink 계열·--line)으로 매핑.
+ */
+export function ClinicFormTokenScope({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={
+        {
+          "--primary": "var(--tt-blue)",
+          "--primary-dark": "var(--tt-blue-deep)",
+          "--primary-active": "var(--tt-blue-deep)",
+          "--primary-soft": "var(--tt-blue-tint)",
+          "--text": "var(--ink-900)",
+          "--text-secondary": "var(--ink-500)",
+          "--text-muted": "var(--ink-300)",
+          "--border": "var(--line)",
+          "--bg": "var(--tt-blue-tint)",
+          "--bg-soft": "var(--line)",
+        } as React.CSSProperties
+      }
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
  * ClinicShell — 병원 운영 페이지 공용 셸. /admin 하위 페이지와 동일하게 AppShell wide 사용
  * (상단바·배경은 앱 셸, 하단 탭바 숨김, 최대 1080px). back 으로 상위 프로그램 복귀.
  */

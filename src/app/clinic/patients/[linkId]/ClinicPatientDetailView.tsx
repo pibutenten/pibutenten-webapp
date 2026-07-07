@@ -75,6 +75,22 @@ export default function ClinicPatientDetailView({
   const [editPhone, setEditPhone] = useState(patient.patient_phone ?? "");
   const [editAddr, setEditAddr] = useState(patient.patient_address ?? "");
   const [saving, setSaving] = useState(false);
+  // 병원 기록 카드 접기/펼치기 — 기본 접힘. 입력값이 로드 스냅샷과 달라지면(편집 중) 자동 펼침 유지.
+  const [recordOpen, setRecordOpen] = useState(false);
+  const recordDirty =
+    editRegNo !== (patient.registration_number ?? "") ||
+    editPhone !== (patient.patient_phone ?? "") ||
+    editAddr !== (patient.patient_address ?? "");
+  const recordExpanded = recordOpen || recordDirty;
+  // 접힘 시 헤더 오른쪽 요약 — 등록번호·전화·주소 중 값 있는 것만. 전부 비면 '미입력'.
+  const recordSummary =
+    [
+      patient.registration_number?.trim(),
+      patient.patient_phone?.trim(),
+      patient.patient_address?.trim(),
+    ]
+      .filter((v): v is string => !!v)
+      .join(" · ") || "미입력";
 
   const spRows = skinProfileRows(patient.patient_skin_profile);
   const consentDate = fmtDate(patient.consent_at);
@@ -125,7 +141,7 @@ export default function ClinicPatientDetailView({
 
   return (
     <ClinicShell back="/clinic/patients">
-      <section className="mx-auto w-full max-w-[680px] py-6">
+      <section className="mx-auto w-full max-w-[880px] py-6">
         {/* 스냅샷 — 동의 시 회원이 제공한 정보. pending 에는 병원 등록값만(§8.1 원본 미표시). */}
         <div className={BOX}>
           <div className="flex items-center justify-between gap-2">
@@ -134,7 +150,16 @@ export default function ClinicPatientDetailView({
             </h1>
             <StatusBadge status={patient.status} />
           </div>
-          <dl className="mt-4 space-y-2.5">
+          {(() => {
+            // h1 아래 1줄 인라인 요약 — 빈값('—'·null)은 스킵, 전부 비면 줄 자체 생략.
+            const parts = [birthText, ageText, genderText, patient.patient_email ?? "—"].filter(
+              (t) => t && t !== "—",
+            );
+            return parts.length > 0 ? (
+              <p className="mt-1 text-[13px] text-[var(--ink-500)]">{parts.join(" · ")}</p>
+            ) : null;
+          })()}
+          <dl className="mt-4 grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
             <Row label="아이디" value={patient.member_handle ? `@${patient.member_handle}` : "—"} />
             <Row label="생년월일" value={birthText} />
             <Row label="나이" value={ageText} />
@@ -166,55 +191,6 @@ export default function ClinicPatientDetailView({
               </dl>
             </div>
           )}
-        </div>
-
-        {/* 병원 항목 수정 */}
-        <div className={`${BOX} mt-4`}>
-          <h2 className="text-[16px] font-bold text-[var(--ink-900)]">병원 기록</h2>
-          <div className="mt-4 space-y-4">
-            <div>
-              <label className={adminLabelCls}>등록번호</label>
-              <input
-                className={adminInputCls}
-                value={editRegNo}
-                maxLength={100}
-                spellCheck={false}
-                placeholder="원내 등록번호"
-                onChange={(e) => setEditRegNo(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className={adminLabelCls}>전화번호</label>
-              <input
-                className={adminInputCls}
-                type="tel"
-                value={editPhone}
-                maxLength={50}
-                spellCheck={false}
-                placeholder="예: 010-1234-5678"
-                onChange={(e) => setEditPhone(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className={adminLabelCls}>주소</label>
-              <input
-                className={adminInputCls}
-                value={editAddr}
-                maxLength={200}
-                spellCheck={false}
-                placeholder="환자 주소"
-                onChange={(e) => setEditAddr(e.target.value)}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={saving}
-              className="h-11 w-full rounded-[var(--r-btn)] bg-[var(--tt-blue)] text-[15px] font-semibold text-white transition-colors hover:bg-[var(--tt-blue-deep)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? "저장 중…" : "저장하기"}
-            </button>
-          </div>
         </div>
 
         {/* ③ 시술 기록 타임라인 — 그 환자에게 병원이 쓴 시술노트 최근순(RPC가 이미 visited_on DESC 정렬).
@@ -268,6 +244,82 @@ export default function ClinicPatientDetailView({
                 : "연결이 해제되어 시술노트를 작성할 수 없어요."}
           </p>
         )}
+
+        {/* 병원 항목 수정 — 클릭 토글(기본 접힘). 접힘=요약 한 줄, 펼침=편집 폼. 편집 중이면 자동 펼침. */}
+        <div className={`${BOX} mt-4`}>
+          <button
+            type="button"
+            onClick={() => setRecordOpen((o) => !o)}
+            aria-expanded={recordExpanded}
+            aria-controls="clinic-record-panel"
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <h2 className="text-[16px] font-bold text-[var(--ink-900)]">병원 기록</h2>
+            <span className="flex min-w-0 items-center gap-2">
+              {!recordExpanded && recordSummary && (
+                <span className="min-w-0 truncate text-[13px] text-[var(--ink-500)]">
+                  {recordSummary}
+                </span>
+              )}
+              <span
+                aria-hidden
+                className={`shrink-0 text-[13px] text-[var(--ink-300)] transition-transform ${
+                  recordExpanded ? "rotate-180" : ""
+                }`}
+              >
+                ▾
+              </span>
+            </span>
+          </button>
+          {recordExpanded && (
+            <div className="mt-4" id="clinic-record-panel" role="region" aria-label="병원 기록 편집">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className={adminLabelCls}>등록번호</label>
+                  <input
+                    className={adminInputCls}
+                    value={editRegNo}
+                    maxLength={100}
+                    spellCheck={false}
+                    placeholder="원내 등록번호"
+                    onChange={(e) => setEditRegNo(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={adminLabelCls}>전화번호</label>
+                  <input
+                    className={adminInputCls}
+                    type="tel"
+                    value={editPhone}
+                    maxLength={50}
+                    spellCheck={false}
+                    placeholder="예: 010-1234-5678"
+                    onChange={(e) => setEditPhone(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={adminLabelCls}>주소</label>
+                  <input
+                    className={adminInputCls}
+                    value={editAddr}
+                    maxLength={200}
+                    spellCheck={false}
+                    placeholder="환자 주소"
+                    onChange={(e) => setEditAddr(e.target.value)}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={saving}
+                className="mt-4 h-11 w-full rounded-[var(--r-btn)] bg-[var(--tt-blue)] text-[15px] font-semibold text-white transition-colors hover:bg-[var(--tt-blue-deep)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving ? "저장 중…" : "저장하기"}
+              </button>
+            </div>
+          )}
+        </div>
       </section>
     </ClinicShell>
   );
@@ -306,24 +358,31 @@ function VisitRow({
   const priceText = fmtPrice(v.total_price);
   const nextText = fmtDateShort(v.next_appointment_date);
 
+  const nextPill = nextText ? (
+    <span className="shrink-0 rounded-full bg-[var(--tt-blue-tint)] px-2 py-0.5 text-[11px] font-semibold text-[var(--tt-blue-deep)]">
+      다음 {nextText}
+    </span>
+  ) : null;
+
+  // 모바일(md↓): 날짜+다음예약 → 시술요약 → 원장·금액 세로. 데스크탑(md↑): 한 줄 가로.
   const inner = (
     <>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-1 md:flex-row md:items-center md:gap-3">
+        {/* 날짜(+ 모바일 다음예약 pill) */}
+        <div className="flex shrink-0 items-center gap-2">
           <span className="text-[13px] font-bold text-[var(--tt-blue-deep)]">{dateText}</span>
-          {nextText && (
-            <span className="shrink-0 rounded-full bg-[var(--tt-blue-tint)] px-2 py-0.5 text-[11px] font-semibold text-[var(--tt-blue-deep)]">
-              다음 {nextText}
-            </span>
-          )}
+          {nextPill && <span className="md:hidden">{nextPill}</span>}
         </div>
-        <p className="mt-1 truncate text-[14px] font-semibold text-[var(--ink-900)]">
+        {/* 시술요약 — 데스크탑에서 남는 폭 차지 + 말줄임 */}
+        <p className="truncate text-[14px] font-semibold text-[var(--ink-900)] md:min-w-0 md:flex-1">
           {procSummary}
         </p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] text-[var(--ink-500)]">
+        {/* 원장·금액(+ 데스크탑 다음예약 pill) */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] text-[var(--ink-500)] md:shrink-0 md:flex-nowrap">
           {doctorText && <span>{doctorText}</span>}
           {doctorText && priceText && <span className="text-[var(--ink-300)]">·</span>}
           {priceText && <span className="tabular-nums">{priceText}</span>}
+          {nextPill && <span className="hidden md:inline-flex">{nextPill}</span>}
         </div>
       </div>
       {editable && (
