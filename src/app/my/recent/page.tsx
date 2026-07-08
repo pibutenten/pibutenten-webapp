@@ -23,7 +23,7 @@ const RECENT_LIMIT = 30;
  *   - DB 에이전트 RPC get_my_recent_views(p_profile_id, p_limit) 가 card_id 를 last_viewed_at DESC
  *     순서로 반환. 그 순서를 보존하며 cards 를 CARD_LIST_SELECT 로 로드(published·미삭제만 RLS 통과).
  *   - 비로그인 → /login?next=/my/recent
- *   - admin/doctor → 마이 메인과 동일하게 각 대시보드로(허브 일관성).
+ *   - admin/doctor/clinic → 마이 메인과 동일하게 각 대시보드로(허브 일관성).
  *
  * RPC 호출은 auth.uid() 필요 → my/page 의 likes/saves 와 동일한 user 인증 서버 클라이언트 사용.
  * AppShell 직접 렌더(GlobalChrome APP_SHELL_PREFIX 에 "/my/" 포함).
@@ -39,6 +39,7 @@ export default async function RecentViewsPage() {
   const active = idCtx?.active;
   if (active?.role === ROLES.ADMIN) redirect("/admin");
   if (active?.role === ROLES.DOCTOR) redirect("/doctor");
+  if (active?.role === ROLES.CLINIC) redirect("/clinic"); // 병원 계정 — /my 와 동일 분기(누락 보수, 계획서 Phase 3-4)
 
   // active 명함(getIdentityContext SSOT) 기준. 없으면 base profile fallback.
   const activeId = active?.profileId ?? user.id;
