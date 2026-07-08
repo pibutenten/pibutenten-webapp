@@ -346,17 +346,19 @@ export default function ReportsIndexView({
     <>
       <style>{`@keyframes rvRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}`}</style>
 
-      {/* 정렬 칩 — 본문 상단에 인라인 sticky 고정. 배경은 앱 캔버스와 동일(회색 없음). 활성=브랜드색. */}
+      {/* 정렬 칩 — 본문 상단에 인라인 sticky 고정. 배경은 캔버스 variant(--tt-canvas=#F5FBFF) 자동 추종.
+          2026-07-08 UI 개편 Phase 1-3: 선택=--accent-blue(#1A9DE8)+흰 글자 / 비선택=흰 배경+#5A646C(명세
+          고정색 — globals 토큰 없음, 리터럴). 5종 유지(D3 확정 — 시안 4종은 예시). sticky·로직 불변. */}
       {/* rootRef: 스크롤 조상(.root) 탐색의 시작점(항상 렌더되는 본문 첫 DOM). */}
       <div
         ref={rootRef}
-        className="sticky z-[41] mb-3 py-2.5"
+        className="sticky z-[41] mb-1.5 py-2.5"
         style={{ top: "var(--sat)", background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
       >
         <div
           role="group"
           aria-label="정렬"
-          className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-2 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {SORTS.map((s) => {
             const on = sort === s.key;
@@ -366,11 +368,11 @@ export default function ReportsIndexView({
                 type="button"
                 onClick={() => setSort(s.key)}
                 aria-pressed={on}
-                className="shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition-colors"
+                className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold transition-colors"
                 style={
                   on
-                    ? { backgroundColor: "#2A9FD6", color: "#fff" }
-                    : { backgroundColor: "#fff", color: "var(--text-secondary)" }
+                    ? { backgroundColor: "var(--accent-blue)", color: "#fff" }
+                    : { backgroundColor: "#fff", color: "#5A646C" }
                 }
               >
                 {s.label}
@@ -387,9 +389,10 @@ export default function ReportsIndexView({
             : "이 카테고리에는 아직 리포트가 없어요."}
         </p>
       ) : (
+        /* 카드 목록 — 카드 간 세로 간격 16px(명세) */
         <div
           key={`${sort}-${category ?? "all"}`}
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-4"
           style={{ animation: "rvRise .28s ease both" }}
         >
           {shown.map((it) => (

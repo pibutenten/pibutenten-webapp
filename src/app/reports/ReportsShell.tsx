@@ -55,6 +55,9 @@ export default function ReportsShell({
     <ReportsCategoryContext.Provider value={category}>
       <AppShell
         active="리포트"
+        /* 페이지별 캔버스 variant(Phase 0-4, 커밋 d8eea01) — /reports 계열 배경 #F5FBFF.
+           sticky 정렬 칩·헤더·상태바 필러가 --tt-canvas 재정의를 자동 추종한다. */
+        canvas="report"
         sidebar={
           <ReportsIndexSidebar
             topProcedures={topProcedures}

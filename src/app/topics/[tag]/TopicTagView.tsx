@@ -70,13 +70,14 @@ export default function TopicTagView({
       {...search}
     >
       {/* 닫힌 리포트 글상자 — 이 시술의 /reports 가 존재할 때만(후기 ≥1). 한글 직접 타깃(308 미경유).
-          /reports 인덱스 카드 접힘부와 동일 시각(ReportSummaryBox SSOT)을 전체 클릭 Link 로 임베드. */}
+          /reports 인덱스 카드 접힘부와 동일 시각(ReportSummaryBox SSOT — 2026-07-08 신디자인,
+          D1 ① /topics 동시 반영)을 전체 클릭 Link 로 임베드. 라운드 18px = 신디자인 카드와 동일. */}
       {reportSummary && (
         <div className="mx-auto mb-5 max-w-[680px]">
           <Link
             href={`/reports/${encodeURIComponent(tag)}`}
             aria-label={`${tag} 시술 리포트 보기 (${reportSummary.count}건의 경험)`}
-            className="block overflow-hidden rounded-[var(--radius-lg)] bg-white"
+            className="block overflow-hidden rounded-[18px] bg-white"
           >
             <ReportSummaryBox
               procedureKo={tag}
