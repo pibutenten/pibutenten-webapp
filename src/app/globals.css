@@ -88,6 +88,21 @@
   --card-highlight: #FFF3A3;
   /* admin 칩 활성 배경 — 연한 하늘색. /admin/cards '전체 타입' 칩 기준, cards·tags 공유(SSOT). */
   --chip-active-bg: #7DC1DD33; /* 연한 하늘 배경(20% alpha) */
+
+  /* ---------- 리포트 신디자인 전역 토큰 (2026-07-08 UI 개편 Phase 0-1) ----------
+     리포트 컴포넌트(Tailwind + globals 토큰 소비 — app.module.css 비의존)가 참조.
+     --report-green 은 카테고리 초록(categories.ts contour #029688)과 같은 값.
+     주의: 캔버스 배경 3종(#F5FBFF/#DAF1FB/#EAF2F8)은 여기 두지 않는다 —
+     app.module.css 의 .canvasReport/.canvasMy/.canvasProfile variant 클래스
+     내부 재정의로만 존재(토큰 이원화 격리 원칙). */
+  --report-green: #029688;
+  --accent-blue: #1A9DE8;
+  /* 게이지(통증·효과 막대) 빈 트랙 색 */
+  --gauge-track: #EDF2F4;
+  /* 통증 척도 바 그라데이션 스톱 3종 (낮음 → 높음) */
+  --pain-grad-1: #FFD84D;
+  --pain-grad-2: #FF9A4D;
+  --pain-grad-3: #FF5A5A;
   --shadow-sm: 0 1px 3px rgba(27, 73, 101, 0.06);
   --shadow: 0 2px 12px rgba(27, 73, 101, 0.08);
   --shadow-lg: 0 8px 24px rgba(27, 73, 101, 0.12);

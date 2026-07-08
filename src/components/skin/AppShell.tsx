@@ -133,6 +133,16 @@ function IconReport() {
 /* nav 항목 공통 타입 — comingSoon 플래그로 '준비중'(쇼핑) 분기를 명시화(href "#" 해킹 폐기). */
 type NavItem = { label: NavTab; href: string; icon?: ReactNode; comingSoon?: boolean };
 
+/* 페이지별 캔버스 배경 variant (2026-07-08 UI 개편 Phase 0-4).
+   app.module.css 의 variant 클래스(--tt-canvas/--tt-canvas-top 재정의만)와 1:1 매핑 —
+   report=#F5FBFF(/reports 계열) · my=#DAF1FB(/my) · profile=#EAF2F8(프로필 2뎁스). */
+export type CanvasVariant = "report" | "my" | "profile";
+const CANVAS_CLASS: Record<CanvasVariant, string> = {
+  report: styles.canvasReport,
+  my: styles.canvasMy,
+  profile: styles.canvasProfile,
+};
+
 /* 탭바 항목 정의 — 글쓰기는 우하단 FAB(WriteFab)로 분리, 하단 탭은 5개.
    마이 슬롯을 리포트로 교체(마이는 헤더 우상단 아바타로 진입). 쇼핑은 준비중(딤드, 텍스트 배지 없음). */
 const TABS: NavItem[] = [
@@ -160,6 +170,7 @@ export default function AppShell({
   sidebarMobileBelow = false,
   wide = false,
   keepCanvas = false,
+  canvas,
   back,
   backTitle,
   searchValue,
@@ -183,6 +194,11 @@ export default function AppShell({
   /** wide 레이아웃(탭바 숨김·풀폭)은 쓰되 admin 회색 배경(.rootWide) 대신 .root 캔버스
    *  그라데이션을 유지 — 로그인/회원가입 등 비-admin 인증 화면용(피드와 동일 배경). (2026-06-17) */
   keepCanvas?: boolean;
+  /** 페이지별 캔버스 배경 variant (2026-07-08 UI 개편 Phase 0-4) — .root 에 variant 클래스 추가 부착.
+   *  "report"=#F5FBFF · "my"=#DAF1FB · "profile"=#EAF2F8 (단색, --tt-canvas/--tt-canvas-top 재정의만).
+   *  미지정 시 현행 그라데이션과 100% 동일(기존 화면 무영향). wide 와 동시 사용은 없음(비충돌 —
+   *  .rootWide 는 background 직접 지정이라 함께 부착돼도 wide 배경이 이긴다). */
+  canvas?: CanvasVariant;
   /** 헤더 검색 입력값(피드만 controlled — 그 자리서 필터). 없으면 셸 로컬 state. */
   searchValue?: string;
   onSearchChange?: (q: string) => void;
@@ -503,7 +519,7 @@ export default function AppShell({
 
   return (
     <div
-      className={`${styles.root} ${wide && !keepCanvas ? styles.rootWide : ""}`}
+      className={`${styles.root} ${wide && !keepCanvas ? styles.rootWide : ""} ${canvas ? CANVAS_CLASS[canvas] : ""}`}
       ref={scrollRef}
     >
       {/* ---------- 상단바: 헤더 + 칩바를 한 덩어리(topStack)로 묶어 통째로 슬라이드 ----------

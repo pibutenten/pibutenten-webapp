@@ -111,6 +111,27 @@
   --r-btn: 8px;
 }
 
+/* 페이지별 캔버스 variant (2026-07-08 UI 개편 Phase 0-3) — .root 와 함께 부착하는 modifier.
+   AppShell 의 canvas prop("report"/"my"/"profile")이 부착한다. --tt-canvas / --tt-canvas-top
+   두 CSS 변수 재정의만 하므로, 두 토큰을 참조하는 .root 배경·.root::before 상태바 필러·
+   .header 베이스·sticky 칩 배경이 자동 추종한다.
+   기존 --tt-canvas 는 linear-gradient 값이지만 참조처가 전부 background(shorthand:
+   `background: var(--tt-canvas) fixed`)라 <color> 단색으로 덮어써도 유효하게 동작함을 확인.
+   미부착 화면(투데이·피드·내노트 등)은 기존 그라데이션 그대로(무영향).
+   같은 specificity(0,1,0)이지만 .root 보다 뒤에 선언되어 소스 순서로 이긴다. */
+.canvasReport {
+  --tt-canvas-top: #f5fbff;
+  --tt-canvas: #f5fbff;
+}
+.canvasMy {
+  --tt-canvas-top: #daf1fb;
+  --tt-canvas: #daf1fb;
+}
+.canvasProfile {
+  --tt-canvas-top: #eaf2f8;
+  --tt-canvas: #eaf2f8;
+}
+
 .root *,
 .root *::before,
 .root *::after {
@@ -1411,8 +1432,8 @@ button.t[data-cat="filler"]:hover {
   color: #b5711a;
 }
 button.t[data-cat="contour"]:hover {
-  background: rgba(0,150,136,0.15);
-  color: #1a756c;
+  background: rgba(2,150,136,0.15);
+  color: #0a7268;
 }
 button.t[data-cat="laser"]:hover {
   background: rgba(229,115,115,0.15);
@@ -1730,8 +1751,8 @@ button.t[data-cat="other"]:hover {
   color: #b5711a;
 }
 .catContour {
-  background: rgba(0, 150, 136, 0.15);
-  color: #1a756c;
+  background: rgba(2, 150, 136, 0.15);
+  color: #0a7268;
 }
 .catLaser {
   background: rgba(229, 115, 115, 0.15);
@@ -1774,7 +1795,7 @@ button.t[data-cat="other"]:hover {
   color: #fff;
 }
 .tagBtnActive.catContour {
-  background: #1a756c;
+  background: #0a7268;
   color: #fff;
 }
 .tagBtnActive.catLaser {
