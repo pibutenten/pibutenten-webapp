@@ -5,7 +5,8 @@
  *
  * 2026-07-08 UI 개편 Phase 4-2 신디자인 (시안 `전달용/260708 UI개편/1d-마이페이지 _ 프로필(내 계정).png`
  * ·`1d-마이페이지-프로필(타인 계정).png`, 명세 PDF 9~11p — 색·간격·라운드는 명세 값 그대로):
- *   ① 헤더: < 뒤로(BackButton 재사용) + 본인="내 정보"(볼드)·우측 "수정"(회색 → /my/settings)
+ *   ① 헤더: 뒤로가기는 셸 헤더로 이전(R2-2 backHeader — 모바일 로고 자리, 데스크탑은 본문 행)
+ *      + 본인="내 정보"(볼드)·우측 "수정"(회색 → /my/settings)
  *      / 타인=제목 없음·우측 ⋯(신고하기 메뉴 → /report).
  *   ② 프로필 카드(흰·라운드 16·패딩 24): 사진(원형 크게)+이름(볼드)+@handle(회색)
  *      + 태그 3(연령대·얼굴형·피부타입 — #DCEBF7 배경·#2E8BD0 글자, field_visibility 존중:
@@ -37,7 +38,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import FollowButton from "@/components/FollowButton";
 import CardAvatar from "@/components/card/CardAvatar";
-import BackButton from "@/components/BackButton";
 import type { CardData } from "@/lib/types/card";
 import AppShell from "../../AppShell";
 import PolicyFooter from "../../PolicyFooter";
@@ -401,8 +401,17 @@ export default function ProfileView({
   );
 
   return (
-    <AppShell active="마이" canvas="profile" {...search}>
-      {/* ① 헤더 — < 뒤로 + (본인) "내 정보"·우측 "수정" / (타인) 제목 없음·우측 ⋯. */}
+    <AppShell
+      active="마이"
+      canvas="profile"
+      /* 2뎁스 헤더 variant(R2-2) — 구 인라인 BackButton 행을 헤더로 이전: 모바일은 헤더 좌측
+         로고 자리 뒤로가기, 데스크탑은 본문 뒤로 행(.backRowDesktop).
+         히스토리 없을 때 fallback: 본인=마이페이지(주 진입 동선), 타인=피드 (최종 검수 A). */
+      backHeader={{ fallbackHref: isOwner ? "/my" : "/" }}
+      {...search}
+    >
+      {/* ① 타이틀 행 — (본인) "내 정보"·우측 "수정" / (타인) 제목 없음·우측 ⋯.
+          뒤로가기는 R2-2 로 셸 헤더(backHeader)로 이전 — 이 행은 타이틀·액션만 유지. */}
       <div
         style={{
           display: "flex",
@@ -411,8 +420,6 @@ export default function ProfileView({
           margin: "2px 0 16px",
         }}
       >
-        {/* 히스토리 없을 때 fallback: 본인=마이페이지(주 진입 동선), 타인=피드 (최종 검수 A). */}
-        <BackButton fallbackHref={isOwner ? "/my" : "/"} hideLabel />
         {isOwner && (
           <h1 style={{ fontSize: 22, fontWeight: 800, color: C.title, margin: 0 }}>
             내 정보

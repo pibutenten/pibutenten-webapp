@@ -6,6 +6,18 @@
 
 ---
 
+## [2026-07-09] — 리포트 상세 디자인 보정(R2) + 세부페이지 backHeader 일괄
+
+원장 검수 반영 라운드 — 디자이너 서브에이전트의 시안 픽셀 실측 대조 → 디렉터 검수 → 구현. 계획 SSOT: `docs/plans/260709 리포트 상세 디자인 보정 계획 (R2).md`. code-reviewer 통합 검수 치명 0.
+
+### Changed
+- **리포트 상세 히어로 표지화 (원장 지시)** — 총높이 ~750px → **~390px**(첫 화면 수납: 헤더 56+여백+히어로 ≤ 가용 640px). 사람 그리드 **100개(10×10, 24px) → 60개(20×3, 9.6px — 시안 실측 배열)**, 그라데이션을 `deep(어두운 파생)` → **`원색 0→30% 평탄 → light(#B4E4DF 파생) 140%`** 로 교체(시안 하단 실측색과 1/255 일치). `procedure-theme.ts` 에 `light` 파생 신설(`deep` 존치 — 타 소비처 무회귀). 재시술 전원 무응답 시 그리드 미노출(오독 방지). 워터마크 white/16, 보조문구 white/85, stagger 4ms, 저장·공유 터치 타깃 44px.
+- **세부(2뎁스) 페이지 헤더 — 모바일 tt: 로고 제거·뒤로가기 최상단 (원장 확정)** — `AppShell backHeader` prop 신설(모바일 로고 자리 BackButton·데스크탑 로고+GNB 유지+본문 "< 뒤로" 행). 적용 13화면: 리포트 상세·프로필(/[handle])·/my/settings·글상세(회원/의사·비공개 placeholder 2)·/notes/[id]·/weather·/my/recent·/topics/[tag]·/doctors/[slug]·/notifications·/reviews/[id]/checkins. 구 중복 뒤로 행·backTitle 은 제거(h1 은 본문 이동 — SEO 유지). **이탈 경고 가드 폼(/write*·/review 작성/수정·/notes/[id]/edit)은 가드 우회 위험으로 제외**(현행 유지, 주석 명기).
+- **리포트 상세 섹션 경량화** — 하단 리뷰 패널 #EAF2F8→#F5FBFF(sticky 칩 배경 동반 + 비선택 칩 1px 보더 #E1EAF2), 다른 시술 카드 `chip` 파스텔·라운드 24·간격 8, 후기 유도 카드 #E0F2FB, 작성자 통계 띠 36→30px, 마커 26→24px, 하단 고정 바 탭바 밀착(76px)+상단 보더.
+- **통증 척도어 "꽤"→"많이" 5면 통일** — 상세·허브 PAIN_LABELS + 후기 폼 입력(PAIN_FACES — ReviewForm·시술일기 공용) + ReviewSummary + ProcedureReportCard (입력↔표시 일치. 문장 속 부사 "꽤 아팠다는~" 프로즈는 확정 카피라 유지).
+
+---
+
 ## [2026-07-08] — 리포트·마이페이지 UI 개편 (Phase 0~4, 디자인팀 명세)
 
 디자인팀 명세(전달용/260708 UI개편)에 따라 4개 화면(/reports 허브·상세, /my, /[handle])을 개편 — **서버 계층(SEO 셸·집계·미들웨어)은 불변, View 계층만 교체**. 검수 체계: 계획 검수 2인 + Phase 별 code-reviewer 검수 4회 + 최종 독립 검수 2인. 계획 SSOT: `docs/plans/260708 리포트·마이페이지 UI 개편 계획서.md`. **DB 마이그레이션 0건**. 커밋 d8eea01(P0)·899b7ed(P1)·62ae171(P3)·3615130(P2)·993db51(P4).

@@ -173,6 +173,7 @@ export default function AppShell({
   canvas,
   back,
   backTitle,
+  backHeader,
   searchValue,
   onSearchChange,
   onSearchSubmit,
@@ -188,6 +189,12 @@ export default function AppShell({
   back?: boolean | string;
   /** '< 뒤로' 옆에 붙는 페이지 제목(토픽·리포트·원장 답변 헤더 등). 좌우 칼럼 시작 높이를 맞추는 용도. */
   backTitle?: ReactNode;
+  /** 2뎁스(세부) 헤더 variant (R2-2, 2026-07-09 시안 원안) — 지정 시 모바일(<900px) 헤더 최상단
+   *  좌측 로고 자리에 BackButton(화살표만, fallbackHref)을 렌더. 우측 검색·알림·아바타와 칩바·
+   *  hide-on-scroll·탭바는 전부 현행 그대로. 데스크탑(≥900px)은 로고+GNB 유지(브랜드 부재 방지)
+   *  — 대신 본문 첫 줄에 '< 뒤로' 행(.backRowDesktop, 구 back prop 과 동일 위치)을 노출.
+   *  미지정 시 현행과 100% 동일. back prop(전 뷰포트 본문 뒤로 행)과는 화면당 하나만 사용. */
+  backHeader?: { fallbackHref?: string };
   /** admin 전용 전체 폭 모드 — 본문을 좁은 .layoutSingle(820px) 대신 운영 admin 과 같은 풀폭(1080px)으로.
    *  기본 false → 피드/공개프로필/글쓰기/내노트/마이/글상세 등 기존 화면은 영향 없음(현행 좁은 중앙 정렬 유지). */
   wide?: boolean;
@@ -616,14 +623,26 @@ export default function AppShell({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className={styles.logoImg} src="/brand-logo.svg" alt="피부텐텐" />
             </GuardedLink>
-            <GuardedLink
-              className={`${styles.logoLink} ${styles.logoMobile}`}
-              href={ROUTES.today}
-              aria-label="피부텐텐"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className={styles.logoImg} src="/brand-logo.svg" alt="피부텐텐" />
-            </GuardedLink>
+            {backHeader ? (
+              /* 2뎁스 헤더 variant — 모바일 로고 자리에 뒤로가기(BackButton: SPA 이력 있으면
+                 router.back, 직접 진입이면 fallbackHref). 데스크탑 로고(.logoDesktop)는 위에서
+                 그대로 렌더 — .backHeaderBtn 이 ≥900px 에서 display:none 이라 서로 배타. */
+              <div className={styles.backHeaderBtn}>
+                <BackButton
+                  fallbackHref={backHeader.fallbackHref ?? ROUTES.feed}
+                  hideLabel
+                />
+              </div>
+            ) : (
+              <GuardedLink
+                className={`${styles.logoLink} ${styles.logoMobile}`}
+                href={ROUTES.today}
+                aria-label="피부텐텐"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className={styles.logoImg} src="/brand-logo.svg" alt="피부텐텐" />
+              </GuardedLink>
+            )}
 
             {/* 모바일 검색 결과 헤더 — 인-헤더 검색 입력 모드와 동일 모티프(← + 검색어 필드 + ✕).
                 검색 결과 동안(value 존재 + 검색창 닫힘) 로고·검색아이콘 자리를 대체.
@@ -816,6 +835,12 @@ export default function AppShell({
               hideLabel={!!backTitle}
             />
             {backTitle ? <div className={styles.backTitle}>{backTitle}</div> : null}
+          </div>
+        ) : backHeader ? (
+          /* backHeader 화면 — 모바일 뒤로는 헤더(로고 자리)가 담당하므로 본문 행은 데스크탑
+             (로고+GNB 유지 뷰포트) 전용(.backRowDesktop). 모바일 2줄 중복 방지. */
+          <div className={`${styles.backRow} ${styles.backRowDesktop}`}>
+            <BackButton fallbackHref={backHeader.fallbackHref ?? ROUTES.feed} />
           </div>
         ) : null}
 

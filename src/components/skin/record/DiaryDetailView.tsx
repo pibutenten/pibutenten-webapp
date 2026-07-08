@@ -110,13 +110,14 @@ export default function DiaryDetailView({ diary: d }: { diary: DiaryDetail }) {
   }
 
   return (
-    <AppShell active="내 노트">
+    <AppShell
+      active="내 노트"
+      /* 2뎁스 헤더 variant(R2-3) — 구 인라인 detailBack(Link /notes)에서 전환: 모바일은 헤더 좌측
+         로고 자리 뒤로가기(이력 있으면 back, 직접 진입 fallback=/notes), 데스크탑은 본문 뒤로 행. */
+      backHeader={{ fallbackHref: "/notes" }}
+    >
+      {/* 제목 행 — 뒤로가기는 셸 헤더(backHeader)로 이전, h1 만 유지(중복 뒤로 제거). */}
       <div className={styles.detailHead}>
-        <Link href="/notes" className={styles.detailBack} aria-label="내 노트로 돌아가기">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-        </Link>
         <h1 className={styles.detailTitle}>시술 기록</h1>
       </div>
 

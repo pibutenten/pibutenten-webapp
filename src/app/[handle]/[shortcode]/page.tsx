@@ -116,7 +116,8 @@ export default async function MemberPostPage({ params }: Props) {
     const hidden = await checkHiddenPlaceholder(handle, shortcode);
     if (hidden) {
       return (
-        <AppShell active="피드" back={`/${handle}`}>
+        // 2뎁스 헤더 variant(R2-3) — 구 back 에서 전환(모바일 헤더 뒤로가기, 데스크탑 본문 뒤로 행).
+        <AppShell active="피드" backHeader={{ fallbackHref: `/${handle}` }}>
           <section className="w-full py-6">
             <div className="mx-auto max-w-xl rounded-md border border-[var(--border)] bg-white p-6 text-center">
               <p className="text-[14px] font-semibold text-[var(--text)]">

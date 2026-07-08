@@ -608,6 +608,38 @@
 .backTitle b {
   color: var(--tt-blue);
 }
+/* ---------- 2뎁스(세부) 헤더 variant (R2-2, 2026-07-09) ----------
+   AppShell backHeader prop 전용. 모바일(<900px): 헤더 좌측 로고 자리에 BackButton(화살표만),
+   우측 검색·알림·아바타는 현행 그대로. 데스크탑(≥900px): 로고+GNB 유지(브랜드 부재 방지)
+   — 뒤로가기는 본문 첫 줄(.backRowDesktop, 구 back prop 과 동일 위치)이 담당.
+   헤더 높이 불변(BackButton 32px < .iconBtn 38px → 행 높이 결정자 변화 없음)
+   → .topStackHidden 의 -62px 전제 유지. */
+.backHeaderBtn {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.backHeaderBtn svg {
+  /* 검색 모드 ←(.searchBack 22px)와 같은 스케일 — BackButton 기본 16px(h-4)을 헤더 아이콘 크기로 상향. */
+  width: 22px;
+  height: 22px;
+}
+.backHeaderBtn button {
+  /* BackButton 인라인 색(#A2A6AF)은 본문용 톤 — 헤더 아이콘(--ink-700)과 통일(인라인 style 위라 !important). */
+  color: var(--ink-700) !important;
+}
+/* backHeader 화면의 본문 '< 뒤로' 행 — 데스크탑 전용(모바일은 헤더 뒤로가 담당, 2줄 중복 방지). */
+.backRowDesktop {
+  display: none;
+}
+@media (min-width: 900px) {
+  .backHeaderBtn {
+    display: none;
+  }
+  .backRowDesktop {
+    display: flex;
+  }
+}
 /* 항목 1) 칩바 — 상단바 래퍼(.topStack) 안에서 헤더 바로 아래 정적 배치.
  *   별도 sticky 가 아니라 헤더와 한 덩어리로 함께 움직인다(어긋남 없음).
  *   캔버스 틴트 배경(풀폭)으로 아래 피드가 비치지 않게. */

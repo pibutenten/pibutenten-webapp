@@ -21,8 +21,14 @@ export default function NotificationsView({ showOps }: { showOps: boolean }) {
   const search = useSearchRouting();
 
   return (
-    <AppShell active="마이" back="/" {...search}>
-      {/* 운영 본문 그대로 — 페이지 내 BackButton 은 셸의 back="/" 으로 대체(중복 제거). */}
+    <AppShell
+      active="마이"
+      /* 2뎁스 헤더 variant(R2-3) — 구 back="/" 에서 전환: 모바일은 헤더 좌측 로고 자리
+         뒤로가기, 데스크탑은 본문 뒤로 행(.backRowDesktop). 직접 진입 fallback=피드. */
+      backHeader={{ fallbackHref: "/" }}
+      {...search}
+    >
+      {/* 운영 본문 그대로 — 뒤로가기는 셸 backHeader 가 담당(본문 중복 없음). */}
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-[var(--text)]">알림</h1>
       </div>

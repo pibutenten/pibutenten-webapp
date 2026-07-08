@@ -40,8 +40,9 @@ const EFFECT_BAR_COLORS = ["#6EC1F0", "#A99BE0", "#8AA0E0"];
 //   — 1뎁스 3스톱/2뎁스 4스톱을 각각 별도 지정). SSOT 분열 아님(최종 검수 B 재검 결과).
 const PAIN_GRADIENT =
   "linear-gradient(90deg, var(--pain-grad-1), var(--pain-grad-2), var(--pain-grad-3))";
-// 라벨 SSOT — 현행 5종 유지(시안 '많이'는 미채택 — 계획서 Phase 1 각주: PAIN_LABELS 재정의 금지).
-const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
+// 라벨 — R2-2(2026-07-09)에서 시안 '많이' 채택: 상세(ReportsDetailView 사본)·후기 폼 입력
+//   (review-controls PAIN_FACES)과 3면 척도어 통일(입력↔표시 일치). 구 '꽤'는 폐기.
+const PAIN_LABELS = ["없음", "조금", "보통", "많이", "심함"];
 function painPos(v: number): number {
   const x = Math.min(5, Math.max(1, v));
   return 6.25 + ((x - 1) / 4) * 87.5;

@@ -30,7 +30,8 @@ export const PAIN_FACES: { face: string; label: string }[] = [
   { face: "😊", label: "없음" },
   { face: "🙂", label: "조금" },
   { face: "😐", label: "보통" },
-  { face: "😣", label: "꽤" },
+  // '꽤'→'많이' (R2-2, 2026-07-09) — 리포트 허브·상세 표시 척도어와 입력 라벨 3면 통일.
+  { face: "😣", label: "많이" },
   { face: "😖", label: "심함" },
 ];
 

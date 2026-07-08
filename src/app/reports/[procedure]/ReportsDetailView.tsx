@@ -3,17 +3,19 @@
 /**
  * ReportsDetailView — /reports/[시술] 전체 리포트.
  *
- * 2026-07-08 UI 개편 Phase 2-1 (디자인 명세 PDF p.4-7 + 시안 2d-리포트-1/2 — 위→아래 한 스크롤):
- *   ① 히어로 카드(라운드 24, 카테고리 그라데이션 deep→tint 세로, tt 워터마크, 시술명,
- *      태그 3=효과 top3, 재시술의향 큰 %, 사람 그리드 10×10=100 비율 채움,
- *      "후기 N건 중 있음 X·고민 중 Y·없어요 Z", 헤드라인, 우하단 저장·공유)
+ * 2026-07-08 UI 개편 Phase 2-1 (디자인 명세 PDF p.4-7 + 시안 2d-리포트-1/2 — 위→아래 한 스크롤)
+ * + 2026-07-09 R2-1 디자인 보정(계획서 docs/plans/260709 §2 — 히어로 표지화 ~390px·색 경량화):
+ *   ① 히어로 카드(라운드 24, 그라데이션 `원색 0→30% 평탄 → light 140%`, tt 워터마크 white/16,
+ *      시술명 34px, 태그 칩 1줄=효과 top3, 재시술의향 68px %, 사람 그리드 20×3=60 비율 채움
+ *      (0 아닌 상태 최소 1셀 보장), "후기 N건 중 …" 보조문구,
+ *      헤드라인 16px + 우측 저장·공유 인라인(터치 타깃 44×44))
  *   ② SATISFACTION(좌 큰 숫자+별 5 / 우 별점 분포 5줄) ③ PAIN & RECOVERY(통증 그라데이션
  *      척도 바+원형 마커[번개], 다운타임 채움 바+원형 마커[십자 — 원장 확정]+표시 3구간
  *      당일/1주/2주 재그룹 — 저장 척도 5구간 불변, DOWNTIME_DAYS 환산 재사용)
  *   ④ RESULTS(효과 막대 전체+미체감 문구) ⑤ TIMELINE(세로 막대 4개+축 선·점, 최다만 강조)
  *   ⑥ 작성자 통계(성별·연령 가로 띠, 큰 조각 띠 안 라벨·작은 조각 아래 범례)
- *   ⑦ (배경 #EAF2F8 전환) 리뷰 섹션 ⑧ 후기 유도 카드(#D6E9F5) ⑨ 전문의 섹션(순위 원+제목)
- *   ⑩ 다른 시술 5(카테고리 soft 파스텔) ⑪ 푸터 PIBUTENTEN REPORT ⑫ 하단 고정 바(모바일).
+ *   ⑦ (배경 #F5FBFF 전환) 리뷰 섹션 ⑧ 후기 유도 카드(#E0F2FB) ⑨ 전문의 섹션(순위 원+제목)
+ *   ⑩ 다른 시술 5(카테고리 chip 파스텔) ⑪ 푸터 PIBUTENTEN REPORT ⑫ 하단 고정 바(모바일).
  *
  * 배선(보존): report.anchor && ReportViewTracker / 앵커 없음·비로그인 소프트월 수동 폴백(이중가산
  *   방지) / 상세 진입 scrollTop=0 / 후기 정렬 칩 4종·10개 더보기 / 인라인 CommentsBlock /
@@ -25,7 +27,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import BackButton from "@/components/BackButton";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { CardData } from "@/components/Card";
 import type { ProcedureSlug } from "@/lib/categories";
@@ -83,7 +84,7 @@ function rankColor(rank: number): string {
 //   ⚠ 허브(ReportsIndexCard, --pain-grad-* 3스톱)와 색이 다른 것은 시안 명세 의도(PDF p5 vs p2).
 const PAIN_STOPS = ["#FFDD77", "#FFB46D", "#FF7B9F", "#FF565B"];
 const PAIN_GRADIENT = `linear-gradient(90deg, ${PAIN_STOPS.join(", ")})`;
-const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
+const PAIN_LABELS = ["없음", "조금", "보통", "많이", "심함"]; // R2-1: "꽤"→"많이" (척도어 3면 통일)
 function painPos(v: number): number {
   const x = Math.min(5, Math.max(1, v));
   return 6.25 + ((x - 1) / 4) * 87.5;
@@ -117,6 +118,34 @@ function formatDays(v: number): string {
 const HERO_ANCHOR: Record<string, { chip: string; person: string }> = {
   "#029688": { chip: "#078172", person: "#168275" },
 };
+
+/** 사람 그리드 셀 배분 — round 비율 배분 + "0 아닌 상태 최소 1셀" 보장(R2-1 — 1칸=1.67%p 라
+ *  소수 상태가 반올림으로 사라지는 것을 방지. 부족분은 가장 큰 조각에서 1셀 차감). */
+function allocGridCells(
+  yes: number,
+  maybe: number,
+  no: number,
+  total: number,
+): { y: number; m: number; n: number } {
+  const sum = Math.max(1, yes + maybe + no);
+  const cells: [number, number, number] = [Math.round((yes / sum) * total), 0, 0];
+  cells[1] = Math.min(total - cells[0], Math.round((maybe / sum) * total));
+  cells[2] = total - cells[0] - cells[1];
+  const counts = [yes, maybe, no];
+  for (let i = 0; i < 3; i++) {
+    if (counts[i] > 0 && cells[i] === 0) {
+      let donor = -1;
+      for (let j = 0; j < 3; j++) {
+        if (j !== i && cells[j] > 1 && (donor < 0 || cells[j] > cells[donor])) donor = j;
+      }
+      if (donor >= 0) {
+        cells[donor] -= 1;
+        cells[i] = 1;
+      }
+    }
+  }
+  return { y: cells[0], m: cells[1], n: cells[2] };
+}
 
 // 후기 정렬 보조값.
 function reviewOf(card: CardData) {
@@ -236,22 +265,23 @@ function AnchorEngagement({
 
   return (
     <>
-      {/* 히어로 우하단 아이콘(흰색) */}
+      {/* 히어로 우하단 아이콘(흰색) — 시각 22px 유지 + 패딩으로 터치 타깃 44×44 확보(R2-1.
+          음수 마진 상쇄라 레이아웃 자리는 아이콘 크기 그대로) */}
       <div className="flex items-center gap-4 text-white">
         <button
           type="button"
           onClick={eng.save.toggle}
           aria-label={eng.save.active ? "저장 취소" : "저장"}
           aria-pressed={eng.save.active}
-          className="flex cursor-pointer items-center transition-opacity hover:opacity-80"
+          className="-m-[11px] flex cursor-pointer items-center p-[11px] transition-opacity hover:opacity-80"
         >
-          <BookmarkGlyph filled={eng.save.active} size={23} />
+          <BookmarkGlyph filled={eng.save.active} size={22} />
         </button>
         <button
           type="button"
           onClick={() => void eng.share.share()}
           aria-label="공유"
-          className="flex cursor-pointer items-center transition-opacity hover:opacity-80"
+          className="-m-[11px] flex cursor-pointer items-center p-[11px] transition-opacity hover:opacity-80"
         >
           <IconShare size={22} stroke="#FFFFFF" />
         </button>
@@ -264,9 +294,9 @@ function AnchorEngagement({
           <div
             className="fixed inset-x-0 z-[105] flex items-center bg-white/95 px-4 py-2.5 backdrop-blur min-[900px]:hidden"
             style={{
-              /* 탭바 실점유 높이 실측 ~76px(패딩 포함) + 여유 8px — 최종 검수 A 실측 반영.
-                 (64→72→84px 로 2회 상향: 겹침 재발 방지 여유 포함) */
-              bottom: "calc(84px + env(safe-area-inset-bottom))",
+              /* 탭바 실측 76px 밀착 + 상단 1px 보더로 경계(R2-1) — 배포 후 실기기 확인. */
+              bottom: "calc(76px + env(safe-area-inset-bottom))",
+              borderTop: "1px solid #EFF3F6",
               boxShadow: "0 -4px 16px rgba(27,73,101,0.06)",
             }}
           >
@@ -446,11 +476,13 @@ export default function ReportsDetailView({
     color: AGE_COLOR[b.label] ?? "#C9A9EC",
   }));
 
-  // 사람 그리드 10×10=100(명세) — 비율 채움: 있음 진하게 / 고민 중 반투명 / 없어요 옅게.
-  //   stagger 는 opacity 만(transform/opacity 규칙) — jank 시 45개로 낮춰도 비율 표현 동일.
-  const GRID_TOTAL = 100;
-  const yShow = Math.round((revisit.yes / rTotal) * GRID_TOTAL);
-  const mShow = Math.min(GRID_TOTAL - yShow, Math.round((revisit.maybe / rTotal) * GRID_TOTAL));
+  // 사람 그리드 20×3=60(R2-1 시안 실측 배열) — 비율 채움: 있음 1.0 / 고민 중 0.55 / 없어요 0.25.
+  //   0 아닌 상태 최소 1셀 보장(allocGridCells). stagger 는 opacity 만(transform/opacity 규칙).
+  const GRID_TOTAL = 60;
+  const { y: yShow, m: mShow } = allocGridCells(revisit.yes, revisit.maybe, revisit.no, GRID_TOTAL);
+  // 재시술 문항 전원 무응답(0292 이후 revisit nullable)이면 그리드 미노출 — 60칸 전부
+  //   "없어요" 톤으로 렌더되어 "전원 부정"으로 오독될 수 있음(R2 검수 지적).
+  const revisitAnswered = revisit.yes + revisit.maybe + revisit.no > 0;
 
   const topEffects = effects.slice(0, 6);
   const noEffectPct = Math.round((noEffectCount / Math.max(1, count)) * 100);
@@ -534,34 +566,38 @@ export default function ReportsDetailView({
           그날 이후 0 증가(원장 제보·card_views 실측으로 확정). 일반 글과 동일한 useCardViewer 경로
           (card_views INSERT → 트리거 view_count+1, 세션당 1회 dedup). */}
       {report.anchor && <ReportViewTracker card={report.anchor} auto />}
-      <BackButton fallbackHref="/reports" className="mb-1" />
+      {/* 뒤로가기는 셸 헤더로 이전(R2-2 backHeader — ReportsShell 이 상세일 때 지정).
+          구 인라인 BackButton 행 제거(중복 방지). */}
 
       {/* ── 리포트 카드 한 장(라운드 24) — 히어로 + 통계 섹션(흰 배경) ── */}
       <div className="overflow-hidden rounded-[24px] bg-white">
-        {/* ① 히어로 — 카테고리 그라데이션 deep→tint 세로(tint 는 130% 지점 — 가시 하단이
-            중간 톤에 머물러 흰 글자 가독 유지), tt 워터마크(텍스트 처리 — 크게·흐리게). */}
+        {/* ① 히어로 — R2-1 표지화(총 ~390px, 헤드라인 2줄 시 ~412px): 그라데이션
+            `원색 0→30% 평탄 → light 140%`(deep 사용 중단 — 색 경량화. 가시 하단은 중간 톤이라
+            흰 글자 가독 유지), tt 워터마크(텍스트 처리 — 크게·흐리게, white/16). */}
         <section
-          className="relative overflow-hidden rounded-[24px] px-6 pb-6 pt-7 text-white"
-          style={{ background: `linear-gradient(180deg, ${theme.deep} 0%, ${theme.tint} 130%)` }}
+          className="relative overflow-hidden rounded-[24px] px-6 pb-[22px] pt-[22px] text-white"
+          style={{
+            background: `linear-gradient(180deg, ${theme.color} 0%, ${theme.color} 30%, ${theme.light} 140%)`,
+          }}
         >
           <span
             aria-hidden
-            className="pointer-events-none absolute -right-4 -top-12 select-none text-[150px] font-extrabold leading-none tracking-[-0.06em] text-white/10"
+            className="pointer-events-none absolute -right-4 -top-12 select-none text-[150px] font-extrabold leading-none tracking-[-0.06em] text-white/[.16]"
           >
             tt:
           </span>
 
           <div className="relative">
-            <div className="text-[13.5px] font-bold tracking-[0.02em] text-white/90">피부텐텐 리포트</div>
-            <h2 className="mt-2.5 text-[38px] font-extrabold leading-[1.08] tracking-[-0.04em]">{ko}</h2>
+            <div className="text-[13px] font-bold leading-[1.3] tracking-[0.12em] text-white/[.92]">피부텐텐 리포트</div>
+            <h2 className="mt-2 text-[34px] font-extrabold leading-[1.1] tracking-[-0.03em]">{ko}</h2>
 
-            {/* 태그 3 = 효과 top3 — 진한 톤 pill(명세 #078172 계열) */}
+            {/* 태그 칩 1줄 = 효과 top3 — 진한 톤 pill(명세 #078172 계열), 줄바꿈 없이 1줄 유지 */}
             {heroTags.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-nowrap gap-2 overflow-hidden">
                 {heroTags.map((t) => (
                   <span
                     key={t}
-                    className="rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-white"
+                    className="whitespace-nowrap rounded-full px-[13px] py-[6px] text-[12.5px] font-semibold leading-[1.35] text-white"
                     style={{ backgroundColor: heroAccent.chip }}
                   >
                     {t}
@@ -571,42 +607,48 @@ export default function ReportsDetailView({
             )}
 
             {/* 재시술의향 — 라벨 + 아주 큰 % */}
-            <div className="mt-7 text-[14px] font-bold text-white/90">재시술의향</div>
-            <div className="text-[clamp(56px,17vw,80px)] font-extrabold leading-[1.02] tracking-[-0.04em] [font-feature-settings:'tnum']">
+            <div className="mt-5 text-[13.5px] font-bold leading-[1.3] text-white/[.92]">재시술의향</div>
+            <div className="mt-1 text-[68px] font-extrabold leading-[1.0] tracking-[-0.04em] [font-feature-settings:'tnum']">
               {yesPctAnim}
               <span className="text-[0.42em]">%</span>
             </div>
 
-            {/* 사람 아이콘 그리드 10×10=100 — 값 연동 비율 채움 */}
-            <div
-              className="mt-4 grid grid-cols-10 gap-x-[7px] gap-y-[8px]"
-              role="img"
-              aria-label={`후기 ${count}건 중 재시술의향 있음 ${revisit.yes}건, 고민 중 ${revisit.maybe}건, 없어요 ${revisit.no}건`}
-            >
-              {Array.from({ length: GRID_TOTAL }).map((_, i) => {
-                const op = i < yShow ? 1 : i < yShow + mShow ? 0.5 : 0.22;
-                return (
-                  <span
-                    key={i}
-                    className="block leading-[0]"
-                    style={{
-                      opacity: mounted ? op : 0,
-                      transition: `opacity .35s ease ${i * 8}ms`,
-                    }}
-                  >
-                    <IconPerson fill={heroAccent.person} className="h-auto w-full" />
-                  </span>
-                );
-              })}
-            </div>
+            {/* 사람 아이콘 그리드 20×3=60 — 값 연동 비율 채움. 셀 높이 13.4px 고정(그리드 56px)
+                — IconPerson 은 정사각 viewBox 라 셀 안에서 종횡비 유지 letterbox(xMidYMid).
+                전원 무응답이면 그리드·보조문구 미노출(오독 방지). */}
+            {revisitAnswered && (
+              <>
+                <div
+                  className="mt-3.5 grid grid-cols-[repeat(20,minmax(0,1fr))] gap-x-[6px] gap-y-[8px]"
+                  role="img"
+                  aria-label={`후기 ${count}건 중 재시술의향 있음 ${revisit.yes}건, 고민 중 ${revisit.maybe}건, 없어요 ${revisit.no}건`}
+                >
+                  {Array.from({ length: GRID_TOTAL }).map((_, i) => {
+                    const op = i < yShow ? 1 : i < yShow + mShow ? 0.55 : 0.25;
+                    return (
+                      <span
+                        key={i}
+                        className="block h-[13.4px]"
+                        style={{
+                          opacity: mounted ? op : 0,
+                          transition: `opacity .35s ease ${i * 4}ms`,
+                        }}
+                      >
+                        <IconPerson fill={heroAccent.person} className="block h-full w-full" />
+                      </span>
+                    );
+                  })}
+                </div>
 
-            <p className="mt-4 text-[13px] text-white/70">
-              후기 {count}건 중 있음 {revisit.yes}·고민 중 {revisit.maybe}·없어요 {revisit.no}
-            </p>
+                <p className="mt-3 text-[12.5px] leading-[1.35] text-white/[.85]">
+                  후기 {count}건 중 있음 {revisit.yes}·고민 중 {revisit.maybe}·없어요 {revisit.no}
+                </p>
+              </>
+            )}
 
-            {/* 헤드라인(흰 볼드) + 우하단 저장·공유 */}
-            <div className="mt-2.5 flex items-end justify-between gap-4">
-              <p className="min-w-0 text-[17px] font-bold leading-[1.45]">
+            {/* 헤드라인(흰 볼드) + 우측 저장·공유 인라인 */}
+            <div className="mt-3 flex items-end justify-between gap-4">
+              <p className="min-w-0 text-[16px] font-bold leading-[1.4]">
                 {topEffectLabel
                   ? `${topEffectLabel} 효과가 좋았다는 후기가 많아요`
                   : `후기 ${count}명의 경험을 모았어요`}
@@ -620,7 +662,7 @@ export default function ReportsDetailView({
                     type="button"
                     onClick={() => void sharePlainUrl()}
                     aria-label="공유"
-                    className="flex cursor-pointer items-center text-white transition-opacity hover:opacity-80"
+                    className="-m-[11px] flex cursor-pointer items-center p-[11px] text-white transition-opacity hover:opacity-80"
                   >
                     <IconShare size={22} stroke="#FFFFFF" />
                   </button>
@@ -684,7 +726,7 @@ export default function ReportsDetailView({
             </div>
             <div className="relative mt-5 h-[10px] rounded-[6px]" style={{ background: PAIN_GRADIENT }} aria-hidden>
               <span
-                className="absolute top-1/2 flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 bg-white"
+                className="absolute top-1/2 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-white"
                 style={{
                   left: `${painPos(avgPain)}%`,
                   transform: "translate(-50%,-50%)",
@@ -715,7 +757,7 @@ export default function ReportsDetailView({
                     style={{ width: mounted ? `${dtPct}%` : "0%", backgroundColor: DT_FILL }}
                   />
                   <span
-                    className="absolute top-1/2 flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 bg-white"
+                    className="absolute top-1/2 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-white"
                     style={{
                       left: `${dtPct}%`,
                       transform: "translate(-50%,-50%)",
@@ -850,7 +892,7 @@ export default function ReportsDetailView({
             <div className="text-[16px] font-extrabold text-[#3A3C41]">작성자 통계</div>
 
             <div className="mt-4 text-[13px] font-semibold text-[#8A939B]">성별</div>
-            <div className="mt-2 flex h-[36px] overflow-hidden rounded-full" aria-hidden>
+            <div className="mt-2 flex h-[30px] overflow-hidden rounded-full" aria-hidden>
               {genderSegs.map(
                 (g) =>
                   g.pct > 0 && (
@@ -878,7 +920,7 @@ export default function ReportsDetailView({
             {ageSegs.length > 0 && (
               <>
                 <div className="mt-5 text-[13px] font-semibold text-[#8A939B]">연령대</div>
-                <div className="mt-2 flex h-[36px] overflow-hidden rounded-full" aria-hidden>
+                <div className="mt-2 flex h-[30px] overflow-hidden rounded-full" aria-hidden>
                   {ageSegs.map(
                     (b) =>
                       b.pct > 0 && (
@@ -908,9 +950,9 @@ export default function ReportsDetailView({
         )}
       </div>
 
-      {/* ── ⑦~⑪ 하단 영역 — 배경 #EAF2F8 전환(모바일 좌우 풀블리드 = .page 패딩 18px 상쇄,
-             데스크탑은 본문 컬럼 안 라운드 패널 — 사이드바 그리드 침범 방지) ── */}
-      <div className="-mx-[18px] mt-8 bg-[#EAF2F8] px-[18px] pb-6 pt-7 min-[900px]:mx-0 min-[900px]:rounded-[24px] min-[900px]:px-6">
+      {/* ── ⑦~⑪ 하단 영역 — 배경 #F5FBFF 전환(R2-1 색 경량화. 모바일 좌우 풀블리드 = .page
+             패딩 18px 상쇄, 데스크탑은 본문 컬럼 안 라운드 패널 — 사이드바 그리드 침범 방지) ── */}
+      <div className="-mx-[18px] mt-8 bg-[#F5FBFF] px-[18px] pb-6 pt-7 min-[900px]:mx-0 min-[900px]:rounded-[24px] min-[900px]:px-6">
         {/* ⑦ 리뷰 섹션 */}
         <section className="scroll-mt-2">
           <div className="flex items-baseline gap-2 px-1">
@@ -918,8 +960,9 @@ export default function ReportsDetailView({
             <span className="shrink-0 text-[13px] font-semibold text-[#8A939B]">{reviewTotal}건</span>
           </div>
 
-          {/* 정렬 칩 4종(보존) — 후기 구간에서만 sticky. 배경은 패널색(#EAF2F8)과 동일. 활성=#1A9DE8. */}
-          <div className="sticky z-[41] mt-3 bg-[#EAF2F8] py-2.5" style={{ top: "var(--sat)" }}>
+          {/* 정렬 칩 4종(보존) — 후기 구간에서만 sticky. 배경은 패널색(#F5FBFF)과 동일. 활성=#1A9DE8.
+              비선택 칩은 흰 배경이라 밝아진 패널 위 대비 보전용 1px 보더 #E1EAF2(R2-1). */}
+          <div className="sticky z-[41] mt-3 bg-[#F5FBFF] py-2.5" style={{ top: "var(--sat)" }}>
             <div
               role="group"
               aria-label="후기 정렬"
@@ -936,8 +979,8 @@ export default function ReportsDetailView({
                     className="shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition-colors"
                     style={
                       on
-                        ? { backgroundColor: "var(--accent-blue)", color: "#fff" }
-                        : { backgroundColor: "#fff", color: "#8A939B" }
+                        ? { backgroundColor: "var(--accent-blue)", color: "#fff", border: "1px solid transparent" }
+                        : { backgroundColor: "#fff", color: "#8A939B", border: "1px solid #E1EAF2" }
                     }
                   >
                     {s.label}
@@ -995,8 +1038,8 @@ export default function ReportsDetailView({
           )}
         </section>
 
-        {/* ⑧ 후기 유도 카드 — #D6E9F5, 말풍선 + 흰 버튼(파란 글자) */}
-        <section className="mt-8 rounded-[16px] bg-[#D6E9F5] px-6 py-9 text-center">
+        {/* ⑧ 후기 유도 카드 — #E0F2FB(R2-1 경량화), 말풍선 + 흰 버튼(파란 글자) */}
+        <section className="mt-8 rounded-[16px] bg-[#E0F2FB] px-6 py-9 text-center">
           <IconSpeechBubble size={62} className="mx-auto block" />
           <p className="mt-4 text-[18px] font-extrabold leading-[1.45] tracking-[-0.02em] text-[#3A3C41]">
             피부텐텐 리포트는
@@ -1067,21 +1110,22 @@ export default function ReportsDetailView({
           </section>
         )}
 
-        {/* ⑩ 다른 시술 — 카테고리 soft 파스텔 카드 5 (기존 similar 데이터 유지) */}
+        {/* ⑩ 다른 시술 — 카테고리 chip 파스텔 카드 5(R2-1: soft 12% 틴트→chip, 라운드 24,
+            py 16 = 높이 ~58, 간격 8. 기존 similar 데이터 유지) */}
         {similar.length > 0 && (
           <section className="mt-9">
             <div className="px-1">
               <h3 className={SECTION_TITLE}>‘{topEffectLabel}’ 효과가 좋았던 다른 시술</h3>
             </div>
-            <div className="mt-3.5 flex flex-col gap-3">
+            <div className="mt-3.5 flex flex-col gap-2">
               {similar.map((s, i) => {
                 const st = categoryTheme(s.category ?? report.category);
                 return (
                   <Link
                     key={s.ko}
                     href={`/reports/${encodeURIComponent(s.ko)}`}
-                    className="flex items-center gap-3.5 rounded-[16px] px-5 py-5 transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: st.soft }}
+                    className="flex items-center gap-3.5 rounded-[24px] px-5 py-4 transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: st.chip }}
                   >
                     <span
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold text-white"

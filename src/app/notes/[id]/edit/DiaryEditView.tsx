@@ -31,6 +31,9 @@ export default function DiaryEditView({
   const backHref = `/notes/${visitId}`;
 
   return (
+    /* backHeader 미적용(R2-3 의도 제외): 이 화면의 폼(SkinDiaryForms)은 이탈 경고 가드
+       (useUnsavedChangesGuard)를 상시 무장 — 셸 헤더의 plain 뒤로가기는 가드를 우회해
+       입력 유실 위험. 폼 헤더 전환은 가드 연동 설계와 함께 후속. */
     <AppShell active="내 노트">
       <div className={styles.detailHead}>
         <Link href={backHref} className={styles.detailBack} aria-label="시술 기록으로 돌아가기">

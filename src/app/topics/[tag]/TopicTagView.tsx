@@ -56,19 +56,28 @@ export default function TopicTagView({
   return (
     <AppShell
       active="피드"
-      back="/"
-      backTitle={
-        /* 원장 요청 '연한 회색' — 앱셸 .backTitle>* 기본(--ink-900)을 인라인으로 완화.
-           --ink-500(#7b8794)은 흰 배경 대비 약 3.7:1 — 18px/800 렌더는 WCAG 큰 글씨 기준
-           (bold 18.66px)에 못 미쳐 4.5:1 필요 → app.module.css 주석의 AA 근거(4.73:1)가
-           있는 --ink-300 채택. count <b> 는 .backTitle b(--tt-blue) 그대로. */
-        <h1 style={{ color: "var(--ink-300)" }}>
-          피부과 전문의가 답한 {tag} 관련 Q&amp;A <b>{count}</b>개
-        </h1>
-      }
+      /* 2뎁스 헤더 variant(R2-3) — 구 back="/"+backTitle 에서 전환: 모바일은 헤더 좌측 로고 자리
+         뒤로가기, 데스크탑은 본문 뒤로 행. h1(SEO 유지 필수)은 본문 첫 요소로 이동(아래) —
+         backHeader 는 backTitle 슬롯을 렌더하지 않으므로(AppShell back 분기 전용) 병행 불가. */
+      backHeader={{ fallbackHref: "/" }}
       sidebar={sidebar}
       {...search}
     >
+      {/* 페이지 h1 — 구 backTitle 에서 본문으로 이동(SEO/시각 유지). 셸 .backTitle>* 톤(18px/800)
+          + 원장 요청 '연한 회색'(--ink-300, AA 4.73:1 근거는 app.module.css 주석) + count b 는
+          구 .backTitle b(--tt-blue) 를 인라인으로 승계(app.module.css 무수정). */}
+      <h1
+        style={{
+          margin: "0 0 14px",
+          fontSize: 18,
+          fontWeight: 800,
+          lineHeight: 1.3,
+          color: "var(--ink-300)",
+        }}
+      >
+        피부과 전문의가 답한 {tag} 관련 Q&amp;A{" "}
+        <b style={{ color: "var(--tt-blue)" }}>{count}</b>개
+      </h1>
       {/* 닫힌 리포트 글상자 — 이 시술의 /reports 가 존재할 때만(후기 ≥1). 한글 직접 타깃(308 미경유).
           /reports 인덱스 카드 접힘부와 동일 시각(ReportSummaryBox SSOT — 2026-07-08 신디자인,
           D1 ① /topics 동시 반영)을 전체 클릭 Link 로 임베드. 라운드 18px = 신디자인 카드와 동일. */}

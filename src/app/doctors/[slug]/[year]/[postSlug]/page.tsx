@@ -343,7 +343,8 @@ export default async function DermatologistPostPage({ params }: Props) {
     const hidden = await checkHiddenPlaceholder(slug, yearInt, postSlug);
     if (hidden) {
       return (
-        <AppShell active="피드" back={`/doctors/${slug}`}>
+        // 2뎁스 헤더 variant(R2-3) — 구 back 에서 전환(모바일 헤더 뒤로가기, 데스크탑 본문 뒤로 행).
+        <AppShell active="피드" backHeader={{ fallbackHref: `/doctors/${slug}` }}>
           <section className="mx-auto w-full max-w-[480px] py-10">
             <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-8 text-center shadow-[var(--shadow-sm)]">
               <p className="text-[14px] font-semibold text-[var(--text)]">

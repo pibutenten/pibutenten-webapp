@@ -58,6 +58,9 @@ export default function ReportsShell({
         /* 페이지별 캔버스 variant(Phase 0-4, 커밋 d8eea01) — /reports 계열 배경 #F5FBFF.
            sticky 정렬 칩·헤더·상태바 필러가 --tt-canvas 재정의를 자동 추종한다. */
         canvas="report"
+        /* 2뎁스 헤더 variant(R2-2) — 상세(/reports/[시술])에서만 모바일 헤더 좌측 로고 자리에
+           뒤로가기(직접 진입 fallback=/reports 허브). 허브(/reports)는 1뎁스라 현행 로고 유지. */
+        backHeader={isDetail ? { fallbackHref: "/reports" } : undefined}
         sidebar={
           <ReportsIndexSidebar
             topProcedures={topProcedures}

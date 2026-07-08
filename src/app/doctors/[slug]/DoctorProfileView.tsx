@@ -230,20 +230,25 @@ export default function DoctorProfileView({
   return (
     <AppShell
       active="마이"
-      back="/doctors"
-      backTitle={
-        // '< 뒤로' 옆 제목 — 데스크탑(≥900px) 전용. 좌측 첫 글상자가 우측 원장 카드와 같은 높이에서
-        //   시작하도록 셸 backRow 로 올린다. 모바일에선 .doctorAnswerHeader 가 숨겨지고(아래 본문),
-        //   원장 카드↔피드 사이의 .doctorAnswerHeaderMobile 가 대신 노출된다.
-        //   H1 은 사이드바 원장명 1개 → 여기는 <h2>(중복 방지).
-        <h2 className={styles.doctorAnswerHeader}>
-          {name} 원장님의 답변 <b>{count ?? 0}</b>편
-        </h2>
-      }
+      /* 2뎁스 헤더 variant(R2-3) — 구 back="/doctors"+backTitle 에서 전환: 모바일은 헤더 좌측
+         로고 자리 뒤로가기, 데스크탑은 본문 뒤로 행(.backRowDesktop). 데스크탑 전용 "답변 N편"
+         헤더(h2, 구 backTitle)는 본문 첫 요소로 이동(아래) — backHeader 는 backTitle 슬롯을
+         렌더하지 않는다(AppShell back 분기 전용). */
+      backHeader={{ fallbackHref: "/doctors" }}
       sidebar={profileSidebar}
       sidebarMobileBelow
       {...search}
     >
+      {/* 데스크탑 전용 "답변 N편" 헤더 — 구 backTitle(h2)을 본문 최상단으로 이동.
+          .doctorAnswerHeader(모바일 display:none / 데스크탑 block, 15px/600)는 그대로 재사용.
+          색·b 색은 구 .backTitle>*(--ink-900)·.backTitle b(--tt-blue) 를 인라인으로 승계.
+          H1 은 사이드바 원장명 1개 → 여기는 <h2>(중복 방지, 구 backTitle 과 동일). */}
+      <h2
+        className={styles.doctorAnswerHeader}
+        style={{ margin: "0 0 12px", color: "var(--ink-900)" }}
+      >
+        {name} 원장님의 답변 <b style={{ color: "var(--tt-blue)" }}>{count ?? 0}</b>편
+      </h2>
       {/* 메인(좌) = 답변 피드만 (글 상세 PostDetail 과 같은 형식 — 본문은 메인, 원장 카드는 사이드바).
           원장 사진·이름·병원은 우측 사이드바(원장 카드)로, 답변 헤더는 셸 backTitle 로 이동했다. */}
 

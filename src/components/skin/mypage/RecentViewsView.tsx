@@ -30,7 +30,25 @@ export default function RecentViewsView({ cards, viewerStates }: RecentViewsProp
   const search = useSearchRouting();
 
   return (
-    <AppShell active="마이" back="/my" backTitle="최근 본 글" {...search}>
+    <AppShell
+      active="마이"
+      /* 2뎁스 헤더 variant(R2-3) — 구 back="/my"+backTitle 에서 전환: 모바일은 헤더 좌측
+         로고 자리 뒤로가기, 데스크탑은 본문 뒤로 행. 제목은 본문 첫 요소로 이동(아래). */
+      backHeader={{ fallbackHref: "/my" }}
+      {...search}
+    >
+      {/* 페이지 제목 — 구 backTitle 을 본문으로 이동. 셸 .backTitle>* 톤(18px/800)을 인라인 유지. */}
+      <h1
+        style={{
+          margin: "0 0 14px",
+          fontSize: 18,
+          fontWeight: 800,
+          lineHeight: 1.3,
+          color: "var(--ink-900)",
+        }}
+      >
+        최근 본 글
+      </h1>
       {cards.length === 0 ? (
         <div
           style={{

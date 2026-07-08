@@ -74,11 +74,25 @@ export default function WeatherDetailView() {
     //   데이터(snap)가 있을 때만 사이드바 노출(로딩·에러 화면에선 단일 칼럼).
     <AppShell
       active="투데이"
-      back="/today"
-      backTitle={<h1>오늘의 피부 날씨</h1>}
+      /* 2뎁스 헤더 variant(R2-3) — 구 back="/today"+backTitle 에서 전환: 모바일은 헤더 좌측
+         로고 자리 뒤로가기, 데스크탑은 본문 뒤로 행. h1 은 본문 첫 요소로 이동(아래). */
+      backHeader={{ fallbackHref: "/today" }}
       sidebar={snap ? sidebar : undefined}
       sidebarMobileBelow
     >
+      {/* 페이지 제목 — 구 backTitle(h1) 을 본문으로 이동. 시각은 셸 .backTitle>* 와 동일
+          (18px/800/--ink-900) 을 인라인으로 유지(app.module.css 무수정). */}
+      <h1
+        style={{
+          margin: "0 0 14px",
+          fontSize: 18,
+          fontWeight: 800,
+          lineHeight: 1.3,
+          color: "var(--ink-900)",
+        }}
+      >
+        오늘의 피부 날씨
+      </h1>
       {err && !snap ? (
         <div className={styles.errCard} role="status">
           오늘의 피부 날씨를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.

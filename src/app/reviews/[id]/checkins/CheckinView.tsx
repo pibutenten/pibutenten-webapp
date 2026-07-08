@@ -33,7 +33,13 @@ export default function CheckinView({
   const search = useSearchRouting();
 
   return (
-    <AppShell active="글쓰기" back {...search}>
+    <AppShell
+      active="글쓰기"
+      /* 2뎁스 헤더 variant(R2-3) — 구 back(plain, 기본 fallback "/")에서 전환. CheckinForm 은
+         이탈 가드(useUnsavedChangesGuard) 미사용 폼이라 plain 뒤로가기 전환에 입력 유실 가드 우회 없음. */
+      backHeader={{ fallbackHref: "/" }}
+      {...search}
+    >
       <CheckinForm
         reviewId={reviewId}
         timepoint={timepoint}

@@ -4,7 +4,8 @@
  * MySettingsView — /my/settings "프로필·설정" 전용 화면 본문 (클라이언트, 회원 전용).
  *
  * UI 개편 Phase 4-1 (D9): 구 본인 공개 프로필(/{handle}) 아코디언을 전용 화면으로 이관.
- *   - AppShell canvas="profile"(#EAF2F8) + back="/my" (기존 back prop 패턴 — 진입은 주로
+ *   - AppShell canvas="profile"(#EAF2F8) + backHeader(fallback=/my — R2-2 2뎁스 헤더 variant:
+ *     모바일은 헤더 좌측 로고 자리 뒤로가기, 데스크탑은 본문 뒤로 행. 진입은 주로
  *     /my "정보 수정·앱 설정·탈퇴하기" 또는 프로필 "프로필 수정/수정").
  *   - 화면 타이틀은 ProfileEditClient 자체 헤더(h1 "내 정보", embedded=false)가 담당 —
  *     backTitle 을 추가하면 이중 타이틀이라 셸에는 뒤로가기만 둔다(중복 조율, 계획서 Phase 4-1).
@@ -32,7 +33,14 @@ export default function MySettingsView({
   const search = useSearchRouting();
 
   return (
-    <AppShell active="마이" canvas="profile" back="/my" {...search}>
+    <AppShell
+      active="마이"
+      canvas="profile"
+      /* 2뎁스 헤더 variant(R2-2) — 구 back="/my"(본문 뒤로 행)에서 전환: 모바일은 헤더 좌측
+         로고 자리 뒤로가기(1줄 회수), 데스크탑은 본문 뒤로 행(.backRowDesktop)으로 동일 위치 유지. */
+      backHeader={{ fallbackHref: "/my" }}
+      {...search}
+    >
       {/* 설정 폼 — 흰 카드 래핑(구 프로필 아코디언과 동일 톤). embedded=false → 자체 h1 "내 정보". */}
       <section className={`${styles.card} ${styles.mb20}`}>
         <ProfileEditClient {...settings} embedded={false} />

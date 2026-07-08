@@ -159,7 +159,15 @@ export default function PostDetail({
   ) : null;
 
   return (
-    <AppShell active="피드" sidebar={sidebar} sidebarMobileBelow back="/" {...search}>
+    <AppShell
+      active="피드"
+      sidebar={sidebar}
+      sidebarMobileBelow
+      /* 2뎁스 헤더 variant(R2-3) — 구 back="/" 에서 전환: 모바일은 헤더 좌측 로고 자리 뒤로가기,
+         데스크탑은 본문 뒤로 행(.backRowDesktop). fallback=피드(뒤로가기 시 피드 복원 스냅샷 동선). */
+      backHeader={{ fallbackHref: "/" }}
+      {...search}
+    >
       {card ? (
         // 본문 = 피드와 동일한 PostCard(forceExpanded): 항상 펼침 + 댓글 전체+입력.
         //   태그 클릭은 피드와 동일하게 app skin 검색 로, 삭제 시 목록으로 이동.
