@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getIdentityContext } from "@/lib/identity";
-import { ROLES, HANDLE_RE } from "@/lib/identity-shared";
+import { HANDLE_RE } from "@/lib/identity-shared";
 import { SITE_URL } from "@/lib/site";
 import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import type { UserRole } from "@/lib/user-grades";
 import { CARD_LIST_SELECT } from "@/lib/card-select";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
 import { getDoctorMetaBatch } from "@/lib/doctor-mapping";
-import { DEFAULT_VISIBILITY, type FieldVisibility } from "@/lib/profile-options";
+import {
+  FACE_LABEL,
+  SKIN_LABEL,
+  ageGroupFromBirthdate,
+} from "@/lib/profile-options";
 import type { CardData } from "@/lib/types/card";
-import ProfileView, {
-  type ProfileSkinInfo,
-  type ProfileSettings,
-} from "@/components/skin/u/[handle]/ProfileView";
+import ProfileView from "@/components/skin/u/[handle]/ProfileView";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -42,29 +42,6 @@ type ProfileRow = {
   auth_user_id: string | null;
 };
 
-// '프로필·설정' 아코디언 폼(ProfileEditClient)용 — 운영 my/page 의 ProfileRow 와 동일 컬럼.
-type SettingsProfileRow = {
-  id: string;
-  role: "admin" | "doctor" | "user";
-  display_name: string | null;
-  marketing_email_consent: boolean | null;
-  news_email_consent: boolean | null;
-  terms_agreed_at: string | null;
-  terms_agreed_version: string | null;
-  privacy_agreed_at: string | null;
-  privacy_agreed_version: string | null;
-  handle: string | null;
-  birthdate: string | null;
-  gender: "male" | "female" | "other" | null;
-  face_shape: string | null;
-  skin_type: string | null;
-  skin_concerns: string[] | null;
-  interested_procedures: string[] | null;
-  bio: string | null;
-  avatar_url: string | null;
-  field_visibility: FieldVisibility | null;
-};
-
 /**
  * 회원 프로필 페이지 — 핸들 기반 (v4 spec).
  *
@@ -75,12 +52,16 @@ type SettingsProfileRow = {
  * Phase 9: 모든 ID는 profiles에 독립 row로 존재 (auth_user_id로 묶음).
  * 한 사람이 의사·일반 두 모드로 활동하고 싶으면 별개 profile row로 분리.
  *
- * 신규 스킨 승격(2026-06-15): 본문 렌더를 ProfileView 로 교체.
- *   - 데이터 조립(작성글·후기·댓글·좋아요·저장·피부 + isOwner 시 settings 아코디언)은
- *     app skin u/[handle]/page.tsx 패턴을 이식.
- *   - generateMetadata·canonical·robots·404·doctor slug redirect·handle 정규식 가드는 운영 그대로 보존.
+ * UI 개편 Phase 4 (2026-07-08): 프로필 2뎁스 신디자인.
+ *   - 6탭 → 필터 칩(본인 5·타인 3) + 프로필 카드(태그 3종=연령대·얼굴형·피부타입).
+ *   - skin 탭 제거(D7) — 받은 시술(procedure_reviews distinct) 등 skin 전용 prefetch 삭제.
+ *     피부정보 상세는 /my "내 피부 정보"가 담당.
+ *   - '프로필·설정' 아코디언 제거(D9) — 설정 데이터 조립은 공용 함수
+ *     (src/lib/profile-settings-data.ts::buildProfileSettingsProps)로 추출되어
+ *     /my/settings 전용 화면이 소비. 이 페이지는 설정을 더 이상 조립하지 않는다.
+ *   - isOwner 판정·의사 slug redirect·admin redirect·타 탭 prefetch 는 불변.
  *
- * 본인 보기(isOwner)일 때만 '프로필·설정' 아코디언 + 최하단 로그아웃 노출(ProfileView 내부 처리).
+ * generateMetadata·canonical·robots·404·doctor slug redirect·handle 정규식 가드는 운영 그대로 보존.
  */
 async function fetchProfileByHandle(
   handle: string,
@@ -252,15 +233,14 @@ export default async function HandleProfilePage({ params }: Props) {
   const avatarUrl = identity ? identity.avatar_url : profile.avatar_url;
   const bio = identity ? identity.bio : profile.bio;
 
-  // 작성 글 / 내 후기 / 받은 시술 / 댓글 카운트 — 모두 profile.id 에만 의존하고 서로 독립적이라
+  // 작성 글 / 내 후기 / 댓글 카운트 — 모두 profile.id 에만 의존하고 서로 독립적이라
   //  하나의 Promise.all 로 병렬 실행(워터폴 제거). 게이트(notFound)·redirect 이후라 profile.id 확정.
   //  - 작성 글: 일반 글 (category != review/review_summary).
   //  - 내 후기: 개별 시술후기 (category = review). 둘 다 CARD_LIST_SELECT·정렬·limit 재사용.
-  //  - 받은 시술: procedure_reviews 의 본인 후기 distinct 시술명(procedure_ko).
-  //      RLS(procedure_reviews_read_public + _read_own)가 공개카드 후기 + 본인 후기로 자동 통제.
-  //      비로그인(anon)도 SELECT GRANT 있음 — 공개 카드에 연결된 후기만 보임.
   //  - 댓글 카운트: 탭 미클릭 시에도 숫자 표시용 prefetch.
-  const [postsRes, reviewsRes, prRowsRes, commentsCountRes] = await Promise.all([
+  //  (구 skin 탭용 '받은 시술' procedure_reviews distinct prefetch 는 D7 로 제거 —
+  //   피부정보 상세는 /my 로 이동.)
+  const [postsRes, reviewsRes, commentsCountRes] = await Promise.all([
     supabase
       .from("cards")
       .select(CARD_LIST_SELECT)
@@ -280,10 +260,6 @@ export default async function HandleProfilePage({ params }: Props) {
       .limit(20)
       .returns<CardData[]>(),
     supabase
-      .from("procedure_reviews")
-      .select("procedure_ko")
-      .eq("author_id", profile.id),
-    supabase
       .from("comments")
       .select("id", { count: "exact", head: true })
       .eq("author_id", profile.id)
@@ -292,16 +268,6 @@ export default async function HandleProfilePage({ params }: Props) {
 
   const posts = postsRes.data ?? [];
   const reviews = reviewsRes.data ?? [];
-
-  const prRows = prRowsRes.data;
-  const receivedProcedures = Array.from(
-    new Set(
-      (prRows ?? [])
-        .map((r) => (r as { procedure_ko: string | null }).procedure_ko)
-        .filter((v): v is string => !!v),
-    ),
-  );
-
   const commentsCount = commentsCountRes.count;
 
   // 좋아요/저장 카운트 prefetch — 본인 보기일 때만 (본인만 자기 likes/saves SELECT 가능)
@@ -330,88 +296,20 @@ export default async function HandleProfilePage({ params }: Props) {
     [...posts, ...reviews].map((p) => p.id),
   );
 
-  const skinInfo: ProfileSkinInfo | undefined = viewerIsAnon
-    ? undefined
-    : {
-        faceShape: profile.face_shape ?? null,
-        skinType: profile.skin_type ?? null,
-        skinConcerns: profile.skin_concerns ?? [],
-        interestedProcedures: profile.interested_procedures ?? [],
-        receivedProcedures,
-        visibility: (profile.field_visibility ?? {}) as Record<string, boolean>,
-      };
+  // 프로필 태그 3종(연령대·얼굴형·피부타입) — 신디자인 프로필 카드(Phase 4-2).
+  //   값은 get_profile_pii RPC 반환분(타인은 field_visibility 필터 적용됨) 기반이므로
+  //   여기 라벨 매핑만 하면 타인 공개 규칙이 자동 존중된다. anon 은 PII 미조회 → 전부 null.
+  const faceShape = profile.face_shape ?? null;
+  const skinType = profile.skin_type ?? null;
+  const ageGroupLabel = ageGroupFromBirthdate(profile.birthdate ?? null);
+  const faceShapeLabel = faceShape ? FACE_LABEL[faceShape] ?? faceShape : null;
+  const skinTypeLabel = skinType ? SKIN_LABEL[skinType] ?? skinType : null;
 
-  // 본인일 때만 '프로필·설정' 아코디언용 settings props 를 채움(운영 my/page 와 동일 쿼리·매핑).
-  //   active 명함 단위(getIdentityContext SSOT) — 위 viewer.id 와 다를 수 있어 별도 결정.
-  //   비-owner/anon 이면 null → 폼 미노출.
-  //   저장 후 [← 프로필] 은 운영 공개 프로필(/{handle})로(앱 스킨과 달리 운영 경로 유지).
-  let settings: ProfileSettings | null = null;
-  if (isOwner && viewer) {
-    const idCtx = await getIdentityContext(supabase);
-    const targetProfileId = idCtx?.active?.profileId ?? viewer.id;
-    // H-1 (2026-07-04 Phase 1-B): 비-PII 설정 필드는 일반 SELECT, PII 6종은 get_profile_pii
-    //   RPC(본인 → 전체)로 조회 후 병합(PII REVOKE 대비).
-    const [{ data: spBase }, { data: spPii }] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select(
-          "id, role, display_name, marketing_email_consent, news_email_consent, terms_agreed_at, terms_agreed_version, privacy_agreed_at, privacy_agreed_version, handle, bio, avatar_url, field_visibility",
-        )
-        .eq("id", targetProfileId)
-        .maybeSingle()
-        .returns<Omit<SettingsProfileRow, "birthdate" | "gender" | "face_shape" | "skin_type" | "skin_concerns" | "interested_procedures">>(),
-      supabase
-        .rpc("get_profile_pii", { p_target: targetProfileId })
-        .maybeSingle<{
-          birthdate: string | null;
-          gender: string | null;
-          face_shape: string | null;
-          skin_type: string | null;
-          skin_concerns: string[] | null;
-          interested_procedures: string[] | null;
-        }>(),
-    ]);
-    const sp: SettingsProfileRow | null = spBase
-      ? ({
-          ...spBase,
-          birthdate: spPii?.birthdate ?? null,
-          gender: spPii?.gender ?? null,
-          face_shape: spPii?.face_shape ?? null,
-          skin_type: spPii?.skin_type ?? null,
-          skin_concerns: spPii?.skin_concerns ?? null,
-          interested_procedures: spPii?.interested_procedures ?? null,
-        } as SettingsProfileRow)
-      : null;
-    if (sp) {
-      settings = {
-        userId: viewer.id,
-        targetProfileId,
-        currentEmail: viewer.email ?? "",
-        loginProviders: (viewer.identities ?? []).map((i) => i.provider),
-        profileHref: sp.handle ? `/${sp.handle}` : "/",
-        readOnlyNameAndAvatar: sp.role === ROLES.DOCTOR,
-        role: sp.role,
-        initial: {
-          displayName: sp.display_name ?? "",
-          marketingConsent: !!sp.marketing_email_consent,
-          newsConsent: !!sp.news_email_consent,
-          termsAgreedAt: sp.terms_agreed_at ?? null,
-          termsAgreedVersion: sp.terms_agreed_version ?? null,
-          privacyAgreedAt: sp.privacy_agreed_at ?? null,
-          privacyAgreedVersion: sp.privacy_agreed_version ?? null,
-          birthdate: sp.birthdate ?? "",
-          gender: sp.gender ?? null,
-          faceShape: sp.face_shape ?? null,
-          skinType: sp.skin_type ?? null,
-          skinConcerns: sp.skin_concerns ?? [],
-          interestedProcedures: sp.interested_procedures ?? [],
-          bio: sp.bio ?? "",
-          avatarUrl: sp.avatar_url ?? null,
-          fieldVisibility: sp.field_visibility ?? DEFAULT_VISIBILITY,
-        },
-      };
-    }
-  }
+  // 필터 칩 노출 게이트용 field_visibility — anon 뷰어는 구(6탭) 동작 보존을 위해 빈 객체
+  //   (기존에도 anon 은 skinInfo 미전달 → visibility={} 로 전 탭 노출이었음 — 동작 불변).
+  const visibility: Record<string, boolean> = viewerIsAnon
+    ? {}
+    : ((profile.field_visibility ?? {}) as Record<string, boolean>);
 
   return (
     <ProfileView
@@ -430,8 +328,10 @@ export default async function HandleProfilePage({ params }: Props) {
       savesCount={savesCount}
       viewerStates={viewerStates}
       viewerIsAnon={viewerIsAnon}
-      skinInfo={skinInfo}
-      settings={settings}
+      ageGroupLabel={ageGroupLabel}
+      faceShapeLabel={faceShapeLabel}
+      skinTypeLabel={skinTypeLabel}
+      visibility={visibility}
     />
   );
 }

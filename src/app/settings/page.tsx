@@ -7,16 +7,16 @@ import { ROLES } from "@/lib/identity-shared";
 export const dynamic = "force-dynamic";
 
 /**
- * /settings — 본인 프로필로 redirect.
+ * /settings — 설정 화면으로 redirect (경유지).
  *
- * 신규 스킨 승격(2026-06-15): 설정은 별도 페이지가 아니라 본인 공개 프로필(/{handle})의
- *   '프로필·설정' 아코디언으로 인라인 편집한다(승격된 ProfileView, ProfileEditClient embedded).
- *   따라서 이 라우트로의 직접 접속·기존 링크는 본인 공개 프로필로 redirect 한다(동선 통일).
+ * UI 개편 Phase 4 (2026-07-08, D9): 설정은 전용 화면 /my/settings 가 담당한다.
+ *   구 동선(본인 공개 프로필 /{handle} 의 '프로필·설정' 아코디언)은 프로필 신디자인에서
+ *   제거됐으므로, 이 라우트로의 직접 접속·기존 링크는 /my/settings 로 보낸다.
+ *   (구 코드가 /{handle} 로 보내면 설정 UI 가 없는 화면에 떨어지는 dead-end.)
  *
  *  - admin → /admin
- *  - doctor (doctor_accounts 매핑 있음) → /doctors/{slug}
- *  - 그 외(회원) → /{handle} (active 명함 handle, getIdentityContext SSOT)
- *  - handle 미설정 → /
+ *  - doctor (doctor_accounts 매핑 있음) → /doctors/{slug} (기존 동선 유지)
+ *  - 그 외(회원·clinic 포함) → /my/settings — clinic 은 /my/settings 가 /clinic 으로 재분기
  *  - 비로그인 → /login?next=/settings
  */
 export default async function MeRedirect() {
@@ -38,27 +38,6 @@ export default async function MeRedirect() {
     if (slug) redirect(`/doctors/${slug}`);
   }
 
-  // 회원 — active 명함 handle 기반 본인 공개 프로필(아코디언으로 설정 인라인 편집).
-  if (active?.handle) redirect(`/${active.handle}`);
-
-  // active 컨텍스트가 없거나 handle 미설정 — base 프로필 handle fallback.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, handle")
-    .eq("id", user.id)
-    .maybeSingle()
-    .returns<{
-      role: "user" | "doctor" | "admin";
-      handle: string | null;
-    }>();
-
-  if (!profile) redirect("/");
-  if (profile.role === ROLES.ADMIN) redirect("/admin");
-  if (profile.role === ROLES.DOCTOR) {
-    const slug = await getDoctorSlugForProfile(supabase, user.id);
-    if (slug) redirect(`/doctors/${slug}`);
-  }
-  if (profile.handle) redirect(`/${profile.handle}`);
-
-  redirect("/");
+  // 회원(및 그 외) — 설정 전용 화면. 역할 재검증(clinic→/clinic 등)은 /my/settings 가 수행.
+  redirect("/my/settings");
 }

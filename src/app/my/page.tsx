@@ -8,6 +8,7 @@ import {
   SKIN_LABEL,
   CONCERN_LABEL,
   PROCEDURE_LABEL,
+  ageGroupFromBirthdate,
 } from "@/lib/profile-options";
 import { categoryKoToSlug, type ProcedureCategory } from "@/lib/procedure-report";
 import MyPageView, { type ReceivedProcedure } from "@/components/skin/mypage/MyPageView";
@@ -19,23 +20,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/**
- * birthdate(YYYY-MM-DD) → 연령대 라벨("30대" 등). KST 기준 만 나이를 10년 단위로 내림.
- *   미입력(null)·파싱 실패·음수면 null → 프로필 카드 칩 생략.
- */
-function ageGroupFromBirthdate(birthdate: string | null): string | null {
-  if (!birthdate) return null;
-  const b = new Date(birthdate);
-  if (Number.isNaN(b.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - b.getFullYear();
-  const m = now.getMonth() - b.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age -= 1;
-  if (age < 0 || age > 130) return null;
-  if (age < 10) return "10대 미만";
-  const decade = Math.floor(age / 10) * 10;
-  return `${decade}대`;
-}
+// 연령대 라벨(ageGroupFromBirthdate)은 profile-options 단일 출처 — UI 개편 Phase 4 에서
+//   /{handle} 프로필 태그칩도 같은 계산을 쓰게 되어 로컬 함수를 승격(로직 무변경).
 
 /**
  * /my — 마이페이지 허브.

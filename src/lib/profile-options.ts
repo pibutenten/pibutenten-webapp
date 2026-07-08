@@ -108,3 +108,23 @@ export const FACE_LABEL = toLabelMap(FACE_SHAPES);
 export const SKIN_LABEL = toLabelMap(SKIN_TYPES);
 export const CONCERN_LABEL = toLabelMap(SKIN_CONCERNS);
 export const PROCEDURE_LABEL = toLabelMap(PROCEDURES);
+
+/**
+ * birthdate(YYYY-MM-DD) → 연령대 라벨("30대" 등). 만 나이를 10년 단위로 내림.
+ *   미입력(null)·파싱 실패·범위 밖(0~130 외)이면 null → 프로필 태그칩 생략.
+ *   (구 /my/page.tsx 로컬 함수 — UI 개편 Phase 4 에서 /{handle} 프로필 태그칩도
+ *    같은 계산을 쓰게 되어 단일 출처로 승격. 로직 무변경.)
+ */
+export function ageGroupFromBirthdate(birthdate: string | null): string | null {
+  if (!birthdate) return null;
+  const b = new Date(birthdate);
+  if (Number.isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age -= 1;
+  if (age < 0 || age > 130) return null;
+  if (age < 10) return "10대 미만";
+  const decade = Math.floor(age / 10) * 10;
+  return `${decade}대`;
+}

@@ -5,7 +5,7 @@
  *
  * 2026-07-08 UI 개편 Phase 3 신디자인 (시안 `전달용/260708 UI개편/1d-마이페이지*.png`,
  * 명세 PDF 7~9p — 색·간격·라운드는 명세 값 그대로):
- *   ① 타이틀 바: "마이페이지"(볼드) + 알림 벨(→/notifications) + 설정(→/settings)
+ *   ① 타이틀 바: "마이페이지"(볼드) + 알림 벨(→/notifications) + 설정(→/my/settings)
  *   ② 프로필 카드(흰 카드 · 라운드 16 · 패딩 24): 아바타(원형)+이름(볼드)+우측 >(전체 → /{handle})
  *      / 이름 아래 태그 3종(연령대·얼굴형·피부타입 — #DAF1FB 배경·#43A6D2 글자)
  *      / [접힘] 구분선 + 가운데 "내 피부 정보 ˅" ↔ [펼침] 나의 피부 고민·관심 시술(회색 칩)
@@ -22,8 +22,8 @@
  * 데이터·링크는 모두 운영 라우트 재사용(신규 백엔드 없음):
  *   - 프로필/태그/칩/카운트는 server(/my/page.tsx)가 active 명함 기준으로 조립해 props 주입.
  *   - 활동/관심 목록은 공개 프로필(/{handle})의 탭(?tab=posts|reviews|comments|likes|saves).
- *   - "정보 수정"·"탈퇴하기"는 현행 목적지(/{handle} — 프로필·설정 아코디언) 유지,
- *     /my/settings 전환은 Phase 4 (계획서 §5 Phase 3-3).
+ *   - "정보 수정"·"앱 설정"·"탈퇴하기"는 /my/settings (프로필·설정 전용 화면 — Phase 4-5 전환 완료.
+ *     구 목적지였던 /{handle} 아코디언은 D9 로 제거, 탈퇴 footer 는 ProfileEditClient 내장).
  *
  * AppShell(active="마이", canvas="my" — 페이지 배경 #DAF1FB)이 브랜드 헤더 + 하단 탭바를
  * 제공하므로, 디자인의 타이틀 바는 본문 최상단 in-content 로 재현한다(현행 패턴 유지).
@@ -355,8 +355,9 @@ export default function MyPageView({
             >
               <IconBell size={24} />
             </Link>
+            {/* 설정 — /my/settings (Phase 4-5: 구 /settings redirect 경유지 대신 직행). */}
             <Link
-              href="/settings"
+              href="/my/settings"
               aria-label="설정"
               style={{ display: "inline-flex", padding: 6, color: C.title }}
             >
@@ -462,10 +463,9 @@ export default function MyPageView({
                   paddingTop: 14,
                 }}
               >
-                {/* 정보 수정 — Phase 3 시점 현행 목적지(/{handle} 프로필·설정 아코디언) 유지.
-                    /my/settings 전환은 Phase 4 (계획서 Phase 3-3·4-5). */}
+                {/* 정보 수정 — /my/settings (Phase 4-5 전환 완료. 구 /{handle} 아코디언은 D9 제거). */}
                 <Link
-                  href={profileHref}
+                  href="/my/settings"
                   tabIndex={skinOpen ? 0 : -1}
                   style={{
                     color: C.subtle,
@@ -577,9 +577,9 @@ export default function MyPageView({
           <NavRow icon={<IconBookmark size={20} />} label="북마크" href={`${profileHref}?tab=saves`} />
         </SectionCard>
 
-        {/* ⑥ 설정 */}
+        {/* ⑥ 설정 — 앱 설정(알림 등)도 /my/settings 통합 화면이 담당(Phase 4-5). */}
         <SectionCard title="설정">
-          <NavRow icon={<IconSettings size={22} />} label="앱 설정" href="/settings" />
+          <NavRow icon={<IconSettings size={22} />} label="앱 설정" href="/my/settings" />
         </SectionCard>
 
         {/* ⑦ 고객지원 */}
@@ -589,10 +589,10 @@ export default function MyPageView({
           <NavRow icon={<IconHelp size={22} />} label="고객센터" href="/contact" />
           {/* 의견 남기기 — 전용 피드백 폼 없음 → 문의 채널(/contact)로. (D12 placeholder 유지) */}
           <NavRow icon={<IconMail size={22} />} label="의견 남기기" href="/contact" />
-          {/* 탈퇴하기 — 현행 목적지 유지(탈퇴 UI 는 공개 프로필 '프로필·설정' 아코디언 안,
-              /my/settings 전환은 Phase 4). 아이콘: IconLogOut 은 로그아웃 행이 사용 →
+          {/* 탈퇴하기 — /my/settings (Phase 4-5 전환 완료. 탈퇴 typed-confirmation footer 는
+              ProfileEditClient 내장). 아이콘: IconLogOut 은 로그아웃 행이 사용 →
               계정(사람) 아이콘으로 구분. */}
-          <NavRow icon={<IconProfile size={22} />} label="탈퇴하기" href={profileHref} />
+          <NavRow icon={<IconProfile size={22} />} label="탈퇴하기" href="/my/settings" />
         </SectionCard>
 
         {/* ⑧ 계정 — 로그아웃 행. 시안에 없으나 기능 유지(링크가 아닌 버튼, LogoutButton 재사용). */}
