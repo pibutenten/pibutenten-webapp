@@ -260,14 +260,19 @@ export default async function ProcedureReportPage({ params }: Props) {
 
   // ── 단계 3: 후기 첫 페이지(10건 id) 의존 조회 병렬 ──
   //   viewer 좋아요(단독 글과 같은 card_likes 행) + 작성자 나이·성별(작성자 통계와 동일
-  //   SECURITY DEFINER RPC — .returns 대신 명시 캐스팅(as), 제네릭 미적용 회피).
+  //   SECURITY DEFINER RPC — .returns 대신 명시 캐스팅(as), 제네릭 미적용 회피)
+  //   + 댓글 수(D6, 2026-07-08).
   const reviewLiked: Record<number, boolean> = {};
   const reviewDemo: Record<number, { gender: string | null; ageDecade: number | null }> = {};
   if (reviews.length > 0) {
     const reviewIds = reviews.map((r) => r.id);
-    const [st, demoRes] = await Promise.all([
+    const [st, demoRes, cmtRes] = await Promise.all([
       fetchViewerStatesRecord(supabase, viewer?.id ?? null, reviewIds),
       supabase.rpc("get_review_author_demographics", { p_card_ids: reviewIds }),
+      // 댓글 수 집계(D6) — cards 에 comment_count 컬럼이 없어(카드 표시가 항상 0 인 결함)
+      //   comments 테이블에서 카드별 GROUP BY(JS 집계). visible 만 — comments_select RLS
+      //   첫 조건(status='visible')과 동일 게이트라 anon 포함 권한 문제 없음.
+      supabase.from("comments").select("card_id").in("card_id", reviewIds).eq("status", "visible"),
     ]);
     for (const r of reviews) reviewLiked[r.id] = !!st[r.id]?.liked;
     const demoRows = (demoRes.data ?? []) as {
@@ -276,6 +281,11 @@ export default async function ProcedureReportPage({ params }: Props) {
       age_decade: number | null;
     }[];
     for (const d of demoRows) reviewDemo[d.card_id] = { gender: d.gender, ageDecade: d.age_decade };
+    // 카드 데이터에 병합 — ReportsReviewCard 초기 commentCount + '추천순' 정렬 댓글 성분 정합.
+    const commentCounts: Record<number, number> = {};
+    for (const c of (cmtRes.data ?? []) as { card_id: number }[])
+      commentCounts[c.card_id] = (commentCounts[c.card_id] ?? 0) + 1;
+    for (const r of reviews) r.comment_count = commentCounts[r.id] ?? 0;
   }
 
   // JSON-LD — MedicalWebPage + Service(MedicalProcedure) (2026-06-05, Product 폐기).

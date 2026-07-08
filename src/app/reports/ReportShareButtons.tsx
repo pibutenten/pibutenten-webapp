@@ -1,37 +1,122 @@
 "use client";
 
 /**
- * ReportShareButtons — 리포트 상세 전용 저장·공유 2버튼.
+ * ReportShareButtons — 리포트 상세 전용 저장·공유 2버튼 (데스크탑 사이드바 푸터).
  *
- * ReportsDetailView 본문에 있던 저장/공유 블록을 추출해, ReportsShell 이 상세 경로일 때만
- * 사이드바 푸터(ReportsIndexSidebar 의 footer prop)로 내려준다.
+ * ReportsShell 이 상세 경로일 때만 사이드바 푸터(ReportsIndexSidebar footer prop)로 내려준다.
  *
- *   - 저장: 현재 페이지 링크를 클립보드에 복사 + 토스트(즐겨찾기 안내).
- *   - 공유: navigator.share 가능 시 네이티브 공유 시트, 아니면 클립보드 복사 + 토스트.
+ * 2026-07-08 Phase 2-4 (D5 재배선): 구현이 "링크 클립보드 복사"였던 것을 히어로·하단 고정 바와
+ * **동일한 진짜 배선**(앵커 카드 useCardEngagement — toggle_card_save RPC = card_saves ·
+ * card_shares INSERT)으로 교체 — 기기별 저장 동작 불일치 방지.
  *
- * ko/url prop 불필요 — window.location · document.title 로 현재 페이지를 그대로 사용한다.
- * window/navigator 가드(typeof)로 SSR 안전.
+ * 앵커(report.anchor)는 page 데이터라 layout 계층(ReportsShell)에서 직접 접근 불가 →
+ * ReportsDetailView 가 마운트 시 `setReportAnchorCard()` 로 발행하는 **모듈 스토어**를
+ * useSyncExternalStore 로 구독한다(같은 클라 트리 — context 추가 배선 없이 최소 결선).
+ * 앵커 없는 리포트는 저장 비노출(대상 card_id 부재), 공유만 URL 공유 폴백으로 유지.
  */
 
+import { useState, useSyncExternalStore } from "react";
+import type { CardData } from "@/components/Card";
+import {
+  useCardEngagement,
+  type EngagementMe,
+} from "@/components/card/hooks/useCardEngagement";
+import { shareCard } from "@/components/card/utils/card-share";
+import { useSession } from "@/lib/session-context";
+import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { showToast } from "@/lib/toast";
+
+/* ---------- 앵커 모듈 스토어 (ReportsDetailView → 이 컴포넌트) ---------- */
+
+let anchorCard: CardData | null = null;
+const listeners = new Set<() => void>();
+
+/** 리포트 상세 뷰가 마운트/언마운트 시 호출 — 사이드바 푸터가 같은 앵커로 배선되게 발행. */
+export function setReportAnchorCard(card: CardData | null) {
+  anchorCard = card;
+  listeners.forEach((l) => l());
+}
+function subscribe(cb: () => void) {
+  listeners.add(cb);
+  return () => {
+    listeners.delete(cb);
+  };
+}
+function getSnapshot(): CardData | null {
+  return anchorCard;
+}
+function getServerSnapshot(): CardData | null {
+  return null;
+}
 
 const BTN =
   "flex items-center justify-center gap-2.5 rounded-[var(--radius)] bg-[var(--primary)] px-7 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[var(--primary-dark)]";
 
-export default function ReportShareButtons() {
-  function saveReport() {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href).catch(() => {});
-    }
-    showToast("링크를 복사했어요. 즐겨찾기에 저장해 두세요.");
-  }
+function BookmarkGlyph({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+const SHARE_GLYPH = (
+  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />
+  </svg>
+);
 
+/** 앵커 있는 리포트 — 진짜 북마크(card_saves) + 공유(card_shares). */
+function AnchorButtons({ anchor }: { anchor: CardData }) {
+  const session = useSession();
+  const me: EngagementMe =
+    session === null ? null : { id: session.activeIdentityId, role: session.role };
+  const [authPrompt, setAuthPrompt] = useState<string | null>(null);
+  const eng = useCardEngagement(anchor, {}, me, setAuthPrompt, shareCard);
+
+  return (
+    <>
+      <div className="flex justify-center gap-2.5">
+        <button
+          type="button"
+          onClick={eng.save.toggle}
+          aria-pressed={eng.save.active}
+          className={BTN}
+        >
+          <BookmarkGlyph filled={eng.save.active} />
+          {eng.save.active ? "저장됨" : "저장하기"}
+        </button>
+        <button type="button" onClick={() => void eng.share.share()} className={BTN}>
+          {SHARE_GLYPH}
+          공유하기
+        </button>
+      </div>
+      <LoginPromptDialog
+        open={!!authPrompt}
+        message={authPrompt ?? ""}
+        onClose={() => setAuthPrompt(null)}
+      />
+    </>
+  );
+}
+
+/** 앵커 없는 리포트(미발행) — 저장 비노출, URL 공유만(종전 동작 유지). */
+function UrlShareOnly() {
   async function share() {
     if (typeof navigator === "undefined") return;
     const url = window.location.href;
-    if (navigator.share) {
+    const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
+    if (nav.share) {
       try {
-        await navigator.share({ title: document.title, url });
+        await nav.share({ title: document.title, url });
         return;
       } catch {
         /* 취소/미지원 — 클립보드 폴백 */
@@ -40,21 +125,19 @@ export default function ReportShareButtons() {
     if (navigator.clipboard) navigator.clipboard.writeText(url).catch(() => {});
     showToast("링크가 복사됐어요.");
   }
-
   return (
     <div className="flex justify-center gap-2.5">
-      <button type="button" onClick={saveReport} className={BTN}>
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-        </svg>
-        리포트 저장
-      </button>
-      <button type="button" onClick={share} className={BTN}>
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />
-        </svg>
-        공유
+      <button type="button" onClick={() => void share()} className={BTN}>
+        {SHARE_GLYPH}
+        공유하기
       </button>
     </div>
   );
+}
+
+export default function ReportShareButtons() {
+  const anchor = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  // key=anchor.id — 시술 간 이동 시 훅 상태(저장 낙관값)를 리셋해 이전 앵커 상태 잔존 방지.
+  if (anchor) return <AnchorButtons key={anchor.id} anchor={anchor} />;
+  return <UrlShareOnly />;
 }

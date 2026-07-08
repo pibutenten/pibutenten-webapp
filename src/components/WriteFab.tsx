@@ -12,7 +12,7 @@
  *     담당한다(데스크탑 헤더 .btnWriteTop 노출 분기점과 일치시켜 640~899px 전환 갭을 없앤다).
  *   - 하단 탭바 위(약 90px + safe-area)로 띄워 탭과 겹치지 않게 한다.
  *
- * 노출 경로(화이트리스트): 홈(/) · 투데이(/today) · 내 노트(/notes 이하) · 리포트(/reports 이하) ·
+ * 노출 경로(화이트리스트): 홈(/) · 투데이(/today) · 내 노트(/notes 이하) · 리포트 허브(/reports) ·
  *   글상세(회원/의사). 그 외는 모두 숨김.
  *   소프트 키보드가 열리면(댓글 입력 등) 입력을 가리지 않도록 FAB 를 숨긴다.
  */
@@ -23,8 +23,10 @@ import { isPostDetailPath } from "@/lib/route-class";
 import { useSoftKeyboardOpen } from "@/lib/useSoftKeyboardOpen";
 
 // 글쓰기 진입이 자연스러운 화면에서만 FAB 를 노출한다(화이트리스트).
-//   노출 = 홈/피드(/) · 투데이(/today) · 내 노트(/notes 이하) · 리포트(/reports 이하) ·
+//   노출 = 홈/피드(/) · 투데이(/today) · 내 노트(/notes 이하) · 리포트 허브(/reports) ·
 //          글상세(회원 /{handle}/{shortcode}, 의사 4세그).
+//   리포트 상세(/reports/{시술})는 2026-07-08 UI 개편(D4)부터 하단 고정 바(저장/공유)가
+//   그 자리를 쓰므로 FAB 제외 — 허브 분기(===)는 유지.
 //   그 외(프로필 /{handle}·토픽·관리자·원장 대시보드·인증·온보딩 등)는 숨김(의도된 동작).
 function isVisible(pathname: string): boolean {
   return (
@@ -33,7 +35,6 @@ function isVisible(pathname: string): boolean {
     pathname === "/notes" ||
     pathname.startsWith("/notes/") ||
     pathname === "/reports" ||
-    pathname.startsWith("/reports/") ||
     isPostDetailPath(pathname)
   );
 }

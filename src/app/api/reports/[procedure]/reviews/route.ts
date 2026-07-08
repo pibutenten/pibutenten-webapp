@@ -100,6 +100,22 @@ export async function GET(
     for (const d of demoRows) reviewDemo[d.card_id] = { gender: d.gender, ageDecade: d.age_decade };
   }
 
+  // 댓글 수 집계(D6, 2026-07-08) — cards 에 comment_count 컬럼이 없어 comments 테이블에서
+  //   카드별 GROUP BY(JS 집계). visible 만 — comments_select RLS 첫 조건(status='visible')과
+  //   동일 게이트라 anon 포함 권한 문제 없음. 카드 comment_count 에 병합만(초기 표시·추천순
+  //   정렬 성분) — 별도 응답 필드 동봉은 소비처가 없어 하지 않는다(페이로드 중복 방지, 검수 지적).
+  if (reviews.length > 0) {
+    const commentCounts: Record<number, number> = {};
+    const { data: cmtRows } = await supabase
+      .from("comments")
+      .select("card_id")
+      .in("card_id", reviews.map((r) => r.id))
+      .eq("status", "visible");
+    for (const c of (cmtRows ?? []) as { card_id: number }[])
+      commentCounts[c.card_id] = (commentCounts[c.card_id] ?? 0) + 1;
+    for (const r of reviews) r.comment_count = commentCounts[r.id] ?? 0;
+  }
+
   // 피드 카드 펼침용 — 집계 동봉 (include_report=1). count = 전체 후기 수.
   const report = includeReport ? await getProcedureReport(supabase, ko) : null;
 
