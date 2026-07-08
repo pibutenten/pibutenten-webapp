@@ -20,6 +20,7 @@ import {
   SKIN_TYPES,
   SKIN_CONCERNS,
   PROCEDURES,
+  ageGroupFromBirthdate,
   type FieldVisibility,
 } from "@/lib/profile-options";
 import {
@@ -433,15 +434,10 @@ export default function ProfileEditClient({
   }
   // 로그아웃은 본인 프로필 페이지(/{handle}) 하단의 LogoutButton으로 이동됨
 
-  // 표시용 — 생년월일은 'XX대'로만, 성별과 결합 ('40대 여성')
-  const ageBucket = (() => {
-    if (!initial.birthdate) return null;
-    const y = parseInt(initial.birthdate.split("-")[0] ?? "", 10);
-    if (!Number.isFinite(y)) return null;
-    const age = new Date().getFullYear() - y;
-    if (age < 10) return "10대 미만";
-    return `${Math.floor(age / 10) * 10}대`;
-  })();
+  // 표시용 — 생년월일은 'XX대'로만, 성별과 결합 ('40대 여성').
+  //   연령대 계산은 profile-options 단일 출처(만 나이) — 구 로컬 연도차 계산은 /my 와
+  //   1살 경계가 어긋날 수 있어 제거(최종 검수 B 지적, 2026-07-08).
+  const ageBucket = ageGroupFromBirthdate(initial.birthdate || null);
   const genderDisplay =
     initial.gender === "female"
       ? "여성"

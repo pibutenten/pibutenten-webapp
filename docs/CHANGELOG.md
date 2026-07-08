@@ -6,6 +6,33 @@
 
 ---
 
+## [2026-07-08] — 리포트·마이페이지 UI 개편 (Phase 0~4, 디자인팀 명세)
+
+디자인팀 명세(전달용/260708 UI개편)에 따라 4개 화면(/reports 허브·상세, /my, /[handle])을 개편 — **서버 계층(SEO 셸·집계·미들웨어)은 불변, View 계층만 교체**. 검수 체계: 계획 검수 2인 + Phase 별 code-reviewer 검수 4회 + 최종 독립 검수 2인. 계획 SSOT: `docs/plans/260708 리포트·마이페이지 UI 개편 계획서.md`. **DB 마이그레이션 0건**. 커밋 d8eea01(P0)·899b7ed(P1)·62ae171(P3)·3615130(P2)·993db51(P4).
+
+### Added
+- **페이지별 캔버스 variant** — `AppShell canvas?: "report"|"my"|"profile"` prop 신설(report `#F5FBFF` / my `#DAF1FB` / profile `#EAF2F8`). app.module.css variant 클래스가 `--tt-canvas`/`--tt-canvas-top` 변수만 재정의해 상태바 필러·헤더·sticky 칩이 자동 추종. 추가형 — 미지정 화면(투데이·피드·내노트 등) 무영향.
+- **공용 아이콘 모듈 `src/components/icons/`** — 디자인팀 수신 SVG 21종(리포트 8 + 마이페이지 13)을 컴포넌트화. 단색은 `currentColor` 화 + `size` prop, 고정색·멀티컬러 3종(clock·사람·share)은 예외(share 는 stroke prop 노출). 기존 파일 로컬 인라인 아이콘은 점진 전환.
+- **`/my/settings` 설정 전용 라우트 (D9, ADR 0026)** — 구 본인 공개 프로필(/{handle}) 아코디언의 `ProfileEditClient`(+`ClinicLinksSection` 무조건 렌더)를 전용 화면(`MySettingsView`)으로 이전. 데이터 조립은 `[handle]/page.tsx` 의 settings 블록을 `src/lib/profile-settings-data.ts::buildProfileSettingsProps` 공용 함수로 추출(active 명함 base SELECT + `get_profile_pii` RPC 병합 — 동작 불변). noindex + 비로그인 `/login?next=` + 역할 redirect 3종(admin/doctor/clinic).
+- **리포트 상세 하단 고정 바(모바일) + 진짜 저장 재배선 (D4·D5)** — 탭바 위 고정 바(저장하기/공유하기) 신설, 저장은 `report.anchor` 카드 기반 `card_saves`(`toggle_card_save`) 진짜 북마크로 재배선(구 "클립보드 복사" 저장 폐기 — 마이페이지 북마크 카운트 자동 포함). 데스크탑 사이드바 푸터(`ReportShareButtons`)·히어로 저장/공유도 동일 배선(기기별 불일치 방지).
+- **후기 카드 댓글 수 집계 (D6)** — 상세 SSR + 페이징 API 가 `comments` 테이블 `status='visible'` GROUP BY 로 카드별 댓글 수를 조립해 `ReportsReviewCard` 초기 state 로 주입(cards 컬럼 추가 없음).
+- **ADR 0026** — 마이페이지·프로필 재편(설정 전용 라우트 분리·skin 탭 이동·캔버스 variant) 결정 기록.
+
+### Changed
+- **`/reports` 허브·상세 신디자인** — 허브: 접힘(공용 `ReportSummaryBox` — /topics 닫힌 글상자 동시 반영, D1)/펼침(통증 척도 바·효과 top3·CTA 2버튼) 카드 + 정렬 칩 리스타일(5종 유지). 상세: 히어로 카테고리 그라데이션(tt 워터마크·사람 그리드·헤드라인)·섹션 재구성(만족도/통증·회복/효과/타임라인/작성자 통계/리뷰/전문의). **SEO 셸(generateMetadata·JSON-LD·canonical·en→ko 308) 무변경** — View 만 교체.
+- **`/my` 마이페이지 신디자인** — `MyPageView` 전면 재작성: 프로필 카드 + **내 피부 정보 접힘/펼침**(연령대·얼굴형·피부타입 + 피부고민·관심시술·**받은 시술 카테고리색 칩**(diaries 계열, D11 원장 확정)) + 요약 통계 3등분 + 활동/관심/설정/고객지원 그룹.
+- **`/[handle]` 프로필 개편 (D7·D8·D10)** — 6탭 → 프로필 카드 + **필터 칩**(본인 5: 내가 쓴 글/내 후기/내 댓글/좋아요/북마크 · 타인 3) + 카드 목록. **skin 탭 제거**(피부정보 상세는 /my 로 이동), 설정 아코디언 제거(→/my/settings). 무효 `?tab=`(skin 포함)은 posts fallback. 타인 FollowButton·본인 AccountSwitcherCard 유지.
+- **카테고리 초록 `#009688` → `#029688` (D2)** — `categories.ts`(contour) 전 표면 교체 + `app.module.css` 하드코딩 사본 3곳(`.catContour`·`.tagBtnActive.catContour`·`button.t[data-cat="contour"]:hover`) 동기(`rgba(0,150,136`·`#1a756c` 잔존 0건).
+- **`/settings`·`/settings/profile` 경유지 목적지 변경** — 회원 redirect 를 /{handle} → `/my/settings` 화(아코디언 소멸로 구 목적지 dead-end 방지 — 기존 링크 4곳 보호).
+- **WriteFab 리포트 상세 제외** — `pathname.startsWith("/reports/")` 분기 제거(허브 `/reports` 노출 유지). 상세는 하단 고정 바가 대신.
+- **연령대 계산 단일화** — `my/page.tsx` 의 연령대 라벨 함수를 `profile-options.ts` 로 승격해 /my·/[handle] 공용.
+
+### Fixed
+- **`/my/recent` clinic 역할 redirect 누락** — admin/doctor 만 있던 역할 redirect 에 clinic 추가.
+- **후기 카드 댓글 수 항상 0 표시 결함** — 초기값 0 고정으로 시작하던 표시를 visible 댓글 실집계로 정정(위 D6).
+
+---
+
 ## [2026-07-07] — 병원 운영 프로그램 개선 (원장 검수 16건 반영 + 코드검수 3인 수렴)
 
 원장 코멘트(U1~U15 반영, U16 신규기능 보류)를 페이즈별 핀셋 태스크로 구현 → 코드검수관 3인 독립 검수(회귀/DB·보안/일관성) → **[치명] 1건 + 경고 다수 수정 → 재검수 수렴**. 계획 SSOT: `docs/plans/260707 병원 운영 프로그램 개선 계획 (검수 종합).md`. 마이그 0354·0355·0356 production 적용·검증(U+FFFD 0).

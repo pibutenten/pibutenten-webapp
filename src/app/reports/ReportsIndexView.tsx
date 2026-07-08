@@ -346,6 +346,10 @@ export default function ReportsIndexView({
     <>
       <style>{`@keyframes rvRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}`}</style>
 
+      {/* 페이지 h1 — 시각 디자인엔 없는 제목이라 sr-only(헤딩 계층·SEO, schema-auditor 지적).
+          카드 시술명(h2, ReportSummaryBox)들의 상위 계층. */}
+      <h1 className="sr-only">시술 리포트</h1>
+
       {/* 정렬 칩 — 본문 상단에 인라인 sticky 고정. 배경은 캔버스 variant(--tt-canvas=#F5FBFF) 자동 추종.
           2026-07-08 UI 개편 Phase 1-3: 선택=--accent-blue(#1A9DE8)+흰 글자 / 비선택=흰 배경+#5A646C(명세
           고정색 — globals 토큰 없음, 리터럴). 5종 유지(D3 확정 — 시안 4종은 예시). sticky·로직 불변. */}

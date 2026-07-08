@@ -25,6 +25,7 @@ import { shareCard } from "@/components/card/utils/card-share";
 import { useSession } from "@/lib/session-context";
 import LoginPromptDialog from "@/components/LoginPromptDialog";
 import { showToast } from "@/lib/toast";
+import { IconShare } from "@/components/icons";
 
 /* ---------- 앵커 모듈 스토어 (ReportsDetailView → 이 컴포넌트) ---------- */
 
@@ -68,11 +69,9 @@ function BookmarkGlyph({ filled }: { filled: boolean }) {
     </svg>
   );
 }
-const SHARE_GLYPH = (
-  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />
-  </svg>
-);
+/* 공유 아이콘은 공용 모듈(IconShare)로 통일 — 하단 고정 바(ReportsDetailView)와 동일 형상
+   (최종 검수 A 지적: 인라인 중복 정의 제거). stroke 는 버튼 글자색을 따르게 currentColor. */
+const SHARE_GLYPH = <IconShare size={16} stroke="currentColor" />;
 
 /** 앵커 있는 리포트 — 진짜 북마크(card_saves) + 공유(card_shares). */
 function AnchorButtons({ anchor }: { anchor: CardData }) {

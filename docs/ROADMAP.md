@@ -41,6 +41,15 @@
 
 ## Next (다음 우선순위)
 
+### 마이페이지 공지사항 게시판·의견 남기기 인앱 폼 (UI 개편 D12 후속)
+- [ ] `/my` 고객지원의 공지사항·의견 남기기는 현재 placeholder(공지사항→`/about`, 의견 남기기→`/contact`). 게시판·인앱 폼은 백엔드 신설이 필요해 UI 개편(2026-07-08) 범위에서 제외 확정(계획서 §3 D12) — 별도 기능 개발 안건.
+
+### UI 개편(2026-07-08) 후속 폴리시 (Phase 3·4 검수 이월 경미 항목)
+- [ ] 접힘 영역(리포트 카드 펼침부·`/my` 내 피부 정보) `inert` 속성 검토 + 펼침 토글 `aria-controls` 부여
+- [ ] `/[handle]` anon 뷰어 PII 필드 undefined/null 타입 정합
+- [ ] 미소비 props 정리 — ProfileView(likesCount/savesCount/viewerIsAnon)·MyPageView 유령 prop(postCount/commentCount)
+- [ ] (문서화만) `/settings` doctor redirect 비대칭(→/doctors/{slug})은 의도적 기존 동선 · profile-settings-data role 타입의 clinic 도달불가 주석 · tag_dictionary is_procedure 경계 주석
+
 ### Multi-identity Phase 3 — application layer 정합 (ADR 0011 후속)
 
 2026-05-26 정합 작업으로 SQL 레벨 (마이그레이션 0158~0163) 은 완료됐으나, 서브에이전트 외부 감사 (commit 7aeba53 시점) 에서 application layer (TypeScript 가드·API 라우트·layout) 의 동일 정합 누락 발견:

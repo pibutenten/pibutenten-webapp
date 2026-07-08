@@ -36,6 +36,8 @@ const FOCUS_RING =
 const EFFECT_BAR_COLORS = ["#6EC1F0", "#A99BE0", "#8AA0E0"];
 
 // 통증 척도 바 — 명세 그라데이션(globals.css Phase 0-1 토큰). 라벨 위치 없음 6.25% … 심함 93.75%.
+//   ⚠ 상세(ReportsDetailView.PAIN_STOPS 4스톱)와 색이 다른 것은 시안 명세 의도(PDF p2 vs p5
+//   — 1뎁스 3스톱/2뎁스 4스톱을 각각 별도 지정). SSOT 분열 아님(최종 검수 B 재검 결과).
 const PAIN_GRADIENT =
   "linear-gradient(90deg, var(--pain-grad-1), var(--pain-grad-2), var(--pain-grad-3))";
 // 라벨 SSOT — 현행 5종 유지(시안 '많이'는 미채택 — 계획서 Phase 1 각주: PAIN_LABELS 재정의 금지).

@@ -115,7 +115,7 @@ GOOGLE_CLIENT_SECRET=...
 ### 4.3. 인기 키워드 (CategoryWithChips)
 - 9종 카테고리 (피부고민/리프팅/스킨부스터/필러·볼륨/주름·윤곽/레이저/기타/홈케어/피부상식). 검색·온보딩 탭에는 시술 6종만 표시 (`PROCEDURE_CATEGORIES`)
 - 3줄 max (`--chips-h: 100px`)
-- 색상: 비활성 `#E8EAEE / #5C6470`, 활성 카테고리 색 (concerns #7E57C2 / lifting #1E88E5 / skinbooster #F48FB1 / filler #FFA726 / contour #009688 / laser #E57373 / other #78909C / homecare #BF6E5C / knowledge #9E9D24)
+- 색상: 비활성 `#E8EAEE / #5C6470`, 활성 카테고리 색 (concerns #7E57C2 / lifting #1E88E5 / skinbooster #F48FB1 / filler #FFA726 / contour #029688 / laser #E57373 / other #78909C / homecare #BF6E5C / knowledge #9E9D24)
 - **데스크탑 사이드바 인기 태그 (`FeedSidebar`)**: 탭 = "전체"(서버 빈도순 `popularTags` 16개) + 시술 6종(`PROCEDURE_CATEGORIES`, cats 소스 상위 16개). 클릭 = `onTagClick` 위임 → 운영 홈(`/?q=`) 검색 라우팅. 선택 탭은 `sessionStorage`(`pbtt:feedSidebar:tagTab`)로 보존.
 
 ### 4.4. 인-헤더 검색 (`AppShell`)

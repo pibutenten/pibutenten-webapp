@@ -57,7 +57,7 @@
 
 ### 4.0. 내비게이션
 - 하단 탭바(모바일)·GNB(데스크탑) 5탭: **투데이 · 내 노트 · 피드 · 리포트 · 쇼핑**. 글쓰기는 탭에서 제외(우하단 FAB / 데스크탑 헤더 '글쓰기' 버튼).
-- 글쓰기 FAB(우하단)는 투데이·내 노트·피드·리포트에 노출(데스크탑 ≥900px 은 헤더 '글쓰기' 버튼).
+- 글쓰기 FAB(우하단)는 투데이·내 노트·피드·리포트 허브에 노출(데스크탑 ≥900px 은 헤더 '글쓰기' 버튼). 리포트 상세는 FAB 대신 하단 고정 바(저장·공유)가 담당해 제외.
 - '마이'는 탭에서 빠지고 **헤더 우상단 아바타**(active 명함)로만 진입.
 - **리포트 탭 = `/reports`** (시술 리포트 허브, §4.3).
 - **쇼핑 = 준비중**: 클릭 시 딤드(회색) + 안내 토스트만, 라우팅 없음(텍스트 배지 없음).
@@ -85,12 +85,13 @@
 - 전용 폼: `/review/new`(작성) · `/review/[shortcode]/edit`(수정). **시술 선택이 폼 맨 위**(검색 입력 + 자동완성 + 카테고리별 인기 칩 상위 18, 잠금형) → 골라야 아래 항목 활성. **만족도·통증·재시술 의향·체감 효과(필수)** + 시술 직후 반응·다운타임·생생한 후기(선택). **시술 직후 반응**(reactions, 다중선택 선택 — 부기/멍/딱지/붉어짐·홍조/화끈거림·열감/멍울·뭉침 + '없음' 단독). **다운타임은 선택 항목**이며 반응에 증상이 1개 이상일 때만 조건부 노출(시술 당일 작성 시 회복기간 미정). 병원·의사명 자동 마스킹 + 소프트 검수. 임시저장 자동복원 없음(항상 빈 폼, 이탈 시 경고 모달만). 수정 진입은 일반 글 에디터가 아닌 후기 전용 에디터로(카드 ⋮·관리자 모두).
 - `procedure_reviews`(card_id 1:1)에 정량값 저장. 개별 후기 = noindex. **같은 시술도 후기 여러 개 작성 가능**(1인1시술1후기 제약 해제 — ADR 0023, 2026-06-25). 카드↔후기 1:1 은 유지(후기 1개=카드 1장). **노트↔후기 연결(2026-07-07, 마이그 0354)**: 회원 시술노트(방문)에서 시술별 '시술후기 쓰기'로 작성하면 `source='diary_linked'`+`visit_id`/`diary_procedure_id` 저장, 미연동은 `standalone`(source_link_chk). 노트 상세는 이 FK(`diary_procedure_id`)로만 '이 시술에 이미 썼는지' 판정(procedure_ko 텍스트매칭 금지) → '내 후기 보기/수정' vs '쓰기' 분기.
 - **시술 리포트** `/reports/[procedure]`: `procedure_reviews` 를 **실시간 집계**(저장 카드 없음 → 후기 추가 시 자동 반영)한 단일 카드. 만족도(분포)·통증·재시술 의향·체감 효과 + 작성자 성별·연령(집계 RPC, 개별 PII 비노출). index + JSON-LD `MedicalWebPage` + `Service`(additionalType=`MedicalProcedure`) + `AggregateRating`(만족도)·재시술%·통증 + `BreadcrumbList` (의료 시술이라 `Product` 폐기 2026-06-05). 정식 URL=`/reports/{ko}`(한글, 영문은 308 전용). 검색 결과에는 노출하지 않음(2026-06-29 — `/reports` 탭 전용). **`/topics`(전문의 Q&A 허브)와는 분리** — 자기잠식 방지로 /topics 에 개별 후기 미노출·전문 열람은 /reports 에서만. /topics 상단에는 닫힌 리포트 글상자(ReportSummaryBox, 클릭 시 /reports/{ko})만 임베드(2026-07-02 — 구 '얇은 링크 1줄'(2026-06-05) 결정 갱신). /topics 는 검색·AI 유입 전용 밸브(인덱스 라우트 없음 — 직접 진입 `/topics` 는 홈 308). 후기 4건 미만 시술 상세는 noindex(follow·AggregateRating 유지, 2026-07-02).
-- **리포트 허브** `/reports`: N≥4 게이트를 통과한 시술 리포트를 후기 수 내림차순으로 나열(리포트 탭 진입점, `force-dynamic`, 자격 0건이면 noindex). 신디자인 정식 적용 — 인덱스·상세 모두 새 디자인(2단 레이아웃 + 회전 헤드라인), 상세 후기 카드에 작성자 나이·성별 표시 + 인라인 댓글. SEO 셸(JSON-LD·canonical·en→ko 308)은 보존(렌더만 교체). 인덱스↔상세 이동은 공유 셸로 상단바·사이드바를 유지하고 좌측 본문만 교체. 구 미리보기 `/reports-new` 는 `/reports` 로 308 영구 리다이렉트.
+- **리포트 허브** `/reports`: N≥4 게이트를 통과한 시술 리포트를 후기 수 내림차순으로 나열(리포트 탭 진입점, `force-dynamic`, 자격 0건이면 noindex). 허브는 접힘(재시술%·통증·만족도 요약+헤드라인)/펼침(통증 척도·효과 top3·후기 CTA) 카드 목록, 상세는 히어로 카테고리 그라데이션 + 만족도/통증·회복/효과/타임라인/작성자 통계 섹션 + 후기 카드(작성자 나이·성별·댓글 수·인라인 댓글) + 모바일 하단 고정 바(진짜 저장 `card_saves`·공유) 구성(2026-07-08 개편). SEO 셸(JSON-LD·canonical·en→ko 308)은 보존(렌더만 교체). 인덱스↔상세 이동은 공유 셸로 상단바·사이드바를 유지하고 좌측 본문만 교체. 구 미리보기 `/reports-new` 는 `/reports` 로 308 영구 리다이렉트.
 
 ### 4.3. 사용자 시스템 (Identity — ADR 0001, ADR 0011, **ADR 0012**)
 - 한 auth user 가 여러 profile row 보유 가능 — 모든 profile 은 **동등하게 독립**. 위계 / "본계·부계" 개념 없음
 - 쿠키 기반 active identity 전환
 - 모든 인터랙션 (좋아요/저장/댓글/글) 의 `user_id`/`author_id` = active profile.id
+- 프로필·설정 편집(알림 설정·탈퇴 포함)은 전용 화면 **`/my/settings`**(noindex, 회원 전용)로 단일화 — 공개 프로필 `/{handle}` 은 작성물 중심(필터 칩), 피부정보 상세는 `/my` "내 피부 정보" (ADR 0026)
 - **권한은 현재 active 신분 단위** — RLS / 핵심 함수 (ADR 0011) + TypeScript 가드 / API 라우트 (ADR 0012) 모두 active 단위
 
 **명함 단위 완전 독립 5원칙 (ADR 0012, 2026-05-26)**:
@@ -110,7 +111,7 @@
 - 약관 동의 + 생년월일·성별·얼굴형·피부타입·피부톤(Fitzpatrick) 입력 강제
 - 14세 미만 차단 (CHECK constraint)
 - 중복 가입자 식별 (OAuth provider email 기반 — ADR 0003)
-- **게이트 단위 (ADR 0015, 2026-05-29)**: 온보딩 검사는 **active 명함 단위**. middleware / onboarding 페이지 / 댓글 라우트 모두 active 명함 (IDENTITY_COOKIE 기반 + 묶음 보안 검증) 의 birthdate/terms_agreed_at 검사. 묶음 외 ID 는 base fallback. 단 `settings/profile` 페이지의 base-only 읽기는 POLICY-1 잔여 — 별도 안건.
+- **게이트 단위 (ADR 0015, 2026-05-29)**: 온보딩 검사는 **active 명함 단위**. middleware / onboarding 페이지 / 댓글 라우트 모두 active 명함 (IDENTITY_COOKIE 기반 + 묶음 보안 검증) 의 birthdate/terms_agreed_at 검사. 묶음 외 ID 는 base fallback. settings/profile 의 POLICY-1(base-only 읽기)은 해소 완료(2026-05-29 정합 — 현 설정 실화면은 `/my/settings`, ADR 0026).
 - **묶음 PII 복제 (ADR 0015)**: 첫 명함이 온보딩 완료하면 같은 묶음의 빈 명함에 1회 COALESCE 복제 (NULL 칸만, 의사 멀티 계정 묶음 한정). 복제 후엔 명함별 독립 수정. RPC: `propagate_onboarding_to_doctor_bundle(uuid)`.
 
 ### 4.5. 알림 / 푸시

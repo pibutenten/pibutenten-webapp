@@ -775,7 +775,7 @@ export default function OnboardingClient({ userId, targetProfileId, initial, pop
             를 피드 추천에 활용하는 것에 동의합니다. 동의 시점은
             기록되며, 동의 철회는{" "}
             <a
-              href="/settings/profile"
+              href="/my/settings"
               className="text-[var(--primary)] hover:underline"
             >
               설정

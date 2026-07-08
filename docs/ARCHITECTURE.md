@@ -28,13 +28,14 @@
 /                                   홈 (AppShell 인-헤더 검색 + FeedView 피드(인기태그=FeedSidebar)). 검색은 /?q= 로 수행 — 결과는 피드 글상자만(qa/review/doodle), 시술 리포트 블렌딩 제거(searchReport 항상 null, 2026-06-29 — 리포트는 /reports 전용)
 /about                              소개
 /topics/[tag]                       태그별 전문의 Q&A 허브 (qa 만, SEO 인덱싱). 개별 후기 미노출 — /reports 존재 시 닫힌 리포트 글상자(공용 ReportSummaryBox → /reports/{ko}) 임베드 (2026-07-02, 구 "후기 N건 보기" 얇은 링크 갱신). h1 "피부과 전문의가 답한 {tag} 관련 Q&A N개"(--ink-300 연회색). bare /topics 직접 진입은 홈 308(next.config — 검색·AI 유입 전용 밸브)
-/reports                            시술 리포트 허브 (인덱스: ReportsIndexView + ReportsIndexCard + 공용 ReportsIndexSidebar, 2단 레이아웃; 시술 리포트 목록 후기 N≥4 게이트 + count desc; 회전 헤드라인(report-headline) 매 요청 랜덤 → force-dynamic; SEO 셸 보존 = generateMetadata + JSON-LD CollectionPage/ItemList + canonical, 자격 0건 noindex; 인덱스↔상세는 공유 layout 셸(app/reports/layout.tsx + ReportsShell, 상단바·사이드바 persist·좌측 본문만 교체, ADR 0025))
-/reports/[procedure]                시술별 후기 리포트 (상세: ReportsDetailView + ReportsReviewCard, 2단 레이아웃 + ReportsIndexSidebar; 실시간 집계 + review_summary 앵커 카드; 후기 카드 = 따옴표 본문 + 아바타 + 작성자 나이·성별 한 줄(get_review_author_demographics, 0322); 정식 URL=/reports/{ko}(한글), canonical=ko; 영문 /reports/{en} 은 middleware 가 308 영구 리다이렉트 전용(1홉)→ko; index(후기 4건 미만은 noindex·follow — FEED_MIN_REVIEWS 허브 게이트 공유, 2026-07-02); SEO 셸 보존 = JSON-LD MedicalWebPage + Service(additionalType=MedicalProcedure) + AggregateRating + BreadcrumbList(Product 폐기 2026-06-05); /topics 존재(qa≥4) 시 "전문의 Q&A 보기 →"(→/topics/{ko}) 얇은 링크)
+/reports                            시술 리포트 허브 (인덱스: ReportsIndexView + ReportsIndexCard + 공용 ReportsIndexSidebar, 2단 레이아웃; 시술 리포트 목록 후기 N≥4 게이트 + count desc; 회전 헤드라인(report-headline) 매 요청 랜덤 → force-dynamic; SEO 셸 보존 = generateMetadata + JSON-LD CollectionPage/ItemList + canonical, 자격 0건 noindex; 인덱스↔상세는 공유 layout 셸(app/reports/layout.tsx + ReportsShell, 상단바·사이드바 persist·좌측 본문만 교체, ADR 0025); 카드=접힘(공용 ReportSummaryBox — 재시술% 큰 숫자·통증·만족도·진행 막대·헤드라인)/펼침(통증 척도 바·효과 top3·효과시점·CTA 2버튼) 구조 + 정렬 칩 5종 알약(선택 #1A9DE8), 캔버스 variant canvas="report"(#F5FBFF))
+/reports/[procedure]                시술별 후기 리포트 (상세: ReportsDetailView + ReportsReviewCard, 2단 레이아웃 + ReportsIndexSidebar; 실시간 집계 + review_summary 앵커 카드; 후기 카드 = 따옴표 본문 + 아바타 + 작성자 나이·성별 한 줄(get_review_author_demographics, 0322); 정식 URL=/reports/{ko}(한글), canonical=ko; 영문 /reports/{en} 은 middleware 가 308 영구 리다이렉트 전용(1홉)→ko; index(후기 4건 미만은 noindex·follow — FEED_MIN_REVIEWS 허브 게이트 공유, 2026-07-02); SEO 셸 보존 = JSON-LD MedicalWebPage + Service(additionalType=MedicalProcedure) + AggregateRating + BreadcrumbList(Product 폐기 2026-06-05); /topics 존재(qa≥4) 시 "전문의 Q&A 보기 →"(→/topics/{ko}) 얇은 링크; 본문=히어로 카테고리 그라데이션(tt 워터마크·재시술 사람 그리드·헤드라인·저장/공유)→만족도→통증·회복→효과→타임라인→작성자 통계→리뷰→전문의 섹션 구성 + 모바일 탭바 위 하단 고정 바(저장=앵커 card_saves 진짜 북마크·공유 — 데스크탑 사이드바 푸터 ReportShareButtons 동일 배선), 후기 카드 댓글 수=visible 실집계, WriteFab 미노출(허브는 노출))
 /reports-new, /reports-new/[procedure]   구 staging 미리보기 라우트 — 신디자인 /reports 정식 승격 후 308 영구 리다이렉트(→/reports, →/reports/{ko}). 이전 미리보기 링크 보호용 (2026-06-29)
 /doctors                            원장님 목록
 /doctors/[slug]                     원장님 소개 (OG: /og/{slug}.png)
 /doctors/[slug]/[year]/[postSlug]   원장님 글 단독 (SEO URL)
-/[handle]                           사용자/원장 프로필
+/[handle]                           사용자/원장 프로필 — 프로필 카드(사진·이름·@handle·태그 3종·통계 3등분) + 필터 칩(본인 5: 내가 쓴 글/내 후기/내 댓글/좋아요/북마크 · 타인 3: 작성한 글/후기/댓글) + 카드 목록, canvas="profile"(#EAF2F8).
+                                    skin 탭 없음(피부정보 상세는 /my '내 피부 정보') — 무효 ?tab=(구 skin 딥링크 포함)은 posts fallback. 본인 "프로필 수정"→/my/settings(설정 아코디언 없음)·AccountSwitcherCard 유지, 타인 FollowButton+⋯ 메뉴 (ADR 0026)
 /[handle]/[shortcode]               회원 글 단독
 /u/[id]                             구식 user URL (compat)
 /privacy, /terms, /doctor-guidelines, /disclaimer, /report   법적/안내 페이지
@@ -64,8 +65,7 @@
 
 ### 2.3. 사용자 영역
 ```
-/settings                           대시보드 (admin 도구 + doctor 통계 + user Hero)
-/settings/profile                   프로필 수정 (알림 설정 포함 — ProfileEditClient)
+/settings, /settings/profile        redirect 경유지 (구 링크 보호용) — admin→/admin, doctor→/doctors/{slug}, 회원→/my/settings. 설정 실화면은 /my/settings (ProfileEditClient 파일은 app/settings/profile/ 위치 유지)
 /notifications                      알림 목록
 /write                              통합 글쓰기 — 3탭(시술일기/시술후기/끄적끄적) WriteTabs. ?tab=record|review|doodle. FAB·헤더 진입(tab 미지정) 기본 탭=시술후기(review, WriteView tabToKey 기본). ?tab= 명시는 불변
 /write/[shortcode]                  글 수정 (자기 글/원장/admin) — WriteEditShell(AppShell) 래핑 + EditClient
@@ -75,7 +75,11 @@
 /notes/[id]/edit                    시술 노트 편집·삭제(본인 소유만, RLS) — DiaryForm 회원 편집모드(후기 UI 없이 방문일·병원·원장·메모·금액·시술목록).
                                     병원 대행분(source='clinic')은 지점 정보 잠금·스냅샷 보존. PATCH/DELETE /api/visits/[id](update_visit/delete_visit 0353). noindex
 /weather                            오늘의 피부 날씨 상세 — noindex (구 /record/weather)
-/my                                 마이페이지 허브(MyPageView) — 프로필 카드·퀵스탯·나의 활동/관심/설정/고객지원. 진입은 헤더 우상단 아바타로만(하단 탭에서 제거 — 리포트로 교체). 회원은 직접 렌더, admin→/admin·doctor→/doctor 리다이렉트. 활동/관심은 /{handle} 탭으로 연결. noindex
+/my                                 마이페이지 허브(MyPageView, canvas="my" #DAF1FB) — 프로필 카드 + 내 피부 정보 접힘/펼침(연령대·얼굴형·피부타입 태그 + 피부고민·관심시술·받은 시술 칩 — PII 는 get_profile_pii RPC 경유, 받은 시술은 diaries 계열 distinct 를 카테고리색 칩으로) +
+                                    요약 통계 3등분(좋아요·북마크·최근 본 글) + 나의 활동/관심/설정/고객지원. 진입은 헤더 우상단 아바타로만(하단 탭에서 제거 — 리포트로 교체). 회원은 직접 렌더, admin→/admin·doctor→/doctor·clinic→/clinic 리다이렉트.
+                                    활동/관심은 /{handle} 필터 칩으로, 정보 수정·앱 설정·탈퇴하기는 /my/settings 로 연결. noindex
+/my/settings                        프로필·설정 전용 화면(MySettingsView — ProfileEditClient(embedded=false, autosave·탈퇴 typed-confirmation footer 내장) + ClinicLinksSection 무조건 렌더, canvas="profile" + back(/my)).
+                                    데이터 조립=lib/profile-settings-data.ts::buildProfileSettingsProps(active 명함 base SELECT + get_profile_pii RPC 병합). 비로그인 /login?next= + admin/doctor/clinic 각 대시보드 redirect. noindex (ADR 0026)
 /shop                               쇼핑 준비중 — noindex
 /review/new                         시술후기 작성 (P3-d, 전용 폼. /write 시술후기 탭이 이 ReviewForm 공유)
 /clinic                             병원 대시보드(role=clinic 전용, 그 외 404) — 현황 Stat 카드 + 운영 프로그램 카드(관리자 /admin 패턴).
@@ -264,7 +268,9 @@ supabase/
 ### 4.3. 네비·검색·피드
 | 파일 | 역할 |
 |---|---|
-| `skin/AppShell.tsx` | 공용 셸 — 헤더(로고·GNB·우상단 알림/아바타) + 하단 5탭(투데이/내노트/피드/리포트/쇼핑) + **인-헤더 검색**(데스크탑 pill·모바일 풀스크린 패널, /?q= 라우팅, ←=검색 닫기/✕=검색어만 지움) |
+| `skin/AppShell.tsx` | 공용 셸 — 헤더(로고·GNB·우상단 알림/아바타) + 하단 5탭(투데이/내노트/피드/리포트/쇼핑) + **인-헤더 검색**(데스크탑 pill·모바일 풀스크린 패널, /?q= 라우팅, ←=검색 닫기/✕=검색어만 지움) + **페이지별 캔버스 variant**(`canvas?: "report"\|"my"\|"profile"` — app.module.css variant 클래스가 `--tt-canvas`/`--tt-canvas-top` 만 재정의해 상태바 필러·헤더·sticky 칩 자동 추종, 미지정=공용 그라데이션) |
+| `components/icons/index.tsx` | 공용 아이콘 모듈 — 디자인팀 SVG 21종(리포트 8·마이페이지 13). 단색=`currentColor`+`size` prop, 고정색·멀티컬러 3종(IconClock·IconPerson·IconShare — share 는 stroke prop) 예외. 훅 없는 순수 함수(서버/클라 공용), 기존 파일 로컬 인라인 아이콘은 점진 전환 |
+| `skin/mypage/MySettingsView.tsx` | `/my/settings` 설정 전용 화면 본문 — AppShell canvas="profile"+back(/my) 안에서 `ProfileEditClient`(embedded=false, 자체 h1 "내 정보") + `ClinicLinksSection` 무조건 렌더 |
 | `search/SearchPanel.tsx` | 검색 발견·자동완성 패널 — 최근검색 알약 + 카테고리 텍스트 탭(시술 6종) + 키워드 칩 + 부분일치 자동완성 |
 | `IdentitySwitcher.tsx` | 신분(profile) 전환 dropdown — 묶음 안 동등 독립한 profile 들 (ADR 0001, 0011) |
 | `skin/FeedView.tsx` | 홈 피드(단일 컬럼 리스트) + 카테고리 탭 = **`/?cat=` URL 라우팅(서버 카테고리별 풀, 마이그 0326·URL 이 SSOT)** — 슬러그·라벨은 `lib/feed-categories.ts` SSOT, 클라 필터(matchesChip)는 전환 중 임시 표시용(2026-07-03. 종전 "풀 1개 클라 필터"는 시술후기 대량 유입 시 다른 탭이 비는 한계로 폐기). 검색 시 리포트 블렌딩 제거(2026-06-29 — searchReport 항상 null) |
@@ -274,7 +280,7 @@ supabase/
 | `components/report/ReportsIndexSidebar.tsx` | 리포트 인덱스·상세 공용 사이드바 (2단 레이아웃; 상세에선 `footer` 로 `ReportShareButtons` 저장/공유 렌더) |
 | `app/reports/layout.tsx` + `ReportsShell.tsx` | /reports 공유 layout 셸 — 서버 `layout`(force-dynamic)이 풀(`reports-pool.ts`, React `cache()`) 로드 → 클라 `ReportsShell` 이 `AppShell`(상단바·사이드바) persist(인덱스↔상세 좌측 본문만 교체). 메타/JSON-LD 는 각 `page.tsx` 보유(셸 미관여). ADR 0025 |
 | `app/reports/category-context.tsx`, `app/reports/reports-pool.ts` | 카테고리 필터 클라 컨텍스트(URL RSC 재요청 회피) / 풀 요청단위 메모(`getReportsPoolCached`) |
-| `app/reports/ReportShareButtons.tsx` | 상세 저장/공유 2버튼(`window.location`/`document.title`) — 사이드바 푸터(상세 전용) 렌더 |
+| `app/reports/ReportShareButtons.tsx` | 상세 저장/공유 2버튼 — 저장=앵커 카드 `card_saves` 진짜 북마크(toggle_card_save), 데스크탑 사이드바 푸터(상세 전용) 렌더. 모바일 하단 고정 바·히어로 버튼과 동일 배선(앵커 없으면 미노출) |
 | `lib/report-headline.ts` | 회전 헤드라인 엔진 — 시술 시그널 → 헤드라인 풀 빌드·매 요청 랜덤 픽(효과 단정 금지) |
 
 ### 4.4. 댓글·인터랙션
@@ -437,6 +443,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 - **0023** 같은 시술 후기 다중 작성 허용 (1인1시술1후기 제약 해제, `0019` amend) — 2026-06-25
 - **0024** `/reports-new` 신디자인을 정식 `/reports` 로 승격 — SEO 셸(generateMetadata·JSON-LD·canonical·en→ko 308) 보존하고 렌더만 교체(in-place), `/reports-new`→308, 개별 작성자 인구통계 RPC(0322) 도입(집계 0212와 별개·개인 단위 노출 트레이드오프) — 2026-06-29
 - **0025** `/reports` 인덱스↔상세 공유 layout — `layout.tsx`(서버, 풀 cache) → `ReportsShell`(클라) → `AppShell` persist 로 상단바·사이드바 유지·좌측 본문만 교체(메타/JSON-LD 는 page 보유=SEO 무손상). 근본 로딩속도는 별도 안건, 셸 persist 로 생긴 `.root` 스크롤 잔존 회귀는 상세 마운트 시 scrollTop=0 으로 수정 — 2026-06-29
+- **0026** 마이페이지·프로필 재편 — 설정 전용 라우트 `/my/settings` 분리(구 /{handle} 아코디언 이관, `profile-settings-data.ts` 공용 조립), skin 탭 제거(피부정보 상세 → /my '내 피부 정보'), 프로필=필터 칩+카드 목록, 페이지별 캔버스 variant(AppShell canvas prop) — 2026-07-08
 
 ---
 
@@ -465,7 +472,7 @@ ADR 0001 참조. 단일 표준 — Persona 시스템(official/personal)은 2026-
 | **좋아요/저장/공유 수** | 클라 | — | 캐시 상세에서만 마운트 시 라이브 재조회(`useCardEngagement`) |
 | **내 좋아요/저장 여부** | 클라 | — | `Card`("use client") |
 
-- **레이아웃**: `layout.tsx` 는 V1 이후 서버 세션·쿠키를 안 읽음. `force-dynamic` 도 V3 에서 제거(전역). (2026-06-11 구 FAB 폐기 후 2026-06-16 `WriteFab` 재도입 — 하단 5탭은 `AppShell` 단일 셸.) **개인·동적 페이지**(/, /reports, /[handle], /write, /today, /notes, /my, /shop, settings, admin, notifications, review, onboarding)는 각자 `export const dynamic="force-dynamic"`(검색은 별도 라우트 없이 홈 /?q= — 홈이 이미 force-dynamic).
+- **레이아웃**: `layout.tsx` 는 V1 이후 서버 세션·쿠키를 안 읽음. `force-dynamic` 도 V3 에서 제거(전역). (2026-06-11 구 FAB 폐기 후 2026-06-16 `WriteFab` 재도입 — 하단 5탭은 `AppShell` 단일 셸.) **개인·동적 페이지**(/, /reports, /[handle], /write, /today, /notes, /my, /my/settings, /shop, settings, admin, notifications, review, onboarding)는 각자 `export const dynamic="force-dynamic"`(검색은 별도 라우트 없이 홈 /?q= — 홈이 이미 force-dynamic).
 - **캐시 무효화**: 콘텐츠 변경(발행/생성/수정/숨김/삭제) 라우트가 `revalidateTag("qa-content"/"topics","max")`(Next 16 2인자) → 상세 수정 **즉시** 반영. 카운트는 24h fallback이지만 클라 라이브라 실질 즉시.
 - **★한글 URL + ISR 금지**: ISR 캐시 페이지는 Next 16 이 페이지 경로를 implicit `x-next-cache-tags` HTTP 헤더(ASCII 전용)에 넣음. 토픽 URL 은 한글(`/topics/콜라겐`)이라 헤더가 깨져 **500(`ERR_INVALID_CHAR`)** → 토픽은 동적 유지. 상세는 ASCII slug 라 무관.
 - **홈 피드 단일 컬럼 리스트**: 승격된 홈은 `components/skin/FeedView.tsx` 가 단일 컬럼 리스트(`app.module.css` 의 `.feedList` = flex column)로 렌더(react-masonry-css 미사용 — `page.tsx` 에 breakpointCols/isMobileUA prop 없음). CLS 는 카드 고정 골격·스켈레톤(`FeedSkeleton`)으로 관리.

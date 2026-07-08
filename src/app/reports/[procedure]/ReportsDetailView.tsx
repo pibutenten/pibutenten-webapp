@@ -80,6 +80,7 @@ function rankColor(rank: number): string {
 }
 
 // 통증 척도 — 명세 4스톱 그라데이션(#FFDD77→#FFB46D→#FF7B9F→#FF565B) + 라벨 SSOT 현행 유지.
+//   ⚠ 허브(ReportsIndexCard, --pain-grad-* 3스톱)와 색이 다른 것은 시안 명세 의도(PDF p5 vs p2).
 const PAIN_STOPS = ["#FFDD77", "#FFB46D", "#FF7B9F", "#FF565B"];
 const PAIN_GRADIENT = `linear-gradient(90deg, ${PAIN_STOPS.join(", ")})`;
 const PAIN_LABELS = ["없음", "조금", "보통", "꽤", "심함"];
@@ -263,8 +264,9 @@ function AnchorEngagement({
           <div
             className="fixed inset-x-0 z-[105] flex items-center bg-white/95 px-4 py-2.5 backdrop-blur min-[900px]:hidden"
             style={{
-              /* 탭바 실점유 높이 ~71px(패딩 포함) 위에 flush — 64px 는 ~7px 겹침(검수 지적). */
-              bottom: "calc(72px + env(safe-area-inset-bottom))",
+              /* 탭바 실점유 높이 실측 ~76px(패딩 포함) + 여유 8px — 최종 검수 A 실측 반영.
+                 (64→72→84px 로 2회 상향: 겹침 재발 방지 여유 포함) */
+              bottom: "calc(84px + env(safe-area-inset-bottom))",
               boxShadow: "0 -4px 16px rgba(27,73,101,0.06)",
             }}
           >
@@ -524,6 +526,9 @@ export default function ReportsDetailView({
   return (
     <>
       <div ref={topRef} aria-hidden className="sr-only" />
+      {/* 페이지 h1 — 히어로 시술명은 h2(디자인 불변) 유지, 상위 계층은 sr-only 로 공급
+          (허브·상세 h1 부재 — schema-auditor 지적, 2026-07-08). */}
+      <h1 className="sr-only">{ko} 시술 리포트</h1>
       {/* 앵커 조회수 기록(2026-07-04 복원) — 구 상세(ProcedureReportCard variant="page")가 담당하던
           ReportViewTracker 배선이 신디자인 승격(f00fb5e, 2026-06-29) 때 누락돼 리포트 조회수가
           그날 이후 0 증가(원장 제보·card_views 실측으로 확정). 일반 글과 동일한 useCardViewer 경로

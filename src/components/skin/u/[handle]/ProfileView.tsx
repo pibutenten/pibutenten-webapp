@@ -411,7 +411,8 @@ export default function ProfileView({
           margin: "2px 0 16px",
         }}
       >
-        <BackButton fallbackHref="/" hideLabel />
+        {/* 히스토리 없을 때 fallback: 본인=마이페이지(주 진입 동선), 타인=피드 (최종 검수 A). */}
+        <BackButton fallbackHref={isOwner ? "/my" : "/"} hideLabel />
         {isOwner && (
           <h1 style={{ fontSize: 22, fontWeight: 800, color: C.title, margin: 0 }}>
             내 정보
