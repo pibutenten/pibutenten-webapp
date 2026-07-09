@@ -15,6 +15,7 @@
 - **세부(2뎁스) 페이지 헤더 — 모바일 tt: 로고 제거·뒤로가기 최상단 (원장 확정)** — `AppShell backHeader` prop 신설(모바일 로고 자리 BackButton·데스크탑 로고+GNB 유지+본문 "< 뒤로" 행). 적용 13화면: 리포트 상세·프로필(/[handle])·/my/settings·글상세(회원/의사·비공개 placeholder 2)·/notes/[id]·/weather·/my/recent·/topics/[tag]·/doctors/[slug]·/notifications·/reviews/[id]/checkins. 구 중복 뒤로 행·backTitle 은 제거(h1 은 본문 이동 — SEO 유지). **이탈 경고 가드 폼(/write*·/review 작성/수정·/notes/[id]/edit)은 가드 우회 위험으로 제외**(현행 유지, 주석 명기).
 - **리포트 상세 섹션 경량화** — 하단 리뷰 패널 #EAF2F8→#F5FBFF(sticky 칩 배경 동반 + 비선택 칩 1px 보더 #E1EAF2), 다른 시술 카드 `chip` 파스텔·라운드 24·간격 8, 후기 유도 카드 #E0F2FB, 작성자 통계 띠 36→30px, 마커 26→24px, 하단 고정 바 탭바 밀착(76px)+상단 보더.
 - **통증 척도어 "꽤"→"많이" 5면 통일** — 상세·허브 PAIN_LABELS + 후기 폼 입력(PAIN_FACES — ReviewForm·시술일기 공용) + ReviewSummary + ProcedureReportCard (입력↔표시 일치. 문장 속 부사 "꽤 아팠다는~" 프로즈는 확정 카피라 유지).
+- **(R3) 히어로 표지 시안 100% 일치** — 디자이너 잉크 bbox 픽셀 실측 반영: tt: 워터마크를 Pretendard 텍스트 → **brand-logo.svg 로고타이프 글리프 추출(IconBrandTT)** 로 교체(위 잘림 0·콜론만 ~8px 카드 밖·white/16), 인물을 정사각 letterbox → **전용 세로형 글리프(IconPersonGrid** — 머리 단색 원+몸통 하단 페이드**)** 로 교체, **헤드라인 한 줄 온전(17px 전폭, `{효과} 효과` 부분만 #FFF8D1 이중색) + 저장·공유 아랫줄 우측 정렬**. 잔여 실측값 전수: 그라데이션 130deg(원색 0→21% → gradEnd `#90D5CE` 파생 신설), 카드 폭 348(마진 21)·라운드 18, 상단 패딩 58, 라벨 15px/자간 0.28em, 시술명 37px, 칩 rounded-10 반투명 오버레이 rgba(0,88,71,.40), % 95px, 보조문구 "N건," 명세 원문 포맷, 그리드 셀 10.2px. 검수 반영: color-mix 구형 iOS 폴백·95px nowrap. (커밋 e1dfa16)
 
 ---
 

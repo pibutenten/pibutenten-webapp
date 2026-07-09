@@ -268,9 +268,9 @@ supabase/
 ### 4.3. 네비·검색·피드
 | 파일 | 역할 |
 |---|---|
-| `skin/AppShell.tsx` | 공용 셸 — 헤더(로고·GNB·우상단 알림/아바타) + 하단 5탭(투데이/내노트/피드/리포트/쇼핑) + **인-헤더 검색**(데스크탑 pill·모바일 풀스크린 패널, /?q= 라우팅, ←=검색 닫기/✕=검색어만 지움) + **페이지별 캔버스 variant**(`canvas?: "report"\|"my"\|"profile"` — app.module.css variant 클래스가 `--tt-canvas`/`--tt-canvas-top` 만 재정의해 상태바 필러·헤더·sticky 칩 자동 추종, 미지정=공용 그라데이션) |
-| `components/icons/index.tsx` | 공용 아이콘 모듈 — 디자인팀 SVG 21종(리포트 8·마이페이지 13). 단색=`currentColor`+`size` prop, 고정색·멀티컬러 3종(IconClock·IconPerson·IconShare — share 는 stroke prop) 예외. 훅 없는 순수 함수(서버/클라 공용), 기존 파일 로컬 인라인 아이콘은 점진 전환 |
-| `skin/mypage/MySettingsView.tsx` | `/my/settings` 설정 전용 화면 본문 — AppShell canvas="profile"+back(/my) 안에서 `ProfileEditClient`(embedded=false, 자체 h1 "내 정보") + `ClinicLinksSection` 무조건 렌더 |
+| `skin/AppShell.tsx` | 공용 셸 — 헤더(로고·GNB·우상단 알림/아바타) + 하단 5탭(투데이/내노트/피드/리포트/쇼핑) + **인-헤더 검색**(데스크탑 pill·모바일 풀스크린 패널, /?q= 라우팅, ←=검색 닫기/✕=검색어만 지움) + **페이지별 캔버스 variant**(`canvas?: "report"\|"my"\|"profile"` — app.module.css variant 클래스가 `--tt-canvas`/`--tt-canvas-top` 만 재정의해 상태바 필러·헤더·sticky 칩 자동 추종, 미지정=공용 그라데이션) + **2뎁스 헤더 variant**(`backHeader?: { fallbackHref? }` — 모바일 헤더 좌측 로고 자리를 BackButton 으로 교체·데스크탑은 로고+GNB 유지+본문 "< 뒤로" 행. 세부 13화면 적용: 리포트 상세·프로필·/my/settings·글상세 3종·/notes/[id]·/weather·/my/recent·/topics/[tag]·/doctors/[slug]·/notifications·체크인. **이탈 가드 폼(/write*·/review 작성/수정·/notes/[id]/edit)은 가드 우회 위험으로 미적용** — R2-3 2026-07-09) |
+| `components/icons/index.tsx` | 공용 아이콘 모듈 — 디자인팀 SVG 21종(리포트 8·마이페이지 13) + R3 자체 2종(IconPersonGrid=리포트 히어로 그리드 전용 세로형 인물·IconBrandTT=brand-logo.svg 글리프 추출 워터마크). 단색=`currentColor`+`size` prop, 고정색·멀티컬러 3종(IconClock·IconPerson·IconShare — share 는 stroke prop) 예외. 훅 없는 순수 함수(서버/클라 공용), 기존 파일 로컬 인라인 아이콘은 점진 전환 |
+| `skin/mypage/MySettingsView.tsx` | `/my/settings` 설정 전용 화면 본문 — AppShell canvas="profile"+backHeader(/my) 안에서 `ProfileEditClient`(embedded=false, 자체 h1 "내 정보") + `ClinicLinksSection` 무조건 렌더 |
 | `search/SearchPanel.tsx` | 검색 발견·자동완성 패널 — 최근검색 알약 + 카테고리 텍스트 탭(시술 6종) + 키워드 칩 + 부분일치 자동완성 |
 | `IdentitySwitcher.tsx` | 신분(profile) 전환 dropdown — 묶음 안 동등 독립한 profile 들 (ADR 0001, 0011) |
 | `skin/FeedView.tsx` | 홈 피드(단일 컬럼 리스트) + 카테고리 탭 = **`/?cat=` URL 라우팅(서버 카테고리별 풀, 마이그 0326·URL 이 SSOT)** — 슬러그·라벨은 `lib/feed-categories.ts` SSOT, 클라 필터(matchesChip)는 전환 중 임시 표시용(2026-07-03. 종전 "풀 1개 클라 필터"는 시술후기 대량 유입 시 다른 탭이 비는 한계로 폐기). 검색 시 리포트 블렌딩 제거(2026-06-29 — searchReport 항상 null) |
