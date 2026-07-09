@@ -44,16 +44,23 @@ function scriptPath(): string {
 }
 
 function pythonCmd(): string {
-  // 우선순위: PYTHON_BIN 환경변수 → OS별 기본값.
-  // (Windows 로컬에서는 .env.local에 PYTHON_BIN=C:/path/to/python.exe 설정 권장 —
-  //  Microsoft Store stub 회피용. 사용자별 절대경로는 더 이상 하드코딩하지 않음.)
+  // 우선순위: PYTHON_BIN 환경변수 → 공식 인스톨러 표준 경로 탐색 → bare python.
+  // Windows 의 bare "python" 은 dev 서버 프로세스 PATH 에서 Microsoft Store stub 으로
+  // 해석돼 조용히 실패할 수 있어(2026-07-09 자막 추출 회귀 원인) 실제 설치 경로를 먼저
+  // 찾는다. 후보는 특정 사용자 하드코딩이 아니라 python.org 인스톨러의 두 가지 기본
+  // 위치 패턴: 사용자별(%USERPROFILE%/AppData/Local/Programs/Python/PythonNNN, 기본
+  // 선택지)과 시스템 전역(C:/PythonNNN, "Install for all users"). .env.local 의
+  // PYTHON_BIN 설정은 비표준 경로 설치 시에만 필요.
   if (process.env.PYTHON_BIN) return process.env.PYTHON_BIN;
   if (process.platform === "win32") {
-    const candidates = [
-      "C:/Python312/python.exe",
-      "C:/Python311/python.exe",
-      "C:/Python310/python.exe",
-    ];
+    const home = process.env.USERPROFILE;
+    // 버전 상한 313 — 새 Python 메이저(3.14+) 설치 시 이 배열도 늘려야 탐색된다.
+    const candidates = ["313", "312", "311", "310"].flatMap((v) => [
+      ...(home
+        ? [path.join(home, `AppData/Local/Programs/Python/Python${v}/python.exe`)]
+        : []),
+      path.join("C:/", `Python${v}`, "python.exe"),
+    ]);
     for (const p of candidates) {
       try {
         if (fs.existsSync(p)) return p;

@@ -19,6 +19,7 @@
 - **(R4) 리포트 2뎁스 정밀 보정** — 히어로/흰 통계 **카드 2장 분리**(간격 16)·**저장/공유 바 fixed 해제 → 본문 인라인**(흰 카드 아래 19px, 인라인 슬롯 포털로 AnchorEngagement 훅 단일 유지·#A9AEBB·세로 구분선)·PIBUTENTEN REPORT 흰 카드 하단 이동(#D4D9E2)·시술명 40px·칩 솔리드 #13887B(hue 파생 heroChip 신설)·헤드라인 Medium/강조 Bold·캡션 white/60·gradEnd #92D5CE·**사람 그리드 17열×3 + max-w 283px**(데스크탑 가로 왜곡 제거 — 원장 제보)·흰 카드 후기 제외 전부 SemiBold·다운타임 바 회색 그라데이션(#D9D9D9→#9DA1AA)·타임라인 막대 34px 단일 고정 그라데이션(#2994DB→#9AE4FF→#FFF)·더보기류 #A9AEBB·Q&A 버튼 var(--primary)·**다른 시술 순위 리스트 전면 교체**(Cinzel 넘버링+3색 세트 [초록,파랑,분홍,분홍,초록]+세로 구분선).
 
 ### Fixed
+- **/admin/draft YouTube 자막 추출 로컬 실패** — `pythonCmd()` 가 시스템 전역 경로(C:/PythonNNN)만 탐색해 사용자 홈 표준 설치(%USERPROFILE%/AppData/Local/Programs/Python)를 못 찾고, bare `python` 폴백이 dev 서버 프로세스에서 MS Store stub 으로 해석돼 1순위 파이썬 추출기가 조용히 실패(후순위 watch 파싱·timedtext 는 YouTube 차단 강화로 빈 응답 — 외부 환경 변화 결합). 공식 인스톨러 표준 경로 2패턴(사용자 홈 우선, 313~310)을 후보에 추가. `PYTHON_BIN` 최우선 유지, Vercel/리눅스 무영향.
 - **(R4) 버튼 글자색 유틸리티 무시 실버그** — app.module.css `:where(.root) button{color:inherit}`(무계층)가 Tailwind 유틸리티 계층을 캐스케이드에서 이겨 2뎁스 공유하기·더보기·6~10위 버튼 회색이 적용되지 않던 문제 → 인라인 style 전환(실브라우저 검증).
 
 ### Changed (R2)
