@@ -4,7 +4,8 @@
  * MySettingsView — /my/settings "프로필·설정" 전용 화면 본문 (클라이언트, 회원 전용).
  *
  * UI 개편 Phase 4-1 (D9): 구 본인 공개 프로필(/{handle}) 아코디언을 전용 화면으로 이관.
- *   - AppShell canvas="profile"(#EAF2F8) + backHeader(fallback=/my — R2-2 2뎁스 헤더 variant:
+ *   - AppShell canvas="profile"(#F5FBFF — R5 헤더·캔버스 동색화가 내정보와 함께 적용, 의도된 파급)
+ *     + backHeader(fallback=/my — R2-2 2뎁스 헤더 variant:
  *     모바일은 헤더 좌측 로고 자리 뒤로가기, 데스크탑은 본문 뒤로 행. 진입은 주로
  *     /my "정보 수정·앱 설정·탈퇴하기" 또는 프로필 "프로필 수정/수정").
  *   - 화면 타이틀은 ProfileEditClient 자체 헤더(h1 "내 정보", embedded=false)가 담당 —

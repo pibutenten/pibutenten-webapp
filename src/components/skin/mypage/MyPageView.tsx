@@ -25,8 +25,11 @@
  *   - "정보 수정"·"앱 설정"·"탈퇴하기"는 /my/settings (프로필·설정 전용 화면 — Phase 4-5 전환 완료.
  *     구 목적지였던 /{handle} 아코디언은 D9 로 제거, 탈퇴 footer 는 ProfileEditClient 내장).
  *
- * AppShell(active="마이", canvas="my" — 페이지 배경 #DAF1FB)이 브랜드 헤더 + 하단 탭바를
- * 제공하므로, 디자인의 타이틀 바는 본문 최상단 in-content 로 재현한다(현행 패턴 유지).
+ * AppShell(active="마이", canvas="my" — 페이지 배경 #F5FBFF, R5-21)이 헤더 + 하단 탭바를 제공.
+ * R5-20 (2026-07-09): 모바일(<900px) 타이틀 바를 셸 헤더로 승격 — titleHeader prop 으로
+ * "마이페이지"(19px/800) + 벨(셸 headerActions 재사용 — 미읽음 배지 승계) + 설정 아이콘.
+ * 검색 아이콘·아바타는 셸이 숨김. in-content 타이틀 바는 데스크탑(≥900px) 전용으로 전환
+ * (모바일 헤딩 계층은 sr-only h1 이 보존 — 헤더 타이틀은 div 라 h1 중복 없음).
  * 아이콘은 Phase 0 공용 모듈(@/components/icons). 셰브론(˅ ˄ ›)만 코드로 그림(계획서 §1.1-3).
  */
 
@@ -55,6 +58,9 @@ import type { ProcedureCategory } from "@/lib/procedure-report";
 import { useSearchRouting } from "../ui";
 import AppShell from "../AppShell";
 import PolicyFooter from "../PolicyFooter";
+// R5-20 — 승격 헤더의 설정 아이콘을 셸 벨(.iconBtn 38px·hover 톤)과 동일 외형으로 맞추기 위한
+//   최소 참조(다른 스타일은 계속 인라인 격리 유지).
+import styles from "../app.module.css";
 
 /** 내가 받은 시술 1건 — category 는 테마 slug(tag_dictionary→categoryKoToSlug, 서버 매핑).
  *  null = 사전 미등록·비시술 카테고리 → 회색 칩 (D11: source 기반 구분 폐기). */
@@ -91,7 +97,9 @@ const C = {
   title: "#3A3C41",
   /** 통계 숫자 */
   statNum: "#A0A8B0",
-  /** 프로필 태그 칩 배경(연한 파랑 — 페이지 배경과 동일 톤) */
+  /** 프로필 태그 칩 배경(연한 파랑 — 구 페이지 배경 #DAF1FB 와 동일 hex.
+      R5-21 에서 배경이 #F5FBFF 로 바뀌어 칩이 배경 위에 살짝 도드라짐 — 칩 색 변경 지시
+      없음 → 값 유지, 주석만 갱신). */
   tagBg: "#DAF1FB",
   /** 프로필 태그 칩 글자 */
   tagText: "#43A6D2",
@@ -140,8 +148,20 @@ function ChevronUp({ size = 16 }: { size?: number }) {
   );
 }
 
-/* ---------- 칩 (pill · 간격 8px wrap — 명세) ---------- */
-function Chip({ label, bg, color }: { label: string; bg: string; color: string }) {
+/* ---------- 칩 (기본 pill · 간격 8px wrap — 명세) ----------
+   radius — R5-24: 프로필 정보 칩 3종(연령대·얼굴형·피부타입)만 사각 라운드 8(원장 확정).
+   펼침부 칩(피부고민·관심시술·받은시술)은 기본값 999(pill) 유지. */
+function Chip({
+  label,
+  bg,
+  color,
+  radius = 999,
+}: {
+  label: string;
+  bg: string;
+  color: string;
+  radius?: number;
+}) {
   return (
     <span
       style={{
@@ -152,7 +172,7 @@ function Chip({ label, bg, color }: { label: string; bg: string; color: string }
         fontWeight: 600,
         lineHeight: 1.4,
         padding: "5px 12px",
-        borderRadius: 999,
+        borderRadius: radius,
       }}
     >
       {label}
@@ -189,10 +209,25 @@ const ROW_STYLE: React.CSSProperties = {
   fontWeight: 600,
 };
 
-function NavRow({ icon, label, href }: { icon: ReactNode; label: string; href: string }) {
+/** iconColor — R5-25: 나의 관심 하트·북마크 행만 #383F47(원장 확정 — 신규 heart/bookmark.svg
+ *  글리프가 현 IconHeart/IconBookmark 와 동일 판독이라 색 지정만으로 충분). 미지정은 C.title. */
+function NavRow({
+  icon,
+  label,
+  href,
+  iconColor,
+}: {
+  icon: ReactNode;
+  label: string;
+  href: string;
+  iconColor?: string;
+}) {
   return (
     <Link href={href} style={ROW_STYLE}>
-      <span style={{ display: "inline-flex", color: C.title, flexShrink: 0 }} aria-hidden>
+      <span
+        style={{ display: "inline-flex", color: iconColor ?? C.title, flexShrink: 0 }}
+        aria-hidden
+      >
         {icon}
       </span>
       <span style={{ flex: 1 }}>{label}</span>
@@ -332,13 +367,34 @@ export default function MyPageView({
   const collapserInner: React.CSSProperties = { overflow: "hidden", minHeight: 0 };
 
   return (
-    <AppShell active="마이" canvas="my" {...search}>
+    <AppShell
+      active="마이"
+      canvas="my"
+      /* R5-20 — 모바일 헤더 승격: "마이페이지" 타이틀 + 벨(셸 headerActions — 미읽음 배지 승계)
+         + 설정 아이콘(셸 .iconBtn 톤 — 벨과 동일 38px 히트영역·hover). 검색·아바타는 셸이 숨김. */
+      titleHeader={{
+        title: "마이페이지",
+        actions: (
+          <Link
+            href="/my/settings"
+            aria-label="설정"
+            className={styles.iconBtn}
+          >
+            <IconSettings size={24} />
+          </Link>
+        ),
+      }}
+      {...search}
+    >
       {/* 셸 .page 좌우 18px + 2px = 명세 좌우 여백 20px (app.module.css 는 수정 금지 대상). */}
       <div style={{ padding: "0 2px" }}>
-        {/* ① 타이틀 바 — "마이페이지" + 벨 + 설정. in-content 헤더(셸 브랜드 헤더는 위에 유지). */}
+        {/* 모바일 헤딩 계층 보존 — 승격 헤더 타이틀은 div 라 h1 은 여기서 sr-only 로 공급(<900px 만). */}
+        <h1 className="sr-only min-[900px]:hidden">마이페이지</h1>
+        {/* ① 타이틀 바 — R5-20 부터 데스크탑(≥900px) 전용(모바일은 셸 승격 헤더가 담당).
+            display 는 Tailwind(hidden/min-[900px]:flex)가 결정 — 인라인 display 지정 금지. */}
         <div
+          className="hidden min-[900px]:flex"
           style={{
-            display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             margin: "2px 2px 16px",
@@ -366,8 +422,11 @@ export default function MyPageView({
           </div>
         </div>
 
-        {/* ② 프로필 카드 — 상단 행 전체가 공개 프로필 링크 + 내 피부 정보 접힘/펼침. */}
-        <section style={{ ...CARD_STYLE, padding: 24 }}>
+        {/* ② 프로필 카드 — 상단 행 전체가 공개 프로필 링크 + 내 피부 정보 접힘/펼침.
+            접힘 상태만 하단 패딩 1/3 축소(24→16 — R5-22, 펼침은 24 유지). */}
+        <section
+          style={{ ...CARD_STYLE, padding: skinOpen ? 24 : "24px 24px 16px" }}
+        >
           <Link
             href={profileHref}
             style={{
@@ -380,9 +439,10 @@ export default function MyPageView({
           >
             <CardAvatar memberAvatarUrl={avatarUrl} name={displayName} size={56} />
             <div style={{ flex: 1, minWidth: 0 }}>
+              {/* 닉네임 18px(R5-26 — 승격 헤더 타이틀 19px 미만 제약 충족) */}
               <div
                 style={{
-                  fontSize: 17,
+                  fontSize: 18,
                   fontWeight: 800,
                   color: C.title,
                   overflow: "hidden",
@@ -392,20 +452,21 @@ export default function MyPageView({
               >
                 {displayName}
               </div>
+              {/* 정보 칩 3종(연령대·얼굴형·피부타입) — R5-23: 전폭(아바타 아래까지)에서 닉네임
+                  아래 이름 칼럼 안으로 이동 + R5-24: 사각 라운드 8(펼침부 칩은 pill 유지).
+                  chevron 은 행 alignItems:center 로 세로 중앙 유지. */}
+              {tags.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                  {tags.map((t) => (
+                    <Chip key={t} label={t} bg={C.tagBg} color={C.tagText} radius={8} />
+                  ))}
+                </div>
+              )}
             </div>
             <span style={{ display: "inline-flex", color: C.chevron, flexShrink: 0 }} aria-hidden>
               <ChevronRight size={20} />
             </span>
           </Link>
-
-          {/* 태그 3종 — 연령대·얼굴형·피부타입 (미입력은 생략). */}
-          {tags.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-              {tags.map((t) => (
-                <Chip key={t} label={t} bg={C.tagBg} color={C.tagText} />
-              ))}
-            </div>
-          )}
 
           {/* [펼침] 내 피부 정보 상세 — 그룹 간 24px · 소제목-칩 12px (명세). */}
           <div style={collapser(skinOpen)} aria-hidden={!skinOpen}>
@@ -571,10 +632,11 @@ export default function MyPageView({
           <NavRow icon={<IconMessageSquare size={22} />} label="내 댓글" href={`${profileHref}?tab=comments`} />
         </SectionCard>
 
-        {/* ⑤ 나의 관심 */}
+        {/* ⑤ 나의 관심 — 하트·북마크 아이콘 색 #383F47(R5-25 원장 확정, 신규 svg 글리프 =
+            현 공용 아이콘과 동일 판독. 요약 통계 카드 ③의 아이콘 색은 현행 유지 — 변경 금지). */}
         <SectionCard title="나의 관심">
-          <NavRow icon={<IconHeart size={22} />} label="좋아요" href={`${profileHref}?tab=likes`} />
-          <NavRow icon={<IconBookmark size={20} />} label="북마크" href={`${profileHref}?tab=saves`} />
+          <NavRow icon={<IconHeart size={22} />} iconColor="#383F47" label="좋아요" href={`${profileHref}?tab=likes`} />
+          <NavRow icon={<IconBookmark size={20} />} iconColor="#383F47" label="북마크" href={`${profileHref}?tab=saves`} />
         </SectionCard>
 
         {/* ⑥ 설정 — 앱 설정(알림 등)도 /my/settings 통합 화면이 담당(Phase 4-5). */}

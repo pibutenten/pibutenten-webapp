@@ -6,8 +6,9 @@
  * 2026-07-08 UI 개편 Phase 4-2 신디자인 (시안 `전달용/260708 UI개편/1d-마이페이지 _ 프로필(내 계정).png`
  * ·`1d-마이페이지-프로필(타인 계정).png`, 명세 PDF 9~11p — 색·간격·라운드는 명세 값 그대로):
  *   ① 헤더: 뒤로가기는 셸 헤더로 이전(R2-2 backHeader — 모바일 로고 자리, 데스크탑은 본문 행)
- *      + 본인="내 정보"(볼드)·우측 "수정"(회색 → /my/settings)
- *      / 타인=제목 없음·우측 ⋯(신고하기 메뉴 → /report).
+ *      + R5-31(2026-07-09): 모바일은 타이틀·액션까지 헤더 한 줄로 승격 — 본인 [< 내정보 … 수정] /
+ *      타인 [< … ⋯(신고하기 메뉴 → /report)]. in-content 타이틀 행은 데스크탑 전용
+ *      (모바일 h1 은 sr-only 보존).
  *   ② 프로필 카드(흰·라운드 16·패딩 24): 사진(원형 크게)+이름(볼드)+@handle(회색)
  *      + 태그 3(연령대·얼굴형·피부타입 — #DCEBF7 배경·#2E8BD0 글자, field_visibility 존중:
  *        타인은 get_profile_pii RPC 가 공개분만 반환·anon 은 미표시)
@@ -50,10 +51,13 @@ import {
 
 /* ---------- 명세 색 (PDF 10p — 프로필 2depth 전용 팔레트) ---------- */
 const C = {
-  /** 진한 텍스트 — 이름·헤더 제목·통계 숫자·뒤로/더보기 아이콘 */
+  /** 진한 텍스트 — 이름·헤더 제목·뒤로/더보기 아이콘 */
   title: "#3A3C41",
-  /** 회색 텍스트 — @handle·통계 라벨·헤더 "수정" */
+  /** 회색 텍스트 — @handle·헤더 "수정" */
   gray: "#A0A8B0",
+  /** 통계 숫자/라벨 (R5-29 — C.title/C.gray 에서 분리, 타 소비처 무영향) */
+  statNum: "#676B76",
+  statLabel: "#9DA1AA",
   /** 연한 파랑 태그(연령대·얼굴형·피부타입) 배경/글자 */
   tagBg: "#DCEBF7",
   tagText: "#2E8BD0",
@@ -114,7 +118,9 @@ function commentLink(c: CommentRow): string {
   return "/";
 }
 
-/* ---------- 태그 칩 (pill · 간격 8px wrap — 명세) ---------- */
+/* ---------- 태그 칩 (간격 8px wrap — 명세) ----------
+   라운드 8(R5-32 — 마이페이지 정보 칩 R5-24 확정값과 동일 상수. ProfileView 내 TagChip
+   소비는 정보 칩 3종뿐이라 prop 없이 직접 변경). */
 function TagChip({ label }: { label: string }) {
   return (
     <span
@@ -126,7 +132,7 @@ function TagChip({ label }: { label: string }) {
         fontWeight: 600,
         lineHeight: 1.4,
         padding: "5px 12px",
-        borderRadius: 999,
+        borderRadius: 8,
       }}
     >
       {label}
@@ -134,7 +140,8 @@ function TagChip({ label }: { label: string }) {
   );
 }
 
-/* ---------- 통계 열 — "5 작성글" (숫자 볼드 진한색 + 라벨 회색, 가로 배열 · 시안) ---------- */
+/* ---------- 통계 열 — "5 작성글" (가로 배열 · 시안) ----------
+   R5-28·29: 숫자 20px #676B76 · 라벨 15px #9DA1AA (원장 확정 — baseline 정렬·gap 6 유지). */
 function StatCol({
   value,
   label,
@@ -155,10 +162,10 @@ function StatCol({
         borderLeft: withDivider ? `1px solid ${C.divider}` : "none",
       }}
     >
-      <span style={{ fontSize: 17, fontWeight: 800, color: C.title, lineHeight: 1 }}>
+      <span style={{ fontSize: 20, fontWeight: 800, color: C.statNum, lineHeight: 1 }}>
         {value}
       </span>
-      <span style={{ fontSize: 13.5, fontWeight: 500, color: C.gray }}>{label}</span>
+      <span style={{ fontSize: 15, fontWeight: 500, color: C.statLabel }}>{label}</span>
     </div>
   );
 }
@@ -384,7 +391,9 @@ export default function ProfileView({
   }, [tab, isOwner, profileId, likedPosts, savedPosts]);
 
   const cardList = (cards: CardData[]) => (
-    <div className={styles.feedList}>
+    /* flatCards(R5-30) — 이 목록의 PostCard(.card) 그림자만 제거(플랫). 피드·투데이의
+       PostCard 그림자는 유지(.card 전역 무수정 — variant 스코프 규칙). */
+    <div className={`${styles.feedList} ${styles.flatCards}`}>
       {cards.map((c) => (
         <PostCard
           key={c.id}
@@ -404,17 +413,45 @@ export default function ProfileView({
     <AppShell
       active="마이"
       canvas="profile"
-      /* 2뎁스 헤더 variant(R2-2) — 구 인라인 BackButton 행을 헤더로 이전: 모바일은 헤더 좌측
-         로고 자리 뒤로가기, 데스크탑은 본문 뒤로 행(.backRowDesktop).
+      /* 2뎁스 헤더 variant(R2-2 → R5-31 확장) — 모바일 헤더 한 줄 [< 내정보 … 수정](본인) /
+         [< … ⋯](타인): title·action 슬롯으로 타이틀·페이지 액션까지 헤더로 승격(검색·벨·아바타는
+         셸이 숨김). 데스크탑은 본문 뒤로 행(.backRowDesktop)+아래 타이틀 행 현행 유지.
          히스토리 없을 때 fallback: 본인=마이페이지(주 진입 동선), 타인=피드 (최종 검수 A). */
-      backHeader={{ fallbackHref: isOwner ? "/my" : "/" }}
+      backHeader={{
+        fallbackHref: isOwner ? "/my" : "/",
+        title: isOwner ? "내 정보" : undefined,
+        action: isOwner ? (
+          <Link
+            href="/my/settings"
+            style={{
+              color: C.gray,
+              fontSize: 15,
+              fontWeight: 600,
+              textDecoration: "none",
+              padding: "4px 6px",
+            }}
+          >
+            수정
+          </Link>
+        ) : (
+          <OtherProfileMenu />
+        ),
+      }}
       {...search}
     >
-      {/* ① 타이틀 행 — (본인) "내 정보"·우측 "수정" / (타인) 제목 없음·우측 ⋯.
-          뒤로가기는 R2-2 로 셸 헤더(backHeader)로 이전 — 이 행은 타이틀·액션만 유지. */}
+      {/* 모바일 헤딩 계층 보존 — 승격 헤더 타이틀은 div 라 h1 은 sr-only 로 공급.
+          본인=<900px 만(데스크탑은 아래 타이틀 행 h1) / 타인=타이틀 행 자체가 없어 상시 sr-only. */}
+      {isOwner ? (
+        <h1 className="sr-only min-[900px]:hidden">내 정보</h1>
+      ) : (
+        <h1 className="sr-only">@{handle} 프로필</h1>
+      )}
+      {/* ① 타이틀 행 — R5-31 부터 데스크탑(≥900px) 전용(모바일은 셸 승격 헤더가 담당).
+          (본인) "내 정보"·우측 "수정" / (타인) 제목 없음·우측 ⋯.
+          display 는 Tailwind(hidden/min-[900px]:flex)가 결정 — 인라인 display 지정 금지. */}
       <div
+        className="hidden min-[900px]:flex"
         style={{
-          display: "flex",
           alignItems: "center",
           gap: 4,
           margin: "2px 0 16px",
@@ -546,8 +583,14 @@ export default function ProfileView({
       )}
 
       {/* ③ 필터 칩 — 가로 스크롤 한 줄(.chipRow: flex·gap 8·스크롤바 숨김 기존 클래스 재사용).
-          프로필 카드와 20px 간격(명세) — chipRow 자체 상단 패딩 10px + marginTop 10. */}
-      <div className={styles.chipRow} role="tablist" style={{ marginTop: 10 }}>
+          프로필 카드와 20px 간격(명세) — chipRow 자체 상단 패딩 10px + marginTop 10.
+          chipRowBleed(R5-33) — 모바일 한정 .page 좌우 18px 상쇄 풀블리드(칩이 화면 가장자리
+          통과, 양끝 잉크 여백 20px 은 가상 스페이서). 이 화면 전용 — 타 칩 행 확장 금지(원장 확정). */}
+      <div
+        className={`${styles.chipRow} ${styles.chipRowBleed}`}
+        role="tablist"
+        style={{ marginTop: 10 }}
+      >
         {tabs.map((t) => {
           const on = tab === t;
           return (
@@ -634,7 +677,7 @@ export default function ProfileView({
   );
 }
 
-/** 빈 상태 — 캔버스(#EAF2F8) 위라 흰 카드로 감싸 목록 자리임을 유지. */
+/** 빈 상태 — 캔버스(#F5FBFF — R5-27) 위라 흰 카드로 감싸 목록 자리임을 유지. */
 function EmptyCard({ msg }: { msg: string }) {
   return (
     <section style={{ background: "#ffffff", borderRadius: 16, padding: 20 }}>

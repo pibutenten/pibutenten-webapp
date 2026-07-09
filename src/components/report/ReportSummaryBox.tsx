@@ -19,6 +19,9 @@
  * 명세 고정색(globals 토큰 없음 → 리터럴 유지 — R4-1 2026-07-09 보정): 보조 회색 #7F838D ·
  * 값·재시술의향 라벨 #3A3C41 · 통증 번개 #F06258 · 별 #FCC623 · 막대 연한 스톱 #B4E4DF
  * (초록 앵커 — procedure-theme SPEC_ANCHORS 패턴).
+ * R5 (2026-07-09, 계획서 260709 R5 §2.1): %·'%' SemiBold(3') · %↔라벨 갭 6px(5) ·
+ * 우측 통증/만족도 20% 확대+막대 하단 잉크 정렬 translateY(2px)(2·3) — /topics 닫힌
+ * 글상자에도 동반 반영(의도된 SSOT 공유 변경).
  */
 
 import type { ProcedureCategory } from "@/lib/procedure-report";
@@ -89,20 +92,24 @@ export default function ReportSummaryBox({
         )}
       </div>
 
-      {/* 큰 숫자 재시술% — 명세: 시술명 줄과 8px 간격, 카테고리색 아주 크게 */}
+      {/* 큰 숫자 재시술% — 명세: 시술명 줄과 8px 간격, 카테고리색 아주 크게.
+          굵기 SemiBold(숫자+% 세트 일관 — R5-3', R4 A-4 bold 의 원장 재변경) */}
       <div className="mt-2 flex items-baseline" style={{ color: theme.color }}>
-        <span className="text-[50px] font-bold leading-[0.9] tracking-[-0.03em] [font-feature-settings:'tnum']">
+        <span className="text-[50px] font-semibold leading-[0.9] tracking-[-0.03em] [font-feature-settings:'tnum']">
           {yesPct}
         </span>
-        <span className="text-[24px] font-bold">%</span>
+        <span className="text-[24px] font-semibold">%</span>
       </div>
 
-      {/* 재시술의향 라벨 + N건의 경험 + 진행 막대 ‖ 우측 통증·만족도 — 명세: 위 12px 간격 */}
-      <div className="mt-3 flex items-end gap-5">
+      {/* 재시술의향 라벨 + N건의 경험 + 진행 막대 ‖ 우측 통증·만족도 —
+          R5-5: %↔라벨 잉크갭 반절(구 mt-3=12px → 6px) */}
+      {/* R5-2 확대로 우측 블록이 넓어져 좌측이 좁아짐 — 라벨 nowrap + 좌우/그룹 간격 축소
+          (gap-5→4, 우측 gap-4→3) + 건수 12.5px 로 "재시술의향"/"N건의 경험" 줄꺾임·잘림 방지. */}
+      <div className="mt-1.5 flex items-end gap-4">
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <span className="text-[14px] font-semibold text-[#3A3C41]">재시술의향</span>
-            <span className="truncate text-[14px] font-normal text-[#7F838D]">
+          <div className="flex items-baseline gap-1.5">
+            <span className="whitespace-nowrap text-[14px] font-semibold text-[#3A3C41]">재시술의향</span>
+            <span className="truncate text-[12.5px] font-normal text-[#7F838D]">
               {experienceCount(count)}
             </span>
           </div>
@@ -115,29 +122,32 @@ export default function ReportSummaryBox({
             />
           </div>
         </div>
-        <div className="flex shrink-0 gap-4">
+        {/* R5-2: 라벨·수치·아이콘 20% 확대(13→15.5 / 22→26.5 / 16→19 / 10→12).
+            R5-3: 수치 leading-none 의 폰트 디센트만큼 잉크 하단이 좌측 막대보다 ~2px 떠 보여
+            translateY(2px) 광학 보정 — 좌측 막대 하단 라인과 잉크 정렬. */}
+        <div className="flex shrink-0 gap-3" style={{ transform: "translateY(2px)" }}>
           <div className="text-center">
-            <span className="mb-1.5 block text-[13px] font-normal text-[#7F838D]">
+            <span className="mb-1.5 block text-[15.5px] font-normal text-[#7F838D]">
               통증
             </span>
             {hasPain ? (
               <span className="inline-flex items-center gap-1">
-                <IconPain size={16} className="shrink-0 text-[#F06258]" />
-                <span className="text-[22px] font-semibold leading-none text-[#3A3C41] [font-feature-settings:'tnum']">
+                <IconPain size={19} className="shrink-0 text-[#F06258]" />
+                <span className="text-[26.5px] font-semibold leading-none text-[#3A3C41] [font-feature-settings:'tnum']">
                   {avgPain.toFixed(1)}
                 </span>
               </span>
             ) : (
-              <span className="block text-[10px] text-[#7F838D]">응답 적음</span>
+              <span className="block text-[12px] text-[#7F838D]">응답 적음</span>
             )}
           </div>
           <div className="text-center">
-            <span className="mb-1.5 block text-[13px] font-normal text-[#7F838D]">
+            <span className="mb-1.5 block text-[15.5px] font-normal text-[#7F838D]">
               만족도
             </span>
             <span className="inline-flex items-center gap-1">
-              <IconStar size={16} className="shrink-0 text-[#FCC623]" />
-              <span className="text-[22px] font-semibold leading-none text-[#3A3C41] [font-feature-settings:'tnum']">
+              <IconStar size={19} className="shrink-0 text-[#FCC623]" />
+              <span className="text-[26.5px] font-semibold leading-none text-[#3A3C41] [font-feature-settings:'tnum']">
                 {avgSatisfaction.toFixed(1)}
               </span>
             </span>

@@ -189,7 +189,10 @@ export default function ReportsIndexCard({
                       style={{ width: `${100 - painPos(avgPain)}%` }}
                     />
                   </div>
-                  {/* 마커 — 원 20px · 외곽선 1px #F06258 · 그림자(R4 B-3~5), 위치 px 혼합 clamp */}
+                  {/* 마커 — 원 20px · 외곽선 1px #F06258 · 그림자(R4 B-3~5), 위치 px 혼합 clamp.
+                      번개 size 12 + 광학 보정 left 0.5px(R5-4 — 대각 글리프라 광학 중심이 기하
+                      중심에서 좌측으로 미세하게 어긋남) ⚠ 2뎁스 마커(ReportsDetailView R5-13)와
+                      반드시 동일 값 유지. */}
                   <span
                     className="absolute top-1/2 z-[1] flex h-5 w-5 items-center justify-center rounded-full border border-[#F06258] bg-white text-[#F06258]"
                     style={{
@@ -198,7 +201,7 @@ export default function ReportsIndexCard({
                       boxShadow: "0 3px 5px rgba(0,0,0,0.1)",
                     }}
                   >
-                    <IconPain size={11} />
+                    <IconPain size={12} className="relative left-[0.5px]" />
                   </span>
                 </div>
                 <div
@@ -245,24 +248,28 @@ export default function ReportsIndexCard({
             )}
 
             {/* 효과 발현 시점 — 기존 문구 엔진 유지. 문장 전체 semibold, 강조어는 카테고리색만
-                (굵기 추가 없음 — R4 B-14) */}
+                (굵기 추가 없음 — R4 B-14). 위 간격은 R5-6 에서 현재의 2/3 로 축소(32→20 —
+                원장 확정, B-18 의 다른 블록 mt 32/20 은 불변) */}
             {onsetLabel && (
-              <p className="mt-8 text-[13.5px] font-semibold leading-[1.5] text-[#3A3C41]">
+              <p className="mt-5 text-[13.5px] font-semibold leading-[1.5] text-[#3A3C41]">
                 효과는{" "}
                 <span style={{ color: theme.color }}>{onsetLabel}</span>
                 부터 가장 많이 느꼈다고 해요.
               </p>
             )}
 
-            {/* ③ CTA 두 버튼(라운드 14px·높이 42) — 좌: 내 후기 남기기(tint) / 우: 리포트 더보기(카테고리색 채움) */}
+            {/* ③ CTA 두 버튼(라운드 14px·높이 42) — 좌: 내 후기 남기기(tint) / 우: 리포트 더보기(카테고리색 채움).
+                ⚠ 글자색은 반드시 인라인 style(R5-1) — app.module.css `:where(.root) a{color:inherit}`
+                가 무계층(unlayered)이라 Tailwind 유틸리티(text-white 등)를 캐스케이드에서 이김
+                (button 만이 아니라 anchor 도 동일 함정 — R4 는 button 3곳만 고쳐 여기가 잔존). */}
             <div className="mt-5 flex gap-4">
               <Link
                 href={`/write?tab=review&proc=${encodeURIComponent(procedureKo)}`}
                 className={
-                  "flex h-[42px] flex-1 items-center justify-center rounded-[14px] px-4 text-[14.5px] font-medium text-[#3A3C41] " +
+                  "flex h-[42px] flex-1 items-center justify-center rounded-[14px] px-4 text-[14.5px] font-medium " +
                   FOCUS_RING
                 }
-                style={{ backgroundColor: theme.tint }}
+                style={{ backgroundColor: theme.tint, color: "#3A3C41" }}
               >
                 내 후기 남기기
               </Link>
@@ -270,10 +277,10 @@ export default function ReportsIndexCard({
                 href={reportHref}
                 onClick={onNavigateDetail}
                 className={
-                  "flex h-[42px] flex-1 items-center justify-center rounded-[14px] px-4 text-[14.5px] font-medium text-white " +
+                  "flex h-[42px] flex-1 items-center justify-center rounded-[14px] px-4 text-[14.5px] font-medium " +
                   FOCUS_RING
                 }
-                style={{ backgroundColor: theme.color }}
+                style={{ backgroundColor: theme.color, color: "#fff" }}
                 aria-label={`${procedureKo} 리포트 더보기`}
               >
                 리포트 더보기

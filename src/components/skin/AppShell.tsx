@@ -135,7 +135,8 @@ type NavItem = { label: NavTab; href: string; icon?: ReactNode; comingSoon?: boo
 
 /* 페이지별 캔버스 배경 variant (2026-07-08 UI 개편 Phase 0-4).
    app.module.css 의 variant 클래스(--tt-canvas/--tt-canvas-top 재정의만)와 1:1 매핑 —
-   report=#F5FBFF(/reports 계열) · my=#DAF1FB(/my) · profile=#EAF2F8(프로필 2뎁스). */
+   report=/reports 계열 · my=/my · profile=프로필 2뎁스 (R5-21·27 부터 3종 모두 #F5FBFF —
+   헤더도 variant 스코프 규칙으로 동색·플랫). */
 export type CanvasVariant = "report" | "my" | "profile";
 const CANVAS_CLASS: Record<CanvasVariant, string> = {
   report: styles.canvasReport,
@@ -174,6 +175,7 @@ export default function AppShell({
   back,
   backTitle,
   backHeader,
+  titleHeader,
   searchValue,
   onSearchChange,
   onSearchSubmit,
@@ -193,8 +195,16 @@ export default function AppShell({
    *  좌측 로고 자리에 BackButton(화살표만, fallbackHref)을 렌더. 우측 검색·알림·아바타와 칩바·
    *  hide-on-scroll·탭바는 전부 현행 그대로. 데스크탑(≥900px)은 로고+GNB 유지(브랜드 부재 방지)
    *  — 대신 본문 첫 줄에 '< 뒤로' 행(.backRowDesktop, 구 back prop 과 동일 위치)을 노출.
-   *  미지정 시 현행과 100% 동일. back prop(전 뷰포트 본문 뒤로 행)과는 화면당 하나만 사용. */
-  backHeader?: { fallbackHref?: string };
+   *  미지정 시 현행과 100% 동일. back prop(전 뷰포트 본문 뒤로 행)과는 화면당 하나만 사용.
+   *  R5-31 확장: title/action 지정 시 모바일 헤더 = [← 타이틀 … 액션](검색·벨·아바타는 CSS 로
+   *  숨김 — .headerInnerBack). 기존 소비처(fallbackHref 만 — /reports 상세)는 100% 현행 동일. */
+  backHeader?: { fallbackHref?: string; title?: string; action?: ReactNode };
+  /** 1뎁스 허브의 모바일 타이틀 헤더 (R5-20, 2026-07-09 — 마이페이지) — 지정 시 모바일(<900px)
+   *  헤더 좌측 로고 자리에 페이지 타이틀(19px/800), 벨 뒤에 페이지 액션(설정 등)을 렌더.
+   *  검색 아이콘 미렌더 + 아바타 CSS 숨김(.headerInnerTitle). 벨(미읽음 배지)은 현행 유지.
+   *  데스크탑(≥900px)은 로고+GNB 현행(타이틀·액션은 CSS 숨김 — in-content 타이틀이 담당).
+   *  backHeader·back 과는 화면당 하나만 사용. */
+  titleHeader?: { title: string; actions?: ReactNode };
   /** admin 전용 전체 폭 모드 — 본문을 좁은 .layoutSingle(820px) 대신 운영 admin 과 같은 풀폭(1080px)으로.
    *  기본 false → 피드/공개프로필/글쓰기/내노트/마이/글상세 등 기존 화면은 영향 없음(현행 좁은 중앙 정렬 유지). */
   wide?: boolean;
@@ -504,7 +514,13 @@ export default function AppShell({
           session 존재로 판정(쿠키 동기). 첫 페인트(!mounted)만 둘 다 숨겨
           하이드레이션 직후 1회성 비로그인 플래시 방지(라우팅마다 재발 X). */}
       {mounted && isLoggedIn && (
-        <GuardedLink className={styles.iconBtn} aria-label="마이" href={ROUTES.my}>
+        /* R5-20·31 — .avatarBtn 은 무스타일 마커: titleHeader/backHeader(title·action) 화면의
+           모바일 헤더에서 아바타만 숨기기 위한 CSS 훅(.headerInnerTitle/.headerInnerBack 스코프). */
+        <GuardedLink
+          className={`${styles.iconBtn} ${styles.avatarBtn}`}
+          aria-label="마이"
+          href={ROUTES.my}
+        >
           {/* 항목 3) 로그인 시 active 명함 아바타(동그라미). 사진 없으면 기본 아이콘. */}
           {activeAvatar ? (
             <span className={styles.headerAvatar}>
@@ -611,7 +627,9 @@ export default function AppShell({
           </div>
         ) : (
           <div
-            className={`${styles.headerInner} ${mobileQueryActive ? styles.headerInnerHasQuery : ""}`}
+            className={`${styles.headerInner} ${mobileQueryActive ? styles.headerInnerHasQuery : ""} ${
+              titleHeader ? styles.headerInnerTitle : ""
+            } ${backHeader && (backHeader.title || backHeader.action) ? styles.headerInnerBack : ""}`}
           >
             {/* 로고 — 데스크탑은 피드(/), 모바일은 투데이(/today)로 진입. 하이드레이션 안전 위해
                 JS 분기 없이 두 GuardedLink 를 SSR 렌더하고 CSS(@900px)로 토글한다. */}
@@ -626,13 +644,23 @@ export default function AppShell({
             {backHeader ? (
               /* 2뎁스 헤더 variant — 모바일 로고 자리에 뒤로가기(BackButton: SPA 이력 있으면
                  router.back, 직접 진입이면 fallbackHref). 데스크탑 로고(.logoDesktop)는 위에서
-                 그대로 렌더 — .backHeaderBtn 이 ≥900px 에서 display:none 이라 서로 배타. */
-              <div className={styles.backHeaderBtn}>
-                <BackButton
-                  fallbackHref={backHeader.fallbackHref ?? ROUTES.feed}
-                  hideLabel
-                />
-              </div>
+                 그대로 렌더 — .backHeaderBtn 이 ≥900px 에서 display:none 이라 서로 배타.
+                 R5-31: title 지정 시 화살표 옆에 페이지 타이틀(18px/800 — 모바일 전용). */
+              <>
+                <div className={styles.backHeaderBtn}>
+                  <BackButton
+                    fallbackHref={backHeader.fallbackHref ?? ROUTES.feed}
+                    hideLabel
+                  />
+                </div>
+                {backHeader.title && (
+                  <div className={styles.backHeaderTitle}>{backHeader.title}</div>
+                )}
+              </>
+            ) : titleHeader ? (
+              /* R5-20 — 1뎁스 허브(마이페이지)의 모바일 타이틀 헤더: 로고 자리에 페이지 타이틀.
+                 h1 은 본문(sr-only)이 담당 — 헤더 타이틀은 div(중복 헤딩 방지). */
+              <div className={styles.titleHeaderText}>{titleHeader.title}</div>
             ) : (
               <GuardedLink
                 className={`${styles.logoLink} ${styles.logoMobile}`}
@@ -788,8 +816,10 @@ export default function AppShell({
             </GuardedLink>
 
             {/* 모바일 검색 아이콘 — 탭 시 헤더 "안"을 검색 input 으로 전환(인-헤더 searchOpen 모드).
-                draft 를 빈 초안으로 열어 발견 메뉴(최근/인기/카테고리)부터 띄운다(2026-06-28 통합). */}
-            {searchEnabled && (
+                draft 를 빈 초안으로 열어 발견 메뉴(최근/인기/카테고리)부터 띄운다(2026-06-28 통합).
+                R5-20: titleHeader 화면(마이)에선 미렌더 — 타이틀+벨+액션만(아이콘 자체가 모바일
+                전용이라 데스크탑 무영향). */}
+            {searchEnabled && !titleHeader && (
               <button
                 className={`${styles.iconBtn} ${styles.iconBtnSearch}`}
                 aria-label="검색"
@@ -805,6 +835,14 @@ export default function AppShell({
             )}
             {/* 우측 액션(알림 벨 + 아바타/로그인) — 검색 모드와 공유하는 한 벌(headerActions). */}
             {headerActions}
+            {/* R5-20·31 — 페이지 액션 슬롯(설정 아이콘·수정 링크·⋯ 메뉴 등): headerActions 바로 뒤,
+                모바일 전용(≥900px 은 CSS 로 숨김 — 데스크탑은 in-content 행이 담당). */}
+            {titleHeader?.actions && (
+              <div className={styles.titleHeaderAction}>{titleHeader.actions}</div>
+            )}
+            {backHeader?.action && (
+              <div className={styles.backHeaderAction}>{backHeader.action}</div>
+            )}
           </div>
         )}
       </header>
