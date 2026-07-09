@@ -5,7 +5,9 @@
  *
  * 2026-07-08 UI 개편 Phase 0-6 — 파생 색 3종 확장(tint·chip·deep)
  * + 2026-07-09 R2-1 — `light` 파생 신설(히어로 그라데이션 하단, 초록 기준 #B4E4DF.
- *   히어로 소비만 deep→light 체계로 교체 — deep 은 허브 등 타 소비처 존치):
+ *   히어로 소비만 deep→light 체계로 교체 — deep 은 허브 등 타 소비처 존치)
+ * + 2026-07-09 R3 — `gradEnd` 파생 신설(히어로 130deg 그라데이션 종점, 초록 기준 #90D5CE —
+ *   light 보다 한 단계 진한 톤. 시안 픽셀 실측값. 기존 필드·앵커 불변):
  *   디자인 명세는 초록(#029688 contour) 기준 tint=#E7F9F8 / chip=#CDF0EC / light=#B4E4DF 만 제시.
  *   타 카테고리는 "같은 명도·채도, 카테고리 고유 hue 유지" 규칙으로 결정론 파생한다
  *   (명세색의 S·L 을 그대로 목표값으로 사용 — HSL 변환 후 hue 만 카테고리 색을 따름).
@@ -29,6 +31,8 @@ export type CategoryTheme = {
   deep: string;
   /** 히어로 그라데이션 하단(140% 지점) — 밝은 파스텔 (초록 기준 #B4E4DF). R2-1 신설. */
   light: string;
+  /** 히어로 130deg 그라데이션 종점 — light 보다 진한 중간 파스텔 (초록 기준 #90D5CE). R3 신설. */
+  gradEnd: string;
 };
 
 function hexToSoft(hex: string): string {
@@ -89,11 +93,16 @@ const CHIP_REF = hexToHsl("#CDF0EC");
 const DEEP_L_FACTOR = 0.78;
 /** light 의 채도·명도 목표 — 명세 #B4E4DF 에서 취득(R2-1 히어로 그라데이션 하단). */
 const LIGHT_REF = hexToHsl("#B4E4DF");
+/** gradEnd 의 채도·명도 목표 — 명세 #90D5CE 에서 취득(R3 히어로 130deg 종점). */
+const GRADEND_REF = hexToHsl("#90D5CE");
 
 /** 명세 원본 hex 앵커 — 초록(#029688)만 디자인 명세 값 그대로.
  *  (명세색 hue 가 기준 hue 와 미세하게 달라 파생 결과가 1/255 어긋나는 것을 흡수.) */
-const SPEC_ANCHORS: Record<string, Pick<CategoryTheme, "tint" | "chip" | "light">> = {
-  "#029688": { tint: "#E7F9F8", chip: "#CDF0EC", light: "#B4E4DF" },
+const SPEC_ANCHORS: Record<
+  string,
+  Pick<CategoryTheme, "tint" | "chip" | "light" | "gradEnd">
+> = {
+  "#029688": { tint: "#E7F9F8", chip: "#CDF0EC", light: "#B4E4DF", gradEnd: "#90D5CE" },
 };
 
 function deriveTint(base: string): string {
@@ -122,6 +131,13 @@ function deriveLight(base: string): string {
   return hslToHex(h, LIGHT_REF.s, LIGHT_REF.l);
 }
 
+function deriveGradEnd(base: string): string {
+  const anchor = SPEC_ANCHORS[base.toUpperCase()];
+  if (anchor) return anchor.gradEnd;
+  const { h } = hexToHsl(base);
+  return hslToHex(h, GRADEND_REF.s, GRADEND_REF.l);
+}
+
 export function categoryTheme(
   category: ProcedureCategory | null | undefined,
 ): CategoryTheme {
@@ -136,6 +152,7 @@ export function categoryTheme(
       chip: "var(--primary-soft)",
       deep: "var(--primary-dark)",
       light: "var(--primary-soft)",
+      gradEnd: "var(--primary-soft)",
     };
   }
   return {
@@ -145,5 +162,6 @@ export function categoryTheme(
     chip: deriveChip(found.color),
     deep: deriveDeep(found.color),
     light: deriveLight(found.color),
+    gradEnd: deriveGradEnd(found.color),
   };
 }

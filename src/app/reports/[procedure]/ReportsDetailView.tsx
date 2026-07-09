@@ -5,10 +5,14 @@
  *
  * 2026-07-08 UI 개편 Phase 2-1 (디자인 명세 PDF p.4-7 + 시안 2d-리포트-1/2 — 위→아래 한 스크롤)
  * + 2026-07-09 R2-1 디자인 보정(계획서 docs/plans/260709 §2 — 히어로 표지화 ~390px·색 경량화):
- *   ① 히어로 카드(라운드 24, 그라데이션 `원색 0→30% 평탄 → light 140%`, tt 워터마크 white/16,
- *      시술명 34px, 태그 칩 1줄=효과 top3, 재시술의향 68px %, 사람 그리드 20×3=60 비율 채움
- *      (0 아닌 상태 최소 1셀 보장), "후기 N건 중 …" 보조문구,
- *      헤드라인 16px + 우측 저장·공유 인라인(터치 타깃 44×44))
+ *   ① 히어로 카드 — R3(2026-07-09) 시안 100% 일치 픽셀 실측 반영: 카드 폭 348(셸 .page 18px
+ *      + 로컬 3px = 마진 21 — MyPageView 패턴)·라운드 18·패딩 좌우 28/상 58/하 28,
+ *      그라데이션 130deg(원색 0→21% 평탄 → gradEnd(초록 #90D5CE) 100%), tt: 워터마크 =
+ *      IconBrandTT(brand-logo.svg 글리프 추출, 폭 167·top 31·right -9·white/16),
+ *      라벨 15px/tracking .28em, 시술명 37px, 칩 rounded-10 반투명 오버레이(rgba(0,88,71,.40)),
+ *      재시술의향 95px %, 사람 그리드 20×3=60(셀 10.2px — IconPersonGrid 꽉 채움),
+ *      보조문구 "후기 N건 중 있음 y건, 고민 중 m건, 없어요 n건", 헤드라인 17px 전폭
+ *      + `{효과} 효과` 부분만 #FFF8D1 이중색, 저장·공유 별도 행(우측 정렬, 터치 타깃 44×44))
  *   ② SATISFACTION(좌 큰 숫자+별 5 / 우 별점 분포 5줄) ③ PAIN & RECOVERY(통증 그라데이션
  *      척도 바+원형 마커[번개], 다운타임 채움 바+원형 마커[십자 — 원장 확정]+표시 3구간
  *      당일/1주/2주 재그룹 — 저장 척도 5구간 불변, DOWNTIME_DAYS 환산 재사용)
@@ -43,7 +47,8 @@ import { useSoftKeyboardOpen } from "@/lib/useSoftKeyboardOpen";
 import {
   IconPain,
   IconDowntimeCross,
-  IconPerson,
+  IconPersonGrid,
+  IconBrandTT,
   IconStar,
   IconShare,
   IconSpeechBubble,
@@ -113,10 +118,13 @@ function formatDays(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
-// 히어로 파생 색 — 명세는 초록(#029688) 기준 태그 #078172 · 사람 #168275 만 제시.
-//   타 카테고리는 theme.deep(같은 hue 의 진한 톤)으로 결정론 폴백(procedure-theme 앵커 패턴).
-const HERO_ANCHOR: Record<string, { chip: string; person: string }> = {
-  "#029688": { chip: "#078172", person: "#168275" },
+// 히어로 파생 색 — 명세는 초록(#029688) 기준 칩 오버레이 rgba(0,88,71,.40) · 사람 #168275 만
+//   제시(R3: 구 불투명 chip #078172 폐기 — 칩은 그라데이션 위 반투명 오버레이).
+//   타 카테고리는 theme.deep 로 결정론 폴백 — 오버레이는 deep 40%. color-mix 는 iOS 15 이하
+//   미지원(무색 렌더) → deep 이 hex 일 때만 사용하고, CSS var 폴백(null 카테고리)은 고정
+//   rgba 오버레이로 방어(R3 검수 반영).
+const HERO_ANCHOR: Record<string, { chipOverlay: string; person: string }> = {
+  "#029688": { chipOverlay: "rgba(0,88,71,0.40)", person: "#168275" },
 };
 
 /** 사람 그리드 셀 배분 — round 비율 배분 + "0 아닌 상태 최소 1셀" 보장(R2-1 — 1칸=1.67%p 라
@@ -145,6 +153,21 @@ function allocGridCells(
     }
   }
   return { y: cells[0], m: cells[1], n: cells[2] };
+}
+
+/** 히어로 헤드라인 이중 색상(R3) — 문장 안에 `{최다 효과} 효과` 부분 문자열이 있으면 그 부분만
+ *  #FFF8D1, 나머지 흰색. 매칭 없으면 전체 흰색(엔진 문장 다양성 대응 — 문구 자체는 불변). */
+function renderHeadline(text: string, effectLabel: string) {
+  const token = effectLabel ? `${effectLabel} 효과` : "";
+  const idx = token ? text.indexOf(token) : -1;
+  if (idx < 0) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span style={{ color: "#FFF8D1" }}>{token}</span>
+      {text.slice(idx + token.length)}
+    </>
+  );
 }
 
 // 후기 정렬 보조값.
@@ -265,9 +288,9 @@ function AnchorEngagement({
 
   return (
     <>
-      {/* 히어로 우하단 아이콘(흰색) — 시각 22px 유지 + 패딩으로 터치 타깃 44×44 확보(R2-1.
-          음수 마진 상쇄라 레이아웃 자리는 아이콘 크기 그대로) */}
-      <div className="flex items-center gap-4 text-white">
+      {/* 히어로 저장·공유 행 아이콘(흰색) — 시각 22px + 패딩으로 터치 타깃 44×44 확보(R2-1.
+          음수 마진 상쇄라 레이아웃 자리는 아이콘 크기 그대로). 버튼 간 gap 22px(R3). */}
+      <div className="flex items-center gap-[22px] text-white">
         <button
           type="button"
           onClick={eng.save.toggle}
@@ -423,7 +446,12 @@ export default function ReportsDetailView({
 
   const theme = categoryTheme(report.category);
   const heroAccent =
-    HERO_ANCHOR[theme.color.toUpperCase()] ?? { chip: theme.deep, person: theme.deep };
+    HERO_ANCHOR[theme.color.toUpperCase()] ?? {
+      chipOverlay: theme.deep.startsWith("#")
+        ? `color-mix(in srgb, ${theme.deep} 40%, transparent)`
+        : "rgba(0,60,50,0.35)", // null 카테고리(CSS var) — color-mix 구형 브라우저 무색 방어
+      person: theme.deep,
+    };
   const {
     count, avgSatisfaction, satisfactionDist, avgPain, revisit, effects,
     noEffectCount, downtimeAnswered, downtimeDist, onsetAnswered, onsetDist,
@@ -569,36 +597,41 @@ export default function ReportsDetailView({
       {/* 뒤로가기는 셸 헤더로 이전(R2-2 backHeader — ReportsShell 이 상세일 때 지정).
           구 인라인 BackButton 행 제거(중복 방지). */}
 
-      {/* ── 리포트 카드 한 장(라운드 24) — 히어로 + 통계 섹션(흰 배경) ── */}
-      <div className="overflow-hidden rounded-[24px] bg-white">
-        {/* ① 히어로 — R2-1 표지화(총 ~390px, 헤드라인 2줄 시 ~412px): 그라데이션
-            `원색 0→30% 평탄 → light 140%`(deep 사용 중단 — 색 경량화. 가시 하단은 중간 톤이라
-            흰 글자 가독 유지), tt 워터마크(텍스트 처리 — 크게·흐리게, white/16). */}
+      {/* ── 리포트 카드 한 장(라운드 18, 390 기준 폭 348 — 셸 .page 18px + 로컬 3px = 마진 21.
+             MyPageView "padding: 0 2px" 패턴의 로컬 보정. 흰 통계 섹션 포함 카드 전체 적용) ── */}
+      <div className="mx-[3px] overflow-hidden rounded-[18px] bg-white">
+        {/* ① 히어로 — R3 시안 픽셀 실측 일치. 블록 간 마진은 명세 "잉크 간격"에서 라인박스
+            여백(하프 리딩 + 글리프 상하 여백 — 한글 잉크 ≈ 0.11em~0.89em, 숫자 ≈ 0.13em~0.85em
+            가정)을 뺀 환산값. 그라데이션 130deg(원색 0→21% 평탄 → gradEnd 100%). */}
         <section
-          className="relative overflow-hidden rounded-[24px] px-6 pb-[22px] pt-[22px] text-white"
+          className="relative overflow-hidden rounded-[18px] px-[28px] pb-[28px] pt-[58px] text-white"
           style={{
-            background: `linear-gradient(180deg, ${theme.color} 0%, ${theme.color} 30%, ${theme.light} 140%)`,
+            background: `linear-gradient(130deg, ${theme.color} 0%, ${theme.color} 21%, ${theme.gradEnd} 100%)`,
           }}
         >
-          <span
-            aria-hidden
-            className="pointer-events-none absolute -right-4 -top-12 select-none text-[150px] font-extrabold leading-none tracking-[-0.06em] text-white/[.16]"
-          >
-            tt:
-          </span>
+          {/* tt: 워터마크 — 브랜드 로고타이프 SVG(IconBrandTT, viewBox=잉크 bbox 크롭).
+              잉크 기준 top 31·right -9(콜론 점 ~8px 카드 밖 — overflow-hidden 클립), 폭 167. */}
+          <IconBrandTT
+            width={167}
+            fill="#FFFFFF"
+            className="pointer-events-none absolute right-[-9px] top-[31px] opacity-[.16]"
+          />
 
           <div className="relative">
-            <div className="text-[13px] font-bold leading-[1.3] tracking-[0.12em] text-white/[.92]">피부텐텐 리포트</div>
-            <h2 className="mt-2 text-[34px] font-extrabold leading-[1.1] tracking-[-0.03em]">{ko}</h2>
+            {/* 1. 라벨 — 15px/700, tracking .28em, white/55 */}
+            <div className="text-[15px] font-bold leading-[1.3] tracking-[0.28em] text-white/55">피부텐텐 리포트</div>
+            {/* 2. 시술명 — 잉크 간격 23.5 → mt 14 */}
+            <h2 className="mt-[14px] text-[37px] font-extrabold leading-[1.15] tracking-[-0.01em]">{ko}</h2>
 
-            {/* 태그 칩 1줄 = 효과 top3 — 진한 톤 pill(명세 #078172 계열), 줄바꿈 없이 1줄 유지 */}
+            {/* 3. 태그 칩 1줄 = 효과 top3 — rounded-10, 높이 32(py 7·px 12), 반투명 오버레이 배경.
+                잉크 간격 18.2 → mt 13. 줄바꿈 없이 1줄 유지. */}
             {heroTags.length > 0 && (
-              <div className="mt-3 flex flex-nowrap gap-2 overflow-hidden">
+              <div className="mt-[13px] flex flex-nowrap gap-[6px] overflow-hidden">
                 {heroTags.map((t) => (
                   <span
                     key={t}
-                    className="whitespace-nowrap rounded-full px-[13px] py-[6px] text-[12.5px] font-semibold leading-[1.35] text-white"
-                    style={{ backgroundColor: heroAccent.chip }}
+                    className="whitespace-nowrap rounded-[10px] px-[12px] py-[7px] text-[13.5px] font-semibold leading-[1.35] text-white"
+                    style={{ backgroundColor: heroAccent.chipOverlay }}
                   >
                     {t}
                   </span>
@@ -606,20 +639,23 @@ export default function ReportsDetailView({
               </div>
             )}
 
-            {/* 재시술의향 — 라벨 + 아주 큰 % */}
-            <div className="mt-5 text-[13.5px] font-bold leading-[1.3] text-white/[.92]">재시술의향</div>
-            <div className="mt-1 text-[68px] font-extrabold leading-[1.0] tracking-[-0.04em] [font-feature-settings:'tnum']">
+            {/* 4. 재시술의향 라벨 — 15px/700 white 100%. 잉크 간격 34.5 → mt 31 */}
+            <div className="mt-[31px] text-[15px] font-bold leading-[1.3] text-white">재시술의향</div>
+            {/* 5. % 숫자 — 95px/800, tracking -.04em, tabular. %-스팬 0.50em 베이스라인 정렬.
+                잉크 간격 18.2 → mt 2(95px 숫자 캡 위 여백 ≈ 12.4 흡수) */}
+            <div className="mt-[2px] whitespace-nowrap text-[95px] font-extrabold leading-none tracking-[-0.04em] [font-feature-settings:'tnum']">
               {yesPctAnim}
-              <span className="text-[0.42em]">%</span>
+              <span className="text-[0.5em]">%</span>
             </div>
 
-            {/* 사람 아이콘 그리드 20×3=60 — 값 연동 비율 채움. 셀 높이 13.4px 고정(그리드 56px)
-                — IconPerson 은 정사각 viewBox 라 셀 안에서 종횡비 유지 letterbox(xMidYMid).
+            {/* 6. 사람 아이콘 그리드 20×3=60 — 값 연동 비율 채움. 셀 높이 10.2px(R3),
+                IconPersonGrid(셀 비율 10×11.6)가 셀을 꽉 채움(레터박스 폐기).
+                잉크 간격 27.1 → mt 13(숫자 베이스라인 아래 여백 ≈ 14.3 흡수).
                 전원 무응답이면 그리드·보조문구 미노출(오독 방지). */}
             {revisitAnswered && (
               <>
                 <div
-                  className="mt-3.5 grid grid-cols-[repeat(20,minmax(0,1fr))] gap-x-[6px] gap-y-[8px]"
+                  className="mt-[13px] grid grid-cols-[repeat(20,minmax(0,1fr))] gap-x-[6px] gap-y-[8px]"
                   role="img"
                   aria-label={`후기 ${count}건 중 재시술의향 있음 ${revisit.yes}건, 고민 중 ${revisit.maybe}건, 없어요 ${revisit.no}건`}
                 >
@@ -628,46 +664,53 @@ export default function ReportsDetailView({
                     return (
                       <span
                         key={i}
-                        className="block h-[13.4px]"
+                        className="block h-[10.2px]"
                         style={{
                           opacity: mounted ? op : 0,
                           transition: `opacity .35s ease ${i * 4}ms`,
                         }}
                       >
-                        <IconPerson fill={heroAccent.person} className="block h-full w-full" />
+                        <IconPersonGrid fill={heroAccent.person} className="block h-full w-full" />
                       </span>
                     );
                   })}
                 </div>
 
-                <p className="mt-3 text-[12.5px] leading-[1.35] text-white/[.85]">
-                  후기 {count}건 중 있음 {revisit.yes}·고민 중 {revisit.maybe}·없어요 {revisit.no}
+                {/* 7. 보조문구 — 13.5px white/65, PDF p5 명세 원문 포맷. 잉크 간격 ~16 → mt 12 */}
+                <p className="mt-[12px] text-[13.5px] leading-[1.35] text-white/65">
+                  후기 {count}건 중 있음 {revisit.yes}건, 고민 중 {revisit.maybe}건, 없어요 {revisit.no}건
                 </p>
               </>
             )}
 
-            {/* 헤드라인(흰 볼드) + 우측 저장·공유 인라인 */}
-            <div className="mt-3 flex items-end justify-between gap-4">
-              <p className="min-w-0 text-[16px] font-bold leading-[1.4]">
-                {topEffectLabel
+            {/* 8. 헤드라인 — 전폭 블록 한 줄 17px/700, `{효과} 효과` 부분만 #FFF8D1 이중색.
+                잉크 간격 16.2 → mt 7 */}
+            <p className="mt-[7px] text-[17px] font-bold leading-[1.4]">
+              {renderHeadline(
+                topEffectLabel
                   ? `${topEffectLabel} 효과가 좋았다는 후기가 많아요`
-                  : `후기 ${count}명의 경험을 모았어요`}
-              </p>
-              <div className="shrink-0 pb-0.5">
-                {report.anchor ? (
-                  <AnchorEngagement anchor={report.anchor} me={me} onLoginRequired={setAuthPrompt} />
-                ) : (
-                  // 앵커 없음 — 저장 비노출(대상 card_id 부재), 공유만 URL 공유로 노출.
-                  <button
-                    type="button"
-                    onClick={() => void sharePlainUrl()}
-                    aria-label="공유"
-                    className="-m-[11px] flex cursor-pointer items-center p-[11px] text-white transition-opacity hover:opacity-80"
-                  >
-                    <IconShare size={22} stroke="#FFFFFF" />
-                  </button>
-                )}
-              </div>
+                  : `후기 ${count}명의 경험을 모았어요`,
+                topEffectLabel,
+              )}
+            </p>
+
+            {/* 9. 저장·공유 행(R3 신설) — 우측 정렬, 아이콘 22px. 배선(useCardEngagement·aria·
+                로그인 유도)은 기존 AnchorEngagement/공유 폴백 그대로 — 행 위치만 이동.
+                잉크 간격 39 → mt 31 */}
+            <div className="mt-[31px] flex items-center justify-end">
+              {report.anchor ? (
+                <AnchorEngagement anchor={report.anchor} me={me} onLoginRequired={setAuthPrompt} />
+              ) : (
+                // 앵커 없음 — 저장 비노출(대상 card_id 부재), 공유만 URL 공유로 노출.
+                <button
+                  type="button"
+                  onClick={() => void sharePlainUrl()}
+                  aria-label="공유"
+                  className="-m-[11px] flex cursor-pointer items-center p-[11px] text-white transition-opacity hover:opacity-80"
+                >
+                  <IconShare size={22} stroke="#FFFFFF" />
+                </button>
+              )}
             </div>
           </div>
         </section>

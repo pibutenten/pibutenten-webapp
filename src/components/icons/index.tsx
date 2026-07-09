@@ -1,5 +1,7 @@
 /**
- * 공용 아이콘 모듈 (2026-07-08 UI 개편 Phase 0-5) — 디자인팀 수신 SVG 21종.
+ * 공용 아이콘 모듈 (2026-07-08 UI 개편 Phase 0-5) — 디자인팀 수신 SVG 21종
+ * + R3(2026-07-09) 신규 2종: IconPersonGrid(리포트 히어로 그리드 셀) ·
+ *   IconBrandTT(brand-logo.svg "tt:" 글리프 추출 워터마크). 기존 21종 불변.
  *
  * 원본: `전달용/02 Icon/리포트/`(8종) + `전달용/02 Icon/마이페이지/`(13종).
  * 파일명 ↔ 컴포넌트 매핑:
@@ -197,6 +199,91 @@ export function IconPerson({
           <stop offset="1" stopColor={fill} stopOpacity="0" />
         </radialGradient>
       </defs>
+    </svg>
+  );
+}
+
+/** 사람 그리드 셀 전용(R3 — 디자이너 좌표 그대로) — 리포트 히어로 20×3 그리드가 셀을 꽉
+ *  채우도록 셀 비율(8.85×10.2 ≈ 10×11.6)에 맞춘 신규 글리프. 머리는 단색 원(페이드 없음),
+ *  몸통만 아래로 사라지는 세로 linearGradient(y 7.8→11.4, α 1→0).
+ *  preserveAspectRatio="none" — 소비처 셀(레터박스 폐기)을 채운다(비율 오차 <1%라 왜곡 무시).
+ *  그라데이션 id 는 fill 색 기반 결정론 파생(IconPerson gradId 패턴 — 서버/클라 동일,
+ *  같은 색 인스턴스끼리 def 공유). 기존 IconPerson 은 존치(타 잠재 소비 대비).
+ *  ⚠ 리포트 히어로 그리드 전용 — userSpaceOnUse 그라데이션 좌표가 viewBox(0~11.6) 고정이라
+ *  다른 크기·맥락 재사용 시 페이드 위치가 어긋난다(R3 검수). 범용화하려면 size prop 체계 필요. */
+export function IconPersonGrid({
+  fill = "#168275",
+  className,
+}: {
+  fill?: string;
+  className?: string;
+}) {
+  const gradId = `pbttIconPersonGridGrad-${fill.replace(/[^a-zA-Z0-9]/g, "")}`;
+  return (
+    <svg
+      viewBox="0 0 10 11.6"
+      preserveAspectRatio="none"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="5" cy="3.25" r="3.25" fill={fill} />
+      <path
+        d="M5 5.7 C4.05 5.7 3.6 6.2 3.0 6.9 C2.25 7.75 1.05 8.25 0.5 9.1 C0.15 9.65 0 10.4 0 11.6 L10 11.6 C10 10.4 9.85 9.65 9.5 9.1 C8.95 8.25 7.75 7.75 7.0 6.9 C6.4 6.2 5.95 5.7 5 5.7 Z"
+        fill={`url(#${gradId})`}
+      />
+      <defs>
+        <linearGradient
+          id={gradId}
+          x1="0"
+          y1="7.8"
+          x2="0"
+          y2="11.4"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0" stopColor={fill} />
+          <stop offset="1" stopColor={fill} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+/** 브랜드 로고타이프 "tt:" (R3 — 리포트 히어로 워터마크). `public/brand-logo.svg` 의
+ *  심볼 원 안 흰 글리프(cls-2) path 3개를 그대로 추출, viewBox 는 잉크 bbox 로 크롭
+ *  (26.38 43.6 → 120.78 103.58 — 큐빅 샘플링 실측. 폭:높이 ≈ 94.4:59.98).
+ *  width 지정 시 height 는 비율 환산. 장식 전제(aria-hidden). */
+export function IconBrandTT({
+  width = 167,
+  fill = "#FFFFFF",
+  className,
+}: {
+  /** 렌더 폭(px) — 높이는 잉크 비율(59.98/94.4)로 자동 환산. */
+  width?: number;
+  fill?: string;
+  className?: string;
+}) {
+  return (
+    <svg
+      width={width}
+      height={(width * 59.98) / 94.4}
+      viewBox="26.38 43.6 94.4 59.98"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M106.77,60.05c0-3.63,3.11-6.75,7.06-6.75s6.95,3.11,6.95,6.75-3.11,7.06-6.95,7.06-7.06-3.22-7.06-7.06ZM106.77,90.99c0-3.63,3.11-6.75,7.06-6.75s6.95,3.11,6.95,6.75-3.11,6.85-6.95,6.85-7.06-3.22-7.06-6.85Z"
+        fill={fill}
+      />
+      <path
+        d="M57.71,97.51c-5.74,0-8.16-2.87-8.05-9.04l.55-27.89h9.71v-5.36l-9.61-.05.11-11.46-.45-.11-23.59,17.42h11.79l-.55,28.88c-.1,9.37,4.08,13.67,12.9,13.67,6.5,0,11.79-3.97,16.76-9.04l-.45-.44c-2.09,1.87-4.84,3.41-9.14,3.41Z"
+        fill={fill}
+      />
+      <path
+        d="M99.71,94.09c-2.09,1.87-4.85,3.42-9.15,3.42-5.73,0-8.16-2.87-8.05-9.04l.55-27.89h14.77v-5.3l-14.66-.1.11-11.46-.44-.11-18.52,13.67v3.31h6.71v.44h.01l-.55,28.88c-.11,9.37,4.08,13.67,12.9,13.67,6.5,0,11.8-3.97,16.76-9.04l-.44-.44Z"
+        fill={fill}
+      />
     </svg>
   );
 }
