@@ -135,6 +135,14 @@ export default function RootLayout({
           type="font/woff2"
           crossOrigin="anonymous"
         />
+        {/* Cinzel 숫자·% 서브셋(3.2KB) — 리포트 2뎁스 전용(R4 §5.5). Pretendard 와 동일 self-host preload 패턴 */}
+        <link
+          rel="preload"
+          href="/fonts/cinzel-subset.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
         {/* F5/리로드 시 브라우저 스크롤 자동복원 끄기 — 페이지 페인트 전에 실행 */}
         <Script id="scroll-restoration" strategy="beforeInteractive">
           {`if ('scrollRestoration' in history) history.scrollRestoration = 'manual';`}

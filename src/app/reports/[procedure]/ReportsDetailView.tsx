@@ -4,28 +4,36 @@
  * ReportsDetailView — /reports/[시술] 전체 리포트.
  *
  * 2026-07-08 UI 개편 Phase 2-1 (디자인 명세 PDF p.4-7 + 시안 2d-리포트-1/2 — 위→아래 한 스크롤)
- * + 2026-07-09 R2-1 디자인 보정(계획서 docs/plans/260709 §2 — 히어로 표지화 ~390px·색 경량화):
- *   ① 히어로 카드 — R3(2026-07-09) 시안 100% 일치 픽셀 실측 반영: 카드 폭 348(셸 .page 18px
- *      + 로컬 3px = 마진 21 — MyPageView 패턴)·라운드 18·패딩 좌우 28/상 58/하 28,
- *      그라데이션 130deg(원색 0→21% 평탄 → gradEnd(초록 #90D5CE) 100%), tt: 워터마크 =
+ * + 2026-07-09 R2-1 디자인 보정(계획서 docs/plans/260709 §2 — 히어로 표지화 ~390px·색 경량화)
+ * + 2026-07-09 R4-3 정밀 보정(계획서 docs/plans/260709 R4 §5 — 카드 2장 분리·바 인라인화·Cinzel):
+ *   ① 히어로 카드(독립 카드 — R4 C-1 에서 흰 통계 카드와 분리, 간격 16) — 카드 폭 348(셸 .page
+ *      18px + 로컬 3px = 마진 21 — MyPageView 패턴)·라운드 18·패딩 좌우 28/상 58/하 28,
+ *      그라데이션 130deg(원색 0→35% 평탄 → gradEnd(초록 #92D5CE) 100% — R4 C-12), tt: 워터마크 =
  *      IconBrandTT(brand-logo.svg 글리프 추출, 폭 167·top 31·right -9·white/16),
- *      라벨 15px/tracking .28em, 시술명 37px, 칩 rounded-10 반투명 오버레이(rgba(0,88,71,.40)),
- *      재시술의향 95px %, 사람 그리드 20×3=60(셀 10.2px — IconPersonGrid 꽉 채움),
+ *      라벨 15px/tracking .28em, 시술명 40px/bold(R4 C-8), 칩 rounded-10 솔리드(heroChip —
+ *      초록 #13887B, R4 C-9), 재시술의향 % 숫자 Cinzel ≈98px Regular(R4 C-6·§5.5),
+ *      사람 그리드 17×3=51(폭 상한 283px — 데스크탑 비왜곡, R4 C-7),
  *      보조문구 "후기 N건 중 있음 y건, 고민 중 m건, 없어요 n건", 헤드라인 17px 전폭
- *      + `{효과} 효과` 부분만 #FFF8D1 이중색, 저장·공유 별도 행(우측 정렬, 터치 타깃 44×44))
+ *      Medium+강조어만 Bold(R4 C-10) + `{효과} 효과` 부분만 #FFF8D1 이중색,
+ *      저장·공유 별도 행(우측 정렬, 터치 타깃 44×44))
+ *   (흰 통계 카드 — 굵기 일괄 SemiBold·보조 회색 #7F838D, R4 C-13/C-23)
  *   ② SATISFACTION(좌 큰 숫자+별 5 / 우 별점 분포 5줄) ③ PAIN & RECOVERY(통증 그라데이션
- *      척도 바+원형 마커[번개], 다운타임 채움 바+원형 마커[십자 — 원장 확정]+표시 3구간
+ *      척도 바[--pain-grad-1~4 토큰 SSOT]+원형 마커[번개 #F06258 고정], 다운타임 오버레이 채움
+ *      바(#D9D9D9→#9DA1AA)+원형 마커[십자 — 원장 확정]+표시 3구간
  *      당일/1주/2주 재그룹 — 저장 척도 5구간 불변, DOWNTIME_DAYS 환산 재사용)
- *   ④ RESULTS(효과 막대 전체+미체감 문구) ⑤ TIMELINE(세로 막대 4개+축 선·점, 최다만 강조)
- *   ⑥ 작성자 통계(성별·연령 가로 띠, 큰 조각 띠 안 라벨·작은 조각 아래 범례)
+ *   ④ RESULTS(효과 막대 전체+미체감 문구) ⑤ TIMELINE(막대 34px·고정 스케일 그라데이션
+ *      #2994DB→#9AE4FF→#FFF, 최다만 수치 강조 — R4 C-15) ⑥ 작성자 통계(성별·연령 가로 띠)
+ *      + 카드 맨 아래 PIBUTENTEN REPORT 표기(R4 C-3 — demographics 조건부 밖 카드 직속)
+ *   ⑫' 저장/공유 바 — fixed 폐기, 흰 카드와 리뷰 패널 사이 인라인 슬롯 포털(R4 C-2, 모바일 전용)
  *   ⑦ (배경 #F5FBFF 전환) 리뷰 섹션 ⑧ 후기 유도 카드(#E0F2FB) ⑨ 전문의 섹션(순위 원+제목)
- *   ⑩ 다른 시술 5(카테고리 chip 파스텔) ⑪ 푸터 PIBUTENTEN REPORT ⑫ 하단 고정 바(모바일).
+ *   ⑩ 다른 시술 5 — Cinzel 넘버링 01~05 + 3색 세트 순위 리스트(R4 C-18, PDF p5-6 신 스타일).
  *
  * 배선(보존): report.anchor && ReportViewTracker / 앵커 없음·비로그인 소프트월 수동 폴백(이중가산
  *   방지) / 상세 진입 scrollTop=0 / 후기 정렬 칩 4종·10개 더보기 / 인라인 CommentsBlock /
  *   저장·공유 = report.anchor 기반 useCardEngagement(card_saves/card_shares — D5 재배선.
  *   데스크탑 사이드바 푸터 ReportShareButtons 는 setReportAnchorCard 모듈 스토어로 동일 앵커 공유).
- * 격리: app.module.css 미의존 — Tailwind + globals 토큰 + 명세 리터럴 hex(#3A3C41/#8A939B 등).
+ * 격리: app.module.css 미의존 — Tailwind + globals 토큰 + 명세 리터럴 hex(#3A3C41/#7F838D 등
+ *   — R4 C-23 에서 보조 회색 #8A939B→#7F838D 전수 치환. 후기 카드 ReportsReviewCard 는 비변경).
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -43,7 +51,6 @@ import { categoryTheme } from "@/lib/procedure-theme";
 import { getQaUrl } from "@/lib/card-url";
 import { DOWNTIME_DAYS, EFFECT_ONSET_OPTIONS } from "@/lib/review-options";
 import { useSession } from "@/lib/session-context";
-import { useSoftKeyboardOpen } from "@/lib/useSoftKeyboardOpen";
 import {
   IconPain,
   IconDowntimeCross,
@@ -85,19 +92,17 @@ function rankColor(rank: number): string {
   return "#A2A6AF";
 }
 
-// 통증 척도 — 명세 4스톱 그라데이션(#FFDD77→#FFB46D→#FF7B9F→#FF565B) + 라벨 SSOT 현행 유지.
-//   ⚠ 허브(ReportsIndexCard, --pain-grad-* 3스톱)와 색이 다른 것은 시안 명세 의도(PDF p5 vs p2).
-const PAIN_STOPS = ["#FFDD77", "#FFB46D", "#FF7B9F", "#FF565B"];
-const PAIN_GRADIENT = `linear-gradient(90deg, ${PAIN_STOPS.join(", ")})`;
+// 통증 척도 — 명세 4스톱 그라데이션(globals.css --pain-grad-1~4 토큰, R4 B-1 부터 허브
+//   ReportsIndexCard 와 공용 SSOT) + 라벨 SSOT 현행 유지. 마커 색은 1·2뎁스 모두 #F06258 고정.
+const PAIN_GRADIENT =
+  "linear-gradient(90deg, var(--pain-grad-1), var(--pain-grad-2), var(--pain-grad-3), var(--pain-grad-4))";
+const PAIN_MARK = "#F06258"; // 통증 마커 원 외곽선·번개 색(R4 B-1 — 값 버킷색 painMarkColor 폐기)
 const PAIN_LABELS = ["없음", "조금", "보통", "많이", "심함"]; // R2-1: "꽤"→"많이" (척도어 3면 통일)
+// 값→트랙 위치 0~100% 매핑(R4 B-6 — 허브와 동일 매핑 = 같은 값 같은 위치). 마커 left 는
+//   가장자리 잘림 방지로 px 혼합 CSS clamp(10px, {pos}%, calc(100% - 10px)) 소비.
 function painPos(v: number): number {
   const x = Math.min(5, Math.max(1, v));
-  return 6.25 + ((x - 1) / 4) * 87.5;
-}
-/** 마커 테두리 "값 색"(명세) — 값 위치에 해당하는 그라데이션 스톱 색 버킷. */
-function painMarkColor(v: number): string {
-  const x = Math.min(5, Math.max(1, v));
-  return PAIN_STOPS[Math.min(3, Math.round(((x - 1) / 4) * 3))];
+  return ((x - 1) / 4) * 100;
 }
 function painPhrase(a: number): string {
   if (a < 2.0) return "거의 안 아팠다는 분이 많아요";
@@ -109,7 +114,9 @@ function painPhrase(a: number): string {
 
 // 다운타임 — 표시 3구간(당일/1주/2주) 재그룹. 저장 척도 5구간·DOWNTIME_DAYS 환산 불변,
 //   트랙 위치 매핑은 기존 DowntimeGauge 와 동일(-1~15일 → 당일 6.25% / 1주 50% / 2주 93.75%).
-const DT_FILL = "#6EC1F0"; // 명세: 다운타임 바 채움
+//   채움은 전폭 기준 그라데이션 + 우측 트랙색 오버레이(R4 C-14 — dtPct 재스케일 금지).
+const DT_GRADIENT = "linear-gradient(90deg, #D9D9D9, #9DA1AA)"; // PDF: #D9D9D9 → #9DA1AA
+const DT_MARK = "#9DA1AA"; // 다운타임 마커 원 외곽선·십자 색
 function downtimePos(days: number): number {
   const clamped = Math.min(16, Math.max(0, days));
   return Math.min(100, Math.max(0, ((clamped + 1) / 16) * 100));
@@ -118,14 +125,37 @@ function formatDays(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
-// 히어로 파생 색 — 명세는 초록(#029688) 기준 칩 오버레이 rgba(0,88,71,.40) · 사람 #168275 만
-//   제시(R3: 구 불투명 chip #078172 폐기 — 칩은 그라데이션 위 반투명 오버레이).
-//   타 카테고리는 theme.deep 로 결정론 폴백 — 오버레이는 deep 40%. color-mix 는 iOS 15 이하
-//   미지원(무색 렌더) → deep 이 hex 일 때만 사용하고, CSS var 폴백(null 카테고리)은 고정
-//   rgba 오버레이로 방어(R3 검수 반영).
-const HERO_ANCHOR: Record<string, { chipOverlay: string; person: string }> = {
-  "#029688": { chipOverlay: "rgba(0,88,71,0.40)", person: "#168275" },
+// 타임라인 세로 막대(R4 C-15) — 채움 그라데이션은 "차트 최대 높이" 기준 고정 스케일:
+//   backgroundSize 100%×TL_CHART_MAX(px) + bottom 고정 → 막대 height transition 중에도
+//   그라데이션이 재스케일되지 않는다(짧은 막대 = 밝은 상단 구간만 노출 — 시인성은 렌더 확인 항목).
+//   ⚠ TL_CHART_MAX = 최소 18 + 가변 108 — 아래 막대 height 계산과 반드시 동기(한 곳 SSOT).
+const TL_BAR_MIN = 18;
+const TL_BAR_VAR = 108;
+const TL_CHART_MAX = TL_BAR_MIN + TL_BAR_VAR; // = 126px
+const TL_GRADIENT = "linear-gradient(180deg, #2994DB 0%, #9AE4FF 83%, #FFFFFF 100%)"; // PDF 지정
+const TL_ACCENT = "#2994DB"; // 축 원 링·최다 수치 색(구 var(--accent-blue) 대체)
+
+// 히어로 사람 그리드 색 — 명세는 초록(#029688) 기준 #168275 만 제시. 타 카테고리는 theme.deep
+//   폴백. 칩 배경은 R4 C-9 부터 솔리드 theme.heroChip(procedure-theme 파생 — 구 반투명
+//   오버레이·color-mix 가드 폐기).
+const HERO_PERSON: Record<string, string> = {
+  "#029688": "#168275",
 };
+
+// Cinzel 디스플레이 세리프 스택(R4 §5.5 — 숫자·% 서브셋 self-host) — 2뎁스 히어로 % 숫자와
+//   순위 넘버링(C-18)만 소비. 타 화면 사용 금지.
+const CINZEL_STACK = '"Cinzel", Georgia, serif';
+
+// '다른 시술' 순위 리스트 색 3세트(R4 C-18 — PDF p5-6 신 스타일. 인덱스 고정
+//   [초록,파랑,분홍,분홍,초록], 6위+ 순환). body/divider 는 num 의 80%/30% 알파(hex8).
+//   similar 최대 5개 전제(page.tsx) — 상한 변경 시 6번째가 1위 색으로 반복되므로 배열도 함께 조정.
+const RANK_SETS = [
+  { bg: "#B4E4DF", num: "#029688" },
+  { bg: "#BCDAF5", num: "#1E88E5" },
+  { bg: "#FBCFDE", num: "#E57B9F" },
+  { bg: "#FBCFDE", num: "#E57B9F" },
+  { bg: "#B4E4DF", num: "#029688" },
+];
 
 /** 사람 그리드 셀 배분 — round 비율 배분 + "0 아닌 상태 최소 1셀" 보장(R2-1 — 1칸=1.67%p 라
  *  소수 상태가 반올림으로 사라지는 것을 방지. 부족분은 가장 큰 조각에서 1셀 차감). */
@@ -156,7 +186,8 @@ function allocGridCells(
 }
 
 /** 히어로 헤드라인 이중 색상(R3) — 문장 안에 `{최다 효과} 효과` 부분 문자열이 있으면 그 부분만
- *  #FFF8D1, 나머지 흰색. 매칭 없으면 전체 흰색(엔진 문장 다양성 대응 — 문구 자체는 불변). */
+ *  #FFF8D1 + Bold(R4 C-10 — 디폴트 Medium/강조만 Bold), 나머지 흰색 Medium.
+ *  매칭 없으면 전체 흰색 Medium(엔진 문장 다양성 대응 — 문구 자체는 불변). */
 function renderHeadline(text: string, effectLabel: string) {
   const token = effectLabel ? `${effectLabel} 효과` : "";
   const idx = token ? text.indexOf(token) : -1;
@@ -164,7 +195,7 @@ function renderHeadline(text: string, effectLabel: string) {
   return (
     <>
       {text.slice(0, idx)}
-      <span style={{ color: "#FFF8D1" }}>{token}</span>
+      <b className="font-bold" style={{ color: "#FFF8D1" }}>{token}</b>
       {text.slice(idx + token.length)}
     </>
   );
@@ -207,8 +238,8 @@ function useCountUp(target: number, run: boolean): number {
 /* ---------- 공용 소품 ---------- */
 
 const SECTION_TITLE =
-  "text-[19px] font-extrabold leading-[1.35] tracking-[-0.02em] text-[#3A3C41]";
-const EYEBROW = "mb-1 text-[11.5px] font-extrabold uppercase tracking-[0.12em]";
+  "text-[19px] font-semibold leading-[1.35] tracking-[-0.02em] text-[#3A3C41]";
+const EYEBROW = "mb-1 text-[11.5px] font-semibold uppercase tracking-[0.12em]";
 
 const CHEVRON_RIGHT = (
   <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -259,32 +290,28 @@ async function sharePlainUrl() {
 }
 
 /**
- * AnchorEngagement — 히어로 우하단 저장·공유 아이콘 + 하단 고정 바(모바일, 포털).
+ * AnchorEngagement — 히어로 우하단 저장·공유 아이콘 + 저장/공유 바(모바일, 인라인 슬롯 포털).
  *
  * 두 표면이 **한 훅 인스턴스**(useCardEngagement — toggle_card_save/card_shares)를 공유해
  * 저장 상태가 항상 일치한다(별도 인스턴스면 히어로↔바 낙관 상태가 어긋남).
- * 바는 document.body 포털 — AppShell 루트(z-100 오버레이)·PTR transform 래퍼 밖으로 꺼내
- * 당김 중 fixed 기준점 이탈을 방지. z-105(루트 위) / bottom = 탭바 높이(약 64px)+safe-area 위.
- * 소프트 키보드 열림 시 바 숨김(WriteFab·탭바와 동일 정책 — 댓글 입력 가림 방지).
+ * 바는 R4 C-2(2026-07-09)부터 fixed 폐기 — 본문 인라인 슬롯 div(흰 통계 카드와 #F5FBFF
+ * 리뷰 패널 사이, 부모가 barSlot 로 공급)로 **포털만 유지**해 훅 인스턴스 단일성을 지킨다.
+ * 일반 흐름 요소라 z-index·safe-area·소프트 키보드 숨김이 모두 불필요(스크롤 시 콘텐츠와
+ * 함께 지나감 — 원장 확정). 슬롯 ref 가 마운트 후 채워지며 자연 재렌더 → 구 portalReady rAF 폐기.
  */
 function AnchorEngagement({
   anchor,
   me,
   onLoginRequired,
+  barSlot,
 }: {
   anchor: CardData;
   me: EngagementMe;
   onLoginRequired: (reason: string) => void;
+  /** 저장/공유 바 포털 대상(본문 인라인 슬롯 div — null 이면 바 미렌더). */
+  barSlot: HTMLElement | null;
 }) {
   const eng = useCardEngagement(anchor, {}, me, onLoginRequired, shareCard);
-  const keyboardOpen = useSoftKeyboardOpen();
-  // 포털은 document 필요 — 마운트 뒤 한 프레임 늦게 열기(rAF — effect 동기 setState lint 회피,
-  //   본문 mounted 트리거와 동일 패턴).
-  const [portalReady, setPortalReady] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setPortalReady(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
 
   return (
     <>
@@ -310,25 +337,19 @@ function AnchorEngagement({
         </button>
       </div>
 
-      {/* ⑫ 하단 고정 바 — 모바일 전용(min-[900px]:hidden), 탭바 위. */}
-      {portalReady &&
-        !keyboardOpen &&
+      {/* ⑫' 저장/공유 바 — 모바일 전용(min-[900px]:hidden), 인라인 흐름(R4 C-2).
+          텍스트 #A9AEBB(시안 지정 — 대비 AA 미달은 §6 고지 사항)·배경 칩 없음·세로 구분선.
+          ⚠ button 글자색은 반드시 인라인 style — app.module.css `:where(.root) button{color:inherit}`
+          가 무계층이라 Tailwind 유틸리티 계층(text-[...])을 캐스케이드에서 이김(더보기·6~10위도 동일). */}
+      {barSlot &&
         createPortal(
-          <div
-            className="fixed inset-x-0 z-[105] flex items-center bg-white/95 px-4 py-2.5 backdrop-blur min-[900px]:hidden"
-            style={{
-              /* 탭바 실측 76px 밀착 + 상단 1px 보더로 경계(R2-1) — 배포 후 실기기 확인. */
-              bottom: "calc(76px + env(safe-area-inset-bottom))",
-              borderTop: "1px solid #EFF3F6",
-              boxShadow: "0 -4px 16px rgba(27,73,101,0.06)",
-            }}
-          >
+          <div className="mt-[19px] flex items-center min-[900px]:hidden">
             <button
               type="button"
               onClick={eng.save.toggle}
               aria-pressed={eng.save.active}
-              className="flex flex-1 cursor-pointer items-center justify-center gap-2 py-1.5 text-[14.5px] font-semibold"
-              style={{ color: eng.save.active ? "var(--accent-blue)" : "#7F838D" }}
+              className="flex flex-1 cursor-pointer items-center justify-center gap-2 py-2.5 text-[14.5px] font-semibold"
+              style={{ color: eng.save.active ? "var(--accent-blue)" : "#A9AEBB" }}
             >
               <BookmarkGlyph filled={eng.save.active} size={19} />
               {eng.save.active ? "저장됨" : "저장하기"}
@@ -337,13 +358,14 @@ function AnchorEngagement({
             <button
               type="button"
               onClick={() => void eng.share.share()}
-              className="flex flex-1 cursor-pointer items-center justify-center gap-2 py-1.5 text-[14.5px] font-semibold text-[#7F838D]"
+              className="flex flex-1 cursor-pointer items-center justify-center gap-2 py-2.5 text-[14.5px] font-semibold"
+              style={{ color: "#A9AEBB" }}
             >
               <IconShare size={18} />
               공유하기
             </button>
           </div>,
-          document.body,
+          barSlot,
         )}
     </>
   );
@@ -368,6 +390,7 @@ export default function ReportsDetailView({
   topicsExists,
   doctorQAs,
   similar,
+  heroHeadline,
 }: {
   ko: string;
   en: string;
@@ -382,11 +405,17 @@ export default function ReportsDetailView({
   doctorQAs: CardData[];
   /** 비슷한 시술 최대 5개(각 카테고리 색) */
   similar: { ko: string; en: string; count: number; effectPct: number; category: ProcedureSlug | null }[];
+  /** 서버 확정 회전 헤드라인(report-headline 엔진 — 1뎁스와 동일 풀, 매 방문 랜덤).
+   *  빈 문자열이면 구 고정 템플릿 fallback. SSR/CSR 일치를 위해 서버에서 1회 선택. */
+  heroHeadline: string;
 }) {
   const session = useSession();
   const me: EngagementMe =
     session === null ? null : { id: session.activeIdentityId, role: session.role };
   const [authPrompt, setAuthPrompt] = useState<string | null>(null);
+  // 저장/공유 바 인라인 슬롯(R4 C-2) — 흰 통계 카드와 리뷰 패널 사이 div. callback ref 로
+  //   마운트 시 채워지면 AnchorEngagement 가 이 슬롯으로 포털(훅 인스턴스는 히어로와 단일 유지).
+  const [barSlot, setBarSlot] = useState<HTMLElement | null>(null);
   const [qaExpanded, setQaExpanded] = useState(false);
   const [reviewSort, setReviewSort] = useState<SortKey>("rec");
   const listRef = useRef<HTMLDivElement>(null);
@@ -445,13 +474,9 @@ export default function ReportsDetailView({
   }, []);
 
   const theme = categoryTheme(report.category);
-  const heroAccent =
-    HERO_ANCHOR[theme.color.toUpperCase()] ?? {
-      chipOverlay: theme.deep.startsWith("#")
-        ? `color-mix(in srgb, ${theme.deep} 40%, transparent)`
-        : "rgba(0,60,50,0.35)", // null 카테고리(CSS var) — color-mix 구형 브라우저 무색 방어
-      person: theme.deep,
-    };
+  // 사람 그리드 색 — 초록만 명세 앵커(#168275), 그 외 theme.deep 폴백. 칩 배경은 theme.heroChip
+  //   솔리드(R4 C-9 — 구 반투명 오버레이·color-mix iOS15 가드 폐기).
+  const heroPerson = HERO_PERSON[theme.color.toUpperCase()] ?? theme.deep;
   const {
     count, avgSatisfaction, satisfactionDist, avgPain, revisit, effects,
     noEffectCount, downtimeAnswered, downtimeDist, onsetAnswered, onsetDist,
@@ -504,9 +529,9 @@ export default function ReportsDetailView({
     color: AGE_COLOR[b.label] ?? "#C9A9EC",
   }));
 
-  // 사람 그리드 20×3=60(R2-1 시안 실측 배열) — 비율 채움: 있음 1.0 / 고민 중 0.55 / 없어요 0.25.
+  // 사람 그리드 17×3=51(R4 C-7 — 구 20×3 폐기) — 비율 채움: 있음 1.0 / 고민 중 0.55 / 없어요 0.25.
   //   0 아닌 상태 최소 1셀 보장(allocGridCells). stagger 는 opacity 만(transform/opacity 규칙).
-  const GRID_TOTAL = 60;
+  const GRID_TOTAL = 51;
   const { y: yShow, m: mShow } = allocGridCells(revisit.yes, revisit.maybe, revisit.no, GRID_TOTAL);
   // 재시술 문항 전원 무응답(0292 이후 revisit nullable)이면 그리드 미노출 — 60칸 전부
   //   "없어요" 톤으로 렌더되어 "전원 부정"으로 오독될 수 있음(R2 검수 지적).
@@ -597,16 +622,18 @@ export default function ReportsDetailView({
       {/* 뒤로가기는 셸 헤더로 이전(R2-2 backHeader — ReportsShell 이 상세일 때 지정).
           구 인라인 BackButton 행 제거(중복 방지). */}
 
-      {/* ── 리포트 카드 한 장(라운드 18, 390 기준 폭 348 — 셸 .page 18px + 로컬 3px = 마진 21.
-             MyPageView "padding: 0 2px" 패턴의 로컬 보정. 흰 통계 섹션 포함 카드 전체 적용) ── */}
-      <div className="mx-[3px] overflow-hidden rounded-[18px] bg-white">
-        {/* ① 히어로 — R3 시안 픽셀 실측 일치. 블록 간 마진은 명세 "잉크 간격"에서 라인박스
-            여백(하프 리딩 + 글리프 상하 여백 — 한글 잉크 ≈ 0.11em~0.89em, 숫자 ≈ 0.13em~0.85em
-            가정)을 뺀 환산값. 그라데이션 130deg(원색 0→21% 평탄 → gradEnd 100%). */}
+      {/* ── 리포트 카드 2장(R4 C-1 — 히어로/흰 통계 형제 카드 분리, 간격 16. 라운드 18,
+             390 기준 폭 348 — 셸 .page 18px + 로컬 3px = 마진 21. MyPageView "padding: 0 2px"
+             패턴의 로컬 보정) ── */}
+      <div className="mx-[3px]">
+        {/* ① 히어로 카드 — R3 시안 픽셀 실측 일치 + R4 보정. 블록 간 마진은 명세 "잉크 간격"에서
+            라인박스 여백(하프 리딩 + 글리프 상하 여백 — 한글 잉크 ≈ 0.11em~0.89em, 숫자 ≈
+            0.13em~0.85em 가정)을 뺀 환산값. 그라데이션 130deg(원색 0→35% 평탄 연장 →
+            gradEnd 100% — R4 C-12, 하단 좌우 색 차 재현). */}
         <section
           className="relative overflow-hidden rounded-[18px] px-[28px] pb-[28px] pt-[58px] text-white"
           style={{
-            background: `linear-gradient(130deg, ${theme.color} 0%, ${theme.color} 21%, ${theme.gradEnd} 100%)`,
+            background: `linear-gradient(130deg, ${theme.color} 0%, ${theme.color} 35%, ${theme.gradEnd} 100%)`,
           }}
         >
           {/* tt: 워터마크 — 브랜드 로고타이프 SVG(IconBrandTT, viewBox=잉크 bbox 크롭).
@@ -620,10 +647,11 @@ export default function ReportsDetailView({
           <div className="relative">
             {/* 1. 라벨 — 15px/700, tracking .28em, white/55 */}
             <div className="text-[15px] font-bold leading-[1.3] tracking-[0.28em] text-white/55">피부텐텐 리포트</div>
-            {/* 2. 시술명 — 잉크 간격 23.5 → mt 14 */}
-            <h2 className="mt-[14px] text-[37px] font-extrabold leading-[1.15] tracking-[-0.01em]">{ko}</h2>
+            {/* 2. 시술명 — 40px/bold(R4 C-8). 잉크 간격 23.5 → mt 14 */}
+            <h2 className="mt-[14px] text-[40px] font-bold leading-[1.15] tracking-[-0.01em]">{ko}</h2>
 
-            {/* 3. 태그 칩 1줄 = 효과 top3 — rounded-10, 높이 32(py 7·px 12), 반투명 오버레이 배경.
+            {/* 3. 태그 칩 1줄 = 효과 top3 — rounded-10, 높이 32(py 7·px 12), 솔리드 배경
+                theme.heroChip(초록 #13887B — R4 C-9, 구 반투명 오버레이 폐기).
                 잉크 간격 18.2 → mt 13. 줄바꿈 없이 1줄 유지. */}
             {heroTags.length > 0 && (
               <div className="mt-[13px] flex flex-nowrap gap-[6px] overflow-hidden">
@@ -631,7 +659,7 @@ export default function ReportsDetailView({
                   <span
                     key={t}
                     className="whitespace-nowrap rounded-[10px] px-[12px] py-[7px] text-[13.5px] font-semibold leading-[1.35] text-white"
-                    style={{ backgroundColor: heroAccent.chipOverlay }}
+                    style={{ backgroundColor: theme.heroChip }}
                   >
                     {t}
                   </span>
@@ -641,21 +669,26 @@ export default function ReportsDetailView({
 
             {/* 4. 재시술의향 라벨 — 15px/700 white 100%. 잉크 간격 34.5 → mt 31 */}
             <div className="mt-[31px] text-[15px] font-bold leading-[1.3] text-white">재시술의향</div>
-            {/* 5. % 숫자 — 95px/800, tracking -.04em, tabular. %-스팬 0.50em 베이스라인 정렬.
-                잉크 간격 18.2 → mt 2(95px 숫자 캡 위 여백 ≈ 12.4 흡수) */}
-            <div className="mt-[2px] whitespace-nowrap text-[95px] font-extrabold leading-none tracking-[-0.04em] [font-feature-settings:'tnum']">
+            {/* 5. % 숫자 — Cinzel ≈98px Regular(R4 C-6 — 잉크 69.2 재캘리브레이션, §5.5 서브셋.
+                tracking·tnum 제거, %-스팬 0.50em 비례 유지). 잉크 간격 18.2 → mt 2 */}
+            <div
+              className="mt-[2px] whitespace-nowrap text-[98px] font-normal leading-none"
+              style={{ fontFamily: CINZEL_STACK }}
+            >
               {yesPctAnim}
               <span className="text-[0.5em]">%</span>
             </div>
 
-            {/* 6. 사람 아이콘 그리드 20×3=60 — 값 연동 비율 채움. 셀 높이 10.2px(R3),
-                IconPersonGrid(셀 비율 10×11.6)가 셀을 꽉 채움(레터박스 폐기).
+            {/* 6. 사람 아이콘 그리드 17×3=51(R4 C-7) — 값 연동 비율 채움. 폭 상한 283px
+                (17열 조판 실폭 — 데스크탑 콘텐츠 626px 에서 셀 가로 늘어남 왜곡 제거, 좌측 정렬.
+                <900px 는 실질 no-op). 셀 ~11.2×13(비율 10×11.6 유지)·열 gap 5.8·행 피치 20.5.
+                IconPersonGrid(preserveAspectRatio none)가 셀을 꽉 채움.
                 잉크 간격 27.1 → mt 13(숫자 베이스라인 아래 여백 ≈ 14.3 흡수).
                 전원 무응답이면 그리드·보조문구 미노출(오독 방지). */}
             {revisitAnswered && (
               <>
                 <div
-                  className="mt-[13px] grid grid-cols-[repeat(20,minmax(0,1fr))] gap-x-[6px] gap-y-[8px]"
+                  className="mt-[13px] grid max-w-[283px] grid-cols-[repeat(17,minmax(0,1fr))] gap-x-[5.8px] gap-y-[7.5px]"
                   role="img"
                   aria-label={`후기 ${count}건 중 재시술의향 있음 ${revisit.yes}건, 고민 중 ${revisit.maybe}건, 없어요 ${revisit.no}건`}
                 >
@@ -664,32 +697,35 @@ export default function ReportsDetailView({
                     return (
                       <span
                         key={i}
-                        className="block h-[10.2px]"
+                        className="block h-[13px]"
                         style={{
                           opacity: mounted ? op : 0,
                           transition: `opacity .35s ease ${i * 4}ms`,
                         }}
                       >
-                        <IconPersonGrid fill={heroAccent.person} className="block h-full w-full" />
+                        <IconPersonGrid fill={heroPerson} className="block h-full w-full" />
                       </span>
                     );
                   })}
                 </div>
 
-                {/* 7. 보조문구 — 13.5px white/65, PDF p5 명세 원문 포맷. 잉크 간격 ~16 → mt 12 */}
-                <p className="mt-[12px] text-[13.5px] leading-[1.35] text-white/65">
+                {/* 7. 보조문구 — 13.5px white/60(R4 C-11), PDF p5 명세 원문 포맷. 잉크 간격 ~16 → mt 12 */}
+                <p className="mt-[12px] text-[13.5px] leading-[1.35] text-white/60">
                   후기 {count}건 중 있음 {revisit.yes}건, 고민 중 {revisit.maybe}건, 없어요 {revisit.no}건
                 </p>
               </>
             )}
 
-            {/* 8. 헤드라인 — 전폭 블록 한 줄 17px/700, `{효과} 효과` 부분만 #FFF8D1 이중색.
-                잉크 간격 16.2 → mt 7 */}
-            <p className="mt-[7px] text-[17px] font-bold leading-[1.4]">
+            {/* 8. 헤드라인 — 전폭 블록 한 줄 17px, 디폴트 Medium/강조어만 Bold(R4 C-10),
+                `{효과} 효과` 부분만 #FFF8D1 이중색. 잉크 간격 16.2 → mt 7.
+                문구 = 회전 엔진(heroHeadline, 원장 확정 2026-07-09 — 시안 문장은 예시였음).
+                엔진 문장에 효과어가 없으면 전체 흰색(renderHeadline 폴백). */}
+            <p className="mt-[7px] text-[17px] font-medium leading-[1.4]">
               {renderHeadline(
-                topEffectLabel
-                  ? `${topEffectLabel} 효과가 좋았다는 후기가 많아요`
-                  : `후기 ${count}명의 경험을 모았어요`,
+                heroHeadline ||
+                  (topEffectLabel
+                    ? `${topEffectLabel} 효과가 좋았다는 후기가 많아요`
+                    : `후기 ${count}명의 경험을 모았어요`),
                 topEffectLabel,
               )}
             </p>
@@ -699,7 +735,12 @@ export default function ReportsDetailView({
                 잉크 간격 39 → mt 31 */}
             <div className="mt-[31px] flex items-center justify-end">
               {report.anchor ? (
-                <AnchorEngagement anchor={report.anchor} me={me} onLoginRequired={setAuthPrompt} />
+                <AnchorEngagement
+                  anchor={report.anchor}
+                  me={me}
+                  onLoginRequired={setAuthPrompt}
+                  barSlot={barSlot}
+                />
               ) : (
                 // 앵커 없음 — 저장 비노출(대상 card_id 부재), 공유만 URL 공유로 노출.
                 <button
@@ -715,6 +756,9 @@ export default function ReportsDetailView({
           </div>
         </section>
 
+        {/* ── 흰 통계 카드(R4 C-1 — 히어로와 형제 분리, 간격 16) ── */}
+        <div className="mt-4 overflow-hidden rounded-[18px] bg-white pb-[28px]">
+
         {/* ② SATISFACTION — 좌: 큰 평점+별 5 / 우: 별점 분포 5줄 */}
         <section className="px-5 pt-8">
           <div className={EYEBROW} style={{ color: theme.color }}>Satisfaction</div>
@@ -722,10 +766,10 @@ export default function ReportsDetailView({
           <div className="mt-5 flex items-center gap-6">
             <div className="shrink-0">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-[46px] font-extrabold leading-none text-[#3A3C41] [font-feature-settings:'tnum']">
+                <span className="text-[46px] font-semibold leading-none text-[#3A3C41] [font-feature-settings:'tnum']">
                   {avgSatisfaction.toFixed(1)}
                 </span>
-                <span className="text-[15px] font-semibold text-[#8A939B]">/ 5.0</span>
+                <span className="text-[15px] font-semibold text-[#7F838D]">/ 5.0</span>
               </div>
               <div className="mt-2.5 flex gap-[3px]" aria-label={`평균 만족도 ${avgSatisfaction.toFixed(1)}점`}>
                 {[1, 2, 3, 4, 5].map((s) => (
@@ -741,7 +785,7 @@ export default function ReportsDetailView({
                 const w = Math.round((c / maxSat) * 100);
                 return (
                   <div key={s} className="flex items-center gap-2 text-[11.5px]">
-                    <span className="w-6 shrink-0 text-[#8A939B]">{s}점</span>
+                    <span className="w-6 shrink-0 text-[#7F838D]">{s}점</span>
                     <span className="h-2 flex-1 overflow-hidden rounded-[6px] bg-[var(--gauge-track)]">
                       <span
                         className="block h-full rounded-[6px] bg-[#FCC623] transition-[width] duration-700 ease-out"
@@ -749,7 +793,7 @@ export default function ReportsDetailView({
                         aria-hidden
                       />
                     </span>
-                    <span className="w-8 shrink-0 text-right text-[#8A939B] [font-feature-settings:'tnum']">{c}</span>
+                    <span className="w-8 shrink-0 text-right text-[#7F838D] [font-feature-settings:'tnum']">{c}</span>
                   </div>
                 );
               })}
@@ -764,23 +808,25 @@ export default function ReportsDetailView({
 
           <div className="mt-5">
             <div className="text-[15px] leading-[1.45]">
-              <b className="font-bold text-[#3A3C41]">통증 평균 {avgPain.toFixed(1)}점</b>{" "}
-              <span className="text-[13px] text-[#8A939B]">{painPhrase(avgPain)}</span>
+              <b className="font-semibold text-[#3A3C41]">통증 평균 {avgPain.toFixed(1)}점</b>{" "}
+              <span className="text-[13px] text-[#7F838D]">{painPhrase(avgPain)}</span>
             </div>
+            {/* 마커 — 원 20px·외곽선 1px #F06258 고정·그림자, 위치 px 혼합 clamp(허브와 B 스펙 통일) */}
             <div className="relative mt-5 h-[10px] rounded-[6px]" style={{ background: PAIN_GRADIENT }} aria-hidden>
               <span
-                className="absolute top-1/2 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-white"
+                className="absolute top-1/2 flex h-5 w-5 items-center justify-center rounded-full border bg-white"
                 style={{
-                  left: `${painPos(avgPain)}%`,
+                  left: `clamp(10px, ${painPos(avgPain)}%, calc(100% - 10px))`,
                   transform: "translate(-50%,-50%)",
-                  borderColor: painMarkColor(avgPain),
-                  color: painMarkColor(avgPain),
+                  borderColor: PAIN_MARK,
+                  color: PAIN_MARK,
+                  boxShadow: "0 3px 5px rgba(0,0,0,0.1)",
                 }}
               >
-                <IconPain size={12} />
+                <IconPain size={11} />
               </span>
             </div>
-            <div className="mt-2.5 flex justify-between text-[11.5px] text-[#8A939B]" aria-hidden>
+            <div className="mt-2.5 flex justify-between text-[11.5px] text-[#7F838D]" aria-hidden>
               {PAIN_LABELS.map((l) => (
                 <span key={l}>{l}</span>
               ))}
@@ -791,28 +837,36 @@ export default function ReportsDetailView({
             {downtimeAnswered > 0 ? (
               <>
                 <div className="text-[15px] leading-[1.45]">
-                  <b className="font-bold text-[#3A3C41]">다운타임</b>{" "}
-                  <span className="text-[13px] text-[#8A939B]">{dtCaption}</span>
+                  <b className="font-semibold text-[#3A3C41]">다운타임</b>{" "}
+                  <span className="text-[13px] text-[#7F838D]">{dtCaption}</span>
                 </div>
-                <div className="relative mt-5 h-[10px] rounded-[6px] bg-[var(--gauge-track)]" aria-hidden>
+                {/* 채움 — 전폭 기준 그라데이션 + 우측 트랙색 오버레이(R4 C-14, B-2 와 동일 방식.
+                    오버레이 width 축소 애니메이션 = 기존 0→값 채움 유지) */}
+                <div className="relative mt-5 h-[10px]" aria-hidden>
+                  <div
+                    className="absolute inset-0 overflow-hidden rounded-[6px]"
+                    style={{ background: DT_GRADIENT }}
+                  >
+                    <span
+                      className="absolute inset-y-0 right-0 bg-[var(--gauge-track)] transition-[width] duration-700 ease-out"
+                      style={{ width: mounted ? `${100 - dtPct}%` : "100%" }}
+                    />
+                  </div>
                   <span
-                    className="absolute left-0 top-0 block h-full rounded-[6px] transition-[width] duration-700 ease-out"
-                    style={{ width: mounted ? `${dtPct}%` : "0%", backgroundColor: DT_FILL }}
-                  />
-                  <span
-                    className="absolute top-1/2 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-white"
+                    className="absolute top-1/2 z-[1] flex h-5 w-5 items-center justify-center rounded-full border bg-white"
                     style={{
-                      left: `${dtPct}%`,
+                      left: `clamp(10px, ${dtPct}%, calc(100% - 10px))`,
                       transform: "translate(-50%,-50%)",
-                      borderColor: DT_FILL,
-                      color: DT_FILL,
+                      borderColor: DT_MARK,
+                      color: DT_MARK,
+                      boxShadow: "0 3px 5px rgba(0,0,0,0.1)",
                     }}
                   >
                     <IconDowntimeCross size={10} />
                   </span>
                 </div>
                 {/* 표시 3구간 재그룹 라벨(당일/1주/2주) — 트랙 매핑 위치에 정렬(저장 척도 5구간 불변) */}
-                <div className="relative mt-2.5 h-[14px] text-[11.5px] text-[#8A939B]" aria-hidden>
+                <div className="relative mt-2.5 h-[14px] text-[11.5px] text-[#7F838D]" aria-hidden>
                   <span className="absolute -translate-x-1/2" style={{ left: `${downtimePos(0)}%` }}>당일</span>
                   <span className="absolute -translate-x-1/2" style={{ left: `${downtimePos(7)}%` }}>1주</span>
                   <span className="absolute -translate-x-1/2" style={{ left: `${downtimePos(14)}%` }}>2주</span>
@@ -820,8 +874,8 @@ export default function ReportsDetailView({
               </>
             ) : (
               <>
-                <b className="text-[15px] font-bold text-[#3A3C41]">다운타임</b>
-                <p className="mt-1.5 text-[12.5px] text-[#8A939B]">아직 다운타임 응답이 적어요.</p>
+                <b className="text-[15px] font-semibold text-[#3A3C41]">다운타임</b>
+                <p className="mt-1.5 text-[12.5px] text-[#7F838D]">아직 다운타임 응답이 적어요.</p>
               </>
             )}
           </div>
@@ -832,13 +886,13 @@ export default function ReportsDetailView({
           <section className="px-5 pt-8">
             <div className={EYEBROW} style={{ color: theme.color }}>Results</div>
             <h3 className={SECTION_TITLE}>{ko} 받은 분들이 느낀 효과예요</h3>
-            <p className="mt-2 text-[13px] text-[#8A939B]">
+            <p className="mt-2 text-[13px] text-[#7F838D]">
               ‘{topEffects[0]?.label}’ 효과를 가장 많이 꼽았어요. %는 그 효과를 봤다는 분의 비율이에요.
             </p>
             <div className="mt-4 flex flex-col gap-3">
               {topEffects.map((e, i) => (
                 <div key={e.label} className="flex items-center gap-3">
-                  <span className="w-[64px] shrink-0 truncate text-[13.5px] font-bold text-[#3A3C41]">{e.label}</span>
+                  <span className="w-[64px] shrink-0 truncate text-[13.5px] font-semibold text-[#3A3C41]">{e.label}</span>
                   <span className="h-[10px] flex-1 overflow-hidden rounded-[6px] bg-[var(--gauge-track)]">
                     <span
                       className="block h-full rounded-[6px] transition-[width] duration-700 ease-out"
@@ -849,14 +903,14 @@ export default function ReportsDetailView({
                       aria-hidden
                     />
                   </span>
-                  <span className="w-11 shrink-0 text-right text-[15px] font-extrabold text-[#1A1A1A] [font-feature-settings:'tnum']">
+                  <span className="w-11 shrink-0 text-right text-[15px] font-semibold text-[#3A3C41] [font-feature-settings:'tnum']">
                     {e.pct}%
                   </span>
                 </div>
               ))}
             </div>
             {noEffectCount > 0 && (
-              <p className="mt-3.5 text-[12.5px] text-[#8A939B]">
+              <p className="mt-3.5 text-[12.5px] text-[#7F838D]">
                 효과를 느끼지 못한 분도 {noEffectCount}명({noEffectPct}%) 있었어요
               </p>
             )}
@@ -878,25 +932,29 @@ export default function ReportsDetailView({
               <div className="grid grid-cols-4 items-end gap-2">
                 {onsetCols.map((n, i) => {
                   const top = i === onsetTopIdx && onsetTimeSum > 0;
-                  const h = n > 0 ? Math.round(18 + (n / onsetMax) * 108) : 0;
+                  const h = n > 0 ? Math.round(TL_BAR_MIN + (n / onsetMax) * TL_BAR_VAR) : 0;
                   return (
                     <div key={i} className="flex flex-col items-center justify-end">
                       <span
                         className={
                           top
-                            ? "text-[16px] font-extrabold text-[var(--accent-blue)] [font-feature-settings:'tnum']"
-                            : "text-[14px] font-bold text-[#B5BEC6] [font-feature-settings:'tnum']"
+                            ? "text-[17px] font-semibold [font-feature-settings:'tnum']"
+                            : "text-[14px] font-semibold text-[#B5BEC6] [font-feature-settings:'tnum']"
                         }
+                        style={top ? { color: TL_ACCENT } : undefined}
                       >
                         {n}명
                       </span>
+                      {/* 막대 34px — 전 막대 공용 그라데이션을 차트 최대 높이 기준 bottom 고정
+                          (height transition 중 재스케일 없음 — R4 C-15) */}
                       <span
-                        className="mt-1.5 w-[40px] max-w-[55%] rounded-t-full transition-[height] duration-700 ease-out"
+                        className="mt-1.5 w-[34px] max-w-[55%] rounded-t-full transition-[height] duration-700 ease-out"
                         style={{
                           height: mounted ? h : 0,
-                          background: top
-                            ? "linear-gradient(180deg, #1A9DE8, #A8DCF5)"
-                            : "linear-gradient(180deg, #A8DCF5, #E5F4FD)",
+                          background: TL_GRADIENT,
+                          backgroundSize: `100% ${TL_CHART_MAX}px`,
+                          backgroundPosition: "bottom",
+                          backgroundRepeat: "no-repeat",
                         }}
                         aria-hidden
                       />
@@ -904,7 +962,7 @@ export default function ReportsDetailView({
                   );
                 })}
               </div>
-              {/* 축 — 선 + 구간 점(최다 지점만 채움) */}
+              {/* 축 — 선 + 구간 점 φ19 링 #2994DB(최다 지점만 채움) */}
               <div className="relative h-[24px]">
                 <span className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-[#E3EAF0]" aria-hidden />
                 <div className="grid h-full grid-cols-4 gap-2">
@@ -912,15 +970,18 @@ export default function ReportsDetailView({
                     const top = i === onsetTopIdx && onsetTimeSum > 0;
                     return (
                       <span key={i} className="flex items-center justify-center">
-                        <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-[var(--accent-blue)] bg-white">
-                          {top && <span className="h-2 w-2 rounded-full bg-[var(--accent-blue)]" />}
+                        <span
+                          className="flex h-[19px] w-[19px] items-center justify-center rounded-full border-2 bg-white"
+                          style={{ borderColor: TL_ACCENT }}
+                        >
+                          {top && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: TL_ACCENT }} />}
                         </span>
                       </span>
                     );
                   })}
                 </div>
               </div>
-              <div className="mt-1 grid grid-cols-4 gap-2 text-center text-[12px] text-[#8A939B]">
+              <div className="mt-1 grid grid-cols-4 gap-2 text-center text-[12px] text-[#7F838D]">
                 {EFFECT_ONSET_OPTIONS.slice(0, 4).map((o) => (
                   <span key={o.value}>{o.label}</span>
                 ))}
@@ -931,17 +992,17 @@ export default function ReportsDetailView({
 
         {/* ⑥ 작성자 통계 — 성별·연령 가로 띠(큰 조각 띠 안 라벨 / 작은 조각 아래 범례) */}
         {demographics.total > 0 && (
-          <section className="mx-5 mt-8 border-t border-[#EDF2F4] pt-7 pb-8">
-            <div className="text-[16px] font-extrabold text-[#3A3C41]">작성자 통계</div>
+          <section className="mx-5 mt-8 border-t border-[#EDF2F4] pt-7">
+            <div className="text-[16px] font-semibold text-[#3A3C41]">작성자 통계</div>
 
-            <div className="mt-4 text-[13px] font-semibold text-[#8A939B]">성별</div>
+            <div className="mt-4 text-[13px] font-semibold text-[#7F838D]">성별</div>
             <div className="mt-2 flex h-[30px] overflow-hidden rounded-full" aria-hidden>
               {genderSegs.map(
                 (g) =>
                   g.pct > 0 && (
                     <span
                       key={g.label}
-                      className="flex items-center justify-center overflow-hidden whitespace-nowrap text-[13px] font-bold text-white"
+                      className="flex items-center justify-center overflow-hidden whitespace-nowrap text-[13px] font-semibold text-white"
                       style={{ width: `${g.pct}%`, backgroundColor: g.color }}
                     >
                       {g.pct >= INLINE_MIN ? `${g.label} ${g.pct}%` : ""}
@@ -949,7 +1010,7 @@ export default function ReportsDetailView({
                   ),
               )}
             </div>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[#8A939B]">
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[#7F838D]">
               {genderSegs
                 .filter((g) => g.pct < INLINE_MIN)
                 .map((g) => (
@@ -962,14 +1023,14 @@ export default function ReportsDetailView({
 
             {ageSegs.length > 0 && (
               <>
-                <div className="mt-5 text-[13px] font-semibold text-[#8A939B]">연령대</div>
+                <div className="mt-5 text-[13px] font-semibold text-[#7F838D]">연령대</div>
                 <div className="mt-2 flex h-[30px] overflow-hidden rounded-full" aria-hidden>
                   {ageSegs.map(
                     (b) =>
                       b.pct > 0 && (
                         <span
                           key={b.label}
-                          className="flex items-center justify-center overflow-hidden whitespace-nowrap text-[13px] font-bold text-white"
+                          className="flex items-center justify-center overflow-hidden whitespace-nowrap text-[13px] font-semibold text-white"
                           style={{ width: `${b.pct}%`, backgroundColor: b.color }}
                         >
                           {b.pct >= INLINE_MIN ? `${b.label} ${b.pct}%` : ""}
@@ -977,7 +1038,7 @@ export default function ReportsDetailView({
                       ),
                   )}
                 </div>
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[#8A939B]">
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[#7F838D]">
                   {ageSegs
                     .filter((b) => b.pct < INLINE_MIN)
                     .map((b) => (
@@ -991,16 +1052,32 @@ export default function ReportsDetailView({
             )}
           </section>
         )}
+
+        {/* PIBUTENTEN REPORT — R4 C-3: 흰 카드 직속 마지막 자식(demographics 조건부 밖 —
+            통계 없는 시술에서도 렌더). 카드 바닥 위 28px 은 카드 래퍼 pb 가 담당(라운드
+            코너 안쪽 여백 보장). 구 F5FBFF 패널 끝 표기는 삭제(중복 금지).
+            스타일: 10.5px/semibold/#D4D9E2/광폭 트래킹(검토 1 실측). */}
+        <p
+          aria-hidden
+          className="mt-8 select-none text-center text-[10.5px] font-semibold uppercase tracking-[0.26em] text-[#D4D9E2]"
+        >
+          Pibutenten Report
+        </p>
+        </div>
       </div>
 
-      {/* ── ⑦~⑪ 하단 영역 — 배경 #F5FBFF 전환(R2-1 색 경량화. 모바일 좌우 풀블리드 = .page
+      {/* 저장/공유 바 인라인 슬롯(R4 C-2) — AnchorEngagement 가 이 div 로 포털(흰 카드 아래
+          19px 은 바 자체 mt. 데스크탑·앵커 없음이면 빈 슬롯 = 높이 0). */}
+      <div ref={setBarSlot} />
+
+      {/* ── ⑦~⑩ 하단 영역 — 배경 #F5FBFF 전환(R2-1 색 경량화. 모바일 좌우 풀블리드 = .page
              패딩 18px 상쇄, 데스크탑은 본문 컬럼 안 라운드 패널 — 사이드바 그리드 침범 방지) ── */}
       <div className="-mx-[18px] mt-8 bg-[#F5FBFF] px-[18px] pb-6 pt-7 min-[900px]:mx-0 min-[900px]:rounded-[24px] min-[900px]:px-6">
         {/* ⑦ 리뷰 섹션 */}
         <section className="scroll-mt-2">
           <div className="flex items-baseline gap-2 px-1">
             <h3 className={SECTION_TITLE}>{ko} 경험자들의 솔직한 후기</h3>
-            <span className="shrink-0 text-[13px] font-semibold text-[#8A939B]">{reviewTotal}건</span>
+            <span className="shrink-0 text-[13px] font-semibold text-[#7F838D]">{reviewTotal}건</span>
           </div>
 
           {/* 정렬 칩 4종(보존) — 후기 구간에서만 sticky. 배경은 패널색(#F5FBFF)과 동일. 활성=#1A9DE8.
@@ -1023,7 +1100,7 @@ export default function ReportsDetailView({
                     style={
                       on
                         ? { backgroundColor: "var(--accent-blue)", color: "#fff", border: "1px solid transparent" }
-                        : { backgroundColor: "#fff", color: "#8A939B", border: "1px solid #E1EAF2" }
+                        : { backgroundColor: "#fff", color: "#7F838D", border: "1px solid #E1EAF2" }
                     }
                   >
                     {s.label}
@@ -1053,7 +1130,7 @@ export default function ReportsDetailView({
               ))}
             </div>
           ) : (
-            <p className="px-1 py-6 text-[13px] text-[#8A939B]">아직 등록된 후기가 없어요.</p>
+            <p className="px-1 py-6 text-[13px] text-[#7F838D]">아직 등록된 후기가 없어요.</p>
           )}
 
           {(hasMore || expanded) && (
@@ -1062,7 +1139,8 @@ export default function ReportsDetailView({
                 <button
                   type="button"
                   onClick={loadMore}
-                  className="flex items-center justify-center gap-1.5 px-4 py-3 text-[14px] font-semibold text-[#8A939B] transition-opacity hover:opacity-70"
+                  className="flex items-center justify-center gap-1.5 px-4 py-3 text-[14px] font-semibold transition-opacity hover:opacity-70"
+                  style={{ color: "#A9AEBB" }}
                 >
                   {loadingMore ? "불러오는 중…" : `${remaining}건의 후기 더보기`}
                   {!loadingMore && CHEVRON_DOWN}
@@ -1072,7 +1150,8 @@ export default function ReportsDetailView({
                 <button
                   type="button"
                   onClick={collapseReviews}
-                  className="flex items-center justify-center gap-1 px-4 py-3 text-[14px] font-semibold text-[#B5BEC6] transition-opacity hover:opacity-70"
+                  className="flex items-center justify-center gap-1 px-4 py-3 text-[14px] font-semibold transition-opacity hover:opacity-70"
+                  style={{ color: "#B5BEC6" }}
                 >
                   접기
                 </button>
@@ -1084,7 +1163,7 @@ export default function ReportsDetailView({
         {/* ⑧ 후기 유도 카드 — #E0F2FB(R2-1 경량화), 말풍선 + 흰 버튼(파란 글자) */}
         <section className="mt-8 rounded-[16px] bg-[#E0F2FB] px-6 py-9 text-center">
           <IconSpeechBubble size={62} className="mx-auto block" />
-          <p className="mt-4 text-[18px] font-extrabold leading-[1.45] tracking-[-0.02em] text-[#3A3C41]">
+          <p className="mt-4 text-[18px] font-semibold leading-[1.45] tracking-[-0.02em] text-[#3A3C41]">
             피부텐텐 리포트는
             <br />
             실제 후기로 만들어졌어요
@@ -1096,7 +1175,7 @@ export default function ReportsDetailView({
           </p>
           <Link
             href={`/write?tab=review&proc=${encodeURIComponent(ko)}`}
-            className="mt-5 inline-flex items-center justify-center rounded-[12px] bg-white px-9 py-3.5 text-[14.5px] font-bold text-[var(--accent-blue)] transition-opacity hover:opacity-90"
+            className="mt-5 inline-flex items-center justify-center rounded-[12px] bg-white px-9 py-3.5 text-[14.5px] font-semibold text-[var(--accent-blue)] transition-opacity hover:opacity-90"
           >
             내 후기 남기기
           </Link>
@@ -1107,7 +1186,7 @@ export default function ReportsDetailView({
           <section className="mt-9">
             <div className="flex items-baseline gap-2 px-1">
               <h3 className={SECTION_TITLE}>전문의가 알려주는 {ko}</h3>
-              <span className="shrink-0 text-[13px] font-semibold text-[#8A939B]">
+              <span className="shrink-0 text-[13px] font-semibold text-[#7F838D]">
                 {ko} 관련 {doctorQAs.length}개
               </span>
             </div>
@@ -1121,7 +1200,7 @@ export default function ReportsDetailView({
                     className="flex items-center gap-3.5 border-b border-[#F0F3F6] py-4 last:border-b-0"
                   >
                     <span
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold text-white"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold text-white"
                       style={{ backgroundColor: rankColor(rank) }}
                     >
                       {rank}
@@ -1136,15 +1215,17 @@ export default function ReportsDetailView({
                 <button
                   type="button"
                   onClick={() => setQaExpanded(true)}
-                  className="flex w-full items-center justify-center gap-1.5 py-3.5 text-[14px] font-semibold text-[#8A939B] transition-opacity hover:opacity-70"
+                  className="flex w-full items-center justify-center gap-1.5 py-3.5 text-[14px] font-semibold transition-opacity hover:opacity-70"
+                  style={{ color: "#A9AEBB" }}
                 >
                   6~{doctorQAs.length}위 보기{CHEVRON_DOWN}
                 </button>
               )}
+              {/* 버튼 — var(--primary)(=#4CBFF2, PDF 지정값과 동일 — 브랜드색 연동, R4 C-17) */}
               {topicsExists && (
                 <Link
                   href={`/?q=${encodeURIComponent(ko)}`}
-                  className="mt-2 flex w-full items-center justify-center rounded-[12px] bg-[var(--accent-blue)] py-3.5 text-[14.5px] font-bold text-white transition-opacity hover:opacity-90"
+                  className="mt-2 flex h-[41px] w-full items-center justify-center rounded-[12px] bg-[var(--primary)] text-[14.5px] font-semibold text-white transition-opacity hover:opacity-90"
                 >
                   전문의 Q&amp;A 보러가기
                 </Link>
@@ -1153,8 +1234,11 @@ export default function ReportsDetailView({
           </section>
         )}
 
-        {/* ⑩ 다른 시술 — 카테고리 chip 파스텔 카드 5(R2-1: soft 12% 틴트→chip, 라운드 24,
-            py 16 = 높이 ~58, 간격 8. 기존 similar 데이터 유지) */}
+        {/* ⑩ ‘○○’ 효과가 좋았던 다른 시술 — R4 C-18 전면 교체(PDF p5-6 신 스타일 — 시안 PNG 는
+            구판, §2-7 PDF 우선): Cinzel Medium 넘버링 01~05 + 시술명(SemiBold #3A3C41) +
+            세로선(넘버링색 30%) + "후기 N개 | ○○ 효과 N%"(넘버링색 80%) + 우측 chevron.
+            색 3세트 인덱스 고정 [초록,파랑,분홍,분홍,초록](RANK_SETS — 6위+ 순환),
+            행 높이 ~58·간격 8. 기존 similar 데이터·링크 유지. */}
         {similar.length > 0 && (
           <section className="mt-9">
             <div className="px-1">
@@ -1162,27 +1246,27 @@ export default function ReportsDetailView({
             </div>
             <div className="mt-3.5 flex flex-col gap-2">
               {similar.map((s, i) => {
-                const st = categoryTheme(s.category ?? report.category);
+                const set = RANK_SETS[i % RANK_SETS.length];
                 return (
                   <Link
                     key={s.ko}
                     href={`/reports/${encodeURIComponent(s.ko)}`}
-                    className="flex items-center gap-3.5 rounded-[24px] px-5 py-4 transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: st.chip }}
+                    className="flex h-[58px] items-center gap-3.5 rounded-[24px] px-5 transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: set.bg }}
                   >
                     <span
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold text-white"
-                      style={{ backgroundColor: st.color }}
+                      className="shrink-0 text-[19px] font-medium leading-none"
+                      style={{ fontFamily: CINZEL_STACK, color: set.num }}
                     >
-                      {i + 1}
+                      {String(i + 1).padStart(2, "0")}
                     </span>
                     <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-                      <span className="text-[17px] font-extrabold tracking-[-0.02em] text-[#3A3C41]">{s.ko}</span>
-                      <span className="text-[13px] text-[#8A939B]">
-                        후기 {s.count}개 <span aria-hidden className="mx-0.5 text-[#D4DDE4]">|</span> {topEffectLabel} 효과 {s.effectPct}%
+                      <span className="text-[17px] font-semibold tracking-[-0.02em] text-[#3A3C41]">{s.ko}</span>
+                      <span className="text-[13px]" style={{ color: `${set.num}CC` }}>
+                        후기 {s.count}개 <span aria-hidden className="mx-0.5" style={{ color: `${set.num}4D` }}>|</span> {topEffectLabel} 효과 {s.effectPct}%
                       </span>
                     </span>
-                    <span className="shrink-0" style={{ color: st.color }} aria-hidden>
+                    <span className="shrink-0" style={{ color: set.num }} aria-hidden>
                       {CHEVRON_RIGHT}
                     </span>
                   </Link>
@@ -1192,13 +1276,6 @@ export default function ReportsDetailView({
           </section>
         )}
 
-        {/* ⑪ 푸터 — 아주 옅게 */}
-        <p
-          aria-hidden
-          className="mt-10 select-none text-center text-[13px] font-extrabold uppercase tracking-[0.26em] text-[#C3CFD9]"
-        >
-          Pibutenten Report
-        </p>
       </div>
 
       <style>{`@keyframes rvRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}`}</style>

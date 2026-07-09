@@ -16,8 +16,9 @@
  *
  * flat — 음영/테두리 없음(우리 UI/UX). app.module.css 미사용 — Tailwind + globals.css 토큰 +
  * categoryTheme(인라인) + 공용 아이콘 모듈(Phase 0-5). 막대는 aria-hidden + 텍스트 병기.
- * 명세 고정색(globals 토큰 없음 → 리터럴 유지): 라벨 #8A939B · 값 #3A3C41 · 통증 번개 #F06258 ·
- * 별 #FCC623 · 막대 연한 스톱 #B4E4DF(초록 앵커 — procedure-theme SPEC_ANCHORS 패턴).
+ * 명세 고정색(globals 토큰 없음 → 리터럴 유지 — R4-1 2026-07-09 보정): 보조 회색 #7F838D ·
+ * 값·재시술의향 라벨 #3A3C41 · 통증 번개 #F06258 · 별 #FCC623 · 막대 연한 스톱 #B4E4DF
+ * (초록 앵커 — procedure-theme SPEC_ANCHORS 패턴).
  */
 
 import type { ProcedureCategory } from "@/lib/procedure-report";
@@ -73,14 +74,14 @@ export default function ReportSummaryBox({
       {/* 윗줄 — 시술명(카테고리색 볼드) + 카테고리 태그 칩(pill). 우측 chevron 자리(pr-9)는 소비처 오버레이용. */}
       <div className="flex items-center gap-2 pr-9">
         <h2
-          className="truncate text-[18px] font-extrabold tracking-[-0.02em]"
+          className="truncate text-[21px] font-bold tracking-[-0.02em]"
           style={{ color: theme.color }}
         >
           {procedureKo}
         </h2>
         {catLabel && (
           <span
-            className="shrink-0 rounded-full px-2.5 py-[3px] text-[11px] font-bold"
+            className="shrink-0 rounded-full px-2.5 py-[4px] text-[13px] font-medium"
             style={{ color: theme.color, backgroundColor: theme.chip }}
           >
             {catLabel}
@@ -90,23 +91,23 @@ export default function ReportSummaryBox({
 
       {/* 큰 숫자 재시술% — 명세: 시술명 줄과 8px 간격, 카테고리색 아주 크게 */}
       <div className="mt-2 flex items-baseline" style={{ color: theme.color }}>
-        <span className="text-[46px] font-extrabold leading-[0.9] tracking-[-0.03em] [font-feature-settings:'tnum']">
+        <span className="text-[50px] font-bold leading-[0.9] tracking-[-0.03em] [font-feature-settings:'tnum']">
           {yesPct}
         </span>
-        <span className="text-[22px] font-extrabold">%</span>
+        <span className="text-[24px] font-bold">%</span>
       </div>
 
       {/* 재시술의향 라벨 + N건의 경험 + 진행 막대 ‖ 우측 통증·만족도 — 명세: 위 12px 간격 */}
       <div className="mt-3 flex items-end gap-5">
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-[13px] font-bold text-[#8A939B]">재시술의향</span>
-            <span className="truncate text-[11.5px] text-[#8A939B]">
+            <span className="text-[14px] font-semibold text-[#3A3C41]">재시술의향</span>
+            <span className="truncate text-[14px] font-normal text-[#7F838D]">
               {experienceCount(count)}
             </span>
           </div>
           {/* 진행 막대 — 트랙 #fff · 채움 연한→카테고리색 그라데이션 · 라운드 6px · 값 연동 */}
-          <div className="mt-2 h-[9px] overflow-hidden rounded-[6px] bg-white">
+          <div className="mt-2 h-[8px] overflow-hidden rounded-[6px] bg-white">
             <span
               className="block h-full rounded-[6px]"
               style={{ width: `${yesPct}%`, background: barFill }}
@@ -114,29 +115,29 @@ export default function ReportSummaryBox({
             />
           </div>
         </div>
-        <div className="flex shrink-0 gap-5">
+        <div className="flex shrink-0 gap-4">
           <div className="text-center">
-            <span className="mb-1 block text-[11px] font-semibold text-[#8A939B]">
+            <span className="mb-1.5 block text-[13px] font-normal text-[#7F838D]">
               통증
             </span>
             {hasPain ? (
               <span className="inline-flex items-center gap-1">
-                <IconPain size={14} className="shrink-0 text-[#F06258]" />
-                <span className="text-[18px] font-extrabold leading-none text-[#3A3C41] [font-feature-settings:'tnum']">
+                <IconPain size={16} className="shrink-0 text-[#F06258]" />
+                <span className="text-[22px] font-semibold leading-none text-[#3A3C41] [font-feature-settings:'tnum']">
                   {avgPain.toFixed(1)}
                 </span>
               </span>
             ) : (
-              <span className="block text-[10px] text-[#8A939B]">응답 적음</span>
+              <span className="block text-[10px] text-[#7F838D]">응답 적음</span>
             )}
           </div>
           <div className="text-center">
-            <span className="mb-1 block text-[11px] font-semibold text-[#8A939B]">
+            <span className="mb-1.5 block text-[13px] font-normal text-[#7F838D]">
               만족도
             </span>
             <span className="inline-flex items-center gap-1">
-              <IconStar size={14} className="shrink-0 text-[#FCC623]" />
-              <span className="text-[18px] font-extrabold leading-none text-[#3A3C41] [font-feature-settings:'tnum']">
+              <IconStar size={16} className="shrink-0 text-[#FCC623]" />
+              <span className="text-[22px] font-semibold leading-none text-[#3A3C41] [font-feature-settings:'tnum']">
                 {avgSatisfaction.toFixed(1)}
               </span>
             </span>
@@ -146,7 +147,7 @@ export default function ReportSummaryBox({
 
       {/* 요약 문장 — 기존 헤드라인 엔진 prop 그대로(재랜덤 금지). 명세: 막대 줄과 16px 간격 */}
       {headline && (
-        <p className="mt-4 truncate text-[13px] text-[#8A939B]">{headline}</p>
+        <p className="mt-4 truncate text-[14px] text-[#7F838D]">{headline}</p>
       )}
     </div>
   );

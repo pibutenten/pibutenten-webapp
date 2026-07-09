@@ -25,8 +25,9 @@ import { useSoftKeyboardOpen } from "@/lib/useSoftKeyboardOpen";
 // 글쓰기 진입이 자연스러운 화면에서만 FAB 를 노출한다(화이트리스트).
 //   노출 = 홈/피드(/) · 투데이(/today) · 내 노트(/notes 이하) · 리포트 허브(/reports) ·
 //          글상세(회원 /{handle}/{shortcode}, 의사 4세그).
-//   리포트 상세(/reports/{시술})는 2026-07-08 UI 개편(D4)부터 하단 고정 바(저장/공유)가
-//   그 자리를 쓰므로 FAB 제외 — 허브 분기(===)는 유지.
+//   리포트 상세(/reports/{시술})는 2026-07-08 UI 개편(D4)부터 FAB 제외 — 허브 분기(===)는 유지.
+//   (구 사유였던 "하단 고정 바"는 R4 C-2, 2026-07-09 에 인라인 저장/공유 바로 전환됐지만,
+//   상세 화면에 글쓰기 FAB 를 띄우지 않는 정책은 그대로 — 동작 무변.)
 //   그 외(프로필 /{handle}·토픽·관리자·원장 대시보드·인증·온보딩 등)는 숨김(의도된 동작).
 function isVisible(pathname: string): boolean {
   return (

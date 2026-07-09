@@ -34,6 +34,17 @@
   font-display: swap;
   src: url("/fonts/Pretendard-Bold.woff2") format("woff2");
 }
+/* Cinzel — 리포트 2뎁스 히어로 % 숫자·순위 넘버링 전용 디스플레이 세리프(R4 §5.5, 2026-07-09).
+   숫자 10자 + % 만 담은 가변 서브셋(3.2KB, 1파일이 400·500 커버 — OFL: /fonts/OFL-Cinzel.txt).
+   unicode-range 로 숫자·% 외 글리프 요청 차단, 폴백은 소비처에서 Georgia, serif. 타 화면 사용 금지. */
+@font-face {
+  font-family: "Cinzel";
+  font-weight: 400 500;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/cinzel-subset.woff2") format("woff2");
+  unicode-range: U+25, U+30-39;
+}
 
 :root {
   --font-pretendard: "Pretendard", -apple-system, BlinkMacSystemFont,
@@ -99,10 +110,12 @@
   --accent-blue: #1A9DE8;
   /* 게이지(통증·효과 막대) 빈 트랙 색 */
   --gauge-track: #EDF2F4;
-  /* 통증 척도 바 그라데이션 스톱 3종 (낮음 → 높음) */
-  --pain-grad-1: #FFD84D;
-  --pain-grad-2: #FF9A4D;
-  --pain-grad-3: #FF5A5A;
+  /* 통증 척도 바 그라데이션 스톱 4종 (낮음 → 높음) — R4 B-1(2026-07-09):
+     1·2뎁스 공용 SSOT (허브 ReportsIndexCard + 상세 ReportsDetailView 모두 이 토큰 소비) */
+  --pain-grad-1: #FFDD77;
+  --pain-grad-2: #FFB46D;
+  --pain-grad-3: #FF7B9F;
+  --pain-grad-4: #FF565B;
   --shadow-sm: 0 1px 3px rgba(27, 73, 101, 0.06);
   --shadow: 0 2px 12px rgba(27, 73, 101, 0.08);
   --shadow-lg: 0 8px 24px rgba(27, 73, 101, 0.12);

@@ -15,6 +15,7 @@ import { SITE_URL } from "@/lib/site";
 import { buildOgImage, buildSocialMeta } from "@/lib/og-meta";
 import { jsonLdString } from "@/lib/json-ld";
 import { fetchViewerStatesRecord } from "@/lib/viewer-states";
+import { buildHeadlinePool, pickHeadline, toSignals } from "@/lib/report-headline";
 import ReportsDetailView from "./ReportsDetailView";
 
 // tag_dictionary.category(한글) → 테마 slug 는 procedure-report.ts 의 categoryKoToSlug(SSOT)
@@ -367,6 +368,8 @@ export default async function ProcedureReportPage({ params }: Props) {
       <ReportsDetailView
         ko={ko}
         en={en}
+        // 2뎁스는 getProcedureReport 경로 — effects 가 채워지므로 topEffect override 불필요(1뎁스 컴팩트 풀과 다름).
+        heroHeadline={pickHeadline(buildHeadlinePool(toSignals(report)))}
         report={report}
         reviews={reviews}
         reviewLiked={reviewLiked}

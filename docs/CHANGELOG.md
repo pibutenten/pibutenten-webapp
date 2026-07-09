@@ -6,11 +6,22 @@
 
 ---
 
-## [2026-07-09] — 리포트 상세 디자인 보정(R2) + 세부페이지 backHeader 일괄
+## [2026-07-09] — 리포트 상세 디자인 보정(R2) + 세부페이지 backHeader 일괄 + 리포트 정밀 보정(R4)
 
-원장 검수 반영 라운드 — 디자이너 서브에이전트의 시안 픽셀 실측 대조 → 디렉터 검수 → 구현. 계획 SSOT: `docs/plans/260709 리포트 상세 디자인 보정 계획 (R2).md`. code-reviewer 통합 검수 치명 0.
+원장 검수 반영 라운드 — 디자이너 서브에이전트의 시안 픽셀 실측 대조 → 디렉터 검수 → 구현. 계획 SSOT: `docs/plans/260709 리포트 상세 디자인 보정 계획 (R2).md`(R2) · `docs/plans/260709 리포트 디자인 정밀 보정 계획 (R4).md`(R4 — 피드백 PDF (2), 독립 검토 2인+자문 교차검증 v2). code-reviewer 통합 검수 치명 0.
+
+### Added
+- **(R4) Cinzel 폰트 self-host 도입** — 구글 폰트 서브셋(숫자 10자+%, 가변 1파일 3.2KB, weight 400 500) `public/fonts/cinzel-subset.woff2` + OFL 라이선스 동봉. next/font 미사용(turbopack 우회 — Pretendard 패턴 동일: globals.css @font-face + preload link). 적용 2곳 한정: 2뎁스 히어로 % 숫자(98px Regular)·다른 시술 순위 넘버링(Medium).
+- **(R4) 2뎁스 히어로 헤드라인 회전 엔진 연결 (원장 확정)** — 고정 템플릿("○○ 효과가 좋았다는 후기가 많아요" — 시안 문구는 예시였음) → `report-headline` 엔진 풀(1뎁스와 동일 SSOT)에서 서버 1회 선택(`heroHeadline` prop, SSR/CSR 일치). 효과어 포함 문장만 #FFF8D1 이중색, 그 외 전체 흰색.
 
 ### Changed
+- **(R4) 리포트 1뎁스 접힘(ReportSummaryBox — /topics 동반)·펼침(ReportsIndexCard) 정밀 보정** — 접힘: 시술명 21px/Bold·칩 13px/Medium·% 50px·재시술의향 라벨 14px/SemiBold/#3A3C41·수치 22px/SemiBold(하단=막대 하단 정렬)·아이콘 16px·막대 h8·회색 #8A939B→#7F838D(5곳)·chevron #B5DBD6. 펼침: 통증 게이지 **4스톱 토큰(#FFDD77→#FFB46D→#FF7B9F→#FF565B, 1·2뎁스 SSOT 통합) + 마커 위치까지만 채움(우측 회색 트랙 오버레이)**·마커 20px/1px/그림자·굵기 명세(SemiBold 제목/Regular 라벨/Medium CTA)·블록 간격 실측치(32/31/20)·효과 % 16px #029688.
+- **(R4) 리포트 2뎁스 정밀 보정** — 히어로/흰 통계 **카드 2장 분리**(간격 16)·**저장/공유 바 fixed 해제 → 본문 인라인**(흰 카드 아래 19px, 인라인 슬롯 포털로 AnchorEngagement 훅 단일 유지·#A9AEBB·세로 구분선)·PIBUTENTEN REPORT 흰 카드 하단 이동(#D4D9E2)·시술명 40px·칩 솔리드 #13887B(hue 파생 heroChip 신설)·헤드라인 Medium/강조 Bold·캡션 white/60·gradEnd #92D5CE·**사람 그리드 17열×3 + max-w 283px**(데스크탑 가로 왜곡 제거 — 원장 제보)·흰 카드 후기 제외 전부 SemiBold·다운타임 바 회색 그라데이션(#D9D9D9→#9DA1AA)·타임라인 막대 34px 단일 고정 그라데이션(#2994DB→#9AE4FF→#FFF)·더보기류 #A9AEBB·Q&A 버튼 var(--primary)·**다른 시술 순위 리스트 전면 교체**(Cinzel 넘버링+3색 세트 [초록,파랑,분홍,분홍,초록]+세로 구분선).
+
+### Fixed
+- **(R4) 버튼 글자색 유틸리티 무시 실버그** — app.module.css `:where(.root) button{color:inherit}`(무계층)가 Tailwind 유틸리티 계층을 캐스케이드에서 이겨 2뎁스 공유하기·더보기·6~10위 버튼 회색이 적용되지 않던 문제 → 인라인 style 전환(실브라우저 검증).
+
+### Changed (R2)
 - **리포트 상세 히어로 표지화 (원장 지시)** — 총높이 ~750px → **~390px**(첫 화면 수납: 헤더 56+여백+히어로 ≤ 가용 640px). 사람 그리드 **100개(10×10, 24px) → 60개(20×3, 9.6px — 시안 실측 배열)**, 그라데이션을 `deep(어두운 파생)` → **`원색 0→30% 평탄 → light(#B4E4DF 파생) 140%`** 로 교체(시안 하단 실측색과 1/255 일치). `procedure-theme.ts` 에 `light` 파생 신설(`deep` 존치 — 타 소비처 무회귀). 재시술 전원 무응답 시 그리드 미노출(오독 방지). 워터마크 white/16, 보조문구 white/85, stagger 4ms, 저장·공유 터치 타깃 44px.
 - **세부(2뎁스) 페이지 헤더 — 모바일 tt: 로고 제거·뒤로가기 최상단 (원장 확정)** — `AppShell backHeader` prop 신설(모바일 로고 자리 BackButton·데스크탑 로고+GNB 유지+본문 "< 뒤로" 행). 적용 13화면: 리포트 상세·프로필(/[handle])·/my/settings·글상세(회원/의사·비공개 placeholder 2)·/notes/[id]·/weather·/my/recent·/topics/[tag]·/doctors/[slug]·/notifications·/reviews/[id]/checkins. 구 중복 뒤로 행·backTitle 은 제거(h1 은 본문 이동 — SEO 유지). **이탈 경고 가드 폼(/write*·/review 작성/수정·/notes/[id]/edit)은 가드 우회 위험으로 제외**(현행 유지, 주석 명기).
 - **리포트 상세 섹션 경량화** — 하단 리뷰 패널 #EAF2F8→#F5FBFF(sticky 칩 배경 동반 + 비선택 칩 1px 보더 #E1EAF2), 다른 시술 카드 `chip` 파스텔·라운드 24·간격 8, 후기 유도 카드 #E0F2FB, 작성자 통계 띠 36→30px, 마커 26→24px, 하단 고정 바 탭바 밀착(76px)+상단 보더.
