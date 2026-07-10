@@ -57,6 +57,8 @@ export default function DraftsPage() {
           alignItems: "center",
           gap: 8,
           padding: "12px 16px",
+          // 풀스크린 테이크오버라 셸 헤더의 --sat 보정을 못 받음 — 네이티브 상태바 겹침 방지.
+          paddingTop: "calc(var(--sat, 0px) + 12px)",
           borderBottom: "1px solid #edf2f5",
         }}
       >

@@ -30,7 +30,7 @@ export default function OfflineBanner() {
 
   return (
     <div
-      className={`fixed top-0 inset-x-0 z-[9999] flex items-center justify-center px-4 py-2 bg-amber-500 text-white text-sm font-medium transition-all duration-500 ${
+      className={`fixed top-0 inset-x-0 z-[9999] flex items-center justify-center px-4 pb-2 pt-[calc(var(--sat,0px)_+_8px)] bg-amber-500 text-white text-sm font-medium transition-all duration-500 ${
         hiding ? "opacity-0 -translate-y-full" : "opacity-100 translate-y-0"
       }`}
     >
