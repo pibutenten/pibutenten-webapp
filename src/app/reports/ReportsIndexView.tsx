@@ -350,14 +350,19 @@ export default function ReportsIndexView({
           카드 시술명(h2, ReportSummaryBox)들의 상위 계층. */}
       <h1 className="sr-only">시술 리포트</h1>
 
-      {/* 정렬 칩 — 본문 상단에 인라인 sticky 고정. 배경은 캔버스 variant(--tt-canvas=#F5FBFF) 자동 추종.
+      {/* 정렬 칩 — 모바일만 본문 상단 인라인 sticky(헤더 숨김 후 상단 유지 — 인스타식 표준). 배경은
+          캔버스 variant(--tt-canvas=#F5FBFF) 자동 추종.
           2026-07-08 UI 개편 Phase 1-3: 선택=--accent-blue(#1A9DE8)+흰 글자 / 비선택=흰 배경+#5A646C(명세
-          고정색 — globals 토큰 없음, 리터럴). 5종 유지(D3 확정 — 시안 4종은 예시). sticky·로직 불변. */}
+          고정색 — globals 토큰 없음, 리터럴). 5종 유지(D3 확정 — 시안 4종은 예시).
+          2026-07-09 원장 확정: z-30 — 헤더(.topStack z-40)보다 아래여서 복귀 헤더가 칩을 덮으며
+          내려옴(구 z-41 은 모바일 복귀 헤더·데스크탑 상시 헤더를 칩이 가리는 버그). 데스크탑(≥900px)은
+          헤더가 상시 고정이라 그 "아래"(top 72px = 헤더 ~65px + 여백)에 붙음 — 피드 칩바와 같은 경험.
+          top 은 인라인 style 이 클래스를 이기므로 전부 클래스로(모바일 var(--sat) / 데스크탑 72px). */}
       {/* rootRef: 스크롤 조상(.root) 탐색의 시작점(항상 렌더되는 본문 첫 DOM). */}
       <div
         ref={rootRef}
-        className="sticky z-[41] mb-1.5 py-2.5"
-        style={{ top: "var(--sat)", background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
+        className="sticky top-[var(--sat)] z-30 mb-1.5 py-2.5 min-[900px]:top-[72px]"
+        style={{ background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
       >
         <div
           role="group"

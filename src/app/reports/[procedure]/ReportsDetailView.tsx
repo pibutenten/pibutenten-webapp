@@ -1108,9 +1108,13 @@ export default function ReportsDetailView({
             <span className="shrink-0 text-[13px] font-semibold text-[#7F838D]">{reviewTotal}건</span>
           </div>
 
-          {/* 정렬 칩 4종(보존) — 후기 구간에서만 sticky. 배경은 패널색(#F5FBFF)과 동일. 활성=#1A9DE8.
-              비선택 칩은 흰 배경이라 밝아진 패널 위 대비 보전용 1px 보더 #E1EAF2(R2-1). */}
-          <div className="sticky z-[41] mt-3 bg-[#F5FBFF] py-2.5" style={{ top: "var(--sat)" }}>
+          {/* 정렬 칩 4종(보존) — 모바일만 후기 구간 sticky. 배경은 패널색(#F5FBFF)과 동일. 활성=#1A9DE8.
+              비선택 칩은 흰 배경이라 밝아진 패널 위 대비 보전용 1px 보더 #E1EAF2(R2-1).
+              2026-07-09 원장 확정: z-30(헤더 z-40 아래 — 복귀 헤더가 칩을 덮으며 내려옴, 구 z-41 은
+              헤더 침범 버그) + 데스크탑은 상시 고정 헤더 "아래"(top 72px)에 후기 구간 동안만 붙음
+              (sticky 의 부모 구간 스코프 — 구간이 끝나면 섹션과 함께 지나감. 원장 확정 B안).
+              top 은 인라인이 클래스를 이기므로 전부 클래스로(모바일 var(--sat) / 데스크탑 72px). */}
+          <div className="sticky top-[var(--sat)] z-30 mt-3 bg-[#F5FBFF] py-2.5 min-[900px]:top-[72px]">
             <div
               role="group"
               aria-label="후기 정렬"
@@ -1142,7 +1146,7 @@ export default function ReportsDetailView({
             <div
               key={reviewSort}
               ref={listRef}
-              className="flex flex-col gap-3 px-px scroll-mt-[calc(var(--sat,0px)_+_56px)]"
+              className="flex flex-col gap-3 px-px scroll-mt-[calc(var(--sat,0px)_+_56px)] min-[900px]:scroll-mt-[128px]"
             >
               {sortedItems.map((card) => (
                 <div key={card.id} style={{ animation: "rvRise .28s ease both" }}>
