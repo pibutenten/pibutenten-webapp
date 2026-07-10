@@ -147,6 +147,17 @@
   background-image: none;
   backdrop-filter: none;
 }
+/* 리포트 허브 정렬 칩바 — 헤더 칩바 슬롯(.topStack)에 들어가므로(2026-07-09 피드화)
+   피드 기본 틴트(#e9f4fc) 대신 리포트 캔버스(#F5FBFF)를 따라 헤더·바디와 한 색.
+   하단 페이드는 피드와 동일 구조(아래 목록이 자연스럽게 사라지게). */
+.canvasReport .chipBar {
+  background: linear-gradient(
+    180deg,
+    #f5fbff 0%,
+    #f5fbff 72%,
+    rgba(245, 251, 255, 0)
+  );
+}
 
 .root *,
 .root *::before,

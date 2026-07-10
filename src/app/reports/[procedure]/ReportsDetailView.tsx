@@ -1103,22 +1103,21 @@ export default function ReportsDetailView({
       <div className="-mx-[18px] mt-8 bg-[#F5FBFF] px-[18px] pb-6 pt-7 min-[900px]:mx-0 min-[900px]:rounded-[24px] min-[900px]:px-6">
         {/* ⑦ 리뷰 섹션 */}
         <section className="scroll-mt-2">
-          <div className="flex items-baseline gap-2 px-1">
-            <h3 className={SECTION_TITLE}>{ko} 경험자들의 솔직한 후기</h3>
-            <span className="shrink-0 text-[13px] font-semibold text-[#7F838D]">{reviewTotal}건</span>
-          </div>
-
-          {/* 정렬 칩 4종(보존) — 모바일만 후기 구간 sticky. 배경은 패널색(#F5FBFF)과 동일. 활성=#1A9DE8.
-              비선택 칩은 흰 배경이라 밝아진 패널 위 대비 보전용 1px 보더 #E1EAF2(R2-1).
-              2026-07-09 원장 확정: z-30(헤더 z-40 아래 — 복귀 헤더가 칩을 덮으며 내려옴, 구 z-41 은
-              헤더 침범 버그) + 데스크탑은 상시 고정 헤더 "아래"(top 72px)에 후기 구간 동안만 붙음
-              (sticky 의 부모 구간 스코프 — 구간이 끝나면 섹션과 함께 지나감. 원장 확정 B안).
-              top 은 인라인이 클래스를 이기므로 전부 클래스로(모바일 var(--sat) / 데스크탑 72px). */}
-          <div className="sticky top-[var(--sat)] z-30 mt-3 bg-[#F5FBFF] py-2.5 min-[900px]:top-[72px]">
+          {/* 후기 헤더 + 정렬 칩을 한 sticky 블록으로 묶어 후기 구간 동안 함께 고정(원장 확정
+              2026-07-09 — 부유 칩만 뜨면 어색해 섹션 헤더째 붙여 덜 어색하게). 배경 패널색(#F5FBFF)
+              으로 아래 흰 후기 카드가 비치지 않게. z-30(헤더 .topStack z-40 아래 — 복귀 헤더가 덮음),
+              모바일 top var(--sat) / 데스크탑 헤더 "아래" 72px, 후기 구간 끝나면 섹션과 함께 지나감. */}
+          <div className="sticky top-[var(--sat)] z-30 bg-[#F5FBFF] pb-2.5 pt-1 min-[900px]:top-[72px]">
+            <div className="flex items-baseline gap-2 px-1">
+              <h3 className={SECTION_TITLE}>{ko} 경험자들의 솔직한 후기</h3>
+              <span className="shrink-0 text-[13px] font-semibold text-[#7F838D]">{reviewTotal}건</span>
+            </div>
+            {/* 정렬 칩 4종(보존). 활성=#1A9DE8. 비선택은 흰 배경이라 밝아진 패널 위 대비 보전용
+                1px 보더 #E1EAF2(R2-1). */}
             <div
               role="group"
               aria-label="후기 정렬"
-              className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="mt-3 flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {SORTS.map((s) => {
                 const on = reviewSort === s.key;

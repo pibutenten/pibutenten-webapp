@@ -7,8 +7,9 @@
  *   이 컴포넌트는 **본문 콘텐츠만** 반환한다(정렬 칩 + 목록 + 면책).
  *
  * 본문:
- *   - 정렬 칩 레일(컴팩트 풀로 계산 가능한 것만): 후기 많은 순(기본)/다시 받고 싶은 순/
- *     만족도 높은 순/통증 적은 순. 본문 상단에 인라인 sticky 바로 고정(상세 후기 정렬칩과 동일 패턴).
+ *   - 정렬(최신순/후기많은순/재시술의향/만족도/통증): 칩 UI 는 **셸 헤더 칩바 슬롯**(ReportsShell →
+ *     AppShell chips)에 있어 피드처럼 헤더와 한 덩어리(.topStack)로 함께 이동/숨김. 본문은 상태만
+ *     useReportsSort()로 구독해 목록을 정렬하고, 뒤로가기 스냅샷 복원 시 setSort 로 되돌린다(2026-07-09).
  *   - 카테고리 필터: 사이드바 칩 선택을 useReportsCategory()로 구독해 목록을 거른다(필터 해제·이동은
  *     상위 shell 의 사이드바 재클릭이 담당. 본문은 읽어서 필터만).
  *   - 각 시술 = ReportsIndexCard(자체 구현, 컴팩트 풀 값만 쓰는 요약 카드) + 서버 확정 headline.
@@ -23,7 +24,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ProcedureReport } from "@/lib/procedure-report";
 import type { ProcedureSlug } from "@/lib/categories";
 import ReportsIndexCard from "./ReportsIndexCard";
-import { useReportsCategory } from "./category-context";
+import {
+  useReportsCategory,
+  useReportsSort,
+  SORTS,
+  type SortKey,
+} from "./category-context";
 
 type ReportItem = {
   report: ProcedureReport;
@@ -35,16 +41,6 @@ type ReportItem = {
   /** family 롤업 후 가장 최근 후기 시각(ISO). 후기 0건이면 null. '최신순' 정렬용. */
   latestReviewAt: string | null;
 };
-
-type SortKey = "recent" | "count" | "revisit" | "satisfaction" | "pain";
-
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: "recent", label: "최신순" },
-  { key: "count", label: "후기 많은 순" },
-  { key: "revisit", label: "재시술의향 높은 순" },
-  { key: "satisfaction", label: "만족도 높은 순" },
-  { key: "pain", label: "통증 적은 순" },
-];
 
 /** 한 페이지(피드형 무한스크롤) 노출 개수. */
 const PAGE_SIZE = 8;
@@ -105,14 +101,16 @@ export default function ReportsIndexView({
   /** 서버 계산 일(日) 시드 — '최신순' 약한 회전용(하루 고정 → 하이드레이션 일치). */
   rotationSeed: number;
 }) {
-  const [sort, setSort] = useState<SortKey>("recent");
+  // 정렬은 공유 layout(ReportsShell)이 소유 — 정렬 칩이 헤더 칩바 슬롯(피드처럼 헤더와 한 덩어리)에
+  //   있어 상태를 셸이 들고 이 컨텍스트로 내려준다. setSort 는 뒤로가기 스냅샷 복원에 사용.
+  const { sort, setSort } = useReportsSort();
   // 피드형 무한스크롤 — 현재 노출 페이지 수. 정렬·카테고리 변경 시 1로 리셋.
   const [pageCount, setPageCount] = useState(1);
   // 펼친 카드 집합(시술명 키) — lift-up. 뒤로가기 복원 위해 부모가 소유. 초기값 빈 Set(하이드레이션 안전).
   const [openSet, setOpenSet] = useState<Set<string>>(() => new Set());
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  // 스크롤 조상(.root) 탐색의 시작점이 될 DOM 마커 ref.
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  // 스크롤 조상(.root) 탐색의 시작점이 될 DOM 마커 ref(항상 렌더되는 h1 에 부착).
+  const rootRef = useRef<HTMLHeadingElement | null>(null);
   // 복원으로 인한 setSort 직후 reset 효과 1회를 건너뛰기 위한 플래그.
   const restoringRef = useRef(false);
   // 카테고리 필터는 공유 layout(ReportsShell)의 사이드바 칩 상태를 구독(null=전체).
@@ -277,10 +275,9 @@ export default function ReportsIndexView({
 
     // sort 변경이 reset 효과를 깨우므로, 그 1회를 흡수하도록 플래그 선설정.
     restoringRef.current = true;
-    // snap.sort 런타임 검증 — sessionStorage 오염 대비 SORTS 화이트리스트로만 채택.
-    if (snap.sort && SORTS.some((s) => s.key === snap.sort)) {
-      setSort(snap.sort as SortKey);
-    }
+    // snap.sort 런타임 검증 — sessionStorage 오염 대비 SORTS 화이트리스트로만 채택(find 로 타입 좁힘).
+    const matchedSort = SORTS.find((s) => s.key === snap.sort);
+    if (matchedSort) setSort(matchedSort.key);
     if (typeof snap.pageCount === "number" && snap.pageCount >= 1) {
       setPageCount(snap.pageCount);
     }
@@ -347,49 +344,11 @@ export default function ReportsIndexView({
       <style>{`@keyframes rvRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}`}</style>
 
       {/* 페이지 h1 — 시각 디자인엔 없는 제목이라 sr-only(헤딩 계층·SEO, schema-auditor 지적).
-          카드 시술명(h2, ReportSummaryBox)들의 상위 계층. */}
-      <h1 className="sr-only">시술 리포트</h1>
-
-      {/* 정렬 칩 — 모바일만 본문 상단 인라인 sticky(헤더 숨김 후 상단 유지 — 인스타식 표준). 배경은
-          캔버스 variant(--tt-canvas=#F5FBFF) 자동 추종.
-          2026-07-08 UI 개편 Phase 1-3: 선택=--accent-blue(#1A9DE8)+흰 글자 / 비선택=흰 배경+#5A646C(명세
-          고정색 — globals 토큰 없음, 리터럴). 5종 유지(D3 확정 — 시안 4종은 예시).
-          2026-07-09 원장 확정: z-30 — 헤더(.topStack z-40)보다 아래여서 복귀 헤더가 칩을 덮으며
-          내려옴(구 z-41 은 모바일 복귀 헤더·데스크탑 상시 헤더를 칩이 가리는 버그). 데스크탑(≥900px)은
-          헤더가 상시 고정이라 그 "아래"(top 72px = 헤더 ~65px + 여백)에 붙음 — 피드 칩바와 같은 경험.
-          top 은 인라인 style 이 클래스를 이기므로 전부 클래스로(모바일 var(--sat) / 데스크탑 72px). */}
-      {/* rootRef: 스크롤 조상(.root) 탐색의 시작점(항상 렌더되는 본문 첫 DOM). */}
-      <div
-        ref={rootRef}
-        className="sticky top-[var(--sat)] z-30 mb-1.5 py-2.5 min-[900px]:top-[72px]"
-        style={{ background: "var(--tt-canvas)", backgroundAttachment: "fixed" }}
-      >
-        <div
-          role="group"
-          aria-label="정렬"
-          className="flex gap-2 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          {SORTS.map((s) => {
-            const on = sort === s.key;
-            return (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => setSort(s.key)}
-                aria-pressed={on}
-                className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold transition-colors"
-                style={
-                  on
-                    ? { backgroundColor: "var(--accent-blue)", color: "#fff" }
-                    : { backgroundColor: "#fff", color: "#5A646C" }
-                }
-              >
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+          카드 시술명(h2, ReportSummaryBox)들의 상위 계층.
+          rootRef: 스크롤 조상(.root) 탐색의 시작점(항상 렌더되는 본문 첫 DOM).
+          정렬 칩은 2026-07-09 부터 셸 헤더 칩바 슬롯(ReportsShell → AppShell chips)으로 이전 —
+          피드처럼 헤더와 한 덩어리(.topStack)로 붙어 함께 이동/숨김(구 본문 sticky 칩 폐기). */}
+      <h1 ref={rootRef} className="sr-only">시술 리포트</h1>
 
       {visible.length === 0 ? (
         <p className="px-1 py-8 text-center text-[14px] leading-[1.6] text-[var(--text-muted)]">
