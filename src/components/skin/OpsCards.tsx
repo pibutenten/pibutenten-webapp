@@ -8,8 +8,8 @@
  * 디자인 드리프트를 0 으로 유지합니다(계획 SSOT §1.5 · C10).
  *
  * 원칙:
- *  - **순수 이동**: 렌더 결과·인라인 스타일(borderRadius 14·`--ink-*`/`--tt-blue-*`/`--line`)·
- *    props 시그니처를 100% 보존합니다. admin 렌더는 불변입니다.
+ *  - 렌더 결과·인라인 스타일(borderRadius 14·`--ink-*`/`--tt-blue-*`/`--line`)·props 시그니처 보존.
+ *    숫자 fontSize 만 반응형 clamp(2026-07-11 — 데스크탑 20px 상한 유지, 모바일 축소로 상자 이탈 방지).
  *  - GRID8/TOOL_GRID 등 그리드 상수는 각 소비처가 자체 관리합니다(카드만 공용).
  */
 
@@ -45,7 +45,9 @@ export function Stat({
         style={{
           marginTop: 4,
           whiteSpace: "nowrap",
-          fontSize: 20,
+          // 반응형(2026-07-11) — 모바일 4열(GRID8)에서 자릿수 많은 숫자가 열 폭을 넘겨 상자를
+          //   벗어나던 것 보정: 뷰포트에 따라 축소(모바일 ~16px)하되 데스크탑은 기존 20px 상한 유지.
+          fontSize: "clamp(15px, 4.2vw, 20px)",
           fontWeight: 800,
           fontVariantNumeric: "tabular-nums",
           color: highlight ? "var(--tt-blue-deep)" : "var(--ink-900)",
