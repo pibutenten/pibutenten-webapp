@@ -212,10 +212,10 @@ export default function AppShell({
   /** wide 레이아웃(탭바 숨김·풀폭)은 쓰되 admin 회색 배경(.rootWide) 대신 .root 캔버스
    *  그라데이션을 유지 — 로그인/회원가입 등 비-admin 인증 화면용(피드와 동일 배경). (2026-06-17) */
   keepCanvas?: boolean;
-  /** 페이지별 캔버스 배경 variant (2026-07-08 UI 개편 Phase 0-4) — .root 에 variant 클래스 추가 부착.
-   *  "report"=#F5FBFF · "my"=#DAF1FB · "profile"=#EAF2F8 (단색, --tt-canvas/--tt-canvas-top 재정의만).
-   *  미지정 시 현행 그라데이션과 100% 동일(기존 화면 무영향). wide 와 동시 사용은 없음(비충돌 —
-   *  .rootWide 는 background 직접 지정이라 함께 부착돼도 wide 배경이 이긴다). */
+  /** 페이지별 캔버스 배경 variant (2026-07-08 → 2026-07-11) — .root 에 variant 클래스 추가 부착.
+   *  기본(.root)이 단색 #F5FBFF 라 report/my/profile 3종은 기본과 동값(무해·존치). "gradient"=투데이
+   *  전용(기본 단색에서 브랜드 그라데이션+헤더 유리 질감 복원). 미지정 시 기본 단색 그대로(무영향).
+   *  wide 와 동시 사용은 없음(비충돌 — .rootWide 가 background 직접 지정이라 함께 부착돼도 wide 가 이김). */
   canvas?: CanvasVariant;
   /** 헤더 검색 입력값(피드만 controlled — 그 자리서 필터). 없으면 셸 로컬 state. */
   searchValue?: string;

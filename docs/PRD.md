@@ -194,6 +194,7 @@
 - 모바일 우선 PWA (모바일 1단 / 데스크탑 ≥900px 2단, 최대 너비 1080px)
 - 한국어 폰트 (Pretendard)
 - 시각 대비 WCAG AA 수준 (글자색 4톤, ADR 0010)
+- **배경 단색 통일 (2026-07-11)**: 앱 기본 배경 = 단색 #F5FBFF(헤더·바디·상태바 필러 한 색). 브랜드 그라데이션은 **투데이(/today)만** (AppShell canvas="gradient"). 첫 페인트부터 목적 페이지와 동색(로딩 스켈레톤도 정합 — 그라데이션→단색 FOUC 없음). 상세는 ARCHITECTURE §AppShell.
 - 모달 포커스 트랩 (`hooks/useFocusTrap` — Tab 순환·닫힘 시 이전 포커스 복원, 확인/로그인유도/저장이탈 모달 적용) + 온보딩 검증 실패 시 첫 실패 필드로 focus·scrollIntoView (2026-07-04 R5-2)
 
 ---
