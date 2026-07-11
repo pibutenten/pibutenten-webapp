@@ -4,7 +4,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
-import { EMPTY_TRAFFIC, type TrafficOverview } from "@/lib/traffic-types";
+import { EMPTY_TRAFFIC, type TrafficOverview, type ScRow } from "@/lib/traffic-types";
+import { getTopSearchQueries, isSearchConsoleConfigured } from "@/lib/search-console";
 import AdminView from "./AdminView";
 
 /**
@@ -28,6 +29,8 @@ export const metadata: Metadata = {
 const PERIOD_DAYS = [1, 7, 30, 90, 365, 0] as const;
 const SEARCH_TAG_DAYS = PERIOD_DAYS;
 const ACTIVITY_DAYS = PERIOD_DAYS;
+// 구글 서치콘솔 검색어 조회 기간(3종 — GSC 는 quota·지연이 있어 활동 KPI 와 별도 축소).
+const SC_DAYS = [7, 28, 90] as const;
 
 type SearchRow = { query: string; cnt: number };
 type TagRow = { keyword: string; cnt: number };
@@ -142,6 +145,22 @@ export default async function AdminPage() {
     trafficByDays[d] = (trafficResults[i]?.data as TrafficOverview) ?? EMPTY_TRAFFIC;
   });
 
+  // 구글 서치콘솔 상위 검색어 — 자격증명(서비스 계정) 설정 시에만 조회(6h 캐시). 3개 기간 prefetch.
+  const scConfigured = isSearchConsoleConfigured();
+  const scByDays: Record<number, ScRow[]> = {};
+  let scError: string | null = null;
+  if (scConfigured) {
+    const scResults = await Promise.all(SC_DAYS.map((d) => getTopSearchQueries(d, 25)));
+    SC_DAYS.forEach((d, i) => {
+      const r = scResults[i];
+      if (r.ok) scByDays[d] = r.rows;
+      else {
+        scByDays[d] = [];
+        if (r.reason === "error") scError = r.message ?? "조회 실패";
+      }
+    });
+  }
+
   // YouTube OAuth 상태 — 카드 라벨 동적 표시용
   const oauthHealth = await checkOauthHealth();
 
@@ -198,6 +217,9 @@ export default async function AdminPage() {
         totalComments: totalComments ?? 0,
       }}
       trafficByDays={trafficByDays}
+      scConfigured={scConfigured}
+      scByDays={scByDays}
+      scError={scError}
       oauthHealth={oauthHealth}
       kpiByDays={kpiByDays}
       searchesByDays={searchesByDays}

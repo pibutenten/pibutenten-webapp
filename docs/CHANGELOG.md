@@ -6,6 +6,14 @@
 
 ---
 
+## [2026-07-11] — 관리자 대시보드 '유입 검색어'(구글 서치콘솔) 연동
+
+### Added
+- **구글 서치콘솔 상위 유입 검색어 위젯** (원장 요청 — 유입 분석 대시보드 후속): "무슨 검색어로 우리를 찾았는지"는 검색엔진 referrer 로 알 수 없어 자체 수집 불가 → Google Search Analytics API 로만 조회. `src/lib/search-console.ts`(server-only) — 서비스 계정 **JWT(RS256, node crypto 서명)** → 액세스 토큰 교환(scope `webmasters.readonly`, in-memory 1h 캐시) → `searchAnalytics/query`(dimensions=query, 종료일 today-3 로 GSC 2~3일 지연 보정). `getTopSearchQueries` 는 `unstable_cache` 6h(quota 절약). `src/app/admin/SearchConsolePanel.tsx`(client) — 7/28/90일 토글·검색어 표(클릭/노출/CTR/순위), **자격증명 미설정 시 설정 안내 카드**(GCP 서비스계정→서치콘솔 사용자 추가→Vercel env 3종). admin/page.tsx 는 `isSearchConsoleConfigured()` 게이트 뒤 3기간 prefetch. env 미설정이 기본이라 배포 후에도 무해(graceful degradation). 검색어 1행 타입 `ScRow` 는 `@/lib/traffic-types`(클라 안전)로 통합해 서버/클라 중복 제거. code-reviewer 치명 0.
+- **환경변수 3종 추가** (`.env.local.example`): `GOOGLE_SC_SA_EMAIL` · `GOOGLE_SC_SA_PRIVATE_KEY`(PEM, 개행 `\n` 이스케이프) · `GOOGLE_SC_SITE_URL`(URL 접두어=`https://pibutenten.kr/` / 도메인=`sc-domain:pibutenten.kr`). Vercel 등록 + 서비스계정 이메일을 서치콘솔 사용자로 추가해야 조회됨.
+
+---
+
 ## [2026-07-09] — 리포트 상세 보정(R2·R3) + 세부페이지 backHeader + 리포트 정밀 보정(R4) + 리포트·마이 보정(R5) + sticky 계층 표준
 
 원장 검수 반영 라운드 — 디자이너 서브에이전트의 시안 픽셀 실측 대조 → 디렉터 검수 → 구현 → 독립 검수 + code-reviewer + 디렉터 실렌더 대조. 계획 SSOT: `docs/plans/260709 리포트 상세 디자인 보정 계획 (R2).md`(R2) · `260709 리포트 디자인 정밀 보정 계획 (R4).md`(R4 — 피드백 PDF (2), 독립 검토 2인+자문 v2) · `260709 리포트·마이페이지 디자인 보정 계획 (R5).md`(R5 — 디자이너 2차 피드백 33항목). code-reviewer 통합 검수 치명 0.

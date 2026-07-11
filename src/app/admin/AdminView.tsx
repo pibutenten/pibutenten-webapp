@@ -18,7 +18,8 @@ import type { OauthHealth } from "@/lib/ai/youtube-oauth";
 import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
 import ActivityKpis from "@/app/admin/ActivityKpis";
 import TrafficPanel from "@/app/admin/TrafficPanel";
-import type { TrafficOverview } from "@/lib/traffic-types";
+import SearchConsolePanel from "@/app/admin/SearchConsolePanel";
+import type { TrafficOverview, ScRow } from "@/lib/traffic-types";
 import LogoutButton from "@/components/LogoutButton";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import AppShell from "@/components/skin/AppShell";
@@ -54,6 +55,9 @@ export default function AdminView({
   isSuperAdmin,
   stats,
   trafficByDays,
+  scConfigured,
+  scByDays,
+  scError,
   oauthHealth,
   kpiByDays,
   searchesByDays,
@@ -62,6 +66,9 @@ export default function AdminView({
   isSuperAdmin: boolean;
   stats: AdminStats;
   trafficByDays: Record<number, TrafficOverview>;
+  scConfigured: boolean;
+  scByDays: Record<number, ScRow[]>;
+  scError: string | null;
   oauthHealth: OauthHealth;
   kpiByDays: Record<number, KpiRow>;
   searchesByDays: Record<number, SearchRow[]>;
@@ -115,6 +122,17 @@ export default function AdminView({
           </span>
         </h2>
         <TrafficPanel dataByDays={trafficByDays} />
+      </section>
+
+      {/* 구글 유입 검색어 (서치콘솔) — 네이버는 검색어 API 미공개라 미포함(콘솔 확인). */}
+      <section className={styles.mb20}>
+        <h2 className={SECTION_HEAD} style={{ color: "var(--ink-900)" }}>
+          유입 검색어{" "}
+          <span style={{ fontWeight: 400, color: "var(--ink-500)" }}>
+            (구글 검색 — 어떤 검색어로 우리를 찾았나)
+          </span>
+        </h2>
+        <SearchConsolePanel configured={scConfigured} dataByDays={scByDays} error={scError} />
       </section>
 
       {/* 활동 KPI (기간 토글) — 운영 ActivityKpis 임베드(Tailwind 톤 그대로, 차트·토글 로직 재사용). */}

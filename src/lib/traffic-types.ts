@@ -27,3 +27,16 @@ export const EMPTY_TRAFFIC: TrafficOverview = {
   by_campaign: [],
   daily: [],
 };
+
+/**
+ * 구글 서치콘솔 상위 검색어 1행 — 서버(search-console.ts·admin/page.tsx)·클라(SearchConsolePanel) 공용.
+ * search-console.ts 는 server-only 라 클라(SearchConsolePanel)가 값/타입 import 불가 → 여기(클라 안전)로 통합.
+ * ctr 은 0~1 비율.
+ */
+export type ScRow = {
+  query: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+};
