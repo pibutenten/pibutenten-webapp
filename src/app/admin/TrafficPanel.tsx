@@ -55,8 +55,10 @@ function decodePath(p: string): string {
 }
 
 function Card({ children }: { children: React.ReactNode }) {
+  // minWidth:0 — 그리드/플렉스 아이템 기본 min-width:auto 때문에 긴 경로(상위 랜딩)가 카드를 밀어
+  //   셀 밖으로 넘던 것 차단. 이게 있어야 내부 List 의 말줄임(ellipsis)이 실제로 작동한다.
   return (
-    <div style={{ border: "1px solid var(--line)", borderRadius: 14, background: "#fff", padding: 14 }}>
+    <div style={{ minWidth: 0, border: "1px solid var(--line)", borderRadius: 14, background: "#fff", padding: 14, overflow: "hidden" }}>
       {children}
     </div>
   );
@@ -187,10 +189,11 @@ export default function TrafficPanel({ dataByDays }: { dataByDays: Record<number
 
 function List({ rows, empty }: { rows: { k: string; v: number }[]; empty: string }) {
   if (rows.length === 0) return <div style={{ fontSize: 12.5, color: "var(--ink-300)" }}>{empty}</div>;
+  // 세로 flex(그리드 아님) — 행이 컨텐츠 폭에 맞춰 늘어나지 않고 카드 폭을 채운다(긴 경로 말줄임 보장).
   return (
-    <div style={{ display: "grid", gap: 6 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
       {rows.map((r, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 12.5 }}>
+        <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 12.5, minWidth: 0 }}>
           <div style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--ink-700)" }}>{r.k}</div>
           <div style={{ flexShrink: 0, color: "var(--ink-900)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{r.v.toLocaleString()}</div>
         </div>
