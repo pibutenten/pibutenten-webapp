@@ -106,7 +106,7 @@ export default function ActivityKpis({
           const href = kind
             ? `/admin/stats/${kind}?days=${days || 0}`
             : null;
-          // '운영 통계'(Stat) 박스와 높이 통일 — p-3 + 동일 글씨 크기(P).
+          // '운영 통계'(OpsCards Stat) 박스와 크기 완전 통일 — p-3 + 동일 숫자 폰트(clamp 15~20·800).
           const cls =
             "block overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-white p-3 transition-colors hover:bg-[var(--bg-soft)]";
           const inner = (
@@ -114,9 +114,9 @@ export default function ActivityKpis({
               <div className="whitespace-nowrap text-[11px] leading-tight text-[var(--text-muted)]">
                 {it.label}
               </div>
-              {/* 반응형(2026-07-11) — 모바일 4열에서 6자리 값(예: 33,012)이 nowrap 으로 칸을 넘던 것
-                  보정: 뷰포트 따라 축소(모바일 ~15.6px), 데스크탑은 기존 크기(sm:text-2xl 24px) 유지. */}
-              <div className="mt-1 whitespace-nowrap text-[clamp(14px,4vw,20px)] font-bold tabular-nums text-[var(--text)] sm:text-2xl">
+              {/* 운영 통계(OpsCards Stat)와 동일 폰트: clamp(15px,4.2vw,20px)/800(2026-07-11 — 구
+                  sm:text-2xl 24px 로 운영 통계보다 크던 불일치 제거. 모바일 6자리 오버플로도 함께 해소). */}
+              <div className="mt-1 whitespace-nowrap text-[clamp(15px,4.2vw,20px)] font-extrabold tabular-nums text-[var(--text)]">
                 {it.value.toLocaleString()}
               </div>
             </>
