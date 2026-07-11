@@ -14,11 +14,12 @@
   --tt-nav: #a9ddf4;
   --tt-nav-ink: #134b66;
 
-  /* Canvas gradient — 하늘 → 민트 → 레몬.
+  /* Canvas — 기본은 단색 #F5FBFF(2026-07-11 원장 확정 — 리포트·마이·내정보와 동색 통일).
+     그라데이션(하늘→민트→레몬)은 투데이만 .canvasGradient 로 명시 opt-in(§아래).
      맨 위 색(--tt-canvas-top)은 헤더 베이스색·상태바 띠 필러와 같은 값이라
      단일 토큰으로 묶어 세 곳(.header / .root::before / 캔버스 시작점)이 항상 일치하게 한다. */
-  --tt-canvas-top: #e8f5fd;
-  --tt-canvas: linear-gradient(168deg, var(--tt-canvas-top) 0%, #ecf7f2 52%, #faf5e2 100%);
+  --tt-canvas-top: #f5fbff;
+  --tt-canvas: #f5fbff;
 
   /* Ink */
   --ink-900: #1e2a35;
@@ -115,16 +116,16 @@
    AppShell 의 canvas prop("report"/"my"/"profile")이 부착한다. --tt-canvas / --tt-canvas-top
    두 CSS 변수 재정의만 하므로, 두 토큰을 참조하는 .root 배경·.root::before 상태바 필러·
    .header 베이스·sticky 칩 배경이 자동 추종한다.
-   기존 --tt-canvas 는 linear-gradient 값이지만 참조처가 전부 background(shorthand:
-   `background: var(--tt-canvas) fixed`)라 <color> 단색으로 덮어써도 유효하게 동작함을 확인.
-   미부착 화면(투데이·피드·내노트 등)은 기존 그라데이션 그대로(무영향).
+   참조처가 전부 background(shorthand: `background: var(--tt-canvas) fixed`)라 <color> 단색으로
+   덮어써도 유효하게 동작함을 확인. 2026-07-11 기본(.root)이 단색 #F5FBFF 가 되어 report/my/profile
+   variant 는 기본과 동값(무해·향후 분화 대비 존치) — 그라데이션은 .canvasGradient(투데이)만.
    같은 specificity(0,1,0)이지만 .root 보다 뒤에 선언되어 소스 순서로 이긴다. */
 .canvasReport {
   --tt-canvas-top: #f5fbff;
   --tt-canvas: #f5fbff;
 }
-/* R5-21·27 (2026-07-09) — my/profile 도 report 와 동일한 #F5FBFF 로 통일(원장 확정).
-   3 variant 가 전부 같은 값이지만 클래스 3개는 유지(향후 분화 대비). */
+/* R5-21·27 (2026-07-09) — my/profile 도 report 와 동일한 #F5FBFF(원장 확정). 기본 단색화(0711)
+   이후엔 기본과 동값이나 클래스 3개는 유지(향후 분화 대비). */
 .canvasMy {
   --tt-canvas-top: #f5fbff;
   --tt-canvas: #f5fbff;
@@ -134,28 +135,28 @@
   --tt-canvas: #f5fbff;
 }
 
-/* R5 공통 (2026-07-09) — canvas variant 페이지는 헤더도 바디와 완전 동색(플랫).
-   .header 의 하드코딩 틴트(모바일 linear-gradient+blur / 데스크탑 #eef7fc)를 무력화해
-   헤더·상태바 필러·바디가 한 색(#F5FBFF)이 되게 한다. 모바일+데스크탑 모두 적용(원장 확정).
-   specificity (0,2,0) 이라 모바일 .header(아래)·데스크탑 .header(@900px 블록) 모두 이김.
-   비-variant 화면(피드·투데이·내노트·글쓰기·admin)은 무영향. 헤더 유리 질감 상실은 의도.
-   불투명 단색이므로 아래 운영 TopNav 차폐(기존 목적)는 유지. */
-.canvasReport .header,
-.canvasMy .header,
-.canvasProfile .header {
-  background-color: var(--tt-canvas-top);
-  background-image: none;
-  backdrop-filter: none;
+/* 투데이 전용 그라데이션 variant (2026-07-11 원장 확정 — 기본이 단색 #F5FBFF 가 된 뒤
+   이 두 화면만 기존 브랜드 그라데이션(하늘→민트→레몬)+헤더 유리 질감을 명시 복원). AppShell
+   canvas="gradient". 나머지(피드·리포트·마이·내정보·글쓰기 등)는 기본 단색을 그대로 따른다.
+   specificity (0,2,0) 이라 base .header(모바일)·데스크탑 .header(@900px)·base .chipBar 모두 이김. */
+.canvasGradient {
+  --tt-canvas-top: #e8f5fd;
+  --tt-canvas: linear-gradient(168deg, var(--tt-canvas-top) 0%, #ecf7f2 52%, #faf5e2 100%);
 }
-/* 리포트 허브 정렬 칩바 — 헤더 칩바 슬롯(.topStack)에 들어가므로(2026-07-09 피드화)
-   피드 기본 틴트(#e9f4fc) 대신 리포트 캔버스(#F5FBFF)를 따라 헤더·바디와 한 색.
-   하단 페이드는 피드와 동일 구조(아래 목록이 자연스럽게 사라지게). */
-.canvasReport .chipBar {
+.canvasGradient .header {
+  background-image: linear-gradient(
+    180deg,
+    rgba(232, 245, 253, 0.92),
+    rgba(232, 245, 253, 0.75)
+  );
+  backdrop-filter: blur(12px);
+}
+.canvasGradient .chipBar {
   background: linear-gradient(
     180deg,
-    #f5fbff 0%,
-    #f5fbff 72%,
-    rgba(245, 251, 255, 0)
+    #e9f4fc 0%,
+    #e9f4fc 72%,
+    rgba(233, 244, 252, 0)
   );
 }
 
@@ -241,16 +242,9 @@
      fixed .root 오버레이가 body padding 을 못 받는 구멍을 헤더 자체에서 메운다.
      web/PWA 는 --sat=0 이라 무영향. */
   padding: calc(12px + var(--sat)) 18px 12px;
-  /* 불투명 베이스(--tt-canvas-top) 위에 반투명 틴트를 얹어, 아래 깔린 운영 TopNav 가
-     앱 헤더 뒤로 비치지 않게 한다(운영 파일 무수정 → 앱 스킨 측에서 완전 차폐).
-     blur 글래스 질감은 유지. */
+  /* 기본은 캔버스 단색(--tt-canvas-top=#F5FBFF)과 동색 — 헤더·상태바 필러·바디 한 색(2026-07-11).
+     틴트+blur 유리 질감은 .canvasGradient(투데이)만 복원(§위 variant). */
   background-color: var(--tt-canvas-top);
-  background-image: linear-gradient(
-    180deg,
-    rgba(232, 245, 253, 0.92),
-    rgba(232, 245, 253, 0.75)
-  );
-  backdrop-filter: blur(12px);
 }
 /* 상단바 래퍼 — 헤더 + 칩바를 한 덩어리로 묶어 통째로 sticky·슬라이드(한 요소라 어긋남 불가). */
 .topStack {
@@ -723,7 +717,8 @@
 }
 /* 항목 1) 칩바 — 상단바 래퍼(.topStack) 안에서 헤더 바로 아래 정적 배치.
  *   별도 sticky 가 아니라 헤더와 한 덩어리로 함께 움직인다(어긋남 없음).
- *   캔버스 틴트 배경(풀폭)으로 아래 피드가 비치지 않게. */
+ *   배경(풀폭)으로 아래 피드가 비치지 않게. 기본은 캔버스 단색(#F5FBFF)과 동색(2026-07-11) —
+ *   틴트(#e9f4fc)는 .canvasGradient(투데이)만 복원(§위 variant). */
 .chipBar {
   position: relative;
   z-index: 1;
@@ -732,9 +727,9 @@
   padding: 0 18px;
   background: linear-gradient(
     180deg,
-    #e9f4fc 0%,
-    #e9f4fc 72%,
-    rgba(233, 244, 252, 0)
+    var(--tt-canvas-top) 0%,
+    var(--tt-canvas-top) 72%,
+    rgba(245, 251, 255, 0)
   );
 }
 @media (min-width: 900px) {
@@ -2110,8 +2105,9 @@ button.t[data-cat="other"]:hover {
 
   .header {
     padding: 0;
-    /* 불투명 베이스로 아래 운영 TopNav(검색 input 포함) 완전 차폐 — "검색창 2개" 잔상 제거 */
-    background-color: #eef7fc;
+    /* 기본은 캔버스 단색(--tt-canvas-top=#F5FBFF)과 동색(2026-07-11). 틴트는 .canvasGradient 만.
+       (구 #eef7fc 불투명 베이스는 운영 TopNav 차폐용이었으나 TopNav 폐기(2026-06-26)로 단순 색상.) */
+    background-color: var(--tt-canvas-top);
     background-image: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.7);
   }

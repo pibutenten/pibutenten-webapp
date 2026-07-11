@@ -237,7 +237,7 @@ export default function RecordView({
   );
 
   return (
-    <AppShell active="투데이" sidebar={sidebar} {...search}>
+    <AppShell active="투데이" canvas="gradient" sidebar={sidebar} {...search}>
       {/* 오늘의 피부 날씨 — 위치 기반(인증 불필요), 게스트·회원 공통. 투데이 최상단. */}
       <SkinWeatherCard />
       {/* 히어로 — 게스트=가입 유도, 회원=computeStatus 5단계 인사 */}

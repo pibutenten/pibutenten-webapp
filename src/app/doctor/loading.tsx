@@ -28,7 +28,7 @@ export default function Loading() {
         flexDirection: "column",
         // 앱 캔버스와 동일한 그라데이션으로 시작 → 회색 깜빡임 차단
         background:
-          "linear-gradient(168deg, #e8f5fd 0%, #ecf7f2 52%, #faf5e2 100%)",
+          "#f5fbff",
       }}
     >
       {/* 앱 헤더(#e8f5fd) 톤의 얇은 상단 막대 — 셸 헤더 자리와 시각적으로 연결(높이 56) */}
@@ -36,7 +36,7 @@ export default function Loading() {
         style={{
           height: 56,
           flexShrink: 0,
-          backgroundColor: "#e8f5fd",
+          backgroundColor: "#f5fbff",
           borderBottom: "1px solid #edf2f5",
         }}
       />

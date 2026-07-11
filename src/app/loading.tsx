@@ -5,9 +5,10 @@
  * `.root`: position:fixed/inset:0 풀뷰포트 오버레이)이 마운트되기 전 "회색 깜빡임"
  * 없이 자연스럽게 이어지도록 한다.
  *
- * - 회색 스켈레톤 박스 다수를 제거하고, 앱 캔버스(하늘→민트→레몬 그라데이션)와
- *   동일한 배경으로 시작 → 앱 셸 등장 시 톤 단절 없음.
- * - 상단에 앱 헤더(#e8f5fd) 톤의 얇은 막대 하나만 두어 셸 헤더 자리와 연결.
+ * - 회색 스켈레톤 박스 다수를 제거하고, 앱 캔버스 기본 단색(#F5FBFF, 2026-07-11)과
+ *   동일한 배경으로 시작 → 앱 셸 등장 시 톤 단절·그라데이션 깜빡임 없음(투데이 전용
+ *   그라데이션은 today/loading.tsx 가 별도 담당). 첫 페인트부터 목적 페이지와 동색.
+ * - 상단에 헤더 톤(#F5FBFF)의 얇은 막대 하나만 두어 셸 헤더 자리와 연결.
  * - 은은한 브랜드 블루(#45b7e8) 스피너로 "비어 보이지 않게" 하되 절제.
  *
  * app.module.css 는 수정 금지 대상이라 토큰 값을 인라인으로 복제(참고).
@@ -25,7 +26,7 @@ export default function Loading() {
         flexDirection: "column",
         // 앱 캔버스와 동일한 그라데이션으로 시작 → 회색 깜빡임 차단
         background:
-          "linear-gradient(168deg, #e8f5fd 0%, #ecf7f2 52%, #faf5e2 100%)",
+          "#f5fbff",
       }}
     >
       {/* 앱 헤더(#e8f5fd) 톤의 얇은 상단 막대 — 셸 헤더 자리와 시각적으로 연결 */}
@@ -33,7 +34,7 @@ export default function Loading() {
         style={{
           height: 56,
           flexShrink: 0,
-          backgroundColor: "#e8f5fd",
+          backgroundColor: "#f5fbff",
           borderBottom: "1px solid #edf2f5",
         }}
       />

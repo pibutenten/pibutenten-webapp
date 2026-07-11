@@ -134,14 +134,15 @@ function IconReport() {
 type NavItem = { label: NavTab; href: string; icon?: ReactNode; comingSoon?: boolean };
 
 /* 페이지별 캔버스 배경 variant (2026-07-08 UI 개편 Phase 0-4).
-   app.module.css 의 variant 클래스(--tt-canvas/--tt-canvas-top 재정의만)와 1:1 매핑 —
-   report=/reports 계열 · my=/my · profile=프로필 2뎁스 (R5-21·27 부터 3종 모두 #F5FBFF —
-   헤더도 variant 스코프 규칙으로 동색·플랫). */
-export type CanvasVariant = "report" | "my" | "profile";
+   app.module.css 의 variant 클래스(--tt-canvas/--tt-canvas-top 재정의만)와 1:1 매핑.
+   2026-07-11 기본(.root)이 단색 #F5FBFF 로 통일되어 report/my/profile 은 기본과 동값(무해·존치).
+   "gradient"=투데이 전용 — 기본 단색에서 기존 브랜드 그라데이션+헤더 유리 질감으로 복원. */
+export type CanvasVariant = "report" | "my" | "profile" | "gradient";
 const CANVAS_CLASS: Record<CanvasVariant, string> = {
   report: styles.canvasReport,
   my: styles.canvasMy,
   profile: styles.canvasProfile,
+  gradient: styles.canvasGradient,
 };
 
 /* 탭바 항목 정의 — 글쓰기는 우하단 FAB(WriteFab)로 분리, 하단 탭은 5개.

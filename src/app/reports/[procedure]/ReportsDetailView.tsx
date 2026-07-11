@@ -1112,9 +1112,11 @@ export default function ReportsDetailView({
 
           {/* 정렬 칩 4종만 sticky — 후기 구간 동안 셸 헤더 아래에 고정(구간 끝나면 섹션과 함께 지나감).
               배경 패널색(#F5FBFF)으로 아래 흰 후기 카드가 비치지 않게. z-30(헤더 .topStack z-40 아래 —
-              복귀 헤더가 덮음), 모바일 top var(--sat) / 데스크탑 헤더 "아래" 72px.
-              활성=#1A9DE8. 비선택은 흰 배경이라 밝아진 패널 위 대비 보전용 1px 보더 #E1EAF2(R2-1). */}
-          <div className="sticky top-[var(--sat)] z-30 mt-3 bg-[#F5FBFF] pb-2.5 pt-0.5 min-[900px]:top-[72px]">
+              복귀 헤더가 덮음), 모바일 top var(--sat) / 데스크탑은 헤더 하단(~63px=패딩12+아이콘38+
+              패딩12+보더1)에 **딱 붙임**: top-[64px] 로 ~1px 물려 칩 배경이 헤더와 이어져 사이 틈으로
+              뒷 후기가 비치지 않게(구 72px 은 헤더보다 아래라 ~6px 틈으로 뒷 화면 노출).
+              위 여백은 pt-2 로 확보. 활성=#1A9DE8. 비선택은 흰 배경 대비 보전용 1px 보더 #E1EAF2(R2-1). */}
+          <div className="sticky top-[var(--sat)] z-30 mt-3 bg-[#F5FBFF] pb-2.5 pt-2 min-[900px]:top-[64px]">
             <div
               role="group"
               aria-label="후기 정렬"
