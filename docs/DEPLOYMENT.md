@@ -187,6 +187,13 @@ npm run build          # 전체 빌드 (Compiled successfully 확인)
 |---|---|---|---|---|
 | `DATA_GO_KR_SERVICE_KEY` | ✓ | ✓ | ✓ | **서버 전용**. 심평원 병원정보서비스. `/admin/clinics` sync 용. data.go.kr 일반 인증키(Decoding). 비어 있으면 sync API 차단 |
 
+### 10.7b. 구글 서치콘솔 (관리자 대시보드 유입 검색어)
+| Name | Production | Preview | Dev | 비고 |
+|---|---|---|---|---|
+| `GOOGLE_SC_SA_EMAIL` | ✓ | ✓ | ✓ | **서버 전용**. GCP 서비스계정 이메일(`gsc-reader@pibutenten-495413.iam.gserviceaccount.com`). 서치콘솔 사용자 권한 '전체' 등록 필수 |
+| `GOOGLE_SC_SA_PRIVATE_KEY` | ✓ | ✓ | ✓ | **서버 전용·비밀**. 서비스계정 개인키(PEM, 개행 `\n` 이스케이프 허용). JSON 키 원본은 `전달용/`(git 미포함) |
+| `GOOGLE_SC_SITE_URL` | ✓ | ✓ | ✓ | **서버 전용**. 속성 식별자. pibutenten.kr 은 도메인 속성 → `sc-domain:pibutenten.kr`. 미설정 시 위젯이 설정 안내만 노출(graceful) |
+
 ### 10.8. 기타 (기존)
 | Name | 비고 |
 |---|---|

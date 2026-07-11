@@ -11,6 +11,7 @@
 ### Added
 - **구글 서치콘솔 상위 유입 검색어 위젯** (원장 요청 — 유입 분석 대시보드 후속): "무슨 검색어로 우리를 찾았는지"는 검색엔진 referrer 로 알 수 없어 자체 수집 불가 → Google Search Analytics API 로만 조회. `src/lib/search-console.ts`(server-only) — 서비스 계정 **JWT(RS256, node crypto 서명)** → 액세스 토큰 교환(scope `webmasters.readonly`, in-memory 1h 캐시) → `searchAnalytics/query`(dimensions=query, 종료일 today-3 로 GSC 2~3일 지연 보정). `getTopSearchQueries` 는 `unstable_cache` 6h(quota 절약). `src/app/admin/SearchConsolePanel.tsx`(client) — 7/28/90일 토글·검색어 표(클릭/노출/CTR/순위), **자격증명 미설정 시 설정 안내 카드**(GCP 서비스계정→서치콘솔 사용자 추가→Vercel env 3종). admin/page.tsx 는 `isSearchConsoleConfigured()` 게이트 뒤 3기간 prefetch. env 미설정이 기본이라 배포 후에도 무해(graceful degradation). 검색어 1행 타입 `ScRow` 는 `@/lib/traffic-types`(클라 안전)로 통합해 서버/클라 중복 제거. code-reviewer 치명 0.
 - **환경변수 3종 추가** (`.env.local.example`): `GOOGLE_SC_SA_EMAIL` · `GOOGLE_SC_SA_PRIVATE_KEY`(PEM, 개행 `\n` 이스케이프) · `GOOGLE_SC_SITE_URL`(URL 접두어=`https://pibutenten.kr/` / 도메인=`sc-domain:pibutenten.kr`). Vercel 등록 + 서비스계정 이메일을 서치콘솔 사용자로 추가해야 조회됨.
+- **실운영 활성화 완료** (같은 날): GCP 프로젝트 `pibutenten-495413` 서비스계정 `gsc-reader@pibutenten-495413.iam.gserviceaccount.com` 생성 → 서치콘솔 `pibutenten.kr`(**도메인 속성** → `GOOGLE_SC_SITE_URL=sc-domain:pibutenten.kr`) 사용자 권한 '전체' 등록 → Vercel env 3종 등록(private_key 는 JSON 파일에서 직접 읽어 API 전송, 로그 미노출) → 프로덕션 재배포 → 서비스계정 인증·검색어 조회 실전 검증 통과(실데이터 5행 확인). 설정 상태·재발급 절차는 프로젝트 메모리 `gsc-search-console-setup` 참조. JSON 키 원본은 `전달용/`(비밀, git 미포함).
 
 ---
 
