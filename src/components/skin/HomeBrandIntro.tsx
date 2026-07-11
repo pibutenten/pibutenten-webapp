@@ -41,10 +41,12 @@ export default function HomeBrandIntro() {
       <p
         style={{
           margin: 0,
-          fontSize: "15px",
+          fontSize: "16.5px",
           fontWeight: 700,
           color: "#fff",
           lineHeight: 1.5,
+          // 줄바꿈 시 한글 단어 단위로(어절 유지) — '커뮤니티'가 '커뮤/니티'로 쪼개지지 않게.
+          wordBreak: "keep-all",
         }}
       >
         피부과 전문의가 함께하는 피부 시술 커뮤니티
@@ -52,7 +54,7 @@ export default function HomeBrandIntro() {
       <p
         style={{
           margin: "4px 0 0",
-          fontSize: "13px",
+          fontSize: "14px",
           fontWeight: 700,
           lineHeight: 1.6,
           color: "#fff",
@@ -63,7 +65,7 @@ export default function HomeBrandIntro() {
       <p
         style={{
           margin: "6px 0 0",
-          fontSize: "13px",
+          fontSize: "14px",
           fontWeight: 400,
           lineHeight: 1.5,
           color: "rgba(255, 255, 255, 0.85)",
