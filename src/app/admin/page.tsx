@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkOauthHealth } from "@/lib/ai/youtube-oauth";
 import { requireAdminPage } from "@/lib/admin-page-guard";
 import { ROLES } from "@/lib/identity-shared";
+import { EMPTY_TRAFFIC, type TrafficOverview } from "@/lib/traffic-types";
 import AdminView from "./AdminView";
 
 /**
@@ -41,6 +42,7 @@ type KpiRow = {
   shares: number;
 };
 
+
 export default async function AdminPage() {
   // PRD §C — 묶음 OR 가드. 묶음 안에 admin role profile 1개라도 있으면 super admin,
   // 또는 active 가 doctor + doctor_accounts 매핑이면 doctor admin. 그 외 차단.
@@ -69,6 +71,7 @@ export default async function AdminPage() {
     searchResults,
     tagResults,
     kpiResults,
+    trafficResults,
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase
@@ -126,23 +129,18 @@ export default async function AdminPage() {
     Promise.all(
       ACTIVITY_DAYS.map((d) => supabase.rpc("get_admin_kpi", { p_days: d }))
     ),
+    // 유입 분석(Acquisition) — 6개 기간 병렬 prefetch(메인 Promise.all 에 병합 — code-review W-2).
+    Promise.all(
+      PERIOD_DAYS.map((d) => supabase.rpc("get_traffic_overview", { p_days: d }))
+    ),
   ]);
 
-  // 리서치 패널 (F-2B) — 사람(번들) 기준 집계. read-only RPC get_research_panel.
-  //   total_members(탈퇴 제외)·active_90d(최근 90일 site_visits)·reviewers(후기 작성).
-  //   상단 "회원" 카드(명함 row 수)와 달리 distinct auth_user_id 기준 → 숫자 다를 수 있음.
-  const { data: researchRows } = await supabase.rpc("get_research_panel");
-  const researchRow = (Array.isArray(researchRows)
-    ? researchRows[0]
-    : researchRows) as
-    | { total_members: number; active_90d: number; reviewers: number }
-    | null
-    | undefined;
-  const research = {
-    totalMembers: Number(researchRow?.total_members ?? 0),
-    active90d: Number(researchRow?.active_90d ?? 0),
-    reviewers: Number(researchRow?.reviewers ?? 0),
-  };
+  // 유입 분석(Acquisition) — 구 리서치 패널 대체(원장 요청 2026-07-11). 위 메인 Promise.all 에서
+  //   6개 기간 병렬 prefetch(get_traffic_overview, admin 가드) → 채널/유입처/랜딩/기기·OS/캠페인/일별.
+  const trafficByDays: Record<number, TrafficOverview> = {};
+  PERIOD_DAYS.forEach((d, i) => {
+    trafficByDays[d] = (trafficResults[i]?.data as TrafficOverview) ?? EMPTY_TRAFFIC;
+  });
 
   // YouTube OAuth 상태 — 카드 라벨 동적 표시용
   const oauthHealth = await checkOauthHealth();
@@ -199,7 +197,7 @@ export default async function AdminPage() {
         pendingReview: pendingReview ?? 0,
         totalComments: totalComments ?? 0,
       }}
-      research={research}
+      trafficByDays={trafficByDays}
       oauthHealth={oauthHealth}
       kpiByDays={kpiByDays}
       searchesByDays={searchesByDays}

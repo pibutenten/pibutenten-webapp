@@ -114,7 +114,9 @@ export default function ActivityKpis({
               <div className="whitespace-nowrap text-[11px] leading-tight text-[var(--text-muted)]">
                 {it.label}
               </div>
-              <div className="mt-1 whitespace-nowrap text-xl font-bold tabular-nums text-[var(--text)] sm:text-2xl">
+              {/* 반응형(2026-07-11) — 모바일 4열에서 6자리 값(예: 33,012)이 nowrap 으로 칸을 넘던 것
+                  보정: 뷰포트 따라 축소(모바일 ~15.6px), 데스크탑은 기존 크기(sm:text-2xl 24px) 유지. */}
+              <div className="mt-1 whitespace-nowrap text-[clamp(14px,4vw,20px)] font-bold tabular-nums text-[var(--text)] sm:text-2xl">
                 {it.value.toLocaleString()}
               </div>
             </>

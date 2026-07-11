@@ -17,6 +17,8 @@
 import type { OauthHealth } from "@/lib/ai/youtube-oauth";
 import { PopularSearchesCard, PopularTagsCard } from "@/app/admin/PopularCards";
 import ActivityKpis from "@/app/admin/ActivityKpis";
+import TrafficPanel from "@/app/admin/TrafficPanel";
+import type { TrafficOverview } from "@/lib/traffic-types";
 import LogoutButton from "@/components/LogoutButton";
 import AccountSwitcherCard from "@/components/AccountSwitcherCard";
 import AppShell from "@/components/skin/AppShell";
@@ -51,7 +53,7 @@ export type AdminStats = {
 export default function AdminView({
   isSuperAdmin,
   stats,
-  research,
+  trafficByDays,
   oauthHealth,
   kpiByDays,
   searchesByDays,
@@ -59,7 +61,7 @@ export default function AdminView({
 }: {
   isSuperAdmin: boolean;
   stats: AdminStats;
-  research: { totalMembers: number; active90d: number; reviewers: number };
+  trafficByDays: Record<number, TrafficOverview>;
   oauthHealth: OauthHealth;
   kpiByDays: Record<number, KpiRow>;
   searchesByDays: Record<number, SearchRow[]>;
@@ -104,31 +106,15 @@ export default function AdminView({
         </div>
       </section>
 
-      {/* 리서치 패널 (F-2B) — 사람(번들) 기준 집계. 상단 "회원"(명함 row)과 기준 다름(운영 동일). */}
+      {/* 유입 분석 (Acquisition) — 구 리서치 패널 대체(원장 요청 2026-07-11). 어디서·어떻게 들어왔는지. */}
       <section className={styles.mb20}>
         <h2 className={SECTION_HEAD} style={{ color: "var(--ink-900)" }}>
-          리서치 패널{" "}
+          유입 분석{" "}
           <span style={{ fontWeight: 400, color: "var(--ink-500)" }}>
-            (사람 기준 · 같은 사람의 여러 명함은 1명으로 집계)
+            (방문 세션 첫 진입 기준 · 재방문·내부 이동 제외)
           </span>
         </h2>
-        <div className={GRID3}>
-          <Stat
-            label="총 가입자"
-            value={research.totalMembers}
-            title="탈퇴 제외 · 사람 기준(distinct 가입 계정). 상단 '회원'은 명함 수 기준이라 다를 수 있습니다."
-          />
-          <Stat
-            label="활성 회원 (90일)"
-            value={research.active90d}
-            title="최근 90일 방문 기준(site_visits) · 사람 기준. site_visits 적재 시작(2026-05-23) 이후라 윈도가 점차 채워집니다."
-          />
-          <Stat
-            label="후기 작성 회원"
-            value={research.reviewers}
-            title="시술 후기(procedure_reviews) 작성자 · 사람 기준(distinct 가입 계정)."
-          />
-        </div>
+        <TrafficPanel dataByDays={trafficByDays} />
       </section>
 
       {/* 활동 KPI (기간 토글) — 운영 ActivityKpis 임베드(Tailwind 톤 그대로, 차트·토글 로직 재사용). */}
@@ -285,7 +271,6 @@ export default function AdminView({
 /* 인라인 레이아웃 클래스 — module.css 에 별도 추가 없이 Tailwind 유틸로 그리드만 구성.
    카드 자체 톤은 Stat/Tool 의 앱 .card 스타일(아래)이 책임진다. */
 const GRID8 = "grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-8";
-const GRID3 = "grid grid-cols-3 gap-2 sm:gap-3";
 // 운영 /admin 과 동일하게 2열(데스크탑·태블릿)·모바일 1열 — 사용자 결정(2026-06-14, 운영 모습 정합).
 const TOOL_GRID = "grid grid-cols-1 gap-3 sm:grid-cols-2";
 const POPULAR_GRID = "grid grid-cols-1 gap-4 md:grid-cols-2";

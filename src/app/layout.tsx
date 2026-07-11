@@ -7,6 +7,7 @@ import ScrollManager from "@/components/ScrollManager";
 import OfflineBanner from "@/components/OfflineBanner";
 import PageTransition from "@/components/PageTransition";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import LandingTracker from "@/components/LandingTracker";
 import EngagementPromptListener from "@/components/EngagementPromptListener";
 import NativeAuthDeepLink from "@/components/NativeAuthDeepLink";
 import NativeLoginGate from "@/components/NativeLoginGate";
@@ -202,6 +203,8 @@ export default function RootLayout({
           <WriteFab />
           {/* 서비스워커 등록(오프라인·웹푸시 토대). 옛 PWA 설치 안내 모달은 네이티브 앱 출시로 제거(2026-06-24). */}
           <ServiceWorkerRegister />
+          {/* 유입 분석 랜딩 비컨 — 세션 첫 진입 1회 referrer·UTM·채널 수집(→/api/landing, 2026-07-11). */}
+          <LandingTracker />
           {/* 비로그인 흥미 점수 임계점 도달 시 회원가입 권유 모달 (2026-05-21) */}
           <EngagementPromptListener />
           {/* 네이티브 앱 OAuth 딥링크 핸들러 — 시스템 브라우저 로그인 복귀 처리(웹=no-op) */}
