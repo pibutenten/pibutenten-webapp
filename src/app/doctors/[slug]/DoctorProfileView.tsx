@@ -230,24 +230,26 @@ export default function DoctorProfileView({
   return (
     <AppShell
       active="마이"
-      /* 2뎁스 헤더 variant(R2-3) — 구 back="/doctors"+backTitle 에서 전환: 모바일은 헤더 좌측
-         로고 자리 뒤로가기, 데스크탑은 본문 뒤로 행(.backRowDesktop). 데스크탑 전용 "답변 N편"
-         헤더(h2, 구 backTitle)는 본문 첫 요소로 이동(아래) — backHeader 는 backTitle 슬롯을
-         렌더하지 않는다(AppShell back 분기 전용). */
-      backHeader={{ fallbackHref: "/doctors" }}
+      /* 2뎁스 헤더 variant(R2-3 → 2026-07-11): '< 뒤로' 옆에 '○○ 원장님의 답변 N편'을 한 줄로.
+         데스크탑=백로우(.backRowDesktop) 뒤로 옆 title, 모바일=헤더 로고 자리 backHeaderTitle 이
+         렌더. 구 본문 답변 헤더(.doctorAnswerHeader/Mobile)는 제거 — 제목이 헤더로 이동.
+         SEO 헤딩 계층(H1=사이드바 원장명)은 아래 sr-only h2 로 보존. */
+      backHeader={{
+        fallbackHref: "/doctors",
+        title: (
+          <>
+            {name} 원장님의 답변{" "}
+            <b style={{ color: "var(--tt-blue)" }}>{count ?? 0}</b>편
+          </>
+        ),
+      }}
       sidebar={profileSidebar}
       sidebarMobileBelow
       {...search}
     >
-      {/* 데스크탑 전용 "답변 N편" 헤더 — 구 backTitle(h2)을 본문 최상단으로 이동.
-          .doctorAnswerHeader(모바일 display:none / 데스크탑 block, 15px/600)는 그대로 재사용.
-          색·b 색은 구 .backTitle>*(--ink-900)·.backTitle b(--tt-blue) 를 인라인으로 승계.
-          H1 은 사이드바 원장명 1개 → 여기는 <h2>(중복 방지, 구 backTitle 과 동일). */}
-      <h2
-        className={styles.doctorAnswerHeader}
-        style={{ margin: "0 0 12px", color: "var(--ink-900)" }}
-      >
-        {name} 원장님의 답변 <b style={{ color: "var(--tt-blue)" }}>{count ?? 0}</b>편
+      {/* 답변 헤더는 셸 헤더(데스크탑 백로우 title / 모바일 헤더)로 이동 — SEO 계층만 sr-only h2 로 보존. */}
+      <h2 className="sr-only">
+        {name} 원장님의 답변 {count ?? 0}편
       </h2>
       {/* 메인(좌) = 답변 피드만 (글 상세 PostDetail 과 같은 형식 — 본문은 메인, 원장 카드는 사이드바).
           원장 사진·이름·병원은 우측 사이드바(원장 카드)로, 답변 헤더는 셸 backTitle 로 이동했다. */}
@@ -255,7 +257,8 @@ export default function DoctorProfileView({
       {/* 모바일 전용 원장 프로필(소개) 카드 — 답변 피드 "위"에 노출. 데스크탑(≥900px)에선 숨김
           (우측 사이드바의 같은 카드가 노출됨). 카드 본체는 DoctorProfileCard 한 곳에만 정의 → 중복 X.
           H1(원장명)은 사이드바 카드 쪽에만 두고 여기선 headingTag="h2" 로 → 페이지 H1 1개 유지(SEO). */}
-      <div className={styles.doctorProfileMobile}>
+      {/* mb-[14px]: 구 모바일 답변 헤더(제거됨)의 아래 여백을 승계 — 원장 카드↔첫 Q&A 글상자 간격 유지. */}
+      <div className={styles.doctorProfileMobile} style={{ marginBottom: 14 }}>
         <DoctorProfileCard
           name={name}
           intro={intro}
@@ -266,12 +269,6 @@ export default function DoctorProfileView({
           followeeId={doctorProfileId}
         />
       </div>
-
-      {/* 모바일 전용 "답변 N편" 헤더 — 원장 카드와 Q&A 피드 "사이"에 노출(데스크탑은 숨김, 상단 backTitle 사용).
-          margin(위 22px/아래 14px)이 원장 카드↔첫 Q&A 글상자 겹침을 막는 간격도 겸한다. H2(SEO H1 1개 유지). */}
-      <h2 className={styles.doctorAnswerHeaderMobile}>
-        {name} 원장님의 답변 <b>{count ?? 0}</b>편
-      </h2>
 
       {/* Q&A 피드 (해당 원장만) — 홈과 동일한 단일열 PostCard 피드(feedList) + 무한스크롤.
           서버가 내려준 초기 풀(cards)을 PostCard 로 렌더하고, 스크롤 끝(sentinel)에 닿으면

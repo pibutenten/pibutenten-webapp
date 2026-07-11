@@ -199,7 +199,7 @@ export default function AppShell({
    *  미지정 시 현행과 100% 동일. back prop(전 뷰포트 본문 뒤로 행)과는 화면당 하나만 사용.
    *  R5-31 확장: title/action 지정 시 모바일 헤더 = [← 타이틀 … 액션](검색·벨·아바타는 CSS 로
    *  숨김 — .headerInnerBack). 기존 소비처(fallbackHref 만 — /reports 상세)는 100% 현행 동일. */
-  backHeader?: { fallbackHref?: string; title?: string; action?: ReactNode };
+  backHeader?: { fallbackHref?: string; title?: ReactNode; action?: ReactNode };
   /** 1뎁스 허브의 모바일 타이틀 헤더 (R5-20, 2026-07-09 — 마이페이지) — 지정 시 모바일(<900px)
    *  헤더 좌측 로고 자리에 페이지 타이틀(19px/800), 벨 뒤에 페이지 액션(설정 등)을 렌더.
    *  검색 아이콘 미렌더 + 아바타 CSS 숨김(.headerInnerTitle). 벨(미읽음 배지)은 현행 유지.
@@ -877,9 +877,14 @@ export default function AppShell({
           </div>
         ) : backHeader ? (
           /* backHeader 화면 — 모바일 뒤로는 헤더(로고 자리)가 담당하므로 본문 행은 데스크탑
-             (로고+GNB 유지 뷰포트) 전용(.backRowDesktop). 모바일 2줄 중복 방지. */
+             (로고+GNB 유지 뷰포트) 전용(.backRowDesktop). 모바일 2줄 중복 방지.
+             title 지정 시 '< 뒤로' 옆에 페이지 제목을 한 줄로(.backTitle 18px/800·파란 b — 원장
+             답변 헤더 등). 모바일은 헤더(로고 자리)의 backHeaderTitle 이 담당. */
           <div className={`${styles.backRow} ${styles.backRowDesktop}`}>
             <BackButton fallbackHref={backHeader.fallbackHref ?? ROUTES.feed} />
+            {backHeader.title && (
+              <div className={styles.backTitle}>{backHeader.title}</div>
+            )}
           </div>
         ) : null}
 
