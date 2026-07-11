@@ -45,6 +45,15 @@ const DEVICE_LABEL: Record<string, string> = { mobile: "모바일", tablet: "태
 const OS_LABEL: Record<string, string> = { ios: "iOS", android: "Android", windows: "Windows", macos: "macOS", other: "기타" };
 const INAPP_LABEL: Record<string, string> = { kakaotalk: "카카오톡 인앱", instagram: "인스타 인앱", facebook: "페북 인앱", naver: "네이버 인앱", line: "라인 인앱" };
 
+/** URL 인코딩된 경로를 한글 등 원문으로 디코딩해 표시(예: /topics/%EC%A0%9C%EB%AA%A8 → /topics/제모). */
+function decodePath(p: string): string {
+  try {
+    return decodeURIComponent(p);
+  } catch {
+    return p;
+  }
+}
+
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ border: "1px solid var(--line)", borderRadius: 14, background: "#fff", padding: 14 }}>
@@ -127,7 +136,7 @@ export default function TrafficPanel({ dataByDays }: { dataByDays: Record<number
             </Card>
             <Card>
               <SubHead>상위 랜딩 페이지</SubHead>
-              <List rows={(t.top_landings ?? []).map((r) => ({ k: r.path, v: r.count }))} empty="—" />
+              <List rows={(t.top_landings ?? []).map((r) => ({ k: decodePath(r.path), v: r.count }))} empty="—" />
             </Card>
           </div>
 
