@@ -25,21 +25,30 @@ export default function LandingTracker() {
       return; // sessionStorage 불가(사생활 모드 등)면 조용히 skip
     }
 
-    const payload = JSON.stringify({
-      path: window.location.pathname,
-      referrer: document.referrer || "",
-      search: window.location.search || "",
-      isMember: !!session,
-    });
+    // referrer/path/search 는 진입 직후 값으로 즉시 캡처(await 뒤에도 불변 — SPA 이동 전이라 안전).
+    const path = window.location.pathname;
+    const referrer = document.referrer || "";
+    const search = window.location.search || "";
+    const isMember = !!session;
 
-    // keepalive: 진입 직후 이탈해도 전송 보장. 실패는 무시.
-    void fetch("/api/landing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: payload,
-      keepalive: true,
-      cache: "no-store",
-    }).catch(() => {});
+    // 네이티브(Capacitor) 앱 여부 감지 후 전송 — 앱 유입을 "앱" 채널로 분리(기존 Native* 컴포넌트 패턴).
+    void (async () => {
+      let isApp = false;
+      try {
+        const { Capacitor } = await import("@capacitor/core");
+        isApp = Capacitor.isNativePlatform();
+      } catch {
+        /* 웹 — @capacitor/core 없거나 브라우저면 앱 아님 */
+      }
+      // keepalive: 진입 직후 이탈해도 전송 보장. 실패는 무시.
+      void fetch("/api/landing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, referrer, search, isMember, isApp }),
+        keepalive: true,
+        cache: "no-store",
+      }).catch(() => {});
+    })();
     // 마운트 1회만 — session 늦게 확정돼도 재전송 안 함(is_member 는 참고값).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

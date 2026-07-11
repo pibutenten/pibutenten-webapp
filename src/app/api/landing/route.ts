@@ -58,6 +58,7 @@ export async function POST(req: Request) {
       referrer?: string;
       search?: string;
       isMember?: boolean;
+      isApp?: boolean;
     };
 
     // 랜딩 경로 — 우리 사이트 내부 경로만(방어). 없거나 이상하면 "/".
@@ -76,7 +77,10 @@ export async function POST(req: Request) {
     const utmTerm = clip(params.get("utm_term"), 150);
     const utmContent = clip(params.get("utm_content"), 150);
 
-    const channel = classifyChannel({ host, inApp, utmSource, utmMedium });
+    // 네이티브 앱(Capacitor) 진입은 referrer/UTM 과 무관하게 "앱" 채널로 분리(클라가 확정 전달).
+    const channel = body.isApp === true
+      ? "app"
+      : classifyChannel({ host, inApp, utmSource, utmMedium });
 
     const h = req.headers;
     const country = clip(h.get("x-vercel-ip-country"), 8);

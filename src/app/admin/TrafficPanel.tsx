@@ -119,8 +119,8 @@ export default function TrafficPanel({ dataByDays }: { dataByDays: Record<number
             </div>
           </Card>
 
-          {/* 상위 유입처 + 상위 랜딩 (2단) */}
-          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+          {/* 상위 유입처 + 상위 랜딩 (데스크탑 2단, 모바일 1단 — auto-fit 반응형) */}
+          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
             <Card>
               <SubHead>상위 유입처 (도메인)</SubHead>
               <List rows={(t.top_referrers ?? []).map((r) => ({ k: r.host, v: r.count }))} empty="직접 방문만 있어요" />
@@ -131,8 +131,8 @@ export default function TrafficPanel({ dataByDays }: { dataByDays: Record<number
             </Card>
           </div>
 
-          {/* 기기 / OS / 인앱 (3단) */}
-          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr 1fr" }}>
+          {/* 기기 / OS / 인앱 (데스크탑 3단, 모바일 1~2단 — auto-fit 반응형) */}
+          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
             <Card>
               <SubHead>기기</SubHead>
               <List rows={(t.by_device ?? []).map((r) => ({ k: DEVICE_LABEL[r.device] ?? r.device, v: r.count }))} empty="—" />
