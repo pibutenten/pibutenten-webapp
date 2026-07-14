@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-07-14] — PubMed 시술 사전을 AI 발행 파이프라인(Stage 1·2)에 배선
+
+### Added
+- **개발자 핸드오프 문서** `docs/SEO-EEAT-PubMed-검수시스템 (개발자 핸드오프).md` (원장 요청 — 타 웹사이트 이식용): Q&A SEO/AEO/GEO·원장 EEAT(Person 스키마·저자 앵커)·PubMed 자동첨부 파이프라인·검수날짜("마지막 검수일=배포일", lastReviewed) 4개 시스템의 스키마·JSON-LD·알고리즘·이식 레시피를 실제 코드 기준으로 정리. 4-date 모델(정책 문서 서술 vs 화면 1개 노출)은 의도된 설계로 명기.
+
+### Changed
+- **PubMed 시술 사전(`tag_dictionary.pubmed_keywords`, canonical 217/별칭 포함 477개) 활용** (원장 요청 — 그동안 유지만 되고 라이브 첨부 흐름에 미연결이던 사전을 실제 배선). 두 지점 동시:
+  - **Stage 1 프롬프트 SSOT 통일** (`src/lib/ai/step1.ts` · `src/lib/ai/prompts/step1_v5.md`): 하드코딩 시술/제품명 표(23개) → `{{PUBMED_PROCEDURE_DICT}}` placeholder. `buildPubmedDictTable()`(모듈 로드 1회)가 `getPubmedDict()`를 markdown 표로 직렬화해 주입 → 새 시술은 DB 사전에만 추가하면 프롬프트 자동 반영(해부학/개념 표는 사전 미포함이라 하드코딩 유지). placeholder 부재 시 replace no-op + `console.warn`, 셀 파이프 이스케이프.
+  - **Stage 2 검색 fallback** (`src/app/api/admin/draft/step2/route.ts` · `src/app/admin/draft/DraftClient.tsx`): 카드 태그(한글)를 `normalizeTags` 후 `pubmedKeywordsFor()`로 조회. LLM 검색어(카드 특이적) 앞 + 사전 검색어 뒤(fallback) — `fetchPubmedCandidates`가 first-hit-wins라 특이성 우선·무히트 시 결정론적 확보, 기존 대비 회귀 없음. 사전 검색어 카드당 상한 `MAX_DICT_KEYWORDS=8`(PubMed 순차호출 폭주 방지). DraftClient step2 페이로드에 `keywords` 추가.
+- code-reviewer 검수 **치명 0**(권장·사소 반영: 상한·태그 정규화·파이프 이스케이프·placeholder 가드). `tsc --noEmit` · `npm run build` 통과. 마이그레이션 없음(기존 빌드 스냅샷 사용).
+
+---
+
 ## [2026-07-11] — 관리자 대시보드 '유입 검색어'(구글 서치콘솔) 연동
 
 ### Added

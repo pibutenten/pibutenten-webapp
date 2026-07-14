@@ -12,9 +12,27 @@ import { getEnv } from "./env-fallback";
 import { extractJson } from "./extract-json";
 import { loadSystemPrompt } from "./load-prompt";
 import { MODEL_ID } from "./pricing";
+import { getPubmedDict } from "@/lib/procedure-dict";
 
 const MODEL = MODEL_ID;
 const MAX_TOKENS = 8192;
+
+/**
+ * DB 시술 사전(tag_dictionary.pubmed_keywords)을 프롬프트용 markdown 표로 직렬화.
+ *   step1_v5.md 의 `{{PUBMED_PROCEDURE_DICT}}` 자리에 주입 → 하드코딩 표 폐기, DB 단일 SSOT.
+ *   빌드타임 스냅샷(tag-dictionary.generated.json) 기준이라 동기·불변 → 모듈 로드 시 1회 계산.
+ */
+function buildPubmedDictTable(): string {
+  const esc = (s: string) => s.replace(/\|/g, "\\|"); // 셀 내 파이프가 표를 깨지 않도록
+  const dict = getPubmedDict();
+  const rows = Object.entries(dict)
+    .filter(([ko, qs]) => ko && Array.isArray(qs) && qs.length > 0)
+    .sort(([a], [b]) => a.localeCompare(b, "ko"))
+    .map(([ko, qs]) => `| ${esc(ko)} | ${esc(qs.join("; "))} |`);
+  if (!rows.length) return "(사전 비어 있음 — 자체 의학 지식으로 검색어 작성)";
+  return ["| 한국어 | 영문 검색 키워드 |", "|---|---|", ...rows].join("\n");
+}
+const PUBMED_DICT_TABLE = buildPubmedDictTable();
 
 export type DraftCard = {
   // P2-4 (2026-05-27): AI 파이프라인도 title/body 통일 (옛 question/answer 폐기).
@@ -200,7 +218,18 @@ export async function runStep1(opts: {
   if (!opts.transcript || opts.transcript.trim().length < 100) {
     throw new Error("Transcript is too short for Step1");
   }
-  const system = loadSystemPrompt("step1_v5.md");
+  // DB 시술 사전을 프롬프트에 주입. placeholder 부재 시 replace 는 no-op(안전)이나,
+  // 그 경우 사전이 조용히 빠지므로 개발/운영 로그로 감지 (step1_v5.md ↔ 이 리터럴 dual-SSOT).
+  const rawPrompt = loadSystemPrompt("step1_v5.md");
+  if (!rawPrompt.includes("{{PUBMED_PROCEDURE_DICT}}")) {
+    console.warn(
+      "[step1] {{PUBMED_PROCEDURE_DICT}} placeholder 없음 — 시술 사전 미주입 (step1_v5.md 확인)",
+    );
+  }
+  const system = rawPrompt.replace(
+    "{{PUBMED_PROCEDURE_DICT}}",
+    PUBMED_DICT_TABLE,
+  );
   const user = buildUserMessage(opts);
 
   const client = new Anthropic({ apiKey });

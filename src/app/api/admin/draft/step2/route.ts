@@ -27,6 +27,7 @@ import {
   normalizePubmedRefWire,
   type PubmedRefObj,
 } from "@/lib/schema/api/articles";
+import { pubmedKeywordsFor, normalizeTags } from "@/lib/procedure-dict";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 카드 N개 * (PubMed ~3s + LLM ~10s) = 카드별 ~15s
@@ -36,7 +37,43 @@ type CardIn = {
   title: string;
   body: string;
   pubmed_search_keywords: string[];
+  keywords?: string[]; // 카드 태그(한글) — 시술 사전 검색어 보강용 (2026-07-14)
 };
+
+/** 대소문자·공백 무시 중복 제거(원문 보존). */
+function dedupeKeywords(list: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of list) {
+    const k = (raw || "").trim();
+    if (!k) continue;
+    const key = k.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(k);
+  }
+  return out;
+}
+
+/** 사전 fallback 검색어 카드당 상한 — PubMed 순차호출(각 재시도·타임아웃) 폭주 방지. */
+const MAX_DICT_KEYWORDS = 8;
+
+/**
+ * PubMed 검색어 = LLM 검색어(카드 특이적) + 시술 사전 검색어(전문가 큐레이션).
+ *   fetchPubmedCandidates 는 first-hit-wins 이므로 LLM 검색어를 앞에 두어 특이성 우선,
+ *   사전 검색어는 뒤에 두어 "LLM 검색어가 부실/무히트여도" 결정론적으로 후보 확보(fallback).
+ *   카드 태그(한글)를 정규화(별칭·표기 흡수) 후 tag_dictionary.pubmed_keywords 로 조회.
+ *   (2026-07-14 사전 활용)
+ */
+function effectiveKeywords(llmKeywords: string[], tags: string[]): string[] {
+  const dictKws: string[] = [];
+  for (const t of normalizeTags(tags)) {
+    const found = pubmedKeywordsFor(t);
+    if (found) dictKws.push(...found);
+  }
+  const cappedDict = dedupeKeywords(dictKws).slice(0, MAX_DICT_KEYWORDS);
+  return dedupeKeywords([...llmKeywords, ...cappedDict]);
+}
 
 export async function POST(req: Request) {
   const guard = await requireAdmin();
@@ -90,9 +127,12 @@ export async function POST(req: Request) {
   let totalCalls = 0;
 
   for (const c of cards) {
-    const kws = Array.isArray(c.pubmed_search_keywords)
+    const llmKws = Array.isArray(c.pubmed_search_keywords)
       ? c.pubmed_search_keywords
       : [];
+    const tags = Array.isArray(c.keywords) ? c.keywords : [];
+    // LLM 검색어 + 시술 사전 검색어(fallback). 사전은 카드 태그로 조회.
+    const kws = effectiveKeywords(llmKws, tags);
     // 카드별 try/catch — 한 카드의 PubMed/LLM 실패가 전체 응답을 막지 않도록 격리.
     // NCBI 타임아웃·rate limit·Anthropic 일시 오류에서도 다음 카드는 계속 처리.
     let candidates: Awaited<ReturnType<typeof fetchPubmedCandidates>> = [];

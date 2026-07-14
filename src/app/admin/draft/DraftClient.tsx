@@ -359,6 +359,7 @@ export default function DraftClient() {
             title: c.title,
             body: c.body,
             pubmed_search_keywords: c.pubmedSearchKeywords,
+            keywords: c.keywords, // 시술 사전 검색어 보강용 태그 (2026-07-14)
           })),
           retmax: 8,
         }),
