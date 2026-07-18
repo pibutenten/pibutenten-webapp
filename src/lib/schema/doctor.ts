@@ -1,6 +1,7 @@
 import { SITE_URL } from "@/lib/site";
 import {
   asDoctorProfileData,
+  getDoctorPapers,
   profileSameAs,
   type DoctorProfileData,
 } from "@/lib/doctor-profile";
@@ -161,21 +162,34 @@ export function buildDoctorFull(d: DoctorBasic): Record<string, unknown> {
 }
 
 /**
- * 의사 대표 논문(PMID) → ScholarlyArticle 노드 배열.
- * 화면 비노출 — /doctors/[slug] 페이지 @graph 에 주입해 "의사 = 실제 PubMed 논문 저자"
- * 그래프를 봇에게 제공(GEO A3). 제목 등 콘텐츠는 넣지 않고 식별자·author 관계만(비가시 마크업 위험 최소화).
+ * 의사 대표 논문 → ScholarlyArticle 노드 배열.
+ * /doctors/[slug] 페이지 @graph 에 주입해 "의사 = 실제 PubMed 논문 저자" 그래프를 봇에 제공(GEO A3).
+ * 제목(name)·연도(datePublished)·저널(isPartOf)을 포함 — 같은 페이지 "대표 논문" 섹션에 실제
+ * 표시되므로 비가시 마크업이 아님(2026-07-18, 구 PMID-only 설계에서 승격). 구 데이터로 title 이
+ * 비어 있으면 식별자·author 관계만 출력(빈 name 미출력).
  */
 export function buildDoctorScholarlyArticles(
   d: DoctorBasic,
 ): Record<string, unknown>[] {
   const profile: DoctorProfileData = asDoctorProfileData(d.profile_data);
-  return (profile.pmids ?? []).map((pmid) => ({
-    "@type": "ScholarlyArticle",
-    "@id": `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
-    url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
-    identifier: { "@type": "PropertyValue", propertyID: "PMID", value: pmid },
-    author: { "@id": doctorPersonId(d.slug) },
-  }));
+  return getDoctorPapers(profile).map((paper) => {
+    const node: Record<string, unknown> = {
+      "@type": "ScholarlyArticle",
+      "@id": `https://pubmed.ncbi.nlm.nih.gov/${paper.pmid}/`,
+      url: `https://pubmed.ncbi.nlm.nih.gov/${paper.pmid}/`,
+      identifier: {
+        "@type": "PropertyValue",
+        propertyID: "PMID",
+        value: paper.pmid,
+      },
+      author: { "@id": doctorPersonId(d.slug) },
+    };
+    if (paper.title) node.name = paper.title;
+    if (paper.year) node.datePublished = String(paper.year);
+    if (paper.journal)
+      node.isPartOf = { "@type": "Periodical", name: paper.journal };
+    return node;
+  });
 }
 
 /**

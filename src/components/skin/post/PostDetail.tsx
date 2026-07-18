@@ -14,7 +14,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import CardAvatar from "@/components/card/CardAvatar";
 import { getDoctorPhoto } from "@/lib/doctor-theme";
-import { orcidUrl, type DoctorProfileData } from "@/lib/doctor-profile";
+import {
+  getDoctorPapers,
+  orcidUrl,
+  type DoctorProfileData,
+} from "@/lib/doctor-profile";
 import type { CardData } from "@/lib/types/card";
 import AppShell from "../AppShell";
 import styles from "../app.module.css";
@@ -219,7 +223,11 @@ function buildProfileLinks(p: DoctorProfileData) {
 }
 /** "더보기"에 보여줄 확장 프로필이 실제로 하나라도 있는지(빈 더보기 방지). */
 function profileHasContent(p: DoctorProfileData): boolean {
-  return buildProfileRows(p).length > 0 || buildProfileLinks(p).length > 0;
+  return (
+    buildProfileRows(p).length > 0 ||
+    getDoctorPapers(p).length > 0 ||
+    buildProfileLinks(p).length > 0
+  );
 }
 
 /**
@@ -239,9 +247,11 @@ function DoctorProfileDetail({
     ? [{ title: "소속", values: [affiliation] }, ...buildProfileRows(profile)]
     : buildProfileRows(profile);
   const links = buildProfileLinks(profile);
+  // 대표 논문 — DoctorProfileView 와 동일 마크업(제목→PubMed 링크·저널 인라인). 정합 유지.
+  const papers = getDoctorPapers(profile);
   return (
     <div className={styles.profileDetail}>
-      {rows.length > 0 && (
+      {(rows.length > 0 || papers.length > 0) && (
         <dl className={styles.profileDl}>
           {rows.map((r) => (
             <div className={styles.profileRow} key={r.title}>
@@ -253,6 +263,37 @@ function DoctorProfileDetail({
               </dd>
             </div>
           ))}
+          {papers.length > 0 && (
+            <div className={styles.profileRow} key="__papers">
+              <dt>대표 논문</dt>
+              <dd>
+                {papers.map((p) => (
+                  <span key={p.pmid}>
+                    <a
+                      href={`https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ color: "var(--tt-blue)" }}
+                    >
+                      {p.title || `PMID ${p.pmid}`}
+                    </a>
+                    {(p.journal || p.year) && (
+                      <span
+                        style={{
+                          color: "var(--text-muted)",
+                          display: "inline",
+                        }}
+                      >
+                        {" · "}
+                        {[p.journal, p.year].filter(Boolean).join(" ")}
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          )}
         </dl>
       )}
       {links.length > 0 && (

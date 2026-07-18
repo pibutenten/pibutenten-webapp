@@ -1,4 +1,20 @@
 /**
+ * 원장 대표 논문 1건 (PubMed 기반).
+ * title/journal/year 는 PubMed esummary 기준 정규값 — 화면 "대표 논문" 표시 +
+ * ScholarlyArticle JSON-LD(name·datePublished·isPartOf) 양쪽에 사용.
+ */
+export type DoctorPaper = {
+  /** PubMed ID (숫자 문자열) */
+  pmid: string;
+  /** 논문 제목 (PubMed 정규 표기) */
+  title: string;
+  /** 저널 약어 (예: "JAMA Dermatol") */
+  journal?: string;
+  /** 발행 연도 (예: 2021) */
+  year?: number;
+};
+
+/**
  * 의사 프로필 확장 데이터 (`doctors.profile_data` JSONB).
  *
  * 운영팀이 Supabase Studio 또는 admin/users/[id] 페이지에서 입력.
@@ -30,7 +46,16 @@ export type DoctorProfileData = {
   orcid?: string;
   /** Google Scholar 프로필 URL — sameAs 매핑 */
   googleScholarUrl?: string;
-  /** 대표 논문 PubMed ID 배열 (화면 비노출 — ScholarlyArticle JSON-LD 전용, GEO 저자-논문 그래프) */
+  /**
+   * 대표 논문 — 원장 프로필 페이지 "대표 논문"으로 표시 +
+   * ScholarlyArticle JSON-LD(제목·연도·저널 포함, GEO 저자-논문 그래프).
+   * 읽기는 항상 getDoctorPapers() 경유(구 pmids fallback 포함).
+   */
+  papers?: DoctorPaper[];
+  /**
+   * @deprecated 구 PMID-only 배열 (제목·연도 없음). 2026-07-18 papers 로 승격.
+   * 읽기 fallback 용으로만 타입에 유지 — 신규 저장은 papers 로만. getDoctorPapers() 참조.
+   */
   pmids?: string[];
   /** 학회 임원직 (예: "대한피부과의사회 홍보간사") — 화면 "학회 활동" + memberOf(OrganizationRole) */
   societyRoles?: string[];
@@ -47,6 +72,17 @@ export function orcidUrl(p: DoctorProfileData): string | null {
 export function asDoctorProfileData(raw: unknown): DoctorProfileData {
   if (!raw || typeof raw !== "object") return {};
   return raw as DoctorProfileData;
+}
+
+/**
+ * 대표 논문 목록 — 화면 표시·ScholarlyArticle JSON-LD 의 단일 진입점.
+ * papers 우선. 구 pmids(제목 없음)만 있으면 title 빈 값으로 변환(fallback).
+ */
+export function getDoctorPapers(p: DoctorProfileData): DoctorPaper[] {
+  if (p.papers && p.papers.length > 0) return p.papers;
+  if (p.pmids && p.pmids.length > 0)
+    return p.pmids.map((pmid) => ({ pmid, title: "" }));
+  return [];
 }
 
 /**

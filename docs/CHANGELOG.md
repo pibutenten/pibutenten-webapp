@@ -6,6 +6,19 @@
 
 ---
 
+## [2026-07-18] — 원장 대표 논문 제목·저널·연도 표시 (pmids → papers 승격)
+
+### Changed
+- **원장 대표 논문을 `pmids: string[]`(PMID 숫자만) → `papers: {pmid, title, journal?, year?}[]` 로 승격** (원장 지적 반영 — "PMID만 있고 제목·연도가 비어 검색엔진/AI가 제목 없는 논문으로 인식"). 마이그 0358 로 9명 전원 백필(PubMed esummary 정규 제목·저널·연도). 코드 SSOT `src/lib/doctor-profile.ts`: `DoctorPaper` 타입·`getDoctorPapers()` 헬퍼(papers 우선, 구 pmids 읽기 fallback)·`papers` 필드 추가(`pmids` 는 `@deprecated` 읽기 fallback 용으로만 타입 유지).
+  - **JSON-LD 강화** (`src/lib/schema/doctor.ts` `buildDoctorScholarlyArticles`): `ScholarlyArticle` 노드에 `name`(제목)·`datePublished`(연도)·`isPartOf`(저널 Periodical) 추가. 구 "제목 미포함(비가시 마크업 회피)" 설계에서 승격 — 같은 `/doctors/[slug]` 페이지에 "대표 논문"이 **실제 표시**되므로 비가시 마크업 아님.
+  - **화면 표시**: `/doctors/[slug]` 프로필 카드(`DoctorProfileView`)와 글 상세 작성자 카드(`PostDetail`) 양쪽 확장 프로필에 "대표 논문" 행(제목→PubMed 링크 + 저널·연도). 두 병렬 구현 정합 유지(`profileHasContent`/`hasProfileDetail` 에 papers 포함).
+  - **관리자 편집**(`DoctorProfileEditForm`): 단순 PMID 배열 → 논문 전용 에디터(PMID·제목·저널·연도, 제목 필수·중복 PMID 제거). API zod(`profile/route.ts`)도 `papers` 객체 배열 검증으로 교체.
+- **부수 데이터 교정**: 박효진 원장 대표 논문 PMID `37222165` 가 피부과 논문이 아니라 『Soft Matter』(고분자 물리) 논문으로 확인 → 제거하고 정상 Park HJ 논문 2편(`37853865`·`36198635`)으로 교체. 나머지 8명 24편은 PubMed 대조 결과 이상 없음.
+- **ORCID 지적은 미반영**(코드 검증 결과 오진): "ORCID 가 숫자만 저장돼 sameAs 에 그대로 들어가 무효"라는 지적은, `orcidUrl()` 이 저장된 bare iD 를 `https://orcid.org/…` 전체 URL 로 감싸 sameAs·identifier 에 출력하므로 실제로는 정상. 배포 페이지 JSON-LD 실측 확인(전체 URL 출력). 저장을 URL 로 바꾸면 zod 정규식 위반·이중 접두어 버그 유발이라 현행 유지.
+- code-reviewer 검수 **[치명] 1건 반영**(PostDetail 미러에 papers 누락 → 정합 복원) + [경고] 반영(저널·연도 인라인 `display:inline` — `.profileRow dd span{display:block}` 자손 선택자 회피). `tsc --noEmit`·`npm run build` 통과.
+
+---
+
 ## [2026-07-14] — PubMed 시술 사전을 AI 발행 파이프라인(Stage 1·2)에 배선
 
 ### Added

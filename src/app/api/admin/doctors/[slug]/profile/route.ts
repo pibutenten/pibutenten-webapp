@@ -63,7 +63,20 @@ const ProfileDataSchema = z
       .regex(/^\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$/)
       .optional(),
     googleScholarUrl: z.string().url().max(500).optional(),
-    pmids: z.array(z.string().regex(/^\d{1,12}$/)).max(10).optional(),
+    // 대표 논문 — pmid+title 필수, journal/year 선택 (2026-07-18 pmids 승격).
+    papers: z
+      .array(
+        z
+          .object({
+            pmid: z.string().regex(/^\d{1,12}$/),
+            title: z.string().min(1).max(500),
+            journal: z.string().min(1).max(200).optional(),
+            year: z.number().int().gte(1900).lte(2100).optional(),
+          })
+          .strict(),
+      )
+      .max(10)
+      .optional(),
     societyRoles: z.array(z.string().min(1).max(200)).max(20).optional(),
     boardCertifiedYear: z.number().int().gte(1900).lte(2100).optional(),
   })

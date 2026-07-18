@@ -3,7 +3,11 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { pickErrorMessage } from "@/lib/api-error";
-import type { DoctorProfileData } from "@/lib/doctor-profile";
+import {
+  getDoctorPapers,
+  type DoctorPaper,
+  type DoctorProfileData,
+} from "@/lib/doctor-profile";
 import { CLINIC_BRANCHES } from "@/lib/clinic-branches";
 
 /** 원장 운영 설정 초기값 (0341: clinic_id·is_affiliated·is_listed). */
@@ -22,6 +26,9 @@ type Props = {
   settings: DoctorSettings;
 };
 
+/** 논문 편집 행 — year 는 폼에선 문자열(입력), 저장 시 number 변환. */
+type PaperRow = { pmid: string; title: string; journal: string; year: string };
+
 type FormState = {
   education: string[];
   career: string[];
@@ -29,7 +36,7 @@ type FormState = {
   memberOf: string[];
   societyRoles: string[];
   publications: string[];
-  pmids: string[];
+  papers: PaperRow[];
   orcid: string;
   googleScholarUrl: string;
   youtube: string;
@@ -50,7 +57,6 @@ const ARRAY_FIELDS = [
   "memberOf",
   "societyRoles",
   "publications",
-  "pmids",
 ] as const;
 
 const STRING_FIELDS = [
@@ -99,11 +105,6 @@ const ARRAY_LABELS: Record<ArrayField, { label: string; helper: string; placehol
     helper: "예: 『피부과학 임상 가이드』 공저 (2022)",
     placeholder: "저서·논문 제목",
     multiline: true,
-  },
-  pmids: {
-    label: "대표 논문 (PMID)",
-    helper: "PubMed 번호만. 화면 비노출 — 검색·AI 인용용 (예: 28355423)",
-    placeholder: "숫자만 (예: 28355423)",
   },
 };
 
@@ -169,7 +170,17 @@ function toFormState(d: DoctorProfileData): FormState {
     memberOf: d.memberOf?.length ? [...d.memberOf] : [""],
     societyRoles: d.societyRoles?.length ? [...d.societyRoles] : [""],
     publications: d.publications?.length ? [...d.publications] : [""],
-    pmids: d.pmids?.length ? [...d.pmids] : [""],
+    papers: (() => {
+      const ps = getDoctorPapers(d);
+      return ps.length
+        ? ps.map((p) => ({
+            pmid: p.pmid,
+            title: p.title,
+            journal: p.journal ?? "",
+            year: p.year ? String(p.year) : "",
+          }))
+        : [{ pmid: "", title: "", journal: "", year: "" }];
+    })(),
     orcid: d.orcid ?? "",
     googleScholarUrl: d.googleScholarUrl ?? "",
     youtube: d.youtube ?? "",
@@ -203,6 +214,24 @@ function cleanState(s: FormState): DoctorProfileData {
   if (Number.isFinite(year) && year >= 1900 && year <= 2100) {
     out.boardCertifiedYear = year;
   }
+  // 대표 논문 — pmid(숫자 1~12자)+title 필수 행만. journal·year 선택. 같은 pmid 중복 제거
+  //   (React key·JSON-LD @id 충돌 방지 — 첫 행 우선).
+  const papers: DoctorPaper[] = [];
+  const seenPmids = new Set<string>();
+  for (const r of s.papers) {
+    const pmid = r.pmid.trim();
+    const title = r.title.trim();
+    if (!/^\d{1,12}$/.test(pmid) || title.length === 0) continue;
+    if (seenPmids.has(pmid)) continue;
+    seenPmids.add(pmid);
+    const paper: DoctorPaper = { pmid, title };
+    const journal = r.journal.trim();
+    if (journal) paper.journal = journal;
+    const py = parseInt(r.year.trim(), 10);
+    if (Number.isFinite(py) && py >= 1900 && py <= 2100) paper.year = py;
+    papers.push(paper);
+  }
+  if (papers.length > 0) out.papers = papers;
   return out;
 }
 
@@ -217,6 +246,19 @@ function statesEqual(a: FormState, b: FormState): boolean {
     if (a[k] !== b[k]) return false;
   }
   if (a.boardCertifiedYear !== b.boardCertifiedYear) return false;
+  if (a.papers.length !== b.papers.length) return false;
+  for (let i = 0; i < a.papers.length; i++) {
+    const pa = a.papers[i];
+    const pb = b.papers[i];
+    if (
+      pa.pmid !== pb.pmid ||
+      pa.title !== pb.title ||
+      pa.journal !== pb.journal ||
+      pa.year !== pb.year
+    ) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -257,6 +299,32 @@ export default function DoctorProfileEditForm({
 
   function updateString(field: StringField, value: string) {
     setState((s) => ({ ...s, [field]: value }));
+  }
+
+  function updatePaper(idx: number, key: keyof PaperRow, value: string) {
+    setState((s) => {
+      const next = s.papers.map((p, i) =>
+        i === idx ? { ...p, [key]: value } : p,
+      );
+      return { ...s, papers: next };
+    });
+  }
+
+  function addPaper() {
+    setState((s) => ({
+      ...s,
+      papers: [...s.papers, { pmid: "", title: "", journal: "", year: "" }],
+    }));
+  }
+
+  function removePaper(idx: number) {
+    setState((s) => {
+      const next = s.papers.filter((_, i) => i !== idx);
+      return {
+        ...s,
+        papers: next.length === 0 ? [{ pmid: "", title: "", journal: "", year: "" }] : next,
+      };
+    });
   }
 
   function save() {
@@ -374,6 +442,85 @@ export default function DoctorProfileEditForm({
           </div>
         );
       })}
+
+      {/* 대표 논문 — PMID·제목 필수, 저널·연도 선택. 프로필 "대표 논문" 표시 + ScholarlyArticle JSON-LD. */}
+      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
+        <div className="mb-2 flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-bold text-[var(--text)]">대표 논문</h2>
+          <span className="text-[11px] text-[var(--text-muted)]">
+            PMID·제목 필수 · 저널·연도 선택 (PubMed 기준). 원장 프로필에 표시됩니다.
+          </span>
+        </div>
+        <div className="space-y-3">
+          {state.papers.map((row, idx) => (
+            <div
+              key={idx}
+              className="flex items-start gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-soft)] p-3"
+            >
+              <div className="flex-1 space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={row.pmid}
+                    onChange={(e) => updatePaper(idx, "pmid", e.target.value)}
+                    placeholder="PMID"
+                    disabled={pending}
+                    className="h-9 w-[120px] shrink-0 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={row.title}
+                    onChange={(e) => updatePaper(idx, "title", e.target.value)}
+                    placeholder="논문 제목"
+                    disabled={pending}
+                    className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={row.journal}
+                    onChange={(e) => updatePaper(idx, "journal", e.target.value)}
+                    placeholder="저널 (예: JAMA Dermatol)"
+                    disabled={pending}
+                    className="h-9 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                  />
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={row.year}
+                    onChange={(e) => updatePaper(idx, "year", e.target.value)}
+                    placeholder="연도"
+                    min={1900}
+                    max={2100}
+                    disabled={pending}
+                    className="h-9 w-[100px] shrink-0 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => removePaper(idx)}
+                disabled={pending}
+                aria-label="논문 삭제"
+                title="삭제"
+                className="h-9 w-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--border)] text-[var(--text-muted)] hover:border-red-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={addPaper}
+          disabled={pending}
+          className="mt-3 inline-flex h-8 items-center rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] px-3 text-xs text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:cursor-not-allowed"
+        >
+          + 논문 추가
+        </button>
+      </div>
 
       <div className="rounded-[var(--radius)] border border-[var(--border)] bg-white p-5">
         <h2 className="mb-1 text-sm font-bold text-[var(--text)]">
