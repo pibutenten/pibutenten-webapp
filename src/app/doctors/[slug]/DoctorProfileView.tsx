@@ -24,11 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import type { CardData } from "@/components/Card";
 import { CARD_BUS_EVENTS } from "@/components/card/hooks/useCardBus";
-import {
-  getDoctorPapers,
-  orcidUrl,
-  type DoctorProfileData,
-} from "@/lib/doctor-profile";
+import { orcidUrl, type DoctorProfileData } from "@/lib/doctor-profile";
 import type { DoctorTheme } from "@/lib/doctor-theme";
 import type { ViewerState } from "@/components/skin/ui";
 import {
@@ -435,9 +431,7 @@ function DoctorProfileCard({
   if (profile.publications && profile.publications.length > 0)
     items.push({ title: "출판·저서", values: profile.publications });
 
-  // 대표 논문 — PubMed 링크(제목·저널·연도). dl 에 "대표 논문" 행으로 노출.
-  //   이 표시가 /doctors/[slug] 페이지 ScholarlyArticle JSON-LD(제목 포함)의 가시 근거.
-  const papers = getDoctorPapers(profile);
+  // 대표 논문(papers)은 화면 미노출 — ScholarlyArticle JSON-LD(schema/doctor.ts) 전용(2026-07-18).
 
   // 외부 링크 — 병원 홈페이지·SNS·학술 프로필 (노출 우선순위 정렬)
   const externalLinks: { label: string; url: string }[] = [];
@@ -455,8 +449,7 @@ function DoctorProfileCard({
     externalLinks.push({ label: "Google Scholar", url: profile.googleScholarUrl });
 
   // 더보기로 펼칠 확장 프로필이 실제로 있는지(빈 더보기 방지) — PostDetail 의 hasProfileDetail 정합.
-  const hasProfileDetail =
-    items.length > 0 || papers.length > 0 || externalLinks.length > 0;
+  const hasProfileDetail = items.length > 0 || externalLinks.length > 0;
 
   // 원장명 heading — 사이드바판은 h1(페이지 유일 H1), 모바일 본문판은 h2(중복 H1 방지).
   const NameHeading = headingTag;
@@ -514,7 +507,7 @@ function DoctorProfileCard({
       {profileOpen && hasProfileDetail && (
         <div className={styles.authorIntro}>
           <div className={styles.profileDetail}>
-            {(items.length > 0 || papers.length > 0) && (
+            {items.length > 0 && (
               <dl className={styles.profileDl}>
                 {items.map((it) => (
                   <div className={styles.profileRow} key={it.title}>
@@ -526,37 +519,6 @@ function DoctorProfileCard({
                     </dd>
                   </div>
                 ))}
-                {papers.length > 0 && (
-                  <div className={styles.profileRow} key="__papers">
-                    <dt>대표 논문</dt>
-                    <dd>
-                      {papers.map((p) => (
-                        <span key={p.pmid}>
-                          <a
-                            href={`https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ color: "var(--tt-blue)" }}
-                          >
-                            {p.title || `PMID ${p.pmid}`}
-                          </a>
-                          {(p.journal || p.year) && (
-                            <span
-                              style={{
-                                color: "var(--text-muted)",
-                                display: "inline",
-                              }}
-                            >
-                              {" · "}
-                              {[p.journal, p.year].filter(Boolean).join(" ")}
-                            </span>
-                          )}
-                        </span>
-                      ))}
-                    </dd>
-                  </div>
-                )}
               </dl>
             )}
             {externalLinks.length > 0 && (

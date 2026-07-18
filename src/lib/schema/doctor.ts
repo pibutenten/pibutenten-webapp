@@ -164,9 +164,10 @@ export function buildDoctorFull(d: DoctorBasic): Record<string, unknown> {
 /**
  * 의사 대표 논문 → ScholarlyArticle 노드 배열.
  * /doctors/[slug] 페이지 @graph 에 주입해 "의사 = 실제 PubMed 논문 저자" 그래프를 봇에 제공(GEO A3).
- * 제목(name)·연도(datePublished)·저널(isPartOf)을 포함 — 같은 페이지 "대표 논문" 섹션에 실제
- * 표시되므로 비가시 마크업이 아님(2026-07-18, 구 PMID-only 설계에서 승격). 구 데이터로 title 이
- * 비어 있으면 식별자·author 관계만 출력(빈 name 미출력).
+ * 제목(name)·연도(datePublished)·저널(isPartOf)을 포함 — 화면에는 미노출(원장 확정 2026-07-18,
+ * 프로필에 길어서 불필요) 하고 스키마 전용으로만 유지. @id 가 canonical PubMed URL 이라 봇이 원문
+ * 검증 가능한 저자-논문 엔티티라, 비노출 title 의 비가시 마크업 위험은 낮게 판단(리치결과 대상
+ * 타입도 아님). 구 데이터로 title 이 비어 있으면 식별자·author 관계만 출력(빈 name 미출력).
  */
 export function buildDoctorScholarlyArticles(
   d: DoctorBasic,
